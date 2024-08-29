@@ -1,0 +1,9 @@
+[package]
+name = "rts"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+rayon = "1.10.0"
+rustc-hash = "2.0.0"
+bumpalo = "3.16.0"
