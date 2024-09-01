@@ -1,19 +1,22 @@
 use super::ast;
 
-
 #[derive(Debug, Clone, Copy, Hash, PartialEq, Eq)]
 pub struct NodeID(u32);
 impl NodeID {
-  pub fn root() -> NodeID {
-    NodeID(0)
-  }
-  pub fn next(&self) -> NodeID {
-    NodeID(self.0 + 1)
-  }
+    pub(super) fn root() -> NodeID {
+        NodeID(0)
+    }
+    pub(super) fn next(&self) -> NodeID {
+        NodeID(self.0 + 1)
+    }
+    pub fn as_u32(&self) -> u32 {
+        self.0
+    }
 }
-#[derive(Clone)]
-pub enum Node<'p> {
-  Program(&'p ast::Program<'p>),
-  Stmt(&'p ast::Stmt<'p>),
-  Expr(&'p ast::Expr<'p>),
+#[derive(Clone, Debug)]
+pub enum Node<'cx> {
+    Program(&'cx ast::Program<'cx>),
+    Stmt(&'cx ast::Stmt<'cx>),
+    Expr(&'cx ast::Expr<'cx>),
+    NumLit(&'cx ast::NumLit),
 }

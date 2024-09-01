@@ -1,22 +1,35 @@
+use crate::span::Span;
+
 use super::node::NodeID;
 
 #[derive(Debug, Clone, Copy)]
-pub struct Stmt<'p> {
-    id: NodeID,
-    kind: StmtKind<'p>,
-}
-
-#[derive(Debug, Clone, Copy)]
-pub enum StmtKind<'p> {
-    ExprStmt(&'p Expr<'p>),
-}
-
-#[derive(Debug, Clone, Copy)]
-pub struct Expr<'p> {
+pub struct Program<'cx> {
     pub id: NodeID,
-    kind: ExprKind<'p>
+    pub stmts: &'cx [&'cx Stmt<'cx>],
 }
 
+#[derive(Debug, Clone, Copy)]
+pub struct Stmt<'cx> {
+    pub id: NodeID,
+    pub kind: StmtKind<'cx>,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub enum StmtKind<'cx> {
+    ExprStmt(&'cx Expr<'cx>),
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct Expr<'cx> {
+    pub id: NodeID,
+    pub kind: ExprKind<'cx>,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub enum ExprKind<'cx> {
+    BinOp(&'cx BinOpExpr<'cx>),
+    NumLit(&'cx NumLit),
+}
 
 #[derive(Debug, Clone, Copy)]
 pub enum BinOp {
@@ -27,19 +40,14 @@ pub enum BinOp {
 }
 
 #[derive(Debug, Clone, Copy)]
-pub struct BinOpExpr<'p> {
-    left: &'p Expr<'p>,
+pub struct BinOpExpr<'cx> {
+    left: &'cx Expr<'cx>,
     op: BinOp,
-    right: &'p Expr<'p>
+    right: &'cx Expr<'cx>,
 }
 
 #[derive(Debug, Clone, Copy)]
-pub enum ExprKind<'p> {
-    BinOp(&'p BinOpExpr<'p>)
-}
-
-#[derive(Debug, Clone, Copy)]
-pub struct Program<'p> {
-    pub id: NodeID,
-    pub stmts: &'p [Stmt<'p>],
+pub struct NumLit {
+    pub num: f64,
+    pub span: Span,
 }

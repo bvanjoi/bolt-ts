@@ -3,6 +3,12 @@
 version = 3
 
 [[package]]
+name = "bitflags"
+version = "2.6.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b048fb63fd8b5923fc5aa7b340d8e156aec7ec02f0c78fa8a6ddc2613f6f71de"
+
+[[package]]
 name = "bumpalo"
 version = "3.16.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -63,6 +69,7 @@ dependencies = [
 name = "rts"
 version = "0.1.0"
 dependencies = [
+ "bitflags",
  "bumpalo",
  "rayon",
  "rustc-hash",
