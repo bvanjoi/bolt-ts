@@ -1,7 +1,3 @@
-use std::ops::BitOr;
-
-use bitflags::Flags;
-
 use crate::span::Span;
 
 #[derive(Debug, Clone, Copy)]

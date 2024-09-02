@@ -8,3 +8,4 @@ rayon = "1.10.0"
 rustc-hash = "2.0.0"
 bumpalo = "3.16.0"
 bitflags = "2.6.0"
+xxhash-rust = { version = "0.8.12", features = ["xxh3", "const_xxh3"] }

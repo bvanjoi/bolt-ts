@@ -48,6 +48,7 @@ pub struct BinOpExpr<'cx> {
 
 #[derive(Debug, Clone, Copy)]
 pub struct NumLit {
+    pub id: NodeID,
     pub num: f64,
     pub span: Span,
 }

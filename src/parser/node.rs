@@ -13,7 +13,7 @@ impl NodeID {
         self.0
     }
 }
-#[derive(Clone, Debug)]
+#[derive(Debug, Clone, Copy)]
 pub enum Node<'cx> {
     Program(&'cx ast::Program<'cx>),
     Stmt(&'cx ast::Stmt<'cx>),

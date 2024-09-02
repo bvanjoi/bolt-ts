@@ -1,41 +1,45 @@
 mod ast;
+mod keyword;
 mod node;
 mod node_flags;
 mod scan;
 mod token;
 
-use ast::{Expr, NumLit, Program};
+use ast::{NumLit, Program};
+use keyword::{IDENTIFIER, KEYWORD};
 use node::{Node, NodeID};
 use rustc_hash::FxHashMap;
-use token::{Token, TokenFlags, TokenKind};
+use token::{Token, TokenKind};
 
 use crate::span::Span;
 
-pub struct NodeMap<'cx> {
-    node_map: NodeID2Node<'cx>,
-    parent_map: FxHashMap<NodeID, NodeID>,
-}
+pub struct NodeMap<'cx>(FxHashMap<NodeID, Node<'cx>>);
 
 impl<'cx> NodeMap<'cx> {
-    pub fn get(&self, id: NodeID) -> &Node<'cx> {
-        self.node_map.0.get(&id).unwrap()
+    pub fn get(&self, id: NodeID) -> Node<'cx> {
+        self.0.get(&id).copied().unwrap()
     }
 
-    pub fn parent(&self, id: NodeID) -> Option<NodeID> {
-        self.parent_map.get(&id).copied()
-    }
-}
-
-#[derive(Default, Debug)]
-pub struct NodeID2Node<'cx>(FxHashMap<NodeID, Node<'cx>>);
-impl<'cx> NodeID2Node<'cx> {
     pub fn insert(&mut self, id: NodeID, node: Node<'cx>) {
         let prev = self.0.insert(id, node);
-        assert!(prev.is_none());
+        assert!(prev.is_none())
     }
 }
 
 #[derive(Debug)]
+pub struct ParentMap(FxHashMap<NodeID, NodeID>);
+
+impl ParentMap {
+    pub fn parent(&self, id: NodeID) -> Option<NodeID> {
+        self.0.get(&id).copied()
+    }
+
+    pub fn insert(&mut self, id: NodeID, parent: NodeID) {
+        let prev = self.0.insert(id, parent);
+        assert!(prev.is_none())
+    }
+}
+
 struct AtomMap(FxHashMap<AtomId, String>);
 
 impl AtomMap {
@@ -52,25 +56,28 @@ impl AtomMap {
 #[derive(Debug, PartialEq, Eq, Hash, Clone, Copy)]
 pub struct AtomId(u64);
 
-pub struct TsParser<'cx> {
+pub struct Parser<'cx> {
     arena: &'cx bumpalo::Bump,
-    pub node_map: NodeID2Node<'cx>,
-    parent_map: FxHashMap<NodeID, NodeID>,
+    pub node_map: NodeMap<'cx>,
+    pub parent_map: ParentMap,
     next_node_id: NodeID,
     atoms: AtomMap,
 }
 
-fn alloc<T>(arena: &bumpalo::Bump, t: T) -> &T {
-    arena.alloc(t)
-}
-
-impl<'cx> TsParser<'cx> {
+impl<'cx> Parser<'cx> {
     pub fn new(ast_arena: &'cx bumpalo::Bump) -> Self {
+        let mut atoms = AtomMap(FxHashMap::default());
+        for (atom, id) in KEYWORD {
+            atoms.insert(*id, atom.to_string())
+        }
+        for (atom, id) in IDENTIFIER {
+            atoms.insert(*id, atom.to_string())
+        }
         Self {
-            node_map: NodeID2Node(FxHashMap::default()),
-            parent_map: FxHashMap::default(),
+            node_map: NodeMap(FxHashMap::default()),
+            parent_map: ParentMap(FxHashMap::default()),
             next_node_id: NodeID::root(),
-            atoms: AtomMap(FxHashMap::default()),
+            atoms,
             arena: ast_arena,
         }
     }
@@ -82,15 +89,16 @@ impl<'cx> TsParser<'cx> {
     }
 }
 
-pub struct TsParserState<'cx, 'p> {
-    p: &'p mut TsParser<'cx>,
+pub struct ParserState<'cx, 'p> {
+    p: &'p mut Parser<'cx>,
     input: &'p [u8],
     token: Token,
     pos: usize,
+    parent: NodeID,
 }
 
-impl<'cx, 'a, 'p> TsParserState<'cx, 'p> {
-    pub fn new(p: &'p mut TsParser<'cx>, input: &'p str) -> Self {
+impl<'cx, 'a, 'p> ParserState<'cx, 'p> {
+    pub fn new(p: &'p mut Parser<'cx>, input: &'p str) -> Self {
         let token = Token::new(TokenKind::EOF, Span::new(u32::MAX, u32::MAX));
         let input = input.as_bytes();
         Self {
@@ -98,17 +106,29 @@ impl<'cx, 'a, 'p> TsParserState<'cx, 'p> {
             token,
             pos: 0,
             p,
+            parent: NodeID::root(),
         }
+    }
+
+    fn alloc<T>(&self, t: T) -> &'cx T {
+        self.p.arena.alloc(t)
+    }
+
+    #[inline]
+    fn end(&self) -> usize {
+        self.input.len()
     }
 
     fn parse_stmt(&mut self) -> &'cx ast::Stmt<'cx> {
         let id = self.p.next_node_id();
-        let kind = match self.token.kind {
-            _ => ast::StmtKind::ExprStmt(self.parse_expr_or_labeled_stmt()),
-        };
-        let stmt = ast::Stmt { id, kind };
-        let stmt = alloc(self.p.arena, stmt);
-        self.p.node_map.insert(id, Node::Stmt(stmt));
+        let stmt = self.with_parent(id, |this| {
+            let kind = match this.token.kind {
+                _ => ast::StmtKind::ExprStmt(this.parse_expr_or_labeled_stmt()),
+            };
+            let stmt = this.alloc(ast::Stmt { id, kind });
+            stmt
+        });
+        self.insert_map(id, Node::Stmt(stmt));
         stmt
     }
 
@@ -161,16 +181,18 @@ impl<'cx, 'a, 'p> TsParserState<'cx, 'p> {
 
     fn parse_literal(&mut self) -> &'cx ast::Expr<'cx> {
         let id = self.p.next_node_id();
-        let kind = match self.token.kind {
-            TokenKind::Number(num) => {
-                ast::ExprKind::NumLit(self.create_numeric_literal(num, self.token.span))
-            }
-            _ => unreachable!(),
-        };
-        let expr = ast::Expr { id, kind };
-        let expr = alloc(self.p.arena, expr);
-        self.p.node_map.insert(id, Node::Expr(expr));
-        self.next_token();
+        let expr = self.with_parent(id, |this| {
+            let kind = match this.token.kind {
+                TokenKind::Number(num) => {
+                    ast::ExprKind::NumLit(this.create_numeric_literal(num, this.token.span))
+                }
+                _ => unreachable!(),
+            };
+            let expr = this.alloc(ast::Expr { id, kind });
+            this.next_token();
+            expr
+        });
+        self.insert_map(id, Node::Expr(expr));
         expr
     }
 
@@ -180,22 +202,36 @@ impl<'cx, 'a, 'p> TsParserState<'cx, 'p> {
 
     fn create_numeric_literal(&mut self, num: f64, span: Span) -> &'cx NumLit {
         let id = self.p.next_node_id();
-        let lit = alloc(self.p.arena, ast::NumLit { num, span });
-        self.p.node_map.insert(id, Node::NumLit(lit));
+        let lit = self.alloc(ast::NumLit { id, num, span });
+        self.insert_map(id, Node::NumLit(lit));
         lit
+    }
+
+    #[inline]
+    fn with_parent<T, F: FnOnce(&mut Self) -> T>(&mut self, parent: NodeID, f: F) -> T {
+        let old = self.parent;
+        self.parent = parent;
+        let ret = f(self);
+        self.parent = old;
+        ret
+    }
+
+    fn insert_map(&mut self, id: NodeID, node: Node<'cx>) {
+        self.p.node_map.insert(id, node);
+        self.p.parent_map.insert(id, self.parent);
     }
 
     pub fn parse(&mut self) -> &'cx Program<'cx> {
         let id = self.p.next_node_id();
-        self.next_token();
-
-        let stmts = self.p.arena.alloc(Vec::with_capacity(32));
-        while !matches!(self.token.kind, TokenKind::EOF) {
-            stmts.push(self.parse_stmt());
-        }
-
-        let program = self.p.arena.alloc(Program { id, stmts });
-        self.p.node_map.insert(id, Node::Program(program));
-        program
+        self.with_parent(id, |this| {
+            this.next_token();
+            let stmts = this.p.arena.alloc(Vec::with_capacity(32));
+            while !matches!(this.token.kind, TokenKind::EOF) {
+                stmts.push(this.parse_stmt());
+            }
+            let program = this.alloc(Program { id, stmts });
+            this.p.node_map.insert(id, Node::Program(program));
+            program
+        })
     }
 }
