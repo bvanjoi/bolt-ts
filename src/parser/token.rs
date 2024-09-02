@@ -28,8 +28,12 @@ impl Token {
 
 #[derive(Debug, Clone, Copy)]
 pub enum TokenKind {
+    // keyword
+    False,
+    True,
+    // =====
+    Number,
     Unknown,
-    Number(f64),
     EOF,
 }
 

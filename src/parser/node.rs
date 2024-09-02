@@ -19,4 +19,5 @@ pub enum Node<'cx> {
     Stmt(&'cx ast::Stmt<'cx>),
     Expr(&'cx ast::Expr<'cx>),
     NumLit(&'cx ast::NumLit),
+    BoolLit(&'cx ast::BoolLit),
 }

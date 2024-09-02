@@ -28,6 +28,7 @@ pub struct Expr<'cx> {
 #[derive(Debug, Clone, Copy)]
 pub enum ExprKind<'cx> {
     BinOp(&'cx BinOpExpr<'cx>),
+    BoolLit(&'cx BoolLit),
     NumLit(&'cx NumLit),
 }
 
@@ -47,8 +48,11 @@ pub struct BinOpExpr<'cx> {
 }
 
 #[derive(Debug, Clone, Copy)]
-pub struct NumLit {
+pub struct Lit<T> {
     pub id: NodeID,
-    pub num: f64,
+    pub val: T,
     pub span: Span,
 }
+
+pub type NumLit = Lit<f64>;
+pub type BoolLit = Lit<bool>;

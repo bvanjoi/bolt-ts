@@ -32,6 +32,7 @@ fn parse() {
     {
         let mut s = ParserState::new(&mut p, "false");
         let program = s.parse();
+        assert_eq!(p.parent_map.parent(program.stmts[0].id), Some(program.id));
         assert_eq!(program.id.as_u32(), 8);
     }
 }

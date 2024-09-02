@@ -1,11 +1,12 @@
-use xxhash_rust::const_xxh3::xxh3_64;
-
 use super::AtomId;
 
-const fn h(s: &str) -> AtomId {
-    AtomId(xxh3_64(s.as_bytes()))
+macro_rules! keyword {
+    ($(($name: ident, $kw:literal),)*) => {
+        $(pub static $name: AtomId = AtomId::from_str($kw);)*
+        pub static KEYWORDS: &[(&str, AtomId)] = &[$(($kw, $name),)*];
+    };
 }
 
-pub static KEYWORD: &[(&str, AtomId)] = &[("false", h("false"))];
+keyword!((KW_FALSE, "false"), (KW_TRUE, "true"),);
 
 pub static IDENTIFIER: &[(&str, AtomId)] = &[];

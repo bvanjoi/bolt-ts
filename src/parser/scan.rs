@@ -1,5 +1,6 @@
+use super::keyword::KEYWORDS;
 use super::token::{Token, TokenFlags, TokenKind};
-use super::ParserState;
+use super::{AtomId, ParserState};
 
 use crate::span::Span;
 
@@ -74,7 +75,8 @@ impl<'cx, 'a, 'p> ParserState<'cx, 'p> {
         let num = unsafe { String::from_utf8_unchecked(fragment) }
             .parse::<f64>()
             .unwrap();
-        Token::new(TokenKind::Number(num), Span::from((start, end)))
+        self.token_number_value = Some(num);
+        Token::new(TokenKind::Number, Span::from((start, end)))
     }
 
     fn scan_identifier(&mut self, ch: u8) -> Token {
@@ -90,7 +92,20 @@ impl<'cx, 'a, 'p> ParserState<'cx, 'p> {
                     self.pos += 1;
                 }
             }
-            // let v = self.input[start..self.pos];
+            let raw = &self.input[start..self.pos];
+            let id = AtomId::from_bytes(raw);
+            if raw.len() >= 2 && raw.len() <= 12 {
+                if let Some(idx) = KEYWORDS
+                    .iter()
+                    .enumerate()
+                    .find_map(|(idx, kw)| (kw.1 == id).then_some(idx))
+                {
+                    // keyword
+                    let kind = unsafe { std::mem::transmute::<u8, TokenKind>(idx as u8) };
+                    let span = Span::from((start, self.pos));
+                    return Token::new(kind, span);
+                }
+            }
         }
         // Token;
         Token::new(TokenKind::EOF, Span::from((0, 0)))

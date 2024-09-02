@@ -5,11 +5,12 @@ mod node_flags;
 mod scan;
 mod token;
 
-use ast::{NumLit, Program};
-use keyword::{IDENTIFIER, KEYWORD};
+use ast::Program;
+use keyword::{IDENTIFIER, KEYWORDS};
 use node::{Node, NodeID};
 use rustc_hash::FxHashMap;
 use token::{Token, TokenKind};
+use xxhash_rust::const_xxh3::xxh3_64;
 
 use crate::span::Span;
 
@@ -48,13 +49,23 @@ impl AtomMap {
         assert!(prev.is_none());
     }
 
-    fn get(&self, atom: AtomId) -> &str {
-        self.0.get(&atom).unwrap()
+    fn get(&self, atom: AtomId) -> Option<&String> {
+        self.0.get(&atom)
     }
 }
 
 #[derive(Debug, PartialEq, Eq, Hash, Clone, Copy)]
 pub struct AtomId(u64);
+
+impl AtomId {
+    pub const fn from_str(s: &str) -> Self {
+        Self::from_bytes(s.as_bytes())
+    }
+
+    pub const fn from_bytes(bytes: &[u8]) -> Self {
+        Self(xxh3_64(bytes))
+    }
+}
 
 pub struct Parser<'cx> {
     arena: &'cx bumpalo::Bump,
@@ -67,8 +78,8 @@ pub struct Parser<'cx> {
 impl<'cx> Parser<'cx> {
     pub fn new(ast_arena: &'cx bumpalo::Bump) -> Self {
         let mut atoms = AtomMap(FxHashMap::default());
-        for (atom, id) in KEYWORD {
-            atoms.insert(*id, atom.to_string())
+        for (atom, id) in KEYWORDS {
+            atoms.insert(*id, atom.to_string());
         }
         for (atom, id) in IDENTIFIER {
             atoms.insert(*id, atom.to_string())
@@ -93,6 +104,7 @@ pub struct ParserState<'cx, 'p> {
     p: &'p mut Parser<'cx>,
     input: &'p [u8],
     token: Token,
+    token_number_value: Option<f64>,
     pos: usize,
     parent: NodeID,
 }
@@ -104,6 +116,7 @@ impl<'cx, 'a, 'p> ParserState<'cx, 'p> {
         Self {
             input,
             token,
+            token_number_value: None,
             pos: 0,
             p,
             parent: NodeID::root(),
@@ -174,7 +187,7 @@ impl<'cx, 'a, 'p> ParserState<'cx, 'p> {
 
     fn parse_primary_expr(&mut self) -> &'cx ast::Expr<'cx> {
         match self.token.kind {
-            TokenKind::Number(_) => self.parse_literal(),
+            TokenKind::Number | TokenKind::False => self.parse_literal(),
             _ => todo!(),
         }
     }
@@ -183,13 +196,20 @@ impl<'cx, 'a, 'p> ParserState<'cx, 'p> {
         let id = self.p.next_node_id();
         let expr = self.with_parent(id, |this| {
             let kind = match this.token.kind {
-                TokenKind::Number(num) => {
-                    ast::ExprKind::NumLit(this.create_numeric_literal(num, this.token.span))
+                TokenKind::Number => {
+                    let num = this.token_number_value.unwrap();
+                    let lit = this.create_lit(num, this.token.span);
+                    this.insert_map(lit.id, Node::NumLit(lit));
+                    ast::ExprKind::NumLit(lit)
+                }
+                TokenKind::False => {
+                    let lit = this.create_lit(false, this.token.span);
+                    this.insert_map(lit.id, Node::BoolLit(lit));
+                    ast::ExprKind::BoolLit(lit)
                 }
                 _ => unreachable!(),
             };
             let expr = this.alloc(ast::Expr { id, kind });
-            this.next_token();
             expr
         });
         self.insert_map(id, Node::Expr(expr));
@@ -200,10 +220,10 @@ impl<'cx, 'a, 'p> ParserState<'cx, 'p> {
         true
     }
 
-    fn create_numeric_literal(&mut self, num: f64, span: Span) -> &'cx NumLit {
+    fn create_lit<T>(&mut self, val: T, span: Span) -> &'cx ast::Lit<T> {
         let id = self.p.next_node_id();
-        let lit = self.alloc(ast::NumLit { id, num, span });
-        self.insert_map(id, Node::NumLit(lit));
+        let lit = self.alloc(ast::Lit { id, val, span });
+        self.next_token();
         lit
     }
 
