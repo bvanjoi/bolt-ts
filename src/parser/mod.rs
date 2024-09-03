@@ -9,7 +9,7 @@ use ast::Program;
 use keyword::{IDENTIFIER, KEYWORDS};
 use node::{Node, NodeID};
 use rustc_hash::FxHashMap;
-use token::{Token, TokenKind};
+use token::{BinPrec, Token, TokenKind};
 use xxhash_rust::const_xxh3::xxh3_64;
 
 use crate::span::Span;
@@ -154,16 +154,54 @@ impl<'cx, 'a, 'p> ParserState<'cx, 'p> {
     }
 
     fn parse_assignment_expr(&mut self) -> &'cx ast::Expr<'cx> {
-        self.parse_binary_expr()
+        self.parse_binary_expr(BinPrec::Lowest)
     }
 
-    fn parse_binary_expr(&mut self) -> &'cx ast::Expr<'cx> {
-        self.parse_unary_expr()
+    fn parse_binary_expr(&mut self, prec: BinPrec) -> &'cx ast::Expr<'cx> {
+        let start = self.token.start() as usize;
+        let left = self.parse_unary_expr();
+        self.parse_binary_expr_rest(prec, left, start)
+    }
+
+    fn parse_binary_expr_rest(
+        &mut self,
+        prec: BinPrec,
+        left: &'cx ast::Expr<'_>,
+        start: usize,
+    ) -> &'cx ast::Expr<'cx> {
+        let mut left = left;
+        loop {
+            let next_prec = self.token.kind.prec();
+            if !(next_prec > prec) {
+                break left;
+            }
+            let op = self.token.kind.into_binop();
+            let expr_id = self.p.next_node_id();
+            let kind = self.with_parent(expr_id, |this| {
+                let bin_expr_id = this.p.next_node_id();
+                this.next_token();
+                let right = this.with_parent(bin_expr_id, |this| this.parse_binary_expr(next_prec));
+                let bin_expr = this.alloc(ast::BinExpr {
+                    id: bin_expr_id,
+                    left,
+                    op,
+                    right,
+                    span: Span::from((start, this.pos)),
+                });
+                this.insert_map(bin_expr_id, Node::BinExpr(bin_expr));
+                ast::ExprKind::BinOp(bin_expr)
+            });
+            left = self.alloc(ast::Expr {
+                id: expr_id,
+                kind,
+            });
+            self.insert_map(expr_id, Node::Expr(left));
+        }
     }
 
     fn parse_unary_expr(&mut self) -> &'cx ast::Expr<'cx> {
         if self.is_update_expr() {
-            let pos = self.token.start();
+            let start = self.token.start();
             let expr = self.parse_update_expr();
             return expr;
         }
@@ -175,12 +213,12 @@ impl<'cx, 'a, 'p> ParserState<'cx, 'p> {
     }
 
     fn parse_left_hand_side_expr(&mut self) -> &'cx ast::Expr<'cx> {
-        let pos = self.token.start();
+        let start = self.token.start();
         self.parse_member_expr()
     }
 
     fn parse_member_expr(&mut self) -> &'cx ast::Expr<'cx> {
-        let pos = self.token.start();
+        let start = self.token.start();
         // TODO: member expr rest
         self.parse_primary_expr()
     }

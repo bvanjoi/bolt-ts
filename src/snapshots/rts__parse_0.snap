@@ -1,0 +1,110 @@
+---
+source: src/main.rs
+expression: "(program, &p.parent_map)"
+---
+(
+    Program {
+        id: NodeID(
+            0,
+        ),
+        stmts: [
+            Stmt {
+                id: NodeID(
+                    1,
+                ),
+                kind: ExprStmt(
+                    Expr {
+                        id: NodeID(
+                            4,
+                        ),
+                        kind: BinOp(
+                            BinExpr {
+                                id: NodeID(
+                                    5,
+                                ),
+                                left: Expr {
+                                    id: NodeID(
+                                        2,
+                                    ),
+                                    kind: NumLit(
+                                        Lit {
+                                            id: NodeID(
+                                                3,
+                                            ),
+                                            val: 1.0,
+                                            span: Span {
+                                                lo: 0,
+                                                hi: 1,
+                                            },
+                                        },
+                                    ),
+                                },
+                                op: Add,
+                                right: Expr {
+                                    id: NodeID(
+                                        6,
+                                    ),
+                                    kind: BoolLit(
+                                        Lit {
+                                            id: NodeID(
+                                                7,
+                                            ),
+                                            val: false,
+                                            span: Span {
+                                                lo: 4,
+                                                hi: 9,
+                                            },
+                                        },
+                                    ),
+                                },
+                                span: Span {
+                                    lo: 0,
+                                    hi: 9,
+                                },
+                            },
+                        ),
+                    },
+                ),
+            },
+        ],
+    },
+    ParentMap(
+        {
+            NodeID(
+                3,
+            ): NodeID(
+                2,
+            ),
+            NodeID(
+                5,
+            ): NodeID(
+                4,
+            ),
+            NodeID(
+                4,
+            ): NodeID(
+                1,
+            ),
+            NodeID(
+                1,
+            ): NodeID(
+                0,
+            ),
+            NodeID(
+                7,
+            ): NodeID(
+                6,
+            ),
+            NodeID(
+                6,
+            ): NodeID(
+                5,
+            ),
+            NodeID(
+                2,
+            ): NodeID(
+                1,
+            ),
+        },
+    ),
+)

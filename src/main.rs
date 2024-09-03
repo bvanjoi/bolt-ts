@@ -10,29 +10,29 @@ fn main() {
 }
 
 #[test]
-fn parse() {
+fn parse_0() {
     let ast_arena = bumpalo::Bump::new();
     let mut p = Parser::new(&ast_arena);
-    {
-        let mut s = ParserState::new(&mut p, "1");
+    let mut s = ParserState::new(&mut p, "1 + false");
+    let program = s.parse();
+    insta::assert_debug_snapshot!((program, &p.parent_map));
+    assert!(p.parent_map.parent(program.id).is_none());
+    assert_eq!(p.parent_map.parent(program.stmts[0].id), Some(program.id));
+    assert_eq!(program.id.as_u32(), 0);
+}
+
+#[test]
+fn parse_1() {
+    fn should_parse_success(input: &str) {
+        let ast_arena = bumpalo::Bump::new();
+        let mut p = Parser::new(&ast_arena);
+        let mut s = ParserState::new(&mut p, input);
         let program = s.parse();
         assert!(p.parent_map.parent(program.id).is_none());
-        assert_eq!(p.parent_map.parent(program.stmts[0].id), Some(program.id));
-
         assert_eq!(program.id.as_u32(), 0);
     }
 
-    {
-        let mut s = ParserState::new(&mut p, "1234");
-        let program = s.parse();
-        assert_eq!(p.parent_map.parent(program.stmts[0].id), Some(program.id));
-        assert_eq!(program.id.as_u32(), 4);
-    }
-
-    {
-        let mut s = ParserState::new(&mut p, "false");
-        let program = s.parse();
-        assert_eq!(p.parent_map.parent(program.stmts[0].id), Some(program.id));
-        assert_eq!(program.id.as_u32(), 8);
-    }
+    should_parse_success("1");
+    should_parse_success("1234");
+    should_parse_success("false");
 }

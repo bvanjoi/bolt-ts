@@ -27,7 +27,7 @@ pub struct Expr<'cx> {
 
 #[derive(Debug, Clone, Copy)]
 pub enum ExprKind<'cx> {
-    BinOp(&'cx BinOpExpr<'cx>),
+    BinOp(&'cx BinExpr<'cx>),
     BoolLit(&'cx BoolLit),
     NumLit(&'cx NumLit),
 }
@@ -41,10 +41,12 @@ pub enum BinOp {
 }
 
 #[derive(Debug, Clone, Copy)]
-pub struct BinOpExpr<'cx> {
-    left: &'cx Expr<'cx>,
-    op: BinOp,
-    right: &'cx Expr<'cx>,
+pub struct BinExpr<'cx> {
+    pub id: NodeID,
+    pub left: &'cx Expr<'cx>,
+    pub op: BinOp,
+    pub right: &'cx Expr<'cx>,
+    pub span: Span
 }
 
 #[derive(Debug, Clone, Copy)]

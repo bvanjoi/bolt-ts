@@ -1,5 +1,7 @@
 use crate::span::Span;
 
+use super::ast::BinOp;
+
 #[derive(Debug, Clone, Copy)]
 pub struct Token {
     pub kind: TokenKind,
@@ -24,6 +26,7 @@ impl Token {
         assert!(self.span.lo != u32::MAX);
         self.span.hi
     }
+
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -32,9 +35,36 @@ pub enum TokenKind {
     False,
     True,
     // =====
+    Plus,
+    // =====
     Number,
     Unknown,
     EOF,
+}
+
+impl TokenKind {
+    pub fn prec(self) -> BinPrec {
+        match self {
+            TokenKind::Plus => BinPrec::Additive,
+            _ => BinPrec::Invalid
+        }
+    }
+
+    pub fn into_binop(self) -> BinOp {
+        match self {
+            TokenKind::Plus => BinOp::Add ,
+            _ => unreachable!()
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+pub enum BinPrec {
+    Invalid,
+    Lowest,
+    /// `+` or `-`
+    Additive,
+    Highest,
 }
 
 bitflags::bitflags! {

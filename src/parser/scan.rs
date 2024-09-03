@@ -116,20 +116,37 @@ impl<'cx, 'a, 'p> ParserState<'cx, 'p> {
         let start = self.pos;
         let flags = TokenFlags::NONE;
         let mut token_start;
-        token_start = self.pos;
-        if self.pos == self.input.len() {
-            self.token = Token::new(TokenKind::EOF, Span::from((start, start)));
-            return;
+        loop {
+            token_start = self.pos;
+            if self.pos == self.input.len() {
+                self.token = Token::new(TokenKind::EOF, Span::from((start, start)));
+                return;
+            }
+            let ch = self.input[self.pos];
+            if self.pos == 0 && ch == b'#' {
+                // TODO: Handle shebang
+            }
+            let token = match ch {
+                b'0' => todo!(),
+                b'+' => {
+                    if self.input.get(self.pos + 1).copied() == Some(b'+') {
+                        // ++ 
+                        self.pos += 2;
+                        todo!()
+                    } else {
+                        self.pos += 1;
+                        Token::new(TokenKind::Plus, Span::from((start, start + 1)))
+                    }
+                }
+                b'1'..=b'9' => self.scan_number(),
+                _ if ch.is_ascii_whitespace() => {
+                    self.pos += 1;
+                    continue;
+                }
+                _ => self.scan_identifier(ch),
+            };    
+            self.token = token;
+            break;
         }
-        let ch = self.input[self.pos];
-        if self.pos == 0 && ch == b'#' {
-            // TODO: Handle shebang
-        }
-        let token = match ch {
-            b'0' => todo!(),
-            b'1'..=b'9' => self.scan_number(),
-            _ => self.scan_identifier(ch),
-        };
-        self.token = token;
     }
 }
