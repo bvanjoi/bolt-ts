@@ -1,4 +1,4 @@
-use super::AtomId;
+use crate::atoms::AtomId;
 
 macro_rules! keyword {
     ($(($name: ident, $kw:literal),)*) => {

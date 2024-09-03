@@ -1,7 +1,8 @@
 use super::keyword::KEYWORDS;
 use super::token::{Token, TokenFlags, TokenKind};
-use super::{AtomId, ParserState};
+use super::ParserState;
 
+use crate::atoms::AtomId;
 use crate::span::Span;
 
 #[inline(always)]
@@ -130,7 +131,7 @@ impl<'cx, 'a, 'p> ParserState<'cx, 'p> {
                 b'0' => todo!(),
                 b'+' => {
                     if self.input.get(self.pos + 1).copied() == Some(b'+') {
-                        // ++ 
+                        // ++
                         self.pos += 2;
                         todo!()
                     } else {
@@ -144,7 +145,7 @@ impl<'cx, 'a, 'p> ParserState<'cx, 'p> {
                     continue;
                 }
                 _ => self.scan_identifier(ch),
-            };    
+            };
             self.token = token;
             break;
         }

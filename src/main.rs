@@ -1,3 +1,4 @@
+use rts::check::TyChecker;
 use rts::parser::{Parser, ParserState};
 
 fn main() {
@@ -35,4 +36,20 @@ fn parse_1() {
     should_parse_success("1");
     should_parse_success("1234");
     should_parse_success("false");
+}
+
+#[test]
+fn check_0() {
+    fn should_check_success(input: &str) {
+        let ast_arena = bumpalo::Bump::new();
+        let mut p = Parser::new(&ast_arena);
+        let mut s = ParserState::new(&mut p, input);
+        let root = s.parse();
+        let ty_arena = bumpalo::Bump::new();
+        let mut c = TyChecker::new(&ty_arena, &p.atoms);
+        c.check_program(root);
+        assert!(!c.tys.is_empty());
+    }
+
+    should_check_success("1");
 }

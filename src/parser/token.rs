@@ -1,6 +1,4 @@
-use crate::span::Span;
-
-use super::ast::BinOp;
+use crate::{ast::BinOp, span::Span};
 
 #[derive(Debug, Clone, Copy)]
 pub struct Token {
@@ -26,7 +24,6 @@ impl Token {
         assert!(self.span.lo != u32::MAX);
         self.span.hi
     }
-
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -46,14 +43,14 @@ impl TokenKind {
     pub fn prec(self) -> BinPrec {
         match self {
             TokenKind::Plus => BinPrec::Additive,
-            _ => BinPrec::Invalid
+            _ => BinPrec::Invalid,
         }
     }
 
     pub fn into_binop(self) -> BinOp {
         match self {
-            TokenKind::Plus => BinOp::Add ,
-            _ => unreachable!()
+            TokenKind::Plus => BinOp::Add,
+            _ => unreachable!(),
         }
     }
 }
@@ -73,6 +70,6 @@ bitflags::bitflags! {
         const PRECEDING_LINE_BREAK  = 1 << 0;
         /// `123_456`
         const CONTAINS_SEPARATOR    = 1 << 9;
-        const NUMERIC_LITERAL_FLAGS = TokenFlags::CONTAINS_SEPARATOR.bits() | TokenFlags::PRECEDING_LINE_BREAK.bits();
+        const NUMERIC_LITERAL_FLAGS = Self::CONTAINS_SEPARATOR.bits() | Self::PRECEDING_LINE_BREAK.bits();
     }
 }

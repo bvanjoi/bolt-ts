@@ -15,12 +15,12 @@ expression: "(program, &p.parent_map)"
                 kind: ExprStmt(
                     Expr {
                         id: NodeID(
-                            4,
+                            7,
                         ),
                         kind: BinOp(
                             BinExpr {
                                 id: NodeID(
-                                    5,
+                                    4,
                                 ),
                                 left: Expr {
                                     id: NodeID(
@@ -42,12 +42,12 @@ expression: "(program, &p.parent_map)"
                                 op: Add,
                                 right: Expr {
                                     id: NodeID(
-                                        6,
+                                        5,
                                     ),
                                     kind: BoolLit(
                                         Lit {
                                             id: NodeID(
-                                                7,
+                                                6,
                                             ),
                                             val: false,
                                             span: Span {
@@ -83,7 +83,7 @@ expression: "(program, &p.parent_map)"
             NodeID(
                 4,
             ): NodeID(
-                1,
+                7,
             ),
             NodeID(
                 1,
@@ -93,7 +93,7 @@ expression: "(program, &p.parent_map)"
             NodeID(
                 7,
             ): NodeID(
-                6,
+                1,
             ),
             NodeID(
                 6,
@@ -103,7 +103,7 @@ expression: "(program, &p.parent_map)"
             NodeID(
                 2,
             ): NodeID(
-                1,
+                4,
             ),
         },
     ),

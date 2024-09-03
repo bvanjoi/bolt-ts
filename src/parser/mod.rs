@@ -1,18 +1,15 @@
-mod ast;
 mod keyword;
 mod node;
 mod node_flags;
 mod scan;
 mod token;
 
-use ast::Program;
 use keyword::{IDENTIFIER, KEYWORDS};
-use node::{Node, NodeID};
 use rustc_hash::FxHashMap;
 use token::{BinPrec, Token, TokenKind};
-use xxhash_rust::const_xxh3::xxh3_64;
 
-use crate::span::Span;
+use crate::ast::{self, Node, NodeID};
+use crate::{atoms::AtomMap, span::Span};
 
 pub struct NodeMap<'cx>(FxHashMap<NodeID, Node<'cx>>);
 
@@ -39,31 +36,10 @@ impl ParentMap {
         let prev = self.0.insert(id, parent);
         assert!(prev.is_none())
     }
-}
 
-struct AtomMap(FxHashMap<AtomId, String>);
-
-impl AtomMap {
-    fn insert(&mut self, atom: AtomId, value: String) {
-        let prev = self.0.insert(atom, value);
-        assert!(prev.is_none());
-    }
-
-    fn get(&self, atom: AtomId) -> Option<&String> {
-        self.0.get(&atom)
-    }
-}
-
-#[derive(Debug, PartialEq, Eq, Hash, Clone, Copy)]
-pub struct AtomId(u64);
-
-impl AtomId {
-    pub const fn from_str(s: &str) -> Self {
-        Self::from_bytes(s.as_bytes())
-    }
-
-    pub const fn from_bytes(bytes: &[u8]) -> Self {
-        Self(xxh3_64(bytes))
+    pub fn r#override(&mut self, id: NodeID, parent: NodeID) {
+        let prev = self.0.insert(id, parent);
+        assert!(prev.is_some())
     }
 }
 
@@ -72,12 +48,13 @@ pub struct Parser<'cx> {
     pub node_map: NodeMap<'cx>,
     pub parent_map: ParentMap,
     next_node_id: NodeID,
-    atoms: AtomMap,
+    pub atoms: AtomMap,
 }
 
 impl<'cx> Parser<'cx> {
     pub fn new(ast_arena: &'cx bumpalo::Bump) -> Self {
-        let mut atoms = AtomMap(FxHashMap::default());
+        assert!(ast_arena.allocation_limit().is_none());
+        let mut atoms = AtomMap::default();
         for (atom, id) in KEYWORDS {
             atoms.insert(*id, atom.to_string());
         }
@@ -176,25 +153,23 @@ impl<'cx, 'a, 'p> ParserState<'cx, 'p> {
                 break left;
             }
             let op = self.token.kind.into_binop();
+            let bin_expr_id = self.p.next_node_id();
+            self.next_token();
+            self.p.parent_map.r#override(left.id, bin_expr_id);
+            let right = self.with_parent(bin_expr_id, |this| this.parse_binary_expr(next_prec));
+            let bin_expr = self.alloc(ast::BinExpr {
+                id: bin_expr_id,
+                left,
+                op,
+                right,
+                span: Span::from((start, self.pos)),
+            });
             let expr_id = self.p.next_node_id();
-            let kind = self.with_parent(expr_id, |this| {
-                let bin_expr_id = this.p.next_node_id();
-                this.next_token();
-                let right = this.with_parent(bin_expr_id, |this| this.parse_binary_expr(next_prec));
-                let bin_expr = this.alloc(ast::BinExpr {
-                    id: bin_expr_id,
-                    left,
-                    op,
-                    right,
-                    span: Span::from((start, this.pos)),
-                });
+            self.with_parent(expr_id, |this| {
                 this.insert_map(bin_expr_id, Node::BinExpr(bin_expr));
-                ast::ExprKind::BinOp(bin_expr)
             });
-            left = self.alloc(ast::Expr {
-                id: expr_id,
-                kind,
-            });
+            let kind = ast::ExprKind::BinOp(bin_expr);
+            left = self.alloc(ast::Expr { id: expr_id, kind });
             self.insert_map(expr_id, Node::Expr(left));
         }
     }
@@ -279,7 +254,7 @@ impl<'cx, 'a, 'p> ParserState<'cx, 'p> {
         self.p.parent_map.insert(id, self.parent);
     }
 
-    pub fn parse(&mut self) -> &'cx Program<'cx> {
+    pub fn parse(&mut self) -> &'cx ast::Program<'cx> {
         let id = self.p.next_node_id();
         self.with_parent(id, |this| {
             this.next_token();
@@ -287,7 +262,7 @@ impl<'cx, 'a, 'p> ParserState<'cx, 'p> {
             while !matches!(this.token.kind, TokenKind::EOF) {
                 stmts.push(this.parse_stmt());
             }
-            let program = this.alloc(Program { id, stmts });
+            let program = this.alloc(ast::Program { id, stmts });
             this.p.node_map.insert(id, Node::Program(program));
             program
         })

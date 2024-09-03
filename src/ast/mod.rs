@@ -1,6 +1,8 @@
+mod node;
+
 use crate::span::Span;
 
-use super::node::NodeID;
+pub use node::{Node, NodeID};
 
 #[derive(Debug, Clone, Copy)]
 pub struct Program<'cx> {
@@ -46,7 +48,7 @@ pub struct BinExpr<'cx> {
     pub left: &'cx Expr<'cx>,
     pub op: BinOp,
     pub right: &'cx Expr<'cx>,
-    pub span: Span
+    pub span: Span,
 }
 
 #[derive(Debug, Clone, Copy)]
