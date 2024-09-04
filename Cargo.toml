@@ -1,14 +1,6 @@
-[package]
-name = "rts"
-version = "0.1.0"
-edition = "2021"
-
-[dependencies]
-rayon = "1.10.0"
-rustc-hash = "2.0.0"
-bumpalo = { version = "3.16.0" }
-bitflags = "2.6.0"
-xxhash-rust = { version = "0.8.12", features = ["xxh3", "const_xxh3"] }
-
-[dev-dependencies]
-insta = "1.39.0"
+[workspace]
+resolver = "2"
+members = [
+  "crates/compiler",
+  "crates/compile-test"
+  ]

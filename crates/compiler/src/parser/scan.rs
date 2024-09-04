@@ -23,9 +23,26 @@ pub fn is_identifier_part(ch: u8) -> bool {
     is_word_character(ch) || ch == b'$'
 }
 
+fn is_line_break(ch: u8) -> bool {
+    ch == b'\n' || ch == b'\r'
+}
+
 impl<'cx, 'a, 'p> ParserState<'cx, 'p> {
     fn ch(&self) -> Option<u8> {
         self.input.get(self.pos).copied()
+    }
+
+    fn ch_unchecked(&self) -> u8 {
+        debug_assert!(self.pos < self.end());
+        unsafe { *self.input.get_unchecked(self.pos) }
+    }
+
+    fn next_ch(&self) -> Option<u8> {
+        self.input.get(self.pos + 1).copied()
+    }
+
+    fn next_next_ch(&self) -> Option<u8> {
+        self.input.get(self.pos + 2).copied()
     }
 
     fn scan_number_fragment(&mut self) -> Vec<u8> {
@@ -129,8 +146,21 @@ impl<'cx, 'a, 'p> ParserState<'cx, 'p> {
             }
             let token = match ch {
                 b'0' => todo!(),
+                b'/' => {
+                    if self.next_ch() == Some(b'/') {
+                        self.pos += 2;
+                        while self.pos < self.end() && !is_line_break(self.ch_unchecked()) {
+                            self.pos += 1;
+                        }
+                        // TODO: add comment
+                        continue;
+                    } else {
+                        self.pos += 1;
+                        continue;
+                    }
+                }
                 b'+' => {
-                    if self.input.get(self.pos + 1).copied() == Some(b'+') {
+                    if self.next_ch() == Some(b'+') {
                         // ++
                         self.pos += 2;
                         todo!()
