@@ -20,7 +20,7 @@ pub struct AtomMap(FxHashMap<AtomId, String>);
 impl AtomMap {
     pub fn insert_by_str(&mut self, value: String) -> AtomId {
         let id = AtomId::from_bytes(value.as_bytes());
-        if self.get(id).is_none() {
+        if self.0.get(&id).is_none() {
             self.insert(id, value)
         }
         id
@@ -31,7 +31,7 @@ impl AtomMap {
         assert!(prev.is_none());
     }
 
-    pub fn get(&self, atom: AtomId) -> Option<&String> {
-        self.0.get(&atom)
+    pub fn get(&self, atom: AtomId) -> &str {
+        self.0.get(&atom).unwrap().as_str()
     }
 }

@@ -9,7 +9,6 @@ macro_rules! keyword {
 
 keyword!((KW_FALSE, "false"), (KW_TRUE, "true"));
 
-
 macro_rules! ident {
     ($(($name:ident, $ident:literal)),* $(,)?) => {
         $(pub static $name: AtomId = AtomId::from_str($ident);)*
@@ -17,8 +16,4 @@ macro_rules! ident {
     };
 }
 
-
-ident!(
-    (IDENT_ANY, "any"),
-    (IDENT_NUMBER, "number")
-);
+ident!((IDENT_ANY, "any"), (IDENT_NUMBER, "number"));

@@ -12,8 +12,8 @@ bitflags = "2.6.0"
 xxhash-rust = { version = "0.8.12", features = ["xxh3", "const_xxh3"] }
 rts_errors = { path = "../errors" }
 rts_span = { path = "../span" }
+project-root = "0.2.2"
 
 [dev-dependencies]
 expect-test = "1.2.2"
 compile-test = { path = "../compile-test" }
-project-root = "0.2.2"

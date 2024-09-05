@@ -1,17 +1,18 @@
-use crate::atoms::AtomId;
+use crate::atoms::{AtomId, AtomMap};
 
 bitflags::bitflags! {
     #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
     pub struct TyFlags: u32 {
-        const Any           = 1 << 0;
-        const Unknown       = 1 << 1;
-        const String        = 1 << 2;
-        const Number        = 1 << 3;
-        const NumberLiteral = 1 << 8;
+        const Any            = 1 << 0;
+        const Unknown        = 1 << 1;
+        const String         = 1 << 2;
+        const Number         = 1 << 3;
+        const NumberLiteral  = 1 << 8;
+        const BooleanLiteral = 1 << 9;
 
 
-        const Literal       = Self::NumberLiteral.bits();
-        const NumberLike    = Self::Number.bits() | Self::NumberLiteral.bits();
+        const Literal        = Self::NumberLiteral.bits() | Self::BooleanLiteral.bits();
+        const NumberLike     = Self::Number.bits() | Self::NumberLiteral.bits();
     }
 }
 
@@ -33,14 +34,14 @@ impl<'cx> Ty<'cx> {
 #[derive(Debug, Clone, Copy)]
 pub enum TyKind<'cx> {
     NumLit(&'cx NumLitTy),
-    Intrinsic(&'cx IntrinsicTy)
+    Intrinsic(&'cx IntrinsicTy),
 }
 
 impl<'cx> TyKind<'cx> {
-    pub fn as_str(&self) -> &'static str {
+    pub fn as_str(&self, atoms: &'cx AtomMap) -> &'cx str {
         match self {
             TyKind::NumLit(_) => "number",
-            TyKind::Intrinsic(_) => todo!(),
+            TyKind::Intrinsic(ty) => atoms.get(ty.name),
         }
     }
 }

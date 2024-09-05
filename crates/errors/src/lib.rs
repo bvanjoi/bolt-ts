@@ -26,7 +26,10 @@ impl Diag {
         let filename = if let ModulePath::Real(filename) =
             module_arena.path_map.get(&self.module_id).unwrap()
         {
-            Some(filename.display().to_string())
+            let cwd = std::env::current_dir().unwrap();
+            let relative =
+                relative_path::PathExt::relative_to(filename.as_path(), cwd.as_path()).unwrap();
+            Some(relative.to_string())
         } else {
             None
         };
@@ -45,11 +48,12 @@ impl Diag {
         };
         miette::GraphicalReportHandler::new_themed(theme)
             .with_width(80)
+            .with_context_lines(0)
             .render_report(&mut out, error_report.as_ref())
             .unwrap();
         out
     }
-    
+
     pub fn emit(self, module_arena: &ModuleArena) {
         let no_color = match std::env::var("NO_COLOR") {
             Ok(string) => string != "0",
@@ -97,7 +101,6 @@ impl miette::SourceCode for SourceCode {
         };
         Ok(Box::new(contents))
     }
-    
 }
 
 #[derive(Debug, Eq, PartialEq, Ord, PartialOrd, Copy, Clone, Default)]
