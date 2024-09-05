@@ -1,9 +1,10 @@
-use super::keyword::KEYWORDS;
+use rts_span::Span;
+
 use super::token::{Token, TokenFlags, TokenKind};
 use super::ParserState;
 
 use crate::atoms::AtomId;
-use crate::span::Span;
+use crate::keyword::KEYWORDS;
 
 #[inline(always)]
 pub fn is_ascii_letter(ch: u8) -> bool {
@@ -43,6 +44,14 @@ impl<'cx, 'a, 'p> ParserState<'cx, 'p> {
 
     fn next_next_ch(&self) -> Option<u8> {
         self.input.get(self.pos + 2).copied()
+    }
+
+    pub(super) fn new_span(&self, lo: usize, hi: usize) -> Span {
+        Span {
+            lo: lo as u32,
+            hi: hi as u32,
+            module: self.module_id,
+        }
     }
 
     fn scan_number_fragment(&mut self) -> Vec<u8> {
@@ -94,7 +103,7 @@ impl<'cx, 'a, 'p> ParserState<'cx, 'p> {
             .parse::<f64>()
             .unwrap();
         self.token_number_value = Some(num);
-        Token::new(TokenKind::Number, Span::from((start, end)))
+        Token::new(TokenKind::Number,self.new_span(start, end))
     }
 
     fn scan_identifier(&mut self, ch: u8) -> Token {
@@ -120,13 +129,13 @@ impl<'cx, 'a, 'p> ParserState<'cx, 'p> {
                 {
                     // keyword
                     let kind = unsafe { std::mem::transmute::<u8, TokenKind>(idx as u8) };
-                    let span = Span::from((start, self.pos));
+                    let span = self.new_span(start, self.pos);
                     return Token::new(kind, span);
                 }
             }
         }
         // Token;
-        Token::new(TokenKind::EOF, Span::from((0, 0)))
+        Token::new(TokenKind::EOF, self.new_span(0, 0))
     }
 
     pub(super) fn next_token(&mut self) {
@@ -137,7 +146,7 @@ impl<'cx, 'a, 'p> ParserState<'cx, 'p> {
         loop {
             token_start = self.pos;
             if self.pos == self.input.len() {
-                self.token = Token::new(TokenKind::EOF, Span::from((start, start)));
+                self.token = Token::new(TokenKind::EOF, self.new_span(start, start));
                 return;
             }
             let ch = self.input[self.pos];
@@ -166,7 +175,7 @@ impl<'cx, 'a, 'p> ParserState<'cx, 'p> {
                         todo!()
                     } else {
                         self.pos += 1;
-                        Token::new(TokenKind::Plus, Span::from((start, start + 1)))
+                        Token::new(TokenKind::Plus, self.new_span(start, self.pos))
                     }
                 }
                 b'1'..=b'9' => self.scan_number(),

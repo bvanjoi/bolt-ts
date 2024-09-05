@@ -1,3 +1,5 @@
+use crate::atoms::AtomId;
+
 bitflags::bitflags! {
     #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
     pub struct TyFlags: u32 {
@@ -7,11 +9,13 @@ bitflags::bitflags! {
         const Number        = 1 << 3;
         const NumberLiteral = 1 << 8;
 
-        const Literal = Self::NumberLiteral.bits();
+
+        const Literal       = Self::NumberLiteral.bits();
+        const NumberLike    = Self::Number.bits() | Self::NumberLiteral.bits();
     }
 }
 
-crate::new_index!(TyID);
+rts_span::new_index!(TyID);
 
 #[derive(Debug, Clone, Copy)]
 pub struct Ty<'cx> {
@@ -29,6 +33,21 @@ impl<'cx> Ty<'cx> {
 #[derive(Debug, Clone, Copy)]
 pub enum TyKind<'cx> {
     NumLit(&'cx NumLitTy),
+    Intrinsic(&'cx IntrinsicTy)
+}
+
+impl<'cx> TyKind<'cx> {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            TyKind::NumLit(_) => "number",
+            TyKind::Intrinsic(_) => todo!(),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct IntrinsicTy {
+    pub name: AtomId,
 }
 
 #[derive(Debug, Clone, Copy)]

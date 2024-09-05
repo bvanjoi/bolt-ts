@@ -1,15 +1,17 @@
 [package]
-name = "rts"
+name = "rts_compiler"
 version = "0.1.0"
 edition = "2021"
 
 
 [dependencies]
 rayon = "1.10.0"
-rustc-hash = "2.0.0"
+rustc-hash = { workspace = true }
 bumpalo = { version = "3.16.0" }
 bitflags = "2.6.0"
 xxhash-rust = { version = "0.8.12", features = ["xxh3", "const_xxh3"] }
+rts_errors = { path = "../errors" }
+rts_span = { path = "../span" }
 
 [dev-dependencies]
 expect-test = "1.2.2"

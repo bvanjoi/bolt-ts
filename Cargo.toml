@@ -2,5 +2,11 @@
 resolver = "2"
 members = [
   "crates/compiler",
-  "crates/compile-test"
-  ]
+  "crates/compile-test",
+  "crates/errors",
+  "crates/span",
+]
+
+[workspace.dependencies]
+rustc-hash = "2.0.0"
+miette = { version = "7.1.0", features = ["fancy"] }

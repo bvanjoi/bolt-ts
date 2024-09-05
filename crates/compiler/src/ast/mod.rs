@@ -1,8 +1,7 @@
 mod node;
 
-use crate::span::Span;
-
 pub use node::{Node, NodeID};
+use rts_span::Span;
 
 #[derive(Debug, Clone, Copy)]
 pub struct Program<'cx> {
@@ -35,11 +34,28 @@ pub enum ExprKind<'cx> {
 }
 
 #[derive(Debug, Clone, Copy)]
-pub enum BinOp {
+pub struct BinOp {
+    pub kind: BinOpKind,
+    pub span: Span,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub enum BinOpKind {
     Add,
     Sub,
     Mul,
     Div,
+}
+
+impl BinOpKind {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            BinOpKind::Add => "+",
+            BinOpKind::Sub => todo!(),
+            BinOpKind::Mul => todo!(),
+            BinOpKind::Div => todo!(),
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy)]

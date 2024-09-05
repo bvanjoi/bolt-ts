@@ -1,4 +1,6 @@
-use crate::{ast::BinOp, span::Span};
+use rts_span::Span;
+
+use crate::ast::{BinOp, BinOpKind};
 
 #[derive(Debug, Clone, Copy)]
 pub struct Token {
@@ -47,9 +49,9 @@ impl TokenKind {
         }
     }
 
-    pub fn into_binop(self) -> BinOp {
+    pub fn into_binop(self) -> BinOpKind {
         match self {
-            TokenKind::Plus => BinOp::Add,
+            TokenKind::Plus => BinOpKind::Add,
             _ => unreachable!(),
         }
     }

@@ -1,15 +1,17 @@
-mod keyword;
 mod node;
 mod node_flags;
 mod scan;
 mod token;
 
-use keyword::{IDENTIFIER, KEYWORDS};
+use std::u32;
+
+use rts_span::{ModuleID, Span};
 use rustc_hash::FxHashMap;
 use token::{BinPrec, Token, TokenKind};
 
-use crate::ast::{self, Node, NodeID};
-use crate::{atoms::AtomMap, span::Span};
+use crate::ast::{self, BinOp, Node, NodeID};
+use crate::atoms::AtomMap;
+use crate::keyword::{IDENTIFIER, KEYWORDS};
 
 pub struct NodeMap<'cx>(FxHashMap<NodeID, Node<'cx>>);
 
@@ -84,11 +86,12 @@ pub struct ParserState<'cx, 'p> {
     token_number_value: Option<f64>,
     pos: usize,
     parent: NodeID,
+    module_id: ModuleID,
 }
 
 impl<'cx, 'a, 'p> ParserState<'cx, 'p> {
-    pub fn new(p: &'p mut Parser<'cx>, input: &'p str) -> Self {
-        let token = Token::new(TokenKind::EOF, Span::new(u32::MAX, u32::MAX));
+    pub fn new(p: &'p mut Parser<'cx>, input: &'p str, module_id: ModuleID) -> Self {
+        let token = Token::new(TokenKind::EOF, Span::new(u32::MAX, u32::MAX, ModuleID::root()));
         let input = input.as_bytes();
         Self {
             input,
@@ -97,6 +100,7 @@ impl<'cx, 'a, 'p> ParserState<'cx, 'p> {
             pos: 0,
             p,
             parent: NodeID::root(),
+            module_id,
         }
     }
 
@@ -152,7 +156,10 @@ impl<'cx, 'a, 'p> ParserState<'cx, 'p> {
             if !(next_prec > prec) {
                 break left;
             }
-            let op = self.token.kind.into_binop();
+            let op = BinOp {
+                kind: self.token.kind.into_binop(),
+                span: self.token.span,
+            };
             let bin_expr_id = self.p.next_node_id();
             self.next_token();
             self.p.parent_map.r#override(left.id, bin_expr_id);
@@ -162,7 +169,7 @@ impl<'cx, 'a, 'p> ParserState<'cx, 'p> {
                 left,
                 op,
                 right,
-                span: Span::from((start, self.pos)),
+                span: self.new_span(start, self.pos),
             });
             let expr_id = self.p.next_node_id();
             self.with_parent(expr_id, |this| {

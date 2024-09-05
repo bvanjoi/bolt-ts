@@ -1,2 +1,1 @@
-//@ check-pass
-1 + true;
+1 + false

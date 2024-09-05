@@ -1,6 +1,6 @@
 use crate::ast;
 
-crate::new_index!(NodeID);
+rts_span::new_index!(NodeID);
 
 #[derive(Debug, Clone, Copy)]
 pub enum Node<'cx> {
