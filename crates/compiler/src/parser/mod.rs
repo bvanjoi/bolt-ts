@@ -1,4 +1,3 @@
-mod node;
 mod node_flags;
 mod scan;
 mod token;
@@ -91,7 +90,10 @@ pub struct ParserState<'cx, 'p> {
 
 impl<'cx, 'a, 'p> ParserState<'cx, 'p> {
     pub fn new(p: &'p mut Parser<'cx>, input: &'p str, module_id: ModuleID) -> Self {
-        let token = Token::new(TokenKind::EOF, Span::new(u32::MAX, u32::MAX, ModuleID::root()));
+        let token = Token::new(
+            TokenKind::EOF,
+            Span::new(u32::MAX, u32::MAX, ModuleID::root()),
+        );
         let input = input.as_bytes();
         Self {
             input,
@@ -169,7 +171,7 @@ impl<'cx, 'a, 'p> ParserState<'cx, 'p> {
                 left,
                 op,
                 right,
-                span: self.new_span(start, self.pos),
+                span: self.new_span(start, right.span().hi as usize),
             });
             let expr_id = self.p.next_node_id();
             self.with_parent(expr_id, |this| {

@@ -18,9 +18,7 @@ pub fn eval_from(m: ModulePath) -> (ModuleArena, Vec<Diag>) {
     let ast_arena = bumpalo::Bump::new();
     let mut p = parser::Parser::new(&ast_arena);
     let mut s = parser::ParserState::new(&mut p, input, m.id);
-    s.parse();
     let root = s.parse();
-    dbg!(&root);
     let ty_arena = bumpalo::Bump::new();
     let mut c = check::TyChecker::new(&ty_arena, p.atoms);
     c.check_program(root);

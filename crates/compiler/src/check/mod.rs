@@ -1,4 +1,3 @@
-use rts_errors::Diag;
 use rts_span::ModuleID;
 use rustc_hash::FxHashMap;
 
@@ -17,24 +16,24 @@ pub struct TyChecker<'cx> {
     pub diags: Vec<rts_errors::Diag>,
 }
 
-static INTRINSIC_TYPES: &[(TyFlags, AtomId)] = &[
-    (TyFlags::Any, keyword::IDENT_ANY),
-    (TyFlags::Number, keyword::IDENT_NUMBER),
-];
-
 macro_rules! intrinsic_type {
-    ($(($atom_id: expr, $name: ident)),* $(,)?) => {
+    ($(($name: ident, $atom_id: expr, $ty_flags: expr)),* $(,)?) => {
         impl<'cx> TyChecker<'cx> {
             $(fn $name(&self) -> Ty<'cx> {
                 self.intrinsic_tys[&$atom_id]
             })*
         }
+        static INTRINSIC_TYPES: &[(TyFlags, AtomId)] = &[
+            $(($ty_flags, $atom_id),)*
+        ];
     };
 }
 
 intrinsic_type!(
-    (keyword::IDENT_ANY, any_type),
-    (keyword::IDENT_NUMBER, number_type)
+    (any_type, keyword::IDENT_ANY, TyFlags::Any),
+    (number_type, keyword::IDENT_NUMBER, TyFlags::Number),
+    (true_type, keyword::KW_TRUE, TyFlags::BooleanLiteral),
+    (false_type, keyword::KW_FALSE, TyFlags::BooleanLiteral),
 );
 
 impl<'cx> TyChecker<'cx> {
@@ -93,7 +92,13 @@ impl<'cx> TyChecker<'cx> {
         match expr.kind {
             BinOp(bin) => self.check_bin_expr(bin),
             NumLit(lit) => self.get_number_literal_type(lit.val),
-            _ => todo!(),
+            BoolLit(lit) => {
+                if lit.val {
+                    self.true_type()
+                } else {
+                    self.false_type()
+                }
+            } // _ => todo!(),
         }
     }
 
@@ -196,8 +201,8 @@ impl<'cx> TyChecker<'cx> {
                 } else {
                     let error = errors::OperatorCannotBeAppliedToTy1AndTy2 {
                         op: op.kind.as_str().to_string(),
-                        ty1: left_ty.kind.as_str().to_string(),
-                        ty2: right_ty.kind.as_str().to_string(),
+                        ty1: left_ty.kind.as_str(&self.atoms).to_string(),
+                        ty2: right_ty.kind.as_str(&self.atoms).to_string(),
                         span: node.span,
                     };
                     self.push_error(node.span.module, Box::new(error));

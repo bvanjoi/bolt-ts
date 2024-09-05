@@ -103,7 +103,7 @@ impl<'cx, 'a, 'p> ParserState<'cx, 'p> {
             .parse::<f64>()
             .unwrap();
         self.token_number_value = Some(num);
-        Token::new(TokenKind::Number,self.new_span(start, end))
+        Token::new(TokenKind::Number, self.new_span(start, end))
     }
 
     fn scan_identifier(&mut self, ch: u8) -> Token {
@@ -113,7 +113,7 @@ impl<'cx, 'a, 'p> ParserState<'cx, 'p> {
             loop {
                 if self.pos == self.end() {
                     break;
-                } else if !is_identifier_part(ch) {
+                } else if !is_identifier_part(self.ch_unchecked()) {
                     break;
                 } else {
                     self.pos += 1;

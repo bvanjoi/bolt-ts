@@ -11,5 +11,5 @@ pub(crate) struct OperatorCannotBeAppliedToTy1AndTy2 {
     pub span: Span,
     pub op: String,
     pub ty1: String,
-    pub ty2: String
+    pub ty2: String,
 }

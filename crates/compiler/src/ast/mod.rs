@@ -26,6 +26,16 @@ pub struct Expr<'cx> {
     pub kind: ExprKind<'cx>,
 }
 
+impl Expr<'_> {
+    pub fn span(&self) -> Span {
+        match self.kind {
+            ExprKind::BinOp(bin) => bin.span,
+            ExprKind::BoolLit(lit) => lit.span,
+            ExprKind::NumLit(lit) => lit.span,
+        }
+    }
+}
+
 #[derive(Debug, Clone, Copy)]
 pub enum ExprKind<'cx> {
     BinOp(&'cx BinExpr<'cx>),
