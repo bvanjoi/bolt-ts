@@ -7,7 +7,12 @@ macro_rules! keyword {
     };
 }
 
-keyword!((KW_FALSE, "false"), (KW_TRUE, "true"));
+keyword!(
+    (KW_NULL, "null"),
+    (KW_FALSE, "false"),
+    (KW_TRUE, "true"),
+    (KW_VAR, "var")
+);
 
 macro_rules! ident {
     ($(($name:ident, $ident:literal)),* $(,)?) => {

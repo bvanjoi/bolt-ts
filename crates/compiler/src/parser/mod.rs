@@ -9,7 +9,7 @@ use rustc_hash::FxHashMap;
 use token::{BinPrec, Token, TokenKind};
 
 use crate::ast::{self, BinOp, Node, NodeID};
-use crate::atoms::AtomMap;
+use crate::atoms::{AtomId, AtomMap};
 use crate::keyword::{IDENTIFIER, KEYWORDS};
 
 pub struct NodeMap<'cx>(FxHashMap<NodeID, Node<'cx>>);
@@ -82,10 +82,12 @@ pub struct ParserState<'cx, 'p> {
     p: &'p mut Parser<'cx>,
     input: &'p [u8],
     token: Token,
+    token_ident_value: Option<AtomId>,
     token_number_value: Option<f64>,
     pos: usize,
     parent: NodeID,
     module_id: ModuleID,
+    ident_count: usize,
 }
 
 impl<'cx, 'a, 'p> ParserState<'cx, 'p> {
@@ -99,10 +101,12 @@ impl<'cx, 'a, 'p> ParserState<'cx, 'p> {
             input,
             token,
             token_number_value: None,
+            token_ident_value: None,
             pos: 0,
             p,
             parent: NodeID::root(),
             module_id,
+            ident_count: 0,
         }
     }
 
@@ -118,8 +122,10 @@ impl<'cx, 'a, 'p> ParserState<'cx, 'p> {
     fn parse_stmt(&mut self) -> &'cx ast::Stmt<'cx> {
         let id = self.p.next_node_id();
         let stmt = self.with_parent(id, |this| {
+            use TokenKind::*;
             let kind = match this.token.kind {
-                _ => ast::StmtKind::ExprStmt(this.parse_expr_or_labeled_stmt()),
+                Var => ast::StmtKind::Var(this.parse_var_stmt()),
+                _ => ast::StmtKind::Expr(this.parse_expr_or_labeled_stmt()),
             };
             let stmt = this.alloc(ast::Stmt { id, kind });
             stmt
@@ -128,15 +134,97 @@ impl<'cx, 'a, 'p> ParserState<'cx, 'p> {
         stmt
     }
 
+    fn parse_var_stmt(&mut self) -> &'cx ast::VarStmt<'cx> {
+        let id = self.p.next_node_id();
+        let start = self.token.start();
+        let list = self.with_parent(id, |this| this.parse_var_decl_list());
+        let span = self.new_span(start as usize, self.pos);
+        let node = self.alloc(ast::VarStmt { id, span, list });
+        self.insert_map(id, Node::VarStmt(node));
+        node
+    }
+
+    fn parse_var_decl_list(&mut self) -> &'cx [&'cx ast::VarDecl<'cx>] {
+        use TokenKind::*;
+        match self.token.kind {
+            Var => (),
+            _ => unreachable!(),
+        }
+        self.next_token();
+        self.parse_delimited_list()
+    }
+
+    fn parse_delimited_list(&mut self) -> &'cx [&'cx ast::VarDecl<'cx>] {
+        let mut list = vec![];
+        loop {
+            list.push(self.parse_var_decl());
+            if self.token.kind != TokenKind::Comma {
+                break;
+            }
+        }
+        self.alloc(list)
+    }
+
+    fn parse_var_decl(&mut self) -> &'cx ast::VarDecl<'cx> {
+        let id = self.p.next_node_id();
+        let start = self.token.start();
+        self.with_parent(id, |this| {
+            let name = this.parse_ident_or_pat();
+            // todo: parse type annotation
+            let init = this.parse_init();
+            let span = this.new_span(start as usize, this.pos);
+            let node = this.alloc(ast::VarDecl {
+                id,
+                span,
+                name,
+                init,
+            });
+            this.insert_map(id, Node::VarDecl(node));
+            node
+        })
+    }
+
+    fn parse_init(&mut self) -> Option<&'cx ast::Expr<'cx>> {
+        self.parse_optional(TokenKind::Eq)
+            .then(|| self.parse_assign_expr())
+    }
+
+    fn parse_optional(&mut self, t: TokenKind) -> bool {
+        if self.token.kind == t {
+            self.next_token();
+            true
+        } else {
+            false
+        }
+    }
+
+    fn parse_ident_or_pat(&mut self) -> &'cx ast::Ident {
+        self.parse_binding_ident()
+    }
+
+    fn parse_binding_ident(&mut self) -> &'cx ast::Ident {
+        let name = self.token_ident_value.unwrap();
+        self.create_ident(name, self.token.span)
+    }
+
+    fn create_ident(&mut self, name: AtomId, span: Span) -> &'cx ast::Ident {
+        self.ident_count += 1;
+        let id = self.p.next_node_id();
+        let ident = self.alloc(ast::Ident { id, name, span });
+        self.next_token();
+        self.insert_map(id, Node::Ident(ident));
+        ident
+    }
+
     fn parse_expr_or_labeled_stmt(&mut self) -> &'cx ast::Expr<'cx> {
         self.parse_expr()
     }
 
     fn parse_expr(&mut self) -> &'cx ast::Expr<'cx> {
-        self.parse_assignment_expr()
+        self.parse_assign_expr()
     }
 
-    fn parse_assignment_expr(&mut self) -> &'cx ast::Expr<'cx> {
+    fn parse_assign_expr(&mut self) -> &'cx ast::Expr<'cx> {
         self.parse_binary_expr(BinPrec::Lowest)
     }
 
@@ -209,7 +297,7 @@ impl<'cx, 'a, 'p> ParserState<'cx, 'p> {
 
     fn parse_primary_expr(&mut self) -> &'cx ast::Expr<'cx> {
         match self.token.kind {
-            TokenKind::Number | TokenKind::False => self.parse_literal(),
+            TokenKind::Number | TokenKind::False | TokenKind::Null => self.parse_literal(),
             _ => todo!(),
         }
     }
@@ -228,6 +316,11 @@ impl<'cx, 'a, 'p> ParserState<'cx, 'p> {
                     let lit = this.create_lit(false, this.token.span);
                     this.insert_map(lit.id, Node::BoolLit(lit));
                     ast::ExprKind::BoolLit(lit)
+                }
+                TokenKind::Null => {
+                    let lit = this.create_lit((), this.token.span);
+                    this.insert_map(lit.id, Node::NullLit(lit));
+                    ast::ExprKind::NullLit(lit)
                 }
                 _ => unreachable!(),
             };
@@ -250,7 +343,7 @@ impl<'cx, 'a, 'p> ParserState<'cx, 'p> {
     }
 
     #[inline]
-    fn with_parent<T, F: FnOnce(&mut Self) -> T>(&mut self, parent: NodeID, f: F) -> T {
+    fn with_parent<T>(&mut self, parent: NodeID, f: impl FnOnce(&mut Self) -> T) -> T {
         let old = self.parent;
         self.parent = parent;
         let ret = f(self);
