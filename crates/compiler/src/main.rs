@@ -1,5 +1,3 @@
-// use rts_compiler::parser::{Parser, ParserState};
-
 use rts_compiler::eval_and_emit;
 
 fn main() {

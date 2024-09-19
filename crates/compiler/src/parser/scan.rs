@@ -133,9 +133,11 @@ impl<'cx, 'a, 'p> ParserState<'cx, 'p> {
                     return Token::new(kind, span);
                 }
             }
+            self.token_ident_value = Some(id);
+            Token::new(TokenKind::Ident, self.new_span(start, self.pos))
+        } else {
+            Token::new(TokenKind::EOF, self.new_span(start, self.pos))
         }
-        // Token;
-        Token::new(TokenKind::EOF, self.new_span(0, 0))
     }
 
     pub(super) fn next_token(&mut self) {
@@ -168,6 +170,11 @@ impl<'cx, 'a, 'p> ParserState<'cx, 'p> {
                         continue;
                     }
                 }
+                b'=' => {
+                    // todo: ==, ===, =>
+                    self.pos += 1;
+                    Token::new(TokenKind::Eq, self.new_span(start, self.pos))
+                }
                 b'+' => {
                     if self.next_ch() == Some(b'+') {
                         // ++
@@ -177,6 +184,10 @@ impl<'cx, 'a, 'p> ParserState<'cx, 'p> {
                         self.pos += 1;
                         Token::new(TokenKind::Plus, self.new_span(start, self.pos))
                     }
+                }
+                b'|' => {
+                    self.pos += 1;
+                    Token::new(TokenKind::Pipe, self.new_span(start, self.pos))
                 }
                 b'1'..=b'9' => self.scan_number(),
                 _ if ch.is_ascii_whitespace() => {

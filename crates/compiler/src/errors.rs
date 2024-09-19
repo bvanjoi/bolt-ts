@@ -13,3 +13,11 @@ pub(crate) struct OperatorCannotBeAppliedToTy1AndTy2 {
     pub ty1: String,
     pub ty2: String,
 }
+
+#[derive(Error, Diagnostic, Debug)]
+#[error("The value '{value}' cannot be used here.")]
+pub(crate) struct TheValueCannotBeUsedHere {
+    #[label]
+    pub span: Span,
+    pub value: String,
+}

@@ -1,5 +1,5 @@
-  × Operator '+' cannot be applied to types 'number' and 'false'.
-   ╭─[../../tests/cases/compiler/binaryArithmatic1.ts:1:1]
- 1 │ 1 + false
-   · ─────────
+  × The value 'null' cannot be used here.
+   ╭─[../../tests/cases/compiler/binaryArithmatic1.ts:1:13]
+ 1 │ null
+   · ────
    ╰────

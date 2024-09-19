@@ -1,6 +1,6 @@
 use rts_span::Span;
 
-use crate::ast::{BinOp, BinOpKind};
+use crate::ast::BinOpKind;
 
 #[derive(Debug, Clone, Copy)]
 pub struct Token {
@@ -28,15 +28,25 @@ impl Token {
     }
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum TokenKind {
     // keyword
+    Null,
     False,
     True,
+    Var,
     // =====
+    /// `+`
     Plus,
+    /// `=`
+    Eq,
+    /// `|`
+    Pipe,
+    /// `,`
+    Comma,
     // =====
     Number,
+    Ident,
     Unknown,
     EOF,
 }
@@ -44,6 +54,7 @@ pub enum TokenKind {
 impl TokenKind {
     pub fn prec(self) -> BinPrec {
         match self {
+            TokenKind::Pipe => BinPrec::BitwiseOR,
             TokenKind::Plus => BinPrec::Additive,
             _ => BinPrec::Invalid,
         }
@@ -52,6 +63,7 @@ impl TokenKind {
     pub fn into_binop(self) -> BinOpKind {
         match self {
             TokenKind::Plus => BinOpKind::Add,
+            TokenKind::Pipe => BinOpKind::Pipe,
             _ => unreachable!(),
         }
     }
@@ -61,7 +73,9 @@ impl TokenKind {
 pub enum BinPrec {
     Invalid,
     Lowest,
-    /// `+` or `-`
+    /// `|`
+    BitwiseOR,
+    /// `+`, `-`
     Additive,
     Highest,
 }

@@ -3,6 +3,8 @@ mod node;
 pub use node::{Node, NodeID};
 use rts_span::Span;
 
+use crate::atoms::AtomId;
+
 #[derive(Debug, Clone, Copy)]
 pub struct Program<'cx> {
     pub id: NodeID,
@@ -17,7 +19,15 @@ pub struct Stmt<'cx> {
 
 #[derive(Debug, Clone, Copy)]
 pub enum StmtKind<'cx> {
-    ExprStmt(&'cx Expr<'cx>),
+    Var(&'cx VarStmt<'cx>),
+    Expr(&'cx Expr<'cx>),
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct VarStmt<'cx> {
+    pub id: NodeID,
+    pub span: Span,
+    pub list: &'cx [&'cx VarDecl<'cx>],
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -32,6 +42,7 @@ impl Expr<'_> {
             ExprKind::BinOp(bin) => bin.span,
             ExprKind::BoolLit(lit) => lit.span,
             ExprKind::NumLit(lit) => lit.span,
+            ExprKind::NullLit(lit) => lit.span,
         }
     }
 }
@@ -41,6 +52,7 @@ pub enum ExprKind<'cx> {
     BinOp(&'cx BinExpr<'cx>),
     BoolLit(&'cx BoolLit),
     NumLit(&'cx NumLit),
+    NullLit(&'cx NullLit),
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -55,6 +67,7 @@ pub enum BinOpKind {
     Sub,
     Mul,
     Div,
+    Pipe,
 }
 
 impl BinOpKind {
@@ -64,6 +77,7 @@ impl BinOpKind {
             BinOpKind::Sub => todo!(),
             BinOpKind::Mul => todo!(),
             BinOpKind::Div => todo!(),
+            BinOpKind::Pipe => "|",
         }
     }
 }
@@ -86,3 +100,19 @@ pub struct Lit<T> {
 
 pub type NumLit = Lit<f64>;
 pub type BoolLit = Lit<bool>;
+pub type NullLit = Lit<()>;
+
+#[derive(Debug, Clone, Copy)]
+pub struct VarDecl<'cx> {
+    pub id: NodeID,
+    pub span: Span,
+    pub name: &'cx Ident,
+    pub init: Option<&'cx Expr<'cx>>,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct Ident {
+    pub id: NodeID,
+    pub span: Span,
+    pub name: AtomId,
+}

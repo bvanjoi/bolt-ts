@@ -1,7 +1,7 @@
 use rts_span::ModuleID;
 use rustc_hash::FxHashMap;
 
-use crate::ast::BinOp;
+use crate::ast::{BinOp, ExprKind};
 use crate::atoms::{AtomId, AtomMap};
 use crate::ty::{Ty, TyFlags, TyID, TyKind};
 use crate::{ast, errors, keyword, ty};
@@ -32,6 +32,7 @@ macro_rules! intrinsic_type {
 intrinsic_type!(
     (any_type, keyword::IDENT_ANY, TyFlags::Any),
     (number_type, keyword::IDENT_NUMBER, TyFlags::Number),
+    (null_type, keyword::KW_NULL, TyFlags::Number),
     (true_type, keyword::KW_TRUE, TyFlags::BooleanLiteral),
     (false_type, keyword::KW_FALSE, TyFlags::BooleanLiteral),
 );
@@ -82,9 +83,33 @@ impl<'cx> TyChecker<'cx> {
     }
 
     fn check_stmt(&mut self, stmt: &ast::Stmt) {
+        use ast::StmtKind::*;
         match stmt.kind {
-            ast::StmtKind::ExprStmt(expr) => self.check_expr(expr),
+            Var(var) => self.check_var_stmt(var),
+            Expr(expr) => {
+                self.check_expr(expr);
+            }
         };
+    }
+
+    fn check_var_stmt(&mut self, var: &ast::VarStmt) {
+        self.check_var_decl_list(var.list);
+    }
+
+    fn check_var_decl_list(&mut self, list: &[&ast::VarDecl]) {
+        for decl in list {
+            self.check_var_decl(decl);
+        }
+    }
+
+    fn check_var_decl(&mut self, decl: &ast::VarDecl) {
+        self.check_var_like_decl(decl);
+    }
+
+    fn check_var_like_decl(&mut self, decl: &ast::VarDecl) {
+        if let Some(init) = decl.init {
+            let _init_ty = self.check_expr(init);
+        }
     }
 
     fn check_expr(&mut self, expr: &ast::Expr) -> Ty<'cx> {
@@ -98,7 +123,8 @@ impl<'cx> TyChecker<'cx> {
                 } else {
                     self.false_type()
                 }
-            } // _ => todo!(),
+            }
+            NullLit(_) => self.null_type(),
         }
     }
 
@@ -182,6 +208,19 @@ impl<'cx> TyChecker<'cx> {
         // unreachable!();
     }
 
+    fn check_non_null_type(&mut self, expr: &ast::Expr) -> Ty<'cx> {
+        if matches!(expr.kind, ExprKind::NullLit(_)) {
+            let error = errors::TheValueCannotBeUsedHere {
+                span: expr.span(),
+                value: "null".to_string(),
+            };
+            self.push_error(expr.span().module, Box::new(error));
+            self.null_type()
+        } else {
+            self.null_type()
+        }
+    }
+
     fn check_bin_like_expr(
         &mut self,
         node: &ast::BinExpr,
@@ -192,6 +231,15 @@ impl<'cx> TyChecker<'cx> {
         right_ty: Ty<'cx>,
     ) -> Ty<'cx> {
         use ast::BinOpKind::*;
+
+        match op.kind {
+            Pipe => {
+                let left = self.check_non_null_type(left);
+                let right = self.check_non_null_type(right);
+            }
+            _ => (),
+        };
+
         match op.kind {
             Add => {
                 if self.is_type_assignable_to_kind(left_ty, TyFlags::NumberLike, true)
@@ -212,6 +260,7 @@ impl<'cx> TyChecker<'cx> {
             Sub => todo!(),
             Mul => todo!(),
             Div => todo!(),
+            Pipe => self.number_type(),
         }
     }
 
