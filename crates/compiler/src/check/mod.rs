@@ -31,10 +31,11 @@ macro_rules! intrinsic_type {
 
 intrinsic_type!(
     (any_type, keyword::IDENT_ANY, TyFlags::Any),
-    (number_type, keyword::IDENT_NUMBER, TyFlags::Number),
+    (undefined_type, keyword::IDENT_UNDEFINED, TyFlags::Undefined),
     (null_type, keyword::KW_NULL, TyFlags::Number),
     (true_type, keyword::KW_TRUE, TyFlags::BooleanLiteral),
     (false_type, keyword::KW_FALSE, TyFlags::BooleanLiteral),
+    (number_type, keyword::IDENT_NUMBER, TyFlags::Number),
 );
 
 impl<'cx> TyChecker<'cx> {
@@ -125,6 +126,15 @@ impl<'cx> TyChecker<'cx> {
                 }
             }
             NullLit(_) => self.null_type(),
+            Ident(ident) => self.check_ident(ident),
+        }
+    }
+
+    fn check_ident(&mut self, ident: &ast::Ident) -> Ty<'cx> {
+        if ident.name == keyword::IDENT_UNDEFINED {
+            self.undefined_type()
+        } else {
+            todo!()
         }
     }
 
@@ -213,6 +223,14 @@ impl<'cx> TyChecker<'cx> {
             let error = errors::TheValueCannotBeUsedHere {
                 span: expr.span(),
                 value: "null".to_string(),
+            };
+            self.push_error(expr.span().module, Box::new(error));
+            self.null_type()
+        } else if matches!(expr.kind, ExprKind::Ident(ast::Ident { name, .. }) if *name == keyword::IDENT_UNDEFINED)
+        {
+            let error = errors::TheValueCannotBeUsedHere {
+                span: expr.span(),
+                value: "undefined".to_string(),
             };
             self.push_error(expr.span().module, Box::new(error));
             self.null_type()

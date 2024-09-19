@@ -21,4 +21,8 @@ macro_rules! ident {
     };
 }
 
-ident!((IDENT_ANY, "any"), (IDENT_NUMBER, "number"));
+ident!(
+    (IDENT_UNDEFINED, "undefined"),
+    (IDENT_ANY, "any"),
+    (IDENT_NUMBER, "number")
+);

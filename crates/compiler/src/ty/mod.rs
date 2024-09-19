@@ -9,6 +9,7 @@ bitflags::bitflags! {
         const Number         = 1 << 3;
         const NumberLiteral  = 1 << 8;
         const BooleanLiteral = 1 << 9;
+        const Undefined      = 1 << 15;
         const Null           = 1 << 16;
 
         const Literal        = Self::NumberLiteral.bits() | Self::BooleanLiteral.bits();
