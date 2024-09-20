@@ -2,6 +2,6 @@ use rts_compiler::eval_and_emit;
 
 fn main() {
     let cwd = project_root::get_project_root().unwrap();
-    let p = cwd.join("tests/cases/compiler/binaryArithmatic1.ts");
+    let p = cwd.join("tests/cases/compiler/binaryArithmatic2.ts");
     eval_and_emit(p);
 }

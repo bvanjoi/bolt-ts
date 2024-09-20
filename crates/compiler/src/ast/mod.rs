@@ -43,6 +43,7 @@ impl Expr<'_> {
             ExprKind::BoolLit(lit) => lit.span,
             ExprKind::NumLit(lit) => lit.span,
             ExprKind::NullLit(lit) => lit.span,
+            ExprKind::Ident(ident) => ident.span,
         }
     }
 }
@@ -53,6 +54,7 @@ pub enum ExprKind<'cx> {
     BoolLit(&'cx BoolLit),
     NumLit(&'cx NumLit),
     NullLit(&'cx NullLit),
+    Ident(&'cx Ident),
 }
 
 #[derive(Debug, Clone, Copy)]

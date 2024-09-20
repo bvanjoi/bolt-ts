@@ -298,8 +298,20 @@ impl<'cx, 'a, 'p> ParserState<'cx, 'p> {
     fn parse_primary_expr(&mut self) -> &'cx ast::Expr<'cx> {
         match self.token.kind {
             TokenKind::Number | TokenKind::False | TokenKind::Null => self.parse_literal(),
-            _ => todo!(),
+            _ => self.parse_ident(),
         }
+    }
+
+    fn parse_ident(&mut self) -> &'cx ast::Expr<'cx> {
+        let id = self.p.next_node_id();
+        let name = self.token_ident_value.unwrap();
+        let kind = self.with_parent(id, |this| this.create_ident(name, this.token.span));
+        let expr = self.alloc(ast::Expr {
+            id,
+            kind: ast::ExprKind::Ident(kind),
+        });
+        self.insert_map(id, Node::Expr(expr));
+        expr
     }
 
     fn parse_literal(&mut self) -> &'cx ast::Expr<'cx> {
