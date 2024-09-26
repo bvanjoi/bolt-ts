@@ -11,7 +11,9 @@ keyword!(
     (KW_NULL, "null"),
     (KW_FALSE, "false"),
     (KW_TRUE, "true"),
-    (KW_VAR, "var")
+    (KW_VAR, "var"),
+    (KW_LET, "let"),
+    (KW_CONST, "const"),
 );
 
 macro_rules! ident {
@@ -24,5 +26,6 @@ macro_rules! ident {
 ident!(
     (IDENT_UNDEFINED, "undefined"),
     (IDENT_ANY, "any"),
-    (IDENT_NUMBER, "number")
+    (IDENT_NUMBER, "number"),
+    (IDENT_ARRAY, "array")
 );

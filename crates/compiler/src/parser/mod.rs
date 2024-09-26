@@ -78,12 +78,35 @@ impl<'cx> Parser<'cx> {
     }
 }
 
+#[derive(Debug, Clone, Copy)]
+enum TokenValue {
+    Number { value: f64 },
+    Ident { value: AtomId },
+}
+
+impl TokenValue {
+    fn number(self) -> f64 {
+        if let TokenValue::Number { value } = self {
+            value
+        } else {
+            unreachable!()
+        }
+    }
+
+    fn ident(self) -> AtomId {
+        if let TokenValue::Ident { value } = self {
+            value
+        } else {
+            unreachable!()
+        }
+    }
+}
+
 pub struct ParserState<'cx, 'p> {
     p: &'p mut Parser<'cx>,
     input: &'p [u8],
     token: Token,
-    token_ident_value: Option<AtomId>,
-    token_number_value: Option<f64>,
+    token_value: Option<TokenValue>,
     pos: usize,
     parent: NodeID,
     module_id: ModuleID,
@@ -91,17 +114,15 @@ pub struct ParserState<'cx, 'p> {
 }
 
 impl<'cx, 'a, 'p> ParserState<'cx, 'p> {
-    pub fn new(p: &'p mut Parser<'cx>, input: &'p str, module_id: ModuleID) -> Self {
+    pub fn new(p: &'p mut Parser<'cx>, input: &'p [u8], module_id: ModuleID) -> Self {
         let token = Token::new(
             TokenKind::EOF,
             Span::new(u32::MAX, u32::MAX, ModuleID::root()),
         );
-        let input = input.as_bytes();
         Self {
             input,
             token,
-            token_number_value: None,
-            token_ident_value: None,
+            token_value: None,
             pos: 0,
             p,
             parent: NodeID::root(),
@@ -202,8 +223,18 @@ impl<'cx, 'a, 'p> ParserState<'cx, 'p> {
         self.parse_binding_ident()
     }
 
+    fn ident_token(&self) -> AtomId {
+        assert!(matches!(self.token.kind, TokenKind::Ident));
+        self.token_value.unwrap().ident()
+    }
+
+    fn number_token(&self) -> f64 {
+        assert!(matches!(self.token.kind, TokenKind::Number));
+        self.token_value.unwrap().number()
+    }
+
     fn parse_binding_ident(&mut self) -> &'cx ast::Ident {
-        let name = self.token_ident_value.unwrap();
+        let name = self.ident_token();
         self.create_ident(name, self.token.span)
     }
 
@@ -304,7 +335,7 @@ impl<'cx, 'a, 'p> ParserState<'cx, 'p> {
 
     fn parse_ident(&mut self) -> &'cx ast::Expr<'cx> {
         let id = self.p.next_node_id();
-        let name = self.token_ident_value.unwrap();
+        let name = self.ident_token();
         let kind = self.with_parent(id, |this| this.create_ident(name, this.token.span));
         let expr = self.alloc(ast::Expr {
             id,
@@ -319,7 +350,7 @@ impl<'cx, 'a, 'p> ParserState<'cx, 'p> {
         let expr = self.with_parent(id, |this| {
             let kind = match this.token.kind {
                 TokenKind::Number => {
-                    let num = this.token_number_value.unwrap();
+                    let num = this.number_token();
                     let lit = this.create_lit(num, this.token.span);
                     this.insert_map(lit.id, Node::NumLit(lit));
                     ast::ExprKind::NumLit(lit)

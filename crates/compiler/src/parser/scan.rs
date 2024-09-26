@@ -1,7 +1,7 @@
 use rts_span::Span;
 
 use super::token::{Token, TokenFlags, TokenKind};
-use super::ParserState;
+use super::{ParserState, TokenValue};
 
 use crate::atoms::AtomId;
 use crate::keyword::KEYWORDS;
@@ -85,9 +85,9 @@ impl<'cx, 'a, 'p> ParserState<'cx, 'p> {
 
     fn scan_number(&mut self) -> Token {
         let start = self.pos;
-        if self.input[self.pos] == b'0' {
-            todo!()
-        }
+        // if self.input[self.pos] == b'0' {
+        //     todo!()
+        // }
         let fragment = self.scan_number_fragment();
         if self.ch() == Some(b'.') {
             todo!()
@@ -102,7 +102,7 @@ impl<'cx, 'a, 'p> ParserState<'cx, 'p> {
         let num = unsafe { String::from_utf8_unchecked(fragment) }
             .parse::<f64>()
             .unwrap();
-        self.token_number_value = Some(num);
+        self.token_value = Some(TokenValue::Number { value: num });
         Token::new(TokenKind::Number, self.new_span(start, end))
     }
 
@@ -133,7 +133,7 @@ impl<'cx, 'a, 'p> ParserState<'cx, 'p> {
                     return Token::new(kind, span);
                 }
             }
-            self.token_ident_value = Some(id);
+            self.token_value = Some(TokenValue::Ident { value: id });
             Token::new(TokenKind::Ident, self.new_span(start, self.pos))
         } else {
             Token::new(TokenKind::EOF, self.new_span(start, self.pos))
@@ -156,7 +156,6 @@ impl<'cx, 'a, 'p> ParserState<'cx, 'p> {
                 // TODO: Handle shebang
             }
             let token = match ch {
-                b'0' => todo!(),
                 b'/' => {
                     if self.next_ch() == Some(b'/') {
                         self.pos += 2;
@@ -189,6 +188,7 @@ impl<'cx, 'a, 'p> ParserState<'cx, 'p> {
                     self.pos += 1;
                     Token::new(TokenKind::Pipe, self.new_span(start, self.pos))
                 }
+                b'0' => self.scan_number(),
                 b'1'..=b'9' => self.scan_number(),
                 _ if ch.is_ascii_whitespace() => {
                     self.pos += 1;

@@ -1,3 +1,4 @@
+use core::str;
 use std::env;
 use std::fs::File;
 use std::io::{BufRead, BufReader, Read};
@@ -204,35 +205,19 @@ fn line_directive<'line>(
 
 #[test]
 fn test_line_directive() {
-    assert_eq!(line_directive(COMMENT, "//run-pass"), None);
-    assert_eq!(line_directive(COMMENT, "// run-pass"), None);
-    assert_eq!(line_directive(COMMENT, "//@[foo]"), Some((Some("foo"), "")));
-    assert_eq!(
-        line_directive(COMMENT, "//@[foo] check-pass"),
-        Some((Some("foo"), "check-pass"))
-    );
-    assert_eq!(
-        line_directive(COMMENT, "//@[foo] check-pass "),
-        Some((Some("foo"), "check-pass "))
-    );
-    assert_eq!(
-        line_directive(COMMENT, "//@ run-pass"),
-        Some((None, "run-pass"))
-    );
-    assert_eq!(
-        line_directive(COMMENT, "//@check-pass"),
-        Some((None, "check-pass"))
-    );
-    assert_eq!(
-        line_directive(COMMENT, "//@ check-pass"),
-        Some((None, "check-pass"))
-    );
-    assert_eq!(
-        line_directive(COMMENT, "//@   check-pass"),
-        Some((None, "check-pass"))
-    );
-    assert_eq!(
-        line_directive(COMMENT, "//@   check-pass  "),
-        Some((None, "check-pass  "))
-    );
+    #[track_caller]
+    fn t(ln: &str, expected: Option<(Option<&str>, &str)>) {
+        assert_eq!(line_directive(COMMENT, ln), expected);
+    }
+    t("//run-pass", None);
+    t("// run-pass", None);
+    t("//@[foo]", Some((Some("foo"), "")));
+    t("//@[foo] check-pass", Some((Some("foo"), "check-pass")));
+    t("//@[foo] check-pass ", Some((Some("foo"), "check-pass ")));
+    t("//@ run-pass", Some((None, "run-pass")));
+    t("//@check-pass", Some((None, "check-pass")));
+    t("//@ check-pass", Some((None, "check-pass")));
+    t("//@   check-pass", Some((None, "check-pass")));
+    t("//@   check-pass  ", Some((None, "check-pass  ")));
+    t("//@😊check-pass", Some((None, "😊check-pass")));
 }

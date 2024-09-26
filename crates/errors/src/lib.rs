@@ -69,7 +69,7 @@ use miette::MietteSpanContents;
 #[derive(Debug)]
 pub struct SourceCode {
     pub filename: Option<String>,
-    pub source: Arc<String>,
+    pub source: Arc<Vec<u8>>,
 }
 
 impl miette::SourceCode for SourceCode {
