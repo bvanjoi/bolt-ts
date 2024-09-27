@@ -54,7 +54,7 @@ pub enum ModulePath {
 
 pub struct ModuleArena {
     pub path_map: FxHashMap<ModuleID, ModulePath>,
-    pub content_map: FxHashMap<ModuleID, Arc<String>>,
+    pub content_map: FxHashMap<ModuleID, Arc<Vec<u8>>>,
     next_module_id: ModuleID,
 }
 
@@ -78,7 +78,7 @@ impl ModuleArena {
         if let ModulePath::Real(p) = &p {
             let prev = self
                 .content_map
-                .insert(id, Arc::new(std::fs::read_to_string(p).unwrap()));
+                .insert(id, Arc::new(std::fs::read(p).unwrap()));
             assert!(prev.is_none())
         };
         let prev = self.path_map.insert(id, p);

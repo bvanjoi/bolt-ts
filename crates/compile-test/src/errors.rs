@@ -88,7 +88,8 @@ pub fn load_errors(testfile: &Path, revision: Option<&str>) -> Vec<Error> {
     rdr.lines()
         .enumerate()
         .filter_map(|(line_num, line)| {
-            parse_expected(last_nonfollow_error, line_num + 1, &line.unwrap(), revision).map(
+            let line = line.ok()?;
+            parse_expected(last_nonfollow_error, line_num + 1, &line, revision).map(
                 |(which, error)| {
                     match which {
                         FollowPrevious(_) => {}
