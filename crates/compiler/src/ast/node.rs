@@ -15,5 +15,6 @@ pub enum Node<'cx> {
     NumLit(&'cx ast::NumLit),
     BoolLit(&'cx ast::BoolLit),
     NullLit(&'cx ast::NullLit),
+    StringLit(&'cx ast::StringLit),
     Ident(&'cx ast::Ident),
 }

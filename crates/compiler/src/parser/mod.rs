@@ -2,6 +2,7 @@ mod node_flags;
 mod scan;
 mod token;
 
+use std::borrow::Cow;
 use std::u32;
 
 use rts_span::{ModuleID, Span};
@@ -49,7 +50,7 @@ pub struct Parser<'cx> {
     pub node_map: NodeMap<'cx>,
     pub parent_map: ParentMap,
     next_node_id: NodeID,
-    pub atoms: AtomMap,
+    pub atoms: AtomMap<'cx>,
 }
 
 impl<'cx> Parser<'cx> {
@@ -57,10 +58,10 @@ impl<'cx> Parser<'cx> {
         assert!(ast_arena.allocation_limit().is_none());
         let mut atoms = AtomMap::default();
         for (atom, id) in KEYWORDS {
-            atoms.insert(*id, atom.to_string());
+            atoms.insert(*id, Cow::Borrowed(atom));
         }
         for (atom, id) in IDENTIFIER {
-            atoms.insert(*id, atom.to_string())
+            atoms.insert(*id, Cow::Borrowed(atom))
         }
         Self {
             node_map: NodeMap(FxHashMap::default()),
@@ -162,6 +163,7 @@ impl<'cx, 'a, 'p> ParserState<'cx, 'p> {
         let span = self.new_span(start as usize, self.pos);
         let node = self.alloc(ast::VarStmt { id, span, list });
         self.insert_map(id, Node::VarStmt(node));
+        self.parse_semi();
         node
     }
 
@@ -228,6 +230,11 @@ impl<'cx, 'a, 'p> ParserState<'cx, 'p> {
         self.token_value.unwrap().ident()
     }
 
+    fn string_token(&self) -> AtomId {
+        assert!(matches!(self.token.kind, TokenKind::String));
+        self.token_value.unwrap().ident()
+    }
+
     fn number_token(&self) -> f64 {
         assert!(matches!(self.token.kind, TokenKind::Number));
         self.token_value.unwrap().number()
@@ -247,12 +254,21 @@ impl<'cx, 'a, 'p> ParserState<'cx, 'p> {
         ident
     }
 
+    fn parse_semi(&mut self) {
+        if self.token.kind == TokenKind::Semi {
+            self.next_token();
+        }
+    }
+
     fn parse_expr_or_labeled_stmt(&mut self) -> &'cx ast::Expr<'cx> {
-        self.parse_expr()
+        let expr = self.parse_expr();
+        self.parse_semi();
+        expr
     }
 
     fn parse_expr(&mut self) -> &'cx ast::Expr<'cx> {
-        self.parse_assign_expr()
+        let expr = self.parse_assign_expr();
+        expr
     }
 
     fn parse_assign_expr(&mut self) -> &'cx ast::Expr<'cx> {
@@ -327,8 +343,9 @@ impl<'cx, 'a, 'p> ParserState<'cx, 'p> {
     }
 
     fn parse_primary_expr(&mut self) -> &'cx ast::Expr<'cx> {
+        use TokenKind::*;
         match self.token.kind {
-            TokenKind::Number | TokenKind::False | TokenKind::Null => self.parse_literal(),
+            String | Number | False | Null => self.parse_literal(),
             _ => self.parse_ident(),
         }
     }
@@ -364,6 +381,12 @@ impl<'cx, 'a, 'p> ParserState<'cx, 'p> {
                     let lit = this.create_lit((), this.token.span);
                     this.insert_map(lit.id, Node::NullLit(lit));
                     ast::ExprKind::NullLit(lit)
+                }
+                TokenKind::String => {
+                    let s = this.string_token();
+                    let lit = this.create_lit(s, this.token.span);
+                    this.insert_map(lit.id, Node::StringLit(lit));
+                    ast::ExprKind::StringLit(lit)
                 }
                 _ => unreachable!(),
             };

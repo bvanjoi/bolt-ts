@@ -43,6 +43,7 @@ impl Expr<'_> {
             ExprKind::BoolLit(lit) => lit.span,
             ExprKind::NumLit(lit) => lit.span,
             ExprKind::NullLit(lit) => lit.span,
+            ExprKind::StringLit(lit) => lit.span,
             ExprKind::Ident(ident) => ident.span,
         }
     }
@@ -53,6 +54,7 @@ pub enum ExprKind<'cx> {
     BinOp(&'cx BinExpr<'cx>),
     BoolLit(&'cx BoolLit),
     NumLit(&'cx NumLit),
+    StringLit(&'cx StringLit),
     NullLit(&'cx NullLit),
     Ident(&'cx Ident),
 }
@@ -103,6 +105,7 @@ pub struct Lit<T> {
 pub type NumLit = Lit<f64>;
 pub type BoolLit = Lit<bool>;
 pub type NullLit = Lit<()>;
+pub type StringLit = Lit<AtomId>;
 
 #[derive(Debug, Clone, Copy)]
 pub struct VarDecl<'cx> {

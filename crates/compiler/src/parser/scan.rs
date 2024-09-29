@@ -136,12 +136,11 @@ impl<'cx, 'a, 'p> ParserState<'cx, 'p> {
             self.token_value = Some(TokenValue::Ident { value: id });
             Token::new(TokenKind::Ident, self.new_span(start, self.pos))
         } else {
-            Token::new(TokenKind::EOF, self.new_span(start, self.pos))
+            unreachable!("pos: {} ch: {}", self.pos, ch as char);
         }
     }
 
     pub(super) fn next_token(&mut self) {
-        if self.token.is_keyword() {}
         let start = self.pos;
         let flags = TokenFlags::NONE;
         let mut token_start;
@@ -188,6 +187,17 @@ impl<'cx, 'a, 'p> ParserState<'cx, 'p> {
                     self.pos += 1;
                     Token::new(TokenKind::Pipe, self.new_span(start, self.pos))
                 }
+                b';' => {
+                    self.pos += 1;
+                    Token::new(TokenKind::Semi, self.new_span(start, self.pos))
+                }
+                b'\'' | b'"' => {
+                    let (offset, v) = self.scan_string(ch);
+                    self.pos += offset;
+                    let atom = self.p.atoms.insert_by_vec(v);
+                    self.token_value = Some(TokenValue::Ident { value: atom });
+                    Token::new(TokenKind::String, self.new_span(start, self.pos))
+                }
                 b'0' => self.scan_number(),
                 b'1'..=b'9' => self.scan_number(),
                 _ if ch.is_ascii_whitespace() => {
@@ -199,5 +209,20 @@ impl<'cx, 'a, 'p> ParserState<'cx, 'p> {
             self.token = token;
             break;
         }
+    }
+
+    fn scan_string(&self, quote: u8) -> (usize, Vec<u8>) {
+        let start = self.pos;
+        let mut offset = 1;
+        let mut v = Vec::with_capacity(32);
+        while start + offset < self.end() {
+            let ch = self.input[start + offset];
+            offset += 1;
+            if ch == quote {
+                break;
+            }
+            v.push(ch);
+        }
+        (offset, v)
     }
 }
