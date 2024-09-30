@@ -27,5 +27,6 @@ ident!(
     (IDENT_UNDEFINED, "undefined"),
     (IDENT_ANY, "any"),
     (IDENT_NUMBER, "number"),
-    (IDENT_ARRAY, "array")
+    (IDENT_ARRAY, "array"),
+    (IDENT_STRING, "string")
 );

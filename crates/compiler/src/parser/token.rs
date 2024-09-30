@@ -44,8 +44,11 @@ pub enum TokenKind {
     Pipe,
     /// `,`
     Comma,
+    /// `;`
+    Semi,
     // =====
     Number,
+    String,
     Ident,
     Unknown,
     EOF,

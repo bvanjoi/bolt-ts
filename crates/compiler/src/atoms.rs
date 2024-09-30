@@ -1,3 +1,5 @@
+use std::borrow::Cow;
+
 use rustc_hash::FxHashMap;
 
 #[derive(Debug, PartialEq, Eq, Hash, Clone, Copy)]
@@ -15,10 +17,10 @@ impl AtomId {
 }
 
 #[derive(Debug, Default)]
-pub struct AtomMap(FxHashMap<AtomId, String>);
+pub struct AtomMap<'cx>(FxHashMap<AtomId, Cow<'cx, str>>);
 
-impl AtomMap {
-    pub fn insert_by_str(&mut self, value: String) -> AtomId {
+impl<'cx> AtomMap<'cx> {
+    pub fn insert_by_str(&mut self, value: Cow<'cx, str>) -> AtomId {
         let id = AtomId::from_bytes(value.as_bytes());
         if self.0.get(&id).is_none() {
             self.insert(id, value)
@@ -26,12 +28,20 @@ impl AtomMap {
         id
     }
 
-    pub fn insert(&mut self, atom: AtomId, value: String) {
+    pub fn insert_by_vec(&mut self, value: Vec<u8>) -> AtomId {
+        self.insert_by_str(unsafe { Cow::Owned(String::from_utf8_unchecked(value)) })
+    }
+
+    pub fn insert(&mut self, atom: AtomId, value: Cow<'cx, str>) {
         let prev = self.0.insert(atom, value);
         assert!(prev.is_none());
     }
 
-    pub fn get(&self, atom: AtomId) -> &str {
-        self.0.get(&atom).unwrap().as_str()
+    pub fn get(&'cx self, atom: AtomId) -> &'cx str {
+        self.0.get(&atom).unwrap()
+    }
+
+    pub fn eq_str(&self, atom: AtomId, s: &str) -> bool {
+        self.get(atom) == s
     }
 }

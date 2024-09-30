@@ -7,7 +7,7 @@ use crate::ty::{Ty, TyFlags, TyID, TyKind};
 use crate::{ast, errors, keyword, ty};
 
 pub struct TyChecker<'cx> {
-    atoms: AtomMap,
+    atoms: AtomMap<'cx>,
     arena: &'cx bumpalo::Bump,
     next_ty_id: TyID,
     pub tys: FxHashMap<TyID, Ty<'cx>>,
@@ -36,10 +36,11 @@ intrinsic_type!(
     (true_type, keyword::KW_TRUE, TyFlags::BooleanLiteral),
     (false_type, keyword::KW_FALSE, TyFlags::BooleanLiteral),
     (number_type, keyword::IDENT_NUMBER, TyFlags::Number),
+    (string_type, keyword::IDENT_STRING, TyFlags::String),
 );
 
 impl<'cx> TyChecker<'cx> {
-    pub fn new(ty_arena: &'cx bumpalo::Bump, atoms: AtomMap) -> Self {
+    pub fn new(ty_arena: &'cx bumpalo::Bump, atoms: AtomMap<'cx>) -> Self {
         assert!(ty_arena.allocation_limit().is_none());
         let mut this = Self {
             intrinsic_tys: FxHashMap::default(),
@@ -127,10 +128,11 @@ impl<'cx> TyChecker<'cx> {
             }
             NullLit(_) => self.null_type(),
             Ident(ident) => self.check_ident(ident),
+            StringLit(_) => self.string_type(),
         }
     }
 
-    fn check_ident(&mut self, ident: &ast::Ident) -> Ty<'cx> {
+    fn check_ident(&self, ident: &ast::Ident) -> Ty<'cx> {
         if ident.name == keyword::IDENT_UNDEFINED {
             self.undefined_type()
         } else {
@@ -264,6 +266,10 @@ impl<'cx> TyChecker<'cx> {
                     && self.is_type_assignable_to_kind(right_ty, TyFlags::NumberLike, true)
                 {
                     self.number_type()
+                } else if self.is_type_assignable_to_kind(left_ty, TyFlags::StringLike, true)
+                    && self.is_type_assignable_to_kind(right_ty, TyFlags::StringLike, true)
+                {
+                    self.string_type()
                 } else {
                     let error = errors::OperatorCannotBeAppliedToTy1AndTy2 {
                         op: op.kind.as_str().to_string(),
