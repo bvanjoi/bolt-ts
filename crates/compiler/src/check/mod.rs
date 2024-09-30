@@ -7,7 +7,7 @@ use crate::ty::{Ty, TyFlags, TyID, TyKind};
 use crate::{ast, errors, keyword, ty};
 
 pub struct TyChecker<'cx> {
-    atoms: AtomMap<'cx>,
+    pub atoms: AtomMap<'cx>,
     arena: &'cx bumpalo::Bump,
     next_ty_id: TyID,
     pub tys: FxHashMap<TyID, Ty<'cx>>,

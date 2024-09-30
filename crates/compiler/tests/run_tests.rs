@@ -1,18 +1,30 @@
 use compile_test::run_tests::run;
+use compile_test::{ensure_node_exist, run_node};
 use rts_compiler::eval_from;
 use rts_errors::miette::Severity;
 
 #[test]
 fn run_tests() {
+    ensure_node_exist();
     let project_root = project_root::get_project_root().unwrap();
     let sub = "tests/cases/compiler";
     let cases = compile_test::fixtures(&project_root, sub);
     let runner = |case: &std::path::Path| {
-        let (module_arena, diags) = eval_from(rts_span::ModulePath::Real(case.to_path_buf()));
-        if diags.is_empty() {
+        let output = eval_from(rts_span::ModulePath::Real(case.to_path_buf()));
+        if output.diags.is_empty() {
+            let file_path = compile_test::temp_node_file(
+                &project_root,
+                case.file_stem().unwrap().to_str().unwrap(),
+            );
+            std::fs::write(file_path.as_path(), output.output).unwrap();
+            if let Some(output) = run_node(&file_path) {
+                let expected_file_path = expect_test::expect_file![case.with_extension("out")];
+                expected_file_path.assert_eq(&output);
+            }
             Ok(())
         } else {
-            let errors = diags
+            let errors = output
+                .diags
                 .iter()
                 .flat_map(|diag| {
                     let Some(labels) = diag.inner.labels() else {
@@ -34,7 +46,7 @@ fn run_tests() {
                             } else {
                                 msg.clone()
                             };
-                            let code = module_arena.content_map.get(&diag.module_id);
+                            let code = output.module_arena.content_map.get(&diag.module_id);
                             let start = code.map(|code| {
                                 rts_errors::miette_label_span_to_line_position(label, unsafe {
                                     core::str::from_utf8_unchecked(code.as_ref())
@@ -51,9 +63,10 @@ fn run_tests() {
                 })
                 .collect::<Vec<compile_test::errors::Error>>();
             let expected_file_path = expect_test::expect_file![case.with_extension("stderr")];
-            let err_msg = diags
+            let err_msg = output
+                .diags
                 .into_iter()
-                .map(|diag| diag.emit_message(&module_arena, true))
+                .map(|diag| diag.emit_message(&output.module_arena, true))
                 .collect::<Vec<_>>()
                 .join("\n");
             expected_file_path.assert_eq(&err_msg);

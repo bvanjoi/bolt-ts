@@ -78,9 +78,9 @@ impl BinOpKind {
     pub fn as_str(self) -> &'static str {
         match self {
             BinOpKind::Add => "+",
-            BinOpKind::Sub => todo!(),
-            BinOpKind::Mul => todo!(),
-            BinOpKind::Div => todo!(),
+            BinOpKind::Sub => "-",
+            BinOpKind::Mul => "*",
+            BinOpKind::Div => "/",
             BinOpKind::Pipe => "|",
         }
     }

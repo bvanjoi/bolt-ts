@@ -6,27 +6,44 @@ mod errors;
 mod keyword;
 pub mod parser;
 mod ty;
+mod emit;
 
 use std::path::PathBuf;
 
+use atoms::AtomMap;
 use rts_errors::Diag;
 use rts_span::{ModuleArena, ModulePath};
 
-pub fn eval_from(m: ModulePath) -> (ModuleArena, Vec<Diag>) {
-    let mut arena = ModuleArena::new();
-    let m = arena.new_module(m);
-    let input = arena.content_map.get(&m.id).unwrap();
+pub struct Output {
+    pub module_arena: ModuleArena,
+    pub output: String,
+    pub diags: Vec<Diag>,
+}
+
+pub fn eval_from(m: ModulePath) -> Output {
+    let mut module_arena = ModuleArena::new();
+    let m = module_arena.new_module(m);
+    let input = module_arena.content_map.get(&m.id).unwrap();
     let ast_arena = bumpalo::Bump::new();
-    let mut p = parser::Parser::new(&ast_arena);
+    let atoms = AtomMap::default();
+    let mut p = parser::Parser::new(&ast_arena, atoms);
     let mut s = parser::ParserState::new(&mut p, input, m.id);
     let root = s.parse();
     let ty_arena = bumpalo::Bump::new();
     let mut c = check::TyChecker::new(&ty_arena, p.atoms);
     c.check_program(root);
-    (arena, std::mem::take(&mut c.diags))
+
+    let mut emitter = emit::Emit::new(&c.atoms);
+    let output = emitter.emit(root);
+
+    Output {
+        module_arena,
+        diags: c.diags,
+        output
+    }
 }
 
 pub fn eval_and_emit(entry: PathBuf) {
-    let (arena, diags) = eval_from(ModulePath::Real(entry));
-    diags.into_iter().for_each(|diag| diag.emit(&arena));
+    let output = eval_from(ModulePath::Real(entry));
+    output.diags.into_iter().for_each(|diag| diag.emit(&output.module_arena));
 }

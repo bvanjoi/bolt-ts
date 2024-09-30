@@ -54,9 +54,8 @@ pub struct Parser<'cx> {
 }
 
 impl<'cx> Parser<'cx> {
-    pub fn new(ast_arena: &'cx bumpalo::Bump) -> Self {
+    pub fn new(ast_arena: &'cx bumpalo::Bump, mut atoms: AtomMap<'cx>) -> Self {
         assert!(ast_arena.allocation_limit().is_none());
-        let mut atoms = AtomMap::default();
         for (atom, id) in KEYWORDS {
             atoms.insert(*id, Cow::Borrowed(atom));
         }
