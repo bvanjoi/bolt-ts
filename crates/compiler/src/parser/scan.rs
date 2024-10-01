@@ -1,3 +1,5 @@
+use std::borrow::Cow;
+
 use rts_span::Span;
 
 use super::token::{Token, TokenFlags, TokenKind};
@@ -133,6 +135,9 @@ impl<'cx, 'a, 'p> ParserState<'cx, 'p> {
                     return Token::new(kind, span);
                 }
             }
+            self.p.atoms.insert_if_not_exist(id, || unsafe {
+                Cow::Owned(String::from_utf8_unchecked(raw.to_vec()))
+            });
             self.token_value = Some(TokenValue::Ident { value: id });
             Token::new(TokenKind::Ident, self.new_span(start, self.pos))
         } else {

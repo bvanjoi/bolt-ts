@@ -28,15 +28,11 @@ impl<'test> TestCx<'test> {
     where
         F: FnOnce(&Path) -> Result<(), Vec<errors::Error>>,
     {
-        let pm = self.pass_mode();
         let expected_errors = errors::load_errors(self.test_file, None);
 
         let panic = |msg: String| panic!("{msg} in {}", self.test_file.display());
         match runner(self.test_file) {
             Ok(_success) => {
-                if self.props.pass_mode().is_none() {
-                    panic("ensure you had mark `//@ check-pass` in header".to_string());
-                }
                 if !expected_errors.is_empty() {
                     panic("it actually had some expected errors".to_string());
                 }
@@ -44,14 +40,14 @@ impl<'test> TestCx<'test> {
             }
             Err(errors) => {
                 self.check_expected_errors(&expected_errors, &errors);
-                if let Some(pass_mode) = pm {
-                    panic!(
-                        r#"
-                        ensure you do not mark `//@ check-pass` in header,
-                        it should been **failed** but you had been set success flag {pass_mode} in {}"#,
-                        self.test_file.to_string_lossy()
-                    );
-                }
+                assert!(
+                    self.pass_mode().is_none(),
+                    r#"
+                        ensure you do not mark `//@ {{check, run}}-pass` in header,
+                        it should been **failed** but you had been set success flag {pass_mode} in {file}"#,
+                    pass_mode = self.pass_mode().unwrap(),
+                    file = self.test_file.to_string_lossy()
+                );
             }
         }
     }

@@ -32,6 +32,12 @@ impl<'cx> AtomMap<'cx> {
         self.insert_by_str(unsafe { Cow::Owned(String::from_utf8_unchecked(value)) })
     }
 
+    pub fn insert_if_not_exist(&mut self, atom: AtomId, lazy: impl FnOnce() -> Cow<'cx, str>) {
+        if self.0.get(&atom).is_none() {
+            self.insert(atom, lazy());
+        }
+    }
+
     pub fn insert(&mut self, atom: AtomId, value: Cow<'cx, str>) {
         let prev = self.0.insert(atom, value);
         assert!(prev.is_none());
