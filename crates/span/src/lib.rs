@@ -1,3 +1,5 @@
+mod sys;
+
 use std::sync::Arc;
 
 use rustc_hash::FxHashMap;
@@ -54,7 +56,7 @@ pub enum ModulePath {
 
 pub struct ModuleArena {
     pub path_map: FxHashMap<ModuleID, ModulePath>,
-    pub content_map: FxHashMap<ModuleID, Arc<Vec<u8>>>,
+    pub content_map: FxHashMap<ModuleID, Arc<String>>,
     next_module_id: ModuleID,
 }
 
@@ -78,7 +80,7 @@ impl ModuleArena {
         if let ModulePath::Real(p) = &p {
             let prev = self
                 .content_map
-                .insert(id, Arc::new(std::fs::read(p).unwrap()));
+                .insert(id, Arc::new(sys::read_file_with_encoding(p).unwrap()));
             assert!(prev.is_none())
         };
         let prev = self.path_map.insert(id, p);

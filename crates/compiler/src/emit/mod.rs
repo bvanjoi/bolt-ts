@@ -22,6 +22,12 @@ impl PPrint {
     fn p_comma(&mut self) {
         self.p(",");
     }
+    fn p_l_bracket(&mut self) {
+        self.p("[");
+    }
+    fn p_r_bracket(&mut self) {
+        self.p("]");
+    }
 }
 
 pub struct Emit<'cx> {
@@ -72,7 +78,21 @@ impl<'cx> Emit<'cx> {
             Ident(ident) => {
                 self.content.p(self.atoms.get(ident.name));
             }
+            ArrayLit(lit) => self.emit_array_lit(lit),
+            Omit(_) => {},
         }
+    }
+
+    fn emit_array_lit(&mut self, lit: &ast::ArrayLit) {
+        self.content.p_l_bracket();
+        for (idx,expr) in lit.elems.iter().enumerate() {
+            self.emit_expr(&expr);
+            if idx != lit.elems.len() - 1 {
+                self.content.p_comma();
+                self.content.p_whitespace();
+            }
+        }
+        self.content.p_r_bracket();
     }
 
     fn emit_bin_op(&mut self, bin_op: &ast::BinExpr) {

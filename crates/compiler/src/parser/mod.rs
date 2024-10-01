@@ -1,4 +1,3 @@
-mod node_flags;
 mod scan;
 mod token;
 
@@ -12,6 +11,8 @@ use token::{BinPrec, Token, TokenKind};
 use crate::ast::{self, BinOp, Node, NodeID};
 use crate::atoms::{AtomId, AtomMap};
 use crate::keyword::{IDENTIFIER, KEYWORDS};
+
+type PResult<T> = Result<T, ()>;
 
 pub struct NodeMap<'cx>(FxHashMap<NodeID, Node<'cx>>);
 
@@ -145,7 +146,7 @@ impl<'cx, 'a, 'p> ParserState<'cx, 'p> {
         let stmt = self.with_parent(id, |this| {
             use TokenKind::*;
             let kind = match this.token.kind {
-                Var => ast::StmtKind::Var(this.parse_var_stmt()),
+                Var | Const => ast::StmtKind::Var(this.parse_var_stmt()),
                 _ => ast::StmtKind::Expr(this.parse_expr_or_labeled_stmt()),
             };
             let stmt = this.alloc(ast::Stmt { id, kind });
@@ -158,29 +159,48 @@ impl<'cx, 'a, 'p> ParserState<'cx, 'p> {
     fn parse_var_stmt(&mut self) -> &'cx ast::VarStmt<'cx> {
         let id = self.p.next_node_id();
         let start = self.token.start();
+        use TokenKind::*;
+        let kind = match self.token.kind {
+            Var | Let | Const => unsafe {
+                std::mem::transmute::<u8, ast::VarKind>(self.token.kind as u8 - Var as u8)
+            },
+            _ => unreachable!(),
+        };
         let list = self.with_parent(id, |this| this.parse_var_decl_list());
         let span = self.new_span(start as usize, self.pos);
-        let node = self.alloc(ast::VarStmt { id, span, list });
+        let node = self.alloc(ast::VarStmt {
+            id,
+            kind,
+            span,
+            list,
+        });
         self.insert_map(id, Node::VarStmt(node));
         self.parse_semi();
         node
     }
 
     fn parse_var_decl_list(&mut self) -> &'cx [&'cx ast::VarDecl<'cx>] {
-        use TokenKind::*;
-        match self.token.kind {
-            Var => (),
-            _ => unreachable!(),
-        }
         self.next_token();
-        self.parse_delimited_list()
+        self.parse_delimited_list(
+            |t| t.is_binding_ident_or_private_ident_or_pat(),
+            |this| this.parse_var_decl(),
+            |t| t == TokenKind::Semi,
+        )
     }
 
-    fn parse_delimited_list(&mut self) -> &'cx [&'cx ast::VarDecl<'cx>] {
+    fn parse_delimited_list<T>(
+        &mut self,
+        is_ele: impl Fn(TokenKind) -> bool,
+        ele: impl Fn(&mut Self) -> T,
+        is_closing: impl Fn(TokenKind) -> bool,
+    ) -> &'cx [T] {
         let mut list = vec![];
-        loop {
-            list.push(self.parse_var_decl());
-            if self.token.kind != TokenKind::Comma {
+        while is_ele(self.token.kind) {
+            list.push(ele(self));
+            if self.parse_optional(TokenKind::Comma) {
+                continue;
+            }
+            if is_closing(self.token.kind) {
                 break;
             }
         }
@@ -225,7 +245,11 @@ impl<'cx, 'a, 'p> ParserState<'cx, 'p> {
     }
 
     fn ident_token(&self) -> AtomId {
-        assert!(matches!(self.token.kind, TokenKind::Ident));
+        assert!(
+            matches!(self.token.kind, TokenKind::Ident),
+            "{:#?}",
+            self.token
+        );
         self.token_value.unwrap().ident()
     }
 
@@ -344,9 +368,73 @@ impl<'cx, 'a, 'p> ParserState<'cx, 'p> {
     fn parse_primary_expr(&mut self) -> &'cx ast::Expr<'cx> {
         use TokenKind::*;
         match self.token.kind {
-            String | Number | False | Null => self.parse_literal(),
+            String | Number | False | Null => self.parse_lit(),
+            LBracket => self.parse_array_lit(),
             _ => self.parse_ident(),
         }
+    }
+
+    fn expect(&mut self, t: TokenKind) -> PResult<()> {
+        if self.token.kind == t {
+            self.next_token();
+            Ok(())
+        } else {
+            Err(())
+        }
+    }
+
+    fn parse_array_lit(&mut self) -> &'cx ast::Expr<'cx> {
+        let expr_id = self.p.next_node_id();
+        let id = self.p.next_node_id();
+        let start = self.token.start();
+        if let Err(_) = self.expect(TokenKind::LBracket) {
+            dbg!(self.token);
+            todo!("error handler")
+        }
+        let elems = self.with_parent(id, |this| this.parse_array_lit_elems());
+        if let Err(_) = self.expect(TokenKind::RBracket) {
+            todo!("error handler")
+        }
+        let lit = self.alloc(ast::ArrayLit {
+            id,
+            span: self.new_span(start as usize, self.pos),
+            elems,
+        });
+        self.with_parent(expr_id, |this| this.insert_map(id, Node::ArrayLit(&lit)));
+        let expr = self.alloc(ast::Expr {
+            id: expr_id,
+            kind: ast::ExprKind::ArrayLit(lit),
+        });
+        expr
+    }
+
+    fn parse_array_lit_elems(&mut self) -> &'cx [&'cx ast::Expr<'cx>] {
+        self.parse_delimited_list(
+            |t| matches!(t, TokenKind::Comma) || t.is_start_of_expr(),
+            |this| {
+                if this.token.kind == TokenKind::Comma {
+                    let id = this.p.next_node_id();
+                    let kind = this.with_parent(id, |this| {
+                        let id = this.p.next_node_id();
+                        let expr = this.alloc(ast::OmitExpr {
+                            id,
+                            span: this.token.span,
+                        });
+                        this.insert_map(id, Node::OmitExpr(expr));
+                        expr
+                    });
+                    let expr = this.alloc(ast::Expr {
+                        id,
+                        kind: ast::ExprKind::Omit(&kind),
+                    });
+                    this.insert_map(id, Node::Expr(expr));
+                    expr
+                } else {
+                    this.parse_assign_expr()
+                }
+            },
+            |t| t == TokenKind::RBracket,
+        )
     }
 
     fn parse_ident(&mut self) -> &'cx ast::Expr<'cx> {
@@ -361,7 +449,7 @@ impl<'cx, 'a, 'p> ParserState<'cx, 'p> {
         expr
     }
 
-    fn parse_literal(&mut self) -> &'cx ast::Expr<'cx> {
+    fn parse_lit(&mut self) -> &'cx ast::Expr<'cx> {
         let id = self.p.next_node_id();
         let expr = self.with_parent(id, |this| {
             let kind = match this.token.kind {

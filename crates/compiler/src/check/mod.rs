@@ -10,16 +10,16 @@ pub struct TyChecker<'cx> {
     pub atoms: AtomMap<'cx>,
     arena: &'cx bumpalo::Bump,
     next_ty_id: TyID,
-    pub tys: FxHashMap<TyID, Ty<'cx>>,
+    pub tys: FxHashMap<TyID, &'cx Ty<'cx>>,
     num_lit_tys: FxHashMap<u64, TyID>,
-    intrinsic_tys: FxHashMap<AtomId, Ty<'cx>>,
+    intrinsic_tys: FxHashMap<AtomId, &'cx Ty<'cx>>,
     pub diags: Vec<rts_errors::Diag>,
 }
 
 macro_rules! intrinsic_type {
     ($(($name: ident, $atom_id: expr, $ty_flags: expr)),* $(,)?) => {
         impl<'cx> TyChecker<'cx> {
-            $(fn $name(&self) -> Ty<'cx> {
+            $(fn $name(&self) -> &'cx Ty<'cx> {
                 self.intrinsic_tys[&$atom_id]
             })*
         }
@@ -64,9 +64,9 @@ impl<'cx> TyChecker<'cx> {
         self.arena.alloc(t)
     }
 
-    fn new_ty(&mut self, flags: TyFlags, kind: TyKind<'cx>) -> Ty<'cx> {
+    fn new_ty(&mut self, flags: TyFlags, kind: TyKind<'cx>) -> &'cx Ty<'cx> {
         let id = self.next_node_id();
-        let ty = Ty::new(id, flags, kind);
+        let ty = self.alloc(Ty::new(id, flags, kind)) ;
         let prev = self.tys.insert(id, ty);
         assert!(prev.is_none());
         ty
@@ -114,7 +114,7 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
-    fn check_expr(&mut self, expr: &ast::Expr) -> Ty<'cx> {
+    fn check_expr(&mut self, expr: &ast::Expr) -> &'cx Ty<'cx> {
         use ast::ExprKind::*;
         match expr.kind {
             BinOp(bin) => self.check_bin_expr(bin),
@@ -129,10 +129,22 @@ impl<'cx> TyChecker<'cx> {
             NullLit(_) => self.null_type(),
             Ident(ident) => self.check_ident(ident),
             StringLit(_) => self.string_type(),
+            ArrayLit(lit) => self.check_array_lit(lit),
+            Omit(_) => self.undefined_type(),
         }
     }
 
-    fn check_ident(&self, ident: &ast::Ident) -> Ty<'cx> {
+    fn check_array_lit(&mut self, lit: &ast::ArrayLit) -> &'cx Ty<'cx> {
+        if lit.elems.is_empty() {
+            self.undefined_type()
+        } else {
+            let ty = self.check_expr(lit.elems[0]);
+            let ty = TyKind::Array(self.alloc(ty::ArrayTy {ty}));
+            self.new_ty(TyFlags::ArrayLiteral, ty)
+        }
+    }
+
+    fn check_ident(&self, ident: &ast::Ident) -> &'cx Ty<'cx> {
         if ident.name == keyword::IDENT_UNDEFINED {
             self.undefined_type()
         } else {
@@ -140,7 +152,7 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
-    fn get_number_literal_type(&mut self, val: f64) -> Ty<'cx> {
+    fn get_number_literal_type(&mut self, val: f64) -> &'cx Ty<'cx> {
         let key = unsafe { std::mem::transmute::<f64, u64>(val) };
         let id = self.num_lit_tys.get(&key).copied();
         if let Some(id) = id {
@@ -153,7 +165,7 @@ impl<'cx> TyChecker<'cx> {
         ty
     }
 
-    fn check_bin_expr(&mut self, node: &ast::BinExpr) -> Ty<'cx> {
+    fn check_bin_expr(&mut self, node: &ast::BinExpr) -> &'cx Ty<'cx> {
         let l = self.check_expr(node.left);
         let r = self.check_expr(node.right);
         self.check_bin_like_expr(node, node.op, node.left, l, node.right, r)
@@ -220,7 +232,7 @@ impl<'cx> TyChecker<'cx> {
         // unreachable!();
     }
 
-    fn check_non_null_type(&mut self, expr: &ast::Expr) -> Ty<'cx> {
+    fn check_non_null_type(&mut self, expr: &ast::Expr) -> &'cx Ty<'cx> {
         if matches!(expr.kind, ExprKind::NullLit(_)) {
             let error = errors::TheValueCannotBeUsedHere {
                 span: expr.span(),
@@ -246,10 +258,10 @@ impl<'cx> TyChecker<'cx> {
         node: &ast::BinExpr,
         op: BinOp,
         left: &ast::Expr,
-        left_ty: Ty<'cx>,
+        left_ty: &Ty<'cx>,
         right: &ast::Expr,
-        right_ty: Ty<'cx>,
-    ) -> Ty<'cx> {
+        right_ty: &Ty<'cx>,
+    ) -> &'cx Ty<'cx> {
         use ast::BinOpKind::*;
 
         match op.kind {
@@ -299,7 +311,7 @@ impl<'cx> TyChecker<'cx> {
         })
     }
 
-    fn is_type_assignable_to_kind(&self, source: Ty, kind: TyFlags, strict: bool) -> bool {
+    fn is_type_assignable_to_kind(&self, source: &Ty, kind: TyFlags, strict: bool) -> bool {
         if !(source.flags & kind).is_empty() {
             return true;
         }
@@ -313,10 +325,10 @@ impl<'cx> TyChecker<'cx> {
 
 struct Relation {}
 
-fn is_type_related_to(source: Ty, target: Ty, relation: &Relation) -> bool {
+fn is_type_related_to(source: &Ty, target: &Ty, relation: &Relation) -> bool {
     false
 }
 
-fn is_type_assignable_to(source: Ty, target: Ty) -> bool {
+fn is_type_assignable_to(source: &Ty, target: &Ty) -> bool {
     false
 }

@@ -48,10 +48,7 @@ fn run_tests() {
                             };
                             let code = output.module_arena.content_map.get(&diag.module_id);
                             let start = code.map(|code| {
-                                rts_errors::miette_label_span_to_line_position(label, unsafe {
-                                    core::str::from_utf8_unchecked(code.as_ref())
-                                })
-                                .0
+                                rts_errors::miette_label_span_to_line_position(label, code).0
                             });
                             compile_test::errors::Error {
                                 line_num: start.map_or(1, |x| x.line + 1),

@@ -1,4 +1,5 @@
 mod node;
+mod node_flags;
 
 pub use node::{Node, NodeID};
 use rts_span::Span;
@@ -24,8 +25,16 @@ pub enum StmtKind<'cx> {
 }
 
 #[derive(Debug, Clone, Copy)]
+pub enum VarKind {
+    Var,
+    Let,
+    Const,
+}
+
+#[derive(Debug, Clone, Copy)]
 pub struct VarStmt<'cx> {
     pub id: NodeID,
+    pub kind: VarKind,
     pub span: Span,
     pub list: &'cx [&'cx VarDecl<'cx>],
 }
@@ -45,6 +54,8 @@ impl Expr<'_> {
             ExprKind::NullLit(lit) => lit.span,
             ExprKind::StringLit(lit) => lit.span,
             ExprKind::Ident(ident) => ident.span,
+            ExprKind::ArrayLit(lit) => lit.span,
+            ExprKind::Omit(expr) => expr.span,
         }
     }
 }
@@ -56,7 +67,16 @@ pub enum ExprKind<'cx> {
     NumLit(&'cx NumLit),
     StringLit(&'cx StringLit),
     NullLit(&'cx NullLit),
+    ArrayLit(&'cx ArrayLit<'cx>),
     Ident(&'cx Ident),
+    Omit(&'cx OmitExpr)
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct ArrayLit<'cx> {
+    pub id: NodeID,
+    pub span: Span,
+    pub elems: &'cx [&'cx Expr<'cx>]
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -120,4 +140,11 @@ pub struct Ident {
     pub id: NodeID,
     pub span: Span,
     pub name: AtomId,
+}
+
+
+#[derive(Debug, Clone, Copy)]
+pub struct OmitExpr {
+    pub id: NodeID,
+    pub span: Span,
 }

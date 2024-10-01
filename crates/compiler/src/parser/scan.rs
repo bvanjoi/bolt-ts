@@ -151,7 +151,7 @@ impl<'cx, 'a, 'p> ParserState<'cx, 'p> {
         let mut token_start;
         loop {
             token_start = self.pos;
-            if self.pos == self.input.len() {
+            if self.pos == self.end() {
                 self.token = Token::new(TokenKind::EOF, self.new_span(start, start));
                 return;
             }
@@ -162,11 +162,24 @@ impl<'cx, 'a, 'p> ParserState<'cx, 'p> {
             let token = match ch {
                 b'/' => {
                     if self.next_ch() == Some(b'/') {
+                        // `//`
                         self.pos += 2;
                         while self.pos < self.end() && !is_line_break(self.ch_unchecked()) {
                             self.pos += 1;
                         }
                         // TODO: add comment
+                        continue;
+                    } else if self.next_ch() == Some(b'*') {
+                        // `/*`
+                        self.pos += 2;
+                        while self.pos < self.end() {
+                            if self.ch_unchecked() == b'*' && self.next_ch() == Some(b'/') {
+                                self.pos += 2;
+                                break;
+                            } else {
+                                self.pos += 1;
+                            }
+                        }
                         continue;
                     } else {
                         self.pos += 1;
@@ -195,6 +208,18 @@ impl<'cx, 'a, 'p> ParserState<'cx, 'p> {
                 b';' => {
                     self.pos += 1;
                     Token::new(TokenKind::Semi, self.new_span(start, self.pos))
+                }
+                b'[' => {
+                    self.pos += 1;
+                    Token::new(TokenKind::LBracket, self.new_span(start, self.pos))
+                }
+                b']' => {
+                    self.pos += 1;
+                    Token::new(TokenKind::RBracket, self.new_span(start, self.pos))
+                }
+                b',' => {
+                    self.pos += 1;
+                    Token::new(TokenKind::Comma, self.new_span(start, self.pos)) 
                 }
                 b'\'' | b'"' => {
                     let (offset, v) = self.scan_string(ch);

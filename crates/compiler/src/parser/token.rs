@@ -35,6 +35,14 @@ pub enum TokenKind {
     False,
     True,
     Var,
+    Let,
+    Const,
+    // =====
+    EOF,
+    Number,
+    String,
+    Ident,
+    Unknown,
     // =====
     /// `+`
     Plus,
@@ -43,15 +51,21 @@ pub enum TokenKind {
     /// `|`
     Pipe,
     /// `,`
-    Comma,
+    Comma = 0x2C,
     /// `;`
     Semi,
-    // =====
-    Number,
-    String,
-    Ident,
-    Unknown,
-    EOF,
+    /// `{`
+    LBrace = 0x7B,
+    /// `}`
+    RBrace = 0x7D,
+    /// `[`
+    LBracket = 0x5B,
+    /// `]`
+    RBracket = 0x5D,
+    /// `(`
+    LParen = 0x28,
+    /// `)`
+    RParen = 0x29,
 }
 
 impl TokenKind {
@@ -69,6 +83,23 @@ impl TokenKind {
             TokenKind::Pipe => BinOpKind::Pipe,
             _ => unreachable!(),
         }
+    }
+
+    pub fn is_start_of_left_hand_side_expr(self) -> bool {
+        use TokenKind::*;
+        matches!(self, Number | True | False | String | Ident)
+    }
+
+    pub fn is_start_of_expr(self) -> bool {
+        self.is_start_of_left_hand_side_expr()
+    }
+    
+    pub fn is_binding_ident(self) -> bool {
+        matches!(self, TokenKind::Ident)
+    }
+
+    pub fn is_binding_ident_or_private_ident_or_pat(self) -> bool {
+        self.is_binding_ident()
     }
 }
 

@@ -10,6 +10,7 @@ bitflags::bitflags! {
         const StringLiteral  = 1 << 7;
         const NumberLiteral  = 1 << 8;
         const BooleanLiteral = 1 << 9;
+        const ArrayLiteral   = 1 << 14;
         const Undefined      = 1 << 15;
         const Null           = 1 << 16;
 
@@ -37,6 +38,7 @@ impl<'cx> Ty<'cx> {
 #[derive(Debug, Clone, Copy)]
 pub enum TyKind<'cx> {
     NumLit(&'cx NumLitTy),
+    Array(&'cx ArrayTy<'cx>),
     Intrinsic(&'cx IntrinsicTy),
 }
 
@@ -45,8 +47,13 @@ impl<'cx> TyKind<'cx> {
         match self {
             TyKind::NumLit(_) => "number",
             TyKind::Intrinsic(ty) => atoms.get(ty.name),
+            TyKind::Array(_) => "array",
         }
     }
+}
+#[derive(Debug, Clone, Copy)]
+pub struct ArrayTy<'cx> {
+    pub ty: &'cx Ty<'cx> 
 }
 
 #[derive(Debug, Clone, Copy)]
