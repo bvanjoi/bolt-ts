@@ -1,4 +1,6 @@
+
 use crate::ast;
+
 
 rts_span::new_index!(NodeID);
 
@@ -16,5 +18,7 @@ pub enum Node<'cx> {
     BoolLit(&'cx ast::BoolLit),
     NullLit(&'cx ast::NullLit),
     StringLit(&'cx ast::StringLit),
+    ArrayLit(&'cx ast::ArrayLit<'cx>),
     Ident(&'cx ast::Ident),
+    OmitExpr(&'cx ast::OmitExpr)
 }

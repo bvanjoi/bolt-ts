@@ -27,7 +27,7 @@ pub fn eval_from(m: ModulePath) -> Output {
     let ast_arena = bumpalo::Bump::new();
     let atoms = AtomMap::default();
     let mut p = parser::Parser::new(&ast_arena, atoms);
-    let mut s = parser::ParserState::new(&mut p, input, m.id);
+    let mut s = parser::ParserState::new(&mut p, input.as_bytes(), m.id);
     let root = s.parse();
     let ty_arena = bumpalo::Bump::new();
     let mut c = check::TyChecker::new(&ty_arena, p.atoms);
