@@ -24,9 +24,11 @@ macro_rules! ident {
 }
 
 ident!(
+    (IDENT_ERROR, "error"),
     (IDENT_UNDEFINED, "undefined"),
     (IDENT_ANY, "any"),
     (IDENT_NUMBER, "number"),
     (IDENT_ARRAY, "array"),
-    (IDENT_STRING, "string")
+    (IDENT_STRING, "string"),
+    (IDENT_BOOLEAN, "boolean")
 );

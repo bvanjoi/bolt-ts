@@ -10,6 +10,9 @@ impl PPrint {
     fn p_whitespace(&mut self) {
         self.p(" ");
     }
+    fn p_question(&mut self) {
+        self.p("?");
+    }
     fn p_newline(&mut self) {
         self.p("\n");
     }
@@ -19,6 +22,9 @@ impl PPrint {
     fn p_semi(&mut self) {
         self.p(";");
     }
+    fn p_colon(&mut self) {
+        self.p(":")
+    }
     fn p_comma(&mut self) {
         self.p(",");
     }
@@ -27,6 +33,12 @@ impl PPrint {
     }
     fn p_r_bracket(&mut self) {
         self.p("]");
+    }
+    fn p_l_paren(&mut self) {
+        self.p("(");
+    }
+    fn p_r_paren(&mut self) {
+        self.p(")");
     }
 }
 
@@ -80,6 +92,22 @@ impl<'cx> Emit<'cx> {
             }
             ArrayLit(lit) => self.emit_array_lit(lit),
             Omit(_) => {},
+            Paren(p) => {
+                self.content.p_l_paren();
+                self.emit_expr(p.expr);
+                self.content.p_r_paren();
+            },
+            Cond(cond) => {
+                self.emit_expr(cond.cond);
+                self.content.p_whitespace();
+                self.content.p_question();
+                self.content.p_whitespace();
+                self.emit_expr(cond.when_true);
+                self.content.p_whitespace();
+                self.content.p_colon();
+                self.content.p_whitespace();
+                self.emit_expr(cond.when_false);
+            },
         }
     }
 

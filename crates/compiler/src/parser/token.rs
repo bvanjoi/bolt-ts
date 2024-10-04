@@ -45,15 +45,19 @@ pub enum TokenKind {
     Unknown,
     // =====
     /// `+`
-    Plus,
+    Plus = 0x2B,
     /// `=`
-    Eq,
+    Eq = 0x3D,
     /// `|`
-    Pipe,
+    Pipe = 0x7C,
+    /// `?`
+    Question = 0x3F,
     /// `,`
     Comma = 0x2C,
     /// `;`
-    Semi,
+    Semi = 0x3B,
+    /// `:`
+    Colon = 0x3A,
     /// `{`
     LBrace = 0x7B,
     /// `}`

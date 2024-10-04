@@ -56,6 +56,8 @@ impl Expr<'_> {
             ExprKind::Ident(ident) => ident.span,
             ExprKind::ArrayLit(lit) => lit.span,
             ExprKind::Omit(expr) => expr.span,
+            ExprKind::Paren(expr) => expr.span,
+            ExprKind::Cond(cond) => cond.span,
         }
     }
 }
@@ -69,14 +71,32 @@ pub enum ExprKind<'cx> {
     NullLit(&'cx NullLit),
     ArrayLit(&'cx ArrayLit<'cx>),
     Ident(&'cx Ident),
-    Omit(&'cx OmitExpr)
+    Omit(&'cx OmitExpr),
+    Paren(&'cx ParenExpr<'cx>),
+    Cond(&'cx CondExpr<'cx>)
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct CondExpr<'cx> {
+    pub id: NodeID,
+    pub span: Span,
+    pub cond: &'cx Expr<'cx>,
+    pub when_true: &'cx Expr<'cx>,
+    pub when_false: &'cx Expr<'cx>
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct ParenExpr<'cx> {
+    pub id: NodeID,
+    pub span: Span,
+    pub expr: &'cx Expr<'cx>,
 }
 
 #[derive(Debug, Clone, Copy)]
 pub struct ArrayLit<'cx> {
     pub id: NodeID,
     pub span: Span,
-    pub elems: &'cx [&'cx Expr<'cx>]
+    pub elems: &'cx [&'cx Expr<'cx>],
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -132,6 +152,7 @@ pub struct VarDecl<'cx> {
     pub id: NodeID,
     pub span: Span,
     pub name: &'cx Ident,
+    pub ty: Option<&'cx self::Ty<'cx>>,
     pub init: Option<&'cx Expr<'cx>>,
 }
 
@@ -142,9 +163,27 @@ pub struct Ident {
     pub name: AtomId,
 }
 
-
 #[derive(Debug, Clone, Copy)]
 pub struct OmitExpr {
     pub id: NodeID,
     pub span: Span,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct Ty<'cx> {
+    pub id: NodeID,
+    pub kind: TyKind<'cx>,
+}
+
+impl Ty<'_> {
+    fn span(&self) -> Span {
+        match self.kind {
+            TyKind::Ident(ident) => ident.span,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy)]
+pub enum TyKind<'cx> {
+    Ident(&'cx Ident),
 }

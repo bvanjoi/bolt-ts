@@ -205,21 +205,14 @@ impl<'cx, 'a, 'p> ParserState<'cx, 'p> {
                     self.pos += 1;
                     Token::new(TokenKind::Pipe, self.new_span(start, self.pos))
                 }
-                b';' => {
+                b'?' => {
                     self.pos += 1;
-                    Token::new(TokenKind::Semi, self.new_span(start, self.pos))
+                    Token::new(TokenKind::Question, self.new_span(start, self.pos))
                 }
-                b'[' => {
+                b',' | b';' | b':' | b'[' | b']' | b'(' | b')' => {
                     self.pos += 1;
-                    Token::new(TokenKind::LBracket, self.new_span(start, self.pos))
-                }
-                b']' => {
-                    self.pos += 1;
-                    Token::new(TokenKind::RBracket, self.new_span(start, self.pos))
-                }
-                b',' => {
-                    self.pos += 1;
-                    Token::new(TokenKind::Comma, self.new_span(start, self.pos)) 
+                    let kind = unsafe { std::mem::transmute::<u8, TokenKind>(ch) };
+                    Token::new(kind, self.new_span(start, self.pos))
                 }
                 b'\'' | b'"' => {
                     let (offset, v) = self.scan_string(ch);

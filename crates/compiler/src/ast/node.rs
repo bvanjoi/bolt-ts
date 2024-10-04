@@ -20,5 +20,9 @@ pub enum Node<'cx> {
     StringLit(&'cx ast::StringLit),
     ArrayLit(&'cx ast::ArrayLit<'cx>),
     Ident(&'cx ast::Ident),
-    OmitExpr(&'cx ast::OmitExpr)
+    OmitExpr(&'cx ast::OmitExpr),
+    ParenExpr(&'cx ast::ParenExpr<'cx>),
+    CondExpr(&'cx ast::CondExpr<'cx>),
+
+    Ty(&'cx ast::Ty<'cx>),
 }
