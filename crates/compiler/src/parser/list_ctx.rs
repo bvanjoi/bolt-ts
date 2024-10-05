@@ -15,3 +15,14 @@ impl ListContext for BlockStmt {
         matches!(t, TokenKind::RBrace)
     }
 }
+
+pub struct ArgumentExpressions;
+impl ListContext for ArgumentExpressions {
+    fn is_ele(t: TokenKind) -> bool {
+        t.is_start_of_expr()
+    }
+
+    fn is_closing(t: TokenKind) -> bool {
+        matches!(t, TokenKind::RParen)
+    }
+}

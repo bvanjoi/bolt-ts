@@ -37,6 +37,7 @@ macro_rules! intrinsic_type {
 intrinsic_type!(
     (any_ty, keyword::IDENT_ANY, IntrinsicTyKind::Any),
     (error_ty, keyword::IDENT_ERROR, IntrinsicTyKind::Undefined),
+    (void_ty, keyword::IDENT_VOID, IntrinsicTyKind::Void),
     (
         undefined_ty,
         keyword::IDENT_UNDEFINED,
@@ -124,6 +125,7 @@ impl<'cx> TyChecker<'cx> {
             If(i) => self.check_if_stmt(i),
             Block(block) => self.check_block(block),
             Return(ret) => self.check_return(ret),
+            Empty(_) => {}
         };
     }
 
@@ -185,6 +187,12 @@ impl<'cx> TyChecker<'cx> {
                     self.boolean_ty()
                 } else if ident.name == keyword::IDENT_NUMBER {
                     self.number_ty()
+                } else if ident.name == keyword::IDENT_STRING {
+                    self.string_ty()
+                } else if ident.name == keyword::IDENT_ANY {
+                    self.any_ty()
+                } else if ident.name == keyword::IDENT_VOID {
+                    self.void_ty()
                 } else {
                     todo!()
                 }
@@ -383,7 +391,14 @@ impl<'cx> TyChecker<'cx> {
             Paren(paren) => self.check_expr(paren.expr),
             Cond(cond) => self.check_cond(cond),
             ObjectLit(lit) => self.check_object_lit(lit),
+            Call(call) => self.check_call_expr(call),
         }
+    }
+
+    fn check_call_expr(&mut self, call: &'cx ast::CallExpr) -> &'cx Ty<'cx> {
+        // let callee_ty = self.check_expr(call.expr);
+        // callee_ty
+        self.undefined_ty()
     }
 
     fn check_object_lit(&mut self, lit: &'cx ast::ObjectLit) -> &'cx Ty<'cx> {

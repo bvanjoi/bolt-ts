@@ -31,6 +31,7 @@ ident!(
     (IDENT_ERROR, "error"),
     (IDENT_UNDEFINED, "undefined"),
     (IDENT_ANY, "any"),
+    (IDENT_VOID, "void"),
     (IDENT_NUMBER, "number"),
     (IDENT_ARRAY, "array"),
     (IDENT_STRING, "string"),

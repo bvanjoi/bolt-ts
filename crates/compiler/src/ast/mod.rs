@@ -20,12 +20,19 @@ pub struct Stmt<'cx> {
 
 #[derive(Debug, Clone, Copy)]
 pub enum StmtKind<'cx> {
+    Empty(&'cx EmptyStmt),
     Var(&'cx VarStmt<'cx>),
     Expr(&'cx Expr<'cx>),
     Fn(&'cx FnDecl<'cx>),
     If(&'cx IfStmt<'cx>),
     Block(Stmts<'cx>),
     Return(&'cx RetStmt<'cx>),
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct EmptyStmt {
+    pub id: NodeID,
+    pub span: Span,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -79,6 +86,7 @@ impl Expr<'_> {
             ExprKind::Paren(expr) => expr.span,
             ExprKind::Cond(cond) => cond.span,
             ExprKind::ObjectLit(lit) => lit.span,
+            ExprKind::Call(call) => call.span,
         }
     }
 }
@@ -96,6 +104,7 @@ pub enum ExprKind<'cx> {
     Paren(&'cx ParenExpr<'cx>),
     Cond(&'cx CondExpr<'cx>),
     ObjectLit(&'cx ObjectLit<'cx>),
+    Call(&'cx CallExpr<'cx>),
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -245,6 +254,7 @@ pub struct FnDecl<'cx> {
     pub span: Span,
     pub name: &'cx Ident,
     pub params: ParamsDecl<'cx>,
+    pub ret_ty: Option<&'cx self::Ty<'cx>>,
     pub body: Stmts<'cx>,
 }
 
@@ -255,4 +265,12 @@ pub struct ParamDecl<'cx> {
     pub name: &'cx Ident,
     pub ty: Option<&'cx self::Ty<'cx>>,
     pub init: Option<&'cx Expr<'cx>>,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct CallExpr<'cx> {
+    pub id: NodeID,
+    pub span: Span,
+    pub expr: &'cx Expr<'cx>,
+    pub args: &'cx [&'cx Expr<'cx>],
 }

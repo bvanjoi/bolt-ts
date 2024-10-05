@@ -12,6 +12,7 @@ pub enum Node<'cx> {
     FnDecl(&'cx ast::FnDecl<'cx>),
     IfStmt(&'cx ast::IfStmt<'cx>),
     RetStmt(&'cx ast::RetStmt<'cx>),
+    EmptyStmt(&'cx ast::EmptyStmt),
 
     Expr(&'cx ast::Expr<'cx>),
     VarDecl(&'cx ast::VarDecl<'cx>),
@@ -28,6 +29,7 @@ pub enum Node<'cx> {
     PropName(&'cx ast::PropName<'cx>),
     ObjectMemberField(&'cx ast::ObjectMemberField<'cx>),
     ObjectLit(&'cx ast::ObjectLit<'cx>),
+    CallExpr(&'cx ast::CallExpr<'cx>),
 
     Ty(&'cx ast::Ty<'cx>),
 }

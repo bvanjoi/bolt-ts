@@ -148,6 +148,7 @@ impl<'cx, 'a, 'p> ParserState<'cx, 'p> {
         let stmt = self.with_parent(id, |this| {
             use TokenKind::*;
             let kind = match this.token.kind {
+                Semi => ast::StmtKind::Empty(this.parse_empty_stmt()?),
                 Var | Let | Const => ast::StmtKind::Var(this.parse_var_stmt()),
                 Function => ast::StmtKind::Fn(this.parse_fn_decl()?),
                 If => ast::StmtKind::If(this.parse_if_stmt()?),
@@ -159,6 +160,18 @@ impl<'cx, 'a, 'p> ParserState<'cx, 'p> {
             Ok(stmt)
         })?;
         self.insert_map(id, Node::Stmt(stmt));
+        Ok(stmt)
+    }
+
+    fn parse_empty_stmt(&mut self) -> PResult<&'cx ast::EmptyStmt> {
+        let id = self.p.next_node_id();
+        let start = self.token.start();
+        self.expect(TokenKind::Semi);
+        let stmt = self.alloc(ast::EmptyStmt {
+            id,
+            span: self.new_span(start as usize, self.pos),
+        });
+        self.insert_map(id, Node::EmptyStmt(stmt));
         Ok(stmt)
     }
 
@@ -221,16 +234,30 @@ impl<'cx, 'a, 'p> ParserState<'cx, 'p> {
         let name = self.with_parent(id, Self::parse_binding_ident);
         // TODO: type params
         let params = self.with_parent(id, Self::parse_params)?;
+        let ret_ty = self.with_parent(id, Self::parse_ret_type)?;
         let body = self.parse_fn_body()?;
         let f = self.alloc(ast::FnDecl {
             id,
             span: self.new_span(start as usize, self.pos),
             name,
             params,
+            ret_ty,
             body,
         });
         self.insert_map(id, Node::FnDecl(f));
         Ok(f)
+    }
+
+    fn parse_ty_or_ty_pred(&mut self) -> PResult<&'cx ast::Ty<'cx>> {
+        self.parse_ty()
+    }
+
+    fn parse_ret_type(&mut self) -> PResult<Option<&'cx ast::Ty<'cx>>> {
+        if self.parse_optional(TokenKind::Colon) {
+            self.parse_ty_or_ty_pred().map(|ty| Some(ty))
+        } else {
+            Ok(None)
+        }
     }
 
     fn parse_fn_body(&mut self) -> PResult<&'cx [&'cx ast::Stmt<'cx>]> {
@@ -590,7 +617,61 @@ impl<'cx, 'a, 'p> ParserState<'cx, 'p> {
     }
 
     fn parse_update_expr(&mut self) -> &'cx ast::Expr<'cx> {
-        self.parse_left_hand_side_expr()
+        let start = self.token.start();
+        let expr = self.parse_left_hand_side_expr();
+        self.parse_call_expr(start as usize, expr).unwrap()
+    }
+
+    fn parse_call_expr(
+        &mut self,
+        start: usize,
+        mut expr: &'cx ast::Expr<'cx>,
+    ) -> PResult<&'cx ast::Expr<'cx>> {
+        loop {
+            expr = self.parse_member_expr_rest(start, expr)?;
+            if self.token.kind == TokenKind::LParen {
+                let id = self.p.next_node_id();
+                self.p.parent_map.r#override(expr.id, id);
+                let kind = self.with_parent(id, |this| {
+                    let id = this.p.next_node_id();
+                    let args = this.with_parent(id, Self::parse_args)?;
+                    let call = this.alloc(ast::CallExpr {
+                        id,
+                        span: this.new_span(start, this.pos),
+                        expr,
+                        args
+                    });
+                    this.insert_map(id, Node::CallExpr(call));
+                    Ok(call)
+                })?;
+                expr = self.alloc(ast::Expr {
+                    id,
+                    kind: ast::ExprKind::Call(kind),
+                });
+                self.insert_map(id, Node::Expr(expr));
+            } else {
+                break Ok(expr)
+            }
+        }
+    }
+
+    fn parse_args(&mut self) -> PResult<&'cx [&'cx ast::Expr<'cx>]> {
+        self.expect(TokenKind::LParen)?;
+        let args = self.parse_delimited_list(
+            list_ctx::ArgumentExpressions::is_ele,
+            Self::parse_arg,
+            list_ctx::ArgumentExpressions::is_closing,
+        );
+        self.expect(TokenKind::RParen)?;
+        Ok(args)
+    }
+
+    fn parse_arg(&mut self) -> PResult<&'cx ast::Expr<'cx>> {
+        self.parse_arg_or_array_lit_elem()
+    }
+
+    fn parse_arg_or_array_lit_elem(&mut self) -> PResult<&'cx ast::Expr<'cx>> {
+        self.parse_assign_expr()
     }
 
     fn parse_left_hand_side_expr(&mut self) -> &'cx ast::Expr<'cx> {
@@ -600,8 +681,16 @@ impl<'cx, 'a, 'p> ParserState<'cx, 'p> {
 
     fn parse_member_expr(&mut self) -> &'cx ast::Expr<'cx> {
         let start = self.token.start();
-        // TODO: member expr rest
-        self.parse_primary_expr()
+        let expr = self.parse_primary_expr();
+        self.parse_member_expr_rest(start as usize, expr).unwrap()
+    }
+
+    fn parse_member_expr_rest(
+        &mut self,
+        start: usize,
+        expr: &'cx ast::Expr<'cx>,
+    ) -> PResult<&'cx ast::Expr<'cx>> {
+        Ok(expr)
     }
 
     fn parse_primary_expr(&mut self) -> &'cx ast::Expr<'cx> {

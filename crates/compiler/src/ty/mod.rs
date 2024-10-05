@@ -148,6 +148,7 @@ pub struct IntrinsicTy {
 pub enum IntrinsicTyKind {
     Any,
     Unknown,
+    Void,
     Null,
     Undefined,
     String,
