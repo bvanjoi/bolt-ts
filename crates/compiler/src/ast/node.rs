@@ -1,6 +1,4 @@
-
 use crate::ast;
-
 
 rts_span::new_index!(NodeID);
 
@@ -10,6 +8,10 @@ pub enum Node<'cx> {
 
     Stmt(&'cx ast::Stmt<'cx>),
     VarStmt(&'cx ast::VarStmt<'cx>),
+    ParamDecl(&'cx ast::ParamDecl<'cx>),
+    FnDecl(&'cx ast::FnDecl<'cx>),
+    IfStmt(&'cx ast::IfStmt<'cx>),
+    RetStmt(&'cx ast::RetStmt<'cx>),
 
     Expr(&'cx ast::Expr<'cx>),
     VarDecl(&'cx ast::VarDecl<'cx>),
@@ -23,6 +25,9 @@ pub enum Node<'cx> {
     OmitExpr(&'cx ast::OmitExpr),
     ParenExpr(&'cx ast::ParenExpr<'cx>),
     CondExpr(&'cx ast::CondExpr<'cx>),
+    PropName(&'cx ast::PropName<'cx>),
+    ObjectMemberField(&'cx ast::ObjectMemberField<'cx>),
+    ObjectLit(&'cx ast::ObjectLit<'cx>),
 
     Ty(&'cx ast::Ty<'cx>),
 }

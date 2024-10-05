@@ -2,11 +2,11 @@ mod ast;
 mod atoms;
 pub mod check;
 mod ecma_refer;
+mod emit;
 mod errors;
 mod keyword;
 pub mod parser;
 mod ty;
-mod emit;
 
 use std::path::PathBuf;
 
@@ -39,11 +39,14 @@ pub fn eval_from(m: ModulePath) -> Output {
     Output {
         module_arena,
         diags: c.diags,
-        output
+        output,
     }
 }
 
 pub fn eval_and_emit(entry: PathBuf) {
     let output = eval_from(ModulePath::Real(entry));
-    output.diags.into_iter().for_each(|diag| diag.emit(&output.module_arena));
+    output
+        .diags
+        .into_iter()
+        .for_each(|diag| diag.emit(&output.module_arena));
 }

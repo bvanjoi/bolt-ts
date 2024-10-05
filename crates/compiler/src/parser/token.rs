@@ -37,6 +37,10 @@ pub enum TokenKind {
     Var,
     Let,
     Const,
+    Function,
+    Return,
+    If,
+    Else,
     // =====
     EOF,
     Number,
@@ -89,21 +93,42 @@ impl TokenKind {
         }
     }
 
+    pub fn is_start_of_stmt(self) -> bool {
+        use TokenKind::*;
+        matches!(self, Semi | Var | Let | Function | If | Return)
+    }
+
     pub fn is_start_of_left_hand_side_expr(self) -> bool {
         use TokenKind::*;
-        matches!(self, Number | True | False | String | Ident)
+        matches!(
+            self,
+            Number | True | False | String | Ident | Null | LBrace | LBracket | LParen
+        )
     }
 
     pub fn is_start_of_expr(self) -> bool {
         self.is_start_of_left_hand_side_expr()
     }
-    
+
     pub fn is_binding_ident(self) -> bool {
         matches!(self, TokenKind::Ident)
     }
 
     pub fn is_binding_ident_or_private_ident_or_pat(self) -> bool {
         self.is_binding_ident()
+    }
+
+    pub fn is_ident_or_keyword(self) -> bool {
+        matches!(self, TokenKind::Ident)
+    }
+
+    pub fn is_lit_prop_name(self) -> bool {
+        use TokenKind::*;
+        self.is_ident_or_keyword() || matches!(self, String | Number)
+    }
+
+    pub fn is_start_of_param(self) -> bool {
+        self.is_binding_ident_or_private_ident_or_pat()
     }
 }
 

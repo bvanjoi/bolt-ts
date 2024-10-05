@@ -14,6 +14,10 @@ keyword!(
     (KW_VAR, "var"),
     (KW_LET, "let"),
     (KW_CONST, "const"),
+    (KW_FUNCTION, "function"),
+    (KW_RETURN, "return"),
+    (KW_IF, "if"),
+    (KW_ELSE, "else"),
 );
 
 macro_rules! ident {

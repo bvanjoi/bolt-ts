@@ -209,7 +209,7 @@ impl<'cx, 'a, 'p> ParserState<'cx, 'p> {
                     self.pos += 1;
                     Token::new(TokenKind::Question, self.new_span(start, self.pos))
                 }
-                b',' | b';' | b':' | b'[' | b']' | b'(' | b')' => {
+                b',' | b';' | b':' | b'[' | b']' | b'(' | b')' | b'{' | b'}' => {
                     self.pos += 1;
                     let kind = unsafe { std::mem::transmute::<u8, TokenKind>(ch) };
                     Token::new(kind, self.new_span(start, self.pos))

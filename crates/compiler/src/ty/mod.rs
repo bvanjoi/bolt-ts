@@ -45,6 +45,15 @@ impl<'cx> TyKind<'cx> {
         matches!(self, TyKind::Union(_))
     }
 
+    pub fn is_number(&self) -> bool {
+        use TyKind::*;
+        if let Intrinsic(ty) = self {
+            matches!(ty.kind, IntrinsicTyKind::Number)
+        } else {
+            false
+        }
+    }
+
     pub fn is_union_or_intersection(&self) -> bool {
         self.is_union()
     }
@@ -110,6 +119,10 @@ impl<'cx> TyKind<'cx> {
         } else {
             false
         }
+    }
+
+    pub fn is_fresh(&self) -> bool {
+        self.is_lit()
     }
 }
 

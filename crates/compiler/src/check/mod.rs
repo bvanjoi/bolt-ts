@@ -1,3 +1,6 @@
+mod relation;
+
+use relation::RelationKind;
 use rts_span::{ModuleID, Span};
 use rustc_hash::FxHashMap;
 
@@ -33,11 +36,7 @@ macro_rules! intrinsic_type {
 
 intrinsic_type!(
     (any_ty, keyword::IDENT_ANY, IntrinsicTyKind::Any),
-    (
-        error_ty,
-        keyword::IDENT_ERROR,
-        IntrinsicTyKind::Undefined
-    ),
+    (error_ty, keyword::IDENT_ERROR, IntrinsicTyKind::Undefined),
     (
         undefined_ty,
         keyword::IDENT_UNDEFINED,
@@ -121,7 +120,35 @@ impl<'cx> TyChecker<'cx> {
             Expr(expr) => {
                 self.check_expr(expr);
             }
+            Fn(f) => self.check_fn_decl(f),
+            If(i) => self.check_if_stmt(i),
+            Block(block) => self.check_block(block),
+            Return(ret) => self.check_return(ret),
         };
+    }
+
+    fn check_return(&mut self, ret: &ast::RetStmt<'cx>) {
+        if let Some(expr) = ret.expr {
+            self.check_expr(expr);
+        }
+    }
+
+    fn check_block(&mut self, block: ast::Stmts<'cx>) {
+        for item in block {
+            self.check_stmt(item);
+        }
+    }
+
+    fn check_if_stmt(&mut self, i: &'cx ast::IfStmt) {
+        self.check_expr(i.expr);
+        self.check_stmt(i.then);
+        if let Some(else_then) = i.else_then {
+            self.check_stmt(else_then);
+        }
+    }
+
+    fn check_fn_decl(&mut self, f: &'cx ast::FnDecl) {
+        self.check_block(f.body);
     }
 
     fn check_var_stmt(&mut self, var: &'cx ast::VarStmt) {
@@ -156,6 +183,8 @@ impl<'cx> TyChecker<'cx> {
             Ident(ident) => {
                 if ident.name == keyword::IDENT_BOOLEAN {
                     self.boolean_ty()
+                } else if ident.name == keyword::IDENT_NUMBER {
+                    self.number_ty()
                 } else {
                     todo!()
                 }
@@ -184,7 +213,12 @@ impl<'cx> TyChecker<'cx> {
         source: &'cx Ty<'cx>,
         target: &'cx Ty<'cx>,
     ) {
-        self.check_type_related_to_and_optionally_elaborate(span, source, target)
+        self.check_type_related_to_and_optionally_elaborate(
+            span,
+            source,
+            target,
+            RelationKind::Assignable,
+        )
     }
 
     fn check_type_related_to_and_optionally_elaborate(
@@ -192,8 +226,9 @@ impl<'cx> TyChecker<'cx> {
         span: Span,
         source: &'cx Ty<'cx>,
         target: &'cx Ty<'cx>,
+        relation: RelationKind,
     ) {
-        if !self.is_type_related_to(source, target) {
+        if !self.is_type_related_to(source, target, relation) {
             let error = errors::TypeIsNotAssignableToType {
                 span,
                 ty1: self.print_ty(source).to_string(),
@@ -285,7 +320,26 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
-    fn is_type_related_to(&mut self, source: &'cx Ty<'cx>, target: &'cx Ty<'cx>) -> bool {
+    fn is_simple_type_related_to(&mut self, source: &'cx Ty<'cx>, target: &'cx Ty<'cx>) -> bool {
+        if source.kind.is_number_like() && target.kind.is_number() {
+            true
+        } else {
+            false
+        }
+    }
+
+    fn is_type_related_to(
+        &mut self,
+        source: &'cx Ty<'cx>,
+        target: &'cx Ty<'cx>,
+        relation: RelationKind,
+    ) -> bool {
+        if source.id == target.id {
+            return true;
+        }
+        if self.is_simple_type_related_to(source, target) {
+            return true;
+        }
         if source.kind.is_structured_or_instantiable()
             || target.kind.is_structured_or_instantiable()
         {
@@ -328,7 +382,12 @@ impl<'cx> TyChecker<'cx> {
             Omit(_) => self.undefined_ty(),
             Paren(paren) => self.check_expr(paren.expr),
             Cond(cond) => self.check_cond(cond),
+            ObjectLit(lit) => self.check_object_lit(lit),
         }
+    }
+
+    fn check_object_lit(&mut self, lit: &'cx ast::ObjectLit) -> &'cx Ty<'cx> {
+        self.undefined_ty()
     }
 
     fn check_cond(&mut self, cond: &'cx ast::CondExpr) -> &'cx Ty<'cx> {
