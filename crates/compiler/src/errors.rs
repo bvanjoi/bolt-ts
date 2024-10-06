@@ -21,3 +21,20 @@ pub(crate) struct TheValueCannotBeUsedHere {
     pub span: Span,
     pub value: String,
 }
+
+#[derive(Error, Diagnostic, Debug)]
+#[error("Type '{ty1}' is not assignable to type '{ty2}'.")]
+pub(crate) struct TypeIsNotAssignableToType {
+    #[label]
+    pub span: Span,
+    pub ty1: String,
+    pub ty2: String,
+}
+
+#[derive(Error, Diagnostic, Debug)]
+#[error("Cannot find name '{name}'.")]
+pub(crate) struct CannotFindName {
+    #[label]
+    pub span: Span,
+    pub name: String,
+}

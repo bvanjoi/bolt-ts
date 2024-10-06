@@ -9,7 +9,7 @@ use crate::atoms::AtomId;
 #[derive(Debug, Clone, Copy)]
 pub struct Program<'cx> {
     pub id: NodeID,
-    pub stmts: &'cx [&'cx Stmt<'cx>],
+    pub stmts: Stmts<'cx>,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -20,8 +20,35 @@ pub struct Stmt<'cx> {
 
 #[derive(Debug, Clone, Copy)]
 pub enum StmtKind<'cx> {
+    Empty(&'cx EmptyStmt),
     Var(&'cx VarStmt<'cx>),
     Expr(&'cx Expr<'cx>),
+    Fn(&'cx FnDecl<'cx>),
+    If(&'cx IfStmt<'cx>),
+    Block(Stmts<'cx>),
+    Return(&'cx RetStmt<'cx>),
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct EmptyStmt {
+    pub id: NodeID,
+    pub span: Span,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct RetStmt<'cx> {
+    pub id: NodeID,
+    pub span: Span,
+    pub expr: Option<&'cx Expr<'cx>>,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct IfStmt<'cx> {
+    pub id: NodeID,
+    pub span: Span,
+    pub expr: &'cx Expr<'cx>,
+    pub then: &'cx Stmt<'cx>,
+    pub else_then: Option<&'cx Stmt<'cx>>,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -56,6 +83,10 @@ impl Expr<'_> {
             ExprKind::Ident(ident) => ident.span,
             ExprKind::ArrayLit(lit) => lit.span,
             ExprKind::Omit(expr) => expr.span,
+            ExprKind::Paren(expr) => expr.span,
+            ExprKind::Cond(cond) => cond.span,
+            ExprKind::ObjectLit(lit) => lit.span,
+            ExprKind::Call(call) => call.span,
         }
     }
 }
@@ -69,14 +100,34 @@ pub enum ExprKind<'cx> {
     NullLit(&'cx NullLit),
     ArrayLit(&'cx ArrayLit<'cx>),
     Ident(&'cx Ident),
-    Omit(&'cx OmitExpr)
+    Omit(&'cx OmitExpr),
+    Paren(&'cx ParenExpr<'cx>),
+    Cond(&'cx CondExpr<'cx>),
+    ObjectLit(&'cx ObjectLit<'cx>),
+    Call(&'cx CallExpr<'cx>),
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct CondExpr<'cx> {
+    pub id: NodeID,
+    pub span: Span,
+    pub cond: &'cx Expr<'cx>,
+    pub when_true: &'cx Expr<'cx>,
+    pub when_false: &'cx Expr<'cx>,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct ParenExpr<'cx> {
+    pub id: NodeID,
+    pub span: Span,
+    pub expr: &'cx Expr<'cx>,
 }
 
 #[derive(Debug, Clone, Copy)]
 pub struct ArrayLit<'cx> {
     pub id: NodeID,
     pub span: Span,
-    pub elems: &'cx [&'cx Expr<'cx>]
+    pub elems: &'cx [&'cx Expr<'cx>],
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -132,6 +183,7 @@ pub struct VarDecl<'cx> {
     pub id: NodeID,
     pub span: Span,
     pub name: &'cx Ident,
+    pub ty: Option<&'cx self::Ty<'cx>>,
     pub init: Option<&'cx Expr<'cx>>,
 }
 
@@ -142,9 +194,83 @@ pub struct Ident {
     pub name: AtomId,
 }
 
-
 #[derive(Debug, Clone, Copy)]
 pub struct OmitExpr {
     pub id: NodeID,
     pub span: Span,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct Ty<'cx> {
+    pub id: NodeID,
+    pub kind: TyKind<'cx>,
+}
+
+impl Ty<'_> {
+    fn span(&self) -> Span {
+        match self.kind {
+            TyKind::Ident(ident) => ident.span,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy)]
+pub enum TyKind<'cx> {
+    Ident(&'cx Ident),
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct PropName<'cx> {
+    pub id: NodeID,
+    pub kind: PropNameKind<'cx>,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub enum PropNameKind<'cx> {
+    Ident(&'cx Ident),
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct ObjectMemberField<'cx> {
+    pub id: NodeID,
+    pub span: Span,
+    pub name: &'cx PropName<'cx>,
+    pub value: &'cx Expr<'cx>,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct ObjectLit<'cx> {
+    pub id: NodeID,
+    pub span: Span,
+    pub members: &'cx [&'cx ObjectMemberField<'cx>],
+}
+
+pub type ParamsDecl<'cx> = &'cx [&'cx ParamDecl<'cx>];
+pub type Stmts<'cx> = &'cx [&'cx Stmt<'cx>];
+
+#[derive(Debug, Clone, Copy)]
+pub struct FnDecl<'cx> {
+    pub id: NodeID,
+    pub span: Span,
+    pub name: &'cx Ident,
+    pub params: ParamsDecl<'cx>,
+    pub ret_ty: Option<&'cx self::Ty<'cx>>,
+    pub body: Stmts<'cx>,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct ParamDecl<'cx> {
+    pub id: NodeID,
+    pub span: Span,
+    pub name: &'cx Ident,
+    pub ty: Option<&'cx self::Ty<'cx>>,
+    pub init: Option<&'cx Expr<'cx>>,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct CallExpr<'cx> {
+    pub id: NodeID,
+    pub span: Span,
+    pub expr: &'cx Expr<'cx>,
+    pub args: &'cx [&'cx Expr<'cx>],
 }

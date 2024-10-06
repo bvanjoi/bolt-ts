@@ -1,0 +1,17 @@
+  × Cannot find name 'a'.
+   ╭─[../../tests/cases/compiler/conditionalExpressionNewLine7.ts:1:9]
+ 1 │ a
+   · ─
+   ╰────
+
+  × Cannot find name 'b'.
+   ╭─[../../tests/cases/compiler/conditionalExpressionNewLine7.ts:2:3]
+ 2 │ b
+   · ─
+   ╰────
+
+  × Cannot find name 'c'.
+   ╭─[../../tests/cases/compiler/conditionalExpressionNewLine7.ts:3:3]
+ 3 │ c
+   · ─
+   ╰────
