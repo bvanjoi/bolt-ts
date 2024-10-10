@@ -3,7 +3,6 @@ name = "rts_compiler"
 version = "0.1.0"
 edition = "2021"
 
-
 [dependencies]
 rayon = "1.10.0"
 rustc-hash = { workspace = true }
@@ -13,6 +12,7 @@ xxhash-rust = { version = "0.8.12", features = ["xxh3", "const_xxh3"] }
 rts_errors = { path = "../errors" }
 rts_span = { path = "../span" }
 project-root = "0.2.2"
+thin-vec = { workspace = true }
 
 [dev-dependencies]
 expect-test = "1.2.2"

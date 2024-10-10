@@ -16,9 +16,9 @@ use crate::keyword;
 
 type PResult<T> = Result<T, ()>;
 
-pub struct NodeMap<'cx>(FxHashMap<NodeID, Node<'cx>>);
+pub struct Nodes<'cx>(FxHashMap<NodeID, Node<'cx>>);
 
-impl<'cx> NodeMap<'cx> {
+impl<'cx> Nodes<'cx> {
     pub fn get(&self, id: NodeID) -> Node<'cx> {
         self.0.get(&id).copied().unwrap()
     }
@@ -50,7 +50,7 @@ impl ParentMap {
 
 pub struct Parser<'cx> {
     arena: &'cx bumpalo::Bump,
-    pub node_map: NodeMap<'cx>,
+    pub nodes: Nodes<'cx>,
     pub parent_map: ParentMap,
     next_node_id: NodeID,
     pub atoms: AtomMap<'cx>,
@@ -66,7 +66,7 @@ impl<'cx> Parser<'cx> {
             atoms.insert(*id, Cow::Borrowed(atom))
         }
         Self {
-            node_map: NodeMap(FxHashMap::default()),
+            nodes: Nodes(FxHashMap::default()),
             parent_map: ParentMap(FxHashMap::default()),
             next_node_id: NodeID::root(),
             atoms,
@@ -401,7 +401,38 @@ impl<'cx, 'a, 'p> ParserState<'cx, 'p> {
     }
 
     fn parse_prefix_ty(&mut self) -> PResult<&'cx ast::Ty<'cx>> {
-        self.parse_non_array_ty()
+        let ty = self.parse_non_array_ty()?;
+        match self.token.kind {
+            TokenKind::LBracket => {
+                let id = self.p.next_node_id();
+                self.expect(TokenKind::LBracket)?;
+                if self.token.kind.is_start_of_type() {
+                    // let index_ty = self.parse_ty()?;
+                    self.expect(TokenKind::RBracket)?;
+                    todo!()
+                } else {
+                    self.expect(TokenKind::RBracket)?;
+                    let array = self.with_parent(id, |this| {
+                        let id = this.p.next_node_id();
+                        this.p.parent_map.r#override(ty.id, id);
+                        let kind = this.alloc(ast::ArrayTy {
+                            id,
+                            span: this.new_span(ty.span().lo as usize, this.pos),
+                            ele: ty,
+                        });
+                        this.insert_map(id, Node::ArrayTy(kind));
+                        kind
+                    });
+                    let ty = self.alloc(ast::Ty {
+                        id,
+                        kind: ast::TyKind::Array(array),
+                    });
+                    self.insert_map(id, Node::Ty(ty));
+                    Ok(ty)
+                }
+            }
+            _ => Ok(ty),
+        }
     }
 
     fn parse_non_array_ty(&mut self) -> PResult<&'cx ast::Ty<'cx>> {
@@ -639,7 +670,7 @@ impl<'cx, 'a, 'p> ParserState<'cx, 'p> {
                         id,
                         span: this.new_span(start, this.pos),
                         expr,
-                        args
+                        args,
                     });
                     this.insert_map(id, Node::CallExpr(call));
                     Ok(call)
@@ -650,7 +681,7 @@ impl<'cx, 'a, 'p> ParserState<'cx, 'p> {
                 });
                 self.insert_map(id, Node::Expr(expr));
             } else {
-                break Ok(expr)
+                break Ok(expr);
             }
         }
     }
@@ -939,7 +970,7 @@ impl<'cx, 'a, 'p> ParserState<'cx, 'p> {
     }
 
     fn insert_map(&mut self, id: NodeID, node: Node<'cx>) {
-        self.p.node_map.insert(id, node);
+        self.p.nodes.insert(id, node);
         self.p.parent_map.insert(id, self.parent);
     }
 
@@ -954,7 +985,7 @@ impl<'cx, 'a, 'p> ParserState<'cx, 'p> {
                 }
             }
             let program = this.alloc(ast::Program { id, stmts });
-            this.p.node_map.insert(id, Node::Program(program));
+            this.p.nodes.insert(id, Node::Program(program));
             program
         })
     }

@@ -38,3 +38,22 @@ pub(crate) struct CannotFindName {
     pub span: Span,
     pub name: String,
 }
+
+#[derive(Error, Diagnostic, Debug)]
+#[error("Argument of type '{arg_ty}' is not assignable to parameter of type '{param_ty}'.")]
+pub(crate) struct ArgumentOfTyIsNotAssignableToParameterOfTy {
+    #[label]
+    pub span: Span,
+    pub arg_ty: String,
+    pub param_ty: String,
+}
+
+
+#[derive(Error, Diagnostic, Debug)]
+#[error("Expected {x} arguments, but got {y}.")]
+pub(crate) struct ExpectedXArgsButGotY {
+    #[label]
+    pub span: Span,
+    pub x: String,
+    pub y: u8,
+}

@@ -207,9 +207,10 @@ pub struct Ty<'cx> {
 }
 
 impl Ty<'_> {
-    fn span(&self) -> Span {
+    pub fn span(&self) -> Span {
         match self.kind {
             TyKind::Ident(ident) => ident.span,
+            TyKind::Array(array) => array.span,
         }
     }
 }
@@ -217,6 +218,14 @@ impl Ty<'_> {
 #[derive(Debug, Clone, Copy)]
 pub enum TyKind<'cx> {
     Ident(&'cx Ident),
+    Array(&'cx ArrayTy<'cx>),
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct ArrayTy<'cx> {
+    pub id: NodeID,
+    pub span: Span,
+    pub ele: &'cx Ty<'cx>,
 }
 
 #[derive(Debug, Clone, Copy)]
