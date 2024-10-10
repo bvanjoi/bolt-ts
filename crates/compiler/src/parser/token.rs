@@ -130,6 +130,11 @@ impl TokenKind {
     pub fn is_start_of_param(self) -> bool {
         self.is_binding_ident_or_private_ident_or_pat()
     }
+
+    pub fn is_start_of_type(self) -> bool {
+        use TokenKind::*;
+        matches!(self, LBrace | LBracket)
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]

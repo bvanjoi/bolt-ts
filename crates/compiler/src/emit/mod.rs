@@ -75,11 +75,11 @@ impl<'cx> Emit<'cx> {
         match stmt.kind {
             Var(var) => self.emit_var_stmt(var),
             Expr(expr) => self.emit_expr(expr),
-            Fn(f) => self.emit_fn(f),
+            Fn(f) => self.emit_fn_decl(f),
             If(stmt) => self.emit_if(stmt),
             Block(block) => self.emit_stmts(block),
             Return(ret) => self.emit_return(ret),
-            Empty(_) => {},
+            Empty(_) => {}
         }
     }
 
@@ -126,13 +126,13 @@ impl<'cx> Emit<'cx> {
     ) {
         for (idx, item) in list.iter().enumerate() {
             emit_item(self, item);
-            if idx != list.len() {
+            if idx != list.len() - 1 {
                 emit_sep(self)
             }
         }
     }
 
-    fn emit_fn(&mut self, f: &'cx ast::FnDecl) {
+    fn emit_fn_decl(&mut self, f: &'cx ast::FnDecl) {
         self.content.p("function");
         self.content.p_whitespace();
         self.emit_ident(f.name);
@@ -162,7 +162,9 @@ impl<'cx> Emit<'cx> {
         self.content.p_r_paren();
     }
 
-    fn emit_param(&mut self, param: &'cx ast::ParamDecl<'cx>) {}
+    fn emit_param(&mut self, param: &'cx ast::ParamDecl<'cx>) {
+        self.emit_ident(&param.name);
+    }
 
     fn emit_ident(&mut self, ident: &'cx ast::Ident) {
         self.content.p(self.atoms.get(ident.name));

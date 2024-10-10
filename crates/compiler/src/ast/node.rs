@@ -32,4 +32,5 @@ pub enum Node<'cx> {
     CallExpr(&'cx ast::CallExpr<'cx>),
 
     Ty(&'cx ast::Ty<'cx>),
+    ArrayTy(&'cx ast::ArrayTy<'cx>),
 }

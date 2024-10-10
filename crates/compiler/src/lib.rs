@@ -1,5 +1,6 @@
 mod ast;
 mod atoms;
+mod bind;
 pub mod check;
 mod ecma_refer;
 mod emit;
@@ -11,6 +12,7 @@ mod ty;
 use std::path::PathBuf;
 
 use atoms::AtomMap;
+use bind::Binder;
 use rts_errors::Diag;
 use rts_span::{ModuleArena, ModulePath};
 
@@ -24,15 +26,39 @@ pub fn eval_from(m: ModulePath) -> Output {
     let mut module_arena = ModuleArena::new();
     let m = module_arena.new_module(m);
     let input = module_arena.content_map.get(&m.id).unwrap();
-    let ast_arena = bumpalo::Bump::new();
     let atoms = AtomMap::default();
+
+    // parser
+    let ast_arena = bumpalo::Bump::new();
     let mut p = parser::Parser::new(&ast_arena, atoms);
     let mut s = parser::ParserState::new(&mut p, input.as_bytes(), m.id);
     let root = s.parse();
+
+    // bind
+    let mut binder = bind::Binder::new(&p.atoms);
+    binder.bind_program(root);
+    let Binder {
+        scope_id_parent_map,
+        node_id_to_scope_id,
+        symbols,
+        res,
+        ..
+    } = binder;
+
+    // type check
     let ty_arena = bumpalo::Bump::new();
-    let mut c = check::TyChecker::new(&ty_arena, p.atoms);
+    let mut c = check::TyChecker::new(
+        &ty_arena,
+        &p.nodes,
+        &p.atoms,
+        scope_id_parent_map,
+        node_id_to_scope_id,
+        symbols,
+        res,
+    );
     c.check_program(root);
 
+    // emit
     let mut emitter = emit::Emit::new(&c.atoms);
     let output = emitter.emit(root);
 

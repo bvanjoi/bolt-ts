@@ -1,4 +1,7 @@
+mod get;
 mod relation;
+mod resolve;
+mod sig;
 
 use relation::RelationKind;
 use rts_span::{ModuleID, Span};
@@ -6,19 +9,26 @@ use rustc_hash::FxHashMap;
 
 use crate::ast::{BinOp, ExprKind};
 use crate::atoms::{AtomId, AtomMap};
-use crate::ty::{IntrinsicTyKind, Ty, TyID, TyKind, Tys};
+use crate::bind::{ScopeID, SymbolID, Symbols};
+use crate::parser::Nodes;
+use crate::ty::{IntrinsicTyKind, ObjectTyKind, Ty, TyID, TyKind, Tys};
 use crate::{ast, errors, keyword, ty};
 
 pub struct TyChecker<'cx> {
-    pub atoms: AtomMap<'cx>,
+    pub atoms: &'cx AtomMap<'cx>,
+    pub diags: Vec<rts_errors::Diag>,
+    nodes: &'cx Nodes<'cx>,
     arena: &'cx bumpalo::Bump,
     next_ty_id: TyID,
-    pub tys: FxHashMap<TyID, &'cx Ty<'cx>>,
+    tys: FxHashMap<TyID, &'cx Ty<'cx>>,
     num_lit_tys: FxHashMap<u64, TyID>,
     intrinsic_tys: FxHashMap<AtomId, &'cx Ty<'cx>>,
     boolean_ty: std::cell::OnceCell<&'cx Ty<'cx>>,
     type_name: FxHashMap<TyID, String>,
-    pub diags: Vec<rts_errors::Diag>,
+    scope_id_parent_map: FxHashMap<ScopeID, Option<ScopeID>>,
+    node_id_to_scope_id: FxHashMap<ast::NodeID, ScopeID>,
+    symbols: Symbols,
+    res: FxHashMap<(ScopeID, AtomId), SymbolID>,
 }
 
 macro_rules! intrinsic_type {
@@ -51,7 +61,15 @@ intrinsic_type!(
 );
 
 impl<'cx> TyChecker<'cx> {
-    pub fn new(ty_arena: &'cx bumpalo::Bump, atoms: AtomMap<'cx>) -> Self {
+    pub fn new(
+        ty_arena: &'cx bumpalo::Bump,
+        nodes: &'cx Nodes<'cx>,
+        atoms: &'cx AtomMap<'cx>,
+        scope_id_parent_map: FxHashMap<ScopeID, Option<ScopeID>>,
+        node_id_to_scope_id: FxHashMap<ast::NodeID, ScopeID>,
+        symbols: Symbols,
+        res: FxHashMap<(ScopeID, AtomId), SymbolID>,
+    ) -> Self {
         assert!(ty_arena.allocation_limit().is_none());
         let mut this = Self {
             intrinsic_tys: FxHashMap::default(),
@@ -63,6 +81,11 @@ impl<'cx> TyChecker<'cx> {
             diags: Vec::with_capacity(32),
             boolean_ty: Default::default(),
             type_name: FxHashMap::default(),
+            scope_id_parent_map,
+            node_id_to_scope_id,
+            symbols,
+            res,
+            nodes,
         };
         for (kind, ty_name) in INTRINSIC_TYPES {
             let ty = ty::TyKind::Intrinsic(ty_arena.alloc(ty::IntrinsicTy {
@@ -179,27 +202,6 @@ impl<'cx> TyChecker<'cx> {
         decl_ty
     }
 
-    fn get_ty_from_type_node(&mut self, ty: &'cx ast::Ty) -> &'cx Ty<'cx> {
-        use ast::TyKind::*;
-        match ty.kind {
-            Ident(ident) => {
-                if ident.name == keyword::IDENT_BOOLEAN {
-                    self.boolean_ty()
-                } else if ident.name == keyword::IDENT_NUMBER {
-                    self.number_ty()
-                } else if ident.name == keyword::IDENT_STRING {
-                    self.string_ty()
-                } else if ident.name == keyword::IDENT_ANY {
-                    self.any_ty()
-                } else if ident.name == keyword::IDENT_VOID {
-                    self.void_ty()
-                } else {
-                    todo!()
-                }
-            }
-        }
-    }
-
     fn try_get_type_from_effective_type_node(
         &mut self,
         decl: &'cx ast::VarDecl,
@@ -226,6 +228,13 @@ impl<'cx> TyChecker<'cx> {
             source,
             target,
             RelationKind::Assignable,
+            |this, span, source, target| {
+                Box::new(errors::TypeIsNotAssignableToType {
+                    span,
+                    ty1: this.print_ty(source).to_string(),
+                    ty2: this.print_ty(target).to_string(),
+                })
+            },
         )
     }
 
@@ -235,14 +244,16 @@ impl<'cx> TyChecker<'cx> {
         source: &'cx Ty<'cx>,
         target: &'cx Ty<'cx>,
         relation: RelationKind,
+        error: impl FnOnce(
+            &mut Self,
+            Span,
+            &'cx Ty<'cx>,
+            &'cx Ty<'cx>,
+        ) -> Box<dyn rts_errors::miette::Diagnostic + Send + Sync + 'static>,
     ) {
         if !self.is_type_related_to(source, target, relation) {
-            let error = errors::TypeIsNotAssignableToType {
-                span,
-                ty1: self.print_ty(source).to_string(),
-                ty2: self.print_ty(target).to_string(),
-            };
-            self.push_error(span.module, Box::new(error));
+            let err = error(self, span, source, target);
+            self.push_error(span.module, err);
         }
     }
 
@@ -371,6 +382,14 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
+    fn check_expr_with_contextual_ty(
+        &mut self,
+        expr: &'cx ast::Expr,
+        ctx_ty: &'cx Ty<'cx>,
+    ) -> &'cx Ty<'cx> {
+        self.check_expr(expr)
+    }
+
     fn check_expr(&mut self, expr: &'cx ast::Expr) -> &'cx Ty<'cx> {
         use ast::ExprKind::*;
         match expr.kind {
@@ -395,10 +414,11 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
-    fn check_call_expr(&mut self, call: &'cx ast::CallExpr) -> &'cx Ty<'cx> {
+    fn check_call_expr(&mut self, call: &'cx ast::CallExpr<'cx>) -> &'cx Ty<'cx> {
         // let callee_ty = self.check_expr(call.expr);
         // callee_ty
-        self.undefined_ty()
+        let ty = self.resolve_call_expr(call);
+        ty
     }
 
     fn check_object_lit(&mut self, lit: &'cx ast::ObjectLit) -> &'cx Ty<'cx> {
@@ -426,6 +446,8 @@ impl<'cx> TyChecker<'cx> {
     fn check_ident(&mut self, ident: &'cx ast::Ident) -> &'cx Ty<'cx> {
         if ident.name == keyword::IDENT_UNDEFINED {
             self.undefined_ty()
+        } else if let Some(symbol_id) = self.resolve_symbol_by_ident(ident) {
+            self.get_type_of_symbol(symbol_id)
         } else {
             let error = errors::CannotFindName {
                 span: ident.span,
@@ -436,21 +458,9 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
-    fn get_number_literal_type(&mut self, val: f64) -> &'cx Ty<'cx> {
-        let key = unsafe { std::mem::transmute::<f64, u64>(val) };
-        let id = self.num_lit_tys.get(&key).copied();
-        if let Some(id) = id {
-            return self.tys[&id];
-        }
-        let kind = TyKind::NumberLit(self.alloc(ty::NumberLitTy { val }));
-        let ty = self.new_ty(kind);
-        self.num_lit_tys.insert(key, ty.id);
-        ty
-    }
-
-    fn get_union_type(&mut self, tys: &'cx [&'cx Ty<'cx>]) -> &'cx Ty<'cx> {
-        let union = self.alloc(ty::UnionTy { tys });
-        self.new_ty(TyKind::Union(union))
+    fn create_object_ty(&mut self, ty: ObjectTyKind<'cx>, symbol: SymbolID) -> &'cx Ty<'cx> {
+        let kind = TyKind::Object(self.alloc(ty::ObjectTy { kind: ty }));
+        self.new_ty(kind)
     }
 
     fn check_bin_expr(&mut self, node: &'cx ast::BinExpr) -> &'cx Ty<'cx> {

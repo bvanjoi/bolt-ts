@@ -22,6 +22,7 @@ pub enum TyKind<'cx> {
     ArrayLit(&'cx ArrayTy<'cx>),
     Intrinsic(&'cx IntrinsicTy),
     Union(&'cx UnionTy<'cx>),
+    Object(&'cx ObjectTy<'cx>),
 }
 
 impl<'cx> TyKind<'cx> {
@@ -38,6 +39,7 @@ impl<'cx> TyKind<'cx> {
                 .join(" | "),
             TyKind::StringLit => todo!(),
             TyKind::ArrayLit(_) => todo!(),
+            TyKind::Object(_) => todo!(),
         }
     }
 
@@ -124,6 +126,19 @@ impl<'cx> TyKind<'cx> {
     pub fn is_fresh(&self) -> bool {
         self.is_lit()
     }
+
+    pub fn as_anonymous(&self) -> Option<&'cx AnonymousTy<'cx>> {
+        use TyKind::*;
+        if let Object(ty) = self {
+            if let ObjectTyKind::Anonymous(f) = ty.kind {
+                Some(f)
+            } else {
+                None
+            }
+        } else {
+            None
+        }
+    }
 }
 
 pub type Tys<'cx> = &'cx [&'cx Ty<'cx>];
@@ -188,4 +203,20 @@ impl IntrinsicTyKind {
 #[derive(Debug, Clone, Copy)]
 pub struct NumberLitTy {
     pub val: f64,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct ObjectTy<'cx> {
+    pub kind: ObjectTyKind<'cx>,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub enum ObjectTyKind<'cx> {
+    Anonymous(&'cx AnonymousTy<'cx>),
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct AnonymousTy<'cx> {
+    pub params: &'cx [&'cx Ty<'cx>],
+    pub ret: &'cx Ty<'cx>,
 }
