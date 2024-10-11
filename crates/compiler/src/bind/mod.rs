@@ -147,8 +147,6 @@ impl<'cx> Binder<'cx> {
     fn bind_fn_decl(&mut self, f: &'cx ast::FnDecl) {
         self.connect(f.id);
         self.create_fn_symbol(f.name.name, f.id);
-        let old = self.scope_id;
-        self.scope_id = self.new_scope();
-        self.scope_id = old;
+        self.bind_block(f.body);
     }
 }

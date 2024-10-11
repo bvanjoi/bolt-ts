@@ -33,4 +33,5 @@ pub enum Node<'cx> {
 
     Ty(&'cx ast::Ty<'cx>),
     ArrayTy(&'cx ast::ArrayTy<'cx>),
+    FnTy(&'cx ast::FnTy<'cx>)
 }

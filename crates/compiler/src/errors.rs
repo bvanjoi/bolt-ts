@@ -48,7 +48,6 @@ pub(crate) struct ArgumentOfTyIsNotAssignableToParameterOfTy {
     pub param_ty: String,
 }
 
-
 #[derive(Error, Diagnostic, Debug)]
 #[error("Expected {x} arguments, but got {y}.")]
 pub(crate) struct ExpectedXArgsButGotY {

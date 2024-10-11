@@ -211,6 +211,7 @@ impl Ty<'_> {
         match self.kind {
             TyKind::Ident(ident) => ident.span,
             TyKind::Array(array) => array.span,
+            TyKind::Fn(f) => f.span,
         }
     }
 }
@@ -219,6 +220,15 @@ impl Ty<'_> {
 pub enum TyKind<'cx> {
     Ident(&'cx Ident),
     Array(&'cx ArrayTy<'cx>),
+    Fn(&'cx FnTy<'cx>)
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct FnTy<'cx> {
+    pub id: NodeID,
+    pub span: Span,
+    pub params: ParamsDecl<'cx>,
+    pub ret_ty: &'cx self::Ty<'cx>,
 }
 
 #[derive(Debug, Clone, Copy)]

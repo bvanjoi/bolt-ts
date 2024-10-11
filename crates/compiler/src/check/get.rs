@@ -63,6 +63,7 @@ impl<'cx> TyChecker<'cx> {
                 }
             }
             Array(_) => self.undefined_ty(),
+            Fn(_) => self.undefined_ty(),
         }
     }
 

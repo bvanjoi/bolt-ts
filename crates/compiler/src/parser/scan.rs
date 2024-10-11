@@ -187,9 +187,14 @@ impl<'cx, 'a, 'p> ParserState<'cx, 'p> {
                     }
                 }
                 b'=' => {
-                    // todo: ==, ===, =>
-                    self.pos += 1;
-                    Token::new(TokenKind::Eq, self.new_span(start, self.pos))
+                    // todo: ==, ===
+                    if self.next_ch() == Some(b'>') {
+                        self.pos += 2;
+                        Token::new(TokenKind::EqGreater, self.new_span(start, self.pos))
+                    } else {
+                        self.pos += 1;
+                        Token::new(TokenKind::Eq, self.new_span(start, self.pos))
+                    }
                 }
                 b'+' => {
                     if self.next_ch() == Some(b'+') {
