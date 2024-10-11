@@ -214,6 +214,14 @@ impl<'cx, 'a, 'p> ParserState<'cx, 'p> {
                     self.pos += 1;
                     Token::new(TokenKind::Question, self.new_span(start, self.pos))
                 }
+                b'<' => {
+                    self.pos += 1;
+                    Token::new(TokenKind::Great, self.new_span(start, self.pos))
+                }
+                b'>' => {
+                    self.pos += 1;
+                    Token::new(TokenKind::Less, self.new_span(start, self.pos))
+                }
                 b',' | b';' | b':' | b'[' | b']' | b'(' | b')' | b'{' | b'}' => {
                     self.pos += 1;
                     let kind = unsafe { std::mem::transmute::<u8, TokenKind>(ch) };
@@ -226,6 +234,7 @@ impl<'cx, 'a, 'p> ParserState<'cx, 'p> {
                     self.token_value = Some(TokenValue::Ident { value: atom });
                     Token::new(TokenKind::String, self.new_span(start, self.pos))
                 }
+                b'`' => self.scan_temp_string(),
                 b'0' => self.scan_number(),
                 b'1'..=b'9' => self.scan_number(),
                 _ if ch.is_ascii_whitespace() => {
@@ -237,6 +246,28 @@ impl<'cx, 'a, 'p> ParserState<'cx, 'p> {
             self.token = token;
             break;
         }
+    }
+
+    fn scan_temp_string(&mut self) -> Token {
+        let start = self.pos;
+        self.pos += 1;
+        let mut v = Vec::with_capacity(32);
+        loop {
+            if self.pos == self.end() {
+                break ;
+            } else if self.ch_unchecked() == b'`' {
+                self.pos += 1;
+                let atom = self.p.atoms.insert_by_vec(v);
+                self.token_value = Some(TokenValue::Ident { value: atom });
+                break;
+            } else if self.ch_unchecked() == b'$' && self.next_ch() == Some(b'{') {
+                todo!()
+            } else {
+                v.push(self.ch_unchecked());
+                self.pos += 1;
+            }
+        }
+        Token::new(TokenKind::NoSubstitutionTemplate, self.new_span(start, self.pos))
     }
 
     fn scan_string(&self, quote: u8) -> (usize, Vec<u8>) {
