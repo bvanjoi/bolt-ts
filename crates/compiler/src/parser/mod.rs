@@ -488,7 +488,10 @@ impl<'cx, 'a, 'p> ParserState<'cx, 'p> {
     }
 
     fn string_token(&self) -> AtomId {
-        assert!(matches!(self.token.kind, TokenKind::String));
+        assert!(matches!(
+            self.token.kind,
+            TokenKind::String | TokenKind::NoSubstitutionTemplate
+        ));
         self.token_value.unwrap().ident()
     }
 
@@ -700,7 +703,7 @@ impl<'cx, 'a, 'p> ParserState<'cx, 'p> {
     fn parse_primary_expr(&mut self) -> &'cx ast::Expr<'cx> {
         use TokenKind::*;
         match self.token.kind {
-            String | Number | True | False | Null => self.parse_lit(),
+            NoSubstitutionTemplate | String | Number | True | False | Null => self.parse_lit(),
             LBracket => self.parse_array_lit(),
             LParen => self.parse_paren_expr().unwrap(),
             LBrace => self.parse_object_lit().unwrap(),
@@ -889,25 +892,26 @@ impl<'cx, 'a, 'p> ParserState<'cx, 'p> {
     fn parse_lit(&mut self) -> &'cx ast::Expr<'cx> {
         let id = self.p.next_node_id();
         let expr = self.with_parent(id, |this| {
+            use TokenKind::*;
             let kind = match this.token.kind {
-                TokenKind::Number => {
+                Number => {
                     let num = this.number_token();
                     let lit = this.create_lit(num, this.token.span);
                     this.insert_map(lit.id, Node::NumLit(lit));
                     ast::ExprKind::NumLit(lit)
                 }
-                TokenKind::False | TokenKind::True => {
-                    let v = this.token.kind == TokenKind::True;
+                False | True => {
+                    let v = this.token.kind == True;
                     let lit = this.create_lit(v, this.token.span);
                     this.insert_map(lit.id, Node::BoolLit(lit));
                     ast::ExprKind::BoolLit(lit)
                 }
-                TokenKind::Null => {
+                Null => {
                     let lit = this.create_lit((), this.token.span);
                     this.insert_map(lit.id, Node::NullLit(lit));
                     ast::ExprKind::NullLit(lit)
                 }
-                TokenKind::String => {
+                String | NoSubstitutionTemplate => {
                     let s = this.string_token();
                     let lit = this.create_lit(s, this.token.span);
                     this.insert_map(lit.id, Node::StringLit(lit));

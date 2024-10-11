@@ -164,6 +164,12 @@ impl<'cx> Emit<'cx> {
 
     fn emit_param(&mut self, param: &'cx ast::ParamDecl<'cx>) {
         self.emit_ident(&param.name);
+        if let Some(init) = param.init {
+            self.content.p_whitespace();
+            self.content.p_eq();
+            self.content.p_whitespace();
+            self.emit_expr(init);
+        }
     }
 
     fn emit_ident(&mut self, ident: &'cx ast::Ident) {

@@ -46,37 +46,43 @@ pub enum TokenKind {
     Number,
     String,
     Ident,
+    NoSubstitutionTemplate,
     Unknown,
     // =====
     /// `+`
     Plus = 0x2B,
-    /// `=`
-    Eq = 0x3D,
-    /// `|`
-    Pipe = 0x7C,
-    /// `?`
-    Question = 0x3F,
     /// `,`
     Comma = 0x2C,
-    /// `;`
-    Semi = 0x3B,
-    /// `:`
-    Colon = 0x3A,
-    /// `{`
-    LBrace = 0x7B,
-    /// `}`
-    RBrace = 0x7D,
-    /// `[`
-    LBracket = 0x5B,
-    /// `]`
-    RBracket = 0x5D,
     /// `(`
     LParen = 0x28,
     /// `)`
     RParen = 0x29,
+    /// `:`
+    Colon = 0x3A,
+    /// `;`
+    Semi = 0x3B,
+    /// `<`
+    Less = 0x3C,
+    /// `=`
+    Eq = 0x3D,
+    /// `>`
+    Great = 0x3E,
+    /// `?`
+    Question = 0x3F,
+    /// `[`
+    LBracket = 0x5B,
+    /// `]`
+    RBracket = 0x5D,
+    /// `|`
+    Pipe = 0x7C,
+    /// `{`
+    LBrace = 0x7B,
+    /// `}`
+    RBrace = 0x7D,
+
     // ======
     /// `=>`
-    EqGreater
+    EqGreater,
 }
 
 impl TokenKind {
