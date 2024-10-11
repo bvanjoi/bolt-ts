@@ -1,6 +1,7 @@
 mod list_ctx;
 mod scan;
 mod token;
+mod ty;
 
 use std::borrow::Cow;
 use std::u32;
@@ -234,7 +235,7 @@ impl<'cx, 'a, 'p> ParserState<'cx, 'p> {
         let name = self.with_parent(id, Self::parse_binding_ident);
         // TODO: type params
         let params = self.with_parent(id, Self::parse_params)?;
-        let ret_ty = self.with_parent(id, Self::parse_ret_type)?;
+        let ret_ty = self.with_parent(id, Self::parse_fn_decl_ret_type)?;
         let body = self.parse_fn_body()?;
         let f = self.alloc(ast::FnDecl {
             id,
@@ -248,11 +249,7 @@ impl<'cx, 'a, 'p> ParserState<'cx, 'p> {
         Ok(f)
     }
 
-    fn parse_ty_or_ty_pred(&mut self) -> PResult<&'cx ast::Ty<'cx>> {
-        self.parse_ty()
-    }
-
-    fn parse_ret_type(&mut self) -> PResult<Option<&'cx ast::Ty<'cx>>> {
+    fn parse_fn_decl_ret_type(&mut self) -> PResult<Option<&'cx ast::Ty<'cx>>> {
         if self.parse_optional(TokenKind::Colon) {
             self.parse_ty_or_ty_pred().map(|ty| Some(ty))
         } else {
@@ -380,89 +377,65 @@ impl<'cx, 'a, 'p> ParserState<'cx, 'p> {
         self.alloc(list)
     }
 
-    fn parse_union_or_intersection_ty(
+    fn scan_speculation_helper<T>(
         &mut self,
-        parse_constituent_type: impl FnOnce(&mut Self) -> PResult<&'cx ast::Ty<'cx>>,
-    ) -> PResult<&'cx ast::Ty<'cx>> {
-        // let start = self.token.start();
-        parse_constituent_type(self)
-    }
+        f: impl FnOnce(&mut Self) -> T,
+        is_lookahead: bool,
+    ) -> T {
+        let old_pos = self.pos;
+        let old_token = self.token;
+        let old_token_value = self.token_value;
 
-    fn parse_intersection_ty(&mut self) -> PResult<&'cx ast::Ty<'cx>> {
-        self.parse_union_or_intersection_ty(Self::parse_ty_op)
-    }
+        let r = f(self);
 
-    fn parse_union_ty(&mut self) -> PResult<&'cx ast::Ty<'cx>> {
-        self.parse_union_or_intersection_ty(Self::parse_intersection_ty)
-    }
-
-    fn parse_ty_op(&mut self) -> PResult<&'cx ast::Ty<'cx>> {
-        self.parse_prefix_ty()
-    }
-
-    fn parse_prefix_ty(&mut self) -> PResult<&'cx ast::Ty<'cx>> {
-        let ty = self.parse_non_array_ty()?;
-        match self.token.kind {
-            TokenKind::LBracket => {
-                let id = self.p.next_node_id();
-                self.expect(TokenKind::LBracket)?;
-                if self.token.kind.is_start_of_type() {
-                    // let index_ty = self.parse_ty()?;
-                    self.expect(TokenKind::RBracket)?;
-                    todo!()
-                } else {
-                    self.expect(TokenKind::RBracket)?;
-                    let array = self.with_parent(id, |this| {
-                        let id = this.p.next_node_id();
-                        this.p.parent_map.r#override(ty.id, id);
-                        let kind = this.alloc(ast::ArrayTy {
-                            id,
-                            span: this.new_span(ty.span().lo as usize, this.pos),
-                            ele: ty,
-                        });
-                        this.insert_map(id, Node::ArrayTy(kind));
-                        kind
-                    });
-                    let ty = self.alloc(ast::Ty {
-                        id,
-                        kind: ast::TyKind::Array(array),
-                    });
-                    self.insert_map(id, Node::Ty(ty));
-                    Ok(ty)
-                }
-            }
-            _ => Ok(ty),
+        if is_lookahead {
+            self.pos = old_pos;
+            self.token = old_token;
+            self.token_value = old_token_value;
         }
+        r
     }
 
-    fn parse_non_array_ty(&mut self) -> PResult<&'cx ast::Ty<'cx>> {
-        match self.token.kind {
-            TokenKind::True | TokenKind::False => {
-                todo!()
-            }
-            TokenKind::Ident => {
-                let id = self.p.next_node_id();
-                let ident = self.with_parent(id, |this| this.create_ident(true));
-                let ty = self.alloc(ast::Ty {
-                    id,
-                    kind: ast::TyKind::Ident(ident),
-                });
-                self.insert_map(id, Node::Ty(ty));
-                Ok(ty)
-            }
-            _ => todo!(),
-        }
+    fn scan_lookahead<T>(&mut self, f: impl FnOnce(&mut Self) -> T) -> T {
+        self.scan_speculation_helper(f, true)
     }
 
-    fn parse_ty(&mut self) -> PResult<&'cx ast::Ty<'cx>> {
-        self.parse_union_ty()
-    }
+    fn speculation_helper<T>(&mut self, f: impl FnOnce(&mut Self) -> T, try_parse: bool) -> T {
+        let old_token = self.token;
 
-    fn parse_ty_anno(&mut self) -> PResult<Option<&'cx ast::Ty<'cx>>> {
-        if self.parse_optional(TokenKind::Colon) {
-            self.parse_ty().map(|ty| Some(ty))
+        let r = if try_parse {
+            todo!()
         } else {
-            Ok(None)
+            self.scan_lookahead(f)
+        };
+
+        if !try_parse {
+            self.token = old_token;
+        }
+
+        r
+    }
+
+    fn lookahead<T>(&mut self, f: impl FnOnce(&mut Self) -> T) -> T {
+        self.speculation_helper(f, false)
+    }
+
+    fn is_start_of_fn_or_ctor_ty(&mut self) -> bool {
+        let t = self.token.kind;
+        if t == TokenKind::LParen && self.lookahead(Self::is_unambiguously_start_of_fn_ty) {
+            true
+        } else {
+            false
+        }
+    }
+
+    fn is_unambiguously_start_of_fn_ty(&mut self) -> bool {
+        self.next_token();
+        let t = self.token.kind;
+        if t == TokenKind::RParen {
+            true
+        } else {
+            false
         }
     }
 

@@ -53,12 +53,21 @@ impl<'cx> TyChecker<'cx> {
     pub(super) fn resolve_symbol_by_ident(&mut self, ident: &'cx ast::Ident) -> Option<SymbolID> {
         // dbg!(&self.node_id_to_scope_id);
         // dbg!(ident.id);
-        let scope_id = *self.node_id_to_scope_id.get(&ident.id)?;
         let name = ident.name;
+        let mut scope_id = *self.node_id_to_scope_id.get(&ident.id)?;
+        loop {
+            if let Some(id) = self.res.get(&(scope_id, name)).copied() {
+                return Some(id)
+            }
+            if let Some(parent) = self.scope_id_parent_map[&scope_id] {
+                scope_id = parent;
+            } else {
+                return None
+            }
+        } 
         // self.res.keys().for_each(|v| {
         //     dbg!(self.atoms.get(v.1));
         // });
         // dbg!(self.atoms.get(name));
-        self.res.get(&(scope_id, name)).copied()
     }
 }
