@@ -223,6 +223,14 @@ impl<'cx, 'a, 'p> ParserState<'cx, 'p> {
                     self.pos += 1;
                     Token::new(TokenKind::Less, self.new_span(start, self.pos))
                 }
+                b'.' => {
+                    if self.next_ch() == Some(b'.') && self.next_next_ch() == Some(b'.') {
+                        self.pos += 3;
+                        Token::new(TokenKind::DotDotDot, self.new_span(start, self.pos))
+                    } else {
+                        todo!()
+                    }
+                }
                 b',' | b';' | b':' | b'[' | b']' | b'(' | b')' | b'{' | b'}' => {
                     self.pos += 1;
                     let kind = unsafe { std::mem::transmute::<u8, TokenKind>(ch) };

@@ -211,7 +211,7 @@ impl<'cx, 'a, 'p> ParserState<'cx, 'p> {
         let expr = self.with_parent(id, Self::parse_expr)?;
         self.expect(TokenKind::RParen)?;
         let then = self.with_parent(id, Self::parse_stmt)?;
-        let else_then = if self.parse_optional(TokenKind::Else) {
+        let else_then = if self.parse_optional(TokenKind::Else).is_some() {
             Some(self.with_parent(id, Self::parse_stmt)?)
         } else {
             None
@@ -250,7 +250,7 @@ impl<'cx, 'a, 'p> ParserState<'cx, 'p> {
     }
 
     fn parse_fn_decl_ret_type(&mut self) -> PResult<Option<&'cx ast::Ty<'cx>>> {
-        if self.parse_optional(TokenKind::Colon) {
+        if self.parse_optional(TokenKind::Colon).is_some() {
             self.parse_ty_or_ty_pred().map(|ty| Some(ty))
         } else {
             Ok(None)
@@ -294,9 +294,9 @@ impl<'cx, 'a, 'p> ParserState<'cx, 'p> {
         use TokenKind::*;
         self.expect(LParen)?;
         let params = self.parse_delimited_list(
-            |t| t.is_start_of_param(),
+            list_ctx::Params::is_ele,
             Self::parse_param,
-            |t| matches!(t, RParen | RBracket),
+            list_ctx::Params::is_closing,
         );
         self.expect(RParen)?;
         Ok(params)
@@ -305,13 +305,17 @@ impl<'cx, 'a, 'p> ParserState<'cx, 'p> {
     fn parse_param(&mut self) -> PResult<&'cx ast::ParamDecl<'cx>> {
         let start = self.token.start();
         let id = self.p.next_node_id();
+        let dotdotdot = self.parse_optional(TokenKind::DotDotDot).map(|t| t.span);
         let name = self.with_parent(id, Self::parse_ident_name)?;
+        let question = self.parse_optional(TokenKind::Question).map(|t| t.span);
         let ty = self.with_parent(id, Self::parse_ty_anno)?;
         let init = self.with_parent(id, Self::parse_init);
         let decl = self.alloc(ast::ParamDecl {
             id,
             span: self.new_span(start as usize, self.pos),
+            dotdotdot,
             name,
+            question,
             ty,
             init,
         });
@@ -367,7 +371,7 @@ impl<'cx, 'a, 'p> ParserState<'cx, 'p> {
             if let Ok(ele) = ele(self) {
                 list.push(ele);
             }
-            if self.parse_optional(TokenKind::Comma) {
+            if self.parse_optional(TokenKind::Comma).is_some() {
                 continue;
             }
             if is_closing(self.token.kind) {
@@ -462,16 +466,16 @@ impl<'cx, 'a, 'p> ParserState<'cx, 'p> {
 
     fn parse_init(&mut self) -> Option<&'cx ast::Expr<'cx>> {
         self.parse_optional(TokenKind::Eq)
-            .then(|| self.parse_assign_expr().unwrap())
+            .map(|_| self.parse_assign_expr().unwrap())
     }
 
-    fn parse_optional(&mut self, t: TokenKind) -> bool {
-        if self.token.kind == t {
-            self.next_token();
-            true
-        } else {
-            false
-        }
+    fn parse_token_node(&mut self) -> Token {
+        let t = self.token;
+        self.next_token();
+        t
+    }
+    fn parse_optional(&mut self, t: TokenKind) -> Option<Token> {
+        (self.token.kind == t).then(|| self.parse_token_node())
     }
 
     fn parse_ident_or_pat(&mut self) -> &'cx ast::Ident {
@@ -537,7 +541,7 @@ impl<'cx, 'a, 'p> ParserState<'cx, 'p> {
     }
 
     fn parse_cond_expr_rest(&mut self, cond: &'cx ast::Expr<'cx>) -> PResult<&'cx ast::Expr<'cx>> {
-        if self.parse_optional(TokenKind::Question) {
+        if self.parse_optional(TokenKind::Question).is_some() {
             let start = cond.span().lo;
             let id = self.p.next_node_id();
             let kind = self.with_parent(id, |this| {

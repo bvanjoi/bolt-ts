@@ -83,6 +83,8 @@ pub enum TokenKind {
     // ======
     /// `=>`
     EqGreater,
+    /// `...`
+    DotDotDot,
 }
 
 impl TokenKind {
@@ -141,7 +143,7 @@ impl TokenKind {
     }
 
     pub fn is_start_of_param(self) -> bool {
-        self.is_binding_ident_or_private_ident_or_pat()
+        matches!(self, TokenKind::DotDotDot) || self.is_binding_ident_or_private_ident_or_pat()
     }
 
     pub fn is_start_of_type(self) -> bool {

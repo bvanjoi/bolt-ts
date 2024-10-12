@@ -38,3 +38,15 @@ impl ListContext for ObjectLitMembers {
         matches!(t, TokenKind::RBrace)
     }
 }
+
+pub struct Params;
+impl ListContext for Params {
+    fn is_ele(t: TokenKind) -> bool {
+        t.is_start_of_param()
+    }
+
+    fn is_closing(t: TokenKind) -> bool {
+        use TokenKind::*;
+        matches!(t, RParen | RBracket)
+    }
+}
