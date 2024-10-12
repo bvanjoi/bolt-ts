@@ -132,6 +132,7 @@ impl<'cx, 'a, 'p> ParserState<'cx, 'p> {
                     // keyword
                     let kind = unsafe { std::mem::transmute::<u8, TokenKind>(idx as u8) };
                     let span = self.new_span(start, self.pos);
+                    self.token_value = Some(TokenValue::Ident { value: id });
                     return Token::new(kind, span);
                 }
             }
@@ -254,7 +255,7 @@ impl<'cx, 'a, 'p> ParserState<'cx, 'p> {
         let mut v = Vec::with_capacity(32);
         loop {
             if self.pos == self.end() {
-                break ;
+                break;
             } else if self.ch_unchecked() == b'`' {
                 self.pos += 1;
                 let atom = self.p.atoms.insert_by_vec(v);
@@ -267,7 +268,10 @@ impl<'cx, 'a, 'p> ParserState<'cx, 'p> {
                 self.pos += 1;
             }
         }
-        Token::new(TokenKind::NoSubstitutionTemplate, self.new_span(start, self.pos))
+        Token::new(
+            TokenKind::NoSubstitutionTemplate,
+            self.new_span(start, self.pos),
+        )
     }
 
     fn scan_string(&self, quote: u8) -> (usize, Vec<u8>) {
