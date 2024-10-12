@@ -165,7 +165,6 @@ pub enum BinPrec {
 
 bitflags::bitflags! {
     pub struct TokenFlags: u16 {
-        const NONE = 0;
         const PRECEDING_LINE_BREAK  = 1 << 0;
         /// `123_456`
         const CONTAINS_SEPARATOR    = 1 << 9;

@@ -11,6 +11,7 @@ rts_span::new_index!(ScopeID);
 
 pub struct Binder<'cx> {
     scope_id: ScopeID,
+    max_scope_id: ScopeID,
     symbol_id: SymbolID,
     atoms: &'cx AtomMap<'cx>,
     pub scope_id_parent_map: FxHashMap<ScopeID, Option<ScopeID>>,
@@ -21,21 +22,25 @@ pub struct Binder<'cx> {
 
 impl<'cx> Binder<'cx> {
     pub fn new(atoms: &'cx AtomMap<'cx>) -> Self {
+        let mut symbol_id = SymbolID::root();
+        let symbols = Symbols::new(symbol_id);
+        symbol_id = symbol_id.next();
         Binder {
             atoms,
             scope_id: ScopeID::root(),
+            max_scope_id: ScopeID::root(),
             scope_id_parent_map: FxHashMap::default(),
             res: FxHashMap::default(),
-            symbol_id: SymbolID::root(),
-            symbols: Symbols::new(),
             node_id_to_scope_id: FxHashMap::default(),
+            symbol_id,
+            symbols,
         }
     }
 
     fn create_symbol(&mut self, name: AtomId, kind: SymbolKind) {
         let id = self.symbol_id;
         self.symbol_id = self.symbol_id.next();
-        let is_blocked_scope_var = matches!(kind, SymbolKind::BlockedScopeVar);
+        let is_blocked_scope_var = matches!(kind, SymbolKind::BlockScopedVar);
         self.symbols.insert(id, Symbol::new(name, kind));
         let prev = self.res.insert((self.scope_id, name), id);
         if !is_blocked_scope_var {
@@ -54,7 +59,8 @@ impl<'cx> Binder<'cx> {
 
     fn new_scope(&mut self) -> ScopeID {
         let old = self.scope_id;
-        let next = self.scope_id.next();
+        let next = self.max_scope_id.next();
+        self.max_scope_id = next;
         self.scope_id_parent_map.insert(next, Some(old));
         next
     }
@@ -123,7 +129,7 @@ impl<'cx> Binder<'cx> {
 
     fn bind_var_decl(&mut self, decl: &'cx ast::VarDecl) {
         self.connect(decl.id);
-        self.create_symbol(decl.name.name, SymbolKind::BlockedScopeVar);
+        self.create_symbol(decl.name.name, SymbolKind::BlockScopedVar);
         if let Some(init) = decl.init {
             self.bind_expr(init);
         }
@@ -133,7 +139,9 @@ impl<'cx> Binder<'cx> {
         if let Some(s) = self.res.get(&(self.scope_id, name)).copied() {
             let symbol = self.symbols.get_mut(s);
             match &mut symbol.kind {
-                SymbolKind::BlockedScopeVar => todo!(),
+                SymbolKind::Err => todo!(),
+                SymbolKind::FunctionScopedVar => todo!(),
+                SymbolKind::BlockScopedVar => todo!(),
                 SymbolKind::Function(vec) => {
                     assert!(!vec.is_empty());
                     vec.push(id)
@@ -144,9 +152,31 @@ impl<'cx> Binder<'cx> {
         }
     }
 
+    fn bind_params(&mut self, params: ast::ParamsDecl<'cx>) {
+        for param in params {
+            self.bind_param(param);
+        }
+    }
+
+    fn bind_param(&mut self, param: &'cx ast::ParamDecl) {
+        self.connect(param.id);
+        self.create_symbol(param.name.name, SymbolKind::FunctionScopedVar);
+    }
+
     fn bind_fn_decl(&mut self, f: &'cx ast::FnDecl) {
         self.connect(f.id);
         self.create_fn_symbol(f.name.name, f.id);
-        self.bind_block(f.body);
+
+        let old = self.scope_id;
+        self.scope_id = self.new_scope();
+        self.bind_params(f.params);
+        self.bind_fn_block(f.body);
+        self.scope_id = old;
+    }
+
+    fn bind_fn_block(&mut self, block: ast::Stmts<'cx>) {
+        for stmt in block {
+            self.bind_stmt(stmt)
+        }
     }
 }

@@ -33,5 +33,40 @@ pub enum Node<'cx> {
 
     Ty(&'cx ast::Ty<'cx>),
     ArrayTy(&'cx ast::ArrayTy<'cx>),
-    FnTy(&'cx ast::FnTy<'cx>)
+    FnTy(&'cx ast::FnTy<'cx>),
+}
+
+impl Node<'_> {
+    pub fn id(&self) -> NodeID {
+        use Node::*;
+        match self {
+            Program(n) => n.id,
+            Stmt(n) => n.id,
+            VarStmt(n) => n.id,
+            ParamDecl(n) => n.id,
+            FnDecl(n) => n.id,
+            IfStmt(n) => n.id,
+            RetStmt(n) => n.id,
+            EmptyStmt(n) => n.id,
+            Expr(n) => n.id,
+            VarDecl(n) => n.id,
+            BinExpr(n) => n.id,
+            NumLit(n) => n.id,
+            BoolLit(n) => n.id,
+            NullLit(n) => n.id,
+            StringLit(n) => n.id,
+            ArrayLit(n) => n.id,
+            Ident(n) => n.id,
+            OmitExpr(n) => n.id,
+            ParenExpr(n) => n.id,
+            CondExpr(n) => n.id,
+            PropName(n) => n.id,
+            ObjectMemberField(n) => n.id,
+            ObjectLit(n) => n.id,
+            CallExpr(n) => n.id,
+            Ty(n) => n.id,
+            ArrayTy(n) => n.id,
+            FnTy(n) => n.id,
+        }
+    }
 }

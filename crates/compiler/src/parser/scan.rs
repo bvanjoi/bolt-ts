@@ -148,7 +148,7 @@ impl<'cx, 'a, 'p> ParserState<'cx, 'p> {
 
     pub(super) fn next_token(&mut self) {
         let start = self.pos;
-        let flags = TokenFlags::NONE;
+        let flags = TokenFlags::empty();
         let mut token_start;
         loop {
             token_start = self.pos;

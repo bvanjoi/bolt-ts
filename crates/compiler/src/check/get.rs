@@ -7,11 +7,15 @@ use crate::keyword;
 impl<'cx> TyChecker<'cx> {
     pub(super) fn get_type_of_symbol(&mut self, id: SymbolID) -> &'cx Ty<'cx> {
         use crate::bind::SymbolKind::*;
-        let symbol = &self.symbols.get(id);
-        match symbol.kind {
-            BlockedScopeVar => self.undefined_ty(),
+        let ty = match &self.symbols.get(id).kind {
+            Err => self.error_ty(),
+            FunctionScopedVar => self.undefined_ty(),
+            BlockScopedVar => self.undefined_ty(),
             Function(_) => self.get_type_of_func_decl(id),
-        }
+        };
+        let prev = self.type_symbol.insert(ty.id, id);
+        assert!(prev.is_none());
+        ty
     }
 
     pub(super) fn get_type_of_func_decl(&mut self, id: SymbolID) -> &'cx Ty<'cx> {
@@ -26,7 +30,9 @@ impl<'cx> TyChecker<'cx> {
     fn get_sig_of_symbol(&mut self, id: SymbolID) -> &'cx [&'cx Ty<'cx>] {
         use crate::bind::SymbolKind::*;
         let decls = match &self.symbols.get(id).kind {
-            BlockedScopeVar => todo!(),
+            Err => todo!(),
+            FunctionScopedVar => todo!(),
+            BlockScopedVar => todo!(),
             Function(ids) => ids.clone(),
         };
 

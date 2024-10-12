@@ -3,13 +3,16 @@ mod relation;
 mod resolve;
 mod sig;
 
-use relation::RelationKind;
 use rts_span::{ModuleID, Span};
 use rustc_hash::FxHashMap;
+use sig::Sig;
+
+use self::relation::RelationKind;
+pub use self::resolve::ExpectedArgsCount;
 
 use crate::ast::{BinOp, ExprKind};
 use crate::atoms::{AtomId, AtomMap};
-use crate::bind::{ScopeID, SymbolID, Symbols};
+use crate::bind::{ScopeID, Symbol, SymbolID, Symbols};
 use crate::parser::Nodes;
 use crate::ty::{IntrinsicTyKind, ObjectTyKind, Ty, TyID, TyKind, Tys};
 use crate::{ast, errors, keyword, ty};
@@ -25,10 +28,13 @@ pub struct TyChecker<'cx> {
     intrinsic_tys: FxHashMap<AtomId, &'cx Ty<'cx>>,
     boolean_ty: std::cell::OnceCell<&'cx Ty<'cx>>,
     type_name: FxHashMap<TyID, String>,
+    type_symbol: FxHashMap<TyID, SymbolID>,
     scope_id_parent_map: FxHashMap<ScopeID, Option<ScopeID>>,
     node_id_to_scope_id: FxHashMap<ast::NodeID, ScopeID>,
+    node_id_to_sig: FxHashMap<ast::NodeID, Sig<'cx>>,
     symbols: Symbols,
     res: FxHashMap<(ScopeID, AtomId), SymbolID>,
+    final_res: FxHashMap<ast::NodeID, SymbolID>,
 }
 
 macro_rules! intrinsic_type {
@@ -84,8 +90,11 @@ impl<'cx> TyChecker<'cx> {
             scope_id_parent_map,
             node_id_to_scope_id,
             symbols,
-            res,
             nodes,
+            type_symbol: FxHashMap::default(),
+            node_id_to_sig: FxHashMap::default(),
+            res,
+            final_res: FxHashMap::default(),
         };
         for (kind, ty_name) in INTRINSIC_TYPES {
             let ty = ty::TyKind::Intrinsic(ty_arena.alloc(ty::IntrinsicTy {
@@ -415,8 +424,6 @@ impl<'cx> TyChecker<'cx> {
     }
 
     fn check_call_expr(&mut self, call: &'cx ast::CallExpr<'cx>) -> &'cx Ty<'cx> {
-        // let callee_ty = self.check_expr(call.expr);
-        // callee_ty
         let ty = self.resolve_call_expr(call);
         ty
     }
@@ -446,15 +453,18 @@ impl<'cx> TyChecker<'cx> {
     fn check_ident(&mut self, ident: &'cx ast::Ident) -> &'cx Ty<'cx> {
         if ident.name == keyword::IDENT_UNDEFINED {
             self.undefined_ty()
-        } else if let Some(symbol_id) = self.resolve_symbol_by_ident(ident) {
-            self.get_type_of_symbol(symbol_id)
         } else {
-            let error = errors::CannotFindName {
-                span: ident.span,
-                name: self.atoms.get(ident.name).to_string(),
-            };
-            self.push_error(ident.span.module, Box::new(error));
-            self.error_ty()
+            match self.resolve_symbol_by_ident(ident) {
+                Symbol::ERR => {
+                    let error = errors::CannotFindName {
+                        span: ident.span,
+                        name: self.atoms.get(ident.name).to_string(),
+                    };
+                    self.push_error(ident.span.module, Box::new(error));
+                    self.error_ty()
+                }
+                id => self.get_type_of_symbol(id),
+            }
         }
     }
 

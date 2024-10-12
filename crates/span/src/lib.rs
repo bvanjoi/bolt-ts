@@ -10,7 +10,7 @@ macro_rules! new_index {
         #[derive(Debug, Clone, Copy, Hash, PartialEq, Eq)]
         pub struct $name(u32);
         impl $name {
-            pub fn root() -> $name {
+            pub const fn root() -> $name {
                 $name(0)
             }
             pub fn next(&self) -> $name {
