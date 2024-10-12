@@ -479,11 +479,7 @@ impl<'cx, 'a, 'p> ParserState<'cx, 'p> {
     }
 
     fn ident_token(&self) -> AtomId {
-        assert!(
-            matches!(self.token.kind, TokenKind::Ident),
-            "{:#?}",
-            self.token
-        );
+        assert!(self.token.kind.is_ident_or_keyword(), "{:#?}", self.token);
         self.token_value.unwrap().ident()
     }
 
@@ -665,9 +661,9 @@ impl<'cx, 'a, 'p> ParserState<'cx, 'p> {
     fn parse_args(&mut self) -> PResult<&'cx [&'cx ast::Expr<'cx>]> {
         self.expect(TokenKind::LParen)?;
         let args = self.parse_delimited_list(
-            list_ctx::ArgumentExpressions::is_ele,
+            list_ctx::ArgExprs::is_ele,
             Self::parse_arg,
-            list_ctx::ArgumentExpressions::is_closing,
+            list_ctx::ArgExprs::is_closing,
         );
         self.expect(TokenKind::RParen)?;
         Ok(args)
@@ -719,9 +715,9 @@ impl<'cx, 'a, 'p> ParserState<'cx, 'p> {
         let kind = self.with_parent(id, |this| {
             let id = this.p.next_node_id();
             let props = this.parse_delimited_list(
-                |t| matches!(t, LBrace) || t.is_lit_prop_name(),
+                list_ctx::ObjectLitMembers::is_ele,
                 Self::parse_object_lit_ele,
-                |t| matches!(t, RBrace),
+                list_ctx::ObjectLitMembers::is_closing,
             );
             this.expect(RBrace)?;
             let lit = this.alloc(ast::ObjectLit {

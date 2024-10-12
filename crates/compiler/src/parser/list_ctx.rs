@@ -16,13 +16,25 @@ impl ListContext for BlockStmt {
     }
 }
 
-pub struct ArgumentExpressions;
-impl ListContext for ArgumentExpressions {
+pub struct ArgExprs;
+impl ListContext for ArgExprs {
     fn is_ele(t: TokenKind) -> bool {
         t.is_start_of_expr()
     }
 
     fn is_closing(t: TokenKind) -> bool {
         matches!(t, TokenKind::RParen)
+    }
+}
+
+pub struct ObjectLitMembers;
+impl ListContext for ObjectLitMembers {
+    fn is_ele(t: TokenKind) -> bool {
+        use TokenKind::*;
+        matches!(t, LBrace) || t.is_lit_prop_name()
+    }
+
+    fn is_closing(t: TokenKind) -> bool {
+        matches!(t, TokenKind::RBrace)
     }
 }

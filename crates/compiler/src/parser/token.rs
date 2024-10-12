@@ -127,8 +127,12 @@ impl TokenKind {
         self.is_binding_ident()
     }
 
+    pub fn is_keyword(self) -> bool {
+        (self as u8) < (TokenKind::EOF as u8)
+    }
+
     pub fn is_ident_or_keyword(self) -> bool {
-        matches!(self, TokenKind::Ident)
+        matches!(self, TokenKind::Ident) || self.is_keyword()
     }
 
     pub fn is_lit_prop_name(self) -> bool {
