@@ -46,6 +46,9 @@ impl PPrint {
     fn p_r_brace(&mut self) {
         self.p("}");
     }
+    fn p_dot_dot_dot(&mut self) {
+        self.p("...");
+    }
 }
 
 pub struct Emit<'cx> {
@@ -163,6 +166,9 @@ impl<'cx> Emit<'cx> {
     }
 
     fn emit_param(&mut self, param: &'cx ast::ParamDecl<'cx>) {
+        if param.dotdotdot.is_some() {
+            self.content.p_dot_dot_dot();
+        }
         self.emit_ident(&param.name);
         if let Some(init) = param.init {
             self.content.p_whitespace();

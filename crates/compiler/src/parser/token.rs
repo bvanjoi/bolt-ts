@@ -83,6 +83,8 @@ pub enum TokenKind {
     // ======
     /// `=>`
     EqGreater,
+    /// `...`
+    DotDotDot,
 }
 
 impl TokenKind {
@@ -141,7 +143,7 @@ impl TokenKind {
     }
 
     pub fn is_start_of_param(self) -> bool {
-        self.is_binding_ident_or_private_ident_or_pat()
+        matches!(self, TokenKind::DotDotDot) || self.is_binding_ident_or_private_ident_or_pat()
     }
 
     pub fn is_start_of_type(self) -> bool {
@@ -163,7 +165,6 @@ pub enum BinPrec {
 
 bitflags::bitflags! {
     pub struct TokenFlags: u16 {
-        const NONE = 0;
         const PRECEDING_LINE_BREAK  = 1 << 0;
         /// `123_456`
         const CONTAINS_SEPARATOR    = 1 << 9;

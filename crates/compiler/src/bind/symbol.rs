@@ -3,6 +3,7 @@ use thin_vec::ThinVec;
 
 use crate::ast::NodeID;
 use crate::atoms::AtomId;
+use crate::keyword;
 
 #[derive(Debug)]
 pub struct Symbol {
@@ -14,11 +15,17 @@ impl Symbol {
     pub fn new(name: AtomId, kind: SymbolKind) -> Self {
         Self { name, kind }
     }
+
+    pub const ERR: SymbolID = SymbolID::root();
 }
 
 #[derive(Debug)]
 pub enum SymbolKind {
-    BlockedScopeVar,
+    Err,
+    /// `var` or parameter
+    FunctionScopedVar,
+    /// `let` or `const`
+    BlockScopedVar,
     Function(ThinVec<NodeID>),
 }
 
@@ -27,13 +34,19 @@ rts_span::new_index!(SymbolID);
 pub struct Symbols(FxHashMap<SymbolID, Symbol>);
 
 impl Symbols {
-    pub fn new() -> Self {
-        Self(FxHashMap::default())
+    pub fn new(id: SymbolID) -> Self {
+        assert_eq!(id, Symbol::ERR);
+        let mut this = Self(FxHashMap::default());
+        this.insert(
+            id,
+            Symbol::new(keyword::IDENT_EMPTY, SymbolKind::Err),
+        );
+        this
     }
 
     pub fn insert(&mut self, id: SymbolID, symbol: Symbol) {
         let prev = self.0.insert(id, symbol);
-        assert!(prev.is_none())
+        assert!(prev.is_none(), "prev symbol: {prev:#?}")
     }
 
     pub fn get(&self, id: SymbolID) -> &Symbol {

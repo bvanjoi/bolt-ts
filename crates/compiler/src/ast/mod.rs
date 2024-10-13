@@ -281,7 +281,9 @@ pub struct FnDecl<'cx> {
 pub struct ParamDecl<'cx> {
     pub id: NodeID,
     pub span: Span,
+    pub dotdotdot: Option<Span>,
     pub name: &'cx Ident,
+    pub question: Option<Span>,
     pub ty: Option<&'cx self::Ty<'cx>>,
     pub init: Option<&'cx Expr<'cx>>,
 }

@@ -28,6 +28,7 @@ macro_rules! ident {
 }
 
 ident!(
+    (IDENT_EMPTY, ""),
     (IDENT_ERROR, "error"),
     (IDENT_UNDEFINED, "undefined"),
     (IDENT_ANY, "any"),
