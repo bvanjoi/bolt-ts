@@ -68,9 +68,15 @@ impl<'cx> TyChecker<'cx> {
                     todo!()
                 }
             }
-            Array(_) => self.undefined_ty(),
+            Array(array) => self.get_ty_from_array_node(array),
             Fn(_) => self.undefined_ty(),
         }
+    }
+
+    fn get_ty_from_array_node(&mut self, node: &'cx ast::ArrayTy<'cx>) -> &'cx Ty<'cx> {
+        let ele_ty = self.get_ty_from_type_node(node.ele);
+        let ty = TyKind::Array(self.alloc(ty::ArrayTy { ty: ele_ty }));
+        self.new_ty(ty)
     }
 
     pub(super) fn get_number_literal_type(&mut self, val: f64) -> &'cx Ty<'cx> {

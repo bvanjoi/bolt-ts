@@ -1,0 +1,11 @@
+  × Argument of type 'number' is not assignable to parameter of type 'string'.
+   ╭─[../../tests/cases/compiler/functionCall14.ts:5:5]
+ 5 │ 1
+   · ─
+   ╰────
+
+  × Argument of type 'string' is not assignable to parameter of type 'number'.
+   ╭─[../../tests/cases/compiler/functionCall14.ts:5:7]
+ 5 │  'bar'
+   · ──────
+   ╰────

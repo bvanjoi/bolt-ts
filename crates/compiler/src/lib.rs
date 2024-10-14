@@ -13,13 +13,14 @@ use std::path::PathBuf;
 
 use atoms::AtomMap;
 use bind::Binder;
-use rts_errors::Diag;
 use rts_span::{ModuleArena, ModulePath};
+
+type Diag = Box<dyn rts_errors::miette::Diagnostic + Send + Sync + 'static>;
 
 pub struct Output {
     pub module_arena: ModuleArena,
     pub output: String,
-    pub diags: Vec<Diag>,
+    pub diags: Vec<rts_errors::Diag>,
 }
 
 pub fn eval_from(m: ModulePath) -> Output {
