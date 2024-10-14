@@ -3,15 +3,23 @@ use crate::{ast, bind::SymbolID};
 use super::TyChecker;
 
 bitflags::bitflags! {
-  pub struct SigFlags: u16 {
-      const HAS_REST_PARAMETER  = 1 << 0;
-  }
+    #[derive(Debug, Clone, Copy)]
+    pub struct SigFlags: u16 {
+        const HAS_REST_PARAMETER  = 1 << 0;
+    }
 }
 
+#[derive(Debug, Clone, Copy)]
 pub struct Sig<'cx> {
     pub flags: SigFlags,
     pub params: &'cx [SymbolID],
     pub min_args_count: usize,
+}
+
+impl Sig<'_> {
+    pub fn has_rest_param(&self) -> bool {
+        self.flags.contains(SigFlags::HAS_REST_PARAMETER)
+    }
 }
 
 enum SigDecl<'cx> {
@@ -30,17 +38,23 @@ impl<'cx> SigDecl<'cx> {
             SigDecl::FnDecl(f) => f.id,
         }
     }
+
+    fn has_rest_param(&self) -> bool {
+        self.params()
+            .last()
+            .map_or(false, |param| param.dotdotdot.is_some())
+    }
 }
 
 impl<'cx> TyChecker<'cx> {
-    pub(super) fn get_sig_from_decl(&mut self, node: ast::Node<'cx>) -> &Sig<'cx> {
+    pub(super) fn get_sig_from_decl(&mut self, node: ast::Node<'cx>) -> Sig<'cx> {
         let id = node.id();
         if !self.node_id_to_sig.contains_key(&id) {
             let sig = get_sig_from_decl(self, node);
             let prev = self.node_id_to_sig.insert(id, sig);
             assert!(prev.is_none());
         }
-        self.node_id_to_sig.get(&id).unwrap()
+        self.node_id_to_sig.get(&id).copied().unwrap()
     }
 }
 
@@ -50,14 +64,14 @@ fn get_sig_from_decl<'cx>(checker: &TyChecker<'cx>, node: ast::Node<'cx>) -> Sig
         _ => unreachable!(),
     };
     assert!(!checker.node_id_to_sig.contains_key(&decl.id()));
-    let flags = SigFlags::empty();
+    let mut flags = SigFlags::empty();
     let mut min_args_count = 0;
     let mut params = Vec::with_capacity(8);
     for (i, param) in decl.params().iter().enumerate() {
         let scope_id = checker.node_id_to_scope_id[&param.id];
         let symbol = checker.res[&(scope_id, param.name.name)];
         params.push(symbol);
-        let is_opt = param.question.is_some();
+        let is_opt = param.question.is_some() || param.dotdotdot.is_some();
         if !is_opt {
             min_args_count = params.len();
         } else {
@@ -66,6 +80,9 @@ fn get_sig_from_decl<'cx>(checker: &TyChecker<'cx>, node: ast::Node<'cx>) -> Sig
                 "required parameters cannot follow an optional parameter."
             )
         }
+    }
+    if decl.has_rest_param() {
+        flags.insert(SigFlags::HAS_REST_PARAMETER);
     }
     let params: &[SymbolID] = checker.alloc(params);
     Sig {

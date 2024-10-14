@@ -235,7 +235,7 @@ pub struct FnTy<'cx> {
 pub struct ArrayTy<'cx> {
     pub id: NodeID,
     pub span: Span,
-    pub ele: &'cx Ty<'cx>,
+    pub ele: &'cx self::Ty<'cx>,
 }
 
 #[derive(Debug, Clone, Copy)]

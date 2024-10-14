@@ -56,5 +56,14 @@ pub(crate) struct ExpectedXArgsButGotY {
     #[label]
     pub span: Span,
     pub x: ExpectedArgsCount,
-    pub y: u8,
+    pub y: usize,
+}
+
+#[derive(Error, Diagnostic, Debug)]
+#[error("Expected at least {x} arguments, but got {y}.")]
+pub(crate) struct ExpectedAtLeastXArgsButGotY {
+    #[label]
+    pub span: Span,
+    pub x: usize,
+    pub y: usize,
 }

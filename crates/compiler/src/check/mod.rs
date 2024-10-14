@@ -35,6 +35,7 @@ pub struct TyChecker<'cx> {
     symbols: Symbols,
     res: FxHashMap<(ScopeID, AtomId), SymbolID>,
     final_res: FxHashMap<ast::NodeID, SymbolID>,
+    global_tys: FxHashMap<TyID, &'cx Ty<'cx>>
 }
 
 macro_rules! intrinsic_type {
@@ -95,6 +96,7 @@ impl<'cx> TyChecker<'cx> {
             node_id_to_sig: FxHashMap::default(),
             res,
             final_res: FxHashMap::default(),
+            global_tys: FxHashMap::default(),
         };
         for (kind, ty_name) in INTRINSIC_TYPES {
             let ty = ty::TyKind::Intrinsic(ty_arena.alloc(ty::IntrinsicTy {
@@ -108,6 +110,7 @@ impl<'cx> TyChecker<'cx> {
         let boolean_ty = this.get_union_type(this.alloc([this.true_ty(), this.false_ty()]));
         this.type_name.insert(boolean_ty.id, "boolean".to_string());
         this.boolean_ty.set(boolean_ty).unwrap();
+
         this
     }
 
@@ -258,7 +261,7 @@ impl<'cx> TyChecker<'cx> {
             Span,
             &'cx Ty<'cx>,
             &'cx Ty<'cx>,
-        ) -> Box<dyn rts_errors::miette::Diagnostic + Send + Sync + 'static>,
+        ) -> crate::Diag,
     ) {
         if !self.is_type_related_to(source, target, relation) {
             let err = error(self, span, source, target);
@@ -621,7 +624,7 @@ impl<'cx> TyChecker<'cx> {
     fn push_error(
         &mut self,
         module_id: ModuleID,
-        error: Box<dyn rts_errors::miette::Diagnostic + Send + Sync + 'static>,
+        error: crate::Diag,
     ) {
         self.diags.push(rts_errors::Diag {
             module_id,
