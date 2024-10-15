@@ -208,12 +208,27 @@ impl<'cx, 'a, 'p> ParserState<'cx, 'p> {
                     }
                 }
                 b'|' => {
-                    self.pos += 1;
-                    Token::new(TokenKind::Pipe, self.new_span(start, self.pos))
+                    if self.next_ch() == Some(b'|') {
+                        self.pos += 2;
+                        Token::new(TokenKind::PipePipe, self.new_span(start, self.pos))
+                    } else {
+                        self.pos += 1;
+                        Token::new(TokenKind::Pipe, self.new_span(start, self.pos))
+                    }
                 }
                 b'?' => {
                     self.pos += 1;
                     Token::new(TokenKind::Question, self.new_span(start, self.pos))
+                }
+                b'&' => {
+                    if self.next_ch() == Some(b'&') {
+                        // &&
+                        self.pos += 2;
+                        Token::new(TokenKind::AmpAmp, self.new_span(start, self.pos))
+                    } else {
+                        self.pos += 1;
+                        Token::new(TokenKind::Amp, self.new_span(start, self.pos))
+                    }
                 }
                 b'<' => {
                     self.pos += 1;

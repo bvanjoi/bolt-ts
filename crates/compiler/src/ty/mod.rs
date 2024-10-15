@@ -1,4 +1,7 @@
+mod facts;
+
 use crate::atoms::{AtomId, AtomMap};
+pub use facts::{has_type_facts, TypeFacts};
 
 rts_span::new_index!(TyID);
 

@@ -3,7 +3,7 @@ mod symbol;
 use rustc_hash::FxHashMap;
 pub use symbol::{Symbol, SymbolID, SymbolKind, Symbols};
 
-use crate::ast::{self, NodeID};
+use crate::ast::{self, BinExpr, NodeID};
 use crate::atoms::{AtomId, AtomMap};
 use thin_vec::thin_vec;
 
@@ -115,6 +115,10 @@ impl<'cx> Binder<'cx> {
                 for arg in call.args {
                     self.bind_expr(arg);
                 }
+            }
+            Bin(bin) => {
+                self.bind_expr(bin.left);
+                self.bind_expr(bin.right);
             }
             _ => (),
         }

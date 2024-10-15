@@ -44,7 +44,9 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         let start = self.token.start();
         // let ty_params = self.with_parent(id, Self::parse_ty_params);
         let params = self.with_parent(id, Self::parse_params)?;
-        let ret_ty = self.with_parent(id, Self::parse_arrow_fn_ret_type)?.unwrap();
+        let ret_ty = self
+            .with_parent(id, Self::parse_arrow_fn_ret_type)?
+            .unwrap();
         let kind = self.with_parent(id, |this| {
             let id = this.p.next_node_id();
             let fn_ty = this.alloc(ast::FnTy {

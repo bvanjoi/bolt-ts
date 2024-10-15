@@ -47,8 +47,9 @@ pub enum TokenKind {
     String,
     Ident,
     NoSubstitutionTemplate,
-    Unknown,
     // =====
+    /// `&`
+    Amp = 0x26,
     /// `+`
     Plus = 0x2B,
     /// `,`
@@ -85,6 +86,10 @@ pub enum TokenKind {
     EqGreater,
     /// `...`
     DotDotDot,
+    /// `&&`
+    AmpAmp,
+    /// `||`
+    PipePipe,
 }
 
 impl TokenKind {
@@ -92,6 +97,8 @@ impl TokenKind {
         match self {
             TokenKind::Pipe => BinPrec::BitwiseOR,
             TokenKind::Plus => BinPrec::Additive,
+            TokenKind::PipePipe => BinPrec::LogicalOr,
+            TokenKind::AmpAmp => BinPrec::LogicalAnd,
             _ => BinPrec::Invalid,
         }
     }
@@ -100,6 +107,8 @@ impl TokenKind {
         match self {
             TokenKind::Plus => BinOpKind::Add,
             TokenKind::Pipe => BinOpKind::Pipe,
+            TokenKind::PipePipe => BinOpKind::PipePipe,
+            TokenKind::AmpAmp => BinOpKind::AmpAmp,
             _ => unreachable!(),
         }
     }
@@ -156,6 +165,10 @@ impl TokenKind {
 pub enum BinPrec {
     Invalid,
     Lowest,
+    /// `||`
+    LogicalOr,
+    /// `&&`
+    LogicalAnd,
     /// `|`
     BitwiseOR,
     /// `+`, `-`

@@ -14,7 +14,7 @@ use crate::ast::{BinOp, ExprKind};
 use crate::atoms::{AtomId, AtomMap};
 use crate::bind::{ScopeID, Symbol, SymbolID, Symbols};
 use crate::parser::Nodes;
-use crate::ty::{IntrinsicTyKind, ObjectTyKind, Ty, TyID, TyKind, Tys};
+use crate::ty::{has_type_facts, IntrinsicTyKind, ObjectTyKind, Ty, TyID, TyKind, TypeFacts, Tys};
 use crate::{ast, errors, keyword, ty};
 
 pub struct TyChecker<'cx> {
@@ -35,7 +35,7 @@ pub struct TyChecker<'cx> {
     symbols: Symbols,
     res: FxHashMap<(ScopeID, AtomId), SymbolID>,
     final_res: FxHashMap<ast::NodeID, SymbolID>,
-    global_tys: FxHashMap<TyID, &'cx Ty<'cx>>
+    global_tys: FxHashMap<TyID, &'cx Ty<'cx>>,
 }
 
 macro_rules! intrinsic_type {
@@ -256,12 +256,7 @@ impl<'cx> TyChecker<'cx> {
         source: &'cx Ty<'cx>,
         target: &'cx Ty<'cx>,
         relation: RelationKind,
-        error: impl FnOnce(
-            &mut Self,
-            Span,
-            &'cx Ty<'cx>,
-            &'cx Ty<'cx>,
-        ) -> crate::Diag,
+        error: impl FnOnce(&mut Self, Span, &'cx Ty<'cx>, &'cx Ty<'cx>) -> crate::Diag,
     ) {
         if !self.is_type_related_to(source, target, relation) {
             let err = error(self, span, source, target);
@@ -405,7 +400,7 @@ impl<'cx> TyChecker<'cx> {
     fn check_expr(&mut self, expr: &'cx ast::Expr) -> &'cx Ty<'cx> {
         use ast::ExprKind::*;
         match expr.kind {
-            BinOp(bin) => self.check_bin_expr(bin),
+            Bin(bin) => self.check_bin_expr(bin),
             NumLit(lit) => self.get_number_literal_type(lit.val),
             BoolLit(lit) => {
                 if lit.val {
@@ -569,20 +564,11 @@ impl<'cx> TyChecker<'cx> {
         node: &'cx ast::BinExpr,
         op: BinOp,
         left: &'cx ast::Expr,
-        left_ty: &Ty<'cx>,
+        left_ty: &'cx Ty<'cx>,
         right: &'cx ast::Expr,
-        right_ty: &Ty<'cx>,
+        right_ty: &'cx Ty<'cx>,
     ) -> &'cx Ty<'cx> {
         use ast::BinOpKind::*;
-
-        match op.kind {
-            Pipe => {
-                let left = self.check_non_null_type(left);
-                let right = self.check_non_null_type(right);
-            }
-            _ => (),
-        };
-
         match op.kind {
             Add => {
                 if self.is_type_assignable_to_kind(left_ty, |ty| ty.kind.is_number_like(), true)
@@ -617,15 +603,29 @@ impl<'cx> TyChecker<'cx> {
             Sub => todo!(),
             Mul => todo!(),
             Div => todo!(),
-            Pipe => self.number_ty(),
+            Pipe => {
+                let left = self.check_non_null_type(left);
+                let right = self.check_non_null_type(right);
+                self.number_ty()
+            }
+            AmpAmp => {
+                if has_type_facts(left_ty, TypeFacts::TRUTHY) {
+                    left_ty
+                } else {
+                    right_ty
+                }
+            }
+            PipePipe => {
+                if has_type_facts(left_ty, TypeFacts::FALSE_FACTS) {
+                    right_ty
+                } else {
+                    left_ty
+                }
+            }
         }
     }
 
-    fn push_error(
-        &mut self,
-        module_id: ModuleID,
-        error: crate::Diag,
-    ) {
+    fn push_error(&mut self, module_id: ModuleID, error: crate::Diag) {
         self.diags.push(rts_errors::Diag {
             module_id,
             inner: error,

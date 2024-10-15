@@ -608,7 +608,7 @@ impl<'cx, 'a, 'p> ParserState<'cx, 'p> {
             self.with_parent(expr_id, |this| {
                 this.insert_map(bin_expr_id, Node::BinExpr(bin_expr));
             });
-            let kind = ast::ExprKind::BinOp(bin_expr);
+            let kind = ast::ExprKind::Bin(bin_expr);
             left = self.alloc(ast::Expr { id: expr_id, kind });
             self.insert_map(expr_id, Node::Expr(left));
         }
