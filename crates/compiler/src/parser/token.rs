@@ -106,7 +106,7 @@ impl TokenKind {
 
     pub fn is_start_of_stmt(self) -> bool {
         use TokenKind::*;
-        matches!(self, Semi | Var | Let | Function | If | Return)
+        matches!(self, Semi | Var | Let | Const | Function | If | Return)
     }
 
     pub fn is_start_of_left_hand_side_expr(self) -> bool {
