@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::fmt;
 use std::str::FromStr;
 
@@ -54,4 +55,14 @@ pub enum FailMode {
     Run,
 }
 
-pub struct TestConfig {}
+pub struct TestConfig {
+    pub(super) compiler_options: HashMap<String, String>,
+}
+
+impl TestConfig {
+    pub fn new() -> Self {
+        Self {
+            compiler_options: Default::default(),
+        }
+    }
+}

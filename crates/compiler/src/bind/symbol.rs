@@ -37,10 +37,7 @@ impl Symbols {
     pub fn new(id: SymbolID) -> Self {
         assert_eq!(id, Symbol::ERR);
         let mut this = Self(FxHashMap::default());
-        this.insert(
-            id,
-            Symbol::new(keyword::IDENT_EMPTY, SymbolKind::Err),
-        );
+        this.insert(id, Symbol::new(keyword::IDENT_EMPTY, SymbolKind::Err));
         this
     }
 

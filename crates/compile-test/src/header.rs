@@ -19,23 +19,38 @@ fn expand_variables(mut value: String, _config: &TestConfig) -> String {
     value
 }
 
+fn parse_name_directive(line: &str, directive: &str) -> bool {
+    // Ensure the directive is a whole word.
+    line.starts_with(directive)
+        && matches!(
+            line.as_bytes().get(directive.len()),
+            None | Some(&b' ') | Some(&b':')
+        )
+}
+
 impl TestConfig {
     fn parse_name_directive(&self, line: &str, directive: &str) -> bool {
-        // Ensure the directive is a whole word.
-        line.starts_with(directive)
-            && matches!(
-                line.as_bytes().get(directive.len()),
-                None | Some(&b' ') | Some(&b':')
-            )
+        parse_name_directive(line, directive)
     }
 
-    pub fn parse_name_value_directive(&self, line: &str, directive: &str) -> Option<String> {
+    fn parse_name_value_directive(&self, line: &str, directive: &str) -> Option<String> {
         let colon = directive.len();
         if line.starts_with(directive) && line.as_bytes().get(colon) == Some(&b':') {
             let value = line[(colon + 1)..].to_owned();
             Some(expand_variables(value, self))
         } else {
             None
+        }
+    }
+
+    fn update_compiler_options(&mut self, ln: &str) {
+        if let Some(opt) = self.parse_name_value_directive(ln, &directives::COMPILER_OPTIONS) {
+            for pair in opt.trim().split_whitespace() {
+                if let Some((key, value)) = pair.split_once("=") {
+                    self.compiler_options
+                        .insert(key.to_string(), value.to_string());
+                }
+            }
         }
     }
 }
@@ -54,13 +69,13 @@ impl TestProps {
         }
     }
 
-    pub fn from_file(test_file: &Path, config: &TestConfig) -> Self {
+    pub fn from_file(test_file: &Path, config: &mut TestConfig) -> Self {
         let mut props = TestProps::new();
         props.load_from(test_file, config);
         props
     }
 
-    fn load_from(&mut self, test_file: &Path, config: &TestConfig) {
+    fn load_from(&mut self, test_file: &Path, config: &mut TestConfig) {
         if test_file.is_dir() {
             // maybe we need find the entry file
             todo!()
@@ -72,6 +87,7 @@ impl TestProps {
             &mut |HeaderLine { directive: ln, .. }| {
                 self.update_pass_mode(ln, config);
                 self.update_fail_mode(ln, config);
+                config.update_compiler_options(ln)
             },
         );
     }
@@ -203,6 +219,10 @@ fn line_directive<'line>(
     }
 }
 
+mod directives {
+    pub const COMPILER_OPTIONS: &'static str = "compiler-options";
+}
+
 #[test]
 fn test_line_directive() {
     #[track_caller]
@@ -220,4 +240,31 @@ fn test_line_directive() {
     t("//@   check-pass", Some((None, "check-pass")));
     t("//@   check-pass  ", Some((None, "check-pass  ")));
     t("//@😊check-pass", Some((None, "😊check-pass")));
+    t(
+        "//@ compiler-options: a=b",
+        Some((None, "compiler-options: a=b")),
+    );
+}
+
+#[test]
+fn test_parse_name_directive() {
+    assert!(parse_name_directive("a", "a"));
+    assert!(parse_name_directive("a:", "a"));
+    assert!(parse_name_directive("a ", "a"));
+    assert!(parse_name_directive("a  ", "a"));
+}
+
+#[test]
+fn test_config_update_compiler_options() {
+    let mut config = TestConfig::new();
+
+    config.update_compiler_options("compiler-options: a1=b1");
+    assert_eq!(config.compiler_options.len(), 1);
+    assert_eq!(config.compiler_options["a1"], "b1");
+
+    config.update_compiler_options("compiler-options: a2=b2 a3=b3");
+    assert_eq!(config.compiler_options.len(), 3);
+    assert_eq!(config.compiler_options["a1"], "b1");
+    assert_eq!(config.compiler_options["a2"], "b2");
+    assert_eq!(config.compiler_options["a3"], "b3");
 }

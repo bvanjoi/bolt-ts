@@ -8,9 +8,9 @@ impl<'cx> TyChecker<'cx> {
     pub(super) fn get_type_of_symbol(&mut self, id: SymbolID) -> &'cx Ty<'cx> {
         use crate::bind::SymbolKind::*;
         let ty = match &self.symbols.get(id).kind {
-            Err => self.error_ty(),
-            FunctionScopedVar => self.undefined_ty(),
-            BlockScopedVar => self.undefined_ty(),
+            Err => return self.error_ty(),
+            FunctionScopedVar => return self.undefined_ty(),
+            BlockScopedVar => return self.undefined_ty(),
             Function(_) => self.get_type_of_func_decl(id),
         };
         let prev = self.type_symbol.insert(ty.id, id);

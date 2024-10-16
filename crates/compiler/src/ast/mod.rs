@@ -75,7 +75,7 @@ pub struct Expr<'cx> {
 impl Expr<'_> {
     pub fn span(&self) -> Span {
         match self.kind {
-            ExprKind::BinOp(bin) => bin.span,
+            ExprKind::Bin(bin) => bin.span,
             ExprKind::BoolLit(lit) => lit.span,
             ExprKind::NumLit(lit) => lit.span,
             ExprKind::NullLit(lit) => lit.span,
@@ -93,7 +93,7 @@ impl Expr<'_> {
 
 #[derive(Debug, Clone, Copy)]
 pub enum ExprKind<'cx> {
-    BinOp(&'cx BinExpr<'cx>),
+    Bin(&'cx BinExpr<'cx>),
     BoolLit(&'cx BoolLit),
     NumLit(&'cx NumLit),
     StringLit(&'cx StringLit),
@@ -143,6 +143,8 @@ pub enum BinOpKind {
     Mul,
     Div,
     Pipe,
+    PipePipe,
+    AmpAmp,
 }
 
 impl BinOpKind {
@@ -153,6 +155,8 @@ impl BinOpKind {
             BinOpKind::Mul => "*",
             BinOpKind::Div => "/",
             BinOpKind::Pipe => "|",
+            BinOpKind::PipePipe => "||",
+            BinOpKind::AmpAmp => "&&",
         }
     }
 }
@@ -220,7 +224,7 @@ impl Ty<'_> {
 pub enum TyKind<'cx> {
     Ident(&'cx Ident),
     Array(&'cx ArrayTy<'cx>),
-    Fn(&'cx FnTy<'cx>)
+    Fn(&'cx FnTy<'cx>),
 }
 
 #[derive(Debug, Clone, Copy)]

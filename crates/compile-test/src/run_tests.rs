@@ -7,13 +7,12 @@ pub fn run<F>(test_file: &Path, runner: F)
 where
     F: FnOnce(&Path) -> Result<(), Vec<errors::Error>>,
 {
-    let config = TestConfig {};
-    let props = TestProps::from_file(test_file, &config);
+    let mut config = TestConfig::new();
+    let props = TestProps::from_file(test_file, &mut config);
     let cx = TestCx {
         props: &props,
         test_file,
     };
-    // FIXME: we should use child process rather than runner.
     cx.run_test(runner)
 }
 

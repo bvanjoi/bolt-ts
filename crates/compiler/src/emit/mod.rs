@@ -185,7 +185,7 @@ impl<'cx> Emit<'cx> {
     fn emit_expr(&mut self, expr: &'cx ast::Expr<'cx>) {
         use ast::ExprKind::*;
         match expr.kind {
-            BinOp(bin) => self.emit_bin_op(bin),
+            Bin(bin) => self.emit_bin_op(bin),
             BoolLit(bool) => self.content.p(&bool.val.to_string()),
             NumLit(num) => self.content.p(&num.val.to_string()),
             StringLit(s) => {
