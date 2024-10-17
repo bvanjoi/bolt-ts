@@ -374,7 +374,7 @@ impl<'cx, 'a, 'p> ParserState<'cx, 'p> {
         }
     }
 
-    fn parse_left_hand_side_expr(&mut self) -> &'cx ast::Expr<'cx> {
+    pub(super) fn parse_left_hand_side_expr(&mut self) -> &'cx ast::Expr<'cx> {
         let start = self.token.start();
         self.parse_member_expr()
     }

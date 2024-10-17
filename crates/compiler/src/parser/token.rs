@@ -1,6 +1,6 @@
 use rts_span::Span;
 
-use crate::ast::BinOpKind;
+use crate::ast::{BinOpKind, HeritageClauseKind};
 
 #[derive(Debug, Clone, Copy)]
 pub struct Token {
@@ -42,6 +42,9 @@ pub enum TokenKind {
     If,
     Else,
     Class,
+    Extends,
+    Implements,
+    New,
     // =====
     EOF,
     Number,
@@ -168,6 +171,18 @@ impl TokenKind {
     pub fn is_start_of_type(self) -> bool {
         use TokenKind::*;
         matches!(self, LBrace | LBracket)
+    }
+
+    pub fn is_heritage_clause(&self) -> bool {
+        matches!(self, TokenKind::Extends | TokenKind::Implements)
+    }
+
+    pub fn into_heritage_clause_kind(&self) -> Option<HeritageClauseKind> {
+        match self {
+            TokenKind::Extends => Some(HeritageClauseKind::Extends),
+            TokenKind::Implements => Some(HeritageClauseKind::Implements),
+            _ => None,
+        }
     }
 }
 

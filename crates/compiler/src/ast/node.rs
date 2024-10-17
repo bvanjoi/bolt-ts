@@ -15,6 +15,8 @@ pub enum Node<'cx> {
     EmptyStmt(&'cx ast::EmptyStmt),
     ClassDecl(&'cx ast::ClassDecl<'cx>),
     BlockStmt(&'cx ast::BlockStmt<'cx>),
+    HeritageClauses(&'cx ast::HeritageClauses<'cx>),
+    HeritageClause(&'cx ast::HeritageClause<'cx>),
 
     Expr(&'cx ast::Expr<'cx>),
     VarDecl(&'cx ast::VarDecl<'cx>),
@@ -71,6 +73,8 @@ impl Node<'_> {
             FnTy(n) => n.id,
             ClassDecl(n) => n.id,
             BlockStmt(n) => n.id,
+            HeritageClauses(n) => n.id,
+            HeritageClause(n) => n.id,
         }
     }
 }

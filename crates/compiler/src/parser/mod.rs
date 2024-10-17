@@ -1,3 +1,4 @@
+mod errors;
 mod expr;
 mod list_ctx;
 mod scan;
@@ -116,9 +117,14 @@ pub struct ParserState<'cx, 'p> {
     parent: NodeID,
     module_id: ModuleID,
     ident_count: usize,
+    diags: Vec<rts_errors::Diag>,
 }
 
 impl<'cx, 'a, 'p> ParserState<'cx, 'p> {
+    pub fn steal_diags(&mut self) -> Vec<rts_errors::Diag> {
+        std::mem::take(&mut self.diags)
+    }
+
     pub fn new(p: &'p mut Parser<'cx>, input: &'p [u8], module_id: ModuleID) -> Self {
         let token = Token::new(
             TokenKind::EOF,
@@ -133,6 +139,7 @@ impl<'cx, 'a, 'p> ParserState<'cx, 'p> {
             parent: NodeID::root(),
             module_id,
             ident_count: 0,
+            diags: vec![],
         }
     }
 
@@ -353,5 +360,12 @@ impl<'cx, 'a, 'p> ParserState<'cx, 'p> {
             this.p.nodes.insert(id, Node::Program(program));
             program
         })
+    }
+
+    fn push_error(&mut self, module_id: ModuleID, error: crate::Diag) {
+        self.diags.push(rts_errors::Diag {
+            module_id,
+            inner: error,
+        });
     }
 }

@@ -139,4 +139,8 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         self.expect(TokenKind::RParen)?;
         ty
     }
+
+    pub(super) fn parse_expr_with_ty_args(&mut self) -> PResult<&'cx ast::Expr<'cx>> {
+        Ok(self.parse_left_hand_side_expr())
+    }
 }

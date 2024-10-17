@@ -1,6 +1,6 @@
-use super::ast;
 use super::list_ctx::{self, ListContext};
 use super::token::TokenKind;
+use super::{ast, errors};
 use super::{PResult, ParserState};
 
 impl<'cx, 'a, 'p> ParserState<'cx, 'p> {
@@ -31,7 +31,7 @@ impl<'cx, 'a, 'p> ParserState<'cx, 'p> {
         self.expect(TokenKind::Class)?;
         let name = self.parse_ident_name()?;
         // TODO: type params
-
+        let clause = self.parse_heritage_clauses(true);
         self.expect(TokenKind::LBrace)?;
         self.expect(TokenKind::RBrace)?;
         let decl = self.alloc(ast::ClassDecl {
@@ -41,6 +41,75 @@ impl<'cx, 'a, 'p> ParserState<'cx, 'p> {
         });
         self.insert_map(id, ast::Node::ClassDecl(decl));
         Ok(decl)
+    }
+
+    fn parse_heritage_clause(
+        &mut self,
+        is_class_extends: bool,
+    ) -> PResult<&'cx ast::HeritageClause<'cx>> {
+        let id = self.p.next_node_id();
+        let start = self.token.start();
+        self.next_token();
+        let ele_list = self.with_parent(id, |this| {
+            this.parse_delimited_list(
+                list_ctx::HeritageClause::is_ele,
+                Self::parse_expr_with_ty_args,
+                list_ctx::HeritageClause::is_closing,
+            )
+        });
+
+        let ele_list = if is_class_extends && ele_list.len() > 1 {
+            let lo = ele_list[0].span().hi;
+            assert_eq!(
+                self.input[lo as usize], b',',
+                "`parse_delimited_list` ensure it must be comma."
+            );
+            let hi = ele_list.last().unwrap().span().hi;
+            let error = errors::ClassesCanOnlyExtendASingleClass {
+                span: self.new_span(lo as usize, lo as usize),
+                extra_extends: self.new_span(lo as usize, hi as usize),
+            };
+            self.push_error(self.module_id, Box::new(error));
+            &ele_list[0..1]
+        } else {
+            ele_list
+        };
+        let span = self.new_span(start as usize, self.pos);
+        let clause = self.alloc(ast::HeritageClause {
+            id,
+            span,
+            tys: ele_list,
+        });
+
+        self.insert_map(id, ast::Node::HeritageClause(clause));
+        Ok(clause)
+    }
+
+    fn parse_heritage_clauses(
+        &mut self,
+        is_class: bool,
+    ) -> PResult<Option<&'cx ast::HeritageClauses<'cx>>> {
+        if let Some(kind) = self.token.kind.into_heritage_clause_kind() {
+            let is_class_extends = is_class && matches!(kind, ast::HeritageClauseKind::Extends);
+            let id = self.p.next_node_id();
+            let start = self.token.start();
+            let clauses = self.with_parent(id, |this| {
+                this.parse_list(
+                    list_ctx::HeritageClauses::is_ele,
+                    |this| this.parse_heritage_clause(is_class_extends),
+                    list_ctx::HeritageClauses::is_closing,
+                )
+            });
+            let clauses = self.alloc(ast::HeritageClauses {
+                id,
+                span: self.new_span(start as usize, self.pos),
+                clauses,
+            });
+            self.insert_map(id, ast::Node::HeritageClauses(clauses));
+            Ok(Some(clauses))
+        } else {
+            Ok(None)
+        }
     }
 
     fn parse_empty_stmt(&mut self) -> PResult<&'cx ast::EmptyStmt> {

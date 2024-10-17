@@ -19,6 +19,9 @@ keyword!(
     (KW_IF: "if"),
     (KW_ELSE: "else"),
     (KW_CLASS: "class"),
+    (KW_EXTENDS: "extends"),
+    (KW_IMPLEMENTS: "implements"),
+    (KW_NEW: "new"),
 );
 
 macro_rules! ident {

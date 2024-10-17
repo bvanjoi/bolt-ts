@@ -44,6 +44,23 @@ pub struct ClassDecl<'cx> {
     pub name: &'cx Ident,
 }
 
+pub type Exprs<'cx> = &'cx [&'cx Expr<'cx>];
+
+#[derive(Debug, Clone, Copy)]
+pub struct HeritageClauses<'cx> {
+    pub id: NodeID,
+    pub span: Span,
+    pub clauses: &'cx [&'cx HeritageClause<'cx>],
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct HeritageClause<'cx> {
+    pub id: NodeID,
+    pub span: Span,
+    // FIXME: ExprWithArgs
+    pub tys: Exprs<'cx>,
+}
+
 #[derive(Debug, Clone, Copy)]
 pub struct EmptyStmt {
     pub id: NodeID,
@@ -142,13 +159,19 @@ pub struct ParenExpr<'cx> {
 pub struct ArrayLit<'cx> {
     pub id: NodeID,
     pub span: Span,
-    pub elems: &'cx [&'cx Expr<'cx>],
+    pub elems: Exprs<'cx>,
 }
 
 #[derive(Debug, Clone, Copy)]
 pub struct BinOp {
     pub kind: BinOpKind,
     pub span: Span,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub enum HeritageClauseKind {
+    Extends,
+    Implements,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -316,5 +339,5 @@ pub struct CallExpr<'cx> {
     pub id: NodeID,
     pub span: Span,
     pub expr: &'cx Expr<'cx>,
-    pub args: &'cx [&'cx Expr<'cx>],
+    pub args: Exprs<'cx>,
 }
