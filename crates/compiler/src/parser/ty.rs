@@ -66,8 +66,6 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         Ok(ty)
     }
 
-    fn parse_ty_params(&mut self) {}
-
     pub(super) fn parse_ty_anno(&mut self) -> PResult<Option<&'cx ast::Ty<'cx>>> {
         if self.parse_optional(TokenKind::Colon).is_some() {
             self.parse_ty().map(|ty| Some(ty))

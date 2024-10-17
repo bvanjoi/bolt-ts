@@ -56,6 +56,7 @@ impl<'cx> TyChecker<'cx> {
             FunctionScopedVar => todo!(),
             BlockScopedVar => todo!(),
             Function(fs) => fs,
+            Class => todo!(),
         };
         let fs = fs.clone();
 

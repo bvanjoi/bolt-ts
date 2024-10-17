@@ -41,6 +41,7 @@ pub enum TokenKind {
     Return,
     If,
     Else,
+    Class,
     // =====
     EOF,
     Number,
@@ -115,7 +116,10 @@ impl TokenKind {
 
     pub fn is_start_of_stmt(self) -> bool {
         use TokenKind::*;
-        matches!(self, Semi | Var | Let | Const | Function | If | Return)
+        matches!(
+            self,
+            Semi | Var | Let | Const | Function | If | Return | Class
+        ) || self.is_start_of_expr()
     }
 
     pub fn is_start_of_left_hand_side_expr(self) -> bool {

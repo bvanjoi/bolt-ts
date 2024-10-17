@@ -22,11 +22,26 @@ pub struct Stmt<'cx> {
 pub enum StmtKind<'cx> {
     Empty(&'cx EmptyStmt),
     Var(&'cx VarStmt<'cx>),
-    Expr(&'cx Expr<'cx>),
-    Fn(&'cx FnDecl<'cx>),
     If(&'cx IfStmt<'cx>),
-    Block(Stmts<'cx>),
     Return(&'cx RetStmt<'cx>),
+    Block(&'cx BlockStmt<'cx>),
+    Fn(&'cx FnDecl<'cx>),
+    Class(&'cx ClassDecl<'cx>),
+    Expr(&'cx Expr<'cx>),
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct BlockStmt<'cx> {
+    pub id: NodeID,
+    pub span: Span,
+    pub stmts: self::Stmts<'cx>,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct ClassDecl<'cx> {
+    pub id: NodeID,
+    pub span: Span,
+    pub name: &'cx Ident,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -278,7 +293,7 @@ pub struct FnDecl<'cx> {
     pub name: &'cx Ident,
     pub params: ParamsDecl<'cx>,
     pub ret_ty: Option<&'cx self::Ty<'cx>>,
-    pub body: Stmts<'cx>,
+    pub body: &'cx BlockStmt<'cx>,
 }
 
 #[derive(Debug, Clone, Copy)]

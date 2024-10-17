@@ -13,6 +13,8 @@ pub enum Node<'cx> {
     IfStmt(&'cx ast::IfStmt<'cx>),
     RetStmt(&'cx ast::RetStmt<'cx>),
     EmptyStmt(&'cx ast::EmptyStmt),
+    ClassDecl(&'cx ast::ClassDecl<'cx>),
+    BlockStmt(&'cx ast::BlockStmt<'cx>),
 
     Expr(&'cx ast::Expr<'cx>),
     VarDecl(&'cx ast::VarDecl<'cx>),
@@ -67,6 +69,8 @@ impl Node<'_> {
             Ty(n) => n.id,
             ArrayTy(n) => n.id,
             FnTy(n) => n.id,
+            ClassDecl(n) => n.id,
+            BlockStmt(n) => n.id,
         }
     }
 }

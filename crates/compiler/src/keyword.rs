@@ -18,6 +18,7 @@ keyword!(
     (KW_RETURN: "return"),
     (KW_IF: "if"),
     (KW_ELSE: "else"),
+    (KW_CLASS: "class"),
 );
 
 macro_rules! ident {
