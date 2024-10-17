@@ -160,6 +160,8 @@ pub enum BinOpKind {
     Pipe,
     PipePipe,
     AmpAmp,
+    EqEq,
+    EqEqEq,
 }
 
 impl BinOpKind {
@@ -172,6 +174,8 @@ impl BinOpKind {
             BinOpKind::Pipe => "|",
             BinOpKind::PipePipe => "||",
             BinOpKind::AmpAmp => "&&",
+            BinOpKind::EqEq => "==",
+            BinOpKind::EqEqEq => "===",
         }
     }
 }

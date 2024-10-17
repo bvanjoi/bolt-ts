@@ -81,7 +81,6 @@ pub enum TokenKind {
     LBrace = 0x7B,
     /// `}`
     RBrace = 0x7D,
-
     // ======
     /// `=>`
     EqGreater,
@@ -91,6 +90,10 @@ pub enum TokenKind {
     AmpAmp,
     /// `||`
     PipePipe,
+    /// `==`
+    EqEq,
+    /// `===`
+    EqEqEq,
 }
 
 impl TokenKind {
@@ -100,6 +103,7 @@ impl TokenKind {
             TokenKind::Plus => BinPrec::Additive,
             TokenKind::PipePipe => BinPrec::LogicalOr,
             TokenKind::AmpAmp => BinPrec::LogicalAnd,
+            TokenKind::Eq | TokenKind::EqEqEq => BinPrec::Eq,
             _ => BinPrec::Invalid,
         }
     }
@@ -110,6 +114,8 @@ impl TokenKind {
             TokenKind::Pipe => BinOpKind::Pipe,
             TokenKind::PipePipe => BinOpKind::PipePipe,
             TokenKind::AmpAmp => BinOpKind::AmpAmp,
+            TokenKind::EqEq => BinOpKind::EqEq,
+            TokenKind::EqEqEq => BinOpKind::EqEqEq,
             _ => unreachable!(),
         }
     }
@@ -175,6 +181,8 @@ pub enum BinPrec {
     LogicalAnd,
     /// `|`
     BitwiseOR,
+    /// `==`, `===`
+    Eq,
     /// `+`, `-`
     Additive,
     Highest,

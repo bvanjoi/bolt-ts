@@ -192,6 +192,14 @@ impl<'cx, 'a, 'p> ParserState<'cx, 'p> {
                     if self.next_ch() == Some(b'>') {
                         self.pos += 2;
                         Token::new(TokenKind::EqGreater, self.new_span(start, self.pos))
+                    } else if self.next_ch() == Some(b'=') {
+                        if self.next_next_ch() == Some(b'=') {
+                            self.pos += 3;
+                            Token::new(TokenKind::EqEqEq, self.new_span(start, self.pos))
+                        } else {
+                            self.pos += 2;
+                            Token::new(TokenKind::EqEq, self.new_span(start, self.pos))
+                        }
                     } else {
                         self.pos += 1;
                         Token::new(TokenKind::Eq, self.new_span(start, self.pos))

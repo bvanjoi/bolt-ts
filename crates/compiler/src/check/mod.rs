@@ -623,6 +623,8 @@ impl<'cx> TyChecker<'cx> {
                     left_ty
                 }
             }
+            EqEq => self.boolean_ty(),
+            EqEqEq => self.boolean_ty(),
         }
     }
 
