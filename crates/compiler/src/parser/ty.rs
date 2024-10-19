@@ -66,8 +66,6 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         Ok(ty)
     }
 
-    fn parse_ty_params(&mut self) {}
-
     pub(super) fn parse_ty_anno(&mut self) -> PResult<Option<&'cx ast::Ty<'cx>>> {
         if self.parse_optional(TokenKind::Colon).is_some() {
             self.parse_ty().map(|ty| Some(ty))
@@ -140,5 +138,9 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         let ty = self.parse_ty();
         self.expect(TokenKind::RParen)?;
         ty
+    }
+
+    pub(super) fn parse_expr_with_ty_args(&mut self) -> PResult<&'cx ast::Expr<'cx>> {
+        Ok(self.parse_left_hand_side_expr())
     }
 }

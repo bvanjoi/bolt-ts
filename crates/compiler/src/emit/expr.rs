@@ -1,0 +1,100 @@
+use super::Emit;
+use crate::ast;
+
+impl<'cx> Emit<'cx> {
+    pub(super) fn emit_expr(&mut self, expr: &'cx ast::Expr<'cx>) {
+        use ast::ExprKind::*;
+        match expr.kind {
+            Bin(bin) => self.emit_bin_expr(bin),
+            BoolLit(bool) => self.content.p(&bool.val.to_string()),
+            NumLit(num) => self.content.p(&num.val.to_string()),
+            StringLit(s) => {
+                self.content.p("\"");
+                self.content.p(self.atoms.get(s.val));
+                self.content.p("\"");
+            }
+            NullLit(_) => self.content.p("null"),
+            Ident(ident) => self.emit_ident(ident),
+            ArrayLit(lit) => self.emit_array_lit(lit),
+            Omit(_) => {}
+            Paren(p) => {
+                self.content.p_l_paren();
+                self.emit_expr(p.expr);
+                self.content.p_r_paren();
+            }
+            Cond(cond) => {
+                self.emit_expr(cond.cond);
+                self.content.p_whitespace();
+                self.content.p_question();
+                self.content.p_whitespace();
+                self.emit_expr(cond.when_true);
+                self.content.p_whitespace();
+                self.content.p_colon();
+                self.content.p_whitespace();
+                self.emit_expr(cond.when_false);
+            }
+            ObjectLit(lit) => self.emit_object_lit(lit),
+            Call(call) => self.emit_call_expr(call),
+        }
+    }
+
+    fn emit_bin_expr(&mut self, bin_op: &'cx ast::BinExpr) {
+        self.emit_expr(bin_op.left);
+        self.content.p_whitespace();
+        self.content.p(bin_op.op.kind.as_str());
+        self.content.p_whitespace();
+        self.emit_expr(bin_op.right);
+    }
+
+    fn emit_array_lit(&mut self, lit: &'cx ast::ArrayLit) {
+        self.content.p_l_bracket();
+        for (idx, expr) in lit.elems.iter().enumerate() {
+            self.emit_expr(&expr);
+            if idx != lit.elems.len() - 1 {
+                self.content.p_comma();
+                self.content.p_whitespace();
+            }
+        }
+        self.content.p_r_bracket();
+    }
+
+    fn emit_call_expr(&mut self, call: &'cx ast::CallExpr) {
+        self.emit_expr(call.expr);
+        self.content.p_l_paren();
+        self.emit_list(
+            call.args,
+            |this, arg| this.emit_expr(arg),
+            |this| {
+                this.content.p_comma();
+                this.content.p_whitespace();
+            },
+        );
+        self.content.p_r_paren();
+    }
+
+    fn emit_object_lit(&mut self, lit: &'cx ast::ObjectLit<'cx>) {
+        self.content.p_l_brace();
+        for (idx, field) in lit.members.iter().enumerate() {
+            self.emit_object_member_field(field);
+            if idx != lit.members.len() - 1 {
+                self.content.p_comma();
+                self.content.p_newline();
+            }
+        }
+        self.content.p_r_brace();
+    }
+
+    fn emit_object_member_field(&mut self, field: &'cx ast::ObjectMemberField<'cx>) {
+        self.emit_prop_name(field.name);
+        self.content.p_colon();
+        self.content.p_whitespace();
+        self.emit_expr(field.value);
+    }
+
+    fn emit_prop_name(&mut self, name: &'cx ast::PropName) {
+        use ast::PropNameKind::*;
+        match name.kind {
+            Ident(ident) => self.emit_ident(ident),
+        }
+    }
+}

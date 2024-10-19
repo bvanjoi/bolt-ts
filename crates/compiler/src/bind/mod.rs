@@ -88,19 +88,25 @@ impl<'cx> Binder<'cx> {
                     self.bind_stmt(alt)
                 }
             }
-            Block(block) => self.bind_block(block),
+            Block(block) => self.bind_block_stmt(block),
             Return(ret) => {
                 if let Some(expr) = ret.expr {
                     self.bind_expr(expr)
                 }
             }
+            Class(class) => self.bind_class(class),
         }
     }
 
-    fn bind_block(&mut self, block: ast::Stmts<'cx>) {
+    fn bind_class(&mut self, class: &'cx ast::ClassDecl<'cx>) {
+        self.connect(class.id);
+        self.create_symbol(class.name.name, SymbolKind::Class);
+    }
+
+    fn bind_block_stmt(&mut self, block: &'cx ast::BlockStmt<'cx>) {
         let old = self.scope_id;
         self.scope_id = self.new_scope();
-        for stmt in block {
+        for stmt in block.stmts {
             self.bind_stmt(stmt)
         }
         self.scope_id = old;
@@ -143,13 +149,11 @@ impl<'cx> Binder<'cx> {
         if let Some(s) = self.res.get(&(self.scope_id, name)).copied() {
             let symbol = self.symbols.get_mut(s);
             match &mut symbol.kind {
-                SymbolKind::Err => todo!(),
-                SymbolKind::FunctionScopedVar => todo!(),
-                SymbolKind::BlockScopedVar => todo!(),
                 SymbolKind::Function(vec) => {
                     assert!(!vec.is_empty());
                     vec.push(id)
                 }
+                _ => unreachable!(),
             }
         } else {
             self.create_symbol(name, SymbolKind::Function(thin_vec::thin_vec![id]));
@@ -174,7 +178,7 @@ impl<'cx> Binder<'cx> {
         let old = self.scope_id;
         self.scope_id = self.new_scope();
         self.bind_params(f.params);
-        self.bind_fn_block(f.body);
+        self.bind_fn_block(f.body.stmts);
         self.scope_id = old;
     }
 

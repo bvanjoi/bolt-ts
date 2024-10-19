@@ -1,6 +1,6 @@
 use rts_span::Span;
 
-use crate::ast::BinOpKind;
+use crate::ast::{BinOpKind, HeritageClauseKind};
 
 #[derive(Debug, Clone, Copy)]
 pub struct Token {
@@ -41,6 +41,10 @@ pub enum TokenKind {
     Return,
     If,
     Else,
+    Class,
+    Extends,
+    Implements,
+    New,
     // =====
     EOF,
     Number,
@@ -80,7 +84,6 @@ pub enum TokenKind {
     LBrace = 0x7B,
     /// `}`
     RBrace = 0x7D,
-
     // ======
     /// `=>`
     EqGreater,
@@ -90,6 +93,10 @@ pub enum TokenKind {
     AmpAmp,
     /// `||`
     PipePipe,
+    /// `==`
+    EqEq,
+    /// `===`
+    EqEqEq,
 }
 
 impl TokenKind {
@@ -99,6 +106,7 @@ impl TokenKind {
             TokenKind::Plus => BinPrec::Additive,
             TokenKind::PipePipe => BinPrec::LogicalOr,
             TokenKind::AmpAmp => BinPrec::LogicalAnd,
+            TokenKind::Eq | TokenKind::EqEqEq => BinPrec::Eq,
             _ => BinPrec::Invalid,
         }
     }
@@ -109,13 +117,18 @@ impl TokenKind {
             TokenKind::Pipe => BinOpKind::Pipe,
             TokenKind::PipePipe => BinOpKind::PipePipe,
             TokenKind::AmpAmp => BinOpKind::AmpAmp,
+            TokenKind::EqEq => BinOpKind::EqEq,
+            TokenKind::EqEqEq => BinOpKind::EqEqEq,
             _ => unreachable!(),
         }
     }
 
     pub fn is_start_of_stmt(self) -> bool {
         use TokenKind::*;
-        matches!(self, Semi | Var | Let | Const | Function | If | Return)
+        matches!(
+            self,
+            Semi | Var | Let | Const | Function | If | Return | Class
+        ) || self.is_start_of_expr()
     }
 
     pub fn is_start_of_left_hand_side_expr(self) -> bool {
@@ -159,6 +172,18 @@ impl TokenKind {
         use TokenKind::*;
         matches!(self, LBrace | LBracket)
     }
+
+    pub fn is_heritage_clause(&self) -> bool {
+        matches!(self, TokenKind::Extends | TokenKind::Implements)
+    }
+
+    pub fn into_heritage_clause_kind(&self) -> Option<HeritageClauseKind> {
+        match self {
+            TokenKind::Extends => Some(HeritageClauseKind::Extends),
+            TokenKind::Implements => Some(HeritageClauseKind::Implements),
+            _ => None,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
@@ -171,6 +196,8 @@ pub enum BinPrec {
     LogicalAnd,
     /// `|`
     BitwiseOR,
+    /// `==`, `===`
+    Eq,
     /// `+`, `-`
     Additive,
     Highest,

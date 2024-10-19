@@ -35,6 +35,8 @@ pub fn eval_from(m: ModulePath) -> Output {
     let mut s = parser::ParserState::new(&mut p, input.as_bytes(), m.id);
     let root = s.parse();
 
+    let parse_diags = s.steal_diags();
+
     // bind
     let mut binder = bind::Binder::new(&p.atoms);
     binder.bind_program(root);
@@ -63,9 +65,10 @@ pub fn eval_from(m: ModulePath) -> Output {
     let mut emitter = emit::Emit::new(&c.atoms);
     let output = emitter.emit(root);
 
+    let diags = parse_diags.into_iter().chain(c.diags.into_iter()).collect();
     Output {
         module_arena,
-        diags: c.diags,
+        diags,
         output,
     }
 }

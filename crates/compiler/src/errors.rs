@@ -4,8 +4,6 @@ use rts_errors::thiserror;
 use rts_errors::thiserror::Error;
 use rts_span::Span;
 
-use crate::check::ExpectedArgsCount;
-
 #[derive(Error, Diagnostic, Debug)]
 #[error("Operator '{op}' cannot be applied to types '{ty1}' and '{ty2}'.")]
 pub(crate) struct OperatorCannotBeAppliedToTy1AndTy2 {
@@ -55,7 +53,7 @@ pub(crate) struct ArgumentOfTyIsNotAssignableToParameterOfTy {
 pub(crate) struct ExpectedXArgsButGotY {
     #[label]
     pub span: Span,
-    pub x: ExpectedArgsCount,
+    pub x: crate::check::ExpectedArgsCount,
     pub y: usize,
 }
 

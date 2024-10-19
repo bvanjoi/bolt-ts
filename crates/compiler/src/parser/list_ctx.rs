@@ -50,3 +50,28 @@ impl ListContext for Params {
         matches!(t, RParen | RBracket)
     }
 }
+
+pub struct HeritageClauses;
+impl ListContext for HeritageClauses {
+    fn is_ele(t: TokenKind) -> bool {
+        t.is_heritage_clause()
+    }
+
+    fn is_closing(t: TokenKind) -> bool {
+        use TokenKind::*;
+        matches!(t, LBrace | RBrace)
+    }
+}
+
+pub struct HeritageClause;
+impl ListContext for HeritageClause {
+    fn is_ele(t: TokenKind) -> bool {
+        // TODO: fixme
+        t.is_binding_ident()
+    }
+
+    fn is_closing(t: TokenKind) -> bool {
+        use TokenKind::*;
+        matches!(t, LBrace) || t.is_heritage_clause()
+    }
+}

@@ -27,6 +27,7 @@ pub enum SymbolKind {
     /// `let` or `const`
     BlockScopedVar,
     Function(ThinVec<NodeID>),
+    Class,
 }
 
 rts_span::new_index!(SymbolID);

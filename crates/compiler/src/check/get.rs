@@ -11,6 +11,7 @@ impl<'cx> TyChecker<'cx> {
             Err => return self.error_ty(),
             FunctionScopedVar => return self.undefined_ty(),
             BlockScopedVar => return self.undefined_ty(),
+            Class => return self.undefined_ty(),
             Function(_) => self.get_type_of_func_decl(id),
         };
         let prev = self.type_symbol.insert(ty.id, id);
@@ -33,6 +34,7 @@ impl<'cx> TyChecker<'cx> {
             Err => todo!(),
             FunctionScopedVar => todo!(),
             BlockScopedVar => todo!(),
+            Class => todo!(),
             Function(ids) => ids.clone(),
         };
 

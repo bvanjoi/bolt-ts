@@ -161,6 +161,7 @@ impl<'cx> TyChecker<'cx> {
             Block(block) => self.check_block(block),
             Return(ret) => self.check_return(ret),
             Empty(_) => {}
+            Class(_) => {}
         };
     }
 
@@ -170,8 +171,8 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
-    fn check_block(&mut self, block: ast::Stmts<'cx>) {
-        for item in block {
+    fn check_block(&mut self, block: &'cx ast::BlockStmt<'cx>) {
+        for item in block.stmts {
             self.check_stmt(item);
         }
     }
@@ -622,6 +623,8 @@ impl<'cx> TyChecker<'cx> {
                     left_ty
                 }
             }
+            EqEq => self.boolean_ty(),
+            EqEqEq => self.boolean_ty(),
         }
     }
 
