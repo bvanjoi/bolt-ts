@@ -5,13 +5,14 @@ mod scan;
 mod stmt;
 mod token;
 mod ty;
+mod utils;
 
 use std::borrow::Cow;
 use std::u32;
 
 use rts_span::{ModuleID, Span};
 use rustc_hash::FxHashMap;
-use token::{Token, TokenKind};
+use token::{Token, TokenFlags, TokenKind};
 
 use crate::ast::{self, Node, NodeID};
 use crate::atoms::{AtomId, AtomMap};
@@ -62,6 +63,15 @@ pub struct Parser<'cx> {
 impl<'cx> Parser<'cx> {
     pub fn new(ast_arena: &'cx bumpalo::Bump, mut atoms: AtomMap<'cx>) -> Self {
         assert!(ast_arena.allocation_limit().is_none());
+
+        if cfg!(debug_assertions) {
+            for (idx, (name, _)) in keyword::KEYWORDS.iter().enumerate() {
+                let t = unsafe { std::mem::transmute::<u8, TokenKind>(idx as u8) };
+                assert!(t.is_keyword());
+                assert_eq!(format!("{t:?}").to_lowercase(), *name);
+            }
+        }
+
         for (atom, id) in keyword::KEYWORDS {
             atoms.insert(*id, Cow::Borrowed(atom));
         }
@@ -113,6 +123,7 @@ pub struct ParserState<'cx, 'p> {
     input: &'p [u8],
     token: Token,
     token_value: Option<TokenValue>,
+    token_flags: TokenFlags,
     pos: usize,
     parent: NodeID,
     module_id: ModuleID,
@@ -140,6 +151,7 @@ impl<'cx, 'a, 'p> ParserState<'cx, 'p> {
             module_id,
             ident_count: 0,
             diags: vec![],
+            token_flags: TokenFlags::empty(),
         }
     }
 
@@ -156,19 +168,38 @@ impl<'cx, 'a, 'p> ParserState<'cx, 'p> {
         if self.token.kind == TokenKind::Semi {
             true
         } else {
-            self.token.kind == TokenKind::RBrace || self.token.kind == TokenKind::EOF
+            self.token.kind == TokenKind::RBrace
+                || self.token.kind == TokenKind::EOF
+                || self.token_flags.contains(TokenFlags::PRECEDING_LINE_BREAK)
+        }
+    }
+
+    fn parse_bracketed_list<T>(
+        &mut self,
+        open: TokenKind,
+        is_ele: impl Fn(&mut Self) -> bool,
+        ele: impl Fn(&mut Self) -> PResult<T>,
+        is_closing: impl Fn(&mut Self) -> bool,
+        close: TokenKind,
+    ) -> PResult<&'cx [T]> {
+        if self.expect(open).is_ok() {
+            let elems = self.parse_delimited_list(is_ele, ele, is_closing);
+            self.expect(close)?;
+            Ok(elems)
+        } else {
+            Ok(&[])
         }
     }
 
     fn parse_list<T>(
         &mut self,
-        is_ele: impl Fn(TokenKind) -> bool,
+        is_ele: impl Fn(&mut Self) -> bool,
         ele: impl Fn(&mut Self) -> PResult<T>,
-        is_closing: impl Fn(TokenKind) -> bool,
+        is_closing: impl Fn(&mut Self) -> bool,
     ) -> &'cx [T] {
         let mut list = vec![];
-        while !is_closing(self.token.kind) {
-            if is_ele(self.token.kind) {
+        while !is_closing(self) {
+            if is_ele(self) {
                 if let Ok(ele) = ele(self) {
                     list.push(ele);
                 }
@@ -179,19 +210,25 @@ impl<'cx, 'a, 'p> ParserState<'cx, 'p> {
 
     fn parse_delimited_list<T>(
         &mut self,
-        is_ele: impl Fn(TokenKind) -> bool,
+        is_ele: impl Fn(&mut Self) -> bool,
         ele: impl Fn(&mut Self) -> PResult<T>,
-        is_closing: impl Fn(TokenKind) -> bool,
+        is_closing: impl Fn(&mut Self) -> bool,
     ) -> &'cx [T] {
         let mut list = vec![];
-        while is_ele(self.token.kind) {
-            if let Ok(ele) = ele(self) {
+        loop {
+            if is_ele(self) {
+                let Ok(ele) = ele(self) else {
+                    break;
+                };
                 list.push(ele);
+                if is_closing(self) {
+                    break;
+                }
+                if self.parse_optional(TokenKind::Comma).is_some() {
+                    continue;
+                }
             }
-            if self.parse_optional(TokenKind::Comma).is_some() {
-                continue;
-            }
-            if is_closing(self.token.kind) {
+            if is_closing(self) {
                 break;
             }
         }
@@ -265,6 +302,7 @@ impl<'cx, 'a, 'p> ParserState<'cx, 'p> {
         self.next_token();
         t
     }
+
     fn parse_optional(&mut self, t: TokenKind) -> Option<Token> {
         (self.token.kind == t).then(|| self.parse_token_node())
     }
@@ -314,6 +352,18 @@ impl<'cx, 'a, 'p> ParserState<'cx, 'p> {
 
     fn parse_ident_name(&mut self) -> PResult<&'cx ast::Ident> {
         Ok(self.create_ident(true))
+    }
+
+    fn parse_binding_ident(&mut self) -> &'cx ast::Ident {
+        self.create_ident(true)
+    }
+
+    fn parse_optional_binding_ident(&mut self) -> PResult<Option<&'cx ast::Ident>> {
+        if self.token.kind.is_binding_ident() {
+            Ok(Some(self.parse_binding_ident()))
+        } else {
+            Ok(None)
+        }
     }
 
     fn expect(&mut self, t: TokenKind) -> PResult<()> {

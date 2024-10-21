@@ -419,7 +419,13 @@ impl<'cx> TyChecker<'cx> {
             Cond(cond) => self.check_cond(cond),
             ObjectLit(lit) => self.check_object_lit(lit),
             Call(call) => self.check_call_expr(call),
+            Fn(f) => self.check_fn_expr(f),
+            New(new) => self.undefined_ty(),
         }
+    }
+
+    fn check_fn_expr(&mut self, f: &'cx ast::FnExpr<'cx>) -> &'cx Ty<'cx> {
+        self.undefined_ty()
     }
 
     fn check_call_expr(&mut self, call: &'cx ast::CallExpr<'cx>) -> &'cx Ty<'cx> {

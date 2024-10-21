@@ -3,6 +3,30 @@ use crate::ast::{self, Node};
 use super::{token::TokenKind, PResult, ParserState};
 
 impl<'cx, 'p> ParserState<'cx, 'p> {
+    fn should_parse_ret_ty(&mut self, is_colon: bool, is_ty: bool) -> PResult<bool> {
+        if !is_colon {
+            self.expect(TokenKind::EqGreater)?;
+            Ok(true)
+        } else if self.parse_optional(TokenKind::Colon).is_some() {
+            Ok(true)
+        } else if is_ty && self.token.kind == TokenKind::EqGreater {
+            todo!()
+        } else {
+            Ok(false)
+        }
+    }
+
+    pub fn parse_ret_ty(&mut self, is_colon: bool) -> PResult<Option<&'cx ast::Ty<'cx>>> {
+        if self
+            .should_parse_ret_ty(is_colon, false)
+            .unwrap_or_default()
+        {
+            self.parse_ty_or_ty_pred().map(|ty| Some(ty))
+        } else {
+            Ok(None)
+        }
+    }
+
     fn parse_ty(&mut self) -> PResult<&'cx ast::Ty<'cx>> {
         if self.is_start_of_fn_or_ctor_ty() {
             self.parse_fn_or_ctor_ty()

@@ -12,3 +12,10 @@ pub(crate) struct ClassesCanOnlyExtendASingleClass {
     #[label("Classes can only extend a single class.")]
     pub extra_extends: Span,
 }
+
+#[derive(Error, Diagnostic, Debug)]
+#[error("Type parameter list cannot be empty.")]
+pub(crate) struct TypeParameterListCannotBeEmpty {
+    #[label]
+    pub span: Span,
+}

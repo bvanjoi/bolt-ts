@@ -42,8 +42,19 @@ pub struct ClassDecl<'cx> {
     pub id: NodeID,
     pub span: Span,
     pub name: &'cx Ident,
+    pub ty_params: Option<TyParams<'cx>>,
+    pub extends: Option<&'cx HeritageClause<'cx>>,
+    pub implements: Option<&'cx HeritageClauses<'cx>>,
 }
 
+#[derive(Debug, Clone, Copy)]
+pub struct TyParam<'cx> {
+    pub id: NodeID,
+    pub span: Span,
+    pub name: &'cx Ident,
+}
+
+pub type TyParams<'cx> = &'cx [&'cx TyParam<'cx>];
 pub type Exprs<'cx> = &'cx [&'cx Expr<'cx>];
 
 #[derive(Debug, Clone, Copy)]
@@ -119,6 +130,8 @@ impl Expr<'_> {
             ExprKind::Cond(cond) => cond.span,
             ExprKind::ObjectLit(lit) => lit.span,
             ExprKind::Call(call) => call.span,
+            ExprKind::Fn(f) => f.span,
+            ExprKind::New(new) => new.span,
         }
     }
 }
@@ -137,6 +150,26 @@ pub enum ExprKind<'cx> {
     Cond(&'cx CondExpr<'cx>),
     ObjectLit(&'cx ObjectLit<'cx>),
     Call(&'cx CallExpr<'cx>),
+    Fn(&'cx FnExpr<'cx>),
+    New(&'cx NewExpr<'cx>),
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct NewExpr<'cx> {
+    pub id: NodeID,
+    pub span: Span,
+    pub expr: &'cx Expr<'cx>,
+    pub args: Option<Exprs<'cx>>,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct FnExpr<'cx> {
+    pub id: NodeID,
+    pub span: Span,
+    pub name: Option<&'cx Ident>,
+    pub params: ParamsDecl<'cx>,
+    pub ret_ty: Option<&'cx self::Ty<'cx>>,
+    pub body: &'cx BlockStmt<'cx>,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -168,7 +201,7 @@ pub struct BinOp {
     pub span: Span,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub enum HeritageClauseKind {
     Extends,
     Implements,
