@@ -34,10 +34,14 @@ pub enum Node<'cx> {
     ObjectMemberField(&'cx ast::ObjectMemberField<'cx>),
     ObjectLit(&'cx ast::ObjectLit<'cx>),
     CallExpr(&'cx ast::CallExpr<'cx>),
+    FnExpr(&'cx ast::FnExpr<'cx>),
+    NewExpr(&'cx ast::NewExpr<'cx>),
 
     Ty(&'cx ast::Ty<'cx>),
     ArrayTy(&'cx ast::ArrayTy<'cx>),
     FnTy(&'cx ast::FnTy<'cx>),
+
+    TyParam(&'cx ast::TyParam<'cx>),
 }
 
 impl Node<'_> {
@@ -75,6 +79,9 @@ impl Node<'_> {
             BlockStmt(n) => n.id,
             HeritageClauses(n) => n.id,
             HeritageClause(n) => n.id,
+            FnExpr(f) => f.id,
+            NewExpr(new) => new.id,
+            TyParam(param) => param.id,
         }
     }
 }

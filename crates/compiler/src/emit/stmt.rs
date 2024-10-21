@@ -16,19 +16,17 @@ impl<'cx> Emit<'cx> {
         }
     }
 
-    fn emit_block_stmt(&mut self, block: &'cx ast::BlockStmt<'cx>) {
-        self.content.p_l_brace();
-        self.content.p_newline();
-        self.emit_stmts(block.stmts);
-        self.content.p_newline();
-        self.content.p_r_brace();
-    }
-
     fn emit_class_decl(&mut self, class: &'cx ast::ClassDecl<'cx>) {
         self.content.p("class");
         self.content.p_whitespace();
         self.emit_ident(&class.name);
         self.content.p_whitespace();
+        if let Some(extends) = class.extends {
+            self.content.p("extends");
+            self.content.p_whitespace();
+            assert!(extends.tys.len() == 1);
+            self.emit_expr(extends.tys[0]);
+        }
         self.content.p_l_brace();
         self.content.p_r_brace();
     }
@@ -75,32 +73,6 @@ impl<'cx> Emit<'cx> {
         self.emit_params(f.params);
         self.content.p_whitespace();
         self.emit_block_stmt(&f.body);
-    }
-
-    fn emit_params(&mut self, params: ast::ParamsDecl<'cx>) {
-        self.content.p_l_paren();
-        self.emit_list(
-            params,
-            |this, item| this.emit_param(item),
-            |this| {
-                this.content.p_comma();
-                this.content.p_whitespace();
-            },
-        );
-        self.content.p_r_paren();
-    }
-
-    fn emit_param(&mut self, param: &'cx ast::ParamDecl<'cx>) {
-        if param.dotdotdot.is_some() {
-            self.content.p_dot_dot_dot();
-        }
-        self.emit_ident(&param.name);
-        if let Some(init) = param.init {
-            self.content.p_whitespace();
-            self.content.p_eq();
-            self.content.p_whitespace();
-            self.emit_expr(init);
-        }
     }
 
     fn emit_var_stmt(&mut self, var: &'cx ast::VarStmt) {

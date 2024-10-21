@@ -1,77 +1,101 @@
-use super::token::TokenKind;
+use super::{token::TokenKind, ParserState};
 
 pub trait ListContext {
-    fn is_ele(t: TokenKind) -> bool;
-    fn is_closing(t: TokenKind) -> bool;
+    fn is_ele(s: &mut ParserState) -> bool;
+    fn is_closing(s: &mut ParserState) -> bool;
 }
 
 pub struct BlockStmt;
 impl ListContext for BlockStmt {
-    fn is_ele(t: TokenKind) -> bool {
-        !matches!(t, TokenKind::Semi) && t.is_start_of_stmt()
+    fn is_ele(s: &mut ParserState) -> bool {
+        !matches!(s.token.kind, TokenKind::Semi) && s.token.kind.is_start_of_stmt()
     }
 
-    fn is_closing(t: TokenKind) -> bool {
-        matches!(t, TokenKind::RBrace)
+    fn is_closing(s: &mut ParserState) -> bool {
+        matches!(s.token.kind, TokenKind::RBrace)
     }
 }
 
 pub struct ArgExprs;
 impl ListContext for ArgExprs {
-    fn is_ele(t: TokenKind) -> bool {
-        t.is_start_of_expr()
+    fn is_ele(s: &mut ParserState) -> bool {
+        s.token.kind.is_start_of_expr()
     }
 
-    fn is_closing(t: TokenKind) -> bool {
-        matches!(t, TokenKind::RParen)
+    fn is_closing(s: &mut ParserState) -> bool {
+        matches!(s.token.kind, TokenKind::RParen)
     }
 }
 
 pub struct ObjectLitMembers;
 impl ListContext for ObjectLitMembers {
-    fn is_ele(t: TokenKind) -> bool {
+    fn is_ele(s: &mut ParserState) -> bool {
         use TokenKind::*;
-        matches!(t, LBrace) || t.is_lit_prop_name()
+        matches!(s.token.kind, LBrace) || s.token.kind.is_lit_prop_name()
     }
 
-    fn is_closing(t: TokenKind) -> bool {
-        matches!(t, TokenKind::RBrace)
+    fn is_closing(s: &mut ParserState) -> bool {
+        matches!(s.token.kind, TokenKind::RBrace)
     }
 }
 
 pub struct Params;
 impl ListContext for Params {
-    fn is_ele(t: TokenKind) -> bool {
-        t.is_start_of_param()
+    fn is_ele(s: &mut ParserState) -> bool {
+        s.token.kind.is_start_of_param()
     }
 
-    fn is_closing(t: TokenKind) -> bool {
+    fn is_closing(s: &mut ParserState) -> bool {
         use TokenKind::*;
-        matches!(t, RParen | RBracket)
+        matches!(s.token.kind, RParen | RBracket)
+    }
+}
+
+pub struct TyParams;
+impl ListContext for TyParams {
+    fn is_ele(s: &mut ParserState) -> bool {
+        // FIXME: parse_state.is_ident
+        s.token.kind.is_binding_ident()
+    }
+
+    fn is_closing(s: &mut ParserState) -> bool {
+        use TokenKind::*;
+        matches!(s.token.kind, Great)
     }
 }
 
 pub struct HeritageClauses;
 impl ListContext for HeritageClauses {
-    fn is_ele(t: TokenKind) -> bool {
-        t.is_heritage_clause()
+    fn is_ele(s: &mut ParserState) -> bool {
+        s.token.kind.is_heritage_clause()
     }
 
-    fn is_closing(t: TokenKind) -> bool {
+    fn is_closing(s: &mut ParserState) -> bool {
         use TokenKind::*;
-        matches!(t, LBrace | RBrace)
+        matches!(s.token.kind, LBrace | RBrace)
     }
 }
 
 pub struct HeritageClause;
 impl ListContext for HeritageClause {
-    fn is_ele(t: TokenKind) -> bool {
+    fn is_ele(s: &mut ParserState) -> bool {
         // TODO: fixme
-        t.is_binding_ident()
+        s.token.kind.is_binding_ident()
     }
 
-    fn is_closing(t: TokenKind) -> bool {
+    fn is_closing(s: &mut ParserState) -> bool {
         use TokenKind::*;
-        matches!(t, LBrace) || t.is_heritage_clause()
+        matches!(s.token.kind, LBrace) || s.token.kind.is_heritage_clause()
+    }
+}
+
+pub struct VarDecl;
+impl ListContext for VarDecl {
+    fn is_ele(s: &mut ParserState) -> bool {
+        s.token.kind.is_binding_ident_or_private_ident_or_pat()
+    }
+
+    fn is_closing(s: &mut ParserState) -> bool {
+        s.can_parse_semi()
     }
 }

@@ -35,7 +35,29 @@ impl<'cx> Emit<'cx> {
             }
             ObjectLit(lit) => self.emit_object_lit(lit),
             Call(call) => self.emit_call_expr(call),
+            Fn(f) => self.emit_fn_expr(f),
+            New(new) => self.emit_new_expr(new),
         }
+    }
+
+    fn emit_new_expr(&mut self, new: &'cx ast::NewExpr) {
+        self.content.p("new");
+        self.content.p_whitespace();
+        self.emit_expr(new.expr);
+        if let Some(args) = new.args {
+            self.emit_args(args);
+        }
+    }
+
+    fn emit_fn_expr(&mut self, f: &'cx ast::FnExpr) {
+        self.content.p("function");
+        self.content.p_whitespace();
+        if let Some(name) = f.name {
+            self.emit_ident(name);
+        }
+        self.emit_params(f.params);
+        self.content.p_whitespace();
+        self.emit_block_stmt(&f.body);
     }
 
     fn emit_bin_expr(&mut self, bin_op: &'cx ast::BinExpr) {
@@ -58,11 +80,10 @@ impl<'cx> Emit<'cx> {
         self.content.p_r_bracket();
     }
 
-    fn emit_call_expr(&mut self, call: &'cx ast::CallExpr) {
-        self.emit_expr(call.expr);
+    fn emit_args(&mut self, args: ast::Exprs<'cx>) {
         self.content.p_l_paren();
         self.emit_list(
-            call.args,
+            args,
             |this, arg| this.emit_expr(arg),
             |this| {
                 this.content.p_comma();
@@ -70,6 +91,11 @@ impl<'cx> Emit<'cx> {
             },
         );
         self.content.p_r_paren();
+    }
+
+    fn emit_call_expr(&mut self, call: &'cx ast::CallExpr) {
+        self.emit_expr(call.expr);
+        self.emit_args(call.args);
     }
 
     fn emit_object_lit(&mut self, lit: &'cx ast::ObjectLit<'cx>) {

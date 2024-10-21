@@ -148,7 +148,7 @@ impl<'cx, 'a, 'p> ParserState<'cx, 'p> {
 
     pub(super) fn next_token(&mut self) {
         let start = self.pos;
-        let flags = TokenFlags::empty();
+        self.token_flags = TokenFlags::empty();
         let mut token_start;
         loop {
             token_start = self.pos;
@@ -240,11 +240,11 @@ impl<'cx, 'a, 'p> ParserState<'cx, 'p> {
                 }
                 b'<' => {
                     self.pos += 1;
-                    Token::new(TokenKind::Great, self.new_span(start, self.pos))
+                    Token::new(TokenKind::Less, self.new_span(start, self.pos))
                 }
                 b'>' => {
                     self.pos += 1;
-                    Token::new(TokenKind::Less, self.new_span(start, self.pos))
+                    Token::new(TokenKind::Great, self.new_span(start, self.pos))
                 }
                 b'.' => {
                     if self.next_ch() == Some(b'.') && self.next_next_ch() == Some(b'.') {
@@ -270,6 +270,9 @@ impl<'cx, 'a, 'p> ParserState<'cx, 'p> {
                 b'0' => self.scan_number(),
                 b'1'..=b'9' => self.scan_number(),
                 _ if ch.is_ascii_whitespace() => {
+                    if ch == b'\n' {
+                        self.token_flags.insert(TokenFlags::PRECEDING_LINE_BREAK);
+                    }
                     self.pos += 1;
                     continue;
                 }

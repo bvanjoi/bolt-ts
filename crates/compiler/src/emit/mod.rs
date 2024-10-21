@@ -1,5 +1,6 @@
 mod expr;
 mod stmt;
+mod utils;
 
 use crate::ast;
 use crate::atoms::AtomMap;

@@ -135,7 +135,7 @@ impl TokenKind {
         use TokenKind::*;
         matches!(
             self,
-            Number | True | False | String | Ident | Null | LBrace | LBracket | LParen
+            Null | True | False | Number | String | LBrace | LBracket | LParen | New | Ident
         )
     }
 

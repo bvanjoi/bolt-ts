@@ -113,7 +113,7 @@ impl<'cx, 'a, 'p> ParserState<'cx, 'p> {
         }
     }
 
-    fn parse_args(&mut self) -> PResult<&'cx [&'cx ast::Expr<'cx>]> {
+    fn parse_args(&mut self) -> PResult<ast::Exprs<'cx>> {
         self.expect(TokenKind::LParen)?;
         let args = self.parse_delimited_list(
             list_ctx::ArgExprs::is_ele,
@@ -228,7 +228,7 @@ impl<'cx, 'a, 'p> ParserState<'cx, 'p> {
 
     fn parse_array_lit_elems(&mut self) -> &'cx [&'cx ast::Expr<'cx>] {
         self.parse_delimited_list(
-            |t| matches!(t, TokenKind::Comma) || t.is_start_of_expr(),
+            |s| matches!(s.token.kind, TokenKind::Comma) || s.token.kind.is_start_of_expr(),
             |this| {
                 if this.token.kind == TokenKind::Comma {
                     let id = this.p.next_node_id();
@@ -251,19 +251,8 @@ impl<'cx, 'a, 'p> ParserState<'cx, 'p> {
                     this.parse_assign_expr()
                 }
             },
-            |t| t == TokenKind::RBracket,
+            |s| s.token.kind == TokenKind::RBracket,
         )
-    }
-
-    fn parse_ident(&mut self) -> &'cx ast::Expr<'cx> {
-        let id = self.p.next_node_id();
-        let kind = self.with_parent(id, |this| this.create_ident(true));
-        let expr = self.alloc(ast::Expr {
-            id,
-            kind: ast::ExprKind::Ident(kind),
-        });
-        self.insert_map(id, ast::Node::Expr(expr));
-        expr
     }
 
     fn parse_lit(&mut self) -> &'cx ast::Expr<'cx> {
@@ -310,8 +299,71 @@ impl<'cx, 'a, 'p> ParserState<'cx, 'p> {
             LBracket => self.parse_array_lit(),
             LParen => self.parse_paren_expr().unwrap(),
             LBrace => self.parse_object_lit().unwrap(),
+            Function => self.parse_fn_expr().unwrap(),
+            New => self.parse_new_expr().unwrap(),
             _ => self.parse_ident(),
         }
+    }
+
+    fn parse_new_expr(&mut self) -> PResult<&'cx ast::Expr<'cx>> {
+        use TokenKind::*;
+        let id = self.p.next_node_id();
+        let start = self.token.start();
+        self.expect(New)?;
+        let kind = self.with_parent(id, |this| {
+            let id = this.p.next_node_id();
+            let expr = this.parse_primary_expr();
+            let expr = this.parse_member_expr_rest(start as usize, expr)?;
+            let args = if this.token.kind == TokenKind::LParen {
+                this.parse_args().map(|args| Some(args))
+            } else {
+                Ok(None)
+            }?;
+            let new = this.alloc(ast::NewExpr {
+                id,
+                span: this.new_span(start as usize, this.pos),
+                expr,
+                args,
+            });
+            this.insert_map(id, ast::Node::NewExpr(new));
+            Ok(new)
+        })?;
+        let expr = self.alloc(ast::Expr {
+            id,
+            kind: ast::ExprKind::New(kind),
+        });
+        self.insert_map(id, ast::Node::Expr(expr));
+        Ok(expr)
+    }
+
+    fn parse_fn_expr(&mut self) -> PResult<&'cx ast::Expr<'cx>> {
+        use TokenKind::*;
+        let id = self.p.next_node_id();
+        let start = self.token.start();
+        self.expect(Function)?;
+        let kind = self.with_parent(id, |this| {
+            let id = this.p.next_node_id();
+            let name = this.parse_optional_binding_ident()?;
+            let params = this.parse_params()?;
+            let ret_ty = this.parse_ret_ty(true)?;
+            let body = this.parse_fn_block()?;
+            let f = this.alloc(ast::FnExpr {
+                id,
+                span: this.new_span(start as usize, this.pos),
+                name,
+                params,
+                ret_ty,
+                body,
+            });
+            this.insert_map(id, ast::Node::FnExpr(f));
+            Ok(f)
+        })?;
+        let expr = self.alloc(ast::Expr {
+            id,
+            kind: ast::ExprKind::Fn(kind),
+        });
+        self.insert_map(id, ast::Node::Expr(expr));
+        Ok(expr)
     }
 
     fn parse_object_lit(&mut self) -> PResult<&'cx ast::Expr<'cx>> {
