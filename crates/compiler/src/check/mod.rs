@@ -2,10 +2,12 @@ mod get;
 mod relation;
 mod resolve;
 mod sig;
+mod utils;
 
 use rts_span::{ModuleID, Span};
 use rustc_hash::FxHashMap;
 use sig::Sig;
+use utils::{get_assignment_kind, AssignmentKind};
 
 use self::relation::RelationKind;
 pub use self::resolve::ExpectedArgsCount;
@@ -13,7 +15,7 @@ pub use self::resolve::ExpectedArgsCount;
 use crate::ast::{BinOp, ExprKind};
 use crate::atoms::{AtomId, AtomMap};
 use crate::bind::{ScopeID, Symbol, SymbolID, Symbols};
-use crate::parser::Nodes;
+use crate::parser::{Nodes, ParentMap};
 use crate::ty::{has_type_facts, IntrinsicTyKind, ObjectTyKind, Ty, TyID, TyKind, TypeFacts, Tys};
 use crate::{ast, errors, keyword, ty};
 
@@ -21,6 +23,7 @@ pub struct TyChecker<'cx> {
     pub atoms: &'cx AtomMap<'cx>,
     pub diags: Vec<rts_errors::Diag>,
     nodes: &'cx Nodes<'cx>,
+    node_parent_map: &'cx ParentMap,
     arena: &'cx bumpalo::Bump,
     next_ty_id: TyID,
     tys: FxHashMap<TyID, &'cx Ty<'cx>>,
@@ -71,6 +74,7 @@ impl<'cx> TyChecker<'cx> {
     pub fn new(
         ty_arena: &'cx bumpalo::Bump,
         nodes: &'cx Nodes<'cx>,
+        node_parent_map: &'cx ParentMap,
         atoms: &'cx AtomMap<'cx>,
         scope_id_parent_map: FxHashMap<ScopeID, Option<ScopeID>>,
         node_id_to_scope_id: FxHashMap<ast::NodeID, ScopeID>,
@@ -92,6 +96,7 @@ impl<'cx> TyChecker<'cx> {
             node_id_to_scope_id,
             symbols,
             nodes,
+            node_parent_map,
             type_symbol: FxHashMap::default(),
             node_id_to_sig: FxHashMap::default(),
             res,
@@ -382,7 +387,7 @@ impl<'cx> TyChecker<'cx> {
             let init_ty = self.check_expr(init);
             if let Some(decl_ty) = decl_ty {
                 self.check_type_assignable_to_and_optionally_elaborate(
-                    decl.name.span,
+                    decl.binding.span,
                     init_ty,
                     decl_ty,
                 );
@@ -421,7 +426,36 @@ impl<'cx> TyChecker<'cx> {
             Call(call) => self.check_call_expr(call),
             Fn(f) => self.check_fn_expr(f),
             New(new) => self.undefined_ty(),
+            Assign(assign) => self.check_assign_expr(assign),
         }
+    }
+
+    fn check_assign_expr(&mut self, assign: &'cx ast::AssignExpr<'cx>) -> &'cx Ty<'cx> {
+        let l = self.check_ident(assign.binding);
+        let r = self.check_expr(assign.right);
+        use ast::AssignOp::*;
+        let ty = match assign.op {
+            AddEq => self.check_binary_like_expr_for_add(l, r),
+            SubEq => self.undefined_ty(),
+            MulEq => self.undefined_ty(),
+            DivEq => self.undefined_ty(),
+            ModEq => self.undefined_ty(),
+            ShlEq => self.undefined_ty(),
+            ShrEq => self.undefined_ty(),
+            UShrEq => self.undefined_ty(),
+            BitAndEq => self.undefined_ty(),
+            BitXorEq => self.undefined_ty(),
+            BitOrEq => self.undefined_ty(),
+        };
+        // if ty.id == self.any_ty().id {
+        //     let error = errors::CannotAssignToNameBecauseItIsATy {
+        //         name: self.atoms.get(assign.binding.name).to_string(),
+        //         ty: l.kind.to_string(self.atoms),
+        //         span: assign.span,
+        //     };
+        //     self.push_error(assign.span.module, Box::new(error));
+        // }
+        ty
     }
 
     fn check_fn_expr(&mut self, f: &'cx ast::FnExpr<'cx>) -> &'cx Ty<'cx> {
@@ -457,20 +491,37 @@ impl<'cx> TyChecker<'cx> {
 
     fn check_ident(&mut self, ident: &'cx ast::Ident) -> &'cx Ty<'cx> {
         if ident.name == keyword::IDENT_UNDEFINED {
-            self.undefined_ty()
-        } else {
-            match self.resolve_symbol_by_ident(ident) {
-                Symbol::ERR => {
-                    let error = errors::CannotFindName {
-                        span: ident.span,
-                        name: self.atoms.get(ident.name).to_string(),
-                    };
-                    self.push_error(ident.span.module, Box::new(error));
-                    self.error_ty()
-                }
-                id => self.get_type_of_symbol(id),
+            return self.undefined_ty();
+        }
+
+        let symbol = match self.resolve_symbol_by_ident(ident) {
+            Symbol::ERR => {
+                let error = errors::CannotFindName {
+                    span: ident.span,
+                    name: self.atoms.get(ident.name).to_string(),
+                };
+                self.push_error(ident.span.module, Box::new(error));
+                return self.error_ty()
+            }
+            id => id,
+        };
+
+        let ty = self.get_type_of_symbol(symbol);
+        let assignment_kind = get_assignment_kind(self, ident.id);
+        if assignment_kind != AssignmentKind::None {
+            let symbol_kind = &self.symbols.get(symbol).kind;
+            if !symbol_kind.is_variable() {
+                let error = errors::CannotAssignToNameBecauseItIsATy {
+                    span: ident.span,
+                    name: self.atoms.get(ident.name).to_string(),
+                    ty: symbol_kind.as_str().to_string(),
+                };
+                self.push_error(ident.span.module, Box::new(error));
+                return self.error_ty();
             }
         }
+
+        ty
     }
 
     fn create_object_ty(&mut self, ty: ObjectTyKind<'cx>, symbol: SymbolID) -> &'cx Ty<'cx> {
@@ -566,6 +617,24 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
+    fn check_binary_like_expr_for_add(
+        &mut self,
+        left_ty: &'cx Ty<'cx>,
+        right_ty: &'cx Ty<'cx>,
+    ) -> &'cx Ty<'cx> {
+        if self.is_type_assignable_to_kind(left_ty, |ty| ty.kind.is_number_like(), true)
+            && self.is_type_assignable_to_kind(right_ty, |ty| ty.kind.is_number_like(), true)
+        {
+            self.number_ty()
+        } else if self.is_type_assignable_to_kind(left_ty, |ty| ty.kind.is_string_like(), true)
+            && self.is_type_assignable_to_kind(right_ty, |ty| ty.kind.is_string_like(), true)
+        {
+            self.string_ty()
+        } else {
+            self.any_ty()
+        }
+    }
+
     fn check_bin_like_expr(
         &mut self,
         node: &'cx ast::BinExpr,
@@ -578,34 +647,17 @@ impl<'cx> TyChecker<'cx> {
         use ast::BinOpKind::*;
         match op.kind {
             Add => {
-                if self.is_type_assignable_to_kind(left_ty, |ty| ty.kind.is_number_like(), true)
-                    && self.is_type_assignable_to_kind(
-                        right_ty,
-                        |ty| ty.kind.is_number_like(),
-                        true,
-                    )
-                {
-                    self.number_ty()
-                } else if self.is_type_assignable_to_kind(
-                    left_ty,
-                    |ty| ty.kind.is_string_like(),
-                    true,
-                ) && self.is_type_assignable_to_kind(
-                    right_ty,
-                    |ty| ty.kind.is_string_like(),
-                    true,
-                ) {
-                    self.string_ty()
-                } else {
+                let ty = self.check_binary_like_expr_for_add(left_ty, right_ty);
+                if ty.id == self.any_ty().id {
                     let error = errors::OperatorCannotBeAppliedToTy1AndTy2 {
-                        op: op.kind.as_str().to_string(),
+                        op: "+".to_string(),
                         ty1: left_ty.kind.to_string(&self.atoms),
                         ty2: right_ty.kind.to_string(&self.atoms),
                         span: node.span,
                     };
                     self.push_error(node.span.module, Box::new(error));
-                    self.any_ty()
                 }
+                ty
             }
             Sub => todo!(),
             Mul => todo!(),
@@ -615,7 +667,7 @@ impl<'cx> TyChecker<'cx> {
                 let right = self.check_non_null_type(right);
                 self.number_ty()
             }
-            AmpAmp => {
+            LogicalAnd => {
                 if has_type_facts(left_ty, TypeFacts::TRUTHY) {
                     left_ty
                 } else {
@@ -631,6 +683,14 @@ impl<'cx> TyChecker<'cx> {
             }
             EqEq => self.boolean_ty(),
             EqEqEq => self.boolean_ty(),
+            Less => todo!(),
+            LessEq => todo!(),
+            Shl => todo!(),
+            Great => todo!(),
+            GreatEq => todo!(),
+            Shr => todo!(),
+            UShr => todo!(),
+            BitAnd => todo!(),
         }
     }
 

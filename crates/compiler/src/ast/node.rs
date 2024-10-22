@@ -36,6 +36,7 @@ pub enum Node<'cx> {
     CallExpr(&'cx ast::CallExpr<'cx>),
     FnExpr(&'cx ast::FnExpr<'cx>),
     NewExpr(&'cx ast::NewExpr<'cx>),
+    AssignExpr(&'cx ast::AssignExpr<'cx>),
 
     Ty(&'cx ast::Ty<'cx>),
     ArrayTy(&'cx ast::ArrayTy<'cx>),
@@ -82,6 +83,7 @@ impl Node<'_> {
             FnExpr(f) => f.id,
             NewExpr(new) => new.id,
             TyParam(param) => param.id,
+            AssignExpr(assign) => assign.id,
         }
     }
 }

@@ -112,10 +112,14 @@ impl<'cx> Binder<'cx> {
         self.scope_id = old;
     }
 
+    fn bind_ident(&mut self, ident: &'cx ast::Ident) {
+        self.connect(ident.id)
+    }
+
     fn bind_expr(&mut self, expr: &'cx ast::Expr) {
         use ast::ExprKind::*;
         match expr.kind {
-            Ident(ident) => self.connect(ident.id),
+            Ident(ident) => self.bind_ident(ident),
             Call(call) => {
                 self.bind_expr(call.expr);
                 for arg in call.args {
@@ -126,6 +130,7 @@ impl<'cx> Binder<'cx> {
                 self.bind_expr(bin.left);
                 self.bind_expr(bin.right);
             }
+            Assign(assign) => self.bind_ident(assign.binding),
             _ => (),
         }
     }
@@ -139,7 +144,7 @@ impl<'cx> Binder<'cx> {
 
     fn bind_var_decl(&mut self, decl: &'cx ast::VarDecl) {
         self.connect(decl.id);
-        self.create_symbol(decl.name.name, SymbolKind::BlockScopedVar);
+        self.create_symbol(decl.binding.name, SymbolKind::BlockScopedVar);
         if let Some(init) = decl.init {
             self.bind_expr(init);
         }

@@ -53,6 +53,7 @@ pub fn eval_from(m: ModulePath) -> Output {
     let mut c = check::TyChecker::new(
         &ty_arena,
         &p.nodes,
+        &p.parent_map,
         &p.atoms,
         scope_id_parent_map,
         node_id_to_scope_id,

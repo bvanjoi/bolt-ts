@@ -42,7 +42,7 @@ impl<'cx> TyKind<'cx> {
                 .join(" | "),
             TyKind::StringLit => todo!(),
             TyKind::ArrayLit(_) => todo!(),
-            TyKind::Object(_) => todo!(),
+            TyKind::Object(object) => object.kind.as_str().to_string(),
         }
     }
 
@@ -215,8 +215,21 @@ pub struct ObjectTy<'cx> {
 
 #[derive(Debug, Clone, Copy)]
 pub enum ObjectTyKind<'cx> {
+    Class(&'cx ClassTy),
     Anonymous(&'cx AnonymousTy<'cx>),
 }
+
+impl ObjectTyKind<'_> {
+    fn as_str(&self) -> &'static str {
+        match self {
+            ObjectTyKind::Class(_) => "class",
+            ObjectTyKind::Anonymous(_) => "function",
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct ClassTy {}
 
 #[derive(Debug, Clone, Copy)]
 pub struct AnonymousTy<'cx> {
