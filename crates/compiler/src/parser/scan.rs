@@ -48,6 +48,10 @@ impl<'cx, 'a, 'p> ParserState<'cx, 'p> {
         self.input.get(self.pos + 2).copied()
     }
 
+    fn next_next_next_ch(&self) -> Option<u8> {
+        self.input.get(self.pos + 3).copied()
+    }
+
     pub(super) fn new_span(&self, lo: usize, hi: usize) -> Span {
         Span {
             lo: lo as u32,
@@ -182,9 +186,21 @@ impl<'cx, 'a, 'p> ParserState<'cx, 'p> {
                             }
                         }
                         continue;
+                    } else if self.next_ch() == Some(b'=') {
+                        self.pos += 2;
+                        Token::new(TokenKind::SlashEq, self.new_span(start, self.pos))
                     } else {
                         self.pos += 1;
-                        continue;
+                        Token::new(TokenKind::Slash, self.new_span(start, self.pos))
+                    }
+                }
+                b'%' => {
+                    if self.next_ch() == Some(b'=') {
+                        self.pos += 2;
+                        Token::new(TokenKind::PercentEq, self.new_span(start, self.pos))
+                    } else {
+                        self.pos += 1;
+                        Token::new(TokenKind::Percent, self.new_span(start, self.pos))
                     }
                 }
                 b'=' => {
@@ -210,15 +226,47 @@ impl<'cx, 'a, 'p> ParserState<'cx, 'p> {
                         // ++
                         self.pos += 2;
                         todo!()
+                    } else if self.next_ch() == Some(b'=') {
+                        self.pos += 2;
+                        Token::new(TokenKind::PlusEq, self.new_span(start, self.pos))
                     } else {
                         self.pos += 1;
                         Token::new(TokenKind::Plus, self.new_span(start, self.pos))
+                    }
+                }
+                b'-' => {
+                    if self.next_ch() == Some(b'-') {
+                        // --
+                        self.pos += 2;
+                        todo!()
+                    } else if self.next_ch() == Some(b'=') {
+                        self.pos += 2;
+                        Token::new(TokenKind::MinusEq, self.new_span(start, self.pos))
+                    } else {
+                        self.pos += 1;
+                        Token::new(TokenKind::Minus, self.new_span(start, self.pos))
+                    }
+                }
+                b'*' => {
+                    if self.next_ch() == Some(b'*') {
+                        // **
+                        self.pos += 2;
+                        todo!()
+                    } else if self.next_ch() == Some(b'=') {
+                        self.pos += 2;
+                        Token::new(TokenKind::AsteriskEq, self.new_span(start, self.pos))
+                    } else {
+                        self.pos += 1;
+                        Token::new(TokenKind::Asterisk, self.new_span(start, self.pos))
                     }
                 }
                 b'|' => {
                     if self.next_ch() == Some(b'|') {
                         self.pos += 2;
                         Token::new(TokenKind::PipePipe, self.new_span(start, self.pos))
+                    } else if self.next_ch() == Some(b'=') {
+                        self.pos += 2;
+                        Token::new(TokenKind::PipeEq, self.new_span(start, self.pos))
                     } else {
                         self.pos += 1;
                         Token::new(TokenKind::Pipe, self.new_span(start, self.pos))
@@ -233,18 +281,78 @@ impl<'cx, 'a, 'p> ParserState<'cx, 'p> {
                         // &&
                         self.pos += 2;
                         Token::new(TokenKind::AmpAmp, self.new_span(start, self.pos))
+                    } else if self.next_ch() == Some(b'=') {
+                        // &=
+                        self.pos += 2;
+                        Token::new(TokenKind::AmpEq, self.new_span(start, self.pos))
                     } else {
                         self.pos += 1;
                         Token::new(TokenKind::Amp, self.new_span(start, self.pos))
                     }
                 }
                 b'<' => {
-                    self.pos += 1;
-                    Token::new(TokenKind::Less, self.new_span(start, self.pos))
+                    if self.next_ch() == Some(b'<') {
+                        if self.next_next_ch() == Some(b'=') {
+                            // <<=
+                            self.pos += 3;
+                            Token::new(TokenKind::LessLessEq, self.new_span(start, self.pos))
+                        } else {
+                            // <<
+                            self.pos += 2;
+                            Token::new(TokenKind::LessLess, self.new_span(start, self.pos))
+                        }
+                    } else if self.next_ch() == Some(b'=') {
+                        // <=
+                        self.pos += 2;
+                        Token::new(TokenKind::LessEq, self.new_span(start, self.pos))
+                    } else {
+                        self.pos += 1;
+                        Token::new(TokenKind::Less, self.new_span(start, self.pos))
+                    }
                 }
                 b'>' => {
-                    self.pos += 1;
-                    Token::new(TokenKind::Great, self.new_span(start, self.pos))
+                    if self.next_ch() == Some(b'>') {
+                        if self.next_next_ch() == Some(b'>') {
+                            if self.next_next_next_ch() == Some(b'=') {
+                                // >>>=
+                                self.pos += 4;
+                                Token::new(
+                                    TokenKind::GreatGreatGreatEq,
+                                    self.new_span(start, self.pos),
+                                )
+                            } else {
+                                // >>>
+                                self.pos += 3;
+                                Token::new(
+                                    TokenKind::GreatGreatGreat,
+                                    self.new_span(start, self.pos),
+                                )
+                            }
+                        } else if self.next_next_ch() == Some(b'=') {
+                            // >>=
+                            self.pos += 3;
+                            Token::new(TokenKind::GreatGreatEq, self.new_span(start, self.pos))
+                        } else {
+                            // >>
+                            self.pos += 2;
+                            Token::new(TokenKind::GreatGreat, self.new_span(start, self.pos))
+                        }
+                    } else if self.next_ch() == Some(b'=') {
+                        self.pos += 1;
+                        Token::new(TokenKind::GreatEq, self.new_span(start, self.pos))
+                    } else {
+                        self.pos += 1;
+                        Token::new(TokenKind::Great, self.new_span(start, self.pos))
+                    }
+                }
+                b'^' => {
+                    if self.next_ch() == Some(b'=') {
+                        self.pos += 2;
+                        Token::new(TokenKind::CaretEq, self.new_span(start, self.pos))
+                    } else {
+                        self.pos += 1;
+                        Token::new(TokenKind::Caret, self.new_span(start, self.pos))
+                    }
                 }
                 b'.' => {
                     if self.next_ch() == Some(b'.') && self.next_next_ch() == Some(b'.') {

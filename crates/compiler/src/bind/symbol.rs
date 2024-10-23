@@ -30,6 +30,22 @@ pub enum SymbolKind {
     Class,
 }
 
+impl SymbolKind {
+    pub fn is_variable(&self) -> bool {
+        matches!(self, Self::FunctionScopedVar | Self::BlockScopedVar)
+    }
+    
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            SymbolKind::Err => "err",
+            SymbolKind::FunctionScopedVar => todo!(),
+            SymbolKind::BlockScopedVar => todo!(),
+            SymbolKind::Function(_) => "function",
+            SymbolKind::Class => "class",
+        }
+    }
+}
+
 rts_span::new_index!(SymbolID);
 
 pub struct Symbols(FxHashMap<SymbolID, Symbol>);

@@ -1,3 +1,5 @@
+use crate::ast::ExprKind;
+
 use super::ast::{self, BinOp};
 use super::list_ctx::{self, ListContext};
 use super::token::{BinPrec, TokenKind};
@@ -18,7 +20,36 @@ impl<'cx, 'a, 'p> ParserState<'cx, 'p> {
     }
 
     fn parse_assign_expr(&mut self) -> PResult<&'cx ast::Expr<'cx>> {
+        let start = self.token.start();
         let expr = self.parse_binary_expr(BinPrec::Lowest);
+        if let ExprKind::Ident(binding) = expr.kind {
+            if self.token.kind.is_assignment() {
+                let id = self.p.next_node_id();
+                let kind = self.with_parent(id, |this| {
+                    let id = this.p.next_node_id();
+                    this.p.parent_map.r#override(expr.id, id);
+                    let op = this.token.kind.into_assign_op();
+                    this.parse_token_node();
+                    let right = this.parse_assign_expr()?;
+                    let expr = this.alloc(ast::AssignExpr {
+                        id,
+                        binding,
+                        op,
+                        right,
+                        span: this.new_span(start as usize, this.pos),
+                    });
+                    this.insert_map(id, ast::Node::AssignExpr(expr));
+                    Ok(expr)
+                })?;
+                let expr = self.alloc(ast::Expr {
+                    id,
+                    kind: ast::ExprKind::Assign(&kind),
+                });
+                self.insert_map(id, ast::Node::Expr(expr));
+                return Ok(expr);
+            }
+        }
+
         self.parse_cond_expr_rest(expr)
     }
 

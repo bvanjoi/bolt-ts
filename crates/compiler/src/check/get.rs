@@ -11,7 +11,7 @@ impl<'cx> TyChecker<'cx> {
             Err => return self.error_ty(),
             FunctionScopedVar => return self.undefined_ty(),
             BlockScopedVar => return self.undefined_ty(),
-            Class => return self.undefined_ty(),
+            Class => self.get_type_of_class_decl(id),
             Function(_) => self.get_type_of_func_decl(id),
         };
         let prev = self.type_symbol.insert(ty.id, id);
@@ -19,7 +19,12 @@ impl<'cx> TyChecker<'cx> {
         ty
     }
 
-    pub(super) fn get_type_of_func_decl(&mut self, id: SymbolID) -> &'cx Ty<'cx> {
+    fn get_type_of_class_decl(&mut self, id: SymbolID) -> &'cx Ty<'cx> {
+        let ty = self.alloc(ty::ClassTy {});
+        self.create_object_ty(ty::ObjectTyKind::Class(ty), id)
+    }
+
+    fn get_type_of_func_decl(&mut self, id: SymbolID) -> &'cx Ty<'cx> {
         let params = self.get_sig_of_symbol(id);
         let ty = self.alloc(ty::AnonymousTy {
             params,

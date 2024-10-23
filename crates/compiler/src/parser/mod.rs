@@ -41,12 +41,12 @@ impl ParentMap {
         self.0.get(&id).copied()
     }
 
-    pub fn insert(&mut self, id: NodeID, parent: NodeID) {
+    pub(super) fn insert(&mut self, id: NodeID, parent: NodeID) {
         let prev = self.0.insert(id, parent);
         assert!(prev.is_none())
     }
 
-    pub fn r#override(&mut self, id: NodeID, parent: NodeID) {
+    pub(super) fn r#override(&mut self, id: NodeID, parent: NodeID) {
         let prev = self.0.insert(id, parent);
         assert!(prev.is_some())
     }

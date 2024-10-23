@@ -88,7 +88,7 @@ impl<'cx> Emit<'cx> {
     }
 
     fn emit_var_decl(&mut self, decl: &'cx ast::VarDecl) {
-        self.content.p(self.atoms.get(decl.name.name));
+        self.content.p(self.atoms.get(decl.binding.name));
         if let Some(init) = decl.init {
             self.content.p_whitespace();
             self.content.p_eq();

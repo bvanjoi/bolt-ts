@@ -37,7 +37,16 @@ impl<'cx> Emit<'cx> {
             Call(call) => self.emit_call_expr(call),
             Fn(f) => self.emit_fn_expr(f),
             New(new) => self.emit_new_expr(new),
+            Assign(assign) => self.emit_assign_expr(assign),
         }
+    }
+
+    fn emit_assign_expr(&mut self, assign: &'cx ast::AssignExpr) {
+        self.emit_ident(assign.binding);
+        self.content.p_whitespace();
+        self.content.p(assign.op.as_str());
+        self.content.p_whitespace();
+        self.emit_expr(assign.right);
     }
 
     fn emit_new_expr(&mut self, new: &'cx ast::NewExpr) {

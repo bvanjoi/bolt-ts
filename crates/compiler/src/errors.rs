@@ -65,3 +65,12 @@ pub(crate) struct ExpectedAtLeastXArgsButGotY {
     pub x: usize,
     pub y: usize,
 }
+
+#[derive(Error, Diagnostic, Debug)]
+#[error("Cannot assign to '{name}' because it is a {ty}.")]
+pub(crate) struct CannotAssignToNameBecauseItIsATy {
+    #[label]
+    pub span: Span,
+    pub name: String,
+    pub ty: String,
+}

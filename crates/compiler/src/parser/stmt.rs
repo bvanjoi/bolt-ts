@@ -175,7 +175,7 @@ impl<'cx, 'a, 'p> ParserState<'cx, 'p> {
         let id = self.p.next_node_id();
         let start = self.token.start();
         self.with_parent(id, |this| {
-            let name = this.parse_ident_or_pat();
+            let binding = this.parse_ident_or_pat();
             // todo: parse type annotation
             let ty = this.parse_ty_anno()?;
             let init = this.parse_init();
@@ -183,7 +183,7 @@ impl<'cx, 'a, 'p> ParserState<'cx, 'p> {
             let node = this.alloc(ast::VarDecl {
                 id,
                 span,
-                name,
+                binding,
                 ty,
                 init,
             });

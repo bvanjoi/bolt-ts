@@ -132,12 +132,14 @@ impl Expr<'_> {
             ExprKind::Call(call) => call.span,
             ExprKind::Fn(f) => f.span,
             ExprKind::New(new) => new.span,
+            ExprKind::Assign(assign) => assign.span,
         }
     }
 }
 
 #[derive(Debug, Clone, Copy)]
 pub enum ExprKind<'cx> {
+    Assign(&'cx AssignExpr<'cx>),
     Bin(&'cx BinExpr<'cx>),
     BoolLit(&'cx BoolLit),
     NumLit(&'cx NumLit),
@@ -152,6 +154,49 @@ pub enum ExprKind<'cx> {
     Call(&'cx CallExpr<'cx>),
     Fn(&'cx FnExpr<'cx>),
     New(&'cx NewExpr<'cx>),
+}
+
+#[derive(Debug, Clone, Copy)]
+pub enum AssignOp {
+    AddEq,
+    SubEq,
+    MulEq,
+    DivEq,
+    ModEq,
+    ShlEq,
+    ShrEq,
+    UShrEq,
+    BitAndEq,
+    BitXorEq,
+    BitOrEq,
+}
+
+impl AssignOp {
+    pub fn as_str(self) -> &'static str {
+        use AssignOp::*;
+        match self {
+            AddEq => "+=",
+            SubEq => "-=",
+            MulEq => "*=",
+            DivEq => "/=",
+            ModEq => "%=",
+            ShlEq => "<<=",
+            ShrEq => ">>=",
+            UShrEq => ">>>=",
+            BitAndEq => "&=",
+            BitXorEq => "^=",
+            BitOrEq => "|=",
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct AssignExpr<'cx> {
+    pub id: NodeID,
+    pub span: Span,
+    pub binding: &'cx Ident,
+    pub op: AssignOp,
+    pub right: &'cx Expr<'cx>,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -215,23 +260,40 @@ pub enum BinOpKind {
     Div,
     Pipe,
     PipePipe,
-    AmpAmp,
+    Less,
+    LessEq,
+    Shl,
+    Great,
+    GreatEq,
+    Shr,
+    UShr,
+    BitAnd,
+    LogicalAnd,
     EqEq,
     EqEqEq,
 }
 
 impl BinOpKind {
     pub fn as_str(self) -> &'static str {
+        use BinOpKind::*;
         match self {
-            BinOpKind::Add => "+",
-            BinOpKind::Sub => "-",
-            BinOpKind::Mul => "*",
-            BinOpKind::Div => "/",
-            BinOpKind::Pipe => "|",
-            BinOpKind::PipePipe => "||",
-            BinOpKind::AmpAmp => "&&",
-            BinOpKind::EqEq => "==",
-            BinOpKind::EqEqEq => "===",
+            Add => "+",
+            Sub => "-",
+            Mul => "*",
+            Div => "/",
+            Pipe => "|",
+            PipePipe => "||",
+            Less => "<",
+            LessEq => "<=",
+            Shl => "<<",
+            Great => ">",
+            GreatEq => ">=",
+            Shr => ">>",
+            UShr => ">>>",
+            BitAnd => "&",
+            LogicalAnd => "&&",
+            EqEq => "==",
+            EqEqEq => "===",
         }
     }
 }
@@ -261,7 +323,7 @@ pub type StringLit = Lit<AtomId>;
 pub struct VarDecl<'cx> {
     pub id: NodeID,
     pub span: Span,
-    pub name: &'cx Ident,
+    pub binding: &'cx Ident,
     pub ty: Option<&'cx self::Ty<'cx>>,
     pub init: Option<&'cx Expr<'cx>>,
 }

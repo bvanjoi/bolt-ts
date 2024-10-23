@@ -1,6 +1,6 @@
 use rts_span::Span;
 
-use crate::ast::{BinOpKind, HeritageClauseKind};
+use crate::ast::{AssignExpr, AssignOp, BinOpKind, HeritageClauseKind};
 
 #[derive(Debug, Clone, Copy)]
 pub struct Token {
@@ -52,12 +52,18 @@ pub enum TokenKind {
     Ident,
     NoSubstitutionTemplate,
     // =====
+    ///`%`
+    Percent = 0x25,
     /// `&`
     Amp = 0x26,
+    /// `*`
+    Asterisk = 0x2A,
     /// `+`
     Plus = 0x2B,
     /// `,`
     Comma = 0x2C,
+    /// `-`
+    Minus = 0x2D,
     /// `(`
     LParen = 0x28,
     /// `)`
@@ -76,8 +82,12 @@ pub enum TokenKind {
     Question = 0x3F,
     /// `[`
     LBracket = 0x5B,
+    /// `\`
+    Slash = 0x5C,
     /// `]`
     RBracket = 0x5D,
+    /// `^`
+    Caret = 0x5E,
     /// `|`
     Pipe = 0x7C,
     /// `{`
@@ -89,24 +99,63 @@ pub enum TokenKind {
     EqGreater,
     /// `...`
     DotDotDot,
+    /// `&=`
+    AmpEq,
     /// `&&`
     AmpAmp,
     /// `||`
     PipePipe,
+    /// `|=`
+    PipeEq,
     /// `==`
     EqEq,
     /// `===`
     EqEqEq,
+    /// `+=`
+    PlusEq,
+    /// `-=`
+    MinusEq,
+    /// `*=`
+    AsteriskEq,
+    /// `/=`
+    SlashEq,
+    /// `%=`
+    PercentEq,
+    /// `<<`
+    LessLess,
+    /// `<=`
+    LessEq,
+    /// `<<=`
+    LessLessEq,
+    /// `>=`
+    GreatEq,
+    /// `>>`
+    GreatGreat,
+    /// `>>>`
+    GreatGreatGreat,
+    /// `>>=`
+    GreatGreatEq,
+    /// `>>>=`
+    GreatGreatGreatEq,
+    /// `!==`
+    BangEqEq,
+    /// `!=`
+    BangEq,
+    /// `^=`
+    CaretEq,
 }
 
 impl TokenKind {
     pub fn prec(self) -> BinPrec {
+        use TokenKind::*;
         match self {
-            TokenKind::Pipe => BinPrec::BitwiseOR,
-            TokenKind::Plus => BinPrec::Additive,
-            TokenKind::PipePipe => BinPrec::LogicalOr,
-            TokenKind::AmpAmp => BinPrec::LogicalAnd,
-            TokenKind::Eq | TokenKind::EqEqEq => BinPrec::Eq,
+            Pipe => BinPrec::BitwiseOR,
+            Less | LessEq | Great | GreatEq => BinPrec::Relational,
+            LessLess | GreatGreat | GreatGreatGreat => BinPrec::Shift,
+            Plus => BinPrec::Additive,
+            PipePipe => BinPrec::LogicalOr,
+            AmpAmp => BinPrec::LogicalAnd,
+            Eq | EqEqEq => BinPrec::Eq,
             _ => BinPrec::Invalid,
         }
     }
@@ -116,9 +165,45 @@ impl TokenKind {
             TokenKind::Plus => BinOpKind::Add,
             TokenKind::Pipe => BinOpKind::Pipe,
             TokenKind::PipePipe => BinOpKind::PipePipe,
-            TokenKind::AmpAmp => BinOpKind::AmpAmp,
             TokenKind::EqEq => BinOpKind::EqEq,
             TokenKind::EqEqEq => BinOpKind::EqEqEq,
+            TokenKind::Minus => BinOpKind::Sub,
+            TokenKind::Asterisk => BinOpKind::Mul,
+            TokenKind::AsteriskEq => BinOpKind::Mul,
+            TokenKind::Slash => BinOpKind::Div,
+            TokenKind::SlashEq => BinOpKind::Div,
+            // TokenKind::Percent => BinOpKind::Mod,
+            // TokenKind::PercentEq => BinOpKind::Mod,
+            TokenKind::Amp => BinOpKind::BitAnd,
+            TokenKind::AmpAmp => BinOpKind::LogicalAnd,
+            // TokenKind::Caret => BinOpKind::BitXor,
+            // TokenKind::CaretEq => BinOpKind::BitXor,
+            TokenKind::Less => BinOpKind::Less,
+            TokenKind::LessEq => BinOpKind::LessEq,
+            TokenKind::LessLess => BinOpKind::Shl,
+            TokenKind::Great => BinOpKind::Great,
+            TokenKind::GreatEq => BinOpKind::GreatEq,
+            TokenKind::GreatGreat => BinOpKind::Shr,
+            TokenKind::GreatGreatGreat => BinOpKind::UShr,
+            // TokenKind::BangEq => BinOpKind::Ne,
+            // TokenKind::BangEqEq => BinOpKind::Ne,
+            _ => unreachable!(),
+        }
+    }
+
+    pub fn into_assign_op(self) -> AssignOp {
+        match self {
+            TokenKind::PlusEq => AssignOp::AddEq,
+            TokenKind::MinusEq => AssignOp::SubEq,
+            TokenKind::AsteriskEq => AssignOp::MulEq,
+            TokenKind::SlashEq => AssignOp::DivEq,
+            TokenKind::PercentEq => AssignOp::ModEq,
+            TokenKind::AmpEq => AssignOp::BitAndEq,
+            TokenKind::PipeEq => AssignOp::BitOrEq,
+            TokenKind::LessLessEq => AssignOp::ShlEq,
+            TokenKind::GreatGreatEq => AssignOp::ShrEq,
+            TokenKind::GreatGreatGreatEq => AssignOp::UShrEq,
+            TokenKind::CaretEq => AssignOp::BitXorEq,
             _ => unreachable!(),
         }
     }
@@ -164,6 +249,11 @@ impl TokenKind {
         self.is_ident_or_keyword() || matches!(self, String | Number)
     }
 
+    pub fn is_left_hand_side_expr_kind(self) -> bool {
+        use TokenKind::*;
+        matches!(self, Ident)
+    }
+
     pub fn is_start_of_param(self) -> bool {
         matches!(self, TokenKind::DotDotDot) || self.is_binding_ident_or_private_ident_or_pat()
     }
@@ -184,6 +274,24 @@ impl TokenKind {
             _ => None,
         }
     }
+
+    pub fn is_assignment(self) -> bool {
+        use TokenKind::*;
+        matches!(
+            self,
+            Eq | PlusEq
+                | MinusEq
+                | AsteriskEq
+                | SlashEq
+                | PercentEq
+                | AmpEq
+                | PipeEq
+                | CaretEq
+                | LessLessEq
+                | GreatGreatEq
+                | GreatGreatGreatEq
+        )
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
@@ -198,6 +306,10 @@ pub enum BinPrec {
     BitwiseOR,
     /// `==`, `===`
     Eq,
+    /// `<=`, `>=`, `<`, `>`
+    Relational,
+    /// `<<`, `>>`, `>>=`
+    Shift,
     /// `+`, `-`
     Additive,
     Highest,
