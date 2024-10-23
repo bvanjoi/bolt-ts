@@ -8,10 +8,9 @@ fn get_assignment_target(checker: &TyChecker, id: ast::NodeID) -> Option<ast::No
         match checker.nodes.get(p) {
             ast::Node::AssignExpr(assign) => return (assign.binding.id == id).then(|| assign.id),
             ast::Node::BinExpr(_) => return None,
-            ast::Node::Expr(_) => {}
             _ => return None,
         }
-        parent = checker.node_parent_map.parent(p);
+        // parent = checker.node_parent_map.parent(p);
     }
     None
 }

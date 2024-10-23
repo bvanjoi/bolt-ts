@@ -68,13 +68,18 @@ impl<'cx, 'a, 'p> ParserState<'cx, 'p> {
     }
 
     pub(super) fn parse_ident(&mut self) -> &'cx ast::Expr<'cx> {
-        let id = self.p.next_node_id();
-        let kind = self.with_parent(id, |this| this.create_ident(true));
+        let kind = self.create_ident(true);
         let expr = self.alloc(ast::Expr {
-            id,
             kind: ast::ExprKind::Ident(kind),
         });
-        self.insert_map(id, ast::Node::Expr(expr));
         expr
+    }
+
+    pub(super) fn parse_prop_name(&mut self) -> PResult<&'cx ast::PropName<'cx>> {
+        let ident = self.parse_ident_name()?;
+        let prop_name = self.alloc(ast::PropName {
+            kind: ast::PropNameKind::Ident(ident),
+        });
+        Ok(prop_name)
     }
 }

@@ -99,3 +99,33 @@ impl ListContext for VarDecl {
         s.can_parse_semi()
     }
 }
+
+fn is_class_ele_start(s: &mut ParserState) -> bool {
+    // if s.token.kind == TokenKind::At {
+    //     return true;
+    // }
+
+    let mut id_token = None;
+    if s.token.kind.is_lit_prop_name() {
+        id_token = Some(s.token.kind);
+        s.next_token();
+    }
+
+    if let Some(t) = id_token {
+        if !t.is_keyword() {
+            return true;
+        }
+    }
+    false
+}
+
+pub struct ClassElements;
+impl ListContext for ClassElements {
+    fn is_ele(s: &mut ParserState) -> bool {
+        s.lookahead(is_class_ele_start) || s.token.kind == TokenKind::Semi
+    }
+
+    fn is_closing(s: &mut ParserState) -> bool {
+        matches!(s.token.kind, TokenKind::RBrace)
+    }
+}

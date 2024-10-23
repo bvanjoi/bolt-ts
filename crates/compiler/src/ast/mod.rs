@@ -45,6 +45,26 @@ pub struct ClassDecl<'cx> {
     pub ty_params: Option<TyParams<'cx>>,
     pub extends: Option<&'cx HeritageClause<'cx>>,
     pub implements: Option<&'cx HeritageClauses<'cx>>,
+    pub eles: ClassEles<'cx>,
+}
+
+pub type ClassEles<'cx> = &'cx [&'cx ClassEle<'cx>];
+
+#[derive(Debug, Clone, Copy)]
+pub struct ClassEle<'cx> {
+    pub kind: ClassEleKind<'cx>,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub enum ClassEleKind<'cx> {
+    Prop(&'cx ClassPropEle<'cx>),
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct ClassPropEle<'cx> {
+    pub id: NodeID,
+    pub span: Span,
+    pub name: &'cx PropName<'cx>,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -111,28 +131,50 @@ pub struct VarStmt<'cx> {
 
 #[derive(Debug, Clone, Copy)]
 pub struct Expr<'cx> {
-    pub id: NodeID,
+    // pub id: NodeID,
     pub kind: ExprKind<'cx>,
 }
 
 impl Expr<'_> {
     pub fn span(&self) -> Span {
+        use ExprKind::*;
         match self.kind {
-            ExprKind::Bin(bin) => bin.span,
-            ExprKind::BoolLit(lit) => lit.span,
-            ExprKind::NumLit(lit) => lit.span,
-            ExprKind::NullLit(lit) => lit.span,
-            ExprKind::StringLit(lit) => lit.span,
-            ExprKind::Ident(ident) => ident.span,
-            ExprKind::ArrayLit(lit) => lit.span,
-            ExprKind::Omit(expr) => expr.span,
-            ExprKind::Paren(expr) => expr.span,
-            ExprKind::Cond(cond) => cond.span,
-            ExprKind::ObjectLit(lit) => lit.span,
-            ExprKind::Call(call) => call.span,
-            ExprKind::Fn(f) => f.span,
-            ExprKind::New(new) => new.span,
-            ExprKind::Assign(assign) => assign.span,
+            Bin(bin) => bin.span,
+            BoolLit(lit) => lit.span,
+            NumLit(lit) => lit.span,
+            NullLit(lit) => lit.span,
+            StringLit(lit) => lit.span,
+            Ident(ident) => ident.span,
+            ArrayLit(lit) => lit.span,
+            Omit(expr) => expr.span,
+            Paren(expr) => expr.span,
+            Cond(cond) => cond.span,
+            ObjectLit(lit) => lit.span,
+            Call(call) => call.span,
+            Fn(f) => f.span,
+            New(new) => new.span,
+            Assign(assign) => assign.span,
+        }
+    }
+
+    pub fn id(&self) -> NodeID {
+        use ExprKind::*;
+        match self.kind {
+            Bin(bin) => bin.id,
+            BoolLit(lit) => lit.id,
+            NumLit(lit) => lit.id,
+            NullLit(lit) => lit.id,
+            StringLit(lit) => lit.id,
+            Ident(ident) => ident.id,
+            ArrayLit(lit) => lit.id,
+            Omit(expr) => expr.id,
+            Paren(expr) => expr.id,
+            Cond(cond) => cond.id,
+            ObjectLit(lit) => lit.id,
+            Call(call) => call.id,
+            Fn(f) => f.id,
+            New(new) => new.id,
+            Assign(assign) => assign.id,
         }
     }
 }
@@ -343,7 +385,6 @@ pub struct OmitExpr {
 
 #[derive(Debug, Clone, Copy)]
 pub struct Ty<'cx> {
-    pub id: NodeID,
     pub kind: TyKind<'cx>,
 }
 
@@ -353,6 +394,14 @@ impl Ty<'_> {
             TyKind::Ident(ident) => ident.span,
             TyKind::Array(array) => array.span,
             TyKind::Fn(f) => f.span,
+        }
+    }
+
+    pub fn id(&self) -> NodeID {
+        match self.kind {
+            TyKind::Ident(node) => node.id,
+            TyKind::Array(node) => node.id,
+            TyKind::Fn(node) => node.id,
         }
     }
 }
@@ -381,7 +430,6 @@ pub struct ArrayTy<'cx> {
 
 #[derive(Debug, Clone, Copy)]
 pub struct PropName<'cx> {
-    pub id: NodeID,
     pub kind: PropNameKind<'cx>,
 }
 

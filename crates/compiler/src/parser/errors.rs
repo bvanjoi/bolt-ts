@@ -10,7 +10,7 @@ pub(crate) struct ClassesCanOnlyExtendASingleClass {
     #[label]
     pub span: Span,
     #[label("Classes can only extend a single class.")]
-    pub extra_extends: Span,
+    pub extra_extends: Option<Span>,
 }
 
 #[derive(Error, Diagnostic, Debug)]
