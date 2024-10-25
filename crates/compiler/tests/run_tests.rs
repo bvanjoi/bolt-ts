@@ -16,7 +16,9 @@ fn run_tests() {
                 &project_root,
                 case.file_stem().unwrap().to_str().unwrap(),
             );
-            std::fs::write(file_path.as_path(), output.output).unwrap();
+            std::fs::write(file_path.as_path(), &output.output).unwrap();
+            let expected_js_file_path = expect_test::expect_file![case.with_extension("js")];
+            expected_js_file_path.assert_eq(&output.output);
             if let Some(output) = run_node(&file_path) {
                 let expected_file_path = expect_test::expect_file![case.with_extension("out")];
                 expected_file_path.assert_eq(&output);
@@ -71,7 +73,7 @@ fn run_tests() {
         }
     };
     for case in cases.into_iter() {
-        if case.path().extension().map_or(false, |ext| ext == "stderr") {
+        if !case.path().extension().map_or(false, |ext| ext == "ts") {
             continue;
         }
         run(&case.path(), runner);
