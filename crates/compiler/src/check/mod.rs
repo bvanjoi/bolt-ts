@@ -2,11 +2,13 @@ mod get;
 mod relation;
 mod resolve;
 mod sig;
+mod symbol_links;
 mod utils;
 
 use rts_span::{ModuleID, Span};
 use rustc_hash::FxHashMap;
 use sig::Sig;
+use symbol_links::SymbolLinks;
 use utils::{get_assignment_kind, AssignmentKind};
 
 use self::relation::RelationKind;
@@ -22,23 +24,27 @@ use crate::{ast, errors, keyword, ty};
 pub struct TyChecker<'cx> {
     pub atoms: &'cx AtomMap<'cx>,
     pub diags: Vec<rts_errors::Diag>,
-    nodes: &'cx Nodes<'cx>,
-    node_parent_map: &'cx ParentMap,
     arena: &'cx bumpalo::Bump,
     next_ty_id: TyID,
     tys: FxHashMap<TyID, &'cx Ty<'cx>>,
     num_lit_tys: FxHashMap<u64, TyID>,
     intrinsic_tys: FxHashMap<AtomId, &'cx Ty<'cx>>,
-    boolean_ty: std::cell::OnceCell<&'cx Ty<'cx>>,
     type_name: FxHashMap<TyID, String>,
     type_symbol: FxHashMap<TyID, SymbolID>,
-    scope_id_parent_map: FxHashMap<ScopeID, Option<ScopeID>>,
-    node_id_to_scope_id: FxHashMap<ast::NodeID, ScopeID>,
-    node_id_to_sig: FxHashMap<ast::NodeID, Sig<'cx>>,
-    symbols: Symbols,
-    res: FxHashMap<(ScopeID, AtomId), SymbolID>,
-    final_res: FxHashMap<ast::NodeID, SymbolID>,
+    symbol_links: FxHashMap<SymbolID, SymbolLinks<'cx>>,
+    // === ast ===
+    nodes: &'cx Nodes<'cx>,
+    node_parent_map: &'cx ParentMap,
+    // === global ===
     global_tys: FxHashMap<TyID, &'cx Ty<'cx>>,
+    boolean_ty: std::cell::OnceCell<&'cx Ty<'cx>>,
+    // === resolver ===
+    scope_id_parent_map: &'cx FxHashMap<ScopeID, Option<ScopeID>>,
+    node_id_to_scope_id: &'cx FxHashMap<ast::NodeID, ScopeID>,
+    node_id_to_sig: FxHashMap<ast::NodeID, Sig<'cx>>,
+    symbols: &'cx Symbols,
+    res: &'cx FxHashMap<(ScopeID, AtomId), SymbolID>,
+    final_res: FxHashMap<ast::NodeID, SymbolID>,
 }
 
 macro_rules! intrinsic_type {
@@ -56,7 +62,7 @@ macro_rules! intrinsic_type {
 
 intrinsic_type!(
     (any_ty, keyword::IDENT_ANY, IntrinsicTyKind::Any),
-    (error_ty, keyword::IDENT_ERROR, IntrinsicTyKind::Undefined),
+    (error_ty, keyword::IDENT_ERROR, IntrinsicTyKind::Any),
     (void_ty, keyword::IDENT_VOID, IntrinsicTyKind::Void),
     (
         undefined_ty,
@@ -70,16 +76,26 @@ intrinsic_type!(
     (string_ty, keyword::IDENT_STRING, IntrinsicTyKind::String),
 );
 
+fn get_suggestion_boolean_op(op: &str) -> Option<&str> {
+    match op {
+        "^" | "^=" => Some("!=="),
+        "&" | "&=" => Some("&&"),
+        "|" | "|=" => Some("||"),
+        _ => None,
+    }
+}
+
 impl<'cx> TyChecker<'cx> {
     pub fn new(
         ty_arena: &'cx bumpalo::Bump,
         nodes: &'cx Nodes<'cx>,
         node_parent_map: &'cx ParentMap,
         atoms: &'cx AtomMap<'cx>,
-        scope_id_parent_map: FxHashMap<ScopeID, Option<ScopeID>>,
-        node_id_to_scope_id: FxHashMap<ast::NodeID, ScopeID>,
-        symbols: Symbols,
-        res: FxHashMap<(ScopeID, AtomId), SymbolID>,
+        scope_id_parent_map: &'cx FxHashMap<ScopeID, Option<ScopeID>>,
+        node_id_to_scope_id: &'cx FxHashMap<ast::NodeID, ScopeID>,
+        symbols: &'cx Symbols,
+        res: &'cx FxHashMap<(ScopeID, AtomId), SymbolID>,
+        final_res: FxHashMap<ast::NodeID, SymbolID>,
     ) -> Self {
         assert!(ty_arena.allocation_limit().is_none());
         let mut this = Self {
@@ -100,8 +116,9 @@ impl<'cx> TyChecker<'cx> {
             type_symbol: FxHashMap::default(),
             node_id_to_sig: FxHashMap::default(),
             res,
-            final_res: FxHashMap::default(),
+            final_res,
             global_tys: FxHashMap::default(),
+            symbol_links: FxHashMap::default(),
         };
         for (kind, ty_name) in INTRINSIC_TYPES {
             let ty = ty::TyKind::Intrinsic(ty_arena.alloc(ty::IntrinsicTy {
@@ -355,6 +372,8 @@ impl<'cx> TyChecker<'cx> {
     fn is_simple_type_related_to(&mut self, source: &'cx Ty<'cx>, target: &'cx Ty<'cx>) -> bool {
         if source.kind.is_number_like() && target.kind.is_number() {
             true
+        } else if source.kind.is_any() {
+            true
         } else {
             false
         }
@@ -369,7 +388,9 @@ impl<'cx> TyChecker<'cx> {
         if source.id == target.id {
             return true;
         }
-        if self.is_simple_type_related_to(source, target) {
+        if self.is_simple_type_related_to(source, target)
+            || self.is_simple_type_related_to(target, source)
+        {
             return true;
         }
         if source.kind.is_structured_or_instantiable()
@@ -382,17 +403,27 @@ impl<'cx> TyChecker<'cx> {
     }
 
     fn check_var_like_decl(&mut self, decl: &'cx ast::VarDecl) {
+        let symbol = self.get_symbol_of_decl(decl.id);
         let decl_ty = self.get_widened_ty_for_var_like_decl(decl);
+        let mut ty = decl_ty;
         if let Some(init) = decl.init {
             let init_ty = self.check_expr(init);
             if let Some(decl_ty) = decl_ty {
+                // let v: ty = init
                 self.check_type_assignable_to_and_optionally_elaborate(
                     decl.binding.span,
                     init_ty,
                     decl_ty,
                 );
             }
+            if ty.is_none() {
+                ty = Some(init_ty);
+            }
         }
+        let ty = ty.unwrap_or(self.undefined_ty());
+        self.symbol_links
+            .entry(symbol)
+            .or_insert(SymbolLinks { ty });
     }
 
     fn check_expr_with_contextual_ty(
@@ -430,11 +461,65 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
+    fn check_arithmetic_op_ty(
+        &mut self,
+        t: &'cx Ty<'cx>,
+        push_error: impl FnOnce(&mut Self),
+    ) -> &'cx Ty<'cx> {
+        if !self.is_type_assignable_to(t, self.number_ty()) {
+            push_error(self)
+        }
+        t
+    }
+
+    fn check_bin_expr_for_normal(
+        &mut self,
+        expr_span: Span,
+        left_ty: &'cx Ty<'cx>,
+        left_span: Span,
+        right_ty: &'cx Ty<'cx>,
+        right_span: Span,
+        op: &str,
+    ) -> &'cx Ty<'cx> {
+        assert!(matches!(op, "^" | "^=" | "&" | "&=" | "|" | "|="));
+        if left_ty.kind.is_boolean_like() && right_ty.kind.is_boolean_like() {
+            if let Some(sugg) = get_suggestion_boolean_op(op) {
+                let error = errors::TheOp1IsNotAllowedForBooleanTypesConsiderUsingOp2Instead {
+                    span: expr_span,
+                    op1: op.to_string(),
+                    op2: sugg.to_string(),
+                };
+                self.push_error(expr_span.module, Box::new(error));
+                return self.number_ty();
+            }
+        }
+
+        let left = self.check_arithmetic_op_ty(left_ty, |this| {
+            let error =
+                errors::TheSideOfAnArithmeticOperationMustBeOfTypeAnyNumberBigintOrAnEnumType {
+                    span: left_span,
+                    left_or_right: errors::LeftOrRight::Left,
+                };
+            this.push_error(left_span.module, Box::new(error));
+        });
+        let right = self.check_arithmetic_op_ty(right_ty, |this| {
+            let error =
+                errors::TheSideOfAnArithmeticOperationMustBeOfTypeAnyNumberBigintOrAnEnumType {
+                    span: right_span,
+                    left_or_right: errors::LeftOrRight::Right,
+                };
+            this.push_error(left_span.module, Box::new(error));
+        });
+
+        self.number_ty()
+    }
+
     fn check_assign_expr(&mut self, assign: &'cx ast::AssignExpr<'cx>) -> &'cx Ty<'cx> {
         let l = self.check_ident(assign.binding);
         let r = self.check_expr(assign.right);
         use ast::AssignOp::*;
         let ty = match assign.op {
+            Eq => self.undefined_ty(),
             AddEq => self.check_binary_like_expr_for_add(l, r),
             SubEq => self.undefined_ty(),
             MulEq => self.undefined_ty(),
@@ -443,9 +528,14 @@ impl<'cx> TyChecker<'cx> {
             ShlEq => self.undefined_ty(),
             ShrEq => self.undefined_ty(),
             UShrEq => self.undefined_ty(),
-            BitAndEq => self.undefined_ty(),
-            BitXorEq => self.undefined_ty(),
-            BitOrEq => self.undefined_ty(),
+            BitOrEq | BitAndEq | BitXorEq => self.check_bin_expr_for_normal(
+                assign.span,
+                l,
+                assign.binding.span,
+                r,
+                assign.right.span(),
+                assign.op.as_str(),
+            ),
         };
         // if ty.id == self.any_ty().id {
         //     let error = errors::CannotAssignToNameBecauseItIsATy {
@@ -501,7 +591,7 @@ impl<'cx> TyChecker<'cx> {
                     name: self.atoms.get(ident.name).to_string(),
                 };
                 self.push_error(ident.span.module, Box::new(error));
-                return self.error_ty()
+                return self.error_ty();
             }
             id => id,
         };
@@ -716,14 +806,8 @@ impl<'cx> TyChecker<'cx> {
 
         false
     }
-}
 
-struct Relation {}
-
-fn is_type_related_to(source: &Ty, target: &Ty, relation: &Relation) -> bool {
-    false
-}
-
-fn is_type_assignable_to(source: &Ty, target: &Ty) -> bool {
-    false
+    fn is_type_assignable_to(&mut self, source: &'cx Ty<'cx>, target: &'cx Ty<'cx>) -> bool {
+        self.is_type_related_to(source, target, RelationKind::Assignable)
+    }
 }

@@ -80,11 +80,9 @@ impl<'cx, 'a, 'p> ParserState<'cx, 'p> {
                 right,
                 span: self.new_span(start, right.span().hi as usize),
             });
-            // let expr_id = self.p.next_node_id();
             self.insert_map(bin_expr_id, ast::Node::BinExpr(bin_expr));
             let kind = ast::ExprKind::Bin(bin_expr);
             left = self.alloc(ast::Expr { kind });
-            // self.insert_map(expr_id, ast::Node::Expr(left));
         }
     }
 

@@ -3,7 +3,7 @@ mod symbol;
 use rustc_hash::FxHashMap;
 pub use symbol::{Symbol, SymbolID, SymbolKind, Symbols};
 
-use crate::ast::{self, BinExpr, NodeID};
+use crate::ast::{self, NodeID};
 use crate::atoms::{AtomId, AtomMap};
 use thin_vec::thin_vec;
 
@@ -18,6 +18,7 @@ pub struct Binder<'cx> {
     pub node_id_to_scope_id: FxHashMap<ast::NodeID, ScopeID>,
     pub symbols: Symbols,
     pub res: FxHashMap<(ScopeID, AtomId), SymbolID>,
+    pub final_res: FxHashMap<ast::NodeID, SymbolID>,
 }
 
 impl<'cx> Binder<'cx> {
@@ -31,13 +32,14 @@ impl<'cx> Binder<'cx> {
             max_scope_id: ScopeID::root(),
             scope_id_parent_map: FxHashMap::default(),
             res: FxHashMap::default(),
+            final_res: FxHashMap::default(),
             node_id_to_scope_id: FxHashMap::default(),
             symbol_id,
             symbols,
         }
     }
 
-    fn create_symbol(&mut self, name: AtomId, kind: SymbolKind) {
+    fn create_symbol(&mut self, name: AtomId, kind: SymbolKind) -> SymbolID {
         let id = self.symbol_id;
         self.symbol_id = self.symbol_id.next();
         let is_blocked_scope_var = matches!(kind, SymbolKind::BlockScopedVar);
@@ -50,6 +52,7 @@ impl<'cx> Binder<'cx> {
                 self.atoms.get(name)
             );
         }
+        id
     }
 
     fn connect(&mut self, node_id: NodeID) {
@@ -130,21 +133,31 @@ impl<'cx> Binder<'cx> {
                 self.bind_expr(bin.left);
                 self.bind_expr(bin.right);
             }
-            Assign(assign) => self.bind_ident(assign.binding),
+            Assign(assign) => {
+                self.bind_ident(assign.binding);
+                self.bind_expr(assign.right);
+            }
             _ => (),
         }
     }
 
     fn bind_var_stmt(&mut self, var: &'cx ast::VarStmt) {
         self.connect(var.id);
+        let kind = var.kind;
         for item in var.list {
-            self.bind_var_decl(item);
+            self.bind_var_decl(item, kind);
         }
     }
 
-    fn bind_var_decl(&mut self, decl: &'cx ast::VarDecl) {
+    fn bind_var_decl(&mut self, decl: &'cx ast::VarDecl, kind: ast::VarKind) {
         self.connect(decl.id);
-        self.create_symbol(decl.binding.name, SymbolKind::BlockScopedVar);
+        let kind = if kind == ast::VarKind::Let || kind == ast::VarKind::Const {
+            SymbolKind::FunctionScopedVar
+        } else {
+            SymbolKind::BlockScopedVar
+        };
+        let symbol = self.create_symbol(decl.binding.name, kind);
+        self.final_res.insert(decl.id, symbol);
         if let Some(init) = decl.init {
             self.bind_expr(init);
         }

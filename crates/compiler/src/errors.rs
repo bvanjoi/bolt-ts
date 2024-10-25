@@ -74,3 +74,41 @@ pub(crate) struct CannotAssignToNameBecauseItIsATy {
     pub name: String,
     pub ty: String,
 }
+
+#[derive(Error, Diagnostic, Debug)]
+#[error("The '{op1}' operator is not allowed for boolean types. Consider using '{op2}' instead.")]
+pub(crate) struct TheOp1IsNotAllowedForBooleanTypesConsiderUsingOp2Instead {
+    #[label]
+    pub span: Span,
+    pub op1: String,
+    pub op2: String,
+}
+
+#[derive(Clone, Copy, Debug)]
+pub(super) enum LeftOrRight {
+    Left,
+    Right,
+}
+
+impl LeftOrRight {
+    fn as_str(self) -> &'static str {
+        match self {
+            Self::Left => "left",
+            Self::Right => "right",
+        }
+    }
+}
+
+impl std::fmt::Display for LeftOrRight {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(self.as_str())
+    }
+}
+
+#[derive(Error, Diagnostic, Debug)]
+#[error("The {left_or_right}-hand side of an arithmetic operation must be of type 'any', 'number', 'bigint' or an enum type.")]
+pub(crate) struct TheSideOfAnArithmeticOperationMustBeOfTypeAnyNumberBigintOrAnEnumType {
+    #[label]
+    pub span: Span,
+    pub left_or_right: LeftOrRight,
+}

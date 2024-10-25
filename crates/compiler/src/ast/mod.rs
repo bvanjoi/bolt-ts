@@ -114,7 +114,7 @@ pub struct IfStmt<'cx> {
     pub else_then: Option<&'cx Stmt<'cx>>,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub enum VarKind {
     Var,
     Let,
@@ -200,6 +200,7 @@ pub enum ExprKind<'cx> {
 
 #[derive(Debug, Clone, Copy)]
 pub enum AssignOp {
+    Eq,
     AddEq,
     SubEq,
     MulEq,
@@ -217,6 +218,7 @@ impl AssignOp {
     pub fn as_str(self) -> &'static str {
         use AssignOp::*;
         match self {
+            Eq => "=",
             AddEq => "+=",
             SubEq => "-=",
             MulEq => "*=",

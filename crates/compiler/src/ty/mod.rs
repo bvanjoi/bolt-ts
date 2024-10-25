@@ -50,6 +50,15 @@ impl<'cx> TyKind<'cx> {
         matches!(self, TyKind::Union(_))
     }
 
+    pub fn is_any(&self) -> bool {
+        use TyKind::*;
+        if let Intrinsic(ty) = self {
+            matches!(ty.kind, IntrinsicTyKind::Any)
+        } else {
+            false
+        }
+    }
+
     pub fn is_number(&self) -> bool {
         use TyKind::*;
         if let Intrinsic(ty) = self {
