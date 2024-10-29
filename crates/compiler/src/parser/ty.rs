@@ -71,22 +71,16 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         let ret_ty = self
             .with_parent(id, Self::parse_arrow_fn_ret_type)?
             .unwrap();
-        let kind = self.with_parent(id, |this| {
-            let id = this.p.next_node_id();
-            let fn_ty = this.alloc(ast::FnTy {
-                id,
-                span: this.new_span(start as usize, this.pos),
-                params,
-                ret_ty,
-            });
-            this.insert_map(id, Node::FnTy(fn_ty));
-            fn_ty
-        });
-        let ty = self.alloc(ast::Ty {
+        let fn_ty = self.alloc(ast::FnTy {
             id,
-            kind: ast::TyKind::Fn(kind),
+            span: self.new_span(start as usize, self.pos),
+            params,
+            ret_ty,
         });
-        self.insert_map(id, Node::Ty(ty));
+        self.insert_map(id, Node::FnTy(fn_ty));
+        let ty = self.alloc(ast::Ty {
+            kind: ast::TyKind::Fn(fn_ty),
+        });
         Ok(ty)
     }
 
@@ -114,22 +108,16 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
                     todo!()
                 } else {
                     self.expect(TokenKind::RBracket)?;
-                    let array = self.with_parent(id, |this| {
-                        let id = this.p.next_node_id();
-                        this.p.parent_map.r#override(ty.id, id);
-                        let kind = this.alloc(ast::ArrayTy {
-                            id,
-                            span: this.new_span(ty.span().lo as usize, this.pos),
-                            ele: ty,
-                        });
-                        this.insert_map(id, Node::ArrayTy(kind));
-                        kind
-                    });
-                    let ty = self.alloc(ast::Ty {
+                    self.p.parent_map.r#override(ty.id(), id);
+                    let kind = self.alloc(ast::ArrayTy {
                         id,
-                        kind: ast::TyKind::Array(array),
+                        span: self.new_span(ty.span().lo as usize, self.pos),
+                        ele: ty,
                     });
-                    self.insert_map(id, Node::Ty(ty));
+                    self.insert_map(id, Node::ArrayTy(kind));
+                    let ty = self.alloc(ast::Ty {
+                        kind: ast::TyKind::Array(kind),
+                    });
                     Ok(ty)
                 }
             }
@@ -143,13 +131,10 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
                 todo!()
             }
             TokenKind::Ident => {
-                let id = self.p.next_node_id();
-                let ident = self.with_parent(id, |this| this.create_ident(true));
+                let ident = self.create_ident(true);
                 let ty = self.alloc(ast::Ty {
-                    id,
                     kind: ast::TyKind::Ident(ident),
                 });
-                self.insert_map(id, Node::Ty(ty));
                 Ok(ty)
             }
             TokenKind::LParen => self.parse_paren_ty(),

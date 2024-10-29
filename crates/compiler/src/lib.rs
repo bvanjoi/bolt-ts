@@ -45,6 +45,7 @@ pub fn eval_from(m: ModulePath) -> Output {
         node_id_to_scope_id,
         symbols,
         res,
+        final_res,
         ..
     } = binder;
 
@@ -55,10 +56,11 @@ pub fn eval_from(m: ModulePath) -> Output {
         &p.nodes,
         &p.parent_map,
         &p.atoms,
-        scope_id_parent_map,
-        node_id_to_scope_id,
-        symbols,
-        res,
+        &scope_id_parent_map,
+        &node_id_to_scope_id,
+        &symbols,
+        &res,
+        final_res,
     );
     c.check_program(root);
 
@@ -66,7 +68,7 @@ pub fn eval_from(m: ModulePath) -> Output {
     let mut emitter = emit::Emit::new(&c.atoms);
     let output = emitter.emit(root);
 
-    let diags = parse_diags.into_iter().chain(c.diags.into_iter()).collect();
+    let diags: Vec<_> = parse_diags.into_iter().chain(c.diags.into_iter()).collect();
     Output {
         module_arena,
         diags,

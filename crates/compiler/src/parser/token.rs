@@ -155,7 +155,7 @@ impl TokenKind {
             Plus => BinPrec::Additive,
             PipePipe => BinPrec::LogicalOr,
             AmpAmp => BinPrec::LogicalAnd,
-            Eq | EqEqEq => BinPrec::Eq,
+            EqEq | EqEqEq => BinPrec::Eq,
             _ => BinPrec::Invalid,
         }
     }
@@ -172,12 +172,8 @@ impl TokenKind {
             TokenKind::AsteriskEq => BinOpKind::Mul,
             TokenKind::Slash => BinOpKind::Div,
             TokenKind::SlashEq => BinOpKind::Div,
-            // TokenKind::Percent => BinOpKind::Mod,
-            // TokenKind::PercentEq => BinOpKind::Mod,
             TokenKind::Amp => BinOpKind::BitAnd,
             TokenKind::AmpAmp => BinOpKind::LogicalAnd,
-            // TokenKind::Caret => BinOpKind::BitXor,
-            // TokenKind::CaretEq => BinOpKind::BitXor,
             TokenKind::Less => BinOpKind::Less,
             TokenKind::LessEq => BinOpKind::LessEq,
             TokenKind::LessLess => BinOpKind::Shl,
@@ -185,14 +181,15 @@ impl TokenKind {
             TokenKind::GreatEq => BinOpKind::GreatEq,
             TokenKind::GreatGreat => BinOpKind::Shr,
             TokenKind::GreatGreatGreat => BinOpKind::UShr,
-            // TokenKind::BangEq => BinOpKind::Ne,
-            // TokenKind::BangEqEq => BinOpKind::Ne,
-            _ => unreachable!(),
+            _ => {
+                unreachable!("{:#?}", self)
+            }
         }
     }
 
     pub fn into_assign_op(self) -> AssignOp {
         match self {
+            TokenKind::Eq => AssignOp::Eq,
             TokenKind::PlusEq => AssignOp::AddEq,
             TokenKind::MinusEq => AssignOp::SubEq,
             TokenKind::AsteriskEq => AssignOp::MulEq,

@@ -42,11 +42,16 @@ impl ParentMap {
     }
 
     pub(super) fn insert(&mut self, id: NodeID, parent: NodeID) {
+        assert!(id.as_u32() > parent.as_u32());
         let prev = self.0.insert(id, parent);
         assert!(prev.is_none())
     }
 
     pub(super) fn r#override(&mut self, id: NodeID, parent: NodeID) {
+        assert!(
+            id.as_u32() < parent.as_u32(),
+            "id: {id:#?} and parent: {parent:#?}"
+        );
         let prev = self.0.insert(id, parent);
         assert!(prev.is_some())
     }
@@ -392,6 +397,7 @@ impl<'cx, 'a, 'p> ParserState<'cx, 'p> {
     }
 
     fn insert_map(&mut self, id: NodeID, node: Node<'cx>) {
+        assert!(id.as_u32() > self.parent.as_u32());
         self.p.nodes.insert(id, node);
         self.p.parent_map.insert(id, self.parent);
     }

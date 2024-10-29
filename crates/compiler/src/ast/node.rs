@@ -6,7 +6,7 @@ rts_span::new_index!(NodeID);
 pub enum Node<'cx> {
     Program(&'cx ast::Program<'cx>),
 
-    Stmt(&'cx ast::Stmt<'cx>),
+    // stmt
     VarStmt(&'cx ast::VarStmt<'cx>),
     ParamDecl(&'cx ast::ParamDecl<'cx>),
     FnDecl(&'cx ast::FnDecl<'cx>),
@@ -18,7 +18,7 @@ pub enum Node<'cx> {
     HeritageClauses(&'cx ast::HeritageClauses<'cx>),
     HeritageClause(&'cx ast::HeritageClause<'cx>),
 
-    Expr(&'cx ast::Expr<'cx>),
+    // expr
     VarDecl(&'cx ast::VarDecl<'cx>),
     BinExpr(&'cx ast::BinExpr<'cx>),
     NumLit(&'cx ast::NumLit),
@@ -30,7 +30,6 @@ pub enum Node<'cx> {
     OmitExpr(&'cx ast::OmitExpr),
     ParenExpr(&'cx ast::ParenExpr<'cx>),
     CondExpr(&'cx ast::CondExpr<'cx>),
-    PropName(&'cx ast::PropName<'cx>),
     ObjectMemberField(&'cx ast::ObjectMemberField<'cx>),
     ObjectLit(&'cx ast::ObjectLit<'cx>),
     CallExpr(&'cx ast::CallExpr<'cx>),
@@ -38,10 +37,9 @@ pub enum Node<'cx> {
     NewExpr(&'cx ast::NewExpr<'cx>),
     AssignExpr(&'cx ast::AssignExpr<'cx>),
 
-    Ty(&'cx ast::Ty<'cx>),
+    // ty
     ArrayTy(&'cx ast::ArrayTy<'cx>),
     FnTy(&'cx ast::FnTy<'cx>),
-
     TyParam(&'cx ast::TyParam<'cx>),
 }
 
@@ -50,14 +48,12 @@ impl Node<'_> {
         use Node::*;
         match self {
             Program(n) => n.id,
-            Stmt(n) => n.id,
             VarStmt(n) => n.id,
             ParamDecl(n) => n.id,
             FnDecl(n) => n.id,
             IfStmt(n) => n.id,
             RetStmt(n) => n.id,
             EmptyStmt(n) => n.id,
-            Expr(n) => n.id,
             VarDecl(n) => n.id,
             BinExpr(n) => n.id,
             NumLit(n) => n.id,
@@ -69,11 +65,9 @@ impl Node<'_> {
             OmitExpr(n) => n.id,
             ParenExpr(n) => n.id,
             CondExpr(n) => n.id,
-            PropName(n) => n.id,
             ObjectMemberField(n) => n.id,
             ObjectLit(n) => n.id,
             CallExpr(n) => n.id,
-            Ty(n) => n.id,
             ArrayTy(n) => n.id,
             FnTy(n) => n.id,
             ClassDecl(n) => n.id,

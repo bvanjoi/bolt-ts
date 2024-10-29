@@ -7,6 +7,9 @@ use crate::keyword;
 impl<'cx> TyChecker<'cx> {
     pub(super) fn get_type_of_symbol(&mut self, id: SymbolID) -> &'cx Ty<'cx> {
         use crate::bind::SymbolKind::*;
+        if let Some(links) = self.symbol_links.get(&id) {
+            return links.ty;
+        }
         let ty = match &self.symbols.get(id).kind {
             Err => return self.error_ty(),
             FunctionScopedVar => return self.undefined_ty(),
@@ -101,5 +104,12 @@ impl<'cx> TyChecker<'cx> {
     pub(super) fn get_union_type(&mut self, tys: &'cx [&'cx Ty<'cx>]) -> &'cx Ty<'cx> {
         let union = self.alloc(ty::UnionTy { tys });
         self.new_ty(TyKind::Union(union))
+    }
+
+    pub(super) fn get_symbol_of_decl(&mut self, id: ast::NodeID) -> SymbolID {
+        match self.nodes.get(id) {
+            ast::Node::VarDecl(decl) => *self.final_res.get(&decl.id).unwrap(),
+            _ => todo!(),
+        }
     }
 }
