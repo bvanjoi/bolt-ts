@@ -184,6 +184,7 @@ impl<'cx> TyChecker<'cx> {
             Return(ret) => self.check_return(ret),
             Empty(_) => {}
             Class(_) => {}
+            Interface(_) => {},
         };
     }
 

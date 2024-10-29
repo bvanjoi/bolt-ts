@@ -43,8 +43,11 @@ pub enum TokenKind {
     Else,
     Class,
     Extends,
-    Implements,
     New,
+    // ts keyword
+    Implements,
+    Interface,
+    Abstract,
     // =====
     EOF,
     Number,
@@ -225,8 +228,13 @@ impl TokenKind {
         self.is_start_of_left_hand_side_expr()
     }
 
+    fn is_ts_keyword(self) -> bool {
+        let u = self as u8;
+        u < (TokenKind::EOF as u8) && u >= (TokenKind::Implements as u8)
+    }
+
     pub fn is_binding_ident(self) -> bool {
-        matches!(self, TokenKind::Ident)
+        matches!(self, TokenKind::Ident) || self.is_ts_keyword()
     }
 
     pub fn is_binding_ident_or_private_ident_or_pat(self) -> bool {
@@ -288,6 +296,11 @@ impl TokenKind {
                 | GreatGreatEq
                 | GreatGreatGreatEq
         )
+    }
+
+    pub fn is_modifier_kind(self) -> bool {
+        use TokenKind::*;
+        matches!(self, Abstract | Const)
     }
 }
 

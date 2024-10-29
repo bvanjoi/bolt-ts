@@ -98,6 +98,7 @@ impl<'cx> Binder<'cx> {
                 }
             }
             Class(class) => self.bind_class(class),
+            Interface(_) => {},
         }
     }
 

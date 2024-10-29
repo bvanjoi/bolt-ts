@@ -11,6 +11,7 @@ impl<'cx, 'a, 'p> ParserState<'cx, 'p> {
             let kind = match this.token.kind {
                 Semi => ast::StmtKind::Empty(this.parse_empty_stmt()?),
                 Var | Let | Const => ast::StmtKind::Var(this.parse_var_stmt()),
+                Interface => ast::StmtKind::Interface(this.parse_interface_decl()?),
                 Function => ast::StmtKind::Fn(this.parse_fn_decl()?),
                 If => ast::StmtKind::If(this.parse_if_stmt()?),
                 LBrace => ast::StmtKind::Block(this.parse_block()?),
@@ -22,6 +23,25 @@ impl<'cx, 'a, 'p> ParserState<'cx, 'p> {
             Ok(stmt)
         })?;
         Ok(stmt)
+    }
+
+    fn parse_interface_decl(&mut self) -> PResult<&'cx ast::InterfaceDecl<'cx>> {
+        let id = self.p.next_node_id();
+        let start = self.token.start();
+        self.expect(TokenKind::Interface)?;
+        let name = self.with_parent(id, Self::parse_ident_name)?;
+        let ty_params = self.with_parent(id, Self::parse_ty_params)?;
+        let extends = self.with_parent(id, |this| this.parse_heritage_clauses(false))?;
+        let members = self.with_parent(id, Self::parse_object_ty_members)?;
+        let decl = self.alloc(ast::InterfaceDecl {
+            id,
+            name,
+            span: self.new_span(start as usize, self.pos),
+            // extends,
+            // ty_params,
+            members,
+        });
+        Ok(decl)
     }
 
     fn parse_class_prop_or_method(&mut self) -> PResult<&'cx ast::ClassEle<'cx>> {

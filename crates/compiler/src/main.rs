@@ -9,7 +9,7 @@ fn main_test() {
     // let sub = "tests/cases/compiler";
     // let cases = compile_test::fixtures(&project_root, sub);
     // for case in cases.into_iter() {
-    //     if case.path().extension().map_or(false, |ext| ext == "stderr") {
+    //     if case.path().extension().map_or(false, |ext| ext != "ts") {
     //         continue;
     //     }
     //     dbg!("eval {}", case.path().display());
@@ -20,7 +20,7 @@ fn main_test() {
     //     let output = eval_from(rts_span::ModulePath::Real(case.path().clone()));
     // }
 
-    let p = project_root.join("tests/cases/compiler/commentOnParameter1.ts");
+    let p = project_root.join("tests/cases/compiler/abstractIdentifierNameStrict.ts");
     let output = eval_from(rts_span::ModulePath::Real(p.clone()));
     if output.diags.is_empty() {
         let file_path =
