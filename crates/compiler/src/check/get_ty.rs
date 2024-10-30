@@ -80,6 +80,7 @@ impl<'cx> TyChecker<'cx> {
             }
             Array(array) => self.get_ty_from_array_node(array),
             Fn(_) => self.undefined_ty(),
+            Lit(_) => self.undefined_ty(),
         }
     }
 

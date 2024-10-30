@@ -40,6 +40,7 @@ pub enum Node<'cx> {
     // ty
     ArrayTy(&'cx ast::ArrayTy<'cx>),
     FnTy(&'cx ast::FnTy<'cx>),
+    LitTy(&'cx ast::LitTy<'cx>),
     TyParam(&'cx ast::TyParam<'cx>),
 }
 
@@ -74,10 +75,11 @@ impl Node<'_> {
             BlockStmt(n) => n.id,
             HeritageClauses(n) => n.id,
             HeritageClause(n) => n.id,
-            FnExpr(f) => f.id,
-            NewExpr(new) => new.id,
-            TyParam(param) => param.id,
-            AssignExpr(assign) => assign.id,
+            FnExpr(n) => n.id,
+            NewExpr(n) => n.id,
+            TyParam(n) => n.id,
+            AssignExpr(n) => n.id,
+            LitTy(n) => n.id,
         }
     }
 }

@@ -82,4 +82,25 @@ impl<'cx, 'a, 'p> ParserState<'cx, 'p> {
         });
         Ok(prop_name)
     }
+
+    pub(super) fn is_ident(&self) -> bool {
+        matches!(self.token.kind, TokenKind::Ident)
+    }
+
+    pub(super) fn next_token_is_ident(&mut self) -> PResult<bool> {
+        self.next_token();
+        Ok(self.is_ident())
+    }
+
+    pub(super) fn is_start_of_mapped_ty(&mut self) -> PResult<bool> {
+        self.next_token();
+        if self.token.kind == TokenKind::Plus || self.token.kind == TokenKind::Minus {
+            self.next_token();
+            // return self.token.kind == TokenKind::Readonly;
+            todo!()
+        }
+
+        // self.token.kind == TokenKind::LBracket && self.next_token_is_ident().unwrap_or_default() &&
+        todo!()
+    }
 }

@@ -351,10 +351,6 @@ impl<'cx, 'a, 'p> ParserState<'cx, 'p> {
         }
     }
 
-    fn is_ident(&self) -> bool {
-        matches!(self.token.kind, TokenKind::Ident)
-    }
-
     fn parse_ident_name(&mut self) -> PResult<&'cx ast::Ident> {
         Ok(self.create_ident(true))
     }

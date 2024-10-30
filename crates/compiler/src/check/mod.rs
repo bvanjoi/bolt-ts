@@ -1,4 +1,5 @@
-mod get;
+mod get_contextual_ty;
+mod get_ty;
 mod relation;
 mod resolve;
 mod sig;
@@ -184,7 +185,7 @@ impl<'cx> TyChecker<'cx> {
             Return(ret) => self.check_return(ret),
             Empty(_) => {}
             Class(_) => {}
-            Interface(_) => {},
+            Interface(_) => {}
         };
     }
 
@@ -558,7 +559,9 @@ impl<'cx> TyChecker<'cx> {
         ty
     }
 
-    fn check_object_lit(&mut self, lit: &'cx ast::ObjectLit) -> &'cx Ty<'cx> {
+    fn check_object_lit(&mut self, lit: &'cx ast::ObjectLit<'cx>) -> &'cx Ty<'cx> {
+        let ty = self.get_contextual_ty(lit.id);
+        for member in lit.members {}
         self.undefined_ty()
     }
 

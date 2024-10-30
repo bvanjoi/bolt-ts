@@ -127,20 +127,38 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
     }
 
     fn parse_non_array_ty(&mut self) -> PResult<&'cx ast::Ty<'cx>> {
+        use TokenKind::*;
         match self.token.kind {
-            TokenKind::True | TokenKind::False => {
+            True | False => {
                 todo!()
             }
-            TokenKind::Ident => {
+            Ident => {
                 let ident = self.create_ident(true);
                 let ty = self.alloc(ast::Ty {
                     kind: ast::TyKind::Ident(ident),
                 });
                 Ok(ty)
             }
-            TokenKind::LParen => self.parse_paren_ty(),
+            LParen => self.parse_paren_ty(),
+            LBrace => self.parse_ty_lit(),
             _ => todo!(),
         }
+    }
+
+    fn parse_ty_lit(&mut self) -> PResult<&'cx ast::Ty<'cx>> {
+        let start = self.token.start();
+        let id = self.p.next_node_id();
+        let members = self.with_parent(id, Self::parse_object_ty_members)?;
+        let kind = self.alloc(ast::LitTy {
+            id,
+            span: self.new_span(start as usize, self.pos),
+            members,
+        });
+        let ty = self.alloc(ast::Ty {
+            kind: ast::TyKind::Lit(kind),
+        });
+        self.insert_map(id, Node::LitTy(kind));
+        Ok(ty)
     }
 
     fn parse_paren_ty(&mut self) -> PResult<&'cx ast::Ty<'cx>> {
@@ -165,7 +183,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         let id = self.p.next_node_id();
         let start = self.token.start();
         let name = self.with_parent(id, Self::parse_prop_name)?;
-        let node = if self.token.kind == TokenKind::LParen {
+        let kind = if self.token.kind == TokenKind::LParen {
             let ty_params = self.with_parent(id, Self::parse_ty_params)?;
             let params = self.with_parent(id, Self::parse_params)?;
             let ret = self.with_parent(id, |this| this.parse_ret_ty(true))?;
@@ -177,11 +195,18 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
                 params,
                 ret,
             });
-            let kind = ast::ObjectTyMemberKind::Method(sig);
-            self.alloc(ast::ObjectTyMember { kind })
+            ast::ObjectTyMemberKind::Method(sig)
         } else {
-            todo!()
+            let ty = self.parse_ty_anno()?;
+            let sig = self.alloc(ast::PropSignature {
+                id,
+                span: self.new_span(start as usize, self.pos),
+                name,
+                ty,
+            });
+            ast::ObjectTyMemberKind::Prop(sig)
         };
+        let node = self.alloc(ast::ObjectTyMember { kind });
         self.parse_ty_member_semi();
         Ok(node)
     }

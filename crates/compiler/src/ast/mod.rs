@@ -28,7 +28,7 @@ pub enum StmtKind<'cx> {
     Fn(&'cx FnDecl<'cx>),
     Class(&'cx ClassDecl<'cx>),
     Expr(&'cx Expr<'cx>),
-    Interface(&'cx InterfaceDecl<'cx>)
+    Interface(&'cx InterfaceDecl<'cx>),
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -48,7 +48,16 @@ pub struct ObjectTyMember<'cx> {
 
 #[derive(Debug, Clone, Copy)]
 pub enum ObjectTyMemberKind<'cx> {
+    Prop(&'cx PropSignature<'cx>),
     Method(&'cx MethodSignature<'cx>),
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct PropSignature<'cx> {
+    pub id: NodeID,
+    pub span: Span,
+    pub name: &'cx PropName<'cx>,
+    pub ty: Option<&'cx self::Ty<'cx>>,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -57,10 +66,9 @@ pub struct MethodSignature<'cx> {
     pub span: Span,
     pub name: &'cx PropName<'cx>,
     pub ty_params: Option<TyParams<'cx>>,
-    pub params: ParamsDecl<'cx>, 
-    pub ret: Option<&'cx self::Ty<'cx>>
+    pub params: ParamsDecl<'cx>,
+    pub ret: Option<&'cx self::Ty<'cx>>,
 }
-
 
 #[derive(Debug, Clone, Copy)]
 pub struct BlockStmt<'cx> {
@@ -428,6 +436,7 @@ impl Ty<'_> {
             TyKind::Ident(ident) => ident.span,
             TyKind::Array(array) => array.span,
             TyKind::Fn(f) => f.span,
+            TyKind::Lit(lit) => lit.span,
         }
     }
 
@@ -436,6 +445,7 @@ impl Ty<'_> {
             TyKind::Ident(node) => node.id,
             TyKind::Array(node) => node.id,
             TyKind::Fn(node) => node.id,
+            TyKind::Lit(node) => node.id,
         }
     }
 }
@@ -445,6 +455,14 @@ pub enum TyKind<'cx> {
     Ident(&'cx Ident),
     Array(&'cx ArrayTy<'cx>),
     Fn(&'cx FnTy<'cx>),
+    Lit(&'cx LitTy<'cx>),
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct LitTy<'cx> {
+    pub id: NodeID,
+    pub span: Span,
+    pub members: ObjectTyMembers<'cx>,
 }
 
 #[derive(Debug, Clone, Copy)]

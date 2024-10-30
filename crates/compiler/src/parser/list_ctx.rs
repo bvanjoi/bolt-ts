@@ -60,7 +60,7 @@ fn is_ty_member_start(s: &mut ParserState) -> bool {
         s.next_token();
     }
 
-    id_token && matches!(s.token.kind, LParen)
+    id_token && matches!(s.token.kind, LParen | Less | Question | Colon | Comma)
 }
 
 pub struct TyMembers;
