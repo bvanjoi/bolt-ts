@@ -5,14 +5,19 @@ use crate::ast::NodeID;
 use crate::atoms::AtomId;
 use crate::keyword;
 
+#[derive(Debug, Clone, Copy, Hash, PartialEq, Eq)]
+pub enum SymbolName {
+    Normal(AtomId),
+}
+
 #[derive(Debug)]
 pub struct Symbol {
-    pub name: AtomId,
+    pub name: SymbolName,
     pub kind: SymbolKind,
 }
 
 impl Symbol {
-    pub fn new(name: AtomId, kind: SymbolKind) -> Self {
+    pub fn new(name: SymbolName, kind: SymbolKind) -> Self {
         Self { name, kind }
     }
 
@@ -28,13 +33,14 @@ pub enum SymbolKind {
     BlockScopedVar,
     Function(ThinVec<NodeID>),
     Class,
+    Property,
 }
 
 impl SymbolKind {
     pub fn is_variable(&self) -> bool {
         matches!(self, Self::FunctionScopedVar | Self::BlockScopedVar)
     }
-    
+
     pub fn as_str(&self) -> &'static str {
         match self {
             SymbolKind::Err => "err",
@@ -42,6 +48,7 @@ impl SymbolKind {
             SymbolKind::BlockScopedVar => todo!(),
             SymbolKind::Function(_) => "function",
             SymbolKind::Class => "class",
+            SymbolKind::Property => todo!(),
         }
     }
 }
@@ -54,7 +61,10 @@ impl Symbols {
     pub fn new(id: SymbolID) -> Self {
         assert_eq!(id, Symbol::ERR);
         let mut this = Self(FxHashMap::default());
-        this.insert(id, Symbol::new(keyword::IDENT_EMPTY, SymbolKind::Err));
+        this.insert(
+            id,
+            Symbol::new(SymbolName::Normal(keyword::IDENT_EMPTY), SymbolKind::Err),
+        );
         this
     }
 

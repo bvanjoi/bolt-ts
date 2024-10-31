@@ -112,3 +112,14 @@ pub(crate) struct TheSideOfAnArithmeticOperationMustBeOfTypeAnyNumberBigintOrAnE
     pub span: Span,
     pub left_or_right: LeftOrRight,
 }
+
+// #[derive(Error, Diagnostic, Debug)]
+// #[error(
+//     "Object literal may only specify known properties, and '{field}' does not exist in type '{ty}'."
+// )]
+// pub(crate) struct ObjectLitMayOnlySpecifyKnownPropAndFieldDoesNotExistInTypeY {
+//     #[label]
+//     pub span: Span,
+//     pub field: String,
+//     pub ty: String,
+// }
