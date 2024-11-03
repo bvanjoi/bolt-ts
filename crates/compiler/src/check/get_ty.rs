@@ -1,3 +1,5 @@
+use rustc_hash::FxHashMap;
+
 use super::ty::{self, Ty, TyKind};
 use super::TyChecker;
 use crate::ast;
@@ -16,6 +18,7 @@ impl<'cx> TyChecker<'cx> {
             BlockScopedVar => return self.undefined_ty(),
             Class => self.get_type_of_class_decl(id),
             Function(_) => self.get_type_of_func_decl(id),
+            Property => todo!(),
         };
         let prev = self.type_symbol.insert(ty.id, id);
         assert!(prev.is_none());
@@ -24,16 +27,16 @@ impl<'cx> TyChecker<'cx> {
 
     fn get_type_of_class_decl(&mut self, id: SymbolID) -> &'cx Ty<'cx> {
         let ty = self.alloc(ty::ClassTy {});
-        self.create_object_ty(ty::ObjectTyKind::Class(ty), id)
+        self.create_object_ty(ty::ObjectTyKind::Class(ty))
     }
 
     fn get_type_of_func_decl(&mut self, id: SymbolID) -> &'cx Ty<'cx> {
         let params = self.get_sig_of_symbol(id);
-        let ty = self.alloc(ty::AnonymousTy {
+        let ty = self.alloc(ty::FnTy {
             params,
             ret: self.undefined_ty(),
         });
-        self.create_object_ty(ty::ObjectTyKind::Anonymous(ty), id)
+        self.create_object_ty(ty::ObjectTyKind::Fn(ty))
     }
 
     fn get_sig_of_symbol(&mut self, id: SymbolID) -> &'cx [&'cx Ty<'cx>] {
@@ -44,6 +47,7 @@ impl<'cx> TyChecker<'cx> {
             BlockScopedVar => todo!(),
             Class => todo!(),
             Function(ids) => ids.clone(),
+            Property => todo!(),
         };
 
         for decl in decls {
@@ -60,7 +64,8 @@ impl<'cx> TyChecker<'cx> {
         todo!()
     }
 
-    pub(super) fn get_ty_from_type_node(&mut self, ty: &'cx ast::Ty) -> &'cx Ty<'cx> {
+    pub(super) fn get_ty_from_type_node(&mut self, ty: &'cx ast::Ty<'cx>) -> &'cx Ty<'cx> {
+        // TODO: cache
         use ast::TyKind::*;
         match ty.kind {
             Ident(ident) => {
@@ -80,6 +85,32 @@ impl<'cx> TyChecker<'cx> {
             }
             Array(array) => self.get_ty_from_array_node(array),
             Fn(_) => self.undefined_ty(),
+            Lit(lit) => {
+                let entires = lit.members.iter().filter_map(|member| {
+                    match member.kind {
+                        ast::ObjectTyMemberKind::Prop(prop) => {
+                            let Some(ty) = prop.ty else {
+                                // TODO:
+                                return None;
+                            };
+                            let member_ty = self.get_ty_from_type_node(ty);
+                            let name = match prop.name.kind {
+                                ast::PropNameKind::Ident(ident) => ident.name,
+                            };
+                            Some((name, member_ty))
+                        }
+                        ast::ObjectTyMemberKind::Method(_) => {
+                            // TODO:
+                            return None;
+                        }
+                    }
+                });
+                let map = FxHashMap::from_iter(entires);
+                let members = self.alloc(map);
+                self.create_object_ty(ty::ObjectTyKind::Lit(
+                    self.alloc(ty::ObjectLitTy { members }),
+                ))
+            }
         }
     }
 
@@ -104,12 +135,5 @@ impl<'cx> TyChecker<'cx> {
     pub(super) fn get_union_type(&mut self, tys: &'cx [&'cx Ty<'cx>]) -> &'cx Ty<'cx> {
         let union = self.alloc(ty::UnionTy { tys });
         self.new_ty(TyKind::Union(union))
-    }
-
-    pub(super) fn get_symbol_of_decl(&mut self, id: ast::NodeID) -> SymbolID {
-        match self.nodes.get(id) {
-            ast::Node::VarDecl(decl) => *self.final_res.get(&decl.id).unwrap(),
-            _ => todo!(),
-        }
     }
 }

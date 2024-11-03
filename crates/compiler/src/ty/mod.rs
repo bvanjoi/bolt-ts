@@ -2,6 +2,7 @@ mod facts;
 
 use crate::atoms::{AtomId, AtomMap};
 pub use facts::{has_type_facts, TypeFacts};
+use rustc_hash::FxHashMap;
 
 rts_span::new_index!(TyID);
 
@@ -115,7 +116,11 @@ impl<'cx> TyKind<'cx> {
     }
 
     pub fn is_structured(&self) -> bool {
-        self.is_union()
+        self.is_union() | self.is_object()
+    }
+
+    pub fn is_object(&self) -> bool {
+        matches!(self, TyKind::Object(_))
     }
 
     pub fn is_structured_or_instantiable(&self) -> bool {
@@ -139,11 +144,24 @@ impl<'cx> TyKind<'cx> {
         self.is_lit()
     }
 
-    pub fn as_anonymous(&self) -> Option<&'cx AnonymousTy<'cx>> {
+    pub fn as_fn(&self) -> Option<&'cx FnTy<'cx>> {
         use TyKind::*;
         if let Object(ty) = self {
-            if let ObjectTyKind::Anonymous(f) = ty.kind {
+            if let ObjectTyKind::Fn(f) = ty.kind {
                 Some(f)
+            } else {
+                None
+            }
+        } else {
+            None
+        }
+    }
+
+    pub fn as_object_lit(&self) -> Option<&'cx ObjectLitTy<'cx>> {
+        use TyKind::*;
+        if let Object(ty) = self {
+            if let ObjectTyKind::Lit(object) = ty.kind {
+                Some(object)
             } else {
                 None
             }
@@ -225,14 +243,16 @@ pub struct ObjectTy<'cx> {
 #[derive(Debug, Clone, Copy)]
 pub enum ObjectTyKind<'cx> {
     Class(&'cx ClassTy),
-    Anonymous(&'cx AnonymousTy<'cx>),
+    Fn(&'cx FnTy<'cx>),
+    Lit(&'cx ObjectLitTy<'cx>),
 }
 
 impl ObjectTyKind<'_> {
     fn as_str(&self) -> &'static str {
         match self {
             ObjectTyKind::Class(_) => "class",
-            ObjectTyKind::Anonymous(_) => "function",
+            ObjectTyKind::Fn(_) => "function",
+            ObjectTyKind::Lit(_) => "Object",
         }
     }
 }
@@ -241,7 +261,12 @@ impl ObjectTyKind<'_> {
 pub struct ClassTy {}
 
 #[derive(Debug, Clone, Copy)]
-pub struct AnonymousTy<'cx> {
+pub struct ObjectLitTy<'cx> {
+    pub members: &'cx FxHashMap<AtomId, &'cx Ty<'cx>>,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct FnTy<'cx> {
     pub params: &'cx [&'cx Ty<'cx>],
     pub ret: &'cx Ty<'cx>,
 }

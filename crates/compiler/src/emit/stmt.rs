@@ -13,6 +13,7 @@ impl<'cx> Emit<'cx> {
             Return(ret) => self.emit_ret_stmt(ret),
             Empty(_) => {}
             Class(class) => self.emit_class_decl(class),
+            Interface(_) => {},
         }
     }
 

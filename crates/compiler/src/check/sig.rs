@@ -1,6 +1,6 @@
-use crate::{ast, bind::SymbolID};
-
+use super::ast;
 use super::TyChecker;
+use crate::bind::{SymbolID, SymbolName};
 
 bitflags::bitflags! {
     #[derive(Debug, Clone, Copy)]
@@ -69,7 +69,7 @@ fn get_sig_from_decl<'cx>(checker: &TyChecker<'cx>, node: ast::Node<'cx>) -> Sig
     let mut params = Vec::with_capacity(8);
     for (i, param) in decl.params().iter().enumerate() {
         let scope_id = checker.node_id_to_scope_id[&param.id];
-        let symbol = checker.res[&(scope_id, param.name.name)];
+        let symbol = checker.res[&(scope_id, SymbolName::Normal(param.name.name))];
         params.push(symbol);
         let is_opt = param.question.is_some() || param.dotdotdot.is_some();
         if !is_opt {

@@ -1,4 +1,6 @@
-mod get;
+mod get_contextual_ty;
+mod get_symbol;
+mod get_ty;
 mod relation;
 mod resolve;
 mod sig;
@@ -16,7 +18,7 @@ pub use self::resolve::ExpectedArgsCount;
 
 use crate::ast::{BinOp, ExprKind};
 use crate::atoms::{AtomId, AtomMap};
-use crate::bind::{ScopeID, Symbol, SymbolID, Symbols};
+use crate::bind::{ScopeID, Symbol, SymbolID, SymbolName, Symbols};
 use crate::parser::{Nodes, ParentMap};
 use crate::ty::{has_type_facts, IntrinsicTyKind, ObjectTyKind, Ty, TyID, TyKind, TypeFacts, Tys};
 use crate::{ast, errors, keyword, ty};
@@ -43,7 +45,7 @@ pub struct TyChecker<'cx> {
     node_id_to_scope_id: &'cx FxHashMap<ast::NodeID, ScopeID>,
     node_id_to_sig: FxHashMap<ast::NodeID, Sig<'cx>>,
     symbols: &'cx Symbols,
-    res: &'cx FxHashMap<(ScopeID, AtomId), SymbolID>,
+    res: &'cx FxHashMap<(ScopeID, SymbolName), SymbolID>,
     final_res: FxHashMap<ast::NodeID, SymbolID>,
 }
 
@@ -94,7 +96,7 @@ impl<'cx> TyChecker<'cx> {
         scope_id_parent_map: &'cx FxHashMap<ScopeID, Option<ScopeID>>,
         node_id_to_scope_id: &'cx FxHashMap<ast::NodeID, ScopeID>,
         symbols: &'cx Symbols,
-        res: &'cx FxHashMap<(ScopeID, AtomId), SymbolID>,
+        res: &'cx FxHashMap<(ScopeID, SymbolName), SymbolID>,
         final_res: FxHashMap<ast::NodeID, SymbolID>,
     ) -> Self {
         assert!(ty_arena.allocation_limit().is_none());
@@ -184,6 +186,7 @@ impl<'cx> TyChecker<'cx> {
             Return(ret) => self.check_return(ret),
             Empty(_) => {}
             Class(_) => {}
+            Interface(_) => {}
         };
     }
 
@@ -331,7 +334,7 @@ impl<'cx> TyChecker<'cx> {
         if source.kind.is_union_or_intersection() || target.kind.is_union_or_intersection() {
             self.union_or_intersection_related_to(source, target)
         } else {
-            todo!()
+            true
         }
     }
 
@@ -363,10 +366,39 @@ impl<'cx> TyChecker<'cx> {
         if source.kind.is_structured_or_instantiable()
             || target.kind.is_structured_or_instantiable()
         {
+            let is_performing_excess_property_check = source.kind.is_object();
+            if is_performing_excess_property_check && self.has_excess_properties(source, target) {
+                return false;
+            }
             self.recur_related_to(source, target)
         } else {
             false
         }
+    }
+
+    fn has_excess_properties(&mut self, source: &'cx Ty<'cx>, target: &'cx Ty<'cx>) -> bool {
+        let source_kind = source.kind;
+        let Some(source) = source_kind.as_object_lit() else {
+            unreachable!()
+        };
+        let Some(target) = target.kind.as_object_lit() else {
+            return false;
+        };
+        for (name, atoms) in source.members {
+            if target.members.contains_key(name) {
+                continue;
+            } else {
+                return true;
+                // let field = self.atoms.get(*name).to_string();
+                // let error = errors::ObjectLitMayOnlySpecifyKnownPropAndFieldDoesNotExistInTypeY {
+                //     span: ,
+                //     field,
+                //     ty: source_kind.to_string(self.atoms),
+                // };
+            }
+        }
+
+        return false;
     }
 
     fn is_simple_type_related_to(&mut self, source: &'cx Ty<'cx>, target: &'cx Ty<'cx>) -> bool {
@@ -393,6 +425,7 @@ impl<'cx> TyChecker<'cx> {
         {
             return true;
         }
+
         if source.kind.is_structured_or_instantiable()
             || target.kind.is_structured_or_instantiable()
         {
@@ -557,8 +590,21 @@ impl<'cx> TyChecker<'cx> {
         ty
     }
 
-    fn check_object_lit(&mut self, lit: &'cx ast::ObjectLit) -> &'cx Ty<'cx> {
-        self.undefined_ty()
+    fn check_object_lit(&mut self, lit: &'cx ast::ObjectLit<'cx>) -> &'cx Ty<'cx> {
+        // let ty = self.get_contextual_ty(lit.id);
+        let entires = lit.members.iter().map(|member| {
+            // let member = self.get_symbol_of_decl(decl.id);
+            let member_ty = self.check_expr(member.value);
+            let name = match member.name.kind {
+                ast::PropNameKind::Ident(ident) => ident.name,
+            };
+            (name, member_ty)
+        });
+        let map = FxHashMap::from_iter(entires);
+        let members = self.alloc(map);
+        self.create_object_ty(ty::ObjectTyKind::Lit(
+            self.alloc(ty::ObjectLitTy { members }),
+        ))
     }
 
     fn check_cond(&mut self, cond: &'cx ast::CondExpr) -> &'cx Ty<'cx> {
@@ -614,7 +660,7 @@ impl<'cx> TyChecker<'cx> {
         ty
     }
 
-    fn create_object_ty(&mut self, ty: ObjectTyKind<'cx>, symbol: SymbolID) -> &'cx Ty<'cx> {
+    fn create_object_ty(&mut self, ty: ObjectTyKind<'cx>) -> &'cx Ty<'cx> {
         let kind = TyKind::Object(self.alloc(ty::ObjectTy { kind: ty }));
         self.new_ty(kind)
     }

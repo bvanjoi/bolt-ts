@@ -20,8 +20,11 @@ keyword!(
     (KW_ELSE: "else"),
     (KW_CLASS: "class"),
     (KW_EXTENDS: "extends"),
-    (KW_IMPLEMENTS: "implements"),
     (KW_NEW: "new"),
+    // ts keywords
+    (KW_IMPLEMENTS: "implements"),
+    (KW_INTERFACE: "interface"),
+    (KW_ABSTRACT: "abstract"),
 );
 
 macro_rules! ident {

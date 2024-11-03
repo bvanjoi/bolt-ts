@@ -39,6 +39,41 @@ impl ListContext for ObjectLitMembers {
     }
 }
 
+fn is_ty_member_start(s: &mut ParserState) -> bool {
+    use TokenKind::*;
+    if s.token.kind == LParen {
+        return true;
+    }
+
+    let mut id_token = false;
+    while s.token.kind.is_modifier_kind() {
+        id_token = true;
+        s.next_token();
+    }
+
+    if s.token.kind == LBracket {
+        return true;
+    }
+
+    if s.token.kind.is_lit_prop_name() {
+        id_token = true;
+        s.next_token();
+    }
+
+    id_token && matches!(s.token.kind, LParen | Less | Question | Colon | Comma)
+}
+
+pub struct TyMembers;
+impl ListContext for TyMembers {
+    fn is_ele(s: &mut ParserState) -> bool {
+        s.lookahead(is_ty_member_start)
+    }
+
+    fn is_closing(s: &mut ParserState) -> bool {
+        matches!(s.token.kind, TokenKind::RBrace)
+    }
+}
+
 pub struct Params;
 impl ListContext for Params {
     fn is_ele(s: &mut ParserState) -> bool {

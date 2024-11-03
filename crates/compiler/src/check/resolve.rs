@@ -3,7 +3,7 @@ use std::usize;
 use rts_span::Span;
 
 use super::{relation::RelationKind, sig::Sig, TyChecker};
-use crate::bind::{Symbol, SymbolID};
+use crate::bind::{Symbol, SymbolID, SymbolName};
 use crate::ty::{self, Ty};
 use crate::{ast, errors};
 
@@ -25,7 +25,7 @@ impl std::fmt::Display for ExpectedArgsCount {
 impl<'cx> TyChecker<'cx> {
     fn get_ty_at_pos(
         &self,
-        f: &'cx ty::AnonymousTy<'cx>,
+        f: &'cx ty::FnTy<'cx>,
         sig: &Sig<'cx>,
         pos: usize,
     ) -> Option<&'cx ty::Ty<'cx>> {
@@ -45,9 +45,7 @@ impl<'cx> TyChecker<'cx> {
 
     pub(super) fn resolve_call_expr(&mut self, expr: &'cx ast::CallExpr<'cx>) -> &'cx Ty<'cx> {
         let fn_ty = self.check_expr(expr.expr);
-        let Some(f) = fn_ty.kind.as_anonymous() else {
-            todo!()
-        };
+        let Some(f) = fn_ty.kind.as_fn() else { todo!() };
         let symbol = self.type_symbol[&fn_ty.id];
 
         use crate::bind::SymbolKind::*;
@@ -57,6 +55,7 @@ impl<'cx> TyChecker<'cx> {
             BlockScopedVar => todo!(),
             Function(fs) => fs,
             Class => todo!(),
+            Property => todo!(),
         };
         let fs = fs.clone();
 
@@ -168,7 +167,11 @@ fn resolve_symbol_by_ident(checker: &TyChecker, ident: &ast::Ident) -> SymbolID 
         return Symbol::ERR;
     };
     let res = loop {
-        if let Some(id) = checker.res.get(&(scope_id, name)).copied() {
+        if let Some(id) = checker
+            .res
+            .get(&(scope_id, SymbolName::Normal(name)))
+            .copied()
+        {
             break id;
         }
         if let Some(parent) = checker.scope_id_parent_map[&scope_id] {
