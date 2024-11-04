@@ -17,8 +17,9 @@ impl<'cx> TyChecker<'cx> {
             FunctionScopedVar => return self.undefined_ty(),
             BlockScopedVar => return self.undefined_ty(),
             Class => self.get_type_of_class_decl(id),
-            Function(_) => self.get_type_of_func_decl(id),
-            Property => todo!(),
+            Function { .. } => self.get_type_of_func_decl(id),
+            Object { .. } => return self.undefined_ty(),
+            Property => return self.undefined_ty(),
         };
         let prev = self.type_symbol.insert(ty.id, id);
         assert!(prev.is_none());
@@ -43,10 +44,11 @@ impl<'cx> TyChecker<'cx> {
         use crate::bind::SymbolKind::*;
         let decls = match &self.symbols.get(id).kind {
             Err => todo!(),
+            Function { decls: ids } => ids.clone(),
             FunctionScopedVar => todo!(),
             BlockScopedVar => todo!(),
             Class => todo!(),
-            Function(ids) => ids.clone(),
+            Object { .. } => todo!(),
             Property => todo!(),
         };
 
@@ -107,9 +109,10 @@ impl<'cx> TyChecker<'cx> {
                 });
                 let map = FxHashMap::from_iter(entires);
                 let members = self.alloc(map);
-                self.create_object_ty(ty::ObjectTyKind::Lit(
-                    self.alloc(ty::ObjectLitTy { members }),
-                ))
+                self.create_object_ty(ty::ObjectTyKind::Lit(self.alloc(ty::ObjectLitTy {
+                    members,
+                    symbol: SymbolID::root(), // FIXME: use correct symbol
+                })))
             }
         }
     }

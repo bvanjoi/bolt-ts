@@ -1,6 +1,7 @@
 mod facts;
 
 use crate::atoms::{AtomId, AtomMap};
+use crate::bind::SymbolID;
 pub use facts::{has_type_facts, TypeFacts};
 use rustc_hash::FxHashMap;
 
@@ -263,6 +264,7 @@ pub struct ClassTy {}
 #[derive(Debug, Clone, Copy)]
 pub struct ObjectLitTy<'cx> {
     pub members: &'cx FxHashMap<AtomId, &'cx Ty<'cx>>,
+    pub symbol: SymbolID,
 }
 
 #[derive(Debug, Clone, Copy)]

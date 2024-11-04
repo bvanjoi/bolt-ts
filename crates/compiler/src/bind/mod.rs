@@ -1,11 +1,11 @@
+mod create;
 mod symbol;
 
 use rustc_hash::FxHashMap;
 pub use symbol::{Symbol, SymbolID, SymbolKind, SymbolName, Symbols};
 
 use crate::ast::{self, NodeID};
-use crate::atoms::{AtomId, AtomMap};
-use thin_vec::thin_vec;
+use crate::atoms::AtomMap;
 
 rts_span::new_index!(ScopeID);
 
@@ -37,21 +37,6 @@ impl<'cx> Binder<'cx> {
             symbol_id,
             symbols,
         }
-    }
-
-    fn create_symbol(&mut self, name: SymbolName, kind: SymbolKind) -> SymbolID {
-        let id = self.symbol_id;
-        self.symbol_id = self.symbol_id.next();
-        let is_blocked_scope_var = matches!(kind, SymbolKind::BlockScopedVar);
-        self.symbols.insert(id, Symbol::new(name, kind));
-        let prev = self.res.insert((self.scope_id, name), id);
-        if !is_blocked_scope_var {
-            let name = match name {
-                SymbolName::Normal(atom_id) => self.atoms.get(atom_id),
-            };
-            assert!(prev.is_none(), "`{name:#?}` is a duplicate symbol ");
-        }
-        id
     }
 
     fn connect(&mut self, node_id: NodeID) {
@@ -103,7 +88,7 @@ impl<'cx> Binder<'cx> {
 
     fn bind_class(&mut self, class: &'cx ast::ClassDecl<'cx>) {
         self.connect(class.id);
-        self.create_symbol(SymbolName::Normal(class.name.name), SymbolKind::Class);
+        self.create_class_decl(class);
     }
 
     fn bind_block_stmt(&mut self, block: &'cx ast::BlockStmt<'cx>) {
@@ -138,21 +123,41 @@ impl<'cx> Binder<'cx> {
                 self.bind_expr(assign.right);
             }
             ObjectLit(lit) => self.bind_object_lit(lit),
+            ArrayLit(lit) => self.bind_array_lit(lit),
+            Cond(cond) => self.bind_cond_expr(cond),
             _ => (),
         }
     }
 
-    fn bind_object_lit(&mut self, lit: &'cx ast::ObjectLit) {
+    fn bind_cond_expr(&mut self, cond: &'cx ast::CondExpr<'cx>) {
+        self.bind_expr(cond.cond);
+        self.bind_expr(cond.when_true);
+        self.bind_expr(cond.when_false);
+    }
+
+    fn bind_array_lit(&mut self, lit: &'cx ast::ArrayLit<'cx>) {
+        for expr in lit.elems {
+            self.bind_expr(expr);
+        }
+    }
+
+    fn bind_object_lit(&mut self, lit: &'cx ast::ObjectLit<'cx>) {
         let old = self.scope_id;
         self.scope_id = self.new_scope();
-        for member in lit.members {
-            let name = match member.name.kind {
-                ast::PropNameKind::Ident(ident) => SymbolName::Normal(ident.name),
-            };
-            let symbol = self.create_symbol(name, SymbolKind::Property);
-            self.final_res.insert(member.id, symbol);
-        }
+        let members = lit
+            .members
+            .iter()
+            .map(|member| {
+                let name = match member.name.kind {
+                    ast::PropNameKind::Ident(ident) => SymbolName::Normal(ident.name),
+                };
+                let symbol = self.create_object_member_symbol(name, member);
+                self.final_res.insert(member.id, symbol);
+                (name, symbol)
+            })
+            .collect();
         self.scope_id = old;
+        self.create_object_lit_symbol(lit, members);
     }
 
     fn bind_var_stmt(&mut self, var: &'cx ast::VarStmt) {
@@ -163,33 +168,16 @@ impl<'cx> Binder<'cx> {
         }
     }
 
-    fn bind_var_decl(&mut self, decl: &'cx ast::VarDecl, kind: ast::VarKind) {
+    fn bind_var_decl(&mut self, decl: &'cx ast::VarDecl<'cx>, kind: ast::VarKind) {
         self.connect(decl.id);
         let kind = if kind == ast::VarKind::Let || kind == ast::VarKind::Const {
             SymbolKind::FunctionScopedVar
         } else {
             SymbolKind::BlockScopedVar
         };
-        let symbol = self.create_symbol(SymbolName::Normal(decl.binding.name), kind);
-        self.final_res.insert(decl.id, symbol);
+        self.create_var_decl(decl, kind);
         if let Some(init) = decl.init {
             self.bind_expr(init);
-        }
-    }
-
-    fn create_fn_symbol(&mut self, name: AtomId, id: NodeID) {
-        let name = SymbolName::Normal(name);
-        if let Some(s) = self.res.get(&(self.scope_id, name)).copied() {
-            let symbol = self.symbols.get_mut(s);
-            match &mut symbol.kind {
-                SymbolKind::Function(vec) => {
-                    assert!(!vec.is_empty());
-                    vec.push(id)
-                }
-                _ => unreachable!(),
-            }
-        } else {
-            self.create_symbol(name, SymbolKind::Function(thin_vec::thin_vec![id]));
         }
     }
 
@@ -201,15 +189,12 @@ impl<'cx> Binder<'cx> {
 
     fn bind_param(&mut self, param: &'cx ast::ParamDecl) {
         self.connect(param.id);
-        self.create_symbol(
-            SymbolName::Normal(param.name.name),
-            SymbolKind::FunctionScopedVar,
-        );
+        self.create_var_symbol(param.name.name, SymbolKind::FunctionScopedVar);
     }
 
-    fn bind_fn_decl(&mut self, f: &'cx ast::FnDecl) {
+    fn bind_fn_decl(&mut self, f: &'cx ast::FnDecl<'cx>) {
         self.connect(f.id);
-        self.create_fn_symbol(f.name.name, f.id);
+        self.create_fn_symbol(f);
 
         let old = self.scope_id;
         self.scope_id = self.new_scope();

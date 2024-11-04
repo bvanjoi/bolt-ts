@@ -8,6 +8,17 @@ use crate::keyword;
 #[derive(Debug, Clone, Copy, Hash, PartialEq, Eq)]
 pub enum SymbolName {
     Normal(AtomId),
+    Array,
+    Object,
+}
+
+impl SymbolName {
+    pub fn expect_atom(&self) -> AtomId {
+        match self {
+            SymbolName::Normal(atom) => *atom,
+            _ => unreachable!(),
+        }
+    }
 }
 
 #[derive(Debug)]
@@ -31,9 +42,20 @@ pub enum SymbolKind {
     FunctionScopedVar,
     /// `let` or `const`
     BlockScopedVar,
-    Function(ThinVec<NodeID>),
+    Function {
+        decls: ThinVec<NodeID>,
+    },
     Class,
-    Property,
+    Property {
+        decl: NodeID,
+    },
+    Object(ObjectSymbol),
+}
+
+#[derive(Debug)]
+pub struct ObjectSymbol {
+    pub decl: NodeID,
+    pub members: FxHashMap<SymbolName, SymbolID>,
 }
 
 impl SymbolKind {
@@ -46,9 +68,24 @@ impl SymbolKind {
             SymbolKind::Err => "err",
             SymbolKind::FunctionScopedVar => todo!(),
             SymbolKind::BlockScopedVar => todo!(),
-            SymbolKind::Function(_) => "function",
+            SymbolKind::Function { .. } => "function",
             SymbolKind::Class => "class",
-            SymbolKind::Property => todo!(),
+            SymbolKind::Property { .. } => todo!(),
+            SymbolKind::Object { .. } => todo!(),
+        }
+    }
+
+    pub fn expect_object(&self) -> &ObjectSymbol {
+        match self {
+            SymbolKind::Object(symbol) => symbol,
+            _ => unreachable!(),
+        }
+    }
+
+    pub fn expect_prop(&self) -> NodeID {
+        match self {
+            SymbolKind::Property { decl } => *decl,
+            _ => unreachable!(),
         }
     }
 }

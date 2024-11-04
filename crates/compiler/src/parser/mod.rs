@@ -399,6 +399,7 @@ impl<'cx, 'a, 'p> ParserState<'cx, 'p> {
     }
 
     pub fn parse(&mut self) -> &'cx ast::Program<'cx> {
+        let start = self.pos;
         let id = self.p.next_node_id();
         self.with_parent(id, |this| {
             this.next_token();
@@ -408,7 +409,11 @@ impl<'cx, 'a, 'p> ParserState<'cx, 'p> {
                     stmts.push(stmt);
                 }
             }
-            let program = this.alloc(ast::Program { id, stmts });
+            let program = this.alloc(ast::Program {
+                id,
+                stmts,
+                span: this.new_span(start, this.pos),
+            });
             this.p.nodes.insert(id, Node::Program(program));
             program
         })

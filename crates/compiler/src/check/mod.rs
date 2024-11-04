@@ -368,7 +368,7 @@ impl<'cx> TyChecker<'cx> {
         {
             let is_performing_excess_property_check = source.kind.is_object();
             if is_performing_excess_property_check && self.has_excess_properties(source, target) {
-                return false;
+                return true;
             }
             self.recur_related_to(source, target)
         } else {
@@ -377,24 +377,28 @@ impl<'cx> TyChecker<'cx> {
     }
 
     fn has_excess_properties(&mut self, source: &'cx Ty<'cx>, target: &'cx Ty<'cx>) -> bool {
-        let source_kind = source.kind;
-        let Some(source) = source_kind.as_object_lit() else {
+        let Some(source) = source.kind.as_object_lit() else {
             unreachable!()
         };
         let Some(target) = target.kind.as_object_lit() else {
             return false;
         };
-        for (name, atoms) in source.members {
-            if target.members.contains_key(name) {
+        for (name, symbol) in &self.symbols.get(source.symbol).kind.expect_object().members {
+            let name = name.expect_atom();
+            if target.members.contains_key(&name) {
                 continue;
             } else {
+                let span = self
+                    .nodes
+                    .get(self.symbols.get(*symbol).kind.expect_prop())
+                    .span();
+                let field = self.atoms.get(name).to_string();
+                let error = errors::ObjectLitMayOnlySpecifyKnownPropAndFieldDoesNotExistInTypeY {
+                    span,
+                    field,
+                };
+                self.push_error(span.module, Box::new(error));
                 return true;
-                // let field = self.atoms.get(*name).to_string();
-                // let error = errors::ObjectLitMayOnlySpecifyKnownPropAndFieldDoesNotExistInTypeY {
-                //     span: ,
-                //     field,
-                //     ty: source_kind.to_string(self.atoms),
-                // };
             }
         }
 
@@ -593,7 +597,7 @@ impl<'cx> TyChecker<'cx> {
     fn check_object_lit(&mut self, lit: &'cx ast::ObjectLit<'cx>) -> &'cx Ty<'cx> {
         // let ty = self.get_contextual_ty(lit.id);
         let entires = lit.members.iter().map(|member| {
-            // let member = self.get_symbol_of_decl(decl.id);
+            // let member_symbol = self.get_symbol_of_decl(member.id);
             let member_ty = self.check_expr(member.value);
             let name = match member.name.kind {
                 ast::PropNameKind::Ident(ident) => ident.name,
@@ -602,9 +606,13 @@ impl<'cx> TyChecker<'cx> {
         });
         let map = FxHashMap::from_iter(entires);
         let members = self.alloc(map);
-        self.create_object_ty(ty::ObjectTyKind::Lit(
-            self.alloc(ty::ObjectLitTy { members }),
-        ))
+        if !self.final_res.contains_key(&lit.id) {
+            dbg!(123);
+        }
+        self.create_object_ty(ty::ObjectTyKind::Lit(self.alloc(ty::ObjectLitTy {
+            members,
+            symbol: self.final_res[&lit.id],
+        })))
     }
 
     fn check_cond(&mut self, cond: &'cx ast::CondExpr) -> &'cx Ty<'cx> {

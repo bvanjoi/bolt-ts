@@ -1,3 +1,5 @@
+use rts_span::Span;
+
 use crate::ast;
 
 rts_span::new_index!(NodeID);
@@ -80,6 +82,44 @@ impl Node<'_> {
             TyParam(n) => n.id,
             AssignExpr(n) => n.id,
             LitTy(n) => n.id,
+        }
+    }
+
+    pub fn span(&self) -> Span {
+        use Node::*;
+        match self {
+            Program(n) => n.span,
+            VarStmt(n) => n.span,
+            ParamDecl(n) => n.span,
+            FnDecl(n) => n.span,
+            IfStmt(n) => n.span,
+            RetStmt(n) => n.span,
+            EmptyStmt(n) => n.span,
+            ClassDecl(n) => n.span,
+            BlockStmt(n) => n.span,
+            HeritageClauses(n) => n.span,
+            HeritageClause(n) => n.span,
+            VarDecl(n) => n.span,
+            BinExpr(n) => n.span,
+            NumLit(n) => n.span,
+            BoolLit(n) => n.span,
+            NullLit(n) => n.span,
+            StringLit(n) => n.span,
+            ArrayLit(n) => n.span,
+            Ident(n) => n.span,
+            OmitExpr(n) => n.span,
+            ParenExpr(n) => n.span,
+            CondExpr(n) => n.span,
+            ObjectMemberField(n) => n.span,
+            ObjectLit(n) => n.span,
+            CallExpr(n) => n.span,
+            FnExpr(n) => n.span,
+            NewExpr(n) => n.span,
+            AssignExpr(n) => n.span,
+            ArrayTy(n) => n.span,
+            FnTy(n) => n.span,
+            LitTy(n) => n.span,
+            TyParam(n) => n.span,
         }
     }
 }

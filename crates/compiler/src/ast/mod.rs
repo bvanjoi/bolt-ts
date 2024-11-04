@@ -4,12 +4,13 @@ mod node_flags;
 pub use node::{Node, NodeID};
 use rts_span::Span;
 
-use crate::{atoms::AtomId, ty::ObjectTy};
+use crate::atoms::AtomId;
 
 #[derive(Debug, Clone, Copy)]
 pub struct Program<'cx> {
     pub id: NodeID,
     pub stmts: Stmts<'cx>,
+    pub span: Span,
 }
 
 #[derive(Debug, Clone, Copy)]

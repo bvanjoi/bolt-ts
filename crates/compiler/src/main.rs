@@ -20,7 +20,7 @@ fn main_test() {
     //     let output = eval_from(rts_span::ModulePath::Real(case.path().clone()));
     // }
 
-    let p = project_root.join("tests/cases/compiler/contextualTyping1.ts");
+    let p = project_root.join("tests/cases/compiler/contextualTyping2.ts");
     let output = eval_from(rts_span::ModulePath::Real(p.clone()));
     if output.diags.is_empty() {
         let file_path =
