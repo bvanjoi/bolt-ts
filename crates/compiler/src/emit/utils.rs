@@ -36,4 +36,11 @@ impl<'cx> Emit<'cx> {
         self.content.p_newline();
         self.content.p_r_brace();
     }
+
+    pub(super) fn emit_prop_name(&mut self, name: &'cx ast::PropName) {
+        use ast::PropNameKind::*;
+        match name.kind {
+            Ident(ident) => self.emit_ident(ident),
+        }
+    }
 }

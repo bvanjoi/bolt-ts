@@ -66,7 +66,7 @@ impl<'cx, 'a, 'p> ParserState<'cx, 'p> {
                 break left;
             }
             let op = BinOp {
-                kind: self.token.kind.into_binop(),
+                kind: self.token.kind.into(),
                 span: self.token.span,
             };
             let bin_expr_id = self.p.next_node_id();
@@ -165,19 +165,6 @@ impl<'cx, 'a, 'p> ParserState<'cx, 'p> {
         });
         self.insert_map(id, ast::Node::ObjectMemberField(filed));
         Ok(filed)
-    }
-
-    fn parse_modifiers(&mut self) -> PResult<Option<()>> {
-        loop {
-            let Ok(Some(m)) = self.parse_modifier() else {
-                break;
-            };
-        }
-        Ok(None)
-    }
-
-    fn parse_modifier(&mut self) -> PResult<Option<()>> {
-        Ok(None)
     }
 
     fn parse_paren_expr(&mut self) -> PResult<&'cx ast::Expr<'cx>> {

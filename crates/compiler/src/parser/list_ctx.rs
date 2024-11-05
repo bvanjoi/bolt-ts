@@ -136,11 +136,19 @@ impl ListContext for VarDecl {
 }
 
 fn is_class_ele_start(s: &mut ParserState) -> bool {
+    let mut id_token = None;
+
     // if s.token.kind == TokenKind::At {
     //     return true;
     // }
+    while s.token.kind.is_modifier_kind() {
+        id_token = Some(s.token.kind);
+        if s.token.kind.is_class_ele_modifier() {
+            return true;
+        }
+        s.next_token();
+    }
 
-    let mut id_token = None;
     if s.token.kind.is_lit_prop_name() {
         id_token = Some(s.token.kind);
         s.next_token();

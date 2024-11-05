@@ -44,18 +44,28 @@ impl<'cx, 'a, 'p> ParserState<'cx, 'p> {
         Ok(decl)
     }
 
+    fn parse_semi_after_prop_name(&mut self) {
+        self.parse_semi();
+    }
+
     fn parse_class_prop_or_method(&mut self) -> PResult<&'cx ast::ClassEle<'cx>> {
         let id = self.p.next_node_id();
         let start = self.token.start();
+        let mods = self.with_parent(id, Self::parse_modifiers)?;
         let name = self.with_parent(id, Self::parse_prop_name)?;
         let ty = self.with_parent(id, Self::parse_ty_anno)?;
         let ele = if ty.is_some() {
             // prop
+            let init = self.parse_init();
             let prop = self.alloc(ast::ClassPropEle {
                 id,
                 span: self.new_span(start as usize, self.pos),
                 name,
+                ty,
+                init,
             });
+            self.insert_map(id, ast::Node::ClassPropEle(prop));
+            self.parse_semi_after_prop_name();
             self.alloc(ast::ClassEle {
                 kind: ast::ClassEleKind::Prop(prop),
             })
@@ -215,11 +225,9 @@ impl<'cx, 'a, 'p> ParserState<'cx, 'p> {
                 )
             });
             let clauses = self.alloc(ast::HeritageClauses {
-                id,
                 span: self.new_span(start as usize, self.pos),
                 clauses,
             });
-            self.insert_map(id, ast::Node::HeritageClauses(clauses));
             Ok(Some(clauses))
         } else {
             Ok(None)

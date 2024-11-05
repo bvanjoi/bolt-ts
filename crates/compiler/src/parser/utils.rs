@@ -1,5 +1,5 @@
 use super::list_ctx::{self, ListContext};
-use super::token::TokenKind;
+use super::token::{TokenFlags, TokenKind};
 use super::{ast, errors};
 use super::{PResult, ParserState};
 
@@ -102,5 +102,68 @@ impl<'cx, 'a, 'p> ParserState<'cx, 'p> {
 
         // self.token.kind == TokenKind::LBracket && self.next_token_is_ident().unwrap_or_default() &&
         todo!()
+    }
+
+    pub(super) fn parse_modifiers(&mut self) -> PResult<Option<&'cx ast::Modifiers<'cx>>> {
+        let start = self.token.start();
+        let mut list = Vec::with_capacity(4);
+        loop {
+            let Ok(Some(m)) = self.parse_modifier() else {
+                break;
+            };
+            list.push(m);
+        }
+        if list.is_empty() {
+            Ok(None)
+        } else {
+            let span = self.new_span(start as usize, self.pos);
+            let ms = self.alloc(ast::Modifiers {
+                span,
+                list: self.alloc(list),
+            });
+            Ok(Some(ms))
+        }
+    }
+
+    fn can_follow_modifier(&self) -> bool {
+        let t = self.token.kind;
+        use TokenKind::*;
+        matches!(t, LBracket | LBrace | Asterisk | DotDotDot) || t.is_lit_prop_name()
+    }
+
+    fn next_token_is_on_same_line_and_can_follow_modifier(&mut self) -> bool {
+        self.next_token();
+        if self.token_flags.contains(TokenFlags::PRECEDING_LINE_BREAK) {
+            false
+        } else {
+            self.can_follow_modifier()
+        }
+    }
+
+    fn next_token_can_follow_modifier(&mut self) -> bool {
+        use TokenKind::*;
+        match self.token.kind {
+            Const => todo!(),
+            _ => self.next_token_is_on_same_line_and_can_follow_modifier(),
+        }
+    }
+
+    fn parse_modifier(&mut self) -> PResult<Option<&'cx ast::Modifier>> {
+        let span = self.token.span;
+        let t = self.token.kind;
+        if !(self.token.kind.is_modifier_kind()
+            && self.try_parse(Self::next_token_can_follow_modifier))
+        {
+            return Ok(None);
+        }
+        let id = self.p.next_node_id();
+        let kind = t.into();
+        let m = self.alloc(ast::Modifier { id, span, kind });
+        self.insert_map(id, ast::Node::Modifier(m));
+        Ok(Some(m))
+    }
+
+    pub(super) fn try_parse<T>(&mut self, f: impl FnOnce(&mut Self) -> T) -> T {
+        self.speculation_helper(f, true)
     }
 }

@@ -13,7 +13,7 @@ impl<'cx> Emit<'cx> {
             Return(ret) => self.emit_ret_stmt(ret),
             Empty(_) => {}
             Class(class) => self.emit_class_decl(class),
-            Interface(_) => {},
+            Interface(_) => {}
         }
     }
 
@@ -29,7 +29,29 @@ impl<'cx> Emit<'cx> {
             self.emit_expr(extends.tys[0]);
         }
         self.content.p_l_brace();
+        for ele in class.eles {
+            self.emit_class_ele(ele);
+        }
         self.content.p_r_brace();
+    }
+
+    fn emit_class_ele(&mut self, ele: &'cx ast::ClassEle<'cx>) {
+        use ast::ClassEleKind::*;
+        match ele.kind {
+            Prop(prop) => {
+                self.emit_class_prop(prop);
+            }
+        }
+    }
+
+    fn emit_class_prop(&mut self, prop: &'cx ast::ClassPropEle<'cx>) {
+        self.emit_prop_name(&prop.name);
+        if let Some(init) = prop.init {
+            self.content.p_whitespace();
+            self.content.p_eq();
+            self.content.p_whitespace();
+            self.emit_expr(init);
+        }
     }
 
     fn emit_ret_stmt(&mut self, ret: &'cx ast::RetStmt<'cx>) {

@@ -263,11 +263,15 @@ impl<'cx, 'a, 'p> ParserState<'cx, 'p> {
         self.scan_speculation_helper(f, true)
     }
 
+    pub(super) fn try_scan<T>(&mut self, f: impl FnOnce(&mut Self) -> T) -> T {
+        self.scan_speculation_helper(f, false)
+    }
+
     fn speculation_helper<T>(&mut self, f: impl FnOnce(&mut Self) -> T, try_parse: bool) -> T {
         let old_token = self.token;
 
         let r = if try_parse {
-            todo!()
+            self.try_scan(f)
         } else {
             self.scan_lookahead(f)
         };

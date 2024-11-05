@@ -1,6 +1,6 @@
 use rts_span::Span;
 
-use crate::ast::{AssignExpr, AssignOp, BinOpKind, HeritageClauseKind};
+use crate::ast::{AssignOp, BinOpKind, HeritageClauseKind, ModifierKind};
 
 #[derive(Debug, Clone, Copy)]
 pub struct Token {
@@ -11,10 +11,6 @@ pub struct Token {
 impl Token {
     pub fn new(kind: TokenKind, span: Span) -> Self {
         Self { kind, span }
-    }
-
-    pub fn is_keyword(&self) -> bool {
-        false
     }
 
     pub fn start(&self) -> u32 {
@@ -48,6 +44,7 @@ pub enum TokenKind {
     Implements,
     Interface,
     Abstract,
+    Public,
     // =====
     EOF,
     Number,
@@ -148,22 +145,8 @@ pub enum TokenKind {
     CaretEq,
 }
 
-impl TokenKind {
-    pub fn prec(self) -> BinPrec {
-        use TokenKind::*;
-        match self {
-            Pipe => BinPrec::BitwiseOR,
-            Less | LessEq | Great | GreatEq => BinPrec::Relational,
-            LessLess | GreatGreat | GreatGreatGreat => BinPrec::Shift,
-            Plus => BinPrec::Additive,
-            PipePipe => BinPrec::LogicalOr,
-            AmpAmp => BinPrec::LogicalAnd,
-            EqEq | EqEqEq => BinPrec::Eq,
-            _ => BinPrec::Invalid,
-        }
-    }
-
-    pub fn into_binop(self) -> BinOpKind {
+impl Into<BinOpKind> for TokenKind {
+    fn into(self) -> BinOpKind {
         match self {
             TokenKind::Plus => BinOpKind::Add,
             TokenKind::Pipe => BinOpKind::Pipe,
@@ -187,6 +170,33 @@ impl TokenKind {
             _ => {
                 unreachable!("{:#?}", self)
             }
+        }
+    }
+}
+
+impl Into<ModifierKind> for TokenKind {
+    fn into(self) -> ModifierKind {
+        match self {
+            TokenKind::Public => ModifierKind::Public,
+            _ => {
+                unreachable!("{:#?}", self)
+            }
+        }
+    }
+}
+
+impl TokenKind {
+    pub fn prec(self) -> BinPrec {
+        use TokenKind::*;
+        match self {
+            Pipe => BinPrec::BitwiseOR,
+            Less | LessEq | Great | GreatEq => BinPrec::Relational,
+            LessLess | GreatGreat | GreatGreatGreat => BinPrec::Shift,
+            Plus => BinPrec::Additive,
+            PipePipe => BinPrec::LogicalOr,
+            AmpAmp => BinPrec::LogicalAnd,
+            EqEq | EqEqEq => BinPrec::Eq,
+            _ => BinPrec::Invalid,
         }
     }
 
@@ -300,7 +310,16 @@ impl TokenKind {
 
     pub fn is_modifier_kind(self) -> bool {
         use TokenKind::*;
-        matches!(self, Abstract | Const)
+        matches!(self, Abstract | Const | Public)
+    }
+
+    pub fn is_param_prop_modifier(self) -> bool {
+        use TokenKind::*;
+        matches!(self, Public)
+    }
+
+    pub fn is_class_ele_modifier(self) -> bool {
+        self.is_param_prop_modifier()
     }
 }
 

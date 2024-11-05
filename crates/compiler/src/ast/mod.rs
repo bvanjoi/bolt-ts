@@ -106,6 +106,8 @@ pub struct ClassPropEle<'cx> {
     pub id: NodeID,
     pub span: Span,
     pub name: &'cx PropName<'cx>,
+    pub ty: Option<&'cx self::Ty<'cx>>,
+    pub init: Option<&'cx Expr<'cx>>,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -120,7 +122,6 @@ pub type Exprs<'cx> = &'cx [&'cx Expr<'cx>];
 
 #[derive(Debug, Clone, Copy)]
 pub struct HeritageClauses<'cx> {
-    pub id: NodeID,
     pub span: Span,
     pub clauses: &'cx [&'cx HeritageClause<'cx>],
 }
@@ -536,4 +537,22 @@ pub struct CallExpr<'cx> {
     pub span: Span,
     pub expr: &'cx Expr<'cx>,
     pub args: Exprs<'cx>,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub enum ModifierKind {
+    Public,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct Modifiers<'cx> {
+    pub span: Span,
+    pub list: &'cx [&'cx Modifier],
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct Modifier {
+    pub id: NodeID,
+    pub span: Span,
+    pub kind: ModifierKind,
 }

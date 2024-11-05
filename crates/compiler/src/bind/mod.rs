@@ -89,6 +89,22 @@ impl<'cx> Binder<'cx> {
     fn bind_class(&mut self, class: &'cx ast::ClassDecl<'cx>) {
         self.connect(class.id);
         self.create_class_decl(class);
+
+        let old = self.scope_id;
+        self.scope_id = self.new_scope();
+        for ele in class.eles {
+            match ele.kind {
+                ast::ClassEleKind::Prop(prop) => self.bind_class_prop_ele(prop),
+            }
+        }
+        self.scope_id = old;
+    }
+
+    fn bind_class_prop_ele(&mut self, ele: &'cx ast::ClassPropEle<'cx>) {
+        self.create_class_prop_ele(ele);
+        if let Some(init) = ele.init {
+            self.bind_expr(init);
+        }
     }
 
     fn bind_block_stmt(&mut self, block: &'cx ast::BlockStmt<'cx>) {

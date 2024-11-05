@@ -125,11 +125,4 @@ impl<'cx> Emit<'cx> {
         self.content.p_whitespace();
         self.emit_expr(field.value);
     }
-
-    fn emit_prop_name(&mut self, name: &'cx ast::PropName) {
-        use ast::PropNameKind::*;
-        match name.kind {
-            Ident(ident) => self.emit_ident(ident),
-        }
-    }
 }

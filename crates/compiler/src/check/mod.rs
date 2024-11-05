@@ -1,3 +1,4 @@
+mod check_var_like;
 mod get_contextual_ty;
 mod get_symbol;
 mod get_ty;
@@ -185,9 +186,24 @@ impl<'cx> TyChecker<'cx> {
             Block(block) => self.check_block(block),
             Return(ret) => self.check_return(ret),
             Empty(_) => {}
-            Class(_) => {}
+            Class(class) => self.check_class_decl(class),
             Interface(_) => {}
         };
+    }
+
+    fn check_class_decl(&mut self, class: &'cx ast::ClassDecl<'cx>) {
+        // let symbol = self.get_symbol_of_decl(class.id);
+
+        for ele in class.eles {
+            use ast::ClassEleKind::*;
+            match ele.kind {
+                Prop(prop) => self.check_class_prop_ele(prop),
+            }
+        }
+    }
+
+    fn check_class_prop_ele(&mut self, prop: &'cx ast::ClassPropEle<'cx>) {
+        self.check_var_like_decl(prop);
     }
 
     fn check_return(&mut self, ret: &ast::RetStmt<'cx>) {
@@ -214,46 +230,34 @@ impl<'cx> TyChecker<'cx> {
         self.check_block(f.body);
     }
 
-    fn check_var_stmt(&mut self, var: &'cx ast::VarStmt) {
+    fn check_var_stmt(&mut self, var: &'cx ast::VarStmt<'cx>) {
         self.check_var_decl_list(var.list);
     }
 
-    fn check_var_decl_list(&mut self, list: &[&'cx ast::VarDecl]) {
+    fn check_var_decl_list(&mut self, list: &[&'cx ast::VarDecl<'cx>]) {
         for decl in list {
             self.check_var_decl(decl);
         }
     }
 
-    fn check_var_decl(&mut self, decl: &'cx ast::VarDecl) {
+    fn check_var_decl(&mut self, decl: &'cx ast::VarDecl<'cx>) {
         self.check_var_like_decl(decl);
     }
 
-    fn get_widened_ty_for_var_like_decl(
-        &mut self,
-        decl: &'cx ast::VarDecl,
-    ) -> Option<&'cx Ty<'cx>> {
-        self.get_ty_for_var_like_decl(decl)
-    }
+    // fn try_get_type_from_effective_type_node(
+    //     &mut self,
+    //     decl: &'cx ast::VarDecl,
+    // ) -> Option<&'cx Ty<'cx>> {
+    //     self.get_effective_type_annotation_node(decl)
+    //         .map(|ty| self.get_ty_from_type_node(ty))
+    // }
 
-    fn get_ty_for_var_like_decl(&mut self, decl: &'cx ast::VarDecl) -> Option<&'cx Ty<'cx>> {
-        let decl_ty = self.try_get_type_from_effective_type_node(decl);
-        decl_ty
-    }
-
-    fn try_get_type_from_effective_type_node(
-        &mut self,
-        decl: &'cx ast::VarDecl,
-    ) -> Option<&'cx Ty<'cx>> {
-        self.get_effective_type_annotation_node(decl)
-            .map(|ty| self.get_ty_from_type_node(ty))
-    }
-
-    fn get_effective_type_annotation_node(
-        &self,
-        decl: &'cx ast::VarDecl<'cx>,
-    ) -> Option<&'cx ast::Ty<'cx>> {
-        decl.ty
-    }
+    // fn get_effective_type_annotation_node(
+    //     &self,
+    //     decl: &'cx ast::VarDecl<'cx>,
+    // ) -> Option<&'cx ast::Ty<'cx>> {
+    //     decl.ty
+    // }
 
     fn check_type_assignable_to_and_optionally_elaborate(
         &mut self,
@@ -439,30 +443,6 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
-    fn check_var_like_decl(&mut self, decl: &'cx ast::VarDecl) {
-        let symbol = self.get_symbol_of_decl(decl.id);
-        let decl_ty = self.get_widened_ty_for_var_like_decl(decl);
-        let mut ty = decl_ty;
-        if let Some(init) = decl.init {
-            let init_ty = self.check_expr(init);
-            if let Some(decl_ty) = decl_ty {
-                // let v: ty = init
-                self.check_type_assignable_to_and_optionally_elaborate(
-                    decl.binding.span,
-                    init_ty,
-                    decl_ty,
-                );
-            }
-            if ty.is_none() {
-                ty = Some(init_ty);
-            }
-        }
-        let ty = ty.unwrap_or(self.undefined_ty());
-        self.symbol_links
-            .entry(symbol)
-            .or_insert(SymbolLinks { ty });
-    }
-
     fn check_expr_with_contextual_ty(
         &mut self,
         expr: &'cx ast::Expr,
@@ -607,7 +587,7 @@ impl<'cx> TyChecker<'cx> {
         let map = FxHashMap::from_iter(entires);
         let members = self.alloc(map);
         if !self.final_res.contains_key(&lit.id) {
-            dbg!(123);
+            unreachable!()
         }
         self.create_object_ty(ty::ObjectTyKind::Lit(self.alloc(ty::ObjectLitTy {
             members,

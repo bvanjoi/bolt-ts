@@ -7,6 +7,8 @@ impl<'cx> TyChecker<'cx> {
         match self.nodes.get(id) {
             ast::Node::VarDecl(decl) => *self.final_res.get(&decl.id).unwrap(),
             ast::Node::ObjectMemberField(field) => *self.final_res.get(&field.id).unwrap(),
+            ast::Node::ClassDecl(decl) => *self.final_res.get(&decl.id).unwrap(),
+            ast::Node::ClassPropEle(prop) => *self.final_res.get(&prop.id).unwrap(),
             _ => todo!(),
         }
     }

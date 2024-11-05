@@ -16,9 +16,10 @@ pub enum Node<'cx> {
     RetStmt(&'cx ast::RetStmt<'cx>),
     EmptyStmt(&'cx ast::EmptyStmt),
     ClassDecl(&'cx ast::ClassDecl<'cx>),
+    ClassPropEle(&'cx ast::ClassPropEle<'cx>),
     BlockStmt(&'cx ast::BlockStmt<'cx>),
-    HeritageClauses(&'cx ast::HeritageClauses<'cx>),
     HeritageClause(&'cx ast::HeritageClause<'cx>),
+    Modifier(&'cx ast::Modifier),
 
     // expr
     VarDecl(&'cx ast::VarDecl<'cx>),
@@ -75,13 +76,14 @@ impl Node<'_> {
             FnTy(n) => n.id,
             ClassDecl(n) => n.id,
             BlockStmt(n) => n.id,
-            HeritageClauses(n) => n.id,
             HeritageClause(n) => n.id,
             FnExpr(n) => n.id,
             NewExpr(n) => n.id,
             TyParam(n) => n.id,
             AssignExpr(n) => n.id,
             LitTy(n) => n.id,
+            Modifier(n) => n.id,
+            ClassPropEle(n) => n.id,
         }
     }
 
@@ -97,7 +99,6 @@ impl Node<'_> {
             EmptyStmt(n) => n.span,
             ClassDecl(n) => n.span,
             BlockStmt(n) => n.span,
-            HeritageClauses(n) => n.span,
             HeritageClause(n) => n.span,
             VarDecl(n) => n.span,
             BinExpr(n) => n.span,
@@ -120,6 +121,8 @@ impl Node<'_> {
             FnTy(n) => n.span,
             LitTy(n) => n.span,
             TyParam(n) => n.span,
+            Modifier(n) => n.span,
+            ClassPropEle(n) => n.span,
         }
     }
 }

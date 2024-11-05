@@ -25,6 +25,7 @@ keyword!(
     (KW_IMPLEMENTS: "implements"),
     (KW_INTERFACE: "interface"),
     (KW_ABSTRACT: "abstract"),
+    (KW_PUBLIC: "public"),
 );
 
 macro_rules! ident {

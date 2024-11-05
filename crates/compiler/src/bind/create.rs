@@ -96,4 +96,12 @@ impl<'cx> Binder<'cx> {
         self.create_final_res(lit.id, id);
         id
     }
+
+    pub(super) fn create_class_prop_ele(&mut self, ele: &'cx ast::ClassPropEle<'cx>) {
+        let name = match ele.name.kind {
+            ast::PropNameKind::Ident(ident) => ident.name,
+        };
+        let symbol = self.create_var_symbol(name, SymbolKind::Property { decl: ele.id });
+        self.create_final_res(ele.id, symbol);
+    }
 }
