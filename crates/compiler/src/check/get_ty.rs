@@ -109,9 +109,12 @@ impl<'cx> TyChecker<'cx> {
                 });
                 let map = FxHashMap::from_iter(entires);
                 let members = self.alloc(map);
+                if !self.final_res.contains_key(&lit.id) {
+                    unreachable!()
+                }
                 self.create_object_ty(ty::ObjectTyKind::Lit(self.alloc(ty::ObjectLitTy {
                     members,
-                    symbol: SymbolID::root(), // FIXME: use correct symbol
+                    symbol: self.final_res[&lit.id],
                 })))
             }
         }

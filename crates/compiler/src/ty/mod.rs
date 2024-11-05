@@ -43,7 +43,7 @@ impl<'cx> TyKind<'cx> {
                 .collect::<Vec<_>>()
                 .join(" | "),
             TyKind::StringLit => todo!(),
-            TyKind::ArrayLit(_) => todo!(),
+            TyKind::ArrayLit(_) => "array".to_string(),
             TyKind::Object(object) => object.kind.as_str().to_string(),
         }
     }
@@ -72,6 +72,10 @@ impl<'cx> TyKind<'cx> {
 
     pub fn is_union_or_intersection(&self) -> bool {
         self.is_union()
+    }
+
+    pub fn is_object_or_intersection(&self) -> bool {
+        self.is_object()
     }
 
     pub fn is_lit(&self) -> bool {

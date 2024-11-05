@@ -115,7 +115,16 @@ pub(crate) struct TheSideOfAnArithmeticOperationMustBeOfTypeAnyNumberBigintOrAnE
 
 #[derive(Error, Diagnostic, Debug)]
 #[error("Object literal may only specify known properties, and '{field}' does not exist.")]
-pub(crate) struct ObjectLitMayOnlySpecifyKnownPropAndFieldDoesNotExistInTypeY {
+pub(crate) struct ObjectLitMayOnlySpecifyKnownPropAndFieldDoesNotExist {
+    #[label]
+    pub span: Span,
+    pub field: String,
+}
+
+
+#[derive(Error, Diagnostic, Debug)]
+#[error("Property '{field}' is missing.")]
+pub(crate) struct PropertyXIsMissing {
     #[label]
     pub span: Span,
     pub field: String,

@@ -79,7 +79,7 @@ impl<'cx> Binder<'cx> {
 
     pub(super) fn create_object_lit_symbol(
         &mut self,
-        lit: &'cx ast::ObjectLit<'cx>,
+        node_id: ast::NodeID,
         members: FxHashMap<SymbolName, SymbolID>,
     ) -> SymbolID {
         let id = self.next_symbol_id();
@@ -88,12 +88,12 @@ impl<'cx> Binder<'cx> {
             Symbol::new(
                 SymbolName::Object,
                 SymbolKind::Object(ObjectSymbol {
-                    decl: lit.id,
+                    decl: node_id,
                     members,
                 }),
             ),
         );
-        self.create_final_res(lit.id, id);
+        self.create_final_res(node_id, id);
         id
     }
 

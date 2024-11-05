@@ -102,6 +102,9 @@ impl<'cx> Binder<'cx> {
 
     fn bind_class_prop_ele(&mut self, ele: &'cx ast::ClassPropEle<'cx>) {
         self.create_class_prop_ele(ele);
+        if let Some(ty) = ele.ty {
+            self.bind_ty(ty);
+        }
         if let Some(init) = ele.init {
             self.bind_expr(init);
         }
@@ -173,7 +176,7 @@ impl<'cx> Binder<'cx> {
             })
             .collect();
         self.scope_id = old;
-        self.create_object_lit_symbol(lit, members);
+        self.create_object_lit_symbol(lit.id, members);
     }
 
     fn bind_var_stmt(&mut self, var: &'cx ast::VarStmt) {
@@ -184,6 +187,25 @@ impl<'cx> Binder<'cx> {
         }
     }
 
+    fn bind_ty(&mut self, ty: &'cx ast::Ty) {
+        use ast::TyKind::*;
+        match ty.kind {
+            Ident(ident) => self.bind_ident(ident),
+            Array(array) => self.bind_array_ty(array),
+            Lit(lit) => {
+                let old = self.scope_id;
+                self.scope_id = self.new_scope();
+                self.create_object_lit_symbol(lit.id, Default::default());
+                self.scope_id = old;
+            }
+            _ => (),
+        }
+    }
+
+    fn bind_array_ty(&mut self, array: &'cx ast::ArrayTy) {
+        self.bind_ty(array.ele)
+    }
+
     fn bind_var_decl(&mut self, decl: &'cx ast::VarDecl<'cx>, kind: ast::VarKind) {
         self.connect(decl.id);
         let kind = if kind == ast::VarKind::Let || kind == ast::VarKind::Const {
@@ -192,6 +214,9 @@ impl<'cx> Binder<'cx> {
             SymbolKind::BlockScopedVar
         };
         self.create_var_decl(decl, kind);
+        if let Some(ty) = decl.ty {
+            self.bind_ty(ty);
+        }
         if let Some(init) = decl.init {
             self.bind_expr(init);
         }

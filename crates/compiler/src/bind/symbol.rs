@@ -78,14 +78,14 @@ impl SymbolKind {
     pub fn expect_object(&self) -> &ObjectSymbol {
         match self {
             SymbolKind::Object(symbol) => symbol,
-            _ => unreachable!(),
+            _ => unreachable!("{:#?}", self),
         }
     }
 
     pub fn expect_prop(&self) -> NodeID {
         match self {
             SymbolKind::Property { decl } => *decl,
-            _ => unreachable!(),
+            _ => unreachable!("{:#?}", self),
         }
     }
 }
