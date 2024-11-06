@@ -36,7 +36,7 @@ impl<'cx> TyChecker<'cx> {
         };
         if pos < param_count {
             Some(f.params[pos])
-        } else if let ty::TyKind::Array(array) = f.params.last().unwrap().kind {
+        } else if let Some(array) = f.params.last().unwrap().kind.as_array() {
             Some(array.ty)
         } else {
             None

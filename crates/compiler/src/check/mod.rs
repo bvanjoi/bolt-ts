@@ -1,4 +1,5 @@
 mod check_var_like;
+mod create_ty;
 mod get_contextual_ty;
 mod get_symbol;
 mod get_ty;
@@ -9,19 +10,18 @@ mod symbol_links;
 mod utils;
 
 use rts_span::{ModuleID, Span};
-use rustc_hash::{FxHashMap, FxHashSet};
+use rustc_hash::FxHashMap;
 use sig::Sig;
 use symbol_links::SymbolLinks;
 use utils::{get_assignment_kind, AssignmentKind};
 
-use self::relation::RelationKind;
 pub use self::resolve::ExpectedArgsCount;
 
 use crate::ast::{BinOp, ExprKind};
 use crate::atoms::{AtomId, AtomMap};
 use crate::bind::{ScopeID, Symbol, SymbolID, SymbolName, Symbols};
 use crate::parser::{Nodes, ParentMap};
-use crate::ty::{has_type_facts, IntrinsicTyKind, ObjectTyKind, Ty, TyID, TyKind, TypeFacts, Tys};
+use crate::ty::{has_type_facts, IntrinsicTyKind, Ty, TyID, TypeFacts};
 use crate::{ast, errors, keyword, ty};
 
 pub struct TyChecker<'cx> {
@@ -132,7 +132,7 @@ impl<'cx> TyChecker<'cx> {
             let prev = this.intrinsic_tys.insert(*ty_name, ty);
             assert!(prev.is_none());
         }
-        let boolean_ty = this.get_union_type(this.alloc([this.true_ty(), this.false_ty()]));
+        let boolean_ty = this.create_union_type(vec![this.true_ty(), this.false_ty()]);
         this.type_name.insert(boolean_ty.id, "boolean".to_string());
         this.boolean_ty.set(boolean_ty).unwrap();
 
@@ -152,14 +152,6 @@ impl<'cx> TyChecker<'cx> {
 
     fn alloc<T>(&self, t: T) -> &'cx T {
         self.arena.alloc(t)
-    }
-
-    fn new_ty(&mut self, kind: TyKind<'cx>) -> &'cx Ty<'cx> {
-        let id = self.next_ty_id();
-        let ty = self.alloc(Ty::new(id, kind));
-        let prev = self.tys.insert(id, ty);
-        assert!(prev.is_none());
-        ty
     }
 
     fn next_ty_id(&mut self) -> TyID {
@@ -405,28 +397,31 @@ impl<'cx> TyChecker<'cx> {
         if !self.final_res.contains_key(&lit.id) {
             unreachable!()
         }
-        self.create_object_ty(ty::ObjectTyKind::Lit(self.alloc(ty::ObjectLitTy {
+        self.create_object_lit_ty(ty::ObjectLitTy {
             members,
             symbol: self.final_res[&lit.id],
-        })))
+        })
     }
 
     fn check_cond(&mut self, cond: &'cx ast::CondExpr) -> &'cx Ty<'cx> {
         let ty = self.check_expr(cond.cond);
         let ty1 = self.check_expr(cond.when_true);
         let ty2 = self.check_expr(cond.when_false);
-        let tys = self.alloc([ty1, ty2]);
-        self.get_union_type(tys)
+        self.create_union_type(vec![ty1, ty2])
     }
 
     fn check_array_lit(&mut self, lit: &'cx ast::ArrayLit) -> &'cx Ty<'cx> {
-        if lit.elems.is_empty() {
+        let mut elems = Vec::with_capacity(lit.elems.len());
+        for elem in lit.elems.iter() {
+            elems.push(self.check_expr(elem));
+        }
+        let ty = if elems.is_empty() {
+            // FIXME: use type var
             self.undefined_ty()
         } else {
-            let ty = self.check_expr(lit.elems[0]);
-            let ty = TyKind::ArrayLit(self.alloc(ty::ArrayTy { ty }));
-            self.new_ty(ty)
-        }
+            self.create_union_type(elems)
+        };
+        self.create_array_ty(ty::ArrayTy { ty })
     }
 
     fn check_ident(&mut self, ident: &'cx ast::Ident) -> &'cx Ty<'cx> {
@@ -462,11 +457,6 @@ impl<'cx> TyChecker<'cx> {
         }
 
         ty
-    }
-
-    fn create_object_ty(&mut self, ty: ObjectTyKind<'cx>) -> &'cx Ty<'cx> {
-        let kind = TyKind::Object(self.alloc(ty::ObjectTy { kind: ty }));
-        self.new_ty(kind)
     }
 
     fn check_bin_expr(&mut self, node: &'cx ast::BinExpr) -> &'cx Ty<'cx> {

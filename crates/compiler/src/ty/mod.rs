@@ -23,8 +23,6 @@ impl<'cx> Ty<'cx> {
 pub enum TyKind<'cx> {
     StringLit,
     NumberLit(&'cx NumberLitTy),
-    Array(&'cx ArrayTy<'cx>),
-    ArrayLit(&'cx ArrayTy<'cx>),
     Intrinsic(&'cx IntrinsicTy),
     Union(&'cx UnionTy<'cx>),
     Object(&'cx ObjectTy<'cx>),
@@ -35,7 +33,6 @@ impl<'cx> TyKind<'cx> {
         match self {
             TyKind::NumberLit(_) => "number".to_string(),
             TyKind::Intrinsic(ty) => atoms.get(ty.name).to_string(),
-            TyKind::Array(_) => "array".to_string(),
             TyKind::Union(union) => union
                 .tys
                 .iter()
@@ -43,7 +40,7 @@ impl<'cx> TyKind<'cx> {
                 .collect::<Vec<_>>()
                 .join(" | "),
             TyKind::StringLit => todo!(),
-            TyKind::ArrayLit(_) => "array".to_string(),
+
             TyKind::Object(object) => object.kind.as_str().to_string(),
         }
     }
@@ -174,6 +171,19 @@ impl<'cx> TyKind<'cx> {
             None
         }
     }
+
+    pub fn as_array(&self) -> Option<&'cx ArrayTy<'cx>> {
+        use TyKind::*;
+        if let Object(ty) = self {
+            if let ObjectTyKind::Array(array) = ty.kind {
+                Some(array)
+            } else {
+                None
+            }
+        } else {
+            None
+        }
+    }
 }
 
 pub type Tys<'cx> = &'cx [&'cx Ty<'cx>];
@@ -250,6 +260,7 @@ pub enum ObjectTyKind<'cx> {
     Class(&'cx ClassTy),
     Fn(&'cx FnTy<'cx>),
     Lit(&'cx ObjectLitTy<'cx>),
+    Array(&'cx ArrayTy<'cx>),
 }
 
 impl ObjectTyKind<'_> {
@@ -258,6 +269,7 @@ impl ObjectTyKind<'_> {
             ObjectTyKind::Class(_) => "class",
             ObjectTyKind::Fn(_) => "function",
             ObjectTyKind::Lit(_) => "Object",
+            ObjectTyKind::Array(_) => "array",
         }
     }
 }

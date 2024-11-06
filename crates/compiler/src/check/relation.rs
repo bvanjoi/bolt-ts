@@ -13,6 +13,7 @@ use super::TyChecker;
 #[derive(Clone, Copy, Debug)]
 pub(super) enum RelationKind {
     Assignable,
+    StrictSubtype,
 }
 
 impl<'cx> TyChecker<'cx> {
@@ -57,7 +58,7 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
-    fn is_type_related_to(
+    pub(super) fn is_type_related_to(
         &mut self,
         source: &'cx Ty<'cx>,
         target: &'cx Ty<'cx>,
@@ -70,6 +71,10 @@ impl<'cx> TyChecker<'cx> {
             || self.is_simple_type_related_to(target, source)
         {
             return true;
+        }
+
+        if source.kind.is_object() && target.kind.is_object() {
+            // skip
         }
 
         if source.kind.is_structured_or_instantiable()
@@ -104,7 +109,7 @@ impl<'cx> TyChecker<'cx> {
         if source.kind.is_structured_or_instantiable()
             || target.kind.is_structured_or_instantiable()
         {
-            let is_performing_excess_property_check = source.kind.is_object();
+            let is_performing_excess_property_check = source.kind.as_object_lit().is_some();
             if is_performing_excess_property_check && self.has_excess_properties(source, target) {
                 return true;
             }
@@ -130,10 +135,29 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
+    fn type_arg_related_to(&mut self, source: &'cx Ty<'cx>, target: &'cx Ty<'cx>) -> bool {
+        self.is_related_to(source, target)
+    }
+
+    fn relate_variances(&mut self, source: &'cx Ty<'cx>, target: &'cx Ty<'cx>) -> bool {
+        self.type_arg_related_to(source, target)
+    }
+
     fn structured_related_to(&mut self, source: &'cx Ty<'cx>, target: &'cx Ty<'cx>) -> bool {
         if source.kind.is_union_or_intersection() || target.kind.is_union_or_intersection() {
-            self.union_or_intersection_related_to(source, target)
-        } else if source.kind.is_object_or_intersection() && target.kind.is_object() {
+            return self.union_or_intersection_related_to(source, target);
+        }
+
+        if let Some(source) = source.kind.as_array() {
+            if let Some(target) = target.kind.as_array() {
+                let result = self.relate_variances(source.ty, target.ty);
+                if result {
+                    return result;
+                }
+            }
+        }
+
+        if source.kind.is_object_or_intersection() && target.kind.is_object() {
             self.props_related_to(source, target)
         } else {
             true
@@ -242,7 +266,11 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
-    pub(super) fn is_type_assignable_to(&mut self, source: &'cx Ty<'cx>, target: &'cx Ty<'cx>) -> bool {
+    pub(super) fn is_type_assignable_to(
+        &mut self,
+        source: &'cx Ty<'cx>,
+        target: &'cx Ty<'cx>,
+    ) -> bool {
         self.is_type_related_to(source, target, RelationKind::Assignable)
     }
 }

@@ -420,8 +420,12 @@ impl<'cx, 'a, 'p> ParserState<'cx, 'p> {
         let start = self.pos;
         let mut offset = 1;
         let mut v = Vec::with_capacity(32);
-        while start + offset < self.end() {
-            let ch = self.input[start + offset];
+        loop {
+            let idx = start + offset;
+            if idx >= self.end() {
+                break;
+            }
+            let ch = self.input[idx];
             offset += 1;
             if ch == quote {
                 break;

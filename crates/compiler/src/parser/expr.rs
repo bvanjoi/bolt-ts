@@ -159,7 +159,7 @@ impl<'cx, 'a, 'p> ParserState<'cx, 'p> {
         let value = self.with_parent(id, Self::parse_assign_expr)?;
         let filed = self.alloc(ast::ObjectMemberField {
             id,
-            span: self.new_span(start as usize, self.pos),
+            span: self.new_span(start as usize, value.span().hi as usize),
             name,
             value,
         });

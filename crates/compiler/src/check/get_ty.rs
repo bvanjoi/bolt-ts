@@ -27,17 +27,15 @@ impl<'cx> TyChecker<'cx> {
     }
 
     fn get_type_of_class_decl(&mut self, id: SymbolID) -> &'cx Ty<'cx> {
-        let ty = self.alloc(ty::ClassTy {});
-        self.create_object_ty(ty::ObjectTyKind::Class(ty))
+        self.create_class_ty(ty::ClassTy {})
     }
 
     fn get_type_of_func_decl(&mut self, id: SymbolID) -> &'cx Ty<'cx> {
         let params = self.get_sig_of_symbol(id);
-        let ty = self.alloc(ty::FnTy {
+        self.create_fn_ty(ty::FnTy {
             params,
             ret: self.undefined_ty(),
-        });
-        self.create_object_ty(ty::ObjectTyKind::Fn(ty))
+        })
     }
 
     fn get_sig_of_symbol(&mut self, id: SymbolID) -> &'cx [&'cx Ty<'cx>] {
@@ -112,18 +110,17 @@ impl<'cx> TyChecker<'cx> {
                 if !self.final_res.contains_key(&lit.id) {
                     unreachable!()
                 }
-                self.create_object_ty(ty::ObjectTyKind::Lit(self.alloc(ty::ObjectLitTy {
+                self.create_object_lit_ty(ty::ObjectLitTy {
                     members,
                     symbol: self.final_res[&lit.id],
-                })))
+                })
             }
         }
     }
 
     fn get_ty_from_array_node(&mut self, node: &'cx ast::ArrayTy<'cx>) -> &'cx Ty<'cx> {
         let ele_ty = self.get_ty_from_type_node(node.ele);
-        let ty = TyKind::Array(self.alloc(ty::ArrayTy { ty: ele_ty }));
-        self.new_ty(ty)
+        self.create_array_ty(ty::ArrayTy { ty: ele_ty })
     }
 
     pub(super) fn get_number_literal_type(&mut self, val: f64) -> &'cx Ty<'cx> {
@@ -136,10 +133,5 @@ impl<'cx> TyChecker<'cx> {
         let ty = self.new_ty(kind);
         self.num_lit_tys.insert(key, ty.id);
         ty
-    }
-
-    pub(super) fn get_union_type(&mut self, tys: &'cx [&'cx Ty<'cx>]) -> &'cx Ty<'cx> {
-        let union = self.alloc(ty::UnionTy { tys });
-        self.new_ty(TyKind::Union(union))
     }
 }
