@@ -196,6 +196,7 @@ impl Expr<'_> {
             Fn(f) => f.span,
             New(new) => new.span,
             Assign(assign) => assign.span,
+            ArrowFn(f) => f.span
         }
     }
 
@@ -217,6 +218,7 @@ impl Expr<'_> {
             Fn(f) => f.id,
             New(new) => new.id,
             Assign(assign) => assign.id,
+            ArrowFn(f) => f.id
         }
     }
 }
@@ -238,6 +240,17 @@ pub enum ExprKind<'cx> {
     Call(&'cx CallExpr<'cx>),
     Fn(&'cx FnExpr<'cx>),
     New(&'cx NewExpr<'cx>),
+    ArrowFn(&'cx ArrowFnExpr<'cx>),
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct ArrowFnExpr<'cx> {
+    pub id: NodeID,
+    pub span: Span,
+    pub ty_params: Option<TyParams<'cx>>,
+    pub params: ParamsDecl<'cx>,
+    pub ty: Option<&'cx self::Ty<'cx>>,
+    pub body: &'cx BlockStmt<'cx>
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -542,6 +555,7 @@ pub struct CallExpr<'cx> {
 #[derive(Debug, Clone, Copy)]
 pub enum ModifierKind {
     Public,
+    Abstract
 }
 
 #[derive(Debug, Clone, Copy)]

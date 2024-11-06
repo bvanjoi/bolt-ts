@@ -40,11 +40,14 @@ pub enum TokenKind {
     Class,
     Extends,
     New,
+    Async,
+    This,
     // ts keyword
     Implements,
     Interface,
     Abstract,
     Public,
+    As,
     // =====
     EOF,
     Number,
@@ -178,6 +181,7 @@ impl Into<ModifierKind> for TokenKind {
     fn into(self) -> ModifierKind {
         match self {
             TokenKind::Public => ModifierKind::Public,
+            TokenKind::Abstract => ModifierKind::Abstract,
             _ => {
                 unreachable!("{:#?}", self)
             }
@@ -226,12 +230,16 @@ impl TokenKind {
         ) || self.is_start_of_expr()
     }
 
+    pub(super) fn is_ident(&self) -> bool {
+        matches!(self, TokenKind::Ident | TokenKind::Abstract)
+    }
+
     pub fn is_start_of_left_hand_side_expr(self) -> bool {
         use TokenKind::*;
         matches!(
             self,
             Null | True | False | Number | String | LBrace | LBracket | LParen | New | Ident
-        )
+        ) || self.is_ident()
     }
 
     pub fn is_start_of_expr(self) -> bool {

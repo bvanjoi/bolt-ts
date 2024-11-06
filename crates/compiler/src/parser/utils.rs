@@ -4,6 +4,72 @@ use super::{ast, errors};
 use super::{PResult, ParserState};
 
 impl<'cx, 'a, 'p> ParserState<'cx, 'p> {
+    pub(super) fn is_decl(&mut self) -> bool {
+        use TokenKind::*;
+        loop {
+            match self.token.kind {
+                Var | Let |Const | Function | Class => return true,
+                Abstract => {
+                    // let prev = self.token.kind;
+                    self.next_token();
+                    continue;
+                },
+                _ => unreachable!()
+            }
+        }
+    }
+
+    pub(super) fn is_start_of_decl(&mut self) -> bool {
+        self.lookahead(Self::is_decl)
+    }
+
+    fn _is_paren_arrow_fn_expr(&mut self) -> bool {
+        use TokenKind::*;
+        let first = self.token.kind;
+        self.next_token();
+        let second = self.token.kind;
+
+        if first == LParen {
+            if second == RParen {
+                self.next_token();
+                let third = self.token.kind;
+                return matches!(third, EqGreater | Colon | RBrace);
+            } else if second == LBracket || second == LBrace {
+                todo!()
+            } else if second == DotDotDot {
+                return true;
+            } else if second != TokenKind::Async
+                && second.is_modifier_kind()
+                && self
+                    .lookahead(Self::next_token_is_ident)
+                    .unwrap_or_default()
+            {
+                self.next_token();
+                return if self.token.kind == TokenKind::As {
+                    false
+                } else {
+                    true
+                };
+            } else if !self.is_ident() && second != TokenKind::This {
+                return false;
+            } else {
+                self.next_token();
+                todo!()
+            }
+        }
+
+        false
+    }
+    pub(super) fn is_paren_arrow_fn_expr(&mut self) -> bool {
+        let t = self.token.kind;
+
+        if t == TokenKind::LParen {
+            return self.lookahead(Self::_is_paren_arrow_fn_expr);
+        }
+
+        false
+    }
+
     pub(super) fn parse_fn_block(&mut self) -> PResult<&'cx ast::BlockStmt<'cx>> {
         self.parse_block()
     }
@@ -84,7 +150,7 @@ impl<'cx, 'a, 'p> ParserState<'cx, 'p> {
     }
 
     pub(super) fn is_ident(&self) -> bool {
-        matches!(self.token.kind, TokenKind::Ident)
+        matches!(self.token.kind, TokenKind::Ident | TokenKind::Abstract)
     }
 
     pub(super) fn next_token_is_ident(&mut self) -> PResult<bool> {

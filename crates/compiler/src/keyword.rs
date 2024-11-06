@@ -21,11 +21,14 @@ keyword!(
     (KW_CLASS: "class"),
     (KW_EXTENDS: "extends"),
     (KW_NEW: "new"),
+    (KW_ASYNC: "async"),
+    (KW_THIS: "this"),
     // ts keywords
     (KW_IMPLEMENTS: "implements"),
     (KW_INTERFACE: "interface"),
     (KW_ABSTRACT: "abstract"),
     (KW_PUBLIC: "public"),
+    (KW_AS: "as"),
 );
 
 macro_rules! ident {

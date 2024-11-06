@@ -281,8 +281,9 @@ impl<'cx> TyChecker<'cx> {
             ObjectLit(lit) => self.check_object_lit(lit),
             Call(call) => self.check_call_expr(call),
             Fn(f) => self.check_fn_expr(f),
-            New(new) => self.undefined_ty(),
             Assign(assign) => self.check_assign_expr(assign),
+            New(_) => self.undefined_ty(),
+            ArrowFn(_) => self.undefined_ty(),
         }
     }
 

@@ -38,7 +38,16 @@ impl<'cx> Emit<'cx> {
             Fn(f) => self.emit_fn_expr(f),
             New(new) => self.emit_new_expr(new),
             Assign(assign) => self.emit_assign_expr(assign),
+            ArrowFn(arrow_fn) => self.emit_arrow_fn(arrow_fn),
         }
+    }
+
+    fn emit_arrow_fn(&mut self, f: &'cx ast::ArrowFnExpr<'cx>) {
+        self.emit_params(f.params);
+        self.content.p_whitespace();
+        self.content.p("=>");
+        self.content.p_whitespace();
+        self.emit_block_stmt(&f.body);
     }
 
     fn emit_assign_expr(&mut self, assign: &'cx ast::AssignExpr) {

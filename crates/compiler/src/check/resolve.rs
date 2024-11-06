@@ -45,7 +45,10 @@ impl<'cx> TyChecker<'cx> {
 
     pub(super) fn resolve_call_expr(&mut self, expr: &'cx ast::CallExpr<'cx>) -> &'cx Ty<'cx> {
         let fn_ty = self.check_expr(expr.expr);
-        let Some(f) = fn_ty.kind.as_fn() else { todo!() };
+        let Some(f) = fn_ty.kind.as_fn() else {
+            // TODO: use unreachable!()
+            return self.error_ty();
+        };
         let symbol = self.type_symbol[&fn_ty.id];
 
         use crate::bind::SymbolKind::*;

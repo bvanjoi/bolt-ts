@@ -39,6 +39,7 @@ pub enum Node<'cx> {
     FnExpr(&'cx ast::FnExpr<'cx>),
     NewExpr(&'cx ast::NewExpr<'cx>),
     AssignExpr(&'cx ast::AssignExpr<'cx>),
+    ArrowFnExpr(&'cx ast::ArrowFnExpr<'cx>),
 
     // ty
     ArrayTy(&'cx ast::ArrayTy<'cx>),
@@ -84,6 +85,7 @@ impl Node<'_> {
             LitTy(n) => n.id,
             Modifier(n) => n.id,
             ClassPropEle(n) => n.id,
+            ArrowFnExpr(n) => n.id,
         }
     }
 
@@ -123,6 +125,7 @@ impl Node<'_> {
             TyParam(n) => n.span,
             Modifier(n) => n.span,
             ClassPropEle(n) => n.span,
+            ArrowFnExpr(n) => n.span,
         }
     }
 }

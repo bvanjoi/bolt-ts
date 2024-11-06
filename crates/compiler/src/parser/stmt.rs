@@ -8,6 +8,9 @@ impl<'cx, 'a, 'p> ParserState<'cx, 'p> {
         let id = self.p.next_node_id();
         let stmt = self.with_parent(id, |this| {
             use TokenKind::*;
+            if matches!(this.token.kind, Abstract) && this.is_start_of_decl() {
+                return this.parse_decl();
+            }
             let kind = match this.token.kind {
                 Semi => ast::StmtKind::Empty(this.parse_empty_stmt()?),
                 Var | Let | Const => ast::StmtKind::Var(this.parse_var_stmt()),
@@ -22,6 +25,20 @@ impl<'cx, 'a, 'p> ParserState<'cx, 'p> {
             let stmt = this.alloc(ast::Stmt { id, kind });
             Ok(stmt)
         })?;
+        Ok(stmt)
+    }
+
+    fn parse_decl(&mut self) -> PResult<&'cx ast::Stmt<'cx>> {
+        use TokenKind::*;
+        let id = self.p.next_node_id();
+        let mods = self.with_parent(id, Self::parse_modifiers)?;
+        let kind = match self.token.kind {
+            Var | Let | Const => ast::StmtKind::Var(self.parse_var_stmt()),
+            Function => ast::StmtKind::Fn(self.parse_fn_decl()?),
+            Class => ast::StmtKind::Class(self.parse_class_decl()?),
+            _ => unreachable!(),
+        };
+        let stmt = self.alloc(ast::Stmt { id, kind });
         Ok(stmt)
     }
 
