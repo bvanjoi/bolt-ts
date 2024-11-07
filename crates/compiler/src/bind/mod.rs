@@ -4,7 +4,7 @@ mod symbol;
 use rustc_hash::FxHashMap;
 pub use symbol::{Symbol, SymbolID, SymbolKind, SymbolName, Symbols};
 
-use crate::ast::{self, NodeID};
+use crate::ast::{self, FnExpr, NodeID};
 use crate::atoms::AtomMap;
 
 rts_span::new_index!(ScopeID);
@@ -61,7 +61,6 @@ impl<'cx> Binder<'cx> {
     }
 
     fn bind_stmt(&mut self, stmt: &'cx ast::Stmt) {
-        self.connect(stmt.id);
         use ast::StmtKind::*;
         match stmt.kind {
             Empty(_) => (),
@@ -144,8 +143,22 @@ impl<'cx> Binder<'cx> {
             ObjectLit(lit) => self.bind_object_lit(lit),
             ArrayLit(lit) => self.bind_array_lit(lit),
             Cond(cond) => self.bind_cond_expr(cond),
+            Paren(paren) => self.bind_expr(paren.expr),
+            ArrowFn(f) => self.bind_arrow_fn_expr(f),
+            Fn(f) => self.bind_fn_expr(f),
+            New(new) => self.bind_expr(new.expr),
             _ => (),
         }
+    }
+
+    fn bind_fn_expr(&mut self, f: &'cx ast::FnExpr<'cx>) {
+        self.create_fn_expr_symbol(f.id);
+        self.bind_block_stmt(f.body);
+    }
+
+    fn bind_arrow_fn_expr(&mut self, f: &'cx ast::ArrowFnExpr<'cx>) {
+        self.create_fn_expr_symbol(f.id);
+        self.bind_block_stmt(f.body);
     }
 
     fn bind_cond_expr(&mut self, cond: &'cx ast::CondExpr<'cx>) {
@@ -171,7 +184,6 @@ impl<'cx> Binder<'cx> {
                     ast::PropNameKind::Ident(ident) => SymbolName::Normal(ident.name),
                 };
                 let symbol = self.create_object_member_symbol(name, member);
-                self.final_res.insert(member.id, symbol);
                 (name, symbol)
             })
             .collect();

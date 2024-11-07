@@ -1,3 +1,5 @@
+mod check_call_like;
+mod check_fn_like;
 mod check_var_like;
 mod create_ty;
 mod get_contextual_ty;
@@ -33,7 +35,6 @@ pub struct TyChecker<'cx> {
     num_lit_tys: FxHashMap<u64, TyID>,
     intrinsic_tys: FxHashMap<AtomId, &'cx Ty<'cx>>,
     type_name: FxHashMap<TyID, String>,
-    type_symbol: FxHashMap<TyID, SymbolID>,
     symbol_links: FxHashMap<SymbolID, SymbolLinks<'cx>>,
     // === ast ===
     nodes: &'cx Nodes<'cx>,
@@ -116,7 +117,6 @@ impl<'cx> TyChecker<'cx> {
             symbols,
             nodes,
             node_parent_map,
-            type_symbol: FxHashMap::default(),
             node_id_to_sig: FxHashMap::default(),
             res,
             final_res,
@@ -279,11 +279,11 @@ impl<'cx> TyChecker<'cx> {
             Paren(paren) => self.check_expr(paren.expr),
             Cond(cond) => self.check_cond(cond),
             ObjectLit(lit) => self.check_object_lit(lit),
-            Call(call) => self.check_call_expr(call),
-            Fn(f) => self.check_fn_expr(f),
+            Call(call) => self.check_call_like_expr(call),
+            New(call) => self.check_call_like_expr(call),
+            Fn(f) => self.check_fn_like_expr(f),
+            ArrowFn(f) => self.check_fn_like_expr(f),
             Assign(assign) => self.check_assign_expr(assign),
-            New(_) => self.undefined_ty(),
-            ArrowFn(_) => self.undefined_ty(),
         }
     }
 
@@ -371,15 +371,6 @@ impl<'cx> TyChecker<'cx> {
         //     };
         //     self.push_error(assign.span.module, Box::new(error));
         // }
-        ty
-    }
-
-    fn check_fn_expr(&mut self, f: &'cx ast::FnExpr<'cx>) -> &'cx Ty<'cx> {
-        self.undefined_ty()
-    }
-
-    fn check_call_expr(&mut self, call: &'cx ast::CallExpr<'cx>) -> &'cx Ty<'cx> {
-        let ty = self.resolve_call_expr(call);
         ty
     }
 

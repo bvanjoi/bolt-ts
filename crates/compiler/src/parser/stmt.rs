@@ -5,40 +5,35 @@ use super::{PResult, ParserState};
 
 impl<'cx, 'a, 'p> ParserState<'cx, 'p> {
     pub fn parse_stmt(&mut self) -> PResult<&'cx ast::Stmt<'cx>> {
-        let id = self.p.next_node_id();
-        let stmt = self.with_parent(id, |this| {
-            use TokenKind::*;
-            if matches!(this.token.kind, Abstract) && this.is_start_of_decl() {
-                return this.parse_decl();
-            }
-            let kind = match this.token.kind {
-                Semi => ast::StmtKind::Empty(this.parse_empty_stmt()?),
-                Var | Let | Const => ast::StmtKind::Var(this.parse_var_stmt()),
-                Interface => ast::StmtKind::Interface(this.parse_interface_decl()?),
-                Function => ast::StmtKind::Fn(this.parse_fn_decl()?),
-                If => ast::StmtKind::If(this.parse_if_stmt()?),
-                LBrace => ast::StmtKind::Block(this.parse_block()?),
-                Return => ast::StmtKind::Return(this.parse_ret_stmt()?),
-                Class => ast::StmtKind::Class(this.parse_class_decl()?),
-                _ => ast::StmtKind::Expr(this.parse_expr_or_labeled_stmt()?),
-            };
-            let stmt = this.alloc(ast::Stmt { id, kind });
-            Ok(stmt)
-        })?;
+        use TokenKind::*;
+        if matches!(self.token.kind, Abstract) && self.is_start_of_decl() {
+            return self.parse_decl();
+        }
+        let kind = match self.token.kind {
+            Semi => ast::StmtKind::Empty(self.parse_empty_stmt()?),
+            Var | Let | Const => ast::StmtKind::Var(self.parse_var_stmt()),
+            Interface => ast::StmtKind::Interface(self.parse_interface_decl()?),
+            Function => ast::StmtKind::Fn(self.parse_fn_decl()?),
+            If => ast::StmtKind::If(self.parse_if_stmt()?),
+            LBrace => ast::StmtKind::Block(self.parse_block()?),
+            Return => ast::StmtKind::Return(self.parse_ret_stmt()?),
+            Class => ast::StmtKind::Class(self.parse_class_decl(None)?),
+            _ => ast::StmtKind::Expr(self.parse_expr_or_labeled_stmt()?),
+        };
+        let stmt = self.alloc(ast::Stmt { kind });
         Ok(stmt)
     }
 
     fn parse_decl(&mut self) -> PResult<&'cx ast::Stmt<'cx>> {
         use TokenKind::*;
-        let id = self.p.next_node_id();
-        let mods = self.with_parent(id, Self::parse_modifiers)?;
+        let mods = self.parse_modifiers()?;
         let kind = match self.token.kind {
             Var | Let | Const => ast::StmtKind::Var(self.parse_var_stmt()),
             Function => ast::StmtKind::Fn(self.parse_fn_decl()?),
-            Class => ast::StmtKind::Class(self.parse_class_decl()?),
+            Class => ast::StmtKind::Class(self.parse_class_decl(mods)?),
             _ => unreachable!(),
         };
-        let stmt = self.alloc(ast::Stmt { id, kind });
+        let stmt = self.alloc(ast::Stmt { kind });
         Ok(stmt)
     }
 
@@ -107,7 +102,10 @@ impl<'cx, 'a, 'p> ParserState<'cx, 'p> {
         Ok(eles)
     }
 
-    fn parse_class_decl(&mut self) -> PResult<&'cx ast::ClassDecl<'cx>> {
+    fn parse_class_decl(
+        &mut self,
+        modifiers: Option<&'cx ast::Modifiers<'cx>>,
+    ) -> PResult<&'cx ast::ClassDecl<'cx>> {
         let start = self.token.start();
         let id = self.p.next_node_id();
         self.expect(TokenKind::Class)?;
@@ -118,8 +116,9 @@ impl<'cx, 'a, 'p> ParserState<'cx, 'p> {
         let eles = self.parse_class_members()?;
         let decl = self.alloc(ast::ClassDecl {
             id,
-            name,
             span: self.new_span(start as usize, self.pos),
+            modifiers,
+            name,
             extends,
             implements,
             ty_params,

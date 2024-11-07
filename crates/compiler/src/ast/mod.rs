@@ -15,7 +15,7 @@ pub struct Program<'cx> {
 
 #[derive(Debug, Clone, Copy)]
 pub struct Stmt<'cx> {
-    pub id: NodeID,
+    // pub id: NodeID,
     pub kind: StmtKind<'cx>,
 }
 
@@ -82,6 +82,7 @@ pub struct BlockStmt<'cx> {
 pub struct ClassDecl<'cx> {
     pub id: NodeID,
     pub span: Span,
+    pub modifiers: Option<&'cx Modifiers<'cx>>,
     pub name: &'cx Ident,
     pub ty_params: Option<TyParams<'cx>>,
     pub extends: Option<&'cx HeritageClause<'cx>>,
@@ -196,7 +197,7 @@ impl Expr<'_> {
             Fn(f) => f.span,
             New(new) => new.span,
             Assign(assign) => assign.span,
-            ArrowFn(f) => f.span
+            ArrowFn(f) => f.span,
         }
     }
 
@@ -218,7 +219,7 @@ impl Expr<'_> {
             Fn(f) => f.id,
             New(new) => new.id,
             Assign(assign) => assign.id,
-            ArrowFn(f) => f.id
+            ArrowFn(f) => f.id,
         }
     }
 }
@@ -250,7 +251,7 @@ pub struct ArrowFnExpr<'cx> {
     pub ty_params: Option<TyParams<'cx>>,
     pub params: ParamsDecl<'cx>,
     pub ty: Option<&'cx self::Ty<'cx>>,
-    pub body: &'cx BlockStmt<'cx>
+    pub body: &'cx BlockStmt<'cx>,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -552,10 +553,10 @@ pub struct CallExpr<'cx> {
     pub args: Exprs<'cx>,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub enum ModifierKind {
     Public,
-    Abstract
+    Abstract,
 }
 
 #[derive(Debug, Clone, Copy)]

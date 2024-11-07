@@ -184,6 +184,19 @@ impl<'cx> TyKind<'cx> {
             None
         }
     }
+
+    pub fn as_class(&self) -> Option<&'cx ClassTy> {
+        use TyKind::*;
+        if let Object(ty) = self {
+            if let ObjectTyKind::Class(class) = ty.kind {
+                Some(class)
+            } else {
+                None
+            }
+        } else {
+            None
+        }
+    }
 }
 
 pub type Tys<'cx> = &'cx [&'cx Ty<'cx>];
@@ -275,7 +288,9 @@ impl ObjectTyKind<'_> {
 }
 
 #[derive(Debug, Clone, Copy)]
-pub struct ClassTy {}
+pub struct ClassTy {
+    pub symbol: SymbolID,
+}
 
 #[derive(Debug, Clone, Copy)]
 pub struct ObjectLitTy<'cx> {
@@ -287,4 +302,5 @@ pub struct ObjectLitTy<'cx> {
 pub struct FnTy<'cx> {
     pub params: &'cx [&'cx Ty<'cx>],
     pub ret: &'cx Ty<'cx>,
+    pub symbol: SymbolID,
 }

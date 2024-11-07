@@ -9,7 +9,10 @@ use crate::keyword;
 pub enum SymbolName {
     Normal(AtomId),
     Array,
+    /// object literal
     Object,
+    /// function expression
+    Fn,
 }
 
 impl SymbolName {
@@ -45,11 +48,16 @@ pub enum SymbolKind {
     Function {
         decls: ThinVec<NodeID>,
     },
-    Class,
+    Class {
+        decl: NodeID,
+    },
     Property {
         decl: NodeID,
     },
     Object(ObjectSymbol),
+    FnExpr {
+        decl: NodeID,
+    },
 }
 
 #[derive(Debug)]
@@ -68,8 +76,8 @@ impl SymbolKind {
             SymbolKind::Err => "err",
             SymbolKind::FunctionScopedVar => todo!(),
             SymbolKind::BlockScopedVar => todo!(),
-            SymbolKind::Function { .. } => "function",
-            SymbolKind::Class => "class",
+            SymbolKind::Function { .. } | SymbolKind::FnExpr { .. } => "function",
+            SymbolKind::Class { .. } => "class",
             SymbolKind::Property { .. } => todo!(),
             SymbolKind::Object { .. } => todo!(),
         }

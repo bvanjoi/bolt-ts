@@ -6,6 +6,7 @@ bitflags::bitflags! {
     #[derive(Debug, Clone, Copy)]
     pub struct SigFlags: u16 {
         const HAS_REST_PARAMETER  = 1 << 0;
+        const HAS_ABSTRACT = 1 << 2;
     }
 }
 
@@ -24,18 +25,27 @@ impl Sig<'_> {
 
 enum SigDecl<'cx> {
     FnDecl(&'cx ast::FnDecl<'cx>),
+    ClassDecl(&'cx ast::ClassDecl<'cx>),
+    FnExpr(&'cx ast::FnExpr<'cx>),
+    ArrowFnExpr(&'cx ast::ArrowFnExpr<'cx>),
 }
 
 impl<'cx> SigDecl<'cx> {
     fn params(&self) -> ast::ParamsDecl<'cx> {
         match self {
             SigDecl::FnDecl(f) => f.params,
+            SigDecl::ClassDecl(c) => &[],
+            SigDecl::FnExpr(f) => f.params,
+            SigDecl::ArrowFnExpr(f) => f.params,
         }
     }
 
     fn id(&self) -> ast::NodeID {
         match self {
             SigDecl::FnDecl(f) => f.id,
+            SigDecl::ClassDecl(c) => c.id,
+            SigDecl::FnExpr(f) => f.id,
+            SigDecl::ArrowFnExpr(f) => f.id,
         }
     }
 
@@ -61,7 +71,10 @@ impl<'cx> TyChecker<'cx> {
 fn get_sig_from_decl<'cx>(checker: &TyChecker<'cx>, node: ast::Node<'cx>) -> Sig<'cx> {
     let decl = match node {
         ast::Node::FnDecl(f) => SigDecl::FnDecl(f),
-        _ => unreachable!(),
+        ast::Node::FnExpr(f) => SigDecl::FnExpr(f),
+        ast::Node::ArrowFnExpr(f) => SigDecl::ArrowFnExpr(f),
+        ast::Node::ClassDecl(c) => SigDecl::ClassDecl(c),
+        _ => unreachable!("{node:#?}"),
     };
     assert!(!checker.node_id_to_sig.contains_key(&decl.id()));
     let mut flags = SigFlags::empty();
@@ -83,6 +96,17 @@ fn get_sig_from_decl<'cx>(checker: &TyChecker<'cx>, node: ast::Node<'cx>) -> Sig
     }
     if decl.has_rest_param() {
         flags.insert(SigFlags::HAS_REST_PARAMETER);
+    }
+    if let SigDecl::ClassDecl(c) = decl {
+        if let Some(mods) = c.modifiers {
+            if mods
+                .list
+                .iter()
+                .any(|m| m.kind == ast::ModifierKind::Abstract)
+            {
+                flags.insert(SigFlags::HAS_ABSTRACT);
+            }
+        }
     }
     let params: &[SymbolID] = checker.alloc(params);
     Sig {

@@ -1,4 +1,5 @@
 use rustc_hash::FxHashMap;
+use thin_vec::thin_vec;
 
 use super::ty::{self, Ty, TyKind};
 use super::TyChecker;
@@ -16,25 +17,24 @@ impl<'cx> TyChecker<'cx> {
             Err => return self.error_ty(),
             FunctionScopedVar => return self.undefined_ty(),
             BlockScopedVar => return self.undefined_ty(),
-            Class => self.get_type_of_class_decl(id),
-            Function { .. } => self.get_type_of_func_decl(id),
+            Class { .. } => self.get_type_of_class_decl(id),
+            Function { .. } | FnExpr { .. } => self.get_type_of_func_decl(id),
             Object { .. } => return self.undefined_ty(),
-            Property => return self.undefined_ty(),
+            Property { .. } => return self.undefined_ty(),
         };
-        let prev = self.type_symbol.insert(ty.id, id);
-        assert!(prev.is_none());
         ty
     }
 
-    fn get_type_of_class_decl(&mut self, id: SymbolID) -> &'cx Ty<'cx> {
-        self.create_class_ty(ty::ClassTy {})
+    fn get_type_of_class_decl(&mut self, symbol: SymbolID) -> &'cx Ty<'cx> {
+        self.create_class_ty(ty::ClassTy { symbol })
     }
 
-    fn get_type_of_func_decl(&mut self, id: SymbolID) -> &'cx Ty<'cx> {
-        let params = self.get_sig_of_symbol(id);
+    fn get_type_of_func_decl(&mut self, symbol: SymbolID) -> &'cx Ty<'cx> {
+        let params = self.get_sig_of_symbol(symbol);
         self.create_fn_ty(ty::FnTy {
             params,
             ret: self.undefined_ty(),
+            symbol,
         })
     }
 
@@ -42,20 +42,23 @@ impl<'cx> TyChecker<'cx> {
         use crate::bind::SymbolKind::*;
         let decls = match &self.symbols.get(id).kind {
             Err => todo!(),
-            Function { decls: ids } => ids.clone(),
+            Function { decls } => decls.clone(),
+            FnExpr { decl } => thin_vec![*decl],
             FunctionScopedVar => todo!(),
             BlockScopedVar => todo!(),
             Class => todo!(),
             Object { .. } => todo!(),
-            Property => todo!(),
+            Property { .. } => todo!(),
         };
 
         for decl in decls {
-            let ast::Node::FnDecl(f) = self.nodes.get(decl) else {
-                continue;
+            let params = match self.nodes.get(decl) {
+                ast::Node::FnDecl(f) => f.params,
+                ast::Node::ArrowFnExpr(f) => f.params,
+                ast::Node::FnExpr(f) => f.params,
+                _ => unreachable!(),
             };
-            let params = f
-                .params
+            let params = params
                 .iter()
                 .map(|param| self.get_ty_from_type_node(param.ty.unwrap()))
                 .collect::<Vec<_>>();

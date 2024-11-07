@@ -1,0 +1,5 @@
+  × Cannot create an instance of an abstract class.
+   ╭─[../../tests/cases/compiler/abstractClassInLocalScopeIsAbstract.ts:4:9]
+ 4 │ A
+   · ─
+   ╰────

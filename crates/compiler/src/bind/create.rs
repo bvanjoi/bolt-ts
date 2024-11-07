@@ -19,7 +19,7 @@ impl<'cx> Binder<'cx> {
     }
 
     pub(super) fn create_class_decl(&mut self, decl: &'cx ast::ClassDecl<'cx>) {
-        let symbol = self.create_var_symbol(decl.name.name, SymbolKind::Class);
+        let symbol = self.create_var_symbol(decl.name.name, SymbolKind::Class { decl: decl.id });
         self.create_final_res(decl.id, symbol);
     }
 
@@ -43,6 +43,11 @@ impl<'cx> Binder<'cx> {
             assert!(prev.is_none(), "`{name:#?}` is a duplicate symbol ");
         }
         id
+    }
+
+    pub(super) fn create_fn_expr_symbol(&mut self, id: ast::NodeID) {
+        let symbol = self.create_symbol(SymbolName::Fn, SymbolKind::FnExpr { decl: id });
+        self.final_res.insert(id, symbol);
     }
 
     pub(super) fn create_fn_symbol(&mut self, f: &'cx ast::FnDecl) {
@@ -74,7 +79,9 @@ impl<'cx> Binder<'cx> {
         name: SymbolName,
         member: &'cx ast::ObjectMemberField<'cx>,
     ) -> SymbolID {
-        self.create_symbol(name, SymbolKind::Property { decl: member.id })
+        let symbol = self.create_symbol(name, SymbolKind::Property { decl: member.id });
+        self.create_final_res(member.id, symbol);
+        symbol
     }
 
     pub(super) fn create_object_lit_symbol(

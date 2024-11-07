@@ -121,11 +121,17 @@ pub(crate) struct ObjectLitMayOnlySpecifyKnownPropAndFieldDoesNotExist {
     pub field: String,
 }
 
-
 #[derive(Error, Diagnostic, Debug)]
 #[error("Property '{field}' is missing.")]
 pub(crate) struct PropertyXIsMissing {
     #[label]
     pub span: Span,
     pub field: String,
+}
+
+#[derive(Error, Diagnostic, Debug)]
+#[error("Cannot create an instance of an abstract class.")]
+pub(crate) struct CannotCreateAnInstanceOfAnAbstractClass {
+    #[label]
+    pub span: Span,
 }
