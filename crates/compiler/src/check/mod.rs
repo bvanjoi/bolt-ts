@@ -10,6 +10,7 @@ mod resolve;
 mod sig;
 mod symbol_links;
 mod utils;
+mod check_bin_like;
 
 use rts_span::{ModuleID, Span};
 use rustc_hash::FxHashMap;
@@ -345,7 +346,7 @@ impl<'cx> TyChecker<'cx> {
         let r = self.check_expr(assign.right);
         use ast::AssignOp::*;
         let ty = match assign.op {
-            Eq => self.undefined_ty(),
+            Eq => self.check_binary_like_expr(assign, l, r),
             AddEq => self.check_binary_like_expr_for_add(l, r),
             SubEq => self.undefined_ty(),
             MulEq => self.undefined_ty(),

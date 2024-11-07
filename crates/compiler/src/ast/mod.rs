@@ -174,7 +174,6 @@ pub struct VarStmt<'cx> {
 
 #[derive(Debug, Clone, Copy)]
 pub struct Expr<'cx> {
-    // pub id: NodeID,
     pub kind: ExprKind<'cx>,
 }
 

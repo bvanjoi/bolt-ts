@@ -1,6 +1,7 @@
 use crate::{ast, ty};
 
-use super::{symbol_links::SymbolLinks, TyChecker};
+use super::symbol_links::SymbolLinks;
+use super::TyChecker;
 
 pub(super) trait VarLikeDecl<'cx>: Copy + std::fmt::Debug {
     fn id(&self) -> ast::NodeID;
