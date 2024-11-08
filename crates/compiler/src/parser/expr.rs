@@ -252,7 +252,7 @@ impl<'cx, 'a, 'p> ParserState<'cx, 'p> {
         }
         let lit = self.alloc(ast::ArrayLit {
             id,
-            span: self.new_span(start as usize, self.pos),
+            span: self.new_span(start as usize, self.token.start() as usize),
             elems,
         });
         self.insert_map(id, ast::Node::ArrayLit(&lit));

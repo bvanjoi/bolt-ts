@@ -106,6 +106,10 @@ impl<'cx> TyChecker<'cx> {
             }
         }
 
+        if self.is_simple_type_related_to(source, target) {
+            return true;
+        }
+
         if source.kind.is_structured_or_instantiable()
             || target.kind.is_structured_or_instantiable()
         {
@@ -139,8 +143,8 @@ impl<'cx> TyChecker<'cx> {
         self.is_related_to(source, target)
     }
 
-    fn relate_variances(&mut self, source: &'cx Ty<'cx>, target: &'cx Ty<'cx>) -> bool {
-        self.type_arg_related_to(source, target)
+    fn relate_variances(&mut self, source: &'cx Ty<'cx>, target: &'cx Ty<'cx>) -> Option<bool> {
+        Some(self.type_arg_related_to(source, target))
     }
 
     fn structured_related_to(&mut self, source: &'cx Ty<'cx>, target: &'cx Ty<'cx>) -> bool {
@@ -150,8 +154,7 @@ impl<'cx> TyChecker<'cx> {
 
         if let Some(source) = source.kind.as_array() {
             if let Some(target) = target.kind.as_array() {
-                let result = self.relate_variances(source.ty, target.ty);
-                if result {
+                if let Some(result) = self.relate_variances(source.ty, target.ty) {
                     return result;
                 }
             }
@@ -208,7 +211,6 @@ impl<'cx> TyChecker<'cx> {
         source: &'cx Ty<'cx>,
         sources: Tys<'cx>,
         target: &'cx Ty<'cx>,
-        targets: Tys<'cx>,
     ) -> bool {
         let mut res = true;
         for (idx, source_ty) in sources.iter().enumerate() {
@@ -229,11 +231,10 @@ impl<'cx> TyChecker<'cx> {
         target: &'cx Ty<'cx>,
     ) -> bool {
         if let TyKind::Union(s) = source.kind {
-            if let TyKind::Union(t) = target.kind {
-                self.each_type_related_to_type(source, s.tys, target, t.tys)
-            } else {
-                false
-            }
+            // if let TyKind::Union(t) = target.kind {
+            // } else {
+            // }
+            self.each_type_related_to_type(source, s.tys, target)
         } else {
             false
         }

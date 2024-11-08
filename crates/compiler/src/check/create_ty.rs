@@ -1,14 +1,22 @@
-use crate::ty;
+use crate::ty::{self};
 
 use super::{relation::RelationKind, TyChecker};
 
 impl<'cx> TyChecker<'cx> {
     pub(super) fn new_ty(&mut self, kind: ty::TyKind<'cx>) -> &'cx ty::Ty<'cx> {
-        let id = self.next_ty_id();
+        let id = self.next_ty_id;
+        self.next_ty_id = self.next_ty_id.next();
+
         let ty = self.alloc(ty::Ty::new(id, kind));
         let prev = self.tys.insert(id, ty);
         assert!(prev.is_none());
         ty
+    }
+
+    pub(super) fn new_ty_var(&mut self) -> ty::TyVarID {
+        let id = self.next_ty_var_id;
+        self.next_ty_var_id = self.next_ty_var_id.next();
+        id
     }
 
     fn create_object_ty(&mut self, ty: ty::ObjectTyKind<'cx>) -> &'cx ty::Ty<'cx> {

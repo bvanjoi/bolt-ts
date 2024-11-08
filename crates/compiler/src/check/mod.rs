@@ -1,3 +1,4 @@
+mod check_bin_like;
 mod check_call_like;
 mod check_fn_like;
 mod check_var_like;
@@ -10,7 +11,6 @@ mod resolve;
 mod sig;
 mod symbol_links;
 mod utils;
-mod check_bin_like;
 
 use rts_span::{ModuleID, Span};
 use rustc_hash::FxHashMap;
@@ -24,19 +24,34 @@ use crate::ast::{BinOp, ExprKind};
 use crate::atoms::{AtomId, AtomMap};
 use crate::bind::{ScopeID, Symbol, SymbolID, SymbolName, Symbols};
 use crate::parser::{Nodes, ParentMap};
-use crate::ty::{has_type_facts, IntrinsicTyKind, Ty, TyID, TypeFacts};
+use crate::ty::{has_type_facts, IntrinsicTyKind, Ty, TyID, TyVarID, TypeFacts};
 use crate::{ast, errors, keyword, ty};
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct F64Represent {
+    inner: u64,
+}
+
+impl F64Represent {
+    fn new(val: f64) -> Self {
+        Self {
+            inner: unsafe { std::mem::transmute::<f64, u64>(val) },
+        }
+    }
+}
 
 pub struct TyChecker<'cx> {
     pub atoms: &'cx AtomMap<'cx>,
     pub diags: Vec<rts_errors::Diag>,
     arena: &'cx bumpalo::Bump,
     next_ty_id: TyID,
+    next_ty_var_id: TyVarID,
     tys: FxHashMap<TyID, &'cx Ty<'cx>>,
-    num_lit_tys: FxHashMap<u64, TyID>,
+    num_lit_tys: FxHashMap<F64Represent, TyID>,
     intrinsic_tys: FxHashMap<AtomId, &'cx Ty<'cx>>,
     type_name: FxHashMap<TyID, String>,
     symbol_links: FxHashMap<SymbolID, SymbolLinks<'cx>>,
+    ty_vars: FxHashMap<TyVarID, &'cx Ty<'cx>>,
     // === ast ===
     nodes: &'cx Nodes<'cx>,
     node_parent_map: &'cx ParentMap,
@@ -109,6 +124,7 @@ impl<'cx> TyChecker<'cx> {
             tys: FxHashMap::default(),
             num_lit_tys: FxHashMap::default(),
             next_ty_id: TyID::root(),
+            next_ty_var_id: TyVarID::root(),
             arena: ty_arena,
             diags: Vec::with_capacity(32),
             boolean_ty: Default::default(),
@@ -123,12 +139,10 @@ impl<'cx> TyChecker<'cx> {
             final_res,
             global_tys: FxHashMap::default(),
             symbol_links: FxHashMap::default(),
+            ty_vars: FxHashMap::default(),
         };
         for (kind, ty_name) in INTRINSIC_TYPES {
-            let ty = ty::TyKind::Intrinsic(ty_arena.alloc(ty::IntrinsicTy {
-                name: *ty_name,
-                kind: *kind,
-            }));
+            let ty = ty::TyKind::Intrinsic(ty_arena.alloc(ty::IntrinsicTy { kind: *kind }));
             let ty = this.new_ty(ty);
             let prev = this.intrinsic_tys.insert(*ty_name, ty);
             assert!(prev.is_none());
@@ -153,12 +167,6 @@ impl<'cx> TyChecker<'cx> {
 
     fn alloc<T>(&self, t: T) -> &'cx T {
         self.arena.alloc(t)
-    }
-
-    fn next_ty_id(&mut self) -> TyID {
-        let old = self.next_ty_id;
-        self.next_ty_id = self.next_ty_id.next();
-        old
     }
 
     pub fn check_program(&mut self, program: &'cx ast::Program) {

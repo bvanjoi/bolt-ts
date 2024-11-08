@@ -2,10 +2,12 @@ mod facts;
 
 use crate::atoms::{AtomId, AtomMap};
 use crate::bind::SymbolID;
+use crate::keyword;
 pub use facts::{has_type_facts, TypeFacts};
 use rustc_hash::FxHashMap;
 
 rts_span::new_index!(TyID);
+rts_span::new_index!(TyVarID);
 
 #[derive(Debug, Clone, Copy)]
 pub struct Ty<'cx> {
@@ -32,7 +34,7 @@ impl<'cx> TyKind<'cx> {
     pub fn to_string(&self, atoms: &'cx AtomMap) -> String {
         match self {
             TyKind::NumberLit(_) => "number".to_string(),
-            TyKind::Intrinsic(ty) => atoms.get(ty.name).to_string(),
+            TyKind::Intrinsic(ty) => ty.kind.as_str(&atoms).to_string(),
             TyKind::Union(union) => union
                 .tys
                 .iter()
@@ -40,8 +42,7 @@ impl<'cx> TyKind<'cx> {
                 .collect::<Vec<_>>()
                 .join(" | "),
             TyKind::StringLit => todo!(),
-
-            TyKind::Object(object) => object.kind.as_str().to_string(),
+            TyKind::Object(object) => object.kind.to_string(atoms),
         }
     }
 
@@ -213,7 +214,6 @@ pub struct ArrayTy<'cx> {
 
 #[derive(Debug, Clone, Copy)]
 pub struct IntrinsicTy {
-    pub name: AtomId,
     pub kind: IntrinsicTyKind,
 }
 
@@ -229,6 +229,27 @@ pub enum IntrinsicTyKind {
     True,
     False,
     Error,
+}
+
+impl<'cx> IntrinsicTyKind {
+    fn as_atom(&self) -> AtomId {
+        match self {
+            IntrinsicTyKind::Any => keyword::IDENT_ANY,
+            IntrinsicTyKind::Unknown => todo!(),
+            IntrinsicTyKind::Void => keyword::IDENT_VOID,
+            IntrinsicTyKind::Null => keyword::KW_NULL,
+            IntrinsicTyKind::Undefined => keyword::IDENT_UNDEFINED,
+            IntrinsicTyKind::String => keyword::IDENT_STRING,
+            IntrinsicTyKind::Number => keyword::IDENT_NUMBER,
+            IntrinsicTyKind::True => keyword::KW_TRUE,
+            IntrinsicTyKind::False => keyword::KW_FALSE,
+            IntrinsicTyKind::Error => keyword::IDENT_ERROR,
+        }
+    }
+
+    fn as_str(&self, atoms: &'cx AtomMap) -> &'cx str {
+        atoms.get(self.as_atom())
+    }
 }
 
 impl IntrinsicTyKind {
@@ -276,13 +297,13 @@ pub enum ObjectTyKind<'cx> {
     Array(&'cx ArrayTy<'cx>),
 }
 
-impl ObjectTyKind<'_> {
-    fn as_str(&self) -> &'static str {
+impl<'cx> ObjectTyKind<'cx> {
+    fn to_string(&self, atoms: &AtomMap<'cx>) -> String {
         match self {
-            ObjectTyKind::Class(_) => "class",
-            ObjectTyKind::Fn(_) => "function",
-            ObjectTyKind::Lit(_) => "Object",
-            ObjectTyKind::Array(_) => "array",
+            ObjectTyKind::Class(_) => "class".to_string(),
+            ObjectTyKind::Fn(_) => "function".to_string(),
+            ObjectTyKind::Lit(_) => "Object".to_string(),
+            ObjectTyKind::Array(ArrayTy { ty }) => format!("{}[]", ty.kind.to_string(atoms)),
         }
     }
 }

@@ -2,7 +2,7 @@ use rustc_hash::FxHashMap;
 use thin_vec::thin_vec;
 
 use super::ty::{self, Ty, TyKind};
-use super::TyChecker;
+use super::{F64Represent, TyChecker};
 use crate::ast;
 use crate::bind::SymbolID;
 use crate::keyword;
@@ -127,14 +127,14 @@ impl<'cx> TyChecker<'cx> {
     }
 
     pub(super) fn get_number_literal_type(&mut self, val: f64) -> &'cx Ty<'cx> {
-        let key = unsafe { std::mem::transmute::<f64, u64>(val) };
-        let id = self.num_lit_tys.get(&key).copied();
-        if let Some(id) = id {
-            return self.tys[&id];
+        let key = F64Represent::new(val);
+        if let Some(id) = self.num_lit_tys.get(&key) {
+            self.tys[id]
+        } else {
+            let kind = TyKind::NumberLit(self.alloc(ty::NumberLitTy { val }));
+            let ty = self.new_ty(kind);
+            self.num_lit_tys.insert(key, ty.id);
+            ty
         }
-        let kind = TyKind::NumberLit(self.alloc(ty::NumberLitTy { val }));
-        let ty = self.new_ty(kind);
-        self.num_lit_tys.insert(key, ty.id);
-        ty
     }
 }
