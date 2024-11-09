@@ -5,7 +5,7 @@ fn main_test() {
     use rts_compiler::eval_from;
     let project_root = project_root::get_project_root().unwrap();
 
-    // for hang debug
+    // // for hang debug
     // let sub = "tests/cases/compiler";
     // let cases = compile_test::fixtures(&project_root, sub);
     // for case in cases.into_iter() {
@@ -20,7 +20,7 @@ fn main_test() {
     //     let output = eval_from(rts_span::ModulePath::Real(case.path().clone()));
     // }
 
-    let p = project_root.join("tests/cases/compiler/arrayLiteralInNonVarArgParameter.ts");
+    let p = project_root.join("tests/cases/compiler/nestedIfStatement.ts");
     let output = eval_from(rts_span::ModulePath::Real(p.clone()));
     if output.diags.is_empty() {
         let file_path =

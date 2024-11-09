@@ -293,6 +293,7 @@ impl<'cx> TyChecker<'cx> {
             Fn(f) => self.check_fn_like_expr(f),
             ArrowFn(f) => self.check_fn_like_expr(f),
             Assign(assign) => self.check_assign_expr(assign),
+            PrefixUnary(_) => self.undefined_ty(),
         }
     }
 
@@ -418,7 +419,7 @@ impl<'cx> TyChecker<'cx> {
         }
         let ty = if elems.is_empty() {
             // FIXME: use type var
-            self.undefined_ty()
+            self.create_ty_var()
         } else {
             self.create_union_type(elems)
         };

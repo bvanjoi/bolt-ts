@@ -147,14 +147,24 @@ impl<'cx> TyChecker<'cx> {
         Some(self.type_arg_related_to(source, target))
     }
 
+    fn is_empty_array_lit_ty(&self, ty: &'cx Ty<'cx>) -> bool {
+        if let Some(ty) = ty.kind.as_array() {
+            ty.ty.kind.is_ty_var()
+        } else {
+            false
+        }
+    }
+
     fn structured_related_to(&mut self, source: &'cx Ty<'cx>, target: &'cx Ty<'cx>) -> bool {
         if source.kind.is_union_or_intersection() || target.kind.is_union_or_intersection() {
             return self.union_or_intersection_related_to(source, target);
         }
 
-        if let Some(source) = source.kind.as_array() {
-            if let Some(target) = target.kind.as_array() {
-                if let Some(result) = self.relate_variances(source.ty, target.ty) {
+        if let Some(actual) = source.kind.as_array() {
+            if let Some(expect) = target.kind.as_array() {
+                if self.is_empty_array_lit_ty(source) {
+                    return true;
+                } else if let Some(result) = self.relate_variances(actual.ty, expect.ty) {
                     return result;
                 }
             }

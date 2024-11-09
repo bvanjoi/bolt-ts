@@ -13,10 +13,10 @@ impl<'cx> TyChecker<'cx> {
         ty
     }
 
-    pub(super) fn new_ty_var(&mut self) -> ty::TyVarID {
+    pub(super) fn create_ty_var(&mut self) -> &'cx ty::Ty<'cx> {
         let id = self.next_ty_var_id;
         self.next_ty_var_id = self.next_ty_var_id.next();
-        id
+        self.new_ty(ty::TyKind::Var(id))
     }
 
     fn create_object_ty(&mut self, ty: ty::ObjectTyKind<'cx>) -> &'cx ty::Ty<'cx> {

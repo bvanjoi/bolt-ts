@@ -7,7 +7,15 @@ use super::{PResult, ParserState};
 
 impl<'cx, 'a, 'p> ParserState<'cx, 'p> {
     fn is_update_expr(&self) -> bool {
-        true
+        use TokenKind::*;
+        match self.token.kind {
+            Plus | Minus => false,
+            Less => {
+                // TODO: is jsx
+                true
+            }
+            _ => true,
+        }
     }
 
     pub(super) fn parse_expr(&mut self) -> PResult<&'cx ast::Expr<'cx>> {
@@ -140,11 +148,38 @@ impl<'cx, 'a, 'p> ParserState<'cx, 'p> {
 
     fn parse_unary_expr(&mut self) -> &'cx ast::Expr<'cx> {
         if self.is_update_expr() {
-            let start = self.token.start();
-            let expr = self.parse_update_expr();
-            return expr;
+            // let start = self.token.start();
+            self.parse_update_expr()
+        } else {
+            self.parse_simple_unary_expr()
         }
-        todo!()
+    }
+
+    fn parse_prefix_unary_expr(&mut self) -> PResult<&'cx ast::Expr<'cx>> {
+        let start = self.token.start();
+        let id = self.p.next_node_id();
+        let op = self.token.kind.into();
+        self.next_token();
+        let expr = self.with_parent(id, Self::parse_simple_unary_expr);
+        let unary = self.alloc(ast::PrefixUnaryExpr {
+            id,
+            span: self.new_span(start as usize, self.pos),
+            op,
+            expr,
+        });
+        self.insert_map(id, ast::Node::PrefixUnaryExpr(unary));
+        let expr = self.alloc(ast::Expr {
+            kind: ast::ExprKind::PrefixUnary(unary),
+        });
+        Ok(expr)
+    }
+
+    fn parse_simple_unary_expr(&mut self) -> &'cx ast::Expr<'cx> {
+        use TokenKind::*;
+        match self.token.kind {
+            Plus | Minus => self.parse_prefix_unary_expr().unwrap(),
+            _ => self.parse_update_expr(),
+        }
     }
 
     fn parse_update_expr(&mut self) -> &'cx ast::Expr<'cx> {

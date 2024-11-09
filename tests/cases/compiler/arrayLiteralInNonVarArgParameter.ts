@@ -1,3 +1,3 @@
 function panic(val: string[], ...opt: string[]) { }
 
-// panic([], 'one', 'two');
+panic([], 'one', 'two');

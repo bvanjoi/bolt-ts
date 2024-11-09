@@ -40,6 +40,7 @@ pub enum Node<'cx> {
     NewExpr(&'cx ast::NewExpr<'cx>),
     AssignExpr(&'cx ast::AssignExpr<'cx>),
     ArrowFnExpr(&'cx ast::ArrowFnExpr<'cx>),
+    PrefixUnaryExpr(&'cx ast::PrefixUnaryExpr<'cx>),
 
     // ty
     ArrayTy(&'cx ast::ArrayTy<'cx>),
@@ -86,6 +87,7 @@ impl Node<'_> {
             Modifier(n) => n.id,
             ClassPropEle(n) => n.id,
             ArrowFnExpr(n) => n.id,
+            PrefixUnaryExpr(n) => n.id,
         }
     }
 
@@ -126,6 +128,7 @@ impl Node<'_> {
             Modifier(n) => n.span,
             ClassPropEle(n) => n.span,
             ArrowFnExpr(n) => n.span,
+            PrefixUnaryExpr(n) => n.span,
         }
     }
 }

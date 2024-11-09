@@ -197,6 +197,7 @@ impl Expr<'_> {
             New(new) => new.span,
             Assign(assign) => assign.span,
             ArrowFn(f) => f.span,
+            PrefixUnary(unary) => unary.span,
         }
     }
 
@@ -219,6 +220,7 @@ impl Expr<'_> {
             New(new) => new.id,
             Assign(assign) => assign.id,
             ArrowFn(f) => f.id,
+            PrefixUnary(unary) => unary.id,
         }
     }
 }
@@ -241,6 +243,31 @@ pub enum ExprKind<'cx> {
     Fn(&'cx FnExpr<'cx>),
     New(&'cx NewExpr<'cx>),
     ArrowFn(&'cx ArrowFnExpr<'cx>),
+    PrefixUnary(&'cx PrefixUnaryExpr<'cx>),
+}
+
+#[derive(Debug, Clone, Copy)]
+pub enum PrefixUnaryOp {
+    Plus,
+    Minus,
+}
+
+impl PrefixUnaryOp {
+    pub fn as_str(self) -> &'static str {
+        use PrefixUnaryOp::*;
+        match self {
+            Plus => "+",
+            Minus => "-",
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct PrefixUnaryExpr<'cx> {
+    pub id: NodeID,
+    pub span: Span,
+    pub op: PrefixUnaryOp,
+    pub expr: &'cx Expr<'cx>,
 }
 
 #[derive(Debug, Clone, Copy)]

@@ -28,6 +28,7 @@ pub enum TyKind<'cx> {
     Intrinsic(&'cx IntrinsicTy),
     Union(&'cx UnionTy<'cx>),
     Object(&'cx ObjectTy<'cx>),
+    Var(TyVarID),
 }
 
 impl<'cx> TyKind<'cx> {
@@ -43,6 +44,10 @@ impl<'cx> TyKind<'cx> {
                 .join(" | "),
             TyKind::StringLit => todo!(),
             TyKind::Object(object) => object.kind.to_string(atoms),
+            TyKind::Var(id) => {
+                // todo: delay bug
+                format!("#{id:#?}")
+            },
         }
     }
 
@@ -66,6 +71,10 @@ impl<'cx> TyKind<'cx> {
         } else {
             false
         }
+    }
+
+    pub fn is_ty_var(&self) -> bool {
+        matches!(self, TyKind::Var(_))
     }
 
     pub fn is_union_or_intersection(&self) -> bool {

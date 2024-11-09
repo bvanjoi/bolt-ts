@@ -1,6 +1,6 @@
 use rts_span::Span;
 
-use crate::ast::{AssignOp, BinOpKind, HeritageClauseKind, ModifierKind};
+use crate::ast::{AssignOp, BinOpKind, HeritageClauseKind, ModifierKind, PrefixUnaryOp};
 
 #[derive(Debug, Clone, Copy)]
 pub struct Token {
@@ -173,6 +173,18 @@ impl Into<BinOpKind> for TokenKind {
             _ => {
                 unreachable!("{:#?}", self)
             }
+        }
+    }
+}
+
+impl Into<PrefixUnaryOp> for TokenKind {
+    fn into(self) -> PrefixUnaryOp {
+        match self {
+            TokenKind::Plus => PrefixUnaryOp::Plus,
+            TokenKind::Minus => PrefixUnaryOp::Minus,
+            _ => {
+                unreachable!("{:#?}", self)
+            } 
         }
     }
 }

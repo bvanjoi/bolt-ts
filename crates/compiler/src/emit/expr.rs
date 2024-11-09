@@ -39,6 +39,11 @@ impl<'cx> Emit<'cx> {
             New(new) => self.emit_new_expr(new),
             Assign(assign) => self.emit_assign_expr(assign),
             ArrowFn(arrow_fn) => self.emit_arrow_fn(arrow_fn),
+            PrefixUnary(unary) => {
+                self.content.p(unary.op.as_str());
+                dbg!(unary.expr);
+                self.emit_expr(unary.expr);
+            },
         }
     }
 
