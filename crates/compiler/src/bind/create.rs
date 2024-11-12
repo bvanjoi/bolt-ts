@@ -33,6 +33,11 @@ impl<'cx> Binder<'cx> {
         self.create_symbol(name, kind)
     }
 
+    pub fn create_ele_symbol(&mut self, name: AtomId, kind: SymbolKind) -> SymbolID {
+        let name = SymbolName::Ele(name);
+        self.create_symbol(name, kind)
+    }
+
     fn create_symbol(&mut self, name: SymbolName, kind: SymbolKind) -> SymbolID {
         use super::SymbolKind::*;
         let id = self.next_symbol_id();
@@ -108,7 +113,15 @@ impl<'cx> Binder<'cx> {
         let name = match ele.name.kind {
             ast::PropNameKind::Ident(ident) => ident.name,
         };
-        let symbol = self.create_var_symbol(name, SymbolKind::Property { decl: ele.id });
+        let symbol = self.create_ele_symbol(name, SymbolKind::Property { decl: ele.id });
+        self.create_final_res(ele.id, symbol);
+    }
+
+    pub(super) fn create_class_method_ele(&mut self, ele: &'cx ast::ClassMethodEle<'cx>) {
+        let name = match ele.name.kind {
+            ast::PropNameKind::Ident(ident) => ident.name,
+        };
+        let symbol = self.create_ele_symbol(name, SymbolKind::Method { decl: ele.id });
         self.create_final_res(ele.id, symbol);
     }
 }

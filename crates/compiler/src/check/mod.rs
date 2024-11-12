@@ -1,6 +1,7 @@
 mod check_bin_like;
 mod check_call_like;
-mod check_fn_like;
+mod check_fn_like_decl;
+mod check_fn_like_expr;
 mod check_var_like;
 mod create_ty;
 mod get_contextual_ty;
@@ -199,8 +200,13 @@ impl<'cx> TyChecker<'cx> {
             use ast::ClassEleKind::*;
             match ele.kind {
                 Prop(prop) => self.check_class_prop_ele(prop),
+                Method(method) => self.check_class_method_ele(method),
             }
         }
+    }
+
+    fn check_class_method_ele(&mut self, method: &'cx ast::ClassMethodEle<'cx>) {
+        self.check_fn_like_decl(method);
     }
 
     fn check_class_prop_ele(&mut self, prop: &'cx ast::ClassPropEle<'cx>) {
@@ -227,8 +233,8 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
-    fn check_fn_decl(&mut self, f: &'cx ast::FnDecl) {
-        self.check_block(f.body);
+    fn check_fn_decl(&mut self, f: &'cx ast::FnDecl<'cx>) {
+        self.check_fn_like_decl(f);
     }
 
     fn check_var_stmt(&mut self, var: &'cx ast::VarStmt<'cx>) {
@@ -436,7 +442,9 @@ impl<'cx> TyChecker<'cx> {
                 let error = errors::CannotFindName {
                     span: ident.span,
                     name: self.atoms.get(ident.name).to_string(),
+                    errors: vec![],
                 };
+                let error = self.on_failed_to_resolve_symbol(ident, error);
                 self.push_error(ident.span.module, Box::new(error));
                 return self.error_ty();
             }

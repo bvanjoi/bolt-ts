@@ -17,6 +17,7 @@ pub enum Node<'cx> {
     EmptyStmt(&'cx ast::EmptyStmt),
     ClassDecl(&'cx ast::ClassDecl<'cx>),
     ClassPropEle(&'cx ast::ClassPropEle<'cx>),
+    ClassMethodEle(&'cx ast::ClassMethodEle<'cx>),
     BlockStmt(&'cx ast::BlockStmt<'cx>),
     HeritageClause(&'cx ast::HeritageClause<'cx>),
     Modifier(&'cx ast::Modifier),
@@ -86,6 +87,7 @@ impl Node<'_> {
             LitTy(n) => n.id,
             Modifier(n) => n.id,
             ClassPropEle(n) => n.id,
+            ClassMethodEle(n) => n.id,
             ArrowFnExpr(n) => n.id,
             PrefixUnaryExpr(n) => n.id,
         }
@@ -127,6 +129,7 @@ impl Node<'_> {
             TyParam(n) => n.span,
             Modifier(n) => n.span,
             ClassPropEle(n) => n.span,
+            ClassMethodEle(n) => n.span,
             ArrowFnExpr(n) => n.span,
             PrefixUnaryExpr(n) => n.span,
         }

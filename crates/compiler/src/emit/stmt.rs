@@ -41,7 +41,15 @@ impl<'cx> Emit<'cx> {
             Prop(prop) => {
                 self.emit_class_prop(prop);
             }
+            Method(method) => self.emit_class_method(method),
         }
+    }
+
+    fn emit_class_method(&mut self, method: &'cx ast::ClassMethodEle<'cx>) {
+        self.emit_prop_name(&method.name);
+        self.emit_params(method.params);
+        self.content.p_whitespace();
+        self.emit_block_stmt(&method.body);
     }
 
     fn emit_class_prop(&mut self, prop: &'cx ast::ClassPropEle<'cx>) {

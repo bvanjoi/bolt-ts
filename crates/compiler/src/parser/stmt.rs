@@ -63,15 +63,35 @@ impl<'cx, 'a, 'p> ParserState<'cx, 'p> {
     fn parse_class_prop_or_method(&mut self) -> PResult<&'cx ast::ClassEle<'cx>> {
         let id = self.p.next_node_id();
         let start = self.token.start();
-        let mods = self.with_parent(id, Self::parse_modifiers)?;
+        let modifiers = self.with_parent(id, Self::parse_modifiers)?;
         let name = self.with_parent(id, Self::parse_prop_name)?;
-        let ty = self.with_parent(id, Self::parse_ty_anno)?;
-        let ele = if ty.is_some() {
+        let ele = if self.token.kind == TokenKind::LParen || self.token.kind == TokenKind::Less {
+            // method
+            let ty_params = self.parse_ty_params()?;
+            let params = self.parse_params()?;
+            let ret = self.parse_ret_ty(true)?;
+            let body = self.parse_fn_block()?;
+            let method = self.alloc(ast::ClassMethodEle {
+                id,
+                span: self.new_span(start as usize, self.pos),
+                name,
+                ty_params,
+                params,
+                ret,
+                body,
+            });
+            self.insert_map(id, ast::Node::ClassMethodEle(method));
+            self.alloc(ast::ClassEle {
+                kind: ast::ClassEleKind::Method(method),
+            })
+        } else {
             // prop
+            let ty = self.with_parent(id, Self::parse_ty_anno)?;
             let init = self.parse_init();
             let prop = self.alloc(ast::ClassPropEle {
                 id,
                 span: self.new_span(start as usize, self.pos),
+                modifiers,
                 name,
                 ty,
                 init,
@@ -81,8 +101,6 @@ impl<'cx, 'a, 'p> ParserState<'cx, 'p> {
             self.alloc(ast::ClassEle {
                 kind: ast::ClassEleKind::Prop(prop),
             })
-        } else {
-            todo!()
         };
         Ok(ele)
     }
@@ -113,7 +131,7 @@ impl<'cx, 'a, 'p> ParserState<'cx, 'p> {
         let ty_params = self.parse_ty_params()?;
         let extends = self.parse_class_extends()?;
         let implements = self.parse_heritage_clauses(true)?;
-        let eles = self.parse_class_members()?;
+        let eles = self.with_parent(id, Self::parse_class_members)?;
         let decl = self.alloc(ast::ClassDecl {
             id,
             span: self.new_span(start as usize, self.pos),

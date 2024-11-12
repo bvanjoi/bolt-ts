@@ -8,6 +8,7 @@ use crate::keyword;
 #[derive(Debug, Clone, Copy, Hash, PartialEq, Eq)]
 pub enum SymbolName {
     Normal(AtomId),
+    Ele(AtomId),
     Array,
     /// object literal
     Object,
@@ -54,6 +55,9 @@ pub enum SymbolKind {
     Property {
         decl: NodeID,
     },
+    Method {
+        decl: NodeID,
+    },
     Object(ObjectSymbol),
     FnExpr {
         decl: NodeID,
@@ -80,6 +84,7 @@ impl SymbolKind {
             SymbolKind::Class { .. } => "class",
             SymbolKind::Property { .. } => todo!(),
             SymbolKind::Object { .. } => todo!(),
+            SymbolKind::Method { .. } => todo!(),
         }
     }
 

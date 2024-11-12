@@ -42,6 +42,7 @@ pub enum TokenKind {
     New,
     Async,
     This,
+    Static,
     // ts keyword
     Implements,
     Interface,
@@ -184,7 +185,7 @@ impl Into<PrefixUnaryOp> for TokenKind {
             TokenKind::Minus => PrefixUnaryOp::Minus,
             _ => {
                 unreachable!("{:#?}", self)
-            } 
+            }
         }
     }
 }
@@ -194,6 +195,7 @@ impl Into<ModifierKind> for TokenKind {
         match self {
             TokenKind::Public => ModifierKind::Public,
             TokenKind::Abstract => ModifierKind::Abstract,
+            TokenKind::Static => ModifierKind::Static,
             _ => {
                 unreachable!("{:#?}", self)
             }
@@ -330,7 +332,7 @@ impl TokenKind {
 
     pub fn is_modifier_kind(self) -> bool {
         use TokenKind::*;
-        matches!(self, Abstract | Const | Public)
+        matches!(self, Abstract | Const | Public | Static)
     }
 
     pub fn is_param_prop_modifier(self) -> bool {

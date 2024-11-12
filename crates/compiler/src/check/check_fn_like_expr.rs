@@ -1,23 +1,14 @@
-use super::relation::RelationKind;
-use super::sig::Sig;
-use super::ExpectedArgsCount;
 use super::TyChecker;
-use crate::bind::SymbolKind;
-use crate::{ast, errors, ty};
-use rts_span::Span;
+use crate::{ast, ty};
 
 pub(super) trait FnLikeExpr<'cx>: Copy + std::fmt::Debug {
     fn id(&self) -> ast::NodeID;
-    fn is_fn_expr() -> bool;
     fn body(&self) -> &'cx ast::BlockStmt<'cx>;
 }
 
 impl<'cx> FnLikeExpr<'cx> for ast::FnExpr<'cx> {
     fn id(&self) -> ast::NodeID {
         self.id
-    }
-    fn is_fn_expr() -> bool {
-        true
     }
     fn body(&self) -> &'cx ast::BlockStmt<'cx> {
         &self.body
@@ -27,9 +18,6 @@ impl<'cx> FnLikeExpr<'cx> for ast::FnExpr<'cx> {
 impl<'cx> FnLikeExpr<'cx> for ast::ArrowFnExpr<'cx> {
     fn id(&self) -> ast::NodeID {
         self.id
-    }
-    fn is_fn_expr() -> bool {
-        false
     }
     fn body(&self) -> &'cx ast::BlockStmt<'cx> {
         &self.body

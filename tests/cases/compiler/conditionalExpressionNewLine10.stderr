@@ -4,11 +4,13 @@
    · ─
    ╰────
 
+
   × Cannot find name 'b'.
    ╭─[../../tests/cases/compiler/conditionalExpressionNewLine10.ts:2:5]
  2 │ b
    · ─
    ╰────
+
 
   × Cannot find name 'd'.
    ╭─[../../tests/cases/compiler/conditionalExpressionNewLine10.ts:3:7]
@@ -16,11 +18,13 @@
    · ─
    ╰────
 
+
   × Cannot find name 'e'.
    ╭─[../../tests/cases/compiler/conditionalExpressionNewLine10.ts:4:7]
  4 │ e
    · ─
    ╰────
+
 
   × Cannot find name 'c'.
    ╭─[../../tests/cases/compiler/conditionalExpressionNewLine10.ts:5:5]
@@ -28,14 +32,17 @@
    · ─
    ╰────
 
+
   × Cannot find name 'f'.
    ╭─[../../tests/cases/compiler/conditionalExpressionNewLine10.ts:6:7]
  6 │ f
    · ─
    ╰────
 
+
   × Cannot find name 'g'.
    ╭─[../../tests/cases/compiler/conditionalExpressionNewLine10.ts:7:7]
  7 │ g
    · ─
    ╰────
+

@@ -23,6 +23,7 @@ keyword!(
     (KW_NEW: "new"),
     (KW_ASYNC: "async"),
     (KW_THIS: "this"),
+    (KW_STATIC: "static"),
     // ts keywords
     (KW_IMPLEMENTS: "implements"),
     (KW_INTERFACE: "interface"),

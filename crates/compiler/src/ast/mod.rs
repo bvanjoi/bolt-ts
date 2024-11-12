@@ -100,12 +100,25 @@ pub struct ClassEle<'cx> {
 #[derive(Debug, Clone, Copy)]
 pub enum ClassEleKind<'cx> {
     Prop(&'cx ClassPropEle<'cx>),
+    Method(&'cx ClassMethodEle<'cx>),
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct ClassMethodEle<'cx> {
+    pub id: NodeID,
+    pub span: Span,
+    pub name: &'cx PropName<'cx>,
+    pub ty_params: Option<TyParams<'cx>>,
+    pub params: ParamsDecl<'cx>,
+    pub ret: Option<&'cx self::Ty<'cx>>,
+    pub body: &'cx BlockStmt<'cx>,
 }
 
 #[derive(Debug, Clone, Copy)]
 pub struct ClassPropEle<'cx> {
     pub id: NodeID,
     pub span: Span,
+    pub modifiers: Option<&'cx Modifiers<'cx>>,
     pub name: &'cx PropName<'cx>,
     pub ty: Option<&'cx self::Ty<'cx>>,
     pub init: Option<&'cx Expr<'cx>>,
@@ -527,6 +540,14 @@ pub struct PropName<'cx> {
     pub kind: PropNameKind<'cx>,
 }
 
+impl<'cx> PropName<'cx> {
+    pub fn span(&self) -> Span {
+        match self.kind {
+            PropNameKind::Ident(ident) => ident.span,
+        }
+    }
+}
+
 #[derive(Debug, Clone, Copy)]
 pub enum PropNameKind<'cx> {
     Ident(&'cx Ident),
@@ -583,6 +604,7 @@ pub struct CallExpr<'cx> {
 pub enum ModifierKind {
     Public,
     Abstract,
+    Static,
 }
 
 #[derive(Debug, Clone, Copy)]

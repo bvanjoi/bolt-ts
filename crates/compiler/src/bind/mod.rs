@@ -93,10 +93,17 @@ impl<'cx> Binder<'cx> {
         self.scope_id = self.new_scope();
         for ele in class.eles {
             match ele.kind {
-                ast::ClassEleKind::Prop(prop) => self.bind_class_prop_ele(prop),
+                ast::ClassEleKind::Prop(n) => self.bind_class_prop_ele(n),
+                ast::ClassEleKind::Method(n) => self.bind_class_method_ele(n),
             }
         }
         self.scope_id = old;
+    }
+
+    fn bind_class_method_ele(&mut self, ele: &'cx ast::ClassMethodEle<'cx>) {
+        self.create_class_method_ele(ele);
+        self.bind_params(ele.params);
+        self.bind_block_stmt(ele.body);
     }
 
     fn bind_class_prop_ele(&mut self, ele: &'cx ast::ClassPropEle<'cx>) {
