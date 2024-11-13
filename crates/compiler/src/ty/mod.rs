@@ -35,7 +35,7 @@ impl<'cx> TyKind<'cx> {
     pub fn to_string(&self, atoms: &'cx AtomMap) -> String {
         match self {
             TyKind::NumberLit(_) => "number".to_string(),
-            TyKind::Intrinsic(ty) => ty.kind.as_str(&atoms).to_string(),
+            TyKind::Intrinsic(ty) => ty.kind.as_str().to_string(),
             TyKind::Union(union) => union
                 .tys
                 .iter()
@@ -241,25 +241,28 @@ pub enum IntrinsicTyKind {
 }
 
 impl<'cx> IntrinsicTyKind {
-    fn as_atom(&self) -> AtomId {
+    fn as_str(&self) -> &'static str {
         match self {
-            IntrinsicTyKind::Any => keyword::IDENT_ANY,
+            IntrinsicTyKind::Any => keyword::IDENT_ANY_STR,
             IntrinsicTyKind::Unknown => todo!(),
-            IntrinsicTyKind::Void => keyword::IDENT_VOID,
-            IntrinsicTyKind::Null => keyword::KW_NULL,
-            IntrinsicTyKind::Undefined => keyword::IDENT_UNDEFINED,
-            IntrinsicTyKind::String => keyword::IDENT_STRING,
-            IntrinsicTyKind::Number => keyword::IDENT_NUMBER,
-            IntrinsicTyKind::True => keyword::KW_TRUE,
-            IntrinsicTyKind::False => keyword::KW_FALSE,
-            IntrinsicTyKind::Error => keyword::IDENT_ERROR,
+            IntrinsicTyKind::Void => keyword::IDENT_VOID_STR,
+            IntrinsicTyKind::Null => keyword::KW_NULL_STR,
+            IntrinsicTyKind::Undefined => keyword::IDENT_UNDEFINED_STR,
+            IntrinsicTyKind::String => keyword::IDENT_STRING_STR,
+            IntrinsicTyKind::Number => keyword::IDENT_NUMBER_STR,
+            IntrinsicTyKind::True => keyword::KW_TRUE_STR,
+            IntrinsicTyKind::False => keyword::KW_FALSE_STR,
+            IntrinsicTyKind::Error => keyword::IDENT_ERROR_STR,
         }
     }
+}
 
-    fn as_str(&self, atoms: &'cx AtomMap) -> &'cx str {
-        atoms.get(self.as_atom())
+impl std::fmt::Display for IntrinsicTyKind {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.as_str())
     }
 }
+
 
 impl IntrinsicTyKind {
     fn is_lit(self) -> bool {

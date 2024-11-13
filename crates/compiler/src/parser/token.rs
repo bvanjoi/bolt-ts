@@ -304,14 +304,6 @@ impl TokenKind {
         matches!(self, TokenKind::Extends | TokenKind::Implements)
     }
 
-    pub fn into_heritage_clause_kind(&self) -> Option<HeritageClauseKind> {
-        match self {
-            TokenKind::Extends => Some(HeritageClauseKind::Extends),
-            TokenKind::Implements => Some(HeritageClauseKind::Implements),
-            _ => None,
-        }
-    }
-
     pub fn is_assignment(self) -> bool {
         use TokenKind::*;
         matches!(

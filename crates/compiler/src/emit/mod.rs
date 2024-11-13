@@ -1,3 +1,4 @@
+mod emit_class_like;
 mod expr;
 mod stmt;
 mod utils;

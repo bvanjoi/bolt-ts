@@ -2,6 +2,7 @@ use crate::ast::ExprKind;
 
 use super::ast::{self, BinOp};
 use super::list_ctx::{self, ListContext};
+use super::parse_class_like::{self, ClassLike};
 use super::token::{BinPrec, TokenKind};
 use super::{PResult, ParserState};
 
@@ -361,8 +362,16 @@ impl<'cx, 'a, 'p> ParserState<'cx, 'p> {
             LBrace => self.parse_object_lit(),
             Function => self.parse_fn_expr(),
             New => self.parse_new_expr(),
+            Class => self.parse_class_expr(),
             _ => Ok(self.parse_ident()),
         }
+    }
+
+    fn parse_class_expr(&mut self) -> PResult<&'cx ast::Expr<'cx>> {
+        let kind = self.parse_class_decl_or_expr(parse_class_like::ParseClassExpr, None)?;
+        Ok(self.alloc(ast::Expr {
+            kind: ast::ExprKind::Class(kind),
+        }))
     }
 
     fn parse_new_expr(&mut self) -> PResult<&'cx ast::Expr<'cx>> {

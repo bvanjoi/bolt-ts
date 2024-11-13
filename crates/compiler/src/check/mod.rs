@@ -1,5 +1,6 @@
 mod check_bin_like;
 mod check_call_like;
+mod check_class_like_decl;
 mod check_fn_like_decl;
 mod check_fn_like_expr;
 mod check_var_like;
@@ -194,15 +195,7 @@ impl<'cx> TyChecker<'cx> {
     }
 
     fn check_class_decl(&mut self, class: &'cx ast::ClassDecl<'cx>) {
-        // let symbol = self.get_symbol_of_decl(class.id);
-
-        for ele in class.eles {
-            use ast::ClassEleKind::*;
-            match ele.kind {
-                Prop(prop) => self.check_class_prop_ele(prop),
-                Method(method) => self.check_class_method_ele(method),
-            }
-        }
+        self.check_class_like_decl(class)
     }
 
     fn check_class_method_ele(&mut self, method: &'cx ast::ClassMethodEle<'cx>) {
@@ -300,6 +293,10 @@ impl<'cx> TyChecker<'cx> {
             ArrowFn(f) => self.check_fn_like_expr(f),
             Assign(assign) => self.check_assign_expr(assign),
             PrefixUnary(_) => self.undefined_ty(),
+            Class(class) => {
+                self.check_class_like_decl(class);
+                self.undefined_ty()
+            }
         }
     }
 
@@ -655,5 +652,13 @@ impl<'cx> TyChecker<'cx> {
         // }
 
         false
+    }
+
+    fn check_type_reference_or_import(&mut self, node: &'cx ast::Ty<'cx>) {
+        let ty = self.get_ty_from_type_node(node);
+    }
+
+    fn check_type_reference_node(&mut self, node: &'cx ast::Ty<'cx>) {
+        self.check_type_reference_or_import(node);
     }
 }

@@ -8,13 +8,13 @@ impl<'cx, 'a, 'p> ParserState<'cx, 'p> {
         use TokenKind::*;
         loop {
             match self.token.kind {
-                Var | Let |Const | Function | Class => return true,
+                Var | Let | Const | Function | Class => return true,
                 Abstract => {
                     // let prev = self.token.kind;
                     self.next_token();
                     continue;
-                },
-                _ => unreachable!()
+                }
+                _ => unreachable!(),
             }
         }
     }
@@ -158,6 +158,11 @@ impl<'cx, 'a, 'p> ParserState<'cx, 'p> {
         Ok(self.is_ident())
     }
 
+    pub(super) fn next_token_is_ident_or_keyword(&mut self) -> PResult<bool> {
+        self.next_token();
+        Ok(self.token.kind.is_ident_or_keyword())
+    }
+
     pub(super) fn is_start_of_mapped_ty(&mut self) -> PResult<bool> {
         self.next_token();
         if self.token.kind == TokenKind::Plus || self.token.kind == TokenKind::Minus {
@@ -231,5 +236,20 @@ impl<'cx, 'a, 'p> ParserState<'cx, 'p> {
 
     pub(super) fn try_parse<T>(&mut self, f: impl FnOnce(&mut Self) -> T) -> T {
         self.speculation_helper(f, true)
+    }
+
+    pub(super) fn parse_ident_name(&mut self) -> PResult<&'cx ast::Ident> {
+        Ok(self.create_ident(true))
+    }
+
+    pub(super) fn parse_semi_after_prop_name(&mut self) {
+        self.parse_semi();
+    }
+
+    pub(super) fn is_implements_clause(&mut self) -> bool {
+        self.token.kind == TokenKind::Implements
+            && self
+                .lookahead(Self::next_token_is_ident)
+                .unwrap_or_default()
     }
 }

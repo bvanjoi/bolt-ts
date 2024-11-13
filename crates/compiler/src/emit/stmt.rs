@@ -18,48 +18,7 @@ impl<'cx> Emit<'cx> {
     }
 
     fn emit_class_decl(&mut self, class: &'cx ast::ClassDecl<'cx>) {
-        self.content.p("class");
-        self.content.p_whitespace();
-        self.emit_ident(&class.name);
-        self.content.p_whitespace();
-        if let Some(extends) = class.extends {
-            self.content.p("extends");
-            self.content.p_whitespace();
-            assert!(extends.tys.len() == 1);
-            self.emit_expr(extends.tys[0]);
-        }
-        self.content.p_l_brace();
-        for ele in class.eles {
-            self.emit_class_ele(ele);
-        }
-        self.content.p_r_brace();
-    }
-
-    fn emit_class_ele(&mut self, ele: &'cx ast::ClassEle<'cx>) {
-        use ast::ClassEleKind::*;
-        match ele.kind {
-            Prop(prop) => {
-                self.emit_class_prop(prop);
-            }
-            Method(method) => self.emit_class_method(method),
-        }
-    }
-
-    fn emit_class_method(&mut self, method: &'cx ast::ClassMethodEle<'cx>) {
-        self.emit_prop_name(&method.name);
-        self.emit_params(method.params);
-        self.content.p_whitespace();
-        self.emit_block_stmt(&method.body);
-    }
-
-    fn emit_class_prop(&mut self, prop: &'cx ast::ClassPropEle<'cx>) {
-        self.emit_prop_name(&prop.name);
-        if let Some(init) = prop.init {
-            self.content.p_whitespace();
-            self.content.p_eq();
-            self.content.p_whitespace();
-            self.emit_expr(init);
-        }
+        self.emit_class_like(class);
     }
 
     fn emit_ret_stmt(&mut self, ret: &'cx ast::RetStmt<'cx>) {
@@ -73,13 +32,14 @@ impl<'cx> Emit<'cx> {
     fn emit_if_stmt(&mut self, stmt: &'cx ast::IfStmt<'cx>) {
         self.content.p("if");
         self.content.p_whitespace();
+        // test
         self.content.p_l_paren();
         self.emit_expr(stmt.expr);
         self.content.p_r_paren();
         self.content.p_whitespace();
-        self.content.p_l_brace();
+        // block
         self.emit_stmt(stmt.then);
-        self.content.p_r_brace();
+        // else
         if let Some(else_then) = stmt.else_then {
             self.content.p_whitespace();
             self.content.p("else");

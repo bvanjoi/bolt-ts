@@ -1,7 +1,8 @@
 use super::TyChecker;
-use crate::ast::{ClassEle, ClassEleKind};
+use crate::atoms::AtomId;
 use crate::bind::{Symbol, SymbolID, SymbolName};
-use crate::{ast, errors};
+use crate::ty::IntrinsicTyKind;
+use crate::{ast, errors, keyword};
 
 #[derive(Debug, Clone, Copy)]
 pub enum ExpectedArgsCount {
@@ -36,7 +37,9 @@ impl<'cx> TyChecker<'cx> {
         if let Some(e) = self.check_missing_prefix(ident) {
             error.errors.push(e);
         }
-
+        if let Some(e) = self.check_using_type_as_value(ident) {
+            error.errors.push(e);
+        }
         error
     }
 
@@ -85,6 +88,35 @@ impl<'cx> TyChecker<'cx> {
                     };
                     return Some(Box::new(error));
                 }
+            }
+        }
+
+        None
+    }
+
+    fn is_prim_ty_name(&self, name: AtomId) -> bool {
+        name == keyword::IDENT_ANY
+            || name == keyword::IDENT_NUMBER
+            || name == keyword::IDENT_STRING
+            || name == keyword::IDENT_BOOLEAN
+            || name == keyword::IDENT_NEVER
+            || name == keyword::IDENT_UNKNOWN
+    }
+
+    pub fn check_using_type_as_value(&mut self, ident: &'cx ast::Ident) -> Option<crate::Diag> {
+        if self.is_prim_ty_name(ident.name) {
+            let Some(grand) = self
+                .node_parent_map
+                .parent(ident.id)
+                .and_then(|id| self.node_parent_map.parent(id))
+            else {
+                return None;
+            };
+            if self.nodes.get(grand).is_class_like() {
+                return Some(Box::new(errors::AClassCannotImplementAPrimTy {
+                    span: ident.span,
+                    ty: self.atoms.get(ident.name).to_string(),
+                }));
             }
         }
 

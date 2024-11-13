@@ -1,6 +1,7 @@
 mod errors;
 mod expr;
 mod list_ctx;
+mod parse_class_like;
 mod scan;
 mod stmt;
 mod token;
@@ -353,10 +354,6 @@ impl<'cx, 'a, 'p> ParserState<'cx, 'p> {
         if self.token.kind == TokenKind::Semi {
             self.next_token();
         }
-    }
-
-    fn parse_ident_name(&mut self) -> PResult<&'cx ast::Ident> {
-        Ok(self.create_ident(true))
     }
 
     fn parse_binding_ident(&mut self) -> &'cx ast::Ident {

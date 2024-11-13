@@ -168,8 +168,12 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         ty
     }
 
-    pub(super) fn parse_expr_with_ty_args(&mut self) -> PResult<&'cx ast::Expr<'cx>> {
-        Ok(self.parse_left_hand_side_expr())
+    pub(super) fn parse_expr_with_ty_args(&mut self) -> PResult<&'cx ast::Ty<'cx>> {
+        let expr = self.parse_left_hand_side_expr();
+        let ty = self.alloc(ast::Ty {
+            kind: ast::TyKind::ExprWithArg(expr),
+        });
+        Ok(ty)
     }
 
     fn parse_ty_member_semi(&mut self) {

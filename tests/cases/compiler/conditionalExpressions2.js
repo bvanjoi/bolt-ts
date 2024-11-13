@@ -7,9 +7,9 @@ var f = false ? null : undefined
 var g = true ? {g: 5} : null
 var h = [{h: 5}, null]
 function i() {
-if (true) {{
+if (true) {
 return {x: 5}
-}} else {
+} else {
 return null
 }
 

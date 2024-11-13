@@ -11,7 +11,7 @@ fn run_tests() {
     let cases = compile_test::fixtures(&project_root, sub);
     let runner = |case: &std::path::Path| {
         let output = eval_from(rts_span::ModulePath::Real(case.to_path_buf()));
-        if output.diags.is_empty() {
+        if output.diags.is_empty() && !output.output.trim().is_empty() {
             let file_path = compile_test::temp_node_file(
                 &project_root,
                 case.file_stem().unwrap().to_str().unwrap(),

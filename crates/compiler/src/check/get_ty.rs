@@ -4,7 +4,7 @@ use thin_vec::thin_vec;
 use super::ty::{self, Ty, TyKind};
 use super::{F64Represent, TyChecker};
 use crate::ast;
-use crate::bind::SymbolID;
+use crate::bind::{Symbol, SymbolID};
 use crate::keyword;
 
 impl<'cx> TyChecker<'cx> {
@@ -119,6 +119,18 @@ impl<'cx> TyChecker<'cx> {
                     members,
                     symbol: self.final_res[&lit.id],
                 })
+            }
+            ExprWithArg(expr) => {
+                if let ast::ExprKind::Ident(ident) = expr.kind {
+                    let id = self.resolve_symbol_by_ident(ident);
+                    if id == Symbol::ERR {
+                        if let Some(error) = self.check_using_type_as_value(ident) {
+                            self.push_error(ident.span.module, error);
+                        }
+                        return self.error_ty();
+                    }
+                }
+                self.undefined_ty()
             }
         }
     }

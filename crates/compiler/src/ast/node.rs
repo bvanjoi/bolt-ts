@@ -18,8 +18,10 @@ pub enum Node<'cx> {
     ClassDecl(&'cx ast::ClassDecl<'cx>),
     ClassPropEle(&'cx ast::ClassPropEle<'cx>),
     ClassMethodEle(&'cx ast::ClassMethodEle<'cx>),
+    ClassExtendsClause(&'cx ast::ClassExtendsClause<'cx>),
+    InterfaceExtendsClause(&'cx ast::InterfaceExtendsClause<'cx>),
+    ImplementsClause(&'cx ast::ImplementsClause<'cx>),
     BlockStmt(&'cx ast::BlockStmt<'cx>),
-    HeritageClause(&'cx ast::HeritageClause<'cx>),
     Modifier(&'cx ast::Modifier),
 
     // expr
@@ -38,6 +40,7 @@ pub enum Node<'cx> {
     ObjectLit(&'cx ast::ObjectLit<'cx>),
     CallExpr(&'cx ast::CallExpr<'cx>),
     FnExpr(&'cx ast::FnExpr<'cx>),
+    ClassExpr(&'cx ast::ClassExpr<'cx>),
     NewExpr(&'cx ast::NewExpr<'cx>),
     AssignExpr(&'cx ast::AssignExpr<'cx>),
     ArrowFnExpr(&'cx ast::ArrowFnExpr<'cx>),
@@ -79,7 +82,6 @@ impl Node<'_> {
             FnTy(n) => n.id,
             ClassDecl(n) => n.id,
             BlockStmt(n) => n.id,
-            HeritageClause(n) => n.id,
             FnExpr(n) => n.id,
             NewExpr(n) => n.id,
             TyParam(n) => n.id,
@@ -90,6 +92,10 @@ impl Node<'_> {
             ClassMethodEle(n) => n.id,
             ArrowFnExpr(n) => n.id,
             PrefixUnaryExpr(n) => n.id,
+            ClassExpr(n) => n.id,
+            ClassExtendsClause(n) => n.id,
+            ImplementsClause(n) => n.id,
+            InterfaceExtendsClause(n) => n.id,
         }
     }
 
@@ -105,7 +111,6 @@ impl Node<'_> {
             EmptyStmt(n) => n.span,
             ClassDecl(n) => n.span,
             BlockStmt(n) => n.span,
-            HeritageClause(n) => n.span,
             VarDecl(n) => n.span,
             BinExpr(n) => n.span,
             NumLit(n) => n.span,
@@ -132,6 +137,15 @@ impl Node<'_> {
             ClassMethodEle(n) => n.span,
             ArrowFnExpr(n) => n.span,
             PrefixUnaryExpr(n) => n.span,
+            ClassExpr(n) => n.span,
+            ClassExtendsClause(n) => n.span,
+            ImplementsClause(n) => n.span,
+            InterfaceExtendsClause(n) => n.span,
         }
+    }
+
+    pub fn is_class_like(&self) -> bool {
+        use Node::*;
+        matches!(self, ClassDecl(_) | ClassExpr(_))
     }
 }

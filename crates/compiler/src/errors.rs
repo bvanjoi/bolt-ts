@@ -146,3 +146,11 @@ pub(crate) struct CannotCreateAnInstanceOfAnAbstractClass {
     #[label]
     pub span: Span,
 }
+
+#[derive(Error, Diagnostic, Debug)]
+#[error("A class cannot implement a primitive type like '{ty}'. It can only implement other named object types.")]
+pub(crate) struct AClassCannotImplementAPrimTy {
+    #[label]
+    pub span: Span,
+    pub ty: String,
+}
