@@ -46,8 +46,14 @@ impl<'cx> Emit<'cx> {
             self.emit_expr(extends.expr);
         }
         self.content.p_l_brace();
+        if !class.eles().is_empty() {
+            self.content.p_newline();
+        }
         for ele in class.eles() {
             self.emit_class_ele(ele);
+        }
+        if !class.eles().is_empty() {
+            self.content.p_newline();
         }
         self.content.p_r_brace();
     }

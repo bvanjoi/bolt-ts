@@ -57,6 +57,11 @@ impl PPrint {
     fn p_r_brace(&mut self) {
         self.p("}");
     }
+    /// `.`
+    fn p_dot(&mut self) {
+        self.p(".");
+    }
+    /// `...`
     fn p_dot_dot_dot(&mut self) {
         self.p("...");
     }

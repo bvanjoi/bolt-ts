@@ -1,3 +1,5 @@
-class C123 {constructor() {
+class C123 {
+constructor() {
 
-}}
+}
+}

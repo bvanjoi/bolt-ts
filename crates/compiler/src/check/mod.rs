@@ -297,6 +297,7 @@ impl<'cx> TyChecker<'cx> {
                 self.check_class_like_decl(class);
                 self.undefined_ty()
             }
+            PropAccess(_) => self.undefined_ty(),
         }
     }
 

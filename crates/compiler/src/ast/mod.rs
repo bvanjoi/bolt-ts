@@ -230,6 +230,7 @@ impl Expr<'_> {
             Assign(assign) => assign.span,
             ArrowFn(f) => f.span,
             PrefixUnary(unary) => unary.span,
+            PropAccess(a) => a.span,
         }
     }
 
@@ -254,6 +255,7 @@ impl Expr<'_> {
             Assign(assign) => assign.id,
             ArrowFn(f) => f.id,
             PrefixUnary(unary) => unary.id,
+            PropAccess(a) => a.id,
         }
     }
 }
@@ -278,6 +280,15 @@ pub enum ExprKind<'cx> {
     New(&'cx NewExpr<'cx>),
     ArrowFn(&'cx ArrowFnExpr<'cx>),
     PrefixUnary(&'cx PrefixUnaryExpr<'cx>),
+    PropAccess(&'cx PropAccessExpr<'cx>),
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct PropAccessExpr<'cx> {
+    pub id: NodeID,
+    pub span: Span,
+    pub expr: &'cx Expr<'cx>,
+    pub name: &'cx Ident,
 }
 
 #[derive(Debug, Clone, Copy)]

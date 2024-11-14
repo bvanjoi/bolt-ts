@@ -36,7 +36,8 @@ impl<'cx> CallLikeExpr<'cx> for ast::CallExpr<'cx> {
         ty: &'cx ty::Ty<'cx>,
     ) -> thin_vec::ThinVec<ast::NodeID> {
         let Some(f) = ty.kind.as_fn() else {
-            unreachable!()
+            // unreachable!()
+            return Default::default();
         };
         match &checker.symbols.get(f.symbol).kind {
             SymbolKind::Function { decls } => decls.clone(),

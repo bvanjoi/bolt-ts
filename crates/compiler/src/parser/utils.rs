@@ -3,6 +3,11 @@ use super::token::{TokenFlags, TokenKind};
 use super::{ast, errors};
 use super::{PResult, ParserState};
 
+pub(super) fn is_left_hand_side_expr_kind(expr: &ast::Expr) -> bool {
+    use ast::ExprKind::*;
+    matches!(expr.kind, Ident(_))
+}
+
 impl<'cx, 'a, 'p> ParserState<'cx, 'p> {
     pub(super) fn is_decl(&mut self) -> bool {
         use TokenKind::*;

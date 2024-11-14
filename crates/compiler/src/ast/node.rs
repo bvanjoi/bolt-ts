@@ -45,6 +45,7 @@ pub enum Node<'cx> {
     AssignExpr(&'cx ast::AssignExpr<'cx>),
     ArrowFnExpr(&'cx ast::ArrowFnExpr<'cx>),
     PrefixUnaryExpr(&'cx ast::PrefixUnaryExpr<'cx>),
+    PropAccessExpr(&'cx ast::PropAccessExpr<'cx>),
 
     // ty
     ArrayTy(&'cx ast::ArrayTy<'cx>),
@@ -98,6 +99,7 @@ impl Node<'_> {
             ImplementsClause(n) => n.id,
             InterfaceExtendsClause(n) => n.id,
             IndexSigDecl(n) => n.id,
+            PropAccessExpr(n) => n.id,
         }
     }
 
@@ -144,6 +146,8 @@ impl Node<'_> {
             ImplementsClause(n) => n.span,
             InterfaceExtendsClause(n) => n.span,
             IndexSigDecl(n) => n.span,
+            PropAccessExpr(n) => n.span,
+
         }
     }
 

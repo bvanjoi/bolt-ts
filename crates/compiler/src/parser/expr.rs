@@ -2,6 +2,7 @@ use crate::ast::ExprKind;
 
 use super::ast::{self, BinOp};
 use super::list_ctx;
+use super::paren_rule::{NoParenRule, ParenRuleTrait};
 use super::parse_class_like;
 use super::token::{BinPrec, TokenKind};
 use super::{PResult, ParserState};
@@ -481,38 +482,25 @@ impl<'cx, 'a, 'p> ParserState<'cx, 'p> {
 
     fn parse_prop_access_expr_rest(
         &mut self,
+        start: usize,
+        expr: &'cx ast::Expr<'cx>,
         question_dot_token: bool,
-    ) -> PResult<&'cx ast::Expr<'cx>> {
-        todo!()
-        // let id = self.p.next_node_id();
-        // let start = self.token.start();
-        // let name = self.parse_right_side_dot(true)?;
-        // let prop = if question_dot_token {
-        //     todo!()
-        // } else if self.token.kind == TokenKind::LParen {
-        //     let args = self.parse_args()?;
-        //     let prop = self.alloc(ast::CallExpr {
-        //         id,
-        //         span: self.new_span(start as usize, self.pos),
-        //         expr: self.alloc(ast::Expr {
-        //             kind: ast::ExprKind::Ident(name),
-        //         }),
-        //         args,
-        //     });
-        //     self.insert_map(id, ast::Node::CallExpr(prop));
-        //     ast::ExprKind::Call(prop)
-        // } else {
-        //     ast::ExprKind::Ident(name)
-        // };
-
-        // let expr = self.alloc(ast::Expr {
-        //     kind: ast::ExprKind::Member(ast::MemberExpr {
-        //         id,
-        //         span: self.new_span(start as usize, self.pos),
-        //         expr,
-        //         name,
-        //     }),
-        // });
+    ) -> PResult<&'cx ast::PropAccessExpr<'cx>> {
+        let id = self.p.next_node_id();
+        let name = self.parse_right_side_dot(true)?;
+        let prop = if question_dot_token {
+            todo!()
+        } else {
+            let expr = NoParenRule.paren_left_side_of_access(expr, false);
+            self.alloc(ast::PropAccessExpr {
+                id,
+                span: self.new_span(start, self.pos),
+                expr,
+                name,
+            })
+        };
+        self.insert_map(id, ast::Node::PropAccessExpr(prop));
+        Ok(prop)
     }
 
     fn parse_member_expr_rest(
@@ -521,11 +509,14 @@ impl<'cx, 'a, 'p> ParserState<'cx, 'p> {
         mut expr: &'cx ast::Expr<'cx>,
     ) -> PResult<&'cx ast::Expr<'cx>> {
         loop {
-            // let is_property_access = self.parse_optional(TokenKind::Dot).is_some();
-            // if is_property_access {
-            //     expr = self.parse_prop_access_expr_rest(false)?;
-            //     continue;
-            // }
+            let is_property_access = self.parse_optional(TokenKind::Dot).is_some();
+            if is_property_access {
+                let prop = self.parse_prop_access_expr_rest(start, expr, false)?;
+                expr = self.alloc(ast::Expr {
+                    kind: ast::ExprKind::PropAccess(prop),
+                });
+                continue;
+            }
 
             return Ok(expr);
         }

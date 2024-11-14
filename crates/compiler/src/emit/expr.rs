@@ -44,6 +44,11 @@ impl<'cx> Emit<'cx> {
                 self.emit_expr(unary.expr);
             }
             Class(class) => self.emit_class_like(class),
+            PropAccess(prop) => {
+                self.emit_expr(prop.expr);
+                self.content.p_dot();
+                self.emit_ident(prop.name);
+            },
         }
     }
 
