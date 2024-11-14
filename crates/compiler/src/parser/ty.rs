@@ -1,5 +1,5 @@
 use super::ast::{self, Node};
-use super::list_ctx::{ListContext, TyMembers};
+use super::list_ctx;
 use super::token::TokenKind;
 use super::{PResult, ParserState};
 
@@ -176,13 +176,6 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         Ok(ty)
     }
 
-    fn parse_ty_member_semi(&mut self) {
-        if self.parse_optional(TokenKind::Semi).is_some() {
-            return;
-        }
-        self.parse_semi();
-    }
-
     fn parse_prop_or_method_sig(&mut self) -> PResult<&'cx ast::ObjectTyMember<'cx>> {
         let id = self.p.next_node_id();
         let start = self.token.start();
@@ -226,11 +219,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
 
     pub(super) fn parse_object_ty_members(&mut self) -> PResult<ast::ObjectTyMembers<'cx>> {
         self.expect(TokenKind::LBrace)?;
-        let members = self.parse_list(
-            TyMembers::is_ele,
-            Self::parse_ty_member,
-            TyMembers::is_closing,
-        );
+        let members = self.parse_list(list_ctx::TyMembers, Self::parse_ty_member);
         self.expect(TokenKind::RBrace)?;
         Ok(members)
     }

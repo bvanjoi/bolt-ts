@@ -1,4 +1,4 @@
-use super::list_ctx::{self, ListContext};
+use super::list_ctx;
 use super::token::{TokenFlags, TokenKind};
 use super::{ast, errors};
 use super::{PResult, ParserState};
@@ -80,11 +80,7 @@ impl<'cx, 'a, 'p> ParserState<'cx, 'p> {
         use TokenKind::*;
         self.expect(LBrace)?;
         let stmts = self.with_parent(id, |this| {
-            this.parse_list(
-                list_ctx::BlockStmt::is_ele,
-                Self::parse_stmt,
-                list_ctx::BlockStmt::is_closing,
-            )
+            this.parse_list(list_ctx::BlockStmt, Self::parse_stmt)
         });
         self.expect(RBrace)?;
         let stmt = self.alloc(ast::BlockStmt {
@@ -101,9 +97,8 @@ impl<'cx, 'a, 'p> ParserState<'cx, 'p> {
             let less_token_span = self.token.span;
             let ty_params = self.parse_bracketed_list(
                 TokenKind::Less,
-                list_ctx::TyParams::is_ele,
+                list_ctx::TyParams,
                 Self::parse_ty_param,
-                list_ctx::TyParams::is_closing,
                 TokenKind::Great,
             )?;
             if ty_params.is_empty() {
@@ -251,5 +246,77 @@ impl<'cx, 'a, 'p> ParserState<'cx, 'p> {
             && self
                 .lookahead(Self::next_token_is_ident)
                 .unwrap_or_default()
+    }
+
+    fn is_unambiguously_index_sig(&mut self) -> PResult<bool> {
+        self.next_token();
+
+        if self.token.kind == TokenKind::DotDotDot || self.token.kind == TokenKind::RBracket {
+            return Ok(true);
+        } else if self.token.kind.is_modifier_kind() {
+            self.next_token();
+            if self.is_ident() {
+                return Ok(true);
+            }
+        } else if !self.is_ident() {
+            return Ok(false);
+        } else {
+            self.next_token();
+        }
+
+        if self.token.kind == TokenKind::Colon || self.token.kind == TokenKind::Comma {
+            return Ok(true);
+        } else if self.token.kind != TokenKind::Question {
+            return Ok(false);
+        }
+
+        self.next_token();
+
+        Ok(self.token.kind == TokenKind::Colon
+            || self.token.kind == TokenKind::Comma
+            || self.token.kind == TokenKind::RBracket)
+    }
+
+    pub(super) fn is_index_sig(&mut self) -> bool {
+        self.token.kind == TokenKind::LBracket
+            && self
+                .lookahead(Self::is_unambiguously_index_sig)
+                .unwrap_or_default()
+    }
+
+    pub(super) fn parse_params(&mut self) -> PResult<ast::ParamsDecl<'cx>> {
+        use TokenKind::*;
+        self.expect(LParen)?;
+        let params = self.parse_delimited_list(list_ctx::Params, Self::parse_param);
+        self.expect(RParen)?;
+        Ok(params)
+    }
+
+    pub(super) fn parse_param(&mut self) -> PResult<&'cx ast::ParamDecl<'cx>> {
+        let start = self.token.start();
+        let id = self.p.next_node_id();
+        let dotdotdot = self.parse_optional(TokenKind::DotDotDot).map(|t| t.span);
+        let name = self.with_parent(id, Self::parse_ident_name)?;
+        let question = self.parse_optional(TokenKind::Question).map(|t| t.span);
+        let ty = self.with_parent(id, Self::parse_ty_anno)?;
+        let init = self.with_parent(id, Self::parse_init);
+        let decl = self.alloc(ast::ParamDecl {
+            id,
+            span: self.new_span(start as usize, self.pos),
+            dotdotdot,
+            name,
+            question,
+            ty,
+            init,
+        });
+        self.insert_map(id, ast::Node::ParamDecl(decl));
+        Ok(decl)
+    }
+
+    pub(super) fn parse_ty_member_semi(&mut self) {
+        if self.parse_optional(TokenKind::Semi).is_some() {
+            return;
+        }
+        self.parse_semi();
     }
 }

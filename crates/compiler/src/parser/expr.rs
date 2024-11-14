@@ -1,8 +1,8 @@
 use crate::ast::ExprKind;
 
 use super::ast::{self, BinOp};
-use super::list_ctx::{self, ListContext};
-use super::parse_class_like::{self, ClassLike};
+use super::list_ctx;
+use super::parse_class_like;
 use super::token::{BinPrec, TokenKind};
 use super::{PResult, ParserState};
 
@@ -219,11 +219,7 @@ impl<'cx, 'a, 'p> ParserState<'cx, 'p> {
 
     fn parse_args(&mut self) -> PResult<ast::Exprs<'cx>> {
         self.expect(TokenKind::LParen)?;
-        let args = self.parse_delimited_list(
-            list_ctx::ArgExprs::is_ele,
-            Self::parse_arg,
-            list_ctx::ArgExprs::is_closing,
-        );
+        let args = self.parse_delimited_list(list_ctx::ArgExprs, Self::parse_arg);
         self.expect(TokenKind::RParen)?;
         Ok(args)
     }
@@ -300,26 +296,22 @@ impl<'cx, 'a, 'p> ParserState<'cx, 'p> {
     }
 
     fn parse_array_lit_elems(&mut self) -> &'cx [&'cx ast::Expr<'cx>] {
-        self.parse_delimited_list(
-            |s| matches!(s.token.kind, TokenKind::Comma) || s.token.kind.is_start_of_expr(),
-            |this| {
-                if this.token.kind == TokenKind::Comma {
-                    let id = this.p.next_node_id();
-                    let expr = this.alloc(ast::OmitExpr {
-                        id,
-                        span: this.token.span,
-                    });
-                    this.insert_map(id, ast::Node::OmitExpr(expr));
-                    let expr = this.alloc(ast::Expr {
-                        kind: ast::ExprKind::Omit(expr),
-                    });
-                    Ok(expr)
-                } else {
-                    this.parse_assign_expr()
-                }
-            },
-            |s| s.token.kind == TokenKind::RBracket,
-        )
+        self.parse_delimited_list(list_ctx::ArrayLiteralMembers, |this| {
+            if this.token.kind == TokenKind::Comma {
+                let id = this.p.next_node_id();
+                let expr = this.alloc(ast::OmitExpr {
+                    id,
+                    span: this.token.span,
+                });
+                this.insert_map(id, ast::Node::OmitExpr(expr));
+                let expr = this.alloc(ast::Expr {
+                    kind: ast::ExprKind::Omit(expr),
+                });
+                Ok(expr)
+            } else {
+                this.parse_assign_expr()
+            }
+        })
     }
 
     fn parse_lit(&mut self) -> &'cx ast::Expr<'cx> {
@@ -428,11 +420,8 @@ impl<'cx, 'a, 'p> ParserState<'cx, 'p> {
         let start = self.token.start();
         self.expect(LBrace)?;
         let id = self.p.next_node_id();
-        let props = self.parse_delimited_list(
-            list_ctx::ObjectLitMembers::is_ele,
-            Self::parse_object_lit_ele,
-            list_ctx::ObjectLitMembers::is_closing,
-        );
+        let props =
+            self.parse_delimited_list(list_ctx::ObjectLitMembers, Self::parse_object_lit_ele);
         self.expect(RBrace)?;
         let lit = self.alloc(ast::ObjectLit {
             id,
@@ -482,11 +471,63 @@ impl<'cx, 'a, 'p> ParserState<'cx, 'p> {
         self.parse_member_expr_rest(start as usize, expr).unwrap()
     }
 
+    fn parse_right_side_dot(&mut self, allow_identifier_names: bool) -> PResult<&'cx ast::Ident> {
+        if allow_identifier_names {
+            self.parse_ident_name()
+        } else {
+            todo!()
+        }
+    }
+
+    fn parse_prop_access_expr_rest(
+        &mut self,
+        question_dot_token: bool,
+    ) -> PResult<&'cx ast::Expr<'cx>> {
+        todo!()
+        // let id = self.p.next_node_id();
+        // let start = self.token.start();
+        // let name = self.parse_right_side_dot(true)?;
+        // let prop = if question_dot_token {
+        //     todo!()
+        // } else if self.token.kind == TokenKind::LParen {
+        //     let args = self.parse_args()?;
+        //     let prop = self.alloc(ast::CallExpr {
+        //         id,
+        //         span: self.new_span(start as usize, self.pos),
+        //         expr: self.alloc(ast::Expr {
+        //             kind: ast::ExprKind::Ident(name),
+        //         }),
+        //         args,
+        //     });
+        //     self.insert_map(id, ast::Node::CallExpr(prop));
+        //     ast::ExprKind::Call(prop)
+        // } else {
+        //     ast::ExprKind::Ident(name)
+        // };
+
+        // let expr = self.alloc(ast::Expr {
+        //     kind: ast::ExprKind::Member(ast::MemberExpr {
+        //         id,
+        //         span: self.new_span(start as usize, self.pos),
+        //         expr,
+        //         name,
+        //     }),
+        // });
+    }
+
     fn parse_member_expr_rest(
         &mut self,
         start: usize,
-        expr: &'cx ast::Expr<'cx>,
+        mut expr: &'cx ast::Expr<'cx>,
     ) -> PResult<&'cx ast::Expr<'cx>> {
-        Ok(expr)
+        loop {
+            // let is_property_access = self.parse_optional(TokenKind::Dot).is_some();
+            // if is_property_access {
+            //     expr = self.parse_prop_access_expr_rest(false)?;
+            //     continue;
+            // }
+
+            return Ok(expr);
+        }
     }
 }

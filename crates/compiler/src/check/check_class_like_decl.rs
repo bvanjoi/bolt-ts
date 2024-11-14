@@ -45,6 +45,7 @@ impl<'cx> TyChecker<'cx> {
             match ele.kind {
                 Prop(prop) => self.check_class_prop_ele(prop),
                 Method(method) => self.check_class_method_ele(method),
+                IndexSig(_) => {}
             }
         }
     }

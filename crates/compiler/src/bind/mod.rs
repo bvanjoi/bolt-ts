@@ -95,6 +95,7 @@ impl<'cx> Binder<'cx> {
             match ele.kind {
                 ast::ClassEleKind::Prop(n) => self.bind_class_prop_ele(n),
                 ast::ClassEleKind::Method(n) => self.bind_class_method_ele(n),
+                ast::ClassEleKind::IndexSig(_) => {}
             }
         }
         self.scope_id = old;

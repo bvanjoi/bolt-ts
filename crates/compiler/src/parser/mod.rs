@@ -183,13 +183,12 @@ impl<'cx, 'a, 'p> ParserState<'cx, 'p> {
     fn parse_bracketed_list<T>(
         &mut self,
         open: TokenKind,
-        is_ele: impl Fn(&mut Self) -> bool,
+        ctx: impl list_ctx::ListContext,
         ele: impl Fn(&mut Self) -> PResult<T>,
-        is_closing: impl Fn(&mut Self) -> bool,
         close: TokenKind,
     ) -> PResult<&'cx [T]> {
         if self.expect(open).is_ok() {
-            let elems = self.parse_delimited_list(is_ele, ele, is_closing);
+            let elems = self.parse_delimited_list(ctx, ele);
             self.expect(close)?;
             Ok(elems)
         } else {
@@ -199,13 +198,12 @@ impl<'cx, 'a, 'p> ParserState<'cx, 'p> {
 
     fn parse_list<T>(
         &mut self,
-        is_ele: impl Fn(&mut Self) -> bool,
+        ctx: impl list_ctx::ListContext,
         ele: impl Fn(&mut Self) -> PResult<T>,
-        is_closing: impl Fn(&mut Self) -> bool,
     ) -> &'cx [T] {
         let mut list = vec![];
-        while !is_closing(self) {
-            if is_ele(self) {
+        while !ctx.is_closing(self) {
+            if ctx.is_ele(self) {
                 if let Ok(ele) = ele(self) {
                     list.push(ele);
                 }
@@ -216,25 +214,24 @@ impl<'cx, 'a, 'p> ParserState<'cx, 'p> {
 
     fn parse_delimited_list<T>(
         &mut self,
-        is_ele: impl Fn(&mut Self) -> bool,
+        ctx: impl list_ctx::ListContext,
         ele: impl Fn(&mut Self) -> PResult<T>,
-        is_closing: impl Fn(&mut Self) -> bool,
     ) -> &'cx [T] {
         let mut list = vec![];
         loop {
-            if is_ele(self) {
+            if ctx.is_ele(self) {
                 let Ok(ele) = ele(self) else {
                     break;
                 };
                 list.push(ele);
-                if is_closing(self) {
+                if ctx.is_closing(self) {
                     break;
                 }
                 if self.parse_optional(TokenKind::Comma).is_some() {
                     continue;
                 }
             }
-            if is_closing(self) {
+            if ctx.is_closing(self) {
                 break;
             }
         }

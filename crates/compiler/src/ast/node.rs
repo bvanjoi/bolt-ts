@@ -51,6 +51,7 @@ pub enum Node<'cx> {
     FnTy(&'cx ast::FnTy<'cx>),
     LitTy(&'cx ast::LitTy<'cx>),
     TyParam(&'cx ast::TyParam<'cx>),
+    IndexSigDecl(&'cx ast::IndexSigDecl<'cx>),
 }
 
 impl Node<'_> {
@@ -96,6 +97,7 @@ impl Node<'_> {
             ClassExtendsClause(n) => n.id,
             ImplementsClause(n) => n.id,
             InterfaceExtendsClause(n) => n.id,
+            IndexSigDecl(n) => n.id,
         }
     }
 
@@ -141,6 +143,7 @@ impl Node<'_> {
             ClassExtendsClause(n) => n.span,
             ImplementsClause(n) => n.span,
             InterfaceExtendsClause(n) => n.span,
+            IndexSigDecl(n) => n.span,
         }
     }
 

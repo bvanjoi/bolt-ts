@@ -59,6 +59,7 @@ impl<'cx> Emit<'cx> {
                 self.emit_class_prop(prop);
             }
             Method(method) => self.emit_class_method(method),
+            IndexSig(_) => {}
         }
     }
 

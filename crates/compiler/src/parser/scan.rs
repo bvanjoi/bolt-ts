@@ -359,7 +359,8 @@ impl<'cx, 'a, 'p> ParserState<'cx, 'p> {
                         self.pos += 3;
                         Token::new(TokenKind::DotDotDot, self.new_span(start, self.pos))
                     } else {
-                        todo!()
+                        self.pos += 1;
+                        Token::new(TokenKind::Dot, self.new_span(start, self.pos))
                     }
                 }
                 b',' | b';' | b':' | b'[' | b']' | b'(' | b')' | b'{' | b'}' => {

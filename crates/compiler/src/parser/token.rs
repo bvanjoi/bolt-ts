@@ -72,6 +72,8 @@ pub enum TokenKind {
     LParen = 0x28,
     /// `)`
     RParen = 0x29,
+    /// `.`
+    Dot = 0x2E,
     /// `:`
     Colon = 0x3A,
     /// `;`

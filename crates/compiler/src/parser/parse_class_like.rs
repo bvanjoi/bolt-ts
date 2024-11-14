@@ -124,14 +124,14 @@ impl<'cx, 'a, 'p> ParserState<'cx, 'p> {
             let mut ele = None;
             let mut last_ele_span = None;
             loop {
-                if list_ctx::HeritageClause::is_ele(self) {
+                if list_ctx::HeritageClause.is_ele(self) {
                     let e = self.parse_left_hand_side_expr();
                     if is_first {
                         ele = Some(e);
                     } else {
                         last_ele_span = Some(e.span())
                     }
-                    if list_ctx::HeritageClause::is_closing(self) {
+                    if list_ctx::HeritageClause.is_closing(self) {
                         break;
                     }
                     let span = self.token.span;
@@ -144,7 +144,7 @@ impl<'cx, 'a, 'p> ParserState<'cx, 'p> {
                     }
                     unreachable!()
                 }
-                if list_ctx::HeritageClause::is_closing(self) {
+                if list_ctx::HeritageClause.is_closing(self) {
                     break;
                 }
             }
@@ -178,10 +178,12 @@ impl<'cx, 'a, 'p> ParserState<'cx, 'p> {
         Ok(None)
     }
 
-    fn parse_class_prop_or_method(&mut self) -> PResult<&'cx ast::ClassEle<'cx>> {
-        let id = self.p.next_node_id();
-        let start = self.token.start();
-        let modifiers = self.with_parent(id, Self::parse_modifiers)?;
+    fn parse_class_prop_or_method(
+        &mut self,
+        id: ast::NodeID,
+        start: usize,
+        modifiers: Option<&'cx ast::Modifiers<'cx>>,
+    ) -> PResult<&'cx ast::ClassEle<'cx>> {
         let name = self.with_parent(id, Self::parse_prop_name)?;
         let ele = if self.token.kind == TokenKind::LParen || self.token.kind == TokenKind::Less {
             // method
@@ -191,7 +193,7 @@ impl<'cx, 'a, 'p> ParserState<'cx, 'p> {
             let body = self.parse_fn_block()?;
             let method = self.alloc(ast::ClassMethodEle {
                 id,
-                span: self.new_span(start as usize, self.pos),
+                span: self.new_span(start, self.pos),
                 name,
                 ty_params,
                 params,
@@ -208,7 +210,7 @@ impl<'cx, 'a, 'p> ParserState<'cx, 'p> {
             let init = self.parse_init();
             let prop = self.alloc(ast::ClassPropEle {
                 id,
-                span: self.new_span(start as usize, self.pos),
+                span: self.new_span(start, self.pos),
                 modifiers,
                 name,
                 ty,
@@ -223,17 +225,50 @@ impl<'cx, 'a, 'p> ParserState<'cx, 'p> {
         Ok(ele)
     }
 
+    fn parse_index_sig_decl(
+        &mut self,
+        id: ast::NodeID,
+        start: usize,
+        modifiers: Option<&'cx ast::Modifiers<'cx>>,
+    ) -> PResult<&'cx ast::IndexSigDecl<'cx>> {
+        let params = self.parse_bracketed_list(
+            TokenKind::LBracket,
+            list_ctx::Params,
+            Self::parse_param,
+            TokenKind::RBracket,
+        )?;
+        let Some(ty) = self.parse_ty_anno()? else {
+            todo!("error handler")
+        };
+        self.parse_ty_member_semi();
+        let sig = self.alloc(ast::IndexSigDecl {
+            id,
+            span: self.new_span(start, self.pos),
+            modifiers,
+            params,
+            ty,
+        });
+        self.insert_map(id, ast::Node::IndexSigDecl(sig));
+        Ok(sig)
+    }
+
     fn parse_class_ele(&mut self) -> PResult<&'cx ast::ClassEle<'cx>> {
-        self.parse_class_prop_or_method()
+        let id = self.p.next_node_id();
+        let start = self.token.start();
+        let modifiers = self.with_parent(id, Self::parse_modifiers)?;
+        if self.is_index_sig() {
+            let decl = self.parse_index_sig_decl(id, start as usize, modifiers)?;
+            Ok(self.alloc(ast::ClassEle {
+                kind: ast::ClassEleKind::IndexSig(decl),
+            }))
+        } else {
+            self.parse_class_prop_or_method(id, start as usize, modifiers)
+        }
     }
 
     fn parse_class_members(&mut self) -> PResult<ast::ClassEles<'cx>> {
         self.expect(TokenKind::LBrace)?;
-        let eles = self.parse_list(
-            list_ctx::ClassElements::is_ele,
-            Self::parse_class_ele,
-            list_ctx::ClassElements::is_closing,
-        );
+        let eles = self.parse_list(list_ctx::ClassElements, Self::parse_class_ele);
         self.expect(TokenKind::RBrace)?;
         Ok(eles)
     }

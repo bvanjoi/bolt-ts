@@ -44,6 +44,15 @@ pub struct InterfaceDecl<'cx> {
 pub type ObjectTyMembers<'cx> = &'cx [&'cx ObjectTyMember<'cx>];
 
 #[derive(Debug, Clone, Copy)]
+pub struct IndexSigDecl<'cx> {
+    pub id: NodeID,
+    pub span: Span,
+    pub modifiers: Option<&'cx Modifiers<'cx>>,
+    pub params: ParamsDecl<'cx>,
+    pub ty: &'cx self::Ty<'cx>,
+}
+
+#[derive(Debug, Clone, Copy)]
 pub struct ObjectTyMember<'cx> {
     pub kind: ObjectTyMemberKind<'cx>,
 }
@@ -102,6 +111,7 @@ pub struct ClassEle<'cx> {
 pub enum ClassEleKind<'cx> {
     Prop(&'cx ClassPropEle<'cx>),
     Method(&'cx ClassMethodEle<'cx>),
+    IndexSig(&'cx IndexSigDecl<'cx>),
 }
 
 #[derive(Debug, Clone, Copy)]

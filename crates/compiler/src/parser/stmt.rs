@@ -46,11 +46,7 @@ impl<'cx, 'a, 'p> ParserState<'cx, 'p> {
             let start = self.token.start();
             self.next_token();
             let tys = self.with_parent(id, |this| {
-                this.parse_delimited_list(
-                    list_ctx::HeritageClause::is_ele,
-                    Self::parse_expr_with_ty_args,
-                    list_ctx::HeritageClause::is_closing,
-                )
+                this.parse_delimited_list(list_ctx::HeritageClause, Self::parse_expr_with_ty_args)
             });
             let span = self.new_span(start as usize, self.pos);
             let clause = self.alloc(ast::InterfaceExtendsClause { id, span, tys });
@@ -96,11 +92,7 @@ impl<'cx, 'a, 'p> ParserState<'cx, 'p> {
             let start = self.token.start();
             self.next_token();
             let tys = self.with_parent(id, |this| {
-                this.parse_delimited_list(
-                    list_ctx::HeritageClause::is_ele,
-                    Self::parse_expr_with_ty_args,
-                    list_ctx::HeritageClause::is_closing,
-                )
+                this.parse_delimited_list(list_ctx::HeritageClause, Self::parse_expr_with_ty_args)
             });
             let span = self.new_span(start as usize, self.pos);
             let clause = self.alloc(ast::ImplementsClause { id, span, tys });
@@ -114,7 +106,7 @@ impl<'cx, 'a, 'p> ParserState<'cx, 'p> {
     fn parse_empty_stmt(&mut self) -> PResult<&'cx ast::EmptyStmt> {
         let id = self.p.next_node_id();
         let start = self.token.start();
-        self.expect(TokenKind::Semi);
+        self.expect(TokenKind::Semi)?;
         let stmt = self.alloc(ast::EmptyStmt {
             id,
             span: self.new_span(start as usize, self.pos),
@@ -175,44 +167,7 @@ impl<'cx, 'a, 'p> ParserState<'cx, 'p> {
 
     fn parse_var_decl_list(&mut self) -> &'cx [&'cx ast::VarDecl<'cx>] {
         self.next_token();
-        self.parse_delimited_list(
-            list_ctx::VarDecl::is_ele,
-            Self::parse_var_decl,
-            list_ctx::VarDecl::is_closing,
-        )
-    }
-
-    fn parse_param(&mut self) -> PResult<&'cx ast::ParamDecl<'cx>> {
-        let start = self.token.start();
-        let id = self.p.next_node_id();
-        let dotdotdot = self.parse_optional(TokenKind::DotDotDot).map(|t| t.span);
-        let name = self.with_parent(id, Self::parse_ident_name)?;
-        let question = self.parse_optional(TokenKind::Question).map(|t| t.span);
-        let ty = self.with_parent(id, Self::parse_ty_anno)?;
-        let init = self.with_parent(id, Self::parse_init);
-        let decl = self.alloc(ast::ParamDecl {
-            id,
-            span: self.new_span(start as usize, self.pos),
-            dotdotdot,
-            name,
-            question,
-            ty,
-            init,
-        });
-        self.insert_map(id, ast::Node::ParamDecl(decl));
-        Ok(decl)
-    }
-
-    pub(super) fn parse_params(&mut self) -> PResult<ast::ParamsDecl<'cx>> {
-        use TokenKind::*;
-        self.expect(LParen)?;
-        let params = self.parse_delimited_list(
-            list_ctx::Params::is_ele,
-            Self::parse_param,
-            list_ctx::Params::is_closing,
-        );
-        self.expect(RParen)?;
-        Ok(params)
+        self.parse_delimited_list(list_ctx::VarDecl, Self::parse_var_decl)
     }
 
     fn parse_fn_decl_ret_type(&mut self) -> PResult<Option<&'cx ast::Ty<'cx>>> {
