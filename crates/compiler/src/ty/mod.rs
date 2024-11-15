@@ -47,7 +47,7 @@ impl<'cx> TyKind<'cx> {
             TyKind::Var(id) => {
                 // todo: delay bug
                 format!("#{id:#?}")
-            },
+            }
         }
     }
 
@@ -263,7 +263,6 @@ impl std::fmt::Display for IntrinsicTyKind {
     }
 }
 
-
 impl IntrinsicTyKind {
     fn is_lit(self) -> bool {
         use IntrinsicTyKind::*;
@@ -307,7 +306,11 @@ pub enum ObjectTyKind<'cx> {
     Fn(&'cx FnTy<'cx>),
     Lit(&'cx ObjectLitTy<'cx>),
     Array(&'cx ArrayTy<'cx>),
+    Interface(&'cx InterfaceTy),
 }
+
+#[derive(Debug, Clone, Copy)]
+pub struct InterfaceTy;
 
 impl<'cx> ObjectTyKind<'cx> {
     fn to_string(&self, atoms: &AtomMap<'cx>) -> String {
@@ -316,7 +319,12 @@ impl<'cx> ObjectTyKind<'cx> {
             ObjectTyKind::Fn(_) => "function".to_string(),
             ObjectTyKind::Lit(_) => "Object".to_string(),
             ObjectTyKind::Array(ArrayTy { ty }) => format!("{}[]", ty.kind.to_string(atoms)),
+            ObjectTyKind::Interface(_) => "interface".to_string(),
         }
+    }
+
+    fn is_reference(&self) -> bool {
+        matches!(self, ObjectTyKind::Interface(_))
     }
 }
 

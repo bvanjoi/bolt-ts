@@ -9,15 +9,19 @@ use crate::keyword;
 
 impl<'cx> TyChecker<'cx> {
     pub(super) fn get_type_of_symbol(&mut self, id: SymbolID) -> &'cx Ty<'cx> {
-        use crate::bind::SymbolKind::*;
-        if let Some(links) = self.symbol_links.get(&id) {
-            return links.ty;
+        if let Some(ty) = self.get_symbol_links(id).get_ty() {
+            return ty;
         }
+        use crate::bind::SymbolKind::*;
         let ty = match &self.symbols.get(id).kind {
             Err => return self.error_ty(),
             FunctionScopedVar => return self.undefined_ty(),
             BlockScopedVar => return self.undefined_ty(),
-            Class { .. } => self.get_type_of_class_decl(id),
+            Class { .. } => {
+                let ty = self.get_type_of_class_decl(id);
+                self.get_mut_symbol_links(id).set_ty(ty);
+                ty
+            }
             Function { .. } | FnExpr { .. } => self.get_type_of_func_decl(id),
             Object { .. } => return self.undefined_ty(),
             Property { .. } => return self.undefined_ty(),
@@ -26,7 +30,30 @@ impl<'cx> TyChecker<'cx> {
         ty
     }
 
+    fn get_effective_base_type_node(&self, id: ast::NodeID) -> Option<&'cx ast::Expr<'cx>> {
+        let n = self.nodes.get(id);
+        if let ast::Node::ClassDecl(class) = n {
+            if let Some(extends) = class.extends {
+                return Some(&extends.expr);
+            }
+        }
+
+        None
+    }
+
+    fn get_base_type_variable_of_class(&mut self, symbol: SymbolID) -> &'cx Ty<'cx> {
+        let decl = match self.symbols.get(symbol).kind {
+            crate::bind::SymbolKind::Class { decl } => decl,
+            _ => unreachable!(),
+        };
+        let Some(base) = self.get_effective_base_type_node(decl) else {
+            return self.undefined_ty();
+        };
+        self.check_expr(base)
+    }
+
     fn get_type_of_class_decl(&mut self, symbol: SymbolID) -> &'cx Ty<'cx> {
+        let base = self.get_base_type_variable_of_class(symbol);
         self.create_class_ty(ty::ClassTy { symbol })
     }
 

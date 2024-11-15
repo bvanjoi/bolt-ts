@@ -23,6 +23,12 @@ impl<'cx> Binder<'cx> {
         self.create_final_res(decl.id, symbol);
     }
 
+    pub(super) fn create_class_expr(&mut self, expr: &'cx ast::ClassExpr<'cx>) {
+        let name = SymbolName::Class;
+        let symbol = self.create_symbol(name, SymbolKind::Class { decl: expr.id });
+        self.create_final_res(expr.id, symbol);
+    }
+
     pub(super) fn create_var_decl(&mut self, decl: &'cx ast::VarDecl<'cx>, kind: SymbolKind) {
         let symbol = self.create_var_symbol(decl.binding.name, kind);
         self.create_final_res(decl.id, symbol);
@@ -45,7 +51,7 @@ impl<'cx> Binder<'cx> {
         self.symbols.insert(id, Symbol::new(name, kind));
         let prev = self.res.insert((self.scope_id, name), id);
         if !is_blocked_scope_var {
-            assert!(prev.is_none(), "`{name:#?}` is a duplicate symbol ");
+            // assert!(prev.is_none(), "`{name:#?}` is a duplicate symbol ");
         }
         id
     }

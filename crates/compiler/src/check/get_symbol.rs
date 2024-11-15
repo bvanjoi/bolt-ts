@@ -9,6 +9,7 @@ impl<'cx> TyChecker<'cx> {
             VarDecl(decl) => *self.final_res.get(&decl.id).unwrap(),
             ObjectMemberField(field) => *self.final_res.get(&field.id).unwrap(),
             ClassDecl(decl) => *self.final_res.get(&decl.id).unwrap(),
+            ClassExpr(expr) => *self.final_res.get(&expr.id).unwrap(),
             ClassPropEle(prop) => *self.final_res.get(&prop.id).unwrap(),
             ArrowFnExpr(f) => *self.final_res.get(&f.id).unwrap(),
             FnExpr(f) => *self.final_res.get(&f.id).unwrap(),

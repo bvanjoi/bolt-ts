@@ -19,7 +19,7 @@ pub(super) trait ClassLike<'cx, 'p> {
         ty_params: Option<ast::TyParams<'cx>>,
         extends: Option<&'cx ast::ClassExtendsClause<'cx>>,
         implements: Option<&'cx ast::ImplementsClause<'cx>>,
-        eles: ast::ClassEles<'cx>,
+        eles: &'cx ast::ClassEles<'cx>,
     ) -> Self::Node;
 }
 
@@ -39,7 +39,7 @@ impl<'cx, 'a, 'p> ClassLike<'cx, 'p> for ParseClassDecl {
         ty_params: Option<ast::TyParams<'cx>>,
         extends: Option<&'cx ast::ClassExtendsClause<'cx>>,
         implements: Option<&'cx ast::ImplementsClause<'cx>>,
-        eles: ast::ClassEles<'cx>,
+        eles: &'cx ast::ClassEles<'cx>,
     ) -> Self::Node {
         let name = name.unwrap();
         let decl = state.alloc(ast::ClassDecl {
@@ -76,7 +76,7 @@ impl<'cx, 'a, 'p> ClassLike<'cx, 'p> for ParseClassExpr {
         ty_params: Option<ast::TyParams<'cx>>,
         extends: Option<&'cx ast::ClassExtendsClause<'cx>>,
         implements: Option<&'cx ast::ImplementsClause<'cx>>,
-        eles: ast::ClassEles<'cx>,
+        eles: &'cx ast::ClassEles<'cx>,
     ) -> Self::Node {
         assert!(modifiers.is_none());
         let expr = state.alloc(ast::ClassExpr {
@@ -108,7 +108,7 @@ impl<'cx, 'a, 'p> ParserState<'cx, 'p> {
         let extends = self.with_parent(id, Self::parse_class_extends_clause)?;
         let implements = self.with_parent(id, Self::parse_implements_clause)?;
         let eles = self.with_parent(id, Self::parse_class_members)?;
-        let span = self.new_span(start as usize, self.pos);
+        let span = self.new_span(start as usize, eles.span.hi as usize);
         Ok(mode.finish(
             self, id, span, modifiers, name, ty_params, extends, implements, eles,
         ))
@@ -266,10 +266,13 @@ impl<'cx, 'a, 'p> ParserState<'cx, 'p> {
         }
     }
 
-    fn parse_class_members(&mut self) -> PResult<ast::ClassEles<'cx>> {
+    fn parse_class_members(&mut self) -> PResult<&'cx ast::ClassEles<'cx>> {
+        let start = self.token.start();
         self.expect(TokenKind::LBrace)?;
         let eles = self.parse_list(list_ctx::ClassElements, Self::parse_class_ele);
+        let end = self.token.end();
         self.expect(TokenKind::RBrace)?;
-        Ok(eles)
+        let span = self.new_span(start as usize, end as usize);
+        Ok(self.alloc(ast::ClassEles { span, eles }))
     }
 }

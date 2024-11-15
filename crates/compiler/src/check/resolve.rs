@@ -1,7 +1,6 @@
 use super::TyChecker;
 use crate::atoms::AtomId;
 use crate::bind::{Symbol, SymbolID, SymbolName};
-use crate::ty::IntrinsicTyKind;
 use crate::{ast, errors, keyword};
 
 #[derive(Debug, Clone, Copy)]
@@ -56,7 +55,7 @@ impl<'cx> TyChecker<'cx> {
                 continue;
             };
             // TODO: use class symbol;
-            if let Some(prop) = class.eles.iter().find_map(|ele| {
+            if let Some(prop) = class.eles.eles.iter().find_map(|ele| {
                 let ast::ClassEleKind::Prop(prop) = ele.kind else {
                     return None;
                 };

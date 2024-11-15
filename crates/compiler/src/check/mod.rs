@@ -6,6 +6,7 @@ mod check_fn_like_expr;
 mod check_var_like;
 mod create_ty;
 mod get_contextual_ty;
+mod get_declared_ty;
 mod get_symbol;
 mod get_ty;
 mod relation;
@@ -140,8 +141,8 @@ impl<'cx> TyChecker<'cx> {
             res,
             final_res,
             global_tys: FxHashMap::default(),
-            symbol_links: FxHashMap::default(),
             ty_vars: FxHashMap::default(),
+            symbol_links: FxHashMap::default(),
         };
         for (kind, ty_name) in INTRINSIC_TYPES {
             let ty = ty::TyKind::Intrinsic(ty_arena.alloc(ty::IntrinsicTy { kind: *kind }));
@@ -154,6 +155,16 @@ impl<'cx> TyChecker<'cx> {
         this.boolean_ty.set(boolean_ty).unwrap();
 
         this
+    }
+
+    fn get_symbol_links(&mut self, symbol: SymbolID) -> &SymbolLinks<'cx> {
+        self.symbol_links
+            .entry(symbol)
+            .or_insert_with(SymbolLinks::new)
+    }
+
+    fn get_mut_symbol_links(&mut self, symbol: SymbolID) -> &mut SymbolLinks<'cx> {
+        self.symbol_links.get_mut(&symbol).unwrap()
     }
 
     pub fn print_ty(&mut self, ty: &Ty) -> &str {
@@ -401,6 +412,7 @@ impl<'cx> TyChecker<'cx> {
         let map = FxHashMap::from_iter(entires);
         let members = self.alloc(map);
         if !self.final_res.contains_key(&lit.id) {
+            // TODO: delete this
             unreachable!()
         }
         self.create_object_lit_ty(ty::ObjectLitTy {
@@ -430,6 +442,38 @@ impl<'cx> TyChecker<'cx> {
         self.create_array_ty(ty::ArrayTy { ty })
     }
 
+    fn is_block_scoped_name_declared_before_use(&self, decl: ast::NodeID, used_span: Span) -> bool {
+        used_span.lo > self.nodes.get(decl).span().hi
+    }
+
+    fn check_resolved_block_scoped_var(&mut self, ident: &'cx ast::Ident, id: SymbolID) {
+        use crate::bind::SymbolKind::*;
+        match self.symbols.get(id).kind {
+            Class { decl } => {
+                if !self.is_block_scoped_name_declared_before_use(decl, ident.span) {
+                    let decl_span = match self.nodes.get(decl) {
+                        ast::Node::ClassDecl(class) => class.name.span,
+                        _ => unreachable!(),
+                    };
+                    let kind = errors::DeclKind::Class;
+                    let name = self.atoms.get(ident.name).to_string();
+                    let error = errors::CannotUsedBeforeItsDeclaration {
+                        span: ident.span,
+                        kind,
+                        name: name.to_string(),
+                        related: [errors::DefinedHere {
+                            span: decl_span,
+                            kind,
+                            name,
+                        }],
+                    };
+                    self.push_error(ident.span.module, Box::new(error));
+                }
+            }
+            _ => unreachable!(),
+        }
+    }
+
     fn check_ident(&mut self, ident: &'cx ast::Ident) -> &'cx Ty<'cx> {
         if ident.name == keyword::IDENT_UNDEFINED {
             return self.undefined_ty();
@@ -448,6 +492,10 @@ impl<'cx> TyChecker<'cx> {
             }
             id => id,
         };
+
+        if self.symbols.get(symbol).kind.is_class() {
+            self.check_resolved_block_scoped_var(ident, symbol);
+        }
 
         let ty = self.get_type_of_symbol(symbol);
         let assignment_kind = get_assignment_kind(self, ident.id);

@@ -9,6 +9,7 @@ use crate::keyword;
 pub enum SymbolName {
     Normal(AtomId),
     Ele(AtomId),
+    Class,
     Array,
     /// object literal
     Object,
@@ -73,6 +74,10 @@ pub struct ObjectSymbol {
 impl SymbolKind {
     pub fn is_variable(&self) -> bool {
         matches!(self, Self::FunctionScopedVar | Self::BlockScopedVar)
+    }
+
+    pub fn is_class(&self) -> bool {
+        matches!(self, Self::Class { .. })
     }
 
     pub fn as_str(&self) -> &'static str {

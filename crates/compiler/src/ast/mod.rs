@@ -97,10 +97,14 @@ pub struct ClassDecl<'cx> {
     pub ty_params: Option<TyParams<'cx>>,
     pub extends: Option<&'cx ClassExtendsClause<'cx>>,
     pub implements: Option<&'cx ImplementsClause<'cx>>,
-    pub eles: ClassEles<'cx>,
+    pub eles: &'cx ClassEles<'cx>,
 }
 
-pub type ClassEles<'cx> = &'cx [&'cx ClassEle<'cx>];
+#[derive(Debug, Clone, Copy)]
+pub struct ClassEles<'cx> {
+    pub span: Span,
+    pub eles: &'cx [&'cx ClassEle<'cx>],
+}
 
 #[derive(Debug, Clone, Copy)]
 pub struct ClassEle<'cx> {
@@ -386,7 +390,7 @@ pub struct ClassExpr<'cx> {
     pub ty_params: Option<TyParams<'cx>>,
     pub extends: Option<&'cx ClassExtendsClause<'cx>>,
     pub implements: Option<&'cx ImplementsClause<'cx>>,
-    pub eles: ClassEles<'cx>,
+    pub eles: &'cx ClassEles<'cx>,
 }
 
 #[derive(Debug, Clone, Copy)]

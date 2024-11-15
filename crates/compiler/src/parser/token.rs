@@ -254,7 +254,7 @@ impl TokenKind {
         use TokenKind::*;
         matches!(
             self,
-            Null | True | False | Number | String | LBrace | LBracket | LParen | New | Ident
+            Null | True | False | Number | String | LBrace | LBracket | LParen | New | Ident | This
         ) || self.is_ident()
     }
 

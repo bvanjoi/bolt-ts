@@ -1,10 +1,11 @@
+mod bind_class_like;
 mod create;
 mod symbol;
 
 use rustc_hash::FxHashMap;
 pub use symbol::{Symbol, SymbolID, SymbolKind, SymbolName, Symbols};
 
-use crate::ast::{self, FnExpr, NodeID};
+use crate::ast::{self, NodeID};
 use crate::atoms::AtomMap;
 
 rts_span::new_index!(ScopeID);
@@ -80,25 +81,9 @@ impl<'cx> Binder<'cx> {
                     self.bind_expr(expr)
                 }
             }
-            Class(class) => self.bind_class(class),
+            Class(class) => self.bind_class_like(class),
             Interface(_) => {}
         }
-    }
-
-    fn bind_class(&mut self, class: &'cx ast::ClassDecl<'cx>) {
-        self.connect(class.id);
-        self.create_class_decl(class);
-
-        let old = self.scope_id;
-        self.scope_id = self.new_scope();
-        for ele in class.eles {
-            match ele.kind {
-                ast::ClassEleKind::Prop(n) => self.bind_class_prop_ele(n),
-                ast::ClassEleKind::Method(n) => self.bind_class_method_ele(n),
-                ast::ClassEleKind::IndexSig(_) => {}
-            }
-        }
-        self.scope_id = old;
     }
 
     fn bind_class_method_ele(&mut self, ele: &'cx ast::ClassMethodEle<'cx>) {
@@ -155,6 +140,7 @@ impl<'cx> Binder<'cx> {
             ArrowFn(f) => self.bind_arrow_fn_expr(f),
             Fn(f) => self.bind_fn_expr(f),
             New(new) => self.bind_expr(new.expr),
+            Class(class) => self.bind_class_like(class),
             _ => (),
         }
     }

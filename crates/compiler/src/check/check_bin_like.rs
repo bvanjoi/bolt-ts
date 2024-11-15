@@ -2,7 +2,6 @@ use rts_span::Span;
 
 use crate::{ast, ty};
 
-use super::symbol_links::SymbolLinks;
 use super::TyChecker;
 
 #[derive(Debug, Clone, Copy, PartialEq)]
