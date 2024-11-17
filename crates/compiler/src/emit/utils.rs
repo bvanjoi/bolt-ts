@@ -32,7 +32,11 @@ impl<'cx> Emit<'cx> {
     pub(super) fn emit_block_stmt(&mut self, block: &'cx ast::BlockStmt<'cx>) {
         self.content.p_l_brace();
         self.content.p_newline();
+        self.state.indent += self.options.indent;
+        self.content.p_pieces_of_whitespace(self.state.indent);
         self.emit_stmts(block.stmts);
+        self.state.indent -= self.options.indent;
+        self.content.p_pieces_of_whitespace(self.state.indent);
         self.content.p_newline();
         self.content.p_r_brace();
     }

@@ -53,7 +53,10 @@ impl<'cx> Emit<'cx> {
         self.emit_list(
             body,
             |this, item| this.emit_stmt(item),
-            |this, _| this.content.p_newline(),
+            |this, _| {
+                this.content.p_newline();
+                this.content.p_pieces_of_whitespace(this.state.indent);
+            },
         )
     }
 

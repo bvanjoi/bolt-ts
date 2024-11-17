@@ -226,7 +226,7 @@ impl<'cx, 'a, 'p> ParserState<'cx, 'p> {
     fn parse_ret_stmt(&mut self) -> PResult<&'cx ast::RetStmt<'cx>> {
         let id = self.p.next_node_id();
         let start = self.token.start();
-        self.expect(TokenKind::Return);
+        self.expect(TokenKind::Return)?;
         let expr = if self.can_parse_semi() {
             None
         } else {

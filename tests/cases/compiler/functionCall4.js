@@ -1,9 +1,9 @@
 function foo() {
-return ""
+  return ""
 }
 
 function bar() {
-return foo
+  return foo
 }
 
 var x = bar()

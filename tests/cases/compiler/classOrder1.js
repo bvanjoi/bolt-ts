@@ -1,6 +1,6 @@
 class A {
 foo() {
-
+  
 }
 }
 var a = new A()
