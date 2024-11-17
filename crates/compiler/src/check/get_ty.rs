@@ -89,7 +89,12 @@ impl<'cx> TyChecker<'cx> {
             };
             let params = params
                 .iter()
-                .map(|param| self.get_ty_from_type_node(param.ty.unwrap()))
+                .map(|param| {
+                    param
+                        .ty
+                        .map(|ty| self.get_ty_from_type_node(ty))
+                        .unwrap_or(self.any_ty())
+                })
                 .collect::<Vec<_>>();
             return self.alloc(params);
         }

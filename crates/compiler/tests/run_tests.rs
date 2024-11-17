@@ -19,7 +19,7 @@ fn run_tests() {
             std::fs::write(file_path.as_path(), &output.output).unwrap();
             let expected_js_file_path = expect_test::expect_file![case.with_extension("js")];
             expected_js_file_path.assert_eq(&output.output);
-            if let Some(output) = run_node(&file_path) {
+            if let Ok(Some(output)) = run_node(&file_path) {
                 let expected_file_path = expect_test::expect_file![case.with_extension("out")];
                 expected_file_path.assert_eq(&output);
             }

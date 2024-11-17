@@ -48,7 +48,7 @@ impl<'cx> Emit<'cx> {
                 self.emit_expr(prop.expr);
                 self.content.p_dot();
                 self.emit_ident(prop.name);
-            },
+            }
         }
     }
 
@@ -57,7 +57,10 @@ impl<'cx> Emit<'cx> {
         self.content.p_whitespace();
         self.content.p("=>");
         self.content.p_whitespace();
-        self.emit_block_stmt(&f.body);
+        match f.body {
+            ast::ArrowFnExprBody::Block(block) => self.emit_block_stmt(block),
+            ast::ArrowFnExprBody::Expr(expr) => self.emit_expr(expr),
+        };
     }
 
     fn emit_assign_expr(&mut self, assign: &'cx ast::AssignExpr) {

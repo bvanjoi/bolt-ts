@@ -32,6 +32,7 @@ keyword!(
     (KW_ABSTRACT, KW_ABSTRACT_STR, "abstract"),
     (KW_PUBLIC, KW_PUBLIC_STR, "public"),
     (KW_AS, KW_AS_STR, "as"),
+    (KW_DECLARE, KW_DECLARE_STR, "declare")
 );
 
 macro_rules! ident {

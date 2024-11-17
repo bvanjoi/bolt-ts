@@ -61,12 +61,14 @@ impl<'cx> Emit<'cx> {
     }
 
     fn emit_fn_decl(&mut self, f: &'cx ast::FnDecl) {
-        self.content.p("function");
-        self.content.p_whitespace();
-        self.emit_ident(f.name);
-        self.emit_params(f.params);
-        self.content.p_whitespace();
-        self.emit_block_stmt(&f.body);
+        if let Some(body) = f.body {
+            self.content.p("function");
+            self.content.p_whitespace();
+            self.emit_ident(f.name);
+            self.emit_params(f.params);
+            self.content.p_whitespace();
+            self.emit_block_stmt(body);
+        }
     }
 
     fn emit_var_stmt(&mut self, var: &'cx ast::VarStmt) {

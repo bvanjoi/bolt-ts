@@ -89,7 +89,9 @@ impl<'cx> Binder<'cx> {
     fn bind_class_method_ele(&mut self, ele: &'cx ast::ClassMethodEle<'cx>) {
         self.create_class_method_ele(ele);
         self.bind_params(ele.params);
-        self.bind_block_stmt(ele.body);
+        if let Some(body) = ele.body {
+            self.bind_block_stmt(body);
+        }
     }
 
     fn bind_class_prop_ele(&mut self, ele: &'cx ast::ClassPropEle<'cx>) {
@@ -152,7 +154,10 @@ impl<'cx> Binder<'cx> {
 
     fn bind_arrow_fn_expr(&mut self, f: &'cx ast::ArrowFnExpr<'cx>) {
         self.create_fn_expr_symbol(f.id);
-        self.bind_block_stmt(f.body);
+        match f.body {
+            ast::ArrowFnExprBody::Block(block) => self.bind_block_stmt(block),
+            ast::ArrowFnExprBody::Expr(expr) => self.bind_expr(expr),
+        }
     }
 
     fn bind_cond_expr(&mut self, cond: &'cx ast::CondExpr<'cx>) {
@@ -178,6 +183,7 @@ impl<'cx> Binder<'cx> {
                     ast::PropNameKind::Ident(ident) => SymbolName::Normal(ident.name),
                 };
                 let symbol = self.create_object_member_symbol(name, member);
+                self.bind_expr(member.value);
                 (name, symbol)
             })
             .collect();
@@ -246,7 +252,9 @@ impl<'cx> Binder<'cx> {
         let old = self.scope_id;
         self.scope_id = self.new_scope();
         self.bind_params(f.params);
-        self.bind_fn_block(f.body.stmts);
+        if let Some(body) = f.body {
+            self.bind_fn_block(body.stmts);
+        }
         self.scope_id = old;
     }
 

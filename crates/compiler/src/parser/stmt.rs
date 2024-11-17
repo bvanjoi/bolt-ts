@@ -7,7 +7,7 @@ use super::{PResult, ParserState};
 impl<'cx, 'a, 'p> ParserState<'cx, 'p> {
     pub fn parse_stmt(&mut self) -> PResult<&'cx ast::Stmt<'cx>> {
         use TokenKind::*;
-        if matches!(self.token.kind, Abstract) && self.is_start_of_decl() {
+        if matches!(self.token.kind, Abstract | Declare) && self.is_start_of_decl() {
             return self.parse_decl();
         }
         let kind = match self.token.kind {
@@ -25,17 +25,32 @@ impl<'cx, 'a, 'p> ParserState<'cx, 'p> {
         Ok(stmt)
     }
 
-    fn parse_decl(&mut self) -> PResult<&'cx ast::Stmt<'cx>> {
+    fn contain_declare_mod(mods: &ast::Modifiers<'cx>) -> bool {
+        mods.list
+            .iter()
+            .any(|m| matches!(m.kind, ast::ModifierKind::Declare))
+    }
+
+    fn _parse_decl(&mut self, mods: Option<&'cx ast::Modifiers<'cx>>) -> PResult<&'cx ast::Stmt<'cx>> {
         use TokenKind::*;
-        let mods = self.parse_modifiers()?;
         let kind = match self.token.kind {
             Var | Let | Const => ast::StmtKind::Var(self.parse_var_stmt()),
             Function => ast::StmtKind::Fn(self.parse_fn_decl()?),
             Class => ast::StmtKind::Class(self.parse_class_decl(mods)?),
-            _ => unreachable!(),
+            _ => unreachable!("{:#?}", self.token.kind),
         };
         let stmt = self.alloc(ast::Stmt { kind });
         Ok(stmt)
+    }
+
+    fn parse_decl(&mut self) -> PResult<&'cx ast::Stmt<'cx>> {
+        let mods = self.parse_modifiers()?;
+        if mods.map_or(false, Self::contain_declare_mod) {
+            // todo
+            self._parse_decl(mods)
+        } else {
+            self._parse_decl(mods)
+        }
     }
 
     fn parse_interface_extends_clause(

@@ -1,13 +1,13 @@
 mod errors;
 mod expr;
 mod list_ctx;
+mod paren_rule;
 mod parse_class_like;
 mod scan;
 mod stmt;
 mod token;
 mod ty;
 mod utils;
-mod paren_rule;
 
 use std::borrow::Cow;
 use std::u32;
@@ -286,24 +286,7 @@ impl<'cx, 'a, 'p> ParserState<'cx, 'p> {
         self.speculation_helper(f, false)
     }
 
-    fn is_start_of_fn_or_ctor_ty(&mut self) -> bool {
-        let t = self.token.kind;
-        if t == TokenKind::LParen && self.lookahead(Self::is_unambiguously_start_of_fn_ty) {
-            true
-        } else {
-            false
-        }
-    }
-
-    fn is_unambiguously_start_of_fn_ty(&mut self) -> bool {
-        self.next_token();
-        let t = self.token.kind;
-        if t == TokenKind::RParen {
-            true
-        } else {
-            false
-        }
-    }
+    
 
     fn parse_token_node(&mut self) -> Token {
         let t = self.token;

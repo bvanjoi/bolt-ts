@@ -50,6 +50,7 @@ pub enum TokenKind {
     Abstract,
     Public,
     As,
+    Declare,
     // =====
     EOF,
     Number,
@@ -201,6 +202,7 @@ impl Into<ModifierKind> for TokenKind {
             TokenKind::Public => ModifierKind::Public,
             TokenKind::Abstract => ModifierKind::Abstract,
             TokenKind::Static => ModifierKind::Static,
+            TokenKind::Declare => ModifierKind::Declare,
             _ => {
                 unreachable!("{:#?}", self)
             }
@@ -291,11 +293,6 @@ impl TokenKind {
         self.is_ident_or_keyword() || matches!(self, String | Number)
     }
 
-    pub fn is_left_hand_side_expr_kind(self) -> bool {
-        use TokenKind::*;
-        matches!(self, Ident)
-    }
-
     pub fn is_start_of_param(self) -> bool {
         matches!(self, TokenKind::DotDotDot) || self.is_binding_ident_or_private_ident_or_pat()
     }
@@ -329,12 +326,17 @@ impl TokenKind {
 
     pub fn is_modifier_kind(self) -> bool {
         use TokenKind::*;
-        matches!(self, Abstract | Const | Public | Static)
+        matches!(self, Abstract | Const | Public | Static | Declare)
+    }
+
+    pub fn is_accessibility_modifier(self) -> bool {
+        use TokenKind::*;
+        matches!(self, Public)
     }
 
     pub fn is_param_prop_modifier(self) -> bool {
-        use TokenKind::*;
-        matches!(self, Public | Static)
+        // TODO: readonly | override
+        self.is_accessibility_modifier() 
     }
 
     pub fn is_class_ele_modifier(self) -> bool {

@@ -78,17 +78,21 @@ impl<'cx> Emit<'cx> {
     }
 
     fn emit_class_ctor(&mut self, ctor: &'cx ast::ClassCtor<'cx>) {
-        self.content.p("constructor");
-        self.emit_params(ctor.params);
-        self.content.p_whitespace();
-        self.emit_block_stmt(&ctor.body);
+        if let Some(body) = ctor.body {
+            self.content.p("constructor");
+            self.emit_params(ctor.params);
+            self.content.p_whitespace();
+            self.emit_block_stmt(body);
+        }
     }
 
     fn emit_class_method(&mut self, method: &'cx ast::ClassMethodEle<'cx>) {
-        self.emit_prop_name(&method.name);
-        self.emit_params(method.params);
-        self.content.p_whitespace();
-        self.emit_block_stmt(&method.body);
+        if let Some(body) = method.body {
+            self.emit_prop_name(&method.name);
+            self.emit_params(method.params);
+            self.content.p_whitespace();
+            self.emit_block_stmt(body);
+        }
     }
 
     fn emit_class_prop(&mut self, prop: &'cx ast::ClassPropEle<'cx>) {

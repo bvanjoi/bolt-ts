@@ -68,12 +68,51 @@ impl<'cx, 'a, 'p> ParserState<'cx, 'p> {
         Ok(expr)
     }
 
-    fn parse_arrow_fn_expr_body(&mut self) -> PResult<&'cx ast::BlockStmt<'cx>> {
+    fn parse_arrow_fn_expr_body(&mut self) -> PResult<ast::ArrowFnExprBody<'cx>> {
         if self.token.kind == TokenKind::LBrace {
             self.parse_fn_block()
+                .map(|block| ast::ArrowFnExprBody::Block(block.unwrap()))
         } else {
-            todo!()
+            self.parse_assign_expr()
+                .map(|expr| ast::ArrowFnExprBody::Expr(expr))
         }
+    }
+
+    fn parse_simple_arrow_fn_expr(
+        &mut self,
+        param: &'cx ast::Ident,
+    ) -> PResult<&'cx ast::Expr<'cx>> {
+        let expr_id = self.p.next_node_id();
+        let param_id = self.p.next_node_id();
+        let param = self.alloc(ast::ParamDecl {
+            id: param_id,
+            span: param.span,
+            dotdotdot: None,
+            name: param,
+            question: None,
+            ty: None,
+            init: None,
+        });
+        // self.p.parent_map.r#override(param.id, param_id);
+        self.with_parent(expr_id, |this| {
+            this.insert_map(param_id, ast::Node::ParamDecl(param));
+        });
+        let params = self.alloc([param]);
+        self.expect(TokenKind::EqGreater)?;
+        let body = self.parse_arrow_fn_expr_body()?;
+        let f = self.alloc(ast::ArrowFnExpr {
+            id: expr_id,
+            span: self.new_span(param.span.lo as usize, self.pos as usize),
+            ty_params: None,
+            params,
+            ty: None,
+            body,
+        });
+        self.insert_map(f.id, ast::Node::ArrowFnExpr(f));
+        let expr = self.alloc(ast::Expr {
+            kind: ast::ExprKind::ArrowFn(f),
+        });
+        Ok(expr)
     }
 
     fn parse_assign_expr(&mut self) -> PResult<&'cx ast::Expr<'cx>> {
@@ -83,29 +122,32 @@ impl<'cx, 'a, 'p> ParserState<'cx, 'p> {
 
         let start = self.token.start();
         let expr = self.parse_binary_expr(BinPrec::Lowest);
-        if is_left_hand_side_expr_kind(expr) && self.re_scan_greater_than().is_assignment() {
-            if self.token.kind.is_assignment() {
-                let id = self.p.next_node_id();
-                self.p.parent_map.r#override(expr.id(), id);
-                let op = self.token.kind.into_assign_op();
-                self.parse_token_node();
-                let right = self.with_parent(id, Self::parse_assign_expr)?;
-                let expr = self.alloc(ast::AssignExpr {
-                    id,
-                    left: expr,
-                    op,
-                    right,
-                    span: self.new_span(start as usize, self.pos),
-                });
-                self.insert_map(id, ast::Node::AssignExpr(expr));
-                let expr = self.alloc(ast::Expr {
-                    kind: ast::ExprKind::Assign(&expr),
-                });
-                return Ok(expr);
+        if let ast::ExprKind::Ident(ident) = expr.kind {
+            if self.token.kind == TokenKind::EqGreater {
+                return self.parse_simple_arrow_fn_expr(ident);
             }
         }
-
-        self.parse_cond_expr_rest(expr)
+        if is_left_hand_side_expr_kind(expr) && self.re_scan_greater().is_assignment() {
+            let id = self.p.next_node_id();
+            self.p.parent_map.r#override(expr.id(), id);
+            let op = self.token.kind.into_assign_op();
+            self.parse_token_node();
+            let right = self.with_parent(id, Self::parse_assign_expr)?;
+            let expr = self.alloc(ast::AssignExpr {
+                id,
+                left: expr,
+                op,
+                right,
+                span: self.new_span(start as usize, self.pos),
+            });
+            self.insert_map(id, ast::Node::AssignExpr(expr));
+            let expr = self.alloc(ast::Expr {
+                kind: ast::ExprKind::Assign(&expr),
+            });
+            Ok(expr)
+        } else {
+            self.parse_cond_expr_rest(expr)
+        }
     }
 
     fn parse_binary_expr(&mut self, prec: BinPrec) -> &'cx ast::Expr<'cx> {
@@ -122,6 +164,8 @@ impl<'cx, 'a, 'p> ParserState<'cx, 'p> {
     ) -> &'cx ast::Expr<'cx> {
         let mut left = left;
         loop {
+            self.re_scan_greater();
+
             let next_prec = self.token.kind.prec();
             if !(next_prec > prec) {
                 break left;
@@ -399,7 +443,7 @@ impl<'cx, 'a, 'p> ParserState<'cx, 'p> {
         let name = self.parse_optional_binding_ident()?;
         let params = self.parse_params()?;
         let ret_ty = self.parse_ret_ty(true)?;
-        let body = self.parse_fn_block()?;
+        let body = self.parse_fn_block()?.unwrap();
         let f = self.alloc(ast::FnExpr {
             id,
             span: self.new_span(start as usize, self.pos),

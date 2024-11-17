@@ -15,6 +15,8 @@ mod sig;
 mod symbol_links;
 mod utils;
 
+use std::mem;
+
 use rts_span::{ModuleID, Span};
 use rustc_hash::FxHashMap;
 use sig::Sig;

@@ -126,7 +126,7 @@ pub struct ClassCtor<'cx> {
     pub ty_params: Option<TyParams<'cx>>,
     pub params: ParamsDecl<'cx>,
     pub ret: Option<&'cx self::Ty<'cx>>,
-    pub body: &'cx BlockStmt<'cx>,
+    pub body: Option<&'cx BlockStmt<'cx>>,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -137,7 +137,7 @@ pub struct ClassMethodEle<'cx> {
     pub ty_params: Option<TyParams<'cx>>,
     pub params: ParamsDecl<'cx>,
     pub ret: Option<&'cx self::Ty<'cx>>,
-    pub body: &'cx BlockStmt<'cx>,
+    pub body: Option<&'cx BlockStmt<'cx>>,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -331,13 +331,19 @@ pub struct PrefixUnaryExpr<'cx> {
 }
 
 #[derive(Debug, Clone, Copy)]
+pub enum ArrowFnExprBody<'cx> {
+    Block(&'cx BlockStmt<'cx>),
+    Expr(&'cx Expr<'cx>),
+}
+
+#[derive(Debug, Clone, Copy)]
 pub struct ArrowFnExpr<'cx> {
     pub id: NodeID,
     pub span: Span,
     pub ty_params: Option<TyParams<'cx>>,
     pub params: ParamsDecl<'cx>,
     pub ty: Option<&'cx self::Ty<'cx>>,
-    pub body: &'cx BlockStmt<'cx>,
+    pub body: ArrowFnExprBody<'cx>,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -641,7 +647,7 @@ pub struct FnDecl<'cx> {
     pub name: &'cx Ident,
     pub params: ParamsDecl<'cx>,
     pub ret_ty: Option<&'cx self::Ty<'cx>>,
-    pub body: &'cx BlockStmt<'cx>,
+    pub body: Option<&'cx BlockStmt<'cx>>,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -668,6 +674,7 @@ pub enum ModifierKind {
     Public,
     Abstract,
     Static,
+    Declare,
 }
 
 #[derive(Debug, Clone, Copy)]

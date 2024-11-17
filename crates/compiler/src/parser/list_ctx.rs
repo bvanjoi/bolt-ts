@@ -44,7 +44,7 @@ impl ListContext for ObjectLitMembers {
 
 fn is_ty_member_start(s: &mut ParserState) -> bool {
     use TokenKind::*;
-    if s.token.kind == LParen {
+    if s.token.kind == LParen || s.token.kind == Less {
         return true;
     }
 
@@ -63,7 +63,7 @@ fn is_ty_member_start(s: &mut ParserState) -> bool {
         s.next_token();
     }
 
-    id_token && matches!(s.token.kind, LParen | Less | Question | Colon | Comma)
+    id_token && (matches!(s.token.kind, LParen | Less | Question | Colon | Comma) || s.can_parse_semi())
 }
 
 #[derive(Copy, Clone)]
