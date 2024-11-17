@@ -130,7 +130,7 @@ impl<'cx> Binder<'cx> {
                 self.bind_expr(bin.right);
             }
             Assign(assign) => {
-                self.bind_ident(assign.binding);
+                self.bind_expr(assign.left);
                 self.bind_expr(assign.right);
             }
             ObjectLit(lit) => self.bind_object_lit(lit),

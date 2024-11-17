@@ -9,20 +9,20 @@ use crate::atoms::AtomId;
 use crate::keyword::KEYWORDS;
 
 #[inline(always)]
-pub fn is_ascii_letter(ch: u8) -> bool {
+pub(super) fn is_ascii_letter(ch: u8) -> bool {
     ch.is_ascii_alphabetic()
 }
 
-pub fn is_word_character(ch: u8) -> bool {
+pub(super) fn is_word_character(ch: u8) -> bool {
     is_ascii_letter(ch) || ch.is_ascii_digit() || ch == b'_'
 }
 
 #[inline(always)]
-pub fn is_identifier_start(ch: u8) -> bool {
+pub(super) fn is_identifier_start(ch: u8) -> bool {
     is_ascii_letter(ch) || ch == b'$' || ch == b'_'
 }
 
-pub fn is_identifier_part(ch: u8) -> bool {
+pub(super) fn is_identifier_part(ch: u8) -> bool {
     is_word_character(ch) || ch == b'$'
 }
 
@@ -434,5 +434,9 @@ impl<'cx, 'a, 'p> ParserState<'cx, 'p> {
             v.push(ch);
         }
         (offset, v)
+    }
+
+    pub(super) fn re_scan_greater_than(&mut self) -> TokenKind {
+        self.token.kind
     }
 }

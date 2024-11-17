@@ -41,7 +41,7 @@ pub enum BinaryLikeOp {
 
 pub(super) trait BinaryLikeExpr<'cx>: Copy + std::fmt::Debug {
     fn id(&self) -> ast::NodeID;
-    fn left(&self) -> ast::Expr<'cx>;
+    fn left(&self) -> &'cx ast::Expr<'cx>;
     fn op(&self) -> BinaryLikeOp;
     fn right(&self) -> &'cx ast::Expr<'cx>;
 }
@@ -51,10 +51,8 @@ impl<'cx> BinaryLikeExpr<'cx> for ast::AssignExpr<'cx> {
         self.id
     }
 
-    fn left(&self) -> ast::Expr<'cx> {
-        ast::Expr {
-            kind: ast::ExprKind::Ident(self.binding),
-        }
+    fn left(&self) -> &'cx ast::Expr<'cx> {
+        self.left 
     }
 
     fn op(&self) -> BinaryLikeOp {

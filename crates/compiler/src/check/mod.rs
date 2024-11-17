@@ -366,7 +366,7 @@ impl<'cx> TyChecker<'cx> {
     }
 
     fn check_assign_expr(&mut self, assign: &'cx ast::AssignExpr<'cx>) -> &'cx Ty<'cx> {
-        let l = self.check_ident(assign.binding);
+        let l = self.check_expr(assign.left);
         let r = self.check_expr(assign.right);
         use ast::AssignOp::*;
         let ty = match assign.op {
@@ -382,7 +382,7 @@ impl<'cx> TyChecker<'cx> {
             BitOrEq | BitAndEq | BitXorEq => self.check_bin_expr_for_normal(
                 assign.span,
                 l,
-                assign.binding.span,
+                assign.left.span(),
                 r,
                 assign.right.span(),
                 assign.op.as_str(),

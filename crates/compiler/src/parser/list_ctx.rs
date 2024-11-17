@@ -169,10 +169,17 @@ fn is_class_ele_start(s: &mut ParserState) -> bool {
 
     if let Some(t) = id_token {
         if !t.is_keyword() {
-            return true;
+            true
+        } else {
+            use TokenKind::*;
+            match s.token.kind {
+                LParen | Less | Colon | Eq | Question | Excl => true,
+                _ => s.can_parse_semi(),
+            }
         }
+    } else {
+        false
     }
-    false
 }
 
 #[derive(Copy, Clone)]

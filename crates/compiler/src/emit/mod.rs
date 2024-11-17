@@ -93,12 +93,12 @@ impl<'cx> Emit<'cx> {
         &mut self,
         list: &'cx [T],
         emit_item: impl Fn(&mut Self, &'cx T),
-        emit_sep: impl Fn(&mut Self),
+        emit_sep: impl Fn(&mut Self, &'cx T),
     ) {
         for (idx, item) in list.iter().enumerate() {
             emit_item(self, item);
             if idx != list.len() - 1 {
-                emit_sep(self)
+                emit_sep(self, item)
             }
         }
     }

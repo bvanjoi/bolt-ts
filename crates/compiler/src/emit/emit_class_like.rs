@@ -50,9 +50,15 @@ impl<'cx> Emit<'cx> {
         if !class.eles().eles.is_empty() {
             self.content.p_newline();
         }
-        for ele in class.eles().eles {
-            self.emit_class_ele(ele);
-        }
+        self.emit_list(
+            class.eles().eles,
+            |this, ele| this.emit_class_ele(ele),
+            |this, ele| {
+                if !matches!(ele.kind, ast::ClassEleKind::IndexSig(_)) {
+                    this.content.p_newline()
+                }
+            },
+        );
         if !class.eles().eles.is_empty() {
             self.content.p_newline();
         }
@@ -67,7 +73,15 @@ impl<'cx> Emit<'cx> {
             }
             Method(method) => self.emit_class_method(method),
             IndexSig(_) => {}
+            Ctor(ctor) => self.emit_class_ctor(ctor),
         }
+    }
+
+    fn emit_class_ctor(&mut self, ctor: &'cx ast::ClassCtor<'cx>) {
+        self.content.p("constructor");
+        self.emit_params(ctor.params);
+        self.content.p_whitespace();
+        self.emit_block_stmt(&ctor.body);
     }
 
     fn emit_class_method(&mut self, method: &'cx ast::ClassMethodEle<'cx>) {

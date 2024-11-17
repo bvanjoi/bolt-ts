@@ -61,7 +61,7 @@ impl<'cx> Emit<'cx> {
     }
 
     fn emit_assign_expr(&mut self, assign: &'cx ast::AssignExpr) {
-        self.emit_ident(assign.binding);
+        self.emit_expr(assign.left);
         self.content.p_whitespace();
         self.content.p(assign.op.as_str());
         self.content.p_whitespace();
@@ -113,7 +113,7 @@ impl<'cx> Emit<'cx> {
         self.emit_list(
             args,
             |this, arg| this.emit_expr(arg),
-            |this| {
+            |this, _| {
                 this.content.p_comma();
                 this.content.p_whitespace();
             },

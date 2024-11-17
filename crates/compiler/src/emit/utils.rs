@@ -8,7 +8,7 @@ impl<'cx> Emit<'cx> {
         self.emit_list(
             params,
             |this, item| this.emit_param(item),
-            |this| {
+            |this, _| {
                 this.content.p_comma();
                 this.content.p_whitespace();
             },

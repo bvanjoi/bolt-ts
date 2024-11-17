@@ -1,5 +1,5 @@
 use super::ast;
-use super::list_ctx::{self, ListContext};
+use super::list_ctx;
 use super::parse_class_like::ParseClassDecl;
 use super::token::TokenKind;
 use super::{PResult, ParserState};

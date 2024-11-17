@@ -25,6 +25,7 @@ keyword!(
     (KW_ASYNC, KW_ASYNC_STR, "async"),
     (KW_THIS, KW_THIS_STR, "this"),
     (KW_STATIC, KW_STATIC_STR, "static"),
+    (KW_CONSTRUCTOR, KW_CONSTRUCTOR_STR, "constructor"),
     // ts keywords
     (KW_IMPLEMENTS, KW_IMPLEMENTS_STR, "implements"),
     (KW_INTERFACE, KW_INTERFACE_STR, "interface"),

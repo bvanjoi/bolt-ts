@@ -1,5 +1,7 @@
 use rts_span::Span;
 
+use crate::ast::Modifiers;
+
 use super::ast;
 use super::errors;
 use super::list_ctx::{self, ListContext};
@@ -252,17 +254,48 @@ impl<'cx, 'a, 'p> ParserState<'cx, 'p> {
         Ok(sig)
     }
 
+    fn try_parse_ctor(&mut self, id: ast::NodeID, start: usize, mods: Option<&'cx Modifiers<'cx>>) -> PResult<&'cx ast::ClassEle<'cx>> {
+        self.try_parse(|this| {
+            if this.token.kind == TokenKind::Constructor && this.expect(TokenKind::Constructor).is_ok() {
+                let ty_params = this.parse_ty_params()?;
+                let params = this.parse_params()?;
+                let ret = this.parse_ret_ty(true)?;
+                let body = this.parse_fn_block()?;
+                let ctor = this.alloc(ast::ClassCtor {
+                    id,
+                    span: this.new_span(start, this.pos),
+                    ty_params,
+                    params,
+                    ret,
+                    body,
+                });
+                this.insert_map(id, ast::Node::ClassCtor(ctor));
+                let ele = this.alloc(ast::ClassEle {
+                    kind: ast::ClassEleKind::Ctor(ctor)
+                }); 
+                Ok(ele)
+            } else {
+                Err(()) 
+            }
+        })
+    }
+
     fn parse_class_ele(&mut self) -> PResult<&'cx ast::ClassEle<'cx>> {
         let id = self.p.next_node_id();
-        let start = self.token.start();
+        let start = self.token.start() as usize;
         let modifiers = self.with_parent(id, Self::parse_modifiers)?;
+        if self.token.kind == TokenKind::Constructor {
+            if let Ok(ctor) = self.try_parse_ctor(id, start, modifiers) {
+                return Ok(ctor);
+            }
+        }
         if self.is_index_sig() {
-            let decl = self.parse_index_sig_decl(id, start as usize, modifiers)?;
+            let decl = self.parse_index_sig_decl(id, start, modifiers)?;
             Ok(self.alloc(ast::ClassEle {
                 kind: ast::ClassEleKind::IndexSig(decl),
             }))
         } else {
-            self.parse_class_prop_or_method(id, start as usize, modifiers)
+            self.parse_class_prop_or_method(id, start, modifiers)
         }
     }
 

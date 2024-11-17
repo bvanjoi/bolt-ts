@@ -112,7 +112,8 @@ impl<'cx> TyChecker<'cx> {
                 } else if ident.name == keyword::IDENT_VOID {
                     self.void_ty()
                 } else {
-                    todo!()
+                    // todo!("{}", self.atoms.get(ident.name))
+                    self.undefined_ty()
                 }
             }
             Array(array) => self.get_ty_from_array_node(array),

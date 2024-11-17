@@ -5,7 +5,7 @@ use super::{PResult, ParserState};
 
 pub(super) fn is_left_hand_side_expr_kind(expr: &ast::Expr) -> bool {
     use ast::ExprKind::*;
-    matches!(expr.kind, Ident(_))
+    matches!(expr.kind, PropAccess(_) | Ident(_) | New(_) | Call(_))
 }
 
 impl<'cx, 'a, 'p> ParserState<'cx, 'p> {

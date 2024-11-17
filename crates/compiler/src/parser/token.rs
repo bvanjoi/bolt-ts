@@ -1,6 +1,6 @@
 use rts_span::Span;
 
-use crate::ast::{AssignOp, BinOpKind, HeritageClauseKind, ModifierKind, PrefixUnaryOp};
+use crate::ast::{AssignOp, BinOpKind, ModifierKind, PrefixUnaryOp};
 
 #[derive(Debug, Clone, Copy)]
 pub struct Token {
@@ -43,6 +43,7 @@ pub enum TokenKind {
     Async,
     This,
     Static,
+    Constructor,
     // ts keyword
     Implements,
     Interface,
@@ -56,7 +57,9 @@ pub enum TokenKind {
     Ident,
     NoSubstitutionTemplate,
     // =====
-    ///`%`
+    /// `!`
+    Excl = 0x21,
+    /// `%`
     Percent = 0x25,
     /// `&`
     Amp = 0x26,
@@ -331,7 +334,7 @@ impl TokenKind {
 
     pub fn is_param_prop_modifier(self) -> bool {
         use TokenKind::*;
-        matches!(self, Public)
+        matches!(self, Public | Static)
     }
 
     pub fn is_class_ele_modifier(self) -> bool {

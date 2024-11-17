@@ -1,10 +1,9 @@
-use crate::ast::ExprKind;
-
 use super::ast::{self, BinOp};
 use super::list_ctx;
 use super::paren_rule::{NoParenRule, ParenRuleTrait};
 use super::parse_class_like;
 use super::token::{BinPrec, TokenKind};
+use super::utils::is_left_hand_side_expr_kind;
 use super::{PResult, ParserState};
 
 impl<'cx, 'a, 'p> ParserState<'cx, 'p> {
@@ -84,7 +83,7 @@ impl<'cx, 'a, 'p> ParserState<'cx, 'p> {
 
         let start = self.token.start();
         let expr = self.parse_binary_expr(BinPrec::Lowest);
-        if let ExprKind::Ident(binding) = expr.kind {
+        if is_left_hand_side_expr_kind(expr) && self.re_scan_greater_than().is_assignment() {
             if self.token.kind.is_assignment() {
                 let id = self.p.next_node_id();
                 self.p.parent_map.r#override(expr.id(), id);
@@ -93,7 +92,7 @@ impl<'cx, 'a, 'p> ParserState<'cx, 'p> {
                 let right = self.with_parent(id, Self::parse_assign_expr)?;
                 let expr = self.alloc(ast::AssignExpr {
                     id,
-                    binding,
+                    left: expr,
                     op,
                     right,
                     span: self.new_span(start as usize, self.pos),
