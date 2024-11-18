@@ -1,0 +1,7 @@
+class C {
+
+
+constructor(x) {
+  
+}
+}

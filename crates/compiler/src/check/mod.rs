@@ -450,7 +450,7 @@ impl<'cx> TyChecker<'cx> {
     fn check_resolved_block_scoped_var(&mut self, ident: &'cx ast::Ident, id: SymbolID) {
         use crate::bind::SymbolKind::*;
         match self.symbols.get(id).kind {
-            Class { decl } => {
+            Class { decl, .. } => {
                 if !self.is_block_scoped_name_declared_before_use(decl, ident.span) {
                     let decl_span = match self.nodes.get(decl) {
                         ast::Node::ClassDecl(class) => class.name.span,

@@ -43,7 +43,7 @@ impl<'cx> TyChecker<'cx> {
 
     fn get_base_type_variable_of_class(&mut self, symbol: SymbolID) -> &'cx Ty<'cx> {
         let decl = match self.symbols.get(symbol).kind {
-            crate::bind::SymbolKind::Class { decl } => decl,
+            crate::bind::SymbolKind::Class { decl, .. } => decl,
             _ => unreachable!(),
         };
         let Some(base) = self.get_effective_base_type_node(decl) else {

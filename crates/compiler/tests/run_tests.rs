@@ -27,11 +27,8 @@ fn run_tests() {
                     let expected_file_path = expect_test::expect_file![case.with_extension("out")];
                     expected_file_path.assert_eq(&output);
                 }
-                Ok(None) => {
-                    dbg!(123);
-                }
-                Err(err) => {
-                    dbg!(err);
+                Ok(None) => {}
+                Err(_) => {
                     return Err(vec![]);
                 }
             }

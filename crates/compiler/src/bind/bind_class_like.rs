@@ -40,8 +40,8 @@ impl<'cx> ClassLike<'cx> for ast::ClassExpr<'cx> {
 }
 
 impl<'cx> Binder<'cx> {
-    fn bind_class_ctor(&mut self, ele: &'cx ast::ClassCtor<'cx>) {
-        self.create_class_ctor(ele);
+    fn bind_class_ctor(&mut self, decl_id: ast::NodeID, ele: &'cx ast::ClassCtor<'cx>) {
+        self.create_class_ctor(decl_id, ele);
         self.bind_params(ele.params);
         if let Some(body) = ele.body {
             self.bind_block_stmt(body);
@@ -80,7 +80,7 @@ impl<'cx> Binder<'cx> {
             match ele.kind {
                 ast::ClassEleKind::Prop(n) => self.bind_class_prop_ele(n),
                 ast::ClassEleKind::Method(n) => self.bind_class_method_ele(n),
-                ast::ClassEleKind::Ctor(n) => self.bind_class_ctor(n),
+                ast::ClassEleKind::Ctor(n) => self.bind_class_ctor(class.id(), n),
                 ast::ClassEleKind::IndexSig(_) => {}
             }
         }

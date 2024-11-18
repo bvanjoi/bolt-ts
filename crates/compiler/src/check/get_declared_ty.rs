@@ -28,7 +28,7 @@ impl<'cx> TyChecker<'cx> {
     fn get_outer_ty_params_of_class(&mut self, id: SymbolID) -> Option<ast::TyParams<'cx>> {
         use crate::bind::SymbolKind::*;
         match self.symbols.get(id).kind {
-            Class { decl } => self.get_outer_ty_params(decl),
+            Class { decl, .. } => self.get_outer_ty_params(decl),
             _ => unreachable!(),
         }
     }

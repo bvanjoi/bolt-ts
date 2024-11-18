@@ -9,7 +9,7 @@ use crate::keyword;
 pub enum SymbolName {
     Normal(AtomId),
     Ele(AtomId),
-    Class,
+    ClassExpr,
     Array,
     /// object literal
     Object,
@@ -60,6 +60,7 @@ pub enum SymbolKind {
     },
     Class {
         decl: NodeID,
+        members: FxHashMap<SymbolName, SymbolID>
     },
     Property {
         decl: NodeID,
