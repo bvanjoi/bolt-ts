@@ -150,7 +150,6 @@ impl Node<'_> {
             IndexSigDecl(n) => n.span,
             PropAccessExpr(n) => n.span,
             ClassCtor(n) => n.span,
-
         }
     }
 

@@ -24,11 +24,7 @@ impl<'cx> ParenRuleTrait<'cx> for ParenRule {
 
 pub(super) struct NoParenRule;
 impl<'cx> ParenRuleTrait<'cx> for NoParenRule {
-    fn paren_left_side_of_access(
-        &self,
-        expr: &'cx ast::Expr<'cx>,
-        _: bool,
-    ) -> &'cx ast::Expr<'cx> {
+    fn paren_left_side_of_access(&self, expr: &'cx ast::Expr<'cx>, _: bool) -> &'cx ast::Expr<'cx> {
         assert!(is_left_hand_side_expr_kind(expr));
         expr
     }

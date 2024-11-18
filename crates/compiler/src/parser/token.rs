@@ -336,7 +336,7 @@ impl TokenKind {
 
     pub fn is_param_prop_modifier(self) -> bool {
         // TODO: readonly | override
-        self.is_accessibility_modifier() 
+        self.is_accessibility_modifier()
     }
 
     pub fn is_class_ele_modifier(self) -> bool {

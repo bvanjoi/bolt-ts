@@ -31,7 +31,10 @@ impl<'cx, 'a, 'p> ParserState<'cx, 'p> {
             .any(|m| matches!(m.kind, ast::ModifierKind::Declare))
     }
 
-    fn _parse_decl(&mut self, mods: Option<&'cx ast::Modifiers<'cx>>) -> PResult<&'cx ast::Stmt<'cx>> {
+    fn _parse_decl(
+        &mut self,
+        mods: Option<&'cx ast::Modifiers<'cx>>,
+    ) -> PResult<&'cx ast::Stmt<'cx>> {
         use TokenKind::*;
         let kind = match self.token.kind {
             Var | Let | Const => ast::StmtKind::Var(self.parse_var_stmt()),

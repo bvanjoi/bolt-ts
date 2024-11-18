@@ -3,7 +3,7 @@ mod create;
 mod symbol;
 
 use rustc_hash::FxHashMap;
-pub use symbol::{Symbol, SymbolID, SymbolKind, SymbolName, Symbols};
+pub use symbol::{Symbol, SymbolFnKind, SymbolID, SymbolKind, SymbolName, Symbols};
 
 use crate::ast::{self, NodeID};
 use crate::atoms::AtomMap;
@@ -83,24 +83,6 @@ impl<'cx> Binder<'cx> {
             }
             Class(class) => self.bind_class_like(class),
             Interface(_) => {}
-        }
-    }
-
-    fn bind_class_method_ele(&mut self, ele: &'cx ast::ClassMethodEle<'cx>) {
-        self.create_class_method_ele(ele);
-        self.bind_params(ele.params);
-        if let Some(body) = ele.body {
-            self.bind_block_stmt(body);
-        }
-    }
-
-    fn bind_class_prop_ele(&mut self, ele: &'cx ast::ClassPropEle<'cx>) {
-        self.create_class_prop_ele(ele);
-        if let Some(ty) = ele.ty {
-            self.bind_ty(ty);
-        }
-        if let Some(init) = ele.init {
-            self.bind_expr(init);
         }
     }
 

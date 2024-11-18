@@ -69,7 +69,8 @@ impl<'cx> Binder<'cx> {
         {
             let symbol = self.symbols.get_mut(s);
             match &mut symbol.kind {
-                SymbolKind::Function { decls } => {
+                SymbolKind::Function { decls, kind } => {
+                    assert!(*kind == super::SymbolFnKind::Fn);
                     assert!(!decls.is_empty());
                     decls.push(f.id)
                 }
@@ -79,6 +80,7 @@ impl<'cx> Binder<'cx> {
             self.create_var_symbol(
                 f.name.name,
                 SymbolKind::Function {
+                    kind: super::SymbolFnKind::Fn,
                     decls: thin_vec![f.id],
                 },
             );
@@ -129,5 +131,29 @@ impl<'cx> Binder<'cx> {
         };
         let symbol = self.create_ele_symbol(name, SymbolKind::Method { decl: ele.id });
         self.create_final_res(ele.id, symbol);
+    }
+
+    pub(super) fn create_class_ctor(&mut self, ctor: &'cx ast::ClassCtor<'cx>) {
+        let name = SymbolName::Constructor;
+        if let Some(s) = self.final_res.get(&ctor.id).copied() {
+            let symbol = self.symbols.get_mut(s);
+            match &mut symbol.kind {
+                SymbolKind::Function { decls, kind } => {
+                    assert!(*kind == super::SymbolFnKind::Ctor);
+                    assert!(!decls.is_empty());
+                    decls.push(ctor.id)
+                }
+                _ => unreachable!(),
+            }
+        } else {
+            let symbol = self.create_symbol(
+                name,
+                SymbolKind::Function {
+                    decls: thin_vec![ctor.id],
+                    kind: super::SymbolFnKind::Ctor,
+                },
+            );
+            self.create_final_res(ctor.id, symbol);
+        }
     }
 }

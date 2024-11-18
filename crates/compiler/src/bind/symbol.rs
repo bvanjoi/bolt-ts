@@ -15,6 +15,7 @@ pub enum SymbolName {
     Object,
     /// function expression
     Fn,
+    Constructor,
 }
 
 impl SymbolName {
@@ -40,6 +41,12 @@ impl Symbol {
     pub const ERR: SymbolID = SymbolID::root();
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SymbolFnKind {
+    Fn,
+    Ctor,
+}
+
 #[derive(Debug)]
 pub enum SymbolKind {
     Err,
@@ -48,6 +55,7 @@ pub enum SymbolKind {
     /// `let` or `const`
     BlockScopedVar,
     Function {
+        kind: SymbolFnKind,
         decls: ThinVec<NodeID>,
     },
     Class {

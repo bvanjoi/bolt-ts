@@ -70,7 +70,7 @@ impl<'cx> TyChecker<'cx> {
         use crate::bind::SymbolKind::*;
         let decls = match &self.symbols.get(id).kind {
             Err => todo!(),
-            Function { decls } => decls.clone(),
+            Function { decls, .. } => decls.clone(),
             FnExpr { decl } => thin_vec![*decl],
             FunctionScopedVar => todo!(),
             BlockScopedVar => todo!(),

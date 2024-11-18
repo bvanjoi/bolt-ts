@@ -12,7 +12,7 @@ fn get_assignment_target(checker: &TyChecker, id: ast::NodeID) -> Option<ast::No
                 } else {
                     None
                 }
-            },
+            }
             ast::Node::BinExpr(_) => return None,
             _ => return None,
         }

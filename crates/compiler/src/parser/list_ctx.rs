@@ -63,7 +63,8 @@ fn is_ty_member_start(s: &mut ParserState) -> bool {
         s.next_token();
     }
 
-    id_token && (matches!(s.token.kind, LParen | Less | Question | Colon | Comma) || s.can_parse_semi())
+    id_token
+        && (matches!(s.token.kind, LParen | Less | Question | Colon | Comma) || s.can_parse_semi())
 }
 
 #[derive(Copy, Clone)]

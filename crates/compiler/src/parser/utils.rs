@@ -78,10 +78,12 @@ impl<'cx, 'a, 'p> ParserState<'cx, 'p> {
 
     pub(super) fn parse_fn_block(&mut self) -> PResult<Option<&'cx ast::BlockStmt<'cx>>> {
         if self.token.kind != TokenKind::LBrace {
-            Ok(None)
-        } else {
-            self.parse_block().map(|block| Some(block))
+            if self.can_parse_semi() {
+                self.parse_semi();
+                return Ok(None);
+            }
         }
+        self.parse_block().map(|block| Some(block))
     }
 
     pub(super) fn parse_block(&mut self) -> PResult<&'cx ast::BlockStmt<'cx>> {

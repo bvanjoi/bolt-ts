@@ -22,7 +22,7 @@ pub fn ensure_node_exist() {
     }
 }
 
-pub fn run_node(p: &std::path::Path) -> Result<Option<String>, ()> {
+pub fn run_node(p: &std::path::Path) -> Result<Option<String>, String> {
     let run_output = std::process::Command::new("node")
         .arg(p)
         .output()
@@ -32,8 +32,8 @@ pub fn run_node(p: &std::path::Path) -> Result<Option<String>, ()> {
         let stdout = std::str::from_utf8(&run_output.stdout).expect("Failed to parse output");
         Ok((!stdout.is_empty()).then(|| stdout.to_string()))
     } else {
-        // let stderr = std::str::from_utf8(&run_output.stderr).expect("Failed to parse output");
-        Err(())
+        let stderr = std::str::from_utf8(&run_output.stderr).expect("Failed to parse output");
+        Err(stderr.to_string())
     }
 }
 

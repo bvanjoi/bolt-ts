@@ -254,9 +254,16 @@ impl<'cx, 'a, 'p> ParserState<'cx, 'p> {
         Ok(sig)
     }
 
-    fn try_parse_ctor(&mut self, id: ast::NodeID, start: usize, mods: Option<&'cx Modifiers<'cx>>) -> PResult<&'cx ast::ClassEle<'cx>> {
+    fn try_parse_ctor(
+        &mut self,
+        id: ast::NodeID,
+        start: usize,
+        mods: Option<&'cx Modifiers<'cx>>,
+    ) -> PResult<&'cx ast::ClassEle<'cx>> {
         self.try_parse(|this| {
-            if this.token.kind == TokenKind::Constructor && this.expect(TokenKind::Constructor).is_ok() {
+            if this.token.kind == TokenKind::Constructor
+                && this.expect(TokenKind::Constructor).is_ok()
+            {
                 let ty_params = this.parse_ty_params()?;
                 let params = this.parse_params()?;
                 let ret = this.parse_ret_ty(true)?;
@@ -271,11 +278,11 @@ impl<'cx, 'a, 'p> ParserState<'cx, 'p> {
                 });
                 this.insert_map(id, ast::Node::ClassCtor(ctor));
                 let ele = this.alloc(ast::ClassEle {
-                    kind: ast::ClassEleKind::Ctor(ctor)
-                }); 
+                    kind: ast::ClassEleKind::Ctor(ctor),
+                });
                 Ok(ele)
             } else {
-                Err(()) 
+                Err(())
             }
         })
     }

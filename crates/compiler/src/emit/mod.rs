@@ -71,11 +71,11 @@ impl PPrint {
 }
 
 pub struct EmitterOptions {
-    indent: u32
+    indent: u32,
 }
 
 struct EmitterState {
-    indent: u32
+    indent: u32,
 }
 
 pub struct Emit<'cx> {
@@ -90,12 +90,8 @@ impl<'cx> Emit<'cx> {
         Self {
             atoms,
             content: PPrint(String::with_capacity(1024 * 128)),
-            options: EmitterOptions {
-                indent: 2,
-            },
-            state: EmitterState {
-                indent: 0,
-            },
+            options: EmitterOptions { indent: 2 },
+            state: EmitterState { indent: 0 },
         }
     }
 

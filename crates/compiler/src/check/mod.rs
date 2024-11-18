@@ -3,6 +3,7 @@ mod check_call_like;
 mod check_class_like_decl;
 mod check_fn_like_decl;
 mod check_fn_like_expr;
+mod check_fn_like_symbol;
 mod check_var_like;
 mod create_ty;
 mod get_contextual_ty;
@@ -14,8 +15,6 @@ mod resolve;
 mod sig;
 mod symbol_links;
 mod utils;
-
-use std::mem;
 
 use rts_span::{ModuleID, Span};
 use rustc_hash::FxHashMap;

@@ -1,5 +1,5 @@
 use super::TyChecker;
-use crate::ast;
+use crate::{ast, bind::SymbolKind};
 
 pub(super) trait ClassLikeDecl<'cx>: Copy + std::fmt::Debug {
     fn id(&self) -> ast::NodeID;
@@ -41,6 +41,16 @@ impl<'cx> ClassLikeDecl<'cx> for ast::ClassExpr<'cx> {
 }
 
 impl<'cx> TyChecker<'cx> {
+    fn check_ctor(&mut self, ctor: &'cx ast::ClassCtor<'cx>) {
+        let symbol = self.get_symbol_of_decl(ctor.id);
+        let SymbolKind::Function { decls, .. } = &self.symbols.get(symbol).kind else {
+            unreachable!()
+        };
+        if decls[0] == ctor.id {
+            self.check_fn_like_symbol(symbol);
+        }
+    }
+
     pub(super) fn check_class_like_decl(&mut self, class: &impl ClassLikeDecl<'cx>) {
         let symbol = self.get_symbol_of_decl(class.id());
         self.get_declared_ty_of_symbol(symbol);
@@ -58,7 +68,7 @@ impl<'cx> TyChecker<'cx> {
                 Prop(prop) => self.check_class_prop_ele(prop),
                 Method(method) => self.check_class_method_ele(method),
                 IndexSig(_) => {}
-                Ctor(_) => {},
+                Ctor(ctor) => self.check_ctor(ctor),
             }
         }
     }

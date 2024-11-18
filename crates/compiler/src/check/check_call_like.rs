@@ -40,7 +40,7 @@ impl<'cx> CallLikeExpr<'cx> for ast::CallExpr<'cx> {
             return Default::default();
         };
         match &checker.symbols.get(f.symbol).kind {
-            SymbolKind::Function { decls } => decls.clone(),
+            SymbolKind::Function { decls, .. } => decls.clone(),
             SymbolKind::FnExpr { decl } => thin_vec![*decl],
             _ => unreachable!(),
         }

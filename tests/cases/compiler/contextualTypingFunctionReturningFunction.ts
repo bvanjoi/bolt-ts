@@ -1,3 +1,5 @@
+//@ run-fail
+
 interface I {
 	a(s: string): void;
 	b(): (n: number) => void;

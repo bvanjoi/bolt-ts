@@ -52,7 +52,7 @@ impl<'cx> BinaryLikeExpr<'cx> for ast::AssignExpr<'cx> {
     }
 
     fn left(&self) -> &'cx ast::Expr<'cx> {
-        self.left 
+        self.left
     }
 
     fn op(&self) -> BinaryLikeOp {

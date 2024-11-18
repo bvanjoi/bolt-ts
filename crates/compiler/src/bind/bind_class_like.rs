@@ -40,6 +40,32 @@ impl<'cx> ClassLike<'cx> for ast::ClassExpr<'cx> {
 }
 
 impl<'cx> Binder<'cx> {
+    fn bind_class_ctor(&mut self, ele: &'cx ast::ClassCtor<'cx>) {
+        self.create_class_ctor(ele);
+        self.bind_params(ele.params);
+        if let Some(body) = ele.body {
+            self.bind_block_stmt(body);
+        }
+    }
+
+    fn bind_class_method_ele(&mut self, ele: &'cx ast::ClassMethodEle<'cx>) {
+        self.create_class_method_ele(ele);
+        self.bind_params(ele.params);
+        if let Some(body) = ele.body {
+            self.bind_block_stmt(body);
+        }
+    }
+
+    fn bind_class_prop_ele(&mut self, ele: &'cx ast::ClassPropEle<'cx>) {
+        self.create_class_prop_ele(ele);
+        if let Some(ty) = ele.ty {
+            self.bind_ty(ty);
+        }
+        if let Some(init) = ele.init {
+            self.bind_expr(init);
+        }
+    }
+
     pub(super) fn bind_class_like(&mut self, class: &'cx impl ClassLike<'cx>) {
         self.connect(class.id());
         class.create_symbol(self);
@@ -54,8 +80,8 @@ impl<'cx> Binder<'cx> {
             match ele.kind {
                 ast::ClassEleKind::Prop(n) => self.bind_class_prop_ele(n),
                 ast::ClassEleKind::Method(n) => self.bind_class_method_ele(n),
+                ast::ClassEleKind::Ctor(n) => self.bind_class_ctor(n),
                 ast::ClassEleKind::IndexSig(_) => {}
-                ast::ClassEleKind::Ctor(_) => {},
             }
         }
         self.scope_id = old;

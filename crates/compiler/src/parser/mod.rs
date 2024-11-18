@@ -286,8 +286,6 @@ impl<'cx, 'a, 'p> ParserState<'cx, 'p> {
         self.speculation_helper(f, false)
     }
 
-    
-
     fn parse_token_node(&mut self) -> Token {
         let t = self.token;
         self.next_token();

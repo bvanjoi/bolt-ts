@@ -196,3 +196,10 @@ pub(super) struct DefinedHere {
     pub kind: DeclKind,
     pub name: String,
 }
+
+#[derive(Error, Diagnostic, Debug)]
+#[error("Constructor implementation is missing.")]
+pub(super) struct ConstructorImplementationIsMissing {
+    #[label]
+    pub span: Span,
+}
