@@ -7,7 +7,7 @@ use crate::ast;
 use crate::atoms::AtomId;
 
 impl<'cx> Binder<'cx> {
-    fn create_final_res(&mut self, id: ast::NodeID, symbol: SymbolID) {
+    pub(super) fn create_final_res(&mut self, id: ast::NodeID, symbol: SymbolID) {
         let prev = self.final_res.insert(id, symbol);
         assert!(prev.is_none());
     }
@@ -19,13 +19,25 @@ impl<'cx> Binder<'cx> {
     }
 
     pub(super) fn create_class_decl(&mut self, decl: &'cx ast::ClassDecl<'cx>) {
-        let symbol = self.create_var_symbol(decl.name.name, SymbolKind::Class { decl: decl.id, members: FxHashMap::default() });
+        let symbol = self.create_var_symbol(
+            decl.name.name,
+            SymbolKind::Class {
+                decl: decl.id,
+                members: FxHashMap::default(),
+            },
+        );
         self.create_final_res(decl.id, symbol);
     }
 
     pub(super) fn create_class_expr(&mut self, expr: &'cx ast::ClassExpr<'cx>) {
         let name = SymbolName::ClassExpr;
-        let symbol = self.create_symbol(name, SymbolKind::Class { decl: expr.id, members: FxHashMap::default() });
+        let symbol = self.create_symbol(
+            name,
+            SymbolKind::Class {
+                decl: expr.id,
+                members: FxHashMap::default(),
+            },
+        );
         self.create_final_res(expr.id, symbol);
     }
 
@@ -39,12 +51,7 @@ impl<'cx> Binder<'cx> {
         self.create_symbol(name, kind)
     }
 
-    pub fn create_ele_symbol(&mut self, name: AtomId, kind: SymbolKind) -> SymbolID {
-        let name = SymbolName::Ele(name);
-        self.create_symbol(name, kind)
-    }
-
-    fn create_symbol(&mut self, name: SymbolName, kind: SymbolKind) -> SymbolID {
+    pub(super) fn create_symbol(&mut self, name: SymbolName, kind: SymbolKind) -> SymbolID {
         use super::SymbolKind::*;
         let id = self.next_symbol_id();
         let is_blocked_scope_var = matches!(kind, BlockScopedVar);
@@ -115,63 +122,5 @@ impl<'cx> Binder<'cx> {
         );
         self.create_final_res(node_id, id);
         id
-    }
-
-    pub(super) fn create_class_prop_ele(&mut self, ele: &'cx ast::ClassPropEle<'cx>) {
-        let name = match ele.name.kind {
-            ast::PropNameKind::Ident(ident) => ident.name,
-        };
-        let symbol = self.create_ele_symbol(name, SymbolKind::Property { decl: ele.id });
-        self.create_final_res(ele.id, symbol);
-    }
-
-    pub(super) fn create_class_method_ele(&mut self, ele: &'cx ast::ClassMethodEle<'cx>) {
-        let name = match ele.name.kind {
-            ast::PropNameKind::Ident(ident) => ident.name,
-        };
-        let symbol = self.create_ele_symbol(name, SymbolKind::Method { decl: ele.id });
-        self.create_final_res(ele.id, symbol);
-    }
-
-    pub(super) fn create_class_ctor(
-        &mut self,
-        decl_id: ast::NodeID,
-        ctor: &'cx ast::ClassCtor<'cx>,
-    ) {
-        let Some(class_symbol_id) = self.final_res.get(&decl_id).copied() else {
-            unreachable!()
-        };
-        let SymbolKind::Class { members, .. } = &mut self.symbols.get_mut(class_symbol_id).kind
-        else {
-            unreachable!()
-        };
-        let name = SymbolName::Constructor;
-        if let Some(s) = members.get(&name).copied() {
-            let symbol = self.symbols.get_mut(s);
-            match &mut symbol.kind {
-                SymbolKind::Function { decls, kind } => {
-                    assert!(*kind == super::SymbolFnKind::Ctor);
-                    assert!(!decls.is_empty());
-                    decls.push(ctor.id)
-                }
-                _ => unreachable!(),
-            };
-            self.create_final_res(ctor.id, s);
-        } else {
-            let symbol = self.create_symbol(
-                name,
-                SymbolKind::Function {
-                    decls: thin_vec![ctor.id],
-                    kind: super::SymbolFnKind::Ctor,
-                },
-            );
-            self.create_final_res(ctor.id, symbol);
-            let SymbolKind::Class { members, .. } = &mut self.symbols.get_mut(class_symbol_id).kind
-            else {
-                unreachable!()
-            };
-            let prev = members.insert(name, symbol);
-            assert!(prev.is_none())
-        };
     }
 }

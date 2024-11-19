@@ -14,6 +14,7 @@ impl<'cx> TyChecker<'cx> {
             ArrowFnExpr(n) => n.id,
             FnExpr(n) => n.id,
             ClassCtor(n) => n.id,
+            FnDecl(n) => n.id,
             _ => todo!("{:#?}", self.nodes.get(id)),
         };
         *self.final_res.get(&id).unwrap()

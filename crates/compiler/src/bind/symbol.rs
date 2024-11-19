@@ -45,6 +45,7 @@ impl Symbol {
 pub enum SymbolFnKind {
     Fn,
     Ctor,
+    Method,
 }
 
 #[derive(Debug)]
@@ -60,12 +61,9 @@ pub enum SymbolKind {
     },
     Class {
         decl: NodeID,
-        members: FxHashMap<SymbolName, SymbolID>
+        members: FxHashMap<SymbolName, SymbolID>,
     },
     Property {
-        decl: NodeID,
-    },
-    Method {
         decl: NodeID,
     },
     Object(ObjectSymbol),
@@ -98,7 +96,6 @@ impl SymbolKind {
             SymbolKind::Class { .. } => "class",
             SymbolKind::Property { .. } => todo!(),
             SymbolKind::Object { .. } => todo!(),
-            SymbolKind::Method { .. } => todo!(),
         }
     }
 

@@ -23,9 +23,12 @@ impl<'cx> TyChecker<'cx> {
         });
 
         if !last_seen_non_ambient_decl {
+            let span = self.nodes.get(decls[0]).span();
             if *kind == SymbolFnKind::Ctor {
-                let span = self.nodes.get(decls[0]).span();
                 let error = errors::ConstructorImplementationIsMissing { span };
+                self.push_error(span.module, Box::new(error));
+            } else if *kind == SymbolFnKind::Fn {
+                let error = errors::FunctionImplementationIsMissingOrNotImmediatelyFollowingTheDeclaration { span };
                 self.push_error(span.module, Box::new(error));
             }
         }

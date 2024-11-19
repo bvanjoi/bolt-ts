@@ -204,7 +204,7 @@ impl<'cx, 'a, 'p> ParserState<'cx, 'p> {
         // TODO: type params
         let params = self.with_parent(id, Self::parse_params)?;
         let ret_ty = self.with_parent(id, Self::parse_fn_decl_ret_type)?;
-        let body = self.parse_fn_block()?;
+        let body = self.with_parent(id, Self::parse_fn_block)?;
         let f = self.alloc(ast::FnDecl {
             id,
             span: self.new_span(start as usize, self.pos),

@@ -157,4 +157,23 @@ impl Node<'_> {
         use Node::*;
         matches!(self, ClassDecl(_) | ClassExpr(_))
     }
+
+    pub fn is_fn_decl_like(&self) -> bool {
+        use Node::*;
+        matches!(
+            self,
+            FnDecl(_) | FnExpr(_) | ClassMethodEle(_) | ClassCtor(_) | ArrowFnExpr(_)
+        )
+    }
+
+    pub fn is_fn_like(&self) -> bool {
+        use Node::*;
+        matches!(self, IndexSigDecl(_)) | self.is_fn_decl_like()
+    }
+
+    pub fn is_class_static_block_decl(&self) -> bool {
+        todo!();
+        // use Node::*;
+        // matches!(self, _)
+    }
 }

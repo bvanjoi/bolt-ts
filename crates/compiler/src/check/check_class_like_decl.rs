@@ -51,6 +51,14 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
+    fn check_class_method_ele(&mut self, method: &'cx ast::ClassMethodEle<'cx>) {
+        self.check_fn_like_decl(method);
+    }
+
+    fn check_class_prop_ele(&mut self, prop: &'cx ast::ClassPropEle<'cx>) {
+        self.check_var_like_decl(prop);
+    }
+
     pub(super) fn check_class_like_decl(&mut self, class: &impl ClassLikeDecl<'cx>) {
         let symbol = self.get_symbol_of_decl(class.id());
         self.get_declared_ty_of_symbol(symbol);

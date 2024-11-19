@@ -210,14 +210,6 @@ impl<'cx> TyChecker<'cx> {
         self.check_class_like_decl(class)
     }
 
-    fn check_class_method_ele(&mut self, method: &'cx ast::ClassMethodEle<'cx>) {
-        self.check_fn_like_decl(method);
-    }
-
-    fn check_class_prop_ele(&mut self, prop: &'cx ast::ClassPropEle<'cx>) {
-        self.check_var_like_decl(prop);
-    }
-
     fn check_return(&mut self, ret: &ast::RetStmt<'cx>) {
         if let Some(expr) = ret.expr {
             self.check_expr(expr);
@@ -443,15 +435,46 @@ impl<'cx> TyChecker<'cx> {
         self.create_array_ty(ty::ArrayTy { ty })
     }
 
-    fn is_block_scoped_name_declared_before_use(&self, decl: ast::NodeID, used_span: Span) -> bool {
-        used_span.lo > self.nodes.get(decl).span().hi
+    fn is_used_in_fn_or_instance_prop(&self, used: &'cx ast::Ident, decl: ast::NodeID) -> bool {
+        let mut current = Some(used.id);
+        loop {
+            let Some(c) = current else {
+                break;
+            };
+            let node = self.nodes.get(c);
+            if node.id() == decl {
+                return false;
+            } else if node.is_fn_like() {
+                return true;
+            }
+            current = self.node_parent_map.parent(c);
+        }
+        false
+    }
+
+    fn is_block_scoped_name_declared_before_use(
+        &self,
+        decl: ast::NodeID,
+        used: &'cx ast::Ident,
+    ) -> bool {
+        let used_span = used.span;
+        let decl_pos = self.nodes.get(decl).span().hi;
+        if decl_pos < used_span.lo {
+            return true;
+        }
+
+        if self.is_used_in_fn_or_instance_prop(&used, decl) {
+            return true;
+        }
+
+        false
     }
 
     fn check_resolved_block_scoped_var(&mut self, ident: &'cx ast::Ident, id: SymbolID) {
         use crate::bind::SymbolKind::*;
         match self.symbols.get(id).kind {
             Class { decl, .. } => {
-                if !self.is_block_scoped_name_declared_before_use(decl, ident.span) {
+                if !self.is_block_scoped_name_declared_before_use(decl, ident) {
                     let decl_span = match self.nodes.get(decl) {
                         ast::Node::ClassDecl(class) => class.name.span,
                         _ => unreachable!(),
