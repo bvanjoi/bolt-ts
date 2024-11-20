@@ -44,6 +44,8 @@ pub enum TokenKind {
     This,
     Static,
     Constructor,
+    Get,
+    Set,
     // ts keyword
     Implements,
     Interface,

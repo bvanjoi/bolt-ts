@@ -155,6 +155,8 @@ impl<'cx> Binder<'cx> {
                 ast::ClassEleKind::Method(n) => self.bind_class_method_ele(class.id(), n),
                 ast::ClassEleKind::Ctor(n) => self.bind_class_ctor(class.id(), n),
                 ast::ClassEleKind::IndexSig(_) => {}
+                ast::ClassEleKind::Getter(_) => {}
+                ast::ClassEleKind::Setter(_) => {}
             }
         }
         self.scope_id = old;

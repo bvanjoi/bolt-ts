@@ -52,14 +52,14 @@ impl<'cx> Binder<'cx> {
     }
 
     pub(super) fn create_symbol(&mut self, name: SymbolName, kind: SymbolKind) -> SymbolID {
-        use super::SymbolKind::*;
+        // use super::SymbolKind::*;
         let id = self.next_symbol_id();
-        let is_blocked_scope_var = matches!(kind, BlockScopedVar);
+        // let is_blocked_scope_var = matches!(kind, BlockScopedVar);
         self.symbols.insert(id, Symbol::new(name, kind));
         let prev = self.res.insert((self.scope_id, name), id);
-        if !is_blocked_scope_var {
-            // assert!(prev.is_none(), "`{name:#?}` is a duplicate symbol ");
-        }
+        // if !is_blocked_scope_var {
+        //     // assert!(prev.is_none(), "`{name:#?}` is a duplicate symbol ");
+        // }
         id
     }
 
@@ -68,12 +68,18 @@ impl<'cx> Binder<'cx> {
         self.final_res.insert(id, symbol);
     }
 
-    pub(super) fn create_fn_symbol(&mut self, f: &'cx ast::FnDecl) {
-        if let Some(s) = self
-            .res
-            .get(&(self.scope_id, SymbolName::Normal(f.name.name)))
-            .copied()
-        {
+    pub(super) fn create_fn_symbol(&mut self, container: ast::NodeID, f: &'cx ast::FnDecl) {
+        let Some(container_symbol_id) = self.final_res.get(&container).copied() else {
+            unreachable!()
+        };
+        let SymbolKind::BlockContainer { locals, .. } =
+            &mut self.symbols.get_mut(container_symbol_id).kind
+        else {
+            unreachable!()
+        };
+
+        let name = SymbolName::Normal(f.name.name);
+        if let Some(s) = locals.get(&name).copied() {
             let symbol = self.symbols.get_mut(s);
             match &mut symbol.kind {
                 SymbolKind::Function { decls, kind } => {
@@ -83,14 +89,23 @@ impl<'cx> Binder<'cx> {
                 }
                 _ => unreachable!(),
             }
+            self.create_final_res(f.id, s);
         } else {
-            self.create_var_symbol(
+            let symbol = self.create_var_symbol(
                 f.name.name,
                 SymbolKind::Function {
                     kind: super::SymbolFnKind::Fn,
                     decls: thin_vec![f.id],
                 },
             );
+            self.create_final_res(f.id, symbol);
+            let SymbolKind::BlockContainer { locals, .. } =
+                &mut self.symbols.get_mut(container_symbol_id).kind
+            else {
+                unreachable!()
+            };
+            let prev = locals.insert(name, symbol);
+            assert!(prev.is_none())
         }
     }
 
@@ -122,5 +137,15 @@ impl<'cx> Binder<'cx> {
         );
         self.create_final_res(node_id, id);
         id
+    }
+
+    pub(super) fn create_block_container_symbol(&mut self, node_id: ast::NodeID) {
+        let symbol = self.create_symbol(
+            SymbolName::Container,
+            SymbolKind::BlockContainer {
+                locals: FxHashMap::default(),
+            },
+        );
+        self.create_final_res(node_id, symbol);
     }
 }

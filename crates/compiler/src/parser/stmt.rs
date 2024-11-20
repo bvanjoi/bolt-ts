@@ -14,7 +14,7 @@ impl<'cx, 'a, 'p> ParserState<'cx, 'p> {
             Semi => ast::StmtKind::Empty(self.parse_empty_stmt()?),
             Var | Let | Const => ast::StmtKind::Var(self.parse_var_stmt()),
             Interface => ast::StmtKind::Interface(self.parse_interface_decl()?),
-            Function => ast::StmtKind::Fn(self.parse_fn_decl()?),
+            Function => ast::StmtKind::Fn(self.parse_fn_decl(None)?),
             If => ast::StmtKind::If(self.parse_if_stmt()?),
             LBrace => ast::StmtKind::Block(self.parse_block()?),
             Return => ast::StmtKind::Return(self.parse_ret_stmt()?),
@@ -38,7 +38,7 @@ impl<'cx, 'a, 'p> ParserState<'cx, 'p> {
         use TokenKind::*;
         let kind = match self.token.kind {
             Var | Let | Const => ast::StmtKind::Var(self.parse_var_stmt()),
-            Function => ast::StmtKind::Fn(self.parse_fn_decl()?),
+            Function => ast::StmtKind::Fn(self.parse_fn_decl(mods)?),
             Class => ast::StmtKind::Class(self.parse_class_decl(mods)?),
             _ => unreachable!("{:#?}", self.token.kind),
         };
@@ -196,7 +196,10 @@ impl<'cx, 'a, 'p> ParserState<'cx, 'p> {
         }
     }
 
-    fn parse_fn_decl(&mut self) -> PResult<&'cx ast::FnDecl<'cx>> {
+    fn parse_fn_decl(
+        &mut self,
+        modifiers: Option<&'cx ast::Modifiers<'cx>>,
+    ) -> PResult<&'cx ast::FnDecl<'cx>> {
         let id = self.p.next_node_id();
         let start = self.token.start();
         self.expect(TokenKind::Function)?;
@@ -208,6 +211,7 @@ impl<'cx, 'a, 'p> ParserState<'cx, 'p> {
         let f = self.alloc(ast::FnDecl {
             id,
             span: self.new_span(start as usize, self.pos),
+            modifiers,
             name,
             params,
             ret_ty,

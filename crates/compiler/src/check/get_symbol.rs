@@ -11,11 +11,15 @@ impl<'cx> TyChecker<'cx> {
             ClassDecl(n) => n.id,
             ClassExpr(n) => n.id,
             ClassPropEle(n) => n.id,
+            ClassMethodEle(n) => n.id,
             ArrowFnExpr(n) => n.id,
             FnExpr(n) => n.id,
             ClassCtor(n) => n.id,
             FnDecl(n) => n.id,
-            _ => todo!("{:#?}", self.nodes.get(id)),
+            _ => {
+                dbg!(123);
+                todo!("{:#?}", self.nodes.get(id))
+            }
         };
         *self.final_res.get(&id).unwrap()
     }

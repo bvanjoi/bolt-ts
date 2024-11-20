@@ -205,7 +205,7 @@ pub(super) struct ConstructorImplementationIsMissing {
 }
 
 #[derive(Error, Diagnostic, Debug)]
-#[error("Function implementation is missing or not immediately following the declaration")]
+#[error("Function implementation is missing or not immediately following the declaration.")]
 pub(super) struct FunctionImplementationIsMissingOrNotImmediatelyFollowingTheDeclaration {
     #[label]
     pub span: Span,

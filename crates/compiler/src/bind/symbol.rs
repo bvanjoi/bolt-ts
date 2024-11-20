@@ -7,6 +7,7 @@ use crate::keyword;
 
 #[derive(Debug, Clone, Copy, Hash, PartialEq, Eq)]
 pub enum SymbolName {
+    Container,
     Normal(AtomId),
     Ele(AtomId),
     ClassExpr,
@@ -70,6 +71,9 @@ pub enum SymbolKind {
     FnExpr {
         decl: NodeID,
     },
+    BlockContainer {
+        locals: FxHashMap<SymbolName, SymbolID>,
+    },
 }
 
 #[derive(Debug)]
@@ -96,6 +100,7 @@ impl SymbolKind {
             SymbolKind::Class { .. } => "class",
             SymbolKind::Property { .. } => todo!(),
             SymbolKind::Object { .. } => todo!(),
+            SymbolKind::BlockContainer { .. } => todo!(),
         }
     }
 

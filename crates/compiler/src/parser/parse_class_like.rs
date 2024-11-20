@@ -8,6 +8,56 @@ use super::list_ctx::{self, ListContext};
 use super::token::TokenKind;
 use super::{PResult, ParserState};
 
+fn is_class_ele_start(s: &mut ParserState) -> bool {
+    let mut id_token = None;
+
+    // if s.token.kind == TokenKind::At {
+    //     return true;
+    // }
+    while s.token.kind.is_modifier_kind() {
+        id_token = Some(s.token.kind);
+        if s.token.kind.is_class_ele_modifier() {
+            return true;
+        }
+        s.next_token();
+    }
+
+    if s.token.kind.is_lit_prop_name() {
+        id_token = Some(s.token.kind);
+        s.next_token();
+    }
+
+    if s.token.kind == TokenKind::LBracket {
+        return true;
+    }
+
+    if let Some(t) = id_token {
+        if !t.is_keyword() || t == TokenKind::Get || t == TokenKind::Set {
+            true
+        } else {
+            use TokenKind::*;
+            match s.token.kind {
+                LParen | Less | Colon | Eq | Question | Excl => true,
+                _ => s.can_parse_semi(),
+            }
+        }
+    } else {
+        false
+    }
+}
+
+#[derive(Copy, Clone)]
+struct ClassElementsCtx;
+impl ListContext for ClassElementsCtx {
+    fn is_ele(&self, s: &mut ParserState) -> bool {
+        s.lookahead(is_class_ele_start) || s.token.kind == TokenKind::Semi
+    }
+
+    fn is_closing(&self, s: &mut ParserState) -> bool {
+        matches!(s.token.kind, TokenKind::RBrace)
+    }
+}
+
 pub(super) trait ClassLike<'cx, 'p> {
     type Node;
     fn parse_name(&self, state: &mut ParserState<'cx, 'p>) -> PResult<Option<&'cx ast::Ident>>;
@@ -287,10 +337,55 @@ impl<'cx, 'a, 'p> ParserState<'cx, 'p> {
         })
     }
 
+    fn parse_accessor_decl(
+        &mut self,
+        id: ast::NodeID,
+        start: usize,
+        modifiers: Option<&'cx ast::Modifiers<'cx>>,
+        t: TokenKind,
+    ) -> PResult<&'cx ast::ClassEle<'cx>> {
+        let is_getter = t == TokenKind::Get;
+        assert!(is_getter || t == TokenKind::Set);
+        let name = self.with_parent(id, Self::parse_prop_name)?;
+        let ty_params = self.parse_ty_params()?;
+        let params = self.parse_params()?;
+        let ret = self.parse_ret_ty(true)?;
+        let body = self.parse_fn_block()?;
+        let kind = if is_getter {
+            let decl = self.alloc(ast::GetterDecl {
+                id,
+                span: self.new_span(start, self.pos),
+                name,
+                ret,
+                body,
+            });
+            self.insert_map(id, ast::Node::GetterDecl(decl));
+            ast::ClassEleKind::Getter(decl)
+        } else {
+            let decl = self.alloc(ast::SetterDecl {
+                id,
+                span: self.new_span(start, self.pos),
+                name,
+                params,
+                body,
+            });
+            self.insert_map(id, ast::Node::SetterDecl(decl));
+            ast::ClassEleKind::Setter(decl)
+        };
+        let ele = self.alloc(ast::ClassEle { kind });
+        Ok(ele)
+    }
+
     fn parse_class_ele(&mut self) -> PResult<&'cx ast::ClassEle<'cx>> {
         let id = self.p.next_node_id();
         let start = self.token.start() as usize;
         let modifiers = self.with_parent(id, Self::parse_modifiers)?;
+        if self.parse_contextual_modifier(TokenKind::Get) {
+            return self.parse_accessor_decl(id, start, modifiers, TokenKind::Get);
+        } else if self.parse_contextual_modifier(TokenKind::Set) {
+            return self.parse_accessor_decl(id, start, modifiers, TokenKind::Set);
+        }
+
         if self.token.kind == TokenKind::Constructor {
             if let Ok(ctor) = self.try_parse_ctor(id, start, modifiers) {
                 return Ok(ctor);
@@ -309,7 +404,7 @@ impl<'cx, 'a, 'p> ParserState<'cx, 'p> {
     fn parse_class_members(&mut self) -> PResult<&'cx ast::ClassEles<'cx>> {
         let start = self.token.start();
         self.expect(TokenKind::LBrace)?;
-        let eles = self.parse_list(list_ctx::ClassElements, Self::parse_class_ele);
+        let eles = self.parse_list(ClassElementsCtx, Self::parse_class_ele);
         let end = self.token.end();
         self.expect(TokenKind::RBrace)?;
         let span = self.new_span(start as usize, end as usize);

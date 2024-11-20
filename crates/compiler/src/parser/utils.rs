@@ -378,4 +378,8 @@ impl<'cx, 'a, 'p> ParserState<'cx, 'p> {
 
         false
     }
+
+    pub(super) fn parse_contextual_modifier(&mut self, t: TokenKind) -> bool {
+        return self.token.kind == t && self.try_parse(Self::next_token_can_follow_modifier);
+    }
 }

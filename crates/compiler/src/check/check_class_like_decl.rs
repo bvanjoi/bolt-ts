@@ -77,6 +77,8 @@ impl<'cx> TyChecker<'cx> {
                 Method(method) => self.check_class_method_ele(method),
                 IndexSig(_) => {}
                 Ctor(ctor) => self.check_ctor(ctor),
+                Getter(_) => {}
+                Setter(_) => {}
             }
         }
     }

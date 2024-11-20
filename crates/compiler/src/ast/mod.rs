@@ -117,6 +117,26 @@ pub enum ClassEleKind<'cx> {
     Prop(&'cx ClassPropEle<'cx>),
     Method(&'cx ClassMethodEle<'cx>),
     IndexSig(&'cx IndexSigDecl<'cx>),
+    Getter(&'cx GetterDecl<'cx>),
+    Setter(&'cx SetterDecl<'cx>),
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct GetterDecl<'cx> {
+    pub id: NodeID,
+    pub span: Span,
+    pub name: &'cx PropName<'cx>,
+    pub ret: Option<&'cx self::Ty<'cx>>,
+    pub body: Option<&'cx BlockStmt<'cx>>,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct SetterDecl<'cx> {
+    pub id: NodeID,
+    pub span: Span,
+    pub name: &'cx PropName<'cx>,
+    pub params: ParamsDecl<'cx>,
+    pub body: Option<&'cx BlockStmt<'cx>>,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -644,6 +664,7 @@ pub type Stmts<'cx> = &'cx [&'cx Stmt<'cx>];
 pub struct FnDecl<'cx> {
     pub id: NodeID,
     pub span: Span,
+    pub modifiers: Option<&'cx Modifiers<'cx>>,
     pub name: &'cx Ident,
     pub params: ParamsDecl<'cx>,
     pub ret_ty: Option<&'cx self::Ty<'cx>>,

@@ -19,6 +19,8 @@ pub enum Node<'cx> {
     ClassCtor(&'cx ast::ClassCtor<'cx>),
     ClassPropEle(&'cx ast::ClassPropEle<'cx>),
     ClassMethodEle(&'cx ast::ClassMethodEle<'cx>),
+    GetterDecl(&'cx ast::GetterDecl<'cx>),
+    SetterDecl(&'cx ast::SetterDecl<'cx>),
     ClassExtendsClause(&'cx ast::ClassExtendsClause<'cx>),
     InterfaceExtendsClause(&'cx ast::InterfaceExtendsClause<'cx>),
     ImplementsClause(&'cx ast::ImplementsClause<'cx>),
@@ -102,6 +104,8 @@ impl Node<'_> {
             IndexSigDecl(n) => n.id,
             PropAccessExpr(n) => n.id,
             ClassCtor(n) => n.id,
+            GetterDecl(n) => n.id,
+            SetterDecl(n) => n.id,
         }
     }
 
@@ -150,6 +154,8 @@ impl Node<'_> {
             IndexSigDecl(n) => n.span,
             PropAccessExpr(n) => n.span,
             ClassCtor(n) => n.span,
+            GetterDecl(n) => n.span,
+            SetterDecl(n) => n.span,
         }
     }
 

@@ -16,8 +16,15 @@ impl<'cx> TyChecker<'cx> {
         let last_seen_non_ambient_decl = decls.iter().any(|decl| {
             let node = self.nodes.get(*decl);
             match node {
-                ast::Node::FnDecl(n) => n.body.is_some(),
+                ast::Node::FnDecl(n) => {
+                    n.body.is_some()
+                        || n.modifiers.map_or(false, |m| {
+                            // TODO: use bit flags
+                            m.list.iter().any(|m| m.kind == ast::ModifierKind::Declare)
+                        })
+                }
                 ast::Node::ClassCtor(n) => n.body.is_some(),
+                ast::Node::ClassMethodEle(n) => n.body.is_some(),
                 _ => unreachable!("{:#?}", node),
             }
         });

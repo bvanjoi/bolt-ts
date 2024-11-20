@@ -74,6 +74,26 @@ impl<'cx> Emit<'cx> {
             Method(method) => self.emit_class_method(method),
             IndexSig(_) => {}
             Ctor(ctor) => self.emit_class_ctor(ctor),
+            Getter(p) => {
+                if let Some(body) = p.body {
+                    self.content.p("get");
+                    self.content.p_whitespace();
+                    self.emit_prop_name(&p.name);
+                    self.emit_params(&[]);
+                    self.content.p_whitespace();
+                    self.emit_block_stmt(body);
+                }
+            }
+            Setter(p) => {
+                if let Some(body) = p.body {
+                    self.content.p("set");
+                    self.content.p_whitespace();
+                    self.emit_prop_name(&p.name);
+                    self.emit_params(p.params);
+                    self.content.p_whitespace();
+                    self.emit_block_stmt(body);
+                }
+            }
         }
     }
 

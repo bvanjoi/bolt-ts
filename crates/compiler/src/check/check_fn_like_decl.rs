@@ -26,13 +26,13 @@ impl<'cx> FnLikeDecl<'cx> for ast::ClassMethodEle<'cx> {
 
 impl<'cx> TyChecker<'cx> {
     pub(super) fn check_fn_like_decl(&mut self, expr: &impl FnLikeDecl<'cx>) {
-        // let symbol = self.get_symbol_of_decl(expr.id());
-        // let SymbolKind::Function { decls, .. } = &self.symbols.get(symbol).kind else {
-        //     unreachable!()
-        // };
-        // if decls[0] == expr.id() {
-        //     self.check_fn_like_symbol(symbol);
-        // }
+        let symbol = self.get_symbol_of_decl(expr.id());
+        let SymbolKind::Function { decls, .. } = &self.symbols.get(symbol).kind else {
+            unreachable!()
+        };
+        if decls[0] == expr.id() {
+            self.check_fn_like_symbol(symbol);
+        }
 
         if let Some(body) = expr.body() {
             self.check_block(body)

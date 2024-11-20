@@ -25,6 +25,7 @@ impl<'cx> TyChecker<'cx> {
             Function { .. } | FnExpr { .. } => self.get_type_of_func_decl(id),
             Object { .. } => return self.undefined_ty(),
             Property { .. } => return self.undefined_ty(),
+            BlockContainer { .. } => return self.undefined_ty(),
         };
         ty
     }
@@ -76,6 +77,7 @@ impl<'cx> TyChecker<'cx> {
             Object { .. } => todo!(),
             Property { .. } => todo!(),
             Class { .. } => todo!(),
+            BlockContainer { .. } => todo!(),
         };
 
         for decl in decls {

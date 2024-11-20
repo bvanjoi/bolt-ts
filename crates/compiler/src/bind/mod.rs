@@ -56,23 +56,24 @@ impl<'cx> Binder<'cx> {
     pub fn bind_program(&mut self, p: &'cx ast::Program) {
         self.scope_id_parent_map.insert(self.scope_id, None);
         self.connect(p.id);
+        self.create_block_container_symbol(p.id);
         for stmt in p.stmts {
-            self.bind_stmt(stmt)
+            self.bind_stmt(p.id, stmt)
         }
     }
 
-    fn bind_stmt(&mut self, stmt: &'cx ast::Stmt) {
+    fn bind_stmt(&mut self, container: ast::NodeID, stmt: &'cx ast::Stmt) {
         use ast::StmtKind::*;
         match stmt.kind {
             Empty(_) => (),
             Var(var) => self.bind_var_stmt(var),
             Expr(expr) => self.bind_expr(expr),
-            Fn(f) => self.bind_fn_decl(f),
+            Fn(f) => self.bind_fn_decl(container, f),
             If(stmt) => {
                 self.bind_expr(stmt.expr);
-                self.bind_stmt(stmt.then);
+                self.bind_stmt(container, stmt.then);
                 if let Some(alt) = stmt.else_then {
-                    self.bind_stmt(alt)
+                    self.bind_stmt(container, alt)
                 }
             }
             Block(block) => self.bind_block_stmt(block),
@@ -90,7 +91,7 @@ impl<'cx> Binder<'cx> {
         let old = self.scope_id;
         self.scope_id = self.new_scope();
         for stmt in block.stmts {
-            self.bind_stmt(stmt)
+            self.bind_stmt(block.id, stmt)
         }
         self.scope_id = old;
     }
@@ -227,22 +228,19 @@ impl<'cx> Binder<'cx> {
         self.create_var_symbol(param.name.name, SymbolKind::FunctionScopedVar);
     }
 
-    fn bind_fn_decl(&mut self, f: &'cx ast::FnDecl<'cx>) {
+    fn bind_fn_decl(&mut self, container: ast::NodeID, f: &'cx ast::FnDecl<'cx>) {
         self.connect(f.id);
-        self.create_fn_symbol(f);
+        self.create_fn_symbol(container, f);
 
         let old = self.scope_id;
         self.scope_id = self.new_scope();
         self.bind_params(f.params);
         if let Some(body) = f.body {
-            self.bind_fn_block(body.stmts);
+            self.create_block_container_symbol(body.id);
+            for stmt in body.stmts {
+                self.bind_stmt(body.id, stmt)
+            }
         }
         self.scope_id = old;
-    }
-
-    fn bind_fn_block(&mut self, block: ast::Stmts<'cx>) {
-        for stmt in block {
-            self.bind_stmt(stmt)
-        }
     }
 }

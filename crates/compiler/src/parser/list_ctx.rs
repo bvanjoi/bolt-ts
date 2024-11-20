@@ -145,56 +145,6 @@ impl ListContext for VarDecl {
     }
 }
 
-fn is_class_ele_start(s: &mut ParserState) -> bool {
-    let mut id_token = None;
-
-    // if s.token.kind == TokenKind::At {
-    //     return true;
-    // }
-    while s.token.kind.is_modifier_kind() {
-        id_token = Some(s.token.kind);
-        if s.token.kind.is_class_ele_modifier() {
-            return true;
-        }
-        s.next_token();
-    }
-
-    if s.token.kind.is_lit_prop_name() {
-        id_token = Some(s.token.kind);
-        s.next_token();
-    }
-
-    if s.token.kind == TokenKind::LBracket {
-        return true;
-    }
-
-    if let Some(t) = id_token {
-        if !t.is_keyword() {
-            true
-        } else {
-            use TokenKind::*;
-            match s.token.kind {
-                LParen | Less | Colon | Eq | Question | Excl => true,
-                _ => s.can_parse_semi(),
-            }
-        }
-    } else {
-        false
-    }
-}
-
-#[derive(Copy, Clone)]
-pub(super) struct ClassElements;
-impl ListContext for ClassElements {
-    fn is_ele(&self, s: &mut ParserState) -> bool {
-        s.lookahead(is_class_ele_start) || s.token.kind == TokenKind::Semi
-    }
-
-    fn is_closing(&self, s: &mut ParserState) -> bool {
-        matches!(s.token.kind, TokenKind::RBrace)
-    }
-}
-
 #[derive(Copy, Clone)]
 pub(super) struct ArrayLiteralMembers;
 impl ListContext for ArrayLiteralMembers {

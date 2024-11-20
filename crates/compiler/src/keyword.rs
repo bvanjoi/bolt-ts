@@ -26,6 +26,8 @@ keyword!(
     (KW_THIS, KW_THIS_STR, "this"),
     (KW_STATIC, KW_STATIC_STR, "static"),
     (KW_CONSTRUCTOR, KW_CONSTRUCTOR_STR, "constructor"),
+    (KW_GET, KW_GET_STR, "get"),
+    (KW_SET, KW_SET_STR, "set"),
     // ts keywords
     (KW_IMPLEMENTS, KW_IMPLEMENTS_STR, "implements"),
     (KW_INTERFACE, KW_INTERFACE_STR, "interface"),
