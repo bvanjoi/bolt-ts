@@ -16,8 +16,8 @@ impl<'cx> TyChecker<'cx> {
             FnExpr(n) => n.id,
             ClassCtor(n) => n.id,
             FnDecl(n) => n.id,
+            InterfaceDecl(n) => n.id,
             _ => {
-                dbg!(123);
                 todo!("{:#?}", self.nodes.get(id))
             }
         };

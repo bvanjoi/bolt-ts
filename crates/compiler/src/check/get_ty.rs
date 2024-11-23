@@ -23,9 +23,11 @@ impl<'cx> TyChecker<'cx> {
                 ty
             }
             Function { .. } | FnExpr { .. } => self.get_type_of_func_decl(id),
+            Property { .. } => self.get_type_of_prop(id),
             Object { .. } => return self.undefined_ty(),
-            Property { .. } => return self.undefined_ty(),
             BlockContainer { .. } => return self.undefined_ty(),
+            Interface { .. } => return self.undefined_ty(),
+            Index { .. } => return self.undefined_ty(),
         };
         ty
     }
@@ -50,6 +52,25 @@ impl<'cx> TyChecker<'cx> {
             return self.undefined_ty();
         };
         self.check_expr(base)
+    }
+
+    fn get_type_of_prop(&mut self, symbol: SymbolID) -> &'cx Ty<'cx> {
+        let decl = match self.symbols.get(symbol).kind {
+            crate::bind::SymbolKind::Property { decl, .. } => decl,
+            _ => unreachable!(),
+        };
+        let ty = match self.nodes.get(decl) {
+            ast::Node::ClassPropEle(prop) => prop
+                .ty
+                .map(|ty| self.get_ty_from_type_node(ty))
+                .unwrap_or(self.undefined_ty()),
+            ast::Node::PropSignature(prop) => prop
+                .ty
+                .map(|ty| self.get_ty_from_type_node(ty))
+                .unwrap_or(self.undefined_ty()),
+            _ => unreachable!(),
+        };
+        ty
     }
 
     fn get_type_of_class_decl(&mut self, symbol: SymbolID) -> &'cx Ty<'cx> {
@@ -78,6 +99,8 @@ impl<'cx> TyChecker<'cx> {
             Property { .. } => todo!(),
             Class { .. } => todo!(),
             BlockContainer { .. } => todo!(),
+            Interface { .. } => todo!(),
+            Index { .. } => todo!(),
         };
 
         for decl in decls {
@@ -141,6 +164,10 @@ impl<'cx> TyChecker<'cx> {
                             // TODO:
                             return None;
                         }
+                        ast::ObjectTyMemberKind::CallSig(_) => {
+                            // TODO:
+                            return None;
+                        }
                     }
                 });
                 let map = FxHashMap::from_iter(entires);
@@ -162,8 +189,10 @@ impl<'cx> TyChecker<'cx> {
                         }
                         return self.error_ty();
                     }
+                    self.get_declared_ty_of_symbol(id).unwrap()
+                } else {
+                    self.undefined_ty()
                 }
-                self.undefined_ty()
             }
         }
     }

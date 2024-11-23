@@ -28,9 +28,7 @@ fn run_tests() {
                     expected_file_path.assert_eq(&output);
                 }
                 Ok(None) => {}
-                Err(_) => {
-                    return Err(vec![]);
-                }
+                Err(_) => return Err(vec![]),
             }
             Ok(())
         } else {

@@ -1,5 +1,5 @@
 use super::Emit;
-use crate::ast;
+use crate::{ast, ensure_sufficient_stack};
 
 impl<'cx> Emit<'cx> {
     pub(super) fn emit_expr(&mut self, expr: &'cx ast::Expr<'cx>) {
@@ -92,11 +92,13 @@ impl<'cx> Emit<'cx> {
     }
 
     fn emit_bin_expr(&mut self, bin_op: &'cx ast::BinExpr) {
-        self.emit_expr(bin_op.left);
-        self.content.p_whitespace();
-        self.content.p(bin_op.op.kind.as_str());
-        self.content.p_whitespace();
-        self.emit_expr(bin_op.right);
+        ensure_sufficient_stack(|| {
+            self.emit_expr(bin_op.left);
+            self.content.p_whitespace();
+            self.content.p(bin_op.op.kind.as_str());
+            self.content.p_whitespace();
+            self.emit_expr(bin_op.right);
+        })
     }
 
     fn emit_array_lit(&mut self, lit: &'cx ast::ArrayLit) {

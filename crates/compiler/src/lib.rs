@@ -2,7 +2,6 @@ mod ast;
 mod atoms;
 mod bind;
 pub mod check;
-mod ecma_refer;
 mod emit;
 mod errors;
 mod keyword;
@@ -82,4 +81,11 @@ pub fn eval_and_emit(entry: PathBuf) {
         .diags
         .into_iter()
         .for_each(|diag| diag.emit(&output.module_arena));
+}
+
+const RED_ZONE: usize = 100 * 1024; // 100k
+const STACK_PER_RECURSION: usize = 1 * 1024 * 1024; // 1MB
+
+fn ensure_sufficient_stack<R, F: FnOnce() -> R>(f: F) -> R {
+    stacker::maybe_grow(RED_ZONE, STACK_PER_RECURSION, f)
 }

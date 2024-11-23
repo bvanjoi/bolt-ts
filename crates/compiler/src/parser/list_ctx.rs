@@ -107,19 +107,6 @@ impl ListContext for TyParams {
 }
 
 #[derive(Copy, Clone)]
-pub(super) struct HeritageClauses;
-impl ListContext for HeritageClauses {
-    fn is_ele(&self, s: &mut ParserState) -> bool {
-        s.token.kind.is_heritage_clause()
-    }
-
-    fn is_closing(&self, s: &mut ParserState) -> bool {
-        use TokenKind::*;
-        matches!(s.token.kind, LBrace | RBrace)
-    }
-}
-
-#[derive(Copy, Clone)]
 pub(super) struct HeritageClause;
 impl ListContext for HeritageClause {
     fn is_ele(&self, s: &mut ParserState) -> bool {

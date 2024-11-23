@@ -1,10 +1,11 @@
-use super::{Binder, SymbolFnKind, SymbolID, SymbolName};
-use crate::{ast, atoms::AtomId, bind::SymbolKind};
+use super::{Binder, Symbol, SymbolID, SymbolKind, SymbolName};
+use crate::ast;
+use rustc_hash::FxHashMap;
 use thin_vec::thin_vec;
 
 pub(super) trait ClassLike<'cx> {
     fn id(&self) -> ast::NodeID;
-    fn create_symbol(&'cx self, binder: &mut Binder<'cx>);
+    fn create_symbol(&'cx self, binder: &mut Binder<'cx>) -> SymbolID;
     fn extends(&self) -> Option<&'cx ast::ClassExtendsClause<'cx>>;
     fn elems(&self) -> &'cx ast::ClassEles<'cx>;
 }
@@ -13,8 +14,8 @@ impl<'cx> ClassLike<'cx> for ast::ClassDecl<'cx> {
     fn id(&self) -> ast::NodeID {
         self.id
     }
-    fn create_symbol(&'cx self, binder: &mut Binder<'cx>) {
-        binder.create_class_decl(self);
+    fn create_symbol(&'cx self, binder: &mut Binder<'cx>) -> SymbolID {
+        binder.create_class_decl(self)
     }
     fn extends(&self) -> Option<&'cx ast::ClassExtendsClause<'cx>> {
         self.extends
@@ -28,8 +29,8 @@ impl<'cx> ClassLike<'cx> for ast::ClassExpr<'cx> {
     fn id(&self) -> ast::NodeID {
         self.id
     }
-    fn create_symbol(&'cx self, binder: &mut Binder<'cx>) {
-        binder.create_class_expr(self);
+    fn create_symbol(&'cx self, binder: &mut Binder<'cx>) -> SymbolID {
+        binder.create_class_expr(self)
     }
     fn extends(&self) -> Option<&'cx ast::ClassExtendsClause<'cx>> {
         self.extends
@@ -40,6 +41,29 @@ impl<'cx> ClassLike<'cx> for ast::ClassExpr<'cx> {
 }
 
 impl<'cx> Binder<'cx> {
+    fn create_class_expr(&mut self, expr: &'cx ast::ClassExpr<'cx>) -> SymbolID {
+        let name = SymbolName::ClassExpr;
+        let symbol = self.create_symbol(
+            name,
+            SymbolKind::Class {
+                decl: expr.id,
+                members: FxHashMap::default(),
+            },
+        );
+        self.create_final_res(expr.id, symbol);
+        symbol
+    }
+    fn create_class_decl(&mut self, decl: &'cx ast::ClassDecl<'cx>) -> SymbolID {
+        let symbol = self.create_var_symbol(
+            decl.name.name,
+            SymbolKind::Class {
+                decl: decl.id,
+                members: FxHashMap::default(),
+            },
+        );
+        self.create_final_res(decl.id, symbol);
+        symbol
+    }
     fn create_class_prop_ele(&mut self, ele: &'cx ast::ClassPropEle<'cx>) {
         let name = match ele.name.kind {
             ast::PropNameKind::Ident(ident) => ident.name,
@@ -141,7 +165,7 @@ impl<'cx> Binder<'cx> {
 
     pub(super) fn bind_class_like(&mut self, class: &'cx impl ClassLike<'cx>) {
         self.connect(class.id());
-        class.create_symbol(self);
+        let class_symbol = class.create_symbol(self);
 
         if let Some(extends) = class.extends() {
             self.bind_expr(extends.expr);
@@ -154,7 +178,19 @@ impl<'cx> Binder<'cx> {
                 ast::ClassEleKind::Prop(n) => self.bind_class_prop_ele(n),
                 ast::ClassEleKind::Method(n) => self.bind_class_method_ele(class.id(), n),
                 ast::ClassEleKind::Ctor(n) => self.bind_class_ctor(class.id(), n),
-                ast::ClassEleKind::IndexSig(_) => {}
+                ast::ClassEleKind::IndexSig(n) => {
+                    let name = SymbolName::Index;
+                    let symbol = self.bind_index_sig(n);
+                    self.create_final_res(n.id, symbol);
+                    let SymbolKind::Class { members, .. } =
+                        &mut self.symbols.get_mut(class_symbol).kind
+                    else {
+                        unreachable!("{:#?}", self.symbols.get(symbol))
+                    };
+                    let prev = members.insert(name, symbol);
+                    // FIXME: multiple index sig
+                    assert!(prev.is_none())
+                }
                 ast::ClassEleKind::Getter(_) => {}
                 ast::ClassEleKind::Setter(_) => {}
             }

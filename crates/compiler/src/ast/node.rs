@@ -22,6 +22,7 @@ pub enum Node<'cx> {
     GetterDecl(&'cx ast::GetterDecl<'cx>),
     SetterDecl(&'cx ast::SetterDecl<'cx>),
     ClassExtendsClause(&'cx ast::ClassExtendsClause<'cx>),
+    InterfaceDecl(&'cx ast::InterfaceDecl<'cx>),
     InterfaceExtendsClause(&'cx ast::InterfaceExtendsClause<'cx>),
     ImplementsClause(&'cx ast::ImplementsClause<'cx>),
     BlockStmt(&'cx ast::BlockStmt<'cx>),
@@ -56,6 +57,9 @@ pub enum Node<'cx> {
     LitTy(&'cx ast::LitTy<'cx>),
     TyParam(&'cx ast::TyParam<'cx>),
     IndexSigDecl(&'cx ast::IndexSigDecl<'cx>),
+    CallSigDecl(&'cx ast::CallSigDecl<'cx>),
+    PropSignature(&'cx ast::PropSignature<'cx>),
+    MethodSignature(&'cx ast::MethodSignature<'cx>),
 }
 
 impl Node<'_> {
@@ -106,6 +110,10 @@ impl Node<'_> {
             ClassCtor(n) => n.id,
             GetterDecl(n) => n.id,
             SetterDecl(n) => n.id,
+            CallSigDecl(n) => n.id,
+            InterfaceDecl(n) => n.id,
+            PropSignature(n) => n.id,
+            MethodSignature(n) => n.id,
         }
     }
 
@@ -156,6 +164,10 @@ impl Node<'_> {
             ClassCtor(n) => n.span,
             GetterDecl(n) => n.span,
             SetterDecl(n) => n.span,
+            CallSigDecl(n) => n.span,
+            InterfaceDecl(n) => n.span,
+            PropSignature(n) => n.span,
+            MethodSignature(n) => n.span,
         }
     }
 

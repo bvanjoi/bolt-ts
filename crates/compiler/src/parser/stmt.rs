@@ -92,6 +92,7 @@ impl<'cx, 'a, 'p> ParserState<'cx, 'p> {
             extends,
             members,
         });
+        self.insert_map(id, ast::Node::InterfaceDecl(decl));
         Ok(decl)
     }
 

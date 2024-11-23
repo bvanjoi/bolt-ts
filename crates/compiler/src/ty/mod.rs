@@ -207,6 +207,19 @@ impl<'cx> TyKind<'cx> {
             None
         }
     }
+
+    pub fn as_interface(&self) -> Option<&'cx InterfaceTy> {
+        use TyKind::*;
+        if let Object(ty) = self {
+            if let ObjectTyKind::Interface(interface) = ty.kind {
+                Some(interface)
+            } else {
+                None
+            }
+        } else {
+            None
+        }
+    }
 }
 
 pub type Tys<'cx> = &'cx [&'cx Ty<'cx>];
@@ -306,11 +319,22 @@ pub enum ObjectTyKind<'cx> {
     Fn(&'cx FnTy<'cx>),
     Lit(&'cx ObjectLitTy<'cx>),
     Array(&'cx ArrayTy<'cx>),
-    Interface(&'cx InterfaceTy),
+    Interface(&'cx InterfaceTy<'cx>),
 }
 
 #[derive(Debug, Clone, Copy)]
-pub struct InterfaceTy;
+pub struct IndexInfo<'cx> {
+    pub key_ty: &'cx Ty<'cx>,
+    pub val_ty: &'cx Ty<'cx>,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct InterfaceTy<'cx> {
+    pub symbol: SymbolID,
+    pub declared_props: &'cx [SymbolID],
+    pub base_tys: &'cx [&'cx Ty<'cx>],
+    pub index_infos: &'cx [&'cx IndexInfo<'cx>],
+}
 
 impl<'cx> ObjectTyKind<'cx> {
     fn to_string(&self, atoms: &AtomMap<'cx>) -> String {
@@ -323,7 +347,7 @@ impl<'cx> ObjectTyKind<'cx> {
         }
     }
 
-    fn is_reference(&self) -> bool {
+    pub fn is_reference(&self) -> bool {
         matches!(self, ObjectTyKind::Interface(_))
     }
 }

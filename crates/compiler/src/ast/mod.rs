@@ -61,6 +61,7 @@ pub struct ObjectTyMember<'cx> {
 pub enum ObjectTyMemberKind<'cx> {
     Prop(&'cx PropSignature<'cx>),
     Method(&'cx MethodSignature<'cx>),
+    CallSig(&'cx CallSigDecl<'cx>),
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -600,6 +601,15 @@ pub enum TyKind<'cx> {
     Fn(&'cx FnTy<'cx>),
     Lit(&'cx LitTy<'cx>),
     ExprWithArg(&'cx Expr<'cx>),
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct CallSigDecl<'cx> {
+    pub id: NodeID,
+    pub span: Span,
+    pub ty_params: Option<TyParams<'cx>>,
+    pub params: ParamsDecl<'cx>,
+    pub ty: Option<&'cx self::Ty<'cx>>,
 }
 
 #[derive(Debug, Clone, Copy)]

@@ -9,11 +9,11 @@ use rts_span::Span;
 use thin_vec::thin_vec;
 
 pub(super) trait CallLikeExpr<'cx>: Copy + std::fmt::Debug {
+    fn resolve(&self, checker: &mut TyChecker<'cx>) -> &'cx ty::Ty<'cx>;
     fn callee(&self) -> &'cx ast::Expr<'cx>;
     fn args(&self) -> ast::Exprs<'cx>;
     fn span(&self) -> Span;
     fn callee_decls(
-        &self,
         checker: &TyChecker<'cx>,
         ty: &'cx ty::Ty<'cx>,
     ) -> thin_vec::ThinVec<ast::NodeID>;
@@ -31,7 +31,6 @@ impl<'cx> CallLikeExpr<'cx> for ast::CallExpr<'cx> {
         self.span
     }
     fn callee_decls(
-        &self,
         checker: &TyChecker<'cx>,
         ty: &'cx ty::Ty<'cx>,
     ) -> thin_vec::ThinVec<ast::NodeID> {
@@ -51,6 +50,10 @@ impl<'cx> CallLikeExpr<'cx> for ast::CallExpr<'cx> {
         };
         &f.params
     }
+
+    fn resolve(&self, checker: &mut TyChecker<'cx>) -> &'cx ty::Ty<'cx> {
+        checker.resolve_call_expr(self)
+    }
 }
 
 impl<'cx> CallLikeExpr<'cx> for ast::NewExpr<'cx> {
@@ -64,7 +67,6 @@ impl<'cx> CallLikeExpr<'cx> for ast::NewExpr<'cx> {
         self.span
     }
     fn callee_decls(
-        &self,
         checker: &TyChecker<'cx>,
         ty: &'cx ty::Ty<'cx>,
     ) -> thin_vec::ThinVec<ast::NodeID> {
@@ -80,6 +82,9 @@ impl<'cx> CallLikeExpr<'cx> for ast::NewExpr<'cx> {
     fn params(&self, ty: &'cx ty::Ty<'cx>) -> ty::Tys<'cx> {
         &[]
     }
+    fn resolve(&self, checker: &mut TyChecker<'cx>) -> &'cx ty::Ty<'cx> {
+        checker.resolve_new_expr(self)
+    }
 }
 
 impl<'cx> TyChecker<'cx> {
@@ -87,7 +92,7 @@ impl<'cx> TyChecker<'cx> {
         &mut self,
         expr: &impl CallLikeExpr<'cx>,
     ) -> &'cx ty::Ty<'cx> {
-        self.resolve_call_like_expr(expr)
+        expr.resolve(self)
     }
 
     fn get_ty_at_pos(params: ty::Tys<'cx>, sig: &Sig<'cx>, pos: usize) -> Option<&'cx ty::Ty<'cx>> {
@@ -105,16 +110,49 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
-    fn resolve_call_like_expr(&mut self, expr: &impl CallLikeExpr<'cx>) -> &'cx ty::Ty<'cx> {
+    fn resolve_new_expr(&mut self, expr: &impl CallLikeExpr<'cx>) -> &'cx ty::Ty<'cx> {
         let ty = self.check_expr(expr.callee());
-        let decls = expr.callee_decls(self, ty);
+        let decls = ast::NewExpr::callee_decls(self, ty);
+        self.resolve_call(ty, expr, &decls);
+        ty
+    }
+
+    fn resolve_call_expr(&mut self, expr: &impl CallLikeExpr<'cx>) -> &'cx ty::Ty<'cx> {
+        let ty = self.check_expr(expr.callee());
+        let decls = ast::CallExpr::callee_decls(self, ty);
+        let class_decls = ast::NewExpr::callee_decls(self, ty);
+
         if decls.is_empty() {
+            if let Some(decl) = class_decls.first() {
+                assert!(class_decls.len() == 1);
+                let ast::Node::ClassDecl(decl) = self.nodes.get(*decl) else {
+                    unreachable!()
+                };
+                let error = errors::ValueOfType0IsNotCallable {
+                    span: expr.callee().span(),
+                    ty: format!("typeof {}", self.atoms.get(decl.name.name)),
+                    callee_is_class: Some(errors::DidYouMeanToIncludeNew),
+                };
+                self.push_error(expr.span().module, Box::new(error));
+            }
             // TODO: use unreachable
             return ty;
         }
+
+        self.resolve_call(ty, expr, &decls);
+
+        ty
+    }
+
+    fn resolve_call(
+        &mut self,
+        ty: &'cx ty::Ty<'cx>,
+        expr: &impl CallLikeExpr<'cx>,
+        decls: &[ast::NodeID],
+    ) {
         let mut min_required_params = usize::MAX;
         let mut max_required_params = usize::MIN;
-        for decl in &decls {
+        for decl in decls {
             let node = self.nodes.get(*decl);
             let sig = self.get_sig_from_decl(node);
 
@@ -207,6 +245,5 @@ impl<'cx> TyChecker<'cx> {
             };
             self.push_error(span.module, error);
         }
-        ty
     }
 }

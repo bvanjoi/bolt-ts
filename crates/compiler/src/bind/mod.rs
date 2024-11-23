@@ -83,7 +83,45 @@ impl<'cx> Binder<'cx> {
                 }
             }
             Class(class) => self.bind_class_like(class),
-            Interface(_) => {}
+            Interface(interface) => self.bind_interface(interface),
+        }
+    }
+
+    fn bind_index_sig(&mut self, index: &'cx ast::IndexSigDecl<'cx>) -> SymbolID {
+        self.create_symbol(SymbolName::Index, SymbolKind::Index { decl: index.id })
+    }
+
+    fn bind_interface(&mut self, i: &'cx ast::InterfaceDecl<'cx>) {
+        if let Some(extends) = i.extends {
+            for ty in extends.tys {
+                self.bind_ty(ty);
+            }
+        }
+        let members = i
+            .members
+            .iter()
+            .flat_map(|m| {
+                use ast::ObjectTyMemberKind::*;
+                match m.kind {
+                    Prop(m) => {
+                        let name = Self::prop_name(m.name);
+                        Some((name, self.create_object_member_symbol(name, m.id)))
+                    }
+                    Method(_) => None,
+                    CallSig(_) => {
+                        // let name = SymbolName::;
+                        // (name, self.create_object_member_symbol(name, m.id))
+                        None
+                    }
+                }
+            })
+            .collect();
+        self.create_interface_symbol(i.id, members);
+    }
+
+    fn prop_name(name: &ast::PropName) -> SymbolName {
+        match name.kind {
+            ast::PropNameKind::Ident(ident) => SymbolName::Ele(ident.name),
         }
     }
 
@@ -137,9 +175,11 @@ impl<'cx> Binder<'cx> {
 
     fn bind_arrow_fn_expr(&mut self, f: &'cx ast::ArrowFnExpr<'cx>) {
         self.create_fn_expr_symbol(f.id);
+        self.bind_params(f.params);
+        use ast::ArrowFnExprBody::*;
         match f.body {
-            ast::ArrowFnExprBody::Block(block) => self.bind_block_stmt(block),
-            ast::ArrowFnExprBody::Expr(expr) => self.bind_expr(expr),
+            Block(block) => self.bind_block_stmt(block),
+            Expr(expr) => self.bind_expr(expr),
         }
     }
 
@@ -162,10 +202,8 @@ impl<'cx> Binder<'cx> {
             .members
             .iter()
             .map(|member| {
-                let name = match member.name.kind {
-                    ast::PropNameKind::Ident(ident) => SymbolName::Normal(ident.name),
-                };
-                let symbol = self.create_object_member_symbol(name, member);
+                let name = Self::prop_name(member.name);
+                let symbol = self.create_object_member_symbol(name, member.id);
                 self.bind_expr(member.value);
                 (name, symbol)
             })
@@ -193,6 +231,7 @@ impl<'cx> Binder<'cx> {
                 self.create_object_lit_symbol(lit.id, Default::default());
                 self.scope_id = old;
             }
+            ExprWithArg(expr) => self.bind_expr(expr),
             _ => (),
         }
     }

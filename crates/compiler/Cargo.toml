@@ -13,6 +13,7 @@ rts_errors = { path = "../errors" }
 rts_span = { path = "../span" }
 project-root = "0.2.2"
 thin-vec = { workspace = true }
+stacker = "0.1"
 
 [dev-dependencies]
 expect-test = "1.2.2"

@@ -48,7 +48,7 @@ impl<'cx> TyChecker<'cx> {
         return false;
     }
 
-    fn is_simple_type_related_to(&mut self, source: &'cx Ty<'cx>, target: &'cx Ty<'cx>) -> bool {
+    fn is_simple_type_related_to(&self, source: &'cx Ty<'cx>, target: &'cx Ty<'cx>) -> bool {
         if source.kind.is_number_like() && target.kind.is_number() {
             true
         } else if source.kind.is_any() {

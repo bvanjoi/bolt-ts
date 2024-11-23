@@ -4,6 +4,7 @@ mod check_class_like_decl;
 mod check_fn_like_decl;
 mod check_fn_like_expr;
 mod check_fn_like_symbol;
+mod check_interface;
 mod check_var_like;
 mod create_ty;
 mod get_contextual_ty;
@@ -202,8 +203,114 @@ impl<'cx> TyChecker<'cx> {
             Return(ret) => self.check_return(ret),
             Empty(_) => {}
             Class(class) => self.check_class_decl(class),
-            Interface(_) => {}
+            Interface(interface) => self.check_interface_decl(interface),
         };
+    }
+
+    fn resolve_ty_reference_members(&self, ty: &'cx Ty<'cx>) {}
+
+    fn resolve_structured_ty_members(&self, ty: &'cx Ty<'cx>) {
+        if let ty::TyKind::Object(object) = ty.kind {
+            if object.kind.is_reference() {
+                self.resolve_ty_reference_members(ty);
+            }
+        }
+    }
+
+    fn get_index_infos_of_structured_ty(&self, ty: &'cx Ty<'cx>) {
+        if ty.kind.is_structured() {
+            let resolved = self.resolve_structured_ty_members(ty);
+        }
+    }
+
+    fn get_index_info_of_ty(&self, ty: &'cx Ty<'cx>) -> Option<i32> {
+        self.get_index_infos_of_structured_ty(ty);
+        None
+    }
+
+    fn is_applicable_index_ty(&mut self, source: &'cx Ty<'cx>, target: &'cx Ty<'cx>) -> bool {
+        self.is_type_assignable_to(source, target)
+    }
+
+    fn get_applicable_index_infos(
+        &mut self,
+        ty: &'cx ty::Ty<'cx>,
+        prop_name_ty: &'cx Ty<'cx>,
+    ) -> Vec<&'cx ty::IndexInfo<'cx>> {
+        let Some(i) = ty.kind.as_interface() else {
+            return vec![];
+        };
+        i.index_infos
+            .iter()
+            .filter_map(|info| {
+                if self.is_applicable_index_ty(prop_name_ty, info.key_ty) {
+                    Some(*info)
+                } else {
+                    None
+                }
+            })
+            .collect()
+    }
+
+    fn check_index_constraint_for_prop(
+        &mut self,
+        ty: &'cx ty::Ty<'cx>,
+        prop: SymbolID,
+        prop_name_ty: &'cx Ty<'cx>,
+        prop_ty: &'cx ty::Ty<'cx>,
+    ) {
+        for index_info in self.get_applicable_index_infos(ty, prop_name_ty) {
+            if !self.is_type_assignable_to(prop_ty, index_info.val_ty) {
+                let prop_decl = self.symbols.get(prop).kind.as_prop();
+                let prop_node = self.nodes.get(prop_decl);
+                let prop_name = match prop_node {
+                    ast::Node::ClassPropEle(prop) => prop.name,
+                    ast::Node::PropSignature(prop) => prop.name,
+                    _ => unreachable!(),
+                };
+                let prop_name = match prop_name.kind {
+                    ast::PropNameKind::Ident(ident) => self.atoms.get(ident.name),
+                };
+                let error = errors::PropertyAOfTypeBIsNotAssignableToCIndexTypeD {
+                    span: prop_node.span(),
+                    prop: prop_name.to_string(),
+                    ty_b: prop_ty.kind.to_string(self.atoms),
+                    ty_c: index_info.val_ty.kind.to_string(self.atoms),
+                    index_ty_d: index_info.val_ty.kind.to_string(self.atoms),
+                };
+                self.push_error(prop_node.span().module, Box::new(error));
+                return;
+            }
+        }
+
+        if let Some(i) = ty.kind.as_interface() {
+            for base_ty in i.base_tys {
+                dbg!(base_ty);
+                self.check_index_constraint_for_prop(base_ty, prop, prop_name_ty, prop_ty);
+            }
+        } else {
+            // unreachable!("{:#?}", ty)
+        }
+    }
+
+    fn get_lit_ty_from_prop(&mut self, prop: SymbolID) -> &'cx ty::Ty<'cx> {
+        use super::bind::SymbolKind::*;
+        match self.symbols.get(prop).kind {
+            Property { decl } => self.string_ty(),
+            _ => unreachable!(),
+        }
+    }
+
+    fn check_index_constraints(&mut self, ty: &'cx ty::Ty<'cx>, symbol: SymbolID) {
+        // self.get_index_info_of_ty(ty);
+        let Some(i) = ty.kind.as_interface() else {
+            unreachable!()
+        };
+        for prop in i.declared_props {
+            let prop_ty = self.get_type_of_symbol(*prop);
+            let prop_name_ty = self.get_lit_ty_from_prop(*prop);
+            self.check_index_constraint_for_prop(ty, *prop, prop_name_ty, prop_ty);
+        }
     }
 
     fn check_class_decl(&mut self, class: &'cx ast::ClassDecl<'cx>) {

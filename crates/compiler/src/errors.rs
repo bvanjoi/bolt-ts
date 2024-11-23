@@ -210,3 +210,30 @@ pub(super) struct FunctionImplementationIsMissingOrNotImmediatelyFollowingTheDec
     #[label]
     pub span: Span,
 }
+
+#[derive(Error, Diagnostic, Debug)]
+#[error("Value of type '{ty}' is not callable.")]
+pub(super) struct ValueOfType0IsNotCallable {
+    #[label]
+    pub span: Span,
+    pub ty: String,
+    #[help]
+    pub callee_is_class: Option<DidYouMeanToIncludeNew>,
+}
+
+#[derive(Error, Diagnostic, Debug)]
+#[error("Did you mean to include 'new'?")]
+pub(super) struct DidYouMeanToIncludeNew;
+
+#[derive(Error, Diagnostic, Debug)]
+#[error(
+    "Property '{prop}' of type '{ty_b}' is not assignable to '{ty_c}' index type '{index_ty_d}'."
+)]
+pub(super) struct PropertyAOfTypeBIsNotAssignableToCIndexTypeD {
+    #[label]
+    pub span: Span,
+    pub prop: String,
+    pub ty_b: String,
+    pub ty_c: String,
+    pub index_ty_d: String,
+}

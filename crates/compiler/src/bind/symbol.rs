@@ -17,13 +17,16 @@ pub enum SymbolName {
     /// function expression
     Fn,
     Constructor,
+    Interface,
+    Index,
 }
 
 impl SymbolName {
     pub fn expect_atom(&self) -> AtomId {
         match self {
             SymbolName::Normal(atom) => *atom,
-            _ => unreachable!(),
+            SymbolName::Ele(atom) => *atom,
+            _ => unreachable!("{:#?}", self),
         }
     }
 }
@@ -35,11 +38,10 @@ pub struct Symbol {
 }
 
 impl Symbol {
+    pub const ERR: SymbolID = SymbolID::root();
     pub fn new(name: SymbolName, kind: SymbolKind) -> Self {
         Self { name, kind }
     }
-
-    pub const ERR: SymbolID = SymbolID::root();
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -52,6 +54,9 @@ pub enum SymbolFnKind {
 #[derive(Debug)]
 pub enum SymbolKind {
     Err,
+    BlockContainer {
+        locals: FxHashMap<SymbolName, SymbolID>,
+    },
     /// `var` or parameter
     FunctionScopedVar,
     /// `let` or `const`
@@ -71,8 +76,12 @@ pub enum SymbolKind {
     FnExpr {
         decl: NodeID,
     },
-    BlockContainer {
-        locals: FxHashMap<SymbolName, SymbolID>,
+    Interface {
+        decl: NodeID,
+        members: FxHashMap<SymbolName, SymbolID>,
+    },
+    Index {
+        decl: NodeID,
     },
 }
 
@@ -101,6 +110,15 @@ impl SymbolKind {
             SymbolKind::Property { .. } => todo!(),
             SymbolKind::Object { .. } => todo!(),
             SymbolKind::BlockContainer { .. } => todo!(),
+            SymbolKind::Interface { .. } => todo!(),
+            SymbolKind::Index { decl } => todo!(),
+        }
+    }
+
+    pub fn as_prop(&self) -> NodeID {
+        match self {
+            SymbolKind::Property { decl } => *decl,
+            _ => unreachable!("{:#?}", self),
         }
     }
 

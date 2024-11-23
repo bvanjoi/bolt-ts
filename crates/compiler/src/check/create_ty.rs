@@ -36,7 +36,7 @@ impl<'cx> TyChecker<'cx> {
         self.create_object_ty(ty::ObjectTyKind::Class(self.alloc(ty)))
     }
 
-    pub(super) fn crate_interface_ty(&mut self, ty: ty::InterfaceTy) -> &'cx ty::Ty<'cx> {
+    pub(super) fn crate_interface_ty(&mut self, ty: ty::InterfaceTy<'cx>) -> &'cx ty::Ty<'cx> {
         self.create_object_ty(ty::ObjectTyKind::Interface(self.alloc(ty)))
     }
 
