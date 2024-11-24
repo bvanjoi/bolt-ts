@@ -12,6 +12,9 @@ fn run_tests() {
     let runner = |case: &std::path::Path| {
         let output = eval_from(rts_span::ModulePath::Real(case.to_path_buf()));
         if output.diags.is_empty() {
+            if output.output.trim().is_empty() {
+                return Ok(());
+            }
             let file_path = compile_test::temp_node_file(
                 &project_root,
                 case.file_stem().unwrap().to_str().unwrap(),
@@ -19,9 +22,13 @@ fn run_tests() {
             std::fs::write(file_path.as_path(), &output.output).unwrap();
             let expected_js_file_path = expect_test::expect_file![case.with_extension("js")];
             expected_js_file_path.assert_eq(&output.output);
-            if let Some(output) = run_node(&file_path) {
-                let expected_file_path = expect_test::expect_file![case.with_extension("out")];
-                expected_file_path.assert_eq(&output);
+            match run_node(&file_path) {
+                Ok(Some(output)) => {
+                    let expected_file_path = expect_test::expect_file![case.with_extension("out")];
+                    expected_file_path.assert_eq(&output);
+                }
+                Ok(None) => {}
+                Err(_) => return Err(vec![]),
             }
             Ok(())
         } else {

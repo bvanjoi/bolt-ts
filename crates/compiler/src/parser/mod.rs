@@ -1,6 +1,8 @@
 mod errors;
 mod expr;
 mod list_ctx;
+mod paren_rule;
+mod parse_class_like;
 mod scan;
 mod stmt;
 mod token;
@@ -182,13 +184,12 @@ impl<'cx, 'a, 'p> ParserState<'cx, 'p> {
     fn parse_bracketed_list<T>(
         &mut self,
         open: TokenKind,
-        is_ele: impl Fn(&mut Self) -> bool,
+        ctx: impl list_ctx::ListContext,
         ele: impl Fn(&mut Self) -> PResult<T>,
-        is_closing: impl Fn(&mut Self) -> bool,
         close: TokenKind,
     ) -> PResult<&'cx [T]> {
         if self.expect(open).is_ok() {
-            let elems = self.parse_delimited_list(is_ele, ele, is_closing);
+            let elems = self.parse_delimited_list(ctx, ele);
             self.expect(close)?;
             Ok(elems)
         } else {
@@ -198,13 +199,12 @@ impl<'cx, 'a, 'p> ParserState<'cx, 'p> {
 
     fn parse_list<T>(
         &mut self,
-        is_ele: impl Fn(&mut Self) -> bool,
+        ctx: impl list_ctx::ListContext,
         ele: impl Fn(&mut Self) -> PResult<T>,
-        is_closing: impl Fn(&mut Self) -> bool,
     ) -> &'cx [T] {
         let mut list = vec![];
-        while !is_closing(self) {
-            if is_ele(self) {
+        while !ctx.is_closing(self) {
+            if ctx.is_ele(self) {
                 if let Ok(ele) = ele(self) {
                     list.push(ele);
                 }
@@ -215,25 +215,24 @@ impl<'cx, 'a, 'p> ParserState<'cx, 'p> {
 
     fn parse_delimited_list<T>(
         &mut self,
-        is_ele: impl Fn(&mut Self) -> bool,
+        ctx: impl list_ctx::ListContext,
         ele: impl Fn(&mut Self) -> PResult<T>,
-        is_closing: impl Fn(&mut Self) -> bool,
     ) -> &'cx [T] {
         let mut list = vec![];
         loop {
-            if is_ele(self) {
+            if ctx.is_ele(self) {
                 let Ok(ele) = ele(self) else {
                     break;
                 };
                 list.push(ele);
-                if is_closing(self) {
+                if ctx.is_closing(self) {
                     break;
                 }
                 if self.parse_optional(TokenKind::Comma).is_some() {
                     continue;
                 }
             }
-            if is_closing(self) {
+            if ctx.is_closing(self) {
                 break;
             }
         }
@@ -263,11 +262,15 @@ impl<'cx, 'a, 'p> ParserState<'cx, 'p> {
         self.scan_speculation_helper(f, true)
     }
 
+    pub(super) fn try_scan<T>(&mut self, f: impl FnOnce(&mut Self) -> T) -> T {
+        self.scan_speculation_helper(f, false)
+    }
+
     fn speculation_helper<T>(&mut self, f: impl FnOnce(&mut Self) -> T, try_parse: bool) -> T {
         let old_token = self.token;
 
         let r = if try_parse {
-            todo!()
+            self.try_scan(f)
         } else {
             self.scan_lookahead(f)
         };
@@ -281,25 +284,6 @@ impl<'cx, 'a, 'p> ParserState<'cx, 'p> {
 
     fn lookahead<T>(&mut self, f: impl FnOnce(&mut Self) -> T) -> T {
         self.speculation_helper(f, false)
-    }
-
-    fn is_start_of_fn_or_ctor_ty(&mut self) -> bool {
-        let t = self.token.kind;
-        if t == TokenKind::LParen && self.lookahead(Self::is_unambiguously_start_of_fn_ty) {
-            true
-        } else {
-            false
-        }
-    }
-
-    fn is_unambiguously_start_of_fn_ty(&mut self) -> bool {
-        self.next_token();
-        let t = self.token.kind;
-        if t == TokenKind::RParen {
-            true
-        } else {
-            false
-        }
     }
 
     fn parse_token_node(&mut self) -> Token {
@@ -351,10 +335,6 @@ impl<'cx, 'a, 'p> ParserState<'cx, 'p> {
         }
     }
 
-    fn parse_ident_name(&mut self) -> PResult<&'cx ast::Ident> {
-        Ok(self.create_ident(true))
-    }
-
     fn parse_binding_ident(&mut self) -> &'cx ast::Ident {
         self.create_ident(true)
     }
@@ -399,6 +379,7 @@ impl<'cx, 'a, 'p> ParserState<'cx, 'p> {
     }
 
     pub fn parse(&mut self) -> &'cx ast::Program<'cx> {
+        let start = self.pos;
         let id = self.p.next_node_id();
         self.with_parent(id, |this| {
             this.next_token();
@@ -408,7 +389,11 @@ impl<'cx, 'a, 'p> ParserState<'cx, 'p> {
                     stmts.push(stmt);
                 }
             }
-            let program = this.alloc(ast::Program { id, stmts });
+            let program = this.alloc(ast::Program {
+                id,
+                stmts,
+                span: this.new_span(start, this.pos),
+            });
             this.p.nodes.insert(id, Node::Program(program));
             program
         })

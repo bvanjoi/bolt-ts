@@ -1,0 +1,5 @@
+  × Constructor implementation is missing.
+   ╭─[../../tests/cases/compiler/ClassDeclaration11.ts:2:4]
+ 2 │ ╭─▶ constructor(); //~ ERROR: Constructor implementation is missing.
+ 3 │ ╰─▶    foo
+   ╰────

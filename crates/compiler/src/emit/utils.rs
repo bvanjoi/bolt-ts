@@ -8,7 +8,7 @@ impl<'cx> Emit<'cx> {
         self.emit_list(
             params,
             |this, item| this.emit_param(item),
-            |this| {
+            |this, _| {
                 this.content.p_comma();
                 this.content.p_whitespace();
             },
@@ -32,8 +32,19 @@ impl<'cx> Emit<'cx> {
     pub(super) fn emit_block_stmt(&mut self, block: &'cx ast::BlockStmt<'cx>) {
         self.content.p_l_brace();
         self.content.p_newline();
+        self.state.indent += self.options.indent;
+        self.content.p_pieces_of_whitespace(self.state.indent);
         self.emit_stmts(block.stmts);
+        self.state.indent -= self.options.indent;
+        self.content.p_pieces_of_whitespace(self.state.indent);
         self.content.p_newline();
         self.content.p_r_brace();
+    }
+
+    pub(super) fn emit_prop_name(&mut self, name: &'cx ast::PropName) {
+        use ast::PropNameKind::*;
+        match name.kind {
+            Ident(ident) => self.emit_ident(ident),
+        }
     }
 }

@@ -5,7 +5,7 @@ fn main_test() {
     use rts_compiler::eval_from;
     let project_root = project_root::get_project_root().unwrap();
 
-    // for hang debug
+    // // for hang debug
     // let sub = "tests/cases/compiler";
     // let cases = compile_test::fixtures(&project_root, sub);
     // for case in cases.into_iter() {
@@ -20,7 +20,7 @@ fn main_test() {
     //     let output = eval_from(rts_span::ModulePath::Real(case.path().clone()));
     // }
 
-    let p = project_root.join("tests/cases/compiler/contextualTyping1.ts");
+    let p = project_root.join("tests/cases/compiler/duplicateConstructSignature2.ts");
     let output = eval_from(rts_span::ModulePath::Real(p.clone()));
     if output.diags.is_empty() {
         let file_path =
@@ -28,7 +28,7 @@ fn main_test() {
         dbg!(file_path.as_path());
         std::fs::write(file_path.as_path(), output.output).unwrap();
         compile_test::ensure_node_exist();
-        compile_test::run_node(&file_path);
+        compile_test::run_node(&file_path).unwrap();
     } else {
         output
             .diags

@@ -1,12 +1,9 @@
 use std::path::Path;
 
-use crate::common::PassMode;
+use crate::common::{FailMode, PassMode};
 use crate::{errors, TestConfig, TestProps};
 
-pub fn run<F>(test_file: &Path, runner: F)
-where
-    F: FnOnce(&Path) -> Result<(), Vec<errors::Error>>,
-{
+pub fn run(test_file: &Path, runner: impl FnOnce(&Path) -> Result<(), Vec<errors::Error>>) {
     let mut config = TestConfig::new();
     let props = TestProps::from_file(test_file, &mut config);
     let cx = TestCx {
@@ -23,10 +20,7 @@ struct TestCx<'test> {
 }
 
 impl<'test> TestCx<'test> {
-    fn run_test<F>(&self, runner: F)
-    where
-        F: FnOnce(&Path) -> Result<(), Vec<errors::Error>>,
-    {
+    fn run_test(&self, runner: impl FnOnce(&Path) -> Result<(), Vec<errors::Error>>) {
         let expected_errors = errors::load_errors(self.test_file, None);
 
         let panic = |msg: String| panic!("{msg} in {}", self.test_file.display());
@@ -38,6 +32,14 @@ impl<'test> TestCx<'test> {
                 assert!(self.props.fail_mode().is_none());
             }
             Err(errors) => {
+                if errors.is_empty() {
+                    assert_eq!(
+                        self.props.fail_mode(),
+                        Some(FailMode::Run),
+                        "we cannot find any errors in {} and it not set `//@ run-fail` in header",
+                        self.test_file.display()
+                    );
+                }
                 self.check_expected_errors(&expected_errors, &errors);
                 assert!(
                     self.pass_mode().is_none(),

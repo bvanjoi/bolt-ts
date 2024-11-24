@@ -6,7 +6,13 @@ fn get_assignment_target(checker: &TyChecker, id: ast::NodeID) -> Option<ast::No
     let mut parent = checker.node_parent_map.parent(id);
     while let Some(p) = parent {
         match checker.nodes.get(p) {
-            ast::Node::AssignExpr(assign) => return (assign.binding.id == id).then(|| assign.id),
+            ast::Node::AssignExpr(assign) => {
+                return if let ast::ExprKind::Ident(binding) = assign.left.kind {
+                    (binding.id == id).then(|| assign.id)
+                } else {
+                    None
+                }
+            }
             ast::Node::BinExpr(_) => return None,
             _ => return None,
         }

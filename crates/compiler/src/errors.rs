@@ -6,7 +6,7 @@ use rts_span::Span;
 
 #[derive(Error, Diagnostic, Debug)]
 #[error("Operator '{op}' cannot be applied to types '{ty1}' and '{ty2}'.")]
-pub(crate) struct OperatorCannotBeAppliedToTy1AndTy2 {
+pub(super) struct OperatorCannotBeAppliedToTy1AndTy2 {
     #[label]
     pub span: Span,
     pub op: String,
@@ -16,7 +16,7 @@ pub(crate) struct OperatorCannotBeAppliedToTy1AndTy2 {
 
 #[derive(Error, Diagnostic, Debug)]
 #[error("The value '{value}' cannot be used here.")]
-pub(crate) struct TheValueCannotBeUsedHere {
+pub(super) struct TheValueCannotBeUsedHere {
     #[label]
     pub span: Span,
     pub value: String,
@@ -24,7 +24,7 @@ pub(crate) struct TheValueCannotBeUsedHere {
 
 #[derive(Error, Diagnostic, Debug)]
 #[error("Type '{ty1}' is not assignable to type '{ty2}'.")]
-pub(crate) struct TypeIsNotAssignableToType {
+pub(super) struct TypeIsNotAssignableToType {
     #[label]
     pub span: Span,
     pub ty1: String,
@@ -33,7 +33,18 @@ pub(crate) struct TypeIsNotAssignableToType {
 
 #[derive(Error, Diagnostic, Debug)]
 #[error("Cannot find name '{name}'.")]
-pub(crate) struct CannotFindName {
+pub(super) struct CannotFindName {
+    #[label]
+    pub span: Span,
+    pub name: String,
+    #[related]
+    pub errors: Vec<crate::Diag>,
+}
+
+#[derive(Error, Diagnostic, Debug)]
+#[error("Did you mean the static member '{name}'?")]
+#[diagnostic(severity(Advice))]
+pub(super) struct DidYourMeanTheStaticMember {
     #[label]
     pub span: Span,
     pub name: String,
@@ -41,7 +52,7 @@ pub(crate) struct CannotFindName {
 
 #[derive(Error, Diagnostic, Debug)]
 #[error("Argument of type '{arg_ty}' is not assignable to parameter of type '{param_ty}'.")]
-pub(crate) struct ArgumentOfTyIsNotAssignableToParameterOfTy {
+pub(super) struct ArgumentOfTyIsNotAssignableToParameterOfTy {
     #[label]
     pub span: Span,
     pub arg_ty: String,
@@ -50,7 +61,7 @@ pub(crate) struct ArgumentOfTyIsNotAssignableToParameterOfTy {
 
 #[derive(Error, Diagnostic, Debug)]
 #[error("Expected {x} arguments, but got {y}.")]
-pub(crate) struct ExpectedXArgsButGotY {
+pub(super) struct ExpectedXArgsButGotY {
     #[label]
     pub span: Span,
     pub x: crate::check::ExpectedArgsCount,
@@ -59,7 +70,7 @@ pub(crate) struct ExpectedXArgsButGotY {
 
 #[derive(Error, Diagnostic, Debug)]
 #[error("Expected at least {x} arguments, but got {y}.")]
-pub(crate) struct ExpectedAtLeastXArgsButGotY {
+pub(super) struct ExpectedAtLeastXArgsButGotY {
     #[label]
     pub span: Span,
     pub x: usize,
@@ -68,7 +79,7 @@ pub(crate) struct ExpectedAtLeastXArgsButGotY {
 
 #[derive(Error, Diagnostic, Debug)]
 #[error("Cannot assign to '{name}' because it is a {ty}.")]
-pub(crate) struct CannotAssignToNameBecauseItIsATy {
+pub(super) struct CannotAssignToNameBecauseItIsATy {
     #[label]
     pub span: Span,
     pub name: String,
@@ -77,7 +88,7 @@ pub(crate) struct CannotAssignToNameBecauseItIsATy {
 
 #[derive(Error, Diagnostic, Debug)]
 #[error("The '{op1}' operator is not allowed for boolean types. Consider using '{op2}' instead.")]
-pub(crate) struct TheOp1IsNotAllowedForBooleanTypesConsiderUsingOp2Instead {
+pub(super) struct TheOp1IsNotAllowedForBooleanTypesConsiderUsingOp2Instead {
     #[label]
     pub span: Span,
     pub op1: String,
@@ -107,19 +118,122 @@ impl std::fmt::Display for LeftOrRight {
 
 #[derive(Error, Diagnostic, Debug)]
 #[error("The {left_or_right}-hand side of an arithmetic operation must be of type 'any', 'number', 'bigint' or an enum type.")]
-pub(crate) struct TheSideOfAnArithmeticOperationMustBeOfTypeAnyNumberBigintOrAnEnumType {
+pub(super) struct TheSideOfAnArithmeticOperationMustBeOfTypeAnyNumberBigintOrAnEnumType {
     #[label]
     pub span: Span,
     pub left_or_right: LeftOrRight,
 }
 
-// #[derive(Error, Diagnostic, Debug)]
-// #[error(
-//     "Object literal may only specify known properties, and '{field}' does not exist in type '{ty}'."
-// )]
-// pub(crate) struct ObjectLitMayOnlySpecifyKnownPropAndFieldDoesNotExistInTypeY {
-//     #[label]
-//     pub span: Span,
-//     pub field: String,
-//     pub ty: String,
-// }
+#[derive(Error, Diagnostic, Debug)]
+#[error("Object literal may only specify known properties, and '{field}' does not exist.")]
+pub(super) struct ObjectLitMayOnlySpecifyKnownPropAndFieldDoesNotExist {
+    #[label]
+    pub span: Span,
+    pub field: String,
+}
+
+#[derive(Error, Diagnostic, Debug)]
+#[error("Property '{field}' is missing.")]
+pub(super) struct PropertyXIsMissing {
+    #[label]
+    pub span: Span,
+    pub field: String,
+}
+
+#[derive(Error, Diagnostic, Debug)]
+#[error("Cannot create an instance of an abstract class.")]
+pub(super) struct CannotCreateAnInstanceOfAnAbstractClass {
+    #[label]
+    pub span: Span,
+}
+
+#[derive(Error, Diagnostic, Debug)]
+#[error("A class cannot implement a primitive type like '{ty}'. It can only implement other named object types.")]
+pub(super) struct AClassCannotImplementAPrimTy {
+    #[label]
+    pub span: Span,
+    pub ty: String,
+}
+
+#[derive(Clone, Copy, Debug)]
+pub(super) enum DeclKind {
+    Class,
+    Enum,
+}
+
+impl DeclKind {
+    fn as_str(&self) -> &'static str {
+        match self {
+            Self::Class => "Class",
+            Self::Enum => "Enum",
+        }
+    }
+}
+
+impl std::fmt::Display for DeclKind {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.as_str())
+    }
+}
+
+#[derive(Error, Diagnostic, Debug)]
+#[error("{kind} '{name}' used before its declaration.")]
+pub(super) struct CannotUsedBeforeItsDeclaration {
+    #[label]
+    pub span: Span,
+    pub kind: DeclKind,
+    pub name: String,
+    #[related]
+    pub related: [DefinedHere; 1],
+}
+
+#[derive(Error, Diagnostic, Debug)]
+#[error("{kind} '{name}' is defined here")]
+#[diagnostic(severity(Advice))]
+pub(super) struct DefinedHere {
+    #[label]
+    pub span: Span,
+    pub kind: DeclKind,
+    pub name: String,
+}
+
+#[derive(Error, Diagnostic, Debug)]
+#[error("Constructor implementation is missing.")]
+pub(super) struct ConstructorImplementationIsMissing {
+    #[label]
+    pub span: Span,
+}
+
+#[derive(Error, Diagnostic, Debug)]
+#[error("Function implementation is missing or not immediately following the declaration.")]
+pub(super) struct FunctionImplementationIsMissingOrNotImmediatelyFollowingTheDeclaration {
+    #[label]
+    pub span: Span,
+}
+
+#[derive(Error, Diagnostic, Debug)]
+#[error("Value of type '{ty}' is not callable.")]
+pub(super) struct ValueOfType0IsNotCallable {
+    #[label]
+    pub span: Span,
+    pub ty: String,
+    #[help]
+    pub callee_is_class: Option<DidYouMeanToIncludeNew>,
+}
+
+#[derive(Error, Diagnostic, Debug)]
+#[error("Did you mean to include 'new'?")]
+pub(super) struct DidYouMeanToIncludeNew;
+
+#[derive(Error, Diagnostic, Debug)]
+#[error(
+    "Property '{prop}' of type '{ty_b}' is not assignable to '{ty_c}' index type '{index_ty_d}'."
+)]
+pub(super) struct PropertyAOfTypeBIsNotAssignableToCIndexTypeD {
+    #[label]
+    pub span: Span,
+    pub prop: String,
+    pub ty_b: String,
+    pub ty_c: String,
+    pub index_ty_d: String,
+}

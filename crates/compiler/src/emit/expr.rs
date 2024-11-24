@@ -1,5 +1,5 @@
 use super::Emit;
-use crate::ast;
+use crate::{ast, ensure_sufficient_stack};
 
 impl<'cx> Emit<'cx> {
     pub(super) fn emit_expr(&mut self, expr: &'cx ast::Expr<'cx>) {
@@ -38,11 +38,33 @@ impl<'cx> Emit<'cx> {
             Fn(f) => self.emit_fn_expr(f),
             New(new) => self.emit_new_expr(new),
             Assign(assign) => self.emit_assign_expr(assign),
+            ArrowFn(arrow_fn) => self.emit_arrow_fn(arrow_fn),
+            PrefixUnary(unary) => {
+                self.content.p(unary.op.as_str());
+                self.emit_expr(unary.expr);
+            }
+            Class(class) => self.emit_class_like(class),
+            PropAccess(prop) => {
+                self.emit_expr(prop.expr);
+                self.content.p_dot();
+                self.emit_ident(prop.name);
+            }
         }
     }
 
+    fn emit_arrow_fn(&mut self, f: &'cx ast::ArrowFnExpr<'cx>) {
+        self.emit_params(f.params);
+        self.content.p_whitespace();
+        self.content.p("=>");
+        self.content.p_whitespace();
+        match f.body {
+            ast::ArrowFnExprBody::Block(block) => self.emit_block_stmt(block),
+            ast::ArrowFnExprBody::Expr(expr) => self.emit_expr(expr),
+        };
+    }
+
     fn emit_assign_expr(&mut self, assign: &'cx ast::AssignExpr) {
-        self.emit_ident(assign.binding);
+        self.emit_expr(assign.left);
         self.content.p_whitespace();
         self.content.p(assign.op.as_str());
         self.content.p_whitespace();
@@ -70,11 +92,13 @@ impl<'cx> Emit<'cx> {
     }
 
     fn emit_bin_expr(&mut self, bin_op: &'cx ast::BinExpr) {
-        self.emit_expr(bin_op.left);
-        self.content.p_whitespace();
-        self.content.p(bin_op.op.kind.as_str());
-        self.content.p_whitespace();
-        self.emit_expr(bin_op.right);
+        ensure_sufficient_stack(|| {
+            self.emit_expr(bin_op.left);
+            self.content.p_whitespace();
+            self.content.p(bin_op.op.kind.as_str());
+            self.content.p_whitespace();
+            self.emit_expr(bin_op.right);
+        })
     }
 
     fn emit_array_lit(&mut self, lit: &'cx ast::ArrayLit) {
@@ -94,7 +118,7 @@ impl<'cx> Emit<'cx> {
         self.emit_list(
             args,
             |this, arg| this.emit_expr(arg),
-            |this| {
+            |this, _| {
                 this.content.p_comma();
                 this.content.p_whitespace();
             },
@@ -124,12 +148,5 @@ impl<'cx> Emit<'cx> {
         self.content.p_colon();
         self.content.p_whitespace();
         self.emit_expr(field.value);
-    }
-
-    fn emit_prop_name(&mut self, name: &'cx ast::PropName) {
-        use ast::PropNameKind::*;
-        match name.kind {
-            Ident(ident) => self.emit_ident(ident),
-        }
     }
 }

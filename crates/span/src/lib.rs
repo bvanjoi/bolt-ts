@@ -48,6 +48,12 @@ impl From<Span> for miette::SourceSpan {
     }
 }
 
+impl std::fmt::Display for Span {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}-{}", self.lo, self.hi)
+    }
+}
+
 pub struct Module {
     pub id: ModuleID,
 }

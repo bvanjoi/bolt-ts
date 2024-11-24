@@ -1,3 +1,4 @@
+mod emit_class_like;
 mod expr;
 mod stmt;
 mod utils;
@@ -13,6 +14,9 @@ impl PPrint {
     }
     fn p_whitespace(&mut self) {
         self.p(" ");
+    }
+    fn p_pieces_of_whitespace(&mut self, count: u32) {
+        self.p(&" ".repeat(count as usize))
     }
     fn p_question(&mut self) {
         self.p("?");
@@ -56,14 +60,29 @@ impl PPrint {
     fn p_r_brace(&mut self) {
         self.p("}");
     }
+    /// `.`
+    fn p_dot(&mut self) {
+        self.p(".");
+    }
+    /// `...`
     fn p_dot_dot_dot(&mut self) {
         self.p("...");
     }
 }
 
+pub struct EmitterOptions {
+    indent: u32,
+}
+
+struct EmitterState {
+    indent: u32,
+}
+
 pub struct Emit<'cx> {
     pub atoms: &'cx AtomMap<'cx>,
     content: PPrint,
+    options: EmitterOptions,
+    state: EmitterState,
 }
 
 impl<'cx> Emit<'cx> {
@@ -71,6 +90,8 @@ impl<'cx> Emit<'cx> {
         Self {
             atoms,
             content: PPrint(String::with_capacity(1024 * 128)),
+            options: EmitterOptions { indent: 2 },
+            state: EmitterState { indent: 0 },
         }
     }
 
@@ -87,12 +108,12 @@ impl<'cx> Emit<'cx> {
         &mut self,
         list: &'cx [T],
         emit_item: impl Fn(&mut Self, &'cx T),
-        emit_sep: impl Fn(&mut Self),
+        emit_sep: impl Fn(&mut Self, &'cx T),
     ) {
         for (idx, item) in list.iter().enumerate() {
             emit_item(self, item);
             if idx != list.len() - 1 {
-                emit_sep(self)
+                emit_sep(self, item)
             }
         }
     }

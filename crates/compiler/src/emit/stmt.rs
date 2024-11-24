@@ -13,23 +13,12 @@ impl<'cx> Emit<'cx> {
             Return(ret) => self.emit_ret_stmt(ret),
             Empty(_) => {}
             Class(class) => self.emit_class_decl(class),
-            Interface(_) => {},
+            Interface(_) => {}
         }
     }
 
     fn emit_class_decl(&mut self, class: &'cx ast::ClassDecl<'cx>) {
-        self.content.p("class");
-        self.content.p_whitespace();
-        self.emit_ident(&class.name);
-        self.content.p_whitespace();
-        if let Some(extends) = class.extends {
-            self.content.p("extends");
-            self.content.p_whitespace();
-            assert!(extends.tys.len() == 1);
-            self.emit_expr(extends.tys[0]);
-        }
-        self.content.p_l_brace();
-        self.content.p_r_brace();
+        self.emit_class_like(class);
     }
 
     fn emit_ret_stmt(&mut self, ret: &'cx ast::RetStmt<'cx>) {
@@ -43,13 +32,14 @@ impl<'cx> Emit<'cx> {
     fn emit_if_stmt(&mut self, stmt: &'cx ast::IfStmt<'cx>) {
         self.content.p("if");
         self.content.p_whitespace();
+        // test
         self.content.p_l_paren();
         self.emit_expr(stmt.expr);
         self.content.p_r_paren();
         self.content.p_whitespace();
-        self.content.p_l_brace();
+        // block
         self.emit_stmt(stmt.then);
-        self.content.p_r_brace();
+        // else
         if let Some(else_then) = stmt.else_then {
             self.content.p_whitespace();
             self.content.p("else");
@@ -63,17 +53,22 @@ impl<'cx> Emit<'cx> {
         self.emit_list(
             body,
             |this, item| this.emit_stmt(item),
-            |this| this.content.p_newline(),
+            |this, _| {
+                this.content.p_newline();
+                this.content.p_pieces_of_whitespace(this.state.indent);
+            },
         )
     }
 
     fn emit_fn_decl(&mut self, f: &'cx ast::FnDecl) {
-        self.content.p("function");
-        self.content.p_whitespace();
-        self.emit_ident(f.name);
-        self.emit_params(f.params);
-        self.content.p_whitespace();
-        self.emit_block_stmt(&f.body);
+        if let Some(body) = f.body {
+            self.content.p("function");
+            self.content.p_whitespace();
+            self.emit_ident(f.name);
+            self.emit_params(f.params);
+            self.content.p_whitespace();
+            self.emit_block_stmt(body);
+        }
     }
 
     fn emit_var_stmt(&mut self, var: &'cx ast::VarStmt) {

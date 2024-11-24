@@ -9,20 +9,20 @@ use crate::atoms::AtomId;
 use crate::keyword::KEYWORDS;
 
 #[inline(always)]
-pub fn is_ascii_letter(ch: u8) -> bool {
+pub(super) fn is_ascii_letter(ch: u8) -> bool {
     ch.is_ascii_alphabetic()
 }
 
-pub fn is_word_character(ch: u8) -> bool {
+pub(super) fn is_word_character(ch: u8) -> bool {
     is_ascii_letter(ch) || ch.is_ascii_digit() || ch == b'_'
 }
 
 #[inline(always)]
-pub fn is_identifier_start(ch: u8) -> bool {
+pub(super) fn is_identifier_start(ch: u8) -> bool {
     is_ascii_letter(ch) || ch == b'$' || ch == b'_'
 }
 
-pub fn is_identifier_part(ch: u8) -> bool {
+pub(super) fn is_identifier_part(ch: u8) -> bool {
     is_word_character(ch) || ch == b'$'
 }
 
@@ -359,7 +359,8 @@ impl<'cx, 'a, 'p> ParserState<'cx, 'p> {
                         self.pos += 3;
                         Token::new(TokenKind::DotDotDot, self.new_span(start, self.pos))
                     } else {
-                        todo!()
+                        self.pos += 1;
+                        Token::new(TokenKind::Dot, self.new_span(start, self.pos))
                     }
                 }
                 b',' | b';' | b':' | b'[' | b']' | b'(' | b')' | b'{' | b'}' => {
@@ -420,8 +421,12 @@ impl<'cx, 'a, 'p> ParserState<'cx, 'p> {
         let start = self.pos;
         let mut offset = 1;
         let mut v = Vec::with_capacity(32);
-        while start + offset < self.end() {
-            let ch = self.input[start + offset];
+        loop {
+            let idx = start + offset;
+            if idx >= self.end() {
+                break;
+            }
+            let ch = self.input[idx];
             offset += 1;
             if ch == quote {
                 break;
@@ -429,5 +434,9 @@ impl<'cx, 'a, 'p> ParserState<'cx, 'p> {
             v.push(ch);
         }
         (offset, v)
+    }
+
+    pub(super) fn re_scan_greater(&mut self) -> TokenKind {
+        self.token.kind
     }
 }

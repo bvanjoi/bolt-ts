@@ -1,6 +1,6 @@
 use rts_span::Span;
 
-use crate::ast::{AssignExpr, AssignOp, BinOpKind, HeritageClauseKind};
+use crate::ast::{AssignOp, BinOpKind, ModifierKind, PrefixUnaryOp};
 
 #[derive(Debug, Clone, Copy)]
 pub struct Token {
@@ -11,10 +11,6 @@ pub struct Token {
 impl Token {
     pub fn new(kind: TokenKind, span: Span) -> Self {
         Self { kind, span }
-    }
-
-    pub fn is_keyword(&self) -> bool {
-        false
     }
 
     pub fn start(&self) -> u32 {
@@ -44,10 +40,19 @@ pub enum TokenKind {
     Class,
     Extends,
     New,
+    Async,
+    This,
+    Static,
+    Constructor,
+    Get,
+    Set,
     // ts keyword
     Implements,
     Interface,
     Abstract,
+    Public,
+    As,
+    Declare,
     // =====
     EOF,
     Number,
@@ -55,7 +60,9 @@ pub enum TokenKind {
     Ident,
     NoSubstitutionTemplate,
     // =====
-    ///`%`
+    /// `!`
+    Excl = 0x21,
+    /// `%`
     Percent = 0x25,
     /// `&`
     Amp = 0x26,
@@ -71,6 +78,8 @@ pub enum TokenKind {
     LParen = 0x28,
     /// `)`
     RParen = 0x29,
+    /// `.`
+    Dot = 0x2E,
     /// `:`
     Colon = 0x3A,
     /// `;`
@@ -148,22 +157,8 @@ pub enum TokenKind {
     CaretEq,
 }
 
-impl TokenKind {
-    pub fn prec(self) -> BinPrec {
-        use TokenKind::*;
-        match self {
-            Pipe => BinPrec::BitwiseOR,
-            Less | LessEq | Great | GreatEq => BinPrec::Relational,
-            LessLess | GreatGreat | GreatGreatGreat => BinPrec::Shift,
-            Plus => BinPrec::Additive,
-            PipePipe => BinPrec::LogicalOr,
-            AmpAmp => BinPrec::LogicalAnd,
-            EqEq | EqEqEq => BinPrec::Eq,
-            _ => BinPrec::Invalid,
-        }
-    }
-
-    pub fn into_binop(self) -> BinOpKind {
+impl Into<BinOpKind> for TokenKind {
+    fn into(self) -> BinOpKind {
         match self {
             TokenKind::Plus => BinOpKind::Add,
             TokenKind::Pipe => BinOpKind::Pipe,
@@ -187,6 +182,48 @@ impl TokenKind {
             _ => {
                 unreachable!("{:#?}", self)
             }
+        }
+    }
+}
+
+impl Into<PrefixUnaryOp> for TokenKind {
+    fn into(self) -> PrefixUnaryOp {
+        match self {
+            TokenKind::Plus => PrefixUnaryOp::Plus,
+            TokenKind::Minus => PrefixUnaryOp::Minus,
+            _ => {
+                unreachable!("{:#?}", self)
+            }
+        }
+    }
+}
+
+impl Into<ModifierKind> for TokenKind {
+    fn into(self) -> ModifierKind {
+        match self {
+            TokenKind::Public => ModifierKind::Public,
+            TokenKind::Abstract => ModifierKind::Abstract,
+            TokenKind::Static => ModifierKind::Static,
+            TokenKind::Declare => ModifierKind::Declare,
+            _ => {
+                unreachable!("{:#?}", self)
+            }
+        }
+    }
+}
+
+impl TokenKind {
+    pub fn prec(self) -> BinPrec {
+        use TokenKind::*;
+        match self {
+            Pipe => BinPrec::BitwiseOR,
+            Less | LessEq | Great | GreatEq => BinPrec::Relational,
+            LessLess | GreatGreat | GreatGreatGreat => BinPrec::Shift,
+            Plus => BinPrec::Additive,
+            PipePipe => BinPrec::LogicalOr,
+            AmpAmp => BinPrec::LogicalAnd,
+            EqEq | EqEqEq => BinPrec::Eq,
+            _ => BinPrec::Invalid,
         }
     }
 
@@ -216,12 +253,16 @@ impl TokenKind {
         ) || self.is_start_of_expr()
     }
 
+    pub(super) fn is_ident(&self) -> bool {
+        matches!(self, TokenKind::Ident | TokenKind::Abstract)
+    }
+
     pub fn is_start_of_left_hand_side_expr(self) -> bool {
         use TokenKind::*;
         matches!(
             self,
-            Null | True | False | Number | String | LBrace | LBracket | LParen | New | Ident
-        )
+            Null | True | False | Number | String | LBrace | LBracket | LParen | New | Ident | This
+        ) || self.is_ident()
     }
 
     pub fn is_start_of_expr(self) -> bool {
@@ -254,11 +295,6 @@ impl TokenKind {
         self.is_ident_or_keyword() || matches!(self, String | Number)
     }
 
-    pub fn is_left_hand_side_expr_kind(self) -> bool {
-        use TokenKind::*;
-        matches!(self, Ident)
-    }
-
     pub fn is_start_of_param(self) -> bool {
         matches!(self, TokenKind::DotDotDot) || self.is_binding_ident_or_private_ident_or_pat()
     }
@@ -270,14 +306,6 @@ impl TokenKind {
 
     pub fn is_heritage_clause(&self) -> bool {
         matches!(self, TokenKind::Extends | TokenKind::Implements)
-    }
-
-    pub fn into_heritage_clause_kind(&self) -> Option<HeritageClauseKind> {
-        match self {
-            TokenKind::Extends => Some(HeritageClauseKind::Extends),
-            TokenKind::Implements => Some(HeritageClauseKind::Implements),
-            _ => None,
-        }
     }
 
     pub fn is_assignment(self) -> bool {
@@ -300,7 +328,21 @@ impl TokenKind {
 
     pub fn is_modifier_kind(self) -> bool {
         use TokenKind::*;
-        matches!(self, Abstract | Const)
+        matches!(self, Abstract | Const | Public | Static | Declare)
+    }
+
+    pub fn is_accessibility_modifier(self) -> bool {
+        use TokenKind::*;
+        matches!(self, Public)
+    }
+
+    pub fn is_param_prop_modifier(self) -> bool {
+        // TODO: readonly | override
+        self.is_accessibility_modifier()
+    }
+
+    pub fn is_class_ele_modifier(self) -> bool {
+        self.is_param_prop_modifier()
     }
 }
 

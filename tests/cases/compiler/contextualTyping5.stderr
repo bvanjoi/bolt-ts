@@ -1,0 +1,5 @@
+  × Property 'id' is missing.
+   ╭─[../../tests/cases/compiler/contextualTyping5.ts:1:24]
+ 1 │ {id:number;} =
+   · ──────────────
+   ╰────

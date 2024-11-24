@@ -1,10 +1,13 @@
 mod facts;
 
 use crate::atoms::{AtomId, AtomMap};
+use crate::bind::SymbolID;
+use crate::keyword;
 pub use facts::{has_type_facts, TypeFacts};
 use rustc_hash::FxHashMap;
 
 rts_span::new_index!(TyID);
+rts_span::new_index!(TyVarID);
 
 #[derive(Debug, Clone, Copy)]
 pub struct Ty<'cx> {
@@ -22,19 +25,17 @@ impl<'cx> Ty<'cx> {
 pub enum TyKind<'cx> {
     StringLit,
     NumberLit(&'cx NumberLitTy),
-    Array(&'cx ArrayTy<'cx>),
-    ArrayLit(&'cx ArrayTy<'cx>),
     Intrinsic(&'cx IntrinsicTy),
     Union(&'cx UnionTy<'cx>),
     Object(&'cx ObjectTy<'cx>),
+    Var(TyVarID),
 }
 
 impl<'cx> TyKind<'cx> {
     pub fn to_string(&self, atoms: &'cx AtomMap) -> String {
         match self {
             TyKind::NumberLit(_) => "number".to_string(),
-            TyKind::Intrinsic(ty) => atoms.get(ty.name).to_string(),
-            TyKind::Array(_) => "array".to_string(),
+            TyKind::Intrinsic(ty) => ty.kind.as_str().to_string(),
             TyKind::Union(union) => union
                 .tys
                 .iter()
@@ -42,8 +43,11 @@ impl<'cx> TyKind<'cx> {
                 .collect::<Vec<_>>()
                 .join(" | "),
             TyKind::StringLit => todo!(),
-            TyKind::ArrayLit(_) => todo!(),
-            TyKind::Object(object) => object.kind.as_str().to_string(),
+            TyKind::Object(object) => object.kind.to_string(atoms),
+            TyKind::Var(id) => {
+                // todo: delay bug
+                format!("#{id:#?}")
+            }
         }
     }
 
@@ -69,8 +73,16 @@ impl<'cx> TyKind<'cx> {
         }
     }
 
+    pub fn is_ty_var(&self) -> bool {
+        matches!(self, TyKind::Var(_))
+    }
+
     pub fn is_union_or_intersection(&self) -> bool {
         self.is_union()
+    }
+
+    pub fn is_object_or_intersection(&self) -> bool {
+        self.is_object()
     }
 
     pub fn is_lit(&self) -> bool {
@@ -169,6 +181,45 @@ impl<'cx> TyKind<'cx> {
             None
         }
     }
+
+    pub fn as_array(&self) -> Option<&'cx ArrayTy<'cx>> {
+        use TyKind::*;
+        if let Object(ty) = self {
+            if let ObjectTyKind::Array(array) = ty.kind {
+                Some(array)
+            } else {
+                None
+            }
+        } else {
+            None
+        }
+    }
+
+    pub fn as_class(&self) -> Option<&'cx ClassTy> {
+        use TyKind::*;
+        if let Object(ty) = self {
+            if let ObjectTyKind::Class(class) = ty.kind {
+                Some(class)
+            } else {
+                None
+            }
+        } else {
+            None
+        }
+    }
+
+    pub fn as_interface(&self) -> Option<&'cx InterfaceTy> {
+        use TyKind::*;
+        if let Object(ty) = self {
+            if let ObjectTyKind::Interface(interface) = ty.kind {
+                Some(interface)
+            } else {
+                None
+            }
+        } else {
+            None
+        }
+    }
 }
 
 pub type Tys<'cx> = &'cx [&'cx Ty<'cx>];
@@ -185,7 +236,6 @@ pub struct ArrayTy<'cx> {
 
 #[derive(Debug, Clone, Copy)]
 pub struct IntrinsicTy {
-    pub name: AtomId,
     pub kind: IntrinsicTyKind,
 }
 
@@ -201,6 +251,29 @@ pub enum IntrinsicTyKind {
     True,
     False,
     Error,
+}
+
+impl<'cx> IntrinsicTyKind {
+    fn as_str(&self) -> &'static str {
+        match self {
+            IntrinsicTyKind::Any => keyword::IDENT_ANY_STR,
+            IntrinsicTyKind::Unknown => todo!(),
+            IntrinsicTyKind::Void => keyword::IDENT_VOID_STR,
+            IntrinsicTyKind::Null => keyword::KW_NULL_STR,
+            IntrinsicTyKind::Undefined => keyword::IDENT_UNDEFINED_STR,
+            IntrinsicTyKind::String => keyword::IDENT_STRING_STR,
+            IntrinsicTyKind::Number => keyword::IDENT_NUMBER_STR,
+            IntrinsicTyKind::True => keyword::KW_TRUE_STR,
+            IntrinsicTyKind::False => keyword::KW_FALSE_STR,
+            IntrinsicTyKind::Error => keyword::IDENT_ERROR_STR,
+        }
+    }
+}
+
+impl std::fmt::Display for IntrinsicTyKind {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.as_str())
+    }
 }
 
 impl IntrinsicTyKind {
@@ -245,28 +318,54 @@ pub enum ObjectTyKind<'cx> {
     Class(&'cx ClassTy),
     Fn(&'cx FnTy<'cx>),
     Lit(&'cx ObjectLitTy<'cx>),
+    Array(&'cx ArrayTy<'cx>),
+    Interface(&'cx InterfaceTy<'cx>),
 }
 
-impl ObjectTyKind<'_> {
-    fn as_str(&self) -> &'static str {
+#[derive(Debug, Clone, Copy)]
+pub struct IndexInfo<'cx> {
+    pub key_ty: &'cx Ty<'cx>,
+    pub val_ty: &'cx Ty<'cx>,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct InterfaceTy<'cx> {
+    pub symbol: SymbolID,
+    pub declared_props: &'cx [SymbolID],
+    pub base_tys: &'cx [&'cx Ty<'cx>],
+    pub index_infos: &'cx [&'cx IndexInfo<'cx>],
+}
+
+impl<'cx> ObjectTyKind<'cx> {
+    fn to_string(&self, atoms: &AtomMap<'cx>) -> String {
         match self {
-            ObjectTyKind::Class(_) => "class",
-            ObjectTyKind::Fn(_) => "function",
-            ObjectTyKind::Lit(_) => "Object",
+            ObjectTyKind::Class(_) => "class".to_string(),
+            ObjectTyKind::Fn(_) => "function".to_string(),
+            ObjectTyKind::Lit(_) => "Object".to_string(),
+            ObjectTyKind::Array(ArrayTy { ty }) => format!("{}[]", ty.kind.to_string(atoms)),
+            ObjectTyKind::Interface(_) => "interface".to_string(),
         }
+    }
+
+    pub fn is_reference(&self) -> bool {
+        matches!(self, ObjectTyKind::Interface(_))
     }
 }
 
 #[derive(Debug, Clone, Copy)]
-pub struct ClassTy {}
+pub struct ClassTy {
+    pub symbol: SymbolID,
+}
 
 #[derive(Debug, Clone, Copy)]
 pub struct ObjectLitTy<'cx> {
     pub members: &'cx FxHashMap<AtomId, &'cx Ty<'cx>>,
+    pub symbol: SymbolID,
 }
 
 #[derive(Debug, Clone, Copy)]
 pub struct FnTy<'cx> {
     pub params: &'cx [&'cx Ty<'cx>],
     pub ret: &'cx Ty<'cx>,
+    pub symbol: SymbolID,
 }

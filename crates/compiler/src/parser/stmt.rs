@@ -1,28 +1,78 @@
-use super::list_ctx::{self, ListContext};
+use super::ast;
+use super::list_ctx;
+use super::parse_class_like::ParseClassDecl;
 use super::token::TokenKind;
-use super::{ast, errors};
 use super::{PResult, ParserState};
 
 impl<'cx, 'a, 'p> ParserState<'cx, 'p> {
     pub fn parse_stmt(&mut self) -> PResult<&'cx ast::Stmt<'cx>> {
-        let id = self.p.next_node_id();
-        let stmt = self.with_parent(id, |this| {
-            use TokenKind::*;
-            let kind = match this.token.kind {
-                Semi => ast::StmtKind::Empty(this.parse_empty_stmt()?),
-                Var | Let | Const => ast::StmtKind::Var(this.parse_var_stmt()),
-                Interface => ast::StmtKind::Interface(this.parse_interface_decl()?),
-                Function => ast::StmtKind::Fn(this.parse_fn_decl()?),
-                If => ast::StmtKind::If(this.parse_if_stmt()?),
-                LBrace => ast::StmtKind::Block(this.parse_block()?),
-                Return => ast::StmtKind::Return(this.parse_ret_stmt()?),
-                Class => ast::StmtKind::Class(this.parse_class_decl()?),
-                _ => ast::StmtKind::Expr(this.parse_expr_or_labeled_stmt()?),
-            };
-            let stmt = this.alloc(ast::Stmt { id, kind });
-            Ok(stmt)
-        })?;
+        use TokenKind::*;
+        if matches!(self.token.kind, Abstract | Declare) && self.is_start_of_decl() {
+            return self.parse_decl();
+        }
+        let kind = match self.token.kind {
+            Semi => ast::StmtKind::Empty(self.parse_empty_stmt()?),
+            Var | Let | Const => ast::StmtKind::Var(self.parse_var_stmt()),
+            Interface => ast::StmtKind::Interface(self.parse_interface_decl()?),
+            Function => ast::StmtKind::Fn(self.parse_fn_decl(None)?),
+            If => ast::StmtKind::If(self.parse_if_stmt()?),
+            LBrace => ast::StmtKind::Block(self.parse_block()?),
+            Return => ast::StmtKind::Return(self.parse_ret_stmt()?),
+            Class => ast::StmtKind::Class(self.parse_class_decl(None)?),
+            _ => ast::StmtKind::Expr(self.parse_expr_or_labeled_stmt()?),
+        };
+        let stmt = self.alloc(ast::Stmt { kind });
         Ok(stmt)
+    }
+
+    fn contain_declare_mod(mods: &ast::Modifiers<'cx>) -> bool {
+        mods.list
+            .iter()
+            .any(|m| matches!(m.kind, ast::ModifierKind::Declare))
+    }
+
+    fn _parse_decl(
+        &mut self,
+        mods: Option<&'cx ast::Modifiers<'cx>>,
+    ) -> PResult<&'cx ast::Stmt<'cx>> {
+        use TokenKind::*;
+        let kind = match self.token.kind {
+            Var | Let | Const => ast::StmtKind::Var(self.parse_var_stmt()),
+            Function => ast::StmtKind::Fn(self.parse_fn_decl(mods)?),
+            Class => ast::StmtKind::Class(self.parse_class_decl(mods)?),
+            _ => unreachable!("{:#?}", self.token.kind),
+        };
+        let stmt = self.alloc(ast::Stmt { kind });
+        Ok(stmt)
+    }
+
+    fn parse_decl(&mut self) -> PResult<&'cx ast::Stmt<'cx>> {
+        let mods = self.parse_modifiers()?;
+        if mods.map_or(false, Self::contain_declare_mod) {
+            // todo
+            self._parse_decl(mods)
+        } else {
+            self._parse_decl(mods)
+        }
+    }
+
+    fn parse_interface_extends_clause(
+        &mut self,
+    ) -> PResult<Option<&'cx ast::InterfaceExtendsClause<'cx>>> {
+        if self.token.kind == TokenKind::Extends {
+            let id = self.p.next_node_id();
+            let start = self.token.start();
+            self.next_token();
+            let tys = self.with_parent(id, |this| {
+                this.parse_delimited_list(list_ctx::HeritageClause, Self::parse_expr_with_ty_args)
+            });
+            let span = self.new_span(start as usize, self.pos);
+            let clause = self.alloc(ast::InterfaceExtendsClause { id, span, tys });
+            self.insert_map(id, ast::Node::InterfaceExtendsClause(clause));
+            Ok(Some(clause))
+        } else {
+            Ok(None)
+        }
     }
 
     fn parse_interface_decl(&mut self) -> PResult<&'cx ast::InterfaceDecl<'cx>> {
@@ -31,196 +81,42 @@ impl<'cx, 'a, 'p> ParserState<'cx, 'p> {
         self.expect(TokenKind::Interface)?;
         let name = self.with_parent(id, Self::parse_ident_name)?;
         let ty_params = self.with_parent(id, Self::parse_ty_params)?;
-        let extends = self.with_parent(id, |this| this.parse_heritage_clauses(false))?;
+        let extends = self.with_parent(id, Self::parse_interface_extends_clause)?;
+        // let implements = self.with_parent(id, Self::parse_implements_clause)?;
         let members = self.with_parent(id, Self::parse_object_ty_members)?;
         let decl = self.alloc(ast::InterfaceDecl {
             id,
-            name,
             span: self.new_span(start as usize, self.pos),
-            // extends,
+            name,
             // ty_params,
+            extends,
             members,
         });
+        self.insert_map(id, ast::Node::InterfaceDecl(decl));
         Ok(decl)
     }
 
-    fn parse_class_prop_or_method(&mut self) -> PResult<&'cx ast::ClassEle<'cx>> {
-        let id = self.p.next_node_id();
-        let start = self.token.start();
-        let name = self.with_parent(id, Self::parse_prop_name)?;
-        let ty = self.with_parent(id, Self::parse_ty_anno)?;
-        let ele = if ty.is_some() {
-            // prop
-            let prop = self.alloc(ast::ClassPropEle {
-                id,
-                span: self.new_span(start as usize, self.pos),
-                name,
-            });
-            self.alloc(ast::ClassEle {
-                kind: ast::ClassEleKind::Prop(prop),
-            })
-        } else {
-            todo!()
-        };
-        Ok(ele)
-    }
-
-    fn parse_class_ele(&mut self) -> PResult<&'cx ast::ClassEle<'cx>> {
-        self.parse_class_prop_or_method()
-    }
-
-    fn parse_class_members(&mut self) -> PResult<ast::ClassEles<'cx>> {
-        self.expect(TokenKind::LBrace)?;
-        let eles = self.parse_list(
-            list_ctx::ClassElements::is_ele,
-            Self::parse_class_ele,
-            list_ctx::ClassElements::is_closing,
-        );
-        self.expect(TokenKind::RBrace)?;
-        Ok(eles)
-    }
-
-    fn parse_class_decl(&mut self) -> PResult<&'cx ast::ClassDecl<'cx>> {
-        let start = self.token.start();
-        let id = self.p.next_node_id();
-        self.expect(TokenKind::Class)?;
-        let name = self.parse_ident_name()?;
-        let ty_params = self.parse_ty_params()?;
-        let extends = self.parse_class_extends()?;
-        let implements = self.parse_heritage_clauses(true)?;
-        let eles = self.parse_class_members()?;
-        let decl = self.alloc(ast::ClassDecl {
-            id,
-            name,
-            span: self.new_span(start as usize, self.pos),
-            extends,
-            implements,
-            ty_params,
-            eles,
-        });
-        self.insert_map(id, ast::Node::ClassDecl(decl));
-        Ok(decl)
-    }
-
-    fn parse_heritage_clause(
+    fn parse_class_decl(
         &mut self,
-        is_class_extends: bool,
-    ) -> PResult<&'cx ast::HeritageClause<'cx>> {
-        let id = self.p.next_node_id();
-        let start = self.token.start();
-        self.next_token();
-        let ele_list = self.with_parent(id, |this| {
-            this.parse_delimited_list(
-                list_ctx::HeritageClause::is_ele,
-                Self::parse_expr_with_ty_args,
-                list_ctx::HeritageClause::is_closing,
-            )
-        });
-        let ele_list = if is_class_extends && ele_list.len() > 1 {
-            &ele_list[0..1]
-        } else {
-            ele_list
-        };
-        let span = self.new_span(start as usize, self.pos);
-        let clause = self.alloc(ast::HeritageClause {
-            id,
-            span,
-            tys: ele_list,
-        });
-        self.insert_map(id, ast::Node::HeritageClause(clause));
-        Ok(clause)
+        modifiers: Option<&'cx ast::Modifiers<'cx>>,
+    ) -> PResult<&'cx ast::ClassDecl<'cx>> {
+        self.parse_class_decl_or_expr(ParseClassDecl, modifiers)
     }
 
-    fn parse_class_extends(&mut self) -> PResult<Option<&'cx ast::HeritageClause<'cx>>> {
-        if let Some(kind) = self.token.kind.into_heritage_clause_kind() {
-            if kind == ast::HeritageClauseKind::Extends {
-                let id = self.p.next_node_id();
-                let start = self.token.start();
-                self.next_token();
-                let mut is_first = true;
-                let mut extra_comma_span = None;
-                let mut ele = None;
-                let mut last_ele_span = None;
-                loop {
-                    if list_ctx::HeritageClause::is_ele(self) {
-                        let Ok(e) = self.parse_expr_with_ty_args() else {
-                            break;
-                        };
-                        if is_first {
-                            ele = Some(e);
-                        } else {
-                            last_ele_span = Some(e.span())
-                        }
-                        if list_ctx::HeritageClause::is_closing(self) {
-                            break;
-                        }
-                        let span = self.token.span;
-                        if self.parse_optional(TokenKind::Comma).is_some() {
-                            if is_first {
-                                extra_comma_span = Some(span);
-                            }
-                            is_first = false;
-                            continue;
-                        }
-                        unreachable!()
-                    }
-                    if list_ctx::HeritageClause::is_closing(self) {
-                        break;
-                    }
-                }
-                let ele = ele.unwrap();
-                if let Some(extra_comma_span) = extra_comma_span {
-                    let lo = ele.span().hi;
-                    assert_eq!(
-                        self.input[lo as usize], b',',
-                        "`parse_delimited_list` ensure it must be comma."
-                    );
-                    let hi = last_ele_span
-                        .map(|span| span.hi)
-                        .unwrap_or_else(|| extra_comma_span.hi);
-                    let extra_extends = last_ele_span
-                        .is_some()
-                        .then(|| self.new_span(lo as usize, hi as usize));
-                    let error = errors::ClassesCanOnlyExtendASingleClass {
-                        span: self.new_span(lo as usize, lo as usize),
-                        extra_extends,
-                    };
-                    self.push_error(self.module_id, Box::new(error));
-                }
-                let clause = self.alloc(ast::HeritageClause {
-                    id,
-                    span: ele.span(),
-                    tys: self.alloc([ele]),
-                });
-                self.insert_map(id, ast::Node::HeritageClause(clause));
-                return Ok(Some(clause));
-            }
-        }
-        Ok(None)
-    }
-
-    fn parse_heritage_clauses(
+    pub(super) fn parse_implements_clause(
         &mut self,
-        is_class: bool,
-    ) -> PResult<Option<&'cx ast::HeritageClauses<'cx>>> {
-        if let Some(kind) = self.token.kind.into_heritage_clause_kind() {
-            let is_class_extends = is_class && matches!(kind, ast::HeritageClauseKind::Extends);
+    ) -> PResult<Option<&'cx ast::ImplementsClause<'cx>>> {
+        if self.token.kind == TokenKind::Implements {
             let id = self.p.next_node_id();
             let start = self.token.start();
-            let clauses = self.with_parent(id, |this| {
-                this.parse_list(
-                    list_ctx::HeritageClauses::is_ele,
-                    |this| this.parse_heritage_clause(is_class_extends),
-                    list_ctx::HeritageClauses::is_closing,
-                )
+            self.next_token();
+            let tys = self.with_parent(id, |this| {
+                this.parse_delimited_list(list_ctx::HeritageClause, Self::parse_expr_with_ty_args)
             });
-            let clauses = self.alloc(ast::HeritageClauses {
-                id,
-                span: self.new_span(start as usize, self.pos),
-                clauses,
-            });
-            self.insert_map(id, ast::Node::HeritageClauses(clauses));
-            Ok(Some(clauses))
+            let span = self.new_span(start as usize, self.pos);
+            let clause = self.alloc(ast::ImplementsClause { id, span, tys });
+            self.insert_map(id, ast::Node::ImplementsClause(clause));
+            Ok(Some(clause))
         } else {
             Ok(None)
         }
@@ -229,7 +125,7 @@ impl<'cx, 'a, 'p> ParserState<'cx, 'p> {
     fn parse_empty_stmt(&mut self) -> PResult<&'cx ast::EmptyStmt> {
         let id = self.p.next_node_id();
         let start = self.token.start();
-        self.expect(TokenKind::Semi);
+        self.expect(TokenKind::Semi)?;
         let stmt = self.alloc(ast::EmptyStmt {
             id,
             span: self.new_span(start as usize, self.pos),
@@ -290,44 +186,7 @@ impl<'cx, 'a, 'p> ParserState<'cx, 'p> {
 
     fn parse_var_decl_list(&mut self) -> &'cx [&'cx ast::VarDecl<'cx>] {
         self.next_token();
-        self.parse_delimited_list(
-            list_ctx::VarDecl::is_ele,
-            Self::parse_var_decl,
-            list_ctx::VarDecl::is_closing,
-        )
-    }
-
-    fn parse_param(&mut self) -> PResult<&'cx ast::ParamDecl<'cx>> {
-        let start = self.token.start();
-        let id = self.p.next_node_id();
-        let dotdotdot = self.parse_optional(TokenKind::DotDotDot).map(|t| t.span);
-        let name = self.with_parent(id, Self::parse_ident_name)?;
-        let question = self.parse_optional(TokenKind::Question).map(|t| t.span);
-        let ty = self.with_parent(id, Self::parse_ty_anno)?;
-        let init = self.with_parent(id, Self::parse_init);
-        let decl = self.alloc(ast::ParamDecl {
-            id,
-            span: self.new_span(start as usize, self.pos),
-            dotdotdot,
-            name,
-            question,
-            ty,
-            init,
-        });
-        self.insert_map(id, ast::Node::ParamDecl(decl));
-        Ok(decl)
-    }
-
-    pub(super) fn parse_params(&mut self) -> PResult<ast::ParamsDecl<'cx>> {
-        use TokenKind::*;
-        self.expect(LParen)?;
-        let params = self.parse_delimited_list(
-            list_ctx::Params::is_ele,
-            Self::parse_param,
-            list_ctx::Params::is_closing,
-        );
-        self.expect(RParen)?;
-        Ok(params)
+        self.parse_delimited_list(list_ctx::VarDecl, Self::parse_var_decl)
     }
 
     fn parse_fn_decl_ret_type(&mut self) -> PResult<Option<&'cx ast::Ty<'cx>>> {
@@ -338,7 +197,10 @@ impl<'cx, 'a, 'p> ParserState<'cx, 'p> {
         }
     }
 
-    fn parse_fn_decl(&mut self) -> PResult<&'cx ast::FnDecl<'cx>> {
+    fn parse_fn_decl(
+        &mut self,
+        modifiers: Option<&'cx ast::Modifiers<'cx>>,
+    ) -> PResult<&'cx ast::FnDecl<'cx>> {
         let id = self.p.next_node_id();
         let start = self.token.start();
         self.expect(TokenKind::Function)?;
@@ -346,10 +208,11 @@ impl<'cx, 'a, 'p> ParserState<'cx, 'p> {
         // TODO: type params
         let params = self.with_parent(id, Self::parse_params)?;
         let ret_ty = self.with_parent(id, Self::parse_fn_decl_ret_type)?;
-        let body = self.parse_fn_block()?;
+        let body = self.with_parent(id, Self::parse_fn_block)?;
         let f = self.alloc(ast::FnDecl {
             id,
             span: self.new_span(start as usize, self.pos),
+            modifiers,
             name,
             params,
             ret_ty,
@@ -386,7 +249,7 @@ impl<'cx, 'a, 'p> ParserState<'cx, 'p> {
     fn parse_ret_stmt(&mut self) -> PResult<&'cx ast::RetStmt<'cx>> {
         let id = self.p.next_node_id();
         let start = self.token.start();
-        self.expect(TokenKind::Return);
+        self.expect(TokenKind::Return)?;
         let expr = if self.can_parse_semi() {
             None
         } else {

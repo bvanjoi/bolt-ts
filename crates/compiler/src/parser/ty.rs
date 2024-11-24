@@ -1,5 +1,5 @@
 use super::ast::{self, Node};
-use super::list_ctx::{ListContext, TyMembers};
+use super::list_ctx;
 use super::token::TokenKind;
 use super::{PResult, ParserState};
 
@@ -168,15 +168,12 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         ty
     }
 
-    pub(super) fn parse_expr_with_ty_args(&mut self) -> PResult<&'cx ast::Expr<'cx>> {
-        Ok(self.parse_left_hand_side_expr())
-    }
-
-    fn parse_ty_member_semi(&mut self) {
-        if self.parse_optional(TokenKind::Semi).is_some() {
-            return;
-        }
-        self.parse_semi();
+    pub(super) fn parse_expr_with_ty_args(&mut self) -> PResult<&'cx ast::Ty<'cx>> {
+        let expr = self.parse_left_hand_side_expr();
+        let ty = self.alloc(ast::Ty {
+            kind: ast::TyKind::ExprWithArg(expr),
+        });
+        Ok(ty)
     }
 
     fn parse_prop_or_method_sig(&mut self) -> PResult<&'cx ast::ObjectTyMember<'cx>> {
@@ -195,6 +192,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
                 params,
                 ret,
             });
+            self.insert_map(id, ast::Node::MethodSignature(sig));
             ast::ObjectTyMemberKind::Method(sig)
         } else {
             let ty = self.parse_ty_anno()?;
@@ -204,6 +202,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
                 name,
                 ty,
             });
+            self.insert_map(id, ast::Node::PropSignature(sig));
             ast::ObjectTyMemberKind::Prop(sig)
         };
         let node = self.alloc(ast::ObjectTyMember { kind });
@@ -211,22 +210,47 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         Ok(node)
     }
 
-    fn parse_ty_member(&mut self) -> PResult<&'cx ast::ObjectTyMember<'cx>> {
-        if self.token.kind == TokenKind::LParen {
+    fn parse_sig_member(&mut self, is_call: bool) -> PResult<&'cx ast::ObjectTyMember<'cx>> {
+        let id = self.p.next_node_id();
+        let start = self.token.start();
+
+        if !is_call {
+            self.expect(TokenKind::New);
+        }
+
+        let ty_params = self.parse_ty_params()?;
+        let params = self.parse_params()?;
+        let ty = self.parse_ret_ty(true)?;
+        self.parse_ty_member_semi();
+        let kind = if is_call {
+            let call_sig_decl = self.alloc(ast::CallSigDecl {
+                id,
+                span: self.new_span(start as usize, self.pos),
+                ty_params,
+                params,
+                ty,
+            });
+            self.insert_map(id, ast::Node::CallSigDecl(call_sig_decl));
+            ast::ObjectTyMemberKind::CallSig(call_sig_decl)
+        } else {
             todo!()
+        };
+        Ok(self.alloc(ast::ObjectTyMember { kind }))
+    }
+
+    fn parse_ty_member(&mut self) -> PResult<&'cx ast::ObjectTyMember<'cx>> {
+        if self.token.kind == TokenKind::LParen || self.token.kind == TokenKind::Less {
+            self.parse_sig_member(true)
         } else if self.token.kind == TokenKind::New {
             todo!()
+        } else {
+            self.parse_prop_or_method_sig()
         }
-        self.parse_prop_or_method_sig()
     }
 
     pub(super) fn parse_object_ty_members(&mut self) -> PResult<ast::ObjectTyMembers<'cx>> {
         self.expect(TokenKind::LBrace)?;
-        let members = self.parse_list(
-            TyMembers::is_ele,
-            Self::parse_ty_member,
-            TyMembers::is_closing,
-        );
+        let members = self.parse_list(list_ctx::TyMembers, Self::parse_ty_member);
         self.expect(TokenKind::RBrace)?;
         Ok(members)
     }

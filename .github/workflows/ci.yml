@@ -60,5 +60,5 @@ jobs:
         restore-keys: |
           ${{ runner.os }}-cargo-build-target-
 
-    - name: Run cargo check
-      run: cargo check
+    - name: Run cargo test 
+      run: cargo test

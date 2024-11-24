@@ -1,20 +1,20 @@
 function f0() {
-
+  
 }
 function f1() {
-var n = f0()
+  var n = f0()
 }
 function f2() {
-
+  
 }
 function f3() {
-return 
+  return 
 }
 function f4() {
-return ""
-return 
+  return ""
+  return 
 }
 function f5() {
-return ""
-return undefined
+  return ""
+  return undefined
 }
