@@ -1,6 +1,7 @@
 use super::ast;
 use super::TyChecker;
 use crate::bind::{SymbolID, SymbolName};
+use crate::ty;
 
 bitflags::bitflags! {
     #[derive(Debug, Clone, Copy)]
@@ -15,6 +16,7 @@ pub struct Sig<'cx> {
     pub flags: SigFlags,
     pub params: &'cx [SymbolID],
     pub min_args_count: usize,
+    pub ret_ty: &'cx ty::Ty<'cx>,
 }
 
 impl Sig<'_> {
@@ -28,6 +30,7 @@ enum SigDecl<'cx> {
     ClassDecl(&'cx ast::ClassDecl<'cx>),
     FnExpr(&'cx ast::FnExpr<'cx>),
     ArrowFnExpr(&'cx ast::ArrowFnExpr<'cx>),
+    ClassCtor(&'cx ast::ClassCtor<'cx>),
 }
 
 impl<'cx> SigDecl<'cx> {
@@ -37,6 +40,7 @@ impl<'cx> SigDecl<'cx> {
             SigDecl::ClassDecl(c) => &[],
             SigDecl::FnExpr(f) => f.params,
             SigDecl::ArrowFnExpr(f) => f.params,
+            SigDecl::ClassCtor(f) => f.params,
         }
     }
 
@@ -46,6 +50,7 @@ impl<'cx> SigDecl<'cx> {
             SigDecl::ClassDecl(c) => c.id,
             SigDecl::FnExpr(f) => f.id,
             SigDecl::ArrowFnExpr(f) => f.id,
+            SigDecl::ClassCtor(f) => f.id,
         }
     }
 
@@ -57,8 +62,8 @@ impl<'cx> SigDecl<'cx> {
 }
 
 impl<'cx> TyChecker<'cx> {
-    pub(super) fn get_sig_from_decl(&mut self, node: ast::Node<'cx>) -> Sig<'cx> {
-        let id = node.id();
+    pub(super) fn get_sig_from_decl(&mut self, id: ast::NodeID) -> Sig<'cx> {
+        let node = self.nodes.get(id);
         if !self.node_id_to_sig.contains_key(&id) {
             let sig = get_sig_from_decl(self, node);
             let prev = self.node_id_to_sig.insert(id, sig);
@@ -68,12 +73,13 @@ impl<'cx> TyChecker<'cx> {
     }
 }
 
-fn get_sig_from_decl<'cx>(checker: &TyChecker<'cx>, node: ast::Node<'cx>) -> Sig<'cx> {
+fn get_sig_from_decl<'cx>(checker: &mut TyChecker<'cx>, node: ast::Node<'cx>) -> Sig<'cx> {
     let decl = match node {
         ast::Node::FnDecl(f) => SigDecl::FnDecl(f),
         ast::Node::FnExpr(f) => SigDecl::FnExpr(f),
         ast::Node::ArrowFnExpr(f) => SigDecl::ArrowFnExpr(f),
         ast::Node::ClassDecl(c) => SigDecl::ClassDecl(c),
+        ast::Node::ClassCtor(c) => SigDecl::ClassCtor(c),
         _ => unreachable!("{node:#?}"),
     };
     assert!(!checker.node_id_to_sig.contains_key(&decl.id()));
@@ -109,9 +115,24 @@ fn get_sig_from_decl<'cx>(checker: &TyChecker<'cx>, node: ast::Node<'cx>) -> Sig
         }
     }
     let params: &[SymbolID] = checker.alloc(params);
+    let ret_ty = match node {
+        ast::Node::FnDecl(_) => checker.undefined_ty(),
+        ast::Node::FnExpr(_) => checker.undefined_ty(),
+        ast::Node::ArrowFnExpr(_) => checker.undefined_ty(),
+        ast::Node::ClassDecl(_) => checker.undefined_ty(),
+        ast::Node::ClassCtor(c) => {
+            let Some(class_id) = checker.node_parent_map.parent(c.id) else {
+                unreachable!()
+            };
+            let symbol = checker.get_symbol_of_decl(class_id);
+            checker.get_declared_ty_of_symbol(symbol).unwrap()
+        }
+        _ => unreachable!(),
+    };
     Sig {
         flags,
         params,
         min_args_count,
+        ret_ty,
     }
 }

@@ -314,10 +314,10 @@ impl<'cx, 'a, 'p> ParserState<'cx, 'p> {
             if this.token.kind == TokenKind::Constructor
                 && this.expect(TokenKind::Constructor).is_ok()
             {
-                let ty_params = this.parse_ty_params()?;
-                let params = this.parse_params()?;
-                let ret = this.parse_ret_ty(true)?;
-                let body = this.parse_fn_block()?;
+                let ty_params = this.with_parent(id, Self::parse_ty_params)?;
+                let params = this.with_parent(id, Self::parse_params)?;
+                let ret = this.with_parent(id, |this| this.parse_ret_ty(true))?;
+                let body = this.with_parent(id, Self::parse_fn_block)?;
                 let ctor = this.alloc(ast::ClassCtor {
                     id,
                     span: this.new_span(start, this.pos),

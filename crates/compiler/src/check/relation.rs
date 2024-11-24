@@ -1,24 +1,28 @@
 use rts_span::Span;
 use rustc_hash::FxHashSet;
 
-use crate::{
-    atoms::AtomId,
-    bind::SymbolID,
-    errors,
-    ty::{Ty, TyKind, Tys},
-};
+use crate::atoms::AtomId;
+use crate::bind::SymbolID;
+use crate::errors;
+use crate::ty::{Ty, TyKind, Tys};
 
 use super::TyChecker;
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub(super) enum RelationKind {
     Assignable,
     StrictSubtype,
+    Identity,
 }
 
 impl<'cx> TyChecker<'cx> {
-    fn recur_related_to(&mut self, source: &'cx Ty<'cx>, target: &'cx Ty<'cx>) -> bool {
-        self.structured_related_to(source, target)
+    fn recur_related_to(
+        &mut self,
+        source: &'cx Ty<'cx>,
+        target: &'cx Ty<'cx>,
+        relation: RelationKind,
+    ) -> bool {
+        self.structured_related_to(source, target, relation)
     }
 
     fn has_excess_properties(&mut self, source: &'cx Ty<'cx>, target: &'cx Ty<'cx>) -> bool {
@@ -80,12 +84,18 @@ impl<'cx> TyChecker<'cx> {
         if source.kind.is_structured_or_instantiable()
             || target.kind.is_structured_or_instantiable()
         {
-            self.check_type_related_to(source, target)
+            self.check_type_related_to(source, target, relation)
         } else {
             false
         }
     }
-    fn is_related_to(&mut self, source: &'cx Ty<'cx>, target: &'cx Ty<'cx>) -> bool {
+
+    fn is_related_to(
+        &mut self,
+        source: &'cx Ty<'cx>,
+        target: &'cx Ty<'cx>,
+        relation: RelationKind,
+    ) -> bool {
         if source.id == target.id {
             return true;
         }
@@ -117,7 +127,7 @@ impl<'cx> TyChecker<'cx> {
             if is_performing_excess_property_check && self.has_excess_properties(source, target) {
                 return true;
             }
-            self.recur_related_to(source, target)
+            self.recur_related_to(source, target, relation)
         } else {
             false
         }
@@ -139,12 +149,22 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
-    fn type_arg_related_to(&mut self, source: &'cx Ty<'cx>, target: &'cx Ty<'cx>) -> bool {
-        self.is_related_to(source, target)
+    fn type_arg_related_to(
+        &mut self,
+        source: &'cx Ty<'cx>,
+        target: &'cx Ty<'cx>,
+        relation: RelationKind,
+    ) -> bool {
+        self.is_related_to(source, target, relation)
     }
 
-    fn relate_variances(&mut self, source: &'cx Ty<'cx>, target: &'cx Ty<'cx>) -> Option<bool> {
-        Some(self.type_arg_related_to(source, target))
+    fn relate_variances(
+        &mut self,
+        source: &'cx Ty<'cx>,
+        target: &'cx Ty<'cx>,
+        relation: RelationKind,
+    ) -> Option<bool> {
+        Some(self.type_arg_related_to(source, target, relation))
     }
 
     fn is_empty_array_lit_ty(&self, ty: &'cx Ty<'cx>) -> bool {
@@ -155,20 +175,27 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
-    fn structured_related_to(&mut self, source: &'cx Ty<'cx>, target: &'cx Ty<'cx>) -> bool {
+    fn structured_related_to(
+        &mut self,
+        source: &'cx Ty<'cx>,
+        target: &'cx Ty<'cx>,
+        relation: RelationKind,
+    ) -> bool {
         if source.kind.is_union_or_intersection() || target.kind.is_union_or_intersection() {
-            return self.union_or_intersection_related_to(source, target);
+            return self.union_or_intersection_related_to(source, target, relation);
         }
 
         if let Some(actual) = source.kind.as_array() {
             if let Some(expect) = target.kind.as_array() {
                 if self.is_empty_array_lit_ty(source) {
                     return true;
-                } else if let Some(result) = self.relate_variances(actual.ty, expect.ty) {
+                } else if let Some(result) = self.relate_variances(actual.ty, expect.ty, relation) {
                     return result;
                 }
             }
         }
+
+        if relation != RelationKind::Identity {}
 
         if source.kind.is_object_or_intersection() && target.kind.is_object() {
             self.props_related_to(source, target)
@@ -212,8 +239,13 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
-    fn check_type_related_to(&mut self, source: &'cx Ty<'cx>, target: &'cx Ty<'cx>) -> bool {
-        self.is_related_to(source, target)
+    fn check_type_related_to(
+        &mut self,
+        source: &'cx Ty<'cx>,
+        target: &'cx Ty<'cx>,
+        relation: RelationKind,
+    ) -> bool {
+        self.is_related_to(source, target, relation)
     }
 
     fn each_type_related_to_type(
@@ -221,13 +253,14 @@ impl<'cx> TyChecker<'cx> {
         source: &'cx Ty<'cx>,
         sources: Tys<'cx>,
         target: &'cx Ty<'cx>,
+        relation: RelationKind,
     ) -> bool {
         let mut res = true;
         for (idx, source_ty) in sources.iter().enumerate() {
             // if idx <= targets.len() {
             //     let related = self.is_related_to(source_ty, targets[idx]);
             // }
-            let related = self.is_related_to(source_ty, target);
+            let related = self.is_related_to(source_ty, target, relation);
             if !related {
                 return false;
             }
@@ -239,12 +272,13 @@ impl<'cx> TyChecker<'cx> {
         &mut self,
         source: &'cx Ty<'cx>,
         target: &'cx Ty<'cx>,
+        relation: RelationKind,
     ) -> bool {
         if let TyKind::Union(s) = source.kind {
             // if let TyKind::Union(t) = target.kind {
             // } else {
             // }
-            self.each_type_related_to_type(source, s.tys, target)
+            self.each_type_related_to_type(source, s.tys, target, relation)
         } else {
             false
         }

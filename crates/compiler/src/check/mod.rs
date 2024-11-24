@@ -21,7 +21,7 @@ use rts_span::{ModuleID, Span};
 use rustc_hash::FxHashMap;
 use sig::Sig;
 use symbol_links::SymbolLinks;
-use utils::{get_assignment_kind, AssignmentKind};
+use utils::{find_ancestor, get_assignment_kind, AssignmentKind};
 
 pub use self::resolve::ExpectedArgsCount;
 
@@ -62,6 +62,7 @@ pub struct TyChecker<'cx> {
     node_parent_map: &'cx ParentMap,
     // === global ===
     global_tys: FxHashMap<TyID, &'cx Ty<'cx>>,
+    global_number_ty: std::cell::OnceCell<&'cx Ty<'cx>>,
     boolean_ty: std::cell::OnceCell<&'cx Ty<'cx>>,
     // === resolver ===
     scope_id_parent_map: &'cx FxHashMap<ScopeID, Option<ScopeID>>,
@@ -70,6 +71,8 @@ pub struct TyChecker<'cx> {
     symbols: &'cx Symbols,
     res: &'cx FxHashMap<(ScopeID, SymbolName), SymbolID>,
     final_res: FxHashMap<ast::NodeID, SymbolID>,
+    resolution_tys: thin_vec::ThinVec<SymbolID>,
+    resolution_res: thin_vec::ThinVec<bool>,
 }
 
 macro_rules! intrinsic_type {
@@ -133,6 +136,7 @@ impl<'cx> TyChecker<'cx> {
             arena: ty_arena,
             diags: Vec::with_capacity(32),
             boolean_ty: Default::default(),
+            global_number_ty: Default::default(),
             type_name: FxHashMap::default(),
             scope_id_parent_map,
             node_id_to_scope_id,
@@ -145,6 +149,8 @@ impl<'cx> TyChecker<'cx> {
             global_tys: FxHashMap::default(),
             ty_vars: FxHashMap::default(),
             symbol_links: FxHashMap::default(),
+            resolution_tys: Default::default(),
+            resolution_res: Default::default(),
         };
         for (kind, ty_name) in INTRINSIC_TYPES {
             let ty = ty::TyKind::Intrinsic(ty_arena.alloc(ty::IntrinsicTy { kind: *kind }));
@@ -155,6 +161,9 @@ impl<'cx> TyChecker<'cx> {
         let boolean_ty = this.create_union_type(vec![this.true_ty(), this.false_ty()]);
         this.type_name.insert(boolean_ty.id, "boolean".to_string());
         this.boolean_ty.set(boolean_ty).unwrap();
+
+        // let global_number_ty = 
+        // this.global_number_ty.set(value)
 
         this
     }
@@ -180,6 +189,10 @@ impl<'cx> TyChecker<'cx> {
         self.boolean_ty.get().unwrap()
     }
 
+    fn global_number_ty(&self) -> &'cx Ty<'cx> {
+        self.global_number_ty.get().unwrap()
+    }
+
     fn alloc<T>(&self, t: T) -> &'cx T {
         self.arena.alloc(t)
     }
@@ -200,7 +213,7 @@ impl<'cx> TyChecker<'cx> {
             Fn(f) => self.check_fn_decl(f),
             If(i) => self.check_if_stmt(i),
             Block(block) => self.check_block(block),
-            Return(ret) => self.check_return(ret),
+            Return(ret) => self.check_return_stmt(ret),
             Empty(_) => {}
             Class(class) => self.check_class_decl(class),
             Interface(interface) => self.check_interface_decl(interface),
@@ -230,6 +243,14 @@ impl<'cx> TyChecker<'cx> {
 
     fn is_applicable_index_ty(&mut self, source: &'cx Ty<'cx>, target: &'cx Ty<'cx>) -> bool {
         self.is_type_assignable_to(source, target)
+    }
+
+    fn get_apparent_ty(&mut self, ty: &'cx ty::Ty<'cx>) -> &'cx ty::Ty<'cx> {
+        if ty.kind.is_number_like() {
+            self.global_number_ty()
+        } else {
+            ty
+        }
     }
 
     fn get_applicable_index_infos(
@@ -275,7 +296,7 @@ impl<'cx> TyChecker<'cx> {
                     span: prop_node.span(),
                     prop: prop_name.to_string(),
                     ty_b: prop_ty.kind.to_string(self.atoms),
-                    ty_c: index_info.val_ty.kind.to_string(self.atoms),
+                    ty_c: index_info.key_ty.kind.to_string(self.atoms),
                     index_ty_d: index_info.val_ty.kind.to_string(self.atoms),
                 };
                 self.push_error(prop_node.span().module, Box::new(error));
@@ -285,7 +306,6 @@ impl<'cx> TyChecker<'cx> {
 
         if let Some(i) = ty.kind.as_interface() {
             for base_ty in i.base_tys {
-                dbg!(base_ty);
                 self.check_index_constraint_for_prop(base_ty, prop, prop_name_ty, prop_ty);
             }
         } else {
@@ -317,9 +337,34 @@ impl<'cx> TyChecker<'cx> {
         self.check_class_like_decl(class)
     }
 
-    fn check_return(&mut self, ret: &ast::RetStmt<'cx>) {
-        if let Some(expr) = ret.expr {
-            self.check_expr(expr);
+    fn get_containing_fn_or_class_static_block(&self, node: ast::NodeID) -> Option<ast::NodeID> {
+        find_ancestor(self.nodes, self.node_parent_map, node, |node| {
+            if node.is_fn_like_or_class_static_block_decl() {
+                Some(true)
+            } else {
+                None
+            }
+        })
+    }
+
+    fn check_return_stmt(&mut self, ret: &ast::RetStmt<'cx>) {
+        let Some(container) = self.get_containing_fn_or_class_static_block(ret.id) else {
+            // delay bug
+            return;
+        };
+        let sig = self.get_sig_from_decl(container);
+        let expr_ty = ret
+            .expr
+            .map(|expr| self.check_expr(expr))
+            .unwrap_or(self.undefined_ty());
+        if matches!(self.nodes.get(container), ast::Node::ClassCtor(_)) {
+            if let Some(expr) = ret.expr {
+                self.check_type_assignable_to_and_optionally_elaborate(
+                    expr.span(),
+                    expr_ty,
+                    sig.ret_ty,
+                );
+            }
         }
     }
 
@@ -543,20 +588,17 @@ impl<'cx> TyChecker<'cx> {
     }
 
     fn is_used_in_fn_or_instance_prop(&self, used: &'cx ast::Ident, decl: ast::NodeID) -> bool {
-        let mut current = Some(used.id);
-        loop {
-            let Some(c) = current else {
-                break;
-            };
-            let node = self.nodes.get(c);
-            if node.id() == decl {
-                return false;
-            } else if node.is_fn_like() {
-                return true;
+        find_ancestor(self.nodes, self.node_parent_map, used.id, |current| {
+            if current.id() == decl {
+                return Some(false);
+            } else if current.is_fn_like() {
+                return Some(true);
+            } else if current.is_class_static_block_decl() {
+                return Some(self.nodes.get(decl).span().lo < used.span.lo);
             }
-            current = self.node_parent_map.parent(c);
-        }
-        false
+            None
+        })
+        .is_some()
     }
 
     fn is_block_scoped_name_declared_before_use(
@@ -565,7 +607,8 @@ impl<'cx> TyChecker<'cx> {
         used: &'cx ast::Ident,
     ) -> bool {
         let used_span = used.span;
-        let decl_pos = self.nodes.get(decl).span().hi;
+        let decl_span = self.nodes.get(decl).span();
+        let decl_pos = decl_span.lo;
         if decl_pos < used_span.lo {
             return true;
         }
@@ -650,67 +693,6 @@ impl<'cx> TyChecker<'cx> {
         let l = self.check_expr(node.left);
         let r = self.check_expr(node.right);
         self.check_bin_like_expr(node, node.op, node.left, l, node.right, r)
-
-        // #[derive(Debug, PartialEq, Eq, Clone, Copy)]
-        // enum State {
-        //     Enter,
-        //     Left,
-        //     Op,
-        //     Right,
-        //     Exit,
-        //     Done,
-        // }
-
-        // impl State {
-        //     fn next(self) -> State {
-        //         let len = State::Done as u8;
-        //         let next = u8::min((self as u8) + 1, len);
-        //         unsafe { std::mem::transmute(next) }
-        //     }
-        // }
-
-        // #[derive(Debug, Clone, Copy)]
-        // struct WorkArea {
-        //     types: [Option<TyID>; 2],
-        // }
-
-        // let mut states = vec![State::Enter];
-        // // let stack = vec![node];
-        // let mut ty_states = vec![];
-        // let index = 0;
-        // while states[index] != State::Done {
-        //     match states[index] {
-        //         State::Enter => {
-        //             states[index] = State::Left;
-        //             ty_states.push(WorkArea {
-        //                 types: [None, None],
-        //             });
-        //         }
-        //         State::Left => {
-        //             states[index] = State::Op;
-        //             let l = self.check_expr(node.left);
-        //             ty_states[index].types[0] = Some(l.id);
-        //         }
-        //         State::Op => {
-        //             states[index] = State::Right;
-        //         }
-        //         State::Right => {
-        //             states[index] = State::Exit;
-        //             let r = self.check_expr(node.left);
-        //             ty_states[index].types[1] = Some(r.id);
-        //         }
-        //         State::Exit => {
-        //             states[index] = State::Done;
-        //             let l = self.tys[&ty_states[index].types[0].unwrap()];
-        //             let r = self.tys[&ty_states[index].types[0].unwrap()];
-        //             return self.check_bin_like_expr(node, node.op, node.left, l, node.right, r);
-        //         }
-        //         State::Done => {
-        //             unreachable!()
-        //         }
-        //     }
-        // };
-        // unreachable!();
     }
 
     fn check_non_null_type(&mut self, expr: &'cx ast::Expr) -> &'cx Ty<'cx> {

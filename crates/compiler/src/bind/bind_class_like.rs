@@ -1,4 +1,4 @@
-use super::{Binder, Symbol, SymbolID, SymbolKind, SymbolName};
+use super::{Binder, SymbolID, SymbolKind, SymbolName};
 use crate::ast;
 use rustc_hash::FxHashMap;
 use thin_vec::thin_vec;
@@ -64,13 +64,27 @@ impl<'cx> Binder<'cx> {
         self.create_final_res(decl.id, symbol);
         symbol
     }
-    fn create_class_prop_ele(&mut self, ele: &'cx ast::ClassPropEle<'cx>) {
+
+    fn create_class_prop_ele(
+        &mut self,
+        decl_id: ast::NodeID,
+        ele: &'cx ast::ClassPropEle<'cx>,
+    ) -> SymbolID {
         let name = match ele.name.kind {
             ast::PropNameKind::Ident(ident) => ident.name,
         };
         let name = SymbolName::Ele(name);
         let symbol = self.create_symbol(name, SymbolKind::Property { decl: ele.id });
+        let Some(class_symbol_id) = self.final_res.get(&decl_id).copied() else {
+            unreachable!()
+        };
+        let SymbolKind::Class { members, .. } = &mut self.symbols.get_mut(class_symbol_id).kind
+        else {
+            unreachable!()
+        };
+        members.insert(name, symbol);
         self.create_final_res(ele.id, symbol);
+        symbol
     }
 
     fn create_class_fn_like_ele(
@@ -153,8 +167,8 @@ impl<'cx> Binder<'cx> {
         }
     }
 
-    fn bind_class_prop_ele(&mut self, ele: &'cx ast::ClassPropEle<'cx>) {
-        self.create_class_prop_ele(ele);
+    fn bind_class_prop_ele(&mut self, decl_id: ast::NodeID, ele: &'cx ast::ClassPropEle<'cx>) {
+        self.create_class_prop_ele(decl_id, ele);
         if let Some(ty) = ele.ty {
             self.bind_ty(ty);
         }
@@ -175,7 +189,7 @@ impl<'cx> Binder<'cx> {
         self.scope_id = self.new_scope();
         for ele in class.elems().eles {
             match ele.kind {
-                ast::ClassEleKind::Prop(n) => self.bind_class_prop_ele(n),
+                ast::ClassEleKind::Prop(n) => self.bind_class_prop_ele(class.id(), n),
                 ast::ClassEleKind::Method(n) => self.bind_class_method_ele(class.id(), n),
                 ast::ClassEleKind::Ctor(n) => self.bind_class_ctor(class.id(), n),
                 ast::ClassEleKind::IndexSig(n) => {

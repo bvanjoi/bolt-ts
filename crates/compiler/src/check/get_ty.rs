@@ -19,6 +19,9 @@ impl<'cx> TyChecker<'cx> {
             BlockScopedVar => return self.undefined_ty(),
             Class { .. } => {
                 let ty = self.get_type_of_class_decl(id);
+                if let Some(ty) = self.get_symbol_links(id).get_ty() {
+                    return ty;
+                }
                 self.get_mut_symbol_links(id).set_ty(ty);
                 ty
             }
@@ -32,26 +35,14 @@ impl<'cx> TyChecker<'cx> {
         ty
     }
 
-    fn get_effective_base_type_node(&self, id: ast::NodeID) -> Option<&'cx ast::Expr<'cx>> {
-        let n = self.nodes.get(id);
-        if let ast::Node::ClassDecl(class) = n {
-            if let Some(extends) = class.extends {
-                return Some(&extends.expr);
-            }
-        }
-
-        None
-    }
-
     fn get_base_type_variable_of_class(&mut self, symbol: SymbolID) -> &'cx Ty<'cx> {
-        let decl = match self.symbols.get(symbol).kind {
-            crate::bind::SymbolKind::Class { decl, .. } => decl,
-            _ => unreachable!(),
+        let Some(class_ty) = self.get_declared_ty_of_symbol(symbol) else {
+            unreachable!()
         };
-        let Some(base) = self.get_effective_base_type_node(decl) else {
-            return self.undefined_ty();
+        let Some(i) = class_ty.kind.as_interface() else {
+            unreachable!()
         };
-        self.check_expr(base)
+        i.base_ctor_ty.unwrap()
     }
 
     fn get_type_of_prop(&mut self, symbol: SymbolID) -> &'cx Ty<'cx> {
@@ -124,6 +115,23 @@ impl<'cx> TyChecker<'cx> {
         todo!()
     }
 
+    pub(super) fn get_type_from_ty_reference(&mut self, expr: &'cx ast::Expr<'cx>) -> &'cx Ty<'cx> {
+        // TODO: cache
+        if let ast::ExprKind::Ident(ident) = expr.kind {
+            let id = self.resolve_symbol_by_ident(ident);
+            if id == Symbol::ERR {
+                if let Some(error) = self.check_using_type_as_value(ident) {
+                    self.push_error(ident.span.module, error);
+                }
+                return self.error_ty();
+            }
+            self.get_declared_ty_of_symbol(id).unwrap()
+        } else {
+            // TODO:
+            self.undefined_ty()
+        }
+    }
+
     pub(super) fn get_ty_from_type_node(&mut self, ty: &'cx ast::Ty<'cx>) -> &'cx Ty<'cx> {
         // TODO: cache
         use ast::TyKind::*;
@@ -180,20 +188,7 @@ impl<'cx> TyChecker<'cx> {
                     symbol: self.final_res[&lit.id],
                 })
             }
-            ExprWithArg(expr) => {
-                if let ast::ExprKind::Ident(ident) = expr.kind {
-                    let id = self.resolve_symbol_by_ident(ident);
-                    if id == Symbol::ERR {
-                        if let Some(error) = self.check_using_type_as_value(ident) {
-                            self.push_error(ident.span.module, error);
-                        }
-                        return self.error_ty();
-                    }
-                    self.get_declared_ty_of_symbol(id).unwrap()
-                } else {
-                    self.undefined_ty()
-                }
-            }
+            ExprWithArg(expr) => self.get_type_from_ty_reference(expr)
         }
     }
 

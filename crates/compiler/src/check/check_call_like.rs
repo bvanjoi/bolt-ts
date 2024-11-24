@@ -153,8 +153,7 @@ impl<'cx> TyChecker<'cx> {
         let mut min_required_params = usize::MAX;
         let mut max_required_params = usize::MIN;
         for decl in decls {
-            let node = self.nodes.get(*decl);
-            let sig = self.get_sig_from_decl(node);
+            let sig = self.get_sig_from_decl(*decl);
 
             if sig.min_args_count < min_required_params {
                 min_required_params = sig.min_args_count;
@@ -167,8 +166,7 @@ impl<'cx> TyChecker<'cx> {
         }
 
         // FIXME: overload
-        let node = self.nodes.get(decls[0]);
-        let sig = self.get_sig_from_decl(node);
+        let sig = self.get_sig_from_decl(decls[0]);
         if sig.flags.contains(SigFlags::HAS_ABSTRACT) {
             let error = errors::CannotCreateAnInstanceOfAnAbstractClass {
                 span: expr.callee().span(),

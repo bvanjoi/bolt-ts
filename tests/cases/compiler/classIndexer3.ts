@@ -4,7 +4,7 @@ class C123 {
     }
 }
 
-interface D123 extends C123 {
+class D123 extends C123 {
     x: number;
     y: string;
     //~^ ERROR: Property 'y' of type 'string' is not assignable to 'string' index type 'number'.

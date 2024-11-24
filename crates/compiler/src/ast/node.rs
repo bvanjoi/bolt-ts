@@ -190,8 +190,12 @@ impl Node<'_> {
     }
 
     pub fn is_class_static_block_decl(&self) -> bool {
-        todo!();
+        false
         // use Node::*;
         // matches!(self, _)
+    }
+
+    pub fn is_fn_like_or_class_static_block_decl(&self) -> bool {
+        self.is_fn_like() || self.is_class_static_block_decl()
     }
 }

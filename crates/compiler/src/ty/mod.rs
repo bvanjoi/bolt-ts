@@ -9,15 +9,22 @@ use rustc_hash::FxHashMap;
 rts_span::new_index!(TyID);
 rts_span::new_index!(TyVarID);
 
+bitflags::bitflags! {
+    #[derive(Debug, Clone, Copy)]
+    pub struct TyFlags: u16 {
+    }
+}
+
 #[derive(Debug, Clone, Copy)]
 pub struct Ty<'cx> {
+    pub flags: TyFlags,
     pub kind: TyKind<'cx>,
     pub id: TyID,
 }
 
 impl<'cx> Ty<'cx> {
     pub fn new(id: TyID, kind: TyKind<'cx>) -> Self {
-        Self { kind, id }
+        Self { kind, id, flags: TyFlags::empty() }
     }
 }
 
@@ -151,7 +158,7 @@ impl<'cx> TyKind<'cx> {
             false
         }
     }
-
+    
     pub fn is_fresh(&self) -> bool {
         self.is_lit()
     }
@@ -220,6 +227,7 @@ impl<'cx> TyKind<'cx> {
             None
         }
     }
+
 }
 
 pub type Tys<'cx> = &'cx [&'cx Ty<'cx>];
@@ -301,6 +309,11 @@ impl IntrinsicTyKind {
         use IntrinsicTyKind::*;
         matches!(self, Null | Undefined)
     }
+    
+    fn is_any(&self) -> bool {
+        use IntrinsicTyKind::*;
+        matches!(self, Any)
+    }
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -334,6 +347,7 @@ pub struct InterfaceTy<'cx> {
     pub declared_props: &'cx [SymbolID],
     pub base_tys: &'cx [&'cx Ty<'cx>],
     pub index_infos: &'cx [&'cx IndexInfo<'cx>],
+    pub base_ctor_ty: Option<&'cx Ty<'cx>>,
 }
 
 impl<'cx> ObjectTyKind<'cx> {

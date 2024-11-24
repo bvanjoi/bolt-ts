@@ -1,4 +1,4 @@
-use crate::ast;
+use crate::{ast, parser};
 
 use super::TyChecker;
 
@@ -36,5 +36,29 @@ pub fn get_assignment_kind(checker: &TyChecker, id: ast::NodeID) -> AssignmentKi
         ast::Node::AssignExpr(_) => AssignmentKind::Definite,
         ast::Node::BinExpr(_) => AssignmentKind::Definite,
         _ => AssignmentKind::Definite,
+    }
+}
+
+pub fn find_ancestor<'cx>(
+    nodes: &parser::Nodes<'cx>,
+    parent_map: &'cx parser::ParentMap,
+    id: ast::NodeID,
+    cb: impl Fn(ast::Node<'cx>) -> Option<bool>,
+) -> Option<ast::NodeID> {
+    let mut id = id;
+    loop {
+        let node = nodes.get(id);
+        if let Some(res) = cb(node) {
+            if res {
+                return Some(id);
+            } else {
+                return None;
+            }
+        }
+        if let Some(next) = parent_map.parent(id) {
+            id = next
+        } else {
+            return None;
+        }
     }
 }

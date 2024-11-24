@@ -49,6 +49,10 @@ impl<'cx> TyChecker<'cx> {
         if decls[0] == ctor.id {
             self.check_fn_like_symbol(symbol);
         }
+
+        if let Some(body) = ctor.body {
+            self.check_block(body);
+        }
     }
 
     fn check_class_method_ele(&mut self, method: &'cx ast::ClassMethodEle<'cx>) {
@@ -61,8 +65,11 @@ impl<'cx> TyChecker<'cx> {
 
     pub(super) fn check_class_like_decl(&mut self, class: &impl ClassLikeDecl<'cx>) {
         let symbol = self.get_symbol_of_decl(class.id());
-        self.get_declared_ty_of_symbol(symbol);
+        let Some(ty) = self.get_declared_ty_of_symbol(symbol) else {
+            unreachable!()
+        };
         let static_ty = self.get_type_of_symbol(symbol);
+        self.check_index_constraints(ty, symbol);
 
         if let Some(impls) = class.implements() {
             for ty in impls.tys {
