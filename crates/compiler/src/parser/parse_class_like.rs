@@ -76,7 +76,7 @@ pub(super) trait ClassLike<'cx, 'p> {
 }
 
 pub(super) struct ParseClassDecl;
-impl<'cx, 'a, 'p> ClassLike<'cx, 'p> for ParseClassDecl {
+impl<'cx, 'p> ClassLike<'cx, 'p> for ParseClassDecl {
     type Node = &'cx ast::ClassDecl<'cx>;
     fn parse_name(&self, state: &mut ParserState<'cx, 'p>) -> PResult<Option<&'cx ast::Ident>> {
         state.parse_ident_name().map(|n| Some(n))
@@ -110,7 +110,7 @@ impl<'cx, 'a, 'p> ClassLike<'cx, 'p> for ParseClassDecl {
 }
 
 pub(super) struct ParseClassExpr;
-impl<'cx, 'a, 'p> ClassLike<'cx, 'p> for ParseClassExpr {
+impl<'cx, 'p> ClassLike<'cx, 'p> for ParseClassExpr {
     type Node = &'cx ast::ClassExpr<'cx>;
     fn parse_name(&self, state: &mut ParserState<'cx, 'p>) -> PResult<Option<&'cx ast::Ident>> {
         Ok(
@@ -145,7 +145,7 @@ impl<'cx, 'a, 'p> ClassLike<'cx, 'p> for ParseClassExpr {
     }
 }
 
-impl<'cx, 'a, 'p> ParserState<'cx, 'p> {
+impl<'cx, 'p> ParserState<'cx, 'p> {
     pub(super) fn parse_class_decl_or_expr<Node>(
         &mut self,
         mode: impl ClassLike<'cx, 'p, Node = Node>,
@@ -154,7 +154,7 @@ impl<'cx, 'a, 'p> ParserState<'cx, 'p> {
         use TokenKind::*;
         let start = self.token.start();
         self.expect(Class)?;
-        let id = self.p.next_node_id();
+        let id = self.next_node_id();
         let name = self.with_parent(id, |this| mode.parse_name(this))?;
         let ty_params = self.with_parent(id, Self::parse_ty_params)?;
         let extends = self.with_parent(id, Self::parse_class_extends_clause)?;
@@ -168,7 +168,7 @@ impl<'cx, 'a, 'p> ParserState<'cx, 'p> {
 
     fn parse_class_extends_clause(&mut self) -> PResult<Option<&'cx ast::ClassExtendsClause<'cx>>> {
         if self.token.kind == TokenKind::Extends {
-            let id = self.p.next_node_id();
+            let id = self.next_node_id();
             let start = self.token.start();
             self.next_token();
             let mut is_first = true;
@@ -377,7 +377,7 @@ impl<'cx, 'a, 'p> ParserState<'cx, 'p> {
     }
 
     fn parse_class_ele(&mut self) -> PResult<&'cx ast::ClassEle<'cx>> {
-        let id = self.p.next_node_id();
+        let id = self.next_node_id();
         let start = self.token.start() as usize;
         let modifiers = self.with_parent(id, Self::parse_modifiers)?;
         if self.parse_contextual_modifier(TokenKind::Get) {

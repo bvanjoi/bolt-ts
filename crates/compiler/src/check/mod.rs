@@ -125,7 +125,7 @@ impl<'cx> TyChecker<'cx> {
         res: &'cx FxHashMap<(ScopeID, SymbolName), SymbolID>,
         final_res: FxHashMap<ast::NodeID, SymbolID>,
     ) -> Self {
-        assert!(ty_arena.allocation_limit().is_none());
+        assert!(ty_arena.allocated_bytes() == 0);
         let mut this = Self {
             intrinsic_tys: FxHashMap::default(),
             atoms,

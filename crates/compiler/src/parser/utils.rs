@@ -8,7 +8,7 @@ pub(super) fn is_left_hand_side_expr_kind(expr: &ast::Expr) -> bool {
     matches!(expr.kind, PropAccess(_) | Ident(_) | New(_) | Call(_))
 }
 
-impl<'cx, 'a, 'p> ParserState<'cx, 'p> {
+impl<'cx, 'p> ParserState<'cx, 'p> {
     pub(super) fn is_decl(&mut self) -> bool {
         use TokenKind::*;
         loop {
@@ -87,7 +87,7 @@ impl<'cx, 'a, 'p> ParserState<'cx, 'p> {
     }
 
     pub(super) fn parse_block(&mut self) -> PResult<&'cx ast::BlockStmt<'cx>> {
-        let id = self.p.next_node_id();
+        let id = self.next_node_id();
         let start = self.token.start();
         use TokenKind::*;
         self.expect(LBrace)?;
@@ -128,7 +128,7 @@ impl<'cx, 'a, 'p> ParserState<'cx, 'p> {
     }
 
     fn parse_ty_param(&mut self) -> PResult<&'cx ast::TyParam<'cx>> {
-        let id = self.p.next_node_id();
+        let id = self.next_node_id();
         let start = self.token.start();
         let name = self.with_parent(id, Self::parse_binding_ident);
         let ty_param = self.alloc(ast::TyParam {
@@ -234,7 +234,7 @@ impl<'cx, 'a, 'p> ParserState<'cx, 'p> {
         {
             return Ok(None);
         }
-        let id = self.p.next_node_id();
+        let id = self.next_node_id();
         let kind = t.into();
         let m = self.alloc(ast::Modifier { id, span, kind });
         self.insert_map(id, ast::Node::Modifier(m));
@@ -306,7 +306,7 @@ impl<'cx, 'a, 'p> ParserState<'cx, 'p> {
 
     pub(super) fn parse_param(&mut self) -> PResult<&'cx ast::ParamDecl<'cx>> {
         let start = self.token.start();
-        let id = self.p.next_node_id();
+        let id = self.next_node_id();
         let dotdotdot = self.parse_optional(TokenKind::DotDotDot).map(|t| t.span);
         let name = self.with_parent(id, Self::parse_ident_name)?;
         let question = self.parse_optional(TokenKind::Question).map(|t| t.span);

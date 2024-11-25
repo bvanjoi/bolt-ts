@@ -30,7 +30,7 @@ fn is_line_break(ch: u8) -> bool {
     ch == b'\n' || ch == b'\r'
 }
 
-impl<'cx, 'a, 'p> ParserState<'cx, 'p> {
+impl<'cx, 'p> ParserState<'cx, 'p> {
     fn ch(&self) -> Option<u8> {
         self.input.get(self.pos).copied()
     }
@@ -140,7 +140,7 @@ impl<'cx, 'a, 'p> ParserState<'cx, 'p> {
                     return Token::new(kind, span);
                 }
             }
-            self.p.atoms.insert_if_not_exist(id, || unsafe {
+            self.atoms.insert_if_not_exist(id, || unsafe {
                 Cow::Owned(String::from_utf8_unchecked(raw.to_vec()))
             });
             self.token_value = Some(TokenValue::Ident { value: id });
@@ -371,7 +371,7 @@ impl<'cx, 'a, 'p> ParserState<'cx, 'p> {
                 b'\'' | b'"' => {
                     let (offset, v) = self.scan_string(ch);
                     self.pos += offset;
-                    let atom = self.p.atoms.insert_by_vec(v);
+                    let atom = self.atoms.insert_by_vec(v);
                     self.token_value = Some(TokenValue::Ident { value: atom });
                     Token::new(TokenKind::String, self.new_span(start, self.pos))
                 }
@@ -401,7 +401,7 @@ impl<'cx, 'a, 'p> ParserState<'cx, 'p> {
                 break;
             } else if self.ch_unchecked() == b'`' {
                 self.pos += 1;
-                let atom = self.p.atoms.insert_by_vec(v);
+                let atom = self.atoms.insert_by_vec(v);
                 self.token_value = Some(TokenValue::Ident { value: atom });
                 break;
             } else if self.ch_unchecked() == b'$' && self.next_ch() == Some(b'{') {

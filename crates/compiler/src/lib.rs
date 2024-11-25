@@ -8,11 +8,14 @@ mod keyword;
 pub mod parser;
 mod ty;
 
+use std::borrow::Cow;
 use std::path::PathBuf;
 
 use atoms::AtomMap;
 use bind::Binder;
-use bolt_ts_span::{ModuleArena, ModulePath};
+use bolt_ts_span::{ModuleArena, ModuleID, ModulePath};
+use parser::token::TokenKind;
+use rustc_hash::FxHashMap;
 
 type Diag = Box<dyn bolt_ts_errors::miette::Diagnostic + Send + Sync + 'static>;
 
@@ -33,26 +36,39 @@ fn current_exe_dir() -> std::path::PathBuf {
 pub fn eval_from(m: ModulePath) -> Output {
     let mut module_arena = ModuleArena::new();
     let m = module_arena.new_module(m);
-    let input = module_arena.content_map.get(&m.id).unwrap();
-    let atoms = AtomMap::default();
+    let mut atoms = AtomMap::default();
+    // atom init
+    if cfg!(debug_assertions) {
+        for (idx, (name, _)) in keyword::KEYWORDS.iter().enumerate() {
+            let t = unsafe { std::mem::transmute::<u8, TokenKind>(idx as u8) };
+            assert!(t.is_keyword());
+            assert_eq!(format!("{t:?}").to_lowercase(), *name);
+        }
+    }
+    for (atom, id) in keyword::KEYWORDS {
+        atoms.insert(*id, Cow::Borrowed(atom));
+    }
+    for (atom, id) in keyword::IDENTIFIER {
+        atoms.insert(*id, Cow::Borrowed(atom))
+    }
 
     // parser
-    let ast_arena = bumpalo::Bump::new();
-    let mut p = parser::Parser::new(&ast_arena, atoms);
-    let mut s = parser::ParserState::new(&mut p, input.as_bytes(), m.id);
-    let root = s.parse();
-
-    let parse_diags = s.steal_diags();
+    let mut p = parser::Parser::new();
+    let parse_arena = bumpalo::Bump::new();
+    let result = parser::parse(&mut atoms, &parse_arena, &module_arena, m.id);
+    p.insert(m.id, result);
 
     let dir = current_exe_dir();
     for (_, file) in bolt_ts_lib::LIB_ENTIRES {
-        let p = dir.join(file);
-        module_arena.new_module(ModulePath::Real(p));
+        let m = module_arena.new_module(ModulePath::Real(dir.join(file)));
+        let result = parser::parse(&mut atoms, &parse_arena, &module_arena, m.id);
+        assert!(result.diags.is_empty());
+        p.insert(m.id, result)
     }
 
     // bind
-    let mut binder = bind::Binder::new(&p.atoms);
-    binder.bind_program(root);
+    let mut binder = bind::Binder::new(&atoms);
+    binder.bind_program(p.get(m.id).root);
     let Binder {
         scope_id_parent_map,
         node_id_to_scope_id,
@@ -66,22 +82,22 @@ pub fn eval_from(m: ModulePath) -> Output {
     let ty_arena = bumpalo::Bump::new();
     let mut c = check::TyChecker::new(
         &ty_arena,
-        &p.nodes,
-        &p.parent_map,
-        &p.atoms,
+        &p.get(m.id).nodes(),
+        &p.get(m.id).parent_map(),
+        &atoms,
         &scope_id_parent_map,
         &node_id_to_scope_id,
         &symbols,
         &res,
         final_res,
     );
-    c.check_program(root);
+    c.check_program(p.get(m.id).root);
 
     // emit
     let mut emitter = emit::Emit::new(&c.atoms);
-    let output = emitter.emit(root);
+    let output = emitter.emit(p.get(m.id).root);
 
-    let diags: Vec<_> = parse_diags.into_iter().chain(c.diags.into_iter()).collect();
+    let diags: Vec<_> = c.diags.into_iter().chain(p.steal_errors(m.id)).collect();
     Output {
         module_arena,
         diags,

@@ -65,7 +65,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
     }
 
     fn parse_fn_or_ctor_ty(&mut self) -> PResult<&'cx ast::Ty<'cx>> {
-        let id = self.p.next_node_id();
+        let id = self.next_node_id();
         let start = self.token.start();
         // let ty_params = self.with_parent(id, Self::parse_ty_params);
         let params = self.with_parent(id, Self::parse_params)?;
@@ -101,7 +101,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         let ty = self.parse_non_array_ty()?;
         match self.token.kind {
             TokenKind::LBracket => {
-                let id = self.p.next_node_id();
+                let id = self.next_node_id();
                 self.expect(TokenKind::LBracket)?;
                 if self.token.kind.is_start_of_type() {
                     // let index_ty = self.parse_ty()?;
@@ -109,7 +109,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
                     todo!()
                 } else {
                     self.expect(TokenKind::RBracket)?;
-                    self.p.parent_map.r#override(ty.id(), id);
+                    self.parent_map.r#override(ty.id(), id);
                     let kind = self.alloc(ast::ArrayTy {
                         id,
                         span: self.new_span(ty.span().lo as usize, self.pos),
@@ -147,7 +147,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
 
     fn parse_ty_lit(&mut self) -> PResult<&'cx ast::Ty<'cx>> {
         let start = self.token.start();
-        let id = self.p.next_node_id();
+        let id = self.next_node_id();
         let members = self.with_parent(id, Self::parse_object_ty_members)?;
         let kind = self.alloc(ast::LitTy {
             id,
@@ -177,7 +177,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
     }
 
     fn parse_prop_or_method_sig(&mut self) -> PResult<&'cx ast::ObjectTyMember<'cx>> {
-        let id = self.p.next_node_id();
+        let id = self.next_node_id();
         let start = self.token.start();
         let name = self.with_parent(id, Self::parse_prop_name)?;
         let kind = if self.token.kind == TokenKind::LParen {
@@ -211,7 +211,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
     }
 
     fn parse_sig_member(&mut self, is_call: bool) -> PResult<&'cx ast::ObjectTyMember<'cx>> {
-        let id = self.p.next_node_id();
+        let id = self.next_node_id();
         let start = self.token.start();
 
         if !is_call {

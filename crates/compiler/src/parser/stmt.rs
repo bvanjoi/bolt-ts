@@ -4,7 +4,7 @@ use super::parse_class_like::ParseClassDecl;
 use super::token::TokenKind;
 use super::{PResult, ParserState};
 
-impl<'cx, 'a, 'p> ParserState<'cx, 'p> {
+impl<'cx, 'p> ParserState<'cx, 'p> {
     pub fn parse_stmt(&mut self) -> PResult<&'cx ast::Stmt<'cx>> {
         use TokenKind::*;
         if matches!(self.token.kind, Abstract | Declare) && self.is_start_of_decl() {
@@ -60,7 +60,7 @@ impl<'cx, 'a, 'p> ParserState<'cx, 'p> {
         &mut self,
     ) -> PResult<Option<&'cx ast::InterfaceExtendsClause<'cx>>> {
         if self.token.kind == TokenKind::Extends {
-            let id = self.p.next_node_id();
+            let id = self.next_node_id();
             let start = self.token.start();
             self.next_token();
             let tys = self.with_parent(id, |this| {
@@ -76,7 +76,7 @@ impl<'cx, 'a, 'p> ParserState<'cx, 'p> {
     }
 
     fn parse_interface_decl(&mut self) -> PResult<&'cx ast::InterfaceDecl<'cx>> {
-        let id = self.p.next_node_id();
+        let id = self.next_node_id();
         let start = self.token.start();
         self.expect(TokenKind::Interface)?;
         let name = self.with_parent(id, Self::parse_ident_name)?;
@@ -107,7 +107,7 @@ impl<'cx, 'a, 'p> ParserState<'cx, 'p> {
         &mut self,
     ) -> PResult<Option<&'cx ast::ImplementsClause<'cx>>> {
         if self.token.kind == TokenKind::Implements {
-            let id = self.p.next_node_id();
+            let id = self.next_node_id();
             let start = self.token.start();
             self.next_token();
             let tys = self.with_parent(id, |this| {
@@ -123,7 +123,7 @@ impl<'cx, 'a, 'p> ParserState<'cx, 'p> {
     }
 
     fn parse_empty_stmt(&mut self) -> PResult<&'cx ast::EmptyStmt> {
-        let id = self.p.next_node_id();
+        let id = self.next_node_id();
         let start = self.token.start();
         self.expect(TokenKind::Semi)?;
         let stmt = self.alloc(ast::EmptyStmt {
@@ -135,7 +135,7 @@ impl<'cx, 'a, 'p> ParserState<'cx, 'p> {
     }
 
     fn parse_var_stmt(&mut self) -> &'cx ast::VarStmt<'cx> {
-        let id = self.p.next_node_id();
+        let id = self.next_node_id();
         let start = self.token.start();
         use TokenKind::*;
         let kind = match self.token.kind {
@@ -167,7 +167,7 @@ impl<'cx, 'a, 'p> ParserState<'cx, 'p> {
     }
 
     fn parse_var_decl(&mut self) -> PResult<&'cx ast::VarDecl<'cx>> {
-        let id = self.p.next_node_id();
+        let id = self.next_node_id();
         let start = self.token.start();
         let binding = self.with_parent(id, Self::parse_ident_or_pat);
         let ty = self.with_parent(id, Self::parse_ty_anno)?;
@@ -201,7 +201,7 @@ impl<'cx, 'a, 'p> ParserState<'cx, 'p> {
         &mut self,
         modifiers: Option<&'cx ast::Modifiers<'cx>>,
     ) -> PResult<&'cx ast::FnDecl<'cx>> {
-        let id = self.p.next_node_id();
+        let id = self.next_node_id();
         let start = self.token.start();
         self.expect(TokenKind::Function)?;
         let name = self.with_parent(id, Self::parse_binding_ident);
@@ -223,7 +223,7 @@ impl<'cx, 'a, 'p> ParserState<'cx, 'p> {
     }
 
     fn parse_if_stmt(&mut self) -> PResult<&'cx ast::IfStmt<'cx>> {
-        let id = self.p.next_node_id();
+        let id = self.next_node_id();
         let start = self.token.start();
         self.expect(TokenKind::If)?;
         self.expect(TokenKind::LParen)?;
@@ -247,7 +247,7 @@ impl<'cx, 'a, 'p> ParserState<'cx, 'p> {
     }
 
     fn parse_ret_stmt(&mut self) -> PResult<&'cx ast::RetStmt<'cx>> {
-        let id = self.p.next_node_id();
+        let id = self.next_node_id();
         let start = self.token.start();
         self.expect(TokenKind::Return)?;
         let expr = if self.can_parse_semi() {
