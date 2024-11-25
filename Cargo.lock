@@ -57,6 +57,61 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b048fb63fd8b5923fc5aa7b340d8e156aec7ec02f0c78fa8a6ddc2613f6f71de"
 
 [[package]]
+name = "bolt_ts_compiler"
+version = "0.1.0"
+dependencies = [
+ "bitflags",
+ "bolt_ts_errors",
+ "bolt_ts_lib",
+ "bolt_ts_span",
+ "bumpalo",
+ "compile-test",
+ "expect-test",
+ "include_dir",
+ "project-root",
+ "rayon",
+ "rustc-hash",
+ "stacker",
+ "thin-vec",
+ "xxhash-rust",
+]
+
+[[package]]
+name = "bolt_ts_errors"
+version = "0.1.0"
+dependencies = [
+ "bolt_ts_span",
+ "miette",
+ "relative-path",
+ "ropey",
+ "thiserror",
+]
+
+[[package]]
+name = "bolt_ts_lib"
+version = "0.1.0"
+dependencies = [
+ "miette",
+ "rustc-hash",
+]
+
+[[package]]
+name = "bolt_ts_options"
+version = "0.1.0"
+dependencies = [
+ "serde",
+ "serde_json",
+]
+
+[[package]]
+name = "bolt_ts_span"
+version = "0.1.0"
+dependencies = [
+ "miette",
+ "rustc-hash",
+]
+
+[[package]]
 name = "bumpalo"
 version = "3.16.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -146,6 +201,25 @@ name = "gimli"
 version = "0.29.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "40ecd4077b5ae9fd2e9e169b102c6c330d0605168eb0e8bf79952b256dbefffd"
+
+[[package]]
+name = "include_dir"
+version = "0.7.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "923d117408f1e49d914f1a379a309cffe4f18c05cf4e3d12e613a15fc81bd0dd"
+dependencies = [
+ "include_dir_macros",
+]
+
+[[package]]
+name = "include_dir_macros"
+version = "0.7.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7cab85a7ed0bd5f0e76d93846e0147172bed2e2d3f859bcc33a8d9699cad1a75"
+dependencies = [
+ "proc-macro2",
+ "quote",
+]
 
 [[package]]
 name = "is_ci"
@@ -334,51 +408,6 @@ checksum = "93411e420bcd1a75ddd1dc3caf18c23155eda2c090631a85af21ba19e97093b5"
 dependencies = [
  "smallvec",
  "str_indices",
-]
-
-[[package]]
-name = "rts_compiler"
-version = "0.1.0"
-dependencies = [
- "bitflags",
- "bumpalo",
- "compile-test",
- "expect-test",
- "project-root",
- "rayon",
- "rts_errors",
- "rts_span",
- "rustc-hash",
- "stacker",
- "thin-vec",
- "xxhash-rust",
-]
-
-[[package]]
-name = "rts_errors"
-version = "0.1.0"
-dependencies = [
- "miette",
- "relative-path",
- "ropey",
- "rts_span",
- "thiserror",
-]
-
-[[package]]
-name = "rts_options"
-version = "0.1.0"
-dependencies = [
- "serde",
- "serde_json",
-]
-
-[[package]]
-name = "rts_span"
-version = "0.1.0"
-dependencies = [
- "miette",
- "rustc-hash",
 ]
 
 [[package]]

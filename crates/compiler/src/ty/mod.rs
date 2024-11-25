@@ -6,8 +6,8 @@ use crate::keyword;
 pub use facts::{has_type_facts, TypeFacts};
 use rustc_hash::FxHashMap;
 
-rts_span::new_index!(TyID);
-rts_span::new_index!(TyVarID);
+bolt_ts_span::new_index!(TyID);
+bolt_ts_span::new_index!(TyVarID);
 
 bitflags::bitflags! {
     #[derive(Debug, Clone, Copy)]
@@ -24,7 +24,11 @@ pub struct Ty<'cx> {
 
 impl<'cx> Ty<'cx> {
     pub fn new(id: TyID, kind: TyKind<'cx>) -> Self {
-        Self { kind, id, flags: TyFlags::empty() }
+        Self {
+            kind,
+            id,
+            flags: TyFlags::empty(),
+        }
     }
 }
 
@@ -158,7 +162,7 @@ impl<'cx> TyKind<'cx> {
             false
         }
     }
-    
+
     pub fn is_fresh(&self) -> bool {
         self.is_lit()
     }
@@ -227,7 +231,6 @@ impl<'cx> TyKind<'cx> {
             None
         }
     }
-
 }
 
 pub type Tys<'cx> = &'cx [&'cx Ty<'cx>];
@@ -309,7 +312,7 @@ impl IntrinsicTyKind {
         use IntrinsicTyKind::*;
         matches!(self, Null | Undefined)
     }
-    
+
     fn is_any(&self) -> bool {
         use IntrinsicTyKind::*;
         matches!(self, Any)

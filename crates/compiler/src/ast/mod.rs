@@ -1,8 +1,8 @@
 mod node;
 mod node_flags;
 
+use bolt_ts_span::Span;
 pub use node::{Node, NodeID};
-use rts_span::Span;
 
 use crate::atoms::AtomId;
 

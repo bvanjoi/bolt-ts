@@ -12,7 +12,7 @@ mod utils;
 use std::borrow::Cow;
 use std::u32;
 
-use rts_span::{ModuleID, Span};
+use bolt_ts_span::{ModuleID, Span};
 use rustc_hash::FxHashMap;
 use token::{Token, TokenFlags, TokenKind};
 
@@ -135,11 +135,11 @@ pub struct ParserState<'cx, 'p> {
     parent: NodeID,
     module_id: ModuleID,
     ident_count: usize,
-    diags: Vec<rts_errors::Diag>,
+    diags: Vec<bolt_ts_errors::Diag>,
 }
 
 impl<'cx, 'a, 'p> ParserState<'cx, 'p> {
-    pub fn steal_diags(&mut self) -> Vec<rts_errors::Diag> {
+    pub fn steal_diags(&mut self) -> Vec<bolt_ts_errors::Diag> {
         std::mem::take(&mut self.diags)
     }
 
@@ -400,7 +400,7 @@ impl<'cx, 'a, 'p> ParserState<'cx, 'p> {
     }
 
     fn push_error(&mut self, module_id: ModuleID, error: crate::Diag) {
-        self.diags.push(rts_errors::Diag {
+        self.diags.push(bolt_ts_errors::Diag {
             module_id,
             inner: error,
         });

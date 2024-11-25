@@ -1,7 +1,7 @@
+use bolt_ts_compiler::eval_from;
+use bolt_ts_errors::miette::Severity;
 use compile_test::run_tests::run;
 use compile_test::{ensure_node_exist, run_node};
-use rts_compiler::eval_from;
-use rts_errors::miette::Severity;
 
 #[test]
 fn run_tests() {
@@ -10,7 +10,7 @@ fn run_tests() {
     let sub = "tests/cases/compiler";
     let cases = compile_test::fixtures(&project_root, sub);
     let runner = |case: &std::path::Path| {
-        let output = eval_from(rts_span::ModulePath::Real(case.to_path_buf()));
+        let output = eval_from(bolt_ts_span::ModulePath::Real(case.to_path_buf()));
         if output.diags.is_empty() {
             if output.output.trim().is_empty() {
                 return Ok(());
@@ -57,7 +57,7 @@ fn run_tests() {
                             };
                             let code = output.module_arena.content_map.get(&diag.module_id);
                             let start = code.map(|code| {
-                                rts_errors::miette_label_span_to_line_position(label, code).0
+                                bolt_ts_errors::miette_label_span_to_line_position(label, code).0
                             });
                             compile_test::errors::Error {
                                 line_num: start.map_or(1, |x| x.line + 1),

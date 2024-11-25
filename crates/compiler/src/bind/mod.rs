@@ -8,7 +8,7 @@ pub use symbol::{Symbol, SymbolFnKind, SymbolID, SymbolKind, SymbolName, Symbols
 use crate::ast::{self, NodeID};
 use crate::atoms::AtomMap;
 
-rts_span::new_index!(ScopeID);
+bolt_ts_span::new_index!(ScopeID);
 
 pub struct Binder<'cx> {
     scope_id: ScopeID,

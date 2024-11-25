@@ -1,4 +1,4 @@
-use rts_span::Span;
+use bolt_ts_span::Span;
 
 use crate::ast::{AssignOp, BinOpKind, ModifierKind, PrefixUnaryOp};
 

@@ -12,14 +12,22 @@ use std::path::PathBuf;
 
 use atoms::AtomMap;
 use bind::Binder;
-use rts_span::{ModuleArena, ModulePath};
+use bolt_ts_span::{ModuleArena, ModulePath};
 
-type Diag = Box<dyn rts_errors::miette::Diagnostic + Send + Sync + 'static>;
+type Diag = Box<dyn bolt_ts_errors::miette::Diagnostic + Send + Sync + 'static>;
 
 pub struct Output {
     pub module_arena: ModuleArena,
     pub output: String,
-    pub diags: Vec<rts_errors::Diag>,
+    pub diags: Vec<bolt_ts_errors::Diag>,
+}
+
+fn current_exe_dir() -> std::path::PathBuf {
+    std::env::current_exe()
+        .unwrap()
+        .parent()
+        .unwrap()
+        .to_path_buf()
 }
 
 pub fn eval_from(m: ModulePath) -> Output {
@@ -35,6 +43,12 @@ pub fn eval_from(m: ModulePath) -> Output {
     let root = s.parse();
 
     let parse_diags = s.steal_diags();
+
+    let dir = current_exe_dir();
+    for (_, file) in bolt_ts_lib::LIB_ENTIRES {
+        let p = dir.join(file);
+        module_arena.new_module(ModulePath::Real(p));
+    }
 
     // bind
     let mut binder = bind::Binder::new(&p.atoms);

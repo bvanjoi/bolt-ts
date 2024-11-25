@@ -188,7 +188,7 @@ impl<'cx> TyChecker<'cx> {
                     symbol: self.final_res[&lit.id],
                 })
             }
-            ExprWithArg(expr) => self.get_type_from_ty_reference(expr)
+            ExprWithArg(expr) => self.get_type_from_ty_reference(expr),
         }
     }
 

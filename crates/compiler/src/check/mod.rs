@@ -17,7 +17,7 @@ mod sig;
 mod symbol_links;
 mod utils;
 
-use rts_span::{ModuleID, Span};
+use bolt_ts_span::{ModuleID, Span};
 use rustc_hash::FxHashMap;
 use sig::Sig;
 use symbol_links::SymbolLinks;
@@ -47,7 +47,7 @@ impl F64Represent {
 
 pub struct TyChecker<'cx> {
     pub atoms: &'cx AtomMap<'cx>,
-    pub diags: Vec<rts_errors::Diag>,
+    pub diags: Vec<bolt_ts_errors::Diag>,
     arena: &'cx bumpalo::Bump,
     next_ty_id: TyID,
     next_ty_var_id: TyVarID,
@@ -162,8 +162,8 @@ impl<'cx> TyChecker<'cx> {
         this.type_name.insert(boolean_ty.id, "boolean".to_string());
         this.boolean_ty.set(boolean_ty).unwrap();
 
-        // let global_number_ty = 
-        // this.global_number_ty.set(value)
+        // let global_number_ty = todo!();
+        // this.global_number_ty.set(global_number_ty).unwrap();
 
         this
     }
@@ -794,7 +794,7 @@ impl<'cx> TyChecker<'cx> {
     }
 
     fn push_error(&mut self, module_id: ModuleID, error: crate::Diag) {
-        self.diags.push(rts_errors::Diag {
+        self.diags.push(bolt_ts_errors::Diag {
             module_id,
             inner: error,
         })

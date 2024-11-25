@@ -1,6 +1,6 @@
 use std::borrow::Cow;
 
-use rts_span::Span;
+use bolt_ts_span::Span;
 
 use super::token::{Token, TokenFlags, TokenKind};
 use super::{ParserState, TokenValue};

@@ -6,6 +6,7 @@ members = [
   "crates/errors",
   "crates/span",
   "crates/options",
+  "crates/lib",
 ]
 
 [workspace.dependencies]

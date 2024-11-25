@@ -1,8 +1,8 @@
-use rts_errors::miette;
-use rts_errors::miette::Diagnostic;
-// use rts_errors::thiserror;
-use rts_errors::thiserror::Error;
-use rts_span::Span;
+use bolt_ts_errors::miette;
+use bolt_ts_errors::miette::Diagnostic;
+// use bolt_ts_errors::thiserror;
+use bolt_ts_errors::thiserror::Error;
+use bolt_ts_span::Span;
 
 #[derive(Error, Diagnostic, Debug)]
 #[error("Syntax Error: Unexpected token ','")]

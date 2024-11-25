@@ -1,8 +1,8 @@
-use rts_span::Span;
+use bolt_ts_span::Span;
 
 use crate::ast;
 
-rts_span::new_index!(NodeID);
+bolt_ts_span::new_index!(NodeID);
 
 #[derive(Debug, Clone, Copy)]
 pub enum Node<'cx> {

@@ -137,7 +137,7 @@ impl SymbolKind {
     }
 }
 
-rts_span::new_index!(SymbolID);
+bolt_ts_span::new_index!(SymbolID);
 
 pub struct Symbols(FxHashMap<SymbolID, Symbol>);
 

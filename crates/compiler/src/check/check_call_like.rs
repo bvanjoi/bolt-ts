@@ -5,7 +5,7 @@ use super::ExpectedArgsCount;
 use super::TyChecker;
 use crate::bind::SymbolKind;
 use crate::{ast, errors, ty};
-use rts_span::Span;
+use bolt_ts_span::Span;
 use thin_vec::thin_vec;
 
 pub(super) trait CallLikeExpr<'cx>: Copy + std::fmt::Debug {

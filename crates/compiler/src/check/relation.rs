@@ -1,4 +1,4 @@
-use rts_span::Span;
+use bolt_ts_span::Span;
 use rustc_hash::FxHashSet;
 
 use crate::atoms::AtomId;

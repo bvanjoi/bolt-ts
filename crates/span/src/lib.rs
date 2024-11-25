@@ -54,6 +54,7 @@ impl std::fmt::Display for Span {
     }
 }
 
+#[derive(Clone, Copy, Debug)]
 pub struct Module {
     pub id: ModuleID,
 }

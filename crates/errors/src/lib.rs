@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
+use bolt_ts_span::{ModuleArena, ModuleID, ModulePath};
 pub use miette;
-use rts_span::{ModuleArena, ModuleID, ModulePath};
 pub use thiserror;
 
 #[derive(Debug)]
