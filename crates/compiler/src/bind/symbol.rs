@@ -1,3 +1,4 @@
+use bolt_ts_span::ModuleID;
 use rustc_hash::FxHashMap;
 use thin_vec::ThinVec;
 
@@ -142,11 +143,10 @@ bolt_ts_span::new_index!(SymbolID);
 pub struct Symbols(FxHashMap<SymbolID, Symbol>);
 
 impl Symbols {
-    pub fn new(id: SymbolID) -> Self {
-        assert_eq!(id, Symbol::ERR);
+    pub fn new() -> Self {
         let mut this = Self(FxHashMap::default());
         this.insert(
-            id,
+            Symbol::ERR,
             Symbol::new(SymbolName::Normal(keyword::IDENT_EMPTY), SymbolKind::Err),
         );
         this
@@ -158,10 +158,32 @@ impl Symbols {
     }
 
     pub fn get(&self, id: SymbolID) -> &Symbol {
-        self.0.get(&id).unwrap()
+        &self.0[&id]
     }
 
     pub fn get_mut(&mut self, id: SymbolID) -> &mut Symbol {
         self.0.get_mut(&id).unwrap()
+    }
+}
+
+impl<'a> IntoIterator for &'a Symbols {
+    type Item = (&'a SymbolID, &'a Symbol);
+    type IntoIter = std::collections::hash_map::Iter<'a, SymbolID, Symbol>;
+    fn into_iter(self) -> Self::IntoIter {
+        self.0.iter()
+    }
+}
+
+#[derive(Default)]
+pub struct GlobalSymbols(FxHashMap<SymbolName, (ModuleID, SymbolID)>);
+
+impl GlobalSymbols {
+    pub fn insert(&mut self, name: SymbolName, module_id: ModuleID, symbol_id: SymbolID) {
+        let prev = self.0.insert(name, (module_id, symbol_id));
+        assert!(prev.is_none(), "prev symbol: {prev:#?}")
+    }
+
+    pub fn get(&self, name: SymbolName) -> Option<(ModuleID, SymbolID)> {
+        self.0.get(&name).copied()
     }
 }

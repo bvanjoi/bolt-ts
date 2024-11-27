@@ -1,3 +1,4 @@
+use bolt_ts_span::ModuleID;
 use rustc_hash::FxHashMap;
 use thin_vec::thin_vec;
 
@@ -8,25 +9,25 @@ use crate::bind::{Symbol, SymbolID};
 use crate::keyword;
 
 impl<'cx> TyChecker<'cx> {
-    pub(super) fn get_type_of_symbol(&mut self, id: SymbolID) -> &'cx Ty<'cx> {
+    pub(super) fn get_type_of_symbol(&mut self, module: ModuleID, id: SymbolID) -> &'cx Ty<'cx> {
         if let Some(ty) = self.get_symbol_links(id).get_ty() {
             return ty;
         }
         use crate::bind::SymbolKind::*;
-        let ty = match &self.symbols.get(id).kind {
+        let ty = match &self.binder.get(module).symbols.get(id).kind {
             Err => return self.error_ty(),
             FunctionScopedVar => return self.undefined_ty(),
             BlockScopedVar => return self.undefined_ty(),
             Class { .. } => {
-                let ty = self.get_type_of_class_decl(id);
+                let ty = self.get_type_of_class_decl(module, id);
                 if let Some(ty) = self.get_symbol_links(id).get_ty() {
                     return ty;
                 }
                 self.get_mut_symbol_links(id).set_ty(ty);
                 ty
             }
-            Function { .. } | FnExpr { .. } => self.get_type_of_func_decl(id),
-            Property { .. } => self.get_type_of_prop(id),
+            Function { .. } | FnExpr { .. } => self.get_type_of_func_decl(module, id),
+            Property { .. } => self.get_type_of_prop(module, id),
             Object { .. } => return self.undefined_ty(),
             BlockContainer { .. } => return self.undefined_ty(),
             Interface { .. } => return self.undefined_ty(),
@@ -35,8 +36,12 @@ impl<'cx> TyChecker<'cx> {
         ty
     }
 
-    fn get_base_type_variable_of_class(&mut self, symbol: SymbolID) -> &'cx Ty<'cx> {
-        let Some(class_ty) = self.get_declared_ty_of_symbol(symbol) else {
+    fn get_base_type_variable_of_class(
+        &mut self,
+        module: ModuleID,
+        symbol: SymbolID,
+    ) -> &'cx Ty<'cx> {
+        let Some(class_ty) = self.get_declared_ty_of_symbol(module, symbol) else {
             unreachable!()
         };
         let Some(i) = class_ty.kind.as_interface() else {
@@ -45,12 +50,12 @@ impl<'cx> TyChecker<'cx> {
         i.base_ctor_ty.unwrap()
     }
 
-    fn get_type_of_prop(&mut self, symbol: SymbolID) -> &'cx Ty<'cx> {
-        let decl = match self.symbols.get(symbol).kind {
+    fn get_type_of_prop(&mut self, module: ModuleID, symbol: SymbolID) -> &'cx Ty<'cx> {
+        let decl = match self.binder.get(module).symbols.get(symbol).kind {
             crate::bind::SymbolKind::Property { decl, .. } => decl,
             _ => unreachable!(),
         };
-        let ty = match self.nodes.get(decl) {
+        let ty = match self.p.get(decl.module()).nodes().get(decl) {
             ast::Node::ClassPropEle(prop) => prop
                 .ty
                 .map(|ty| self.get_ty_from_type_node(ty))
@@ -64,23 +69,24 @@ impl<'cx> TyChecker<'cx> {
         ty
     }
 
-    fn get_type_of_class_decl(&mut self, symbol: SymbolID) -> &'cx Ty<'cx> {
-        let base = self.get_base_type_variable_of_class(symbol);
-        self.create_class_ty(ty::ClassTy { symbol })
+    fn get_type_of_class_decl(&mut self, module: ModuleID, symbol: SymbolID) -> &'cx Ty<'cx> {
+        let base = self.get_base_type_variable_of_class(module, symbol);
+        self.create_class_ty(ty::ClassTy { module, symbol })
     }
 
-    fn get_type_of_func_decl(&mut self, symbol: SymbolID) -> &'cx Ty<'cx> {
-        let params = self.get_sig_of_symbol(symbol);
+    fn get_type_of_func_decl(&mut self, module: ModuleID, symbol: SymbolID) -> &'cx Ty<'cx> {
+        let params = self.get_sig_of_symbol(module, symbol);
         self.create_fn_ty(ty::FnTy {
             params,
             ret: self.undefined_ty(),
+            module,
             symbol,
         })
     }
 
-    fn get_sig_of_symbol(&mut self, id: SymbolID) -> &'cx [&'cx Ty<'cx>] {
+    fn get_sig_of_symbol(&mut self, module: ModuleID, id: SymbolID) -> &'cx [&'cx Ty<'cx>] {
         use crate::bind::SymbolKind::*;
-        let decls = match &self.symbols.get(id).kind {
+        let decls = match &self.binder.get(module).symbols.get(id).kind {
             Err => todo!(),
             Function { decls, .. } => decls.clone(),
             FnExpr { decl } => thin_vec![*decl],
@@ -95,7 +101,7 @@ impl<'cx> TyChecker<'cx> {
         };
 
         for decl in decls {
-            let params = match self.nodes.get(decl) {
+            let params = match self.p.get(decl.module()).nodes().get(decl) {
                 ast::Node::FnDecl(f) => f.params,
                 ast::Node::ArrowFnExpr(f) => f.params,
                 ast::Node::FnExpr(f) => f.params,
@@ -125,7 +131,8 @@ impl<'cx> TyChecker<'cx> {
                 }
                 return self.error_ty();
             }
-            self.get_declared_ty_of_symbol(id).unwrap()
+            self.get_declared_ty_of_symbol(expr.id().module(), id)
+                .unwrap()
         } else {
             // TODO:
             self.undefined_ty()
@@ -180,12 +187,18 @@ impl<'cx> TyChecker<'cx> {
                 });
                 let map = FxHashMap::from_iter(entires);
                 let members = self.alloc(map);
-                if !self.final_res.contains_key(&lit.id) {
+                if !self
+                    .binder
+                    .get(lit.id.module())
+                    .final_res
+                    .contains_key(&lit.id)
+                {
                     unreachable!()
                 }
                 self.create_object_lit_ty(ty::ObjectLitTy {
                     members,
-                    symbol: self.final_res[&lit.id],
+                    module: lit.id.module(),
+                    symbol: self.binder.get(lit.id.module()).final_res[&lit.id],
                 })
             }
             ExprWithArg(expr) => self.get_type_from_ty_reference(expr),
@@ -208,4 +221,10 @@ impl<'cx> TyChecker<'cx> {
             ty
         }
     }
+
+    // pub(super) fn get_global_type(&mut self, name: SymbolName) -> &'cx Ty<'cx> {
+    //     let Some((m, s)) = self.global_symbols.get(name) else {
+    //         unreachable!()
+    //     };
+    // }
 }

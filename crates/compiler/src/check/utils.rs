@@ -3,9 +3,9 @@ use crate::{ast, parser};
 use super::TyChecker;
 
 fn get_assignment_target(checker: &TyChecker, id: ast::NodeID) -> Option<ast::NodeID> {
-    let mut parent = checker.node_parent_map.parent(id);
+    let mut parent = checker.p.get(id.module()).parent_map().parent(id);
     while let Some(p) = parent {
-        match checker.nodes.get(p) {
+        match checker.p.get(id.module()).nodes().get(p) {
             ast::Node::AssignExpr(assign) => {
                 return if let ast::ExprKind::Ident(binding) = assign.left.kind {
                     (binding.id == id).then(|| assign.id)
@@ -32,7 +32,7 @@ pub fn get_assignment_kind(checker: &TyChecker, id: ast::NodeID) -> AssignmentKi
     let Some(target) = get_assignment_target(checker, id) else {
         return AssignmentKind::None;
     };
-    match checker.nodes.get(target) {
+    match checker.p.get(id.module()).nodes().get(target) {
         ast::Node::AssignExpr(_) => AssignmentKind::Definite,
         ast::Node::BinExpr(_) => AssignmentKind::Definite,
         _ => AssignmentKind::Definite,

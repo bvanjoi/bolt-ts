@@ -2,19 +2,61 @@ mod bind_class_like;
 mod create;
 mod symbol;
 
+use bolt_ts_span::ModuleID;
 use rustc_hash::FxHashMap;
-pub use symbol::{Symbol, SymbolFnKind, SymbolID, SymbolKind, SymbolName, Symbols};
+pub use symbol::{GlobalSymbols, Symbol, SymbolFnKind, SymbolID, SymbolKind, SymbolName, Symbols};
 
 use crate::ast::{self, NodeID};
 use crate::atoms::AtomMap;
 
 bolt_ts_span::new_index!(ScopeID);
 
-pub struct Binder<'cx> {
+pub struct Binder {
+    map: FxHashMap<ModuleID, BinderResult>,
+}
+
+impl Binder {
+    pub fn new() -> Self {
+        Self {
+            map: Default::default(),
+        }
+    }
+
+    pub fn insert(&mut self, id: ModuleID, result: BinderResult) {
+        let prev = self.map.insert(id, result);
+        assert!(prev.is_none());
+    }
+
+    pub fn get(&self, id: ModuleID) -> &BinderResult {
+        if self.map.get(&id).is_none() {
+            dbg!(id);
+            panic!("BinderResult not found for module {:?}", id);
+        }
+        self.map.get(&id).unwrap()
+    }
+
+    pub fn get_mut(&mut self, id: ModuleID) -> &mut BinderResult {
+        self.map.get_mut(&id).unwrap()
+    }
+
+    pub fn take(&mut self, id: ModuleID) -> BinderResult {
+        self.map.remove(&id).unwrap()
+    }
+}
+
+struct BinderState<'cx> {
     scope_id: ScopeID,
     max_scope_id: ScopeID,
     symbol_id: SymbolID,
     atoms: &'cx AtomMap<'cx>,
+    scope_id_parent_map: FxHashMap<ScopeID, Option<ScopeID>>,
+    node_id_to_scope_id: FxHashMap<ast::NodeID, ScopeID>,
+    symbols: Symbols,
+    res: FxHashMap<(ScopeID, SymbolName), SymbolID>,
+    final_res: FxHashMap<ast::NodeID, SymbolID>,
+}
+
+pub struct BinderResult {
     pub scope_id_parent_map: FxHashMap<ScopeID, Option<ScopeID>>,
     pub node_id_to_scope_id: FxHashMap<ast::NodeID, ScopeID>,
     pub symbols: Symbols,
@@ -22,12 +64,24 @@ pub struct Binder<'cx> {
     pub final_res: FxHashMap<ast::NodeID, SymbolID>,
 }
 
-impl<'cx> Binder<'cx> {
-    pub fn new(atoms: &'cx AtomMap<'cx>) -> Self {
+pub fn bind<'cx>(atoms: &'cx AtomMap<'cx>, p: &'cx ast::Program) -> BinderResult {
+    let mut state = BinderState::new(atoms);
+    state.bind_program(p);
+    BinderResult {
+        scope_id_parent_map: state.scope_id_parent_map,
+        node_id_to_scope_id: state.node_id_to_scope_id,
+        symbols: state.symbols,
+        res: state.res,
+        final_res: state.final_res,
+    }
+}
+
+impl<'cx> BinderState<'cx> {
+    fn new(atoms: &'cx AtomMap<'cx>) -> Self {
+        let symbols = Symbols::new();
         let mut symbol_id = SymbolID::root();
-        let symbols = Symbols::new(symbol_id);
         symbol_id = symbol_id.next();
-        Binder {
+        BinderState {
             atoms,
             scope_id: ScopeID::root(),
             max_scope_id: ScopeID::root(),
@@ -53,7 +107,9 @@ impl<'cx> Binder<'cx> {
         next
     }
 
-    pub fn bind_program(&mut self, p: &'cx ast::Program) {
+    fn bind_program(&mut self, p: &'cx ast::Program) {
+        assert_eq!(self.scope_id.as_u32(), 0);
+        assert_eq!(self.symbol_id.as_u32(), 1);
         self.scope_id_parent_map.insert(self.scope_id, None);
         self.connect(p.id);
         self.create_block_container_symbol(p.id);

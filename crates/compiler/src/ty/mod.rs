@@ -3,6 +3,7 @@ mod facts;
 use crate::atoms::{AtomId, AtomMap};
 use crate::bind::SymbolID;
 use crate::keyword;
+use bolt_ts_span::ModuleID;
 pub use facts::{has_type_facts, TypeFacts};
 use rustc_hash::FxHashMap;
 
@@ -371,12 +372,14 @@ impl<'cx> ObjectTyKind<'cx> {
 
 #[derive(Debug, Clone, Copy)]
 pub struct ClassTy {
+    pub module: ModuleID,
     pub symbol: SymbolID,
 }
 
 #[derive(Debug, Clone, Copy)]
 pub struct ObjectLitTy<'cx> {
     pub members: &'cx FxHashMap<AtomId, &'cx Ty<'cx>>,
+    pub module: ModuleID,
     pub symbol: SymbolID,
 }
 
@@ -384,5 +387,6 @@ pub struct ObjectLitTy<'cx> {
 pub struct FnTy<'cx> {
     pub params: &'cx [&'cx Ty<'cx>],
     pub ret: &'cx Ty<'cx>,
+    pub module: ModuleID,
     pub symbol: SymbolID,
 }

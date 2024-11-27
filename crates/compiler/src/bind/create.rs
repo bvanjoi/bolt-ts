@@ -2,11 +2,11 @@ use rustc_hash::FxHashMap;
 use thin_vec::thin_vec;
 
 use super::symbol::ObjectSymbol;
-use super::{Binder, Symbol, SymbolID, SymbolKind, SymbolName};
+use super::{BinderState, Symbol, SymbolID, SymbolKind, SymbolName};
 use crate::ast;
 use crate::atoms::AtomId;
 
-impl<'cx> Binder<'cx> {
+impl<'cx> BinderState<'cx> {
     pub(super) fn create_final_res(&mut self, id: ast::NodeID, symbol: SymbolID) {
         let prev = self.final_res.insert(id, symbol);
         assert!(prev.is_none());

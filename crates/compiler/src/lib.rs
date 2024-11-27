@@ -12,10 +12,9 @@ use std::borrow::Cow;
 use std::path::PathBuf;
 
 use atoms::AtomMap;
-use bind::Binder;
-use bolt_ts_span::{ModuleArena, ModuleID, ModulePath};
+use bind::{bind, BinderResult, GlobalSymbols};
+use bolt_ts_span::{ModuleArena, ModulePath};
 use parser::token::TokenKind;
-use rustc_hash::FxHashMap;
 
 type Diag = Box<dyn bolt_ts_errors::miette::Diagnostic + Send + Sync + 'static>;
 
@@ -35,7 +34,7 @@ fn current_exe_dir() -> std::path::PathBuf {
 
 pub fn eval_from(m: ModulePath) -> Output {
     let mut module_arena = ModuleArena::new();
-    let m = module_arena.new_module(m);
+    let m = module_arena.new_module(m, false);
     let mut atoms = AtomMap::default();
     // atom init
     if cfg!(debug_assertions) {
@@ -60,44 +59,52 @@ pub fn eval_from(m: ModulePath) -> Output {
 
     let dir = current_exe_dir();
     for (_, file) in bolt_ts_lib::LIB_ENTIRES {
-        let m = module_arena.new_module(ModulePath::Real(dir.join(file)));
+        let m = module_arena.new_module(ModulePath::Real(dir.join(file)), true);
         let result = parser::parse(&mut atoms, &parse_arena, &module_arena, m.id);
         assert!(result.diags.is_empty());
         p.insert(m.id, result)
     }
 
     // bind
-    let mut binder = bind::Binder::new(&atoms);
-    binder.bind_program(p.get(m.id).root);
-    let Binder {
-        scope_id_parent_map,
-        node_id_to_scope_id,
-        symbols,
-        res,
-        final_res,
-        ..
-    } = binder;
+    let mut binder = bind::Binder::new();
+    for module_id in module_arena.modules.keys() {
+        let root = p.get(*module_id).root;
+        let result = bind(&atoms, root);
+        binder.insert(*module_id, result);
+    }
+    // let BinderResult {
+    //     scope_id_parent_map,
+    //     node_id_to_scope_id,
+    //     symbols,
+    //     res,
+    //     final_res,
+    //     ..
+    // } = binder.take(m.id);
+
+    let mut global_symbols = GlobalSymbols::default();
+    for module_id in module_arena.modules.keys() {
+        if !module_arena.modules[module_id].global {
+            continue;
+        }
+        for (symbol_id, symbol) in &binder.get(*module_id).symbols {
+            global_symbols.insert(symbol.name, *module_id, *symbol_id);
+        }
+    }
 
     // type check
     let ty_arena = bumpalo::Bump::new();
-    let mut c = check::TyChecker::new(
-        &ty_arena,
-        &p.get(m.id).nodes(),
-        &p.get(m.id).parent_map(),
-        &atoms,
-        &scope_id_parent_map,
-        &node_id_to_scope_id,
-        &symbols,
-        &res,
-        final_res,
-    );
-    c.check_program(p.get(m.id).root);
+    let mut checker = check::TyChecker::new(&ty_arena, &p, &atoms, &mut binder, &global_symbols);
+    checker.check_program(p.get(m.id).root);
 
     // emit
-    let mut emitter = emit::Emit::new(&c.atoms);
+    let mut emitter = emit::Emit::new(&checker.atoms);
     let output = emitter.emit(p.get(m.id).root);
 
-    let diags: Vec<_> = c.diags.into_iter().chain(p.steal_errors(m.id)).collect();
+    let diags: Vec<_> = checker
+        .diags
+        .into_iter()
+        .chain(p.steal_errors(m.id))
+        .collect();
     Output {
         module_arena,
         diags,

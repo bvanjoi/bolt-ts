@@ -43,11 +43,13 @@ impl<'cx> ClassLikeDecl<'cx> for ast::ClassExpr<'cx> {
 impl<'cx> TyChecker<'cx> {
     fn check_ctor(&mut self, ctor: &'cx ast::ClassCtor<'cx>) {
         let symbol = self.get_symbol_of_decl(ctor.id);
-        let SymbolKind::Function { decls, .. } = &self.symbols.get(symbol).kind else {
+        let SymbolKind::Function { decls, .. } =
+            &self.binder.get(ctor.id.module()).symbols.get(symbol).kind
+        else {
             unreachable!()
         };
         if decls[0] == ctor.id {
-            self.check_fn_like_symbol(symbol);
+            self.check_fn_like_symbol(ctor.id.module(), symbol);
         }
 
         if let Some(body) = ctor.body {
@@ -65,11 +67,11 @@ impl<'cx> TyChecker<'cx> {
 
     pub(super) fn check_class_like_decl(&mut self, class: &impl ClassLikeDecl<'cx>) {
         let symbol = self.get_symbol_of_decl(class.id());
-        let Some(ty) = self.get_declared_ty_of_symbol(symbol) else {
+        let Some(ty) = self.get_declared_ty_of_symbol(class.id().module(), symbol) else {
             unreachable!()
         };
-        let static_ty = self.get_type_of_symbol(symbol);
-        self.check_index_constraints(ty, symbol);
+        let static_ty = self.get_type_of_symbol(class.id().module(), symbol);
+        self.check_index_constraints(ty, class.id().module(), symbol);
 
         if let Some(impls) = class.implements() {
             for ty in impls.tys {

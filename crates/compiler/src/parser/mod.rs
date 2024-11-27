@@ -43,14 +43,14 @@ impl ParentMap {
     }
 
     pub(super) fn insert(&mut self, id: NodeID, parent: NodeID) {
-        assert!(id.as_u32() > parent.as_u32());
+        assert!(id.index_as_u32() > parent.index_as_u32());
         let prev = self.0.insert(id, parent);
         assert!(prev.is_none())
     }
 
     pub(super) fn r#override(&mut self, id: NodeID, parent: NodeID) {
         assert!(
-            id.as_u32() < parent.as_u32(),
+            id.index_as_u32() < parent.index_as_u32(),
             "id: {id:#?} and parent: {parent:#?}"
         );
         let prev = self.0.insert(id, parent);
@@ -179,7 +179,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
             token_value: None,
             pos: 0,
             atoms,
-            parent: NodeID::root(),
+            parent: NodeID::root(module_id),
             module_id,
             ident_count: 0,
             diags: vec![],
@@ -187,7 +187,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
             arena,
             nodes,
             parent_map,
-            next_node_id: NodeID::root(),
+            next_node_id: NodeID::root(module_id),
         }
     }
 
@@ -408,7 +408,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
     }
 
     fn insert_map(&mut self, id: NodeID, node: Node<'cx>) {
-        assert!(id.as_u32() > self.parent.as_u32());
+        assert!(id.index_as_u32() > self.parent.index_as_u32());
         self.nodes.insert(id, node);
         self.parent_map.insert(id, self.parent);
     }

@@ -28,6 +28,37 @@ macro_rules! new_index {
 
 crate::new_index!(ModuleID);
 
+#[macro_export]
+macro_rules! new_index_with_module {
+    ($name: ident) => {
+        #[derive(Debug, Clone, Copy, Hash, PartialEq, Eq)]
+        pub struct $name {
+            module: bolt_ts_span::ModuleID,
+            index: u32,
+        }
+        impl $name {
+            pub const fn root(module: bolt_ts_span::ModuleID) -> $name {
+                $name { module, index: 0 }
+            }
+            pub fn next(&self) -> $name {
+                $name {
+                    module: self.module,
+                    index: self.index + 1,
+                }
+            }
+            pub fn index_as_u32(&self) -> u32 {
+                self.index
+            }
+            pub fn index_as_usize(&self) -> usize {
+                self.index as usize
+            }
+            pub fn module(&self) -> bolt_ts_span::ModuleID {
+                self.module
+            }
+        }
+    };
+}
+
 #[derive(Debug, Clone, Copy)]
 pub struct Span {
     pub lo: u32,
@@ -57,6 +88,7 @@ impl std::fmt::Display for Span {
 #[derive(Clone, Copy, Debug)]
 pub struct Module {
     pub id: ModuleID,
+    pub global: bool,
 }
 
 pub enum ModulePath {
@@ -67,6 +99,7 @@ pub enum ModulePath {
 pub struct ModuleArena {
     pub path_map: FxHashMap<ModuleID, ModulePath>,
     pub content_map: FxHashMap<ModuleID, Arc<String>>,
+    pub modules: FxHashMap<ModuleID, Module>,
     next_module_id: ModuleID,
 }
 
@@ -75,6 +108,7 @@ impl ModuleArena {
         Self {
             path_map: Default::default(),
             content_map: Default::default(),
+            modules: Default::default(),
             next_module_id: ModuleID::root(),
         }
     }
@@ -84,9 +118,11 @@ impl ModuleArena {
         old
     }
 
-    pub fn new_module(&mut self, p: ModulePath) -> Module {
+    pub fn new_module(&mut self, p: ModulePath, global: bool) -> Module {
         let id = self.next_module_id();
-        let m = Module { id };
+        let m = Module { id, global };
+        let prev = self.modules.insert(id, m);
+        assert!(prev.is_none());
         if let ModulePath::Real(p) = &p {
             let prev = self
                 .content_map

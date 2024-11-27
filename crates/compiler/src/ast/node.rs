@@ -2,7 +2,7 @@ use bolt_ts_span::Span;
 
 use crate::ast;
 
-bolt_ts_span::new_index!(NodeID);
+bolt_ts_span::new_index_with_module!(NodeID);
 
 #[derive(Debug, Clone, Copy)]
 pub enum Node<'cx> {

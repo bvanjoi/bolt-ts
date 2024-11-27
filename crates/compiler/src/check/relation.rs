@@ -1,4 +1,4 @@
-use bolt_ts_span::Span;
+use bolt_ts_span::{ModuleID, Span};
 use rustc_hash::FxHashSet;
 
 use crate::atoms::AtomId;
@@ -32,14 +32,31 @@ impl<'cx> TyChecker<'cx> {
         let Some(target) = target.kind.as_object_lit() else {
             return false;
         };
-        for (name, symbol) in &self.symbols.get(source.symbol).kind.expect_object().members {
+        for (name, symbol) in &self
+            .binder
+            .get(source.module)
+            .symbols
+            .get(source.symbol)
+            .kind
+            .expect_object()
+            .members
+        {
             let name = name.expect_atom();
             if target.members.contains_key(&name) {
                 continue;
             } else {
                 let span = self
-                    .nodes
-                    .get(self.symbols.get(*symbol).kind.expect_prop())
+                    .p
+                    .get(source.module)
+                    .nodes()
+                    .get(
+                        self.binder
+                            .get(source.module)
+                            .symbols
+                            .get(*symbol)
+                            .kind
+                            .expect_prop(),
+                    )
                     .span();
                 let field = self.atoms.get(name).to_string();
                 let error =
@@ -135,10 +152,17 @@ impl<'cx> TyChecker<'cx> {
 
     fn props_related_to(&mut self, source: &'cx Ty<'cx>, target: &'cx Ty<'cx>) -> bool {
         let unmatched = self.get_unmatched_prop(source, target);
-        if let Some((unmatched, target_symbol)) = unmatched {
-            let target = self.symbols.get(target_symbol).kind.expect_object();
+        if let Some((unmatched, target_module, target_symbol)) = unmatched {
+            let target = self
+                .binder
+                .get(target_module)
+                .symbols
+                .get(target_symbol)
+                .kind
+                .expect_object();
+            let decl = target.decl;
             for name in unmatched {
-                let span = self.nodes.get(target.decl).span();
+                let span = self.p.get(target_module).nodes().get(decl).span();
                 let field = self.atoms.get(name).to_string();
                 let error = errors::PropertyXIsMissing { span, field };
                 self.push_error(span.module, Box::new(error));
@@ -288,7 +312,7 @@ impl<'cx> TyChecker<'cx> {
         &mut self,
         source: &'cx Ty<'cx>,
         target: &'cx Ty<'cx>,
-    ) -> Option<(FxHashSet<AtomId>, SymbolID)> {
+    ) -> Option<(FxHashSet<AtomId>, ModuleID, SymbolID)> {
         let Some(target) = target.kind.as_object_lit() else {
             unreachable!()
         };
@@ -307,7 +331,7 @@ impl<'cx> TyChecker<'cx> {
         if set.is_empty() {
             None
         } else {
-            Some((set, target.symbol))
+            Some((set, target.module, target.symbol))
         }
     }
 
