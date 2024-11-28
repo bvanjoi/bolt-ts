@@ -81,7 +81,7 @@ impl<'cx> CallLikeExpr<'cx> for ast::NewExpr<'cx> {
             .get(class.symbol)
             .kind
         {
-            SymbolKind::Class { decl, .. } => thin_vec![*decl],
+            SymbolKind::Class(symbol) => thin_vec![symbol.decl],
             _ => unreachable!(),
         }
     }

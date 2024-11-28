@@ -1,5 +1,3 @@
 class C123 {
-constructor() {
-  
-}
+  constructor() {}
 }

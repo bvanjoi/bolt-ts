@@ -24,10 +24,14 @@ pub enum SymbolName {
 
 impl SymbolName {
     pub fn expect_atom(&self) -> AtomId {
+        self.as_atom().unwrap()
+    }
+
+    pub fn as_atom(&self) -> Option<AtomId> {
         match self {
-            SymbolName::Normal(atom) => *atom,
-            SymbolName::Ele(atom) => *atom,
-            _ => unreachable!("{:#?}", self),
+            SymbolName::Normal(atom) => Some(*atom),
+            SymbolName::Ele(atom) => Some(*atom),
+            _ => None,
         }
     }
 }
@@ -66,10 +70,7 @@ pub enum SymbolKind {
         kind: SymbolFnKind,
         decls: ThinVec<NodeID>,
     },
-    Class {
-        decl: NodeID,
-        members: FxHashMap<SymbolName, SymbolID>,
-    },
+    Class(ClassSymbol),
     Property {
         decl: NodeID,
     },
@@ -84,6 +85,12 @@ pub enum SymbolKind {
     Index {
         decl: NodeID,
     },
+}
+
+#[derive(Debug)]
+pub struct ClassSymbol {
+    pub decl: NodeID,
+    pub members: FxHashMap<SymbolName, SymbolID>,
 }
 
 #[derive(Debug)]
@@ -116,17 +123,17 @@ impl SymbolKind {
         }
     }
 
-    pub fn as_prop(&self) -> NodeID {
-        match self {
-            SymbolKind::Property { decl } => *decl,
-            _ => unreachable!("{:#?}", self),
-        }
-    }
-
     pub fn expect_object(&self) -> &ObjectSymbol {
         match self {
             SymbolKind::Object(symbol) => symbol,
             _ => unreachable!("{:#?}", self),
+        }
+    }
+
+    pub fn as_class(&self) -> Option<&ClassSymbol> {
+        match self {
+            SymbolKind::Class(symbol) => Some(symbol),
+            _ => None,
         }
     }
 

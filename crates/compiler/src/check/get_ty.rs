@@ -1,16 +1,15 @@
 use bolt_ts_span::ModuleID;
-use rustc_hash::FxHashMap;
 use thin_vec::thin_vec;
 
 use super::ty::{self, Ty, TyKind};
 use super::{F64Represent, TyChecker};
 use crate::ast;
-use crate::bind::{Symbol, SymbolID};
+use crate::bind::{Symbol, SymbolID, SymbolKind, SymbolName};
 use crate::keyword;
 
 impl<'cx> TyChecker<'cx> {
     pub(super) fn get_type_of_symbol(&mut self, module: ModuleID, id: SymbolID) -> &'cx Ty<'cx> {
-        if let Some(ty) = self.get_symbol_links(id).get_ty() {
+        if let Some(ty) = self.get_symbol_links(module, id).get_ty() {
             return ty;
         }
         use crate::bind::SymbolKind::*;
@@ -20,20 +19,35 @@ impl<'cx> TyChecker<'cx> {
             BlockScopedVar => return self.undefined_ty(),
             Class { .. } => {
                 let ty = self.get_type_of_class_decl(module, id);
-                if let Some(ty) = self.get_symbol_links(id).get_ty() {
+                // TODO: delete
+                if let Some(ty) = self.get_symbol_links(module, id).get_ty() {
                     return ty;
                 }
-                self.get_mut_symbol_links(id).set_ty(ty);
+                self.get_mut_symbol_links(module, id).set_ty(ty);
+                // ---
                 ty
             }
             Function { .. } | FnExpr { .. } => self.get_type_of_func_decl(module, id),
             Property { .. } => self.get_type_of_prop(module, id),
-            Object { .. } => return self.undefined_ty(),
+            Object { .. } => {
+                let ty = self.get_type_of_object(module, id);
+                // TODO: delete
+                if let Some(ty) = self.get_symbol_links(module, id).get_ty() {
+                    return ty;
+                }
+                self.get_mut_symbol_links(module, id).set_ty(ty);
+                // ---
+                ty
+            }
             BlockContainer { .. } => return self.undefined_ty(),
             Interface { .. } => return self.undefined_ty(),
             Index { .. } => return self.undefined_ty(),
         };
         ty
+    }
+
+    fn get_type_of_object(&mut self, module: ModuleID, symbol: SymbolID) -> &'cx Ty<'cx> {
+        self.undefined_ty()
     }
 
     fn get_base_type_variable_of_class(
@@ -47,6 +61,7 @@ impl<'cx> TyChecker<'cx> {
         let Some(i) = class_ty.kind.as_interface() else {
             unreachable!()
         };
+
         i.base_ctor_ty.unwrap()
     }
 
@@ -105,7 +120,8 @@ impl<'cx> TyChecker<'cx> {
                 ast::Node::FnDecl(f) => f.params,
                 ast::Node::ArrowFnExpr(f) => f.params,
                 ast::Node::FnExpr(f) => f.params,
-                _ => unreachable!(),
+                ast::Node::ClassMethodEle(m) => m.params,
+                _ => unreachable!("{:#?}", self.p.get(decl.module()).nodes().get(decl)),
             };
             let params = params
                 .iter()
@@ -162,31 +178,6 @@ impl<'cx> TyChecker<'cx> {
             Array(array) => self.get_ty_from_array_node(array),
             Fn(_) => self.undefined_ty(),
             Lit(lit) => {
-                let entires = lit.members.iter().filter_map(|member| {
-                    match member.kind {
-                        ast::ObjectTyMemberKind::Prop(prop) => {
-                            let Some(ty) = prop.ty else {
-                                // TODO:
-                                return None;
-                            };
-                            let member_ty = self.get_ty_from_type_node(ty);
-                            let name = match prop.name.kind {
-                                ast::PropNameKind::Ident(ident) => ident.name,
-                            };
-                            Some((name, member_ty))
-                        }
-                        ast::ObjectTyMemberKind::Method(_) => {
-                            // TODO:
-                            return None;
-                        }
-                        ast::ObjectTyMemberKind::CallSig(_) => {
-                            // TODO:
-                            return None;
-                        }
-                    }
-                });
-                let map = FxHashMap::from_iter(entires);
-                let members = self.alloc(map);
                 if !self
                     .binder
                     .get(lit.id.module())
@@ -195,10 +186,46 @@ impl<'cx> TyChecker<'cx> {
                 {
                     unreachable!()
                 }
+
+                // let entires = lit.members.iter().filter_map(|member| {
+                //     match member.kind {
+                //         ast::ObjectTyMemberKind::Prop(prop) => {
+                //             let Some(ty) = prop.ty else {
+                //                 // TODO:
+                //                 return None;
+                //             };
+                //             let member_ty = self.get_ty_from_type_node(ty);
+                //             let name = match prop.name.kind {
+                //                 ast::PropNameKind::Ident(ident) => ident.name,
+                //             };
+                //             Some((name, member_ty))
+                //         }
+                //         ast::ObjectTyMemberKind::Method(_) => {
+                //             // TODO:
+                //             return None;
+                //         }
+                //         ast::ObjectTyMemberKind::CallSig(_) => {
+                //             // TODO:
+                //             return None;
+                //         }
+                //     }
+                // });
+                // let map = FxHashMap::from_iter(entires);
+                // let members = self.alloc(map);
+
+                let module = lit.id.module();
+                let symbol = self.binder.get(module).final_res[&lit.id];
+                let SymbolKind::Object(object) = &self.binder.get(module).symbols.get(symbol).kind
+                else {
+                    unreachable!()
+                };
+                let members = self.alloc(object.members.clone());
+                let declared_props = self.get_props_from_members(module, members);
                 self.create_object_lit_ty(ty::ObjectLitTy {
                     members,
+                    declared_props,
                     module: lit.id.module(),
-                    symbol: self.binder.get(lit.id.module()).final_res[&lit.id],
+                    symbol,
                 })
             }
             ExprWithArg(expr) => self.get_type_from_ty_reference(expr),
@@ -222,9 +249,10 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
-    // pub(super) fn get_global_type(&mut self, name: SymbolName) -> &'cx Ty<'cx> {
-    //     let Some((m, s)) = self.global_symbols.get(name) else {
-    //         unreachable!()
-    //     };
-    // }
+    pub(super) fn get_global_type(&mut self, name: SymbolName) -> &'cx Ty<'cx> {
+        let Some((m, s)) = self.global_symbols.get(name) else {
+            unreachable!()
+        };
+        self.get_declared_ty_of_symbol(m, s).unwrap()
+    }
 }

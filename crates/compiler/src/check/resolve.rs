@@ -58,7 +58,7 @@ impl<'cx> TyChecker<'cx> {
                 continue;
             };
             // TODO: use class symbol;
-            if let Some(prop) = class.eles.eles.iter().find_map(|ele| {
+            if let Some(prop) = class.elems.elems.iter().find_map(|ele| {
                 let ast::ClassEleKind::Prop(prop) = ele.kind else {
                     return None;
                 };
@@ -151,7 +151,12 @@ fn resolve_symbol_by_ident(checker: &TyChecker, ident: &ast::Ident) -> SymbolID 
         return Symbol::ERR;
     };
     let res = loop {
-        if let Some(id) = checker.binder.get(ident.id.module()).res.get(&(scope_id, SymbolName::Normal(name))) {
+        if let Some(id) = checker
+            .binder
+            .get(ident.id.module())
+            .res
+            .get(&(scope_id, SymbolName::Normal(name)))
+        {
             break *id;
         }
         if let Some(parent) = checker.binder.get(ident.id.module()).scope_id_parent_map[&scope_id] {

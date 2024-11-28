@@ -1,3 +1,3 @@
 class foo {
-bar = {id: 5}
+  bar = {id: 5}
 }

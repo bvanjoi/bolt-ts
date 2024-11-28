@@ -1,8 +1,10 @@
 use bolt_ts_span::ModuleID;
+use rustc_hash::FxHashMap;
 
 use super::ty;
 use super::TyChecker;
 use crate::ast;
+use crate::bind::ClassSymbol;
 use crate::bind::{SymbolID, SymbolKind, SymbolName};
 use crate::errors;
 
@@ -12,7 +14,7 @@ impl<'cx> TyChecker<'cx> {
         module: ModuleID,
         id: SymbolID,
     ) -> Option<&'cx ty::Ty<'cx>> {
-        if let Some(ty) = self.get_symbol_links(id).get_declared_ty() {
+        if let Some(ty) = self.get_symbol_links(module, id).get_declared_ty() {
             return Some(ty);
         }
         use crate::bind::SymbolKind::*;
@@ -20,10 +22,10 @@ impl<'cx> TyChecker<'cx> {
             Class { .. } | Interface { .. } => {
                 let ty = self.get_declared_ty_of_class_or_interface(module, id);
                 // TODO: remove this
-                if let Some(ty) = self.get_symbol_links(id).get_declared_ty() {
+                if let Some(ty) = self.get_symbol_links(module, id).get_declared_ty() {
                     return Some(ty);
                 }
-                self.get_mut_symbol_links(id).set_declared_ty(ty);
+                self.get_mut_symbol_links(module, id).set_declared_ty(ty);
                 Some(ty)
             }
             _ => None,
@@ -88,9 +90,12 @@ impl<'cx> TyChecker<'cx> {
         id: SymbolID,
     ) -> (Option<&'cx ty::Ty<'cx>>, &'cx [&'cx ty::Ty<'cx>]) {
         use crate::bind::SymbolKind::*;
-        match self.binder.get(module).symbols.get(id).kind {
-            Class { decl, .. } => self.resolve_base_tys_of_class(id, decl),
-            Interface { decl, .. } => (None, self.resolve_base_tys_of_interface(decl)),
+        match &self.binder.get(module).symbols.get(id).kind {
+            Class(symbol) => {
+                let decl = symbol.decl;
+                self.resolve_base_tys_of_class(id, decl)
+            }
+            Interface { decl, .. } => (None, self.resolve_base_tys_of_interface(*decl)),
             _ => unreachable!(),
         }
     }
@@ -104,14 +109,14 @@ impl<'cx> TyChecker<'cx> {
         extends.map(|extends| extends.expr)
     }
 
-    fn push_ty_resolution(&mut self, id: SymbolID) -> bool {
-        if let Some(start) = self.find_resolution_cycle_start_index(id) {
+    fn push_ty_resolution(&mut self, module: ModuleID, id: SymbolID) -> bool {
+        if let Some(start) = self.find_resolution_cycle_start_index(module, id) {
             for index in start..self.resolution_res.len() {
                 self.resolution_res[index] = false;
             }
             return false;
         } else {
-            self.resolution_tys.push(id);
+            self.resolution_tys.push((module, id));
             self.resolution_res.push(true);
             return true;
         }
@@ -122,11 +127,15 @@ impl<'cx> TyChecker<'cx> {
         self.resolution_res.pop().unwrap()
     }
 
-    fn find_resolution_cycle_start_index(&self, id: SymbolID) -> Option<usize> {
+    fn find_resolution_cycle_start_index(
+        &self,
+        module: ModuleID,
+        symbol: SymbolID,
+    ) -> Option<usize> {
         self.resolution_tys
             .iter()
             .rev()
-            .position(|symbol| *symbol == id)
+            .position(|ty| ty.0 == module && ty.1 == symbol)
             .map(|rev_index| self.resolution_tys.len() - 1 - rev_index)
     }
 
@@ -135,14 +144,14 @@ impl<'cx> TyChecker<'cx> {
         module: ModuleID,
         symbol: SymbolID,
     ) -> &'cx ty::Ty<'cx> {
-        let decl = match self.binder.get(module).symbols.get(symbol).kind {
-            crate::bind::SymbolKind::Class { decl, .. } => decl,
+        let decl = match &self.binder.get(module).symbols.get(symbol).kind {
+            crate::bind::SymbolKind::Class(symbol) => symbol.decl,
             _ => unreachable!(),
         };
         let Some(extends) = self.get_effective_base_type_node(decl) else {
             return self.undefined_ty();
         };
-        if !self.push_ty_resolution(symbol) {
+        if !self.push_ty_resolution(module, symbol) {
             return self.error_ty();
         }
         let base_ty = self.check_expr(extends);
@@ -163,6 +172,26 @@ impl<'cx> TyChecker<'cx> {
         base_ty
     }
 
+    pub(super) fn get_props_from_members(
+        &self,
+        module: ModuleID,
+        members: &FxHashMap<SymbolName, SymbolID>,
+    ) -> &'cx [SymbolID] {
+        let props = members
+            .values()
+            .filter_map(|m| {
+                self.binder
+                    .get(module)
+                    .symbols
+                    .get(*m)
+                    .name
+                    .as_atom()
+                    .map(|_| *m)
+            })
+            .collect::<Vec<_>>();
+        self.alloc(props)
+    }
+
     fn get_declared_ty_of_class_or_interface(
         &mut self,
         module: ModuleID,
@@ -171,47 +200,38 @@ impl<'cx> TyChecker<'cx> {
         let _outer_ty_params = self.get_outer_ty_params_of_class_or_interface(module, id);
         let (base_ctor_ty, base_tys) = self.get_base_tys(module, id);
         use crate::bind::SymbolKind::*;
-        let declared_props = match &self.binder.get(module).symbols.get(id).kind {
-            Class { members, .. } | Interface { members, .. } => {
-                let ids = members
-                    .values()
-                    .filter_map(|m| {
-                        matches!(
-                            self.binder.get(module).symbols.get(*m).kind,
-                            Property { .. }
-                        )
-                        .then_some(*m)
-                    })
-                    .collect::<Vec<_>>();
-                self.alloc(ids)
+        let members = match &self.binder.get(module).symbols.get(id).kind {
+            Class(ClassSymbol { members, .. }) | Interface { members, .. } => {
+                self.alloc(members.clone())
             }
             _ => unreachable!(),
         };
-        let index_infos = match &self.binder.get(module).symbols.get(id).kind {
-            Class { members, .. } | Interface { members, .. } => {
-                members.get(&SymbolName::Index).copied()
-            }
-            _ => unreachable!(),
-        }
-        .map(|index| {
-            let SymbolKind::Index { decl } = &self.binder.get(module).symbols.get(index).kind
-            else {
-                unreachable!()
-            };
-            let ast::Node::IndexSigDecl(decl) = self.p.get(decl.module()).nodes().get(*decl) else {
-                unreachable!()
-            };
-            let val_ty = self.get_ty_from_type_node(decl.ty);
-            decl.params.iter().map(|param| {
-                let Some(ty) = param.ty else { unreachable!() };
-                let key_ty = self.get_ty_from_type_node(ty);
-                self.alloc(ty::IndexInfo { key_ty, val_ty })
+        let declared_props = self.get_props_from_members(module, &members);
+        let index_infos = members
+            .get(&SymbolName::Index)
+            .copied()
+            .map(|index| {
+                let SymbolKind::Index { decl } = &self.binder.get(module).symbols.get(index).kind
+                else {
+                    unreachable!()
+                };
+                let ast::Node::IndexSigDecl(decl) = self.p.get(decl.module()).nodes().get(*decl)
+                else {
+                    unreachable!()
+                };
+                let val_ty = self.get_ty_from_type_node(decl.ty);
+                decl.params.iter().map(|param| {
+                    let Some(ty) = param.ty else { unreachable!() };
+                    let key_ty = self.get_ty_from_type_node(ty);
+                    self.alloc(ty::IndexInfo { key_ty, val_ty })
+                })
             })
-        })
-        .map(|info| info.collect::<Vec<_>>())
-        .unwrap_or_default();
+            .map(|info| info.collect::<Vec<_>>())
+            .unwrap_or_default();
         self.crate_interface_ty(ty::InterfaceTy {
+            module,
             symbol: id,
+            members,
             declared_props,
             base_tys,
             index_infos: self.alloc(index_infos),
@@ -225,9 +245,9 @@ impl<'cx> TyChecker<'cx> {
         id: SymbolID,
     ) -> Option<ast::TyParams<'cx>> {
         use crate::bind::SymbolKind::*;
-        match self.binder.get(module).symbols.get(id).kind {
-            Class { decl, .. } => self.get_outer_ty_params(decl),
-            Interface { decl, .. } => self.get_outer_ty_params(decl),
+        match &self.binder.get(module).symbols.get(id).kind {
+            Class(symbol) => self.get_outer_ty_params(symbol.decl),
+            Interface { decl, .. } => self.get_outer_ty_params(*decl),
             _ => unreachable!(),
         }
     }

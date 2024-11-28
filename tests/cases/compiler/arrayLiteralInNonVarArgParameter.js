@@ -1,4 +1,2 @@
-function panic(val, ...opt) {
-  
-}
+function panic(val, ...opt) {}
 panic([], "one", "two")

@@ -25,7 +25,7 @@ pub(super) struct TheValueCannotBeUsedHere {
 #[derive(Error, Diagnostic, Debug)]
 #[error("Type '{ty1}' is not assignable to type '{ty2}'.")]
 pub(super) struct TypeIsNotAssignableToType {
-    #[label]
+    #[label(primary)]
     pub span: Span,
     pub ty1: String,
     pub ty2: String,

@@ -69,8 +69,8 @@ impl<'cx> TyChecker<'cx> {
         }
         let ty = ty.unwrap_or(self.undefined_ty());
         self.symbol_links
-            .entry(symbol)
-            .or_insert(SymbolLinks::new().with_ty(ty));
+            .entry((decl.id().module(), symbol))
+            .or_insert_with(|| SymbolLinks::new().with_ty(ty));
     }
 
     fn get_widened_ty_for_var_like_decl(

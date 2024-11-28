@@ -1,4 +1,4 @@
-use super::{BinderState, SymbolID, SymbolKind, SymbolName};
+use super::{BinderState, ClassSymbol, SymbolID, SymbolKind, SymbolName};
 use crate::ast;
 use rustc_hash::FxHashMap;
 use thin_vec::thin_vec;
@@ -7,7 +7,7 @@ pub(super) trait ClassLike<'cx> {
     fn id(&self) -> ast::NodeID;
     fn create_symbol(&'cx self, binder: &mut BinderState<'cx>) -> SymbolID;
     fn extends(&self) -> Option<&'cx ast::ClassExtendsClause<'cx>>;
-    fn elems(&self) -> &'cx ast::ClassEles<'cx>;
+    fn elems(&self) -> &'cx ast::ClassElems<'cx>;
 }
 
 impl<'cx> ClassLike<'cx> for ast::ClassDecl<'cx> {
@@ -20,8 +20,8 @@ impl<'cx> ClassLike<'cx> for ast::ClassDecl<'cx> {
     fn extends(&self) -> Option<&'cx ast::ClassExtendsClause<'cx>> {
         self.extends
     }
-    fn elems(&self) -> &'cx ast::ClassEles<'cx> {
-        &self.eles
+    fn elems(&self) -> &'cx ast::ClassElems<'cx> {
+        &self.elems
     }
 }
 
@@ -35,8 +35,8 @@ impl<'cx> ClassLike<'cx> for ast::ClassExpr<'cx> {
     fn extends(&self) -> Option<&'cx ast::ClassExtendsClause<'cx>> {
         self.extends
     }
-    fn elems(&self) -> &'cx ast::ClassEles<'cx> {
-        &self.eles
+    fn elems(&self) -> &'cx ast::ClassElems<'cx> {
+        &self.elems
     }
 }
 
@@ -45,10 +45,10 @@ impl<'cx> BinderState<'cx> {
         let name = SymbolName::ClassExpr;
         let symbol = self.create_symbol(
             name,
-            SymbolKind::Class {
+            SymbolKind::Class(ClassSymbol {
                 decl: expr.id,
                 members: FxHashMap::default(),
-            },
+            }),
         );
         self.create_final_res(expr.id, symbol);
         symbol
@@ -56,10 +56,10 @@ impl<'cx> BinderState<'cx> {
     fn create_class_decl(&mut self, decl: &'cx ast::ClassDecl<'cx>) -> SymbolID {
         let symbol = self.create_var_symbol(
             decl.name.name,
-            SymbolKind::Class {
+            SymbolKind::Class(ClassSymbol {
                 decl: decl.id,
                 members: FxHashMap::default(),
-            },
+            }),
         );
         self.create_final_res(decl.id, symbol);
         symbol
@@ -78,7 +78,8 @@ impl<'cx> BinderState<'cx> {
         let Some(class_symbol_id) = self.final_res.get(&decl_id).copied() else {
             unreachable!()
         };
-        let SymbolKind::Class { members, .. } = &mut self.symbols.get_mut(class_symbol_id).kind
+        let SymbolKind::Class(ClassSymbol { members, .. }) =
+            &mut self.symbols.get_mut(class_symbol_id).kind
         else {
             unreachable!()
         };
@@ -97,7 +98,8 @@ impl<'cx> BinderState<'cx> {
         let Some(class_symbol_id) = self.final_res.get(&decl_id).copied() else {
             unreachable!()
         };
-        let SymbolKind::Class { members, .. } = &mut self.symbols.get_mut(class_symbol_id).kind
+        let SymbolKind::Class(ClassSymbol { members, .. }) =
+            &mut self.symbols.get_mut(class_symbol_id).kind
         else {
             unreachable!()
         };
@@ -121,7 +123,8 @@ impl<'cx> BinderState<'cx> {
                 },
             );
             self.create_final_res(ele_id, symbol);
-            let SymbolKind::Class { members, .. } = &mut self.symbols.get_mut(class_symbol_id).kind
+            let SymbolKind::Class(ClassSymbol { members, .. }) =
+                &mut self.symbols.get_mut(class_symbol_id).kind
             else {
                 unreachable!()
             };
@@ -187,7 +190,7 @@ impl<'cx> BinderState<'cx> {
 
         let old = self.scope_id;
         self.scope_id = self.new_scope();
-        for ele in class.elems().eles {
+        for ele in class.elems().elems {
             match ele.kind {
                 ast::ClassEleKind::Prop(n) => self.bind_class_prop_ele(class.id(), n),
                 ast::ClassEleKind::Method(n) => self.bind_class_method_ele(class.id(), n),
@@ -196,7 +199,7 @@ impl<'cx> BinderState<'cx> {
                     let name = SymbolName::Index;
                     let symbol = self.bind_index_sig(n);
                     self.create_final_res(n.id, symbol);
-                    let SymbolKind::Class { members, .. } =
+                    let SymbolKind::Class(ClassSymbol { members, .. }) =
                         &mut self.symbols.get_mut(class_symbol).kind
                     else {
                         unreachable!("{:#?}", self.symbols.get(symbol))

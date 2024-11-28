@@ -434,9 +434,9 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         })
     }
 
-    fn push_error(&mut self, module_id: ModuleID, error: crate::Diag) {
+    fn push_error(&mut self, error: crate::Diag) {
         self.diags.push(bolt_ts_errors::Diag {
-            module_id,
+            module_id: self.module_id,
             inner: error,
         });
     }

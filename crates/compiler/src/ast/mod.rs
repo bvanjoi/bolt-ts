@@ -98,13 +98,13 @@ pub struct ClassDecl<'cx> {
     pub ty_params: Option<TyParams<'cx>>,
     pub extends: Option<&'cx ClassExtendsClause<'cx>>,
     pub implements: Option<&'cx ImplementsClause<'cx>>,
-    pub eles: &'cx ClassEles<'cx>,
+    pub elems: &'cx ClassElems<'cx>,
 }
 
 #[derive(Debug, Clone, Copy)]
-pub struct ClassEles<'cx> {
+pub struct ClassElems<'cx> {
     pub span: Span,
-    pub eles: &'cx [&'cx ClassEle<'cx>],
+    pub elems: &'cx [&'cx ClassEle<'cx>],
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -267,6 +267,7 @@ impl Expr<'_> {
             ArrowFn(f) => f.span,
             PrefixUnary(unary) => unary.span,
             PropAccess(a) => a.span,
+            This(this) => this.span,
         }
     }
 
@@ -292,6 +293,7 @@ impl Expr<'_> {
             ArrowFn(f) => f.id,
             PrefixUnary(unary) => unary.id,
             PropAccess(a) => a.id,
+            This(this) => this.id,
         }
     }
 }
@@ -300,6 +302,7 @@ impl Expr<'_> {
 pub enum ExprKind<'cx> {
     Assign(&'cx AssignExpr<'cx>),
     Bin(&'cx BinExpr<'cx>),
+    This(&'cx ThisExpr),
     BoolLit(&'cx BoolLit),
     NumLit(&'cx NumLit),
     StringLit(&'cx StringLit),
@@ -317,6 +320,12 @@ pub enum ExprKind<'cx> {
     ArrowFn(&'cx ArrowFnExpr<'cx>),
     PrefixUnary(&'cx PrefixUnaryExpr<'cx>),
     PropAccess(&'cx PropAccessExpr<'cx>),
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct ThisExpr {
+    pub id: NodeID,
+    pub span: Span,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -428,7 +437,7 @@ pub struct ClassExpr<'cx> {
     pub ty_params: Option<TyParams<'cx>>,
     pub extends: Option<&'cx ClassExtendsClause<'cx>>,
     pub implements: Option<&'cx ImplementsClause<'cx>>,
-    pub eles: &'cx ClassEles<'cx>,
+    pub elems: &'cx ClassElems<'cx>,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -703,6 +712,7 @@ pub struct CallExpr<'cx> {
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum ModifierKind {
     Public,
+    Private,
     Abstract,
     Static,
     Declare,

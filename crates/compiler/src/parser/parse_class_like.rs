@@ -71,7 +71,7 @@ pub(super) trait ClassLike<'cx, 'p> {
         ty_params: Option<ast::TyParams<'cx>>,
         extends: Option<&'cx ast::ClassExtendsClause<'cx>>,
         implements: Option<&'cx ast::ImplementsClause<'cx>>,
-        eles: &'cx ast::ClassEles<'cx>,
+        elems: &'cx ast::ClassElems<'cx>,
     ) -> Self::Node;
 }
 
@@ -91,7 +91,7 @@ impl<'cx, 'p> ClassLike<'cx, 'p> for ParseClassDecl {
         ty_params: Option<ast::TyParams<'cx>>,
         extends: Option<&'cx ast::ClassExtendsClause<'cx>>,
         implements: Option<&'cx ast::ImplementsClause<'cx>>,
-        eles: &'cx ast::ClassEles<'cx>,
+        elems: &'cx ast::ClassElems<'cx>,
     ) -> Self::Node {
         let name = name.unwrap();
         let decl = state.alloc(ast::ClassDecl {
@@ -102,7 +102,7 @@ impl<'cx, 'p> ClassLike<'cx, 'p> for ParseClassDecl {
             ty_params,
             extends,
             implements,
-            eles,
+            elems,
         });
         state.insert_map(decl.id, ast::Node::ClassDecl(decl));
         decl
@@ -128,7 +128,7 @@ impl<'cx, 'p> ClassLike<'cx, 'p> for ParseClassExpr {
         ty_params: Option<ast::TyParams<'cx>>,
         extends: Option<&'cx ast::ClassExtendsClause<'cx>>,
         implements: Option<&'cx ast::ImplementsClause<'cx>>,
-        eles: &'cx ast::ClassEles<'cx>,
+        elems: &'cx ast::ClassElems<'cx>,
     ) -> Self::Node {
         assert!(modifiers.is_none());
         let expr = state.alloc(ast::ClassExpr {
@@ -138,7 +138,7 @@ impl<'cx, 'p> ClassLike<'cx, 'p> for ParseClassExpr {
             ty_params,
             extends,
             implements,
-            eles,
+            elems,
         });
         state.insert_map(expr.id, ast::Node::ClassExpr(expr));
         expr
@@ -159,10 +159,10 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         let ty_params = self.with_parent(id, Self::parse_ty_params)?;
         let extends = self.with_parent(id, Self::parse_class_extends_clause)?;
         let implements = self.with_parent(id, Self::parse_implements_clause)?;
-        let eles = self.with_parent(id, Self::parse_class_members)?;
-        let span = self.new_span(start as usize, eles.span.hi as usize);
+        let elems = self.with_parent(id, Self::parse_class_members)?;
+        let span = self.new_span(start as usize, elems.span.hi as usize);
         Ok(mode.finish(
-            self, id, span, modifiers, name, ty_params, extends, implements, eles,
+            self, id, span, modifiers, name, ty_params, extends, implements, elems,
         ))
     }
 
@@ -217,7 +217,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
                     span: self.new_span(lo as usize, lo as usize),
                     extra_extends,
                 };
-                self.push_error(self.module_id, Box::new(error));
+                self.push_error(Box::new(error));
             }
             let clause = self.alloc(ast::ClassExtendsClause {
                 id,
@@ -401,13 +401,13 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         }
     }
 
-    fn parse_class_members(&mut self) -> PResult<&'cx ast::ClassEles<'cx>> {
+    fn parse_class_members(&mut self) -> PResult<&'cx ast::ClassElems<'cx>> {
         let start = self.token.start();
         self.expect(TokenKind::LBrace)?;
-        let eles = self.parse_list(ClassElementsCtx, Self::parse_class_ele);
+        let elems = self.parse_list(ClassElementsCtx, Self::parse_class_ele);
         let end = self.token.end();
         self.expect(TokenKind::RBrace)?;
         let span = self.new_span(start as usize, end as usize);
-        Ok(self.alloc(ast::ClassEles { span, eles }))
+        Ok(self.alloc(ast::ClassElems { span, elems }))
     }
 }

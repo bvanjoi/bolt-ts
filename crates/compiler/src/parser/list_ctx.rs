@@ -21,7 +21,7 @@ impl ListContext for BlockStmt {
 pub(super) struct ArgExprs;
 impl ListContext for ArgExprs {
     fn is_ele(&self, s: &mut ParserState) -> bool {
-        s.token.kind.is_start_of_expr()
+        matches!(s.token.kind, TokenKind::DotDotDot) || s.token.kind.is_start_of_expr()
     }
 
     fn is_closing(&self, s: &mut ParserState) -> bool {

@@ -5,22 +5,21 @@ pub(super) trait ClassLikeDecl<'cx>: Copy + std::fmt::Debug {
     fn id(&self) -> ast::NodeID;
     fn extends(&self) -> Option<&'cx ast::ClassExtendsClause<'cx>>;
     fn implements(&self) -> Option<&'cx ast::ImplementsClause<'cx>>;
-    fn eles(&self) -> &'cx ast::ClassEles<'cx>;
+    fn elems(&self) -> &'cx ast::ClassElems<'cx>;
 }
 
 impl<'cx> ClassLikeDecl<'cx> for ast::ClassDecl<'cx> {
     fn id(&self) -> ast::NodeID {
         self.id
     }
-
     fn extends(&self) -> Option<&'cx ast::ClassExtendsClause<'cx>> {
         self.extends
     }
     fn implements(&self) -> Option<&'cx ast::ImplementsClause<'cx>> {
         self.implements
     }
-    fn eles(&self) -> &'cx ast::ClassEles<'cx> {
-        self.eles
+    fn elems(&self) -> &'cx ast::ClassElems<'cx> {
+        self.elems
     }
 }
 
@@ -28,15 +27,14 @@ impl<'cx> ClassLikeDecl<'cx> for ast::ClassExpr<'cx> {
     fn id(&self) -> ast::NodeID {
         self.id
     }
-
     fn extends(&self) -> Option<&'cx ast::ClassExtendsClause<'cx>> {
         self.extends
     }
     fn implements(&self) -> Option<&'cx ast::ImplementsClause<'cx>> {
         self.implements
     }
-    fn eles(&self) -> &'cx ast::ClassEles<'cx> {
-        self.eles
+    fn elems(&self) -> &'cx ast::ClassElems<'cx> {
+        self.elems
     }
 }
 
@@ -79,7 +77,7 @@ impl<'cx> TyChecker<'cx> {
             }
         }
 
-        for ele in class.eles().eles {
+        for ele in class.elems().elems {
             use ast::ClassEleKind::*;
             match ele.kind {
                 Prop(prop) => self.check_class_prop_ele(prop),

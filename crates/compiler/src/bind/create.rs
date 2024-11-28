@@ -48,10 +48,11 @@ impl<'cx> BinderState<'cx> {
     pub(super) fn create_interface_symbol(
         &mut self,
         id: ast::NodeID,
+        name: AtomId,
         members: FxHashMap<SymbolName, SymbolID>,
     ) {
         let symbol = self.create_symbol(
-            SymbolName::Interface,
+            SymbolName::Normal(name),
             SymbolKind::Interface { decl: id, members },
         );
         self.final_res.insert(id, symbol);

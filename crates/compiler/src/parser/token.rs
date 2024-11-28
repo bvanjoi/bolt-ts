@@ -51,6 +51,7 @@ pub enum TokenKind {
     Interface,
     Abstract,
     Public,
+    Private,
     As,
     Declare,
     // =====
@@ -205,6 +206,7 @@ impl Into<ModifierKind> for TokenKind {
             TokenKind::Abstract => ModifierKind::Abstract,
             TokenKind::Static => ModifierKind::Static,
             TokenKind::Declare => ModifierKind::Declare,
+            TokenKind::Private => ModifierKind::Private,
             _ => {
                 unreachable!("{:#?}", self)
             }
@@ -261,7 +263,20 @@ impl TokenKind {
         use TokenKind::*;
         matches!(
             self,
-            Null | True | False | Number | String | LBrace | LBracket | LParen | New | Ident | This
+            Null | True
+                | False
+                | Number
+                | String
+                | LBrace
+                | LBracket
+                | LParen
+                | This
+                | Function
+                | Class
+                | New
+                | Slash
+                | SlashEq
+                | Ident
         ) || self.is_ident()
     }
 
@@ -328,7 +343,7 @@ impl TokenKind {
 
     pub fn is_modifier_kind(self) -> bool {
         use TokenKind::*;
-        matches!(self, Abstract | Const | Public | Static | Declare)
+        matches!(self, Abstract | Const | Public | Static | Declare | Private)
     }
 
     pub fn is_accessibility_modifier(self) -> bool {

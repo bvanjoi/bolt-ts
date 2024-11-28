@@ -25,7 +25,7 @@ fn main_test() {
     //     let output = eval_from(bolt_ts_span::ModulePath::Real(case.path().clone()));
     // }
 
-    let p = project_root.join("tests/cases/compiler/constructorReturnsInvalidType.ts");
+    let p = project_root.join("tests/cases/compiler/unicodeStringLiteral.ts");
     let output = eval_from(bolt_ts_span::ModulePath::Real(p.clone()));
     if output.diags.is_empty() {
         let file_path =

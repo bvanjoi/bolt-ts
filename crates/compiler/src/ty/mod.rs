@@ -1,35 +1,27 @@
+mod bound_object_like;
 mod facts;
 
-use crate::atoms::{AtomId, AtomMap};
-use crate::bind::SymbolID;
+use crate::atoms::AtomMap;
+use crate::bind::{Binder, SymbolID, SymbolName};
 use crate::keyword;
 use bolt_ts_span::ModuleID;
-pub use facts::{has_type_facts, TypeFacts};
 use rustc_hash::FxHashMap;
+
+pub use bound_object_like::ObjectLikeTy;
+pub use facts::{has_type_facts, TypeFacts};
 
 bolt_ts_span::new_index!(TyID);
 bolt_ts_span::new_index!(TyVarID);
 
-bitflags::bitflags! {
-    #[derive(Debug, Clone, Copy)]
-    pub struct TyFlags: u16 {
-    }
-}
-
 #[derive(Debug, Clone, Copy)]
 pub struct Ty<'cx> {
-    pub flags: TyFlags,
     pub kind: TyKind<'cx>,
     pub id: TyID,
 }
 
 impl<'cx> Ty<'cx> {
     pub fn new(id: TyID, kind: TyKind<'cx>) -> Self {
-        Self {
-            kind,
-            id,
-            flags: TyFlags::empty(),
-        }
+        Self { kind, id }
     }
 }
 
@@ -44,22 +36,33 @@ pub enum TyKind<'cx> {
 }
 
 impl<'cx> TyKind<'cx> {
-    pub fn to_string(&self, atoms: &'cx AtomMap) -> String {
+    pub fn to_string(&self, binder: &'cx Binder, atoms: &'cx AtomMap) -> String {
         match self {
             TyKind::NumberLit(_) => "number".to_string(),
             TyKind::Intrinsic(ty) => ty.kind.as_str().to_string(),
             TyKind::Union(union) => union
                 .tys
                 .iter()
-                .map(|ty| ty.kind.to_string(atoms))
+                .map(|ty| ty.kind.to_string(binder, atoms))
                 .collect::<Vec<_>>()
                 .join(" | "),
             TyKind::StringLit => todo!(),
-            TyKind::Object(object) => object.kind.to_string(atoms),
+            TyKind::Object(object) => object.kind.to_string(&binder, atoms),
             TyKind::Var(id) => {
                 // todo: delay bug
                 format!("#{id:#?}")
             }
+        }
+    }
+
+    pub fn is_primitive(&self) -> bool {
+        use TyKind::*;
+        if self.is_string_like() || self.is_number_like() || self.is_boolean_like() {
+            true
+        } else if let Intrinsic(ty) = self {
+            matches!(ty.kind, IntrinsicTyKind::Null)
+        } else {
+            false
         }
     }
 
@@ -347,7 +350,9 @@ pub struct IndexInfo<'cx> {
 
 #[derive(Debug, Clone, Copy)]
 pub struct InterfaceTy<'cx> {
+    pub module: ModuleID,
     pub symbol: SymbolID,
+    pub members: &'cx FxHashMap<SymbolName, SymbolID>,
     pub declared_props: &'cx [SymbolID],
     pub base_tys: &'cx [&'cx Ty<'cx>],
     pub index_infos: &'cx [&'cx IndexInfo<'cx>],
@@ -355,13 +360,24 @@ pub struct InterfaceTy<'cx> {
 }
 
 impl<'cx> ObjectTyKind<'cx> {
-    fn to_string(&self, atoms: &AtomMap<'cx>) -> String {
+    fn to_string(&self, binder: &Binder, atoms: &AtomMap<'cx>) -> String {
         match self {
             ObjectTyKind::Class(_) => "class".to_string(),
             ObjectTyKind::Fn(_) => "function".to_string(),
             ObjectTyKind::Lit(_) => "Object".to_string(),
-            ObjectTyKind::Array(ArrayTy { ty }) => format!("{}[]", ty.kind.to_string(atoms)),
-            ObjectTyKind::Interface(_) => "interface".to_string(),
+            ObjectTyKind::Array(ArrayTy { ty }) => {
+                format!("{}[]", ty.kind.to_string(binder, atoms))
+            }
+            ObjectTyKind::Interface(i) => atoms
+                .get(
+                    binder
+                        .get(i.module)
+                        .symbols
+                        .get(i.symbol)
+                        .name
+                        .expect_atom(),
+                )
+                .to_string(),
         }
     }
 
@@ -378,7 +394,8 @@ pub struct ClassTy {
 
 #[derive(Debug, Clone, Copy)]
 pub struct ObjectLitTy<'cx> {
-    pub members: &'cx FxHashMap<AtomId, &'cx Ty<'cx>>,
+    pub members: &'cx FxHashMap<SymbolName, SymbolID>,
+    pub declared_props: &'cx [SymbolID],
     pub module: ModuleID,
     pub symbol: SymbolID,
 }

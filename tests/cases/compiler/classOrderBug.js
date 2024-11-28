@@ -1,7 +1,7 @@
 class bar {
-baz
-constructor() {
-  this.baz = new foo()
+  baz
+  constructor() {
+    this.baz = new foo()  
 }
 }
 class baz {}

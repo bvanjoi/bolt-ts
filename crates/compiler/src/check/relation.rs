@@ -2,9 +2,9 @@ use bolt_ts_span::{ModuleID, Span};
 use rustc_hash::FxHashSet;
 
 use crate::atoms::AtomId;
-use crate::bind::SymbolID;
+use crate::bind::{SymbolID, SymbolName};
 use crate::errors;
-use crate::ty::{Ty, TyKind, Tys};
+use crate::ty::{ObjectLikeTy, ObjectTy, ObjectTyKind, Ty, TyKind, Tys};
 
 use super::TyChecker;
 
@@ -41,7 +41,6 @@ impl<'cx> TyChecker<'cx> {
             .expect_object()
             .members
         {
-            let name = name.expect_atom();
             if target.members.contains_key(&name) {
                 continue;
             } else {
@@ -58,7 +57,7 @@ impl<'cx> TyChecker<'cx> {
                             .expect_prop(),
                     )
                     .span();
-                let field = self.atoms.get(name).to_string();
+                let field = self.atoms.get(name.expect_atom()).to_string();
                 let error =
                     errors::ObjectLitMayOnlySpecifyKnownPropAndFieldDoesNotExist { span, field };
                 self.push_error(span.module, Box::new(error));
@@ -150,24 +149,31 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
-    fn props_related_to(&mut self, source: &'cx Ty<'cx>, target: &'cx Ty<'cx>) -> bool {
+    fn props_related_to(
+        &mut self,
+        source: &'cx Ty<'cx>,
+        target: &'cx Ty<'cx>,
+        report_error: bool,
+    ) -> bool {
         let unmatched = self.get_unmatched_prop(source, target);
         if let Some((unmatched, target_module, target_symbol)) = unmatched {
-            let target = self
-                .binder
-                .get(target_module)
-                .symbols
-                .get(target_symbol)
-                .kind
-                .expect_object();
-            let decl = target.decl;
-            for name in unmatched {
-                let span = self.p.get(target_module).nodes().get(decl).span();
-                let field = self.atoms.get(name).to_string();
-                let error = errors::PropertyXIsMissing { span, field };
-                self.push_error(span.module, Box::new(error));
+            let symbol = self.binder.get(target_module).symbols.get(target_symbol);
+            let decl = if let Some(symbol) = symbol.kind.as_class() {
+                symbol.decl
+            } else {
+                symbol.kind.expect_object().decl
+            };
+            if !unmatched.is_empty() && report_error {
+                for name in unmatched {
+                    let span = self.p.get(target_module).nodes().get(decl).span();
+                    let field = self.atoms.get(name).to_string();
+                    let error = errors::PropertyXIsMissing { span, field };
+                    self.push_error(span.module, Box::new(error));
+                }
+                return true;
             }
-            true
+
+            false
         } else {
             true
         }
@@ -219,10 +225,17 @@ impl<'cx> TyChecker<'cx> {
             }
         }
 
-        if relation != RelationKind::Identity {}
+        let source_is_primitive = source.kind.is_primitive();
+
+        let source = if relation != RelationKind::Identity {
+            self.get_apparent_ty(source)
+        } else {
+            source
+        };
 
         if source.kind.is_object_or_intersection() && target.kind.is_object() {
-            self.props_related_to(source, target)
+            let report_error = !source_is_primitive;
+            self.props_related_to(source, target, report_error)
         } else {
             true
         }
@@ -308,30 +321,77 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
+    fn get_props_of_object_ty(&self, ty: &'cx ObjectTy<'cx>) -> (ModuleID, &'cx [SymbolID]) {
+        if let ObjectTyKind::Interface(ty) = ty.kind {
+            (ty.module, ObjectLikeTy::props(ty))
+        } else if let ObjectTyKind::Lit(ty) = ty.kind {
+            (ty.module, ObjectLikeTy::props(ty))
+        } else {
+            unreachable!()
+        }
+    }
+
+    fn get_props_of_ty(&self, ty: &'cx Ty<'cx>) -> (ModuleID, &'cx [SymbolID]) {
+        if let TyKind::Object(ty) = ty.kind {
+            self.get_props_of_object_ty(ty)
+        } else {
+            (ModuleID::root(), &[])
+        }
+    }
+
+    fn get_prop_of_ty(&self, ty: &'cx Ty<'cx>, name: SymbolName) -> Option<(ModuleID, SymbolID)> {
+        let TyKind::Object(ty) = ty.kind else {
+            return None;
+        };
+        let (module, members) = if let ObjectTyKind::Interface(ty) = ty.kind {
+            (ty.module, ObjectLikeTy::members(ty))
+        } else if let ObjectTyKind::Lit(ty) = ty.kind {
+            (ty.module, ObjectLikeTy::members(ty))
+        } else {
+            unreachable!()
+        };
+        members.get(&name).map(|symbol| (module, *symbol))
+    }
+
     fn get_unmatched_prop(
         &mut self,
         source: &'cx Ty<'cx>,
         target: &'cx Ty<'cx>,
     ) -> Option<(FxHashSet<AtomId>, ModuleID, SymbolID)> {
-        let Some(target) = target.kind.as_object_lit() else {
-            unreachable!()
-        };
-        let set: FxHashSet<_> = target
-            .members
+        self.get_unmatched_props(source, target)
+    }
+
+    fn get_unmatched_props(
+        &mut self,
+        source: &'cx Ty<'cx>,
+        target: &'cx Ty<'cx>,
+    ) -> Option<(FxHashSet<AtomId>, ModuleID, SymbolID)> {
+        let (module, symbols) = self.get_props_of_ty(target);
+        let set: FxHashSet<_> = symbols
             .iter()
-            .filter_map(|(name, _)| {
-                if let Some(source) = source.kind.as_object_lit() {
-                    if !source.members.contains_key(&name) {
-                        return Some(*name);
-                    }
+            .filter_map(|symbol| {
+                let name = self.binder.get(module).symbols.get(*symbol).name;
+                if self.get_prop_of_ty(source, name).is_none() {
+                    Some(name.expect_atom())
+                } else {
+                    None
                 }
-                None
             })
             .collect();
         if set.is_empty() {
             None
         } else {
-            Some((set, target.module, target.symbol))
+            let TyKind::Object(ty) = target.kind else {
+                unreachable!()
+            };
+            let symbol = if let ObjectTyKind::Interface(ty) = ty.kind {
+                ty.symbol
+            } else if let ObjectTyKind::Lit(ty) = ty.kind {
+                ty.symbol
+            } else {
+                unreachable!()
+            };
+            Some((set, module, symbol))
         }
     }
 

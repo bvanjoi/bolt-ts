@@ -1,6 +1,2 @@
-function foo(a = "") {
-  
-}
-function bar(a = "") {
-  
-}
+function foo(a = "") {}
+function bar(a = "") {}

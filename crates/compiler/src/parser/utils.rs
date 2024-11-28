@@ -5,7 +5,18 @@ use super::{PResult, ParserState};
 
 pub(super) fn is_left_hand_side_expr_kind(expr: &ast::Expr) -> bool {
     use ast::ExprKind::*;
-    matches!(expr.kind, PropAccess(_) | Ident(_) | New(_) | Call(_))
+    matches!(
+        expr.kind,
+        PropAccess(_)
+            | New(_)
+            | Call(_)
+            | ArrayLit(_)
+            | Paren(_)
+            | Class(_)
+            | Fn(_)
+            | Ident(_)
+            | This(_)
+    )
 }
 
 impl<'cx, 'p> ParserState<'cx, 'p> {
@@ -14,7 +25,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         loop {
             match self.token.kind {
                 Var | Let | Const | Function | Class => return true,
-                Abstract | Declare | Public => {
+                Abstract | Declare | Public | Private => {
                     // let prev = self.token.kind;
                     self.next_token();
                     continue;
@@ -117,7 +128,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
                 let error = errors::TypeParameterListCannotBeEmpty {
                     span: less_token_span,
                 };
-                self.push_error(self.module_id, Box::new(error));
+                self.push_error(Box::new(error));
                 Ok(None)
             } else {
                 Ok(Some(ty_params))

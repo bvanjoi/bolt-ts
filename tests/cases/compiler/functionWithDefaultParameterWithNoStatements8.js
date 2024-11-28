@@ -1,6 +1,2 @@
-function foo(a = undefined) {
-  
-}
-function bar(a = undefined) {
-  
-}
+function foo(a = undefined) {}
+function bar(a = undefined) {}

@@ -1,11 +1,11 @@
 use crate::ast;
 
+use super::emit_block_like::BlockLike;
 use super::Emit;
 
-pub(super) trait ClassLike<'cx> {
+pub(super) trait ClassLike<'cx>: BlockLike<'cx> {
     fn name(&self) -> Option<&'cx ast::Ident>;
     fn extends(&self) -> Option<&'cx ast::ClassExtendsClause<'cx>>;
-    fn eles(&self) -> &'cx ast::ClassEles<'cx>;
 }
 
 impl<'cx> ClassLike<'cx> for ast::ClassDecl<'cx> {
@@ -15,9 +15,6 @@ impl<'cx> ClassLike<'cx> for ast::ClassDecl<'cx> {
     fn extends(&self) -> Option<&'cx ast::ClassExtendsClause<'cx>> {
         self.extends
     }
-    fn eles(&self) -> &'cx ast::ClassEles<'cx> {
-        &self.eles
-    }
 }
 
 impl<'cx> ClassLike<'cx> for ast::ClassExpr<'cx> {
@@ -26,9 +23,6 @@ impl<'cx> ClassLike<'cx> for ast::ClassExpr<'cx> {
     }
     fn extends(&self) -> Option<&'cx ast::ClassExtendsClause<'cx>> {
         self.extends
-    }
-    fn eles(&self) -> &'cx ast::ClassEles<'cx> {
-        &self.eles
     }
 }
 
@@ -46,26 +40,10 @@ impl<'cx> Emit<'cx> {
             self.emit_expr(extends.expr);
             self.content.p_whitespace();
         }
-        self.content.p_l_brace();
-        if !class.eles().eles.is_empty() {
-            self.content.p_newline();
-        }
-        self.emit_list(
-            class.eles().eles,
-            |this, ele| this.emit_class_ele(ele),
-            |this, ele| {
-                if !matches!(ele.kind, ast::ClassEleKind::IndexSig(_)) {
-                    this.content.p_newline()
-                }
-            },
-        );
-        if !class.eles().eles.is_empty() {
-            self.content.p_newline();
-        }
-        self.content.p_r_brace();
+        self.emit_block_like(class);
     }
 
-    fn emit_class_ele(&mut self, ele: &'cx ast::ClassEle<'cx>) {
+    pub(super) fn emit_class_ele(&mut self, ele: &ast::ClassEle<'cx>) {
         use ast::ClassEleKind::*;
         match ele.kind {
             Prop(prop) => {

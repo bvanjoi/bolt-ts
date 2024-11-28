@@ -1,8 +1,6 @@
 class C {
-get bar() {
-  return 1
+  get bar() {
+    return 1  
 }
-set bar(v) {
-  
-}
+  set bar(v) {}
 }

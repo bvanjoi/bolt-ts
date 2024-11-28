@@ -9,21 +9,21 @@ use crate::atoms::AtomId;
 use crate::keyword::KEYWORDS;
 
 #[inline(always)]
-pub(super) fn is_ascii_letter(ch: u8) -> bool {
+fn is_ascii_letter(ch: u8) -> bool {
     ch.is_ascii_alphabetic()
 }
 
-pub(super) fn is_word_character(ch: u8) -> bool {
+fn is_word_character(ch: u8) -> bool {
     is_ascii_letter(ch) || ch.is_ascii_digit() || ch == b'_'
 }
 
 #[inline(always)]
-pub(super) fn is_identifier_start(ch: u8) -> bool {
-    is_ascii_letter(ch) || ch == b'$' || ch == b'_'
+fn is_identifier_start(ch: u8) -> bool {
+    ch == b'$' || ch == b'_' || is_ascii_letter(ch)
 }
 
-pub(super) fn is_identifier_part(ch: u8) -> bool {
-    is_word_character(ch) || ch == b'$'
+fn is_identifier_part(ch: u8) -> bool {
+    ch == b'$' || is_word_character(ch)
 }
 
 fn is_line_break(ch: u8) -> bool {

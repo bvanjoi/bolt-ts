@@ -33,6 +33,7 @@ keyword!(
     (KW_INTERFACE, KW_INTERFACE_STR, "interface"),
     (KW_ABSTRACT, KW_ABSTRACT_STR, "abstract"),
     (KW_PUBLIC, KW_PUBLIC_STR, "public"),
+    (KW_PRIVATE, KW_PRIVATE_STR, "private"),
     (KW_AS, KW_AS_STR, "as"),
     (KW_DECLARE, KW_DECLARE_STR, "declare")
 );
@@ -52,6 +53,7 @@ ident!(
     (IDENT_ANY, IDENT_ANY_STR, "any"),
     (IDENT_VOID, IDENT_VOID_STR, "void"),
     (IDENT_NUMBER, IDENT_NUMBER_STR, "number"),
+    (IDENT_NUMBER_CLASS, IDENT_NUMBER_CLASS_STR, "Number"),
     (IDENT_ARRAY, IDENT_ARRAY_STR, "array"),
     (IDENT_ARRAY_CLASS, IDENT_ARRAY_CLASS_STR, "Array"),
     (IDENT_STRING, IDENT_STRING_STR, "string"),

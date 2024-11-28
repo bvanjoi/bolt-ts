@@ -49,6 +49,9 @@ impl<'cx> Emit<'cx> {
                 self.content.p_dot();
                 self.emit_ident(prop.name);
             }
+            This(_) => {
+                self.content.p("this");
+            }
         }
     }
 

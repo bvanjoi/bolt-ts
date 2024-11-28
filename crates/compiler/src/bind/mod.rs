@@ -4,6 +4,7 @@ mod symbol;
 
 use bolt_ts_span::ModuleID;
 use rustc_hash::FxHashMap;
+pub use symbol::ClassSymbol;
 pub use symbol::{GlobalSymbols, Symbol, SymbolFnKind, SymbolID, SymbolKind, SymbolName, Symbols};
 
 use crate::ast::{self, NodeID};
@@ -147,6 +148,25 @@ impl<'cx> BinderState<'cx> {
         self.create_symbol(SymbolName::Index, SymbolKind::Index { decl: index.id })
     }
 
+    fn bind_object_ty_member(
+        &mut self,
+        m: &'cx ast::ObjectTyMember<'cx>,
+    ) -> Option<(SymbolName, SymbolID)> {
+        use ast::ObjectTyMemberKind::*;
+        match m.kind {
+            Prop(m) => {
+                let name = Self::prop_name(m.name);
+                Some((name, self.create_object_member_symbol(name, m.id)))
+            }
+            Method(_) => None,
+            CallSig(_) => {
+                // let name = SymbolName::;
+                // (name, self.create_object_member_symbol(name, m.id))
+                None
+            }
+        }
+    }
+
     fn bind_interface(&mut self, i: &'cx ast::InterfaceDecl<'cx>) {
         if let Some(extends) = i.extends {
             for ty in extends.tys {
@@ -156,23 +176,9 @@ impl<'cx> BinderState<'cx> {
         let members = i
             .members
             .iter()
-            .flat_map(|m| {
-                use ast::ObjectTyMemberKind::*;
-                match m.kind {
-                    Prop(m) => {
-                        let name = Self::prop_name(m.name);
-                        Some((name, self.create_object_member_symbol(name, m.id)))
-                    }
-                    Method(_) => None,
-                    CallSig(_) => {
-                        // let name = SymbolName::;
-                        // (name, self.create_object_member_symbol(name, m.id))
-                        None
-                    }
-                }
-            })
+            .flat_map(|m| self.bind_object_ty_member(m))
             .collect();
-        self.create_interface_symbol(i.id, members);
+        self.create_interface_symbol(i.id, i.name.name, members);
     }
 
     fn prop_name(name: &ast::PropName) -> SymbolName {
@@ -284,7 +290,12 @@ impl<'cx> BinderState<'cx> {
             Lit(lit) => {
                 let old = self.scope_id;
                 self.scope_id = self.new_scope();
-                self.create_object_lit_symbol(lit.id, Default::default());
+                let members = lit
+                    .members
+                    .iter()
+                    .flat_map(|m| self.bind_object_ty_member(m))
+                    .collect();
+                self.create_object_lit_symbol(lit.id, members);
                 self.scope_id = old;
             }
             ExprWithArg(expr) => self.bind_expr(expr),

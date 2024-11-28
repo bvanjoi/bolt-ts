@@ -1,3 +1,1 @@
-function commentedParameters(a, b) {
-  
-}
+function commentedParameters(a, b) {}

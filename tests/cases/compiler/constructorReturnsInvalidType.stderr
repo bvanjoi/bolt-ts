@@ -1,0 +1,5 @@
+  × Type 'number' is not assignable to type 'X'.
+   ╭─[../../tests/cases/compiler/constructorReturnsInvalidType.ts:3:16]
+ 3 │ 1
+   · ─
+   ╰────

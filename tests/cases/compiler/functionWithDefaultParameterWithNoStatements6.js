@@ -1,6 +1,2 @@
-function foo(a = true) {
-  
-}
-function bar(a = true) {
-  
-}
+function foo(a = true) {}
+function bar(a = true) {}

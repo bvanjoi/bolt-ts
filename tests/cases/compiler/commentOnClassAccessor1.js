@@ -1,5 +1,5 @@
 class C {
-get bar() {
-  return 1
+  get bar() {
+    return 1  
 }
 }

@@ -50,6 +50,7 @@ pub enum Node<'cx> {
     ArrowFnExpr(&'cx ast::ArrowFnExpr<'cx>),
     PrefixUnaryExpr(&'cx ast::PrefixUnaryExpr<'cx>),
     PropAccessExpr(&'cx ast::PropAccessExpr<'cx>),
+    ThisExpr(&'cx ast::ThisExpr),
 
     // ty
     ArrayTy(&'cx ast::ArrayTy<'cx>),
@@ -114,6 +115,7 @@ impl Node<'_> {
             InterfaceDecl(n) => n.id,
             PropSignature(n) => n.id,
             MethodSignature(n) => n.id,
+            ThisExpr(n) => n.id,
         }
     }
 
@@ -168,6 +170,7 @@ impl Node<'_> {
             InterfaceDecl(n) => n.span,
             PropSignature(n) => n.span,
             MethodSignature(n) => n.span,
+            ThisExpr(n) => n.span,
         }
     }
 

@@ -384,6 +384,16 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
                 self.insert_map(lit.id, ast::Node::StringLit(lit));
                 ast::ExprKind::StringLit(lit)
             }
+            This => {
+                let id = self.next_node_id();
+                let this = self.alloc(ast::ThisExpr {
+                    id,
+                    span: self.token.span,
+                });
+                self.next_token();
+                self.insert_map(this.id, ast::Node::ThisExpr(this));
+                ast::ExprKind::This(this)
+            }
             _ => unreachable!(),
         };
         self.alloc(ast::Expr { kind })
@@ -392,7 +402,9 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
     fn parse_primary_expr(&mut self) -> PResult<&'cx ast::Expr<'cx>> {
         use TokenKind::*;
         match self.token.kind {
-            NoSubstitutionTemplate | String | Number | True | False | Null => Ok(self.parse_lit()),
+            NoSubstitutionTemplate | String | Number | True | False | Null | This => {
+                Ok(self.parse_lit())
+            }
             LBracket => Ok(self.parse_array_lit()),
             LParen => self.parse_paren_expr(),
             LBrace => self.parse_object_lit(),

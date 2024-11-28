@@ -1,5 +1,5 @@
 class C {
-foo() {
-  return "bar"
+  foo() {
+    return "bar"  
 }
 }
