@@ -7,7 +7,7 @@ use bolt_ts_span::Span;
 #[derive(Error, Diagnostic, Debug)]
 #[error("Operator '{op}' cannot be applied to types '{ty1}' and '{ty2}'.")]
 pub(super) struct OperatorCannotBeAppliedToTy1AndTy2 {
-    #[label]
+    #[label(primary)]
     pub span: Span,
     pub op: String,
     pub ty1: String,
@@ -17,7 +17,7 @@ pub(super) struct OperatorCannotBeAppliedToTy1AndTy2 {
 #[derive(Error, Diagnostic, Debug)]
 #[error("The value '{value}' cannot be used here.")]
 pub(super) struct TheValueCannotBeUsedHere {
-    #[label]
+    #[label(primary)]
     pub span: Span,
     pub value: String,
 }
@@ -34,7 +34,7 @@ pub(super) struct TypeIsNotAssignableToType {
 #[derive(Error, Diagnostic, Debug)]
 #[error("Cannot find name '{name}'.")]
 pub(super) struct CannotFindName {
-    #[label]
+    #[label(primary)]
     pub span: Span,
     pub name: String,
     #[related]
@@ -45,7 +45,7 @@ pub(super) struct CannotFindName {
 #[error("Did you mean the static member '{name}'?")]
 #[diagnostic(severity(Advice))]
 pub(super) struct DidYourMeanTheStaticMember {
-    #[label]
+    #[label(primary)]
     pub span: Span,
     pub name: String,
 }
@@ -53,7 +53,7 @@ pub(super) struct DidYourMeanTheStaticMember {
 #[derive(Error, Diagnostic, Debug)]
 #[error("Argument of type '{arg_ty}' is not assignable to parameter of type '{param_ty}'.")]
 pub(super) struct ArgumentOfTyIsNotAssignableToParameterOfTy {
-    #[label]
+    #[label(primary)]
     pub span: Span,
     pub arg_ty: String,
     pub param_ty: String,
@@ -62,7 +62,7 @@ pub(super) struct ArgumentOfTyIsNotAssignableToParameterOfTy {
 #[derive(Error, Diagnostic, Debug)]
 #[error("Expected {x} arguments, but got {y}.")]
 pub(super) struct ExpectedXArgsButGotY {
-    #[label]
+    #[label(primary)]
     pub span: Span,
     pub x: crate::check::ExpectedArgsCount,
     pub y: usize,
@@ -71,7 +71,7 @@ pub(super) struct ExpectedXArgsButGotY {
 #[derive(Error, Diagnostic, Debug)]
 #[error("Expected at least {x} arguments, but got {y}.")]
 pub(super) struct ExpectedAtLeastXArgsButGotY {
-    #[label]
+    #[label(primary)]
     pub span: Span,
     pub x: usize,
     pub y: usize,
@@ -80,7 +80,7 @@ pub(super) struct ExpectedAtLeastXArgsButGotY {
 #[derive(Error, Diagnostic, Debug)]
 #[error("Cannot assign to '{name}' because it is a {ty}.")]
 pub(super) struct CannotAssignToNameBecauseItIsATy {
-    #[label]
+    #[label(primary)]
     pub span: Span,
     pub name: String,
     pub ty: String,
@@ -89,7 +89,7 @@ pub(super) struct CannotAssignToNameBecauseItIsATy {
 #[derive(Error, Diagnostic, Debug)]
 #[error("The '{op1}' operator is not allowed for boolean types. Consider using '{op2}' instead.")]
 pub(super) struct TheOp1IsNotAllowedForBooleanTypesConsiderUsingOp2Instead {
-    #[label]
+    #[label(primary)]
     pub span: Span,
     pub op1: String,
     pub op2: String,
@@ -119,7 +119,7 @@ impl std::fmt::Display for LeftOrRight {
 #[derive(Error, Diagnostic, Debug)]
 #[error("The {left_or_right}-hand side of an arithmetic operation must be of type 'any', 'number', 'bigint' or an enum type.")]
 pub(super) struct TheSideOfAnArithmeticOperationMustBeOfTypeAnyNumberBigintOrAnEnumType {
-    #[label]
+    #[label(primary)]
     pub span: Span,
     pub left_or_right: LeftOrRight,
 }
@@ -127,7 +127,7 @@ pub(super) struct TheSideOfAnArithmeticOperationMustBeOfTypeAnyNumberBigintOrAnE
 #[derive(Error, Diagnostic, Debug)]
 #[error("Object literal may only specify known properties, and '{field}' does not exist.")]
 pub(super) struct ObjectLitMayOnlySpecifyKnownPropAndFieldDoesNotExist {
-    #[label]
+    #[label(primary)]
     pub span: Span,
     pub field: String,
 }
@@ -135,7 +135,7 @@ pub(super) struct ObjectLitMayOnlySpecifyKnownPropAndFieldDoesNotExist {
 #[derive(Error, Diagnostic, Debug)]
 #[error("Property '{field}' is missing.")]
 pub(super) struct PropertyXIsMissing {
-    #[label]
+    #[label(primary)]
     pub span: Span,
     pub field: String,
 }
@@ -143,14 +143,14 @@ pub(super) struct PropertyXIsMissing {
 #[derive(Error, Diagnostic, Debug)]
 #[error("Cannot create an instance of an abstract class.")]
 pub(super) struct CannotCreateAnInstanceOfAnAbstractClass {
-    #[label]
+    #[label(primary)]
     pub span: Span,
 }
 
 #[derive(Error, Diagnostic, Debug)]
 #[error("A class cannot implement a primitive type like '{ty}'. It can only implement other named object types.")]
 pub(super) struct AClassCannotImplementAPrimTy {
-    #[label]
+    #[label(primary)]
     pub span: Span,
     pub ty: String,
 }
@@ -179,7 +179,7 @@ impl std::fmt::Display for DeclKind {
 #[derive(Error, Diagnostic, Debug)]
 #[error("{kind} '{name}' used before its declaration.")]
 pub(super) struct CannotUsedBeforeItsDeclaration {
-    #[label]
+    #[label(primary)]
     pub span: Span,
     pub kind: DeclKind,
     pub name: String,
@@ -191,7 +191,7 @@ pub(super) struct CannotUsedBeforeItsDeclaration {
 #[error("{kind} '{name}' is defined here")]
 #[diagnostic(severity(Advice))]
 pub(super) struct DefinedHere {
-    #[label]
+    #[label(primary)]
     pub span: Span,
     pub kind: DeclKind,
     pub name: String,
@@ -200,21 +200,21 @@ pub(super) struct DefinedHere {
 #[derive(Error, Diagnostic, Debug)]
 #[error("Constructor implementation is missing.")]
 pub(super) struct ConstructorImplementationIsMissing {
-    #[label]
+    #[label(primary)]
     pub span: Span,
 }
 
 #[derive(Error, Diagnostic, Debug)]
 #[error("Function implementation is missing or not immediately following the declaration.")]
 pub(super) struct FunctionImplementationIsMissingOrNotImmediatelyFollowingTheDeclaration {
-    #[label]
+    #[label(primary)]
     pub span: Span,
 }
 
 #[derive(Error, Diagnostic, Debug)]
 #[error("Value of type '{ty}' is not callable.")]
 pub(super) struct ValueOfType0IsNotCallable {
-    #[label]
+    #[label(primary)]
     pub span: Span,
     pub ty: String,
     #[help]
@@ -230,7 +230,7 @@ pub(super) struct DidYouMeanToIncludeNew;
     "Property '{prop}' of type '{ty_b}' is not assignable to '{ty_c}' index type '{index_ty_d}'."
 )]
 pub(super) struct PropertyAOfTypeBIsNotAssignableToCIndexTypeD {
-    #[label]
+    #[label(primary)]
     pub span: Span,
     pub prop: String,
     pub ty_b: String,
@@ -240,7 +240,7 @@ pub(super) struct PropertyAOfTypeBIsNotAssignableToCIndexTypeD {
 #[derive(Error, Diagnostic, Debug)]
 #[error("'{decl}' is referenced directly or indirectly in its own base expression.")]
 pub(super) struct DeclIsReferencedDirectlyOrIndirectlyInItsOwnBaseExpression {
-    #[label]
+    #[label(primary)]
     pub span: Span,
     pub decl: String,
 }

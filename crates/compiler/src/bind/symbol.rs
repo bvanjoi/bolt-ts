@@ -100,12 +100,22 @@ pub struct ObjectSymbol {
 }
 
 impl SymbolKind {
+    #[inline(always)]
     pub fn is_variable(&self) -> bool {
-        matches!(self, Self::FunctionScopedVar | Self::BlockScopedVar)
+        use SymbolKind::*;
+        matches!(self, FunctionScopedVar | BlockScopedVar)
     }
 
+    pub fn is_value(&self) -> bool {
+        use SymbolKind::*;
+        self.is_variable()
+            || self.is_class()
+            || matches!(self, Property { .. } | Object(_) | Function { .. })
+    }
+
+    #[inline(always)]
     pub fn is_class(&self) -> bool {
-        matches!(self, Self::Class { .. })
+        matches!(self, Self::Class(_))
     }
 
     pub fn as_str(&self) -> &'static str {
@@ -119,7 +129,7 @@ impl SymbolKind {
             SymbolKind::Object { .. } => todo!(),
             SymbolKind::BlockContainer { .. } => todo!(),
             SymbolKind::Interface { .. } => todo!(),
-            SymbolKind::Index { decl } => todo!(),
+            SymbolKind::Index { .. } => todo!(),
         }
     }
 
@@ -142,6 +152,11 @@ impl SymbolKind {
             SymbolKind::Property { decl } => *decl,
             _ => unreachable!("{:#?}", self),
         }
+    }
+
+    pub fn is_type(&self) -> bool {
+        use SymbolKind::*;
+        self.is_class() || matches!(self, Interface { .. })
     }
 }
 

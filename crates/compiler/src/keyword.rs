@@ -28,6 +28,7 @@ keyword!(
     (KW_CONSTRUCTOR, KW_CONSTRUCTOR_STR, "constructor"),
     (KW_GET, KW_GET_STR, "get"),
     (KW_SET, KW_SET_STR, "set"),
+    (KW_IN, KW_IN_STR, "in"),
     // ts keywords
     (KW_IMPLEMENTS, KW_IMPLEMENTS_STR, "implements"),
     (KW_INTERFACE, KW_INTERFACE_STR, "interface"),
@@ -35,7 +36,8 @@ keyword!(
     (KW_PUBLIC, KW_PUBLIC_STR, "public"),
     (KW_PRIVATE, KW_PRIVATE_STR, "private"),
     (KW_AS, KW_AS_STR, "as"),
-    (KW_DECLARE, KW_DECLARE_STR, "declare")
+    (KW_DECLARE, KW_DECLARE_STR, "declare"),
+    (KW_TYPE, KW_TYPE_STR, "type")
 );
 
 macro_rules! ident {

@@ -7,7 +7,7 @@ use bolt_ts_span::Span;
 #[derive(Error, Diagnostic, Debug)]
 #[error("Syntax Error: Unexpected token ','")]
 pub(crate) struct ClassesCanOnlyExtendASingleClass {
-    #[label]
+    #[label(primary)]
     pub span: Span,
     #[label("Classes can only extend a single class.")]
     pub extra_extends: Option<Span>,
@@ -16,6 +16,6 @@ pub(crate) struct ClassesCanOnlyExtendASingleClass {
 #[derive(Error, Diagnostic, Debug)]
 #[error("Type parameter list cannot be empty.")]
 pub(crate) struct TypeParameterListCannotBeEmpty {
-    #[label]
+    #[label(primary)]
     pub span: Span,
 }

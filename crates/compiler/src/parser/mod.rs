@@ -1,6 +1,7 @@
 mod errors;
 mod expr;
 mod list_ctx;
+mod lookahead;
 mod paren_rule;
 mod parse_class_like;
 mod scan;
@@ -8,8 +9,6 @@ mod stmt;
 pub mod token;
 mod ty;
 mod utils;
-
-use std::u32;
 
 use bolt_ts_span::{ModuleArena, ModuleID, Span};
 use rustc_hash::FxHashMap;
@@ -54,7 +53,7 @@ impl ParentMap {
             "id: {id:#?} and parent: {parent:#?}"
         );
         let prev = self.0.insert(id, parent);
-        assert!(prev.is_some())
+        assert!(prev.unwrap() != id)
     }
 }
 
@@ -218,8 +217,8 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
 
     fn parse_bracketed_list<T>(
         &mut self,
-        open: TokenKind,
         ctx: impl list_ctx::ListContext,
+        open: TokenKind,
         ele: impl Fn(&mut Self) -> PResult<T>,
         close: TokenKind,
     ) -> PResult<&'cx [T]> {
@@ -393,9 +392,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
 
     fn create_lit<T>(&mut self, val: T, span: Span) -> &'cx ast::Lit<T> {
         let id = self.next_node_id();
-        let lit = self.alloc(ast::Lit { id, val, span });
-        self.next_token();
-        lit
+        self.alloc(ast::Lit { id, val, span })
     }
 
     #[inline]

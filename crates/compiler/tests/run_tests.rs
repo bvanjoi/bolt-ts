@@ -48,24 +48,34 @@ fn run_tests() {
                             Severity::Error => compile_test::errors::ErrorKind::Error,
                         },
                     );
-                    labels
-                        .map(|label| {
-                            let msg = if let Some(msg) = label.label() {
-                                msg.to_string()
-                            } else {
-                                msg.clone()
-                            };
-                            let code = output.module_arena.content_map.get(&diag.module_id);
-                            let start = code.map(|code| {
-                                bolt_ts_errors::miette_label_span_to_line_position(label, code).0
-                            });
-                            compile_test::errors::Error {
-                                line_num: start.map_or(1, |x| x.line + 1),
-                                kind: Some(kind),
-                                msg,
-                            }
+
+                    let mut count = 0;
+                    let mut has_primary = false;
+                    let mut errors = vec![];
+                    for label in labels {
+                        count += 1;
+                        if label.primary() {
+                            has_primary = true;
+                        }
+                        let msg = if let Some(msg) = label.label() {
+                            msg.to_string()
+                        } else {
+                            msg.clone()
+                        };
+                        let code = output.module_arena.content_map.get(&diag.module_id);
+                        let start = code.map(|code| {
+                            bolt_ts_errors::miette_label_span_to_line_position(label, code).0
+                        });
+                        errors.push(compile_test::errors::Error {
+                            line_num: start.map_or(1, |x| x.line + 1),
+                            kind: Some(kind),
+                            msg,
                         })
-                        .collect()
+                    }
+                    if count > 0 {
+                        assert!(has_primary)
+                    }
+                    errors
                 })
                 .collect::<Vec<compile_test::errors::Error>>();
             let expected_file_path = expect_test::expect_file![case.with_extension("stderr")];
@@ -80,9 +90,8 @@ fn run_tests() {
         }
     };
     for case in cases.into_iter() {
-        if !case.path().extension().map_or(false, |ext| ext == "ts") {
-            continue;
-        }
-        run(&case.path(), runner);
+        assert!(case.file_type().unwrap().is_dir());
+        let case = case.path().join("index.ts");
+        run(case.as_path(), runner);
     }
 }

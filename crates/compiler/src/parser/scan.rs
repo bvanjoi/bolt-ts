@@ -439,4 +439,8 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
     pub(super) fn re_scan_greater(&mut self) -> TokenKind {
         self.token.kind
     }
+
+    pub(super) fn re_scan_less(&mut self) -> TokenKind {
+        self.token.kind
+    }
 }

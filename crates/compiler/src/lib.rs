@@ -12,7 +12,7 @@ use std::borrow::Cow;
 use std::path::PathBuf;
 
 use atoms::AtomMap;
-use bind::{bind, BinderResult, GlobalSymbols};
+use bind::{bind, GlobalSymbols};
 use bolt_ts_span::{ModuleArena, ModulePath};
 use parser::token::TokenKind;
 

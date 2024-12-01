@@ -141,6 +141,7 @@ impl<'cx> BinderState<'cx> {
             }
             Class(class) => self.bind_class_like(class),
             Interface(interface) => self.bind_interface(interface),
+            Type(_) => {},
         }
     }
 
@@ -285,7 +286,6 @@ impl<'cx> BinderState<'cx> {
     fn bind_ty(&mut self, ty: &'cx ast::Ty) {
         use ast::TyKind::*;
         match ty.kind {
-            Ident(ident) => self.bind_ident(ident),
             Array(array) => self.bind_array_ty(array),
             Lit(lit) => {
                 let old = self.scope_id;

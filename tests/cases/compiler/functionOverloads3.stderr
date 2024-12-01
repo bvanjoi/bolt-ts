@@ -1,6 +1,0 @@
-  × Function implementation is missing or not immediately following the
-  │ declaration.
-   ╭─[../../tests/cases/compiler/functionOverloads3.ts:1:1]
- 1 │ ╭─▶ function foo():string;
- 2 │ ╰─▶ //~^ ERROR: Function implementation is missing or not immediately following the declaration.
-   ╰────

@@ -23,6 +23,7 @@ pub enum Node<'cx> {
     SetterDecl(&'cx ast::SetterDecl<'cx>),
     ClassExtendsClause(&'cx ast::ClassExtendsClause<'cx>),
     InterfaceDecl(&'cx ast::InterfaceDecl<'cx>),
+    TypeDecl(&'cx ast::TypeDecl<'cx>),
     InterfaceExtendsClause(&'cx ast::InterfaceExtendsClause<'cx>),
     ImplementsClause(&'cx ast::ImplementsClause<'cx>),
     BlockStmt(&'cx ast::BlockStmt<'cx>),
@@ -54,6 +55,7 @@ pub enum Node<'cx> {
 
     // ty
     ArrayTy(&'cx ast::ArrayTy<'cx>),
+    IndexAccessTy(&'cx ast::IndexAccessTy<'cx>),
     FnTy(&'cx ast::FnTy<'cx>),
     LitTy(&'cx ast::LitTy<'cx>),
     TyParam(&'cx ast::TyParam<'cx>),
@@ -61,6 +63,10 @@ pub enum Node<'cx> {
     CallSigDecl(&'cx ast::CallSigDecl<'cx>),
     PropSignature(&'cx ast::PropSignature<'cx>),
     MethodSignature(&'cx ast::MethodSignature<'cx>),
+    RestTy(&'cx ast::RestTy<'cx>),
+    TupleTy(&'cx ast::TupleTy<'cx>),
+    CondTy(&'cx ast::CondTy<'cx>),
+    ReferTy(&'cx ast::ReferTy<'cx>)
 }
 
 impl Node<'_> {
@@ -116,6 +122,12 @@ impl Node<'_> {
             PropSignature(n) => n.id,
             MethodSignature(n) => n.id,
             ThisExpr(n) => n.id,
+            TypeDecl(n) => n.id,
+            RestTy(n) => n.id,
+            TupleTy(n) => n.id,
+            IndexAccessTy(n) => n.id,
+            CondTy(n) => n.id,
+            ReferTy(n) => n.id,
         }
     }
 
@@ -171,6 +183,12 @@ impl Node<'_> {
             PropSignature(n) => n.span,
             MethodSignature(n) => n.span,
             ThisExpr(n) => n.span,
+            TypeDecl(n) => n.span,
+            RestTy(n) => n.span,
+            TupleTy(n) => n.span,
+            IndexAccessTy(n) => n.span,
+            CondTy(n) => n.span,
+            ReferTy(n) => n.span,
         }
     }
 

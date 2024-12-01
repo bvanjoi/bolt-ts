@@ -13,16 +13,37 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         let kind = match self.token.kind {
             Semi => ast::StmtKind::Empty(self.parse_empty_stmt()?),
             Var | Let | Const => ast::StmtKind::Var(self.parse_var_stmt()),
-            Interface => ast::StmtKind::Interface(self.parse_interface_decl()?),
             Function => ast::StmtKind::Fn(self.parse_fn_decl(None)?),
             If => ast::StmtKind::If(self.parse_if_stmt()?),
             LBrace => ast::StmtKind::Block(self.parse_block()?),
             Return => ast::StmtKind::Return(self.parse_ret_stmt()?),
             Class => ast::StmtKind::Class(self.parse_class_decl(None)?),
+            Interface => ast::StmtKind::Interface(self.parse_interface_decl()?),
+            Type => ast::StmtKind::Type(self.parse_type_decl()?),
             _ => ast::StmtKind::Expr(self.parse_expr_or_labeled_stmt()?),
         };
         let stmt = self.alloc(ast::Stmt { kind });
         Ok(stmt)
+    }
+
+    fn parse_type_decl(&mut self) -> PResult<&'cx ast::TypeDecl<'cx>> {
+        let id = self.next_node_id();
+        let start = self.token.start();
+        self.expect(TokenKind::Type)?;
+        let name = self.with_parent(id, Self::parse_ident_name)?;
+        let ty_params = self.with_parent(id, Self::parse_ty_params)?;
+        self.expect(TokenKind::Eq)?;
+        let ty = self.with_parent(id, Self::parse_ty)?;
+        self.parse_semi();
+        let decl = self.alloc(ast::TypeDecl {
+            id,
+            span: self.new_span(start as usize, self.pos),
+            name,
+            ty_params,
+            ty
+        });
+        self.insert_map(id, ast::Node::TypeDecl(decl));
+        Ok(decl) 
     }
 
     fn contain_declare_mod(mods: &ast::Modifiers<'cx>) -> bool {

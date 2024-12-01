@@ -30,6 +30,16 @@ pub enum StmtKind<'cx> {
     Class(&'cx ClassDecl<'cx>),
     Expr(&'cx Expr<'cx>),
     Interface(&'cx InterfaceDecl<'cx>),
+    Type(&'cx TypeDecl<'cx>),
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct TypeDecl<'cx> {
+    pub id: NodeID,
+    pub span: Span,
+    pub name: &'cx Ident,
+    pub ty_params: Option<TyParams<'cx>>,
+    pub ty: &'cx self::Ty<'cx>,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -176,6 +186,8 @@ pub struct TyParam<'cx> {
     pub id: NodeID,
     pub span: Span,
     pub name: &'cx Ident,
+    pub constraint: Option<&'cx self::Ty<'cx>>,
+    pub default: Option<&'cx self::Ty<'cx>>,
 }
 
 pub type TyParams<'cx> = &'cx [&'cx TyParam<'cx>];
@@ -584,32 +596,82 @@ pub type Tys<'cx> = &'cx [&'cx Ty<'cx>];
 impl Ty<'_> {
     pub fn span(&self) -> Span {
         match self.kind {
-            TyKind::Ident(ident) => ident.span,
             TyKind::Array(array) => array.span,
             TyKind::Fn(f) => f.span,
             TyKind::Lit(lit) => lit.span,
             TyKind::ExprWithArg(node) => node.span(),
+            TyKind::NumLit(num) => num.span,
+            TyKind::StringLit(s) => s.span,
+            TyKind::Tuple(tuple) => tuple.span,
+            TyKind::Rest(rest) => rest.span,
+            TyKind::IndexAccess(n) => n.span,
+            TyKind::Cond(n) => n.span,
+            TyKind::Refer(n) => n.span,
         }
     }
 
     pub fn id(&self) -> NodeID {
         match self.kind {
-            TyKind::Ident(node) => node.id,
             TyKind::Array(node) => node.id,
             TyKind::Fn(node) => node.id,
             TyKind::Lit(node) => node.id,
             TyKind::ExprWithArg(node) => node.id(),
+            TyKind::NumLit(num) => num.id,
+            TyKind::StringLit(s) => s.id,
+            TyKind::Tuple(tuple) => tuple.id,
+            TyKind::Rest(rest) => rest.id,
+            TyKind::IndexAccess(n) => n.id,
+            TyKind::Cond(n) => n.id,
+            TyKind::Refer(n) => n.id,
         }
     }
 }
 
 #[derive(Debug, Clone, Copy)]
 pub enum TyKind<'cx> {
-    Ident(&'cx Ident),
+    Refer(&'cx ReferTy<'cx>),
     Array(&'cx ArrayTy<'cx>),
+    IndexAccess(&'cx IndexAccessTy<'cx>),
     Fn(&'cx FnTy<'cx>),
     Lit(&'cx LitTy<'cx>),
     ExprWithArg(&'cx Expr<'cx>),
+    NumLit(&'cx NumLit),
+    StringLit(&'cx StringLit),
+    Tuple(&'cx TupleTy<'cx>),
+    Rest(&'cx RestTy<'cx>),
+    Cond(&'cx CondTy<'cx>),
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct ReferTy<'cx> {
+    pub id: NodeID,
+    pub span: Span,
+    pub name: &'cx Ident,
+    pub args: Option<Tys<'cx>>,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct CondTy<'cx> {
+    pub id: NodeID,
+    pub span: Span,
+    pub check_ty: &'cx self::Ty<'cx>,
+    pub extends_ty: &'cx self::Ty<'cx>,
+    pub true_ty: &'cx self::Ty<'cx>,
+    pub false_ty: &'cx self::Ty<'cx>,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct RestTy<'cx> {
+    pub id: NodeID,
+    pub span: Span,
+    pub ty: &'cx self::Ty<'cx>,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct TupleTy<'cx> {
+    pub id: NodeID,
+    pub span: Span,
+    pub tys: Tys<'cx>,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -634,6 +696,14 @@ pub struct FnTy<'cx> {
     pub span: Span,
     pub params: ParamsDecl<'cx>,
     pub ret_ty: &'cx self::Ty<'cx>,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct IndexAccessTy<'cx> {
+    pub id: NodeID,
+    pub span: Span,
+    pub ty: &'cx self::Ty<'cx>,
+    pub index_ty: &'cx self::Ty<'cx>,
 }
 
 #[derive(Debug, Clone, Copy)]

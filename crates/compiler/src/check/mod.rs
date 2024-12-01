@@ -16,6 +16,7 @@ mod resolve;
 mod sig;
 mod symbol_links;
 mod utils;
+mod get_type_from_ty_refer_like;
 
 use bolt_ts_span::{ModuleID, Span};
 use rustc_hash::FxHashMap;
@@ -25,9 +26,9 @@ use utils::{find_ancestor, get_assignment_kind, AssignmentKind};
 
 pub use self::resolve::ExpectedArgsCount;
 
-use crate::ast::{BinOp, ExprKind};
+use crate::ast::BinOp;
 use crate::atoms::{AtomId, AtomMap};
-use crate::bind::{self, GlobalSymbols, Symbol, SymbolID, SymbolName};
+use crate::bind::{self, GlobalSymbols, Symbol, SymbolID, SymbolKind, SymbolName};
 use crate::parser::Parser;
 use crate::ty::{has_type_facts, IntrinsicTyKind, Ty, TyID, TyVarID, TypeFacts};
 use crate::{ast, errors, keyword, ty};
@@ -216,6 +217,7 @@ impl<'cx> TyChecker<'cx> {
             Empty(_) => {}
             Class(class) => self.check_class_decl(class),
             Interface(interface) => self.check_interface_decl(interface),
+            Type(_) => {},
         };
     }
 
@@ -474,13 +476,34 @@ impl<'cx> TyChecker<'cx> {
             Fn(f) => self.check_fn_like_expr(f),
             ArrowFn(f) => self.check_fn_like_expr(f),
             Assign(assign) => self.check_assign_expr(assign),
-            PrefixUnary(_) => self.undefined_ty(),
+            PrefixUnary(prefix) => self.check_prefix_unary_expr(prefix),
             Class(class) => {
                 self.check_class_like_decl(class);
                 self.undefined_ty()
             }
             PropAccess(_) => self.undefined_ty(),
             This(_) => self.undefined_ty(),
+        }
+    }
+
+    fn check_prefix_unary_expr(&mut self, expr: &'cx ast::PrefixUnaryExpr<'cx>) -> &'cx Ty<'cx> {
+        let op_ty = self.check_expr(expr.expr);
+        use ast::ExprKind::*;
+        match expr.expr.kind {
+            NumLit(_) => {
+                match expr.op {
+                    ast::PrefixUnaryOp::Plus => op_ty,
+                    ast::PrefixUnaryOp::Minus => {
+                        let val = if let ty::TyKind::NumberLit(n) = op_ty.kind {
+                            -n.val
+                        } else {
+                            todo!()
+                        };
+                        self.get_number_literal_type(val)
+                    },
+                }
+            }
+            _ => self.undefined_ty(),
         }
     }
 
@@ -698,7 +721,7 @@ impl<'cx> TyChecker<'cx> {
             return self.undefined_ty();
         }
 
-        let symbol = match self.resolve_symbol_by_ident(ident) {
+        let symbol = match self.resolve_symbol_by_ident(ident, SymbolKind::is_value) {
             Symbol::ERR => {
                 let error = errors::CannotFindName {
                     span: ident.span,
@@ -748,14 +771,14 @@ impl<'cx> TyChecker<'cx> {
     }
 
     fn check_non_null_type(&mut self, expr: &'cx ast::Expr) -> &'cx Ty<'cx> {
-        if matches!(expr.kind, ExprKind::NullLit(_)) {
+        if matches!(expr.kind, ast::ExprKind::NullLit(_)) {
             let error = errors::TheValueCannotBeUsedHere {
                 span: expr.span(),
                 value: "null".to_string(),
             };
             self.push_error(expr.span().module, Box::new(error));
             self.null_ty()
-        } else if matches!(expr.kind, ExprKind::Ident(ast::Ident { name, .. }) if *name == keyword::IDENT_UNDEFINED)
+        } else if matches!(expr.kind, ast::ExprKind::Ident(ast::Ident { name, .. }) if *name == keyword::IDENT_UNDEFINED)
         {
             let error = errors::TheValueCannotBeUsedHere {
                 span: expr.span(),

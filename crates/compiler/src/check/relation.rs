@@ -253,6 +253,15 @@ impl<'cx> TyChecker<'cx> {
             target,
             RelationKind::Assignable,
             |this, span, source, target| {
+                if let TyKind::NumberLit(source) = source.kind {
+                    if let TyKind::NumberLit(target) = target.kind {
+                        return Box::new(errors::TypeIsNotAssignableToType {
+                            span,
+                            ty1: source.val.to_string(),
+                            ty2: target.val.to_string(),
+                        })      
+                    }
+                }
                 Box::new(errors::TypeIsNotAssignableToType {
                     span,
                     ty1: this.print_ty(source).to_string(),

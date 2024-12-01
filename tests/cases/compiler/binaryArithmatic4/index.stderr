@@ -1,0 +1,11 @@
+  × The value 'null' cannot be used here.
+   ╭─[../../tests/cases/compiler/binaryArithmatic4/index.ts:1:9]
+ 1 │ null
+   · ────
+   ╰────
+
+  × The value 'null' cannot be used here.
+   ╭─[../../tests/cases/compiler/binaryArithmatic4/index.ts:1:16]
+ 1 │ null
+   · ────
+   ╰────

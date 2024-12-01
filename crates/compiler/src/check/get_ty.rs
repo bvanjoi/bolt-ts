@@ -137,42 +137,28 @@ impl<'cx> TyChecker<'cx> {
         todo!()
     }
 
-    pub(super) fn get_type_from_ty_reference(&mut self, expr: &'cx ast::Expr<'cx>) -> &'cx Ty<'cx> {
-        // TODO: cache
-        if let ast::ExprKind::Ident(ident) = expr.kind {
-            let id = self.resolve_symbol_by_ident(ident);
-            if id == Symbol::ERR {
-                if let Some(error) = self.check_using_type_as_value(ident) {
-                    self.push_error(ident.span.module, error);
-                }
-                return self.error_ty();
-            }
-            self.get_declared_ty_of_symbol(expr.id().module(), id)
-                .unwrap()
-        } else {
-            // TODO:
-            self.undefined_ty()
-        }
-    }
-
     pub(super) fn get_ty_from_type_node(&mut self, ty: &'cx ast::Ty<'cx>) -> &'cx Ty<'cx> {
         // TODO: cache
         use ast::TyKind::*;
         match ty.kind {
-            Ident(ident) => {
-                if ident.name == keyword::IDENT_BOOLEAN {
+            Refer(refer) => {
+                if refer.name.name == keyword::IDENT_BOOLEAN {
+                    assert!(refer.args.is_none());
                     self.boolean_ty()
-                } else if ident.name == keyword::IDENT_NUMBER {
+                } else if refer.name.name == keyword::IDENT_NUMBER {
+                    assert!(refer.args.is_none());
                     self.number_ty()
-                } else if ident.name == keyword::IDENT_STRING {
+                } else if refer.name.name == keyword::IDENT_STRING {
+                    assert!(refer.args.is_none());
                     self.string_ty()
-                } else if ident.name == keyword::IDENT_ANY {
+                } else if refer.name.name == keyword::IDENT_ANY {
+                    assert!(refer.args.is_none());
                     self.any_ty()
-                } else if ident.name == keyword::IDENT_VOID {
+                } else if refer.name.name == keyword::IDENT_VOID {
+                    assert!(refer.args.is_none());
                     self.void_ty()
                 } else {
-                    // todo!("{}", self.atoms.get(ident.name))
-                    self.undefined_ty()
+                    self.get_type_from_ty_reference(refer)
                 }
             }
             Array(array) => self.get_ty_from_array_node(array),
@@ -186,32 +172,6 @@ impl<'cx> TyChecker<'cx> {
                 {
                     unreachable!()
                 }
-
-                // let entires = lit.members.iter().filter_map(|member| {
-                //     match member.kind {
-                //         ast::ObjectTyMemberKind::Prop(prop) => {
-                //             let Some(ty) = prop.ty else {
-                //                 // TODO:
-                //                 return None;
-                //             };
-                //             let member_ty = self.get_ty_from_type_node(ty);
-                //             let name = match prop.name.kind {
-                //                 ast::PropNameKind::Ident(ident) => ident.name,
-                //             };
-                //             Some((name, member_ty))
-                //         }
-                //         ast::ObjectTyMemberKind::Method(_) => {
-                //             // TODO:
-                //             return None;
-                //         }
-                //         ast::ObjectTyMemberKind::CallSig(_) => {
-                //             // TODO:
-                //             return None;
-                //         }
-                //     }
-                // });
-                // let map = FxHashMap::from_iter(entires);
-                // let members = self.alloc(map);
 
                 let module = lit.id.module();
                 let symbol = self.binder.get(module).final_res[&lit.id];
@@ -229,6 +189,12 @@ impl<'cx> TyChecker<'cx> {
                 })
             }
             ExprWithArg(expr) => self.get_type_from_ty_reference(expr),
+            NumLit(num) => self.get_number_literal_type(num.val),
+            StringLit(_) => self.undefined_ty(),
+            Tuple(_) => self.undefined_ty(),
+            Rest(_) => self.undefined_ty(),
+            IndexAccess(_) => self.undefined_ty(),
+            Cond(_) => self.undefined_ty(),
         }
     }
 

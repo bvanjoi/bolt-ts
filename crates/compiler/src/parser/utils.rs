@@ -1,3 +1,5 @@
+use crate::atoms::AtomId;
+
 use super::list_ctx;
 use super::token::{TokenFlags, TokenKind};
 use super::{ast, errors};
@@ -20,6 +22,11 @@ pub(super) fn is_left_hand_side_expr_kind(expr: &ast::Expr) -> bool {
 }
 
 impl<'cx, 'p> ParserState<'cx, 'p> {
+    fn next_token_is_identifier_on_same_line(&mut self) -> bool {
+        self.next_token();
+        !self.has_preceding_line_break() && self.is_ident()
+    }
+
     pub(super) fn is_decl(&mut self) -> bool {
         use TokenKind::*;
         loop {
@@ -29,6 +36,9 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
                     // let prev = self.token.kind;
                     self.next_token();
                     continue;
+                }
+                Interface | Type => {
+                    return self.lookahead(Self::next_token_is_identifier_on_same_line)
                 }
                 _ => unreachable!("{:#?}", self.token.kind),
             }
@@ -119,8 +129,8 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         if self.token.kind == TokenKind::Less {
             let less_token_span = self.token.span;
             let ty_params = self.parse_bracketed_list(
-                TokenKind::Less,
                 list_ctx::TyParams,
+                TokenKind::Less,
                 Self::parse_ty_param,
                 TokenKind::Great,
             )?;
@@ -138,14 +148,51 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         }
     }
 
+    pub(super) fn is_start_of_ty(&mut self) -> bool {
+        use TokenKind::*;
+        if matches!(self.token.kind, String | Number | LBrace | LBracket | DotDotDot) {
+            true
+        } else {
+            self.is_ident()
+        }
+    }
+
+    pub(super) fn is_start_of_expr(&mut self) -> bool {
+        self.token.kind.is_start_of_left_hand_side_expr()
+    }
+
+    pub(super) fn is_start_of_stmt(&mut self) -> bool {
+        use TokenKind::*;
+        matches!(
+            self.token.kind,
+            Semi | Var | Let | Const | Function | If | Return | Class
+        ) || self.is_start_of_expr()
+    }
+
     fn parse_ty_param(&mut self) -> PResult<&'cx ast::TyParam<'cx>> {
         let id = self.next_node_id();
         let start = self.token.start();
         let name = self.with_parent(id, Self::parse_binding_ident);
+        let constraint = if self.parse_optional(TokenKind::Extends).is_some() {
+            if self.is_start_of_ty() || !self.is_start_of_expr() {
+                Some(self.parse_ty()?)
+            } else {
+                todo!("token: {:#?}", self.token.kind)
+            }
+        } else {
+            None
+        };
+        let default = if self.parse_optional(TokenKind::Eq).is_some() {
+            Some(self.parse_ty()?)
+        } else {
+            None
+        };
         let ty_param = self.alloc(ast::TyParam {
             id,
             span: self.new_span(start as usize, self.pos),
             name,
+            constraint,
+            default,
         });
         self.insert_map(id, ast::Node::TyParam(ty_param));
         Ok(ty_param)
@@ -181,18 +228,6 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         Ok(self.token.kind.is_ident_or_keyword())
     }
 
-    pub(super) fn is_start_of_mapped_ty(&mut self) -> PResult<bool> {
-        self.next_token();
-        if self.token.kind == TokenKind::Plus || self.token.kind == TokenKind::Minus {
-            self.next_token();
-            // return self.token.kind == TokenKind::Readonly;
-            todo!()
-        }
-
-        // self.token.kind == TokenKind::LBracket && self.next_token_is_ident().unwrap_or_default() &&
-        todo!()
-    }
-
     pub(super) fn parse_modifiers(&mut self) -> PResult<Option<&'cx ast::Modifiers<'cx>>> {
         let start = self.token.start();
         let mut list = Vec::with_capacity(4);
@@ -222,7 +257,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
 
     fn next_token_is_on_same_line_and_can_follow_modifier(&mut self) -> bool {
         self.next_token();
-        if self.token_flags.contains(TokenFlags::PRECEDING_LINE_BREAK) {
+        if self.has_preceding_line_break() {
             false
         } else {
             self.can_follow_modifier()
@@ -392,5 +427,24 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
 
     pub(super) fn parse_contextual_modifier(&mut self, t: TokenKind) -> bool {
         return self.token.kind == t && self.try_parse(Self::next_token_can_follow_modifier);
+    }
+
+    pub(super) fn parse_num_lit(&mut self, val: f64, neg: bool) -> &'cx ast::NumLit {
+        let val = if neg { -val } else { val };
+        let lit = self.create_lit(val, self.token.span);
+        self.insert_map(lit.id, ast::Node::NumLit(lit));
+        self.next_token();
+        lit
+    }
+
+    pub(super) fn parse_string_lit(&mut self, val: AtomId) -> &'cx ast::StringLit {
+        let lit = self.create_lit(val, self.token.span);
+        self.insert_map(lit.id, ast::Node::StringLit(lit));
+        self.next_token();
+        lit
+    }
+
+    pub(super) fn has_preceding_line_break(&self) -> bool {
+        self.token_flags.contains(TokenFlags::PRECEDING_LINE_BREAK)
     }
 }

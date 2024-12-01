@@ -1,6 +1,6 @@
 use super::TyChecker;
 use crate::atoms::AtomId;
-use crate::bind::{Symbol, SymbolID, SymbolName};
+use crate::bind::{Symbol, SymbolID, SymbolKind, SymbolName};
 use crate::{ast, errors, keyword};
 
 #[derive(Debug, Clone, Copy)]
@@ -19,11 +19,15 @@ impl std::fmt::Display for ExpectedArgsCount {
 }
 
 impl<'cx> TyChecker<'cx> {
-    pub(super) fn resolve_symbol_by_ident(&mut self, ident: &'cx ast::Ident) -> SymbolID {
+    pub(super) fn resolve_symbol_by_ident(
+        &mut self,
+        ident: &'cx ast::Ident,
+        ns: impl Fn(&SymbolKind) -> bool,
+    ) -> SymbolID {
         if let Some(id) = self.binder.get(ident.id.module()).final_res.get(&ident.id) {
             return *id;
         }
-        let res = resolve_symbol_by_ident(self, ident);
+        let res = resolve_symbol_by_ident(self, ident, ns);
         self.binder
             .get_mut(ident.id.module())
             .final_res
@@ -134,32 +138,25 @@ impl<'cx> TyChecker<'cx> {
     }
 }
 
-fn resolve_symbol_by_ident(checker: &TyChecker, ident: &ast::Ident) -> SymbolID {
-    assert!(!checker
-        .binder
-        .get(ident.id.module())
-        .final_res
-        .contains_key(&ident.id));
+fn resolve_symbol_by_ident(
+    checker: &TyChecker,
+    ident: &ast::Ident,
+    ns: impl Fn(&SymbolKind) -> bool,
+) -> SymbolID {
+    let module = ident.id.module();
+    let module = checker.binder.get(module);
+    assert!(!module.final_res.contains_key(&ident.id));
     let name = ident.name;
-    let Some(mut scope_id) = checker
-        .binder
-        .get(ident.id.module())
-        .node_id_to_scope_id
-        .get(&ident.id)
-        .copied()
-    else {
+    let Some(mut scope_id) = module.node_id_to_scope_id.get(&ident.id).copied() else {
         return Symbol::ERR;
     };
     let res = loop {
-        if let Some(id) = checker
-            .binder
-            .get(ident.id.module())
-            .res
-            .get(&(scope_id, SymbolName::Normal(name)))
-        {
-            break *id;
+        if let Some(id) = module.res.get(&(scope_id, SymbolName::Normal(name))) {
+            if ns(&module.symbols.get(*id).kind) {
+                break *id;
+            }
         }
-        if let Some(parent) = checker.binder.get(ident.id.module()).scope_id_parent_map[&scope_id] {
+        if let Some(parent) = module.scope_id_parent_map[&scope_id] {
             scope_id = parent;
         } else {
             break Symbol::ERR;

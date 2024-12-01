@@ -1,0 +1,6 @@
+  × Argument of type 'number | string[]' is not assignable to parameter of
+  │ type 'number[]'.
+   ╭─[../../tests/cases/compiler/contextualTyping30/index.ts:1:37]
+ 1 │ [1, "a"]
+   · ────────
+   ╰────

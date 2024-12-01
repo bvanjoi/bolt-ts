@@ -76,10 +76,6 @@ impl TestProps {
     }
 
     fn load_from(&mut self, test_file: &Path, config: &mut TestConfig) {
-        if test_file.is_dir() {
-            // maybe we need find the entry file
-            todo!()
-        }
         let file = File::open(test_file).unwrap();
         iter_header(
             test_file,

@@ -358,30 +358,29 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         })
     }
 
-    fn parse_lit(&mut self) -> &'cx ast::Expr<'cx> {
+    fn parse_lit_expr(&mut self) -> &'cx ast::Expr<'cx> {
         use TokenKind::*;
         let kind = match self.token.kind {
             Number => {
-                let num = self.number_token();
-                let lit = self.create_lit(num, self.token.span);
-                self.insert_map(lit.id, ast::Node::NumLit(lit));
+                let val = self.number_token();
+                let lit = self.parse_num_lit(val, false);
                 ast::ExprKind::NumLit(lit)
             }
             False | True => {
                 let v = self.token.kind == True;
                 let lit = self.create_lit(v, self.token.span);
                 self.insert_map(lit.id, ast::Node::BoolLit(lit));
+                self.next_token();
                 ast::ExprKind::BoolLit(lit)
             }
             Null => {
                 let lit = self.create_lit((), self.token.span);
                 self.insert_map(lit.id, ast::Node::NullLit(lit));
+                self.next_token();
                 ast::ExprKind::NullLit(lit)
             }
             String | NoSubstitutionTemplate => {
-                let s = self.string_token();
-                let lit = self.create_lit(s, self.token.span);
-                self.insert_map(lit.id, ast::Node::StringLit(lit));
+                let lit = self.parse_string_lit(self.string_token());
                 ast::ExprKind::StringLit(lit)
             }
             This => {
@@ -403,7 +402,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         use TokenKind::*;
         match self.token.kind {
             NoSubstitutionTemplate | String | Number | True | False | Null | This => {
-                Ok(self.parse_lit())
+                Ok(self.parse_lit_expr())
             }
             LBracket => Ok(self.parse_array_lit()),
             LParen => self.parse_paren_expr(),

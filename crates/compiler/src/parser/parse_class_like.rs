@@ -284,8 +284,8 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         modifiers: Option<&'cx ast::Modifiers<'cx>>,
     ) -> PResult<&'cx ast::IndexSigDecl<'cx>> {
         let params = self.parse_bracketed_list(
-            TokenKind::LBracket,
             list_ctx::Params,
+            TokenKind::LBracket,
             Self::parse_param,
             TokenKind::RBracket,
         )?;

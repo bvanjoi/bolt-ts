@@ -12,20 +12,20 @@ impl<'cx> TyChecker<'cx> {
     pub(super) fn get_declared_ty_of_symbol(
         &mut self,
         module: ModuleID,
-        id: SymbolID,
+        symbol: SymbolID,
     ) -> Option<&'cx ty::Ty<'cx>> {
-        if let Some(ty) = self.get_symbol_links(module, id).get_declared_ty() {
+        if let Some(ty) = self.get_symbol_links(module, symbol).get_declared_ty() {
             return Some(ty);
         }
         use crate::bind::SymbolKind::*;
-        match &self.binder.get(module).symbols.get(id).kind {
+        match &self.binder.get(module).symbols.get(symbol).kind {
             Class { .. } | Interface { .. } => {
-                let ty = self.get_declared_ty_of_class_or_interface(module, id);
+                let ty = self.get_declared_ty_of_class_or_interface(module, symbol);
                 // TODO: remove this
-                if let Some(ty) = self.get_symbol_links(module, id).get_declared_ty() {
+                if let Some(ty) = self.get_symbol_links(module, symbol).get_declared_ty() {
                     return Some(ty);
                 }
-                self.get_mut_symbol_links(module, id).set_declared_ty(ty);
+                self.get_mut_symbol_links(module, symbol).set_declared_ty(ty);
                 Some(ty)
             }
             _ => None,
@@ -77,7 +77,7 @@ impl<'cx> TyChecker<'cx> {
             return (Some(base_ctor), &[]);
         };
         if base_ctor.kind.as_class().is_some() {
-            let ty = self.get_type_from_ty_reference(&extends);
+            let ty = self.get_type_from_ty_reference(extends);
             (Some(base_ctor), self.alloc([ty]))
         } else {
             (Some(base_ctor), self.alloc([base_ctor]))

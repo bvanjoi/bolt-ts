@@ -46,6 +46,7 @@ pub enum TokenKind {
     Constructor,
     Get,
     Set,
+    In,
     // ts keyword
     Implements,
     Interface,
@@ -54,6 +55,7 @@ pub enum TokenKind {
     Private,
     As,
     Declare,
+    Type,
     // =====
     EOF,
     Number,
@@ -247,14 +249,6 @@ impl TokenKind {
         }
     }
 
-    pub fn is_start_of_stmt(self) -> bool {
-        use TokenKind::*;
-        matches!(
-            self,
-            Semi | Var | Let | Const | Function | If | Return | Class
-        ) || self.is_start_of_expr()
-    }
-
     pub(super) fn is_ident(&self) -> bool {
         matches!(self, TokenKind::Ident | TokenKind::Abstract)
     }
@@ -278,10 +272,6 @@ impl TokenKind {
                 | SlashEq
                 | Ident
         ) || self.is_ident()
-    }
-
-    pub fn is_start_of_expr(self) -> bool {
-        self.is_start_of_left_hand_side_expr()
     }
 
     fn is_ts_keyword(self) -> bool {
@@ -312,11 +302,6 @@ impl TokenKind {
 
     pub fn is_start_of_param(self) -> bool {
         matches!(self, TokenKind::DotDotDot) || self.is_binding_ident_or_private_ident_or_pat()
-    }
-
-    pub fn is_start_of_type(self) -> bool {
-        use TokenKind::*;
-        matches!(self, LBrace | LBracket)
     }
 
     pub fn is_heritage_clause(&self) -> bool {
