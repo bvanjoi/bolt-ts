@@ -25,7 +25,7 @@ impl<'cx> TyChecker<'cx> {
     }
 
     pub(super) fn create_object_lit_ty(&mut self, ty: ty::ObjectLitTy<'cx>) -> &'cx ty::Ty<'cx> {
-        self.create_object_ty(ty::ObjectTyKind::Lit(self.alloc(ty)))
+        self.create_object_ty(ty::ObjectTyKind::ObjectLit(self.alloc(ty)))
     }
 
     pub(super) fn create_array_ty(&mut self, ty: ty::ArrayTy<'cx>) -> &'cx ty::Ty<'cx> {

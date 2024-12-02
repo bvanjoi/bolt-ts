@@ -198,7 +198,7 @@ impl<'cx> TyChecker<'cx> {
     }
 
     fn is_empty_array_lit_ty(&self, ty: &'cx Ty<'cx>) -> bool {
-        if let Some(ty) = ty.kind.as_array() {
+        if let Some(ty) = ty.kind.as_object_array() {
             ty.ty.kind.is_ty_var()
         } else {
             false
@@ -215,8 +215,8 @@ impl<'cx> TyChecker<'cx> {
             return self.union_or_intersection_related_to(source, target, relation);
         }
 
-        if let Some(actual) = source.kind.as_array() {
-            if let Some(expect) = target.kind.as_array() {
+        if let Some(actual) = source.kind.as_object_array() {
+            if let Some(expect) = target.kind.as_object_array() {
                 if self.is_empty_array_lit_ty(source) {
                     return true;
                 } else if let Some(result) = self.relate_variances(actual.ty, expect.ty, relation) {
@@ -259,7 +259,7 @@ impl<'cx> TyChecker<'cx> {
                             span,
                             ty1: source.val.to_string(),
                             ty2: target.val.to_string(),
-                        })      
+                        });
                     }
                 }
                 Box::new(errors::TypeIsNotAssignableToType {
@@ -333,7 +333,7 @@ impl<'cx> TyChecker<'cx> {
     fn get_props_of_object_ty(&self, ty: &'cx ObjectTy<'cx>) -> (ModuleID, &'cx [SymbolID]) {
         if let ObjectTyKind::Interface(ty) = ty.kind {
             (ty.module, ObjectLikeTy::props(ty))
-        } else if let ObjectTyKind::Lit(ty) = ty.kind {
+        } else if let ObjectTyKind::ObjectLit(ty) = ty.kind {
             (ty.module, ObjectLikeTy::props(ty))
         } else {
             unreachable!()
@@ -354,7 +354,7 @@ impl<'cx> TyChecker<'cx> {
         };
         let (module, members) = if let ObjectTyKind::Interface(ty) = ty.kind {
             (ty.module, ObjectLikeTy::members(ty))
-        } else if let ObjectTyKind::Lit(ty) = ty.kind {
+        } else if let ObjectTyKind::ObjectLit(ty) = ty.kind {
             (ty.module, ObjectLikeTy::members(ty))
         } else {
             unreachable!()
@@ -395,7 +395,7 @@ impl<'cx> TyChecker<'cx> {
             };
             let symbol = if let ObjectTyKind::Interface(ty) = ty.kind {
                 ty.symbol
-            } else if let ObjectTyKind::Lit(ty) = ty.kind {
+            } else if let ObjectTyKind::ObjectLit(ty) = ty.kind {
                 ty.symbol
             } else {
                 unreachable!()

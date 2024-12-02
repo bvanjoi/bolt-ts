@@ -604,7 +604,7 @@ impl Ty<'_> {
             TyKind::StringLit(s) => s.span,
             TyKind::Tuple(tuple) => tuple.span,
             TyKind::Rest(rest) => rest.span,
-            TyKind::IndexAccess(n) => n.span,
+            TyKind::IndexedAccess(n) => n.span,
             TyKind::Cond(n) => n.span,
             TyKind::Refer(n) => n.span,
         }
@@ -620,7 +620,7 @@ impl Ty<'_> {
             TyKind::StringLit(s) => s.id,
             TyKind::Tuple(tuple) => tuple.id,
             TyKind::Rest(rest) => rest.id,
-            TyKind::IndexAccess(n) => n.id,
+            TyKind::IndexedAccess(n) => n.id,
             TyKind::Cond(n) => n.id,
             TyKind::Refer(n) => n.id,
         }
@@ -631,7 +631,7 @@ impl Ty<'_> {
 pub enum TyKind<'cx> {
     Refer(&'cx ReferTy<'cx>),
     Array(&'cx ArrayTy<'cx>),
-    IndexAccess(&'cx IndexAccessTy<'cx>),
+    IndexedAccess(&'cx IndexedAccessTy<'cx>),
     Fn(&'cx FnTy<'cx>),
     Lit(&'cx LitTy<'cx>),
     ExprWithArg(&'cx Expr<'cx>),
@@ -699,7 +699,7 @@ pub struct FnTy<'cx> {
 }
 
 #[derive(Debug, Clone, Copy)]
-pub struct IndexAccessTy<'cx> {
+pub struct IndexedAccessTy<'cx> {
     pub id: NodeID,
     pub span: Span,
     pub ty: &'cx self::Ty<'cx>,

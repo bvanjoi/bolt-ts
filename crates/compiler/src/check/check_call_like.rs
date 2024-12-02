@@ -34,7 +34,7 @@ impl<'cx> CallLikeExpr<'cx> for ast::CallExpr<'cx> {
         checker: &TyChecker<'cx>,
         ty: &'cx ty::Ty<'cx>,
     ) -> thin_vec::ThinVec<ast::NodeID> {
-        let Some(f) = ty.kind.as_fn() else {
+        let Some(f) = ty.kind.as_object_fn() else {
             // unreachable!()
             return Default::default();
         };
@@ -45,7 +45,7 @@ impl<'cx> CallLikeExpr<'cx> for ast::CallExpr<'cx> {
         }
     }
     fn params(&self, ty: &'cx ty::Ty<'cx>) -> ty::Tys<'cx> {
-        let Some(f) = ty.kind.as_fn() else {
+        let Some(f) = ty.kind.as_object_fn() else {
             unreachable!()
         };
         &f.params
@@ -70,7 +70,7 @@ impl<'cx> CallLikeExpr<'cx> for ast::NewExpr<'cx> {
         checker: &TyChecker<'cx>,
         ty: &'cx ty::Ty<'cx>,
     ) -> thin_vec::ThinVec<ast::NodeID> {
-        let Some(class) = ty.kind.as_class() else {
+        let Some(class) = ty.kind.as_object_class() else {
             // unreachable!("{ty:#?}");
             return thin_vec![];
         };
@@ -109,7 +109,7 @@ impl<'cx> TyChecker<'cx> {
         };
         if pos < param_count {
             Some(params[pos])
-        } else if let Some(array) = params.last().unwrap().kind.as_array() {
+        } else if let Some(array) = params.last().unwrap().kind.as_object_array() {
             Some(array.ty)
         } else {
             None

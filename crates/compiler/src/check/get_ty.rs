@@ -4,8 +4,10 @@ use thin_vec::thin_vec;
 use super::ty::{self, Ty, TyKind};
 use super::{F64Represent, TyChecker};
 use crate::ast;
-use crate::bind::{Symbol, SymbolID, SymbolKind, SymbolName};
+use crate::atoms::AtomId;
+use crate::bind::{SymbolID, SymbolKind, SymbolName};
 use crate::keyword;
+use crate::ty::AccessFlags;
 
 impl<'cx> TyChecker<'cx> {
     pub(super) fn get_type_of_symbol(&mut self, module: ModuleID, id: SymbolID) -> &'cx Ty<'cx> {
@@ -42,6 +44,8 @@ impl<'cx> TyChecker<'cx> {
             BlockContainer { .. } => return self.undefined_ty(),
             Interface { .. } => return self.undefined_ty(),
             Index { .. } => return self.undefined_ty(),
+            TypeAlias { .. } => return self.undefined_ty(),
+            TyParam { .. } => return self.undefined_ty(),
         };
         ty
     }
@@ -55,10 +59,8 @@ impl<'cx> TyChecker<'cx> {
         module: ModuleID,
         symbol: SymbolID,
     ) -> &'cx Ty<'cx> {
-        let Some(class_ty) = self.get_declared_ty_of_symbol(module, symbol) else {
-            unreachable!()
-        };
-        let Some(i) = class_ty.kind.as_interface() else {
+        let class_ty = self.get_declared_ty_of_symbol(module, symbol);
+        let Some(i) = class_ty.kind.as_object_interface() else {
             unreachable!()
         };
 
@@ -113,6 +115,8 @@ impl<'cx> TyChecker<'cx> {
             BlockContainer { .. } => todo!(),
             Interface { .. } => todo!(),
             Index { .. } => todo!(),
+            TypeAlias { .. } => todo!(),
+            TyParam { .. } => todo!(),
         };
 
         for decl in decls {
@@ -158,7 +162,7 @@ impl<'cx> TyChecker<'cx> {
                     assert!(refer.args.is_none());
                     self.void_ty()
                 } else {
-                    self.get_type_from_ty_reference(refer)
+                    self.get_ty_from_ty_reference(refer)
                 }
             }
             Array(array) => self.get_ty_from_array_node(array),
@@ -188,14 +192,86 @@ impl<'cx> TyChecker<'cx> {
                     symbol,
                 })
             }
-            ExprWithArg(expr) => self.get_type_from_ty_reference(expr),
+            ExprWithArg(expr) => self.get_ty_from_ty_reference(expr),
             NumLit(num) => self.get_number_literal_type(num.val),
-            StringLit(_) => self.undefined_ty(),
+            StringLit(s) => self.get_string_literal_type(s.val),
             Tuple(_) => self.undefined_ty(),
             Rest(_) => self.undefined_ty(),
-            IndexAccess(_) => self.undefined_ty(),
-            Cond(_) => self.undefined_ty(),
+            IndexedAccess(node) => self.get_ty_from_indexed_access_node(node),
+            Cond(node) => self.get_ty_from_cond_node(node),
         }
+    }
+
+    fn get_indexed_access_ty(
+        &mut self,
+        object_ty: &'cx Ty<'cx>,
+        index_ty: &'cx Ty<'cx>,
+    ) -> &'cx Ty<'cx> {
+        if object_ty.kind.is_generic_object_type() {
+            let ty = self.alloc(ty::IndexedAccessTy {
+                object_ty,
+                index_ty,
+                access_flags: AccessFlags::PERSISTENT,
+            });
+            self.new_ty(ty::TyKind::IndexedAccess(ty))
+        } else {
+            self.undefined_ty()
+        }
+    }
+
+    fn get_ty_from_indexed_access_node(
+        &mut self,
+        node: &'cx ast::IndexedAccessTy<'cx>,
+    ) -> &'cx Ty<'cx> {
+        let object_ty = self.get_ty_from_type_node(node.ty);
+        let index_ty = self.get_ty_from_type_node(node.index_ty);
+        self.get_indexed_access_ty(object_ty, index_ty)
+    }
+
+    fn get_alias_symbol_for_ty_node(&self, node: ast::NodeID) -> Option<SymbolID> {
+        let parent_map = self.p.get(node.module()).parent_map();
+        let nodes = self.p.get(node.module()).nodes();
+        let mut host = parent_map.parent(node);
+        while let Some(node_id) = host {
+            let node = nodes.get(node);
+            if node.is_paren_type_node() {
+                host = parent_map.parent(node_id);
+            } else {
+                break;
+            }
+        }
+        host.and_then(|node_id| nodes.get(node_id).is_type_decl().then(|| node_id))
+            .and_then(|node_id| {
+                let binder = self.binder.get(node_id.module());
+                let symbol = binder.final_res.get(&node_id).copied().unwrap();
+                assert!(binder.symbols.get(symbol).kind.as_type_alias().is_some());
+                Some(symbol)
+            })
+    }
+
+    fn get_local_ty_params_of_class_or_interface_or_type_alias(
+        &mut self,
+        module: ModuleID,
+        symbol: SymbolID,
+    ) -> Option<&'cx [&'cx ty::ParamTy]>  {
+        use SymbolKind::*;
+        match &self.binder.get(module).symbols.get(symbol).kind {
+            TypeAlias(alias) => {
+                self.get_effective_ty_params_decls(&[alias.decl])
+            }
+            _ => None
+        }
+    }
+
+    fn get_ty_from_cond_node(&mut self, node: &'cx ast::CondTy<'cx>) -> &'cx Ty<'cx> {
+        let check_ty = self.get_ty_from_type_node(node.check_ty);
+        let alias_symbol = self.get_alias_symbol_for_ty_node(node.id);
+        let alias_ty_args = alias_symbol.and_then(|symbol| {
+            self.get_local_ty_params_of_class_or_interface_or_type_alias(node.id.module(), symbol)
+        });
+        // let all_outer_ty_params = self.getout
+        // dbg!(alias_ty_args);
+        check_ty
     }
 
     fn get_ty_from_array_node(&mut self, node: &'cx ast::ArrayTy<'cx>) -> &'cx Ty<'cx> {
@@ -215,10 +291,21 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
+    pub(super) fn get_string_literal_type(&mut self, val: AtomId) -> &'cx Ty<'cx> {
+        if let Some(id) = self.string_lit_tys.get(&val) {
+            self.tys[id]
+        } else {
+            let kind = TyKind::StringLit(self.alloc(ty::StringLitTy { val }));
+            let ty = self.new_ty(kind);
+            self.string_lit_tys.insert(val, ty.id);
+            ty
+        }
+    }
+
     pub(super) fn get_global_type(&mut self, name: SymbolName) -> &'cx Ty<'cx> {
         let Some((m, s)) = self.global_symbols.get(name) else {
             unreachable!()
         };
-        self.get_declared_ty_of_symbol(m, s).unwrap()
+        self.get_declared_ty_of_symbol(m, s)
     }
 }

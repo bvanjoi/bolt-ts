@@ -1,14 +1,16 @@
 mod bound_object_like;
 mod facts;
+mod object_ty;
 
-use crate::atoms::AtomMap;
-use crate::bind::{Binder, SymbolID, SymbolName};
+use crate::atoms::{AtomId, AtomMap};
+use crate::bind::{Binder, SymbolID};
 use crate::keyword;
 use bolt_ts_span::ModuleID;
-use rustc_hash::FxHashMap;
 
-pub use bound_object_like::ObjectLikeTy;
-pub use facts::{has_type_facts, TypeFacts};
+pub use self::bound_object_like::ObjectLikeTy;
+pub use self::facts::{has_type_facts, TypeFacts};
+pub use self::object_ty::{ArrayTy, ClassTy, FnTy, InterfaceTy, ObjectLitTy, ObjectTyKind};
+pub use self::object_ty::{IndexInfo, ObjectTy};
 
 bolt_ts_span::new_index!(TyID);
 bolt_ts_span::new_index!(TyVarID);
@@ -19,6 +21,12 @@ pub struct Ty<'cx> {
     pub id: TyID,
 }
 
+impl PartialEq for Ty<'_> {
+    fn eq(&self, other: &Self) -> bool {
+        self.id == other.id
+    }
+}
+
 impl<'cx> Ty<'cx> {
     pub fn new(id: TyID, kind: TyKind<'cx>) -> Self {
         Self { kind, id }
@@ -27,13 +35,46 @@ impl<'cx> Ty<'cx> {
 
 #[derive(Debug, Clone, Copy)]
 pub enum TyKind<'cx> {
-    StringLit,
+    StringLit(&'cx StringLitTy),
     NumberLit(&'cx NumberLitTy),
     Intrinsic(&'cx IntrinsicTy),
     Union(&'cx UnionTy<'cx>),
     Object(&'cx ObjectTy<'cx>),
+    Param(&'cx ParamTy),
     Var(TyVarID),
+    IndexedAccess(&'cx IndexedAccessTy<'cx>),
 }
+
+macro_rules! as_ty_kind {
+    ($kind: ident, $ty:ty, $as_kind: ident, $is_kind: ident) => {
+        impl<'cx> TyKind<'cx> {
+            #[inline(always)]
+            pub fn $as_kind(&self) -> Option<$ty> {
+                match self {
+                    TyKind::$kind(ty) => Some(ty),
+                    _ => None,
+                }
+            }
+            #[inline(always)]
+            pub fn $is_kind(&self) -> bool {
+                self.$as_kind().is_some()
+            }
+        }
+    };
+}
+
+as_ty_kind!(StringLit, &'cx StringLitTy, as_string_lit, is_string_lit);
+as_ty_kind!(NumberLit, &'cx NumberLitTy, as_number_lit, is_number_lit);
+as_ty_kind!(
+    Intrinsic,
+    &'cx IntrinsicTy,
+    as_intrinsic_lit,
+    is_intrinsic_lit
+);
+as_ty_kind!(Union, &'cx UnionTy<'cx>, as_union, is_union);
+as_ty_kind!(Object, &'cx ObjectTy<'cx>, as_object, is_object);
+as_ty_kind!(Param, &'cx ParamTy, as_param, is_param);
+as_ty_kind!(Var, &TyVarID, as_ty_var, is_ty_var);
 
 impl<'cx> TyKind<'cx> {
     pub fn to_string(&self, binder: &'cx Binder, atoms: &'cx AtomMap) -> String {
@@ -46,12 +87,14 @@ impl<'cx> TyKind<'cx> {
                 .map(|ty| ty.kind.to_string(binder, atoms))
                 .collect::<Vec<_>>()
                 .join(" | "),
-            TyKind::StringLit => todo!(),
+            TyKind::StringLit(_) => todo!(),
             TyKind::Object(object) => object.kind.to_string(&binder, atoms),
             TyKind::Var(id) => {
                 // todo: delay bug
                 format!("#{id:#?}")
             }
+            TyKind::Param(_) => todo!(),
+            TyKind::IndexedAccess(_) => "indexedAccess".to_string(),
         }
     }
 
@@ -64,10 +107,6 @@ impl<'cx> TyKind<'cx> {
         } else {
             false
         }
-    }
-
-    pub fn is_union(&self) -> bool {
-        matches!(self, TyKind::Union(_))
     }
 
     pub fn is_any(&self) -> bool {
@@ -88,10 +127,6 @@ impl<'cx> TyKind<'cx> {
         }
     }
 
-    pub fn is_ty_var(&self) -> bool {
-        matches!(self, TyKind::Var(_))
-    }
-
     pub fn is_union_or_intersection(&self) -> bool {
         self.is_union()
     }
@@ -102,7 +137,7 @@ impl<'cx> TyKind<'cx> {
 
     pub fn is_lit(&self) -> bool {
         use TyKind::*;
-        if matches!(self, StringLit | NumberLit(_)) {
+        if matches!(self, StringLit(_) | NumberLit(_)) {
             true
         } else if let Intrinsic(ty) = self {
             ty.kind.is_lit()
@@ -124,7 +159,7 @@ impl<'cx> TyKind<'cx> {
 
     pub fn is_string_like(&self) -> bool {
         use TyKind::*;
-        if matches!(self, StringLit) {
+        if matches!(self, StringLit(_)) {
             true
         } else if let Intrinsic(ty) = self {
             ty.kind.is_string_like()
@@ -144,10 +179,6 @@ impl<'cx> TyKind<'cx> {
 
     pub fn is_structured(&self) -> bool {
         self.is_union() | self.is_object()
-    }
-
-    pub fn is_object(&self) -> bool {
-        matches!(self, TyKind::Object(_))
     }
 
     pub fn is_structured_or_instantiable(&self) -> bool {
@@ -171,82 +202,66 @@ impl<'cx> TyKind<'cx> {
         self.is_lit()
     }
 
-    pub fn as_fn(&self) -> Option<&'cx FnTy<'cx>> {
-        use TyKind::*;
-        if let Object(ty) = self {
-            if let ObjectTyKind::Fn(f) = ty.kind {
-                Some(f)
-            } else {
-                None
-            }
+    pub fn is_type_variable(&self) -> bool {
+        self.is_ty_var() || self.is_param()
+    }
+
+    pub fn is_instantiable_non_primitive(&self) -> bool {
+        self.is_type_variable()
+    }
+
+    pub fn is_generic_object_type(&self) -> bool {
+        self.is_instantiable_non_primitive()
+    }
+
+    pub fn is_tuple_type(&self) -> bool {
+        if self.is_object_flags_type() {
+            // TODO: object flags
+            true
         } else {
-            None
+            false
         }
     }
 
-    pub fn as_object_lit(&self) -> Option<&'cx ObjectLitTy<'cx>> {
-        use TyKind::*;
-        if let Object(ty) = self {
-            if let ObjectTyKind::Lit(object) = ty.kind {
-                Some(object)
-            } else {
-                None
-            }
-        } else {
-            None
-        }
+    pub fn is_object_flags_type(&self) -> bool {
+        self.is_any() || self.is_nullable() | self.is_object() || self.is_union()
     }
 
-    pub fn as_array(&self) -> Option<&'cx ArrayTy<'cx>> {
-        use TyKind::*;
-        if let Object(ty) = self {
-            if let ObjectTyKind::Array(array) = ty.kind {
-                Some(array)
-            } else {
-                None
-            }
-        } else {
-            None
-        }
-    }
-
-    pub fn as_class(&self) -> Option<&'cx ClassTy> {
-        use TyKind::*;
-        if let Object(ty) = self {
-            if let ObjectTyKind::Class(class) = ty.kind {
-                Some(class)
-            } else {
-                None
-            }
-        } else {
-            None
-        }
-    }
-
-    pub fn as_interface(&self) -> Option<&'cx InterfaceTy> {
-        use TyKind::*;
-        if let Object(ty) = self {
-            if let ObjectTyKind::Interface(interface) = ty.kind {
-                Some(interface)
-            } else {
-                None
-            }
-        } else {
-            None
-        }
+    pub fn is_any_or_unknown(&self) -> bool {
+        self.is_any()
     }
 }
 
 pub type Tys<'cx> = &'cx [&'cx Ty<'cx>];
 
-#[derive(Debug, Clone, Copy)]
-pub struct UnionTy<'cx> {
-    pub tys: Tys<'cx>,
+bitflags::bitflags! {
+    #[derive(Debug, Clone, Copy)]
+    pub struct AccessFlags: u16 {
+        const INCLUDE_UNDEFINED              = 1 << 0;
+        const NO_INDEX_SIGNATURES            = 1 << 1;
+        const WRITING                        = 1 << 2;
+        const CACHE_SYMBOL                   = 1 << 3;
+        const ALLOWING_MISSING               = 1 << 4;
+        const EXPRESSION_POSITION            = 1 << 5;
+        const REPORT_DEPRECATED              = 1 << 6;
+        const SUPPRESS_NO_IMPLICIT_ANY_ERROR = 1 << 7;
+        const Contextual                     = 1 << 8;
+        const PERSISTENT                     = Self::INCLUDE_UNDEFINED.bits();
+    }
 }
 
 #[derive(Debug, Clone, Copy)]
-pub struct ArrayTy<'cx> {
-    pub ty: &'cx Ty<'cx>,
+pub struct IndexedAccessTy<'cx> {
+    pub object_ty: &'cx self::Ty<'cx>,
+    pub index_ty: &'cx self::Ty<'cx>,
+    pub access_flags: AccessFlags,
+    // alias_symbol: Option<SymbolID>,
+    // alias_ty_arguments: Option<&'cx Tys<'cx>>,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct UnionTy<'cx> {
+    pub tys: Tys<'cx>,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -329,81 +344,12 @@ pub struct NumberLitTy {
 }
 
 #[derive(Debug, Clone, Copy)]
-pub struct ObjectTy<'cx> {
-    pub kind: ObjectTyKind<'cx>,
+pub struct StringLitTy {
+    pub val: AtomId,
 }
 
 #[derive(Debug, Clone, Copy)]
-pub enum ObjectTyKind<'cx> {
-    Class(&'cx ClassTy),
-    Fn(&'cx FnTy<'cx>),
-    Lit(&'cx ObjectLitTy<'cx>),
-    Array(&'cx ArrayTy<'cx>),
-    Interface(&'cx InterfaceTy<'cx>),
-}
-
-#[derive(Debug, Clone, Copy)]
-pub struct IndexInfo<'cx> {
-    pub key_ty: &'cx Ty<'cx>,
-    pub val_ty: &'cx Ty<'cx>,
-}
-
-#[derive(Debug, Clone, Copy)]
-pub struct InterfaceTy<'cx> {
-    pub module: ModuleID,
-    pub symbol: SymbolID,
-    pub members: &'cx FxHashMap<SymbolName, SymbolID>,
-    pub declared_props: &'cx [SymbolID],
-    pub base_tys: &'cx [&'cx Ty<'cx>],
-    pub index_infos: &'cx [&'cx IndexInfo<'cx>],
-    pub base_ctor_ty: Option<&'cx Ty<'cx>>,
-}
-
-impl<'cx> ObjectTyKind<'cx> {
-    fn to_string(&self, binder: &Binder, atoms: &AtomMap<'cx>) -> String {
-        match self {
-            ObjectTyKind::Class(_) => "class".to_string(),
-            ObjectTyKind::Fn(_) => "function".to_string(),
-            ObjectTyKind::Lit(_) => "Object".to_string(),
-            ObjectTyKind::Array(ArrayTy { ty }) => {
-                format!("{}[]", ty.kind.to_string(binder, atoms))
-            }
-            ObjectTyKind::Interface(i) => atoms
-                .get(
-                    binder
-                        .get(i.module)
-                        .symbols
-                        .get(i.symbol)
-                        .name
-                        .expect_atom(),
-                )
-                .to_string(),
-        }
-    }
-
-    pub fn is_reference(&self) -> bool {
-        matches!(self, ObjectTyKind::Interface(_))
-    }
-}
-
-#[derive(Debug, Clone, Copy)]
-pub struct ClassTy {
-    pub module: ModuleID,
-    pub symbol: SymbolID,
-}
-
-#[derive(Debug, Clone, Copy)]
-pub struct ObjectLitTy<'cx> {
-    pub members: &'cx FxHashMap<SymbolName, SymbolID>,
-    pub declared_props: &'cx [SymbolID],
-    pub module: ModuleID,
-    pub symbol: SymbolID,
-}
-
-#[derive(Debug, Clone, Copy)]
-pub struct FnTy<'cx> {
-    pub params: &'cx [&'cx Ty<'cx>],
-    pub ret: &'cx Ty<'cx>,
+pub struct ParamTy {
     pub module: ModuleID,
     pub symbol: SymbolID,
 }

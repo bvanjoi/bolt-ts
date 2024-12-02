@@ -2,6 +2,7 @@ use bolt_ts_span::ModuleID;
 use rustc_hash::FxHashMap;
 
 use super::ty;
+use super::utils::append_if_unique;
 use super::TyChecker;
 use crate::ast;
 use crate::bind::ClassSymbol;
@@ -10,6 +11,15 @@ use crate::errors;
 
 impl<'cx> TyChecker<'cx> {
     pub(super) fn get_declared_ty_of_symbol(
+        &mut self,
+        module: ModuleID,
+        symbol: SymbolID,
+    ) -> &'cx ty::Ty<'cx> {
+        self.try_get_declared_ty_of_symbol(module, symbol)
+            .unwrap_or(self.error_ty())
+    }
+
+    pub(super) fn try_get_declared_ty_of_symbol(
         &mut self,
         module: ModuleID,
         symbol: SymbolID,
@@ -25,11 +35,59 @@ impl<'cx> TyChecker<'cx> {
                 if let Some(ty) = self.get_symbol_links(module, symbol).get_declared_ty() {
                     return Some(ty);
                 }
-                self.get_mut_symbol_links(module, symbol).set_declared_ty(ty);
+                self.get_mut_symbol_links(module, symbol)
+                    .set_declared_ty(ty);
+                Some(ty)
+            }
+            TypeAlias { .. } => {
+                let ty = self.get_declared_ty_of_type_alias(module, symbol);
+                self.get_mut_symbol_links(module, symbol)
+                    .set_declared_ty(ty);
+                Some(ty)
+            }
+            TyParam { .. } => {
+                let ty = self.get_declared_ty_of_ty_param(module, symbol);
+                self.get_mut_symbol_links(module, symbol)
+                    .set_declared_ty(ty);
                 Some(ty)
             }
             _ => None,
         }
+    }
+
+    fn get_declared_ty_of_ty_param(
+        &mut self,
+        module: ModuleID,
+        symbol: SymbolID,
+    ) -> &'cx ty::Ty<'cx> {
+        let parm_ty = self.alloc(ty::ParamTy { module, symbol });
+        self.new_ty(ty::TyKind::Param(parm_ty))
+    }
+
+    fn get_declared_ty_of_type_alias(
+        &mut self,
+        module: ModuleID,
+        symbol: SymbolID,
+    ) -> &'cx ty::Ty<'cx> {
+        if !self.push_ty_resolution(module, symbol) {
+            return self.error_ty();
+        }
+        let Some(alias) = self
+            .binder
+            .get(module)
+            .symbols
+            .get(symbol)
+            .kind
+            .as_type_alias()
+        else {
+            unreachable!()
+        };
+        let decl = alias.decl;
+        let ast::Node::TypeDecl(decl) = self.p.get(module).nodes().get(decl) else {
+            unreachable!()
+        };
+        let ty = self.get_ty_from_type_node(decl.ty);
+        ty
     }
 
     fn get_interface_base_ty_nodes(&self, decl: ast::NodeID) -> Option<&'cx [&'cx ast::Ty<'cx>]> {
@@ -76,8 +134,8 @@ impl<'cx> TyChecker<'cx> {
         let Some(extends) = self.get_class_base_expr(decl) else {
             return (Some(base_ctor), &[]);
         };
-        if base_ctor.kind.as_class().is_some() {
-            let ty = self.get_type_from_ty_reference(extends);
+        if base_ctor.kind.is_object_class() {
+            let ty = self.get_ty_from_ty_reference(extends);
             (Some(base_ctor), self.alloc([ty]))
         } else {
             (Some(base_ctor), self.alloc([base_ctor]))
@@ -109,14 +167,63 @@ impl<'cx> TyChecker<'cx> {
         extends.map(|extends| extends.expr)
     }
 
-    fn push_ty_resolution(&mut self, module: ModuleID, id: SymbolID) -> bool {
-        if let Some(start) = self.find_resolution_cycle_start_index(module, id) {
+    fn get_effective_ty_param_decl(&self, decl: ast::NodeID) -> ast::TyParams<'cx> {
+        let node = self.p.get(decl.module()).nodes().get(decl);
+        if let Some(decl) = node.as_type_decl() {
+            if let Some(ty_params) = decl.ty_params {
+                return ty_params;
+            }
+        }
+        // TODO:
+
+        &[]
+    }
+
+    fn append_ty_params(&mut self, res: &mut Vec<&'cx ty::Ty<'cx>>, params: ast::TyParams<'cx>) {
+        for param in params {
+            let module = param.id.module();
+            let symbol = self.get_symbol_of_decl(param.id);
+            let value = self.get_declared_ty_of_symbol(module, symbol);
+            append_if_unique(res, value);
+        }
+    }
+
+    pub(super) fn get_effective_ty_params_decls(
+        &mut self,
+        decls: &[ast::NodeID],
+    ) -> Option<&'cx [&'cx ty::ParamTy]> {
+        let mut res = vec![];
+        for decl in decls {
+            let node = self.p.get(decl.module()).nodes().get(*decl);
+            if node.is_ty_alias() {
+                let ty = self.get_effective_ty_param_decl(*decl);
+                self.append_ty_params(&mut res, ty);
+            }
+        }
+        if res.is_empty() {
+            None
+        } else {
+            let list = res
+                .into_iter()
+                .map(|item| {
+                    let Some(param_ty) = item.kind.as_param() else {
+                        unreachable!()
+                    };
+                    param_ty
+                })
+                .collect::<Vec<_>>();
+            Some(self.alloc(list))
+        }
+    }
+
+    fn push_ty_resolution(&mut self, module: ModuleID, symbol: SymbolID) -> bool {
+        if let Some(start) = self.find_resolution_cycle_start_index(module, symbol) {
             for index in start..self.resolution_res.len() {
                 self.resolution_res[index] = false;
             }
             return false;
         } else {
-            self.resolution_tys.push((module, id));
+            self.resolution_tys.push((module, symbol));
             self.resolution_res.push(true);
             return true;
         }
@@ -195,12 +302,12 @@ impl<'cx> TyChecker<'cx> {
     fn get_declared_ty_of_class_or_interface(
         &mut self,
         module: ModuleID,
-        id: SymbolID,
+        symbol: SymbolID,
     ) -> &'cx ty::Ty<'cx> {
-        let _outer_ty_params = self.get_outer_ty_params_of_class_or_interface(module, id);
-        let (base_ctor_ty, base_tys) = self.get_base_tys(module, id);
+        let _outer_ty_params = self.get_outer_ty_params_of_class_or_interface(module, symbol);
+        let (base_ctor_ty, base_tys) = self.get_base_tys(module, symbol);
         use crate::bind::SymbolKind::*;
-        let members = match &self.binder.get(module).symbols.get(id).kind {
+        let members = match &self.binder.get(module).symbols.get(symbol).kind {
             Class(ClassSymbol { members, .. }) | Interface { members, .. } => {
                 self.alloc(members.clone())
             }
@@ -230,7 +337,7 @@ impl<'cx> TyChecker<'cx> {
             .unwrap_or_default();
         self.crate_interface_ty(ty::InterfaceTy {
             module,
-            symbol: id,
+            symbol,
             members,
             declared_props,
             base_tys,

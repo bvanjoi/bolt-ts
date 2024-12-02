@@ -18,6 +18,7 @@ impl<'cx> TyChecker<'cx> {
             ClassCtor(n) => n.id,
             FnDecl(n) => n.id,
             InterfaceDecl(n) => n.id,
+            TyParam(n) => n.id,
             _ => {
                 todo!("{:#?}", node)
             }

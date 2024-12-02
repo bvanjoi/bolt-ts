@@ -165,15 +165,15 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
                     let index_ty = self.with_parent(id, Self::parse_ty)?;
                     self.expect(TokenKind::RBracket)?;
                     self.parent_map.r#override(ty.id(), id);
-                    let kind = self.alloc(ast::IndexAccessTy {
+                    let kind = self.alloc(ast::IndexedAccessTy {
                         id,
                         span: self.new_span(start as usize, self.pos),
                         ty,
                         index_ty,
                     });
-                    self.insert_map(id, ast::Node::IndexAccessTy(kind));
+                    self.insert_map(id, ast::Node::IndexedAccessTy(kind));
                     let ty = self.alloc(ast::Ty {
-                        kind: ast::TyKind::IndexAccess(kind),
+                        kind: ast::TyKind::IndexedAccess(kind),
                     });
                     Ok(ty)
                 } else {
@@ -224,7 +224,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
             id,
             span: self.new_span(start as usize, self.pos),
             name,
-            args
+            args,
         });
         self.insert_map(id, ast::Node::ReferTy(ty));
         Ok(ty)
@@ -425,7 +425,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         let start = self.token.start();
 
         if !is_call {
-            self.expect(TokenKind::New);
+            self.expect(TokenKind::New)?;
         }
 
         let ty_params = self.parse_ty_params()?;

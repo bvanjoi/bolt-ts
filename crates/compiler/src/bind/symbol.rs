@@ -85,6 +85,15 @@ pub enum SymbolKind {
     Index {
         decl: NodeID,
     },
+    TypeAlias(TypeAliasSymbol),
+    TyParam {
+        decl: NodeID,
+    },
+}
+
+#[derive(Debug)]
+pub struct TypeAliasSymbol {
+    pub decl: NodeID,
 }
 
 #[derive(Debug)]
@@ -115,7 +124,28 @@ impl SymbolKind {
 
     #[inline(always)]
     pub fn is_class(&self) -> bool {
-        matches!(self, Self::Class(_))
+        self.as_class().is_some()
+    }
+
+    #[inline(always)]
+    pub fn as_class(&self) -> Option<&ClassSymbol> {
+        match self {
+            SymbolKind::Class(symbol) => Some(symbol),
+            _ => None,
+        }
+    }
+
+    #[inline(always)]
+    pub fn as_type_alias(&self) -> Option<&TypeAliasSymbol> {
+        match self {
+            SymbolKind::TypeAlias(s) => Some(s),
+            _ => None,
+        }
+    }
+
+    #[inline(always)]
+    pub fn is_interface(&self) -> bool {
+        matches!(self, Self::Interface { .. })
     }
 
     pub fn as_str(&self) -> &'static str {
@@ -130,6 +160,8 @@ impl SymbolKind {
             SymbolKind::BlockContainer { .. } => todo!(),
             SymbolKind::Interface { .. } => todo!(),
             SymbolKind::Index { .. } => todo!(),
+            SymbolKind::TypeAlias { .. } => todo!(),
+            SymbolKind::TyParam { .. } => todo!(),
         }
     }
 
@@ -137,13 +169,6 @@ impl SymbolKind {
         match self {
             SymbolKind::Object(symbol) => symbol,
             _ => unreachable!("{:#?}", self),
-        }
-    }
-
-    pub fn as_class(&self) -> Option<&ClassSymbol> {
-        match self {
-            SymbolKind::Class(symbol) => Some(symbol),
-            _ => None,
         }
     }
 
@@ -156,7 +181,7 @@ impl SymbolKind {
 
     pub fn is_type(&self) -> bool {
         use SymbolKind::*;
-        self.is_class() || matches!(self, Interface { .. })
+        self.is_class() || self.is_interface() || matches!(self, TypeAlias { .. } | TyParam { .. })
     }
 }
 

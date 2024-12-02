@@ -65,9 +65,7 @@ impl<'cx> TyChecker<'cx> {
 
     pub(super) fn check_class_like_decl(&mut self, class: &impl ClassLikeDecl<'cx>) {
         let symbol = self.get_symbol_of_decl(class.id());
-        let Some(ty) = self.get_declared_ty_of_symbol(class.id().module(), symbol) else {
-            unreachable!()
-        };
+        let ty = self.get_declared_ty_of_symbol(class.id().module(), symbol);
         let static_ty = self.get_type_of_symbol(class.id().module(), symbol);
         self.check_index_constraints(ty, class.id().module(), symbol);
 

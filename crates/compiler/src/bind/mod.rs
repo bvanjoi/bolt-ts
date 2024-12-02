@@ -140,9 +140,32 @@ impl<'cx> BinderState<'cx> {
                 }
             }
             Class(class) => self.bind_class_like(class),
-            Interface(interface) => self.bind_interface(interface),
-            Type(_) => {},
+            Interface(interface) => self.bind_interface_decl(interface),
+            Type(t) => self.bind_type_decl(t),
         }
+    }
+
+    fn bind_type_decl(&mut self, t: &'cx ast::TypeDecl<'cx>) {
+        let symbol = self.create_var_symbol(
+            t.name.name,
+            SymbolKind::TypeAlias(symbol::TypeAliasSymbol { decl: t.id }),
+        );
+        self.final_res.insert(t.id, symbol);
+        if let Some(ty_params) = t.ty_params {
+            self.bind_ty_params(ty_params);
+        }
+        self.bind_ty(&t.ty);
+    }
+
+    fn bind_ty_params(&mut self, params: ast::TyParams<'cx>) {
+        for param in params {
+            self.bind_ty_param(param)
+        }
+    }
+
+    fn bind_ty_param(&mut self, param: &'cx ast::TyParam<'cx>) {
+        let symbol = self.create_var_symbol(param.name.name, SymbolKind::TyParam { decl: param.id });
+        self.final_res.insert(param.id, symbol);
     }
 
     fn bind_index_sig(&mut self, index: &'cx ast::IndexSigDecl<'cx>) -> SymbolID {
@@ -168,7 +191,7 @@ impl<'cx> BinderState<'cx> {
         }
     }
 
-    fn bind_interface(&mut self, i: &'cx ast::InterfaceDecl<'cx>) {
+    fn bind_interface_decl(&mut self, i: &'cx ast::InterfaceDecl<'cx>) {
         if let Some(extends) = i.extends {
             for ty in extends.tys {
                 self.bind_ty(ty);
@@ -299,6 +322,24 @@ impl<'cx> BinderState<'cx> {
                 self.scope_id = old;
             }
             ExprWithArg(expr) => self.bind_expr(expr),
+            Refer(refer) => {
+                self.bind_ident(refer.name);
+                if let Some(args) = refer.args {
+                    for arg in args {
+                        self.bind_ty(arg);
+                    }
+                }
+            }
+            Cond(cond) => {
+                self.bind_ty(cond.check_ty);
+                self.bind_ty(cond.extends_ty);
+                self.bind_ty(cond.true_ty);
+                self.bind_ty(cond.false_ty);
+            }
+            IndexedAccess(index) => {
+                self.bind_ty(index.ty);
+                self.bind_ty(index.index_ty);
+            }
             _ => (),
         }
     }

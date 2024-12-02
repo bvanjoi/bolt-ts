@@ -126,9 +126,7 @@ fn get_sig_from_decl<'cx>(checker: &mut TyChecker<'cx>, node: ast::Node<'cx>) ->
                 unreachable!()
             };
             let symbol = checker.get_symbol_of_decl(class_id);
-            checker
-                .get_declared_ty_of_symbol(class_id.module(), symbol)
-                .unwrap()
+            checker.get_declared_ty_of_symbol(class_id.module(), symbol)
         }
         _ => unreachable!(),
     };

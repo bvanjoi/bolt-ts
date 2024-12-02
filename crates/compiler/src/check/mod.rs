@@ -11,12 +11,12 @@ mod get_contextual_ty;
 mod get_declared_ty;
 mod get_symbol;
 mod get_ty;
+mod get_type_from_ty_refer_like;
 mod relation;
 mod resolve;
 mod sig;
 mod symbol_links;
 mod utils;
-mod get_type_from_ty_refer_like;
 
 use bolt_ts_span::{ModuleID, Span};
 use rustc_hash::FxHashMap;
@@ -54,6 +54,7 @@ pub struct TyChecker<'cx> {
     next_ty_var_id: TyVarID,
     tys: FxHashMap<TyID, &'cx Ty<'cx>>,
     num_lit_tys: FxHashMap<F64Represent, TyID>,
+    string_lit_tys: FxHashMap<AtomId, TyID>,
     intrinsic_tys: FxHashMap<AtomId, &'cx Ty<'cx>>,
     type_name: FxHashMap<TyID, String>,
     ty_vars: FxHashMap<TyVarID, &'cx Ty<'cx>>,
@@ -130,6 +131,7 @@ impl<'cx> TyChecker<'cx> {
             atoms,
             tys: FxHashMap::default(),
             num_lit_tys: FxHashMap::default(),
+            string_lit_tys: FxHashMap::default(),
             next_ty_id: TyID::root(),
             next_ty_var_id: TyVarID::root(),
             arena: ty_arena,
@@ -172,10 +174,10 @@ impl<'cx> TyChecker<'cx> {
 
     fn get_mut_symbol_links(
         &mut self,
-        module_id: ModuleID,
+        module: ModuleID,
         symbol: SymbolID,
     ) -> &mut SymbolLinks<'cx> {
-        self.symbol_links.get_mut(&(module_id, symbol)).unwrap()
+        self.symbol_links.get_mut(&(module, symbol)).unwrap()
     }
 
     pub fn print_ty(&mut self, ty: &Ty) -> &str {
@@ -217,7 +219,7 @@ impl<'cx> TyChecker<'cx> {
             Empty(_) => {}
             Class(class) => self.check_class_decl(class),
             Interface(interface) => self.check_interface_decl(interface),
-            Type(_) => {},
+            Type(_) => {}
         };
     }
 
@@ -259,7 +261,7 @@ impl<'cx> TyChecker<'cx> {
         ty: &'cx ty::Ty<'cx>,
         prop_name_ty: &'cx Ty<'cx>,
     ) -> Vec<&'cx ty::IndexInfo<'cx>> {
-        let Some(i) = ty.kind.as_interface() else {
+        let Some(i) = ty.kind.as_object_interface() else {
             return vec![];
         };
         i.index_infos
@@ -312,7 +314,7 @@ impl<'cx> TyChecker<'cx> {
             }
         }
 
-        if let Some(i) = ty.kind.as_interface() {
+        if let Some(i) = ty.kind.as_object_interface() {
             for base_ty in i.base_tys {
                 self.check_index_constraint_for_prop(
                     base_ty,
@@ -343,7 +345,7 @@ impl<'cx> TyChecker<'cx> {
         symbol: SymbolID,
     ) {
         // self.get_index_info_of_ty(ty);
-        let Some(i) = ty.kind.as_interface() else {
+        let Some(i) = ty.kind.as_object_interface() else {
             unreachable!()
         };
         for prop in i.declared_props {
@@ -490,19 +492,17 @@ impl<'cx> TyChecker<'cx> {
         let op_ty = self.check_expr(expr.expr);
         use ast::ExprKind::*;
         match expr.expr.kind {
-            NumLit(_) => {
-                match expr.op {
-                    ast::PrefixUnaryOp::Plus => op_ty,
-                    ast::PrefixUnaryOp::Minus => {
-                        let val = if let ty::TyKind::NumberLit(n) = op_ty.kind {
-                            -n.val
-                        } else {
-                            todo!()
-                        };
-                        self.get_number_literal_type(val)
-                    },
+            NumLit(_) => match expr.op {
+                ast::PrefixUnaryOp::Plus => op_ty,
+                ast::PrefixUnaryOp::Minus => {
+                    let val = if let ty::TyKind::NumberLit(n) = op_ty.kind {
+                        -n.val
+                    } else {
+                        todo!()
+                    };
+                    self.get_number_literal_type(val)
                 }
-            }
+            },
             _ => self.undefined_ty(),
         }
     }

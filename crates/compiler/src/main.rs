@@ -1,6 +1,5 @@
-use bolt_ts_compiler::eval_from;
-
 fn main() {
+    // use bolt_ts_compiler::eval_from;
     // let start = std::time::Instant::now();
     // let project_root = project_root::get_project_root().unwrap();
     // let p = project_root.join("tests/cases/compiler/fib/index.ts");
@@ -11,6 +10,7 @@ fn main() {
 
 #[test]
 fn main_test() {
+    use bolt_ts_compiler::eval_from;
     let project_root = project_root::get_project_root().unwrap();
 
     // // for hang debug
