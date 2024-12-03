@@ -85,14 +85,54 @@ pub enum SymbolKind {
     Index {
         decl: NodeID,
     },
-    TypeAlias(TypeAliasSymbol),
-    TyParam {
-        decl: NodeID,
-    },
+    TyAlias(TyAliasSymbol),
+    TyParam(TyParamSymbol),
 }
 
+macro_rules! as_symbol_kind {
+    ($kind: ident, $ty:ty, $as_kind: ident, $expect_kind: ident, $is_kind: ident) => {
+        impl SymbolKind {
+            #[inline(always)]
+            pub fn $as_kind(&self) -> Option<$ty> {
+                match self {
+                    SymbolKind::$kind(ty) => Some(ty),
+                    _ => None,
+                }
+            }
+            #[inline(always)]
+            pub fn $is_kind(&self) -> bool {
+                self.$as_kind().is_some()
+            }
+            #[inline(always)]
+            pub fn $expect_kind(&self) -> $ty {
+                self.$as_kind().unwrap()
+            }
+        }
+    };
+}
+
+as_symbol_kind!(Class, &ClassSymbol, as_class, expect_class, is_class);
+as_symbol_kind!(
+    TyAlias,
+    &TyAliasSymbol,
+    as_ty_alias,
+    expect_ty_alias,
+    is_ty_alias
+);
+as_symbol_kind!(
+    TyParam,
+    &TyParamSymbol,
+    as_ty_param,
+    expect_ty_param,
+    is_ty_param
+);
+
 #[derive(Debug)]
-pub struct TypeAliasSymbol {
+pub struct TyParamSymbol {
+    pub decl: NodeID,
+}
+#[derive(Debug)]
+pub struct TyAliasSymbol {
     pub decl: NodeID,
 }
 
@@ -123,27 +163,6 @@ impl SymbolKind {
     }
 
     #[inline(always)]
-    pub fn is_class(&self) -> bool {
-        self.as_class().is_some()
-    }
-
-    #[inline(always)]
-    pub fn as_class(&self) -> Option<&ClassSymbol> {
-        match self {
-            SymbolKind::Class(symbol) => Some(symbol),
-            _ => None,
-        }
-    }
-
-    #[inline(always)]
-    pub fn as_type_alias(&self) -> Option<&TypeAliasSymbol> {
-        match self {
-            SymbolKind::TypeAlias(s) => Some(s),
-            _ => None,
-        }
-    }
-
-    #[inline(always)]
     pub fn is_interface(&self) -> bool {
         matches!(self, Self::Interface { .. })
     }
@@ -160,7 +179,7 @@ impl SymbolKind {
             SymbolKind::BlockContainer { .. } => todo!(),
             SymbolKind::Interface { .. } => todo!(),
             SymbolKind::Index { .. } => todo!(),
-            SymbolKind::TypeAlias { .. } => todo!(),
+            SymbolKind::TyAlias { .. } => todo!(),
             SymbolKind::TyParam { .. } => todo!(),
         }
     }
@@ -180,8 +199,7 @@ impl SymbolKind {
     }
 
     pub fn is_type(&self) -> bool {
-        use SymbolKind::*;
-        self.is_class() || self.is_interface() || matches!(self, TypeAlias { .. } | TyParam { .. })
+        self.is_class() || self.is_interface() || self.is_ty_param() || self.is_ty_alias()
     }
 }
 

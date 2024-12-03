@@ -16,7 +16,7 @@ impl<'cx> TyChecker<'cx> {
         symbol: SymbolID,
     ) -> &'cx ty::Ty<'cx> {
         self.try_get_declared_ty_of_symbol(module, symbol)
-            .unwrap_or(self.error_ty())
+            .unwrap_or_else(|| self.error_ty())
     }
 
     pub(super) fn try_get_declared_ty_of_symbol(
@@ -39,10 +39,16 @@ impl<'cx> TyChecker<'cx> {
                     .set_declared_ty(ty);
                 Some(ty)
             }
-            TypeAlias { .. } => {
+            TyAlias { .. } => {
                 let ty = self.get_declared_ty_of_type_alias(module, symbol);
                 self.get_mut_symbol_links(module, symbol)
                     .set_declared_ty(ty);
+                if let Some(ty_params) =
+                    self.get_local_ty_params_of_class_or_interface_or_type_alias(module, symbol)
+                {
+                    self.get_mut_symbol_links(module, symbol)
+                        .set_ty_params(ty_params);
+                }
                 Some(ty)
             }
             TyParam { .. } => {
@@ -78,12 +84,11 @@ impl<'cx> TyChecker<'cx> {
             .symbols
             .get(symbol)
             .kind
-            .as_type_alias()
+            .as_ty_alias()
         else {
             unreachable!()
         };
-        let decl = alias.decl;
-        let ast::Node::TypeDecl(decl) = self.p.get(module).nodes().get(decl) else {
+        let ast::Node::TypeDecl(decl) = self.p.get(module).nodes().get(alias.decl) else {
             unreachable!()
         };
         let ty = self.get_ty_from_type_node(decl.ty);
@@ -158,61 +163,17 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
-    fn get_effective_base_type_node(&self, id: ast::NodeID) -> Option<&'cx ast::Expr<'cx>> {
-        let extends = match self.p.get(id.module()).nodes().get(id) {
-            ast::Node::ClassDecl(c) => c.extends,
-            ast::Node::ClassExpr(c) => c.extends,
-            _ => None,
-        };
-        extends.map(|extends| extends.expr)
-    }
-
-    fn get_effective_ty_param_decl(&self, decl: ast::NodeID) -> ast::TyParams<'cx> {
-        let node = self.p.get(decl.module()).nodes().get(decl);
-        if let Some(decl) = node.as_type_decl() {
-            if let Some(ty_params) = decl.ty_params {
-                return ty_params;
-            }
-        }
-        // TODO:
-
-        &[]
-    }
-
-    fn append_ty_params(&mut self, res: &mut Vec<&'cx ty::Ty<'cx>>, params: ast::TyParams<'cx>) {
+    pub(super) fn append_ty_params(
+        &mut self,
+        res: &mut Vec<&'cx ty::Ty<'cx>>,
+        params: ast::TyParams<'cx>,
+    ) {
         for param in params {
             let module = param.id.module();
             let symbol = self.get_symbol_of_decl(param.id);
             let value = self.get_declared_ty_of_symbol(module, symbol);
+            assert!(value.kind.is_param());
             append_if_unique(res, value);
-        }
-    }
-
-    pub(super) fn get_effective_ty_params_decls(
-        &mut self,
-        decls: &[ast::NodeID],
-    ) -> Option<&'cx [&'cx ty::ParamTy]> {
-        let mut res = vec![];
-        for decl in decls {
-            let node = self.p.get(decl.module()).nodes().get(*decl);
-            if node.is_ty_alias() {
-                let ty = self.get_effective_ty_param_decl(*decl);
-                self.append_ty_params(&mut res, ty);
-            }
-        }
-        if res.is_empty() {
-            None
-        } else {
-            let list = res
-                .into_iter()
-                .map(|item| {
-                    let Some(param_ty) = item.kind.as_param() else {
-                        unreachable!()
-                    };
-                    param_ty
-                })
-                .collect::<Vec<_>>();
-            Some(self.alloc(list))
         }
     }
 
@@ -304,7 +265,7 @@ impl<'cx> TyChecker<'cx> {
         module: ModuleID,
         symbol: SymbolID,
     ) -> &'cx ty::Ty<'cx> {
-        let _outer_ty_params = self.get_outer_ty_params_of_class_or_interface(module, symbol);
+        let outer_ty_params = self.get_outer_ty_params_of_class_or_interface(module, symbol);
         let (base_ctor_ty, base_tys) = self.get_base_tys(module, symbol);
         use crate::bind::SymbolKind::*;
         let members = match &self.binder.get(module).symbols.get(symbol).kind {
@@ -347,19 +308,25 @@ impl<'cx> TyChecker<'cx> {
     }
 
     fn get_outer_ty_params_of_class_or_interface(
-        &self,
+        &mut self,
         module: ModuleID,
         id: SymbolID,
-    ) -> Option<ast::TyParams<'cx>> {
+    ) -> Option<ty::Tys<'cx>> {
         use crate::bind::SymbolKind::*;
-        match &self.binder.get(module).symbols.get(id).kind {
+        let ty_params = match &self.binder.get(module).symbols.get(id).kind {
             Class(symbol) => self.get_outer_ty_params(symbol.decl),
             Interface { decl, .. } => self.get_outer_ty_params(*decl),
             _ => unreachable!(),
+        };
+
+        if let Some(ty_params) = ty_params {
+            Some(self.alloc(ty_params))
+        } else {
+            None
         }
     }
 
-    fn get_outer_ty_params(&self, id: ast::NodeID) -> Option<ast::TyParams<'cx>> {
+    pub(super) fn get_outer_ty_params(&mut self, id: ast::NodeID) -> Option<Vec<&'cx ty::Ty<'cx>>> {
         let mut id = id;
         loop {
             if let Some(next) = self.p.get(id.module()).parent_map().parent(id) {
@@ -367,13 +334,23 @@ impl<'cx> TyChecker<'cx> {
             } else {
                 return None;
             }
-
-            // use ast::Node::*;
-            // match self.nodes.get(id) {
-            //     // ClassDecl(class) => return class.ty_params,
-            //     // ClassExpr(class) => return class.ty_params,
-            //     // _ => {}
-            // }
+            let node = self.p.get(id.module()).nodes().get(id);
+            use ast::Node::*;
+            match node {
+                TypeDecl(_) => {
+                    let mut outer_ty_params = self.get_outer_ty_params(id).unwrap_or_default();
+                    self.append_ty_params(
+                        &mut outer_ty_params,
+                        self.get_effective_ty_param_decls(id),
+                    );
+                    if outer_ty_params.is_empty() {
+                        return None;
+                    } else {
+                        return Some(outer_ty_params);
+                    }
+                }
+                _ => (),
+            };
         }
     }
 }

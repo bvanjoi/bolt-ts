@@ -1,0 +1,5 @@
+  × Type '1' is not assignable to type '0'.
+    ╭─[../../tests/cases/compiler/fib/index.ts:27:5]
+ 27 │ e0
+    · ──
+    ╰────

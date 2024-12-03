@@ -148,7 +148,7 @@ impl<'cx> BinderState<'cx> {
     fn bind_type_decl(&mut self, t: &'cx ast::TypeDecl<'cx>) {
         let symbol = self.create_var_symbol(
             t.name.name,
-            SymbolKind::TypeAlias(symbol::TypeAliasSymbol { decl: t.id }),
+            SymbolKind::TyAlias(symbol::TyAliasSymbol { decl: t.id }),
         );
         self.final_res.insert(t.id, symbol);
         if let Some(ty_params) = t.ty_params {
@@ -164,7 +164,10 @@ impl<'cx> BinderState<'cx> {
     }
 
     fn bind_ty_param(&mut self, param: &'cx ast::TyParam<'cx>) {
-        let symbol = self.create_var_symbol(param.name.name, SymbolKind::TyParam { decl: param.id });
+        let symbol = self.create_var_symbol(
+            param.name.name,
+            SymbolKind::TyParam(symbol::TyParamSymbol { decl: param.id }),
+        );
         self.final_res.insert(param.id, symbol);
     }
 
@@ -310,6 +313,11 @@ impl<'cx> BinderState<'cx> {
         use ast::TyKind::*;
         match ty.kind {
             Array(array) => self.bind_array_ty(array),
+            Tuple(tup) => {
+                for ty in tup.tys {
+                    self.bind_ty(ty);
+                }
+            }
             Lit(lit) => {
                 let old = self.scope_id;
                 self.scope_id = self.new_scope();
@@ -339,6 +347,9 @@ impl<'cx> BinderState<'cx> {
             IndexedAccess(index) => {
                 self.bind_ty(index.ty);
                 self.bind_ty(index.index_ty);
+            }
+            Rest(rest) => {
+                self.bind_ty(rest.ty);
             }
             _ => (),
         }

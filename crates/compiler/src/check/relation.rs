@@ -26,9 +26,7 @@ impl<'cx> TyChecker<'cx> {
     }
 
     fn has_excess_properties(&mut self, source: &'cx Ty<'cx>, target: &'cx Ty<'cx>) -> bool {
-        let Some(source) = source.kind.as_object_lit() else {
-            unreachable!()
-        };
+        let source = source.kind.expect_object_lit();
         let Some(target) = target.kind.as_object_lit() else {
             return false;
         };
@@ -85,6 +83,7 @@ impl<'cx> TyChecker<'cx> {
         relation: RelationKind,
     ) -> bool {
         if source.id == target.id {
+            assert!(std::ptr::eq(&source.kind, &target.kind));
             return true;
         }
         if self.is_simple_type_related_to(source, target)
@@ -117,9 +116,7 @@ impl<'cx> TyChecker<'cx> {
         }
 
         if source.kind.definitely_non_nullable() && target.kind.is_union() {
-            let TyKind::Union(t) = target.kind else {
-                unreachable!()
-            };
+            let t = target.kind.expect_union();
             let candidate = match t.tys.len() {
                 2 if t.tys[0].kind.is_nullable() => Some(t.tys[1]),
                 3 if t.tys[0].kind.is_nullable() && t.tys[1].kind.is_nullable() => Some(t.tys[1]),
@@ -390,9 +387,7 @@ impl<'cx> TyChecker<'cx> {
         if set.is_empty() {
             None
         } else {
-            let TyKind::Object(ty) = target.kind else {
-                unreachable!()
-            };
+            let ty = target.kind.expect_object();
             let symbol = if let ObjectTyKind::Interface(ty) = ty.kind {
                 ty.symbol
             } else if let ObjectTyKind::ObjectLit(ty) = ty.kind {

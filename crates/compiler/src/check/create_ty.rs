@@ -28,6 +28,10 @@ impl<'cx> TyChecker<'cx> {
         self.create_object_ty(ty::ObjectTyKind::ObjectLit(self.alloc(ty)))
     }
 
+    pub(super) fn create_tuple_ty(&mut self, ty: ty::TupleTy<'cx>) -> &'cx ty::Ty<'cx> {
+        self.create_object_ty(ty::ObjectTyKind::Tuple(self.alloc(ty)))
+    }
+
     pub(super) fn create_array_ty(&mut self, ty: ty::ArrayTy<'cx>) -> &'cx ty::Ty<'cx> {
         self.create_object_ty(ty::ObjectTyKind::Array(self.alloc(ty)))
     }

@@ -63,8 +63,8 @@ pub fn find_ancestor<'cx>(
     }
 }
 
-pub fn append_if_unique<T: PartialEq>(array: &mut Vec<T>, value: T) {
-    if !array.contains(&value) {
+pub fn append_if_unique<'a, T>(array: &mut Vec<&'a T>, value: &'a T) {
+    if array.iter().all(|item| !std::ptr::eq(item, &value)) {
         array.push(value);
     }
 }

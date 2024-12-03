@@ -23,4 +23,9 @@ type Fib<N extends number, A extends number[] = [], B extends number[] = [1], Co
 // let f7: F7 = 13;
 // let f19: F19 = 4181;
 
-// let e0: Fib<0> = 1;
+let f0: Fib<0> = 0;
+let e0: Fib<0> = 1; //~ERROR: Type '1' is not assignable to type '0'.
+
+// let f1: Fib<1> = 1;
+// let e1: Fib<1> = 2; 
+// let f2: Fib<2> = 1; 

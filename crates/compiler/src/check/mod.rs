@@ -9,22 +9,23 @@ mod check_var_like;
 mod create_ty;
 mod get_contextual_ty;
 mod get_declared_ty;
+mod get_effective_node;
 mod get_symbol;
 mod get_ty;
 mod get_type_from_ty_refer_like;
+mod instantiate;
 mod relation;
 mod resolve;
 mod sig;
 mod symbol_links;
 mod utils;
 
+pub use self::resolve::ExpectedArgsCount;
+use self::sig::Sig;
+use self::symbol_links::SymbolLinks;
+use self::utils::{find_ancestor, get_assignment_kind, AssignmentKind};
 use bolt_ts_span::{ModuleID, Span};
 use rustc_hash::FxHashMap;
-use sig::Sig;
-use symbol_links::SymbolLinks;
-use utils::{find_ancestor, get_assignment_kind, AssignmentKind};
-
-pub use self::resolve::ExpectedArgsCount;
 
 use crate::ast::BinOp;
 use crate::atoms::{AtomId, AtomMap};
@@ -166,9 +167,9 @@ impl<'cx> TyChecker<'cx> {
         this
     }
 
-    fn get_symbol_links(&mut self, module_id: ModuleID, symbol: SymbolID) -> &SymbolLinks<'cx> {
+    fn get_symbol_links(&mut self, module: ModuleID, symbol: SymbolID) -> &SymbolLinks<'cx> {
         self.symbol_links
-            .entry((module_id, symbol))
+            .entry((module, symbol))
             .or_insert_with(SymbolLinks::new)
     }
 
@@ -221,27 +222,6 @@ impl<'cx> TyChecker<'cx> {
             Interface(interface) => self.check_interface_decl(interface),
             Type(_) => {}
         };
-    }
-
-    fn resolve_ty_reference_members(&self, ty: &'cx Ty<'cx>) {}
-
-    fn resolve_structured_ty_members(&self, ty: &'cx Ty<'cx>) {
-        if let ty::TyKind::Object(object) = ty.kind {
-            if object.kind.is_reference() {
-                self.resolve_ty_reference_members(ty);
-            }
-        }
-    }
-
-    fn get_index_infos_of_structured_ty(&self, ty: &'cx Ty<'cx>) {
-        if ty.kind.is_structured() {
-            let resolved = self.resolve_structured_ty_members(ty);
-        }
-    }
-
-    fn get_index_info_of_ty(&self, ty: &'cx Ty<'cx>) -> Option<i32> {
-        self.get_index_infos_of_structured_ty(ty);
-        None
     }
 
     fn is_applicable_index_ty(&mut self, source: &'cx Ty<'cx>, target: &'cx Ty<'cx>) -> bool {
@@ -345,9 +325,7 @@ impl<'cx> TyChecker<'cx> {
         symbol: SymbolID,
     ) {
         // self.get_index_info_of_ty(ty);
-        let Some(i) = ty.kind.as_object_interface() else {
-            unreachable!()
-        };
+        let i = ty.kind.expect_object_interface();
         for prop in i.declared_props {
             let prop_ty = self.get_type_of_symbol(module_id, *prop);
             let prop_name_ty = self.get_lit_ty_from_prop(module_id, *prop);
