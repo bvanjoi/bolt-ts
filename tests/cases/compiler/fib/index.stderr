@@ -1,5 +1,53 @@
   × Type '1' is not assignable to type '0'.
-    ╭─[../../tests/cases/compiler/fib/index.ts:27:5]
- 27 │ e0
+   ╭─[../../tests/cases/compiler/fib/index.ts:6:5]
+ 6 │ e0
+   · ──
+   ╰────
+
+  × Type '2' is not assignable to type '1'.
+   ╭─[../../tests/cases/compiler/fib/index.ts:7:5]
+ 7 │ e1
+   · ──
+   ╰────
+
+  × Type '2' is not assignable to type '1'.
+   ╭─[../../tests/cases/compiler/fib/index.ts:8:5]
+ 8 │ e2
+   · ──
+   ╰────
+
+  × Type '3' is not assignable to type '2'.
+   ╭─[../../tests/cases/compiler/fib/index.ts:9:5]
+ 9 │ e3
+   · ──
+   ╰────
+
+  × Type '4' is not assignable to type '3'.
+    ╭─[../../tests/cases/compiler/fib/index.ts:10:5]
+ 10 │ e4
     · ──
+    ╰────
+
+  × Type '6' is not assignable to type '5'.
+    ╭─[../../tests/cases/compiler/fib/index.ts:11:5]
+ 11 │ e5
+    · ──
+    ╰────
+
+  × Type '9' is not assignable to type '8'.
+    ╭─[../../tests/cases/compiler/fib/index.ts:12:5]
+ 12 │ e6
+    · ──
+    ╰────
+
+  × Type '14' is not assignable to type '13'.
+    ╭─[../../tests/cases/compiler/fib/index.ts:13:5]
+ 13 │ e7
+    · ──
+    ╰────
+
+  × Type '4182' is not assignable to type '4181'.
+    ╭─[../../tests/cases/compiler/fib/index.ts:14:5]
+ 14 │ e19
+    · ───
     ╰────

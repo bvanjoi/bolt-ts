@@ -1,31 +1,15 @@
-type Fib<N extends number, A extends number[] = [], B extends number[] = [1], Count extends number[] = []> =
+type FibWithCache<N extends number, A extends number[] = [], B extends number[] = [1], Count extends number[] = []> =
   Count['length'] extends N
   ? A['length']
-  : Fib<N, B, [...A, ...B], [1, ...Count]>;
+  : FibWithCache<N, B, [...A, ...B], [1, ...Count]>;
 
-// type F0 = Fib<0>; // 0
-// type F1 = Fib<1>; // 1
-// type F2 = Fib<2>; // 1
-// type F3 = Fib<3>; // 2
-// type F4 = Fib<4>; // 3
-// type F5 = Fib<5>; // 5
-// type F6 = Fib<6>; // 8
-// type F7 = Fib<7>; // 13
-// type F19 = Fib<19> // 4181
-
-// let f0: F0 = 0;
-// let f1: F1 = 1;
-// let f2: F2 = 1;
-// let f3: F3 = 2;
-// let f4: F4 = 3;
-// let f5: F5 = 5;
-// let f6: F6 = 8;
-// let f7: F7 = 13;
-// let f19: F19 = 4181;
-
-let f0: Fib<0> = 0;
-let e0: Fib<0> = 1; //~ERROR: Type '1' is not assignable to type '0'.
-
-// let f1: Fib<1> = 1;
-// let e1: Fib<1> = 2; 
-// let f2: Fib<2> = 1; 
+let e0: FibWithCache<0> = 1;  //~ERROR: Type '1' is not assignable to type '0'.
+let e1: FibWithCache<1> = 2;  //~ERROR: Type '2' is not assignable to type '1'.
+let e2: FibWithCache<2> = 2;  //~ERROR: Type '2' is not assignable to type '1'. 
+let e3: FibWithCache<3> = 3;  //~ERROR: Type '3' is not assignable to type '2'. 
+let e4: FibWithCache<4> = 4;  //~ERROR: Type '4' is not assignable to type '3'. 
+let e5: FibWithCache<5> = 6;  //~ERROR: Type '6' is not assignable to type '5'. 
+let e6: FibWithCache<6> = 9;  //~ERROR: Type '9' is not assignable to type '8'. 
+let e7: FibWithCache<7> = 14; //~ERROR: Type '14' is not assignable to type '13'. 
+let e19: FibWithCache<19> = 4182; //~ERROR: Type '4182' is not assignable to type '4181'. 
+let f19: FibWithCache<19> = 4181; 

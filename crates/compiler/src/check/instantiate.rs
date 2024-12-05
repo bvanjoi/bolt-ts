@@ -22,9 +22,10 @@ impl<'cx> TyChecker<'cx> {
             let mapped = self.instantiate_ty(item, Some(mapper));
             if item != mapped {
                 let mut result = tys[0..i].to_vec();
-                for j in i + 1..len {
+                for j in i..len {
                     result.push(self.instantiate(tys[j], mapper));
                 }
+                assert!(result.len() == tys.len());
                 let result = self.alloc(result);
                 return result;
             }
@@ -82,14 +83,13 @@ impl<'cx> TyChecker<'cx> {
         match object_ty.kind {
             Tuple(tuple) => {
                 let ty_args = self.instantiate_tys(tuple.refer.ty_args, mapper);
-                let refer = self.alloc(ty::TyReference {
-                    ty_args
-                });
-                // FIXME: 
-                self.create_tuple_ty(ty::TupleTy {
-                    refer,
-                    ..*tuple
-                })
+                if !std::ptr::eq(ty_args, tuple.refer.ty_args) {
+                    let tuple = self.create_normalized_tuple_ty(ty_args, tuple.element_flags, tuple.combined_flags);
+                    self.create_tuple_ty(tuple)
+                } else {
+                    ty
+                }
+                
             },
             _ => todo!("{:?}", object_ty.kind),
         }

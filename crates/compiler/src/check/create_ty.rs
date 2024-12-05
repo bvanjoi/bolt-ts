@@ -29,6 +29,10 @@ impl<'cx> TyChecker<'cx> {
     }
 
     pub(super) fn create_tuple_ty(&mut self, ty: ty::TupleTy<'cx>) -> &'cx ty::Ty<'cx> {
+        if ty.tys.len() != ty.element_flags.len() {
+            dbg!(123);
+        }
+        assert_eq!(ty.tys.len(), ty.element_flags.len());
         self.create_object_ty(ty::ObjectTyKind::Tuple(self.alloc(ty)))
     }
 

@@ -541,11 +541,23 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
-    fn create_normalized_tuple_ty(
+    pub(super) fn create_normalized_tuple_ty(
         &mut self,
-        elem_tys: &[&'cx Ty<'cx>],
-        elem_flags: &[ElementFlags],
-    ) -> &'cx ty::TyReference<'cx> {
+        elem_tys: &'cx [&'cx Ty<'cx>],
+        elem_flags: &'cx [ElementFlags],
+        combined_flags: ElementFlags,
+    ) -> ty::TupleTy<'cx> {
+        if !combined_flags.intersects(ElementFlags::NON_REQUIRED) {
+            let refer = self.alloc(ty::TyReference {
+                ty_args: self.alloc(elem_tys),
+            });
+            return ty::TupleTy {
+                refer,
+                combined_flags,
+                element_flags: elem_flags,
+                tys: elem_tys,
+            };
+        }
         let mut expanded_tys = vec![];
         let mut expanded_flags = vec![];
         let mut last_required_index = usize::MAX;
@@ -589,9 +601,19 @@ impl<'cx> TyChecker<'cx> {
             }
         }
 
-        self.alloc(ty::TyReference {
-            ty_args: self.alloc(expanded_tys)
-        })
+        let expand_tys =self.alloc(expanded_tys);
+        let refer = self.alloc(ty::TyReference {
+            ty_args: expand_tys,
+        });
+        let combined_flags = expanded_flags
+            .iter()
+            .fold(ElementFlags::empty(), |flags, current| flags | *current);
+        ty::TupleTy {
+            tys: expand_tys,
+            element_flags: self.alloc(expanded_flags),
+            combined_flags,
+            refer,
+        }
     }
 
     fn get_ty_from_tuple_node(&mut self, node: &'cx ast::TupleTy<'cx>) -> &'cx Ty<'cx> {
@@ -612,13 +634,9 @@ impl<'cx> TyChecker<'cx> {
         let combined_flags = flags
             .iter()
             .fold(ElementFlags::empty(), |flags, current| flags | *current);
-        let refer = self.create_normalized_tuple_ty(&tys, &flags);
-        self.create_tuple_ty(ty::TupleTy {
-            tys: self.alloc(tys),
-            element_flags: self.alloc(flags),
-            combined_flags,
-            refer,
-        })
+        let tuple =
+            self.create_normalized_tuple_ty(self.alloc(tys), self.alloc(flags), combined_flags);
+        self.create_tuple_ty(tuple)
     }
 
     pub(super) fn get_number_literal_type(&mut self, val: f64) -> &'cx Ty<'cx> {
