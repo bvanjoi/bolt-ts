@@ -51,6 +51,7 @@ pub enum Node<'cx> {
     ArrowFnExpr(&'cx ast::ArrowFnExpr<'cx>),
     PrefixUnaryExpr(&'cx ast::PrefixUnaryExpr<'cx>),
     PropAccessExpr(&'cx ast::PropAccessExpr<'cx>),
+    EleAccessExpr(&'cx ast::EleAccessExpr<'cx>),
     ThisExpr(&'cx ast::ThisExpr),
 
     // ty
@@ -433,6 +434,13 @@ as_node!(
         as_prop_access_expr,
         expect_prop_access_expr,
         is_prop_access_expr
+    ),
+    (
+        EleAccessExpr,
+        &'cx ast::EleAccessExpr<'cx>,
+        as_ele_access_expr,
+        expect_ele_access_expr,
+        is_ele_access_expr
     ),
     (
         ClassCtor,

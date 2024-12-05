@@ -70,10 +70,7 @@ impl<'cx> BinderState<'cx> {
         decl_id: ast::NodeID,
         ele: &'cx ast::ClassPropEle<'cx>,
     ) -> SymbolID {
-        let name = match ele.name.kind {
-            ast::PropNameKind::Ident(ident) => ident.name,
-        };
-        let name = SymbolName::Ele(name);
+        let name = Self::prop_name(ele.name);
         let symbol = self.create_symbol(name, SymbolKind::Property { decl: ele.id });
         let Some(class_symbol_id) = self.final_res.get(&decl_id).copied() else {
             unreachable!()
@@ -138,10 +135,7 @@ impl<'cx> BinderState<'cx> {
         decl_id: ast::NodeID,
         ele: &'cx ast::ClassMethodEle<'cx>,
     ) {
-        let name = match ele.name.kind {
-            ast::PropNameKind::Ident(ident) => ident.name,
-        };
-        let ele_name = SymbolName::Ele(name);
+        let ele_name = Self::prop_name(ele.name);
         self.create_class_fn_like_ele(decl_id, ele_name, ele.id, super::SymbolFnKind::Method);
     }
 

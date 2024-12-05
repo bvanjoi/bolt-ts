@@ -4,6 +4,7 @@ use thin_vec::ThinVec;
 
 use crate::ast::NodeID;
 use crate::atoms::AtomId;
+use crate::check::F64Represent;
 use crate::keyword;
 
 #[derive(Debug, Clone, Copy, Hash, PartialEq, Eq)]
@@ -11,6 +12,7 @@ pub enum SymbolName {
     Container,
     Normal(AtomId),
     Ele(AtomId),
+    EleNum(F64Represent),
     ClassExpr,
     Array,
     /// object literal

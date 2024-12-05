@@ -1,3 +1,5 @@
+use bolt_ts_span::Span;
+
 use super::symbol_links::SymbolLinks;
 use super::TyChecker;
 use crate::{ast, ty};
@@ -6,7 +8,7 @@ pub(super) trait VarLikeDecl<'cx>: Copy + std::fmt::Debug {
     fn id(&self) -> ast::NodeID;
     fn decl_ty(&self) -> Option<&'cx ast::Ty<'cx>>;
     fn init(&self) -> Option<&'cx ast::Expr<'cx>>;
-    fn binding(&self) -> &'cx ast::Ident;
+    fn binding_span(&self) -> Span;
 }
 
 impl<'cx> VarLikeDecl<'cx> for ast::VarDecl<'cx> {
@@ -21,9 +23,8 @@ impl<'cx> VarLikeDecl<'cx> for ast::VarDecl<'cx> {
     fn init(&self) -> Option<&'cx ast::Expr<'cx>> {
         self.init
     }
-
-    fn binding(&self) -> &'cx ast::Ident {
-        self.binding
+    fn binding_span(&self) -> Span {
+        self.binding.span
     }
 }
 
@@ -39,11 +40,8 @@ impl<'cx> VarLikeDecl<'cx> for ast::ClassPropEle<'cx> {
     fn init(&self) -> Option<&'cx ast::Expr<'cx>> {
         self.init
     }
-
-    fn binding(&self) -> &'cx ast::Ident {
-        match self.name.kind {
-            ast::PropNameKind::Ident(ident) => ident,
-        }
+    fn binding_span(&self) -> Span {
+        self.name.span()
     }
 }
 
@@ -57,7 +55,7 @@ impl<'cx> TyChecker<'cx> {
             if let Some(decl_ty) = decl_ty {
                 // let v: ty = init
                 self.check_type_assignable_to_and_optionally_elaborate(
-                    decl.binding().span,
+                    decl.binding_span(),
                     init_ty,
                     decl_ty,
                 );

@@ -240,6 +240,7 @@ impl<'cx> BinderState<'cx> {
                 // (name, self.create_object_member_symbol(name, m.id))
                 None
             }
+            IndexSig(_) => None,
         }
     }
 
@@ -257,9 +258,10 @@ impl<'cx> BinderState<'cx> {
         self.create_interface_symbol(i.id, i.name.name, members);
     }
 
-    fn prop_name(name: &ast::PropName) -> SymbolName {
+    pub(super) fn prop_name(name: &ast::PropName) -> SymbolName {
         match name.kind {
             ast::PropNameKind::Ident(ident) => SymbolName::Ele(ident.name),
+            ast::PropNameKind::NumLit(num) => SymbolName::EleNum(num.val.into()),
         }
     }
 

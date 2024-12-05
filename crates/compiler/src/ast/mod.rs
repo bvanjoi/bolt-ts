@@ -69,6 +69,7 @@ pub struct ObjectTyMember<'cx> {
 
 #[derive(Debug, Clone, Copy)]
 pub enum ObjectTyMemberKind<'cx> {
+    IndexSig(&'cx IndexSigDecl<'cx>),
     Prop(&'cx PropSignature<'cx>),
     Method(&'cx MethodSignature<'cx>),
     CallSig(&'cx CallSigDecl<'cx>),
@@ -279,6 +280,7 @@ impl Expr<'_> {
             ArrowFn(f) => f.span,
             PrefixUnary(unary) => unary.span,
             PropAccess(a) => a.span,
+            EleAccess(a) => a.span,
             This(this) => this.span,
         }
     }
@@ -305,6 +307,7 @@ impl Expr<'_> {
             ArrowFn(f) => f.id,
             PrefixUnary(unary) => unary.id,
             PropAccess(a) => a.id,
+            EleAccess(a) => a.id,
             This(this) => this.id,
         }
     }
@@ -332,12 +335,21 @@ pub enum ExprKind<'cx> {
     ArrowFn(&'cx ArrowFnExpr<'cx>),
     PrefixUnary(&'cx PrefixUnaryExpr<'cx>),
     PropAccess(&'cx PropAccessExpr<'cx>),
+    EleAccess(&'cx EleAccessExpr<'cx>),
 }
 
 #[derive(Debug, Clone, Copy)]
 pub struct ThisExpr {
     pub id: NodeID,
     pub span: Span,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct EleAccessExpr<'cx> {
+    pub id: NodeID,
+    pub span: Span,
+    pub expr: &'cx Expr<'cx>,
+    pub arg: &'cx Expr<'cx>,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -723,6 +735,7 @@ impl<'cx> PropName<'cx> {
     pub fn span(&self) -> Span {
         match self.kind {
             PropNameKind::Ident(ident) => ident.span,
+            PropNameKind::NumLit(num) => num.span,
         }
     }
 }
@@ -730,6 +743,7 @@ impl<'cx> PropName<'cx> {
 #[derive(Debug, Clone, Copy)]
 pub enum PropNameKind<'cx> {
     Ident(&'cx Ident),
+    NumLit(&'cx NumLit)
 }
 
 #[derive(Debug, Clone, Copy)]

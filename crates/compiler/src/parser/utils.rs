@@ -10,6 +10,7 @@ pub(super) fn is_left_hand_side_expr_kind(expr: &ast::Expr) -> bool {
     matches!(
         expr.kind,
         PropAccess(_)
+            | EleAccess(_)
             | New(_)
             | Call(_)
             | ArrayLit(_)
@@ -150,7 +151,10 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
 
     pub(super) fn is_start_of_ty(&mut self) -> bool {
         use TokenKind::*;
-        if matches!(self.token.kind, String | Number | LBrace | LBracket | DotDotDot) {
+        if matches!(
+            self.token.kind,
+            String | Number | LBrace | LBracket | DotDotDot
+        ) {
             true
         } else {
             self.is_ident()
@@ -207,10 +211,17 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
     }
 
     pub(super) fn parse_prop_name(&mut self) -> PResult<&'cx ast::PropName<'cx>> {
-        let ident = self.parse_ident_name()?;
-        let prop_name = self.alloc(ast::PropName {
-            kind: ast::PropNameKind::Ident(ident),
-        });
+        let prop_name = if self.token.kind == TokenKind::Number {
+            let lit = self.parse_num_lit(self.number_token(), false);
+            self.alloc(ast::PropName {
+                kind: ast::PropNameKind::NumLit(lit),
+            })
+        } else {
+            let ident = self.parse_ident_name()?;
+            self.alloc(ast::PropName {
+                kind: ast::PropNameKind::Ident(ident),
+            })
+        };
         Ok(prop_name)
     }
 
@@ -446,5 +457,32 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
 
     pub(super) fn has_preceding_line_break(&self) -> bool {
         self.token_flags.contains(TokenFlags::PRECEDING_LINE_BREAK)
+    }
+
+    pub(super) fn parse_index_sig_decl(
+        &mut self,
+        id: ast::NodeID,
+        start: usize,
+        modifiers: Option<&'cx ast::Modifiers<'cx>>,
+    ) -> PResult<&'cx ast::IndexSigDecl<'cx>> {
+        let params = self.parse_bracketed_list(
+            list_ctx::Params,
+            TokenKind::LBracket,
+            Self::parse_param,
+            TokenKind::RBracket,
+        )?;
+        let Some(ty) = self.parse_ty_anno()? else {
+            todo!("error handler")
+        };
+        self.parse_ty_member_semi();
+        let sig = self.alloc(ast::IndexSigDecl {
+            id,
+            span: self.new_span(start, self.pos),
+            modifiers,
+            params,
+            ty,
+        });
+        self.insert_map(id, ast::Node::IndexSigDecl(sig));
+        Ok(sig)
     }
 }

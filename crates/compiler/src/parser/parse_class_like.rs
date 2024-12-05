@@ -277,33 +277,6 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         Ok(ele)
     }
 
-    fn parse_index_sig_decl(
-        &mut self,
-        id: ast::NodeID,
-        start: usize,
-        modifiers: Option<&'cx ast::Modifiers<'cx>>,
-    ) -> PResult<&'cx ast::IndexSigDecl<'cx>> {
-        let params = self.parse_bracketed_list(
-            list_ctx::Params,
-            TokenKind::LBracket,
-            Self::parse_param,
-            TokenKind::RBracket,
-        )?;
-        let Some(ty) = self.parse_ty_anno()? else {
-            todo!("error handler")
-        };
-        self.parse_ty_member_semi();
-        let sig = self.alloc(ast::IndexSigDecl {
-            id,
-            span: self.new_span(start, self.pos),
-            modifiers,
-            params,
-            ty,
-        });
-        self.insert_map(id, ast::Node::IndexSigDecl(sig));
-        Ok(sig)
-    }
-
     fn try_parse_ctor(
         &mut self,
         id: ast::NodeID,

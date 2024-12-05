@@ -47,6 +47,12 @@ impl F64Represent {
     }
 }
 
+impl Into<F64Represent> for f64 {
+    fn into(self) -> F64Represent {
+        F64Represent::new(self)
+    }
+}
+
 pub struct TyChecker<'cx> {
     pub atoms: &'cx AtomMap<'cx>,
     pub diags: Vec<bolt_ts_errors::Diag>,
@@ -269,11 +275,12 @@ impl<'cx> TyChecker<'cx> {
                     _ => unreachable!(),
                 };
                 let prop_name = match prop_name.kind {
-                    ast::PropNameKind::Ident(ident) => self.atoms.get(ident.name),
+                    ast::PropNameKind::Ident(ident) => self.atoms.get(ident.name).to_string(),
+                    ast::PropNameKind::NumLit(num) => num.val.to_string(),
                 };
                 let error = errors::PropertyAOfTypeBIsNotAssignableToCIndexTypeD {
                     span: prop_node.span(),
-                    prop: prop_name.to_string(),
+                    prop: prop_name,
                     ty_b: prop_ty.kind.to_string(self.binder, self.atoms),
                     ty_c: index_info.key_ty.kind.to_string(self.binder, self.atoms),
                     index_ty_d: index_info.val_ty.kind.to_string(self.binder, self.atoms),
@@ -432,6 +439,7 @@ impl<'cx> TyChecker<'cx> {
                 self.undefined_ty()
             }
             PropAccess(_) => self.undefined_ty(),
+            EleAccess(_) => self.undefined_ty(),
             This(_) => self.undefined_ty(),
         }
     }
@@ -547,10 +555,13 @@ impl<'cx> TyChecker<'cx> {
         let entires = lit.members.iter().map(|member| {
             let member_symbol = self.get_symbol_of_decl(member.id);
             // let member_ty = self.check_expr(member.value);
-            let name = match member.name.kind {
-                ast::PropNameKind::Ident(ident) => ident.name,
-            };
-            (SymbolName::Ele(name), member_symbol)
+            match member.name.kind {
+                ast::PropNameKind::Ident(ident) => (SymbolName::Ele(ident.name), member_symbol),
+                ast::PropNameKind::NumLit(num) => (
+                    SymbolName::EleNum(F64Represent::new(num.val)),
+                    member_symbol,
+                ),
+            }
         });
         let map = FxHashMap::from_iter(entires);
         let members = self.alloc(map);

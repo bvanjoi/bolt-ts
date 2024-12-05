@@ -453,6 +453,13 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
             self.parse_sig_member(true)
         } else if self.token.kind == TokenKind::New {
             todo!()
+        } else if self.is_index_sig() {
+            let id = self.next_node_id();
+            let start = self.token.start() as usize;
+            let decl = self.parse_index_sig_decl(id, start, None)?;
+            Ok(self.alloc(ast::ObjectTyMember {
+                kind: ast::ObjectTyMemberKind::IndexSig(decl),
+            }))
         } else {
             self.parse_prop_or_method_sig()
         }

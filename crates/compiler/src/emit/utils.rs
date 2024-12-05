@@ -1,4 +1,4 @@
-use crate::ast;
+use crate::ast::{self, NumLit};
 
 use super::Emit;
 
@@ -33,10 +33,15 @@ impl<'cx> Emit<'cx> {
         self.emit_block_like(block);
     }
 
-    pub(super) fn emit_prop_name(&mut self, name: &'cx ast::PropName) {
+    pub(super) fn emit_prop_name(&mut self, name: &'cx ast::PropName<'cx>) {
         use ast::PropNameKind::*;
         match name.kind {
             Ident(ident) => self.emit_ident(ident),
+            NumLit(num) => self.emit_num_lit(num),
         }
+    }
+    
+    pub(super) fn emit_num_lit(&mut self, num: &'cx ast::NumLit) {
+        self.content.p(&num.val.to_string())
     }
 }

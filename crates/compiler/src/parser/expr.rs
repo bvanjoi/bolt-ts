@@ -542,6 +542,33 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         Ok(prop)
     }
 
+    fn parse_ele_access_expr_rest(
+        &mut self,
+        start: usize,
+        expr: &'cx ast::Expr<'cx>,
+        question_dot_token: bool,
+    ) -> PResult<&'cx ast::EleAccessExpr<'cx>> {
+        let id = self.next_node_id();
+        if self.token.kind == TokenKind::RBracket {
+            return Err(())
+        }
+        let arg = self.parse_expr()?;
+        self.expect(TokenKind::RBracket)?;
+        let ele = if question_dot_token {
+            todo!()
+        } else {
+            let expr = NoParenRule.paren_left_side_of_access(expr, false);
+            self.alloc(ast::EleAccessExpr {
+                id,
+                span: self.new_span(start, self.pos),
+                expr,
+                arg,
+            })
+        };
+        self.insert_map(id, ast::Node::EleAccessExpr(ele));
+        Ok(ele)
+    }
+
     fn parse_member_expr_rest(
         &mut self,
         start: usize,
@@ -553,6 +580,14 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
                 let prop = self.parse_prop_access_expr_rest(start, expr, false)?;
                 expr = self.alloc(ast::Expr {
                     kind: ast::ExprKind::PropAccess(prop),
+                });
+                continue;
+            }
+
+            if self.parse_optional(TokenKind::LBracket).is_some() {
+                let ele = self.parse_ele_access_expr_rest(start, expr, false)?;
+                expr = self.alloc(ast::Expr {
+                    kind: ast::ExprKind::EleAccess(ele),
                 });
                 continue;
             }
