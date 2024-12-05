@@ -40,6 +40,10 @@ pub fn eval_from(m: ModulePath) -> Output {
     if cfg!(debug_assertions) {
         for (idx, (name, _)) in keyword::KEYWORDS.iter().enumerate() {
             let t = unsafe { std::mem::transmute::<u8, TokenKind>(idx as u8) };
+            if t == TokenKind::Var {
+                assert_eq!(t as u8 + 1, TokenKind::Let as u8);
+                assert_eq!(t as u8 + 2, TokenKind::Const as u8);
+            }
             assert!(t.is_keyword());
             assert_eq!(format!("{t:?}").to_lowercase(), *name);
         }
@@ -68,8 +72,8 @@ pub fn eval_from(m: ModulePath) -> Output {
     // bind
     let mut binder = bind::Binder::new();
     for module_id in module_arena.modules.keys() {
-        let root = p.get(*module_id).root;
-        let result = bind(&atoms, root);
+        let root = p.root(*module_id);
+        let result = bind(&atoms, root, *module_id);
         binder.insert(*module_id, result);
     }
     // let BinderResult {
@@ -86,19 +90,19 @@ pub fn eval_from(m: ModulePath) -> Output {
         if !module_arena.modules[module_id].global {
             continue;
         }
-        for (symbol_id, symbol) in &binder.get(*module_id).symbols {
-            global_symbols.insert(symbol.name, *module_id, *symbol_id);
+        for (symbol_id, symbol) in binder.symbols(*module_id) {
+            global_symbols.insert(symbol.name, *symbol_id);
         }
     }
 
     // type check
     let ty_arena = bumpalo::Bump::new();
     let mut checker = check::TyChecker::new(&ty_arena, &p, &atoms, &mut binder, &global_symbols);
-    checker.check_program(p.get(m.id).root);
+    checker.check_program(p.root(m.id));
 
     // emit
     let mut emitter = emit::Emit::new(&checker.atoms);
-    let output = emitter.emit(p.get(m.id).root);
+    let output = emitter.emit(p.root(m.id));
 
     let diags: Vec<_> = checker
         .diags

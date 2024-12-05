@@ -415,7 +415,6 @@ pub struct StringLitTy {
 
 #[derive(Debug, Clone, Copy)]
 pub struct ParamTy {
-    pub module: ModuleID,
     pub symbol: SymbolID,
 }
 

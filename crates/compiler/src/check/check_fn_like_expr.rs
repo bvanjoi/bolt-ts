@@ -34,6 +34,6 @@ impl<'cx> TyChecker<'cx> {
         };
 
         let symbol = self.get_symbol_of_decl(expr.id());
-        self.get_type_of_symbol(expr.id().module(), symbol)
+        self.get_type_of_symbol(symbol)
     }
 }

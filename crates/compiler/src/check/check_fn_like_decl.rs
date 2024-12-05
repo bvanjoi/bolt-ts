@@ -27,9 +27,7 @@ impl<'cx> FnLikeDecl<'cx> for ast::ClassMethodEle<'cx> {
 impl<'cx> TyChecker<'cx> {
     pub(super) fn check_fn_like_decl(&mut self, expr: &impl FnLikeDecl<'cx>) {
         let symbol = self.get_symbol_of_decl(expr.id());
-        let SymbolKind::Function { decls, .. } =
-            &self.binder.get(expr.id().module()).symbols.get(symbol).kind
-        else {
+        let SymbolKind::Function { decls, .. } = &self.binder.symbol(symbol).kind else {
             unreachable!()
         };
         if decls[0] == expr.id() {

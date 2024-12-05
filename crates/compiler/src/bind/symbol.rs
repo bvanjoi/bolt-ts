@@ -43,7 +43,7 @@ pub struct Symbol {
 }
 
 impl Symbol {
-    pub const ERR: SymbolID = SymbolID::root();
+    pub const ERR: SymbolID = SymbolID::root(ModuleID::root());
     pub fn new(name: SymbolName, kind: SymbolKind) -> Self {
         Self { name, kind }
     }
@@ -203,11 +203,13 @@ impl SymbolKind {
     }
 }
 
-bolt_ts_span::new_index!(SymbolID);
+bolt_ts_span::new_index_with_module!(SymbolID);
 
 pub struct Symbols(FxHashMap<SymbolID, Symbol>);
 
 impl Symbols {
+    pub const ERR: SymbolID = SymbolID::root(ModuleID::root());
+
     pub fn new() -> Self {
         let mut this = Self(FxHashMap::default());
         this.insert(
@@ -240,15 +242,15 @@ impl<'a> IntoIterator for &'a Symbols {
 }
 
 #[derive(Default)]
-pub struct GlobalSymbols(FxHashMap<SymbolName, (ModuleID, SymbolID)>);
+pub struct GlobalSymbols(FxHashMap<SymbolName, SymbolID>);
 
 impl GlobalSymbols {
-    pub fn insert(&mut self, name: SymbolName, module_id: ModuleID, symbol_id: SymbolID) {
-        let prev = self.0.insert(name, (module_id, symbol_id));
+    pub fn insert(&mut self, name: SymbolName, symbol_id: SymbolID) {
+        let prev = self.0.insert(name, symbol_id);
         assert!(prev.is_none(), "prev symbol: {prev:#?}")
     }
 
-    pub fn get(&self, name: SymbolName) -> Option<(ModuleID, SymbolID)> {
+    pub fn get(&self, name: SymbolName) -> Option<SymbolID> {
         self.0.get(&name).copied()
     }
 }

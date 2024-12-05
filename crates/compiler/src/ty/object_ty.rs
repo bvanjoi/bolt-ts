@@ -137,12 +137,12 @@ pub struct TupleTy<'cx> {
     pub tys: super::Tys<'cx>,
     pub element_flags: &'cx [ElementFlags],
     pub combined_flags: ElementFlags,
-    pub refer: &'cx TyReference<'cx>
+    pub refer: &'cx TyReference<'cx>,
 }
 
 #[derive(Debug, Clone, Copy)]
 pub struct TyReference<'cx> {
-    pub ty_args: super::Tys<'cx>
+    pub ty_args: super::Tys<'cx>,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -158,7 +158,6 @@ pub struct IndexInfo<'cx> {
 
 #[derive(Debug, Clone, Copy)]
 pub struct InterfaceTy<'cx> {
-    pub module: ModuleID,
     pub symbol: SymbolID,
     pub members: &'cx FxHashMap<SymbolName, SymbolID>,
     pub declared_props: &'cx [SymbolID],
@@ -186,14 +185,7 @@ impl<'cx> ObjectTyKind<'cx> {
                 )
             }
             ObjectTyKind::Interface(i) => atoms
-                .get(
-                    binder
-                        .get(i.module)
-                        .symbols
-                        .get(i.symbol)
-                        .name
-                        .expect_atom(),
-                )
+                .get(binder.symbol(i.symbol).name.expect_atom())
                 .to_string(),
         }
     }
@@ -205,7 +197,6 @@ impl<'cx> ObjectTyKind<'cx> {
 
 #[derive(Debug, Clone, Copy)]
 pub struct ClassTy {
-    pub module: ModuleID,
     pub symbol: SymbolID,
 }
 
@@ -213,7 +204,6 @@ pub struct ClassTy {
 pub struct ObjectLitTy<'cx> {
     pub members: &'cx FxHashMap<SymbolName, SymbolID>,
     pub declared_props: &'cx [SymbolID],
-    pub module: ModuleID,
     pub symbol: SymbolID,
 }
 
@@ -221,6 +211,5 @@ pub struct ObjectLitTy<'cx> {
 pub struct FnTy<'cx> {
     pub params: &'cx [&'cx Ty<'cx>],
     pub ret: &'cx Ty<'cx>,
-    pub module: ModuleID,
     pub symbol: SymbolID,
 }

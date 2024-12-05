@@ -3,9 +3,9 @@ use crate::{ast, parser};
 use super::TyChecker;
 
 fn get_assignment_target(checker: &TyChecker, id: ast::NodeID) -> Option<ast::NodeID> {
-    let mut parent = checker.p.get(id.module()).parent_map().parent(id);
+    let mut parent = checker.p.parent(id);
     while let Some(p) = parent {
-        match checker.p.get(id.module()).nodes().get(p) {
+        match checker.p.node(p) {
             ast::Node::AssignExpr(assign) => {
                 return if let ast::ExprKind::Ident(binding) = assign.left.kind {
                     (binding.id == id).then(|| assign.id)
@@ -32,7 +32,7 @@ pub fn get_assignment_kind(checker: &TyChecker, id: ast::NodeID) -> AssignmentKi
     let Some(target) = get_assignment_target(checker, id) else {
         return AssignmentKind::None;
     };
-    match checker.p.get(id.module()).nodes().get(target) {
+    match checker.p.node(target) {
         ast::Node::AssignExpr(_) => AssignmentKind::Definite,
         ast::Node::BinExpr(_) => AssignmentKind::Definite,
         _ => AssignmentKind::Definite,
@@ -40,14 +40,13 @@ pub fn get_assignment_kind(checker: &TyChecker, id: ast::NodeID) -> AssignmentKi
 }
 
 pub fn find_ancestor<'cx>(
-    nodes: &parser::Nodes<'cx>,
-    parent_map: &'cx parser::ParentMap,
+    p: &'cx parser::Parser<'cx>,
     id: ast::NodeID,
     cb: impl Fn(ast::Node<'cx>) -> Option<bool>,
 ) -> Option<ast::NodeID> {
     let mut id = id;
     loop {
-        let node = nodes.get(id);
+        let node = p.node(id);
         if let Some(res) = cb(node) {
             if res {
                 return Some(id);
@@ -55,7 +54,7 @@ pub fn find_ancestor<'cx>(
                 return None;
             }
         }
-        if let Some(next) = parent_map.parent(id) {
+        if let Some(next) = p.parent(id) {
             id = next
         } else {
             return None;

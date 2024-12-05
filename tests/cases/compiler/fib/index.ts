@@ -11,5 +11,8 @@ let e4: FibWithCache<4> = 4;  //~ERROR: Type '4' is not assignable to type '3'.
 let e5: FibWithCache<5> = 6;  //~ERROR: Type '6' is not assignable to type '5'. 
 let e6: FibWithCache<6> = 9;  //~ERROR: Type '9' is not assignable to type '8'. 
 let e7: FibWithCache<7> = 14; //~ERROR: Type '14' is not assignable to type '13'. 
+let f18: FibWithCache<18> = 2584;
 let e19: FibWithCache<19> = 4182; //~ERROR: Type '4182' is not assignable to type '4181'. 
-let f19: FibWithCache<19> = 4181; 
+let f19: FibWithCache<19> = 4181;
+let f20: FibWithCache<20> = 6765;
+

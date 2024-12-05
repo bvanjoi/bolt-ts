@@ -10,15 +10,13 @@ use super::TyChecker;
 
 impl<'cx> TyChecker<'cx> {
     pub(super) fn check_fn_like_symbol(&mut self, module: ModuleID, symbol: SymbolID) {
-        let SymbolKind::Function { decls, kind } =
-            &self.binder.get(module).symbols.get(symbol).kind
-        else {
+        let SymbolKind::Function { decls, kind } = &self.binder.symbol(symbol).kind else {
             unreachable!()
         };
         assert!(!decls.is_empty());
 
         let last_seen_non_ambient_decl = decls.iter().any(|decl| {
-            let node = self.p.get(module).nodes().get(*decl);
+            let node = self.p.node(*decl);
             match node {
                 ast::Node::FnDecl(n) => {
                     n.body.is_some()
@@ -34,7 +32,7 @@ impl<'cx> TyChecker<'cx> {
         });
 
         if !last_seen_non_ambient_decl {
-            let span = self.p.get(module).nodes().get(decls[0]).span();
+            let span = self.p.node(decls[0]).span();
             if *kind == SymbolFnKind::Ctor {
                 let error = errors::ConstructorImplementationIsMissing { span };
                 self.push_error(span.module, Box::new(error));

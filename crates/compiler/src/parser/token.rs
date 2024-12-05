@@ -44,6 +44,7 @@ pub enum TokenKind {
     This,
     Static,
     Constructor,
+    Super,
     Get,
     Set,
     In,
@@ -56,12 +57,6 @@ pub enum TokenKind {
     As,
     Declare,
     Type,
-    // =====
-    EOF,
-    Number,
-    String,
-    Ident,
-    NoSubstitutionTemplate,
     // =====
     /// `!`
     Excl = 0x21,
@@ -158,6 +153,12 @@ pub enum TokenKind {
     BangEq,
     /// `^=`
     CaretEq,
+    // =====
+    EOF,
+    Number,
+    String,
+    Ident,
+    NoSubstitutionTemplate,
 }
 
 impl Into<BinOpKind> for TokenKind {
@@ -276,7 +277,7 @@ impl TokenKind {
 
     fn is_ts_keyword(self) -> bool {
         let u = self as u8;
-        u < (TokenKind::EOF as u8) && u >= (TokenKind::Implements as u8)
+        u <= (TokenKind::Type as u8) && u >= (TokenKind::Implements as u8)
     }
 
     pub fn is_binding_ident(self) -> bool {
@@ -288,7 +289,7 @@ impl TokenKind {
     }
 
     pub fn is_keyword(self) -> bool {
-        (self as u8) < (TokenKind::EOF as u8)
+        (self as u8) <= (TokenKind::Type as u8)
     }
 
     pub fn is_ident_or_keyword(self) -> bool {

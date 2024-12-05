@@ -63,7 +63,7 @@ impl<'cx> SigDecl<'cx> {
 
 impl<'cx> TyChecker<'cx> {
     pub(super) fn get_sig_from_decl(&mut self, id: ast::NodeID) -> Sig<'cx> {
-        let node = self.p.get(id.module()).nodes().get(id);
+        let node = self.p.node(id);
         if !self.node_id_to_sig.contains_key(&id) {
             let sig = get_sig_from_decl(self, node);
             let prev = self.node_id_to_sig.insert(id, sig);
@@ -87,9 +87,10 @@ fn get_sig_from_decl<'cx>(checker: &mut TyChecker<'cx>, node: ast::Node<'cx>) ->
     let mut min_args_count = 0;
     let mut params = Vec::with_capacity(8);
     for (i, param) in decl.params().iter().enumerate() {
-        let scope_id = checker.binder.get(decl.id().module()).node_id_to_scope_id[&param.id];
-        let symbol = checker.binder.get(decl.id().module()).res
-            [&(scope_id, SymbolName::Normal(param.name.name))];
+        let scope_id = checker.binder.scope(param.id);
+        let symbol = checker
+            .binder
+            .res(scope_id, SymbolName::Normal(param.name.name));
         params.push(symbol);
         let is_opt = param.question.is_some() || param.dotdotdot.is_some();
         if !is_opt {
@@ -122,11 +123,11 @@ fn get_sig_from_decl<'cx>(checker: &mut TyChecker<'cx>, node: ast::Node<'cx>) ->
         ast::Node::ArrowFnExpr(_) => checker.undefined_ty(),
         ast::Node::ClassDecl(_) => checker.undefined_ty(),
         ast::Node::ClassCtor(c) => {
-            let Some(class_id) = checker.p.get(node.id().module()).parent_map().parent(c.id) else {
+            let Some(class_id) = checker.p.parent(c.id) else {
                 unreachable!()
             };
             let symbol = checker.get_symbol_of_decl(class_id);
-            checker.get_declared_ty_of_symbol(class_id.module(), symbol)
+            checker.get_declared_ty_of_symbol(symbol)
         }
         _ => unreachable!(),
     };

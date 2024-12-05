@@ -5,7 +5,7 @@ use crate::bind::SymbolID;
 impl<'cx> TyChecker<'cx> {
     pub(super) fn get_symbol_of_decl(&mut self, id: ast::NodeID) -> SymbolID {
         use ast::Node::*;
-        let node = self.p.get(id.module()).nodes().get(id);
+        let node = self.p.node(id);
         let id = match node {
             VarDecl(n) => n.id,
             ObjectMemberField(n) => n.id,
@@ -23,6 +23,6 @@ impl<'cx> TyChecker<'cx> {
                 todo!("{:#?}", node)
             }
         };
-        *self.binder.get(id.module()).final_res.get(&id).unwrap()
+        self.binder.final_res(id)
     }
 }

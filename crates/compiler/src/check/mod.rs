@@ -73,10 +73,10 @@ pub struct TyChecker<'cx> {
     // symbols: &'cx Symbols,
     binder: &'cx mut bind::Binder,
     global_symbols: &'cx GlobalSymbols,
-    symbol_links: FxHashMap<(ModuleID, SymbolID), SymbolLinks<'cx>>,
+    symbol_links: FxHashMap<SymbolID, SymbolLinks<'cx>>,
 
     node_id_to_sig: FxHashMap<ast::NodeID, Sig<'cx>>,
-    resolution_tys: thin_vec::ThinVec<(ModuleID, SymbolID)>,
+    resolution_tys: thin_vec::ThinVec<SymbolID>,
     resolution_res: thin_vec::ThinVec<bool>,
 }
 
@@ -167,18 +167,14 @@ impl<'cx> TyChecker<'cx> {
         this
     }
 
-    fn get_symbol_links(&mut self, module: ModuleID, symbol: SymbolID) -> &SymbolLinks<'cx> {
+    fn get_symbol_links(&mut self, symbol: SymbolID) -> &SymbolLinks<'cx> {
         self.symbol_links
-            .entry((module, symbol))
+            .entry(symbol)
             .or_insert_with(SymbolLinks::new)
     }
 
-    fn get_mut_symbol_links(
-        &mut self,
-        module: ModuleID,
-        symbol: SymbolID,
-    ) -> &mut SymbolLinks<'cx> {
-        self.symbol_links.get_mut(&(module, symbol)).unwrap()
+    fn get_mut_symbol_links(&mut self, symbol: SymbolID) -> &mut SymbolLinks<'cx> {
+        self.symbol_links.get_mut(&symbol).unwrap()
     }
 
     pub fn print_ty(&mut self, ty: &Ty) -> &str {
@@ -259,21 +255,14 @@ impl<'cx> TyChecker<'cx> {
     fn check_index_constraint_for_prop(
         &mut self,
         ty: &'cx ty::Ty<'cx>,
-        module_id: ModuleID,
         prop: SymbolID,
         prop_name_ty: &'cx Ty<'cx>,
         prop_ty: &'cx ty::Ty<'cx>,
     ) {
         for index_info in self.get_applicable_index_infos(ty, prop_name_ty) {
             if !self.is_type_assignable_to(prop_ty, index_info.val_ty) {
-                let prop_decl = self
-                    .binder
-                    .get(module_id)
-                    .symbols
-                    .get(prop)
-                    .kind
-                    .expect_prop();
-                let prop_node = self.p.get(prop_decl.module()).nodes().get(prop_decl);
+                let prop_decl = self.binder.symbol(prop).kind.expect_prop();
+                let prop_node = self.p.node(prop_decl);
                 let prop_name = match prop_node {
                     ast::Node::ClassPropEle(prop) => prop.name,
                     ast::Node::PropSignature(prop) => prop.name,
@@ -296,40 +285,29 @@ impl<'cx> TyChecker<'cx> {
 
         if let Some(i) = ty.kind.as_object_interface() {
             for base_ty in i.base_tys {
-                self.check_index_constraint_for_prop(
-                    base_ty,
-                    module_id,
-                    prop,
-                    prop_name_ty,
-                    prop_ty,
-                );
+                self.check_index_constraint_for_prop(base_ty, prop, prop_name_ty, prop_ty);
             }
         } else {
             // unreachable!("{:#?}", ty)
         }
     }
 
-    fn get_lit_ty_from_prop(&mut self, module_id: ModuleID, prop: SymbolID) -> &'cx ty::Ty<'cx> {
+    fn get_lit_ty_from_prop(&mut self, prop: SymbolID) -> &'cx ty::Ty<'cx> {
         use super::bind::SymbolKind::*;
-        match self.binder.get(module_id).symbols.get(prop).kind {
+        match self.binder.symbol(prop).kind {
             Property { .. } => self.string_ty(),
             Function { .. } => self.string_ty(),
             _ => unreachable!(),
         }
     }
 
-    fn check_index_constraints(
-        &mut self,
-        ty: &'cx ty::Ty<'cx>,
-        module_id: ModuleID,
-        symbol: SymbolID,
-    ) {
+    fn check_index_constraints(&mut self, ty: &'cx ty::Ty<'cx>, symbol: SymbolID) {
         // self.get_index_info_of_ty(ty);
         let i = ty.kind.expect_object_interface();
         for prop in i.declared_props {
-            let prop_ty = self.get_type_of_symbol(module_id, *prop);
-            let prop_name_ty = self.get_lit_ty_from_prop(module_id, *prop);
-            self.check_index_constraint_for_prop(ty, module_id, *prop, prop_name_ty, prop_ty);
+            let prop_ty = self.get_type_of_symbol(*prop);
+            let prop_name_ty = self.get_lit_ty_from_prop(*prop);
+            self.check_index_constraint_for_prop(ty, *prop, prop_name_ty, prop_ty);
         }
     }
 
@@ -338,18 +316,13 @@ impl<'cx> TyChecker<'cx> {
     }
 
     fn get_containing_fn_or_class_static_block(&self, node: ast::NodeID) -> Option<ast::NodeID> {
-        find_ancestor(
-            self.p.get(node.module()).nodes(),
-            self.p.get(node.module()).parent_map(),
-            node,
-            |node| {
-                if node.is_fn_like_or_class_static_block_decl() {
-                    Some(true)
-                } else {
-                    None
-                }
-            },
-        )
+        find_ancestor(self.p, node, |node| {
+            if node.is_fn_like_or_class_static_block_decl() {
+                Some(true)
+            } else {
+                None
+            }
+        })
     }
 
     fn check_return_stmt(&mut self, ret: &ast::RetStmt<'cx>) {
@@ -362,10 +335,7 @@ impl<'cx> TyChecker<'cx> {
             .expr
             .map(|expr| self.check_expr(expr))
             .unwrap_or(self.undefined_ty());
-        if matches!(
-            self.p.get(container.module()).nodes().get(container),
-            ast::Node::ClassCtor(_)
-        ) {
+        if matches!(self.p.node(container), ast::Node::ClassCtor(_)) {
             if let Some(expr) = ret.expr {
                 self.check_type_assignable_to_and_optionally_elaborate(
                     expr.span(),
@@ -584,22 +554,11 @@ impl<'cx> TyChecker<'cx> {
         });
         let map = FxHashMap::from_iter(entires);
         let members = self.alloc(map);
-        if !self
-            .binder
-            .get(lit.id.module())
-            .final_res
-            .contains_key(&lit.id)
-        {
-            // TODO: delete this
-            unreachable!()
-        }
-
-        let declared_props = self.get_props_from_members(lit.id.module(), members);
+        let declared_props = self.get_props_from_members(members);
         self.create_object_lit_ty(ty::ObjectLitTy {
             members,
             declared_props,
-            module: lit.id.module(),
-            symbol: self.binder.get(lit.id.module()).final_res[&lit.id],
+            symbol: self.binder.final_res(lit.id),
         })
     }
 
@@ -626,23 +585,16 @@ impl<'cx> TyChecker<'cx> {
 
     fn is_used_in_fn_or_instance_prop(&self, used: &'cx ast::Ident, decl: ast::NodeID) -> bool {
         assert!(used.id.module() == decl.module());
-        find_ancestor(
-            self.p.get(used.id.module()).nodes(),
-            self.p.get(used.id.module()).parent_map(),
-            used.id,
-            |current| {
-                if current.id() == decl {
-                    return Some(false);
-                } else if current.is_fn_like() {
-                    return Some(true);
-                } else if current.is_class_static_block_decl() {
-                    return Some(
-                        self.p.get(used.id.module()).nodes().get(decl).span().lo < used.span.lo,
-                    );
-                }
-                None
-            },
-        )
+        find_ancestor(self.p, used.id, |current| {
+            if current.id() == decl {
+                return Some(false);
+            } else if current.is_fn_like() {
+                return Some(true);
+            } else if current.is_class_static_block_decl() {
+                return Some(self.p.node(decl).span().lo < used.span.lo);
+            }
+            None
+        })
         .is_some()
     }
 
@@ -652,7 +604,7 @@ impl<'cx> TyChecker<'cx> {
         used: &'cx ast::Ident,
     ) -> bool {
         let used_span = used.span;
-        let decl_span = self.p.get(decl.module()).nodes().get(decl).span();
+        let decl_span = self.p.node(decl).span();
         let decl_pos = decl_span.lo;
         if decl_pos < used_span.lo {
             return true;
@@ -667,11 +619,11 @@ impl<'cx> TyChecker<'cx> {
 
     fn check_resolved_block_scoped_var(&mut self, ident: &'cx ast::Ident, id: SymbolID) {
         use crate::bind::SymbolKind::*;
-        match &self.binder.get(ident.id.module()).symbols.get(id).kind {
+        match &self.binder.symbol(id).kind {
             Class(symbol) => {
                 let decl = symbol.decl;
                 if !self.is_block_scoped_name_declared_before_use(decl, ident) {
-                    let decl_span = match self.p.get(ident.id.module()).nodes().get(decl) {
+                    let decl_span = match self.p.node(decl) {
                         ast::Node::ClassDecl(class) => class.name.span,
                         _ => unreachable!(),
                     };
@@ -713,21 +665,14 @@ impl<'cx> TyChecker<'cx> {
             id => id,
         };
 
-        if self
-            .binder
-            .get(ident.id.module())
-            .symbols
-            .get(symbol)
-            .kind
-            .is_class()
-        {
+        if self.binder.symbol(symbol).kind.is_class() {
             self.check_resolved_block_scoped_var(ident, symbol);
         }
 
-        let ty = self.get_type_of_symbol(ident.id.module(), symbol);
+        let ty = self.get_type_of_symbol(symbol);
         let assignment_kind = get_assignment_kind(self, ident.id);
         if assignment_kind != AssignmentKind::None {
-            let symbol_kind = &self.binder.get(ident.id.module()).symbols.get(symbol).kind;
+            let symbol_kind = &self.binder.symbol(symbol).kind;
             if !symbol_kind.is_variable() {
                 let error = errors::CannotAssignToNameBecauseItIsATy {
                     span: ident.span,

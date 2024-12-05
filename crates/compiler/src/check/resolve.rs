@@ -24,14 +24,11 @@ impl<'cx> TyChecker<'cx> {
         ident: &'cx ast::Ident,
         ns: impl Fn(&SymbolKind) -> bool,
     ) -> SymbolID {
-        if let Some(id) = self.binder.get(ident.id.module()).final_res.get(&ident.id) {
-            return *id;
+        if let Some(id) = self.binder.opt_final_res(ident.id) {
+            return id;
         }
         let res = resolve_symbol_by_ident(self, ident, ns);
-        self.binder
-            .get_mut(ident.id.module())
-            .final_res
-            .insert(ident.id, res);
+        self.binder.insert_final_res(ident.id, res);
         res
     }
 
@@ -52,12 +49,12 @@ impl<'cx> TyChecker<'cx> {
     fn check_missing_prefix(&mut self, ident: &'cx ast::Ident) -> Option<crate::Diag> {
         let mut location = ident.id;
         loop {
-            if let Some(parent) = self.p.get(ident.id.module()).parent_map().parent(location) {
+            if let Some(parent) = self.p.parent(location) {
                 location = parent;
             } else {
                 break;
             }
-            let node = self.p.get(ident.id.module()).nodes().get(location);
+            let node = self.p.node(location);
             let ast::Node::ClassDecl(class) = node else {
                 continue;
             };
@@ -111,22 +108,10 @@ impl<'cx> TyChecker<'cx> {
 
     pub fn check_using_type_as_value(&mut self, ident: &'cx ast::Ident) -> Option<crate::Diag> {
         if self.is_prim_ty_name(ident.name) {
-            let Some(grand) = self
-                .p
-                .get(ident.id.module())
-                .parent_map()
-                .parent(ident.id)
-                .and_then(|id| self.p.get(ident.id.module()).parent_map().parent(id))
-            else {
+            let Some(grand) = self.p.parent(ident.id).and_then(|id| self.p.parent(id)) else {
                 return None;
             };
-            if self
-                .p
-                .get(ident.id.module())
-                .nodes()
-                .get(grand)
-                .is_class_like()
-            {
+            if self.p.node(grand).is_class_like() {
                 return Some(Box::new(errors::AClassCannotImplementAPrimTy {
                     span: ident.span,
                     ty: self.atoms.get(ident.name).to_string(),
@@ -143,20 +128,18 @@ fn resolve_symbol_by_ident(
     ident: &ast::Ident,
     ns: impl Fn(&SymbolKind) -> bool,
 ) -> SymbolID {
-    let module = ident.id.module();
-    let module = checker.binder.get(module);
-    assert!(!module.final_res.contains_key(&ident.id));
+    assert!(checker.binder.opt_final_res(ident.id).is_none());
     let name = ident.name;
-    let Some(mut scope_id) = module.node_id_to_scope_id.get(&ident.id).copied() else {
+    let Some(mut scope_id) = checker.binder.opt_scope(ident.id) else {
         return Symbol::ERR;
     };
     let res = loop {
-        if let Some(id) = module.res.get(&(scope_id, SymbolName::Normal(name))) {
-            if ns(&module.symbols.get(*id).kind) {
-                break *id;
+        if let Some(id) = checker.binder.opt_res(scope_id, SymbolName::Normal(name)) {
+            if ns(&checker.binder.symbol(id).kind) {
+                break id;
             }
         }
-        if let Some(parent) = module.scope_id_parent_map[&scope_id] {
+        if let Some(parent) = checker.binder.parent_scope(scope_id) {
             scope_id = parent;
         } else {
             break Symbol::ERR;

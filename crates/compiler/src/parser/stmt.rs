@@ -1,6 +1,7 @@
 use super::ast;
 use super::list_ctx;
 use super::parse_class_like::ParseClassDecl;
+use super::parse_fn_like::ParseFnDecl;
 use super::token::TokenKind;
 use super::{PResult, ParserState};
 
@@ -40,10 +41,10 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
             span: self.new_span(start as usize, self.pos),
             name,
             ty_params,
-            ty
+            ty,
         });
         self.insert_map(id, ast::Node::TypeDecl(decl));
-        Ok(decl) 
+        Ok(decl)
     }
 
     fn contain_declare_mod(mods: &ast::Modifiers<'cx>) -> bool {
@@ -210,37 +211,22 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         self.parse_delimited_list(list_ctx::VarDecl, Self::parse_var_decl)
     }
 
-    fn parse_fn_decl_ret_type(&mut self) -> PResult<Option<&'cx ast::Ty<'cx>>> {
-        if self.parse_optional(TokenKind::Colon).is_some() {
-            self.parse_ty_or_ty_pred().map(|ty| Some(ty))
-        } else {
-            Ok(None)
-        }
-    }
-
     fn parse_fn_decl(
         &mut self,
         modifiers: Option<&'cx ast::Modifiers<'cx>>,
     ) -> PResult<&'cx ast::FnDecl<'cx>> {
-        let id = self.next_node_id();
-        let start = self.token.start();
-        self.expect(TokenKind::Function)?;
-        let name = self.with_parent(id, Self::parse_binding_ident);
-        // TODO: type params
-        let params = self.with_parent(id, Self::parse_params)?;
-        let ret_ty = self.with_parent(id, Self::parse_fn_decl_ret_type)?;
-        let body = self.with_parent(id, Self::parse_fn_block)?;
-        let f = self.alloc(ast::FnDecl {
-            id,
-            span: self.new_span(start as usize, self.pos),
-            modifiers,
-            name,
-            params,
-            ret_ty,
-            body,
-        });
-        self.insert_map(id, ast::Node::FnDecl(f));
-        Ok(f)
+        self.parse_fn_decl_or_expr(ParseFnDecl, modifiers)
+        // let f = self.alloc(ast::FnDecl {
+        //     id,
+        //     span: self.new_span(start as usize, self.pos),
+        //     modifiers,
+        //     name,
+        //     params,
+        //     ret_ty,
+        //     body,
+        // });
+        // self.insert_map(id, ast::Node::FnDecl(f));
+        // Ok(f)
     }
 
     fn parse_if_stmt(&mut self) -> PResult<&'cx ast::IfStmt<'cx>> {

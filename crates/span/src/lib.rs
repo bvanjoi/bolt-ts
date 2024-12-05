@@ -40,19 +40,19 @@ macro_rules! new_index_with_module {
             pub const fn root(module: bolt_ts_span::ModuleID) -> $name {
                 $name { module, index: 0 }
             }
-            pub fn next(&self) -> $name {
+            pub const fn next(&self) -> $name {
                 $name {
                     module: self.module,
                     index: self.index + 1,
                 }
             }
-            pub fn index_as_u32(&self) -> u32 {
+            pub const fn index_as_u32(&self) -> u32 {
                 self.index
             }
-            pub fn index_as_usize(&self) -> usize {
+            pub const fn index_as_usize(&self) -> usize {
                 self.index as usize
             }
-            pub fn module(&self) -> bolt_ts_span::ModuleID {
+            pub const fn module(&self) -> bolt_ts_span::ModuleID {
                 self.module
             }
         }

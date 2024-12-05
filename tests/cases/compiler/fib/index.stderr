@@ -47,7 +47,7 @@
     ╰────
 
   × Type '4182' is not assignable to type '4181'.
-    ╭─[../../tests/cases/compiler/fib/index.ts:14:5]
- 14 │ e19
+    ╭─[../../tests/cases/compiler/fib/index.ts:15:5]
+ 15 │ e19
     · ───
     ╰────

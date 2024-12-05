@@ -4,6 +4,7 @@ mod list_ctx;
 mod lookahead;
 mod paren_rule;
 mod parse_class_like;
+mod parse_fn_like;
 mod scan;
 mod stmt;
 pub mod token;
@@ -64,16 +65,6 @@ pub struct ParseResult<'cx> {
     parent_map: ParentMap,
 }
 
-impl<'cx> ParseResult<'cx> {
-    pub fn nodes(&self) -> &Nodes<'cx> {
-        &self.nodes
-    }
-
-    pub fn parent_map(&self) -> &ParentMap {
-        &self.parent_map
-    }
-}
-
 pub struct Parser<'cx> {
     map: FxHashMap<ModuleID, ParseResult<'cx>>,
 }
@@ -85,13 +76,30 @@ impl<'cx> Parser<'cx> {
         }
     }
 
+    #[inline(always)]
     pub fn insert(&mut self, id: ModuleID, result: ParseResult<'cx>) {
         let prev = self.map.insert(id, result);
         assert!(prev.is_none());
     }
 
-    pub fn get(&self, id: ModuleID) -> &ParseResult<'cx> {
+    #[inline(always)]
+    fn get(&self, id: ModuleID) -> &ParseResult<'cx> {
         self.map.get(&id).unwrap()
+    }
+
+    #[inline(always)]
+    pub fn root(&self, id: ModuleID) -> &'cx ast::Program<'cx> {
+        self.get(id).root
+    }
+
+    #[inline(always)]
+    pub fn node(&self, id: NodeID) -> ast::Node<'cx> {
+        self.get(id.module()).nodes.get(id)
+    }
+
+    #[inline(always)]
+    pub fn parent(&self, id: NodeID) -> Option<ast::NodeID> {
+        self.get(id.module()).parent_map.parent(id)
     }
 
     pub fn steal_errors(&mut self, id: ModuleID) -> Vec<bolt_ts_errors::Diag> {

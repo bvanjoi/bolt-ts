@@ -32,9 +32,7 @@ impl<'cx> TyChecker<'cx> {
         };
         for (name, symbol) in &self
             .binder
-            .get(source.module)
-            .symbols
-            .get(source.symbol)
+            .symbol(source.symbol)
             .kind
             .expect_object()
             .members
@@ -44,16 +42,7 @@ impl<'cx> TyChecker<'cx> {
             } else {
                 let span = self
                     .p
-                    .get(source.module)
-                    .nodes()
-                    .get(
-                        self.binder
-                            .get(source.module)
-                            .symbols
-                            .get(*symbol)
-                            .kind
-                            .expect_prop(),
-                    )
+                    .node(self.binder.symbol(*symbol).kind.expect_prop())
                     .span();
                 let field = self.atoms.get(name.expect_atom()).to_string();
                 let error =
@@ -153,8 +142,8 @@ impl<'cx> TyChecker<'cx> {
         report_error: bool,
     ) -> bool {
         let unmatched = self.get_unmatched_prop(source, target);
-        if let Some((unmatched, target_module, target_symbol)) = unmatched {
-            let symbol = self.binder.get(target_module).symbols.get(target_symbol);
+        if let Some((unmatched, target_symbol)) = unmatched {
+            let symbol = self.binder.symbol(target_symbol);
             let decl = if let Some(symbol) = symbol.kind.as_class() {
                 symbol.decl
             } else {
@@ -162,7 +151,7 @@ impl<'cx> TyChecker<'cx> {
             };
             if !unmatched.is_empty() && report_error {
                 for name in unmatched {
-                    let span = self.p.get(target_module).nodes().get(decl).span();
+                    let span = self.p.node(decl).span();
                     let field = self.atoms.get(name).to_string();
                     let error = errors::PropertyXIsMissing { span, field };
                     self.push_error(span.module, Box::new(error));
@@ -327,43 +316,43 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
-    fn get_props_of_object_ty(&self, ty: &'cx ObjectTy<'cx>) -> (ModuleID, &'cx [SymbolID]) {
+    fn get_props_of_object_ty(&self, ty: &'cx ObjectTy<'cx>) -> &'cx [SymbolID] {
         if let ObjectTyKind::Interface(ty) = ty.kind {
-            (ty.module, ObjectLikeTy::props(ty))
+            ObjectLikeTy::props(ty)
         } else if let ObjectTyKind::ObjectLit(ty) = ty.kind {
-            (ty.module, ObjectLikeTy::props(ty))
+            ObjectLikeTy::props(ty)
         } else {
             unreachable!()
         }
     }
 
-    fn get_props_of_ty(&self, ty: &'cx Ty<'cx>) -> (ModuleID, &'cx [SymbolID]) {
+    fn get_props_of_ty(&self, ty: &'cx Ty<'cx>) -> &'cx [SymbolID] {
         if let TyKind::Object(ty) = ty.kind {
             self.get_props_of_object_ty(ty)
         } else {
-            (ModuleID::root(), &[])
+            &[]
         }
     }
 
-    fn get_prop_of_ty(&self, ty: &'cx Ty<'cx>, name: SymbolName) -> Option<(ModuleID, SymbolID)> {
+    fn get_prop_of_ty(&self, ty: &'cx Ty<'cx>, name: SymbolName) -> Option<SymbolID> {
         let TyKind::Object(ty) = ty.kind else {
             return None;
         };
-        let (module, members) = if let ObjectTyKind::Interface(ty) = ty.kind {
-            (ty.module, ObjectLikeTy::members(ty))
+        let members = if let ObjectTyKind::Interface(ty) = ty.kind {
+            ObjectLikeTy::members(ty)
         } else if let ObjectTyKind::ObjectLit(ty) = ty.kind {
-            (ty.module, ObjectLikeTy::members(ty))
+            ObjectLikeTy::members(ty)
         } else {
             unreachable!()
         };
-        members.get(&name).map(|symbol| (module, *symbol))
+        members.get(&name).map(|symbol| *symbol)
     }
 
     fn get_unmatched_prop(
         &mut self,
         source: &'cx Ty<'cx>,
         target: &'cx Ty<'cx>,
-    ) -> Option<(FxHashSet<AtomId>, ModuleID, SymbolID)> {
+    ) -> Option<(FxHashSet<AtomId>, SymbolID)> {
         self.get_unmatched_props(source, target)
     }
 
@@ -371,12 +360,12 @@ impl<'cx> TyChecker<'cx> {
         &mut self,
         source: &'cx Ty<'cx>,
         target: &'cx Ty<'cx>,
-    ) -> Option<(FxHashSet<AtomId>, ModuleID, SymbolID)> {
-        let (module, symbols) = self.get_props_of_ty(target);
+    ) -> Option<(FxHashSet<AtomId>, SymbolID)> {
+        let symbols = self.get_props_of_ty(target);
         let set: FxHashSet<_> = symbols
             .iter()
             .filter_map(|symbol| {
-                let name = self.binder.get(module).symbols.get(*symbol).name;
+                let name = self.binder.symbol(*symbol).name;
                 if self.get_prop_of_ty(source, name).is_none() {
                     Some(name.expect_atom())
                 } else {
@@ -395,7 +384,7 @@ impl<'cx> TyChecker<'cx> {
             } else {
                 unreachable!()
             };
-            Some((set, module, symbol))
+            Some((set, symbol))
         }
     }
 

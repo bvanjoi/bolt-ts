@@ -1,7 +1,5 @@
-use std::thread::panicking;
 use std::usize;
 
-use bolt_ts_span::ModuleID;
 use thin_vec::thin_vec;
 
 use super::ty::{self, Ty, TyKind};
@@ -13,34 +11,34 @@ use crate::keyword;
 use crate::ty::{AccessFlags, ElementFlags, TyMapper};
 
 impl<'cx> TyChecker<'cx> {
-    pub(super) fn get_type_of_symbol(&mut self, module: ModuleID, id: SymbolID) -> &'cx Ty<'cx> {
-        if let Some(ty) = self.get_symbol_links(module, id).get_ty() {
+    pub(super) fn get_type_of_symbol(&mut self, id: SymbolID) -> &'cx Ty<'cx> {
+        if let Some(ty) = self.get_symbol_links(id).get_ty() {
             return ty;
         }
         use crate::bind::SymbolKind::*;
-        let ty = match &self.binder.get(module).symbols.get(id).kind {
+        let ty = match &self.binder.symbol(id).kind {
             Err => return self.error_ty(),
             FunctionScopedVar => return self.undefined_ty(),
             BlockScopedVar => return self.undefined_ty(),
             Class { .. } => {
-                let ty = self.get_type_of_class_decl(module, id);
+                let ty = self.get_type_of_class_decl(id);
                 // TODO: delete
-                if let Some(ty) = self.get_symbol_links(module, id).get_ty() {
+                if let Some(ty) = self.get_symbol_links(id).get_ty() {
                     return ty;
                 }
-                self.get_mut_symbol_links(module, id).set_ty(ty);
+                self.get_mut_symbol_links(id).set_ty(ty);
                 // ---
                 ty
             }
-            Function { .. } | FnExpr { .. } => self.get_type_of_func_decl(module, id),
-            Property { .. } => self.get_type_of_prop(module, id),
+            Function { .. } | FnExpr { .. } => self.get_type_of_func_decl(id),
+            Property { .. } => self.get_type_of_prop(id),
             Object { .. } => {
-                let ty = self.get_type_of_object(module, id);
+                let ty = self.get_type_of_object(id);
                 // TODO: delete
-                if let Some(ty) = self.get_symbol_links(module, id).get_ty() {
+                if let Some(ty) = self.get_symbol_links(id).get_ty() {
                     return ty;
                 }
-                self.get_mut_symbol_links(module, id).set_ty(ty);
+                self.get_mut_symbol_links(id).set_ty(ty);
                 // ---
                 ty
             }
@@ -53,16 +51,12 @@ impl<'cx> TyChecker<'cx> {
         ty
     }
 
-    fn get_type_of_object(&mut self, module: ModuleID, symbol: SymbolID) -> &'cx Ty<'cx> {
+    fn get_type_of_object(&mut self, symbol: SymbolID) -> &'cx Ty<'cx> {
         self.undefined_ty()
     }
 
-    fn get_base_type_variable_of_class(
-        &mut self,
-        module: ModuleID,
-        symbol: SymbolID,
-    ) -> &'cx Ty<'cx> {
-        let class_ty = self.get_declared_ty_of_symbol(module, symbol);
+    fn get_base_type_variable_of_class(&mut self, symbol: SymbolID) -> &'cx Ty<'cx> {
+        let class_ty = self.get_declared_ty_of_symbol(symbol);
         let Some(i) = class_ty.kind.as_object_interface() else {
             unreachable!()
         };
@@ -70,12 +64,12 @@ impl<'cx> TyChecker<'cx> {
         i.base_ctor_ty.unwrap()
     }
 
-    fn get_type_of_prop(&mut self, module: ModuleID, symbol: SymbolID) -> &'cx Ty<'cx> {
-        let decl = match self.binder.get(module).symbols.get(symbol).kind {
+    fn get_type_of_prop(&mut self, symbol: SymbolID) -> &'cx Ty<'cx> {
+        let decl = match self.binder.symbol(symbol).kind {
             crate::bind::SymbolKind::Property { decl, .. } => decl,
             _ => unreachable!(),
         };
-        let ty = match self.p.get(decl.module()).nodes().get(decl) {
+        let ty = match self.p.node(decl) {
             ast::Node::ClassPropEle(prop) => prop
                 .ty
                 .map(|ty| self.get_ty_from_type_node(ty))
@@ -89,24 +83,24 @@ impl<'cx> TyChecker<'cx> {
         ty
     }
 
-    fn get_type_of_class_decl(&mut self, module: ModuleID, symbol: SymbolID) -> &'cx Ty<'cx> {
-        let base = self.get_base_type_variable_of_class(module, symbol);
-        self.create_class_ty(ty::ClassTy { module, symbol })
+    fn get_type_of_class_decl(&mut self, symbol: SymbolID) -> &'cx Ty<'cx> {
+        let base = self.get_base_type_variable_of_class(symbol);
+        self.create_class_ty(ty::ClassTy { symbol })
     }
 
-    fn get_type_of_func_decl(&mut self, module: ModuleID, symbol: SymbolID) -> &'cx Ty<'cx> {
-        let params = self.get_sig_of_symbol(module, symbol);
+    fn get_type_of_func_decl(&mut self, symbol: SymbolID) -> &'cx Ty<'cx> {
+        let params = self.get_sig_of_symbol(symbol);
         self.create_fn_ty(ty::FnTy {
             params,
             ret: self.undefined_ty(),
-            module,
+
             symbol,
         })
     }
 
-    fn get_sig_of_symbol(&mut self, module: ModuleID, id: SymbolID) -> &'cx [&'cx Ty<'cx>] {
+    fn get_sig_of_symbol(&mut self, id: SymbolID) -> &'cx [&'cx Ty<'cx>] {
         use crate::bind::SymbolKind::*;
-        let decls = match &self.binder.get(module).symbols.get(id).kind {
+        let decls = match &self.binder.symbol(id).kind {
             Err => todo!(),
             Function { decls, .. } => decls.clone(),
             FnExpr { decl } => thin_vec![*decl],
@@ -123,12 +117,12 @@ impl<'cx> TyChecker<'cx> {
         };
 
         for decl in decls {
-            let params = match self.p.get(decl.module()).nodes().get(decl) {
+            let params = match self.p.node(decl) {
                 ast::Node::FnDecl(f) => f.params,
                 ast::Node::ArrowFnExpr(f) => f.params,
                 ast::Node::FnExpr(f) => f.params,
                 ast::Node::ClassMethodEle(m) => m.params,
-                _ => unreachable!("{:#?}", self.p.get(decl.module()).nodes().get(decl)),
+                _ => unreachable!("{:#?}", self.p.node(decl)),
             };
             let params = params
                 .iter()
@@ -172,27 +166,15 @@ impl<'cx> TyChecker<'cx> {
             Tuple(tuple) => self.get_ty_from_tuple_node(tuple),
             Fn(_) => self.undefined_ty(),
             Lit(lit) => {
-                if !self
-                    .binder
-                    .get(lit.id.module())
-                    .final_res
-                    .contains_key(&lit.id)
-                {
-                    unreachable!()
-                }
-
-                let module = lit.id.module();
-                let symbol = self.binder.get(module).final_res[&lit.id];
-                let SymbolKind::Object(object) = &self.binder.get(module).symbols.get(symbol).kind
-                else {
+                let symbol = self.binder.final_res(lit.id);
+                let SymbolKind::Object(object) = &self.binder.symbol(symbol).kind else {
                     unreachable!()
                 };
                 let members = self.alloc(object.members.clone());
-                let declared_props = self.get_props_from_members(module, members);
+                let declared_props = self.get_props_from_members(members);
                 self.create_object_lit_ty(ty::ObjectLitTy {
                     members,
                     declared_props,
-                    module: lit.id.module(),
                     symbol,
                 })
             }
@@ -280,34 +262,30 @@ impl<'cx> TyChecker<'cx> {
     }
 
     pub(super) fn get_alias_symbol_for_ty_node(&self, node: ast::NodeID) -> Option<SymbolID> {
-        let nodes = self.p.get(node.module()).nodes();
-        assert!(nodes.get(node).is_ty_node());
-        let parent_map = self.p.get(node.module()).parent_map();
-        let mut host = parent_map.parent(node);
+        assert!(self.p.node(node).is_ty_node());
+        let mut host = self.p.parent(node);
         while let Some(node_id) = host {
-            let node = nodes.get(node);
+            let node = self.p.node(node);
             if node.is_paren_type_node() {
-                host = parent_map.parent(node_id);
+                host = self.p.parent(node_id);
             } else {
                 break;
             }
         }
-        host.and_then(|node_id| nodes.get(node_id).is_type_decl().then(|| node_id))
+        host.and_then(|node_id| self.p.node(node_id).is_type_decl().then(|| node_id))
             .and_then(|node_id| {
-                let binder = self.binder.get(node_id.module());
-                let symbol = binder.final_res.get(&node_id).copied().unwrap();
-                assert!(binder.symbols.get(symbol).kind.is_ty_alias());
+                let symbol = self.binder.final_res(node_id);
+                assert!(self.binder.symbol(symbol).kind.is_ty_alias());
                 Some(symbol)
             })
     }
 
     pub(super) fn get_local_ty_params_of_class_or_interface_or_type_alias(
         &mut self,
-        module: ModuleID,
         symbol: SymbolID,
     ) -> Option<ty::Tys<'cx>> {
         use SymbolKind::*;
-        match &self.binder.get(module).symbols.get(symbol).kind {
+        match &self.binder.symbol(symbol).kind {
             TyAlias(alias) => {
                 let mut res = vec![];
                 let ty_params = self.get_effective_ty_param_decls(alias.decl);
@@ -425,7 +403,7 @@ impl<'cx> TyChecker<'cx> {
         };
         let mut tailed = 0;
         loop {
-            if tailed > 1024 {
+            if tailed > 100 {
                 panic!()
             }
             let check_ty = self.instantiate_ty(root.check_ty, mapper.as_ref());
@@ -489,7 +467,7 @@ impl<'cx> TyChecker<'cx> {
         let check_ty = self.get_ty_from_type_node(node.check_ty);
         let alias_symbol = self.get_alias_symbol_for_ty_node(node.id);
         let alias_ty_args = alias_symbol.and_then(|symbol| {
-            self.get_local_ty_params_of_class_or_interface_or_type_alias(node.id.module(), symbol)
+            self.get_local_ty_params_of_class_or_interface_or_type_alias(symbol)
         });
         let all_outer_ty_params = self.get_outer_ty_params(node.id);
         let outer_ty_params: Option<ty::Tys<'cx>> = if alias_ty_args.is_some() {
@@ -601,7 +579,7 @@ impl<'cx> TyChecker<'cx> {
             }
         }
 
-        let expand_tys =self.alloc(expanded_tys);
+        let expand_tys = self.alloc(expanded_tys);
         let refer = self.alloc(ty::TyReference {
             ty_args: expand_tys,
         });
@@ -663,9 +641,9 @@ impl<'cx> TyChecker<'cx> {
     }
 
     pub(super) fn get_global_type(&mut self, name: SymbolName) -> &'cx Ty<'cx> {
-        let Some((m, s)) = self.global_symbols.get(name) else {
+        let Some(s) = self.global_symbols.get(name) else {
             unreachable!()
         };
-        self.get_declared_ty_of_symbol(m, s)
+        self.get_declared_ty_of_symbol(s)
     }
 }

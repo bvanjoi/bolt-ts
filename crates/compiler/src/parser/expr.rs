@@ -2,6 +2,7 @@ use super::ast::{self, BinOp};
 use super::list_ctx;
 use super::paren_rule::{NoParenRule, ParenRuleTrait};
 use super::parse_class_like;
+use super::parse_fn_like::ParseFnExpr;
 use super::token::{BinPrec, TokenKind};
 use super::utils::is_left_hand_side_expr_kind;
 use super::{PResult, ParserState};
@@ -447,23 +448,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
     }
 
     fn parse_fn_expr(&mut self) -> PResult<&'cx ast::Expr<'cx>> {
-        use TokenKind::*;
-        let start = self.token.start();
-        self.expect(Function)?;
-        let id = self.next_node_id();
-        let name = self.parse_optional_binding_ident()?;
-        let params = self.parse_params()?;
-        let ret_ty = self.parse_ret_ty(true)?;
-        let body = self.parse_fn_block()?.unwrap();
-        let f = self.alloc(ast::FnExpr {
-            id,
-            span: self.new_span(start as usize, self.pos),
-            name,
-            params,
-            ret_ty,
-            body,
-        });
-        self.insert_map(id, ast::Node::FnExpr(f));
+        let f = self.parse_fn_decl_or_expr(ParseFnExpr, None)?;
         let expr = self.alloc(ast::Expr {
             kind: ast::ExprKind::Fn(f),
         });

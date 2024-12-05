@@ -67,15 +67,9 @@ impl<'cx> TyChecker<'cx> {
     }
 
     fn ty_param_node(&self, ty_param: &'cx ty::ParamTy) -> &'cx ast::TyParam<'cx> {
-        let symbol = self
-            .binder
-            .get(ty_param.module)
-            .symbols
-            .get(ty_param.symbol);
-        let Some(symbol) = symbol.kind.as_ty_param() else {
-            unreachable!()
-        };
-        let node = self.p.get(symbol.decl.module()).nodes().get(symbol.decl);
+        let symbol = self.binder.symbol(ty_param.symbol);
+        let symbol = symbol.kind.expect_ty_param();
+        let node = self.p.node(symbol.decl);
         let Some(param) = node.as_ty_param() else {
             unreachable!()
         };
@@ -129,12 +123,11 @@ impl<'cx> TyChecker<'cx> {
 
     fn get_type_alias_instantiation(
         &mut self,
-        module: ModuleID,
         symbol: SymbolID,
         args: ty::Tys<'cx>,
     ) -> &'cx ty::Ty<'cx> {
-        let ty = self.get_declared_ty_of_symbol(module, symbol);
-        let Some(params) = self.get_symbol_links(module, symbol).get_ty_params() else {
+        let ty = self.get_declared_ty_of_symbol(symbol);
+        let Some(params) = self.get_symbol_links(symbol).get_ty_params() else {
             unreachable!()
         };
         let min_params_count = self.get_min_ty_args_count(params);
@@ -150,8 +143,8 @@ impl<'cx> TyChecker<'cx> {
         symbol: SymbolID,
     ) -> &'cx ty::Ty<'cx> {
         let module = node.id().module();
-        let ty = self.get_declared_ty_of_symbol(module, symbol);
-        if let Some(ty_params) = self.get_symbol_links(module, symbol).get_ty_params() {
+        let ty = self.get_declared_ty_of_symbol(symbol);
+        if let Some(ty_params) = self.get_symbol_links(symbol).get_ty_params() {
             // let len = node.args().unwrap_or_default().len();
             // if len > ty_params.len() || len < self.get_min_ty_args_count(ty_params) {
             //     todo!()
@@ -170,7 +163,7 @@ impl<'cx> TyChecker<'cx> {
                 .args()
                 .map(|args| self.ty_args_from_ty_refer_node(args))
                 .unwrap_or_default();
-            self.get_type_alias_instantiation(module, symbol, args)
+            self.get_type_alias_instantiation(symbol, args)
         } else {
             todo!()
         }
@@ -193,12 +186,12 @@ impl<'cx> TyChecker<'cx> {
             return self.error_ty();
         }
         let module = node.id().module();
-        let symbol_kind = &self.binder.get(module).symbols.get(symbol).kind;
+        let symbol_kind = &self.binder.symbol(symbol).kind;
         if symbol_kind.is_class() || symbol_kind.is_interface() {
-            self.get_declared_ty_of_symbol(module, symbol)
+            self.get_declared_ty_of_symbol(symbol)
         } else if symbol_kind.is_ty_alias() {
             self.get_ty_from_ty_alias_refer(node, symbol)
-        } else if let Some(res) = self.try_get_declared_ty_of_symbol(module, symbol) {
+        } else if let Some(res) = self.try_get_declared_ty_of_symbol(symbol) {
             if self.check_no_ty_args(node) {
                 res
             } else {

@@ -38,7 +38,7 @@ impl<'cx> CallLikeExpr<'cx> for ast::CallExpr<'cx> {
             // unreachable!()
             return Default::default();
         };
-        match &checker.binder.get(f.module).symbols.get(f.symbol).kind {
+        match &checker.binder.symbol(f.symbol).kind {
             SymbolKind::Function { decls, .. } => decls.clone(),
             SymbolKind::FnExpr { decl } => thin_vec![*decl],
             _ => unreachable!(),
@@ -74,13 +74,7 @@ impl<'cx> CallLikeExpr<'cx> for ast::NewExpr<'cx> {
             // unreachable!("{ty:#?}");
             return thin_vec![];
         };
-        match &checker
-            .binder
-            .get(class.module)
-            .symbols
-            .get(class.symbol)
-            .kind
-        {
+        match &checker.binder.symbol(class.symbol).kind {
             SymbolKind::Class(symbol) => thin_vec![symbol.decl],
             _ => unreachable!(),
         }
@@ -131,8 +125,7 @@ impl<'cx> TyChecker<'cx> {
         if decls.is_empty() {
             if let Some(decl) = class_decls.first() {
                 assert!(class_decls.len() == 1);
-                let ast::Node::ClassDecl(decl) = self.p.get(decl.module()).nodes().get(*decl)
-                else {
+                let ast::Node::ClassDecl(decl) = self.p.node(*decl) else {
                     unreachable!()
                 };
                 let error = errors::ValueOfType0IsNotCallable {

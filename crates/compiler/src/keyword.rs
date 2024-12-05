@@ -26,6 +26,7 @@ keyword!(
     (KW_THIS, KW_THIS_STR, "this"),
     (KW_STATIC, KW_STATIC_STR, "static"),
     (KW_CONSTRUCTOR, KW_CONSTRUCTOR_STR, "constructor"),
+    (KW_SUPER, KW_SUPER_STR, "super"),
     (KW_GET, KW_GET_STR, "get"),
     (KW_SET, KW_SET_STR, "set"),
     (KW_IN, KW_IN_STR, "in"),
