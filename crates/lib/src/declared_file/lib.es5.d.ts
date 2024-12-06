@@ -26,3 +26,10 @@ interface Number {
   /** Returns the primitive value of the specified object. */
   valueOf(): number;
 }
+
+interface Array<T> {
+  /**
+   * Gets or sets the length of the array. This is a number one higher than the highest index in the array.
+   */
+  length: number;
+}

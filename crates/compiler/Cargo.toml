@@ -20,6 +20,7 @@ include_dir = "0.7.3"
 [dev-dependencies]
 expect-test = "1.2.2"
 compile-test = { path = "../compile-test" }
+dir-test = "0.4.1"
 
 [build-dependencies]
 project-root = "0.2.2"

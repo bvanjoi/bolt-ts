@@ -3,8 +3,8 @@ use rustc_hash::FxHashSet;
 
 use crate::atoms::AtomId;
 use crate::bind::{SymbolID, SymbolName};
-use crate::errors;
 use crate::ty::{ObjectLikeTy, ObjectTy, ObjectTyKind, Ty, TyKind, Tys};
+use crate::{errors, ty};
 
 use super::TyChecker;
 
@@ -321,6 +321,8 @@ impl<'cx> TyChecker<'cx> {
             ObjectLikeTy::props(ty)
         } else if let ObjectTyKind::ObjectLit(ty) = ty.kind {
             ObjectLikeTy::props(ty)
+        } else if let ObjectTyKind::Tuple(ty) = ty.kind {
+            ObjectLikeTy::props(ty)
         } else {
             unreachable!()
         }
@@ -334,13 +336,15 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
-    fn get_prop_of_ty(&self, ty: &'cx Ty<'cx>, name: SymbolName) -> Option<SymbolID> {
+    pub(super) fn get_prop_of_ty(&self, ty: &'cx Ty<'cx>, name: SymbolName) -> Option<SymbolID> {
         let TyKind::Object(ty) = ty.kind else {
             return None;
         };
-        let members = if let ObjectTyKind::Interface(ty) = ty.kind {
+        let members = if let Some(ty) = ty.kind.as_interface() {
             ObjectLikeTy::members(ty)
-        } else if let ObjectTyKind::ObjectLit(ty) = ty.kind {
+        } else if let Some(ty) = ty.kind.as_object_lit() {
+            ObjectLikeTy::members(ty)
+        } else if let Some(ty) = ty.kind.as_tuple() {
             ObjectLikeTy::members(ty)
         } else {
             unreachable!()

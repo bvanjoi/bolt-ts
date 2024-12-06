@@ -6,7 +6,6 @@ mod object_ty;
 use crate::atoms::{AtomId, AtomMap};
 use crate::bind::{Binder, SymbolID};
 use crate::{ast, keyword};
-use bolt_ts_span::ModuleID;
 
 pub use self::bound_object_like::ObjectLikeTy;
 pub use self::facts::{has_type_facts, TypeFacts};
@@ -45,9 +44,18 @@ impl<'cx> Ty<'cx> {
 
 #[derive(Debug, Clone, Copy)]
 pub enum TyKind<'cx> {
+    Any,
+    Unknown,
+    String,
+    Number,
+    Boolean,
     StringLit(&'cx StringLitTy),
     NumberLit(&'cx NumberLitTy),
-    Intrinsic(&'cx IntrinsicTy),
+    TrueLit,
+    FalseLit,
+    Void,
+    Undefined,
+    Null,
     Union(&'cx UnionTy<'cx>),
     Object(&'cx ObjectTy<'cx>),
     Param(&'cx ParamTy),
@@ -76,6 +84,17 @@ macro_rules! as_ty_kind {
             }
         }
     };
+    ($kind: ident, $is_kind: ident) => {
+        impl<'cx> TyKind<'cx> {
+            #[inline(always)]
+            pub fn $is_kind(&self) -> bool {
+                match self {
+                    TyKind::$kind => true,
+                    _ => false,
+                }
+            }
+        }
+    };
 }
 
 as_ty_kind!(
@@ -92,13 +111,14 @@ as_ty_kind!(
     expect_number_lit,
     is_number_lit
 );
-as_ty_kind!(
-    Intrinsic,
-    &'cx IntrinsicTy,
-    as_intrinsic_lit,
-    expect_intrinsic_lit,
-    is_intrinsic_lit
-);
+as_ty_kind!(Any, is_any);
+as_ty_kind!(Number, is_number);
+as_ty_kind!(String, is_string);
+as_ty_kind!(Boolean, is_boolean);
+as_ty_kind!(TrueLit, is_true_lit);
+as_ty_kind!(FalseLit, is_false_lit);
+as_ty_kind!(Null, is_null);
+as_ty_kind!(Undefined, is_undefined);
 as_ty_kind!(Union, &'cx UnionTy<'cx>, as_union, expect_union, is_union);
 as_ty_kind!(
     Object,
@@ -115,7 +135,6 @@ impl<'cx> TyKind<'cx> {
     pub fn to_string(&self, binder: &'cx Binder, atoms: &'cx AtomMap) -> String {
         match self {
             TyKind::NumberLit(_) => "number".to_string(),
-            TyKind::Intrinsic(ty) => ty.kind.as_str().to_string(),
             TyKind::Union(union) => union
                 .tys
                 .iter()
@@ -131,6 +150,16 @@ impl<'cx> TyKind<'cx> {
             TyKind::Param(_) => todo!(),
             TyKind::IndexedAccess(_) => "indexedAccess".to_string(),
             TyKind::Cond(_) => "cond".to_string(),
+            TyKind::Any => keyword::IDENT_ANY_STR.to_string(),
+            TyKind::Unknown => keyword::IDENT_UNKNOWN_STR.to_string(),
+            TyKind::String => keyword::IDENT_STRING_STR.to_string(),
+            TyKind::Number => keyword::IDENT_NUMBER_STR.to_string(),
+            TyKind::Boolean => keyword::IDENT_BOOLEAN_STR.to_string(),
+            TyKind::TrueLit => keyword::KW_TRUE_STR.to_string(),
+            TyKind::FalseLit => keyword::KW_FALSE_STR.to_string(),
+            TyKind::Void => keyword::IDENT_VOID_STR.to_string(),
+            TyKind::Undefined => keyword::IDENT_UNDEFINED_STR.to_string(),
+            TyKind::Null => keyword::KW_NULL_STR.to_string(),
         }
     }
 
@@ -138,28 +167,8 @@ impl<'cx> TyKind<'cx> {
         use TyKind::*;
         if self.is_string_like() || self.is_number_like() || self.is_boolean_like() {
             true
-        } else if let Intrinsic(ty) = self {
-            matches!(ty.kind, IntrinsicTyKind::Null)
         } else {
-            false
-        }
-    }
-
-    pub fn is_any(&self) -> bool {
-        use TyKind::*;
-        if let Intrinsic(ty) = self {
-            matches!(ty.kind, IntrinsicTyKind::Any)
-        } else {
-            false
-        }
-    }
-
-    pub fn is_number(&self) -> bool {
-        use TyKind::*;
-        if let Intrinsic(ty) = self {
-            matches!(ty.kind, IntrinsicTyKind::Number)
-        } else {
-            false
+            matches!(self, Null)
         }
     }
 
@@ -175,10 +184,8 @@ impl<'cx> TyKind<'cx> {
         use TyKind::*;
         if matches!(self, StringLit(_) | NumberLit(_)) {
             true
-        } else if let Intrinsic(ty) = self {
-            ty.kind.is_lit()
         } else {
-            false
+            self.is_true_lit() | self.is_false_lit()
         }
     }
 
@@ -186,10 +193,8 @@ impl<'cx> TyKind<'cx> {
         use TyKind::*;
         if matches!(self, NumberLit(_)) {
             true
-        } else if let Intrinsic(ty) = self {
-            ty.kind.is_number_like()
         } else {
-            false
+            self.is_number()
         }
     }
 
@@ -197,20 +202,13 @@ impl<'cx> TyKind<'cx> {
         use TyKind::*;
         if matches!(self, StringLit(_)) {
             true
-        } else if let Intrinsic(ty) = self {
-            ty.kind.is_string_like()
         } else {
-            false
+            self.is_string()
         }
     }
 
     pub fn is_boolean_like(&self) -> bool {
-        use TyKind::*;
-        if let Intrinsic(ty) = self {
-            ty.kind.is_boolean_like()
-        } else {
-            false
-        }
+        self.is_true_lit() | self.is_false_lit()
     }
 
     pub fn is_structured(&self) -> bool {
@@ -226,12 +224,7 @@ impl<'cx> TyKind<'cx> {
     }
 
     pub fn is_nullable(&self) -> bool {
-        use TyKind::*;
-        if let Intrinsic(ty) = self {
-            ty.kind.is_nullable()
-        } else {
-            false
-        }
+        self.is_null() || self.is_undefined()
     }
 
     pub fn is_fresh(&self) -> bool {
@@ -330,80 +323,6 @@ pub struct UnionTy<'cx> {
 }
 
 #[derive(Debug, Clone, Copy)]
-pub struct IntrinsicTy {
-    pub kind: IntrinsicTyKind,
-}
-
-#[derive(Debug, Clone, Copy)]
-pub enum IntrinsicTyKind {
-    Any,
-    Unknown,
-    Void,
-    Null,
-    Undefined,
-    String,
-    Number,
-    True,
-    False,
-    Error,
-}
-
-impl<'cx> IntrinsicTyKind {
-    fn as_str(&self) -> &'static str {
-        match self {
-            IntrinsicTyKind::Any => keyword::IDENT_ANY_STR,
-            IntrinsicTyKind::Unknown => todo!(),
-            IntrinsicTyKind::Void => keyword::IDENT_VOID_STR,
-            IntrinsicTyKind::Null => keyword::KW_NULL_STR,
-            IntrinsicTyKind::Undefined => keyword::IDENT_UNDEFINED_STR,
-            IntrinsicTyKind::String => keyword::IDENT_STRING_STR,
-            IntrinsicTyKind::Number => keyword::IDENT_NUMBER_STR,
-            IntrinsicTyKind::True => keyword::KW_TRUE_STR,
-            IntrinsicTyKind::False => keyword::KW_FALSE_STR,
-            IntrinsicTyKind::Error => keyword::IDENT_ERROR_STR,
-        }
-    }
-}
-
-impl std::fmt::Display for IntrinsicTyKind {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.as_str())
-    }
-}
-
-impl IntrinsicTyKind {
-    fn is_lit(self) -> bool {
-        use IntrinsicTyKind::*;
-        matches!(self, True | False)
-    }
-
-    fn is_number_like(&self) -> bool {
-        use IntrinsicTyKind::*;
-        matches!(self, Number)
-    }
-
-    fn is_string_like(&self) -> bool {
-        use IntrinsicTyKind::*;
-        matches!(self, String)
-    }
-
-    fn is_boolean_like(&self) -> bool {
-        use IntrinsicTyKind::*;
-        matches!(self, True | False)
-    }
-
-    fn is_nullable(&self) -> bool {
-        use IntrinsicTyKind::*;
-        matches!(self, Null | Undefined)
-    }
-
-    fn is_any(&self) -> bool {
-        use IntrinsicTyKind::*;
-        matches!(self, Any)
-    }
-}
-
-#[derive(Debug, Clone, Copy)]
 pub struct NumberLitTy {
     pub val: f64,
 }
@@ -417,5 +336,3 @@ pub struct StringLitTy {
 pub struct ParamTy {
     pub symbol: SymbolID,
 }
-
-pub type ParamsTy<'cx> = &'cx [&'cx ParamTy];

@@ -1,4 +1,3 @@
-use bolt_ts_span::ModuleID;
 use rustc_hash::FxHashMap;
 
 use super::ty;

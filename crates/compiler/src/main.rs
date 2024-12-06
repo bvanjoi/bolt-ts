@@ -52,11 +52,10 @@ fn main_test() {
     //     dbg!(s);
     // }
 
-    let p = project_root.join("tests/cases/compiler/indexer/index.ts");
+    let p = project_root.join("tests/cases/compiler/fib/index.ts");
     let output = eval_from(bolt_ts_span::ModulePath::Real(p.clone()));
     if output.diags.is_empty() {
-        let file_path =
-            compile_test::temp_node_file(&project_root, p.file_stem().unwrap().to_str().unwrap());
+        let file_path = compile_test::temp_node_file(p.file_stem().unwrap().to_str().unwrap());
         dbg!(file_path.as_path());
         std::fs::write(file_path.as_path(), output.output).unwrap();
         compile_test::ensure_node_exist();

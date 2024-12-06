@@ -88,6 +88,23 @@ impl Binder {
     pub fn res(&self, scope: ScopeID, name: SymbolName) -> SymbolID {
         self.opt_res(scope, name).unwrap()
     }
+
+    #[inline(always)]
+    pub fn create_anonymous_symbol(&mut self, name: SymbolName, kind: SymbolKind) -> SymbolID {
+        let module = ModuleID::MOCK;
+        let binder = self.map.entry(module).or_insert_with(|| BinderResult {
+            scope_id_parent_map: Default::default(),
+            node_id_to_scope_id: Default::default(),
+            symbols: Symbols::new(),
+            res: Default::default(),
+            final_res: Default::default(),
+        });
+        let len = binder.symbols.0.len();
+        let id = SymbolID::mock(len as u32);
+        let symbol = Symbol::new(name, kind);
+        binder.symbols.insert(id, symbol);
+        id
+    }
 }
 
 struct BinderState<'cx> {

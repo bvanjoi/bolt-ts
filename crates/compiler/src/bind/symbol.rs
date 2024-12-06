@@ -76,6 +76,7 @@ pub enum SymbolKind {
     Property {
         decl: NodeID,
     },
+    ElementProperty,
     Object(ObjectSymbol),
     FnExpr {
         decl: NodeID,
@@ -183,6 +184,7 @@ impl SymbolKind {
             SymbolKind::Index { .. } => todo!(),
             SymbolKind::TyAlias { .. } => todo!(),
             SymbolKind::TyParam { .. } => todo!(),
+            SymbolKind::ElementProperty => todo!(),
         }
     }
 
@@ -207,7 +209,16 @@ impl SymbolKind {
 
 bolt_ts_span::new_index_with_module!(SymbolID);
 
-pub struct Symbols(FxHashMap<SymbolID, Symbol>);
+impl SymbolID {
+    pub(super) fn mock(index: u32) -> Self {
+        SymbolID {
+            module: ModuleID::MOCK,
+            index,
+        }
+    }
+}
+
+pub struct Symbols(pub(super) FxHashMap<SymbolID, Symbol>);
 
 impl Symbols {
     pub const ERR: SymbolID = SymbolID::root(ModuleID::root());

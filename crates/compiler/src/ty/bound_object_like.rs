@@ -1,6 +1,6 @@
 use rustc_hash::FxHashMap;
 
-use super::object_ty::{InterfaceTy, ObjectLitTy};
+use super::object_ty::{InterfaceTy, ObjectLitTy, TupleTy};
 use crate::bind::{SymbolID, SymbolName};
 
 pub trait ObjectLikeTy<'cx> {
@@ -18,6 +18,15 @@ impl<'cx> ObjectLikeTy<'cx> for InterfaceTy<'cx> {
 }
 
 impl<'cx> ObjectLikeTy<'cx> for ObjectLitTy<'cx> {
+    fn members(&self) -> &'cx FxHashMap<SymbolName, SymbolID> {
+        self.members
+    }
+    fn props(&self) -> &'cx [SymbolID] {
+        self.declared_props
+    }
+}
+
+impl<'cx> ObjectLikeTy<'cx> for TupleTy<'cx> {
     fn members(&self) -> &'cx FxHashMap<SymbolName, SymbolID> {
         self.members
     }

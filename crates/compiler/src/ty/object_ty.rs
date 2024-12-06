@@ -1,4 +1,3 @@
-use bolt_ts_span::ModuleID;
 use rustc_hash::FxHashMap;
 
 use crate::atoms::AtomMap;
@@ -8,6 +7,7 @@ use super::Ty;
 
 #[derive(Debug, Clone, Copy)]
 pub struct ObjectTy<'cx> {
+    // TODO: properties, members...
     pub kind: ObjectTyKind<'cx>,
 }
 
@@ -138,6 +138,8 @@ pub struct TupleTy<'cx> {
     pub element_flags: &'cx [ElementFlags],
     pub combined_flags: ElementFlags,
     pub refer: &'cx TyReference<'cx>,
+    pub members: &'cx FxHashMap<SymbolName, SymbolID>,
+    pub declared_props: &'cx [SymbolID],
 }
 
 #[derive(Debug, Clone, Copy)]

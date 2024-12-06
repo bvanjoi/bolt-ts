@@ -31,7 +31,7 @@ use crate::ast::BinOp;
 use crate::atoms::{AtomId, AtomMap};
 use crate::bind::{self, GlobalSymbols, Symbol, SymbolID, SymbolKind, SymbolName};
 use crate::parser::Parser;
-use crate::ty::{has_type_facts, IntrinsicTyKind, Ty, TyID, TyVarID, TypeFacts};
+use crate::ty::{has_type_facts, Ty, TyID, TyKind, TyVarID, TypeFacts};
 use crate::{ast, errors, keyword, ty};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -53,6 +53,12 @@ impl Into<F64Represent> for f64 {
     }
 }
 
+impl Into<F64Represent> for usize {
+    fn into(self) -> F64Represent {
+        F64Represent::new(self as f64)
+    }
+}
+
 pub struct TyChecker<'cx> {
     pub atoms: &'cx AtomMap<'cx>,
     pub diags: Vec<bolt_ts_errors::Diag>,
@@ -66,17 +72,13 @@ pub struct TyChecker<'cx> {
     type_name: FxHashMap<TyID, String>,
     ty_vars: FxHashMap<TyVarID, &'cx Ty<'cx>>,
     // === ast ===
-    // nodes: &'cx Nodes<'cx>,
-    // node_parent_map: &'cx ParentMap,
     p: &'cx Parser<'cx>,
     // === global ===
     global_tys: FxHashMap<TyID, &'cx Ty<'cx>>,
+    global_array_ty: std::cell::OnceCell<&'cx Ty<'cx>>,
     global_number_ty: std::cell::OnceCell<&'cx Ty<'cx>>,
     boolean_ty: std::cell::OnceCell<&'cx Ty<'cx>>,
     // === resolver ===
-    // scope_id_parent_map: &'cx FxHashMap<ScopeID, Option<ScopeID>>,
-    // node_id_to_scope_id: &'cx FxHashMap<ast::NodeID, ScopeID>,
-    // symbols: &'cx Symbols,
     binder: &'cx mut bind::Binder,
     global_symbols: &'cx GlobalSymbols,
     symbol_links: FxHashMap<SymbolID, SymbolLinks<'cx>>,
@@ -93,26 +95,22 @@ macro_rules! intrinsic_type {
                 self.intrinsic_tys[&$atom_id]
             })*
         }
-        static INTRINSIC_TYPES: &[(IntrinsicTyKind, AtomId)] = &[
+        static INTRINSIC_TYPES: &[(TyKind, AtomId)] = &[
             $(($ty_flags, $atom_id),)*
         ];
     };
 }
 
 intrinsic_type!(
-    (any_ty, keyword::IDENT_ANY, IntrinsicTyKind::Any),
-    (error_ty, keyword::IDENT_ERROR, IntrinsicTyKind::Any),
-    (void_ty, keyword::IDENT_VOID, IntrinsicTyKind::Void),
-    (
-        undefined_ty,
-        keyword::IDENT_UNDEFINED,
-        IntrinsicTyKind::Undefined
-    ),
-    (null_ty, keyword::KW_NULL, IntrinsicTyKind::Null),
-    (true_ty, keyword::KW_TRUE, IntrinsicTyKind::True),
-    (false_ty, keyword::KW_FALSE, IntrinsicTyKind::False),
-    (number_ty, keyword::IDENT_NUMBER, IntrinsicTyKind::Number),
-    (string_ty, keyword::IDENT_STRING, IntrinsicTyKind::String),
+    (any_ty, keyword::IDENT_ANY, TyKind::Any),
+    (error_ty, keyword::IDENT_ERROR, TyKind::Any),
+    (void_ty, keyword::IDENT_VOID, TyKind::Void),
+    (undefined_ty, keyword::IDENT_UNDEFINED, TyKind::Undefined),
+    (null_ty, keyword::KW_NULL, TyKind::Null),
+    (true_ty, keyword::KW_TRUE, TyKind::TrueLit),
+    (false_ty, keyword::KW_FALSE, TyKind::FalseLit),
+    (number_ty, keyword::IDENT_NUMBER, TyKind::Number),
+    (string_ty, keyword::IDENT_STRING, TyKind::String),
 );
 
 fn get_suggestion_boolean_op(op: &str) -> Option<&str> {
@@ -145,6 +143,7 @@ impl<'cx> TyChecker<'cx> {
             diags: Vec::with_capacity(32),
             boolean_ty: Default::default(),
             global_number_ty: Default::default(),
+            global_array_ty: Default::default(),
             type_name: FxHashMap::default(),
             p,
             node_id_to_sig: FxHashMap::default(),
@@ -157,8 +156,7 @@ impl<'cx> TyChecker<'cx> {
             global_symbols,
         };
         for (kind, ty_name) in INTRINSIC_TYPES {
-            let ty = ty::TyKind::Intrinsic(ty_arena.alloc(ty::IntrinsicTy { kind: *kind }));
-            let ty = this.new_ty(ty);
+            let ty = this.new_ty(*kind);
             let prev = this.intrinsic_tys.insert(*ty_name, ty);
             assert!(prev.is_none());
         }
@@ -169,6 +167,9 @@ impl<'cx> TyChecker<'cx> {
         let global_number_ty =
             this.get_global_type(SymbolName::Normal(keyword::IDENT_NUMBER_CLASS));
         this.global_number_ty.set(global_number_ty).unwrap();
+
+        let global_array_ty = this.get_global_type(SymbolName::Normal(keyword::IDENT_ARRAY_CLASS));
+        this.global_array_ty.set(global_array_ty).unwrap();
 
         this
     }
@@ -194,8 +195,14 @@ impl<'cx> TyChecker<'cx> {
         self.boolean_ty.get().unwrap()
     }
 
+    #[inline(always)]
     fn global_number_ty(&self) -> &'cx Ty<'cx> {
         self.global_number_ty.get().unwrap()
+    }
+
+    #[inline(always)]
+    fn global_array_ty(&self) -> &'cx Ty<'cx> {
+        self.global_array_ty.get().unwrap()
     }
 
     fn alloc<T>(&self, t: T) -> &'cx T {

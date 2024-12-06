@@ -51,6 +51,7 @@ macro_rules! ident {
 
 ident!(
     (IDENT_EMPTY, IDENT_EMPTY_STR, ""),
+    (IDENT_LENGTH, IDENT_LENGTH_STR, "length"),
     (IDENT_ERROR, IDENT_ERROR_STR, "error"),
     (IDENT_UNDEFINED, IDENT_UNDEFINED_STR, "undefined"),
     (IDENT_ANY, IDENT_ANY_STR, "any"),

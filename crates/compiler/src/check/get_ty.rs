@@ -1,7 +1,9 @@
 use std::usize;
 
+use rustc_hash::FxHashMap;
 use thin_vec::thin_vec;
 
+use super::symbol_links::SymbolLinks;
 use super::ty::{self, Ty, TyKind};
 use super::{F64Represent, TyChecker};
 use crate::ast;
@@ -47,6 +49,9 @@ impl<'cx> TyChecker<'cx> {
             Index { .. } => return self.undefined_ty(),
             TyAlias { .. } => return self.undefined_ty(),
             TyParam { .. } => return self.undefined_ty(),
+            ElementProperty => {
+                unreachable!("The type of element property had been settled when it create.")
+            }
         };
         ty
     }
@@ -73,11 +78,11 @@ impl<'cx> TyChecker<'cx> {
             ast::Node::ClassPropEle(prop) => prop
                 .ty
                 .map(|ty| self.get_ty_from_type_node(ty))
-                .unwrap_or(self.undefined_ty()),
+                .unwrap_or_else(|| self.undefined_ty()),
             ast::Node::PropSignature(prop) => prop
                 .ty
                 .map(|ty| self.get_ty_from_type_node(ty))
-                .unwrap_or(self.undefined_ty()),
+                .unwrap_or_else(|| self.undefined_ty()),
             _ => unreachable!(),
         };
         ty
@@ -114,6 +119,7 @@ impl<'cx> TyChecker<'cx> {
             Index { .. } => todo!(),
             TyAlias { .. } => todo!(),
             TyParam { .. } => todo!(),
+            ElementProperty => todo!(),
         };
 
         for decl in decls {
@@ -205,31 +211,17 @@ impl<'cx> TyChecker<'cx> {
         self.get_prop_name_from_ty(index_ty)
     }
 
-    // FIXME: use `get_prop_of_ty`
-    fn get_prop_of_ty_temp(
-        &mut self,
-        object_ty: &'cx Ty<'cx>,
-        prop: AtomId,
-    ) -> Option<&'cx Ty<'cx>> {
-        if let Some(object) = object_ty.kind.as_object() {
-            // TODO: use `object.members`
-            if let Some(tuple) = object.kind.as_tuple() {
-                if self.atoms.eq_str(prop, "length") {
-                    return Some(self.get_number_literal_type(tuple.tys.len() as f64));
-                }
-            }
-        }
-        None
-    }
-
-    fn get_prop_ty_from_index_ty(
+    fn get_prop_ty_for_index_ty(
         &mut self,
         object_ty: &'cx Ty<'cx>,
         index_ty: &'cx Ty<'cx>,
     ) -> &'cx Ty<'cx> {
         let prop_name = self.get_prop_name_from_index(index_ty);
-        self.get_prop_of_ty_temp(object_ty, prop_name)
-            .unwrap_or(self.undefined_ty())
+        let Some(symbol) = self.get_prop_of_ty(object_ty, SymbolName::Ele(prop_name)) else {
+            return self.undefined_ty();
+        };
+        let ty = self.get_type_of_symbol(symbol);
+        ty
     }
 
     pub(super) fn get_indexed_access_ty(
@@ -248,7 +240,7 @@ impl<'cx> TyChecker<'cx> {
             });
             self.new_ty(ty::TyKind::IndexedAccess(ty))
         } else {
-            self.get_prop_ty_from_index_ty(object_ty, index_ty)
+            self.get_prop_ty_for_index_ty(object_ty, index_ty)
         }
     }
 
@@ -519,21 +511,60 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
+    fn create_tuple_members(
+        &mut self,
+        elem_tys: &[&'cx Ty],
+    ) -> (&'cx FxHashMap<SymbolName, SymbolID>, &'cx [SymbolID]) {
+        let length_symbol_name = SymbolName::Ele(keyword::IDENT_LENGTH);
+        let length_symbol = self
+            .binder
+            .create_anonymous_symbol(length_symbol_name, SymbolKind::ElementProperty);
+        let ty = self.get_number_literal_type(elem_tys.len() as f64);
+        let prev = self
+            .symbol_links
+            .insert(length_symbol, SymbolLinks::new().with_ty(ty));
+        assert!(prev.is_none());
+
+        let element_symbols = elem_tys.iter().enumerate().map(|(idx, ty)| {
+            let name = SymbolName::EleNum(idx.into());
+            let kind = SymbolKind::ElementProperty;
+            let symbol = self.binder.create_anonymous_symbol(name, kind);
+            let prev = self
+                .symbol_links
+                .insert(symbol, SymbolLinks::new().with_ty(ty));
+            assert!(prev.is_none());
+            (name, symbol)
+        });
+
+        let members = element_symbols
+            .into_iter()
+            .chain(std::iter::once((length_symbol_name, length_symbol)))
+            .collect::<FxHashMap<_, _>>();
+        let members = self.alloc(members);
+        let properties = self.get_props_from_members(members);
+        (members, properties)
+    }
+
     pub(super) fn create_normalized_tuple_ty(
         &mut self,
         elem_tys: &'cx [&'cx Ty<'cx>],
         elem_flags: &'cx [ElementFlags],
         combined_flags: ElementFlags,
     ) -> ty::TupleTy<'cx> {
+        // ====
+
         if !combined_flags.intersects(ElementFlags::NON_REQUIRED) {
             let refer = self.alloc(ty::TyReference {
                 ty_args: self.alloc(elem_tys),
             });
+            let (members, declared_props) = self.create_tuple_members(elem_tys);
             return ty::TupleTy {
                 refer,
                 combined_flags,
                 element_flags: elem_flags,
                 tys: elem_tys,
+                members,
+                declared_props,
             };
         }
         let mut expanded_tys = vec![];
@@ -586,11 +617,14 @@ impl<'cx> TyChecker<'cx> {
         let combined_flags = expanded_flags
             .iter()
             .fold(ElementFlags::empty(), |flags, current| flags | *current);
+        let (members, declared_props) = self.create_tuple_members(expand_tys);
         ty::TupleTy {
             tys: expand_tys,
             element_flags: self.alloc(expanded_flags),
             combined_flags,
             refer,
+            members,
+            declared_props,
         }
     }
 

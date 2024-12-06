@@ -1,6 +1,6 @@
 mod sys;
 
-use std::sync::Arc;
+use std::{sync::Arc, u32};
 
 use rustc_hash::FxHashMap;
 
@@ -13,13 +13,13 @@ macro_rules! new_index {
             pub const fn root() -> $name {
                 $name(0)
             }
-            pub fn next(&self) -> $name {
+            pub const fn next(&self) -> $name {
                 $name(self.0 + 1)
             }
-            pub fn as_u32(&self) -> u32 {
+            pub const fn as_u32(&self) -> u32 {
                 self.0
             }
-            pub fn as_usize(&self) -> usize {
+            pub const fn as_usize(&self) -> usize {
                 self.0 as usize
             }
         }
@@ -27,6 +27,9 @@ macro_rules! new_index {
 }
 
 crate::new_index!(ModuleID);
+impl ModuleID {
+    pub const MOCK: ModuleID = ModuleID(u32::MAX);
+}
 
 #[macro_export]
 macro_rules! new_index_with_module {

@@ -37,10 +37,7 @@ pub fn run_node(p: &std::path::Path) -> Result<Option<String>, String> {
     }
 }
 
-pub fn temp_node_file(root: &std::path::Path, name: &str) -> std::path::PathBuf {
-    let temp_dir = root.join("target/temp");
-    if !temp_dir.exists() {
-        std::fs::create_dir(temp_dir.as_path()).unwrap();
-    }
-    temp_dir.join(&format!("{}.js", name))
+pub fn temp_node_file(name: &str) -> std::path::PathBuf {
+    let temp_dir = tempdir::TempDir::new("bolt-ts-compiler-temp").unwrap();
+    temp_dir.into_path().join(&format!("{}.js", name))
 }
