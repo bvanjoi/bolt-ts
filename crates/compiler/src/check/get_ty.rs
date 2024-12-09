@@ -1,3 +1,4 @@
+use std::ops::Shl;
 use std::usize;
 
 use rustc_hash::FxHashMap;
@@ -10,7 +11,7 @@ use crate::ast;
 use crate::atoms::AtomId;
 use crate::bind::{SymbolID, SymbolKind, SymbolName};
 use crate::keyword;
-use crate::ty::{AccessFlags, ElementFlags, TyMapper};
+use crate::ty::{AccessFlags, ElementFlags, TupleShape, TyMapper};
 
 impl<'cx> TyChecker<'cx> {
     pub(super) fn get_type_of_symbol(&mut self, id: SymbolID) -> &'cx Ty<'cx> {
@@ -171,6 +172,8 @@ impl<'cx> TyChecker<'cx> {
             Rest(rest) => self.get_ty_from_rest_ty_node(rest),
             IndexedAccess(node) => self.get_ty_from_indexed_access_node(node),
             Cond(node) => self.get_ty_from_cond_node(node),
+            Union(_) => self.undefined_ty(),
+            Intersection(_) => self.undefined_ty(),
         }
     }
 
@@ -492,10 +495,12 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
-    fn create_tuple_members(
-        &mut self,
-        elem_tys: &[&'cx Ty],
-    ) -> (&'cx FxHashMap<SymbolName, SymbolID>, &'cx [SymbolID]) {
+    fn create_tuple_shape(&mut self, elem_tys: &[&'cx Ty]) -> &'cx TupleShape<'cx> {
+        let key = elem_tys.len() as u32;
+        if let Some(shape) = self.tuple_shapes.get(&key) {
+            return shape;
+        };
+
         let length_symbol_name = SymbolName::Ele(keyword::IDENT_LENGTH);
         let length_symbol = self
             .binder
@@ -506,13 +511,14 @@ impl<'cx> TyChecker<'cx> {
             .insert(length_symbol, SymbolLinks::new().with_ty(ty));
         assert!(prev.is_none());
 
-        let element_symbols = elem_tys.iter().enumerate().map(|(idx, ty)| {
+        let element_symbols = elem_tys.iter().enumerate().map(|(idx, _)| {
             let name = SymbolName::EleNum(idx.into());
             let kind = SymbolKind::ElementProperty;
             let symbol = self.binder.create_anonymous_symbol(name, kind);
+            let index_ty = self.get_number_literal_type(idx as f64);
             let prev = self
                 .symbol_links
-                .insert(symbol, SymbolLinks::new().with_ty(ty));
+                .insert(symbol, SymbolLinks::new().with_ty(index_ty));
             assert!(prev.is_none());
             (name, symbol)
         });
@@ -522,8 +528,14 @@ impl<'cx> TyChecker<'cx> {
             .chain(std::iter::once((length_symbol_name, length_symbol)))
             .collect::<FxHashMap<_, _>>();
         let members = self.alloc(members);
-        let properties = self.get_props_from_members(members);
-        (members, properties)
+        let declared_props = self.get_props_from_members(members);
+        let shape = self.alloc(ty::TupleShape {
+            members,
+            declared_props,
+        });
+        let prev = self.tuple_shapes.insert(key, shape);
+        assert!(prev.is_none());
+        shape
     }
 
     pub(super) fn create_normalized_tuple_ty(
@@ -538,14 +550,13 @@ impl<'cx> TyChecker<'cx> {
             let refer = self.alloc(ty::TyReference {
                 ty_args: self.alloc(elem_tys),
             });
-            let (members, declared_props) = self.create_tuple_members(elem_tys);
+            let shape = self.create_tuple_shape(elem_tys);
             return ty::TupleTy {
                 refer,
                 combined_flags,
                 element_flags: elem_flags,
                 tys: elem_tys,
-                members,
-                declared_props,
+                shape,
             };
         }
         let mut expanded_tys = vec![];
@@ -598,14 +609,13 @@ impl<'cx> TyChecker<'cx> {
         let combined_flags = expanded_flags
             .iter()
             .fold(ElementFlags::empty(), |flags, current| flags | *current);
-        let (members, declared_props) = self.create_tuple_members(expand_tys);
+        let shape = self.create_tuple_shape(expand_tys);
         ty::TupleTy {
             tys: expand_tys,
             element_flags: self.alloc(expanded_flags),
             combined_flags,
             refer,
-            members,
-            declared_props,
+            shape,
         }
     }
 

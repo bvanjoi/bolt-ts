@@ -31,7 +31,7 @@ use crate::ast::BinOp;
 use crate::atoms::{AtomId, AtomMap};
 use crate::bind::{self, GlobalSymbols, Symbol, SymbolID, SymbolKind, SymbolName};
 use crate::parser::Parser;
-use crate::ty::{has_type_facts, Ty, TyID, TyKind, TyVarID, TypeFacts};
+use crate::ty::{has_type_facts, TupleShape, Ty, TyID, TyKind, TyVarID, TypeFacts};
 use crate::{ast, errors, keyword, ty};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -60,7 +60,7 @@ impl Into<F64Represent> for usize {
 }
 
 pub struct TyChecker<'cx> {
-    pub atoms: &'cx AtomMap<'cx>,
+    pub atoms: &'cx AtomMap,
     pub diags: Vec<bolt_ts_errors::Diag>,
     arena: &'cx bumpalo::Bump,
     next_ty_id: TyID,
@@ -78,6 +78,7 @@ pub struct TyChecker<'cx> {
     global_array_ty: std::cell::OnceCell<&'cx Ty<'cx>>,
     global_number_ty: std::cell::OnceCell<&'cx Ty<'cx>>,
     boolean_ty: std::cell::OnceCell<&'cx Ty<'cx>>,
+    tuple_shapes: FxHashMap<u32, &'cx TupleShape<'cx>>,
     // === resolver ===
     binder: &'cx mut bind::Binder<'cx>,
     global_symbols: &'cx GlobalSymbols,
@@ -126,7 +127,7 @@ impl<'cx> TyChecker<'cx> {
     pub fn new(
         ty_arena: &'cx bumpalo::Bump,
         p: &'cx Parser<'cx>,
-        atoms: &'cx AtomMap<'cx>,
+        atoms: &'cx AtomMap,
         binder: &'cx mut bind::Binder<'cx>,
         global_symbols: &'cx GlobalSymbols,
     ) -> Self {
@@ -144,6 +145,7 @@ impl<'cx> TyChecker<'cx> {
             boolean_ty: Default::default(),
             global_number_ty: Default::default(),
             global_array_ty: Default::default(),
+            tuple_shapes: Default::default(),
             type_name: FxHashMap::default(),
             p,
             node_id_to_sig: FxHashMap::default(),
@@ -230,6 +232,7 @@ impl<'cx> TyChecker<'cx> {
             Class(class) => self.check_class_decl(class),
             Interface(interface) => self.check_interface_decl(interface),
             Type(_) => {}
+            Namespace(_) => {}
         };
     }
 

@@ -1,7 +1,7 @@
 use super::token::TokenKind;
 use super::{PResult, ParserState};
 
-impl<'cx, 'p> ParserState<'cx, 'p> {
+impl<'p> ParserState<'p> {
     pub(super) fn is_tuple_ele_name(&mut self) -> bool {
         if self.token.kind == TokenKind::DotDotDot {
             self.next_token();
@@ -38,5 +38,39 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         self.next_token();
         // TODO: big int lit
         matches!(self.token.kind, TokenKind::Number)
+    }
+
+    fn next_token_is_identifier_on_same_line(&mut self) -> bool {
+        self.next_token();
+        !self.has_preceding_line_break() && self.is_ident()
+    }
+
+    fn next_token_is_identifier_or_string_literal_on_same_line(&mut self) -> bool {
+        self.next_token();
+        !self.has_preceding_line_break()
+            && (self.is_ident() || self.token.kind == TokenKind::String)
+    }
+
+    fn is_decl(&mut self) -> bool {
+        use TokenKind::*;
+        loop {
+            match self.token.kind {
+                Var | Let | Const | Function | Class => return true,
+                Abstract | Declare | Public | Private => {
+                    // let prev = self.token.kind;
+                    self.next_token();
+                    continue;
+                }
+                Interface | Type => return self.next_token_is_identifier_on_same_line(),
+                Module | Namespace => {
+                    return self.next_token_is_identifier_or_string_literal_on_same_line()
+                }
+                _ => unreachable!("{:#?}", self.token.kind),
+            }
+        }
+    }
+
+    pub(super) fn is_start_of_decl(&mut self) -> bool {
+        self.lookahead(Self::is_decl)
     }
 }

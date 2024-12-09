@@ -54,7 +54,7 @@ impl<'cx> Emit<'cx> {
                 self.content.p_l_bracket();
                 self.emit_expr(prop.arg);
                 self.content.p_r_bracket();
-            },
+            }
             This(_) => {
                 self.content.p("this");
             }

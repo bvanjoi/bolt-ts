@@ -47,6 +47,8 @@ pub enum TokenKind {
     Super,
     Get,
     Set,
+    Import,
+    Export,
     In,
     // ts keyword
     Implements,
@@ -56,6 +58,8 @@ pub enum TokenKind {
     Private,
     As,
     Declare,
+    Module,
+    Namespace,
     Type,
     // =====
     /// `!`

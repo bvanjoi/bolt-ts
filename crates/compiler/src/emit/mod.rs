@@ -80,7 +80,7 @@ struct EmitterState {
 }
 
 pub struct Emit<'cx> {
-    pub atoms: &'cx AtomMap<'cx>,
+    pub atoms: &'cx AtomMap,
     content: PPrint,
     options: EmitterOptions,
     state: EmitterState,

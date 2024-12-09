@@ -87,12 +87,9 @@ fn get_sig_from_decl<'cx>(checker: &mut TyChecker<'cx>, node: ast::Node<'cx>) ->
     let mut min_args_count = 0;
     let mut params = Vec::with_capacity(8);
     for (i, param) in decl.params().iter().enumerate() {
-        let scope_id = checker.binder.scope(param.id);
-        let symbol = checker
-            .binder
-            .res(scope_id, SymbolName::Normal(param.name.name));
+        let symbol = checker.binder.final_res(param.id);
         params.push(symbol);
-        let is_opt = param.question.is_some() || param.dotdotdot.is_some();
+        let is_opt = param.question.is_some() || param.dotdotdot.is_some() || param.init.is_some();
         if !is_opt {
             min_args_count = params.len();
         } else {

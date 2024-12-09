@@ -138,6 +138,11 @@ pub struct TupleTy<'cx> {
     pub element_flags: &'cx [ElementFlags],
     pub combined_flags: ElementFlags,
     pub refer: &'cx TyReference<'cx>,
+    pub shape: &'cx TupleShape<'cx>,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct TupleShape<'cx> {
     pub members: &'cx FxHashMap<SymbolName, SymbolID>,
     pub declared_props: &'cx [SymbolID],
 }
@@ -169,7 +174,7 @@ pub struct InterfaceTy<'cx> {
 }
 
 impl<'cx> ObjectTyKind<'cx> {
-    pub(super) fn to_string(&self, binder: &Binder, atoms: &AtomMap<'cx>) -> String {
+    pub(super) fn to_string(&self, binder: &Binder, atoms: &AtomMap) -> String {
         match self {
             ObjectTyKind::Class(_) => "class".to_string(),
             ObjectTyKind::Fn(_) => "function".to_string(),

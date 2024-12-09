@@ -4,40 +4,40 @@ use super::ast;
 use super::token::TokenKind;
 use super::{PResult, ParserState};
 
-pub(super) trait FnLike<'cx, 'p> {
+pub(super) trait FnLike<'p> {
     type Node;
-    fn parse_name(&self, state: &mut ParserState<'cx, 'p>) -> PResult<Option<&'cx ast::Ident>>;
+    fn parse_name(&self, state: &mut ParserState<'p>) -> PResult<Option<&'p ast::Ident>>;
     fn finish(
         self,
-        state: &mut ParserState<'cx, 'p>,
+        state: &mut ParserState<'p>,
         id: ast::NodeID,
         span: Span,
-        modifiers: Option<&'cx ast::Modifiers<'cx>>,
-        name: Option<&'cx ast::Ident>,
-        ty_params: Option<ast::TyParams<'cx>>,
-        params: ast::ParamsDecl<'cx>,
-        ret_ty: Option<&'cx ast::Ty<'cx>>,
-        body: Option<&'cx ast::BlockStmt<'cx>>,
+        modifiers: Option<&'p ast::Modifiers<'p>>,
+        name: Option<&'p ast::Ident>,
+        ty_params: Option<ast::TyParams<'p>>,
+        params: ast::ParamsDecl<'p>,
+        ret_ty: Option<&'p ast::Ty<'p>>,
+        body: Option<&'p ast::BlockStmt<'p>>,
     ) -> Self::Node;
 }
 
 pub(super) struct ParseFnDecl;
-impl<'cx, 'p> FnLike<'cx, 'p> for ParseFnDecl {
-    type Node = &'cx ast::FnDecl<'cx>;
-    fn parse_name(&self, state: &mut ParserState<'cx, 'p>) -> PResult<Option<&'cx ast::Ident>> {
+impl<'p> FnLike<'p> for ParseFnDecl {
+    type Node = &'p ast::FnDecl<'p>;
+    fn parse_name(&self, state: &mut ParserState<'p>) -> PResult<Option<&'p ast::Ident>> {
         Ok(Some(state.parse_binding_ident()))
     }
     fn finish(
         self,
-        state: &mut ParserState<'cx, 'p>,
+        state: &mut ParserState<'p>,
         id: ast::NodeID,
         span: Span,
-        modifiers: Option<&'cx ast::Modifiers<'cx>>,
-        name: Option<&'cx ast::Ident>,
-        ty_params: Option<ast::TyParams<'cx>>,
-        params: ast::ParamsDecl<'cx>,
-        ret_ty: Option<&'cx ast::Ty<'cx>>,
-        body: Option<&'cx ast::BlockStmt<'cx>>,
+        modifiers: Option<&'p ast::Modifiers<'p>>,
+        name: Option<&'p ast::Ident>,
+        ty_params: Option<ast::TyParams<'p>>,
+        params: ast::ParamsDecl<'p>,
+        ret_ty: Option<&'p ast::Ty<'p>>,
+        body: Option<&'p ast::BlockStmt<'p>>,
     ) -> Self::Node {
         let name = name.unwrap();
         let decl = state.alloc(ast::FnDecl {
@@ -56,9 +56,9 @@ impl<'cx, 'p> FnLike<'cx, 'p> for ParseFnDecl {
 }
 
 pub(super) struct ParseFnExpr;
-impl<'cx, 'p> FnLike<'cx, 'p> for ParseFnExpr {
-    type Node = &'cx ast::FnExpr<'cx>;
-    fn parse_name(&self, state: &mut ParserState<'cx, 'p>) -> PResult<Option<&'cx ast::Ident>> {
+impl<'p> FnLike<'p> for ParseFnExpr {
+    type Node = &'p ast::FnExpr<'p>;
+    fn parse_name(&self, state: &mut ParserState<'p>) -> PResult<Option<&'p ast::Ident>> {
         Ok(
             (state.token.kind.is_binding_ident() && !state.is_implements_clause())
                 .then(|| state.parse_binding_ident()),
@@ -66,15 +66,15 @@ impl<'cx, 'p> FnLike<'cx, 'p> for ParseFnExpr {
     }
     fn finish(
         self,
-        state: &mut ParserState<'cx, 'p>,
+        state: &mut ParserState<'p>,
         id: ast::NodeID,
         span: Span,
-        modifiers: Option<&'cx ast::Modifiers<'cx>>,
-        name: Option<&'cx ast::Ident>,
-        ty_params: Option<ast::TyParams<'cx>>,
-        params: ast::ParamsDecl<'cx>,
-        ret_ty: Option<&'cx ast::Ty<'cx>>,
-        body: Option<&'cx ast::BlockStmt<'cx>>,
+        modifiers: Option<&'p ast::Modifiers<'p>>,
+        name: Option<&'p ast::Ident>,
+        ty_params: Option<ast::TyParams<'p>>,
+        params: ast::ParamsDecl<'p>,
+        ret_ty: Option<&'p ast::Ty<'p>>,
+        body: Option<&'p ast::BlockStmt<'p>>,
     ) -> Self::Node {
         assert!(modifiers.is_none());
         let expr = state.alloc(ast::FnExpr {
@@ -91,11 +91,11 @@ impl<'cx, 'p> FnLike<'cx, 'p> for ParseFnExpr {
     }
 }
 
-impl<'cx, 'p> ParserState<'cx, 'p> {
+impl<'p> ParserState<'p> {
     pub(super) fn parse_fn_decl_or_expr<Node>(
         &mut self,
-        mode: impl FnLike<'cx, 'p, Node = Node>,
-        modifiers: Option<&'cx ast::Modifiers<'cx>>,
+        mode: impl FnLike<'p, Node = Node>,
+        modifiers: Option<&'p ast::Modifiers<'p>>,
     ) -> PResult<Node> {
         use TokenKind::*;
         let id = self.next_node_id();
@@ -112,7 +112,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         ))
     }
 
-    fn parse_fn_decl_ret_type(&mut self) -> PResult<Option<&'cx ast::Ty<'cx>>> {
+    fn parse_fn_decl_ret_type(&mut self) -> PResult<Option<&'p ast::Ty<'p>>> {
         if self.parse_optional(TokenKind::Colon).is_some() {
             self.parse_ty_or_ty_pred().map(|ty| Some(ty))
         } else {

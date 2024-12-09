@@ -17,10 +17,10 @@ impl AtomId {
 }
 
 #[derive(Debug, Default)]
-pub struct AtomMap<'cx>(FxHashMap<AtomId, Cow<'cx, str>>);
+pub struct AtomMap(FxHashMap<AtomId, String>);
 
-impl<'cx> AtomMap<'cx> {
-    pub fn insert_by_str(&mut self, value: Cow<'cx, str>) -> AtomId {
+impl AtomMap {
+    pub fn insert_by_str(&mut self, value: String) -> AtomId {
         let id = AtomId::from_bytes(value.as_bytes());
         if self.0.get(&id).is_none() {
             self.insert(id, value)
@@ -29,21 +29,21 @@ impl<'cx> AtomMap<'cx> {
     }
 
     pub fn insert_by_vec(&mut self, value: Vec<u8>) -> AtomId {
-        self.insert_by_str(unsafe { Cow::Owned(String::from_utf8_unchecked(value)) })
+        self.insert_by_str(unsafe { String::from_utf8_unchecked(value) })
     }
 
-    pub fn insert_if_not_exist(&mut self, atom: AtomId, lazy: impl FnOnce() -> Cow<'cx, str>) {
+    pub fn insert_if_not_exist(&mut self, atom: AtomId, lazy: impl FnOnce() -> String) {
         if self.0.get(&atom).is_none() {
             self.insert(atom, lazy());
         }
     }
 
-    pub fn insert(&mut self, atom: AtomId, value: Cow<'cx, str>) {
+    pub fn insert(&mut self, atom: AtomId, value: String) {
         let prev = self.0.insert(atom, value);
         assert!(prev.is_none());
     }
 
-    pub fn get(&'cx self, atom: AtomId) -> &'cx str {
+    pub fn get(&self, atom: AtomId) -> &str {
         self.0.get(&atom).unwrap()
     }
 

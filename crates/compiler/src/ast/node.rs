@@ -16,6 +16,7 @@ pub enum Node<'cx> {
     RetStmt(&'cx ast::RetStmt<'cx>),
     EmptyStmt(&'cx ast::EmptyStmt),
     ClassDecl(&'cx ast::ClassDecl<'cx>),
+    NamespaceDecl(&'cx ast::NsDecl<'cx>),
     ClassCtor(&'cx ast::ClassCtor<'cx>),
     ClassPropEle(&'cx ast::ClassPropEle<'cx>),
     ClassMethodEle(&'cx ast::ClassMethodEle<'cx>),
@@ -68,6 +69,8 @@ pub enum Node<'cx> {
     TupleTy(&'cx ast::TupleTy<'cx>),
     CondTy(&'cx ast::CondTy<'cx>),
     ReferTy(&'cx ast::ReferTy<'cx>),
+    IntersectionTy(&'cx ast::IntersectionTy<'cx>),
+    UnionTy(&'cx ast::UnionTy<'cx>),
 }
 
 impl Node<'_> {
@@ -215,6 +218,13 @@ as_node!(
         as_class_decl,
         expect_class_decl,
         is_class_decl
+    ),
+    (
+        NamespaceDecl,
+        &'cx ast::NsDecl<'cx>,
+        as_namespace_decl,
+        expect_namespace_decl,
+        is_namespace_decl
     ),
     (
         BlockStmt,
@@ -539,5 +549,19 @@ as_node!(
         as_refer_ty,
         expect_refer_ty,
         is_refer_ty
+    ),
+    (
+        IntersectionTy,
+        &'cx ast::IntersectionTy<'cx>,
+        as_intersection_ty,
+        expect_intersection_ty,
+        is_intersection_ty
+    ),
+    (
+        UnionTy,
+        &'cx ast::UnionTy<'cx>,
+        as_union_ty,
+        expect_union_ty,
+        is_union_ty
     ),
 );

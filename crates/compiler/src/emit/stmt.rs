@@ -14,7 +14,8 @@ impl<'cx> Emit<'cx> {
             Empty(_) => {}
             Class(class) => self.emit_class_decl(class),
             Interface(_) => {}
-            Type(_) => {},
+            Type(_) => {}
+            Namespace(_) => {}
         }
     }
 

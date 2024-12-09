@@ -22,34 +22,7 @@ pub(super) fn is_left_hand_side_expr_kind(expr: &ast::Expr) -> bool {
     )
 }
 
-impl<'cx, 'p> ParserState<'cx, 'p> {
-    fn next_token_is_identifier_on_same_line(&mut self) -> bool {
-        self.next_token();
-        !self.has_preceding_line_break() && self.is_ident()
-    }
-
-    pub(super) fn is_decl(&mut self) -> bool {
-        use TokenKind::*;
-        loop {
-            match self.token.kind {
-                Var | Let | Const | Function | Class => return true,
-                Abstract | Declare | Public | Private => {
-                    // let prev = self.token.kind;
-                    self.next_token();
-                    continue;
-                }
-                Interface | Type => {
-                    return self.lookahead(Self::next_token_is_identifier_on_same_line)
-                }
-                _ => unreachable!("{:#?}", self.token.kind),
-            }
-        }
-    }
-
-    pub(super) fn is_start_of_decl(&mut self) -> bool {
-        self.lookahead(Self::is_decl)
-    }
-
+impl<'p> ParserState<'p> {
     fn _is_paren_arrow_fn_expr(&mut self) -> bool {
         use TokenKind::*;
         let first = self.token.kind;
@@ -98,7 +71,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         false
     }
 
-    pub(super) fn parse_fn_block(&mut self) -> PResult<Option<&'cx ast::BlockStmt<'cx>>> {
+    pub(super) fn parse_fn_block(&mut self) -> PResult<Option<&'p ast::BlockStmt<'p>>> {
         if self.token.kind != TokenKind::LBrace {
             if self.can_parse_semi() {
                 self.parse_semi();
@@ -108,7 +81,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         self.parse_block().map(|block| Some(block))
     }
 
-    pub(super) fn parse_block(&mut self) -> PResult<&'cx ast::BlockStmt<'cx>> {
+    pub(super) fn parse_block(&mut self) -> PResult<&'p ast::BlockStmt<'p>> {
         let id = self.next_node_id();
         let start = self.token.start();
         use TokenKind::*;
@@ -126,7 +99,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         Ok(stmt)
     }
 
-    pub(super) fn parse_ty_params(&mut self) -> PResult<Option<ast::TyParams<'cx>>> {
+    pub(super) fn parse_ty_params(&mut self) -> PResult<Option<ast::TyParams<'p>>> {
         if self.token.kind == TokenKind::Less {
             let less_token_span = self.token.span;
             let ty_params = self.parse_bracketed_list(
@@ -173,7 +146,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         ) || self.is_start_of_expr()
     }
 
-    fn parse_ty_param(&mut self) -> PResult<&'cx ast::TyParam<'cx>> {
+    fn parse_ty_param(&mut self) -> PResult<&'p ast::TyParam<'p>> {
         let id = self.next_node_id();
         let start = self.token.start();
         let name = self.with_parent(id, Self::parse_binding_ident);
@@ -202,7 +175,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         Ok(ty_param)
     }
 
-    pub(super) fn parse_ident(&mut self) -> &'cx ast::Expr<'cx> {
+    pub(super) fn parse_ident(&mut self) -> &'p ast::Expr<'p> {
         let kind = self.create_ident(true);
         let expr = self.alloc(ast::Expr {
             kind: ast::ExprKind::Ident(kind),
@@ -210,7 +183,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         expr
     }
 
-    pub(super) fn parse_prop_name(&mut self) -> PResult<&'cx ast::PropName<'cx>> {
+    pub(super) fn parse_prop_name(&mut self) -> PResult<&'p ast::PropName<'p>> {
         let prop_name = if self.token.kind == TokenKind::Number {
             let lit = self.parse_num_lit(self.number_token(), false);
             self.alloc(ast::PropName {
@@ -239,7 +212,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         Ok(self.token.kind.is_ident_or_keyword())
     }
 
-    pub(super) fn parse_modifiers(&mut self) -> PResult<Option<&'cx ast::Modifiers<'cx>>> {
+    pub(super) fn parse_modifiers(&mut self) -> PResult<Option<&'p ast::Modifiers<'p>>> {
         let start = self.token.start();
         let mut list = Vec::with_capacity(4);
         loop {
@@ -283,7 +256,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         }
     }
 
-    fn parse_modifier(&mut self) -> PResult<Option<&'cx ast::Modifier>> {
+    fn parse_modifier(&mut self) -> PResult<Option<&'p ast::Modifier>> {
         let span = self.token.span;
         let t = self.token.kind;
         if !(self.token.kind.is_modifier_kind()
@@ -302,7 +275,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         self.speculation_helper(f, true)
     }
 
-    pub(super) fn parse_ident_name(&mut self) -> PResult<&'cx ast::Ident> {
+    pub(super) fn parse_ident_name(&mut self) -> PResult<&'p ast::Ident> {
         Ok(self.create_ident(true))
     }
 
@@ -353,7 +326,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
                 .unwrap_or_default()
     }
 
-    pub(super) fn parse_params(&mut self) -> PResult<ast::ParamsDecl<'cx>> {
+    pub(super) fn parse_params(&mut self) -> PResult<ast::ParamsDecl<'p>> {
         use TokenKind::*;
         self.expect(LParen)?;
         let params = self.parse_delimited_list(list_ctx::Params, Self::parse_param);
@@ -361,7 +334,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         Ok(params)
     }
 
-    pub(super) fn parse_param(&mut self) -> PResult<&'cx ast::ParamDecl<'cx>> {
+    pub(super) fn parse_param(&mut self) -> PResult<&'p ast::ParamDecl<'p>> {
         let start = self.token.start();
         let id = self.next_node_id();
         let dotdotdot = self.parse_optional(TokenKind::DotDotDot).map(|t| t.span);
@@ -440,7 +413,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         return self.token.kind == t && self.try_parse(Self::next_token_can_follow_modifier);
     }
 
-    pub(super) fn parse_num_lit(&mut self, val: f64, neg: bool) -> &'cx ast::NumLit {
+    pub(super) fn parse_num_lit(&mut self, val: f64, neg: bool) -> &'p ast::NumLit {
         let val = if neg { -val } else { val };
         let lit = self.create_lit(val, self.token.span);
         self.insert_map(lit.id, ast::Node::NumLit(lit));
@@ -448,7 +421,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         lit
     }
 
-    pub(super) fn parse_string_lit(&mut self, val: AtomId) -> &'cx ast::StringLit {
+    pub(super) fn parse_string_lit(&mut self, val: AtomId) -> &'p ast::StringLit {
         let lit = self.create_lit(val, self.token.span);
         self.insert_map(lit.id, ast::Node::StringLit(lit));
         self.next_token();
@@ -463,8 +436,8 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         &mut self,
         id: ast::NodeID,
         start: usize,
-        modifiers: Option<&'cx ast::Modifiers<'cx>>,
-    ) -> PResult<&'cx ast::IndexSigDecl<'cx>> {
+        modifiers: Option<&'p ast::Modifiers<'p>>,
+    ) -> PResult<&'p ast::IndexSigDecl<'p>> {
         let params = self.parse_bracketed_list(
             list_ctx::Params,
             TokenKind::LBracket,

@@ -30,7 +30,11 @@ fn is_line_break(ch: u8) -> bool {
     ch == b'\n' || ch == b'\r'
 }
 
-impl<'cx, 'p> ParserState<'cx, 'p> {
+fn is_octal_digit(ch: u8) -> bool {
+    ch >= b'0' && ch <= b'7'
+}
+
+impl<'p> ParserState<'p> {
     fn ch(&self) -> Option<u8> {
         self.input.get(self.pos).copied()
     }
@@ -89,12 +93,52 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         self.input[start..self.pos].to_vec()
     }
 
+    fn scan_digits(&mut self) -> (Vec<u8>, bool) {
+        let start = self.pos;
+        let mut is_octal = true;
+        loop {
+            let Some(ch) = self.ch() else {
+                break;
+            };
+            if !ch.is_ascii_digit() {
+                break;
+            }
+            if !is_octal_digit(ch) {
+                is_octal = false;
+            }
+            self.pos += 1;
+        }
+        let fragment = self.input[start..self.pos].to_vec();
+        (fragment, is_octal)
+    }
+
     fn scan_number(&mut self) -> Token {
         let start = self.pos;
-        // if self.input[self.pos] == b'0' {
-        //     todo!()
-        // }
-        let fragment = self.scan_number_fragment();
+        let fragment = if self.input[self.pos] == b'0' {
+            self.pos += 1;
+            if self.ch() == Some(b'_') {
+                todo!()
+            } else {
+                let (fragment, is_oct) = self.scan_digits();
+                if !is_oct {
+                    todo!()
+                } else if fragment.is_empty() {
+                    vec![b'0']
+                } else {
+                    let help_lit = format!("0o{}", unsafe {
+                        String::from_utf8_unchecked(fragment.clone())
+                    });
+                    let error = super::errors::OctalLiteralsAreNotAllowed {
+                        span: self.new_span(start, self.pos),
+                        help_lit,
+                    };
+                    self.push_error(Box::new(error));
+                    fragment
+                }
+            }
+        } else {
+            self.scan_number_fragment()
+        };
         if self.ch() == Some(b'.') {
             todo!()
         }
@@ -140,9 +184,10 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
                     return Token::new(kind, span);
                 }
             }
-            self.atoms.insert_if_not_exist(id, || unsafe {
-                Cow::Owned(String::from_utf8_unchecked(raw.to_vec()))
-            });
+            self.atoms
+                .lock()
+                .unwrap()
+                .insert_if_not_exist(id, || unsafe { String::from_utf8_unchecked(raw.to_vec()) });
             self.token_value = Some(TokenValue::Ident { value: id });
             Token::new(TokenKind::Ident, self.new_span(start, self.pos))
         } else {
@@ -371,7 +416,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
                 b'\'' | b'"' => {
                     let (offset, v) = self.scan_string(ch);
                     self.pos += offset;
-                    let atom = self.atoms.insert_by_vec(v);
+                    let atom = self.atoms.lock().unwrap().insert_by_vec(v);
                     self.token_value = Some(TokenValue::Ident { value: atom });
                     Token::new(TokenKind::String, self.new_span(start, self.pos))
                 }
@@ -401,7 +446,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
                 break;
             } else if self.ch_unchecked() == b'`' {
                 self.pos += 1;
-                let atom = self.atoms.insert_by_vec(v);
+                let atom = self.atoms.lock().unwrap().insert_by_vec(v);
                 self.token_value = Some(TokenValue::Ident { value: atom });
                 break;
             } else if self.ch_unchecked() == b'$' && self.next_ch() == Some(b'{') {

@@ -9,6 +9,17 @@ fn ensure_node_exist_in_current_env() {
     assert_eq!(1 + 1, 2);
 }
 
+#[test]
+fn ensure_all_cases_are_dir() {
+    let case_dir = project_root::get_project_root()
+        .unwrap()
+        .join("tests/cases/compiler");
+    for case in std::fs::read_dir(case_dir).unwrap() {
+        let case = case.unwrap();
+        assert!(case.path().is_dir(), "{:?} is not a directory", case.path());
+    }
+}
+
 #[dir_test::dir_test(
     dir: "$CARGO_MANIFEST_DIR/../../tests/cases/compiler",
     glob: "**/index.ts",

@@ -11,7 +11,9 @@ pub mod token;
 mod ty;
 mod utils;
 
-use bolt_ts_span::{ModuleArena, ModuleID, Span};
+use std::sync::{Arc, Mutex};
+
+use bolt_ts_span::{ModuleID, Span};
 use rustc_hash::FxHashMap;
 use token::{Token, TokenFlags, TokenKind};
 
@@ -58,10 +60,10 @@ impl ParentMap {
     }
 }
 
-pub struct ParseResult<'cx> {
-    pub root: &'cx ast::Program<'cx>,
+pub struct ParseResult<'p> {
+    pub root: &'p ast::Program<'p>,
     pub diags: Vec<bolt_ts_errors::Diag>,
-    nodes: Nodes<'cx>,
+    nodes: Nodes<'p>,
     parent_map: ParentMap,
 }
 
@@ -88,7 +90,7 @@ impl<'cx> Parser<'cx> {
     }
 
     #[inline(always)]
-    pub fn root(&self, id: ModuleID) -> &'cx ast::Program<'cx> {
+    pub fn root(&self, id: ModuleID) -> &ast::Program<'cx> {
         self.get(id).root
     }
 
@@ -131,16 +133,15 @@ impl TokenValue {
     }
 }
 
-pub fn parse<'cx>(
-    atoms: &mut AtomMap<'cx>,
-    arena: &'cx bumpalo::Bump,
-    module_arena: &ModuleArena,
-    module: ModuleID,
-) -> ParseResult<'cx> {
-    let input = module_arena.content_map.get(&module).unwrap();
+pub fn parse<'p>(
+    atoms: Arc<Mutex<AtomMap>>,
+    arena: &'p bumpalo::Bump,
+    input: &'p [u8],
+    module_id: ModuleID,
+) -> ParseResult<'p> {
     let nodes = Nodes::default();
     let parent_map = ParentMap::default();
-    let mut s = ParserState::new(atoms, &arena, nodes, parent_map, input.as_bytes(), module);
+    let mut s = ParserState::new(atoms, &arena, nodes, parent_map, input, module_id);
     let root = s.parse();
     ParseResult {
         root,
@@ -150,8 +151,8 @@ pub fn parse<'cx>(
     }
 }
 
-pub struct ParserState<'cx, 'p> {
-    atoms: &'p mut AtomMap<'cx>,
+pub struct ParserState<'p> {
+    atoms: Arc<Mutex<AtomMap>>,
     input: &'p [u8],
     token: Token,
     token_value: Option<TokenValue>,
@@ -161,17 +162,17 @@ pub struct ParserState<'cx, 'p> {
     module_id: ModuleID,
     ident_count: usize,
     diags: Vec<bolt_ts_errors::Diag>,
-    nodes: Nodes<'cx>,
+    nodes: Nodes<'p>,
     parent_map: ParentMap,
-    arena: &'cx bumpalo::Bump,
+    arena: &'p bumpalo::Bump,
     next_node_id: NodeID,
 }
 
-impl<'cx, 'p> ParserState<'cx, 'p> {
+impl<'p> ParserState<'p> {
     fn new(
-        atoms: &'p mut AtomMap<'cx>,
-        arena: &'cx bumpalo::Bump,
-        nodes: Nodes<'cx>,
+        atoms: Arc<Mutex<AtomMap>>,
+        arena: &'p bumpalo::Bump,
+        nodes: Nodes<'p>,
         parent_map: ParentMap,
         input: &'p [u8],
         module_id: ModuleID,
@@ -198,7 +199,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         }
     }
 
-    fn alloc<T>(&self, t: T) -> &'cx T {
+    fn alloc<T>(&self, t: T) -> &'p T {
         self.arena.alloc(t)
     }
 
@@ -229,7 +230,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         open: TokenKind,
         ele: impl Fn(&mut Self) -> PResult<T>,
         close: TokenKind,
-    ) -> PResult<&'cx [T]> {
+    ) -> PResult<&'p [T]> {
         if self.expect(open).is_ok() {
             let elems = self.parse_delimited_list(ctx, ele);
             self.expect(close)?;
@@ -243,7 +244,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         &mut self,
         ctx: impl list_ctx::ListContext,
         ele: impl Fn(&mut Self) -> PResult<T>,
-    ) -> &'cx [T] {
+    ) -> &'p [T] {
         let mut list = vec![];
         while !ctx.is_closing(self) {
             if ctx.is_ele(self) {
@@ -259,7 +260,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         &mut self,
         ctx: impl list_ctx::ListContext,
         ele: impl Fn(&mut Self) -> PResult<T>,
-    ) -> &'cx [T] {
+    ) -> &'p [T] {
         let mut list = vec![];
         loop {
             if ctx.is_ele(self) {
@@ -356,7 +357,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         self.token_value.unwrap().number()
     }
 
-    fn create_ident(&mut self, is_ident: bool) -> &'cx ast::Ident {
+    fn create_ident(&mut self, is_ident: bool) -> &'p ast::Ident {
         if is_ident {
             self.ident_count += 1;
             let id = self.next_node_id();
@@ -377,11 +378,11 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         }
     }
 
-    fn parse_binding_ident(&mut self) -> &'cx ast::Ident {
+    fn parse_binding_ident(&mut self) -> &'p ast::Ident {
         self.create_ident(true)
     }
 
-    fn parse_optional_binding_ident(&mut self) -> PResult<Option<&'cx ast::Ident>> {
+    fn parse_optional_binding_ident(&mut self) -> PResult<Option<&'p ast::Ident>> {
         if self.token.kind.is_binding_ident() {
             Ok(Some(self.parse_binding_ident()))
         } else {
@@ -398,7 +399,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         }
     }
 
-    fn create_lit<T>(&mut self, val: T, span: Span) -> &'cx ast::Lit<T> {
+    fn create_lit<T>(&mut self, val: T, span: Span) -> &'p ast::Lit<T> {
         let id = self.next_node_id();
         self.alloc(ast::Lit { id, val, span })
     }
@@ -412,13 +413,13 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         ret
     }
 
-    fn insert_map(&mut self, id: NodeID, node: Node<'cx>) {
+    fn insert_map(&mut self, id: NodeID, node: Node<'p>) {
         assert!(id.index_as_u32() > self.parent.index_as_u32());
         self.nodes.insert(id, node);
         self.parent_map.insert(id, self.parent);
     }
 
-    pub fn parse(&mut self) -> &'cx ast::Program<'cx> {
+    pub fn parse(&mut self) -> &'p ast::Program<'p> {
         let start = self.pos;
         let id = self.next_node_id();
         self.with_parent(id, |this| {

@@ -40,7 +40,7 @@ impl<'cx> Emit<'cx> {
             NumLit(num) => self.emit_num_lit(num),
         }
     }
-    
+
     pub(super) fn emit_num_lit(&mut self, num: &'cx ast::NumLit) {
         self.content.p(&num.val.to_string())
     }

@@ -89,6 +89,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "bolt_ts_fs"
+version = "0.1.0"
+dependencies = [
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "bolt_ts_lib"
 version = "0.1.0"
 dependencies = [

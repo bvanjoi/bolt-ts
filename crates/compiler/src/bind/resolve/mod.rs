@@ -57,6 +57,7 @@ impl<'cx, 'r> Resolver<'cx, 'r> {
             Class(class) => self.resolve_class_decl(class),
             Interface(interface) => self.resolve_interface_decl(interface),
             Type(ty) => self.resolve_type_decl(ty),
+            Namespace(_) => {}
         };
     }
 
@@ -144,6 +145,16 @@ impl<'cx, 'r> Resolver<'cx, 'r> {
                 self.resolve_ty(cond.false_ty);
             }
             NumLit(_) | StringLit(_) => {}
+            Union(u) => {
+                for ty in u.tys {
+                    self.resolve_ty(ty);
+                }
+            }
+            Intersection(i) => {
+                for ty in i.tys {
+                    self.resolve_ty(ty);
+                }
+            }
         }
     }
 
@@ -173,6 +184,9 @@ impl<'cx, 'r> Resolver<'cx, 'r> {
     fn resolve_param(&mut self, param: &'cx ast::ParamDecl<'cx>) {
         if let Some(ty) = param.ty {
             self.resolve_ty(ty);
+        }
+        if let Some(init) = param.init {
+            self.resolve_expr(init);
         }
     }
 

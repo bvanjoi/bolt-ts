@@ -4,17 +4,7 @@ use crate::{ast, bind::SymbolKind};
 
 impl<'cx> TyChecker<'cx> {
     fn check_ctor(&mut self, ctor: &'cx ast::ClassCtor<'cx>) {
-        let symbol = self.get_symbol_of_decl(ctor.id);
-        let SymbolKind::Function { decls, .. } = &self.binder.symbol(symbol).kind else {
-            unreachable!()
-        };
-        if decls[0] == ctor.id {
-            self.check_fn_like_symbol(ctor.id.module(), symbol);
-        }
-
-        if let Some(body) = ctor.body {
-            self.check_block(body);
-        }
+        self.check_fn_like_decl(ctor);
     }
 
     fn check_class_method_ele(&mut self, method: &'cx ast::ClassMethodEle<'cx>) {

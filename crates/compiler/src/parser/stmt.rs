@@ -5,8 +5,8 @@ use super::parse_fn_like::ParseFnDecl;
 use super::token::TokenKind;
 use super::{PResult, ParserState};
 
-impl<'cx, 'p> ParserState<'cx, 'p> {
-    pub fn parse_stmt(&mut self) -> PResult<&'cx ast::Stmt<'cx>> {
+impl<'p> ParserState<'p> {
+    pub fn parse_stmt(&mut self) -> PResult<&'p ast::Stmt<'p>> {
         use TokenKind::*;
         if matches!(self.token.kind, Abstract | Declare) && self.is_start_of_decl() {
             return self.parse_decl();
@@ -21,13 +21,37 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
             Class => ast::StmtKind::Class(self.parse_class_decl(None)?),
             Interface => ast::StmtKind::Interface(self.parse_interface_decl()?),
             Type => ast::StmtKind::Type(self.parse_type_decl()?),
+            Module | Namespace => ast::StmtKind::Namespace(self.parse_ns_decl(None)?),
             _ => ast::StmtKind::Expr(self.parse_expr_or_labeled_stmt()?),
         };
         let stmt = self.alloc(ast::Stmt { kind });
         Ok(stmt)
     }
 
-    fn parse_type_decl(&mut self) -> PResult<&'cx ast::TypeDecl<'cx>> {
+    fn parse_ns_decl(
+        &mut self,
+        mods: Option<&'p ast::Modifiers<'p>>,
+    ) -> PResult<&'p ast::NsDecl<'p>> {
+        let id = self.next_node_id();
+        let start = self.token.start();
+        if self.parse_optional(TokenKind::Namespace).is_none() {
+            self.expect(TokenKind::Module)?;
+        }
+        let name = self.parse_ident_name()?;
+        let block = self.parse_block()?;
+        let span = self.new_span(start as usize, self.pos);
+        let decl = self.alloc(ast::NsDecl {
+            id,
+            span,
+            modifiers: mods,
+            name,
+            block,
+        });
+        self.insert_map(id, ast::Node::NamespaceDecl(decl));
+        Ok(decl)
+    }
+
+    fn parse_type_decl(&mut self) -> PResult<&'p ast::TypeDecl<'p>> {
         let id = self.next_node_id();
         let start = self.token.start();
         self.expect(TokenKind::Type)?;
@@ -47,28 +71,26 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         Ok(decl)
     }
 
-    fn contain_declare_mod(mods: &ast::Modifiers<'cx>) -> bool {
+    fn contain_declare_mod(mods: &ast::Modifiers<'p>) -> bool {
         mods.list
             .iter()
             .any(|m| matches!(m.kind, ast::ModifierKind::Declare))
     }
 
-    fn _parse_decl(
-        &mut self,
-        mods: Option<&'cx ast::Modifiers<'cx>>,
-    ) -> PResult<&'cx ast::Stmt<'cx>> {
+    fn _parse_decl(&mut self, mods: Option<&'p ast::Modifiers<'p>>) -> PResult<&'p ast::Stmt<'p>> {
         use TokenKind::*;
         let kind = match self.token.kind {
             Var | Let | Const => ast::StmtKind::Var(self.parse_var_stmt()),
             Function => ast::StmtKind::Fn(self.parse_fn_decl(mods)?),
             Class => ast::StmtKind::Class(self.parse_class_decl(mods)?),
+            Module | Namespace => ast::StmtKind::Namespace(self.parse_ns_decl(mods)?),
             _ => unreachable!("{:#?}", self.token.kind),
         };
         let stmt = self.alloc(ast::Stmt { kind });
         Ok(stmt)
     }
 
-    fn parse_decl(&mut self) -> PResult<&'cx ast::Stmt<'cx>> {
+    fn parse_decl(&mut self) -> PResult<&'p ast::Stmt<'p>> {
         let mods = self.parse_modifiers()?;
         if mods.map_or(false, Self::contain_declare_mod) {
             // todo
@@ -80,7 +102,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
 
     fn parse_interface_extends_clause(
         &mut self,
-    ) -> PResult<Option<&'cx ast::InterfaceExtendsClause<'cx>>> {
+    ) -> PResult<Option<&'p ast::InterfaceExtendsClause<'p>>> {
         if self.token.kind == TokenKind::Extends {
             let id = self.next_node_id();
             let start = self.token.start();
@@ -97,7 +119,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         }
     }
 
-    fn parse_interface_decl(&mut self) -> PResult<&'cx ast::InterfaceDecl<'cx>> {
+    fn parse_interface_decl(&mut self) -> PResult<&'p ast::InterfaceDecl<'p>> {
         let id = self.next_node_id();
         let start = self.token.start();
         self.expect(TokenKind::Interface)?;
@@ -110,7 +132,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
             id,
             span: self.new_span(start as usize, self.pos),
             name,
-            // ty_params,
+            ty_params,
             extends,
             members,
         });
@@ -120,14 +142,14 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
 
     fn parse_class_decl(
         &mut self,
-        modifiers: Option<&'cx ast::Modifiers<'cx>>,
-    ) -> PResult<&'cx ast::ClassDecl<'cx>> {
+        modifiers: Option<&'p ast::Modifiers<'p>>,
+    ) -> PResult<&'p ast::ClassDecl<'p>> {
         self.parse_class_decl_or_expr(ParseClassDecl, modifiers)
     }
 
     pub(super) fn parse_implements_clause(
         &mut self,
-    ) -> PResult<Option<&'cx ast::ImplementsClause<'cx>>> {
+    ) -> PResult<Option<&'p ast::ImplementsClause<'p>>> {
         if self.token.kind == TokenKind::Implements {
             let id = self.next_node_id();
             let start = self.token.start();
@@ -144,7 +166,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         }
     }
 
-    fn parse_empty_stmt(&mut self) -> PResult<&'cx ast::EmptyStmt> {
+    fn parse_empty_stmt(&mut self) -> PResult<&'p ast::EmptyStmt> {
         let id = self.next_node_id();
         let start = self.token.start();
         self.expect(TokenKind::Semi)?;
@@ -156,7 +178,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         Ok(stmt)
     }
 
-    fn parse_var_stmt(&mut self) -> &'cx ast::VarStmt<'cx> {
+    fn parse_var_stmt(&mut self) -> &'p ast::VarStmt<'p> {
         let id = self.next_node_id();
         let start = self.token.start();
         use TokenKind::*;
@@ -179,16 +201,16 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         node
     }
 
-    fn parse_name_of_param(&mut self) -> PResult<&'cx ast::Ident> {
+    fn parse_name_of_param(&mut self) -> PResult<&'p ast::Ident> {
         let name = self.parse_ident_or_pat();
         Ok(name)
     }
 
-    fn parse_ident_or_pat(&mut self) -> &'cx ast::Ident {
+    fn parse_ident_or_pat(&mut self) -> &'p ast::Ident {
         self.parse_binding_ident()
     }
 
-    fn parse_var_decl(&mut self) -> PResult<&'cx ast::VarDecl<'cx>> {
+    fn parse_var_decl(&mut self) -> PResult<&'p ast::VarDecl<'p>> {
         let id = self.next_node_id();
         let start = self.token.start();
         let binding = self.with_parent(id, Self::parse_ident_or_pat);
@@ -206,15 +228,15 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         Ok(node)
     }
 
-    fn parse_var_decl_list(&mut self) -> &'cx [&'cx ast::VarDecl<'cx>] {
+    fn parse_var_decl_list(&mut self) -> &'p [&'p ast::VarDecl<'p>] {
         self.next_token();
         self.parse_delimited_list(list_ctx::VarDecl, Self::parse_var_decl)
     }
 
     fn parse_fn_decl(
         &mut self,
-        modifiers: Option<&'cx ast::Modifiers<'cx>>,
-    ) -> PResult<&'cx ast::FnDecl<'cx>> {
+        modifiers: Option<&'p ast::Modifiers<'p>>,
+    ) -> PResult<&'p ast::FnDecl<'p>> {
         self.parse_fn_decl_or_expr(ParseFnDecl, modifiers)
         // let f = self.alloc(ast::FnDecl {
         //     id,
@@ -229,7 +251,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         // Ok(f)
     }
 
-    fn parse_if_stmt(&mut self) -> PResult<&'cx ast::IfStmt<'cx>> {
+    fn parse_if_stmt(&mut self) -> PResult<&'p ast::IfStmt<'p>> {
         let id = self.next_node_id();
         let start = self.token.start();
         self.expect(TokenKind::If)?;
@@ -253,7 +275,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         Ok(stmt)
     }
 
-    fn parse_ret_stmt(&mut self) -> PResult<&'cx ast::RetStmt<'cx>> {
+    fn parse_ret_stmt(&mut self) -> PResult<&'p ast::RetStmt<'p>> {
         let id = self.next_node_id();
         let start = self.token.start();
         self.expect(TokenKind::Return)?;
@@ -272,7 +294,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         Ok(stmt)
     }
 
-    fn parse_expr_or_labeled_stmt(&mut self) -> PResult<&'cx ast::Expr<'cx>> {
+    fn parse_expr_or_labeled_stmt(&mut self) -> PResult<&'p ast::Expr<'p>> {
         let expr = self.parse_expr();
         self.parse_semi();
         expr

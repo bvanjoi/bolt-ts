@@ -9,13 +9,15 @@ mod keyword;
 pub mod parser;
 mod ty;
 
-use std::borrow::Cow;
 use std::path::PathBuf;
+use std::sync::Mutex;
+use std::{borrow::Cow, sync::Arc};
 
 use atoms::AtomMap;
 use bind::{bind, GlobalSymbols};
-use bolt_ts_span::{ModuleArena, ModulePath};
+use bolt_ts_span::{ModuleArena, ModuleID, ModulePath};
 use parser::token::TokenKind;
+use rustc_hash::FxHashMap;
 
 type Diag = Box<dyn bolt_ts_errors::miette::Diagnostic + Send + Sync + 'static>;
 
@@ -50,41 +52,46 @@ pub fn eval_from(m: ModulePath) -> Output {
         }
     }
     for (atom, id) in keyword::KEYWORDS {
-        atoms.insert(*id, Cow::Borrowed(atom));
+        atoms.insert(*id, atom.to_string());
     }
     for (atom, id) in keyword::IDENTIFIER {
-        atoms.insert(*id, Cow::Borrowed(atom))
+        atoms.insert(*id, atom.to_string())
     }
 
     // parser
+    // TODO: build graph
     let mut p = parser::Parser::new();
-    let parse_arena = bumpalo::Bump::new();
-    let result = parser::parse(&mut atoms, &parse_arena, &module_arena, m.id);
-    p.insert(m.id, result);
-
     let dir = current_exe_dir();
     for (_, file) in bolt_ts_lib::LIB_ENTIRES {
-        let m = module_arena.new_module(ModulePath::Real(dir.join(file)), true);
-        let result = parser::parse(&mut atoms, &parse_arena, &module_arena, m.id);
-        assert!(result.diags.is_empty());
-        p.insert(m.id, result)
+        module_arena.new_module(ModulePath::Real(dir.join(file)), true);
+    }
+    let atoms = Arc::new(Mutex::new(atoms));
+    let arena_list: FxHashMap<ModuleID, bumpalo::Bump> = module_arena
+        .modules
+        .keys()
+        .map(|id| (*id, bumpalo::Bump::new()))
+        .collect();
+    for (module_id, _) in module_arena.modules.iter() {
+        let module_id = *module_id;
+        let input = module_arena.content_map.get(&module_id).unwrap();
+        let arena = arena_list.get(&module_id).unwrap();
+        let result = parser::parse(atoms.clone(), arena, input.as_bytes(), module_id);
+        if module_id != m.id {
+            // FIXME: use is global
+            assert!(result.diags.is_empty());
+        }
+        p.insert(module_id, result)
     }
 
     // bind
+    let atoms = Arc::try_unwrap(atoms).unwrap();
+    let atoms = atoms.into_inner().unwrap();
     let mut binder = bind::Binder::new(&p, &atoms);
     for module_id in module_arena.modules.keys() {
         let root = p.root(*module_id);
         let result = bind(&atoms, root, &p, *module_id);
         binder.insert(*module_id, result);
     }
-    // let BinderResult {
-    //     scope_id_parent_map,
-    //     node_id_to_scope_id,
-    //     symbols,
-    //     res,
-    //     final_res,
-    //     ..
-    // } = binder.take(m.id);
 
     let mut global_symbols = GlobalSymbols::default();
     for module_id in module_arena.modules.keys() {

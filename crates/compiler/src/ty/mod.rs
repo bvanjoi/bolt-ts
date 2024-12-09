@@ -13,7 +13,7 @@ pub use self::mapper::{ArrayTyMapper, CompositeTyMapper, TyMapper};
 pub use self::mapper::{DeferredTyMapper, FnTyMapper, MergedTyMapper, SimpleTyMapper};
 pub use self::object_ty::ElementFlags;
 pub use self::object_ty::TyReference;
-pub use self::object_ty::{ArrayTy, IndexInfo, ObjectTy, TupleTy};
+pub use self::object_ty::{ArrayTy, IndexInfo, ObjectTy, TupleShape, TupleTy};
 pub use self::object_ty::{ClassTy, FnTy, InterfaceTy, ObjectLitTy, ObjectTyKind};
 
 bolt_ts_span::new_index!(TyID);

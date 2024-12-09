@@ -340,16 +340,16 @@ impl<'cx> TyChecker<'cx> {
         let TyKind::Object(ty) = ty.kind else {
             return None;
         };
-        let members = if let Some(ty) = ty.kind.as_interface() {
-            ObjectLikeTy::members(ty)
+
+        if let Some(ty) = ty.kind.as_interface() {
+            ObjectLikeTy::get_member(ty, &name)
         } else if let Some(ty) = ty.kind.as_object_lit() {
-            ObjectLikeTy::members(ty)
+            ObjectLikeTy::get_member(ty, &name)
         } else if let Some(ty) = ty.kind.as_tuple() {
-            ObjectLikeTy::members(ty)
+            ObjectLikeTy::get_member(ty, &name)
         } else {
             unreachable!()
-        };
-        members.get(&name).map(|symbol| *symbol)
+        }
     }
 
     fn get_unmatched_prop(

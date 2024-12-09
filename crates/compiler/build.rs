@@ -19,10 +19,16 @@ fn main() {
         {
             let out_dir = out_dir.join("deps");
             let target = out_dir.join(filename);
+            if target.is_file() {
+                let _ = std::fs::remove_file(target.as_path());
+            }
             std::fs::copy(&p, target).unwrap();
         }
         {
             let target = out_dir.join(filename);
+            if target.is_file() {
+                let _ = std::fs::remove_file(target.as_path());
+            }
             std::fs::copy(&p, target).unwrap();
         }
     }

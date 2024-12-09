@@ -19,3 +19,12 @@ pub(crate) struct TypeParameterListCannotBeEmpty {
     #[label(primary)]
     pub span: Span,
 }
+
+#[derive(Error, Diagnostic, Debug)]
+#[error("Octal literals are not allowed.")]
+#[diagnostic(help = "Use the syntax '{help_lit}'.")]
+pub(crate) struct OctalLiteralsAreNotAllowed {
+    #[label(primary)]
+    pub span: Span,
+    pub help_lit: String,
+}

@@ -16,12 +16,12 @@ bolt_ts_span::new_index_with_module!(ScopeID);
 
 pub struct Binder<'cx> {
     p: &'cx Parser<'cx>,
-    atoms: &'cx AtomMap<'cx>,
+    atoms: &'cx AtomMap,
     map: FxHashMap<ModuleID, BinderResult>,
 }
 
 impl<'cx> Binder<'cx> {
-    pub fn new(p: &'cx Parser<'cx>, atoms: &'cx AtomMap<'cx>) -> Self {
+    pub fn new(p: &'cx Parser<'cx>, atoms: &'cx AtomMap) -> Self {
         Self {
             p,
             atoms,
@@ -63,26 +63,6 @@ impl<'cx> Binder<'cx> {
     }
 
     #[inline(always)]
-    pub fn opt_scope(&self, id: NodeID) -> Option<ScopeID> {
-        self.get(id.module()).node_id_to_scope_id.get(&id).copied()
-    }
-
-    #[inline(always)]
-    pub fn scope(&self, id: NodeID) -> ScopeID {
-        self.opt_scope(id).unwrap()
-    }
-
-    #[inline(always)]
-    pub fn opt_res(&self, scope: ScopeID, name: SymbolName) -> Option<SymbolID> {
-        self.get(scope.module()).res.get(&(scope, name)).copied()
-    }
-
-    #[inline(always)]
-    pub fn res(&self, scope: ScopeID, name: SymbolName) -> SymbolID {
-        self.opt_res(scope, name).unwrap()
-    }
-
-    #[inline(always)]
     pub fn create_anonymous_symbol(&mut self, name: SymbolName, kind: SymbolKind) -> SymbolID {
         let module = ModuleID::MOCK;
         let binder = self.map.entry(module).or_insert_with(|| BinderResult {
@@ -108,7 +88,7 @@ struct BinderState<'cx> {
     scope_id: ScopeID,
     max_scope_id: ScopeID,
     symbol_id: SymbolID,
-    atoms: &'cx AtomMap<'cx>,
+    atoms: &'cx AtomMap,
     scope_id_parent_map: FxHashMap<ScopeID, Option<ScopeID>>,
     node_id_to_scope_id: FxHashMap<ast::NodeID, ScopeID>,
     symbols: Symbols,
@@ -125,7 +105,7 @@ pub struct BinderResult {
 }
 
 pub fn bind<'cx>(
-    atoms: &'cx AtomMap<'cx>,
+    atoms: &'cx AtomMap,
     root: &'cx ast::Program,
     p: &'cx Parser<'cx>,
     module_id: ModuleID,
@@ -143,7 +123,7 @@ pub fn bind<'cx>(
 }
 
 impl<'cx> BinderState<'cx> {
-    fn new(atoms: &'cx AtomMap<'cx>, module_id: ModuleID) -> Self {
+    fn new(atoms: &'cx AtomMap, module_id: ModuleID) -> Self {
         let symbols = Symbols::new();
         let mut symbol_id = SymbolID::root(module_id);
         symbol_id = symbol_id.next();
@@ -173,14 +153,14 @@ impl<'cx> BinderState<'cx> {
         next
     }
 
-    fn bind_program(&mut self, p: &'cx ast::Program) {
+    fn bind_program(&mut self, root: &'cx ast::Program) {
         assert_eq!(self.scope_id.index_as_u32(), 0);
         assert_eq!(self.symbol_id.index_as_u32(), 1);
         self.scope_id_parent_map.insert(self.scope_id, None);
-        self.connect(p.id);
-        self.create_block_container_symbol(p.id);
-        for stmt in p.stmts {
-            self.bind_stmt(p.id, stmt)
+        self.connect(root.id);
+        self.create_block_container_symbol(root.id);
+        for stmt in root.stmts {
+            self.bind_stmt(root.id, stmt)
         }
     }
 
@@ -207,6 +187,7 @@ impl<'cx> BinderState<'cx> {
             Class(class) => self.bind_class_like(class),
             Interface(interface) => self.bind_interface_decl(interface),
             Type(t) => self.bind_type_decl(t),
+            Namespace(_) => {}
         }
     }
 
@@ -426,6 +407,16 @@ impl<'cx> BinderState<'cx> {
                 self.bind_ty(f.ret_ty);
             }
             NumLit(_) | StringLit(_) => {}
+            Union(u) => {
+                for ty in u.tys {
+                    self.bind_ty(ty);
+                }
+            }
+            Intersection(i) => {
+                for ty in i.tys {
+                    self.bind_ty(ty);
+                }
+            }
         }
     }
 
@@ -456,10 +447,13 @@ impl<'cx> BinderState<'cx> {
     }
 
     fn bind_param(&mut self, param: &'cx ast::ParamDecl) {
-        self.connect(param.id);
-        self.create_var_symbol(param.name.name, SymbolKind::FunctionScopedVar);
+        let symbol = self.create_var_symbol(param.name.name, SymbolKind::FunctionScopedVar);
+        self.final_res.insert(param.id, symbol);
         if let Some(ty) = param.ty {
             self.bind_ty(ty);
+        }
+        if let Some(init) = param.init {
+            self.bind_expr(init);
         }
     }
 

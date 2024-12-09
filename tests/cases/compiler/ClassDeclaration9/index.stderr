@@ -1,0 +1,6 @@
+  × Function implementation is missing or not immediately following the
+  │ declaration.
+   ╭─[../../tests/cases/compiler/ClassDeclaration9/index.ts:4:3]
+ 4 │ ╭─▶ foo(); //~ ERROR: Function implementation is missing or not immediately following the declaration.
+ 5 │ ╰─▶ }
+   ╰────

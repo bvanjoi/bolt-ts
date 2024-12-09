@@ -31,6 +31,16 @@ pub enum StmtKind<'cx> {
     Expr(&'cx Expr<'cx>),
     Interface(&'cx InterfaceDecl<'cx>),
     Type(&'cx TypeDecl<'cx>),
+    Namespace(&'cx NsDecl<'cx>),
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct NsDecl<'cx> {
+    pub id: NodeID,
+    pub span: Span,
+    pub modifiers: Option<&'cx Modifiers<'cx>>,
+    pub name: &'cx Ident,
+    pub block: &'cx BlockStmt<'cx>,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -47,6 +57,7 @@ pub struct InterfaceDecl<'cx> {
     pub id: NodeID,
     pub span: Span,
     pub name: &'cx Ident,
+    pub ty_params: Option<TyParams<'cx>>,
     pub extends: Option<&'cx InterfaceExtendsClause<'cx>>,
     pub members: ObjectTyMembers<'cx>,
 }
@@ -620,6 +631,8 @@ impl Ty<'_> {
             TyKind::IndexedAccess(n) => n.span,
             TyKind::Cond(n) => n.span,
             TyKind::Refer(n) => n.span,
+            TyKind::Union(n) => n.span,
+            TyKind::Intersection(n) => n.span,
         }
     }
 
@@ -636,6 +649,8 @@ impl Ty<'_> {
             TyKind::IndexedAccess(n) => n.id,
             TyKind::Cond(n) => n.id,
             TyKind::Refer(n) => n.id,
+            TyKind::Union(n) => n.id,
+            TyKind::Intersection(n) => n.id,
         }
     }
 }
@@ -653,6 +668,22 @@ pub enum TyKind<'cx> {
     Tuple(&'cx TupleTy<'cx>),
     Rest(&'cx RestTy<'cx>),
     Cond(&'cx CondTy<'cx>),
+    Union(&'cx UnionTy<'cx>),
+    Intersection(&'cx IntersectionTy<'cx>),
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct UnionTy<'cx> {
+    pub id: NodeID,
+    pub span: Span,
+    pub tys: Tys<'cx>,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct IntersectionTy<'cx> {
+    pub id: NodeID,
+    pub span: Span,
+    pub tys: Tys<'cx>,
 }
 
 #[derive(Debug, Clone, Copy)]

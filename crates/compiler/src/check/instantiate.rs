@@ -84,13 +84,16 @@ impl<'cx> TyChecker<'cx> {
             Tuple(tuple) => {
                 let ty_args = self.instantiate_tys(tuple.refer.ty_args, mapper);
                 if !std::ptr::eq(ty_args, tuple.refer.ty_args) {
-                    let tuple = self.create_normalized_tuple_ty(ty_args, tuple.element_flags, tuple.combined_flags);
+                    let tuple = self.create_normalized_tuple_ty(
+                        ty_args,
+                        tuple.element_flags,
+                        tuple.combined_flags,
+                    );
                     self.create_tuple_ty(tuple)
                 } else {
                     ty
                 }
-                
-            },
+            }
             _ => todo!("{:?}", object_ty.kind),
         }
     }
