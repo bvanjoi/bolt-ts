@@ -1,42 +1,21 @@
 use super::{BinderState, ClassSymbol, SymbolID, SymbolKind, SymbolName};
-use crate::ast;
+use crate::{ast, ir};
 use rustc_hash::FxHashMap;
 use thin_vec::thin_vec;
 
-pub(super) trait ClassLike<'cx> {
-    fn id(&self) -> ast::NodeID;
+pub(super) trait ClassLike<'cx>: ir::ClassLike<'cx> {
     fn create_symbol(&'cx self, binder: &mut BinderState<'cx>) -> SymbolID;
-    fn extends(&self) -> Option<&'cx ast::ClassExtendsClause<'cx>>;
-    fn elems(&self) -> &'cx ast::ClassElems<'cx>;
 }
 
 impl<'cx> ClassLike<'cx> for ast::ClassDecl<'cx> {
-    fn id(&self) -> ast::NodeID {
-        self.id
-    }
     fn create_symbol(&'cx self, binder: &mut BinderState<'cx>) -> SymbolID {
         binder.create_class_decl(self)
-    }
-    fn extends(&self) -> Option<&'cx ast::ClassExtendsClause<'cx>> {
-        self.extends
-    }
-    fn elems(&self) -> &'cx ast::ClassElems<'cx> {
-        &self.elems
     }
 }
 
 impl<'cx> ClassLike<'cx> for ast::ClassExpr<'cx> {
-    fn id(&self) -> ast::NodeID {
-        self.id
-    }
     fn create_symbol(&'cx self, binder: &mut BinderState<'cx>) -> SymbolID {
         binder.create_class_expr(self)
-    }
-    fn extends(&self) -> Option<&'cx ast::ClassExtendsClause<'cx>> {
-        self.extends
-    }
-    fn elems(&self) -> &'cx ast::ClassElems<'cx> {
-        &self.elems
     }
 }
 
@@ -180,6 +159,12 @@ impl<'cx> BinderState<'cx> {
 
         if let Some(extends) = class.extends() {
             self.bind_expr(extends.expr);
+        }
+
+        if let Some(implements) = class.implements() {
+            for ty in implements.tys {
+                self.bind_ty(ty);
+            }
         }
 
         let old = self.scope_id;

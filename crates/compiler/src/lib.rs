@@ -4,6 +4,7 @@ mod bind;
 pub mod check;
 mod emit;
 mod errors;
+mod ir;
 mod keyword;
 pub mod parser;
 mod ty;
@@ -70,10 +71,10 @@ pub fn eval_from(m: ModulePath) -> Output {
     }
 
     // bind
-    let mut binder = bind::Binder::new();
+    let mut binder = bind::Binder::new(&p, &atoms);
     for module_id in module_arena.modules.keys() {
         let root = p.root(*module_id);
-        let result = bind(&atoms, root, *module_id);
+        let result = bind(&atoms, root, &p, *module_id);
         binder.insert(*module_id, result);
     }
     // let BinderResult {
@@ -96,6 +97,7 @@ pub fn eval_from(m: ModulePath) -> Output {
     }
 
     // type check
+    let diags = binder.steal_errors(m.id);
     let ty_arena = bumpalo::Bump::new();
     let mut checker = check::TyChecker::new(&ty_arena, &p, &atoms, &mut binder, &global_symbols);
     checker.check_program(p.root(m.id));
@@ -107,6 +109,7 @@ pub fn eval_from(m: ModulePath) -> Output {
     let diags: Vec<_> = checker
         .diags
         .into_iter()
+        .chain(diags)
         .chain(p.steal_errors(m.id))
         .collect();
     Output {

@@ -58,7 +58,7 @@ pub enum Node<'cx> {
     ArrayTy(&'cx ast::ArrayTy<'cx>),
     IndexedAccessTy(&'cx ast::IndexedAccessTy<'cx>),
     FnTy(&'cx ast::FnTy<'cx>),
-    LitTy(&'cx ast::LitTy<'cx>),
+    ObjectLitTy(&'cx ast::ObjectLitTy<'cx>),
     TyParam(&'cx ast::TyParam<'cx>),
     IndexSigDecl(&'cx ast::IndexSigDecl<'cx>),
     CallSigDecl(&'cx ast::CallSigDecl<'cx>),
@@ -345,11 +345,11 @@ as_node!(
     ),
     (FnTy, &'cx ast::FnTy<'cx>, as_fn_ty, expect_fn_ty, is_fn_ty),
     (
-        LitTy,
-        &'cx ast::LitTy<'cx>,
-        as_lit_ty,
-        expect_lit_ty,
-        is_lit_ty
+        ObjectLitTy,
+        &'cx ast::ObjectLitTy<'cx>,
+        as_object_lit_ty,
+        expect_object_lit_ty,
+        is_object_lit_ty
     ),
     (
         TyParam,

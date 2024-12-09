@@ -359,15 +359,15 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         let start = self.token.start();
         let id = self.next_node_id();
         let members = self.with_parent(id, Self::parse_object_ty_members)?;
-        let kind = self.alloc(ast::LitTy {
+        let kind = self.alloc(ast::ObjectLitTy {
             id,
             span: self.new_span(start as usize, self.pos),
             members,
         });
         let ty = self.alloc(ast::Ty {
-            kind: ast::TyKind::Lit(kind),
+            kind: ast::TyKind::ObjectLit(kind),
         });
-        self.insert_map(id, ast::Node::LitTy(kind));
+        self.insert_map(id, ast::Node::ObjectLitTy(kind));
         Ok(ty)
     }
 

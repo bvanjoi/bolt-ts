@@ -32,25 +32,6 @@ pub(super) struct TypeIsNotAssignableToType {
 }
 
 #[derive(Error, Diagnostic, Debug)]
-#[error("Cannot find name '{name}'.")]
-pub(super) struct CannotFindName {
-    #[label(primary)]
-    pub span: Span,
-    pub name: String,
-    #[related]
-    pub errors: Vec<crate::Diag>,
-}
-
-#[derive(Error, Diagnostic, Debug)]
-#[error("Did you mean the static member '{name}'?")]
-#[diagnostic(severity(Advice))]
-pub(super) struct DidYourMeanTheStaticMember {
-    #[label(primary)]
-    pub span: Span,
-    pub name: String,
-}
-
-#[derive(Error, Diagnostic, Debug)]
 #[error("Argument of type '{arg_ty}' is not assignable to parameter of type '{param_ty}'.")]
 pub(super) struct ArgumentOfTyIsNotAssignableToParameterOfTy {
     #[label(primary)]
@@ -145,14 +126,6 @@ pub(super) struct PropertyXIsMissing {
 pub(super) struct CannotCreateAnInstanceOfAnAbstractClass {
     #[label(primary)]
     pub span: Span,
-}
-
-#[derive(Error, Diagnostic, Debug)]
-#[error("A class cannot implement a primitive type like '{ty}'. It can only implement other named object types.")]
-pub(super) struct AClassCannotImplementAPrimTy {
-    #[label(primary)]
-    pub span: Span,
-    pub ty: String,
 }
 
 #[derive(Clone, Copy, Debug)]

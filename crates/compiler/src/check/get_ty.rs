@@ -148,30 +148,11 @@ impl<'cx> TyChecker<'cx> {
         // TODO: cache
         use ast::TyKind::*;
         match ty.kind {
-            Refer(refer) => {
-                if refer.name.name == keyword::IDENT_BOOLEAN {
-                    assert!(refer.args.is_none());
-                    self.boolean_ty()
-                } else if refer.name.name == keyword::IDENT_NUMBER {
-                    assert!(refer.args.is_none());
-                    self.number_ty()
-                } else if refer.name.name == keyword::IDENT_STRING {
-                    assert!(refer.args.is_none());
-                    self.string_ty()
-                } else if refer.name.name == keyword::IDENT_ANY {
-                    assert!(refer.args.is_none());
-                    self.any_ty()
-                } else if refer.name.name == keyword::IDENT_VOID {
-                    assert!(refer.args.is_none());
-                    self.void_ty()
-                } else {
-                    self.get_ty_from_ty_reference(refer)
-                }
-            }
+            Refer(refer) => self.get_ty_from_ty_reference(refer),
             Array(array) => self.get_ty_from_array_node(array),
             Tuple(tuple) => self.get_ty_from_tuple_node(tuple),
             Fn(_) => self.undefined_ty(),
-            Lit(lit) => {
+            ObjectLit(lit) => {
                 let symbol = self.binder.final_res(lit.id);
                 let SymbolKind::Object(object) = &self.binder.symbol(symbol).kind else {
                     unreachable!()

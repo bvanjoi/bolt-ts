@@ -1,10 +1,10 @@
-use bolt_ts_span::{ModuleID, Span};
+use bolt_ts_span::Span;
 use rustc_hash::FxHashSet;
 
 use crate::atoms::AtomId;
 use crate::bind::{SymbolID, SymbolName};
+use crate::errors;
 use crate::ty::{ObjectLikeTy, ObjectTy, ObjectTyKind, Ty, TyKind, Tys};
-use crate::{errors, ty};
 
 use super::TyChecker;
 

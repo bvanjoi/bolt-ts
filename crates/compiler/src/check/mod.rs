@@ -79,7 +79,7 @@ pub struct TyChecker<'cx> {
     global_number_ty: std::cell::OnceCell<&'cx Ty<'cx>>,
     boolean_ty: std::cell::OnceCell<&'cx Ty<'cx>>,
     // === resolver ===
-    binder: &'cx mut bind::Binder,
+    binder: &'cx mut bind::Binder<'cx>,
     global_symbols: &'cx GlobalSymbols,
     symbol_links: FxHashMap<SymbolID, SymbolLinks<'cx>>,
 
@@ -127,7 +127,7 @@ impl<'cx> TyChecker<'cx> {
         ty_arena: &'cx bumpalo::Bump,
         p: &'cx Parser<'cx>,
         atoms: &'cx AtomMap<'cx>,
-        binder: &'cx mut bind::Binder,
+        binder: &'cx mut bind::Binder<'cx>,
         global_symbols: &'cx GlobalSymbols,
     ) -> Self {
         assert!(ty_arena.allocated_bytes() == 0);
@@ -669,19 +669,7 @@ impl<'cx> TyChecker<'cx> {
             return self.undefined_ty();
         }
 
-        let symbol = match self.resolve_symbol_by_ident(ident, SymbolKind::is_value) {
-            Symbol::ERR => {
-                let error = errors::CannotFindName {
-                    span: ident.span,
-                    name: self.atoms.get(ident.name).to_string(),
-                    errors: vec![],
-                };
-                let error = self.on_failed_to_resolve_symbol(ident, error);
-                self.push_error(ident.span.module, Box::new(error));
-                return self.error_ty();
-            }
-            id => id,
-        };
+        let symbol = self.resolve_symbol_by_ident(ident, SymbolKind::is_value);
 
         if self.binder.symbol(symbol).kind.is_class() {
             self.check_resolved_block_scoped_var(ident, symbol);

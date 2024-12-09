@@ -611,7 +611,7 @@ impl Ty<'_> {
         match self.kind {
             TyKind::Array(array) => array.span,
             TyKind::Fn(f) => f.span,
-            TyKind::Lit(lit) => lit.span,
+            TyKind::ObjectLit(lit) => lit.span,
             TyKind::ExprWithArg(node) => node.span(),
             TyKind::NumLit(num) => num.span,
             TyKind::StringLit(s) => s.span,
@@ -627,7 +627,7 @@ impl Ty<'_> {
         match self.kind {
             TyKind::Array(node) => node.id,
             TyKind::Fn(node) => node.id,
-            TyKind::Lit(node) => node.id,
+            TyKind::ObjectLit(node) => node.id,
             TyKind::ExprWithArg(node) => node.id(),
             TyKind::NumLit(num) => num.id,
             TyKind::StringLit(s) => s.id,
@@ -646,7 +646,7 @@ pub enum TyKind<'cx> {
     Array(&'cx ArrayTy<'cx>),
     IndexedAccess(&'cx IndexedAccessTy<'cx>),
     Fn(&'cx FnTy<'cx>),
-    Lit(&'cx LitTy<'cx>),
+    ObjectLit(&'cx ObjectLitTy<'cx>),
     ExprWithArg(&'cx Expr<'cx>),
     NumLit(&'cx NumLit),
     StringLit(&'cx StringLit),
@@ -697,7 +697,7 @@ pub struct CallSigDecl<'cx> {
 }
 
 #[derive(Debug, Clone, Copy)]
-pub struct LitTy<'cx> {
+pub struct ObjectLitTy<'cx> {
     pub id: NodeID,
     pub span: Span,
     pub members: ObjectTyMembers<'cx>,
@@ -743,7 +743,7 @@ impl<'cx> PropName<'cx> {
 #[derive(Debug, Clone, Copy)]
 pub enum PropNameKind<'cx> {
     Ident(&'cx Ident),
-    NumLit(&'cx NumLit)
+    NumLit(&'cx NumLit),
 }
 
 #[derive(Debug, Clone, Copy)]

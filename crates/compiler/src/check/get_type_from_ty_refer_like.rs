@@ -2,7 +2,7 @@ use bolt_ts_span::ModuleID;
 
 use crate::bind::{Symbol, SymbolID, SymbolKind};
 use crate::ty::{ArrayTyMapper, TyMapper};
-use crate::{ast, ty};
+use crate::{ast, keyword, ty};
 
 use super::TyChecker;
 
@@ -43,11 +43,6 @@ impl<'cx> GetTypeFromTyReferLike<'cx> for ast::ReferTy<'cx> {
 impl<'cx> TyChecker<'cx> {
     pub(super) fn resolve_ty_refer_name(&mut self, name: &'cx ast::Ident) -> SymbolID {
         let symbol = self.resolve_symbol_by_ident(name, SymbolKind::is_type);
-        if symbol == Symbol::ERR {
-            if let Some(error) = self.check_using_type_as_value(&name) {
-                self.push_error(name.span.module, error);
-            }
-        }
         symbol
     }
 
@@ -208,8 +203,20 @@ impl<'cx> TyChecker<'cx> {
     ) -> &'cx ty::Ty<'cx> {
         // TODO: cache
         if let Some(name) = node.name() {
-            let symbol = self.resolve_ty_refer_name(name);
-            self.get_ty_refer_type(node, symbol)
+            if name.name == keyword::IDENT_BOOLEAN {
+                self.boolean_ty()
+            } else if name.name == keyword::IDENT_NUMBER {
+                self.number_ty()
+            } else if name.name == keyword::IDENT_STRING {
+                self.string_ty()
+            } else if name.name == keyword::IDENT_ANY {
+                self.any_ty()
+            } else if name.name == keyword::IDENT_VOID {
+                self.void_ty()
+            } else {
+                let symbol = self.resolve_ty_refer_name(name);
+                self.get_ty_refer_type(node, symbol)
+            }
         } else {
             // TODO:
             self.undefined_ty()

@@ -65,3 +65,18 @@ ident!(
     (IDENT_NEVER, IDENT_NEVER_STR, "never"),
     (IDENT_UNKNOWN, IDENT_UNKNOWN_STR, "unknown"),
 );
+
+pub fn is_prim_ty_name(name: AtomId) -> bool {
+    name == IDENT_ANY
+        || name == IDENT_NUMBER
+        || name == IDENT_STRING
+        || name == IDENT_BOOLEAN
+        || name == IDENT_NEVER
+        || name == IDENT_UNKNOWN
+        || name == IDENT_VOID
+        || name == IDENT_UNDEFINED
+}
+
+pub fn is_prim_value_name(name: AtomId) -> bool {
+    name == IDENT_UNDEFINED || name == KW_NULL || name == KW_FALSE || name == KW_TRUE
+}

@@ -1,42 +1,6 @@
 use super::TyChecker;
+use crate::ir::ClassLike;
 use crate::{ast, bind::SymbolKind};
-
-pub(super) trait ClassLikeDecl<'cx>: Copy + std::fmt::Debug {
-    fn id(&self) -> ast::NodeID;
-    fn extends(&self) -> Option<&'cx ast::ClassExtendsClause<'cx>>;
-    fn implements(&self) -> Option<&'cx ast::ImplementsClause<'cx>>;
-    fn elems(&self) -> &'cx ast::ClassElems<'cx>;
-}
-
-impl<'cx> ClassLikeDecl<'cx> for ast::ClassDecl<'cx> {
-    fn id(&self) -> ast::NodeID {
-        self.id
-    }
-    fn extends(&self) -> Option<&'cx ast::ClassExtendsClause<'cx>> {
-        self.extends
-    }
-    fn implements(&self) -> Option<&'cx ast::ImplementsClause<'cx>> {
-        self.implements
-    }
-    fn elems(&self) -> &'cx ast::ClassElems<'cx> {
-        self.elems
-    }
-}
-
-impl<'cx> ClassLikeDecl<'cx> for ast::ClassExpr<'cx> {
-    fn id(&self) -> ast::NodeID {
-        self.id
-    }
-    fn extends(&self) -> Option<&'cx ast::ClassExtendsClause<'cx>> {
-        self.extends
-    }
-    fn implements(&self) -> Option<&'cx ast::ImplementsClause<'cx>> {
-        self.implements
-    }
-    fn elems(&self) -> &'cx ast::ClassElems<'cx> {
-        self.elems
-    }
-}
 
 impl<'cx> TyChecker<'cx> {
     fn check_ctor(&mut self, ctor: &'cx ast::ClassCtor<'cx>) {
@@ -61,7 +25,7 @@ impl<'cx> TyChecker<'cx> {
         self.check_var_like_decl(prop);
     }
 
-    pub(super) fn check_class_like_decl(&mut self, class: &impl ClassLikeDecl<'cx>) {
+    pub(super) fn check_class_like_decl(&mut self, class: &impl ClassLike<'cx>) {
         let symbol = self.get_symbol_of_decl(class.id());
         let ty = self.get_declared_ty_of_symbol(symbol);
         let static_ty = self.get_type_of_symbol(symbol);

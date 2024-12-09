@@ -1,5 +1,6 @@
 mod bind_class_like;
 mod create;
+mod resolve;
 mod symbol;
 
 use bolt_ts_span::ModuleID;
@@ -9,16 +10,21 @@ pub use symbol::{GlobalSymbols, Symbol, SymbolFnKind, SymbolID, SymbolKind, Symb
 
 use crate::ast::{self, NodeID};
 use crate::atoms::AtomMap;
+use crate::parser::Parser;
 
 bolt_ts_span::new_index_with_module!(ScopeID);
 
-pub struct Binder {
+pub struct Binder<'cx> {
+    p: &'cx Parser<'cx>,
+    atoms: &'cx AtomMap<'cx>,
     map: FxHashMap<ModuleID, BinderResult>,
 }
 
-impl Binder {
-    pub fn new() -> Self {
+impl<'cx> Binder<'cx> {
+    pub fn new(p: &'cx Parser<'cx>, atoms: &'cx AtomMap<'cx>) -> Self {
         Self {
+            p,
+            atoms,
             map: Default::default(),
         }
     }
@@ -34,24 +40,16 @@ impl Binder {
     }
 
     #[inline(always)]
-    fn get_mut(&mut self, id: ModuleID) -> &mut BinderResult {
-        self.map.get_mut(&id).unwrap()
-    }
-
-    #[inline(always)]
     pub fn final_res(&self, id: NodeID) -> SymbolID {
-        self.opt_final_res(id).unwrap()
-    }
-
-    #[inline(always)]
-    pub fn opt_final_res(&self, id: NodeID) -> Option<SymbolID> {
-        self.get(id.module()).final_res.get(&id).copied()
-    }
-
-    #[inline(always)]
-    pub fn insert_final_res(&mut self, id: NodeID, res: SymbolID) {
-        let prev = self.get_mut(id.module()).final_res.insert(id, res);
-        assert!(prev.is_none());
+        self.get(id.module())
+            .final_res
+            .get(&id)
+            .copied()
+            .unwrap_or_else(|| {
+                let node = self.p.node(id).expect_ident();
+                let name = self.atoms.get(node.name);
+                panic!("The resolution of `{name}` is not found.");
+            })
     }
 
     #[inline(always)]
@@ -75,11 +73,6 @@ impl Binder {
     }
 
     #[inline(always)]
-    pub fn parent_scope(&self, id: ScopeID) -> Option<ScopeID> {
-        self.get(id.module()).scope_id_parent_map[&id]
-    }
-
-    #[inline(always)]
     pub fn opt_res(&self, scope: ScopeID, name: SymbolName) -> Option<SymbolID> {
         self.get(scope.module()).res.get(&(scope, name)).copied()
     }
@@ -93,17 +86,21 @@ impl Binder {
     pub fn create_anonymous_symbol(&mut self, name: SymbolName, kind: SymbolKind) -> SymbolID {
         let module = ModuleID::MOCK;
         let binder = self.map.entry(module).or_insert_with(|| BinderResult {
-            scope_id_parent_map: Default::default(),
             node_id_to_scope_id: Default::default(),
             symbols: Symbols::new(),
             res: Default::default(),
             final_res: Default::default(),
+            diags: Default::default(),
         });
         let len = binder.symbols.0.len();
         let id = SymbolID::mock(len as u32);
         let symbol = Symbol::new(name, kind);
         binder.symbols.insert(id, symbol);
         id
+    }
+
+    pub fn steal_errors(&mut self, id: ModuleID) -> Vec<bolt_ts_errors::Diag> {
+        std::mem::take(&mut self.map.get_mut(&id).unwrap().diags)
     }
 }
 
@@ -120,26 +117,28 @@ struct BinderState<'cx> {
 }
 
 pub struct BinderResult {
-    scope_id_parent_map: FxHashMap<ScopeID, Option<ScopeID>>,
     node_id_to_scope_id: FxHashMap<ast::NodeID, ScopeID>,
     symbols: Symbols,
     res: FxHashMap<(ScopeID, SymbolName), SymbolID>,
     final_res: FxHashMap<ast::NodeID, SymbolID>,
+    diags: Vec<bolt_ts_errors::Diag>,
 }
 
 pub fn bind<'cx>(
     atoms: &'cx AtomMap<'cx>,
-    p: &'cx ast::Program,
+    root: &'cx ast::Program,
+    p: &'cx Parser<'cx>,
     module_id: ModuleID,
 ) -> BinderResult {
     let mut state = BinderState::new(atoms, module_id);
-    state.bind_program(p);
+    state.bind_program(root);
+    let diags = resolve::resolve(&mut state, root, p);
     BinderResult {
-        scope_id_parent_map: state.scope_id_parent_map,
         node_id_to_scope_id: state.node_id_to_scope_id,
         symbols: state.symbols,
         res: state.res,
         final_res: state.final_res,
+        diags,
     }
 }
 
@@ -223,9 +222,9 @@ impl<'cx> BinderState<'cx> {
         self.bind_ty(&t.ty);
     }
 
-    fn bind_ty_params(&mut self, params: ast::TyParams<'cx>) {
-        for param in params {
-            self.bind_ty_param(param)
+    fn bind_ty_params(&mut self, ty_params: ast::TyParams<'cx>) {
+        for ty_param in ty_params {
+            self.bind_ty_param(ty_param)
         }
     }
 
@@ -248,6 +247,9 @@ impl<'cx> BinderState<'cx> {
         use ast::ObjectTyMemberKind::*;
         match m.kind {
             Prop(m) => {
+                if let Some(ty) = m.ty {
+                    self.bind_ty(ty);
+                }
                 let name = Self::prop_name(m.name);
                 Some((name, self.create_object_member_symbol(name, m.id)))
             }
@@ -386,7 +388,7 @@ impl<'cx> BinderState<'cx> {
                     self.bind_ty(ty);
                 }
             }
-            Lit(lit) => {
+            ObjectLit(lit) => {
                 let old = self.scope_id;
                 self.scope_id = self.new_scope();
                 let members = lit
@@ -412,14 +414,18 @@ impl<'cx> BinderState<'cx> {
                 self.bind_ty(cond.true_ty);
                 self.bind_ty(cond.false_ty);
             }
-            IndexedAccess(index) => {
-                self.bind_ty(index.ty);
-                self.bind_ty(index.index_ty);
+            IndexedAccess(indexed) => {
+                self.bind_ty(indexed.ty);
+                self.bind_ty(indexed.index_ty);
             }
             Rest(rest) => {
                 self.bind_ty(rest.ty);
             }
-            _ => (),
+            Fn(f) => {
+                self.bind_params(f.params);
+                self.bind_ty(f.ret_ty);
+            }
+            NumLit(_) | StringLit(_) => {}
         }
     }
 
@@ -452,6 +458,9 @@ impl<'cx> BinderState<'cx> {
     fn bind_param(&mut self, param: &'cx ast::ParamDecl) {
         self.connect(param.id);
         self.create_var_symbol(param.name.name, SymbolKind::FunctionScopedVar);
+        if let Some(ty) = param.ty {
+            self.bind_ty(ty);
+        }
     }
 
     fn bind_fn_decl(&mut self, container: ast::NodeID, f: &'cx ast::FnDecl<'cx>) {
