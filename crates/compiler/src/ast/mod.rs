@@ -461,6 +461,7 @@ pub struct NewExpr<'cx> {
     pub id: NodeID,
     pub span: Span,
     pub expr: &'cx Expr<'cx>,
+    pub ty_args: Option<self::Tys<'cx>>,
     pub args: Option<Exprs<'cx>>,
 }
 

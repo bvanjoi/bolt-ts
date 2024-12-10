@@ -127,8 +127,12 @@ pub enum TokenKind {
     EqEqEq,
     /// `+=`
     PlusEq,
+    /// `++`
+    PlusPlus,
     /// `-=`
     MinusEq,
+    /// `--`
+    MinusMinus,
     /// `*=`
     AsteriskEq,
     /// `/=`

@@ -9,6 +9,7 @@ mod keyword;
 pub mod parser;
 mod ty;
 
+use std::borrow::Cow;
 use std::path::PathBuf;
 use std::sync::Arc;
 use std::sync::Mutex;
@@ -16,8 +17,8 @@ use std::sync::Mutex;
 use atoms::AtomMap;
 use bind::{bind, GlobalSymbols};
 use bolt_ts_span::{ModuleArena, ModulePath};
+use parser::parse_parallel;
 use parser::token::TokenKind;
-use rayon::prelude::*;
 
 type Diag = Box<dyn bolt_ts_errors::miette::Diagnostic + Send + Sync + 'static>;
 
@@ -52,10 +53,10 @@ pub fn eval_from(m: ModulePath) -> Output {
         }
     }
     for (atom, id) in keyword::KEYWORDS {
-        atoms.insert(*id, atom.to_string());
+        atoms.insert(*id, Cow::Borrowed(atom));
     }
     for (atom, id) in keyword::IDENTIFIER {
-        atoms.insert(*id, atom.to_string())
+        atoms.insert(*id, Cow::Borrowed(atom))
     }
 
     // parser
@@ -67,25 +68,9 @@ pub fn eval_from(m: ModulePath) -> Output {
     }
     let atoms = Arc::new(Mutex::new(atoms));
     let herd = bumpalo_herd::Herd::new();
-    let res = module_arena
-        .modules
-        .keys()
-        .collect::<Vec<_>>()
-        .into_par_iter()
-        .map_init(
-            || herd.get(),
-            |bump, module_id| {
-                let module_id = *module_id;
-                let input = module_arena.content_map.get(&module_id).unwrap();
-                let result = parser::parse(atoms.clone(), bump, input.as_bytes(), module_id);
-                if module_arena.modules.get(&module_id).unwrap().global {
-                    assert!(result.diags.is_empty());
-                }
-                (module_id, result)
-            },
-        )
-        .collect::<Vec<_>>();
-    for (module_id, result) in res {
+    for (module_id, result) in
+        parse_parallel(atoms.clone(), &herd, module_arena.modules(), &module_arena)
+    {
         p.insert(module_id, result);
     }
 
@@ -93,19 +78,21 @@ pub fn eval_from(m: ModulePath) -> Output {
     let atoms = Arc::try_unwrap(atoms).unwrap();
     let atoms = atoms.into_inner().unwrap();
     let mut binder = bind::Binder::new(&p, &atoms);
-    for module_id in module_arena.modules.keys() {
-        let root = p.root(*module_id);
-        let result = bind(&atoms, root, &p, *module_id);
-        binder.insert(*module_id, result);
+    for m in module_arena.modules() {
+        let module_id = m.id;
+        let root = p.root(module_id);
+        let result = bind(&atoms, root, &p, module_id);
+        binder.insert(module_id, result);
     }
 
     let mut global_symbols = GlobalSymbols::default();
-    for module_id in module_arena.modules.keys() {
-        if !module_arena.modules[module_id].global {
+    for m in module_arena.modules() {
+        let module_id = m.id;
+        if !module_arena.get_module(module_id).global {
             continue;
         }
-        for (symbol_id, symbol) in binder.symbols(*module_id) {
-            global_symbols.insert(symbol.name, *symbol_id);
+        for (symbol_id, symbol) in binder.symbols(module_id).iter() {
+            global_symbols.insert(symbol.name, symbol_id);
         }
     }
 

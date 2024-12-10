@@ -164,6 +164,9 @@ impl<'cx> TyChecker<'cx> {
                 usize::max(sig.params.len(), max_required_params)
             }
         }
+        if decls.is_empty() {
+            dbg!(123);
+        }
 
         // FIXME: overload
         let sig = self.get_sig_from_decl(decls[0]);

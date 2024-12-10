@@ -58,40 +58,40 @@ impl ListContext for ClassElementsCtx {
     }
 }
 
-pub(super) trait ClassLike<'p, 't> {
+pub(super) trait ClassLike<'cx, 'p> {
     type Node;
-    fn parse_name(&self, state: &mut ParserState<'p, 't>) -> PResult<Option<&'p ast::Ident>>;
+    fn parse_name(&self, state: &mut ParserState<'cx, 'p>) -> PResult<Option<&'cx ast::Ident>>;
     fn finish(
         self,
-        state: &mut ParserState<'p, 't>,
+        state: &mut ParserState<'cx, 'p>,
         id: ast::NodeID,
         span: Span,
-        modifiers: Option<&'p ast::Modifiers<'p>>,
-        name: Option<&'p ast::Ident>,
-        ty_params: Option<ast::TyParams<'p>>,
-        extends: Option<&'p ast::ClassExtendsClause<'p>>,
-        implements: Option<&'p ast::ImplementsClause<'p>>,
-        elems: &'p ast::ClassElems<'p>,
+        modifiers: Option<&'cx ast::Modifiers<'cx>>,
+        name: Option<&'cx ast::Ident>,
+        ty_params: Option<ast::TyParams<'cx>>,
+        extends: Option<&'cx ast::ClassExtendsClause<'cx>>,
+        implements: Option<&'cx ast::ImplementsClause<'cx>>,
+        elems: &'cx ast::ClassElems<'cx>,
     ) -> Self::Node;
 }
 
 pub(super) struct ParseClassDecl;
-impl<'p, 't> ClassLike<'p, 't> for ParseClassDecl {
-    type Node = &'p ast::ClassDecl<'p>;
-    fn parse_name(&self, state: &mut ParserState<'p, 't>) -> PResult<Option<&'p ast::Ident>> {
+impl<'cx, 'p> ClassLike<'cx, 'p> for ParseClassDecl {
+    type Node = &'cx ast::ClassDecl<'cx>;
+    fn parse_name(&self, state: &mut ParserState<'cx, 'p>) -> PResult<Option<&'cx ast::Ident>> {
         state.parse_ident_name().map(|n| Some(n))
     }
     fn finish(
         self,
-        state: &mut ParserState<'p, 't>,
+        state: &mut ParserState<'cx, 'p>,
         id: ast::NodeID,
         span: Span,
-        modifiers: Option<&'p ast::Modifiers<'p>>,
-        name: Option<&'p ast::Ident>,
-        ty_params: Option<ast::TyParams<'p>>,
-        extends: Option<&'p ast::ClassExtendsClause<'p>>,
-        implements: Option<&'p ast::ImplementsClause<'p>>,
-        elems: &'p ast::ClassElems<'p>,
+        modifiers: Option<&'cx ast::Modifiers<'cx>>,
+        name: Option<&'cx ast::Ident>,
+        ty_params: Option<ast::TyParams<'cx>>,
+        extends: Option<&'cx ast::ClassExtendsClause<'cx>>,
+        implements: Option<&'cx ast::ImplementsClause<'cx>>,
+        elems: &'cx ast::ClassElems<'cx>,
     ) -> Self::Node {
         let name = name.unwrap();
         let decl = state.alloc(ast::ClassDecl {
@@ -110,9 +110,9 @@ impl<'p, 't> ClassLike<'p, 't> for ParseClassDecl {
 }
 
 pub(super) struct ParseClassExpr;
-impl<'p, 't> ClassLike<'p, 't> for ParseClassExpr {
-    type Node = &'p ast::ClassExpr<'p>;
-    fn parse_name(&self, state: &mut ParserState<'p, 't>) -> PResult<Option<&'p ast::Ident>> {
+impl<'cx, 'p> ClassLike<'cx, 'p> for ParseClassExpr {
+    type Node = &'cx ast::ClassExpr<'cx>;
+    fn parse_name(&self, state: &mut ParserState<'cx, 'p>) -> PResult<Option<&'cx ast::Ident>> {
         Ok(
             (state.token.kind.is_binding_ident() && !state.is_implements_clause())
                 .then(|| state.parse_binding_ident()),
@@ -120,15 +120,15 @@ impl<'p, 't> ClassLike<'p, 't> for ParseClassExpr {
     }
     fn finish(
         self,
-        state: &mut ParserState<'p, 't>,
+        state: &mut ParserState<'cx, 'p>,
         id: ast::NodeID,
         span: Span,
-        modifiers: Option<&'p ast::Modifiers<'p>>,
-        name: Option<&'p ast::Ident>,
-        ty_params: Option<ast::TyParams<'p>>,
-        extends: Option<&'p ast::ClassExtendsClause<'p>>,
-        implements: Option<&'p ast::ImplementsClause<'p>>,
-        elems: &'p ast::ClassElems<'p>,
+        modifiers: Option<&'cx ast::Modifiers<'cx>>,
+        name: Option<&'cx ast::Ident>,
+        ty_params: Option<ast::TyParams<'cx>>,
+        extends: Option<&'cx ast::ClassExtendsClause<'cx>>,
+        implements: Option<&'cx ast::ImplementsClause<'cx>>,
+        elems: &'cx ast::ClassElems<'cx>,
     ) -> Self::Node {
         assert!(modifiers.is_none());
         let expr = state.alloc(ast::ClassExpr {
@@ -145,11 +145,11 @@ impl<'p, 't> ClassLike<'p, 't> for ParseClassExpr {
     }
 }
 
-impl<'p, 't> ParserState<'p, 't> {
+impl<'cx, 'p> ParserState<'cx, 'p> {
     pub(super) fn parse_class_decl_or_expr<Node>(
         &mut self,
-        mode: impl ClassLike<'p, 't, Node = Node>,
-        modifiers: Option<&'p ast::Modifiers<'p>>,
+        mode: impl ClassLike<'cx, 'p, Node = Node>,
+        modifiers: Option<&'cx ast::Modifiers<'cx>>,
     ) -> PResult<Node> {
         use TokenKind::*;
         let start = self.token.start();
@@ -166,7 +166,7 @@ impl<'p, 't> ParserState<'p, 't> {
         ))
     }
 
-    fn parse_class_extends_clause(&mut self) -> PResult<Option<&'p ast::ClassExtendsClause<'p>>> {
+    fn parse_class_extends_clause(&mut self) -> PResult<Option<&'cx ast::ClassExtendsClause<'cx>>> {
         if self.token.kind == TokenKind::Extends {
             let id = self.next_node_id();
             let start = self.token.start();
@@ -234,8 +234,8 @@ impl<'p, 't> ParserState<'p, 't> {
         &mut self,
         id: ast::NodeID,
         start: usize,
-        modifiers: Option<&'p ast::Modifiers<'p>>,
-    ) -> PResult<&'p ast::ClassEle<'p>> {
+        modifiers: Option<&'cx ast::Modifiers<'cx>>,
+    ) -> PResult<&'cx ast::ClassEle<'cx>> {
         let name = self.with_parent(id, Self::parse_prop_name)?;
         let ele = if self.token.kind == TokenKind::LParen || self.token.kind == TokenKind::Less {
             // method
@@ -281,8 +281,8 @@ impl<'p, 't> ParserState<'p, 't> {
         &mut self,
         id: ast::NodeID,
         start: usize,
-        mods: Option<&'p Modifiers<'p>>,
-    ) -> PResult<&'p ast::ClassEle<'p>> {
+        mods: Option<&'cx Modifiers<'cx>>,
+    ) -> PResult<&'cx ast::ClassEle<'cx>> {
         self.try_parse(|this| {
             if this.token.kind == TokenKind::Constructor
                 && this.expect(TokenKind::Constructor).is_ok()
@@ -314,9 +314,9 @@ impl<'p, 't> ParserState<'p, 't> {
         &mut self,
         id: ast::NodeID,
         start: usize,
-        modifiers: Option<&'p ast::Modifiers<'p>>,
+        modifiers: Option<&'cx ast::Modifiers<'cx>>,
         t: TokenKind,
-    ) -> PResult<&'p ast::ClassEle<'p>> {
+    ) -> PResult<&'cx ast::ClassEle<'cx>> {
         let is_getter = t == TokenKind::Get;
         assert!(is_getter || t == TokenKind::Set);
         let name = self.with_parent(id, Self::parse_prop_name)?;
@@ -349,7 +349,7 @@ impl<'p, 't> ParserState<'p, 't> {
         Ok(ele)
     }
 
-    fn parse_class_ele(&mut self) -> PResult<&'p ast::ClassEle<'p>> {
+    fn parse_class_ele(&mut self) -> PResult<&'cx ast::ClassEle<'cx>> {
         let id = self.next_node_id();
         let start = self.token.start() as usize;
         let modifiers = self.with_parent(id, Self::parse_modifiers)?;
@@ -374,7 +374,7 @@ impl<'p, 't> ParserState<'p, 't> {
         }
     }
 
-    fn parse_class_members(&mut self) -> PResult<&'p ast::ClassElems<'p>> {
+    fn parse_class_members(&mut self) -> PResult<&'cx ast::ClassElems<'cx>> {
         let start = self.token.start();
         self.expect(TokenKind::LBrace)?;
         let elems = self.parse_list(ClassElementsCtx, Self::parse_class_ele);

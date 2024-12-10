@@ -78,12 +78,11 @@ fn run_test(arg: dir_test::Fixture<&str>) {
                         } else {
                             msg.clone()
                         };
-                        let code = output.module_arena.content_map.get(&diag.module_id);
-                        let start = code.map(|code| {
-                            bolt_ts_errors::miette_label_span_to_line_position(label, code).0
-                        });
+                        let code = output.module_arena.get_content(diag.module_id);
+                        let start =
+                            bolt_ts_errors::miette_label_span_to_line_position(label, code).0;
                         errors.push(compile_test::errors::Error {
-                            line_num: start.map_or(1, |x| x.line + 1),
+                            line_num: start.line + 1,
                             kind: Some(kind),
                             msg,
                         })

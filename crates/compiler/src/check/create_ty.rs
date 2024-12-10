@@ -8,8 +8,8 @@ impl<'cx> TyChecker<'cx> {
         self.next_ty_id = self.next_ty_id.next();
 
         let ty = self.alloc(ty::Ty::new(id, kind));
-        let prev = self.tys.insert(id, ty);
-        assert!(prev.is_none());
+        assert_eq!(id.as_usize(), self.tys.len());
+        self.tys.push(ty);
         ty
     }
 

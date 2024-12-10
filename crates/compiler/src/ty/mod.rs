@@ -1,16 +1,16 @@
-mod bound_object_like;
 mod facts;
 mod mapper;
+mod object_shape;
 mod object_ty;
 
 use crate::atoms::{AtomId, AtomMap};
 use crate::bind::{Binder, SymbolID};
 use crate::{ast, keyword};
 
-pub use self::bound_object_like::ObjectLikeTy;
 pub use self::facts::{has_type_facts, TypeFacts};
 pub use self::mapper::{ArrayTyMapper, CompositeTyMapper, TyMapper};
 pub use self::mapper::{DeferredTyMapper, FnTyMapper, MergedTyMapper, SimpleTyMapper};
+pub use self::object_shape::ObjectShape;
 pub use self::object_ty::ElementFlags;
 pub use self::object_ty::TyReference;
 pub use self::object_ty::{ArrayTy, IndexInfo, ObjectTy, TupleShape, TupleTy};

@@ -143,7 +143,6 @@ pub struct TupleTy<'cx> {
 
 #[derive(Debug, Clone, Copy)]
 pub struct TupleShape<'cx> {
-    pub members: &'cx FxHashMap<SymbolName, SymbolID>,
     pub declared_props: &'cx [SymbolID],
 }
 

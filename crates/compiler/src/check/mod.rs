@@ -60,12 +60,12 @@ impl Into<F64Represent> for usize {
 }
 
 pub struct TyChecker<'cx> {
-    pub atoms: &'cx AtomMap,
+    pub atoms: &'cx AtomMap<'cx>,
     pub diags: Vec<bolt_ts_errors::Diag>,
     arena: &'cx bumpalo::Bump,
     next_ty_id: TyID,
     next_ty_var_id: TyVarID,
-    tys: FxHashMap<TyID, &'cx Ty<'cx>>,
+    tys: Vec<&'cx Ty<'cx>>,
     num_lit_tys: FxHashMap<F64Represent, TyID>,
     string_lit_tys: FxHashMap<AtomId, TyID>,
     intrinsic_tys: FxHashMap<AtomId, &'cx Ty<'cx>>,
@@ -135,7 +135,7 @@ impl<'cx> TyChecker<'cx> {
         let mut this = Self {
             intrinsic_tys: FxHashMap::default(),
             atoms,
-            tys: FxHashMap::default(),
+            tys: Vec::with_capacity(1024 * 1024),
             num_lit_tys: FxHashMap::default(),
             string_lit_tys: FxHashMap::default(),
             next_ty_id: TyID::root(),

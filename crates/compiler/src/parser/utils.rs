@@ -134,7 +134,7 @@ impl<'p, 't> ParserState<'p, 't> {
         }
     }
 
-    pub(super) fn is_start_of_expr(&mut self) -> bool {
+    pub(super) fn is_start_of_expr(&self) -> bool {
         self.token.kind.is_start_of_left_hand_side_expr()
     }
 

@@ -218,13 +218,19 @@ impl SymbolID {
     }
 }
 
-pub struct Symbols(pub(super) FxHashMap<SymbolID, Symbol>);
+pub struct Symbols {
+    module_id: ModuleID,
+    data: Vec<Symbol>,
+}
 
 impl Symbols {
     pub const ERR: SymbolID = SymbolID::root(ModuleID::root());
 
-    pub fn new() -> Self {
-        let mut this = Self(FxHashMap::default());
+    pub fn new(module_id: ModuleID) -> Self {
+        let mut this = Self {
+            module_id,
+            data: Vec::with_capacity(512),
+        };
         this.insert(
             Symbol::ERR,
             Symbol::new(SymbolName::Normal(keyword::IDENT_EMPTY), SymbolKind::Err),
@@ -233,24 +239,30 @@ impl Symbols {
     }
 
     pub fn insert(&mut self, id: SymbolID, symbol: Symbol) {
-        let prev = self.0.insert(id, symbol);
-        assert!(prev.is_none(), "prev symbol: {prev:#?}")
+        assert!(id.index_as_usize() == self.data.len());
+        self.data.push(symbol);
     }
 
     pub fn get(&self, id: SymbolID) -> &Symbol {
-        &self.0[&id]
+        &self.data[id.index_as_usize()]
     }
 
     pub fn get_mut(&mut self, id: SymbolID) -> &mut Symbol {
-        self.0.get_mut(&id).unwrap()
+        self.data.get_mut(id.index_as_usize()).unwrap()
     }
-}
 
-impl<'a> IntoIterator for &'a Symbols {
-    type Item = (&'a SymbolID, &'a Symbol);
-    type IntoIter = std::collections::hash_map::Iter<'a, SymbolID, Symbol>;
-    fn into_iter(self) -> Self::IntoIter {
-        self.0.iter()
+    pub fn len(&self) -> u32 {
+        self.data.len() as u32
+    }
+
+    pub fn iter(&self) -> impl Iterator<Item = (SymbolID, &Symbol)> {
+        self.data.iter().enumerate().map(|(index, symbol)| {
+            let id = SymbolID {
+                module: self.module_id,
+                index: index as u32,
+            };
+            (id, symbol)
+        })
     }
 }
 

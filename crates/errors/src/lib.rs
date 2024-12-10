@@ -22,10 +22,8 @@ impl Diag {
     }
 
     pub fn emit_message(self, module_arena: &ModuleArena, no_color: bool) -> String {
-        let source = module_arena.content_map.get(&self.module_id).unwrap();
-        let filename = if let ModulePath::Real(filename) =
-            module_arena.path_map.get(&self.module_id).unwrap()
-        {
+        let source = module_arena.get_content(self.module_id);
+        let filename = if let ModulePath::Real(filename) = module_arena.get_path(self.module_id) {
             let cwd = std::env::current_dir().unwrap();
             let relative =
                 relative_path::PathExt::relative_to(filename.as_path(), cwd.as_path()).unwrap();

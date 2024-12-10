@@ -433,7 +433,7 @@ fn resolve_symbol_by_ident(
             }
         }
 
-        if let Some(parent) = binder.scope_id_parent_map[&scope_id] {
+        if let Some(parent) = binder.scope_id_parent_map[scope_id.index_as_usize()] {
             scope_id = parent;
         } else {
             break Symbol::ERR;

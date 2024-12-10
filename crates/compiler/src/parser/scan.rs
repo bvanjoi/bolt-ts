@@ -1,3 +1,5 @@
+use std::borrow::Cow;
+
 use bolt_ts_span::Span;
 
 use super::token::{Token, TokenFlags, TokenKind};
@@ -32,7 +34,7 @@ fn is_octal_digit(ch: u8) -> bool {
     ch >= b'0' && ch <= b'7'
 }
 
-impl<'p, 't> ParserState<'p, 't> {
+impl<'cx, 'p> ParserState<'cx, 'p> {
     fn ch(&self) -> Option<u8> {
         self.input.get(self.pos).copied()
     }
@@ -185,7 +187,9 @@ impl<'p, 't> ParserState<'p, 't> {
             self.atoms
                 .lock()
                 .unwrap()
-                .insert_if_not_exist(id, || unsafe { String::from_utf8_unchecked(raw.to_vec()) });
+                .insert_if_not_exist(id, || unsafe {
+                    Cow::Owned(String::from_utf8_unchecked(raw.to_vec()))
+                });
             self.token_value = Some(TokenValue::Ident { value: id });
             Token::new(TokenKind::Ident, self.new_span(start, self.pos))
         } else {
@@ -268,7 +272,7 @@ impl<'p, 't> ParserState<'p, 't> {
                     if self.next_ch() == Some(b'+') {
                         // ++
                         self.pos += 2;
-                        todo!()
+                        Token::new(TokenKind::PlusPlus, self.new_span(start, self.pos))
                     } else if self.next_ch() == Some(b'=') {
                         self.pos += 2;
                         Token::new(TokenKind::PlusEq, self.new_span(start, self.pos))
@@ -281,7 +285,7 @@ impl<'p, 't> ParserState<'p, 't> {
                     if self.next_ch() == Some(b'-') {
                         // --
                         self.pos += 2;
-                        todo!()
+                        Token::new(TokenKind::MinusMinus, self.new_span(start, self.pos))
                     } else if self.next_ch() == Some(b'=') {
                         self.pos += 2;
                         Token::new(TokenKind::MinusEq, self.new_span(start, self.pos))

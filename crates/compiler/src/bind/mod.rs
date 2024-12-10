@@ -16,7 +16,7 @@ bolt_ts_span::new_index_with_module!(ScopeID);
 
 pub struct Binder<'cx> {
     p: &'cx Parser<'cx>,
-    atoms: &'cx AtomMap,
+    atoms: &'cx AtomMap<'cx>,
     map: FxHashMap<ModuleID, BinderResult>,
 }
 
@@ -66,13 +66,11 @@ impl<'cx> Binder<'cx> {
     pub fn create_anonymous_symbol(&mut self, name: SymbolName, kind: SymbolKind) -> SymbolID {
         let module = ModuleID::MOCK;
         let binder = self.map.entry(module).or_insert_with(|| BinderResult {
-            node_id_to_scope_id: Default::default(),
-            symbols: Symbols::new(),
-            res: Default::default(),
+            symbols: Symbols::new(module),
             final_res: Default::default(),
             diags: Default::default(),
         });
-        let len = binder.symbols.0.len();
+        let len = binder.symbols.len();
         let id = SymbolID::mock(len as u32);
         let symbol = Symbol::new(name, kind);
         binder.symbols.insert(id, symbol);
@@ -88,8 +86,8 @@ struct BinderState<'cx> {
     scope_id: ScopeID,
     max_scope_id: ScopeID,
     symbol_id: SymbolID,
-    atoms: &'cx AtomMap,
-    scope_id_parent_map: FxHashMap<ScopeID, Option<ScopeID>>,
+    atoms: &'cx AtomMap<'cx>,
+    scope_id_parent_map: Vec<Option<ScopeID>>,
     node_id_to_scope_id: FxHashMap<ast::NodeID, ScopeID>,
     symbols: Symbols,
     res: FxHashMap<(ScopeID, SymbolName), SymbolID>,
@@ -97,15 +95,13 @@ struct BinderState<'cx> {
 }
 
 pub struct BinderResult {
-    node_id_to_scope_id: FxHashMap<ast::NodeID, ScopeID>,
     symbols: Symbols,
-    res: FxHashMap<(ScopeID, SymbolName), SymbolID>,
     final_res: FxHashMap<ast::NodeID, SymbolID>,
     diags: Vec<bolt_ts_errors::Diag>,
 }
 
 pub fn bind<'cx>(
-    atoms: &'cx AtomMap,
+    atoms: &'cx AtomMap<'cx>,
     root: &'cx ast::Program,
     p: &'cx Parser<'cx>,
     module_id: ModuleID,
@@ -114,9 +110,7 @@ pub fn bind<'cx>(
     state.bind_program(root);
     let diags = resolve::resolve(&mut state, root, p);
     BinderResult {
-        node_id_to_scope_id: state.node_id_to_scope_id,
         symbols: state.symbols,
-        res: state.res,
         final_res: state.final_res,
         diags,
     }
@@ -124,16 +118,16 @@ pub fn bind<'cx>(
 
 impl<'cx> BinderState<'cx> {
     fn new(atoms: &'cx AtomMap, module_id: ModuleID) -> Self {
-        let symbols = Symbols::new();
+        let symbols = Symbols::new(module_id);
         let mut symbol_id = SymbolID::root(module_id);
         symbol_id = symbol_id.next();
         BinderState {
             atoms,
             scope_id: ScopeID::root(module_id),
             max_scope_id: ScopeID::root(module_id),
-            scope_id_parent_map: FxHashMap::default(),
-            res: FxHashMap::default(),
-            final_res: FxHashMap::default(),
+            scope_id_parent_map: Vec::with_capacity(512),
+            res: Default::default(),
+            final_res: Default::default(),
             node_id_to_scope_id: FxHashMap::default(),
             symbol_id,
             symbols,
@@ -149,14 +143,16 @@ impl<'cx> BinderState<'cx> {
         let old = self.scope_id;
         let next = self.max_scope_id.next();
         self.max_scope_id = next;
-        self.scope_id_parent_map.insert(next, Some(old));
+        assert_eq!(next.index_as_usize(), self.scope_id_parent_map.len());
+        self.scope_id_parent_map.push(Some(old));
         next
     }
 
     fn bind_program(&mut self, root: &'cx ast::Program) {
         assert_eq!(self.scope_id.index_as_u32(), 0);
         assert_eq!(self.symbol_id.index_as_u32(), 1);
-        self.scope_id_parent_map.insert(self.scope_id, None);
+        assert!(self.scope_id_parent_map.is_empty());
+        self.scope_id_parent_map.push(None);
         self.connect(root.id);
         self.create_block_container_symbol(root.id);
         for stmt in root.stmts {

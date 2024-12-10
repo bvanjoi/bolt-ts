@@ -520,19 +520,14 @@ impl<'cx> TyChecker<'cx> {
                 .symbol_links
                 .insert(symbol, SymbolLinks::new().with_ty(index_ty));
             assert!(prev.is_none());
-            (name, symbol)
+            symbol
         });
 
-        let members = element_symbols
-            .into_iter()
-            .chain(std::iter::once((length_symbol_name, length_symbol)))
-            .collect::<FxHashMap<_, _>>();
-        let members = self.alloc(members);
-        let declared_props = self.get_props_from_members(members);
-        let shape = self.alloc(ty::TupleShape {
-            members,
-            declared_props,
-        });
+        let declared_props = std::iter::once(length_symbol)
+            .chain(element_symbols)
+            .collect::<Vec<_>>();
+        let declared_props = self.alloc(declared_props);
+        let shape = self.alloc(ty::TupleShape { declared_props });
         let prev = self.tuple_shapes.insert(key, shape);
         assert!(prev.is_none());
         shape
@@ -645,7 +640,7 @@ impl<'cx> TyChecker<'cx> {
     pub(super) fn get_number_literal_type(&mut self, val: f64) -> &'cx Ty<'cx> {
         let key = F64Represent::new(val);
         if let Some(id) = self.num_lit_tys.get(&key) {
-            self.tys[id]
+            self.tys[id.as_usize()]
         } else {
             let kind = TyKind::NumberLit(self.alloc(ty::NumberLitTy { val }));
             let ty = self.new_ty(kind);
@@ -656,7 +651,7 @@ impl<'cx> TyChecker<'cx> {
 
     pub(super) fn get_string_literal_type(&mut self, val: AtomId) -> &'cx Ty<'cx> {
         if let Some(id) = self.string_lit_tys.get(&val) {
-            self.tys[id]
+            self.tys[id.as_usize()]
         } else {
             let kind = TyKind::StringLit(self.alloc(ty::StringLitTy { val }));
             let ty = self.new_ty(kind);

@@ -1,8 +1,14 @@
-use bolt_ts_span::Span;
+use bolt_ts_span::{ModuleID, Span};
 
 use crate::ast;
 
 bolt_ts_span::new_index_with_module!(NodeID);
+
+impl NodeID {
+    pub fn new(module: ModuleID, index: u32) -> Self {
+        Self { module, index }
+    }
+}
 
 #[derive(Debug, Clone, Copy)]
 pub enum Node<'cx> {

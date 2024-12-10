@@ -1,16 +1,4 @@
   × Cannot assign to 'f' because it is a class.
-   ╭─[../../tests/cases/compiler/arithAssignTyping/index.ts:3:1]
- 3 │ f
-   · ─
-   ╰────
-
-  × Cannot assign to 'f' because it is a class.
-   ╭─[../../tests/cases/compiler/arithAssignTyping/index.ts:4:1]
- 4 │ f
-   · ─
-   ╰────
-
-  × Cannot assign to 'f' because it is a class.
    ╭─[../../tests/cases/compiler/arithAssignTyping/index.ts:5:1]
  5 │ f
    · ─
@@ -67,5 +55,17 @@
   × Cannot assign to 'f' because it is a class.
     ╭─[../../tests/cases/compiler/arithAssignTyping/index.ts:14:1]
  14 │ f
+    · ─
+    ╰────
+
+  × Cannot assign to 'f' because it is a class.
+    ╭─[../../tests/cases/compiler/arithAssignTyping/index.ts:15:1]
+ 15 │ f
+    · ─
+    ╰────
+
+  × Cannot assign to 'f' because it is a class.
+    ╭─[../../tests/cases/compiler/arithAssignTyping/index.ts:16:1]
+ 16 │ f
     · ─
     ╰────

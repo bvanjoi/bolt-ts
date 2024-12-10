@@ -4,7 +4,7 @@ use rustc_hash::FxHashSet;
 use crate::atoms::AtomId;
 use crate::bind::{SymbolID, SymbolName};
 use crate::errors;
-use crate::ty::{ObjectLikeTy, ObjectTy, ObjectTyKind, Ty, TyKind, Tys};
+use crate::ty::{ObjectShape, ObjectTy, ObjectTyKind, Ty, TyKind, Tys};
 
 use super::TyChecker;
 
@@ -318,11 +318,11 @@ impl<'cx> TyChecker<'cx> {
 
     fn get_props_of_object_ty(&self, ty: &'cx ObjectTy<'cx>) -> &'cx [SymbolID] {
         if let ObjectTyKind::Interface(ty) = ty.kind {
-            ObjectLikeTy::props(ty)
+            ObjectShape::props(ty)
         } else if let ObjectTyKind::ObjectLit(ty) = ty.kind {
-            ObjectLikeTy::props(ty)
+            ObjectShape::props(ty)
         } else if let ObjectTyKind::Tuple(ty) = ty.kind {
-            ObjectLikeTy::props(ty)
+            ObjectShape::props(ty)
         } else {
             unreachable!()
         }
@@ -342,11 +342,11 @@ impl<'cx> TyChecker<'cx> {
         };
 
         if let Some(ty) = ty.kind.as_interface() {
-            ObjectLikeTy::get_member(ty, &name)
+            ObjectShape::get_member(ty, &name)
         } else if let Some(ty) = ty.kind.as_object_lit() {
-            ObjectLikeTy::get_member(ty, &name)
+            ObjectShape::get_member(ty, &name)
         } else if let Some(ty) = ty.kind.as_tuple() {
-            ObjectLikeTy::get_member(ty, &name)
+            ObjectShape::get_member(ty, &name)
         } else {
             unreachable!()
         }
