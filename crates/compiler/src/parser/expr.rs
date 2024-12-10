@@ -123,7 +123,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         };
 
         let start = self.token.start();
-        let expr = self.parse_binary_expr(BinPrec::Lowest);
+        let expr = self.parse_binary_expr(BinPrec::Lowest)?;
         if let ast::ExprKind::Ident(ident) = expr.kind {
             if self.token.kind == TokenKind::EqGreater {
                 return self.parse_simple_arrow_fn_expr(ident);
@@ -152,9 +152,9 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         }
     }
 
-    fn parse_binary_expr(&mut self, prec: BinPrec) -> &'cx ast::Expr<'cx> {
+    fn parse_binary_expr(&mut self, prec: BinPrec) -> PResult<&'cx ast::Expr<'cx>> {
         let start = self.token.start() as usize;
-        let left = self.parse_unary_expr();
+        let left = self.parse_unary_expr()?;
         self.parse_binary_expr_rest(prec, left, start)
     }
 
@@ -163,14 +163,14 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         prec: BinPrec,
         left: &'cx ast::Expr<'_>,
         start: usize,
-    ) -> &'cx ast::Expr<'cx> {
+    ) -> PResult<&'cx ast::Expr<'cx>> {
         let mut left = left;
         loop {
             self.re_scan_greater();
 
             let next_prec = self.token.kind.prec();
             if !(next_prec > prec) {
-                break left;
+                break Ok(left);
             }
             let op = BinOp {
                 kind: self.token.kind.into(),
@@ -179,7 +179,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
             let bin_expr_id = self.next_node_id();
             self.next_token();
             self.parent_map.r#override(left.id(), bin_expr_id);
-            let right = self.with_parent(bin_expr_id, |this| this.parse_binary_expr(next_prec));
+            let right = self.with_parent(bin_expr_id, |this| this.parse_binary_expr(next_prec))?;
             let bin_expr = self.alloc(ast::BinExpr {
                 id: bin_expr_id,
                 left,
@@ -193,7 +193,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         }
     }
 
-    fn parse_unary_expr(&mut self) -> &'cx ast::Expr<'cx> {
+    fn parse_unary_expr(&mut self) -> PResult<&'cx ast::Expr<'cx>> {
         if self.is_update_expr() {
             // let start = self.token.start();
             self.parse_update_expr()
@@ -207,7 +207,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         let id = self.next_node_id();
         let op = self.token.kind.into();
         self.next_token();
-        let expr = self.with_parent(id, Self::parse_simple_unary_expr);
+        let expr = self.with_parent(id, Self::parse_simple_unary_expr)?;
         let unary = self.alloc(ast::PrefixUnaryExpr {
             id,
             span: self.new_span(start as usize, self.pos),
@@ -221,21 +221,36 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         Ok(expr)
     }
 
-    fn parse_simple_unary_expr(&mut self) -> &'cx ast::Expr<'cx> {
+    fn parse_simple_unary_expr(&mut self) -> PResult<&'cx ast::Expr<'cx>> {
         use TokenKind::*;
         match self.token.kind {
-            Plus | Minus => self.parse_prefix_unary_expr().unwrap(),
+            Plus | Minus => self.parse_prefix_unary_expr(),
             _ => self.parse_update_expr(),
         }
     }
 
-    fn parse_update_expr(&mut self) -> &'cx ast::Expr<'cx> {
+    fn parse_update_expr(&mut self) -> PResult<&'cx ast::Expr<'cx>> {
         let start = self.token.start();
         if matches!(self.token.kind, TokenKind::PlusPlus | TokenKind::MinusMinus) {
+            let id = self.next_node_id();
+            let op = self.token.kind.into();
+            self.next_token();
+            let expr = self.parse_left_hand_side_expr();
+            let unary = self.alloc(ast::PrefixUnaryExpr {
+                id,
+                span: self.new_span(start as usize, self.pos),
+                op,
+                expr,
+            });
+            self.insert_map(id, ast::Node::PrefixUnaryExpr(unary));
+            let expr = self.alloc(ast::Expr {
+                kind: ast::ExprKind::PrefixUnary(unary),
+            });
+            Ok(expr)
         } else {
+            let expr = self.parse_left_hand_side_expr();
+            self.parse_call_expr(start as usize, expr)
         }
-        let expr = self.parse_left_hand_side_expr();
-        self.parse_call_expr(start as usize, expr).unwrap()
     }
 
     fn parse_call_expr(

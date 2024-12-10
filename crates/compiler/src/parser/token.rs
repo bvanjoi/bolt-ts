@@ -203,6 +203,8 @@ impl Into<PrefixUnaryOp> for TokenKind {
         match self {
             TokenKind::Plus => PrefixUnaryOp::Plus,
             TokenKind::Minus => PrefixUnaryOp::Minus,
+            TokenKind::PlusPlus => PrefixUnaryOp::PlusPlus,
+            TokenKind::MinusMinus => PrefixUnaryOp::MinusMinus,
             _ => {
                 unreachable!("{:#?}", self)
             }

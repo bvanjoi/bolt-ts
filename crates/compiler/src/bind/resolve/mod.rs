@@ -240,6 +240,7 @@ impl<'cx, 'r> Resolver<'cx, 'r> {
             }
             New(new) => self.resolve_expr(new.expr),
             Class(class) => self.resolve_class_like(class),
+            PrefixUnary(unary) => self.resolve_expr(unary.expr),
             _ => (),
         }
     }

@@ -375,6 +375,8 @@ pub struct PropAccessExpr<'cx> {
 pub enum PrefixUnaryOp {
     Plus,
     Minus,
+    PlusPlus,
+    MinusMinus,
 }
 
 impl PrefixUnaryOp {
@@ -383,6 +385,8 @@ impl PrefixUnaryOp {
         match self {
             Plus => "+",
             Minus => "-",
+            PlusPlus => "++",
+            MinusMinus => "--",
         }
     }
 }

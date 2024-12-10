@@ -32,7 +32,7 @@ use crate::atoms::{AtomId, AtomMap};
 use crate::bind::{self, GlobalSymbols, Symbol, SymbolID, SymbolKind, SymbolName};
 use crate::parser::Parser;
 use crate::ty::{has_type_facts, TupleShape, Ty, TyID, TyKind, TyVarID, TypeFacts};
-use crate::{ast, errors, keyword, ty};
+use crate::{ast, ensure_sufficient_stack, errors, keyword, ty};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct F64Represent {
@@ -468,6 +468,22 @@ impl<'cx> TyChecker<'cx> {
                     };
                     self.get_number_literal_type(val)
                 }
+                ast::PrefixUnaryOp::PlusPlus => {
+                    let val = if let ty::TyKind::NumberLit(n) = op_ty.kind {
+                        n.val + 1.
+                    } else {
+                        todo!()
+                    };
+                    self.get_number_literal_type(val)
+                }
+                ast::PrefixUnaryOp::MinusMinus => {
+                    let val = if let ty::TyKind::NumberLit(n) = op_ty.kind {
+                        n.val - 1.
+                    } else {
+                        todo!()
+                    };
+                    self.get_number_literal_type(val)
+                }
             },
             _ => self.undefined_ty(),
         }
@@ -698,7 +714,7 @@ impl<'cx> TyChecker<'cx> {
 
     fn check_bin_expr(&mut self, node: &'cx ast::BinExpr) -> &'cx Ty<'cx> {
         let l = self.check_expr(node.left);
-        let r = self.check_expr(node.right);
+        let r = ensure_sufficient_stack(|| self.check_expr(node.right));
         self.check_bin_like_expr(node, node.op, node.left, l, node.right, r)
     }
 

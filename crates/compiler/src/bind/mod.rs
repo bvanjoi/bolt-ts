@@ -300,6 +300,7 @@ impl<'cx> BinderState<'cx> {
             Fn(f) => self.bind_fn_expr(f),
             New(new) => self.bind_expr(new.expr),
             Class(class) => self.bind_class_like(class),
+            PrefixUnary(unary) => self.bind_expr(unary.expr),
             _ => (),
         }
     }

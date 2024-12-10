@@ -78,6 +78,7 @@ pub fn eval_from(m: ModulePath) -> Output {
     let atoms = Arc::try_unwrap(atoms).unwrap();
     let atoms = atoms.into_inner().unwrap();
     let mut binder = bind::Binder::new(&p, &atoms);
+    // TODO: par
     for m in module_arena.modules() {
         let module_id = m.id;
         let root = p.root(module_id);
