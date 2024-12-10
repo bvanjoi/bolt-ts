@@ -58,12 +58,12 @@ impl ListContext for ClassElementsCtx {
     }
 }
 
-pub(super) trait ClassLike<'p> {
+pub(super) trait ClassLike<'p, 't> {
     type Node;
-    fn parse_name(&self, state: &mut ParserState<'p>) -> PResult<Option<&'p ast::Ident>>;
+    fn parse_name(&self, state: &mut ParserState<'p, 't>) -> PResult<Option<&'p ast::Ident>>;
     fn finish(
         self,
-        state: &mut ParserState<'p>,
+        state: &mut ParserState<'p, 't>,
         id: ast::NodeID,
         span: Span,
         modifiers: Option<&'p ast::Modifiers<'p>>,
@@ -76,14 +76,14 @@ pub(super) trait ClassLike<'p> {
 }
 
 pub(super) struct ParseClassDecl;
-impl<'p> ClassLike<'p> for ParseClassDecl {
+impl<'p, 't> ClassLike<'p, 't> for ParseClassDecl {
     type Node = &'p ast::ClassDecl<'p>;
-    fn parse_name(&self, state: &mut ParserState<'p>) -> PResult<Option<&'p ast::Ident>> {
+    fn parse_name(&self, state: &mut ParserState<'p, 't>) -> PResult<Option<&'p ast::Ident>> {
         state.parse_ident_name().map(|n| Some(n))
     }
     fn finish(
         self,
-        state: &mut ParserState<'p>,
+        state: &mut ParserState<'p, 't>,
         id: ast::NodeID,
         span: Span,
         modifiers: Option<&'p ast::Modifiers<'p>>,
@@ -110,9 +110,9 @@ impl<'p> ClassLike<'p> for ParseClassDecl {
 }
 
 pub(super) struct ParseClassExpr;
-impl<'p> ClassLike<'p> for ParseClassExpr {
+impl<'p, 't> ClassLike<'p, 't> for ParseClassExpr {
     type Node = &'p ast::ClassExpr<'p>;
-    fn parse_name(&self, state: &mut ParserState<'p>) -> PResult<Option<&'p ast::Ident>> {
+    fn parse_name(&self, state: &mut ParserState<'p, 't>) -> PResult<Option<&'p ast::Ident>> {
         Ok(
             (state.token.kind.is_binding_ident() && !state.is_implements_clause())
                 .then(|| state.parse_binding_ident()),
@@ -120,7 +120,7 @@ impl<'p> ClassLike<'p> for ParseClassExpr {
     }
     fn finish(
         self,
-        state: &mut ParserState<'p>,
+        state: &mut ParserState<'p, 't>,
         id: ast::NodeID,
         span: Span,
         modifiers: Option<&'p ast::Modifiers<'p>>,
@@ -145,10 +145,10 @@ impl<'p> ClassLike<'p> for ParseClassExpr {
     }
 }
 
-impl<'p> ParserState<'p> {
+impl<'p, 't> ParserState<'p, 't> {
     pub(super) fn parse_class_decl_or_expr<Node>(
         &mut self,
-        mode: impl ClassLike<'p, Node = Node>,
+        mode: impl ClassLike<'p, 't, Node = Node>,
         modifiers: Option<&'p ast::Modifiers<'p>>,
     ) -> PResult<Node> {
         use TokenKind::*;

@@ -7,7 +7,7 @@ use super::token::{BinPrec, TokenKind};
 use super::utils::is_left_hand_side_expr_kind;
 use super::{PResult, ParserState};
 
-impl<'p> ParserState<'p> {
+impl<'p, 't> ParserState<'p, 't> {
     fn is_update_expr(&self) -> bool {
         use TokenKind::*;
         match self.token.kind {

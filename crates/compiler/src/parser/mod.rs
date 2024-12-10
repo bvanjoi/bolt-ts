@@ -61,7 +61,7 @@ impl ParentMap {
 }
 
 pub struct ParseResult<'p> {
-    pub root: &'p ast::Program<'p>,
+    // pub root: &'p ast::Program<'p>,
     pub diags: Vec<bolt_ts_errors::Diag>,
     nodes: Nodes<'p>,
     parent_map: ParentMap,
@@ -91,7 +91,7 @@ impl<'cx> Parser<'cx> {
 
     #[inline(always)]
     pub fn root(&self, id: ModuleID) -> &ast::Program<'cx> {
-        self.get(id).root
+        self.get(id).nodes.get(NodeID::root(id)).expect_program()
     }
 
     #[inline(always)]
@@ -133,10 +133,10 @@ impl TokenValue {
     }
 }
 
-pub fn parse<'p>(
+pub fn parse<'p, 't>(
     atoms: Arc<Mutex<AtomMap>>,
-    arena: &'p bumpalo::Bump,
-    input: &'p [u8],
+    arena: &'t bumpalo_herd::Member<'p>,
+    input: &'t [u8],
     module_id: ModuleID,
 ) -> ParseResult<'p> {
     let nodes = Nodes::default();
@@ -144,16 +144,16 @@ pub fn parse<'p>(
     let mut s = ParserState::new(atoms, &arena, nodes, parent_map, input, module_id);
     let root = s.parse();
     ParseResult {
-        root,
+        // root,
         diags: s.diags,
         nodes: s.nodes,
         parent_map: s.parent_map,
     }
 }
 
-pub struct ParserState<'p> {
+pub struct ParserState<'p, 't> {
     atoms: Arc<Mutex<AtomMap>>,
-    input: &'p [u8],
+    input: &'t [u8],
     token: Token,
     token_value: Option<TokenValue>,
     token_flags: TokenFlags,
@@ -164,17 +164,17 @@ pub struct ParserState<'p> {
     diags: Vec<bolt_ts_errors::Diag>,
     nodes: Nodes<'p>,
     parent_map: ParentMap,
-    arena: &'p bumpalo::Bump,
+    arena: &'t bumpalo_herd::Member<'p>,
     next_node_id: NodeID,
 }
 
-impl<'p> ParserState<'p> {
+impl<'p, 't> ParserState<'p, 't> {
     fn new(
         atoms: Arc<Mutex<AtomMap>>,
-        arena: &'p bumpalo::Bump,
+        arena: &'t bumpalo_herd::Member<'p>,
         nodes: Nodes<'p>,
         parent_map: ParentMap,
-        input: &'p [u8],
+        input: &'t [u8],
         module_id: ModuleID,
     ) -> Self {
         let token = Token::new(

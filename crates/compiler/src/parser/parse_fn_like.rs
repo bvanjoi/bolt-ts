@@ -4,12 +4,12 @@ use super::ast;
 use super::token::TokenKind;
 use super::{PResult, ParserState};
 
-pub(super) trait FnLike<'p> {
+pub(super) trait FnLike<'p, 't> {
     type Node;
-    fn parse_name(&self, state: &mut ParserState<'p>) -> PResult<Option<&'p ast::Ident>>;
+    fn parse_name(&self, state: &mut ParserState<'p, 't>) -> PResult<Option<&'p ast::Ident>>;
     fn finish(
         self,
-        state: &mut ParserState<'p>,
+        state: &mut ParserState<'p, 't>,
         id: ast::NodeID,
         span: Span,
         modifiers: Option<&'p ast::Modifiers<'p>>,
@@ -22,14 +22,14 @@ pub(super) trait FnLike<'p> {
 }
 
 pub(super) struct ParseFnDecl;
-impl<'p> FnLike<'p> for ParseFnDecl {
+impl<'p, 't> FnLike<'p, 't> for ParseFnDecl {
     type Node = &'p ast::FnDecl<'p>;
-    fn parse_name(&self, state: &mut ParserState<'p>) -> PResult<Option<&'p ast::Ident>> {
+    fn parse_name(&self, state: &mut ParserState<'p, 't>) -> PResult<Option<&'p ast::Ident>> {
         Ok(Some(state.parse_binding_ident()))
     }
     fn finish(
         self,
-        state: &mut ParserState<'p>,
+        state: &mut ParserState<'p, 't>,
         id: ast::NodeID,
         span: Span,
         modifiers: Option<&'p ast::Modifiers<'p>>,
@@ -56,9 +56,9 @@ impl<'p> FnLike<'p> for ParseFnDecl {
 }
 
 pub(super) struct ParseFnExpr;
-impl<'p> FnLike<'p> for ParseFnExpr {
+impl<'p, 't> FnLike<'p, 't> for ParseFnExpr {
     type Node = &'p ast::FnExpr<'p>;
-    fn parse_name(&self, state: &mut ParserState<'p>) -> PResult<Option<&'p ast::Ident>> {
+    fn parse_name(&self, state: &mut ParserState<'p, 't>) -> PResult<Option<&'p ast::Ident>> {
         Ok(
             (state.token.kind.is_binding_ident() && !state.is_implements_clause())
                 .then(|| state.parse_binding_ident()),
@@ -66,7 +66,7 @@ impl<'p> FnLike<'p> for ParseFnExpr {
     }
     fn finish(
         self,
-        state: &mut ParserState<'p>,
+        state: &mut ParserState<'p, 't>,
         id: ast::NodeID,
         span: Span,
         modifiers: Option<&'p ast::Modifiers<'p>>,
@@ -91,10 +91,10 @@ impl<'p> FnLike<'p> for ParseFnExpr {
     }
 }
 
-impl<'p> ParserState<'p> {
+impl<'p, 't> ParserState<'p, 't> {
     pub(super) fn parse_fn_decl_or_expr<Node>(
         &mut self,
-        mode: impl FnLike<'p, Node = Node>,
+        mode: impl FnLike<'p, 't, Node = Node>,
         modifiers: Option<&'p ast::Modifiers<'p>>,
     ) -> PResult<Node> {
         use TokenKind::*;

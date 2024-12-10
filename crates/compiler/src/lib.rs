@@ -10,14 +10,14 @@ pub mod parser;
 mod ty;
 
 use std::path::PathBuf;
+use std::sync::Arc;
 use std::sync::Mutex;
-use std::{borrow::Cow, sync::Arc};
 
 use atoms::AtomMap;
 use bind::{bind, GlobalSymbols};
-use bolt_ts_span::{ModuleArena, ModuleID, ModulePath};
+use bolt_ts_span::{ModuleArena, ModulePath};
 use parser::token::TokenKind;
-use rustc_hash::FxHashMap;
+use rayon::prelude::*;
 
 type Diag = Box<dyn bolt_ts_errors::miette::Diagnostic + Send + Sync + 'static>;
 
@@ -66,21 +66,27 @@ pub fn eval_from(m: ModulePath) -> Output {
         module_arena.new_module(ModulePath::Real(dir.join(file)), true);
     }
     let atoms = Arc::new(Mutex::new(atoms));
-    let arena_list: FxHashMap<ModuleID, bumpalo::Bump> = module_arena
+    let herd = bumpalo_herd::Herd::new();
+    let res = module_arena
         .modules
         .keys()
-        .map(|id| (*id, bumpalo::Bump::new()))
-        .collect();
-    for (module_id, _) in module_arena.modules.iter() {
-        let module_id = *module_id;
-        let input = module_arena.content_map.get(&module_id).unwrap();
-        let arena = arena_list.get(&module_id).unwrap();
-        let result = parser::parse(atoms.clone(), arena, input.as_bytes(), module_id);
-        if module_id != m.id {
-            // FIXME: use is global
-            assert!(result.diags.is_empty());
-        }
-        p.insert(module_id, result)
+        .collect::<Vec<_>>()
+        .into_par_iter()
+        .map_init(
+            || herd.get(),
+            |bump, module_id| {
+                let module_id = *module_id;
+                let input = module_arena.content_map.get(&module_id).unwrap();
+                let result = parser::parse(atoms.clone(), bump, input.as_bytes(), module_id);
+                if module_arena.modules.get(&module_id).unwrap().global {
+                    assert!(result.diags.is_empty());
+                }
+                (module_id, result)
+            },
+        )
+        .collect::<Vec<_>>();
+    for (module_id, result) in res {
+        p.insert(module_id, result);
     }
 
     // bind
@@ -119,6 +125,7 @@ pub fn eval_from(m: ModulePath) -> Output {
         .chain(diags)
         .chain(p.steal_errors(m.id))
         .collect();
+
     Output {
         module_arena,
         diags,

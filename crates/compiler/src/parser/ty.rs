@@ -33,7 +33,7 @@ impl ListContext for TypeArguments {
     }
 }
 
-impl<'p> ParserState<'p> {
+impl<'p, 't> ParserState<'p, 't> {
     fn should_parse_ret_ty(&mut self, is_colon: bool, is_ty: bool) -> PResult<bool> {
         if !is_colon {
             self.expect(TokenKind::EqGreater)?;

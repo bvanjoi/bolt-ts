@@ -1,5 +1,3 @@
-use std::borrow::Cow;
-
 use bolt_ts_span::Span;
 
 use super::token::{Token, TokenFlags, TokenKind};
@@ -34,7 +32,7 @@ fn is_octal_digit(ch: u8) -> bool {
     ch >= b'0' && ch <= b'7'
 }
 
-impl<'p> ParserState<'p> {
+impl<'p, 't> ParserState<'p, 't> {
     fn ch(&self) -> Option<u8> {
         self.input.get(self.pos).copied()
     }

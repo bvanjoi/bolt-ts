@@ -5,7 +5,7 @@ use super::parse_fn_like::ParseFnDecl;
 use super::token::TokenKind;
 use super::{PResult, ParserState};
 
-impl<'p> ParserState<'p> {
+impl<'p, 't> ParserState<'p, 't> {
     pub fn parse_stmt(&mut self) -> PResult<&'p ast::Stmt<'p>> {
         use TokenKind::*;
         if matches!(self.token.kind, Abstract | Declare) && self.is_start_of_decl() {

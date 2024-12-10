@@ -22,7 +22,7 @@ pub(super) fn is_left_hand_side_expr_kind(expr: &ast::Expr) -> bool {
     )
 }
 
-impl<'p> ParserState<'p> {
+impl<'p, 't> ParserState<'p, 't> {
     fn _is_paren_arrow_fn_expr(&mut self) -> bool {
         use TokenKind::*;
         let first = self.token.kind;
