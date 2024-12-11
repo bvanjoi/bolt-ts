@@ -172,6 +172,7 @@ impl<'cx, 'r> Resolver<'cx, 'r> {
                 // (name, self.create_object_member_symbol(name, m.id))
             }
             IndexSig(_) => {}
+            CtorSig(_) => {}
         }
     }
 
@@ -296,7 +297,7 @@ impl<'cx, 'r> Resolver<'cx, 'r> {
         if is_prim_value_name(ident.name) {
             return;
         }
-        let res = self.resolve_symbol_by_ident(ident, SymbolKind::is_value);
+        let res = self.resolve_symbol_by_ident(ident, Symbol::is_value);
         if res == Symbol::ERR {
             let error = errors::CannotFindName {
                 span: ident.span,
@@ -315,13 +316,13 @@ impl<'cx, 'r> Resolver<'cx, 'r> {
             }
             return;
         }
-        self.resolve_symbol_by_ident(ident, SymbolKind::is_type);
+        self.resolve_symbol_by_ident(ident, Symbol::is_type);
     }
 
     fn resolve_symbol_by_ident(
         &mut self,
         ident: &'cx ast::Ident,
-        ns: impl Fn(&SymbolKind) -> bool,
+        ns: impl Fn(&Symbol) -> bool,
     ) -> SymbolID {
         let res = resolve_symbol_by_ident(self, ident, ns);
         let prev = self.state.final_res.insert(ident.id, res);
@@ -414,7 +415,7 @@ impl<'cx, 'r> Resolver<'cx, 'r> {
 fn resolve_symbol_by_ident(
     resolver: &Resolver,
     ident: &ast::Ident,
-    ns: impl Fn(&SymbolKind) -> bool,
+    ns: impl Fn(&Symbol) -> bool,
 ) -> SymbolID {
     let binder = &resolver.state;
     assert!(!binder.final_res.contains_key(&ident.id));
@@ -429,7 +430,7 @@ fn resolve_symbol_by_ident(
             .get(&(scope_id, SymbolName::Normal(name)))
             .copied()
         {
-            if ns(&binder.symbols.get(id).kind) {
+            if ns(&binder.symbols.get(id)) {
                 break id;
             }
         }

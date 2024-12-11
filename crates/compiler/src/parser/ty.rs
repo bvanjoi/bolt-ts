@@ -483,18 +483,27 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         let params = self.parse_params()?;
         let ty = self.parse_ret_ty(true)?;
         self.parse_ty_member_semi();
+        let span = self.new_span(start as usize, self.pos);
         let kind = if is_call {
-            let call_sig_decl = self.alloc(ast::CallSigDecl {
+            let decl = self.alloc(ast::CallSigDecl {
                 id,
-                span: self.new_span(start as usize, self.pos),
+                span,
                 ty_params,
                 params,
                 ty,
             });
-            self.insert_map(id, ast::Node::CallSigDecl(call_sig_decl));
-            ast::ObjectTyMemberKind::CallSig(call_sig_decl)
+            self.insert_map(id, ast::Node::CallSigDecl(decl));
+            ast::ObjectTyMemberKind::CallSig(decl)
         } else {
-            todo!()
+            let decl = self.alloc(ast::CtorSigDecl {
+                id,
+                span,
+                ty_params,
+                params,
+                ty,
+            });
+            self.insert_map(id, ast::Node::CtorSigDecl(decl));
+            ast::ObjectTyMemberKind::CtorSig(decl)
         };
         Ok(self.alloc(ast::ObjectTyMember { kind }))
     }
@@ -503,7 +512,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         if self.token.kind == TokenKind::LParen || self.token.kind == TokenKind::Less {
             self.parse_sig_member(true)
         } else if self.token.kind == TokenKind::New {
-            todo!()
+            self.parse_sig_member(false)
         } else if self.is_index_sig() {
             let id = self.next_node_id();
             let start = self.token.start() as usize;

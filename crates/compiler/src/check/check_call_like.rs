@@ -38,11 +38,8 @@ impl<'cx> CallLikeExpr<'cx> for ast::CallExpr<'cx> {
             // unreachable!()
             return Default::default();
         };
-        match &checker.binder.symbol(f.symbol).kind {
-            SymbolKind::Function { decls, .. } => decls.clone(),
-            SymbolKind::FnExpr { decl } => thin_vec![*decl],
-            _ => unreachable!(),
-        }
+        let symbol = checker.binder.symbol(f.symbol).expect_fn();
+        symbol.decls.clone()
     }
     fn params(&self, ty: &'cx ty::Ty<'cx>) -> ty::Tys<'cx> {
         let Some(f) = ty.kind.as_object_fn() else {
@@ -74,10 +71,9 @@ impl<'cx> CallLikeExpr<'cx> for ast::NewExpr<'cx> {
             // unreachable!("{ty:#?}");
             return thin_vec![];
         };
-        match &checker.binder.symbol(class.symbol).kind {
-            SymbolKind::Class(symbol) => thin_vec![symbol.decl],
-            _ => unreachable!(),
-        }
+        let symbol = &checker.binder.symbol(class.symbol).expect_class();
+        let decls = symbol.decl;
+        thin_vec::thin_vec![decls]
     }
     fn params(&self, ty: &'cx ty::Ty<'cx>) -> ty::Tys<'cx> {
         &[]

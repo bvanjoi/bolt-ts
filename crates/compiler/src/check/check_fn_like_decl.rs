@@ -53,10 +53,8 @@ impl<'cx> TyChecker<'cx> {
 
     pub(super) fn check_fn_like_decl(&mut self, decl: &impl FnLikeDecl<'cx>) {
         let symbol = self.get_symbol_of_decl(decl.id());
-        let SymbolKind::Function { decls, .. } = &self.binder.symbol(symbol).kind else {
-            unreachable!()
-        };
-        if decls[0] == decl.id() {
+        let f = &self.binder.symbol(symbol).expect_fn();
+        if f.decls[0] == decl.id() {
             self.check_fn_like_symbol(symbol);
         }
 

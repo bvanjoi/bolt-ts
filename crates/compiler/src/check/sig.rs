@@ -1,11 +1,11 @@
 use super::ast;
 use super::TyChecker;
-use crate::bind::{SymbolID, SymbolName};
+use crate::bind::SymbolID;
 use crate::ty;
 
 bitflags::bitflags! {
     #[derive(Debug, Clone, Copy)]
-    pub struct SigFlags: u16 {
+    pub struct SigFlags: u8 {
         const HAS_REST_PARAMETER  = 1 << 0;
         const HAS_ABSTRACT = 1 << 2;
     }

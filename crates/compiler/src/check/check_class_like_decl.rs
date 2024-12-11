@@ -1,6 +1,6 @@
 use super::TyChecker;
+use crate::ast;
 use crate::ir::ClassLike;
-use crate::{ast, bind::SymbolKind};
 
 impl<'cx> TyChecker<'cx> {
     fn check_ctor(&mut self, ctor: &'cx ast::ClassCtor<'cx>) {

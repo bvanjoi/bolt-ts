@@ -1,5 +1,8 @@
-use super::{BinderState, ClassSymbol, SymbolID, SymbolKind, SymbolName};
-use crate::{ast, ir};
+use super::{
+    symbol::{PropSymbol, SymbolFlags},
+    BinderState, ClassSymbol, SymbolID, SymbolKind, SymbolName,
+};
+use crate::{ast, bind::symbol::FnSymbol, ir};
 use rustc_hash::FxHashMap;
 use thin_vec::thin_vec;
 
@@ -24,6 +27,7 @@ impl<'cx> BinderState<'cx> {
         let name = SymbolName::ClassExpr;
         let symbol = self.create_symbol(
             name,
+            SymbolFlags::CLASS,
             SymbolKind::Class(ClassSymbol {
                 decl: expr.id,
                 members: FxHashMap::default(),
@@ -35,6 +39,7 @@ impl<'cx> BinderState<'cx> {
     fn create_class_decl(&mut self, decl: &'cx ast::ClassDecl<'cx>) -> SymbolID {
         let symbol = self.create_var_symbol(
             decl.name.name,
+            SymbolFlags::CLASS,
             SymbolKind::Class(ClassSymbol {
                 decl: decl.id,
                 members: FxHashMap::default(),
@@ -50,7 +55,11 @@ impl<'cx> BinderState<'cx> {
         ele: &'cx ast::ClassPropEle<'cx>,
     ) -> SymbolID {
         let name = Self::prop_name(ele.name);
-        let symbol = self.create_symbol(name, SymbolKind::Property { decl: ele.id });
+        let symbol = self.create_symbol(
+            name,
+            SymbolFlags::PROPERTY,
+            SymbolKind::Prop(PropSymbol { decl: ele.id }),
+        );
         let Some(class_symbol_id) = self.final_res.get(&decl_id).copied() else {
             unreachable!()
         };
@@ -82,7 +91,7 @@ impl<'cx> BinderState<'cx> {
         if let Some(s) = members.get(&ele_name).copied() {
             let symbol = self.symbols.get_mut(s);
             match &mut symbol.kind {
-                SymbolKind::Function { decls, kind } => {
+                SymbolKind::Fn(FnSymbol { decls, kind }) => {
                     assert!(*kind == ele_kind);
                     assert!(!decls.is_empty());
                     decls.push(ele_id)
@@ -93,10 +102,11 @@ impl<'cx> BinderState<'cx> {
         } else {
             let symbol = self.create_symbol(
                 ele_name,
-                SymbolKind::Function {
+                SymbolFlags::FUNCTION,
+                SymbolKind::Fn(FnSymbol {
                     kind: ele_kind,
                     decls: thin_vec![ele_id],
-                },
+                }),
             );
             self.create_final_res(ele_id, symbol);
             let SymbolKind::Class(ClassSymbol { members, .. }) =

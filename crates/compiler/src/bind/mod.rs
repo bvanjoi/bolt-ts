@@ -6,6 +6,8 @@ mod symbol;
 use bolt_ts_span::ModuleID;
 use rustc_hash::FxHashMap;
 pub use symbol::ClassSymbol;
+use symbol::IndexSymbol;
+pub use symbol::SymbolFlags;
 pub use symbol::{GlobalSymbols, Symbol, SymbolFnKind, SymbolID, SymbolKind, SymbolName, Symbols};
 
 use crate::ast::{self, NodeID};
@@ -63,7 +65,12 @@ impl<'cx> Binder<'cx> {
     }
 
     #[inline(always)]
-    pub fn create_anonymous_symbol(&mut self, name: SymbolName, kind: SymbolKind) -> SymbolID {
+    pub fn create_anonymous_symbol(
+        &mut self,
+        name: SymbolName,
+        flags: SymbolFlags,
+        kind: SymbolKind,
+    ) -> SymbolID {
         let module = ModuleID::MOCK;
         let binder = self.map.entry(module).or_insert_with(|| BinderResult {
             symbols: Symbols::new(module),
@@ -72,7 +79,7 @@ impl<'cx> Binder<'cx> {
         });
         let len = binder.symbols.len();
         let id = SymbolID::mock(len as u32);
-        let symbol = Symbol::new(name, kind);
+        let symbol = Symbol::new(name, flags, kind);
         binder.symbols.insert(id, symbol);
         id
     }
@@ -190,6 +197,7 @@ impl<'cx> BinderState<'cx> {
     fn bind_type_decl(&mut self, t: &'cx ast::TypeDecl<'cx>) {
         let symbol = self.create_var_symbol(
             t.name.name,
+            SymbolFlags::TYPE_ALIAS,
             SymbolKind::TyAlias(symbol::TyAliasSymbol { decl: t.id }),
         );
         self.final_res.insert(t.id, symbol);
@@ -208,13 +216,18 @@ impl<'cx> BinderState<'cx> {
     fn bind_ty_param(&mut self, param: &'cx ast::TyParam<'cx>) {
         let symbol = self.create_var_symbol(
             param.name.name,
+            SymbolFlags::TYPE_PARAMETER,
             SymbolKind::TyParam(symbol::TyParamSymbol { decl: param.id }),
         );
         self.final_res.insert(param.id, symbol);
     }
 
     fn bind_index_sig(&mut self, index: &'cx ast::IndexSigDecl<'cx>) -> SymbolID {
-        self.create_symbol(SymbolName::Index, SymbolKind::Index { decl: index.id })
+        self.create_symbol(
+            SymbolName::Index,
+            SymbolFlags::SIGNATURE,
+            SymbolKind::Index(IndexSymbol { decl: index.id }),
+        )
     }
 
     fn bind_object_ty_member(
@@ -237,6 +250,7 @@ impl<'cx> BinderState<'cx> {
                 None
             }
             IndexSig(_) => None,
+            CtorSig(_) => None,
         }
     }
 
@@ -444,7 +458,11 @@ impl<'cx> BinderState<'cx> {
     }
 
     fn bind_param(&mut self, param: &'cx ast::ParamDecl) {
-        let symbol = self.create_var_symbol(param.name.name, SymbolKind::FunctionScopedVar);
+        let symbol = self.create_var_symbol(
+            param.name.name,
+            SymbolFlags::FUNCTION_SCOPED_VARIABLE,
+            SymbolKind::FunctionScopedVar,
+        );
         self.final_res.insert(param.id, symbol);
         if let Some(ty) = param.ty {
             self.bind_ty(ty);

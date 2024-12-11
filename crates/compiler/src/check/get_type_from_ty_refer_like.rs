@@ -1,7 +1,5 @@
-use bolt_ts_span::ModuleID;
-
 use crate::bind::{Symbol, SymbolID, SymbolKind};
-use crate::ty::{ArrayTyMapper, TyMapper};
+use crate::ty::TyMapper;
 use crate::{ast, keyword, ty};
 
 use super::TyChecker;
@@ -42,7 +40,7 @@ impl<'cx> GetTypeFromTyReferLike<'cx> for ast::ReferTy<'cx> {
 
 impl<'cx> TyChecker<'cx> {
     pub(super) fn resolve_ty_refer_name(&mut self, name: &'cx ast::Ident) -> SymbolID {
-        let symbol = self.resolve_symbol_by_ident(name, SymbolKind::is_type);
+        let symbol = self.resolve_symbol_by_ident(name);
         symbol
     }
 
@@ -63,7 +61,7 @@ impl<'cx> TyChecker<'cx> {
 
     fn ty_param_node(&self, ty_param: &'cx ty::ParamTy) -> &'cx ast::TyParam<'cx> {
         let symbol = self.binder.symbol(ty_param.symbol);
-        let symbol = symbol.kind.expect_ty_param();
+        let symbol = symbol.expect_ty_param();
         let node = self.p.node(symbol.decl);
         let Some(param) = node.as_ty_param() else {
             unreachable!()
@@ -180,8 +178,7 @@ impl<'cx> TyChecker<'cx> {
         if symbol == Symbol::ERR {
             return self.error_ty();
         }
-        let module = node.id().module();
-        let symbol_kind = &self.binder.symbol(symbol).kind;
+        let symbol_kind = &self.binder.symbol(symbol);
         if symbol_kind.is_class() || symbol_kind.is_interface() {
             self.get_declared_ty_of_symbol(symbol)
         } else if symbol_kind.is_ty_alias() {

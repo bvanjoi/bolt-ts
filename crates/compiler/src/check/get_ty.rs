@@ -1,15 +1,11 @@
-use std::ops::Shl;
 use std::usize;
-
-use rustc_hash::FxHashMap;
-use thin_vec::thin_vec;
 
 use super::symbol_links::SymbolLinks;
 use super::ty::{self, Ty, TyKind};
 use super::{F64Represent, TyChecker};
 use crate::ast;
 use crate::atoms::AtomId;
-use crate::bind::{SymbolID, SymbolKind, SymbolName};
+use crate::bind::{SymbolFlags, SymbolID, SymbolKind, SymbolName};
 use crate::keyword;
 use crate::ty::{AccessFlags, ElementFlags, TupleShape, TyMapper};
 
@@ -18,43 +14,36 @@ impl<'cx> TyChecker<'cx> {
         if let Some(ty) = self.get_symbol_links(id).get_ty() {
             return ty;
         }
-        use crate::bind::SymbolKind::*;
-        let ty = match &self.binder.symbol(id).kind {
-            Err => return self.error_ty(),
-            FunctionScopedVar => return self.undefined_ty(),
-            BlockScopedVar => return self.undefined_ty(),
-            Class { .. } => {
-                let ty = self.get_type_of_class_decl(id);
-                // TODO: delete
-                if let Some(ty) = self.get_symbol_links(id).get_ty() {
-                    return ty;
-                }
-                self.get_mut_symbol_links(id).set_ty(ty);
-                // ---
-                ty
+        let symbol = self.binder.symbol(id);
+        assert!(
+            !symbol.is_element_property(),
+            "The type of element property had been settled when it create."
+        );
+        if symbol.is_class() {
+            let ty = self.get_type_of_class_decl(id);
+            // TODO: delete
+            if let Some(ty) = self.get_symbol_links(id).get_ty() {
+                return ty;
             }
-            Function { .. } | FnExpr { .. } => self.get_type_of_func_decl(id),
-            Property { .. } => self.get_type_of_prop(id),
-            Object { .. } => {
-                let ty = self.get_type_of_object(id);
-                // TODO: delete
-                if let Some(ty) = self.get_symbol_links(id).get_ty() {
-                    return ty;
-                }
-                self.get_mut_symbol_links(id).set_ty(ty);
-                // ---
-                ty
+            self.get_mut_symbol_links(id).set_ty(ty);
+            // ---
+            ty
+        } else if symbol.is_fn() {
+            self.get_type_of_func_decl(id)
+        } else if symbol.is_prop() {
+            self.get_type_of_prop(id)
+        } else if symbol.is_object() {
+            let ty = self.get_type_of_object(id);
+            // TODO: delete
+            if let Some(ty) = self.get_symbol_links(id).get_ty() {
+                return ty;
             }
-            BlockContainer { .. } => return self.undefined_ty(),
-            Interface { .. } => return self.undefined_ty(),
-            Index { .. } => return self.undefined_ty(),
-            TyAlias { .. } => return self.undefined_ty(),
-            TyParam { .. } => return self.undefined_ty(),
-            ElementProperty => {
-                unreachable!("The type of element property had been settled when it create.")
-            }
-        };
-        ty
+            self.get_mut_symbol_links(id).set_ty(ty);
+            // ---
+            ty
+        } else {
+            self.undefined_ty()
+        }
     }
 
     fn get_type_of_object(&mut self, symbol: SymbolID) -> &'cx Ty<'cx> {
@@ -71,10 +60,7 @@ impl<'cx> TyChecker<'cx> {
     }
 
     fn get_type_of_prop(&mut self, symbol: SymbolID) -> &'cx Ty<'cx> {
-        let decl = match self.binder.symbol(symbol).kind {
-            crate::bind::SymbolKind::Property { decl, .. } => decl,
-            _ => unreachable!(),
-        };
+        let decl = self.binder.symbol(symbol).expect_prop().decl;
         let ty = match self.p.node(decl) {
             ast::Node::ClassPropEle(prop) => prop
                 .ty
@@ -105,31 +91,15 @@ impl<'cx> TyChecker<'cx> {
     }
 
     fn get_sig_of_symbol(&mut self, id: SymbolID) -> &'cx [&'cx Ty<'cx>] {
-        use crate::bind::SymbolKind::*;
-        let decls = match &self.binder.symbol(id).kind {
-            Err => todo!(),
-            Function { decls, .. } => decls.clone(),
-            FnExpr { decl } => thin_vec![*decl],
-            FunctionScopedVar => todo!(),
-            BlockScopedVar => todo!(),
-            Object { .. } => todo!(),
-            Property { .. } => todo!(),
-            Class { .. } => todo!(),
-            BlockContainer { .. } => todo!(),
-            Interface { .. } => todo!(),
-            Index { .. } => todo!(),
-            TyAlias { .. } => todo!(),
-            TyParam { .. } => todo!(),
-            ElementProperty => todo!(),
-        };
+        let decls = &self.binder.symbol(id).expect_fn().decls;
 
         for decl in decls {
-            let params = match self.p.node(decl) {
+            let params = match self.p.node(*decl) {
                 ast::Node::FnDecl(f) => f.params,
                 ast::Node::ArrowFnExpr(f) => f.params,
                 ast::Node::FnExpr(f) => f.params,
                 ast::Node::ClassMethodEle(m) => m.params,
-                _ => unreachable!("{:#?}", self.p.node(decl)),
+                _ => unreachable!("{:#?}", self.p.node(*decl)),
             };
             let params = params
                 .iter()
@@ -155,9 +125,7 @@ impl<'cx> TyChecker<'cx> {
             Fn(_) => self.undefined_ty(),
             ObjectLit(lit) => {
                 let symbol = self.binder.final_res(lit.id);
-                let SymbolKind::Object(object) = &self.binder.symbol(symbol).kind else {
-                    unreachable!()
-                };
+                let object = &self.binder.symbol(symbol).expect_object();
                 let members = self.alloc(object.members.clone());
                 let declared_props = self.get_props_from_members(members);
                 self.create_object_lit_ty(ty::ObjectLitTy {
@@ -251,7 +219,7 @@ impl<'cx> TyChecker<'cx> {
         host.and_then(|node_id| self.p.node(node_id).is_type_decl().then(|| node_id))
             .and_then(|node_id| {
                 let symbol = self.binder.final_res(node_id);
-                assert!(self.binder.symbol(symbol).kind.is_ty_alias());
+                assert!(self.binder.symbol(symbol).is_ty_alias());
                 Some(symbol)
             })
     }
@@ -260,15 +228,13 @@ impl<'cx> TyChecker<'cx> {
         &mut self,
         symbol: SymbolID,
     ) -> Option<ty::Tys<'cx>> {
-        use SymbolKind::*;
-        match &self.binder.symbol(symbol).kind {
-            TyAlias(alias) => {
-                let mut res = vec![];
-                let ty_params = self.get_effective_ty_param_decls(alias.decl);
-                self.append_ty_params(&mut res, ty_params);
-                Some(self.alloc(res))
-            }
-            _ => None,
+        if let Some(alias) = self.binder.symbol(symbol).as_ty_alias() {
+            let mut res = vec![];
+            let ty_params = self.get_effective_ty_param_decls(alias.decl);
+            self.append_ty_params(&mut res, ty_params);
+            Some(self.alloc(res))
+        } else {
+            None
         }
     }
 
@@ -502,9 +468,11 @@ impl<'cx> TyChecker<'cx> {
         };
 
         let length_symbol_name = SymbolName::Ele(keyword::IDENT_LENGTH);
-        let length_symbol = self
-            .binder
-            .create_anonymous_symbol(length_symbol_name, SymbolKind::ElementProperty);
+        let length_symbol = self.binder.create_anonymous_symbol(
+            length_symbol_name,
+            SymbolFlags::PROPERTY,
+            SymbolKind::ElementProperty,
+        );
         let ty = self.get_number_literal_type(elem_tys.len() as f64);
         let prev = self
             .symbol_links
@@ -514,7 +482,9 @@ impl<'cx> TyChecker<'cx> {
         let element_symbols = elem_tys.iter().enumerate().map(|(idx, _)| {
             let name = SymbolName::EleNum(idx.into());
             let kind = SymbolKind::ElementProperty;
-            let symbol = self.binder.create_anonymous_symbol(name, kind);
+            let symbol = self
+                .binder
+                .create_anonymous_symbol(name, SymbolFlags::PROPERTY, kind);
             let index_ty = self.get_number_literal_type(idx as f64);
             let prev = self
                 .symbol_links

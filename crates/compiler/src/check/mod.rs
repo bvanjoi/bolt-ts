@@ -277,7 +277,7 @@ impl<'cx> TyChecker<'cx> {
     ) {
         for index_info in self.get_applicable_index_infos(ty, prop_name_ty) {
             if !self.is_type_assignable_to(prop_ty, index_info.val_ty) {
-                let prop_decl = self.binder.symbol(prop).kind.expect_prop();
+                let prop_decl = self.binder.symbol(prop).expect_prop().decl;
                 let prop_node = self.p.node(prop_decl);
                 let prop_name = match prop_node {
                     ast::Node::ClassPropEle(prop) => prop.name,
@@ -310,11 +310,11 @@ impl<'cx> TyChecker<'cx> {
     }
 
     fn get_lit_ty_from_prop(&mut self, prop: SymbolID) -> &'cx ty::Ty<'cx> {
-        use super::bind::SymbolKind::*;
-        match self.binder.symbol(prop).kind {
-            Property { .. } => self.string_ty(),
-            Function { .. } => self.string_ty(),
-            _ => unreachable!(),
+        let symbol = self.binder.symbol(prop);
+        if symbol.is_prop() || symbol.is_fn() {
+            self.string_ty()
+        } else {
+            self.undefined_ty()
         }
     }
 
@@ -655,31 +655,26 @@ impl<'cx> TyChecker<'cx> {
     }
 
     fn check_resolved_block_scoped_var(&mut self, ident: &'cx ast::Ident, id: SymbolID) {
-        use crate::bind::SymbolKind::*;
-        match &self.binder.symbol(id).kind {
-            Class(symbol) => {
-                let decl = symbol.decl;
-                if !self.is_block_scoped_name_declared_before_use(decl, ident) {
-                    let decl_span = match self.p.node(decl) {
-                        ast::Node::ClassDecl(class) => class.name.span,
-                        _ => unreachable!(),
-                    };
-                    let kind = errors::DeclKind::Class;
-                    let name = self.atoms.get(ident.name).to_string();
-                    let error = errors::CannotUsedBeforeItsDeclaration {
-                        span: ident.span,
-                        kind,
-                        name: name.to_string(),
-                        related: [errors::DefinedHere {
-                            span: decl_span,
-                            kind,
-                            name,
-                        }],
-                    };
-                    self.push_error(ident.span.module, Box::new(error));
-                }
-            }
-            _ => unreachable!(),
+        let symbol = self.binder.symbol(id).expect_class();
+        let decl = symbol.decl;
+        if !self.is_block_scoped_name_declared_before_use(decl, ident) {
+            let decl_span = match self.p.node(decl) {
+                ast::Node::ClassDecl(class) => class.name.span,
+                _ => unreachable!(),
+            };
+            let kind = errors::DeclKind::Class;
+            let name = self.atoms.get(ident.name).to_string();
+            let error = errors::CannotUsedBeforeItsDeclaration {
+                span: ident.span,
+                kind,
+                name: name.to_string(),
+                related: [errors::DefinedHere {
+                    span: decl_span,
+                    kind,
+                    name,
+                }],
+            };
+            self.push_error(ident.span.module, Box::new(error));
         }
     }
 
@@ -688,21 +683,21 @@ impl<'cx> TyChecker<'cx> {
             return self.undefined_ty();
         }
 
-        let symbol = self.resolve_symbol_by_ident(ident, SymbolKind::is_value);
+        let symbol = self.resolve_symbol_by_ident(ident);
 
-        if self.binder.symbol(symbol).kind.is_class() {
+        if self.binder.symbol(symbol).is_class() {
             self.check_resolved_block_scoped_var(ident, symbol);
         }
 
         let ty = self.get_type_of_symbol(symbol);
         let assignment_kind = get_assignment_kind(self, ident.id);
         if assignment_kind != AssignmentKind::None {
-            let symbol_kind = &self.binder.symbol(symbol).kind;
-            if !symbol_kind.is_variable() {
+            let symbol = &self.binder.symbol(symbol);
+            if !symbol.is_variable() {
                 let error = errors::CannotAssignToNameBecauseItIsATy {
                     span: ident.span,
                     name: self.atoms.get(ident.name).to_string(),
-                    ty: symbol_kind.as_str().to_string(),
+                    ty: symbol.as_str().to_string(),
                 };
                 self.push_error(ident.span.module, Box::new(error));
                 return self.error_ty();

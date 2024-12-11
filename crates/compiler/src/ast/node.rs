@@ -69,6 +69,7 @@ pub enum Node<'cx> {
     TyParam(&'cx ast::TyParam<'cx>),
     IndexSigDecl(&'cx ast::IndexSigDecl<'cx>),
     CallSigDecl(&'cx ast::CallSigDecl<'cx>),
+    CtorSigDecl(&'cx ast::CtorSigDecl<'cx>),
     PropSignature(&'cx ast::PropSignature<'cx>),
     MethodSignature(&'cx ast::MethodSignature<'cx>),
     RestTy(&'cx ast::RestTy<'cx>),
@@ -478,6 +479,13 @@ as_node!(
         as_setter_decl,
         expect_setter_decl,
         is_setter_decl
+    ),
+    (
+        CtorSigDecl,
+        &'cx ast::CtorSigDecl<'cx>,
+        as_ctor_sig_decl,
+        expect_ctor_sig_decl,
+        is_ctor_sig_decl
     ),
     (
         CallSigDecl,

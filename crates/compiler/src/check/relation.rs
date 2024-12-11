@@ -30,19 +30,13 @@ impl<'cx> TyChecker<'cx> {
         let Some(target) = target.kind.as_object_lit() else {
             return false;
         };
-        for (name, symbol) in &self
-            .binder
-            .symbol(source.symbol)
-            .kind
-            .expect_object()
-            .members
-        {
+        for (name, symbol) in &self.binder.symbol(source.symbol).expect_object().members {
             if target.members.contains_key(&name) {
                 continue;
             } else {
                 let span = self
                     .p
-                    .node(self.binder.symbol(*symbol).kind.expect_prop())
+                    .node(self.binder.symbol(*symbol).expect_prop().decl)
                     .span();
                 let field = self.atoms.get(name.expect_atom()).to_string();
                 let error =
@@ -144,10 +138,10 @@ impl<'cx> TyChecker<'cx> {
         let unmatched = self.get_unmatched_prop(source, target);
         if let Some((unmatched, target_symbol)) = unmatched {
             let symbol = self.binder.symbol(target_symbol);
-            let decl = if let Some(symbol) = symbol.kind.as_class() {
+            let decl = if let Some(symbol) = symbol.as_class() {
                 symbol.decl
             } else {
-                symbol.kind.expect_object().decl
+                symbol.expect_object().decl
             };
             if !unmatched.is_empty() && report_error {
                 for name in unmatched {
