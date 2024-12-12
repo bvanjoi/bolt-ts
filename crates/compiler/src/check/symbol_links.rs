@@ -41,5 +41,12 @@ prop!(
         with_declared_ty,
         set_declared_ty,
         get_declared_ty
-    )
+    ),
+    (
+        ty_params,
+        ty::Tys<'cx>,
+        with_ty_params,
+        set_ty_params,
+        get_ty_params
+    ),
 );

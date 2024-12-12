@@ -8,8 +8,8 @@ impl<'cx> TyChecker<'cx> {
         self.next_ty_id = self.next_ty_id.next();
 
         let ty = self.alloc(ty::Ty::new(id, kind));
-        let prev = self.tys.insert(id, ty);
-        assert!(prev.is_none());
+        assert_eq!(id.as_usize(), self.tys.len());
+        self.tys.push(ty);
         ty
     }
 
@@ -25,7 +25,17 @@ impl<'cx> TyChecker<'cx> {
     }
 
     pub(super) fn create_object_lit_ty(&mut self, ty: ty::ObjectLitTy<'cx>) -> &'cx ty::Ty<'cx> {
-        self.create_object_ty(ty::ObjectTyKind::Lit(self.alloc(ty)))
+        self.create_object_ty(ty::ObjectTyKind::ObjectLit(self.alloc(ty)))
+    }
+
+    pub(super) fn create_tuple_ty(&mut self, ty: ty::TupleTy<'cx>) -> &'cx ty::Ty<'cx> {
+        assert_eq!(ty.tys.len(), ty.element_flags.len());
+        assert!(ty.element_flags.iter().all(|flag| {
+            let flag = flag.bits();
+            // is variant
+            (flag & (flag - 1)) == 0
+        }));
+        self.create_object_ty(ty::ObjectTyKind::Tuple(self.alloc(ty)))
     }
 
     pub(super) fn create_array_ty(&mut self, ty: ty::ArrayTy<'cx>) -> &'cx ty::Ty<'cx> {

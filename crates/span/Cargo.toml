@@ -1,5 +1,5 @@
 [package]
-name = "rts_span"
+name = "bolt_ts_span"
 version = "0.1.0"
 edition = "2021"
 

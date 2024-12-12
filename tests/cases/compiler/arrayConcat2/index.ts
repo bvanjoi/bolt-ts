@@ -1,0 +1,9 @@
+// From `github.com/microsoft/TypeScript/blob/v5.7.2/tests/cases/compiler/arrayConcat2.ts`, Apache-2.0 License
+
+var a: string[] = [];
+a.concat("hello", 'world');
+
+a.concat('Hello');
+
+// var b = new Array<string>();
+// b.concat('hello');

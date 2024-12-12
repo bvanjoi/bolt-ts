@@ -1,4 +1,5 @@
-use super::{token::TokenKind, ParserState};
+use super::token::TokenKind;
+use super::ParserState;
 
 pub(super) trait ListContext: Copy {
     fn is_ele(&self, s: &mut ParserState) -> bool;
@@ -9,7 +10,7 @@ pub(super) trait ListContext: Copy {
 pub(super) struct BlockStmt;
 impl ListContext for BlockStmt {
     fn is_ele(&self, s: &mut ParserState) -> bool {
-        !matches!(s.token.kind, TokenKind::Semi) && s.token.kind.is_start_of_stmt()
+        !matches!(s.token.kind, TokenKind::Semi) && s.is_start_of_stmt()
     }
 
     fn is_closing(&self, s: &mut ParserState) -> bool {
@@ -21,7 +22,7 @@ impl ListContext for BlockStmt {
 pub(super) struct ArgExprs;
 impl ListContext for ArgExprs {
     fn is_ele(&self, s: &mut ParserState) -> bool {
-        s.token.kind.is_start_of_expr()
+        matches!(s.token.kind, TokenKind::DotDotDot) || s.is_start_of_expr()
     }
 
     fn is_closing(&self, s: &mut ParserState) -> bool {
@@ -44,7 +45,7 @@ impl ListContext for ObjectLitMembers {
 
 fn is_ty_member_start(s: &mut ParserState) -> bool {
     use TokenKind::*;
-    if s.token.kind == LParen || s.token.kind == Less {
+    if matches!(s.token.kind, LParen | Less | Get | Set) {
         return true;
     }
 
@@ -136,7 +137,7 @@ impl ListContext for VarDecl {
 pub(super) struct ArrayLiteralMembers;
 impl ListContext for ArrayLiteralMembers {
     fn is_ele(&self, s: &mut ParserState) -> bool {
-        matches!(s.token.kind, TokenKind::Comma) || s.token.kind.is_start_of_expr()
+        matches!(s.token.kind, TokenKind::Comma) || s.is_start_of_expr()
     }
 
     fn is_closing(&self, s: &mut ParserState) -> bool {

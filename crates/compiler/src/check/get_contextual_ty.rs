@@ -4,10 +4,10 @@ use super::TyChecker;
 
 impl<'cx> TyChecker<'cx> {
     pub(super) fn get_contextual_ty(&mut self, id: ast::NodeID) -> Option<&'cx ty::Ty<'cx>> {
-        let Some(parent) = self.node_parent_map.parent(id) else {
+        let Some(parent) = self.p.parent(id) else {
             unreachable!()
         };
-        let parent = self.nodes.get(parent);
+        let parent = self.p.node(parent);
         use ast::Node::*;
         match parent {
             VarDecl(decl) => self.get_contextual_ty_for_var_like_decl(decl.id),
@@ -16,7 +16,7 @@ impl<'cx> TyChecker<'cx> {
     }
 
     fn get_contextual_ty_for_var_like_decl(&mut self, id: ast::NodeID) -> Option<&'cx ty::Ty<'cx>> {
-        let node = self.nodes.get(id);
+        let node = self.p.node(id);
         use ast::Node::*;
         match node {
             VarDecl(decl) => {

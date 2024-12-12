@@ -43,7 +43,7 @@ impl<'cx> AtomMap<'cx> {
         assert!(prev.is_none());
     }
 
-    pub fn get(&'cx self, atom: AtomId) -> &'cx str {
+    pub fn get(&self, atom: AtomId) -> &str {
         self.0.get(&atom).unwrap()
     }
 

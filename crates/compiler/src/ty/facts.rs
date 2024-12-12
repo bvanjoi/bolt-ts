@@ -307,7 +307,7 @@ bitflags::bitflags! {
 }
 
 pub fn has_type_facts(ty: &Ty, mark: TypeFacts) -> bool {
-    get_type_facts(ty).contains(mark)
+    get_type_facts(ty).intersects(mark)
 }
 
 fn get_type_facts(ty: &Ty) -> TypeFacts {

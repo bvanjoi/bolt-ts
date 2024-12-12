@@ -1,7 +1,0 @@
-class C {
-
-
-constructor(x) {
-  
-}
-}

@@ -1,39 +1,9 @@
-use crate::ast;
+use crate::{ast, ir};
 
 use super::Emit;
 
-pub(super) trait ClassLike<'cx> {
-    fn name(&self) -> Option<&'cx ast::Ident>;
-    fn extends(&self) -> Option<&'cx ast::ClassExtendsClause<'cx>>;
-    fn eles(&self) -> &'cx ast::ClassEles<'cx>;
-}
-
-impl<'cx> ClassLike<'cx> for ast::ClassDecl<'cx> {
-    fn name(&self) -> Option<&'cx ast::Ident> {
-        Some(self.name)
-    }
-    fn extends(&self) -> Option<&'cx ast::ClassExtendsClause<'cx>> {
-        self.extends
-    }
-    fn eles(&self) -> &'cx ast::ClassEles<'cx> {
-        &self.eles
-    }
-}
-
-impl<'cx> ClassLike<'cx> for ast::ClassExpr<'cx> {
-    fn name(&self) -> Option<&'cx ast::Ident> {
-        self.name
-    }
-    fn extends(&self) -> Option<&'cx ast::ClassExtendsClause<'cx>> {
-        self.extends
-    }
-    fn eles(&self) -> &'cx ast::ClassEles<'cx> {
-        &self.eles
-    }
-}
-
 impl<'cx> Emit<'cx> {
-    pub(super) fn emit_class_like(&mut self, class: &impl ClassLike<'cx>) {
+    pub(super) fn emit_class_like(&mut self, class: &impl ir::ClassLike<'cx>) {
         self.content.p("class");
         self.content.p_whitespace();
         if let Some(ident) = class.name() {
@@ -46,26 +16,10 @@ impl<'cx> Emit<'cx> {
             self.emit_expr(extends.expr);
             self.content.p_whitespace();
         }
-        self.content.p_l_brace();
-        if !class.eles().eles.is_empty() {
-            self.content.p_newline();
-        }
-        self.emit_list(
-            class.eles().eles,
-            |this, ele| this.emit_class_ele(ele),
-            |this, ele| {
-                if !matches!(ele.kind, ast::ClassEleKind::IndexSig(_)) {
-                    this.content.p_newline()
-                }
-            },
-        );
-        if !class.eles().eles.is_empty() {
-            self.content.p_newline();
-        }
-        self.content.p_r_brace();
+        self.emit_block_like(&*class.elems());
     }
 
-    fn emit_class_ele(&mut self, ele: &'cx ast::ClassEle<'cx>) {
+    pub(super) fn emit_class_ele(&mut self, ele: &ast::ClassEle<'cx>) {
         use ast::ClassEleKind::*;
         match ele.kind {
             Prop(prop) => {
@@ -107,6 +61,14 @@ impl<'cx> Emit<'cx> {
     }
 
     fn emit_class_method(&mut self, method: &'cx ast::ClassMethodEle<'cx>) {
+        if let Some(mods) = method.modifiers {
+            for m in mods.list {
+                if m.kind == ast::ModifierKind::Static {
+                    self.content.p("static");
+                    self.content.p_whitespace();
+                }
+            }
+        }
         if let Some(body) = method.body {
             self.emit_prop_name(&method.name);
             self.emit_params(method.params);

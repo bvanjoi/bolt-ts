@@ -1,0 +1,5 @@
+  × Constructor implementation is missing.
+   ╭─[../../tests/cases/compiler/ClassDeclaration8/index.ts:4:3]
+ 4 │ ╭─▶ constructor(); //~ ERROR: Constructor implementation is missing.
+ 5 │ ╰─▶ }
+   ╰────

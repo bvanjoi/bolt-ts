@@ -30,21 +30,18 @@ impl<'cx> Emit<'cx> {
     }
 
     pub(super) fn emit_block_stmt(&mut self, block: &'cx ast::BlockStmt<'cx>) {
-        self.content.p_l_brace();
-        self.content.p_newline();
-        self.state.indent += self.options.indent;
-        self.content.p_pieces_of_whitespace(self.state.indent);
-        self.emit_stmts(block.stmts);
-        self.state.indent -= self.options.indent;
-        self.content.p_pieces_of_whitespace(self.state.indent);
-        self.content.p_newline();
-        self.content.p_r_brace();
+        self.emit_block_like(block);
     }
 
-    pub(super) fn emit_prop_name(&mut self, name: &'cx ast::PropName) {
+    pub(super) fn emit_prop_name(&mut self, name: &'cx ast::PropName<'cx>) {
         use ast::PropNameKind::*;
         match name.kind {
             Ident(ident) => self.emit_ident(ident),
+            NumLit(num) => self.emit_num_lit(num),
         }
+    }
+
+    pub(super) fn emit_num_lit(&mut self, num: &'cx ast::NumLit) {
+        self.content.p(&num.val.to_string())
     }
 }

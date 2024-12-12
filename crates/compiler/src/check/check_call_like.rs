@@ -3,16 +3,13 @@ use super::sig::Sig;
 use super::sig::SigFlags;
 use super::ExpectedArgsCount;
 use super::TyChecker;
-use crate::bind::SymbolKind;
+use crate::ir;
 use crate::{ast, errors, ty};
-use rts_span::Span;
+use bolt_ts_span::Span;
 use thin_vec::thin_vec;
 
-pub(super) trait CallLikeExpr<'cx>: Copy + std::fmt::Debug {
+pub(super) trait CallLikeExpr<'cx>: ir::CallLike<'cx> {
     fn resolve(&self, checker: &mut TyChecker<'cx>) -> &'cx ty::Ty<'cx>;
-    fn callee(&self) -> &'cx ast::Expr<'cx>;
-    fn args(&self) -> ast::Exprs<'cx>;
-    fn span(&self) -> Span;
     fn callee_decls(
         checker: &TyChecker<'cx>,
         ty: &'cx ty::Ty<'cx>,
@@ -21,63 +18,40 @@ pub(super) trait CallLikeExpr<'cx>: Copy + std::fmt::Debug {
 }
 
 impl<'cx> CallLikeExpr<'cx> for ast::CallExpr<'cx> {
-    fn callee(&self) -> &'cx ast::Expr<'cx> {
-        self.expr
-    }
-    fn args(&self) -> ast::Exprs<'cx> {
-        self.args
-    }
-    fn span(&self) -> Span {
-        self.span
-    }
     fn callee_decls(
         checker: &TyChecker<'cx>,
         ty: &'cx ty::Ty<'cx>,
     ) -> thin_vec::ThinVec<ast::NodeID> {
-        let Some(f) = ty.kind.as_fn() else {
+        let Some(f) = ty.kind.as_object_fn() else {
             // unreachable!()
             return Default::default();
         };
-        match &checker.symbols.get(f.symbol).kind {
-            SymbolKind::Function { decls, .. } => decls.clone(),
-            SymbolKind::FnExpr { decl } => thin_vec![*decl],
-            _ => unreachable!(),
-        }
+        let symbol = checker.binder.symbol(f.symbol).expect_fn();
+        symbol.decls.clone()
     }
     fn params(&self, ty: &'cx ty::Ty<'cx>) -> ty::Tys<'cx> {
-        let Some(f) = ty.kind.as_fn() else {
+        let Some(f) = ty.kind.as_object_fn() else {
             unreachable!()
         };
         &f.params
     }
-
     fn resolve(&self, checker: &mut TyChecker<'cx>) -> &'cx ty::Ty<'cx> {
         checker.resolve_call_expr(self)
     }
 }
 
 impl<'cx> CallLikeExpr<'cx> for ast::NewExpr<'cx> {
-    fn callee(&self) -> &'cx ast::Expr<'cx> {
-        self.expr
-    }
-    fn args(&self) -> ast::Exprs<'cx> {
-        self.args.unwrap_or_default()
-    }
-    fn span(&self) -> Span {
-        self.span
-    }
     fn callee_decls(
         checker: &TyChecker<'cx>,
         ty: &'cx ty::Ty<'cx>,
     ) -> thin_vec::ThinVec<ast::NodeID> {
-        let Some(class) = ty.kind.as_class() else {
+        let Some(class) = ty.kind.as_object_class() else {
             // unreachable!("{ty:#?}");
             return thin_vec![];
         };
-        match &checker.symbols.get(class.symbol).kind {
-            SymbolKind::Class { decl, .. } => thin_vec![*decl],
-            _ => unreachable!(),
-        }
+        let symbol = &checker.binder.symbol(class.symbol).expect_class();
+        let decls = symbol.decl;
+        thin_vec::thin_vec![decls]
     }
     fn params(&self, ty: &'cx ty::Ty<'cx>) -> ty::Tys<'cx> {
         &[]
@@ -103,7 +77,7 @@ impl<'cx> TyChecker<'cx> {
         };
         if pos < param_count {
             Some(params[pos])
-        } else if let Some(array) = params.last().unwrap().kind.as_array() {
+        } else if let Some(array) = params.last().unwrap().kind.as_object_array() {
             Some(array.ty)
         } else {
             None
@@ -125,7 +99,7 @@ impl<'cx> TyChecker<'cx> {
         if decls.is_empty() {
             if let Some(decl) = class_decls.first() {
                 assert!(class_decls.len() == 1);
-                let ast::Node::ClassDecl(decl) = self.nodes.get(*decl) else {
+                let ast::Node::ClassDecl(decl) = self.p.node(*decl) else {
                     unreachable!()
                 };
                 let error = errors::ValueOfType0IsNotCallable {
@@ -153,8 +127,7 @@ impl<'cx> TyChecker<'cx> {
         let mut min_required_params = usize::MAX;
         let mut max_required_params = usize::MIN;
         for decl in decls {
-            let node = self.nodes.get(*decl);
-            let sig = self.get_sig_from_decl(node);
+            let sig = self.get_sig_from_decl(*decl);
 
             if sig.min_args_count < min_required_params {
                 min_required_params = sig.min_args_count;
@@ -167,9 +140,8 @@ impl<'cx> TyChecker<'cx> {
         }
 
         // FIXME: overload
-        let node = self.nodes.get(decls[0]);
-        let sig = self.get_sig_from_decl(node);
-        if sig.flags.contains(SigFlags::HAS_ABSTRACT) {
+        let sig = self.get_sig_from_decl(decls[0]);
+        if sig.flags.intersects(SigFlags::HAS_ABSTRACT) {
             let error = errors::CannotCreateAnInstanceOfAnAbstractClass {
                 span: expr.callee().span(),
             };

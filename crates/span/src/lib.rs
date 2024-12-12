@@ -1,8 +1,6 @@
 mod sys;
 
-use std::sync::Arc;
-
-use rustc_hash::FxHashMap;
+use std::{sync::Arc, u32};
 
 #[macro_export]
 macro_rules! new_index {
@@ -13,13 +11,13 @@ macro_rules! new_index {
             pub const fn root() -> $name {
                 $name(0)
             }
-            pub fn next(&self) -> $name {
+            pub const fn next(&self) -> $name {
                 $name(self.0 + 1)
             }
-            pub fn as_u32(&self) -> u32 {
+            pub const fn as_u32(&self) -> u32 {
                 self.0
             }
-            pub fn as_usize(&self) -> usize {
+            pub const fn as_usize(&self) -> usize {
                 self.0 as usize
             }
         }
@@ -27,6 +25,40 @@ macro_rules! new_index {
 }
 
 crate::new_index!(ModuleID);
+impl ModuleID {
+    pub const MOCK: ModuleID = ModuleID(u32::MAX);
+}
+
+#[macro_export]
+macro_rules! new_index_with_module {
+    ($name: ident) => {
+        #[derive(Debug, Clone, Copy, Hash, PartialEq, Eq)]
+        pub struct $name {
+            module: bolt_ts_span::ModuleID,
+            index: u32,
+        }
+        impl $name {
+            pub const fn root(module: bolt_ts_span::ModuleID) -> $name {
+                $name { module, index: 0 }
+            }
+            pub const fn next(&self) -> $name {
+                $name {
+                    module: self.module,
+                    index: self.index + 1,
+                }
+            }
+            pub const fn index_as_u32(&self) -> u32 {
+                self.index
+            }
+            pub const fn index_as_usize(&self) -> usize {
+                self.index as usize
+            }
+            pub const fn module(&self) -> bolt_ts_span::ModuleID {
+                self.module
+            }
+        }
+    };
+}
 
 #[derive(Debug, Clone, Copy)]
 pub struct Span {
@@ -54,8 +86,10 @@ impl std::fmt::Display for Span {
     }
 }
 
+#[derive(Clone, Copy, Debug)]
 pub struct Module {
     pub id: ModuleID,
+    pub global: bool,
 }
 
 pub enum ModulePath {
@@ -64,16 +98,19 @@ pub enum ModulePath {
 }
 
 pub struct ModuleArena {
-    pub path_map: FxHashMap<ModuleID, ModulePath>,
-    pub content_map: FxHashMap<ModuleID, Arc<String>>,
+    path_map: Vec<ModulePath>,
+    content_map: Vec<Arc<String>>,
+    modules: Vec<Module>,
     next_module_id: ModuleID,
 }
 
 impl ModuleArena {
     pub fn new() -> Self {
+        let cap = 1024 * 8;
         Self {
-            path_map: Default::default(),
-            content_map: Default::default(),
+            path_map: Vec::with_capacity(cap),
+            content_map: Vec::with_capacity(cap),
+            modules: Vec::with_capacity(cap),
             next_module_id: ModuleID::root(),
         }
     }
@@ -83,17 +120,31 @@ impl ModuleArena {
         old
     }
 
-    pub fn new_module(&mut self, p: ModulePath) -> Module {
+    pub fn new_module(&mut self, p: ModulePath, global: bool) -> Module {
         let id = self.next_module_id();
-        let m = Module { id };
+        let m = Module { id, global };
+        assert!(id.as_usize() == self.modules.len());
+        self.modules.push(m);
         if let ModulePath::Real(p) = &p {
-            let prev = self
-                .content_map
-                .insert(id, Arc::new(sys::read_file_with_encoding(p).unwrap()));
-            assert!(prev.is_none())
+            assert!(id.as_usize() == self.content_map.len());
+            self.content_map
+                .push(Arc::new(sys::read_file_with_encoding(p).unwrap()));
         };
-        let prev = self.path_map.insert(id, p);
-        assert!(prev.is_none());
+        assert!(id.as_usize() == self.path_map.len());
+        self.path_map.push(p);
         m
+    }
+
+    pub fn get_path(&self, id: ModuleID) -> &ModulePath {
+        &self.path_map[id.as_usize()]
+    }
+    pub fn get_content(&self, id: ModuleID) -> &Arc<String> {
+        &self.content_map[id.as_usize()]
+    }
+    pub fn get_module(&self, id: ModuleID) -> Module {
+        self.modules[id.as_usize()]
+    }
+    pub fn modules(&self) -> &[Module] {
+        &self.modules
     }
 }

@@ -2,7 +2,7 @@ use super::Emit;
 use crate::ast;
 
 impl<'cx> Emit<'cx> {
-    fn emit_stmt(&mut self, stmt: &'cx ast::Stmt<'cx>) {
+    pub(super) fn emit_stmt(&mut self, stmt: &ast::Stmt<'cx>) {
         use ast::StmtKind::*;
         match stmt.kind {
             Var(var) => self.emit_var_stmt(var),
@@ -14,6 +14,8 @@ impl<'cx> Emit<'cx> {
             Empty(_) => {}
             Class(class) => self.emit_class_decl(class),
             Interface(_) => {}
+            Type(_) => {}
+            Namespace(_) => {}
         }
     }
 

@@ -26,15 +26,23 @@ keyword!(
     (KW_THIS, KW_THIS_STR, "this"),
     (KW_STATIC, KW_STATIC_STR, "static"),
     (KW_CONSTRUCTOR, KW_CONSTRUCTOR_STR, "constructor"),
+    (KW_SUPER, KW_SUPER_STR, "super"),
     (KW_GET, KW_GET_STR, "get"),
     (KW_SET, KW_SET_STR, "set"),
+    (KW_IMPORT, KW_IMPORT_STR, "import"),
+    (KW_EXPORT, KW_EXPORT_STR, "export"),
+    (KW_IN, KW_IN_STR, "in"),
     // ts keywords
     (KW_IMPLEMENTS, KW_IMPLEMENTS_STR, "implements"),
     (KW_INTERFACE, KW_INTERFACE_STR, "interface"),
     (KW_ABSTRACT, KW_ABSTRACT_STR, "abstract"),
     (KW_PUBLIC, KW_PUBLIC_STR, "public"),
+    (KW_PRIVATE, KW_PRIVATE_STR, "private"),
     (KW_AS, KW_AS_STR, "as"),
-    (KW_DECLARE, KW_DECLARE_STR, "declare")
+    (KW_DECLARE, KW_DECLARE_STR, "declare"),
+    (KW_MODULE, KW_MODULE_STR, "module"),
+    (KW_NAMESPACE, KW_NAMESPACE_STR, "namespace"),
+    (KW_TYPE, KW_TYPE_STR, "type")
 );
 
 macro_rules! ident {
@@ -47,11 +55,13 @@ macro_rules! ident {
 
 ident!(
     (IDENT_EMPTY, IDENT_EMPTY_STR, ""),
+    (IDENT_LENGTH, IDENT_LENGTH_STR, "length"),
     (IDENT_ERROR, IDENT_ERROR_STR, "error"),
     (IDENT_UNDEFINED, IDENT_UNDEFINED_STR, "undefined"),
     (IDENT_ANY, IDENT_ANY_STR, "any"),
     (IDENT_VOID, IDENT_VOID_STR, "void"),
     (IDENT_NUMBER, IDENT_NUMBER_STR, "number"),
+    (IDENT_NUMBER_CLASS, IDENT_NUMBER_CLASS_STR, "Number"),
     (IDENT_ARRAY, IDENT_ARRAY_STR, "array"),
     (IDENT_ARRAY_CLASS, IDENT_ARRAY_CLASS_STR, "Array"),
     (IDENT_STRING, IDENT_STRING_STR, "string"),
@@ -59,3 +69,18 @@ ident!(
     (IDENT_NEVER, IDENT_NEVER_STR, "never"),
     (IDENT_UNKNOWN, IDENT_UNKNOWN_STR, "unknown"),
 );
+
+pub fn is_prim_ty_name(name: AtomId) -> bool {
+    name == IDENT_ANY
+        || name == IDENT_NUMBER
+        || name == IDENT_STRING
+        || name == IDENT_BOOLEAN
+        || name == IDENT_NEVER
+        || name == IDENT_UNKNOWN
+        || name == IDENT_VOID
+        || name == IDENT_UNDEFINED
+}
+
+pub fn is_prim_value_name(name: AtomId) -> bool {
+    name == IDENT_UNDEFINED || name == KW_NULL || name == KW_FALSE || name == KW_TRUE
+}

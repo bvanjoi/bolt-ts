@@ -1,6 +1,0 @@
-  × Syntax Error: Unexpected token ','
-   ╭─[../../tests/cases/compiler/classExtendsMultipleBaseClasses.ts:3:18]
- 3 │ , B
-   · ▲─┬
-   · │ ╰── Classes can only extend a single class.
-   ╰────

@@ -1,4 +1,4 @@
-use rts_span::Span;
+use bolt_ts_span::Span;
 
 use crate::ast::{AssignOp, BinOpKind, ModifierKind, PrefixUnaryOp};
 
@@ -44,21 +44,23 @@ pub enum TokenKind {
     This,
     Static,
     Constructor,
+    Super,
     Get,
     Set,
+    Import,
+    Export,
+    In,
     // ts keyword
     Implements,
     Interface,
     Abstract,
     Public,
+    Private,
     As,
     Declare,
-    // =====
-    EOF,
-    Number,
-    String,
-    Ident,
-    NoSubstitutionTemplate,
+    Module,
+    Namespace,
+    Type,
     // =====
     /// `!`
     Excl = 0x21,
@@ -125,8 +127,12 @@ pub enum TokenKind {
     EqEqEq,
     /// `+=`
     PlusEq,
+    /// `++`
+    PlusPlus,
     /// `-=`
     MinusEq,
+    /// `--`
+    MinusMinus,
     /// `*=`
     AsteriskEq,
     /// `/=`
@@ -155,6 +161,12 @@ pub enum TokenKind {
     BangEq,
     /// `^=`
     CaretEq,
+    // =====
+    EOF,
+    Number,
+    String,
+    Ident,
+    NoSubstitutionTemplate,
 }
 
 impl Into<BinOpKind> for TokenKind {
@@ -191,6 +203,8 @@ impl Into<PrefixUnaryOp> for TokenKind {
         match self {
             TokenKind::Plus => PrefixUnaryOp::Plus,
             TokenKind::Minus => PrefixUnaryOp::Minus,
+            TokenKind::PlusPlus => PrefixUnaryOp::PlusPlus,
+            TokenKind::MinusMinus => PrefixUnaryOp::MinusMinus,
             _ => {
                 unreachable!("{:#?}", self)
             }
@@ -205,6 +219,7 @@ impl Into<ModifierKind> for TokenKind {
             TokenKind::Abstract => ModifierKind::Abstract,
             TokenKind::Static => ModifierKind::Static,
             TokenKind::Declare => ModifierKind::Declare,
+            TokenKind::Private => ModifierKind::Private,
             _ => {
                 unreachable!("{:#?}", self)
             }
@@ -245,14 +260,6 @@ impl TokenKind {
         }
     }
 
-    pub fn is_start_of_stmt(self) -> bool {
-        use TokenKind::*;
-        matches!(
-            self,
-            Semi | Var | Let | Const | Function | If | Return | Class
-        ) || self.is_start_of_expr()
-    }
-
     pub(super) fn is_ident(&self) -> bool {
         matches!(self, TokenKind::Ident | TokenKind::Abstract)
     }
@@ -261,17 +268,26 @@ impl TokenKind {
         use TokenKind::*;
         matches!(
             self,
-            Null | True | False | Number | String | LBrace | LBracket | LParen | New | Ident | This
+            Null | True
+                | False
+                | Number
+                | String
+                | LBrace
+                | LBracket
+                | LParen
+                | This
+                | Function
+                | Class
+                | New
+                | Slash
+                | SlashEq
+                | Ident
         ) || self.is_ident()
-    }
-
-    pub fn is_start_of_expr(self) -> bool {
-        self.is_start_of_left_hand_side_expr()
     }
 
     fn is_ts_keyword(self) -> bool {
         let u = self as u8;
-        u < (TokenKind::EOF as u8) && u >= (TokenKind::Implements as u8)
+        u <= (TokenKind::Type as u8) && u >= (TokenKind::Implements as u8)
     }
 
     pub fn is_binding_ident(self) -> bool {
@@ -283,7 +299,7 @@ impl TokenKind {
     }
 
     pub fn is_keyword(self) -> bool {
-        (self as u8) < (TokenKind::EOF as u8)
+        (self as u8) <= (TokenKind::Type as u8)
     }
 
     pub fn is_ident_or_keyword(self) -> bool {
@@ -297,11 +313,6 @@ impl TokenKind {
 
     pub fn is_start_of_param(self) -> bool {
         matches!(self, TokenKind::DotDotDot) || self.is_binding_ident_or_private_ident_or_pat()
-    }
-
-    pub fn is_start_of_type(self) -> bool {
-        use TokenKind::*;
-        matches!(self, LBrace | LBracket)
     }
 
     pub fn is_heritage_clause(&self) -> bool {
@@ -328,7 +339,7 @@ impl TokenKind {
 
     pub fn is_modifier_kind(self) -> bool {
         use TokenKind::*;
-        matches!(self, Abstract | Const | Public | Static | Declare)
+        matches!(self, Abstract | Const | Public | Static | Declare | Private)
     }
 
     pub fn is_accessibility_modifier(self) -> bool {

@@ -1,4 +1,4 @@
-use rts_span::Span;
+use bolt_ts_span::Span;
 
 use crate::ast::Modifiers;
 
@@ -71,12 +71,12 @@ pub(super) trait ClassLike<'cx, 'p> {
         ty_params: Option<ast::TyParams<'cx>>,
         extends: Option<&'cx ast::ClassExtendsClause<'cx>>,
         implements: Option<&'cx ast::ImplementsClause<'cx>>,
-        eles: &'cx ast::ClassEles<'cx>,
+        elems: &'cx ast::ClassElems<'cx>,
     ) -> Self::Node;
 }
 
 pub(super) struct ParseClassDecl;
-impl<'cx, 'a, 'p> ClassLike<'cx, 'p> for ParseClassDecl {
+impl<'cx, 'p> ClassLike<'cx, 'p> for ParseClassDecl {
     type Node = &'cx ast::ClassDecl<'cx>;
     fn parse_name(&self, state: &mut ParserState<'cx, 'p>) -> PResult<Option<&'cx ast::Ident>> {
         state.parse_ident_name().map(|n| Some(n))
@@ -91,7 +91,7 @@ impl<'cx, 'a, 'p> ClassLike<'cx, 'p> for ParseClassDecl {
         ty_params: Option<ast::TyParams<'cx>>,
         extends: Option<&'cx ast::ClassExtendsClause<'cx>>,
         implements: Option<&'cx ast::ImplementsClause<'cx>>,
-        eles: &'cx ast::ClassEles<'cx>,
+        elems: &'cx ast::ClassElems<'cx>,
     ) -> Self::Node {
         let name = name.unwrap();
         let decl = state.alloc(ast::ClassDecl {
@@ -102,7 +102,7 @@ impl<'cx, 'a, 'p> ClassLike<'cx, 'p> for ParseClassDecl {
             ty_params,
             extends,
             implements,
-            eles,
+            elems,
         });
         state.insert_map(decl.id, ast::Node::ClassDecl(decl));
         decl
@@ -110,7 +110,7 @@ impl<'cx, 'a, 'p> ClassLike<'cx, 'p> for ParseClassDecl {
 }
 
 pub(super) struct ParseClassExpr;
-impl<'cx, 'a, 'p> ClassLike<'cx, 'p> for ParseClassExpr {
+impl<'cx, 'p> ClassLike<'cx, 'p> for ParseClassExpr {
     type Node = &'cx ast::ClassExpr<'cx>;
     fn parse_name(&self, state: &mut ParserState<'cx, 'p>) -> PResult<Option<&'cx ast::Ident>> {
         Ok(
@@ -128,7 +128,7 @@ impl<'cx, 'a, 'p> ClassLike<'cx, 'p> for ParseClassExpr {
         ty_params: Option<ast::TyParams<'cx>>,
         extends: Option<&'cx ast::ClassExtendsClause<'cx>>,
         implements: Option<&'cx ast::ImplementsClause<'cx>>,
-        eles: &'cx ast::ClassEles<'cx>,
+        elems: &'cx ast::ClassElems<'cx>,
     ) -> Self::Node {
         assert!(modifiers.is_none());
         let expr = state.alloc(ast::ClassExpr {
@@ -138,14 +138,14 @@ impl<'cx, 'a, 'p> ClassLike<'cx, 'p> for ParseClassExpr {
             ty_params,
             extends,
             implements,
-            eles,
+            elems,
         });
         state.insert_map(expr.id, ast::Node::ClassExpr(expr));
         expr
     }
 }
 
-impl<'cx, 'a, 'p> ParserState<'cx, 'p> {
+impl<'cx, 'p> ParserState<'cx, 'p> {
     pub(super) fn parse_class_decl_or_expr<Node>(
         &mut self,
         mode: impl ClassLike<'cx, 'p, Node = Node>,
@@ -154,21 +154,21 @@ impl<'cx, 'a, 'p> ParserState<'cx, 'p> {
         use TokenKind::*;
         let start = self.token.start();
         self.expect(Class)?;
-        let id = self.p.next_node_id();
+        let id = self.next_node_id();
         let name = self.with_parent(id, |this| mode.parse_name(this))?;
         let ty_params = self.with_parent(id, Self::parse_ty_params)?;
         let extends = self.with_parent(id, Self::parse_class_extends_clause)?;
         let implements = self.with_parent(id, Self::parse_implements_clause)?;
-        let eles = self.with_parent(id, Self::parse_class_members)?;
-        let span = self.new_span(start as usize, eles.span.hi as usize);
+        let elems = self.with_parent(id, Self::parse_class_members)?;
+        let span = self.new_span(start as usize, elems.span.hi as usize);
         Ok(mode.finish(
-            self, id, span, modifiers, name, ty_params, extends, implements, eles,
+            self, id, span, modifiers, name, ty_params, extends, implements, elems,
         ))
     }
 
     fn parse_class_extends_clause(&mut self) -> PResult<Option<&'cx ast::ClassExtendsClause<'cx>>> {
         if self.token.kind == TokenKind::Extends {
-            let id = self.p.next_node_id();
+            let id = self.next_node_id();
             let start = self.token.start();
             self.next_token();
             let mut is_first = true;
@@ -217,7 +217,7 @@ impl<'cx, 'a, 'p> ParserState<'cx, 'p> {
                     span: self.new_span(lo as usize, lo as usize),
                     extra_extends,
                 };
-                self.push_error(self.module_id, Box::new(error));
+                self.push_error(Box::new(error));
             }
             let clause = self.alloc(ast::ClassExtendsClause {
                 id,
@@ -246,6 +246,7 @@ impl<'cx, 'a, 'p> ParserState<'cx, 'p> {
             let method = self.alloc(ast::ClassMethodEle {
                 id,
                 span: self.new_span(start, self.pos),
+                modifiers,
                 name,
                 ty_params,
                 params,
@@ -277,33 +278,6 @@ impl<'cx, 'a, 'p> ParserState<'cx, 'p> {
         Ok(ele)
     }
 
-    fn parse_index_sig_decl(
-        &mut self,
-        id: ast::NodeID,
-        start: usize,
-        modifiers: Option<&'cx ast::Modifiers<'cx>>,
-    ) -> PResult<&'cx ast::IndexSigDecl<'cx>> {
-        let params = self.parse_bracketed_list(
-            TokenKind::LBracket,
-            list_ctx::Params,
-            Self::parse_param,
-            TokenKind::RBracket,
-        )?;
-        let Some(ty) = self.parse_ty_anno()? else {
-            todo!("error handler")
-        };
-        self.parse_ty_member_semi();
-        let sig = self.alloc(ast::IndexSigDecl {
-            id,
-            span: self.new_span(start, self.pos),
-            modifiers,
-            params,
-            ty,
-        });
-        self.insert_map(id, ast::Node::IndexSigDecl(sig));
-        Ok(sig)
-    }
-
     fn try_parse_ctor(
         &mut self,
         id: ast::NodeID,
@@ -314,10 +288,10 @@ impl<'cx, 'a, 'p> ParserState<'cx, 'p> {
             if this.token.kind == TokenKind::Constructor
                 && this.expect(TokenKind::Constructor).is_ok()
             {
-                let ty_params = this.parse_ty_params()?;
-                let params = this.parse_params()?;
-                let ret = this.parse_ret_ty(true)?;
-                let body = this.parse_fn_block()?;
+                let ty_params = this.with_parent(id, Self::parse_ty_params)?;
+                let params = this.with_parent(id, Self::parse_params)?;
+                let ret = this.with_parent(id, |this| this.parse_ret_ty(true))?;
+                let body = this.with_parent(id, Self::parse_fn_block)?;
                 let ctor = this.alloc(ast::ClassCtor {
                     id,
                     span: this.new_span(start, this.pos),
@@ -377,7 +351,7 @@ impl<'cx, 'a, 'p> ParserState<'cx, 'p> {
     }
 
     fn parse_class_ele(&mut self) -> PResult<&'cx ast::ClassEle<'cx>> {
-        let id = self.p.next_node_id();
+        let id = self.next_node_id();
         let start = self.token.start() as usize;
         let modifiers = self.with_parent(id, Self::parse_modifiers)?;
         if self.parse_contextual_modifier(TokenKind::Get) {
@@ -401,13 +375,13 @@ impl<'cx, 'a, 'p> ParserState<'cx, 'p> {
         }
     }
 
-    fn parse_class_members(&mut self) -> PResult<&'cx ast::ClassEles<'cx>> {
+    fn parse_class_members(&mut self) -> PResult<&'cx ast::ClassElems<'cx>> {
         let start = self.token.start();
         self.expect(TokenKind::LBrace)?;
-        let eles = self.parse_list(ClassElementsCtx, Self::parse_class_ele);
+        let elems = self.parse_list(ClassElementsCtx, Self::parse_class_ele);
         let end = self.token.end();
         self.expect(TokenKind::RBrace)?;
         let span = self.new_span(start as usize, end as usize);
-        Ok(self.alloc(ast::ClassEles { span, eles }))
+        Ok(self.alloc(ast::ClassElems { span, elems }))
     }
 }

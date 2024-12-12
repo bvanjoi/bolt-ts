@@ -1,3 +1,4 @@
+mod emit_block_like;
 mod emit_class_like;
 mod expr;
 mod stmt;
@@ -106,9 +107,9 @@ impl<'cx> Emit<'cx> {
 
     fn emit_list<T>(
         &mut self,
-        list: &'cx [T],
-        emit_item: impl Fn(&mut Self, &'cx T),
-        emit_sep: impl Fn(&mut Self, &'cx T),
+        list: &[T],
+        emit_item: impl Fn(&mut Self, &T),
+        emit_sep: impl Fn(&mut Self, &T),
     ) {
         for (idx, item) in list.iter().enumerate() {
             emit_item(self, item);

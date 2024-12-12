@@ -1,8 +1,8 @@
 mod node;
 mod node_flags;
 
+use bolt_ts_span::Span;
 pub use node::{Node, NodeID};
-use rts_span::Span;
 
 use crate::atoms::AtomId;
 
@@ -30,6 +30,26 @@ pub enum StmtKind<'cx> {
     Class(&'cx ClassDecl<'cx>),
     Expr(&'cx Expr<'cx>),
     Interface(&'cx InterfaceDecl<'cx>),
+    Type(&'cx TypeDecl<'cx>),
+    Namespace(&'cx NsDecl<'cx>),
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct NsDecl<'cx> {
+    pub id: NodeID,
+    pub span: Span,
+    pub modifiers: Option<&'cx Modifiers<'cx>>,
+    pub name: &'cx Ident,
+    pub block: &'cx BlockStmt<'cx>,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct TypeDecl<'cx> {
+    pub id: NodeID,
+    pub span: Span,
+    pub name: &'cx Ident,
+    pub ty_params: Option<TyParams<'cx>>,
+    pub ty: &'cx self::Ty<'cx>,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -37,6 +57,7 @@ pub struct InterfaceDecl<'cx> {
     pub id: NodeID,
     pub span: Span,
     pub name: &'cx Ident,
+    pub ty_params: Option<TyParams<'cx>>,
     pub extends: Option<&'cx InterfaceExtendsClause<'cx>>,
     pub members: ObjectTyMembers<'cx>,
 }
@@ -59,9 +80,11 @@ pub struct ObjectTyMember<'cx> {
 
 #[derive(Debug, Clone, Copy)]
 pub enum ObjectTyMemberKind<'cx> {
+    IndexSig(&'cx IndexSigDecl<'cx>),
     Prop(&'cx PropSignature<'cx>),
     Method(&'cx MethodSignature<'cx>),
     CallSig(&'cx CallSigDecl<'cx>),
+    CtorSig(&'cx CtorSigDecl<'cx>),
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -98,13 +121,13 @@ pub struct ClassDecl<'cx> {
     pub ty_params: Option<TyParams<'cx>>,
     pub extends: Option<&'cx ClassExtendsClause<'cx>>,
     pub implements: Option<&'cx ImplementsClause<'cx>>,
-    pub eles: &'cx ClassEles<'cx>,
+    pub elems: &'cx ClassElems<'cx>,
 }
 
 #[derive(Debug, Clone, Copy)]
-pub struct ClassEles<'cx> {
+pub struct ClassElems<'cx> {
     pub span: Span,
-    pub eles: &'cx [&'cx ClassEle<'cx>],
+    pub elems: &'cx [&'cx ClassEle<'cx>],
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -154,6 +177,7 @@ pub struct ClassCtor<'cx> {
 pub struct ClassMethodEle<'cx> {
     pub id: NodeID,
     pub span: Span,
+    pub modifiers: Option<&'cx Modifiers<'cx>>,
     pub name: &'cx PropName<'cx>,
     pub ty_params: Option<TyParams<'cx>>,
     pub params: ParamsDecl<'cx>,
@@ -176,6 +200,8 @@ pub struct TyParam<'cx> {
     pub id: NodeID,
     pub span: Span,
     pub name: &'cx Ident,
+    pub constraint: Option<&'cx self::Ty<'cx>>,
+    pub default: Option<&'cx self::Ty<'cx>>,
 }
 
 pub type TyParams<'cx> = &'cx [&'cx TyParam<'cx>];
@@ -267,6 +293,8 @@ impl Expr<'_> {
             ArrowFn(f) => f.span,
             PrefixUnary(unary) => unary.span,
             PropAccess(a) => a.span,
+            EleAccess(a) => a.span,
+            This(this) => this.span,
         }
     }
 
@@ -292,6 +320,8 @@ impl Expr<'_> {
             ArrowFn(f) => f.id,
             PrefixUnary(unary) => unary.id,
             PropAccess(a) => a.id,
+            EleAccess(a) => a.id,
+            This(this) => this.id,
         }
     }
 }
@@ -300,6 +330,7 @@ impl Expr<'_> {
 pub enum ExprKind<'cx> {
     Assign(&'cx AssignExpr<'cx>),
     Bin(&'cx BinExpr<'cx>),
+    This(&'cx ThisExpr),
     BoolLit(&'cx BoolLit),
     NumLit(&'cx NumLit),
     StringLit(&'cx StringLit),
@@ -317,6 +348,21 @@ pub enum ExprKind<'cx> {
     ArrowFn(&'cx ArrowFnExpr<'cx>),
     PrefixUnary(&'cx PrefixUnaryExpr<'cx>),
     PropAccess(&'cx PropAccessExpr<'cx>),
+    EleAccess(&'cx EleAccessExpr<'cx>),
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct ThisExpr {
+    pub id: NodeID,
+    pub span: Span,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct EleAccessExpr<'cx> {
+    pub id: NodeID,
+    pub span: Span,
+    pub expr: &'cx Expr<'cx>,
+    pub arg: &'cx Expr<'cx>,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -331,6 +377,8 @@ pub struct PropAccessExpr<'cx> {
 pub enum PrefixUnaryOp {
     Plus,
     Minus,
+    PlusPlus,
+    MinusMinus,
 }
 
 impl PrefixUnaryOp {
@@ -339,6 +387,8 @@ impl PrefixUnaryOp {
         match self {
             Plus => "+",
             Minus => "-",
+            PlusPlus => "++",
+            MinusMinus => "--",
         }
     }
 }
@@ -417,6 +467,7 @@ pub struct NewExpr<'cx> {
     pub id: NodeID,
     pub span: Span,
     pub expr: &'cx Expr<'cx>,
+    pub ty_args: Option<self::Tys<'cx>>,
     pub args: Option<Exprs<'cx>>,
 }
 
@@ -428,7 +479,7 @@ pub struct ClassExpr<'cx> {
     pub ty_params: Option<TyParams<'cx>>,
     pub extends: Option<&'cx ClassExtendsClause<'cx>>,
     pub implements: Option<&'cx ImplementsClause<'cx>>,
-    pub eles: &'cx ClassEles<'cx>,
+    pub elems: &'cx ClassElems<'cx>,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -436,6 +487,7 @@ pub struct FnExpr<'cx> {
     pub id: NodeID,
     pub span: Span,
     pub name: Option<&'cx Ident>,
+    pub ty_params: Option<TyParams<'cx>>,
     pub params: ParamsDecl<'cx>,
     pub ret_ty: Option<&'cx self::Ty<'cx>>,
     pub body: &'cx BlockStmt<'cx>,
@@ -575,32 +627,111 @@ pub type Tys<'cx> = &'cx [&'cx Ty<'cx>];
 impl Ty<'_> {
     pub fn span(&self) -> Span {
         match self.kind {
-            TyKind::Ident(ident) => ident.span,
             TyKind::Array(array) => array.span,
             TyKind::Fn(f) => f.span,
-            TyKind::Lit(lit) => lit.span,
+            TyKind::ObjectLit(lit) => lit.span,
             TyKind::ExprWithArg(node) => node.span(),
+            TyKind::NumLit(num) => num.span,
+            TyKind::StringLit(s) => s.span,
+            TyKind::Tuple(tuple) => tuple.span,
+            TyKind::Rest(rest) => rest.span,
+            TyKind::IndexedAccess(n) => n.span,
+            TyKind::Cond(n) => n.span,
+            TyKind::Refer(n) => n.span,
+            TyKind::Union(n) => n.span,
+            TyKind::Intersection(n) => n.span,
         }
     }
 
     pub fn id(&self) -> NodeID {
         match self.kind {
-            TyKind::Ident(node) => node.id,
             TyKind::Array(node) => node.id,
             TyKind::Fn(node) => node.id,
-            TyKind::Lit(node) => node.id,
+            TyKind::ObjectLit(node) => node.id,
             TyKind::ExprWithArg(node) => node.id(),
+            TyKind::NumLit(num) => num.id,
+            TyKind::StringLit(s) => s.id,
+            TyKind::Tuple(tuple) => tuple.id,
+            TyKind::Rest(rest) => rest.id,
+            TyKind::IndexedAccess(n) => n.id,
+            TyKind::Cond(n) => n.id,
+            TyKind::Refer(n) => n.id,
+            TyKind::Union(n) => n.id,
+            TyKind::Intersection(n) => n.id,
         }
     }
 }
 
 #[derive(Debug, Clone, Copy)]
 pub enum TyKind<'cx> {
-    Ident(&'cx Ident),
+    Refer(&'cx ReferTy<'cx>),
     Array(&'cx ArrayTy<'cx>),
+    IndexedAccess(&'cx IndexedAccessTy<'cx>),
     Fn(&'cx FnTy<'cx>),
-    Lit(&'cx LitTy<'cx>),
+    ObjectLit(&'cx ObjectLitTy<'cx>),
     ExprWithArg(&'cx Expr<'cx>),
+    NumLit(&'cx NumLit),
+    StringLit(&'cx StringLit),
+    Tuple(&'cx TupleTy<'cx>),
+    Rest(&'cx RestTy<'cx>),
+    Cond(&'cx CondTy<'cx>),
+    Union(&'cx UnionTy<'cx>),
+    Intersection(&'cx IntersectionTy<'cx>),
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct UnionTy<'cx> {
+    pub id: NodeID,
+    pub span: Span,
+    pub tys: Tys<'cx>,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct IntersectionTy<'cx> {
+    pub id: NodeID,
+    pub span: Span,
+    pub tys: Tys<'cx>,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct ReferTy<'cx> {
+    pub id: NodeID,
+    pub span: Span,
+    pub name: &'cx Ident,
+    pub args: Option<Tys<'cx>>,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct CondTy<'cx> {
+    pub id: NodeID,
+    pub span: Span,
+    pub check_ty: &'cx self::Ty<'cx>,
+    pub extends_ty: &'cx self::Ty<'cx>,
+    pub true_ty: &'cx self::Ty<'cx>,
+    pub false_ty: &'cx self::Ty<'cx>,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct RestTy<'cx> {
+    pub id: NodeID,
+    pub span: Span,
+    pub ty: &'cx self::Ty<'cx>,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct TupleTy<'cx> {
+    pub id: NodeID,
+    pub span: Span,
+    pub tys: Tys<'cx>,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct CtorSigDecl<'cx> {
+    pub id: NodeID,
+    pub span: Span,
+    pub ty_params: Option<TyParams<'cx>>,
+    pub params: ParamsDecl<'cx>,
+    pub ty: Option<&'cx self::Ty<'cx>>,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -613,7 +744,7 @@ pub struct CallSigDecl<'cx> {
 }
 
 #[derive(Debug, Clone, Copy)]
-pub struct LitTy<'cx> {
+pub struct ObjectLitTy<'cx> {
     pub id: NodeID,
     pub span: Span,
     pub members: ObjectTyMembers<'cx>,
@@ -625,6 +756,14 @@ pub struct FnTy<'cx> {
     pub span: Span,
     pub params: ParamsDecl<'cx>,
     pub ret_ty: &'cx self::Ty<'cx>,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct IndexedAccessTy<'cx> {
+    pub id: NodeID,
+    pub span: Span,
+    pub ty: &'cx self::Ty<'cx>,
+    pub index_ty: &'cx self::Ty<'cx>,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -643,6 +782,7 @@ impl<'cx> PropName<'cx> {
     pub fn span(&self) -> Span {
         match self.kind {
             PropNameKind::Ident(ident) => ident.span,
+            PropNameKind::NumLit(num) => num.span,
         }
     }
 }
@@ -650,6 +790,7 @@ impl<'cx> PropName<'cx> {
 #[derive(Debug, Clone, Copy)]
 pub enum PropNameKind<'cx> {
     Ident(&'cx Ident),
+    NumLit(&'cx NumLit),
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -676,6 +817,7 @@ pub struct FnDecl<'cx> {
     pub span: Span,
     pub modifiers: Option<&'cx Modifiers<'cx>>,
     pub name: &'cx Ident,
+    pub ty_params: Option<TyParams<'cx>>,
     pub params: ParamsDecl<'cx>,
     pub ret_ty: Option<&'cx self::Ty<'cx>>,
     pub body: Option<&'cx BlockStmt<'cx>>,
@@ -703,6 +845,7 @@ pub struct CallExpr<'cx> {
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum ModifierKind {
     Public,
+    Private,
     Abstract,
     Static,
     Declare,

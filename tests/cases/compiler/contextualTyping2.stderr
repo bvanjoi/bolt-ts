@@ -1,6 +1,0 @@
-  × Object literal may only specify known properties, and 'name' does not
-  │ exist.
-   ╭─[../../tests/cases/compiler/contextualTyping2.ts:1:32]
- 1 │ name:"foo"
-   · ──────────
-   ╰────

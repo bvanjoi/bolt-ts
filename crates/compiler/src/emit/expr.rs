@@ -7,7 +7,7 @@ impl<'cx> Emit<'cx> {
         match expr.kind {
             Bin(bin) => self.emit_bin_expr(bin),
             BoolLit(bool) => self.content.p(&bool.val.to_string()),
-            NumLit(num) => self.content.p(&num.val.to_string()),
+            NumLit(num) => self.emit_num_lit(num),
             StringLit(s) => {
                 self.content.p("\"");
                 self.content.p(self.atoms.get(s.val));
@@ -41,6 +41,10 @@ impl<'cx> Emit<'cx> {
             ArrowFn(arrow_fn) => self.emit_arrow_fn(arrow_fn),
             PrefixUnary(unary) => {
                 self.content.p(unary.op.as_str());
+                match unary.expr.kind {
+                    PrefixUnary(_) => self.content.p_whitespace(),
+                    _ => {}
+                };
                 self.emit_expr(unary.expr);
             }
             Class(class) => self.emit_class_like(class),
@@ -48,6 +52,15 @@ impl<'cx> Emit<'cx> {
                 self.emit_expr(prop.expr);
                 self.content.p_dot();
                 self.emit_ident(prop.name);
+            }
+            EleAccess(prop) => {
+                self.emit_expr(prop.expr);
+                self.content.p_l_bracket();
+                self.emit_expr(prop.arg);
+                self.content.p_r_bracket();
+            }
+            This(_) => {
+                self.content.p("this");
             }
         }
     }

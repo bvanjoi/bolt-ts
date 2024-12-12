@@ -4,70 +4,116 @@ mod bind;
 pub mod check;
 mod emit;
 mod errors;
+mod ir;
 mod keyword;
 pub mod parser;
 mod ty;
 
+use std::borrow::Cow;
 use std::path::PathBuf;
+use std::sync::Arc;
+use std::sync::Mutex;
 
 use atoms::AtomMap;
-use bind::Binder;
-use rts_span::{ModuleArena, ModulePath};
+use bind::{bind, GlobalSymbols};
+use bolt_ts_span::{ModuleArena, ModulePath};
+use parser::parse_parallel;
+use parser::token::TokenKind;
 
-type Diag = Box<dyn rts_errors::miette::Diagnostic + Send + Sync + 'static>;
+type Diag = Box<dyn bolt_ts_errors::miette::Diagnostic + Send + Sync + 'static>;
 
 pub struct Output {
     pub module_arena: ModuleArena,
     pub output: String,
-    pub diags: Vec<rts_errors::Diag>,
+    pub diags: Vec<bolt_ts_errors::Diag>,
+}
+
+fn current_exe_dir() -> std::path::PathBuf {
+    std::env::current_exe()
+        .unwrap()
+        .parent()
+        .unwrap()
+        .to_path_buf()
 }
 
 pub fn eval_from(m: ModulePath) -> Output {
     let mut module_arena = ModuleArena::new();
-    let m = module_arena.new_module(m);
-    let input = module_arena.content_map.get(&m.id).unwrap();
-    let atoms = AtomMap::default();
+    let m = module_arena.new_module(m, false);
+    let mut atoms = AtomMap::default();
+    // atom init
+    if cfg!(debug_assertions) {
+        for (idx, (name, _)) in keyword::KEYWORDS.iter().enumerate() {
+            let t = unsafe { std::mem::transmute::<u8, TokenKind>(idx as u8) };
+            if t == TokenKind::Var {
+                assert_eq!(t as u8 + 1, TokenKind::Let as u8);
+                assert_eq!(t as u8 + 2, TokenKind::Const as u8);
+            }
+            assert!(t.is_keyword());
+            assert_eq!(format!("{t:?}").to_lowercase(), *name);
+        }
+    }
+    for (atom, id) in keyword::KEYWORDS {
+        atoms.insert(*id, Cow::Borrowed(atom));
+    }
+    for (atom, id) in keyword::IDENTIFIER {
+        atoms.insert(*id, Cow::Borrowed(atom))
+    }
 
     // parser
-    let ast_arena = bumpalo::Bump::new();
-    let mut p = parser::Parser::new(&ast_arena, atoms);
-    let mut s = parser::ParserState::new(&mut p, input.as_bytes(), m.id);
-    let root = s.parse();
-
-    let parse_diags = s.steal_diags();
+    // TODO: build graph
+    let mut p = parser::Parser::new();
+    let dir = current_exe_dir();
+    for (_, file) in bolt_ts_lib::LIB_ENTIRES {
+        module_arena.new_module(ModulePath::Real(dir.join(file)), true);
+    }
+    let atoms = Arc::new(Mutex::new(atoms));
+    let herd = bumpalo_herd::Herd::new();
+    for (module_id, result) in
+        parse_parallel(atoms.clone(), &herd, module_arena.modules(), &module_arena)
+    {
+        p.insert(module_id, result);
+    }
 
     // bind
-    let mut binder = bind::Binder::new(&p.atoms);
-    binder.bind_program(root);
-    let Binder {
-        scope_id_parent_map,
-        node_id_to_scope_id,
-        symbols,
-        res,
-        final_res,
-        ..
-    } = binder;
+    let atoms = Arc::try_unwrap(atoms).unwrap();
+    let atoms = atoms.into_inner().unwrap();
+    let mut binder = bind::Binder::new(&p, &atoms);
+    // TODO: par
+    for m in module_arena.modules() {
+        let module_id = m.id;
+        let root = p.root(module_id);
+        let result = bind(&atoms, root, &p, module_id);
+        binder.insert(module_id, result);
+    }
+
+    let mut global_symbols = GlobalSymbols::default();
+    for m in module_arena.modules() {
+        let module_id = m.id;
+        if !module_arena.get_module(module_id).global {
+            continue;
+        }
+        for (symbol_id, symbol) in binder.symbols(module_id).iter() {
+            global_symbols.insert(symbol.name, symbol_id);
+        }
+    }
 
     // type check
+    let diags = binder.steal_errors(m.id);
     let ty_arena = bumpalo::Bump::new();
-    let mut c = check::TyChecker::new(
-        &ty_arena,
-        &p.nodes,
-        &p.parent_map,
-        &p.atoms,
-        &scope_id_parent_map,
-        &node_id_to_scope_id,
-        &symbols,
-        &res,
-        final_res,
-    );
-    c.check_program(root);
+    let mut checker = check::TyChecker::new(&ty_arena, &p, &atoms, &mut binder, &global_symbols);
+    checker.check_program(p.root(m.id));
 
     // emit
-    let mut emitter = emit::Emit::new(&c.atoms);
-    let output = emitter.emit(root);
+    let mut emitter = emit::Emit::new(&checker.atoms);
+    let output = emitter.emit(p.root(m.id));
 
-    let diags: Vec<_> = parse_diags.into_iter().chain(c.diags.into_iter()).collect();
+    let diags: Vec<_> = checker
+        .diags
+        .into_iter()
+        .chain(diags)
+        .chain(p.steal_errors(m.id))
+        .collect();
+
     Output {
         module_arena,
         diags,
