@@ -116,11 +116,11 @@ impl<'cx> TyChecker<'cx> {
         id: SymbolID,
     ) -> (Option<&'cx ty::Ty<'cx>>, &'cx [&'cx ty::Ty<'cx>]) {
         let symbol = self.binder.symbol(id);
-        if symbol.flags == SymbolFlags::CLASS {
+        if symbol.flags.intersects(SymbolFlags::CLASS) {
             let c = symbol.expect_class();
             let decl = c.decl;
             self.resolve_base_tys_of_class(id, decl)
-        } else if symbol.flags == SymbolFlags::INTERFACE {
+        } else if symbol.flags.intersects(SymbolFlags::INTERFACE) {
             let i = symbol.expect_interface();
             (None, self.resolve_base_tys_of_interface(i.decl))
         } else {
@@ -208,10 +208,10 @@ impl<'cx> TyChecker<'cx> {
         let outer_ty_params = self.get_outer_ty_params_of_class_or_interface(symbol);
         let (base_ctor_ty, base_tys) = self.get_base_tys(symbol);
         let s = self.binder.symbol(symbol);
-        let members = if s.flags == SymbolFlags::CLASS {
+        let members = if s.flags.intersects(SymbolFlags::CLASS) {
             let c = s.expect_class();
             self.alloc(c.members.clone())
-        } else if s.flags == SymbolFlags::INTERFACE {
+        } else if s.flags.intersects(SymbolFlags::INTERFACE) {
             let i = s.expect_interface();
             self.alloc(i.members.clone())
         } else {
@@ -245,9 +245,9 @@ impl<'cx> TyChecker<'cx> {
 
     fn get_outer_ty_params_of_class_or_interface(&mut self, id: SymbolID) -> Option<ty::Tys<'cx>> {
         let s = self.binder.symbol(id);
-        let decl = if s.flags == SymbolFlags::CLASS {
+        let decl = if s.flags.intersects(SymbolFlags::CLASS) {
             s.expect_class().decl
-        } else if s.flags == SymbolFlags::INTERFACE {
+        } else if s.flags.intersects(SymbolFlags::INTERFACE) {
             s.expect_interface().decl
         } else {
             unreachable!()

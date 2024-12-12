@@ -49,10 +49,12 @@ impl<'cx> BinderState<'cx> {
             if let Some(id) = self.res.get(&key) {
                 let prev = self.symbols.get_mut(*id);
                 if flags == SymbolFlags::FUNCTION_SCOPED_VARIABLE {
+                    prev.flags |= flags;
                     let prev = &mut prev.kind;
                     prev.0 = kind;
                     return *id;
                 } else if matches!(prev.kind.0, SymbolKind::Err) {
+                    prev.flags |= flags;
                     let prev = &mut prev.kind;
                     assert!(prev.1.is_some());
                     prev.0 = kind;
@@ -79,7 +81,9 @@ impl<'cx> BinderState<'cx> {
         let key = (self.scope_id, name);
         if name.as_atom().is_some() {
             if let Some(id) = self.res.get(&key) {
-                let prev = &mut self.symbols.get_mut(*id).kind;
+                let prev = self.symbols.get_mut(*id);
+                prev.flags |= flags;
+                let prev = &mut prev.kind;
                 if matches!(prev.0, SymbolKind::Err) {
                     todo!("error handler")
                 }

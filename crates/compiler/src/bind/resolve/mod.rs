@@ -3,7 +3,7 @@ mod resolve_class_like;
 
 use bolt_ts_span::ModuleID;
 
-use super::{BinderState, SymbolID};
+use super::{BinderState, GlobalSymbols, SymbolID};
 
 use crate::ast;
 use crate::bind::{Symbol, SymbolName};
@@ -14,11 +14,13 @@ pub(super) fn resolve<'cx>(
     state: &mut BinderState<'cx>,
     root: &'cx ast::Program<'cx>,
     p: &'cx Parser<'cx>,
+    global: &'cx GlobalSymbols,
 ) -> Vec<bolt_ts_errors::Diag> {
     let mut resolver = Resolver {
         state,
         p,
         diags: vec![],
+        global,
     };
     resolver.resolve_program(root);
     resolver.diags
@@ -28,6 +30,7 @@ pub(super) struct Resolver<'cx, 'r> {
     state: &'r mut BinderState<'cx>,
     p: &'cx Parser<'cx>,
     pub diags: Vec<bolt_ts_errors::Diag>,
+    global: &'cx GlobalSymbols,
 }
 
 impl<'cx, 'r> Resolver<'cx, 'r> {
@@ -419,17 +422,13 @@ fn resolve_symbol_by_ident(
 ) -> SymbolID {
     let binder = &resolver.state;
     assert!(!binder.final_res.contains_key(&ident.id));
-    let name = ident.name;
+    let key = SymbolName::Normal(ident.name);
     let Some(mut scope_id) = binder.node_id_to_scope_id.get(&ident.id).copied() else {
         let name = resolver.state.atoms.get(ident.name);
         unreachable!("the scope of {name:?} is not stored");
     };
-    let res = loop {
-        if let Some(id) = binder
-            .res
-            .get(&(scope_id, SymbolName::Normal(name)))
-            .copied()
-        {
+    loop {
+        if let Some(id) = binder.res.get(&(scope_id, key)).copied() {
             if ns(&binder.symbols.get(id)) {
                 break id;
             }
@@ -437,9 +436,10 @@ fn resolve_symbol_by_ident(
 
         if let Some(parent) = binder.scope_id_parent_map[scope_id.index_as_usize()] {
             scope_id = parent;
+        } else if let Some(symbol) = resolver.global.get(key) {
+            break symbol;
         } else {
             break Symbol::ERR;
         }
-    };
-    res
+    }
 }

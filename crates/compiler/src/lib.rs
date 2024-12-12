@@ -15,6 +15,7 @@ use std::sync::Arc;
 use std::sync::Mutex;
 
 use atoms::AtomMap;
+use bind::resolve;
 use bind::{bind, GlobalSymbols};
 use bolt_ts_span::{ModuleArena, ModulePath};
 use parser::parse_parallel;
@@ -78,23 +79,34 @@ pub fn eval_from(m: ModulePath) -> Output {
     let atoms = Arc::try_unwrap(atoms).unwrap();
     let atoms = atoms.into_inner().unwrap();
     let mut binder = bind::Binder::new(&p, &atoms);
+
     // TODO: par
-    for m in module_arena.modules() {
-        let module_id = m.id;
-        let root = p.root(module_id);
-        let result = bind(&atoms, root, &p, module_id);
-        binder.insert(module_id, result);
-    }
+    let bind_list = module_arena
+        .modules()
+        .iter()
+        .map(|m| {
+            let module_id = m.id;
+            let root = p.root(module_id);
+            let is_global = module_arena.get_module(module_id).global;
+            (bind(&atoms, root, module_id), is_global)
+        })
+        .collect::<Vec<_>>();
 
     let mut global_symbols = GlobalSymbols::default();
-    for m in module_arena.modules() {
-        let module_id = m.id;
-        if !module_arena.get_module(module_id).global {
+    for (state, is_global) in &bind_list {
+        if !is_global {
             continue;
         }
-        for (symbol_id, symbol) in binder.symbols(module_id).iter() {
+        for (symbol_id, symbol) in state.symbols.iter() {
             global_symbols.insert(symbol.name, symbol_id);
         }
+    }
+
+    for (m, (state, _)) in module_arena.modules().iter().zip(bind_list.into_iter()) {
+        let module_id = m.id;
+        let root = p.root(module_id);
+        let result = resolve(root, &p, state, &global_symbols);
+        binder.insert(module_id, result);
     }
 
     // type check

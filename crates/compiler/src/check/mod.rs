@@ -705,7 +705,9 @@ impl<'cx> TyChecker<'cx> {
             return self.undefined_ty();
         }
 
+        dbg!(self.atoms.get(ident.name));
         let symbol = self.resolve_symbol_by_ident(ident);
+        dbg!(symbol);
 
         if self.binder.symbol(symbol).flags == SymbolFlags::CLASS {
             self.check_resolved_block_scoped_var(ident, symbol);

@@ -21,7 +21,8 @@ bolt_ts_span::new_index_with_module!(ScopeID);
 pub struct Binder<'cx> {
     p: &'cx Parser<'cx>,
     atoms: &'cx AtomMap<'cx>,
-    map: FxHashMap<ModuleID, BinderResult>,
+    binder_result: Vec<BinderResult>,
+    anonymous_binder: BinderResult,
 }
 
 impl<'cx> Binder<'cx> {
@@ -29,18 +30,24 @@ impl<'cx> Binder<'cx> {
         Self {
             p,
             atoms,
-            map: Default::default(),
+            binder_result: Vec::with_capacity(1024),
+            anonymous_binder: BinderResult {
+                symbols: Symbols::new(ModuleID::MOCK),
+                final_res: Default::default(),
+                diags: Default::default(),
+            },
         }
     }
 
     pub fn insert(&mut self, id: ModuleID, result: BinderResult) {
-        let prev = self.map.insert(id, result);
-        assert!(prev.is_none());
+        assert_eq!(self.binder_result.len(), id.as_usize());
+        self.binder_result.push(result);
     }
 
     #[inline(always)]
     fn get(&self, id: ModuleID) -> &BinderResult {
-        self.map.get(&id).unwrap()
+        let idx = id.as_usize();
+        &self.binder_result[idx]
     }
 
     #[inline(always)]
@@ -68,32 +75,26 @@ impl<'cx> Binder<'cx> {
 
     #[inline(always)]
     pub fn create_anonymous_symbol(&mut self, name: SymbolName, flags: SymbolFlags) -> SymbolID {
-        let module = ModuleID::MOCK;
-        let binder = self.map.entry(module).or_insert_with(|| BinderResult {
-            symbols: Symbols::new(module),
-            final_res: Default::default(),
-            diags: Default::default(),
-        });
-        let len = binder.symbols.len();
+        let len = self.anonymous_binder.symbols.len();
         let id = SymbolID::mock(len as u32);
         let symbol = Symbol::new(name, flags, SymbolKind::ElementProperty);
-        binder.symbols.insert(id, symbol);
+        self.anonymous_binder.symbols.insert(id, symbol);
         id
     }
 
     pub fn steal_errors(&mut self, id: ModuleID) -> Vec<bolt_ts_errors::Diag> {
-        std::mem::take(&mut self.map.get_mut(&id).unwrap().diags)
+        std::mem::take(&mut self.binder_result[id.as_usize()].diags)
     }
 }
 
-struct BinderState<'cx> {
+pub struct BinderState<'cx> {
     scope_id: ScopeID,
     max_scope_id: ScopeID,
     symbol_id: SymbolID,
     atoms: &'cx AtomMap<'cx>,
     scope_id_parent_map: Vec<Option<ScopeID>>,
     node_id_to_scope_id: FxHashMap<ast::NodeID, ScopeID>,
-    symbols: Symbols,
+    pub(super) symbols: Symbols,
     res: FxHashMap<(ScopeID, SymbolName), SymbolID>,
     final_res: FxHashMap<ast::NodeID, SymbolID>,
 }
@@ -107,12 +108,20 @@ pub struct BinderResult {
 pub fn bind<'cx>(
     atoms: &'cx AtomMap<'cx>,
     root: &'cx ast::Program,
-    p: &'cx Parser<'cx>,
     module_id: ModuleID,
-) -> BinderResult {
+) -> BinderState<'cx> {
     let mut state = BinderState::new(atoms, module_id);
     state.bind_program(root);
-    let diags = resolve::resolve(&mut state, root, p);
+    state
+}
+
+pub fn resolve<'cx>(
+    root: &'cx ast::Program,
+    p: &'cx Parser<'cx>,
+    mut state: BinderState<'cx>,
+    global: &'cx GlobalSymbols,
+) -> BinderResult {
+    let diags = resolve::resolve(&mut state, root, p, &global);
     BinderResult {
         symbols: state.symbols,
         final_res: state.final_res,
