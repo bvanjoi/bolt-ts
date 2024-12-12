@@ -27,27 +27,21 @@ impl<'cx> ElemLike<'cx> for ast::ClassEle<'cx> {
         }
     }
 }
-impl<'cx> ElemsLike<'cx> for ast::ClassElems<'cx> {
+impl<'cx> ElemsLike<'cx> for &'cx [&'cx ast::ClassEle<'cx>] {
     type Elem = ast::ClassEle<'cx>;
     fn is_empty(&self) -> bool {
-        self.elems.is_empty()
+        self.len() == 0
     }
     fn elems(&self) -> &[&Self::Elem] {
-        self.elems
+        self
     }
 }
-// class decl
-impl<'cx> BlockLike<'cx> for ast::ClassDecl<'cx> {
-    type Elems = ast::ClassElems<'cx>;
+
+impl<'cx> BlockLike<'cx> for ast::ClassElems<'cx> {
+    type Elems = &'cx [&'cx ast::ClassEle<'cx>];
+
     fn elems(&self) -> &Self::Elems {
-        self.elems
-    }
-}
-// class expr
-impl<'cx> BlockLike<'cx> for ast::ClassExpr<'cx> {
-    type Elems = ast::ClassElems<'cx>;
-    fn elems(&self) -> &Self::Elems {
-        self.elems
+        &self.elems
     }
 }
 

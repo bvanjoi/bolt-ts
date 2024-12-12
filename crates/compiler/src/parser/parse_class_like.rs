@@ -246,6 +246,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
             let method = self.alloc(ast::ClassMethodEle {
                 id,
                 span: self.new_span(start, self.pos),
+                modifiers,
                 name,
                 ty_params,
                 params,

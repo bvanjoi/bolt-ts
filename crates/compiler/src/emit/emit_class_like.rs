@@ -1,33 +1,9 @@
-use crate::ast;
+use crate::{ast, ir};
 
-use super::emit_block_like::BlockLike;
 use super::Emit;
 
-pub(super) trait ClassLike<'cx>: BlockLike<'cx> {
-    fn name(&self) -> Option<&'cx ast::Ident>;
-    fn extends(&self) -> Option<&'cx ast::ClassExtendsClause<'cx>>;
-}
-
-impl<'cx> ClassLike<'cx> for ast::ClassDecl<'cx> {
-    fn name(&self) -> Option<&'cx ast::Ident> {
-        Some(self.name)
-    }
-    fn extends(&self) -> Option<&'cx ast::ClassExtendsClause<'cx>> {
-        self.extends
-    }
-}
-
-impl<'cx> ClassLike<'cx> for ast::ClassExpr<'cx> {
-    fn name(&self) -> Option<&'cx ast::Ident> {
-        self.name
-    }
-    fn extends(&self) -> Option<&'cx ast::ClassExtendsClause<'cx>> {
-        self.extends
-    }
-}
-
 impl<'cx> Emit<'cx> {
-    pub(super) fn emit_class_like(&mut self, class: &impl ClassLike<'cx>) {
+    pub(super) fn emit_class_like(&mut self, class: &impl ir::ClassLike<'cx>) {
         self.content.p("class");
         self.content.p_whitespace();
         if let Some(ident) = class.name() {
@@ -40,7 +16,7 @@ impl<'cx> Emit<'cx> {
             self.emit_expr(extends.expr);
             self.content.p_whitespace();
         }
-        self.emit_block_like(class);
+        self.emit_block_like(&*class.elems());
     }
 
     pub(super) fn emit_class_ele(&mut self, ele: &ast::ClassEle<'cx>) {
@@ -85,6 +61,14 @@ impl<'cx> Emit<'cx> {
     }
 
     fn emit_class_method(&mut self, method: &'cx ast::ClassMethodEle<'cx>) {
+        if let Some(mods) = method.modifiers {
+            for m in mods.list {
+                if m.kind == ast::ModifierKind::Static {
+                    self.content.p("static");
+                    self.content.p_whitespace();
+                }
+            }
+        }
         if let Some(body) = method.body {
             self.emit_prop_name(&method.name);
             self.emit_params(method.params);

@@ -177,6 +177,7 @@ pub struct ClassCtor<'cx> {
 pub struct ClassMethodEle<'cx> {
     pub id: NodeID,
     pub span: Span,
+    pub modifiers: Option<&'cx Modifiers<'cx>>,
     pub name: &'cx PropName<'cx>,
     pub ty_params: Option<TyParams<'cx>>,
     pub params: ParamsDecl<'cx>,
