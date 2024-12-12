@@ -2,7 +2,7 @@ use bolt_ts_span::Span;
 use rustc_hash::FxHashSet;
 
 use crate::atoms::AtomId;
-use crate::bind::{SymbolID, SymbolName};
+use crate::bind::{SymbolFlags, SymbolID, SymbolName};
 use crate::errors;
 use crate::ty::{ObjectShape, ObjectTy, ObjectTyKind, Ty, TyKind, Tys};
 
@@ -138,8 +138,8 @@ impl<'cx> TyChecker<'cx> {
         let unmatched = self.get_unmatched_prop(source, target);
         if let Some((unmatched, target_symbol)) = unmatched {
             let symbol = self.binder.symbol(target_symbol);
-            let decl = if let Some(symbol) = symbol.as_class() {
-                symbol.decl
+            let decl = if symbol.flags == SymbolFlags::CLASS {
+                symbol.expect_class().decl
             } else {
                 symbol.expect_object().decl
             };

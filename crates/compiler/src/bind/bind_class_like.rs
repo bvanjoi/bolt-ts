@@ -64,7 +64,7 @@ impl<'cx> BinderState<'cx> {
             unreachable!()
         };
         let SymbolKind::Class(ClassSymbol { members, .. }) =
-            &mut self.symbols.get_mut(class_symbol_id).kind
+            &mut self.symbols.get_mut(class_symbol_id).kind.0
         else {
             unreachable!()
         };
@@ -84,13 +84,13 @@ impl<'cx> BinderState<'cx> {
             unreachable!()
         };
         let SymbolKind::Class(ClassSymbol { members, .. }) =
-            &mut self.symbols.get_mut(class_symbol_id).kind
+            &mut self.symbols.get_mut(class_symbol_id).kind.0
         else {
             unreachable!()
         };
         if let Some(s) = members.get(&ele_name).copied() {
             let symbol = self.symbols.get_mut(s);
-            match &mut symbol.kind {
+            match &mut symbol.kind.0 {
                 SymbolKind::Fn(FnSymbol { decls, kind }) => {
                     assert!(*kind == ele_kind);
                     assert!(!decls.is_empty());
@@ -110,7 +110,7 @@ impl<'cx> BinderState<'cx> {
             );
             self.create_final_res(ele_id, symbol);
             let SymbolKind::Class(ClassSymbol { members, .. }) =
-                &mut self.symbols.get_mut(class_symbol_id).kind
+                &mut self.symbols.get_mut(class_symbol_id).kind.0
             else {
                 unreachable!()
             };
@@ -189,7 +189,7 @@ impl<'cx> BinderState<'cx> {
                     let symbol = self.bind_index_sig(n);
                     self.create_final_res(n.id, symbol);
                     let SymbolKind::Class(ClassSymbol { members, .. }) =
-                        &mut self.symbols.get_mut(class_symbol).kind
+                        &mut self.symbols.get_mut(class_symbol).kind.0
                     else {
                         unreachable!("{:#?}", self.symbols.get(symbol))
                     };

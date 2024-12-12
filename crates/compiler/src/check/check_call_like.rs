@@ -3,16 +3,13 @@ use super::sig::Sig;
 use super::sig::SigFlags;
 use super::ExpectedArgsCount;
 use super::TyChecker;
-use crate::bind::SymbolKind;
+use crate::ir;
 use crate::{ast, errors, ty};
 use bolt_ts_span::Span;
 use thin_vec::thin_vec;
 
-pub(super) trait CallLikeExpr<'cx>: Copy + std::fmt::Debug {
+pub(super) trait CallLikeExpr<'cx>: ir::CallLike<'cx> {
     fn resolve(&self, checker: &mut TyChecker<'cx>) -> &'cx ty::Ty<'cx>;
-    fn callee(&self) -> &'cx ast::Expr<'cx>;
-    fn args(&self) -> ast::Exprs<'cx>;
-    fn span(&self) -> Span;
     fn callee_decls(
         checker: &TyChecker<'cx>,
         ty: &'cx ty::Ty<'cx>,
@@ -21,15 +18,6 @@ pub(super) trait CallLikeExpr<'cx>: Copy + std::fmt::Debug {
 }
 
 impl<'cx> CallLikeExpr<'cx> for ast::CallExpr<'cx> {
-    fn callee(&self) -> &'cx ast::Expr<'cx> {
-        self.expr
-    }
-    fn args(&self) -> ast::Exprs<'cx> {
-        self.args
-    }
-    fn span(&self) -> Span {
-        self.span
-    }
     fn callee_decls(
         checker: &TyChecker<'cx>,
         ty: &'cx ty::Ty<'cx>,
@@ -47,22 +35,12 @@ impl<'cx> CallLikeExpr<'cx> for ast::CallExpr<'cx> {
         };
         &f.params
     }
-
     fn resolve(&self, checker: &mut TyChecker<'cx>) -> &'cx ty::Ty<'cx> {
         checker.resolve_call_expr(self)
     }
 }
 
 impl<'cx> CallLikeExpr<'cx> for ast::NewExpr<'cx> {
-    fn callee(&self) -> &'cx ast::Expr<'cx> {
-        self.expr
-    }
-    fn args(&self) -> ast::Exprs<'cx> {
-        self.args.unwrap_or_default()
-    }
-    fn span(&self) -> Span {
-        self.span
-    }
     fn callee_decls(
         checker: &TyChecker<'cx>,
         ty: &'cx ty::Ty<'cx>,
@@ -160,13 +138,10 @@ impl<'cx> TyChecker<'cx> {
                 usize::max(sig.params.len(), max_required_params)
             }
         }
-        if decls.is_empty() {
-            dbg!(123);
-        }
 
         // FIXME: overload
         let sig = self.get_sig_from_decl(decls[0]);
-        if sig.flags.contains(SigFlags::HAS_ABSTRACT) {
+        if sig.flags.intersects(SigFlags::HAS_ABSTRACT) {
             let error = errors::CannotCreateAnInstanceOfAnAbstractClass {
                 span: expr.callee().span(),
             };

@@ -1,4 +1,4 @@
-use crate::bind::{Symbol, SymbolID, SymbolKind};
+use crate::bind::{Symbol, SymbolFlags, SymbolID};
 use crate::ty::TyMapper;
 use crate::{ast, keyword, ty};
 
@@ -178,10 +178,10 @@ impl<'cx> TyChecker<'cx> {
         if symbol == Symbol::ERR {
             return self.error_ty();
         }
-        let symbol_kind = &self.binder.symbol(symbol);
-        if symbol_kind.is_class() || symbol_kind.is_interface() {
+        let s = &self.binder.symbol(symbol);
+        if (SymbolFlags::CLASS | SymbolFlags::INTERFACE).intersects(s.flags) {
             self.get_declared_ty_of_symbol(symbol)
-        } else if symbol_kind.is_ty_alias() {
+        } else if s.flags == SymbolFlags::TYPE_ALIAS {
             self.get_ty_from_ty_alias_refer(node, symbol)
         } else if let Some(res) = self.try_get_declared_ty_of_symbol(symbol) {
             if self.check_no_ty_args(node) {

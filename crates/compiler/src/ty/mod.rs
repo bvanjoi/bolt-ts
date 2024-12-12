@@ -245,7 +245,7 @@ impl<'cx> TyKind<'cx> {
 
     pub fn is_generic_tuple_type(&self) -> bool {
         if let Some(tup) = self.as_object_tuple() {
-            tup.combined_flags.contains(ElementFlags::VARIADIC)
+            tup.combined_flags.intersects(ElementFlags::VARIADIC)
         } else {
             false
         }

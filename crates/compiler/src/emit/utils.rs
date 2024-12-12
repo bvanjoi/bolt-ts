@@ -1,4 +1,4 @@
-use crate::ast::{self, NumLit};
+use crate::ast;
 
 use super::Emit;
 

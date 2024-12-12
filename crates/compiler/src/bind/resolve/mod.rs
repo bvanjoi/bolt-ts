@@ -3,7 +3,7 @@ mod resolve_class_like;
 
 use bolt_ts_span::ModuleID;
 
-use super::{BinderState, SymbolID, SymbolKind};
+use super::{BinderState, SymbolID};
 
 use crate::ast;
 use crate::bind::{Symbol, SymbolName};

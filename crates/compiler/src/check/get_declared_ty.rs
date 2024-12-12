@@ -4,7 +4,7 @@ use super::ty;
 use super::utils::append_if_unique;
 use super::TyChecker;
 use crate::ast;
-use crate::bind::{SymbolID, SymbolName};
+use crate::bind::{SymbolFlags, SymbolID, SymbolName};
 use crate::errors;
 
 impl<'cx> TyChecker<'cx> {
@@ -21,7 +21,7 @@ impl<'cx> TyChecker<'cx> {
             return Some(ty);
         }
         let symbol = self.binder.symbol(id);
-        if symbol.is_class() || symbol.is_interface() {
+        if (SymbolFlags::CLASS | SymbolFlags::INTERFACE).intersects(symbol.flags) {
             let ty = self.get_declared_ty_of_class_or_interface(id);
             // TODO: remove this
             if let Some(ty) = self.get_symbol_links(id).get_declared_ty() {
@@ -29,7 +29,7 @@ impl<'cx> TyChecker<'cx> {
             }
             self.get_mut_symbol_links(id).set_declared_ty(ty);
             Some(ty)
-        } else if symbol.is_ty_alias() {
+        } else if symbol.flags == SymbolFlags::TYPE_ALIAS {
             let ty = self.get_declared_ty_of_type_alias(id);
             self.get_mut_symbol_links(id).set_declared_ty(ty);
             if let Some(ty_params) =
@@ -38,7 +38,7 @@ impl<'cx> TyChecker<'cx> {
                 self.get_mut_symbol_links(id).set_ty_params(ty_params);
             }
             Some(ty)
-        } else if symbol.is_ty_param() {
+        } else if symbol.flags == SymbolFlags::TYPE_PARAMETER {
             let ty = self.get_declared_ty_of_ty_param(id);
             self.get_mut_symbol_links(id).set_declared_ty(ty);
             Some(ty)
@@ -116,10 +116,12 @@ impl<'cx> TyChecker<'cx> {
         id: SymbolID,
     ) -> (Option<&'cx ty::Ty<'cx>>, &'cx [&'cx ty::Ty<'cx>]) {
         let symbol = self.binder.symbol(id);
-        if let Some(c) = symbol.as_class() {
+        if symbol.flags == SymbolFlags::CLASS {
+            let c = symbol.expect_class();
             let decl = c.decl;
             self.resolve_base_tys_of_class(id, decl)
-        } else if let Some(i) = symbol.as_interface() {
+        } else if symbol.flags == SymbolFlags::INTERFACE {
+            let i = symbol.expect_interface();
             (None, self.resolve_base_tys_of_interface(i.decl))
         } else {
             unreachable!()
@@ -206,9 +208,11 @@ impl<'cx> TyChecker<'cx> {
         let outer_ty_params = self.get_outer_ty_params_of_class_or_interface(symbol);
         let (base_ctor_ty, base_tys) = self.get_base_tys(symbol);
         let s = self.binder.symbol(symbol);
-        let members = if let Some(c) = s.as_class() {
+        let members = if s.flags == SymbolFlags::CLASS {
+            let c = s.expect_class();
             self.alloc(c.members.clone())
-        } else if let Some(i) = s.as_interface() {
+        } else if s.flags == SymbolFlags::INTERFACE {
+            let i = s.expect_interface();
             self.alloc(i.members.clone())
         } else {
             unreachable!()
@@ -240,10 +244,11 @@ impl<'cx> TyChecker<'cx> {
     }
 
     fn get_outer_ty_params_of_class_or_interface(&mut self, id: SymbolID) -> Option<ty::Tys<'cx>> {
-        let decl = if let Some(c) = self.binder.symbol(id).as_class() {
-            c.decl
-        } else if let Some(i) = self.binder.symbol(id).as_interface() {
-            i.decl
+        let s = self.binder.symbol(id);
+        let decl = if s.flags == SymbolFlags::CLASS {
+            s.expect_class().decl
+        } else if s.flags == SymbolFlags::INTERFACE {
+            s.expect_interface().decl
         } else {
             unreachable!()
         };

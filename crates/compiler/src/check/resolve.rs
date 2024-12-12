@@ -1,8 +1,6 @@
 use super::TyChecker;
-use crate::atoms::AtomId;
-use crate::bind::{Symbol, SymbolID, SymbolKind, SymbolName};
-use crate::keyword::is_prim_ty_name;
-use crate::{ast, errors, keyword};
+use crate::ast;
+use crate::bind::SymbolID;
 
 #[derive(Debug, Clone, Copy)]
 pub enum ExpectedArgsCount {

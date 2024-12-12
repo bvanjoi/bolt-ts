@@ -223,4 +223,4 @@ interface ArrayConstructor {
 }
 
 
-// declare var Array: ArrayConstructor;
+declare var Array: ArrayConstructor;

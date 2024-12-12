@@ -38,7 +38,7 @@ impl SymbolName {
 }
 
 bitflags::bitflags! {
-    #[derive(Debug, Clone, Copy)]
+    #[derive(Debug, Clone, Copy, PartialEq)]
     pub struct SymbolFlags: u32 {
         const FUNCTION_SCOPED_VARIABLE = 1 << 0;
         const BLOCK_SCOPED_VARIABLE = 1 << 1;
@@ -111,13 +111,36 @@ bitflags::bitflags! {
 pub struct Symbol {
     pub name: SymbolName,
     pub flags: SymbolFlags,
-    pub(super) kind: SymbolKind,
+    pub(super) kind: (SymbolKind, Option<InterfaceSymbol>),
 }
 
 impl Symbol {
     pub const ERR: SymbolID = SymbolID::root(ModuleID::root());
-    pub fn new(name: SymbolName, flags: SymbolFlags, kind: SymbolKind) -> Self {
-        Self { name, flags, kind }
+    pub(super) fn new(name: SymbolName, flags: SymbolFlags, kind: SymbolKind) -> Self {
+        Self {
+            name,
+            flags,
+            kind: (kind, None),
+        }
+    }
+    pub(super) fn new_interface(name: SymbolName, flags: SymbolFlags, i: InterfaceSymbol) -> Self {
+        Self {
+            name,
+            flags,
+            kind: (SymbolKind::Err, Some(i)),
+        }
+    }
+    pub fn decl(&self) -> NodeID {
+        match &self.kind.0 {
+            SymbolKind::FunctionScopedVar { decl } | SymbolKind::BlockScopedVar { decl } => *decl,
+            SymbolKind::Class(c) => c.decl,
+            SymbolKind::Prop(prop) => prop.decl,
+            SymbolKind::Object(object) => object.decl,
+            SymbolKind::Index(index) => index.decl,
+            SymbolKind::TyAlias(alias) => alias.decl,
+            SymbolKind::TyParam(param) => param.decl,
+            _ => unreachable!("{:#?}", self.flags),
+        }
     }
 }
 
@@ -130,39 +153,38 @@ pub enum SymbolFnKind {
 }
 
 #[derive(Debug)]
-pub enum SymbolKind {
+pub(super) enum SymbolKind {
     Err,
     BlockContainer {
         locals: FxHashMap<SymbolName, SymbolID>,
     },
     /// `var` or parameter
-    FunctionScopedVar,
+    FunctionScopedVar {
+        decl: NodeID,
+    },
     /// `let` or `const`
-    BlockScopedVar,
+    BlockScopedVar {
+        decl: NodeID,
+    },
     Fn(FnSymbol),
     Class(ClassSymbol),
     Prop(PropSymbol),
     ElementProperty,
     Object(ObjectSymbol),
-    Interface(InterfaceSymbol),
     Index(IndexSymbol),
     TyAlias(TyAliasSymbol),
     TyParam(TyParamSymbol),
 }
 
 macro_rules! as_symbol_kind {
-    ($kind: ident, $ty:ty, $as_kind: ident, $expect_kind: ident, $is_kind: ident) => {
+    ($kind: ident, $ty:ty, $as_kind: ident, $expect_kind: ident) => {
         impl Symbol {
             #[inline(always)]
-            pub fn $as_kind(&self) -> Option<$ty> {
-                match &self.kind {
+            fn $as_kind(&self) -> Option<$ty> {
+                match &self.kind.0 {
                     SymbolKind::$kind(ty) => Some(ty),
                     _ => None,
                 }
-            }
-            #[inline(always)]
-            pub fn $is_kind(&self) -> bool {
-                self.$as_kind().is_some()
             }
             #[inline(always)]
             pub fn $expect_kind(&self) -> $ty {
@@ -172,32 +194,24 @@ macro_rules! as_symbol_kind {
     };
 }
 
-as_symbol_kind!(
-    Interface,
-    &InterfaceSymbol,
-    as_interface,
-    expect_interface,
-    is_interface
-);
-as_symbol_kind!(Index, &IndexSymbol, as_index, expect_index, is_index);
-as_symbol_kind!(Object, &ObjectSymbol, as_object, expect_object, is_object);
-as_symbol_kind!(Prop, &PropSymbol, as_prop, expect_prop, is_prop);
-as_symbol_kind!(Fn, &FnSymbol, as_fn, expect_fn, is_fn);
-as_symbol_kind!(Class, &ClassSymbol, as_class, expect_class, is_class);
-as_symbol_kind!(
-    TyAlias,
-    &TyAliasSymbol,
-    as_ty_alias,
-    expect_ty_alias,
-    is_ty_alias
-);
-as_symbol_kind!(
-    TyParam,
-    &TyParamSymbol,
-    as_ty_param,
-    expect_ty_param,
-    is_ty_param
-);
+impl Symbol {
+    #[inline(always)]
+    fn as_interface(&self) -> Option<&InterfaceSymbol> {
+        self.kind.1.as_ref()
+    }
+    #[inline(always)]
+    pub fn expect_interface(&self) -> &InterfaceSymbol {
+        self.as_interface().unwrap()
+    }
+}
+
+as_symbol_kind!(Index, &IndexSymbol, as_index, expect_index);
+as_symbol_kind!(Object, &ObjectSymbol, as_object, expect_object);
+as_symbol_kind!(Prop, &PropSymbol, as_prop, expect_prop);
+as_symbol_kind!(Fn, &FnSymbol, as_fn, expect_fn);
+as_symbol_kind!(Class, &ClassSymbol, as_class, expect_class);
+as_symbol_kind!(TyAlias, &TyAliasSymbol, as_ty_alias, expect_ty_alias);
+as_symbol_kind!(TyParam, &TyParamSymbol, as_ty_param, expect_ty_param);
 #[derive(Debug)]
 pub struct IndexSymbol {
     pub decl: NodeID,
@@ -243,44 +257,35 @@ pub struct ObjectSymbol {
 impl Symbol {
     pub fn is_element_property(&self) -> bool {
         use SymbolKind::*;
-        matches!(self.kind, ElementProperty)
+        matches!(self.kind.0, ElementProperty)
     }
 
     #[inline(always)]
     pub fn is_variable(&self) -> bool {
-        use SymbolKind::*;
-        matches!(self.kind, FunctionScopedVar | BlockScopedVar)
+        self.flags.intersects(SymbolFlags::VARIABLE)
     }
 
     pub fn is_value(&self) -> bool {
-        use SymbolKind::*;
-        self.is_variable()
-            || self.is_class()
-            || self.is_fn()
-            || self.is_prop()
-            || matches!(self.kind, Object(_))
+        self.flags.intersects(SymbolFlags::VALUE)
     }
-
+    pub fn is_type(&self) -> bool {
+        self.flags.intersects(SymbolFlags::TYPE)
+    }
     pub fn as_str(&self) -> &'static str {
-        match self.kind {
+        match self.kind.0 {
             SymbolKind::Err => "err",
-            SymbolKind::FunctionScopedVar => todo!(),
-            SymbolKind::BlockScopedVar => todo!(),
+            SymbolKind::FunctionScopedVar { .. } => todo!(),
+            SymbolKind::BlockScopedVar { .. } => todo!(),
             SymbolKind::Fn { .. } => "function",
             SymbolKind::Class { .. } => "class",
             SymbolKind::Prop { .. } => todo!(),
             SymbolKind::Object { .. } => todo!(),
             SymbolKind::BlockContainer { .. } => todo!(),
-            SymbolKind::Interface { .. } => todo!(),
             SymbolKind::Index { .. } => todo!(),
             SymbolKind::TyAlias { .. } => todo!(),
             SymbolKind::TyParam { .. } => todo!(),
             SymbolKind::ElementProperty => todo!(),
         }
-    }
-
-    pub fn is_type(&self) -> bool {
-        self.is_class() || self.is_interface() || self.is_ty_param() || self.is_ty_alias()
     }
 }
 

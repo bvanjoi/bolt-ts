@@ -13,7 +13,9 @@ mod get_effective_node;
 mod get_symbol;
 mod get_ty;
 mod get_type_from_ty_refer_like;
+mod get_type_from_var_like;
 mod instantiate;
+mod node_links;
 mod relation;
 mod resolve;
 mod sig;
@@ -25,11 +27,12 @@ use self::sig::Sig;
 use self::symbol_links::SymbolLinks;
 use self::utils::{find_ancestor, get_assignment_kind, AssignmentKind};
 use bolt_ts_span::{ModuleID, Span};
+use node_links::NodeLinks;
 use rustc_hash::FxHashMap;
 
-use crate::ast::BinOp;
+use crate::ast::{BinOp, NodeID};
 use crate::atoms::{AtomId, AtomMap};
-use crate::bind::{self, GlobalSymbols, Symbol, SymbolID, SymbolKind, SymbolName};
+use crate::bind::{self, GlobalSymbols, SymbolFlags, SymbolID, SymbolName};
 use crate::parser::Parser;
 use crate::ty::{has_type_facts, TupleShape, Ty, TyID, TyKind, TyVarID, TypeFacts};
 use crate::{ast, ensure_sufficient_stack, errors, keyword, ty};
@@ -83,6 +86,7 @@ pub struct TyChecker<'cx> {
     binder: &'cx mut bind::Binder<'cx>,
     global_symbols: &'cx GlobalSymbols,
     symbol_links: FxHashMap<SymbolID, SymbolLinks<'cx>>,
+    node_links: FxHashMap<NodeID, NodeLinks<'cx>>,
 
     node_id_to_sig: FxHashMap<ast::NodeID, Sig<'cx>>,
     resolution_tys: thin_vec::ThinVec<SymbolID>,
@@ -152,6 +156,7 @@ impl<'cx> TyChecker<'cx> {
             global_tys: FxHashMap::default(),
             ty_vars: FxHashMap::default(),
             symbol_links: FxHashMap::default(),
+            node_links: FxHashMap::default(),
             resolution_tys: Default::default(),
             resolution_res: Default::default(),
             binder,
@@ -184,6 +189,14 @@ impl<'cx> TyChecker<'cx> {
 
     fn get_mut_symbol_links(&mut self, symbol: SymbolID) -> &mut SymbolLinks<'cx> {
         self.symbol_links.get_mut(&symbol).unwrap()
+    }
+
+    fn get_node_links(&mut self, node: NodeID) -> &NodeLinks<'cx> {
+        self.node_links.entry(node).or_insert_with(NodeLinks::new)
+    }
+
+    fn get_mut_node_links(&mut self, node: NodeID) -> &mut NodeLinks<'cx> {
+        self.node_links.get_mut(&node).unwrap()
     }
 
     pub fn print_ty(&mut self, ty: &Ty) -> &str {
@@ -311,7 +324,7 @@ impl<'cx> TyChecker<'cx> {
 
     fn get_lit_ty_from_prop(&mut self, prop: SymbolID) -> &'cx ty::Ty<'cx> {
         let symbol = self.binder.symbol(prop);
-        if symbol.is_prop() || symbol.is_fn() {
+        if symbol.flags == SymbolFlags::PROPERTY || symbol.flags == SymbolFlags::FUNCTION {
             self.string_ty()
         } else {
             self.undefined_ty()
@@ -416,6 +429,15 @@ impl<'cx> TyChecker<'cx> {
         ctx_ty: &'cx Ty<'cx>,
     ) -> &'cx Ty<'cx> {
         self.check_expr(expr)
+    }
+
+    fn check_expr_with_cache(&mut self, expr: &'cx ast::Expr) -> &'cx Ty<'cx> {
+        if let Some(ty) = self.get_node_links(expr.id()).get_ty() {
+            return ty;
+        }
+        let ty = self.check_expr(expr);
+        self.get_mut_node_links(expr.id()).set_ty(ty);
+        ty
     }
 
     fn check_expr(&mut self, expr: &'cx ast::Expr) -> &'cx Ty<'cx> {
@@ -685,14 +707,14 @@ impl<'cx> TyChecker<'cx> {
 
         let symbol = self.resolve_symbol_by_ident(ident);
 
-        if self.binder.symbol(symbol).is_class() {
+        if self.binder.symbol(symbol).flags == SymbolFlags::CLASS {
             self.check_resolved_block_scoped_var(ident, symbol);
         }
 
         let ty = self.get_type_of_symbol(symbol);
         let assignment_kind = get_assignment_kind(self, ident.id);
         if assignment_kind != AssignmentKind::None {
-            let symbol = &self.binder.symbol(symbol);
+            let symbol = self.binder.symbol(symbol);
             if !symbol.is_variable() {
                 let error = errors::CannotAssignToNameBecauseItIsATy {
                     span: ident.span,

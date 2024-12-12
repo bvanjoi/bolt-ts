@@ -21,7 +21,7 @@ pub struct Sig<'cx> {
 
 impl Sig<'_> {
     pub fn has_rest_param(&self) -> bool {
-        self.flags.contains(SigFlags::HAS_REST_PARAMETER)
+        self.flags.intersects(SigFlags::HAS_REST_PARAMETER)
     }
 }
 

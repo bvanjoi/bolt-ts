@@ -5,7 +5,7 @@ use super::ty::{self, Ty, TyKind};
 use super::{F64Represent, TyChecker};
 use crate::ast;
 use crate::atoms::AtomId;
-use crate::bind::{SymbolFlags, SymbolID, SymbolKind, SymbolName};
+use crate::bind::{SymbolFlags, SymbolID, SymbolName};
 use crate::keyword;
 use crate::ty::{AccessFlags, ElementFlags, TupleShape, TyMapper};
 
@@ -19,7 +19,7 @@ impl<'cx> TyChecker<'cx> {
             !symbol.is_element_property(),
             "The type of element property had been settled when it create."
         );
-        if symbol.is_class() {
+        if symbol.flags == SymbolFlags::CLASS {
             let ty = self.get_type_of_class_decl(id);
             // TODO: delete
             if let Some(ty) = self.get_symbol_links(id).get_ty() {
@@ -28,11 +28,11 @@ impl<'cx> TyChecker<'cx> {
             self.get_mut_symbol_links(id).set_ty(ty);
             // ---
             ty
-        } else if symbol.is_fn() {
+        } else if symbol.flags == SymbolFlags::FUNCTION {
             self.get_type_of_func_decl(id)
-        } else if symbol.is_prop() {
-            self.get_type_of_prop(id)
-        } else if symbol.is_object() {
+        } else if symbol.is_variable() || symbol.flags == SymbolFlags::PROPERTY {
+            self.get_type_of_var_like(id)
+        } else if symbol.flags == SymbolFlags::OBJECT_LITERAL {
             let ty = self.get_type_of_object(id);
             // TODO: delete
             if let Some(ty) = self.get_symbol_links(id).get_ty() {
@@ -219,7 +219,7 @@ impl<'cx> TyChecker<'cx> {
         host.and_then(|node_id| self.p.node(node_id).is_type_decl().then(|| node_id))
             .and_then(|node_id| {
                 let symbol = self.binder.final_res(node_id);
-                assert!(self.binder.symbol(symbol).is_ty_alias());
+                assert!(self.binder.symbol(symbol).flags == SymbolFlags::TYPE_ALIAS);
                 Some(symbol)
             })
     }
@@ -228,7 +228,9 @@ impl<'cx> TyChecker<'cx> {
         &mut self,
         symbol: SymbolID,
     ) -> Option<ty::Tys<'cx>> {
-        if let Some(alias) = self.binder.symbol(symbol).as_ty_alias() {
+        let s = self.binder.symbol(symbol);
+        if s.flags == SymbolFlags::TYPE_ALIAS {
+            let alias = s.expect_ty_alias();
             let mut res = vec![];
             let ty_params = self.get_effective_ty_param_decls(alias.decl);
             self.append_ty_params(&mut res, ty_params);
@@ -468,11 +470,9 @@ impl<'cx> TyChecker<'cx> {
         };
 
         let length_symbol_name = SymbolName::Ele(keyword::IDENT_LENGTH);
-        let length_symbol = self.binder.create_anonymous_symbol(
-            length_symbol_name,
-            SymbolFlags::PROPERTY,
-            SymbolKind::ElementProperty,
-        );
+        let length_symbol = self
+            .binder
+            .create_anonymous_symbol(length_symbol_name, SymbolFlags::PROPERTY);
         let ty = self.get_number_literal_type(elem_tys.len() as f64);
         let prev = self
             .symbol_links
@@ -481,10 +481,9 @@ impl<'cx> TyChecker<'cx> {
 
         let element_symbols = elem_tys.iter().enumerate().map(|(idx, _)| {
             let name = SymbolName::EleNum(idx.into());
-            let kind = SymbolKind::ElementProperty;
             let symbol = self
                 .binder
-                .create_anonymous_symbol(name, SymbolFlags::PROPERTY, kind);
+                .create_anonymous_symbol(name, SymbolFlags::PROPERTY);
             let index_ty = self.get_number_literal_type(idx as f64);
             let prev = self
                 .symbol_links
@@ -531,16 +530,16 @@ impl<'cx> TyChecker<'cx> {
         let mut last_optional_or_rest_index = usize::MAX;
 
         let mut add_ele = |ty: &'cx Ty<'cx>, flags: ElementFlags| {
-            if flags.contains(ElementFlags::REQUIRED) {
+            if flags.intersects(ElementFlags::REQUIRED) {
                 last_required_index = expanded_tys.len();
             }
-            if flags.contains(ElementFlags::REST) && first_rest_index == usize::MAX {
+            if flags.intersects(ElementFlags::REST) && first_rest_index == usize::MAX {
                 first_rest_index = expanded_tys.len()
             }
-            if flags.contains(ElementFlags::OPTIONAL | ElementFlags::REST) {
+            if flags.intersects(ElementFlags::OPTIONAL | ElementFlags::REST) {
                 last_optional_or_rest_index = expanded_tys.len();
             }
-            if flags.contains(ElementFlags::OPTIONAL) {
+            if flags.intersects(ElementFlags::OPTIONAL) {
                 todo!()
             } else {
                 expanded_tys.push(ty);
@@ -550,7 +549,7 @@ impl<'cx> TyChecker<'cx> {
 
         for (i, ele) in elem_tys.iter().enumerate() {
             let flag = elem_flags[i];
-            if flag.contains(ElementFlags::VARIADIC) {
+            if flag.intersects(ElementFlags::VARIADIC) {
                 if ele.kind.is_any() {
                     todo!()
                 } else if ele.kind.is_instantiable_non_primitive() {

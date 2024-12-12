@@ -429,7 +429,8 @@ impl<'p, 't> ParserState<'p, 't> {
     }
 
     pub(super) fn has_preceding_line_break(&self) -> bool {
-        self.token_flags.contains(TokenFlags::PRECEDING_LINE_BREAK)
+        self.token_flags
+            .intersects(TokenFlags::PRECEDING_LINE_BREAK)
     }
 
     pub(super) fn parse_index_sig_decl(

@@ -1,3 +1,4 @@
+mod bind_call_like;
 mod bind_class_like;
 mod create;
 mod resolve;
@@ -8,7 +9,8 @@ use rustc_hash::FxHashMap;
 pub use symbol::ClassSymbol;
 use symbol::IndexSymbol;
 pub use symbol::SymbolFlags;
-pub use symbol::{GlobalSymbols, Symbol, SymbolFnKind, SymbolID, SymbolKind, SymbolName, Symbols};
+use symbol::SymbolKind;
+pub use symbol::{GlobalSymbols, Symbol, SymbolFnKind, SymbolID, SymbolName, Symbols};
 
 use crate::ast::{self, NodeID};
 use crate::atoms::AtomMap;
@@ -65,12 +67,7 @@ impl<'cx> Binder<'cx> {
     }
 
     #[inline(always)]
-    pub fn create_anonymous_symbol(
-        &mut self,
-        name: SymbolName,
-        flags: SymbolFlags,
-        kind: SymbolKind,
-    ) -> SymbolID {
+    pub fn create_anonymous_symbol(&mut self, name: SymbolName, flags: SymbolFlags) -> SymbolID {
         let module = ModuleID::MOCK;
         let binder = self.map.entry(module).or_insert_with(|| BinderResult {
             symbols: Symbols::new(module),
@@ -79,7 +76,7 @@ impl<'cx> Binder<'cx> {
         });
         let len = binder.symbols.len();
         let id = SymbolID::mock(len as u32);
-        let symbol = Symbol::new(name, flags, kind);
+        let symbol = Symbol::new(name, flags, SymbolKind::ElementProperty);
         binder.symbols.insert(id, symbol);
         id
     }
@@ -292,12 +289,8 @@ impl<'cx> BinderState<'cx> {
         use ast::ExprKind::*;
         match expr.kind {
             Ident(ident) => self.bind_ident(ident),
-            Call(call) => {
-                self.bind_expr(call.expr);
-                for arg in call.args {
-                    self.bind_expr(arg);
-                }
-            }
+            Call(call) => self.bind_call_like(call),
+            New(new) => self.bind_call_like(new),
             Bin(bin) => {
                 self.bind_expr(bin.left);
                 self.bind_expr(bin.right);
@@ -312,7 +305,6 @@ impl<'cx> BinderState<'cx> {
             Paren(paren) => self.bind_expr(paren.expr),
             ArrowFn(f) => self.bind_arrow_fn_expr(f),
             Fn(f) => self.bind_fn_expr(f),
-            New(new) => self.bind_expr(new.expr),
             Class(class) => self.bind_class_like(class),
             PrefixUnary(unary) => self.bind_expr(unary.expr),
             _ => (),
@@ -438,9 +430,9 @@ impl<'cx> BinderState<'cx> {
     fn bind_var_decl(&mut self, decl: &'cx ast::VarDecl<'cx>, kind: ast::VarKind) {
         self.connect(decl.id);
         let kind = if kind == ast::VarKind::Let || kind == ast::VarKind::Const {
-            SymbolKind::FunctionScopedVar
+            SymbolKind::BlockScopedVar { decl: decl.id }
         } else {
-            SymbolKind::BlockScopedVar
+            SymbolKind::FunctionScopedVar { decl: decl.id }
         };
         self.create_var_decl(decl, kind);
         if let Some(ty) = decl.ty {
@@ -461,7 +453,7 @@ impl<'cx> BinderState<'cx> {
         let symbol = self.create_var_symbol(
             param.name.name,
             SymbolFlags::FUNCTION_SCOPED_VARIABLE,
-            SymbolKind::FunctionScopedVar,
+            SymbolKind::FunctionScopedVar { decl: param.id },
         );
         self.final_res.insert(param.id, symbol);
         if let Some(ty) = param.ty {

@@ -1,6 +1,5 @@
 use super::TyChecker;
 use crate::ast;
-use crate::bind::SymbolKind;
 
 pub(super) trait FnLikeDecl<'cx>: Copy + std::fmt::Debug {
     fn id(&self) -> ast::NodeID;

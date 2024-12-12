@@ -246,7 +246,9 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         } else {
             self.token.kind == TokenKind::RBrace
                 || self.token.kind == TokenKind::EOF
-                || self.token_flags.contains(TokenFlags::PRECEDING_LINE_BREAK)
+                || self
+                    .token_flags
+                    .intersects(TokenFlags::PRECEDING_LINE_BREAK)
         }
     }
 

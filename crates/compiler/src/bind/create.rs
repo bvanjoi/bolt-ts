@@ -19,7 +19,7 @@ impl<'cx> BinderState<'cx> {
     }
 
     pub(super) fn create_var_decl(&mut self, decl: &'cx ast::VarDecl<'cx>, kind: SymbolKind) {
-        let flags = if matches!(kind, SymbolKind::BlockScopedVar) {
+        let flags = if matches!(kind, SymbolKind::BlockScopedVar { .. }) {
             SymbolFlags::BLOCK_SCOPED_VARIABLE
         } else {
             SymbolFlags::FUNCTION_SCOPED_VARIABLE
@@ -44,14 +44,54 @@ impl<'cx> BinderState<'cx> {
         flags: SymbolFlags,
         kind: SymbolKind,
     ) -> SymbolID {
-        // use super::SymbolKind::*;
+        let key = (self.scope_id, name);
+        if name.as_atom().is_some() {
+            if let Some(id) = self.res.get(&key) {
+                let prev = self.symbols.get_mut(*id);
+                if flags == SymbolFlags::FUNCTION_SCOPED_VARIABLE {
+                    let prev = &mut prev.kind;
+                    prev.0 = kind;
+                    return *id;
+                } else if matches!(prev.kind.0, SymbolKind::Err) {
+                    let prev = &mut prev.kind;
+                    assert!(prev.1.is_some());
+                    prev.0 = kind;
+                    return *id;
+                } else {
+                    let name = name.expect_atom();
+                    let name = self.atoms.get(name);
+                    todo!("error handler: name: {name:#?}, prev: {prev:#?}");
+                }
+            }
+        }
         let id = self.next_symbol_id();
-        // let is_blocked_scope_var = matches!(kind, BlockScopedVar);
         self.symbols.insert(id, Symbol::new(name, flags, kind));
-        let prev = self.res.insert((self.scope_id, name), id);
-        // if !is_blocked_scope_var {
-        //     // assert!(prev.is_none(), "`{name:#?}` is a duplicate symbol ");
-        // }
+        let prev = self.res.insert(key, id);
+        id
+    }
+
+    pub(super) fn create_symbol_with_interface(
+        &mut self,
+        name: SymbolName,
+        flags: SymbolFlags,
+        i: InterfaceSymbol,
+    ) -> SymbolID {
+        let key = (self.scope_id, name);
+        if name.as_atom().is_some() {
+            if let Some(id) = self.res.get(&key) {
+                let prev = &mut self.symbols.get_mut(*id).kind;
+                if matches!(prev.0, SymbolKind::Err) {
+                    todo!("error handler")
+                }
+                assert!(prev.1.is_none());
+                prev.1 = Some(i);
+                return *id;
+            }
+        }
+        let id = self.next_symbol_id();
+        self.symbols
+            .insert(id, Symbol::new_interface(name, flags, i));
+        let prev = self.res.insert(key, id);
         id
     }
 
@@ -73,10 +113,10 @@ impl<'cx> BinderState<'cx> {
         name: AtomId,
         members: FxHashMap<SymbolName, SymbolID>,
     ) {
-        let symbol = self.create_symbol(
+        let symbol = self.create_symbol_with_interface(
             SymbolName::Normal(name),
             SymbolFlags::INTERFACE,
-            SymbolKind::Interface(InterfaceSymbol { decl: id, members }),
+            InterfaceSymbol { decl: id, members },
         );
         self.final_res.insert(id, symbol);
     }
@@ -86,7 +126,7 @@ impl<'cx> BinderState<'cx> {
             unreachable!()
         };
         let SymbolKind::BlockContainer { locals, .. } =
-            &mut self.symbols.get_mut(container_symbol_id).kind
+            &mut self.symbols.get_mut(container_symbol_id).kind.0
         else {
             unreachable!()
         };
@@ -94,7 +134,7 @@ impl<'cx> BinderState<'cx> {
         let name = SymbolName::Normal(f.name.name);
         if let Some(s) = locals.get(&name).copied() {
             let symbol = self.symbols.get_mut(s);
-            match &mut symbol.kind {
+            match &mut symbol.kind.0 {
                 SymbolKind::Fn(FnSymbol { decls, kind }) => {
                     assert!(*kind == super::SymbolFnKind::FnDecl);
                     assert!(!decls.is_empty());
@@ -114,7 +154,7 @@ impl<'cx> BinderState<'cx> {
             );
             self.create_final_res(f.id, symbol);
             let SymbolKind::BlockContainer { locals, .. } =
-                &mut self.symbols.get_mut(container_symbol_id).kind
+                &mut self.symbols.get_mut(container_symbol_id).kind.0
             else {
                 unreachable!()
             };
