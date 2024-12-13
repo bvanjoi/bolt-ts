@@ -116,7 +116,7 @@ pub struct Symbol {
 
 impl Symbol {
     pub const ERR: SymbolID = SymbolID::root(ModuleID::root());
-    pub(super) fn new(name: SymbolName, flags: SymbolFlags, kind: SymbolKind) -> Self {
+    pub(crate) fn new(name: SymbolName, flags: SymbolFlags, kind: SymbolKind) -> Self {
         Self {
             name,
             flags,
@@ -180,7 +180,7 @@ macro_rules! as_symbol_kind {
     ($kind: ident, $ty:ty, $as_kind: ident, $expect_kind: ident) => {
         impl Symbol {
             #[inline(always)]
-            fn $as_kind(&self) -> Option<$ty> {
+            pub(super) fn $as_kind(&self) -> Option<$ty> {
                 match &self.kind.0 {
                     SymbolKind::$kind(ty) => Some(ty),
                     _ => None,
@@ -196,7 +196,7 @@ macro_rules! as_symbol_kind {
 
 impl Symbol {
     #[inline(always)]
-    fn as_interface(&self) -> Option<&InterfaceSymbol> {
+    pub(super) fn as_interface(&self) -> Option<&InterfaceSymbol> {
         self.kind.1.as_ref()
     }
     #[inline(always)]
@@ -292,7 +292,7 @@ impl Symbol {
 bolt_ts_span::new_index_with_module!(SymbolID);
 
 impl SymbolID {
-    pub(super) fn mock(index: u32) -> Self {
+    pub(crate) fn mock(index: u32) -> Self {
         SymbolID {
             module: ModuleID::MOCK,
             index,

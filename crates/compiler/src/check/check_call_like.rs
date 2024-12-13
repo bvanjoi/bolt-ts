@@ -1,12 +1,11 @@
 use super::relation::RelationKind;
-use super::sig::Sig;
-use super::sig::SigFlags;
 use super::ExpectedArgsCount;
 use super::TyChecker;
 use crate::ir;
 use crate::{ast, errors, ty};
 use bolt_ts_span::Span;
 use thin_vec::thin_vec;
+use ty::{Sig, SigFlags};
 
 pub(super) trait CallLikeExpr<'cx>: ir::CallLike<'cx> {
     fn resolve(&self, checker: &mut TyChecker<'cx>) -> &'cx ty::Ty<'cx>;

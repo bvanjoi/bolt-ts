@@ -1,4 +1,4 @@
-use super::super::resolve::Resolver;
+use super::Resolver;
 use crate::{ast, ir};
 
 impl<'cx, 'r> Resolver<'cx, 'r> {

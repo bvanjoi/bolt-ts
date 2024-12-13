@@ -23,7 +23,6 @@ mod symbol_links;
 mod utils;
 
 pub use self::resolve::ExpectedArgsCount;
-use self::sig::Sig;
 use self::symbol_links::SymbolLinks;
 use self::utils::{find_ancestor, get_assignment_kind, AssignmentKind};
 use bolt_ts_span::{ModuleID, Span};
@@ -34,7 +33,7 @@ use crate::ast::{BinOp, NodeID};
 use crate::atoms::{AtomId, AtomMap};
 use crate::bind::{self, GlobalSymbols, SymbolFlags, SymbolID, SymbolName};
 use crate::parser::Parser;
-use crate::ty::{has_type_facts, TupleShape, Ty, TyID, TyKind, TyVarID, TypeFacts};
+use crate::ty::{has_type_facts, Sig, TupleShape, Ty, TyID, TyKind, TyVarID, TypeFacts};
 use crate::{ast, ensure_sufficient_stack, errors, keyword, ty};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -88,7 +87,7 @@ pub struct TyChecker<'cx> {
     symbol_links: FxHashMap<SymbolID, SymbolLinks<'cx>>,
     node_links: FxHashMap<NodeID, NodeLinks<'cx>>,
 
-    node_id_to_sig: FxHashMap<ast::NodeID, Sig<'cx>>,
+    node_id_to_sig: FxHashMap<ast::NodeID, &'cx Sig<'cx>>,
     resolution_tys: thin_vec::ThinVec<SymbolID>,
     resolution_res: thin_vec::ThinVec<bool>,
 }
@@ -269,7 +268,7 @@ impl<'cx> TyChecker<'cx> {
         let Some(i) = ty.kind.as_object_interface() else {
             return vec![];
         };
-        i.index_infos
+        i.declared_index_infos
             .iter()
             .filter_map(|info| {
                 if self.is_applicable_index_ty(prop_name_ty, info.key_ty) {
@@ -367,11 +366,11 @@ impl<'cx> TyChecker<'cx> {
             .unwrap_or(self.undefined_ty());
         if matches!(self.p.node(container), ast::Node::ClassCtor(_)) {
             if let Some(expr) = ret.expr {
-                self.check_type_assignable_to_and_optionally_elaborate(
-                    expr.span(),
-                    expr_ty,
-                    sig.ret_ty,
-                );
+                let ret = sig
+                    .ret
+                    .map(|ret| self.get_declared_ty_of_symbol(ret))
+                    .unwrap_or_else(|| self.undefined_ty());
+                self.check_type_assignable_to_and_optionally_elaborate(expr.span(), expr_ty, ret);
             }
         }
     }
@@ -705,9 +704,7 @@ impl<'cx> TyChecker<'cx> {
             return self.undefined_ty();
         }
 
-        dbg!(self.atoms.get(ident.name));
         let symbol = self.resolve_symbol_by_ident(ident);
-        dbg!(symbol);
 
         if self.binder.symbol(symbol).flags == SymbolFlags::CLASS {
             self.check_resolved_block_scoped_var(ident, symbol);

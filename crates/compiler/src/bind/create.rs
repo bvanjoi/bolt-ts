@@ -116,55 +116,19 @@ impl<'cx> BinderState<'cx> {
         id: ast::NodeID,
         name: AtomId,
         members: FxHashMap<SymbolName, SymbolID>,
-    ) {
+    ) -> SymbolID {
         let symbol = self.create_symbol_with_interface(
             SymbolName::Normal(name),
             SymbolFlags::INTERFACE,
             InterfaceSymbol { decl: id, members },
         );
         self.final_res.insert(id, symbol);
+        symbol
     }
 
-    pub(super) fn create_fn_symbol(&mut self, container: ast::NodeID, f: &'cx ast::FnDecl) {
-        let Some(container_symbol_id) = self.final_res.get(&container).copied() else {
-            unreachable!()
-        };
-        let SymbolKind::BlockContainer { locals, .. } =
-            &mut self.symbols.get_mut(container_symbol_id).kind.0
-        else {
-            unreachable!()
-        };
-
-        let name = SymbolName::Normal(f.name.name);
-        if let Some(s) = locals.get(&name).copied() {
-            let symbol = self.symbols.get_mut(s);
-            match &mut symbol.kind.0 {
-                SymbolKind::Fn(FnSymbol { decls, kind }) => {
-                    assert!(*kind == super::SymbolFnKind::FnDecl);
-                    assert!(!decls.is_empty());
-                    decls.push(f.id)
-                }
-                _ => unreachable!(),
-            }
-            self.create_final_res(f.id, s);
-        } else {
-            let symbol = self.create_var_symbol(
-                f.name.name,
-                SymbolFlags::FUNCTION,
-                SymbolKind::Fn(FnSymbol {
-                    kind: super::SymbolFnKind::FnDecl,
-                    decls: thin_vec![f.id],
-                }),
-            );
-            self.create_final_res(f.id, symbol);
-            let SymbolKind::BlockContainer { locals, .. } =
-                &mut self.symbols.get_mut(container_symbol_id).kind.0
-            else {
-                unreachable!()
-            };
-            let prev = locals.insert(name, symbol);
-            assert!(prev.is_none())
-        }
+    pub(super) fn create_fn_symbol(&mut self, container: ast::NodeID, decl: &'cx ast::FnDecl<'cx>) {
+        let ele_name = SymbolName::Normal(decl.name.name);
+        self.create_fn_decl_like_symbol(container, decl, ele_name, SymbolFnKind::FnDecl);
     }
 
     pub(super) fn create_object_member_symbol(
@@ -202,7 +166,7 @@ impl<'cx> BinderState<'cx> {
         id
     }
 
-    pub(super) fn create_block_container_symbol(&mut self, node_id: ast::NodeID) {
+    pub(super) fn create_block_container_symbol(&mut self, node_id: ast::NodeID) -> SymbolID {
         let symbol = self.create_symbol(
             SymbolName::Container,
             SymbolFlags::VALUE_MODULE,
@@ -211,5 +175,6 @@ impl<'cx> BinderState<'cx> {
             },
         );
         self.create_final_res(node_id, symbol);
+        symbol
     }
 }

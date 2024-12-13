@@ -218,7 +218,7 @@ impl<'cx> TyChecker<'cx> {
             unreachable!()
         };
         let declared_props = self.get_props_from_members(&members);
-        let index_infos = members
+        let declared_index_infos = members
             .get(&SymbolName::Index)
             .copied()
             .map(|index| {
@@ -233,12 +233,18 @@ impl<'cx> TyChecker<'cx> {
             })
             .map(|info| info.collect::<Vec<_>>())
             .unwrap_or_default();
+        let declared_ctor_sigs = members
+            .get(&SymbolName::Constructor)
+            .copied()
+            .map(|s| self.get_sigs_of_symbol(s))
+            .unwrap_or_default();
         self.crate_interface_ty(ty::InterfaceTy {
             symbol,
             members,
             declared_props,
             base_tys,
-            index_infos: self.alloc(index_infos),
+            declared_index_infos: self.alloc(declared_index_infos),
+            declared_ctor_sigs,
             base_ctor_ty,
         })
     }

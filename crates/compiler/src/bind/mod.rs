@@ -1,7 +1,7 @@
 mod bind_call_like;
 mod bind_class_like;
+mod bind_fn_like;
 mod create;
-mod resolve;
 mod symbol;
 
 use bolt_ts_span::ModuleID;
@@ -9,20 +9,28 @@ use rustc_hash::FxHashMap;
 pub use symbol::ClassSymbol;
 use symbol::IndexSymbol;
 pub use symbol::SymbolFlags;
+pub use symbol::SymbolFnKind;
 use symbol::SymbolKind;
-pub use symbol::{GlobalSymbols, Symbol, SymbolFnKind, SymbolID, SymbolName, Symbols};
+pub use symbol::{GlobalSymbols, Symbol, SymbolID, SymbolName, Symbols};
 
 use crate::ast::{self, NodeID};
 use crate::atoms::AtomMap;
 use crate::parser::Parser;
+use crate::resolve::ResolveResult;
 
 bolt_ts_span::new_index_with_module!(ScopeID);
+
+impl ScopeID {
+    pub const fn is_root(&self) -> bool {
+        self.index == 0
+    }
+}
 
 pub struct Binder<'cx> {
     p: &'cx Parser<'cx>,
     atoms: &'cx AtomMap<'cx>,
-    binder_result: Vec<BinderResult>,
-    anonymous_binder: BinderResult,
+    binder_result: Vec<ResolveResult>,
+    anonymous_binder: ResolveResult,
 }
 
 impl<'cx> Binder<'cx> {
@@ -31,7 +39,7 @@ impl<'cx> Binder<'cx> {
             p,
             atoms,
             binder_result: Vec::with_capacity(1024),
-            anonymous_binder: BinderResult {
+            anonymous_binder: ResolveResult {
                 symbols: Symbols::new(ModuleID::MOCK),
                 final_res: Default::default(),
                 diags: Default::default(),
@@ -39,13 +47,13 @@ impl<'cx> Binder<'cx> {
         }
     }
 
-    pub fn insert(&mut self, id: ModuleID, result: BinderResult) {
+    pub fn insert(&mut self, id: ModuleID, result: ResolveResult) {
         assert_eq!(self.binder_result.len(), id.as_usize());
         self.binder_result.push(result);
     }
 
     #[inline(always)]
-    fn get(&self, id: ModuleID) -> &BinderResult {
+    fn get(&self, id: ModuleID) -> &ResolveResult {
         let idx = id.as_usize();
         &self.binder_result[idx]
     }
@@ -91,18 +99,12 @@ pub struct BinderState<'cx> {
     scope_id: ScopeID,
     max_scope_id: ScopeID,
     symbol_id: SymbolID,
-    atoms: &'cx AtomMap<'cx>,
-    scope_id_parent_map: Vec<Option<ScopeID>>,
-    node_id_to_scope_id: FxHashMap<ast::NodeID, ScopeID>,
-    pub(super) symbols: Symbols,
-    res: FxHashMap<(ScopeID, SymbolName), SymbolID>,
-    final_res: FxHashMap<ast::NodeID, SymbolID>,
-}
-
-pub struct BinderResult {
-    symbols: Symbols,
-    final_res: FxHashMap<ast::NodeID, SymbolID>,
-    diags: Vec<bolt_ts_errors::Diag>,
+    pub(crate) atoms: &'cx AtomMap<'cx>,
+    pub(crate) scope_id_parent_map: Vec<Option<ScopeID>>,
+    pub(crate) node_id_to_scope_id: FxHashMap<ast::NodeID, ScopeID>,
+    pub(crate) symbols: Symbols,
+    pub(super) res: FxHashMap<(ScopeID, SymbolName), SymbolID>,
+    pub(crate) final_res: FxHashMap<ast::NodeID, SymbolID>,
 }
 
 pub fn bind<'cx>(
@@ -113,20 +115,6 @@ pub fn bind<'cx>(
     let mut state = BinderState::new(atoms, module_id);
     state.bind_program(root);
     state
-}
-
-pub fn resolve<'cx>(
-    root: &'cx ast::Program,
-    p: &'cx Parser<'cx>,
-    mut state: BinderState<'cx>,
-    global: &'cx GlobalSymbols,
-) -> BinderResult {
-    let diags = resolve::resolve(&mut state, root, p, &global);
-    BinderResult {
-        symbols: state.symbols,
-        final_res: state.final_res,
-        diags,
-    }
 }
 
 impl<'cx> BinderState<'cx> {
@@ -236,10 +224,7 @@ impl<'cx> BinderState<'cx> {
         )
     }
 
-    fn bind_object_ty_member(
-        &mut self,
-        m: &'cx ast::ObjectTyMember<'cx>,
-    ) -> Option<(SymbolName, SymbolID)> {
+    fn bind_object_ty_member(&mut self, container: ast::NodeID, m: &'cx ast::ObjectTyMember<'cx>) {
         use ast::ObjectTyMemberKind::*;
         match m.kind {
             Prop(m) => {
@@ -247,16 +232,45 @@ impl<'cx> BinderState<'cx> {
                     self.bind_ty(ty);
                 }
                 let name = Self::prop_name(m.name);
-                Some((name, self.create_object_member_symbol(name, m.id)))
+                let symbol = self.create_object_member_symbol(name, m.id);
+                let Some(s) = self.final_res.get(&container).copied() else {
+                    unreachable!()
+                };
+                let s = self.symbols.get_mut(s);
+                if let Some(i) = &mut s.kind.1 {
+                    let prev = i.members.insert(name, symbol);
+                    assert!(prev.is_none());
+                } else if let SymbolKind::Object(o) = &mut s.kind.0 {
+                    let prev = o.members.insert(name, symbol);
+                    assert!(prev.is_none());
+                } else {
+                    todo!()
+                }
             }
-            Method(_) => None,
+            Method(_) => {}
             CallSig(_) => {
                 // let name = SymbolName::;
                 // (name, self.create_object_member_symbol(name, m.id))
-                None
             }
-            IndexSig(_) => None,
-            CtorSig(_) => None,
+            IndexSig(_) => {}
+            CtorSig(decl) => {
+                let old = self.scope_id;
+                self.scope_id = self.new_scope();
+                if let Some(ty_params) = decl.ty_params {
+                    self.bind_ty_params(ty_params);
+                }
+                self.bind_params(decl.params);
+                if let Some(ty) = decl.ty {
+                    self.bind_ty(ty);
+                }
+                self.create_fn_decl_like_symbol(
+                    container,
+                    decl,
+                    SymbolName::Constructor,
+                    SymbolFnKind::Ctor,
+                );
+                self.scope_id = old;
+            }
         }
     }
 
@@ -266,12 +280,11 @@ impl<'cx> BinderState<'cx> {
                 self.bind_ty(ty);
             }
         }
-        let members = i
-            .members
-            .iter()
-            .flat_map(|m| self.bind_object_ty_member(m))
-            .collect();
-        self.create_interface_symbol(i.id, i.name.name, members);
+        self.create_interface_symbol(i.id, i.name.name, Default::default());
+
+        for m in i.members {
+            self.bind_object_ty_member(i.id, m)
+        }
     }
 
     pub(super) fn prop_name(name: &ast::PropName) -> SymbolName {
@@ -384,12 +397,10 @@ impl<'cx> BinderState<'cx> {
             ObjectLit(lit) => {
                 let old = self.scope_id;
                 self.scope_id = self.new_scope();
-                let members = lit
-                    .members
-                    .iter()
-                    .flat_map(|m| self.bind_object_ty_member(m))
-                    .collect();
-                self.create_object_lit_symbol(lit.id, members);
+                let symbol = self.create_object_lit_symbol(lit.id, Default::default());
+                for m in lit.members {
+                    self.bind_object_ty_member(lit.id, m);
+                }
                 self.scope_id = old;
             }
             ExprWithArg(expr) => self.bind_expr(expr),

@@ -1,47 +1,5 @@
 use super::TyChecker;
-use crate::ast;
-
-pub(super) trait FnLikeDecl<'cx>: Copy + std::fmt::Debug {
-    fn id(&self) -> ast::NodeID;
-    fn params(&self) -> ast::ParamsDecl<'cx>;
-    fn body(&self) -> Option<&'cx ast::BlockStmt<'cx>>;
-}
-
-impl<'cx> FnLikeDecl<'cx> for ast::FnDecl<'cx> {
-    fn id(&self) -> ast::NodeID {
-        self.id
-    }
-    fn params(&self) -> ast::ParamsDecl<'cx> {
-        self.params
-    }
-    fn body(&self) -> Option<&'cx ast::BlockStmt<'cx>> {
-        self.body
-    }
-}
-
-impl<'cx> FnLikeDecl<'cx> for ast::ClassMethodEle<'cx> {
-    fn id(&self) -> ast::NodeID {
-        self.id
-    }
-    fn params(&self) -> ast::ParamsDecl<'cx> {
-        self.params
-    }
-    fn body(&self) -> Option<&'cx ast::BlockStmt<'cx>> {
-        self.body
-    }
-}
-
-impl<'cx> FnLikeDecl<'cx> for ast::ClassCtor<'cx> {
-    fn id(&self) -> ast::NodeID {
-        self.id
-    }
-    fn params(&self) -> ast::ParamsDecl<'cx> {
-        self.params
-    }
-    fn body(&self) -> Option<&'cx ast::BlockStmt<'cx>> {
-        self.body
-    }
-}
+use crate::{ast, ir};
 
 impl<'cx> TyChecker<'cx> {
     fn check_param_decl(&mut self, param: &'cx ast::ParamDecl<'cx>) {
@@ -50,7 +8,7 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
-    pub(super) fn check_fn_like_decl(&mut self, decl: &impl FnLikeDecl<'cx>) {
+    pub(super) fn check_fn_like_decl(&mut self, decl: &impl ir::FnDeclLike<'cx>) {
         let symbol = self.get_symbol_of_decl(decl.id());
         let f = &self.binder.symbol(symbol).expect_fn();
         if f.decls[0] == decl.id() {
@@ -61,7 +19,7 @@ impl<'cx> TyChecker<'cx> {
             self.check_param_decl(param)
         }
 
-        if let Some(body) = decl.body() {
+        if let Some(body) = ir::FnDeclLike::body(decl) {
             self.check_block(body)
         }
     }

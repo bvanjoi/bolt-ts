@@ -3,7 +3,7 @@ use rustc_hash::FxHashMap;
 use crate::atoms::AtomMap;
 use crate::bind::{Binder, SymbolID, SymbolName};
 
-use super::Ty;
+use super::{Sig, Ty};
 
 #[derive(Debug, Clone, Copy)]
 pub struct ObjectTy<'cx> {
@@ -166,10 +166,11 @@ pub struct IndexInfo<'cx> {
 pub struct InterfaceTy<'cx> {
     pub symbol: SymbolID,
     pub members: &'cx FxHashMap<SymbolName, SymbolID>,
-    pub declared_props: &'cx [SymbolID],
     pub base_tys: &'cx [&'cx Ty<'cx>],
-    pub index_infos: &'cx [&'cx IndexInfo<'cx>],
     pub base_ctor_ty: Option<&'cx Ty<'cx>>,
+    pub declared_props: &'cx [SymbolID],
+    pub declared_index_infos: &'cx [&'cx IndexInfo<'cx>],
+    pub declared_ctor_sigs: &'cx [&'cx Sig<'cx>],
 }
 
 impl<'cx> ObjectTyKind<'cx> {

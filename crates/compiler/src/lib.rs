@@ -7,6 +7,7 @@ mod errors;
 mod ir;
 mod keyword;
 pub mod parser;
+mod resolve;
 mod ty;
 
 use std::borrow::Cow;
@@ -15,11 +16,11 @@ use std::sync::Arc;
 use std::sync::Mutex;
 
 use atoms::AtomMap;
-use bind::resolve;
 use bind::{bind, GlobalSymbols};
 use bolt_ts_span::{ModuleArena, ModulePath};
 use parser::parse_parallel;
 use parser::token::TokenKind;
+use resolve::resolve;
 
 type Diag = Box<dyn bolt_ts_errors::miette::Diagnostic + Send + Sync + 'static>;
 
@@ -97,15 +98,18 @@ pub fn eval_from(m: ModulePath) -> Output {
         if !is_global {
             continue;
         }
-        for (symbol_id, symbol) in state.symbols.iter() {
-            global_symbols.insert(symbol.name, symbol_id);
+        for ((scope_id, name), symbol) in state.res.iter() {
+            if !scope_id.is_root() {
+                continue;
+            }
+            global_symbols.insert(*name, *symbol);
         }
     }
 
     for (m, (state, _)) in module_arena.modules().iter().zip(bind_list.into_iter()) {
         let module_id = m.id;
         let root = p.root(module_id);
-        let result = resolve(root, &p, state, &global_symbols);
+        let result = resolve(state, root, &p, &global_symbols);
         binder.insert(module_id, result);
     }
 

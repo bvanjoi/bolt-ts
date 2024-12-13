@@ -2,28 +2,36 @@ mod errors;
 mod resolve_class_like;
 
 use bolt_ts_span::ModuleID;
-
-use super::{BinderState, GlobalSymbols, SymbolID};
+use rustc_hash::FxHashMap;
 
 use crate::ast;
-use crate::bind::{Symbol, SymbolName};
+use crate::bind::{BinderState, GlobalSymbols, Symbol, SymbolID, SymbolName, Symbols};
 use crate::keyword::{is_prim_ty_name, is_prim_value_name};
 use crate::parser::Parser;
-
-pub(super) fn resolve<'cx>(
-    state: &mut BinderState<'cx>,
+pub struct ResolveResult {
+    pub symbols: Symbols,
+    pub final_res: FxHashMap<ast::NodeID, SymbolID>,
+    pub diags: Vec<bolt_ts_errors::Diag>,
+}
+pub fn resolve<'cx>(
+    mut state: BinderState<'cx>,
     root: &'cx ast::Program<'cx>,
     p: &'cx Parser<'cx>,
     global: &'cx GlobalSymbols,
-) -> Vec<bolt_ts_errors::Diag> {
+) -> ResolveResult {
     let mut resolver = Resolver {
-        state,
+        state: &mut state,
         p,
         diags: vec![],
         global,
     };
     resolver.resolve_program(root);
-    resolver.diags
+    let diags = std::mem::take(&mut resolver.diags);
+    ResolveResult {
+        symbols: state.symbols,
+        final_res: state.final_res,
+        diags,
+    }
 }
 
 pub(super) struct Resolver<'cx, 'r> {
@@ -175,7 +183,11 @@ impl<'cx, 'r> Resolver<'cx, 'r> {
                 // (name, self.create_object_member_symbol(name, m.id))
             }
             IndexSig(_) => {}
-            CtorSig(_) => {}
+            CtorSig(decl) => {
+                if let Some(ty) = decl.ty {
+                    self.resolve_ty(ty);
+                }
+            }
         }
     }
 

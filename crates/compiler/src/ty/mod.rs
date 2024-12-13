@@ -2,6 +2,7 @@ mod facts;
 mod mapper;
 mod object_shape;
 mod object_ty;
+mod sig;
 
 use crate::atoms::{AtomId, AtomMap};
 use crate::bind::{Binder, SymbolID};
@@ -15,6 +16,7 @@ pub use self::object_ty::ElementFlags;
 pub use self::object_ty::TyReference;
 pub use self::object_ty::{ArrayTy, IndexInfo, ObjectTy, TupleShape, TupleTy};
 pub use self::object_ty::{ClassTy, FnTy, InterfaceTy, ObjectLitTy, ObjectTyKind};
+pub use self::sig::{Sig, SigDecl, SigFlags};
 
 bolt_ts_span::new_index!(TyID);
 bolt_ts_span::new_index!(TyVarID);
