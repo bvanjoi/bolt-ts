@@ -135,7 +135,6 @@ impl<'cx> TyChecker<'cx> {
         node: &impl GetTypeFromTyReferLike<'cx>,
         symbol: SymbolID,
     ) -> &'cx ty::Ty<'cx> {
-        let module = node.id().module();
         let ty = self.get_declared_ty_of_symbol(symbol);
         if let Some(ty_params) = self.get_symbol_links(symbol).get_ty_params() {
             // let len = node.args().unwrap_or_default().len();

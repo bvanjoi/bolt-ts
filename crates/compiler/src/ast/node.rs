@@ -62,6 +62,7 @@ pub enum Node<'cx> {
     ThisExpr(&'cx ast::ThisExpr),
 
     // ty
+    ReferTy(&'cx ast::ReferTy<'cx>),
     ArrayTy(&'cx ast::ArrayTy<'cx>),
     IndexedAccessTy(&'cx ast::IndexedAccessTy<'cx>),
     FnTy(&'cx ast::FnTy<'cx>),
@@ -75,12 +76,11 @@ pub enum Node<'cx> {
     RestTy(&'cx ast::RestTy<'cx>),
     TupleTy(&'cx ast::TupleTy<'cx>),
     CondTy(&'cx ast::CondTy<'cx>),
-    ReferTy(&'cx ast::ReferTy<'cx>),
     IntersectionTy(&'cx ast::IntersectionTy<'cx>),
     UnionTy(&'cx ast::UnionTy<'cx>),
 }
 
-impl Node<'_> {
+impl<'cx> Node<'cx> {
     pub fn is_class_like(&self) -> bool {
         use Node::*;
         matches!(self, ClassDecl(_) | ClassExpr(_))
@@ -130,6 +130,33 @@ impl Node<'_> {
     pub fn is_ty_refer_ty(&self) -> bool {
         // TODO: is_expr_with_ty_args
         self.is_refer_ty()
+    }
+
+    pub fn as_ty(&self) -> Option<ast::Ty<'cx>> {
+        macro_rules! as_ty_node {
+            ($( ($node_kind:ident, $ty_node_kind: ident)),* $(,)?) => {
+                match self {
+                    $(Node::$node_kind(n) => Some(ast::Ty {
+                        kind: ast::TyKind::$ty_node_kind(n)
+                    }),)*
+                    _ => None,
+                }
+            };
+        }
+        as_ty_node!(
+            (ReferTy, Refer),
+            (ArrayTy, Array),
+            (IndexedAccessTy, IndexedAccess),
+            (FnTy, Fn),
+            (ObjectLitTy, ObjectLit),
+            (NumLit, NumLit),
+            (StringLit, StringLit),
+            (TupleTy, Tuple),
+            (RestTy, Rest),
+            (CondTy, Cond),
+            (UnionTy, Union),
+            (IntersectionTy, Intersection),
+        )
     }
 }
 

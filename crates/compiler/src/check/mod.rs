@@ -1,6 +1,6 @@
 mod check_bin_like;
 mod check_call_like;
-mod check_class_like_decl;
+mod check_class_decl_like;
 mod check_fn_like_decl;
 mod check_fn_like_expr;
 mod check_fn_like_symbol;
@@ -14,6 +14,7 @@ mod get_symbol;
 mod get_ty;
 mod get_type_from_ty_refer_like;
 mod get_type_from_var_like;
+mod infer;
 mod instantiate;
 mod node_links;
 mod relation;
@@ -33,7 +34,7 @@ use crate::ast::{BinOp, NodeID};
 use crate::atoms::{AtomId, AtomMap};
 use crate::bind::{self, GlobalSymbols, SymbolFlags, SymbolID, SymbolName};
 use crate::parser::Parser;
-use crate::ty::{has_type_facts, Sig, TupleShape, Ty, TyID, TyKind, TyVarID, TypeFacts};
+use crate::ty::{has_type_facts, Sig, SigFlags, TupleShape, Ty, TyID, TyKind, TyVarID, TypeFacts};
 use crate::{ast, ensure_sufficient_stack, errors, keyword, ty};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -81,8 +82,9 @@ pub struct TyChecker<'cx> {
     global_number_ty: std::cell::OnceCell<&'cx Ty<'cx>>,
     boolean_ty: std::cell::OnceCell<&'cx Ty<'cx>>,
     tuple_shapes: FxHashMap<u32, &'cx TupleShape<'cx>>,
+    unknown_sig: std::cell::OnceCell<&'cx Sig<'cx>>,
     // === resolver ===
-    binder: &'cx mut bind::Binder<'cx>,
+    pub binder: &'cx mut bind::Binder<'cx>,
     global_symbols: &'cx GlobalSymbols,
     symbol_links: FxHashMap<SymbolID, SymbolLinks<'cx>>,
     node_links: FxHashMap<NodeID, NodeLinks<'cx>>,
@@ -148,6 +150,7 @@ impl<'cx> TyChecker<'cx> {
             boolean_ty: Default::default(),
             global_number_ty: Default::default(),
             global_array_ty: Default::default(),
+            unknown_sig: Default::default(),
             tuple_shapes: Default::default(),
             type_name: FxHashMap::default(),
             p,
@@ -177,6 +180,16 @@ impl<'cx> TyChecker<'cx> {
         let global_array_ty = this.get_global_type(SymbolName::Normal(keyword::IDENT_ARRAY_CLASS));
         this.global_array_ty.set(global_array_ty).unwrap();
 
+        let unknown_sig = this.alloc(Sig {
+            flags: SigFlags::empty(),
+            ty_params: None,
+            params: &[],
+            min_args_count: 0,
+            ret: None,
+            node_id: ast::NodeID::root(ModuleID::MOCK),
+        });
+        this.unknown_sig.set(unknown_sig).unwrap();
+
         this
     }
 
@@ -199,10 +212,11 @@ impl<'cx> TyChecker<'cx> {
     }
 
     pub fn print_ty(&mut self, ty: &Ty) -> &str {
-        self.type_name
-            .entry(ty.id)
-            .or_insert_with(|| ty.kind.to_string(&self.binder, &self.atoms))
-            .as_str()
+        if !self.type_name.contains_key(&ty.id) {
+            let name = ty.to_string(&self);
+            self.type_name.insert(ty.id, name);
+        }
+        self.type_name.get(&ty.id).unwrap().as_str()
     }
 
     fn boolean_ty(&self) -> &'cx Ty<'cx> {
@@ -215,8 +229,12 @@ impl<'cx> TyChecker<'cx> {
     }
 
     #[inline(always)]
-    fn global_array_ty(&self) -> &'cx Ty<'cx> {
+    pub fn global_array_ty(&self) -> &'cx Ty<'cx> {
         self.global_array_ty.get().unwrap()
+    }
+
+    pub fn unknown_sig(&self) -> &'cx Sig<'cx> {
+        self.unknown_sig.get().unwrap()
     }
 
     fn alloc<T>(&self, t: T) -> &'cx T {
@@ -303,9 +321,9 @@ impl<'cx> TyChecker<'cx> {
                 let error = errors::PropertyAOfTypeBIsNotAssignableToCIndexTypeD {
                     span: prop_node.span(),
                     prop: prop_name,
-                    ty_b: prop_ty.kind.to_string(self.binder, self.atoms),
-                    ty_c: index_info.key_ty.kind.to_string(self.binder, self.atoms),
-                    index_ty_d: index_info.val_ty.kind.to_string(self.binder, self.atoms),
+                    ty_b: prop_ty.to_string(self),
+                    ty_c: index_info.key_ty.to_string(self),
+                    index_ty_d: index_info.val_ty.to_string(self),
                 };
                 self.push_error(prop_node.span().module, Box::new(error));
                 return;
@@ -341,7 +359,7 @@ impl<'cx> TyChecker<'cx> {
     }
 
     fn check_class_decl(&mut self, class: &'cx ast::ClassDecl<'cx>) {
-        self.check_class_like_decl(class)
+        self.check_class_decl_like(class)
     }
 
     fn get_containing_fn_or_class_static_block(&self, node: ast::NodeID) -> Option<ast::NodeID> {
@@ -368,7 +386,10 @@ impl<'cx> TyChecker<'cx> {
             if let Some(expr) = ret.expr {
                 let ret = sig
                     .ret
-                    .map(|ret| self.get_declared_ty_of_symbol(ret))
+                    .map(|ret| {
+                        let symbol = self.binder.final_res(ret);
+                        self.get_declared_ty_of_symbol(symbol)
+                    })
                     .unwrap_or_else(|| self.undefined_ty());
                 self.check_type_assignable_to_and_optionally_elaborate(expr.span(), expr_ty, ret);
             }
@@ -466,7 +487,7 @@ impl<'cx> TyChecker<'cx> {
             Assign(assign) => self.check_assign_expr(assign),
             PrefixUnary(prefix) => self.check_prefix_unary_expr(prefix),
             Class(class) => {
-                self.check_class_like_decl(class);
+                self.check_class_decl_like(class);
                 self.undefined_ty()
             }
             PropAccess(_) => self.undefined_ty(),
@@ -638,7 +659,10 @@ impl<'cx> TyChecker<'cx> {
         } else {
             self.create_union_type(elems)
         };
-        self.create_array_ty(ty::ArrayTy { ty })
+        self.create_reference_ty(ty::ReferenceTy {
+            ty_args: self.alloc(vec![ty]),
+            target: self.global_array_ty(),
+        })
     }
 
     fn is_used_in_fn_or_instance_prop(&self, used: &'cx ast::Ident, decl: ast::NodeID) -> bool {
@@ -789,8 +813,8 @@ impl<'cx> TyChecker<'cx> {
                 if ty.id == self.any_ty().id {
                     let error = errors::OperatorCannotBeAppliedToTy1AndTy2 {
                         op: "+".to_string(),
-                        ty1: left_ty.kind.to_string(self.binder, &self.atoms),
-                        ty2: right_ty.kind.to_string(self.binder, &self.atoms),
+                        ty1: left_ty.to_string(self),
+                        ty2: right_ty.to_string(self),
                         span: node.span,
                     };
                     self.push_error(node.span.module, Box::new(error));

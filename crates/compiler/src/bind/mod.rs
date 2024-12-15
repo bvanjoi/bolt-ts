@@ -275,16 +275,23 @@ impl<'cx> BinderState<'cx> {
     }
 
     fn bind_interface_decl(&mut self, i: &'cx ast::InterfaceDecl<'cx>) {
+        self.create_interface_symbol(i.id, i.name.name, Default::default());
+        let old = self.scope_id;
+        self.scope_id = self.new_scope();
+
+        if let Some(ty_params) = i.ty_params {
+            self.bind_ty_params(ty_params);
+        }
         if let Some(extends) = i.extends {
             for ty in extends.tys {
                 self.bind_ty(ty);
             }
         }
-        self.create_interface_symbol(i.id, i.name.name, Default::default());
 
         for m in i.members {
             self.bind_object_ty_member(i.id, m)
         }
+        self.scope_id = old;
     }
 
     pub(super) fn prop_name(name: &ast::PropName) -> SymbolName {
@@ -487,6 +494,10 @@ impl<'cx> BinderState<'cx> {
     fn bind_fn_decl(&mut self, container: ast::NodeID, f: &'cx ast::FnDecl<'cx>) {
         self.connect(f.id);
         self.create_fn_symbol(container, f);
+
+        if let Some(ty_params) = f.ty_params {
+            self.bind_ty_params(ty_params);
+        }
 
         let old = self.scope_id;
         self.scope_id = self.new_scope();

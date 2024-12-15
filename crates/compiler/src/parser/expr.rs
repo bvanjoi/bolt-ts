@@ -260,21 +260,30 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
     ) -> PResult<&'cx ast::Expr<'cx>> {
         loop {
             expr = self.parse_member_expr_rest(start, expr)?;
-            if self.token.kind == TokenKind::LParen {
+            let parse_rest =
+                |this: &mut Self, id: ast::NodeID, ty_args: Option<&'cx [&'cx ast::Ty<'cx>]>| {
+                    let args = this.parse_args()?;
+                    let call = this.alloc(ast::CallExpr {
+                        id,
+                        span: this.new_span(start, this.pos),
+                        ty_args,
+                        expr,
+                        args,
+                    });
+                    this.insert_map(id, ast::Node::CallExpr(call));
+                    Ok(this.alloc(ast::Expr {
+                        kind: ast::ExprKind::Call(call),
+                    }))
+                };
+            if self.token.kind == TokenKind::Less {
                 let id = self.next_node_id();
                 self.parent_map.r#override(expr.id(), id);
-                let args = self.parse_args()?;
-                let call = self.alloc(ast::CallExpr {
-                    id,
-                    span: self.new_span(start, self.pos),
-                    expr,
-                    args,
-                });
-                self.insert_map(id, ast::Node::CallExpr(call));
-                expr = self.alloc(ast::Expr {
-                    // id,
-                    kind: ast::ExprKind::Call(call),
-                });
+                let ty_args = self.parse_ty_args_in_expr()?;
+                expr = parse_rest(self, id, ty_args)?;
+            } else if self.token.kind == TokenKind::LParen {
+                let id = self.next_node_id();
+                self.parent_map.r#override(expr.id(), id);
+                expr = parse_rest(self, id, None)?;
             } else {
                 break Ok(expr);
             }

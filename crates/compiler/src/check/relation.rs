@@ -10,9 +10,12 @@ use super::TyChecker;
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub(super) enum RelationKind {
-    Assignable,
+    Subtype,
     StrictSubtype,
+    Assignable,
+    Comparable,
     Identity,
+    Enum,
 }
 
 impl<'cx> TyChecker<'cx> {
@@ -138,14 +141,25 @@ impl<'cx> TyChecker<'cx> {
         let unmatched = self.get_unmatched_prop(source, target);
         if let Some((unmatched, target_symbol)) = unmatched {
             let symbol = self.binder.symbol(target_symbol);
-            let decl = if symbol.flags == SymbolFlags::CLASS {
-                symbol.expect_class().decl
+            let span = if symbol.flags.intersects(SymbolFlags::CLASS) {
+                self.p
+                    .node(symbol.expect_class().decl)
+                    .as_class_decl()
+                    .unwrap()
+                    .name
+                    .span
+            } else if symbol.flags.intersects(SymbolFlags::INTERFACE) {
+                self.p
+                    .node(symbol.expect_interface().decl)
+                    .as_interface_decl()
+                    .unwrap()
+                    .name
+                    .span
             } else {
-                symbol.expect_object().decl
+                self.p.node(symbol.expect_object().decl).span()
             };
             if !unmatched.is_empty() && report_error {
                 for name in unmatched {
-                    let span = self.p.node(decl).span();
                     let field = self.atoms.get(name).to_string();
                     let error = errors::PropertyXIsMissing { span, field };
                     self.push_error(span.module, Box::new(error));
@@ -178,8 +192,11 @@ impl<'cx> TyChecker<'cx> {
     }
 
     fn is_empty_array_lit_ty(&self, ty: &'cx Ty<'cx>) -> bool {
-        if let Some(ty) = ty.kind.as_object_array() {
-            ty.ty.kind.is_ty_var()
+        if ty.kind.is_array(self) {
+            ty.kind
+                .as_object_reference()
+                .map(|refer| refer.ty_args[0].kind.is_ty_var())
+                .unwrap_or_default()
         } else {
             false
         }
@@ -195,13 +212,22 @@ impl<'cx> TyChecker<'cx> {
             return self.union_or_intersection_related_to(source, target, relation);
         }
 
-        if let Some(actual) = source.kind.as_object_array() {
-            if let Some(expect) = target.kind.as_object_array() {
-                if self.is_empty_array_lit_ty(source) {
-                    return true;
-                } else if let Some(result) = self.relate_variances(actual.ty, expect.ty, relation) {
-                    return result;
-                }
+        if source.kind.is_array(self) && target.kind.is_array(self) {
+            if self.is_empty_array_lit_ty(source) {
+                return true;
+            }
+            let actual = source
+                .kind
+                .as_object_reference()
+                .map(|refer| refer.ty_args[0])
+                .unwrap();
+            let expect = target
+                .kind
+                .as_object_reference()
+                .map(|refer| refer.ty_args[0])
+                .unwrap();
+            if let Some(result) = self.relate_variances(actual, expect, relation) {
+                return result;
             }
         }
 
@@ -317,8 +343,11 @@ impl<'cx> TyChecker<'cx> {
             ObjectShape::props(ty)
         } else if let ObjectTyKind::Tuple(ty) = ty.kind {
             ObjectShape::props(ty)
+        } else if let ObjectTyKind::Reference(ty) = ty.kind {
+            let target = ty.target.kind.expect_object();
+            self.get_props_of_object_ty(target)
         } else {
-            unreachable!()
+            unreachable!("ty: {ty:#?}");
         }
     }
 
@@ -341,8 +370,10 @@ impl<'cx> TyChecker<'cx> {
             ObjectShape::get_member(ty, &name)
         } else if let Some(ty) = ty.kind.as_tuple() {
             ObjectShape::get_member(ty, &name)
+        } else if let Some(ty) = ty.kind.as_reference() {
+            self.get_prop_of_ty(ty.target, name)
         } else {
-            unreachable!()
+            unreachable!("ty: {ty:#?}")
         }
     }
 
@@ -375,13 +406,15 @@ impl<'cx> TyChecker<'cx> {
             None
         } else {
             let ty = target.kind.expect_object();
-            let symbol = if let ObjectTyKind::Interface(ty) = ty.kind {
-                ty.symbol
-            } else if let ObjectTyKind::ObjectLit(ty) = ty.kind {
-                ty.symbol
-            } else {
-                unreachable!()
-            };
+            fn recur(ty: &ObjectTy) -> SymbolID {
+                match ty.kind {
+                    ObjectTyKind::Reference(ty) => recur(ty.target.kind.expect_object()),
+                    ObjectTyKind::Interface(ty) => ty.symbol,
+                    ObjectTyKind::ObjectLit(ty) => ty.symbol,
+                    _ => unreachable!(),
+                }
+            }
+            let symbol = recur(ty);
             Some((set, symbol))
         }
     }

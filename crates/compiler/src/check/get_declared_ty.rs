@@ -6,6 +6,7 @@ use super::TyChecker;
 use crate::ast;
 use crate::bind::{SymbolFlags, SymbolID, SymbolName};
 use crate::errors;
+use crate::ty::{Sig, SigFlags, Sigs};
 
 impl<'cx> TyChecker<'cx> {
     pub(super) fn get_declared_ty_of_symbol(&mut self, symbol: SymbolID) -> &'cx ty::Ty<'cx> {
@@ -47,7 +48,7 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
-    fn get_declared_ty_of_ty_param(&mut self, symbol: SymbolID) -> &'cx ty::Ty<'cx> {
+    pub(super) fn get_declared_ty_of_ty_param(&mut self, symbol: SymbolID) -> &'cx ty::Ty<'cx> {
         let parm_ty = self.alloc(ty::ParamTy { symbol });
         self.new_ty(ty::TyKind::Param(parm_ty))
     }
@@ -208,7 +209,9 @@ impl<'cx> TyChecker<'cx> {
         let outer_ty_params = self.get_outer_ty_params_of_class_or_interface(symbol);
         let (base_ctor_ty, base_tys) = self.get_base_tys(symbol);
         let s = self.binder.symbol(symbol);
-        let members = if s.flags.intersects(SymbolFlags::CLASS) {
+        let is_class = s.flags.intersects(SymbolFlags::CLASS);
+        let class_node_id = is_class.then(|| s.expect_class().decl);
+        let members = if is_class {
             let c = s.expect_class();
             self.alloc(c.members.clone())
         } else if s.flags.intersects(SymbolFlags::INTERFACE) {
@@ -238,6 +241,34 @@ impl<'cx> TyChecker<'cx> {
             .copied()
             .map(|s| self.get_sigs_of_symbol(s))
             .unwrap_or_default();
+        let declared_ctor_sigs = if is_class && declared_ctor_sigs.is_empty() {
+            // TODO: base
+            let mut flags = SigFlags::empty();
+            let node_id = class_node_id.unwrap();
+            if let Some(c) = self.p.node(node_id).as_class_decl() {
+                if let Some(mods) = c.modifiers {
+                    if mods
+                        .list
+                        .iter()
+                        .any(|m| m.kind == ast::ModifierKind::Abstract)
+                    {
+                        flags.insert(SigFlags::HAS_ABSTRACT);
+                    }
+                }
+            }
+            let sig = self.alloc(Sig {
+                flags,
+                ty_params: None,
+                params: &[],
+                min_args_count: 0,
+                ret: None,
+                node_id,
+            });
+            let sigs: Sigs<'cx> = self.alloc([sig]);
+            sigs
+        } else {
+            declared_ctor_sigs
+        };
         self.crate_interface_ty(ty::InterfaceTy {
             symbol,
             members,

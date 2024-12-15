@@ -15,7 +15,7 @@ impl<'cx> TyChecker<'cx> {
         self.check_var_like_decl(prop);
     }
 
-    pub(super) fn check_class_like_decl(&mut self, class: &impl ClassLike<'cx>) {
+    pub(super) fn check_class_decl_like(&mut self, class: &impl ClassLike<'cx>) {
         let symbol = self.get_symbol_of_decl(class.id());
         let ty = self.get_declared_ty_of_symbol(symbol);
         let static_ty = self.get_type_of_symbol(symbol);

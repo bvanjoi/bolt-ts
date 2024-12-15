@@ -1,6 +1,6 @@
 use super::symbol::{PropSymbol, SymbolFlags};
 use super::{BinderState, ClassSymbol, SymbolID, SymbolKind, SymbolName};
-use crate::{ast, ir};
+use crate::{ast, ir, ty};
 use rustc_hash::FxHashMap;
 
 pub(super) trait ClassLike<'cx>: ir::ClassLike<'cx> {
@@ -115,6 +115,13 @@ impl<'cx> BinderState<'cx> {
         self.connect(class.id());
         let class_symbol = class.create_symbol(self);
 
+        let old = self.scope_id;
+        self.scope_id = self.new_scope();
+
+        if let Some(ty_params) = class.ty_params() {
+            self.bind_ty_params(ty_params);
+        }
+
         if let Some(extends) = class.extends() {
             self.bind_expr(extends.expr);
         }
@@ -125,8 +132,6 @@ impl<'cx> BinderState<'cx> {
             }
         }
 
-        let old = self.scope_id;
-        self.scope_id = self.new_scope();
         for ele in class.elems().elems {
             match ele.kind {
                 ast::ClassEleKind::Prop(n) => self.bind_class_prop_ele(class.id(), n),

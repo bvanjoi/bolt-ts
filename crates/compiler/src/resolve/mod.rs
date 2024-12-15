@@ -8,11 +8,13 @@ use crate::ast;
 use crate::bind::{BinderState, GlobalSymbols, Symbol, SymbolID, SymbolName, Symbols};
 use crate::keyword::{is_prim_ty_name, is_prim_value_name};
 use crate::parser::Parser;
+
 pub struct ResolveResult {
     pub symbols: Symbols,
     pub final_res: FxHashMap<ast::NodeID, SymbolID>,
     pub diags: Vec<bolt_ts_errors::Diag>,
 }
+
 pub fn resolve<'cx>(
     mut state: BinderState<'cx>,
     root: &'cx ast::Program<'cx>,
@@ -184,6 +186,7 @@ impl<'cx, 'r> Resolver<'cx, 'r> {
             }
             IndexSig(_) => {}
             CtorSig(decl) => {
+                self.resolve_params(decl.params);
                 if let Some(ty) = decl.ty {
                     self.resolve_ty(ty);
                 }

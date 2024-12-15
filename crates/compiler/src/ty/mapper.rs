@@ -13,7 +13,16 @@ pub enum TyMapper<'cx> {
 impl<'cx> TyMapper<'cx> {
     pub fn create(sources: Tys<'cx>, targets: Tys<'cx>) -> Self {
         if sources.len() == 1 {
-            todo!()
+            let target = if !targets.is_empty() {
+                targets[0]
+            } else {
+                todo!("use any")
+            };
+            let mapper = SimpleTyMapper {
+                source: sources[0],
+                target,
+            };
+            TyMapper::Simple(mapper)
         } else {
             let mapper = ArrayTyMapper { sources, targets };
             TyMapper::Array(mapper)
@@ -59,8 +68,8 @@ ty_mapper!(Merged, &MergedTyMapper<'cx>, as_merged, is_merged);
 
 #[derive(Clone, Copy, Debug)]
 pub struct SimpleTyMapper<'cx> {
-    source: &'cx Ty<'cx>,
-    target: &'cx Ty<'cx>,
+    pub source: &'cx Ty<'cx>,
+    pub target: &'cx Ty<'cx>,
 }
 
 #[derive(Clone, Copy, Debug)]
