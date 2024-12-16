@@ -9,6 +9,7 @@ mod keyword;
 pub mod parser;
 mod resolve;
 mod ty;
+mod utils;
 
 use std::borrow::Cow;
 use std::path::PathBuf;
@@ -20,7 +21,9 @@ use bind::{bind, GlobalSymbols};
 use bolt_ts_span::{ModuleArena, ModulePath};
 use parser::parse_parallel;
 use parser::token::TokenKind;
+use rayon::iter::IntoParallelIterator;
 use resolve::resolve;
+use utils::fx_hashmap_with_capacity;
 
 type Diag = Box<dyn bolt_ts_errors::miette::Diagnostic + Send + Sync + 'static>;
 
@@ -87,13 +90,13 @@ pub fn eval_from(m: ModulePath) -> Output {
         .iter()
         .map(|m| {
             let module_id = m.id;
+            let is_global = m.global;
             let root = p.root(module_id);
-            let is_global = module_arena.get_module(module_id).global;
             (bind(&atoms, root, module_id), is_global)
         })
         .collect::<Vec<_>>();
 
-    let mut global_symbols = GlobalSymbols::default();
+    let mut global_symbols = GlobalSymbols::new();
     for (state, is_global) in &bind_list {
         if !is_global {
             continue;

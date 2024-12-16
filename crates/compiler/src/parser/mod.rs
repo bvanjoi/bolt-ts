@@ -111,6 +111,11 @@ impl<'cx> Parser<'cx> {
     pub fn steal_errors(&mut self, id: ModuleID) -> Vec<bolt_ts_errors::Diag> {
         std::mem::take(&mut self.map.get_mut(&id).unwrap().diags)
     }
+
+    #[inline(always)]
+    pub fn module_count(&self) -> usize {
+        self.map.len()
+    }
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -183,6 +188,7 @@ pub struct ParserState<'cx, 'p> {
     token: Token,
     token_value: Option<TokenValue>,
     token_flags: TokenFlags,
+    full_start_pos: usize,
     pos: usize,
     parent: NodeID,
     module_id: ModuleID,
@@ -212,6 +218,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
             token,
             token_value: None,
             pos: 0,
+            full_start_pos: 0,
             atoms,
             parent: NodeID::root(module_id),
             module_id,
@@ -316,15 +323,17 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         is_lookahead: bool,
     ) -> T {
         let old_pos = self.pos;
+        let old_full_start_pos = self.full_start_pos;
         let old_token = self.token;
         let old_token_value = self.token_value;
 
         let r = f(self);
 
         if is_lookahead {
-            self.pos = old_pos;
-            self.token = old_token;
             self.token_value = old_token_value;
+            self.token = old_token;
+            self.full_start_pos = old_full_start_pos;
+            self.pos = old_pos;
         }
         r
     }
@@ -452,7 +461,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         let id = self.next_node_id();
         self.with_parent(id, |this| {
             this.next_token();
-            let stmts = this.arena.alloc(Vec::with_capacity(32));
+            let stmts = this.arena.alloc(Vec::with_capacity(512));
             while !matches!(this.token.kind, TokenKind::EOF) {
                 if let Ok(stmt) = this.parse_stmt() {
                     stmts.push(stmt);

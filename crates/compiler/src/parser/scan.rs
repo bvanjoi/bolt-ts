@@ -157,6 +157,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
     }
 
     fn scan_identifier(&mut self, ch: u8) -> Token {
+        self.full_start_pos = self.pos;
         let start = self.pos;
         if is_identifier_start(ch) {
             self.pos += 1;

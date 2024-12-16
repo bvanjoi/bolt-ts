@@ -38,7 +38,7 @@ impl<'cx> Binder<'cx> {
         Self {
             p,
             atoms,
-            binder_result: Vec::with_capacity(1024),
+            binder_result: Vec::with_capacity(p.module_count() + 1),
             anonymous_binder: ResolveResult {
                 symbols: Symbols::new(ModuleID::MOCK),
                 final_res: Default::default(),

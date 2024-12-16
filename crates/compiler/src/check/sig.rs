@@ -75,7 +75,7 @@ fn get_sig_from_decl<'cx>(checker: &mut TyChecker<'cx>, node: ast::Node<'cx>) ->
 
     let mut flags = SigFlags::empty();
     let mut min_args_count = 0;
-    let mut params = Vec::with_capacity(8);
+    let mut params = Vec::with_capacity(params_of_node.len());
     for (i, param) in params_of_node.iter().enumerate() {
         let symbol = checker.binder.final_res(param.id);
         params.push(symbol);

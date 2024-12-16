@@ -5,6 +5,7 @@ use crate::ast::NodeID;
 use crate::atoms::AtomId;
 use crate::check::F64Represent;
 use crate::keyword;
+use crate::utils::fx_hashmap_with_capacity;
 
 #[derive(Debug, Clone, Copy, Hash, PartialEq, Eq)]
 pub enum SymbolName {
@@ -352,10 +353,13 @@ impl Symbols {
     }
 }
 
-#[derive(Default)]
 pub struct GlobalSymbols(FxHashMap<SymbolName, SymbolID>);
 
 impl GlobalSymbols {
+    pub fn new() -> Self {
+        Self(fx_hashmap_with_capacity(1024 * 1024))
+    }
+
     pub fn insert(&mut self, name: SymbolName, symbol_id: SymbolID) {
         let prev = self.0.insert(name, symbol_id);
         assert!(prev.is_none(), "prev symbol: {prev:#?}")

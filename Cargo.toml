@@ -7,11 +7,11 @@ members = [
   "crates/span",
   "crates/options",
   "crates/lib",
-  "crates/fs"
+  "crates/fs",
 ]
 
 [workspace.dependencies]
-rustc-hash = "2.0.0"
+rustc-hash = "2.1.0"
 miette = { version = "7.1.0", features = ["fancy"] }
 thin-vec = "0.2.13"
 regex = { version = "1.10.2" }

@@ -35,6 +35,7 @@ use crate::atoms::{AtomId, AtomMap};
 use crate::bind::{self, GlobalSymbols, SymbolFlags, SymbolID, SymbolName};
 use crate::parser::Parser;
 use crate::ty::{has_type_facts, Sig, SigFlags, TupleShape, Ty, TyID, TyKind, TyVarID, TypeFacts};
+use crate::utils::fx_hashmap_with_capacity;
 use crate::{ast, ensure_sufficient_stack, errors, keyword, ty};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -138,29 +139,29 @@ impl<'cx> TyChecker<'cx> {
     ) -> Self {
         assert!(ty_arena.allocated_bytes() == 0);
         let mut this = Self {
-            intrinsic_tys: FxHashMap::default(),
+            intrinsic_tys: fx_hashmap_with_capacity(1024),
             atoms,
-            tys: Vec::with_capacity(1024 * 1024),
-            num_lit_tys: FxHashMap::default(),
-            string_lit_tys: FxHashMap::default(),
+            p,
+            tys: Vec::with_capacity(p.module_count() * 1024 * 8),
+            num_lit_tys: fx_hashmap_with_capacity(1024 * 8),
+            string_lit_tys: fx_hashmap_with_capacity(1024 * 8),
             next_ty_id: TyID::root(),
             next_ty_var_id: TyVarID::root(),
             arena: ty_arena,
-            diags: Vec::with_capacity(32),
+            diags: Vec::with_capacity(p.module_count() * 32),
             boolean_ty: Default::default(),
             global_number_ty: Default::default(),
             global_array_ty: Default::default(),
             unknown_sig: Default::default(),
-            tuple_shapes: Default::default(),
-            type_name: FxHashMap::default(),
-            p,
-            node_id_to_sig: FxHashMap::default(),
+            tuple_shapes: fx_hashmap_with_capacity(1024 * 8),
+            type_name: fx_hashmap_with_capacity(1024 * 8),
+            node_id_to_sig: fx_hashmap_with_capacity(p.module_count() * 256),
             global_tys: FxHashMap::default(),
             ty_vars: FxHashMap::default(),
-            symbol_links: FxHashMap::default(),
-            node_links: FxHashMap::default(),
-            resolution_tys: Default::default(),
-            resolution_res: Default::default(),
+            symbol_links: fx_hashmap_with_capacity(p.module_count() * 1024 * 8),
+            node_links: fx_hashmap_with_capacity(p.module_count() * 1024 * 8),
+            resolution_tys: thin_vec::ThinVec::with_capacity(128),
+            resolution_res: thin_vec::ThinVec::with_capacity(128),
             binder,
             global_symbols,
         };

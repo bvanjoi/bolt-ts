@@ -1,6 +1,7 @@
 use bolt_ts_span::Span;
 
 use crate::ast::Modifiers;
+use crate::keyword;
 
 use super::ast;
 use super::errors;
@@ -278,6 +279,31 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         Ok(ele)
     }
 
+    fn parse_ctor_name(&mut self) -> bool {
+        use TokenKind::*;
+        let t = self.token;
+        if t.kind == Constructor {
+            self.expect(Constructor).is_ok()
+        } else if t.kind == String
+            && self.lookahead(|this| {
+                this.next_token();
+                this.token.kind == LParen
+            })
+        {
+            let val = self.string_token();
+            self.try_parse(|this| {
+                let lit = this.parse_string_lit(val);
+                if lit.val == keyword::KW_CONSTRUCTOR {
+                    true
+                } else {
+                    false
+                }
+            })
+        } else {
+            false
+        }
+    }
+
     fn try_parse_ctor(
         &mut self,
         id: ast::NodeID,
@@ -285,16 +311,14 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         mods: Option<&'cx Modifiers<'cx>>,
     ) -> PResult<&'cx ast::ClassEle<'cx>> {
         self.try_parse(|this| {
-            if this.token.kind == TokenKind::Constructor
-                && this.expect(TokenKind::Constructor).is_ok()
-            {
+            if this.parse_ctor_name() {
                 let ty_params = this.with_parent(id, Self::parse_ty_params)?;
                 let params = this.with_parent(id, Self::parse_params)?;
                 let ret = this.with_parent(id, |this| this.parse_ret_ty(true))?;
                 let body = this.with_parent(id, Self::parse_fn_block)?;
                 let ctor = this.alloc(ast::ClassCtor {
                     id,
-                    span: this.new_span(start, this.pos),
+                    span: this.new_span(start, this.full_start_pos),
                     ty_params,
                     params,
                     ret,
