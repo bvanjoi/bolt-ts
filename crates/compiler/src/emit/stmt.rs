@@ -15,8 +15,48 @@ impl<'cx> Emit<'cx> {
             Class(class) => self.emit_class_decl(class),
             Interface(_) => {}
             Type(_) => {}
-            Namespace(_) => {}
+            Namespace(ns) => self.emit_ns_decl(ns),
         }
+    }
+
+    fn emit_ns_decl(&mut self, ns: &'cx ast::NsDecl) {
+        if ns
+            .modifiers
+            .map(|ms| {
+                ms.list
+                    .iter()
+                    .find(|m| m.kind == ast::ModifierKind::Declare)
+                    .is_some()
+            })
+            .unwrap_or_default()
+        {
+            return;
+        }
+        // var name
+        self.content.p("var");
+        self.content.p_whitespace();
+        self.emit_ident(ns.name);
+        self.content.p_whitespace();
+        self.content.p_eq();
+        self.content.p_whitespace();
+        self.content.p("{}");
+        self.content.p_semi();
+
+        self.content.p_newline();
+
+        self.content.p_l_paren();
+        self.content.p("function");
+        self.content.p_whitespace();
+        self.content.p_l_paren();
+        // TODO: don't emit name if no export
+        self.emit_ident(ns.name);
+        self.content.p_r_paren();
+        self.content.p_whitespace();
+        self.emit_block_stmt(ns.block);
+        self.content.p_r_paren();
+        self.content.p_l_paren();
+        self.emit_ident(ns.name);
+        self.content.p_r_paren();
     }
 
     fn emit_class_decl(&mut self, class: &'cx ast::ClassDecl<'cx>) {

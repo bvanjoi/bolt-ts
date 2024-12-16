@@ -25,10 +25,7 @@ impl<'cx> TyChecker<'cx> {
             let Some(param_ty) = param_ty.kind.as_param() else {
                 todo!("nested or non-param ty")
             };
-            // TODO(OPTIMIZE): use offset index
-            let Some(idx) = ty_params.iter().position(|param| *param == param_ty.symbol) else {
-                unreachable!()
-            };
+            let idx = param_ty.offset;
             if tys[idx] != self.any_ty() {
                 tys[idx] = args[i];
             } else {

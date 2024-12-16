@@ -346,4 +346,5 @@ pub struct StringLitTy {
 #[derive(Debug, Clone, Copy)]
 pub struct ParamTy {
     pub symbol: SymbolID,
+    pub offset: usize,
 }

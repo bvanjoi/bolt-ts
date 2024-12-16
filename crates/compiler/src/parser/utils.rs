@@ -25,6 +25,15 @@ pub(super) fn is_left_hand_side_expr_kind(expr: &ast::Expr) -> bool {
 impl<'p, 't> ParserState<'p, 't> {
     fn _is_paren_arrow_fn_expr(&mut self) -> bool {
         use TokenKind::*;
+        if self.token.kind == TokenKind::Async {
+            self.next_token();
+            if self.has_preceding_line_break() {
+                return false;
+            } else if matches!(self.token.kind, LParen | Less) {
+                return false;
+            }
+        }
+
         let first = self.token.kind;
         self.next_token();
         let second = self.token.kind;
@@ -32,33 +41,38 @@ impl<'p, 't> ParserState<'p, 't> {
         if first == LParen {
             if second == RParen {
                 self.next_token();
-                let third = self.token.kind;
-                return matches!(third, EqGreater | Colon | RBrace);
+                matches!(self.token.kind, EqGreater | Colon | RBrace)
             } else if second == LBracket || second == LBrace {
                 todo!()
             } else if second == DotDotDot {
-                return true;
-            } else if second != TokenKind::Async
+                true
+            } else if second != Async
                 && second.is_modifier_kind()
                 && self
                     .lookahead(Self::next_token_is_ident)
                     .unwrap_or_default()
             {
                 self.next_token();
-                return if self.token.kind == TokenKind::As {
-                    false
-                } else {
-                    true
-                };
-            } else if !self.is_ident() && second != TokenKind::This {
-                return false;
+                self.token.kind != As
+            } else if !self.is_ident() && second != This {
+                false
             } else {
                 self.next_token();
-                todo!()
+                match self.token.kind {
+                    Colon => true,
+                    Question => todo!(),
+                    Comma | Eq | RParen => {
+                        // TODO: unknown
+                        false
+                    }
+                    _ => false,
+                }
             }
+        } else {
+            assert_eq!(first, Less);
+            // TODO: unknown
+            false
         }
-
-        false
     }
 
     pub(super) fn is_paren_arrow_fn_expr(&mut self) -> bool {

@@ -239,7 +239,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         let name = self.with_parent(id, Self::parse_prop_name)?;
         let ele = if self.token.kind == TokenKind::LParen || self.token.kind == TokenKind::Less {
             // method
-            let ty_params = self.parse_ty_params()?;
+            let ty_params = self.with_parent(id, Self::parse_ty_params)?;
             let params = self.parse_params()?;
             let ret = self.parse_ret_ty(true)?;
             let body = self.parse_fn_block()?;

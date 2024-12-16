@@ -479,7 +479,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
             self.expect(TokenKind::New)?;
         }
 
-        let ty_params = self.parse_ty_params()?;
+        let ty_params = self.with_parent(id, Self::parse_ty_params)?;
         let params = self.parse_params()?;
         let ty = self.parse_ret_ty(true)?;
         self.parse_ty_member_semi();

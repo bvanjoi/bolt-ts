@@ -1,4 +1,4 @@
-use super::{ast, ParamTy};
+use super::ast;
 use crate::bind::SymbolID;
 
 bitflags::bitflags! {

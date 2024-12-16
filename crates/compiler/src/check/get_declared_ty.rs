@@ -41,7 +41,6 @@ impl<'cx> TyChecker<'cx> {
             Some(ty)
         } else if symbol.flags == SymbolFlags::TYPE_PARAMETER {
             let ty = self.get_declared_ty_of_ty_param(id);
-            self.get_mut_symbol_links(id).set_declared_ty(ty);
             Some(ty)
         } else {
             None
@@ -49,8 +48,26 @@ impl<'cx> TyChecker<'cx> {
     }
 
     pub(super) fn get_declared_ty_of_ty_param(&mut self, symbol: SymbolID) -> &'cx ty::Ty<'cx> {
-        let parm_ty = self.alloc(ty::ParamTy { symbol });
-        self.new_ty(ty::TyKind::Param(parm_ty))
+        if let Some(ty) = self.get_symbol_links(symbol).get_declared_ty() {
+            return ty;
+        }
+        let ty_param_id = self.binder.symbol(symbol).expect_ty_param().decl;
+        let container = self.p.node(self.p.parent(ty_param_id).unwrap());
+        let ty_params = match container {
+            ast::Node::FnDecl(decl) => decl.ty_params,
+            ast::Node::CtorSigDecl(decl) => decl.ty_params,
+            ast::Node::TypeDecl(decl) => decl.ty_params,
+            _ => unreachable!("{container:#?}"),
+        };
+        let offset = ty_params
+            .unwrap()
+            .iter()
+            .position(|p| p.id == ty_param_id)
+            .unwrap();
+        let parm_ty = self.alloc(ty::ParamTy { symbol, offset });
+        let ty = self.new_ty(ty::TyKind::Param(parm_ty));
+        self.get_mut_symbol_links(symbol).set_declared_ty(ty);
+        ty
     }
 
     fn get_declared_ty_of_type_alias(&mut self, symbol: SymbolID) -> &'cx ty::Ty<'cx> {
