@@ -31,6 +31,7 @@ keyword!(
     (KW_SET, KW_SET_STR, "set"),
     (KW_IMPORT, KW_IMPORT_STR, "import"),
     (KW_EXPORT, KW_EXPORT_STR, "export"),
+    (KW_DEFAULT, KW_DEFAULT_STR, "default"),
     (KW_IN, KW_IN_STR, "in"),
     // ts keywords
     (KW_IMPLEMENTS, KW_IMPLEMENTS_STR, "implements"),
@@ -42,6 +43,7 @@ keyword!(
     (KW_DECLARE, KW_DECLARE_STR, "declare"),
     (KW_MODULE, KW_MODULE_STR, "module"),
     (KW_NAMESPACE, KW_NAMESPACE_STR, "namespace"),
+    (KW_ENUM, KW_ENUM_STR, "enum"),
     (KW_TYPE, KW_TYPE_STR, "type")
 );
 

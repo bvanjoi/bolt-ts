@@ -5,6 +5,22 @@ use super::token::{TokenFlags, TokenKind};
 use super::{ast, errors};
 use super::{PResult, ParserState};
 
+pub(super) trait ParseSuccess {
+    fn is_success(&self) -> bool;
+}
+
+impl ParseSuccess for bool {
+    fn is_success(&self) -> bool {
+        *self
+    }
+}
+
+impl<T, E> ParseSuccess for Result<Option<T>, E> {
+    fn is_success(&self) -> bool {
+        !self.is_err()
+    }
+}
+
 pub(super) fn is_left_hand_side_expr_kind(expr: &ast::Expr) -> bool {
     use ast::ExprKind::*;
     matches!(
@@ -154,10 +170,14 @@ impl<'p, 't> ParserState<'p, 't> {
 
     pub(super) fn is_start_of_stmt(&mut self) -> bool {
         use TokenKind::*;
-        matches!(
-            self.token.kind,
-            Semi | Var | Let | Const | Function | If | Return | Class
-        ) || self.is_start_of_expr()
+        if matches!(self.token.kind, Export | Const) {
+            self.is_start_of_decl()
+        } else {
+            matches!(
+                self.token.kind,
+                Semi | Var | Let | Function | If | Return | Class
+            ) || self.is_start_of_expr()
+        }
     }
 
     fn parse_ty_param(&mut self) -> PResult<&'p ast::TyParam<'p>> {
@@ -190,7 +210,7 @@ impl<'p, 't> ParserState<'p, 't> {
     }
 
     pub(super) fn parse_ident(&mut self) -> &'p ast::Expr<'p> {
-        let kind = self.create_ident(true);
+        let kind = self.create_ident(self.token.kind.is_ident());
         let expr = self.alloc(ast::Expr {
             kind: ast::ExprKind::Ident(kind),
         });
@@ -226,11 +246,19 @@ impl<'p, 't> ParserState<'p, 't> {
         Ok(self.token.kind.is_ident_or_keyword())
     }
 
-    pub(super) fn parse_modifiers(&mut self) -> PResult<Option<&'p ast::Modifiers<'p>>> {
+    pub(super) fn next_token_is_ident_or_keyword_on_same_line(&mut self) -> PResult<bool> {
+        self.next_token();
+        return Ok(self.token.kind.is_ident_or_keyword() && !self.has_preceding_line_break());
+    }
+
+    pub(super) fn parse_modifiers(
+        &mut self,
+        permit_const_as_modifier: bool,
+    ) -> PResult<Option<&'p ast::Modifiers<'p>>> {
         let start = self.token.start();
         let mut list = Vec::with_capacity(4);
         loop {
-            let Ok(Some(m)) = self.parse_modifier() else {
+            let Ok(Some(m)) = self.parse_modifier(permit_const_as_modifier) else {
                 break;
             };
             list.push(m);
@@ -239,8 +267,19 @@ impl<'p, 't> ParserState<'p, 't> {
             Ok(None)
         } else {
             let span = self.new_span(start as usize, self.pos);
+            let flags = list
+                .iter()
+                .fold(ast::ModifierFlags::empty(), |flags, m| match m.kind {
+                    ast::ModifierKind::Public => flags | ast::ModifierFlags::PUBLIC,
+                    ast::ModifierKind::Private => flags | ast::ModifierFlags::PRIVATE,
+                    ast::ModifierKind::Abstract => flags | ast::ModifierFlags::ABSTRACT,
+                    ast::ModifierKind::Static => flags | ast::ModifierFlags::STATIC,
+                    ast::ModifierKind::Declare => flags | ast::ModifierFlags::DECLARE,
+                    ast::ModifierKind::Export => flags | ast::ModifierFlags::EXPORT,
+                });
             let ms = self.alloc(ast::Modifiers {
                 span,
+                flags,
                 list: self.alloc(list),
             });
             Ok(Some(ms))
@@ -265,19 +304,32 @@ impl<'p, 't> ParserState<'p, 't> {
     fn next_token_can_follow_modifier(&mut self) -> bool {
         use TokenKind::*;
         match self.token.kind {
-            Const => todo!(),
+            Const => {
+                self.next_token();
+                self.token.kind == Enum
+            }
             _ => self.next_token_is_on_same_line_and_can_follow_modifier(),
         }
     }
 
-    fn parse_modifier(&mut self) -> PResult<Option<&'p ast::Modifier>> {
+    fn parse_any_contextual_modifier(&mut self) -> bool {
+        self.token.kind.is_modifier_kind() && self.try_parse(Self::next_token_can_follow_modifier)
+    }
+
+    fn parse_modifier(
+        &mut self,
+        permit_const_as_modifier: bool,
+    ) -> PResult<Option<&'p ast::Modifier>> {
         let span = self.token.span;
         let t = self.token.kind;
-        if !(self.token.kind.is_modifier_kind()
-            && self.try_parse(Self::next_token_can_follow_modifier))
-        {
+        if t == TokenKind::Const && permit_const_as_modifier {
+            if self.try_parse(Self::next_token_is_on_same_line_and_can_follow_modifier) {
+                return Ok(None);
+            }
+        } else if !self.parse_any_contextual_modifier() {
             return Ok(None);
         }
+
         let id = self.next_node_id();
         let kind = t.into();
         let m = self.alloc(ast::Modifier { id, span, kind });
@@ -285,8 +337,38 @@ impl<'p, 't> ParserState<'p, 't> {
         Ok(Some(m))
     }
 
-    pub(super) fn try_parse<T>(&mut self, f: impl FnOnce(&mut Self) -> T) -> T {
-        self.speculation_helper(f, true)
+    pub(super) fn try_parse<T: ParseSuccess>(&mut self, f: impl FnOnce(&mut Self) -> T) -> T {
+        let old_pos = self.pos;
+        let old_full_start_pos = self.full_start_pos;
+        let old_token = self.token;
+        let old_token_value = self.token_value;
+
+        let res = f(self);
+
+        if !res.is_success() {
+            self.token_value = old_token_value;
+            self.token = old_token;
+            self.full_start_pos = old_full_start_pos;
+            self.pos = old_pos;
+        }
+
+        res
+    }
+
+    pub(super) fn lookahead<T>(&mut self, f: impl FnOnce(&mut Self) -> T) -> T {
+        let old_pos = self.pos;
+        let old_full_start_pos = self.full_start_pos;
+        let old_token = self.token;
+        let old_token_value = self.token_value;
+
+        let r = f(self);
+
+        self.token_value = old_token_value;
+        self.token = old_token;
+        self.full_start_pos = old_full_start_pos;
+        self.pos = old_pos;
+
+        r
     }
 
     pub(super) fn parse_ident_name(&mut self) -> PResult<&'p ast::Ident> {
@@ -389,7 +471,7 @@ impl<'p, 't> ParserState<'p, 't> {
 
     fn skip_param_start(&mut self) -> PResult<bool> {
         if self.token.kind.is_modifier_kind() {
-            self.parse_modifiers()?;
+            self.parse_modifiers(false)?;
         }
         if self.token.kind.is_ident() || self.token.kind == TokenKind::This {
             self.next_token();

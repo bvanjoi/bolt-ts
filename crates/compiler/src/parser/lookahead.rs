@@ -65,6 +65,20 @@ impl<'p, 't> ParserState<'p, 't> {
                 Module | Namespace => {
                     return self.next_token_is_identifier_or_string_literal_on_same_line()
                 }
+                Import => {
+                    self.next_token();
+                    return matches!(self.token.kind, String | Asterisk | LBrace)
+                        || self.token.kind.is_ident_or_keyword();
+                }
+                Export => {
+                    self.next_token();
+                    if self.token.kind == Type {
+                        self.next_token();
+                    }
+                    if matches!(self.token.kind, Eq | Asterisk | LBrace | Default | As | At) {
+                        return true;
+                    }
+                }
                 _ => unreachable!("{:#?}", self.token.kind),
             }
         }

@@ -5,7 +5,7 @@ members = [
   "crates/compile-test",
   "crates/errors",
   "crates/span",
-  "crates/options",
+  "crates/config",
   "crates/lib",
   "crates/fs",
 ]

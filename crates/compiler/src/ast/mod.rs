@@ -262,6 +262,7 @@ pub struct VarStmt<'cx> {
     pub id: NodeID,
     pub kind: VarKind,
     pub span: Span,
+    pub modifiers: Option<&'cx Modifiers<'cx>>,
     pub list: &'cx [&'cx VarDecl<'cx>],
 }
 
@@ -697,8 +698,8 @@ pub struct IntersectionTy<'cx> {
 pub struct ReferTy<'cx> {
     pub id: NodeID,
     pub span: Span,
-    pub name: &'cx Ident,
-    pub args: Option<Tys<'cx>>,
+    pub name: &'cx EntityName<'cx>,
+    pub ty_args: Option<Tys<'cx>>,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -850,12 +851,26 @@ pub enum ModifierKind {
     Abstract,
     Static,
     Declare,
+    Export,
 }
 
 #[derive(Debug, Clone, Copy)]
 pub struct Modifiers<'cx> {
     pub span: Span,
+    pub flags: ModifierFlags,
     pub list: &'cx [&'cx Modifier],
+}
+
+bitflags::bitflags! {
+    #[derive(Debug, Clone, Copy)]
+    pub struct ModifierFlags: u8 {
+        const PUBLIC    = 1 << 0;
+        const PRIVATE   = 1 << 1;
+        const ABSTRACT  = 1 << 2;
+        const STATIC    = 1 << 3;
+        const DECLARE   = 1 << 4;
+        const EXPORT    = 1 << 5;
+    }
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -863,4 +878,22 @@ pub struct Modifier {
     pub id: NodeID,
     pub span: Span,
     pub kind: ModifierKind,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct EntityName<'cx> {
+    pub kind: EntityNameKind<'cx>,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub enum EntityNameKind<'cx> {
+    Ident(&'cx Ident),
+    Qualified(&'cx QualifiedName<'cx>),
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct QualifiedName<'cx> {
+    pub id: NodeID,
+    pub left: &'cx EntityName<'cx>,
+    pub right: &'cx Ident,
 }

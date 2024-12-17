@@ -2,7 +2,7 @@ use std::borrow::Cow;
 
 use bolt_ts_span::Span;
 
-use super::token::{Token, TokenFlags, TokenKind};
+use super::token::{keyword_idx_to_token, Token, TokenFlags, TokenKind, KEYWORD_TOKEN_START};
 use super::{ParserState, TokenValue};
 
 use crate::atoms::AtomId;
@@ -173,13 +173,9 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
             let raw = &self.input[start..self.pos];
             let id = AtomId::from_bytes(raw);
             if raw.len() >= 2 && raw.len() <= 12 {
-                if let Some(idx) = KEYWORDS
-                    .iter()
-                    .enumerate()
-                    .find_map(|(idx, kw)| (kw.1 == id).then_some(idx))
-                {
+                if let Some(idx) = KEYWORDS.iter().position(|(_, kw)| (*kw == id)) {
                     // keyword
-                    let kind = unsafe { std::mem::transmute::<u8, TokenKind>(idx as u8) };
+                    let kind = keyword_idx_to_token(idx);
                     let span = self.new_span(start, self.pos);
                     self.token_value = Some(TokenValue::Ident { value: id });
                     return Token::new(kind, span);

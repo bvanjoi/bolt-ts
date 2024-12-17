@@ -16,7 +16,9 @@ use std::sync::{Arc, Mutex};
 use bolt_ts_span::{Module, ModuleArena, ModuleID, Span};
 use rayon::prelude::*;
 use rustc_hash::FxHashMap;
+use utils::ParseSuccess;
 
+pub use self::token::KEYWORD_TOKEN_START;
 use self::token::{Token, TokenFlags, TokenKind};
 use crate::ast::{self, Node, NodeID};
 use crate::atoms::{AtomId, AtomMap};
@@ -317,55 +319,6 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         self.alloc(list)
     }
 
-    fn scan_speculation_helper<T>(
-        &mut self,
-        f: impl FnOnce(&mut Self) -> T,
-        is_lookahead: bool,
-    ) -> T {
-        let old_pos = self.pos;
-        let old_full_start_pos = self.full_start_pos;
-        let old_token = self.token;
-        let old_token_value = self.token_value;
-
-        let r = f(self);
-
-        if is_lookahead {
-            self.token_value = old_token_value;
-            self.token = old_token;
-            self.full_start_pos = old_full_start_pos;
-            self.pos = old_pos;
-        }
-        r
-    }
-
-    fn scan_lookahead<T>(&mut self, f: impl FnOnce(&mut Self) -> T) -> T {
-        self.scan_speculation_helper(f, true)
-    }
-
-    pub(super) fn try_scan<T>(&mut self, f: impl FnOnce(&mut Self) -> T) -> T {
-        self.scan_speculation_helper(f, false)
-    }
-
-    fn speculation_helper<T>(&mut self, f: impl FnOnce(&mut Self) -> T, try_parse: bool) -> T {
-        let old_token = self.token;
-
-        let r = if try_parse {
-            self.try_scan(f)
-        } else {
-            self.scan_lookahead(f)
-        };
-
-        if !try_parse {
-            self.token = old_token;
-        }
-
-        r
-    }
-
-    fn lookahead<T>(&mut self, f: impl FnOnce(&mut Self) -> T) -> T {
-        self.speculation_helper(f, false)
-    }
-
     fn parse_token_node(&mut self) -> Token {
         let t = self.token;
         self.next_token();
@@ -462,7 +415,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         self.with_parent(id, |this| {
             this.next_token();
             let stmts = this.arena.alloc(Vec::with_capacity(512));
-            while !matches!(this.token.kind, TokenKind::EOF) {
+            while this.token.kind != TokenKind::EOF {
                 if let Ok(stmt) = this.parse_stmt() {
                     stmts.push(stmt);
                 }

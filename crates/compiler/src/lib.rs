@@ -20,10 +20,9 @@ use atoms::AtomMap;
 use bind::{bind, GlobalSymbols};
 use bolt_ts_span::{ModuleArena, ModulePath};
 use parser::parse_parallel;
+use parser::token::keyword_idx_to_token;
 use parser::token::TokenKind;
-use rayon::iter::IntoParallelIterator;
 use resolve::resolve;
-use utils::fx_hashmap_with_capacity;
 
 type Diag = Box<dyn bolt_ts_errors::miette::Diagnostic + Send + Sync + 'static>;
 
@@ -44,11 +43,9 @@ fn current_exe_dir() -> std::path::PathBuf {
 pub fn eval_from(m: ModulePath) -> Output {
     let mut module_arena = ModuleArena::new();
     let m = module_arena.new_module(m, false);
-    let mut atoms = AtomMap::default();
-    // atom init
     if cfg!(debug_assertions) {
         for (idx, (name, _)) in keyword::KEYWORDS.iter().enumerate() {
-            let t = unsafe { std::mem::transmute::<u8, TokenKind>(idx as u8) };
+            let t = keyword_idx_to_token(idx);
             if t == TokenKind::Var {
                 assert_eq!(t as u8 + 1, TokenKind::Let as u8);
                 assert_eq!(t as u8 + 2, TokenKind::Const as u8);
@@ -57,6 +54,8 @@ pub fn eval_from(m: ModulePath) -> Output {
             assert_eq!(format!("{t:?}").to_lowercase(), *name);
         }
     }
+    // atom init
+    let mut atoms = AtomMap::new();
     for (atom, id) in keyword::KEYWORDS {
         atoms.insert(*id, Cow::Borrowed(atom));
     }

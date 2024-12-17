@@ -79,6 +79,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "bolt_ts_config"
+version = "0.1.0"
+dependencies = [
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "bolt_ts_errors"
 version = "0.1.0"
 dependencies = [
@@ -103,14 +111,6 @@ version = "0.1.0"
 dependencies = [
  "miette",
  "rustc-hash",
-]
-
-[[package]]
-name = "bolt_ts_options"
-version = "0.1.0"
-dependencies = [
- "serde",
- "serde_json",
 ]
 
 [[package]]

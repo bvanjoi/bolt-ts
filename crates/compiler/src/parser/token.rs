@@ -24,90 +24,21 @@ impl Token {
     }
 }
 
+pub const KEYWORD_TOKEN_START: u8 = TokenKind::Null as u8;
+pub const KEYWORD_TOKEN_END: u8 = TokenKind::Type as u8;
+
+pub const fn keyword_idx_to_token(idx: usize) -> TokenKind {
+    unsafe { std::mem::transmute::<u8, TokenKind>(idx as u8 + KEYWORD_TOKEN_START) }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum TokenKind {
-    // keyword
-    Null,
-    False,
-    True,
-    Var,
-    Let,
-    Const,
-    Function,
-    Return,
-    If,
-    Else,
-    Class,
-    Extends,
-    New,
-    Async,
-    This,
-    Static,
-    Constructor,
-    Super,
-    Get,
-    Set,
-    Import,
-    Export,
-    In,
-    // ts keyword
-    Implements,
-    Interface,
-    Abstract,
-    Public,
-    Private,
-    As,
-    Declare,
-    Module,
-    Namespace,
-    Type,
     // =====
-    /// `!`
-    Excl = 0x21,
-    /// `%`
-    Percent = 0x25,
-    /// `&`
-    Amp = 0x26,
-    /// `*`
-    Asterisk = 0x2A,
-    /// `+`
-    Plus = 0x2B,
-    /// `,`
-    Comma = 0x2C,
-    /// `-`
-    Minus = 0x2D,
-    /// `(`
-    LParen = 0x28,
-    /// `)`
-    RParen = 0x29,
-    /// `.`
-    Dot = 0x2E,
-    /// `:`
-    Colon = 0x3A,
-    /// `;`
-    Semi = 0x3B,
-    /// `<`
-    Less = 0x3C,
-    /// `=`
-    Eq = 0x3D,
-    /// `>`
-    Great = 0x3E,
-    /// `?`
-    Question = 0x3F,
-    /// `[`
-    LBracket = 0x5B,
-    /// `\`
-    Slash = 0x5C,
-    /// `]`
-    RBracket = 0x5D,
-    /// `^`
-    Caret = 0x5E,
-    /// `|`
-    Pipe = 0x7C,
-    /// `{`
-    LBrace = 0x7B,
-    /// `}`
-    RBrace = 0x7D,
+    EOF,
+    Number,
+    String,
+    Ident,
+    NoSubstitutionTemplate,
     // ======
     /// `=>`
     EqGreater,
@@ -162,11 +93,92 @@ pub enum TokenKind {
     /// `^=`
     CaretEq,
     // =====
-    EOF,
-    Number,
-    String,
-    Ident,
-    NoSubstitutionTemplate,
+    /// `!`
+    Excl = 0x21,
+    /// `%`
+    Percent = 0x25,
+    /// `&`
+    Amp = 0x26,
+    /// `*`
+    Asterisk = 0x2A,
+    /// `+`
+    Plus = 0x2B,
+    /// `,`
+    Comma = 0x2C,
+    /// `-`
+    Minus = 0x2D,
+    /// `(`
+    LParen = 0x28,
+    /// `)`
+    RParen = 0x29,
+    /// `.`
+    Dot = 0x2E,
+    /// `:`
+    Colon = 0x3A,
+    /// `;`
+    Semi = 0x3B,
+    /// `<`
+    Less = 0x3C,
+    /// `=`
+    Eq = 0x3D,
+    /// `>`
+    Great = 0x3E,
+    /// `?`
+    Question = 0x3F,
+    /// `@`
+    At = 0x40,
+    /// `[`
+    LBracket = 0x5B,
+    /// `\`
+    Slash = 0x5C,
+    /// `]`
+    RBracket = 0x5D,
+    /// `^`
+    Caret = 0x5E,
+    /// `|`
+    Pipe = 0x7C,
+    /// `{`
+    LBrace = 0x7B,
+    /// `}`
+    RBrace = 0x7D,
+    // =====
+    // keyword
+    Null,
+    False,
+    True,
+    Var,
+    Let,
+    Const,
+    Function,
+    Return,
+    If,
+    Else,
+    Class,
+    Extends,
+    New,
+    Async,
+    This,
+    Static,
+    Constructor,
+    Super,
+    Get,
+    Set,
+    Import,
+    Export,
+    Default,
+    In,
+    // ts keyword
+    Implements,
+    Interface,
+    Abstract,
+    Public,
+    Private,
+    As,
+    Declare,
+    Module,
+    Namespace,
+    Enum,
+    Type,
 }
 
 impl Into<BinOpKind> for TokenKind {
@@ -220,6 +232,7 @@ impl Into<ModifierKind> for TokenKind {
             TokenKind::Static => ModifierKind::Static,
             TokenKind::Declare => ModifierKind::Declare,
             TokenKind::Private => ModifierKind::Private,
+            TokenKind::Export => ModifierKind::Export,
             _ => {
                 unreachable!("{:#?}", self)
             }
@@ -287,7 +300,7 @@ impl TokenKind {
 
     fn is_ts_keyword(self) -> bool {
         let u = self as u8;
-        u <= (TokenKind::Type as u8) && u >= (TokenKind::Implements as u8)
+        u <= KEYWORD_TOKEN_END && u >= (TokenKind::Implements as u8)
     }
 
     pub fn is_binding_ident(self) -> bool {
@@ -299,7 +312,8 @@ impl TokenKind {
     }
 
     pub fn is_keyword(self) -> bool {
-        (self as u8) <= (TokenKind::Type as u8)
+        let u = self as u8;
+        u >= KEYWORD_TOKEN_START && u <= KEYWORD_TOKEN_END
     }
 
     pub fn is_ident_or_keyword(self) -> bool {
@@ -339,7 +353,10 @@ impl TokenKind {
 
     pub fn is_modifier_kind(self) -> bool {
         use TokenKind::*;
-        matches!(self, Abstract | Const | Public | Static | Declare | Private)
+        matches!(
+            self,
+            Abstract | Const | Declare | Static | Export | In | Public | Private
+        )
     }
 
     pub fn is_accessibility_modifier(self) -> bool {

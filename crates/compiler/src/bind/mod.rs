@@ -392,6 +392,16 @@ impl<'cx> BinderState<'cx> {
         }
     }
 
+    fn bind_entity_name(&mut self, name: &'cx ast::EntityName) {
+        match name.kind {
+            ast::EntityNameKind::Ident(ident) => self.bind_ident(ident),
+            ast::EntityNameKind::Qualified(q) => {
+                self.bind_entity_name(q.left);
+                self.bind_ident(q.right);
+            }
+        }
+    }
+
     fn bind_ty(&mut self, ty: &'cx ast::Ty) {
         use ast::TyKind::*;
         match ty.kind {
@@ -412,10 +422,10 @@ impl<'cx> BinderState<'cx> {
             }
             ExprWithArg(expr) => self.bind_expr(expr),
             Refer(refer) => {
-                self.bind_ident(refer.name);
-                if let Some(args) = refer.args {
-                    for arg in args {
-                        self.bind_ty(arg);
+                self.bind_entity_name(refer.name);
+                if let Some(ty_args) = refer.ty_args {
+                    for ty_arg in ty_args {
+                        self.bind_ty(ty_arg);
                     }
                 }
             }

@@ -111,14 +111,25 @@ impl<'cx, 'r> Resolver<'cx, 'r> {
         }
     }
 
+    fn resolve_entity_name(&mut self, name: &'cx ast::EntityName<'cx>) {
+        use ast::EntityNameKind::*;
+        match name.kind {
+            Ident(ident) => self.resolve_ty_by_ident(ident),
+            Qualified(qualified) => {
+                self.resolve_entity_name(qualified.left);
+                self.resolve_ty_by_ident(qualified.right);
+            }
+        }
+    }
+
     fn resolve_ty(&mut self, ty: &'cx ast::Ty<'cx>) {
         use ast::TyKind::*;
         match ty.kind {
             Refer(refer) => {
-                self.resolve_ty_by_ident(refer.name);
-                if let Some(args) = refer.args {
-                    for arg in args {
-                        self.resolve_ty(arg);
+                self.resolve_entity_name(refer.name);
+                if let Some(ty_args) = refer.ty_args {
+                    for ty_arg in ty_args {
+                        self.resolve_ty(ty_arg);
                     }
                 }
             }
@@ -387,11 +398,7 @@ impl<'cx, 'r> Resolver<'cx, 'r> {
             }) {
                 if prop
                     .modifiers
-                    .map(|mods| {
-                        mods.list
-                            .iter()
-                            .any(|m| m.kind == ast::ModifierKind::Static)
-                    })
+                    .map(|mods| mods.flags.contains(ast::ModifierFlags::STATIC))
                     .unwrap_or_default()
                 {
                     let ast::PropNameKind::Ident(prop_name) = prop.name.kind else {
@@ -415,11 +422,23 @@ impl<'cx, 'r> Resolver<'cx, 'r> {
 
     fn check_using_type_as_value(&mut self, ident: &'cx ast::Ident) -> Option<crate::Diag> {
         if is_prim_ty_name(ident.name) {
-            let Some(grand) = self.p.parent(ident.id).and_then(|id| self.p.parent(id)) else {
+            let Some(parent) = self.p.parent(ident.id) else {
                 return None;
             };
-            if self.p.node(grand).is_class_like() {
+            let Some(grand) = self.p.parent(parent) else {
+                return None;
+            };
+            let parent_node = self.p.node(parent);
+            let grand_node = self.p.node(grand);
+            if parent_node.as_implements_clause().is_some() && grand_node.is_class_like() {
                 return Some(Box::new(errors::AClassCannotImplementAPrimTy {
+                    span: ident.span,
+                    ty: self.state.atoms.get(ident.name).to_string(),
+                }));
+            } else if parent_node.as_interface_extends_clause().is_some()
+                && grand_node.is_interface_decl()
+            {
+                return Some(Box::new(errors::AnInterfaceCannotExtendAPrimTy {
                     span: ident.span,
                     ty: self.state.atoms.get(ident.name).to_string(),
                 }));

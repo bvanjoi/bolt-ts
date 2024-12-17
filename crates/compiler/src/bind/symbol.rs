@@ -357,7 +357,7 @@ pub struct GlobalSymbols(FxHashMap<SymbolName, SymbolID>);
 
 impl GlobalSymbols {
     pub fn new() -> Self {
-        Self(fx_hashmap_with_capacity(1024 * 1024))
+        Self(fx_hashmap_with_capacity(1024 * 128))
     }
 
     pub fn insert(&mut self, name: SymbolName, symbol_id: SymbolID) {

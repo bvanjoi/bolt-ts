@@ -245,12 +245,44 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         }
     }
 
-    fn parse_entity_name(&mut self) -> PResult<&'cx ast::Ident> {
-        let name = self.parse_ident_name()?;
-        while self.parse_optional(TokenKind::Dot).is_some() {
-            todo!()
+    fn parse_right_side_of_dot(&mut self) -> PResult<&'cx ast::Ident> {
+        if self.has_preceding_line_break() && self.token.kind.is_ident_or_keyword() {
+            let matches_pattern =
+                self.lookahead(Self::next_token_is_ident_or_keyword_on_same_line)?;
+            if matches_pattern {
+                todo!()
+            }
         }
-        Ok(name)
+        Ok(self.create_ident(self.is_ident()))
+    }
+
+    fn parse_entity_name(&mut self) -> PResult<&'cx ast::EntityName<'cx>> {
+        let name = self.parse_ident_name()?;
+        let kind = ast::EntityNameKind::Ident(name);
+        let mut entity = self.alloc(ast::EntityName { kind });
+        if self.token.kind != TokenKind::Dot {
+            return Ok(entity);
+        }
+        let mut id = self.next_node_id();
+        self.parent_map.r#override(name.id, id);
+        while self.parse_optional(TokenKind::Dot).is_some() {
+            if self.token.kind == TokenKind::Less {
+                break;
+            }
+            let right = self.with_parent(id, Self::parse_right_side_of_dot)?;
+            let qualified = self.alloc(ast::QualifiedName {
+                id,
+                left: entity,
+                right,
+            });
+            entity = self.alloc(ast::EntityName {
+                kind: ast::EntityNameKind::Qualified(qualified),
+            });
+            if self.token.kind == TokenKind::Dot {
+                id = self.next_node_id();
+            }
+        }
+        Ok(entity)
     }
 
     fn parse_ty_args_of_ty_reference(&mut self) -> PResult<Option<ast::Tys<'cx>>> {
@@ -270,12 +302,12 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         let id = self.next_node_id();
         let start = self.token.start();
         let name = self.with_parent(id, Self::parse_entity_name)?;
-        let args = self.with_parent(id, Self::parse_ty_args_of_ty_reference)?;
+        let ty_args = self.with_parent(id, Self::parse_ty_args_of_ty_reference)?;
         let ty = self.alloc(ast::ReferTy {
             id,
             span: self.new_span(start as usize, self.pos),
             name,
-            args,
+            ty_args,
         });
         self.insert_map(id, ast::Node::ReferTy(ty));
         Ok(ty)

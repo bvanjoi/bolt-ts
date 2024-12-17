@@ -8,12 +8,14 @@ use super::{PResult, ParserState};
 impl<'cx, 'p> ParserState<'cx, 'p> {
     pub fn parse_stmt(&mut self) -> PResult<&'cx ast::Stmt<'cx>> {
         use TokenKind::*;
-        if matches!(self.token.kind, Abstract | Declare) && self.is_start_of_decl() {
+        if matches!(self.token.kind, Abstract | Declare | Export | Import)
+            && self.is_start_of_decl()
+        {
             return self.parse_decl();
         }
         let kind = match self.token.kind {
             Semi => ast::StmtKind::Empty(self.parse_empty_stmt()?),
-            Var | Let | Const => ast::StmtKind::Var(self.parse_var_stmt()),
+            Var | Let | Const => ast::StmtKind::Var(self.parse_var_stmt(None)),
             Function => ast::StmtKind::Fn(self.parse_fn_decl(None)?),
             If => ast::StmtKind::If(self.parse_if_stmt()?),
             LBrace => ast::StmtKind::Block(self.parse_block()?),
@@ -72,9 +74,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
     }
 
     fn contain_declare_mod(mods: &ast::Modifiers<'cx>) -> bool {
-        mods.list
-            .iter()
-            .any(|m| matches!(m.kind, ast::ModifierKind::Declare))
+        mods.flags.contains(ast::ModifierFlags::DECLARE)
     }
 
     fn _parse_decl(
@@ -83,10 +83,14 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
     ) -> PResult<&'cx ast::Stmt<'cx>> {
         use TokenKind::*;
         let kind = match self.token.kind {
-            Var | Let | Const => ast::StmtKind::Var(self.parse_var_stmt()),
+            Var | Let | Const => ast::StmtKind::Var(self.parse_var_stmt(mods)),
             Function => ast::StmtKind::Fn(self.parse_fn_decl(mods)?),
             Class => ast::StmtKind::Class(self.parse_class_decl(mods)?),
             Module | Namespace => ast::StmtKind::Namespace(self.parse_ns_decl(mods)?),
+            Ident => {
+                let id = self.ident_token();
+                unreachable!("{:#?}", self.atoms.lock().unwrap().get(id));
+            }
             _ => unreachable!("{:#?}", self.token.kind),
         };
         let stmt = self.alloc(ast::Stmt { kind });
@@ -94,8 +98,9 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
     }
 
     fn parse_decl(&mut self) -> PResult<&'cx ast::Stmt<'cx>> {
-        let mods = self.parse_modifiers()?;
-        if mods.map_or(false, Self::contain_declare_mod) {
+        let mods = self.parse_modifiers(false)?;
+        let is_ambient = mods.map_or(false, Self::contain_declare_mod);
+        if is_ambient {
             // todo
             self._parse_decl(mods)
         } else {
@@ -181,7 +186,10 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         Ok(stmt)
     }
 
-    fn parse_var_stmt(&mut self) -> &'cx ast::VarStmt<'cx> {
+    fn parse_var_stmt(
+        &mut self,
+        modifiers: Option<&'cx ast::Modifiers<'cx>>,
+    ) -> &'cx ast::VarStmt<'cx> {
         let id = self.next_node_id();
         let start = self.token.start();
         use TokenKind::*;
@@ -197,6 +205,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
             id,
             kind,
             span,
+            modifiers,
             list,
         });
         self.insert_map(id, ast::Node::VarStmt(node));

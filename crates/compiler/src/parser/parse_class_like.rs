@@ -309,7 +309,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         id: ast::NodeID,
         start: usize,
         mods: Option<&'cx Modifiers<'cx>>,
-    ) -> PResult<&'cx ast::ClassEle<'cx>> {
+    ) -> PResult<Option<&'cx ast::ClassEle<'cx>>> {
         self.try_parse(|this| {
             if this.parse_ctor_name() {
                 let ty_params = this.with_parent(id, Self::parse_ty_params)?;
@@ -328,9 +328,9 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
                 let ele = this.alloc(ast::ClassEle {
                     kind: ast::ClassEleKind::Ctor(ctor),
                 });
-                Ok(ele)
+                Ok(Some(ele))
             } else {
-                Err(())
+                Ok(None)
             }
         })
     }
@@ -377,7 +377,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
     fn parse_class_ele(&mut self) -> PResult<&'cx ast::ClassEle<'cx>> {
         let id = self.next_node_id();
         let start = self.token.start() as usize;
-        let modifiers = self.with_parent(id, Self::parse_modifiers)?;
+        let modifiers = self.with_parent(id, |this| this.parse_modifiers(true))?;
         if self.parse_contextual_modifier(TokenKind::Get) {
             return self.parse_accessor_decl(id, start, modifiers, TokenKind::Get);
         } else if self.parse_contextual_modifier(TokenKind::Set) {
@@ -385,7 +385,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         }
 
         if self.token.kind == TokenKind::Constructor {
-            if let Ok(ctor) = self.try_parse_ctor(id, start, modifiers) {
+            if let Ok(Some(ctor)) = self.try_parse_ctor(id, start, modifiers) {
                 return Ok(ctor);
             }
         }

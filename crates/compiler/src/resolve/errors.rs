@@ -24,8 +24,18 @@ pub(super) struct DidYourMeanTheStaticMember {
 }
 
 #[derive(Error, Diagnostic, Debug)]
-#[error("A class cannot implement a primitive type like '{ty}'. It can only implement other named object types.")]
+#[error("A class cannot implement a primitive type like '{ty}'.")]
+#[diagnostic(help = "It can only implement other named object types.")]
 pub(super) struct AClassCannotImplementAPrimTy {
+    #[label(primary)]
+    pub span: Span,
+    pub ty: String,
+}
+
+#[derive(Error, Diagnostic, Debug)]
+#[error("An interface cannot extend a primitive type like '{ty}'.")]
+#[diagnostic(help = "It can only extend other named object types.")]
+pub(super) struct AnInterfaceCannotExtendAPrimTy {
     #[label(primary)]
     pub span: Span,
     pub ty: String,
