@@ -102,11 +102,9 @@ impl<'p, 't> ParserState<'p, 't> {
     }
 
     pub(super) fn parse_fn_block(&mut self) -> PResult<Option<&'p ast::BlockStmt<'p>>> {
-        if self.token.kind != TokenKind::LBrace {
-            if self.can_parse_semi() {
-                self.parse_semi();
-                return Ok(None);
-            }
+        if self.token.kind != TokenKind::LBrace && self.can_parse_semi() {
+            self.parse_semi();
+            return Ok(None);
         }
         self.parse_block().map(|block| Some(block))
     }
@@ -170,12 +168,29 @@ impl<'p, 't> ParserState<'p, 't> {
 
     pub(super) fn is_start_of_stmt(&mut self) -> bool {
         use TokenKind::*;
-        if matches!(self.token.kind, Export | Const) {
+        let t = self.token.kind;
+        if matches!(t, Export | Const) {
             self.is_start_of_decl()
         } else {
             matches!(
-                self.token.kind,
-                Semi | Var | Let | Function | If | Return | Class
+                t,
+                Interface
+                | Module
+                | Namespace
+                | Type
+                // ==
+                | Semi
+                | Var
+                | Let
+                | Function
+                | If
+                | Return
+                | Class
+                | Throw
+                | Try
+                | Catch
+                | Finally
+                | Debugger
             ) || self.is_start_of_expr()
         }
     }
@@ -218,17 +233,21 @@ impl<'p, 't> ParserState<'p, 't> {
     }
 
     pub(super) fn parse_prop_name(&mut self) -> PResult<&'p ast::PropName<'p>> {
-        let prop_name = if self.token.kind == TokenKind::Number {
-            let lit = self.parse_num_lit(self.number_token(), false);
-            self.alloc(ast::PropName {
-                kind: ast::PropNameKind::NumLit(lit),
-            })
-        } else {
-            let ident = self.parse_ident_name()?;
-            self.alloc(ast::PropName {
-                kind: ast::PropNameKind::Ident(ident),
-            })
+        let kind = match self.token.kind {
+            TokenKind::String => {
+                let lit = self.parse_string_lit();
+                ast::PropNameKind::StringLit(lit)
+            }
+            TokenKind::Number => {
+                let lit = self.parse_num_lit(self.number_token(), false);
+                ast::PropNameKind::NumLit(lit)
+            }
+            _ => {
+                let ident = self.parse_ident_name()?;
+                ast::PropNameKind::Ident(ident)
+            }
         };
+        let prop_name = self.alloc(ast::PropName { kind });
         Ok(prop_name)
     }
 
@@ -269,14 +288,7 @@ impl<'p, 't> ParserState<'p, 't> {
             let span = self.new_span(start as usize, self.pos);
             let flags = list
                 .iter()
-                .fold(ast::ModifierFlags::empty(), |flags, m| match m.kind {
-                    ast::ModifierKind::Public => flags | ast::ModifierFlags::PUBLIC,
-                    ast::ModifierKind::Private => flags | ast::ModifierFlags::PRIVATE,
-                    ast::ModifierKind::Abstract => flags | ast::ModifierFlags::ABSTRACT,
-                    ast::ModifierKind::Static => flags | ast::ModifierFlags::STATIC,
-                    ast::ModifierKind::Declare => flags | ast::ModifierFlags::DECLARE,
-                    ast::ModifierKind::Export => flags | ast::ModifierFlags::EXPORT,
-                });
+                .fold(Default::default(), |flags, m| flags | m.kind);
             let ms = self.alloc(ast::Modifiers {
                 span,
                 flags,
@@ -331,7 +343,7 @@ impl<'p, 't> ParserState<'p, 't> {
         }
 
         let id = self.next_node_id();
-        let kind = t.into();
+        let kind = t.try_into().unwrap();
         let m = self.alloc(ast::Modifier { id, span, kind });
         self.insert_map(id, ast::Node::Modifier(m));
         Ok(Some(m))
@@ -517,7 +529,8 @@ impl<'p, 't> ParserState<'p, 't> {
         lit
     }
 
-    pub(super) fn parse_string_lit(&mut self, val: AtomId) -> &'p ast::StringLit {
+    pub(super) fn parse_string_lit(&mut self) -> &'p ast::StringLit {
+        let val = self.string_token();
         let lit = self.create_lit(val, self.token.span);
         self.insert_map(lit.id, ast::Node::StringLit(lit));
         self.next_token();

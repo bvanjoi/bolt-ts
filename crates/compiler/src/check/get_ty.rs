@@ -115,6 +115,8 @@ impl<'cx> TyChecker<'cx> {
             Cond(node) => self.get_ty_from_cond_node(node),
             Union(_) => self.undefined_ty(),
             Intersection(_) => self.undefined_ty(),
+            BooleanLit(_) => todo!(),
+            NullLit(_) => todo!(),
         }
     }
 

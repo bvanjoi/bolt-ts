@@ -94,7 +94,7 @@ fn get_sig_from_decl<'cx>(checker: &mut TyChecker<'cx>, node: ast::Node<'cx>) ->
     }
     if let Some(c) = node.as_class_decl() {
         if let Some(mods) = c.modifiers {
-            if mods.flags.contains(ast::ModifierFlags::ABSTRACT) {
+            if mods.flags.contains(ast::ModifierKind::Abstract) {
                 flags.insert(SigFlags::HAS_ABSTRACT);
             }
         }

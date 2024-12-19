@@ -1,88 +1,95 @@
 use crate::atoms::AtomId;
-
-macro_rules! keyword {
-    ($(($name:ident, $name_str: ident, $kw:literal)),* $(,)?) => {
-        $(pub static $name: AtomId = AtomId::from_str($kw);)*
-        $(pub static $name_str: &'static str = $kw;)*
-        pub static KEYWORDS: &[(&str, AtomId)] = &[$(($kw, $name),)*];
+macro_rules! gen {
+    ($owner: ident, $(($name:ident, $lit:literal)),* $(,)?) => {
+        gen!($(($name, $lit)),*);
+        pub const $owner: &[(&str, AtomId)] = &[$(($lit, $name),)*];
+    };
+    ($(($name:ident, $lit:literal)),* $(,)?) => {
+        paste::paste! {
+            $(pub const [<$name _STR>]: &'static str = $lit;)*
+            $(pub const $name: AtomId = AtomId::from_str([<$name _STR>]);)*
+        }
     };
 }
 
-keyword!(
-    (KW_NULL, KW_NULL_STR, "null"),
-    (KW_FALSE, KW_FALSE_STR, "false"),
-    (KW_TRUE, KW_TRUE_STR, "true"),
-    (KW_VAR, KW_VAR_STR, "var"),
-    (KW_LET, KW_LET_STR, "let"),
-    (KW_CONST, KW_CONST_STR, "const"),
-    (KW_FUNCTION, KW_FUNCTION_STR, "function"),
-    (KW_RETURN, KW_RETURN_STR, "return"),
-    (KW_IF, KW_IF_STR, "if"),
-    (KW_ELSE, KW_ELSE_STR, "else"),
-    (KW_CLASS, KW_CLASS_STR, "class"),
-    (KW_EXTENDS, KW_EXTENDS_STR, "extends"),
-    (KW_NEW, KW_NEW_STR, "new"),
-    (KW_ASYNC, KW_ASYNC_STR, "async"),
-    (KW_THIS, KW_THIS_STR, "this"),
-    (KW_STATIC, KW_STATIC_STR, "static"),
-    (KW_CONSTRUCTOR, KW_CONSTRUCTOR_STR, "constructor"),
-    (KW_SUPER, KW_SUPER_STR, "super"),
-    (KW_GET, KW_GET_STR, "get"),
-    (KW_SET, KW_SET_STR, "set"),
-    (KW_IMPORT, KW_IMPORT_STR, "import"),
-    (KW_EXPORT, KW_EXPORT_STR, "export"),
-    (KW_DEFAULT, KW_DEFAULT_STR, "default"),
-    (KW_IN, KW_IN_STR, "in"),
+gen!(
+    KEYWORDS,
+    (KW_NULL, "null"),
+    (KW_FALSE, "false"),
+    (KW_TRUE, "true"),
+    (KW_VAR, "var"),
+    (KW_LET, "let"),
+    (KW_CONST, "const"),
+    (KW_FUNCTION, "function"),
+    (KW_RETURN, "return"),
+    (KW_IF, "if"),
+    (KW_ELSE, "else"),
+    (KW_CLASS, "class"),
+    (KW_EXTENDS, "extends"),
+    (KW_NEW, "new"),
+    (KW_ASYNC, "async"),
+    (KW_THIS, "this"),
+    (KW_STATIC, "static"),
+    (KW_CONSTRUCTOR, "constructor"),
+    (KW_SUPER, "super"),
+    (KW_GET, "get"),
+    (KW_SET, "set"),
+    (KW_IMPORT, "import"),
+    (KW_EXPORT, "export"),
+    (KW_DEFAULT, "default"),
+    (KW_THROW, "throw"),
+    (KW_TRY, "try"),
+    (KW_CATCH, "catch"),
+    (KW_FINALLY, "finally"),
+    (KW_DEBUGGER, "debugger"),
+    (KW_IN, "in"),
     // ts keywords
-    (KW_IMPLEMENTS, KW_IMPLEMENTS_STR, "implements"),
-    (KW_INTERFACE, KW_INTERFACE_STR, "interface"),
-    (KW_ABSTRACT, KW_ABSTRACT_STR, "abstract"),
-    (KW_PUBLIC, KW_PUBLIC_STR, "public"),
-    (KW_PRIVATE, KW_PRIVATE_STR, "private"),
-    (KW_AS, KW_AS_STR, "as"),
-    (KW_DECLARE, KW_DECLARE_STR, "declare"),
-    (KW_MODULE, KW_MODULE_STR, "module"),
-    (KW_NAMESPACE, KW_NAMESPACE_STR, "namespace"),
-    (KW_ENUM, KW_ENUM_STR, "enum"),
-    (KW_TYPE, KW_TYPE_STR, "type")
+    (KW_IMPLEMENTS, "implements"),
+    (KW_INTERFACE, "interface"),
+    (KW_ABSTRACT, "abstract"),
+    (KW_PUBLIC, "public"),
+    (KW_PRIVATE, "private"),
+    (KW_AS, "as"),
+    (KW_DECLARE, "declare"),
+    (KW_MODULE, "module"),
+    (KW_NAMESPACE, "namespace"),
+    (KW_ENUM, "enum"),
+    (KW_READONLY, "readonly"),
+    (KW_TYPE, "type"),
 );
 
-macro_rules! ident {
-    ($(($name:ident, $name_str: ident, $ident:literal)),* $(,)?) => {
-        $(pub static $name: AtomId = AtomId::from_str($ident);)*
-        $(pub static $name_str: &'static str = $ident;)*
-        pub static IDENTIFIER: &[(&str, AtomId)] = &[$(($ident, $name),)*];
-    };
-}
-
-ident!(
-    (IDENT_EMPTY, IDENT_EMPTY_STR, ""),
-    (IDENT_LENGTH, IDENT_LENGTH_STR, "length"),
-    (IDENT_ERROR, IDENT_ERROR_STR, "error"),
-    (IDENT_UNDEFINED, IDENT_UNDEFINED_STR, "undefined"),
-    (IDENT_ANY, IDENT_ANY_STR, "any"),
-    (IDENT_VOID, IDENT_VOID_STR, "void"),
-    (IDENT_NUMBER, IDENT_NUMBER_STR, "number"),
-    (IDENT_NUMBER_CLASS, IDENT_NUMBER_CLASS_STR, "Number"),
-    (IDENT_ARRAY, IDENT_ARRAY_STR, "array"),
-    (IDENT_ARRAY_CLASS, IDENT_ARRAY_CLASS_STR, "Array"),
-    (IDENT_STRING, IDENT_STRING_STR, "string"),
-    (IDENT_BOOLEAN, IDENT_BOOLEAN_STR, "boolean"),
-    (IDENT_NEVER, IDENT_NEVER_STR, "never"),
-    (IDENT_UNKNOWN, IDENT_UNKNOWN_STR, "unknown"),
+gen!(
+    IDENTIFIER,
+    (IDENT_EMPTY, ""),
+    (IDENT_LENGTH, "length"),
+    (IDENT_ERROR, "error"),
+    (IDENT_UNDEFINED, "undefined"),
+    (IDENT_ANY, "any"),
+    (IDENT_VOID, "void"),
+    (IDENT_NUMBER, "number"),
+    (IDENT_NUMBER_CLASS, "Number"),
+    (IDENT_ARRAY, "array"),
+    (IDENT_ARRAY_CLASS, "Array"),
+    (IDENT_STRING, "string"),
+    (IDENT_BOOLEAN, "boolean"),
+    (IDENT_NEVER, "never"),
+    (IDENT_UNKNOWN, "unknown"),
 );
 
 pub fn is_prim_ty_name(name: AtomId) -> bool {
-    name == IDENT_ANY
-        || name == IDENT_NUMBER
-        || name == IDENT_STRING
-        || name == IDENT_BOOLEAN
-        || name == IDENT_NEVER
-        || name == IDENT_UNKNOWN
-        || name == IDENT_VOID
-        || name == IDENT_UNDEFINED
+    matches!(
+        name,
+        IDENT_ANY
+            | IDENT_NUMBER
+            | IDENT_STRING
+            | IDENT_BOOLEAN
+            | IDENT_NEVER
+            | IDENT_UNKNOWN
+            | IDENT_VOID
+            | IDENT_UNDEFINED
+    )
 }
 
 pub fn is_prim_value_name(name: AtomId) -> bool {
-    name == IDENT_UNDEFINED || name == KW_NULL || name == KW_FALSE || name == KW_TRUE
+    matches!(name, KW_NULL | KW_FALSE | KW_TRUE | IDENT_UNDEFINED)
 }

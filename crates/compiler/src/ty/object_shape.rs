@@ -1,5 +1,4 @@
 use super::object_ty::{InterfaceTy, ObjectLitTy, TupleTy};
-use super::ArrayTy;
 use crate::bind::{SymbolID, SymbolName};
 use crate::keyword;
 

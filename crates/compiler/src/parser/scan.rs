@@ -2,8 +2,8 @@ use std::borrow::Cow;
 
 use bolt_ts_span::Span;
 
-use super::token::{keyword_idx_to_token, Token, TokenFlags, TokenKind, KEYWORD_TOKEN_START};
-use super::{ParserState, TokenValue};
+use super::token::{keyword_idx_to_token, Token, TokenFlags, TokenKind};
+use super::{PResult, ParserState, TokenValue};
 
 use crate::atoms::AtomId;
 use crate::keyword::KEYWORDS;
@@ -13,6 +13,7 @@ fn is_ascii_letter(ch: u8) -> bool {
     ch.is_ascii_alphabetic()
 }
 
+#[inline(always)]
 fn is_word_character(ch: u8) -> bool {
     is_ascii_letter(ch) || ch.is_ascii_digit() || ch == b'_'
 }
@@ -22,6 +23,7 @@ fn is_identifier_start(ch: u8) -> bool {
     ch == b'$' || ch == b'_' || is_ascii_letter(ch)
 }
 
+#[inline(always)]
 fn is_identifier_part(ch: u8) -> bool {
     ch == b'$' || is_word_character(ch)
 }
@@ -33,6 +35,8 @@ fn is_line_break(ch: u8) -> bool {
 fn is_octal_digit(ch: u8) -> bool {
     ch >= b'0' && ch <= b'7'
 }
+
+const UTF8_CHAR_LEN_MAX: u32 = 6;
 
 impl<'cx, 'p> ParserState<'cx, 'p> {
     fn ch(&self) -> Option<u8> {
@@ -156,45 +160,90 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         Token::new(TokenKind::Number, self.new_span(start, end))
     }
 
-    fn scan_identifier(&mut self, ch: u8) -> Token {
-        self.full_start_pos = self.pos;
-        let start = self.pos;
-        if is_identifier_start(ch) {
-            self.pos += 1;
-            loop {
-                if self.pos == self.end() {
-                    break;
-                } else if !is_identifier_part(self.ch_unchecked()) {
-                    break;
-                } else {
-                    self.pos += 1;
-                }
-            }
-            let raw = &self.input[start..self.pos];
-            let id = AtomId::from_bytes(raw);
-            if raw.len() >= 2 && raw.len() <= 12 {
-                if let Some(idx) = KEYWORDS.iter().position(|(_, kw)| (*kw == id)) {
-                    // keyword
-                    let kind = keyword_idx_to_token(idx);
-                    let span = self.new_span(start, self.pos);
-                    self.token_value = Some(TokenValue::Ident { value: id });
-                    return Token::new(kind, span);
-                }
-            }
-            self.atoms
-                .lock()
-                .unwrap()
-                .insert_if_not_exist(id, || unsafe {
-                    Cow::Owned(String::from_utf8_unchecked(raw.to_vec()))
-                });
-            self.token_value = Some(TokenValue::Ident { value: id });
-            Token::new(TokenKind::Ident, self.new_span(start, self.pos))
-        } else {
-            unreachable!("pos: {} ch: {}", self.pos, ch as char);
+    // From `quickjs/cutils.c/unicode_from_utf8`
+    #[cold]
+    fn scan_unicode_from_utf8(&mut self, max_len: u32) -> PResult<()> {
+        const UTF8_MIN_CODE: [u32; 5] = [0x80, 0x800, 0x10000, 0x00200000, 0x04000000];
+        const UTF8_FIRST_CODE_MASK: [u32; 5] = [0x1f, 0xf, 0x7, 0x3, 0x1];
+
+        let mut ch = self.ch_unchecked() as u32;
+        let mut offset = 1;
+        assert!(ch >= 0x80);
+        let l = match ch {
+            0xc0 | 0xc1 | 0xc2 | 0xc3 | 0xc4 | 0xc5 | 0xc6 | 0xc7 | 0xc8 | 0xc9 | 0xca | 0xcb
+            | 0xcc | 0xcd | 0xce | 0xcf | 0xd0 | 0xd1 | 0xd2 | 0xd3 | 0xd4 | 0xd5 | 0xd6 | 0xd7
+            | 0xd8 | 0xd9 | 0xda | 0xdb | 0xdc | 0xdd | 0xde | 0xdf => 1,
+            0xe0 | 0xe1 | 0xe2 | 0xe3 | 0xe4 | 0xe5 | 0xe6 | 0xe7 | 0xe8 | 0xe9 | 0xea | 0xeb
+            | 0xec | 0xed | 0xee | 0xef => 2,
+            0xf0 | 0xf1 | 0xf2 | 0xf3 | 0xf4 | 0xf5 | 0xf6 | 0xf7 => 3,
+            0xf8 | 0xf9 | 0xfa | 0xfb => 4,
+            0xfc | 0xfd => 5,
+            _ => return Err(()),
+        };
+        if l > (max_len - 1) {
+            return Err(());
         }
+        ch &= UTF8_FIRST_CODE_MASK[(l - 1) as usize];
+        for _ in 0..l {
+            let b = self.input[self.pos + offset] as u32;
+            offset += 1;
+            if b < 0x80 || b >= 0xc0 {
+                return Err(());
+            }
+            ch = (ch << 6) | (b & 0x3f);
+        }
+        if ch < UTF8_MIN_CODE[(l - 1) as usize] {
+            return Err(());
+        }
+        self.pos += offset;
+        Ok(())
+    }
+
+    fn scan_identifier(&mut self, ch: u8) -> PResult<Token> {
+        let start = self.pos;
+        let mut first = true;
+        loop {
+            if first {
+                if is_identifier_start(ch) {
+                    self.pos += 1;
+                } else {
+                    assert!(ch >= 128);
+                    self.scan_unicode_from_utf8(UTF8_CHAR_LEN_MAX)?;
+                }
+                first = false;
+            } else if self.pos == self.end() {
+                break;
+            } else if is_identifier_part(self.ch_unchecked()) {
+                self.pos += 1
+            } else if self.ch_unchecked() < 128 {
+                break;
+            } else {
+                self.scan_unicode_from_utf8(UTF8_CHAR_LEN_MAX)?
+            }
+        }
+        let raw = &self.input[start..self.pos];
+        let id = AtomId::from_bytes(raw);
+        if raw.len() >= 2 && raw.len() <= 12 {
+            if let Some(idx) = KEYWORDS.iter().position(|(_, kw)| (*kw == id)) {
+                // keyword
+                let kind = keyword_idx_to_token(idx);
+                let span = self.new_span(start, self.pos);
+                self.token_value = Some(TokenValue::Ident { value: id });
+                return Ok(Token::new(kind, span));
+            }
+        }
+        self.atoms
+            .lock()
+            .unwrap()
+            .insert_if_not_exist(id, || unsafe {
+                Cow::Owned(String::from_utf8_unchecked(raw.to_vec()))
+            });
+        self.token_value = Some(TokenValue::Ident { value: id });
+        Ok(Token::new(TokenKind::Ident, self.new_span(start, self.pos)))
     }
 
     pub(super) fn next_token(&mut self) {
+        self.full_start_pos = self.pos;
         let start = self.pos;
         self.token_flags = TokenFlags::empty();
         let mut token_start;
@@ -204,7 +253,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
                 self.token = Token::new(TokenKind::EOF, self.new_span(start, start));
                 return;
             }
-            let ch = self.input[self.pos];
+            let ch = self.ch_unchecked();
             if self.pos == 0 && ch == b'#' {
                 // TODO: Handle shebang
             }
@@ -429,7 +478,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
                     self.pos += 1;
                     continue;
                 }
-                _ => self.scan_identifier(ch),
+                _ => self.scan_identifier(ch).unwrap(),
             };
             self.token = token;
             break;

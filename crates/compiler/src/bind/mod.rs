@@ -185,6 +185,9 @@ impl<'cx> BinderState<'cx> {
             Interface(interface) => self.bind_interface_decl(interface),
             Type(t) => self.bind_type_decl(t),
             Namespace(_) => {}
+            Throw(t) => {
+                self.bind_expr(t.expr);
+            }
         }
     }
 
@@ -298,6 +301,7 @@ impl<'cx> BinderState<'cx> {
         match name.kind {
             ast::PropNameKind::Ident(ident) => SymbolName::Ele(ident.name),
             ast::PropNameKind::NumLit(num) => SymbolName::EleNum(num.val.into()),
+            ast::PropNameKind::StringLit(lit) => SymbolName::Ele(lit.val),
         }
     }
 
@@ -446,7 +450,7 @@ impl<'cx> BinderState<'cx> {
                 self.bind_params(f.params);
                 self.bind_ty(f.ret_ty);
             }
-            NumLit(_) | StringLit(_) => {}
+            NumLit(_) | StringLit(_) | NullLit(_) | BooleanLit(_) => {}
             Union(u) => {
                 for ty in u.tys {
                     self.bind_ty(ty);

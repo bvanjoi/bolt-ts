@@ -242,10 +242,8 @@ impl<'cx> TyChecker<'cx> {
         let arg_count = args.len();
         if args.is_empty() {
             return min_args == 0;
-        } else {
-            if let Some(spread_arg_index) = self.get_spread_arg_index(args) {
-                return spread_arg_index >= min_args && spread_arg_index < param_count;
-            }
+        } else if let Some(spread_arg_index) = self.get_spread_arg_index(args) {
+            return spread_arg_index >= min_args && spread_arg_index < param_count;
         }
 
         if arg_count > param_count && !self.has_effective_rest_params(sig) {
@@ -286,6 +284,10 @@ impl<'cx> TyChecker<'cx> {
         expr: &impl CallLikeExpr<'cx>,
         sigs: Sigs<'cx>,
     ) -> &'cx Sig<'cx> {
+        if sigs.is_empty() {
+            return self.unknown_sig();
+        }
+
         let mut min_required_params = usize::MAX;
         let mut max_required_params = usize::MIN;
 
@@ -329,6 +331,7 @@ impl<'cx> TyChecker<'cx> {
                     param_ty,
                     RelationKind::Assignable,
                     |this, span, source, target| {
+                        let source = this.get_base_ty_of_literal_ty(source);
                         Box::new(errors::ArgumentOfTyIsNotAssignableToParameterOfTy {
                             span,
                             arg_ty: this.print_ty(source).to_string(),

@@ -132,7 +132,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         if is_left_hand_side_expr_kind(expr) && self.re_scan_greater().is_assignment() {
             let id = self.next_node_id();
             self.parent_map.r#override(expr.id(), id);
-            let op = self.token.kind.into_assign_op();
+            let op = self.token.kind.into();
             self.parse_token_node();
             let right = self.with_parent(id, Self::parse_assign_expr)?;
             let expr = self.alloc(ast::AssignExpr {
@@ -409,7 +409,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
                 ast::ExprKind::NullLit(lit)
             }
             String | NoSubstitutionTemplate => {
-                let lit = self.parse_string_lit(self.string_token());
+                let lit = self.parse_string_lit();
                 ast::ExprKind::StringLit(lit)
             }
             This => {

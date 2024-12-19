@@ -39,5 +39,5 @@ pub fn run_node(p: &std::path::Path) -> Result<Option<String>, String> {
 
 pub fn temp_node_file(name: &str) -> std::path::PathBuf {
     let temp_dir = tempdir::TempDir::new("bolt-ts-compiler-temp").unwrap();
-    temp_dir.into_path().join(&format!("{}.js", name))
+    temp_dir.into_path().join(format!("{}.js", name))
 }

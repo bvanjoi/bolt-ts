@@ -1,7 +1,6 @@
 use rustc_hash::FxHashMap;
 
-use crate::atoms::AtomMap;
-use crate::bind::{Binder, SymbolID, SymbolName};
+use crate::bind::{SymbolID, SymbolName};
 use crate::check::TyChecker;
 
 use super::{Sig, Ty};
@@ -151,11 +150,6 @@ pub struct TupleShape<'cx> {
 pub struct ReferenceTy<'cx> {
     pub ty_args: super::Tys<'cx>,
     pub target: &'cx Ty<'cx>,
-}
-
-#[derive(Debug, Clone, Copy)]
-pub struct ArrayTy<'cx> {
-    pub ty: &'cx Ty<'cx>,
 }
 
 #[derive(Debug, Clone, Copy)]

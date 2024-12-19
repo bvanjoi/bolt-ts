@@ -264,7 +264,7 @@ impl<'cx> TyChecker<'cx> {
             let node_id = class_node_id.unwrap();
             if let Some(c) = self.p.node(node_id).as_class_decl() {
                 if let Some(mods) = c.modifiers {
-                    if mods.flags.contains(ast::ModifierFlags::ABSTRACT) {
+                    if mods.flags.contains(ast::ModifierKind::Abstract) {
                         flags.insert(SigFlags::HAS_ABSTRACT);
                     }
                 }

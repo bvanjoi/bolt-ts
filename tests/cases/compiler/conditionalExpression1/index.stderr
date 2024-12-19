@@ -1,5 +1,5 @@
   × Type 'number | string' is not assignable to type 'boolean'.
-   ╭─[../../tests/cases/compiler/conditionalExpression1/index.ts:1:5]
- 1 │ x
+   ╭─[../../tests/cases/compiler/conditionalExpression1/index.ts:3:5]
+ 3 │ x
    · ─
    ╰────

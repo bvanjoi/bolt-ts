@@ -338,16 +338,16 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
                     let ty = match node.kind {
                         Number => {
                             let val = token_val.number();
-                            let lit = self.create_lit(val, self.token.span);
-                            self.insert_map(lit.id, ast::Node::NumLit(lit));
+                            let lit = self.create_lit_ty(val, self.token.span);
+                            self.insert_map(lit.id, ast::Node::NumLitTy(lit));
                             self.alloc(ast::Ty {
                                 kind: ast::TyKind::NumLit(lit),
                             })
                         }
                         String => {
                             let val = token_val.ident();
-                            let lit = self.create_lit(val, self.token.span);
-                            self.insert_map(lit.id, ast::Node::StringLit(lit));
+                            let lit = self.create_lit_ty(val, self.token.span);
+                            self.insert_map(lit.id, ast::Node::StringLitTy(lit));
                             self.alloc(ast::Ty {
                                 kind: ast::TyKind::StringLit(lit),
                             })
@@ -374,7 +374,10 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
             Minus => {
                 if self.lookahead(Self::next_token_is_numeric_or_big_int_literal) {
                     self.next_token();
-                    let lit = self.parse_num_lit(self.number_token(), true);
+                    let val = -self.number_token();
+                    let lit = self.create_lit_ty(val, self.token.span);
+                    self.insert_map(lit.id, ast::Node::NumLitTy(lit));
+                    self.next_token();
                     let ty = self.alloc(ast::Ty {
                         kind: ast::TyKind::NumLit(lit),
                     });
@@ -473,6 +476,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         let id = self.next_node_id();
         let start = self.token.start();
         let name = self.with_parent(id, Self::parse_prop_name)?;
+        let question = self.parse_optional(TokenKind::Question).map(|t| t.span);
         let kind = if self.token.kind == TokenKind::LParen {
             let ty_params = self.with_parent(id, Self::parse_ty_params)?;
             let params = self.with_parent(id, Self::parse_params)?;
@@ -481,6 +485,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
                 id,
                 span: self.new_span(start as usize, self.pos),
                 name,
+                question,
                 ty_params,
                 params,
                 ret,
@@ -493,6 +498,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
                 id,
                 span: self.new_span(start as usize, self.pos),
                 name,
+                question,
                 ty,
             });
             self.insert_map(id, ast::Node::PropSignature(sig));

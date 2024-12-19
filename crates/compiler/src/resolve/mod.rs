@@ -71,6 +71,9 @@ impl<'cx, 'r> Resolver<'cx, 'r> {
             Interface(interface) => self.resolve_interface_decl(interface),
             Type(ty) => self.resolve_type_decl(ty),
             Namespace(_) => {}
+            Throw(t) => {
+                self.resolve_expr(t.expr);
+            }
         };
     }
 
@@ -179,6 +182,8 @@ impl<'cx, 'r> Resolver<'cx, 'r> {
                     self.resolve_ty(ty);
                 }
             }
+            BooleanLit(_) => todo!(),
+            NullLit(_) => todo!(),
         }
     }
 
@@ -398,7 +403,7 @@ impl<'cx, 'r> Resolver<'cx, 'r> {
             }) {
                 if prop
                     .modifiers
-                    .map(|mods| mods.flags.contains(ast::ModifierFlags::STATIC))
+                    .map(|mods| mods.flags.contains(ast::ModifierKind::Static))
                     .unwrap_or_default()
                 {
                     let ast::PropNameKind::Ident(prop_name) = prop.name.kind else {

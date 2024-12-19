@@ -16,7 +16,6 @@ use std::sync::{Arc, Mutex};
 use bolt_ts_span::{Module, ModuleArena, ModuleID, Span};
 use rayon::prelude::*;
 use rustc_hash::FxHashMap;
-use utils::ParseSuccess;
 
 pub use self::token::KEYWORD_TOKEN_START;
 use self::token::{Token, TokenFlags, TokenKind};
@@ -253,8 +252,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         if self.token.kind == TokenKind::Semi {
             true
         } else {
-            self.token.kind == TokenKind::RBrace
-                || self.token.kind == TokenKind::EOF
+            matches!(self.token.kind, TokenKind::RBrace | TokenKind::EOF)
                 || self
                     .token_flags
                     .intersects(TokenFlags::PRECEDING_LINE_BREAK)
@@ -392,6 +390,11 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
     fn create_lit<T>(&mut self, val: T, span: Span) -> &'cx ast::Lit<T> {
         let id = self.next_node_id();
         self.alloc(ast::Lit { id, val, span })
+    }
+
+    fn create_lit_ty<T>(&mut self, val: T, span: Span) -> &'cx ast::LitTy<T> {
+        let id = self.next_node_id();
+        self.alloc(ast::LitTy { id, val, span })
     }
 
     #[inline]

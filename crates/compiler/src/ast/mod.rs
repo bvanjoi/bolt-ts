@@ -32,6 +32,14 @@ pub enum StmtKind<'cx> {
     Interface(&'cx InterfaceDecl<'cx>),
     Type(&'cx TypeDecl<'cx>),
     Namespace(&'cx NsDecl<'cx>),
+    Throw(&'cx ThrowStmt<'cx>),
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct ThrowStmt<'cx> {
+    pub id: NodeID,
+    pub span: Span,
+    pub expr: &'cx Expr<'cx>,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -56,6 +64,7 @@ pub struct TypeDecl<'cx> {
 pub struct InterfaceDecl<'cx> {
     pub id: NodeID,
     pub span: Span,
+    pub modifiers: Option<&'cx Modifiers<'cx>>,
     pub name: &'cx Ident,
     pub ty_params: Option<TyParams<'cx>>,
     pub extends: Option<&'cx InterfaceExtendsClause<'cx>>,
@@ -92,6 +101,7 @@ pub struct PropSignature<'cx> {
     pub id: NodeID,
     pub span: Span,
     pub name: &'cx PropName<'cx>,
+    pub question: Option<Span>,
     pub ty: Option<&'cx self::Ty<'cx>>,
 }
 
@@ -100,6 +110,7 @@ pub struct MethodSignature<'cx> {
     pub id: NodeID,
     pub span: Span,
     pub name: &'cx PropName<'cx>,
+    pub question: Option<Span>,
     pub ty_params: Option<TyParams<'cx>>,
     pub params: ParamsDecl<'cx>,
     pub ret: Option<&'cx self::Ty<'cx>>,
@@ -641,6 +652,8 @@ impl Ty<'_> {
             TyKind::Refer(n) => n.span,
             TyKind::Union(n) => n.span,
             TyKind::Intersection(n) => n.span,
+            TyKind::BooleanLit(n) => n.span,
+            TyKind::NullLit(n) => n.span,
         }
     }
 
@@ -659,6 +672,8 @@ impl Ty<'_> {
             TyKind::Refer(n) => n.id,
             TyKind::Union(n) => n.id,
             TyKind::Intersection(n) => n.id,
+            TyKind::BooleanLit(n) => n.id,
+            TyKind::NullLit(n) => n.id,
         }
     }
 }
@@ -671,14 +686,28 @@ pub enum TyKind<'cx> {
     Fn(&'cx FnTy<'cx>),
     ObjectLit(&'cx ObjectLitTy<'cx>),
     ExprWithArg(&'cx Expr<'cx>),
-    NumLit(&'cx NumLit),
-    StringLit(&'cx StringLit),
+    NumLit(&'cx NumLitTy),
+    BooleanLit(&'cx BoolLitTy),
+    NullLit(&'cx NullLitTy),
+    StringLit(&'cx StringLitTy),
     Tuple(&'cx TupleTy<'cx>),
     Rest(&'cx RestTy<'cx>),
     Cond(&'cx CondTy<'cx>),
     Union(&'cx UnionTy<'cx>),
     Intersection(&'cx IntersectionTy<'cx>),
 }
+
+#[derive(Debug, Clone, Copy)]
+pub struct LitTy<T> {
+    pub id: NodeID,
+    pub val: T,
+    pub span: Span,
+}
+
+pub type NumLitTy = LitTy<f64>;
+pub type BoolLitTy = LitTy<bool>;
+pub type NullLitTy = LitTy<()>;
+pub type StringLitTy = LitTy<AtomId>;
 
 #[derive(Debug, Clone, Copy)]
 pub struct UnionTy<'cx> {
@@ -784,6 +813,7 @@ impl<'cx> PropName<'cx> {
         match self.kind {
             PropNameKind::Ident(ident) => ident.span,
             PropNameKind::NumLit(num) => num.span,
+            PropNameKind::StringLit(lit) => lit.span,
         }
     }
 }
@@ -791,6 +821,7 @@ impl<'cx> PropName<'cx> {
 #[derive(Debug, Clone, Copy)]
 pub enum PropNameKind<'cx> {
     Ident(&'cx Ident),
+    StringLit(&'cx StringLit),
     NumLit(&'cx NumLit),
 }
 
@@ -844,33 +875,24 @@ pub struct CallExpr<'cx> {
     pub args: Exprs<'cx>,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[enumflags2::bitflags]
+#[repr(u8)]
+#[derive(Copy, Clone, Debug, PartialEq)]
 pub enum ModifierKind {
-    Public,
-    Private,
-    Abstract,
-    Static,
-    Declare,
-    Export,
+    Public = 1 << 0,
+    Private = 1 << 1,
+    Abstract = 1 << 2,
+    Static = 1 << 3,
+    Declare = 1 << 4,
+    Export = 1 << 5,
+    Readonly = 1 << 6,
 }
 
 #[derive(Debug, Clone, Copy)]
 pub struct Modifiers<'cx> {
     pub span: Span,
-    pub flags: ModifierFlags,
+    pub flags: enumflags2::BitFlags<ModifierKind>,
     pub list: &'cx [&'cx Modifier],
-}
-
-bitflags::bitflags! {
-    #[derive(Debug, Clone, Copy)]
-    pub struct ModifierFlags: u8 {
-        const PUBLIC    = 1 << 0;
-        const PRIVATE   = 1 << 1;
-        const ABSTRACT  = 1 << 2;
-        const STATIC    = 1 << 3;
-        const DECLARE   = 1 << 4;
-        const EXPORT    = 1 << 5;
-    }
 }
 
 #[derive(Debug, Clone, Copy)]

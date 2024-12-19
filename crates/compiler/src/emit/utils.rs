@@ -38,10 +38,16 @@ impl<'cx> Emit<'cx> {
         match name.kind {
             Ident(ident) => self.emit_ident(ident),
             NumLit(num) => self.emit_num_lit(num),
+            StringLit(lit) => self.emit_string_lit(lit),
         }
     }
 
     pub(super) fn emit_num_lit(&mut self, num: &'cx ast::NumLit) {
         self.content.p(&num.val.to_string())
+    }
+    pub(super) fn emit_string_lit(&mut self, s: &'cx ast::StringLit) {
+        self.content.p("'");
+        self.content.p(self.atoms.get(s.val));
+        self.content.p("'");
     }
 }

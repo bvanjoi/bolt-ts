@@ -122,7 +122,7 @@ pub fn eval_from(m: ModulePath) -> Output {
     checker.check_program(p.root(m.id));
 
     // emit
-    let mut emitter = emit::Emit::new(&checker.atoms);
+    let mut emitter = emit::Emit::new(checker.atoms);
     let output = emitter.emit(p.root(m.id));
 
     let diags: Vec<_> = checker
@@ -148,7 +148,7 @@ pub fn eval_and_emit(entry: PathBuf) {
 }
 
 const RED_ZONE: usize = 100 * 1024; // 100k
-const STACK_PER_RECURSION: usize = 1 * 1024 * 1024; // 1MB
+const STACK_PER_RECURSION: usize = 1024 * 1024; // 1MB
 
 fn ensure_sufficient_stack<R, F: FnOnce() -> R>(f: F) -> R {
     stacker::maybe_grow(RED_ZONE, STACK_PER_RECURSION, f)

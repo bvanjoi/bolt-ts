@@ -15,8 +15,8 @@ pub use self::mapper::{DeferredTyMapper, FnTyMapper, MergedTyMapper, SimpleTyMap
 pub use self::object_shape::ObjectShape;
 pub use self::object_ty::ElementFlags;
 pub use self::object_ty::ReferenceTy;
-pub use self::object_ty::{ArrayTy, IndexInfo, ObjectTy, TupleShape, TupleTy};
 pub use self::object_ty::{ClassTy, FnTy, InterfaceTy, ObjectLitTy, ObjectTyKind};
+pub use self::object_ty::{IndexInfo, ObjectTy, TupleShape, TupleTy};
 pub use self::sig::{Sig, SigFlags, Sigs};
 
 bolt_ts_span::new_index!(TyID);
@@ -141,14 +141,14 @@ impl<'cx> Ty<'cx> {
             return format!("{ele}[]");
         }
         match self.kind {
-            TyKind::NumberLit(_) => "number".to_string(),
+            TyKind::NumberLit(lit) => format!("{}", lit.val),
+            TyKind::StringLit(lit) => format!("\"{}\"", checker.atoms.get(lit.val)),
             TyKind::Union(union) => union
                 .tys
                 .iter()
                 .map(|ty| ty.to_string(checker))
                 .collect::<Vec<_>>()
                 .join(" | "),
-            TyKind::StringLit(_) => todo!(),
             TyKind::Object(object) => object.kind.to_string(checker),
             TyKind::Var(id) => {
                 // todo: delay bug
@@ -171,7 +171,7 @@ impl<'cx> Ty<'cx> {
     }
 }
 
-impl<'cx> TyKind<'cx> {
+impl TyKind<'_> {
     pub fn is_primitive(&self) -> bool {
         use TyKind::*;
         if self.is_string_like() || self.is_number_like() || self.is_boolean_like() {

@@ -46,6 +46,7 @@ impl<'cx> VarLike<'cx> for ast::ClassPropEle<'cx> {
         match self.name.kind {
             ast::PropNameKind::Ident(ident) => ident,
             ast::PropNameKind::NumLit(_) => todo!(),
+            ast::PropNameKind::StringLit(lit) => todo!(),
         }
     }
     fn decl_ty(&self) -> Option<&'cx ast::Ty<'cx>> {
@@ -64,6 +65,7 @@ impl<'cx> VarLike<'cx> for ast::PropSignature<'cx> {
         match self.name.kind {
             ast::PropNameKind::Ident(ident) => ident,
             ast::PropNameKind::NumLit(_) => todo!(),
+            ast::PropNameKind::StringLit(lit) => todo!(),
         }
     }
     fn decl_ty(&self) -> Option<&'cx ast::Ty<'cx>> {

@@ -25,7 +25,7 @@ impl<'cx> BinderState<'cx> {
             } else if let SymbolKind::BlockContainer { locals } = s {
                 locals
             } else {
-                unreachable!()
+                unreachable!("{:#?}", s)
             }
         }
 

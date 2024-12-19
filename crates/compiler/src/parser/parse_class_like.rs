@@ -290,9 +290,8 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
                 this.token.kind == LParen
             })
         {
-            let val = self.string_token();
             self.try_parse(|this| {
-                let lit = this.parse_string_lit(val);
+                let lit = this.parse_string_lit();
                 if lit.val == keyword::KW_CONSTRUCTOR {
                     true
                 } else {

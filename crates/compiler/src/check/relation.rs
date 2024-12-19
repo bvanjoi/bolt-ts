@@ -55,6 +55,8 @@ impl<'cx> TyChecker<'cx> {
     fn is_simple_type_related_to(&self, source: &'cx Ty<'cx>, target: &'cx Ty<'cx>) -> bool {
         if source.kind.is_number_like() && target.kind.is_number() {
             true
+        } else if source.kind.is_string_like() && target.kind.is_string() {
+            true
         } else if source.kind.is_any() {
             true
         } else {
@@ -259,15 +261,13 @@ impl<'cx> TyChecker<'cx> {
             target,
             RelationKind::Assignable,
             |this, span, source, target| {
-                if let TyKind::NumberLit(source) = source.kind {
-                    if let TyKind::NumberLit(target) = target.kind {
-                        return Box::new(errors::TypeIsNotAssignableToType {
-                            span,
-                            ty1: source.val.to_string(),
-                            ty2: target.val.to_string(),
-                        });
-                    }
-                }
+                let source = if (source.kind.is_number_lit() && target.kind.is_number_lit())
+                    || (source.kind.is_string_lit() && target.kind.is_string_lit())
+                {
+                    source
+                } else {
+                    this.get_base_ty_of_literal_ty(source)
+                };
                 Box::new(errors::TypeIsNotAssignableToType {
                     span,
                     ty1: this.print_ty(source).to_string(),

@@ -34,6 +34,7 @@ pub enum Node<'cx> {
     InterfaceExtendsClause(&'cx ast::InterfaceExtendsClause<'cx>),
     ImplementsClause(&'cx ast::ImplementsClause<'cx>),
     BlockStmt(&'cx ast::BlockStmt<'cx>),
+    ThrowStmt(&'cx ast::ThrowStmt<'cx>),
     Modifier(&'cx ast::Modifier),
 
     // expr
@@ -62,6 +63,8 @@ pub enum Node<'cx> {
     ThisExpr(&'cx ast::ThisExpr),
 
     // ty
+    NumLitTy(&'cx ast::NumLitTy),
+    StringLitTy(&'cx ast::StringLitTy),
     ReferTy(&'cx ast::ReferTy<'cx>),
     ArrayTy(&'cx ast::ArrayTy<'cx>),
     IndexedAccessTy(&'cx ast::IndexedAccessTy<'cx>),
@@ -149,8 +152,8 @@ impl<'cx> Node<'cx> {
             (IndexedAccessTy, IndexedAccess),
             (FnTy, Fn),
             (ObjectLitTy, ObjectLit),
-            (NumLit, NumLit),
-            (StringLit, StringLit),
+            (NumLitTy, NumLit),
+            (StringLitTy, StringLit),
             (TupleTy, Tuple),
             (RestTy, Rest),
             (CondTy, Cond),
@@ -401,6 +404,20 @@ as_node!(
     ),
     (FnTy, &'cx ast::FnTy<'cx>, as_fn_ty, expect_fn_ty, is_fn_ty),
     (
+        StringLitTy,
+        &'cx ast::StringLitTy,
+        as_string_lit_ty,
+        expect_string_lit_ty,
+        is_string_lit_ty
+    ),
+    (
+        NumLitTy,
+        &'cx ast::NumLitTy,
+        as_num_lit_ty,
+        expect_num_lit_ty,
+        is_num_lit_ty
+    ),
+    (
         ObjectLitTy,
         &'cx ast::ObjectLitTy<'cx>,
         as_object_lit_ty,
@@ -617,4 +634,11 @@ as_node!(
         expect_union_ty,
         is_union_ty
     ),
+    (
+        ThrowStmt,
+        &'cx ast::ThrowStmt<'cx>,
+        as_throw_stmt,
+        expect_throw_stmt,
+        is_throw_stmt
+    )
 );

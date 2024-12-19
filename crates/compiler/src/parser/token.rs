@@ -166,6 +166,11 @@ pub enum TokenKind {
     Import,
     Export,
     Default,
+    Throw,
+    Try,
+    Catch,
+    Finally,
+    Debugger,
     In,
     // ts keyword
     Implements,
@@ -178,12 +183,13 @@ pub enum TokenKind {
     Module,
     Namespace,
     Enum,
+    Readonly,
     Type,
 }
 
-impl Into<BinOpKind> for TokenKind {
-    fn into(self) -> BinOpKind {
-        match self {
+impl From<TokenKind> for BinOpKind {
+    fn from(value: TokenKind) -> Self {
+        match value {
             TokenKind::Plus => BinOpKind::Add,
             TokenKind::Pipe => BinOpKind::Pipe,
             TokenKind::PipePipe => BinOpKind::PipePipe,
@@ -204,38 +210,58 @@ impl Into<BinOpKind> for TokenKind {
             TokenKind::GreatGreat => BinOpKind::Shr,
             TokenKind::GreatGreatGreat => BinOpKind::UShr,
             _ => {
-                unreachable!("{:#?}", self)
+                unreachable!("{:#?}", value)
             }
         }
     }
 }
 
-impl Into<PrefixUnaryOp> for TokenKind {
-    fn into(self) -> PrefixUnaryOp {
-        match self {
+impl From<TokenKind> for PrefixUnaryOp {
+    fn from(value: TokenKind) -> Self {
+        match value {
             TokenKind::Plus => PrefixUnaryOp::Plus,
             TokenKind::Minus => PrefixUnaryOp::Minus,
             TokenKind::PlusPlus => PrefixUnaryOp::PlusPlus,
             TokenKind::MinusMinus => PrefixUnaryOp::MinusMinus,
             _ => {
-                unreachable!("{:#?}", self)
+                unreachable!("{:#?}", value)
             }
         }
     }
 }
 
-impl Into<ModifierKind> for TokenKind {
-    fn into(self) -> ModifierKind {
-        match self {
-            TokenKind::Public => ModifierKind::Public,
-            TokenKind::Abstract => ModifierKind::Abstract,
-            TokenKind::Static => ModifierKind::Static,
-            TokenKind::Declare => ModifierKind::Declare,
-            TokenKind::Private => ModifierKind::Private,
-            TokenKind::Export => ModifierKind::Export,
-            _ => {
-                unreachable!("{:#?}", self)
-            }
+impl TryFrom<TokenKind> for ModifierKind {
+    type Error = ();
+    fn try_from(value: TokenKind) -> Result<Self, Self::Error> {
+        match value {
+            TokenKind::Public => Ok(ModifierKind::Public),
+            TokenKind::Abstract => Ok(ModifierKind::Abstract),
+            TokenKind::Static => Ok(ModifierKind::Static),
+            TokenKind::Declare => Ok(ModifierKind::Declare),
+            TokenKind::Private => Ok(ModifierKind::Private),
+            TokenKind::Export => Ok(ModifierKind::Export),
+            TokenKind::Readonly => Ok(ModifierKind::Readonly),
+            _ => Err(()),
+        }
+    }
+}
+
+impl From<TokenKind> for AssignOp {
+    fn from(value: TokenKind) -> Self {
+        match value {
+            TokenKind::Eq => AssignOp::Eq,
+            TokenKind::PlusEq => AssignOp::AddEq,
+            TokenKind::MinusEq => AssignOp::SubEq,
+            TokenKind::AsteriskEq => AssignOp::MulEq,
+            TokenKind::SlashEq => AssignOp::DivEq,
+            TokenKind::PercentEq => AssignOp::ModEq,
+            TokenKind::AmpEq => AssignOp::BitAndEq,
+            TokenKind::PipeEq => AssignOp::BitOrEq,
+            TokenKind::LessLessEq => AssignOp::ShlEq,
+            TokenKind::GreatGreatEq => AssignOp::ShrEq,
+            TokenKind::GreatGreatGreatEq => AssignOp::UShrEq,
+            TokenKind::CaretEq => AssignOp::BitXorEq,
+            _ => unreachable!(),
         }
     }
 }
@@ -252,24 +278,6 @@ impl TokenKind {
             AmpAmp => BinPrec::LogicalAnd,
             EqEq | EqEqEq => BinPrec::Eq,
             _ => BinPrec::Invalid,
-        }
-    }
-
-    pub fn into_assign_op(self) -> AssignOp {
-        match self {
-            TokenKind::Eq => AssignOp::Eq,
-            TokenKind::PlusEq => AssignOp::AddEq,
-            TokenKind::MinusEq => AssignOp::SubEq,
-            TokenKind::AsteriskEq => AssignOp::MulEq,
-            TokenKind::SlashEq => AssignOp::DivEq,
-            TokenKind::PercentEq => AssignOp::ModEq,
-            TokenKind::AmpEq => AssignOp::BitAndEq,
-            TokenKind::PipeEq => AssignOp::BitOrEq,
-            TokenKind::LessLessEq => AssignOp::ShlEq,
-            TokenKind::GreatGreatEq => AssignOp::ShrEq,
-            TokenKind::GreatGreatGreatEq => AssignOp::UShrEq,
-            TokenKind::CaretEq => AssignOp::BitXorEq,
-            _ => unreachable!(),
         }
     }
 
@@ -352,11 +360,7 @@ impl TokenKind {
     }
 
     pub fn is_modifier_kind(self) -> bool {
-        use TokenKind::*;
-        matches!(
-            self,
-            Abstract | Const | Declare | Static | Export | In | Public | Private
-        )
+        TryInto::<ModifierKind>::try_into(self).is_ok()
     }
 
     pub fn is_accessibility_modifier(self) -> bool {

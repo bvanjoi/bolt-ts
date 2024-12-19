@@ -7,6 +7,7 @@ mod check_fn_like_symbol;
 mod check_interface;
 mod check_var_like;
 mod create_ty;
+mod get_base_ty;
 mod get_contextual_ty;
 mod get_declared_ty;
 mod get_effective_node;
@@ -264,6 +265,7 @@ impl<'cx> TyChecker<'cx> {
             Interface(interface) => self.check_interface_decl(interface),
             Type(_) => {}
             Namespace(_) => {}
+            Throw(_) => {}
         };
     }
 
@@ -318,6 +320,7 @@ impl<'cx> TyChecker<'cx> {
                 let prop_name = match prop_name.kind {
                     ast::PropNameKind::Ident(ident) => self.atoms.get(ident.name).to_string(),
                     ast::PropNameKind::NumLit(num) => num.val.to_string(),
+                    ast::PropNameKind::StringLit(lit) => self.atoms.get(lit.val).to_string(),
                 };
                 let error = errors::PropertyAOfTypeBIsNotAssignableToCIndexTypeD {
                     span: prop_node.span(),
@@ -461,11 +464,27 @@ impl<'cx> TyChecker<'cx> {
         ty
     }
 
-    fn check_expr(&mut self, expr: &'cx ast::Expr) -> &'cx Ty<'cx> {
+    fn get_widened_literal_ty(&self, ty: &'cx Ty<'cx>) -> &'cx Ty<'cx> {
+        if ty.kind.is_number_lit() {
+            self.number_ty()
+        } else if ty.kind.is_string_lit() {
+            self.string_ty()
+        } else {
+            ty
+        }
+    }
+
+    fn check_expr_for_mutable_location(&mut self, expr: &'cx ast::Expr<'cx>) -> &'cx Ty<'cx> {
+        let ty = self.check_expr(expr);
+        self.get_widened_literal_ty(ty)
+    }
+
+    fn check_expr(&mut self, expr: &'cx ast::Expr<'cx>) -> &'cx Ty<'cx> {
         use ast::ExprKind::*;
         match expr.kind {
             Bin(bin) => self.check_bin_expr(bin),
             NumLit(lit) => self.get_number_literal_type(lit.val),
+            StringLit(lit) => self.get_string_literal_type(lit.val),
             BoolLit(lit) => {
                 if lit.val {
                     self.true_ty()
@@ -475,7 +494,6 @@ impl<'cx> TyChecker<'cx> {
             }
             NullLit(_) => self.null_ty(),
             Ident(ident) => self.check_ident(ident),
-            StringLit(_) => self.string_ty(),
             ArrayLit(lit) => self.check_array_lit(lit),
             Omit(_) => self.undefined_ty(),
             Paren(paren) => self.check_expr(paren.expr),
@@ -630,6 +648,7 @@ impl<'cx> TyChecker<'cx> {
                     SymbolName::EleNum(F64Represent::new(num.val)),
                     member_symbol,
                 ),
+                ast::PropNameKind::StringLit(lit) => (SymbolName::Ele(lit.val), member_symbol),
             }
         });
         let map = FxHashMap::from_iter(entires);
@@ -652,7 +671,7 @@ impl<'cx> TyChecker<'cx> {
     fn check_array_lit(&mut self, lit: &'cx ast::ArrayLit) -> &'cx Ty<'cx> {
         let mut elems = Vec::with_capacity(lit.elems.len());
         for elem in lit.elems.iter() {
-            elems.push(self.check_expr(elem));
+            elems.push(self.check_expr_for_mutable_location(elem));
         }
         let ty = if elems.is_empty() {
             // FIXME: use type var

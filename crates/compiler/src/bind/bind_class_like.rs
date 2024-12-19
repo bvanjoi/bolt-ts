@@ -1,6 +1,6 @@
 use super::symbol::{PropSymbol, SymbolFlags};
 use super::{BinderState, ClassSymbol, SymbolID, SymbolKind, SymbolName};
-use crate::{ast, ir, ty};
+use crate::{ast, ir};
 use rustc_hash::FxHashMap;
 
 pub(super) trait ClassLike<'cx>: ir::ClassLike<'cx> {

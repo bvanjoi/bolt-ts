@@ -38,8 +38,7 @@ fn main_test() {
     use bolt_ts_compiler::eval_from;
     let project_root = project_root::get_project_root().unwrap();
 
-    let p =
-        project_root.join("tests/cases/compiler/uncalledFunctionChecksInConditionalPerf/index.ts");
+    let p = project_root.join("tests/cases/compiler/functionCall9/index.ts");
     let output = eval_from(bolt_ts_span::ModulePath::Real(p.clone()));
     if output.diags.is_empty() {
         let file_path = compile_test::temp_node_file(p.file_stem().unwrap().to_str().unwrap());

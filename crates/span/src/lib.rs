@@ -1,6 +1,6 @@
 mod sys;
 
-use std::{sync::Arc, u32};
+use std::sync::Arc;
 
 #[macro_export]
 macro_rules! new_index {
@@ -102,6 +102,12 @@ pub struct ModuleArena {
     content_map: Vec<Arc<String>>,
     modules: Vec<Module>,
     next_module_id: ModuleID,
+}
+
+impl Default for ModuleArena {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl ModuleArena {

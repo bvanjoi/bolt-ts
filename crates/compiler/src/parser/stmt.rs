@@ -1,4 +1,5 @@
 use super::ast;
+use super::errors;
 use super::list_ctx;
 use super::parse_class_like::ParseClassDecl;
 use super::parse_fn_like::ParseFnDecl;
@@ -21,13 +22,46 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
             LBrace => ast::StmtKind::Block(self.parse_block()?),
             Return => ast::StmtKind::Return(self.parse_ret_stmt()?),
             Class => ast::StmtKind::Class(self.parse_class_decl(None)?),
-            Interface => ast::StmtKind::Interface(self.parse_interface_decl()?),
+            Interface => ast::StmtKind::Interface(self.parse_interface_decl(None)?),
             Type => ast::StmtKind::Type(self.parse_type_decl()?),
             Module | Namespace => ast::StmtKind::Namespace(self.parse_ns_decl(None)?),
+            Throw => ast::StmtKind::Throw(self.parse_throw_stmt()?),
             _ => ast::StmtKind::Expr(self.parse_expr_or_labeled_stmt()?),
         };
         let stmt = self.alloc(ast::Stmt { kind });
         Ok(stmt)
+    }
+
+    fn try_parse_semi(&mut self) -> PResult<bool> {
+        if !self.can_parse_semi() {
+            return Ok(false);
+        } else if self.token.kind == TokenKind::Semi {
+            self.next_token();
+            Ok(true)
+        } else {
+            Ok(true)
+        }
+    }
+
+    fn parse_throw_stmt(&mut self) -> PResult<&'cx ast::ThrowStmt<'cx>> {
+        let start = self.token.start();
+        self.expect(TokenKind::Throw)?;
+        if self.has_preceding_line_break() {
+            todo!("error handle")
+        } else {
+            let id = self.next_node_id();
+            let expr = self.with_parent(id, Self::parse_expr)?;
+            let t = self.alloc(ast::ThrowStmt {
+                id,
+                span: self.new_span(start as usize, self.pos),
+                expr,
+            });
+            if !self.try_parse_semi()? {
+                todo!()
+            }
+            self.insert_map(id, ast::Node::ThrowStmt(t));
+            Ok(t)
+        }
     }
 
     fn parse_ns_decl(
@@ -74,7 +108,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
     }
 
     fn contain_declare_mod(mods: &ast::Modifiers<'cx>) -> bool {
-        mods.flags.contains(ast::ModifierFlags::DECLARE)
+        mods.flags.contains(ast::ModifierKind::Declare)
     }
 
     fn _parse_decl(
@@ -91,6 +125,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
                 let id = self.ident_token();
                 unreachable!("{:#?}", self.atoms.lock().unwrap().get(id));
             }
+            Interface => ast::StmtKind::Interface(self.parse_interface_decl(mods)?),
             _ => unreachable!("{:#?}", self.token.kind),
         };
         let stmt = self.alloc(ast::Stmt { kind });
@@ -127,7 +162,10 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         }
     }
 
-    fn parse_interface_decl(&mut self) -> PResult<&'cx ast::InterfaceDecl<'cx>> {
+    fn parse_interface_decl(
+        &mut self,
+        modifiers: Option<&'cx ast::Modifiers<'cx>>,
+    ) -> PResult<&'cx ast::InterfaceDecl<'cx>> {
         let id = self.next_node_id();
         let start = self.token.start();
         self.expect(TokenKind::Interface)?;
@@ -139,6 +177,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         let decl = self.alloc(ast::InterfaceDecl {
             id,
             span: self.new_span(start as usize, self.pos),
+            modifiers,
             name,
             ty_params,
             extends,
@@ -200,6 +239,12 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
             _ => unreachable!(),
         };
         let list = self.with_parent(id, Self::parse_var_decl_list);
+        if list.is_empty() {
+            let span = self.new_span(start as usize, self.full_start_pos);
+            self.push_error(Box::new(errors::VariableDeclarationListCannotBeEmpty {
+                span,
+            }));
+        }
         let span = self.new_span(start as usize, self.pos);
         let node = self.alloc(ast::VarStmt {
             id,

@@ -28,3 +28,10 @@ pub(crate) struct OctalLiteralsAreNotAllowed {
     pub span: Span,
     pub help_lit: String,
 }
+
+#[derive(Error, Diagnostic, Debug)]
+#[error("Variable declaration list cannot be empty.")]
+pub(crate) struct VariableDeclarationListCannotBeEmpty {
+    #[label(primary)]
+    pub span: Span,
+}
