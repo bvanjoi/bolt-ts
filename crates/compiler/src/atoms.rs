@@ -2,6 +2,8 @@ use std::borrow::Cow;
 
 use rustc_hash::FxHashMap;
 
+use crate::utils::fx_hashmap_with_capacity;
+
 #[derive(Debug, PartialEq, Eq, Hash, Clone, Copy)]
 pub struct AtomId(u64);
 
@@ -16,10 +18,14 @@ impl AtomId {
     }
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub struct AtomMap<'cx>(FxHashMap<AtomId, Cow<'cx, str>>);
 
 impl<'cx> AtomMap<'cx> {
+    pub fn new() -> Self {
+        Self(fx_hashmap_with_capacity(1024 * 128))
+    }
+
     pub fn insert_by_str(&mut self, value: Cow<'cx, str>) -> AtomId {
         let id = AtomId::from_bytes(value.as_bytes());
         if self.0.get(&id).is_none() {

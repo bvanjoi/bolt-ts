@@ -41,3 +41,20 @@ impl<'cx> ObjectShape for TupleTy<'cx> {
         self.shape.declared_props
     }
 }
+
+// impl<'cx> ObjectShape for ArrayTy<'cx> {
+//     fn get_member(&self, name: &SymbolName) -> Option<SymbolID> {
+//         if let Some(atom) = name.as_atom() {
+//             if atom == keyword::IDENT_LENGTH {
+//                 Some(self.shape.declared_props[0])
+//             } else {
+//                 None
+//             }
+//         } else {
+//             todo!("index literal")
+//         }
+//     }
+//     fn props(&self) -> &[SymbolID] {
+//         self.shape.declared_props
+//     }
+// }

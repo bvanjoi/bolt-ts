@@ -1,92 +1,82 @@
 use super::ast;
 use super::TyChecker;
 use crate::bind::SymbolID;
-use crate::ty;
-
-bitflags::bitflags! {
-    #[derive(Debug, Clone, Copy)]
-    pub struct SigFlags: u8 {
-        const HAS_REST_PARAMETER  = 1 << 0;
-        const HAS_ABSTRACT = 1 << 2;
-    }
-}
-
-#[derive(Debug, Clone, Copy)]
-pub struct Sig<'cx> {
-    pub flags: SigFlags,
-    pub params: &'cx [SymbolID],
-    pub min_args_count: usize,
-    pub ret_ty: &'cx ty::Ty<'cx>,
-}
-
-impl Sig<'_> {
-    pub fn has_rest_param(&self) -> bool {
-        self.flags.intersects(SigFlags::HAS_REST_PARAMETER)
-    }
-}
-
-enum SigDecl<'cx> {
-    FnDecl(&'cx ast::FnDecl<'cx>),
-    ClassDecl(&'cx ast::ClassDecl<'cx>),
-    FnExpr(&'cx ast::FnExpr<'cx>),
-    ArrowFnExpr(&'cx ast::ArrowFnExpr<'cx>),
-    ClassCtor(&'cx ast::ClassCtor<'cx>),
-}
-
-impl<'cx> SigDecl<'cx> {
-    fn params(&self) -> ast::ParamsDecl<'cx> {
-        match self {
-            SigDecl::FnDecl(f) => f.params,
-            SigDecl::ClassDecl(c) => &[],
-            SigDecl::FnExpr(f) => f.params,
-            SigDecl::ArrowFnExpr(f) => f.params,
-            SigDecl::ClassCtor(f) => f.params,
-        }
-    }
-
-    fn id(&self) -> ast::NodeID {
-        match self {
-            SigDecl::FnDecl(f) => f.id,
-            SigDecl::ClassDecl(c) => c.id,
-            SigDecl::FnExpr(f) => f.id,
-            SigDecl::ArrowFnExpr(f) => f.id,
-            SigDecl::ClassCtor(f) => f.id,
-        }
-    }
-
-    fn has_rest_param(&self) -> bool {
-        self.params()
-            .last()
-            .map_or(false, |param| param.dotdotdot.is_some())
-    }
-}
+use crate::ty::{Sig, SigFlags};
 
 impl<'cx> TyChecker<'cx> {
-    pub(super) fn get_sig_from_decl(&mut self, id: ast::NodeID) -> Sig<'cx> {
-        let node = self.p.node(id);
-        if !self.node_id_to_sig.contains_key(&id) {
-            let sig = get_sig_from_decl(self, node);
-            let prev = self.node_id_to_sig.insert(id, sig);
-            assert!(prev.is_none());
+    pub(super) fn get_sig_from_decl(&mut self, id: ast::NodeID) -> &'cx Sig<'cx> {
+        if let Some(sig) = self.node_id_to_sig.get(&id) {
+            return sig;
         }
-        self.node_id_to_sig.get(&id).copied().unwrap()
+        let node = self.p.node(id);
+        let sig = get_sig_from_decl(self, node);
+        let sig = self.alloc(sig);
+        let prev = self.node_id_to_sig.insert(id, sig);
+        assert!(prev.is_none());
+        sig
+    }
+
+    pub(super) fn get_sigs_of_symbol(&mut self, id: SymbolID) -> &'cx [&'cx Sig<'cx>] {
+        let f = self.binder.symbol(id).expect_fn();
+        let sigs = f
+            .decls
+            .clone()
+            .into_iter()
+            .map(|id| self.get_sig_from_decl(id))
+            .collect::<Vec<_>>();
+        self.alloc(sigs)
     }
 }
 
 fn get_sig_from_decl<'cx>(checker: &mut TyChecker<'cx>, node: ast::Node<'cx>) -> Sig<'cx> {
-    let decl = match node {
-        ast::Node::FnDecl(f) => SigDecl::FnDecl(f),
-        ast::Node::FnExpr(f) => SigDecl::FnExpr(f),
-        ast::Node::ArrowFnExpr(f) => SigDecl::ArrowFnExpr(f),
-        ast::Node::ClassDecl(c) => SigDecl::ClassDecl(c),
-        ast::Node::ClassCtor(c) => SigDecl::ClassCtor(c),
-        _ => unreachable!("{node:#?}"),
+    assert!(!checker.node_id_to_sig.contains_key(&node.id()));
+    assert!(
+        node.is_fn_decl()
+            || node.is_fn_expr()
+            || node.is_arrow_fn_expr()
+            // TODO: remove `node.is_class_decl()`
+            || node.is_class_decl()
+            || node.is_class_ctor()
+            || node.is_ctor_sig_decl()
+            || node.is_class_method_ele()
+    );
+    let ty_params = match node {
+        ast::Node::FnDecl(decl) => decl.ty_params,
+        ast::Node::FnExpr(expr) => expr.ty_params,
+        ast::Node::ArrowFnExpr(expr) => expr.ty_params,
+        ast::Node::ClassDecl(c) => c.ty_params,
+        ast::Node::ClassCtor(c) => c.ty_params,
+        ast::Node::CtorSigDecl(c) => c.ty_params,
+        ast::Node::ClassMethodEle(f) => f.ty_params,
+        _ => unreachable!(),
     };
-    assert!(!checker.node_id_to_sig.contains_key(&decl.id()));
+    let ty_params = ty_params.map(|params| {
+        let params = params
+            .iter()
+            .map(|param| checker.binder.final_res(param.id))
+            .collect::<Vec<_>>();
+        let params: &'cx [SymbolID] = checker.alloc(params);
+        params
+    });
+    let params_of_node = match node {
+        ast::Node::FnDecl(f) => f.params,
+        ast::Node::ClassDecl(c) => &[],
+        ast::Node::FnExpr(f) => f.params,
+        ast::Node::ArrowFnExpr(f) => f.params,
+        ast::Node::ClassCtor(f) => f.params,
+        ast::Node::CtorSigDecl(f) => f.params,
+        ast::Node::ClassMethodEle(f) => f.params,
+        _ => unreachable!(),
+    };
+    let has_rest_param = params_of_node
+        .last()
+        .map(|param| param.dotdotdot.is_some())
+        .unwrap_or_default();
+
     let mut flags = SigFlags::empty();
     let mut min_args_count = 0;
-    let mut params = Vec::with_capacity(8);
-    for (i, param) in decl.params().iter().enumerate() {
+    let mut params = Vec::with_capacity(params_of_node.len());
+    for (i, param) in params_of_node.iter().enumerate() {
         let symbol = checker.binder.final_res(param.id);
         params.push(symbol);
         let is_opt = param.question.is_some() || param.dotdotdot.is_some() || param.init.is_some();
@@ -99,39 +89,39 @@ fn get_sig_from_decl<'cx>(checker: &mut TyChecker<'cx>, node: ast::Node<'cx>) ->
             )
         }
     }
-    if decl.has_rest_param() {
+    if has_rest_param {
         flags.insert(SigFlags::HAS_REST_PARAMETER);
     }
-    if let SigDecl::ClassDecl(c) = decl {
+    if let Some(c) = node.as_class_decl() {
         if let Some(mods) = c.modifiers {
-            if mods
-                .list
-                .iter()
-                .any(|m| m.kind == ast::ModifierKind::Abstract)
-            {
+            if mods.flags.contains(ast::ModifierKind::Abstract) {
                 flags.insert(SigFlags::HAS_ABSTRACT);
             }
         }
     }
     let params: &[SymbolID] = checker.alloc(params);
-    let ret_ty = match node {
-        ast::Node::FnDecl(_) => checker.undefined_ty(),
-        ast::Node::FnExpr(_) => checker.undefined_ty(),
-        ast::Node::ArrowFnExpr(_) => checker.undefined_ty(),
-        ast::Node::ClassDecl(_) => checker.undefined_ty(),
-        ast::Node::ClassCtor(c) => {
-            let Some(class_id) = checker.p.parent(c.id) else {
-                unreachable!()
-            };
-            let symbol = checker.get_symbol_of_decl(class_id);
-            checker.get_declared_ty_of_symbol(symbol)
+    let ret = match node {
+        ast::Node::FnDecl(decl) => None,
+        ast::Node::FnExpr(_) => None,
+        ast::Node::ArrowFnExpr(_) => None,
+        ast::Node::ClassDecl(c) => {
+            let class_id = checker.p.parent(c.id).unwrap();
+            Some(class_id)
         }
+        ast::Node::ClassCtor(c) => {
+            let class_id = checker.p.parent(c.id).unwrap();
+            Some(class_id)
+        }
+        ast::Node::CtorSigDecl(c) => c.ty.map(|ty| ty.id()),
+        ast::Node::ClassMethodEle(f) => f.ret.map(|ty| ty.id()),
         _ => unreachable!(),
     };
     Sig {
         flags,
+        ty_params,
         params,
         min_args_count,
-        ret_ty,
+        ret,
+        node_id: node.id(),
     }
 }

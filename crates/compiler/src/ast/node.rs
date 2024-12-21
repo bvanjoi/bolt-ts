@@ -34,6 +34,7 @@ pub enum Node<'cx> {
     InterfaceExtendsClause(&'cx ast::InterfaceExtendsClause<'cx>),
     ImplementsClause(&'cx ast::ImplementsClause<'cx>),
     BlockStmt(&'cx ast::BlockStmt<'cx>),
+    ThrowStmt(&'cx ast::ThrowStmt<'cx>),
     Modifier(&'cx ast::Modifier),
 
     // expr
@@ -62,6 +63,9 @@ pub enum Node<'cx> {
     ThisExpr(&'cx ast::ThisExpr),
 
     // ty
+    NumLitTy(&'cx ast::NumLitTy),
+    StringLitTy(&'cx ast::StringLitTy),
+    ReferTy(&'cx ast::ReferTy<'cx>),
     ArrayTy(&'cx ast::ArrayTy<'cx>),
     IndexedAccessTy(&'cx ast::IndexedAccessTy<'cx>),
     FnTy(&'cx ast::FnTy<'cx>),
@@ -75,12 +79,11 @@ pub enum Node<'cx> {
     RestTy(&'cx ast::RestTy<'cx>),
     TupleTy(&'cx ast::TupleTy<'cx>),
     CondTy(&'cx ast::CondTy<'cx>),
-    ReferTy(&'cx ast::ReferTy<'cx>),
     IntersectionTy(&'cx ast::IntersectionTy<'cx>),
     UnionTy(&'cx ast::UnionTy<'cx>),
 }
 
-impl Node<'_> {
+impl<'cx> Node<'cx> {
     pub fn is_class_like(&self) -> bool {
         use Node::*;
         matches!(self, ClassDecl(_) | ClassExpr(_))
@@ -130,6 +133,46 @@ impl Node<'_> {
     pub fn is_ty_refer_ty(&self) -> bool {
         // TODO: is_expr_with_ty_args
         self.is_refer_ty()
+    }
+
+    pub fn as_ty(&self) -> Option<ast::Ty<'cx>> {
+        macro_rules! as_ty_node {
+            ($( ($node_kind:ident, $ty_node_kind: ident)),* $(,)?) => {
+                match self {
+                    $(Node::$node_kind(n) => Some(ast::Ty {
+                        kind: ast::TyKind::$ty_node_kind(n)
+                    }),)*
+                    _ => None,
+                }
+            };
+        }
+        as_ty_node!(
+            (ReferTy, Refer),
+            (ArrayTy, Array),
+            (IndexedAccessTy, IndexedAccess),
+            (FnTy, Fn),
+            (ObjectLitTy, ObjectLit),
+            (NumLitTy, NumLit),
+            (StringLitTy, StringLit),
+            (TupleTy, Tuple),
+            (RestTy, Rest),
+            (CondTy, Cond),
+            (UnionTy, Union),
+            (IntersectionTy, Intersection),
+        )
+    }
+
+    pub fn ident_name(&self) -> Option<&'cx ast::Ident> {
+        use Node::*;
+        match self {
+            FnDecl(n) => Some(&n.name),
+            ClassDecl(n) => Some(&n.name),
+            ClassMethodEle(n) => match n.name.kind {
+                ast::PropNameKind::Ident(ref ident) => Some(ident),
+                _ => None,
+            },
+            _ => None,
+        }
     }
 }
 
@@ -362,6 +405,20 @@ as_node!(
     ),
     (FnTy, &'cx ast::FnTy<'cx>, as_fn_ty, expect_fn_ty, is_fn_ty),
     (
+        StringLitTy,
+        &'cx ast::StringLitTy,
+        as_string_lit_ty,
+        expect_string_lit_ty,
+        is_string_lit_ty
+    ),
+    (
+        NumLitTy,
+        &'cx ast::NumLitTy,
+        as_num_lit_ty,
+        expect_num_lit_ty,
+        is_num_lit_ty
+    ),
+    (
         ObjectLitTy,
         &'cx ast::ObjectLitTy<'cx>,
         as_object_lit_ty,
@@ -578,4 +635,11 @@ as_node!(
         expect_union_ty,
         is_union_ty
     ),
+    (
+        ThrowStmt,
+        &'cx ast::ThrowStmt<'cx>,
+        as_throw_stmt,
+        expect_throw_stmt,
+        is_throw_stmt
+    )
 );

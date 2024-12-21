@@ -1,9 +1,9 @@
 use rustc_hash::FxHashMap;
 
-use crate::atoms::AtomMap;
-use crate::bind::{Binder, SymbolID, SymbolName};
+use crate::bind::{SymbolID, SymbolName};
+use crate::check::TyChecker;
 
-use super::Ty;
+use super::{Sig, Ty};
 
 #[derive(Debug, Clone, Copy)]
 pub struct ObjectTy<'cx> {
@@ -16,9 +16,9 @@ pub enum ObjectTyKind<'cx> {
     Class(&'cx ClassTy),
     Fn(&'cx FnTy<'cx>),
     ObjectLit(&'cx ObjectLitTy<'cx>),
-    Array(&'cx ArrayTy<'cx>),
     Tuple(&'cx TupleTy<'cx>),
     Interface(&'cx InterfaceTy<'cx>),
+    Reference(&'cx ReferenceTy<'cx>),
 }
 
 macro_rules! ty_kind_as_object_ty_kind {
@@ -62,13 +62,6 @@ ty_kind_as_object_ty_kind!(
     is_object_lit
 );
 ty_kind_as_object_ty_kind!(
-    &'cx ArrayTy<'cx>,
-    as_array,
-    as_object_array,
-    expect_object_array,
-    is_object_array
-);
-ty_kind_as_object_ty_kind!(
     &'cx TupleTy<'cx>,
     as_tuple,
     as_object_tuple,
@@ -81,6 +74,13 @@ ty_kind_as_object_ty_kind!(
     as_object_interface,
     expect_object_interface,
     is_object_interface
+);
+ty_kind_as_object_ty_kind!(
+    &'cx ReferenceTy<'cx>,
+    as_reference,
+    as_object_reference,
+    expect_object_reference,
+    is_object_reference
 );
 
 macro_rules! as_object_ty_kind {
@@ -109,9 +109,9 @@ as_object_ty_kind!(
     as_object_lit,
     is_object_lit
 );
-as_object_ty_kind!(Array, &'cx ArrayTy<'cx>, as_array, is_array);
 as_object_ty_kind!(Tuple, &'cx TupleTy<'cx>, as_tuple, is_tuple);
 as_object_ty_kind!(Interface, &'cx InterfaceTy<'cx>, as_interface, is_interface);
+as_object_ty_kind!(Reference, &'cx ReferenceTy<'cx>, as_reference, is_reference);
 
 bitflags::bitflags! {
     #[derive(Debug, Clone, Copy)]
@@ -137,23 +137,19 @@ pub struct TupleTy<'cx> {
     pub tys: super::Tys<'cx>,
     pub element_flags: &'cx [ElementFlags],
     pub combined_flags: ElementFlags,
-    pub refer: &'cx TyReference<'cx>,
     pub shape: &'cx TupleShape<'cx>,
 }
 
 #[derive(Debug, Clone, Copy)]
 pub struct TupleShape<'cx> {
     pub declared_props: &'cx [SymbolID],
+    pub fixed_length: usize,
 }
 
 #[derive(Debug, Clone, Copy)]
-pub struct TyReference<'cx> {
+pub struct ReferenceTy<'cx> {
     pub ty_args: super::Tys<'cx>,
-}
-
-#[derive(Debug, Clone, Copy)]
-pub struct ArrayTy<'cx> {
-    pub ty: &'cx Ty<'cx>,
+    pub target: &'cx Ty<'cx>,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -166,38 +162,37 @@ pub struct IndexInfo<'cx> {
 pub struct InterfaceTy<'cx> {
     pub symbol: SymbolID,
     pub members: &'cx FxHashMap<SymbolName, SymbolID>,
-    pub declared_props: &'cx [SymbolID],
     pub base_tys: &'cx [&'cx Ty<'cx>],
-    pub index_infos: &'cx [&'cx IndexInfo<'cx>],
     pub base_ctor_ty: Option<&'cx Ty<'cx>>,
+    pub declared_props: &'cx [SymbolID],
+    pub declared_index_infos: &'cx [&'cx IndexInfo<'cx>],
+    pub declared_ctor_sigs: &'cx [&'cx Sig<'cx>],
 }
 
 impl<'cx> ObjectTyKind<'cx> {
-    pub(super) fn to_string(&self, binder: &Binder, atoms: &AtomMap) -> String {
+    pub(super) fn to_string(&self, checker: &TyChecker) -> String {
         match self {
             ObjectTyKind::Class(_) => "class".to_string(),
             ObjectTyKind::Fn(_) => "function".to_string(),
             ObjectTyKind::ObjectLit(_) => "Object".to_string(),
-            ObjectTyKind::Array(ArrayTy { ty }) => {
-                format!("{}[]", ty.kind.to_string(binder, atoms))
-            }
             ObjectTyKind::Tuple(TupleTy { tys, .. }) => {
                 format!(
                     "[{}]",
                     tys.iter()
-                        .map(|ty| ty.kind.to_string(binder, atoms))
+                        .map(|ty| ty.to_string(checker))
                         .collect::<Vec<_>>()
                         .join(",")
                 )
             }
-            ObjectTyKind::Interface(i) => atoms
-                .get(binder.symbol(i.symbol).name.expect_atom())
+            ObjectTyKind::Interface(i) => checker
+                .atoms
+                .get(checker.binder.symbol(i.symbol).name.expect_atom())
                 .to_string(),
+            ObjectTyKind::Reference(refer) => {
+                let ty = refer.target.to_string(checker);
+                ty
+            }
         }
-    }
-
-    pub fn is_reference(&self) -> bool {
-        self.is_interface()
     }
 }
 
@@ -215,7 +210,6 @@ pub struct ObjectLitTy<'cx> {
 
 #[derive(Debug, Clone, Copy)]
 pub struct FnTy<'cx> {
-    pub params: &'cx [&'cx Ty<'cx>],
-    pub ret: &'cx Ty<'cx>,
     pub symbol: SymbolID,
+    pub declared_sigs: &'cx [&'cx Sig<'cx>],
 }

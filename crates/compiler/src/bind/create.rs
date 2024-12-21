@@ -1,8 +1,9 @@
+use bolt_ts_span::Span;
 use rustc_hash::FxHashMap;
 use thin_vec::thin_vec;
 
 use super::symbol::{FnSymbol, InterfaceSymbol, ObjectSymbol, PropSymbol, SymbolFlags};
-use super::{BinderState, Symbol, SymbolFnKind, SymbolID, SymbolKind, SymbolName};
+use super::{errors, BinderState, Symbol, SymbolFnKind, SymbolID, SymbolKind, SymbolName};
 use crate::ast;
 use crate::atoms::AtomId;
 
@@ -46,22 +47,41 @@ impl<'cx> BinderState<'cx> {
     ) -> SymbolID {
         let key = (self.scope_id, name);
         if name.as_atom().is_some() {
-            if let Some(id) = self.res.get(&key) {
-                let prev = self.symbols.get_mut(*id);
+            if let Some(id) = self.res.get(&key).copied() {
+                let prev = self.symbols.get_mut(id);
                 if flags == SymbolFlags::FUNCTION_SCOPED_VARIABLE {
+                    prev.flags |= flags;
                     let prev = &mut prev.kind;
                     prev.0 = kind;
-                    return *id;
                 } else if matches!(prev.kind.0, SymbolKind::Err) {
+                    prev.flags |= flags;
                     let prev = &mut prev.kind;
                     assert!(prev.1.is_some());
                     prev.0 = kind;
-                    return *id;
                 } else {
-                    let name = name.expect_atom();
-                    let name = self.atoms.get(name);
-                    todo!("error handler: name: {name:#?}, prev: {prev:#?}");
+                    let name = self.atoms.get(name.expect_atom());
+                    let span = |kind: &SymbolKind| {
+                        let id = match kind {
+                            SymbolKind::Class(c) => c.decl,
+                            SymbolKind::Err
+                            | SymbolKind::BlockContainer { .. }
+                            | SymbolKind::FunctionScopedVar { .. } => unreachable!(),
+                            SymbolKind::BlockScopedVar { .. } => todo!(),
+                            _ => todo!(),
+                        };
+                        self.p.node(id).ident_name().unwrap().span
+                    };
+
+                    let error_span = span(&kind);
+
+                    let error = errors::DuplicateIdentifier {
+                        span: error_span,
+                        name: name.to_string(),
+                        original_span: span(&prev.kind.0),
+                    };
+                    self.push_error(error_span.module, error.into());
                 }
+                return id;
             }
         }
         let id = self.next_symbol_id();
@@ -79,7 +99,9 @@ impl<'cx> BinderState<'cx> {
         let key = (self.scope_id, name);
         if name.as_atom().is_some() {
             if let Some(id) = self.res.get(&key) {
-                let prev = &mut self.symbols.get_mut(*id).kind;
+                let prev = self.symbols.get_mut(*id);
+                prev.flags |= flags;
+                let prev = &mut prev.kind;
                 if matches!(prev.0, SymbolKind::Err) {
                     todo!("error handler")
                 }
@@ -112,55 +134,19 @@ impl<'cx> BinderState<'cx> {
         id: ast::NodeID,
         name: AtomId,
         members: FxHashMap<SymbolName, SymbolID>,
-    ) {
+    ) -> SymbolID {
         let symbol = self.create_symbol_with_interface(
             SymbolName::Normal(name),
             SymbolFlags::INTERFACE,
             InterfaceSymbol { decl: id, members },
         );
         self.final_res.insert(id, symbol);
+        symbol
     }
 
-    pub(super) fn create_fn_symbol(&mut self, container: ast::NodeID, f: &'cx ast::FnDecl) {
-        let Some(container_symbol_id) = self.final_res.get(&container).copied() else {
-            unreachable!()
-        };
-        let SymbolKind::BlockContainer { locals, .. } =
-            &mut self.symbols.get_mut(container_symbol_id).kind.0
-        else {
-            unreachable!()
-        };
-
-        let name = SymbolName::Normal(f.name.name);
-        if let Some(s) = locals.get(&name).copied() {
-            let symbol = self.symbols.get_mut(s);
-            match &mut symbol.kind.0 {
-                SymbolKind::Fn(FnSymbol { decls, kind }) => {
-                    assert!(*kind == super::SymbolFnKind::FnDecl);
-                    assert!(!decls.is_empty());
-                    decls.push(f.id)
-                }
-                _ => unreachable!(),
-            }
-            self.create_final_res(f.id, s);
-        } else {
-            let symbol = self.create_var_symbol(
-                f.name.name,
-                SymbolFlags::FUNCTION,
-                SymbolKind::Fn(FnSymbol {
-                    kind: super::SymbolFnKind::FnDecl,
-                    decls: thin_vec![f.id],
-                }),
-            );
-            self.create_final_res(f.id, symbol);
-            let SymbolKind::BlockContainer { locals, .. } =
-                &mut self.symbols.get_mut(container_symbol_id).kind.0
-            else {
-                unreachable!()
-            };
-            let prev = locals.insert(name, symbol);
-            assert!(prev.is_none())
-        }
+    pub(super) fn create_fn_symbol(&mut self, container: ast::NodeID, decl: &'cx ast::FnDecl<'cx>) {
+        let ele_name = SymbolName::Normal(decl.name.name);
+        self.create_fn_decl_like_symbol(container, decl, ele_name, SymbolFnKind::FnDecl);
     }
 
     pub(super) fn create_object_member_symbol(
@@ -198,7 +184,7 @@ impl<'cx> BinderState<'cx> {
         id
     }
 
-    pub(super) fn create_block_container_symbol(&mut self, node_id: ast::NodeID) {
+    pub(super) fn create_block_container_symbol(&mut self, node_id: ast::NodeID) -> SymbolID {
         let symbol = self.create_symbol(
             SymbolName::Container,
             SymbolFlags::VALUE_MODULE,
@@ -207,5 +193,6 @@ impl<'cx> BinderState<'cx> {
             },
         );
         self.create_final_res(node_id, symbol);
+        symbol
     }
 }

@@ -81,41 +81,14 @@ impl<'cx> TyChecker<'cx> {
     }
 
     fn get_type_of_func_decl(&mut self, symbol: SymbolID) -> &'cx Ty<'cx> {
-        let params = self.get_sig_of_symbol(symbol);
+        let sigs = self.get_sigs_of_symbol(symbol);
         self.create_fn_ty(ty::FnTy {
-            params,
-            ret: self.undefined_ty(),
-
+            declared_sigs: sigs,
             symbol,
         })
     }
 
-    fn get_sig_of_symbol(&mut self, id: SymbolID) -> &'cx [&'cx Ty<'cx>] {
-        let decls = &self.binder.symbol(id).expect_fn().decls;
-
-        for decl in decls {
-            let params = match self.p.node(*decl) {
-                ast::Node::FnDecl(f) => f.params,
-                ast::Node::ArrowFnExpr(f) => f.params,
-                ast::Node::FnExpr(f) => f.params,
-                ast::Node::ClassMethodEle(m) => m.params,
-                _ => unreachable!("{:#?}", self.p.node(*decl)),
-            };
-            let params = params
-                .iter()
-                .map(|param| {
-                    param
-                        .ty
-                        .map(|ty| self.get_ty_from_type_node(ty))
-                        .unwrap_or(self.any_ty())
-                })
-                .collect::<Vec<_>>();
-            return self.alloc(params);
-        }
-        todo!()
-    }
-
-    pub(super) fn get_ty_from_type_node(&mut self, ty: &'cx ast::Ty<'cx>) -> &'cx Ty<'cx> {
+    pub(super) fn get_ty_from_type_node(&mut self, ty: &ast::Ty<'cx>) -> &'cx Ty<'cx> {
         // TODO: cache
         use ast::TyKind::*;
         match ty.kind {
@@ -142,6 +115,8 @@ impl<'cx> TyChecker<'cx> {
             Cond(node) => self.get_ty_from_cond_node(node),
             Union(_) => self.undefined_ty(),
             Intersection(_) => self.undefined_ty(),
+            BooleanLit(_) => todo!(),
+            NullLit(_) => todo!(),
         }
     }
 
@@ -284,7 +259,13 @@ impl<'cx> TyChecker<'cx> {
 
     pub(super) fn get_mapped_ty(&mut self, mapper: &TyMapper<'cx>, ty: &'cx Ty) -> &'cx Ty<'cx> {
         match mapper {
-            TyMapper::Simple(_) => todo!(),
+            TyMapper::Simple(mapper) => {
+                if ty == mapper.source {
+                    mapper.target
+                } else {
+                    ty
+                }
+            }
             TyMapper::Array(mapper) => {
                 for (idx, source) in mapper.sources.iter().enumerate() {
                     assert!(source.kind.is_param());
@@ -436,7 +417,10 @@ impl<'cx> TyChecker<'cx> {
 
     fn get_ty_from_array_node(&mut self, node: &'cx ast::ArrayTy<'cx>) -> &'cx Ty<'cx> {
         let ele_ty = self.get_ty_from_type_node(node.ele);
-        self.create_array_ty(ty::ArrayTy { ty: ele_ty })
+        self.create_reference_ty(ty::ReferenceTy {
+            ty_args: self.alloc(vec![ele_ty]),
+            target: self.global_array_ty(),
+        })
     }
 
     fn get_array_ele_ty_node(node: &'cx ast::Ty<'cx>) -> Option<&'cx ast::Ty<'cx>> {
@@ -496,7 +480,10 @@ impl<'cx> TyChecker<'cx> {
             .chain(element_symbols)
             .collect::<Vec<_>>();
         let declared_props = self.alloc(declared_props);
-        let shape = self.alloc(ty::TupleShape { declared_props });
+        let shape = self.alloc(ty::TupleShape {
+            declared_props,
+            fixed_length: declared_props.len(),
+        });
         let prev = self.tuple_shapes.insert(key, shape);
         assert!(prev.is_none());
         shape
@@ -507,21 +494,16 @@ impl<'cx> TyChecker<'cx> {
         elem_tys: &'cx [&'cx Ty<'cx>],
         elem_flags: &'cx [ElementFlags],
         combined_flags: ElementFlags,
-    ) -> ty::TupleTy<'cx> {
+    ) -> &'cx ty::Ty<'cx> {
         // ====
-
         if !combined_flags.intersects(ElementFlags::NON_REQUIRED) {
-            let refer = self.alloc(ty::TyReference {
-                ty_args: self.alloc(elem_tys),
-            });
             let shape = self.create_tuple_shape(elem_tys);
-            return ty::TupleTy {
-                refer,
+            return self.create_tuple_ty(ty::TupleTy {
                 combined_flags,
                 element_flags: elem_flags,
                 tys: elem_tys,
                 shape,
-            };
+            });
         }
         let mut expanded_tys = vec![];
         let mut expanded_flags = vec![];
@@ -554,6 +536,16 @@ impl<'cx> TyChecker<'cx> {
                     todo!()
                 } else if ele.kind.is_instantiable_non_primitive() {
                     add_ele(ele, ElementFlags::VARIADIC);
+                } else if ele.kind.is_tuple() {
+                    let tuple = ele
+                        .kind
+                        .expect_object_reference()
+                        .target
+                        .kind
+                        .expect_object_tuple();
+                    for i in 0..tuple.tys.len() {
+                        add_ele(tuple.tys[i], tuple.element_flags[i]);
+                    }
                 } else if let Some(tuple) = ele.kind.as_object_tuple() {
                     for i in 0..tuple.tys.len() {
                         add_ele(tuple.tys[i], tuple.element_flags[i]);
@@ -567,20 +559,20 @@ impl<'cx> TyChecker<'cx> {
         }
 
         let expand_tys = self.alloc(expanded_tys);
-        let refer = self.alloc(ty::TyReference {
-            ty_args: expand_tys,
-        });
         let combined_flags = expanded_flags
             .iter()
             .fold(ElementFlags::empty(), |flags, current| flags | *current);
         let shape = self.create_tuple_shape(expand_tys);
-        ty::TupleTy {
+        let tuple = self.create_tuple_ty(ty::TupleTy {
             tys: expand_tys,
             element_flags: self.alloc(expanded_flags),
             combined_flags,
-            refer,
             shape,
-        }
+        });
+        self.create_reference_ty(ty::ReferenceTy {
+            ty_args: expand_tys,
+            target: tuple,
+        })
     }
 
     fn get_ty_from_tuple_node(&mut self, node: &'cx ast::TupleTy<'cx>) -> &'cx Ty<'cx> {
@@ -601,9 +593,7 @@ impl<'cx> TyChecker<'cx> {
         let combined_flags = flags
             .iter()
             .fold(ElementFlags::empty(), |flags, current| flags | *current);
-        let tuple =
-            self.create_normalized_tuple_ty(self.alloc(tys), self.alloc(flags), combined_flags);
-        self.create_tuple_ty(tuple)
+        self.create_normalized_tuple_ty(self.alloc(tys), self.alloc(flags), combined_flags)
     }
 
     pub(super) fn get_number_literal_type(&mut self, val: f64) -> &'cx Ty<'cx> {

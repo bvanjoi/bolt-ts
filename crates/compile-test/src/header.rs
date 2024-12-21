@@ -44,8 +44,8 @@ impl TestConfig {
     }
 
     fn update_compiler_options(&mut self, ln: &str) {
-        if let Some(opt) = self.parse_name_value_directive(ln, &directives::COMPILER_OPTIONS) {
-            for pair in opt.trim().split_whitespace() {
+        if let Some(opt) = self.parse_name_value_directive(ln, directives::COMPILER_OPTIONS) {
+            for pair in opt.split_whitespace() {
                 if let Some((key, value)) = pair.split_once("=") {
                     self.compiler_options
                         .insert(key.to_string(), value.to_string());
@@ -216,7 +216,7 @@ fn line_directive<'line>(
 }
 
 mod directives {
-    pub const COMPILER_OPTIONS: &'static str = "compiler-options";
+    pub const COMPILER_OPTIONS: &str = "compiler-options";
 }
 
 #[test]
@@ -252,7 +252,7 @@ fn test_parse_name_directive() {
 
 #[test]
 fn test_config_update_compiler_options() {
-    let mut config = TestConfig::new();
+    let mut config = TestConfig::default();
 
     config.update_compiler_options("compiler-options: a1=b1");
     assert_eq!(config.compiler_options.len(), 1);

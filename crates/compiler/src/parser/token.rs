@@ -24,93 +24,24 @@ impl Token {
     }
 }
 
+pub const KEYWORD_TOKEN_START: u8 = TokenKind::Null as u8;
+pub const KEYWORD_TOKEN_END: u8 = TokenKind::Type as u8;
+
+pub const fn keyword_idx_to_token(idx: usize) -> TokenKind {
+    unsafe { std::mem::transmute::<u8, TokenKind>(idx as u8 + KEYWORD_TOKEN_START) }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum TokenKind {
-    // keyword
-    Null,
-    False,
-    True,
-    Var,
-    Let,
-    Const,
-    Function,
-    Return,
-    If,
-    Else,
-    Class,
-    Extends,
-    New,
-    Async,
-    This,
-    Static,
-    Constructor,
-    Super,
-    Get,
-    Set,
-    Import,
-    Export,
-    In,
-    // ts keyword
-    Implements,
-    Interface,
-    Abstract,
-    Public,
-    Private,
-    As,
-    Declare,
-    Module,
-    Namespace,
-    Type,
     // =====
-    /// `!`
-    Excl = 0x21,
-    /// `%`
-    Percent = 0x25,
-    /// `&`
-    Amp = 0x26,
-    /// `*`
-    Asterisk = 0x2A,
-    /// `+`
-    Plus = 0x2B,
-    /// `,`
-    Comma = 0x2C,
-    /// `-`
-    Minus = 0x2D,
-    /// `(`
-    LParen = 0x28,
-    /// `)`
-    RParen = 0x29,
-    /// `.`
-    Dot = 0x2E,
-    /// `:`
-    Colon = 0x3A,
-    /// `;`
-    Semi = 0x3B,
-    /// `<`
-    Less = 0x3C,
-    /// `=`
-    Eq = 0x3D,
-    /// `>`
-    Great = 0x3E,
-    /// `?`
-    Question = 0x3F,
-    /// `[`
-    LBracket = 0x5B,
-    /// `\`
-    Slash = 0x5C,
-    /// `]`
-    RBracket = 0x5D,
-    /// `^`
-    Caret = 0x5E,
-    /// `|`
-    Pipe = 0x7C,
-    /// `{`
-    LBrace = 0x7B,
-    /// `}`
-    RBrace = 0x7D,
+    EOF,
+    Number,
+    String,
+    Ident,
+    NoSubstitutionTemplate,
     // ======
     /// `=>`
-    EqGreater,
+    EqGreat,
     /// `...`
     DotDotDot,
     /// `&=`
@@ -162,16 +93,103 @@ pub enum TokenKind {
     /// `^=`
     CaretEq,
     // =====
-    EOF,
-    Number,
-    String,
-    Ident,
-    NoSubstitutionTemplate,
+    /// `!`
+    Excl = 0x21,
+    /// `%`
+    Percent = 0x25,
+    /// `&`
+    Amp = 0x26,
+    /// `*`
+    Asterisk = 0x2A,
+    /// `+`
+    Plus = 0x2B,
+    /// `,`
+    Comma = 0x2C,
+    /// `-`
+    Minus = 0x2D,
+    /// `(`
+    LParen = 0x28,
+    /// `)`
+    RParen = 0x29,
+    /// `.`
+    Dot = 0x2E,
+    /// `:`
+    Colon = 0x3A,
+    /// `;`
+    Semi = 0x3B,
+    /// `<`
+    Less = 0x3C,
+    /// `=`
+    Eq = 0x3D,
+    /// `>`
+    Great = 0x3E,
+    /// `?`
+    Question = 0x3F,
+    /// `@`
+    At = 0x40,
+    /// `[`
+    LBracket = 0x5B,
+    /// `\`
+    Slash = 0x5C,
+    /// `]`
+    RBracket = 0x5D,
+    /// `^`
+    Caret = 0x5E,
+    /// `|`
+    Pipe = 0x7C,
+    /// `{`
+    LBrace = 0x7B,
+    /// `}`
+    RBrace = 0x7D,
+    // =====
+    // keyword
+    Null,
+    False,
+    True,
+    Var,
+    Let,
+    Const,
+    Function,
+    Return,
+    If,
+    Else,
+    Class,
+    Extends,
+    New,
+    Async,
+    This,
+    Static,
+    Constructor,
+    Super,
+    Get,
+    Set,
+    Import,
+    Export,
+    Default,
+    Throw,
+    Try,
+    Catch,
+    Finally,
+    Debugger,
+    In,
+    // ts keyword
+    Implements,
+    Interface,
+    Abstract,
+    Public,
+    Private,
+    As,
+    Declare,
+    Module,
+    Namespace,
+    Enum,
+    Readonly,
+    Type,
 }
 
-impl Into<BinOpKind> for TokenKind {
-    fn into(self) -> BinOpKind {
-        match self {
+impl From<TokenKind> for BinOpKind {
+    fn from(value: TokenKind) -> Self {
+        match value {
             TokenKind::Plus => BinOpKind::Add,
             TokenKind::Pipe => BinOpKind::Pipe,
             TokenKind::PipePipe => BinOpKind::PipePipe,
@@ -192,58 +210,45 @@ impl Into<BinOpKind> for TokenKind {
             TokenKind::GreatGreat => BinOpKind::Shr,
             TokenKind::GreatGreatGreat => BinOpKind::UShr,
             _ => {
-                unreachable!("{:#?}", self)
+                unreachable!("{:#?}", value)
             }
         }
     }
 }
 
-impl Into<PrefixUnaryOp> for TokenKind {
-    fn into(self) -> PrefixUnaryOp {
-        match self {
+impl From<TokenKind> for PrefixUnaryOp {
+    fn from(value: TokenKind) -> Self {
+        match value {
             TokenKind::Plus => PrefixUnaryOp::Plus,
             TokenKind::Minus => PrefixUnaryOp::Minus,
             TokenKind::PlusPlus => PrefixUnaryOp::PlusPlus,
             TokenKind::MinusMinus => PrefixUnaryOp::MinusMinus,
             _ => {
-                unreachable!("{:#?}", self)
+                unreachable!("{:#?}", value)
             }
         }
     }
 }
 
-impl Into<ModifierKind> for TokenKind {
-    fn into(self) -> ModifierKind {
-        match self {
-            TokenKind::Public => ModifierKind::Public,
-            TokenKind::Abstract => ModifierKind::Abstract,
-            TokenKind::Static => ModifierKind::Static,
-            TokenKind::Declare => ModifierKind::Declare,
-            TokenKind::Private => ModifierKind::Private,
-            _ => {
-                unreachable!("{:#?}", self)
-            }
+impl TryFrom<TokenKind> for ModifierKind {
+    type Error = ();
+    fn try_from(value: TokenKind) -> Result<Self, Self::Error> {
+        match value {
+            TokenKind::Public => Ok(ModifierKind::Public),
+            TokenKind::Abstract => Ok(ModifierKind::Abstract),
+            TokenKind::Static => Ok(ModifierKind::Static),
+            TokenKind::Declare => Ok(ModifierKind::Declare),
+            TokenKind::Private => Ok(ModifierKind::Private),
+            TokenKind::Export => Ok(ModifierKind::Export),
+            TokenKind::Readonly => Ok(ModifierKind::Readonly),
+            _ => Err(()),
         }
     }
 }
 
-impl TokenKind {
-    pub fn prec(self) -> BinPrec {
-        use TokenKind::*;
-        match self {
-            Pipe => BinPrec::BitwiseOR,
-            Less | LessEq | Great | GreatEq => BinPrec::Relational,
-            LessLess | GreatGreat | GreatGreatGreat => BinPrec::Shift,
-            Plus => BinPrec::Additive,
-            PipePipe => BinPrec::LogicalOr,
-            AmpAmp => BinPrec::LogicalAnd,
-            EqEq | EqEqEq => BinPrec::Eq,
-            _ => BinPrec::Invalid,
-        }
-    }
-
-    pub fn into_assign_op(self) -> AssignOp {
-        match self {
+impl From<TokenKind> for AssignOp {
+    fn from(value: TokenKind) -> Self {
+        match value {
             TokenKind::Eq => AssignOp::Eq,
             TokenKind::PlusEq => AssignOp::AddEq,
             TokenKind::MinusEq => AssignOp::SubEq,
@@ -257,6 +262,23 @@ impl TokenKind {
             TokenKind::GreatGreatGreatEq => AssignOp::UShrEq,
             TokenKind::CaretEq => AssignOp::BitXorEq,
             _ => unreachable!(),
+        }
+    }
+}
+
+impl TokenKind {
+    pub fn prec(self) -> BinPrec {
+        use TokenKind::*;
+        match self {
+            Pipe => BinPrec::BitwiseOR,
+            Less | LessEq | Great | GreatEq => BinPrec::Relational,
+            LessLess | GreatGreat | GreatGreatGreat => BinPrec::Shift,
+            Plus | Minus => BinPrec::Additive,
+            PipePipe => BinPrec::LogicalOr,
+            AmpAmp => BinPrec::LogicalAnd,
+            EqEq | EqEqEq => BinPrec::Eq,
+            Asterisk | Slash | Percent => BinPrec::Multiplicative,
+            _ => BinPrec::Invalid,
         }
     }
 
@@ -287,7 +309,7 @@ impl TokenKind {
 
     fn is_ts_keyword(self) -> bool {
         let u = self as u8;
-        u <= (TokenKind::Type as u8) && u >= (TokenKind::Implements as u8)
+        u <= KEYWORD_TOKEN_END && u >= (TokenKind::Implements as u8)
     }
 
     pub fn is_binding_ident(self) -> bool {
@@ -299,7 +321,8 @@ impl TokenKind {
     }
 
     pub fn is_keyword(self) -> bool {
-        (self as u8) <= (TokenKind::Type as u8)
+        let u = self as u8;
+        u >= KEYWORD_TOKEN_START && u <= KEYWORD_TOKEN_END
     }
 
     pub fn is_ident_or_keyword(self) -> bool {
@@ -338,8 +361,7 @@ impl TokenKind {
     }
 
     pub fn is_modifier_kind(self) -> bool {
-        use TokenKind::*;
-        matches!(self, Abstract | Const | Public | Static | Declare | Private)
+        TryInto::<ModifierKind>::try_into(self).is_ok()
     }
 
     pub fn is_accessibility_modifier(self) -> bool {
@@ -375,6 +397,8 @@ pub enum BinPrec {
     Shift,
     /// `+`, `-`
     Additive,
+    /// `*`, `/`, `%`   
+    Multiplicative,
     Highest,
 }
 

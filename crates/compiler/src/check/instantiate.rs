@@ -78,23 +78,28 @@ impl<'cx> TyChecker<'cx> {
         ty: &'cx ty::Ty<'cx>,
         mapper: &ty::TyMapper<'cx>,
     ) -> &'cx ty::Ty<'cx> {
-        let object_ty = ty.kind.expect_object();
+        let Some(refer) = ty.kind.as_object_reference() else {
+            return ty;
+        };
         use ty::ObjectTyKind::*;
-        match object_ty.kind {
+        let ty_args = self.instantiate_tys(refer.ty_args, mapper);
+        let object_ty = refer.target.kind.expect_object();
+        match &object_ty.kind {
             Tuple(tuple) => {
-                let ty_args = self.instantiate_tys(tuple.refer.ty_args, mapper);
-                if !std::ptr::eq(ty_args, tuple.refer.ty_args) {
-                    let tuple = self.create_normalized_tuple_ty(
+                if !std::ptr::eq(ty_args, refer.ty_args) {
+                    self.create_normalized_tuple_ty(
                         ty_args,
                         tuple.element_flags,
                         tuple.combined_flags,
-                    );
-                    self.create_tuple_ty(tuple)
+                    )
                 } else {
-                    ty
+                    refer.target
                 }
             }
-            _ => todo!("{:?}", object_ty.kind),
+            _ => self.create_reference_ty(ty::ReferenceTy {
+                target: refer.target,
+                ty_args,
+            }),
         }
     }
 

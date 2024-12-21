@@ -9,4 +9,4 @@ macro_rules! lib {
       )*
     };
 }
-pub const LIB_ENTIRES: [(&'static str, &'static str); 1] = [lib!("es5")];
+pub const LIB_ENTIRES: [(&str, &str); 1] = [lib!("es5")];

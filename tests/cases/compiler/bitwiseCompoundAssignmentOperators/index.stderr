@@ -1,8 +1,8 @@
   × The '^=' operator is not allowed for boolean types. Consider using '!
   │ ==' instead.
    ╭─[../../tests/cases/compiler/bitwiseCompoundAssignmentOperators/index.ts:3:1]
- 3 │ a ^= a;
-   · ───────
+ 3 │ a ^= a
+   · ──────
    ╰────
 
   × The left-hand side of an arithmetic operation must be of type 'any',
@@ -22,8 +22,8 @@
   × The '&=' operator is not allowed for boolean types. Consider using '&&'
   │ instead.
     ╭─[../../tests/cases/compiler/bitwiseCompoundAssignmentOperators/index.ts:14:1]
- 14 │ c &= c;
-    · ───────
+ 14 │ c &= c
+    · ──────
     ╰────
 
   × The left-hand side of an arithmetic operation must be of type 'any',
@@ -43,8 +43,8 @@
   × The '|=' operator is not allowed for boolean types. Consider using '||'
   │ instead.
     ╭─[../../tests/cases/compiler/bitwiseCompoundAssignmentOperators/index.ts:24:1]
- 24 │ e |= e;
-    · ───────
+ 24 │ e |= e
+    · ──────
     ╰────
 
   × The left-hand side of an arithmetic operation must be of type 'any',

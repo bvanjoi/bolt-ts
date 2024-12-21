@@ -2,9 +2,11 @@ mod facts;
 mod mapper;
 mod object_shape;
 mod object_ty;
+mod sig;
 
 use crate::atoms::{AtomId, AtomMap};
 use crate::bind::{Binder, SymbolID};
+use crate::check::TyChecker;
 use crate::{ast, keyword};
 
 pub use self::facts::{has_type_facts, TypeFacts};
@@ -12,9 +14,10 @@ pub use self::mapper::{ArrayTyMapper, CompositeTyMapper, TyMapper};
 pub use self::mapper::{DeferredTyMapper, FnTyMapper, MergedTyMapper, SimpleTyMapper};
 pub use self::object_shape::ObjectShape;
 pub use self::object_ty::ElementFlags;
-pub use self::object_ty::TyReference;
-pub use self::object_ty::{ArrayTy, IndexInfo, ObjectTy, TupleShape, TupleTy};
+pub use self::object_ty::ReferenceTy;
 pub use self::object_ty::{ClassTy, FnTy, InterfaceTy, ObjectLitTy, ObjectTyKind};
+pub use self::object_ty::{IndexInfo, ObjectTy, TupleShape, TupleTy};
+pub use self::sig::{Sig, SigFlags, Sigs};
 
 bolt_ts_span::new_index!(TyID);
 bolt_ts_span::new_index!(TyVarID);
@@ -131,23 +134,27 @@ as_ty_kind!(Param, &'cx ParamTy, as_param, expect_param, is_param);
 as_ty_kind!(Var, &TyVarID, as_ty_var, expect_ty_var, is_ty_var);
 as_ty_kind!(Cond, &CondTy<'cx>, as_cond_ty, expect_cond_ty, is_cond_ty);
 
-impl<'cx> TyKind<'cx> {
-    pub fn to_string(&self, binder: &'cx Binder, atoms: &'cx AtomMap) -> String {
-        match self {
-            TyKind::NumberLit(_) => "number".to_string(),
+impl<'cx> Ty<'cx> {
+    pub fn to_string(&self, checker: &TyChecker) -> String {
+        if self.kind.is_array(checker) {
+            let ele = self.kind.expect_object_reference().ty_args[0].to_string(checker);
+            return format!("{ele}[]");
+        }
+        match self.kind {
+            TyKind::NumberLit(lit) => format!("{}", lit.val),
+            TyKind::StringLit(lit) => format!("\"{}\"", checker.atoms.get(lit.val)),
             TyKind::Union(union) => union
                 .tys
                 .iter()
-                .map(|ty| ty.kind.to_string(binder, atoms))
+                .map(|ty| ty.to_string(checker))
                 .collect::<Vec<_>>()
                 .join(" | "),
-            TyKind::StringLit(_) => todo!(),
-            TyKind::Object(object) => object.kind.to_string(&binder, atoms),
+            TyKind::Object(object) => object.kind.to_string(checker),
             TyKind::Var(id) => {
                 // todo: delay bug
                 format!("#{id:#?}")
             }
-            TyKind::Param(_) => todo!(),
+            TyKind::Param(_) => "param".to_string(),
             TyKind::IndexedAccess(_) => "indexedAccess".to_string(),
             TyKind::Cond(_) => "cond".to_string(),
             TyKind::Any => keyword::IDENT_ANY_STR.to_string(),
@@ -162,7 +169,9 @@ impl<'cx> TyKind<'cx> {
             TyKind::Null => keyword::KW_NULL_STR.to_string(),
         }
     }
+}
 
+impl TyKind<'_> {
     pub fn is_primitive(&self) -> bool {
         use TyKind::*;
         if self.is_string_like() || self.is_number_like() || self.is_boolean_like() {
@@ -244,11 +253,10 @@ impl<'cx> TyKind<'cx> {
     }
 
     pub fn is_generic_tuple_type(&self) -> bool {
-        if let Some(tup) = self.as_object_tuple() {
-            tup.combined_flags.intersects(ElementFlags::VARIADIC)
-        } else {
-            false
-        }
+        self.as_object_reference()
+            .and_then(|refer| refer.target.kind.as_object_tuple())
+            .map(|tup| tup.combined_flags.intersects(ElementFlags::VARIADIC))
+            .unwrap_or_default()
     }
 
     pub fn is_generic_object(&self) -> bool {
@@ -256,12 +264,15 @@ impl<'cx> TyKind<'cx> {
     }
 
     pub fn is_tuple(&self) -> bool {
-        if self.is_object_flags_type() {
-            // TODO: object flags
-            true
-        } else {
-            false
-        }
+        self.as_object_reference()
+            .map(|refer| refer.target.kind.is_object_tuple())
+            .unwrap_or_default()
+    }
+
+    pub fn is_array(&self, checker: &TyChecker) -> bool {
+        self.as_object_reference()
+            .map(|refer| refer.target == checker.global_array_ty())
+            .unwrap_or_default()
     }
 
     pub fn is_object_flags_type(&self) -> bool {
@@ -335,4 +346,5 @@ pub struct StringLitTy {
 #[derive(Debug, Clone, Copy)]
 pub struct ParamTy {
     pub symbol: SymbolID,
+    pub offset: usize,
 }

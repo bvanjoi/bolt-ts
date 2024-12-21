@@ -38,8 +38,8 @@ impl<'cx> TyChecker<'cx> {
         self.create_object_ty(ty::ObjectTyKind::Tuple(self.alloc(ty)))
     }
 
-    pub(super) fn create_array_ty(&mut self, ty: ty::ArrayTy<'cx>) -> &'cx ty::Ty<'cx> {
-        self.create_object_ty(ty::ObjectTyKind::Array(self.alloc(ty)))
+    pub(super) fn create_reference_ty(&mut self, ty: ty::ReferenceTy<'cx>) -> &'cx ty::Ty<'cx> {
+        self.create_object_ty(ty::ObjectTyKind::Reference(self.alloc(ty)))
     }
 
     pub(super) fn create_class_ty(&mut self, ty: ty::ClassTy) -> &'cx ty::Ty<'cx> {

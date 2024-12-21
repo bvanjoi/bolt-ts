@@ -1,10 +1,7 @@
-use super::{
-    symbol::{PropSymbol, SymbolFlags},
-    BinderState, ClassSymbol, SymbolID, SymbolKind, SymbolName,
-};
-use crate::{ast, bind::symbol::FnSymbol, ir};
+use super::symbol::{PropSymbol, SymbolFlags};
+use super::{BinderState, ClassSymbol, SymbolID, SymbolKind, SymbolName};
+use crate::{ast, ir};
 use rustc_hash::FxHashMap;
-use thin_vec::thin_vec;
 
 pub(super) trait ClassLike<'cx>: ir::ClassLike<'cx> {
     fn create_symbol(&'cx self, binder: &mut BinderState<'cx>) -> SymbolID;
@@ -36,6 +33,7 @@ impl<'cx> BinderState<'cx> {
         self.create_final_res(expr.id, symbol);
         symbol
     }
+
     fn create_class_decl(&mut self, decl: &'cx ast::ClassDecl<'cx>) -> SymbolID {
         let symbol = self.create_var_symbol(
             decl.name.name,
@@ -73,80 +71,30 @@ impl<'cx> BinderState<'cx> {
         symbol
     }
 
-    fn create_class_fn_like_ele(
-        &mut self,
-        decl_id: ast::NodeID,
-        ele_name: SymbolName,
-        ele_id: ast::NodeID,
-        ele_kind: super::SymbolFnKind,
-    ) {
-        let Some(class_symbol_id) = self.final_res.get(&decl_id).copied() else {
-            unreachable!()
-        };
-        let SymbolKind::Class(ClassSymbol { members, .. }) =
-            &mut self.symbols.get_mut(class_symbol_id).kind.0
-        else {
-            unreachable!()
-        };
-        if let Some(s) = members.get(&ele_name).copied() {
-            let symbol = self.symbols.get_mut(s);
-            match &mut symbol.kind.0 {
-                SymbolKind::Fn(FnSymbol { decls, kind }) => {
-                    assert!(*kind == ele_kind);
-                    assert!(!decls.is_empty());
-                    decls.push(ele_id)
-                }
-                _ => unreachable!(),
-            };
-            self.create_final_res(ele_id, s);
-        } else {
-            let symbol = self.create_symbol(
-                ele_name,
-                SymbolFlags::FUNCTION,
-                SymbolKind::Fn(FnSymbol {
-                    kind: ele_kind,
-                    decls: thin_vec![ele_id],
-                }),
-            );
-            self.create_final_res(ele_id, symbol);
-            let SymbolKind::Class(ClassSymbol { members, .. }) =
-                &mut self.symbols.get_mut(class_symbol_id).kind.0
-            else {
-                unreachable!()
-            };
-            let prev = members.insert(ele_name, symbol);
-            assert!(prev.is_none())
-        }
-    }
-
-    fn create_class_method_ele(
-        &mut self,
-        decl_id: ast::NodeID,
-        ele: &'cx ast::ClassMethodEle<'cx>,
-    ) {
-        let ele_name = Self::prop_name(ele.name);
-        self.create_class_fn_like_ele(decl_id, ele_name, ele.id, super::SymbolFnKind::Method);
-    }
-
-    fn create_class_ctor(&mut self, decl_id: ast::NodeID, ctor: &'cx ast::ClassCtor<'cx>) {
-        self.create_class_fn_like_ele(
-            decl_id,
+    fn bind_class_ctor(&mut self, container: ast::NodeID, ctor: &'cx ast::ClassCtor<'cx>) {
+        self.create_fn_decl_like_symbol(
+            container,
+            ctor,
             SymbolName::Constructor,
-            ctor.id,
             super::SymbolFnKind::Ctor,
         );
-    }
-
-    fn bind_class_ctor(&mut self, decl_id: ast::NodeID, ele: &'cx ast::ClassCtor<'cx>) {
-        self.create_class_ctor(decl_id, ele);
-        self.bind_params(ele.params);
-        if let Some(body) = ele.body {
+        self.bind_params(ctor.params);
+        if let Some(body) = ctor.body {
             self.bind_block_stmt(body);
         }
     }
 
-    fn bind_class_method_ele(&mut self, decl_id: ast::NodeID, ele: &'cx ast::ClassMethodEle<'cx>) {
-        self.create_class_method_ele(decl_id, ele);
+    fn bind_class_method_ele(
+        &mut self,
+        container: ast::NodeID,
+        ele: &'cx ast::ClassMethodEle<'cx>,
+    ) {
+        self.create_fn_decl_like_symbol(
+            container,
+            ele,
+            Self::prop_name(ele.name),
+            super::SymbolFnKind::Method,
+        );
         self.bind_params(ele.params);
         if let Some(body) = ele.body {
             self.bind_block_stmt(body);
@@ -167,6 +115,13 @@ impl<'cx> BinderState<'cx> {
         self.connect(class.id());
         let class_symbol = class.create_symbol(self);
 
+        let old = self.scope_id;
+        self.scope_id = self.new_scope();
+
+        if let Some(ty_params) = class.ty_params() {
+            self.bind_ty_params(ty_params);
+        }
+
         if let Some(extends) = class.extends() {
             self.bind_expr(extends.expr);
         }
@@ -177,8 +132,6 @@ impl<'cx> BinderState<'cx> {
             }
         }
 
-        let old = self.scope_id;
-        self.scope_id = self.new_scope();
         for ele in class.elems().elems {
             match ele.kind {
                 ast::ClassEleKind::Prop(n) => self.bind_class_prop_ele(class.id(), n),

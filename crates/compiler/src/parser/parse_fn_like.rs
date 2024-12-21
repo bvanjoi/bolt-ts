@@ -106,7 +106,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         let params = self.with_parent(id, Self::parse_params)?;
         let ret_ty = self.with_parent(id, Self::parse_fn_decl_ret_type)?;
         let body = self.with_parent(id, Self::parse_fn_block)?;
-        let span = self.new_span(start as usize, self.pos);
+        let span = self.new_span(start);
         Ok(mode.finish(
             self, id, span, modifiers, name, ty_params, params, ret_ty, body,
         ))

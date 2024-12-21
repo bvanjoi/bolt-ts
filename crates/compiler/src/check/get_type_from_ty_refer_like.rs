@@ -6,22 +6,24 @@ use super::TyChecker;
 
 pub(super) trait GetTypeFromTyReferLike<'cx> {
     fn id(&self) -> ast::NodeID;
-    fn name(&self) -> Option<&'cx ast::Ident>; // TODO: support member name
-    fn args(&self) -> Option<ast::Tys<'cx>>;
+    fn name(&self) -> Option<ast::EntityName<'cx>>;
+    fn ty_args(&self) -> Option<ast::Tys<'cx>>;
 }
 
 impl<'cx> GetTypeFromTyReferLike<'cx> for ast::Expr<'cx> {
     fn id(&self) -> ast::NodeID {
         self.id()
     }
-    fn name(&self) -> Option<&'cx ast::Ident> {
+    fn name(&self) -> Option<ast::EntityName<'cx>> {
         if let ast::ExprKind::Ident(ident) = self.kind {
-            Some(ident)
+            Some(ast::EntityName {
+                kind: ast::EntityNameKind::Ident(ident),
+            })
         } else {
             None
         }
     }
-    fn args(&self) -> Option<ast::Tys<'cx>> {
+    fn ty_args(&self) -> Option<ast::Tys<'cx>> {
         None
     }
 }
@@ -30,11 +32,11 @@ impl<'cx> GetTypeFromTyReferLike<'cx> for ast::ReferTy<'cx> {
     fn id(&self) -> ast::NodeID {
         self.id
     }
-    fn name(&self) -> Option<&'cx ast::Ident> {
-        Some(self.name)
+    fn name(&self) -> Option<ast::EntityName<'cx>> {
+        Some(*self.name)
     }
-    fn args(&self) -> Option<ast::Tys<'cx>> {
-        self.args
+    fn ty_args(&self) -> Option<ast::Tys<'cx>> {
+        self.ty_args
     }
 }
 
@@ -135,7 +137,6 @@ impl<'cx> TyChecker<'cx> {
         node: &impl GetTypeFromTyReferLike<'cx>,
         symbol: SymbolID,
     ) -> &'cx ty::Ty<'cx> {
-        let module = node.id().module();
         let ty = self.get_declared_ty_of_symbol(symbol);
         if let Some(ty_params) = self.get_symbol_links(symbol).get_ty_params() {
             // let len = node.args().unwrap_or_default().len();
@@ -153,7 +154,7 @@ impl<'cx> TyChecker<'cx> {
             //     let alias_symbol = self.resolve_ty_refer_name(name)
             // }
             let args = node
-                .args()
+                .ty_args()
                 .map(|args| self.ty_args_from_ty_refer_node(args))
                 .unwrap_or_default();
             self.get_type_alias_instantiation(symbol, args)
@@ -163,7 +164,7 @@ impl<'cx> TyChecker<'cx> {
     }
 
     fn check_no_ty_args(&mut self, node: &impl GetTypeFromTyReferLike<'cx>) -> bool {
-        if node.args().is_some() {
+        if node.ty_args().is_some() {
             todo!("error")
         } else {
             true
@@ -200,19 +201,24 @@ impl<'cx> TyChecker<'cx> {
     ) -> &'cx ty::Ty<'cx> {
         // TODO: cache
         if let Some(name) = node.name() {
-            if name.name == keyword::IDENT_BOOLEAN {
-                self.boolean_ty()
-            } else if name.name == keyword::IDENT_NUMBER {
-                self.number_ty()
-            } else if name.name == keyword::IDENT_STRING {
-                self.string_ty()
-            } else if name.name == keyword::IDENT_ANY {
-                self.any_ty()
-            } else if name.name == keyword::IDENT_VOID {
-                self.void_ty()
+            if let ast::EntityNameKind::Ident(ident) = name.kind {
+                if ident.name == keyword::IDENT_BOOLEAN {
+                    self.boolean_ty()
+                } else if ident.name == keyword::IDENT_NUMBER {
+                    self.number_ty()
+                } else if ident.name == keyword::IDENT_STRING {
+                    self.string_ty()
+                } else if ident.name == keyword::IDENT_ANY {
+                    self.any_ty()
+                } else if ident.name == keyword::IDENT_VOID {
+                    self.void_ty()
+                } else {
+                    let symbol = self.resolve_ty_refer_name(ident);
+                    self.get_ty_refer_type(node, symbol)
+                }
             } else {
-                let symbol = self.resolve_ty_refer_name(name);
-                self.get_ty_refer_type(node, symbol)
+                // TODO:
+                self.undefined_ty()
             }
         } else {
             // TODO:

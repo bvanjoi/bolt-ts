@@ -1,6 +1,7 @@
 use bolt_ts_span::Span;
 
 use crate::ast::Modifiers;
+use crate::keyword;
 
 use super::ast;
 use super::errors;
@@ -160,7 +161,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         let extends = self.with_parent(id, Self::parse_class_extends_clause)?;
         let implements = self.with_parent(id, Self::parse_implements_clause)?;
         let elems = self.with_parent(id, Self::parse_class_members)?;
-        let span = self.new_span(start as usize, elems.span.hi as usize);
+        let span = self.new_span(start);
         Ok(mode.finish(
             self, id, span, modifiers, name, ty_params, extends, implements, elems,
         ))
@@ -212,9 +213,9 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
                     .unwrap_or_else(|| extra_comma_span.hi);
                 let extra_extends = last_ele_span
                     .is_some()
-                    .then(|| self.new_span(lo as usize, hi as usize));
+                    .then(|| Span::new(lo, hi, self.module_id));
                 let error = errors::ClassesCanOnlyExtendASingleClass {
-                    span: self.new_span(lo as usize, lo as usize),
+                    span: Span::new(lo, lo, self.module_id),
                     extra_extends,
                 };
                 self.push_error(Box::new(error));
@@ -239,13 +240,13 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         let name = self.with_parent(id, Self::parse_prop_name)?;
         let ele = if self.token.kind == TokenKind::LParen || self.token.kind == TokenKind::Less {
             // method
-            let ty_params = self.parse_ty_params()?;
+            let ty_params = self.with_parent(id, Self::parse_ty_params)?;
             let params = self.parse_params()?;
             let ret = self.parse_ret_ty(true)?;
             let body = self.parse_fn_block()?;
             let method = self.alloc(ast::ClassMethodEle {
                 id,
-                span: self.new_span(start, self.pos),
+                span: self.new_span(start as u32),
                 modifiers,
                 name,
                 ty_params,
@@ -263,7 +264,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
             let init = self.parse_init();
             let prop = self.alloc(ast::ClassPropEle {
                 id,
-                span: self.new_span(start, self.pos),
+                span: self.new_span(start as u32),
                 modifiers,
                 name,
                 ty,
@@ -278,23 +279,45 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         Ok(ele)
     }
 
+    fn parse_ctor_name(&mut self) -> bool {
+        use TokenKind::*;
+        let t = self.token;
+        if t.kind == Constructor {
+            self.expect(Constructor).is_ok()
+        } else if t.kind == String
+            && self.lookahead(|this| {
+                this.next_token();
+                this.token.kind == LParen
+            })
+        {
+            self.try_parse(|this| {
+                let lit = this.parse_string_lit();
+                if lit.val == keyword::KW_CONSTRUCTOR {
+                    true
+                } else {
+                    false
+                }
+            })
+        } else {
+            false
+        }
+    }
+
     fn try_parse_ctor(
         &mut self,
         id: ast::NodeID,
         start: usize,
         mods: Option<&'cx Modifiers<'cx>>,
-    ) -> PResult<&'cx ast::ClassEle<'cx>> {
+    ) -> PResult<Option<&'cx ast::ClassEle<'cx>>> {
         self.try_parse(|this| {
-            if this.token.kind == TokenKind::Constructor
-                && this.expect(TokenKind::Constructor).is_ok()
-            {
+            if this.parse_ctor_name() {
                 let ty_params = this.with_parent(id, Self::parse_ty_params)?;
                 let params = this.with_parent(id, Self::parse_params)?;
                 let ret = this.with_parent(id, |this| this.parse_ret_ty(true))?;
                 let body = this.with_parent(id, Self::parse_fn_block)?;
                 let ctor = this.alloc(ast::ClassCtor {
                     id,
-                    span: this.new_span(start, this.pos),
+                    span: this.new_span(start as u32),
                     ty_params,
                     params,
                     ret,
@@ -304,9 +327,9 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
                 let ele = this.alloc(ast::ClassEle {
                     kind: ast::ClassEleKind::Ctor(ctor),
                 });
-                Ok(ele)
+                Ok(Some(ele))
             } else {
-                Err(())
+                Ok(None)
             }
         })
     }
@@ -328,7 +351,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         let kind = if is_getter {
             let decl = self.alloc(ast::GetterDecl {
                 id,
-                span: self.new_span(start, self.pos),
+                span: self.new_span(start as u32),
                 name,
                 ret,
                 body,
@@ -338,7 +361,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         } else {
             let decl = self.alloc(ast::SetterDecl {
                 id,
-                span: self.new_span(start, self.pos),
+                span: self.new_span(start as u32),
                 name,
                 params,
                 body,
@@ -353,7 +376,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
     fn parse_class_ele(&mut self) -> PResult<&'cx ast::ClassEle<'cx>> {
         let id = self.next_node_id();
         let start = self.token.start() as usize;
-        let modifiers = self.with_parent(id, Self::parse_modifiers)?;
+        let modifiers = self.with_parent(id, |this| this.parse_modifiers(true))?;
         if self.parse_contextual_modifier(TokenKind::Get) {
             return self.parse_accessor_decl(id, start, modifiers, TokenKind::Get);
         } else if self.parse_contextual_modifier(TokenKind::Set) {
@@ -361,7 +384,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         }
 
         if self.token.kind == TokenKind::Constructor {
-            if let Ok(ctor) = self.try_parse_ctor(id, start, modifiers) {
+            if let Ok(Some(ctor)) = self.try_parse_ctor(id, start, modifiers) {
                 return Ok(ctor);
             }
         }
@@ -381,7 +404,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         let elems = self.parse_list(ClassElementsCtx, Self::parse_class_ele);
         let end = self.token.end();
         self.expect(TokenKind::RBrace)?;
-        let span = self.new_span(start as usize, end as usize);
+        let span = Span::new(start, end, self.module_id);
         Ok(self.alloc(ast::ClassElems { span, elems }))
     }
 }

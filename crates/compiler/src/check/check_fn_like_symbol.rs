@@ -1,5 +1,7 @@
+use bolt_ts_span::Span;
+
 use crate::bind::{SymbolFnKind, SymbolID};
-use crate::{ast, errors};
+use crate::{ast, errors, keyword};
 
 use super::TyChecker;
 
@@ -14,10 +16,8 @@ impl<'cx> TyChecker<'cx> {
             match node {
                 ast::Node::FnDecl(n) => {
                     n.body.is_some()
-                        || n.modifiers.map_or(false, |m| {
-                            // TODO: use bit flags
-                            m.list.iter().any(|m| m.kind == ast::ModifierKind::Declare)
-                        })
+                        || n.modifiers
+                            .map_or(false, |m| m.flags.contains(ast::ModifierKind::Declare))
                 }
                 ast::Node::ClassCtor(n) => n.body.is_some(),
                 ast::Node::ClassMethodEle(n) => n.body.is_some(),
@@ -26,11 +26,15 @@ impl<'cx> TyChecker<'cx> {
         });
 
         if !last_seen_non_ambient_decl {
-            let span = self.p.node(f.decls[0]).span();
             if f.kind == SymbolFnKind::Ctor {
+                let node = self.p.node(f.decls[0]).expect_class_ctor();
+                let lo = node.span.lo;
+                let hi = lo + keyword::KW_CONSTRUCTOR_STR.len() as u32;
+                let span = Span::new(lo, hi, node.span.module);
                 let error = errors::ConstructorImplementationIsMissing { span };
                 self.push_error(span.module, Box::new(error));
             } else {
+                let span = self.p.node(f.decls[0]).ident_name().unwrap().span;
                 let error = errors::FunctionImplementationIsMissingOrNotImmediatelyFollowingTheDeclaration { span };
                 self.push_error(span.module, Box::new(error));
             }

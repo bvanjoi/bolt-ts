@@ -4,7 +4,7 @@ use crate::common::{FailMode, PassMode};
 use crate::{errors, TestConfig, TestProps};
 
 pub fn run(test_file: &Path, runner: impl FnOnce(&Path) -> Result<(), Vec<errors::Error>>) {
-    let mut config = TestConfig::new();
+    let mut config = TestConfig::default();
     let props = TestProps::from_file(test_file, &mut config);
     let cx = TestCx {
         props: &props,
@@ -19,7 +19,7 @@ struct TestCx<'test> {
     test_file: &'test Path,
 }
 
-impl<'test> TestCx<'test> {
+impl TestCx<'_> {
     fn run_test(&self, runner: impl FnOnce(&Path) -> Result<(), Vec<errors::Error>>) {
         let expected_errors = errors::load_errors(self.test_file, None);
 

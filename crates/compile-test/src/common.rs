@@ -55,14 +55,7 @@ pub enum FailMode {
     Run,
 }
 
+#[derive(Default)]
 pub struct TestConfig {
     pub(super) compiler_options: HashMap<String, String>,
-}
-
-impl TestConfig {
-    pub fn new() -> Self {
-        Self {
-            compiler_options: Default::default(),
-        }
-    }
 }

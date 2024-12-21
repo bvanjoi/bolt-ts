@@ -1,5 +1,5 @@
 use super::token::TokenKind;
-use super::{PResult, ParserState};
+use super::{PResult, ParserState, Tristate};
 
 impl<'p, 't> ParserState<'p, 't> {
     pub(super) fn is_tuple_ele_name(&mut self) -> bool {
@@ -65,6 +65,20 @@ impl<'p, 't> ParserState<'p, 't> {
                 Module | Namespace => {
                     return self.next_token_is_identifier_or_string_literal_on_same_line()
                 }
+                Import => {
+                    self.next_token();
+                    return matches!(self.token.kind, String | Asterisk | LBrace)
+                        || self.token.kind.is_ident_or_keyword();
+                }
+                Export => {
+                    self.next_token();
+                    if self.token.kind == Type {
+                        self.next_token();
+                    }
+                    if matches!(self.token.kind, Eq | Asterisk | LBrace | Default | As | At) {
+                        return true;
+                    }
+                }
                 _ => unreachable!("{:#?}", self.token.kind),
             }
         }
@@ -72,5 +86,87 @@ impl<'p, 't> ParserState<'p, 't> {
 
     pub(super) fn is_start_of_decl(&mut self) -> bool {
         self.lookahead(Self::is_decl)
+    }
+
+    fn _is_paren_arrow_fn_expr(&mut self) -> Tristate {
+        use TokenKind::*;
+        if self.token.kind == TokenKind::Async {
+            self.next_token();
+            if self.has_preceding_line_break() || !matches!(self.token.kind, LParen | Less) {
+                return Tristate::False;
+            }
+        }
+
+        let first = self.token.kind;
+        self.next_token();
+        let second = self.token.kind;
+
+        if first == LParen {
+            if second == RParen {
+                self.next_token();
+                if matches!(self.token.kind, EqGreat | Colon | RBrace) {
+                    Tristate::True
+                } else {
+                    Tristate::False
+                }
+            } else if second == LBracket || second == LBrace {
+                Tristate::Unknown
+            } else if second == DotDotDot {
+                Tristate::True
+            } else if second != Async
+                && second.is_modifier_kind()
+                && self
+                    .lookahead(Self::next_token_is_ident)
+                    .unwrap_or_default()
+            {
+                self.next_token();
+                if self.token.kind == As {
+                    Tristate::False
+                } else {
+                    Tristate::True
+                }
+            } else if !self.is_ident() && second != This {
+                Tristate::False
+            } else {
+                self.next_token();
+                match self.token.kind {
+                    Colon => Tristate::True,
+                    Question => {
+                        self.next_token();
+                        if matches!(self.token.kind, Colon | Comma | Eq | RParen) {
+                            Tristate::True
+                        } else {
+                            Tristate::False
+                        }
+                    }
+                    Comma | Eq | RParen => Tristate::Unknown,
+                    _ => Tristate::False,
+                }
+            }
+        } else {
+            assert_eq!(first, Less);
+            if !self.is_ident() && self.token.kind != Const {
+                Tristate::False
+            } else {
+                Tristate::Unknown
+            }
+        }
+    }
+
+    pub(super) fn is_paren_arrow_fn_expr(&mut self) -> Tristate {
+        let t = self.token.kind;
+
+        if matches!(t, TokenKind::LParen | TokenKind::Less | TokenKind::Async) {
+            return self.lookahead(Self::_is_paren_arrow_fn_expr);
+        }
+
+        if t == TokenKind::EqGreat {
+            // ERROR RECOVERY TWEAK:
+            // If we see a standalone => try to parse it as an arrow function expression as that's
+            // likely what the user intended to write.
+            return Tristate::True;
+        }
+
+        Tristate::False
     }
 }
