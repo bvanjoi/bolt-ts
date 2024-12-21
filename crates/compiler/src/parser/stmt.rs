@@ -53,7 +53,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
             let expr = self.with_parent(id, Self::parse_expr)?;
             let t = self.alloc(ast::ThrowStmt {
                 id,
-                span: self.new_span(start as usize, self.pos),
+                span: self.new_span(start),
                 expr,
             });
             if !self.try_parse_semi()? {
@@ -75,7 +75,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         }
         let name = self.parse_ident_name()?;
         let block = self.parse_block()?;
-        let span = self.new_span(start as usize, self.pos);
+        let span = self.new_span(start);
         let decl = self.alloc(ast::NsDecl {
             id,
             span,
@@ -98,7 +98,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         self.parse_semi();
         let decl = self.alloc(ast::TypeDecl {
             id,
-            span: self.new_span(start as usize, self.pos),
+            span: self.new_span(start),
             name,
             ty_params,
             ty,
@@ -153,7 +153,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
             let tys = self.with_parent(id, |this| {
                 this.parse_delimited_list(list_ctx::HeritageClause, Self::parse_expr_with_ty_args)
             });
-            let span = self.new_span(start as usize, self.pos);
+            let span = self.new_span(start);
             let clause = self.alloc(ast::InterfaceExtendsClause { id, span, tys });
             self.insert_map(id, ast::Node::InterfaceExtendsClause(clause));
             Ok(Some(clause))
@@ -176,7 +176,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         let members = self.with_parent(id, Self::parse_object_ty_members)?;
         let decl = self.alloc(ast::InterfaceDecl {
             id,
-            span: self.new_span(start as usize, self.pos),
+            span: self.new_span(start),
             modifiers,
             name,
             ty_params,
@@ -204,7 +204,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
             let tys = self.with_parent(id, |this| {
                 this.parse_delimited_list(list_ctx::HeritageClause, Self::parse_expr_with_ty_args)
             });
-            let span = self.new_span(start as usize, self.pos);
+            let span = self.new_span(start);
             let clause = self.alloc(ast::ImplementsClause { id, span, tys });
             self.insert_map(id, ast::Node::ImplementsClause(clause));
             Ok(Some(clause))
@@ -219,7 +219,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         self.expect(TokenKind::Semi)?;
         let stmt = self.alloc(ast::EmptyStmt {
             id,
-            span: self.new_span(start as usize, self.pos),
+            span: self.new_span(start),
         });
         self.insert_map(id, ast::Node::EmptyStmt(stmt));
         Ok(stmt)
@@ -240,12 +240,12 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         };
         let list = self.with_parent(id, Self::parse_var_decl_list);
         if list.is_empty() {
-            let span = self.new_span(start as usize, self.full_start_pos);
+            let span = self.new_span(start);
             self.push_error(Box::new(errors::VariableDeclarationListCannotBeEmpty {
                 span,
             }));
         }
-        let span = self.new_span(start as usize, self.pos);
+        let span = self.new_span(start);
         let node = self.alloc(ast::VarStmt {
             id,
             kind,
@@ -273,7 +273,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         let binding = self.with_parent(id, Self::parse_ident_or_pat);
         let ty = self.with_parent(id, Self::parse_ty_anno)?;
         let init = self.with_parent(id, Self::parse_init);
-        let span = self.new_span(start as usize, self.pos);
+        let span = self.new_span(start);
         let node = self.alloc(ast::VarDecl {
             id,
             span,
@@ -297,7 +297,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         self.parse_fn_decl_or_expr(ParseFnDecl, modifiers)
         // let f = self.alloc(ast::FnDecl {
         //     id,
-        //     span: self.new_span(start as usize, self.pos),
+        //     span: self.new_span(start ),
         //     modifiers,
         //     name,
         //     params,
@@ -323,7 +323,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         };
         let stmt = self.alloc(ast::IfStmt {
             id,
-            span: self.new_span(start as usize, self.pos),
+            span: self.new_span(start),
             expr,
             then,
             else_then,
@@ -344,7 +344,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         self.parse_semi();
         let stmt = self.alloc(ast::RetStmt {
             id,
-            span: self.new_span(start as usize, self.pos),
+            span: self.new_span(start),
             expr,
         });
         self.insert_map(id, ast::Node::RetStmt(stmt));

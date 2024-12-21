@@ -41,7 +41,7 @@ pub enum TokenKind {
     NoSubstitutionTemplate,
     // ======
     /// `=>`
-    EqGreater,
+    EqGreat,
     /// `...`
     DotDotDot,
     /// `&=`
@@ -273,10 +273,11 @@ impl TokenKind {
             Pipe => BinPrec::BitwiseOR,
             Less | LessEq | Great | GreatEq => BinPrec::Relational,
             LessLess | GreatGreat | GreatGreatGreat => BinPrec::Shift,
-            Plus => BinPrec::Additive,
+            Plus | Minus => BinPrec::Additive,
             PipePipe => BinPrec::LogicalOr,
             AmpAmp => BinPrec::LogicalAnd,
             EqEq | EqEqEq => BinPrec::Eq,
+            Asterisk | Slash | Percent => BinPrec::Multiplicative,
             _ => BinPrec::Invalid,
         }
     }
@@ -396,6 +397,8 @@ pub enum BinPrec {
     Shift,
     /// `+`, `-`
     Additive,
+    /// `*`, `/`, `%`   
+    Multiplicative,
     Highest,
 }
 

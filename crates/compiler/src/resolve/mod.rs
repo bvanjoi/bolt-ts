@@ -1,13 +1,14 @@
 mod errors;
+mod resolve_call_like;
 mod resolve_class_like;
 
 use bolt_ts_span::ModuleID;
 use rustc_hash::FxHashMap;
 
-use crate::ast;
 use crate::bind::{BinderState, GlobalSymbols, Symbol, SymbolID, SymbolName, Symbols};
 use crate::keyword::{is_prim_ty_name, is_prim_value_name};
 use crate::parser::Parser;
+use crate::{ast, keyword};
 
 pub struct ResolveResult {
     pub symbols: Symbols,
@@ -22,9 +23,9 @@ pub fn resolve<'cx>(
     global: &'cx GlobalSymbols,
 ) -> ResolveResult {
     let mut resolver = Resolver {
+        diags: std::mem::take(&mut state.diags),
         state: &mut state,
         p,
-        diags: vec![],
         global,
     };
     resolver.resolve_program(root);
@@ -236,10 +237,10 @@ impl<'cx, 'r> Resolver<'cx, 'r> {
                 self.resolve_value_by_ident(ident);
             }
             Call(call) => {
-                self.resolve_expr(call.expr);
-                for arg in call.args {
-                    self.resolve_expr(arg);
-                }
+                self.resolve_call_like_expr(call);
+            }
+            New(new) => {
+                self.resolve_call_like_expr(new);
             }
             Bin(bin) => {
                 self.resolve_expr(bin.left);
@@ -273,7 +274,7 @@ impl<'cx, 'r> Resolver<'cx, 'r> {
                 self.resolve_params(f.params);
                 self.resolve_block_stmt(f.body);
             }
-            New(new) => self.resolve_expr(new.expr),
+
             Class(class) => self.resolve_class_like(class),
             PrefixUnary(unary) => self.resolve_expr(unary.expr),
             _ => (),
@@ -328,7 +329,12 @@ impl<'cx, 'r> Resolver<'cx, 'r> {
     }
 
     fn resolve_value_by_ident(&mut self, ident: &'cx ast::Ident) {
-        if is_prim_value_name(ident.name) {
+        if ident.name == keyword::IDENT_EMPTY {
+            // delay bug
+            let prev = self.state.final_res.insert(ident.id, Symbol::ERR);
+            assert!(prev.is_none());
+            return;
+        } else if is_prim_value_name(ident.name) {
             return;
         }
         let res = self.resolve_symbol_by_ident(ident, Symbol::is_value);
@@ -344,7 +350,12 @@ impl<'cx, 'r> Resolver<'cx, 'r> {
     }
 
     fn resolve_ty_by_ident(&mut self, ident: &'cx ast::Ident) {
-        if is_prim_ty_name(ident.name) {
+        if ident.name == keyword::IDENT_EMPTY {
+            // delay bug
+            let prev = self.state.final_res.insert(ident.id, Symbol::ERR);
+            assert!(prev.is_none());
+            return;
+        } else if is_prim_ty_name(ident.name) {
             if let Some(error) = self.check_using_type_as_value(ident) {
                 self.push_error(ident.span.module, error);
             }

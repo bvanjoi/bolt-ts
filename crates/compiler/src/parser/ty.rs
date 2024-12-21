@@ -36,11 +36,11 @@ impl ListContext for TypeArguments {
 impl<'cx, 'p> ParserState<'cx, 'p> {
     fn should_parse_ret_ty(&mut self, is_colon: bool, is_ty: bool) -> PResult<bool> {
         if !is_colon {
-            self.expect(TokenKind::EqGreater)?;
+            self.expect(TokenKind::EqGreat)?;
             Ok(true)
         } else if self.parse_optional(TokenKind::Colon).is_some() {
             Ok(true)
-        } else if is_ty && self.token.kind == TokenKind::EqGreater {
+        } else if is_ty && self.token.kind == TokenKind::EqGreat {
             todo!()
         } else {
             Ok(false)
@@ -75,7 +75,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
                 let false_ty = self.with_parent(id, Self::parse_ty)?;
                 let ty = self.alloc(ast::CondTy {
                     id,
-                    span: self.new_span(start as usize, self.pos),
+                    span: self.new_span(start),
                     check_ty: ty,
                     extends_ty,
                     true_ty,
@@ -116,7 +116,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
             let ty = if expect == TokenKind::Amp {
                 let ty = self.alloc(ast::IntersectionTy {
                     id: parent,
-                    span: self.new_span(ty.span().lo as usize, self.pos),
+                    span: self.new_span(ty.span().lo),
                     tys,
                 });
                 self.insert_map(parent, ast::Node::IntersectionTy(ty));
@@ -128,7 +128,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
                 assert_eq!(expect, TokenKind::Pipe);
                 let ty = self.alloc(ast::UnionTy {
                     id: parent,
-                    span: self.new_span(ty.span().lo as usize, self.pos),
+                    span: self.new_span(ty.span().lo),
                     tys,
                 });
                 self.insert_map(parent, ast::Node::UnionTy(ty));
@@ -155,7 +155,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
     }
 
     fn parse_arrow_fn_ret_type(&mut self) -> PResult<Option<&'cx ast::Ty<'cx>>> {
-        if self.parse_optional(TokenKind::EqGreater).is_some() {
+        if self.parse_optional(TokenKind::EqGreat).is_some() {
             self.parse_ty_or_ty_pred().map(|ty| Some(ty))
         } else {
             Ok(None)
@@ -181,7 +181,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
             .unwrap();
         let fn_ty = self.alloc(ast::FnTy {
             id,
-            span: self.new_span(start as usize, self.pos),
+            span: self.new_span(start),
             params,
             ret_ty,
         });
@@ -218,7 +218,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
                     self.parent_map.r#override(ty.id(), id);
                     let kind = self.alloc(ast::IndexedAccessTy {
                         id,
-                        span: self.new_span(start as usize, self.pos),
+                        span: self.new_span(start),
                         ty,
                         index_ty,
                     });
@@ -231,7 +231,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
                     self.expect(TokenKind::RBracket)?;
                     let kind = self.alloc(ast::ArrayTy {
                         id,
-                        span: self.new_span(ty.span().lo as usize, self.pos),
+                        span: self.new_span(ty.span().lo),
                         ele: ty,
                     });
                     self.insert_map(id, ast::Node::ArrayTy(kind));
@@ -253,7 +253,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
                 todo!()
             }
         }
-        Ok(self.create_ident(self.is_ident()))
+        Ok(self.create_ident(self.is_ident(), None))
     }
 
     fn parse_entity_name(&mut self) -> PResult<&'cx ast::EntityName<'cx>> {
@@ -305,7 +305,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         let ty_args = self.with_parent(id, Self::parse_ty_args_of_ty_reference)?;
         let ty = self.alloc(ast::ReferTy {
             id,
-            span: self.new_span(start as usize, self.pos),
+            span: self.new_span(start),
             name,
             ty_args,
         });
@@ -403,7 +403,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         })?;
         let ty = self.alloc(ast::TupleTy {
             id,
-            span: self.new_span(start as usize, self.pos),
+            span: self.new_span(start),
             tys,
         });
         self.insert_map(id, ast::Node::TupleTy(ty));
@@ -428,7 +428,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
             let ty = self.with_parent(id, Self::parse_ty)?;
             let ty = self.alloc(ast::RestTy {
                 id,
-                span: self.new_span(pos as usize, self.pos),
+                span: self.new_span(pos),
                 ty,
             });
             self.insert_map(id, ast::Node::RestTy(ty));
@@ -447,7 +447,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         let members = self.with_parent(id, Self::parse_object_ty_members)?;
         let kind = self.alloc(ast::ObjectLitTy {
             id,
-            span: self.new_span(start as usize, self.pos),
+            span: self.new_span(start),
             members,
         });
         let ty = self.alloc(ast::Ty {
@@ -483,7 +483,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
             let ret = self.with_parent(id, |this| this.parse_ret_ty(true))?;
             let sig = self.alloc(ast::MethodSignature {
                 id,
-                span: self.new_span(start as usize, self.pos),
+                span: self.new_span(start),
                 name,
                 question,
                 ty_params,
@@ -496,7 +496,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
             let ty = self.parse_ty_anno()?;
             let sig = self.alloc(ast::PropSignature {
                 id,
-                span: self.new_span(start as usize, self.pos),
+                span: self.new_span(start),
                 name,
                 question,
                 ty,
@@ -521,7 +521,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         let params = self.parse_params()?;
         let ty = self.parse_ret_ty(true)?;
         self.parse_ty_member_semi();
-        let span = self.new_span(start as usize, self.pos);
+        let span = self.new_span(start);
         let kind = if is_call {
             let decl = self.alloc(ast::CallSigDecl {
                 id,

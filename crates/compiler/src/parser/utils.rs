@@ -39,68 +39,6 @@ pub(super) fn is_left_hand_side_expr_kind(expr: &ast::Expr) -> bool {
 }
 
 impl<'p, 't> ParserState<'p, 't> {
-    fn _is_paren_arrow_fn_expr(&mut self) -> bool {
-        use TokenKind::*;
-        if self.token.kind == TokenKind::Async {
-            self.next_token();
-            if self.has_preceding_line_break() {
-                return false;
-            } else if matches!(self.token.kind, LParen | Less) {
-                return false;
-            }
-        }
-
-        let first = self.token.kind;
-        self.next_token();
-        let second = self.token.kind;
-
-        if first == LParen {
-            if second == RParen {
-                self.next_token();
-                matches!(self.token.kind, EqGreater | Colon | RBrace)
-            } else if second == LBracket || second == LBrace {
-                todo!()
-            } else if second == DotDotDot {
-                true
-            } else if second != Async
-                && second.is_modifier_kind()
-                && self
-                    .lookahead(Self::next_token_is_ident)
-                    .unwrap_or_default()
-            {
-                self.next_token();
-                self.token.kind != As
-            } else if !self.is_ident() && second != This {
-                false
-            } else {
-                self.next_token();
-                match self.token.kind {
-                    Colon => true,
-                    Question => todo!(),
-                    Comma | Eq | RParen => {
-                        // TODO: unknown
-                        false
-                    }
-                    _ => false,
-                }
-            }
-        } else {
-            assert_eq!(first, Less);
-            // TODO: unknown
-            false
-        }
-    }
-
-    pub(super) fn is_paren_arrow_fn_expr(&mut self) -> bool {
-        let t = self.token.kind;
-
-        if t == TokenKind::LParen {
-            return self.lookahead(Self::_is_paren_arrow_fn_expr);
-        }
-
-        false
-    }
-
     pub(super) fn parse_fn_block(&mut self) -> PResult<Option<&'p ast::BlockStmt<'p>>> {
         if self.token.kind != TokenKind::LBrace && self.can_parse_semi() {
             self.parse_semi();
@@ -120,7 +58,7 @@ impl<'p, 't> ParserState<'p, 't> {
         self.expect(RBrace)?;
         let stmt = self.alloc(ast::BlockStmt {
             id,
-            span: self.new_span(start as usize, self.pos),
+            span: self.new_span(start),
             stmts,
         });
         self.insert_map(id, ast::Node::BlockStmt(stmt));
@@ -215,7 +153,7 @@ impl<'p, 't> ParserState<'p, 't> {
         };
         let ty_param = self.alloc(ast::TyParam {
             id,
-            span: self.new_span(start as usize, self.pos),
+            span: self.new_span(start),
             name,
             constraint,
             default,
@@ -224,8 +162,11 @@ impl<'p, 't> ParserState<'p, 't> {
         Ok(ty_param)
     }
 
-    pub(super) fn parse_ident(&mut self) -> &'p ast::Expr<'p> {
-        let kind = self.create_ident(self.token.kind.is_ident());
+    pub(super) fn parse_ident(
+        &mut self,
+        missing_ident_kind: Option<errors::MissingIdentKind>,
+    ) -> &'p ast::Expr<'p> {
+        let kind = self.create_ident(self.token.kind.is_ident(), missing_ident_kind);
         let expr = self.alloc(ast::Expr {
             kind: ast::ExprKind::Ident(kind),
         });
@@ -251,6 +192,7 @@ impl<'p, 't> ParserState<'p, 't> {
         Ok(prop_name)
     }
 
+    #[inline(always)]
     pub(super) fn is_ident(&self) -> bool {
         matches!(self.token.kind, TokenKind::Ident | TokenKind::Abstract)
     }
@@ -285,7 +227,7 @@ impl<'p, 't> ParserState<'p, 't> {
         if list.is_empty() {
             Ok(None)
         } else {
-            let span = self.new_span(start as usize, self.pos);
+            let span = self.new_span(start);
             let flags = list
                 .iter()
                 .fold(Default::default(), |flags, m| flags | m.kind);
@@ -384,7 +326,7 @@ impl<'p, 't> ParserState<'p, 't> {
     }
 
     pub(super) fn parse_ident_name(&mut self) -> PResult<&'p ast::Ident> {
-        Ok(self.create_ident(true))
+        Ok(self.create_ident(true, None))
     }
 
     pub(super) fn parse_semi_after_prop_name(&mut self) {
@@ -445,6 +387,7 @@ impl<'p, 't> ParserState<'p, 't> {
     pub(super) fn parse_param(&mut self) -> PResult<&'p ast::ParamDecl<'p>> {
         let start = self.token.start();
         let id = self.next_node_id();
+        let modifiers = self.parse_modifiers(false)?;
         let dotdotdot = self.parse_optional(TokenKind::DotDotDot).map(|t| t.span);
         let name = self.with_parent(id, Self::parse_ident_name)?;
         let question = self.parse_optional(TokenKind::Question).map(|t| t.span);
@@ -452,7 +395,8 @@ impl<'p, 't> ParserState<'p, 't> {
         let init = self.with_parent(id, Self::parse_init);
         let decl = self.alloc(ast::ParamDecl {
             id,
-            span: self.new_span(start as usize, self.pos),
+            span: self.new_span(start),
+            modifiers,
             dotdotdot,
             name,
             question,
@@ -490,7 +434,7 @@ impl<'p, 't> ParserState<'p, 't> {
             Ok(true)
         } else if matches!(self.token.kind, TokenKind::LBracket | TokenKind::LBrace) {
             // todo: parse ident or pattern
-            self.parse_ident();
+            self.parse_ident(None);
             Ok(true)
         } else {
             Ok(false)
@@ -508,7 +452,7 @@ impl<'p, 't> ParserState<'p, 't> {
                 return true;
             } else if self.token.kind == RParen {
                 self.next_token();
-                if self.token.kind == EqGreater {
+                if self.token.kind == EqGreat {
                     return true;
                 }
             }
@@ -560,7 +504,7 @@ impl<'p, 't> ParserState<'p, 't> {
         self.parse_ty_member_semi();
         let sig = self.alloc(ast::IndexSigDecl {
             id,
-            span: self.new_span(start, self.pos),
+            span: self.new_span(start as u32),
             modifiers,
             params,
             ty,

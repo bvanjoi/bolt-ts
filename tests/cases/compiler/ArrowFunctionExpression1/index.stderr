@@ -1,0 +1,5 @@
+  × A parameter property is only allowed in a constructor implementation.
+   ╭─[../../tests/cases/compiler/ArrowFunctionExpression1/index.ts:3:10]
+ 3 │ public
+   · ──────
+   ╰────

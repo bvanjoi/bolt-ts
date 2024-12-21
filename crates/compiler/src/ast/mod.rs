@@ -859,6 +859,7 @@ pub struct FnDecl<'cx> {
 pub struct ParamDecl<'cx> {
     pub id: NodeID,
     pub span: Span,
+    pub modifiers: Option<&'cx Modifiers<'cx>>,
     pub dotdotdot: Option<Span>,
     pub name: &'cx Ident,
     pub question: Option<Span>,

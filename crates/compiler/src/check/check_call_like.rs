@@ -1,11 +1,11 @@
 use super::relation::RelationKind;
+use super::ty::ElementFlags;
+use super::ty::{Sig, SigFlags, Sigs};
 use super::ExpectedArgsCount;
 use super::TyChecker;
 use crate::ir;
-use crate::ty::ElementFlags;
 use crate::{ast, errors, ty};
 use bolt_ts_span::Span;
-use ty::{Sig, SigFlags, Sigs};
 
 pub(super) trait CallLikeExpr<'cx>: ir::CallLike<'cx> {
     fn resolve_sig(&self, checker: &mut TyChecker<'cx>) -> &'cx Sig<'cx>;

@@ -60,10 +60,10 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         self.input.get(self.pos + 3).copied()
     }
 
-    pub(super) fn new_span(&self, lo: usize, hi: usize) -> Span {
+    pub(super) fn new_span(&self, lo: u32) -> Span {
         Span {
-            lo: lo as u32,
-            hi: hi as u32,
+            lo,
+            hi: self.full_start_pos as u32,
             module: self.module_id,
         }
     }
@@ -133,7 +133,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
                         String::from_utf8_unchecked(fragment.clone())
                     });
                     let error = super::errors::OctalLiteralsAreNotAllowed {
-                        span: self.new_span(start, self.pos),
+                        span: Span::new(start as u32, self.pos as u32, self.module_id),
                         help_lit,
                     };
                     self.push_error(Box::new(error));
@@ -157,7 +157,10 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
             .parse::<f64>()
             .unwrap();
         self.token_value = Some(TokenValue::Number { value: num });
-        Token::new(TokenKind::Number, self.new_span(start, end))
+        Token::new(
+            TokenKind::Number,
+            Span::new(start as u32, end as u32, self.module_id),
+        )
     }
 
     // From `quickjs/cutils.c/unicode_from_utf8`
@@ -167,8 +170,8 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         const UTF8_FIRST_CODE_MASK: [u32; 5] = [0x1f, 0xf, 0x7, 0x3, 0x1];
 
         let mut ch = self.ch_unchecked() as u32;
-        let mut offset = 1;
         assert!(ch >= 0x80);
+        let mut offset = 1;
         let l = match ch {
             0xc0 | 0xc1 | 0xc2 | 0xc3 | 0xc4 | 0xc5 | 0xc6 | 0xc7 | 0xc8 | 0xc9 | 0xca | 0xcb
             | 0xcc | 0xcd | 0xce | 0xcf | 0xd0 | 0xd1 | 0xd2 | 0xd3 | 0xd4 | 0xd5 | 0xd6 | 0xd7
@@ -186,10 +189,10 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         ch &= UTF8_FIRST_CODE_MASK[(l - 1) as usize];
         for _ in 0..l {
             let b = self.input[self.pos + offset] as u32;
-            offset += 1;
             if b < 0x80 || b >= 0xc0 {
                 return Err(());
             }
+            offset += 1;
             ch = (ch << 6) | (b & 0x3f);
         }
         if ch < UTF8_MIN_CODE[(l - 1) as usize] {
@@ -227,7 +230,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
             if let Some(idx) = KEYWORDS.iter().position(|(_, kw)| (*kw == id)) {
                 // keyword
                 let kind = keyword_idx_to_token(idx);
-                let span = self.new_span(start, self.pos);
+                let span = Span::new(start as u32, self.pos as u32, self.module_id);
                 self.token_value = Some(TokenValue::Ident { value: id });
                 return Ok(Token::new(kind, span));
             }
@@ -239,7 +242,10 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
                 Cow::Owned(String::from_utf8_unchecked(raw.to_vec()))
             });
         self.token_value = Some(TokenValue::Ident { value: id });
-        Ok(Token::new(TokenKind::Ident, self.new_span(start, self.pos)))
+        Ok(Token::new(
+            TokenKind::Ident,
+            Span::new(start as u32, self.pos as u32, self.module_id),
+        ))
     }
 
     pub(super) fn next_token(&mut self) {
@@ -250,7 +256,10 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         loop {
             token_start = self.pos;
             if self.pos == self.end() {
-                self.token = Token::new(TokenKind::EOF, self.new_span(start, start));
+                self.token = Token::new(
+                    TokenKind::EOF,
+                    Span::new(start as u32, start as u32, self.module_id),
+                );
                 return;
             }
             let ch = self.ch_unchecked();
@@ -281,63 +290,105 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
                         continue;
                     } else if self.next_ch() == Some(b'=') {
                         self.pos += 2;
-                        Token::new(TokenKind::SlashEq, self.new_span(start, self.pos))
+                        Token::new(
+                            TokenKind::SlashEq,
+                            Span::new(start as u32, self.pos as u32, self.module_id),
+                        )
                     } else {
                         self.pos += 1;
-                        Token::new(TokenKind::Slash, self.new_span(start, self.pos))
+                        Token::new(
+                            TokenKind::Slash,
+                            Span::new(start as u32, self.pos as u32, self.module_id),
+                        )
                     }
                 }
                 b'%' => {
                     if self.next_ch() == Some(b'=') {
                         self.pos += 2;
-                        Token::new(TokenKind::PercentEq, self.new_span(start, self.pos))
+                        Token::new(
+                            TokenKind::PercentEq,
+                            Span::new(start as u32, self.pos as u32, self.module_id),
+                        )
                     } else {
                         self.pos += 1;
-                        Token::new(TokenKind::Percent, self.new_span(start, self.pos))
+                        Token::new(
+                            TokenKind::Percent,
+                            Span::new(start as u32, self.pos as u32, self.module_id),
+                        )
                     }
                 }
                 b'=' => {
                     // todo: ==, ===
                     if self.next_ch() == Some(b'>') {
                         self.pos += 2;
-                        Token::new(TokenKind::EqGreater, self.new_span(start, self.pos))
+                        Token::new(
+                            TokenKind::EqGreat,
+                            Span::new(start as u32, self.pos as u32, self.module_id),
+                        )
                     } else if self.next_ch() == Some(b'=') {
                         if self.next_next_ch() == Some(b'=') {
                             self.pos += 3;
-                            Token::new(TokenKind::EqEqEq, self.new_span(start, self.pos))
+                            Token::new(
+                                TokenKind::EqEqEq,
+                                Span::new(start as u32, self.pos as u32, self.module_id),
+                            )
                         } else {
                             self.pos += 2;
-                            Token::new(TokenKind::EqEq, self.new_span(start, self.pos))
+                            Token::new(
+                                TokenKind::EqEq,
+                                Span::new(start as u32, self.pos as u32, self.module_id),
+                            )
                         }
                     } else {
                         self.pos += 1;
-                        Token::new(TokenKind::Eq, self.new_span(start, self.pos))
+                        Token::new(
+                            TokenKind::Eq,
+                            Span::new(start as u32, self.pos as u32, self.module_id),
+                        )
                     }
                 }
                 b'+' => {
                     if self.next_ch() == Some(b'+') {
                         // ++
                         self.pos += 2;
-                        Token::new(TokenKind::PlusPlus, self.new_span(start, self.pos))
+                        Token::new(
+                            TokenKind::PlusPlus,
+                            Span::new(start as u32, self.pos as u32, self.module_id),
+                        )
                     } else if self.next_ch() == Some(b'=') {
                         self.pos += 2;
-                        Token::new(TokenKind::PlusEq, self.new_span(start, self.pos))
+                        Token::new(
+                            TokenKind::PlusEq,
+                            Span::new(start as u32, self.pos as u32, self.module_id),
+                        )
                     } else {
                         self.pos += 1;
-                        Token::new(TokenKind::Plus, self.new_span(start, self.pos))
+                        Token::new(
+                            TokenKind::Plus,
+                            Span::new(start as u32, self.pos as u32, self.module_id),
+                        )
                     }
                 }
                 b'-' => {
                     if self.next_ch() == Some(b'-') {
                         // --
                         self.pos += 2;
-                        Token::new(TokenKind::MinusMinus, self.new_span(start, self.pos))
+                        Token::new(
+                            TokenKind::MinusMinus,
+                            Span::new(start as u32, self.pos as u32, self.module_id),
+                        )
                     } else if self.next_ch() == Some(b'=') {
                         self.pos += 2;
-                        Token::new(TokenKind::MinusEq, self.new_span(start, self.pos))
+                        Token::new(
+                            TokenKind::MinusEq,
+                            Span::new(start as u32, self.pos as u32, self.module_id),
+                        )
                     } else {
                         self.pos += 1;
-                        Token::new(TokenKind::Minus, self.new_span(start, self.pos))
+                        Token::new(
+                            TokenKind::Minus,
+                            Span::new(start as u32, self.pos as u32, self.module_id),
+                        )
                     }
                 }
                 b'*' => {
@@ -347,40 +398,67 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
                         todo!()
                     } else if self.next_ch() == Some(b'=') {
                         self.pos += 2;
-                        Token::new(TokenKind::AsteriskEq, self.new_span(start, self.pos))
+                        Token::new(
+                            TokenKind::AsteriskEq,
+                            Span::new(start as u32, self.pos as u32, self.module_id),
+                        )
                     } else {
                         self.pos += 1;
-                        Token::new(TokenKind::Asterisk, self.new_span(start, self.pos))
+                        Token::new(
+                            TokenKind::Asterisk,
+                            Span::new(start as u32, self.pos as u32, self.module_id),
+                        )
                     }
                 }
                 b'|' => {
                     if self.next_ch() == Some(b'|') {
                         self.pos += 2;
-                        Token::new(TokenKind::PipePipe, self.new_span(start, self.pos))
+                        Token::new(
+                            TokenKind::PipePipe,
+                            Span::new(start as u32, self.pos as u32, self.module_id),
+                        )
                     } else if self.next_ch() == Some(b'=') {
                         self.pos += 2;
-                        Token::new(TokenKind::PipeEq, self.new_span(start, self.pos))
+                        Token::new(
+                            TokenKind::PipeEq,
+                            Span::new(start as u32, self.pos as u32, self.module_id),
+                        )
                     } else {
                         self.pos += 1;
-                        Token::new(TokenKind::Pipe, self.new_span(start, self.pos))
+                        Token::new(
+                            TokenKind::Pipe,
+                            Span::new(start as u32, self.pos as u32, self.module_id),
+                        )
                     }
                 }
                 b'?' => {
                     self.pos += 1;
-                    Token::new(TokenKind::Question, self.new_span(start, self.pos))
+                    Token::new(
+                        TokenKind::Question,
+                        Span::new(start as u32, self.pos as u32, self.module_id),
+                    )
                 }
                 b'&' => {
                     if self.next_ch() == Some(b'&') {
                         // &&
                         self.pos += 2;
-                        Token::new(TokenKind::AmpAmp, self.new_span(start, self.pos))
+                        Token::new(
+                            TokenKind::AmpAmp,
+                            Span::new(start as u32, self.pos as u32, self.module_id),
+                        )
                     } else if self.next_ch() == Some(b'=') {
                         // &=
                         self.pos += 2;
-                        Token::new(TokenKind::AmpEq, self.new_span(start, self.pos))
+                        Token::new(
+                            TokenKind::AmpEq,
+                            Span::new(start as u32, self.pos as u32, self.module_id),
+                        )
                     } else {
                         self.pos += 1;
-                        Token::new(TokenKind::Amp, self.new_span(start, self.pos))
+                        Token::new(
+                            TokenKind::Amp,
+                            Span::new(start as u32, self.pos as u32, self.module_id),
+                        )
                     }
                 }
                 b'<' => {
@@ -388,19 +466,31 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
                         if self.next_next_ch() == Some(b'=') {
                             // <<=
                             self.pos += 3;
-                            Token::new(TokenKind::LessLessEq, self.new_span(start, self.pos))
+                            Token::new(
+                                TokenKind::LessLessEq,
+                                Span::new(start as u32, self.pos as u32, self.module_id),
+                            )
                         } else {
                             // <<
                             self.pos += 2;
-                            Token::new(TokenKind::LessLess, self.new_span(start, self.pos))
+                            Token::new(
+                                TokenKind::LessLess,
+                                Span::new(start as u32, self.pos as u32, self.module_id),
+                            )
                         }
                     } else if self.next_ch() == Some(b'=') {
                         // <=
                         self.pos += 2;
-                        Token::new(TokenKind::LessEq, self.new_span(start, self.pos))
+                        Token::new(
+                            TokenKind::LessEq,
+                            Span::new(start as u32, self.pos as u32, self.module_id),
+                        )
                     } else {
                         self.pos += 1;
-                        Token::new(TokenKind::Less, self.new_span(start, self.pos))
+                        Token::new(
+                            TokenKind::Less,
+                            Span::new(start as u32, self.pos as u32, self.module_id),
+                        )
                     }
                 }
                 b'>' => {
@@ -411,62 +501,92 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
                                 self.pos += 4;
                                 Token::new(
                                     TokenKind::GreatGreatGreatEq,
-                                    self.new_span(start, self.pos),
+                                    Span::new(start as u32, self.pos as u32, self.module_id),
                                 )
                             } else {
                                 // >>>
                                 self.pos += 3;
                                 Token::new(
                                     TokenKind::GreatGreatGreat,
-                                    self.new_span(start, self.pos),
+                                    Span::new(start as u32, self.pos as u32, self.module_id),
                                 )
                             }
                         } else if self.next_next_ch() == Some(b'=') {
                             // >>=
                             self.pos += 3;
-                            Token::new(TokenKind::GreatGreatEq, self.new_span(start, self.pos))
+                            Token::new(
+                                TokenKind::GreatGreatEq,
+                                Span::new(start as u32, self.pos as u32, self.module_id),
+                            )
                         } else {
                             // >>
                             self.pos += 2;
-                            Token::new(TokenKind::GreatGreat, self.new_span(start, self.pos))
+                            Token::new(
+                                TokenKind::GreatGreat,
+                                Span::new(start as u32, self.pos as u32, self.module_id),
+                            )
                         }
                     } else if self.next_ch() == Some(b'=') {
                         self.pos += 1;
-                        Token::new(TokenKind::GreatEq, self.new_span(start, self.pos))
+                        Token::new(
+                            TokenKind::GreatEq,
+                            Span::new(start as u32, self.pos as u32, self.module_id),
+                        )
                     } else {
                         self.pos += 1;
-                        Token::new(TokenKind::Great, self.new_span(start, self.pos))
+                        Token::new(
+                            TokenKind::Great,
+                            Span::new(start as u32, self.pos as u32, self.module_id),
+                        )
                     }
                 }
                 b'^' => {
                     if self.next_ch() == Some(b'=') {
                         self.pos += 2;
-                        Token::new(TokenKind::CaretEq, self.new_span(start, self.pos))
+                        Token::new(
+                            TokenKind::CaretEq,
+                            Span::new(start as u32, self.pos as u32, self.module_id),
+                        )
                     } else {
                         self.pos += 1;
-                        Token::new(TokenKind::Caret, self.new_span(start, self.pos))
+                        Token::new(
+                            TokenKind::Caret,
+                            Span::new(start as u32, self.pos as u32, self.module_id),
+                        )
                     }
                 }
                 b'.' => {
                     if self.next_ch() == Some(b'.') && self.next_next_ch() == Some(b'.') {
                         self.pos += 3;
-                        Token::new(TokenKind::DotDotDot, self.new_span(start, self.pos))
+                        Token::new(
+                            TokenKind::DotDotDot,
+                            Span::new(start as u32, self.pos as u32, self.module_id),
+                        )
                     } else {
                         self.pos += 1;
-                        Token::new(TokenKind::Dot, self.new_span(start, self.pos))
+                        Token::new(
+                            TokenKind::Dot,
+                            Span::new(start as u32, self.pos as u32, self.module_id),
+                        )
                     }
                 }
                 b',' | b';' | b':' | b'[' | b']' | b'(' | b')' | b'{' | b'}' => {
                     self.pos += 1;
                     let kind = unsafe { std::mem::transmute::<u8, TokenKind>(ch) };
-                    Token::new(kind, self.new_span(start, self.pos))
+                    Token::new(
+                        kind,
+                        Span::new(start as u32, self.pos as u32, self.module_id),
+                    )
                 }
                 b'\'' | b'"' => {
                     let (offset, v) = self.scan_string(ch);
                     self.pos += offset;
                     let atom = self.atoms.lock().unwrap().insert_by_vec(v);
                     self.token_value = Some(TokenValue::Ident { value: atom });
-                    Token::new(TokenKind::String, self.new_span(start, self.pos))
+                    Token::new(
+                        TokenKind::String,
+                        Span::new(start as u32, self.pos as u32, self.module_id),
+                    )
                 }
                 b'`' => self.scan_temp_string(),
                 b'0' => self.scan_number(),
@@ -506,7 +626,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         }
         Token::new(
             TokenKind::NoSubstitutionTemplate,
-            self.new_span(start, self.pos),
+            Span::new(start as u32, self.pos as u32, self.module_id),
         )
     }
 

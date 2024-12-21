@@ -842,7 +842,7 @@ impl<'cx> TyChecker<'cx> {
                 ty
             }
             Sub => todo!(),
-            Mul => todo!(),
+            Mul => self.undefined_ty(),
             Div => todo!(),
             Pipe => {
                 let left = self.check_non_null_type(left);

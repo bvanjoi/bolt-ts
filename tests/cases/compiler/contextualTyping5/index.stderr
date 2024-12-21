@@ -1,5 +1,5 @@
   × Property 'id' is missing.
    ╭─[../../tests/cases/compiler/contextualTyping5/index.ts:1:24]
- 1 │ {id:number;} =
-   · ──────────────
+ 1 │ {id:number;}
+   · ────────────
    ╰────

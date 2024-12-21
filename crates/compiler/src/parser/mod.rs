@@ -21,8 +21,16 @@ pub use self::token::KEYWORD_TOKEN_START;
 use self::token::{Token, TokenFlags, TokenKind};
 use crate::ast::{self, Node, NodeID};
 use crate::atoms::{AtomId, AtomMap};
+use crate::keyword;
 
 type PResult<T> = Result<T, ()>;
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+enum Tristate {
+    False,
+    True,
+    Unknown,
+}
 
 #[derive(Debug, Default)]
 pub struct Nodes<'cx>(FxHashMap<u32, Node<'cx>>);
@@ -157,9 +165,7 @@ pub fn parse_parallel<'cx>(
                 let module_id = m.id;
                 let input = module_arena.get_content(module_id);
                 let result = parse(atoms.clone(), bump, input.as_bytes(), module_id);
-                if module_arena.get_module(module_id).global {
-                    assert!(result.diags.is_empty());
-                }
+                assert!(!module_arena.get_module(module_id).global || result.diags.is_empty());
                 (module_id, result)
             },
         )
@@ -345,18 +351,31 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         self.token_value.unwrap().number()
     }
 
-    fn create_ident(&mut self, is_ident: bool) -> &'cx ast::Ident {
-        if is_ident {
-            self.ident_count += 1;
-            let id = self.next_node_id();
-            let name = self.ident_token();
-            let span = self.token.span;
-            let ident = self.alloc(ast::Ident { id, name, span });
-            self.next_token();
-            self.insert_map(id, Node::Ident(ident));
+    fn create_ident(
+        &mut self,
+        is_ident: bool,
+        missing_ident_kind: Option<errors::MissingIdentKind>,
+    ) -> &'cx ast::Ident {
+        let ident = |this: &mut Self, name: AtomId| {
+            this.ident_count += 1;
+            let id = this.next_node_id();
+            let span = this.token.span;
+            let ident = this.alloc(ast::Ident { id, name, span });
+            this.insert_map(id, Node::Ident(ident));
             ident
+        };
+        if is_ident {
+            let res = ident(self, self.ident_token());
+            self.next_token();
+            res
+        } else if self.token.kind == TokenKind::Private {
+            todo!()
         } else {
-            unreachable!()
+            let span = self.token.span;
+            let kind = missing_ident_kind.unwrap_or(errors::MissingIdentKind::IdentifierExpected);
+            let error = errors::MissingIdent { span, kind };
+            self.push_error(error.into());
+            ident(self, keyword::IDENT_EMPTY)
         }
     }
 
@@ -367,7 +386,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
     }
 
     fn parse_binding_ident(&mut self) -> &'cx ast::Ident {
-        self.create_ident(true)
+        self.create_ident(true, None)
     }
 
     fn parse_optional_binding_ident(&mut self) -> PResult<Option<&'cx ast::Ident>> {
@@ -426,7 +445,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
             let program = this.alloc(ast::Program {
                 id,
                 stmts,
-                span: this.new_span(start, this.pos),
+                span: this.new_span(start as u32),
             });
             this.nodes.insert(id, Node::Program(program));
             program

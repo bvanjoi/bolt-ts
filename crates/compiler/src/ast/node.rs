@@ -166,6 +166,7 @@ impl<'cx> Node<'cx> {
         use Node::*;
         match self {
             FnDecl(n) => Some(&n.name),
+            ClassDecl(n) => Some(&n.name),
             ClassMethodEle(n) => match n.name.kind {
                 ast::PropNameKind::Ident(ref ident) => Some(ident),
                 _ => None,

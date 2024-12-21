@@ -6,7 +6,7 @@ macro_rules! gen {
     };
     ($(($name:ident, $lit:literal)),* $(,)?) => {
         paste::paste! {
-            $(pub const [<$name _STR>]: &'static str = $lit;)*
+            $(pub const [<$name _STR>]: &str = $lit;)*
             $(pub const $name: AtomId = AtomId::from_str([<$name _STR>]);)*
         }
     };

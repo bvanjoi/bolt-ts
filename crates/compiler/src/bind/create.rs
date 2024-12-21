@@ -1,8 +1,9 @@
+use bolt_ts_span::Span;
 use rustc_hash::FxHashMap;
 use thin_vec::thin_vec;
 
 use super::symbol::{FnSymbol, InterfaceSymbol, ObjectSymbol, PropSymbol, SymbolFlags};
-use super::{BinderState, Symbol, SymbolFnKind, SymbolID, SymbolKind, SymbolName};
+use super::{errors, BinderState, Symbol, SymbolFnKind, SymbolID, SymbolKind, SymbolName};
 use crate::ast;
 use crate::atoms::AtomId;
 
@@ -46,24 +47,41 @@ impl<'cx> BinderState<'cx> {
     ) -> SymbolID {
         let key = (self.scope_id, name);
         if name.as_atom().is_some() {
-            if let Some(id) = self.res.get(&key) {
-                let prev = self.symbols.get_mut(*id);
+            if let Some(id) = self.res.get(&key).copied() {
+                let prev = self.symbols.get_mut(id);
                 if flags == SymbolFlags::FUNCTION_SCOPED_VARIABLE {
                     prev.flags |= flags;
                     let prev = &mut prev.kind;
                     prev.0 = kind;
-                    return *id;
                 } else if matches!(prev.kind.0, SymbolKind::Err) {
                     prev.flags |= flags;
                     let prev = &mut prev.kind;
                     assert!(prev.1.is_some());
                     prev.0 = kind;
-                    return *id;
                 } else {
-                    let name = name.expect_atom();
-                    let name = self.atoms.get(name);
-                    todo!("error handler: name: {name:#?}, prev: {prev:#?}");
+                    let name = self.atoms.get(name.expect_atom());
+                    let span = |kind: &SymbolKind| {
+                        let id = match kind {
+                            SymbolKind::Class(c) => c.decl,
+                            SymbolKind::Err
+                            | SymbolKind::BlockContainer { .. }
+                            | SymbolKind::FunctionScopedVar { .. } => unreachable!(),
+                            SymbolKind::BlockScopedVar { .. } => todo!(),
+                            _ => todo!(),
+                        };
+                        self.p.node(id).ident_name().unwrap().span
+                    };
+
+                    let error_span = span(&kind);
+
+                    let error = errors::DuplicateIdentifier {
+                        span: error_span,
+                        name: name.to_string(),
+                        original_span: span(&prev.kind.0),
+                    };
+                    self.push_error(error_span.module, error.into());
                 }
+                return id;
             }
         }
         let id = self.next_symbol_id();

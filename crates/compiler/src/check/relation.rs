@@ -347,7 +347,7 @@ impl<'cx> TyChecker<'cx> {
             let target = ty.target.kind.expect_object();
             self.get_props_of_object_ty(target)
         } else {
-            unreachable!("ty: {ty:#?}");
+            &[]
         }
     }
 

@@ -2,6 +2,7 @@ mod bind_call_like;
 mod bind_class_like;
 mod bind_fn_like;
 mod create;
+mod errors;
 mod symbol;
 
 use bolt_ts_span::ModuleID;
@@ -17,6 +18,7 @@ use crate::ast::{self, NodeID};
 use crate::atoms::AtomMap;
 use crate::parser::Parser;
 use crate::resolve::ResolveResult;
+use crate::Diag;
 
 bolt_ts_span::new_index_with_module!(ScopeID);
 
@@ -99,6 +101,8 @@ pub struct BinderState<'cx> {
     scope_id: ScopeID,
     max_scope_id: ScopeID,
     symbol_id: SymbolID,
+    p: &'cx Parser<'cx>,
+    pub(crate) diags: Vec<bolt_ts_errors::Diag>,
     pub(crate) atoms: &'cx AtomMap<'cx>,
     pub(crate) scope_id_parent_map: Vec<Option<ScopeID>>,
     pub(crate) node_id_to_scope_id: FxHashMap<ast::NodeID, ScopeID>,
@@ -109,21 +113,23 @@ pub struct BinderState<'cx> {
 
 pub fn bind<'cx>(
     atoms: &'cx AtomMap<'cx>,
+    parser: &'cx Parser<'cx>,
     root: &'cx ast::Program,
     module_id: ModuleID,
 ) -> BinderState<'cx> {
-    let mut state = BinderState::new(atoms, module_id);
+    let mut state = BinderState::new(atoms, parser, module_id);
     state.bind_program(root);
     state
 }
 
 impl<'cx> BinderState<'cx> {
-    fn new(atoms: &'cx AtomMap, module_id: ModuleID) -> Self {
+    fn new(atoms: &'cx AtomMap, parser: &'cx Parser<'cx>, module_id: ModuleID) -> Self {
         let symbols = Symbols::new(module_id);
         let mut symbol_id = SymbolID::root(module_id);
         symbol_id = symbol_id.next();
         BinderState {
             atoms,
+            p: parser,
             scope_id: ScopeID::root(module_id),
             max_scope_id: ScopeID::root(module_id),
             scope_id_parent_map: Vec::with_capacity(512),
@@ -132,7 +138,15 @@ impl<'cx> BinderState<'cx> {
             node_id_to_scope_id: FxHashMap::default(),
             symbol_id,
             symbols,
+            diags: Vec::new(),
         }
+    }
+
+    fn push_error(&mut self, module_id: ModuleID, error: crate::Diag) {
+        self.diags.push(bolt_ts_errors::Diag {
+            module_id,
+            inner: error,
+        });
     }
 
     fn connect(&mut self, node_id: NodeID) {

@@ -161,7 +161,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         let extends = self.with_parent(id, Self::parse_class_extends_clause)?;
         let implements = self.with_parent(id, Self::parse_implements_clause)?;
         let elems = self.with_parent(id, Self::parse_class_members)?;
-        let span = self.new_span(start as usize, elems.span.hi as usize);
+        let span = self.new_span(start);
         Ok(mode.finish(
             self, id, span, modifiers, name, ty_params, extends, implements, elems,
         ))
@@ -213,9 +213,9 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
                     .unwrap_or_else(|| extra_comma_span.hi);
                 let extra_extends = last_ele_span
                     .is_some()
-                    .then(|| self.new_span(lo as usize, hi as usize));
+                    .then(|| Span::new(lo, hi, self.module_id));
                 let error = errors::ClassesCanOnlyExtendASingleClass {
-                    span: self.new_span(lo as usize, lo as usize),
+                    span: Span::new(lo, lo, self.module_id),
                     extra_extends,
                 };
                 self.push_error(Box::new(error));
@@ -246,7 +246,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
             let body = self.parse_fn_block()?;
             let method = self.alloc(ast::ClassMethodEle {
                 id,
-                span: self.new_span(start, self.pos),
+                span: self.new_span(start as u32),
                 modifiers,
                 name,
                 ty_params,
@@ -264,7 +264,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
             let init = self.parse_init();
             let prop = self.alloc(ast::ClassPropEle {
                 id,
-                span: self.new_span(start, self.pos),
+                span: self.new_span(start as u32),
                 modifiers,
                 name,
                 ty,
@@ -317,7 +317,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
                 let body = this.with_parent(id, Self::parse_fn_block)?;
                 let ctor = this.alloc(ast::ClassCtor {
                     id,
-                    span: this.new_span(start, this.full_start_pos),
+                    span: this.new_span(start as u32),
                     ty_params,
                     params,
                     ret,
@@ -351,7 +351,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         let kind = if is_getter {
             let decl = self.alloc(ast::GetterDecl {
                 id,
-                span: self.new_span(start, self.pos),
+                span: self.new_span(start as u32),
                 name,
                 ret,
                 body,
@@ -361,7 +361,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         } else {
             let decl = self.alloc(ast::SetterDecl {
                 id,
-                span: self.new_span(start, self.pos),
+                span: self.new_span(start as u32),
                 name,
                 params,
                 body,
@@ -404,7 +404,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         let elems = self.parse_list(ClassElementsCtx, Self::parse_class_ele);
         let end = self.token.end();
         self.expect(TokenKind::RBrace)?;
-        let span = self.new_span(start as usize, end as usize);
+        let span = Span::new(start, end, self.module_id);
         Ok(self.alloc(ast::ClassElems { span, elems }))
     }
 }

@@ -91,7 +91,9 @@ pub fn eval_from(m: ModulePath) -> Output {
             let module_id = m.id;
             let is_global = m.global;
             let root = p.root(module_id);
-            (bind(&atoms, root, module_id), is_global)
+            let bind_result = bind(&atoms, &p, root, module_id);
+            assert!(!is_global || bind_result.diags.is_empty());
+            (bind_result, is_global)
         })
         .collect::<Vec<_>>();
 
