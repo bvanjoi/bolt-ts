@@ -154,26 +154,54 @@ pub struct ReferenceTy<'cx> {
 
 #[derive(Debug, Clone, Copy)]
 pub struct IndexInfo<'cx> {
+    pub symbol: SymbolID,
     pub key_ty: &'cx Ty<'cx>,
     pub val_ty: &'cx Ty<'cx>,
 }
+
+pub type IndexInfos<'cx> = &'cx [&'cx IndexInfo<'cx>];
 
 #[derive(Debug, Clone, Copy)]
 pub struct InterfaceTy<'cx> {
     pub symbol: SymbolID,
     pub members: &'cx FxHashMap<SymbolName, SymbolID>,
-    pub base_tys: &'cx [&'cx Ty<'cx>],
+    pub base_tys: super::Tys<'cx>,
     pub base_ctor_ty: Option<&'cx Ty<'cx>>,
     pub declared_props: &'cx [SymbolID],
-    pub declared_index_infos: &'cx [&'cx IndexInfo<'cx>],
-    pub declared_ctor_sigs: &'cx [&'cx Sig<'cx>],
+    pub declared_index_infos: IndexInfos<'cx>,
+    pub declared_ctor_sigs: super::Sigs<'cx>,
+    pub declared_call_sigs: super::Sigs<'cx>,
 }
 
 impl<'cx> ObjectTyKind<'cx> {
-    pub(super) fn to_string(&self, checker: &TyChecker) -> String {
+    pub(super) fn to_string(&self, checker: &mut TyChecker) -> String {
         match self {
             ObjectTyKind::Class(_) => "class".to_string(),
-            ObjectTyKind::Fn(_) => "function".to_string(),
+            ObjectTyKind::Fn(f) => {
+                let params = f.declared_sigs[0].params;
+                let params = params
+                    .iter()
+                    .map(|param| {
+                        let decl = checker.binder.symbol(*param).decl();
+                        let name = checker.p.node(decl).ident_name().unwrap();
+                        let ty = checker.get_type_of_symbol(*param);
+                        format!(
+                            "{}: {}",
+                            checker.atoms.get(name.name),
+                            ty.to_string(checker)
+                        )
+                    })
+                    .collect::<Vec<_>>()
+                    .join(",");
+                let ret = if let Some(ret) = f.declared_sigs[0].ret {
+                    let ty = checker.p.node(ret);
+                    let ty = checker.get_ty_from_type_node(&ty.as_ty().unwrap());
+                    ty.to_string(checker)
+                } else {
+                    checker.any_ty().to_string(checker)
+                };
+                format!("({params}) => {ret}")
+            }
             ObjectTyKind::ObjectLit(_) => "Object".to_string(),
             ObjectTyKind::Tuple(TupleTy { tys, .. }) => {
                 format!(

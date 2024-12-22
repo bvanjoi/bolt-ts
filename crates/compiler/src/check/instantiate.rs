@@ -25,7 +25,7 @@ impl<'cx> TyChecker<'cx> {
                 for j in i..len {
                     result.push(self.instantiate(tys[j], mapper));
                 }
-                assert!(result.len() == tys.len());
+                assert_eq!(result.len(), tys.len());
                 let result = self.alloc(result);
                 return result;
             }

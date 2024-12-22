@@ -1,10 +1,11 @@
+use super::errors;
 use super::relation::RelationKind;
 use super::ty::ElementFlags;
 use super::ty::{Sig, SigFlags, Sigs};
 use super::ExpectedArgsCount;
 use super::TyChecker;
 use crate::ir;
-use crate::{ast, errors, ty};
+use crate::{ast, ty};
 use bolt_ts_span::Span;
 
 pub(super) trait CallLikeExpr<'cx>: ir::CallLike<'cx> {
@@ -31,11 +32,7 @@ impl<'cx> CallLikeExpr<'cx> for ast::NewExpr<'cx> {
             i.declared_ctor_sigs
         } else if let Some(c) = ty.kind.as_object_class() {
             let i = checker
-                .symbol_links
-                .get(&c.symbol)
-                .unwrap()
-                .get_declared_ty()
-                .unwrap()
+                .declared_ty_of_symbol(c.symbol)
                 .kind
                 .expect_object_interface();
             i.declared_ctor_sigs
@@ -135,7 +132,7 @@ impl<'cx> TyChecker<'cx> {
 
         if sigs.is_empty() {
             if let Some(sig) = class_sigs.first() {
-                assert!(class_sigs.len() == 1);
+                assert_eq!(class_sigs.len(), 1);
                 let ast::Node::ClassDecl(decl) = self.p.node(sig.node_id) else {
                     unreachable!()
                 };

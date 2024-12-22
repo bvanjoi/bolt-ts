@@ -5,7 +5,14 @@ use super::TyChecker;
 impl<'cx> TyChecker<'cx> {
     pub(super) fn check_interface_decl(&mut self, interface: &'cx ast::InterfaceDecl<'cx>) {
         let symbol = self.get_symbol_of_decl(interface.id);
-        let ty = self.get_declared_ty_of_symbol(symbol);
-        self.check_index_constraints(ty, symbol);
+
+        let i = self.binder.symbol(symbol).expect_interface();
+        if i.decl == interface.id {
+            let ty = self.get_declared_ty_of_symbol(symbol);
+            for base_ty in self.base_tys(ty) {
+                self.check_type_assignable_to(ty, base_ty);
+            }
+            self.check_index_constraints(ty, symbol);
+        }
     }
 }

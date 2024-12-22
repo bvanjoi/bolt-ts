@@ -1,8 +1,9 @@
 use bolt_ts_span::Span;
 
 use crate::bind::{SymbolFnKind, SymbolID};
-use crate::{ast, errors, keyword};
+use crate::{ast, keyword};
 
+use super::errors;
 use super::TyChecker;
 
 impl<'cx> TyChecker<'cx> {

@@ -165,14 +165,43 @@ impl<'cx> Node<'cx> {
     pub fn ident_name(&self) -> Option<&'cx ast::Ident> {
         use Node::*;
         match self {
-            FnDecl(n) => Some(&n.name),
-            ClassDecl(n) => Some(&n.name),
+            FnDecl(n) => Some(n.name),
+            ClassDecl(n) => Some(n.name),
             ClassMethodEle(n) => match n.name.kind {
                 ast::PropNameKind::Ident(ref ident) => Some(ident),
                 _ => None,
             },
+            PropSignature(n) => match n.name.kind {
+                ast::PropNameKind::Ident(ref ident) => Some(ident),
+                _ => None,
+            },
+            ParamDecl(n) => Some(n.name),
             _ => None,
         }
+    }
+
+    pub fn ty_params(&self) -> Option<super::TyParams<'cx>> {
+        macro_rules! ty_params {
+            ($($node_kind:ident),* $(,)?) => {
+                match self {
+                    $(Node::$node_kind(n) => n.ty_params,)*
+                    _ => None,
+                }
+            };
+        }
+        ty_params!(
+            FnDecl,
+            FnExpr,
+            ArrowFnExpr,
+            ClassDecl,
+            ClassCtor,
+            CtorSigDecl,
+            ClassMethodEle,
+            TypeDecl,
+            MethodSignature,
+            CallSigDecl,
+            InterfaceDecl,
+        )
     }
 }
 

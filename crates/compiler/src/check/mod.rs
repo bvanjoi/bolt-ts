@@ -7,6 +7,8 @@ mod check_fn_like_symbol;
 mod check_interface;
 mod check_var_like;
 mod create_ty;
+mod errors;
+mod expect;
 mod get_base_ty;
 mod get_contextual_ty;
 mod get_declared_ty;
@@ -33,11 +35,21 @@ use rustc_hash::FxHashMap;
 
 use crate::ast::{BinOp, NodeID};
 use crate::atoms::{AtomId, AtomMap};
-use crate::bind::{self, GlobalSymbols, SymbolFlags, SymbolID, SymbolName};
+use crate::bind::{self, GlobalSymbols, Symbol, SymbolFlags, SymbolID, SymbolName};
 use crate::parser::Parser;
 use crate::ty::{has_type_facts, Sig, SigFlags, TupleShape, Ty, TyID, TyKind, TyVarID, TypeFacts};
 use crate::utils::fx_hashmap_with_capacity;
-use crate::{ast, ensure_sufficient_stack, errors, keyword, ty};
+use crate::{ast, ensure_sufficient_stack, keyword, ty};
+
+bitflags::bitflags! {
+    #[derive(Clone, Copy, Debug, PartialEq)]
+    pub struct Ternary: u8 {
+        const FALSE = 0x0;
+        const UNKNOWN = 0x1;
+        const MAYBE = 0x3;
+        const TRUE = u8::MAX;
+    }
+}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct F64Represent {
@@ -77,11 +89,12 @@ pub struct TyChecker<'cx> {
     type_name: FxHashMap<TyID, String>,
     ty_vars: FxHashMap<TyVarID, &'cx Ty<'cx>>,
     // === ast ===
-    p: &'cx Parser<'cx>,
+    pub p: &'cx Parser<'cx>,
     // === global ===
     global_tys: FxHashMap<TyID, &'cx Ty<'cx>>,
     global_array_ty: std::cell::OnceCell<&'cx Ty<'cx>>,
     global_number_ty: std::cell::OnceCell<&'cx Ty<'cx>>,
+    global_string_ty: std::cell::OnceCell<&'cx Ty<'cx>>,
     boolean_ty: std::cell::OnceCell<&'cx Ty<'cx>>,
     tuple_shapes: FxHashMap<u32, &'cx TupleShape<'cx>>,
     unknown_sig: std::cell::OnceCell<&'cx Sig<'cx>>,
@@ -99,7 +112,7 @@ pub struct TyChecker<'cx> {
 macro_rules! intrinsic_type {
     ($(($name: ident, $atom_id: expr, $ty_flags: expr)),* $(,)?) => {
         impl<'cx> TyChecker<'cx> {
-            $(fn $name(&self) -> &'cx Ty<'cx> {
+            $(pub fn $name(&self) -> &'cx Ty<'cx> {
                 self.intrinsic_tys[&$atom_id]
             })*
         }
@@ -138,7 +151,7 @@ impl<'cx> TyChecker<'cx> {
         binder: &'cx mut bind::Binder<'cx>,
         global_symbols: &'cx GlobalSymbols,
     ) -> Self {
-        assert!(ty_arena.allocated_bytes() == 0);
+        assert_eq!(ty_arena.allocated_bytes(), 0);
         let mut this = Self {
             intrinsic_tys: fx_hashmap_with_capacity(1024),
             atoms,
@@ -152,6 +165,7 @@ impl<'cx> TyChecker<'cx> {
             diags: Vec::with_capacity(p.module_count() * 32),
             boolean_ty: Default::default(),
             global_number_ty: Default::default(),
+            global_string_ty: Default::default(),
             global_array_ty: Default::default(),
             unknown_sig: Default::default(),
             tuple_shapes: fx_hashmap_with_capacity(1024 * 8),
@@ -181,6 +195,10 @@ impl<'cx> TyChecker<'cx> {
 
         let global_array_ty = this.get_global_type(SymbolName::Normal(keyword::IDENT_ARRAY_CLASS));
         this.global_array_ty.set(global_array_ty).unwrap();
+
+        let global_string_ty =
+            this.get_global_type(SymbolName::Normal(keyword::IDENT_STRING_CLASS));
+        this.global_string_ty.set(global_string_ty).unwrap();
 
         let unknown_sig = this.alloc(Sig {
             flags: SigFlags::empty(),
@@ -215,19 +233,24 @@ impl<'cx> TyChecker<'cx> {
 
     pub fn print_ty(&mut self, ty: &Ty) -> &str {
         if !self.type_name.contains_key(&ty.id) {
-            let name = ty.to_string(&self);
+            let name = ty.to_string(self);
             self.type_name.insert(ty.id, name);
         }
         self.type_name.get(&ty.id).unwrap().as_str()
     }
 
-    fn boolean_ty(&self) -> &'cx Ty<'cx> {
+    pub(crate) fn boolean_ty(&self) -> &'cx Ty<'cx> {
         self.boolean_ty.get().unwrap()
     }
 
     #[inline(always)]
     fn global_number_ty(&self) -> &'cx Ty<'cx> {
         self.global_number_ty.get().unwrap()
+    }
+
+    #[inline(always)]
+    fn global_string_ty(&self) -> &'cx Ty<'cx> {
+        self.global_string_ty.get().unwrap()
     }
 
     #[inline(always)]
@@ -260,13 +283,17 @@ impl<'cx> TyChecker<'cx> {
             If(i) => self.check_if_stmt(i),
             Block(block) => self.check_block(block),
             Return(ret) => self.check_return_stmt(ret),
-            Empty(_) => {}
             Class(class) => self.check_class_decl(class),
             Interface(interface) => self.check_interface_decl(interface),
+            Namespace(ns) => self.check_ns_decl(ns),
+            Empty(_) => {}
             Type(_) => {}
-            Namespace(_) => {}
             Throw(_) => {}
         };
+    }
+
+    fn check_ns_decl(&mut self, ns: &'cx ast::NsDecl<'cx>) {
+        self.check_block(ns.block);
     }
 
     fn is_applicable_index_ty(&mut self, source: &'cx Ty<'cx>, target: &'cx Ty<'cx>) -> bool {
@@ -276,6 +303,8 @@ impl<'cx> TyChecker<'cx> {
     fn get_apparent_ty(&mut self, ty: &'cx ty::Ty<'cx>) -> &'cx ty::Ty<'cx> {
         if ty.kind.is_number_like() {
             self.global_number_ty()
+        } else if ty.kind.is_string_like() {
+            self.global_string_ty()
         } else {
             ty
         }
@@ -286,10 +315,7 @@ impl<'cx> TyChecker<'cx> {
         ty: &'cx ty::Ty<'cx>,
         prop_name_ty: &'cx Ty<'cx>,
     ) -> Vec<&'cx ty::IndexInfo<'cx>> {
-        let Some(i) = ty.kind.as_object_interface() else {
-            return vec![];
-        };
-        i.declared_index_infos
+        self.index_infos(ty)
             .iter()
             .filter_map(|info| {
                 if self.is_applicable_index_ty(prop_name_ty, info.key_ty) {
@@ -299,6 +325,17 @@ impl<'cx> TyChecker<'cx> {
                 }
             })
             .collect()
+    }
+
+    fn get_applicable_index_info(
+        &mut self,
+        ty: &'cx ty::Ty<'cx>,
+        prop_name_ty: &'cx Ty<'cx>,
+    ) -> Option<&'cx ty::IndexInfo<'cx>> {
+        self.index_infos(ty)
+            .into_iter()
+            .find(|info| self.is_applicable_index_ty(prop_name_ty, info.key_ty))
+            .copied()
     }
 
     fn check_index_constraint_for_prop(
@@ -509,10 +546,18 @@ impl<'cx> TyChecker<'cx> {
                 self.check_class_decl_like(class);
                 self.undefined_ty()
             }
-            PropAccess(_) => self.undefined_ty(),
+            PropAccess(node) => self.check_prop_access_expr(node),
             EleAccess(_) => self.undefined_ty(),
             This(_) => self.undefined_ty(),
         }
+    }
+
+    fn check_prop_access_expr(&mut self, node: &'cx ast::PropAccessExpr<'cx>) -> &'cx Ty<'cx> {
+        let left = self.check_expr(node.expr);
+        let Some(symbol) = self.get_prop_of_ty(left, SymbolName::Ele(node.name.name)) else {
+            return self.undefined_ty();
+        };
+        self.get_type_of_symbol(symbol)
     }
 
     fn check_prefix_unary_expr(&mut self, expr: &'cx ast::PrefixUnaryExpr<'cx>) -> &'cx Ty<'cx> {
@@ -756,7 +801,7 @@ impl<'cx> TyChecker<'cx> {
 
         let ty = self.get_type_of_symbol(symbol);
         let assignment_kind = get_assignment_kind(self, ident.id);
-        if assignment_kind != AssignmentKind::None {
+        if assignment_kind != AssignmentKind::None && symbol != Symbol::ERR {
             let symbol = self.binder.symbol(symbol);
             if !symbol.is_variable() {
                 let error = errors::CannotAssignToNameBecauseItIsATy {

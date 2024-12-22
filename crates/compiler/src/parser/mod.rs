@@ -13,7 +13,7 @@ mod utils;
 
 use std::sync::{Arc, Mutex};
 
-use bolt_ts_span::{Module, ModuleArena, ModuleID, Span};
+use bolt_ts_span::{Module, ModuleArena, ModuleID, ModulePath, Span};
 use rayon::prelude::*;
 use rustc_hash::FxHashMap;
 
@@ -117,8 +117,11 @@ impl<'cx> Parser<'cx> {
         self.get(id.module()).parent_map.parent(id)
     }
 
-    pub fn steal_errors(&mut self, id: ModuleID) -> Vec<bolt_ts_errors::Diag> {
-        std::mem::take(&mut self.map.get_mut(&id).unwrap().diags)
+    pub fn steal_errors(&mut self) -> Vec<bolt_ts_errors::Diag> {
+        self.map
+            .values_mut()
+            .flat_map(|result| std::mem::take(&mut result.diags))
+            .collect()
     }
 
     #[inline(always)]
@@ -154,19 +157,17 @@ impl TokenValue {
 pub fn parse_parallel<'cx>(
     atoms: Arc<Mutex<AtomMap<'cx>>>,
     herd: &'cx bumpalo_herd::Herd,
-    modules: &[Module],
+    list: &[ModuleID],
     module_arena: &ModuleArena,
 ) -> Vec<(ModuleID, ParseResult<'cx>)> {
-    modules
-        .into_par_iter()
+    list.into_par_iter()
         .map_init(
             || herd.get(),
-            |bump, m| {
-                let module_id = m.id;
-                let input = module_arena.get_content(module_id);
-                let result = parse(atoms.clone(), bump, input.as_bytes(), module_id);
-                assert!(!module_arena.get_module(module_id).global || result.diags.is_empty());
-                (module_id, result)
+            |bump, module_id| {
+                let input = module_arena.get_content(*module_id);
+                let result = parse(atoms.clone(), bump, input.as_bytes(), *module_id);
+                assert!(!module_arena.get_module(*module_id).global || result.diags.is_empty());
+                (*module_id, result)
             },
         )
         .collect::<Vec<_>>()

@@ -78,6 +78,30 @@ impl<'cx> FnLike<'cx> for ast::ArrowFnExpr<'cx> {
     }
 }
 
+impl<'cx> FnLike<'cx> for ast::MethodSignature<'cx> {
+    fn id(&self) -> ast::NodeID {
+        self.id
+    }
+    fn params(&self) -> ast::ParamsDecl<'cx> {
+        self.params
+    }
+    fn body(&self) -> Option<ast::ArrowFnExprBody<'cx>> {
+        None
+    }
+}
+
+impl<'cx> FnLike<'cx> for ast::CallSigDecl<'cx> {
+    fn id(&self) -> ast::NodeID {
+        self.id
+    }
+    fn params(&self) -> ast::ParamsDecl<'cx> {
+        self.params
+    }
+    fn body(&self) -> Option<ast::ArrowFnExprBody<'cx>> {
+        None
+    }
+}
+
 pub trait FnDeclLike<'cx>: FnLike<'cx> {
     fn body(&self) -> Option<&'cx ast::BlockStmt<'cx>>;
 }
@@ -101,6 +125,18 @@ impl<'cx> FnDeclLike<'cx> for ast::ClassCtor<'cx> {
 }
 
 impl<'cx> FnDeclLike<'cx> for ast::CtorSigDecl<'cx> {
+    fn body(&self) -> Option<&'cx ast::BlockStmt<'cx>> {
+        None
+    }
+}
+
+impl<'cx> FnDeclLike<'cx> for ast::MethodSignature<'cx> {
+    fn body(&self) -> Option<&'cx ast::BlockStmt<'cx>> {
+        None
+    }
+}
+
+impl<'cx> FnDeclLike<'cx> for ast::CallSigDecl<'cx> {
     fn body(&self) -> Option<&'cx ast::BlockStmt<'cx>> {
         None
     }

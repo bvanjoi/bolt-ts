@@ -30,7 +30,7 @@ impl<'cx> TyChecker<'cx> {
 
     pub(super) fn create_tuple_ty(&mut self, ty: ty::TupleTy<'cx>) -> &'cx ty::Ty<'cx> {
         assert_eq!(ty.tys.len(), ty.element_flags.len());
-        assert!(ty.element_flags.iter().all(|flag| {
+        debug_assert!(ty.element_flags.iter().all(|flag| {
             let flag = flag.bits();
             // is variant
             (flag & (flag - 1)) == 0

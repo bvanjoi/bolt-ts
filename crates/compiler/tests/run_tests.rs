@@ -1,4 +1,5 @@
 use bolt_ts_compiler::eval_from;
+use bolt_ts_config::TsConfig;
 use bolt_ts_errors::miette::Severity;
 use compile_test::run_tests::run;
 use compile_test::{ensure_node_exist, run_node};
@@ -28,23 +29,47 @@ fn run_test(arg: dir_test::Fixture<&str>) {
     let entry = std::path::Path::new(arg.path());
 
     let runner = |case: &std::path::Path| {
-        let output = eval_from(bolt_ts_span::ModulePath::Real(case.to_path_buf()));
+        let dir = case.parent().unwrap();
+        let tsconfig_file = dir.join("tsconfig.json");
+        let tsconfig = if tsconfig_file.is_file() {
+            let s = std::fs::read_to_string(tsconfig_file).unwrap();
+            serde_json::from_str(&s).unwrap()
+        } else {
+            TsConfig::default().with_include(vec!["index.ts".to_string()])
+        };
+        let output = eval_from(dir.to_path_buf(), tsconfig.normalize());
         if output.diags.is_empty() {
-            if output.output.trim().is_empty() {
-                return Ok(());
-            }
-            let temp_file_path =
-                compile_test::temp_node_file(case.file_stem().unwrap().to_str().unwrap());
-            std::fs::write(temp_file_path.as_path(), &output.output).unwrap();
-            let expected_js_file_path = expect_test::expect_file![case.with_extension("js")];
-            expected_js_file_path.assert_eq(&output.output);
-            match run_node(&temp_file_path) {
-                Ok(Some(output)) => {
-                    let expected_file_path = expect_test::expect_file![case.with_extension("out")];
-                    expected_file_path.assert_eq(&output);
+            let mut file_paths = vec![];
+            for (m, contents) in &output.output {
+                if contents.trim().is_empty() {
+                    continue;
                 }
-                Ok(None) => {}
-                Err(_) => return Err(vec![]),
+                let file_path = match output.module_arena.get_path(*m) {
+                    bolt_ts_span::ModulePath::Real(p) => p,
+                    bolt_ts_span::ModulePath::Virtual => todo!(),
+                };
+
+                let temp_node_file =
+                    compile_test::temp_node_file(file_path.file_stem().unwrap().to_str().unwrap());
+                std::fs::write(temp_node_file.as_path(), &contents).unwrap();
+                file_paths.push(temp_node_file);
+
+                let expected_js_file_path =
+                    expect_test::expect_file![file_path.with_extension("js")];
+                expected_js_file_path.assert_eq(&contents);
+            }
+
+            if file_paths.len() == 1 {
+                let temp_file_path = file_paths.pop().unwrap();
+                match run_node(&temp_file_path) {
+                    Ok(Some(output)) => {
+                        let expected_file_path =
+                            expect_test::expect_file![case.with_extension("out")];
+                        expected_file_path.assert_eq(&output);
+                    }
+                    Ok(None) => {}
+                    Err(_) => return Err(vec![]),
+                }
             }
             Ok(())
         } else {

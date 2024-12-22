@@ -1,11 +1,11 @@
 use rustc_hash::FxHashMap;
 
+use super::errors;
 use super::ty;
 use super::utils::append_if_unique;
 use super::TyChecker;
 use crate::ast;
 use crate::bind::{SymbolFlags, SymbolID, SymbolName};
-use crate::errors;
 use crate::ty::{Sig, SigFlags, Sigs};
 
 impl<'cx> TyChecker<'cx> {
@@ -23,13 +23,7 @@ impl<'cx> TyChecker<'cx> {
         }
         let symbol = self.binder.symbol(id);
         if (SymbolFlags::CLASS | SymbolFlags::INTERFACE).intersects(symbol.flags) {
-            let ty = self.get_declared_ty_of_class_or_interface(id);
-            // TODO: remove this
-            if let Some(ty) = self.get_symbol_links(id).get_declared_ty() {
-                return Some(ty);
-            }
-            self.get_mut_symbol_links(id).set_declared_ty(ty);
-            Some(ty)
+            Some(self.get_declared_ty_of_class_or_interface(id))
         } else if symbol.flags == SymbolFlags::TYPE_ALIAS {
             let ty = self.get_declared_ty_of_type_alias(id);
             self.get_mut_symbol_links(id).set_declared_ty(ty);
@@ -53,12 +47,7 @@ impl<'cx> TyChecker<'cx> {
         }
         let ty_param_id = self.binder.symbol(symbol).expect_ty_param().decl;
         let container = self.p.node(self.p.parent(ty_param_id).unwrap());
-        let ty_params = match container {
-            ast::Node::FnDecl(decl) => decl.ty_params,
-            ast::Node::CtorSigDecl(decl) => decl.ty_params,
-            ast::Node::TypeDecl(decl) => decl.ty_params,
-            _ => unreachable!("{container:#?}"),
-        };
+        let ty_params = container.ty_params();
         let offset = ty_params
             .unwrap()
             .iter()
@@ -136,8 +125,7 @@ impl<'cx> TyChecker<'cx> {
         let symbol = self.binder.symbol(id);
         if symbol.flags.intersects(SymbolFlags::CLASS) {
             let c = symbol.expect_class();
-            let decl = c.decl;
-            self.resolve_base_tys_of_class(id, decl)
+            self.resolve_base_tys_of_class(id, c.decl)
         } else if symbol.flags.intersects(SymbolFlags::INTERFACE) {
             let i = symbol.expect_interface();
             (None, self.resolve_base_tys_of_interface(i.decl))
@@ -191,10 +179,6 @@ impl<'cx> TyChecker<'cx> {
             return self.undefined_ty();
         };
         if !self.push_ty_resolution(symbol) {
-            return self.error_ty();
-        }
-        let base_ty = self.check_expr(extends);
-        if !self.pop_ty_resolution() {
             let decl = self.p.node(decl);
             let name = if let ast::Node::ClassDecl(c) = decl {
                 self.atoms.get(c.name.name).to_string()
@@ -206,6 +190,10 @@ impl<'cx> TyChecker<'cx> {
                 decl: name,
             };
             self.push_error(decl.span().module, Box::new(error));
+            return self.error_ty();
+        }
+        let base_ty = self.check_expr(extends);
+        if !self.pop_ty_resolution() {
             return self.error_ty();
         }
         base_ty
@@ -223,6 +211,10 @@ impl<'cx> TyChecker<'cx> {
     }
 
     fn get_declared_ty_of_class_or_interface(&mut self, symbol: SymbolID) -> &'cx ty::Ty<'cx> {
+        if let Some(ty) = self.get_symbol_links(symbol).get_ty() {
+            return ty;
+        }
+
         let outer_ty_params = self.get_outer_ty_params_of_class_or_interface(symbol);
         let (base_ctor_ty, base_tys) = self.get_base_tys(symbol);
         let s = self.binder.symbol(symbol);
@@ -241,17 +233,23 @@ impl<'cx> TyChecker<'cx> {
         let declared_index_infos = members
             .get(&SymbolName::Index)
             .copied()
-            .map(|index| {
-                let decl = self.binder.symbol(index).expect_index().decl;
+            .map(|symbol| {
+                let decl = self.binder.symbol(symbol).expect_index().decl;
                 let decl = self.p.node(decl).expect_index_sig_decl();
                 let val_ty = self.get_ty_from_type_node(decl.ty);
-                decl.params.iter().map(|param| {
-                    let Some(ty) = param.ty else { unreachable!() };
-                    let key_ty = self.get_ty_from_type_node(ty);
-                    self.alloc(ty::IndexInfo { key_ty, val_ty })
-                })
+                decl.params
+                    .iter()
+                    .map(|param| {
+                        let Some(ty) = param.ty else { unreachable!() };
+                        let key_ty = self.get_ty_from_type_node(ty);
+                        self.alloc(ty::IndexInfo {
+                            key_ty,
+                            val_ty,
+                            symbol,
+                        })
+                    })
+                    .collect::<Vec<_>>()
             })
-            .map(|info| info.collect::<Vec<_>>())
             .unwrap_or_default();
         let declared_ctor_sigs = members
             .get(&SymbolName::Constructor)
@@ -282,15 +280,30 @@ impl<'cx> TyChecker<'cx> {
         } else {
             declared_ctor_sigs
         };
-        self.crate_interface_ty(ty::InterfaceTy {
+
+        let declared_call_sigs = members
+            .get(&SymbolName::Call)
+            .copied()
+            .map(|s| self.get_sigs_of_symbol(s))
+            .unwrap_or_default();
+
+        // TODO: remove this
+        if let Some(ty) = self.get_symbol_links(symbol).get_ty() {
+            return ty;
+        }
+
+        let ty = self.crate_interface_ty(ty::InterfaceTy {
             symbol,
             members,
             declared_props,
             base_tys,
             declared_index_infos: self.alloc(declared_index_infos),
             declared_ctor_sigs,
+            declared_call_sigs,
             base_ctor_ty,
-        })
+        });
+        self.get_mut_symbol_links(symbol).set_ty(ty);
+        ty
     }
 
     fn get_outer_ty_params_of_class_or_interface(&mut self, id: SymbolID) -> Option<ty::Tys<'cx>> {

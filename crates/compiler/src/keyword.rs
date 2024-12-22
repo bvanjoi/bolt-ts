@@ -42,6 +42,7 @@ gen!(
     (KW_CATCH, "catch"),
     (KW_FINALLY, "finally"),
     (KW_DEBUGGER, "debugger"),
+    (KW_TYPEOF, "typeof"),
     (KW_IN, "in"),
     // ts keywords
     (KW_IMPLEMENTS, "implements"),
@@ -50,6 +51,7 @@ gen!(
     (KW_PUBLIC, "public"),
     (KW_PRIVATE, "private"),
     (KW_AS, "as"),
+    (KW_IS, "is"),
     (KW_DECLARE, "declare"),
     (KW_MODULE, "module"),
     (KW_NAMESPACE, "namespace"),
@@ -71,6 +73,7 @@ gen!(
     (IDENT_ARRAY, "array"),
     (IDENT_ARRAY_CLASS, "Array"),
     (IDENT_STRING, "string"),
+    (IDENT_STRING_CLASS, "String"),
     (IDENT_BOOLEAN, "boolean"),
     (IDENT_NEVER, "never"),
     (IDENT_UNKNOWN, "unknown"),

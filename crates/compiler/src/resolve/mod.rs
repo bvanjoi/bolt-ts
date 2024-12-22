@@ -5,7 +5,7 @@ mod resolve_class_like;
 use bolt_ts_span::ModuleID;
 use rustc_hash::FxHashMap;
 
-use crate::bind::{BinderState, GlobalSymbols, Symbol, SymbolID, SymbolName, Symbols};
+use crate::bind::{BinderState, GlobalSymbols, Symbol, SymbolFlags, SymbolID, SymbolName, Symbols};
 use crate::keyword::{is_prim_ty_name, is_prim_value_name};
 use crate::parser::Parser;
 use crate::{ast, keyword};
@@ -71,11 +71,15 @@ impl<'cx, 'r> Resolver<'cx, 'r> {
             Class(class) => self.resolve_class_decl(class),
             Interface(interface) => self.resolve_interface_decl(interface),
             Type(ty) => self.resolve_type_decl(ty),
-            Namespace(_) => {}
+            Namespace(ns) => self.resolve_ns_decl(ns),
             Throw(t) => {
                 self.resolve_expr(t.expr);
             }
         };
+    }
+
+    fn resolve_ns_decl(&mut self, ns: &'cx ast::NsDecl<'cx>) {
+        self.resolve_block_stmt(ns.block);
     }
 
     fn resolve_type_decl(&mut self, ty: &'cx ast::TypeDecl<'cx>) {
@@ -188,6 +192,11 @@ impl<'cx, 'r> Resolver<'cx, 'r> {
         }
     }
 
+    fn resolve_index_sig(&mut self, sig: &'cx ast::IndexSigDecl<'cx>) {
+        self.resolve_params(sig.params);
+        self.resolve_ty(sig.ty);
+    }
+
     fn resolve_object_ty_member(&mut self, m: &'cx ast::ObjectTyMember<'cx>) {
         use ast::ObjectTyMemberKind::*;
         match m.kind {
@@ -196,12 +205,20 @@ impl<'cx, 'r> Resolver<'cx, 'r> {
                     self.resolve_ty(ty);
                 }
             }
-            Method(_) => {}
+            Method(m) => {
+                if let Some(ty_params) = m.ty_params {
+                    self.resolve_ty_params(ty_params);
+                }
+                self.resolve_params(m.params);
+                if let Some(ty) = m.ret {
+                    self.resolve_ty(ty);
+                }
+            }
             CallSig(_) => {
                 // let name = SymbolName::;
                 // (name, self.create_object_member_symbol(name, m.id))
             }
-            IndexSig(_) => {}
+            IndexSig(index) => self.resolve_index_sig(index),
             CtorSig(decl) => {
                 self.resolve_params(decl.params);
                 if let Some(ty) = decl.ty {
@@ -277,7 +294,10 @@ impl<'cx, 'r> Resolver<'cx, 'r> {
 
             Class(class) => self.resolve_class_like(class),
             PrefixUnary(unary) => self.resolve_expr(unary.expr),
-            _ => (),
+            PropAccess(node) => {
+                self.resolve_expr(node.expr);
+            }
+            _ => {}
         }
     }
 
@@ -375,6 +395,20 @@ impl<'cx, 'r> Resolver<'cx, 'r> {
         res
     }
 
+    fn check_using_namespace_as_value(&mut self, ident: &'cx ast::Ident) -> Option<crate::Diag> {
+        let symbol =
+            resolve_symbol_by_ident(self, ident, |ns| ns.flags == SymbolFlags::NAMESPACE_MODULE);
+        if symbol == Symbol::ERR {
+            None
+        } else {
+            let ns = self.state.symbols.get(symbol).expect_ns().decls[0];
+            let span = self.p.node(ns).expect_namespace_decl().name.span;
+            let error: crate::Diag =
+                Box::new(errors::CannotUseNamespaceAsTyOrValue { span, is_ty: false });
+            Some(error)
+        }
+    }
+
     fn on_failed_to_resolve_value_symbol(
         &mut self,
         ident: &'cx ast::Ident,
@@ -384,6 +418,9 @@ impl<'cx, 'r> Resolver<'cx, 'r> {
             error.errors.push(e);
         }
         if let Some(e) = self.check_using_type_as_value(ident) {
+            error.errors.push(e);
+        }
+        if let Some(e) = self.check_using_namespace_as_value(ident) {
             error.errors.push(e);
         }
         error
@@ -471,13 +508,24 @@ fn resolve_symbol_by_ident(
     ns: impl Fn(&Symbol) -> bool,
 ) -> SymbolID {
     let binder = &resolver.state;
-    assert!(!binder.final_res.contains_key(&ident.id));
     let key = SymbolName::Normal(ident.name);
     let Some(mut scope_id) = binder.node_id_to_scope_id.get(&ident.id).copied() else {
         let name = resolver.state.atoms.get(ident.name);
         unreachable!("the scope of {name:?} is not stored");
     };
     loop {
+        if !scope_id.is_root() {
+            if let Some(id) = binder.res.get(&(scope_id, SymbolName::Container)).copied() {
+                let symbol = binder.symbols.get(id);
+                if ns(symbol) {
+                    let container = symbol.expect_block_container();
+                    if let Some(id) = container.locals.get(&key) {
+                        break *id;
+                    }
+                }
+            }
+        }
+
         if let Some(id) = binder.res.get(&(scope_id, key)).copied() {
             if ns(&binder.symbols.get(id)) {
                 break id;

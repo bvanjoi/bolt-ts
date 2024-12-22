@@ -86,10 +86,11 @@ impl std::fmt::Display for Span {
     }
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Debug)]
 pub struct Module {
     pub id: ModuleID,
     pub global: bool,
+    pub deps: Vec<ModuleID>,
 }
 
 pub enum ModulePath {
@@ -120,15 +121,20 @@ impl ModuleArena {
             next_module_id: ModuleID::root(),
         }
     }
+
     fn next_module_id(&mut self) -> ModuleID {
         let old = self.next_module_id;
         self.next_module_id = self.next_module_id.next();
         old
     }
 
-    pub fn new_module(&mut self, p: ModulePath, global: bool) -> Module {
+    pub fn new_module(&mut self, p: ModulePath, global: bool) -> ModuleID {
         let id = self.next_module_id();
-        let m = Module { id, global };
+        let m = Module {
+            id,
+            global,
+            deps: Vec::with_capacity(32),
+        };
         assert!(id.as_usize() == self.modules.len());
         self.modules.push(m);
         if let ModulePath::Real(p) = &p {
@@ -138,7 +144,7 @@ impl ModuleArena {
         };
         assert!(id.as_usize() == self.path_map.len());
         self.path_map.push(p);
-        m
+        id
     }
 
     pub fn get_path(&self, id: ModuleID) -> &ModulePath {
@@ -147,8 +153,8 @@ impl ModuleArena {
     pub fn get_content(&self, id: ModuleID) -> &Arc<String> {
         &self.content_map[id.as_usize()]
     }
-    pub fn get_module(&self, id: ModuleID) -> Module {
-        self.modules[id.as_usize()]
+    pub fn get_module(&self, id: ModuleID) -> &Module {
+        &self.modules[id.as_usize()]
     }
     pub fn modules(&self) -> &[Module] {
         &self.modules

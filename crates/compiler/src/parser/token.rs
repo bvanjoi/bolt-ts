@@ -171,6 +171,7 @@ pub enum TokenKind {
     Catch,
     Finally,
     Debugger,
+    Typeof,
     In,
     // ts keyword
     Implements,
@@ -179,6 +180,7 @@ pub enum TokenKind {
     Public,
     Private,
     As,
+    Is,
     Declare,
     Module,
     Namespace,

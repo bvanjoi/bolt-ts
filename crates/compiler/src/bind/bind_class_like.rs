@@ -58,9 +58,7 @@ impl<'cx> BinderState<'cx> {
             SymbolFlags::PROPERTY,
             SymbolKind::Prop(PropSymbol { decl: ele.id }),
         );
-        let Some(class_symbol_id) = self.final_res.get(&decl_id).copied() else {
-            unreachable!()
-        };
+        let class_symbol_id = self.final_res[&decl_id];
         let SymbolKind::Class(ClassSymbol { members, .. }) =
             &mut self.symbols.get_mut(class_symbol_id).kind.0
         else {
@@ -113,7 +111,7 @@ impl<'cx> BinderState<'cx> {
 
     pub(super) fn bind_class_like(&mut self, class: &'cx impl ClassLike<'cx>) {
         self.connect(class.id());
-        let class_symbol = class.create_symbol(self);
+        let _ = class.create_symbol(self);
 
         let old = self.scope_id;
         self.scope_id = self.new_scope();
@@ -138,17 +136,7 @@ impl<'cx> BinderState<'cx> {
                 ast::ClassEleKind::Method(n) => self.bind_class_method_ele(class.id(), n),
                 ast::ClassEleKind::Ctor(n) => self.bind_class_ctor(class.id(), n),
                 ast::ClassEleKind::IndexSig(n) => {
-                    let name = SymbolName::Index;
-                    let symbol = self.bind_index_sig(n);
-                    self.create_final_res(n.id, symbol);
-                    let SymbolKind::Class(ClassSymbol { members, .. }) =
-                        &mut self.symbols.get_mut(class_symbol).kind.0
-                    else {
-                        unreachable!("{:#?}", self.symbols.get(symbol))
-                    };
-                    let prev = members.insert(name, symbol);
-                    // FIXME: multiple index sig
-                    assert!(prev.is_none())
+                    self.bind_index_sig(class.id(), n);
                 }
                 ast::ClassEleKind::Getter(_) => {}
                 ast::ClassEleKind::Setter(_) => {}

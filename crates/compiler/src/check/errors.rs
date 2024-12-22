@@ -217,3 +217,11 @@ pub(super) struct DeclIsReferencedDirectlyOrIndirectlyInItsOwnBaseExpression {
     pub span: Span,
     pub decl: String,
 }
+
+#[derive(Error, Diagnostic, Debug)]
+#[error("'{ty}' index signatures are incompatible.")]
+pub(super) struct IndexSignaturesAreIncompatible {
+    #[label(primary)]
+    pub span: Span,
+    pub ty: String,
+}

@@ -1,12 +1,13 @@
 use bolt_ts_span::Span;
 use rustc_hash::FxHashSet;
 
+use super::errors;
 use crate::atoms::AtomId;
 use crate::bind::{SymbolFlags, SymbolID, SymbolName};
-use crate::errors;
-use crate::ty::{ObjectShape, ObjectTy, ObjectTyKind, Ty, TyKind, Tys};
+use crate::ty;
+use crate::ty::{ObjectShape, ObjectTy, ObjectTyKind, Sig, Ty, TyKind, Tys};
 
-use super::TyChecker;
+use super::{Ternary, TyChecker};
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub(super) enum RelationKind {
@@ -139,7 +140,7 @@ impl<'cx> TyChecker<'cx> {
         source: &'cx Ty<'cx>,
         target: &'cx Ty<'cx>,
         report_error: bool,
-    ) -> bool {
+    ) -> Ternary {
         let unmatched = self.get_unmatched_prop(source, target);
         if let Some((unmatched, target_symbol)) = unmatched {
             let symbol = self.binder.symbol(target_symbol);
@@ -166,12 +167,12 @@ impl<'cx> TyChecker<'cx> {
                     let error = errors::PropertyXIsMissing { span, field };
                     self.push_error(span.module, Box::new(error));
                 }
-                return true;
+                return Ternary::TRUE;
             }
 
-            false
+            Ternary::FALSE
         } else {
-            true
+            Ternary::TRUE
         }
     }
 
@@ -243,10 +244,105 @@ impl<'cx> TyChecker<'cx> {
 
         if source.kind.is_object_or_intersection() && target.kind.is_object() {
             let report_error = !source_is_primitive;
-            self.props_related_to(source, target, report_error)
+            let mut res = self.props_related_to(source, target, report_error);
+            if res != Ternary::FALSE {
+                // TODO: `sigs_related_to` with call tag
+                res &= self.sigs_related_to(source, target);
+                res &= self.index_sig_related_to(source, target, relation);
+                res != Ternary::FALSE
+            } else {
+                false
+            }
         } else {
             true
         }
+    }
+
+    fn index_info_related_to(
+        &mut self,
+        source: &'cx ty::IndexInfo<'cx>,
+        target: &'cx ty::IndexInfo<'cx>,
+        relation: RelationKind,
+    ) -> bool {
+        let res = self.is_related_to(source.val_ty, target.val_ty, relation);
+        if !res {
+            if source.key_ty == target.key_ty {
+                let decl = self.binder.symbol(source.symbol).expect_index().decl;
+                let span = self.p.node(decl).expect_index_sig_decl().ty.span();
+                let error = errors::IndexSignaturesAreIncompatible {
+                    span,
+                    ty: target.val_ty.to_string(self),
+                };
+                self.push_error(span.module, Box::new(error));
+            } else {
+                todo!()
+            }
+        }
+        true
+    }
+
+    fn type_related_to_index_info(
+        &mut self,
+        source: &'cx Ty<'cx>,
+        target: &'cx ty::IndexInfo<'cx>,
+        relation: RelationKind,
+    ) -> Ternary {
+        if let Some(source) = self.get_applicable_index_info(source, target.key_ty) {
+            self.index_info_related_to(source, target, relation);
+            Ternary::TRUE
+        } else {
+            Ternary::FALSE
+        }
+    }
+
+    fn index_sig_related_to(
+        &mut self,
+        source: &'cx Ty<'cx>,
+        target: &'cx Ty<'cx>,
+        relation: RelationKind,
+    ) -> Ternary {
+        if relation == RelationKind::Identity {
+            return Ternary::TRUE;
+        }
+        for info in self.index_infos(target) {
+            self.type_related_to_index_info(source, info, relation);
+        }
+        Ternary::TRUE
+    }
+
+    fn sigs_related_to(&mut self, source: &'cx Ty<'cx>, target: &'cx Ty<'cx>) -> Ternary {
+        if source == self.any_ty() || target == self.any_ty() {
+            return Ternary::TRUE;
+        }
+
+        let source_sigs = {
+            let Some(ty) = source.kind.as_object() else {
+                return Ternary::TRUE;
+            };
+            self.get_sigs_of_ty(ty)
+        };
+        let target_sigs = {
+            let Some(ty) = target.kind.as_object() else {
+                return Ternary::TRUE;
+            };
+            self.get_sigs_of_ty(ty)
+        };
+
+        for t in target_sigs {
+            for s in source_sigs {
+                if self.sig_related_to(s, t) != Ternary::FALSE {
+                    continue;
+                }
+            }
+            return Ternary::FALSE;
+        }
+
+        Ternary::TRUE
+    }
+
+    fn sig_related_to(&mut self, source: &'cx Sig<'cx>, target: &'cx Sig<'cx>) -> Ternary {
+        // TODO:
+        Ternary::FALSE
     }
 
     pub(super) fn check_type_assignable_to_and_optionally_elaborate(
@@ -289,6 +385,10 @@ impl<'cx> TyChecker<'cx> {
             let err = error(self, span, source, target);
             self.push_error(span.module, err);
         }
+    }
+
+    pub(super) fn check_type_assignable_to(&mut self, source: &'cx Ty<'cx>, target: &'cx Ty<'cx>) {
+        self.check_type_related_to(source, target, RelationKind::Assignable);
     }
 
     fn check_type_related_to(
@@ -346,6 +446,23 @@ impl<'cx> TyChecker<'cx> {
         } else if let ObjectTyKind::Reference(ty) = ty.kind {
             let target = ty.target.kind.expect_object();
             self.get_props_of_object_ty(target)
+        } else {
+            &[]
+        }
+    }
+
+    fn get_sigs_of_ty(&mut self, ty: &'cx ObjectTy<'cx>) -> &'cx [&'cx Sig<'cx>] {
+        if let ObjectTyKind::Interface(ty) = ty.kind {
+            ObjectShape::declared_call_sigs(ty)
+        } else if let ObjectTyKind::ObjectLit(ty) = ty.kind {
+            ObjectShape::declared_call_sigs(ty)
+        } else if let ObjectTyKind::Tuple(ty) = ty.kind {
+            ObjectShape::declared_call_sigs(ty)
+        } else if let ObjectTyKind::Fn(ty) = ty.kind {
+            ObjectShape::declared_call_sigs(ty)
+        } else if let ObjectTyKind::Reference(ty) = ty.kind {
+            let target = ty.target.kind.expect_object();
+            self.get_sigs_of_ty(target)
         } else {
             &[]
         }

@@ -7,18 +7,21 @@ mod symbol;
 
 use bolt_ts_span::ModuleID;
 use rustc_hash::FxHashMap;
-pub use symbol::ClassSymbol;
-use symbol::IndexSymbol;
-pub use symbol::SymbolFlags;
-pub use symbol::SymbolFnKind;
-use symbol::SymbolKind;
-pub use symbol::{GlobalSymbols, Symbol, SymbolID, SymbolName, Symbols};
+use symbol::FunctionScopedVarSymbol;
+use thin_vec::thin_vec;
+
+pub use self::symbol::ClassSymbol;
+use self::symbol::IndexSymbol;
+pub use self::symbol::SymbolFlags;
+pub use self::symbol::SymbolFnKind;
+use self::symbol::SymbolKind;
+pub use self::symbol::{GlobalSymbols, Symbol, SymbolID, SymbolName, Symbols};
 
 use crate::ast::{self, NodeID};
 use crate::atoms::AtomMap;
 use crate::parser::Parser;
 use crate::resolve::ResolveResult;
-use crate::Diag;
+use crate::utils::fx_hashmap_with_capacity;
 
 bolt_ts_span::new_index_with_module!(ScopeID);
 
@@ -92,8 +95,11 @@ impl<'cx> Binder<'cx> {
         id
     }
 
-    pub fn steal_errors(&mut self, id: ModuleID) -> Vec<bolt_ts_errors::Diag> {
-        std::mem::take(&mut self.binder_result[id.as_usize()].diags)
+    pub fn steal_errors(&mut self) -> Vec<bolt_ts_errors::Diag> {
+        self.binder_result
+            .iter_mut()
+            .flat_map(|result| std::mem::take(&mut result.diags))
+            .collect()
     }
 }
 
@@ -133,9 +139,9 @@ impl<'cx> BinderState<'cx> {
             scope_id: ScopeID::root(module_id),
             max_scope_id: ScopeID::root(module_id),
             scope_id_parent_map: Vec::with_capacity(512),
-            res: Default::default(),
-            final_res: Default::default(),
-            node_id_to_scope_id: FxHashMap::default(),
+            res: fx_hashmap_with_capacity(128),
+            final_res: fx_hashmap_with_capacity(256),
+            node_id_to_scope_id: fx_hashmap_with_capacity(32),
             symbol_id,
             symbols,
             diags: Vec::new(),
@@ -198,11 +204,37 @@ impl<'cx> BinderState<'cx> {
             Class(class) => self.bind_class_like(class),
             Interface(interface) => self.bind_interface_decl(interface),
             Type(t) => self.bind_type_decl(t),
-            Namespace(_) => {}
+            Namespace(ns) => self.bind_ns_decl(container, ns),
             Throw(t) => {
                 self.bind_expr(t.expr);
             }
         }
+    }
+
+    fn bind_ns_decl(&mut self, container: ast::NodeID, ns: &'cx ast::NsDecl<'cx>) {
+        let flags = if ns.block.stmts.is_empty() {
+            SymbolFlags::NAMESPACE_MODULE
+        } else {
+            SymbolFlags::VALUE_MODULE
+        };
+
+        let symbol = self.create_symbol_with_ns(
+            SymbolName::Normal(ns.name.name),
+            flags,
+            symbol::NsSymbol {
+                decls: thin_vec::thin_vec![ns.id],
+            },
+        );
+
+        let container = self.final_res[&container];
+        if let SymbolKind::BlockContainer(c) = &mut self.symbols.get_mut(container).kind.0 {
+            let name = SymbolName::Normal(ns.name.name);
+            c.locals.insert(name, symbol);
+        }
+
+        self.final_res.insert(ns.id, symbol);
+
+        self.bind_block_stmt(ns.block);
     }
 
     fn bind_type_decl(&mut self, t: &'cx ast::TypeDecl<'cx>) {
@@ -233,12 +265,36 @@ impl<'cx> BinderState<'cx> {
         self.final_res.insert(param.id, symbol);
     }
 
-    fn bind_index_sig(&mut self, index: &'cx ast::IndexSigDecl<'cx>) -> SymbolID {
-        self.create_symbol(
+    fn bind_index_sig(
+        &mut self,
+        container: NodeID,
+        index: &'cx ast::IndexSigDecl<'cx>,
+    ) -> SymbolID {
+        let name = SymbolName::Index;
+        let symbol = self.create_symbol(
             SymbolName::Index,
             SymbolFlags::SIGNATURE,
             SymbolKind::Index(IndexSymbol { decl: index.id }),
-        )
+        );
+        self.create_final_res(index.id, symbol);
+        let container = self.final_res.get(&container).copied().unwrap();
+        let s = self.symbols.get_mut(container);
+        if let Some(i) = &mut s.kind.1 {
+            let prev = i.members.insert(name, symbol);
+            // FIXME: multiple index sig
+            assert!(prev.is_none());
+        } else if let SymbolKind::Class(c) = &mut s.kind.0 {
+            let prev = c.members.insert(name, symbol);
+            // FIXME: multiple index sig
+            assert!(prev.is_none());
+        } else {
+            todo!()
+        }
+
+        self.bind_params(index.params);
+        self.bind_ty(index.ty);
+
+        symbol
     }
 
     fn bind_object_ty_member(&mut self, container: ast::NodeID, m: &'cx ast::ObjectTyMember<'cx>) {
@@ -255,8 +311,11 @@ impl<'cx> BinderState<'cx> {
                 };
                 let s = self.symbols.get_mut(s);
                 if let Some(i) = &mut s.kind.1 {
-                    let prev = i.members.insert(name, symbol);
-                    assert!(prev.is_none());
+                    if !i.members.contains_key(&name) {
+                        i.members.insert(name, symbol);
+                    } else {
+                        // TODO: prev
+                    };
                 } else if let SymbolKind::Object(o) = &mut s.kind.0 {
                     let prev = o.members.insert(name, symbol);
                     assert!(prev.is_none());
@@ -264,12 +323,41 @@ impl<'cx> BinderState<'cx> {
                     todo!()
                 }
             }
-            Method(_) => {}
-            CallSig(_) => {
-                // let name = SymbolName::;
-                // (name, self.create_object_member_symbol(name, m.id))
+            Method(m) => {
+                let old = self.scope_id;
+                self.scope_id = self.new_scope();
+
+                if let Some(ty_params) = m.ty_params {
+                    self.bind_ty_params(ty_params);
+                }
+                self.bind_params(m.params);
+                if let Some(ty) = m.ret {
+                    self.bind_ty(ty);
+                }
+
+                let name = Self::prop_name(m.name);
+                self.create_fn_decl_like_symbol(container, m, name, SymbolFnKind::Method);
+                self.scope_id = old;
             }
-            IndexSig(_) => {}
+            CallSig(call) => {
+                let old = self.scope_id;
+                self.scope_id = self.new_scope();
+
+                if let Some(ty_params) = call.ty_params {
+                    self.bind_ty_params(ty_params);
+                }
+                self.bind_params(call.params);
+                if let Some(ty) = call.ty {
+                    self.bind_ty(ty);
+                }
+
+                let name = SymbolName::Call;
+                self.create_fn_decl_like_symbol(container, call, name, SymbolFnKind::Call);
+                self.scope_id = old;
+            }
+            IndexSig(index) => {
+                self.bind_index_sig(container, index);
+            }
             CtorSig(decl) => {
                 let old = self.scope_id;
                 self.scope_id = self.new_scope();
@@ -322,9 +410,13 @@ impl<'cx> BinderState<'cx> {
     fn bind_block_stmt(&mut self, block: &'cx ast::BlockStmt<'cx>) {
         let old = self.scope_id;
         self.scope_id = self.new_scope();
+
+        self.create_block_container_symbol(block.id);
+
         for stmt in block.stmts {
             self.bind_stmt(block.id, stmt)
         }
+
         self.scope_id = old;
     }
 
@@ -354,12 +446,18 @@ impl<'cx> BinderState<'cx> {
             Fn(f) => self.bind_fn_expr(f),
             Class(class) => self.bind_class_like(class),
             PrefixUnary(unary) => self.bind_expr(unary.expr),
+            PropAccess(node) => {
+                self.bind_expr(node.expr);
+            }
             _ => (),
         }
     }
 
     fn bind_fn_expr(&mut self, f: &'cx ast::FnExpr<'cx>) {
         self.create_fn_expr_symbol(f.id);
+        for param in f.params {
+            self.bind_param(param);
+        }
         self.bind_block_stmt(f.body);
     }
 
@@ -487,7 +585,7 @@ impl<'cx> BinderState<'cx> {
         let kind = if kind == ast::VarKind::Let || kind == ast::VarKind::Const {
             SymbolKind::BlockScopedVar { decl: decl.id }
         } else {
-            SymbolKind::FunctionScopedVar { decl: decl.id }
+            SymbolKind::FunctionScopedVar(FunctionScopedVarSymbol { decl: decl.id })
         };
         self.create_var_decl(decl, kind);
         if let Some(ty) = decl.ty {
@@ -508,7 +606,7 @@ impl<'cx> BinderState<'cx> {
         let symbol = self.create_var_symbol(
             param.name.name,
             SymbolFlags::FUNCTION_SCOPED_VARIABLE,
-            SymbolKind::FunctionScopedVar { decl: param.id },
+            SymbolKind::FunctionScopedVar(FunctionScopedVarSymbol { decl: param.id }),
         );
         self.final_res.insert(param.id, symbol);
         if let Some(ty) = param.ty {
@@ -531,10 +629,7 @@ impl<'cx> BinderState<'cx> {
         self.scope_id = self.new_scope();
         self.bind_params(f.params);
         if let Some(body) = f.body {
-            self.create_block_container_symbol(body.id);
-            for stmt in body.stmts {
-                self.bind_stmt(body.id, stmt)
-            }
+            self.bind_block_stmt(body);
         }
         self.scope_id = old;
     }

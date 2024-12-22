@@ -16,7 +16,7 @@ pub use self::object_shape::ObjectShape;
 pub use self::object_ty::ElementFlags;
 pub use self::object_ty::ReferenceTy;
 pub use self::object_ty::{ClassTy, FnTy, InterfaceTy, ObjectLitTy, ObjectTyKind};
-pub use self::object_ty::{IndexInfo, ObjectTy, TupleShape, TupleTy};
+pub use self::object_ty::{IndexInfo, IndexInfos, ObjectTy, TupleShape, TupleTy};
 pub use self::sig::{Sig, SigFlags, Sigs};
 
 bolt_ts_span::new_index!(TyID);
@@ -135,7 +135,7 @@ as_ty_kind!(Var, &TyVarID, as_ty_var, expect_ty_var, is_ty_var);
 as_ty_kind!(Cond, &CondTy<'cx>, as_cond_ty, expect_cond_ty, is_cond_ty);
 
 impl<'cx> Ty<'cx> {
-    pub fn to_string(&self, checker: &TyChecker) -> String {
+    pub fn to_string(&self, checker: &mut TyChecker) -> String {
         if self.kind.is_array(checker) {
             let ele = self.kind.expect_object_reference().ty_args[0].to_string(checker);
             return format!("{ele}[]");
@@ -143,6 +143,9 @@ impl<'cx> Ty<'cx> {
         match self.kind {
             TyKind::NumberLit(lit) => format!("{}", lit.val),
             TyKind::StringLit(lit) => format!("\"{}\"", checker.atoms.get(lit.val)),
+            TyKind::Union(_) if self == checker.boolean_ty() => {
+                keyword::IDENT_BOOLEAN_STR.to_string()
+            }
             TyKind::Union(union) => union
                 .tys
                 .iter()

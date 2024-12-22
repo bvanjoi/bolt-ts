@@ -10,7 +10,7 @@ use crate::keyword;
 use crate::ty::{AccessFlags, ElementFlags, TupleShape, TyMapper};
 
 impl<'cx> TyChecker<'cx> {
-    pub(super) fn get_type_of_symbol(&mut self, id: SymbolID) -> &'cx Ty<'cx> {
+    pub(crate) fn get_type_of_symbol(&mut self, id: SymbolID) -> &'cx Ty<'cx> {
         if let Some(ty) = self.get_symbol_links(id).get_ty() {
             return ty;
         }
@@ -88,7 +88,7 @@ impl<'cx> TyChecker<'cx> {
         })
     }
 
-    pub(super) fn get_ty_from_type_node(&mut self, ty: &ast::Ty<'cx>) -> &'cx Ty<'cx> {
+    pub(crate) fn get_ty_from_type_node(&mut self, ty: &ast::Ty<'cx>) -> &'cx Ty<'cx> {
         // TODO: cache
         use ast::TyKind::*;
         match ty.kind {

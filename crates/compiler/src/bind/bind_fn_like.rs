@@ -22,8 +22,8 @@ impl<'cx> BinderState<'cx> {
             let s = &mut container.kind.0;
             if let SymbolKind::Class(c) = s {
                 &mut c.members
-            } else if let SymbolKind::BlockContainer { locals } = s {
-                locals
+            } else if let SymbolKind::BlockContainer(c) = s {
+                &mut c.locals
             } else {
                 unreachable!("{:#?}", s)
             }
@@ -40,7 +40,7 @@ impl<'cx> BinderState<'cx> {
                     assert!(!decls.is_empty());
                     decls.push(decl.id());
                 }
-                _ => unreachable!(),
+                _ => unreachable!("symbol: {:#?}", symbol),
             }
             self.create_final_res(decl.id(), s);
             return s;
