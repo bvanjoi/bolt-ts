@@ -1,5 +1,5 @@
 use bolt_ts_compiler::eval_from;
-use bolt_ts_config::TsConfig;
+use bolt_ts_config::RawTsConfig;
 use bolt_ts_errors::miette::Severity;
 use compile_test::run_tests::run;
 use compile_test::{ensure_node_exist, run_node};
@@ -35,7 +35,7 @@ fn run_test(arg: dir_test::Fixture<&str>) {
             let s = std::fs::read_to_string(tsconfig_file).unwrap();
             serde_json::from_str(&s).unwrap()
         } else {
-            TsConfig::default().with_include(vec!["index.ts".to_string()])
+            RawTsConfig::default().with_include(vec!["index.ts".to_string()])
         };
         let output = eval_from(dir.to_path_buf(), tsconfig.normalize());
         if output.diags.is_empty() {

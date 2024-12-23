@@ -180,6 +180,7 @@ pub enum ClassEleKind<'cx> {
 pub struct GetterDecl<'cx> {
     pub id: NodeID,
     pub span: Span,
+    pub modifiers: Option<&'cx Modifiers<'cx>>,
     pub name: &'cx PropName<'cx>,
     pub ret: Option<&'cx self::Ty<'cx>>,
     pub body: Option<&'cx BlockStmt<'cx>>,

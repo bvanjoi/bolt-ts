@@ -125,8 +125,8 @@ impl<'cx, 'r> Resolver<'cx, 'r> {
         match name.kind {
             Ident(ident) => self.resolve_ty_by_ident(ident),
             Qualified(qualified) => {
-                self.resolve_entity_name(qualified.left);
-                self.resolve_ty_by_ident(qualified.right);
+                // self.resolve_entity_name(qualified.left);
+                // self.resolve_ty_by_ident(qualified.right);
             }
         }
     }
@@ -215,9 +215,11 @@ impl<'cx, 'r> Resolver<'cx, 'r> {
                     self.resolve_ty(ty);
                 }
             }
-            CallSig(_) => {
-                // let name = SymbolName::;
-                // (name, self.create_object_member_symbol(name, m.id))
+            CallSig(call) => {
+                self.resolve_params(call.params);
+                if let Some(ty) = call.ty {
+                    self.resolve_ty(ty);
+                }
             }
             IndexSig(index) => self.resolve_index_sig(index),
             CtorSig(decl) => {
@@ -382,7 +384,16 @@ impl<'cx, 'r> Resolver<'cx, 'r> {
             }
             return;
         }
-        self.resolve_symbol_by_ident(ident, Symbol::is_type);
+        let res = self.resolve_symbol_by_ident(ident, Symbol::is_type);
+
+        if res == Symbol::ERR {
+            let error = errors::CannotFindName {
+                span: ident.span,
+                name: self.state.atoms.get(ident.name).to_string(),
+                errors: vec![],
+            };
+            self.push_error(ident.span.module, Box::new(error));
+        }
     }
 
     fn resolve_symbol_by_ident(

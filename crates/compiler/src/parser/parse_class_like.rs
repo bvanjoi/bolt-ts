@@ -351,6 +351,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         let kind = if is_getter {
             let decl = self.alloc(ast::GetterDecl {
                 id,
+                modifiers,
                 span: self.new_span(start as u32),
                 name,
                 ret,

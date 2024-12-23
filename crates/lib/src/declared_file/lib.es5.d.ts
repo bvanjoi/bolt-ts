@@ -40,11 +40,11 @@ interface String {
    */
   localeCompare(that: string): number;
 
-  /**
-   * Matches a string with a regular expression, and returns an array containing the results of that search.
-   * @param regexp A variable name or string literal containing the regular expression pattern and flags.
-   */
-  match(regexp: string | RegExp): RegExpMatchArray | null;
+  // /**
+  //  * Matches a string with a regular expression, and returns an array containing the results of that search.
+  //  * @param regexp A variable name or string literal containing the regular expression pattern and flags.
+  //  */
+  // match(regexp: string | RegExp): RegExpMatchArray | null;
 
   // /**
   //  * Replaces text in a string, using a regular expression or search string.
@@ -244,17 +244,17 @@ interface Array<T> {
      * If end is undefined, then the slice extends to the end of the array.
      */
     slice(start?: number, end?: number): T[];
-    /**
-     * Sorts an array in place.
-     * This method mutates the array and returns a reference to the same array.
-     * @param compareFn Function used to determine the order of the elements. It is expected to return
-     * a negative value if the first argument is less than the second argument, zero if they're equal, and a positive
-     * value otherwise. If omitted, the elements are sorted in ascending, ASCII character order.
-     * ```ts
-     * [11,2,22,1].sort((a, b) => a - b)
-     * ```
-     */
-    sort(compareFn?: (a: T, b: T) => number): this;
+    // /**
+    //  * Sorts an array in place.
+    //  * This method mutates the array and returns a reference to the same array.
+    //  * @param compareFn Function used to determine the order of the elements. It is expected to return
+    //  * a negative value if the first argument is less than the second argument, zero if they're equal, and a positive
+    //  * value otherwise. If omitted, the elements are sorted in ascending, ASCII character order.
+    //  * ```ts
+    //  * [11,2,22,1].sort((a, b) => a - b)
+    //  * ```
+    //  */
+    // sort(compareFn?: (a: T, b: T) => number): this;
     /**
      * Removes elements from an array and, if necessary, inserts new elements in their place, returning the deleted elements.
      * @param start The zero-based location in the array from which to start removing elements.

@@ -1,7 +1,7 @@
-use bolt_ts_config::{NormalizedTsConfig, TsConfig};
+use bolt_ts_config::{NormalizedTsConfig, RawTsConfig};
 
 fn normalize(input: &str) -> NormalizedTsConfig {
-    let raw: TsConfig = serde_json::from_str(input).unwrap();
+    let raw: RawTsConfig = serde_json::from_str(input).unwrap();
     raw.normalize()
 }
 

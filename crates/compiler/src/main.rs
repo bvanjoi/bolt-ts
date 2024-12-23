@@ -1,5 +1,5 @@
 use bolt_ts_compiler::eval_from;
-use bolt_ts_config::TsConfig;
+use bolt_ts_config::RawTsConfig;
 use std::env;
 use std::path::{Path, PathBuf};
 
@@ -25,7 +25,7 @@ fn main() {
     let input_path = &args[1];
     let start = std::time::Instant::now();
     let p = get_absolute_path(input_path);
-    let tsconfig = TsConfig::default().with_include(vec![p.to_str().unwrap().to_string()]);
+    let tsconfig = RawTsConfig::default().with_include(vec![p.to_str().unwrap().to_string()]);
     let cwd = env::current_dir().unwrap();
     let output = eval_from(cwd, tsconfig.normalize());
     output
@@ -42,8 +42,8 @@ fn main_test() {
     let cwd = env::current_dir().unwrap();
     let project_root = project_root::get_project_root().unwrap();
 
-    let p = project_root.join("tests/cases/compiler/classExtendingQualifiedName2/index.ts");
-    let tsconfig = TsConfig::default().with_include(vec![p.to_str().unwrap().to_string()]);
+    let p = project_root.join("tests/cases/compiler/cloduleAcrossModuleDefinitions/index.ts");
+    let tsconfig = RawTsConfig::default().with_include(vec![p.to_str().unwrap().to_string()]);
     let output = eval_from(cwd, tsconfig.normalize());
     if output.diags.is_empty() {
         let mut file_paths = vec![];

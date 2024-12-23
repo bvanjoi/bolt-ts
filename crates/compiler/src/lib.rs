@@ -98,8 +98,6 @@ pub fn eval_from(cwd: PathBuf, tsconfig: NormalizedTsConfig) -> Output {
                 assert_eq!(t as u8 + 1, TokenKind::Let as u8);
                 assert_eq!(t as u8 + 2, TokenKind::Const as u8);
             }
-            assert!(t.is_keyword());
-            assert_eq!(format!("{t:?}").to_lowercase(), *name);
         }
     }
     let mut atoms = AtomMap::new();

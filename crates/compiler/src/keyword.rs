@@ -86,6 +86,7 @@ pub fn is_prim_ty_name(name: AtomId) -> bool {
     matches!(
         name,
         IDENT_ANY
+            | KW_NULL
             | IDENT_NUMBER
             | IDENT_STRING
             | IDENT_BOOLEAN
