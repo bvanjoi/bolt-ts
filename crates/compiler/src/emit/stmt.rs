@@ -19,6 +19,7 @@ impl<'cx> Emit<'cx> {
             Type(_) => {}
             Namespace(ns) => self.emit_ns_decl(ns),
             Throw(t) => self.emit_throw_stmt(t),
+            Enum(enum_decl) => {}
         }
     }
 

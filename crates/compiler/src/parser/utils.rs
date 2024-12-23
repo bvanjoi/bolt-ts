@@ -194,7 +194,12 @@ impl<'p, 't> ParserState<'p, 't> {
 
     #[inline(always)]
     pub(super) fn is_ident(&self) -> bool {
-        matches!(self.token.kind, TokenKind::Ident | TokenKind::Abstract)
+        let t = self.token.kind;
+        if t == TokenKind::Ident {
+            return true;
+        }
+
+        t.is_contextual_keyword() || t.is_strict_mode_reserved_word()
     }
 
     pub(super) fn next_token_is_ident(&mut self) -> PResult<bool> {

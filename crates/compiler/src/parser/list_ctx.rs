@@ -7,6 +7,18 @@ pub(super) trait ListContext: Copy {
 }
 
 #[derive(Copy, Clone)]
+pub(super) struct EnumMembers;
+impl ListContext for EnumMembers {
+    fn is_ele(&self, s: &mut ParserState) -> bool {
+        s.token.kind == TokenKind::LBracket || s.token.kind.is_lit_prop_name()
+    }
+
+    fn is_closing(&self, s: &mut ParserState) -> bool {
+        matches!(s.token.kind, TokenKind::RBrace)
+    }
+}
+
+#[derive(Copy, Clone)]
 pub(super) struct BlockStmt;
 impl ListContext for BlockStmt {
     fn is_ele(&self, s: &mut ParserState) -> bool {

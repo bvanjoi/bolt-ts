@@ -33,6 +33,26 @@ pub enum StmtKind<'cx> {
     Type(&'cx TypeDecl<'cx>),
     Namespace(&'cx NsDecl<'cx>),
     Throw(&'cx ThrowStmt<'cx>),
+    Enum(&'cx EnumDecl<'cx>),
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct EnumDecl<'cx> {
+    pub id: NodeID,
+    pub span: Span,
+    pub modifiers: Option<&'cx Modifiers<'cx>>,
+    pub name: &'cx Ident,
+    pub members: EnumMembers<'cx>,
+}
+
+pub type EnumMembers<'cx> = &'cx [&'cx EnumMember<'cx>];
+
+#[derive(Debug, Clone, Copy)]
+pub struct EnumMember<'cx> {
+    pub id: NodeID,
+    pub span: Span,
+    pub name: PropName<'cx>,
+    pub init: Option<&'cx Expr<'cx>>,
 }
 
 #[derive(Debug, Clone, Copy)]

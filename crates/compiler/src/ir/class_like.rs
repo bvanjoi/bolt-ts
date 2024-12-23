@@ -35,7 +35,7 @@ impl<'cx> ClassLike<'cx> for ast::ClassExpr<'cx> {
         self.id
     }
     fn name(&self) -> Option<&'cx ast::Ident> {
-        None
+        self.name
     }
     fn ty_params(&self) -> Option<ast::TyParams<'cx>> {
         self.ty_params

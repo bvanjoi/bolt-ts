@@ -35,6 +35,7 @@ pub enum Node<'cx> {
     ImplementsClause(&'cx ast::ImplementsClause<'cx>),
     BlockStmt(&'cx ast::BlockStmt<'cx>),
     ThrowStmt(&'cx ast::ThrowStmt<'cx>),
+    EnumDecl(&'cx ast::EnumDecl<'cx>),
     Modifier(&'cx ast::Modifier),
 
     // expr
@@ -167,6 +168,7 @@ impl<'cx> Node<'cx> {
         match self {
             FnDecl(n) => Some(n.name),
             ClassDecl(n) => Some(n.name),
+            ClassExpr(n) => n.name,
             ClassMethodEle(n) => match n.name.kind {
                 ast::PropNameKind::Ident(ref ident) => Some(ident),
                 _ => None,
@@ -297,6 +299,13 @@ as_node!(
         as_class_decl,
         expect_class_decl,
         is_class_decl
+    ),
+    (
+        EnumDecl,
+        &'cx ast::EnumDecl<'cx>,
+        as_enum_decl,
+        expect_enum_decl,
+        is_enum_decl
     ),
     (
         NamespaceDecl,

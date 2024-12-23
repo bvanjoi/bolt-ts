@@ -42,7 +42,7 @@ fn main_test() {
     let cwd = env::current_dir().unwrap();
     let project_root = project_root::get_project_root().unwrap();
 
-    let p = project_root.join("tests/cases/compiler/assignToModule/index.ts");
+    let p = project_root.join("tests/cases/compiler/classExtendingQualifiedName2/index.ts");
     let tsconfig = TsConfig::default().with_include(vec![p.to_str().unwrap().to_string()]);
     let output = eval_from(cwd, tsconfig.normalize());
     if output.diags.is_empty() {
@@ -58,6 +58,13 @@ fn main_test() {
             std::fs::write(file_path.as_path(), contents).unwrap();
             file_paths.push(file_path);
         }
+        println!(
+            "{:#?}",
+            file_paths
+                .iter()
+                .map(|m| m.as_path().display())
+                .collect::<Vec<_>>()
+        );
         if file_paths.len() == 1 {
             let file_path = file_paths.pop().unwrap();
             compile_test::run_node(&file_path).unwrap();

@@ -75,6 +75,7 @@ impl<'cx, 'r> Resolver<'cx, 'r> {
             Throw(t) => {
                 self.resolve_expr(t.expr);
             }
+            Enum(enum_decl) => {}
         };
     }
 

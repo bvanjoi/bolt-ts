@@ -26,11 +26,39 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
             Type => ast::StmtKind::Type(self.parse_type_decl()?),
             Module | Namespace => ast::StmtKind::Namespace(self.parse_ns_decl(None)?),
             Throw => ast::StmtKind::Throw(self.parse_throw_stmt()?),
+            Enum => ast::StmtKind::Enum(self.parse_enum_decl()?),
             _ => ast::StmtKind::Expr(self.parse_expr_or_labeled_stmt()?),
         };
         let stmt = self.alloc(ast::Stmt { kind });
         Ok(stmt)
     }
+
+    fn parse_enum_decl(&mut self) -> PResult<&'cx ast::EnumDecl<'cx>> {
+        let id = self.next_node_id();
+        let start = self.token.start();
+        self.expect(TokenKind::Enum)?;
+        let name = self.create_ident(self.is_ident(), None);
+        let members = if self.expect(TokenKind::LBrace).is_ok() {
+            // self.parse_delimited_list(list_ctx::EnumMembers, ele);
+            self.expect(TokenKind::RBrace)?;
+        } else {
+            todo!("error handler")
+        };
+
+        let decl = self.alloc(ast::EnumDecl {
+            id,
+            span: self.new_span(start),
+            modifiers: None,
+            name,
+            members: &[],
+        });
+        self.insert_map(id, ast::Node::EnumDecl(decl));
+        Ok(decl)
+    }
+
+    // fn parse_enum_member(&mut self) -> PResult<&'cx ast::EnumMember<'cx>> {
+
+    // }
 
     fn try_parse_semi(&mut self) -> PResult<bool> {
         if !self.can_parse_semi() {

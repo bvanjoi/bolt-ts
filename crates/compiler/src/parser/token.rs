@@ -172,12 +172,15 @@ pub enum TokenKind {
     Finally,
     Debugger,
     Typeof,
+    Package,
+    Yield,
     In,
     // ts keyword
     Implements,
     Interface,
     Abstract,
     Public,
+    Protected,
     Private,
     As,
     Is,
@@ -269,7 +272,7 @@ impl From<TokenKind> for AssignOp {
 }
 
 impl TokenKind {
-    pub fn prec(self) -> BinPrec {
+    pub const fn prec(self) -> BinPrec {
         use TokenKind::*;
         match self {
             Pipe => BinPrec::BitwiseOR,
@@ -284,11 +287,16 @@ impl TokenKind {
         }
     }
 
-    pub(super) fn is_ident(&self) -> bool {
-        matches!(self, TokenKind::Ident | TokenKind::Abstract)
+    pub(super) const fn is_ident(&self) -> bool {
+        // TODO: use `parser.is_ident`
+        if matches!(self, TokenKind::Ident) {
+            return true;
+        }
+
+        self.is_contextual_keyword() || self.is_strict_mode_reserved_word()
     }
 
-    pub fn is_start_of_left_hand_side_expr(self) -> bool {
+    pub const fn is_start_of_left_hand_side_expr(self) -> bool {
         use TokenKind::*;
         matches!(
             self,
@@ -309,7 +317,7 @@ impl TokenKind {
         ) || self.is_ident()
     }
 
-    fn is_ts_keyword(self) -> bool {
+    const fn is_ts_keyword(self) -> bool {
         let u = self as u8;
         u <= KEYWORD_TOKEN_END && u >= (TokenKind::Implements as u8)
     }
@@ -322,12 +330,63 @@ impl TokenKind {
         self.is_binding_ident()
     }
 
-    pub fn is_keyword(self) -> bool {
+    pub const fn is_keyword(self) -> bool {
         let u = self as u8;
         u >= KEYWORD_TOKEN_START && u <= KEYWORD_TOKEN_END
     }
 
-    pub fn is_ident_or_keyword(self) -> bool {
+    pub const fn is_strict_mode_reserved_word(self) -> bool {
+        use TokenKind::*;
+        matches!(
+            self,
+            Implements | Interface | Let | Package | Private | Protected | Public | Static | Yield
+        )
+    }
+
+    pub const fn is_contextual_keyword(self) -> bool {
+        use TokenKind::*;
+        matches!(
+            self,
+            Abstract |
+            // Accessor |
+            As |
+            // Asserts |
+            // Assert |
+            // Any |
+            Async |
+            // Await |
+            // Boolean |
+            Constructor |
+            Declare |
+            Get |
+            // Infer |
+            // Intrinsic |
+            Is |
+            // KeyOf |
+            Module |
+            Namespace |
+            // Never |
+            // Out |
+            Readonly |
+            // Require |
+            Number |
+            // Object |
+            // Satisfies |
+            Set |
+            String |
+            // Symbol |
+            Type // Undefined |
+                 // Unique |
+                 // Unknown |
+                 // Using |
+                 // From |
+                 // Global |
+                 // BigInt |
+                 // Override |
+        )
+    }
+
+    pub const fn is_ident_or_keyword(self) -> bool {
         matches!(self, TokenKind::Ident) || self.is_keyword()
     }
 

@@ -201,13 +201,14 @@ impl<'cx> BinderState<'cx> {
                     self.bind_expr(expr)
                 }
             }
-            Class(class) => self.bind_class_like(class),
+            Class(class) => self.bind_class_like(class, false),
             Interface(interface) => self.bind_interface_decl(interface),
             Type(t) => self.bind_type_decl(t),
             Namespace(ns) => self.bind_ns_decl(container, ns),
             Throw(t) => {
                 self.bind_expr(t.expr);
             }
+            Enum(enum_decl) => {}
         }
     }
 
@@ -444,7 +445,7 @@ impl<'cx> BinderState<'cx> {
             Paren(paren) => self.bind_expr(paren.expr),
             ArrowFn(f) => self.bind_arrow_fn_expr(f),
             Fn(f) => self.bind_fn_expr(f),
-            Class(class) => self.bind_class_like(class),
+            Class(class) => self.bind_class_like(class, true),
             PrefixUnary(unary) => self.bind_expr(unary.expr),
             PropAccess(node) => {
                 self.bind_expr(node.expr);

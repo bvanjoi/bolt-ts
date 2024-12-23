@@ -289,6 +289,7 @@ impl<'cx> TyChecker<'cx> {
             Empty(_) => {}
             Type(_) => {}
             Throw(_) => {}
+            Enum(enum_decl) => {}
         };
     }
 
