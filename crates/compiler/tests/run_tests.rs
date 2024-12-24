@@ -1,4 +1,4 @@
-use bolt_ts_compiler::eval_from;
+use bolt_ts_compiler::{eval_from, output_files};
 use bolt_ts_config::RawTsConfig;
 use bolt_ts_errors::miette::Severity;
 use compile_test::run_tests::run;
@@ -29,45 +29,55 @@ fn run_test(arg: dir_test::Fixture<&str>) {
     let entry = std::path::Path::new(arg.path());
 
     let runner = |case: &std::path::Path| {
+        let file_name = case.file_name().unwrap().to_str().unwrap();
+        assert_eq!(file_name, "index.ts");
         let dir = case.parent().unwrap();
         let tsconfig_file = dir.join("tsconfig.json");
         let tsconfig = if tsconfig_file.is_file() {
             let s = std::fs::read_to_string(tsconfig_file).unwrap();
             serde_json::from_str(&s).unwrap()
         } else {
-            RawTsConfig::default().with_include(vec!["index.ts".to_string()])
+            RawTsConfig::default()
         };
-        let output = eval_from(dir.to_path_buf(), tsconfig.normalize());
+        const OUTPUT: &str = "output";
+        let tsconfig = tsconfig
+            .with_include_if_none(vec!["index.ts".to_string()])
+            .config_compiler_options(|c| c.with_no_emit(true).with_out_dir(OUTPUT.to_string()));
+
+        let cwd = dir.to_path_buf();
+        let output = eval_from(cwd, tsconfig.normalize());
+        let output_dir = dir.join(OUTPUT);
+        if !output_dir.exists() {
+            std::fs::create_dir_all(&output_dir).unwrap();
+        }
+        let output_files = output_files(
+            &output.cwd,
+            &output.tsconfig,
+            &output.module_arena,
+            &output.output,
+        );
+        let output_err_path = output_dir.join(file_name).with_extension("stderr");
         if output.diags.is_empty() {
-            let mut file_paths = vec![];
-            for (m, contents) in &output.output {
+            let _ = std::fs::remove_file(output_err_path);
+
+            let mut index_file_path = None;
+            for (p, contents) in &output_files {
                 if contents.trim().is_empty() {
                     continue;
                 }
-                let file_path = match output.module_arena.get_path(*m) {
-                    bolt_ts_span::ModulePath::Real(p) => p,
-                    bolt_ts_span::ModulePath::Virtual => todo!(),
-                };
 
-                let temp_node_file =
-                    compile_test::temp_node_file(file_path.file_stem().unwrap().to_str().unwrap());
-                std::fs::write(temp_node_file.as_path(), &contents).unwrap();
-                file_paths.push(temp_node_file);
+                if p.ends_with("index.js") {
+                    let p = compile_test::temp_node_file(p.file_stem().unwrap().to_str().unwrap());
+                    std::fs::write(p.as_path(), &contents).unwrap();
+                    index_file_path = Some(p);
+                }
 
-                let expected_js_file_path =
-                    expect_test::expect_file![file_path.with_extension("js")];
-                expected_js_file_path.assert_eq(&contents);
+                expect_test::expect_file![p].assert_eq(&contents);
             }
 
-            if file_paths.len() == 1 {
-                let temp_file_path = file_paths.pop().unwrap();
-                match run_node(&temp_file_path) {
-                    Ok(Some(output)) => {
-                        let expected_file_path =
-                            expect_test::expect_file![case.with_extension("out")];
-                        expected_file_path.assert_eq(&output);
-                    }
-                    Ok(None) => {}
+            if let Some(index_file_path) = index_file_path {
+                match run_node(&index_file_path) {
+                    Ok(_) => {}
                     Err(_) => return Err(vec![]),
                 }
             }
@@ -110,14 +120,13 @@ fn run_test(arg: dir_test::Fixture<&str>) {
                     })
                 })
                 .collect::<Vec<compile_test::errors::Error>>();
-            let expected_file_path = expect_test::expect_file![case.with_extension("stderr")];
             let err_msg = output
                 .diags
                 .into_iter()
                 .map(|diag| diag.emit_message(&output.module_arena, true))
                 .collect::<Vec<_>>()
                 .join("\n");
-            expected_file_path.assert_eq(&err_msg);
+            expect_test::expect_file![output_err_path].assert_eq(&err_msg);
             Err(errors)
         }
     };

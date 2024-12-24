@@ -76,6 +76,7 @@ impl<'cx> TyChecker<'cx> {
                     let targets = if let Some(ty_args) = expr.ty_args() {
                         // callee<ty_args>()
                         let ty_args = ty_args
+                            .list
                             .iter()
                             .map(|arg| self.get_ty_from_type_node(arg))
                             .collect::<Vec<_>>();

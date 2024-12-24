@@ -1,5 +1,3 @@
-use crate::atoms::AtomId;
-
 use super::list_ctx;
 use super::token::{TokenFlags, TokenKind};
 use super::{ast, errors};

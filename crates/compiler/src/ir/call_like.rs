@@ -4,7 +4,7 @@ use crate::ast;
 
 pub trait CallLike<'cx>: Copy + std::fmt::Debug {
     fn callee(&self) -> &'cx ast::Expr<'cx>;
-    fn ty_args(&self) -> Option<ast::Tys<'cx>>;
+    fn ty_args(&self) -> Option<&'cx ast::Tys<'cx>>;
     fn args(&self) -> ast::Exprs<'cx>;
     fn span(&self) -> Span;
 }
@@ -13,7 +13,7 @@ impl<'cx> CallLike<'cx> for ast::CallExpr<'cx> {
     fn callee(&self) -> &'cx ast::Expr<'cx> {
         self.expr
     }
-    fn ty_args(&self) -> Option<ast::Tys<'cx>> {
+    fn ty_args(&self) -> Option<&'cx ast::Tys<'cx>> {
         self.ty_args
     }
     fn args(&self) -> ast::Exprs<'cx> {
@@ -28,7 +28,7 @@ impl<'cx> CallLike<'cx> for ast::NewExpr<'cx> {
     fn callee(&self) -> &'cx ast::Expr<'cx> {
         self.expr
     }
-    fn ty_args(&self) -> Option<ast::Tys<'cx>> {
+    fn ty_args(&self) -> Option<&'cx ast::Tys<'cx>> {
         self.ty_args
     }
     fn args(&self) -> ast::Exprs<'cx> {

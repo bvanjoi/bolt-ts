@@ -1,4 +1,4 @@
-use crate::ast;
+use crate::{ast, atoms::AtomId};
 
 use super::Emit;
 
@@ -45,9 +45,15 @@ impl<'cx> Emit<'cx> {
     pub(super) fn emit_num_lit(&mut self, num: &'cx ast::NumLit) {
         self.content.p(&num.val.to_string())
     }
+
+    #[inline]
     pub(super) fn emit_string_lit(&mut self, s: &'cx ast::StringLit) {
+        self.emit_as_string(s.val);
+    }
+
+    pub(super) fn emit_as_string(&mut self, val: AtomId) {
         self.content.p("'");
-        self.content.p(self.atoms.get(s.val));
+        self.content.p(self.atoms.get(val));
         self.content.p("'");
     }
 }

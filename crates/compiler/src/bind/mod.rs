@@ -541,7 +541,7 @@ impl<'cx> BinderState<'cx> {
             Refer(refer) => {
                 self.bind_entity_name(refer.name);
                 if let Some(ty_args) = refer.ty_args {
-                    for ty_arg in ty_args {
+                    for ty_arg in ty_args.list {
                         self.bind_ty(ty_arg);
                     }
                 }

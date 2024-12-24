@@ -50,6 +50,7 @@ pub enum Node<'cx> {
     OmitExpr(&'cx ast::OmitExpr),
     ParenExpr(&'cx ast::ParenExpr<'cx>),
     CondExpr(&'cx ast::CondExpr<'cx>),
+    EnumMember(&'cx ast::EnumMember<'cx>),
     ObjectMemberField(&'cx ast::ObjectMemberField<'cx>),
     ObjectLit(&'cx ast::ObjectLit<'cx>),
     CallExpr(&'cx ast::CallExpr<'cx>),
@@ -391,6 +392,13 @@ as_node!(
         as_cond_expr,
         expect_cond_expr,
         is_cond_expr
+    ),
+    (
+        EnumMember,
+        &'cx ast::EnumMember<'cx>,
+        as_enum_member,
+        expect_enum_member,
+        is_enum_member
     ),
     (
         ObjectMemberField,

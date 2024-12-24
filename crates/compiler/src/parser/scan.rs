@@ -28,10 +28,12 @@ fn is_identifier_part(ch: u8) -> bool {
     ch == b'$' || is_word_character(ch)
 }
 
+#[inline(always)]
 fn is_line_break(ch: u8) -> bool {
     ch == b'\n' || ch == b'\r'
 }
 
+#[inline(always)]
 fn is_octal_digit(ch: u8) -> bool {
     ch >= b'0' && ch <= b'7'
 }
@@ -186,7 +188,8 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         if l > (max_len - 1) {
             return Err(());
         }
-        ch &= UTF8_FIRST_CODE_MASK[(l - 1) as usize];
+        let idx = (l - 1) as usize;
+        ch &= UTF8_FIRST_CODE_MASK[idx];
         for _ in 0..l {
             let b = self.input[self.pos + offset] as u32;
             if b < 0x80 || b >= 0xc0 {
@@ -195,7 +198,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
             offset += 1;
             ch = (ch << 6) | (b & 0x3f);
         }
-        if ch < UTF8_MIN_CODE[(l - 1) as usize] {
+        if ch < UTF8_MIN_CODE[idx] {
             return Err(());
         }
         self.pos += offset;

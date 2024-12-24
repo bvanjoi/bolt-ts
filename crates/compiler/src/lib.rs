@@ -29,6 +29,8 @@ use rustc_hash::FxHashMap;
 type Diag = Box<dyn bolt_ts_errors::miette::Diagnostic + Send + Sync + 'static>;
 
 pub struct Output {
+    pub cwd: PathBuf,
+    pub tsconfig: NormalizedTsConfig,
     pub module_arena: ModuleArena,
     pub output: FxHashMap<ModuleID, String>,
     pub diags: Vec<bolt_ts_errors::Diag>,
@@ -51,6 +53,38 @@ fn build_graph<'cx>(
 ) {
     for (module_id, result) in parse_parallel(atoms.clone(), herd, list, &module_arena) {
         parser.insert(module_id, result);
+    }
+}
+
+pub fn output_files(
+    cwd: &std::path::Path,
+    tsconfig: &NormalizedTsConfig,
+    module_arena: &ModuleArena,
+    output: &FxHashMap<ModuleID, String>,
+) -> FxHashMap<PathBuf, String> {
+    let p = |m: ModuleID| match module_arena.get_path(m) {
+        bolt_ts_span::ModulePath::Real(p) => p,
+        bolt_ts_span::ModulePath::Virtual => todo!(),
+    };
+    match tsconfig.compiler_options().out_dir() {
+        bolt_ts_config::OutDir::OwnRoot => output
+            .iter()
+            .map(|(m, content)| (p(*m).with_extension("js"), content.to_string()))
+            .collect(),
+        bolt_ts_config::OutDir::Custom(dir) => {
+            let dir = cwd.join(dir);
+            output
+                .iter()
+                .map(|(m, content)| {
+                    let file_path = p(*m);
+                    let file_name = file_path.file_name().unwrap();
+                    (
+                        dir.join(file_name).with_extension("js"),
+                        content.to_string(),
+                    )
+                })
+                .collect()
+        }
     }
 }
 
@@ -148,6 +182,7 @@ pub fn eval_from(cwd: PathBuf, tsconfig: NormalizedTsConfig) -> Output {
         }
     }
 
+    // TODO: par
     for (m, (state, _)) in module_arena.modules().iter().zip(bind_list.into_iter()) {
         let module_id = m.id;
         let root = p.root(module_id);
@@ -163,7 +198,7 @@ pub fn eval_from(cwd: PathBuf, tsconfig: NormalizedTsConfig) -> Output {
         checker.check_program(p.root(*item));
     }
 
-    // emit
+    // codegen
     let output = entries
         .iter()
         .filter_map(|item| {
@@ -179,6 +214,8 @@ pub fn eval_from(cwd: PathBuf, tsconfig: NormalizedTsConfig) -> Output {
     let diags = diags.into_iter().chain(checker.diags.into_iter()).collect();
 
     Output {
+        cwd,
+        tsconfig,
         module_arena,
         diags,
         output,

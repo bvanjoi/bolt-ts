@@ -25,22 +25,26 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
             Interface => ast::StmtKind::Interface(self.parse_interface_decl(None)?),
             Type => ast::StmtKind::Type(self.parse_type_decl()?),
             Module | Namespace => ast::StmtKind::Namespace(self.parse_ns_decl(None)?),
+            Enum => ast::StmtKind::Enum(self.parse_enum_decl(None)?),
             Throw => ast::StmtKind::Throw(self.parse_throw_stmt()?),
-            Enum => ast::StmtKind::Enum(self.parse_enum_decl()?),
             _ => ast::StmtKind::Expr(self.parse_expr_or_labeled_stmt()?),
         };
         let stmt = self.alloc(ast::Stmt { kind });
         Ok(stmt)
     }
 
-    fn parse_enum_decl(&mut self) -> PResult<&'cx ast::EnumDecl<'cx>> {
+    fn parse_enum_decl(
+        &mut self,
+        modifiers: Option<&'cx ast::Modifiers<'cx>>,
+    ) -> PResult<&'cx ast::EnumDecl<'cx>> {
         let id = self.next_node_id();
         let start = self.token.start();
         self.expect(TokenKind::Enum)?;
         let name = self.create_ident(self.is_ident(), None);
         let members = if self.expect(TokenKind::LBrace).is_ok() {
-            // self.parse_delimited_list(list_ctx::EnumMembers, ele);
+            let member = self.parse_delimited_list(list_ctx::EnumMembers, Self::parse_enum_member);
             self.expect(TokenKind::RBrace)?;
+            member
         } else {
             todo!("error handler")
         };
@@ -48,17 +52,29 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         let decl = self.alloc(ast::EnumDecl {
             id,
             span: self.new_span(start),
-            modifiers: None,
+            modifiers,
             name,
-            members: &[],
+            members,
         });
         self.insert_map(id, ast::Node::EnumDecl(decl));
         Ok(decl)
     }
 
-    // fn parse_enum_member(&mut self) -> PResult<&'cx ast::EnumMember<'cx>> {
-
-    // }
+    fn parse_enum_member(&mut self) -> PResult<&'cx ast::EnumMember<'cx>> {
+        let id = self.next_node_id();
+        let start = self.token.start();
+        let name = self.with_parent(id, Self::parse_prop_name)?;
+        let init = self.with_parent(id, Self::parse_init);
+        let span = self.new_span(start);
+        let member = self.alloc(ast::EnumMember {
+            id,
+            span,
+            name,
+            init,
+        });
+        self.insert_map(id, ast::Node::EnumMember(member));
+        Ok(member)
+    }
 
     fn try_parse_semi(&mut self) -> PResult<bool> {
         if !self.can_parse_semi() {
@@ -154,6 +170,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
                 unreachable!("{:#?}", self.atoms.lock().unwrap().get(id));
             }
             Interface => ast::StmtKind::Interface(self.parse_interface_decl(mods)?),
+            Enum => ast::StmtKind::Enum(self.parse_enum_decl(mods)?),
             _ => unreachable!("{:#?}", self.token.kind),
         };
         let stmt = self.alloc(ast::Stmt { kind });

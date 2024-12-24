@@ -51,7 +51,7 @@ pub type EnumMembers<'cx> = &'cx [&'cx EnumMember<'cx>];
 pub struct EnumMember<'cx> {
     pub id: NodeID,
     pub span: Span,
-    pub name: PropName<'cx>,
+    pub name: &'cx PropName<'cx>,
     pub init: Option<&'cx Expr<'cx>>,
 }
 
@@ -243,7 +243,7 @@ pub type Exprs<'cx> = &'cx [&'cx Expr<'cx>];
 pub struct InterfaceExtendsClause<'cx> {
     pub id: NodeID,
     pub span: Span,
-    pub tys: Tys<'cx>,
+    pub tys: &'cx [&'cx Ty<'cx>],
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -257,7 +257,7 @@ pub struct ClassExtendsClause<'cx> {
 pub struct ImplementsClause<'cx> {
     pub id: NodeID,
     pub span: Span,
-    pub tys: Tys<'cx>,
+    pub tys: &'cx [&'cx Ty<'cx>],
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -500,7 +500,7 @@ pub struct NewExpr<'cx> {
     pub id: NodeID,
     pub span: Span,
     pub expr: &'cx Expr<'cx>,
-    pub ty_args: Option<self::Tys<'cx>>,
+    pub ty_args: Option<&'cx self::Tys<'cx>>,
     pub args: Option<Exprs<'cx>>,
 }
 
@@ -655,7 +655,11 @@ pub struct Ty<'cx> {
     pub kind: TyKind<'cx>,
 }
 
-pub type Tys<'cx> = &'cx [&'cx Ty<'cx>];
+#[derive(Debug, Clone, Copy)]
+pub struct Tys<'cx> {
+    pub span: Span,
+    pub list: &'cx [&'cx Ty<'cx>],
+}
 
 impl Ty<'_> {
     pub fn span(&self) -> Span {
@@ -734,14 +738,14 @@ pub type StringLitTy = LitTy<AtomId>;
 pub struct UnionTy<'cx> {
     pub id: NodeID,
     pub span: Span,
-    pub tys: Tys<'cx>,
+    pub tys: &'cx [&'cx Ty<'cx>],
 }
 
 #[derive(Debug, Clone, Copy)]
 pub struct IntersectionTy<'cx> {
     pub id: NodeID,
     pub span: Span,
-    pub tys: Tys<'cx>,
+    pub tys: &'cx [&'cx Ty<'cx>],
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -749,7 +753,7 @@ pub struct ReferTy<'cx> {
     pub id: NodeID,
     pub span: Span,
     pub name: &'cx EntityName<'cx>,
-    pub ty_args: Option<Tys<'cx>>,
+    pub ty_args: Option<&'cx Tys<'cx>>,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -773,7 +777,7 @@ pub struct RestTy<'cx> {
 pub struct TupleTy<'cx> {
     pub id: NodeID,
     pub span: Span,
-    pub tys: Tys<'cx>,
+    pub tys: &'cx [&'cx Ty<'cx>],
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -893,7 +897,7 @@ pub struct CallExpr<'cx> {
     pub id: NodeID,
     pub span: Span,
     pub expr: &'cx Expr<'cx>,
-    pub ty_args: Option<self::Tys<'cx>>,
+    pub ty_args: Option<&'cx self::Tys<'cx>>,
     pub args: Exprs<'cx>,
 }
 

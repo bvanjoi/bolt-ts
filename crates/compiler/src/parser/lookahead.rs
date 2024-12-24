@@ -55,7 +55,7 @@ impl<'p, 't> ParserState<'p, 't> {
         use TokenKind::*;
         loop {
             match self.token.kind {
-                Var | Let | Const | Function | Class => return true,
+                Var | Let | Const | Function | Class | Enum => return true,
                 Abstract | Declare | Public | Private => {
                     // let prev = self.token.kind;
                     self.next_token();

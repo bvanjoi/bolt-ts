@@ -58,3 +58,10 @@ pub(super) enum MissingIdentKind {
     #[error("Expression expected.")]
     ExpressionExpected,
 }
+
+#[derive(Error, Diagnostic, Debug)]
+#[error("Type argument list cannot be empty.")]
+pub(super) struct TypeArgumentListCannotBeEmpty {
+    #[label(primary)]
+    pub span: Span,
+}

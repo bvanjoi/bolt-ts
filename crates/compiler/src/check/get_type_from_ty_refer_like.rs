@@ -7,7 +7,7 @@ use super::TyChecker;
 pub(super) trait GetTypeFromTyReferLike<'cx> {
     fn id(&self) -> ast::NodeID;
     fn name(&self) -> Option<ast::EntityName<'cx>>;
-    fn ty_args(&self) -> Option<ast::Tys<'cx>>;
+    fn ty_args(&self) -> Option<&'cx ast::Tys<'cx>>;
 }
 
 impl<'cx> GetTypeFromTyReferLike<'cx> for ast::Expr<'cx> {
@@ -23,7 +23,7 @@ impl<'cx> GetTypeFromTyReferLike<'cx> for ast::Expr<'cx> {
             None
         }
     }
-    fn ty_args(&self) -> Option<ast::Tys<'cx>> {
+    fn ty_args(&self) -> Option<&'cx ast::Tys<'cx>> {
         None
     }
 }
@@ -35,7 +35,7 @@ impl<'cx> GetTypeFromTyReferLike<'cx> for ast::ReferTy<'cx> {
     fn name(&self) -> Option<ast::EntityName<'cx>> {
         Some(*self.name)
     }
-    fn ty_args(&self) -> Option<ast::Tys<'cx>> {
+    fn ty_args(&self) -> Option<&'cx ast::Tys<'cx>> {
         self.ty_args
     }
 }
@@ -46,8 +46,9 @@ impl<'cx> TyChecker<'cx> {
         symbol
     }
 
-    fn ty_args_from_ty_refer_node(&mut self, ty_args: ast::Tys<'cx>) -> ty::Tys<'cx> {
+    fn ty_args_from_ty_refer_node(&mut self, ty_args: &'cx ast::Tys<'cx>) -> ty::Tys<'cx> {
         let ty_args = ty_args
+            .list
             .iter()
             .map(|arg| self.get_ty_from_type_node(arg))
             .collect::<Vec<_>>();

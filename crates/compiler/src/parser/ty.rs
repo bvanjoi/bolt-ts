@@ -285,14 +285,20 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         Ok(entity)
     }
 
-    fn parse_ty_args_of_ty_reference(&mut self) -> PResult<Option<ast::Tys<'cx>>> {
+    fn parse_ty_args_of_ty_reference(&mut self) -> PResult<Option<&'cx ast::Tys<'cx>>> {
         if !self.has_preceding_line_break() && self.re_scan_less() == TokenKind::Less {
-            Ok(Some(self.parse_bracketed_list(
+            let start = self.token.start();
+            let list = self.parse_bracketed_list(
                 TypeArguments,
                 TokenKind::Less,
                 Self::parse_ty,
                 TokenKind::Great,
-            )?))
+            )?;
+            let tys = self.alloc(ast::Tys {
+                span: self.new_span(start),
+                list,
+            });
+            Ok(Some(tys))
         } else {
             Ok(None)
         }

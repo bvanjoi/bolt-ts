@@ -1,19 +1,25 @@
 use crate::options::OutDir;
 
-pub struct NormalizedCompilerOptions {
-    pub(super) out_dir: OutDir,
+macro_rules! normalized_option {
+    ($s: ident, $(($option: ident, $ty: ty)),* $(,)?) => {
+        pub struct $s {
+            $(pub(super) $option: $ty,)*
+        }
+        impl $s {
+            $(pub fn $option(&self) -> & $ty {
+                &self.$option
+            })*
+        }
+    };
 }
 
-pub struct NormalizedTsConfig {
-    pub(super) include: Vec<String>,
-    pub(super) compiler_options: NormalizedCompilerOptions,
-}
-
-impl NormalizedTsConfig {
-    pub fn include(&self) -> &[String] {
-        &self.include
-    }
-    pub fn compiler_options(&self) -> &NormalizedCompilerOptions {
-        &self.compiler_options
-    }
-}
+normalized_option!(
+    NormalizedCompilerOptions,
+    (out_dir, OutDir),
+    (no_emit, bool)
+);
+normalized_option!(
+    NormalizedTsConfig,
+    (include, Vec<String>),
+    (compiler_options, NormalizedCompilerOptions)
+);

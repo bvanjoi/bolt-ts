@@ -272,7 +272,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         loop {
             expr = self.parse_member_expr_rest(start, expr)?;
             let parse_rest =
-                |this: &mut Self, id: ast::NodeID, ty_args: Option<&'cx [&'cx ast::Ty<'cx>]>| {
+                |this: &mut Self, id: ast::NodeID, ty_args: Option<&'cx ast::Tys<'cx>>| {
                     let args = this.parse_args()?;
                     let call = this.alloc(ast::CallExpr {
                         id,
@@ -290,6 +290,12 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
                 let id = self.next_node_id();
                 self.parent_map.r#override(expr.id(), id);
                 let ty_args = self.parse_ty_args_in_expr()?;
+                if let Some(ty_args) = ty_args {
+                    if ty_args.list.is_empty() {
+                        let error = errors::TypeArgumentListCannotBeEmpty { span: ty_args.span };
+                        self.push_error(Box::new(error));
+                    }
+                }
                 expr = parse_rest(self, id, ty_args)?;
             } else if self.token.kind == TokenKind::LParen {
                 let id = self.next_node_id();
@@ -348,7 +354,6 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         });
         self.insert_map(id, ast::Node::ParenExpr(expr));
         let expr = self.alloc(ast::Expr {
-            // id,
             kind: ast::ExprKind::Paren(expr),
         });
         Ok(expr)
@@ -469,6 +474,12 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         let expr = self.parse_primary_expr()?;
         let expr = self.parse_member_expr_rest(start as usize, expr)?;
         let ty_args = self.parse_ty_args_in_expr()?;
+        if let Some(ty_args) = ty_args {
+            if ty_args.list.is_empty() {
+                let error = errors::TypeArgumentListCannotBeEmpty { span: ty_args.span };
+                self.push_error(Box::new(error));
+            }
+        }
         let args = if self.token.kind == LParen {
             self.parse_args().map(|args| Some(args))
         } else {
@@ -637,17 +648,22 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         }
     }
 
-    fn parse_ty_args_in_expr(&mut self) -> PResult<Option<ast::Tys<'cx>>> {
+    fn parse_ty_args_in_expr(&mut self) -> PResult<Option<&'cx ast::Tys<'cx>>> {
+        let start = self.token.start();
         if self.re_scan_less() != TokenKind::Less {
             return Ok(None);
         }
         self.next_token();
-        let ty_args = self.parse_delimited_list(TypeArguments, Self::parse_ty);
+        let list = self.parse_delimited_list(TypeArguments, Self::parse_ty);
         if self.re_scan_greater() != TokenKind::Great {
             return Ok(None);
         }
         self.next_token();
         if self.can_follow_ty_args_in_expr() {
+            let ty_args = self.alloc(ast::Tys {
+                span: self.new_span(start),
+                list,
+            });
             Ok(Some(ty_args))
         } else {
             Ok(None)
