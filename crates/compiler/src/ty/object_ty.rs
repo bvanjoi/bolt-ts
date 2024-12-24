@@ -167,10 +167,16 @@ pub struct InterfaceTy<'cx> {
     pub members: &'cx FxHashMap<SymbolName, SymbolID>,
     pub base_tys: super::Tys<'cx>,
     pub base_ctor_ty: Option<&'cx Ty<'cx>>,
+
     pub declared_props: &'cx [SymbolID],
     pub declared_index_infos: IndexInfos<'cx>,
     pub declared_ctor_sigs: super::Sigs<'cx>,
     pub declared_call_sigs: super::Sigs<'cx>,
+
+    pub props: &'cx [SymbolID],
+    pub index_infos: IndexInfos<'cx>,
+    pub ctor_sigs: super::Sigs<'cx>,
+    pub call_sigs: super::Sigs<'cx>,
 }
 
 impl<'cx> ObjectTyKind<'cx> {

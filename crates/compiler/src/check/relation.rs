@@ -468,7 +468,7 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
-    fn get_props_of_ty(&self, ty: &'cx Ty<'cx>) -> &'cx [SymbolID] {
+    pub(super) fn get_props_of_ty(&self, ty: &'cx Ty<'cx>) -> &'cx [SymbolID] {
         if let TyKind::Object(ty) = ty.kind {
             self.get_props_of_object_ty(ty)
         } else {

@@ -33,6 +33,7 @@ impl<'cx, 'r> Resolver<'cx, 'r> {
                 ast::ClassEleKind::Prop(n) => self.resolve_class_prop_ele(n),
                 ast::ClassEleKind::Method(n) => self.resolve_class_method_ele(n),
                 ast::ClassEleKind::Ctor(n) => {
+                    self.resolve_params(n.params);
                     if let Some(body) = n.body {
                         self.resolve_block_stmt(body);
                     }

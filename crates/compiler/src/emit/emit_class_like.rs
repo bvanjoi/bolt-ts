@@ -46,6 +46,12 @@ impl<'cx> Emit<'cx> {
             }
             Setter(p) => {
                 if let Some(body) = p.body {
+                    if let Some(mods) = p.modifiers {
+                        if mods.flags.contains(ast::ModifierKind::Static) {
+                            self.content.p("static");
+                            self.content.p_whitespace();
+                        }
+                    }
                     self.content.p("set");
                     self.content.p_whitespace();
                     self.emit_prop_name(&p.name);
@@ -82,6 +88,12 @@ impl<'cx> Emit<'cx> {
     }
 
     fn emit_class_prop(&mut self, prop: &'cx ast::ClassPropEle<'cx>) {
+        if let Some(mods) = prop.modifiers {
+            if mods.flags.contains(ast::ModifierKind::Static) {
+                self.content.p("static");
+                self.content.p_whitespace();
+            }
+        }
         self.emit_prop_name(&prop.name);
         if let Some(init) = prop.init {
             self.content.p_whitespace();

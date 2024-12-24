@@ -210,6 +210,19 @@ impl<'cx> TyChecker<'cx> {
         self.alloc(props)
     }
 
+    fn add_inherited_members(
+        &self,
+        members: &mut FxHashMap<SymbolName, SymbolID>,
+        base_symbols: &'cx [SymbolID],
+    ) {
+        for base_id in base_symbols {
+            let base = self.binder.symbol(*base_id);
+            if !members.contains_key(&base.name) {
+                members.insert(base.name, *base_id);
+            }
+        }
+    }
+
     fn get_declared_ty_of_class_or_interface(&mut self, symbol: SymbolID) -> &'cx ty::Ty<'cx> {
         if let Some(ty) = self.get_symbol_links(symbol).get_ty() {
             return ty;
@@ -220,42 +233,49 @@ impl<'cx> TyChecker<'cx> {
         let s = self.binder.symbol(symbol);
         let is_class = s.flags.intersects(SymbolFlags::CLASS);
         let class_node_id = is_class.then(|| s.expect_class().decl);
-        let members = if is_class {
+        let mut members = if is_class {
             let c = s.expect_class();
-            self.alloc(c.members.clone())
+            c.members.clone()
         } else if s.flags.intersects(SymbolFlags::INTERFACE) {
             let i = s.expect_interface();
-            self.alloc(i.members.clone())
+            i.members.clone()
         } else {
             unreachable!()
         };
         let declared_props = self.get_props_from_members(&members);
-        let declared_index_infos = members
-            .get(&SymbolName::Index)
-            .copied()
-            .map(|symbol| {
-                let decl = self.binder.symbol(symbol).expect_index().decl;
-                let decl = self.p.node(decl).expect_index_sig_decl();
-                let val_ty = self.get_ty_from_type_node(decl.ty);
-                decl.params
-                    .iter()
-                    .map(|param| {
-                        let Some(ty) = param.ty else { unreachable!() };
-                        let key_ty = self.get_ty_from_type_node(ty);
-                        self.alloc(ty::IndexInfo {
-                            key_ty,
-                            val_ty,
-                            symbol,
+        let get_index_infos = |this: &mut Self, members: &FxHashMap<SymbolName, SymbolID>| {
+            let index_infos = members
+                .get(&SymbolName::Index)
+                .copied()
+                .map(|symbol| {
+                    let decl = this.binder.symbol(symbol).expect_index().decl;
+                    let decl = this.p.node(decl).expect_index_sig_decl();
+                    let val_ty = this.get_ty_from_type_node(decl.ty);
+                    decl.params
+                        .iter()
+                        .map(|param| {
+                            let Some(ty) = param.ty else { unreachable!() };
+                            let key_ty = this.get_ty_from_type_node(ty);
+                            this.alloc(ty::IndexInfo {
+                                key_ty,
+                                val_ty,
+                                symbol,
+                            })
                         })
-                    })
-                    .collect::<Vec<_>>()
-            })
-            .unwrap_or_default();
-        let declared_ctor_sigs = members
-            .get(&SymbolName::Constructor)
-            .copied()
-            .map(|s| self.get_sigs_of_symbol(s))
-            .unwrap_or_default();
+                        .collect::<Vec<_>>()
+                })
+                .unwrap_or_default();
+            this.alloc(index_infos)
+        };
+        let get_ctor_sigs = |this: &mut Self, members: &FxHashMap<SymbolName, SymbolID>| {
+            members
+                .get(&SymbolName::Constructor)
+                .copied()
+                .map(|s| this.get_sigs_of_symbol(s))
+                .unwrap_or_default()
+        };
+        let declared_index_infos = get_index_infos(self, &members);
+        let declared_ctor_sigs = get_ctor_sigs(self, &members);
         let declared_ctor_sigs = if is_class && declared_ctor_sigs.is_empty() {
             // TODO: base
             let mut flags = SigFlags::empty();
@@ -281,11 +301,23 @@ impl<'cx> TyChecker<'cx> {
             declared_ctor_sigs
         };
 
-        let declared_call_sigs = members
-            .get(&SymbolName::Call)
-            .copied()
-            .map(|s| self.get_sigs_of_symbol(s))
-            .unwrap_or_default();
+        let get_call_sigs = |this: &mut Self, members: &FxHashMap<SymbolName, SymbolID>| {
+            members
+                .get(&SymbolName::Call)
+                .copied()
+                .map(|s| this.get_sigs_of_symbol(s))
+                .unwrap_or_default()
+        };
+        let declared_call_sigs = get_call_sigs(self, &members);
+
+        for base_ty in base_tys {
+            self.add_inherited_members(&mut members, self.get_props_of_ty(base_ty));
+        }
+
+        let props = self.get_props_from_members(&members);
+        let index_infos = get_index_infos(self, &members);
+        let ctor_sigs = get_ctor_sigs(self, &members);
+        let call_sigs = get_call_sigs(self, &members);
 
         // TODO: remove this
         if let Some(ty) = self.get_symbol_links(symbol).get_ty() {
@@ -294,13 +326,17 @@ impl<'cx> TyChecker<'cx> {
 
         let ty = self.crate_interface_ty(ty::InterfaceTy {
             symbol,
-            members,
+            members: self.alloc(members),
             declared_props,
             base_tys,
-            declared_index_infos: self.alloc(declared_index_infos),
+            base_ctor_ty,
+            declared_index_infos,
             declared_ctor_sigs,
             declared_call_sigs,
-            base_ctor_ty,
+            props,
+            index_infos,
+            ctor_sigs,
+            call_sigs,
         });
         self.get_mut_symbol_links(symbol).set_ty(ty);
         ty

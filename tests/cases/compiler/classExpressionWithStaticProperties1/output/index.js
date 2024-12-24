@@ -1,5 +1,5 @@
 var v = class C {
-  a = 1
-  b = 2
-  c = C.a + C.b
+  static a = 1
+  static b = 2
+  static c = C.a + C.b
 }

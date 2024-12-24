@@ -190,6 +190,7 @@ pub struct GetterDecl<'cx> {
 pub struct SetterDecl<'cx> {
     pub id: NodeID,
     pub span: Span,
+    pub modifiers: Option<&'cx Modifiers<'cx>>,
     pub name: &'cx PropName<'cx>,
     pub params: ParamsDecl<'cx>,
     pub body: Option<&'cx BlockStmt<'cx>>,

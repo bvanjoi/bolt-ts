@@ -363,6 +363,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
             let decl = self.alloc(ast::SetterDecl {
                 id,
                 span: self.new_span(start as u32),
+                modifiers,
                 name,
                 params,
                 body,
