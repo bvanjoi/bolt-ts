@@ -20,8 +20,10 @@ impl<'cx> TyChecker<'cx> {
             self.get_widened_ty_for_var_like_decl(decl)
         } else if let Some(decl) = node.as_class_prop_ele() {
             self.get_widened_ty_for_var_like_decl(decl)
+        } else if let Some(decl) = node.as_object_member_field() {
+            self.get_widened_ty_for_var_like_decl(decl)
         } else {
-            unreachable!()
+            unreachable!("node: {node:#?}")
         };
         self.get_mut_symbol_links(id).set_ty(ty);
         ty

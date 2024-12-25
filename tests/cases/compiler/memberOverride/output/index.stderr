@@ -1,0 +1,8 @@
+  × Duplicate identifier 'a'.
+   ╭─[../../tests/cases/compiler/memberOverride/index.ts:5:3]
+ 4 │ a: "", 
+   · ┬
+   · ╰── Previous definition here
+ 5 │   a
+   ·   ─
+   ╰────

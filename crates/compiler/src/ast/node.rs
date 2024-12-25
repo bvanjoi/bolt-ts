@@ -167,9 +167,15 @@ impl<'cx> Node<'cx> {
     pub fn ident_name(&self) -> Option<&'cx ast::Ident> {
         use Node::*;
         match self {
+            Ident(n) => Some(n),
             FnDecl(n) => Some(n.name),
             ClassDecl(n) => Some(n.name),
             ClassExpr(n) => n.name,
+            ParamDecl(n) => Some(n.name),
+            ClassPropEle(n) => match n.name.kind {
+                ast::PropNameKind::Ident(ref ident) => Some(ident),
+                _ => None,
+            },
             ClassMethodEle(n) => match n.name.kind {
                 ast::PropNameKind::Ident(ref ident) => Some(ident),
                 _ => None,
@@ -178,7 +184,10 @@ impl<'cx> Node<'cx> {
                 ast::PropNameKind::Ident(ref ident) => Some(ident),
                 _ => None,
             },
-            ParamDecl(n) => Some(n.name),
+            ObjectMemberField(n) => match n.name.kind {
+                ast::PropNameKind::Ident(ref ident) => Some(ident),
+                _ => None,
+            },
             _ => None,
         }
     }

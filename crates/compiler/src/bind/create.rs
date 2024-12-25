@@ -62,7 +62,7 @@ impl<'cx> BinderState<'cx> {
                     assert!(prev.1.is_some());
                     prev.0 = kind;
                 } else {
-                    let name = self.atoms.get(name.expect_atom());
+                    let n = self.atoms.get(name.expect_atom());
                     let span = |kind: &SymbolKind| {
                         let id = match kind {
                             SymbolKind::Class(c) => c.decl,
@@ -71,7 +71,7 @@ impl<'cx> BinderState<'cx> {
                             | SymbolKind::BlockContainer { .. }
                             | SymbolKind::FunctionScopedVar { .. } => unreachable!(),
                             SymbolKind::BlockScopedVar { .. } => todo!(),
-                            _ => todo!("name: {name:#?}, kind: {kind:#?}"),
+                            _ => todo!("name: {n:#?}, kind: {kind:#?}"),
                         };
                         self.p.node(id).ident_name().unwrap().span
                     };
@@ -80,10 +80,17 @@ impl<'cx> BinderState<'cx> {
 
                     let error = errors::DuplicateIdentifier {
                         span: error_span,
-                        name: name.to_string(),
+                        name: n.to_string(),
                         original_span: span(&prev.kind.0),
                     };
                     self.push_error(error_span.module, error.into());
+
+                    if flags.intersects(SymbolFlags::PROPERTY) {
+                        let id = self.next_symbol_id();
+                        self.symbols.insert(id, Symbol::new(name, flags, kind));
+                        let prev = self.res.insert(key, id);
+                        return id;
+                    }
                 }
                 return id;
             }
@@ -129,17 +136,17 @@ impl<'cx> BinderState<'cx> {
     ) -> SymbolID {
         let key = (self.scope_id, name);
         if name.as_atom().is_some() {
-            if let Some(id) = self.res.get(&key) {
-                let prev = self.symbols.get_mut(*id);
-                prev.flags |= flags;
-                let prev = &mut prev.kind;
-                if !matches!(prev.0, SymbolKind::Err) {
-                    todo!("error handler")
-                }
-                // assert!(prev.2.is_none());
-                prev.2 = Some(i);
-                return *id;
-            }
+            // if let Some(id) = self.res.get(&key) {
+            //     let prev = self.symbols.get_mut(*id);
+            //     prev.flags |= flags;
+            //     let prev = &mut prev.kind;
+            //     if !matches!(prev.0, SymbolKind::Err) {
+            //         todo!("error handler")
+            //     }
+            //     // assert!(prev.2.is_none());
+            //     prev.2 = Some(i);
+            //     return *id;
+            // }
         }
         let id = self.next_symbol_id();
         self.symbols.insert(id, Symbol::new_ns(name, flags, i));
