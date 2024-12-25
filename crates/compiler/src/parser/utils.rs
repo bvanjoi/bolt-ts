@@ -1,3 +1,7 @@
+use bolt_ts_span::Span;
+
+use crate::ast::ModifierKind;
+
 use super::list_ctx;
 use super::token::{TokenFlags, TokenKind};
 use super::{ast, errors};
@@ -99,7 +103,13 @@ impl<'p, 't> ParserState<'p, 't> {
     }
 
     pub(super) fn is_start_of_expr(&self) -> bool {
-        self.token.kind.is_start_of_left_hand_side_expr()
+        use TokenKind::*;
+        let t = self.token.kind;
+        if t.is_start_of_left_hand_side_expr() || matches!(t, Plus | Minus | Typeof) {
+            true
+        } else {
+            self.is_ident()
+        }
     }
 
     pub(super) fn is_start_of_stmt(&mut self) -> bool {
@@ -393,6 +403,29 @@ impl<'p, 't> ParserState<'p, 't> {
         let modifiers = self.parse_modifiers(false)?;
         let dotdotdot = self.parse_optional(TokenKind::DotDotDot).map(|t| t.span);
         let name = self.with_parent(id, Self::parse_ident_name)?;
+        if dotdotdot.is_some() {
+            if let Some(ms) = modifiers {
+                if ms.flags.intersects(ModifierKind::PARAMETER_PROPERTY) {
+                    let kinds = ms
+                        .list
+                        .iter()
+                        .filter_map(|m| {
+                            if ModifierKind::PARAMETER_PROPERTY.intersects(m.kind) {
+                                Some(m.kind)
+                            } else {
+                                None
+                            }
+                        })
+                        .collect::<Vec<_>>();
+                    let span = Span::new(ms.span.lo, name.span.hi, name.span.module);
+                    let error = errors::AParameterPropertyCannotBeDeclaredUsingARestParameter {
+                        span,
+                        kinds,
+                    };
+                    self.push_error(Box::new(error));
+                }
+            }
+        };
         let question = self.parse_optional(TokenKind::Question).map(|t| t.span);
         let ty = self.with_parent(id, Self::parse_ty_anno)?;
         let init = self.with_parent(id, Self::parse_init);

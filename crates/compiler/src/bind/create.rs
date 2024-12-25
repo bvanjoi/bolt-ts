@@ -102,17 +102,17 @@ impl<'cx> BinderState<'cx> {
     ) -> SymbolID {
         let key = (self.scope_id, name);
         if name.as_atom().is_some() {
-            if let Some(id) = self.res.get(&key) {
-                let prev = self.symbols.get_mut(*id);
-                prev.flags |= flags;
-                let prev = &mut prev.kind;
-                if !matches!(prev.0, SymbolKind::Err) {
-                    todo!("error handler")
-                }
-                assert!(prev.1.is_none());
-                prev.1 = Some(i);
-                return *id;
-            }
+            // if let Some(id) = self.res.get(&key) {
+            //     let prev = self.symbols.get_mut(*id);
+            //     prev.flags |= flags;
+            //     let prev = &mut prev.kind;
+            //     if !matches!(prev.0, SymbolKind::Err) {
+            //         // todo: symbol merge
+            //     }
+            //     assert!(prev.1.is_none());
+            //     prev.1 = Some(i);
+            //     // return *id;
+            // }
         }
         let id = self.next_symbol_id();
         self.symbols

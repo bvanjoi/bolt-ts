@@ -648,7 +648,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         }
     }
 
-    fn parse_ty_args_in_expr(&mut self) -> PResult<Option<&'cx ast::Tys<'cx>>> {
+    pub(super) fn parse_ty_args_in_expr(&mut self) -> PResult<Option<&'cx ast::Tys<'cx>>> {
         let start = self.token.start();
         if self.re_scan_less() != TokenKind::Less {
             return Ok(None);

@@ -332,6 +332,47 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         Ok((self.token.kind != TokenKind::Dot).then(|| token))
     }
 
+    fn try_parse_ty_args(&mut self) -> PResult<Option<&'cx ast::Tys<'cx>>> {
+        if self.token.kind == TokenKind::Less {
+            let start = self.token.start();
+            let tys = self.parse_bracketed_list(
+                list_ctx::TyArgs,
+                TokenKind::Less,
+                Self::parse_ty,
+                TokenKind::Great,
+            )?;
+            let tys = self.alloc(ast::Tys {
+                span: self.new_span(start),
+                list: tys,
+            });
+            Ok(Some(tys))
+        } else {
+            Ok(None)
+        }
+    }
+
+    fn parse_ty_query(&mut self) -> PResult<&'cx ast::Ty<'cx>> {
+        let id = self.next_node_id();
+        let start = self.token.start();
+        self.expect(TokenKind::Typeof)?;
+        let name = self.with_parent(id, Self::parse_entity_name)?;
+        let args = if self.has_preceding_line_break() {
+            self.try_parse_ty_args()?
+        } else {
+            None
+        };
+        let kind = self.alloc(ast::TypeofTy {
+            id,
+            span: self.new_span(start),
+            name,
+            args,
+        });
+        let ty = self.alloc(ast::Ty {
+            kind: ast::TyKind::Typeof(kind),
+        });
+        Ok(ty)
+    }
+
     fn parse_non_array_ty(&mut self) -> PResult<&'cx ast::Ty<'cx>> {
         use TokenKind::*;
         match self.token.kind {
@@ -363,6 +404,13 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
                     Ok(ty)
                 } else {
                     self.parse_ty_reference()
+                }
+            }
+            Typeof => {
+                if self.lookahead(Self::is_start_of_ty_of_import_ty) {
+                    todo!()
+                } else {
+                    self.parse_ty_query()
                 }
             }
             LParen => self.parse_paren_ty(),

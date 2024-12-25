@@ -158,8 +158,44 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         let id = self.next_node_id();
         let name = self.with_parent(id, |this| mode.parse_name(this))?;
         let ty_params = self.with_parent(id, Self::parse_ty_params)?;
-        let extends = self.with_parent(id, Self::parse_class_extends_clause)?;
-        let implements = self.with_parent(id, Self::parse_implements_clause)?;
+
+        let mut extends = self.with_parent(id, Self::parse_class_extends_clause)?;
+        let mut implements = self.with_parent(id, Self::parse_implements_clause)?;
+        loop {
+            if !matches!(self.token.kind, TokenKind::Implements | TokenKind::Extends) {
+                break;
+            }
+            if self.token.kind == TokenKind::Extends {
+                if let Some(origin) = extends {
+                    let error = errors::ClauseAlreadySeen {
+                        span: self.token.span,
+                        kind: errors::ClauseKind::Extends,
+                        origin: origin.span,
+                    };
+                    self.push_error(Box::new(error));
+                }
+            }
+            if self.token.kind == TokenKind::Implements {
+                if let Some(origin) = implements {
+                    let error = errors::ClauseAlreadySeen {
+                        span: self.token.span,
+                        kind: errors::ClauseKind::Implements,
+                        origin: origin.span,
+                    };
+                    self.push_error(Box::new(error));
+                }
+            }
+
+            let e = self.parse_class_extends_clause()?;
+            if extends.is_none() {
+                extends = e;
+            }
+            let i = self.parse_implements_clause()?;
+            if implements.is_none() {
+                implements = i;
+            }
+        }
+
         let elems = self.with_parent(id, Self::parse_class_members)?;
         let span = self.new_span(start);
         Ok(mode.finish(
@@ -175,12 +211,15 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
             let mut is_first = true;
             let mut extra_comma_span = None;
             let mut ele = None;
+            let mut ty_args = None;
             let mut last_ele_span = None;
             loop {
                 if list_ctx::HeritageClause.is_ele(self) {
                     let e = self.parse_left_hand_side_expr();
+                    let args = self.parse_ty_args_in_expr()?;
                     if is_first {
                         ele = Some(e);
+                        ty_args = Some(args);
                     } else {
                         last_ele_span = Some(e.span())
                     }
@@ -202,6 +241,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
                 }
             }
             let ele = ele.unwrap();
+            let ty_args = ty_args.unwrap();
             if let Some(extra_comma_span) = extra_comma_span {
                 let lo = ele.span().hi;
                 assert_eq!(
@@ -222,8 +262,9 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
             }
             let clause = self.alloc(ast::ClassExtendsClause {
                 id,
-                span: ele.span(),
+                span: self.new_span(start),
                 expr: ele,
+                ty_args,
             });
             self.insert_map(id, ast::Node::ClassExtendsClause(clause));
             return Ok(Some(clause));

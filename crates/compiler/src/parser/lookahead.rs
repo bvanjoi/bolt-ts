@@ -51,6 +51,11 @@ impl<'p, 't> ParserState<'p, 't> {
             && (self.is_ident() || self.token.kind == TokenKind::String)
     }
 
+    pub(super) fn is_start_of_ty_of_import_ty(&mut self) -> bool {
+        self.next_token();
+        self.token.kind == TokenKind::Import
+    }
+
     fn is_decl(&mut self) -> bool {
         use TokenKind::*;
         loop {

@@ -1,0 +1,6 @@
+  × 'extends' clause already seen.
+   ╭─[../../tests/cases/compiler/extendsClauseAlreadySeen/index.ts:6:19]
+ 6 │ extends C extends
+   · ────┬──── ───────
+   ·     ╰── It was first defined here.
+   ╰────

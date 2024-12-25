@@ -156,3 +156,15 @@ impl ListContext for ArrayLiteralMembers {
         matches!(s.token.kind, TokenKind::RBracket)
     }
 }
+
+#[derive(Copy, Clone)]
+pub(super) struct TyArgs;
+impl ListContext for TyArgs {
+    fn is_ele(&self, s: &mut ParserState) -> bool {
+        matches!(s.token.kind, TokenKind::Comma) || s.is_start_of_ty()
+    }
+
+    fn is_closing(&self, s: &mut ParserState) -> bool {
+        matches!(s.token.kind, TokenKind::Comma)
+    }
+}

@@ -4,6 +4,8 @@ use bolt_ts_errors::thiserror;
 use bolt_ts_errors::thiserror::Error;
 use bolt_ts_span::Span;
 
+use crate::ast::ModifierKind;
+
 #[derive(Error, Diagnostic, Debug)]
 #[error("Syntax Error: Unexpected token ','")]
 pub(super) struct ClassesCanOnlyExtendASingleClass {
@@ -64,4 +66,46 @@ pub(super) enum MissingIdentKind {
 pub(super) struct TypeArgumentListCannotBeEmpty {
     #[label(primary)]
     pub span: Span,
+}
+
+#[derive(Error, Diagnostic, Debug)]
+#[error("{} cannot be declared using a rest parameter.", {kinds.iter().map(|k| format!("'{k}'")).collect::<Vec<_>>().join(", ")})]
+pub(super) struct AParameterPropertyCannotBeDeclaredUsingARestParameter {
+    #[label(primary)]
+    pub span: Span,
+    pub kinds: Vec<ModifierKind>,
+}
+
+#[derive(Error, Diagnostic, Debug)]
+#[error("Expected '{x}'.")]
+pub(super) struct ExpectX {
+    #[label(primary)]
+    pub span: Span,
+    pub x: String,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub(super) enum ClauseKind {
+    Extends,
+    Implements,
+}
+
+impl std::fmt::Display for ClauseKind {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let s = match self {
+            ClauseKind::Extends => "extends",
+            ClauseKind::Implements => "implements",
+        };
+        write!(f, "{}", s)
+    }
+}
+
+#[derive(Error, Diagnostic, Debug)]
+#[error("'{kind}' clause already seen.")]
+pub(super) struct ClauseAlreadySeen {
+    #[label(primary)]
+    pub span: Span,
+    pub kind: ClauseKind,
+    #[label("It was first defined here.")]
+    pub origin: Span,
 }

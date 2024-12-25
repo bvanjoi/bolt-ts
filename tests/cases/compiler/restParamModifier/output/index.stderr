@@ -1,0 +1,5 @@
+  × Expected ','.
+   ╭─[../../tests/cases/compiler/restParamModifier/index.ts:4:27]
+ 4 │ rest
+   · ────
+   ╰────

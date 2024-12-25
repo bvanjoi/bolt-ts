@@ -188,8 +188,10 @@ impl<'cx, 'r> Resolver<'cx, 'r> {
                     self.resolve_ty(ty);
                 }
             }
-            BooleanLit(_) => todo!(),
-            NullLit(_) => todo!(),
+            Typeof(n) => {
+                self.resolve_entity_name(n.name);
+            }
+            BooleanLit(_) | NullLit(_) => unreachable!(),
         }
     }
 

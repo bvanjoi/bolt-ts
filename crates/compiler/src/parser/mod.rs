@@ -315,6 +315,12 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
                 }
                 if self.parse_optional(TokenKind::Comma).is_some() {
                     continue;
+                } else {
+                    let error = errors::ExpectX {
+                        span: self.token.span,
+                        x: ",".to_string(),
+                    };
+                    self.push_error(Box::new(error));
                 }
             }
             if ctx.is_closing(self) {

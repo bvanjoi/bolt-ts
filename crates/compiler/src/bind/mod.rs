@@ -574,6 +574,9 @@ impl<'cx> BinderState<'cx> {
                     self.bind_ty(ty);
                 }
             }
+            Typeof(n) => {
+                self.bind_entity_name(n.name);
+            }
         }
     }
 

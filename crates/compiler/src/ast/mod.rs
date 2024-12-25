@@ -2,9 +2,10 @@ mod node;
 mod node_flags;
 
 use bolt_ts_span::Span;
+use enumflags2::make_bitflags;
 pub use node::{Node, NodeID};
 
-use crate::atoms::AtomId;
+use crate::{atoms::AtomId, keyword};
 
 #[derive(Debug, Clone, Copy)]
 pub struct Program<'cx> {
@@ -252,6 +253,7 @@ pub struct ClassExtendsClause<'cx> {
     pub id: NodeID,
     pub span: Span,
     pub expr: &'cx Expr<'cx>,
+    pub ty_args: Option<&'cx self::Tys<'cx>>,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -556,12 +558,6 @@ pub struct BinOp {
     pub span: Span,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq)]
-pub enum HeritageClauseKind {
-    Extends,
-    Implements,
-}
-
 #[derive(Debug, Clone, Copy)]
 pub enum BinOpKind {
     Add,
@@ -680,6 +676,7 @@ impl Ty<'_> {
             TyKind::Intersection(n) => n.span,
             TyKind::BooleanLit(n) => n.span,
             TyKind::NullLit(n) => n.span,
+            TyKind::Typeof(n) => n.span,
         }
     }
 
@@ -700,6 +697,7 @@ impl Ty<'_> {
             TyKind::Intersection(n) => n.id,
             TyKind::BooleanLit(n) => n.id,
             TyKind::NullLit(n) => n.id,
+            TyKind::Typeof(n) => n.id,
         }
     }
 }
@@ -721,13 +719,22 @@ pub enum TyKind<'cx> {
     Cond(&'cx CondTy<'cx>),
     Union(&'cx UnionTy<'cx>),
     Intersection(&'cx IntersectionTy<'cx>),
+    Typeof(&'cx TypeofTy<'cx>),
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct TypeofTy<'cx> {
+    pub id: NodeID,
+    pub span: Span,
+    pub name: &'cx EntityName<'cx>,
+    pub args: Option<&'cx self::Tys<'cx>>,
 }
 
 #[derive(Debug, Clone, Copy)]
 pub struct LitTy<T> {
     pub id: NodeID,
-    pub val: T,
     pub span: Span,
+    pub val: T,
 }
 
 pub type NumLitTy = LitTy<f64>;
@@ -903,16 +910,42 @@ pub struct CallExpr<'cx> {
 }
 
 #[enumflags2::bitflags]
-#[repr(u8)]
+#[repr(u16)]
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub enum ModifierKind {
     Public = 1 << 0,
     Private = 1 << 1,
-    Abstract = 1 << 2,
-    Static = 1 << 3,
-    Declare = 1 << 4,
+    Protected = 1 << 2,
+    Readonly = 1 << 3,
+    Override = 1 << 4,
     Export = 1 << 5,
-    Readonly = 1 << 6,
+    Abstract = 1 << 6,
+    Static = 1 << 7,
+    Declare = 1 << 8,
+}
+
+impl std::fmt::Display for ModifierKind {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let s = match self {
+            ModifierKind::Public => keyword::KW_PUBLIC_STR,
+            ModifierKind::Private => keyword::KW_PRIVATE_STR,
+            ModifierKind::Protected => keyword::KW_PROTECTED_STR,
+            ModifierKind::Readonly => keyword::KW_READONLY_STR,
+            ModifierKind::Override => "override",
+            ModifierKind::Export => keyword::KW_EXPORT_STR,
+            ModifierKind::Abstract => keyword::KW_ABSTRACT_STR,
+            ModifierKind::Static => keyword::KW_STATIC_STR,
+            ModifierKind::Declare => keyword::KW_DECLARE_STR,
+        };
+        write!(f, "{}", s)
+    }
+}
+
+impl ModifierKind {
+    pub const ACCESSIBILITY: enumflags2::BitFlags<ModifierKind> =
+        make_bitflags!(ModifierKind::{Public | Private | Protected});
+    pub const PARAMETER_PROPERTY: enumflags2::BitFlags<ModifierKind> =
+        make_bitflags!(Self::{Public | Private | Protected | Readonly | Override});
 }
 
 #[derive(Debug, Clone, Copy)]
