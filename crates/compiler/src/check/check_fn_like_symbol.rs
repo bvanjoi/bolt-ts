@@ -21,7 +21,13 @@ impl<'cx> TyChecker<'cx> {
                             .map_or(false, |m| m.flags.contains(ast::ModifierKind::Declare))
                 }
                 ast::Node::ClassCtor(n) => n.body.is_some(),
-                ast::Node::ClassMethodEle(n) => n.body.is_some(),
+                ast::Node::ClassMethodEle(n) => {
+                    if !n.flags.intersects(ast::NodeFlags::AMBIENT) {
+                        n.body.is_some()
+                    } else {
+                        true
+                    }
+                }
                 _ => unreachable!("{:#?}", node),
             }
         });

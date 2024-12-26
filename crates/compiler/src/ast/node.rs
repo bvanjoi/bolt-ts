@@ -172,6 +172,7 @@ impl<'cx> Node<'cx> {
             ClassDecl(n) => Some(n.name),
             ClassExpr(n) => n.name,
             ParamDecl(n) => Some(n.name),
+            InterfaceDecl(n) => Some(n.name),
             ClassPropEle(n) => match n.name.kind {
                 ast::PropNameKind::Ident(ref ident) => Some(ident),
                 _ => None,

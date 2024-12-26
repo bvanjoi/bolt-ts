@@ -54,7 +54,24 @@ impl<'cx> TyChecker<'cx> {
         self.create_object_ty(ty::ObjectTyKind::Fn(self.alloc(ty)))
     }
 
-    pub(super) fn create_union_type(&mut self, tys: Vec<&'cx ty::Ty<'cx>>) -> &'cx ty::Ty<'cx> {
+    // fn add_types_to_union(set: &mut Vec<&'cx ty::Ty<'cx>>, includes: TypeFlags, tys: &[&'cx ty::Ty<'cx>]) {
+    //     let mut last_ty = None;
+    //     for ty in tys {
+    //         if let Some(last_ty) = last_ty {
+    //             if last_ty != ty {
+    //             }
+    //         } else {
+    //             last_ty = Some(ty)
+    //         }
+    //     }
+    // }
+
+    pub(super) fn create_union_type(&mut self, mut tys: Vec<&'cx ty::Ty<'cx>>) -> &'cx ty::Ty<'cx> {
+        // if tys.is_empty() {
+        //     // TODO: never type
+        // }
+
+        tys.dedup();
         let tys = self.remove_subtypes(tys);
         if tys.len() == 1 {
             tys[0]

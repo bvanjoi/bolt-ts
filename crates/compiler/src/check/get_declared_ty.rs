@@ -229,6 +229,7 @@ impl<'cx> TyChecker<'cx> {
         }
 
         let outer_ty_params = self.get_outer_ty_params_of_class_or_interface(symbol);
+        let local_ty_params = self.get_local_ty_params_of_class_or_interface_or_type_alias(symbol);
         let (base_ctor_ty, base_tys) = self.get_base_tys(symbol);
         let s = self.binder.symbol(symbol);
         let is_class = s.flags.intersects(SymbolFlags::CLASS);

@@ -1,3 +1,25 @@
+/////////////////////////////
+/// ECMAScript APIs
+/////////////////////////////
+
+declare var NaN: number;
+declare var Infinity: number;
+
+/**
+ * Evaluates JavaScript code and executes it.
+ * @param x A String value that contains valid JavaScript code.
+ */
+declare function eval(x: string): any;
+
+/**
+ * Converts a string to an integer.
+ * @param string A string to convert into a number.
+ * @param radix A value between 2 and 36 that specifies the base of the number in `string`.
+ * If this argument is not supplied, strings with a prefix of '0x' are considered hexadecimal.
+ * All other strings are considered decimal.
+ */
+declare function parseInt(string: string, radix?: number): number;
+
 interface String {
   /** Returns a string representation of a string. */
   toString(): string;
@@ -66,13 +88,13 @@ interface String {
   //  */
   // search(regexp: string | RegExp): number;
 
-  // /**
-  //  * Returns a section of a string.
-  //  * @param start The index to the beginning of the specified portion of stringObj.
-  //  * @param end The index to the end of the specified portion of stringObj. The substring includes the characters up to, but not including, the character indicated by end.
-  //  * If this value is not specified, the substring continues to the end of stringObj.
-  //  */
-  // slice(start?: number, end?: number): string;
+  /**
+   * Returns a section of a string.
+   * @param start The index to the beginning of the specified portion of stringObj.
+   * @param end The index to the end of the specified portion of stringObj. The substring includes the characters up to, but not including, the character indicated by end.
+   * If this value is not specified, the substring continues to the end of stringObj.
+   */
+  slice(start?: number, end?: number): string;
 
   // /**
   //  * Split a string into substrings using the specified separator and return them as an array.

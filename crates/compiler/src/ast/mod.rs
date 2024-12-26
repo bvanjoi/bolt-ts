@@ -4,6 +4,7 @@ mod node_flags;
 use bolt_ts_span::Span;
 use enumflags2::make_bitflags;
 pub use node::{Node, NodeID};
+pub use node_flags::NodeFlags;
 
 use crate::{atoms::AtomId, keyword};
 
@@ -210,6 +211,7 @@ pub struct ClassCtor<'cx> {
 #[derive(Debug, Clone, Copy)]
 pub struct ClassMethodEle<'cx> {
     pub id: NodeID,
+    pub flags: NodeFlags,
     pub span: Span,
     pub modifiers: Option<&'cx Modifiers<'cx>>,
     pub name: &'cx PropName<'cx>,

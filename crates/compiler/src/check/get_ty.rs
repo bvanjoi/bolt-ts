@@ -205,15 +205,19 @@ impl<'cx> TyChecker<'cx> {
         symbol: SymbolID,
     ) -> Option<ty::Tys<'cx>> {
         let s = self.binder.symbol(symbol);
-        if s.flags == SymbolFlags::TYPE_ALIAS {
+        let decl = if s.flags == SymbolFlags::TYPE_ALIAS {
             let alias = s.expect_ty_alias();
-            let mut res = vec![];
-            let ty_params = self.get_effective_ty_param_decls(alias.decl);
-            self.append_ty_params(&mut res, ty_params);
-            Some(self.alloc(res))
+            alias.decl
+        } else if s.flags.intersects(SymbolFlags::INTERFACE) {
+            let i = s.expect_interface();
+            i.decl
         } else {
-            None
-        }
+            return None;
+        };
+        let mut res = vec![];
+        let ty_params = self.get_effective_ty_param_decls(decl);
+        self.append_ty_params(&mut res, ty_params);
+        Some(self.alloc(res))
     }
 
     fn is_deferred_ty(&self, ty: &'cx Ty<'cx>, check_tuples: bool) -> bool {

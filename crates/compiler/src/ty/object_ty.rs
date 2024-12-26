@@ -7,7 +7,6 @@ use super::{Sig, Ty};
 
 #[derive(Debug, Clone, Copy)]
 pub struct ObjectTy<'cx> {
-    // TODO: properties, members...
     pub kind: ObjectTyKind<'cx>,
 }
 

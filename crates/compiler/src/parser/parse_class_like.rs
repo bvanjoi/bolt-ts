@@ -294,6 +294,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
                 params,
                 ret,
                 body,
+                flags: self.context_flags,
             });
             self.insert_map(id, ast::Node::ClassMethodEle(method));
             self.alloc(ast::ClassEle {

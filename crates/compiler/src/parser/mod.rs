@@ -13,13 +13,13 @@ mod utils;
 
 use std::sync::{Arc, Mutex};
 
-use bolt_ts_span::{Module, ModuleArena, ModuleID, ModulePath, Span};
+use bolt_ts_span::{ModuleArena, ModuleID, Span};
 use rayon::prelude::*;
 use rustc_hash::FxHashMap;
 
 pub use self::token::KEYWORD_TOKEN_START;
 use self::token::{Token, TokenFlags, TokenKind};
-use crate::ast::{self, Node, NodeID};
+use crate::ast::{self, Node, NodeFlags, NodeID};
 use crate::atoms::{AtomId, AtomMap};
 use crate::keyword;
 
@@ -206,6 +206,7 @@ pub struct ParserState<'cx, 'p> {
     parent_map: ParentMap,
     arena: &'p bumpalo_herd::Member<'cx>,
     next_node_id: NodeID,
+    context_flags: NodeFlags,
 }
 
 impl<'cx, 'p> ParserState<'cx, 'p> {
@@ -237,6 +238,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
             nodes,
             parent_map,
             next_node_id: NodeID::root(module_id),
+            context_flags: NodeFlags::empty(),
         }
     }
 
