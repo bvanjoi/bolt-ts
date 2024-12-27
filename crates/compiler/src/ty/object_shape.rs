@@ -1,5 +1,5 @@
 use super::object_ty::{InterfaceTy, ObjectLitTy, TupleTy};
-use super::{FnTy, Sig};
+use super::FnTy;
 use crate::bind::{SymbolID, SymbolName};
 use crate::keyword;
 
@@ -16,16 +16,16 @@ impl<'cx> ObjectShape<'cx> for InterfaceTy<'cx> {
         self.members.get(name).copied()
     }
     fn props(&self) -> &[SymbolID] {
-        self.declared_props
+        self.declared_infos.declared_props
     }
     fn declared_call_sigs(&self) -> super::Sigs<'cx> {
-        self.declared_call_sigs
+        self.declared_infos.declared_call_sigs
     }
     fn get_base_tys(&self) -> super::Tys<'cx> {
         self.base_tys
     }
     fn get_index_infos(&self) -> super::IndexInfos<'cx> {
-        self.declared_index_infos
+        self.declared_infos.declared_index_infos
     }
 }
 

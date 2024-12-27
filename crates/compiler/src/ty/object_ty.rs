@@ -161,16 +161,26 @@ pub struct IndexInfo<'cx> {
 pub type IndexInfos<'cx> = &'cx [&'cx IndexInfo<'cx>];
 
 #[derive(Debug, Clone, Copy)]
-pub struct InterfaceTy<'cx> {
-    pub symbol: SymbolID,
-    pub members: &'cx FxHashMap<SymbolName, SymbolID>,
-    pub base_tys: super::Tys<'cx>,
-    pub base_ctor_ty: Option<&'cx Ty<'cx>>,
-
+pub struct DeclaredInfos<'cx> {
     pub declared_props: &'cx [SymbolID],
     pub declared_index_infos: IndexInfos<'cx>,
     pub declared_ctor_sigs: super::Sigs<'cx>,
     pub declared_call_sigs: super::Sigs<'cx>,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct InterfaceTy<'cx> {
+    pub symbol: SymbolID,
+    pub members: &'cx FxHashMap<SymbolName, SymbolID>,
+
+    pub ty_params: super::Tys<'cx>,
+    pub outer_ty_params: super::Tys<'cx>,
+    pub local_ty_params: super::Tys<'cx>,
+
+    pub base_tys: super::Tys<'cx>,
+    pub base_ctor_ty: Option<&'cx Ty<'cx>>,
+
+    pub declared_infos: &'cx DeclaredInfos<'cx>,
 
     pub props: &'cx [SymbolID],
     pub index_infos: IndexInfos<'cx>,

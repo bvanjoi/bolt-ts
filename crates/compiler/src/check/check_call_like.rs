@@ -29,13 +29,13 @@ impl<'cx> CallLikeExpr<'cx> for ast::CallExpr<'cx> {
 impl<'cx> CallLikeExpr<'cx> for ast::NewExpr<'cx> {
     fn sigs(checker: &TyChecker<'cx>, ty: &'cx ty::Ty<'cx>) -> Sigs<'cx> {
         if let Some(i) = ty.kind.as_object_interface() {
-            i.declared_ctor_sigs
+            i.declared_infos.declared_ctor_sigs
         } else if let Some(c) = ty.kind.as_object_class() {
             let i = checker
                 .declared_ty_of_symbol(c.symbol)
                 .kind
                 .expect_object_interface();
-            i.declared_ctor_sigs
+            i.declared_infos.declared_ctor_sigs
         } else {
             // unreachable!("{ty:#?}");
             return &[];

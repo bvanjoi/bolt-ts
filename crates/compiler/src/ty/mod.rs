@@ -14,8 +14,8 @@ pub use self::mapper::{ArrayTyMapper, CompositeTyMapper, TyMapper};
 pub use self::mapper::{DeferredTyMapper, FnTyMapper, MergedTyMapper, SimpleTyMapper};
 pub use self::object_shape::ObjectShape;
 pub use self::object_ty::ElementFlags;
-pub use self::object_ty::ReferenceTy;
 pub use self::object_ty::{ClassTy, FnTy, InterfaceTy, ObjectLitTy, ObjectTyKind};
+pub use self::object_ty::{DeclaredInfos, ReferenceTy};
 pub use self::object_ty::{IndexInfo, IndexInfos, ObjectTy, TupleShape, TupleTy};
 pub use self::sig::{Sig, SigFlags, Sigs};
 

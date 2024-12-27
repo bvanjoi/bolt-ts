@@ -393,7 +393,7 @@ impl<'cx> TyChecker<'cx> {
     fn check_index_constraints(&mut self, ty: &'cx ty::Ty<'cx>, symbol: SymbolID) {
         // self.get_index_info_of_ty(ty);
         let i = ty.kind.expect_object_interface();
-        for prop in i.declared_props {
+        for prop in i.declared_infos.declared_props {
             let prop_ty = self.get_type_of_symbol(*prop);
             let prop_name_ty = self.get_lit_ty_from_prop(*prop);
             self.check_index_constraint_for_prop(ty, *prop, prop_name_ty, prop_ty);
