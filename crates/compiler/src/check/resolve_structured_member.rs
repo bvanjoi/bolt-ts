@@ -1,12 +1,11 @@
 use rustc_hash::FxHashMap;
 
 use super::{SymbolLinks, TyChecker};
-use crate::ast;
 use crate::bind::{SymbolFlags, SymbolID, SymbolName};
-use crate::ty::{self, CheckFlags, Sig, SigFlags, SigKind, Sigs, TyMapper};
+use crate::ty::{self, CheckFlags, SigKind, TyMapper};
 
 impl<'cx> TyChecker<'cx> {
-    fn members(&self, symbol: SymbolID) -> &FxHashMap<SymbolName, SymbolID> {
+    pub(super) fn members(&self, symbol: SymbolID) -> &FxHashMap<SymbolName, SymbolID> {
         let s = self.binder.symbol(symbol);
         if s.flags == SymbolFlags::CLASS {
             let c = s.expect_class();
@@ -46,7 +45,7 @@ impl<'cx> TyChecker<'cx> {
         self.members(symbol).get(&SymbolName::Index).copied()
     }
 
-    fn get_index_infos(&mut self, symbol: SymbolID) -> &'cx [&'cx ty::IndexInfo<'cx>] {
+    pub(super) fn get_index_infos(&mut self, symbol: SymbolID) -> &'cx [&'cx ty::IndexInfo<'cx>] {
         let index_infos = self
             .get_index_symbol(symbol)
             .map(|index_symbol| {
@@ -68,63 +67,6 @@ impl<'cx> TyChecker<'cx> {
             })
             .unwrap_or_default();
         self.alloc(index_infos)
-    }
-
-    fn resolve_declared_members(&mut self, ty: &'cx ty::Ty<'cx>) -> &'cx ty::DeclaredMembers<'cx> {
-        if let Some(m) = self.ty_declared_members.get(&ty.id) {
-            return m;
-        }
-        let symbol = ty.symbol().unwrap();
-        let props = self.get_props_from_members(self.members(symbol));
-        let call_sigs = self
-            .members(symbol)
-            .get(&SymbolName::Call)
-            .copied()
-            .map(|s| self.get_sigs_of_symbol(s))
-            .unwrap_or_default();
-        let ctor_sigs = self
-            .members(symbol)
-            .get(&SymbolName::Constructor)
-            .copied()
-            .map(|s| self.get_sigs_of_symbol(s))
-            .unwrap_or_default();
-        let ctor_sigs =
-            if ctor_sigs.is_empty() && self.binder.symbol(symbol).flags == SymbolFlags::CLASS {
-                // TODO: base
-                let mut flags = SigFlags::empty();
-                let class_node_id = self.binder.symbol(symbol).expect_class().decl;
-                if let Some(c) = self.p.node(class_node_id).as_class_decl() {
-                    if let Some(mods) = c.modifiers {
-                        if mods.flags.contains(ast::ModifierKind::Abstract) {
-                            flags.insert(SigFlags::HAS_ABSTRACT);
-                        }
-                    }
-                }
-                let sig = self.alloc(Sig {
-                    flags,
-                    ty_params: None,
-                    params: &[],
-                    min_args_count: 0,
-                    ret: None,
-                    node_id: class_node_id,
-                    target: None,
-                    mapper: None,
-                });
-                let sigs: Sigs<'cx> = self.alloc([sig]);
-                sigs
-            } else {
-                ctor_sigs
-            };
-        let index_infos = self.get_index_infos(symbol);
-        let declared_members = self.alloc(ty::DeclaredMembers {
-            props,
-            index_infos,
-            ctor_sigs,
-            call_sigs,
-        });
-        let prev = self.ty_declared_members.insert(ty.id, declared_members);
-        assert!(prev.is_none());
-        declared_members
     }
 
     fn in_this_less(&self, symbol: SymbolID) -> bool {
@@ -276,8 +218,8 @@ impl<'cx> TyChecker<'cx> {
     }
 
     fn resolve_interface_members(&mut self, ty: &'cx ty::Ty<'cx>) {
-        let declared_members = self.resolve_declared_members(ty);
-        self.resolve_object_type_members(ty, declared_members, &[], &[]);
+        let i = ty.kind.as_object_interface().unwrap();
+        self.resolve_object_type_members(ty, i.declared, &[], &[]);
     }
 
     fn resolve_reference_members(&mut self, ty: &'cx ty::Ty<'cx>) {
@@ -285,9 +227,9 @@ impl<'cx> TyChecker<'cx> {
             unreachable!()
         };
         let Some(i) = refer.target.kind.as_object_interface() else {
+            // TODO: handle more case.
             return;
         };
-        let declared_members = self.resolve_declared_members(refer.target);
         let ty_params = {
             let mut ty_params = i.ty_params.unwrap().to_vec();
             ty_params.push(i.this_ty.unwrap());
@@ -301,7 +243,7 @@ impl<'cx> TyChecker<'cx> {
             padded_type_arguments.push(refer.target);
             self.alloc(padded_type_arguments)
         };
-        self.resolve_object_type_members(ty, declared_members, ty_params, padded_type_arguments);
+        self.resolve_object_type_members(ty, i.declared, ty_params, padded_type_arguments);
     }
 
     fn resolve_anonymous_type_members(&mut self, ty: &'cx ty::Ty<'cx>) {
@@ -332,6 +274,22 @@ impl<'cx> TyChecker<'cx> {
         assert!(prev.is_none());
     }
 
+    fn resolve_union_type_members(&mut self, ty: &'cx ty::Ty<'cx>) {
+        let Some(union) = ty.kind.as_union() else {
+            unreachable!()
+        };
+        let call_sigs = union
+            .tys
+            .iter()
+            .map(|ty| self.get_sigs_of_ty(ty, SigKind::Call))
+            .collect::<Vec<_>>();
+        let ctor_sigs = union
+            .tys
+            .iter()
+            .map(|ty| self.get_sigs_of_ty(ty, SigKind::Constructor))
+            .collect::<Vec<_>>();
+    }
+
     pub(super) fn resolve_structured_type_members(&mut self, ty: &'cx ty::Ty<'cx>) {
         if self.ty_structured_members.get(&ty.id).is_some() {
             return;
@@ -343,6 +301,8 @@ impl<'cx> TyChecker<'cx> {
             self.resolve_interface_members(ty);
         } else if ty.kind.is_object_anonymous() {
             self.resolve_anonymous_type_members(ty);
+        } else if ty.kind.is_union() {
+            self.resolve_union_type_members(ty);
         }
     }
 }

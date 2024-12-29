@@ -12,7 +12,12 @@ impl<'cx> TyChecker<'cx> {
             let init_ty = self.check_expr_with_cache(init);
             assert!(
                 decl.decl_ty().is_none()
-                    || self.node_links.get(&init.id()).unwrap().get_ty().is_some(),
+                    || self
+                        .node_links
+                        .get(&init.id())
+                        .unwrap()
+                        .get_resolved_ty()
+                        .is_some(),
             );
             if decl_ty != init_ty {
                 self.check_type_assignable_to_and_optionally_elaborate(

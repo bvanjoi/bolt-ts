@@ -83,6 +83,7 @@ pub enum Node<'cx> {
     CondTy(&'cx ast::CondTy<'cx>),
     IntersectionTy(&'cx ast::IntersectionTy<'cx>),
     UnionTy(&'cx ast::UnionTy<'cx>),
+    TypeofTy(&'cx ast::TypeofTy<'cx>),
 }
 
 impl<'cx> Node<'cx> {
@@ -123,18 +124,13 @@ impl<'cx> Node<'cx> {
         self.is_type_decl()
     }
 
-    pub fn is_ty_node(&self) -> bool {
-        self.is_rest_ty()
-            || self.is_tuple_ty()
-            || self.is_indexed_access_ty()
-            || self.is_cond_ty()
-            || self.is_refer_ty()
-            || self.is_ty_param()
-    }
-
     pub fn is_ty_refer_ty(&self) -> bool {
         // TODO: is_expr_with_ty_args
         self.is_refer_ty()
+    }
+
+    pub fn is_ty(&self) -> bool {
+        self.as_ty().is_some()
     }
 
     pub fn as_ty(&self) -> Option<ast::Ty<'cx>> {
@@ -690,6 +686,13 @@ as_node!(
         as_union_ty,
         expect_union_ty,
         is_union_ty
+    ),
+    (
+        TypeofTy,
+        &'cx ast::TypeofTy<'cx>,
+        as_typeof_ty,
+        expect_typeof_ty,
+        is_typeof_ty
     ),
     (
         ThrowStmt,

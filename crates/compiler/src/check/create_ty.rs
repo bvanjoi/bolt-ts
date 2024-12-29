@@ -1,4 +1,4 @@
-use crate::ty::{self};
+use crate::ty::{self, UnionReduction};
 
 use super::{relation::RelationKind, TyChecker};
 
@@ -70,13 +70,19 @@ impl<'cx> TyChecker<'cx> {
     //     }
     // }
 
-    pub(super) fn create_union_type(&mut self, mut tys: Vec<&'cx ty::Ty<'cx>>) -> &'cx ty::Ty<'cx> {
+    pub(super) fn create_union_type(
+        &mut self,
+        mut tys: Vec<&'cx ty::Ty<'cx>>,
+        reduction: UnionReduction,
+    ) -> &'cx ty::Ty<'cx> {
         // if tys.is_empty() {
         //     // TODO: never type
         // }
 
         tys.dedup();
-        let tys = self.remove_subtypes(tys);
+        if reduction == UnionReduction::Subtype {
+            tys = self.remove_subtypes(tys)
+        }
         if tys.len() == 1 {
             tys[0]
         } else {

@@ -10,28 +10,15 @@ use bolt_ts_span::Span;
 
 pub(super) trait CallLikeExpr<'cx>: ir::CallLike<'cx> {
     fn resolve_sig(&self, checker: &mut TyChecker<'cx>) -> &'cx Sig<'cx>;
-    fn sigs(checker: &TyChecker<'cx>, ty: &'cx ty::Ty<'cx>) -> Sigs<'cx>;
 }
 
 impl<'cx> CallLikeExpr<'cx> for ast::CallExpr<'cx> {
-    fn sigs(checker: &TyChecker<'cx>, ty: &'cx ty::Ty<'cx>) -> Sigs<'cx> {
-        checker.signatures_of_type(ty, ty::SigKind::Call)
-    }
     fn resolve_sig(&self, checker: &mut TyChecker<'cx>) -> &'cx Sig<'cx> {
         checker.resolve_call_expr(self)
     }
 }
 
 impl<'cx> CallLikeExpr<'cx> for ast::NewExpr<'cx> {
-    fn sigs(checker: &TyChecker<'cx>, ty: &'cx ty::Ty<'cx>) -> Sigs<'cx> {
-        if ty.kind.as_object_interface().is_some() {
-            checker.ty_declared_members[&ty.id].ctor_sigs
-        } else {
-            let sigs = checker.signatures_of_type(ty, ty::SigKind::Constructor);
-            // unreachable!("{ty:#?}");
-            sigs
-        }
-    }
     fn resolve_sig(&self, checker: &mut TyChecker<'cx>) -> &'cx Sig<'cx> {
         checker.resolve_new_expr(self)
     }
@@ -121,8 +108,8 @@ impl<'cx> TyChecker<'cx> {
 
     fn resolve_call_expr(&mut self, expr: &impl CallLikeExpr<'cx>) -> &'cx Sig<'cx> {
         let ty = self.check_expr(expr.callee());
-        let sigs = ast::CallExpr::sigs(self, ty);
-        let class_sigs = ast::NewExpr::sigs(self, ty);
+        let sigs = self.signatures_of_type(ty, ty::SigKind::Call);
+        let class_sigs = self.signatures_of_type(ty, ty::SigKind::Constructor);
 
         if sigs.is_empty() {
             if let Some(sig) = class_sigs.first() {
@@ -133,7 +120,6 @@ impl<'cx> TyChecker<'cx> {
                 let error = errors::ValueOfType0IsNotCallable {
                     span: expr.callee().span(),
                     ty: format!("typeof {}", self.atoms.get(decl.name.name)),
-                    callee_is_class: Some(errors::DidYouMeanToIncludeNew),
                 };
                 self.push_error(expr.span().module, Box::new(error));
             }
@@ -186,7 +172,7 @@ impl<'cx> TyChecker<'cx> {
         None
     }
 
-    fn has_effective_rest_params(&mut self, sig: &'cx Sig<'cx>) -> bool {
+    fn has_effective_rest_param(&mut self, sig: &'cx Sig<'cx>) -> bool {
         if sig.has_rest_param() {
             let rest_ty = self.get_type_of_symbol(sig.params[sig.params.len() - 1]);
             if !rest_ty.kind.is_tuple() {
@@ -215,7 +201,7 @@ impl<'cx> TyChecker<'cx> {
             return spread_arg_index >= min_args && spread_arg_index < param_count;
         }
 
-        if arg_count > param_count && !self.has_effective_rest_params(sig) {
+        if arg_count > param_count && !self.has_effective_rest_param(sig) {
             return false;
         }
 

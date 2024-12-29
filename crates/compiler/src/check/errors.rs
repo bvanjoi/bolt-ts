@@ -186,17 +186,12 @@ pub(super) struct FunctionImplementationIsMissingOrNotImmediatelyFollowingTheDec
 
 #[derive(Error, Diagnostic, Debug)]
 #[error("Value of type '{ty}' is not callable.")]
+#[diagnostic(help("Did you mean to include 'new'?"))]
 pub(super) struct ValueOfType0IsNotCallable {
     #[label(primary)]
     pub span: Span,
     pub ty: String,
-    #[help]
-    pub callee_is_class: Option<DidYouMeanToIncludeNew>,
 }
-
-#[derive(Error, Diagnostic, Debug)]
-#[error("Did you mean to include 'new'?")]
-pub(super) struct DidYouMeanToIncludeNew;
 
 #[derive(Error, Diagnostic, Debug)]
 #[error(

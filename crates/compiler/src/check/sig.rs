@@ -1,6 +1,8 @@
 use super::ast;
 use super::TyChecker;
 use crate::bind::SymbolID;
+use crate::ty;
+use crate::ty::SigKind;
 use crate::ty::{Sig, SigFlags};
 
 impl<'cx> TyChecker<'cx> {
@@ -33,6 +35,12 @@ impl<'cx> TyChecker<'cx> {
             .map(|id| self.get_sig_from_decl(id))
             .collect::<Vec<_>>();
         self.alloc(sigs)
+    }
+
+    pub(super) fn get_sigs_of_ty(&mut self, ty: &'cx ty::Ty<'cx>, kind: SigKind) -> ty::Sigs<'cx> {
+        self.resolve_structured_type_members(ty);
+        let sigs = self.signatures_of_type(ty, kind);
+        sigs
     }
 }
 

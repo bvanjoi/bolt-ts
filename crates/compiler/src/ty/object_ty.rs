@@ -177,6 +177,7 @@ pub struct InterfaceTy<'cx> {
     pub outer_ty_params: Option<super::Tys<'cx>>,
     pub local_ty_params: Option<super::Tys<'cx>>,
     pub this_ty: Option<&'cx Ty<'cx>>,
+    pub declared: &'cx DeclaredMembers<'cx>,
 }
 
 impl ObjectTyKind<'_> {

@@ -27,4 +27,10 @@ macro_rules! prop {
     };
 }
 
-prop!((ty, &'cx ty::Ty<'cx>, with_ty, set_ty, get_ty));
+prop!((
+    ty,
+    &'cx ty::Ty<'cx>,
+    with_resolved_ty,
+    set_resolved_ty,
+    get_resolved_ty
+));

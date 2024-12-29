@@ -10,7 +10,7 @@ impl<'cx> TyChecker<'cx> {
         if i.decl == interface.id {
             let ty = self.get_declared_ty_of_symbol(symbol);
             for base_ty in self.base_types(ty) {
-                self.check_type_assignable_to(ty, base_ty);
+                self.check_type_assignable_to(ty, base_ty, Some(true));
             }
             self.check_index_constraints(ty, symbol);
         }

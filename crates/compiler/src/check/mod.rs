@@ -93,7 +93,6 @@ pub struct TyChecker<'cx> {
     ty_vars: FxHashMap<TyVarID, &'cx Ty<'cx>>,
     symbol_links: FxHashMap<SymbolID, SymbolLinks<'cx>>,
     node_links: FxHashMap<NodeID, NodeLinks<'cx>>,
-    ty_declared_members: FxHashMap<TyID, &'cx ty::DeclaredMembers<'cx>>,
     pub ty_structured_members: FxHashMap<TyID, &'cx ty::StructuredMembers<'cx>>,
     // === ast ===
     pub p: &'cx Parser<'cx>,
@@ -176,7 +175,6 @@ impl<'cx> TyChecker<'cx> {
             type_name: fx_hashmap_with_capacity(1024 * 8),
             node_id_to_sig: fx_hashmap_with_capacity(p.module_count() * 256),
             ty_vars: FxHashMap::default(),
-            ty_declared_members: fx_hashmap_with_capacity(p.module_count() * 1024),
             ty_structured_members: fx_hashmap_with_capacity(p.module_count() * 1024),
             symbol_links: fx_hashmap_with_capacity(p.module_count() * 1024),
             node_links: fx_hashmap_with_capacity(p.module_count() * 1024),
@@ -190,7 +188,10 @@ impl<'cx> TyChecker<'cx> {
             let prev = this.intrinsic_tys.insert(*ty_name, ty);
             assert!(prev.is_none());
         }
-        let boolean_ty = this.create_union_type(vec![this.true_ty(), this.false_ty()]);
+        let boolean_ty = this.create_union_type(
+            vec![this.true_ty(), this.false_ty()],
+            ty::UnionReduction::Lit,
+        );
         this.type_name.insert(boolean_ty.id, "boolean".to_string());
         this.boolean_ty.set(boolean_ty).unwrap();
 
@@ -516,11 +517,11 @@ impl<'cx> TyChecker<'cx> {
     }
 
     fn check_expr_with_cache(&mut self, expr: &'cx ast::Expr) -> &'cx Ty<'cx> {
-        if let Some(ty) = self.get_node_links(expr.id()).get_ty() {
+        if let Some(ty) = self.get_node_links(expr.id()).get_resolved_ty() {
             return ty;
         }
         let ty = self.check_expr(expr);
-        self.get_mut_node_links(expr.id()).set_ty(ty);
+        self.get_mut_node_links(expr.id()).set_resolved_ty(ty);
         ty
     }
 
@@ -733,7 +734,7 @@ impl<'cx> TyChecker<'cx> {
         let ty = self.check_expr(cond.cond);
         let ty1 = self.check_expr(cond.when_true);
         let ty2 = self.check_expr(cond.when_false);
-        self.create_union_type(vec![ty1, ty2])
+        self.create_union_type(vec![ty1, ty2], ty::UnionReduction::Subtype)
     }
 
     fn check_array_lit(&mut self, lit: &'cx ast::ArrayLit) -> &'cx Ty<'cx> {
@@ -745,7 +746,7 @@ impl<'cx> TyChecker<'cx> {
             // FIXME: use type var
             self.create_ty_var()
         } else {
-            self.create_union_type(elems)
+            self.create_union_type(elems, ty::UnionReduction::Subtype)
         };
         let refer = self.global_array_ty().kind.expect_object_reference();
         let ty = self.create_reference_ty(ty::ReferenceTy {

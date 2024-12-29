@@ -28,7 +28,6 @@ impl<'cx> TyChecker<'cx> {
             Some(self.get_declared_ty_of_class_or_interface(id))
         } else if symbol.flags == SymbolFlags::TYPE_ALIAS {
             let ty = self.get_declared_ty_of_type_alias(id);
-            self.get_mut_symbol_links(id).set_declared_ty(ty);
             if let Some(ty_params) =
                 self.get_local_ty_params_of_class_or_interface_or_type_alias(id)
             {
@@ -67,6 +66,7 @@ impl<'cx> TyChecker<'cx> {
         let alias = self.binder.symbol(symbol).expect_ty_alias();
         let decl = self.p.node(alias.decl).expect_type_decl();
         let ty = self.get_ty_from_type_node(decl.ty);
+        self.get_mut_symbol_links(symbol).set_declared_ty(ty);
         ty
     }
 
@@ -197,6 +197,56 @@ impl<'cx> TyChecker<'cx> {
         self.alloc(props)
     }
 
+    fn resolve_declared_members(&mut self, symbol: SymbolID) -> &'cx ty::DeclaredMembers<'cx> {
+        let props = self.get_props_from_members(self.members(symbol));
+        let call_sigs = self
+            .members(symbol)
+            .get(&SymbolName::Call)
+            .copied()
+            .map(|s| self.get_sigs_of_symbol(s))
+            .unwrap_or_default();
+        let ctor_sigs = self
+            .members(symbol)
+            .get(&SymbolName::Constructor)
+            .copied()
+            .map(|s| self.get_sigs_of_symbol(s))
+            .unwrap_or_default();
+        let ctor_sigs =
+            if ctor_sigs.is_empty() && self.binder.symbol(symbol).flags == SymbolFlags::CLASS {
+                // TODO: base
+                let mut flags = ty::SigFlags::empty();
+                let class_node_id = self.binder.symbol(symbol).expect_class().decl;
+                if let Some(c) = self.p.node(class_node_id).as_class_decl() {
+                    if let Some(mods) = c.modifiers {
+                        if mods.flags.contains(ast::ModifierKind::Abstract) {
+                            flags.insert(ty::SigFlags::HAS_ABSTRACT);
+                        }
+                    }
+                }
+                let sig = self.alloc(ty::Sig {
+                    flags,
+                    ty_params: None,
+                    params: &[],
+                    min_args_count: 0,
+                    ret: None,
+                    node_id: class_node_id,
+                    target: None,
+                    mapper: None,
+                });
+                let sigs: ty::Sigs<'cx> = self.alloc([sig]);
+                sigs
+            } else {
+                ctor_sigs
+            };
+        let index_infos = self.get_index_infos(symbol);
+        self.alloc(ty::DeclaredMembers {
+            props,
+            index_infos,
+            ctor_sigs,
+            call_sigs,
+        })
+    }
+
     fn get_declared_ty_of_class_or_interface(&mut self, symbol: SymbolID) -> &'cx ty::Ty<'cx> {
         if let Some(ty) = self.get_symbol_links(symbol).get_ty() {
             return ty;
@@ -204,6 +254,7 @@ impl<'cx> TyChecker<'cx> {
 
         let outer_ty_params = self.get_outer_ty_params_of_class_or_interface(symbol);
         let local_ty_params = self.get_local_ty_params_of_class_or_interface_or_type_alias(symbol);
+        let declared = self.resolve_declared_members(symbol);
 
         let ty = if outer_ty_params.is_some()
             || local_ty_params.is_some()
@@ -226,6 +277,7 @@ impl<'cx> TyChecker<'cx> {
                 outer_ty_params: (!outer_ty_params.is_empty()).then_some(outer_ty_params),
                 local_ty_params: (!local_ty_params.is_empty()).then_some(local_ty_params),
                 this_ty: Some(this_ty),
+                declared,
             });
             let ty = self.create_reference_ty(ty::ReferenceTy {
                 target,
@@ -240,6 +292,7 @@ impl<'cx> TyChecker<'cx> {
                 outer_ty_params: None,
                 local_ty_params: None,
                 this_ty: None,
+                declared,
             })
         };
 

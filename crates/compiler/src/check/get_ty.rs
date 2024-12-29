@@ -114,12 +114,43 @@ impl<'cx> TyChecker<'cx> {
             Rest(rest) => self.get_ty_from_rest_ty_node(rest),
             IndexedAccess(node) => self.get_ty_from_indexed_access_node(node),
             Cond(node) => self.get_ty_from_cond_node(node),
-            Union(_) => self.undefined_ty(),
+            Union(node) => self.get_ty_from_union_ty_node(node),
+            Typeof(node) => self.get_ty_from_typeof_node(node),
             Intersection(_) => self.undefined_ty(),
             BooleanLit(_) => todo!(),
             NullLit(_) => todo!(),
-            Typeof(typeof_ty) => self.undefined_ty(),
         }
+    }
+
+    fn get_ty_from_typeof_node(&mut self, node: &'cx ast::TypeofTy<'cx>) -> &'cx Ty<'cx> {
+        if let Some(ty) = self.get_node_links(node.id).get_resolved_ty() {
+            return ty;
+        }
+        let ty = match node.name.kind {
+            ast::EntityNameKind::Ident(ident) => self.check_ident(ident),
+            ast::EntityNameKind::Qualified(_) => {
+                // TODO: fix
+                self.undefined_ty()
+            }
+        };
+        // TODO: ty args
+        self.get_mut_node_links(node.id).set_resolved_ty(ty);
+        ty
+    }
+
+    fn get_ty_from_union_ty_node(&mut self, node: &'cx ast::UnionTy<'cx>) -> &'cx Ty<'cx> {
+        if let Some(ty) = self.get_node_links(node.id).get_resolved_ty() {
+            return ty;
+        }
+        // let alias_symbol = self.get_alias_symbol_for_ty_node(node.id);
+        let tys = node
+            .tys
+            .iter()
+            .map(|ty| self.get_ty_from_type_node(ty))
+            .collect::<Vec<_>>();
+        let ty = self.create_union_type(tys, ty::UnionReduction::Lit);
+        self.get_mut_node_links(node.id).set_resolved_ty(ty);
+        ty
     }
 
     fn get_ty_from_rest_ty_node(&mut self, rest: &'cx ast::RestTy<'cx>) -> &'cx Ty<'cx> {
@@ -183,7 +214,7 @@ impl<'cx> TyChecker<'cx> {
     }
 
     pub(super) fn get_alias_symbol_for_ty_node(&self, node: ast::NodeID) -> Option<SymbolID> {
-        assert!(self.p.node(node).is_ty_node());
+        assert!(self.p.node(node).is_ty());
         let mut host = self.p.parent(node);
         while let Some(node_id) = host {
             let node = self.p.node(node);

@@ -46,6 +46,13 @@ impl<'cx> Ty<'cx> {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum UnionReduction {
+    None,
+    Lit,
+    Subtype,
+}
+
 #[derive(Debug, Clone, Copy)]
 pub enum TyKind<'cx> {
     Any,

@@ -45,7 +45,6 @@ impl<'cx> Sig<'cx> {
             }
         })
     }
-
     pub fn get_non_array_rest_ty(
         &self,
         checker: &mut TyChecker<'cx>,
@@ -58,7 +57,6 @@ impl<'cx> Sig<'cx> {
             }
         })
     }
-
     pub fn get_param_count(&self, checker: &mut TyChecker<'cx>) -> usize {
         let len = self.params.len();
         if self.has_rest_param() {
