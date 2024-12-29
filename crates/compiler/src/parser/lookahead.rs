@@ -1,7 +1,7 @@
 use super::token::TokenKind;
 use super::{PResult, ParserState, Tristate};
 
-impl<'p, 't> ParserState<'p, 't> {
+impl ParserState<'_, '_> {
     pub(super) fn is_tuple_ele_name(&mut self) -> bool {
         if self.token.kind == TokenKind::DotDotDot {
             self.next_token();

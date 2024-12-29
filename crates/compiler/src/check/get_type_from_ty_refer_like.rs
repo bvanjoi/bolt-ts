@@ -42,8 +42,7 @@ impl<'cx> GetTypeFromTyReferLike<'cx> for ast::ReferTy<'cx> {
 
 impl<'cx> TyChecker<'cx> {
     pub(super) fn resolve_ty_refer_name(&mut self, name: &'cx ast::Ident) -> SymbolID {
-        let symbol = self.resolve_symbol_by_ident(name);
-        symbol
+        self.resolve_symbol_by_ident(name)
     }
 
     fn ty_args_from_ty_refer_node(&mut self, ty_args: &'cx ast::Tys<'cx>) -> ty::Tys<'cx> {
@@ -74,7 +73,7 @@ impl<'cx> TyChecker<'cx> {
 
     fn get_min_ty_args_count(&self, ty_params: ty::Tys<'cx>) -> usize {
         let mut min = 0;
-        for (i, param) in ty_params.into_iter().enumerate() {
+        for (i, param) in ty_params.iter().enumerate() {
             let param = param.kind.expect_param();
             if !self.has_ty_param_default(param) {
                 min = i + 1;
@@ -85,10 +84,10 @@ impl<'cx> TyChecker<'cx> {
 
     fn get_default_ty_from_ty_param(&mut self, param: &'cx ty::ParamTy) -> &'cx ty::Ty<'cx> {
         // TODO: cache `self.get_default_of_param(param_ty, id)`
-        let Some(default) = self.ty_param_node(&param).default else {
+        let Some(default) = self.ty_param_node(param).default else {
             unreachable!()
         };
-        self.get_ty_from_type_node(&default)
+        self.get_ty_from_type_node(default)
     }
 
     fn fill_missing_ty_args(
@@ -106,8 +105,8 @@ impl<'cx> TyChecker<'cx> {
             for arg in args {
                 result.push(*arg);
             }
-            for i in args.len()..params.len() {
-                let param = params[i].kind.expect_param();
+            for param in params.iter().skip(args.len()) {
+                let param = param.kind.expect_param();
                 let default_ty = self.get_default_ty_from_ty_param(param);
                 result.push(default_ty);
             }
@@ -129,8 +128,8 @@ impl<'cx> TyChecker<'cx> {
         let min_params_count = self.get_min_ty_args_count(params);
         // TODO: cache
         let args = self.fill_missing_ty_args(params, args, min_params_count);
-        let mapper = TyMapper::create(params, args);
-        self.instantiate_ty_with_alias(ty, &mapper)
+        let mapper = self.alloc(TyMapper::create(params, args));
+        self.instantiate_ty_with_alias(ty, mapper)
     }
 
     fn get_ty_from_ty_alias_refer(

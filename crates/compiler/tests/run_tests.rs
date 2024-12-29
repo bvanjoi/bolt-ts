@@ -68,11 +68,11 @@ fn run_test(arg: dir_test::Fixture<&str>) {
 
                 if p.ends_with("index.js") {
                     let p = compile_test::temp_node_file(p.file_stem().unwrap().to_str().unwrap());
-                    std::fs::write(p.as_path(), &contents).unwrap();
+                    std::fs::write(p.as_path(), contents).unwrap();
                     index_file_path = Some(p);
                 }
 
-                expect_test::expect_file![p].assert_eq(&contents);
+                expect_test::expect_file![p].assert_eq(contents);
             }
 
             if let Some(index_file_path) = index_file_path {
@@ -87,10 +87,7 @@ fn run_test(arg: dir_test::Fixture<&str>) {
                 .diags
                 .iter()
                 .filter_map(|diag| {
-                    let Some(labels) = diag.inner.labels() else {
-                        return None;
-                    };
-
+                    let labels = diag.inner.labels()?;
                     let msg = diag.inner.to_string();
                     let kind = diag.inner.severity().map_or(
                         compile_test::errors::ErrorKind::Error,

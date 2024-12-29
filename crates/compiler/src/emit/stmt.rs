@@ -88,7 +88,7 @@ impl<'cx> Emit<'cx> {
         self.content.p_whitespace();
         self.content.p_l_paren();
 
-        self.content.p(&param_name);
+        self.content.p(param_name);
         self.content.p_r_paren();
         self.content.p_whitespace();
 

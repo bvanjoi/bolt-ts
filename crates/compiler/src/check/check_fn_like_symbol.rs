@@ -6,7 +6,7 @@ use crate::{ast, keyword};
 use super::errors;
 use super::TyChecker;
 
-impl<'cx> TyChecker<'cx> {
+impl TyChecker<'_> {
     pub(super) fn check_fn_like_symbol(&mut self, symbol: SymbolID) {
         let f = &self.binder.symbol(symbol).expect_fn();
         assert!(!f.decls.is_empty());

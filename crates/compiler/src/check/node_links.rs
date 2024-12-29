@@ -1,11 +1,5 @@
 use super::ty;
 
-impl<'cx> NodeLinks<'cx> {
-    pub fn new() -> Self {
-        Default::default()
-    }
-}
-
 macro_rules! prop {
     ( $( ($x: ident, $ty: ty, $with_x:ident, $set_x: ident, $get_x: ident) ),* $( , )? ) => {
         #[derive(Debug, Default)]

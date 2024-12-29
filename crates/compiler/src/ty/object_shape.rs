@@ -1,5 +1,5 @@
-use super::object_ty::{InterfaceTy, ObjectLitTy, TupleTy};
-use super::FnTy;
+use super::object_ty::{ObjectLitTy, TupleTy};
+use super::AnonymousTy;
 use crate::bind::{SymbolID, SymbolName};
 use crate::keyword;
 
@@ -7,26 +7,6 @@ pub trait ObjectShape<'cx> {
     fn get_member(&self, name: &SymbolName) -> Option<SymbolID>;
     fn props(&self) -> &[SymbolID];
     fn declared_call_sigs(&self) -> super::Sigs<'cx>;
-    fn get_base_tys(&self) -> super::Tys<'cx>;
-    fn get_index_infos(&self) -> super::IndexInfos<'cx>;
-}
-
-impl<'cx> ObjectShape<'cx> for InterfaceTy<'cx> {
-    fn get_member(&self, name: &SymbolName) -> Option<SymbolID> {
-        self.members.get(name).copied()
-    }
-    fn props(&self) -> &[SymbolID] {
-        self.declared_infos.declared_props
-    }
-    fn declared_call_sigs(&self) -> super::Sigs<'cx> {
-        self.declared_infos.declared_call_sigs
-    }
-    fn get_base_tys(&self) -> super::Tys<'cx> {
-        self.base_tys
-    }
-    fn get_index_infos(&self) -> super::IndexInfos<'cx> {
-        self.declared_infos.declared_index_infos
-    }
 }
 
 impl<'cx> ObjectShape<'cx> for ObjectLitTy<'cx> {
@@ -37,12 +17,6 @@ impl<'cx> ObjectShape<'cx> for ObjectLitTy<'cx> {
         self.declared_props
     }
     fn declared_call_sigs(&self) -> super::Sigs<'cx> {
-        &[]
-    }
-    fn get_base_tys(&self) -> super::Tys<'cx> {
-        &[]
-    }
-    fn get_index_infos(&self) -> super::IndexInfos<'cx> {
         &[]
     }
 }
@@ -65,12 +39,6 @@ impl<'cx> ObjectShape<'cx> for TupleTy<'cx> {
     fn declared_call_sigs(&self) -> super::Sigs<'cx> {
         &[]
     }
-    fn get_base_tys(&self) -> super::Tys<'cx> {
-        &[]
-    }
-    fn get_index_infos(&self) -> super::IndexInfos<'cx> {
-        &[]
-    }
 }
 
 // impl<'cx> ObjectShape for ArrayTy<'cx> {
@@ -90,7 +58,7 @@ impl<'cx> ObjectShape<'cx> for TupleTy<'cx> {
 //     }
 // }
 
-impl<'cx> ObjectShape<'cx> for FnTy<'cx> {
+impl<'cx> ObjectShape<'cx> for AnonymousTy<'cx> {
     fn get_member(&self, _name: &SymbolName) -> Option<SymbolID> {
         None
     }
@@ -98,12 +66,6 @@ impl<'cx> ObjectShape<'cx> for FnTy<'cx> {
         &[]
     }
     fn declared_call_sigs(&self) -> super::Sigs<'cx> {
-        self.declared_sigs
-    }
-    fn get_base_tys(&self) -> super::Tys<'cx> {
-        &[]
-    }
-    fn get_index_infos(&self) -> super::IndexInfos<'cx> {
-        &[]
+        self.call_sigs
     }
 }

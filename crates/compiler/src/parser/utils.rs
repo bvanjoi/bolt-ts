@@ -40,13 +40,13 @@ pub(super) fn is_left_hand_side_expr_kind(expr: &ast::Expr) -> bool {
     )
 }
 
-impl<'p, 't> ParserState<'p, 't> {
+impl<'p> ParserState<'p, '_> {
     pub(super) fn parse_fn_block(&mut self) -> PResult<Option<&'p ast::BlockStmt<'p>>> {
         if self.token.kind != TokenKind::LBrace && self.can_parse_semi() {
             self.parse_semi();
             return Ok(None);
         }
-        self.parse_block().map(|block| Some(block))
+        self.parse_block().map(Some)
     }
 
     pub(super) fn parse_block(&mut self) -> PResult<&'p ast::BlockStmt<'p>> {
@@ -222,7 +222,7 @@ impl<'p, 't> ParserState<'p, 't> {
 
     pub(super) fn next_token_is_ident_or_keyword_on_same_line(&mut self) -> PResult<bool> {
         self.next_token();
-        return Ok(self.token.kind.is_ident_or_keyword() && !self.has_preceding_line_break());
+        Ok(self.token.kind.is_ident_or_keyword() && !self.has_preceding_line_break())
     }
 
     pub(super) fn parse_modifiers(
@@ -454,11 +454,7 @@ impl<'p, 't> ParserState<'p, 't> {
         let t = self.token.kind;
         if t == TokenKind::Less {
             true
-        } else if t == TokenKind::LParen && self.lookahead(Self::is_unambiguously_start_of_fn_ty) {
-            true
-        } else {
-            false
-        }
+        } else { t == TokenKind::LParen && self.lookahead(Self::is_unambiguously_start_of_fn_ty) }
     }
 
     fn skip_param_start(&mut self) -> PResult<bool> {
@@ -498,7 +494,7 @@ impl<'p, 't> ParserState<'p, 't> {
     }
 
     pub(super) fn parse_contextual_modifier(&mut self, t: TokenKind) -> bool {
-        return self.token.kind == t && self.try_parse(Self::next_token_can_follow_modifier);
+        self.token.kind == t && self.try_parse(Self::next_token_can_follow_modifier)
     }
 
     pub(super) fn parse_num_lit(&mut self, val: f64, neg: bool) -> &'p ast::NumLit {

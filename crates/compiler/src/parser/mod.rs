@@ -84,6 +84,12 @@ pub struct Parser<'cx> {
     map: FxHashMap<ModuleID, ParseResult<'cx>>,
 }
 
+impl Default for Parser<'_> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl<'cx> Parser<'cx> {
     pub fn new() -> Self {
         Self {
@@ -181,7 +187,7 @@ fn parse<'cx, 'p>(
 ) -> ParseResult<'cx> {
     let nodes = Nodes::default();
     let parent_map = ParentMap::default();
-    let mut s = ParserState::new(atoms, &arena, nodes, parent_map, input, module_id);
+    let mut s = ParserState::new(atoms, arena, nodes, parent_map, input, module_id);
     s.parse();
     ParseResult {
         diags: s.diags,

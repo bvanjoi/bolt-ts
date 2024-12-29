@@ -22,8 +22,8 @@ impl<'cx> TyChecker<'cx> {
         self.check_index_constraints(ty, symbol);
 
         if let Some(impls) = class.implements() {
-            for ty in impls.tys {
-                self.check_type_reference_node(ty);
+            for ty in impls.list {
+                let _ = self.get_ty_from_ty_reference(*ty);
             }
         }
 

@@ -8,7 +8,7 @@ use super::{errors, list_ctx};
 use super::{parse_class_like, Tristate};
 use super::{PResult, ParserState};
 
-impl<'cx, 'p> ParserState<'cx, 'p> {
+impl<'cx> ParserState<'cx, '_> {
     fn is_update_expr(&self) -> bool {
         use TokenKind::*;
         match self.token.kind {
@@ -32,7 +32,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
 
     fn try_parse_paren_arrow_fn_expr(&mut self) -> PResult<Option<&'cx ast::Expr<'cx>>> {
         match self.is_paren_arrow_fn_expr() {
-            Tristate::True => self.parse_paren_arrow_fn_expr().map(|expr| Some(expr)),
+            Tristate::True => self.parse_paren_arrow_fn_expr().map(Some),
             Tristate::False => Ok(None),
             Tristate::Unknown => {
                 // todo
@@ -86,7 +86,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
                 .map(|block| ast::ArrowFnExprBody::Block(block.unwrap()))
         } else {
             self.parse_assign_expr()
-                .map(|expr| ast::ArrowFnExprBody::Expr(expr))
+                .map(ast::ArrowFnExprBody::Expr)
         }
     }
 
@@ -155,7 +155,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
             });
             self.insert_map(id, ast::Node::AssignExpr(expr));
             let expr = self.alloc(ast::Expr {
-                kind: ast::ExprKind::Assign(&expr),
+                kind: ast::ExprKind::Assign(expr),
             });
             Ok(expr)
         } else {
@@ -180,7 +180,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
             self.re_scan_greater();
 
             let next_prec = self.token.kind.prec();
-            if !(next_prec > prec) {
+            if next_prec <= prec {
                 break Ok(left);
             }
             let op = BinOp {
@@ -362,21 +362,19 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
     fn parse_array_lit(&mut self) -> &'cx ast::Expr<'cx> {
         let id = self.next_node_id();
         let start = self.token.start();
-        if let Err(_) = self.expect(TokenKind::LBracket) {
-            dbg!(self.token);
-            todo!("error handler")
+        if self.expect(TokenKind::LBracket).is_err() {
+            todo!("error handler: {:#?}", self.token)
         }
         let elems = self.with_parent(id, Self::parse_array_lit_elems);
-        if let Err(_) = self.expect(TokenKind::RBracket) {
-            dbg!(self.token);
-            todo!("error handler")
+        if self.expect(TokenKind::RBracket).is_err() {
+            todo!("error handler: {:#?}", self.token)
         }
         let lit = self.alloc(ast::ArrayLit {
             id,
             span: self.new_span(start),
             elems,
         });
-        self.insert_map(id, ast::Node::ArrayLit(&lit));
+        self.insert_map(id, ast::Node::ArrayLit(lit));
         let expr = self.alloc(ast::Expr {
             // id: expr_id,
             kind: ast::ExprKind::ArrayLit(lit),
@@ -481,7 +479,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
             }
         }
         let args = if self.token.kind == LParen {
-            self.parse_args().map(|args| Some(args))
+            self.parse_args().map(Some)
         } else {
             Ok(None)
         }?;

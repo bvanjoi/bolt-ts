@@ -39,19 +39,23 @@ impl<'cx> TyChecker<'cx> {
     }
 
     pub(super) fn create_reference_ty(&mut self, ty: ty::ReferenceTy<'cx>) -> &'cx ty::Ty<'cx> {
-        self.create_object_ty(ty::ObjectTyKind::Reference(self.alloc(ty)))
-    }
-
-    pub(super) fn create_class_ty(&mut self, ty: ty::ClassTy) -> &'cx ty::Ty<'cx> {
-        self.create_object_ty(ty::ObjectTyKind::Class(self.alloc(ty)))
+        let ty = self.create_object_ty(ty::ObjectTyKind::Reference(self.alloc(ty)));
+        self.resolve_structured_type_members(ty);
+        ty
     }
 
     pub(super) fn crate_interface_ty(&mut self, ty: ty::InterfaceTy<'cx>) -> &'cx ty::Ty<'cx> {
         self.create_object_ty(ty::ObjectTyKind::Interface(self.alloc(ty)))
     }
 
-    pub(super) fn create_fn_ty(&mut self, ty: ty::FnTy<'cx>) -> &'cx ty::Ty<'cx> {
-        self.create_object_ty(ty::ObjectTyKind::Fn(self.alloc(ty)))
+    pub(super) fn create_anonymous_ty(&mut self, ty: ty::AnonymousTy<'cx>) -> &'cx ty::Ty<'cx> {
+        assert!(ty.target.is_none() || ty.target.as_ref().unwrap().kind.is_object_anonymous());
+        self.create_object_ty(ty::ObjectTyKind::Anonymous(self.alloc(ty)))
+    }
+
+    pub(super) fn create_param_ty(&mut self, ty: ty::ParamTy) -> &'cx ty::Ty<'cx> {
+        let parm_ty = self.alloc(ty);
+        self.new_ty(ty::TyKind::Param(parm_ty))
     }
 
     // fn add_types_to_union(set: &mut Vec<&'cx ty::Ty<'cx>>, includes: TypeFlags, tys: &[&'cx ty::Ty<'cx>]) {
@@ -94,11 +98,9 @@ impl<'cx> TyChecker<'cx> {
             let source = tys[i];
             if source.kind.is_structured_or_instantiable() {
                 for target in tys.iter() {
-                    if !std::ptr::eq(source, *target) {
-                        if self.is_type_related_to(source, target, RelationKind::StrictSubtype) {
-                            tys.remove(i);
-                            break;
-                        }
+                    if !std::ptr::eq(source, *target) && self.is_type_related_to(source, target, RelationKind::StrictSubtype) {
+                        tys.remove(i);
+                        break;
                     }
                 }
             }

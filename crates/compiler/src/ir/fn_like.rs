@@ -14,7 +14,7 @@ impl<'cx> FnLike<'cx> for ast::FnDecl<'cx> {
         self.params
     }
     fn body(&self) -> Option<ast::ArrowFnExprBody<'cx>> {
-        self.body.map(|b| ast::ArrowFnExprBody::Block(b))
+        self.body.map(ast::ArrowFnExprBody::Block)
     }
 }
 
@@ -26,7 +26,7 @@ impl<'cx> FnLike<'cx> for ast::ClassMethodEle<'cx> {
         self.params
     }
     fn body(&self) -> Option<ast::ArrowFnExprBody<'cx>> {
-        self.body.map(|b| ast::ArrowFnExprBody::Block(b))
+        self.body.map(ast::ArrowFnExprBody::Block)
     }
 }
 
@@ -38,7 +38,7 @@ impl<'cx> FnLike<'cx> for ast::ClassCtor<'cx> {
         self.params
     }
     fn body(&self) -> Option<ast::ArrowFnExprBody<'cx>> {
-        self.body.map(|b| ast::ArrowFnExprBody::Block(b))
+        self.body.map(ast::ArrowFnExprBody::Block)
     }
 }
 

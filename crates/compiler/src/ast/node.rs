@@ -32,7 +32,7 @@ pub enum Node<'cx> {
     InterfaceDecl(&'cx ast::InterfaceDecl<'cx>),
     TypeDecl(&'cx ast::TypeDecl<'cx>),
     InterfaceExtendsClause(&'cx ast::InterfaceExtendsClause<'cx>),
-    ImplementsClause(&'cx ast::ImplementsClause<'cx>),
+    ClassImplementsClause(&'cx ast::ClassImplementsClause<'cx>),
     BlockStmt(&'cx ast::BlockStmt<'cx>),
     ThrowStmt(&'cx ast::ThrowStmt<'cx>),
     EnumDecl(&'cx ast::EnumDecl<'cx>),
@@ -174,19 +174,19 @@ impl<'cx> Node<'cx> {
             ParamDecl(n) => Some(n.name),
             InterfaceDecl(n) => Some(n.name),
             ClassPropEle(n) => match n.name.kind {
-                ast::PropNameKind::Ident(ref ident) => Some(ident),
+                ast::PropNameKind::Ident(ident) => Some(ident),
                 _ => None,
             },
             ClassMethodEle(n) => match n.name.kind {
-                ast::PropNameKind::Ident(ref ident) => Some(ident),
+                ast::PropNameKind::Ident(ident) => Some(ident),
                 _ => None,
             },
             PropSignature(n) => match n.name.kind {
-                ast::PropNameKind::Ident(ref ident) => Some(ident),
+                ast::PropNameKind::Ident(ident) => Some(ident),
                 _ => None,
             },
             ObjectMemberField(n) => match n.name.kind {
-                ast::PropNameKind::Ident(ref ident) => Some(ident),
+                ast::PropNameKind::Ident(ident) => Some(ident),
                 _ => None,
             },
             _ => None,
@@ -538,11 +538,11 @@ as_node!(
         is_class_extends_clause
     ),
     (
-        ImplementsClause,
-        &'cx ast::ImplementsClause<'cx>,
-        as_implements_clause,
-        expect_implements_clause,
-        is_implements_clause
+        ClassImplementsClause,
+        &'cx ast::ClassImplementsClause<'cx>,
+        as_class_implements_clause,
+        expect_class_implements_clause,
+        is_class_implements_clause
     ),
     (
         InterfaceExtendsClause,

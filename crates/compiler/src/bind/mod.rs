@@ -8,6 +8,7 @@ mod symbol;
 use bolt_ts_span::ModuleID;
 use rustc_hash::FxHashMap;
 use symbol::FunctionScopedVarSymbol;
+use symbol::TransientSymbol;
 use thin_vec::thin_vec;
 
 pub use self::symbol::ClassSymbol;
@@ -34,8 +35,8 @@ impl ScopeID {
 pub struct Binder<'cx> {
     p: &'cx Parser<'cx>,
     atoms: &'cx AtomMap<'cx>,
-    binder_result: Vec<ResolveResult>,
-    anonymous_binder: ResolveResult,
+    binder_result: Vec<ResolveResult<'cx>>,
+    transient_binder: ResolveResult<'cx>,
 }
 
 impl<'cx> Binder<'cx> {
@@ -44,7 +45,7 @@ impl<'cx> Binder<'cx> {
             p,
             atoms,
             binder_result: Vec::with_capacity(p.module_count() + 1),
-            anonymous_binder: ResolveResult {
+            transient_binder: ResolveResult {
                 symbols: Symbols::new(ModuleID::MOCK),
                 final_res: Default::default(),
                 diags: Default::default(),
@@ -52,15 +53,28 @@ impl<'cx> Binder<'cx> {
         }
     }
 
-    pub fn insert(&mut self, id: ModuleID, result: ResolveResult) {
+    pub fn insert(&mut self, id: ModuleID, result: ResolveResult<'cx>) {
         assert_eq!(self.binder_result.len(), id.as_usize());
         self.binder_result.push(result);
     }
 
     #[inline(always)]
-    fn get(&self, id: ModuleID) -> &ResolveResult {
-        let idx = id.as_usize();
-        &self.binder_result[idx]
+    fn get(&self, id: ModuleID) -> &ResolveResult<'cx> {
+        if id == ModuleID::MOCK {
+            &self.transient_binder
+        } else {
+            let index = id.as_usize();
+            &self.binder_result[index]
+        }
+    }
+
+    #[inline(always)]
+    fn get_mut(&mut self, id: ModuleID) -> &mut ResolveResult<'cx> {
+        if id == ModuleID::MOCK {
+            &mut self.transient_binder
+        } else {
+            unreachable!("{id:#?} are immutable")
+        }
     }
 
     #[inline(always)]
@@ -77,21 +91,51 @@ impl<'cx> Binder<'cx> {
     }
 
     #[inline(always)]
-    pub fn symbols(&self, id: ModuleID) -> &Symbols {
+    pub fn symbols(&self, id: ModuleID) -> &Symbols<'cx> {
         &self.get(id).symbols
     }
 
     #[inline(always)]
-    pub fn symbol(&self, id: SymbolID) -> &Symbol {
+    pub fn symbol(&self, id: SymbolID) -> &Symbol<'cx> {
         self.get(id.module()).symbols.get(id)
     }
 
-    #[inline(always)]
-    pub fn create_anonymous_symbol(&mut self, name: SymbolName, flags: SymbolFlags) -> SymbolID {
-        let len = self.anonymous_binder.symbols.len();
-        let id = SymbolID::mock(len as u32);
-        let symbol = Symbol::new(name, flags, SymbolKind::ElementProperty);
-        self.anonymous_binder.symbols.insert(id, symbol);
+    pub(crate) fn get_transient(&self, symbol: SymbolID) -> Option<&TransientSymbol<'cx>> {
+        match &self.symbol(symbol).kind.0 {
+            SymbolKind::Transient(ty) => Some(ty),
+            _ => None,
+        }
+    }
+
+    pub(crate) fn get_mut_transient(
+        &mut self,
+        symbol: SymbolID,
+    ) -> Option<&mut TransientSymbol<'cx>> {
+        if symbol.module() != ModuleID::MOCK {
+            return None;
+        }
+        match &mut self.get_mut(ModuleID::MOCK).symbols.get_mut(symbol).kind.0 {
+            SymbolKind::Transient(ty) => Some(ty),
+            _ => None,
+        }
+    }
+
+    pub fn create_transient_symbol(
+        &mut self,
+        name: SymbolName,
+        symbol_flags: SymbolFlags,
+        origin: Option<SymbolID>,
+        links: crate::check::SymbolLinks<'cx>,
+    ) -> SymbolID {
+        let len = self.transient_binder.symbols.len();
+        let id = SymbolID::mock(len);
+        let symbol_flags = symbol_flags | SymbolFlags::TRANSIENT;
+        let symbol = Symbol::new(
+            name,
+            symbol_flags,
+            SymbolKind::Transient(TransientSymbol { links, origin }),
+        );
+        self.transient_binder.symbols.insert(id, symbol);
         id
     }
 
@@ -112,7 +156,7 @@ pub struct BinderState<'cx> {
     pub(crate) atoms: &'cx AtomMap<'cx>,
     pub(crate) scope_id_parent_map: Vec<Option<ScopeID>>,
     pub(crate) node_id_to_scope_id: FxHashMap<ast::NodeID, ScopeID>,
-    pub(crate) symbols: Symbols,
+    pub(crate) symbols: Symbols<'cx>,
     pub(super) res: FxHashMap<(ScopeID, SymbolName), SymbolID>,
     pub(crate) final_res: FxHashMap<ast::NodeID, SymbolID>,
 }
@@ -248,7 +292,7 @@ impl<'cx> BinderState<'cx> {
         if let Some(ty_params) = t.ty_params {
             self.bind_ty_params(ty_params);
         }
-        self.bind_ty(&t.ty);
+        self.bind_ty(t.ty);
     }
 
     fn bind_ty_params(&mut self, ty_params: ast::TyParams<'cx>) {
@@ -312,8 +356,8 @@ impl<'cx> BinderState<'cx> {
                 };
                 let s = self.symbols.get_mut(s);
                 if let Some(i) = &mut s.kind.1 {
-                    if !i.members.contains_key(&name) {
-                        i.members.insert(name, symbol);
+                    if let std::collections::hash_map::Entry::Vacant(e) = i.members.entry(name) {
+                        e.insert(symbol);
                     } else {
                         // TODO: prev
                     };
@@ -389,8 +433,8 @@ impl<'cx> BinderState<'cx> {
             self.bind_ty_params(ty_params);
         }
         if let Some(extends) = i.extends {
-            for ty in extends.tys {
-                self.bind_ty(ty);
+            for ty in extends.list {
+                self.bind_refer_ty(ty);
             }
         }
 
@@ -519,6 +563,15 @@ impl<'cx> BinderState<'cx> {
         }
     }
 
+    fn bind_refer_ty(&mut self, refer: &'cx ast::ReferTy) {
+        self.bind_entity_name(refer.name);
+        if let Some(ty_args) = refer.ty_args {
+            for ty_arg in ty_args.list {
+                self.bind_ty(ty_arg);
+            }
+        }
+    }
+
     fn bind_ty(&mut self, ty: &'cx ast::Ty) {
         use ast::TyKind::*;
         match ty.kind {
@@ -537,15 +590,7 @@ impl<'cx> BinderState<'cx> {
                 }
                 self.scope_id = old;
             }
-            ExprWithArg(expr) => self.bind_expr(expr),
-            Refer(refer) => {
-                self.bind_entity_name(refer.name);
-                if let Some(ty_args) = refer.ty_args {
-                    for ty_arg in ty_args.list {
-                        self.bind_ty(ty_arg);
-                    }
-                }
-            }
+            Refer(refer) => self.bind_refer_ty(refer),
             Cond(cond) => {
                 self.bind_ty(cond.check_ty);
                 self.bind_ty(cond.extends_ty);

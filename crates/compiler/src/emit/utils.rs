@@ -20,7 +20,7 @@ impl<'cx> Emit<'cx> {
         if param.dotdotdot.is_some() {
             self.content.p_dot_dot_dot();
         }
-        self.emit_ident(&param.name);
+        self.emit_ident(param.name);
         if let Some(init) = param.init {
             self.content.p_whitespace();
             self.content.p_eq();

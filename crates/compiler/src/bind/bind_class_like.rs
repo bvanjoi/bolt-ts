@@ -104,8 +104,8 @@ impl<'cx> BinderState<'cx> {
         }
 
         if let Some(implements) = class.implements() {
-            for ty in implements.tys {
-                self.bind_ty(ty);
+            for ty in implements.list {
+                self.bind_refer_ty(ty);
             }
         }
 

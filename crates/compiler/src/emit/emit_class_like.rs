@@ -16,7 +16,7 @@ impl<'cx> Emit<'cx> {
             self.emit_expr(extends.expr);
             self.content.p_whitespace();
         }
-        self.emit_block_like(&*class.elems());
+        self.emit_block_like(class.elems());
     }
 
     pub(super) fn emit_class_ele(&mut self, ele: &ast::ClassEle<'cx>) {
@@ -38,7 +38,7 @@ impl<'cx> Emit<'cx> {
                     }
                     self.content.p("get");
                     self.content.p_whitespace();
-                    self.emit_prop_name(&p.name);
+                    self.emit_prop_name(p.name);
                     self.emit_params(&[]);
                     self.content.p_whitespace();
                     self.emit_block_stmt(body);
@@ -54,7 +54,7 @@ impl<'cx> Emit<'cx> {
                     }
                     self.content.p("set");
                     self.content.p_whitespace();
-                    self.emit_prop_name(&p.name);
+                    self.emit_prop_name(p.name);
                     self.emit_params(p.params);
                     self.content.p_whitespace();
                     self.emit_block_stmt(body);
@@ -80,7 +80,7 @@ impl<'cx> Emit<'cx> {
             }
         }
         if let Some(body) = method.body {
-            self.emit_prop_name(&method.name);
+            self.emit_prop_name(method.name);
             self.emit_params(method.params);
             self.content.p_whitespace();
             self.emit_block_stmt(body);
@@ -94,7 +94,7 @@ impl<'cx> Emit<'cx> {
                 self.content.p_whitespace();
             }
         }
-        self.emit_prop_name(&prop.name);
+        self.emit_prop_name(prop.name);
         if let Some(init) = prop.init {
             self.content.p_whitespace();
             self.content.p_eq();

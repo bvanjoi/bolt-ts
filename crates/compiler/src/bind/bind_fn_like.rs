@@ -15,7 +15,9 @@ impl<'cx> BinderState<'cx> {
     ) -> super::SymbolID {
         let container = self.final_res.get(&container).copied().unwrap();
 
-        fn members(container: &mut Symbol) -> &mut FxHashMap<super::SymbolName, super::SymbolID> {
+        fn members<'a>(
+            container: &'a mut Symbol<'_>,
+        ) -> &'a mut FxHashMap<super::SymbolName, super::SymbolID> {
             if let Some(i) = &mut container.kind.1 {
                 return &mut i.members;
             }
@@ -43,7 +45,7 @@ impl<'cx> BinderState<'cx> {
                 _ => unreachable!("symbol: {:#?}", symbol),
             }
             self.create_final_res(decl.id(), s);
-            return s;
+            s
         } else {
             let symbol = self.create_symbol(
                 ele_name,
@@ -56,7 +58,7 @@ impl<'cx> BinderState<'cx> {
             self.create_final_res(decl.id(), symbol);
             let prev = members(self.symbols.get_mut(container)).insert(ele_name, symbol);
             assert!(prev.is_none());
-            return symbol;
+            symbol
         }
     }
 }

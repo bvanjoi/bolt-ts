@@ -1,23 +1,24 @@
+mod check_flags;
 mod facts;
 mod mapper;
 mod object_shape;
 mod object_ty;
 mod sig;
 
-use crate::atoms::{AtomId, AtomMap};
-use crate::bind::{Binder, SymbolID};
+use crate::atoms::AtomId;
+use crate::bind::SymbolID;
 use crate::check::TyChecker;
 use crate::{ast, keyword};
 
+pub use self::check_flags::CheckFlags;
 pub use self::facts::{has_type_facts, TypeFacts};
-pub use self::mapper::{ArrayTyMapper, CompositeTyMapper, TyMapper};
-pub use self::mapper::{DeferredTyMapper, FnTyMapper, MergedTyMapper, SimpleTyMapper};
+pub use self::mapper::TyMapper;
 pub use self::object_shape::ObjectShape;
 pub use self::object_ty::ElementFlags;
-pub use self::object_ty::{ClassTy, FnTy, InterfaceTy, ObjectLitTy, ObjectTyKind};
-pub use self::object_ty::{DeclaredInfos, ReferenceTy};
+pub use self::object_ty::{AnonymousTy, InterfaceTy, ObjectLitTy, ObjectTyKind};
+pub use self::object_ty::{DeclaredMembers, ReferenceTy, StructuredMembers};
 pub use self::object_ty::{IndexInfo, IndexInfos, ObjectTy, TupleShape, TupleTy};
-pub use self::sig::{Sig, SigFlags, Sigs};
+pub use self::sig::{Sig, SigFlags, SigKind, Sigs};
 
 bolt_ts_span::new_index!(TyID);
 bolt_ts_span::new_index!(TyVarID);
@@ -28,7 +29,7 @@ pub struct Ty<'cx> {
     pub id: TyID,
 }
 
-impl<'cx> PartialEq for Ty<'cx> {
+impl PartialEq for Ty<'_> {
     fn eq(&self, other: &Self) -> bool {
         if self.id == other.id {
             assert!(std::ptr::eq(&self.kind, &other.kind), "extra allocation");
@@ -114,6 +115,13 @@ as_ty_kind!(
     expect_number_lit,
     is_number_lit
 );
+as_ty_kind!(
+    IndexedAccess,
+    &'cx IndexedAccessTy<'cx>,
+    as_indexed_access,
+    expect_indexed_access,
+    is_indexed_access
+);
 as_ty_kind!(Any, is_any);
 as_ty_kind!(Number, is_number);
 as_ty_kind!(String, is_string);
@@ -134,10 +142,10 @@ as_ty_kind!(Param, &'cx ParamTy, as_param, expect_param, is_param);
 as_ty_kind!(Var, &TyVarID, as_ty_var, expect_ty_var, is_ty_var);
 as_ty_kind!(Cond, &CondTy<'cx>, as_cond_ty, expect_cond_ty, is_cond_ty);
 
-impl<'cx> Ty<'cx> {
+impl Ty<'_> {
     pub fn to_string(&self, checker: &mut TyChecker) -> String {
         if self.kind.is_array(checker) {
-            let ele = self.kind.expect_object_reference().ty_args[0].to_string(checker);
+            let ele = self.kind.expect_object_reference().resolved_ty_args[0].to_string(checker);
             return format!("{ele}[]");
         }
         match self.kind {
@@ -170,6 +178,22 @@ impl<'cx> Ty<'cx> {
             TyKind::Void => keyword::IDENT_VOID_STR.to_string(),
             TyKind::Undefined => keyword::IDENT_UNDEFINED_STR.to_string(),
             TyKind::Null => keyword::KW_NULL_STR.to_string(),
+        }
+    }
+
+    pub fn symbol(&self) -> Option<SymbolID> {
+        match self.kind {
+            TyKind::Object(ty) => match ty.kind {
+                ObjectTyKind::Interface(i) => Some(i.symbol),
+                ObjectTyKind::Reference(i) => i.target.symbol(),
+                _ => None,
+            },
+            TyKind::Param(ty) => Some(ty.symbol),
+            TyKind::Union(ty) => todo!(),
+            TyKind::Var(ty) => todo!(),
+            TyKind::IndexedAccess(ty) => todo!(),
+            TyKind::Cond(ty) => todo!(),
+            _ => None,
         }
     }
 }
@@ -244,11 +268,20 @@ impl TyKind<'_> {
     }
 
     pub fn is_type_variable(&self) -> bool {
-        self.is_ty_var() || self.is_param()
+        self.is_ty_var() || self.is_param() || self.is_indexed_access()
     }
 
     pub fn is_instantiable_non_primitive(&self) -> bool {
         self.is_type_variable() || self.is_cond_ty()
+    }
+
+    pub fn is_instantiable_primitive(&self) -> bool {
+        // todo: `index`, `template literal`, `string mapping`
+        false
+    }
+
+    pub fn is_instantiable(&self) -> bool {
+        self.is_instantiable_non_primitive() || self.is_instantiable_primitive()
     }
 
     pub fn is_generic(&self) -> bool {
@@ -273,9 +306,12 @@ impl TyKind<'_> {
     }
 
     pub fn is_array(&self, checker: &TyChecker) -> bool {
-        self.as_object_reference()
-            .map(|refer| refer.target == checker.global_array_ty())
-            .unwrap_or_default()
+        if let Some(a) = self.as_object_reference() {
+            let b = checker.global_array_ty().kind.expect_object_reference();
+            a.target == b.target
+        } else {
+            false
+        }
     }
 
     pub fn is_object_flags_type(&self) -> bool {

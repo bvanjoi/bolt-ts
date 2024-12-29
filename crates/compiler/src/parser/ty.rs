@@ -33,7 +33,7 @@ impl ListContext for TypeArguments {
     }
 }
 
-impl<'cx, 'p> ParserState<'cx, 'p> {
+impl<'cx> ParserState<'cx, '_> {
     fn should_parse_ret_ty(&mut self, is_colon: bool, is_ty: bool) -> PResult<bool> {
         if !is_colon {
             self.expect(TokenKind::EqGreat)?;
@@ -52,7 +52,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
             .should_parse_ret_ty(is_colon, false)
             .unwrap_or_default()
         {
-            self.parse_ty_or_ty_pred().map(|ty| Some(ty))
+            self.parse_ty_or_ty_pred().map(Some)
         } else {
             Ok(None)
         }
@@ -156,7 +156,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
 
     fn parse_arrow_fn_ret_type(&mut self) -> PResult<Option<&'cx ast::Ty<'cx>>> {
         if self.parse_optional(TokenKind::EqGreat).is_some() {
-            self.parse_ty_or_ty_pred().map(|ty| Some(ty))
+            self.parse_ty_or_ty_pred().map(Some)
         } else {
             Ok(None)
         }
@@ -194,7 +194,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
 
     pub(super) fn parse_ty_anno(&mut self) -> PResult<Option<&'cx ast::Ty<'cx>>> {
         if self.parse_optional(TokenKind::Colon).is_some() {
-            self.parse_ty().map(|ty| Some(ty))
+            self.parse_ty().map(Some)
         } else {
             Ok(None)
         }
@@ -304,7 +304,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         }
     }
 
-    fn parse_entity_name_of_ty_reference(&mut self) -> PResult<&'cx ast::ReferTy<'cx>> {
+    pub(super) fn parse_entity_name_of_ty_reference(&mut self) -> PResult<&'cx ast::ReferTy<'cx>> {
         let id = self.next_node_id();
         let start = self.token.start();
         let name = self.with_parent(id, Self::parse_entity_name)?;
@@ -329,7 +329,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
 
     fn parse_keyword_and_not_dot(&mut self) -> PResult<Option<Token>> {
         let token = self.parse_token_node();
-        Ok((self.token.kind != TokenKind::Dot).then(|| token))
+        Ok((self.token.kind != TokenKind::Dot).then_some(token))
     }
 
     fn try_parse_ty_args(&mut self) -> PResult<Option<&'cx ast::Tys<'cx>>> {
@@ -489,7 +489,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
             let ty = self.alloc(ast::Ty {
                 kind: ast::TyKind::Rest(ty),
             });
-            return Ok(ty);
+            Ok(ty)
         } else {
             self.parse_ty()
         }
@@ -516,14 +516,6 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         let ty = self.parse_ty();
         self.expect(TokenKind::RParen)?;
         ty
-    }
-
-    pub(super) fn parse_expr_with_ty_args(&mut self) -> PResult<&'cx ast::Ty<'cx>> {
-        let expr = self.parse_left_hand_side_expr();
-        let ty = self.alloc(ast::Ty {
-            kind: ast::TyKind::ExprWithArg(expr),
-        });
-        Ok(ty)
     }
 
     fn parse_prop_or_method_sig(&mut self) -> PResult<&'cx ast::ObjectTyMember<'cx>> {

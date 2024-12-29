@@ -153,7 +153,7 @@ pub struct ClassDecl<'cx> {
     pub name: &'cx Ident,
     pub ty_params: Option<TyParams<'cx>>,
     pub extends: Option<&'cx ClassExtendsClause<'cx>>,
-    pub implements: Option<&'cx ImplementsClause<'cx>>,
+    pub implements: Option<&'cx ClassImplementsClause<'cx>>,
     pub elems: &'cx ClassElems<'cx>,
 }
 
@@ -247,7 +247,7 @@ pub type Exprs<'cx> = &'cx [&'cx Expr<'cx>];
 pub struct InterfaceExtendsClause<'cx> {
     pub id: NodeID,
     pub span: Span,
-    pub tys: &'cx [&'cx Ty<'cx>],
+    pub list: &'cx [&'cx ReferTy<'cx>],
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -259,10 +259,10 @@ pub struct ClassExtendsClause<'cx> {
 }
 
 #[derive(Debug, Clone, Copy)]
-pub struct ImplementsClause<'cx> {
+pub struct ClassImplementsClause<'cx> {
     pub id: NodeID,
     pub span: Span,
-    pub tys: &'cx [&'cx Ty<'cx>],
+    pub list: &'cx [&'cx ReferTy<'cx>],
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -516,7 +516,7 @@ pub struct ClassExpr<'cx> {
     pub name: Option<&'cx Ident>,
     pub ty_params: Option<TyParams<'cx>>,
     pub extends: Option<&'cx ClassExtendsClause<'cx>>,
-    pub implements: Option<&'cx ImplementsClause<'cx>>,
+    pub implements: Option<&'cx ClassImplementsClause<'cx>>,
     pub elems: &'cx ClassElems<'cx>,
 }
 
@@ -666,7 +666,6 @@ impl Ty<'_> {
             TyKind::Array(array) => array.span,
             TyKind::Fn(f) => f.span,
             TyKind::ObjectLit(lit) => lit.span,
-            TyKind::ExprWithArg(node) => node.span(),
             TyKind::NumLit(num) => num.span,
             TyKind::StringLit(s) => s.span,
             TyKind::Tuple(tuple) => tuple.span,
@@ -687,7 +686,6 @@ impl Ty<'_> {
             TyKind::Array(node) => node.id,
             TyKind::Fn(node) => node.id,
             TyKind::ObjectLit(node) => node.id,
-            TyKind::ExprWithArg(node) => node.id(),
             TyKind::NumLit(num) => num.id,
             TyKind::StringLit(s) => s.id,
             TyKind::Tuple(tuple) => tuple.id,
@@ -711,7 +709,6 @@ pub enum TyKind<'cx> {
     IndexedAccess(&'cx IndexedAccessTy<'cx>),
     Fn(&'cx FnTy<'cx>),
     ObjectLit(&'cx ObjectLitTy<'cx>),
-    ExprWithArg(&'cx Expr<'cx>),
     NumLit(&'cx NumLitTy),
     BooleanLit(&'cx BoolLitTy),
     NullLit(&'cx NullLitTy),
@@ -843,7 +840,7 @@ pub struct PropName<'cx> {
     pub kind: PropNameKind<'cx>,
 }
 
-impl<'cx> PropName<'cx> {
+impl PropName<'_> {
     pub fn span(&self) -> Span {
         match self.kind {
             PropNameKind::Ident(ident) => ident.span,

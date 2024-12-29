@@ -17,7 +17,15 @@ impl<'cx> TyChecker<'cx> {
     }
 
     pub(super) fn get_sigs_of_symbol(&mut self, id: SymbolID) -> &'cx [&'cx Sig<'cx>] {
-        let f = self.binder.symbol(id).expect_fn();
+        let f = if let Some(s) = self.binder.get_transient(id) {
+            if let Some(s) = s.origin {
+                self.binder.symbol(s).expect_fn()
+            } else {
+                self.binder.symbol(id).expect_fn()
+            }
+        } else {
+            self.binder.symbol(id).expect_fn()
+        };
         let sigs = f
             .decls
             .clone()
@@ -121,5 +129,7 @@ fn get_sig_from_decl<'cx>(checker: &mut TyChecker<'cx>, node: ast::Node<'cx>) ->
         min_args_count,
         ret,
         node_id: node.id(),
+        target: None,
+        mapper: None,
     }
 }

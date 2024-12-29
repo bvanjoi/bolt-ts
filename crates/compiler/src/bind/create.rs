@@ -22,7 +22,7 @@ impl<'cx> BinderState<'cx> {
         id
     }
 
-    pub(super) fn create_var_decl(&mut self, decl: &'cx ast::VarDecl<'cx>, kind: SymbolKind) {
+    pub(super) fn create_var_decl(&mut self, decl: &'cx ast::VarDecl<'cx>, kind: SymbolKind<'cx>) {
         let flags = if matches!(kind, SymbolKind::BlockScopedVar { .. }) {
             SymbolFlags::BLOCK_SCOPED_VARIABLE
         } else {
@@ -36,7 +36,7 @@ impl<'cx> BinderState<'cx> {
         &mut self,
         name: AtomId,
         flags: SymbolFlags,
-        kind: SymbolKind,
+        kind: SymbolKind<'cx>,
     ) -> SymbolID {
         let name = SymbolName::Normal(name);
         self.create_symbol(name, flags, kind)
@@ -46,7 +46,7 @@ impl<'cx> BinderState<'cx> {
         &mut self,
         name: SymbolName,
         flags: SymbolFlags,
-        kind: SymbolKind,
+        kind: SymbolKind<'cx>,
     ) -> SymbolID {
         let key = (self.scope_id, name);
         if name.as_atom().is_some() {
@@ -108,19 +108,19 @@ impl<'cx> BinderState<'cx> {
         i: InterfaceSymbol,
     ) -> SymbolID {
         let key = (self.scope_id, name);
-        if name.as_atom().is_some() {
-            // if let Some(id) = self.res.get(&key) {
-            //     let prev = self.symbols.get_mut(*id);
-            //     prev.flags |= flags;
-            //     let prev = &mut prev.kind;
-            //     if !matches!(prev.0, SymbolKind::Err) {
-            //         // todo: symbol merge
-            //     }
-            //     assert!(prev.1.is_none());
-            //     prev.1 = Some(i);
-            //     // return *id;
-            // }
-        }
+        // if name.as_atom().is_some() {
+        //     if let Some(id) = self.res.get(&key) {
+        //         let prev = self.symbols.get_mut(*id);
+        //         prev.flags |= flags;
+        //         let prev = &mut prev.kind;
+        //         if !matches!(prev.0, SymbolKind::Err) {
+        //             // todo: symbol merge
+        //         }
+        //         assert!(prev.1.is_none());
+        //         prev.1 = Some(i);
+        //         return *id;
+        //     }
+        // }
         let id = self.next_symbol_id();
         self.symbols
             .insert(id, Symbol::new_interface(name, flags, i));
@@ -135,19 +135,19 @@ impl<'cx> BinderState<'cx> {
         i: NsSymbol,
     ) -> SymbolID {
         let key = (self.scope_id, name);
-        if name.as_atom().is_some() {
-            // if let Some(id) = self.res.get(&key) {
-            //     let prev = self.symbols.get_mut(*id);
-            //     prev.flags |= flags;
-            //     let prev = &mut prev.kind;
-            //     if !matches!(prev.0, SymbolKind::Err) {
-            //         todo!("error handler")
-            //     }
-            //     // assert!(prev.2.is_none());
-            //     prev.2 = Some(i);
-            //     return *id;
-            // }
-        }
+        // if name.as_atom().is_some() {
+        //     if let Some(id) = self.res.get(&key) {
+        //         let prev = self.symbols.get_mut(*id);
+        //         prev.flags |= flags;
+        //         let prev = &mut prev.kind;
+        //         if !matches!(prev.0, SymbolKind::Err) {
+        //             todo!("error handler")
+        //         }
+        //         // assert!(prev.2.is_none());
+        //         prev.2 = Some(i);
+        //         return *id;
+        //     }
+        // }
         let id = self.next_symbol_id();
         self.symbols.insert(id, Symbol::new_ns(name, flags, i));
         let prev = self.res.insert(key, id);

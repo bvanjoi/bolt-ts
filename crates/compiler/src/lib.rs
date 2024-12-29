@@ -51,7 +51,7 @@ fn build_graph<'cx>(
     herd: &'cx bumpalo_herd::Herd,
     parser: &mut parser::Parser<'cx>,
 ) {
-    for (module_id, result) in parse_parallel(atoms.clone(), herd, list, &module_arena) {
+    for (module_id, result) in parse_parallel(atoms.clone(), herd, list, module_arena) {
         parser.insert(module_id, result);
     }
 }
@@ -211,7 +211,7 @@ pub fn eval_from(cwd: PathBuf, tsconfig: NormalizedTsConfig) -> Output {
         })
         .collect::<FxHashMap<_, _>>();
 
-    let diags = diags.into_iter().chain(checker.diags.into_iter()).collect();
+    let diags = diags.into_iter().chain(checker.diags).collect();
 
     Output {
         cwd,

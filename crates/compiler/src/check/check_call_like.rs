@@ -15,10 +15,16 @@ pub(super) trait CallLikeExpr<'cx>: ir::CallLike<'cx> {
 
 impl<'cx> CallLikeExpr<'cx> for ast::CallExpr<'cx> {
     fn sigs(checker: &TyChecker<'cx>, ty: &'cx ty::Ty<'cx>) -> Sigs<'cx> {
-        if let Some(f) = ty.kind.as_object_fn() {
-            f.declared_sigs
+        if let Some(f) = ty.kind.as_object_anonymous() {
+            let res = checker.signatures_of_type(ty, ty::SigKind::Call);
+            if res.is_empty() {
+                f.call_sigs
+            } else {
+                res
+            }
         } else {
-            return &[];
+            let sigs = checker.signatures_of_type(ty, ty::SigKind::Call);
+            sigs
         }
     }
     fn resolve_sig(&self, checker: &mut TyChecker<'cx>) -> &'cx Sig<'cx> {
@@ -28,17 +34,12 @@ impl<'cx> CallLikeExpr<'cx> for ast::CallExpr<'cx> {
 
 impl<'cx> CallLikeExpr<'cx> for ast::NewExpr<'cx> {
     fn sigs(checker: &TyChecker<'cx>, ty: &'cx ty::Ty<'cx>) -> Sigs<'cx> {
-        if let Some(i) = ty.kind.as_object_interface() {
-            i.declared_infos.declared_ctor_sigs
-        } else if let Some(c) = ty.kind.as_object_class() {
-            let i = checker
-                .declared_ty_of_symbol(c.symbol)
-                .kind
-                .expect_object_interface();
-            i.declared_infos.declared_ctor_sigs
+        if ty.kind.as_object_interface().is_some() {
+            checker.ty_declared_members[&ty.id].ctor_sigs
         } else {
+            let sigs = checker.signatures_of_type(ty, ty::SigKind::Constructor);
             // unreachable!("{ty:#?}");
-            return &[];
+            sigs
         }
     }
     fn resolve_sig(&self, checker: &mut TyChecker<'cx>) -> &'cx Sig<'cx> {
@@ -66,10 +67,16 @@ impl<'cx> TyChecker<'cx> {
                 let s = self.get_symbol_of_decl(ret);
                 self.get_type_of_symbol(s)
             } else {
-                let ret_ty = self.get_ty_from_type_node(&ty.as_ty().unwrap());
+                let ret_ty = if let Some(target) = sig.target {
+                    let ret_ty = self.get_ret_ty_of_sig(expr, target);
+                    self.instantiate_ty(ret_ty, sig.mapper)
+                } else {
+                    self.get_ty_from_type_node(&ty.as_ty().unwrap())
+                };
+
                 if let Some(ty_params) = sig.ty_params {
                     let sources = ty_params
-                        .into_iter()
+                        .iter()
                         .map(|id| self.get_declared_ty_of_symbol(*id))
                         .collect::<Vec<_>>();
                     let sources = self.alloc(sources);
@@ -85,8 +92,8 @@ impl<'cx> TyChecker<'cx> {
                         // callee()
                         self.infer_ty_args(sig, expr.args())
                     };
-                    let mapper = ty::TyMapper::create(sources, targets);
-                    self.instantiate_ty_with_alias(ret_ty, &mapper)
+                    let mapper = self.alloc(ty::TyMapper::create(sources, targets));
+                    self.instantiate_ty_with_alias(ret_ty, mapper)
                 } else {
                     ret_ty
                 }
@@ -94,11 +101,7 @@ impl<'cx> TyChecker<'cx> {
         })
     }
 
-    pub(super) fn get_ty_at_pos(
-        &mut self,
-        sig: &'cx Sig<'cx>,
-        pos: usize,
-    ) -> Option<&'cx ty::Ty<'cx>> {
+    pub(super) fn get_ty_at_pos(&mut self, sig: &Sig<'cx>, pos: usize) -> Option<&'cx ty::Ty<'cx>> {
         let param_count = if sig.has_rest_param() {
             sig.params.len() - 1
         } else {
@@ -110,7 +113,7 @@ impl<'cx> TyChecker<'cx> {
             let rest_ty = self.get_type_of_symbol(sig.params[param_count]);
             // let index = pos - param_count;
             (!rest_ty.kind.is_tuple()).then(|| {
-                rest_ty.kind.expect_object_reference().ty_args[0]
+                rest_ty.kind.expect_object_reference().resolved_ty_args[0]
                 // TODO:
                 // let index_ty = self.get_number_literal_type(index as f64);
                 // self.get_indexed_access_ty(rest_ty, index_ty, None)
@@ -122,8 +125,8 @@ impl<'cx> TyChecker<'cx> {
 
     fn resolve_new_expr(&mut self, expr: &impl CallLikeExpr<'cx>) -> &'cx Sig<'cx> {
         let ty = self.check_expr(expr.callee());
-        let sigs = ast::NewExpr::sigs(self, ty);
-        self.resolve_call(ty, expr, &sigs)
+        let sigs = self.signatures_of_type(ty, ty::SigKind::Constructor);
+        self.resolve_call(ty, expr, sigs)
     }
 
     fn resolve_call_expr(&mut self, expr: &impl CallLikeExpr<'cx>) -> &'cx Sig<'cx> {
@@ -148,29 +151,7 @@ impl<'cx> TyChecker<'cx> {
             return self.unknown_sig();
         }
 
-        self.resolve_call(ty, expr, &sigs)
-    }
-
-    fn get_param_count(&mut self, sig: &'cx Sig<'cx>) -> usize {
-        let len = sig.params.len();
-        if sig.has_rest_param() {
-            let rest_ty = self.get_type_of_symbol(sig.params[len - 1]);
-            if rest_ty.kind.is_tuple() {
-                let tuple = rest_ty
-                    .kind
-                    .expect_object_reference()
-                    .target
-                    .kind
-                    .expect_object_tuple();
-                let var = if tuple.combined_flags.intersects(ElementFlags::VARIABLE) {
-                    0
-                } else {
-                    1
-                };
-                return len + tuple.shape.fixed_length - var;
-            }
-        }
-        len
+        self.resolve_call(ty, expr, sigs)
     }
 
     fn get_min_arg_count(&mut self, sig: &'cx Sig<'cx>) -> usize {
@@ -234,7 +215,7 @@ impl<'cx> TyChecker<'cx> {
     }
 
     fn has_correct_arity(&mut self, expr: &impl CallLikeExpr<'cx>, sig: &'cx Sig<'cx>) -> bool {
-        let param_count = self.get_param_count(sig);
+        let param_count = sig.get_param_count(self);
         let min_args = self.get_min_arg_count(sig);
         let args = expr.args();
         let arg_count = args.len();
@@ -255,34 +236,81 @@ impl<'cx> TyChecker<'cx> {
         true
     }
 
+    fn get_signature_applicability_error(
+        &mut self,
+        expr: &impl CallLikeExpr<'cx>,
+        sig: &ty::Sig<'cx>,
+        relation: RelationKind,
+    ) -> bool {
+        let args = expr.args();
+        let rest_type = sig.get_non_array_rest_ty(self);
+        let arg_count = args.len();
+        let arg_count = if rest_type.is_some() {
+            usize::min(arg_count, sig.get_param_count(self) - 1)
+        } else {
+            arg_count
+        };
+        let mut has_error = false;
+        for (i, arg) in args.iter().enumerate().take(arg_count) {
+            let param_ty = self.get_ty_at_pos(sig, i).unwrap_or(self.any_ty());
+            let arg_ty = self.check_expr_with_contextual_ty(arg, param_ty);
+            if !self.check_type_related_to_and_optionally_elaborate(
+                arg.span(),
+                arg_ty,
+                param_ty,
+                relation,
+                |this, span, source, target| {
+                    let source = this.get_base_ty_of_literal_ty(source);
+                    Box::new(errors::ArgumentOfTyIsNotAssignableToParameterOfTy {
+                        span,
+                        arg_ty: this.print_ty(source).to_string(),
+                        param_ty: this.print_ty(target).to_string(),
+                    })
+                },
+            ) {
+                has_error = true
+            }
+        }
+        has_error
+    }
+
     fn choose_overload(
         &mut self,
         expr: &impl CallLikeExpr<'cx>,
         sigs: Sigs<'cx>,
         relation: RelationKind,
+        is_single_non_generic_candidate: bool,
     ) -> Option<&'cx Sig<'cx>> {
-        for sig in sigs {
-            if !self.has_correct_arity(expr, sig) {
-                continue;
+        if is_single_non_generic_candidate {
+            let sig = sigs[0];
+            if !self.has_correct_arity(expr, sig)
+                || self.get_signature_applicability_error(expr, sig, relation)
+            {
+                None
+            } else {
+                Some(sig)
             }
-            if let Some(ty_params) = sig.ty_params {
-                let location = self
-                    .p
-                    .parent(self.binder.symbol(ty_params[0]).decl())
-                    .unwrap();
+        } else {
+            for sig in sigs {
+                if !self.has_correct_arity(expr, sig) {
+                    continue;
+                }
+                // if let Some(ty_params) = sig.ty_params {
+                //     let location = self.p.parent(ty_params[0].decl(self.binder)).unwrap();
+                // }
+                return Some(sig);
             }
-            return Some(sig);
+            None
         }
-        None
     }
 
     fn resolve_call(
         &mut self,
         ty: &'cx ty::Ty<'cx>,
         expr: &impl CallLikeExpr<'cx>,
-        sigs: Sigs<'cx>,
+        candidates: Sigs<'cx>,
     ) -> &'cx Sig<'cx> {
-        if sigs.is_empty() {
+        if candidates.is_empty() {
             return self.unknown_sig();
         }
 
@@ -291,13 +319,27 @@ impl<'cx> TyChecker<'cx> {
 
         let args = expr.args();
 
-        if sigs.len() > 1 {
-            if let Some(sig) = self.choose_overload(expr, sigs, RelationKind::Subtype) {
+        let is_single = candidates.len() == 1;
+        let is_single_non_generic_candidate = is_single && candidates[0].ty_params.is_none();
+        if candidates.len() > 1 {
+            if let Some(sig) = self.choose_overload(
+                expr,
+                candidates,
+                RelationKind::Subtype,
+                is_single_non_generic_candidate,
+            ) {
                 return sig;
             }
+        } else {
+            self.choose_overload(
+                expr,
+                candidates,
+                RelationKind::Assignable,
+                is_single_non_generic_candidate,
+            );
         }
 
-        for sig in sigs {
+        for sig in candidates {
             if sig.min_args_count < min_required_params {
                 min_required_params = sig.min_args_count;
             }
@@ -309,8 +351,8 @@ impl<'cx> TyChecker<'cx> {
         }
 
         // FIXME: overload
-        let sig = sigs[0];
-        if sig.flags.intersects(SigFlags::HAS_ABSTRACT) {
+        let candidate = candidates[0];
+        if candidate.flags.intersects(SigFlags::HAS_ABSTRACT) {
             let error = errors::CannotCreateAnInstanceOfAnAbstractClass {
                 span: expr.callee().span(),
             };
@@ -318,26 +360,7 @@ impl<'cx> TyChecker<'cx> {
         }
 
         if min_required_params <= args.len() && args.len() <= max_required_params {
-            for (idx, arg) in args.iter().enumerate() {
-                let Some(param_ty) = self.get_ty_at_pos(sig, idx) else {
-                    continue;
-                };
-                let arg_ty = self.check_expr_with_contextual_ty(arg, param_ty);
-                self.check_type_related_to_and_optionally_elaborate(
-                    arg.span(),
-                    arg_ty,
-                    param_ty,
-                    RelationKind::Assignable,
-                    |this, span, source, target| {
-                        let source = this.get_base_ty_of_literal_ty(source);
-                        Box::new(errors::ArgumentOfTyIsNotAssignableToParameterOfTy {
-                            span,
-                            arg_ty: this.print_ty(source).to_string(),
-                            param_ty: this.print_ty(target).to_string(),
-                        })
-                    },
-                )
-            }
+            // arguments had been check in `check_overload`
         } else if min_required_params == max_required_params {
             let x = min_required_params;
             let y = args.len();
@@ -388,6 +411,6 @@ impl<'cx> TyChecker<'cx> {
             self.push_error(span.module, error);
         }
 
-        sig
+        candidate
     }
 }

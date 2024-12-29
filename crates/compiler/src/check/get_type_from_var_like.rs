@@ -9,8 +9,7 @@ impl<'cx> TyChecker<'cx> {
             return ty;
         }
 
-        let symbol = self.binder.symbol(id);
-        let node_id = symbol.decl();
+        let node_id = id.decl(self.binder);
         let node = self.p.node(node_id);
         let ty = if let Some(decl) = node.as_var_decl() {
             self.get_widened_ty_for_var_like_decl(decl)

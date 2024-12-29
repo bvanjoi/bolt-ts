@@ -10,8 +10,8 @@ use crate::keyword::{is_prim_ty_name, is_prim_value_name};
 use crate::parser::Parser;
 use crate::{ast, keyword};
 
-pub struct ResolveResult {
-    pub symbols: Symbols,
+pub struct ResolveResult<'cx> {
+    pub symbols: Symbols<'cx>,
     pub final_res: FxHashMap<ast::NodeID, SymbolID>,
     pub diags: Vec<bolt_ts_errors::Diag>,
 }
@@ -21,7 +21,7 @@ pub fn resolve<'cx>(
     root: &'cx ast::Program<'cx>,
     p: &'cx Parser<'cx>,
     global: &'cx GlobalSymbols,
-) -> ResolveResult {
+) -> ResolveResult<'cx> {
     let mut resolver = Resolver {
         diags: std::mem::take(&mut state.diags),
         state: &mut state,
@@ -44,7 +44,7 @@ pub(super) struct Resolver<'cx, 'r> {
     global: &'cx GlobalSymbols,
 }
 
-impl<'cx, 'r> Resolver<'cx, 'r> {
+impl<'cx> Resolver<'cx, '_> {
     fn push_error(&mut self, module_id: ModuleID, error: crate::Diag) {
         self.diags.push(bolt_ts_errors::Diag {
             module_id,
@@ -131,17 +131,19 @@ impl<'cx, 'r> Resolver<'cx, 'r> {
         }
     }
 
+    fn resolve_refer_ty(&mut self, refer: &'cx ast::ReferTy<'cx>) {
+        self.resolve_entity_name(refer.name);
+        if let Some(ty_args) = refer.ty_args {
+            for ty_arg in ty_args.list {
+                self.resolve_ty(ty_arg);
+            }
+        }
+    }
+
     fn resolve_ty(&mut self, ty: &'cx ast::Ty<'cx>) {
         use ast::TyKind::*;
         match ty.kind {
-            Refer(refer) => {
-                self.resolve_entity_name(refer.name);
-                if let Some(ty_args) = refer.ty_args {
-                    for ty_arg in ty_args.list {
-                        self.resolve_ty(ty_arg);
-                    }
-                }
-            }
+            Refer(refer) => self.resolve_refer_ty(refer),
             Array(array) => {
                 self.resolve_array(array);
             }
@@ -156,11 +158,6 @@ impl<'cx, 'r> Resolver<'cx, 'r> {
             ObjectLit(lit) => {
                 for member in lit.members {
                     self.resolve_object_ty_member(member);
-                }
-            }
-            ExprWithArg(node) => {
-                if let ast::ExprKind::Ident(ident) = node.kind {
-                    self.resolve_ty_by_ident(ident);
                 }
             }
             Tuple(tuple) => {
@@ -344,8 +341,8 @@ impl<'cx, 'r> Resolver<'cx, 'r> {
     }
     fn resolve_interface_decl(&mut self, interface: &'cx ast::InterfaceDecl<'cx>) {
         if let Some(extends) = interface.extends {
-            for ty in extends.tys {
-                self.resolve_ty(ty);
+            for ty in extends.list {
+                self.resolve_refer_ty(ty);
             }
         }
         for member in interface.members {
@@ -401,7 +398,7 @@ impl<'cx, 'r> Resolver<'cx, 'r> {
     fn resolve_symbol_by_ident(
         &mut self,
         ident: &'cx ast::Ident,
-        ns: impl Fn(&Symbol) -> bool,
+        ns: impl Fn(&Symbol<'cx>) -> bool,
     ) -> SymbolID {
         let res = resolve_symbol_by_ident(self, ident, ns);
         let prev = self.state.final_res.insert(ident.id, res);
@@ -442,12 +439,8 @@ impl<'cx, 'r> Resolver<'cx, 'r> {
 
     fn check_missing_prefix(&mut self, ident: &'cx ast::Ident) -> Option<crate::Diag> {
         let mut location = ident.id;
-        loop {
-            if let Some(parent) = self.p.parent(location) {
-                location = parent;
-            } else {
-                break;
-            }
+        while let Some(parent) = self.p.parent(location) {
+            location = parent;
             let node = self.p.node(location);
             let ast::Node::ClassDecl(class) = node else {
                 continue;
@@ -461,7 +454,7 @@ impl<'cx, 'r> Resolver<'cx, 'r> {
                     return None;
                 };
 
-                (prop_name.name == ident.name).then(|| prop)
+                (prop_name.name == ident.name).then_some(prop)
             }) {
                 if prop
                     .modifiers
@@ -489,21 +482,20 @@ impl<'cx, 'r> Resolver<'cx, 'r> {
 
     fn check_using_type_as_value(&mut self, ident: &'cx ast::Ident) -> Option<crate::Diag> {
         if is_prim_ty_name(ident.name) {
-            let Some(parent) = self.p.parent(ident.id) else {
-                return None;
-            };
-            let Some(grand) = self.p.parent(parent) else {
-                return None;
-            };
-            let parent_node = self.p.node(parent);
+            let grand = self
+                .p
+                .parent(ident.id)
+                .and_then(|parent| self.p.parent(parent))?;
+            let container = self.p.parent(grand)?;
             let grand_node = self.p.node(grand);
-            if parent_node.as_implements_clause().is_some() && grand_node.is_class_like() {
+            let container_node = self.p.node(container);
+            if grand_node.as_class_implements_clause().is_some() && container_node.is_class_like() {
                 return Some(Box::new(errors::AClassCannotImplementAPrimTy {
                     span: ident.span,
                     ty: self.state.atoms.get(ident.name).to_string(),
                 }));
-            } else if parent_node.as_interface_extends_clause().is_some()
-                && grand_node.is_interface_decl()
+            } else if grand_node.as_interface_extends_clause().is_some()
+                && container_node.is_interface_decl()
             {
                 return Some(Box::new(errors::AnInterfaceCannotExtendAPrimTy {
                     span: ident.span,
@@ -516,10 +508,10 @@ impl<'cx, 'r> Resolver<'cx, 'r> {
     }
 }
 
-fn resolve_symbol_by_ident(
-    resolver: &Resolver,
-    ident: &ast::Ident,
-    ns: impl Fn(&Symbol) -> bool,
+fn resolve_symbol_by_ident<'a, 'cx>(
+    resolver: &'a Resolver<'cx, 'a>,
+    ident: &'cx ast::Ident,
+    ns: impl Fn(&'a Symbol<'cx>) -> bool,
 ) -> SymbolID {
     let binder = &resolver.state;
     let key = SymbolName::Normal(ident.name);
@@ -541,7 +533,7 @@ fn resolve_symbol_by_ident(
         }
 
         if let Some(id) = binder.res.get(&(scope_id, key)).copied() {
-            if ns(&binder.symbols.get(id)) {
+            if ns(binder.symbols.get(id)) {
                 break id;
             }
         }

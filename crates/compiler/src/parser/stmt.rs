@@ -8,7 +8,7 @@ use super::parse_fn_like::ParseFnDecl;
 use super::token::TokenKind;
 use super::{PResult, ParserState};
 
-impl<'cx, 'p> ParserState<'cx, 'p> {
+impl<'cx> ParserState<'cx, '_> {
     pub fn parse_stmt(&mut self) -> PResult<&'cx ast::Stmt<'cx>> {
         use TokenKind::*;
         if matches!(self.token.kind, Abstract | Declare | Export | Import)
@@ -80,7 +80,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
 
     fn try_parse_semi(&mut self) -> PResult<bool> {
         if !self.can_parse_semi() {
-            return Ok(false);
+            Ok(false)
         } else if self.token.kind == TokenKind::Semi {
             self.next_token();
             Ok(true)
@@ -216,11 +216,14 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
             let id = self.next_node_id();
             let start = self.token.start();
             self.next_token();
-            let tys = self.with_parent(id, |this| {
-                this.parse_delimited_list(list_ctx::HeritageClause, Self::parse_expr_with_ty_args)
+            let list = self.with_parent(id, |this| {
+                this.parse_delimited_list(
+                    list_ctx::HeritageClause,
+                    Self::parse_entity_name_of_ty_reference,
+                )
             });
             let span = self.new_span(start);
-            let clause = self.alloc(ast::InterfaceExtendsClause { id, span, tys });
+            let clause = self.alloc(ast::InterfaceExtendsClause { id, span, list });
             self.insert_map(id, ast::Node::InterfaceExtendsClause(clause));
             Ok(Some(clause))
         } else {
@@ -262,17 +265,20 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
 
     pub(super) fn parse_implements_clause(
         &mut self,
-    ) -> PResult<Option<&'cx ast::ImplementsClause<'cx>>> {
+    ) -> PResult<Option<&'cx ast::ClassImplementsClause<'cx>>> {
         if self.token.kind == TokenKind::Implements {
             let id = self.next_node_id();
             let start = self.token.start();
             self.next_token();
-            let tys = self.with_parent(id, |this| {
-                this.parse_delimited_list(list_ctx::HeritageClause, Self::parse_expr_with_ty_args)
+            let list = self.with_parent(id, |this| {
+                this.parse_delimited_list(
+                    list_ctx::HeritageClause,
+                    Self::parse_entity_name_of_ty_reference,
+                )
             });
             let span = self.new_span(start);
-            let clause = self.alloc(ast::ImplementsClause { id, span, tys });
-            self.insert_map(id, ast::Node::ImplementsClause(clause));
+            let clause = self.alloc(ast::ClassImplementsClause { id, span, list });
+            self.insert_map(id, ast::Node::ClassImplementsClause(clause));
             Ok(Some(clause))
         } else {
             Ok(None)

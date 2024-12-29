@@ -71,7 +71,7 @@ pub(super) trait ClassLike<'cx, 'p> {
         name: Option<&'cx ast::Ident>,
         ty_params: Option<ast::TyParams<'cx>>,
         extends: Option<&'cx ast::ClassExtendsClause<'cx>>,
-        implements: Option<&'cx ast::ImplementsClause<'cx>>,
+        implements: Option<&'cx ast::ClassImplementsClause<'cx>>,
         elems: &'cx ast::ClassElems<'cx>,
     ) -> Self::Node;
 }
@@ -80,7 +80,7 @@ pub(super) struct ParseClassDecl;
 impl<'cx, 'p> ClassLike<'cx, 'p> for ParseClassDecl {
     type Node = &'cx ast::ClassDecl<'cx>;
     fn parse_name(&self, state: &mut ParserState<'cx, 'p>) -> PResult<Option<&'cx ast::Ident>> {
-        state.parse_ident_name().map(|n| Some(n))
+        state.parse_ident_name().map(Some)
     }
     fn finish(
         self,
@@ -91,7 +91,7 @@ impl<'cx, 'p> ClassLike<'cx, 'p> for ParseClassDecl {
         name: Option<&'cx ast::Ident>,
         ty_params: Option<ast::TyParams<'cx>>,
         extends: Option<&'cx ast::ClassExtendsClause<'cx>>,
-        implements: Option<&'cx ast::ImplementsClause<'cx>>,
+        implements: Option<&'cx ast::ClassImplementsClause<'cx>>,
         elems: &'cx ast::ClassElems<'cx>,
     ) -> Self::Node {
         let name = name.unwrap();
@@ -128,7 +128,7 @@ impl<'cx, 'p> ClassLike<'cx, 'p> for ParseClassExpr {
         name: Option<&'cx ast::Ident>,
         ty_params: Option<ast::TyParams<'cx>>,
         extends: Option<&'cx ast::ClassExtendsClause<'cx>>,
-        implements: Option<&'cx ast::ImplementsClause<'cx>>,
+        implements: Option<&'cx ast::ClassImplementsClause<'cx>>,
         elems: &'cx ast::ClassElems<'cx>,
     ) -> Self::Node {
         assert!(modifiers.is_none());
@@ -334,11 +334,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         {
             self.try_parse(|this| {
                 let lit = this.parse_string_lit();
-                if lit.val == keyword::KW_CONSTRUCTOR {
-                    true
-                } else {
-                    false
-                }
+                lit.val == keyword::KW_CONSTRUCTOR
             })
         } else {
             false

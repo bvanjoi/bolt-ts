@@ -1,7 +1,7 @@
 use super::Resolver;
 use crate::{ast, ir};
 
-impl<'cx, 'r> Resolver<'cx, 'r> {
+impl<'cx> Resolver<'cx, '_> {
     fn resolve_class_prop_ele(&mut self, ele: &'cx ast::ClassPropEle<'cx>) {
         if let Some(ty) = ele.ty {
             self.resolve_ty(ty);
@@ -23,8 +23,8 @@ impl<'cx, 'r> Resolver<'cx, 'r> {
         }
 
         if let Some(implements) = class.implements() {
-            for ty in implements.tys {
-                self.resolve_ty(ty);
+            for ty in implements.list {
+                self.resolve_refer_ty(ty);
             }
         }
 

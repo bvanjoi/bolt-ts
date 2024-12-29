@@ -114,7 +114,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
 
     fn parse_fn_decl_ret_type(&mut self) -> PResult<Option<&'cx ast::Ty<'cx>>> {
         if self.parse_optional(TokenKind::Colon).is_some() {
-            self.parse_ty_or_ty_pred().map(|ty| Some(ty))
+            self.parse_ty_or_ty_pred().map(Some)
         } else {
             Ok(None)
         }

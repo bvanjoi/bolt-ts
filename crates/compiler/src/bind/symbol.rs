@@ -110,15 +110,15 @@ bitflags::bitflags! {
 }
 
 #[derive(Debug)]
-pub struct Symbol {
+pub struct Symbol<'cx> {
     pub name: SymbolName,
     pub flags: SymbolFlags,
-    pub(super) kind: (SymbolKind, Option<InterfaceSymbol>, Option<NsSymbol>),
+    pub(super) kind: (SymbolKind<'cx>, Option<InterfaceSymbol>, Option<NsSymbol>),
 }
 
-impl Symbol {
+impl<'cx> Symbol<'cx> {
     pub const ERR: SymbolID = SymbolID::root(ModuleID::root());
-    pub(super) fn new(name: SymbolName, flags: SymbolFlags, kind: SymbolKind) -> Self {
+    pub(super) fn new(name: SymbolName, flags: SymbolFlags, kind: SymbolKind<'cx>) -> Self {
         Self {
             name,
             flags,
@@ -139,19 +139,6 @@ impl Symbol {
             kind: (SymbolKind::Err, None, Some(i)),
         }
     }
-    pub fn decl(&self) -> NodeID {
-        match &self.kind.0 {
-            SymbolKind::FunctionScopedVar(f) => f.decl,
-            SymbolKind::BlockScopedVar { decl } => *decl,
-            SymbolKind::Class(c) => c.decl,
-            SymbolKind::Prop(prop) => prop.decl,
-            SymbolKind::Object(object) => object.decl,
-            SymbolKind::Index(index) => index.decl,
-            SymbolKind::TyAlias(alias) => alias.decl,
-            SymbolKind::TyParam(param) => param.decl,
-            _ => unreachable!("{:#?}", self.flags),
-        }
-    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -164,7 +151,7 @@ pub enum SymbolFnKind {
 }
 
 #[derive(Debug)]
-pub(super) enum SymbolKind {
+pub(super) enum SymbolKind<'cx> {
     Err,
     BlockContainer(BlockContainerSymbol),
     /// `var` or parameter
@@ -176,16 +163,16 @@ pub(super) enum SymbolKind {
     Fn(FnSymbol),
     Class(ClassSymbol),
     Prop(PropSymbol),
-    ElementProperty,
     Object(ObjectSymbol),
     Index(IndexSymbol),
     TyAlias(TyAliasSymbol),
     TyParam(TyParamSymbol),
+    Transient(TransientSymbol<'cx>),
 }
 
 macro_rules! as_symbol_kind {
     ($kind: ident, $ty:ty, $as_kind: ident, $expect_kind: ident) => {
-        impl Symbol {
+        impl<'cx> Symbol<'cx> {
             #[inline(always)]
             pub(super) fn $as_kind(&self) -> Option<$ty> {
                 match &self.kind.0 {
@@ -201,7 +188,7 @@ macro_rules! as_symbol_kind {
     };
 }
 
-impl Symbol {
+impl Symbol<'_> {
     #[inline(always)]
     pub(super) fn as_interface(&self) -> Option<&InterfaceSymbol> {
         self.kind.1.as_ref()
@@ -233,6 +220,12 @@ as_symbol_kind!(Fn, &FnSymbol, as_fn, expect_fn);
 as_symbol_kind!(Class, &ClassSymbol, as_class, expect_class);
 as_symbol_kind!(TyAlias, &TyAliasSymbol, as_ty_alias, expect_ty_alias);
 as_symbol_kind!(TyParam, &TyParamSymbol, as_ty_param, expect_ty_param);
+
+#[derive(Debug, Clone, Copy)]
+pub struct TransientSymbol<'cx> {
+    pub links: crate::check::SymbolLinks<'cx>,
+    pub origin: Option<SymbolID>,
+}
 
 #[derive(Debug)]
 pub struct BlockContainerSymbol {
@@ -292,12 +285,7 @@ pub struct FunctionScopedVarSymbol {
     pub decl: NodeID,
 }
 
-impl Symbol {
-    pub fn is_element_property(&self) -> bool {
-        use SymbolKind::*;
-        matches!(self.kind.0, ElementProperty)
-    }
-
+impl Symbol<'_> {
     #[inline(always)]
     pub fn is_variable(&self) -> bool {
         self.flags.intersects(SymbolFlags::VARIABLE)
@@ -326,7 +314,7 @@ impl Symbol {
             SymbolKind::Index { .. } => todo!(),
             SymbolKind::TyAlias { .. } => todo!(),
             SymbolKind::TyParam { .. } => todo!(),
-            SymbolKind::ElementProperty => todo!(),
+            SymbolKind::Transient { .. } => todo!(),
         }
     }
 }
@@ -340,14 +328,34 @@ impl SymbolID {
             index,
         }
     }
+    pub fn decl(&self, binder: &super::Binder) -> NodeID {
+        match &binder.symbol(*self).kind.0 {
+            SymbolKind::FunctionScopedVar(f) => f.decl,
+            SymbolKind::BlockScopedVar { decl } => *decl,
+            SymbolKind::Class(c) => c.decl,
+            SymbolKind::Prop(prop) => prop.decl,
+            SymbolKind::Object(object) => object.decl,
+            SymbolKind::Index(index) => index.decl,
+            SymbolKind::TyAlias(alias) => alias.decl,
+            SymbolKind::TyParam(param) => param.decl,
+            SymbolKind::Transient(t) => {
+                if let Some(id) = t.origin {
+                    id.decl(binder)
+                } else {
+                    unreachable!("{:#?}", binder.symbol(*self).flags);
+                }
+            }
+            _ => unreachable!("{:#?}", binder.symbol(*self).flags),
+        }
+    }
 }
 
-pub struct Symbols {
+pub struct Symbols<'cx> {
     module_id: ModuleID,
-    data: Vec<Symbol>,
+    data: Vec<Symbol<'cx>>,
 }
 
-impl Symbols {
+impl<'cx> Symbols<'cx> {
     pub const ERR: SymbolID = SymbolID::root(ModuleID::root());
 
     pub fn new(module_id: ModuleID) -> Self {
@@ -366,16 +374,16 @@ impl Symbols {
         this
     }
 
-    pub fn insert(&mut self, id: SymbolID, symbol: Symbol) {
+    pub fn insert(&mut self, id: SymbolID, symbol: Symbol<'cx>) {
         assert!(id.index_as_usize() == self.data.len());
         self.data.push(symbol);
     }
 
-    pub fn get(&self, id: SymbolID) -> &Symbol {
+    pub fn get(&self, id: SymbolID) -> &Symbol<'cx> {
         &self.data[id.index_as_usize()]
     }
 
-    pub fn get_mut(&mut self, id: SymbolID) -> &mut Symbol {
+    pub fn get_mut(&mut self, id: SymbolID) -> &mut Symbol<'cx> {
         self.data.get_mut(id.index_as_usize()).unwrap()
     }
 
@@ -395,6 +403,12 @@ impl Symbols {
 }
 
 pub struct GlobalSymbols(FxHashMap<SymbolName, SymbolID>);
+
+impl Default for GlobalSymbols {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 
 impl GlobalSymbols {
     pub fn new() -> Self {
