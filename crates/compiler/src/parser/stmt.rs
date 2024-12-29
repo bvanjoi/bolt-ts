@@ -1,3 +1,5 @@
+use crate::ast::NodeFlags;
+
 use super::ast;
 use super::errors;
 use super::list_ctx;
@@ -6,7 +8,7 @@ use super::parse_fn_like::ParseFnDecl;
 use super::token::TokenKind;
 use super::{PResult, ParserState};
 
-impl<'cx, 'p> ParserState<'cx, 'p> {
+impl<'cx> ParserState<'cx, '_> {
     pub fn parse_stmt(&mut self) -> PResult<&'cx ast::Stmt<'cx>> {
         use TokenKind::*;
         if matches!(self.token.kind, Abstract | Declare | Export | Import)
@@ -25,6 +27,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
             Interface => ast::StmtKind::Interface(self.parse_interface_decl(None)?),
             Type => ast::StmtKind::Type(self.parse_type_decl()?),
             Module | Namespace => ast::StmtKind::Namespace(self.parse_ns_decl(None)?),
+            Enum => ast::StmtKind::Enum(self.parse_enum_decl(None)?),
             Throw => ast::StmtKind::Throw(self.parse_throw_stmt()?),
             _ => ast::StmtKind::Expr(self.parse_expr_or_labeled_stmt()?),
         };
@@ -32,9 +35,52 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         Ok(stmt)
     }
 
+    fn parse_enum_decl(
+        &mut self,
+        modifiers: Option<&'cx ast::Modifiers<'cx>>,
+    ) -> PResult<&'cx ast::EnumDecl<'cx>> {
+        let id = self.next_node_id();
+        let start = self.token.start();
+        self.expect(TokenKind::Enum)?;
+        let name = self.create_ident(self.is_ident(), None);
+        let members = if self.expect(TokenKind::LBrace).is_ok() {
+            let member = self.parse_delimited_list(list_ctx::EnumMembers, Self::parse_enum_member);
+            self.expect(TokenKind::RBrace)?;
+            member
+        } else {
+            todo!("error handler")
+        };
+
+        let decl = self.alloc(ast::EnumDecl {
+            id,
+            span: self.new_span(start),
+            modifiers,
+            name,
+            members,
+        });
+        self.insert_map(id, ast::Node::EnumDecl(decl));
+        Ok(decl)
+    }
+
+    fn parse_enum_member(&mut self) -> PResult<&'cx ast::EnumMember<'cx>> {
+        let id = self.next_node_id();
+        let start = self.token.start();
+        let name = self.with_parent(id, Self::parse_prop_name)?;
+        let init = self.with_parent(id, Self::parse_init);
+        let span = self.new_span(start);
+        let member = self.alloc(ast::EnumMember {
+            id,
+            span,
+            name,
+            init,
+        });
+        self.insert_map(id, ast::Node::EnumMember(member));
+        Ok(member)
+    }
+
     fn try_parse_semi(&mut self) -> PResult<bool> {
         if !self.can_parse_semi() {
-            return Ok(false);
+            Ok(false)
         } else if self.token.kind == TokenKind::Semi {
             self.next_token();
             Ok(true)
@@ -126,18 +172,38 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
                 unreachable!("{:#?}", self.atoms.lock().unwrap().get(id));
             }
             Interface => ast::StmtKind::Interface(self.parse_interface_decl(mods)?),
+            Enum => ast::StmtKind::Enum(self.parse_enum_decl(mods)?),
             _ => unreachable!("{:#?}", self.token.kind),
         };
         let stmt = self.alloc(ast::Stmt { kind });
         Ok(stmt)
     }
 
+    fn set_context_flags(&mut self, val: bool, flag: NodeFlags) {
+        if val {
+            self.context_flags |= flag
+        } else {
+            self.context_flags &= !flag;
+        }
+    }
+
+    fn do_inside_of_context<T>(&mut self, context: NodeFlags, f: impl FnOnce(&mut Self) -> T) -> T {
+        let set = context & !self.context_flags;
+        if !set.is_empty() {
+            self.set_context_flags(true, set);
+            let res = f(self);
+            self.set_context_flags(false, set);
+            res
+        } else {
+            f(self)
+        }
+    }
+
     fn parse_decl(&mut self) -> PResult<&'cx ast::Stmt<'cx>> {
         let mods = self.parse_modifiers(false)?;
         let is_ambient = mods.map_or(false, Self::contain_declare_mod);
         if is_ambient {
-            // todo
-            self._parse_decl(mods)
+            self.do_inside_of_context(NodeFlags::AMBIENT, |this| this._parse_decl(mods))
         } else {
             self._parse_decl(mods)
         }
@@ -150,11 +216,14 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
             let id = self.next_node_id();
             let start = self.token.start();
             self.next_token();
-            let tys = self.with_parent(id, |this| {
-                this.parse_delimited_list(list_ctx::HeritageClause, Self::parse_expr_with_ty_args)
+            let list = self.with_parent(id, |this| {
+                this.parse_delimited_list(
+                    list_ctx::HeritageClause,
+                    Self::parse_entity_name_of_ty_reference,
+                )
             });
             let span = self.new_span(start);
-            let clause = self.alloc(ast::InterfaceExtendsClause { id, span, tys });
+            let clause = self.alloc(ast::InterfaceExtendsClause { id, span, list });
             self.insert_map(id, ast::Node::InterfaceExtendsClause(clause));
             Ok(Some(clause))
         } else {
@@ -196,17 +265,20 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
 
     pub(super) fn parse_implements_clause(
         &mut self,
-    ) -> PResult<Option<&'cx ast::ImplementsClause<'cx>>> {
+    ) -> PResult<Option<&'cx ast::ClassImplementsClause<'cx>>> {
         if self.token.kind == TokenKind::Implements {
             let id = self.next_node_id();
             let start = self.token.start();
             self.next_token();
-            let tys = self.with_parent(id, |this| {
-                this.parse_delimited_list(list_ctx::HeritageClause, Self::parse_expr_with_ty_args)
+            let list = self.with_parent(id, |this| {
+                this.parse_delimited_list(
+                    list_ctx::HeritageClause,
+                    Self::parse_entity_name_of_ty_reference,
+                )
             });
             let span = self.new_span(start);
-            let clause = self.alloc(ast::ImplementsClause { id, span, tys });
-            self.insert_map(id, ast::Node::ImplementsClause(clause));
+            let clause = self.alloc(ast::ClassImplementsClause { id, span, list });
+            self.insert_map(id, ast::Node::ClassImplementsClause(clause));
             Ok(Some(clause))
         } else {
             Ok(None)

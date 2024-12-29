@@ -1,12 +1,7 @@
-// #[derive(Debug, Clone, Copy, Default)]
-// enum Target {
-//     #[default]
-//     ES3,
-//     ES5,
-//     ES6,
-// }
+mod normalized;
+mod options;
+mod raw;
 
-// #[derive(Debug, Clone, Copy, Default)]
-// struct CompilerOptions {
-//     target: Target,
-// }
+pub use normalized::{NormalizedCompilerOptions, NormalizedTsConfig};
+pub use options::OutDir;
+pub use raw::{RawCompilerOptions, RawTsConfig};

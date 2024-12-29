@@ -5,13 +5,13 @@ mod resolve_class_like;
 use bolt_ts_span::ModuleID;
 use rustc_hash::FxHashMap;
 
-use crate::bind::{BinderState, GlobalSymbols, Symbol, SymbolID, SymbolName, Symbols};
+use crate::bind::{BinderState, GlobalSymbols, Symbol, SymbolFlags, SymbolID, SymbolName, Symbols};
 use crate::keyword::{is_prim_ty_name, is_prim_value_name};
 use crate::parser::Parser;
 use crate::{ast, keyword};
 
-pub struct ResolveResult {
-    pub symbols: Symbols,
+pub struct ResolveResult<'cx> {
+    pub symbols: Symbols<'cx>,
     pub final_res: FxHashMap<ast::NodeID, SymbolID>,
     pub diags: Vec<bolt_ts_errors::Diag>,
 }
@@ -21,7 +21,7 @@ pub fn resolve<'cx>(
     root: &'cx ast::Program<'cx>,
     p: &'cx Parser<'cx>,
     global: &'cx GlobalSymbols,
-) -> ResolveResult {
+) -> ResolveResult<'cx> {
     let mut resolver = Resolver {
         diags: std::mem::take(&mut state.diags),
         state: &mut state,
@@ -44,7 +44,7 @@ pub(super) struct Resolver<'cx, 'r> {
     global: &'cx GlobalSymbols,
 }
 
-impl<'cx, 'r> Resolver<'cx, 'r> {
+impl<'cx> Resolver<'cx, '_> {
     fn push_error(&mut self, module_id: ModuleID, error: crate::Diag) {
         self.diags.push(bolt_ts_errors::Diag {
             module_id,
@@ -71,11 +71,16 @@ impl<'cx, 'r> Resolver<'cx, 'r> {
             Class(class) => self.resolve_class_decl(class),
             Interface(interface) => self.resolve_interface_decl(interface),
             Type(ty) => self.resolve_type_decl(ty),
-            Namespace(_) => {}
+            Namespace(ns) => self.resolve_ns_decl(ns),
             Throw(t) => {
                 self.resolve_expr(t.expr);
             }
+            Enum(enum_decl) => {}
         };
+    }
+
+    fn resolve_ns_decl(&mut self, ns: &'cx ast::NsDecl<'cx>) {
+        self.resolve_block_stmt(ns.block);
     }
 
     fn resolve_type_decl(&mut self, ty: &'cx ast::TypeDecl<'cx>) {
@@ -120,8 +125,17 @@ impl<'cx, 'r> Resolver<'cx, 'r> {
         match name.kind {
             Ident(ident) => self.resolve_ty_by_ident(ident),
             Qualified(qualified) => {
-                self.resolve_entity_name(qualified.left);
-                self.resolve_ty_by_ident(qualified.right);
+                // self.resolve_entity_name(qualified.left);
+                // self.resolve_ty_by_ident(qualified.right);
+            }
+        }
+    }
+
+    fn resolve_refer_ty(&mut self, refer: &'cx ast::ReferTy<'cx>) {
+        self.resolve_entity_name(refer.name);
+        if let Some(ty_args) = refer.ty_args {
+            for ty_arg in ty_args.list {
+                self.resolve_ty(ty_arg);
             }
         }
     }
@@ -129,14 +143,7 @@ impl<'cx, 'r> Resolver<'cx, 'r> {
     fn resolve_ty(&mut self, ty: &'cx ast::Ty<'cx>) {
         use ast::TyKind::*;
         match ty.kind {
-            Refer(refer) => {
-                self.resolve_entity_name(refer.name);
-                if let Some(ty_args) = refer.ty_args {
-                    for ty_arg in ty_args {
-                        self.resolve_ty(ty_arg);
-                    }
-                }
-            }
+            Refer(refer) => self.resolve_refer_ty(refer),
             Array(array) => {
                 self.resolve_array(array);
             }
@@ -151,11 +158,6 @@ impl<'cx, 'r> Resolver<'cx, 'r> {
             ObjectLit(lit) => {
                 for member in lit.members {
                     self.resolve_object_ty_member(member);
-                }
-            }
-            ExprWithArg(node) => {
-                if let ast::ExprKind::Ident(ident) = node.kind {
-                    self.resolve_ty_by_ident(ident);
                 }
             }
             Tuple(tuple) => {
@@ -183,9 +185,16 @@ impl<'cx, 'r> Resolver<'cx, 'r> {
                     self.resolve_ty(ty);
                 }
             }
-            BooleanLit(_) => todo!(),
-            NullLit(_) => todo!(),
+            Typeof(n) => {
+                self.resolve_entity_name(n.name);
+            }
+            BooleanLit(_) | NullLit(_) => unreachable!(),
         }
+    }
+
+    fn resolve_index_sig(&mut self, sig: &'cx ast::IndexSigDecl<'cx>) {
+        self.resolve_params(sig.params);
+        self.resolve_ty(sig.ty);
     }
 
     fn resolve_object_ty_member(&mut self, m: &'cx ast::ObjectTyMember<'cx>) {
@@ -196,12 +205,22 @@ impl<'cx, 'r> Resolver<'cx, 'r> {
                     self.resolve_ty(ty);
                 }
             }
-            Method(_) => {}
-            CallSig(_) => {
-                // let name = SymbolName::;
-                // (name, self.create_object_member_symbol(name, m.id))
+            Method(m) => {
+                if let Some(ty_params) = m.ty_params {
+                    self.resolve_ty_params(ty_params);
+                }
+                self.resolve_params(m.params);
+                if let Some(ty) = m.ret {
+                    self.resolve_ty(ty);
+                }
             }
-            IndexSig(_) => {}
+            CallSig(call) => {
+                self.resolve_params(call.params);
+                if let Some(ty) = call.ty {
+                    self.resolve_ty(ty);
+                }
+            }
+            IndexSig(index) => self.resolve_index_sig(index),
             CtorSig(decl) => {
                 self.resolve_params(decl.params);
                 if let Some(ty) = decl.ty {
@@ -277,7 +296,10 @@ impl<'cx, 'r> Resolver<'cx, 'r> {
 
             Class(class) => self.resolve_class_like(class),
             PrefixUnary(unary) => self.resolve_expr(unary.expr),
-            _ => (),
+            PropAccess(node) => {
+                self.resolve_expr(node.expr);
+            }
+            _ => {}
         }
     }
 
@@ -319,8 +341,8 @@ impl<'cx, 'r> Resolver<'cx, 'r> {
     }
     fn resolve_interface_decl(&mut self, interface: &'cx ast::InterfaceDecl<'cx>) {
         if let Some(extends) = interface.extends {
-            for ty in extends.tys {
-                self.resolve_ty(ty);
+            for ty in extends.list {
+                self.resolve_refer_ty(ty);
             }
         }
         for member in interface.members {
@@ -361,18 +383,41 @@ impl<'cx, 'r> Resolver<'cx, 'r> {
             }
             return;
         }
-        self.resolve_symbol_by_ident(ident, Symbol::is_type);
+        let res = self.resolve_symbol_by_ident(ident, Symbol::is_type);
+
+        if res == Symbol::ERR {
+            let error = errors::CannotFindName {
+                span: ident.span,
+                name: self.state.atoms.get(ident.name).to_string(),
+                errors: vec![],
+            };
+            self.push_error(ident.span.module, Box::new(error));
+        }
     }
 
     fn resolve_symbol_by_ident(
         &mut self,
         ident: &'cx ast::Ident,
-        ns: impl Fn(&Symbol) -> bool,
+        ns: impl Fn(&Symbol<'cx>) -> bool,
     ) -> SymbolID {
         let res = resolve_symbol_by_ident(self, ident, ns);
         let prev = self.state.final_res.insert(ident.id, res);
         assert!(prev.is_none());
         res
+    }
+
+    fn check_using_namespace_as_value(&mut self, ident: &'cx ast::Ident) -> Option<crate::Diag> {
+        let symbol =
+            resolve_symbol_by_ident(self, ident, |ns| ns.flags == SymbolFlags::NAMESPACE_MODULE);
+        if symbol == Symbol::ERR {
+            None
+        } else {
+            let ns = self.state.symbols.get(symbol).expect_ns().decls[0];
+            let span = self.p.node(ns).expect_namespace_decl().name.span;
+            let error: crate::Diag =
+                Box::new(errors::CannotUseNamespaceAsTyOrValue { span, is_ty: false });
+            Some(error)
+        }
     }
 
     fn on_failed_to_resolve_value_symbol(
@@ -386,17 +431,16 @@ impl<'cx, 'r> Resolver<'cx, 'r> {
         if let Some(e) = self.check_using_type_as_value(ident) {
             error.errors.push(e);
         }
+        if let Some(e) = self.check_using_namespace_as_value(ident) {
+            error.errors.push(e);
+        }
         error
     }
 
     fn check_missing_prefix(&mut self, ident: &'cx ast::Ident) -> Option<crate::Diag> {
         let mut location = ident.id;
-        loop {
-            if let Some(parent) = self.p.parent(location) {
-                location = parent;
-            } else {
-                break;
-            }
+        while let Some(parent) = self.p.parent(location) {
+            location = parent;
             let node = self.p.node(location);
             let ast::Node::ClassDecl(class) = node else {
                 continue;
@@ -410,7 +454,7 @@ impl<'cx, 'r> Resolver<'cx, 'r> {
                     return None;
                 };
 
-                (prop_name.name == ident.name).then(|| prop)
+                (prop_name.name == ident.name).then_some(prop)
             }) {
                 if prop
                     .modifiers
@@ -438,21 +482,20 @@ impl<'cx, 'r> Resolver<'cx, 'r> {
 
     fn check_using_type_as_value(&mut self, ident: &'cx ast::Ident) -> Option<crate::Diag> {
         if is_prim_ty_name(ident.name) {
-            let Some(parent) = self.p.parent(ident.id) else {
-                return None;
-            };
-            let Some(grand) = self.p.parent(parent) else {
-                return None;
-            };
-            let parent_node = self.p.node(parent);
+            let grand = self
+                .p
+                .parent(ident.id)
+                .and_then(|parent| self.p.parent(parent))?;
+            let container = self.p.parent(grand)?;
             let grand_node = self.p.node(grand);
-            if parent_node.as_implements_clause().is_some() && grand_node.is_class_like() {
+            let container_node = self.p.node(container);
+            if grand_node.as_class_implements_clause().is_some() && container_node.is_class_like() {
                 return Some(Box::new(errors::AClassCannotImplementAPrimTy {
                     span: ident.span,
                     ty: self.state.atoms.get(ident.name).to_string(),
                 }));
-            } else if parent_node.as_interface_extends_clause().is_some()
-                && grand_node.is_interface_decl()
+            } else if grand_node.as_interface_extends_clause().is_some()
+                && container_node.is_interface_decl()
             {
                 return Some(Box::new(errors::AnInterfaceCannotExtendAPrimTy {
                     span: ident.span,
@@ -465,21 +508,32 @@ impl<'cx, 'r> Resolver<'cx, 'r> {
     }
 }
 
-fn resolve_symbol_by_ident(
-    resolver: &Resolver,
-    ident: &ast::Ident,
-    ns: impl Fn(&Symbol) -> bool,
+fn resolve_symbol_by_ident<'a, 'cx>(
+    resolver: &'a Resolver<'cx, 'a>,
+    ident: &'cx ast::Ident,
+    ns: impl Fn(&'a Symbol<'cx>) -> bool,
 ) -> SymbolID {
     let binder = &resolver.state;
-    assert!(!binder.final_res.contains_key(&ident.id));
     let key = SymbolName::Normal(ident.name);
     let Some(mut scope_id) = binder.node_id_to_scope_id.get(&ident.id).copied() else {
         let name = resolver.state.atoms.get(ident.name);
         unreachable!("the scope of {name:?} is not stored");
     };
     loop {
+        if !scope_id.is_root() {
+            if let Some(id) = binder.res.get(&(scope_id, SymbolName::Container)).copied() {
+                let symbol = binder.symbols.get(id);
+                if ns(symbol) {
+                    let container = symbol.expect_block_container();
+                    if let Some(id) = container.locals.get(&key) {
+                        break *id;
+                    }
+                }
+            }
+        }
+
         if let Some(id) = binder.res.get(&(scope_id, key)).copied() {
-            if ns(&binder.symbols.get(id)) {
+            if ns(binder.symbols.get(id)) {
                 break id;
             }
         }

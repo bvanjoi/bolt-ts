@@ -1,4 +1,6 @@
-use crate::atoms::AtomId;
+use bolt_ts_span::Span;
+
+use crate::ast::ModifierKind;
 
 use super::list_ctx;
 use super::token::{TokenFlags, TokenKind};
@@ -38,13 +40,13 @@ pub(super) fn is_left_hand_side_expr_kind(expr: &ast::Expr) -> bool {
     )
 }
 
-impl<'p, 't> ParserState<'p, 't> {
+impl<'p> ParserState<'p, '_> {
     pub(super) fn parse_fn_block(&mut self) -> PResult<Option<&'p ast::BlockStmt<'p>>> {
         if self.token.kind != TokenKind::LBrace && self.can_parse_semi() {
             self.parse_semi();
             return Ok(None);
         }
-        self.parse_block().map(|block| Some(block))
+        self.parse_block().map(Some)
     }
 
     pub(super) fn parse_block(&mut self) -> PResult<&'p ast::BlockStmt<'p>> {
@@ -101,7 +103,13 @@ impl<'p, 't> ParserState<'p, 't> {
     }
 
     pub(super) fn is_start_of_expr(&self) -> bool {
-        self.token.kind.is_start_of_left_hand_side_expr()
+        use TokenKind::*;
+        let t = self.token.kind;
+        if t.is_start_of_left_hand_side_expr() || matches!(t, Plus | Minus | Typeof) {
+            true
+        } else {
+            self.is_ident()
+        }
     }
 
     pub(super) fn is_start_of_stmt(&mut self) -> bool {
@@ -194,7 +202,12 @@ impl<'p, 't> ParserState<'p, 't> {
 
     #[inline(always)]
     pub(super) fn is_ident(&self) -> bool {
-        matches!(self.token.kind, TokenKind::Ident | TokenKind::Abstract)
+        let t = self.token.kind;
+        if t == TokenKind::Ident {
+            return true;
+        }
+
+        t.is_contextual_keyword() || t.is_strict_mode_reserved_word()
     }
 
     pub(super) fn next_token_is_ident(&mut self) -> PResult<bool> {
@@ -209,7 +222,7 @@ impl<'p, 't> ParserState<'p, 't> {
 
     pub(super) fn next_token_is_ident_or_keyword_on_same_line(&mut self) -> PResult<bool> {
         self.next_token();
-        return Ok(self.token.kind.is_ident_or_keyword() && !self.has_preceding_line_break());
+        Ok(self.token.kind.is_ident_or_keyword() && !self.has_preceding_line_break())
     }
 
     pub(super) fn parse_modifiers(
@@ -390,6 +403,29 @@ impl<'p, 't> ParserState<'p, 't> {
         let modifiers = self.parse_modifiers(false)?;
         let dotdotdot = self.parse_optional(TokenKind::DotDotDot).map(|t| t.span);
         let name = self.with_parent(id, Self::parse_ident_name)?;
+        if dotdotdot.is_some() {
+            if let Some(ms) = modifiers {
+                if ms.flags.intersects(ModifierKind::PARAMETER_PROPERTY) {
+                    let kinds = ms
+                        .list
+                        .iter()
+                        .filter_map(|m| {
+                            if ModifierKind::PARAMETER_PROPERTY.intersects(m.kind) {
+                                Some(m.kind)
+                            } else {
+                                None
+                            }
+                        })
+                        .collect::<Vec<_>>();
+                    let span = Span::new(ms.span.lo, name.span.hi, name.span.module);
+                    let error = errors::AParameterPropertyCannotBeDeclaredUsingARestParameter {
+                        span,
+                        kinds,
+                    };
+                    self.push_error(Box::new(error));
+                }
+            }
+        };
         let question = self.parse_optional(TokenKind::Question).map(|t| t.span);
         let ty = self.with_parent(id, Self::parse_ty_anno)?;
         let init = self.with_parent(id, Self::parse_init);
@@ -418,11 +454,7 @@ impl<'p, 't> ParserState<'p, 't> {
         let t = self.token.kind;
         if t == TokenKind::Less {
             true
-        } else if t == TokenKind::LParen && self.lookahead(Self::is_unambiguously_start_of_fn_ty) {
-            true
-        } else {
-            false
-        }
+        } else { t == TokenKind::LParen && self.lookahead(Self::is_unambiguously_start_of_fn_ty) }
     }
 
     fn skip_param_start(&mut self) -> PResult<bool> {
@@ -462,7 +494,7 @@ impl<'p, 't> ParserState<'p, 't> {
     }
 
     pub(super) fn parse_contextual_modifier(&mut self, t: TokenKind) -> bool {
-        return self.token.kind == t && self.try_parse(Self::next_token_can_follow_modifier);
+        self.token.kind == t && self.try_parse(Self::next_token_can_follow_modifier)
     }
 
     pub(super) fn parse_num_lit(&mut self, val: f64, neg: bool) -> &'p ast::NumLit {

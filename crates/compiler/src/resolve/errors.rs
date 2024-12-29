@@ -40,3 +40,12 @@ pub(super) struct AnInterfaceCannotExtendAPrimTy {
     pub span: Span,
     pub ty: String,
 }
+
+#[derive(Error, Diagnostic, Debug)]
+#[error("Cannot use namespace as a {}", if *is_ty { "type" } else { "value" })]
+#[diagnostic(severity(Advice))]
+pub(super) struct CannotUseNamespaceAsTyOrValue {
+    #[label(primary)]
+    pub span: Span,
+    pub is_ty: bool,
+}

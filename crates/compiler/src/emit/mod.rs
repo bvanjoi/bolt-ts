@@ -119,7 +119,7 @@ impl<'cx> Emit<'cx> {
         }
     }
 
-    fn emit_ident(&mut self, ident: &'cx ast::Ident) {
+    fn emit_ident(&mut self, ident: &ast::Ident) {
         self.content.p(self.atoms.get(ident.name));
     }
 }

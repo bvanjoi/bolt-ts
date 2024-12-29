@@ -21,6 +21,12 @@ impl AtomId {
 #[derive(Debug)]
 pub struct AtomMap<'cx>(FxHashMap<AtomId, Cow<'cx, str>>);
 
+impl Default for AtomMap<'_> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl<'cx> AtomMap<'cx> {
     pub fn new() -> Self {
         Self(fx_hashmap_with_capacity(1024 * 128))
@@ -28,7 +34,7 @@ impl<'cx> AtomMap<'cx> {
 
     pub fn insert_by_str(&mut self, value: Cow<'cx, str>) -> AtomId {
         let id = AtomId::from_bytes(value.as_bytes());
-        if self.0.get(&id).is_none() {
+        if !self.0.contains_key(&id) {
             self.insert(id, value)
         }
         id
@@ -39,7 +45,7 @@ impl<'cx> AtomMap<'cx> {
     }
 
     pub fn insert_if_not_exist(&mut self, atom: AtomId, lazy: impl FnOnce() -> Cow<'cx, str>) {
-        if self.0.get(&atom).is_none() {
+        if !self.0.contains_key(&atom) {
             self.insert(atom, lazy());
         }
     }

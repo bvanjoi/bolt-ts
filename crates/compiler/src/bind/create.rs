@@ -1,11 +1,14 @@
-use bolt_ts_span::Span;
 use rustc_hash::FxHashMap;
 use thin_vec::thin_vec;
 
-use super::symbol::{FnSymbol, InterfaceSymbol, ObjectSymbol, PropSymbol, SymbolFlags};
+use super::symbol::{
+    BlockContainerSymbol, FnSymbol, InterfaceSymbol, NsSymbol, ObjectSymbol, PropSymbol,
+    SymbolFlags,
+};
 use super::{errors, BinderState, Symbol, SymbolFnKind, SymbolID, SymbolKind, SymbolName};
 use crate::ast;
 use crate::atoms::AtomId;
+use crate::utils::fx_hashmap_with_capacity;
 
 impl<'cx> BinderState<'cx> {
     pub(super) fn create_final_res(&mut self, id: ast::NodeID, symbol: SymbolID) {
@@ -19,7 +22,7 @@ impl<'cx> BinderState<'cx> {
         id
     }
 
-    pub(super) fn create_var_decl(&mut self, decl: &'cx ast::VarDecl<'cx>, kind: SymbolKind) {
+    pub(super) fn create_var_decl(&mut self, decl: &'cx ast::VarDecl<'cx>, kind: SymbolKind<'cx>) {
         let flags = if matches!(kind, SymbolKind::BlockScopedVar { .. }) {
             SymbolFlags::BLOCK_SCOPED_VARIABLE
         } else {
@@ -33,7 +36,7 @@ impl<'cx> BinderState<'cx> {
         &mut self,
         name: AtomId,
         flags: SymbolFlags,
-        kind: SymbolKind,
+        kind: SymbolKind<'cx>,
     ) -> SymbolID {
         let name = SymbolName::Normal(name);
         self.create_symbol(name, flags, kind)
@@ -43,7 +46,7 @@ impl<'cx> BinderState<'cx> {
         &mut self,
         name: SymbolName,
         flags: SymbolFlags,
-        kind: SymbolKind,
+        kind: SymbolKind<'cx>,
     ) -> SymbolID {
         let key = (self.scope_id, name);
         if name.as_atom().is_some() {
@@ -59,15 +62,16 @@ impl<'cx> BinderState<'cx> {
                     assert!(prev.1.is_some());
                     prev.0 = kind;
                 } else {
-                    let name = self.atoms.get(name.expect_atom());
+                    let n = self.atoms.get(name.expect_atom());
                     let span = |kind: &SymbolKind| {
                         let id = match kind {
                             SymbolKind::Class(c) => c.decl,
+                            SymbolKind::Prop(p) => p.decl,
                             SymbolKind::Err
                             | SymbolKind::BlockContainer { .. }
                             | SymbolKind::FunctionScopedVar { .. } => unreachable!(),
                             SymbolKind::BlockScopedVar { .. } => todo!(),
-                            _ => todo!(),
+                            _ => todo!("name: {n:#?}, kind: {kind:#?}"),
                         };
                         self.p.node(id).ident_name().unwrap().span
                     };
@@ -76,10 +80,17 @@ impl<'cx> BinderState<'cx> {
 
                     let error = errors::DuplicateIdentifier {
                         span: error_span,
-                        name: name.to_string(),
+                        name: n.to_string(),
                         original_span: span(&prev.kind.0),
                     };
                     self.push_error(error_span.module, error.into());
+
+                    if flags.intersects(SymbolFlags::PROPERTY) {
+                        let id = self.next_symbol_id();
+                        self.symbols.insert(id, Symbol::new(name, flags, kind));
+                        let prev = self.res.insert(key, id);
+                        return id;
+                    }
                 }
                 return id;
             }
@@ -97,22 +108,48 @@ impl<'cx> BinderState<'cx> {
         i: InterfaceSymbol,
     ) -> SymbolID {
         let key = (self.scope_id, name);
-        if name.as_atom().is_some() {
-            if let Some(id) = self.res.get(&key) {
-                let prev = self.symbols.get_mut(*id);
-                prev.flags |= flags;
-                let prev = &mut prev.kind;
-                if matches!(prev.0, SymbolKind::Err) {
-                    todo!("error handler")
-                }
-                assert!(prev.1.is_none());
-                prev.1 = Some(i);
-                return *id;
-            }
-        }
+        // if name.as_atom().is_some() {
+        //     if let Some(id) = self.res.get(&key) {
+        //         let prev = self.symbols.get_mut(*id);
+        //         prev.flags |= flags;
+        //         let prev = &mut prev.kind;
+        //         if !matches!(prev.0, SymbolKind::Err) {
+        //             // todo: symbol merge
+        //         }
+        //         assert!(prev.1.is_none());
+        //         prev.1 = Some(i);
+        //         return *id;
+        //     }
+        // }
         let id = self.next_symbol_id();
         self.symbols
             .insert(id, Symbol::new_interface(name, flags, i));
+        let prev = self.res.insert(key, id);
+        id
+    }
+
+    pub(super) fn create_symbol_with_ns(
+        &mut self,
+        name: SymbolName,
+        flags: SymbolFlags,
+        i: NsSymbol,
+    ) -> SymbolID {
+        let key = (self.scope_id, name);
+        // if name.as_atom().is_some() {
+        //     if let Some(id) = self.res.get(&key) {
+        //         let prev = self.symbols.get_mut(*id);
+        //         prev.flags |= flags;
+        //         let prev = &mut prev.kind;
+        //         if !matches!(prev.0, SymbolKind::Err) {
+        //             todo!("error handler")
+        //         }
+        //         // assert!(prev.2.is_none());
+        //         prev.2 = Some(i);
+        //         return *id;
+        //     }
+        // }
+        let id = self.next_symbol_id();
+        self.symbols.insert(id, Symbol::new_ns(name, flags, i));
         let prev = self.res.insert(key, id);
         id
     }
@@ -188,9 +225,9 @@ impl<'cx> BinderState<'cx> {
         let symbol = self.create_symbol(
             SymbolName::Container,
             SymbolFlags::VALUE_MODULE,
-            SymbolKind::BlockContainer {
-                locals: FxHashMap::default(),
-            },
+            SymbolKind::BlockContainer(BlockContainerSymbol {
+                locals: fx_hashmap_with_capacity(32),
+            }),
         );
         self.create_final_res(node_id, symbol);
         symbol

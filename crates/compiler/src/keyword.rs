@@ -42,14 +42,19 @@ gen!(
     (KW_CATCH, "catch"),
     (KW_FINALLY, "finally"),
     (KW_DEBUGGER, "debugger"),
+    (KW_TYPEOF, "typeof"),
+    (KW_PACKAGE, "package"),
+    (KW_YIELD, "yield"),
     (KW_IN, "in"),
     // ts keywords
     (KW_IMPLEMENTS, "implements"),
     (KW_INTERFACE, "interface"),
     (KW_ABSTRACT, "abstract"),
     (KW_PUBLIC, "public"),
+    (KW_PROTECTED, "protected"),
     (KW_PRIVATE, "private"),
     (KW_AS, "as"),
+    (KW_IS, "is"),
     (KW_DECLARE, "declare"),
     (KW_MODULE, "module"),
     (KW_NAMESPACE, "namespace"),
@@ -71,6 +76,7 @@ gen!(
     (IDENT_ARRAY, "array"),
     (IDENT_ARRAY_CLASS, "Array"),
     (IDENT_STRING, "string"),
+    (IDENT_STRING_CLASS, "String"),
     (IDENT_BOOLEAN, "boolean"),
     (IDENT_NEVER, "never"),
     (IDENT_UNKNOWN, "unknown"),
@@ -80,6 +86,7 @@ pub fn is_prim_ty_name(name: AtomId) -> bool {
     matches!(
         name,
         IDENT_ANY
+            | KW_NULL
             | IDENT_NUMBER
             | IDENT_STRING
             | IDENT_BOOLEAN

@@ -32,9 +32,10 @@ pub enum Node<'cx> {
     InterfaceDecl(&'cx ast::InterfaceDecl<'cx>),
     TypeDecl(&'cx ast::TypeDecl<'cx>),
     InterfaceExtendsClause(&'cx ast::InterfaceExtendsClause<'cx>),
-    ImplementsClause(&'cx ast::ImplementsClause<'cx>),
+    ClassImplementsClause(&'cx ast::ClassImplementsClause<'cx>),
     BlockStmt(&'cx ast::BlockStmt<'cx>),
     ThrowStmt(&'cx ast::ThrowStmt<'cx>),
+    EnumDecl(&'cx ast::EnumDecl<'cx>),
     Modifier(&'cx ast::Modifier),
 
     // expr
@@ -49,6 +50,7 @@ pub enum Node<'cx> {
     OmitExpr(&'cx ast::OmitExpr),
     ParenExpr(&'cx ast::ParenExpr<'cx>),
     CondExpr(&'cx ast::CondExpr<'cx>),
+    EnumMember(&'cx ast::EnumMember<'cx>),
     ObjectMemberField(&'cx ast::ObjectMemberField<'cx>),
     ObjectLit(&'cx ast::ObjectLit<'cx>),
     CallExpr(&'cx ast::CallExpr<'cx>),
@@ -165,14 +167,54 @@ impl<'cx> Node<'cx> {
     pub fn ident_name(&self) -> Option<&'cx ast::Ident> {
         use Node::*;
         match self {
-            FnDecl(n) => Some(&n.name),
-            ClassDecl(n) => Some(&n.name),
+            Ident(n) => Some(n),
+            FnDecl(n) => Some(n.name),
+            ClassDecl(n) => Some(n.name),
+            ClassExpr(n) => n.name,
+            ParamDecl(n) => Some(n.name),
+            InterfaceDecl(n) => Some(n.name),
+            ClassPropEle(n) => match n.name.kind {
+                ast::PropNameKind::Ident(ident) => Some(ident),
+                _ => None,
+            },
             ClassMethodEle(n) => match n.name.kind {
-                ast::PropNameKind::Ident(ref ident) => Some(ident),
+                ast::PropNameKind::Ident(ident) => Some(ident),
+                _ => None,
+            },
+            PropSignature(n) => match n.name.kind {
+                ast::PropNameKind::Ident(ident) => Some(ident),
+                _ => None,
+            },
+            ObjectMemberField(n) => match n.name.kind {
+                ast::PropNameKind::Ident(ident) => Some(ident),
                 _ => None,
             },
             _ => None,
         }
+    }
+
+    pub fn ty_params(&self) -> Option<super::TyParams<'cx>> {
+        macro_rules! ty_params {
+            ($($node_kind:ident),* $(,)?) => {
+                match self {
+                    $(Node::$node_kind(n) => n.ty_params,)*
+                    _ => None,
+                }
+            };
+        }
+        ty_params!(
+            FnDecl,
+            FnExpr,
+            ArrowFnExpr,
+            ClassDecl,
+            ClassCtor,
+            CtorSigDecl,
+            ClassMethodEle,
+            TypeDecl,
+            MethodSignature,
+            CallSigDecl,
+            InterfaceDecl,
+        )
     }
 }
 
@@ -270,6 +312,13 @@ as_node!(
         is_class_decl
     ),
     (
+        EnumDecl,
+        &'cx ast::EnumDecl<'cx>,
+        as_enum_decl,
+        expect_enum_decl,
+        is_enum_decl
+    ),
+    (
         NamespaceDecl,
         &'cx ast::NsDecl<'cx>,
         as_namespace_decl,
@@ -353,6 +402,13 @@ as_node!(
         as_cond_expr,
         expect_cond_expr,
         is_cond_expr
+    ),
+    (
+        EnumMember,
+        &'cx ast::EnumMember<'cx>,
+        as_enum_member,
+        expect_enum_member,
+        is_enum_member
     ),
     (
         ObjectMemberField,
@@ -482,11 +538,11 @@ as_node!(
         is_class_extends_clause
     ),
     (
-        ImplementsClause,
-        &'cx ast::ImplementsClause<'cx>,
-        as_implements_clause,
-        expect_implements_clause,
-        is_implements_clause
+        ClassImplementsClause,
+        &'cx ast::ClassImplementsClause<'cx>,
+        as_class_implements_clause,
+        expect_class_implements_clause,
+        is_class_implements_clause
     ),
     (
         InterfaceExtendsClause,

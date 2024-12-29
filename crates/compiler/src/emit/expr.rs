@@ -41,10 +41,7 @@ impl<'cx> Emit<'cx> {
             ArrowFn(arrow_fn) => self.emit_arrow_fn(arrow_fn),
             PrefixUnary(unary) => {
                 self.content.p(unary.op.as_str());
-                match unary.expr.kind {
-                    PrefixUnary(_) => self.content.p_whitespace(),
-                    _ => {}
-                };
+                if let PrefixUnary(_) = unary.expr.kind { self.content.p_whitespace() };
                 self.emit_expr(unary.expr);
             }
             Class(class) => self.emit_class_like(class),
@@ -101,7 +98,7 @@ impl<'cx> Emit<'cx> {
         }
         self.emit_params(f.params);
         self.content.p_whitespace();
-        self.emit_block_stmt(&f.body);
+        self.emit_block_stmt(f.body);
     }
 
     fn emit_bin_expr(&mut self, bin_op: &'cx ast::BinExpr) {
@@ -117,7 +114,7 @@ impl<'cx> Emit<'cx> {
     fn emit_array_lit(&mut self, lit: &'cx ast::ArrayLit) {
         self.content.p_l_bracket();
         for (idx, expr) in lit.elems.iter().enumerate() {
-            self.emit_expr(&expr);
+            self.emit_expr(expr);
             if idx != lit.elems.len() - 1 {
                 self.content.p_comma();
                 self.content.p_whitespace();

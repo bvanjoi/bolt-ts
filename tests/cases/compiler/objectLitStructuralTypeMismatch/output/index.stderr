@@ -1,0 +1,5 @@
+  × Object literal may only specify known properties, and 'b' does not exist.
+   ╭─[../../tests/cases/compiler/objectLitStructuralTypeMismatch/index.ts:3:27]
+ 3 │ b: 5
+   · ────
+   ╰────

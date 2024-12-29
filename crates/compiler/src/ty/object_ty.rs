@@ -7,14 +7,12 @@ use super::{Sig, Ty};
 
 #[derive(Debug, Clone, Copy)]
 pub struct ObjectTy<'cx> {
-    // TODO: properties, members...
     pub kind: ObjectTyKind<'cx>,
 }
 
 #[derive(Debug, Clone, Copy)]
 pub enum ObjectTyKind<'cx> {
-    Class(&'cx ClassTy),
-    Fn(&'cx FnTy<'cx>),
+    Anonymous(&'cx AnonymousTy<'cx>),
     ObjectLit(&'cx ObjectLitTy<'cx>),
     Tuple(&'cx TupleTy<'cx>),
     Interface(&'cx InterfaceTy<'cx>),
@@ -41,18 +39,11 @@ macro_rules! ty_kind_as_object_ty_kind {
 }
 
 ty_kind_as_object_ty_kind!(
-    &'cx ClassTy,
-    as_class,
-    as_object_class,
-    expect_object_class,
-    is_object_class
-);
-ty_kind_as_object_ty_kind!(
-    &'cx FnTy<'cx>,
-    as_fn,
-    as_object_fn,
-    expect_object_fn,
-    is_object_fn
+    &'cx AnonymousTy<'cx>,
+    as_anonymous,
+    as_object_anonymous,
+    expect_object_anonymous,
+    is_object_anonymous
 );
 ty_kind_as_object_ty_kind!(
     &'cx ObjectLitTy<'cx>,
@@ -101,8 +92,7 @@ macro_rules! as_object_ty_kind {
     };
 }
 
-as_object_ty_kind!(Class, &'cx ClassTy, as_class, is_class);
-as_object_ty_kind!(Fn, &'cx FnTy<'cx>, as_fn, is_fn);
+as_object_ty_kind!(Anonymous, &'cx AnonymousTy<'cx>, as_anonymous, is_anonymous);
 as_object_ty_kind!(
     ObjectLit,
     &'cx ObjectLitTy<'cx>,
@@ -148,32 +138,75 @@ pub struct TupleShape<'cx> {
 
 #[derive(Debug, Clone, Copy)]
 pub struct ReferenceTy<'cx> {
-    pub ty_args: super::Tys<'cx>,
     pub target: &'cx Ty<'cx>,
+    pub resolved_ty_args: super::Tys<'cx>,
 }
 
 #[derive(Debug, Clone, Copy)]
 pub struct IndexInfo<'cx> {
+    pub symbol: SymbolID,
     pub key_ty: &'cx Ty<'cx>,
     pub val_ty: &'cx Ty<'cx>,
+}
+
+pub type IndexInfos<'cx> = &'cx [&'cx IndexInfo<'cx>];
+
+#[derive(Debug, Clone, Copy)]
+pub struct DeclaredMembers<'cx> {
+    pub props: &'cx [SymbolID],
+    pub index_infos: IndexInfos<'cx>,
+    pub ctor_sigs: super::Sigs<'cx>,
+    pub call_sigs: super::Sigs<'cx>,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct StructuredMembers<'cx> {
+    pub members: &'cx rustc_hash::FxHashMap<SymbolName, SymbolID>,
+    pub base_tys: super::Tys<'cx>,
+    pub base_ctor_ty: Option<&'cx super::Ty<'cx>>,
+    pub call_sigs: super::Sigs<'cx>,
+    pub ctor_sigs: super::Sigs<'cx>,
+    pub index_infos: self::IndexInfos<'cx>,
+    pub props: &'cx [SymbolID],
 }
 
 #[derive(Debug, Clone, Copy)]
 pub struct InterfaceTy<'cx> {
     pub symbol: SymbolID,
-    pub members: &'cx FxHashMap<SymbolName, SymbolID>,
-    pub base_tys: &'cx [&'cx Ty<'cx>],
-    pub base_ctor_ty: Option<&'cx Ty<'cx>>,
-    pub declared_props: &'cx [SymbolID],
-    pub declared_index_infos: &'cx [&'cx IndexInfo<'cx>],
-    pub declared_ctor_sigs: &'cx [&'cx Sig<'cx>],
+    pub ty_params: Option<super::Tys<'cx>>,
+    pub outer_ty_params: Option<super::Tys<'cx>>,
+    pub local_ty_params: Option<super::Tys<'cx>>,
+    pub this_ty: Option<&'cx Ty<'cx>>,
 }
 
-impl<'cx> ObjectTyKind<'cx> {
-    pub(super) fn to_string(&self, checker: &TyChecker) -> String {
+impl ObjectTyKind<'_> {
+    pub(super) fn to_string(&self, checker: &mut TyChecker) -> String {
         match self {
-            ObjectTyKind::Class(_) => "class".to_string(),
-            ObjectTyKind::Fn(_) => "function".to_string(),
+            ObjectTyKind::Anonymous(f) => {
+                let params = f.call_sigs[0].params;
+                let params = params
+                    .iter()
+                    .map(|param| {
+                        let decl = param.decl(checker.binder);
+                        let name = checker.p.node(decl).ident_name().unwrap();
+                        let ty = checker.get_type_of_symbol(*param);
+                        format!(
+                            "{}: {}",
+                            checker.atoms.get(name.name),
+                            ty.to_string(checker)
+                        )
+                    })
+                    .collect::<Vec<_>>()
+                    .join(",");
+                let ret = if let Some(ret) = f.call_sigs[0].ret {
+                    let ty = checker.p.node(ret);
+                    let ty = checker.get_ty_from_type_node(&ty.as_ty().unwrap());
+                    ty.to_string(checker)
+                } else {
+                    checker.any_ty().to_string(checker)
+                };
+                format!("({params}) => {ret}")
+            }
             ObjectTyKind::ObjectLit(_) => "Object".to_string(),
             ObjectTyKind::Tuple(TupleTy { tys, .. }) => {
                 format!(
@@ -189,16 +222,11 @@ impl<'cx> ObjectTyKind<'cx> {
                 .get(checker.binder.symbol(i.symbol).name.expect_atom())
                 .to_string(),
             ObjectTyKind::Reference(refer) => {
-                let ty = refer.target.to_string(checker);
-                ty
+                
+                refer.target.to_string(checker)
             }
         }
     }
-}
-
-#[derive(Debug, Clone, Copy)]
-pub struct ClassTy {
-    pub symbol: SymbolID,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -209,7 +237,9 @@ pub struct ObjectLitTy<'cx> {
 }
 
 #[derive(Debug, Clone, Copy)]
-pub struct FnTy<'cx> {
+pub struct AnonymousTy<'cx> {
     pub symbol: SymbolID,
-    pub declared_sigs: &'cx [&'cx Sig<'cx>],
+    pub call_sigs: &'cx [&'cx Sig<'cx>],
+    pub target: Option<&'cx Ty<'cx>>,
+    pub mapper: Option<&'cx super::TyMapper<'cx>>,
 }

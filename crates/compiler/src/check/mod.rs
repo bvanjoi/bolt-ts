@@ -7,6 +7,8 @@ mod check_fn_like_symbol;
 mod check_interface;
 mod check_var_like;
 mod create_ty;
+mod errors;
+mod expect;
 mod get_base_ty;
 mod get_contextual_ty;
 mod get_declared_ty;
@@ -20,24 +22,37 @@ mod instantiate;
 mod node_links;
 mod relation;
 mod resolve;
+mod resolve_structured_member;
 mod sig;
 mod symbol_links;
 mod utils;
 
+use self::node_links::NodeLinks;
 pub use self::resolve::ExpectedArgsCount;
-use self::symbol_links::SymbolLinks;
+pub use self::symbol_links::SymbolLinks;
 use self::utils::{find_ancestor, get_assignment_kind, AssignmentKind};
 use bolt_ts_span::{ModuleID, Span};
-use node_links::NodeLinks;
 use rustc_hash::FxHashMap;
 
 use crate::ast::{BinOp, NodeID};
 use crate::atoms::{AtomId, AtomMap};
-use crate::bind::{self, GlobalSymbols, SymbolFlags, SymbolID, SymbolName};
+use crate::bind::{self, GlobalSymbols, Symbol, SymbolFlags, SymbolID, SymbolName};
 use crate::parser::Parser;
-use crate::ty::{has_type_facts, Sig, SigFlags, TupleShape, Ty, TyID, TyKind, TyVarID, TypeFacts};
+use crate::ty::{
+    has_type_facts, CheckFlags, Sig, SigFlags, TupleShape, Ty, TyID, TyKind, TyVarID, TypeFacts,
+};
 use crate::utils::fx_hashmap_with_capacity;
-use crate::{ast, ensure_sufficient_stack, errors, keyword, ty};
+use crate::{ast, ensure_sufficient_stack, keyword, ty};
+
+bitflags::bitflags! {
+    #[derive(Clone, Copy, Debug, PartialEq)]
+    pub struct Ternary: u8 {
+        const FALSE = 0x0;
+        const UNKNOWN = 0x1;
+        const MAYBE = 0x3;
+        const TRUE = u8::MAX;
+    }
+}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct F64Represent {
@@ -52,15 +67,15 @@ impl F64Represent {
     }
 }
 
-impl Into<F64Represent> for f64 {
-    fn into(self) -> F64Represent {
-        F64Represent::new(self)
+impl From<f64> for F64Represent {
+    fn from(val: f64) -> Self {
+        F64Represent::new(val)
     }
 }
 
-impl Into<F64Represent> for usize {
-    fn into(self) -> F64Represent {
-        F64Represent::new(self as f64)
+impl From<usize> for F64Represent {
+    fn from(val: usize) -> Self {
+        F64Represent::new(val as f64)
     }
 }
 
@@ -76,20 +91,22 @@ pub struct TyChecker<'cx> {
     intrinsic_tys: FxHashMap<AtomId, &'cx Ty<'cx>>,
     type_name: FxHashMap<TyID, String>,
     ty_vars: FxHashMap<TyVarID, &'cx Ty<'cx>>,
+    symbol_links: FxHashMap<SymbolID, SymbolLinks<'cx>>,
+    node_links: FxHashMap<NodeID, NodeLinks<'cx>>,
+    ty_declared_members: FxHashMap<TyID, &'cx ty::DeclaredMembers<'cx>>,
+    ty_structured_members: FxHashMap<TyID, &'cx ty::StructuredMembers<'cx>>,
     // === ast ===
-    p: &'cx Parser<'cx>,
+    pub p: &'cx Parser<'cx>,
     // === global ===
-    global_tys: FxHashMap<TyID, &'cx Ty<'cx>>,
     global_array_ty: std::cell::OnceCell<&'cx Ty<'cx>>,
     global_number_ty: std::cell::OnceCell<&'cx Ty<'cx>>,
+    global_string_ty: std::cell::OnceCell<&'cx Ty<'cx>>,
     boolean_ty: std::cell::OnceCell<&'cx Ty<'cx>>,
     tuple_shapes: FxHashMap<u32, &'cx TupleShape<'cx>>,
     unknown_sig: std::cell::OnceCell<&'cx Sig<'cx>>,
     // === resolver ===
     pub binder: &'cx mut bind::Binder<'cx>,
     global_symbols: &'cx GlobalSymbols,
-    symbol_links: FxHashMap<SymbolID, SymbolLinks<'cx>>,
-    node_links: FxHashMap<NodeID, NodeLinks<'cx>>,
 
     node_id_to_sig: FxHashMap<ast::NodeID, &'cx Sig<'cx>>,
     resolution_tys: thin_vec::ThinVec<SymbolID>,
@@ -99,7 +116,7 @@ pub struct TyChecker<'cx> {
 macro_rules! intrinsic_type {
     ($(($name: ident, $atom_id: expr, $ty_flags: expr)),* $(,)?) => {
         impl<'cx> TyChecker<'cx> {
-            $(fn $name(&self) -> &'cx Ty<'cx> {
+            $(pub fn $name(&self) -> &'cx Ty<'cx> {
                 self.intrinsic_tys[&$atom_id]
             })*
         }
@@ -138,7 +155,7 @@ impl<'cx> TyChecker<'cx> {
         binder: &'cx mut bind::Binder<'cx>,
         global_symbols: &'cx GlobalSymbols,
     ) -> Self {
-        assert!(ty_arena.allocated_bytes() == 0);
+        assert_eq!(ty_arena.allocated_bytes(), 0);
         let mut this = Self {
             intrinsic_tys: fx_hashmap_with_capacity(1024),
             atoms,
@@ -152,13 +169,15 @@ impl<'cx> TyChecker<'cx> {
             diags: Vec::with_capacity(p.module_count() * 32),
             boolean_ty: Default::default(),
             global_number_ty: Default::default(),
+            global_string_ty: Default::default(),
             global_array_ty: Default::default(),
             unknown_sig: Default::default(),
             tuple_shapes: fx_hashmap_with_capacity(1024 * 8),
             type_name: fx_hashmap_with_capacity(1024 * 8),
             node_id_to_sig: fx_hashmap_with_capacity(p.module_count() * 256),
-            global_tys: FxHashMap::default(),
             ty_vars: FxHashMap::default(),
+            ty_declared_members: fx_hashmap_with_capacity(p.module_count() * 1024),
+            ty_structured_members: fx_hashmap_with_capacity(p.module_count() * 1024),
             symbol_links: fx_hashmap_with_capacity(p.module_count() * 1024),
             node_links: fx_hashmap_with_capacity(p.module_count() * 1024),
             resolution_tys: thin_vec::ThinVec::with_capacity(128),
@@ -182,6 +201,10 @@ impl<'cx> TyChecker<'cx> {
         let global_array_ty = this.get_global_type(SymbolName::Normal(keyword::IDENT_ARRAY_CLASS));
         this.global_array_ty.set(global_array_ty).unwrap();
 
+        let global_string_ty =
+            this.get_global_type(SymbolName::Normal(keyword::IDENT_STRING_CLASS));
+        this.global_string_ty.set(global_string_ty).unwrap();
+
         let unknown_sig = this.alloc(Sig {
             flags: SigFlags::empty(),
             ty_params: None,
@@ -189,45 +212,67 @@ impl<'cx> TyChecker<'cx> {
             min_args_count: 0,
             ret: None,
             node_id: ast::NodeID::root(ModuleID::MOCK),
+            target: None,
+            mapper: None,
         });
         this.unknown_sig.set(unknown_sig).unwrap();
 
         this
     }
 
+    fn check_flags(&self, symbol: SymbolID) -> CheckFlags {
+        if let Some(t) = self.binder.get_transient(symbol) {
+            t.links.get_check_flags().unwrap()
+        } else {
+            bitflags::Flags::empty()
+        }
+    }
+
     fn get_symbol_links(&mut self, symbol: SymbolID) -> &SymbolLinks<'cx> {
-        self.symbol_links
-            .entry(symbol)
-            .or_insert_with(SymbolLinks::new)
+        if let Some(t) = self.binder.get_transient(symbol) {
+            &t.links
+        } else {
+            self.symbol_links
+                .entry(symbol)
+                .or_default()
+        }
     }
 
     fn get_mut_symbol_links(&mut self, symbol: SymbolID) -> &mut SymbolLinks<'cx> {
-        self.symbol_links.get_mut(&symbol).unwrap()
+        if let Some(t) = self.binder.get_mut_transient(symbol) {
+            &mut t.links
+        } else {
+            self.symbol_links.get_mut(&symbol).unwrap()
+        }
     }
 
     fn get_node_links(&mut self, node: NodeID) -> &NodeLinks<'cx> {
-        self.node_links.entry(node).or_insert_with(NodeLinks::new)
+        self.node_links.entry(node).or_default()
     }
 
     fn get_mut_node_links(&mut self, node: NodeID) -> &mut NodeLinks<'cx> {
         self.node_links.get_mut(&node).unwrap()
     }
 
-    pub fn print_ty(&mut self, ty: &Ty) -> &str {
-        if !self.type_name.contains_key(&ty.id) {
-            let name = ty.to_string(&self);
-            self.type_name.insert(ty.id, name);
-        }
-        self.type_name.get(&ty.id).unwrap().as_str()
+    pub fn print_ty<'a>(&'a mut self, ty: &'cx Ty) -> &'a str {
+        let type_name = (!self.type_name.contains_key(&ty.id)).then(|| ty.to_string(self));
+        self.type_name
+            .entry(ty.id)
+            .or_insert_with(|| type_name.unwrap())
     }
 
-    fn boolean_ty(&self) -> &'cx Ty<'cx> {
+    pub(crate) fn boolean_ty(&self) -> &'cx Ty<'cx> {
         self.boolean_ty.get().unwrap()
     }
 
     #[inline(always)]
     fn global_number_ty(&self) -> &'cx Ty<'cx> {
         self.global_number_ty.get().unwrap()
+    }
+
+    #[inline(always)]
+    fn global_string_ty(&self) -> &'cx Ty<'cx> {
+        self.global_string_ty.get().unwrap()
     }
 
     #[inline(always)]
@@ -260,13 +305,18 @@ impl<'cx> TyChecker<'cx> {
             If(i) => self.check_if_stmt(i),
             Block(block) => self.check_block(block),
             Return(ret) => self.check_return_stmt(ret),
-            Empty(_) => {}
             Class(class) => self.check_class_decl(class),
             Interface(interface) => self.check_interface_decl(interface),
+            Namespace(ns) => self.check_ns_decl(ns),
+            Empty(_) => {}
             Type(_) => {}
-            Namespace(_) => {}
             Throw(_) => {}
+            Enum(enum_decl) => {}
         };
+    }
+
+    fn check_ns_decl(&mut self, ns: &'cx ast::NsDecl<'cx>) {
+        self.check_block(ns.block);
     }
 
     fn is_applicable_index_ty(&mut self, source: &'cx Ty<'cx>, target: &'cx Ty<'cx>) -> bool {
@@ -276,6 +326,8 @@ impl<'cx> TyChecker<'cx> {
     fn get_apparent_ty(&mut self, ty: &'cx ty::Ty<'cx>) -> &'cx ty::Ty<'cx> {
         if ty.kind.is_number_like() {
             self.global_number_ty()
+        } else if ty.kind.is_string_like() {
+            self.global_string_ty()
         } else {
             ty
         }
@@ -286,10 +338,7 @@ impl<'cx> TyChecker<'cx> {
         ty: &'cx ty::Ty<'cx>,
         prop_name_ty: &'cx Ty<'cx>,
     ) -> Vec<&'cx ty::IndexInfo<'cx>> {
-        let Some(i) = ty.kind.as_object_interface() else {
-            return vec![];
-        };
-        i.declared_index_infos
+        self.index_infos(ty)
             .iter()
             .filter_map(|info| {
                 if self.is_applicable_index_ty(prop_name_ty, info.key_ty) {
@@ -301,6 +350,17 @@ impl<'cx> TyChecker<'cx> {
             .collect()
     }
 
+    fn get_applicable_index_info(
+        &mut self,
+        ty: &'cx ty::Ty<'cx>,
+        prop_name_ty: &'cx Ty<'cx>,
+    ) -> Option<&'cx ty::IndexInfo<'cx>> {
+        self.index_infos(ty)
+            .iter()
+            .find(|info| self.is_applicable_index_ty(prop_name_ty, info.key_ty))
+            .copied()
+    }
+
     fn check_index_constraint_for_prop(
         &mut self,
         ty: &'cx ty::Ty<'cx>,
@@ -310,7 +370,7 @@ impl<'cx> TyChecker<'cx> {
     ) {
         for index_info in self.get_applicable_index_infos(ty, prop_name_ty) {
             if !self.is_type_assignable_to(prop_ty, index_info.val_ty) {
-                let prop_decl = self.binder.symbol(prop).expect_prop().decl;
+                let prop_decl = prop.decl(self.binder);
                 let prop_node = self.p.node(prop_decl);
                 let prop_name = match prop_node {
                     ast::Node::ClassPropEle(prop) => prop.name,
@@ -335,7 +395,8 @@ impl<'cx> TyChecker<'cx> {
         }
 
         if let Some(i) = ty.kind.as_object_interface() {
-            for base_ty in i.base_tys {
+            let base_tys = self.ty_structured_members[&ty.id].base_tys;
+            for base_ty in base_tys {
                 self.check_index_constraint_for_prop(base_ty, prop, prop_name_ty, prop_ty);
             }
         } else {
@@ -345,7 +406,10 @@ impl<'cx> TyChecker<'cx> {
 
     fn get_lit_ty_from_prop(&mut self, prop: SymbolID) -> &'cx ty::Ty<'cx> {
         let symbol = self.binder.symbol(prop);
-        if symbol.flags == SymbolFlags::PROPERTY || symbol.flags == SymbolFlags::FUNCTION {
+        if symbol
+            .flags
+            .intersects(SymbolFlags::PROPERTY | SymbolFlags::FUNCTION)
+        {
             self.string_ty()
         } else {
             self.undefined_ty()
@@ -353,9 +417,7 @@ impl<'cx> TyChecker<'cx> {
     }
 
     fn check_index_constraints(&mut self, ty: &'cx ty::Ty<'cx>, symbol: SymbolID) {
-        // self.get_index_info_of_ty(ty);
-        let i = ty.kind.expect_object_interface();
-        for prop in i.declared_props {
+        for prop in self.properties_of_object_type(ty) {
             let prop_ty = self.get_type_of_symbol(*prop);
             let prop_name_ty = self.get_lit_ty_from_prop(*prop);
             self.check_index_constraint_for_prop(ty, *prop, prop_name_ty, prop_ty);
@@ -509,10 +571,18 @@ impl<'cx> TyChecker<'cx> {
                 self.check_class_decl_like(class);
                 self.undefined_ty()
             }
-            PropAccess(_) => self.undefined_ty(),
+            PropAccess(node) => self.check_prop_access_expr(node),
             EleAccess(_) => self.undefined_ty(),
             This(_) => self.undefined_ty(),
         }
+    }
+
+    fn check_prop_access_expr(&mut self, node: &'cx ast::PropAccessExpr<'cx>) -> &'cx Ty<'cx> {
+        let left = self.check_expr(node.expr);
+        let Some(symbol) = self.get_prop_of_ty(left, SymbolName::Ele(node.name.name)) else {
+            return self.undefined_ty();
+        };
+        self.get_type_of_symbol(symbol)
     }
 
     fn check_prefix_unary_expr(&mut self, expr: &'cx ast::PrefixUnaryExpr<'cx>) -> &'cx Ty<'cx> {
@@ -679,10 +749,12 @@ impl<'cx> TyChecker<'cx> {
         } else {
             self.create_union_type(elems)
         };
-        self.create_reference_ty(ty::ReferenceTy {
-            ty_args: self.alloc(vec![ty]),
-            target: self.global_array_ty(),
-        })
+        let refer = self.global_array_ty().kind.expect_object_reference();
+        let ty = self.create_reference_ty(ty::ReferenceTy {
+            target: refer.target,
+            resolved_ty_args: self.alloc(vec![ty]),
+        });
+        ty
     }
 
     fn is_used_in_fn_or_instance_prop(&self, used: &'cx ast::Ident, decl: ast::NodeID) -> bool {
@@ -712,7 +784,7 @@ impl<'cx> TyChecker<'cx> {
             return true;
         }
 
-        if self.is_used_in_fn_or_instance_prop(&used, decl) {
+        if self.is_used_in_fn_or_instance_prop(used, decl) {
             return true;
         }
 
@@ -756,7 +828,7 @@ impl<'cx> TyChecker<'cx> {
 
         let ty = self.get_type_of_symbol(symbol);
         let assignment_kind = get_assignment_kind(self, ident.id);
-        if assignment_kind != AssignmentKind::None {
+        if assignment_kind != AssignmentKind::None && symbol != Symbol::ERR {
             let symbol = self.binder.symbol(symbol);
             if !symbol.is_variable() {
                 let error = errors::CannotAssignToNameBecauseItIsATy {

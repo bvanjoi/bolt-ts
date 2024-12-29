@@ -1,0 +1,11 @@
+  × Type argument list cannot be empty.
+   ╭─[../../tests/cases/compiler/emptyTypeArgumentList/index.ts:4:4]
+ 4 │ <>
+   · ──
+   ╰────
+
+  × Type argument list cannot be empty.
+   ╭─[../../tests/cases/compiler/emptyTypeArgumentList/index.ts:8:9]
+ 8 │ <>
+   · ──
+   ╰────

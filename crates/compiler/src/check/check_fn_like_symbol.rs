@@ -1,11 +1,12 @@
 use bolt_ts_span::Span;
 
 use crate::bind::{SymbolFnKind, SymbolID};
-use crate::{ast, errors, keyword};
+use crate::{ast, keyword};
 
+use super::errors;
 use super::TyChecker;
 
-impl<'cx> TyChecker<'cx> {
+impl TyChecker<'_> {
     pub(super) fn check_fn_like_symbol(&mut self, symbol: SymbolID) {
         let f = &self.binder.symbol(symbol).expect_fn();
         assert!(!f.decls.is_empty());
@@ -20,7 +21,13 @@ impl<'cx> TyChecker<'cx> {
                             .map_or(false, |m| m.flags.contains(ast::ModifierKind::Declare))
                 }
                 ast::Node::ClassCtor(n) => n.body.is_some(),
-                ast::Node::ClassMethodEle(n) => n.body.is_some(),
+                ast::Node::ClassMethodEle(n) => {
+                    if !n.flags.intersects(ast::NodeFlags::AMBIENT) {
+                        n.body.is_some()
+                    } else {
+                        true
+                    }
+                }
                 _ => unreachable!("{:#?}", node),
             }
         });

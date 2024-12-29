@@ -1,14 +1,10 @@
-use super::ty;
+use crate::bind::SymbolID;
 
-impl<'cx> SymbolLinks<'cx> {
-    pub fn new() -> Self {
-        Default::default()
-    }
-}
+use super::ty;
 
 macro_rules! prop {
     ( $( ($x: ident, $ty: ty, $with_x:ident, $set_x: ident, $get_x: ident) ),* $( , )? ) => {
-        #[derive(Debug, Default)]
+        #[derive(Debug, Default, Clone, Copy)]
         pub struct SymbolLinks<'cx> {
             $(
                 $x: Option<$ty>,
@@ -48,5 +44,20 @@ prop!(
         with_ty_params,
         set_ty_params,
         get_ty_params
+    ),
+    (
+        check_flags,
+        ty::CheckFlags,
+        with_check_flags,
+        set_check_flags,
+        get_check_flags
+    ),
+    (target, SymbolID, with_target, set_target, get_target),
+    (
+        mapper,
+        &'cx ty::TyMapper<'cx>,
+        with_ty_mapper,
+        set_ty_mapper,
+        get_ty_mapper
     ),
 );

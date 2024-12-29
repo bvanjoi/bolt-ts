@@ -3,7 +3,6 @@ mod atoms;
 mod bind;
 pub mod check;
 mod emit;
-mod errors;
 mod ir;
 mod keyword;
 pub mod parser;
@@ -18,17 +17,22 @@ use std::sync::Mutex;
 
 use atoms::AtomMap;
 use bind::{bind, GlobalSymbols};
+use bolt_ts_config::NormalizedTsConfig;
+use bolt_ts_span::ModuleID;
 use bolt_ts_span::{ModuleArena, ModulePath};
 use parser::parse_parallel;
 use parser::token::keyword_idx_to_token;
 use parser::token::TokenKind;
 use resolve::resolve;
+use rustc_hash::FxHashMap;
 
 type Diag = Box<dyn bolt_ts_errors::miette::Diagnostic + Send + Sync + 'static>;
 
 pub struct Output {
+    pub cwd: PathBuf,
+    pub tsconfig: NormalizedTsConfig,
     pub module_arena: ModuleArena,
-    pub output: String,
+    pub output: FxHashMap<ModuleID, String>,
     pub diags: Vec<bolt_ts_errors::Diag>,
 }
 
@@ -40,9 +44,87 @@ fn current_exe_dir() -> std::path::PathBuf {
         .to_path_buf()
 }
 
-pub fn eval_from(m: ModulePath) -> Output {
+fn build_graph<'cx>(
+    module_arena: &mut ModuleArena,
+    list: &[ModuleID],
+    atoms: Arc<Mutex<AtomMap<'cx>>>,
+    herd: &'cx bumpalo_herd::Herd,
+    parser: &mut parser::Parser<'cx>,
+) {
+    for (module_id, result) in parse_parallel(atoms.clone(), herd, list, module_arena) {
+        parser.insert(module_id, result);
+    }
+}
+
+pub fn output_files(
+    cwd: &std::path::Path,
+    tsconfig: &NormalizedTsConfig,
+    module_arena: &ModuleArena,
+    output: &FxHashMap<ModuleID, String>,
+) -> FxHashMap<PathBuf, String> {
+    let p = |m: ModuleID| match module_arena.get_path(m) {
+        bolt_ts_span::ModulePath::Real(p) => p,
+        bolt_ts_span::ModulePath::Virtual => todo!(),
+    };
+    match tsconfig.compiler_options().out_dir() {
+        bolt_ts_config::OutDir::OwnRoot => output
+            .iter()
+            .map(|(m, content)| (p(*m).with_extension("js"), content.to_string()))
+            .collect(),
+        bolt_ts_config::OutDir::Custom(dir) => {
+            let dir = cwd.join(dir);
+            output
+                .iter()
+                .map(|(m, content)| {
+                    let file_path = p(*m);
+                    let file_name = file_path.file_name().unwrap();
+                    (
+                        dir.join(file_name).with_extension("js"),
+                        content.to_string(),
+                    )
+                })
+                .collect()
+        }
+    }
+}
+
+pub fn eval_from(cwd: PathBuf, tsconfig: NormalizedTsConfig) -> Output {
+    let mut entries = vec![];
     let mut module_arena = ModuleArena::new();
-    let m = module_arena.new_module(m, false);
+    // build entires
+    let dir = current_exe_dir();
+    for (_, file) in bolt_ts_lib::LIB_ENTIRES {
+        let module_id = module_arena.new_module(ModulePath::Real(dir.join(file)), true);
+        entries.push(module_id);
+    }
+    for entry in tsconfig.include() {
+        let p = std::path::Path::new(entry);
+        let list = if p.is_absolute() {
+            if p.is_dir() {
+                std::fs::read_dir(p)
+                    .unwrap()
+                    .filter_map(Result::ok)
+                    .map(|entry| entry.path())
+                    .collect::<Vec<_>>()
+            } else {
+                vec![p.to_path_buf()]
+            }
+        } else {
+            let p = cwd.join(entry);
+            let pattern = p.to_string_lossy();
+            glob::glob(&pattern)
+                .unwrap()
+                .filter_map(Result::ok)
+                .map(|entry| entry.to_path_buf())
+                .collect::<Vec<_>>()
+        };
+        entries.extend(list.into_iter().map(|item| {
+            let entry = ModulePath::Real(item.to_path_buf());
+            module_arena.new_module(entry, false)
+        }));
+    }
+
+    // atom init
     if cfg!(debug_assertions) {
         for (idx, (name, _)) in keyword::KEYWORDS.iter().enumerate() {
             let t = keyword_idx_to_token(idx);
@@ -50,11 +132,8 @@ pub fn eval_from(m: ModulePath) -> Output {
                 assert_eq!(t as u8 + 1, TokenKind::Let as u8);
                 assert_eq!(t as u8 + 2, TokenKind::Const as u8);
             }
-            assert!(t.is_keyword());
-            assert_eq!(format!("{t:?}").to_lowercase(), *name);
         }
     }
-    // atom init
     let mut atoms = AtomMap::new();
     for (atom, id) in keyword::KEYWORDS {
         atoms.insert(*id, Cow::Borrowed(atom));
@@ -63,20 +142,13 @@ pub fn eval_from(m: ModulePath) -> Output {
         atoms.insert(*id, Cow::Borrowed(atom))
     }
 
-    // parser
-    // TODO: build graph
+    // build graph
     let mut p = parser::Parser::new();
-    let dir = current_exe_dir();
-    for (_, file) in bolt_ts_lib::LIB_ENTIRES {
-        module_arena.new_module(ModulePath::Real(dir.join(file)), true);
-    }
     let atoms = Arc::new(Mutex::new(atoms));
     let herd = bumpalo_herd::Herd::new();
-    for (module_id, result) in
-        parse_parallel(atoms.clone(), &herd, module_arena.modules(), &module_arena)
-    {
-        p.insert(module_id, result);
-    }
+    build_graph(&mut module_arena, &entries, atoms.clone(), &herd, &mut p);
+
+    let diags = p.steal_errors();
 
     // bind
     let atoms = Arc::try_unwrap(atoms).unwrap();
@@ -110,6 +182,7 @@ pub fn eval_from(m: ModulePath) -> Output {
         }
     }
 
+    // TODO: par
     for (m, (state, _)) in module_arena.modules().iter().zip(bind_list.into_iter()) {
         let module_id = m.id;
         let root = p.root(module_id);
@@ -118,35 +191,35 @@ pub fn eval_from(m: ModulePath) -> Output {
     }
 
     // type check
-    let diags = binder.steal_errors(m.id);
+    let diags: Vec<_> = diags.into_iter().chain(binder.steal_errors()).collect();
     let ty_arena = bumpalo::Bump::new();
     let mut checker = check::TyChecker::new(&ty_arena, &p, &atoms, &mut binder, &global_symbols);
-    checker.check_program(p.root(m.id));
+    for item in &entries {
+        checker.check_program(p.root(*item));
+    }
 
-    // emit
-    let mut emitter = emit::Emit::new(checker.atoms);
-    let output = emitter.emit(p.root(m.id));
+    // codegen
+    let output = entries
+        .iter()
+        .filter_map(|item| {
+            if module_arena.get_module(*item).global {
+                None
+            } else {
+                let mut emitter = emit::Emit::new(checker.atoms);
+                Some((*item, emitter.emit(p.root(*item))))
+            }
+        })
+        .collect::<FxHashMap<_, _>>();
 
-    let diags: Vec<_> = checker
-        .diags
-        .into_iter()
-        .chain(diags)
-        .chain(p.steal_errors(m.id))
-        .collect();
+    let diags = diags.into_iter().chain(checker.diags).collect();
 
     Output {
+        cwd,
+        tsconfig,
         module_arena,
         diags,
         output,
     }
-}
-
-pub fn eval_and_emit(entry: PathBuf) {
-    let output = eval_from(ModulePath::Real(entry));
-    output
-        .diags
-        .into_iter()
-        .for_each(|diag| diag.emit(&output.module_arena));
 }
 
 const RED_ZONE: usize = 100 * 1024; // 100k

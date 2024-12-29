@@ -8,7 +8,7 @@ use super::{errors, list_ctx};
 use super::{parse_class_like, Tristate};
 use super::{PResult, ParserState};
 
-impl<'cx, 'p> ParserState<'cx, 'p> {
+impl<'cx> ParserState<'cx, '_> {
     fn is_update_expr(&self) -> bool {
         use TokenKind::*;
         match self.token.kind {
@@ -32,7 +32,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
 
     fn try_parse_paren_arrow_fn_expr(&mut self) -> PResult<Option<&'cx ast::Expr<'cx>>> {
         match self.is_paren_arrow_fn_expr() {
-            Tristate::True => self.parse_paren_arrow_fn_expr().map(|expr| Some(expr)),
+            Tristate::True => self.parse_paren_arrow_fn_expr().map(Some),
             Tristate::False => Ok(None),
             Tristate::Unknown => {
                 // todo
@@ -86,7 +86,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
                 .map(|block| ast::ArrowFnExprBody::Block(block.unwrap()))
         } else {
             self.parse_assign_expr()
-                .map(|expr| ast::ArrowFnExprBody::Expr(expr))
+                .map(ast::ArrowFnExprBody::Expr)
         }
     }
 
@@ -155,7 +155,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
             });
             self.insert_map(id, ast::Node::AssignExpr(expr));
             let expr = self.alloc(ast::Expr {
-                kind: ast::ExprKind::Assign(&expr),
+                kind: ast::ExprKind::Assign(expr),
             });
             Ok(expr)
         } else {
@@ -180,7 +180,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
             self.re_scan_greater();
 
             let next_prec = self.token.kind.prec();
-            if !(next_prec > prec) {
+            if next_prec <= prec {
                 break Ok(left);
             }
             let op = BinOp {
@@ -272,7 +272,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         loop {
             expr = self.parse_member_expr_rest(start, expr)?;
             let parse_rest =
-                |this: &mut Self, id: ast::NodeID, ty_args: Option<&'cx [&'cx ast::Ty<'cx>]>| {
+                |this: &mut Self, id: ast::NodeID, ty_args: Option<&'cx ast::Tys<'cx>>| {
                     let args = this.parse_args()?;
                     let call = this.alloc(ast::CallExpr {
                         id,
@@ -290,6 +290,12 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
                 let id = self.next_node_id();
                 self.parent_map.r#override(expr.id(), id);
                 let ty_args = self.parse_ty_args_in_expr()?;
+                if let Some(ty_args) = ty_args {
+                    if ty_args.list.is_empty() {
+                        let error = errors::TypeArgumentListCannotBeEmpty { span: ty_args.span };
+                        self.push_error(Box::new(error));
+                    }
+                }
                 expr = parse_rest(self, id, ty_args)?;
             } else if self.token.kind == TokenKind::LParen {
                 let id = self.next_node_id();
@@ -348,7 +354,6 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         });
         self.insert_map(id, ast::Node::ParenExpr(expr));
         let expr = self.alloc(ast::Expr {
-            // id,
             kind: ast::ExprKind::Paren(expr),
         });
         Ok(expr)
@@ -357,21 +362,19 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
     fn parse_array_lit(&mut self) -> &'cx ast::Expr<'cx> {
         let id = self.next_node_id();
         let start = self.token.start();
-        if let Err(_) = self.expect(TokenKind::LBracket) {
-            dbg!(self.token);
-            todo!("error handler")
+        if self.expect(TokenKind::LBracket).is_err() {
+            todo!("error handler: {:#?}", self.token)
         }
         let elems = self.with_parent(id, Self::parse_array_lit_elems);
-        if let Err(_) = self.expect(TokenKind::RBracket) {
-            dbg!(self.token);
-            todo!("error handler")
+        if self.expect(TokenKind::RBracket).is_err() {
+            todo!("error handler: {:#?}", self.token)
         }
         let lit = self.alloc(ast::ArrayLit {
             id,
             span: self.new_span(start),
             elems,
         });
-        self.insert_map(id, ast::Node::ArrayLit(&lit));
+        self.insert_map(id, ast::Node::ArrayLit(lit));
         let expr = self.alloc(ast::Expr {
             // id: expr_id,
             kind: ast::ExprKind::ArrayLit(lit),
@@ -469,8 +472,14 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         let expr = self.parse_primary_expr()?;
         let expr = self.parse_member_expr_rest(start as usize, expr)?;
         let ty_args = self.parse_ty_args_in_expr()?;
+        if let Some(ty_args) = ty_args {
+            if ty_args.list.is_empty() {
+                let error = errors::TypeArgumentListCannotBeEmpty { span: ty_args.span };
+                self.push_error(Box::new(error));
+            }
+        }
         let args = if self.token.kind == LParen {
-            self.parse_args().map(|args| Some(args))
+            self.parse_args().map(Some)
         } else {
             Ok(None)
         }?;
@@ -637,17 +646,22 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         }
     }
 
-    fn parse_ty_args_in_expr(&mut self) -> PResult<Option<ast::Tys<'cx>>> {
+    pub(super) fn parse_ty_args_in_expr(&mut self) -> PResult<Option<&'cx ast::Tys<'cx>>> {
+        let start = self.token.start();
         if self.re_scan_less() != TokenKind::Less {
             return Ok(None);
         }
         self.next_token();
-        let ty_args = self.parse_delimited_list(TypeArguments, Self::parse_ty);
+        let list = self.parse_delimited_list(TypeArguments, Self::parse_ty);
         if self.re_scan_greater() != TokenKind::Great {
             return Ok(None);
         }
         self.next_token();
         if self.can_follow_ty_args_in_expr() {
+            let ty_args = self.alloc(ast::Tys {
+                span: self.new_span(start),
+                list,
+            });
             Ok(Some(ty_args))
         } else {
             Ok(None)

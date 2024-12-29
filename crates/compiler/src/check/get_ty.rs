@@ -1,5 +1,3 @@
-use std::usize;
-
 use super::symbol_links::SymbolLinks;
 use super::ty::{self, Ty, TyKind};
 use super::{F64Represent, TyChecker};
@@ -7,19 +5,22 @@ use crate::ast;
 use crate::atoms::AtomId;
 use crate::bind::{SymbolFlags, SymbolID, SymbolName};
 use crate::keyword;
-use crate::ty::{AccessFlags, ElementFlags, TupleShape, TyMapper};
+use crate::ty::{AccessFlags, CheckFlags, ElementFlags, TupleShape, TyMapper};
 
 impl<'cx> TyChecker<'cx> {
-    pub(super) fn get_type_of_symbol(&mut self, id: SymbolID) -> &'cx Ty<'cx> {
-        if let Some(ty) = self.get_symbol_links(id).get_ty() {
-            return ty;
-        }
+    pub(crate) fn get_type_of_symbol(&mut self, id: SymbolID) -> &'cx Ty<'cx> {
+        if let Some(t) = self.binder.get_transient(id) {
+            if let Some(ty) = t.links.get_ty() {
+                return ty;
+            }
+        };
+
+        let check_flags = self.check_flags(id);
         let symbol = self.binder.symbol(id);
-        assert!(
-            !symbol.is_element_property(),
-            "The type of element property had been settled when it create."
-        );
-        if symbol.flags == SymbolFlags::CLASS {
+
+        let ty = if check_flags.intersects(CheckFlags::INSTANTIATED) {
+            self.get_type_of_instantiated_symbol(id)
+        } else if symbol.flags.intersects(SymbolFlags::CLASS) {
             let ty = self.get_type_of_class_decl(id);
             // TODO: delete
             if let Some(ty) = self.get_symbol_links(id).get_ty() {
@@ -28,9 +29,9 @@ impl<'cx> TyChecker<'cx> {
             self.get_mut_symbol_links(id).set_ty(ty);
             // ---
             ty
-        } else if symbol.flags == SymbolFlags::FUNCTION {
+        } else if symbol.flags.intersects(SymbolFlags::FUNCTION) {
             self.get_type_of_func_decl(id)
-        } else if symbol.is_variable() || symbol.flags == SymbolFlags::PROPERTY {
+        } else if symbol.is_variable() || symbol.flags.intersects(SymbolFlags::PROPERTY) {
             self.get_type_of_var_like(id)
         } else if symbol.flags == SymbolFlags::OBJECT_LITERAL {
             let ty = self.get_type_of_object(id);
@@ -43,7 +44,23 @@ impl<'cx> TyChecker<'cx> {
             ty
         } else {
             self.undefined_ty()
+        };
+
+        self.resolve_structured_type_members(ty);
+        ty
+    }
+
+    fn get_type_of_instantiated_symbol(&mut self, symbol: SymbolID) -> &'cx Ty<'cx> {
+        let links = self.get_symbol_links(symbol);
+        if let Some(ty) = links.get_ty() {
+            return ty;
         }
+        let target = links.get_target().unwrap();
+        let mapper = links.get_ty_mapper();
+        let ty = self.get_type_of_symbol(target);
+        let ty = self.instantiate_ty(ty, mapper);
+        self.get_mut_symbol_links(symbol).set_ty(ty);
+        ty
     }
 
     fn get_type_of_object(&mut self, symbol: SymbolID) -> &'cx Ty<'cx> {
@@ -52,43 +69,30 @@ impl<'cx> TyChecker<'cx> {
 
     fn get_base_type_variable_of_class(&mut self, symbol: SymbolID) -> &'cx Ty<'cx> {
         let class_ty = self.get_declared_ty_of_symbol(symbol);
-        let Some(i) = class_ty.kind.as_object_interface() else {
-            unreachable!()
-        };
-
-        i.base_ctor_ty.unwrap()
-    }
-
-    fn get_type_of_prop(&mut self, symbol: SymbolID) -> &'cx Ty<'cx> {
-        let decl = self.binder.symbol(symbol).expect_prop().decl;
-        let ty = match self.p.node(decl) {
-            ast::Node::ClassPropEle(prop) => prop
-                .ty
-                .map(|ty| self.get_ty_from_type_node(ty))
-                .unwrap_or_else(|| self.undefined_ty()),
-            ast::Node::PropSignature(prop) => prop
-                .ty
-                .map(|ty| self.get_ty_from_type_node(ty))
-                .unwrap_or_else(|| self.undefined_ty()),
-            _ => unreachable!(),
-        };
-        ty
+        self.ty_structured_members[&class_ty.id]
+            .base_ctor_ty
+            .unwrap()
     }
 
     fn get_type_of_class_decl(&mut self, symbol: SymbolID) -> &'cx Ty<'cx> {
         let base = self.get_base_type_variable_of_class(symbol);
-        self.create_class_ty(ty::ClassTy { symbol })
+        base
     }
 
     fn get_type_of_func_decl(&mut self, symbol: SymbolID) -> &'cx Ty<'cx> {
+        if let Some(ty) = self.get_symbol_links(symbol).get_ty() {
+            return ty;
+        }
         let sigs = self.get_sigs_of_symbol(symbol);
-        self.create_fn_ty(ty::FnTy {
-            declared_sigs: sigs,
+        self.create_anonymous_ty(ty::AnonymousTy {
+            call_sigs: sigs,
             symbol,
+            target: None,
+            mapper: None,
         })
     }
 
-    pub(super) fn get_ty_from_type_node(&mut self, ty: &ast::Ty<'cx>) -> &'cx Ty<'cx> {
+    pub(crate) fn get_ty_from_type_node(&mut self, ty: &ast::Ty<'cx>) -> &'cx Ty<'cx> {
         // TODO: cache
         use ast::TyKind::*;
         match ty.kind {
@@ -107,7 +111,6 @@ impl<'cx> TyChecker<'cx> {
                     symbol,
                 })
             }
-            ExprWithArg(expr) => self.get_ty_from_ty_reference(expr),
             NumLit(num) => self.get_number_literal_type(num.val),
             StringLit(s) => self.get_string_literal_type(s.val),
             Rest(rest) => self.get_ty_from_rest_ty_node(rest),
@@ -117,6 +120,7 @@ impl<'cx> TyChecker<'cx> {
             Intersection(_) => self.undefined_ty(),
             BooleanLit(_) => todo!(),
             NullLit(_) => todo!(),
+            Typeof(typeof_ty) => self.undefined_ty(),
         }
     }
 
@@ -191,11 +195,11 @@ impl<'cx> TyChecker<'cx> {
                 break;
             }
         }
-        host.and_then(|node_id| self.p.node(node_id).is_type_decl().then(|| node_id))
-            .and_then(|node_id| {
+        host.and_then(|node_id| self.p.node(node_id).is_type_decl().then_some(node_id))
+            .map(|node_id| {
                 let symbol = self.binder.final_res(node_id);
                 assert!(self.binder.symbol(symbol).flags == SymbolFlags::TYPE_ALIAS);
-                Some(symbol)
+                symbol
             })
     }
 
@@ -204,15 +208,19 @@ impl<'cx> TyChecker<'cx> {
         symbol: SymbolID,
     ) -> Option<ty::Tys<'cx>> {
         let s = self.binder.symbol(symbol);
-        if s.flags == SymbolFlags::TYPE_ALIAS {
+        let decl = if s.flags == SymbolFlags::TYPE_ALIAS {
             let alias = s.expect_ty_alias();
-            let mut res = vec![];
-            let ty_params = self.get_effective_ty_param_decls(alias.decl);
-            self.append_ty_params(&mut res, ty_params);
-            Some(self.alloc(res))
+            alias.decl
+        } else if s.flags.intersects(SymbolFlags::INTERFACE) {
+            let i = s.expect_interface();
+            i.decl
         } else {
-            None
-        }
+            return None;
+        };
+        let mut res = vec![];
+        let ty_params = self.get_effective_ty_param_decls(decl);
+        self.append_ty_params(&mut res, ty_params);
+        Some(self.alloc(res))
     }
 
     fn is_deferred_ty(&self, ty: &'cx Ty<'cx>, check_tuples: bool) -> bool {
@@ -292,47 +300,43 @@ impl<'cx> TyChecker<'cx> {
     pub(super) fn get_cond_ty(
         &mut self,
         mut root: &'cx ty::CondTyRoot<'cx>,
-        mut mapper: Option<TyMapper<'cx>>,
+        mut mapper: Option<&'cx TyMapper<'cx>>,
     ) -> &'cx Ty<'cx> {
-        let can_tail_recurse = |this: &mut Self,
-                                new_ty: &'cx Ty<'cx>,
-                                new_mapper: Option<TyMapper<'cx>>| {
-            if let Some(cond) = new_ty.kind.as_cond_ty() {
-                if let Some(new_mapper) = new_mapper {
-                    let new_root = cond.root;
-                    if let Some(out_ty_params) = new_root.outer_ty_params {
-                        let ty_param_mapper = this.combine_ty_mappers(cond.mapper, new_mapper);
-                        let ty_args = out_ty_params
-                            .iter()
-                            .map(|t| this.get_mapped_ty(&ty_param_mapper, t))
-                            .collect::<Vec<_>>();
-                        let new_root_mapper = TyMapper::create(out_ty_params, this.alloc(ty_args));
-                        let use_new = if new_root.is_distributive {
-                            let new_check_ty =
-                                this.get_mapped_ty(&new_root_mapper, new_root.check_ty);
-                            if new_check_ty == new_root.check_ty || !new_check_ty.kind.is_union() {
-                                true
+        let can_tail_recurse =
+            |this: &mut Self, new_ty: &'cx Ty<'cx>, new_mapper: Option<&'cx TyMapper<'cx>>| {
+                if let Some(cond) = new_ty.kind.as_cond_ty() {
+                    if let Some(new_mapper) = new_mapper {
+                        let new_root = cond.root;
+                        if let Some(out_ty_params) = new_root.outer_ty_params {
+                            let ty_param_mapper = this.combine_ty_mappers(cond.mapper, *new_mapper);
+                            let ty_args = out_ty_params
+                                .iter()
+                                .map(|t| this.get_mapped_ty(&ty_param_mapper, t))
+                                .collect::<Vec<_>>();
+                            let new_root_mapper =
+                                this.alloc(TyMapper::create(out_ty_params, this.alloc(ty_args)));
+                            let use_new = if new_root.is_distributive {
+                                let new_check_ty =
+                                    this.get_mapped_ty(new_root_mapper, new_root.check_ty);
+                                new_check_ty == new_root.check_ty || !new_check_ty.kind.is_union()
                             } else {
-                                false
+                                true
+                            };
+                            if use_new {
+                                return Some((new_root, new_root_mapper));
                             }
-                        } else {
-                            true
-                        };
-                        if use_new {
-                            return Some((new_root, new_root_mapper));
                         }
                     }
                 }
-            }
-            None
-        };
+                None
+            };
         let mut tailed = 0;
         loop {
             if tailed > 100 {
                 panic!()
             }
-            let check_ty = self.instantiate_ty(root.check_ty, mapper.as_ref());
-            let extends_ty = self.instantiate_ty(root.extends_ty, mapper.as_ref());
+            let check_ty = self.instantiate_ty(root.check_ty, mapper);
+            let extends_ty = self.instantiate_ty(root.extends_ty, mapper);
 
             let check_tuples = false;
             let effective_check_ty = check_ty;
@@ -348,7 +352,7 @@ impl<'cx> TyChecker<'cx> {
                         ))
                 {
                     let false_ty = self.get_ty_from_type_node(root.node.false_ty);
-                    if let Some(_) = false_ty.kind.as_cond_ty() {
+                    if false_ty.kind.as_cond_ty().is_some() {
                         if let Some((new_root, new_root_mapper)) =
                             can_tail_recurse(self, false_ty, mapper)
                         {
@@ -358,7 +362,7 @@ impl<'cx> TyChecker<'cx> {
                             continue;
                         }
                     }
-                    break self.instantiate_ty(false_ty, mapper.as_ref());
+                    break self.instantiate_ty(false_ty, mapper);
                 }
 
                 if inferred_extends_ty.kind.is_any_or_unknown()
@@ -368,18 +372,18 @@ impl<'cx> TyChecker<'cx> {
                     )
                 {
                     let true_ty = self.get_ty_from_type_node(root.node.true_ty);
-                    break self.instantiate_ty(true_ty, mapper.as_ref());
+                    break self.instantiate_ty(true_ty, mapper);
                 }
             }
 
-            let check_ty = self.instantiate_ty(root.check_ty, mapper.as_ref());
-            let extends_ty = self.instantiate_ty(root.extends_ty, mapper.as_ref());
+            let check_ty = self.instantiate_ty(root.check_ty, mapper);
+            let extends_ty = self.instantiate_ty(root.extends_ty, mapper);
             let cond_ty = self.alloc(ty::CondTy {
                 root,
                 check_ty,
                 extends_ty,
                 mapper: if let Some(mapper) = mapper {
-                    Some(self.alloc(mapper))
+                    Some(mapper)
                 } else {
                     None
                 },
@@ -417,9 +421,10 @@ impl<'cx> TyChecker<'cx> {
 
     fn get_ty_from_array_node(&mut self, node: &'cx ast::ArrayTy<'cx>) -> &'cx Ty<'cx> {
         let ele_ty = self.get_ty_from_type_node(node.ele);
+        let refer = self.global_array_ty().kind.expect_object_reference();
         self.create_reference_ty(ty::ReferenceTy {
-            ty_args: self.alloc(vec![ele_ty]),
-            target: self.global_array_ty(),
+            target: refer.target,
+            resolved_ty_args: self.alloc(vec![ele_ty]),
         })
     }
 
@@ -454,25 +459,23 @@ impl<'cx> TyChecker<'cx> {
         };
 
         let length_symbol_name = SymbolName::Ele(keyword::IDENT_LENGTH);
-        let length_symbol = self
-            .binder
-            .create_anonymous_symbol(length_symbol_name, SymbolFlags::PROPERTY);
         let ty = self.get_number_literal_type(elem_tys.len() as f64);
-        let prev = self
-            .symbol_links
-            .insert(length_symbol, SymbolLinks::new().with_ty(ty));
-        assert!(prev.is_none());
+        let length_symbol = self.binder.create_transient_symbol(
+            length_symbol_name,
+            SymbolFlags::PROPERTY,
+            None,
+            SymbolLinks::default().with_ty(ty),
+        );
 
         let element_symbols = elem_tys.iter().enumerate().map(|(idx, _)| {
             let name = SymbolName::EleNum(idx.into());
-            let symbol = self
-                .binder
-                .create_anonymous_symbol(name, SymbolFlags::PROPERTY);
             let index_ty = self.get_number_literal_type(idx as f64);
-            let prev = self
-                .symbol_links
-                .insert(symbol, SymbolLinks::new().with_ty(index_ty));
-            assert!(prev.is_none());
+            let symbol = self.binder.create_transient_symbol(
+                name,
+                SymbolFlags::PROPERTY,
+                None,
+                SymbolLinks::default().with_ty(index_ty),
+            );
             symbol
         });
 
@@ -570,8 +573,8 @@ impl<'cx> TyChecker<'cx> {
             shape,
         });
         self.create_reference_ty(ty::ReferenceTy {
-            ty_args: expand_tys,
             target: tuple,
+            resolved_ty_args: expand_tys,
         })
     }
 

@@ -17,7 +17,15 @@ impl<'cx> TyChecker<'cx> {
     }
 
     pub(super) fn get_sigs_of_symbol(&mut self, id: SymbolID) -> &'cx [&'cx Sig<'cx>] {
-        let f = self.binder.symbol(id).expect_fn();
+        let f = if let Some(s) = self.binder.get_transient(id) {
+            if let Some(s) = s.origin {
+                self.binder.symbol(s).expect_fn()
+            } else {
+                self.binder.symbol(id).expect_fn()
+            }
+        } else {
+            self.binder.symbol(id).expect_fn()
+        };
         let sigs = f
             .decls
             .clone()
@@ -34,22 +42,16 @@ fn get_sig_from_decl<'cx>(checker: &mut TyChecker<'cx>, node: ast::Node<'cx>) ->
         node.is_fn_decl()
             || node.is_fn_expr()
             || node.is_arrow_fn_expr()
-            // TODO: remove `node.is_class_decl()`
-            || node.is_class_decl()
             || node.is_class_ctor()
             || node.is_ctor_sig_decl()
             || node.is_class_method_ele()
+            || node.is_method_signature()
+            // TODO: remove `node.is_class_decl()`
+            || node.is_class_decl()
+            || node.is_call_sig_decl(),
+        "node: {node:#?}",
     );
-    let ty_params = match node {
-        ast::Node::FnDecl(decl) => decl.ty_params,
-        ast::Node::FnExpr(expr) => expr.ty_params,
-        ast::Node::ArrowFnExpr(expr) => expr.ty_params,
-        ast::Node::ClassDecl(c) => c.ty_params,
-        ast::Node::ClassCtor(c) => c.ty_params,
-        ast::Node::CtorSigDecl(c) => c.ty_params,
-        ast::Node::ClassMethodEle(f) => f.ty_params,
-        _ => unreachable!(),
-    };
+    let ty_params = node.ty_params();
     let ty_params = ty_params.map(|params| {
         let params = params
             .iter()
@@ -66,6 +68,8 @@ fn get_sig_from_decl<'cx>(checker: &mut TyChecker<'cx>, node: ast::Node<'cx>) ->
         ast::Node::ClassCtor(f) => f.params,
         ast::Node::CtorSigDecl(f) => f.params,
         ast::Node::ClassMethodEle(f) => f.params,
+        ast::Node::MethodSignature(f) => f.params,
+        ast::Node::CallSigDecl(f) => f.params,
         _ => unreachable!(),
     };
     let has_rest_param = params_of_node
@@ -114,6 +118,8 @@ fn get_sig_from_decl<'cx>(checker: &mut TyChecker<'cx>, node: ast::Node<'cx>) ->
         }
         ast::Node::CtorSigDecl(c) => c.ty.map(|ty| ty.id()),
         ast::Node::ClassMethodEle(f) => f.ret.map(|ty| ty.id()),
+        ast::Node::MethodSignature(f) => f.ret.map(|ty| ty.id()),
+        ast::Node::CallSigDecl(f) => f.ty.map(|ty| ty.id()),
         _ => unreachable!(),
     };
     Sig {
@@ -123,5 +129,7 @@ fn get_sig_from_decl<'cx>(checker: &mut TyChecker<'cx>, node: ast::Node<'cx>) ->
         min_args_count,
         ret,
         node_id: node.id(),
+        target: None,
+        mapper: None,
     }
 }

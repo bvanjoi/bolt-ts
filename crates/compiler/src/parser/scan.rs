@@ -28,17 +28,19 @@ fn is_identifier_part(ch: u8) -> bool {
     ch == b'$' || is_word_character(ch)
 }
 
+#[inline(always)]
 fn is_line_break(ch: u8) -> bool {
     ch == b'\n' || ch == b'\r'
 }
 
+#[inline(always)]
 fn is_octal_digit(ch: u8) -> bool {
-    ch >= b'0' && ch <= b'7'
+    (b'0'..=b'7').contains(&ch)
 }
 
 const UTF8_CHAR_LEN_MAX: u32 = 6;
 
-impl<'cx, 'p> ParserState<'cx, 'p> {
+impl ParserState<'_, '_> {
     fn ch(&self) -> Option<u8> {
         self.input.get(self.pos).copied()
     }
@@ -173,29 +175,27 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         assert!(ch >= 0x80);
         let mut offset = 1;
         let l = match ch {
-            0xc0 | 0xc1 | 0xc2 | 0xc3 | 0xc4 | 0xc5 | 0xc6 | 0xc7 | 0xc8 | 0xc9 | 0xca | 0xcb
-            | 0xcc | 0xcd | 0xce | 0xcf | 0xd0 | 0xd1 | 0xd2 | 0xd3 | 0xd4 | 0xd5 | 0xd6 | 0xd7
-            | 0xd8 | 0xd9 | 0xda | 0xdb | 0xdc | 0xdd | 0xde | 0xdf => 1,
-            0xe0 | 0xe1 | 0xe2 | 0xe3 | 0xe4 | 0xe5 | 0xe6 | 0xe7 | 0xe8 | 0xe9 | 0xea | 0xeb
-            | 0xec | 0xed | 0xee | 0xef => 2,
-            0xf0 | 0xf1 | 0xf2 | 0xf3 | 0xf4 | 0xf5 | 0xf6 | 0xf7 => 3,
-            0xf8 | 0xf9 | 0xfa | 0xfb => 4,
+            0xc0..=0xdf => 1,
+            0xe0..=0xef => 2,
+            0xf0..=0xf7 => 3,
+            0xf8..=0xfb => 4,
             0xfc | 0xfd => 5,
             _ => return Err(()),
         };
         if l > (max_len - 1) {
             return Err(());
         }
-        ch &= UTF8_FIRST_CODE_MASK[(l - 1) as usize];
+        let idx = (l - 1) as usize;
+        ch &= UTF8_FIRST_CODE_MASK[idx];
         for _ in 0..l {
             let b = self.input[self.pos + offset] as u32;
-            if b < 0x80 || b >= 0xc0 {
+            if !(0x80..0xc0).contains(&b) {
                 return Err(());
             }
             offset += 1;
             ch = (ch << 6) | (b & 0x3f);
         }
-        if ch < UTF8_MIN_CODE[(l - 1) as usize] {
+        if ch < UTF8_MIN_CODE[idx] {
             return Err(());
         }
         self.pos += offset;

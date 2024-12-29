@@ -17,11 +17,6 @@ impl<'cx> TyChecker<'cx> {
 
     pub(super) fn get_effective_ty_param_decls(&self, id: ast::NodeID) -> ast::TyParams<'cx> {
         let node = self.p.node(id);
-        if let Some(ty_decl) = node.as_type_decl() {
-            if let Some(ty_params) = ty_decl.ty_params {
-                return ty_params;
-            }
-        }
-        &[]
+        node.ty_params().unwrap_or_default()
     }
 }

@@ -2,9 +2,11 @@ mod node;
 mod node_flags;
 
 use bolt_ts_span::Span;
+use enumflags2::make_bitflags;
 pub use node::{Node, NodeID};
+pub use node_flags::NodeFlags;
 
-use crate::atoms::AtomId;
+use crate::{atoms::AtomId, keyword};
 
 #[derive(Debug, Clone, Copy)]
 pub struct Program<'cx> {
@@ -33,6 +35,26 @@ pub enum StmtKind<'cx> {
     Type(&'cx TypeDecl<'cx>),
     Namespace(&'cx NsDecl<'cx>),
     Throw(&'cx ThrowStmt<'cx>),
+    Enum(&'cx EnumDecl<'cx>),
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct EnumDecl<'cx> {
+    pub id: NodeID,
+    pub span: Span,
+    pub modifiers: Option<&'cx Modifiers<'cx>>,
+    pub name: &'cx Ident,
+    pub members: EnumMembers<'cx>,
+}
+
+pub type EnumMembers<'cx> = &'cx [&'cx EnumMember<'cx>];
+
+#[derive(Debug, Clone, Copy)]
+pub struct EnumMember<'cx> {
+    pub id: NodeID,
+    pub span: Span,
+    pub name: &'cx PropName<'cx>,
+    pub init: Option<&'cx Expr<'cx>>,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -131,7 +153,7 @@ pub struct ClassDecl<'cx> {
     pub name: &'cx Ident,
     pub ty_params: Option<TyParams<'cx>>,
     pub extends: Option<&'cx ClassExtendsClause<'cx>>,
-    pub implements: Option<&'cx ImplementsClause<'cx>>,
+    pub implements: Option<&'cx ClassImplementsClause<'cx>>,
     pub elems: &'cx ClassElems<'cx>,
 }
 
@@ -160,6 +182,7 @@ pub enum ClassEleKind<'cx> {
 pub struct GetterDecl<'cx> {
     pub id: NodeID,
     pub span: Span,
+    pub modifiers: Option<&'cx Modifiers<'cx>>,
     pub name: &'cx PropName<'cx>,
     pub ret: Option<&'cx self::Ty<'cx>>,
     pub body: Option<&'cx BlockStmt<'cx>>,
@@ -169,6 +192,7 @@ pub struct GetterDecl<'cx> {
 pub struct SetterDecl<'cx> {
     pub id: NodeID,
     pub span: Span,
+    pub modifiers: Option<&'cx Modifiers<'cx>>,
     pub name: &'cx PropName<'cx>,
     pub params: ParamsDecl<'cx>,
     pub body: Option<&'cx BlockStmt<'cx>>,
@@ -187,6 +211,7 @@ pub struct ClassCtor<'cx> {
 #[derive(Debug, Clone, Copy)]
 pub struct ClassMethodEle<'cx> {
     pub id: NodeID,
+    pub flags: NodeFlags,
     pub span: Span,
     pub modifiers: Option<&'cx Modifiers<'cx>>,
     pub name: &'cx PropName<'cx>,
@@ -222,7 +247,7 @@ pub type Exprs<'cx> = &'cx [&'cx Expr<'cx>];
 pub struct InterfaceExtendsClause<'cx> {
     pub id: NodeID,
     pub span: Span,
-    pub tys: Tys<'cx>,
+    pub list: &'cx [&'cx ReferTy<'cx>],
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -230,13 +255,14 @@ pub struct ClassExtendsClause<'cx> {
     pub id: NodeID,
     pub span: Span,
     pub expr: &'cx Expr<'cx>,
+    pub ty_args: Option<&'cx self::Tys<'cx>>,
 }
 
 #[derive(Debug, Clone, Copy)]
-pub struct ImplementsClause<'cx> {
+pub struct ClassImplementsClause<'cx> {
     pub id: NodeID,
     pub span: Span,
-    pub tys: Tys<'cx>,
+    pub list: &'cx [&'cx ReferTy<'cx>],
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -479,7 +505,7 @@ pub struct NewExpr<'cx> {
     pub id: NodeID,
     pub span: Span,
     pub expr: &'cx Expr<'cx>,
-    pub ty_args: Option<self::Tys<'cx>>,
+    pub ty_args: Option<&'cx self::Tys<'cx>>,
     pub args: Option<Exprs<'cx>>,
 }
 
@@ -490,7 +516,7 @@ pub struct ClassExpr<'cx> {
     pub name: Option<&'cx Ident>,
     pub ty_params: Option<TyParams<'cx>>,
     pub extends: Option<&'cx ClassExtendsClause<'cx>>,
-    pub implements: Option<&'cx ImplementsClause<'cx>>,
+    pub implements: Option<&'cx ClassImplementsClause<'cx>>,
     pub elems: &'cx ClassElems<'cx>,
 }
 
@@ -532,12 +558,6 @@ pub struct ArrayLit<'cx> {
 pub struct BinOp {
     pub kind: BinOpKind,
     pub span: Span,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq)]
-pub enum HeritageClauseKind {
-    Extends,
-    Implements,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -634,7 +654,11 @@ pub struct Ty<'cx> {
     pub kind: TyKind<'cx>,
 }
 
-pub type Tys<'cx> = &'cx [&'cx Ty<'cx>];
+#[derive(Debug, Clone, Copy)]
+pub struct Tys<'cx> {
+    pub span: Span,
+    pub list: &'cx [&'cx Ty<'cx>],
+}
 
 impl Ty<'_> {
     pub fn span(&self) -> Span {
@@ -642,7 +666,6 @@ impl Ty<'_> {
             TyKind::Array(array) => array.span,
             TyKind::Fn(f) => f.span,
             TyKind::ObjectLit(lit) => lit.span,
-            TyKind::ExprWithArg(node) => node.span(),
             TyKind::NumLit(num) => num.span,
             TyKind::StringLit(s) => s.span,
             TyKind::Tuple(tuple) => tuple.span,
@@ -654,6 +677,7 @@ impl Ty<'_> {
             TyKind::Intersection(n) => n.span,
             TyKind::BooleanLit(n) => n.span,
             TyKind::NullLit(n) => n.span,
+            TyKind::Typeof(n) => n.span,
         }
     }
 
@@ -662,7 +686,6 @@ impl Ty<'_> {
             TyKind::Array(node) => node.id,
             TyKind::Fn(node) => node.id,
             TyKind::ObjectLit(node) => node.id,
-            TyKind::ExprWithArg(node) => node.id(),
             TyKind::NumLit(num) => num.id,
             TyKind::StringLit(s) => s.id,
             TyKind::Tuple(tuple) => tuple.id,
@@ -674,6 +697,7 @@ impl Ty<'_> {
             TyKind::Intersection(n) => n.id,
             TyKind::BooleanLit(n) => n.id,
             TyKind::NullLit(n) => n.id,
+            TyKind::Typeof(n) => n.id,
         }
     }
 }
@@ -685,7 +709,6 @@ pub enum TyKind<'cx> {
     IndexedAccess(&'cx IndexedAccessTy<'cx>),
     Fn(&'cx FnTy<'cx>),
     ObjectLit(&'cx ObjectLitTy<'cx>),
-    ExprWithArg(&'cx Expr<'cx>),
     NumLit(&'cx NumLitTy),
     BooleanLit(&'cx BoolLitTy),
     NullLit(&'cx NullLitTy),
@@ -695,13 +718,22 @@ pub enum TyKind<'cx> {
     Cond(&'cx CondTy<'cx>),
     Union(&'cx UnionTy<'cx>),
     Intersection(&'cx IntersectionTy<'cx>),
+    Typeof(&'cx TypeofTy<'cx>),
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct TypeofTy<'cx> {
+    pub id: NodeID,
+    pub span: Span,
+    pub name: &'cx EntityName<'cx>,
+    pub args: Option<&'cx self::Tys<'cx>>,
 }
 
 #[derive(Debug, Clone, Copy)]
 pub struct LitTy<T> {
     pub id: NodeID,
-    pub val: T,
     pub span: Span,
+    pub val: T,
 }
 
 pub type NumLitTy = LitTy<f64>;
@@ -713,14 +745,14 @@ pub type StringLitTy = LitTy<AtomId>;
 pub struct UnionTy<'cx> {
     pub id: NodeID,
     pub span: Span,
-    pub tys: Tys<'cx>,
+    pub tys: &'cx [&'cx Ty<'cx>],
 }
 
 #[derive(Debug, Clone, Copy)]
 pub struct IntersectionTy<'cx> {
     pub id: NodeID,
     pub span: Span,
-    pub tys: Tys<'cx>,
+    pub tys: &'cx [&'cx Ty<'cx>],
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -728,7 +760,7 @@ pub struct ReferTy<'cx> {
     pub id: NodeID,
     pub span: Span,
     pub name: &'cx EntityName<'cx>,
-    pub ty_args: Option<Tys<'cx>>,
+    pub ty_args: Option<&'cx Tys<'cx>>,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -752,7 +784,7 @@ pub struct RestTy<'cx> {
 pub struct TupleTy<'cx> {
     pub id: NodeID,
     pub span: Span,
-    pub tys: Tys<'cx>,
+    pub tys: &'cx [&'cx Ty<'cx>],
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -808,7 +840,7 @@ pub struct PropName<'cx> {
     pub kind: PropNameKind<'cx>,
 }
 
-impl<'cx> PropName<'cx> {
+impl PropName<'_> {
     pub fn span(&self) -> Span {
         match self.kind {
             PropNameKind::Ident(ident) => ident.span,
@@ -872,21 +904,47 @@ pub struct CallExpr<'cx> {
     pub id: NodeID,
     pub span: Span,
     pub expr: &'cx Expr<'cx>,
-    pub ty_args: Option<self::Tys<'cx>>,
+    pub ty_args: Option<&'cx self::Tys<'cx>>,
     pub args: Exprs<'cx>,
 }
 
 #[enumflags2::bitflags]
-#[repr(u8)]
+#[repr(u16)]
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub enum ModifierKind {
     Public = 1 << 0,
     Private = 1 << 1,
-    Abstract = 1 << 2,
-    Static = 1 << 3,
-    Declare = 1 << 4,
+    Protected = 1 << 2,
+    Readonly = 1 << 3,
+    Override = 1 << 4,
     Export = 1 << 5,
-    Readonly = 1 << 6,
+    Abstract = 1 << 6,
+    Static = 1 << 7,
+    Declare = 1 << 8,
+}
+
+impl std::fmt::Display for ModifierKind {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let s = match self {
+            ModifierKind::Public => keyword::KW_PUBLIC_STR,
+            ModifierKind::Private => keyword::KW_PRIVATE_STR,
+            ModifierKind::Protected => keyword::KW_PROTECTED_STR,
+            ModifierKind::Readonly => keyword::KW_READONLY_STR,
+            ModifierKind::Override => "override",
+            ModifierKind::Export => keyword::KW_EXPORT_STR,
+            ModifierKind::Abstract => keyword::KW_ABSTRACT_STR,
+            ModifierKind::Static => keyword::KW_STATIC_STR,
+            ModifierKind::Declare => keyword::KW_DECLARE_STR,
+        };
+        write!(f, "{}", s)
+    }
+}
+
+impl ModifierKind {
+    pub const ACCESSIBILITY: enumflags2::BitFlags<ModifierKind> =
+        make_bitflags!(ModifierKind::{Public | Private | Protected});
+    pub const PARAMETER_PROPERTY: enumflags2::BitFlags<ModifierKind> =
+        make_bitflags!(Self::{Public | Private | Protected | Readonly | Override});
 }
 
 #[derive(Debug, Clone, Copy)]

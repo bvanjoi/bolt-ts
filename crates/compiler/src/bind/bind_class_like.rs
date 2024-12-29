@@ -3,47 +3,21 @@ use super::{BinderState, ClassSymbol, SymbolID, SymbolKind, SymbolName};
 use crate::{ast, ir};
 use rustc_hash::FxHashMap;
 
-pub(super) trait ClassLike<'cx>: ir::ClassLike<'cx> {
-    fn create_symbol(&'cx self, binder: &mut BinderState<'cx>) -> SymbolID;
-}
-
-impl<'cx> ClassLike<'cx> for ast::ClassDecl<'cx> {
-    fn create_symbol(&'cx self, binder: &mut BinderState<'cx>) -> SymbolID {
-        binder.create_class_decl(self)
-    }
-}
-
-impl<'cx> ClassLike<'cx> for ast::ClassExpr<'cx> {
-    fn create_symbol(&'cx self, binder: &mut BinderState<'cx>) -> SymbolID {
-        binder.create_class_expr(self)
-    }
-}
-
 impl<'cx> BinderState<'cx> {
-    fn create_class_expr(&mut self, expr: &'cx ast::ClassExpr<'cx>) -> SymbolID {
-        let name = SymbolName::ClassExpr;
+    fn create_class_symbol(&mut self, c: &impl ir::ClassLike<'cx>) -> SymbolID {
+        let name = c
+            .name()
+            .map_or(SymbolName::ClassExpr, |name| SymbolName::Normal(name.name));
+        let id = c.id();
         let symbol = self.create_symbol(
             name,
             SymbolFlags::CLASS,
             SymbolKind::Class(ClassSymbol {
-                decl: expr.id,
+                decl: id,
                 members: FxHashMap::default(),
             }),
         );
-        self.create_final_res(expr.id, symbol);
-        symbol
-    }
-
-    fn create_class_decl(&mut self, decl: &'cx ast::ClassDecl<'cx>) -> SymbolID {
-        let symbol = self.create_var_symbol(
-            decl.name.name,
-            SymbolFlags::CLASS,
-            SymbolKind::Class(ClassSymbol {
-                decl: decl.id,
-                members: FxHashMap::default(),
-            }),
-        );
-        self.create_final_res(decl.id, symbol);
+        self.create_final_res(id, symbol);
         symbol
     }
 
@@ -58,9 +32,7 @@ impl<'cx> BinderState<'cx> {
             SymbolFlags::PROPERTY,
             SymbolKind::Prop(PropSymbol { decl: ele.id }),
         );
-        let Some(class_symbol_id) = self.final_res.get(&decl_id).copied() else {
-            unreachable!()
-        };
+        let class_symbol_id = self.final_res[&decl_id];
         let SymbolKind::Class(ClassSymbol { members, .. }) =
             &mut self.symbols.get_mut(class_symbol_id).kind.0
         else {
@@ -111,9 +83,14 @@ impl<'cx> BinderState<'cx> {
         }
     }
 
-    pub(super) fn bind_class_like(&mut self, class: &'cx impl ClassLike<'cx>) {
+    pub(super) fn bind_class_like(&mut self, class: &'cx impl ir::ClassLike<'cx>, is_expr: bool) {
         self.connect(class.id());
-        let class_symbol = class.create_symbol(self);
+        let old_old = self.scope_id;
+        if is_expr {
+            self.scope_id = self.new_scope();
+        }
+
+        self.create_class_symbol(class);
 
         let old = self.scope_id;
         self.scope_id = self.new_scope();
@@ -127,8 +104,8 @@ impl<'cx> BinderState<'cx> {
         }
 
         if let Some(implements) = class.implements() {
-            for ty in implements.tys {
-                self.bind_ty(ty);
+            for ty in implements.list {
+                self.bind_refer_ty(ty);
             }
         }
 
@@ -138,22 +115,16 @@ impl<'cx> BinderState<'cx> {
                 ast::ClassEleKind::Method(n) => self.bind_class_method_ele(class.id(), n),
                 ast::ClassEleKind::Ctor(n) => self.bind_class_ctor(class.id(), n),
                 ast::ClassEleKind::IndexSig(n) => {
-                    let name = SymbolName::Index;
-                    let symbol = self.bind_index_sig(n);
-                    self.create_final_res(n.id, symbol);
-                    let SymbolKind::Class(ClassSymbol { members, .. }) =
-                        &mut self.symbols.get_mut(class_symbol).kind.0
-                    else {
-                        unreachable!("{:#?}", self.symbols.get(symbol))
-                    };
-                    let prev = members.insert(name, symbol);
-                    // FIXME: multiple index sig
-                    assert!(prev.is_none())
+                    self.bind_index_sig(class.id(), n);
                 }
                 ast::ClassEleKind::Getter(_) => {}
                 ast::ClassEleKind::Setter(_) => {}
             }
         }
         self.scope_id = old;
+
+        if is_expr {
+            self.scope_id = old_old;
+        }
     }
 }

@@ -13,13 +13,13 @@ mod utils;
 
 use std::sync::{Arc, Mutex};
 
-use bolt_ts_span::{Module, ModuleArena, ModuleID, Span};
+use bolt_ts_span::{ModuleArena, ModuleID, Span};
 use rayon::prelude::*;
 use rustc_hash::FxHashMap;
 
 pub use self::token::KEYWORD_TOKEN_START;
 use self::token::{Token, TokenFlags, TokenKind};
-use crate::ast::{self, Node, NodeID};
+use crate::ast::{self, Node, NodeFlags, NodeID};
 use crate::atoms::{AtomId, AtomMap};
 use crate::keyword;
 
@@ -84,6 +84,12 @@ pub struct Parser<'cx> {
     map: FxHashMap<ModuleID, ParseResult<'cx>>,
 }
 
+impl Default for Parser<'_> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl<'cx> Parser<'cx> {
     pub fn new() -> Self {
         Self {
@@ -117,8 +123,11 @@ impl<'cx> Parser<'cx> {
         self.get(id.module()).parent_map.parent(id)
     }
 
-    pub fn steal_errors(&mut self, id: ModuleID) -> Vec<bolt_ts_errors::Diag> {
-        std::mem::take(&mut self.map.get_mut(&id).unwrap().diags)
+    pub fn steal_errors(&mut self) -> Vec<bolt_ts_errors::Diag> {
+        self.map
+            .values_mut()
+            .flat_map(|result| std::mem::take(&mut result.diags))
+            .collect()
     }
 
     #[inline(always)]
@@ -154,19 +163,17 @@ impl TokenValue {
 pub fn parse_parallel<'cx>(
     atoms: Arc<Mutex<AtomMap<'cx>>>,
     herd: &'cx bumpalo_herd::Herd,
-    modules: &[Module],
+    list: &[ModuleID],
     module_arena: &ModuleArena,
 ) -> Vec<(ModuleID, ParseResult<'cx>)> {
-    modules
-        .into_par_iter()
+    list.into_par_iter()
         .map_init(
             || herd.get(),
-            |bump, m| {
-                let module_id = m.id;
-                let input = module_arena.get_content(module_id);
-                let result = parse(atoms.clone(), bump, input.as_bytes(), module_id);
-                assert!(!module_arena.get_module(module_id).global || result.diags.is_empty());
-                (module_id, result)
+            |bump, module_id| {
+                let input = module_arena.get_content(*module_id);
+                let result = parse(atoms.clone(), bump, input.as_bytes(), *module_id);
+                assert!(!module_arena.get_module(*module_id).global || result.diags.is_empty());
+                (*module_id, result)
             },
         )
         .collect::<Vec<_>>()
@@ -180,7 +187,7 @@ fn parse<'cx, 'p>(
 ) -> ParseResult<'cx> {
     let nodes = Nodes::default();
     let parent_map = ParentMap::default();
-    let mut s = ParserState::new(atoms, &arena, nodes, parent_map, input, module_id);
+    let mut s = ParserState::new(atoms, arena, nodes, parent_map, input, module_id);
     s.parse();
     ParseResult {
         diags: s.diags,
@@ -205,6 +212,7 @@ pub struct ParserState<'cx, 'p> {
     parent_map: ParentMap,
     arena: &'p bumpalo_herd::Member<'cx>,
     next_node_id: NodeID,
+    context_flags: NodeFlags,
 }
 
 impl<'cx, 'p> ParserState<'cx, 'p> {
@@ -236,6 +244,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
             nodes,
             parent_map,
             next_node_id: NodeID::root(module_id),
+            context_flags: NodeFlags::empty(),
         }
     }
 
@@ -314,6 +323,12 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
                 }
                 if self.parse_optional(TokenKind::Comma).is_some() {
                     continue;
+                } else {
+                    let error = errors::ExpectX {
+                        span: self.token.span,
+                        x: ",".to_string(),
+                    };
+                    self.push_error(Box::new(error));
                 }
             }
             if ctx.is_closing(self) {

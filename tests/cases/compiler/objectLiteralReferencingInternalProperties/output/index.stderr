@@ -1,0 +1,6 @@
+  × Cannot find name 'b'.
+   ╭─[../../tests/cases/compiler/objectLiteralReferencingInternalProperties/index.ts:3:21]
+ 3 │ b
+   · ─
+   ╰────
+

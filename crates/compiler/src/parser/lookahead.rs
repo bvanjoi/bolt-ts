@@ -1,7 +1,7 @@
 use super::token::TokenKind;
 use super::{PResult, ParserState, Tristate};
 
-impl<'p, 't> ParserState<'p, 't> {
+impl ParserState<'_, '_> {
     pub(super) fn is_tuple_ele_name(&mut self) -> bool {
         if self.token.kind == TokenKind::DotDotDot {
             self.next_token();
@@ -51,11 +51,16 @@ impl<'p, 't> ParserState<'p, 't> {
             && (self.is_ident() || self.token.kind == TokenKind::String)
     }
 
+    pub(super) fn is_start_of_ty_of_import_ty(&mut self) -> bool {
+        self.next_token();
+        self.token.kind == TokenKind::Import
+    }
+
     fn is_decl(&mut self) -> bool {
         use TokenKind::*;
         loop {
             match self.token.kind {
-                Var | Let | Const | Function | Class => return true,
+                Var | Let | Const | Function | Class | Enum => return true,
                 Abstract | Declare | Public | Private => {
                     // let prev = self.token.kind;
                     self.next_token();

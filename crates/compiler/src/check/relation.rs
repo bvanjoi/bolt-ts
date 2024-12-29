@@ -1,12 +1,13 @@
 use bolt_ts_span::Span;
 use rustc_hash::FxHashSet;
 
+use super::errors;
 use crate::atoms::AtomId;
 use crate::bind::{SymbolFlags, SymbolID, SymbolName};
-use crate::errors;
-use crate::ty::{ObjectShape, ObjectTy, ObjectTyKind, Ty, TyKind, Tys};
+use crate::ty;
+use crate::ty::{ObjectShape, ObjectTy, ObjectTyKind, Sig, Ty, TyKind, Tys};
 
-use super::TyChecker;
+use super::{Ternary, TyChecker};
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub(super) enum RelationKind {
@@ -34,7 +35,7 @@ impl<'cx> TyChecker<'cx> {
             return false;
         };
         for (name, symbol) in &self.binder.symbol(source.symbol).expect_object().members {
-            if target.members.contains_key(&name) {
+            if target.members.contains_key(name) {
                 continue;
             } else {
                 let span = self
@@ -49,7 +50,7 @@ impl<'cx> TyChecker<'cx> {
             }
         }
 
-        return false;
+        false
     }
 
     fn is_simple_type_related_to(&self, source: &'cx Ty<'cx>, target: &'cx Ty<'cx>) -> bool {
@@ -57,11 +58,7 @@ impl<'cx> TyChecker<'cx> {
             true
         } else if source.kind.is_string_like() && target.kind.is_string() {
             true
-        } else if source.kind.is_any() {
-            true
-        } else {
-            false
-        }
+        } else { source.kind.is_any() }
     }
 
     pub(super) fn is_type_related_to(
@@ -139,7 +136,7 @@ impl<'cx> TyChecker<'cx> {
         source: &'cx Ty<'cx>,
         target: &'cx Ty<'cx>,
         report_error: bool,
-    ) -> bool {
+    ) -> Ternary {
         let unmatched = self.get_unmatched_prop(source, target);
         if let Some((unmatched, target_symbol)) = unmatched {
             let symbol = self.binder.symbol(target_symbol);
@@ -166,12 +163,12 @@ impl<'cx> TyChecker<'cx> {
                     let error = errors::PropertyXIsMissing { span, field };
                     self.push_error(span.module, Box::new(error));
                 }
-                return true;
+                return Ternary::TRUE;
             }
 
-            false
+            Ternary::FALSE
         } else {
-            true
+            Ternary::TRUE
         }
     }
 
@@ -186,18 +183,25 @@ impl<'cx> TyChecker<'cx> {
 
     fn relate_variances(
         &mut self,
-        source: &'cx Ty<'cx>,
-        target: &'cx Ty<'cx>,
+        source: ty::Tys<'cx>,
+        target: ty::Tys<'cx>,
         relation: RelationKind,
     ) -> Option<bool> {
-        Some(self.type_arg_related_to(source, target, relation))
+        for i in 0..source.len() {
+            let source = source[i];
+            let target = target[i];
+            if !self.is_related_to(source, target, relation) {
+                return Some(false);
+            }
+        }
+        Some(true)
     }
 
     fn is_empty_array_lit_ty(&self, ty: &'cx Ty<'cx>) -> bool {
         if ty.kind.is_array(self) {
             ty.kind
                 .as_object_reference()
-                .map(|refer| refer.ty_args[0].kind.is_ty_var())
+                .map(|refer| refer.resolved_ty_args[0].kind.is_ty_var())
                 .unwrap_or_default()
         } else {
             false
@@ -214,24 +218,43 @@ impl<'cx> TyChecker<'cx> {
             return self.union_or_intersection_related_to(source, target, relation);
         }
 
-        if source.kind.is_array(self) && target.kind.is_array(self) {
-            if self.is_empty_array_lit_ty(source) {
-                return true;
-            }
-            let actual = source
-                .kind
-                .as_object_reference()
-                .map(|refer| refer.ty_args[0])
-                .unwrap();
-            let expect = target
-                .kind
-                .as_object_reference()
-                .map(|refer| refer.ty_args[0])
-                .unwrap();
-            if let Some(result) = self.relate_variances(actual, expect, relation) {
-                return result;
+        if !source.kind.is_tuple() {
+            if let Some(source_refer) = source.kind.as_object_reference() {
+                if let Some(target_refer) = target.kind.as_object_reference() {
+                    if source_refer.target == target_refer.target {
+                        if self.is_empty_array_lit_ty(source) {
+                            return true;
+                        }
+                        if let Some(result) = self.relate_variances(
+                            source_refer.resolved_ty_args,
+                            target_refer.resolved_ty_args,
+                            relation,
+                        ) {
+                            return result;
+                        }
+                    }
+                }
             }
         }
+
+        // if source.kind.is_array(self) && target.kind.is_array(self) {
+        //     if self.is_empty_array_lit_ty(source) {
+        //         return true;
+        //     }
+        //     let actual = source
+        //         .kind
+        //         .as_object_reference()
+        //         .map(|refer| refer.resolved_ty_args[0])
+        //         .unwrap();
+        //     let expect = target
+        //         .kind
+        //         .as_object_reference()
+        //         .map(|refer| refer.resolved_ty_args[0])
+        //         .unwrap();
+        //     if let Some(result) = self.relate_variances(actual, expect, relation) {
+        //         return result;
+        //     }
+        // }
 
         let source_is_primitive = source.kind.is_primitive();
 
@@ -243,10 +266,105 @@ impl<'cx> TyChecker<'cx> {
 
         if source.kind.is_object_or_intersection() && target.kind.is_object() {
             let report_error = !source_is_primitive;
-            self.props_related_to(source, target, report_error)
+            let mut res = self.props_related_to(source, target, report_error);
+            if res != Ternary::FALSE {
+                // TODO: `sigs_related_to` with call tag
+                res &= self.sigs_related_to(source, target);
+                res &= self.index_sig_related_to(source, target, relation);
+                res != Ternary::FALSE
+            } else {
+                false
+            }
         } else {
             true
         }
+    }
+
+    fn index_info_related_to(
+        &mut self,
+        source: &'cx ty::IndexInfo<'cx>,
+        target: &'cx ty::IndexInfo<'cx>,
+        relation: RelationKind,
+    ) -> bool {
+        let res = self.is_related_to(source.val_ty, target.val_ty, relation);
+        if !res {
+            if source.key_ty == target.key_ty {
+                let decl = self.binder.symbol(source.symbol).expect_index().decl;
+                let span = self.p.node(decl).expect_index_sig_decl().ty.span();
+                let error = errors::IndexSignaturesAreIncompatible {
+                    span,
+                    ty: target.val_ty.to_string(self),
+                };
+                self.push_error(span.module, Box::new(error));
+            } else {
+                todo!()
+            }
+        }
+        true
+    }
+
+    fn type_related_to_index_info(
+        &mut self,
+        source: &'cx Ty<'cx>,
+        target: &'cx ty::IndexInfo<'cx>,
+        relation: RelationKind,
+    ) -> Ternary {
+        if let Some(source) = self.get_applicable_index_info(source, target.key_ty) {
+            self.index_info_related_to(source, target, relation);
+            Ternary::TRUE
+        } else {
+            Ternary::FALSE
+        }
+    }
+
+    fn index_sig_related_to(
+        &mut self,
+        source: &'cx Ty<'cx>,
+        target: &'cx Ty<'cx>,
+        relation: RelationKind,
+    ) -> Ternary {
+        if relation == RelationKind::Identity {
+            return Ternary::TRUE;
+        }
+        for info in self.index_infos(target) {
+            self.type_related_to_index_info(source, info, relation);
+        }
+        Ternary::TRUE
+    }
+
+    fn sigs_related_to(&mut self, source: &'cx Ty<'cx>, target: &'cx Ty<'cx>) -> Ternary {
+        if source == self.any_ty() || target == self.any_ty() {
+            return Ternary::TRUE;
+        }
+
+        let source_sigs = {
+            let Some(ty) = source.kind.as_object() else {
+                return Ternary::TRUE;
+            };
+            self.get_sigs_of_ty(source, ty)
+        };
+        let target_sigs = {
+            let Some(ty) = target.kind.as_object() else {
+                return Ternary::TRUE;
+            };
+            self.get_sigs_of_ty(target, ty)
+        };
+
+        for t in target_sigs {
+            for s in source_sigs {
+                if self.sig_related_to(s, t) != Ternary::FALSE {
+                    continue;
+                }
+            }
+            return Ternary::FALSE;
+        }
+
+        Ternary::TRUE
+    }
+
+    fn sig_related_to(&mut self, source: &'cx Sig<'cx>, target: &'cx Sig<'cx>) -> Ternary {
+        // TODO:
+        Ternary::FALSE
     }
 
     pub(super) fn check_type_assignable_to_and_optionally_elaborate(
@@ -274,7 +392,7 @@ impl<'cx> TyChecker<'cx> {
                     ty2: this.print_ty(target).to_string(),
                 })
             },
-        )
+        );
     }
 
     pub(super) fn check_type_related_to_and_optionally_elaborate(
@@ -284,11 +402,18 @@ impl<'cx> TyChecker<'cx> {
         target: &'cx Ty<'cx>,
         relation: RelationKind,
         error: impl FnOnce(&mut Self, Span, &'cx Ty<'cx>, &'cx Ty<'cx>) -> crate::Diag,
-    ) {
+    ) -> bool {
         if !self.is_type_related_to(source, target, relation) {
             let err = error(self, span, source, target);
             self.push_error(span.module, err);
+            false
+        } else {
+            true
         }
+    }
+
+    pub(super) fn check_type_assignable_to(&mut self, source: &'cx Ty<'cx>, target: &'cx Ty<'cx>) {
+        self.check_type_related_to(source, target, RelationKind::Assignable);
     }
 
     fn check_type_related_to(
@@ -307,7 +432,7 @@ impl<'cx> TyChecker<'cx> {
         target: &'cx Ty<'cx>,
         relation: RelationKind,
     ) -> bool {
-        let mut res = true;
+        let res = true;
         for (idx, source_ty) in sources.iter().enumerate() {
             // if idx <= targets.len() {
             //     let related = self.is_related_to(source_ty, targets[idx]);
@@ -336,42 +461,76 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
-    fn get_props_of_object_ty(&self, ty: &'cx ObjectTy<'cx>) -> &'cx [SymbolID] {
-        if let ObjectTyKind::Interface(ty) = ty.kind {
-            ObjectShape::props(ty)
+    fn get_props_of_object_ty(
+        &self,
+        self_ty: &'cx ty::Ty<'cx>,
+        ty: &'cx ObjectTy<'cx>,
+    ) -> &'cx [SymbolID] {
+        if let ObjectTyKind::Interface(_) = ty.kind {
+            self.properties_of_object_type(self_ty)
         } else if let ObjectTyKind::ObjectLit(ty) = ty.kind {
             ObjectShape::props(ty)
         } else if let ObjectTyKind::Tuple(ty) = ty.kind {
             ObjectShape::props(ty)
-        } else if let ObjectTyKind::Reference(ty) = ty.kind {
-            let target = ty.target.kind.expect_object();
-            self.get_props_of_object_ty(target)
+        } else if let ObjectTyKind::Reference(_) = ty.kind {
+            self.properties_of_object_type(self_ty)
         } else {
             &[]
         }
     }
 
-    fn get_props_of_ty(&self, ty: &'cx Ty<'cx>) -> &'cx [SymbolID] {
-        if let TyKind::Object(ty) = ty.kind {
-            self.get_props_of_object_ty(ty)
+    fn get_sigs_of_ty(
+        &mut self,
+        self_ty: &'cx ty::Ty<'cx>,
+        ty: &'cx ObjectTy<'cx>,
+    ) -> &'cx [&'cx Sig<'cx>] {
+        if let ObjectTyKind::Interface(_) = ty.kind {
+            self.ty_declared_members[&self_ty.id].call_sigs
+        } else if let ObjectTyKind::ObjectLit(ty) = ty.kind {
+            ObjectShape::declared_call_sigs(ty)
+        } else if let ObjectTyKind::Tuple(ty) = ty.kind {
+            ObjectShape::declared_call_sigs(ty)
+        } else if let ObjectTyKind::Anonymous(ty) = ty.kind {
+            ObjectShape::declared_call_sigs(ty)
+        } else if let ObjectTyKind::Reference(ty) = ty.kind {
+            let target = ty.target.kind.expect_object();
+            self.get_sigs_of_ty(ty.target, target)
+        } else {
+            &[]
+        }
+    }
+
+    pub(super) fn get_props_of_ty(&self, ty: &'cx Ty<'cx>) -> &'cx [SymbolID] {
+        if let TyKind::Object(object_ty) = ty.kind {
+            self.get_props_of_object_ty(ty, object_ty)
         } else {
             &[]
         }
     }
 
     pub(super) fn get_prop_of_ty(&self, ty: &'cx Ty<'cx>, name: SymbolName) -> Option<SymbolID> {
-        let TyKind::Object(ty) = ty.kind else {
+        let TyKind::Object(object_ty) = ty.kind else {
             return None;
         };
 
-        if let Some(ty) = ty.kind.as_interface() {
+        if object_ty.kind.as_interface().is_some() {
+            self.ty_structured_members[&ty.id]
+                .members
+                .get(&name)
+                .copied()
+        } else if let Some(ty) = object_ty.kind.as_object_lit() {
             ObjectShape::get_member(ty, &name)
-        } else if let Some(ty) = ty.kind.as_object_lit() {
+        } else if let Some(ty) = object_ty.kind.as_tuple() {
             ObjectShape::get_member(ty, &name)
-        } else if let Some(ty) = ty.kind.as_tuple() {
-            ObjectShape::get_member(ty, &name)
-        } else if let Some(ty) = ty.kind.as_reference() {
-            self.get_prop_of_ty(ty.target, name)
+        } else if let Some(refer) = object_ty.kind.as_reference() {
+            if !self.ty_structured_members.contains_key(&ty.id) {
+                self.get_prop_of_ty(refer.target, name)
+            } else {
+                self.ty_structured_members[&ty.id]
+                    .members
+                    .get(&name)
+                    .copied()
+            }
         } else {
             unreachable!("ty: {ty:#?}")
         }

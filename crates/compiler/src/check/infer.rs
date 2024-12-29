@@ -18,7 +18,7 @@ impl<'cx> TyChecker<'cx> {
             .collect::<Vec<_>>();
 
         let mut tys = vec![self.any_ty(); ty_params.len()];
-        for i in 0..args.len() {
+        for (i, arg) in args.iter().enumerate() {
             let Some(param_ty) = self.get_ty_at_pos(sig, i) else {
                 todo!("handle rest param")
             };
@@ -27,7 +27,7 @@ impl<'cx> TyChecker<'cx> {
             };
             let idx = param_ty.offset;
             if tys[idx] != self.any_ty() {
-                tys[idx] = args[i];
+                tys[idx] = arg;
             } else {
                 //todo!("error handle")
             }

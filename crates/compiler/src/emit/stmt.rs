@@ -17,8 +17,9 @@ impl<'cx> Emit<'cx> {
             Class(class) => self.emit_class_decl(class),
             Interface(_) => {}
             Type(_) => {}
-            Namespace(ns) => self.emit_ns_decl(ns),
             Throw(t) => self.emit_throw_stmt(t),
+            Namespace(ns) => self.emit_ns_decl(ns),
+            Enum(e) => self.emit_enum_decl(e),
         }
     }
 
@@ -26,6 +27,88 @@ impl<'cx> Emit<'cx> {
         self.content.p("throw");
         self.content.p_whitespace();
         self.emit_expr(t.expr);
+    }
+
+    fn emit_enum_decl(&mut self, e: &'cx ast::EnumDecl) {
+        self.emit_with_var_fn_wrapper(e.name, self.atoms.get(e.name.name), |this| {
+            for member in e.members {
+                this.content.p_newline();
+                this.emit_ident(e.name);
+                this.content.p_l_bracket();
+                this.emit_ident(e.name);
+                this.content.p_l_bracket();
+                match member.name.kind {
+                    ast::PropNameKind::Ident(ident) => this.emit_as_string(ident.name),
+                    ast::PropNameKind::StringLit(lit) => todo!(),
+                    ast::PropNameKind::NumLit(lit) => todo!(),
+                }
+                this.content.p_r_bracket();
+                this.content.p_whitespace();
+                this.content.p_eq();
+                this.content.p_whitespace();
+                if let Some(init) = member.init {
+                    this.emit_expr(init);
+                } else {
+                    // todo:
+                    let val = 0;
+                    this.content.p(&val.to_string());
+                }
+                this.content.p_r_bracket();
+                this.content.p_whitespace();
+                this.content.p_eq();
+                this.content.p_whitespace();
+                match member.name.kind {
+                    ast::PropNameKind::Ident(ident) => this.emit_as_string(ident.name),
+                    ast::PropNameKind::StringLit(lit) => todo!(),
+                    ast::PropNameKind::NumLit(lit) => todo!(),
+                }
+            }
+        })
+    }
+
+    fn emit_with_var_fn_wrapper(
+        &mut self,
+        decl_name: &ast::Ident,
+        param_name: &str,
+        f: impl FnOnce(&mut Self),
+    ) {
+        self.content.p("var");
+        self.content.p_whitespace();
+        self.emit_ident(decl_name);
+        self.content.p_whitespace();
+        self.content.p_eq();
+        self.content.p_whitespace();
+        self.content.p("{}");
+        self.content.p_semi();
+
+        self.content.p_newline();
+
+        self.content.p_l_paren();
+        self.content.p("function");
+        self.content.p_whitespace();
+        self.content.p_l_paren();
+
+        self.content.p(param_name);
+        self.content.p_r_paren();
+        self.content.p_whitespace();
+
+        // emit block
+        self.content.p_l_brace();
+        self.content.p_newline();
+        self.content.p_pieces_of_whitespace(self.state.indent);
+        self.state.indent += self.options.indent;
+
+        f(self);
+
+        self.state.indent -= self.options.indent;
+        self.content.p_newline();
+        self.content.p_pieces_of_whitespace(self.state.indent);
+        self.content.p_r_brace();
+
+        self.content.p_r_paren();
+        self.content.p_l_paren();
+        self.emit_ident(decl_name);
+        self.content.p_r_paren();
     }
 
     fn emit_ns_decl(&mut self, ns: &'cx ast::NsDecl) {
@@ -70,83 +153,52 @@ impl<'cx> Emit<'cx> {
             param_name = Cow::Owned(n);
         }
 
-        self.content.p("var");
-        self.content.p_whitespace();
-        self.emit_ident(ns.name);
-        self.content.p_whitespace();
-        self.content.p_eq();
-        self.content.p_whitespace();
-        self.content.p("{}");
-        self.content.p_semi();
-
-        self.content.p_newline();
-
-        self.content.p_l_paren();
-        self.content.p("function");
-        self.content.p_whitespace();
-        self.content.p_l_paren();
-        // TODO: don't emit name if no export
-        self.content.p(&param_name);
-        self.content.p_r_paren();
-        self.content.p_whitespace();
-        // emit block
-        self.content.p_l_brace();
-        self.content.p_newline();
-        self.content.p_pieces_of_whitespace(self.state.indent);
-        self.state.indent += self.options.indent;
-        for stmt in ns.block.stmts {
-            use ast::StmtKind::*;
-            self.content.p_newline();
-            self.emit_stmt(stmt);
-            self.content.p_newline();
-            let t = match stmt.kind {
-                Var(v) => {
-                    if v.modifiers
-                        .map(|ms| ms.flags.contains(ast::ModifierKind::Export))
-                        .unwrap_or_default()
-                    {
-                        for item in v.list {
-                            self.content.p(&param_name);
-                            self.content.p_dot();
-                            self.emit_ident(item.binding);
-                            self.content.p_whitespace();
-                            self.content.p_eq();
-                            self.content.p_whitespace();
-                            self.emit_ident(item.binding);
-                            self.content.p_newline();
+        self.emit_with_var_fn_wrapper(ns.name, &param_name, |this| {
+            for stmt in ns.block.stmts {
+                use ast::StmtKind::*;
+                this.content.p_newline();
+                this.emit_stmt(stmt);
+                this.content.p_newline();
+                let t = match stmt.kind {
+                    Var(v) => {
+                        if v.modifiers
+                            .map(|ms| ms.flags.contains(ast::ModifierKind::Export))
+                            .unwrap_or_default()
+                        {
+                            for item in v.list {
+                                this.content.p(&param_name);
+                                this.content.p_dot();
+                                this.emit_ident(item.binding);
+                                this.content.p_whitespace();
+                                this.content.p_eq();
+                                this.content.p_whitespace();
+                                this.emit_ident(item.binding);
+                                this.content.p_newline();
+                            }
                         }
+                        continue;
                     }
+                    Fn(f) => f.modifiers.map(|ms| (ms, f.name)),
+                    Class(c) => c.modifiers.map(|ms| (ms, c.name)),
+                    Interface(_) | Type(_) => None,
+                    Namespace(n) => n.modifiers.map(|ms| (ms, n.name)),
+                    _ => None,
+                };
+                let Some((ms, name)) = t else {
                     continue;
+                };
+                if ms.flags.contains(ast::ModifierKind::Export) {
+                    this.content.p(&param_name);
+                    this.content.p_dot();
+                    this.emit_ident(name);
+                    this.content.p_whitespace();
+                    this.content.p_eq();
+                    this.content.p_whitespace();
+                    this.emit_ident(name);
+                    this.content.p_newline();
                 }
-                Fn(f) => f.modifiers.map(|ms| (ms, f.name)),
-                Class(c) => c.modifiers.map(|ms| (ms, c.name)),
-                Interface(_) | Type(_) => None,
-                Namespace(n) => n.modifiers.map(|ms| (ms, n.name)),
-                _ => None,
-            };
-            let Some((ms, name)) = t else {
-                continue;
-            };
-            if ms.flags.contains(ast::ModifierKind::Export) {
-                self.content.p(&param_name);
-                self.content.p_dot();
-                self.emit_ident(name);
-                self.content.p_whitespace();
-                self.content.p_eq();
-                self.content.p_whitespace();
-                self.emit_ident(name);
-                self.content.p_newline();
             }
-        }
-        self.state.indent -= self.options.indent;
-        self.content.p_newline();
-        self.content.p_pieces_of_whitespace(self.state.indent);
-        self.content.p_r_brace();
-
-        self.content.p_r_paren();
-        self.content.p_l_paren();
-        self.emit_ident(ns.name);
-        self.content.p_r_paren();
+        });
     }
 
     fn emit_class_decl(&mut self, class: &'cx ast::ClassDecl<'cx>) {

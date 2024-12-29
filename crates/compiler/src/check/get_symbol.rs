@@ -2,7 +2,7 @@ use super::TyChecker;
 use crate::ast;
 use crate::bind::SymbolID;
 
-impl<'cx> TyChecker<'cx> {
+impl TyChecker<'_> {
     pub(super) fn get_symbol_of_decl(&mut self, id: ast::NodeID) -> SymbolID {
         use ast::Node::*;
         let node = self.p.node(id);
