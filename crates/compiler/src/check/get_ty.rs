@@ -83,9 +83,7 @@ impl<'cx> TyChecker<'cx> {
         if let Some(ty) = self.get_symbol_links(symbol).get_ty() {
             return ty;
         }
-        let sigs = self.get_sigs_of_symbol(symbol);
         self.create_anonymous_ty(ty::AnonymousTy {
-            call_sigs: sigs,
             symbol,
             target: None,
             mapper: None,

@@ -454,7 +454,9 @@ impl<'p> ParserState<'p, '_> {
         let t = self.token.kind;
         if t == TokenKind::Less {
             true
-        } else { t == TokenKind::LParen && self.lookahead(Self::is_unambiguously_start_of_fn_ty) }
+        } else {
+            t == TokenKind::LParen && self.lookahead(Self::is_unambiguously_start_of_fn_ty)
+        }
     }
 
     fn skip_param_start(&mut self) -> PResult<bool> {

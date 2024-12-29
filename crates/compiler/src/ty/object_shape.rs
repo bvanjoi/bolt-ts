@@ -1,5 +1,4 @@
 use super::object_ty::{ObjectLitTy, TupleTy};
-use super::AnonymousTy;
 use crate::bind::{SymbolID, SymbolName};
 use crate::keyword;
 
@@ -57,15 +56,3 @@ impl<'cx> ObjectShape<'cx> for TupleTy<'cx> {
 //         self.shape.declared_props
 //     }
 // }
-
-impl<'cx> ObjectShape<'cx> for AnonymousTy<'cx> {
-    fn get_member(&self, _name: &SymbolName) -> Option<SymbolID> {
-        None
-    }
-    fn props(&self) -> &[SymbolID] {
-        &[]
-    }
-    fn declared_call_sigs(&self) -> super::Sigs<'cx> {
-        self.call_sigs
-    }
-}

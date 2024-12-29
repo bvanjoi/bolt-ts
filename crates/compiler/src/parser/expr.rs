@@ -85,8 +85,7 @@ impl<'cx> ParserState<'cx, '_> {
             self.parse_fn_block()
                 .map(|block| ast::ArrowFnExprBody::Block(block.unwrap()))
         } else {
-            self.parse_assign_expr()
-                .map(ast::ArrowFnExprBody::Expr)
+            self.parse_assign_expr().map(ast::ArrowFnExprBody::Expr)
         }
     }
 

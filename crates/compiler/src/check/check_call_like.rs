@@ -15,17 +15,7 @@ pub(super) trait CallLikeExpr<'cx>: ir::CallLike<'cx> {
 
 impl<'cx> CallLikeExpr<'cx> for ast::CallExpr<'cx> {
     fn sigs(checker: &TyChecker<'cx>, ty: &'cx ty::Ty<'cx>) -> Sigs<'cx> {
-        if let Some(f) = ty.kind.as_object_anonymous() {
-            let res = checker.signatures_of_type(ty, ty::SigKind::Call);
-            if res.is_empty() {
-                f.call_sigs
-            } else {
-                res
-            }
-        } else {
-            let sigs = checker.signatures_of_type(ty, ty::SigKind::Call);
-            sigs
-        }
+        checker.signatures_of_type(ty, ty::SigKind::Call)
     }
     fn resolve_sig(&self, checker: &mut TyChecker<'cx>) -> &'cx Sig<'cx> {
         checker.resolve_call_expr(self)

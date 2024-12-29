@@ -160,7 +160,7 @@ impl Ty<'_> {
                 .map(|ty| ty.to_string(checker))
                 .collect::<Vec<_>>()
                 .join(" | "),
-            TyKind::Object(object) => object.kind.to_string(checker),
+            TyKind::Object(object) => object.kind.to_string(self, checker),
             TyKind::Var(id) => {
                 // todo: delay bug
                 format!("#{id:#?}")

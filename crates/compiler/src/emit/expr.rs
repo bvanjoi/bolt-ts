@@ -41,7 +41,9 @@ impl<'cx> Emit<'cx> {
             ArrowFn(arrow_fn) => self.emit_arrow_fn(arrow_fn),
             PrefixUnary(unary) => {
                 self.content.p(unary.op.as_str());
-                if let PrefixUnary(_) = unary.expr.kind { self.content.p_whitespace() };
+                if let PrefixUnary(_) = unary.expr.kind {
+                    self.content.p_whitespace()
+                };
                 self.emit_expr(unary.expr);
             }
             Class(class) => self.emit_class_like(class),

@@ -58,7 +58,9 @@ impl<'cx> TyChecker<'cx> {
             true
         } else if source.kind.is_string_like() && target.kind.is_string() {
             true
-        } else { source.kind.is_any() }
+        } else {
+            source.kind.is_any()
+        }
     }
 
     pub(super) fn is_type_related_to(
@@ -490,8 +492,8 @@ impl<'cx> TyChecker<'cx> {
             ObjectShape::declared_call_sigs(ty)
         } else if let ObjectTyKind::Tuple(ty) = ty.kind {
             ObjectShape::declared_call_sigs(ty)
-        } else if let ObjectTyKind::Anonymous(ty) = ty.kind {
-            ObjectShape::declared_call_sigs(ty)
+        } else if let ObjectTyKind::Anonymous(_) = ty.kind {
+            self.ty_structured_members[&self_ty.id].call_sigs
         } else if let ObjectTyKind::Reference(ty) = ty.kind {
             let target = ty.target.kind.expect_object();
             self.get_sigs_of_ty(ty.target, target)

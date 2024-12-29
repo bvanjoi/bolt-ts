@@ -94,7 +94,7 @@ pub struct TyChecker<'cx> {
     symbol_links: FxHashMap<SymbolID, SymbolLinks<'cx>>,
     node_links: FxHashMap<NodeID, NodeLinks<'cx>>,
     ty_declared_members: FxHashMap<TyID, &'cx ty::DeclaredMembers<'cx>>,
-    ty_structured_members: FxHashMap<TyID, &'cx ty::StructuredMembers<'cx>>,
+    pub ty_structured_members: FxHashMap<TyID, &'cx ty::StructuredMembers<'cx>>,
     // === ast ===
     pub p: &'cx Parser<'cx>,
     // === global ===
@@ -232,9 +232,7 @@ impl<'cx> TyChecker<'cx> {
         if let Some(t) = self.binder.get_transient(symbol) {
             &t.links
         } else {
-            self.symbol_links
-                .entry(symbol)
-                .or_default()
+            self.symbol_links.entry(symbol).or_default()
         }
     }
 

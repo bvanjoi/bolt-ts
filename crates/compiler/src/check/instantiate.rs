@@ -55,7 +55,9 @@ impl<'cx> TyChecker<'cx> {
             // TODO: !isNonGenericTopLevelType(type)
             if object.kind.is_reference() {
                 true
-            } else { object.kind.is_anonymous() }
+            } else {
+                object.kind.is_anonymous()
+            }
         } else if ty.kind.is_union_or_intersection() {
             // TODO: condition
             false
@@ -104,7 +106,6 @@ impl<'cx> TyChecker<'cx> {
         let target = ty.kind.expect_object_anonymous();
         self.create_anonymous_ty(ty::AnonymousTy {
             symbol: target.symbol,
-            call_sigs: &[],
             target: Some(ty),
             mapper: Some(mapper),
         })

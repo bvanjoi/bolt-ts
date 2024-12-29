@@ -3,7 +3,7 @@ use rustc_hash::FxHashMap;
 use crate::bind::{SymbolID, SymbolName};
 use crate::check::TyChecker;
 
-use super::{Sig, Ty};
+use super::Ty;
 
 #[derive(Debug, Clone, Copy)]
 pub struct ObjectTy<'cx> {
@@ -180,10 +180,11 @@ pub struct InterfaceTy<'cx> {
 }
 
 impl ObjectTyKind<'_> {
-    pub(super) fn to_string(&self, checker: &mut TyChecker) -> String {
+    pub(super) fn to_string(&self, self_ty: &Ty, checker: &mut TyChecker) -> String {
         match self {
-            ObjectTyKind::Anonymous(f) => {
-                let params = f.call_sigs[0].params;
+            ObjectTyKind::Anonymous(_) => {
+                let sig = checker.ty_structured_members[&self_ty.id].call_sigs[0];
+                let params = sig.params;
                 let params = params
                     .iter()
                     .map(|param| {
@@ -198,7 +199,7 @@ impl ObjectTyKind<'_> {
                     })
                     .collect::<Vec<_>>()
                     .join(",");
-                let ret = if let Some(ret) = f.call_sigs[0].ret {
+                let ret = if let Some(ret) = sig.ret {
                     let ty = checker.p.node(ret);
                     let ty = checker.get_ty_from_type_node(&ty.as_ty().unwrap());
                     ty.to_string(checker)
@@ -221,10 +222,7 @@ impl ObjectTyKind<'_> {
                 .atoms
                 .get(checker.binder.symbol(i.symbol).name.expect_atom())
                 .to_string(),
-            ObjectTyKind::Reference(refer) => {
-                
-                refer.target.to_string(checker)
-            }
+            ObjectTyKind::Reference(refer) => refer.target.to_string(checker),
         }
     }
 }
@@ -239,7 +237,6 @@ pub struct ObjectLitTy<'cx> {
 #[derive(Debug, Clone, Copy)]
 pub struct AnonymousTy<'cx> {
     pub symbol: SymbolID,
-    pub call_sigs: &'cx [&'cx Sig<'cx>],
     pub target: Option<&'cx Ty<'cx>>,
     pub mapper: Option<&'cx super::TyMapper<'cx>>,
 }
