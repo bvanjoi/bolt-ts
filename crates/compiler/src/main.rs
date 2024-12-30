@@ -42,7 +42,9 @@ fn main_test() {
     let cwd = env::current_dir().unwrap();
     let project_root = project_root::get_project_root().unwrap();
 
-    let p = project_root.join("tests/cases/compiler/abstractClassUnionInstantiation/index.ts");
+    let p = project_root.join(
+        "tests/cases/compiler/emptyArrayDestructuringExpressionVisitedByTransformer/index.ts",
+    );
     let tsconfig = RawTsConfig::default().with_include(vec![p.to_str().unwrap().to_string()]);
     let output = eval_from(cwd, tsconfig.normalize());
     if output.diags.is_empty() {

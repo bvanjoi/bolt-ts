@@ -1,7 +1,6 @@
-use super::infer::InferenceInfo;
 use super::symbol_links::SymbolLinks;
 use super::ty::{self, Ty, TyKind};
-use super::{F64Represent, TyChecker};
+use super::{F64Represent, InferenceContextId, TyChecker};
 use crate::ast;
 use crate::atoms::AtomId;
 use crate::bind::{SymbolFlags, SymbolID, SymbolName};
@@ -105,8 +104,10 @@ impl<'cx> TyChecker<'cx> {
 
     pub(crate) fn get_ty_from_inference(
         &mut self,
-        inference: &InferenceInfo<'cx>,
+        inference: InferenceContextId,
+        idx: usize,
     ) -> Option<&'cx Ty<'cx>> {
+        let inference = &self.inference_contexts[inference.as_usize()].inferences[idx];
         if let Some(tys) = &inference.candidates {
             Some(self.create_union_type(tys.to_vec(), ty::UnionReduction::Subtype))
         } else if let Some(tys) = &inference.contra_candidates {

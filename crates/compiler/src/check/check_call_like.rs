@@ -1,10 +1,10 @@
-use super::infer::{InferenceContext, InferenceFlags};
+use super::infer::InferenceFlags;
 use super::relation::RelationKind;
 use super::ty::ElementFlags;
 use super::ty::{Sig, SigFlags, Sigs};
-use super::ExpectedArgsCount;
 use super::TyChecker;
 use super::{errors, CheckMode};
+use super::{ExpectedArgsCount, InferenceContextId};
 use crate::ir;
 use crate::{ast, ty};
 use bolt_ts_span::Span;
@@ -64,7 +64,13 @@ impl<'cx> TyChecker<'cx> {
                         self.alloc(ty_args)
                     } else {
                         // callee()
-                        self.infer_ty_args(sig, expr.args())
+                        self.infer_ty_args(
+                            expr,
+                            sig,
+                            expr.args(),
+                            CheckMode::empty(),
+                            InferenceContextId::root(),
+                        )
                     };
                     let mapper = self.alloc(ty::TyMapper::create(sources, targets));
                     self.instantiate_ty_with_alias(ret_ty, mapper)
@@ -75,7 +81,15 @@ impl<'cx> TyChecker<'cx> {
         })
     }
 
-    pub(super) fn get_ty_at_pos(&mut self, sig: &Sig<'cx>, pos: usize) -> Option<&'cx ty::Ty<'cx>> {
+    pub(super) fn get_ty_at_pos(&mut self, sig: &Sig<'cx>, pos: usize) -> &'cx ty::Ty<'cx> {
+        self.try_get_ty_at_pos(sig, pos).unwrap_or(self.any_ty())
+    }
+
+    pub(super) fn try_get_ty_at_pos(
+        &mut self,
+        sig: &Sig<'cx>,
+        pos: usize,
+    ) -> Option<&'cx ty::Ty<'cx>> {
         let param_count = if sig.has_rest_param() {
             sig.params.len() - 1
         } else {
@@ -238,6 +252,7 @@ impl<'cx> TyChecker<'cx> {
         expr: &impl CallLikeExpr<'cx>,
         sig: &ty::Sig<'cx>,
         relation: RelationKind,
+        check_mode: CheckMode,
     ) -> bool {
         let args = expr.args();
         let rest_type = sig.get_non_array_rest_ty(self);
@@ -249,8 +264,8 @@ impl<'cx> TyChecker<'cx> {
         };
         let mut has_error = false;
         for (i, arg) in args.iter().enumerate().take(arg_count) {
-            let param_ty = self.get_ty_at_pos(sig, i).unwrap_or(self.any_ty());
-            let arg_ty = self.check_expr_with_contextual_ty(arg, param_ty);
+            let param_ty = self.get_ty_at_pos(sig, i);
+            let arg_ty = self.check_expr_with_contextual_ty(arg, param_ty, None, check_mode);
             if !self.check_type_related_to_and_optionally_elaborate(
                 arg.span(),
                 arg_ty,
@@ -277,11 +292,17 @@ impl<'cx> TyChecker<'cx> {
         candidates: Sigs<'cx>,
         relation: RelationKind,
         is_single_non_generic_candidate: bool,
+        argument_check_mode: CheckMode,
     ) -> Option<&'cx Sig<'cx>> {
         if is_single_non_generic_candidate {
             let candidate = candidates[0];
             if !self.has_correct_arity(expr, candidate)
-                || self.get_signature_applicability_error(expr, candidate, relation)
+                || self.get_signature_applicability_error(
+                    expr,
+                    candidate,
+                    relation,
+                    CheckMode::empty(),
+                )
             {
                 None
             } else {
@@ -293,15 +314,19 @@ impl<'cx> TyChecker<'cx> {
                     continue;
                 }
 
-                let argument_check_mode = CheckMode::empty();
-
                 if let Some(ty_params) = candidate.ty_params {
-                    let inference_context = InferenceContext::create(
+                    let inference_context = self.create_inference_context(
                         ty_params,
                         Some(candidate),
                         InferenceFlags::empty(),
                     );
-                    // self.infer_ty_args(sig, args)
+                    self.infer_ty_args(
+                        expr,
+                        candidate,
+                        expr.args(),
+                        argument_check_mode | CheckMode::SKIP_GENERIC_FUNCTIONS,
+                        inference_context,
+                    );
                     // let ty_args =
                 }
                 return Some(&candidate);
@@ -327,12 +352,21 @@ impl<'cx> TyChecker<'cx> {
 
         let is_single = candidates.len() == 1;
         let is_single_non_generic_candidate = is_single && candidates[0].ty_params.is_none();
+
+        let mut check_mode = CheckMode::empty();
+        if !is_single_non_generic_candidate
+            && args.iter().any(|arg| self.is_context_sensitive(arg.id()))
+        {
+            check_mode |= CheckMode::SKIP_CONTEXT_SENSITIVE;
+        }
+
         if candidates.len() > 1 {
             if let Some(sig) = self.choose_overload(
                 expr,
                 candidates,
                 RelationKind::Subtype,
                 is_single_non_generic_candidate,
+                check_mode,
             ) {
                 return sig;
             }
@@ -342,6 +376,7 @@ impl<'cx> TyChecker<'cx> {
                 candidates,
                 RelationKind::Assignable,
                 is_single_non_generic_candidate,
+                check_mode,
             );
         }
 

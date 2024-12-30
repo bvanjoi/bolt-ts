@@ -212,6 +212,31 @@ impl<'cx> Node<'cx> {
             InterfaceDecl,
         )
     }
+
+    pub fn params(&self) -> Option<super::ParamsDecl<'cx>> {
+        macro_rules! params {
+            ($($node_kind:ident),* $(,)?) => {
+                match self {
+                    $(Node::$node_kind(n) => Some(n.params),)*
+                    _ => None,
+                }
+            };
+        }
+        params!(
+            FnDecl,
+            FnExpr,
+            ArrowFnExpr,
+            ClassCtor,
+            CtorSigDecl,
+            ClassMethodEle,
+            MethodSignature,
+            CallSigDecl,
+        )
+    }
+
+    // pub fn body(&self) -> Option<super::BlockStmt<'cx>> {
+
+    // }
 }
 
 macro_rules! as_node {

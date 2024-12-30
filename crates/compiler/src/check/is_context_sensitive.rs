@@ -1,0 +1,63 @@
+use crate::ast;
+use crate::keyword;
+
+use super::TyChecker;
+
+impl<'cx> TyChecker<'cx> {
+    fn has_context_sensitive_params(&self, id: ast::NodeID) -> bool {
+        let node = self.p.node(id);
+        if node.ty_params().is_none() {
+            if let Some(params) = node.params() {
+                if params.iter().any(|p| p.ty.is_some()) {
+                    return true;
+                }
+            }
+
+            if !node.is_arrow_fn_expr() {
+                let param = node.params().and_then(|params| params.get(0));
+                if param.is_none() || param.unwrap().name.name != keyword::KW_THIS {
+                    return true;
+                }
+            }
+        }
+        false
+    }
+
+    fn has_context_sensitive_return_expr(&self, id: ast::NodeID) -> bool {
+        let node = self.p.node(id);
+        if node.ty_params().is_some() {
+            return false;
+        }
+
+        false
+    }
+
+    fn is_context_sensitive_fn_like(&self, id: ast::NodeID) -> bool {
+        self.has_context_sensitive_params(id) || self.has_context_sensitive_return_expr(id)
+    }
+
+    pub(super) fn is_context_sensitive(&self, id: ast::NodeID) -> bool {
+        let node = self.p.node(id);
+        // TODO: assert(node.kind !== SyntaxKind.MethodDeclaration || isObjectLiteralMethod(node));
+        if node.is_fn_expr()
+            || node.is_arrow_fn_expr()
+            || node.is_method_signature()
+            || node.is_fn_decl()
+        {
+            self.is_context_sensitive_fn_like(id)
+        } else if let Some(o) = node.as_object_lit() {
+            o.members.iter().any(|m| self.is_context_sensitive(m.id))
+        } else if let Some(a) = node.as_array_lit() {
+            a.elems.iter().any(|m| self.is_context_sensitive(m.id()))
+        } else if let Some(c) = node.as_cond_expr() {
+            self.is_context_sensitive(c.when_true.id())
+                || self.is_context_sensitive(c.when_false.id())
+        } else if let Some(b) = node.as_bin_expr() {
+            matches!(b.op.kind, ast::BinOpKind::PipePipe) || self.is_context_sensitive(b.right.id())
+        } else if let Some(p) = node.as_paren_expr() {
+            self.is_context_sensitive(p.expr.id())
+        } else {
+            false
+        }
+    }
+}

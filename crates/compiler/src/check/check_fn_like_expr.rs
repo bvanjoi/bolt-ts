@@ -1,4 +1,4 @@
-use super::TyChecker;
+use super::{CheckMode, TyChecker};
 use crate::{ast, ir, ty};
 
 impl<'cx> TyChecker<'cx> {
@@ -6,6 +6,12 @@ impl<'cx> TyChecker<'cx> {
         &mut self,
         expr: &impl ir::FnExprLike<'cx>,
     ) -> &'cx ty::Ty<'cx> {
+        if let Some(context) = self.get_check_context() {
+            if context.mode.intersects(CheckMode::SKIP_CONTEXT_SENSITIVE) {
+                return self.any_ty();
+            }
+        }
+
         match ir::FnExprLike::body(expr) {
             ast::ArrowFnExprBody::Block(block) => self.check_block(block),
             ast::ArrowFnExprBody::Expr(expr) => {

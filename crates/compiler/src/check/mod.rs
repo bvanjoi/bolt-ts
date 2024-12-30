@@ -19,6 +19,7 @@ mod get_type_from_ty_refer_like;
 mod get_type_from_var_like;
 mod infer;
 mod instantiate;
+mod is_context_sensitive;
 mod node_links;
 mod relation;
 mod resolve;
@@ -32,6 +33,7 @@ pub use self::resolve::ExpectedArgsCount;
 pub use self::symbol_links::SymbolLinks;
 use self::utils::{find_ancestor, get_assignment_kind, AssignmentKind};
 use bolt_ts_span::{ModuleID, Span};
+use infer::InferenceContext;
 use rustc_hash::FxHashMap;
 
 use crate::ast::{BinOp, NodeID};
@@ -55,6 +57,7 @@ bitflags::bitflags! {
 }
 
 bitflags::bitflags! {
+    #[derive(Clone, Copy, Debug, PartialEq)]
     pub struct CheckMode: u8 {
         const CONTEXTUAL                = 1 << 0;
         const INFERENTIAL               = 1 << 1;
@@ -91,6 +94,15 @@ impl From<usize> for F64Represent {
     }
 }
 
+bolt_ts_span::new_index!(InferenceContextId);
+
+#[derive(Debug, Clone, Copy)]
+pub struct CheckContext<'cx> {
+    mode: CheckMode,
+    inference: Option<InferenceContextId>,
+    ty: &'cx Ty<'cx>,
+}
+
 pub struct TyChecker<'cx> {
     pub atoms: &'cx AtomMap<'cx>,
     pub diags: Vec<bolt_ts_errors::Diag>,
@@ -106,6 +118,9 @@ pub struct TyChecker<'cx> {
     symbol_links: FxHashMap<SymbolID, SymbolLinks<'cx>>,
     node_links: FxHashMap<NodeID, NodeLinks<'cx>>,
     pub ty_structured_members: FxHashMap<TyID, &'cx ty::StructuredMembers<'cx>>,
+    next_inference_context_id: InferenceContextId,
+    inference_contexts: Vec<InferenceContext<'cx>>,
+    check_context: Vec<CheckContext<'cx>>,
     // === ast ===
     pub p: &'cx Parser<'cx>,
     // === global ===
@@ -166,6 +181,7 @@ impl<'cx> TyChecker<'cx> {
         global_symbols: &'cx GlobalSymbols,
     ) -> Self {
         assert_eq!(ty_arena.allocated_bytes(), 0);
+        let mut next_inference_context_id = InferenceContextId::root();
         let mut this = Self {
             intrinsic_tys: fx_hashmap_with_capacity(1024),
             atoms,
@@ -192,6 +208,9 @@ impl<'cx> TyChecker<'cx> {
             resolution_res: thin_vec::ThinVec::with_capacity(128),
             binder,
             global_symbols,
+            inference_contexts: Vec::with_capacity(p.module_count() * 1024),
+            next_inference_context_id,
+            check_context: Vec::with_capacity(256),
         };
         for (kind, ty_name) in INTRINSIC_TYPES {
             let ty = this.new_ty(*kind);
@@ -229,6 +248,27 @@ impl<'cx> TyChecker<'cx> {
         this.unknown_sig.set(unknown_sig).unwrap();
 
         this
+    }
+
+    fn push_check_context(
+        &mut self,
+        mode: CheckMode,
+        inference: Option<InferenceContextId>,
+        ty: &'cx Ty<'cx>,
+    ) {
+        self.check_context.push(CheckContext {
+            mode,
+            inference,
+            ty,
+        });
+    }
+
+    fn pop_check_context(&mut self) {
+        self.check_context.pop().unwrap();
+    }
+
+    fn get_check_context(&self) -> Option<&CheckContext<'cx>> {
+        self.check_context.last()
     }
 
     fn check_flags(&self, symbol: SymbolID) -> CheckFlags {
@@ -522,8 +562,13 @@ impl<'cx> TyChecker<'cx> {
         &mut self,
         expr: &'cx ast::Expr,
         ctx_ty: &'cx Ty<'cx>,
+        inference: Option<InferenceContextId>,
+        mode: CheckMode,
     ) -> &'cx Ty<'cx> {
-        self.check_expr(expr)
+        self.push_check_context(mode, inference, ctx_ty);
+        let ty = self.check_expr(expr);
+        self.pop_check_context();
+        ty
     }
 
     fn check_expr_with_cache(&mut self, expr: &'cx ast::Expr) -> &'cx Ty<'cx> {

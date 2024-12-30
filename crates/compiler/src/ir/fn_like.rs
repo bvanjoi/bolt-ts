@@ -150,7 +150,6 @@ impl<'cx> FnExprLike<'cx> for ast::FnExpr<'cx> {
         ast::ArrowFnExprBody::Block(self.body)
     }
 }
-
 impl<'cx> FnExprLike<'cx> for ast::ArrowFnExpr<'cx> {
     fn body(&self) -> ast::ArrowFnExprBody<'cx> {
         self.body

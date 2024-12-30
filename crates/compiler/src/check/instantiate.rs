@@ -48,7 +48,7 @@ impl<'cx> TyChecker<'cx> {
         })
     }
 
-    fn could_contain_ty_var(&self, ty: &'cx ty::Ty<'cx>) -> bool {
+    pub(super) fn could_contain_ty_var(&self, ty: &'cx ty::Ty<'cx>) -> bool {
         if ty.kind.is_instantiable_non_primitive() {
             true
         } else if let Some(object) = ty.kind.as_object() {
