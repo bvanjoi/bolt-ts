@@ -1,7 +1,8 @@
 use super::symbol::{PropSymbol, SymbolFlags};
 use super::{BinderState, ClassSymbol, SymbolID, SymbolKind, SymbolName};
+use crate::ast::ModifierKind;
+use crate::utils::fx_hashmap_with_capacity;
 use crate::{ast, ir};
-use rustc_hash::FxHashMap;
 
 impl<'cx> BinderState<'cx> {
     fn create_class_symbol(&mut self, c: &impl ir::ClassLike<'cx>) -> SymbolID {
@@ -9,12 +10,14 @@ impl<'cx> BinderState<'cx> {
             .name()
             .map_or(SymbolName::ClassExpr, |name| SymbolName::Normal(name.name));
         let id = c.id();
+        let cap = c.elems().elems.len();
         let symbol = self.create_symbol(
             name,
             SymbolFlags::CLASS,
             SymbolKind::Class(ClassSymbol {
                 decl: id,
-                members: FxHashMap::default(),
+                members: fx_hashmap_with_capacity(cap),
+                exports: fx_hashmap_with_capacity(cap),
             }),
         );
         self.create_final_res(id, symbol);
@@ -32,13 +35,20 @@ impl<'cx> BinderState<'cx> {
             SymbolFlags::PROPERTY,
             SymbolKind::Prop(PropSymbol { decl: ele.id }),
         );
-        let class_symbol_id = self.final_res[&decl_id];
-        let SymbolKind::Class(ClassSymbol { members, .. }) =
-            &mut self.symbols.get_mut(class_symbol_id).kind.0
+        let SymbolKind::Class(ClassSymbol {
+            members, exports, ..
+        }) = &mut self.symbols.get_mut(self.final_res[&decl_id]).kind.0
         else {
             unreachable!()
         };
-        members.insert(name, symbol);
+        if ele
+            .modifiers
+            .map_or(false, |mods| mods.flags.contains(ModifierKind::Static))
+        {
+            exports.insert(name, symbol);
+        } else {
+            members.insert(name, symbol);
+        }
         self.create_final_res(ele.id, symbol);
         symbol
     }

@@ -267,6 +267,7 @@ pub struct FnSymbol {
 pub struct ClassSymbol {
     pub decl: NodeID,
     pub members: FxHashMap<SymbolName, SymbolID>,
+    pub exports: FxHashMap<SymbolName, SymbolID>,
 }
 
 #[derive(Debug)]

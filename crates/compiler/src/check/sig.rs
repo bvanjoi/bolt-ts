@@ -5,30 +5,46 @@ use crate::ty;
 use crate::ty::SigKind;
 use crate::ty::{Sig, SigFlags};
 
+fn type_params<'cx>(checker: &mut TyChecker<'cx>, node: &ast::Node<'cx>) -> Option<ty::Tys<'cx>> {
+    if let Some(ty_params) = node.ty_params() {
+        let ty_params = ty_params
+            .iter()
+            .map(|param| {
+                let symbol = checker.binder.final_res(param.id);
+                checker.get_declared_ty_of_symbol(symbol)
+            })
+            .collect::<Vec<_>>();
+        Some(checker.alloc(ty_params))
+    } else {
+        None
+    }
+}
+
 impl<'cx> TyChecker<'cx> {
     pub(super) fn get_sig_from_decl(&mut self, id: ast::NodeID) -> &'cx Sig<'cx> {
-        if let Some(sig) = self.node_id_to_sig.get(&id) {
+        if let Some(sig) = self.get_node_links(id).get_resolved_sig() {
             return sig;
         }
         let node = self.p.node(id);
-        let sig = get_sig_from_decl(self, node);
+        let ty_params = type_params(self, &node);
+        let sig = get_sig_from_decl(self, node, ty_params);
         let sig = self.alloc(sig);
-        let prev = self.node_id_to_sig.insert(id, sig);
-        assert!(prev.is_none());
+        self.get_mut_node_links(id).set_resolved_sig(sig);
         sig
     }
 
     pub(super) fn get_sigs_of_symbol(&mut self, id: SymbolID) -> &'cx [&'cx Sig<'cx>] {
-        let f = if let Some(s) = self.binder.get_transient(id) {
+        let s = if let Some(s) = self.binder.get_transient(id) {
             if let Some(s) = s.origin {
-                self.binder.symbol(s).expect_fn()
+                return self.get_sigs_of_symbol(s);
             } else {
-                self.binder.symbol(id).expect_fn()
+                self.binder.symbol(id)
             }
         } else {
-            self.binder.symbol(id).expect_fn()
+            self.binder.symbol(id)
         };
-        let sigs = f
+        let sigs = s
+            .expect_fn()
             .decls
             .clone()
             .into_iter()
@@ -44,8 +60,11 @@ impl<'cx> TyChecker<'cx> {
     }
 }
 
-fn get_sig_from_decl<'cx>(checker: &mut TyChecker<'cx>, node: ast::Node<'cx>) -> Sig<'cx> {
-    assert!(!checker.node_id_to_sig.contains_key(&node.id()));
+fn get_sig_from_decl<'cx>(
+    checker: &TyChecker<'cx>,
+    node: ast::Node<'cx>,
+    ty_params: Option<ty::Tys<'cx>>,
+) -> Sig<'cx> {
     assert!(
         node.is_fn_decl()
             || node.is_fn_expr()
@@ -54,23 +73,11 @@ fn get_sig_from_decl<'cx>(checker: &mut TyChecker<'cx>, node: ast::Node<'cx>) ->
             || node.is_ctor_sig_decl()
             || node.is_class_method_ele()
             || node.is_method_signature()
-            // TODO: remove `node.is_class_decl()`
-            || node.is_class_decl()
             || node.is_call_sig_decl(),
         "node: {node:#?}",
     );
-    let ty_params = node.ty_params();
-    let ty_params = ty_params.map(|params| {
-        let params = params
-            .iter()
-            .map(|param| checker.binder.final_res(param.id))
-            .collect::<Vec<_>>();
-        let params: &'cx [SymbolID] = checker.alloc(params);
-        params
-    });
     let params_of_node = match node {
         ast::Node::FnDecl(f) => f.params,
-        ast::Node::ClassDecl(c) => &[],
         ast::Node::FnExpr(f) => f.params,
         ast::Node::ArrowFnExpr(f) => f.params,
         ast::Node::ClassCtor(f) => f.params,
@@ -116,10 +123,6 @@ fn get_sig_from_decl<'cx>(checker: &mut TyChecker<'cx>, node: ast::Node<'cx>) ->
         ast::Node::FnDecl(decl) => None,
         ast::Node::FnExpr(_) => None,
         ast::Node::ArrowFnExpr(_) => None,
-        ast::Node::ClassDecl(c) => {
-            let class_id = checker.p.parent(c.id).unwrap();
-            Some(class_id)
-        }
         ast::Node::ClassCtor(c) => {
             let class_id = checker.p.parent(c.id).unwrap();
             Some(class_id)

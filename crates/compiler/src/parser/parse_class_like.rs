@@ -279,7 +279,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         modifiers: Option<&'cx ast::Modifiers<'cx>>,
     ) -> PResult<&'cx ast::ClassEle<'cx>> {
         let name = self.with_parent(id, Self::parse_prop_name)?;
-        let ele = if self.token.kind == TokenKind::LParen || self.token.kind == TokenKind::Less {
+        let ele = if matches!(self.token.kind, TokenKind::LParen | TokenKind::Less) {
             // method
             let ty_params = self.with_parent(id, Self::parse_ty_params)?;
             let params = self.parse_params()?;

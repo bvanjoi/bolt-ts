@@ -474,6 +474,8 @@ impl<'cx> TyChecker<'cx> {
             ObjectShape::props(ty)
         } else if let ObjectTyKind::Reference(_) = ty.kind {
             self.properties_of_object_type(self_ty)
+        } else if let ObjectTyKind::Anonymous(_) = ty.kind {
+            self.properties_of_object_type(self_ty)
         } else {
             &[]
         }
@@ -510,6 +512,11 @@ impl<'cx> TyChecker<'cx> {
                     .get(&name)
                     .copied()
             }
+        } else if let Some(_) = object_ty.kind.as_anonymous() {
+            self.ty_structured_members[&ty.id]
+                .members
+                .get(&name)
+                .copied()
         } else {
             unreachable!("ty: {ty:#?}")
         }
@@ -549,6 +556,7 @@ impl<'cx> TyChecker<'cx> {
                     ObjectTyKind::Reference(ty) => recur(ty.target.kind.expect_object()),
                     ObjectTyKind::Interface(ty) => ty.symbol,
                     ObjectTyKind::ObjectLit(ty) => ty.symbol,
+                    ObjectTyKind::Anonymous(ty) => ty.symbol,
                     _ => unreachable!(),
                 }
             }

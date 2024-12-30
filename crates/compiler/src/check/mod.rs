@@ -54,6 +54,18 @@ bitflags::bitflags! {
     }
 }
 
+bitflags::bitflags! {
+    pub struct CheckMode: u8 {
+        const CONTEXTUAL                = 1 << 0;
+        const INFERENTIAL               = 1 << 1;
+        const SKIP_CONTEXT_SENSITIVE    = 1 << 2;
+        const SKIP_GENERIC_FUNCTIONS    = 1 << 3;
+        const IS_FOR_SIGNATURE_HELP     = 1 << 4;
+        const REST_BINDING_ELEMENT      = 1 << 5;
+        const TYPE_ONLY                 = 1 << 6;
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct F64Represent {
     inner: u64,
@@ -107,7 +119,6 @@ pub struct TyChecker<'cx> {
     pub binder: &'cx mut bind::Binder<'cx>,
     global_symbols: &'cx GlobalSymbols,
 
-    node_id_to_sig: FxHashMap<ast::NodeID, &'cx Sig<'cx>>,
     resolution_tys: thin_vec::ThinVec<SymbolID>,
     resolution_res: thin_vec::ThinVec<bool>,
 }
@@ -173,7 +184,6 @@ impl<'cx> TyChecker<'cx> {
             unknown_sig: Default::default(),
             tuple_shapes: fx_hashmap_with_capacity(1024 * 8),
             type_name: fx_hashmap_with_capacity(1024 * 8),
-            node_id_to_sig: fx_hashmap_with_capacity(p.module_count() * 256),
             ty_vars: FxHashMap::default(),
             ty_structured_members: fx_hashmap_with_capacity(p.module_count() * 1024),
             symbol_links: fx_hashmap_with_capacity(p.module_count() * 1024),
@@ -581,7 +591,8 @@ impl<'cx> TyChecker<'cx> {
         let Some(symbol) = self.get_prop_of_ty(left, SymbolName::Ele(node.name.name)) else {
             return self.undefined_ty();
         };
-        self.get_type_of_symbol(symbol)
+        let ty = self.get_type_of_symbol(symbol);
+        ty
     }
 
     fn check_prefix_unary_expr(&mut self, expr: &'cx ast::PrefixUnaryExpr<'cx>) -> &'cx Ty<'cx> {

@@ -3,6 +3,7 @@ mod bind_class_like;
 mod bind_fn_like;
 mod create;
 mod errors;
+mod merged_symbol;
 mod symbol;
 
 use bolt_ts_span::ModuleID;

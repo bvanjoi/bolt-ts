@@ -104,7 +104,7 @@ impl<'cx> TyChecker<'cx> {
             let source = tys[i];
             if source.kind.is_structured_or_instantiable() {
                 for target in tys.iter() {
-                    if !std::ptr::eq(source, *target)
+                    if !source.eq(target)
                         && self.is_type_related_to(source, target, RelationKind::StrictSubtype)
                     {
                         tys.remove(i);

@@ -211,33 +211,6 @@ impl<'cx> TyChecker<'cx> {
             .copied()
             .map(|s| self.get_sigs_of_symbol(s))
             .unwrap_or_default();
-        let ctor_sigs =
-            if ctor_sigs.is_empty() && self.binder.symbol(symbol).flags == SymbolFlags::CLASS {
-                // TODO: base
-                let mut flags = ty::SigFlags::empty();
-                let class_node_id = self.binder.symbol(symbol).expect_class().decl;
-                if let Some(c) = self.p.node(class_node_id).as_class_decl() {
-                    if let Some(mods) = c.modifiers {
-                        if mods.flags.contains(ast::ModifierKind::Abstract) {
-                            flags.insert(ty::SigFlags::HAS_ABSTRACT);
-                        }
-                    }
-                }
-                let sig = self.alloc(ty::Sig {
-                    flags,
-                    ty_params: None,
-                    params: &[],
-                    min_args_count: 0,
-                    ret: None,
-                    node_id: class_node_id,
-                    target: None,
-                    mapper: None,
-                });
-                let sigs: ty::Sigs<'cx> = self.alloc([sig]);
-                sigs
-            } else {
-                ctor_sigs
-            };
         let index_infos = self.get_index_infos(symbol);
         self.alloc(ty::DeclaredMembers {
             props,
@@ -248,7 +221,7 @@ impl<'cx> TyChecker<'cx> {
     }
 
     fn get_declared_ty_of_class_or_interface(&mut self, symbol: SymbolID) -> &'cx ty::Ty<'cx> {
-        if let Some(ty) = self.get_symbol_links(symbol).get_ty() {
+        if let Some(ty) = self.get_symbol_links(symbol).get_declared_ty() {
             return ty;
         }
 
@@ -297,10 +270,10 @@ impl<'cx> TyChecker<'cx> {
         };
 
         // TODO: delete this
-        if let Some(ty) = self.get_symbol_links(symbol).get_ty() {
+        if let Some(ty) = self.get_symbol_links(symbol).get_declared_ty() {
             return ty;
         }
-        self.get_mut_symbol_links(symbol).set_ty(ty);
+        self.get_mut_symbol_links(symbol).set_declared_ty(ty);
         ty
     }
 

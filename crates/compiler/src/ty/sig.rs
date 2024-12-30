@@ -15,7 +15,7 @@ bitflags::bitflags! {
 #[derive(Debug, Clone, Copy)]
 pub struct Sig<'cx> {
     pub flags: SigFlags,
-    pub ty_params: Option<&'cx [SymbolID]>,
+    pub ty_params: Option<super::Tys<'cx>>,
     pub params: &'cx [SymbolID],
     pub min_args_count: usize,
     // TODO: remove `Option` and use ty `ty`
@@ -29,6 +29,7 @@ impl<'cx> Sig<'cx> {
     pub const fn has_rest_param(&self) -> bool {
         self.flags.intersects(SigFlags::HAS_REST_PARAMETER)
     }
+
     pub fn get_rest_ty(&self, checker: &mut TyChecker<'cx>) -> Option<&'cx super::Ty<'cx>> {
         self.has_rest_param().then(|| {
             let rest_ty = checker.get_type_of_symbol(*self.params.last().unwrap());
@@ -45,6 +46,7 @@ impl<'cx> Sig<'cx> {
             }
         })
     }
+
     pub fn get_non_array_rest_ty(
         &self,
         checker: &mut TyChecker<'cx>,
@@ -57,6 +59,7 @@ impl<'cx> Sig<'cx> {
             }
         })
     }
+
     pub fn get_param_count(&self, checker: &mut TyChecker<'cx>) -> usize {
         let len = self.params.len();
         if self.has_rest_param() {

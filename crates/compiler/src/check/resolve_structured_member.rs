@@ -1,6 +1,7 @@
 use rustc_hash::FxHashMap;
 
 use super::{SymbolLinks, TyChecker};
+use crate::ast;
 use crate::bind::{SymbolFlags, SymbolID, SymbolName};
 use crate::ty::{self, CheckFlags, SigKind, TyMapper};
 
@@ -246,29 +247,89 @@ impl<'cx> TyChecker<'cx> {
         self.resolve_object_type_members(ty, i.declared, ty_params, padded_type_arguments);
     }
 
+    fn get_default_construct_sigs(&mut self, ty: &'cx ty::Ty<'cx>) -> &'cx [&'cx ty::Sig<'cx>] {
+        let r = ty.kind.expect_object_reference();
+        let i = r.target.kind.expect_object_interface();
+        let symbol = i.symbol;
+        let mut flags = ty::SigFlags::empty();
+        let class_node_id = self.binder.symbol(symbol).expect_class().decl;
+        if let Some(c) = self.p.node(class_node_id).as_class_decl() {
+            if let Some(mods) = c.modifiers {
+                if mods.flags.contains(ast::ModifierKind::Abstract) {
+                    flags.insert(ty::SigFlags::HAS_ABSTRACT);
+                }
+            }
+        }
+        let sig = self.alloc(ty::Sig {
+            flags,
+            ty_params: None,
+            params: &[],
+            min_args_count: 0,
+            ret: None,
+            node_id: class_node_id,
+            target: None,
+            mapper: None,
+        });
+        self.alloc([sig])
+    }
+
     fn resolve_anonymous_type_members(&mut self, ty: &'cx ty::Ty<'cx>) {
         let Some(a) = ty.kind.as_object_anonymous() else {
             unreachable!()
         };
+        let symbol = self.binder.symbol(a.symbol);
+        let symbol_flags = symbol.flags;
+
+        let members;
         let call_sigs;
+        let mut ctor_sigs;
+        let index_infos: ty::IndexInfos<'cx>;
+
         if let Some(target) = a.target {
             let mapper = a.mapper.unwrap();
             call_sigs =
                 self.instantiate_sigs(self.signatures_of_type(target, SigKind::Call), mapper);
-            // TODO: `constructor_sigs`, `index_infos`, `members` and instantiate them.
-            // TODO: remove this
-        } else {
+            ctor_sigs = self.instantiate_sigs(
+                self.signatures_of_type(target, SigKind::Constructor),
+                mapper,
+            );
+            members = FxHashMap::default();
+            index_infos = &[];
+            // TODO:  `index_infos`, `members` and instantiate them.
+        } else if symbol_flags.intersects(SymbolFlags::FUNCTION) {
             call_sigs = self.get_sigs_of_symbol(a.symbol);
-            // TODO: `constructor_sigs`, `index_infos`, `members`
-        }
+            ctor_sigs = &[];
+            members = FxHashMap::default();
+            index_infos = &[];
+            // TODO: `constructor_sigs`, `index_infos`
+        } else if symbol_flags.intersects(SymbolFlags::CLASS) {
+            call_sigs = &[];
+            members = symbol.expect_class().exports.clone();
+            if let Some(symbol) = symbol.expect_class().members.get(&SymbolName::Constructor) {
+                ctor_sigs = self.get_sigs_of_symbol(*symbol)
+            } else {
+                ctor_sigs = &[];
+            }
+            let ty = self.get_declared_ty_of_symbol(a.symbol);
+            index_infos = self.index_infos(ty);
+            if ctor_sigs.is_empty() {
+                ctor_sigs = self.get_default_construct_sigs(ty);
+            };
+        } else {
+            call_sigs = &[];
+            ctor_sigs = &[];
+            members = FxHashMap::default();
+            index_infos = &[]
+        };
+        let props = self.get_props_from_members(&members);
         let m = self.alloc(ty::StructuredMembers {
-            members: self.alloc(FxHashMap::default()),
+            members: self.alloc(members),
             base_tys: &[],
             base_ctor_ty: None,
             call_sigs,
-            ctor_sigs: Default::default(),
-            index_infos: Default::default(),
-            props: Default::default(),
+            ctor_sigs,
+            index_infos,
+            props,
         });
         let prev = self.ty_structured_members.insert(ty.id, m);
         assert!(prev.is_none());
@@ -281,13 +342,26 @@ impl<'cx> TyChecker<'cx> {
         let call_sigs = union
             .tys
             .iter()
-            .map(|ty| self.get_sigs_of_ty(ty, SigKind::Call))
+            .flat_map(|ty| self.get_sigs_of_ty(ty, SigKind::Call))
+            .map(|&sig| sig)
             .collect::<Vec<_>>();
         let ctor_sigs = union
             .tys
             .iter()
-            .map(|ty| self.get_sigs_of_ty(ty, SigKind::Constructor))
+            .flat_map(|ty| self.get_sigs_of_ty(ty, SigKind::Constructor))
+            .map(|&sig| sig)
             .collect::<Vec<_>>();
+        let m = self.alloc(ty::StructuredMembers {
+            members: self.alloc(FxHashMap::default()),
+            base_tys: &[],
+            base_ctor_ty: None,
+            call_sigs: self.alloc(call_sigs),
+            ctor_sigs: self.alloc(ctor_sigs),
+            index_infos: Default::default(),
+            props: Default::default(),
+        });
+        let prev = self.ty_structured_members.insert(ty.id, m);
+        assert!(prev.is_none());
     }
 
     pub(super) fn resolve_structured_type_members(&mut self, ty: &'cx ty::Ty<'cx>) {

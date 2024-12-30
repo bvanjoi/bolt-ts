@@ -1,3 +1,4 @@
+use super::infer::InferenceInfo;
 use super::symbol_links::SymbolLinks;
 use super::ty::{self, Ty, TyKind};
 use super::{F64Represent, TyChecker};
@@ -67,16 +68,28 @@ impl<'cx> TyChecker<'cx> {
         self.undefined_ty()
     }
 
-    fn get_base_type_variable_of_class(&mut self, symbol: SymbolID) -> &'cx Ty<'cx> {
+    fn get_base_type_variable_of_class(&mut self, symbol: SymbolID) -> Option<&'cx Ty<'cx>> {
         let class_ty = self.get_declared_ty_of_symbol(symbol);
-        self.ty_structured_members[&class_ty.id]
-            .base_ctor_ty
-            .unwrap()
+        self.ty_structured_members[&class_ty.id].base_ctor_ty
     }
 
+    // fn get_intersection_ty(&mut self, tys: &'cx [&'cx Ty<'cx>]) -> &'cx Ty<'cx> {
+
+    // }
+
     fn get_type_of_class_decl(&mut self, symbol: SymbolID) -> &'cx Ty<'cx> {
-        let base = self.get_base_type_variable_of_class(symbol);
-        base
+        let ty = self.create_anonymous_ty(ty::AnonymousTy {
+            symbol,
+            target: None,
+            mapper: None,
+        });
+        if let Some(base) = self.get_base_type_variable_of_class(symbol) {
+            // TODO: get_intersection_ty
+            base
+        } else {
+            ty
+        };
+        ty
     }
 
     fn get_type_of_func_decl(&mut self, symbol: SymbolID) -> &'cx Ty<'cx> {
@@ -88,6 +101,19 @@ impl<'cx> TyChecker<'cx> {
             target: None,
             mapper: None,
         })
+    }
+
+    pub(crate) fn get_ty_from_inference(
+        &mut self,
+        inference: &InferenceInfo<'cx>,
+    ) -> Option<&'cx Ty<'cx>> {
+        if let Some(tys) = &inference.candidates {
+            Some(self.create_union_type(tys.to_vec(), ty::UnionReduction::Subtype))
+        } else if let Some(tys) = &inference.contra_candidates {
+            todo!("intersection")
+        } else {
+            None
+        }
     }
 
     pub(crate) fn get_ty_from_type_node(&mut self, ty: &ast::Ty<'cx>) -> &'cx Ty<'cx> {
@@ -312,7 +338,6 @@ impl<'cx> TyChecker<'cx> {
                 }
                 ty
             }
-            TyMapper::Deferred(_) => todo!(),
             TyMapper::Fn(_) => todo!(),
             TyMapper::Composite(mapper) => {
                 let t1 = self.get_mapped_ty(mapper.mapper1, ty);

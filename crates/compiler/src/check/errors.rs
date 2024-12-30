@@ -126,6 +126,17 @@ pub(super) struct PropertyXIsMissing {
 pub(super) struct CannotCreateAnInstanceOfAnAbstractClass {
     #[label(primary)]
     pub span: Span,
+    #[related]
+    pub abstract_class_list: Vec<ClassNameHasAbstractModifier>,
+}
+
+#[derive(Error, Diagnostic, Debug)]
+#[error("Class '{name}' has `abstract` modifier.")]
+#[diagnostic(severity(Warning))]
+pub(super) struct ClassNameHasAbstractModifier {
+    #[label(primary)]
+    pub span: Span,
+    pub name: String,
 }
 
 #[derive(Clone, Copy, Debug)]

@@ -524,7 +524,7 @@ impl<'cx> ParserState<'cx, '_> {
         let start = self.token.start();
         let name = self.with_parent(id, Self::parse_prop_name)?;
         let question = self.parse_optional(TokenKind::Question).map(|t| t.span);
-        let kind = if self.token.kind == TokenKind::LParen {
+        let kind = if matches!(self.token.kind, TokenKind::LParen | TokenKind::Less) {
             let ty_params = self.with_parent(id, Self::parse_ty_params)?;
             let params = self.with_parent(id, Self::parse_params)?;
             let ret = self.with_parent(id, |this| this.parse_ret_ty(true))?;

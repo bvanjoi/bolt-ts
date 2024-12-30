@@ -13,13 +13,13 @@ macro_rules! prop {
 
         impl<'cx> SymbolLinks<'cx> {
             $(
-                pub fn $with_x(mut self, ty: $ty) -> Self {
-                    self.$set_x(ty);
+                pub fn $with_x(mut self, $x: $ty) -> Self {
+                    self.$set_x($x);
                     self
                 }
-                pub fn $set_x(&mut self, ty: $ty) {
+                pub fn $set_x(&mut self, $x: $ty) {
                     assert!(self.$x.is_none());
-                    self.$x = Some(ty);
+                    self.$x = Some($x);
                 }
                 pub fn $get_x(&self) -> Option<$ty> {
                     self.$x

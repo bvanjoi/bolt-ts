@@ -1,9 +1,10 @@
-use super::errors;
+use super::infer::{InferenceContext, InferenceFlags};
 use super::relation::RelationKind;
 use super::ty::ElementFlags;
 use super::ty::{Sig, SigFlags, Sigs};
 use super::ExpectedArgsCount;
 use super::TyChecker;
+use super::{errors, CheckMode};
 use crate::ir;
 use crate::{ast, ty};
 use bolt_ts_span::Span;
@@ -52,11 +53,7 @@ impl<'cx> TyChecker<'cx> {
                 };
 
                 if let Some(ty_params) = sig.ty_params {
-                    let sources = ty_params
-                        .iter()
-                        .map(|id| self.get_declared_ty_of_symbol(*id))
-                        .collect::<Vec<_>>();
-                    let sources = self.alloc(sources);
+                    let sources = ty_params;
                     let targets = if let Some(ty_args) = expr.ty_args() {
                         // callee<ty_args>()
                         let ty_args = ty_args
@@ -103,6 +100,30 @@ impl<'cx> TyChecker<'cx> {
     fn resolve_new_expr(&mut self, expr: &impl CallLikeExpr<'cx>) -> &'cx Sig<'cx> {
         let ty = self.check_expr(expr.callee());
         let sigs = self.signatures_of_type(ty, ty::SigKind::Constructor);
+
+        if !sigs.is_empty() {
+            let abstract_sigs = sigs
+                .iter()
+                .filter(|sig| sig.flags.contains(SigFlags::HAS_ABSTRACT))
+                .collect::<thin_vec::ThinVec<_>>();
+            if !abstract_sigs.is_empty() {
+                let abstract_class_list = abstract_sigs
+                    .iter()
+                    .map(|sig| {
+                        let node = self.p.node(sig.node_id).expect_class_decl();
+                        let name = self.atoms.get(node.name.name).to_string();
+                        let span = node.name.span;
+                        errors::ClassNameHasAbstractModifier { span, name }
+                    })
+                    .collect::<Vec<_>>();
+                assert!(!abstract_class_list.is_empty());
+                let error = errors::CannotCreateAnInstanceOfAnAbstractClass {
+                    span: expr.callee().span(),
+                    abstract_class_list,
+                };
+                self.push_error(expr.span().module, Box::new(error));
+            }
+        }
         self.resolve_call(ty, expr, sigs)
     }
 
@@ -253,28 +274,37 @@ impl<'cx> TyChecker<'cx> {
     fn choose_overload(
         &mut self,
         expr: &impl CallLikeExpr<'cx>,
-        sigs: Sigs<'cx>,
+        candidates: Sigs<'cx>,
         relation: RelationKind,
         is_single_non_generic_candidate: bool,
     ) -> Option<&'cx Sig<'cx>> {
         if is_single_non_generic_candidate {
-            let sig = sigs[0];
-            if !self.has_correct_arity(expr, sig)
-                || self.get_signature_applicability_error(expr, sig, relation)
+            let candidate = candidates[0];
+            if !self.has_correct_arity(expr, candidate)
+                || self.get_signature_applicability_error(expr, candidate, relation)
             {
                 None
             } else {
-                Some(sig)
+                Some(candidate)
             }
         } else {
-            for sig in sigs {
-                if !self.has_correct_arity(expr, sig) {
+            for candidate in candidates {
+                if !self.has_correct_arity(expr, candidate) {
                     continue;
                 }
-                // if let Some(ty_params) = sig.ty_params {
-                //     let location = self.p.parent(ty_params[0].decl(self.binder)).unwrap();
-                // }
-                return Some(sig);
+
+                let argument_check_mode = CheckMode::empty();
+
+                if let Some(ty_params) = candidate.ty_params {
+                    let inference_context = InferenceContext::create(
+                        ty_params,
+                        Some(candidate),
+                        InferenceFlags::empty(),
+                    );
+                    // self.infer_ty_args(sig, args)
+                    // let ty_args =
+                }
+                return Some(&candidate);
             }
             None
         }
@@ -328,15 +358,9 @@ impl<'cx> TyChecker<'cx> {
 
         // FIXME: overload
         let candidate = candidates[0];
-        if candidate.flags.intersects(SigFlags::HAS_ABSTRACT) {
-            let error = errors::CannotCreateAnInstanceOfAnAbstractClass {
-                span: expr.callee().span(),
-            };
-            self.push_error(expr.span().module, Box::new(error));
-        }
 
         if min_required_params <= args.len() && args.len() <= max_required_params {
-            // arguments had been check in `check_overload`
+            // arguments had been check in `choose_overload`
         } else if min_required_params == max_required_params {
             let x = min_required_params;
             let y = args.len();

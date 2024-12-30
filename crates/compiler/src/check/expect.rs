@@ -18,6 +18,8 @@ impl<'cx> TyChecker<'cx> {
             self.ty_structured_members[&ty.id].index_infos
         } else if ty.kind.is_object_reference() {
             self.ty_structured_members[&ty.id].index_infos
+        } else if ty.kind.is_object_anonymous() {
+            self.ty_structured_members[&ty.id].index_infos
         } else {
             &[]
         }
@@ -26,12 +28,7 @@ impl<'cx> TyChecker<'cx> {
     pub(super) fn properties_of_object_type(&self, ty: &'cx ty::Ty<'cx>) -> &'cx [SymbolID] {
         ty.kind
             .is_object()
-            .then(|| {
-                if !self.ty_structured_members.contains_key(&ty.id) {
-                    dbg!(ty.id);
-                }
-                self.ty_structured_members[&ty.id].props
-            })
+            .then(|| self.ty_structured_members[&ty.id].props)
             .unwrap_or_default()
     }
 
