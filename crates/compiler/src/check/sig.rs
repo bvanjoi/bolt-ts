@@ -73,20 +73,11 @@ fn get_sig_from_decl<'cx>(
             || node.is_ctor_sig_decl()
             || node.is_class_method_ele()
             || node.is_method_signature()
-            || node.is_call_sig_decl(),
+            || node.is_call_sig_decl()
+            || node.is_fn_ty(),
         "node: {node:#?}",
     );
-    let params_of_node = match node {
-        ast::Node::FnDecl(f) => f.params,
-        ast::Node::FnExpr(f) => f.params,
-        ast::Node::ArrowFnExpr(f) => f.params,
-        ast::Node::ClassCtor(f) => f.params,
-        ast::Node::CtorSigDecl(f) => f.params,
-        ast::Node::ClassMethodEle(f) => f.params,
-        ast::Node::MethodSignature(f) => f.params,
-        ast::Node::CallSigDecl(f) => f.params,
-        _ => unreachable!(),
-    };
+    let params_of_node = node.params().unwrap();
     let has_rest_param = params_of_node
         .last()
         .map(|param| param.dotdotdot.is_some())
@@ -131,6 +122,7 @@ fn get_sig_from_decl<'cx>(
         ast::Node::ClassMethodEle(f) => f.ret.map(|ty| ty.id()),
         ast::Node::MethodSignature(f) => f.ret.map(|ty| ty.id()),
         ast::Node::CallSigDecl(f) => f.ty.map(|ty| ty.id()),
+        ast::Node::FnTy(f) => Some(f.ret_ty.id()),
         _ => unreachable!(),
     };
     Sig {

@@ -231,6 +231,7 @@ impl<'cx> Node<'cx> {
             ClassMethodEle,
             MethodSignature,
             CallSigDecl,
+            FnTy
         )
     }
 

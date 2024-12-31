@@ -2,62 +2,49 @@ use crate::bind::SymbolID;
 
 use super::ty;
 
-macro_rules! prop {
-    ( $( ($x: ident, $ty: ty, $with_x:ident, $set_x: ident, $get_x: ident) ),* $( , )? ) => {
+macro_rules! l {
+    ($s: ident, $(($x: ident, $ty: ty)),* $( , )? ) => {
         #[derive(Debug, Default, Clone, Copy)]
-        pub struct SymbolLinks<'cx> {
+        pub struct $s<'cx> {
             $(
                 $x: Option<$ty>,
             )*
         }
 
-        impl<'cx> SymbolLinks<'cx> {
-            $(
-                pub fn $with_x(mut self, $x: $ty) -> Self {
-                    self.$set_x($x);
-                    self
-                }
-                pub fn $set_x(&mut self, $x: $ty) {
-                    assert!(self.$x.is_none());
-                    self.$x = Some($x);
-                }
-                pub fn $get_x(&self) -> Option<$ty> {
-                    self.$x
-                }
-            )*
+        impl<'cx> $s<'cx> {
+            paste::paste! {
+                $(
+                    pub fn [<with_ $x>](mut self, $x: $ty) -> Self {
+                        self.[<set_ $x>]($x);
+                        self
+                    }
+                    pub fn [<set_ $x>](&mut self, $x: $ty) {
+                        assert!(self.$x.is_none());
+                        self.$x = Some($x);
+                    }
+                    pub fn [<get_ $x>](&self) -> Option<$ty> {
+                        self.$x
+                    }
+                    pub fn [<config_ $x>](&mut self, f: impl FnOnce($ty) -> $ty) {
+                        self.$x = match self.$x {
+                            Some(c) => Some(f(c)),
+                            None => unreachable!("`{}` is not defined", stringify!($x)),
+                        };
+                    }
+                )*
+            }
         }
     };
 }
 
-prop!(
-    (ty, &'cx ty::Ty<'cx>, with_ty, set_ty, get_ty),
-    (
-        declared_ty,
-        &'cx ty::Ty<'cx>,
-        with_declared_ty,
-        set_declared_ty,
-        get_declared_ty
-    ),
-    (
-        ty_params,
-        ty::Tys<'cx>,
-        with_ty_params,
-        set_ty_params,
-        get_ty_params
-    ),
-    (
-        check_flags,
-        ty::CheckFlags,
-        with_check_flags,
-        set_check_flags,
-        get_check_flags
-    ),
-    (target, SymbolID, with_target, set_target, get_target),
-    (
-        mapper,
-        &'cx ty::TyMapper<'cx>,
-        with_ty_mapper,
-        set_ty_mapper,
-        get_ty_mapper
-    ),
+pub(super) use l as links;
+
+links!(
+    SymbolLinks,
+    (ty, &'cx ty::Ty<'cx>),
+    (declared_ty, &'cx ty::Ty<'cx>),
+    (ty_params, ty::Tys<'cx>),
+    (check_flags, ty::CheckFlags),
+    (target, SymbolID),
+    (ty_mapper, &'cx ty::TyMapper<'cx>),
 );

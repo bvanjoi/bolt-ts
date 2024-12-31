@@ -40,6 +40,7 @@ impl<'cx> TyChecker<'cx> {
         ty.kind
             .is_structured()
             .then(|| {
+                // TODO: remove this
                 if !self.ty_structured_members.contains_key(&ty.id) {
                     return Default::default();
                 }

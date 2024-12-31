@@ -95,11 +95,13 @@ impl<'cx> TyChecker<'cx> {
         if let Some(ty) = self.get_symbol_links(symbol).get_ty() {
             return ty;
         }
-        self.create_anonymous_ty(ty::AnonymousTy {
+        let ty = self.create_anonymous_ty(ty::AnonymousTy {
             symbol,
             target: None,
             mapper: None,
-        })
+        });
+        self.get_mut_symbol_links(symbol).set_ty(ty);
+        ty
     }
 
     pub(crate) fn get_ty_from_inference(
@@ -107,7 +109,7 @@ impl<'cx> TyChecker<'cx> {
         inference: InferenceContextId,
         idx: usize,
     ) -> Option<&'cx Ty<'cx>> {
-        let inference = &self.inference_contexts[inference.as_usize()].inferences[idx];
+        let inference = &self.inferences[inference.as_usize()].inferences[idx];
         if let Some(tys) = &inference.candidates {
             Some(self.create_union_type(tys.to_vec(), ty::UnionReduction::Subtype))
         } else if let Some(tys) = &inference.contra_candidates {
@@ -124,7 +126,7 @@ impl<'cx> TyChecker<'cx> {
             Refer(refer) => self.get_ty_from_ty_reference(refer),
             Array(array) => self.get_ty_from_array_node(array),
             Tuple(tuple) => self.get_ty_from_tuple_node(tuple),
-            Fn(_) => self.undefined_ty(),
+            Fn(f) => self.get_ty_from_fn_node(f),
             ObjectLit(lit) => {
                 let symbol = self.binder.final_res(lit.id);
                 let object = &self.binder.symbol(symbol).expect_object();
@@ -147,6 +149,20 @@ impl<'cx> TyChecker<'cx> {
             BooleanLit(_) => todo!(),
             NullLit(_) => todo!(),
         }
+    }
+
+    fn get_ty_from_fn_node(&mut self, f: &'cx ast::FnTy<'cx>) -> &'cx Ty<'cx> {
+        if let Some(ty) = self.get_node_links(f.id).get_resolved_ty() {
+            return ty;
+        }
+
+        let ty = self.create_anonymous_ty(ty::AnonymousTy {
+            symbol: self.binder.final_res(f.id),
+            target: None,
+            mapper: None,
+        });
+        self.get_mut_node_links(f.id).set_resolved_ty(ty);
+        ty
     }
 
     fn get_ty_from_typeof_node(&mut self, node: &'cx ast::TypeofTy<'cx>) -> &'cx Ty<'cx> {

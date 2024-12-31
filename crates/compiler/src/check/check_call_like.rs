@@ -34,7 +34,7 @@ impl<'cx> TyChecker<'cx> {
         self.get_ret_ty_of_sig(expr, sig)
     }
 
-    fn get_ret_ty_of_sig(
+    pub(super) fn get_ret_ty_of_sig(
         &mut self,
         expr: &impl CallLikeExpr<'cx>,
         sig: &'cx Sig<'cx>,
@@ -165,7 +165,7 @@ impl<'cx> TyChecker<'cx> {
         self.resolve_call(ty, expr, sigs)
     }
 
-    fn get_min_arg_count(&mut self, sig: &'cx Sig<'cx>) -> usize {
+    pub(super) fn get_min_arg_count(&mut self, sig: &'cx Sig<'cx>) -> usize {
         let mut min_arg_count = None;
         if sig.has_rest_param() {
             let rest_ty = self.get_type_of_symbol(sig.params[sig.params.len() - 1]);
@@ -207,7 +207,7 @@ impl<'cx> TyChecker<'cx> {
         None
     }
 
-    fn has_effective_rest_param(&mut self, sig: &'cx Sig<'cx>) -> bool {
+    pub(super) fn has_effective_rest_param(&mut self, sig: &'cx Sig<'cx>) -> bool {
         if sig.has_rest_param() {
             let rest_ty = self.get_type_of_symbol(sig.params[sig.params.len() - 1]);
             if !rest_ty.kind.is_tuple() {
@@ -292,7 +292,7 @@ impl<'cx> TyChecker<'cx> {
         candidates: Sigs<'cx>,
         relation: RelationKind,
         is_single_non_generic_candidate: bool,
-        argument_check_mode: CheckMode,
+        mut argument_check_mode: CheckMode,
     ) -> Option<&'cx Sig<'cx>> {
         if is_single_non_generic_candidate {
             let candidate = candidates[0];
@@ -313,22 +313,46 @@ impl<'cx> TyChecker<'cx> {
                 if !self.has_correct_arity(expr, candidate) {
                     continue;
                 }
+                let mut infer_ctx = None;
 
                 if let Some(ty_params) = candidate.ty_params {
-                    let inference_context = self.create_inference_context(
+                    let infer = self.create_inference_context(
                         ty_params,
                         Some(candidate),
                         InferenceFlags::empty(),
                     );
+                    infer_ctx = Some(infer);
+                    // TODO: ty_arg_tys = instantiate_tys(infer_ty_args(), infer.non_fixing_mapper)
                     self.infer_ty_args(
                         expr,
                         candidate,
                         expr.args(),
                         argument_check_mode | CheckMode::SKIP_GENERIC_FUNCTIONS,
-                        inference_context,
+                        infer,
                     );
-                    // let ty_args =
+                    if self.inferences[infer.as_usize()]
+                        .flags
+                        .intersects(InferenceFlags::SKIPPED_GENERIC_FUNCTION)
+                    {
+                        argument_check_mode |= CheckMode::SKIP_GENERIC_FUNCTIONS;
+                    } else {
+                        argument_check_mode |= CheckMode::empty();
+                    }
                 }
+
+                if !argument_check_mode.is_empty() {
+                    argument_check_mode = CheckMode::empty();
+                    if let Some(infer) = infer_ctx {
+                        self.infer_ty_args(
+                            expr,
+                            candidate,
+                            expr.args(),
+                            argument_check_mode,
+                            infer,
+                        );
+                    };
+                }
+
                 return Some(&candidate);
             }
             None

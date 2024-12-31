@@ -85,6 +85,12 @@ impl<'cx> Sig<'cx> {
 
 pub type Sigs<'cx> = &'cx [&'cx Sig<'cx>];
 
+impl PartialEq for &Sig<'_> {
+    fn eq(&self, other: &Self) -> bool {
+        std::ptr::eq(self, other)
+    }
+}
+
 #[derive(Debug, Clone, Copy)]
 pub enum SigKind {
     Call,

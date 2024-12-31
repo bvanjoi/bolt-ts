@@ -16,12 +16,6 @@ impl<'cx> BinderState<'cx> {
         assert!(prev.is_none());
     }
 
-    fn next_symbol_id(&mut self) -> SymbolID {
-        let id = self.symbol_id;
-        self.symbol_id = self.symbol_id.next();
-        id
-    }
-
     pub(super) fn create_var_decl(&mut self, decl: &'cx ast::VarDecl<'cx>, kind: SymbolKind<'cx>) {
         let flags = if matches!(kind, SymbolKind::BlockScopedVar { .. }) {
             SymbolFlags::BLOCK_SCOPED_VARIABLE
@@ -86,8 +80,7 @@ impl<'cx> BinderState<'cx> {
                     self.push_error(error_span.module, error.into());
 
                     if flags.intersects(SymbolFlags::PROPERTY) {
-                        let id = self.next_symbol_id();
-                        self.symbols.insert(id, Symbol::new(name, flags, kind));
+                        let id = self.symbols.insert(Symbol::new(name, flags, kind));
                         let prev = self.res.insert(key, id);
                         return id;
                     }
@@ -95,8 +88,7 @@ impl<'cx> BinderState<'cx> {
                 return id;
             }
         }
-        let id = self.next_symbol_id();
-        self.symbols.insert(id, Symbol::new(name, flags, kind));
+        let id = self.symbols.insert(Symbol::new(name, flags, kind));
         let prev = self.res.insert(key, id);
         id
     }
@@ -121,9 +113,7 @@ impl<'cx> BinderState<'cx> {
         //         return *id;
         //     }
         // }
-        let id = self.next_symbol_id();
-        self.symbols
-            .insert(id, Symbol::new_interface(name, flags, i));
+        let id = self.symbols.insert(Symbol::new_interface(name, flags, i));
         let prev = self.res.insert(key, id);
         id
     }
@@ -148,8 +138,7 @@ impl<'cx> BinderState<'cx> {
         //         return *id;
         //     }
         // }
-        let id = self.next_symbol_id();
-        self.symbols.insert(id, Symbol::new_ns(name, flags, i));
+        let id = self.symbols.insert(Symbol::new_ns(name, flags, i));
         let prev = self.res.insert(key, id);
         id
     }
@@ -163,7 +152,7 @@ impl<'cx> BinderState<'cx> {
                 decls: thin_vec::thin_vec![id],
             }),
         );
-        self.final_res.insert(id, symbol);
+        self.create_final_res(id, symbol);
     }
 
     pub(super) fn create_interface_symbol(
@@ -177,13 +166,37 @@ impl<'cx> BinderState<'cx> {
             SymbolFlags::INTERFACE,
             InterfaceSymbol { decl: id, members },
         );
-        self.final_res.insert(id, symbol);
+        self.create_final_res(id, symbol);
         symbol
     }
 
     pub(super) fn create_fn_symbol(&mut self, container: ast::NodeID, decl: &'cx ast::FnDecl<'cx>) {
         let ele_name = SymbolName::Normal(decl.name.name);
         self.create_fn_decl_like_symbol(container, decl, ele_name, SymbolFnKind::FnDecl);
+    }
+
+    pub(super) fn create_fn_ty_symbol(&mut self, f: &'cx ast::FnTy<'cx>) {
+        let symbol_name = SymbolName::Call;
+        let symbol = self.create_symbol(
+            symbol_name,
+            SymbolFlags::SIGNATURE,
+            SymbolKind::Fn(FnSymbol {
+                kind: SymbolFnKind::Call,
+                decls: thin_vec::thin_vec![f.id],
+            }),
+        );
+
+        let members = FxHashMap::from_iter([(symbol_name, symbol)]);
+
+        let lit_symbol = self.create_symbol(
+            SymbolName::Type,
+            SymbolFlags::TYPE_LITERAL,
+            SymbolKind::TyLit(super::TyLitSymbol {
+                decl: f.id,
+                members,
+            }),
+        );
+        self.create_final_res(f.id, lit_symbol);
     }
 
     pub(super) fn create_object_member_symbol(
@@ -205,18 +218,14 @@ impl<'cx> BinderState<'cx> {
         node_id: ast::NodeID,
         members: FxHashMap<SymbolName, SymbolID>,
     ) -> SymbolID {
-        let id = self.next_symbol_id();
-        self.symbols.insert(
-            id,
-            Symbol::new(
-                SymbolName::Object,
-                SymbolFlags::OBJECT_LITERAL,
-                SymbolKind::Object(ObjectSymbol {
-                    decl: node_id,
-                    members,
-                }),
-            ),
-        );
+        let id = self.symbols.insert(Symbol::new(
+            SymbolName::Object,
+            SymbolFlags::OBJECT_LITERAL,
+            SymbolKind::Object(ObjectSymbol {
+                decl: node_id,
+                members,
+            }),
+        ));
         self.create_final_res(node_id, id);
         id
     }

@@ -19,6 +19,18 @@ pub(super) enum RelationKind {
     Enum,
 }
 
+bitflags::bitflags! {
+    #[derive(Clone, Copy, Debug, PartialEq)]
+    pub(super) struct SigCheckMode: u8 {
+        const BIVARIANT_CALLBACK    = 1 << 0;
+        const STRICT_CALLBACK       = 1 << 1;
+        const IGNORE_RETURN_TYPES   = 1 << 2;
+        const STRICT_ARITY          = 1 << 3;
+        const STRICT_TOP_SIGNATURE  = 1 << 4;
+        const CALLBACK              = Self::BIVARIANT_CALLBACK.bits() | Self::STRICT_CALLBACK.bits();
+    }
+}
+
 impl<'cx> TyChecker<'cx> {
     fn recur_related_to(
         &mut self,
@@ -257,8 +269,8 @@ impl<'cx> TyChecker<'cx> {
             let mut res = self.props_related_to(source, target, report_error);
             if res != Ternary::FALSE {
                 // TODO: `sigs_related_to` with call tag
-                res &= self.sigs_related_to(source, target, SigKind::Call);
-                res &= self.sigs_related_to(source, target, SigKind::Constructor);
+                res &= self.sigs_related_to(source, target, SigKind::Call, relation);
+                res &= self.sigs_related_to(source, target, SigKind::Constructor, relation);
                 res &= self.index_sig_related_to(source, target, relation);
                 res != Ternary::FALSE
             } else {
@@ -326,7 +338,12 @@ impl<'cx> TyChecker<'cx> {
         source: &'cx Ty<'cx>,
         target: &'cx Ty<'cx>,
         kind: SigKind,
+        relation: RelationKind,
     ) -> Ternary {
+        if relation == RelationKind::Identity {
+            todo!()
+        };
+
         if source == self.any_ty() || target == self.any_ty() {
             return Ternary::TRUE;
         }
@@ -344,21 +361,95 @@ impl<'cx> TyChecker<'cx> {
             self.signatures_of_type(target, kind)
         };
 
-        for t in target_sigs {
-            for s in source_sigs {
-                if self.sig_related_to(s, t) != Ternary::FALSE {
-                    continue;
+        if source_sigs.len() == 1 && target_sigs.len() == 1 {
+            let erase_generics = relation == RelationKind::Comparable;
+            let source_sig = source_sigs[0];
+            let target_sig = target_sigs[0];
+            return self.sig_related_to(source_sig, target_sig, erase_generics, relation);
+        } else {
+            for t in target_sigs {
+                for s in source_sigs {
+                    if self.sig_related_to(s, t, true, relation) != Ternary::FALSE {
+                        continue;
+                    }
                 }
+                return Ternary::FALSE;
             }
+        }
+        Ternary::TRUE
+    }
+
+    fn compare_sig_related(
+        &mut self,
+        source: &'cx Sig<'cx>,
+        target: &'cx Sig<'cx>,
+        relation: RelationKind,
+        check_mode: SigCheckMode,
+    ) -> Ternary {
+        if source == target {
+            return Ternary::TRUE;
+        }
+
+        let target_count = target.get_param_count(self);
+        let source_has_more_params = !self.has_effective_rest_param(target)
+            && (if check_mode.intersects(SigCheckMode::STRICT_ARITY) {
+                self.has_effective_rest_param(source) || source.get_param_count(self) > target_count
+            } else {
+                self.get_min_arg_count(source) > target_count
+            });
+        if source_has_more_params {
             return Ternary::FALSE;
+        }
+        // if let Some(ty_params) = source.ty_params {
+        //     if std::ptr::eq(ty_params, target.ty_params) {
+
+        //     }
+        // }
+        let source_count = source.get_param_count(self);
+        let source_rest_ty = source.get_non_array_rest_ty(self);
+        let target_rest_ty = target.get_non_array_rest_ty(self);
+
+        if !check_mode.intersects(SigCheckMode::IGNORE_RETURN_TYPES) {
+            let target_ret_ty = target.ret.map_or(self.any_ty(), |ret| {
+                let ty = self.p.node(ret);
+                ty.as_ty()
+                    .map_or(self.undefined_ty(), |t| self.get_ty_from_type_node(&t))
+            });
+            if target_ret_ty == self.any_ty() || target_ret_ty == self.void_ty() {
+                return Ternary::TRUE;
+            } else {
+                let source_ret_ty = source.ret.map_or(self.any_ty(), |ret| {
+                    let ty = self.p.node(ret);
+                    ty.as_ty()
+                        .map_or(self.undefined_ty(), |t| self.get_ty_from_type_node(&t))
+                });
+                return if target_ret_ty == source_ret_ty {
+                    Ternary::TRUE
+                } else {
+                    Ternary::FALSE
+                };
+            }
         }
 
         Ternary::TRUE
     }
 
-    fn sig_related_to(&mut self, source: &'cx Sig<'cx>, target: &'cx Sig<'cx>) -> Ternary {
-        // TODO:
-        Ternary::FALSE
+    fn sig_related_to(
+        &mut self,
+        source: &'cx Sig<'cx>,
+        target: &'cx Sig<'cx>,
+        erase: bool,
+        relation: RelationKind,
+    ) -> Ternary {
+        let check_mode = if relation == RelationKind::Subtype {
+            SigCheckMode::STRICT_TOP_SIGNATURE
+        } else if relation == RelationKind::StrictSubtype {
+            SigCheckMode::STRICT_TOP_SIGNATURE | SigCheckMode::STRICT_ARITY
+        } else {
+            SigCheckMode::empty()
+        };
+
+        self.compare_sig_related(source, target, relation, check_mode)
     }
 
     pub(super) fn check_type_assignable_to_and_optionally_elaborate(

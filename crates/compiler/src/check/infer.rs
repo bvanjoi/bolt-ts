@@ -68,10 +68,8 @@ impl<'cx> TyChecker<'cx> {
         flags: InferenceFlags,
     ) -> InferenceContextId {
         let context = InferenceContext::create(ty_params, sig, flags);
-        let id = self.next_inference_context_id;
-        assert_eq!(id.as_usize(), self.inference_contexts.len());
-        self.next_inference_context_id = self.next_inference_context_id.next();
-        self.inference_contexts.push(context);
+        let id = InferenceContextId(self.inferences.len() as u32);
+        self.inferences.push(context);
         id
     }
 
@@ -79,13 +77,13 @@ impl<'cx> TyChecker<'cx> {
         &mut self,
         id: InferenceContextId,
     ) -> &'cx TyMapper<'cx> {
-        let sources = self.inference_contexts[id.as_usize()]
+        let sources = self.inferences[id.as_usize()]
             .inferences
             .iter()
             .map(|i| i.ty_params)
             .collect::<Vec<_>>();
         let sources = self.alloc(sources);
-        let target = (0..self.inference_contexts[id.as_usize()].inferences.len())
+        let target = (0..self.inferences[id.as_usize()].inferences.len())
             .map(|idx| {
                 // TODO: handle `!is_fixed`
                 self.get_inferred_ty(id, idx)
@@ -99,13 +97,13 @@ impl<'cx> TyChecker<'cx> {
         &mut self,
         id: InferenceContextId,
     ) -> &'cx TyMapper<'cx> {
-        let sources = self.inference_contexts[id.as_usize()]
+        let sources = self.inferences[id.as_usize()]
             .inferences
             .iter()
             .map(|i| i.ty_params)
             .collect::<Vec<_>>();
         let sources = self.alloc(sources);
-        let target = (0..self.inference_contexts[id.as_usize()].inferences.len())
+        let target = (0..self.inferences[id.as_usize()].inferences.len())
             .map(|idx| self.get_inferred_ty(id, idx))
             .collect::<Vec<_>>();
         let target = self.alloc(target);
@@ -113,7 +111,7 @@ impl<'cx> TyChecker<'cx> {
     }
 
     fn get_inferred_ty(&mut self, inference: InferenceContextId, idx: usize) -> &'cx ty::Ty<'cx> {
-        let ctx = &self.inference_contexts[inference.as_usize()];
+        let ctx = &self.inferences[inference.as_usize()];
         let i = &ctx.inferences[idx];
         // TODO: cache
         if let Some(sig) = ctx.sig {
@@ -197,14 +195,12 @@ impl<'cx> TyChecker<'cx> {
         arg_ty: &'cx ty::Ty<'cx>,
         param_ty: &'cx ty::Ty<'cx>,
     ) -> &'cx ty::Ty<'cx> {
-        let inferences = &mut self.inference_contexts[inference.as_usize()].inferences;
+        let inferences = &mut self.inferences[inference.as_usize()].inferences;
         self.undefined_ty()
     }
 
     fn get_inferred_tys(&mut self, inference: InferenceContextId) -> ty::Tys<'cx> {
-        let tys = (0..self.inference_contexts[inference.as_usize()]
-            .inferences
-            .len())
+        let tys = (0..self.inferences[inference.as_usize()].inferences.len())
             .map(|idx| self.get_inferred_ty(inference, idx))
             .collect::<Vec<_>>();
         self.alloc(tys)
@@ -232,5 +228,22 @@ impl<'cx> TyChecker<'cx> {
         }
 
         self.get_inferred_tys(inference)
+    }
+
+    pub(super) fn infer_from_annotated_params(
+        &mut self,
+        sig: &'cx Sig<'cx>,
+        contextual_sig: &'cx Sig<'cx>,
+        inference: InferenceContextId,
+    ) {
+        let len = sig.params.len() - if sig.has_rest_param() { 1 } else { 0 };
+        for i in 0..len {
+            let decl = sig.params[i].decl(self.binder);
+            if let Some(ty_node) = self.p.node(decl).as_param_decl().and_then(|decl| decl.ty) {
+                let source = self.get_ty_from_type_node(ty_node);
+                let target = self.get_ty_at_pos(contextual_sig, i);
+                self.infer_tys(inference, source, target);
+            }
+        }
     }
 }

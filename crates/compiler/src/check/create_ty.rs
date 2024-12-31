@@ -1,14 +1,11 @@
-use crate::ty::{self, UnionReduction};
+use crate::ty::{self, TyID, UnionReduction};
 
 use super::{relation::RelationKind, TyChecker};
 
 impl<'cx> TyChecker<'cx> {
     pub(super) fn new_ty(&mut self, kind: ty::TyKind<'cx>) -> &'cx ty::Ty<'cx> {
-        let id = self.next_ty_id;
-        self.next_ty_id = self.next_ty_id.next();
-
+        let id = TyID::new(self.tys.len() as u32);
         let ty = self.alloc(ty::Ty::new(id, kind));
-        assert_eq!(id.as_usize(), self.tys.len());
         self.tys.push(ty);
         ty
     }
@@ -50,7 +47,9 @@ impl<'cx> TyChecker<'cx> {
 
     pub(super) fn create_anonymous_ty(&mut self, ty: ty::AnonymousTy<'cx>) -> &'cx ty::Ty<'cx> {
         assert!(ty.target.is_none() || ty.target.as_ref().unwrap().kind.is_object_anonymous());
-        self.create_object_ty(ty::ObjectTyKind::Anonymous(self.alloc(ty)))
+        let ty = self.create_object_ty(ty::ObjectTyKind::Anonymous(self.alloc(ty)));
+        self.resolve_structured_type_members(ty);
+        ty
     }
 
     pub(super) fn create_param_ty(&mut self, ty: ty::ParamTy) -> &'cx ty::Ty<'cx> {

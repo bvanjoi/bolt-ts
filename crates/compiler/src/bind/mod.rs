@@ -12,12 +12,12 @@ use symbol::FunctionScopedVarSymbol;
 use symbol::TransientSymbol;
 use thin_vec::thin_vec;
 
-pub use self::symbol::ClassSymbol;
+use self::symbol::ClassSymbol;
 use self::symbol::IndexSymbol;
-pub use self::symbol::SymbolFlags;
-pub use self::symbol::SymbolFnKind;
 use self::symbol::SymbolKind;
+use self::symbol::TyLitSymbol;
 pub use self::symbol::{GlobalSymbols, Symbol, SymbolID, SymbolName, Symbols};
+pub use self::symbol::{SymbolFlags, SymbolFnKind};
 
 use crate::ast::{self, NodeID};
 use crate::atoms::AtomMap;
@@ -128,16 +128,13 @@ impl<'cx> Binder<'cx> {
         origin: Option<SymbolID>,
         links: crate::check::SymbolLinks<'cx>,
     ) -> SymbolID {
-        let len = self.transient_binder.symbols.len();
-        let id = SymbolID::mock(len);
         let symbol_flags = symbol_flags | SymbolFlags::TRANSIENT;
         let symbol = Symbol::new(
             name,
             symbol_flags,
             SymbolKind::Transient(TransientSymbol { links, origin }),
         );
-        self.transient_binder.symbols.insert(id, symbol);
-        id
+        self.transient_binder.symbols.insert(symbol)
     }
 
     pub fn steal_errors(&mut self) -> Vec<bolt_ts_errors::Diag> {
@@ -150,8 +147,6 @@ impl<'cx> Binder<'cx> {
 
 pub struct BinderState<'cx> {
     scope_id: ScopeID,
-    max_scope_id: ScopeID,
-    symbol_id: SymbolID,
     p: &'cx Parser<'cx>,
     pub(crate) diags: Vec<bolt_ts_errors::Diag>,
     pub(crate) atoms: &'cx AtomMap<'cx>,
@@ -176,18 +171,14 @@ pub fn bind<'cx>(
 impl<'cx> BinderState<'cx> {
     fn new(atoms: &'cx AtomMap, parser: &'cx Parser<'cx>, module_id: ModuleID) -> Self {
         let symbols = Symbols::new(module_id);
-        let mut symbol_id = SymbolID::root(module_id);
-        symbol_id = symbol_id.next();
         BinderState {
             atoms,
             p: parser,
             scope_id: ScopeID::root(module_id),
-            max_scope_id: ScopeID::root(module_id),
             scope_id_parent_map: Vec::with_capacity(512),
             res: fx_hashmap_with_capacity(128),
             final_res: fx_hashmap_with_capacity(256),
             node_id_to_scope_id: fx_hashmap_with_capacity(32),
-            symbol_id,
             symbols,
             diags: Vec::new(),
         }
@@ -206,17 +197,16 @@ impl<'cx> BinderState<'cx> {
     }
 
     fn new_scope(&mut self) -> ScopeID {
-        let old = self.scope_id;
-        let next = self.max_scope_id.next();
-        self.max_scope_id = next;
-        assert_eq!(next.index_as_usize(), self.scope_id_parent_map.len());
-        self.scope_id_parent_map.push(Some(old));
+        let next = ScopeID {
+            module: self.scope_id.module,
+            index: self.scope_id_parent_map.len() as u32,
+        };
+        self.scope_id_parent_map.push(Some(self.scope_id));
         next
     }
 
     fn bind_program(&mut self, root: &'cx ast::Program) {
         assert_eq!(self.scope_id.index_as_u32(), 0);
-        assert_eq!(self.symbol_id.index_as_u32(), 1);
         assert!(self.scope_id_parent_map.is_empty());
         self.scope_id_parent_map.push(None);
         self.connect(root.id);
@@ -278,8 +268,6 @@ impl<'cx> BinderState<'cx> {
             c.locals.insert(name, symbol);
         }
 
-        self.final_res.insert(ns.id, symbol);
-
         self.bind_block_stmt(ns.block);
     }
 
@@ -289,7 +277,7 @@ impl<'cx> BinderState<'cx> {
             SymbolFlags::TYPE_ALIAS,
             SymbolKind::TyAlias(symbol::TyAliasSymbol { decl: t.id }),
         );
-        self.final_res.insert(t.id, symbol);
+        self.create_final_res(t.id, symbol);
         if let Some(ty_params) = t.ty_params {
             self.bind_ty_params(ty_params);
         }
@@ -308,7 +296,7 @@ impl<'cx> BinderState<'cx> {
             SymbolFlags::TYPE_PARAMETER,
             SymbolKind::TyParam(symbol::TyParamSymbol { decl: param.id }),
         );
-        self.final_res.insert(param.id, symbol);
+        self.create_final_res(param.id, symbol);
     }
 
     fn bind_index_sig(
@@ -606,6 +594,7 @@ impl<'cx> BinderState<'cx> {
                 self.bind_ty(rest.ty);
             }
             Fn(f) => {
+                self.create_fn_ty_symbol(f);
                 self.bind_params(f.params);
                 self.bind_ty(f.ret_ty);
             }
@@ -658,7 +647,7 @@ impl<'cx> BinderState<'cx> {
             SymbolFlags::FUNCTION_SCOPED_VARIABLE,
             SymbolKind::FunctionScopedVar(FunctionScopedVarSymbol { decl: param.id }),
         );
-        self.final_res.insert(param.id, symbol);
+        self.create_final_res(param.id, symbol);
         if let Some(ty) = param.ty {
             self.bind_ty(ty);
         }

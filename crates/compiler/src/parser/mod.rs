@@ -5,6 +5,7 @@ mod lookahead;
 mod paren_rule;
 mod parse_class_like;
 mod parse_fn_like;
+mod query;
 mod scan;
 mod stmt;
 pub mod token;
@@ -106,21 +107,6 @@ impl<'cx> Parser<'cx> {
     #[inline(always)]
     fn get(&self, id: ModuleID) -> &ParseResult<'cx> {
         self.map.get(&id).unwrap()
-    }
-
-    #[inline(always)]
-    pub fn root(&self, id: ModuleID) -> &ast::Program<'cx> {
-        self.get(id).nodes.get(NodeID::root(id)).expect_program()
-    }
-
-    #[inline(always)]
-    pub fn node(&self, id: NodeID) -> ast::Node<'cx> {
-        self.get(id.module()).nodes.get(id)
-    }
-
-    #[inline(always)]
-    pub fn parent(&self, id: NodeID) -> Option<ast::NodeID> {
-        self.get(id.module()).parent_map.parent(id)
     }
 
     pub fn steal_errors(&mut self) -> Vec<bolt_ts_errors::Diag> {

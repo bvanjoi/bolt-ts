@@ -8,7 +8,7 @@ impl<'cx> TyChecker<'cx> {
         let node = self.p.node(id);
         if node.ty_params().is_none() {
             if let Some(params) = node.params() {
-                if params.iter().any(|p| p.ty.is_some()) {
+                if params.iter().any(|p| p.ty.is_none()) {
                     return true;
                 }
             }
@@ -38,7 +38,7 @@ impl<'cx> TyChecker<'cx> {
 
     pub(super) fn is_context_sensitive(&self, id: ast::NodeID) -> bool {
         let node = self.p.node(id);
-        // TODO: assert(node.kind !== SyntaxKind.MethodDeclaration || isObjectLiteralMethod(node));
+        assert!(!node.is_class_method_ele());
         if node.is_fn_expr()
             || node.is_arrow_fn_expr()
             || node.is_method_signature()

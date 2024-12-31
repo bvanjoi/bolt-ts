@@ -130,19 +130,24 @@ impl<'cx> TyChecker<'cx> {
         sigs: ty::Sigs<'cx>,
         mapper: &'cx TyMapper<'cx>,
     ) -> ty::Sigs<'cx> {
-        self.instantiate_list(sigs, mapper, |this, sig, mapper| {
+        self.instantiate_list(sigs.as_ref(), mapper, |this, sig, mapper| {
             this.instantiate_sig(sig, mapper)
         })
     }
 
-    fn instantiate_sig(
+    pub(super) fn instantiate_sig(
         &mut self,
         sig: &'cx ty::Sig<'cx>,
         mapper: &'cx TyMapper<'cx>,
     ) -> &'cx ty::Sig<'cx> {
+        let params = self.instantiate_list(sig.params, mapper, |this, symbol, mapper| {
+            this.instantiate_symbol(symbol, mapper)
+        });
+
         self.alloc(ty::Sig {
             target: Some(sig),
             mapper: Some(mapper),
+            params,
             ..*sig
         })
     }
@@ -287,12 +292,11 @@ impl<'cx> TyChecker<'cx> {
 
         if let Some(target) = a.target {
             let mapper = a.mapper.unwrap();
-            call_sigs =
-                self.instantiate_sigs(self.signatures_of_type(target, SigKind::Call), mapper);
-            ctor_sigs = self.instantiate_sigs(
-                self.signatures_of_type(target, SigKind::Constructor),
-                mapper,
-            );
+            let sigs = self.get_sigs_of_ty(target, SigKind::Call);
+
+            call_sigs = self.instantiate_sigs(sigs, mapper);
+            let sigs = self.get_sigs_of_ty(target, SigKind::Constructor);
+            ctor_sigs = self.instantiate_sigs(sigs, mapper);
             members = FxHashMap::default();
             index_infos = &[];
             // TODO:  `index_infos`, `members` and instantiate them.
@@ -315,10 +319,19 @@ impl<'cx> TyChecker<'cx> {
             if ctor_sigs.is_empty() {
                 ctor_sigs = self.get_default_construct_sigs(ty);
             };
+        } else if symbol_flags.intersects(SymbolFlags::TYPE_LITERAL) {
+            members = symbol.expect_ty_lit().members.clone();
+            call_sigs = members
+                .get(&SymbolName::Call)
+                .map(|s| self.get_sigs_of_symbol(*s))
+                .unwrap_or_default();
+            // TODO: `constructor_sigs`, `index_infos`
+            ctor_sigs = &[];
+            index_infos = &[]
         } else {
+            members = FxHashMap::default();
             call_sigs = &[];
             ctor_sigs = &[];
-            members = FxHashMap::default();
             index_infos = &[]
         };
         let props = self.get_props_from_members(&members);

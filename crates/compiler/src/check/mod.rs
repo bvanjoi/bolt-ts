@@ -10,7 +10,8 @@ mod create_ty;
 mod errors;
 mod expect;
 mod get_base_ty;
-mod get_contextual_ty;
+mod get_context;
+mod get_contextual;
 mod get_declared_ty;
 mod get_effective_node;
 mod get_symbol;
@@ -33,7 +34,9 @@ pub use self::resolve::ExpectedArgsCount;
 pub use self::symbol_links::SymbolLinks;
 use self::utils::{find_ancestor, get_assignment_kind, AssignmentKind};
 use bolt_ts_span::{ModuleID, Span};
+use get_context::{InferenceContextual, TyContextual};
 use infer::InferenceContext;
+use node_links::NodeFlags;
 use rustc_hash::FxHashMap;
 
 use crate::ast::{BinOp, NodeID};
@@ -96,18 +99,10 @@ impl From<usize> for F64Represent {
 
 bolt_ts_span::new_index!(InferenceContextId);
 
-#[derive(Debug, Clone, Copy)]
-pub struct CheckContext<'cx> {
-    mode: CheckMode,
-    inference: Option<InferenceContextId>,
-    ty: &'cx Ty<'cx>,
-}
-
 pub struct TyChecker<'cx> {
     pub atoms: &'cx AtomMap<'cx>,
     pub diags: Vec<bolt_ts_errors::Diag>,
     arena: &'cx bumpalo::Bump,
-    next_ty_id: TyID,
     next_ty_var_id: TyVarID,
     tys: Vec<&'cx Ty<'cx>>,
     num_lit_tys: FxHashMap<F64Represent, TyID>,
@@ -118,9 +113,10 @@ pub struct TyChecker<'cx> {
     symbol_links: FxHashMap<SymbolID, SymbolLinks<'cx>>,
     node_links: FxHashMap<NodeID, NodeLinks<'cx>>,
     pub ty_structured_members: FxHashMap<TyID, &'cx ty::StructuredMembers<'cx>>,
-    next_inference_context_id: InferenceContextId,
-    inference_contexts: Vec<InferenceContext<'cx>>,
-    check_context: Vec<CheckContext<'cx>>,
+    check_mode: Option<CheckMode>,
+    inferences: Vec<InferenceContext<'cx>>,
+    inference_contextual: Vec<InferenceContextual>,
+    type_contextual: Vec<TyContextual<'cx>>,
     // === ast ===
     pub p: &'cx Parser<'cx>,
     // === global ===
@@ -181,7 +177,6 @@ impl<'cx> TyChecker<'cx> {
         global_symbols: &'cx GlobalSymbols,
     ) -> Self {
         assert_eq!(ty_arena.allocated_bytes(), 0);
-        let mut next_inference_context_id = InferenceContextId::root();
         let mut this = Self {
             intrinsic_tys: fx_hashmap_with_capacity(1024),
             atoms,
@@ -189,7 +184,6 @@ impl<'cx> TyChecker<'cx> {
             tys: Vec::with_capacity(p.module_count() * 1024),
             num_lit_tys: fx_hashmap_with_capacity(1024 * 8),
             string_lit_tys: fx_hashmap_with_capacity(1024 * 8),
-            next_ty_id: TyID::root(),
             next_ty_var_id: TyVarID::root(),
             arena: ty_arena,
             diags: Vec::with_capacity(p.module_count() * 32),
@@ -208,9 +202,10 @@ impl<'cx> TyChecker<'cx> {
             resolution_res: thin_vec::ThinVec::with_capacity(128),
             binder,
             global_symbols,
-            inference_contexts: Vec::with_capacity(p.module_count() * 1024),
-            next_inference_context_id,
-            check_context: Vec::with_capacity(256),
+            inferences: Vec::with_capacity(p.module_count() * 1024),
+            inference_contextual: Vec::with_capacity(256),
+            type_contextual: Vec::with_capacity(256),
+            check_mode: None,
         };
         for (kind, ty_name) in INTRINSIC_TYPES {
             let ty = this.new_ty(*kind);
@@ -250,27 +245,6 @@ impl<'cx> TyChecker<'cx> {
         this
     }
 
-    fn push_check_context(
-        &mut self,
-        mode: CheckMode,
-        inference: Option<InferenceContextId>,
-        ty: &'cx Ty<'cx>,
-    ) {
-        self.check_context.push(CheckContext {
-            mode,
-            inference,
-            ty,
-        });
-    }
-
-    fn pop_check_context(&mut self) {
-        self.check_context.pop().unwrap();
-    }
-
-    fn get_check_context(&self) -> Option<&CheckContext<'cx>> {
-        self.check_context.last()
-    }
-
     fn check_flags(&self, symbol: SymbolID) -> CheckFlags {
         if let Some(t) = self.binder.get_transient(symbol) {
             t.links.get_check_flags().unwrap()
@@ -296,7 +270,9 @@ impl<'cx> TyChecker<'cx> {
     }
 
     fn get_node_links(&mut self, node: NodeID) -> &NodeLinks<'cx> {
-        self.node_links.entry(node).or_default()
+        self.node_links
+            .entry(node)
+            .or_insert_with(|| NodeLinks::default().with_flags(NodeFlags::empty()))
     }
 
     fn get_mut_node_links(&mut self, node: NodeID) -> &mut NodeLinks<'cx> {
@@ -563,11 +539,28 @@ impl<'cx> TyChecker<'cx> {
         expr: &'cx ast::Expr,
         ctx_ty: &'cx Ty<'cx>,
         inference: Option<InferenceContextId>,
-        mode: CheckMode,
+        check_mode: CheckMode,
     ) -> &'cx Ty<'cx> {
-        self.push_check_context(mode, inference, ctx_ty);
+        let node = expr.id();
+
+        let old_check_mode = self.check_mode;
+        let check_mode = check_mode
+            | CheckMode::CONTEXTUAL
+            | if inference.is_some() {
+                CheckMode::INFERENTIAL
+            } else {
+                CheckMode::empty()
+            };
+        self.check_mode = Some(check_mode);
+        self.push_type_context(node, ctx_ty, false);
+        self.push_inference_context(node, inference);
+
         let ty = self.check_expr(expr);
-        self.pop_check_context();
+
+        self.pop_type_context();
+        self.pop_inference_context();
+        self.check_mode = old_check_mode;
+
         ty
     }
 

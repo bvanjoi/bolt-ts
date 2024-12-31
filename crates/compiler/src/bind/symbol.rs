@@ -23,6 +23,7 @@ pub enum SymbolName {
     Call,
     Interface,
     Index,
+    Type,
 }
 
 impl SymbolName {
@@ -168,6 +169,7 @@ pub(super) enum SymbolKind<'cx> {
     TyAlias(TyAliasSymbol),
     TyParam(TyParamSymbol),
     Transient(TransientSymbol<'cx>),
+    TyLit(TyLitSymbol),
 }
 
 macro_rules! as_symbol_kind {
@@ -220,6 +222,13 @@ as_symbol_kind!(Fn, &FnSymbol, as_fn, expect_fn);
 as_symbol_kind!(Class, &ClassSymbol, as_class, expect_class);
 as_symbol_kind!(TyAlias, &TyAliasSymbol, as_ty_alias, expect_ty_alias);
 as_symbol_kind!(TyParam, &TyParamSymbol, as_ty_param, expect_ty_param);
+as_symbol_kind!(TyLit, &TyLitSymbol, as_ty_lit, expect_ty_lit);
+
+#[derive(Debug)]
+pub struct TyLitSymbol {
+    pub decl: NodeID,
+    pub members: FxHashMap<SymbolName, SymbolID>,
+}
 
 #[derive(Debug, Clone, Copy)]
 pub struct TransientSymbol<'cx> {
@@ -316,6 +325,7 @@ impl Symbol<'_> {
             SymbolKind::TyAlias { .. } => todo!(),
             SymbolKind::TyParam { .. } => todo!(),
             SymbolKind::Transient { .. } => todo!(),
+            SymbolKind::TyLit(_) => todo!(),
         }
     }
 }
@@ -323,12 +333,6 @@ impl Symbol<'_> {
 bolt_ts_span::new_index_with_module!(SymbolID);
 
 impl SymbolID {
-    pub(crate) fn mock(index: u32) -> Self {
-        SymbolID {
-            module: ModuleID::MOCK,
-            index,
-        }
-    }
     pub fn decl(&self, binder: &super::Binder) -> NodeID {
         match &binder.symbol(*self).kind.0 {
             SymbolKind::FunctionScopedVar(f) => f.decl,
@@ -357,27 +361,27 @@ pub struct Symbols<'cx> {
 }
 
 impl<'cx> Symbols<'cx> {
-    pub const ERR: SymbolID = SymbolID::root(ModuleID::root());
-
     pub fn new(module_id: ModuleID) -> Self {
         let mut this = Self {
             module_id,
             data: Vec::with_capacity(512),
         };
-        this.insert(
-            Symbol::ERR,
-            Symbol::new(
-                SymbolName::Normal(keyword::IDENT_EMPTY),
-                SymbolFlags::empty(),
-                SymbolKind::Err,
-            ),
-        );
+        let err = this.insert(Symbol::new(
+            SymbolName::Normal(keyword::IDENT_EMPTY),
+            SymbolFlags::empty(),
+            SymbolKind::Err,
+        ));
+        assert_eq!(err.index_as_usize(), 0);
         this
     }
 
-    pub fn insert(&mut self, id: SymbolID, symbol: Symbol<'cx>) {
-        assert!(id.index_as_usize() == self.data.len());
+    pub fn insert(&mut self, symbol: Symbol<'cx>) -> SymbolID {
+        let index = self.data.len() as u32;
         self.data.push(symbol);
+        SymbolID {
+            module: self.module_id,
+            index,
+        }
     }
 
     pub fn get(&self, id: SymbolID) -> &Symbol<'cx> {

@@ -1,4 +1,7 @@
-use crate::ty::{self, TyMapper};
+use crate::{
+    bind::SymbolFlags,
+    ty::{self, TyMapper},
+};
 
 use super::TyChecker;
 
@@ -15,18 +18,19 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
-    pub fn instantiate_list<T>(
+    pub fn instantiate_list<T: PartialEq + Copy>(
         &mut self,
-        list: &'cx [&'cx T],
+        list: &'cx [T],
         mapper: &'cx ty::TyMapper<'cx>,
-        f: impl Fn(&mut Self, &'cx T, &'cx ty::TyMapper<'cx>) -> &'cx T,
-    ) -> &'cx [&'cx T] {
+        f: impl Fn(&mut Self, T, &'cx ty::TyMapper<'cx>) -> T,
+    ) -> &'cx [T] {
         let len = list.len();
         for i in 0..len {
             let item = list[i];
             let mapped = f(self, item, mapper);
-            if !std::ptr::eq(item, mapped) {
-                let mut result = list[0..i].to_vec();
+            if item != mapped {
+                let mut result = Vec::with_capacity(list.len());
+                result.extend(list[0..i].iter());
                 for j in i..len {
                     result.push(f(self, list[j], mapper));
                 }
@@ -138,7 +142,15 @@ impl<'cx> TyChecker<'cx> {
                 }),
             }
         } else if let Some(a) = ty.kind.as_object_anonymous() {
-            let decl = self.binder.symbol(a.symbol).expect_fn().decls[0];
+            let s = self.binder.symbol(a.symbol);
+            let flags = s.flags;
+            let decl = if flags.intersects(SymbolFlags::FUNCTION) {
+                s.expect_fn().decls[0]
+            } else if flags.intersects(SymbolFlags::TYPE_LITERAL) {
+                s.expect_ty_lit().decl
+            } else {
+                return ty;
+            };
             // TODO: use `node_links`
             let outer_params = self.get_outer_ty_params(decl);
             let ty_params = outer_params.unwrap_or_default();

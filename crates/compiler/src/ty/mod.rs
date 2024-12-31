@@ -23,6 +23,12 @@ pub use self::sig::{Sig, SigFlags, SigKind, Sigs};
 bolt_ts_span::new_index!(TyID);
 bolt_ts_span::new_index!(TyVarID);
 
+impl TyID {
+    pub(crate) fn new(id: u32) -> Self {
+        Self(id)
+    }
+}
+
 #[derive(Debug, Clone, Copy)]
 pub struct Ty<'cx> {
     pub kind: TyKind<'cx>,
@@ -206,6 +212,17 @@ impl Ty<'_> {
 }
 
 impl TyKind<'_> {
+    pub fn maybe_type_of_kind(&self, f: impl Fn(&Self) -> bool + Copy) -> bool {
+        if f(self) {
+            true
+        } else if let Some(union) = self.as_union() {
+            union.tys.iter().any(|ty| ty.kind.maybe_type_of_kind(f))
+        } else {
+            // TODO: support intersection
+            false
+        }
+    }
+
     pub fn is_primitive(&self) -> bool {
         use TyKind::*;
         if self.is_string_like() || self.is_number_like() || self.is_boolean_like() {
