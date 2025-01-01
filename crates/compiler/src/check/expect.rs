@@ -13,7 +13,7 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
-    pub(super) fn index_infos(&self, ty: &'cx ty::Ty<'cx>) -> ty::IndexInfos<'cx> {
+    pub(super) fn index_infos_of_ty(&self, ty: &'cx ty::Ty<'cx>) -> ty::IndexInfos<'cx> {
         if let Some(i) = ty.kind.as_object_interface() {
             self.ty_structured_members[&ty.id].index_infos
         } else if ty.kind.is_object_reference() {
@@ -68,6 +68,16 @@ impl<'cx> TyChecker<'cx> {
             sigs
         } else {
             sigs
+        }
+    }
+
+    pub(super) fn this_ty(&self, ty: &'cx ty::Ty<'cx>) -> Option<&'cx ty::Ty<'cx>> {
+        if let Some(i) = ty.kind.as_object_interface() {
+            i.this_ty
+        } else if let Some(refer) = ty.kind.as_object_reference() {
+            self.this_ty(refer.target)
+        } else {
+            None
         }
     }
 }

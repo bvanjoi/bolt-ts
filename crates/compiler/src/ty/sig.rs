@@ -1,3 +1,5 @@
+use std::hash::Hash;
+
 use super::ast;
 use super::ElementFlags;
 use super::TyMapper;
@@ -12,20 +14,35 @@ bitflags::bitflags! {
   }
 }
 
+bolt_ts_span::new_index!(SigID);
+
+impl SigID {
+    pub const fn dummy() -> Self {
+        Self(u32::MAX)
+    }
+}
+
 #[derive(Debug, Clone, Copy)]
 pub struct Sig<'cx> {
+    pub id: SigID,
     pub flags: SigFlags,
     pub ty_params: Option<super::Tys<'cx>>,
     pub params: &'cx [SymbolID],
     pub min_args_count: usize,
     // TODO: remove `Option` and use ty `ty`
     pub ret: Option<ast::NodeID>,
-    pub node_id: ast::NodeID,
+    pub node_id: Option<ast::NodeID>,
     pub target: Option<&'cx Sig<'cx>>,
     pub mapper: Option<&'cx TyMapper<'cx>>,
 }
 
 impl<'cx> Sig<'cx> {
+    pub fn with_id(mut self, id: usize) -> Self {
+        assert!(self.id == SigID::dummy());
+        self.id = SigID(id as u32);
+        self
+    }
+
     pub const fn has_rest_param(&self) -> bool {
         self.flags.intersects(SigFlags::HAS_REST_PARAMETER)
     }
@@ -85,13 +102,13 @@ impl<'cx> Sig<'cx> {
 
 pub type Sigs<'cx> = &'cx [&'cx Sig<'cx>];
 
-impl PartialEq for &Sig<'_> {
+impl PartialEq for Sig<'_> {
     fn eq(&self, other: &Self) -> bool {
-        std::ptr::eq(self, other)
+        self.id == other.id
     }
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub enum SigKind {
     Call,
     Constructor,

@@ -3,9 +3,10 @@ use super::{CheckMode, TyChecker};
 use crate::{ast, ir, ty};
 
 impl<'cx> TyChecker<'cx> {
-    fn contextually_check_fn_expr(&mut self, expr: &impl ir::FnExprLike<'cx>) {
+    fn contextually_check_fn_expr(&mut self, expr: &impl ir::FnExprLike<'cx>) -> bool {
         let id = expr.id();
         let flags = |this: &mut Self| this.get_node_links(id).flags();
+        let mut body_checked = false;
 
         if !flags(self).intersects(NodeFlags::CONTEXT_CHECKED) {
             let contextual_sig = self.get_contextual_sig(id);
@@ -17,7 +18,7 @@ impl<'cx> TyChecker<'cx> {
                 let ty = self.get_type_of_symbol(symbol);
                 let sigs = self.get_sigs_of_ty(ty, ty::SigKind::Call);
                 let sig = if sigs.is_empty() {
-                    return;
+                    return body_checked;
                 } else {
                     sigs[0]
                 };
@@ -37,16 +38,23 @@ impl<'cx> TyChecker<'cx> {
                                 let mapper = self
                                     .create_inference_fixing_mapper(inference.inference.unwrap());
                                 instantiated_contextual_sig =
-                                    Some(self.instantiate_sig(contextual_sig, mapper));
+                                    Some(self.instantiate_sig(contextual_sig, mapper, false));
                             } else {
                                 instantiated_contextual_sig = Some(contextual_sig);
                             }
                         }
                         let instantiated_contextual_sig = instantiated_contextual_sig.unwrap();
+                        self.assign_contextual_param_tys(sig, instantiated_contextual_sig);
                     }
+                }
+
+                if contextual_sig.is_some() && self.get_ret_ty_from_anno(id).is_none() {
+                    let ret_ty = self.get_ret_ty_from_body(id);
+                    body_checked = true;
                 }
             }
         }
+        body_checked
     }
 
     pub(super) fn check_fn_like_expr(
@@ -55,18 +63,20 @@ impl<'cx> TyChecker<'cx> {
     ) -> &'cx ty::Ty<'cx> {
         if let Some(mode) = self.check_mode {
             if mode.intersects(CheckMode::SKIP_CONTEXT_SENSITIVE) {
-                return self.any_ty();
+                return self.any_fn_ty();
             }
         }
 
-        self.contextually_check_fn_expr(expr);
+        let body_checked = self.contextually_check_fn_expr(expr);
 
-        match ir::FnExprLike::body(expr) {
-            ast::ArrowFnExprBody::Block(block) => self.check_block(block),
-            ast::ArrowFnExprBody::Expr(expr) => {
-                self.check_expr(expr);
-            }
-        };
+        if !body_checked {
+            match ir::FnExprLike::body(expr) {
+                ast::ArrowFnExprBody::Block(block) => self.check_block(block),
+                ast::ArrowFnExprBody::Expr(expr) => {
+                    self.check_expr(expr);
+                }
+            };
+        }
 
         let symbol = self.get_symbol_of_decl(expr.id());
         self.get_type_of_symbol(symbol)

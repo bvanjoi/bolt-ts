@@ -176,14 +176,14 @@ impl<'cx> ParserState<'cx, '_> {
         let start = self.token.start();
         // let ty_params = self.with_parent(id, Self::parse_ty_params);
         let params = self.with_parent(id, Self::parse_params)?;
-        let ret_ty = self
+        let ty = self
             .with_parent(id, Self::parse_arrow_fn_ret_type)?
             .unwrap();
         let fn_ty = self.alloc(ast::FnTy {
             id,
             span: self.new_span(start),
             params,
-            ret_ty,
+            ty,
         });
         self.insert_map(id, ast::Node::FnTy(fn_ty));
         let ty = self.alloc(ast::Ty {
@@ -527,7 +527,7 @@ impl<'cx> ParserState<'cx, '_> {
         let kind = if matches!(self.token.kind, TokenKind::LParen | TokenKind::Less) {
             let ty_params = self.with_parent(id, Self::parse_ty_params)?;
             let params = self.with_parent(id, Self::parse_params)?;
-            let ret = self.with_parent(id, |this| this.parse_ret_ty(true))?;
+            let ty = self.with_parent(id, |this| this.parse_ret_ty(true))?;
             let sig = self.alloc(ast::MethodSignature {
                 id,
                 span: self.new_span(start),
@@ -535,7 +535,7 @@ impl<'cx> ParserState<'cx, '_> {
                 question,
                 ty_params,
                 params,
-                ret,
+                ty,
             });
             self.insert_map(id, ast::Node::MethodSignature(sig));
             ast::ObjectTyMemberKind::Method(sig)

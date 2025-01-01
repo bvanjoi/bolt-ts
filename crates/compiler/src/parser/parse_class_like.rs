@@ -283,7 +283,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
             // method
             let ty_params = self.with_parent(id, Self::parse_ty_params)?;
             let params = self.parse_params()?;
-            let ret = self.parse_ret_ty(true)?;
+            let ty = self.parse_ret_ty(true)?;
             let body = self.parse_fn_block()?;
             let method = self.alloc(ast::ClassMethodEle {
                 id,
@@ -292,7 +292,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
                 name,
                 ty_params,
                 params,
-                ret,
+                ty,
                 body,
                 flags: self.context_flags,
             });

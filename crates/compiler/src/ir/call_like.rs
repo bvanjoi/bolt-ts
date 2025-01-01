@@ -3,6 +3,7 @@ use bolt_ts_span::Span;
 use crate::ast;
 
 pub trait CallLike<'cx>: Copy + std::fmt::Debug {
+    fn id(&self) -> ast::NodeID;
     fn callee(&self) -> &'cx ast::Expr<'cx>;
     fn ty_args(&self) -> Option<&'cx ast::Tys<'cx>>;
     fn args(&self) -> ast::Exprs<'cx>;
@@ -10,6 +11,9 @@ pub trait CallLike<'cx>: Copy + std::fmt::Debug {
 }
 
 impl<'cx> CallLike<'cx> for ast::CallExpr<'cx> {
+    fn id(&self) -> ast::NodeID {
+        self.id
+    }
     fn callee(&self) -> &'cx ast::Expr<'cx> {
         self.expr
     }
@@ -25,6 +29,9 @@ impl<'cx> CallLike<'cx> for ast::CallExpr<'cx> {
 }
 
 impl<'cx> CallLike<'cx> for ast::NewExpr<'cx> {
+    fn id(&self) -> ast::NodeID {
+        self.id
+    }
     fn callee(&self) -> &'cx ast::Expr<'cx> {
         self.expr
     }

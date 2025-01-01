@@ -54,7 +54,7 @@ impl<'cx> TyChecker<'cx> {
             .iter()
             .position(|p| p.id == ty_param_id)
             .unwrap();
-        let ty = self.create_param_ty(ty::ParamTy { symbol, offset });
+        let ty = self.create_param_ty(symbol, offset);
         self.get_mut_symbol_links(symbol).set_declared_ty(ty);
         ty
     }
@@ -211,7 +211,7 @@ impl<'cx> TyChecker<'cx> {
             .copied()
             .map(|s| self.get_sigs_of_symbol(s))
             .unwrap_or_default();
-        let index_infos = self.get_index_infos(symbol);
+        let index_infos = self.get_index_infos_of_symbol(symbol);
         self.alloc(ty::DeclaredMembers {
             props,
             index_infos,
@@ -240,10 +240,7 @@ impl<'cx> TyChecker<'cx> {
                 v.extend(local_ty_params);
                 self.alloc(v)
             };
-            let this_ty = self.create_param_ty(ty::ParamTy {
-                symbol,
-                offset: usize::MAX,
-            });
+            let this_ty = self.create_param_ty(symbol, usize::MAX);
             let target = self.crate_interface_ty(ty::InterfaceTy {
                 symbol,
                 ty_params: Some(ty_params),
@@ -286,7 +283,7 @@ impl<'cx> TyChecker<'cx> {
         } else {
             unreachable!()
         };
-        let ty_params = self.get_outer_ty_params(decl);
+        let ty_params = self.get_outer_ty_params(decl, false);
         if let Some(ty_params) = ty_params {
             Some(self.alloc(ty_params))
         } else {
@@ -294,7 +291,11 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
-    pub(super) fn get_outer_ty_params(&mut self, id: ast::NodeID) -> Option<Vec<&'cx ty::Ty<'cx>>> {
+    pub(super) fn get_outer_ty_params(
+        &mut self,
+        id: ast::NodeID,
+        include_this: bool,
+    ) -> Option<Vec<&'cx ty::Ty<'cx>>> {
         let mut id = id;
         loop {
             if let Some(next) = self.p.parent(id) {
@@ -305,12 +306,39 @@ impl<'cx> TyChecker<'cx> {
             let node = self.p.node(id);
             use ast::Node::*;
             match node {
-                TypeDecl(_) | ClassDecl(_) | ClassExpr(_) | InterfaceDecl(_) => {
-                    let mut outer_ty_params = self.get_outer_ty_params(id).unwrap_or_default();
+                ClassDecl(_) | ClassExpr(_) | InterfaceDecl(_) | CallSigDecl(_)
+                | MethodSignature(_) | FnTy(_) | CtorSigDecl(_) | FnDecl(_) | ClassMethodEle(_)
+                | ArrowFnExpr(_) | TypeDecl(_) => {
+                    let mut outer_ty_params = self
+                        .get_outer_ty_params(id, include_this)
+                        .unwrap_or_default();
+                    if node.is_fn_expr() || node.is_arrow_fn_expr() || self.is_context_sensitive(id)
+                    {
+                        let symbol = self.get_symbol_of_decl(id);
+                        let ty = self.get_type_of_symbol(symbol);
+                        let sigs = self.get_sigs_of_ty(ty, ty::SigKind::Call);
+                        if let Some(sigs) = sigs.first() {
+                            if let Some(ty_params) = sigs.ty_params {
+                                outer_ty_params.extend(ty_params);
+                                return Some(outer_ty_params);
+                            }
+                        }
+                    }
                     self.append_ty_params(
                         &mut outer_ty_params,
                         self.get_effective_ty_param_decls(id),
                     );
+                    if include_this
+                        && (node.is_class_decl()
+                            || node.is_class_expr()
+                            || node.is_interface_decl())
+                    {
+                        let symbol = self.get_symbol_of_decl(id);
+                        let declared_ty = self.get_declared_ty_of_symbol(symbol);
+                        if let Some(this_ty) = self.this_ty(declared_ty) {
+                            outer_ty_params.push(this_ty);
+                        }
+                    }
                     if outer_ty_params.is_empty() {
                         return None;
                     } else {

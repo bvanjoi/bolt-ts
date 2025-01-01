@@ -149,6 +149,12 @@ pub struct IndexInfo<'cx> {
     pub val_ty: &'cx Ty<'cx>,
 }
 
+impl PartialEq for &IndexInfo<'_> {
+    fn eq(&self, other: &Self) -> bool {
+        std::ptr::eq(self, other)
+    }
+}
+
 pub type IndexInfos<'cx> = &'cx [&'cx IndexInfo<'cx>];
 
 #[derive(Debug, Clone, Copy)]

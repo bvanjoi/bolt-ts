@@ -387,7 +387,7 @@ interface Array<T> {
     //  */
     // reduceRight<U>(callbackfn: (previousValue: U, currentValue: T, currentIndex: number, array: T[]) => U, initialValue: U): U;
 
-    // [n: number]: T;
+    [n: number]: T;
 }
 
 interface ArrayConstructor {

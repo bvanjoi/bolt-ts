@@ -6,9 +6,6 @@ impl<'cx> TyChecker<'cx> {
         let symbol = self.get_symbol_of_decl(decl.id());
         let decl_ty = self.get_type_of_symbol(symbol);
         if let Some(init) = decl.init() {
-            // if self.atoms.get(decl.name().name) == "x" {
-            //     dbg!(123);
-            // }
             let init_ty = self.check_expr_with_cache(init);
             assert!(
                 decl.decl_ty().is_none()

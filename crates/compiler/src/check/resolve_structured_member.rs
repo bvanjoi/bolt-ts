@@ -3,7 +3,7 @@ use rustc_hash::FxHashMap;
 use super::{SymbolLinks, TyChecker};
 use crate::ast;
 use crate::bind::{SymbolFlags, SymbolID, SymbolName};
-use crate::ty::{self, CheckFlags, SigKind, TyMapper};
+use crate::ty::{self, CheckFlags, SigID, SigKind, TyMapper};
 
 impl<'cx> TyChecker<'cx> {
     pub(super) fn members(&self, symbol: SymbolID) -> &FxHashMap<SymbolName, SymbolID> {
@@ -42,34 +42,6 @@ impl<'cx> TyChecker<'cx> {
         true
     }
 
-    fn get_index_symbol(&self, symbol: SymbolID) -> Option<SymbolID> {
-        self.members(symbol).get(&SymbolName::Index).copied()
-    }
-
-    pub(super) fn get_index_infos(&mut self, symbol: SymbolID) -> &'cx [&'cx ty::IndexInfo<'cx>] {
-        let index_infos = self
-            .get_index_symbol(symbol)
-            .map(|index_symbol| {
-                let decl = self.binder.symbol(index_symbol).expect_index().decl;
-                let decl = self.p.node(decl).expect_index_sig_decl();
-                let val_ty = self.get_ty_from_type_node(decl.ty);
-                decl.params
-                    .iter()
-                    .map(|param| {
-                        let Some(ty) = param.ty else { unreachable!() };
-                        let key_ty = self.get_ty_from_type_node(ty);
-                        self.alloc(ty::IndexInfo {
-                            key_ty,
-                            val_ty,
-                            symbol: index_symbol,
-                        })
-                    })
-                    .collect::<Vec<_>>()
-            })
-            .unwrap_or_default();
-        self.alloc(index_infos)
-    }
-
     fn in_this_less(&self, symbol: SymbolID) -> bool {
         let s = self.binder.symbol(symbol);
         if s.flags.intersects(SymbolFlags::PROPERTY) {
@@ -105,8 +77,27 @@ impl<'cx> TyChecker<'cx> {
             .collect::<FxHashMap<_, _>>()
     }
 
-    fn instantiate_symbol(&mut self, symbol: SymbolID, mapper: &'cx TyMapper<'cx>) -> SymbolID {
-        // let links = self.get_symbol_links(symbol);
+    fn instantiate_symbol(
+        &mut self,
+        mut symbol: SymbolID,
+        mut mapper: &'cx TyMapper<'cx>,
+    ) -> SymbolID {
+        if let Some(ty) = self.get_symbol_links(symbol).get_ty() {
+            if !self.could_contain_ty_var(ty) {
+                // TODO: handle write_ty and setAccessor
+                return symbol;
+            }
+        }
+        if self
+            .check_flags(symbol)
+            .intersects(CheckFlags::INSTANTIATED)
+        {
+            let links = self.get_symbol_links(symbol);
+            symbol = links.get_target().unwrap();
+            let ty_mapper = links.get_ty_mapper();
+            mapper = self.combine_ty_mappers(ty_mapper, mapper);
+        }
+
         let s = self.binder.symbol(symbol);
         let name = s.name;
         let symbol_flags = s.flags;
@@ -130,34 +121,83 @@ impl<'cx> TyChecker<'cx> {
         sigs: ty::Sigs<'cx>,
         mapper: &'cx TyMapper<'cx>,
     ) -> ty::Sigs<'cx> {
-        self.instantiate_list(sigs.as_ref(), mapper, |this, sig, mapper| {
-            this.instantiate_sig(sig, mapper)
+        self.instantiate_list(sigs, mapper, |this, sig, mapper| {
+            this.instantiate_sig(sig, mapper, false)
         })
+    }
+
+    fn instantiate_index_infos(
+        &mut self,
+        index_infos: ty::IndexInfos<'cx>,
+        mapper: &'cx TyMapper<'cx>,
+    ) -> ty::IndexInfos<'cx> {
+        self.instantiate_list(index_infos, mapper, |this, index_info, mapper| {
+            this.instantiate_index_info(index_info, mapper)
+        })
+    }
+
+    fn instantiate_index_info(
+        &mut self,
+        info: &'cx ty::IndexInfo<'cx>,
+        mapper: &'cx TyMapper<'cx>,
+    ) -> &'cx ty::IndexInfo<'cx> {
+        let ty = self.instantiate_ty(info.val_ty, Some(mapper));
+        self.alloc(ty::IndexInfo {
+            val_ty: ty,
+            ..*info
+        })
+    }
+
+    pub(super) fn param_ty_mapper(&self, ty: &'cx ty::Ty<'cx>) -> Option<&'cx TyMapper<'cx>> {
+        let param = ty.kind.expect_param();
+        param.target.is_some().then(|| self.param_ty_mapper[&ty.id])
     }
 
     pub(super) fn instantiate_sig(
         &mut self,
         sig: &'cx ty::Sig<'cx>,
-        mapper: &'cx TyMapper<'cx>,
+        mut mapper: &'cx TyMapper<'cx>,
+        erase_ty_params: bool,
     ) -> &'cx ty::Sig<'cx> {
+        let mut fresh_ty_params = None;
+        if !erase_ty_params {
+            if let Some(ty_params) = &sig.ty_params {
+                let new_ty_params = ty_params
+                    .iter()
+                    .map(|ty| self.clone_param_ty(ty))
+                    .collect::<Vec<_>>();
+                let new_ty_params: ty::Tys<'cx> = self.alloc(new_ty_params);
+                fresh_ty_params = Some(new_ty_params);
+                let new_mapper = self.alloc(TyMapper::create(ty_params, new_ty_params));
+                mapper = self.combine_ty_mappers(Some(new_mapper), mapper);
+                for ty in new_ty_params {
+                    let prev = self.param_ty_mapper.insert(ty.id, mapper);
+                    assert!(prev.is_none());
+                }
+            }
+        }
+
         let params = self.instantiate_list(sig.params, mapper, |this, symbol, mapper| {
             this.instantiate_symbol(symbol, mapper)
         });
 
-        self.alloc(ty::Sig {
+        let sig = self.new_sig(ty::Sig {
             target: Some(sig),
             mapper: Some(mapper),
             params,
+            ty_params: fresh_ty_params,
+            id: SigID::dummy(),
             ..*sig
-        })
+        });
+        sig
     }
 
     fn resolve_object_type_members(
         &mut self,
         ty: &'cx ty::Ty<'cx>,
         declared: &'cx ty::DeclaredMembers<'cx>,
-        ty_params: &'cx [&'cx ty::Ty<'cx>],
-        ty_args: &'cx [&'cx ty::Ty<'cx>],
+        ty_params: ty::Tys<'cx>,
+        ty_args: ty::Tys<'cx>,
     ) {
         let symbol = ty.symbol().unwrap();
         let (base_ctor_ty, base_tys) = self.get_base_tys(symbol);
@@ -193,20 +233,23 @@ impl<'cx> TyChecker<'cx> {
             let mapper = self.alloc(TyMapper::create(ty_params, ty_args));
             members =
                 self.create_instantiated_symbol_table(declared.props, mapper, ty_params.len() == 1);
-            // TODO: instantiate call_sigs, index_info, ctor_sigs
-            call_sigs = declared.call_sigs.to_vec();
-            ctor_sigs = declared.ctor_sigs.to_vec();
-            index_infos = declared.index_infos.to_vec();
+            call_sigs = self.instantiate_sigs(declared.call_sigs, mapper).to_vec();
+            ctor_sigs = self.instantiate_sigs(declared.ctor_sigs, mapper).to_vec();
+            index_infos = self
+                .instantiate_index_infos(declared.index_infos, mapper)
+                .to_vec();
         }
 
         for base_ty in base_tys {
-            self.add_inherited_members(&mut members, self.get_props_of_ty(base_ty));
+            let props = self.get_props_of_ty(base_ty);
+            self.add_inherited_members(&mut members, props);
+            // TODO: instantiate them
             call_sigs.extend(self.signatures_of_type(base_ty, SigKind::Call).iter());
             ctor_sigs.extend(
                 self.signatures_of_type(base_ty, SigKind::Constructor)
                     .iter(),
             );
-            index_infos.extend(self.index_infos(base_ty).iter());
+            index_infos.extend(self.index_infos_of_ty(base_ty).iter());
         }
 
         let props = self.get_props_from_members(&members);
@@ -265,15 +308,16 @@ impl<'cx> TyChecker<'cx> {
                 }
             }
         }
-        let sig = self.alloc(ty::Sig {
+        let sig = self.new_sig(ty::Sig {
             flags,
             ty_params: None,
             params: &[],
             min_args_count: 0,
             ret: None,
-            node_id: class_node_id,
+            node_id: Some(class_node_id),
             target: None,
             mapper: None,
+            id: SigID::dummy(),
         });
         self.alloc([sig])
     }
@@ -293,7 +337,6 @@ impl<'cx> TyChecker<'cx> {
         if let Some(target) = a.target {
             let mapper = a.mapper.unwrap();
             let sigs = self.get_sigs_of_ty(target, SigKind::Call);
-
             call_sigs = self.instantiate_sigs(sigs, mapper);
             let sigs = self.get_sigs_of_ty(target, SigKind::Constructor);
             ctor_sigs = self.instantiate_sigs(sigs, mapper);
@@ -315,7 +358,7 @@ impl<'cx> TyChecker<'cx> {
                 ctor_sigs = &[];
             }
             let ty = self.get_declared_ty_of_symbol(a.symbol);
-            index_infos = self.index_infos(ty);
+            index_infos = self.index_infos_of_ty(ty);
             if ctor_sigs.is_empty() {
                 ctor_sigs = self.get_default_construct_sigs(ty);
             };

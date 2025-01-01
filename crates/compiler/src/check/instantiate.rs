@@ -1,7 +1,5 @@
-use crate::{
-    bind::SymbolFlags,
-    ty::{self, TyMapper},
-};
+use crate::bind::{SymbolFlags, SymbolID};
+use crate::{ast, ty};
 
 use super::TyChecker;
 
@@ -42,7 +40,7 @@ impl<'cx> TyChecker<'cx> {
         list
     }
 
-    fn instantiate_tys(
+    pub(super) fn instantiate_tys(
         &mut self,
         tys: ty::Tys<'cx>,
         mapper: &'cx ty::TyMapper<'cx>,
@@ -152,15 +150,15 @@ impl<'cx> TyChecker<'cx> {
                 return ty;
             };
             // TODO: use `node_links`
-            let outer_params = self.get_outer_ty_params(decl);
+            let outer_params = self.get_outer_ty_params(decl, true);
             let ty_params = outer_params.unwrap_or_default();
             if !ty_params.is_empty() {
-                let combined_mapper = self.combine_ty_mappers(a.mapper, *mapper);
+                let combined_mapper = self.combine_ty_mappers(a.mapper, mapper);
                 let ty_args = ty_params
                     .iter()
                     .map(|t| self.get_mapped_ty(&combined_mapper, t))
                     .collect::<Vec<_>>();
-                let new_mapper = TyMapper::create(self.alloc(ty_params), self.alloc(ty_args));
+                let new_mapper = ty::TyMapper::create(self.alloc(ty_params), self.alloc(ty_args));
                 self.instantiate_anonymous_ty(ty, self.alloc(new_mapper))
             } else {
                 ty
@@ -183,10 +181,148 @@ impl<'cx> TyChecker<'cx> {
                 .iter()
                 .map(|t| self.get_mapped_ty(mapper, t))
                 .collect::<Vec<_>>();
-            let mapper = self.alloc(TyMapper::create(outer_ty_params, self.alloc(ty_args)));
+            let ty_args = self.alloc(ty_args);
+            let mapper = self.alloc(ty::TyMapper::create(outer_ty_params, ty_args));
             self.get_cond_ty(cond_ty.root, Some(mapper))
         } else {
             ty
         }
+    }
+
+    pub(super) fn get_permissive_instantiation(&self, ty: &'cx ty::Ty<'cx>) -> &'cx ty::Ty<'cx> {
+        if ty.kind.is_param() {
+            self.any_ty()
+        } else {
+            ty
+        }
+    }
+
+    pub(super) fn get_sig_instantiation(
+        &mut self,
+        sig: &'cx ty::Sig<'cx>,
+        ty_args: Option<ty::Tys<'cx>>,
+        is_js: bool,
+        inferred_ty_params: Option<ty::Tys<'cx>>,
+    ) -> &'cx ty::Sig<'cx> {
+        let ty_args = self.fill_missing_ty_args(
+            ty_args,
+            sig.ty_params,
+            self.get_min_ty_args_count(sig.ty_params.unwrap_or_default()),
+        );
+        let sig = self.get_sig_instantiation_without_filling_ty_args(sig, ty_args);
+        if let Some(inferred_ty_params) = inferred_ty_params {
+            todo!()
+        }
+        sig
+    }
+
+    fn create_sig_instantiation(
+        &mut self,
+        sig: &'cx ty::Sig<'cx>,
+        ty_args: Option<ty::Tys<'cx>>,
+    ) -> &'cx ty::Sig<'cx> {
+        let ty_params = self.get_ty_params_for_mapper(sig);
+        let mapper = self.create_ty_mapper_with_optional_target(ty_params, ty_args);
+        self.instantiate_sig(sig, mapper, true)
+    }
+
+    fn get_sig_instantiation_without_filling_ty_args(
+        &mut self,
+        sig: &'cx ty::Sig<'cx>,
+        ty_args: Option<ty::Tys<'cx>>,
+    ) -> &'cx ty::Sig<'cx> {
+        // TODO: cache
+        self.create_sig_instantiation(sig, ty_args)
+    }
+
+    pub(super) fn get_restrictive_instantiation(&self, ty: &'cx ty::Ty<'cx>) -> &'cx ty::Ty<'cx> {
+        if ty.kind.is_param() {
+            self.get_restrictive_ty_param(ty)
+        } else {
+            ty
+        }
+    }
+
+    pub(super) fn get_type_alias_instantiation(
+        &mut self,
+        symbol: SymbolID,
+        args: ty::Tys<'cx>,
+    ) -> &'cx ty::Ty<'cx> {
+        let ty = self.get_declared_ty_of_symbol(symbol);
+        let Some(params) = self.get_symbol_links(symbol).get_ty_params() else {
+            unreachable!()
+        };
+        let min_params_count = self.get_min_ty_args_count(params);
+        // TODO: cache
+        let args = self.fill_missing_ty_args(Some(args), Some(params), min_params_count);
+        let mapper = self.create_ty_mapper_with_optional_target(params, args);
+        self.instantiate_ty_with_alias(ty, mapper)
+    }
+
+    fn get_min_ty_args_count(&self, ty_params: ty::Tys<'cx>) -> usize {
+        let mut min = 0;
+        for (i, param) in ty_params.iter().enumerate() {
+            let param = param.kind.expect_param();
+            if !self.has_ty_param_default(param) {
+                min = i + 1;
+            }
+        }
+        min
+    }
+
+    fn fill_missing_ty_args(
+        &mut self,
+        args: Option<ty::Tys<'cx>>,
+        params: Option<ty::Tys<'cx>>,
+        min_params_count: usize,
+    ) -> Option<ty::Tys<'cx>> {
+        let Some(params) = params else {
+            return Some(&[]);
+        };
+        if params.is_empty() {
+            return Some(&[]);
+        }
+        let args_len = args.map_or(0, |args| args.len());
+        let params_len = params.len();
+        if args_len >= min_params_count && args_len <= params_len {
+            let mut result = Vec::with_capacity(params_len);
+            if let Some(args) = args {
+                for arg in args {
+                    result.push(*arg);
+                }
+            }
+
+            for param in params.iter().skip(args_len) {
+                let param = param.kind.expect_param();
+                let default_ty = self.get_default_ty_from_ty_param(param);
+                result.push(default_ty);
+            }
+            Some(self.alloc(result))
+        } else {
+            args
+        }
+    }
+
+    fn get_default_ty_from_ty_param(&mut self, param: &'cx ty::ParamTy) -> &'cx ty::Ty<'cx> {
+        // TODO: cache `self.get_default_of_param(param_ty, id)`
+        let Some(default) = self.ty_param_node(param).default else {
+            unreachable!()
+        };
+        self.get_ty_from_type_node(default)
+    }
+
+    fn has_ty_param_default(&self, ty_param: &'cx ty::ParamTy) -> bool {
+        let param = self.ty_param_node(ty_param);
+        param.default.is_some()
+    }
+
+    fn ty_param_node(&self, ty_param: &'cx ty::ParamTy) -> &'cx ast::TyParam<'cx> {
+        let symbol = self.binder.symbol(ty_param.symbol);
+        let symbol = symbol.expect_ty_param();
+        let node = self.p.node(symbol.decl);
+        let Some(param) = node.as_ty_param() else {
+            unreachable!()
+        };
+        param
     }
 }

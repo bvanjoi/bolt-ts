@@ -311,7 +311,7 @@ impl<'cx> BinderState<'cx> {
             SymbolKind::Index(IndexSymbol { decl: index.id }),
         );
         self.create_final_res(index.id, symbol);
-        let container = self.final_res.get(&container).copied().unwrap();
+        let container = self.final_res[&container];
         let s = self.symbols.get_mut(container);
         if let Some(i) = &mut s.kind.1 {
             let prev = i.members.insert(name, symbol);
@@ -340,9 +340,7 @@ impl<'cx> BinderState<'cx> {
                 }
                 let name = Self::prop_name(m.name);
                 let symbol = self.create_object_member_symbol(name, m.id);
-                let Some(s) = self.final_res.get(&container).copied() else {
-                    unreachable!()
-                };
+                let s = self.final_res[&container];
                 let s = self.symbols.get_mut(s);
                 if let Some(i) = &mut s.kind.1 {
                     if let std::collections::hash_map::Entry::Vacant(e) = i.members.entry(name) {
@@ -365,7 +363,7 @@ impl<'cx> BinderState<'cx> {
                     self.bind_ty_params(ty_params);
                 }
                 self.bind_params(m.params);
-                if let Some(ty) = m.ret {
+                if let Some(ty) = m.ty {
                     self.bind_ty(ty);
                 }
 
@@ -596,7 +594,7 @@ impl<'cx> BinderState<'cx> {
             Fn(f) => {
                 self.create_fn_ty_symbol(f);
                 self.bind_params(f.params);
-                self.bind_ty(f.ret_ty);
+                self.bind_ty(f.ty);
             }
             NumLit(_) | StringLit(_) | NullLit(_) | BooleanLit(_) => {}
             Union(u) => {
@@ -669,6 +667,9 @@ impl<'cx> BinderState<'cx> {
         self.bind_params(f.params);
         if let Some(body) = f.body {
             self.bind_block_stmt(body);
+        }
+        if let Some(ty) = f.ty {
+            self.bind_ty(ty);
         }
         self.scope_id = old;
     }

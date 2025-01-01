@@ -140,6 +140,11 @@ impl<'cx> Symbol<'cx> {
             kind: (SymbolKind::Err, None, Some(i)),
         }
     }
+
+    pub fn can_have_symbol(node: crate::ast::Node<'cx>) -> bool {
+        use crate::ast::Node::*;
+        node.is_decl() || matches!(node, FnTy(_))
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

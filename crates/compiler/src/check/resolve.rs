@@ -1,6 +1,6 @@
 use super::TyChecker;
 use crate::ast;
-use crate::bind::SymbolID;
+use crate::bind::{Symbol, SymbolID};
 
 #[derive(Debug, Clone, Copy)]
 pub enum ExpectedArgsCount {
@@ -18,7 +18,28 @@ impl std::fmt::Display for ExpectedArgsCount {
 }
 
 impl<'cx> TyChecker<'cx> {
-    pub(super) fn resolve_symbol_by_ident(&mut self, ident: &'cx ast::Ident) -> SymbolID {
+    #[inline]
+    pub(super) fn resolve_symbol_by_ident(&self, ident: &'cx ast::Ident) -> SymbolID {
         self.binder.final_res(ident.id)
+    }
+
+    #[inline]
+    pub(super) fn get_symbol_of_decl(&self, id: ast::NodeID) -> SymbolID {
+        assert!(self.p.node(id).is_decl());
+        self.binder.final_res(id)
+    }
+
+    #[inline]
+    pub(super) fn get_symbol_from_expr(&self, id: ast::NodeID) -> Option<SymbolID> {
+        let node = self.p.node(id);
+        if Symbol::can_have_symbol(node) {
+            Some(self.binder.final_res(id))
+        } else if let Some(ident) = node.as_ident() {
+            Some(self.resolve_symbol_by_ident(ident))
+        } else if let Some(_) = node.as_prop_access_expr() {
+            todo!()
+        } else {
+            None
+        }
     }
 }

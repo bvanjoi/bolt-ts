@@ -17,7 +17,6 @@ pub struct Program<'cx> {
 
 #[derive(Debug, Clone, Copy)]
 pub struct Stmt<'cx> {
-    // pub id: NodeID,
     pub kind: StmtKind<'cx>,
 }
 
@@ -36,6 +35,27 @@ pub enum StmtKind<'cx> {
     Namespace(&'cx NsDecl<'cx>),
     Throw(&'cx ThrowStmt<'cx>),
     Enum(&'cx EnumDecl<'cx>),
+}
+
+impl Stmt<'_> {
+    pub fn id(&self) -> NodeID {
+        use StmtKind::*;
+        match self.kind {
+            Empty(empty) => empty.id,
+            Var(var) => var.id,
+            If(if_) => if_.id,
+            Return(ret) => ret.id,
+            Block(block) => block.id,
+            Fn(f) => f.id,
+            Class(c) => c.id,
+            Expr(expr) => expr.id(),
+            Interface(i) => i.id,
+            Type(t) => t.id,
+            Namespace(n) => n.id,
+            Throw(t) => t.id,
+            Enum(e) => e.id,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -135,7 +155,7 @@ pub struct MethodSignature<'cx> {
     pub question: Option<Span>,
     pub ty_params: Option<TyParams<'cx>>,
     pub params: ParamsDecl<'cx>,
-    pub ret: Option<&'cx self::Ty<'cx>>,
+    pub ty: Option<&'cx self::Ty<'cx>>,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -217,7 +237,7 @@ pub struct ClassMethodEle<'cx> {
     pub name: &'cx PropName<'cx>,
     pub ty_params: Option<TyParams<'cx>>,
     pub params: ParamsDecl<'cx>,
-    pub ret: Option<&'cx self::Ty<'cx>>,
+    pub ty: Option<&'cx self::Ty<'cx>>,
     pub body: Option<&'cx BlockStmt<'cx>>,
 }
 
@@ -527,7 +547,7 @@ pub struct FnExpr<'cx> {
     pub name: Option<&'cx Ident>,
     pub ty_params: Option<TyParams<'cx>>,
     pub params: ParamsDecl<'cx>,
-    pub ret_ty: Option<&'cx self::Ty<'cx>>,
+    pub ty: Option<&'cx self::Ty<'cx>>,
     pub body: &'cx BlockStmt<'cx>,
 }
 
@@ -817,7 +837,7 @@ pub struct FnTy<'cx> {
     pub id: NodeID,
     pub span: Span,
     pub params: ParamsDecl<'cx>,
-    pub ret_ty: &'cx self::Ty<'cx>,
+    pub ty: &'cx self::Ty<'cx>,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -883,7 +903,7 @@ pub struct FnDecl<'cx> {
     pub name: &'cx Ident,
     pub ty_params: Option<TyParams<'cx>>,
     pub params: ParamsDecl<'cx>,
-    pub ret_ty: Option<&'cx self::Ty<'cx>>,
+    pub ty: Option<&'cx self::Ty<'cx>>,
     pub body: Option<&'cx BlockStmt<'cx>>,
 }
 

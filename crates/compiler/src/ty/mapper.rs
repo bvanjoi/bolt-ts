@@ -23,10 +23,14 @@ impl<'cx> TyMapper<'cx> {
             };
             TyMapper::Simple(mapper)
         } else {
-            let mapper = ArrayTyMapper { sources, targets };
+            let mapper = ArrayTyMapper {
+                sources,
+                targets: Some(targets),
+            };
             TyMapper::Array(mapper)
         }
     }
+
     pub fn make_composite(m1: &'cx TyMapper<'cx>, m2: &'cx TyMapper<'cx>) -> TyMapper<'cx> {
         TyMapper::Composite(CompositeTyMapper {
             mapper1: m1,
@@ -73,7 +77,7 @@ pub struct SimpleTyMapper<'cx> {
 #[derive(Clone, Copy, Debug)]
 pub struct ArrayTyMapper<'cx> {
     pub sources: Tys<'cx>,
-    pub targets: Tys<'cx>,
+    pub targets: Option<Tys<'cx>>,
 }
 
 #[derive(Clone, Copy, Debug)]

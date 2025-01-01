@@ -1,3 +1,4 @@
+mod assign;
 mod check_bin_like;
 mod check_call_like;
 mod check_class_decl_like;
@@ -14,10 +15,10 @@ mod get_context;
 mod get_contextual;
 mod get_declared_ty;
 mod get_effective_node;
-mod get_symbol;
 mod get_ty;
 mod get_type_from_ty_refer_like;
 mod get_type_from_var_like;
+mod index_info;
 mod infer;
 mod instantiate;
 mod is_context_sensitive;
@@ -44,7 +45,8 @@ use crate::atoms::{AtomId, AtomMap};
 use crate::bind::{self, GlobalSymbols, Symbol, SymbolFlags, SymbolID, SymbolName};
 use crate::parser::Parser;
 use crate::ty::{
-    has_type_facts, CheckFlags, Sig, SigFlags, TupleShape, Ty, TyID, TyKind, TyVarID, TypeFacts,
+    has_type_facts, CheckFlags, Sig, SigFlags, SigID, TupleShape, Ty, TyID, TyKind, TyVarID,
+    TypeFacts,
 };
 use crate::utils::fx_hashmap_with_capacity;
 use crate::{ast, ensure_sufficient_stack, keyword, ty};
@@ -117,6 +119,9 @@ pub struct TyChecker<'cx> {
     inferences: Vec<InferenceContext<'cx>>,
     inference_contextual: Vec<InferenceContextual>,
     type_contextual: Vec<TyContextual<'cx>>,
+    param_ty_mapper: FxHashMap<TyID, &'cx ty::TyMapper<'cx>>,
+    sigs: Vec<&'cx Sig<'cx>>,
+    sig_ret_ty: FxHashMap<SigID, &'cx ty::Ty<'cx>>,
     // === ast ===
     pub p: &'cx Parser<'cx>,
     // === global ===
@@ -126,6 +131,7 @@ pub struct TyChecker<'cx> {
     boolean_ty: std::cell::OnceCell<&'cx Ty<'cx>>,
     tuple_shapes: FxHashMap<u32, &'cx TupleShape<'cx>>,
     unknown_sig: std::cell::OnceCell<&'cx Sig<'cx>>,
+    any_fn_ty: std::cell::OnceCell<&'cx Ty<'cx>>,
     // === resolver ===
     pub binder: &'cx mut bind::Binder<'cx>,
     global_symbols: &'cx GlobalSymbols,
@@ -192,12 +198,16 @@ impl<'cx> TyChecker<'cx> {
             global_string_ty: Default::default(),
             global_array_ty: Default::default(),
             unknown_sig: Default::default(),
+            any_fn_ty: Default::default(),
             tuple_shapes: fx_hashmap_with_capacity(1024 * 8),
             type_name: fx_hashmap_with_capacity(1024 * 8),
             ty_vars: FxHashMap::default(),
+            param_ty_mapper: fx_hashmap_with_capacity(p.module_count() * 256),
             ty_structured_members: fx_hashmap_with_capacity(p.module_count() * 1024),
             symbol_links: fx_hashmap_with_capacity(p.module_count() * 1024),
             node_links: fx_hashmap_with_capacity(p.module_count() * 1024),
+            sigs: Vec::with_capacity(p.module_count() * 256),
+            sig_ret_ty: fx_hashmap_with_capacity(p.module_count() * 256),
             resolution_tys: thin_vec::ThinVec::with_capacity(128),
             resolution_res: thin_vec::ThinVec::with_capacity(128),
             binder,
@@ -230,15 +240,23 @@ impl<'cx> TyChecker<'cx> {
             this.get_global_type(SymbolName::Normal(keyword::IDENT_STRING_CLASS));
         this.global_string_ty.set(global_string_ty).unwrap();
 
-        let unknown_sig = this.alloc(Sig {
+        let any_fn_ty = this.create_anonymous_ty(ty::AnonymousTy {
+            symbol: Symbol::ERR,
+            target: None,
+            mapper: None,
+        });
+        this.any_fn_ty.set(any_fn_ty).unwrap();
+
+        let unknown_sig = this.new_sig(Sig {
             flags: SigFlags::empty(),
             ty_params: None,
             params: &[],
             min_args_count: 0,
             ret: None,
-            node_id: ast::NodeID::root(ModuleID::MOCK),
+            node_id: None,
             target: None,
             mapper: None,
+            id: SigID::dummy(),
         });
         this.unknown_sig.set(unknown_sig).unwrap();
 
@@ -286,8 +304,14 @@ impl<'cx> TyChecker<'cx> {
             .or_insert_with(|| type_name.unwrap())
     }
 
+    #[inline(always)]
     pub(crate) fn boolean_ty(&self) -> &'cx Ty<'cx> {
         self.boolean_ty.get().unwrap()
+    }
+
+    #[inline(always)]
+    fn any_fn_ty(&self) -> &'cx Ty<'cx> {
+        self.any_fn_ty.get().unwrap()
     }
 
     #[inline(always)]
@@ -363,7 +387,7 @@ impl<'cx> TyChecker<'cx> {
         ty: &'cx ty::Ty<'cx>,
         prop_name_ty: &'cx Ty<'cx>,
     ) -> Vec<&'cx ty::IndexInfo<'cx>> {
-        self.index_infos(ty)
+        self.index_infos_of_ty(ty)
             .iter()
             .filter_map(|info| {
                 if self.is_applicable_index_ty(prop_name_ty, info.key_ty) {
@@ -373,17 +397,6 @@ impl<'cx> TyChecker<'cx> {
                 }
             })
             .collect()
-    }
-
-    fn get_applicable_index_info(
-        &mut self,
-        ty: &'cx ty::Ty<'cx>,
-        prop_name_ty: &'cx Ty<'cx>,
-    ) -> Option<&'cx ty::IndexInfo<'cx>> {
-        self.index_infos(ty)
-            .iter()
-            .find(|info| self.is_applicable_index_ty(prop_name_ty, info.key_ty))
-            .copied()
     }
 
     fn check_index_constraint_for_prop(
@@ -565,12 +578,15 @@ impl<'cx> TyChecker<'cx> {
     }
 
     fn check_expr_with_cache(&mut self, expr: &'cx ast::Expr) -> &'cx Ty<'cx> {
-        if let Some(ty) = self.get_node_links(expr.id()).get_resolved_ty() {
-            return ty;
+        if self.check_mode.is_some() {
+            self.check_expr(expr)
+        } else if let Some(ty) = self.get_node_links(expr.id()).get_resolved_ty() {
+            ty
+        } else {
+            let ty = self.check_expr(expr);
+            self.get_mut_node_links(expr.id()).set_resolved_ty(ty);
+            ty
         }
-        let ty = self.check_expr(expr);
-        self.get_mut_node_links(expr.id()).set_resolved_ty(ty);
-        ty
     }
 
     fn get_widened_literal_ty(&self, ty: &'cx Ty<'cx>) -> &'cx Ty<'cx> {
@@ -619,7 +635,7 @@ impl<'cx> TyChecker<'cx> {
                 self.undefined_ty()
             }
             PropAccess(node) => self.check_prop_access_expr(node),
-            EleAccess(_) => self.undefined_ty(),
+            EleAccess(_) => self.any_ty(),
             This(_) => self.undefined_ty(),
         }
     }
@@ -721,12 +737,34 @@ impl<'cx> TyChecker<'cx> {
         self.number_ty()
     }
 
+    fn check_destructing_assign(
+        &mut self,
+        node: &'cx ast::AssignExpr<'cx>,
+        right_ty: &'cx ty::Ty<'cx>,
+        right_is_this: bool,
+    ) -> &'cx Ty<'cx> {
+        if let ast::ExprKind::ArrayLit(array) = node.left.kind {
+            if array.elems.is_empty() && right_ty.kind.is_array(self) {
+                return right_ty;
+            }
+        }
+        let left_ty = self.check_expr(node.left);
+        self.check_binary_like_expr(node, left_ty, right_ty)
+    }
+
     fn check_assign_expr(&mut self, assign: &'cx ast::AssignExpr<'cx>) -> &'cx Ty<'cx> {
+        match assign.op {
+            Eq => {
+                let right = self.check_expr(assign.right);
+                return self.check_destructing_assign(assign, right, false);
+            }
+            _ => (),
+        };
         let l = self.check_expr(assign.left);
         let r = self.check_expr(assign.right);
         use ast::AssignOp::*;
         let ty = match assign.op {
-            Eq => self.check_binary_like_expr(assign, l, r),
+            Eq => unreachable!(),
             AddEq => self.check_binary_like_expr_for_add(l, r),
             SubEq => self.undefined_ty(),
             MulEq => self.undefined_ty(),
@@ -1025,5 +1063,82 @@ impl<'cx> TyChecker<'cx> {
 
     fn check_type_reference_node(&mut self, node: &'cx ast::Ty<'cx>) {
         self.check_type_reference_or_import(node);
+    }
+
+    pub fn check_and_aggregate_ret_expr_tys(
+        &mut self,
+        f: ast::NodeID,
+        body: &'cx ast::BlockStmt<'cx>,
+    ) -> Option<Vec<&'cx ty::Ty<'cx>>> {
+        let flags = self.p.node(f).fn_flags();
+        let mut has_ret_with_no_expr = false;
+        let mut has_ret_of_ty_never = false;
+
+        fn for_each_ret_stmt<'cx, T>(
+            id: ast::NodeID,
+            checker: &mut TyChecker<'cx>,
+            f: impl Fn(&mut TyChecker<'cx>, &'cx ast::RetStmt<'cx>) -> T + Copy,
+            has_ret_with_no_expr: &mut bool,
+        ) -> Vec<T> {
+            fn t<'cx, T>(
+                id: ast::NodeID,
+                checker: &mut TyChecker<'cx>,
+                f: impl Fn(&mut TyChecker<'cx>, &'cx ast::RetStmt<'cx>) -> T + Copy,
+                v: &mut Vec<T>,
+                has_ret_with_no_expr: &mut bool,
+            ) {
+                let node = checker.p.node(id);
+                if let Some(ret) = node.as_ret_stmt() {
+                    if let Some(ret_expr) = ret.expr {
+                        // todo: handle return of type never
+                    } else {
+                        *has_ret_with_no_expr = true;
+                    }
+                    v.push(f(checker, ret))
+                } else if let Some(b) = node.as_block_stmt() {
+                    for stmt in b.stmts {
+                        t(stmt.id(), checker, f, v, has_ret_with_no_expr);
+                    }
+                } else if let Some(node) = node.as_if_stmt() {
+                    t(node.then.id(), checker, f, v, has_ret_with_no_expr);
+                    if let Some(else_then) = node.else_then {
+                        t(else_then.id(), checker, f, v, has_ret_with_no_expr);
+                    }
+                } else {
+                    return;
+                }
+            }
+
+            let mut v = Vec::with_capacity(8);
+            t(id, checker, f, &mut v, has_ret_with_no_expr);
+            v
+        }
+
+        let tys = for_each_ret_stmt(
+            body.id,
+            self,
+            |this, ret| {
+                let Some(expr) = ret.expr else {
+                    return this.undefined_ty();
+                };
+                let old = if let Some(check_mode) = this.check_mode {
+                    let old = this.check_mode;
+                    this.check_mode = Some(check_mode & !CheckMode::SKIP_GENERIC_FUNCTIONS);
+                    old
+                } else {
+                    None
+                };
+                let ty = this.check_expr_with_cache(expr);
+                this.check_mode = old;
+                ty
+            },
+            &mut has_ret_with_no_expr,
+        );
+
+        if tys.is_empty() && !has_ret_with_no_expr && has_ret_of_ty_never {
+            None
+        } else {
+            Some(tys)
+        }
     }
 }

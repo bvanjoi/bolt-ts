@@ -153,7 +153,7 @@ impl<'cx> Resolver<'cx, '_> {
             }
             Fn(f) => {
                 self.resolve_params(f.params);
-                self.resolve_ty(f.ret_ty);
+                self.resolve_ty(f.ty);
             }
             ObjectLit(lit) => {
                 for member in lit.members {
@@ -210,7 +210,7 @@ impl<'cx> Resolver<'cx, '_> {
                     self.resolve_ty_params(ty_params);
                 }
                 self.resolve_params(m.params);
-                if let Some(ty) = m.ret {
+                if let Some(ty) = m.ty {
                     self.resolve_ty(ty);
                 }
             }
@@ -317,6 +317,9 @@ impl<'cx> Resolver<'cx, '_> {
         self.resolve_params(f.params);
         if let Some(body) = f.body {
             self.resolve_block_stmt(body);
+        }
+        if let Some(ty) = f.ty {
+            self.resolve_ty(ty);
         }
     }
     fn resolve_if_stmt(&mut self, stmt: &'cx ast::IfStmt<'cx>) {

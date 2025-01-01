@@ -3,7 +3,7 @@ use super::ty;
 use super::TyChecker;
 
 #[derive(Debug, Clone, Copy, PartialEq)]
-enum ContextFlags {
+pub(super) enum ContextFlags {
     None = 0,
     Signature = 1 << 0,
     NoConstraints = 1 << 1,
@@ -15,20 +15,52 @@ impl<'cx> TyChecker<'cx> {
     pub(super) fn get_contextual_ty(
         &mut self,
         id: ast::NodeID,
-        flags: ContextFlags,
+        flags: Option<ContextFlags>,
     ) -> Option<&'cx ty::Ty<'cx>> {
-        if let Some(ctx) = self.find_context_node(id, flags == ContextFlags::None) {
+        let includes_caches = flags.map_or(true, |flags| flags == ContextFlags::None);
+        if let Some(ctx) = self.find_context_node(id, includes_caches) {
             return Some(ctx.ty);
         }
-        let Some(parent) = self.p.parent(id) else {
+        let Some(parent_id) = self.p.parent(id) else {
             unreachable!()
         };
-        let parent = self.p.node(parent);
+        let parent = self.p.node(parent_id);
         use ast::Node::*;
         match parent {
-            VarDecl(decl) => self.get_contextual_ty_for_var_like_decl(decl.id),
+            VarDecl(node) => self.get_contextual_ty_for_var_like_decl(node.id),
+            AssignExpr(node) => self.get_contextual_ty_for_assign(node.id, parent_id, flags),
             _ => None,
         }
+    }
+
+    pub(super) fn get_contextual_ret_ty(
+        &mut self,
+        id: ast::NodeID,
+        flags: Option<ContextFlags>,
+    ) -> Option<&'cx ty::Ty<'cx>> {
+        if let Some(ret_ty) = self.get_ret_ty_from_anno(id) {
+            Some(ret_ty)
+        } else if let Some(iife) = self.p.get_iife(id) {
+            self.get_contextual_ty(id, flags)
+        } else {
+            None
+        }
+    }
+
+    fn get_contextual_ty_for_assign(
+        &mut self,
+        node: ast::NodeID,
+        parent: ast::NodeID,
+        flags: Option<ContextFlags>,
+    ) -> Option<&'cx ty::Ty<'cx>> {
+        let assign = self.p.node(parent).expect_assign_expr();
+        // TODO: assign_kind;
+        let lhs_symbol = self.get_symbol_from_expr(assign.left.id());
+        if let Some(lhs_symbol) = lhs_symbol {
+            // TODO: handle
+            return None;
+        }
+        Some(self.get_ty_of_expr(assign.left))
     }
 
     fn get_contextual_ty_for_var_like_decl(&mut self, id: ast::NodeID) -> Option<&'cx ty::Ty<'cx>> {
@@ -51,12 +83,14 @@ impl<'cx> TyChecker<'cx> {
     fn get_apparent_ty_of_contextual_ty(
         &mut self,
         node: ast::NodeID,
-        flags: ContextFlags,
+        flags: Option<ContextFlags>,
     ) -> Option<&'cx ty::Ty<'cx>> {
         let contextual_ty = self.get_contextual_ty(node, flags);
         if let Some(ty) = self.instantiate_contextual_ty(contextual_ty, node, flags) {
-            if !(flags != ContextFlags::NoConstraints && ty.kind.is_type_variable()) {
-                return Some(ty);
+            if let Some(flags) = flags {
+                if flags != ContextFlags::NoConstraints && ty.kind.is_type_variable() {
+                    return Some(ty);
+                }
             }
         }
         None
@@ -66,7 +100,7 @@ impl<'cx> TyChecker<'cx> {
         &mut self,
         ty: Option<&'cx ty::Ty<'cx>>,
         node: ast::NodeID,
-        flags: ContextFlags,
+        flags: Option<ContextFlags>,
     ) -> Option<&'cx ty::Ty<'cx>> {
         if let Some(ty) = ty {
             if ty.kind.maybe_type_of_kind(|kind| kind.is_instantiable()) {
@@ -108,7 +142,8 @@ impl<'cx> TyChecker<'cx> {
 
     pub(super) fn get_contextual_sig(&mut self, id: ast::NodeID) -> Option<&'cx ty::Sig<'cx>> {
         assert!(!self.p.node(id).is_class_method_ele());
-        let Some(ty) = self.get_apparent_ty_of_contextual_ty(id, ContextFlags::Signature) else {
+        let Some(ty) = self.get_apparent_ty_of_contextual_ty(id, Some(ContextFlags::Signature))
+        else {
             return None;
         };
 

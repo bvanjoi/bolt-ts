@@ -12,13 +12,13 @@ use crate::{ast, keyword};
 
 pub use self::check_flags::CheckFlags;
 pub use self::facts::{has_type_facts, TypeFacts};
-pub use self::mapper::TyMapper;
+pub use self::mapper::{ArrayTyMapper, SimpleTyMapper, TyMapper};
 pub use self::object_shape::ObjectShape;
 pub use self::object_ty::ElementFlags;
 pub use self::object_ty::{AnonymousTy, InterfaceTy, ObjectLitTy, ObjectTyKind};
 pub use self::object_ty::{DeclaredMembers, ReferenceTy, StructuredMembers};
 pub use self::object_ty::{IndexInfo, IndexInfos, ObjectTy, TupleShape, TupleTy};
-pub use self::sig::{Sig, SigFlags, SigKind, Sigs};
+pub use self::sig::{Sig, SigFlags, SigID, SigKind, Sigs};
 
 bolt_ts_span::new_index!(TyID);
 bolt_ts_span::new_index!(TyVarID);
@@ -75,7 +75,7 @@ pub enum TyKind<'cx> {
     Null,
     Union(&'cx UnionTy<'cx>),
     Object(&'cx ObjectTy<'cx>),
-    Param(&'cx ParamTy),
+    Param(&'cx ParamTy<'cx>),
     Var(TyVarID),
     IndexedAccess(&'cx IndexedAccessTy<'cx>),
     Cond(&'cx CondTy<'cx>),
@@ -407,7 +407,8 @@ pub struct StringLitTy {
 }
 
 #[derive(Debug, Clone, Copy)]
-pub struct ParamTy {
+pub struct ParamTy<'cx> {
     pub symbol: SymbolID,
     pub offset: usize,
+    pub target: Option<&'cx self::Ty<'cx>>,
 }

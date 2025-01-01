@@ -1,6 +1,6 @@
 use super::symbol_links::SymbolLinks;
 use super::ty::{self, Ty, TyKind};
-use super::{F64Represent, InferenceContextId, TyChecker};
+use super::{CheckMode, F64Represent, InferenceContextId, TyChecker};
 use crate::ast;
 use crate::atoms::AtomId;
 use crate::bind::{SymbolFlags, SymbolID, SymbolName};
@@ -57,7 +57,14 @@ impl<'cx> TyChecker<'cx> {
         }
         let target = links.get_target().unwrap();
         let mapper = links.get_ty_mapper();
+
         let ty = self.get_type_of_symbol(target);
+        if symbol.index_as_u32() == 173 {
+            dbg!(123);
+            dbg!(target);
+            dbg!(mapper);
+            dbg!(ty);
+        }
         let ty = self.instantiate_ty(ty, mapper);
         self.get_mut_symbol_links(symbol).set_ty(ty);
         ty
@@ -304,37 +311,47 @@ impl<'cx> TyChecker<'cx> {
                     .map_or(false, |tup| tup.tys.iter().any(|ty| ty.kind.is_generic())))
     }
 
-    fn get_permissive_instantiation(&self, ty: &'cx Ty<'cx>) -> &'cx Ty<'cx> {
-        if ty.kind.is_param() {
-            self.any_ty()
-        } else {
-            ty
-        }
-    }
-
-    fn get_restrictive_ty_param(&self, ty: &'cx Ty<'cx>) -> &'cx Ty<'cx> {
+    pub(super) fn get_restrictive_ty_param(&self, ty: &'cx Ty<'cx>) -> &'cx Ty<'cx> {
         // TODO:
         ty
-    }
-
-    fn get_restrictive_instantiation(&self, ty: &'cx Ty<'cx>) -> &'cx Ty<'cx> {
-        if ty.kind.is_param() {
-            self.get_restrictive_ty_param(ty)
-        } else {
-            ty
-        }
     }
 
     pub fn combine_ty_mappers(
         &self,
         m1: Option<&'cx TyMapper<'cx>>,
-        m2: TyMapper<'cx>,
-    ) -> TyMapper<'cx> {
+        m2: &'cx TyMapper<'cx>,
+    ) -> &'cx TyMapper<'cx> {
         if let Some(m1) = m1 {
-            TyMapper::make_composite(m1, self.alloc(m2))
+            self.alloc(TyMapper::make_composite(m1, m2))
         } else {
             m2
         }
+    }
+
+    pub fn create_ty_mapper_with_optional_target(
+        &self,
+        sources: ty::Tys<'cx>,
+        targets: Option<ty::Tys<'cx>>,
+    ) -> &'cx TyMapper<'cx> {
+        if let Some(targets) = targets {
+            self.alloc(TyMapper::create(sources, targets))
+        } else if sources.len() == 1 {
+            let mapper = ty::SimpleTyMapper {
+                source: sources[0],
+                target: self.any_ty(),
+            };
+            self.alloc(TyMapper::Simple(mapper))
+        } else {
+            let mapper = ty::ArrayTyMapper {
+                sources,
+                targets: None,
+            };
+            self.alloc(TyMapper::Array(mapper))
+        }
+    }
+
+    pub fn create_ty_eraser(&self, sources: ty::Tys<'cx>) -> &'cx TyMapper<'cx> {
+        self.create_ty_mapper_with_optional_target(sources, None)
     }
 
     pub(super) fn get_mapped_ty(&mut self, mapper: &TyMapper<'cx>, ty: &'cx Ty) -> &'cx Ty<'cx> {
@@ -350,7 +367,11 @@ impl<'cx> TyChecker<'cx> {
                 for (idx, source) in mapper.sources.iter().enumerate() {
                     assert!(source.kind.is_param());
                     if source.eq(&ty) {
-                        return mapper.targets[idx];
+                        if let Some(targets) = &mapper.targets {
+                            return targets[idx];
+                        } else {
+                            return self.any_ty();
+                        }
                     }
                 }
                 ty
@@ -379,7 +400,7 @@ impl<'cx> TyChecker<'cx> {
                     if let Some(new_mapper) = new_mapper {
                         let new_root = cond.root;
                         if let Some(out_ty_params) = new_root.outer_ty_params {
-                            let ty_param_mapper = this.combine_ty_mappers(cond.mapper, *new_mapper);
+                            let ty_param_mapper = this.combine_ty_mappers(cond.mapper, new_mapper);
                             let ty_args = out_ty_params
                                 .iter()
                                 .map(|t| this.get_mapped_ty(&ty_param_mapper, t))
@@ -469,7 +490,7 @@ impl<'cx> TyChecker<'cx> {
         let alias_ty_args = alias_symbol.and_then(|symbol| {
             self.get_local_ty_params_of_class_or_interface_or_type_alias(symbol)
         });
-        let all_outer_ty_params = self.get_outer_ty_params(node.id);
+        let all_outer_ty_params = self.get_outer_ty_params(node.id, true);
         let outer_ty_params: Option<ty::Tys<'cx>> = if alias_ty_args.is_some() {
             if let Some(all_outer_ty_params) = all_outer_ty_params {
                 Some(self.alloc(all_outer_ty_params))
@@ -698,5 +719,84 @@ impl<'cx> TyChecker<'cx> {
             unreachable!()
         };
         self.get_declared_ty_of_symbol(s)
+    }
+
+    fn get_ret_ty_of_ty_tag(&mut self, id: ast::NodeID) -> Option<&'cx Ty<'cx>> {
+        self.get_sig_of_ty_tag(id).map(|_| unreachable!())
+    }
+
+    pub fn get_ret_ty_from_anno(&mut self, id: ast::NodeID) -> Option<&'cx ty::Ty<'cx>> {
+        let n = self.p.node(id);
+        if let Some(_) = n.as_class_ctor() {
+            let class = self.p.parent(id).unwrap();
+            assert!(self.p.node(class).is_class_like());
+            let symbol = self.get_symbol_of_decl(class);
+            Some(self.get_declared_ty_of_symbol(symbol))
+        } else if let Some(ty_node) = n.ret_ty() {
+            Some(self.get_ty_from_type_node(ty_node))
+        } else {
+            self.get_ret_ty_of_ty_tag(id)
+        }
+    }
+
+    pub fn get_ret_ty_from_body(&mut self, id: ast::NodeID) -> &'cx ty::Ty<'cx> {
+        let n = self.p.node(id);
+        let Some(body) = n.fn_body() else {
+            return self.error_ty();
+        };
+
+        let flags = n.fn_flags();
+        let ret_ty;
+        if let ast::ArrowFnExprBody::Expr(expr) = body {
+            let old = if let Some(check_mode) = self.check_mode {
+                let old = self.check_mode;
+                self.check_mode = Some(check_mode & !CheckMode::SKIP_GENERIC_FUNCTIONS);
+                old
+            } else {
+                None
+            };
+            ret_ty = self.check_expr_with_cache(expr);
+            self.check_mode = old;
+        } else if let ast::ArrowFnExprBody::Block(body) = body {
+            let Some(tys) = self.check_and_aggregate_ret_expr_tys(id, body) else {
+                return self.undefined_ty();
+            };
+            if tys.is_empty() {
+                if let Some(contextual_ret_ty) = self.get_contextual_ret_ty(id, None) {
+                    ret_ty = contextual_ret_ty;
+                } else {
+                    ret_ty = self.void_ty();
+                }
+            } else {
+                ret_ty = self.create_union_type(tys, ty::UnionReduction::Subtype)
+            }
+        } else {
+            unreachable!()
+        };
+        ret_ty
+    }
+
+    pub(super) fn get_ty_params_for_mapper(&mut self, sig: &'cx ty::Sig<'cx>) -> ty::Tys<'cx> {
+        let tys = sig
+            .ty_params
+            .unwrap_or_default()
+            .iter()
+            .map(|tp| {
+                if let Some(mapper) = self.param_ty_mapper(tp) {
+                    self.instantiate_ty(tp, Some(mapper))
+                } else {
+                    tp
+                }
+            })
+            .collect::<Vec<_>>();
+        self.alloc(tys)
+    }
+
+    pub(super) fn get_ty_of_expr(&mut self, expr: &'cx ast::Expr<'cx>) -> &'cx ty::Ty<'cx> {
+        // TODO: quick check
+        let old_check_mode = self.check_mode;
+        let ty = self.check_expr(expr);
+        self.check_mode = old_check_mode;
+        ty
     }
 }

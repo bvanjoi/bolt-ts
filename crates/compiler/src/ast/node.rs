@@ -235,9 +235,121 @@ impl<'cx> Node<'cx> {
         )
     }
 
-    // pub fn body(&self) -> Option<super::BlockStmt<'cx>> {
+    pub fn ret_ty(&self) -> Option<&'cx ast::Ty<'cx>> {
+        macro_rules! dot_ty {
+            ($($node_kind:ident),* $(,)?) => {
+                match self {
+                    $(Node::$node_kind(n) => Some(n.ty),)*
+                    _ => None,
+                }
+            };
+        }
 
-    // }
+        if let Some(ty) = dot_ty!(FnTy, IndexSigDecl) {
+            return Some(ty);
+        }
+
+        macro_rules! dot_ty_with_option {
+            ($($node_kind:ident),* $(,)?) => {
+                match self {
+                    $(Node::$node_kind(n) => n.ty,)*
+                    _ => None,
+                }
+            };
+        }
+
+        dot_ty_with_option!(
+            CallSigDecl,
+            CtorSigDecl,
+            FnDecl,
+            MethodSignature,
+            ClassMethodEle,
+            FnExpr,
+            ArrowFnExpr,
+            VarDecl,
+            ParamDecl,
+            PropSignature,
+            ClassPropEle,
+            // TypePredicate,
+            // ParenTy
+            // TypeOp,
+            // Mapped,
+            // AssertionExpr
+        )
+    }
+
+    pub fn ty_anno(&self) -> Option<&'cx ast::Ty<'cx>> {
+        if self.is_fn_decl() || self.is_ty_alias() {
+            return None;
+        }
+        self.ret_ty()
+    }
+
+    pub fn is_decl(&self) -> bool {
+        use ast::Node::*;
+        matches!(
+            self,
+            VarDecl(_)
+                | ObjectMemberField(_)
+                | ClassDecl(_)
+                | ClassExpr(_)
+                | ClassPropEle(_)
+                | ClassMethodEle(_)
+                | ArrowFnExpr(_)
+                | FnExpr(_)
+                | ClassCtor(_)
+                | FnDecl(_)
+                | InterfaceDecl(_)
+                | TyParam(_)
+        )
+    }
+
+    pub fn fn_body(&self) -> Option<ast::ArrowFnExprBody<'cx>> {
+        if let Some(f) = self.as_arrow_fn_expr() {
+            return Some(f.body);
+        }
+        use ast::ArrowFnExprBody::Block;
+        macro_rules! fn_body {
+            ($($node_kind:ident),* $(,)?) => {
+                match self {
+                    $(Node::$node_kind(n) => Some(Block(&n.body)),)*
+                    _ => None,
+                }
+            };
+        }
+
+        if let Some(body) = fn_body!(FnExpr) {
+            return Some(body);
+        }
+
+        macro_rules! fn_body_with_option {
+            ($( $node_kind:ident),* $(,)?) => {
+                match self {
+                    $(Node::$node_kind(n) if n.body.is_some() => Some(Block(n.body.unwrap())),)*
+                    _ => None,
+                }
+            };
+        }
+        fn_body_with_option!(FnDecl, ClassMethodEle, ClassCtor)
+    }
+
+    pub fn fn_flags(&self) -> FnFlags {
+        if !self.is_fn_like() {
+            return FnFlags::INVALID;
+        }
+        let mut flags = FnFlags::NORMAL;
+        if self.is_fn_decl() || self.is_fn_expr() || self.is_class_method_ele() {
+            // todo: check aster token
+        } else if let Some(_) = self.as_arrow_fn_expr() {
+            // todo: check async modifiers
+        }
+
+        if self.fn_body().is_none() {
+            flags |= FnFlags::INVALID;
+        }
+
+        flags
+    }
 }
 
 macro_rules! as_node {
@@ -728,3 +840,14 @@ as_node!(
         is_throw_stmt
     )
 );
+
+bitflags::bitflags! {
+  #[derive(Clone, Copy, Debug)]
+  pub struct FnFlags: u32 {
+        const NORMAL          = 0;
+        const GENERATOR       = 1 << 0;
+        const ASYNC           = 1 << 1;
+        const INVALID         = 1 << 2;
+        const ASYNC_GENERATOR = Self::ASYNC.bits() | Self::GENERATOR.bits();
+    }
+}

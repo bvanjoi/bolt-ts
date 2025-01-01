@@ -4,7 +4,7 @@ use rustc_hash::FxHashSet;
 use super::errors;
 use crate::atoms::AtomId;
 use crate::bind::{SymbolFlags, SymbolID, SymbolName};
-use crate::ty::{self, SigKind};
+use crate::ty::{self, SigFlags, SigKind};
 use crate::ty::{ObjectShape, ObjectTy, ObjectTyKind, Sig, Ty, TyKind, Tys};
 
 use super::{Ternary, TyChecker};
@@ -270,8 +270,12 @@ impl<'cx> TyChecker<'cx> {
             if res != Ternary::FALSE {
                 // TODO: `sigs_related_to` with call tag
                 res &= self.sigs_related_to(source, target, SigKind::Call, relation);
-                res &= self.sigs_related_to(source, target, SigKind::Constructor, relation);
-                res &= self.index_sig_related_to(source, target, relation);
+                if res != Ternary::FALSE {
+                    res &= self.sigs_related_to(source, target, SigKind::Constructor, relation);
+                    if res != Ternary::FALSE {
+                        res &= self.index_sig_related_to(source, target, relation);
+                    }
+                }
                 res != Ternary::FALSE
             } else {
                 false
@@ -327,7 +331,7 @@ impl<'cx> TyChecker<'cx> {
         if relation == RelationKind::Identity {
             return Ternary::TRUE;
         }
-        for info in self.index_infos(target) {
+        for info in self.index_infos_of_ty(target) {
             self.type_related_to_index_info(source, info, relation);
         }
         Ternary::TRUE
@@ -360,6 +364,14 @@ impl<'cx> TyChecker<'cx> {
             };
             self.signatures_of_type(target, kind)
         };
+
+        if kind == SigKind::Constructor && !source_sigs.is_empty() && !target_sigs.is_empty() {
+            let source_is_abstract = source_sigs[0].flags.intersects(SigFlags::HAS_ABSTRACT);
+            let target_is_abstract = target_sigs[0].flags.intersects(SigFlags::HAS_ABSTRACT);
+            if source_is_abstract && !target_is_abstract {
+                return Ternary::FALSE;
+            }
+        }
 
         if source_sigs.len() == 1 && target_sigs.len() == 1 {
             let erase_generics = relation == RelationKind::Comparable;
@@ -572,7 +584,8 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
-    pub(super) fn get_props_of_ty(&self, ty: &'cx Ty<'cx>) -> &'cx [SymbolID] {
+    pub(super) fn get_props_of_ty(&mut self, ty: &'cx Ty<'cx>) -> &'cx [SymbolID] {
+        self.resolve_structured_type_members(ty);
         if let TyKind::Object(object_ty) = ty.kind {
             self.get_props_of_object_ty(ty, object_ty)
         } else {
@@ -580,7 +593,12 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
-    pub(super) fn get_prop_of_ty(&self, ty: &'cx Ty<'cx>, name: SymbolName) -> Option<SymbolID> {
+    pub(super) fn get_prop_of_ty(
+        &mut self,
+        ty: &'cx Ty<'cx>,
+        name: SymbolName,
+    ) -> Option<SymbolID> {
+        self.resolve_structured_type_members(ty);
         let TyKind::Object(object_ty) = ty.kind else {
             return None;
         };
@@ -613,7 +631,7 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
-    fn get_unmatched_prop(
+    pub fn get_unmatched_prop(
         &mut self,
         source: &'cx Ty<'cx>,
         target: &'cx Ty<'cx>,

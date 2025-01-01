@@ -2,7 +2,9 @@ use super::ast;
 use super::TyChecker;
 use crate::bind::SymbolID;
 use crate::ty;
+use crate::ty::SigID;
 use crate::ty::SigKind;
+use crate::ty::TyMapper;
 use crate::ty::{Sig, SigFlags};
 
 fn type_params<'cx>(checker: &mut TyChecker<'cx>, node: &ast::Node<'cx>) -> Option<ty::Tys<'cx>> {
@@ -21,6 +23,13 @@ fn type_params<'cx>(checker: &mut TyChecker<'cx>, node: &ast::Node<'cx>) -> Opti
 }
 
 impl<'cx> TyChecker<'cx> {
+    pub(super) fn new_sig(&mut self, sig: Sig<'cx>) -> &'cx Sig<'cx> {
+        let sig = sig.with_id(self.sigs.len());
+        let s = self.alloc(sig);
+        self.sigs.push(s);
+        s
+    }
+
     pub(super) fn get_sig_from_decl(&mut self, id: ast::NodeID) -> &'cx Sig<'cx> {
         if let Some(sig) = self.get_node_links(id).get_resolved_sig() {
             return sig;
@@ -28,7 +37,7 @@ impl<'cx> TyChecker<'cx> {
         let node = self.p.node(id);
         let ty_params = type_params(self, &node);
         let sig = get_sig_from_decl(self, node, ty_params);
-        let sig = self.alloc(sig);
+        let sig = self.new_sig(sig);
         self.get_mut_node_links(id).set_resolved_sig(sig);
         sig
     }
@@ -57,6 +66,86 @@ impl<'cx> TyChecker<'cx> {
         self.resolve_structured_type_members(ty);
         let sigs = self.signatures_of_type(ty, kind);
         sigs
+    }
+
+    pub(super) fn get_sig_of_ty_tag(&mut self, id: ast::NodeID) -> Option<&'cx Sig<'cx>> {
+        None
+    }
+
+    fn get_single_sig(
+        &mut self,
+        ty: &'cx ty::Ty<'cx>,
+        kind: SigKind,
+        allow_members: bool,
+    ) -> Option<&'cx Sig<'cx>> {
+        if !ty.kind.is_object() {
+            return None;
+        }
+        self.resolve_structured_type_members(ty);
+        if !allow_members
+            || (self.properties_of_object_type(ty).is_empty()
+                && self.index_infos_of_ty(ty).is_empty())
+        {
+            let call_sigs = self.signatures_of_structured_type(ty, SigKind::Call);
+            let ctor_sigs = self.signatures_of_structured_type(ty, SigKind::Constructor);
+            if kind == SigKind::Call && call_sigs.len() == 1 && ctor_sigs.is_empty() {
+                Some(call_sigs[0])
+            } else if kind == SigKind::Constructor && ctor_sigs.len() == 1 && call_sigs.is_empty() {
+                Some(ctor_sigs[0])
+            } else {
+                None
+            }
+        } else {
+            None
+        }
+    }
+
+    pub(super) fn get_single_call_sig(&mut self, ty: &'cx ty::Ty<'cx>) -> Option<&'cx Sig<'cx>> {
+        self.get_single_sig(ty, SigKind::Call, false)
+    }
+
+    pub(super) fn get_base_sig(&mut self, sig: &'cx Sig<'cx>) -> &'cx Sig<'cx> {
+        if let Some(ty_params) = sig.ty_params {
+            // TODO: cache
+            let ty_eraser = self.create_ty_eraser(ty_params);
+            let targets = self.alloc(
+                ty_params
+                    .iter()
+                    .map(|_| {
+                        // todo: get_constraint
+                        self.any_ty()
+                    })
+                    .collect::<Vec<_>>(),
+            );
+            let base_constraint_mapper = self.alloc(TyMapper::create(ty_params, targets));
+            let base_constraints = ty_params
+                .iter()
+                .map(|ty| self.instantiate_ty(ty, Some(base_constraint_mapper)))
+                .collect::<Vec<_>>();
+            let mut base_constraints: ty::Tys<'cx> = self.alloc(base_constraints);
+            for _ in 0..ty_params.len() - 1 {
+                base_constraints = self.instantiate_tys(base_constraints, base_constraint_mapper)
+            }
+            base_constraints = self.instantiate_tys(base_constraints, ty_eraser);
+            let mapper = self.alloc(TyMapper::create(ty_params, base_constraints));
+            self.instantiate_sig(sig, mapper, true)
+        } else {
+            sig
+        }
+    }
+
+    fn create_erased_sig(&mut self, sig: &'cx Sig<'cx>, ty_params: ty::Tys<'cx>) -> &'cx Sig<'cx> {
+        let mapper = self.create_ty_eraser(ty_params);
+        self.instantiate_sig(sig, mapper, true)
+    }
+
+    pub(super) fn get_erased_sig(&mut self, sig: &'cx Sig<'cx>) -> &'cx Sig<'cx> {
+        if let Some(ty_params) = sig.ty_params {
+            // TODO: cache
+            self.create_erased_sig(sig, ty_params)
+        } else {
+            sig
+        }
     }
 }
 
@@ -119,10 +208,10 @@ fn get_sig_from_decl<'cx>(
             Some(class_id)
         }
         ast::Node::CtorSigDecl(c) => c.ty.map(|ty| ty.id()),
-        ast::Node::ClassMethodEle(f) => f.ret.map(|ty| ty.id()),
-        ast::Node::MethodSignature(f) => f.ret.map(|ty| ty.id()),
+        ast::Node::ClassMethodEle(f) => f.ty.map(|ty| ty.id()),
+        ast::Node::MethodSignature(f) => f.ty.map(|ty| ty.id()),
         ast::Node::CallSigDecl(f) => f.ty.map(|ty| ty.id()),
-        ast::Node::FnTy(f) => Some(f.ret_ty.id()),
+        ast::Node::FnTy(f) => Some(f.ty.id()),
         _ => unreachable!(),
     };
     Sig {
@@ -131,8 +220,9 @@ fn get_sig_from_decl<'cx>(
         params,
         min_args_count,
         ret,
-        node_id: node.id(),
+        node_id: Some(node.id()),
         target: None,
         mapper: None,
+        id: SigID::dummy(),
     }
 }

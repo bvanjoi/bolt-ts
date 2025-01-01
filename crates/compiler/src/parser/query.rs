@@ -35,4 +35,23 @@ impl<'cx> Parser<'cx> {
             }
         }
     }
+
+    pub fn get_iife(&self, node: ast::NodeID) -> Option<&'cx ast::CallExpr<'cx>> {
+        let n = self.node(node);
+        if n.is_fn_expr() || n.is_arrow_fn_expr() {
+            let mut prev = node;
+            let parent_id = self.parent(node).unwrap();
+            let mut parent = self.node(parent_id);
+            while parent.is_paren_expr() {
+                prev = parent_id;
+                parent = self.node(self.parent(parent_id).unwrap());
+            }
+            if let Some(call) = parent.as_call_expr() {
+                if call.expr.id() == prev {
+                    return Some(call);
+                }
+            }
+        }
+        None
+    }
 }

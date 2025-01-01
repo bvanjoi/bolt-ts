@@ -1,4 +1,7 @@
-use crate::ty::{self, TyID, UnionReduction};
+use crate::{
+    bind::SymbolID,
+    ty::{self, TyID, UnionReduction},
+};
 
 use super::{relation::RelationKind, TyChecker};
 
@@ -52,7 +55,21 @@ impl<'cx> TyChecker<'cx> {
         ty
     }
 
-    pub(super) fn create_param_ty(&mut self, ty: ty::ParamTy) -> &'cx ty::Ty<'cx> {
+    pub(super) fn clone_param_ty(&mut self, old: &'cx ty::Ty<'cx>) -> &'cx ty::Ty<'cx> {
+        let old_param = old.kind.expect_param();
+        let param_ty = self.alloc(ty::ParamTy {
+            target: Some(old),
+            ..*old_param
+        });
+        self.new_ty(ty::TyKind::Param(param_ty))
+    }
+
+    pub(super) fn create_param_ty(&mut self, symbol: SymbolID, offset: usize) -> &'cx ty::Ty<'cx> {
+        let ty = ty::ParamTy {
+            symbol,
+            offset,
+            target: None,
+        };
         let parm_ty = self.alloc(ty);
         self.new_ty(ty::TyKind::Param(parm_ty))
     }
@@ -103,11 +120,11 @@ impl<'cx> TyChecker<'cx> {
             let source = tys[i];
             if source.kind.is_structured_or_instantiable() {
                 for target in tys.iter() {
-                    if !source.eq(target)
-                        && self.is_type_related_to(source, target, RelationKind::StrictSubtype)
-                    {
-                        tys.remove(i);
-                        break;
+                    if !source.eq(target) {
+                        if self.is_type_related_to(source, target, RelationKind::StrictSubtype) {
+                            tys.remove(i);
+                            break;
+                        }
                     }
                 }
             }

@@ -2,9 +2,9 @@ use super::infer::InferenceFlags;
 use super::relation::RelationKind;
 use super::ty::ElementFlags;
 use super::ty::{Sig, SigFlags, Sigs};
+use super::ExpectedArgsCount;
 use super::TyChecker;
 use super::{errors, CheckMode};
-use super::{ExpectedArgsCount, InferenceContextId};
 use crate::ir;
 use crate::{ast, ty};
 use bolt_ts_span::Span;
@@ -31,54 +31,29 @@ impl<'cx> TyChecker<'cx> {
         expr: &impl CallLikeExpr<'cx>,
     ) -> &'cx ty::Ty<'cx> {
         let sig = expr.resolve_sig(self);
-        self.get_ret_ty_of_sig(expr, sig)
+        let ty = self.get_ret_ty_of_sig(sig);
+        ty
     }
 
-    pub(super) fn get_ret_ty_of_sig(
-        &mut self,
-        expr: &impl CallLikeExpr<'cx>,
-        sig: &'cx Sig<'cx>,
-    ) -> &'cx ty::Ty<'cx> {
-        sig.ret.map_or(self.any_ty(), |ret| {
-            let ty = self.p.node(ret);
-            if ty.is_class_decl() {
-                let s = self.get_symbol_of_decl(ret);
-                self.get_type_of_symbol(s)
+    pub(super) fn get_ret_ty_of_sig(&mut self, sig: &'cx Sig<'cx>) -> &'cx ty::Ty<'cx> {
+        if let Some(ty) = self.sig_ret_ty.get(&sig.id) {
+            return ty;
+        }
+        let ty = if let Some(target) = sig.target {
+            let ret_ty = self.get_ret_ty_of_sig(target);
+            self.instantiate_ty(ret_ty, sig.mapper)
+        } else if let Some(node_id) = sig.node_id {
+            if let Some(ty) = self.get_ret_ty_from_anno(node_id) {
+                ty
             } else {
-                let ret_ty = if let Some(target) = sig.target {
-                    let ret_ty = self.get_ret_ty_of_sig(expr, target);
-                    self.instantiate_ty(ret_ty, sig.mapper)
-                } else {
-                    self.get_ty_from_type_node(&ty.as_ty().unwrap())
-                };
-
-                if let Some(ty_params) = sig.ty_params {
-                    let sources = ty_params;
-                    let targets = if let Some(ty_args) = expr.ty_args() {
-                        // callee<ty_args>()
-                        let ty_args = ty_args
-                            .list
-                            .iter()
-                            .map(|arg| self.get_ty_from_type_node(arg))
-                            .collect::<Vec<_>>();
-                        self.alloc(ty_args)
-                    } else {
-                        // callee()
-                        self.infer_ty_args(
-                            expr,
-                            sig,
-                            expr.args(),
-                            CheckMode::empty(),
-                            InferenceContextId::root(),
-                        )
-                    };
-                    let mapper = self.alloc(ty::TyMapper::create(sources, targets));
-                    self.instantiate_ty_with_alias(ret_ty, mapper)
-                } else {
-                    ret_ty
-                }
+                self.get_ret_ty_from_body(node_id)
             }
-        })
+        } else {
+            self.any_ty()
+        };
+        let prev = self.sig_ret_ty.insert(sig.id, ty);
+        assert!(prev.is_none());
+        ty
     }
 
     pub(super) fn get_ty_at_pos(&mut self, sig: &Sig<'cx>, pos: usize) -> &'cx ty::Ty<'cx> {
@@ -124,7 +99,7 @@ impl<'cx> TyChecker<'cx> {
                 let abstract_class_list = abstract_sigs
                     .iter()
                     .map(|sig| {
-                        let node = self.p.node(sig.node_id).expect_class_decl();
+                        let node = self.p.node(sig.node_id.unwrap()).expect_class_decl();
                         let name = self.atoms.get(node.name.name).to_string();
                         let span = node.name.span;
                         errors::ClassNameHasAbstractModifier { span, name }
@@ -149,7 +124,7 @@ impl<'cx> TyChecker<'cx> {
         if sigs.is_empty() {
             if let Some(sig) = class_sigs.first() {
                 assert_eq!(class_sigs.len(), 1);
-                let ast::Node::ClassDecl(decl) = self.p.node(sig.node_id) else {
+                let ast::Node::ClassDecl(decl) = self.p.node(sig.node_id.unwrap()) else {
                     unreachable!()
                 };
                 let error = errors::ValueOfType0IsNotCallable {
@@ -313,6 +288,7 @@ impl<'cx> TyChecker<'cx> {
                 if !self.has_correct_arity(expr, candidate) {
                     continue;
                 }
+                let mut check_candidate = *candidate;
                 let mut infer_ctx = None;
 
                 if let Some(ty_params) = candidate.ty_params {
@@ -323,13 +299,20 @@ impl<'cx> TyChecker<'cx> {
                     );
                     infer_ctx = Some(infer);
                     // TODO: ty_arg_tys = instantiate_tys(infer_ty_args(), infer.non_fixing_mapper)
-                    self.infer_ty_args(
-                        expr,
-                        candidate,
-                        expr.args(),
-                        argument_check_mode | CheckMode::SKIP_GENERIC_FUNCTIONS,
-                        infer,
-                    );
+                    let ty_arg_tys;
+
+                    ty_arg_tys = Some({
+                        let tys = self.infer_ty_args(
+                            expr,
+                            candidate,
+                            expr.args(),
+                            argument_check_mode | CheckMode::SKIP_GENERIC_FUNCTIONS,
+                            infer,
+                        );
+                        let mapper = self.create_inference_non_fixing_mapper(infer);
+                        // self.instantiate_tys(tys, mapper)
+                        tys
+                    });
                     if self.inferences[infer.as_usize()]
                         .flags
                         .intersects(InferenceFlags::SKIPPED_GENERIC_FUNCTION)
@@ -338,22 +321,31 @@ impl<'cx> TyChecker<'cx> {
                     } else {
                         argument_check_mode |= CheckMode::empty();
                     }
+
+                    check_candidate =
+                        self.get_sig_instantiation(candidate, ty_arg_tys, false, None);
                 }
 
                 if !argument_check_mode.is_empty() {
                     argument_check_mode = CheckMode::empty();
                     if let Some(infer) = infer_ctx {
-                        self.infer_ty_args(
-                            expr,
-                            candidate,
-                            expr.args(),
-                            argument_check_mode,
-                            infer,
-                        );
+                        let ty_arg_tys = {
+                            let tys = self.infer_ty_args(
+                                expr,
+                                candidate,
+                                expr.args(),
+                                argument_check_mode,
+                                infer,
+                            );
+                            let mapper = self.create_inference_fixing_mapper(infer);
+                            self.instantiate_tys(tys, mapper)
+                        };
+                        check_candidate =
+                            self.get_sig_instantiation(candidate, Some(ty_arg_tys), false, None);
                     };
                 }
 
-                return Some(&candidate);
+                return Some(check_candidate);
             }
             None
         }
@@ -384,6 +376,8 @@ impl<'cx> TyChecker<'cx> {
             check_mode |= CheckMode::SKIP_CONTEXT_SENSITIVE;
         }
 
+        let mut res = None;
+
         if candidates.len() > 1 {
             if let Some(sig) = self.choose_overload(
                 expr,
@@ -395,7 +389,7 @@ impl<'cx> TyChecker<'cx> {
                 return sig;
             }
         } else {
-            self.choose_overload(
+            res = self.choose_overload(
                 expr,
                 candidates,
                 RelationKind::Assignable,
@@ -470,6 +464,6 @@ impl<'cx> TyChecker<'cx> {
             self.push_error(span.module, error);
         }
 
-        candidate
+        res.unwrap_or(candidate)
     }
 }
