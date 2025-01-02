@@ -191,13 +191,6 @@ fn get_sig_from_decl<'cx>(
     if has_rest_param {
         flags.insert(SigFlags::HAS_REST_PARAMETER);
     }
-    if let Some(c) = node.as_class_decl() {
-        if let Some(mods) = c.modifiers {
-            if mods.flags.contains(ast::ModifierKind::Abstract) {
-                flags.insert(SigFlags::HAS_ABSTRACT);
-            }
-        }
-    }
     let params: &[SymbolID] = checker.alloc(params);
     let ret = match node {
         ast::Node::FnDecl(decl) => None,
@@ -224,5 +217,6 @@ fn get_sig_from_decl<'cx>(
         target: None,
         mapper: None,
         id: SigID::dummy(),
+        class_decl: None,
     }
 }

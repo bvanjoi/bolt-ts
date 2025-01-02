@@ -6,7 +6,7 @@ impl<'cx> TyChecker<'cx> {
     fn assign_param_ty(&mut self, param: SymbolID, ctx: Option<&'cx ty::Ty<'cx>>) {
         if let Some(ty) = self.get_symbol_links(param).get_ty() {
             if let Some(ctx) = ctx {
-                // assert_eq!(ctx, ty, "Parameter symbol already has a cached type which differs from newly assigned type")
+                assert_eq!(ctx, ty, "Parameter symbol already has a cached type which differs from newly assigned type")
             }
             return;
         }

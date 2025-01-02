@@ -1,5 +1,3 @@
-use bolt_ts_span::Span;
-
 use crate::{ast, ty};
 
 use super::TyChecker;
@@ -65,8 +63,18 @@ impl<'cx> BinaryLikeExpr<'cx> for ast::AssignExpr<'cx> {
 }
 
 impl<'cx> TyChecker<'cx> {
-    fn check_assign_op(&mut self, span: Span, left: &'cx ty::Ty<'cx>, right: &'cx ty::Ty<'cx>) {
-        self.check_type_assignable_to_and_optionally_elaborate(span, right, left);
+    fn check_assign_op(
+        &mut self,
+        assign_ty: &'cx ty::Ty<'cx>,
+        value_ty: &'cx ty::Ty<'cx>,
+        left: &'cx ast::Expr<'cx>,
+        right: &'cx ast::Expr<'cx>,
+    ) {
+        self.check_type_assignable_to_and_optionally_elaborate(
+            value_ty,
+            assign_ty,
+            Some(right.id()),
+        );
     }
 
     pub(super) fn check_binary_like_expr(
@@ -77,7 +85,7 @@ impl<'cx> TyChecker<'cx> {
     ) -> &'cx ty::Ty<'cx> {
         match expr.op() {
             BinaryLikeOp::Eq => {
-                self.check_assign_op(expr.right().span(), left_ty, right_ty);
+                self.check_assign_op(left_ty, right_ty, expr.left(), expr.right());
                 right_ty
             }
             _ => unreachable!(),

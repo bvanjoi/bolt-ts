@@ -88,7 +88,7 @@ impl<'cx> TyChecker<'cx> {
         let contextual_ty = self.get_contextual_ty(node, flags);
         if let Some(ty) = self.instantiate_contextual_ty(contextual_ty, node, flags) {
             if let Some(flags) = flags {
-                if flags != ContextFlags::NoConstraints && ty.kind.is_type_variable() {
+                if !(flags != ContextFlags::NoConstraints && ty.kind.is_type_variable()) {
                     return Some(ty);
                 }
             }

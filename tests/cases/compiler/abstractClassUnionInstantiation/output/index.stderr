@@ -1,33 +1,84 @@
   × Cannot create an instance of an abstract class.
-    ╭─[../../tests/cases/compiler/abstractClassUnionInstantiation/index.ts:14:5]
- 14 │ cls1
+    ╭─[../../tests/cases/compiler/abstractClassUnionInstantiation/index.ts:16:5]
+ 16 │ cls1
     · ────
     ╰────
 
 Warning:   ⚠ Class 'AbstractA' has `abstract` modifier.
-   ╭─[../../tests/cases/compiler/abstractClassUnionInstantiation/index.ts:3:16]
- 3 │ AbstractA
+   ╭─[../../tests/cases/compiler/abstractClassUnionInstantiation/index.ts:5:16]
+ 5 │ AbstractA
    · ─────────
    ╰────
 Warning:   ⚠ Class 'AbstractB' has `abstract` modifier.
-   ╭─[../../tests/cases/compiler/abstractClassUnionInstantiation/index.ts:4:16]
- 4 │ AbstractB
+   ╭─[../../tests/cases/compiler/abstractClassUnionInstantiation/index.ts:6:16]
+ 6 │ AbstractB
    · ─────────
    ╰────
 
   × Cannot create an instance of an abstract class.
-    ╭─[../../tests/cases/compiler/abstractClassUnionInstantiation/index.ts:16:5]
- 16 │ cls2
+    ╭─[../../tests/cases/compiler/abstractClassUnionInstantiation/index.ts:18:5]
+ 18 │ cls2
     · ────
     ╰────
 
 Warning:   ⚠ Class 'AbstractA' has `abstract` modifier.
-   ╭─[../../tests/cases/compiler/abstractClassUnionInstantiation/index.ts:3:16]
- 3 │ AbstractA
+   ╭─[../../tests/cases/compiler/abstractClassUnionInstantiation/index.ts:5:16]
+ 5 │ AbstractA
    · ─────────
    ╰────
 Warning:   ⚠ Class 'AbstractB' has `abstract` modifier.
-   ╭─[../../tests/cases/compiler/abstractClassUnionInstantiation/index.ts:4:16]
- 4 │ AbstractB
+   ╭─[../../tests/cases/compiler/abstractClassUnionInstantiation/index.ts:6:16]
+ 6 │ AbstractB
+   · ─────────
+   ╰────
+
+  × Cannot create an instance of an abstract class.
+    ╭─[../../tests/cases/compiler/abstractClassUnionInstantiation/index.ts:22:50]
+ 22 │ cls
+    · ───
+    ╰────
+
+Warning:   ⚠ Class 'AbstractA' has `abstract` modifier.
+   ╭─[../../tests/cases/compiler/abstractClassUnionInstantiation/index.ts:5:16]
+ 5 │ AbstractA
+   · ─────────
+   ╰────
+Warning:   ⚠ Class 'AbstractB' has `abstract` modifier.
+   ╭─[../../tests/cases/compiler/abstractClassUnionInstantiation/index.ts:6:16]
+ 6 │ AbstractB
+   · ─────────
+   ╰────
+
+  × Cannot create an instance of an abstract class.
+    ╭─[../../tests/cases/compiler/abstractClassUnionInstantiation/index.ts:24:50]
+ 24 │ cls
+    · ───
+    ╰────
+
+Warning:   ⚠ Class 'AbstractA' has `abstract` modifier.
+   ╭─[../../tests/cases/compiler/abstractClassUnionInstantiation/index.ts:5:16]
+ 5 │ AbstractA
+   · ─────────
+   ╰────
+Warning:   ⚠ Class 'AbstractB' has `abstract` modifier.
+   ╭─[../../tests/cases/compiler/abstractClassUnionInstantiation/index.ts:6:16]
+ 6 │ AbstractB
+   · ─────────
+   ╰────
+
+  × Cannot create an instance of an abstract class.
+    ╭─[../../tests/cases/compiler/abstractClassUnionInstantiation/index.ts:27:39]
+ 27 │ cls
+    · ───
+    ╰────
+
+Warning:   ⚠ Class 'AbstractA' has `abstract` modifier.
+   ╭─[../../tests/cases/compiler/abstractClassUnionInstantiation/index.ts:5:16]
+ 5 │ AbstractA
+   · ─────────
+   ╰────
+Warning:   ⚠ Class 'AbstractB' has `abstract` modifier.
+   ╭─[../../tests/cases/compiler/abstractClassUnionInstantiation/index.ts:6:16]
+ 6 │ AbstractB
    · ─────────
    ╰────

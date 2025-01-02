@@ -487,20 +487,28 @@ impl<'cx> BinderState<'cx> {
 
     fn bind_fn_expr(&mut self, f: &'cx ast::FnExpr<'cx>) {
         self.create_fn_expr_symbol(f.id);
+
+        let old = self.scope_id;
+        self.scope_id = self.new_scope();
         for param in f.params {
             self.bind_param(param);
         }
         self.bind_block_stmt(f.body);
+        self.scope_id = old;
     }
 
     fn bind_arrow_fn_expr(&mut self, f: &'cx ast::ArrowFnExpr<'cx>) {
         self.create_fn_expr_symbol(f.id);
+
+        let old = self.scope_id;
+        self.scope_id = self.new_scope();
         self.bind_params(f.params);
         use ast::ArrowFnExprBody::*;
         match f.body {
             Block(block) => self.bind_block_stmt(block),
             Expr(expr) => self.bind_expr(expr),
         }
+        self.scope_id = old;
     }
 
     fn bind_cond_expr(&mut self, cond: &'cx ast::CondExpr<'cx>) {

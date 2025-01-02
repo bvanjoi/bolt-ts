@@ -8,6 +8,9 @@ impl NodeID {
     pub fn new(module: ModuleID, index: u32) -> Self {
         Self { module, index }
     }
+    pub fn into_root(&self) -> Self {
+        Self::new(self.module(), 0)
+    }
 }
 
 #[derive(Debug, Clone, Copy)]

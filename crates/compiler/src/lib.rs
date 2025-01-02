@@ -9,6 +9,7 @@ pub mod parser;
 mod resolve;
 mod ty;
 mod utils;
+mod wf;
 
 use std::borrow::Cow;
 use std::path::PathBuf;
@@ -25,6 +26,7 @@ use parser::token::keyword_idx_to_token;
 use parser::token::TokenKind;
 use resolve::resolve;
 use rustc_hash::FxHashMap;
+use wf::well_formed_check_parallel;
 
 type Diag = Box<dyn bolt_ts_errors::miette::Diagnostic + Send + Sync + 'static>;
 
@@ -190,12 +192,22 @@ pub fn eval_from(cwd: PathBuf, tsconfig: NormalizedTsConfig) -> Output {
         binder.insert(module_id, result);
     }
 
+    let diags: Vec<_> = diags
+        .into_iter()
+        .chain(binder.steal_errors())
+        .chain(well_formed_check_parallel(
+            &p,
+            &atoms,
+            module_arena.modules(),
+        ))
+        .collect();
+
     // type check
-    let diags: Vec<_> = diags.into_iter().chain(binder.steal_errors()).collect();
     let ty_arena = bumpalo::Bump::new();
     let mut checker = check::TyChecker::new(&ty_arena, &p, &atoms, &mut binder, &global_symbols);
     for item in &entries {
         checker.check_program(p.root(*item));
+        checker.check_deferred_nodes(*item);
     }
 
     // codegen

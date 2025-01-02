@@ -3,10 +3,9 @@ use super::{CheckMode, TyChecker};
 use crate::{ast, ir, ty};
 
 impl<'cx> TyChecker<'cx> {
-    fn contextually_check_fn_expr(&mut self, expr: &impl ir::FnExprLike<'cx>) -> bool {
+    fn contextually_check_fn_expr(&mut self, expr: &impl ir::FnExprLike<'cx>) {
         let id = expr.id();
         let flags = |this: &mut Self| this.get_node_links(id).flags();
-        let mut body_checked = false;
 
         if !flags(self).intersects(NodeFlags::CONTEXT_CHECKED) {
             let contextual_sig = self.get_contextual_sig(id);
@@ -17,11 +16,7 @@ impl<'cx> TyChecker<'cx> {
                 let symbol = self.get_symbol_of_decl(id);
                 let ty = self.get_type_of_symbol(symbol);
                 let sigs = self.get_sigs_of_ty(ty, ty::SigKind::Call);
-                let sig = if sigs.is_empty() {
-                    return body_checked;
-                } else {
-                    sigs[0]
-                };
+                let Some(sig) = sigs.get(0) else { return };
                 if self.is_context_sensitive(id) {
                     if let Some(contextual_sig) = contextual_sig {
                         let inference = self.get_inference_context(id);
@@ -48,37 +43,47 @@ impl<'cx> TyChecker<'cx> {
                     }
                 }
 
-                if contextual_sig.is_some() && self.get_ret_ty_from_anno(id).is_none() {
+                if contextual_sig.is_some()
+                    && self.get_ret_ty_from_anno(id).is_none()
+                    && !self.sig_ret_ty.contains_key(&sig.id)
+                {
                     let ret_ty = self.get_ret_ty_from_body(id);
-                    body_checked = true;
+                    self.sig_ret_ty.insert(sig.id, ret_ty);
                 }
             }
         }
-        body_checked
     }
 
     pub(super) fn check_fn_like_expr(
         &mut self,
         expr: &impl ir::FnExprLike<'cx>,
     ) -> &'cx ty::Ty<'cx> {
+        self.check_node_deferred(expr.id());
+
         if let Some(mode) = self.check_mode {
             if mode.intersects(CheckMode::SKIP_CONTEXT_SENSITIVE) {
                 return self.any_fn_ty();
             }
         }
 
-        let body_checked = self.contextually_check_fn_expr(expr);
-
-        if !body_checked {
-            match ir::FnExprLike::body(expr) {
-                ast::ArrowFnExprBody::Block(block) => self.check_block(block),
-                ast::ArrowFnExprBody::Expr(expr) => {
-                    self.check_expr(expr);
-                }
-            };
-        }
+        self.contextually_check_fn_expr(expr);
 
         let symbol = self.get_symbol_of_decl(expr.id());
         self.get_type_of_symbol(symbol)
+    }
+
+    pub(super) fn check_fn_like_expr_deferred(&mut self, expr: &impl ir::FnExprLike<'cx>) {
+        let id = expr.id();
+        let n = self.p.node(id);
+        let flags = n.fn_flags();
+        let ret_ty = self.get_ret_ty_from_anno(id);
+
+        use ast::ArrowFnExprBody::*;
+        match ir::FnExprLike::body(expr) {
+            Block(block) => self.check_block(block),
+            Expr(expr) => {
+                self.check_expr(expr);
+            }
+        };
     }
 }

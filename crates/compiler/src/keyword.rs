@@ -80,6 +80,8 @@ gen!(
     (IDENT_BOOLEAN, "boolean"),
     (IDENT_NEVER, "never"),
     (IDENT_UNKNOWN, "unknown"),
+    (IDENT_BIGINT, "bitint"),
+    (IDENT_OBJECT, "object"),
 );
 
 pub fn is_prim_ty_name(name: AtomId) -> bool {
@@ -99,4 +101,20 @@ pub fn is_prim_ty_name(name: AtomId) -> bool {
 
 pub fn is_prim_value_name(name: AtomId) -> bool {
     matches!(name, KW_NULL | KW_FALSE | KW_TRUE | IDENT_UNDEFINED)
+}
+
+pub fn is_reserved_type_name(name: AtomId) -> bool {
+    matches!(
+        name,
+        IDENT_ANY
+            | IDENT_UNKNOWN
+            | IDENT_NEVER
+            | IDENT_NUMBER
+            | IDENT_BIGINT
+            | IDENT_BOOLEAN
+            | IDENT_STRING
+            | IDENT_VOID
+            | IDENT_OBJECT
+            | IDENT_UNDEFINED
+    )
 }

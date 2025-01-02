@@ -216,6 +216,7 @@ pub(super) struct PropertyAOfTypeBIsNotAssignableToCIndexTypeD {
     pub ty_c: String,
     pub index_ty_d: String,
 }
+
 #[derive(Error, Diagnostic, Debug)]
 #[error("'{decl}' is referenced directly or indirectly in its own base expression.")]
 pub(super) struct DeclIsReferencedDirectlyOrIndirectlyInItsOwnBaseExpression {

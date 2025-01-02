@@ -1,3 +1,5 @@
+// From `github.com/microsoft/TypeScript/blob/v5.7.2/tests/cases/compiler/abstractClassUnionInstantiation.ts`, Apache-2.0 License
+
 class ConcreteA {}
 class ConcreteB {}
 abstract class AbstractA { a: string; }
@@ -17,7 +19,10 @@ new cls2();
 //~^ ERROR: Cannot create an instance of an abstract class.
 new cls3();
 
-// [ConcreteA, AbstractA, AbstractB].map(cls => new cls()); 
-// [AbstractA, AbstractB, ConcreteA].map(cls => new cls()); 
-// [ConcreteA, ConcreteB].map(cls => new cls());
-// [AbstractA, AbstractB].map(cls => new cls());
+[ConcreteA, AbstractA, AbstractB].map(cls => new cls()); 
+//~^ ERROR: Cannot create an instance of an abstract class.
+[AbstractA, AbstractB, ConcreteA].map(cls => new cls()); 
+//~^ ERROR: Cannot create an instance of an abstract class.
+[ConcreteA, ConcreteB].map(cls => new cls());
+[AbstractA, AbstractB].map(cls => new cls());
+//~^ ERROR: Cannot create an instance of an abstract class.

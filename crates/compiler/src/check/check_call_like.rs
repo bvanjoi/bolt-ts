@@ -30,7 +30,13 @@ impl<'cx> TyChecker<'cx> {
         &mut self,
         expr: &impl CallLikeExpr<'cx>,
     ) -> &'cx ty::Ty<'cx> {
-        let sig = expr.resolve_sig(self);
+        let sig = if let Some(resolved_sig) = self.get_node_links(expr.id()).get_resolved_sig() {
+            resolved_sig
+        } else {
+            let sig = expr.resolve_sig(self);
+            self.get_mut_node_links(expr.id()).set_resolved_sig(sig);
+            sig
+        };
         let ty = self.get_ret_ty_of_sig(sig);
         ty
     }
@@ -99,7 +105,7 @@ impl<'cx> TyChecker<'cx> {
                 let abstract_class_list = abstract_sigs
                     .iter()
                     .map(|sig| {
-                        let node = self.p.node(sig.node_id.unwrap()).expect_class_decl();
+                        let node = self.p.node(sig.class_decl.unwrap()).expect_class_decl();
                         let name = self.atoms.get(node.name.name).to_string();
                         let span = node.name.span;
                         errors::ClassNameHasAbstractModifier { span, name }
@@ -124,7 +130,7 @@ impl<'cx> TyChecker<'cx> {
         if sigs.is_empty() {
             if let Some(sig) = class_sigs.first() {
                 assert_eq!(class_sigs.len(), 1);
-                let ast::Node::ClassDecl(decl) = self.p.node(sig.node_id.unwrap()) else {
+                let ast::Node::ClassDecl(decl) = self.p.node(sig.class_decl.unwrap()) else {
                     unreachable!()
                 };
                 let error = errors::ValueOfType0IsNotCallable {
@@ -228,6 +234,7 @@ impl<'cx> TyChecker<'cx> {
         sig: &ty::Sig<'cx>,
         relation: RelationKind,
         check_mode: CheckMode,
+        report_error: bool,
     ) -> bool {
         let args = expr.args();
         let rest_type = sig.get_non_array_rest_ty(self);
@@ -241,11 +248,12 @@ impl<'cx> TyChecker<'cx> {
         for (i, arg) in args.iter().enumerate().take(arg_count) {
             let param_ty = self.get_ty_at_pos(sig, i);
             let arg_ty = self.check_expr_with_contextual_ty(arg, param_ty, None, check_mode);
+            let error_node = report_error.then(|| arg.id());
             if !self.check_type_related_to_and_optionally_elaborate(
-                arg.span(),
                 arg_ty,
                 param_ty,
                 relation,
+                error_node,
                 |this, span, source, target| {
                     let source = this.get_base_ty_of_literal_ty(source);
                     Box::new(errors::ArgumentOfTyIsNotAssignableToParameterOfTy {
@@ -277,6 +285,7 @@ impl<'cx> TyChecker<'cx> {
                     candidate,
                     relation,
                     CheckMode::empty(),
+                    true,
                 )
             {
                 None

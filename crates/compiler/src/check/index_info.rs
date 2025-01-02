@@ -1,4 +1,4 @@
-use super::{SymbolLinks, TyChecker};
+use super::TyChecker;
 use crate::bind::{SymbolID, SymbolName};
 use crate::ty;
 

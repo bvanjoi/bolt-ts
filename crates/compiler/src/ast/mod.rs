@@ -1,12 +1,16 @@
 mod node;
 mod node_flags;
+pub mod visitor;
+
+pub use visitor::Visitor;
 
 use bolt_ts_span::Span;
 use enumflags2::make_bitflags;
 pub use node::{Node, NodeID};
 pub use node_flags::NodeFlags;
 
-use crate::{atoms::AtomId, keyword};
+use crate::atoms::AtomId;
+use crate::keyword;
 
 #[derive(Debug, Clone, Copy)]
 pub struct Program<'cx> {

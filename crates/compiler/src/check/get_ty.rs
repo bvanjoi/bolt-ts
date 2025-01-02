@@ -55,16 +55,10 @@ impl<'cx> TyChecker<'cx> {
         if let Some(ty) = links.get_ty() {
             return ty;
         }
+
         let target = links.get_target().unwrap();
         let mapper = links.get_ty_mapper();
-
         let ty = self.get_type_of_symbol(target);
-        if symbol.index_as_u32() == 173 {
-            dbg!(123);
-            dbg!(target);
-            dbg!(mapper);
-            dbg!(ty);
-        }
         let ty = self.instantiate_ty(ty, mapper);
         self.get_mut_symbol_links(symbol).set_ty(ty);
         ty

@@ -88,6 +88,7 @@ impl<'cx> TyChecker<'cx> {
                 return symbol;
             }
         }
+
         if self
             .check_flags(symbol)
             .intersects(CheckFlags::INSTANTIATED)
@@ -112,8 +113,10 @@ impl<'cx> TyChecker<'cx> {
             .with_ty_mapper(mapper)
             .with_target(symbol);
 
-        self.binder
-            .create_transient_symbol(name, symbol_flags, Some(symbol), links)
+        let id = self
+            .binder
+            .create_transient_symbol(name, symbol_flags, Some(symbol), links);
+        id
     }
 
     fn instantiate_sigs(
@@ -314,11 +317,13 @@ impl<'cx> TyChecker<'cx> {
             params: &[],
             min_args_count: 0,
             ret: None,
-            node_id: Some(class_node_id),
+            node_id: None,
             target: None,
             mapper: None,
             id: SigID::dummy(),
+            class_decl: Some(class_node_id),
         });
+        self.sig_ret_ty.insert(sig.id, ty);
         self.alloc([sig])
     }
 

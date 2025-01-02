@@ -18,9 +18,9 @@ impl<'cx> TyChecker<'cx> {
             );
             if decl_ty != init_ty {
                 self.check_type_assignable_to_and_optionally_elaborate(
-                    decl.name().span,
                     init_ty,
                     decl_ty,
+                    Some(decl.name().id),
                 );
             }
         }
