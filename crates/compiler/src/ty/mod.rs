@@ -11,7 +11,7 @@ use crate::check::TyChecker;
 use crate::{ast, keyword};
 
 pub use self::check_flags::CheckFlags;
-pub use self::facts::{has_type_facts, TypeFacts};
+pub use self::facts::{has_type_facts, TypeFacts, TYPEOF_NE_FACTS};
 pub use self::mapper::{ArrayTyMapper, SimpleTyMapper, TyMapper};
 pub use self::object_shape::ObjectShape;
 pub use self::object_ty::ElementFlags;

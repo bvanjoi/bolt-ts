@@ -189,6 +189,15 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
             let e = self.parse_class_extends_clause()?;
             if extends.is_none() {
                 extends = e;
+                if let Some(extends) = extends {
+                    if let Some(implements) = implements {
+                        let error = errors::ExtendsClauseMustPrecedeImplementsClause {
+                            extends_span: extends.span,
+                            implements_span: implements.span,
+                        };
+                        self.push_error(Box::new(error));
+                    }
+                }
             }
             let i = self.parse_implements_clause()?;
             if implements.is_none() {

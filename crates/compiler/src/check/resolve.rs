@@ -25,7 +25,11 @@ impl<'cx> TyChecker<'cx> {
 
     #[inline]
     pub(super) fn get_symbol_of_decl(&self, id: ast::NodeID) -> SymbolID {
-        assert!(self.p.node(id).is_decl());
+        assert!(
+            self.p.node(id).is_decl(),
+            "expected a decl node, but got {:?}",
+            self.p.node(id)
+        );
         self.binder.final_res(id)
     }
 

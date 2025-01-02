@@ -293,10 +293,12 @@ impl<'cx> Resolver<'cx, '_> {
                 self.resolve_params(f.params);
                 self.resolve_block_stmt(f.body);
             }
-
             Class(class) => self.resolve_class_like(class),
             PrefixUnary(unary) => self.resolve_expr(unary.expr),
             PropAccess(node) => {
+                self.resolve_expr(node.expr);
+            }
+            Typeof(node) => {
                 self.resolve_expr(node.expr);
             }
             _ => {}
@@ -314,6 +316,9 @@ impl<'cx> Resolver<'cx, '_> {
     }
 
     fn resolve_fn_decl(&mut self, f: &'cx ast::FnDecl<'cx>) {
+        if let Some(ty_params) = f.ty_params {
+            self.resolve_ty_params(ty_params);
+        }
         self.resolve_params(f.params);
         if let Some(body) = f.body {
             self.resolve_block_stmt(body);

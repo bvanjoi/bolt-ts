@@ -48,6 +48,7 @@ use crate::bind::{self, GlobalSymbols, Symbol, SymbolFlags, SymbolID, SymbolName
 use crate::parser::Parser;
 use crate::ty::{
     has_type_facts, CheckFlags, Sig, SigFlags, SigID, TupleShape, TyID, TyKind, TyVarID, TypeFacts,
+    TYPEOF_NE_FACTS,
 };
 use crate::utils::fx_hashmap_with_capacity;
 use crate::{ast, ensure_sufficient_stack, keyword, ty};
@@ -131,6 +132,7 @@ pub struct TyChecker<'cx> {
     global_number_ty: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
     global_string_ty: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
     boolean_ty: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
+    typeof_ty: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
     tuple_shapes: FxHashMap<u32, &'cx TupleShape<'cx>>,
     unknown_sig: std::cell::OnceCell<&'cx Sig<'cx>>,
     any_fn_ty: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
@@ -190,17 +192,22 @@ impl<'cx> TyChecker<'cx> {
             atoms,
             p,
             tys: Vec::with_capacity(p.module_count() * 1024),
-            num_lit_tys: fx_hashmap_with_capacity(1024 * 8),
-            string_lit_tys: fx_hashmap_with_capacity(1024 * 8),
             next_ty_var_id: TyVarID::root(),
             arena: ty_arena,
             diags: Vec::with_capacity(p.module_count() * 32),
+
+            num_lit_tys: fx_hashmap_with_capacity(1024 * 8),
+            string_lit_tys: fx_hashmap_with_capacity(1024 * 8),
+
             boolean_ty: Default::default(),
             global_number_ty: Default::default(),
             global_string_ty: Default::default(),
             global_array_ty: Default::default(),
-            unknown_sig: Default::default(),
             any_fn_ty: Default::default(),
+            typeof_ty: Default::default(),
+
+            unknown_sig: Default::default(),
+
             tuple_shapes: fx_hashmap_with_capacity(1024 * 8),
             type_name: fx_hashmap_with_capacity(1024 * 8),
             ty_vars: FxHashMap::default(),
@@ -248,6 +255,16 @@ impl<'cx> TyChecker<'cx> {
         let global_string_ty =
             this.get_global_type(SymbolName::Normal(keyword::IDENT_STRING_CLASS));
         this.global_string_ty.set(global_string_ty).unwrap();
+
+        let typeof_ty = {
+            let tys = TYPEOF_NE_FACTS
+                .iter()
+                .map(|(key, _)| this.get_string_literal_type(*key))
+                .collect();
+            this.create_union_type(tys, ty::UnionReduction::Lit)
+        };
+
+        this.typeof_ty.set(typeof_ty).unwrap();
 
         let any_fn_ty = this.create_anonymous_ty(ty::AnonymousTy {
             symbol: Symbol::ERR,
@@ -332,6 +349,11 @@ impl<'cx> TyChecker<'cx> {
     #[inline(always)]
     fn global_string_ty(&self) -> &'cx ty::Ty<'cx> {
         self.global_string_ty.get().unwrap()
+    }
+
+    #[inline(always)]
+    fn typeof_ty(&self) -> &'cx ty::Ty<'cx> {
+        self.typeof_ty.get().unwrap()
     }
 
     #[inline(always)]
@@ -653,6 +675,10 @@ impl<'cx> TyChecker<'cx> {
                 self.undefined_ty()
             }
             PropAccess(node) => self.check_prop_access_expr(node),
+            Typeof(n) => {
+                self.check_expr(n.expr);
+                self.typeof_ty()
+            }
             EleAccess(_) => self.any_ty(),
             This(_) => self.undefined_ty(),
         }

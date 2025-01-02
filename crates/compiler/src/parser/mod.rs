@@ -23,6 +23,7 @@ use self::token::{Token, TokenFlags, TokenKind};
 use crate::ast::{self, Node, NodeFlags, NodeID};
 use crate::atoms::{AtomId, AtomMap};
 use crate::keyword;
+use crate::utils::fx_hashmap_with_capacity;
 
 type PResult<T> = Result<T, ()>;
 
@@ -33,10 +34,14 @@ enum Tristate {
     Unknown,
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub struct Nodes<'cx>(FxHashMap<u32, Node<'cx>>);
 
 impl<'cx> Nodes<'cx> {
+    pub fn new() -> Self {
+        Self(fx_hashmap_with_capacity(2048))
+    }
+
     pub fn get(&self, id: NodeID) -> Node<'cx> {
         let idx = id.index_as_u32();
         self.0[&idx]
@@ -48,10 +53,13 @@ impl<'cx> Nodes<'cx> {
     }
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub struct ParentMap(FxHashMap<u32, u32>);
 
 impl ParentMap {
+    fn new() -> Self {
+        Self(fx_hashmap_with_capacity(2048))
+    }
     pub fn parent(&self, node_id: NodeID) -> Option<NodeID> {
         let id = node_id.index_as_u32();
         self.0
@@ -171,8 +179,8 @@ fn parse<'cx, 'p>(
     input: &'p [u8],
     module_id: ModuleID,
 ) -> ParseResult<'cx> {
-    let nodes = Nodes::default();
-    let parent_map = ParentMap::default();
+    let nodes = Nodes::new();
+    let parent_map = ParentMap::new();
     let mut s = ParserState::new(atoms, arena, nodes, parent_map, input, module_id);
     s.parse();
     ParseResult {

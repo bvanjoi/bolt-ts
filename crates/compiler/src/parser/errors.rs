@@ -109,3 +109,12 @@ pub(super) struct ClauseAlreadySeen {
     #[label("It was first defined here.")]
     pub origin: Span,
 }
+
+#[derive(Error, Diagnostic, Debug)]
+#[error("'extends' clause must precede 'implements' clause.")]
+pub(super) struct ExtendsClauseMustPrecedeImplementsClause {
+    #[label(primary)]
+    pub extends_span: Span,
+    #[label("'implements' clause defined here.")]
+    pub implements_span: Span,
+}

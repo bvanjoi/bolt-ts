@@ -290,13 +290,20 @@ impl<'cx> BinderState<'cx> {
         }
     }
 
-    fn bind_ty_param(&mut self, param: &'cx ast::TyParam<'cx>) {
+    fn bind_ty_param(&mut self, ty_param: &'cx ast::TyParam<'cx>) {
         let symbol = self.create_var_symbol(
-            param.name.name,
+            ty_param.name.name,
             SymbolFlags::TYPE_PARAMETER,
-            SymbolKind::TyParam(symbol::TyParamSymbol { decl: param.id }),
+            SymbolKind::TyParam(symbol::TyParamSymbol { decl: ty_param.id }),
         );
-        self.create_final_res(param.id, symbol);
+        self.create_final_res(ty_param.id, symbol);
+
+        if let Some(constraint) = ty_param.constraint {
+            self.bind_ty(constraint);
+        }
+        if let Some(default) = ty_param.default {
+            self.bind_ty(default);
+        }
     }
 
     fn bind_index_sig(
@@ -479,6 +486,9 @@ impl<'cx> BinderState<'cx> {
             Class(class) => self.bind_class_like(class, true),
             PrefixUnary(unary) => self.bind_expr(unary.expr),
             PropAccess(node) => {
+                self.bind_expr(node.expr);
+            }
+            Typeof(node) => {
                 self.bind_expr(node.expr);
             }
             _ => (),

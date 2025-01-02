@@ -357,6 +357,7 @@ impl Expr<'_> {
             PropAccess(a) => a.span,
             EleAccess(a) => a.span,
             This(this) => this.span,
+            Typeof(n) => n.span,
         }
     }
 
@@ -384,6 +385,7 @@ impl Expr<'_> {
             PropAccess(a) => a.id,
             EleAccess(a) => a.id,
             This(this) => this.id,
+            Typeof(n) => n.id,
         }
     }
 }
@@ -411,6 +413,14 @@ pub enum ExprKind<'cx> {
     PrefixUnary(&'cx PrefixUnaryExpr<'cx>),
     PropAccess(&'cx PropAccessExpr<'cx>),
     EleAccess(&'cx EleAccessExpr<'cx>),
+    Typeof(&'cx TypeofExpr<'cx>),
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct TypeofExpr<'cx> {
+    pub id: NodeID,
+    pub span: Span,
+    pub expr: &'cx Expr<'cx>,
 }
 
 #[derive(Debug, Clone, Copy)]

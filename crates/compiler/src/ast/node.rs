@@ -66,6 +66,7 @@ pub enum Node<'cx> {
     PropAccessExpr(&'cx ast::PropAccessExpr<'cx>),
     EleAccessExpr(&'cx ast::EleAccessExpr<'cx>),
     ThisExpr(&'cx ast::ThisExpr),
+    TypeofExpr(&'cx ast::TypeofExpr<'cx>),
 
     // ty
     NumLitTy(&'cx ast::NumLitTy),
@@ -371,6 +372,7 @@ macro_rules! as_node {
             }
 
             $(
+                #[track_caller]
                 #[inline(always)]
                 pub fn $as_kind(&self) -> Option<$ty> {
                     if let Node::$kind(n) = self {
@@ -379,10 +381,13 @@ macro_rules! as_node {
                         None
                     }
                 }
+                #[track_caller]
                 #[inline(always)]
                 pub fn $is_kind(&self) -> bool {
                     self.$as_kind().is_some()
                 }
+                #[track_caller]
+                #[inline(always)]
                 pub fn $expect_kind(&self) -> $ty {
                     self.$as_kind().unwrap()
                 }
@@ -701,6 +706,13 @@ as_node!(
         as_prop_access_expr,
         expect_prop_access_expr,
         is_prop_access_expr
+    ),
+    (
+        TypeofExpr,
+        &'cx ast::TypeofExpr<'cx>,
+        as_typeof_expr,
+        expect_typeof_expr,
+        is_typeof_expr
     ),
     (
         EleAccessExpr,

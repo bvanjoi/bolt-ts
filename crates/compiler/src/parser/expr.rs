@@ -12,7 +12,7 @@ impl<'cx> ParserState<'cx, '_> {
     fn is_update_expr(&self) -> bool {
         use TokenKind::*;
         match self.token.kind {
-            Plus | Minus => false,
+            Plus | Minus | Typeof => false,
             Less => {
                 // TODO: is jsx
                 true
@@ -235,8 +235,26 @@ impl<'cx> ParserState<'cx, '_> {
         use TokenKind::*;
         match self.token.kind {
             Plus | Minus => self.parse_prefix_unary_expr(),
+            Typeof => self.parse_typeof_expr(),
             _ => self.parse_update_expr(),
         }
+    }
+
+    fn parse_typeof_expr(&mut self) -> PResult<&'cx ast::Expr<'cx>> {
+        let start = self.token.start();
+        let id = self.next_node_id();
+        self.expect(TokenKind::Typeof)?;
+        let expr = self.with_parent(id, Self::parse_simple_unary_expr)?;
+        let kind = self.alloc(ast::TypeofExpr {
+            id,
+            span: self.new_span(start),
+            expr,
+        });
+        self.insert_map(id, ast::Node::TypeofExpr(kind));
+        let expr = self.alloc(ast::Expr {
+            kind: ast::ExprKind::Typeof(kind),
+        });
+        Ok(expr)
     }
 
     fn parse_update_expr(&mut self) -> PResult<&'cx ast::Expr<'cx>> {

@@ -61,6 +61,11 @@ impl<'cx> Emit<'cx> {
             This(_) => {
                 self.content.p("this");
             }
+            Typeof(n) => {
+                self.content.p("typeof");
+                self.content.p_whitespace();
+                self.emit_expr(n.expr);
+            }
         }
     }
 

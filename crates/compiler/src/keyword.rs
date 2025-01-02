@@ -82,6 +82,7 @@ gen!(
     (IDENT_UNKNOWN, "unknown"),
     (IDENT_BIGINT, "bitint"),
     (IDENT_OBJECT, "object"),
+    (IDENT_SYMBOL, "symbol"),
 );
 
 pub fn is_prim_ty_name(name: AtomId) -> bool {
