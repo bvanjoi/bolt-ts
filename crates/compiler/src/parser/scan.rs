@@ -1,11 +1,11 @@
 use std::borrow::Cow;
 
+use bolt_ts_atom::AtomId;
 use bolt_ts_span::Span;
 
 use super::token::{keyword_idx_to_token, Token, TokenFlags, TokenKind};
 use super::{PResult, ParserState, TokenValue};
 
-use crate::atoms::AtomId;
 use crate::keyword::KEYWORDS;
 
 #[inline(always)]

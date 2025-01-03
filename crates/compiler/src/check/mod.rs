@@ -31,7 +31,9 @@ mod sig;
 mod symbol_links;
 mod utils;
 
+use bolt_ts_atom::{AtomId, AtomMap};
 use bolt_ts_span::{ModuleID, Span};
+
 use rustc_hash::{FxBuildHasher, FxHashMap};
 
 use self::get_context::{InferenceContextual, TyContextual};
@@ -43,7 +45,6 @@ pub use self::symbol_links::SymbolLinks;
 use self::utils::{find_ancestor, get_assignment_kind, AssignmentKind};
 
 use crate::ast::{BinOp, NodeID};
-use crate::atoms::{AtomId, AtomMap};
 use crate::bind::{self, GlobalSymbols, Symbol, SymbolFlags, SymbolID, SymbolName};
 use crate::parser::Parser;
 use crate::ty::{
@@ -393,6 +394,7 @@ impl<'cx> TyChecker<'cx> {
             Type(_) => {}
             Throw(_) => {}
             Enum(enum_decl) => {}
+            Import(import_decl) => {}
         };
     }
 

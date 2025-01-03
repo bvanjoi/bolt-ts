@@ -1,5 +1,5 @@
-use crate::atoms::AtomId;
 use crate::keyword;
+use bolt_ts_atom::AtomId;
 
 use super::{Ty, TyKind};
 

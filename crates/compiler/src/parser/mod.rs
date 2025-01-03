@@ -5,6 +5,7 @@ mod lookahead;
 mod paren_rule;
 mod parse_class_like;
 mod parse_fn_like;
+mod parse_import_export_spec;
 mod query;
 mod scan;
 mod stmt;
@@ -14,14 +15,15 @@ mod utils;
 
 use std::sync::{Arc, Mutex};
 
+use bolt_ts_atom::{AtomId, AtomMap};
 use bolt_ts_span::{ModuleArena, ModuleID, Span};
+
 use rayon::prelude::*;
 use rustc_hash::FxHashMap;
 
 pub use self::token::KEYWORD_TOKEN_START;
 use self::token::{Token, TokenFlags, TokenKind};
 use crate::ast::{self, Node, NodeFlags, NodeID};
-use crate::atoms::{AtomId, AtomMap};
 use crate::keyword;
 use crate::utils::fx_hashmap_with_capacity;
 

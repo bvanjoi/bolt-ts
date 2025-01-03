@@ -1,9 +1,10 @@
+use bolt_ts_atom::AtomId;
 use bolt_ts_span::Span;
+
 use rustc_hash::FxHashSet;
 
 use super::errors;
 use crate::ast;
-use crate::atoms::AtomId;
 use crate::bind::{SymbolFlags, SymbolID, SymbolName};
 use crate::ty::{self, SigFlags, SigKind};
 use crate::ty::{ObjectShape, ObjectTy, ObjectTyKind, Sig, Ty, TyKind, Tys};

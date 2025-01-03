@@ -12,9 +12,11 @@ use super::{PResult, ParserState};
 fn is_class_ele_start(s: &mut ParserState) -> bool {
     let mut id_token = None;
 
+    // TODO: decorator
     // if s.token.kind == TokenKind::At {
     //     return true;
     // }
+
     while s.token.kind.is_modifier_kind() {
         id_token = Some(s.token.kind);
         if s.token.kind.is_class_ele_modifier() {
@@ -33,7 +35,7 @@ fn is_class_ele_start(s: &mut ParserState) -> bool {
     }
 
     if let Some(t) = id_token {
-        if !t.is_keyword() || t == TokenKind::Get || t == TokenKind::Set {
+        if !t.is_keyword() || matches!(t, TokenKind::Get | TokenKind::Set) {
             true
         } else {
             use TokenKind::*;

@@ -5,7 +5,8 @@ mod object_shape;
 mod object_ty;
 mod sig;
 
-use crate::atoms::AtomId;
+use bolt_ts_atom::AtomId;
+
 use crate::bind::SymbolID;
 use crate::check::TyChecker;
 use crate::{ast, keyword};

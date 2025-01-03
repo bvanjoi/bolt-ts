@@ -34,6 +34,11 @@ impl ParserState<'_, '_> {
             })
     }
 
+    pub(super) fn next_token_is_from_keyword_or_eq_token(&mut self) -> bool {
+        self.next_token();
+        matches!(self.token.kind, TokenKind::From | TokenKind::Eq)
+    }
+
     pub(super) fn next_token_is_numeric_or_big_int_literal(&mut self) -> bool {
         self.next_token();
         // TODO: big int lit

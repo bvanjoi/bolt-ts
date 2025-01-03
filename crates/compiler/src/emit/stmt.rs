@@ -20,7 +20,61 @@ impl<'cx> Emit<'cx> {
             Throw(t) => self.emit_throw_stmt(t),
             Namespace(ns) => self.emit_ns_decl(ns),
             Enum(e) => self.emit_enum_decl(e),
+            Import(n) => self.emit_import_decl(n),
         }
+    }
+
+    fn emit_ns_import(&mut self, ns: &'cx ast::NsImport) {
+        self.content.p_asterisk();
+        self.content.p_whitespace();
+        self.content.p("as");
+        self.content.p_whitespace();
+        self.emit_ident(ns.name);
+    }
+
+    fn emit_import_spec(&mut self, spec: &'cx ast::ImportSpec<'cx>) {
+        use ast::ImportSpecKind::*;
+        match spec.kind {
+            ShortHand(n) => {
+                self.emit_ident(n.name);
+            }
+            Named(n) => {
+                use ast::ModuleExportNameKind::*;
+                match n.prop_name.kind {
+                    Ident(ident) => self.emit_ident(ident),
+                    StringLit(lit) => self.emit_string_lit(lit),
+                }
+                self.content.p_whitespace();
+                self.content.p("as");
+                self.content.p_whitespace();
+                self.emit_ident(n.name);
+            }
+        }
+    }
+
+    fn emit_import_clause(&mut self, clause: &'cx ast::ImportClause<'cx>) {
+        if let Some(ident) = clause.ident {
+            self.emit_ident(ident);
+            self.content.p_whitespace();
+        } else if let Some(kind) = clause.kind {
+            match kind {
+                ast::ImportClauseKind::Specs(specs) => {
+                    for spec in specs {
+                        self.emit_import_spec(spec);
+                    }
+                }
+                ast::ImportClauseKind::Ns(ns) => self.emit_ns_import(ns),
+            }
+        }
+    }
+
+    fn emit_import_decl(&mut self, n: &'cx ast::ImportDecl<'cx>) {
+        self.content.p("import");
+        self.content.p_whitespace();
+        self.emit_import_clause(n.clause);
+        self.content.p_whitespace();
+        self.content.p("from");
+        self.emit_as_string(n.module.val);
     }
 
     fn emit_throw_stmt(&mut self, t: &'cx ast::ThrowStmt<'cx>) {

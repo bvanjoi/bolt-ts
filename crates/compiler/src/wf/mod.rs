@@ -1,9 +1,9 @@
 mod errors;
 
+use bolt_ts_atom::AtomMap;
 use bolt_ts_span::ModuleID;
 
 use crate::ast::{self, visitor};
-use crate::atoms::AtomMap;
 use crate::ir;
 use crate::keyword::is_reserved_type_name;
 use crate::parser::Parser;

@@ -16,17 +16,19 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use std::sync::Mutex;
 
-use atoms::AtomMap;
-use bind::{bind, GlobalSymbols};
+use self::bind::{bind, GlobalSymbols};
+use self::parser::parse_parallel;
+use self::parser::token::keyword_idx_to_token;
+use self::parser::token::TokenKind;
+use self::resolve::resolve;
+use self::wf::well_formed_check_parallel;
+
+use bolt_ts_atom::AtomMap;
 use bolt_ts_config::NormalizedTsConfig;
 use bolt_ts_span::ModuleID;
 use bolt_ts_span::{ModuleArena, ModulePath};
-use parser::parse_parallel;
-use parser::token::keyword_idx_to_token;
-use parser::token::TokenKind;
-use resolve::resolve;
+
 use rustc_hash::FxHashMap;
-use wf::well_formed_check_parallel;
 
 type Diag = Box<dyn bolt_ts_errors::miette::Diagnostic + Send + Sync + 'static>;
 
@@ -136,7 +138,7 @@ pub fn eval_from(cwd: PathBuf, tsconfig: NormalizedTsConfig) -> Output {
             }
         }
     }
-    let mut atoms = AtomMap::new();
+    let mut atoms = AtomMap::new(1024 * 128);
     for (atom, id) in keyword::KEYWORDS {
         atoms.insert(*id, Cow::Borrowed(atom));
     }

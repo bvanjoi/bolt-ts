@@ -1,5 +1,3 @@
-mod sys;
-
 use std::sync::Arc;
 
 #[macro_export]
@@ -102,7 +100,6 @@ pub struct ModuleArena {
     path_map: Vec<ModulePath>,
     content_map: Vec<Arc<String>>,
     modules: Vec<Module>,
-    next_module_id: ModuleID,
 }
 
 impl Default for ModuleArena {
@@ -118,29 +115,21 @@ impl ModuleArena {
             path_map: Vec::with_capacity(cap),
             content_map: Vec::with_capacity(cap),
             modules: Vec::with_capacity(cap),
-            next_module_id: ModuleID::root(),
         }
     }
 
-    fn next_module_id(&mut self) -> ModuleID {
-        let old = self.next_module_id;
-        self.next_module_id = self.next_module_id.next();
-        old
-    }
-
     pub fn new_module(&mut self, p: ModulePath, global: bool) -> ModuleID {
-        let id = self.next_module_id();
+        let id = ModuleID(self.modules.len() as u32);
         let m = Module {
             id,
             global,
             deps: Vec::with_capacity(32),
         };
-        assert!(id.as_usize() == self.modules.len());
         self.modules.push(m);
         if let ModulePath::Real(p) = &p {
             assert!(id.as_usize() == self.content_map.len());
             self.content_map
-                .push(Arc::new(sys::read_file_with_encoding(p).unwrap()));
+                .push(Arc::new(bolt_ts_fs::read_file_with_encoding(p).unwrap()));
         };
         assert!(id.as_usize() == self.path_map.len());
         self.path_map.push(p);

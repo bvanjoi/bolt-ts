@@ -1,13 +1,15 @@
 [workspace]
 resolver = "2"
 members = [
+  "crates/atom",
   "crates/compiler",
   "crates/compile-test",
   "crates/errors",
-  "crates/span",
   "crates/config",
-  "crates/lib",
   "crates/fs",
+  "crates/lib",
+  "crates/resolve",
+  "crates/span",
 ]
 
 [workspace.dependencies]

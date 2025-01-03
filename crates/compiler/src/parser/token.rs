@@ -165,6 +165,7 @@ pub enum TokenKind {
     Set,
     Import,
     Export,
+    From,
     Default,
     Throw,
     Try,
@@ -288,10 +289,11 @@ impl TokenKind {
     }
 
     pub(super) const fn is_ident(&self) -> bool {
-        // TODO: use `parser.is_ident`
         if matches!(self, TokenKind::Ident) {
             return true;
         }
+
+        // TODO: handle yield keyword and await keyword
 
         self.is_contextual_keyword() || self.is_strict_mode_reserved_word()
     }
@@ -317,13 +319,10 @@ impl TokenKind {
         ) || self.is_ident()
     }
 
-    const fn is_ts_keyword(self) -> bool {
-        let u = self as u8;
-        u <= KEYWORD_TOKEN_END && u >= (TokenKind::Implements as u8)
-    }
-
     pub fn is_binding_ident(self) -> bool {
-        matches!(self, TokenKind::Ident) || self.is_ts_keyword()
+        matches!(self, TokenKind::Ident)
+            || self.is_strict_mode_reserved_word()
+            || self.is_contextual_keyword()
     }
 
     pub fn is_binding_ident_or_private_ident_or_pat(self) -> bool {
@@ -375,14 +374,13 @@ impl TokenKind {
             Set |
             String |
             // Symbol |
-            Type // Undefined |
+            Type | // Undefined |
                  // Unique |
                  // Unknown |
                  // Using |
-                 // From |
-                 // Global |
-                 // BigInt |
-                 // Override |
+                 From // Global |
+                      // BigInt |
+                      // Override |
         )
     }
 
@@ -437,6 +435,10 @@ impl TokenKind {
 
     pub fn is_class_ele_modifier(self) -> bool {
         self.is_param_prop_modifier()
+    }
+
+    pub fn can_parse_module_export_name(self) -> bool {
+        self.is_ident_or_keyword() || matches!(self, TokenKind::String)
     }
 }
 

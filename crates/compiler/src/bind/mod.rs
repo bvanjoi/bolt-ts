@@ -6,7 +6,9 @@ mod errors;
 mod merged_symbol;
 mod symbol;
 
+use bolt_ts_atom::AtomMap;
 use bolt_ts_span::ModuleID;
+
 use rustc_hash::FxHashMap;
 use symbol::FunctionScopedVarSymbol;
 use symbol::TransientSymbol;
@@ -20,7 +22,6 @@ pub use self::symbol::{GlobalSymbols, Symbol, SymbolID, SymbolName, Symbols};
 pub use self::symbol::{SymbolFlags, SymbolFnKind};
 
 use crate::ast::{self, NodeID};
-use crate::atoms::AtomMap;
 use crate::parser::Parser;
 use crate::resolve::ResolveResult;
 use crate::utils::fx_hashmap_with_capacity;
@@ -244,6 +245,7 @@ impl<'cx> BinderState<'cx> {
                 self.bind_expr(t.expr);
             }
             Enum(enum_decl) => {}
+            Import(import_dec) => {}
         }
     }
 

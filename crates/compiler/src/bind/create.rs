@@ -1,3 +1,5 @@
+use bolt_ts_atom::AtomId;
+
 use rustc_hash::FxHashMap;
 use thin_vec::thin_vec;
 
@@ -7,7 +9,6 @@ use super::symbol::{
 };
 use super::{errors, BinderState, Symbol, SymbolFnKind, SymbolID, SymbolKind, SymbolName};
 use crate::ast;
-use crate::atoms::AtomId;
 use crate::utils::fx_hashmap_with_capacity;
 
 impl<'cx> BinderState<'cx> {

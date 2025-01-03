@@ -1,4 +1,5 @@
-use crate::{ast, atoms::AtomId};
+use crate::ast;
+use bolt_ts_atom::AtomId;
 
 use super::Emit;
 

@@ -1,18 +1,6 @@
-use crate::atoms::AtomId;
-macro_rules! gen {
-    ($owner: ident, $(($name:ident, $lit:literal)),* $(,)?) => {
-        gen!($(($name, $lit)),*);
-        pub const $owner: &[(&str, AtomId)] = &[$(($lit, $name),)*];
-    };
-    ($(($name:ident, $lit:literal)),* $(,)?) => {
-        paste::paste! {
-            $(pub const [<$name _STR>]: &str = $lit;)*
-            $(pub const $name: AtomId = AtomId::from_str([<$name _STR>]);)*
-        }
-    };
-}
+use bolt_ts_atom::{gen_atoms, paste, AtomId};
 
-gen!(
+gen_atoms!(
     KEYWORDS,
     (KW_NULL, "null"),
     (KW_FALSE, "false"),
@@ -36,6 +24,7 @@ gen!(
     (KW_SET, "set"),
     (KW_IMPORT, "import"),
     (KW_EXPORT, "export"),
+    (KW_FROM, "from"),
     (KW_DEFAULT, "default"),
     (KW_THROW, "throw"),
     (KW_TRY, "try"),
@@ -63,7 +52,7 @@ gen!(
     (KW_TYPE, "type"),
 );
 
-gen!(
+gen_atoms!(
     IDENTIFIER,
     (IDENT_EMPTY, ""),
     (IDENT_LENGTH, "length"),

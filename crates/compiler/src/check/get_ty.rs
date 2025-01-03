@@ -1,8 +1,9 @@
+use bolt_ts_atom::AtomId;
+
 use super::symbol_links::SymbolLinks;
 use super::ty::{self, Ty, TyKind};
 use super::{CheckMode, F64Represent, InferenceContextId, TyChecker};
 use crate::ast;
-use crate::atoms::AtomId;
 use crate::bind::{SymbolFlags, SymbolID, SymbolName};
 use crate::keyword;
 use crate::ty::{AccessFlags, CheckFlags, ElementFlags, TupleShape, TyMapper};
