@@ -1,0 +1,10 @@
+  × Identifier expected.
+   ╭─[../../tests/cases/compiler/incompleteDottedExpressionAtEOF/index.ts:3:17]
+   ╰────
+
+  × Cannot find name 'window'.
+   ╭─[../../tests/cases/compiler/incompleteDottedExpressionAtEOF/index.ts:3:10]
+ 3 │ window
+   · ──────
+   ╰────
+

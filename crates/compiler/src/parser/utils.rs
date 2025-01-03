@@ -339,7 +339,8 @@ impl<'p> ParserState<'p, '_> {
     }
 
     pub(super) fn parse_ident_name(&mut self) -> PResult<&'p ast::Ident> {
-        Ok(self.create_ident(true, None))
+        let is_ident = self.token.kind.is_ident_or_keyword();
+        Ok(self.create_ident(is_ident, None))
     }
 
     pub(super) fn parse_semi_after_prop_name(&mut self) {

@@ -427,7 +427,7 @@ impl TokenKind {
 
     pub fn is_accessibility_modifier(self) -> bool {
         use TokenKind::*;
-        matches!(self, Public)
+        matches!(self, Public | Private | Protected)
     }
 
     pub fn is_param_prop_modifier(self) -> bool {
