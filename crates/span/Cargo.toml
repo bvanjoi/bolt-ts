@@ -7,3 +7,5 @@ edition = "2021"
 miette = { workspace = true }
 rustc-hash = { workspace = true }
 bolt_ts_fs = { path = "../fs" }
+bolt_ts_utils = { path = "../utils" }
+bolt_ts_atom = { path = "../atom" }

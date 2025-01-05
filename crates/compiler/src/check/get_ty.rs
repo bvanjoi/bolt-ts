@@ -398,7 +398,7 @@ impl<'cx> TyChecker<'cx> {
                             let ty_param_mapper = this.combine_ty_mappers(cond.mapper, new_mapper);
                             let ty_args = out_ty_params
                                 .iter()
-                                .map(|t| this.get_mapped_ty(&ty_param_mapper, t))
+                                .map(|t| this.get_mapped_ty(ty_param_mapper, t))
                                 .collect::<Vec<_>>();
                             let new_root_mapper =
                                 this.alloc(TyMapper::create(out_ty_params, this.alloc(ty_args)));
@@ -722,7 +722,7 @@ impl<'cx> TyChecker<'cx> {
 
     pub fn get_ret_ty_from_anno(&mut self, id: ast::NodeID) -> Option<&'cx ty::Ty<'cx>> {
         let n = self.p.node(id);
-        if let Some(_) = n.as_class_ctor() {
+        if n.as_class_ctor().is_some() {
             let class = self.p.parent(id).unwrap();
             assert!(self.p.node(class).is_class_like());
             let symbol = self.get_symbol_of_decl(class);

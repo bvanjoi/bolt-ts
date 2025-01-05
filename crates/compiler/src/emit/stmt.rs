@@ -21,7 +21,71 @@ impl<'cx> Emit<'cx> {
             Namespace(ns) => self.emit_ns_decl(ns),
             Enum(e) => self.emit_enum_decl(e),
             Import(n) => self.emit_import_decl(n),
+            Export(n) => self.emit_export_decl(n),
         }
+    }
+
+    fn emit_export_spec(&mut self, spec: &'cx ast::ExportSpec<'cx>) {
+        use ast::ExportSpecKind::*;
+        match spec.kind {
+            ShortHand(n) => self.emit_shorthand_spec(n),
+            Named(n) => self.emit_export_named_spec(n),
+        }
+    }
+
+    fn emit_export_named_spec(&mut self, n: &'cx ast::ExportNamedSpec<'cx>) {
+        self.emit_module_export_name(n.prop_name);
+        self.content.p_whitespace();
+        self.content.p("as");
+        self.content.p_whitespace();
+        self.emit_module_export_name(n.name);
+    }
+
+    fn emit_export_decl(&mut self, n: &'cx ast::ExportDecl<'cx>) {
+        self.content.p("export");
+        self.content.p_whitespace();
+        match n.clause.kind {
+            ast::ExportClauseKind::Specs(specs) => {
+                self.content.p("{");
+                self.content.p_whitespace();
+                self.emit_list(
+                    specs.list,
+                    |this, spec| this.emit_export_spec(spec),
+                    |this, _| {
+                        this.content.p_comma();
+                        this.content.p_whitespace();
+                    },
+                );
+                self.content.p_whitespace();
+                self.content.p("}");
+                if let Some(module) = specs.module {
+                    self.content.p_whitespace();
+                    self.content.p("from");
+                    self.content.p_whitespace();
+                    self.emit_as_string(module.val);
+                }
+            }
+            ast::ExportClauseKind::Ns(n) => self.emit_ns_export(n),
+            ast::ExportClauseKind::Glob(n) => {
+                self.content.p("*");
+                self.content.p_whitespace();
+                self.content.p("from");
+                self.content.p_whitespace();
+                self.emit_as_string(n.module.val);
+            }
+        }
+    }
+
+    fn emit_ns_export(&mut self, ns: &'cx ast::NsExport) {
+        self.content.p("*");
+        self.content.p_whitespace();
+        self.content.p("as");
+        self.content.p_whitespace();
+        self.emit_module_export_name(ns.name);
+        self.content.p_whitespace();
+        self.content.p("from");
+        self.content.p_whitespace();
+        self.emit_as_string(ns.module.val);
     }
 
     fn emit_ns_import(&mut self, ns: &'cx ast::NsImport) {
@@ -32,18 +96,24 @@ impl<'cx> Emit<'cx> {
         self.emit_ident(ns.name);
     }
 
+    fn emit_shorthand_spec(&mut self, n: &'cx ast::ShorthandSpec<'cx>) {
+        self.emit_ident(n.name);
+    }
+
+    fn emit_module_export_name(&mut self, n: &'cx ast::ModuleExportName<'cx>) {
+        use ast::ModuleExportNameKind::*;
+        match n.kind {
+            Ident(ident) => self.emit_ident(ident),
+            StringLit(lit) => self.emit_string_lit(lit),
+        }
+    }
+
     fn emit_import_spec(&mut self, spec: &'cx ast::ImportSpec<'cx>) {
         use ast::ImportSpecKind::*;
         match spec.kind {
-            ShortHand(n) => {
-                self.emit_ident(n.name);
-            }
+            ShortHand(n) => self.emit_shorthand_spec(n),
             Named(n) => {
-                use ast::ModuleExportNameKind::*;
-                match n.prop_name.kind {
-                    Ident(ident) => self.emit_ident(ident),
-                    StringLit(lit) => self.emit_string_lit(lit),
-                }
+                self.emit_module_export_name(n.prop_name);
                 self.content.p_whitespace();
                 self.content.p("as");
                 self.content.p_whitespace();
@@ -59,9 +129,14 @@ impl<'cx> Emit<'cx> {
         } else if let Some(kind) = clause.kind {
             match kind {
                 ast::ImportClauseKind::Specs(specs) => {
-                    for spec in specs {
-                        self.emit_import_spec(spec);
-                    }
+                    self.emit_list(
+                        specs,
+                        |this, spec| this.emit_import_spec(spec),
+                        |this, _| {
+                            this.content.p_comma();
+                            this.content.p_whitespace();
+                        },
+                    );
                 }
                 ast::ImportClauseKind::Ns(ns) => self.emit_ns_import(ns),
             }

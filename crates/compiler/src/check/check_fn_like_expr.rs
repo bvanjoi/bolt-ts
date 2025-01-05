@@ -16,7 +16,7 @@ impl<'cx> TyChecker<'cx> {
                 let symbol = self.get_symbol_of_decl(id);
                 let ty = self.get_type_of_symbol(symbol);
                 let sigs = self.get_sigs_of_ty(ty, ty::SigKind::Call);
-                let Some(sig) = sigs.get(0) else { return };
+                let Some(sig) = sigs.first() else { return };
                 if self.is_context_sensitive(id) {
                     if let Some(contextual_sig) = contextual_sig {
                         let inference = self.get_inference_context(id);

@@ -1,8 +1,9 @@
-use super::symbol::{PropSymbol, SymbolFlags};
-use super::{BinderState, ClassSymbol, SymbolID, SymbolKind, SymbolName};
+use super::symbol::{PropSymbol, SymbolFlags, SymbolKind};
+use super::{prop_name, BinderState, ClassSymbol, SymbolID, SymbolName};
 use crate::ast::ModifierKind;
-use crate::utils::fx_hashmap_with_capacity;
 use crate::{ast, ir};
+
+use bolt_ts_utils::fx_hashmap_with_capacity;
 
 impl<'cx> BinderState<'cx> {
     fn create_class_symbol(&mut self, c: &impl ir::ClassLike<'cx>) -> SymbolID {
@@ -29,7 +30,7 @@ impl<'cx> BinderState<'cx> {
         decl_id: ast::NodeID,
         ele: &'cx ast::ClassPropEle<'cx>,
     ) -> SymbolID {
-        let name = Self::prop_name(ele.name);
+        let name = prop_name(ele.name);
         let symbol = self.create_symbol(
             name,
             SymbolFlags::PROPERTY,
@@ -74,7 +75,7 @@ impl<'cx> BinderState<'cx> {
         self.create_fn_decl_like_symbol(
             container,
             ele,
-            Self::prop_name(ele.name),
+            prop_name(ele.name),
             super::SymbolFnKind::Method,
         );
         self.bind_params(ele.params);

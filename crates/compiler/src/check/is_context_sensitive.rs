@@ -3,7 +3,7 @@ use crate::keyword;
 
 use super::TyChecker;
 
-impl<'cx> TyChecker<'cx> {
+impl TyChecker<'_> {
     fn has_context_sensitive_params(&self, id: ast::NodeID) -> bool {
         let node = self.p.node(id);
         if node.ty_params().is_none() {
@@ -14,7 +14,7 @@ impl<'cx> TyChecker<'cx> {
             }
 
             if !node.is_arrow_fn_expr() {
-                let param = node.params().and_then(|params| params.get(0));
+                let param = node.params().and_then(|params| params.first());
                 if param.is_none() || param.unwrap().name.name != keyword::KW_THIS {
                     return true;
                 }

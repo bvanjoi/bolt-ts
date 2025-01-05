@@ -53,7 +53,7 @@ links!(
     (flags, NodeFlags)
 );
 
-impl<'cx> NodeLinks<'cx> {
+impl NodeLinks<'_> {
     pub fn flags(&self) -> NodeFlags {
         self.get_flags().unwrap()
     }

@@ -656,7 +656,7 @@ impl<'cx> TyChecker<'cx> {
                     .get(&name)
                     .copied()
             }
-        } else if let Some(_) = object_ty.kind.as_anonymous() {
+        } else if object_ty.kind.as_anonymous().is_some() {
             self.ty_structured_members[&ty.id]
                 .members
                 .get(&name)

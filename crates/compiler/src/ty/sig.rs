@@ -14,7 +14,7 @@ bitflags::bitflags! {
   }
 }
 
-bolt_ts_span::new_index!(SigID);
+bolt_ts_utils::index!(SigID);
 
 impl SigID {
     pub const fn dummy() -> Self {

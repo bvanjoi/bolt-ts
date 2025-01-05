@@ -14,6 +14,9 @@ bolt_ts_errors = { path = "../errors" }
 bolt_ts_span = { path = "../span" }
 bolt_ts_lib = { path = "../lib" }
 bolt_ts_config = { path = "../config" }
+bolt_ts_utils = { path = "../utils" }
+bolt_ts_fs = { path = "../fs" }
+bolt_ts_resolve = { path = "../resolve" }
 project-root = "0.2.2"
 thin-vec = { workspace = true }
 stacker = "0.1"

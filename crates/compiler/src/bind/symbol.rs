@@ -1,11 +1,11 @@
 use bolt_ts_atom::AtomId;
 use bolt_ts_span::ModuleID;
+use bolt_ts_utils::fx_hashmap_with_capacity;
 use rustc_hash::FxHashMap;
 
 use crate::ast::NodeID;
 use crate::check::F64Represent;
 use crate::keyword;
-use crate::utils::fx_hashmap_with_capacity;
 
 #[derive(Debug, Clone, Copy, Hash, PartialEq, Eq)]
 pub enum SymbolName {
@@ -175,6 +175,7 @@ pub(super) enum SymbolKind<'cx> {
     TyParam(TyParamSymbol),
     Transient(TransientSymbol<'cx>),
     TyLit(TyLitSymbol),
+    Alias(AliasSymbol),
 }
 
 macro_rules! as_symbol_kind {
@@ -228,6 +229,12 @@ as_symbol_kind!(Class, &ClassSymbol, as_class, expect_class);
 as_symbol_kind!(TyAlias, &TyAliasSymbol, as_ty_alias, expect_ty_alias);
 as_symbol_kind!(TyParam, &TyParamSymbol, as_ty_param, expect_ty_param);
 as_symbol_kind!(TyLit, &TyLitSymbol, as_ty_lit, expect_ty_lit);
+as_symbol_kind!(Alias, &AliasSymbol, as_alias, expect_alias);
+
+#[derive(Debug)]
+pub struct AliasSymbol {
+    pub decl: NodeID,
+}
 
 #[derive(Debug)]
 pub struct TyLitSymbol {
@@ -244,6 +251,7 @@ pub struct TransientSymbol<'cx> {
 #[derive(Debug)]
 pub struct BlockContainerSymbol {
     pub locals: FxHashMap<SymbolName, SymbolID>,
+    pub exports: FxHashMap<SymbolName, SymbolID>,
 }
 
 #[derive(Debug)]
@@ -331,11 +339,12 @@ impl Symbol<'_> {
             SymbolKind::TyParam { .. } => todo!(),
             SymbolKind::Transient { .. } => todo!(),
             SymbolKind::TyLit(_) => todo!(),
+            SymbolKind::Alias(_) => todo!(),
         }
     }
 }
 
-bolt_ts_span::new_index_with_module!(SymbolID);
+bolt_ts_utils::index_with_module!(SymbolID);
 
 impl SymbolID {
     pub fn decl(&self, binder: &super::Binder) -> NodeID {
@@ -355,6 +364,8 @@ impl SymbolID {
                     unreachable!("{:#?}", binder.symbol(*self).flags);
                 }
             }
+            SymbolKind::TyLit(ty_lit) => ty_lit.decl,
+            SymbolKind::Alias(alias) => alias.decl,
             _ => unreachable!("{:#?}", binder.symbol(*self).flags),
         }
     }
@@ -413,12 +424,6 @@ impl<'cx> Symbols<'cx> {
 }
 
 pub struct GlobalSymbols(FxHashMap<SymbolName, SymbolID>);
-
-impl Default for GlobalSymbols {
-    fn default() -> Self {
-        Self::new()
-    }
-}
 
 impl GlobalSymbols {
     pub fn new() -> Self {

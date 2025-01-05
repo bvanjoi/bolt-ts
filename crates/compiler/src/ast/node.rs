@@ -1,6 +1,6 @@
 use bolt_ts_span::{ModuleID, Span};
 
-bolt_ts_span::new_index_with_module!(NodeID);
+bolt_ts_utils::index_with_module!(NodeID);
 
 impl NodeID {
     pub fn new(module: ModuleID, index: u32) -> Self {
@@ -8,6 +8,17 @@ impl NodeID {
     }
     pub fn into_root(&self) -> Self {
         Self::new(self.module(), 0)
+    }
+}
+
+bitflags::bitflags! {
+  #[derive(Clone, Copy, Debug)]
+  pub struct FnFlags: u32 {
+        const NORMAL          = 0;
+        const GENERATOR       = 1 << 0;
+        const ASYNC           = 1 << 1;
+        const INVALID         = 1 << 2;
+        const ASYNC_GENERATOR = Self::ASYNC.bits() | Self::GENERATOR.bits();
     }
 }
 
@@ -38,11 +49,16 @@ pub enum Node<'cx> {
     ThrowStmt(&'cx super::ThrowStmt<'cx>),
     EnumDecl(&'cx super::EnumDecl<'cx>),
     Modifier(&'cx super::Modifier),
-    NsImport(&'cx super::NsImport<'cx>),
     ShorthandSpec(&'cx super::ShorthandSpec<'cx>),
+    NsImport(&'cx super::NsImport<'cx>),
+    NsExport(&'cx super::NsExport<'cx>),
+    GlobExport(&'cx super::GlobExport<'cx>),
+    SpecsExport(&'cx super::SpecsExport<'cx>),
     ImportNamedSpec(&'cx super::ImportNamedSpec<'cx>),
+    ExportNamedSpec(&'cx super::ExportNamedSpec<'cx>),
     ImportClause(&'cx super::ImportClause<'cx>),
     ImportDecl(&'cx super::ImportDecl<'cx>),
+    ExportDecl(&'cx super::ExportDecl<'cx>),
 
     // expr
     VarDecl(&'cx super::VarDecl<'cx>),
@@ -308,6 +324,7 @@ impl<'cx> Node<'cx> {
                 | FnDecl(_)
                 | InterfaceDecl(_)
                 | TyParam(_)
+                | ShorthandSpec(_)
         )
     }
 
@@ -347,7 +364,7 @@ impl<'cx> Node<'cx> {
         let mut flags = FnFlags::NORMAL;
         if self.is_fn_decl() || self.is_fn_expr() || self.is_class_method_ele() {
             // todo: check aster token
-        } else if let Some(_) = self.as_arrow_fn_expr() {
+        } else if self.as_arrow_fn_expr().is_some() {
             // todo: check async modifiers
         }
 
@@ -864,18 +881,18 @@ as_node!(
         is_throw_stmt
     ),
     (
-        NsImport,
-        &'cx super::NsImport<'cx>,
-        as_ns_import,
-        expect_ns_import,
-        is_ns_import
-    ),
-    (
         ShorthandSpec,
         &'cx super::ShorthandSpec<'cx>,
         as_shorthand_spec,
         expect_shorthand_spec,
         is_shorthand_spec
+    ),
+    (
+        NsImport,
+        &'cx super::NsImport<'cx>,
+        as_ns_import,
+        expect_ns_import,
+        is_ns_import
     ),
     (
         ImportNamedSpec,
@@ -897,16 +914,40 @@ as_node!(
         as_import_decl,
         expect_import_decl,
         is_import_decl
+    ),
+    (
+        NsExport,
+        &'cx super::NsExport<'cx>,
+        as_ns_export,
+        expect_ns_export,
+        is_ns_export
+    ),
+    (
+        ExportNamedSpec,
+        &'cx super::ExportNamedSpec<'cx>,
+        as_export_named_spec,
+        expect_export_named_spec,
+        is_export_named_spec
+    ),
+    (
+        ExportDecl,
+        &'cx super::ExportDecl<'cx>,
+        as_export_decl,
+        expect_export_decl,
+        is_export_decl
+    ),
+    (
+        GlobExport,
+        &'cx super::GlobExport<'cx>,
+        as_glob_export,
+        expect_glob_export,
+        is_glob_export
+    ),
+    (
+        SpecsExport,
+        &'cx super::SpecsExport<'cx>,
+        as_specs_export,
+        expect_specs_export,
+        is_specs_export
     )
 );
-
-bitflags::bitflags! {
-  #[derive(Clone, Copy, Debug)]
-  pub struct FnFlags: u32 {
-        const NORMAL          = 0;
-        const GENERATOR       = 1 << 0;
-        const ASYNC           = 1 << 1;
-        const INVALID         = 1 << 2;
-        const ASYNC_GENERATOR = Self::ASYNC.bits() | Self::GENERATOR.bits();
-    }
-}

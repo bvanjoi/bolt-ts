@@ -40,7 +40,7 @@ impl<'cx> TyChecker<'cx> {
             Some(self.binder.final_res(id))
         } else if let Some(ident) = node.as_ident() {
             Some(self.resolve_symbol_by_ident(ident))
-        } else if let Some(_) = node.as_prop_access_expr() {
+        } else if node.as_prop_access_expr().is_some() {
             todo!()
         } else {
             None

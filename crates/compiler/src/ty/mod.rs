@@ -21,8 +21,8 @@ pub use self::object_ty::{DeclaredMembers, ReferenceTy, StructuredMembers};
 pub use self::object_ty::{IndexInfo, IndexInfos, ObjectTy, TupleShape, TupleTy};
 pub use self::sig::{Sig, SigFlags, SigID, SigKind, Sigs};
 
-bolt_ts_span::new_index!(TyID);
-bolt_ts_span::new_index!(TyVarID);
+bolt_ts_utils::index!(TyID);
+bolt_ts_utils::index!(TyVarID);
 
 impl TyID {
     pub(crate) fn new(id: u32) -> Self {

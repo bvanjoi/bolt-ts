@@ -21,10 +21,8 @@ pub struct AtomMap<'a>(FxHashMap<AtomId, Cow<'a, str>>);
 
 impl<'a> AtomMap<'a> {
     pub fn new(capacity: usize) -> Self {
-        Self(rustc_hash::FxHashMap::with_capacity_and_hasher(
-            capacity,
-            rustc_hash::FxBuildHasher,
-        ))
+        let map = bolt_ts_utils::fx_hashmap_with_capacity(capacity);
+        Self(map)
     }
 
     pub fn insert_by_str(&mut self, value: Cow<'a, str>) -> AtomId {

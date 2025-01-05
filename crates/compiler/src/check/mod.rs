@@ -33,6 +33,7 @@ mod utils;
 
 use bolt_ts_atom::{AtomId, AtomMap};
 use bolt_ts_span::{ModuleID, Span};
+use bolt_ts_utils::fx_hashmap_with_capacity;
 
 use rustc_hash::{FxBuildHasher, FxHashMap};
 
@@ -51,7 +52,6 @@ use crate::ty::{
     has_type_facts, CheckFlags, Sig, SigFlags, SigID, TupleShape, TyID, TyKind, TyVarID, TypeFacts,
     TYPEOF_NE_FACTS,
 };
-use crate::utils::fx_hashmap_with_capacity;
 use crate::{ast, ensure_sufficient_stack, keyword, ty};
 
 bitflags::bitflags! {
@@ -102,7 +102,7 @@ impl From<usize> for F64Represent {
     }
 }
 
-bolt_ts_span::new_index!(InferenceContextId);
+bolt_ts_utils::index!(InferenceContextId);
 
 pub struct TyChecker<'cx> {
     pub atoms: &'cx AtomMap<'cx>,
@@ -227,10 +227,7 @@ impl<'cx> TyChecker<'cx> {
             type_contextual: Vec::with_capacity(256),
             check_mode: None,
             deferred_nodes: vec![
-                indexmap::IndexSet::with_capacity_and_hasher(
-                    64,
-                    FxBuildHasher::default(),
-                );
+                indexmap::IndexSet::with_capacity_and_hasher(64, FxBuildHasher,);
                 p.module_count()
             ],
         };
@@ -395,6 +392,7 @@ impl<'cx> TyChecker<'cx> {
             Throw(_) => {}
             Enum(enum_decl) => {}
             Import(import_decl) => {}
+            Export(export_decl) => {}
         };
     }
 
@@ -802,12 +800,9 @@ impl<'cx> TyChecker<'cx> {
     }
 
     fn check_assign_expr(&mut self, assign: &'cx ast::AssignExpr<'cx>) -> &'cx ty::Ty<'cx> {
-        match assign.op {
-            Eq => {
-                let right = self.check_expr(assign.right);
-                return self.check_destructing_assign(assign, right, false);
-            }
-            _ => (),
+        if let Eq = assign.op {
+            let right = self.check_expr(assign.right);
+            return self.check_destructing_assign(assign, right, false);
         };
         let l = self.check_expr(assign.left);
         let r = self.check_expr(assign.right);
@@ -1120,7 +1115,7 @@ impl<'cx> TyChecker<'cx> {
     ) -> Option<Vec<&'cx ty::Ty<'cx>>> {
         let flags = self.p.node(f).fn_flags();
         let mut has_ret_with_no_expr = false;
-        let mut has_ret_of_ty_never = false;
+        let has_ret_of_ty_never = false;
 
         fn for_each_ret_stmt<'cx, T>(
             id: ast::NodeID,

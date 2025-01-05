@@ -3,7 +3,7 @@ use crate::ast;
 use super::node_links::NodeFlags;
 use super::TyChecker;
 
-impl<'cx> TyChecker<'cx> {
+impl TyChecker<'_> {
     pub(super) fn check_node_deferred(&mut self, node: ast::NodeID) {
         let root = node.into_root();
         let flags = self.get_node_links(root).flags();

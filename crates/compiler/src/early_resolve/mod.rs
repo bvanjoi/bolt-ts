@@ -2,45 +2,67 @@ mod errors;
 mod resolve_call_like;
 mod resolve_class_like;
 
-use bolt_ts_span::ModuleID;
+use bolt_ts_span::{Module, ModuleID};
+use bolt_ts_utils::fx_hashmap_with_capacity;
+
+use rayon::prelude::*;
 use rustc_hash::FxHashMap;
 
-use crate::bind::{BinderState, GlobalSymbols, Symbol, SymbolFlags, SymbolID, SymbolName, Symbols};
+use crate::bind::{BinderState, GlobalSymbols, Symbol, SymbolFlags, SymbolID, SymbolName};
 use crate::keyword::{is_prim_ty_name, is_prim_value_name};
 use crate::parser::Parser;
 use crate::{ast, keyword};
 
-pub struct ResolveResult<'cx> {
-    pub symbols: Symbols<'cx>,
+pub struct EarlyResolveResult {
     pub final_res: FxHashMap<ast::NodeID, SymbolID>,
     pub diags: Vec<bolt_ts_errors::Diag>,
 }
 
-pub fn resolve<'cx>(
-    mut state: BinderState<'cx>,
+pub fn early_resolve_parallel<'cx>(
+    modules: &[Module],
+    states: &[BinderState<'cx>],
+    p: &'cx Parser<'cx>,
+    global: &'cx GlobalSymbols,
+) -> Vec<EarlyResolveResult> {
+    modules
+        .into_par_iter()
+        .enumerate()
+        .map(|(idx, m)| {
+            let module_id = m.id;
+            let root = p.root(module_id);
+            let state = &states[idx];
+            early_resolve(state, root, p, global)
+        })
+        .collect()
+}
+
+fn early_resolve<'cx>(
+    state: &'cx BinderState<'cx>,
     root: &'cx ast::Program<'cx>,
     p: &'cx Parser<'cx>,
     global: &'cx GlobalSymbols,
-) -> ResolveResult<'cx> {
+) -> EarlyResolveResult {
+    let final_res = fx_hashmap_with_capacity(state.res.len());
     let mut resolver = Resolver {
-        diags: std::mem::take(&mut state.diags),
-        state: &mut state,
+        diags: vec![],
+        state: &state,
+        final_res,
         p,
         global,
     };
     resolver.resolve_program(root);
     let diags = std::mem::take(&mut resolver.diags);
-    ResolveResult {
-        symbols: state.symbols,
-        final_res: state.final_res,
+    EarlyResolveResult {
+        final_res: resolver.final_res,
         diags,
     }
 }
 
 pub(super) struct Resolver<'cx, 'r> {
-    state: &'r mut BinderState<'cx>,
+    state: &'r BinderState<'cx>,
     p: &'cx Parser<'cx>,
     pub diags: Vec<bolt_ts_errors::Diag>,
+    final_res: FxHashMap<ast::NodeID, SymbolID>,
     global: &'cx GlobalSymbols,
 }
 
@@ -77,6 +99,7 @@ impl<'cx> Resolver<'cx, '_> {
             }
             Enum(enum_decl) => {}
             Import(import_decl) => {}
+            Export(export_decl) => {}
         };
     }
 
@@ -362,7 +385,7 @@ impl<'cx> Resolver<'cx, '_> {
     fn resolve_value_by_ident(&mut self, ident: &'cx ast::Ident) {
         if ident.name == keyword::IDENT_EMPTY {
             // delay bug
-            let prev = self.state.final_res.insert(ident.id, Symbol::ERR);
+            let prev = self.final_res.insert(ident.id, Symbol::ERR);
             assert!(prev.is_none());
             return;
         } else if is_prim_value_name(ident.name) {
@@ -383,7 +406,7 @@ impl<'cx> Resolver<'cx, '_> {
     fn resolve_ty_by_ident(&mut self, ident: &'cx ast::Ident) {
         if ident.name == keyword::IDENT_EMPTY {
             // delay bug
-            let prev = self.state.final_res.insert(ident.id, Symbol::ERR);
+            let prev = self.final_res.insert(ident.id, Symbol::ERR);
             assert!(prev.is_none());
             return;
         } else if is_prim_ty_name(ident.name) {
@@ -410,7 +433,7 @@ impl<'cx> Resolver<'cx, '_> {
         ns: impl Fn(&Symbol<'cx>) -> bool,
     ) -> SymbolID {
         let res = resolve_symbol_by_ident(self, ident, ns);
-        let prev = self.state.final_res.insert(ident.id, res);
+        let prev = self.final_res.insert(ident.id, res);
         assert!(prev.is_none());
         res
     }

@@ -1,33 +1,34 @@
 mod ast;
-mod atoms;
 mod bind;
 pub mod check;
+mod early_resolve;
 mod emit;
+mod graph;
 mod ir;
 mod keyword;
+mod late_resolve;
 pub mod parser;
-mod resolve;
 mod ty;
-mod utils;
 mod wf;
 
 use std::borrow::Cow;
 use std::path::PathBuf;
-use std::sync::Arc;
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
 
-use self::bind::{bind, GlobalSymbols};
-use self::parser::parse_parallel;
+use self::bind::bind_parallel;
+use self::bind::GlobalSymbols;
+use self::early_resolve::early_resolve_parallel;
+use self::graph::build_graph;
 use self::parser::token::keyword_idx_to_token;
 use self::parser::token::TokenKind;
-use self::resolve::resolve;
 use self::wf::well_formed_check_parallel;
 
 use bolt_ts_atom::AtomMap;
 use bolt_ts_config::NormalizedTsConfig;
-use bolt_ts_span::ModuleID;
-use bolt_ts_span::{ModuleArena, ModulePath};
+use bolt_ts_fs::CachedFileSystem;
+use bolt_ts_span::{ModuleArena, ModuleID, ModulePath};
 
+use normalize_path::NormalizePath;
 use rustc_hash::FxHashMap;
 
 type Diag = Box<dyn bolt_ts_errors::miette::Diagnostic + Send + Sync + 'static>;
@@ -46,18 +47,6 @@ fn current_exe_dir() -> std::path::PathBuf {
         .parent()
         .unwrap()
         .to_path_buf()
-}
-
-fn build_graph<'cx>(
-    module_arena: &mut ModuleArena,
-    list: &[ModuleID],
-    atoms: Arc<Mutex<AtomMap<'cx>>>,
-    herd: &'cx bumpalo_herd::Herd,
-    parser: &mut parser::Parser<'cx>,
-) {
-    for (module_id, result) in parse_parallel(atoms.clone(), herd, list, module_arena) {
-        parser.insert(module_id, result);
-    }
 }
 
 pub fn output_files(
@@ -92,45 +81,9 @@ pub fn output_files(
     }
 }
 
-pub fn eval_from(cwd: PathBuf, tsconfig: NormalizedTsConfig) -> Output {
-    let mut entries = vec![];
-    let mut module_arena = ModuleArena::new();
-    // build entires
-    let dir = current_exe_dir();
-    for (_, file) in bolt_ts_lib::LIB_ENTIRES {
-        let module_id = module_arena.new_module(ModulePath::Real(dir.join(file)), true);
-        entries.push(module_id);
-    }
-    for entry in tsconfig.include() {
-        let p = std::path::Path::new(entry);
-        let list = if p.is_absolute() {
-            if p.is_dir() {
-                std::fs::read_dir(p)
-                    .unwrap()
-                    .filter_map(Result::ok)
-                    .map(|entry| entry.path())
-                    .collect::<Vec<_>>()
-            } else {
-                vec![p.to_path_buf()]
-            }
-        } else {
-            let p = cwd.join(entry);
-            let pattern = p.to_string_lossy();
-            glob::glob(&pattern)
-                .unwrap()
-                .filter_map(Result::ok)
-                .map(|entry| entry.to_path_buf())
-                .collect::<Vec<_>>()
-        };
-        entries.extend(list.into_iter().map(|item| {
-            let entry = ModulePath::Real(item.to_path_buf());
-            module_arena.new_module(entry, false)
-        }));
-    }
-
-    // atom init
+fn init_atom<'atoms>() -> AtomMap<'atoms> {
     if cfg!(debug_assertions) {
-        for (idx, (name, _)) in keyword::KEYWORDS.iter().enumerate() {
+        for idx in 0..keyword::KEYWORDS.len() {
             let t = keyword_idx_to_token(idx);
             if t == TokenKind::Var {
                 assert_eq!(t as u8 + 1, TokenKind::Let as u8);
@@ -145,39 +98,83 @@ pub fn eval_from(cwd: PathBuf, tsconfig: NormalizedTsConfig) -> Output {
     for (atom, id) in keyword::IDENTIFIER {
         atoms.insert(*id, Cow::Borrowed(atom))
     }
+    atoms
+}
 
-    // build graph
-    let mut p = parser::Parser::new();
-    let atoms = Arc::new(Mutex::new(atoms));
-    let herd = bumpalo_herd::Herd::new();
-    build_graph(&mut module_arena, &entries, atoms.clone(), &herd, &mut p);
+pub fn eval_from(cwd: PathBuf, tsconfig: NormalizedTsConfig) -> Output {
+    // ==== atom init ====
+    let mut atoms = init_atom();
 
-    let diags = p.steal_errors();
+    // ==== fs init ====
+    let mut fs = bolt_ts_fs::LocalFS::new(&mut atoms);
 
-    // bind
-    let atoms = Arc::try_unwrap(atoms).unwrap();
-    let atoms = atoms.into_inner().unwrap();
-    let mut binder = bind::Binder::new(&p, &atoms);
+    let mut entries = vec![];
+    let mut module_arena = ModuleArena::new();
 
-    // TODO: par
-    let bind_list = module_arena
-        .modules()
+    // ==== collect entires ====
+    let dir = current_exe_dir();
+    for (_, file) in bolt_ts_lib::LIB_ENTIRES {
+        let module_id =
+            module_arena.new_module(ModulePath::Real(dir.join(file)), true, &mut fs, &mut atoms);
+        entries.push(module_id);
+    }
+
+    let include = tsconfig
+        .include()
         .iter()
-        .map(|m| {
-            let module_id = m.id;
-            let is_global = m.global;
-            let root = p.root(module_id);
-            let bind_result = bind(&atoms, &p, root, module_id);
-            assert!(!is_global || bind_result.diags.is_empty());
-            (bind_result, is_global)
+        .flat_map(|entry| {
+            let p = std::path::Path::new(entry);
+            if p.is_absolute() {
+                if p.is_dir() {
+                    fs.read_dir(p, &mut atoms).unwrap().collect::<Vec<_>>()
+                } else {
+                    vec![p.to_path_buf()]
+                }
+            } else {
+                let p = cwd.join(entry);
+                let pattern = p.to_string_lossy();
+                glob::glob(&pattern)
+                    .unwrap()
+                    .filter_map(Result::ok)
+                    .map(|entry| entry.to_path_buf())
+                    .collect::<Vec<_>>()
+            }
         })
         .collect::<Vec<_>>();
 
+    entries.extend(include.into_iter().map(|item| {
+        let p = item.normalize();
+        let entry = ModulePath::Real(p);
+        module_arena.new_module(entry, false, &mut fs, &mut atoms)
+    }));
+
+    // ==== build graph ====
+    let mut p = parser::Parser::new();
+    let atoms = Arc::new(Mutex::new(atoms));
+    let herd = bumpalo_herd::Herd::new();
+    let mg = build_graph(
+        &mut module_arena,
+        &entries,
+        atoms.clone(),
+        &herd,
+        &mut p,
+        fs,
+    );
+
+    let diags = p.steal_errors();
+
+    // ==== bind ====
+    let atoms = Arc::try_unwrap(atoms).unwrap();
+    let atoms = atoms.into_inner().unwrap();
+
+    let bind_list = bind_parallel(module_arena.modules(), &atoms, &p);
+
     let mut global_symbols = GlobalSymbols::new();
-    for (state, is_global) in &bind_list {
-        if !is_global {
-            continue;
-        }
+    for state in bind_list
+        .iter()
+        .zip(module_arena.modules())
+        .filter_map(|(state, m)| m.global.then(|| state))
+    {
         for ((scope_id, name), symbol) in state.res.iter() {
             if !scope_id.is_root() {
                 continue;
@@ -186,12 +183,33 @@ pub fn eval_from(cwd: PathBuf, tsconfig: NormalizedTsConfig) -> Output {
         }
     }
 
-    // TODO: par
-    for (m, (state, _)) in module_arena.modules().iter().zip(bind_list.into_iter()) {
-        let module_id = m.id;
-        let root = p.root(module_id);
-        let result = resolve(state, root, &p, &global_symbols);
-        binder.insert(module_id, result);
+    // ==== name resolution ====
+    let early_resolve_result =
+        early_resolve_parallel(module_arena.modules(), &bind_list, &p, &global_symbols);
+
+    let mut binder = bind::Binder::new(&p, &atoms);
+
+    for (m, early_resolve_result, mut state) in module_arena
+        .modules()
+        .iter()
+        .zip(early_resolve_result.into_iter())
+        .zip(bind_list)
+        .map(|((x, y), z)| (x, y, z))
+    {
+        state.diags.extend(early_resolve_result.diags);
+        if cfg!(debug_assertions) {
+            for node_id in state.final_res.keys() {
+                assert!(!early_resolve_result.final_res.contains_key(node_id));
+            }
+        }
+        state.final_res.extend(early_resolve_result.final_res);
+        let result = late_resolve::ResolveResult {
+            diags: state.diags,
+            symbols: state.symbols,
+            final_res: state.final_res,
+            deep_res: FxHashMap::default(),
+        };
+        binder.insert(m.id, result);
     }
 
     let diags: Vec<_> = diags
@@ -204,7 +222,7 @@ pub fn eval_from(cwd: PathBuf, tsconfig: NormalizedTsConfig) -> Output {
         ))
         .collect();
 
-    // type check
+    // ==== type check ====
     let ty_arena = bumpalo::Bump::new();
     let mut checker = check::TyChecker::new(&ty_arena, &p, &atoms, &mut binder, &global_symbols);
     for item in &entries {
@@ -212,7 +230,7 @@ pub fn eval_from(cwd: PathBuf, tsconfig: NormalizedTsConfig) -> Output {
         checker.check_deferred_nodes(*item);
     }
 
-    // codegen
+    // ==== codegen ====
     let output = entries
         .iter()
         .filter_map(|item| {
@@ -226,6 +244,29 @@ pub fn eval_from(cwd: PathBuf, tsconfig: NormalizedTsConfig) -> Output {
         .collect::<FxHashMap<_, _>>();
 
     let diags = diags.into_iter().chain(checker.diags).collect();
+
+    if cfg!(debug_assertions) {
+        // each module should be created once
+        let paths = module_arena
+            .modules()
+            .iter()
+            .map(|m| m.id)
+            .map(|m| {
+                if let ModulePath::Real(p) = module_arena.get_path(m) {
+                    assert!(
+                        p.is_normalized(),
+                        "path should be normalized, but got: {:?}",
+                        p
+                    );
+                    p
+                } else {
+                    todo!()
+                }
+            })
+            .collect::<Vec<_>>();
+        let set = paths.iter().collect::<std::collections::HashSet<_>>();
+        assert_eq!(paths.len(), set.len());
+    }
 
     Output {
         cwd,

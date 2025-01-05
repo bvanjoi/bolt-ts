@@ -6,6 +6,7 @@ mod paren_rule;
 mod parse_class_like;
 mod parse_fn_like;
 mod parse_import_export_spec;
+mod parse_modifiers;
 mod query;
 mod scan;
 mod stmt;
@@ -17,6 +18,7 @@ use std::sync::{Arc, Mutex};
 
 use bolt_ts_atom::{AtomId, AtomMap};
 use bolt_ts_span::{ModuleArena, ModuleID, Span};
+use bolt_ts_utils::fx_hashmap_with_capacity;
 
 use rayon::prelude::*;
 use rustc_hash::FxHashMap;
@@ -25,7 +27,6 @@ pub use self::token::KEYWORD_TOKEN_START;
 use self::token::{Token, TokenFlags, TokenKind};
 use crate::ast::{self, Node, NodeFlags, NodeID};
 use crate::keyword;
-use crate::utils::fx_hashmap_with_capacity;
 
 type PResult<T> = Result<T, ()>;
 
@@ -91,14 +92,15 @@ pub struct ParseResult<'cx> {
     parent_map: ParentMap,
 }
 
-pub struct Parser<'cx> {
-    map: FxHashMap<ModuleID, ParseResult<'cx>>,
+impl<'cx> ParseResult<'cx> {
+    pub fn root(&self) -> &'cx ast::Program<'cx> {
+        let id = NodeID::root(ModuleID::root());
+        self.nodes.get(id).expect_program()
+    }
 }
 
-impl Default for Parser<'_> {
-    fn default() -> Self {
-        Self::new()
-    }
+pub struct Parser<'cx> {
+    map: FxHashMap<ModuleID, ParseResult<'cx>>,
 }
 
 impl<'cx> Parser<'cx> {
@@ -156,23 +158,21 @@ impl TokenValue {
     }
 }
 
-pub fn parse_parallel<'cx>(
+pub fn parse_parallel<'cx, 'p>(
     atoms: Arc<Mutex<AtomMap<'cx>>>,
     herd: &'cx bumpalo_herd::Herd,
-    list: &[ModuleID],
-    module_arena: &ModuleArena,
-) -> Vec<(ModuleID, ParseResult<'cx>)> {
-    list.into_par_iter()
-        .map_init(
-            || herd.get(),
-            |bump, module_id| {
-                let input = module_arena.get_content(*module_id);
-                let result = parse(atoms.clone(), bump, input.as_bytes(), *module_id);
-                assert!(!module_arena.get_module(*module_id).global || result.diags.is_empty());
-                (*module_id, result)
-            },
-        )
-        .collect::<Vec<_>>()
+    list: &'p [ModuleID],
+    module_arena: &'p ModuleArena,
+) -> impl ParallelIterator<Item = (ModuleID, ParseResult<'cx>)> + use<'cx, 'p> {
+    list.into_par_iter().map_init(
+        || herd.get(),
+        move |bump, module_id| {
+            let input = module_arena.get_content(*module_id);
+            let result = parse(atoms.clone(), bump, input.as_bytes(), *module_id);
+            assert!(!module_arena.get_module(*module_id).global || result.diags.is_empty());
+            (*module_id, result)
+        },
+    )
 }
 
 fn parse<'cx, 'p>(
@@ -192,7 +192,7 @@ fn parse<'cx, 'p>(
     }
 }
 
-pub struct ParserState<'cx, 'p> {
+struct ParserState<'cx, 'p> {
     atoms: Arc<Mutex<AtomMap<'cx>>>,
     input: &'p [u8],
     token: Token,
@@ -350,10 +350,12 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
     }
 
     fn string_token(&self) -> AtomId {
-        assert!(matches!(
-            self.token.kind,
-            TokenKind::String | TokenKind::NoSubstitutionTemplate
-        ));
+        use TokenKind::*;
+        assert!(
+            matches!(self.token.kind, String | NoSubstitutionTemplate),
+            "{:#?}",
+            self.token
+        );
         self.token_value.unwrap().ident()
     }
 

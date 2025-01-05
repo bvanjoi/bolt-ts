@@ -253,57 +253,6 @@ impl<'p> ParserState<'p, '_> {
         }
     }
 
-    fn can_follow_modifier(&self) -> bool {
-        let t = self.token.kind;
-        use TokenKind::*;
-        matches!(t, LBracket | LBrace | Asterisk | DotDotDot) || t.is_lit_prop_name()
-    }
-
-    fn next_token_is_on_same_line_and_can_follow_modifier(&mut self) -> bool {
-        self.next_token();
-        if self.has_preceding_line_break() {
-            false
-        } else {
-            self.can_follow_modifier()
-        }
-    }
-
-    fn next_token_can_follow_modifier(&mut self) -> bool {
-        use TokenKind::*;
-        match self.token.kind {
-            Const => {
-                self.next_token();
-                self.token.kind == Enum
-            }
-            _ => self.next_token_is_on_same_line_and_can_follow_modifier(),
-        }
-    }
-
-    fn parse_any_contextual_modifier(&mut self) -> bool {
-        self.token.kind.is_modifier_kind() && self.try_parse(Self::next_token_can_follow_modifier)
-    }
-
-    fn parse_modifier(
-        &mut self,
-        permit_const_as_modifier: bool,
-    ) -> PResult<Option<&'p ast::Modifier>> {
-        let span = self.token.span;
-        let t = self.token.kind;
-        if t == TokenKind::Const && permit_const_as_modifier {
-            if self.try_parse(Self::next_token_is_on_same_line_and_can_follow_modifier) {
-                return Ok(None);
-            }
-        } else if !self.parse_any_contextual_modifier() {
-            return Ok(None);
-        }
-
-        let id = self.next_node_id();
-        let kind = t.try_into().unwrap();
-        let m = self.alloc(ast::Modifier { id, span, kind });
-        self.insert_map(id, ast::Node::Modifier(m));
-        Ok(Some(m))
-    }
-
     pub(super) fn try_parse<T: ParseSuccess>(&mut self, f: impl FnOnce(&mut Self) -> T) -> T {
         let old_pos = self.pos;
         let old_full_start_pos = self.full_start_pos;

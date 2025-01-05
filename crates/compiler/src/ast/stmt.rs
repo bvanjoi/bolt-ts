@@ -24,6 +24,7 @@ pub enum StmtKind<'cx> {
     Throw(&'cx ThrowStmt<'cx>),
     Enum(&'cx EnumDecl<'cx>),
     Import(&'cx ImportDecl<'cx>),
+    Export(&'cx ExportDecl<'cx>),
 }
 
 impl Stmt<'_> {
@@ -44,6 +45,7 @@ impl Stmt<'_> {
             Throw(t) => t.id,
             Enum(e) => e.id,
             Import(n) => n.id,
+            Export(n) => n.id,
         }
     }
 }
@@ -458,4 +460,67 @@ pub struct ImportDecl<'cx> {
     pub span: Span,
     pub clause: &'cx ImportClause<'cx>,
     pub module: &'cx StringLit,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct ExportDecl<'cx> {
+    pub id: NodeID,
+    pub span: Span,
+    pub clause: &'cx ExportClause<'cx>,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct ExportClause<'cx> {
+    pub is_type_only: bool,
+    pub kind: ExportClauseKind<'cx>,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub enum ExportClauseKind<'cx> {
+    Glob(&'cx GlobExport<'cx>),
+    Ns(&'cx NsExport<'cx>),
+    Specs(&'cx SpecsExport<'cx>),
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct GlobExport<'cx> {
+    pub id: NodeID,
+    pub span: Span,
+    pub module: &'cx StringLit,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct NsExport<'cx> {
+    pub id: NodeID,
+    pub span: Span,
+    pub name: &'cx ModuleExportName<'cx>,
+    pub module: &'cx StringLit,
+}
+
+#[derive(Debug, Clone, Copy)]
+
+pub struct SpecsExport<'cx> {
+    pub id: NodeID,
+    pub span: Span,
+    pub list: &'cx [&'cx ExportSpec<'cx>],
+    pub module: Option<&'cx StringLit>,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct ExportSpec<'cx> {
+    pub kind: ExportSpecKind<'cx>,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub enum ExportSpecKind<'cx> {
+    ShortHand(&'cx ShorthandSpec<'cx>),
+    Named(&'cx ExportNamedSpec<'cx>),
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct ExportNamedSpec<'cx> {
+    pub id: NodeID,
+    pub span: Span,
+    pub prop_name: &'cx ModuleExportName<'cx>,
+    pub name: &'cx ModuleExportName<'cx>,
 }

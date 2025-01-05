@@ -9,7 +9,7 @@ use super::symbol::{
 };
 use super::{errors, BinderState, Symbol, SymbolFnKind, SymbolID, SymbolKind, SymbolName};
 use crate::ast;
-use crate::utils::fx_hashmap_with_capacity;
+use bolt_ts_utils::fx_hashmap_with_capacity;
 
 impl<'cx> BinderState<'cx> {
     pub(super) fn create_final_res(&mut self, id: ast::NodeID, symbol: SymbolID) {
@@ -47,6 +47,15 @@ impl<'cx> BinderState<'cx> {
         if name.as_atom().is_some() {
             if let Some(id) = self.res.get(&key).copied() {
                 let prev = self.symbols.get_mut(id);
+                if flags.intersects(SymbolFlags::ALIAS) {
+                    let id = self.symbols.insert(Symbol::new(name, flags, kind));
+                    let prev = self.res.insert(key, id);
+                    return id;
+                } else if matches!(prev.kind.0, SymbolKind::Alias(_)) {
+                    let id = self.symbols.insert(Symbol::new(name, flags, kind));
+                    let prev = self.res.insert(key, id);
+                    return id;
+                }
                 if flags == SymbolFlags::FUNCTION_SCOPED_VARIABLE {
                     prev.flags |= flags;
                     let prev = &mut prev.kind;
@@ -237,6 +246,7 @@ impl<'cx> BinderState<'cx> {
             SymbolFlags::VALUE_MODULE,
             SymbolKind::BlockContainer(BlockContainerSymbol {
                 locals: fx_hashmap_with_capacity(32),
+                exports: fx_hashmap_with_capacity(32),
             }),
         );
         self.create_final_res(node_id, symbol);

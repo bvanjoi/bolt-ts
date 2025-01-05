@@ -113,10 +113,8 @@ impl<'cx> TyChecker<'cx> {
             .with_ty_mapper(mapper)
             .with_target(symbol);
 
-        let id = self
-            .binder
-            .create_transient_symbol(name, symbol_flags, Some(symbol), links);
-        id
+        self.binder
+            .create_transient_symbol(name, symbol_flags, Some(symbol), links)
     }
 
     fn instantiate_sigs(
@@ -404,13 +402,13 @@ impl<'cx> TyChecker<'cx> {
             .tys
             .iter()
             .flat_map(|ty| self.get_sigs_of_ty(ty, SigKind::Call))
-            .map(|&sig| sig)
+            .copied()
             .collect::<Vec<_>>();
         let ctor_sigs = union
             .tys
             .iter()
             .flat_map(|ty| self.get_sigs_of_ty(ty, SigKind::Constructor))
-            .map(|&sig| sig)
+            .copied()
             .collect::<Vec<_>>();
         let m = self.alloc(ty::StructuredMembers {
             members: self.alloc(FxHashMap::default()),

@@ -377,7 +377,7 @@ struct InferenceState<'cx, 'checker> {
     propagation_ty: Option<&'cx ty::Ty<'cx>>,
 }
 
-impl<'cx, 'checker> InferenceState<'cx, 'checker> {
+impl<'cx> InferenceState<'cx, '_> {
     fn get_mut_inference(&mut self) -> &mut InferenceContext<'cx> {
         &mut self.checker.inferences[self.inference.as_usize()]
     }
@@ -501,12 +501,10 @@ impl<'cx, 'checker> InferenceState<'cx, 'checker> {
         }
 
         if let Some(target_cond) = target.kind.as_cond_ty() {
-        } else {
-            if source.kind.is_object() {
-                self.invoke_once(source, target, |this, source, target| {
-                    this.infer_from_object_tys(source, target);
-                });
-            }
+        } else if source.kind.is_object() {
+            self.invoke_once(source, target, |this, source, target| {
+                this.infer_from_object_tys(source, target);
+            });
         }
     }
 
@@ -541,7 +539,7 @@ impl<'cx, 'checker> InferenceState<'cx, 'checker> {
     fn infer_from_object_tys(&mut self, source: &'cx ty::Ty<'cx>, target: &'cx ty::Ty<'cx>) {
         if !self.checker.tys_definitely_unrelated(source, target) {
             if source.kind.is_tuple() || source.kind.is_array(self.checker) {
-                if target.kind.is_tuple() {}
+                target.kind.is_tuple();
                 if target.kind.is_array(self.checker) {
                     self.infer_from_index_tys(source, target);
                     return;
@@ -597,7 +595,7 @@ impl<'cx, 'checker> InferenceState<'cx, 'checker> {
                 let tys = tys
                     .iter()
                     .filter(|t| !matched.contains(t))
-                    .map(|t| *t)
+                    .copied()
                     .collect::<Vec<_>>();
                 self.checker.alloc(tys)
             }

@@ -60,6 +60,7 @@ checksum = "b048fb63fd8b5923fc5aa7b340d8e156aec7ec02f0c78fa8a6ddc2613f6f71de"
 name = "bolt_ts_atom"
 version = "0.1.0"
 dependencies = [
+ "bolt_ts_utils",
  "paste",
  "rustc-hash",
  "xxhash-rust",
@@ -73,8 +74,11 @@ dependencies = [
  "bolt_ts_atom",
  "bolt_ts_config",
  "bolt_ts_errors",
+ "bolt_ts_fs",
  "bolt_ts_lib",
+ "bolt_ts_resolve",
  "bolt_ts_span",
+ "bolt_ts_utils",
  "bumpalo",
  "bumpalo-herd",
  "compile-test",
@@ -118,6 +122,11 @@ dependencies = [
 name = "bolt_ts_fs"
 version = "0.1.0"
 dependencies = [
+ "bolt_ts_atom",
+ "bolt_ts_utils",
+ "indexmap",
+ "normalize-path",
+ "rustc-hash",
  "serde",
  "serde_json",
 ]
@@ -134,15 +143,28 @@ dependencies = [
 name = "bolt_ts_resolve"
 version = "0.1.0"
 dependencies = [
+ "bolt_ts_atom",
+ "bolt_ts_fs",
+ "normalize-path",
  "rustc-hash",
+ "serde_json",
 ]
 
 [[package]]
 name = "bolt_ts_span"
 version = "0.1.0"
 dependencies = [
+ "bolt_ts_atom",
  "bolt_ts_fs",
+ "bolt_ts_utils",
  "miette",
+ "rustc-hash",
+]
+
+[[package]]
+name = "bolt_ts_utils"
+version = "0.1.0"
+dependencies = [
  "rustc-hash",
 ]
 
@@ -339,6 +361,7 @@ checksum = "62f822373a4fe84d4bb149bf54e584a7f4abec90e072ed49cda0edea5b95471f"
 dependencies = [
  "equivalent",
  "hashbrown",
+ "serde",
 ]
 
 [[package]]
@@ -645,6 +668,7 @@ version = "1.0.128"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6ff5456707a1de34e7e37f2a6fd3d3f808c318259cbd01ab6377795054b483d8"
 dependencies = [
+ "indexmap",
  "itoa",
  "memchr",
  "ryu",

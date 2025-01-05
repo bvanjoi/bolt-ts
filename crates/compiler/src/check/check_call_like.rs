@@ -308,9 +308,8 @@ impl<'cx> TyChecker<'cx> {
                     );
                     infer_ctx = Some(infer);
                     // TODO: ty_arg_tys = instantiate_tys(infer_ty_args(), infer.non_fixing_mapper)
-                    let ty_arg_tys;
 
-                    ty_arg_tys = Some({
+                    let ty_arg_tys = Some({
                         let tys = self.infer_ty_args(
                             expr,
                             candidate,

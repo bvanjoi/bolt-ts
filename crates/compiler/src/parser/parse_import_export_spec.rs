@@ -83,7 +83,7 @@ impl<'cx, 'p> ParseNamedImportsExports<'cx, 'p> for ParseNamedImports {
         name: &'cx ast::ModuleExportName<'cx>,
     ) -> Self::Spec {
         let kind = if let Some(prop_name) = prop_name {
-            let ast::ModuleExportNameKind::Ident(ident) = prop_name.kind else {
+            let ast::ModuleExportNameKind::Ident(ident) = name.kind else {
                 unreachable!()
             };
             let spec = state.alloc(ast::ImportNamedSpec {
@@ -110,7 +110,7 @@ impl<'cx, 'p> ParseNamedImportsExports<'cx, 'p> for ParseNamedImports {
     }
 }
 impl<'cx, 'p> ParseNamedImportsExports<'cx, 'p> for ParseNamedExports {
-    type Spec = &'cx ast::ImportSpec<'cx>;
+    type Spec = &'cx ast::ExportSpec<'cx>;
     fn parse_name(
         &self,
         state: &mut ParserState<'cx, 'p>,
@@ -134,12 +134,33 @@ impl<'cx, 'p> ParseNamedImportsExports<'cx, 'p> for ParseNamedExports {
         prop_name: Option<&'cx ast::ModuleExportName<'cx>>,
         name: &'cx ast::ModuleExportName<'cx>,
     ) -> Self::Spec {
-        todo!()
+        let kind = if let Some(prop_name) = prop_name {
+            let spec = state.alloc(ast::ExportNamedSpec {
+                id,
+                span,
+                prop_name,
+                name,
+            });
+            state.insert_map(id, ast::Node::ExportNamedSpec(spec));
+            ast::ExportSpecKind::Named(spec)
+        } else {
+            let ast::ModuleExportNameKind::Ident(ident) = name.kind else {
+                unreachable!()
+            };
+            let spec = state.alloc(ast::ShorthandSpec {
+                id,
+                span,
+                name: ident,
+            });
+            state.insert_map(id, ast::Node::ShorthandSpec(spec));
+            ast::ExportSpecKind::ShortHand(spec)
+        };
+        state.alloc(ast::ExportSpec { kind })
     }
 }
 
 impl<'cx, 'p> ParserState<'cx, 'p> {
-    fn parse_module_export_name(
+    pub fn parse_module_export_name(
         &mut self,
         parse_name: impl FnOnce(&mut Self) -> &'cx ast::Ident,
     ) -> &'cx ast::ModuleExportName<'cx> {
@@ -248,7 +269,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
             );
         }
         let span = self.new_span(start);
-        Ok(kind.finish_spec(self, id, span, prop_name, &name))
+        Ok(kind.finish_spec(self, id, span, prop_name, name))
     }
 
     pub(super) fn parse_named_imports_or_exports<Spec>(

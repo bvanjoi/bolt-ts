@@ -6,10 +6,7 @@ use super::Parser;
 impl<'cx> Parser<'cx> {
     #[inline(always)]
     pub fn root(&self, id: ModuleID) -> &ast::Program<'cx> {
-        self.get(id)
-            .nodes
-            .get(ast::NodeID::root(id))
-            .expect_program()
+        self.get(id).root()
     }
 
     #[inline(always)]

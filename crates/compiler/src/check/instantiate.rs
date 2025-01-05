@@ -156,7 +156,7 @@ impl<'cx> TyChecker<'cx> {
                 let combined_mapper = self.combine_ty_mappers(a.mapper, mapper);
                 let ty_args = ty_params
                     .iter()
-                    .map(|t| self.get_mapped_ty(&combined_mapper, t))
+                    .map(|t| self.get_mapped_ty(combined_mapper, t))
                     .collect::<Vec<_>>();
                 let new_mapper = ty::TyMapper::create(self.alloc(ty_params), self.alloc(ty_args));
                 self.instantiate_anonymous_ty(ty, self.alloc(new_mapper))
