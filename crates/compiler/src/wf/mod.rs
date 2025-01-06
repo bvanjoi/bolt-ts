@@ -50,10 +50,7 @@ struct CheckState<'cx> {
 
 impl<'cx> CheckState<'cx> {
     fn push_error(&mut self, error: crate::Diag) {
-        self.diags.push(bolt_ts_errors::Diag {
-            module_id: self.module_id,
-            inner: error,
-        })
+        self.diags.push(bolt_ts_errors::Diag { inner: error })
     }
     fn check_collisions_for_decl_name(&mut self, node: ast::NodeID, name: &'cx ast::Ident) {
         if self.p.node(node).is_class_like() && is_reserved_type_name(name.name) {

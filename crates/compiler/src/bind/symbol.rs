@@ -234,6 +234,8 @@ as_symbol_kind!(Alias, &AliasSymbol, as_alias, expect_alias);
 #[derive(Debug)]
 pub struct AliasSymbol {
     pub decl: NodeID,
+    pub source: SymbolName,
+    pub target: SymbolName,
 }
 
 #[derive(Debug)]

@@ -1,4 +1,3 @@
-mod config_related;
 pub mod diag_ext;
 mod source_code;
 
@@ -10,21 +9,10 @@ pub use thiserror;
 
 #[derive(Debug)]
 pub struct Diag {
-    pub module_id: ModuleID,
     pub inner: Box<dyn diag_ext::DiagnosticExt + Send + Sync + 'static>,
 }
 
 impl Diag {
-    pub fn new(
-        module_id: ModuleID,
-        diag: Box<dyn diag_ext::DiagnosticExt + Send + Sync + 'static>,
-    ) -> Self {
-        Self {
-            module_id,
-            inner: diag,
-        }
-    }
-
     pub fn emit_message(self, module_arena: &ModuleArena, no_color: bool) -> String {
         let mut out = String::new();
         let error = into_miette_diagnostic(self.inner, module_arena);

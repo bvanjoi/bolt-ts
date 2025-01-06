@@ -42,7 +42,7 @@ impl DiagnosticExt {
                         list.path.is_ident("label") && list.tokens.to_string() == "primary"
                     })
                 })
-                .unwrap();
+                .expect("`#[label(primary)]` not found.");
                 let related_field_name =
                     find_field_satisfy_attr(&input, |attr| attr.path().is_ident("related"));
                 Self::Struct {

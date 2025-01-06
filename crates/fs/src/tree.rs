@@ -153,7 +153,7 @@ impl<'atoms> FSTree {
 
         let mut parent = FSTree::ROOT;
         let mut current_path = PathBuf::new();
-        let mut path_id = PathId::ROOT;
+        let mut path_id;
         let mut peek = path.components().peekable();
 
         while let Some(component) = peek.next() {

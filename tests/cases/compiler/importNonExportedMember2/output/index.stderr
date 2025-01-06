@@ -1,0 +1,12 @@
+  × Module '"./a"' declares 'Foo' locally, but it is not exported.
+   ╭─[../../tests/cases/compiler/importNonExportedMember2/index.ts:3:10]
+ 3 │ Foo
+   · ───
+   ╰────
+
+Advice: 
+  ☞ 'Foo' is defined here
+   ╭─[../../tests/cases/compiler/importNonExportedMember2/a.ts:2:11]
+ 2 │ Foo
+   · ───
+   ╰────

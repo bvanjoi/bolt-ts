@@ -67,11 +67,8 @@ pub(super) struct Resolver<'cx, 'r> {
 }
 
 impl<'cx> Resolver<'cx, '_> {
-    fn push_error(&mut self, module_id: ModuleID, error: crate::Diag) {
-        self.diags.push(bolt_ts_errors::Diag {
-            module_id,
-            inner: error,
-        });
+    fn push_error(&mut self, error: crate::Diag) {
+        self.diags.push(bolt_ts_errors::Diag { inner: error });
     }
 
     fn resolve_program(&mut self, root: &'cx ast::Program<'cx>) {
@@ -399,7 +396,7 @@ impl<'cx> Resolver<'cx, '_> {
                 errors: vec![],
             };
             let error = self.on_failed_to_resolve_value_symbol(ident, error);
-            self.push_error(ident.span.module, Box::new(error));
+            self.push_error(Box::new(error));
         }
     }
 
@@ -411,7 +408,7 @@ impl<'cx> Resolver<'cx, '_> {
             return;
         } else if is_prim_ty_name(ident.name) {
             if let Some(error) = self.check_using_type_as_value(ident) {
-                self.push_error(ident.span.module, error.into_diag());
+                self.push_error(error.into_diag());
             }
             return;
         }
@@ -423,7 +420,7 @@ impl<'cx> Resolver<'cx, '_> {
                 name: self.state.atoms.get(ident.name).to_string(),
                 errors: vec![],
             };
-            self.push_error(ident.span.module, Box::new(error));
+            self.push_error(Box::new(error));
         }
     }
 

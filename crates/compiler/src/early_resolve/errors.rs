@@ -20,12 +20,16 @@ pub(super) struct CannotFindName {
 
 pub(super) enum CannotFindNameHelperKind {
     #[error(transparent)]
+    #[diagnostic(transparent)]
     DidYouMeanTheStaticMember(DidYourMeanTheStaticMember),
     #[error(transparent)]
+    #[diagnostic(transparent)]
     AnInterfaceCannotExtendAPrimTy(AnInterfaceCannotExtendAPrimTy),
     #[error(transparent)]
+    #[diagnostic(transparent)]
     AClassCannotImplementAPrimTy(AClassCannotImplementAPrimTy),
     #[error(transparent)]
+    #[diagnostic(transparent)]
     CannotUseNamespaceAsTyOrValue(CannotUseNamespaceAsTyOrValue),
 }
 

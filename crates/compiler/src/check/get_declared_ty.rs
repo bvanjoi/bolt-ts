@@ -176,7 +176,7 @@ impl<'cx> TyChecker<'cx> {
                 span: decl.span(),
                 decl: name,
             };
-            self.push_error(decl.span().module, Box::new(error));
+            self.push_error(Box::new(error));
             return self.error_ty();
         }
         let base_ty = self.check_expr(extends);

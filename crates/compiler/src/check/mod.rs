@@ -463,7 +463,7 @@ impl<'cx> TyChecker<'cx> {
                     ty_c: index_info.key_ty.to_string(self),
                     index_ty_d: index_info.val_ty.to_string(self),
                 };
-                self.push_error(prop_node.span().module, Box::new(error));
+                self.push_error(Box::new(error));
                 return;
             }
         }
@@ -759,7 +759,7 @@ impl<'cx> TyChecker<'cx> {
                     op1: op.to_string(),
                     op2: sugg.to_string(),
                 };
-                self.push_error(expr_span.module, Box::new(error));
+                self.push_error(Box::new(error));
                 return self.number_ty();
             }
         }
@@ -770,7 +770,7 @@ impl<'cx> TyChecker<'cx> {
                     span: left_span,
                     left_or_right: errors::LeftOrRight::Left,
                 };
-            this.push_error(left_span.module, Box::new(error));
+            this.push_error(Box::new(error));
         });
         let right = self.check_arithmetic_op_ty(right_ty, |this| {
             let error =
@@ -778,7 +778,7 @@ impl<'cx> TyChecker<'cx> {
                     span: right_span,
                     left_or_right: errors::LeftOrRight::Right,
                 };
-            this.push_error(left_span.module, Box::new(error));
+            this.push_error(Box::new(error));
         });
 
         self.number_ty()
@@ -940,7 +940,7 @@ impl<'cx> TyChecker<'cx> {
                     name,
                 }],
             };
-            self.push_error(ident.span.module, Box::new(error));
+            self.push_error(Box::new(error));
         }
     }
 
@@ -965,7 +965,7 @@ impl<'cx> TyChecker<'cx> {
                     name: self.atoms.get(ident.name).to_string(),
                     ty: symbol.as_str().to_string(),
                 };
-                self.push_error(ident.span.module, Box::new(error));
+                self.push_error(Box::new(error));
                 return self.error_ty();
             }
         }
@@ -985,7 +985,7 @@ impl<'cx> TyChecker<'cx> {
                 span: expr.span(),
                 value: "null".to_string(),
             };
-            self.push_error(expr.span().module, Box::new(error));
+            self.push_error(Box::new(error));
             self.null_ty()
         } else if matches!(expr.kind, ast::ExprKind::Ident(ast::Ident { name, .. }) if *name == keyword::IDENT_UNDEFINED)
         {
@@ -993,7 +993,7 @@ impl<'cx> TyChecker<'cx> {
                 span: expr.span(),
                 value: "undefined".to_string(),
             };
-            self.push_error(expr.span().module, Box::new(error));
+            self.push_error(Box::new(error));
             self.null_ty()
         } else {
             self.null_ty()
@@ -1038,7 +1038,7 @@ impl<'cx> TyChecker<'cx> {
                         ty2: right_ty.to_string(self),
                         span: node.span,
                     };
-                    self.push_error(node.span.module, Box::new(error));
+                    self.push_error(Box::new(error));
                 }
                 ty
             }
@@ -1077,11 +1077,8 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
-    fn push_error(&mut self, module_id: ModuleID, error: crate::Diag) {
-        self.diags.push(bolt_ts_errors::Diag {
-            module_id,
-            inner: error,
-        })
+    fn push_error(&mut self, error: crate::Diag) {
+        self.diags.push(bolt_ts_errors::Diag { inner: error })
     }
 
     fn is_type_assignable_to_kind(

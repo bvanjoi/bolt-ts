@@ -6,7 +6,7 @@ use crate::bind::{
 };
 use crate::graph::ModuleGraph;
 use crate::{ast, parser};
-use bolt_ts_atom::AtomMap;
+use bolt_ts_atom::{AtomId, AtomMap};
 use bolt_ts_span::{Module, ModuleID};
 use bolt_ts_utils::fx_hashmap_with_capacity;
 use rustc_hash::FxHashMap;
@@ -82,10 +82,16 @@ struct Resolver<'cx, 'r> {
 impl<'cx, 'r> Resolver<'cx, 'r> {
     fn symbol_decl(&self, symbol_id: SymbolID) -> ast::NodeID {
         use crate::bind::SymbolKind::*;
-        match &self.symbol(symbol_id).kind.0 {
-            Fn(f) => f.decls[0],
-            Transient(_) => unreachable!(),
-            _ => todo!(),
+        let s = self.symbol(symbol_id);
+        if let Some(s) = &s.kind.1 {
+            s.decl
+        } else {
+            match &s.kind.0 {
+                Fn(f) => f.decls[0],
+                Alias(a) => a.decl,
+                Transient(_) => unreachable!(),
+                _ => todo!(),
+            }
         }
     }
 
@@ -95,9 +101,8 @@ impl<'cx, 'r> Resolver<'cx, 'r> {
             .get(symbol_id)
     }
 
-    fn push_error(&mut self, module_id: ModuleID, diag: crate::Diag) {
+    fn push_error(&mut self,  diag: crate::Diag) {
         self.diags.push(bolt_ts_errors::Diag {
-            module_id,
             inner: diag,
         })
     }
@@ -125,34 +130,75 @@ impl<'cx, 'r> ast::Visitor<'cx> for Resolver<'cx, 'r> {
                         use ast::ImportSpecKind::*;
                         match spec.kind {
                             ShortHand(n) => {
-                                let name = SymbolName::Normal(n.name.name);
+                                let name = SymbolName::Normal(n.name.name); //baz
                                 if !self.container(dep).exports.contains_key(&name) {
-                                    if let Some(local) =
+                                    let module_name = self.atoms.get(node.module.val).to_string();
+                                    let symbol_name = self.atoms.get(n.name.name);
+
+                                    if let Some(export) =
+                                        self.container(dep).exports.values().find(|alias| {
+                                            let alias = self.symbol(**alias).expect_alias();
+                                            alias.source.expect_atom() == n.name.name
+                                        })
+                                    {
+                                        let alias_symbol = self.symbol(*export).expect_alias();
+                                        let mut helper = vec![];
+                                        if let Some(local) = self.container(dep).locals.get(&name) {
+                                            let symbol_span = self
+                                                .p
+                                                .node(self.symbol_decl(*local))
+                                                .ident_name()
+                                                .unwrap()
+                                                .span;
+                                            helper.push(
+                                                errors::ModuleADeclaresBLocallyButItIsExportedAsCHelperKind::NameIsDeclaredHere(
+                                                    errors::NameIsDeclaredHere { 
+                                                        span: symbol_span,
+                                                        name: symbol_name.to_string() 
+                                                    }
+                                                ));
+                                        }
+                                        helper.push(
+                                            errors::ModuleADeclaresBLocallyButItIsExportedAsCHelperKind::ExportedAliasHere(
+                                                errors::ExportedAliasHere { 
+                                                    span: self.p.node(self.symbol_decl(*export)).span(), 
+                                                    name: self.atoms.get(alias_symbol.target.expect_atom()).to_string() 
+                                                }
+                                            )
+                                        );
+
+                                        let error =
+                                            errors::ModuleADeclaresBLocallyButItIsExportedAsC {
+                                                span: n.span,
+                                                module_name,
+                                                symbol_name: symbol_name.to_string(),
+                                                target_name: self
+                                                    .atoms
+                                                    .get(alias_symbol.target.expect_atom())
+                                                    .to_string(),
+                                                related: helper,
+                                            };
+                                        self.push_error( Box::new(error));
+                                    } else if let Some(local) =
                                         self.container(dep).locals.get(&name).copied()
                                     {
-                                        let name = self.symbol(local).name.expect_atom();
-
                                         let symbol_span = self
                                             .p
                                             .node(self.symbol_decl(local))
                                             .ident_name()
                                             .unwrap()
                                             .span;
-                                        let symbol_name = self.atoms.get(name);
                                         let error =
                                             errors::ModuleADeclaresBLocallyButItIsNotExported {
                                                 span: n.span,
-                                                module_name: self
-                                                    .atoms
-                                                    .get(node.module.val)
-                                                    .to_string(),
+                                                module_name,
                                                 symbol_name: symbol_name.to_string(),
                                                 related: [errors::NameIsDeclaredHere {
                                                     span: symbol_span,
                                                     name: symbol_name.to_string(),
                                                 }],
                                             };
-                                        self.push_error(n.span.module, Box::new(error));
+                                        self.push_error( Box::new(error));
                                     }
                                 }
                             }

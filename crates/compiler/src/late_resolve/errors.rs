@@ -25,3 +25,35 @@ pub(super) struct NameIsDeclaredHere {
     pub span: Span,
     pub name: String,
 }
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt)]
+#[error(
+    "Module '\"{module_name}\"' declares '{symbol_name}' locally, but it is exported as '{target_name}'."
+)]
+pub(super) struct ModuleADeclaresBLocallyButItIsExportedAsC {
+    #[label(primary)]
+    pub span: Span,
+    pub module_name: String,
+    pub symbol_name: String,
+    pub target_name: String,
+    #[related]
+    pub related: Vec<ModuleADeclaresBLocallyButItIsExportedAsCHelperKind>,
+}
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt)]
+pub enum ModuleADeclaresBLocallyButItIsExportedAsCHelperKind {
+    #[error(transparent)]
+    #[diagnostic(transparent)]
+    NameIsDeclaredHere(NameIsDeclaredHere),
+    #[error(transparent)]
+    #[diagnostic(transparent)]
+    ExportedAliasHere(ExportedAliasHere),
+}
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
+#[error("'{name}' has been alias here.")]
+pub(super) struct ExportedAliasHere {
+    #[label(primary)]
+    pub span: Span,
+    pub name: String,
+}

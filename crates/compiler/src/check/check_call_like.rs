@@ -116,7 +116,7 @@ impl<'cx> TyChecker<'cx> {
                     span: expr.callee().span(),
                     abstract_class_list,
                 };
-                self.push_error(expr.span().module, Box::new(error));
+                self.push_error(Box::new(error));
             }
         }
         self.resolve_call(ty, expr, sigs)
@@ -137,7 +137,7 @@ impl<'cx> TyChecker<'cx> {
                     span: expr.callee().span(),
                     ty: format!("typeof {}", self.atoms.get(decl.name.name)),
                 };
-                self.push_error(expr.span().module, Box::new(error));
+                self.push_error(Box::new(error));
             }
             // TODO: use unreachable
             return self.unknown_sig();
@@ -437,7 +437,7 @@ impl<'cx> TyChecker<'cx> {
                 x: super::ExpectedArgsCount::Count(x),
                 y,
             };
-            self.push_error(span.module, Box::new(error));
+            self.push_error(Box::new(error));
         } else if args.len() > max_required_params {
             let lo = args[max_required_params].span().lo;
             let hi = args.last().unwrap().span().hi;
@@ -450,7 +450,7 @@ impl<'cx> TyChecker<'cx> {
                 },
                 y: args.len(),
             };
-            self.push_error(span.module, Box::new(error));
+            self.push_error(Box::new(error));
         } else if args.len() < min_required_params {
             let span = expr.span();
             let error: crate::Diag = if max_required_params == usize::MAX {
@@ -469,7 +469,7 @@ impl<'cx> TyChecker<'cx> {
                     y: args.len(),
                 })
             };
-            self.push_error(span.module, error);
+            self.push_error(error);
         }
 
         res.unwrap_or(candidate)

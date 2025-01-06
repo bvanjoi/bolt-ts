@@ -33,11 +33,8 @@ impl<'cx> BinderState<'cx> {
         }
     }
 
-    pub(super) fn push_error(&mut self, module_id: ModuleID, error: crate::Diag) {
-        let diag = bolt_ts_errors::Diag {
-            module_id,
-            inner: error,
-        };
+    pub(super) fn push_error(&mut self, error: crate::Diag) {
+        let diag = bolt_ts_errors::Diag { inner: error };
         self.diags.push(diag);
     }
 
@@ -88,7 +85,7 @@ impl<'cx> BinderState<'cx> {
                 }
             }
             Class(class) => self.bind_class_like(class, false),
-            Interface(interface) => self.bind_interface_decl(interface),
+            Interface(interface) => self.bind_interface_decl(container, interface),
             Type(t) => self.bind_type_decl(t),
             Namespace(ns) => self.bind_ns_decl(container, ns),
             Throw(t) => {
@@ -102,27 +99,51 @@ impl<'cx> BinderState<'cx> {
 
     fn bind_spec_export(&mut self, container: ast::NodeID, spec: &'cx ast::ExportSpec<'cx>) {
         use ast::ExportSpecKind::*;
-        match spec.kind {
-            ShortHand(named) => {
-                let name = named.name.name;
+        let (name, symbol) = match spec.kind {
+            ShortHand(spec) => {
+                let name = spec.name.name;
                 let name = SymbolName::Normal(name);
                 let symbol = self.create_symbol(
                     name,
                     SymbolFlags::ALIAS,
-                    SymbolKind::Alias(AliasSymbol { decl: named.id }),
+                    SymbolKind::Alias(AliasSymbol {
+                        decl: spec.id,
+                        source: name,
+                        target: name,
+                    }),
+                );
+                self.create_final_res(spec.id, symbol);
+                (name, symbol)
+            }
+            Named(named) => {
+                use ast::ModuleExportNameKind::*;
+                let n = |name: &ast::ModuleExportName| match name.kind {
+                    Ident(ident) => SymbolName::Normal(ident.name),
+                    StringLit(lit) => SymbolName::Normal(lit.val),
+                };
+
+                let name = n(named.name);
+                let symbol = self.create_symbol(
+                    name,
+                    SymbolFlags::ALIAS,
+                    SymbolKind::Alias(AliasSymbol {
+                        decl: named.id,
+                        source: n(named.prop_name),
+                        target: name,
+                    }),
                 );
                 self.create_final_res(named.id, symbol);
-                if let SymbolKind::BlockContainer(c) =
-                    &mut self.symbols.get_mut(self.final_res[&container]).kind.0
-                {
-                    let prev = c.exports.insert(name, symbol);
-                    assert!(prev.is_none());
-                } else {
-                    unreachable!()
-                };
+                (name, symbol)
             }
-            Named(_) => todo!(),
-        }
+        };
+        if let SymbolKind::BlockContainer(c) =
+            &mut self.symbols.get_mut(self.final_res[&container]).kind.0
+        {
+            let prev = c.exports.insert(name, symbol);
+            assert!(prev.is_none());
+        } else {
+            unreachable!()
+        };
     }
 
     fn bind_export_decl(&mut self, container: ast::NodeID, decl: &'cx ast::ExportDecl<'cx>) {
@@ -309,8 +330,17 @@ impl<'cx> BinderState<'cx> {
         }
     }
 
-    fn bind_interface_decl(&mut self, i: &'cx ast::InterfaceDecl<'cx>) {
-        self.create_interface_symbol(i.id, i.name.name, Default::default());
+    fn bind_interface_decl(&mut self, container: ast::NodeID, i: &'cx ast::InterfaceDecl<'cx>) {
+        let id = self.create_interface_symbol(i.id, i.name.name, Default::default());
+        if let SymbolKind::BlockContainer(c) =
+            &mut self.symbols.get_mut(self.final_res[&container]).kind.0
+        {
+            let prev = c.locals.insert(SymbolName::Normal(i.name.name), id);
+            assert!(prev.is_none());
+        } else {
+            unreachable!()
+        };
+
         let old = self.scope_id;
         self.scope_id = self.new_scope();
 

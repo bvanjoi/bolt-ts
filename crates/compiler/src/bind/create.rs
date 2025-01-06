@@ -87,7 +87,7 @@ impl<'cx> BinderState<'cx> {
                         name: n.to_string(),
                         original_span: span(&prev.kind.0),
                     };
-                    self.push_error(error_span.module, Box::new(error));
+                    self.push_error(Box::new(error));
 
                     if flags.intersects(SymbolFlags::PROPERTY) {
                         let id = self.symbols.insert(Symbol::new(name, flags, kind));

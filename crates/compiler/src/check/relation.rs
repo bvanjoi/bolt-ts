@@ -60,7 +60,7 @@ impl<'cx> TyChecker<'cx> {
                 let field = self.atoms.get(name.expect_atom()).to_string();
                 let error =
                     errors::ObjectLitMayOnlySpecifyKnownPropAndFieldDoesNotExist { span, field };
-                self.push_error(span.module, Box::new(error));
+                self.push_error(Box::new(error));
                 return true;
             }
         }
@@ -179,7 +179,7 @@ impl<'cx> TyChecker<'cx> {
                 for name in unmatched {
                     let field = self.atoms.get(name).to_string();
                     let error = errors::PropertyXIsMissing { span, field };
-                    self.push_error(span.module, Box::new(error));
+                    self.push_error(Box::new(error));
                 }
                 return Ternary::TRUE;
             }
@@ -307,7 +307,7 @@ impl<'cx> TyChecker<'cx> {
                     span,
                     ty: target.val_ty.to_string(self),
                 };
-                self.push_error(span.module, Box::new(error));
+                self.push_error(Box::new(error));
             } else {
                 todo!()
             }
@@ -532,7 +532,7 @@ impl<'cx> TyChecker<'cx> {
             if !self.check_type_related_to(source, target, relation, error_node) {
                 let span = self.p.node(error_node.unwrap()).span();
                 let error = error(self, span, source, target);
-                self.push_error(span.module, error);
+                self.push_error(error);
                 false
             } else {
                 true
