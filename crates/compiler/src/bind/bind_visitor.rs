@@ -34,10 +34,11 @@ impl<'cx> BinderState<'cx> {
     }
 
     pub(super) fn push_error(&mut self, module_id: ModuleID, error: crate::Diag) {
-        self.diags.push(bolt_ts_errors::Diag {
+        let diag = bolt_ts_errors::Diag {
             module_id,
             inner: error,
-        });
+        };
+        self.diags.push(diag);
     }
 
     pub(super) fn connect(&mut self, node_id: ast::NodeID) {
@@ -59,7 +60,8 @@ impl<'cx> BinderState<'cx> {
         assert!(self.scope_id_parent_map.is_empty());
         self.scope_id_parent_map.push(None);
         self.connect(root.id);
-        self.create_block_container_symbol(root.id);
+        let id = self.create_block_container_symbol(root.id);
+        assert_eq!(id.index_as_u32(), 1);
         for stmt in root.stmts {
             self.bind_stmt(root.id, stmt)
         }

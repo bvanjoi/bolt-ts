@@ -28,11 +28,10 @@ use bolt_ts_config::NormalizedTsConfig;
 use bolt_ts_fs::CachedFileSystem;
 use bolt_ts_span::{ModuleArena, ModuleID, ModulePath};
 
-use bolt_ts_utils::fx_hashmap_with_capacity;
 use normalize_path::NormalizePath;
 use rustc_hash::FxHashMap;
 
-type Diag = Box<dyn bolt_ts_errors::miette::Diagnostic + Send + Sync + 'static>;
+type Diag = Box<dyn bolt_ts_errors::diag_ext::DiagnosticExt + Send + Sync + 'static>;
 
 pub struct Output {
     pub cwd: PathBuf,
@@ -188,24 +187,24 @@ pub fn eval_from(cwd: PathBuf, tsconfig: NormalizedTsConfig) -> Output {
     let early_resolve_result =
         early_resolve_parallel(module_arena.modules(), &bind_list, &p, &global_symbols);
 
-    let mut states = fx_hashmap_with_capacity(module_arena.modules().len());
-    for (m, early_resolve_result, mut state) in module_arena
+    // let mut states = fx_hashmap_with_capacity(module_arena.modules().len());
+    let states = module_arena
         .modules()
         .iter()
         .zip(early_resolve_result.into_iter())
         .zip(bind_list)
         .map(|((x, y), z)| (x, y, z))
-    {
-        state.diags.extend(early_resolve_result.diags);
-        if cfg!(debug_assertions) {
-            for node_id in state.final_res.keys() {
-                assert!(!early_resolve_result.final_res.contains_key(node_id));
+        .map(|(m, early_resolve_result, mut state)| {
+            state.diags.extend(early_resolve_result.diags);
+            if cfg!(debug_assertions) {
+                for node_id in state.final_res.keys() {
+                    assert!(!early_resolve_result.final_res.contains_key(node_id));
+                }
             }
-        }
-        state.final_res.extend(early_resolve_result.final_res);
-        let prev = states.insert(m.id, state);
-        assert!(prev.is_none());
-    }
+            state.final_res.extend(early_resolve_result.final_res);
+            state
+        })
+        .collect::<Vec<_>>();
 
     let mut binder = bind::Binder::new(&p, &atoms);
     for (m, res) in late_resolve::late_resolve(
@@ -257,9 +256,8 @@ pub fn eval_from(cwd: PathBuf, tsconfig: NormalizedTsConfig) -> Output {
         let paths = module_arena
             .modules()
             .iter()
-            .map(|m| m.id)
             .map(|m| {
-                if let ModulePath::Real(p) = module_arena.get_path(m) {
+                if let ModulePath::Real(p) = module_arena.get_path(m.id) {
                     assert!(
                         p.is_normalized(),
                         "path should be normalized, but got: {:?}",

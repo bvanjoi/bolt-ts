@@ -2,7 +2,7 @@ mod errors;
 
 use crate::ast::Visitor;
 use crate::bind::{
-    BinderState, BlockContainerSymbol, GlobalSymbols, SymbolFnKind, SymbolID, SymbolName, Symbols,
+    BinderState, BlockContainerSymbol, GlobalSymbols, SymbolID, SymbolName, Symbols,
 };
 use crate::graph::ModuleGraph;
 use crate::{ast, parser};
@@ -19,18 +19,17 @@ pub struct ResolveResult<'cx> {
 }
 
 pub fn late_resolve<'cx>(
-    mut states: FxHashMap<ModuleID, BinderState<'cx>>,
+    mut states: Vec<BinderState<'cx>>,
     modules: &[Module],
     mg: &'cx ModuleGraph,
     p: &'cx parser::Parser<'cx>,
     global: &'cx GlobalSymbols,
     atoms: &'cx AtomMap<'cx>,
 ) -> Vec<(ModuleID, ResolveResult<'cx>)> {
-    let mut temp = fx_hashmap_with_capacity(modules.len());
+    let mut temp = Vec::with_capacity(modules.len());
     for module in modules {
         let module_id = module.id;
-        let state = states.get_mut(&module.id).unwrap();
-        let deep_res = fx_hashmap_with_capacity(state.res.len());
+        let deep_res = fx_hashmap_with_capacity(states[module.id.as_usize()].res.len());
         let root = p.root(module.id);
         let mut resolver = Resolver {
             mg,
@@ -38,7 +37,7 @@ pub fn late_resolve<'cx>(
             module_id,
             global,
             deep_res,
-            state,
+            states: &mut states,
             diags: vec![],
             atoms,
         };
@@ -46,35 +45,33 @@ pub fn late_resolve<'cx>(
         let deep_res = std::mem::take(&mut resolver.deep_res);
         let resolver_diags = std::mem::take(&mut resolver.diags);
         drop(resolver);
-        state.diags.extend(resolver_diags);
-        let diags = std::mem::take(&mut state.diags);
-        let prev = temp.insert(module_id, (deep_res, diags));
-        assert!(prev.is_none());
+        temp.push((deep_res, resolver_diags));
     }
 
-    let mut res = Vec::with_capacity(modules.len());
-    for module in modules {
-        let state = states.get_mut(&module.id).unwrap();
-        let symbols = std::mem::take(&mut state.symbols);
-        let final_res = std::mem::take(&mut state.final_res);
-        let old = std::mem::take(temp.get_mut(&module.id).unwrap());
-        res.push((
-            module.id,
-            ResolveResult {
+    modules
+        .iter()
+        .zip(states)
+        .zip(temp)
+        .map(|((module, mut state), (deep_res, diags))| {
+            let symbols = std::mem::take(&mut state.symbols);
+            let final_res = std::mem::take(&mut state.final_res);
+            state.diags.extend(diags);
+            let diags = std::mem::take(&mut state.diags);
+            let result = ResolveResult {
                 symbols,
                 final_res,
-                diags: old.1,
-                deep_res: old.0,
-            },
-        ));
-    }
-    res
+                diags,
+                deep_res,
+            };
+            (module.id, result)
+        })
+        .collect::<Vec<_>>()
 }
 
 struct Resolver<'cx, 'r> {
     mg: &'cx ModuleGraph,
     module_id: ModuleID,
-    state: &'r mut BinderState<'cx>,
+    states: &'r mut Vec<BinderState<'cx>>,
     p: &'cx parser::Parser<'cx>,
     pub diags: Vec<bolt_ts_errors::Diag>,
     global: &'cx GlobalSymbols,
@@ -85,11 +82,17 @@ struct Resolver<'cx, 'r> {
 impl<'cx, 'r> Resolver<'cx, 'r> {
     fn symbol_decl(&self, symbol_id: SymbolID) -> ast::NodeID {
         use crate::bind::SymbolKind::*;
-        match &self.state.symbols.get(symbol_id).kind.0 {
+        match &self.symbol(symbol_id).kind.0 {
             Fn(f) => f.decls[0],
             Transient(_) => unreachable!(),
             _ => todo!(),
         }
+    }
+
+    fn symbol(&self, symbol_id: SymbolID) -> &crate::bind::Symbol {
+        self.states[symbol_id.module().as_usize()]
+            .symbols
+            .get(symbol_id)
     }
 
     fn push_error(&mut self, module_id: ModuleID, diag: crate::Diag) {
@@ -100,7 +103,7 @@ impl<'cx, 'r> Resolver<'cx, 'r> {
     }
 
     fn container(&self, module_id: ModuleID) -> &BlockContainerSymbol {
-        self.state
+        self.states[module_id.as_usize()]
             .symbols
             .get_container(module_id)
             .expect_block_container()
@@ -127,13 +130,15 @@ impl<'cx, 'r> ast::Visitor<'cx> for Resolver<'cx, 'r> {
                                     if let Some(local) =
                                         self.container(dep).locals.get(&name).copied()
                                     {
-                                        let name = self.state.symbols.get(local).name.expect_atom();
+                                        let name = self.symbol(local).name.expect_atom();
+
                                         let symbol_span = self
                                             .p
                                             .node(self.symbol_decl(local))
                                             .ident_name()
                                             .unwrap()
                                             .span;
+                                        let symbol_name = self.atoms.get(name);
                                         let error =
                                             errors::ModuleADeclaresBLocallyButItIsNotExported {
                                                 span: n.span,
@@ -141,8 +146,11 @@ impl<'cx, 'r> ast::Visitor<'cx> for Resolver<'cx, 'r> {
                                                     .atoms
                                                     .get(node.module.val)
                                                     .to_string(),
-                                                symbol_name: self.atoms.get(name).to_string(),
-                                                symbol_span,
+                                                symbol_name: symbol_name.to_string(),
+                                                related: [errors::NameIsDeclaredHere {
+                                                    span: symbol_span,
+                                                    name: symbol_name.to_string(),
+                                                }],
                                             };
                                         self.push_error(n.span.module, Box::new(error));
                                     }

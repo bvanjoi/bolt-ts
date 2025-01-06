@@ -1,10 +1,12 @@
+use bolt_ts_errors::diag_ext;
 use bolt_ts_errors::miette;
 use bolt_ts_errors::miette::Diagnostic;
 use bolt_ts_errors::thiserror;
 use bolt_ts_errors::thiserror::Error;
+use bolt_ts_errors::DiagnosticExt;
 use bolt_ts_span::Span;
 
-#[derive(Error, Diagnostic, Debug)]
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
 #[error("Operator '{op}' cannot be applied to types '{ty1}' and '{ty2}'.")]
 pub(super) struct OperatorCannotBeAppliedToTy1AndTy2 {
     #[label(primary)]
@@ -14,7 +16,7 @@ pub(super) struct OperatorCannotBeAppliedToTy1AndTy2 {
     pub ty2: String,
 }
 
-#[derive(Error, Diagnostic, Debug)]
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
 #[error("The value '{value}' cannot be used here.")]
 pub(super) struct TheValueCannotBeUsedHere {
     #[label(primary)]
@@ -22,7 +24,7 @@ pub(super) struct TheValueCannotBeUsedHere {
     pub value: String,
 }
 
-#[derive(Error, Diagnostic, Debug)]
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
 #[error("Type '{ty1}' is not assignable to type '{ty2}'.")]
 pub(super) struct TypeIsNotAssignableToType {
     #[label(primary)]
@@ -31,7 +33,7 @@ pub(super) struct TypeIsNotAssignableToType {
     pub ty2: String,
 }
 
-#[derive(Error, Diagnostic, Debug)]
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
 #[error("Argument of type '{arg_ty}' is not assignable to parameter of type '{param_ty}'.")]
 pub(super) struct ArgumentOfTyIsNotAssignableToParameterOfTy {
     #[label(primary)]
@@ -40,7 +42,7 @@ pub(super) struct ArgumentOfTyIsNotAssignableToParameterOfTy {
     pub param_ty: String,
 }
 
-#[derive(Error, Diagnostic, Debug)]
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
 #[error("Expected {x} arguments, but got {y}.")]
 pub(super) struct ExpectedXArgsButGotY {
     #[label(primary)]
@@ -49,7 +51,7 @@ pub(super) struct ExpectedXArgsButGotY {
     pub y: usize,
 }
 
-#[derive(Error, Diagnostic, Debug)]
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
 #[error("Expected at least {x} arguments, but got {y}.")]
 pub(super) struct ExpectedAtLeastXArgsButGotY {
     #[label(primary)]
@@ -58,7 +60,7 @@ pub(super) struct ExpectedAtLeastXArgsButGotY {
     pub y: usize,
 }
 
-#[derive(Error, Diagnostic, Debug)]
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
 #[error("Cannot assign to '{name}' because it is a {ty}.")]
 pub(super) struct CannotAssignToNameBecauseItIsATy {
     #[label(primary)]
@@ -67,7 +69,7 @@ pub(super) struct CannotAssignToNameBecauseItIsATy {
     pub ty: String,
 }
 
-#[derive(Error, Diagnostic, Debug)]
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
 #[error("The '{op1}' operator is not allowed for boolean types. Consider using '{op2}' instead.")]
 pub(super) struct TheOp1IsNotAllowedForBooleanTypesConsiderUsingOp2Instead {
     #[label(primary)]
@@ -97,7 +99,7 @@ impl std::fmt::Display for LeftOrRight {
     }
 }
 
-#[derive(Error, Diagnostic, Debug)]
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
 #[error("The {left_or_right}-hand side of an arithmetic operation must be of type 'any', 'number', 'bigint' or an enum type.")]
 pub(super) struct TheSideOfAnArithmeticOperationMustBeOfTypeAnyNumberBigintOrAnEnumType {
     #[label(primary)]
@@ -105,7 +107,7 @@ pub(super) struct TheSideOfAnArithmeticOperationMustBeOfTypeAnyNumberBigintOrAnE
     pub left_or_right: LeftOrRight,
 }
 
-#[derive(Error, Diagnostic, Debug)]
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
 #[error("Object literal may only specify known properties, and '{field}' does not exist.")]
 pub(super) struct ObjectLitMayOnlySpecifyKnownPropAndFieldDoesNotExist {
     #[label(primary)]
@@ -113,7 +115,7 @@ pub(super) struct ObjectLitMayOnlySpecifyKnownPropAndFieldDoesNotExist {
     pub field: String,
 }
 
-#[derive(Error, Diagnostic, Debug)]
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
 #[error("Property '{field}' is missing.")]
 pub(super) struct PropertyXIsMissing {
     #[label(primary)]
@@ -121,7 +123,7 @@ pub(super) struct PropertyXIsMissing {
     pub field: String,
 }
 
-#[derive(Error, Diagnostic, Debug)]
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
 #[error("Cannot create an instance of an abstract class.")]
 pub(super) struct CannotCreateAnInstanceOfAnAbstractClass {
     #[label(primary)]
@@ -130,7 +132,7 @@ pub(super) struct CannotCreateAnInstanceOfAnAbstractClass {
     pub abstract_class_list: Vec<ClassNameHasAbstractModifier>,
 }
 
-#[derive(Error, Diagnostic, Debug)]
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
 #[error("Class '{name}' has `abstract` modifier.")]
 #[diagnostic(severity(Warning))]
 pub(super) struct ClassNameHasAbstractModifier {
@@ -139,8 +141,9 @@ pub(super) struct ClassNameHasAbstractModifier {
     pub name: String,
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, Default)]
 pub(super) enum DeclKind {
+    #[default]
     Class,
     Enum,
 }
@@ -160,7 +163,7 @@ impl std::fmt::Display for DeclKind {
     }
 }
 
-#[derive(Error, Diagnostic, Debug)]
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
 #[error("{kind} '{name}' used before its declaration.")]
 pub(super) struct CannotUsedBeforeItsDeclaration {
     #[label(primary)]
@@ -171,7 +174,7 @@ pub(super) struct CannotUsedBeforeItsDeclaration {
     pub related: [DefinedHere; 1],
 }
 
-#[derive(Error, Diagnostic, Debug)]
+#[derive(Error, Diagnostic, DiagnosticExt, Debug, Default)]
 #[error("{kind} '{name}' is defined here")]
 #[diagnostic(severity(Advice))]
 pub(super) struct DefinedHere {
@@ -181,21 +184,21 @@ pub(super) struct DefinedHere {
     pub name: String,
 }
 
-#[derive(Error, Diagnostic, Debug)]
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
 #[error("Constructor implementation is missing.")]
 pub(super) struct ConstructorImplementationIsMissing {
     #[label(primary)]
     pub span: Span,
 }
 
-#[derive(Error, Diagnostic, Debug)]
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
 #[error("Function implementation is missing or not immediately following the declaration.")]
 pub(super) struct FunctionImplementationIsMissingOrNotImmediatelyFollowingTheDeclaration {
     #[label(primary)]
     pub span: Span,
 }
 
-#[derive(Error, Diagnostic, Debug)]
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
 #[error("Value of type '{ty}' is not callable.")]
 #[diagnostic(help("Did you mean to include 'new'?"))]
 pub(super) struct ValueOfType0IsNotCallable {
@@ -204,7 +207,7 @@ pub(super) struct ValueOfType0IsNotCallable {
     pub ty: String,
 }
 
-#[derive(Error, Diagnostic, Debug)]
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
 #[error(
     "Property '{prop}' of type '{ty_b}' is not assignable to '{ty_c}' index type '{index_ty_d}'."
 )]
@@ -217,7 +220,7 @@ pub(super) struct PropertyAOfTypeBIsNotAssignableToCIndexTypeD {
     pub index_ty_d: String,
 }
 
-#[derive(Error, Diagnostic, Debug)]
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
 #[error("'{decl}' is referenced directly or indirectly in its own base expression.")]
 pub(super) struct DeclIsReferencedDirectlyOrIndirectlyInItsOwnBaseExpression {
     #[label(primary)]
@@ -225,7 +228,7 @@ pub(super) struct DeclIsReferencedDirectlyOrIndirectlyInItsOwnBaseExpression {
     pub decl: String,
 }
 
-#[derive(Error, Diagnostic, Debug)]
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
 #[error("'{ty}' index signatures are incompatible.")]
 pub(super) struct IndexSignaturesAreIncompatible {
     #[label(primary)]

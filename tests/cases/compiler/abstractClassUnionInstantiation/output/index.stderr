@@ -4,12 +4,15 @@
     · ────
     ╰────
 
-Warning:   ⚠ Class 'AbstractA' has `abstract` modifier.
+Warning: 
+  ⚠ Class 'AbstractA' has `abstract` modifier.
    ╭─[../../tests/cases/compiler/abstractClassUnionInstantiation/index.ts:5:16]
  5 │ AbstractA
    · ─────────
    ╰────
-Warning:   ⚠ Class 'AbstractB' has `abstract` modifier.
+
+Warning: 
+  ⚠ Class 'AbstractB' has `abstract` modifier.
    ╭─[../../tests/cases/compiler/abstractClassUnionInstantiation/index.ts:6:16]
  6 │ AbstractB
    · ─────────
@@ -21,12 +24,15 @@ Warning:   ⚠ Class 'AbstractB' has `abstract` modifier.
     · ────
     ╰────
 
-Warning:   ⚠ Class 'AbstractA' has `abstract` modifier.
+Warning: 
+  ⚠ Class 'AbstractA' has `abstract` modifier.
    ╭─[../../tests/cases/compiler/abstractClassUnionInstantiation/index.ts:5:16]
  5 │ AbstractA
    · ─────────
    ╰────
-Warning:   ⚠ Class 'AbstractB' has `abstract` modifier.
+
+Warning: 
+  ⚠ Class 'AbstractB' has `abstract` modifier.
    ╭─[../../tests/cases/compiler/abstractClassUnionInstantiation/index.ts:6:16]
  6 │ AbstractB
    · ─────────
@@ -38,12 +44,15 @@ Warning:   ⚠ Class 'AbstractB' has `abstract` modifier.
     · ───
     ╰────
 
-Warning:   ⚠ Class 'AbstractA' has `abstract` modifier.
+Warning: 
+  ⚠ Class 'AbstractA' has `abstract` modifier.
    ╭─[../../tests/cases/compiler/abstractClassUnionInstantiation/index.ts:5:16]
  5 │ AbstractA
    · ─────────
    ╰────
-Warning:   ⚠ Class 'AbstractB' has `abstract` modifier.
+
+Warning: 
+  ⚠ Class 'AbstractB' has `abstract` modifier.
    ╭─[../../tests/cases/compiler/abstractClassUnionInstantiation/index.ts:6:16]
  6 │ AbstractB
    · ─────────
@@ -55,12 +64,15 @@ Warning:   ⚠ Class 'AbstractB' has `abstract` modifier.
     · ───
     ╰────
 
-Warning:   ⚠ Class 'AbstractA' has `abstract` modifier.
+Warning: 
+  ⚠ Class 'AbstractA' has `abstract` modifier.
    ╭─[../../tests/cases/compiler/abstractClassUnionInstantiation/index.ts:5:16]
  5 │ AbstractA
    · ─────────
    ╰────
-Warning:   ⚠ Class 'AbstractB' has `abstract` modifier.
+
+Warning: 
+  ⚠ Class 'AbstractB' has `abstract` modifier.
    ╭─[../../tests/cases/compiler/abstractClassUnionInstantiation/index.ts:6:16]
  6 │ AbstractB
    · ─────────
@@ -72,12 +84,15 @@ Warning:   ⚠ Class 'AbstractB' has `abstract` modifier.
     · ───
     ╰────
 
-Warning:   ⚠ Class 'AbstractA' has `abstract` modifier.
+Warning: 
+  ⚠ Class 'AbstractA' has `abstract` modifier.
    ╭─[../../tests/cases/compiler/abstractClassUnionInstantiation/index.ts:5:16]
  5 │ AbstractA
    · ─────────
    ╰────
-Warning:   ⚠ Class 'AbstractB' has `abstract` modifier.
+
+Warning: 
+  ⚠ Class 'AbstractB' has `abstract` modifier.
    ╭─[../../tests/cases/compiler/abstractClassUnionInstantiation/index.ts:6:16]
  6 │ AbstractB
    · ─────────

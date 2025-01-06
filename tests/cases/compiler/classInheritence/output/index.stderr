@@ -4,7 +4,8 @@
    · ─
    ╰────
 
-Advice:   ☞ Class 'A' is defined here
+Advice: 
+  ☞ Class 'A' is defined here
    ╭─[../../tests/cases/compiler/classInheritence/index.ts:3:7]
  3 │ A
    · ─

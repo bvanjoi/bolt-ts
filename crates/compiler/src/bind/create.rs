@@ -87,7 +87,7 @@ impl<'cx> BinderState<'cx> {
                         name: n.to_string(),
                         original_span: span(&prev.kind.0),
                     };
-                    self.push_error(error_span.module, error.into());
+                    self.push_error(error_span.module, Box::new(error));
 
                     if flags.intersects(SymbolFlags::PROPERTY) {
                         let id = self.symbols.insert(Symbol::new(name, flags, kind));
@@ -249,7 +249,6 @@ impl<'cx> BinderState<'cx> {
                 exports: fx_hashmap_with_capacity(32),
             }),
         );
-        assert_eq!(symbol.index_as_u32(), 1);
         self.create_final_res(node_id, symbol);
         symbol
     }

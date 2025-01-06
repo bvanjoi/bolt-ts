@@ -411,7 +411,7 @@ impl<'cx> Resolver<'cx, '_> {
             return;
         } else if is_prim_ty_name(ident.name) {
             if let Some(error) = self.check_using_type_as_value(ident) {
-                self.push_error(ident.span.module, error);
+                self.push_error(ident.span.module, error.into_diag());
             }
             return;
         }
@@ -438,7 +438,10 @@ impl<'cx> Resolver<'cx, '_> {
         res
     }
 
-    fn check_using_namespace_as_value(&mut self, ident: &'cx ast::Ident) -> Option<crate::Diag> {
+    fn check_using_namespace_as_value(
+        &mut self,
+        ident: &'cx ast::Ident,
+    ) -> Option<errors::CannotFindNameHelperKind> {
         let symbol =
             resolve_symbol_by_ident(self, ident, |ns| ns.flags == SymbolFlags::NAMESPACE_MODULE);
         if symbol == Symbol::ERR {
@@ -446,8 +449,9 @@ impl<'cx> Resolver<'cx, '_> {
         } else {
             let ns = self.state.symbols.get(symbol).expect_ns().decls[0];
             let span = self.p.node(ns).expect_namespace_decl().name.span;
-            let error: crate::Diag =
-                Box::new(errors::CannotUseNamespaceAsTyOrValue { span, is_ty: false });
+            let error = errors::CannotFindNameHelperKind::CannotUseNamespaceAsTyOrValue(
+                errors::CannotUseNamespaceAsTyOrValue { span, is_ty: false },
+            );
             Some(error)
         }
     }
@@ -458,7 +462,11 @@ impl<'cx> Resolver<'cx, '_> {
         mut error: errors::CannotFindName,
     ) -> errors::CannotFindName {
         if let Some(e) = self.check_missing_prefix(ident) {
-            error.errors.push(e);
+            error
+                .errors
+                .push(errors::CannotFindNameHelperKind::DidYouMeanTheStaticMember(
+                    e,
+                ));
         }
         if let Some(e) = self.check_using_type_as_value(ident) {
             error.errors.push(e);
@@ -469,7 +477,10 @@ impl<'cx> Resolver<'cx, '_> {
         error
     }
 
-    fn check_missing_prefix(&mut self, ident: &'cx ast::Ident) -> Option<crate::Diag> {
+    fn check_missing_prefix(
+        &mut self,
+        ident: &'cx ast::Ident,
+    ) -> Option<errors::DidYourMeanTheStaticMember> {
         let mut location = ident.id;
         while let Some(parent) = self.p.parent(location) {
             location = parent;
@@ -504,7 +515,7 @@ impl<'cx> Resolver<'cx, '_> {
                             self.state.atoms.get(prop_name.name)
                         ),
                     };
-                    return Some(Box::new(error));
+                    return Some(error);
                 }
             }
         }
@@ -512,7 +523,10 @@ impl<'cx> Resolver<'cx, '_> {
         None
     }
 
-    fn check_using_type_as_value(&mut self, ident: &'cx ast::Ident) -> Option<crate::Diag> {
+    fn check_using_type_as_value(
+        &mut self,
+        ident: &'cx ast::Ident,
+    ) -> Option<errors::CannotFindNameHelperKind> {
         if is_prim_ty_name(ident.name) {
             let grand = self
                 .p
@@ -522,17 +536,25 @@ impl<'cx> Resolver<'cx, '_> {
             let grand_node = self.p.node(grand);
             let container_node = self.p.node(container);
             if grand_node.as_class_implements_clause().is_some() && container_node.is_class_like() {
-                return Some(Box::new(errors::AClassCannotImplementAPrimTy {
-                    span: ident.span,
-                    ty: self.state.atoms.get(ident.name).to_string(),
-                }));
+                return Some(
+                    errors::CannotFindNameHelperKind::AClassCannotImplementAPrimTy(
+                        errors::AClassCannotImplementAPrimTy {
+                            span: ident.span,
+                            ty: self.state.atoms.get(ident.name).to_string(),
+                        },
+                    ),
+                );
             } else if grand_node.as_interface_extends_clause().is_some()
                 && container_node.is_interface_decl()
             {
-                return Some(Box::new(errors::AnInterfaceCannotExtendAPrimTy {
-                    span: ident.span,
-                    ty: self.state.atoms.get(ident.name).to_string(),
-                }));
+                return Some(
+                    errors::CannotFindNameHelperKind::AnInterfaceCannotExtendAPrimTy(
+                        errors::AnInterfaceCannotExtendAPrimTy {
+                            span: ident.span,
+                            ty: self.state.atoms.get(ident.name).to_string(),
+                        },
+                    ),
+                );
             }
         }
 

@@ -1,19 +1,23 @@
-use std::sync::Arc;
+mod config_related;
+pub mod diag_ext;
+mod source_code;
 
-use bolt_ts_span::{ModuleArena, ModuleID, ModulePath};
+pub use bolt_ts_diag_derive::DiagnosticExt;
+use bolt_ts_span::{ModuleArena, ModuleID};
+use diag_ext::into_miette_diagnostic;
 pub use miette;
 pub use thiserror;
 
 #[derive(Debug)]
 pub struct Diag {
     pub module_id: ModuleID,
-    pub inner: Box<dyn miette::Diagnostic + Send + Sync + 'static>,
+    pub inner: Box<dyn diag_ext::DiagnosticExt + Send + Sync + 'static>,
 }
 
 impl Diag {
     pub fn new(
         module_id: ModuleID,
-        diag: Box<dyn miette::Diagnostic + Send + Sync + 'static>,
+        diag: Box<dyn diag_ext::DiagnosticExt + Send + Sync + 'static>,
     ) -> Self {
         Self {
             module_id,
@@ -22,23 +26,9 @@ impl Diag {
     }
 
     pub fn emit_message(self, module_arena: &ModuleArena, no_color: bool) -> String {
-        let source = module_arena.get_content(self.module_id);
-        let filename = if let ModulePath::Real(filename) = module_arena.get_path(self.module_id) {
-            let cwd = std::env::current_dir().unwrap();
-            let relative =
-                relative_path::PathExt::relative_to(filename.as_path(), cwd.as_path()).unwrap();
-            Some(relative.to_string())
-        } else {
-            None
-        };
-        let source_code = SourceCode {
-            filename,
-            source: source.clone(),
-        };
-
         let mut out = String::new();
-        let mut error_report = miette::ErrReport::new_boxed(self.inner);
-        error_report = error_report.with_source_code(source_code);
+        let error = into_miette_diagnostic(self.inner, module_arena);
+        let error_report = miette::ErrReport::new_boxed(error);
         let theme = if no_color {
             miette::GraphicalTheme::unicode_nocolor()
         } else {
@@ -49,7 +39,7 @@ impl Diag {
             .with_context_lines(0)
             .render_report(&mut out, error_report.as_ref())
             .unwrap();
-        out
+        out.trim_start_matches('\n').to_string()
     }
 
     pub fn emit(self, module_arena: &ModuleArena) {
@@ -59,45 +49,6 @@ impl Diag {
         };
         let out = self.emit_message(module_arena, no_color);
         println!("{out}");
-    }
-}
-
-use miette::MietteSpanContents;
-
-#[derive(Debug)]
-pub struct SourceCode {
-    pub filename: Option<String>,
-    pub source: Arc<String>,
-}
-
-impl miette::SourceCode for SourceCode {
-    fn read_span<'a>(
-        &'a self,
-        span: &miette::SourceSpan,
-        context_lines_before: usize,
-        context_lines_after: usize,
-    ) -> Result<Box<dyn miette::SpanContents<'a> + 'a>, miette::MietteError> {
-        let inner_contents =
-            self.source
-                .read_span(span, context_lines_before, context_lines_after)?;
-        let contents = match &self.filename {
-            Some(filename) => MietteSpanContents::new_named(
-                filename.to_string(),
-                inner_contents.data(),
-                *inner_contents.span(),
-                inner_contents.line(),
-                inner_contents.column(),
-                inner_contents.line_count(),
-            ),
-            None => MietteSpanContents::new(
-                inner_contents.data(),
-                *inner_contents.span(),
-                inner_contents.line(),
-                inner_contents.column(),
-                inner_contents.line_count(),
-            ),
-        };
-        Ok(Box::new(contents))
     }
 }
 

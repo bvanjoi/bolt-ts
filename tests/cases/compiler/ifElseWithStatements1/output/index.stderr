@@ -4,10 +4,8 @@
    · ─
    ╰────
 
-
   × Cannot find name 'f'.
    ╭─[../../tests/cases/compiler/ifElseWithStatements1/index.ts:6:3]
  6 │ f
    · ─
    ╰────
-

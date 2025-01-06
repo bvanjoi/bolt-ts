@@ -57,11 +57,11 @@ impl<'cx> CheckState<'cx> {
     }
     fn check_collisions_for_decl_name(&mut self, node: ast::NodeID, name: &'cx ast::Ident) {
         if self.p.node(node).is_class_like() && is_reserved_type_name(name.name) {
-            let error = Box::new(errors::ClassNameCannotBe {
+            let error = errors::ClassNameCannotBe {
                 span: name.span,
                 name: self.atoms.get(name.name).to_string(),
-            });
-            self.push_error(error);
+            };
+            self.push_error(Box::new(error));
         }
     }
     fn check_class_like(&mut self, class: &impl ir::ClassLike<'cx>) {

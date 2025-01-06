@@ -1,12 +1,14 @@
+use bolt_ts_errors::diag_ext;
 use bolt_ts_errors::miette;
 use bolt_ts_errors::miette::Diagnostic;
 use bolt_ts_errors::thiserror;
 use bolt_ts_errors::thiserror::Error;
+use bolt_ts_errors::DiagnosticExt;
 use bolt_ts_span::Span;
 
 use crate::ast::ModifierKind;
 
-#[derive(Error, Diagnostic, Debug)]
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
 #[error("Syntax Error: Unexpected token ','")]
 pub(super) struct ClassesCanOnlyExtendASingleClass {
     #[label(primary)]
@@ -15,14 +17,14 @@ pub(super) struct ClassesCanOnlyExtendASingleClass {
     pub extra_extends: Option<Span>,
 }
 
-#[derive(Error, Diagnostic, Debug)]
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
 #[error("Type parameter list cannot be empty.")]
 pub(super) struct TypeParameterListCannotBeEmpty {
     #[label(primary)]
     pub span: Span,
 }
 
-#[derive(Error, Diagnostic, Debug)]
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
 #[error("Octal literals are not allowed.")]
 #[diagnostic(help = "Use the syntax '{help_lit}'.")]
 pub(super) struct OctalLiteralsAreNotAllowed {
@@ -31,21 +33,21 @@ pub(super) struct OctalLiteralsAreNotAllowed {
     pub help_lit: String,
 }
 
-#[derive(Error, Diagnostic, Debug)]
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
 #[error("Variable declaration list cannot be empty.")]
 pub(super) struct VariableDeclarationListCannotBeEmpty {
     #[label(primary)]
     pub span: Span,
 }
 
-#[derive(Error, Diagnostic, Debug)]
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
 #[error("A parameter property is only allowed in a constructor implementation.")]
 pub(super) struct AParamPropIsOnlyAllowedInAConstructorImplementation {
     #[label(primary)]
     pub span: Span,
 }
 
-#[derive(Error, Diagnostic, Debug)]
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
 #[error("{kind}")]
 pub(super) struct MissingIdent {
     #[label(primary)]
@@ -61,14 +63,14 @@ pub(super) enum MissingIdentKind {
     ExpressionExpected,
 }
 
-#[derive(Error, Diagnostic, Debug)]
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
 #[error("Type argument list cannot be empty.")]
 pub(super) struct TypeArgumentListCannotBeEmpty {
     #[label(primary)]
     pub span: Span,
 }
 
-#[derive(Error, Diagnostic, Debug)]
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
 #[error("{} cannot be declared using a rest parameter.", {kinds.iter().map(|k| format!("'{k}'")).collect::<Vec<_>>().join(", ")})]
 pub(super) struct AParameterPropertyCannotBeDeclaredUsingARestParameter {
     #[label(primary)]
@@ -76,7 +78,7 @@ pub(super) struct AParameterPropertyCannotBeDeclaredUsingARestParameter {
     pub kinds: Vec<ModifierKind>,
 }
 
-#[derive(Error, Diagnostic, Debug)]
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
 #[error("Expected '{x}'.")]
 pub(super) struct ExpectX {
     #[label(primary)]
@@ -100,7 +102,7 @@ impl std::fmt::Display for ClauseKind {
     }
 }
 
-#[derive(Error, Diagnostic, Debug)]
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
 #[error("'{kind}' clause already seen.")]
 pub(super) struct ClauseAlreadySeen {
     #[label(primary)]
@@ -110,7 +112,7 @@ pub(super) struct ClauseAlreadySeen {
     pub origin: Span,
 }
 
-#[derive(Error, Diagnostic, Debug)]
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
 #[error("'extends' clause must precede 'implements' clause.")]
 pub(super) struct ExtendsClauseMustPrecedeImplementsClause {
     #[label(primary)]

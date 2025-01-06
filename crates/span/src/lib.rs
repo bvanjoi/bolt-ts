@@ -9,7 +9,13 @@ impl ModuleID {
     pub const MOCK: ModuleID = ModuleID(u32::MAX);
 }
 
-#[derive(Debug, Clone, Copy)]
+impl Default for ModuleID {
+    fn default() -> Self {
+        Self::MOCK
+    }
+}
+
+#[derive(Debug, Clone, Copy, Default)]
 pub struct Span {
     pub lo: u32,
     pub hi: u32,

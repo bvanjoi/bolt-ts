@@ -387,7 +387,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
             let span = self.token.span;
             let kind = missing_ident_kind.unwrap_or(errors::MissingIdentKind::IdentifierExpected);
             let error = errors::MissingIdent { span, kind };
-            self.push_error(error.into());
+            self.push_error(Box::new(error));
             ident(self, keyword::IDENT_EMPTY)
         }
     }
