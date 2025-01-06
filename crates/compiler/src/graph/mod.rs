@@ -32,6 +32,10 @@ impl ModuleGraph {
     pub fn get_dep(&self, from: ModuleID, by: ast::NodeID) -> Option<ModuleID> {
         self.deps.get(&from).and_then(|map| map.get(&by).copied())
     }
+
+    pub fn deps(&self, from: ModuleID) -> Option<&FxHashMap<ast::NodeID, ModuleID>> {
+        self.deps.get(&from)
+    }
 }
 
 pub(super) fn build_graph<'cx>(

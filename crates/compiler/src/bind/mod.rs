@@ -14,8 +14,9 @@ use bolt_ts_span::ModuleID;
 use rayon::prelude::*;
 use rustc_hash::FxHashMap;
 
+pub use self::symbol::BlockContainerSymbol;
 use self::symbol::ClassSymbol;
-use self::symbol::SymbolKind;
+pub(crate) use self::symbol::SymbolKind;
 use self::symbol::TransientSymbol;
 use self::symbol::TyLitSymbol;
 pub use self::symbol::{GlobalSymbols, Symbol, SymbolID, SymbolName, Symbols};

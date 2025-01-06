@@ -249,6 +249,7 @@ impl<'cx> BinderState<'cx> {
                 exports: fx_hashmap_with_capacity(32),
             }),
         );
+        assert_eq!(symbol.index_as_u32(), 1);
         self.create_final_res(node_id, symbol);
         symbol
     }

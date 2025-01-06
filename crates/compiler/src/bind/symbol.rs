@@ -114,7 +114,7 @@ bitflags::bitflags! {
 pub struct Symbol<'cx> {
     pub name: SymbolName,
     pub flags: SymbolFlags,
-    pub(super) kind: (SymbolKind<'cx>, Option<InterfaceSymbol>, Option<NsSymbol>),
+    pub(crate) kind: (SymbolKind<'cx>, Option<InterfaceSymbol>, Option<NsSymbol>),
 }
 
 impl<'cx> Symbol<'cx> {
@@ -157,7 +157,7 @@ pub enum SymbolFnKind {
 }
 
 #[derive(Debug)]
-pub(super) enum SymbolKind<'cx> {
+pub(crate) enum SymbolKind<'cx> {
     Err,
     BlockContainer(BlockContainerSymbol),
     /// `var` or parameter
@@ -376,6 +376,15 @@ pub struct Symbols<'cx> {
     data: Vec<Symbol<'cx>>,
 }
 
+impl Default for Symbols<'_> {
+    fn default() -> Self {
+        Self {
+            module_id: ModuleID::root(),
+            data: Vec::new(),
+        }
+    }
+}
+
 impl<'cx> Symbols<'cx> {
     pub fn new(module_id: ModuleID) -> Self {
         let mut this = Self {
@@ -402,6 +411,11 @@ impl<'cx> Symbols<'cx> {
 
     pub fn get(&self, id: SymbolID) -> &Symbol<'cx> {
         &self.data[id.index_as_usize()]
+    }
+
+    pub fn get_container(&self, module: ModuleID) -> &Symbol<'cx> {
+        let id = SymbolID { module, index: 1 };
+        self.get(id)
     }
 
     pub fn get_mut(&mut self, id: SymbolID) -> &mut Symbol<'cx> {

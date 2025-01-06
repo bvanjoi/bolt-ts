@@ -28,6 +28,7 @@ use bolt_ts_config::NormalizedTsConfig;
 use bolt_ts_fs::CachedFileSystem;
 use bolt_ts_span::{ModuleArena, ModuleID, ModulePath};
 
+use bolt_ts_utils::fx_hashmap_with_capacity;
 use normalize_path::NormalizePath;
 use rustc_hash::FxHashMap;
 
@@ -187,8 +188,7 @@ pub fn eval_from(cwd: PathBuf, tsconfig: NormalizedTsConfig) -> Output {
     let early_resolve_result =
         early_resolve_parallel(module_arena.modules(), &bind_list, &p, &global_symbols);
 
-    let mut binder = bind::Binder::new(&p, &atoms);
-
+    let mut states = fx_hashmap_with_capacity(module_arena.modules().len());
     for (m, early_resolve_result, mut state) in module_arena
         .modules()
         .iter()
@@ -203,13 +203,20 @@ pub fn eval_from(cwd: PathBuf, tsconfig: NormalizedTsConfig) -> Output {
             }
         }
         state.final_res.extend(early_resolve_result.final_res);
-        let result = late_resolve::ResolveResult {
-            diags: state.diags,
-            symbols: state.symbols,
-            final_res: state.final_res,
-            deep_res: FxHashMap::default(),
-        };
-        binder.insert(m.id, result);
+        let prev = states.insert(m.id, state);
+        assert!(prev.is_none());
+    }
+
+    let mut binder = bind::Binder::new(&p, &atoms);
+    for (m, res) in late_resolve::late_resolve(
+        states,
+        module_arena.modules(),
+        &mg,
+        &p,
+        &global_symbols,
+        &atoms,
+    ) {
+        binder.insert(m, res);
     }
 
     let diags: Vec<_> = diags
