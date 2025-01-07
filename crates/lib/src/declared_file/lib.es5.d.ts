@@ -156,6 +156,19 @@ interface StringConstructor {
 */
 declare var String: StringConstructor;
 
+interface Boolean {
+  /** Returns the primitive value of the specified object. */
+  valueOf(): boolean;
+}
+
+interface BooleanConstructor {
+  new (value?: any): Boolean;
+  <T>(value?: T): boolean;
+  readonly prototype: Boolean;
+}
+
+declare var Boolean: BooleanConstructor;
+
 interface Error {
   name: string;
   message: string;
@@ -336,12 +349,12 @@ interface Array<T> {
     //  * If thisArg is omitted, undefined is used as the this value.
     //  */
     // some(predicate: (value: T, index: number, array: T[]) => unknown, thisArg?: any): boolean;
-    // /**
-    //  * Performs the specified action for each element in an array.
-    //  * @param callbackfn  A function that accepts up to three arguments. forEach calls the callbackfn function one time for each element in the array.
-    //  * @param thisArg  An object to which the this keyword can refer in the callbackfn function. If thisArg is omitted, undefined is used as the this value.
-    //  */
-    // forEach(callbackfn: (value: T, index: number, array: T[]) => void, thisArg?: any): void;
+    /**
+     * Performs the specified action for each element in an array.
+     * @param callbackfn  A function that accepts up to three arguments. forEach calls the callbackfn function one time for each element in the array.
+     * @param thisArg  An object to which the this keyword can refer in the callbackfn function. If thisArg is omitted, undefined is used as the this value.
+     */
+    forEach(callbackfn: (value: T, index: number, array: T[]) => void, thisArg?: any): void;
     /**
      * Calls a defined callback function on each element of an array, and returns an array that contains the results.
      * @param callbackfn A function that accepts up to three arguments. The map method calls the callbackfn function one time for each element in the array.

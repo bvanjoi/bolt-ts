@@ -22,6 +22,11 @@ pub fn visit_stmt<'cx>(v: &mut impl Visitor<'cx>, stmt: &'cx super::Stmt) {
         Namespace(_) => (),
         Throw(_) => (),
         Enum(_) => (),
+        For(_) => (),
+        ForOf(_) => (),
+        ForIn(_) => (),
+        Break(_) => (),
+        Continue(_) => {}
     }
 }
 

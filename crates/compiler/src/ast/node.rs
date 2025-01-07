@@ -59,6 +59,11 @@ pub enum Node<'cx> {
     ImportClause(&'cx super::ImportClause<'cx>),
     ImportDecl(&'cx super::ImportDecl<'cx>),
     ExportDecl(&'cx super::ExportDecl<'cx>),
+    ForStmt(&'cx super::ForStmt<'cx>),
+    ForInStmt(&'cx super::ForInStmt<'cx>),
+    ForOfStmt(&'cx super::ForOfStmt<'cx>),
+    BreakStmt(&'cx super::BreakStmt<'cx>),
+    ContinueStmt(&'cx super::ContinueStmt<'cx>),
 
     // expr
     VarDecl(&'cx super::VarDecl<'cx>),
@@ -949,5 +954,40 @@ as_node!(
         as_specs_export,
         expect_specs_export,
         is_specs_export
+    ),
+    (
+        ForStmt,
+        &'cx super::ForStmt<'cx>,
+        as_for_stmt,
+        expect_for_stmt,
+        is_for_stmt
+    ),
+    (
+        ForInStmt,
+        &'cx super::ForInStmt<'cx>,
+        as_for_in_stmt,
+        expect_for_in_stmt,
+        is_for_in_stmt
+    ),
+    (
+        ForOfStmt,
+        &'cx super::ForOfStmt<'cx>,
+        as_for_of_stmt,
+        expect_for_of_stmt,
+        is_for_of_stmt
+    ),
+    (
+        BreakStmt,
+        &'cx super::BreakStmt<'cx>,
+        as_break_stmt,
+        expect_break_stmt,
+        is_break_stmt
+    ),
+    (
+        ContinueStmt,
+        &'cx super::ContinueStmt<'cx>,
+        as_continue_stmt,
+        expect_continue_stmt,
+        is_continue_stmt
     )
 );

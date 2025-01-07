@@ -94,6 +94,37 @@ impl<'cx> BinderState<'cx> {
             Enum(enum_decl) => {}
             Import(import_dec) => {}
             Export(decl) => self.bind_export_decl(container, decl),
+            For(n) => {
+                if let Some(init) = &n.init {
+                    self.bind_for_init(init);
+                }
+                if let Some(cond) = n.cond {
+                    self.bind_expr(cond);
+                }
+                if let Some(update) = n.incr {
+                    self.bind_expr(update);
+                }
+                self.bind_stmt(container, n.body);
+            }
+            ForOf(n) => {
+                self.bind_for_init(&n.init);
+                self.bind_expr(n.expr);
+                self.bind_stmt(container, n.body);
+            }
+            ForIn(n) => {
+                self.bind_for_init(&n.init);
+                self.bind_expr(n.expr);
+                self.bind_stmt(container, n.body);
+            }
+            Break(_) | Continue(_) => {}
+        }
+    }
+
+    fn bind_for_init(&mut self, init: &ast::ForInitKind<'cx>) {
+        use ast::ForInitKind::*;
+        match init {
+            Var((kind, var)) => self.bind_var_decls(var, *kind),
+            Expr(expr) => self.bind_expr(expr),
         }
     }
 
@@ -465,10 +496,7 @@ impl<'cx> BinderState<'cx> {
 
     fn bind_var_stmt(&mut self, var: &'cx ast::VarStmt) {
         self.connect(var.id);
-        let kind = var.kind;
-        for item in var.list {
-            self.bind_var_decl(item, kind);
-        }
+        self.bind_var_decls(var.list, var.kind);
     }
 
     fn bind_entity_name(&mut self, name: &'cx ast::EntityName) {
@@ -546,6 +574,12 @@ impl<'cx> BinderState<'cx> {
 
     fn bind_array_ty(&mut self, array: &'cx ast::ArrayTy) {
         self.bind_ty(array.ele)
+    }
+
+    fn bind_var_decls(&mut self, decls: ast::VarDecls<'cx>, kind: ast::VarKind) {
+        for decl in decls {
+            self.bind_var_decl(decl, kind);
+        }
     }
 
     fn bind_var_decl(&mut self, decl: &'cx ast::VarDecl<'cx>, kind: ast::VarKind) {

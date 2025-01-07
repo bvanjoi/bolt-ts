@@ -1,0 +1,5 @@
+  × Cannot find name 'something'.
+   ╭─[../../tests/cases/compiler/breakInIterationOrSwitchStatement4/index.ts:3:15]
+ 3 │ something
+   · ─────────
+   ╰────

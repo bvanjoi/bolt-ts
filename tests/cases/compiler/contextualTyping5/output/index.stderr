@@ -1,5 +1,12 @@
   × Property 'id' is missing.
-   ╭─[../../tests/cases/compiler/contextualTyping5/index.ts:1:24]
- 1 │ {id:number;}
+   ╭─[../../tests/cases/compiler/contextualTyping5/index.ts:3:39]
+ 3 │ { }
+   · ───
+   ╰────
+
+Advice: 
+  ☞ Property 'id' is defined here
+   ╭─[../../tests/cases/compiler/contextualTyping5/index.ts:3:24]
+ 3 │ {id:number;}
    · ────────────
    ╰────

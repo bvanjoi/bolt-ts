@@ -1,5 +1,5 @@
   × Identifier expected.
-   ╭─[../../tests/cases/compiler/incompleteDottedExpressionAtEOF/index.ts:3:17]
+   ╭─[../../tests/cases/compiler/incompleteDottedExpressionAtEOF/index.ts:5:32]
    ╰────
 
   × Cannot find name 'window'.

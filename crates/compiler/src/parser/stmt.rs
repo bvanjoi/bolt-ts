@@ -1,5 +1,6 @@
-use crate::ast::NodeFlags;
+use crate::ast::{NodeFlags, VarDecls};
 use crate::keyword;
+use crate::parser::parse_break_or_continue::{ParseBreak, ParseContinue};
 
 use super::ast;
 use super::errors;
@@ -32,10 +33,106 @@ impl<'cx> ParserState<'cx, '_> {
             Module | Namespace => ast::StmtKind::Namespace(self.parse_ns_decl(None)?),
             Enum => ast::StmtKind::Enum(self.parse_enum_decl(None)?),
             Throw => ast::StmtKind::Throw(self.parse_throw_stmt()?),
+            For => self.parse_for_stmt()?,
+            Break => ast::StmtKind::Break(self.parse_break_or_continue(&ParseBreak)?),
+            Continue => ast::StmtKind::Continue(self.parse_break_or_continue(&ParseContinue)?),
             _ => ast::StmtKind::Expr(self.parse_expr_or_labeled_stmt()?),
         };
         let stmt = self.alloc(ast::Stmt { kind });
         Ok(stmt)
+    }
+
+    fn disallow_in_and<T>(&mut self, f: impl FnOnce(&mut Self) -> T) -> T {
+        self.do_inside_of_context(NodeFlags::DISALLOW_IN_CONTEXT, f)
+    }
+
+    fn allow_in_and<T>(&mut self, f: impl FnOnce(&mut Self) -> T) -> T {
+        self.do_inside_of_context(NodeFlags::DISALLOW_IN_CONTEXT, f)
+    }
+
+    fn parse_for_stmt(&mut self) -> PResult<ast::StmtKind<'cx>> {
+        use TokenKind::*;
+        let start = self.token.start();
+        let id = self.next_node_id();
+        self.expect(For)?;
+        let await_token = self.parse_optional(Await);
+        self.expect(LParen)?;
+        let t = self.token.kind;
+        let init = if t != Semi {
+            if matches!(t, Var | Let | Const) {
+                Some(ast::ForInitKind::Var((
+                    t.try_into().unwrap(),
+                    self.with_parent(id, |this| this.parse_var_decl_list(true)),
+                )))
+            } else {
+                Some(ast::ForInitKind::Expr(self.with_parent(id, |this| {
+                    this.disallow_in_and(Self::parse_expr)
+                })?))
+            }
+        } else {
+            None
+        };
+
+        if (await_token.is_none() && self.expect(TokenKind::Of).is_ok())
+            || self.parse_optional(TokenKind::Of).is_some()
+        {
+            let init = init.unwrap();
+            let expr = self.with_parent(id, |this| {
+                this.allow_in_and(|this| this.parse_assign_expr(true))
+            })?;
+            self.expect(TokenKind::RParen)?;
+            let body = self.parse_stmt()?;
+            let kind = self.alloc(ast::ForOfStmt {
+                id,
+                span: self.new_span(start),
+                r#await: await_token.map(|t| t.span),
+                init,
+                expr,
+                body,
+            });
+            self.insert_map(id, ast::Node::ForOfStmt(kind));
+            Ok(ast::StmtKind::ForOf(kind))
+        } else if self.parse_optional(TokenKind::In).is_some() {
+            let init = init.unwrap();
+            let expr = self.with_parent(id, |this| this.allow_in_and(Self::parse_expr))?;
+            self.expect(TokenKind::RParen)?;
+            let body = self.parse_stmt()?;
+            let kind = self.alloc(ast::ForInStmt {
+                id,
+                span: self.new_span(start),
+                init,
+                expr,
+                body,
+            });
+            self.insert_map(id, ast::Node::ForInStmt(kind));
+            Ok(ast::StmtKind::ForIn(kind))
+        } else {
+            self.expect(Semi)?;
+            let cond = if !matches!(self.token.kind, Semi | RParen) {
+                Some(self.with_parent(id, |this| this.allow_in_and(Self::parse_expr))?)
+            } else {
+                None
+            };
+            self.expect(Semi)?;
+            let incr = if !matches!(self.token.kind, RParen) {
+                Some(self.with_parent(id, |this| this.allow_in_and(Self::parse_expr))?)
+            } else {
+                None
+            };
+            self.expect(TokenKind::RParen)?;
+
+            let body = self.parse_stmt()?;
+            let kind = self.alloc(ast::ForStmt {
+                id,
+                span: self.new_span(start),
+                init,
+                cond,
+                incr,
+                body,
+            });
+            self.insert_map(id, ast::Node::ForStmt(kind));
+            Ok(ast::StmtKind::For(kind))
+        }
     }
 
     fn parse_enum_decl(
@@ -404,6 +501,22 @@ impl<'cx> ParserState<'cx, '_> {
         }
     }
 
+    fn do_outside_of_context<T>(
+        &mut self,
+        context: NodeFlags,
+        f: impl FnOnce(&mut Self) -> T,
+    ) -> T {
+        let set = context & self.context_flags;
+        if !set.is_empty() {
+            self.set_context_flags(false, set);
+            let res = f(self);
+            self.set_context_flags(true, set);
+            res
+        } else {
+            f(self)
+        }
+    }
+
     fn do_inside_of_context<T>(&mut self, context: NodeFlags, f: impl FnOnce(&mut Self) -> T) -> T {
         let set = context & !self.context_flags;
         if !set.is_empty() {
@@ -520,14 +633,8 @@ impl<'cx> ParserState<'cx, '_> {
     ) -> &'cx ast::VarStmt<'cx> {
         let id = self.next_node_id();
         let start = self.token.start();
-        use TokenKind::*;
-        let kind = match self.token.kind {
-            Var | Let | Const => unsafe {
-                std::mem::transmute::<u8, ast::VarKind>(self.token.kind as u8 - Var as u8)
-            },
-            _ => unreachable!(),
-        };
-        let list = self.with_parent(id, Self::parse_var_decl_list);
+        let kind = self.token.kind.try_into().unwrap();
+        let list = self.with_parent(id, |this| this.parse_var_decl_list(false));
         if list.is_empty() {
             let span = self.new_span(start);
             self.push_error(Box::new(errors::VariableDeclarationListCannotBeEmpty {
@@ -574,9 +681,9 @@ impl<'cx> ParserState<'cx, '_> {
         Ok(node)
     }
 
-    fn parse_var_decl_list(&mut self) -> &'cx [&'cx ast::VarDecl<'cx>] {
+    fn parse_var_decl_list(&mut self, in_for_stmt_initializer: bool) -> VarDecls<'cx> {
         self.next_token();
-        self.parse_delimited_list(list_ctx::VarDecl, Self::parse_var_decl)
+        self.parse_delimited_list(list_ctx::VarDecls, Self::parse_var_decl)
     }
 
     fn parse_fn_decl(

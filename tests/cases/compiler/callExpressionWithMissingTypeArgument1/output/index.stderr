@@ -1,0 +1,23 @@
+  × Identifier expected.
+   ╭─[../../tests/cases/compiler/callExpressionWithMissingTypeArgument1/index.ts:1:7]
+ 1 │ ,
+   · ─
+   ╰────
+
+  × Cannot find name 'Foo'.
+   ╭─[../../tests/cases/compiler/callExpressionWithMissingTypeArgument1/index.ts:1:1]
+ 1 │ Foo
+   · ───
+   ╰────
+
+  × Cannot find name 'a'.
+   ╭─[../../tests/cases/compiler/callExpressionWithMissingTypeArgument1/index.ts:1:5]
+ 1 │ a
+   · ─
+   ╰────
+
+  × Cannot find name 'b'.
+   ╭─[../../tests/cases/compiler/callExpressionWithMissingTypeArgument1/index.ts:1:8]
+ 1 │ b
+   · ─
+   ╰────

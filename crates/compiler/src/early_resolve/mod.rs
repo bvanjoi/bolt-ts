@@ -2,7 +2,7 @@ mod errors;
 mod resolve_call_like;
 mod resolve_class_like;
 
-use bolt_ts_span::{Module, ModuleID};
+use bolt_ts_span::Module;
 use bolt_ts_utils::fx_hashmap_with_capacity;
 
 use rayon::prelude::*;
@@ -97,6 +97,25 @@ impl<'cx> Resolver<'cx, '_> {
             Enum(enum_decl) => {}
             Import(import_decl) => {}
             Export(export_decl) => {}
+            For(for_stmt) => {}
+            ForOf(n) => {
+                self.resolve_expr(n.expr);
+                self.resolve_stmt(n.body);
+            }
+            ForIn(n) => {
+                self.resolve_expr(n.expr);
+                self.resolve_stmt(n.body);
+            }
+            Break(n) => {
+                if let Some(ident) = n.label {
+                    self.resolve_symbol_by_ident(ident, Symbol::is_value);
+                }
+            }
+            Continue(n) => {
+                if let Some(ident) = n.label {
+                    self.resolve_symbol_by_ident(ident, Symbol::is_value);
+                }
+            }
         };
     }
 

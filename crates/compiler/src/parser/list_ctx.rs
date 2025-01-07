@@ -134,14 +134,16 @@ impl ListContext for HeritageClause {
 }
 
 #[derive(Copy, Clone)]
-pub(super) struct VarDecl;
-impl ListContext for VarDecl {
+pub(super) struct VarDecls;
+impl ListContext for VarDecls {
     fn is_ele(&self, s: &mut ParserState) -> bool {
         s.token.kind.is_binding_ident_or_private_ident_or_pat()
     }
 
     fn is_closing(&self, s: &mut ParserState) -> bool {
         s.can_parse_semi()
+            || s.token.kind.is_in_or_of_keyword()
+            || s.token.kind == TokenKind::EqGreat
     }
 }
 

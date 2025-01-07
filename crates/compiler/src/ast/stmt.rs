@@ -13,6 +13,11 @@ pub enum StmtKind<'cx> {
     Empty(&'cx EmptyStmt),
     Var(&'cx VarStmt<'cx>),
     If(&'cx IfStmt<'cx>),
+    For(&'cx ForStmt<'cx>),
+    ForOf(&'cx ForOfStmt<'cx>),
+    ForIn(&'cx ForInStmt<'cx>),
+    Break(&'cx BreakStmt<'cx>),
+    Continue(&'cx ContinueStmt<'cx>),
     Return(&'cx RetStmt<'cx>),
     Block(&'cx BlockStmt<'cx>),
     Fn(&'cx FnDecl<'cx>),
@@ -46,8 +51,62 @@ impl Stmt<'_> {
             Enum(e) => e.id,
             Import(n) => n.id,
             Export(n) => n.id,
+            For(n) => n.id,
+            ForOf(n) => n.id,
+            ForIn(n) => n.id,
+            Break(n) => n.id,
+            Continue(n) => n.id,
         }
     }
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct BreakStmt<'cx> {
+    pub id: NodeID,
+    pub span: Span,
+    pub label: Option<&'cx Ident>,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct ContinueStmt<'cx> {
+    pub id: NodeID,
+    pub span: Span,
+    pub label: Option<&'cx Ident>,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct ForStmt<'cx> {
+    pub id: NodeID,
+    pub span: Span,
+    pub init: Option<ForInitKind<'cx>>,
+    pub cond: Option<&'cx Expr<'cx>>,
+    pub incr: Option<&'cx Expr<'cx>>,
+    pub body: &'cx Stmt<'cx>,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub enum ForInitKind<'cx> {
+    Var((VarKind, VarDecls<'cx>)),
+    Expr(&'cx Expr<'cx>),
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct ForOfStmt<'cx> {
+    pub id: NodeID,
+    pub span: Span,
+    pub r#await: Option<Span>,
+    pub init: ForInitKind<'cx>,
+    pub expr: &'cx Expr<'cx>,
+    pub body: &'cx Stmt<'cx>,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct ForInStmt<'cx> {
+    pub id: NodeID,
+    pub span: Span,
+    pub init: ForInitKind<'cx>,
+    pub expr: &'cx Expr<'cx>,
+    pub body: &'cx Stmt<'cx>,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -305,13 +364,15 @@ pub enum VarKind {
     Const,
 }
 
+pub type VarDecls<'cx> = &'cx [&'cx VarDecl<'cx>];
+
 #[derive(Debug, Clone, Copy)]
 pub struct VarStmt<'cx> {
     pub id: NodeID,
     pub kind: VarKind,
     pub span: Span,
     pub modifiers: Option<&'cx Modifiers<'cx>>,
-    pub list: &'cx [&'cx VarDecl<'cx>],
+    pub list: VarDecls<'cx>,
 }
 
 #[enumflags2::bitflags]

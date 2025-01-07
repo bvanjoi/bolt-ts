@@ -6,7 +6,7 @@ use crate::bind::{
 };
 use crate::graph::ModuleGraph;
 use crate::{ast, parser};
-use bolt_ts_atom::{AtomId, AtomMap};
+use bolt_ts_atom::{ AtomMap};
 use bolt_ts_span::{Module, ModuleID};
 use bolt_ts_utils::fx_hashmap_with_capacity;
 use rustc_hash::FxHashMap;

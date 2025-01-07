@@ -260,7 +260,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
 
         if can_parse_as_keyword && self.token.kind == TokenKind::As {
             prop_name = Some(name);
-            self.expect(TokenKind::As);
+            self.expect(TokenKind::As)?;
             name = kind.parse_name(
                 self,
                 &mut check_ident_is_keyword,

@@ -16,6 +16,7 @@ gen_atoms!(
     (KW_EXTENDS, "extends"),
     (KW_NEW, "new"),
     (KW_ASYNC, "async"),
+    (KW_AWAIT, "await"),
     (KW_THIS, "this"),
     (KW_STATIC, "static"),
     (KW_CONSTRUCTOR, "constructor"),
@@ -34,6 +35,10 @@ gen_atoms!(
     (KW_TYPEOF, "typeof"),
     (KW_PACKAGE, "package"),
     (KW_YIELD, "yield"),
+    (KW_FOR, "for"),
+    (KW_OF, "of"),
+    (KW_BREAK, "break"),
+    (KW_CONTINUE, "continue"),
     (KW_IN, "in"),
     // ts keywords
     (KW_IMPLEMENTS, "implements"),

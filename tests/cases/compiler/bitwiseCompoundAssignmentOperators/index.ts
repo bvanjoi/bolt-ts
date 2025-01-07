@@ -1,3 +1,5 @@
+// From `github.com/microsoft/TypeScript/blob/v5.7.2/tests/cases/compiler/bitwiseCompoundAssignmentOperators.ts`, Apache-2.0 License
+
 var a = true;
 var b = 1;
 a ^= a;     //~ERROR: The '^=' operator is not allowed for boolean types. Consider using '!==' instead.

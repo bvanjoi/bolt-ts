@@ -250,11 +250,10 @@ impl ParserState<'_, '_> {
 
     pub(super) fn next_token(&mut self) {
         self.full_start_pos = self.pos;
-        let start = self.pos;
         self.token_flags = TokenFlags::empty();
-        let mut token_start;
+        let mut start;
         loop {
-            token_start = self.pos;
+            start = self.pos;
             if self.pos == self.end() {
                 self.token = Token::new(
                     TokenKind::EOF,

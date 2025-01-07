@@ -158,7 +158,7 @@ impl<'cx> TyChecker<'cx> {
         let unmatched = self.get_unmatched_prop(source, target);
         if let Some((unmatched, target_symbol)) = unmatched {
             let symbol = self.binder.symbol(target_symbol);
-            let span = if symbol.flags.intersects(SymbolFlags::CLASS) {
+            let target_span = if symbol.flags.intersects(SymbolFlags::CLASS) {
                 self.p
                     .node(symbol.expect_class().decl)
                     .as_class_decl()
@@ -176,9 +176,22 @@ impl<'cx> TyChecker<'cx> {
                 self.p.node(symbol.expect_object().decl).span()
             };
             if !unmatched.is_empty() && report_error {
+                let Some(source_symbol) = source.symbol() else {
+                    unreachable!()
+                };
+                let source_span = self.p.node(source_symbol.decl(self.binder)).span();
                 for name in unmatched {
                     let field = self.atoms.get(name).to_string();
-                    let error = errors::PropertyXIsMissing { span, field };
+                    let defined = errors::DefinedHere {
+                        span: target_span,
+                        kind: errors::DeclKind::Property,
+                        name: field.to_string(),
+                    };
+                    let error = errors::PropertyXIsMissing {
+                        span: source_span,
+                        field,
+                        related: [defined],
+                    };
                     self.push_error(Box::new(error));
                 }
                 return Ternary::TRUE;

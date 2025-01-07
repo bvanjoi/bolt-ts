@@ -198,8 +198,9 @@ impl Ty<'_> {
     pub fn symbol(&self) -> Option<SymbolID> {
         match self.kind {
             TyKind::Object(ty) => match ty.kind {
-                ObjectTyKind::Interface(i) => Some(i.symbol),
-                ObjectTyKind::Reference(i) => i.target.symbol(),
+                ObjectTyKind::Interface(ty) => Some(ty.symbol),
+                ObjectTyKind::ObjectLit(ty) => Some(ty.symbol),
+                ObjectTyKind::Reference(ty) => ty.target.symbol(),
                 _ => None,
             },
             TyKind::Param(ty) => Some(ty.symbol),

@@ -132,6 +132,9 @@ impl<'p> ParserState<'p, '_> {
                 | If
                 | Return
                 | Class
+                | For
+                | Continue
+                | Break
                 | Throw
                 | Try
                 | Catch

@@ -22,12 +22,12 @@ impl<'cx> ParserState<'cx, '_> {
     }
 
     pub(super) fn parse_expr(&mut self) -> PResult<&'cx ast::Expr<'cx>> {
-        self.parse_assign_expr()
+        self.parse_assign_expr(false)
     }
 
     pub(super) fn parse_init(&mut self) -> Option<&'cx ast::Expr<'cx>> {
         self.parse_optional(TokenKind::Eq)
-            .map(|_| self.parse_assign_expr().unwrap())
+            .map(|_| self.parse_assign_expr(false).unwrap())
     }
 
     fn try_parse_paren_arrow_fn_expr(&mut self) -> PResult<Option<&'cx ast::Expr<'cx>>> {
@@ -85,7 +85,8 @@ impl<'cx> ParserState<'cx, '_> {
             self.parse_fn_block()
                 .map(|block| ast::ArrowFnExprBody::Block(block.unwrap()))
         } else {
-            self.parse_assign_expr().map(ast::ArrowFnExprBody::Expr)
+            self.parse_assign_expr(false)
+                .map(ast::ArrowFnExprBody::Expr)
         }
     }
 
@@ -127,7 +128,10 @@ impl<'cx> ParserState<'cx, '_> {
         Ok(expr)
     }
 
-    fn parse_assign_expr(&mut self) -> PResult<&'cx ast::Expr<'cx>> {
+    pub(super) fn parse_assign_expr(
+        &mut self,
+        allow_ret_ty_in_arrow_fn: bool,
+    ) -> PResult<&'cx ast::Expr<'cx>> {
         if let Ok(Some(expr)) = self.try_parse_paren_arrow_fn_expr() {
             return Ok(expr);
         };
@@ -144,7 +148,7 @@ impl<'cx> ParserState<'cx, '_> {
             self.parent_map.r#override(expr.id(), id);
             let op = self.token.kind.into();
             self.parse_token_node();
-            let right = self.with_parent(id, Self::parse_assign_expr)?;
+            let right = self.with_parent(id, |this| this.parse_assign_expr(false))?;
             let expr = self.alloc(ast::AssignExpr {
                 id,
                 left: expr,
@@ -336,7 +340,7 @@ impl<'cx> ParserState<'cx, '_> {
     }
 
     fn parse_arg_or_array_lit_elem(&mut self) -> PResult<&'cx ast::Expr<'cx>> {
-        self.parse_assign_expr()
+        self.parse_assign_expr(false)
     }
 
     fn parse_object_lit_ele(&mut self) -> PResult<&'cx ast::ObjectMemberField<'cx>> {
@@ -347,7 +351,7 @@ impl<'cx> ParserState<'cx, '_> {
         let name = self.with_parent(id, Self::parse_prop_name)?;
         self.parse_optional(TokenKind::Question);
         self.expect(TokenKind::Colon)?;
-        let value = self.with_parent(id, Self::parse_assign_expr)?;
+        let value = self.with_parent(id, |this| this.parse_assign_expr(false))?;
         let filed = self.alloc(ast::ObjectMemberField {
             id,
             span: self.new_span(start),
@@ -413,7 +417,7 @@ impl<'cx> ParserState<'cx, '_> {
                 });
                 Ok(expr)
             } else {
-                this.parse_assign_expr()
+                this.parse_assign_expr(false)
             }
         })
     }

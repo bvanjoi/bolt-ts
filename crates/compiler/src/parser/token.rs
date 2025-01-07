@@ -1,6 +1,6 @@
 use bolt_ts_span::Span;
 
-use crate::ast::{AssignOp, BinOpKind, ModifierKind, PrefixUnaryOp};
+use crate::ast::{AssignOp, BinOpKind, ModifierKind, PrefixUnaryOp, VarKind};
 
 #[derive(Debug, Clone, Copy)]
 pub struct Token {
@@ -157,6 +157,7 @@ pub enum TokenKind {
     Extends,
     New,
     Async,
+    Await,
     This,
     Static,
     Constructor,
@@ -175,6 +176,10 @@ pub enum TokenKind {
     Typeof,
     Package,
     Yield,
+    For,
+    Of,
+    Break,
+    Continue,
     In,
     // ts keyword
     Implements,
@@ -268,6 +273,19 @@ impl From<TokenKind> for AssignOp {
             TokenKind::GreatGreatGreatEq => AssignOp::UShrEq,
             TokenKind::CaretEq => AssignOp::BitXorEq,
             _ => unreachable!(),
+        }
+    }
+}
+
+impl TryFrom<TokenKind> for VarKind {
+    type Error = ();
+    fn try_from(value: TokenKind) -> Result<Self, Self::Error> {
+        use TokenKind::*;
+        match value {
+            Var | Let | Const => unsafe {
+                Ok(std::mem::transmute::<u8, VarKind>(value as u8 - Var as u8))
+            },
+            _ => Err(()),
         }
     }
 }
@@ -439,6 +457,10 @@ impl TokenKind {
 
     pub fn can_parse_module_export_name(self) -> bool {
         self.is_ident_or_keyword() || matches!(self, TokenKind::String)
+    }
+
+    pub fn is_in_or_of_keyword(self) -> bool {
+        matches!(self, TokenKind::In | TokenKind::Of)
     }
 }
 

@@ -121,6 +121,8 @@ pub(super) struct PropertyXIsMissing {
     #[label(primary)]
     pub span: Span,
     pub field: String,
+    #[related]
+    pub related: [DefinedHere; 1],
 }
 
 #[derive(Error, Diagnostic, DiagnosticExt, Debug)]
@@ -146,13 +148,15 @@ pub(super) enum DeclKind {
     #[default]
     Class,
     Enum,
+    Property,
 }
 
 impl DeclKind {
     fn as_str(&self) -> &'static str {
         match self {
-            Self::Class => "Class",
-            Self::Enum => "Enum",
+            DeclKind::Class => "Class",
+            DeclKind::Enum => "Enum",
+            DeclKind::Property => "Property",
         }
     }
 }

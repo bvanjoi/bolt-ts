@@ -22,7 +22,99 @@ impl<'cx> Emit<'cx> {
             Enum(e) => self.emit_enum_decl(e),
             Import(n) => self.emit_import_decl(n),
             Export(n) => self.emit_export_decl(n),
+            For(n) => self.emit_for_stmt(n),
+            ForOf(n) => self.emit_for_of_stmt(n),
+            ForIn(n) => self.emit_for_in_stmt(n),
+            Break(n) => self.emit_break_stmt(n),
+            Continue(n) => self.emit_continue_stmt(n),
         }
+    }
+
+    fn emit_break_stmt(&mut self, n: &'cx ast::BreakStmt<'cx>) {
+        self.content.p("break");
+        if let Some(label) = n.label {
+            self.content.p_whitespace();
+            self.emit_ident(label);
+        }
+        self.content.p_semi();
+    }
+
+    fn emit_continue_stmt(&mut self, n: &'cx ast::ContinueStmt<'cx>) {
+        self.content.p("continue");
+        if let Some(label) = n.label {
+            self.content.p_whitespace();
+            self.emit_ident(label);
+        }
+        self.content.p_semi();
+    }
+
+    fn emit_for_init(&mut self, n: &'cx ast::ForInitKind<'cx>) {
+        use ast::ForInitKind::*;
+        match n {
+            Var((kind, decls)) => {
+                self.content.p("var");
+                self.content.p_whitespace();
+                self.emit_var_decls(decls)
+            }
+            Expr(expr) => self.emit_expr(expr),
+        }
+    }
+
+    fn emit_for_stmt(&mut self, n: &'cx ast::ForStmt<'cx>) {
+        self.content.p("for");
+        self.content.p_whitespace();
+        self.content.p("(");
+        self.content.p_whitespace();
+        if let Some(init) = &n.init {
+            self.emit_for_init(init);
+        }
+        self.content.p_semi();
+        self.content.p_whitespace();
+        if let Some(cond) = n.cond {
+            self.emit_expr(cond);
+        }
+        self.content.p_semi();
+        self.content.p_whitespace();
+        if let Some(incr) = n.incr {
+            self.emit_expr(incr);
+        }
+        self.content.p(")");
+        self.content.p_whitespace();
+        self.emit_stmt(n.body);
+    }
+
+    fn emit_for_in_stmt(&mut self, n: &'cx ast::ForInStmt<'cx>) {
+        self.content.p("for");
+        self.content.p_whitespace();
+        self.content.p("(");
+        self.content.p_whitespace();
+        self.emit_for_init(&n.init);
+        self.content.p_whitespace();
+        self.content.p("in");
+        self.content.p_whitespace();
+        self.emit_expr(&n.expr);
+        self.content.p(")");
+        self.content.p_whitespace();
+        self.emit_stmt(n.body);
+    }
+
+    fn emit_for_of_stmt(&mut self, n: &'cx ast::ForOfStmt<'cx>) {
+        self.content.p("for");
+        self.content.p_whitespace();
+        if n.r#await.is_some() {
+            self.content.p("await");
+            self.content.p_whitespace();
+        }
+        self.content.p("(");
+        self.content.p_whitespace();
+        self.emit_for_init(&n.init);
+        self.content.p_whitespace();
+        self.content.p("of");
+        self.content.p_whitespace();
+        self.emit_expr(&n.expr);
+        self.content.p(")");
+        self.content.p_whitespace();
+        self.emit_stmt(n.body);
     }
 
     fn emit_export_spec(&mut self, spec: &'cx ast::ExportSpec<'cx>) {
@@ -384,16 +476,21 @@ impl<'cx> Emit<'cx> {
         }
     }
 
-    fn emit_var_stmt(&mut self, var: &'cx ast::VarStmt) {
+    fn emit_var_stmt(&mut self, var: &'cx ast::VarStmt<'cx>) {
         self.content.p("var");
         self.content.p_whitespace();
-        for (idx, decl) in var.list.iter().enumerate() {
-            self.emit_var_decl(decl);
-            if idx != var.list.len() - 1 {
-                self.content.p_comma();
-                self.content.p_whitespace();
-            }
-        }
+        self.emit_var_decls(&var.list);
+    }
+
+    fn emit_var_decls(&mut self, decls: ast::VarDecls<'cx>) {
+        self.emit_list(
+            decls,
+            |this, decl| this.emit_var_decl(decl),
+            |this, _| {
+                this.content.p_comma();
+                this.content.p_whitespace();
+            },
+        );
     }
 
     fn emit_var_decl(&mut self, decl: &'cx ast::VarDecl) {

@@ -3,6 +3,7 @@ mod expr;
 mod list_ctx;
 mod lookahead;
 mod paren_rule;
+mod parse_break_or_continue;
 mod parse_class_like;
 mod parse_fn_like;
 mod parse_import_export_spec;

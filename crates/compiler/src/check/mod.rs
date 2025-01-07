@@ -32,7 +32,7 @@ mod symbol_links;
 mod utils;
 
 use bolt_ts_atom::{AtomId, AtomMap};
-use bolt_ts_span::{ModuleID, Span};
+use bolt_ts_span::Span;
 use bolt_ts_utils::fx_hashmap_with_capacity;
 
 use rustc_hash::{FxBuildHasher, FxHashMap};
@@ -393,6 +393,11 @@ impl<'cx> TyChecker<'cx> {
             Enum(enum_decl) => {}
             Import(import_decl) => {}
             Export(export_decl) => {}
+            For(for_stmt) => {}
+            ForOf(for_of_stmt) => {}
+            ForIn(for_in_stmt) => {}
+            Break(break_stmt) => {}
+            Continue(continue_stmt) => {}
         };
     }
 

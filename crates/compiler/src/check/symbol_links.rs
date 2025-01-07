@@ -14,6 +14,7 @@ macro_rules! l {
         impl<'cx> $s<'cx> {
             paste::paste! {
                 $(
+                    #[allow(unused)]
                     pub fn [<with_ $x>](mut self, $x: $ty) -> Self {
                         self.[<set_ $x>]($x);
                         self
@@ -25,6 +26,7 @@ macro_rules! l {
                     pub fn [<get_ $x>](&self) -> Option<$ty> {
                         self.$x
                     }
+                    #[allow(unused)]
                     pub fn [<config_ $x>](&mut self, f: impl FnOnce($ty) -> $ty) {
                         self.$x = match self.$x {
                             Some(c) => Some(f(c)),
