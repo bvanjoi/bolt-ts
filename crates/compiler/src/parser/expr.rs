@@ -474,6 +474,19 @@ impl<'cx> ParserState<'cx, '_> {
             Function => self.parse_fn_expr(),
             New => self.parse_new_expr(),
             Class => self.parse_class_expr(),
+            Super => {
+                let id = self.next_node_id();
+                let node = self.alloc(ast::SuperExpr {
+                    id,
+                    span: self.token.span,
+                });
+                self.next_token();
+                self.insert_map(node.id, ast::Node::SuperExpr(node));
+                let expr = self.alloc(ast::Expr {
+                    kind: ast::ExprKind::Super(node),
+                });
+                Ok(expr)
+            }
             _ => Ok(self.parse_ident(Some(errors::MissingIdentKind::ExpressionExpected))),
         }
     }

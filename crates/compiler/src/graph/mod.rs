@@ -1,3 +1,5 @@
+mod errors;
+
 use crate::ast::{self, Visitor};
 
 use super::parser;
@@ -8,17 +10,25 @@ use std::sync::{Arc, Mutex};
 
 use bolt_ts_atom::{AtomId, AtomMap};
 use bolt_ts_fs::PathId;
+use bolt_ts_resolve::RResult;
 use bolt_ts_span::ModulePath;
 use bolt_ts_utils::{fx_hashmap_with_capacity, fx_hashset_with_capacity};
 use rayon::prelude::*;
 use rustc_hash::{FxHashMap, FxHashSet};
 
+#[derive(Debug, Clone, Copy)]
+pub enum ModuleRes {
+    Err,
+    Res(ModuleID),
+}
+
 pub struct ModuleGraph {
-    deps: FxHashMap<ModuleID, FxHashMap<ast::NodeID, ModuleID>>,
+    deps: FxHashMap<ModuleID, FxHashMap<ast::NodeID, ModuleRes>>,
+    diags: Vec<bolt_ts_errors::Diag>,
 }
 
 impl ModuleGraph {
-    fn add_dep(&mut self, from: ModuleID, by: ast::NodeID, to: ModuleID) {
+    fn add_dep(&mut self, from: ModuleID, by: ast::NodeID, to: ModuleRes) {
         if let Some(from) = self.deps.get_mut(&from) {
             let prev = from.insert(by, to);
             assert!(prev.is_none());
@@ -29,8 +39,16 @@ impl ModuleGraph {
         }
     }
 
-    pub fn get_dep(&self, from: ModuleID, by: ast::NodeID) -> Option<ModuleID> {
+    pub fn get_dep(&self, from: ModuleID, by: ast::NodeID) -> Option<ModuleRes> {
         self.deps.get(&from).and_then(|map| map.get(&by).copied())
+    }
+
+    pub fn push_error(&mut self, diag: crate::Diag) {
+        self.diags.push(bolt_ts_errors::Diag { inner: diag.into() });
+    }
+
+    pub fn steal_errors(&mut self) -> Vec<bolt_ts_errors::Diag> {
+        std::mem::take(&mut self.diags)
     }
 }
 
@@ -48,12 +66,13 @@ pub(super) fn build_graph<'cx>(
     let mut resolving = list.to_vec();
     let mut mg = ModuleGraph {
         deps: fx_hashmap_with_capacity(list.len() * 32),
+        diags: vec![],
     };
     while !resolving.is_empty() {
         struct ResolvedModule<'cx> {
             id: ModuleID,
             parse_result: parser::ParseResult<'cx>,
-            deps: Vec<(ast::NodeID, PathId)>,
+            deps: Vec<(ast::NodeID, RResult<PathId>)>,
         }
         let modules = parse_parallel(atoms.clone(), herd, resolving.as_slice(), module_arena)
             .map(|(module_id, parse_result)| {
@@ -65,7 +84,7 @@ pub(super) fn build_graph<'cx>(
                 let base_dir = PathId::get(&base_dir);
                 let deps = deps
                     .into_par_iter()
-                    .map(|(node_id, dep)| (node_id, resolver.resolve(base_dir, dep).unwrap()))
+                    .map(|(node_id, dep)| (node_id, resolver.resolve(base_dir, dep)))
                     .collect::<Vec<_>>();
                 ResolvedModule {
                     id: module_id,
@@ -96,6 +115,17 @@ pub(super) fn build_graph<'cx>(
             parser.insert(id, parse_result);
 
             for (ast_id, dep) in deps {
+                let Ok(dep) = dep else {
+                    mg.add_dep(id, ast_id, ModuleRes::Err);
+                    let module_name = parser.node(ast_id).module_name().unwrap();
+                    mg.push_error(Box::new(
+                        errors::CannotFindModuleOrItsCorrespondingTypeDeclarations {
+                            span: module_name.span,
+                            module_name: atoms.get(module_name.val).to_string(),
+                        },
+                    ));
+                    continue;
+                };
                 let to = match resolved.get(&dep) {
                     Some(to) => *to,
                     None => {
@@ -112,7 +142,7 @@ pub(super) fn build_graph<'cx>(
                         to
                     }
                 };
-                mg.add_dep(id, ast_id, to);
+                mg.add_dep(id, ast_id, ModuleRes::Res(to));
             }
         }
 

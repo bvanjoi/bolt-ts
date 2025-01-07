@@ -4,9 +4,9 @@ use crate::ast::Visitor;
 use crate::bind::{
     BinderState, BlockContainerSymbol, GlobalSymbols, SymbolID, SymbolName, Symbols,
 };
-use crate::graph::ModuleGraph;
+use crate::graph::{ModuleGraph, ModuleRes};
 use crate::{ast, parser};
-use bolt_ts_atom::{ AtomMap};
+use bolt_ts_atom::AtomMap;
 use bolt_ts_span::{Module, ModuleID};
 use bolt_ts_utils::fx_hashmap_with_capacity;
 use rustc_hash::FxHashMap;
@@ -107,11 +107,14 @@ impl<'cx, 'r> Resolver<'cx, 'r> {
         })
     }
 
-    fn container(&self, module_id: ModuleID) -> &BlockContainerSymbol {
-        self.states[module_id.as_usize()]
-            .symbols
-            .get_container(module_id)
-            .expect_block_container()
+    fn container(&self, m: ModuleRes) -> &BlockContainerSymbol {
+        match m {
+            ModuleRes::Err => unreachable!(),
+            ModuleRes::Res(module_id) => self.states[module_id.as_usize()]
+                .symbols
+                .get_container(module_id)
+                .expect_block_container(),
+        }
     }
 }
 

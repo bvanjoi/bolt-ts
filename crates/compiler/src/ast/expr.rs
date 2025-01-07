@@ -35,6 +35,7 @@ impl Expr<'_> {
             EleAccess(a) => a.span,
             This(this) => this.span,
             Typeof(n) => n.span,
+            Super(n) => n.span,
         }
     }
 
@@ -63,6 +64,7 @@ impl Expr<'_> {
             EleAccess(a) => a.id,
             This(this) => this.id,
             Typeof(n) => n.id,
+            Super(n) => n.id,
         }
     }
 }
@@ -91,6 +93,13 @@ pub enum ExprKind<'cx> {
     PropAccess(&'cx PropAccessExpr<'cx>),
     EleAccess(&'cx EleAccessExpr<'cx>),
     Typeof(&'cx TypeofExpr<'cx>),
+    Super(&'cx SuperExpr),
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct SuperExpr {
+    pub id: NodeID,
+    pub span: Span,
 }
 
 #[derive(Debug, Clone, Copy)]

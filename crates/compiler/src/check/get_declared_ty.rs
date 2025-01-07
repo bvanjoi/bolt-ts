@@ -166,6 +166,10 @@ impl<'cx> TyChecker<'cx> {
             return self.undefined_ty();
         };
         if !self.push_ty_resolution(symbol) {
+            return self.error_ty();
+        }
+        let base_ty = self.check_expr(extends);
+        if !self.pop_ty_resolution() {
             let decl = self.p.node(decl);
             let name = if let ast::Node::ClassDecl(c) = decl {
                 self.atoms.get(c.name.name).to_string()
@@ -177,10 +181,6 @@ impl<'cx> TyChecker<'cx> {
                 decl: name,
             };
             self.push_error(Box::new(error));
-            return self.error_ty();
-        }
-        let base_ty = self.check_expr(extends);
-        if !self.pop_ty_resolution() {
             return self.error_ty();
         }
         base_ty

@@ -11,5 +11,5 @@ fn test_resolve_with_extension() {
           }
         )
     };
-    should_eq(map(), "/", "a", "/a.ts");
+    should_eq(map(), "/", "./a", "/a.ts");
 }

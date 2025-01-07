@@ -320,14 +320,15 @@ impl TokenKind {
         use TokenKind::*;
         matches!(
             self,
-            Null | True
+            This | Super
+                | Null
+                | True
                 | False
                 | Number
                 | String
                 | LBrace
                 | LBracket
                 | LParen
-                | This
                 | Function
                 | Class
                 | New

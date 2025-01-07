@@ -91,6 +91,7 @@ pub enum Node<'cx> {
     EleAccessExpr(&'cx super::EleAccessExpr<'cx>),
     ThisExpr(&'cx super::ThisExpr),
     TypeofExpr(&'cx super::TypeofExpr<'cx>),
+    SuperExpr(&'cx super::SuperExpr),
 
     // ty
     NumLitTy(&'cx super::NumLitTy),
@@ -378,6 +379,13 @@ impl<'cx> Node<'cx> {
         }
 
         flags
+    }
+
+    pub fn module_name(&self) -> Option<&'cx super::StringLit> {
+        match self {
+            Node::ImportDecl(n) => Some(&n.module),
+            _ => None,
+        }
     }
 }
 
@@ -989,5 +997,12 @@ as_node!(
         as_continue_stmt,
         expect_continue_stmt,
         is_continue_stmt
+    ),
+    (
+        SuperExpr,
+        &'cx super::SuperExpr,
+        as_super_expr,
+        expect_super_expr,
+        is_super_expr
     )
 );

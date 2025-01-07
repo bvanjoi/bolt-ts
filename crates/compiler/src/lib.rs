@@ -152,7 +152,7 @@ pub fn eval_from(cwd: PathBuf, tsconfig: NormalizedTsConfig) -> Output {
     let mut p = parser::Parser::new();
     let atoms = Arc::new(Mutex::new(atoms));
     let herd = bumpalo_herd::Herd::new();
-    let mg = build_graph(
+    let mut mg = build_graph(
         &mut module_arena,
         &entries,
         atoms.clone(),
@@ -161,7 +161,11 @@ pub fn eval_from(cwd: PathBuf, tsconfig: NormalizedTsConfig) -> Output {
         fs,
     );
 
-    let diags = p.steal_errors();
+    let diags = p
+        .steal_errors()
+        .into_iter()
+        .chain(mg.steal_errors())
+        .collect::<Vec<_>>();
 
     // ==== bind ====
     let atoms = Arc::try_unwrap(atoms).unwrap();

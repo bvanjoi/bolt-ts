@@ -1,15 +1,14 @@
 mod errors;
 
-use std::{
-    path::PathBuf,
-    sync::{Arc, Mutex},
-};
+use std::path::PathBuf;
+use std::sync::{Arc, Mutex};
 
 use bolt_ts_atom::{AtomId, AtomMap};
 use bolt_ts_fs::{CachedFileSystem, PathId};
+pub use errors::ResolveError;
 use normalize_path::NormalizePath;
 
-type RResult<T> = Result<T, ()>;
+pub type RResult<T> = Result<T, ResolveError>;
 
 pub struct Resolver<'atoms, FS: CachedFileSystem> {
     fs: Arc<Mutex<FS>>,
@@ -54,6 +53,6 @@ impl<'atoms, FS: CachedFileSystem> Resolver<'atoms, FS> {
                 v.set_len(v.len() - ext.len());
             }
         }
-        Err(())
+        Err(ResolveError::NotFound(PathId::get(p.as_path())))
     }
 }

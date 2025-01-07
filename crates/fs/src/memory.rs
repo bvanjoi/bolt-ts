@@ -42,7 +42,7 @@ impl CachedFileSystem for MemoryFS {
         node.kind().as_dir_node().map_or_else(
             || {
                 let p = node.kind().path();
-                Err(crate::errors::Error::NotADir(p))
+                Err(crate::errors::FsError::NotADir(p))
             },
             |dir| {
                 Ok(dir.children().iter().map(|id| {
@@ -76,19 +76,19 @@ fn test_mem_fs() {
     assert!(res.is_ok_and(|id| atoms.eq_str(id, "/b/c")));
 
     let res = read_file(&mut fs, "/", atoms);
-    assert!(res.is_err_and(|err| matches!(err, errors::Error::NotAFile(_))));
+    assert!(res.is_err_and(|err| matches!(err, errors::FsError::NotAFile(_))));
 
     let res = read_file(&mut fs, "/not-exist", atoms);
-    assert!(res.is_err_and(|err| matches!(err, errors::Error::NotFound(_))));
+    assert!(res.is_err_and(|err| matches!(err, errors::FsError::NotFound(_))));
 
     let res = read_file(&mut fs, "/b", atoms);
-    assert!(res.is_err_and(|err| matches!(err, errors::Error::NotAFile(_))));
+    assert!(res.is_err_and(|err| matches!(err, errors::FsError::NotAFile(_))));
 
     let res = read_file(&mut fs, "/b/", atoms);
-    assert!(res.is_err_and(|err| matches!(err, errors::Error::NotAFile(_))));
+    assert!(res.is_err_and(|err| matches!(err, errors::FsError::NotAFile(_))));
 
     let res = read_file(&mut fs, "/a/", atoms);
-    assert!(res.is_err_and(|err| matches!(err, errors::Error::NotAFile(_))));
+    assert!(res.is_err_and(|err| matches!(err, errors::FsError::NotAFile(_))));
 
     let is_file = |fs: &mut MemoryFS, path: &str, atoms: &mut AtomMap| {
         fs.is_file(std::path::Path::new(path), atoms)
@@ -110,7 +110,7 @@ fn test_mem_fs() {
     };
 
     let res = read_dir_failed(&mut fs, "/a", atoms);
-    assert!(matches!(res, errors::Error::NotADir(_)));
+    assert!(matches!(res, errors::FsError::NotADir(_)));
 
     let read_dir = |fs: &mut MemoryFS, path: &str, atoms: &mut AtomMap| match fs
         .read_dir(std::path::Path::new(path), atoms)
@@ -139,7 +139,7 @@ fn test_mem_fs_with_overlap_name_between_dir_and_file() {
 
     let atoms = &mut AtomMap::new(0);
     let fs = MemoryFS::new(serde_json::from_value(json).unwrap(), atoms);
-    assert!(fs.is_err_and(|err| matches!(err, errors::Error::FileExists(_))));
+    assert!(fs.is_err_and(|err| matches!(err, errors::FsError::FileExists(_))));
 
     let json = serde_json::json!({
         "/a/b": "/a/b",
@@ -148,5 +148,5 @@ fn test_mem_fs_with_overlap_name_between_dir_and_file() {
 
     let atoms = &mut AtomMap::new(0);
     let fs = MemoryFS::new(serde_json::from_value(json).unwrap(), atoms);
-    assert!(fs.is_err_and(|err| matches!(err, errors::Error::DirExists(_))));
+    assert!(fs.is_err_and(|err| matches!(err, errors::FsError::DirExists(_))));
 }

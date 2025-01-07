@@ -4,7 +4,7 @@ mod path;
 mod real;
 mod tree;
 
-use self::errors::FsResult;
+pub use self::errors::{FsError, FsResult};
 pub use self::memory::MemoryFS;
 pub use self::path::PathId;
 pub use self::real::LocalFS;

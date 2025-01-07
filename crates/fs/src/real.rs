@@ -25,10 +25,22 @@ impl CachedFileSystem for LocalFS {
             Ok(atom)
         } else {
             let path = path.normalize();
-            let content = read_file_with_encoding(path.as_path()).unwrap();
-            let content = atoms.insert_by_str(content.into());
-            self.tree.add_file(atoms, path.as_path(), content).unwrap();
-            self.tree.read_file(path.as_path())
+            match read_file_with_encoding(path.as_path()) {
+                Ok(content) => {
+                    let content = atoms.insert_by_str(content.into());
+                    self.tree.add_file(atoms, path.as_path(), content).unwrap();
+                    self.tree.read_file(path.as_path())
+                }
+                Err(err) => match err.kind() {
+                    std::io::ErrorKind::NotFound => Err(crate::errors::FsError::NotFound(
+                        crate::path::PathId::new(path.as_path(), atoms),
+                    )),
+                    std::io::ErrorKind::InvalidData => Err(crate::errors::FsError::NotAFile(
+                        crate::path::PathId::new(path.as_path(), atoms),
+                    )),
+                    _ => todo!(),
+                },
+            }
         }
     }
 

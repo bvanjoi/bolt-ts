@@ -24,10 +24,15 @@ impl<'atoms> FSTree {
         this
     }
 
-    fn target_error(&self, node: FSNodeId, target: PathId, is_dir: bool) -> Option<errors::Error> {
+    fn target_error(
+        &self,
+        node: FSNodeId,
+        target: PathId,
+        is_dir: bool,
+    ) -> Option<errors::FsError> {
         match self.node(node).kind {
-            FSNodeKind::Dir(_) if !is_dir => Some(errors::Error::NotAFile(target)),
-            FSNodeKind::File(_) if is_dir => Some(errors::Error::NotADir(target)),
+            FSNodeKind::Dir(_) if !is_dir => Some(errors::FsError::NotAFile(target)),
+            FSNodeKind::File(_) if is_dir => Some(errors::FsError::NotADir(target)),
             _ => None,
         }
     }
@@ -44,7 +49,7 @@ impl<'atoms> FSTree {
         };
         if let Some(old) = dir.find_child(path, &self.nodes) {
             if self.node(old).kind.as_dir_node().is_some() {
-                Err(errors::Error::DirExists(path))
+                Err(errors::FsError::DirExists(path))
             } else {
                 Ok(old)
             }
@@ -61,7 +66,7 @@ impl<'atoms> FSTree {
             };
             if let Some(old) = dir.find_child(path, &self.nodes) {
                 if self.node(old).kind.as_file_node().is_some() {
-                    Err(errors::Error::FileExists(path))
+                    Err(errors::FsError::FileExists(path))
                 } else {
                     Ok(old)
                 }
@@ -178,7 +183,7 @@ impl<'atoms> FSTree {
 
                 let res = dir.find_child_by_path(path_id, &self.nodes);
                 if res.is_empty() {
-                    return Err(errors::Error::NotFound(target));
+                    return Err(errors::FsError::NotFound(target));
                 } else if res.len() > 1 {
                     return Ok(res
                         .iter()
@@ -196,7 +201,7 @@ impl<'atoms> FSTree {
             } else if let Some(next) = dir.find_child(path_id, &self.nodes) {
                 parent = next;
             } else {
-                return Err(errors::Error::NotFound(target));
+                return Err(errors::FsError::NotFound(target));
             }
         }
 
@@ -206,7 +211,7 @@ impl<'atoms> FSTree {
     pub(super) fn read_file(&self, path: &std::path::Path) -> FsResult<AtomId> {
         let id = self.find_path(path, false)?;
         if has_slash_suffix_and_not_root(path) {
-            Err(errors::Error::NotAFile(self.node(id).kind.path()))
+            Err(errors::FsError::NotAFile(self.node(id).kind.path()))
         } else {
             let Some(file) = self.node(id).kind.as_file_node() else {
                 unreachable!("handled been handled by `find_path`");

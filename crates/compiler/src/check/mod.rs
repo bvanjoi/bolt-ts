@@ -686,6 +686,7 @@ impl<'cx> TyChecker<'cx> {
             }
             EleAccess(_) => self.any_ty(),
             This(_) => self.undefined_ty(),
+            Super(_) => self.undefined_ty(),
         }
     }
 

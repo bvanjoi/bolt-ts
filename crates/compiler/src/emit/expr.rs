@@ -66,6 +66,7 @@ impl<'cx> Emit<'cx> {
                 self.content.p_whitespace();
                 self.emit_expr(n.expr);
             }
+            Super(_) => self.content.p("super"),
         }
     }
 
