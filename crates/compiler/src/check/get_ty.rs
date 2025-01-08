@@ -218,6 +218,7 @@ impl<'cx> TyChecker<'cx> {
 
     fn get_prop_ty_for_index_ty(
         &mut self,
+        origin_object_ty: &'cx Ty<'cx>,
         object_ty: &'cx Ty<'cx>,
         index_ty: &'cx Ty<'cx>,
     ) -> &'cx Ty<'cx> {
@@ -234,19 +235,31 @@ impl<'cx> TyChecker<'cx> {
         object_ty: &'cx Ty<'cx>,
         index_ty: &'cx Ty<'cx>,
         access_flags: Option<AccessFlags>,
+        access_node: Option<ast::NodeID>,
     ) -> &'cx Ty<'cx> {
         let mut access_flags = access_flags.unwrap_or(AccessFlags::empty());
-        if object_ty.kind.is_generic_object() {
+        let is_generic_index = if let Some(access_node) = access_node {
+            if !self.p.node(access_node).is_indexed_access_ty() {
+                object_ty.kind.is_generic_tuple_type()
+            } else {
+                object_ty.kind.is_generic_object()
+            }
+        } else {
+            object_ty.kind.is_generic_object()
+        };
+
+        if is_generic_index {
             access_flags.insert(AccessFlags::PERSISTENT);
             let ty = self.alloc(ty::IndexedAccessTy {
                 object_ty,
                 index_ty,
                 access_flags,
             });
-            self.new_ty(ty::TyKind::IndexedAccess(ty))
-        } else {
-            self.get_prop_ty_for_index_ty(object_ty, index_ty)
-        }
+            return self.new_ty(ty::TyKind::IndexedAccess(ty));
+        };
+
+        let apparent_object_ty = self.get_reduced_apparent_ty(object_ty);
+        self.get_prop_ty_for_index_ty(object_ty, apparent_object_ty, index_ty)
     }
 
     fn get_ty_from_indexed_access_node(
@@ -255,7 +268,7 @@ impl<'cx> TyChecker<'cx> {
     ) -> &'cx Ty<'cx> {
         let object_ty = self.get_ty_from_type_node(node.ty);
         let index_ty = self.get_ty_from_type_node(node.index_ty);
-        self.get_indexed_access_ty(object_ty, index_ty, None)
+        self.get_indexed_access_ty(object_ty, index_ty, None, None)
     }
 
     pub(super) fn get_alias_symbol_for_ty_node(&self, node: ast::NodeID) -> Option<SymbolID> {

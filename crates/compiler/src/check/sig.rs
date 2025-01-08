@@ -72,7 +72,7 @@ impl<'cx> TyChecker<'cx> {
         None
     }
 
-    fn get_single_sig(
+    pub(super) fn get_single_sig(
         &mut self,
         ty: &'cx ty::Ty<'cx>,
         kind: SigKind,
@@ -100,8 +100,17 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
+    #[inline]
     pub(super) fn get_single_call_sig(&mut self, ty: &'cx ty::Ty<'cx>) -> Option<&'cx Sig<'cx>> {
         self.get_single_sig(ty, SigKind::Call, false)
+    }
+
+    pub(super) fn get_single_call_or_ctor_sig(
+        &mut self,
+        ty: &'cx ty::Ty<'cx>,
+    ) -> Option<&'cx Sig<'cx>> {
+        self.get_single_call_sig(ty)
+            .or_else(|| self.get_single_sig(ty, SigKind::Constructor, false))
     }
 
     pub(super) fn get_base_sig(&mut self, sig: &'cx Sig<'cx>) -> &'cx Sig<'cx> {

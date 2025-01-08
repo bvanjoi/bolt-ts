@@ -54,7 +54,7 @@ impl<'cx> TyChecker<'cx> {
             .iter()
             .position(|p| p.id == ty_param_id)
             .unwrap();
-        let ty = self.create_param_ty(symbol, offset);
+        let ty = self.create_param_ty(symbol, offset, false);
         self.get_mut_symbol_links(symbol).set_declared_ty(ty);
         ty
     }
@@ -240,7 +240,7 @@ impl<'cx> TyChecker<'cx> {
                 v.extend(local_ty_params);
                 self.alloc(v)
             };
-            let this_ty = self.create_param_ty(symbol, usize::MAX);
+            let this_ty = self.create_param_ty(symbol, usize::MAX, true);
             let target = self.crate_interface_ty(ty::InterfaceTy {
                 symbol,
                 ty_params: Some(ty_params),

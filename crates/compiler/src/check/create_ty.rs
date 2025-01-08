@@ -55,6 +55,11 @@ impl<'cx> TyChecker<'cx> {
         ty
     }
 
+    pub(super) fn create_single_sig_ty(&mut self, ty: ty::SingleSigTy<'cx>) -> &'cx ty::Ty<'cx> {
+        let ty = self.create_object_ty(ty::ObjectTyKind::SingleSigTy(self.alloc(ty)));
+        ty
+    }
+
     pub(super) fn clone_param_ty(&mut self, old: &'cx ty::Ty<'cx>) -> &'cx ty::Ty<'cx> {
         let old_param = old.kind.expect_param();
         let param_ty = self.alloc(ty::ParamTy {
@@ -64,11 +69,17 @@ impl<'cx> TyChecker<'cx> {
         self.new_ty(ty::TyKind::Param(param_ty))
     }
 
-    pub(super) fn create_param_ty(&mut self, symbol: SymbolID, offset: usize) -> &'cx ty::Ty<'cx> {
+    pub(super) fn create_param_ty(
+        &mut self,
+        symbol: SymbolID,
+        offset: usize,
+        is_this_ty: bool,
+    ) -> &'cx ty::Ty<'cx> {
         let ty = ty::ParamTy {
             symbol,
             offset,
             target: None,
+            is_this_ty,
         };
         let parm_ty = self.alloc(ty);
         self.new_ty(ty::TyKind::Param(parm_ty))

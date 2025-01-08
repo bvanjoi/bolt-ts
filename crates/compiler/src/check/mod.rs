@@ -16,6 +16,7 @@ mod get_context;
 mod get_contextual;
 mod get_declared_ty;
 mod get_effective_node;
+mod get_this_ty;
 mod get_ty;
 mod get_type_from_ty_refer_like;
 mod get_type_from_var_like;
@@ -35,6 +36,8 @@ use bolt_ts_atom::{AtomId, AtomMap};
 use bolt_ts_span::Span;
 use bolt_ts_utils::fx_hashmap_with_capacity;
 
+use get_contextual::ContextFlags;
+use infer::{InferenceFlags, InferencePriority};
 use rustc_hash::{FxBuildHasher, FxHashMap};
 
 use self::get_context::{InferenceContextual, TyContextual};
@@ -43,14 +46,13 @@ use self::node_links::NodeFlags;
 use self::node_links::NodeLinks;
 pub use self::resolve::ExpectedArgsCount;
 pub use self::symbol_links::SymbolLinks;
-use self::utils::{find_ancestor, get_assignment_kind, AssignmentKind};
 
 use crate::ast::{BinOp, NodeID};
 use crate::bind::{self, GlobalSymbols, Symbol, SymbolFlags, SymbolID, SymbolName};
-use crate::parser::Parser;
+use crate::parser::{AssignmentKind, Parser};
 use crate::ty::{
-    has_type_facts, CheckFlags, Sig, SigFlags, SigID, TupleShape, TyID, TyKind, TyVarID, TypeFacts,
-    TYPEOF_NE_FACTS,
+    has_type_facts, AccessFlags, CheckFlags, Sig, SigFlags, SigID, TupleShape, TyID, TyKind,
+    TyVarID, TypeFacts, TYPEOF_NE_FACTS,
 };
 use crate::{ast, ensure_sufficient_stack, keyword, ty};
 
@@ -413,7 +415,21 @@ impl<'cx> TyChecker<'cx> {
         self.is_type_assignable_to(source, target)
     }
 
+    fn get_base_constraint_of_ty(&self, ty: &'cx ty::Ty<'cx>) -> Option<&'cx ty::Ty<'cx>> {
+        if ty.kind.is_param() {
+            self.param_ty_constraint(ty)
+        } else {
+            Some(ty)
+        }
+    }
+
     fn get_apparent_ty(&mut self, ty: &'cx ty::Ty<'cx>) -> &'cx ty::Ty<'cx> {
+        let ty = if ty.kind.is_instantiable() {
+            self.get_base_constraint_of_ty(ty)
+                .unwrap_or(self.undefined_ty())
+        } else {
+            ty
+        };
         if ty.kind.is_number_like() {
             self.global_number_ty()
         } else if ty.kind.is_string_like() {
@@ -421,6 +437,10 @@ impl<'cx> TyChecker<'cx> {
         } else {
             ty
         }
+    }
+
+    fn get_reduced_apparent_ty(&mut self, ty: &'cx ty::Ty<'cx>) -> &'cx ty::Ty<'cx> {
+        self.get_apparent_ty(ty)
     }
 
     fn get_applicable_index_infos(
@@ -508,7 +528,7 @@ impl<'cx> TyChecker<'cx> {
     }
 
     fn get_containing_fn_or_class_static_block(&self, node: ast::NodeID) -> Option<ast::NodeID> {
-        find_ancestor(self.p, node, |node| {
+        self.p.find_ancestor(node, |node| {
             if node.is_fn_like_or_class_static_block_decl() {
                 Some(true)
             } else {
@@ -634,6 +654,11 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
+    fn get_widened_ty(&self, ty: &'cx ty::Ty<'cx>) -> &'cx ty::Ty<'cx> {
+        // TODO: widened
+        ty
+    }
+
     fn get_widened_literal_ty(&self, ty: &'cx ty::Ty<'cx>) -> &'cx ty::Ty<'cx> {
         if ty.kind.is_number_lit() {
             self.number_ty()
@@ -649,9 +674,198 @@ impl<'cx> TyChecker<'cx> {
         self.get_widened_literal_ty(ty)
     }
 
+    fn instantiate_ty_with_single_generic_call_sig(
+        &mut self,
+        expr: &'cx ast::Expr<'cx>,
+        ty: &'cx ty::Ty<'cx>,
+    ) -> &'cx ty::Ty<'cx> {
+        let Some(check_mode) = self.check_mode else {
+            return ty;
+        };
+        if !check_mode.intersects(CheckMode::INFERENTIAL | CheckMode::SKIP_GENERIC_FUNCTIONS) {
+            return ty;
+        }
+        let Some((sig, kind)) = self
+            .get_single_sig(ty, ty::SigKind::Call, true)
+            .map(|sig| (sig, ty::SigKind::Call))
+            .or_else(|| {
+                self.get_single_sig(ty, ty::SigKind::Constructor, true)
+                    .map(|sig| (sig, ty::SigKind::Constructor))
+            })
+        else {
+            return ty;
+        };
+        let Some(ty_params) = sig.ty_params else {
+            return ty;
+        };
+        let Some(contextual_ty) =
+            self.get_apparent_ty_of_contextual_ty(expr.id(), Some(ContextFlags::NoConstraints))
+        else {
+            return ty;
+        };
+        let Some(contextual_sig) = self.get_single_sig(contextual_ty, kind, false) else {
+            return ty;
+        };
+        if contextual_sig.ty_params.is_some() {
+            return ty;
+        }
+        if check_mode.intersects(CheckMode::SKIP_GENERIC_FUNCTIONS) {
+            self.skip_generic_fn(expr.id(), check_mode);
+            return self.any_fn_ty();
+        }
+
+        let context = self.get_inference_context(expr.id()).unwrap();
+        let inference = context.inference.unwrap();
+        let ret_sig = self
+            .get_inference_sig(inference)
+            .map(|sig| self.get_ret_ty_of_sig(sig))
+            .and_then(|ret_ty| self.get_single_call_or_ctor_sig(ret_ty));
+        if let Some(ret_sig) = ret_sig {
+            if ret_sig.ty_params.is_none()
+                && !self
+                    .inference_infos(inference)
+                    .iter()
+                    .all(|info| info.has_inference_candidates())
+            {
+                todo!()
+            }
+        }
+
+        let sig = self.instantiate_sig_in_context_of(sig, contextual_sig, Some(inference));
+        let outer_ty_params = self
+            .inference_contextual
+            .iter()
+            .filter_map(|inference| {
+                inference.inference.map(|inference| {
+                    self.inference_infos(inference)
+                        .iter()
+                        .map(|info| info.ty_params)
+                        .collect::<Vec<_>>()
+                })
+            })
+            .flatten()
+            .collect::<Vec<_>>();
+        self.get_or_create_ty_from_sig(sig, Some(self.alloc(outer_ty_params)))
+    }
+
+    fn get_or_create_ty_from_sig(
+        &mut self,
+        sig: &'cx ty::Sig<'cx>,
+        outer_ty_params: Option<ty::Tys<'cx>>,
+    ) -> &'cx ty::Ty<'cx> {
+        //TODO:cache
+        let is_constructor = sig.node_id.map_or(true, |node_id| {
+            use ast::Node::*;
+            matches!(self.p.node(node_id), ClassCtor(_) | CtorSigDecl(_))
+        });
+        if let Some(node_id) = sig.node_id {
+            // decls in symbol
+        }
+        let symbol = self.binder.create_transient_symbol(
+            SymbolName::Fn,
+            SymbolFlags::FUNCTION,
+            None,
+            SymbolLinks::default(),
+        );
+        let outer_ty_params: Option<ty::Tys<'cx>> = if let Some(outer_ty_params) = outer_ty_params {
+            Some(outer_ty_params)
+        } else if let Some(id) = sig.node_id {
+            if let Some(ty_params) = self.get_outer_ty_params(id, true) {
+                Some(self.alloc(ty_params))
+            } else {
+                None
+            }
+        } else {
+            None
+        };
+        let ty = self.create_single_sig_ty(ty::SingleSigTy {
+            symbol,
+            target: None,
+            mapper: None,
+            outer_ty_params,
+        });
+        let prev = self.ty_structured_members.insert(
+            ty.id,
+            self.alloc(ty::StructuredMembers {
+                members: self.alloc(Default::default()),
+                base_tys: &[],
+                base_ctor_ty: None,
+                call_sigs: if !is_constructor {
+                    self.alloc([sig])
+                } else {
+                    &[]
+                },
+                ctor_sigs: if is_constructor {
+                    self.alloc([sig])
+                } else {
+                    &[]
+                },
+                index_infos: &[],
+                props: &[],
+            }),
+        );
+        assert!(prev.is_none());
+        ty
+    }
+
+    fn instantiate_sig_in_context_of(
+        &mut self,
+        sig: &'cx ty::Sig<'cx>,
+        contextual_sig: &'cx ty::Sig<'cx>,
+        inference_context: Option<InferenceContextId>,
+    ) -> &'cx ty::Sig<'cx> {
+        let context = {
+            let ty_params = self.get_ty_params_for_mapper(sig);
+            self.create_inference_context(ty_params, Some(sig), InferenceFlags::empty())
+        };
+        let rest_ty = contextual_sig.get_rest_ty(self);
+        let mut mapper = None;
+        if let Some(inference_context) = inference_context {
+            if let Some(rest_ty) = rest_ty {
+                if rest_ty.kind.is_param() {
+                    mapper = Some(self.create_inference_non_fixing_mapper(inference_context))
+                }
+            } else {
+                mapper = Some(self.create_inference_fixing_mapper(inference_context))
+            }
+        };
+        let source_sig = if let Some(mapper) = mapper {
+            self.instantiate_sig(contextual_sig, mapper, false)
+        } else {
+            contextual_sig
+        };
+        self.apply_to_param_tys(source_sig, sig, |this, source, target| {
+            this.infer_tys(context, source, target, None, false)
+        });
+        if inference_context.is_none() {
+            self.apply_to_ret_ty(contextual_sig, sig, |this, source, target| {
+                this.infer_tys(
+                    context,
+                    source,
+                    target,
+                    Some(InferencePriority::RETURN_TYPE),
+                    false,
+                );
+            });
+        }
+
+        let ty_args = self.get_inferred_tys(context);
+        self.get_sig_instantiation(sig, Some(ty_args), false, None)
+    }
+
+    fn skip_generic_fn(&mut self, node: ast::NodeID, check_mode: CheckMode) {
+        if check_mode.intersects(CheckMode::INFERENTIAL) {
+            let context = self.get_inference_context(node).unwrap();
+            let inference = context.inference.unwrap();
+            self.config_inference_flags(inference, |flags| {
+                *flags |= InferenceFlags::SKIPPED_GENERIC_FUNCTION;
+            });
+        }
+    }
+
     fn check_expr(&mut self, expr: &'cx ast::Expr<'cx>) -> &'cx ty::Ty<'cx> {
         use ast::ExprKind::*;
-        match expr.kind {
+        let ty = match expr.kind {
             Bin(bin) => self.check_bin_expr(bin),
             NumLit(lit) => self.get_number_literal_type(lit.val),
             StringLit(lit) => self.get_string_literal_type(lit.val),
@@ -684,10 +898,144 @@ impl<'cx> TyChecker<'cx> {
                 self.check_expr(n.expr);
                 self.typeof_ty()
             }
-            EleAccess(_) => self.any_ty(),
-            This(_) => self.undefined_ty(),
+            EleAccess(node) => self.check_ele_access(node),
+            This(n) => self.check_this_expr(n),
             Super(_) => self.undefined_ty(),
+        };
+
+        self.instantiate_ty_with_single_generic_call_sig(expr, ty)
+    }
+
+    fn check_this_expr(&mut self, expr: &'cx ast::ThisExpr) -> &'cx ty::Ty<'cx> {
+        let is_ty_query = self.p.is_in_type_query(expr.id);
+        let mut container_id = self.p.get_this_container(expr.id, true, true);
+        let mut container = self.p.node(container_id);
+
+        let mut captured_by_arrow_fn = false;
+        let mut this_in_computed_prop_name = false;
+
+        if container.is_class_ctor() {
+            // TODO: `check_this_before_super`
         }
+
+        loop {
+            if container.is_arrow_fn_expr() {
+                container_id =
+                    self.p
+                        .get_this_container(container_id, false, !this_in_computed_prop_name);
+                container = self.p.node(container_id);
+                captured_by_arrow_fn = true;
+            }
+            break;
+        }
+
+        let ty = self.try_get_this_ty_at(expr, true, Some(container_id));
+
+        ty.unwrap_or(self.any_ty())
+    }
+
+    fn try_get_this_ty_at(
+        &mut self,
+        expr: &'cx ast::ThisExpr,
+        include_global_this: bool,
+        container_id: Option<ast::NodeID>,
+    ) -> Option<&'cx ty::Ty<'cx>> {
+        let container_id =
+            container_id.unwrap_or_else(|| self.p.get_this_container(expr.id, false, false));
+        let container = self.p.node(container_id);
+        if container.is_fn_like() {
+            let this_ty = self
+                .get_this_ty_of_decl(container_id)
+                .or_else(|| self.get_contextual_this_param_ty(container_id));
+
+            if let Some(this_ty) = this_ty {
+                return Some(this_ty);
+            }
+        }
+
+        if let Some(parent) = self.p.parent(container_id) {
+            let p = self.p.node(parent);
+            if p.is_class_like() {
+                let symbol = self.get_symbol_of_decl(parent);
+                let this_ty = if container.is_static() {
+                    todo!()
+                } else {
+                    let ty = self
+                        .get_declared_ty_of_symbol(symbol)
+                        .kind
+                        .expect_object_reference();
+                    let ty = ty.target.kind.expect_object_interface();
+                    ty.this_ty.unwrap()
+                };
+                return Some(this_ty);
+            }
+        }
+        None
+    }
+
+    fn is_for_in_variable_for_numeric_prop_names(&self, expr: &'cx ast::Expr<'cx>) -> bool {
+        let id = expr.id();
+        let e = self.p.skip_parens(id);
+        let e = self.p.node(e);
+        if let Some(ident) = e.as_ident() {
+            let symbol = self.resolve_symbol_by_ident(ident);
+            if self
+                .binder
+                .symbol(symbol)
+                .flags
+                .intersects(SymbolFlags::VARIABLE)
+            {
+                let mut child = id;
+                while let Some(parent) = self.p.parent(child) {
+                    let node = self.p.node(parent);
+                    if let Some(for_in) = node.as_for_in_stmt() {
+                        todo!()
+                    }
+                }
+            }
+        }
+        false
+    }
+
+    fn check_ele_access(&mut self, node: &'cx ast::EleAccessExpr<'cx>) -> &'cx ty::Ty<'cx> {
+        let expr_ty = self.check_expr(node.expr);
+        let assign_kind = self.p.get_assignment_kind(node.id);
+        let assign_kind_is_none = assign_kind == AssignmentKind::None;
+        let object_ty = if !assign_kind_is_none || self.p.is_method_access_for_call(node.id) {
+            self.get_widened_literal_ty(expr_ty)
+        } else {
+            expr_ty
+        };
+
+        let index_ty = self.check_expr(node.arg);
+
+        if object_ty == self.error_ty() {
+            return self.error_ty();
+        }
+
+        let index_ty = if self.is_for_in_variable_for_numeric_prop_names(node.arg) {
+            self.number_ty()
+        } else {
+            index_ty
+        };
+
+        let access_flags = if assign_kind_is_none {
+            AccessFlags::EXPRESSION_POSITION
+        } else {
+            AccessFlags::WRITING
+                | if object_ty.kind.is_generic_object() && object_ty.kind.is_this_ty_param() {
+                    AccessFlags::NO_INDEX_SIGNATURES
+                } else {
+                    AccessFlags::empty()
+                }
+                | if assign_kind == AssignmentKind::Compound {
+                    AccessFlags::EXPRESSION_POSITION
+                } else {
+                    AccessFlags::empty()
+                }
+        };
+
+        self.get_indexed_access_ty(object_ty, index_ty, Some(access_flags), Some(node.id))
     }
 
     fn check_prop_access_expr(&mut self, node: &'cx ast::PropAccessExpr<'cx>) -> &'cx ty::Ty<'cx> {
@@ -697,6 +1045,19 @@ impl<'cx> TyChecker<'cx> {
         };
         let ty = self.get_type_of_symbol(symbol);
         ty
+    }
+
+    fn param_ty_constraint(&self, ty: &'cx ty::Ty<'cx>) -> Option<&'cx ty::Ty<'cx>> {
+        let Some(param) = ty.kind.as_param() else {
+            unreachable!()
+        };
+        if param.is_this_ty {
+            // assert!(param.constraint.is_none());
+            Some(self.tys[ty.id.as_usize() + 1])
+        } else {
+            // TODO:
+            None
+        }
     }
 
     fn check_prefix_unary_expr(
@@ -894,17 +1255,18 @@ impl<'cx> TyChecker<'cx> {
 
     fn is_used_in_fn_or_instance_prop(&self, used: &'cx ast::Ident, decl: ast::NodeID) -> bool {
         assert!(used.id.module() == decl.module());
-        find_ancestor(self.p, used.id, |current| {
-            if current.id() == decl {
-                return Some(false);
-            } else if current.is_fn_like() {
-                return Some(true);
-            } else if current.is_class_static_block_decl() {
-                return Some(self.p.node(decl).span().lo < used.span.lo);
-            }
-            None
-        })
-        .is_some()
+        self.p
+            .find_ancestor(used.id, |current| {
+                if current.id() == decl {
+                    return Some(false);
+                } else if current.is_fn_like() {
+                    return Some(true);
+                } else if current.is_class_static_block_decl() {
+                    return Some(self.p.node(decl).span().lo < used.span.lo);
+                }
+                None
+            })
+            .is_some()
     }
 
     fn is_block_scoped_name_declared_before_use(
@@ -962,7 +1324,7 @@ impl<'cx> TyChecker<'cx> {
         }
 
         let ty = self.get_type_of_symbol(symbol);
-        let assignment_kind = get_assignment_kind(self, ident.id);
+        let assignment_kind = self.p.get_assignment_kind(ident.id);
         if assignment_kind != AssignmentKind::None && symbol != Symbol::ERR {
             let symbol = self.binder.symbol(symbol);
             if !symbol.is_variable() {

@@ -27,12 +27,14 @@ fn build_and_resolve(
 }
 
 #[cfg(test)]
+#[allow(dead_code)]
 pub fn should_eq(map: serde_json::Value, base_dir: &str, target: &str, expected: &str) {
     let ret = build_and_resolve(map, base_dir, target).unwrap();
     assert_eq!(ret, expected);
 }
 
 #[cfg(test)]
+#[allow(dead_code)]
 pub fn should_not_found(map: serde_json::Value, base_dir: &str, target: &str) {
     let res = build_and_resolve(map, base_dir, target);
     assert!(matches!(res, Err(ResolveError::NotFound(_))))

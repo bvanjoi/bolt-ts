@@ -293,9 +293,9 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         let ele = if matches!(self.token.kind, TokenKind::LParen | TokenKind::Less) {
             // method
             let ty_params = self.with_parent(id, Self::parse_ty_params)?;
-            let params = self.parse_params()?;
-            let ty = self.parse_ret_ty(true)?;
-            let body = self.parse_fn_block()?;
+            let params = self.with_parent(id, Self::parse_params)?;
+            let ty = self.with_parent(id, |this| this.parse_ret_ty(true))?;
+            let body = self.with_parent(id, Self::parse_fn_block)?;
             let method = self.alloc(ast::ClassMethodEle {
                 id,
                 span: self.new_span(start as u32),
@@ -314,7 +314,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         } else {
             // prop
             let ty = self.with_parent(id, Self::parse_ty_anno)?;
-            let init = self.parse_init();
+            let init = self.with_parent(id, Self::parse_init);
             let prop = self.alloc(ast::ClassPropEle {
                 id,
                 span: self.new_span(start as u32),

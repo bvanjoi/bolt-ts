@@ -33,7 +33,6 @@ fn well_formed_check(
     let mut s = CheckState {
         p,
         atoms,
-        module_id,
         diags: vec![],
     };
     let program = p.root(module_id);
@@ -44,7 +43,6 @@ fn well_formed_check(
 struct CheckState<'cx> {
     p: &'cx Parser<'cx>,
     atoms: &'cx AtomMap<'cx>,
-    module_id: ModuleID,
     diags: Vec<bolt_ts_errors::Diag>,
 }
 

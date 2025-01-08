@@ -32,7 +32,7 @@ impl<'cx> InferenceInfo<'cx> {
         }
     }
 
-    fn has_inference_candidates(&self) -> bool {
+    pub(super) fn has_inference_candidates(&self) -> bool {
         self.candidates.is_some() || self.contra_candidates.is_some()
     }
 }
@@ -177,14 +177,32 @@ impl<'cx> TyChecker<'cx> {
         inference: InferenceContextId,
         idx: usize,
     ) -> &InferenceInfo<'cx> {
-        &self.inference(inference).inferences[idx]
+        &self.inference_infos(inference)[idx]
+    }
+
+    pub(super) fn inference_infos(&self, inference: InferenceContextId) -> &[InferenceInfo<'cx>] {
+        &self.inference(inference).inferences
+    }
+
+    pub(crate) fn config_inference_flags(
+        &mut self,
+        inference: InferenceContextId,
+        f: impl FnOnce(&mut InferenceFlags),
+    ) {
+        f(&mut self.inferences[inference.as_usize()].flags);
+    }
+
+    pub(super) fn get_inferred_tys(&mut self, inference: InferenceContextId) -> ty::Tys<'cx> {
+        let tys = (0..self.inference(inference).inferences.len())
+            .map(|idx| self.get_inferred_ty(inference, idx))
+            .collect::<Vec<_>>();
+        self.alloc(tys)
     }
 
     fn get_inferred_ty(&mut self, inference: InferenceContextId, idx: usize) -> &'cx ty::Ty<'cx> {
-        let ctx = &self.inferences[inference.as_usize()];
-        let i = &ctx.inferences[idx];
+        let i = self.inference_info(inference, idx);
         // TODO: cache
-        if let Some(sig) = ctx.sig {
+        if let Some(sig) = self.get_inference_sig(inference) {
             if let Some(candidates) = &i.candidates {
                 // TODO: use `get_covariant_inference`
                 self.create_union_type(candidates.to_vec(), ty::UnionReduction::Subtype)
@@ -197,6 +215,13 @@ impl<'cx> TyChecker<'cx> {
             self.get_ty_from_inference(inference, idx)
                 .unwrap_or(self.undefined_ty())
         }
+    }
+
+    pub(super) fn get_inference_sig(
+        &self,
+        inference: InferenceContextId,
+    ) -> Option<&'cx ty::Sig<'cx>> {
+        self.inference(inference).sig
     }
 
     fn get_inference_info_for_ty(
@@ -225,13 +250,6 @@ impl<'cx> TyChecker<'cx> {
             self.get_unmatched_prop(source, target).is_some()
                 && self.get_unmatched_prop(target, source).is_some()
         }
-    }
-
-    fn get_inferred_tys(&mut self, inference: InferenceContextId) -> ty::Tys<'cx> {
-        let tys = (0..self.inference(inference).inferences.len())
-            .map(|idx| self.get_inferred_ty(inference, idx))
-            .collect::<Vec<_>>();
-        self.alloc(tys)
     }
 
     pub(super) fn infer_ty_args(
@@ -345,7 +363,7 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
-    fn infer_tys(
+    pub(super) fn infer_tys(
         &mut self,
         inference: InferenceContextId,
         original_source: &'cx ty::Ty<'cx>,
@@ -364,6 +382,51 @@ impl<'cx> TyChecker<'cx> {
             propagation_ty: None,
         };
         state.infer_from_tys(original_source, original_target);
+    }
+
+    pub(super) fn apply_to_param_tys(
+        &mut self,
+        source: &'cx ty::Sig<'cx>,
+        target: &'cx ty::Sig<'cx>,
+        callback: impl Fn(&mut Self, &'cx ty::Ty<'cx>, &'cx ty::Ty<'cx>),
+    ) {
+        let source_count = source.get_param_count(self);
+        let target_count = target.get_param_count(self);
+        let source_rest_ty = source.get_rest_ty(self);
+        let target_rest_ty = target.get_rest_ty(self);
+        let target_non_rest_count = if target_rest_ty.is_some() {
+            target_count - 1
+        } else {
+            target_count
+        };
+        let param_count = if source_rest_ty.is_some() {
+            target_count
+        } else {
+            usize::min(source_count, target_non_rest_count)
+        };
+        // TODO: `source_this_ty`
+        for i in 0..param_count {
+            let source_ty = self.get_ty_at_pos(source, i);
+            let target_ty = self.get_ty_at_pos(target, i);
+            callback(self, source_ty, target_ty);
+        }
+        if let Some(target_rest_ty) = target_rest_ty {
+            todo!()
+        }
+    }
+
+    pub(super) fn apply_to_ret_ty(
+        &mut self,
+        source: &'cx ty::Sig<'cx>,
+        target: &'cx ty::Sig<'cx>,
+        f: impl FnOnce(&mut Self, &'cx ty::Ty<'cx>, &'cx ty::Ty<'cx>),
+    ) {
+        // TODO: handle ty_pred
+        let target_ret_ty = self.get_ret_ty_of_sig(target);
+        if self.could_contain_ty_var(target_ret_ty) {
+            let source_ret_ty = self.get_ret_ty_of_sig(source);
+            f(self, source_ret_ty, target_ret_ty);
+        }
     }
 }
 

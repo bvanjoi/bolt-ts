@@ -80,11 +80,12 @@ impl<'cx> TyChecker<'cx> {
         None
     }
 
-    fn get_apparent_ty_of_contextual_ty(
+    pub(super) fn get_apparent_ty_of_contextual_ty(
         &mut self,
         node: ast::NodeID,
         flags: Option<ContextFlags>,
     ) -> Option<&'cx ty::Ty<'cx>> {
+        // TODO: `is_object_literal_method`
         let contextual_ty = self.get_contextual_ty(node, flags);
         if let Some(ty) = self.instantiate_contextual_ty(contextual_ty, node, flags) {
             if let Some(flags) = flags {
@@ -151,5 +152,15 @@ impl<'cx> TyChecker<'cx> {
             return self.get_contextual_call_sig(ty, id);
         }
         None
+    }
+
+    pub(super) fn is_context_sensitive_fn_or_object_literal_method(&self, id: ast::NodeID) -> bool {
+        let node = self.p.node(id);
+        if node.is_fn_expr_or_arrow_fnc_expr() || self.p.is_object_lit_method(id) {
+            // TODO: isContextSensitiveFunctionLikeDeclaration
+            false
+        } else {
+            false
+        }
     }
 }

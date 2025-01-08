@@ -61,7 +61,7 @@ impl<'cx> ParserState<'cx, '_> {
         let last_token = self.token.kind;
         self.expect(TokenKind::EqGreat)?;
         let body = if matches!(last_token, TokenKind::EqGreat | TokenKind::LBrace) {
-            self.parse_arrow_fn_expr_body()?
+            self.with_parent(id, Self::parse_arrow_fn_expr_body)?
         } else {
             todo!()
         };

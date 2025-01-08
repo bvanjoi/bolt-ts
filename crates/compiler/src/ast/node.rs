@@ -387,6 +387,30 @@ impl<'cx> Node<'cx> {
             _ => None,
         }
     }
+
+    #[inline]
+    pub fn is_call_or_new_expr(&self) -> bool {
+        self.is_call_expr() || self.is_new_expr()
+    }
+
+    #[inline]
+    pub fn is_fn_expr_or_arrow_fnc_expr(&self) -> bool {
+        self.is_fn_expr() || self.is_arrow_fn_expr()
+    }
+
+    pub fn is_class_ele(&self) -> bool {
+        self.is_class_ctor()
+            || self.is_class_prop_ele()
+            || self.is_class_method_ele()
+            || self.is_getter_decl()
+            || self.is_setter_decl()
+            || self.is_index_sig_decl()
+    }
+
+    pub fn is_static(&self) -> bool {
+        // TODO: has static modifier
+        self.is_class_decl() && false
+    }
 }
 
 macro_rules! as_node {

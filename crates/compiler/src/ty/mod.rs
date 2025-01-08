@@ -16,6 +16,7 @@ pub use self::facts::{has_type_facts, TypeFacts, TYPEOF_NE_FACTS};
 pub use self::mapper::{ArrayTyMapper, SimpleTyMapper, TyMapper};
 pub use self::object_shape::ObjectShape;
 pub use self::object_ty::ElementFlags;
+pub use self::object_ty::SingleSigTy;
 pub use self::object_ty::{AnonymousTy, InterfaceTy, ObjectLitTy, ObjectTyKind};
 pub use self::object_ty::{DeclaredMembers, ReferenceTy, StructuredMembers};
 pub use self::object_ty::{IndexInfo, IndexInfos, ObjectTy, TupleShape, TupleTy};
@@ -321,6 +322,12 @@ impl TyKind<'_> {
             .unwrap_or_default()
     }
 
+    pub fn is_this_ty_param(&self) -> bool {
+        self.as_param()
+            .map(|param| param.is_this_ty)
+            .unwrap_or_default()
+    }
+
     pub fn is_generic_object(&self) -> bool {
         self.is_instantiable_non_primitive() || self.is_generic_tuple_type()
     }
@@ -413,4 +420,5 @@ pub struct ParamTy<'cx> {
     pub symbol: SymbolID,
     pub offset: usize,
     pub target: Option<&'cx self::Ty<'cx>>,
+    pub is_this_ty: bool,
 }

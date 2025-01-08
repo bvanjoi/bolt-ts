@@ -13,6 +13,7 @@ pub struct ObjectTy<'cx> {
 #[derive(Debug, Clone, Copy)]
 pub enum ObjectTyKind<'cx> {
     Anonymous(&'cx AnonymousTy<'cx>),
+    SingleSigTy(&'cx SingleSigTy<'cx>),
     ObjectLit(&'cx ObjectLitTy<'cx>),
     Tuple(&'cx TupleTy<'cx>),
     Interface(&'cx InterfaceTy<'cx>),
@@ -230,6 +231,7 @@ impl ObjectTyKind<'_> {
                 .get(checker.binder.symbol(i.symbol).name.expect_atom())
                 .to_string(),
             ObjectTyKind::Reference(refer) => refer.target.to_string(checker),
+            ObjectTyKind::SingleSigTy(single_sig_ty) => "single signature type".to_string(),
         }
     }
 }
@@ -246,4 +248,12 @@ pub struct AnonymousTy<'cx> {
     pub symbol: SymbolID,
     pub target: Option<&'cx Ty<'cx>>,
     pub mapper: Option<&'cx super::TyMapper<'cx>>,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct SingleSigTy<'cx> {
+    pub symbol: SymbolID,
+    pub target: Option<&'cx Ty<'cx>>,
+    pub mapper: Option<&'cx super::TyMapper<'cx>>,
+    pub outer_ty_params: Option<super::Tys<'cx>>,
 }

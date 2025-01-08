@@ -24,6 +24,7 @@ use bolt_ts_utils::fx_hashmap_with_capacity;
 use rayon::prelude::*;
 use rustc_hash::FxHashMap;
 
+pub use self::query::AssignmentKind;
 pub use self::token::KEYWORD_TOKEN_START;
 use self::token::{Token, TokenFlags, TokenKind};
 use crate::ast::{self, Node, NodeFlags, NodeID};

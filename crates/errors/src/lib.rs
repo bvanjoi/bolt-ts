@@ -2,7 +2,7 @@ pub mod diag_ext;
 mod source_code;
 
 pub use bolt_ts_diag_derive::DiagnosticExt;
-use bolt_ts_span::{ModuleArena, ModuleID};
+use bolt_ts_span::ModuleArena;
 use diag_ext::into_miette_diagnostic;
 pub use miette;
 pub use thiserror;
