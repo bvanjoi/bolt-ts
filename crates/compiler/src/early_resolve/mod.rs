@@ -338,6 +338,10 @@ impl<'cx> Resolver<'cx, '_> {
             PropAccess(node) => {
                 self.resolve_expr(node.expr);
             }
+            EleAccess(node) => {
+                self.resolve_expr(node.expr);
+                self.resolve_expr(node.arg);
+            }
             Typeof(node) => {
                 self.resolve_expr(node.expr);
             }

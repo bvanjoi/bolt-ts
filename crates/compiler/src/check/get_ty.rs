@@ -2,11 +2,11 @@ use bolt_ts_atom::AtomId;
 
 use super::symbol_links::SymbolLinks;
 use super::ty::{self, Ty, TyKind};
-use super::{CheckMode, F64Represent, InferenceContextId, TyChecker};
+use super::{CheckMode, F64Represent, InferenceContextId, PropName, TyChecker};
 use crate::ast;
 use crate::bind::{SymbolFlags, SymbolID, SymbolName};
 use crate::keyword;
-use crate::ty::{AccessFlags, CheckFlags, ElementFlags, TupleShape, TyMapper};
+use crate::ty::{AccessFlags, CheckFlags, ElementFlags, TupleShape, TyMapper, TypeFlags};
 
 impl<'cx> TyChecker<'cx> {
     pub(crate) fn get_type_of_symbol(&mut self, id: SymbolID) -> &'cx Ty<'cx> {
@@ -202,17 +202,17 @@ impl<'cx> TyChecker<'cx> {
         self.get_ty_from_type_node(rest.ty)
     }
 
-    fn get_prop_name_from_ty(&self, ty: &'cx Ty<'cx>) -> AtomId {
+    fn get_prop_name_from_ty(&self, ty: &'cx Ty<'cx>) -> PropName {
         if let Some(lit) = ty.kind.as_string_lit() {
-            lit.val
+            PropName::String(lit.val)
         } else if let Some(lit) = ty.kind.as_number_lit() {
-            todo!()
+            PropName::Num(lit.val)
         } else {
-            todo!()
+            unreachable!()
         }
     }
 
-    fn get_prop_name_from_index(&self, index_ty: &'cx Ty<'cx>) -> AtomId {
+    fn get_prop_name_from_index(&self, index_ty: &'cx Ty<'cx>) -> PropName {
         self.get_prop_name_from_ty(index_ty)
     }
 
@@ -223,11 +223,35 @@ impl<'cx> TyChecker<'cx> {
         index_ty: &'cx Ty<'cx>,
     ) -> &'cx Ty<'cx> {
         let prop_name = self.get_prop_name_from_index(index_ty);
-        let Some(symbol) = self.get_prop_of_ty(object_ty, SymbolName::Ele(prop_name)) else {
-            return self.undefined_ty();
+        let symbol_name = match prop_name {
+            PropName::String(atom_id) => SymbolName::Ele(atom_id),
+            PropName::Num(num) => SymbolName::EleNum(num.into()),
         };
-        let ty = self.get_type_of_symbol(symbol);
-        ty
+        let symbol = self.get_prop_of_ty(object_ty, symbol_name);
+        if let Some(symbol) = symbol {
+            return self.get_type_of_symbol(symbol);
+        }
+
+        if !index_ty.kind.is_nullable()
+            && self.is_type_assignable_to_kind(
+                index_ty,
+                |t| t.kind.is_string_like() || t.kind.is_number_like(),
+                TypeFlags::STRING_LIKE | TypeFlags::NUMBER_LIKE | TypeFlags::ES_SYMBOL_LIKE,
+                false,
+            )
+        {
+            if object_ty.kind.is_any() {
+                return object_ty;
+            }
+            let index_info = self
+                .get_applicable_index_info(object_ty, index_ty)
+                .or_else(|| self.get_index_info_of_ty(object_ty, self.string_ty()));
+            if let Some(index_info) = index_info {
+                return index_info.val_ty;
+            }
+        }
+
+        self.undefined_ty()
     }
 
     pub(super) fn get_indexed_access_ty(

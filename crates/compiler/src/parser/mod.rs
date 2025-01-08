@@ -288,13 +288,20 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         }
     }
 
+    fn is_list_terminator(&mut self, ctx: impl list_ctx::ListContext) -> bool {
+        if self.token.kind == TokenKind::EOF {
+            return true;
+        }
+        ctx.is_closing(self)
+    }
+
     fn parse_list<T>(
         &mut self,
         ctx: impl list_ctx::ListContext,
         ele: impl Fn(&mut Self) -> PResult<T>,
     ) -> &'cx [T] {
         let mut list = vec![];
-        while !ctx.is_closing(self) {
+        while !self.is_list_terminator(ctx) {
             if ctx.is_ele(self) {
                 if let Ok(ele) = ele(self) {
                     list.push(ele);
@@ -316,7 +323,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
                     break;
                 };
                 list.push(ele);
-                if ctx.is_closing(self) {
+                if self.is_list_terminator(ctx) {
                     break;
                 }
                 if self.parse_optional(TokenKind::Comma).is_some() {
@@ -329,7 +336,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
                     self.push_error(Box::new(error));
                 }
             }
-            if ctx.is_closing(self) {
+            if self.is_list_terminator(ctx) {
                 break;
             }
         }

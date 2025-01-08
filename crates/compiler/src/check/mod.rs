@@ -30,6 +30,7 @@ mod resolve;
 mod resolve_structured_member;
 mod sig;
 mod symbol_links;
+mod type_assignable;
 mod utils;
 
 use bolt_ts_atom::{AtomId, AtomMap};
@@ -52,7 +53,7 @@ use crate::bind::{self, GlobalSymbols, Symbol, SymbolFlags, SymbolID, SymbolName
 use crate::parser::{AssignmentKind, Parser};
 use crate::ty::{
     has_type_facts, AccessFlags, CheckFlags, Sig, SigFlags, SigID, TupleShape, TyID, TyKind,
-    TyVarID, TypeFacts, TYPEOF_NE_FACTS,
+    TyVarID, TypeFacts, TypeFlags, TYPEOF_NE_FACTS,
 };
 use crate::{ast, ensure_sufficient_stack, keyword, ty};
 
@@ -179,6 +180,11 @@ fn get_suggestion_boolean_op(op: &str) -> Option<&str> {
         "|" | "|=" => Some("||"),
         _ => None,
     }
+}
+
+enum PropName {
+    String(AtomId),
+    Num(f64),
 }
 
 impl<'cx> TyChecker<'cx> {
@@ -1048,9 +1054,7 @@ impl<'cx> TyChecker<'cx> {
     }
 
     fn param_ty_constraint(&self, ty: &'cx ty::Ty<'cx>) -> Option<&'cx ty::Ty<'cx>> {
-        let Some(param) = ty.kind.as_param() else {
-            unreachable!()
-        };
+        let param = ty.kind.expect_param();
         if param.is_this_ty {
             // assert!(param.constraint.is_none());
             Some(self.tys[ty.id.as_usize() + 1])
@@ -1058,6 +1062,11 @@ impl<'cx> TyChecker<'cx> {
             // TODO:
             None
         }
+    }
+
+    fn param_ty_mapper(&self, ty: &'cx ty::Ty<'cx>) -> Option<&'cx ty::TyMapper<'cx>> {
+        let param = ty.kind.expect_param();
+        param.target.is_some().then(|| self.param_ty_mapper[&ty.id])
     }
 
     fn check_prefix_unary_expr(
@@ -1373,13 +1382,29 @@ impl<'cx> TyChecker<'cx> {
         left_ty: &'cx ty::Ty<'cx>,
         right_ty: &'cx ty::Ty<'cx>,
     ) -> &'cx ty::Ty<'cx> {
-        if self.is_type_assignable_to_kind(left_ty, |ty| ty.kind.is_number_like(), true)
-            && self.is_type_assignable_to_kind(right_ty, |ty| ty.kind.is_number_like(), true)
-        {
+        if self.is_type_assignable_to_kind(
+            left_ty,
+            |ty| ty.kind.is_number_like(),
+            TypeFlags::NUMBER_LIKE,
+            true,
+        ) && self.is_type_assignable_to_kind(
+            right_ty,
+            |ty| ty.kind.is_number_like(),
+            TypeFlags::NUMBER_LIKE,
+            true,
+        ) {
             self.number_ty()
-        } else if self.is_type_assignable_to_kind(left_ty, |ty| ty.kind.is_string_like(), true)
-            && self.is_type_assignable_to_kind(right_ty, |ty| ty.kind.is_string_like(), true)
-        {
+        } else if self.is_type_assignable_to_kind(
+            left_ty,
+            |ty| ty.kind.is_string_like(),
+            TypeFlags::STRING_LIKE,
+            true,
+        ) && self.is_type_assignable_to_kind(
+            right_ty,
+            |ty| ty.kind.is_string_like(),
+            TypeFlags::STRING_LIKE,
+            true,
+        ) {
             self.string_ty()
         } else {
             self.any_ty()
@@ -1447,22 +1472,6 @@ impl<'cx> TyChecker<'cx> {
 
     fn push_error(&mut self, error: crate::Diag) {
         self.diags.push(bolt_ts_errors::Diag { inner: error })
-    }
-
-    fn is_type_assignable_to_kind(
-        &self,
-        source: &ty::Ty<'cx>,
-        kind: impl FnOnce(&ty::Ty<'cx>) -> bool,
-        strict: bool,
-    ) -> bool {
-        if kind(source) {
-            return true;
-        }
-        // if strict && source.flags.contains(TyFlags::AnyOrUnknown | TyFlags::Void | TyFlags::Undefined | TyFlags::Null) {
-        //     return false;
-        // }
-
-        false
     }
 
     fn check_type_reference_or_import(&mut self, node: &'cx ast::Ty<'cx>) {

@@ -46,18 +46,73 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
+    pub(super) fn find_index_info(
+        &mut self,
+        index_infos: &[&'cx ty::IndexInfo<'cx>],
+        key_ty: &'cx ty::Ty<'cx>,
+    ) -> Option<&ty::IndexInfo<'cx>> {
+        index_infos
+            .iter()
+            .find(|info| info.key_ty == key_ty)
+            .copied()
+    }
+
+    pub(super) fn get_index_info_of_ty(
+        &mut self,
+        ty: &'cx ty::Ty<'cx>,
+        key_ty: &'cx ty::Ty<'cx>,
+    ) -> Option<&ty::IndexInfo<'cx>> {
+        let index_infos = self.get_index_infos_of_ty(ty);
+        self.find_index_info(index_infos, key_ty)
+    }
+
     pub(super) fn get_index_infos_of_ty(&mut self, ty: &'cx ty::Ty<'cx>) -> ty::IndexInfos<'cx> {
         self.get_index_infos_of_structured_ty(ty)
+    }
+
+    pub(super) fn find_applicable_index_info(
+        &mut self,
+        index_infos: &'cx [&'cx ty::IndexInfo<'cx>],
+        key_ty: &'cx ty::Ty<'cx>,
+    ) -> Option<&'cx ty::IndexInfo<'cx>> {
+        let mut string_index_info: Option<&ty::IndexInfo<'_>> = None;
+        let mut applicable_info: Option<&ty::IndexInfo<'_>> = None;
+        let mut applicable_infos: Option<Vec<&ty::IndexInfo<'_>>> = None;
+
+        for info in index_infos {
+            if info.key_ty == self.string_ty() {
+                string_index_info = Some(info)
+            } else if self.is_applicable_index_ty(key_ty, info.key_ty) {
+                if applicable_info.is_none() {
+                    applicable_info = Some(info)
+                } else if let Some(applicable_infos) = applicable_infos.as_mut() {
+                    applicable_infos.push(info)
+                } else {
+                    applicable_infos = Some(vec![applicable_info.unwrap(), info])
+                }
+            }
+        }
+
+        if let Some(applicable_infos) = applicable_infos {
+            // TODO: create index info
+            applicable_info
+        } else if let Some(applicable_info) = applicable_info {
+            Some(applicable_info)
+        } else if string_index_info.is_some()
+            && self.is_applicable_index_ty(key_ty, self.string_ty())
+        {
+            string_index_info
+        } else {
+            None
+        }
     }
 
     pub(super) fn get_applicable_index_info(
         &mut self,
         ty: &'cx ty::Ty<'cx>,
-        prop_name_ty: &'cx ty::Ty<'cx>,
+        key_ty: &'cx ty::Ty<'cx>,
     ) -> Option<&'cx ty::IndexInfo<'cx>> {
-        self.index_infos_of_ty(ty)
-            .iter()
-            .find(|info| self.is_applicable_index_ty(prop_name_ty, info.key_ty))
-            .copied()
+        let index_infos = self.get_index_infos_of_ty(ty);
+        self.find_applicable_index_info(index_infos, key_ty)
     }
 }

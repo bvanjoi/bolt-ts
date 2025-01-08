@@ -1,5 +1,6 @@
 mod check_flags;
 mod facts;
+mod flags;
 mod mapper;
 mod object_shape;
 mod object_ty;
@@ -13,6 +14,7 @@ use crate::{ast, keyword};
 
 pub use self::check_flags::CheckFlags;
 pub use self::facts::{has_type_facts, TypeFacts, TYPEOF_NE_FACTS};
+pub use self::flags::TypeFlags;
 pub use self::mapper::{ArrayTyMapper, SimpleTyMapper, TyMapper};
 pub use self::object_shape::ObjectShape;
 pub use self::object_ty::ElementFlags;
@@ -137,6 +139,7 @@ as_ty_kind!(
     expect_indexed_access,
     is_indexed_access
 );
+as_ty_kind!(Void, is_void);
 as_ty_kind!(Any, is_any);
 as_ty_kind!(Number, is_number);
 as_ty_kind!(String, is_string);

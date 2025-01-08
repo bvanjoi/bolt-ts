@@ -432,6 +432,10 @@ impl<'cx> BinderState<'cx> {
             PropAccess(node) => {
                 self.bind_expr(node.expr);
             }
+            EleAccess(node) => {
+                self.bind_expr(node.expr);
+                self.bind_expr(node.arg);
+            }
             Typeof(node) => {
                 self.bind_expr(node.expr);
             }

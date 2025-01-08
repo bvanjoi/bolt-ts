@@ -149,11 +149,6 @@ impl<'cx> TyChecker<'cx> {
         })
     }
 
-    pub(super) fn param_ty_mapper(&self, ty: &'cx ty::Ty<'cx>) -> Option<&'cx TyMapper<'cx>> {
-        let param = ty.kind.expect_param();
-        param.target.is_some().then(|| self.param_ty_mapper[&ty.id])
-    }
-
     pub(super) fn instantiate_sig(
         &mut self,
         sig: &'cx ty::Sig<'cx>,
@@ -250,7 +245,12 @@ impl<'cx> TyChecker<'cx> {
                 self.signatures_of_type(base_ty, SigKind::Constructor)
                     .iter(),
             );
-            index_infos.extend(self.index_infos_of_ty(base_ty).iter());
+            let inherited_index_infos = self
+                .index_infos_of_ty(base_ty)
+                .into_iter()
+                .filter(|info| self.find_index_info(&index_infos, info.key_ty).is_none())
+                .collect::<Vec<_>>();
+            index_infos.extend(inherited_index_infos);
         }
 
         let props = self.get_props_from_members(&members);
