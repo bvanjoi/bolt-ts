@@ -120,3 +120,22 @@ pub(super) struct ExtendsClauseMustPrecedeImplementsClause {
     #[label("'implements' clause defined here.")]
     pub implements_span: Span,
 }
+
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
+#[error("'{expected}' expected.")]
+pub(super) struct KindExpected {
+    #[label(primary)]
+    pub span: Span,
+    pub expected: String,
+    #[related]
+    pub related: Option<ExpectedToFindAToMatchTheBTokenHere>,
+}
+
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
+#[error("Expected to find a '{expected}' to match the '{found}' token here.")]
+pub(super) struct ExpectedToFindAToMatchTheBTokenHere {
+    #[label(primary)]
+    pub span: Span,
+    pub expected: String,
+    pub found: String,
+}

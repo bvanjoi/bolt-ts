@@ -2,6 +2,7 @@ mod ast;
 mod bind;
 pub mod check;
 mod early_resolve;
+mod ecma_rules;
 mod emit;
 mod graph;
 mod ir;

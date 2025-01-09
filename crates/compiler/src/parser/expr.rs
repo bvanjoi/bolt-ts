@@ -1,3 +1,5 @@
+use bolt_ts_span::Span;
+
 use crate::ast::NodeFlags;
 
 use super::ast::{self, BinOp};
@@ -390,13 +392,16 @@ impl<'cx> ParserState<'cx, '_> {
     fn parse_array_lit(&mut self) -> &'cx ast::Expr<'cx> {
         let id = self.next_node_id();
         let start = self.token.start();
-        if self.expect(TokenKind::LBracket).is_err() {
-            todo!("error handler: {:#?}", self.token)
-        }
+        let open = TokenKind::LBracket;
+        let open_bracket_parsed = self.expect(open).is_ok();
         let elems = self.with_parent(id, Self::parse_array_lit_elems);
-        if self.expect(TokenKind::RBracket).is_err() {
-            todo!("error handler: {:#?}", self.token)
-        }
+        self.parse_expected_matching_brackets(
+            open,
+            TokenKind::RBracket,
+            open_bracket_parsed,
+            start as usize,
+        )
+        .unwrap();
         let lit = self.alloc(ast::ArrayLit {
             id,
             span: self.new_span(start),
@@ -549,11 +554,13 @@ impl<'cx> ParserState<'cx, '_> {
     fn parse_object_lit(&mut self) -> PResult<&'cx ast::Expr<'cx>> {
         use TokenKind::*;
         let start = self.token.start();
-        self.expect(LBrace)?;
+        let open = LBrace;
+        let open_brace_parsed = self.expect(LBrace).is_ok();
         let id = self.next_node_id();
         let props =
             self.parse_delimited_list(list_ctx::ObjectLitMembers, Self::parse_object_lit_ele);
-        self.expect(RBrace)?;
+        let close = RBrace;
+        self.parse_expected_matching_brackets(open, close, open_brace_parsed, start as usize)?;
         let lit = self.alloc(ast::ObjectLit {
             id,
             span: self.new_span(start),

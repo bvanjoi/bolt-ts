@@ -49,15 +49,45 @@ impl<'p> ParserState<'p, '_> {
         self.parse_block().map(Some)
     }
 
+    pub(super) fn parse_expected_matching_brackets(
+        &mut self,
+        open: TokenKind,
+        close: TokenKind,
+        open_parsed: bool,
+        open_pos: usize,
+    ) -> PResult<()> {
+        if self.token.kind == close {
+            self.next_token();
+            return Ok(());
+        }
+
+        let mut expected_error = errors::KindExpected {
+            span: self.token.span,
+            expected: close.as_str().to_string(),
+            related: None,
+        };
+
+        if open_parsed {
+            expected_error.related = Some(errors::ExpectedToFindAToMatchTheBTokenHere {
+                span: Span::new(open_pos as u32, open_pos as u32 + 1, self.module_id),
+                expected: open.as_str().to_string(),
+                found: close.as_str().to_string(),
+            });
+        }
+        self.push_error(Box::new(expected_error));
+        Ok(())
+    }
+
     pub(super) fn parse_block(&mut self) -> PResult<&'p ast::BlockStmt<'p>> {
         let id = self.next_node_id();
         let start = self.token.start();
         use TokenKind::*;
-        self.expect(LBrace)?;
+        let open = LBrace;
+        let open_brace_parsed = self.expect(LBrace).is_ok();
         let stmts = self.with_parent(id, |this| {
             this.parse_list(list_ctx::BlockStmts, Self::parse_stmt)
         });
-        self.expect(RBrace)?;
+        self.parse_expected_matching_brackets(open, RBrace, open_brace_parsed, start as usize)?;
         let stmt = self.alloc(ast::BlockStmt {
             id,
             span: self.new_span(start),

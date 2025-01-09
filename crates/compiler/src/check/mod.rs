@@ -55,7 +55,7 @@ use crate::ty::{
     has_type_facts, AccessFlags, CheckFlags, Sig, SigFlags, SigID, TupleShape, TyID, TyKind,
     TyVarID, TypeFacts, TypeFlags, TYPEOF_NE_FACTS,
 };
-use crate::{ast, ensure_sufficient_stack, keyword, ty};
+use crate::{ast, ecma_rules, ensure_sufficient_stack, keyword, ty};
 
 bitflags::bitflags! {
     #[derive(Clone, Copy, Debug, PartialEq)]
@@ -1490,10 +1490,9 @@ impl<'cx> TyChecker<'cx> {
         self.check_type_assignable_to(left_ty, self.string_number_symbol_ty(), Some(left.id()));
         if !self.check_type_assignable_to(right_ty, self.non_primitive_ty(), Some(right.id())) {
             let right_ty = self.get_widened_literal_ty(right_ty);
-            let error = errors::TypeIsNotAssignableToType {
+            let error = ecma_rules::TheRightValueOfTheInOperatorMustBeAnObjectButGotTy {
                 span: right.span(),
-                ty1: right_ty.to_string(self),
-                ty2: self.non_primitive_ty().to_string(self),
+                ty: right_ty.to_string(self),
             };
             self.push_error(Box::new(error));
         }
