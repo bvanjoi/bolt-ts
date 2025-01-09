@@ -9,11 +9,14 @@ rustc-hash = { workspace = true }
 bumpalo = { version = "3.16.0" }
 enumflags2 = { workspace = true }
 bitflags = { workspace = true }
-xxhash-rust = { version = "0.8.12", features = ["xxh3", "const_xxh3"] }
+bolt_ts_atom = { path = "../atom" }
 bolt_ts_errors = { path = "../errors" }
 bolt_ts_span = { path = "../span" }
 bolt_ts_lib = { path = "../lib" }
 bolt_ts_config = { path = "../config" }
+bolt_ts_utils = { path = "../utils" }
+bolt_ts_fs = { path = "../fs" }
+bolt_ts_resolve = { path = "../resolve" }
 project-root = "0.2.2"
 thin-vec = { workspace = true }
 stacker = "0.1"
@@ -23,6 +26,7 @@ paste = { workspace = true }
 serde_json = { workspace = true }
 glob = "0.3.1"
 normalize-path = { workspace = true }
+indexmap = { workspace = true }
 
 [dev-dependencies]
 expect-test = "1.2.2"

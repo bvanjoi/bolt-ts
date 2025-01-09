@@ -1,18 +1,6 @@
-use crate::atoms::AtomId;
-macro_rules! gen {
-    ($owner: ident, $(($name:ident, $lit:literal)),* $(,)?) => {
-        gen!($(($name, $lit)),*);
-        pub const $owner: &[(&str, AtomId)] = &[$(($lit, $name),)*];
-    };
-    ($(($name:ident, $lit:literal)),* $(,)?) => {
-        paste::paste! {
-            $(pub const [<$name _STR>]: &str = $lit;)*
-            $(pub const $name: AtomId = AtomId::from_str([<$name _STR>]);)*
-        }
-    };
-}
+use bolt_ts_atom::{gen_atoms, paste, AtomId};
 
-gen!(
+gen_atoms!(
     KEYWORDS,
     (KW_NULL, "null"),
     (KW_FALSE, "false"),
@@ -28,6 +16,7 @@ gen!(
     (KW_EXTENDS, "extends"),
     (KW_NEW, "new"),
     (KW_ASYNC, "async"),
+    (KW_AWAIT, "await"),
     (KW_THIS, "this"),
     (KW_STATIC, "static"),
     (KW_CONSTRUCTOR, "constructor"),
@@ -36,6 +25,7 @@ gen!(
     (KW_SET, "set"),
     (KW_IMPORT, "import"),
     (KW_EXPORT, "export"),
+    (KW_FROM, "from"),
     (KW_DEFAULT, "default"),
     (KW_THROW, "throw"),
     (KW_TRY, "try"),
@@ -45,6 +35,11 @@ gen!(
     (KW_TYPEOF, "typeof"),
     (KW_PACKAGE, "package"),
     (KW_YIELD, "yield"),
+    (KW_FOR, "for"),
+    (KW_OF, "of"),
+    (KW_BREAK, "break"),
+    (KW_CONTINUE, "continue"),
+    (KW_INSTANCEOF, "instanceof"),
     (KW_IN, "in"),
     // ts keywords
     (KW_IMPLEMENTS, "implements"),
@@ -60,10 +55,11 @@ gen!(
     (KW_NAMESPACE, "namespace"),
     (KW_ENUM, "enum"),
     (KW_READONLY, "readonly"),
+    (KW_SATISFIES, "satisfies"),
     (KW_TYPE, "type"),
 );
 
-gen!(
+gen_atoms!(
     IDENTIFIER,
     (IDENT_EMPTY, ""),
     (IDENT_LENGTH, "length"),
@@ -80,6 +76,12 @@ gen!(
     (IDENT_BOOLEAN, "boolean"),
     (IDENT_NEVER, "never"),
     (IDENT_UNKNOWN, "unknown"),
+    (IDENT_BIGINT, "bitint"),
+    (IDENT_OBJECT, "object"),
+    (IDENT_SYMBOL, "symbol"),
+    (IDENT_FUNCTION_CLASS, "Function"),
+    (IDENT_CALLABLE_FUNCTION_CLASS, "CallableFunction"),
+    (IDENT_NEWABLE_FUNCTION_CLASS, "NewableFunction"),
 );
 
 pub fn is_prim_ty_name(name: AtomId) -> bool {
@@ -99,4 +101,20 @@ pub fn is_prim_ty_name(name: AtomId) -> bool {
 
 pub fn is_prim_value_name(name: AtomId) -> bool {
     matches!(name, KW_NULL | KW_FALSE | KW_TRUE | IDENT_UNDEFINED)
+}
+
+pub fn is_reserved_type_name(name: AtomId) -> bool {
+    matches!(
+        name,
+        IDENT_ANY
+            | IDENT_UNKNOWN
+            | IDENT_NEVER
+            | IDENT_NUMBER
+            | IDENT_BIGINT
+            | IDENT_BOOLEAN
+            | IDENT_STRING
+            | IDENT_VOID
+            | IDENT_OBJECT
+            | IDENT_UNDEFINED
+    )
 }

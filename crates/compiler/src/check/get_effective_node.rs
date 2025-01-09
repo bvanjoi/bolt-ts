@@ -12,6 +12,7 @@ impl<'cx> TyChecker<'cx> {
             ast::Node::ClassExpr(c) => c.extends,
             _ => None,
         };
+        // TODO: type arguments
         extends.map(|extends| extends.expr)
     }
 

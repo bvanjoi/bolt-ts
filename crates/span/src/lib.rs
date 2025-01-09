@@ -1,66 +1,21 @@
-mod sys;
-
 use std::sync::Arc;
 
-#[macro_export]
-macro_rules! new_index {
-    ($name: ident) => {
-        #[derive(Debug, Clone, Copy, Hash, PartialEq, Eq)]
-        pub struct $name(u32);
-        impl $name {
-            pub const fn root() -> $name {
-                $name(0)
-            }
-            pub const fn next(&self) -> $name {
-                $name(self.0 + 1)
-            }
-            pub const fn as_u32(&self) -> u32 {
-                self.0
-            }
-            pub const fn as_usize(&self) -> usize {
-                self.0 as usize
-            }
-        }
-    };
-}
+use bolt_ts_atom::AtomId;
+use bolt_ts_fs::CachedFileSystem;
 
-crate::new_index!(ModuleID);
+bolt_ts_utils::index!(ModuleID);
+
 impl ModuleID {
     pub const MOCK: ModuleID = ModuleID(u32::MAX);
 }
 
-#[macro_export]
-macro_rules! new_index_with_module {
-    ($name: ident) => {
-        #[derive(Debug, Clone, Copy, Hash, PartialEq, Eq)]
-        pub struct $name {
-            module: bolt_ts_span::ModuleID,
-            index: u32,
-        }
-        impl $name {
-            pub const fn root(module: bolt_ts_span::ModuleID) -> $name {
-                $name { module, index: 0 }
-            }
-            pub const fn next(&self) -> $name {
-                $name {
-                    module: self.module,
-                    index: self.index + 1,
-                }
-            }
-            pub const fn index_as_u32(&self) -> u32 {
-                self.index
-            }
-            pub const fn index_as_usize(&self) -> usize {
-                self.index as usize
-            }
-            pub const fn module(&self) -> bolt_ts_span::ModuleID {
-                self.module
-            }
-        }
-    };
+impl Default for ModuleID {
+    fn default() -> Self {
+        Self::MOCK
+    }
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, Default)]
 pub struct Span {
     pub lo: u32,
     pub hi: u32,
@@ -90,7 +45,6 @@ impl std::fmt::Display for Span {
 pub struct Module {
     pub id: ModuleID,
     pub global: bool,
-    pub deps: Vec<ModuleID>,
 }
 
 pub enum ModulePath {
@@ -102,13 +56,6 @@ pub struct ModuleArena {
     path_map: Vec<ModulePath>,
     content_map: Vec<Arc<String>>,
     modules: Vec<Module>,
-    next_module_id: ModuleID,
-}
-
-impl Default for ModuleArena {
-    fn default() -> Self {
-        Self::new()
-    }
 }
 
 impl ModuleArena {
@@ -118,29 +65,44 @@ impl ModuleArena {
             path_map: Vec::with_capacity(cap),
             content_map: Vec::with_capacity(cap),
             modules: Vec::with_capacity(cap),
-            next_module_id: ModuleID::root(),
         }
     }
 
-    fn next_module_id(&mut self) -> ModuleID {
-        let old = self.next_module_id;
-        self.next_module_id = self.next_module_id.next();
-        old
-    }
-
-    pub fn new_module(&mut self, p: ModulePath, global: bool) -> ModuleID {
-        let id = self.next_module_id();
-        let m = Module {
-            id,
-            global,
-            deps: Vec::with_capacity(32),
-        };
-        assert!(id.as_usize() == self.modules.len());
+    pub fn new_module(
+        &mut self,
+        p: ModulePath,
+        global: bool,
+        fs: &mut impl CachedFileSystem,
+        atoms: &mut bolt_ts_atom::AtomMap<'_>,
+    ) -> ModuleID {
+        let id = ModuleID(self.modules.len() as u32);
+        let m = Module { id, global };
         self.modules.push(m);
         if let ModulePath::Real(p) = &p {
             assert!(id.as_usize() == self.content_map.len());
-            self.content_map
-                .push(Arc::new(sys::read_file_with_encoding(p).unwrap()));
+            let atom = fs.read_file(p.as_ref(), atoms).unwrap();
+            let data = atoms.get(atom).to_string();
+            self.content_map.push(Arc::new(data));
+        };
+        assert!(id.as_usize() == self.path_map.len());
+        self.path_map.push(p);
+        id
+    }
+
+    pub fn new_module_with_content(
+        &mut self,
+        p: ModulePath,
+        global: bool,
+        content: AtomId,
+        atoms: &bolt_ts_atom::AtomMap<'_>,
+    ) -> ModuleID {
+        let id = ModuleID(self.modules.len() as u32);
+        let m = Module { id, global };
+        self.modules.push(m);
+        if let ModulePath::Real(_) = &p {
+            assert!(id.as_usize() == self.content_map.len());
+            let data = atoms.get(content).to_string();
+            self.content_map.push(Arc::new(data));
         };
         assert!(id.as_usize() == self.path_map.len());
         self.path_map.push(p);

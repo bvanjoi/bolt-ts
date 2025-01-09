@@ -3,7 +3,7 @@ use rustc_hash::FxHashMap;
 use crate::bind::{SymbolID, SymbolName};
 use crate::check::TyChecker;
 
-use super::{Sig, Ty};
+use super::Ty;
 
 #[derive(Debug, Clone, Copy)]
 pub struct ObjectTy<'cx> {
@@ -13,6 +13,7 @@ pub struct ObjectTy<'cx> {
 #[derive(Debug, Clone, Copy)]
 pub enum ObjectTyKind<'cx> {
     Anonymous(&'cx AnonymousTy<'cx>),
+    SingleSigTy(&'cx SingleSigTy<'cx>),
     ObjectLit(&'cx ObjectLitTy<'cx>),
     Tuple(&'cx TupleTy<'cx>),
     Interface(&'cx InterfaceTy<'cx>),
@@ -149,6 +150,12 @@ pub struct IndexInfo<'cx> {
     pub val_ty: &'cx Ty<'cx>,
 }
 
+impl PartialEq for &IndexInfo<'_> {
+    fn eq(&self, other: &Self) -> bool {
+        std::ptr::eq(self, other)
+    }
+}
+
 pub type IndexInfos<'cx> = &'cx [&'cx IndexInfo<'cx>];
 
 #[derive(Debug, Clone, Copy)]
@@ -177,13 +184,15 @@ pub struct InterfaceTy<'cx> {
     pub outer_ty_params: Option<super::Tys<'cx>>,
     pub local_ty_params: Option<super::Tys<'cx>>,
     pub this_ty: Option<&'cx Ty<'cx>>,
+    pub declared: &'cx DeclaredMembers<'cx>,
 }
 
 impl ObjectTyKind<'_> {
-    pub(super) fn to_string(&self, checker: &mut TyChecker) -> String {
+    pub(super) fn to_string(&self, self_ty: &Ty, checker: &mut TyChecker) -> String {
         match self {
-            ObjectTyKind::Anonymous(f) => {
-                let params = f.call_sigs[0].params;
+            ObjectTyKind::Anonymous(_) => {
+                let sig = checker.ty_structured_members[&self_ty.id].call_sigs[0];
+                let params = sig.params;
                 let params = params
                     .iter()
                     .map(|param| {
@@ -198,7 +207,7 @@ impl ObjectTyKind<'_> {
                     })
                     .collect::<Vec<_>>()
                     .join(",");
-                let ret = if let Some(ret) = f.call_sigs[0].ret {
+                let ret = if let Some(ret) = sig.ret {
                     let ty = checker.p.node(ret);
                     let ty = checker.get_ty_from_type_node(&ty.as_ty().unwrap());
                     ty.to_string(checker)
@@ -221,10 +230,8 @@ impl ObjectTyKind<'_> {
                 .atoms
                 .get(checker.binder.symbol(i.symbol).name.expect_atom())
                 .to_string(),
-            ObjectTyKind::Reference(refer) => {
-                
-                refer.target.to_string(checker)
-            }
+            ObjectTyKind::Reference(refer) => refer.target.to_string(checker),
+            ObjectTyKind::SingleSigTy(single_sig_ty) => "single signature type".to_string(),
         }
     }
 }
@@ -239,7 +246,14 @@ pub struct ObjectLitTy<'cx> {
 #[derive(Debug, Clone, Copy)]
 pub struct AnonymousTy<'cx> {
     pub symbol: SymbolID,
-    pub call_sigs: &'cx [&'cx Sig<'cx>],
     pub target: Option<&'cx Ty<'cx>>,
     pub mapper: Option<&'cx super::TyMapper<'cx>>,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct SingleSigTy<'cx> {
+    pub symbol: SymbolID,
+    pub target: Option<&'cx Ty<'cx>>,
+    pub mapper: Option<&'cx super::TyMapper<'cx>>,
+    pub outer_ty_params: Option<super::Tys<'cx>>,
 }

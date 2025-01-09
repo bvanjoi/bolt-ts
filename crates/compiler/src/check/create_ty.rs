@@ -1,14 +1,14 @@
-use crate::ty::{self};
+use crate::{
+    bind::SymbolID,
+    ty::{self, TyID, UnionReduction},
+};
 
 use super::{relation::RelationKind, TyChecker};
 
 impl<'cx> TyChecker<'cx> {
     pub(super) fn new_ty(&mut self, kind: ty::TyKind<'cx>) -> &'cx ty::Ty<'cx> {
-        let id = self.next_ty_id;
-        self.next_ty_id = self.next_ty_id.next();
-
+        let id = TyID::new(self.tys.len() as u32);
         let ty = self.alloc(ty::Ty::new(id, kind));
-        assert_eq!(id.as_usize(), self.tys.len());
         self.tys.push(ty);
         ty
     }
@@ -50,10 +50,37 @@ impl<'cx> TyChecker<'cx> {
 
     pub(super) fn create_anonymous_ty(&mut self, ty: ty::AnonymousTy<'cx>) -> &'cx ty::Ty<'cx> {
         assert!(ty.target.is_none() || ty.target.as_ref().unwrap().kind.is_object_anonymous());
-        self.create_object_ty(ty::ObjectTyKind::Anonymous(self.alloc(ty)))
+        let ty = self.create_object_ty(ty::ObjectTyKind::Anonymous(self.alloc(ty)));
+        self.resolve_structured_type_members(ty);
+        ty
     }
 
-    pub(super) fn create_param_ty(&mut self, ty: ty::ParamTy) -> &'cx ty::Ty<'cx> {
+    pub(super) fn create_single_sig_ty(&mut self, ty: ty::SingleSigTy<'cx>) -> &'cx ty::Ty<'cx> {
+        let ty = self.create_object_ty(ty::ObjectTyKind::SingleSigTy(self.alloc(ty)));
+        ty
+    }
+
+    pub(super) fn clone_param_ty(&mut self, old: &'cx ty::Ty<'cx>) -> &'cx ty::Ty<'cx> {
+        let old_param = old.kind.expect_param();
+        let param_ty = self.alloc(ty::ParamTy {
+            target: Some(old),
+            ..*old_param
+        });
+        self.new_ty(ty::TyKind::Param(param_ty))
+    }
+
+    pub(super) fn create_param_ty(
+        &mut self,
+        symbol: SymbolID,
+        offset: usize,
+        is_this_ty: bool,
+    ) -> &'cx ty::Ty<'cx> {
+        let ty = ty::ParamTy {
+            symbol,
+            offset,
+            target: None,
+            is_this_ty,
+        };
         let parm_ty = self.alloc(ty);
         self.new_ty(ty::TyKind::Param(parm_ty))
     }
@@ -70,13 +97,19 @@ impl<'cx> TyChecker<'cx> {
     //     }
     // }
 
-    pub(super) fn create_union_type(&mut self, mut tys: Vec<&'cx ty::Ty<'cx>>) -> &'cx ty::Ty<'cx> {
+    pub(super) fn create_union_type(
+        &mut self,
+        mut tys: Vec<&'cx ty::Ty<'cx>>,
+        reduction: UnionReduction,
+    ) -> &'cx ty::Ty<'cx> {
         // if tys.is_empty() {
         //     // TODO: never type
         // }
 
         tys.dedup();
-        let tys = self.remove_subtypes(tys);
+        if reduction == UnionReduction::Subtype {
+            tys = self.remove_subtypes(tys)
+        }
         if tys.len() == 1 {
             tys[0]
         } else {
@@ -98,7 +131,9 @@ impl<'cx> TyChecker<'cx> {
             let source = tys[i];
             if source.kind.is_structured_or_instantiable() {
                 for target in tys.iter() {
-                    if !std::ptr::eq(source, *target) && self.is_type_related_to(source, target, RelationKind::StrictSubtype) {
+                    if !source.eq(target)
+                        && self.is_type_related_to(source, target, RelationKind::StrictSubtype)
+                    {
                         tys.remove(i);
                         break;
                     }

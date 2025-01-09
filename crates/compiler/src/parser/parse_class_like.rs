@@ -12,9 +12,11 @@ use super::{PResult, ParserState};
 fn is_class_ele_start(s: &mut ParserState) -> bool {
     let mut id_token = None;
 
+    // TODO: decorator
     // if s.token.kind == TokenKind::At {
     //     return true;
     // }
+
     while s.token.kind.is_modifier_kind() {
         id_token = Some(s.token.kind);
         if s.token.kind.is_class_ele_modifier() {
@@ -33,7 +35,7 @@ fn is_class_ele_start(s: &mut ParserState) -> bool {
     }
 
     if let Some(t) = id_token {
-        if !t.is_keyword() || t == TokenKind::Get || t == TokenKind::Set {
+        if !t.is_keyword() || matches!(t, TokenKind::Get | TokenKind::Set) {
             true
         } else {
             use TokenKind::*;
@@ -50,7 +52,7 @@ fn is_class_ele_start(s: &mut ParserState) -> bool {
 #[derive(Copy, Clone)]
 struct ClassElementsCtx;
 impl ListContext for ClassElementsCtx {
-    fn is_ele(&self, s: &mut ParserState) -> bool {
+    fn is_ele(&self, s: &mut ParserState, _: bool) -> bool {
         s.lookahead(is_class_ele_start) || s.token.kind == TokenKind::Semi
     }
 
@@ -189,6 +191,15 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
             let e = self.parse_class_extends_clause()?;
             if extends.is_none() {
                 extends = e;
+                if let Some(extends) = extends {
+                    if let Some(implements) = implements {
+                        let error = errors::ExtendsClauseMustPrecedeImplementsClause {
+                            extends_span: extends.span,
+                            implements_span: implements.span,
+                        };
+                        self.push_error(Box::new(error));
+                    }
+                }
             }
             let i = self.parse_implements_clause()?;
             if implements.is_none() {
@@ -214,7 +225,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
             let mut ty_args = None;
             let mut last_ele_span = None;
             loop {
-                if list_ctx::HeritageClause.is_ele(self) {
+                if list_ctx::HeritageClause.is_ele(self, false) {
                     let e = self.parse_left_hand_side_expr();
                     let args = self.parse_ty_args_in_expr()?;
                     if is_first {
@@ -279,12 +290,12 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         modifiers: Option<&'cx ast::Modifiers<'cx>>,
     ) -> PResult<&'cx ast::ClassEle<'cx>> {
         let name = self.with_parent(id, Self::parse_prop_name)?;
-        let ele = if self.token.kind == TokenKind::LParen || self.token.kind == TokenKind::Less {
+        let ele = if matches!(self.token.kind, TokenKind::LParen | TokenKind::Less) {
             // method
             let ty_params = self.with_parent(id, Self::parse_ty_params)?;
-            let params = self.parse_params()?;
-            let ret = self.parse_ret_ty(true)?;
-            let body = self.parse_fn_block()?;
+            let params = self.with_parent(id, Self::parse_params)?;
+            let ty = self.with_parent(id, |this| this.parse_ret_ty(true))?;
+            let body = self.with_parent(id, Self::parse_fn_block)?;
             let method = self.alloc(ast::ClassMethodEle {
                 id,
                 span: self.new_span(start as u32),
@@ -292,7 +303,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
                 name,
                 ty_params,
                 params,
-                ret,
+                ty,
                 body,
                 flags: self.context_flags,
             });
@@ -303,7 +314,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         } else {
             // prop
             let ty = self.with_parent(id, Self::parse_ty_anno)?;
-            let init = self.parse_init();
+            let init = self.with_parent(id, Self::parse_init);
             let prop = self.alloc(ast::ClassPropEle {
                 id,
                 span: self.new_span(start as u32),

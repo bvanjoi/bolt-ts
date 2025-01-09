@@ -3,3 +3,10 @@
  6 │ A
    · ─
    ╰────
+
+Warning: 
+  ⚠ Class 'A' has `abstract` modifier.
+   ╭─[../../tests/cases/compiler/abstractClassInLocalScopeIsAbstract/index.ts:4:20]
+ 4 │ A
+   · ─
+   ╰────

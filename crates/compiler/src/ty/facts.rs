@@ -1,3 +1,6 @@
+use crate::keyword;
+use bolt_ts_atom::AtomId;
+
 use super::{Ty, TyKind};
 
 bitflags::bitflags! {
@@ -322,3 +325,14 @@ fn get_type_facts(ty: &Ty) -> TypeFacts {
         TypeFacts::empty()
     }
 }
+
+pub const TYPEOF_NE_FACTS: [(AtomId, TypeFacts); 8] = [
+    (keyword::IDENT_STRING, TypeFacts::TYPEOF_NE_STRING),
+    (keyword::IDENT_NUMBER, TypeFacts::TYPEOF_NE_NUMBER),
+    (keyword::IDENT_BIGINT, TypeFacts::TYPEOF_NE_BIGINT),
+    (keyword::IDENT_BOOLEAN, TypeFacts::TYPEOF_NE_BOOLEAN),
+    (keyword::IDENT_SYMBOL, TypeFacts::TYPEOF_NE_SYMBOL),
+    (keyword::IDENT_UNDEFINED, TypeFacts::NE_UNDEFINED),
+    (keyword::IDENT_OBJECT, TypeFacts::TYPEOF_NE_OBJECT),
+    (keyword::KW_FUNCTION, TypeFacts::TYPEOF_NE_FUNCTION),
+];

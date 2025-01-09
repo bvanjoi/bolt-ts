@@ -4,7 +4,8 @@
    · ───
    ╰────
 
-Advice:   ☞ Did you mean the static member 'C.foo'?
+Advice: 
+  ☞ Did you mean the static member 'C.foo'?
    ╭─[../../tests/cases/compiler/accessInstanceMemberFromStaticMethod01/index.ts:4:12]
  4 │ foo
    · ───

@@ -1,10 +1,14 @@
-use crate::ast::NodeFlags;
+use crate::ast::{NodeFlags, VarDecls};
+use crate::keyword;
+use crate::parser::parse_break_or_continue::{ParseBreak, ParseContinue};
 
 use super::ast;
 use super::errors;
 use super::list_ctx;
 use super::parse_class_like::ParseClassDecl;
 use super::parse_fn_like::ParseFnDecl;
+use super::parse_import_export_spec::ParseNamedExports;
+use super::parse_import_export_spec::ParseNamedImports;
 use super::token::TokenKind;
 use super::{PResult, ParserState};
 
@@ -29,10 +33,106 @@ impl<'cx> ParserState<'cx, '_> {
             Module | Namespace => ast::StmtKind::Namespace(self.parse_ns_decl(None)?),
             Enum => ast::StmtKind::Enum(self.parse_enum_decl(None)?),
             Throw => ast::StmtKind::Throw(self.parse_throw_stmt()?),
+            For => self.parse_for_stmt()?,
+            Break => ast::StmtKind::Break(self.parse_break_or_continue(&ParseBreak)?),
+            Continue => ast::StmtKind::Continue(self.parse_break_or_continue(&ParseContinue)?),
             _ => ast::StmtKind::Expr(self.parse_expr_or_labeled_stmt()?),
         };
         let stmt = self.alloc(ast::Stmt { kind });
         Ok(stmt)
+    }
+
+    fn disallow_in_and<T>(&mut self, f: impl FnOnce(&mut Self) -> T) -> T {
+        self.do_inside_of_context(NodeFlags::DISALLOW_IN_CONTEXT, f)
+    }
+
+    fn allow_in_and<T>(&mut self, f: impl FnOnce(&mut Self) -> T) -> T {
+        self.do_inside_of_context(NodeFlags::DISALLOW_IN_CONTEXT, f)
+    }
+
+    fn parse_for_stmt(&mut self) -> PResult<ast::StmtKind<'cx>> {
+        use TokenKind::*;
+        let start = self.token.start();
+        let id = self.next_node_id();
+        self.expect(For)?;
+        let await_token = self.parse_optional(Await);
+        self.expect(LParen)?;
+        let t = self.token.kind;
+        let init = if t != Semi {
+            if matches!(t, Var | Let | Const) {
+                Some(ast::ForInitKind::Var((
+                    t.try_into().unwrap(),
+                    self.with_parent(id, |this| this.parse_var_decl_list(true)),
+                )))
+            } else {
+                Some(ast::ForInitKind::Expr(self.with_parent(id, |this| {
+                    this.disallow_in_and(Self::parse_expr)
+                })?))
+            }
+        } else {
+            None
+        };
+
+        if (await_token.is_none() && self.expect(TokenKind::Of).is_ok())
+            || self.parse_optional(TokenKind::Of).is_some()
+        {
+            let init = init.unwrap();
+            let expr = self.with_parent(id, |this| {
+                this.allow_in_and(|this| this.parse_assign_expr(true))
+            })?;
+            self.expect(TokenKind::RParen)?;
+            let body = self.parse_stmt()?;
+            let kind = self.alloc(ast::ForOfStmt {
+                id,
+                span: self.new_span(start),
+                r#await: await_token.map(|t| t.span),
+                init,
+                expr,
+                body,
+            });
+            self.insert_map(id, ast::Node::ForOfStmt(kind));
+            Ok(ast::StmtKind::ForOf(kind))
+        } else if self.parse_optional(TokenKind::In).is_some() {
+            let init = init.unwrap();
+            let expr = self.with_parent(id, |this| this.allow_in_and(Self::parse_expr))?;
+            self.expect(TokenKind::RParen)?;
+            let body = self.parse_stmt()?;
+            let kind = self.alloc(ast::ForInStmt {
+                id,
+                span: self.new_span(start),
+                init,
+                expr,
+                body,
+            });
+            self.insert_map(id, ast::Node::ForInStmt(kind));
+            Ok(ast::StmtKind::ForIn(kind))
+        } else {
+            self.expect(Semi)?;
+            let cond = if !matches!(self.token.kind, Semi | RParen) {
+                Some(self.with_parent(id, |this| this.allow_in_and(Self::parse_expr))?)
+            } else {
+                None
+            };
+            self.expect(Semi)?;
+            let incr = if !matches!(self.token.kind, RParen) {
+                Some(self.with_parent(id, |this| this.allow_in_and(Self::parse_expr))?)
+            } else {
+                None
+            };
+            self.expect(TokenKind::RParen)?;
+
+            let body = self.parse_stmt()?;
+            let kind = self.alloc(ast::ForStmt {
+                id,
+                span: self.new_span(start),
+                init,
+                cond,
+                incr,
+                body,
+            });
+            self.insert_map(id, ast::Node::ForStmt(kind));
+            Ok(ast::StmtKind::For(kind))
+        }
     }
 
     fn parse_enum_decl(
@@ -167,35 +267,229 @@ impl<'cx> ParserState<'cx, '_> {
             Function => ast::StmtKind::Fn(self.parse_fn_decl(mods)?),
             Class => ast::StmtKind::Class(self.parse_class_decl(mods)?),
             Module | Namespace => ast::StmtKind::Namespace(self.parse_ns_decl(mods)?),
+            Interface => ast::StmtKind::Interface(self.parse_interface_decl(mods)?),
+            Enum => ast::StmtKind::Enum(self.parse_enum_decl(mods)?),
+            Import => ast::StmtKind::Import(self.parse_import_decl()?),
+            Export => {
+                let start = self.token.start();
+                self.next_token();
+                match self.token.kind {
+                    Default | Eq => todo!(),
+                    As => todo!(),
+                    _ => ast::StmtKind::Export(self.parse_export_decl(start)?),
+                }
+            }
             Ident => {
                 let id = self.ident_token();
                 unreachable!("{:#?}", self.atoms.lock().unwrap().get(id));
             }
-            Interface => ast::StmtKind::Interface(self.parse_interface_decl(mods)?),
-            Enum => ast::StmtKind::Enum(self.parse_enum_decl(mods)?),
             _ => unreachable!("{:#?}", self.token.kind),
         };
         let stmt = self.alloc(ast::Stmt { kind });
         Ok(stmt)
     }
 
-    fn set_context_flags(&mut self, val: bool, flag: NodeFlags) {
-        if val {
-            self.context_flags |= flag
+    fn parse_export_decl(&mut self, start: u32) -> PResult<&'cx ast::ExportDecl<'cx>> {
+        let id = self.next_node_id();
+
+        let is_type_only = self.parse_optional(TokenKind::Type).is_some();
+
+        let ns_export_start = self.token.start();
+
+        let is_asterisk = self.parse_optional(TokenKind::Asterisk).is_some();
+
+        let kind = if is_asterisk && self.parse_optional(TokenKind::As).is_some() {
+            // export * as
+            let ns = self.with_parent(id, |this| this.parse_ns_export(ns_export_start))?;
+            ast::ExportClauseKind::Ns(ns)
+        } else if is_asterisk {
+            // export *
+            let glob = self.with_parent(id, |this| this.parse_glob_export(ns_export_start))?;
+            ast::ExportClauseKind::Glob(glob)
         } else {
-            self.context_flags &= !flag;
+            // export {
+            let specs = self.with_parent(id, |this| this.parse_specs_export(ns_export_start))?;
+            ast::ExportClauseKind::Specs(specs)
+        };
+        let clause = self.alloc(ast::ExportClause { is_type_only, kind });
+        let decl = self.alloc(ast::ExportDecl {
+            id,
+            span: self.new_span(start),
+            clause,
+        });
+        self.insert_map(id, ast::Node::ExportDecl(decl));
+        self.parse_semi();
+        Ok(decl)
+    }
+
+    fn parse_specs_export(&mut self, start: u32) -> PResult<&'cx ast::SpecsExport<'cx>> {
+        let id = self.next_node_id();
+        let list = self.with_parent(id, |this| {
+            this.parse_named_imports_or_exports(ParseNamedExports)
+        })?;
+        let module = if self.parse_optional(TokenKind::From).is_some() {
+            Some(self.parse_module_spec()?)
+        } else {
+            None
+        };
+        let specs = self.alloc(ast::SpecsExport {
+            id,
+            span: self.new_span(start),
+            list,
+            module,
+        });
+        self.insert_map(id, ast::Node::SpecsExport(specs));
+        Ok(specs)
+    }
+
+    fn parse_glob_export(&mut self, start: u32) -> PResult<&'cx ast::GlobExport<'cx>> {
+        let id = self.next_node_id();
+        self.expect(TokenKind::From)?;
+        let module = self.parse_module_spec()?;
+        let n = self.alloc(ast::GlobExport {
+            id,
+            span: self.new_span(start),
+            module,
+        });
+        self.insert_map(id, ast::Node::GlobExport(n));
+        Ok(n)
+    }
+
+    fn parse_ns_export(&mut self, start: u32) -> PResult<&'cx ast::NsExport<'cx>> {
+        let id = self.next_node_id();
+        let name = self.parse_module_export_name(|this| this.create_ident(true, None));
+        self.expect(TokenKind::From)?;
+        let module = self.parse_module_spec()?;
+        let ns = self.alloc(ast::NsExport {
+            id,
+            span: self.new_span(start),
+            name,
+            module,
+        });
+        self.insert_map(id, ast::Node::NsExport(ns));
+        Ok(ns)
+    }
+
+    fn parse_import_decl(&mut self) -> PResult<&'cx ast::ImportDecl<'cx>> {
+        let start = self.token.start();
+        let id = self.next_node_id();
+
+        self.expect(TokenKind::Import)?;
+        let after_import_pos = self.token.start();
+        let mut is_type_only = false;
+        let mut ident = self
+            .token
+            .kind
+            .is_ident()
+            .then(|| self.create_ident(true, None));
+        if let Some(i) = ident {
+            let t = self.token.kind;
+            if (i.name == keyword::KW_TYPE)
+                && (!matches!(t, TokenKind::From)
+                    || (self.is_ident()
+                        && self.lookahead(Self::next_token_is_from_keyword_or_eq_token)))
+                && (self.is_ident() || matches!(t, TokenKind::Asterisk | TokenKind::LBrace))
+            {
+                is_type_only = true;
+                ident = if self.is_ident() {
+                    Some(self.create_ident(true, None))
+                } else {
+                    None
+                };
+            }
+        }
+
+        if let Some(i) = ident {
+            if !matches!(self.token.kind, TokenKind::Comma | TokenKind::From) {
+                todo!("import_eq_decl")
+            }
+        }
+
+        let clause =
+            self.try_parse_import_clause(ident, after_import_pos as usize, is_type_only)?;
+        let module = self.parse_module_spec()?;
+
+        self.parse_semi();
+
+        let import = self.alloc(ast::ImportDecl {
+            id,
+            span: self.new_span(start),
+            clause: clause.unwrap(),
+            module,
+        });
+        self.insert_map(id, ast::Node::ImportDecl(import));
+        Ok(import)
+    }
+
+    fn try_parse_import_clause(
+        &mut self,
+        ident: Option<&'cx ast::Ident>,
+        pos: usize,
+        is_type_only: bool,
+    ) -> PResult<Option<&'cx ast::ImportClause<'cx>>> {
+        if ident.is_some() || matches!(self.token.kind, TokenKind::Asterisk | TokenKind::LBrace) {
+            let clause = self.parse_import_clause(ident, is_type_only)?;
+            self.expect(TokenKind::From)?;
+            Ok(Some(clause))
+        } else {
+            Ok(None)
         }
     }
 
-    fn do_inside_of_context<T>(&mut self, context: NodeFlags, f: impl FnOnce(&mut Self) -> T) -> T {
-        let set = context & !self.context_flags;
-        if !set.is_empty() {
-            self.set_context_flags(true, set);
-            let res = f(self);
-            self.set_context_flags(false, set);
-            res
+    fn parse_import_clause(
+        &mut self,
+        ident: Option<&'cx ast::Ident>,
+        is_type_only: bool,
+    ) -> PResult<&'cx ast::ImportClause<'cx>> {
+        let id = self.next_node_id();
+        let start = self.token.start();
+        let kind = if ident.is_none() || self.parse_optional(TokenKind::Comma).is_some() {
+            Some(if self.token.kind == TokenKind::Asterisk {
+                let ns = self.with_parent(id, Self::parse_ns_import)?;
+                ast::ImportClauseKind::Ns(ns)
+            } else {
+                let specs = self.with_parent(id, |this| {
+                    this.parse_named_imports_or_exports(ParseNamedImports)
+                })?;
+                ast::ImportClauseKind::Specs(specs)
+            })
         } else {
-            f(self)
+            None
+        };
+        let clause = self.alloc(ast::ImportClause {
+            id,
+            span: self.new_span(start),
+            is_type_only,
+            ident,
+            kind,
+        });
+
+        self.insert_map(id, ast::Node::ImportClause(clause));
+
+        Ok(clause)
+    }
+
+    fn parse_ns_import(&mut self) -> PResult<&'cx ast::NsImport<'cx>> {
+        // `* as binding`
+        let id = self.next_node_id();
+        let start = self.token.start();
+        self.expect(TokenKind::Asterisk)?;
+        self.expect(TokenKind::As)?;
+        let name = self.create_ident(true, None);
+        let ns = self.alloc(ast::NsImport {
+            id,
+            span: self.new_span(start),
+            name,
+        });
+        self.insert_map(id, ast::Node::NsImport(ns));
+        Ok(ns)
+    }
+
+    fn parse_module_spec(&mut self) -> PResult<&'cx ast::StringLit> {
+        if self.token.kind == TokenKind::String {
+            Ok(self.parse_string_lit())
+        } else {
+            todo!("{:#?}", self.token.kind)
         }
     }
 
@@ -303,14 +597,8 @@ impl<'cx> ParserState<'cx, '_> {
     ) -> &'cx ast::VarStmt<'cx> {
         let id = self.next_node_id();
         let start = self.token.start();
-        use TokenKind::*;
-        let kind = match self.token.kind {
-            Var | Let | Const => unsafe {
-                std::mem::transmute::<u8, ast::VarKind>(self.token.kind as u8 - Var as u8)
-            },
-            _ => unreachable!(),
-        };
-        let list = self.with_parent(id, Self::parse_var_decl_list);
+        let kind = self.token.kind.try_into().unwrap();
+        let list = self.with_parent(id, |this| this.parse_var_decl_list(false));
         if list.is_empty() {
             let span = self.new_span(start);
             self.push_error(Box::new(errors::VariableDeclarationListCannotBeEmpty {
@@ -357,9 +645,9 @@ impl<'cx> ParserState<'cx, '_> {
         Ok(node)
     }
 
-    fn parse_var_decl_list(&mut self) -> &'cx [&'cx ast::VarDecl<'cx>] {
+    fn parse_var_decl_list(&mut self, in_for_stmt_initializer: bool) -> VarDecls<'cx> {
         self.next_token();
-        self.parse_delimited_list(list_ctx::VarDecl, Self::parse_var_decl)
+        self.parse_delimited_list(list_ctx::VarDecls, Self::parse_var_decl)
     }
 
     fn parse_fn_decl(

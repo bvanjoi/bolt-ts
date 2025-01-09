@@ -5,13 +5,16 @@ mod stmt;
 mod utils;
 
 use crate::ast;
-use crate::atoms::AtomMap;
+use bolt_ts_atom::AtomMap;
 
 struct PPrint(String);
 
 impl PPrint {
     fn p(&mut self, content: &str) {
         self.0 += content
+    }
+    fn p_asterisk(&mut self) {
+        self.p("*");
     }
     fn p_whitespace(&mut self) {
         self.p(" ");

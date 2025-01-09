@@ -13,7 +13,7 @@ impl<'cx> BinderState<'cx> {
         ele_name: super::SymbolName,
         ele_fn_kind: super::SymbolFnKind,
     ) -> super::SymbolID {
-        let container = self.final_res.get(&container).copied().unwrap();
+        let container = self.final_res[&container];
 
         fn members<'a>(
             container: &'a mut Symbol<'_>,

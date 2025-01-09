@@ -5,9 +5,9 @@
    ╰────
 
   × Expected 1 arguments, but got 2.
-   ╭─[../../tests/cases/compiler/functionCall6/index.ts:5:7]
- 5 │  'bar'
-   · ──────
+   ╭─[../../tests/cases/compiler/functionCall6/index.ts:5:8]
+ 5 │ 'bar'
+   · ─────
    ╰────
 
   × Expected 1 arguments, but got 0.

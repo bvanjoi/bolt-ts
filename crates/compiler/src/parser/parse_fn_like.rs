@@ -36,7 +36,7 @@ impl<'cx, 'p> FnLike<'cx, 'p> for ParseFnDecl {
         name: Option<&'cx ast::Ident>,
         ty_params: Option<ast::TyParams<'cx>>,
         params: ast::ParamsDecl<'cx>,
-        ret_ty: Option<&'cx ast::Ty<'cx>>,
+        ty: Option<&'cx ast::Ty<'cx>>,
         body: Option<&'cx ast::BlockStmt<'cx>>,
     ) -> Self::Node {
         let name = name.unwrap();
@@ -47,7 +47,7 @@ impl<'cx, 'p> FnLike<'cx, 'p> for ParseFnDecl {
             name,
             ty_params,
             params,
-            ret_ty,
+            ty,
             body,
         });
         state.insert_map(decl.id, ast::Node::FnDecl(decl));
@@ -73,7 +73,7 @@ impl<'cx, 'p> FnLike<'cx, 'p> for ParseFnExpr {
         name: Option<&'cx ast::Ident>,
         ty_params: Option<ast::TyParams<'cx>>,
         params: ast::ParamsDecl<'cx>,
-        ret_ty: Option<&'cx ast::Ty<'cx>>,
+        ty: Option<&'cx ast::Ty<'cx>>,
         body: Option<&'cx ast::BlockStmt<'cx>>,
     ) -> Self::Node {
         assert!(modifiers.is_none());
@@ -83,7 +83,7 @@ impl<'cx, 'p> FnLike<'cx, 'p> for ParseFnExpr {
             name,
             ty_params,
             params,
-            ret_ty,
+            ty,
             body: body.unwrap(),
         });
         state.insert_map(expr.id, ast::Node::FnExpr(expr));

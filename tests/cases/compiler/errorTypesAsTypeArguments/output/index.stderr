@@ -4,10 +4,8 @@
    · ─
    ╰────
 
-
   × Cannot find name 'C'.
    ╭─[../../tests/cases/compiler/errorTypesAsTypeArguments/index.ts:4:25]
  4 │ C
    · ─
    ╰────
-

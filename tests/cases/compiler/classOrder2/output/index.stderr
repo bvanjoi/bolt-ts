@@ -4,7 +4,8 @@
    · ─
    ╰────
 
-Advice:   ☞ Class 'B' is defined here
+Advice: 
+  ☞ Class 'B' is defined here
    ╭─[../../tests/cases/compiler/classOrder2/index.ts:8:7]
  8 │ B
    · ─

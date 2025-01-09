@@ -34,6 +34,11 @@ impl ParserState<'_, '_> {
             })
     }
 
+    pub(super) fn next_token_is_from_keyword_or_eq_token(&mut self) -> bool {
+        self.next_token();
+        matches!(self.token.kind, TokenKind::From | TokenKind::Eq)
+    }
+
     pub(super) fn next_token_is_numeric_or_big_int_literal(&mut self) -> bool {
         self.next_token();
         // TODO: big int lit
@@ -173,5 +178,15 @@ impl ParserState<'_, '_> {
         }
 
         Tristate::False
+    }
+
+    pub(super) fn next_token_is_class_kw_on_same_line(&mut self) -> bool {
+        self.next_token();
+        self.token.kind == TokenKind::Class && !self.has_preceding_line_break()
+    }
+
+    pub(super) fn next_token_is_function_kw_on_same_line(&mut self) -> bool {
+        self.next_token();
+        self.token.kind == TokenKind::Function && !self.has_preceding_line_break()
     }
 }

@@ -1,3 +1,5 @@
+// From `github.com/microsoft/TypeScript/blob/v5.7.3/tests/cases/compiler/conditionalExpressions2.ts`, Apache-2.0 License
+
 var a = false ? 1 : null;
 var b = false ? undefined : 0;
 var c = false ? 1 : 0;

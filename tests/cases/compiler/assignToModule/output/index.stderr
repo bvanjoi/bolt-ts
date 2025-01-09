@@ -4,7 +4,8 @@
    · ─
    ╰────
 
-Advice:   ☞ Cannot use namespace as a value
+Advice: 
+  ☞ Cannot use namespace as a value
    ╭─[../../tests/cases/compiler/assignToModule/index.ts:3:8]
  3 │ A
    · ─

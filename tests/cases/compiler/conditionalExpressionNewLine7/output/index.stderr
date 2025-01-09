@@ -4,17 +4,14 @@
    · ─
    ╰────
 
-
   × Cannot find name 'b'.
    ╭─[../../tests/cases/compiler/conditionalExpressionNewLine7/index.ts:2:3]
  2 │ b
    · ─
    ╰────
 
-
   × Cannot find name 'c'.
    ╭─[../../tests/cases/compiler/conditionalExpressionNewLine7/index.ts:3:3]
  3 │ c
    · ─
    ╰────
-

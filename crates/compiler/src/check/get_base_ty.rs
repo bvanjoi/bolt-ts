@@ -11,7 +11,7 @@ impl<'cx> TyChecker<'cx> {
             .iter()
             .map(|ty| self.get_base_ty_of_literal_ty(ty))
             .collect::<Vec<_>>();
-        self.create_union_type(tys)
+        self.create_union_type(tys, ty::UnionReduction::None)
     }
 
     pub(super) fn get_base_ty_of_literal_ty(&mut self, ty: &'cx ty::Ty<'cx>) -> &'cx ty::Ty<'cx> {

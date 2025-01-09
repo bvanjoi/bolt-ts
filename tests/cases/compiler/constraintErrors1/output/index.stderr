@@ -1,0 +1,5 @@
+  × Cannot find name 'hm'.
+   ╭─[../../tests/cases/compiler/constraintErrors1/index.ts:3:25]
+ 3 │ hm
+   · ──
+   ╰────

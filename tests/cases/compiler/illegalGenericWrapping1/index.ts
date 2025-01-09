@@ -1,4 +1,4 @@
-// From `github.com/microsoft/TypeScript/blob/v5.7.2/tests/cases/compiler/illegalGenericWrapping1.ts`, Apache-2.0 License
+// From `github.com/microsoft/TypeScript/blob/v5.7.3/tests/cases/compiler/illegalGenericWrapping1.ts`, Apache-2.0 License
 
 interface Sequence<T> {
   each(iterator: (value: T) => void ): void;

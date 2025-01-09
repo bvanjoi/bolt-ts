@@ -5,7 +5,7 @@
    ╰────
 
   × Argument of type 'string' is not assignable to parameter of type 'number'.
-   ╭─[../../tests/cases/compiler/functionCall14/index.ts:5:7]
- 5 │  'bar'
-   · ──────
+   ╭─[../../tests/cases/compiler/functionCall14/index.ts:5:8]
+ 5 │ 'bar'
+   · ─────
    ╰────

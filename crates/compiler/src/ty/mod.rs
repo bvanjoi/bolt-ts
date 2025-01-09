@@ -1,27 +1,37 @@
 mod check_flags;
 mod facts;
+mod flags;
 mod mapper;
 mod object_shape;
 mod object_ty;
 mod sig;
 
-use crate::atoms::AtomId;
+use bolt_ts_atom::AtomId;
+
 use crate::bind::SymbolID;
 use crate::check::TyChecker;
 use crate::{ast, keyword};
 
 pub use self::check_flags::CheckFlags;
-pub use self::facts::{has_type_facts, TypeFacts};
-pub use self::mapper::TyMapper;
+pub use self::facts::{has_type_facts, TypeFacts, TYPEOF_NE_FACTS};
+pub use self::flags::TypeFlags;
+pub use self::mapper::{ArrayTyMapper, SimpleTyMapper, TyMapper};
 pub use self::object_shape::ObjectShape;
 pub use self::object_ty::ElementFlags;
+pub use self::object_ty::SingleSigTy;
 pub use self::object_ty::{AnonymousTy, InterfaceTy, ObjectLitTy, ObjectTyKind};
 pub use self::object_ty::{DeclaredMembers, ReferenceTy, StructuredMembers};
 pub use self::object_ty::{IndexInfo, IndexInfos, ObjectTy, TupleShape, TupleTy};
-pub use self::sig::{Sig, SigFlags, SigKind, Sigs};
+pub use self::sig::{Sig, SigFlags, SigID, SigKind, Sigs};
 
-bolt_ts_span::new_index!(TyID);
-bolt_ts_span::new_index!(TyVarID);
+bolt_ts_utils::index!(TyID);
+bolt_ts_utils::index!(TyVarID);
+
+impl TyID {
+    pub(crate) fn new(id: u32) -> Self {
+        Self(id)
+    }
+}
 
 #[derive(Debug, Clone, Copy)]
 pub struct Ty<'cx> {
@@ -46,6 +56,13 @@ impl<'cx> Ty<'cx> {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum UnionReduction {
+    None,
+    Lit,
+    Subtype,
+}
+
 #[derive(Debug, Clone, Copy)]
 pub enum TyKind<'cx> {
     Any,
@@ -60,9 +77,10 @@ pub enum TyKind<'cx> {
     Void,
     Undefined,
     Null,
+    NonPrimitive,
     Union(&'cx UnionTy<'cx>),
     Object(&'cx ObjectTy<'cx>),
-    Param(&'cx ParamTy),
+    Param(&'cx ParamTy<'cx>),
     Var(TyVarID),
     IndexedAccess(&'cx IndexedAccessTy<'cx>),
     Cond(&'cx CondTy<'cx>),
@@ -122,6 +140,7 @@ as_ty_kind!(
     expect_indexed_access,
     is_indexed_access
 );
+as_ty_kind!(Void, is_void);
 as_ty_kind!(Any, is_any);
 as_ty_kind!(Number, is_number);
 as_ty_kind!(String, is_string);
@@ -160,7 +179,7 @@ impl Ty<'_> {
                 .map(|ty| ty.to_string(checker))
                 .collect::<Vec<_>>()
                 .join(" | "),
-            TyKind::Object(object) => object.kind.to_string(checker),
+            TyKind::Object(object) => object.kind.to_string(self, checker),
             TyKind::Var(id) => {
                 // todo: delay bug
                 format!("#{id:#?}")
@@ -178,14 +197,16 @@ impl Ty<'_> {
             TyKind::Void => keyword::IDENT_VOID_STR.to_string(),
             TyKind::Undefined => keyword::IDENT_UNDEFINED_STR.to_string(),
             TyKind::Null => keyword::KW_NULL_STR.to_string(),
+            TyKind::NonPrimitive => keyword::IDENT_OBJECT_STR.to_string(),
         }
     }
 
     pub fn symbol(&self) -> Option<SymbolID> {
         match self.kind {
             TyKind::Object(ty) => match ty.kind {
-                ObjectTyKind::Interface(i) => Some(i.symbol),
-                ObjectTyKind::Reference(i) => i.target.symbol(),
+                ObjectTyKind::Interface(ty) => Some(ty.symbol),
+                ObjectTyKind::ObjectLit(ty) => Some(ty.symbol),
+                ObjectTyKind::Reference(ty) => ty.target.symbol(),
                 _ => None,
             },
             TyKind::Param(ty) => Some(ty.symbol),
@@ -199,6 +220,17 @@ impl Ty<'_> {
 }
 
 impl TyKind<'_> {
+    pub fn maybe_type_of_kind(&self, f: impl Fn(&Self) -> bool + Copy) -> bool {
+        if f(self) {
+            true
+        } else if let Some(union) = self.as_union() {
+            union.tys.iter().any(|ty| ty.kind.maybe_type_of_kind(f))
+        } else {
+            // TODO: support intersection
+            false
+        }
+    }
+
     pub fn is_primitive(&self) -> bool {
         use TyKind::*;
         if self.is_string_like() || self.is_number_like() || self.is_boolean_like() {
@@ -295,6 +327,12 @@ impl TyKind<'_> {
             .unwrap_or_default()
     }
 
+    pub fn is_this_ty_param(&self) -> bool {
+        self.as_param()
+            .map(|param| param.is_this_ty)
+            .unwrap_or_default()
+    }
+
     pub fn is_generic_object(&self) -> bool {
         self.is_instantiable_non_primitive() || self.is_generic_tuple_type()
     }
@@ -383,7 +421,9 @@ pub struct StringLitTy {
 }
 
 #[derive(Debug, Clone, Copy)]
-pub struct ParamTy {
+pub struct ParamTy<'cx> {
     pub symbol: SymbolID,
     pub offset: usize,
+    pub target: Option<&'cx self::Ty<'cx>>,
+    pub is_this_ty: bool,
 }

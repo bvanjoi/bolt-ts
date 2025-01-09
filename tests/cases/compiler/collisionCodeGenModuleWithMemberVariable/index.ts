@@ -1,4 +1,4 @@
-// From `github.com/microsoft/TypeScript/blob/v5.7.2/tests/cases/compiler/collisionCodeGenModuleWithMemberVariable.ts`, Apache-2.0 License
+// From `github.com/microsoft/TypeScript/blob/v5.7.3/tests/cases/compiler/collisionCodeGenModuleWithMemberVariable.ts`, Apache-2.0 License
 
 module m1 {
   export var m1 = 10;

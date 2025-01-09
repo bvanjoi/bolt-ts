@@ -39,11 +39,11 @@ impl TyChecker<'_> {
                 let hi = lo + keyword::KW_CONSTRUCTOR_STR.len() as u32;
                 let span = Span::new(lo, hi, node.span.module);
                 let error = errors::ConstructorImplementationIsMissing { span };
-                self.push_error(span.module, Box::new(error));
+                self.push_error(Box::new(error));
             } else {
                 let span = self.p.node(f.decls[0]).ident_name().unwrap().span;
                 let error = errors::FunctionImplementationIsMissingOrNotImmediatelyFollowingTheDeclaration { span };
-                self.push_error(span.module, Box::new(error));
+                self.push_error(Box::new(error));
             }
         }
     }

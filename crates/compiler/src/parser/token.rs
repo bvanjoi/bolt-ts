@@ -1,6 +1,6 @@
 use bolt_ts_span::Span;
 
-use crate::ast::{AssignOp, BinOpKind, ModifierKind, PrefixUnaryOp};
+use crate::ast::{AssignOp, BinOpKind, ModifierKind, PrefixUnaryOp, VarKind};
 
 #[derive(Debug, Clone, Copy)]
 pub struct Token {
@@ -157,6 +157,7 @@ pub enum TokenKind {
     Extends,
     New,
     Async,
+    Await,
     This,
     Static,
     Constructor,
@@ -165,6 +166,7 @@ pub enum TokenKind {
     Set,
     Import,
     Export,
+    From,
     Default,
     Throw,
     Try,
@@ -174,6 +176,11 @@ pub enum TokenKind {
     Typeof,
     Package,
     Yield,
+    For,
+    Of,
+    Break,
+    Continue,
+    Instanceof,
     In,
     // ts keyword
     Implements,
@@ -189,6 +196,7 @@ pub enum TokenKind {
     Namespace,
     Enum,
     Readonly,
+    Satisfies,
     Type,
 }
 
@@ -214,6 +222,9 @@ impl From<TokenKind> for BinOpKind {
             TokenKind::GreatEq => BinOpKind::GreatEq,
             TokenKind::GreatGreat => BinOpKind::Shr,
             TokenKind::GreatGreatGreat => BinOpKind::UShr,
+            TokenKind::Instanceof => BinOpKind::Instanceof,
+            TokenKind::In => BinOpKind::In,
+            TokenKind::Satisfies => BinOpKind::Satisfies,
             _ => {
                 unreachable!("{:#?}", value)
             }
@@ -271,12 +282,27 @@ impl From<TokenKind> for AssignOp {
     }
 }
 
+impl TryFrom<TokenKind> for VarKind {
+    type Error = ();
+    fn try_from(value: TokenKind) -> Result<Self, Self::Error> {
+        use TokenKind::*;
+        match value {
+            Var | Let | Const => unsafe {
+                Ok(std::mem::transmute::<u8, VarKind>(value as u8 - Var as u8))
+            },
+            _ => Err(()),
+        }
+    }
+}
+
 impl TokenKind {
     pub const fn prec(self) -> BinPrec {
         use TokenKind::*;
         match self {
             Pipe => BinPrec::BitwiseOR,
-            Less | LessEq | Great | GreatEq => BinPrec::Relational,
+            Less | Great | LessEq | GreatEq | Instanceof | In | As | Satisfies => {
+                BinPrec::Relational
+            }
             LessLess | GreatGreat | GreatGreatGreat => BinPrec::Shift,
             Plus | Minus => BinPrec::Additive,
             PipePipe => BinPrec::LogicalOr,
@@ -288,10 +314,11 @@ impl TokenKind {
     }
 
     pub(super) const fn is_ident(&self) -> bool {
-        // TODO: use `parser.is_ident`
         if matches!(self, TokenKind::Ident) {
             return true;
         }
+
+        // TODO: handle yield keyword and await keyword
 
         self.is_contextual_keyword() || self.is_strict_mode_reserved_word()
     }
@@ -300,14 +327,15 @@ impl TokenKind {
         use TokenKind::*;
         matches!(
             self,
-            Null | True
+            This | Super
+                | Null
+                | True
                 | False
                 | Number
                 | String
                 | LBrace
                 | LBracket
                 | LParen
-                | This
                 | Function
                 | Class
                 | New
@@ -317,13 +345,10 @@ impl TokenKind {
         ) || self.is_ident()
     }
 
-    const fn is_ts_keyword(self) -> bool {
-        let u = self as u8;
-        u <= KEYWORD_TOKEN_END && u >= (TokenKind::Implements as u8)
-    }
-
     pub fn is_binding_ident(self) -> bool {
-        matches!(self, TokenKind::Ident) || self.is_ts_keyword()
+        matches!(self, TokenKind::Ident)
+            || self.is_strict_mode_reserved_word()
+            || self.is_contextual_keyword()
     }
 
     pub fn is_binding_ident_or_private_ident_or_pat(self) -> bool {
@@ -375,14 +400,13 @@ impl TokenKind {
             Set |
             String |
             // Symbol |
-            Type // Undefined |
+            Type | // Undefined |
                  // Unique |
                  // Unknown |
                  // Using |
-                 // From |
-                 // Global |
-                 // BigInt |
-                 // Override |
+                 From // Global |
+                      // BigInt |
+                      // Override |
         )
     }
 
@@ -396,7 +420,42 @@ impl TokenKind {
     }
 
     pub fn is_start_of_param(self) -> bool {
-        matches!(self, TokenKind::DotDotDot) || self.is_binding_ident_or_private_ident_or_pat()
+        matches!(self, TokenKind::DotDotDot)
+            || self.is_binding_ident_or_private_ident_or_pat()
+            || self.is_modifier_kind()
+            || self == TokenKind::At
+            || self.is_start_of_ty(true)
+    }
+
+    pub fn is_start_of_ty(self, is_start_of_param: bool) -> bool {
+        use TokenKind::*;
+
+        if matches!(
+            self,
+            String
+                | Number
+                | Readonly
+                | Null
+                | This
+                | Type
+                | LBrace
+                | LBracket
+                | Less
+                | Pipe
+                | Amp
+                | True
+                | False
+                | Asterisk
+                | Question
+                | Excl
+                | DotDotDot
+        ) {
+            true
+        } else if matches!(self, Function) {
+            !is_start_of_param
+        } else {
+            self.is_ident()
+        }
     }
 
     pub fn is_heritage_clause(&self) -> bool {
@@ -427,7 +486,7 @@ impl TokenKind {
 
     pub fn is_accessibility_modifier(self) -> bool {
         use TokenKind::*;
-        matches!(self, Public)
+        matches!(self, Public | Private | Protected)
     }
 
     pub fn is_param_prop_modifier(self) -> bool {
@@ -437,6 +496,14 @@ impl TokenKind {
 
     pub fn is_class_ele_modifier(self) -> bool {
         self.is_param_prop_modifier()
+    }
+
+    pub fn can_parse_module_export_name(self) -> bool {
+        self.is_ident_or_keyword() || matches!(self, TokenKind::String)
+    }
+
+    pub fn is_in_or_of_keyword(self) -> bool {
+        matches!(self, TokenKind::In | TokenKind::Of)
     }
 }
 

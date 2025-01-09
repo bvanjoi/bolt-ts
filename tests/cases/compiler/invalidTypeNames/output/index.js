@@ -1,0 +1,1 @@
+class illegal_name_here {}

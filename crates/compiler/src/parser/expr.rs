@@ -1,3 +1,5 @@
+use crate::ast::NodeFlags;
+
 use super::ast::{self, BinOp};
 use super::paren_rule::{NoParenRule, ParenRuleTrait};
 use super::parse_fn_like::ParseFnExpr;
@@ -12,7 +14,7 @@ impl<'cx> ParserState<'cx, '_> {
     fn is_update_expr(&self) -> bool {
         use TokenKind::*;
         match self.token.kind {
-            Plus | Minus => false,
+            Plus | Minus | Typeof => false,
             Less => {
                 // TODO: is jsx
                 true
@@ -22,23 +24,25 @@ impl<'cx> ParserState<'cx, '_> {
     }
 
     pub(super) fn parse_expr(&mut self) -> PResult<&'cx ast::Expr<'cx>> {
-        self.parse_assign_expr()
+        self.parse_assign_expr(false)
     }
 
     pub(super) fn parse_init(&mut self) -> Option<&'cx ast::Expr<'cx>> {
         self.parse_optional(TokenKind::Eq)
-            .map(|_| self.parse_assign_expr().unwrap())
+            .map(|_| self.parse_assign_expr(false).unwrap())
     }
 
     fn try_parse_paren_arrow_fn_expr(&mut self) -> PResult<Option<&'cx ast::Expr<'cx>>> {
         match self.is_paren_arrow_fn_expr() {
             Tristate::True => self.parse_paren_arrow_fn_expr().map(Some),
             Tristate::False => Ok(None),
-            Tristate::Unknown => {
-                // todo
-                Ok(None)
-            }
+            Tristate::Unknown => self.try_parse(|this| this.parse_possible_paren_arrow_fn_expr()),
         }
+    }
+
+    fn parse_possible_paren_arrow_fn_expr(&mut self) -> PResult<Option<&'cx ast::Expr<'cx>>> {
+        let start = self.token.start();
+        self.parse_paren_arrow_fn_expr().map(Some)
     }
 
     fn parse_paren_arrow_fn_expr(&mut self) -> PResult<&'cx ast::Expr<'cx>> {
@@ -61,7 +65,7 @@ impl<'cx> ParserState<'cx, '_> {
         let last_token = self.token.kind;
         self.expect(TokenKind::EqGreat)?;
         let body = if matches!(last_token, TokenKind::EqGreat | TokenKind::LBrace) {
-            self.parse_arrow_fn_expr_body()?
+            self.with_parent(id, Self::parse_arrow_fn_expr_body)?
         } else {
             todo!()
         };
@@ -85,7 +89,7 @@ impl<'cx> ParserState<'cx, '_> {
             self.parse_fn_block()
                 .map(|block| ast::ArrowFnExprBody::Block(block.unwrap()))
         } else {
-            self.parse_assign_expr()
+            self.parse_assign_expr(false)
                 .map(ast::ArrowFnExprBody::Expr)
         }
     }
@@ -128,7 +132,10 @@ impl<'cx> ParserState<'cx, '_> {
         Ok(expr)
     }
 
-    fn parse_assign_expr(&mut self) -> PResult<&'cx ast::Expr<'cx>> {
+    pub(super) fn parse_assign_expr(
+        &mut self,
+        allow_ret_ty_in_arrow_fn: bool,
+    ) -> PResult<&'cx ast::Expr<'cx>> {
         if let Ok(Some(expr)) = self.try_parse_paren_arrow_fn_expr() {
             return Ok(expr);
         };
@@ -145,7 +152,7 @@ impl<'cx> ParserState<'cx, '_> {
             self.parent_map.r#override(expr.id(), id);
             let op = self.token.kind.into();
             self.parse_token_node();
-            let right = self.with_parent(id, Self::parse_assign_expr)?;
+            let right = self.with_parent(id, |this| this.parse_assign_expr(false))?;
             let expr = self.alloc(ast::AssignExpr {
                 id,
                 left: expr,
@@ -236,8 +243,26 @@ impl<'cx> ParserState<'cx, '_> {
         use TokenKind::*;
         match self.token.kind {
             Plus | Minus => self.parse_prefix_unary_expr(),
+            Typeof => self.parse_typeof_expr(),
             _ => self.parse_update_expr(),
         }
+    }
+
+    fn parse_typeof_expr(&mut self) -> PResult<&'cx ast::Expr<'cx>> {
+        let start = self.token.start();
+        let id = self.next_node_id();
+        self.expect(TokenKind::Typeof)?;
+        let expr = self.with_parent(id, Self::parse_simple_unary_expr)?;
+        let kind = self.alloc(ast::TypeofExpr {
+            id,
+            span: self.new_span(start),
+            expr,
+        });
+        self.insert_map(id, ast::Node::TypeofExpr(kind));
+        let expr = self.alloc(ast::Expr {
+            kind: ast::ExprKind::Typeof(kind),
+        });
+        Ok(expr)
     }
 
     fn parse_update_expr(&mut self) -> PResult<&'cx ast::Expr<'cx>> {
@@ -315,11 +340,14 @@ impl<'cx> ParserState<'cx, '_> {
     }
 
     fn parse_arg(&mut self) -> PResult<&'cx ast::Expr<'cx>> {
-        self.parse_arg_or_array_lit_elem()
+        self.do_outside_of_context(
+            NodeFlags::DISALLOW_IN_AND_DECORATOR_CONTEXT,
+            Self::parse_arg_or_array_lit_elem,
+        )
     }
 
     fn parse_arg_or_array_lit_elem(&mut self) -> PResult<&'cx ast::Expr<'cx>> {
-        self.parse_assign_expr()
+        self.parse_assign_expr(false)
     }
 
     fn parse_object_lit_ele(&mut self) -> PResult<&'cx ast::ObjectMemberField<'cx>> {
@@ -330,7 +358,7 @@ impl<'cx> ParserState<'cx, '_> {
         let name = self.with_parent(id, Self::parse_prop_name)?;
         self.parse_optional(TokenKind::Question);
         self.expect(TokenKind::Colon)?;
-        let value = self.with_parent(id, Self::parse_assign_expr)?;
+        let value = self.with_parent(id, |this| this.parse_assign_expr(false))?;
         let filed = self.alloc(ast::ObjectMemberField {
             id,
             span: self.new_span(start),
@@ -396,7 +424,7 @@ impl<'cx> ParserState<'cx, '_> {
                 });
                 Ok(expr)
             } else {
-                this.parse_assign_expr()
+                this.parse_assign_expr(false)
             }
         })
     }
@@ -453,6 +481,19 @@ impl<'cx> ParserState<'cx, '_> {
             Function => self.parse_fn_expr(),
             New => self.parse_new_expr(),
             Class => self.parse_class_expr(),
+            Super => {
+                let id = self.next_node_id();
+                let node = self.alloc(ast::SuperExpr {
+                    id,
+                    span: self.token.span,
+                });
+                self.next_token();
+                self.insert_map(node.id, ast::Node::SuperExpr(node));
+                let expr = self.alloc(ast::Expr {
+                    kind: ast::ExprKind::Super(node),
+                });
+                Ok(expr)
+            }
             _ => Ok(self.parse_ident(Some(errors::MissingIdentKind::ExpressionExpected))),
         }
     }

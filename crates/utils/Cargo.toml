@@ -1,0 +1,7 @@
+[package]
+name = "bolt_ts_utils"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+rustc-hash = { workspace = true }

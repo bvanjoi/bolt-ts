@@ -1,3 +1,5 @@
+// From `github.com/microsoft/TypeScript/blob/v5.7.3/tests/cases/compiler/prefixedNumberLiteralAssignToNumberLiteralType.ts`, Apache-2.0 License
+
 let x: 1 = +1;
 
 let y: -1 = -1;

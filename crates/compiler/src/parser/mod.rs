@@ -3,8 +3,12 @@ mod expr;
 mod list_ctx;
 mod lookahead;
 mod paren_rule;
+mod parse_break_or_continue;
 mod parse_class_like;
 mod parse_fn_like;
+mod parse_import_export_spec;
+mod parse_modifiers;
+mod query;
 mod scan;
 mod stmt;
 pub mod token;
@@ -13,14 +17,17 @@ mod utils;
 
 use std::sync::{Arc, Mutex};
 
+use bolt_ts_atom::{AtomId, AtomMap};
 use bolt_ts_span::{ModuleArena, ModuleID, Span};
+use bolt_ts_utils::fx_hashmap_with_capacity;
+
 use rayon::prelude::*;
 use rustc_hash::FxHashMap;
 
+pub use self::query::AssignmentKind;
 pub use self::token::KEYWORD_TOKEN_START;
 use self::token::{Token, TokenFlags, TokenKind};
 use crate::ast::{self, Node, NodeFlags, NodeID};
-use crate::atoms::{AtomId, AtomMap};
 use crate::keyword;
 
 type PResult<T> = Result<T, ()>;
@@ -32,10 +39,14 @@ enum Tristate {
     Unknown,
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub struct Nodes<'cx>(FxHashMap<u32, Node<'cx>>);
 
 impl<'cx> Nodes<'cx> {
+    pub fn new() -> Self {
+        Self(fx_hashmap_with_capacity(2048))
+    }
+
     pub fn get(&self, id: NodeID) -> Node<'cx> {
         let idx = id.index_as_u32();
         self.0[&idx]
@@ -47,10 +58,13 @@ impl<'cx> Nodes<'cx> {
     }
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub struct ParentMap(FxHashMap<u32, u32>);
 
 impl ParentMap {
+    fn new() -> Self {
+        Self(fx_hashmap_with_capacity(2048))
+    }
     pub fn parent(&self, node_id: NodeID) -> Option<NodeID> {
         let id = node_id.index_as_u32();
         self.0
@@ -80,14 +94,15 @@ pub struct ParseResult<'cx> {
     parent_map: ParentMap,
 }
 
-pub struct Parser<'cx> {
-    map: FxHashMap<ModuleID, ParseResult<'cx>>,
+impl<'cx> ParseResult<'cx> {
+    pub fn root(&self) -> &'cx ast::Program<'cx> {
+        let id = NodeID::root(ModuleID::root());
+        self.nodes.get(id).expect_program()
+    }
 }
 
-impl Default for Parser<'_> {
-    fn default() -> Self {
-        Self::new()
-    }
+pub struct Parser<'cx> {
+    map: FxHashMap<ModuleID, ParseResult<'cx>>,
 }
 
 impl<'cx> Parser<'cx> {
@@ -106,21 +121,6 @@ impl<'cx> Parser<'cx> {
     #[inline(always)]
     fn get(&self, id: ModuleID) -> &ParseResult<'cx> {
         self.map.get(&id).unwrap()
-    }
-
-    #[inline(always)]
-    pub fn root(&self, id: ModuleID) -> &ast::Program<'cx> {
-        self.get(id).nodes.get(NodeID::root(id)).expect_program()
-    }
-
-    #[inline(always)]
-    pub fn node(&self, id: NodeID) -> ast::Node<'cx> {
-        self.get(id.module()).nodes.get(id)
-    }
-
-    #[inline(always)]
-    pub fn parent(&self, id: NodeID) -> Option<ast::NodeID> {
-        self.get(id.module()).parent_map.parent(id)
     }
 
     pub fn steal_errors(&mut self) -> Vec<bolt_ts_errors::Diag> {
@@ -160,23 +160,21 @@ impl TokenValue {
     }
 }
 
-pub fn parse_parallel<'cx>(
+pub fn parse_parallel<'cx, 'p>(
     atoms: Arc<Mutex<AtomMap<'cx>>>,
     herd: &'cx bumpalo_herd::Herd,
-    list: &[ModuleID],
-    module_arena: &ModuleArena,
-) -> Vec<(ModuleID, ParseResult<'cx>)> {
-    list.into_par_iter()
-        .map_init(
-            || herd.get(),
-            |bump, module_id| {
-                let input = module_arena.get_content(*module_id);
-                let result = parse(atoms.clone(), bump, input.as_bytes(), *module_id);
-                assert!(!module_arena.get_module(*module_id).global || result.diags.is_empty());
-                (*module_id, result)
-            },
-        )
-        .collect::<Vec<_>>()
+    list: &'p [ModuleID],
+    module_arena: &'p ModuleArena,
+) -> impl ParallelIterator<Item = (ModuleID, ParseResult<'cx>)> + use<'cx, 'p> {
+    list.into_par_iter().map_init(
+        || herd.get(),
+        move |bump, module_id| {
+            let input = module_arena.get_content(*module_id);
+            let result = parse(atoms.clone(), bump, input.as_bytes(), *module_id);
+            assert!(!module_arena.get_module(*module_id).global || result.diags.is_empty());
+            (*module_id, result)
+        },
+    )
 }
 
 fn parse<'cx, 'p>(
@@ -185,8 +183,8 @@ fn parse<'cx, 'p>(
     input: &'p [u8],
     module_id: ModuleID,
 ) -> ParseResult<'cx> {
-    let nodes = Nodes::default();
-    let parent_map = ParentMap::default();
+    let nodes = Nodes::new();
+    let parent_map = ParentMap::new();
     let mut s = ParserState::new(atoms, arena, nodes, parent_map, input, module_id);
     s.parse();
     ParseResult {
@@ -196,7 +194,7 @@ fn parse<'cx, 'p>(
     }
 }
 
-pub struct ParserState<'cx, 'p> {
+struct ParserState<'cx, 'p> {
     atoms: Arc<Mutex<AtomMap<'cx>>>,
     input: &'p [u8],
     token: Token,
@@ -290,14 +288,21 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         }
     }
 
+    fn is_list_terminator(&mut self, ctx: impl list_ctx::ListContext) -> bool {
+        if self.token.kind == TokenKind::EOF {
+            return true;
+        }
+        ctx.is_closing(self)
+    }
+
     fn parse_list<T>(
         &mut self,
         ctx: impl list_ctx::ListContext,
         ele: impl Fn(&mut Self) -> PResult<T>,
     ) -> &'cx [T] {
         let mut list = vec![];
-        while !ctx.is_closing(self) {
-            if ctx.is_ele(self) {
+        while !self.is_list_terminator(ctx) {
+            if ctx.is_ele(self, false) {
                 if let Ok(ele) = ele(self) {
                     list.push(ele);
                 }
@@ -313,12 +318,12 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
     ) -> &'cx [T] {
         let mut list = vec![];
         loop {
-            if ctx.is_ele(self) {
+            if ctx.is_ele(self, false) {
                 let Ok(ele) = ele(self) else {
                     break;
                 };
                 list.push(ele);
-                if ctx.is_closing(self) {
+                if self.is_list_terminator(ctx) {
                     break;
                 }
                 if self.parse_optional(TokenKind::Comma).is_some() {
@@ -331,7 +336,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
                     self.push_error(Box::new(error));
                 }
             }
-            if ctx.is_closing(self) {
+            if self.is_list_terminator(ctx) {
                 break;
             }
         }
@@ -354,10 +359,12 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
     }
 
     fn string_token(&self) -> AtomId {
-        assert!(matches!(
-            self.token.kind,
-            TokenKind::String | TokenKind::NoSubstitutionTemplate
-        ));
+        use TokenKind::*;
+        assert!(
+            matches!(self.token.kind, String | NoSubstitutionTemplate),
+            "{:#?}",
+            self.token
+        );
         self.token_value.unwrap().ident()
     }
 
@@ -389,7 +396,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
             let span = self.token.span;
             let kind = missing_ident_kind.unwrap_or(errors::MissingIdentKind::IdentifierExpected);
             let error = errors::MissingIdent { span, kind };
-            self.push_error(error.into());
+            self.push_error(Box::new(error));
             ident(self, keyword::IDENT_EMPTY)
         }
     }
@@ -468,9 +475,42 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
     }
 
     fn push_error(&mut self, error: crate::Diag) {
-        self.diags.push(bolt_ts_errors::Diag {
-            module_id: self.module_id,
-            inner: error,
-        });
+        self.diags.push(bolt_ts_errors::Diag { inner: error });
+    }
+
+    fn set_context_flags(&mut self, val: bool, flag: NodeFlags) {
+        if val {
+            self.context_flags |= flag
+        } else {
+            self.context_flags &= !flag;
+        }
+    }
+
+    fn do_outside_of_context<T>(
+        &mut self,
+        context: NodeFlags,
+        f: impl FnOnce(&mut Self) -> T,
+    ) -> T {
+        let set = context & self.context_flags;
+        if !set.is_empty() {
+            self.set_context_flags(false, set);
+            let res = f(self);
+            self.set_context_flags(true, set);
+            res
+        } else {
+            f(self)
+        }
+    }
+
+    fn do_inside_of_context<T>(&mut self, context: NodeFlags, f: impl FnOnce(&mut Self) -> T) -> T {
+        let set = context & !self.context_flags;
+        if !set.is_empty() {
+            self.set_context_flags(true, set);
+            let res = f(self);
+            self.set_context_flags(false, set);
+            res
+        } else {
+            f(self)
+        }
     }
 }

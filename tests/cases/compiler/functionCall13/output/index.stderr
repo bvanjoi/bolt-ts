@@ -11,7 +11,7 @@
    ╰────
 
   × Argument of type 'string' is not assignable to parameter of type 'number'.
-   ╭─[../../tests/cases/compiler/functionCall13/index.ts:6:7]
- 6 │  'bar'
-   · ──────
+   ╭─[../../tests/cases/compiler/functionCall13/index.ts:6:8]
+ 6 │ 'bar'
+   · ─────
    ╰────

@@ -28,7 +28,6 @@ impl<'cx> TyChecker<'cx> {
             Some(self.get_declared_ty_of_class_or_interface(id))
         } else if symbol.flags == SymbolFlags::TYPE_ALIAS {
             let ty = self.get_declared_ty_of_type_alias(id);
-            self.get_mut_symbol_links(id).set_declared_ty(ty);
             if let Some(ty_params) =
                 self.get_local_ty_params_of_class_or_interface_or_type_alias(id)
             {
@@ -55,7 +54,7 @@ impl<'cx> TyChecker<'cx> {
             .iter()
             .position(|p| p.id == ty_param_id)
             .unwrap();
-        let ty = self.create_param_ty(ty::ParamTy { symbol, offset });
+        let ty = self.create_param_ty(symbol, offset, false);
         self.get_mut_symbol_links(symbol).set_declared_ty(ty);
         ty
     }
@@ -67,6 +66,7 @@ impl<'cx> TyChecker<'cx> {
         let alias = self.binder.symbol(symbol).expect_ty_alias();
         let decl = self.p.node(alias.decl).expect_type_decl();
         let ty = self.get_ty_from_type_node(decl.ty);
+        self.get_mut_symbol_links(symbol).set_declared_ty(ty);
         ty
     }
 
@@ -166,6 +166,10 @@ impl<'cx> TyChecker<'cx> {
             return self.undefined_ty();
         };
         if !self.push_ty_resolution(symbol) {
+            return self.error_ty();
+        }
+        let base_ty = self.check_expr(extends);
+        if !self.pop_ty_resolution() {
             let decl = self.p.node(decl);
             let name = if let ast::Node::ClassDecl(c) = decl {
                 self.atoms.get(c.name.name).to_string()
@@ -176,11 +180,7 @@ impl<'cx> TyChecker<'cx> {
                 span: decl.span(),
                 decl: name,
             };
-            self.push_error(decl.span().module, Box::new(error));
-            return self.error_ty();
-        }
-        let base_ty = self.check_expr(extends);
-        if !self.pop_ty_resolution() {
+            self.push_error(Box::new(error));
             return self.error_ty();
         }
         base_ty
@@ -197,13 +197,37 @@ impl<'cx> TyChecker<'cx> {
         self.alloc(props)
     }
 
+    fn resolve_declared_members(&mut self, symbol: SymbolID) -> &'cx ty::DeclaredMembers<'cx> {
+        let props = self.get_props_from_members(self.members(symbol));
+        let call_sigs = self
+            .members(symbol)
+            .get(&SymbolName::Call)
+            .copied()
+            .map(|s| self.get_sigs_of_symbol(s))
+            .unwrap_or_default();
+        let ctor_sigs = self
+            .members(symbol)
+            .get(&SymbolName::Constructor)
+            .copied()
+            .map(|s| self.get_sigs_of_symbol(s))
+            .unwrap_or_default();
+        let index_infos = self.get_index_infos_of_symbol(symbol);
+        self.alloc(ty::DeclaredMembers {
+            props,
+            index_infos,
+            ctor_sigs,
+            call_sigs,
+        })
+    }
+
     fn get_declared_ty_of_class_or_interface(&mut self, symbol: SymbolID) -> &'cx ty::Ty<'cx> {
-        if let Some(ty) = self.get_symbol_links(symbol).get_ty() {
+        if let Some(ty) = self.get_symbol_links(symbol).get_declared_ty() {
             return ty;
         }
 
         let outer_ty_params = self.get_outer_ty_params_of_class_or_interface(symbol);
         let local_ty_params = self.get_local_ty_params_of_class_or_interface_or_type_alias(symbol);
+        let declared = self.resolve_declared_members(symbol);
 
         let ty = if outer_ty_params.is_some()
             || local_ty_params.is_some()
@@ -216,16 +240,14 @@ impl<'cx> TyChecker<'cx> {
                 v.extend(local_ty_params);
                 self.alloc(v)
             };
-            let this_ty = self.create_param_ty(ty::ParamTy {
-                symbol,
-                offset: usize::MAX,
-            });
+            let this_ty = self.create_param_ty(symbol, usize::MAX, true);
             let target = self.crate_interface_ty(ty::InterfaceTy {
                 symbol,
                 ty_params: Some(ty_params),
                 outer_ty_params: (!outer_ty_params.is_empty()).then_some(outer_ty_params),
                 local_ty_params: (!local_ty_params.is_empty()).then_some(local_ty_params),
                 this_ty: Some(this_ty),
+                declared,
             });
             let ty = self.create_reference_ty(ty::ReferenceTy {
                 target,
@@ -240,14 +262,15 @@ impl<'cx> TyChecker<'cx> {
                 outer_ty_params: None,
                 local_ty_params: None,
                 this_ty: None,
+                declared,
             })
         };
 
         // TODO: delete this
-        if let Some(ty) = self.get_symbol_links(symbol).get_ty() {
+        if let Some(ty) = self.get_symbol_links(symbol).get_declared_ty() {
             return ty;
         }
-        self.get_mut_symbol_links(symbol).set_ty(ty);
+        self.get_mut_symbol_links(symbol).set_declared_ty(ty);
         ty
     }
 
@@ -260,7 +283,7 @@ impl<'cx> TyChecker<'cx> {
         } else {
             unreachable!()
         };
-        let ty_params = self.get_outer_ty_params(decl);
+        let ty_params = self.get_outer_ty_params(decl, false);
         if let Some(ty_params) = ty_params {
             Some(self.alloc(ty_params))
         } else {
@@ -268,7 +291,11 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
-    pub(super) fn get_outer_ty_params(&mut self, id: ast::NodeID) -> Option<Vec<&'cx ty::Ty<'cx>>> {
+    pub(super) fn get_outer_ty_params(
+        &mut self,
+        id: ast::NodeID,
+        include_this: bool,
+    ) -> Option<Vec<&'cx ty::Ty<'cx>>> {
         let mut id = id;
         loop {
             if let Some(next) = self.p.parent(id) {
@@ -279,12 +306,39 @@ impl<'cx> TyChecker<'cx> {
             let node = self.p.node(id);
             use ast::Node::*;
             match node {
-                TypeDecl(_) | ClassDecl(_) | ClassExpr(_) | InterfaceDecl(_) => {
-                    let mut outer_ty_params = self.get_outer_ty_params(id).unwrap_or_default();
+                ClassDecl(_) | ClassExpr(_) | InterfaceDecl(_) | CallSigDecl(_)
+                | MethodSignature(_) | FnTy(_) | CtorSigDecl(_) | FnDecl(_) | ClassMethodEle(_)
+                | ArrowFnExpr(_) | TypeDecl(_) => {
+                    let mut outer_ty_params = self
+                        .get_outer_ty_params(id, include_this)
+                        .unwrap_or_default();
+                    if node.is_fn_expr() || node.is_arrow_fn_expr() || self.is_context_sensitive(id)
+                    {
+                        let symbol = self.get_symbol_of_decl(id);
+                        let ty = self.get_type_of_symbol(symbol);
+                        let sigs = self.get_sigs_of_ty(ty, ty::SigKind::Call);
+                        if let Some(sigs) = sigs.first() {
+                            if let Some(ty_params) = sigs.ty_params {
+                                outer_ty_params.extend(ty_params);
+                                return Some(outer_ty_params);
+                            }
+                        }
+                    }
                     self.append_ty_params(
                         &mut outer_ty_params,
                         self.get_effective_ty_param_decls(id),
                     );
+                    if include_this
+                        && (node.is_class_decl()
+                            || node.is_class_expr()
+                            || node.is_interface_decl())
+                    {
+                        let symbol = self.get_symbol_of_decl(id);
+                        let declared_ty = self.get_declared_ty_of_symbol(symbol);
+                        if let Some(this_ty) = self.this_ty(declared_ty) {
+                            outer_ty_params.push(this_ty);
+                        }
+                    }
                     if outer_ty_params.is_empty() {
                         return None;
                     } else {
