@@ -493,42 +493,6 @@ impl<'cx> ParserState<'cx, '_> {
         }
     }
 
-    fn set_context_flags(&mut self, val: bool, flag: NodeFlags) {
-        if val {
-            self.context_flags |= flag
-        } else {
-            self.context_flags &= !flag;
-        }
-    }
-
-    fn do_outside_of_context<T>(
-        &mut self,
-        context: NodeFlags,
-        f: impl FnOnce(&mut Self) -> T,
-    ) -> T {
-        let set = context & self.context_flags;
-        if !set.is_empty() {
-            self.set_context_flags(false, set);
-            let res = f(self);
-            self.set_context_flags(true, set);
-            res
-        } else {
-            f(self)
-        }
-    }
-
-    fn do_inside_of_context<T>(&mut self, context: NodeFlags, f: impl FnOnce(&mut Self) -> T) -> T {
-        let set = context & !self.context_flags;
-        if !set.is_empty() {
-            self.set_context_flags(true, set);
-            let res = f(self);
-            self.set_context_flags(false, set);
-            res
-        } else {
-            f(self)
-        }
-    }
-
     fn parse_decl(&mut self) -> PResult<&'cx ast::Stmt<'cx>> {
         let mods = self.parse_modifiers(false)?;
         let is_ambient = mods.map_or(false, Self::contain_declare_mod);

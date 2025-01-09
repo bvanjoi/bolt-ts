@@ -1,3 +1,5 @@
+use crate::ast::NodeFlags;
+
 use super::ast::{self, BinOp};
 use super::paren_rule::{NoParenRule, ParenRuleTrait};
 use super::parse_fn_like::ParseFnExpr;
@@ -34,11 +36,13 @@ impl<'cx> ParserState<'cx, '_> {
         match self.is_paren_arrow_fn_expr() {
             Tristate::True => self.parse_paren_arrow_fn_expr().map(Some),
             Tristate::False => Ok(None),
-            Tristate::Unknown => {
-                // todo
-                Ok(None)
-            }
+            Tristate::Unknown => self.try_parse(|this| this.parse_possible_paren_arrow_fn_expr()),
         }
+    }
+
+    fn parse_possible_paren_arrow_fn_expr(&mut self) -> PResult<Option<&'cx ast::Expr<'cx>>> {
+        let start = self.token.start();
+        self.parse_paren_arrow_fn_expr().map(Some)
     }
 
     fn parse_paren_arrow_fn_expr(&mut self) -> PResult<&'cx ast::Expr<'cx>> {
@@ -336,7 +340,10 @@ impl<'cx> ParserState<'cx, '_> {
     }
 
     fn parse_arg(&mut self) -> PResult<&'cx ast::Expr<'cx>> {
-        self.parse_arg_or_array_lit_elem()
+        self.do_outside_of_context(
+            NodeFlags::DISALLOW_IN_AND_DECORATOR_CONTEXT,
+            Self::parse_arg_or_array_lit_elem,
+        )
     }
 
     fn parse_arg_or_array_lit_elem(&mut self) -> PResult<&'cx ast::Expr<'cx>> {

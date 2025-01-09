@@ -143,10 +143,10 @@ impl<'cx> TyChecker<'cx> {
             if is_performing_excess_property_check && self.has_excess_properties(source, target) {
                 return true;
             }
-            self.recur_related_to(source, target, relation, report_error)
-        } else {
-            false
+            return self.recur_related_to(source, target, relation, report_error);
         }
+
+        false
     }
 
     fn props_related_to(
@@ -177,6 +177,7 @@ impl<'cx> TyChecker<'cx> {
             };
             if !unmatched.is_empty() && report_error {
                 let Some(source_symbol) = source.symbol() else {
+                    dbg!(source, target);
                     unreachable!()
                 };
                 let source_span = self.p.node(source_symbol.decl(self.binder)).span();
@@ -560,8 +561,8 @@ impl<'cx> TyChecker<'cx> {
         source: &'cx Ty<'cx>,
         target: &'cx Ty<'cx>,
         error_node: Option<ast::NodeID>,
-    ) {
-        self.check_type_related_to(source, target, RelationKind::Assignable, error_node);
+    ) -> bool {
+        self.check_type_related_to(source, target, RelationKind::Assignable, error_node)
     }
 
     fn check_type_related_to(
@@ -651,7 +652,7 @@ impl<'cx> TyChecker<'cx> {
             return None;
         };
 
-        if object_ty.kind.as_interface().is_some() {
+        let symbol = if object_ty.kind.as_interface().is_some() {
             self.ty_structured_members[&ty.id]
                 .members
                 .get(&name)
@@ -676,7 +677,39 @@ impl<'cx> TyChecker<'cx> {
                 .copied()
         } else {
             unreachable!("ty: {ty:#?}")
+        };
+
+        if symbol.is_some() {
+            return symbol;
         }
+
+        let fn_ty = if ty.id == self.any_fn_ty().id {
+            Some(self.global_array_ty())
+        } else if self
+            .ty_structured_members
+            .get(&ty.id)
+            .map(|item| !item.call_sigs.is_empty())
+            .unwrap_or_default()
+        {
+            Some(self.global_callable_fn_ty())
+        } else if self
+            .ty_structured_members
+            .get(&ty.id)
+            .map(|item| !item.ctor_sigs.is_empty())
+            .unwrap_or_default()
+        {
+            Some(self.global_newable_fn_ty())
+        } else {
+            None
+        };
+
+        if let Some(fn_ty) = fn_ty {
+            if let Some(symbol) = self.get_prop_of_ty(fn_ty, name) {
+                return Some(symbol);
+            }
+        }
+
+        None
     }
 
     pub fn get_unmatched_prop(

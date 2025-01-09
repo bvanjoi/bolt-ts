@@ -1,0 +1,5 @@
+  × Type 'number' is not assignable to type 'object'.
+   ╭─[../../tests/cases/compiler/inOperator/index.ts:9:15]
+ 9 │ 0
+   · ─
+   ╰────

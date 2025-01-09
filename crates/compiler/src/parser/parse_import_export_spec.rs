@@ -10,7 +10,7 @@ use super::{list_ctx, PResult};
 #[derive(Copy, Clone)]
 pub(super) struct ImportOrExportSpecs;
 impl list_ctx::ListContext for ImportOrExportSpecs {
-    fn is_ele(&self, s: &mut ParserState) -> bool {
+    fn is_ele(&self, s: &mut ParserState, _: bool) -> bool {
         use TokenKind::*;
         if s.token.kind == From
             && s.lookahead(|this| {

@@ -20,6 +20,130 @@ declare function eval(x: string): any;
  */
 declare function parseInt(string: string, radix?: number): number;
 
+
+/**
+ * Creates a new function.
+ */
+interface Function {
+  /**
+   * Calls the function, substituting the specified object for the this value of the function, and the specified array for the arguments of the function.
+   * @param thisArg The object to be used as the this object.
+   * @param argArray A set of arguments to be passed to the function.
+   */
+  apply(this: Function, thisArg: any, argArray?: any): any;
+
+  /**
+   * Calls a method of an object, substituting another object for the current object.
+   * @param thisArg The object to be used as the current object.
+   * @param argArray A list of arguments to be passed to the method.
+   */
+  call(this: Function, thisArg: any, ...argArray: any[]): any;
+
+  /**
+   * For a given function, creates a bound function that has the same body as the original function.
+   * The this object of the bound function is associated with the specified object, and has the specified initial parameters.
+   * @param thisArg An object to which the this keyword can refer inside the new function.
+   * @param argArray A list of arguments to be passed to the new function.
+   */
+  bind(this: Function, thisArg: any, ...argArray: any[]): any;
+
+  /** Returns a string representation of a function. */
+  toString(): string;
+
+  prototype: any;
+  readonly length: number;
+
+  // Non-standard extensions
+  arguments: any;
+  caller: Function;
+}
+
+interface FunctionConstructor {
+  /**
+   * Creates a new function.
+   * @param args A list of arguments the function accepts.
+   */
+  new (...args: string[]): Function;
+  (...args: string[]): Function;
+  readonly prototype: Function;
+}
+
+declare var Function: FunctionConstructor;
+
+
+interface CallableFunction extends Function {
+  // /**
+  //  * Calls the function with the specified object as the this value and the elements of specified array as the arguments.
+  //  * @param thisArg The object to be used as the this object.
+  //  */
+  // apply<T, R>(this: (this: T) => R, thisArg: T): R;
+
+  // /**
+  //  * Calls the function with the specified object as the this value and the elements of specified array as the arguments.
+  //  * @param thisArg The object to be used as the this object.
+  //  * @param args An array of argument values to be passed to the function.
+  //  */
+  // apply<T, A extends any[], R>(this: (this: T, ...args: A) => R, thisArg: T, args: A): R;
+
+  // /**
+  //  * Calls the function with the specified object as the this value and the specified rest arguments as the arguments.
+  //  * @param thisArg The object to be used as the this object.
+  //  * @param args Argument values to be passed to the function.
+  //  */
+  // call<T, A extends any[], R>(this: (this: T, ...args: A) => R, thisArg: T, ...args: A): R;
+
+  // /**
+  //  * For a given function, creates a bound function that has the same body as the original function.
+  //  * The this object of the bound function is associated with the specified object, and has the specified initial parameters.
+  //  * @param thisArg The object to be used as the this object.
+  //  */
+  // bind<T>(this: T, thisArg: ThisParameterType<T>): OmitThisParameter<T>;
+
+  // /**
+  //  * For a given function, creates a bound function that has the same body as the original function.
+  //  * The this object of the bound function is associated with the specified object, and has the specified initial parameters.
+  //  * @param thisArg The object to be used as the this object.
+  //  * @param args Arguments to bind to the parameters of the function.
+  //  */
+  // bind<T, A extends any[], B extends any[], R>(this: (this: T, ...args: [...A, ...B]) => R, thisArg: T, ...args: A): (...args: B) => R;
+}
+
+interface NewableFunction extends Function {
+  // /**
+  //  * Calls the function with the specified object as the this value and the elements of specified array as the arguments.
+  //  * @param thisArg The object to be used as the this object.
+  //  */
+  // apply<T>(this: new () => T, thisArg: T): void;
+  // /**
+  //  * Calls the function with the specified object as the this value and the elements of specified array as the arguments.
+  //  * @param thisArg The object to be used as the this object.
+  //  * @param args An array of argument values to be passed to the function.
+  //  */
+  // apply<T, A extends any[]>(this: new (...args: A) => T, thisArg: T, args: A): void;
+
+  // /**
+  //  * Calls the function with the specified object as the this value and the specified rest arguments as the arguments.
+  //  * @param thisArg The object to be used as the this object.
+  //  * @param args Argument values to be passed to the function.
+  //  */
+  // call<T, A extends any[]>(this: new (...args: A) => T, thisArg: T, ...args: A): void;
+
+  // /**
+  //  * For a given function, creates a bound function that has the same body as the original function.
+  //  * The this object of the bound function is associated with the specified object, and has the specified initial parameters.
+  //  * @param thisArg The object to be used as the this object.
+  //  */
+  // bind<T>(this: T, thisArg: any): T;
+
+  // /**
+  //  * For a given function, creates a bound function that has the same body as the original function.
+  //  * The this object of the bound function is associated with the specified object, and has the specified initial parameters.
+  //  * @param thisArg The object to be used as the this object.
+  //  * @param args Arguments to bind to the parameters of the function.
+  //  */
+  // bind<A extends any[], B extends any[], R>(this: new (...args: [...A, ...B]) => R, thisArg: any, ...args: A): new (...args: B) => R;
+}
+
 interface String {
   /** Returns a string representation of a string. */
   toString(): string;
@@ -415,6 +539,118 @@ interface ArrayConstructor {
 }
 
 declare var Array: ArrayConstructor;
+
+interface Math {
+  /** The mathematical constant e. This is Euler's number, the base of natural logarithms. */
+  readonly E: number;
+  /** The natural logarithm of 10. */
+  readonly LN10: number;
+  /** The natural logarithm of 2. */
+  readonly LN2: number;
+  /** The base-2 logarithm of e. */
+  readonly LOG2E: number;
+  /** The base-10 logarithm of e. */
+  readonly LOG10E: number;
+  /** Pi. This is the ratio of the circumference of a circle to its diameter. */
+  readonly PI: number;
+  /** The square root of 0.5, or, equivalently, one divided by the square root of 2. */
+  readonly SQRT1_2: number;
+  /** The square root of 2. */
+  readonly SQRT2: number;
+  /**
+   * Returns the absolute value of a number (the value without regard to whether it is positive or negative).
+   * For example, the absolute value of -5 is the same as the absolute value of 5.
+   * @param x A numeric expression for which the absolute value is needed.
+   */
+  abs(x: number): number;
+  /**
+   * Returns the arc cosine (or inverse cosine) of a number.
+   * @param x A numeric expression.
+   */
+  acos(x: number): number;
+  /**
+   * Returns the arcsine of a number.
+   * @param x A numeric expression.
+   */
+  asin(x: number): number;
+  /**
+   * Returns the arctangent of a number.
+   * @param x A numeric expression for which the arctangent is needed.
+   */
+  atan(x: number): number;
+  /**
+   * Returns the angle (in radians) from the X axis to a point.
+   * @param y A numeric expression representing the cartesian y-coordinate.
+   * @param x A numeric expression representing the cartesian x-coordinate.
+   */
+  atan2(y: number, x: number): number;
+  /**
+   * Returns the smallest integer greater than or equal to its numeric argument.
+   * @param x A numeric expression.
+   */
+  ceil(x: number): number;
+  /**
+   * Returns the cosine of a number.
+   * @param x A numeric expression that contains an angle measured in radians.
+   */
+  cos(x: number): number;
+  /**
+   * Returns e (the base of natural logarithms) raised to a power.
+   * @param x A numeric expression representing the power of e.
+   */
+  exp(x: number): number;
+  /**
+   * Returns the greatest integer less than or equal to its numeric argument.
+   * @param x A numeric expression.
+   */
+  floor(x: number): number;
+  /**
+   * Returns the natural logarithm (base e) of a number.
+   * @param x A numeric expression.
+   */
+  log(x: number): number;
+  /**
+   * Returns the larger of a set of supplied numeric expressions.
+   * @param values Numeric expressions to be evaluated.
+   */
+  max(...values: number[]): number;
+  /**
+   * Returns the smaller of a set of supplied numeric expressions.
+   * @param values Numeric expressions to be evaluated.
+   */
+  min(...values: number[]): number;
+  /**
+   * Returns the value of a base expression taken to a specified power.
+   * @param x The base value of the expression.
+   * @param y The exponent value of the expression.
+   */
+  pow(x: number, y: number): number;
+  /** Returns a pseudorandom number between 0 and 1. */
+  random(): number;
+  /**
+   * Returns a supplied numeric expression rounded to the nearest integer.
+   * @param x The value to be rounded to the nearest integer.
+   */
+  round(x: number): number;
+  /**
+   * Returns the sine of a number.
+   * @param x A numeric expression that contains an angle measured in radians.
+   */
+  sin(x: number): number;
+  /**
+   * Returns the square root of a number.
+   * @param x A numeric expression.
+   */
+  sqrt(x: number): number;
+  /**
+   * Returns the tangent of a number.
+   * @param x A numeric expression that contains an angle measured in radians.
+   */
+  tan(x: number): number;
+}
+/** An intrinsic object that provides basic mathematics functionality and constants. */
+declare var Math: Math;
+
 
 interface DateConstructor {
   new (): Date;

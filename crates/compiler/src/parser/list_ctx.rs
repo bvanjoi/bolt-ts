@@ -2,14 +2,14 @@ use super::token::TokenKind;
 use super::ParserState;
 
 pub(super) trait ListContext: Copy {
-    fn is_ele(&self, s: &mut ParserState) -> bool;
+    fn is_ele(&self, s: &mut ParserState, _: bool) -> bool;
     fn is_closing(&self, s: &mut ParserState) -> bool;
 }
 
 #[derive(Copy, Clone)]
 pub(super) struct EnumMembers;
 impl ListContext for EnumMembers {
-    fn is_ele(&self, s: &mut ParserState) -> bool {
+    fn is_ele(&self, s: &mut ParserState, _: bool) -> bool {
         s.token.kind == TokenKind::LBracket || s.token.kind.is_lit_prop_name()
     }
 
@@ -19,10 +19,10 @@ impl ListContext for EnumMembers {
 }
 
 #[derive(Copy, Clone)]
-pub(super) struct BlockStmt;
-impl ListContext for BlockStmt {
-    fn is_ele(&self, s: &mut ParserState) -> bool {
-        !matches!(s.token.kind, TokenKind::Semi) && s.is_start_of_stmt()
+pub(super) struct BlockStmts;
+impl ListContext for BlockStmts {
+    fn is_ele(&self, s: &mut ParserState, is_error_recovery: bool) -> bool {
+        !(matches!(s.token.kind, TokenKind::Semi) && is_error_recovery) && s.is_start_of_stmt()
     }
 
     fn is_closing(&self, s: &mut ParserState) -> bool {
@@ -33,7 +33,7 @@ impl ListContext for BlockStmt {
 #[derive(Copy, Clone)]
 pub(super) struct ArgExprs;
 impl ListContext for ArgExprs {
-    fn is_ele(&self, s: &mut ParserState) -> bool {
+    fn is_ele(&self, s: &mut ParserState, _: bool) -> bool {
         matches!(s.token.kind, TokenKind::DotDotDot) || s.is_start_of_expr()
     }
 
@@ -45,7 +45,7 @@ impl ListContext for ArgExprs {
 #[derive(Copy, Clone)]
 pub(super) struct ObjectLitMembers;
 impl ListContext for ObjectLitMembers {
-    fn is_ele(&self, s: &mut ParserState) -> bool {
+    fn is_ele(&self, s: &mut ParserState, _: bool) -> bool {
         use TokenKind::*;
         matches!(s.token.kind, LBrace) || s.token.kind.is_lit_prop_name()
     }
@@ -83,7 +83,7 @@ fn is_ty_member_start(s: &mut ParserState) -> bool {
 #[derive(Copy, Clone)]
 pub(super) struct TyMembers;
 impl ListContext for TyMembers {
-    fn is_ele(&self, s: &mut ParserState) -> bool {
+    fn is_ele(&self, s: &mut ParserState, _: bool) -> bool {
         s.lookahead(is_ty_member_start)
     }
 
@@ -95,7 +95,7 @@ impl ListContext for TyMembers {
 #[derive(Copy, Clone)]
 pub(super) struct Params;
 impl ListContext for Params {
-    fn is_ele(&self, s: &mut ParserState) -> bool {
+    fn is_ele(&self, s: &mut ParserState, _: bool) -> bool {
         s.token.kind.is_start_of_param()
     }
 
@@ -108,7 +108,7 @@ impl ListContext for Params {
 #[derive(Copy, Clone)]
 pub(super) struct TyParams;
 impl ListContext for TyParams {
-    fn is_ele(&self, s: &mut ParserState) -> bool {
+    fn is_ele(&self, s: &mut ParserState, _: bool) -> bool {
         // FIXME: parse_state.is_ident
         s.token.kind.is_binding_ident()
     }
@@ -122,7 +122,7 @@ impl ListContext for TyParams {
 #[derive(Copy, Clone)]
 pub(super) struct HeritageClause;
 impl ListContext for HeritageClause {
-    fn is_ele(&self, s: &mut ParserState) -> bool {
+    fn is_ele(&self, s: &mut ParserState, _: bool) -> bool {
         // TODO: fixme
         s.token.kind.is_binding_ident()
     }
@@ -136,7 +136,7 @@ impl ListContext for HeritageClause {
 #[derive(Copy, Clone)]
 pub(super) struct VarDecls;
 impl ListContext for VarDecls {
-    fn is_ele(&self, s: &mut ParserState) -> bool {
+    fn is_ele(&self, s: &mut ParserState, _: bool) -> bool {
         s.token.kind.is_binding_ident_or_private_ident_or_pat()
     }
 
@@ -150,7 +150,7 @@ impl ListContext for VarDecls {
 #[derive(Copy, Clone)]
 pub(super) struct ArrayLiteralMembers;
 impl ListContext for ArrayLiteralMembers {
-    fn is_ele(&self, s: &mut ParserState) -> bool {
+    fn is_ele(&self, s: &mut ParserState, _: bool) -> bool {
         matches!(s.token.kind, TokenKind::Comma) || s.is_start_of_expr()
     }
 
@@ -162,7 +162,7 @@ impl ListContext for ArrayLiteralMembers {
 #[derive(Copy, Clone)]
 pub(super) struct TyArgs;
 impl ListContext for TyArgs {
-    fn is_ele(&self, s: &mut ParserState) -> bool {
+    fn is_ele(&self, s: &mut ParserState, _: bool) -> bool {
         matches!(s.token.kind, TokenKind::Comma) || s.is_start_of_ty()
     }
 

@@ -52,7 +52,7 @@ fn is_class_ele_start(s: &mut ParserState) -> bool {
 #[derive(Copy, Clone)]
 struct ClassElementsCtx;
 impl ListContext for ClassElementsCtx {
-    fn is_ele(&self, s: &mut ParserState) -> bool {
+    fn is_ele(&self, s: &mut ParserState, _: bool) -> bool {
         s.lookahead(is_class_ele_start) || s.token.kind == TokenKind::Semi
     }
 
@@ -225,7 +225,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
             let mut ty_args = None;
             let mut last_ele_span = None;
             loop {
-                if list_ctx::HeritageClause.is_ele(self) {
+                if list_ctx::HeritageClause.is_ele(self, false) {
                     let e = self.parse_left_hand_side_expr();
                     let args = self.parse_ty_args_in_expr()?;
                     if is_first {

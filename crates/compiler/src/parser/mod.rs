@@ -302,7 +302,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
     ) -> &'cx [T] {
         let mut list = vec![];
         while !self.is_list_terminator(ctx) {
-            if ctx.is_ele(self) {
+            if ctx.is_ele(self, false) {
                 if let Ok(ele) = ele(self) {
                     list.push(ele);
                 }
@@ -318,7 +318,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
     ) -> &'cx [T] {
         let mut list = vec![];
         loop {
-            if ctx.is_ele(self) {
+            if ctx.is_ele(self, false) {
                 let Ok(ele) = ele(self) else {
                     break;
                 };
@@ -476,5 +476,41 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
 
     fn push_error(&mut self, error: crate::Diag) {
         self.diags.push(bolt_ts_errors::Diag { inner: error });
+    }
+
+    fn set_context_flags(&mut self, val: bool, flag: NodeFlags) {
+        if val {
+            self.context_flags |= flag
+        } else {
+            self.context_flags &= !flag;
+        }
+    }
+
+    fn do_outside_of_context<T>(
+        &mut self,
+        context: NodeFlags,
+        f: impl FnOnce(&mut Self) -> T,
+    ) -> T {
+        let set = context & self.context_flags;
+        if !set.is_empty() {
+            self.set_context_flags(false, set);
+            let res = f(self);
+            self.set_context_flags(true, set);
+            res
+        } else {
+            f(self)
+        }
+    }
+
+    fn do_inside_of_context<T>(&mut self, context: NodeFlags, f: impl FnOnce(&mut Self) -> T) -> T {
+        let set = context & !self.context_flags;
+        if !set.is_empty() {
+            self.set_context_flags(true, set);
+            let res = f(self);
+            self.set_context_flags(false, set);
+            res
+        } else {
+            f(self)
+        }
     }
 }

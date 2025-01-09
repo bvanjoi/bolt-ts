@@ -11,7 +11,7 @@ fn is_ele_for_tuple_ele_tys_and_ty_args(s: &mut ParserState) -> bool {
 struct TupleElementTypes;
 
 impl ListContext for TupleElementTypes {
-    fn is_ele(&self, s: &mut ParserState) -> bool {
+    fn is_ele(&self, s: &mut ParserState, _: bool) -> bool {
         is_ele_for_tuple_ele_tys_and_ty_args(s)
     }
 
@@ -24,7 +24,7 @@ impl ListContext for TupleElementTypes {
 pub(super) struct TypeArguments;
 
 impl ListContext for TypeArguments {
-    fn is_ele(&self, s: &mut ParserState) -> bool {
+    fn is_ele(&self, s: &mut ParserState, _: bool) -> bool {
         is_ele_for_tuple_ele_tys_and_ty_args(s)
     }
 
@@ -522,6 +522,7 @@ impl<'cx> ParserState<'cx, '_> {
     fn parse_prop_or_method_sig(&mut self) -> PResult<&'cx ast::ObjectTyMember<'cx>> {
         let id = self.next_node_id();
         let start = self.token.start();
+        let modifiers = self.parse_modifiers(false)?;
         let name = self.with_parent(id, Self::parse_prop_name)?;
         let question = self.parse_optional(TokenKind::Question).map(|t| t.span);
         let kind = if matches!(self.token.kind, TokenKind::LParen | TokenKind::Less) {
@@ -544,6 +545,7 @@ impl<'cx> ParserState<'cx, '_> {
             let sig = self.alloc(ast::PropSignature {
                 id,
                 span: self.new_span(start),
+                modifiers,
                 name,
                 question,
                 ty,
@@ -601,6 +603,7 @@ impl<'cx> ParserState<'cx, '_> {
         } else if self.is_index_sig() {
             let id = self.next_node_id();
             let start = self.token.start() as usize;
+            let modifiers = self.parse_modifiers(false)?;
             let decl = self.parse_index_sig_decl(id, start, None)?;
             Ok(self.alloc(ast::ObjectTyMember {
                 kind: ast::ObjectTyMemberKind::IndexSig(decl),

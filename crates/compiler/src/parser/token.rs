@@ -180,6 +180,7 @@ pub enum TokenKind {
     Of,
     Break,
     Continue,
+    Instanceof,
     In,
     // ts keyword
     Implements,
@@ -195,6 +196,7 @@ pub enum TokenKind {
     Namespace,
     Enum,
     Readonly,
+    Satisfies,
     Type,
 }
 
@@ -220,6 +222,9 @@ impl From<TokenKind> for BinOpKind {
             TokenKind::GreatEq => BinOpKind::GreatEq,
             TokenKind::GreatGreat => BinOpKind::Shr,
             TokenKind::GreatGreatGreat => BinOpKind::UShr,
+            TokenKind::Instanceof => BinOpKind::Instanceof,
+            TokenKind::In => BinOpKind::In,
+            TokenKind::Satisfies => BinOpKind::Satisfies,
             _ => {
                 unreachable!("{:#?}", value)
             }
@@ -295,7 +300,9 @@ impl TokenKind {
         use TokenKind::*;
         match self {
             Pipe => BinPrec::BitwiseOR,
-            Less | LessEq | Great | GreatEq => BinPrec::Relational,
+            Less | Great | LessEq | GreatEq | Instanceof | In | As | Satisfies => {
+                BinPrec::Relational
+            }
             LessLess | GreatGreat | GreatGreatGreat => BinPrec::Shift,
             Plus | Minus => BinPrec::Additive,
             PipePipe => BinPrec::LogicalOr,
@@ -413,7 +420,42 @@ impl TokenKind {
     }
 
     pub fn is_start_of_param(self) -> bool {
-        matches!(self, TokenKind::DotDotDot) || self.is_binding_ident_or_private_ident_or_pat()
+        matches!(self, TokenKind::DotDotDot)
+            || self.is_binding_ident_or_private_ident_or_pat()
+            || self.is_modifier_kind()
+            || self == TokenKind::At
+            || self.is_start_of_ty(true)
+    }
+
+    pub fn is_start_of_ty(self, is_start_of_param: bool) -> bool {
+        use TokenKind::*;
+
+        if matches!(
+            self,
+            String
+                | Number
+                | Readonly
+                | Null
+                | This
+                | Type
+                | LBrace
+                | LBracket
+                | Less
+                | Pipe
+                | Amp
+                | True
+                | False
+                | Asterisk
+                | Question
+                | Excl
+                | DotDotDot
+        ) {
+            true
+        } else if matches!(self, Function) {
+            !is_start_of_param
+        } else {
+            self.is_ident()
+        }
     }
 
     pub fn is_heritage_clause(&self) -> bool {

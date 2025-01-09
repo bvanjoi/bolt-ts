@@ -12,6 +12,7 @@ impl<'cx> Resolver<'cx, '_> {
     }
 
     fn resolve_class_method_ele(&mut self, ele: &'cx ast::ClassMethodEle<'cx>) {
+        self.resolve_params(ele.params);
         if let Some(body) = ele.body {
             self.resolve_block_stmt(body);
         }

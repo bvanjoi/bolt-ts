@@ -136,10 +136,14 @@ pub struct TyChecker<'cx> {
     global_number_ty: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
     global_string_ty: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
     boolean_ty: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
+    string_number_symbol_ty: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
     typeof_ty: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
     tuple_shapes: FxHashMap<u32, &'cx TupleShape<'cx>>,
     unknown_sig: std::cell::OnceCell<&'cx Sig<'cx>>,
     any_fn_ty: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
+    global_fn_ty: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
+    global_callable_fn_ty: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
+    global_newable_fn_ty: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
     // === resolver ===
     pub binder: &'cx mut bind::Binder<'cx>,
     global_symbols: &'cx GlobalSymbols,
@@ -171,6 +175,11 @@ intrinsic_type!(
     (false_ty, keyword::KW_FALSE, TyKind::FalseLit),
     (number_ty, keyword::IDENT_NUMBER, TyKind::Number),
     (string_ty, keyword::IDENT_STRING, TyKind::String),
+    (
+        non_primitive_ty,
+        keyword::IDENT_OBJECT,
+        TyKind::NonPrimitive
+    ),
 );
 
 fn get_suggestion_boolean_op(op: &str) -> Option<&str> {
@@ -209,10 +218,14 @@ impl<'cx> TyChecker<'cx> {
             string_lit_tys: fx_hashmap_with_capacity(1024 * 8),
 
             boolean_ty: Default::default(),
+            string_number_symbol_ty: Default::default(),
             global_number_ty: Default::default(),
             global_string_ty: Default::default(),
             global_array_ty: Default::default(),
             any_fn_ty: Default::default(),
+            global_fn_ty: Default::default(),
+            global_callable_fn_ty: Default::default(),
+            global_newable_fn_ty: Default::default(),
             typeof_ty: Default::default(),
 
             unknown_sig: Default::default(),
@@ -235,7 +248,7 @@ impl<'cx> TyChecker<'cx> {
             type_contextual: Vec::with_capacity(256),
             check_mode: None,
             deferred_nodes: vec![
-                indexmap::IndexSet::with_capacity_and_hasher(64, FxBuildHasher,);
+                indexmap::IndexSet::with_capacity_and_hasher(64, FxBuildHasher);
                 p.module_count()
             ],
         };
@@ -250,6 +263,17 @@ impl<'cx> TyChecker<'cx> {
         );
         this.type_name.insert(boolean_ty.id, "boolean".to_string());
         this.boolean_ty.set(boolean_ty).unwrap();
+
+        let string_number_symbol_ty = this.create_union_type(
+            vec![
+                this.string_ty(),
+                this.number_ty(), /* TODO: symbol_ty */
+            ],
+            ty::UnionReduction::Lit,
+        );
+        this.string_number_symbol_ty
+            .set(string_number_symbol_ty)
+            .unwrap();
 
         let global_number_ty =
             this.get_global_type(SymbolName::Normal(keyword::IDENT_NUMBER_CLASS));
@@ -278,6 +302,19 @@ impl<'cx> TyChecker<'cx> {
             mapper: None,
         });
         this.any_fn_ty.set(any_fn_ty).unwrap();
+
+        let global_fn_ty = this.get_global_type(SymbolName::Normal(keyword::IDENT_FUNCTION_CLASS));
+        this.global_fn_ty.set(global_fn_ty).unwrap();
+
+        let global_callable_fn_ty =
+            this.get_global_type(SymbolName::Normal(keyword::IDENT_CALLABLE_FUNCTION_CLASS));
+        this.global_callable_fn_ty
+            .set(global_callable_fn_ty)
+            .unwrap();
+
+        let global_newable_fn_ty =
+            this.get_global_type(SymbolName::Normal(keyword::IDENT_NEWABLE_FUNCTION_CLASS));
+        this.global_newable_fn_ty.set(global_newable_fn_ty).unwrap();
 
         let unknown_sig = this.new_sig(Sig {
             flags: SigFlags::empty(),
@@ -335,36 +372,6 @@ impl<'cx> TyChecker<'cx> {
         self.type_name
             .entry(ty.id)
             .or_insert_with(|| type_name.unwrap())
-    }
-
-    #[inline(always)]
-    pub(crate) fn boolean_ty(&self) -> &'cx ty::Ty<'cx> {
-        self.boolean_ty.get().unwrap()
-    }
-
-    #[inline(always)]
-    fn any_fn_ty(&self) -> &'cx ty::Ty<'cx> {
-        self.any_fn_ty.get().unwrap()
-    }
-
-    #[inline(always)]
-    fn global_number_ty(&self) -> &'cx ty::Ty<'cx> {
-        self.global_number_ty.get().unwrap()
-    }
-
-    #[inline(always)]
-    fn global_string_ty(&self) -> &'cx ty::Ty<'cx> {
-        self.global_string_ty.get().unwrap()
-    }
-
-    #[inline(always)]
-    fn typeof_ty(&self) -> &'cx ty::Ty<'cx> {
-        self.typeof_ty.get().unwrap()
-    }
-
-    #[inline(always)]
-    pub fn global_array_ty(&self) -> &'cx ty::Ty<'cx> {
-        self.global_array_ty.get().unwrap()
     }
 
     pub fn unknown_sig(&self) -> &'cx Sig<'cx> {
@@ -1426,7 +1433,7 @@ impl<'cx> TyChecker<'cx> {
                 let ty = self.check_binary_like_expr_for_add(left_ty, right_ty);
                 if ty.id == self.any_ty().id {
                     let error = errors::OperatorCannotBeAppliedToTy1AndTy2 {
-                        op: "+".to_string(),
+                        op: op.kind.to_string(),
                         ty1: left_ty.to_string(self),
                         ty2: right_ty.to_string(self),
                         span: node.span,
@@ -1467,7 +1474,30 @@ impl<'cx> TyChecker<'cx> {
             Shr => todo!(),
             UShr => todo!(),
             BitAnd => todo!(),
+            Instanceof => todo!(),
+            In => self.check_in_expr(left, left_ty, right, right_ty),
+            Satisfies => todo!(),
         }
+    }
+
+    fn check_in_expr(
+        &mut self,
+        left: &'cx ast::Expr,
+        left_ty: &'cx ty::Ty<'cx>,
+        right: &'cx ast::Expr,
+        right_ty: &'cx ty::Ty<'cx>,
+    ) -> &'cx ty::Ty<'cx> {
+        self.check_type_assignable_to(left_ty, self.string_number_symbol_ty(), Some(left.id()));
+        if !self.check_type_assignable_to(right_ty, self.non_primitive_ty(), Some(right.id())) {
+            let right_ty = self.get_widened_literal_ty(right_ty);
+            let error = errors::TypeIsNotAssignableToType {
+                span: right.span(),
+                ty1: right_ty.to_string(self),
+                ty2: self.non_primitive_ty().to_string(self),
+            };
+            self.push_error(Box::new(error));
+        }
+        self.boolean_ty()
     }
 
     fn push_error(&mut self, error: crate::Diag) {
@@ -1559,3 +1589,29 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 }
+
+macro_rules! global_ty {
+    ($($name: ident),* $(,)?) => {
+        impl<'cx> TyChecker<'cx> {
+            $(
+                #[inline(always)]
+                pub fn $name(&self) -> &'cx ty::Ty<'cx> {
+                    self.$name.get().unwrap()
+                }
+            )*
+        }
+    };
+}
+
+global_ty!(
+    boolean_ty,
+    string_number_symbol_ty,
+    any_fn_ty,
+    global_number_ty,
+    global_string_ty,
+    typeof_ty,
+    global_array_ty,
+    global_fn_ty,
+    global_callable_fn_ty,
+    global_newable_fn_ty
+);

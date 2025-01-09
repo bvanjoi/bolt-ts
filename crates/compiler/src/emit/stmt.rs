@@ -251,6 +251,12 @@ impl<'cx> Emit<'cx> {
     }
 
     fn emit_enum_decl(&mut self, e: &'cx ast::EnumDecl) {
+        if e.modifiers
+            .map(|ms| ms.flags.contains(ast::ModifierKind::Declare))
+            .unwrap_or_default()
+        {
+            return;
+        }
         self.emit_with_var_fn_wrapper(e.name, self.atoms.get(e.name.name), |this| {
             for member in e.members {
                 this.content.p_newline();

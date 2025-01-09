@@ -55,7 +55,7 @@ impl<'p> ParserState<'p, '_> {
         use TokenKind::*;
         self.expect(LBrace)?;
         let stmts = self.with_parent(id, |this| {
-            this.parse_list(list_ctx::BlockStmt, Self::parse_stmt)
+            this.parse_list(list_ctx::BlockStmts, Self::parse_stmt)
         });
         self.expect(RBrace)?;
         let stmt = self.alloc(ast::BlockStmt {

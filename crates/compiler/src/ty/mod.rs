@@ -77,6 +77,7 @@ pub enum TyKind<'cx> {
     Void,
     Undefined,
     Null,
+    NonPrimitive,
     Union(&'cx UnionTy<'cx>),
     Object(&'cx ObjectTy<'cx>),
     Param(&'cx ParamTy<'cx>),
@@ -196,6 +197,7 @@ impl Ty<'_> {
             TyKind::Void => keyword::IDENT_VOID_STR.to_string(),
             TyKind::Undefined => keyword::IDENT_UNDEFINED_STR.to_string(),
             TyKind::Null => keyword::KW_NULL_STR.to_string(),
+            TyKind::NonPrimitive => keyword::IDENT_OBJECT_STR.to_string(),
         }
     }
 

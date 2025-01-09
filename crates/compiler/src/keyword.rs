@@ -39,6 +39,7 @@ gen_atoms!(
     (KW_OF, "of"),
     (KW_BREAK, "break"),
     (KW_CONTINUE, "continue"),
+    (KW_INSTANCEOF, "instanceof"),
     (KW_IN, "in"),
     // ts keywords
     (KW_IMPLEMENTS, "implements"),
@@ -54,6 +55,7 @@ gen_atoms!(
     (KW_NAMESPACE, "namespace"),
     (KW_ENUM, "enum"),
     (KW_READONLY, "readonly"),
+    (KW_SATISFIES, "satisfies"),
     (KW_TYPE, "type"),
 );
 
@@ -77,6 +79,9 @@ gen_atoms!(
     (IDENT_BIGINT, "bitint"),
     (IDENT_OBJECT, "object"),
     (IDENT_SYMBOL, "symbol"),
+    (IDENT_FUNCTION_CLASS, "Function"),
+    (IDENT_CALLABLE_FUNCTION_CLASS, "CallableFunction"),
+    (IDENT_NEWABLE_FUNCTION_CLASS, "NewableFunction"),
 );
 
 pub fn is_prim_ty_name(name: AtomId) -> bool {

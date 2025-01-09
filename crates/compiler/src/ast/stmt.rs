@@ -193,6 +193,7 @@ pub enum ObjectTyMemberKind<'cx> {
 pub struct PropSignature<'cx> {
     pub id: NodeID,
     pub span: Span,
+    pub modifiers: Option<&'cx Modifiers<'cx>>,
     pub name: &'cx PropName<'cx>,
     pub question: Option<Span>,
     pub ty: Option<&'cx self::Ty<'cx>>,

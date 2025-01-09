@@ -299,6 +299,9 @@ pub enum BinOpKind {
     LogicalAnd,
     EqEq,
     EqEqEq,
+    Instanceof,
+    In,
+    Satisfies,
 }
 
 impl BinOpKind {
@@ -322,7 +325,16 @@ impl BinOpKind {
             LogicalAnd => "&&",
             EqEq => "==",
             EqEqEq => "===",
+            Instanceof => "instanceof",
+            In => "in",
+            Satisfies => "satisfies",
         }
+    }
+}
+
+impl std::fmt::Display for BinOpKind {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.as_str())
     }
 }
 
