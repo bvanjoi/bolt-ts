@@ -68,7 +68,97 @@ impl<'cx> Emit<'cx> {
             self.content.p("constructor");
             self.emit_params(ctor.params);
             self.content.p_whitespace();
-            self.emit_block_stmt(body);
+
+            let block = body;
+            self.content.p_l_brace();
+            self.state.indent += self.options.indent;
+
+            let has_block_stmt = !block.stmts.is_empty()
+                && ctor.params.iter().any(|param| {
+                    param.dotdotdot.is_none()
+                        && param
+                            .modifiers
+                            .is_some_and(|ms| ms.flags.contains(ast::ModifierKind::Public))
+                });
+
+            if has_block_stmt {
+                self.content.p_newline();
+                self.content.p_pieces_of_whitespace(self.state.indent);
+            }
+
+            let last_super_call = block.stmts.iter().rev().position(|stmt| {
+                if let ast::StmtKind::Expr(expr) = stmt.kind {
+                    if let ast::ExprKind::Call(call) = expr.kind {
+                        if let ast::ExprKind::Super(_) = call.expr.kind {
+                            return true;
+                        }
+                    }
+                }
+                false
+            });
+
+            let (prev_stmts, after_stmts) = if let Some(last_super_call) = last_super_call {
+                block.stmts.split_at(last_super_call + 1)
+            } else {
+                let after_stmts: ast::Stmts<'cx> = &[];
+                (block.stmts, after_stmts)
+            };
+
+            self.emit_list(
+                prev_stmts,
+                |this, elem| this.emit_stmt(elem),
+                |this, _| {
+                    this.content.p_newline();
+                    this.content.p_pieces_of_whitespace(this.state.indent);
+                },
+            );
+
+            self.emit_list(
+                ctor.params,
+                |this, param| {
+                    if param.dotdotdot.is_none()
+                        && param
+                            .modifiers
+                            .is_some_and(|ms| ms.flags.contains(ast::ModifierKind::Public))
+                    {
+                        this.content.p_newline();
+
+                        this.content.p("this");
+                        this.content.p_dot();
+                        this.emit_ident(param.name);
+                        this.content.p_whitespace();
+                        this.content.p_eq();
+                        this.content.p_whitespace();
+                        this.emit_ident(param.name);
+                    }
+                },
+                |this, param| {
+                    if param.dotdotdot.is_none()
+                        && param
+                            .modifiers
+                            .is_some_and(|ms| ms.flags.contains(ast::ModifierKind::Public))
+                    {
+                        this.content.p_newline();
+                        this.content.p_pieces_of_whitespace(this.state.indent);
+                    }
+                },
+            );
+
+            self.emit_list(
+                after_stmts,
+                |this, elem| this.emit_stmt(elem),
+                |this, _| {
+                    this.content.p_newline();
+                    this.content.p_pieces_of_whitespace(this.state.indent);
+                },
+            );
+
+            if has_block_stmt {
+                self.content.p_pieces_of_whitespace(self.state.indent);
+                self.content.p_newline();
+            }
+            self.state.indent -= self.options.indent;
+            self.content.p_r_brace();
         }
     }
 

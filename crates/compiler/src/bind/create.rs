@@ -63,7 +63,7 @@ impl<'cx> BinderState<'cx> {
                 } else if matches!(prev.kind.0, SymbolKind::Err) {
                     prev.flags |= flags;
                     let prev = &mut prev.kind;
-                    assert!(prev.1.is_some());
+                    assert!(prev.1.is_some() || prev.2.is_some());
                     prev.0 = kind;
                 } else {
                     let n = self.atoms.get(name.expect_atom());

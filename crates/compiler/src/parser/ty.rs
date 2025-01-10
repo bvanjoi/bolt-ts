@@ -143,7 +143,7 @@ impl<'cx> ParserState<'cx, '_> {
     }
 
     fn parse_intersection_ty(&mut self) -> PResult<&'cx ast::Ty<'cx>> {
-        self.parse_union_or_intersection_ty(TokenKind::Amp, Self::parse_ty_op)
+        self.parse_union_or_intersection_ty(TokenKind::Amp, Self::parse_ty_op_or_higher)
     }
 
     fn parse_union_ty(&mut self) -> PResult<&'cx ast::Ty<'cx>> {
@@ -200,8 +200,32 @@ impl<'cx> ParserState<'cx, '_> {
         }
     }
 
-    fn parse_ty_op(&mut self) -> PResult<&'cx ast::Ty<'cx>> {
-        self.parse_prefix_ty()
+    fn parse_ty_op_or_higher(&mut self) -> PResult<&'cx ast::Ty<'cx>> {
+        match self.token.kind {
+            TokenKind::Keyof => {
+                let op = self.token.kind.try_into().unwrap();
+                self.parse_ty_op(op)
+            }
+            _ => self.parse_prefix_ty(),
+        }
+    }
+
+    fn parse_ty_op(&mut self, op: ast::TyOpKind) -> PResult<&'cx ast::Ty<'cx>> {
+        let start = self.token.start();
+        let id = self.next_node_id();
+        self.next_token();
+        let ty = self.with_parent(id, Self::parse_ty)?;
+        let ty = self.alloc(ast::TyOp {
+            id,
+            span: self.new_span(start),
+            op,
+            ty,
+        });
+        self.insert_map(id, ast::Node::TyOp(ty));
+        let ty = self.alloc(ast::Ty {
+            kind: ast::TyKind::TyOp(ty),
+        });
+        Ok(ty)
     }
 
     fn parse_prefix_ty(&mut self) -> PResult<&'cx ast::Ty<'cx>> {
@@ -320,9 +344,9 @@ impl<'cx> ParserState<'cx, '_> {
     }
 
     fn parse_ty_reference(&mut self) -> PResult<&'cx ast::Ty<'cx>> {
-        let name = self.parse_entity_name_of_ty_reference()?;
+        let refer = self.parse_entity_name_of_ty_reference()?;
         let ty = self.alloc(ast::Ty {
-            kind: ast::TyKind::Refer(name),
+            kind: ast::TyKind::Refer(refer),
         });
         Ok(ty)
     }
@@ -420,7 +444,7 @@ impl<'cx> ParserState<'cx, '_> {
                     .lookahead(Self::is_start_of_mapped_ty)
                     .unwrap_or_default()
                 {
-                    todo!()
+                    self.parse_mapped_ty()
                 } else {
                     self.parse_ty_lit()
                 }
@@ -443,6 +467,73 @@ impl<'cx> ParserState<'cx, '_> {
             }
             _ => self.parse_ty_reference(),
         }
+    }
+
+    fn parse_mapped_ty(&mut self) -> PResult<&'cx ast::Ty<'cx>> {
+        let start = self.token.start();
+        let id = self.next_node_id();
+        self.expect(TokenKind::LBrace)?;
+        if matches!(
+            self.token.kind,
+            TokenKind::Readonly | TokenKind::Plus | TokenKind::Minus
+        ) {
+            todo!()
+        }
+        self.expect(TokenKind::LBracket)?;
+        let ty_param = self.parse_mapped_ty_param()?;
+        let name_ty = if self.parse_optional(TokenKind::As).is_some() {
+            let ty = self.parse_ty()?;
+            Some(ty)
+        } else {
+            None
+        };
+        self.expect(TokenKind::RBracket)?;
+        let mut question_token = None;
+        if matches!(
+            self.token.kind,
+            TokenKind::Question | TokenKind::Plus | TokenKind::Minus
+        ) {
+            let t = self.parse_token_node();
+            question_token = Some(t);
+            if t.kind != TokenKind::Question {
+                self.expect(TokenKind::Question)?;
+            };
+        }
+
+        let ty = self.parse_ty_anno()?;
+        self.parse_semi();
+        let members = self.parse_list(list_ctx::TyMembers, Self::parse_ty_member);
+        self.expect(TokenKind::RBrace)?;
+        let kind = self.alloc(ast::MappedTy {
+            id,
+            span: self.new_span(start),
+            ty_param,
+            name_ty,
+            // question_token,
+            ty,
+            members,
+        });
+        self.insert_map(id, ast::Node::MappedTy(kind));
+        let ty = self.alloc(ast::Ty {
+            kind: ast::TyKind::Mapped(kind),
+        });
+        Ok(ty)
+    }
+
+    fn parse_mapped_ty_param(&mut self) -> PResult<&'cx ast::MappedTyParam<'cx>> {
+        let start = self.token.start();
+        let id = self.next_node_id();
+        let name = self.create_ident(true, None);
+        self.expect(TokenKind::In)?;
+        let constraint = self.parse_ty()?;
+        let ty = self.alloc(ast::MappedTyParam {
+            id,
+            span: self.new_span(start),
+            name,
+            constraint,
+        });
+        self.insert_map(id, ast::Node::MappedTyParam(ty));
+        Ok(ty)
     }
 
     fn parse_tuple_ty(&mut self) -> PResult<&'cx ast::Ty<'cx>> {

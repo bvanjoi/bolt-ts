@@ -195,12 +195,12 @@ impl<'cx> TyChecker<'cx> {
         ty_params: ty::Tys<'cx>,
         ty_args: ty::Tys<'cx>,
     ) {
-        let symbol = ty.symbol().unwrap();
-        let (base_ctor_ty, base_tys) = self.get_base_tys(symbol);
+        let (base_ctor_ty, base_tys) = self.get_base_tys(ty);
         // TODO: remove this
         if self.ty_structured_members.get(&ty.id).is_some() {
             return;
         }
+        let symbol = ty.symbol().unwrap();
 
         let mut members;
         let mut call_sigs;

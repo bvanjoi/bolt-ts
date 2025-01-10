@@ -105,6 +105,12 @@ impl From<usize> for F64Represent {
     }
 }
 
+impl Into<f64> for F64Represent {
+    fn into(self) -> f64 {
+        unsafe { std::mem::transmute::<u64, f64>(self.inner) }
+    }
+}
+
 bolt_ts_utils::index!(InferenceContextId);
 
 pub struct TyChecker<'cx> {
@@ -121,6 +127,7 @@ pub struct TyChecker<'cx> {
     symbol_links: FxHashMap<SymbolID, SymbolLinks<'cx>>,
     node_links: FxHashMap<NodeID, NodeLinks<'cx>>,
     pub ty_structured_members: FxHashMap<TyID, &'cx ty::StructuredMembers<'cx>>,
+    resolved_base_tys: FxHashMap<TyID, ty::Tys<'cx>>,
     check_mode: Option<CheckMode>,
     inferences: Vec<InferenceContext<'cx>>,
     inference_contextual: Vec<InferenceContextual>,
@@ -234,7 +241,10 @@ impl<'cx> TyChecker<'cx> {
             type_name: fx_hashmap_with_capacity(1024 * 8),
             ty_vars: FxHashMap::default(),
             param_ty_mapper: fx_hashmap_with_capacity(p.module_count() * 256),
+
             ty_structured_members: fx_hashmap_with_capacity(p.module_count() * 1024),
+            resolved_base_tys: fx_hashmap_with_capacity(p.module_count() * 256),
+
             symbol_links: fx_hashmap_with_capacity(p.module_count() * 1024),
             node_links: fx_hashmap_with_capacity(p.module_count() * 1024),
             sigs: Vec::with_capacity(p.module_count() * 256),
@@ -1053,6 +1063,13 @@ impl<'cx> TyChecker<'cx> {
 
     fn check_prop_access_expr(&mut self, node: &'cx ast::PropAccessExpr<'cx>) -> &'cx ty::Ty<'cx> {
         let left = self.check_expr(node.expr);
+
+        let is_any_like = left.kind.is_any();
+
+        if is_any_like {
+            return self.error_ty();
+        }
+
         let Some(symbol) = self.get_prop_of_ty(left, SymbolName::Ele(node.name.name)) else {
             return self.undefined_ty();
         };
@@ -1064,7 +1081,7 @@ impl<'cx> TyChecker<'cx> {
         let param = ty.kind.expect_param();
         if param.is_this_ty {
             // assert!(param.constraint.is_none());
-            Some(self.tys[ty.id.as_usize() + 1])
+            Some(self.tys[ty.id.as_usize() + 2])
         } else {
             // TODO:
             None
@@ -1406,7 +1423,7 @@ impl<'cx> TyChecker<'cx> {
             |ty| ty.kind.is_string_like(),
             TypeFlags::STRING_LIKE,
             true,
-        ) && self.is_type_assignable_to_kind(
+        ) || self.is_type_assignable_to_kind(
             right_ty,
             |ty| ty.kind.is_string_like(),
             TypeFlags::STRING_LIKE,

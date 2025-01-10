@@ -28,13 +28,14 @@ impl<'cx> BinderState<'cx> {
     fn create_class_prop_ele(
         &mut self,
         decl_id: ast::NodeID,
-        ele: &'cx ast::ClassPropEle<'cx>,
+        ele_name: SymbolName,
+        ele_id: ast::NodeID,
+        ele_modifiers: Option<&ast::Modifiers>,
     ) -> SymbolID {
-        let name = prop_name(ele.name);
         let symbol = self.create_symbol(
-            name,
+            ele_name,
             SymbolFlags::PROPERTY,
-            SymbolKind::Prop(PropSymbol { decl: ele.id }),
+            SymbolKind::Prop(PropSymbol { decl: ele_id }),
         );
         let SymbolKind::Class(ClassSymbol {
             members, exports, ..
@@ -42,15 +43,11 @@ impl<'cx> BinderState<'cx> {
         else {
             unreachable!()
         };
-        if ele
-            .modifiers
-            .map_or(false, |mods| mods.flags.contains(ModifierKind::Static))
-        {
-            exports.insert(name, symbol);
+        if ele_modifiers.map_or(false, |mods| mods.flags.contains(ModifierKind::Static)) {
+            exports.insert(ele_name, symbol);
         } else {
-            members.insert(name, symbol);
+            members.insert(ele_name, symbol);
         }
-        self.create_final_res(ele.id, symbol);
         symbol
     }
 
@@ -61,7 +58,22 @@ impl<'cx> BinderState<'cx> {
             SymbolName::Constructor,
             super::SymbolFnKind::Ctor,
         );
-        self.bind_params(ctor.params);
+        for param in ctor.params {
+            self.bind_param(param);
+
+            if param.dotdotdot.is_none()
+                && param
+                    .modifiers
+                    .is_some_and(|ms| ms.flags.contains(ModifierKind::Public))
+            {
+                self.create_class_prop_ele(
+                    container,
+                    SymbolName::Ele(param.name.name),
+                    param.id,
+                    param.modifiers,
+                );
+            }
+        }
         if let Some(body) = ctor.body {
             self.bind_block_stmt(body);
         }
@@ -85,7 +97,9 @@ impl<'cx> BinderState<'cx> {
     }
 
     fn bind_class_prop_ele(&mut self, decl_id: ast::NodeID, ele: &'cx ast::ClassPropEle<'cx>) {
-        self.create_class_prop_ele(decl_id, ele);
+        let symbol =
+            self.create_class_prop_ele(decl_id, prop_name(ele.name), ele.id, ele.modifiers);
+        self.create_final_res(ele.id, symbol);
         if let Some(ty) = ele.ty {
             self.bind_ty(ty);
         }

@@ -37,6 +37,10 @@ pub(super) fn is_left_hand_side_expr_kind(expr: &ast::Expr) -> bool {
             | Fn(_)
             | Ident(_)
             | This(_)
+            | NumLit(_)
+            | StringLit(_)
+            | BoolLit(_)
+            | Super(_)
     )
 }
 

@@ -102,6 +102,7 @@ pub enum Node<'cx> {
     FnTy(&'cx super::FnTy<'cx>),
     ObjectLitTy(&'cx super::ObjectLitTy<'cx>),
     TyParam(&'cx super::TyParam<'cx>),
+    MappedTyParam(&'cx super::MappedTyParam<'cx>),
     IndexSigDecl(&'cx super::IndexSigDecl<'cx>),
     CallSigDecl(&'cx super::CallSigDecl<'cx>),
     CtorSigDecl(&'cx super::CtorSigDecl<'cx>),
@@ -113,6 +114,8 @@ pub enum Node<'cx> {
     IntersectionTy(&'cx super::IntersectionTy<'cx>),
     UnionTy(&'cx super::UnionTy<'cx>),
     TypeofTy(&'cx super::TypeofTy<'cx>),
+    MappedTy(&'cx super::MappedTy<'cx>),
+    TyOp(&'cx super::TyOp<'cx>),
 }
 
 impl<'cx> Node<'cx> {
@@ -694,6 +697,13 @@ as_node!(
         is_ty_param
     ),
     (
+        MappedTyParam,
+        &'cx super::MappedTyParam<'cx>,
+        as_mapped_ty_param,
+        expect_mapped_ty_param,
+        is_mapped_ty_param
+    ),
+    (
         Modifier,
         &'cx super::Modifier,
         as_modifier,
@@ -1028,5 +1038,13 @@ as_node!(
         as_super_expr,
         expect_super_expr,
         is_super_expr
-    )
+    ),
+    (
+        MappedTy,
+        &'cx super::MappedTy,
+        as_mapped_ty,
+        expect_mapped_ty,
+        is_mapped_ty
+    ),
+    (TyOp, &'cx super::TyOp, as_ty_op, expect_ty_op, is_ty_op)
 );

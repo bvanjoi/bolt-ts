@@ -5,6 +5,7 @@ mod bind_visitor;
 mod create;
 mod errors;
 mod merged_symbol;
+mod pprint;
 mod symbol;
 
 use bolt_ts_atom::AtomMap;

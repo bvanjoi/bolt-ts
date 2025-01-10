@@ -1,5 +1,3 @@
-use bolt_ts_span::Span;
-
 use crate::ast::NodeFlags;
 
 use super::ast::{self, BinOp};

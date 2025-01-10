@@ -228,6 +228,8 @@ impl<'cx> Resolver<'cx, '_> {
             Typeof(n) => {
                 self.resolve_entity_name(n.name);
             }
+            Mapped(n) => {}
+            TyOp(n) => {}
             BooleanLit(_) | NullLit(_) => unreachable!(),
         }
     }

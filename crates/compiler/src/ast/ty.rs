@@ -30,6 +30,8 @@ impl Ty<'_> {
             TyKind::BooleanLit(n) => n.span,
             TyKind::NullLit(n) => n.span,
             TyKind::Typeof(n) => n.span,
+            TyKind::Mapped(n) => n.span,
+            TyKind::TyOp(n) => n.span,
         }
     }
 
@@ -50,6 +52,8 @@ impl Ty<'_> {
             TyKind::BooleanLit(n) => n.id,
             TyKind::NullLit(n) => n.id,
             TyKind::Typeof(n) => n.id,
+            TyKind::Mapped(n) => n.id,
+            TyKind::TyOp(n) => n.id,
         }
     }
 }
@@ -71,6 +75,8 @@ pub enum TyKind<'cx> {
     Union(&'cx UnionTy<'cx>),
     Intersection(&'cx IntersectionTy<'cx>),
     Typeof(&'cx TypeofTy<'cx>),
+    Mapped(&'cx MappedTy<'cx>),
+    TyOp(&'cx TyOp<'cx>),
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -222,4 +228,36 @@ pub struct ObjectLit<'cx> {
     pub id: NodeID,
     pub span: Span,
     pub members: &'cx [&'cx ObjectMemberField<'cx>],
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct MappedTyParam<'cx> {
+    pub id: NodeID,
+    pub span: Span,
+    pub name: &'cx Ident,
+    pub constraint: &'cx Ty<'cx>,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct MappedTy<'cx> {
+    pub id: NodeID,
+    pub span: Span,
+    pub ty_param: &'cx MappedTyParam<'cx>,
+    pub name_ty: Option<&'cx Ty<'cx>>,
+    // pub question_token: Option<Span>,
+    pub ty: Option<&'cx Ty<'cx>>,
+    pub members: &'cx [&'cx ObjectTyMember<'cx>],
+}
+
+#[derive(Debug, Clone, Copy)]
+pub enum TyOpKind {
+    Keyof,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct TyOp<'cx> {
+    pub id: NodeID,
+    pub span: Span,
+    pub op: TyOpKind,
+    pub ty: &'cx Ty<'cx>,
 }

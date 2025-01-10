@@ -573,6 +573,8 @@ impl<'cx> BinderState<'cx> {
             Typeof(n) => {
                 self.bind_entity_name(n.name);
             }
+            Mapped(n) => {}
+            TyOp(n) => {}
         }
     }
 
@@ -608,7 +610,7 @@ impl<'cx> BinderState<'cx> {
         }
     }
 
-    fn bind_param(&mut self, param: &'cx ast::ParamDecl) {
+    pub(super) fn bind_param(&mut self, param: &'cx ast::ParamDecl) {
         let symbol = self.create_var_symbol(
             param.name.name,
             SymbolFlags::FUNCTION_SCOPED_VARIABLE,

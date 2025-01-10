@@ -58,10 +58,6 @@ impl ParserState<'_, '_> {
         self.input.get(self.pos + 2).copied()
     }
 
-    fn next_next_next_ch(&self) -> Option<u8> {
-        self.input.get(self.pos + 3).copied()
-    }
-
     pub(super) fn new_span(&self, lo: u32) -> Span {
         Span {
             lo,
@@ -493,51 +489,12 @@ impl ParserState<'_, '_> {
                     }
                 }
                 b'>' => {
-                    if self.next_ch() == Some(b'>') {
-                        if self.next_next_ch() == Some(b'>') {
-                            if self.next_next_next_ch() == Some(b'=') {
-                                // >>>=
-                                self.pos += 4;
-                                Token::new(
-                                    TokenKind::GreatGreatGreatEq,
-                                    Span::new(start as u32, self.pos as u32, self.module_id),
-                                )
-                            } else {
-                                // >>>
-                                self.pos += 3;
-                                Token::new(
-                                    TokenKind::GreatGreatGreat,
-                                    Span::new(start as u32, self.pos as u32, self.module_id),
-                                )
-                            }
-                        } else if self.next_next_ch() == Some(b'=') {
-                            // >>=
-                            self.pos += 3;
-                            Token::new(
-                                TokenKind::GreatGreatEq,
-                                Span::new(start as u32, self.pos as u32, self.module_id),
-                            )
-                        } else {
-                            // >>
-                            self.pos += 2;
-                            Token::new(
-                                TokenKind::GreatGreat,
-                                Span::new(start as u32, self.pos as u32, self.module_id),
-                            )
-                        }
-                    } else if self.next_ch() == Some(b'=') {
-                        self.pos += 1;
-                        Token::new(
-                            TokenKind::GreatEq,
-                            Span::new(start as u32, self.pos as u32, self.module_id),
-                        )
-                    } else {
-                        self.pos += 1;
-                        Token::new(
-                            TokenKind::Great,
-                            Span::new(start as u32, self.pos as u32, self.module_id),
-                        )
-                    }
+                    // `>>`, `>=`, `>>>`, `>>=`, `>>>=` will be handled in `re_scan_greater`
+                    self.pos += 1;
+                    Token::new(
+                        TokenKind::Great,
+                        Span::new(start as u32, self.pos as u32, self.module_id),
+                    )
                 }
                 b'^' => {
                     if self.next_ch() == Some(b'=') {
@@ -649,6 +606,56 @@ impl ParserState<'_, '_> {
     }
 
     pub(super) fn re_scan_greater(&mut self) -> TokenKind {
+        if self.token.kind != TokenKind::Great {
+            return self.token.kind;
+        }
+        let start = self.token.start();
+        assert_eq!(start + 1, self.pos as u32);
+        self.token = if self.ch_unchecked() == b'>' {
+            // >>
+            if self.next_ch() == Some(b'>') {
+                // >>>
+                if self.next_next_ch() == Some(b'=') {
+                    // >>>=
+                    self.pos += 3;
+                    Token::new(
+                        TokenKind::GreatGreatGreatEq,
+                        Span::new(start, self.pos as u32, self.module_id),
+                    )
+                } else {
+                    // >>>
+                    self.pos += 2;
+                    Token::new(
+                        TokenKind::GreatGreatGreat,
+                        Span::new(start, self.pos as u32, self.module_id),
+                    )
+                }
+            } else if self.next_ch() == Some(b'=') {
+                // >>=
+                self.pos += 2;
+                Token::new(
+                    TokenKind::GreatGreatEq,
+                    Span::new(start, self.pos as u32, self.module_id),
+                )
+            } else {
+                // >>
+                self.pos += 1;
+                Token::new(
+                    TokenKind::GreatGreat,
+                    Span::new(start, self.pos as u32, self.module_id),
+                )
+            }
+        } else if self.ch_unchecked() == b'=' {
+            // >=
+            self.pos += 1;
+            Token::new(
+                TokenKind::GreatEq,
+                Span::new(start, self.pos as u32, self.module_id),
+            )
+        } else {
+            // >
+            self.token
+        };
         self.token.kind
     }
 

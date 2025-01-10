@@ -94,25 +94,27 @@ impl<'cx> TyChecker<'cx> {
         self.alloc(tys)
     }
 
-    fn resolve_base_tys_of_class(
-        &mut self,
-        symbol: SymbolID,
-        decl: ast::NodeID,
-    ) -> (Option<&'cx ty::Ty<'cx>>, &'cx [&'cx ty::Ty<'cx>]) {
-        assert!(self.p.node(decl).is_class_like());
-        let base_ctor = self.get_base_constructor_type_of_class(symbol);
+    fn resolve_base_tys_of_class(&mut self, ty: &'cx ty::Ty<'cx>) -> ty::Tys<'cx> {
+        if let Some(tys) = self.resolved_base_tys.get(&ty.id) {
+            return tys;
+        }
+        let base_ctor = self.get_base_constructor_type_of_class(ty.symbol().unwrap());
+        let tys = self.alloc([base_ctor]);
 
-        (Some(base_ctor), self.alloc([base_ctor]))
+        let prev = self.resolved_base_tys.insert(ty.id, tys);
+        assert!(prev.is_none());
+        tys
     }
 
     pub(super) fn get_base_tys(
         &mut self,
-        id: SymbolID,
+        ty: &'cx ty::Ty<'cx>,
     ) -> (Option<&'cx ty::Ty<'cx>>, &'cx [&'cx ty::Ty<'cx>]) {
+        let id = ty.symbol().unwrap();
         let symbol = self.binder.symbol(id);
         if symbol.flags.intersects(SymbolFlags::CLASS) {
-            let c = symbol.expect_class();
-            self.resolve_base_tys_of_class(id, c.decl)
+            let tys = self.resolve_base_tys_of_class(ty);
+            (Some(tys[0]), &tys)
         } else if symbol.flags.intersects(SymbolFlags::INTERFACE) {
             let i = symbol.expect_interface();
             (None, self.resolve_base_tys_of_interface(i.decl))

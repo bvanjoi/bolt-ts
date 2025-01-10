@@ -150,6 +150,8 @@ impl<'cx> TyChecker<'cx> {
             Intersection(_) => self.undefined_ty(),
             BooleanLit(_) => todo!(),
             NullLit(_) => todo!(),
+            Mapped(n) => self.undefined_ty(),
+            TyOp(ty_op) => self.undefined_ty(),
         }
     }
 

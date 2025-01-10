@@ -647,10 +647,11 @@ impl<'cx> TyChecker<'cx> {
         ty: &'cx Ty<'cx>,
         name: SymbolName,
     ) -> Option<SymbolID> {
-        self.resolve_structured_type_members(ty);
+        let ty = self.get_reduced_apparent_ty(ty);
         let TyKind::Object(object_ty) = ty.kind else {
             return None;
         };
+        self.resolve_structured_type_members(ty);
 
         let symbol = if object_ty.kind.as_interface().is_some() {
             self.ty_structured_members[&ty.id]

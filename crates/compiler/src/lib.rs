@@ -83,7 +83,7 @@ pub fn output_files(
 }
 
 fn init_atom<'atoms>() -> AtomMap<'atoms> {
-    if cfg!(debug_assertions) {
+    if cfg!(test) {
         for idx in 0..keyword::KEYWORDS.len() {
             let t = keyword_idx_to_token(idx);
             if t == TokenKind::Var {
@@ -201,7 +201,7 @@ pub fn eval_from(cwd: PathBuf, tsconfig: NormalizedTsConfig) -> Output {
         .map(|((x, y), z)| (x, y, z))
         .map(|(m, early_resolve_result, mut state)| {
             state.diags.extend(early_resolve_result.diags);
-            if cfg!(debug_assertions) {
+            if cfg!(test) {
                 for node_id in state.final_res.keys() {
                     assert!(!early_resolve_result.final_res.contains_key(node_id));
                 }
@@ -256,7 +256,7 @@ pub fn eval_from(cwd: PathBuf, tsconfig: NormalizedTsConfig) -> Output {
 
     let diags = diags.into_iter().chain(checker.diags).collect();
 
-    if cfg!(debug_assertions) {
+    if cfg!(test) {
         // each module should be created once
         let paths = module_arena
             .modules()

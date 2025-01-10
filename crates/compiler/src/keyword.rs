@@ -56,6 +56,7 @@ gen_atoms!(
     (KW_ENUM, "enum"),
     (KW_READONLY, "readonly"),
     (KW_SATISFIES, "satisfies"),
+    (KW_KEYOF, "keyof"),
     (KW_TYPE, "type"),
 );
 
