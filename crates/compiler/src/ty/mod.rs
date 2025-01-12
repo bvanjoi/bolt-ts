@@ -184,7 +184,10 @@ impl Ty<'_> {
                 // todo: delay bug
                 format!("#{id:#?}")
             }
-            TyKind::Param(_) => "param".to_string(),
+            TyKind::Param(param) => checker
+                .atoms
+                .get(checker.binder.symbol(param.symbol).name.expect_atom())
+                .to_string(),
             TyKind::IndexedAccess(_) => "indexedAccess".to_string(),
             TyKind::Cond(_) => "cond".to_string(),
             TyKind::Any => keyword::IDENT_ANY_STR.to_string(),
@@ -276,11 +279,11 @@ impl TyKind<'_> {
     }
 
     pub fn is_boolean_like(&self) -> bool {
-        self.is_true_lit() | self.is_false_lit()
+        self.is_boolean() || self.is_true_lit() || self.is_false_lit()
     }
 
     pub fn is_structured(&self) -> bool {
-        self.is_union() | self.is_object()
+        self.is_union() || self.is_object()
     }
 
     pub fn is_structured_or_instantiable(&self) -> bool {

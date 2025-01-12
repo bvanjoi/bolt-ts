@@ -27,7 +27,35 @@ impl<'cx> Emit<'cx> {
             ForIn(n) => self.emit_for_in_stmt(n),
             Break(n) => self.emit_break_stmt(n),
             Continue(n) => self.emit_continue_stmt(n),
+            Try(n) => self.emit_try_stmt(n),
         }
+    }
+
+    fn emit_try_stmt(&mut self, n: &'cx ast::TryStmt<'cx>) {
+        self.content.p("try");
+        self.content.p_whitespace();
+        self.emit_block_stmt(n.try_block);
+        if let Some(catch) = n.catch_clause {
+            self.content.p_whitespace();
+            self.emit_catch_block(catch);
+        }
+        if let Some(finally) = n.finally_block {
+            self.content.p("finally");
+            self.content.p_whitespace();
+            self.emit_block_stmt(finally);
+        }
+    }
+
+    fn emit_catch_block(&mut self, n: &'cx ast::CatchClause<'cx>) {
+        self.content.p("catch");
+        self.content.p_whitespace();
+        if let Some(var) = n.var {
+            self.content.p("(");
+            self.emit_var_decl(var);
+            self.content.p(")");
+        }
+        self.content.p_whitespace();
+        self.emit_block_stmt(n.block);
     }
 
     fn emit_break_stmt(&mut self, n: &'cx ast::BreakStmt<'cx>) {
@@ -120,7 +148,7 @@ impl<'cx> Emit<'cx> {
     fn emit_export_spec(&mut self, spec: &'cx ast::ExportSpec<'cx>) {
         use ast::ExportSpecKind::*;
         match spec.kind {
-            ShortHand(n) => self.emit_shorthand_spec(n),
+            Shorthand(n) => self.emit_shorthand_spec(n),
             Named(n) => self.emit_export_named_spec(n),
         }
     }
@@ -203,7 +231,7 @@ impl<'cx> Emit<'cx> {
     fn emit_import_spec(&mut self, spec: &'cx ast::ImportSpec<'cx>) {
         use ast::ImportSpecKind::*;
         match spec.kind {
-            ShortHand(n) => self.emit_shorthand_spec(n),
+            Shorthand(n) => self.emit_shorthand_spec(n),
             Named(n) => {
                 self.emit_module_export_name(n.prop_name);
                 self.content.p_whitespace();
@@ -346,9 +374,11 @@ impl<'cx> Emit<'cx> {
         {
             return;
         }
+        let Some(block) = ns.block else {
+            return;
+        };
         // var name
-        let mut sub_names = ns
-            .block
+        let mut sub_names = block
             .stmts
             .iter()
             .filter_map(|stmt| match stmt.kind {
@@ -365,7 +395,12 @@ impl<'cx> Emit<'cx> {
             .map(|name| self.atoms.get(name))
             .collect::<Vec<_>>();
         sub_names.sort();
-        let mut param_name = Cow::Borrowed(self.atoms.get(ns.name.name));
+
+        let ident = match ns.name {
+            ast::ModuleName::Ident(ident) => ident,
+            ast::ModuleName::StringLit(lit) => unreachable!(),
+        };
+        let mut param_name = Cow::Borrowed(self.atoms.get(ident.name));
         if let Some(i) = sub_names.iter().position(|sub| *sub == param_name) {
             let mut offset = 1;
             let mut n = format!("{}_{}", param_name, offset);
@@ -380,8 +415,8 @@ impl<'cx> Emit<'cx> {
             param_name = Cow::Owned(n);
         }
 
-        self.emit_with_var_fn_wrapper(ns.name, &param_name, |this| {
-            for stmt in ns.block.stmts {
+        self.emit_with_var_fn_wrapper(ident, &param_name, |this| {
+            for stmt in block.stmts {
                 use ast::StmtKind::*;
                 this.content.p_newline();
                 this.emit_stmt(stmt);
@@ -408,7 +443,13 @@ impl<'cx> Emit<'cx> {
                     Fn(f) => f.modifiers.map(|ms| (ms, f.name)),
                     Class(c) => c.modifiers.map(|ms| (ms, c.name)),
                     Interface(_) | Type(_) => None,
-                    Namespace(n) => n.modifiers.map(|ms| (ms, n.name)),
+                    Namespace(n) => n.modifiers.map(|ms| {
+                        let ident = match n.name {
+                            ast::ModuleName::Ident(ident) => ident,
+                            ast::ModuleName::StringLit(_) => unreachable!(),
+                        };
+                        (ms, ident)
+                    }),
                     _ => None,
                 };
                 let Some((ms, name)) = t else {

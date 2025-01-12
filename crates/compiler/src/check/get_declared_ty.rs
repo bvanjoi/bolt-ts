@@ -136,32 +136,6 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
-    fn push_ty_resolution(&mut self, symbol: SymbolID) -> bool {
-        if let Some(start) = self.find_resolution_cycle_start_index(symbol) {
-            for index in start..self.resolution_res.len() {
-                self.resolution_res[index] = false;
-            }
-            false
-        } else {
-            self.resolution_tys.push(symbol);
-            self.resolution_res.push(true);
-            true
-        }
-    }
-
-    fn pop_ty_resolution(&mut self) -> bool {
-        self.resolution_tys.pop().unwrap();
-        self.resolution_res.pop().unwrap()
-    }
-
-    fn find_resolution_cycle_start_index(&self, symbol: SymbolID) -> Option<usize> {
-        self.resolution_tys
-            .iter()
-            .rev()
-            .position(|ty| symbol.eq(ty))
-            .map(|rev_index| self.resolution_tys.len() - 1 - rev_index)
-    }
-
     fn get_base_constructor_type_of_class(&mut self, symbol: SymbolID) -> &'cx ty::Ty<'cx> {
         let decl = self.binder.symbol(symbol).expect_class().decl;
         let Some(extends) = self.get_effective_base_type_node(decl) else {
@@ -314,7 +288,10 @@ impl<'cx> TyChecker<'cx> {
                     let mut outer_ty_params = self
                         .get_outer_ty_params(id, include_this)
                         .unwrap_or_default();
-                    if node.is_fn_expr() || node.is_arrow_fn_expr() || self.is_context_sensitive(id)
+                    if (node.is_fn_expr()
+                        || node.is_arrow_fn_expr()
+                        || self.p.is_object_lit_method(id))
+                        && self.is_context_sensitive(id)
                     {
                         let symbol = self.get_symbol_of_decl(id);
                         let ty = self.get_type_of_symbol(symbol);

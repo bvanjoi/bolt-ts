@@ -4,7 +4,6 @@ mod bind_fn_like;
 mod bind_visitor;
 mod create;
 mod errors;
-mod merged_symbol;
 mod pprint;
 mod symbol;
 
@@ -27,7 +26,7 @@ use crate::ast;
 use crate::late_resolve::ResolveResult;
 use crate::parser::Parser;
 
-bolt_ts_utils::index_with_module!(ScopeID);
+bolt_ts_utils::module_index!(ScopeID);
 
 impl ScopeID {
     pub const fn is_root(&self) -> bool {

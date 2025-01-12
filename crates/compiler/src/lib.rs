@@ -189,8 +189,13 @@ pub fn eval_from(cwd: PathBuf, tsconfig: NormalizedTsConfig) -> Output {
     }
 
     // ==== name resolution ====
-    let early_resolve_result =
-        early_resolve_parallel(module_arena.modules(), &bind_list, &p, &global_symbols);
+    let early_resolve_result = early_resolve_parallel(
+        module_arena.modules(),
+        &bind_list,
+        &p,
+        &global_symbols,
+        &atoms,
+    );
 
     // let mut states = fx_hashmap_with_capacity(module_arena.modules().len());
     let states = module_arena
@@ -199,7 +204,7 @@ pub fn eval_from(cwd: PathBuf, tsconfig: NormalizedTsConfig) -> Output {
         .zip(early_resolve_result.into_iter())
         .zip(bind_list)
         .map(|((x, y), z)| (x, y, z))
-        .map(|(m, early_resolve_result, mut state)| {
+        .map(|(_, early_resolve_result, mut state)| {
             state.diags.extend(early_resolve_result.diags);
             if cfg!(test) {
                 for node_id in state.final_res.keys() {

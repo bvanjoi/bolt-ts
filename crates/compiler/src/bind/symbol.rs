@@ -79,6 +79,7 @@ bitflags::bitflags! {
         const NAMESPACE = Self::VALUE_MODULE.bits() | Self::NAMESPACE_MODULE.bits() | Self::ENUM.bits();
         const MODULE = Self::VALUE_MODULE.bits() | Self::NAMESPACE_MODULE.bits();
         const ACCESSOR = Self::GET_ACCESSOR.bits() | Self::SET_ACCESSOR.bits();
+
         const FUNCTION_SCOPED_VARIABLE_EXCLUDES = Self::VALUE.bits() & !Self::FUNCTION_SCOPED_VARIABLE.bits();
         const BLOCK_SCOPED_VARIABLE_EXCLUDES = Self::VALUE.bits();
         const PARAMETER_EXCLUDES = Self::VALUE.bits();
@@ -98,6 +99,7 @@ bitflags::bitflags! {
         const TYPE_PARAMETER_EXCLUDES = Self::TYPE.bits() & !Self::TYPE_PARAMETER.bits();
         const TYPE_ALIAS_EXCLUDES = Self::TYPE.bits();
         const ALIAS_EXCLUDES = Self::ALIAS.bits();
+
         const MODULE_MEMBER = Self::VARIABLE.bits() | Self::FUNCTION.bits() | Self::CLASS.bits() | Self::INTERFACE.bits() | Self::ENUM.bits() | Self::MODULE.bits() | Self::TYPE_ALIAS.bits() | Self::ALIAS.bits();
         const EXPORT_HAS_LOCAL = Self::FUNCTION.bits() | Self::CLASS.bits() | Self::ENUM.bits() | Self::VALUE_MODULE.bits();
         const BLOCK_SCOPED = Self::BLOCK_SCOPED_VARIABLE.bits() | Self::CLASS.bits() | Self::ENUM.bits();
@@ -346,7 +348,7 @@ impl Symbol<'_> {
     }
 }
 
-bolt_ts_utils::index_with_module!(SymbolID);
+bolt_ts_utils::module_index!(SymbolID);
 
 impl SymbolID {
     pub fn decl(&self, binder: &super::Binder) -> NodeID {

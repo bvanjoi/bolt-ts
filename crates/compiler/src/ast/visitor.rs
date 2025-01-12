@@ -27,6 +27,7 @@ pub fn visit_stmt<'cx>(v: &mut impl Visitor<'cx>, stmt: &'cx super::Stmt) {
         ForIn(_) => (),
         Break(_) => (),
         Continue(_) => {}
+        Try(_) => {}
     }
 }
 

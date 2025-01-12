@@ -215,8 +215,51 @@ pub enum PropNameKind<'cx> {
     NumLit(&'cx NumLit),
 }
 
+impl PropNameKind<'_> {
+    pub fn as_ident(&self) -> Option<&Ident> {
+        match self {
+            PropNameKind::Ident(ident) => Some(ident),
+            _ => None,
+        }
+    }
+}
+
 #[derive(Debug, Clone, Copy)]
-pub struct ObjectMemberField<'cx> {
+pub struct ObjectMember<'cx> {
+    pub kind: ObjectMemberKind<'cx>,
+}
+
+impl ObjectMember<'_> {
+    pub fn span(&self) -> Span {
+        match self.kind {
+            ObjectMemberKind::Shorthand(shorthand) => shorthand.span,
+            ObjectMemberKind::Prop(prop) => prop.span,
+        }
+    }
+
+    pub fn id(&self) -> NodeID {
+        match self.kind {
+            ObjectMemberKind::Shorthand(shorthand) => shorthand.id,
+            ObjectMemberKind::Prop(prop) => prop.id,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy)]
+pub enum ObjectMemberKind<'cx> {
+    Shorthand(&'cx ObjectShorthandMember<'cx>),
+    Prop(&'cx ObjectPropMember<'cx>),
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct ObjectShorthandMember<'cx> {
+    pub id: NodeID,
+    pub span: Span,
+    pub name: &'cx Ident,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct ObjectPropMember<'cx> {
     pub id: NodeID,
     pub span: Span,
     pub name: &'cx PropName<'cx>,
@@ -227,7 +270,7 @@ pub struct ObjectMemberField<'cx> {
 pub struct ObjectLit<'cx> {
     pub id: NodeID,
     pub span: Span,
-    pub members: &'cx [&'cx ObjectMemberField<'cx>],
+    pub members: &'cx [&'cx ObjectMember<'cx>],
 }
 
 #[derive(Debug, Clone, Copy)]

@@ -30,6 +30,7 @@ pub enum StmtKind<'cx> {
     Enum(&'cx EnumDecl<'cx>),
     Import(&'cx ImportDecl<'cx>),
     Export(&'cx ExportDecl<'cx>),
+    Try(&'cx TryStmt<'cx>),
 }
 
 impl Stmt<'_> {
@@ -56,8 +57,26 @@ impl Stmt<'_> {
             ForIn(n) => n.id,
             Break(n) => n.id,
             Continue(n) => n.id,
+            Try(n) => n.id,
         }
     }
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct TryStmt<'cx> {
+    pub id: NodeID,
+    pub span: Span,
+    pub try_block: &'cx BlockStmt<'cx>,
+    pub catch_clause: Option<&'cx CatchClause<'cx>>,
+    pub finally_block: Option<&'cx BlockStmt<'cx>>,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct CatchClause<'cx> {
+    pub id: NodeID,
+    pub span: Span,
+    pub var: Option<&'cx VarDecl<'cx>>,
+    pub block: &'cx BlockStmt<'cx>,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -140,8 +159,30 @@ pub struct NsDecl<'cx> {
     pub id: NodeID,
     pub span: Span,
     pub modifiers: Option<&'cx Modifiers<'cx>>,
-    pub name: &'cx Ident,
-    pub block: &'cx BlockStmt<'cx>,
+    pub name: ModuleName<'cx>,
+    pub block: Option<&'cx BlockStmt<'cx>>,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub enum ModuleName<'cx> {
+    Ident(&'cx Ident),
+    StringLit(&'cx StringLit),
+}
+
+impl ModuleName<'_> {
+    pub fn id(&self) -> NodeID {
+        match self {
+            ModuleName::Ident(ident) => ident.id,
+            ModuleName::StringLit(string_lit) => string_lit.id,
+        }
+    }
+
+    pub fn span(&self) -> Span {
+        match self {
+            ModuleName::Ident(ident) => ident.span,
+            ModuleName::StringLit(string_lit) => string_lit.span,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -484,7 +525,7 @@ pub struct ImportSpec<'cx> {
 
 #[derive(Debug, Clone, Copy)]
 pub enum ImportSpecKind<'cx> {
-    ShortHand(&'cx ShorthandSpec<'cx>),
+    Shorthand(&'cx ShorthandSpec<'cx>),
     Named(&'cx ImportNamedSpec<'cx>),
 }
 
@@ -575,7 +616,7 @@ pub struct ExportSpec<'cx> {
 
 #[derive(Debug, Clone, Copy)]
 pub enum ExportSpecKind<'cx> {
-    ShortHand(&'cx ShorthandSpec<'cx>),
+    Shorthand(&'cx ShorthandSpec<'cx>),
     Named(&'cx ExportNamedSpec<'cx>),
 }
 

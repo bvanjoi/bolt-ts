@@ -11,6 +11,12 @@ impl<'cx> TyChecker<'cx> {
 
         let node_id = id.decl(self.binder);
         let node = self.p.node(node_id);
+
+        if !self.push_ty_resolution(id) {
+            // TODO: error handle
+            return self.any_ty();
+        }
+
         let ty = if let Some(decl) = node.as_var_decl() {
             self.get_widened_ty_for_var_like_decl(decl)
         } else if let Some(decl) = node.as_param_decl() {
@@ -19,12 +25,17 @@ impl<'cx> TyChecker<'cx> {
             self.get_widened_ty_for_var_like_decl(decl)
         } else if let Some(decl) = node.as_class_prop_ele() {
             self.get_widened_ty_for_var_like_decl(decl)
-        } else if let Some(decl) = node.as_object_member_field() {
+        } else if let Some(decl) = node.as_object_prop_member() {
             self.get_widened_ty_for_var_like_decl(decl)
         } else {
             unreachable!("node: {node:#?}")
         };
         self.get_mut_symbol_links(id).set_ty(ty);
+
+        if !self.pop_ty_resolution() {
+            // TODO: error handle
+            return self.any_ty();
+        }
         ty
     }
 

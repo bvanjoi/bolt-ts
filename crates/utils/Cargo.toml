@@ -5,3 +5,4 @@ edition = "2021"
 
 [dependencies]
 rustc-hash = { workspace = true }
+nohash-hasher = "0.2.0"

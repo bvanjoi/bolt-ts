@@ -1,5 +1,7 @@
+use bolt_ts_atom::AtomId;
+
 use crate::ast::{NodeFlags, VarDecls};
-use crate::keyword;
+use crate::keyword::{self, IDENT_GLOBAL};
 use crate::parser::parse_break_or_continue::{ParseBreak, ParseContinue};
 
 use super::ast;
@@ -36,18 +38,61 @@ impl<'cx> ParserState<'cx, '_> {
             For => self.parse_for_stmt()?,
             Break => ast::StmtKind::Break(self.parse_break_or_continue(&ParseBreak)?),
             Continue => ast::StmtKind::Continue(self.parse_break_or_continue(&ParseContinue)?),
+            Try => ast::StmtKind::Try(self.parse_try_stmt()?),
             _ => ast::StmtKind::Expr(self.parse_expr_or_labeled_stmt()?),
         };
         let stmt = self.alloc(ast::Stmt { kind });
         Ok(stmt)
     }
 
-    fn disallow_in_and<T>(&mut self, f: impl FnOnce(&mut Self) -> T) -> T {
-        self.do_inside_of_context(NodeFlags::DISALLOW_IN_CONTEXT, f)
+    fn parse_catch_clause(&mut self) -> PResult<&'cx ast::CatchClause<'cx>> {
+        let id = self.next_node_id();
+        let start = self.token.start();
+        self.expect(TokenKind::Catch)?;
+
+        let var = if self.parse_optional(TokenKind::LParen).is_some() {
+            let v = self.with_parent(id, Self::parse_var_decl)?;
+            self.expect(TokenKind::RParen)?;
+            Some(v)
+        } else {
+            None
+        };
+        let block = self.with_parent(id, Self::parse_block)?;
+        let clause = self.alloc(ast::CatchClause {
+            id,
+            span: self.new_span(start),
+            var,
+            block,
+        });
+        self.insert_map(id, ast::Node::CatchClause(clause));
+        Ok(clause)
     }
 
-    fn allow_in_and<T>(&mut self, f: impl FnOnce(&mut Self) -> T) -> T {
-        self.do_inside_of_context(NodeFlags::DISALLOW_IN_CONTEXT, f)
+    fn parse_try_stmt(&mut self) -> PResult<&'cx ast::TryStmt<'cx>> {
+        let id = self.next_node_id();
+        let start = self.token.start();
+        self.expect(TokenKind::Try)?;
+        let try_block = self.parse_block()?;
+        let catch_clause = if self.token.kind == TokenKind::Catch {
+            Some(self.with_parent(id, Self::parse_catch_clause)?)
+        } else {
+            None
+        };
+        let finally_block =
+            if catch_clause.is_none() || self.parse_optional(TokenKind::Finally).is_some() {
+                Some(self.with_parent(id, Self::parse_block)?)
+            } else {
+                None
+            };
+        let stmt = self.alloc(ast::TryStmt {
+            id,
+            span: self.new_span(start),
+            try_block,
+            catch_clause,
+            finally_block,
+        });
+        self.insert_map(id, ast::Node::TryStmt(stmt));
+        Ok(stmt)
     }
 
     fn parse_for_stmt(&mut self) -> PResult<ast::StmtKind<'cx>> {
@@ -218,9 +263,50 @@ impl<'cx> ParserState<'cx, '_> {
         let start = self.token.start();
         if self.parse_optional(TokenKind::Namespace).is_none() {
             self.expect(TokenKind::Module)?;
+            if self.token.kind == TokenKind::String {
+                return self.parse_ambient_external_module_decl(id, start, mods);
+            }
         }
         let name = self.parse_ident_name()?;
-        let block = self.parse_block()?;
+        let block = self.parse_module_block()?;
+        let span = self.new_span(start);
+        let decl = self.alloc(ast::NsDecl {
+            id,
+            span,
+            modifiers: mods,
+            name: ast::ModuleName::Ident(name),
+            block: Some(block),
+        });
+        self.insert_map(id, ast::Node::NamespaceDecl(decl));
+        Ok(decl)
+    }
+
+    pub(super) fn is_ident_name(&self, name: AtomId) -> bool {
+        self.token.kind.is_ident_or_keyword() && self.ident_token() == name
+    }
+
+    fn parse_module_block(&mut self) -> PResult<&'cx ast::BlockStmt<'cx>> {
+        self.parse_block()
+    }
+
+    fn parse_ambient_external_module_decl(
+        &mut self,
+        id: ast::NodeID,
+        start: u32,
+        mods: Option<&'cx ast::Modifiers<'cx>>,
+    ) -> PResult<&'cx ast::NsDecl<'cx>> {
+        let name;
+        if self.is_ident_name(IDENT_GLOBAL) {
+            todo!()
+        } else {
+            name = ast::ModuleName::StringLit(self.parse_string_lit());
+        }
+        let block = if self.token.kind == TokenKind::LBrace {
+            Some(self.parse_module_block()?)
+        } else {
+            self.parse_semi();
+            None
+        };
         let span = self.new_span(start);
         let decl = self.alloc(ast::NsDecl {
             id,

@@ -104,7 +104,7 @@ impl<'cx, 'p> ParseNamedImportsExports<'cx, 'p> for ParseNamedImports {
                 name: ident,
             });
             state.insert_map(id, ast::Node::ShorthandSpec(spec));
-            ast::ImportSpecKind::ShortHand(spec)
+            ast::ImportSpecKind::Shorthand(spec)
         };
         state.alloc(ast::ImportSpec { kind })
     }
@@ -153,7 +153,7 @@ impl<'cx, 'p> ParseNamedImportsExports<'cx, 'p> for ParseNamedExports {
                 name: ident,
             });
             state.insert_map(id, ast::Node::ShorthandSpec(spec));
-            ast::ExportSpecKind::ShortHand(spec)
+            ast::ExportSpecKind::Shorthand(spec)
         };
         state.alloc(ast::ExportSpec { kind })
     }

@@ -152,7 +152,7 @@ impl<'cx> Emit<'cx> {
     fn emit_object_lit(&mut self, lit: &'cx ast::ObjectLit<'cx>) {
         self.content.p_l_brace();
         for (idx, field) in lit.members.iter().enumerate() {
-            self.emit_object_member_field(field);
+            self.emit_object_member(field);
             if idx != lit.members.len() - 1 {
                 self.content.p_comma();
                 self.content.p_newline();
@@ -161,10 +161,22 @@ impl<'cx> Emit<'cx> {
         self.content.p_r_brace();
     }
 
-    fn emit_object_member_field(&mut self, field: &'cx ast::ObjectMemberField<'cx>) {
-        self.emit_prop_name(field.name);
+    fn emit_object_member(&mut self, field: &'cx ast::ObjectMember<'cx>) {
+        use ast::ObjectMemberKind::*;
+        match field.kind {
+            Prop(prop) => self.emit_object_prop_member(prop),
+            Shorthand(shorthand) => self.emit_object_shorthand_member(shorthand),
+        }
+    }
+
+    fn emit_object_prop_member(&mut self, prop: &'cx ast::ObjectPropMember<'cx>) {
+        self.emit_prop_name(prop.name);
         self.content.p_colon();
         self.content.p_whitespace();
-        self.emit_expr(field.value);
+        self.emit_expr(prop.value);
+    }
+
+    fn emit_object_shorthand_member(&mut self, shorthand: &'cx ast::ObjectShorthandMember<'cx>) {
+        self.emit_ident(shorthand.name);
     }
 }

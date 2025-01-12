@@ -102,6 +102,21 @@ impl<'cx> Parser<'cx> {
         }
     }
 
+    pub fn get_enclosing_blockscope_container(&self, id: ast::NodeID) -> ast::NodeID {
+        let Some(parent_id) = self.parent(id) else {
+            unreachable!()
+        };
+        self.find_ancestor(parent_id, |current| {
+            let parent = self.parent(current.id()).map(|p| self.node(p));
+            if current.is_block_scope(parent.as_ref()) {
+                Some(true)
+            } else {
+                None
+            }
+        })
+        .unwrap()
+    }
+
     pub fn is_method_access_for_call(&self, id: ast::NodeID) -> bool {
         let mut id = id;
         while let Some(parent) = self.parent(id) {
@@ -185,6 +200,11 @@ impl<'cx> Parser<'cx> {
         }
 
         unreachable!();
+    }
+
+    pub fn get_containing_class(&self, id: ast::NodeID) -> Option<ast::NodeID> {
+        let parent = self.parent(id)?;
+        self.find_ancestor(parent, |node| node.is_class_like().then_some(true))
     }
 
     pub fn is_object_lit_method(&self, id: ast::NodeID) -> bool {

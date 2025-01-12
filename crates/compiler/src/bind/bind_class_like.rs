@@ -12,7 +12,7 @@ impl<'cx> BinderState<'cx> {
             .map_or(SymbolName::ClassExpr, |name| SymbolName::Normal(name.name));
         let id = c.id();
         let cap = c.elems().elems.len();
-        let symbol = self.create_symbol(
+        let symbol = self.declare_symbol(
             name,
             SymbolFlags::CLASS,
             SymbolKind::Class(ClassSymbol {
@@ -20,6 +20,7 @@ impl<'cx> BinderState<'cx> {
                 members: fx_hashmap_with_capacity(cap),
                 exports: fx_hashmap_with_capacity(cap),
             }),
+            SymbolFlags::CLASS_EXCLUDES,
         );
         self.create_final_res(id, symbol);
         symbol
@@ -32,10 +33,11 @@ impl<'cx> BinderState<'cx> {
         ele_id: ast::NodeID,
         ele_modifiers: Option<&ast::Modifiers>,
     ) -> SymbolID {
-        let symbol = self.create_symbol(
+        let symbol = self.declare_symbol(
             ele_name,
             SymbolFlags::PROPERTY,
             SymbolKind::Prop(PropSymbol { decl: ele_id }),
+            SymbolFlags::PROPERTY_EXCLUDES,
         );
         let SymbolKind::Class(ClassSymbol {
             members, exports, ..
@@ -90,9 +92,15 @@ impl<'cx> BinderState<'cx> {
             prop_name(ele.name),
             super::SymbolFnKind::Method,
         );
+        if let Some(ty_params) = ele.ty_params {
+            self.bind_ty_params(ty_params);
+        }
         self.bind_params(ele.params);
         if let Some(body) = ele.body {
             self.bind_block_stmt(body);
+        }
+        if let Some(ty) = ele.ty {
+            self.bind_ty(ty);
         }
     }
 

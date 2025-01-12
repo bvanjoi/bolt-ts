@@ -83,6 +83,7 @@ gen_atoms!(
     (IDENT_FUNCTION_CLASS, "Function"),
     (IDENT_CALLABLE_FUNCTION_CLASS, "CallableFunction"),
     (IDENT_NEWABLE_FUNCTION_CLASS, "NewableFunction"),
+    (IDENT_GLOBAL, "global"),
 );
 
 pub fn is_prim_ty_name(name: AtomId) -> bool {

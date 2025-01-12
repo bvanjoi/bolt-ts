@@ -31,6 +31,9 @@ pub(super) enum CannotFindNameHelperKind {
     #[error(transparent)]
     #[diagnostic(transparent)]
     CannotUseNamespaceAsTyOrValue(CannotUseNamespaceAsTyOrValue),
+    #[error(transparent)]
+    #[diagnostic(transparent)]
+    ShorthandPropertyNeedAnInitializer(ShorthandPropertyNeedAnInitializer),
 }
 
 impl CannotFindNameHelperKind {
@@ -42,6 +45,7 @@ impl CannotFindNameHelperKind {
             CannotFindNameHelperKind::AnInterfaceCannotExtendAPrimTy(diag) => Box::new(diag),
             CannotFindNameHelperKind::AClassCannotImplementAPrimTy(diag) => Box::new(diag),
             CannotFindNameHelperKind::CannotUseNamespaceAsTyOrValue(diag) => Box::new(diag),
+            CannotFindNameHelperKind::ShorthandPropertyNeedAnInitializer(diag) => Box::new(diag),
         }
     }
 }
@@ -80,4 +84,27 @@ pub(super) struct CannotUseNamespaceAsTyOrValue {
     #[label(primary)]
     pub span: Span,
     pub is_ty: bool,
+}
+
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
+#[error("Parameter '{name}' cannot reference itself.")]
+pub(super) struct ParameterXCannotReferenceItself {
+    #[label(primary)]
+    pub span: Span,
+    pub name: String,
+}
+
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
+#[error("Shorthand property need an initializer.")]
+#[diagnostic(severity(Advice))]
+pub(super) struct ShorthandPropertyNeedAnInitializer {
+    #[label(primary)]
+    pub span: Span,
+}
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
+#[error("Static members cannot reference class type parameters.")]
+pub(super) struct StaticMembersCannotReferenceClassTypeParameters {
+    #[label(primary)]
+    pub span: Span,
 }

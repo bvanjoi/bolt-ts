@@ -68,13 +68,26 @@ impl<'cx> TyChecker<'cx> {
         false
     }
 
-    fn is_simple_type_related_to(&self, source: &'cx Ty<'cx>, target: &'cx Ty<'cx>) -> bool {
+    fn is_simple_type_related_to(
+        &self,
+        source: &'cx Ty<'cx>,
+        target: &'cx Ty<'cx>,
+        relation: RelationKind,
+    ) -> bool {
         if source.kind.is_number_like() && target.kind.is_number() {
             true
         } else if source.kind.is_string_like() && target.kind.is_string() {
             true
+        } else if source.kind.is_boolean_like() && target.kind.is_boolean() {
+            true
+        } else if relation == RelationKind::Assignable || relation == RelationKind::Comparable {
+            if source.kind.is_any() {
+                true
+            } else {
+                false
+            }
         } else {
-            source.kind.is_any()
+            false
         }
     }
 
@@ -88,8 +101,8 @@ impl<'cx> TyChecker<'cx> {
             assert!(std::ptr::eq(&source.kind, &target.kind));
             return true;
         }
-        if self.is_simple_type_related_to(source, target)
-            || self.is_simple_type_related_to(target, source)
+        if self.is_simple_type_related_to(source, target, relation)
+            || self.is_simple_type_related_to(target, source, relation)
         {
             return true;
         }
@@ -132,7 +145,9 @@ impl<'cx> TyChecker<'cx> {
             }
         }
 
-        if self.is_simple_type_related_to(source, target) {
+        if self.is_simple_type_related_to(source, target, relation)
+            || self.is_simple_type_related_to(target, source, relation)
+        {
             return true;
         }
 
@@ -204,13 +219,24 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
-    fn type_arg_related_to(
+    fn type_args_related_to(
         &mut self,
-        source: &'cx Ty<'cx>,
-        target: &'cx Ty<'cx>,
+        source_ty_args: ty::Tys<'cx>,
+        target_ty_args: ty::Tys<'cx>,
         relation: RelationKind,
     ) -> bool {
-        self.is_related_to(source, target, relation, false)
+        if source_ty_args.len() != target_ty_args.len() && relation != RelationKind::Identity {
+            return false;
+        }
+        let len = usize::min(source_ty_args.len(), target_ty_args.len());
+        for i in 0..len {
+            let source = source_ty_args[i];
+            let target = target_ty_args[i];
+            if !self.is_related_to(source, target, relation, false) {
+                return false;
+            }
+        }
+        true
     }
 
     fn relate_variances(
@@ -219,14 +245,8 @@ impl<'cx> TyChecker<'cx> {
         target: ty::Tys<'cx>,
         relation: RelationKind,
     ) -> Option<bool> {
-        for i in 0..source.len() {
-            let source = source[i];
-            let target = target[i];
-            if !self.is_related_to(source, target, relation, false) {
-                return Some(false);
-            }
-        }
-        Some(true)
+        let res = self.type_args_related_to(source, target, relation);
+        Some(res)
     }
 
     fn is_empty_array_lit_ty(&self, ty: &'cx Ty<'cx>) -> bool {
@@ -596,6 +616,24 @@ impl<'cx> TyChecker<'cx> {
         res
     }
 
+    fn ty_related_to_some_ty(
+        &mut self,
+        source: &'cx Ty<'cx>,
+        target: &'cx Ty<'cx>,
+        relation: RelationKind,
+        report_error: bool,
+    ) -> bool {
+        if let Some(unions) = target.kind.as_union() {
+            if unions.tys.contains(&source) {
+                return true;
+            }
+            // TODO: compare
+            false
+        } else {
+            false
+        }
+    }
+
     fn union_or_intersection_related_to(
         &mut self,
         source: &'cx Ty<'cx>,
@@ -608,6 +646,8 @@ impl<'cx> TyChecker<'cx> {
             // } else {
             // }
             self.each_type_related_to_type(source, s.tys, target, relation, report_error)
+        } else if target.kind.is_union() {
+            self.ty_related_to_some_ty(source, target, relation, report_error)
         } else {
             false
         }

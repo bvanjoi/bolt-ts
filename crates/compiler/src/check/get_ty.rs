@@ -44,7 +44,7 @@ impl<'cx> TyChecker<'cx> {
             // ---
             ty
         } else {
-            self.undefined_ty()
+            self.any_ty()
         };
 
         self.resolve_structured_type_members(ty);

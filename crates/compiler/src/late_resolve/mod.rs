@@ -132,7 +132,7 @@ impl<'cx, 'r> ast::Visitor<'cx> for Resolver<'cx, 'r> {
                     for spec in specs {
                         use ast::ImportSpecKind::*;
                         match spec.kind {
-                            ShortHand(n) => {
+                            Shorthand(n) => {
                                 let name = SymbolName::Normal(n.name.name); //baz
                                 if !self.container(dep).exports.contains_key(&name) {
                                     let module_name = self.atoms.get(node.module.val).to_string();

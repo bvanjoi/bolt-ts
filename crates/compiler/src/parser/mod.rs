@@ -486,6 +486,14 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         }
     }
 
+    fn disallow_in_and<T>(&mut self, f: impl FnOnce(&mut Self) -> T) -> T {
+        self.do_inside_of_context(NodeFlags::DISALLOW_IN_CONTEXT, f)
+    }
+
+    fn allow_in_and<T>(&mut self, f: impl FnOnce(&mut Self) -> T) -> T {
+        self.do_inside_of_context(NodeFlags::DISALLOW_IN_CONTEXT, f)
+    }
+
     fn do_outside_of_context<T>(
         &mut self,
         context: NodeFlags,

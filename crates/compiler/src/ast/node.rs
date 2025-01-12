@@ -1,6 +1,8 @@
 use bolt_ts_span::{ModuleID, Span};
 
-bolt_ts_utils::index_with_module!(NodeID);
+use super::ModifierKind;
+
+bolt_ts_utils::module_index!(NodeID);
 
 impl NodeID {
     pub fn new(module: ModuleID, index: u32) -> Self {
@@ -64,6 +66,8 @@ pub enum Node<'cx> {
     ForOfStmt(&'cx super::ForOfStmt<'cx>),
     BreakStmt(&'cx super::BreakStmt<'cx>),
     ContinueStmt(&'cx super::ContinueStmt<'cx>),
+    TryStmt(&'cx super::TryStmt<'cx>),
+    CatchClause(&'cx super::CatchClause<'cx>),
 
     // expr
     VarDecl(&'cx super::VarDecl<'cx>),
@@ -78,7 +82,8 @@ pub enum Node<'cx> {
     ParenExpr(&'cx super::ParenExpr<'cx>),
     CondExpr(&'cx super::CondExpr<'cx>),
     EnumMember(&'cx super::EnumMember<'cx>),
-    ObjectMemberField(&'cx super::ObjectMemberField<'cx>),
+    ObjectShorthandMember(&'cx super::ObjectShorthandMember<'cx>),
+    ObjectPropMember(&'cx super::ObjectPropMember<'cx>),
     ObjectLit(&'cx super::ObjectLit<'cx>),
     CallExpr(&'cx super::CallExpr<'cx>),
     FnExpr(&'cx super::FnExpr<'cx>),
@@ -213,10 +218,11 @@ impl<'cx> Node<'cx> {
                 super::PropNameKind::Ident(ident) => Some(ident),
                 _ => None,
             },
-            ObjectMemberField(n) => match n.name.kind {
+            ObjectPropMember(n) => match n.name.kind {
                 super::PropNameKind::Ident(ident) => Some(ident),
                 _ => None,
             },
+            ObjectShorthandMember(n) => Some(n.name),
             _ => None,
         }
     }
@@ -322,7 +328,8 @@ impl<'cx> Node<'cx> {
         matches!(
             self,
             VarDecl(_)
-                | ObjectMemberField(_)
+                | ObjectShorthandMember(_)
+                | ObjectPropMember(_)
                 | ClassDecl(_)
                 | ClassExpr(_)
                 | ClassPropEle(_)
@@ -411,8 +418,50 @@ impl<'cx> Node<'cx> {
     }
 
     pub fn is_static(&self) -> bool {
-        // TODO: has static modifier
-        self.is_class_decl() && false
+        (self.is_class_ele() && self.has_static_modifier()) || self.is_class_static_block_decl()
+    }
+
+    pub fn has_static_modifier(&self) -> bool {
+        self.has_syntactic_modifier(enumflags2::BitFlags::from(ModifierKind::Static))
+    }
+
+    pub fn has_syntactic_modifier(&self, flags: enumflags2::BitFlags<ModifierKind>) -> bool {
+        macro_rules! modifier {
+            ($( $node_kind:ident),* $(,)?) => {
+                match self {
+                    $(Node::$node_kind(n) => n.modifiers,)*
+                    _ => None,
+                }
+            };
+        }
+        let Some(ms) = modifier!(ClassMethodEle) else {
+            return false;
+        };
+        ms.flags.intersects(flags)
+    }
+
+    pub fn is_block_scope(&self, parent: Option<&Self>) -> bool {
+        if self.is_program()
+            || self.is_namespace_decl()
+            || self.is_for_stmt()
+            || self.is_for_in_stmt()
+            || self.is_for_of_stmt()
+            || self.is_class_ctor()
+            || self.is_class_method_ele()
+            || self.is_fn_decl()
+            || self.is_fn_expr()
+            || self.is_class_prop_ele()
+        {
+            true
+        } else if self.is_block_stmt() {
+            if let Some(parent) = parent {
+                !parent.is_fn_like_or_class_static_block_decl()
+            } else {
+                false
+            }
+        } else {
+            false
+        }
     }
 }
 
@@ -613,11 +662,18 @@ as_node!(
         is_enum_member
     ),
     (
-        ObjectMemberField,
-        &'cx super::ObjectMemberField<'cx>,
-        as_object_member_field,
-        expect_object_member_field,
-        is_object_member_field
+        ObjectShorthandMember,
+        &'cx super::ObjectShorthandMember<'cx>,
+        as_object_shorthand_member,
+        expect_object_shorthand_member,
+        is_object_shorthand_member
+    ),
+    (
+        ObjectPropMember,
+        &'cx super::ObjectPropMember<'cx>,
+        as_object_prop_member,
+        expect_object_prop_member,
+        is_object_prop_member
     ),
     (
         ObjectLit,
@@ -1046,5 +1102,19 @@ as_node!(
         expect_mapped_ty,
         is_mapped_ty
     ),
-    (TyOp, &'cx super::TyOp, as_ty_op, expect_ty_op, is_ty_op)
+    (TyOp, &'cx super::TyOp, as_ty_op, expect_ty_op, is_ty_op),
+    (
+        TryStmt,
+        &'cx super::TryStmt,
+        as_try_stmt,
+        expect_try_stmt,
+        is_try_stmt
+    ),
+    (
+        CatchClause,
+        &'cx super::CatchClause,
+        as_catch_clause,
+        expect_catch_clause,
+        is_catch_clause
+    )
 );

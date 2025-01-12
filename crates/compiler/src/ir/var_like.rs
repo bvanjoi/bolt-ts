@@ -76,7 +76,7 @@ impl<'cx> VarLike<'cx> for ast::PropSignature<'cx> {
     }
 }
 
-impl<'cx> VarLike<'cx> for ast::ObjectMemberField<'cx> {
+impl<'cx> VarLike<'cx> for ast::ObjectPropMember<'cx> {
     fn id(&self) -> ast::NodeID {
         self.id
     }

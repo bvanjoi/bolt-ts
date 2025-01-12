@@ -1,0 +1,5 @@
+  × Cannot find name 'ex1'.
+    ╭─[../../tests/cases/compiler/scopingInCatchBlocks/index.ts:11:9]
+ 11 │ ex1
+    · ───
+    ╰────

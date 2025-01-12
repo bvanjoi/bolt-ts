@@ -1,6 +1,7 @@
 use bolt_ts_span::Span;
 
 use crate::ast::ModifierKind;
+use crate::ecma_rules;
 
 use super::list_ctx;
 use super::token::{TokenFlags, TokenKind};
@@ -379,7 +380,32 @@ impl<'p> ParserState<'p, '_> {
     pub(super) fn parse_params(&mut self) -> PResult<ast::ParamsDecl<'p>> {
         use TokenKind::*;
         self.expect(LParen)?;
+        let old_error = self.diags.len();
         let params = self.parse_delimited_list(list_ctx::Params, Self::parse_param);
+        let has_error = self.diags.len() > old_error;
+        if !has_error {
+            let last_is_rest = params
+                .last()
+                .map(|p| p.dotdotdot.is_some())
+                .unwrap_or_default();
+            if let Some(rest_param_but_not_last) = (!last_is_rest).then(|| {
+                params
+                    .iter()
+                    .rev()
+                    .skip(1)
+                    .filter(|param| param.dotdotdot.is_some())
+                    .rev()
+                    .collect::<Vec<_>>()
+            }) {
+                for error_param in rest_param_but_not_last {
+                    let error = ecma_rules::ARestParameterMustBeLastInAParameterList {
+                        span: error_param.span,
+                    };
+                    self.push_error(Box::new(error));
+                }
+            }
+        }
+
         self.expect(RParen)?;
         Ok(params)
     }

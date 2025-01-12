@@ -9,7 +9,6 @@ use super::ScopeID;
 use bolt_ts_atom::AtomMap;
 use bolt_ts_span::ModuleID;
 use bolt_ts_utils::fx_hashmap_with_capacity;
-
 use thin_vec::thin_vec;
 
 use crate::ast::{self};
@@ -117,6 +116,31 @@ impl<'cx> BinderState<'cx> {
                 self.bind_stmt(container, n.body);
             }
             Break(_) | Continue(_) => {}
+            Try(n) => {
+                self.bind_try_stmt(container, n);
+            }
+        }
+    }
+
+    fn bind_try_stmt(&mut self, container: ast::NodeID, stmt: &'cx ast::TryStmt<'cx>) {
+        self.bind_block_stmt(stmt.try_block);
+        if let Some(catch) = stmt.catch_clause {
+            let old = self.scope_id;
+            self.scope_id = self.new_scope();
+            if let Some(var) = catch.var {
+                let symbol = self.create_var_symbol(
+                    var.binding.name,
+                    SymbolFlags::FUNCTION_SCOPED_VARIABLE,
+                    SymbolKind::FunctionScopedVar(FunctionScopedVarSymbol { decl: var.id }),
+                    SymbolFlags::FUNCTION_SCOPED_VARIABLE_EXCLUDES,
+                );
+                self.create_final_res(var.id, symbol);
+            }
+            self.bind_block_stmt(catch.block);
+            self.scope_id = old;
+        }
+        if let Some(finally) = stmt.finally_block {
+            self.bind_block_stmt(finally);
         }
     }
 
@@ -131,10 +155,10 @@ impl<'cx> BinderState<'cx> {
     fn bind_spec_export(&mut self, container: ast::NodeID, spec: &'cx ast::ExportSpec<'cx>) {
         use ast::ExportSpecKind::*;
         let (name, symbol) = match spec.kind {
-            ShortHand(spec) => {
+            Shorthand(spec) => {
                 let name = spec.name.name;
                 let name = SymbolName::Normal(name);
-                let symbol = self.create_symbol(
+                let symbol = self.declare_symbol(
                     name,
                     SymbolFlags::ALIAS,
                     SymbolKind::Alias(AliasSymbol {
@@ -142,6 +166,7 @@ impl<'cx> BinderState<'cx> {
                         source: name,
                         target: name,
                     }),
+                    SymbolFlags::empty(),
                 );
                 self.create_final_res(spec.id, symbol);
                 (name, symbol)
@@ -154,7 +179,7 @@ impl<'cx> BinderState<'cx> {
                 };
 
                 let name = n(named.name);
-                let symbol = self.create_symbol(
+                let symbol = self.declare_symbol(
                     name,
                     SymbolFlags::ALIAS,
                     SymbolKind::Alias(AliasSymbol {
@@ -162,6 +187,7 @@ impl<'cx> BinderState<'cx> {
                         source: n(named.prop_name),
                         target: name,
                     }),
+                    SymbolFlags::empty(),
                 );
                 self.create_final_res(named.id, symbol);
                 (name, symbol)
@@ -191,14 +217,22 @@ impl<'cx> BinderState<'cx> {
     }
 
     fn bind_ns_decl(&mut self, container: ast::NodeID, ns: &'cx ast::NsDecl<'cx>) {
-        let flags = if ns.block.stmts.is_empty() {
+        let name = match ns.name {
+            ast::ModuleName::Ident(ident) => ident.name,
+            ast::ModuleName::StringLit(lit) => {
+                if let Some(block) = ns.block {
+                    self.bind_block_stmt(block);
+                }
+                return;
+            }
+        };
+        let flags = if ns.block.map_or(false, |block| block.stmts.is_empty()) {
             SymbolFlags::NAMESPACE_MODULE
         } else {
             SymbolFlags::VALUE_MODULE
         };
-
-        let symbol = self.create_symbol_with_ns(
-            SymbolName::Normal(ns.name.name),
+        let symbol = self.declare_symbol_with_ns(
+            SymbolName::Normal(name),
             flags,
             super::symbol::NsSymbol {
                 decls: thin_vec::thin_vec![ns.id],
@@ -207,11 +241,12 @@ impl<'cx> BinderState<'cx> {
 
         let container = self.final_res[&container];
         if let SymbolKind::BlockContainer(c) = &mut self.symbols.get_mut(container).kind.0 {
-            let name = SymbolName::Normal(ns.name.name);
+            let name = SymbolName::Normal(name);
             c.locals.insert(name, symbol);
         }
-
-        self.bind_block_stmt(ns.block);
+        if let Some(block) = ns.block {
+            self.bind_block_stmt(block);
+        }
     }
 
     fn bind_type_decl(&mut self, t: &'cx ast::TypeDecl<'cx>) {
@@ -219,6 +254,7 @@ impl<'cx> BinderState<'cx> {
             t.name.name,
             SymbolFlags::TYPE_ALIAS,
             SymbolKind::TyAlias(symbol::TyAliasSymbol { decl: t.id }),
+            SymbolFlags::TYPE_ALIAS_EXCLUDES,
         );
         self.create_final_res(t.id, symbol);
         if let Some(ty_params) = t.ty_params {
@@ -238,6 +274,7 @@ impl<'cx> BinderState<'cx> {
             ty_param.name.name,
             SymbolFlags::TYPE_PARAMETER,
             SymbolKind::TyParam(symbol::TyParamSymbol { decl: ty_param.id }),
+            SymbolFlags::empty(),
         );
         self.create_final_res(ty_param.id, symbol);
 
@@ -255,10 +292,11 @@ impl<'cx> BinderState<'cx> {
         index: &'cx ast::IndexSigDecl<'cx>,
     ) -> SymbolID {
         let name = SymbolName::Index;
-        let symbol = self.create_symbol(
+        let symbol = self.declare_symbol(
             SymbolName::Index,
             SymbolFlags::SIGNATURE,
             SymbolKind::Index(IndexSymbol { decl: index.id }),
+            SymbolFlags::empty(),
         );
         self.create_final_res(index.id, symbol);
         let container = self.final_res[&container];
@@ -488,10 +526,21 @@ impl<'cx> BinderState<'cx> {
             .members
             .iter()
             .map(|member| {
-                let name = prop_name(member.name);
-                let symbol = self.create_object_member_symbol(name, member.id);
-                self.bind_expr(member.value);
-                (name, symbol)
+                use ast::ObjectMemberKind::*;
+                match member.kind {
+                    Shorthand(n) => {
+                        self.bind_ident(n.name);
+                        let name = SymbolName::Ele(n.name.name);
+                        let symbol = self.create_object_member_symbol(name, n.id);
+                        (name, symbol)
+                    }
+                    Prop(n) => {
+                        let name = prop_name(n.name);
+                        let symbol = self.create_object_member_symbol(name, n.id);
+                        self.bind_expr(n.value);
+                        (name, symbol)
+                    }
+                }
             })
             .collect();
         self.scope_id = old;
@@ -615,6 +664,7 @@ impl<'cx> BinderState<'cx> {
             param.name.name,
             SymbolFlags::FUNCTION_SCOPED_VARIABLE,
             SymbolKind::FunctionScopedVar(FunctionScopedVarSymbol { decl: param.id }),
+            SymbolFlags::empty(),
         );
         self.create_final_res(param.id, symbol);
         if let Some(ty) = param.ty {

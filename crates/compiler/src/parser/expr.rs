@@ -350,23 +350,39 @@ impl<'cx> ParserState<'cx, '_> {
         self.parse_assign_expr(false)
     }
 
-    fn parse_object_lit_ele(&mut self) -> PResult<&'cx ast::ObjectMemberField<'cx>> {
+    fn parse_object_lit_ele(&mut self) -> PResult<&'cx ast::ObjectMember<'cx>> {
         let id = self.next_node_id();
         let start = self.token.start();
-        // let mods = self.with_parent(id, Self::parse_modifiers)?;
-        // let is_ident = self.is_ident();
+        let mods = self.with_parent(id, |this| this.parse_modifiers(false))?;
         let name = self.with_parent(id, Self::parse_prop_name)?;
         self.parse_optional(TokenKind::Question);
+        if let Some(name) = name.kind.as_ident() {
+            if self.token.kind != TokenKind::Colon {
+                let kind = self.alloc(ast::ObjectShorthandMember {
+                    id,
+                    span: self.new_span(start),
+                    name,
+                });
+                self.insert_map(id, ast::Node::ObjectShorthandMember(kind));
+                let member = self.alloc(ast::ObjectMember {
+                    kind: ast::ObjectMemberKind::Shorthand(kind),
+                });
+                return Ok(member);
+            }
+        }
         self.expect(TokenKind::Colon)?;
         let value = self.with_parent(id, |this| this.parse_assign_expr(false))?;
-        let filed = self.alloc(ast::ObjectMemberField {
+        let kind = self.alloc(ast::ObjectPropMember {
             id,
             span: self.new_span(start),
             name,
             value,
         });
-        self.insert_map(id, ast::Node::ObjectMemberField(filed));
-        Ok(filed)
+        self.insert_map(id, ast::Node::ObjectPropMember(kind));
+        let member = self.alloc(ast::ObjectMember {
+            kind: ast::ObjectMemberKind::Prop(kind),
+        });
+        Ok(member)
     }
 
     fn parse_paren_expr(&mut self) -> PResult<&'cx ast::Expr<'cx>> {

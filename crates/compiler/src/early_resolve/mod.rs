@@ -1,4 +1,6 @@
 mod errors;
+mod on_failed_value_resolve;
+mod on_success_resolve;
 mod resolve_call_like;
 mod resolve_class_like;
 
@@ -8,7 +10,7 @@ use bolt_ts_utils::fx_hashmap_with_capacity;
 use rayon::prelude::*;
 use rustc_hash::FxHashMap;
 
-use crate::bind::{BinderState, GlobalSymbols, Symbol, SymbolFlags, SymbolID, SymbolName};
+use crate::bind::{BinderState, GlobalSymbols, Symbol, SymbolID, SymbolName};
 use crate::keyword::{is_prim_ty_name, is_prim_value_name};
 use crate::parser::Parser;
 use crate::{ast, keyword};
@@ -23,6 +25,7 @@ pub fn early_resolve_parallel<'cx>(
     states: &[BinderState<'cx>],
     p: &'cx Parser<'cx>,
     global: &'cx GlobalSymbols,
+    atoms: &'cx bolt_ts_atom::AtomMap<'cx>,
 ) -> Vec<EarlyResolveResult> {
     modules
         .into_par_iter()
@@ -30,25 +33,28 @@ pub fn early_resolve_parallel<'cx>(
         .map(|(idx, m)| {
             let module_id = m.id;
             let root = p.root(module_id);
-            let state = &states[idx];
-            early_resolve(state, root, p, global)
+            early_resolve(states, module_id, root, p, global, atoms)
         })
         .collect()
 }
 
 fn early_resolve<'cx>(
-    state: &'cx BinderState<'cx>,
+    states: &[BinderState<'cx>],
+    module_id: bolt_ts_span::ModuleID,
     root: &'cx ast::Program<'cx>,
     p: &'cx Parser<'cx>,
     global: &'cx GlobalSymbols,
+    atoms: &'cx bolt_ts_atom::AtomMap<'cx>,
 ) -> EarlyResolveResult {
-    let final_res = fx_hashmap_with_capacity(state.res.len());
+    let final_res = fx_hashmap_with_capacity(states[module_id.as_usize()].res.len());
     let mut resolver = Resolver {
         diags: vec![],
-        state: &state,
+        states: &states,
+        module_id,
         final_res,
         p,
         global,
+        atoms,
     };
     resolver.resolve_program(root);
     let diags = std::mem::take(&mut resolver.diags);
@@ -59,14 +65,22 @@ fn early_resolve<'cx>(
 }
 
 pub(super) struct Resolver<'cx, 'r> {
-    state: &'r BinderState<'cx>,
+    states: &'r [BinderState<'cx>],
+    module_id: bolt_ts_span::ModuleID,
     p: &'cx Parser<'cx>,
     pub diags: Vec<bolt_ts_errors::Diag>,
     final_res: FxHashMap<ast::NodeID, SymbolID>,
     global: &'cx GlobalSymbols,
+    atoms: &'cx bolt_ts_atom::AtomMap<'cx>,
 }
 
 impl<'cx> Resolver<'cx, '_> {
+    fn symbol(&self, symbol_id: SymbolID) -> &crate::bind::Symbol {
+        self.states[symbol_id.module().as_usize()]
+            .symbols
+            .get(symbol_id)
+    }
+
     fn push_error(&mut self, error: crate::Diag) {
         self.diags.push(bolt_ts_errors::Diag { inner: error });
     }
@@ -116,11 +130,14 @@ impl<'cx> Resolver<'cx, '_> {
                     self.resolve_symbol_by_ident(ident, Symbol::is_value);
                 }
             }
+            Try(n) => {}
         };
     }
 
     fn resolve_ns_decl(&mut self, ns: &'cx ast::NsDecl<'cx>) {
-        self.resolve_block_stmt(ns.block);
+        if let Some(block) = ns.block {
+            self.resolve_block_stmt(block);
+        }
     }
 
     fn resolve_type_decl(&mut self, ty: &'cx ast::TypeDecl<'cx>) {
@@ -353,14 +370,21 @@ impl<'cx> Resolver<'cx, '_> {
 
     fn resolve_object_lit(&mut self, lit: &'cx ast::ObjectLit<'cx>) {
         for member in lit.members {
-            self.resolve_object_member_field(member);
+            self.resolve_object_member(member);
         }
     }
 
-    fn resolve_object_member_field(&mut self, member: &'cx ast::ObjectMemberField<'cx>) {
-        self.resolve_expr(member.value);
+    fn resolve_object_member(&mut self, member: &'cx ast::ObjectMember<'cx>) {
+        use ast::ObjectMemberKind::*;
+        match member.kind {
+            Shorthand(n) => {
+                self.resolve_value_by_ident(n.name);
+            }
+            Prop(n) => {
+                self.resolve_expr(n.value);
+            }
+        }
     }
-
     fn resolve_fn_decl(&mut self, f: &'cx ast::FnDecl<'cx>) {
         if let Some(ty_params) = f.ty_params {
             self.resolve_ty_params(ty_params);
@@ -414,14 +438,20 @@ impl<'cx> Resolver<'cx, '_> {
             return;
         }
         let res = self.resolve_symbol_by_ident(ident, Symbol::is_value);
-        if res == Symbol::ERR {
+        if res.symbol == Symbol::ERR {
             let error = errors::CannotFindName {
                 span: ident.span,
-                name: self.state.atoms.get(ident.name).to_string(),
+                name: self.atoms.get(ident.name).to_string(),
                 errors: vec![],
             };
             let error = self.on_failed_to_resolve_value_symbol(ident, error);
             self.push_error(Box::new(error));
+        } else {
+            self.on_success_resolved_value_symbol(
+                ident,
+                res.symbol,
+                res.associated_declaration_for_containing_initializer_or_binding_name,
+            );
         }
     }
 
@@ -437,15 +467,17 @@ impl<'cx> Resolver<'cx, '_> {
             }
             return;
         }
-        let res = self.resolve_symbol_by_ident(ident, Symbol::is_type);
+        let res = self.resolve_symbol_by_ident(ident, Symbol::is_type).symbol;
 
         if res == Symbol::ERR {
             let error = errors::CannotFindName {
                 span: ident.span,
-                name: self.state.atoms.get(ident.name).to_string(),
+                name: self.atoms.get(ident.name).to_string(),
                 errors: vec![],
             };
             self.push_error(Box::new(error));
+        } else {
+            self.on_success_resolved_type_symbol(ident, res);
         }
     }
 
@@ -453,148 +485,35 @@ impl<'cx> Resolver<'cx, '_> {
         &mut self,
         ident: &'cx ast::Ident,
         ns: impl Fn(&Symbol<'cx>) -> bool,
-    ) -> SymbolID {
+    ) -> ResolvedResult {
         let res = resolve_symbol_by_ident(self, ident, ns);
-        let prev = self.final_res.insert(ident.id, res);
-        assert!(prev.is_none());
+        let prev = self.final_res.insert(ident.id, res.symbol);
+        assert!(
+            prev.is_none(),
+            "the symbol of {:?} is already resolved",
+            self.atoms.get(ident.name)
+        );
         res
-    }
-
-    fn check_using_namespace_as_value(
-        &mut self,
-        ident: &'cx ast::Ident,
-    ) -> Option<errors::CannotFindNameHelperKind> {
-        let symbol =
-            resolve_symbol_by_ident(self, ident, |ns| ns.flags == SymbolFlags::NAMESPACE_MODULE);
-        if symbol == Symbol::ERR {
-            None
-        } else {
-            let ns = self.state.symbols.get(symbol).expect_ns().decls[0];
-            let span = self.p.node(ns).expect_namespace_decl().name.span;
-            let error = errors::CannotFindNameHelperKind::CannotUseNamespaceAsTyOrValue(
-                errors::CannotUseNamespaceAsTyOrValue { span, is_ty: false },
-            );
-            Some(error)
-        }
-    }
-
-    fn on_failed_to_resolve_value_symbol(
-        &mut self,
-        ident: &'cx ast::Ident,
-        mut error: errors::CannotFindName,
-    ) -> errors::CannotFindName {
-        if let Some(e) = self.check_missing_prefix(ident) {
-            error
-                .errors
-                .push(errors::CannotFindNameHelperKind::DidYouMeanTheStaticMember(
-                    e,
-                ));
-        }
-        if let Some(e) = self.check_using_type_as_value(ident) {
-            error.errors.push(e);
-        }
-        if let Some(e) = self.check_using_namespace_as_value(ident) {
-            error.errors.push(e);
-        }
-        error
-    }
-
-    fn check_missing_prefix(
-        &mut self,
-        ident: &'cx ast::Ident,
-    ) -> Option<errors::DidYourMeanTheStaticMember> {
-        let mut location = ident.id;
-        while let Some(parent) = self.p.parent(location) {
-            location = parent;
-            let node = self.p.node(location);
-            let ast::Node::ClassDecl(class) = node else {
-                continue;
-            };
-            // TODO: use class symbol;
-            if let Some(prop) = class.elems.elems.iter().find_map(|ele| {
-                let ast::ClassEleKind::Prop(prop) = ele.kind else {
-                    return None;
-                };
-                let ast::PropNameKind::Ident(prop_name) = prop.name.kind else {
-                    return None;
-                };
-
-                (prop_name.name == ident.name).then_some(prop)
-            }) {
-                if prop
-                    .modifiers
-                    .map(|mods| mods.flags.contains(ast::ModifierKind::Static))
-                    .unwrap_or_default()
-                {
-                    let ast::PropNameKind::Ident(prop_name) = prop.name.kind else {
-                        unreachable!()
-                    };
-                    let error = errors::DidYourMeanTheStaticMember {
-                        span: prop.name.span(),
-                        name: format!(
-                            "{}.{}",
-                            self.state.atoms.get(class.name.name),
-                            self.state.atoms.get(prop_name.name)
-                        ),
-                    };
-                    return Some(error);
-                }
-            }
-        }
-
-        None
-    }
-
-    fn check_using_type_as_value(
-        &mut self,
-        ident: &'cx ast::Ident,
-    ) -> Option<errors::CannotFindNameHelperKind> {
-        if is_prim_ty_name(ident.name) {
-            let grand = self
-                .p
-                .parent(ident.id)
-                .and_then(|parent| self.p.parent(parent))?;
-            let container = self.p.parent(grand)?;
-            let grand_node = self.p.node(grand);
-            let container_node = self.p.node(container);
-            if grand_node.as_class_implements_clause().is_some() && container_node.is_class_like() {
-                return Some(
-                    errors::CannotFindNameHelperKind::AClassCannotImplementAPrimTy(
-                        errors::AClassCannotImplementAPrimTy {
-                            span: ident.span,
-                            ty: self.state.atoms.get(ident.name).to_string(),
-                        },
-                    ),
-                );
-            } else if grand_node.as_interface_extends_clause().is_some()
-                && container_node.is_interface_decl()
-            {
-                return Some(
-                    errors::CannotFindNameHelperKind::AnInterfaceCannotExtendAPrimTy(
-                        errors::AnInterfaceCannotExtendAPrimTy {
-                            span: ident.span,
-                            ty: self.state.atoms.get(ident.name).to_string(),
-                        },
-                    ),
-                );
-            }
-        }
-
-        None
     }
 }
 
-fn resolve_symbol_by_ident<'a, 'cx>(
+pub(super) struct ResolvedResult {
+    symbol: SymbolID,
+    associated_declaration_for_containing_initializer_or_binding_name: Option<ast::NodeID>,
+}
+
+pub(super) fn resolve_symbol_by_ident<'a, 'cx>(
     resolver: &'a Resolver<'cx, 'a>,
     ident: &'cx ast::Ident,
     ns: impl Fn(&'a Symbol<'cx>) -> bool,
-) -> SymbolID {
-    let binder = &resolver.state;
+) -> ResolvedResult {
+    let binder = &resolver.states[resolver.module_id.as_usize()];
     let key = SymbolName::Normal(ident.name);
     let Some(mut scope_id) = binder.node_id_to_scope_id.get(&ident.id).copied() else {
-        let name = resolver.state.atoms.get(ident.name);
+        let name = resolver.atoms.get(ident.name);
         unreachable!("the scope of {name:?} is not stored");
     };
+    let mut associated_declaration_for_containing_initializer_or_binding_name = None;
     loop {
         if !scope_id.is_root() {
             if let Some(id) = binder.res.get(&(scope_id, SymbolName::Container)).copied() {
@@ -602,24 +521,49 @@ fn resolve_symbol_by_ident<'a, 'cx>(
                 if ns(symbol) {
                     let container = symbol.expect_block_container();
                     if let Some(id) = container.locals.get(&key) {
-                        break *id;
+                        break ResolvedResult {
+                            symbol: *id,
+                            associated_declaration_for_containing_initializer_or_binding_name,
+                        };
                     }
                 }
             }
         }
 
         if let Some(id) = binder.res.get(&(scope_id, key)).copied() {
-            if ns(binder.symbols.get(id)) {
-                break id;
+            let symbol = binder.symbols.get(id);
+            use crate::bind::SymbolKind::*;
+            let decl = match &symbol.kind.0 {
+                FunctionScopedVar(var) => Some(var.decl),
+                _ => None,
+            };
+            if let Some(decl) = decl {
+                if resolver.p.node(decl).is_param_decl()
+                    && resolver.p.is_descendant_of(ident.id, decl)
+                {
+                    associated_declaration_for_containing_initializer_or_binding_name = Some(decl);
+                }
+            }
+            if ns(symbol) {
+                break ResolvedResult {
+                    symbol: id,
+                    associated_declaration_for_containing_initializer_or_binding_name,
+                };
             }
         }
 
         if let Some(parent) = binder.scope_id_parent_map[scope_id.index_as_usize()] {
             scope_id = parent;
         } else if let Some(symbol) = resolver.global.get(key) {
-            break symbol;
+            break ResolvedResult {
+                symbol,
+                associated_declaration_for_containing_initializer_or_binding_name,
+            };
         } else {
-            break Symbol::ERR;
+            break ResolvedResult {
+                symbol: Symbol::ERR,
+                associated_declaration_for_containing_initializer_or_binding_name,
+            };
         }
     }
 }

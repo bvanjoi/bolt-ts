@@ -47,13 +47,14 @@ impl<'cx> BinderState<'cx> {
             self.create_final_res(decl.id(), s);
             s
         } else {
-            let symbol = self.create_symbol(
+            let symbol = self.declare_symbol(
                 ele_name,
                 SymbolFlags::FUNCTION,
                 SymbolKind::Fn(FnSymbol {
                     kind: ele_fn_kind,
                     decls: thin_vec![decl.id()],
                 }),
+                SymbolFlags::empty(),
             );
             self.create_final_res(decl.id(), symbol);
             let prev = members(self.symbols.get_mut(container)).insert(ele_name, symbol);

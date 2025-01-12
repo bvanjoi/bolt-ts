@@ -221,6 +221,10 @@ impl<'cx> TyChecker<'cx> {
             return false;
         }
 
+        if arg_count >= min_args {
+            return true;
+        }
+
         for i in arg_count..min_args {
             let ty = self.get_ty_at_pos(sig, i);
         }

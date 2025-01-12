@@ -35,8 +35,8 @@ mod utils;
 
 use bolt_ts_atom::{AtomId, AtomMap};
 use bolt_ts_span::Span;
-use bolt_ts_utils::fx_hashmap_with_capacity;
 
+use bolt_ts_utils::{fx_hashmap_with_capacity, no_hashmap_with_capacity};
 use get_contextual::ContextFlags;
 use infer::{InferenceFlags, InferencePriority};
 use rustc_hash::{FxBuildHasher, FxHashMap};
@@ -85,6 +85,8 @@ pub struct F64Represent {
     inner: u64,
 }
 
+impl nohash_hasher::IsEnabled for F64Represent {}
+
 impl F64Represent {
     fn new(val: f64) -> Self {
         Self {
@@ -123,9 +125,8 @@ pub struct TyChecker<'cx> {
     string_lit_tys: FxHashMap<AtomId, TyID>,
     intrinsic_tys: FxHashMap<AtomId, &'cx ty::Ty<'cx>>,
     type_name: FxHashMap<TyID, String>,
-    ty_vars: FxHashMap<TyVarID, &'cx ty::Ty<'cx>>,
     symbol_links: FxHashMap<SymbolID, SymbolLinks<'cx>>,
-    node_links: FxHashMap<NodeID, NodeLinks<'cx>>,
+    node_links: FxHashMap<ast::NodeID, NodeLinks<'cx>>,
     pub ty_structured_members: FxHashMap<TyID, &'cx ty::StructuredMembers<'cx>>,
     resolved_base_tys: FxHashMap<TyID, ty::Tys<'cx>>,
     check_mode: Option<CheckMode>,
@@ -145,7 +146,7 @@ pub struct TyChecker<'cx> {
     boolean_ty: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
     string_number_symbol_ty: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
     typeof_ty: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
-    tuple_shapes: FxHashMap<u32, &'cx TupleShape<'cx>>,
+    tuple_shapes: nohash_hasher::IntMap<u32, &'cx TupleShape<'cx>>,
     unknown_sig: std::cell::OnceCell<&'cx Sig<'cx>>,
     any_fn_ty: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
     global_fn_ty: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
@@ -237,9 +238,8 @@ impl<'cx> TyChecker<'cx> {
 
             unknown_sig: Default::default(),
 
-            tuple_shapes: fx_hashmap_with_capacity(1024 * 8),
+            tuple_shapes: no_hashmap_with_capacity(1024 * 8),
             type_name: fx_hashmap_with_capacity(1024 * 8),
-            ty_vars: FxHashMap::default(),
             param_ty_mapper: fx_hashmap_with_capacity(p.module_count() * 256),
 
             ty_structured_members: fx_hashmap_with_capacity(p.module_count() * 1024),
@@ -423,11 +423,14 @@ impl<'cx> TyChecker<'cx> {
             ForIn(for_in_stmt) => {}
             Break(break_stmt) => {}
             Continue(continue_stmt) => {}
+            Try(try_stmt) => {}
         };
     }
 
     fn check_ns_decl(&mut self, ns: &'cx ast::NsDecl<'cx>) {
-        self.check_block(ns.block);
+        if let Some(block) = ns.block {
+            self.check_block(block);
+        }
     }
 
     fn is_applicable_index_ty(
@@ -566,6 +569,7 @@ impl<'cx> TyChecker<'cx> {
             return;
         };
         let sig = self.get_sig_from_decl(container);
+        let ret_ty = self.get_ret_ty_of_sig(sig);
         let expr_ty = ret
             .expr
             .map(|expr| self.check_expr(expr))
@@ -585,6 +589,24 @@ impl<'cx> TyChecker<'cx> {
                     Some(expr.id()),
                 );
             }
+        } else if self.get_ret_ty_from_anno(container).is_some() {
+            self.check_ret_expr(container, ret_ty, ret.expr, expr_ty);
+        }
+    }
+
+    fn check_ret_expr(
+        &mut self,
+        container: ast::NodeID,
+        ret_ty: &'cx ty::Ty<'cx>,
+        ret_expr: Option<&'cx ast::Expr<'cx>>,
+        expr_ty: &'cx ty::Ty<'cx>,
+    ) {
+        if !(ret_ty.kind.is_indexed_access() || ret_ty.kind.is_cond_ty())
+            || !self.could_contain_ty_var(ret_ty)
+        {
+            let error_node = ret_expr.map(|expr| expr.id());
+            self.check_type_assignable_to_and_optionally_elaborate(expr_ty, ret_ty, error_node);
+            return;
         }
     }
 
@@ -981,7 +1003,7 @@ impl<'cx> TyChecker<'cx> {
             if p.is_class_like() {
                 let symbol = self.get_symbol_of_decl(parent);
                 let this_ty = if container.is_static() {
-                    todo!()
+                    self.get_type_of_symbol(symbol)
                 } else {
                     let ty = self
                         .get_declared_ty_of_symbol(symbol)
@@ -1240,15 +1262,25 @@ impl<'cx> TyChecker<'cx> {
     fn check_object_lit(&mut self, lit: &'cx ast::ObjectLit<'cx>) -> &'cx ty::Ty<'cx> {
         // let ty = self.get_contextual_ty(lit.id);
         let entires = lit.members.iter().map(|member| {
-            let member_symbol = self.get_symbol_of_decl(member.id);
-            // let member_ty = self.check_expr(member.value);
-            match member.name.kind {
-                ast::PropNameKind::Ident(ident) => (SymbolName::Ele(ident.name), member_symbol),
-                ast::PropNameKind::NumLit(num) => (
-                    SymbolName::EleNum(F64Represent::new(num.val)),
-                    member_symbol,
-                ),
-                ast::PropNameKind::StringLit(lit) => (SymbolName::Ele(lit.val), member_symbol),
+            use ast::ObjectMemberKind::*;
+            match member.kind {
+                Shorthand(n) => {
+                    let member_symbol = self.get_symbol_of_decl(n.id);
+                    (SymbolName::Ele(n.name.name), member_symbol)
+                }
+                Prop(n) => {
+                    use ast::PropNameKind::*;
+                    let member_symbol = self.get_symbol_of_decl(n.id);
+                    // let member_ty = self.check_expr(n.value);
+                    match n.name.kind {
+                        Ident(ident) => (SymbolName::Ele(ident.name), member_symbol),
+                        NumLit(num) => (
+                            SymbolName::EleNum(F64Represent::new(num.val)),
+                            member_symbol,
+                        ),
+                        StringLit(lit) => (SymbolName::Ele(lit.val), member_symbol),
+                    }
+                }
             }
         });
         let map = FxHashMap::from_iter(entires);
@@ -1290,12 +1322,55 @@ impl<'cx> TyChecker<'cx> {
         assert!(used.id.module() == decl.module());
         self.p
             .find_ancestor(used.id, |current| {
-                if current.id() == decl {
+                let current_id = current.id();
+                if current_id == decl {
                     return Some(false);
                 } else if current.is_fn_like() {
                     return Some(true);
                 } else if current.is_class_static_block_decl() {
                     return Some(self.p.node(decl).span().lo < used.span.lo);
+                }
+
+                let Some(parent_id) = self.p.parent(current_id) else {
+                    return None;
+                };
+                let parent_node = self.p.node(parent_id);
+                let Some(prop_decl) = parent_node.as_class_prop_ele() else {
+                    return None;
+                };
+
+                let init_of_prop = prop_decl
+                    .init
+                    .map(|init| init.id() == current_id)
+                    .unwrap_or_default();
+                if init_of_prop {
+                    if parent_node.is_static() {
+                        let n = self.p.node(decl);
+                        if n.is_class_method_ele() {
+                            return Some(true);
+                        } else if let Some(prop_decl) = n.as_class_prop_ele() {
+                            if let Some(usage_class) = self.p.get_containing_class(used.id) {
+                                if let Some(decl_class) = self.p.get_containing_class(decl) {
+                                    if usage_class == decl_class {
+                                        let prop_name = prop_decl.name;
+                                        todo!()
+                                    }
+                                }
+                            }
+                        }
+                    }
+                } else {
+                    let n = self.p.node(decl);
+                    let is_decl_instance_prop = n.is_class_prop_ele() && !n.is_static();
+                    if !is_decl_instance_prop {
+                        return Some(true);
+                    } else if let Some(usage_class) = self.p.get_containing_class(used.id) {
+                        if let Some(decl_class) = self.p.get_containing_class(decl) {
+                            if usage_class == decl_class {
+                                return Some(true);
+                            }
+                        }
+                    }
                 }
                 None
             })
@@ -1313,6 +1388,8 @@ impl<'cx> TyChecker<'cx> {
         if decl_pos < used_span.lo {
             return true;
         }
+
+        let decl_container = self.p.get_enclosing_blockscope_container(decl);
 
         if self.is_used_in_fn_or_instance_prop(used, decl) {
             return true;
