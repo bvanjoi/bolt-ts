@@ -3,3 +3,27 @@
  4 │ T
    · ─
    ╰────
+
+  × Static members cannot reference class type parameters.
+    ╭─[../../tests/cases/compiler/staticMethodsReferencingClassTypeParameters/index.ts:14:15]
+ 14 │ T
+    · ─
+    ╰────
+
+  × Static members cannot reference class type parameters.
+    ╭─[../../tests/cases/compiler/staticMethodsReferencingClassTypeParameters/index.ts:14:19]
+ 14 │ T
+    · ─
+    ╰────
+
+  × Static members cannot reference class type parameters.
+    ╭─[../../tests/cases/compiler/staticMethodsReferencingClassTypeParameters/index.ts:18:16]
+ 18 │ T
+    · ─
+    ╰────
+
+  × Static members cannot reference class type parameters.
+    ╭─[../../tests/cases/compiler/staticMethodsReferencingClassTypeParameters/index.ts:21:21]
+ 21 │ T
+    · ─
+    ╰────

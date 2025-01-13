@@ -386,6 +386,13 @@ impl ParserState<'_, '_> {
                         )
                     }
                 }
+                b'~' => {
+                    self.pos += 1;
+                    Token::new(
+                        TokenKind::Tilde,
+                        Span::new(start as u32, self.pos as u32, self.module_id),
+                    )
+                }
                 b'*' => {
                     if self.next_ch() == Some(b'*') {
                         // **

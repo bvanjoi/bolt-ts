@@ -21,7 +21,7 @@ pub(super) struct CannotFindName {
 pub(super) enum CannotFindNameHelperKind {
     #[error(transparent)]
     #[diagnostic(transparent)]
-    DidYouMeanTheStaticMember(DidYourMeanTheStaticMember),
+    DidYouMeanTheStaticMember(DidYouMeanTheStaticMember),
     #[error(transparent)]
     #[diagnostic(transparent)]
     AnInterfaceCannotExtendAPrimTy(AnInterfaceCannotExtendAPrimTy),
@@ -51,12 +51,13 @@ impl CannotFindNameHelperKind {
 }
 
 #[derive(Error, Diagnostic, DiagnosticExt, Debug)]
-#[error("Did you mean the static member '{name}'?")]
+#[error("Did you mean the static member '{class_name}.{prop_name}'?")]
 #[diagnostic(severity(Advice))]
-pub(super) struct DidYourMeanTheStaticMember {
+pub(super) struct DidYouMeanTheStaticMember {
     #[label(primary)]
     pub span: Span,
-    pub name: String,
+    pub class_name: String,
+    pub prop_name: String,
 }
 
 #[derive(Error, Diagnostic, DiagnosticExt, Debug)]

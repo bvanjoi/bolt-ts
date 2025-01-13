@@ -231,7 +231,7 @@ impl ObjectTyKind<'_> {
                 .get(checker.binder.symbol(i.symbol).name.expect_atom())
                 .to_string(),
             ObjectTyKind::Reference(refer) => refer.target.to_string(checker),
-            ObjectTyKind::SingleSigTy(single_sig_ty) => "single signature type".to_string(),
+            ObjectTyKind::SingleSigTy(_) => "single signature type".to_string(),
         }
     }
 }

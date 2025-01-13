@@ -1,12 +1,14 @@
 mod expr;
 mod node;
 mod node_flags;
+mod pprint;
 mod stmt;
 mod ty;
 
 pub mod visitor;
 
 pub use expr::*;
+pub use pprint::*;
 pub use stmt::*;
 pub use ty::*;
 pub use visitor::Visitor;

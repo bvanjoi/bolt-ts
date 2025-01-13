@@ -59,6 +59,7 @@ pub struct ModuleArena {
 }
 
 impl ModuleArena {
+    #[allow(clippy::new_without_default)]
     pub fn new() -> Self {
         let cap = 1024 * 8;
         Self {

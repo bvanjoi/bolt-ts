@@ -39,9 +39,60 @@ impl<'cx> ParserState<'cx, '_> {
             Break => ast::StmtKind::Break(self.parse_break_or_continue(&ParseBreak)?),
             Continue => ast::StmtKind::Continue(self.parse_break_or_continue(&ParseContinue)?),
             Try => ast::StmtKind::Try(self.parse_try_stmt()?),
+            While => ast::StmtKind::While(self.parse_while_stmt()?),
+            Do => ast::StmtKind::Do(self.parse_do_stmt()?),
             _ => ast::StmtKind::Expr(self.parse_expr_or_labeled_stmt()?),
         };
         let stmt = self.alloc(ast::Stmt { kind });
+        Ok(stmt)
+    }
+
+    fn parse_do_stmt(&mut self) -> PResult<&'cx ast::DoStmt<'cx>> {
+        let id = self.next_node_id();
+        let start = self.token.start();
+        self.expect(TokenKind::Do)?;
+        let stmt = self.parse_stmt()?;
+        self.expect(TokenKind::While)?;
+        let open_pos = self.token.start() as usize;
+        let open_parsed = self.expect(TokenKind::LParen).is_ok();
+        let expr = self.parse_expr()?;
+        self.parse_expected_matching_brackets(
+            TokenKind::LParen,
+            TokenKind::RParen,
+            open_parsed,
+            open_pos,
+        )?;
+        self.parse_optional(TokenKind::Semi);
+        let stmt = self.alloc(ast::DoStmt {
+            id,
+            span: self.new_span(start),
+            stmt,
+            expr,
+        });
+        self.insert_map(id, ast::Node::DoStmt(stmt));
+        Ok(stmt)
+    }
+
+    fn parse_while_stmt(&mut self) -> PResult<&'cx ast::WhileStmt<'cx>> {
+        let id = self.next_node_id();
+        let start = self.token.start();
+        self.expect(TokenKind::While)?;
+        let open_parsed = self.expect(TokenKind::LParen).is_ok();
+        let expr = self.allow_in_and(Self::parse_expr)?;
+        self.parse_expected_matching_brackets(
+            TokenKind::LParen,
+            TokenKind::RParen,
+            open_parsed,
+            start as usize,
+        )?;
+        let stmt = self.parse_stmt()?;
+        let stmt = self.alloc(ast::WhileStmt {
+            id,
+            span: self.new_span(start),
+            expr,
+            stmt,
+        });
+        self.insert_map(id, ast::Node::WhileStmt(stmt));
         Ok(stmt)
     }
 

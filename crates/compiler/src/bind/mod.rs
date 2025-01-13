@@ -161,7 +161,7 @@ pub fn bind_parallel<'cx>(
             let module_id = m.id;
             let is_global = m.global;
             let root = parser.root(module_id);
-            let bind_result = bind(&atoms, parser, root, module_id);
+            let bind_result = bind(atoms, parser, root, module_id);
             assert!(!is_global || bind_result.diags.is_empty());
             bind_result
         })

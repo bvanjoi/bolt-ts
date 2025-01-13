@@ -45,7 +45,7 @@ impl<'cx> BinderState<'cx> {
         else {
             unreachable!()
         };
-        if ele_modifiers.map_or(false, |mods| mods.flags.contains(ModifierKind::Static)) {
+        if ele_modifiers.is_some_and(|mods| mods.flags.contains(ModifierKind::Static)) {
             exports.insert(ele_name, symbol);
         } else {
             members.insert(ele_name, symbol);
@@ -59,6 +59,7 @@ impl<'cx> BinderState<'cx> {
             ctor,
             SymbolName::Constructor,
             super::SymbolFnKind::Ctor,
+            false,
         );
         for param in ctor.params {
             self.bind_param(param);
@@ -86,11 +87,15 @@ impl<'cx> BinderState<'cx> {
         container: ast::NodeID,
         ele: &'cx ast::ClassMethodEle<'cx>,
     ) {
+        let is_static = ele
+            .modifiers
+            .is_some_and(|ms| ms.flags.contains(ModifierKind::Static));
         self.create_fn_decl_like_symbol(
             container,
             ele,
             prop_name(ele.name),
             super::SymbolFnKind::Method,
+            is_static,
         );
         if let Some(ty_params) = ele.ty_params {
             self.bind_ty_params(ty_params);

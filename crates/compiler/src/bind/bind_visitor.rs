@@ -90,8 +90,8 @@ impl<'cx> BinderState<'cx> {
             Throw(t) => {
                 self.bind_expr(t.expr);
             }
-            Enum(enum_decl) => {}
-            Import(import_dec) => {}
+            Enum(_) => {}
+            Import(_) => {}
             Export(decl) => self.bind_export_decl(container, decl),
             For(n) => {
                 if let Some(init) = &n.init {
@@ -119,6 +119,8 @@ impl<'cx> BinderState<'cx> {
             Try(n) => {
                 self.bind_try_stmt(container, n);
             }
+            While(n) => {}
+            Do(n) => {}
         }
     }
 
@@ -226,7 +228,7 @@ impl<'cx> BinderState<'cx> {
                 return;
             }
         };
-        let flags = if ns.block.map_or(false, |block| block.stmts.is_empty()) {
+        let flags = if ns.block.is_some_and(|block| block.stmts.is_empty()) {
             SymbolFlags::NAMESPACE_MODULE
         } else {
             SymbolFlags::VALUE_MODULE
@@ -356,7 +358,7 @@ impl<'cx> BinderState<'cx> {
                 }
 
                 let name = prop_name(m.name);
-                self.create_fn_decl_like_symbol(container, m, name, SymbolFnKind::Method);
+                self.create_fn_decl_like_symbol(container, m, name, SymbolFnKind::Method, false);
                 self.scope_id = old;
             }
             CallSig(call) => {
@@ -372,7 +374,7 @@ impl<'cx> BinderState<'cx> {
                 }
 
                 let name = SymbolName::Call;
-                self.create_fn_decl_like_symbol(container, call, name, SymbolFnKind::Call);
+                self.create_fn_decl_like_symbol(container, call, name, SymbolFnKind::Call, false);
                 self.scope_id = old;
             }
             IndexSig(index) => {
@@ -393,6 +395,7 @@ impl<'cx> BinderState<'cx> {
                     decl,
                     SymbolName::Constructor,
                     SymbolFnKind::Ctor,
+                    false,
                 );
                 self.scope_id = old;
             }
@@ -467,6 +470,7 @@ impl<'cx> BinderState<'cx> {
             Fn(f) => self.bind_fn_expr(f),
             Class(class) => self.bind_class_like(class, true),
             PrefixUnary(unary) => self.bind_expr(unary.expr),
+            PostfixUnary(unary) => self.bind_expr(unary.expr),
             PropAccess(node) => {
                 self.bind_expr(node.expr);
             }

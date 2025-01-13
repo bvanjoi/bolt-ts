@@ -101,10 +101,8 @@ impl<'cx, 'r> Resolver<'cx, 'r> {
             .get(symbol_id)
     }
 
-    fn push_error(&mut self,  diag: crate::Diag) {
-        self.diags.push(bolt_ts_errors::Diag {
-            inner: diag,
-        })
+    fn push_error(&mut self, diag: crate::Diag) {
+        self.diags.push(bolt_ts_errors::Diag { inner: diag })
     }
 
     fn container(&self, m: ModuleRes) -> &BlockContainerSymbol {
@@ -155,17 +153,17 @@ impl<'cx, 'r> ast::Visitor<'cx> for Resolver<'cx, 'r> {
                                                 .span;
                                             helper.push(
                                                 errors::ModuleADeclaresBLocallyButItIsExportedAsCHelperKind::NameIsDeclaredHere(
-                                                    errors::NameIsDeclaredHere { 
+                                                    errors::NameIsDeclaredHere {
                                                         span: symbol_span,
-                                                        name: symbol_name.to_string() 
+                                                        name: symbol_name.to_string()
                                                     }
                                                 ));
                                         }
                                         helper.push(
                                             errors::ModuleADeclaresBLocallyButItIsExportedAsCHelperKind::ExportedAliasHere(
-                                                errors::ExportedAliasHere { 
-                                                    span: self.p.node(self.symbol_decl(*export)).span(), 
-                                                    name: self.atoms.get(alias_symbol.target.expect_atom()).to_string() 
+                                                errors::ExportedAliasHere {
+                                                    span: self.p.node(self.symbol_decl(*export)).span(),
+                                                    name: self.atoms.get(alias_symbol.target.expect_atom()).to_string()
                                                 }
                                             )
                                         );
@@ -181,7 +179,7 @@ impl<'cx, 'r> ast::Visitor<'cx> for Resolver<'cx, 'r> {
                                                     .to_string(),
                                                 related: helper,
                                             };
-                                        self.push_error( Box::new(error));
+                                        self.push_error(Box::new(error));
                                     } else if let Some(local) =
                                         self.container(dep).locals.get(&name).copied()
                                     {
@@ -201,7 +199,7 @@ impl<'cx, 'r> ast::Visitor<'cx> for Resolver<'cx, 'r> {
                                                     name: symbol_name.to_string(),
                                                 }],
                                             };
-                                        self.push_error( Box::new(error));
+                                        self.push_error(Box::new(error));
                                     }
                                 }
                             }

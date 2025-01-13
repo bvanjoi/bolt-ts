@@ -1,4 +1,5 @@
-use crate::bind::SymbolID;
+use crate::bind::{SymbolID, SymbolName};
+use rustc_hash::FxHashMap;
 
 use super::ty;
 
@@ -49,4 +50,5 @@ links!(
     (check_flags, ty::CheckFlags),
     (target, SymbolID),
     (ty_mapper, &'cx ty::TyMapper<'cx>),
+    (resolved_members, &'cx FxHashMap<SymbolName, SymbolID>),
 );

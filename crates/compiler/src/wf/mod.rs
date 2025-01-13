@@ -3,7 +3,7 @@ mod errors;
 use bolt_ts_atom::AtomMap;
 use bolt_ts_span::ModuleID;
 
-use crate::ast::{self, visitor};
+use crate::ast::{self, pprint_ident, visitor};
 use crate::ir;
 use crate::keyword::is_reserved_type_name;
 use crate::parser::Parser;
@@ -54,7 +54,7 @@ impl<'cx> CheckState<'cx> {
         if self.p.node(node).is_class_like() && is_reserved_type_name(name.name) {
             let error = errors::ClassNameCannotBe {
                 span: name.span,
-                name: self.atoms.get(name.name).to_string(),
+                name: pprint_ident(name, self.atoms),
             };
             self.push_error(Box::new(error));
         }

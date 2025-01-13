@@ -265,7 +265,7 @@ interface String {
   // /** Returns the primitive value of the specified object. */
   // valueOf(): string;
 
-  // readonly [index: number]: string;
+  readonly [index: number]: string;
 }
 
 interface StringConstructor {
@@ -842,3 +842,10 @@ interface DateConstructor {
 }
 
 declare var Date: DateConstructor;
+
+/**
+ * Construct a type with a set of properties K of type T
+ */
+type Record<K extends keyof any, T> = {
+  [P in K]: T;
+};

@@ -28,7 +28,33 @@ impl<'cx> Emit<'cx> {
             Break(n) => self.emit_break_stmt(n),
             Continue(n) => self.emit_continue_stmt(n),
             Try(n) => self.emit_try_stmt(n),
+            While(n) => self.emit_while_stmt(n),
+            Do(n) => self.emit_do_stmt(n),
         }
+    }
+
+    fn emit_while_stmt(&mut self, n: &'cx ast::WhileStmt<'cx>) {
+        self.content.p("while");
+        self.content.p_whitespace();
+
+        self.content.p_l_paren();
+        self.emit_expr(n.expr);
+        self.content.p_r_paren();
+
+        self.content.p_whitespace();
+        self.emit_stmt(n.stmt);
+    }
+
+    fn emit_do_stmt(&mut self, n: &'cx ast::DoStmt<'cx>) {
+        self.content.p("do");
+        self.content.p_whitespace();
+        self.emit_stmt(n.stmt);
+        self.content.p_whitespace();
+        self.content.p("while");
+        self.content.p_whitespace();
+        self.content.p_l_paren();
+        self.emit_expr(n.expr);
+        self.content.p_r_paren();
     }
 
     fn emit_try_stmt(&mut self, n: &'cx ast::TryStmt<'cx>) {
@@ -139,7 +165,7 @@ impl<'cx> Emit<'cx> {
         self.content.p_whitespace();
         self.content.p("of");
         self.content.p_whitespace();
-        self.emit_expr(&n.expr);
+        self.emit_expr(n.expr);
         self.content.p(")");
         self.content.p_whitespace();
         self.emit_stmt(n.body);
@@ -294,8 +320,8 @@ impl<'cx> Emit<'cx> {
                 this.content.p_l_bracket();
                 match member.name.kind {
                     ast::PropNameKind::Ident(ident) => this.emit_as_string(ident.name),
-                    ast::PropNameKind::StringLit(lit) => todo!(),
-                    ast::PropNameKind::NumLit(lit) => todo!(),
+                    ast::PropNameKind::StringLit(_) => todo!(),
+                    ast::PropNameKind::NumLit(_) => todo!(),
                 }
                 this.content.p_r_bracket();
                 this.content.p_whitespace();
@@ -314,8 +340,8 @@ impl<'cx> Emit<'cx> {
                 this.content.p_whitespace();
                 match member.name.kind {
                     ast::PropNameKind::Ident(ident) => this.emit_as_string(ident.name),
-                    ast::PropNameKind::StringLit(lit) => todo!(),
-                    ast::PropNameKind::NumLit(lit) => todo!(),
+                    ast::PropNameKind::StringLit(_) => todo!(),
+                    ast::PropNameKind::NumLit(_) => todo!(),
                 }
             }
         })
@@ -398,7 +424,7 @@ impl<'cx> Emit<'cx> {
 
         let ident = match ns.name {
             ast::ModuleName::Ident(ident) => ident,
-            ast::ModuleName::StringLit(lit) => unreachable!(),
+            ast::ModuleName::StringLit(_) => unreachable!(),
         };
         let mut param_name = Cow::Borrowed(self.atoms.get(ident.name));
         if let Some(i) = sub_names.iter().position(|sub| *sub == param_name) {

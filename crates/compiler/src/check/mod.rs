@@ -48,7 +48,7 @@ use self::node_links::NodeLinks;
 pub use self::resolve::ExpectedArgsCount;
 pub use self::symbol_links::SymbolLinks;
 
-use crate::ast::{BinOp, NodeID};
+use crate::ast::{pprint_ident, BinOp, NodeID};
 use crate::bind::{self, GlobalSymbols, Symbol, SymbolFlags, SymbolID, SymbolName};
 use crate::parser::{AssignmentKind, Parser};
 use crate::ty::{
@@ -176,7 +176,7 @@ macro_rules! intrinsic_type {
 intrinsic_type!(
     (any_ty, keyword::IDENT_ANY, TyKind::Any),
     (error_ty, keyword::IDENT_ERROR, TyKind::Any),
-    (void_ty, keyword::IDENT_VOID, TyKind::Void),
+    (void_ty, keyword::KW_VOID, TyKind::Void),
     (undefined_ty, keyword::IDENT_UNDEFINED, TyKind::Undefined),
     (null_ty, keyword::KW_NULL, TyKind::Null),
     (true_ty, keyword::KW_TRUE, TyKind::TrueLit),
@@ -415,15 +415,17 @@ impl<'cx> TyChecker<'cx> {
             Empty(_) => {}
             Type(_) => {}
             Throw(_) => {}
-            Enum(enum_decl) => {}
-            Import(import_decl) => {}
-            Export(export_decl) => {}
-            For(for_stmt) => {}
-            ForOf(for_of_stmt) => {}
-            ForIn(for_in_stmt) => {}
-            Break(break_stmt) => {}
-            Continue(continue_stmt) => {}
-            Try(try_stmt) => {}
+            Enum(_) => {}
+            Import(_) => {}
+            Export(_) => {}
+            For(_) => {}
+            ForOf(_) => {}
+            ForIn(_) => {}
+            Break(_) => {}
+            Continue(_) => {}
+            Try(_) => {}
+            While(_) => {}
+            Do(_) => {}
         };
     }
 
@@ -505,14 +507,14 @@ impl<'cx> TyChecker<'cx> {
                 let prop_name = match prop_name.kind {
                     ast::PropNameKind::Ident(ident) => self.atoms.get(ident.name).to_string(),
                     ast::PropNameKind::NumLit(num) => num.val.to_string(),
-                    ast::PropNameKind::StringLit(lit) => self.atoms.get(lit.val).to_string(),
+                    ast::PropNameKind::StringLit(lit) => format!("\"{}\"", self.atoms.get(lit.val)),
                 };
                 let error = errors::PropertyAOfTypeBIsNotAssignableToCIndexTypeD {
                     span: prop_node.span(),
                     prop: prop_name,
-                    ty_b: prop_ty.to_string(self),
-                    ty_c: index_info.key_ty.to_string(self),
-                    index_ty_d: index_info.val_ty.to_string(self),
+                    ty_b: self.print_ty(prop_ty).to_string(),
+                    ty_c: self.print_ty(index_info.key_ty).to_string(),
+                    index_ty_d: self.print_ty(index_info.val_ty).to_string(),
                 };
                 self.push_error(Box::new(error));
                 return;
@@ -933,7 +935,8 @@ impl<'cx> TyChecker<'cx> {
             Fn(f) => self.check_fn_like_expr(f),
             ArrowFn(f) => self.check_fn_like_expr(f),
             Assign(assign) => self.check_assign_expr(assign),
-            PrefixUnary(prefix) => self.check_prefix_unary_expr(prefix),
+            PrefixUnary(unary) => self.check_prefix_unary_expr(unary),
+            PostfixUnary(unary) => self.check_postfix_unary_expr(unary),
             Class(class) => {
                 self.check_class_decl_like(class);
                 self.undefined_ty()
@@ -942,6 +945,10 @@ impl<'cx> TyChecker<'cx> {
             Typeof(n) => {
                 self.check_expr(n.expr);
                 self.typeof_ty()
+            }
+            Void(n) => {
+                self.check_expr(n.expr);
+                self.undefined_ty()
             }
             EleAccess(node) => self.check_ele_access(node),
             This(n) => self.check_this_expr(n),
@@ -1083,6 +1090,46 @@ impl<'cx> TyChecker<'cx> {
         self.get_indexed_access_ty(object_ty, index_ty, Some(access_flags), Some(node.id))
     }
 
+    fn type_has_static_prop(
+        &mut self,
+        prop_node: &'cx ast::Ident,
+        containing_ty: &'cx ty::Ty<'cx>,
+    ) -> bool {
+        let Some(symbol) = containing_ty.symbol() else {
+            return false;
+        };
+        let ty = self.get_type_of_symbol(symbol);
+        let name = SymbolName::Ele(prop_node.name);
+        let Some(prop) = self.get_prop_of_ty(ty, name) else {
+            return false;
+        };
+        let decl = prop.decl(self.binder);
+        self.p.node(decl).is_static()
+    }
+
+    fn report_non_existent_prop(
+        &mut self,
+        prop_node: &'cx ast::Ident,
+        containing_ty: &'cx ty::Ty<'cx>,
+    ) {
+        if self.type_has_static_prop(prop_node, containing_ty) {
+            let mut error = errors::PropertyXDoesNotExistOnTypeY {
+                span: prop_node.span,
+                prop: pprint_ident(prop_node, self.atoms),
+                ty: self.print_ty(containing_ty).to_string(),
+                related: vec![],
+            };
+            error.related.push(errors::PropertyXDoesNotExistOnTypeYHelperKind::DidYourMeanToAccessTheStaticMemberInstead(
+                errors::DidYourMeanToAccessTheStaticMemberInstead {
+                    span: prop_node.span,
+                    class_name: self.print_ty(containing_ty).to_string(),
+                    prop_name: pprint_ident(prop_node, self.atoms),
+                }),
+            );
+            self.push_error(Box::new(error));
+        }
+    }
+
     fn check_prop_access_expr(&mut self, node: &'cx ast::PropAccessExpr<'cx>) -> &'cx ty::Ty<'cx> {
         let left = self.check_expr(node.expr);
 
@@ -1092,10 +1139,12 @@ impl<'cx> TyChecker<'cx> {
             return self.error_ty();
         }
 
-        let Some(symbol) = self.get_prop_of_ty(left, SymbolName::Ele(node.name.name)) else {
-            return self.undefined_ty();
+        let Some(prop) = self.get_prop_of_ty(left, SymbolName::Ele(node.name.name)) else {
+            self.report_non_existent_prop(node.name, left);
+            return self.error_ty();
         };
-        let ty = self.get_type_of_symbol(symbol);
+
+        let ty = self.get_type_of_symbol(prop);
         ty
     }
 
@@ -1148,9 +1197,19 @@ impl<'cx> TyChecker<'cx> {
                     };
                     self.get_number_literal_type(val)
                 }
+                ast::PrefixUnaryOp::Tilde => self.number_ty(),
             },
             _ => self.undefined_ty(),
         }
+    }
+
+    fn check_postfix_unary_expr(
+        &mut self,
+        expr: &'cx ast::PostfixUnaryExpr<'cx>,
+    ) -> &'cx ty::Ty<'cx> {
+        let op_ty = self.check_expr(expr.expr);
+        // self.check_arithmetic_op_ty(op_ty, push_error);
+        op_ty
     }
 
     fn check_arithmetic_op_ty(

@@ -133,7 +133,7 @@ impl<'cx> TyChecker<'cx> {
                     self.string_ty()
                 } else if ident.name == keyword::IDENT_ANY {
                     self.any_ty()
-                } else if ident.name == keyword::IDENT_VOID {
+                } else if ident.name == keyword::KW_VOID {
                     self.void_ty()
                 } else {
                     let symbol = self.resolve_ty_refer_name(ident);

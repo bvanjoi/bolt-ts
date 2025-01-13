@@ -610,10 +610,12 @@ impl<'cx> ParserState<'cx, '_> {
         ty
     }
 
-    fn parse_prop_or_method_sig(&mut self) -> PResult<&'cx ast::ObjectTyMember<'cx>> {
-        let id = self.next_node_id();
-        let start = self.token.start();
-        let modifiers = self.parse_modifiers(false)?;
+    fn parse_prop_or_method_sig(
+        &mut self,
+        id: ast::NodeID,
+        start: u32,
+        modifiers: Option<&'cx ast::Modifiers<'cx>>,
+    ) -> PResult<&'cx ast::ObjectTyMember<'cx>> {
         let name = self.with_parent(id, Self::parse_prop_name)?;
         let question = self.parse_optional(TokenKind::Question).map(|t| t.span);
         let kind = if matches!(self.token.kind, TokenKind::LParen | TokenKind::Less) {
@@ -688,19 +690,22 @@ impl<'cx> ParserState<'cx, '_> {
 
     fn parse_ty_member(&mut self) -> PResult<&'cx ast::ObjectTyMember<'cx>> {
         if self.token.kind == TokenKind::LParen || self.token.kind == TokenKind::Less {
-            self.parse_sig_member(true)
+            return self.parse_sig_member(true);
         } else if self.token.kind == TokenKind::New {
-            self.parse_sig_member(false)
-        } else if self.is_index_sig() {
-            let id = self.next_node_id();
-            let start = self.token.start() as usize;
-            let modifiers = self.parse_modifiers(false)?;
-            let decl = self.parse_index_sig_decl(id, start, None)?;
+            return self.parse_sig_member(false);
+        }
+
+        let start = self.token.start() as usize;
+        let id = self.next_node_id();
+        let modifiers = self.parse_modifiers(false)?;
+
+        if self.is_index_sig() {
+            let decl = self.parse_index_sig_decl(id, start, modifiers)?;
             Ok(self.alloc(ast::ObjectTyMember {
                 kind: ast::ObjectTyMemberKind::IndexSig(decl),
             }))
         } else {
-            self.parse_prop_or_method_sig()
+            self.parse_prop_or_method_sig(id, start as u32, modifiers)
         }
     }
 

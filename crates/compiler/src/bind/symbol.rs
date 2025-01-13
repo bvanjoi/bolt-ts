@@ -370,6 +370,7 @@ impl SymbolID {
             }
             SymbolKind::TyLit(ty_lit) => ty_lit.decl,
             SymbolKind::Alias(alias) => alias.decl,
+            SymbolKind::Fn(f) => f.decls[0],
             _ => unreachable!("{:#?}", binder.symbol(*self).flags),
         }
     }

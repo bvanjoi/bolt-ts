@@ -197,7 +197,7 @@ impl Ty<'_> {
             TyKind::Boolean => keyword::IDENT_BOOLEAN_STR.to_string(),
             TyKind::TrueLit => keyword::KW_TRUE_STR.to_string(),
             TyKind::FalseLit => keyword::KW_FALSE_STR.to_string(),
-            TyKind::Void => keyword::IDENT_VOID_STR.to_string(),
+            TyKind::Void => keyword::KW_VOID_STR.to_string(),
             TyKind::Undefined => keyword::IDENT_UNDEFINED_STR.to_string(),
             TyKind::Null => keyword::KW_NULL_STR.to_string(),
             TyKind::NonPrimitive => keyword::IDENT_OBJECT_STR.to_string(),

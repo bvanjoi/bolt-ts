@@ -29,8 +29,7 @@ pub fn early_resolve_parallel<'cx>(
 ) -> Vec<EarlyResolveResult> {
     modules
         .into_par_iter()
-        .enumerate()
-        .map(|(idx, m)| {
+        .map(|m| {
             let module_id = m.id;
             let root = p.root(module_id);
             early_resolve(states, module_id, root, p, global, atoms)
@@ -131,6 +130,8 @@ impl<'cx> Resolver<'cx, '_> {
                 }
             }
             Try(n) => {}
+            While(n) => {}
+            Do(n) => {}
         };
     }
 
@@ -354,6 +355,7 @@ impl<'cx> Resolver<'cx, '_> {
             }
             Class(class) => self.resolve_class_like(class),
             PrefixUnary(unary) => self.resolve_expr(unary.expr),
+            PostfixUnary(unary) => self.resolve_expr(unary.expr),
             PropAccess(node) => {
                 self.resolve_expr(node.expr);
             }

@@ -14,5 +14,4 @@ function f4(): string {
 function f5(): string {
     return '';
     return undefined;
-//~^ ERROR: Type 'undefined' is not assignable to type 'string'.
 }

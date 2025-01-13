@@ -12,26 +12,34 @@ impl<'cx> BinderState<'cx> {
         decl: &impl ir::FnDeclLike<'cx>,
         ele_name: super::SymbolName,
         ele_fn_kind: super::SymbolFnKind,
+        is_export: bool,
     ) -> super::SymbolID {
         let container = self.final_res[&container];
 
         fn members<'a>(
             container: &'a mut Symbol<'_>,
+            is_export: bool,
         ) -> &'a mut FxHashMap<super::SymbolName, super::SymbolID> {
             if let Some(i) = &mut container.kind.1 {
                 return &mut i.members;
             }
             let s = &mut container.kind.0;
             if let SymbolKind::Class(c) = s {
-                &mut c.members
+                if is_export {
+                    &mut c.exports
+                } else {
+                    &mut c.members
+                }
             } else if let SymbolKind::BlockContainer(c) = s {
                 &mut c.locals
+            } else if let SymbolKind::Object(obj) = s {
+                &mut obj.members
             } else {
                 unreachable!("{:#?}", s)
             }
         }
 
-        if let Some(s) = members(self.symbols.get_mut(container))
+        if let Some(s) = members(self.symbols.get_mut(container), is_export)
             .get(&ele_name)
             .copied()
         {
@@ -57,7 +65,7 @@ impl<'cx> BinderState<'cx> {
                 SymbolFlags::empty(),
             );
             self.create_final_res(decl.id(), symbol);
-            let prev = members(self.symbols.get_mut(container)).insert(ele_name, symbol);
+            let prev = members(self.symbols.get_mut(container), is_export).insert(ele_name, symbol);
             assert!(prev.is_none());
             symbol
         }

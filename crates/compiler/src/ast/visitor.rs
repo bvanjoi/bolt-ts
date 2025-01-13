@@ -28,6 +28,8 @@ pub fn visit_stmt<'cx>(v: &mut impl Visitor<'cx>, stmt: &'cx super::Stmt) {
         Break(_) => (),
         Continue(_) => {}
         Try(_) => {}
+        While(_) => {}
+        Do(_) => {}
     }
 }
 

@@ -1,0 +1,12 @@
+  × Property 'Foo' does not exist on type 'List'.
+   ╭─[../../tests/cases/compiler/staticOffOfInstance1/index.ts:5:10]
+ 5 │ Foo
+   · ───
+   ╰────
+
+Advice: 
+  ☞ Did you mean to access the static member 'List.Foo' instead?
+   ╭─[../../tests/cases/compiler/staticOffOfInstance1/index.ts:5:10]
+ 5 │ Foo
+   · ───
+   ╰────

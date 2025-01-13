@@ -14,7 +14,7 @@ impl<'cx> ParserState<'cx, '_> {
     fn is_update_expr(&self) -> bool {
         use TokenKind::*;
         match self.token.kind {
-            Plus | Minus | Typeof => false,
+            Plus | Minus | Tilde | Excl | Typeof | Void | Await => false,
             Less => {
                 // TODO: is jsx
                 true
@@ -242,10 +242,28 @@ impl<'cx> ParserState<'cx, '_> {
     fn parse_simple_unary_expr(&mut self) -> PResult<&'cx ast::Expr<'cx>> {
         use TokenKind::*;
         match self.token.kind {
-            Plus | Minus => self.parse_prefix_unary_expr(),
+            Plus | Minus | Tilde | Excl => self.parse_prefix_unary_expr(),
             Typeof => self.parse_typeof_expr(),
+            Void => self.parse_void_expr(),
             _ => self.parse_update_expr(),
         }
+    }
+
+    fn parse_void_expr(&mut self) -> PResult<&'cx ast::Expr<'cx>> {
+        let start = self.token.start();
+        let id = self.next_node_id();
+        self.expect(TokenKind::Void)?;
+        let expr = self.parse_expr()?;
+        let expr = self.alloc(ast::VoidExpr {
+            id,
+            span: self.new_span(start),
+            expr,
+        });
+        self.insert_map(id, ast::Node::VoidExpr(expr));
+        let expr = self.alloc(ast::Expr {
+            kind: ast::ExprKind::Void(expr),
+        });
+        Ok(expr)
     }
 
     fn parse_typeof_expr(&mut self) -> PResult<&'cx ast::Expr<'cx>> {
@@ -284,9 +302,35 @@ impl<'cx> ParserState<'cx, '_> {
             });
             Ok(expr)
         } else {
-            let expr = self.parse_left_hand_side_expr();
-            self.parse_call_expr(start as usize, expr)
+            let expr = self.parse_left_hand_side_expr_or_higher()?;
+            // assert!(is_left_hand_side_expr_kind(expr));
+            if matches!(self.token.kind, TokenKind::PlusPlus | TokenKind::MinusMinus)
+                && !self.has_preceding_line_break()
+            {
+                let id = self.next_node_id();
+                let op = self.token.kind.into();
+                self.next_token();
+                let unary = self.alloc(ast::PostfixUnaryExpr {
+                    id,
+                    span: self.new_span(start),
+                    op,
+                    expr,
+                });
+                self.insert_map(id, ast::Node::PostfixUnaryExpr(unary));
+                let expr = self.alloc(ast::Expr {
+                    kind: ast::ExprKind::PostfixUnary(unary),
+                });
+                Ok(expr)
+            } else {
+                Ok(expr)
+            }
         }
+    }
+
+    fn parse_left_hand_side_expr_or_higher(&mut self) -> PResult<&'cx ast::Expr<'cx>> {
+        let start = self.token.start();
+        let expr = self.parse_left_hand_side_expr();
+        self.parse_call_expr(start as usize, expr)
     }
 
     fn parse_call_expr(

@@ -47,7 +47,7 @@ impl miette::Diagnostic for DiagConstructor {
             Box::new(
                 related
                     .iter()
-                    .map(|related| -> &(dyn miette::Diagnostic) { &*related.borrow() }),
+                    .map(|related| -> &(dyn miette::Diagnostic) { related.borrow() }),
             ) as Box<dyn Iterator<Item = &'a dyn miette::Diagnostic> + 'a>
         })
     }

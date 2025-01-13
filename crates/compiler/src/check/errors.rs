@@ -239,3 +239,31 @@ pub(super) struct IndexSignaturesAreIncompatible {
     pub span: Span,
     pub ty: String,
 }
+
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
+#[error("Property '{prop}' does not exist on type '{ty}'.")]
+pub(super) struct PropertyXDoesNotExistOnTypeY {
+    #[label(primary)]
+    pub span: Span,
+    pub prop: String,
+    pub ty: String,
+    #[related]
+    pub related: Vec<PropertyXDoesNotExistOnTypeYHelperKind>,
+}
+
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
+pub(super) enum PropertyXDoesNotExistOnTypeYHelperKind {
+    #[error(transparent)]
+    #[diagnostic(transparent)]
+    DidYourMeanToAccessTheStaticMemberInstead(DidYourMeanToAccessTheStaticMemberInstead),
+}
+
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
+#[error("Did you mean to access the static member '{class_name}.{prop_name}' instead?")]
+#[diagnostic(severity(Advice))]
+pub(super) struct DidYourMeanToAccessTheStaticMemberInstead {
+    #[label(primary)]
+    pub span: Span,
+    pub class_name: String,
+    pub prop_name: String,
+}

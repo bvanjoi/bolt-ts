@@ -143,10 +143,7 @@ impl<'cx> TyChecker<'cx> {
 
     pub(super) fn get_contextual_sig(&mut self, id: ast::NodeID) -> Option<&'cx ty::Sig<'cx>> {
         assert!(!self.p.node(id).is_class_method_ele());
-        let Some(ty) = self.get_apparent_ty_of_contextual_ty(id, Some(ContextFlags::Signature))
-        else {
-            return None;
-        };
+        let ty = self.get_apparent_ty_of_contextual_ty(id, Some(ContextFlags::Signature))?;
 
         if !ty.kind.is_union() {
             return self.get_contextual_call_sig(ty, id);

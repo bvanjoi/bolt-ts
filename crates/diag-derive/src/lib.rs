@@ -38,7 +38,7 @@ impl DiagnosticExt {
         match input.data {
             syn::Data::Struct(_) => {
                 let primary_field_name = find_field_satisfy_attr(&input, |attr| {
-                    attr.meta.require_list().map_or(false, |list| {
+                    attr.meta.require_list().is_ok_and(|list| {
                         list.path.is_ident("label") && list.tokens.to_string() == "primary"
                     })
                 })

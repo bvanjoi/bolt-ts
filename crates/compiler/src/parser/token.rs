@@ -141,6 +141,8 @@ pub enum TokenKind {
     LBrace = 0x7B,
     /// `}`
     RBrace = 0x7D,
+    /// `~`
+    Tilde = 0x7E,
     // =====
     // keyword
     Null,
@@ -178,9 +180,14 @@ pub enum TokenKind {
     Yield,
     For,
     Of,
+    While,
+    Do,
+    Switch,
+    Case,
     Break,
     Continue,
     Instanceof,
+    Void,
     In,
     // ts keyword
     Implements,
@@ -348,6 +355,19 @@ impl From<TokenKind> for ast::BinOpKind {
     }
 }
 
+impl From<TokenKind> for ast::PostfixUnaryOp {
+    fn from(value: TokenKind) -> Self {
+        use ast::PostfixUnaryOp::*;
+        match value {
+            TokenKind::PlusPlus => PlusPlus,
+            TokenKind::MinusMinus => MinusMinus,
+            _ => {
+                unreachable!("{:#?}", value)
+            }
+        }
+    }
+}
+
 impl From<TokenKind> for ast::PrefixUnaryOp {
     fn from(value: TokenKind) -> Self {
         use ast::PrefixUnaryOp::*;
@@ -356,6 +376,7 @@ impl From<TokenKind> for ast::PrefixUnaryOp {
             TokenKind::Minus => Minus,
             TokenKind::PlusPlus => PlusPlus,
             TokenKind::MinusMinus => MinusMinus,
+            TokenKind::Tilde => Tilde,
             _ => {
                 unreachable!("{:#?}", value)
             }

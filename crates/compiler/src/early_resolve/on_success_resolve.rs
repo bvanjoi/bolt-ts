@@ -38,28 +38,25 @@ impl<'cx> Resolver<'cx, '_> {
     ) -> Option<errors::StaticMembersCannotReferenceClassTypeParameters> {
         let symbol = self.symbol(symbol);
         if symbol.flags != SymbolFlags::TYPE_PARAMETER {
-            return None;
-        };
-
-        if self
+            None
+        } else if self
             .p
             .node(self.p.parent(symbol.expect_ty_param().decl).unwrap())
             .is_class_like()
-        {
-            if self
+            && self
                 .p
                 .find_ancestor(
                     ident.id,
                     |node| if node.is_static() { Some(true) } else { None },
                 )
                 .is_some()
-            {
-                let error =
-                    errors::StaticMembersCannotReferenceClassTypeParameters { span: ident.span };
-                return Some(error);
-            }
+        {
+            let error =
+                errors::StaticMembersCannotReferenceClassTypeParameters { span: ident.span };
+            Some(error)
+        } else {
+            None
         }
-        None
     }
 
     pub(super) fn on_success_resolved_value_symbol(

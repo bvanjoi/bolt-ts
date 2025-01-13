@@ -46,6 +46,10 @@ impl<'cx> Emit<'cx> {
                 };
                 self.emit_expr(unary.expr);
             }
+            PostfixUnary(unary) => {
+                self.emit_expr(unary.expr);
+                self.content.p(unary.op.as_str());
+            }
             Class(class) => self.emit_class_like(class),
             PropAccess(prop) => {
                 self.emit_expr(prop.expr);
@@ -63,6 +67,11 @@ impl<'cx> Emit<'cx> {
             }
             Typeof(n) => {
                 self.content.p("typeof");
+                self.content.p_whitespace();
+                self.emit_expr(n.expr);
+            }
+            Void(n) => {
+                self.content.p("void");
                 self.content.p_whitespace();
                 self.emit_expr(n.expr);
             }

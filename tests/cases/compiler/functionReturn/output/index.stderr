@@ -1,5 +1,0 @@
-  × Type 'undefined' is not assignable to type 'string'.
-    ╭─[../../tests/cases/compiler/functionReturn/index.ts:16:12]
- 16 │ undefined
-    · ─────────
-    ╰────

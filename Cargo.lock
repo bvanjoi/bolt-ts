@@ -146,7 +146,6 @@ dependencies = [
 name = "bolt_ts_lib"
 version = "0.1.0"
 dependencies = [
- "miette",
  "rustc-hash",
 ]
 

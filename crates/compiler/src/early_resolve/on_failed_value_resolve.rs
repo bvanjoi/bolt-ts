@@ -33,7 +33,7 @@ impl<'cx> Resolver<'cx, '_> {
     fn check_missing_prefix(
         &mut self,
         ident: &'cx ast::Ident,
-    ) -> Option<errors::DidYourMeanTheStaticMember> {
+    ) -> Option<errors::DidYouMeanTheStaticMember> {
         let mut location = ident.id;
         while let Some(parent) = self.p.parent(location) {
             location = parent;
@@ -60,13 +60,10 @@ impl<'cx> Resolver<'cx, '_> {
                     let ast::PropNameKind::Ident(prop_name) = prop.name.kind else {
                         unreachable!()
                     };
-                    let error = errors::DidYourMeanTheStaticMember {
+                    let error = errors::DidYouMeanTheStaticMember {
                         span: prop.name.span(),
-                        name: format!(
-                            "{}.{}",
-                            self.atoms.get(class.name.name),
-                            self.atoms.get(prop_name.name)
-                        ),
+                        class_name: self.atoms.get(class.name.name).to_string(),
+                        prop_name: self.atoms.get(prop_name.name).to_string(),
                     };
                     return Some(error);
                 }

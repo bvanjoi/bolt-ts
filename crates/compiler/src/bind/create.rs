@@ -191,7 +191,7 @@ impl<'cx> BinderState<'cx> {
 
     pub(super) fn create_fn_symbol(&mut self, container: ast::NodeID, decl: &'cx ast::FnDecl<'cx>) {
         let ele_name = SymbolName::Normal(decl.name.name);
-        self.create_fn_decl_like_symbol(container, decl, ele_name, SymbolFnKind::FnDecl);
+        self.create_fn_decl_like_symbol(container, decl, ele_name, SymbolFnKind::FnDecl, false);
     }
 
     pub(super) fn create_fn_ty_symbol(&mut self, f: &'cx ast::FnTy<'cx>) {

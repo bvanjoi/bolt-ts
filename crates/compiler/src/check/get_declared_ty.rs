@@ -173,16 +173,48 @@ impl<'cx> TyChecker<'cx> {
         self.alloc(props)
     }
 
+    fn get_resolved_member_or_exports_of_symbol(
+        &mut self,
+        symbol: SymbolID,
+        is_resolve_export: bool,
+    ) -> &'cx FxHashMap<SymbolName, SymbolID> {
+        let is_static = is_resolve_export;
+        self.alloc(self.members(symbol).clone())
+    }
+
+    fn get_resolved_member_of_symbol(
+        &mut self,
+        symbol: SymbolID,
+    ) -> &'cx FxHashMap<SymbolName, SymbolID> {
+        if let Some(resolved_members) = self.get_symbol_links(symbol).get_resolved_members() {
+            return resolved_members;
+        }
+        let resolved_members = self.get_resolved_member_or_exports_of_symbol(symbol, false);
+        self.get_mut_symbol_links(symbol)
+            .set_resolved_members(resolved_members);
+        resolved_members
+    }
+
+    fn get_members_of_late_binding_symbol(
+        &mut self,
+        symbol: SymbolID,
+    ) -> Option<&'cx FxHashMap<SymbolName, SymbolID>> {
+        self.binder
+            .symbol(symbol)
+            .flags
+            .intersects(SymbolFlags::LATE_BINDING_CONTAINER)
+            .then(|| self.get_resolved_member_of_symbol(symbol))
+    }
+
     fn resolve_declared_members(&mut self, symbol: SymbolID) -> &'cx ty::DeclaredMembers<'cx> {
-        let props = self.get_props_from_members(self.members(symbol));
-        let call_sigs = self
-            .members(symbol)
+        let members = self.get_members_of_late_binding_symbol(symbol).unwrap();
+        let props = self.get_props_from_members(&members);
+        let call_sigs = members
             .get(&SymbolName::Call)
             .copied()
             .map(|s| self.get_sigs_of_symbol(s))
             .unwrap_or_default();
-        let ctor_sigs = self
-            .members(symbol)
+        let ctor_sigs = members
             .get(&SymbolName::Constructor)
             .copied()
             .map(|s| self.get_sigs_of_symbol(s))

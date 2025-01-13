@@ -18,7 +18,7 @@ impl TyChecker<'_> {
                 ast::Node::FnDecl(n) => {
                     n.body.is_some()
                         || n.modifiers
-                            .map_or(false, |m| m.flags.contains(ast::ModifierKind::Declare))
+                            .is_some_and(|m| m.flags.contains(ast::ModifierKind::Declare))
                 }
                 ast::Node::ClassCtor(n) => n.body.is_some(),
                 ast::Node::ClassMethodEle(n) => {

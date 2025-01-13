@@ -31,6 +31,8 @@ pub enum StmtKind<'cx> {
     Import(&'cx ImportDecl<'cx>),
     Export(&'cx ExportDecl<'cx>),
     Try(&'cx TryStmt<'cx>),
+    While(&'cx WhileStmt<'cx>),
+    Do(&'cx DoStmt<'cx>),
 }
 
 impl Stmt<'_> {
@@ -58,8 +60,26 @@ impl Stmt<'_> {
             Break(n) => n.id,
             Continue(n) => n.id,
             Try(n) => n.id,
+            While(n) => n.id,
+            Do(n) => n.id,
         }
     }
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct DoStmt<'cx> {
+    pub id: NodeID,
+    pub span: Span,
+    pub stmt: &'cx Stmt<'cx>,
+    pub expr: &'cx Expr<'cx>,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct WhileStmt<'cx> {
+    pub id: NodeID,
+    pub span: Span,
+    pub expr: &'cx Expr<'cx>,
+    pub stmt: &'cx Stmt<'cx>,
 }
 
 #[derive(Debug, Clone, Copy)]

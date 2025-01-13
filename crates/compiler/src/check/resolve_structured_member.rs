@@ -247,7 +247,7 @@ impl<'cx> TyChecker<'cx> {
             );
             let inherited_index_infos = self
                 .index_infos_of_ty(base_ty)
-                .into_iter()
+                .iter()
                 .filter(|info| self.find_index_info(&index_infos, info.key_ty).is_none())
                 .collect::<Vec<_>>();
             index_infos.extend(inherited_index_infos);

@@ -80,6 +80,10 @@ impl<'cx> TyChecker<'cx> {
             true
         } else if source.kind.is_boolean_like() && target.kind.is_boolean() {
             true
+        } else if source.kind.is_undefined() && !target.kind.is_union_or_intersection()
+            || (target.kind.is_undefined() || target.kind.is_void())
+        {
+            true
         } else if relation == RelationKind::Assignable || relation == RelationKind::Comparable {
             if source.kind.is_any() {
                 true

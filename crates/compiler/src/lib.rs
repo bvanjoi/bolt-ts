@@ -178,7 +178,7 @@ pub fn eval_from(cwd: PathBuf, tsconfig: NormalizedTsConfig) -> Output {
     for state in bind_list
         .iter()
         .zip(module_arena.modules())
-        .filter_map(|(state, m)| m.global.then(|| state))
+        .filter_map(|(state, m)| m.global.then_some(state))
     {
         for ((scope_id, name), symbol) in state.res.iter() {
             if !scope_id.is_root() {
@@ -201,7 +201,7 @@ pub fn eval_from(cwd: PathBuf, tsconfig: NormalizedTsConfig) -> Output {
     let states = module_arena
         .modules()
         .iter()
-        .zip(early_resolve_result.into_iter())
+        .zip(early_resolve_result)
         .zip(bind_list)
         .map(|((x, y), z)| (x, y, z))
         .map(|(_, early_resolve_result, mut state)| {

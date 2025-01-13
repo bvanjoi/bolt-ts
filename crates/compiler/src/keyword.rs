@@ -37,9 +37,14 @@ gen_atoms!(
     (KW_YIELD, "yield"),
     (KW_FOR, "for"),
     (KW_OF, "of"),
+    (KW_WHILE, "while"),
+    (KW_DO, "do"),
+    (KW_SWITCH, "switch"),
+    (KW_CASE, "case"),
     (KW_BREAK, "break"),
     (KW_CONTINUE, "continue"),
     (KW_INSTANCEOF, "instanceof"),
+    (KW_VOID, "void"),
     (KW_IN, "in"),
     // ts keywords
     (KW_IMPLEMENTS, "implements"),
@@ -67,7 +72,6 @@ gen_atoms!(
     (IDENT_ERROR, "error"),
     (IDENT_UNDEFINED, "undefined"),
     (IDENT_ANY, "any"),
-    (IDENT_VOID, "void"),
     (IDENT_NUMBER, "number"),
     (IDENT_NUMBER_CLASS, "Number"),
     (IDENT_ARRAY, "array"),
@@ -96,7 +100,7 @@ pub fn is_prim_ty_name(name: AtomId) -> bool {
             | IDENT_BOOLEAN
             | IDENT_NEVER
             | IDENT_UNKNOWN
-            | IDENT_VOID
+            | KW_VOID
             | IDENT_UNDEFINED
     )
 }
@@ -115,7 +119,7 @@ pub fn is_reserved_type_name(name: AtomId) -> bool {
             | IDENT_BIGINT
             | IDENT_BOOLEAN
             | IDENT_STRING
-            | IDENT_VOID
+            | KW_VOID
             | IDENT_OBJECT
             | IDENT_UNDEFINED
     )

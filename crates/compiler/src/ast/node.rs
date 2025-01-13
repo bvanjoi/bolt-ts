@@ -64,6 +64,8 @@ pub enum Node<'cx> {
     ForStmt(&'cx super::ForStmt<'cx>),
     ForInStmt(&'cx super::ForInStmt<'cx>),
     ForOfStmt(&'cx super::ForOfStmt<'cx>),
+    WhileStmt(&'cx super::WhileStmt<'cx>),
+    DoStmt(&'cx super::DoStmt<'cx>),
     BreakStmt(&'cx super::BreakStmt<'cx>),
     ContinueStmt(&'cx super::ContinueStmt<'cx>),
     TryStmt(&'cx super::TryStmt<'cx>),
@@ -92,10 +94,12 @@ pub enum Node<'cx> {
     AssignExpr(&'cx super::AssignExpr<'cx>),
     ArrowFnExpr(&'cx super::ArrowFnExpr<'cx>),
     PrefixUnaryExpr(&'cx super::PrefixUnaryExpr<'cx>),
+    PostfixUnaryExpr(&'cx super::PostfixUnaryExpr<'cx>),
     PropAccessExpr(&'cx super::PropAccessExpr<'cx>),
     EleAccessExpr(&'cx super::EleAccessExpr<'cx>),
     ThisExpr(&'cx super::ThisExpr),
     TypeofExpr(&'cx super::TypeofExpr<'cx>),
+    VoidExpr(&'cx super::VoidExpr<'cx>),
     SuperExpr(&'cx super::SuperExpr),
 
     // ty
@@ -393,7 +397,7 @@ impl<'cx> Node<'cx> {
 
     pub fn module_name(&self) -> Option<&'cx super::StringLit> {
         match self {
-            Node::ImportDecl(n) => Some(&n.module),
+            Node::ImportDecl(n) => Some(n.module),
             _ => None,
         }
     }
@@ -795,6 +799,13 @@ as_node!(
         is_prefix_unary_expr
     ),
     (
+        PostfixUnaryExpr,
+        &'cx super::PostfixUnaryExpr<'cx>,
+        as_postfix_unary_expr,
+        expect_postfix_unary_expr,
+        is_postfix_unary_expr
+    ),
+    (
         ClassExpr,
         &'cx super::ClassExpr<'cx>,
         as_class_expr,
@@ -842,6 +853,13 @@ as_node!(
         as_typeof_expr,
         expect_typeof_expr,
         is_typeof_expr
+    ),
+    (
+        VoidExpr,
+        &'cx super::VoidExpr<'cx>,
+        as_void_expr,
+        expect_void_expr,
+        is_void_expr
     ),
     (
         EleAccessExpr,
@@ -1116,5 +1134,19 @@ as_node!(
         as_catch_clause,
         expect_catch_clause,
         is_catch_clause
+    ),
+    (
+        DoStmt,
+        &'cx super::DoStmt,
+        as_do_stmt,
+        expect_do_stmt,
+        is_do_stmt
+    ),
+    (
+        WhileStmt,
+        &'cx super::WhileStmt,
+        as_while_stmt,
+        expect_while_stmt,
+        is_while_stmt
     )
 );
