@@ -1,0 +1,5 @@
+  × Property 'foo' does not exist on type 'typeof A'.
+   ╭─[../../tests/cases/compiler/staticInstanceResolution4/index.ts:7:3]
+ 7 │ foo
+   · ───
+   ╰────

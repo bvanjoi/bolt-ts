@@ -83,6 +83,7 @@ gen_atoms!(
     (IDENT_UNKNOWN, "unknown"),
     (IDENT_BIGINT, "bitint"),
     (IDENT_OBJECT, "object"),
+    (IDENT_OBJECT_CLASS, "Object"),
     (IDENT_SYMBOL, "symbol"),
     (IDENT_FUNCTION_CLASS, "Function"),
     (IDENT_CALLABLE_FUNCTION_CLASS, "CallableFunction"),

@@ -98,7 +98,7 @@ impl<'cx> TyChecker<'cx> {
         if let Some(tys) = self.resolved_base_tys.get(&ty.id) {
             return tys;
         }
-        let base_ctor = self.get_base_constructor_type_of_class(ty.symbol().unwrap());
+        let base_ctor = self.get_base_constructor_type_of_class(ty);
         let tys = self.alloc([base_ctor]);
 
         let prev = self.resolved_base_tys.insert(ty.id, tys);
@@ -136,15 +136,24 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
-    fn get_base_constructor_type_of_class(&mut self, symbol: SymbolID) -> &'cx ty::Ty<'cx> {
+    pub(super) fn get_base_constructor_type_of_class(
+        &mut self,
+        ty: &'cx ty::Ty<'cx>,
+    ) -> &'cx ty::Ty<'cx> {
+        if let Some(resolved_base_ctor_ty) = self.resolved_base_ctor_ty.get(&ty.id) {
+            return resolved_base_ctor_ty;
+        }
+        let symbol = ty.symbol().unwrap();
         let decl = self.binder.symbol(symbol).expect_class().decl;
         let Some(extends) = self.get_effective_base_type_node(decl) else {
             return self.undefined_ty();
         };
         if !self.push_ty_resolution(symbol) {
+            let prev = self.resolved_base_ctor_ty.insert(ty.id, self.error_ty());
+            assert!(prev.is_none());
             return self.error_ty();
         }
-        let base_ty = self.check_expr(extends);
+        let resolved_base_ctor_ty = self.check_expr(extends);
         if !self.pop_ty_resolution() {
             let decl = self.p.node(decl);
             let name = if let ast::Node::ClassDecl(c) = decl {
@@ -157,9 +166,15 @@ impl<'cx> TyChecker<'cx> {
                 decl: name,
             };
             self.push_error(Box::new(error));
+            let prev = self.resolved_base_ctor_ty.insert(ty.id, self.error_ty());
+            assert!(prev.is_none());
             return self.error_ty();
         }
-        base_ty
+        let prev = self
+            .resolved_base_ctor_ty
+            .insert(ty.id, resolved_base_ctor_ty);
+        assert!(prev.is_none());
+        resolved_base_ctor_ty
     }
 
     pub(super) fn get_props_from_members(

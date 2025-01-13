@@ -749,12 +749,27 @@ impl<'cx> TyChecker<'cx> {
         };
 
         if let Some(fn_ty) = fn_ty {
-            if let Some(symbol) = self.get_prop_of_ty(fn_ty, name) {
+            if let Some(symbol) = self.get_prop_of_object_ty(fn_ty, name) {
                 return Some(symbol);
             }
         }
 
-        None
+        self.get_prop_of_object_ty(self.global_object_ty(), name)
+    }
+
+    fn get_prop_of_object_ty(
+        &mut self,
+        ty: &'cx ty::Ty<'cx>,
+        name: SymbolName,
+    ) -> Option<SymbolID> {
+        let TyKind::Object(_) = ty.kind else {
+            return None;
+        };
+        self.resolve_structured_type_members(ty);
+        self.ty_structured_members[&ty.id]
+            .members
+            .get(&name)
+            .copied()
     }
 
     pub fn get_unmatched_prop(

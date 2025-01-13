@@ -420,6 +420,7 @@ impl<'cx> ParserState<'cx, '_> {
                 let id = self.ident_token();
                 unreachable!("{:#?}", self.atoms.lock().unwrap().get(id));
             }
+            Type => ast::StmtKind::Type(self.parse_type_decl()?),
             _ => unreachable!("{:#?}", self.token.kind),
         };
         let stmt = self.alloc(ast::Stmt { kind });

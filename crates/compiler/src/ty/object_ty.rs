@@ -1,6 +1,6 @@
 use rustc_hash::FxHashMap;
 
-use crate::bind::{SymbolID, SymbolName};
+use crate::bind::{SymbolFlags, SymbolID, SymbolName};
 use crate::check::TyChecker;
 
 use super::Ty;
@@ -190,31 +190,41 @@ pub struct InterfaceTy<'cx> {
 impl ObjectTyKind<'_> {
     pub(super) fn to_string(&self, self_ty: &Ty, checker: &mut TyChecker) -> String {
         match self {
-            ObjectTyKind::Anonymous(_) => {
-                let sig = checker.ty_structured_members[&self_ty.id].call_sigs[0];
-                let params = sig.params;
-                let params = params
-                    .iter()
-                    .map(|param| {
-                        let decl = param.decl(checker.binder);
-                        let name = checker.p.node(decl).ident_name().unwrap();
-                        let ty = checker.get_type_of_symbol(*param);
-                        format!(
-                            "{}: {}",
-                            checker.atoms.get(name.name),
-                            ty.to_string(checker)
-                        )
-                    })
-                    .collect::<Vec<_>>()
-                    .join(",");
-                let ret = if let Some(ret) = sig.ret {
-                    let ty = checker.p.node(ret);
-                    let ty = checker.get_ty_from_type_node(&ty.as_ty().unwrap());
-                    ty.to_string(checker)
+            ObjectTyKind::Anonymous(a) => {
+                let symbol = a.symbol;
+                let symbol = checker.binder.symbol(symbol);
+                if symbol.flags.intersects(SymbolFlags::CLASS) {
+                    let name = symbol.name.expect_atom();
+                    return format!("typeof {}", checker.atoms.get(name));
+                }
+
+                if let Some(sig) = checker.ty_structured_members[&self_ty.id].call_sigs.get(0) {
+                    let params = sig.params;
+                    let params = params
+                        .iter()
+                        .map(|param| {
+                            let decl = param.decl(checker.binder);
+                            let name = checker.p.node(decl).ident_name().unwrap();
+                            let ty = checker.get_type_of_symbol(*param);
+                            format!(
+                                "{}: {}",
+                                checker.atoms.get(name.name),
+                                ty.to_string(checker)
+                            )
+                        })
+                        .collect::<Vec<_>>()
+                        .join(",");
+                    let ret = if let Some(ret) = sig.ret {
+                        let ty = checker.p.node(ret);
+                        let ty = checker.get_ty_from_type_node(&ty.as_ty().unwrap());
+                        ty.to_string(checker)
+                    } else {
+                        checker.any_ty().to_string(checker)
+                    };
+                    format!("({params}) => {ret}")
                 } else {
-                    checker.any_ty().to_string(checker)
-                };
-                format!("({params}) => {ret}")
+                    unreachable!()
+                }
             }
             ObjectTyKind::ObjectLit(_) => "Object".to_string(),
             ObjectTyKind::Tuple(TupleTy { tys, .. }) => {

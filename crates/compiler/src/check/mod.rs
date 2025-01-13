@@ -128,7 +128,8 @@ pub struct TyChecker<'cx> {
     symbol_links: FxHashMap<SymbolID, SymbolLinks<'cx>>,
     node_links: FxHashMap<ast::NodeID, NodeLinks<'cx>>,
     pub ty_structured_members: FxHashMap<TyID, &'cx ty::StructuredMembers<'cx>>,
-    resolved_base_tys: FxHashMap<TyID, ty::Tys<'cx>>,
+    pub resolved_base_tys: FxHashMap<TyID, ty::Tys<'cx>>,
+    resolved_base_ctor_ty: FxHashMap<TyID, &'cx ty::Ty<'cx>>,
     check_mode: Option<CheckMode>,
     inferences: Vec<InferenceContext<'cx>>,
     inference_contextual: Vec<InferenceContextual>,
@@ -140,18 +141,19 @@ pub struct TyChecker<'cx> {
     // === ast ===
     pub p: &'cx Parser<'cx>,
     // === global ===
-    global_array_ty: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
-    global_number_ty: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
-    global_string_ty: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
     boolean_ty: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
     string_number_symbol_ty: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
     typeof_ty: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
     tuple_shapes: nohash_hasher::IntMap<u32, &'cx TupleShape<'cx>>,
     unknown_sig: std::cell::OnceCell<&'cx Sig<'cx>>,
     any_fn_ty: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
+    global_object_ty: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
     global_fn_ty: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
     global_callable_fn_ty: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
     global_newable_fn_ty: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
+    global_array_ty: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
+    global_number_ty: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
+    global_string_ty: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
     // === resolver ===
     pub binder: &'cx mut bind::Binder<'cx>,
     global_symbols: &'cx GlobalSymbols,
@@ -175,6 +177,7 @@ macro_rules! intrinsic_type {
 
 intrinsic_type!(
     (any_ty, keyword::IDENT_ANY, TyKind::Any),
+    (unknown_ty, keyword::IDENT_UNKNOWN, TyKind::Unknown),
     (error_ty, keyword::IDENT_ERROR, TyKind::Any),
     (void_ty, keyword::KW_VOID, TyKind::Void),
     (undefined_ty, keyword::IDENT_UNDEFINED, TyKind::Undefined),
@@ -225,16 +228,17 @@ impl<'cx> TyChecker<'cx> {
             num_lit_tys: fx_hashmap_with_capacity(1024 * 8),
             string_lit_tys: fx_hashmap_with_capacity(1024 * 8),
 
+            any_fn_ty: Default::default(),
             boolean_ty: Default::default(),
+            typeof_ty: Default::default(),
             string_number_symbol_ty: Default::default(),
             global_number_ty: Default::default(),
             global_string_ty: Default::default(),
             global_array_ty: Default::default(),
-            any_fn_ty: Default::default(),
             global_fn_ty: Default::default(),
             global_callable_fn_ty: Default::default(),
             global_newable_fn_ty: Default::default(),
-            typeof_ty: Default::default(),
+            global_object_ty: Default::default(),
 
             unknown_sig: Default::default(),
 
@@ -244,6 +248,7 @@ impl<'cx> TyChecker<'cx> {
 
             ty_structured_members: fx_hashmap_with_capacity(p.module_count() * 1024),
             resolved_base_tys: fx_hashmap_with_capacity(p.module_count() * 256),
+            resolved_base_ctor_ty: fx_hashmap_with_capacity(p.module_count() * 256),
 
             symbol_links: fx_hashmap_with_capacity(p.module_count() * 1024),
             node_links: fx_hashmap_with_capacity(p.module_count() * 1024),
@@ -312,6 +317,10 @@ impl<'cx> TyChecker<'cx> {
             mapper: None,
         });
         this.any_fn_ty.set(any_fn_ty).unwrap();
+
+        let global_object_ty =
+            this.get_global_type(SymbolName::Normal(keyword::IDENT_OBJECT_CLASS));
+        this.global_object_ty.set(global_object_ty).unwrap();
 
         let global_fn_ty = this.get_global_type(SymbolName::Normal(keyword::IDENT_FUNCTION_CLASS));
         this.global_fn_ty.set(global_fn_ty).unwrap();
@@ -1112,10 +1121,12 @@ impl<'cx> TyChecker<'cx> {
         prop_node: &'cx ast::Ident,
         containing_ty: &'cx ty::Ty<'cx>,
     ) {
+        let missing_prop = pprint_ident(prop_node, self.atoms);
+
         if self.type_has_static_prop(prop_node, containing_ty) {
             let mut error = errors::PropertyXDoesNotExistOnTypeY {
                 span: prop_node.span,
-                prop: pprint_ident(prop_node, self.atoms),
+                prop: missing_prop,
                 ty: self.print_ty(containing_ty).to_string(),
                 related: vec![],
             };
@@ -1127,6 +1138,22 @@ impl<'cx> TyChecker<'cx> {
                 }),
             );
             self.push_error(Box::new(error));
+        } else if let Some(a) = containing_ty.kind.as_object_anonymous() {
+            if self
+                .binder
+                .symbol(a.symbol)
+                .flags
+                .intersects(SymbolFlags::CLASS)
+            {
+                let mut error = errors::PropertyXDoesNotExistOnTypeY {
+                    span: prop_node.span,
+                    prop: missing_prop,
+                    ty: self.print_ty(containing_ty).to_string(),
+                    related: vec![],
+                };
+                self.push_error(Box::new(error));
+            }
+            // TODO: more case
         }
     }
 
@@ -1765,5 +1792,6 @@ global_ty!(
     global_array_ty,
     global_fn_ty,
     global_callable_fn_ty,
-    global_newable_fn_ty
+    global_newable_fn_ty,
+    global_object_ty
 );

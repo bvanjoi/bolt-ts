@@ -30,6 +30,9 @@ impl<'cx> TyChecker<'cx> {
                         }
                         if instantiated_contextual_sig.is_none() {
                             if let Some(inference) = inference {
+                                if inference.inference.is_none() {
+                                    return;
+                                }
                                 let mapper = self
                                     .create_inference_fixing_mapper(inference.inference.unwrap());
                                 instantiated_contextual_sig =

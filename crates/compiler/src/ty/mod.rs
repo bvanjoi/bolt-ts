@@ -210,6 +210,7 @@ impl Ty<'_> {
                 ObjectTyKind::Interface(ty) => Some(ty.symbol),
                 ObjectTyKind::ObjectLit(ty) => Some(ty.symbol),
                 ObjectTyKind::Reference(ty) => ty.target.symbol(),
+                ObjectTyKind::Anonymous(ty) => Some(ty.symbol),
                 _ => None,
             },
             TyKind::Param(ty) => Some(ty.symbol),

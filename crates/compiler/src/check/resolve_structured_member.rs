@@ -332,7 +332,7 @@ impl<'cx> TyChecker<'cx> {
         let symbol = self.binder.symbol(a.symbol);
         let symbol_flags = symbol.flags;
 
-        let members;
+        let mut members;
         let call_sigs;
         let mut ctor_sigs;
         let index_infos: ty::IndexInfos<'cx>;
@@ -354,16 +354,24 @@ impl<'cx> TyChecker<'cx> {
             // TODO: `constructor_sigs`, `index_infos`
         } else if symbol_flags.intersects(SymbolFlags::CLASS) {
             call_sigs = &[];
+            // TODO: `get_exports_of_symbol`
             members = symbol.expect_class().exports.clone();
             if let Some(symbol) = symbol.expect_class().members.get(&SymbolName::Constructor) {
                 ctor_sigs = self.get_sigs_of_symbol(*symbol)
             } else {
                 ctor_sigs = &[];
             }
-            let ty = self.get_declared_ty_of_symbol(a.symbol);
-            index_infos = self.index_infos_of_ty(ty);
+
+            let class_ty = self.get_declared_ty_of_symbol(a.symbol);
+            let base_ctor_ty = self.get_base_constructor_type_of_class(class_ty);
+            if base_ctor_ty.kind.is_object() {
+                let props = self.get_props_of_ty(base_ctor_ty);
+                self.add_inherited_members(&mut members, props);
+            }
+
+            index_infos = self.index_infos_of_ty(class_ty);
             if ctor_sigs.is_empty() {
-                ctor_sigs = self.get_default_construct_sigs(ty);
+                ctor_sigs = self.get_default_construct_sigs(class_ty);
             };
         } else if symbol_flags.intersects(SymbolFlags::TYPE_LITERAL) {
             members = symbol.expect_ty_lit().members.clone();
