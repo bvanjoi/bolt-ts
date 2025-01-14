@@ -1,6 +1,6 @@
 use crate::ast;
 
-use super::node_links::NodeFlags;
+use super::NodeFlags;
 use super::TyChecker;
 
 impl TyChecker<'_> {

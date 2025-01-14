@@ -633,7 +633,7 @@ impl<'cx> ParserState<'cx, '_> {
 
     fn parse_decl(&mut self) -> PResult<&'cx ast::Stmt<'cx>> {
         let mods = self.parse_modifiers(false)?;
-        let is_ambient = mods.map_or(false, Self::contain_declare_mod);
+        let is_ambient = mods.is_some_and(Self::contain_declare_mod);
         if is_ambient {
             self.do_inside_of_context(NodeFlags::AMBIENT, |this| this._parse_decl(mods))
         } else {

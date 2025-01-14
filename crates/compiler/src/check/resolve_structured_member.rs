@@ -1,5 +1,6 @@
 use rustc_hash::FxHashMap;
 
+use super::links::SigLinks;
 use super::{SymbolLinks, TyChecker};
 use crate::ast;
 use crate::bind::{SymbolFlags, SymbolID, SymbolName};
@@ -167,7 +168,10 @@ impl<'cx> TyChecker<'cx> {
                 let new_mapper = self.alloc(TyMapper::create(ty_params, new_ty_params));
                 mapper = self.combine_ty_mappers(Some(new_mapper), mapper);
                 for ty in new_ty_params {
-                    let prev = self.param_ty_mapper.insert(ty.id, mapper);
+                    let prev = self.ty_links.insert(
+                        ty.id,
+                        super::TyLinks::default().with_param_ty_mapper(mapper),
+                    );
                     assert!(prev.is_none());
                 }
             }
@@ -197,7 +201,7 @@ impl<'cx> TyChecker<'cx> {
     ) {
         let (base_ctor_ty, base_tys) = self.get_base_tys(ty);
         // TODO: remove this
-        if self.ty_structured_members.get(&ty.id).is_some() {
+        if self.get_ty_links(ty.id).get_structured_members().is_some() {
             return;
         }
         let symbol = ty.symbol().unwrap();
@@ -218,8 +222,7 @@ impl<'cx> TyChecker<'cx> {
                     index_infos: declared.index_infos,
                     props: declared.props,
                 });
-                let prev = self.ty_structured_members.insert(ty.id, m);
-                assert!(prev.is_none());
+                self.get_mut_ty_links(ty.id).set_structured_members(m);
                 return;
             }
             call_sigs = declared.call_sigs.to_vec();
@@ -263,8 +266,7 @@ impl<'cx> TyChecker<'cx> {
             index_infos: self.alloc(index_infos),
             props,
         });
-        let prev = self.ty_structured_members.insert(ty.id, m);
-        assert!(prev.is_none());
+        self.get_mut_ty_links(ty.id).set_structured_members(m);
     }
 
     fn resolve_interface_members(&mut self, ty: &'cx ty::Ty<'cx>) {
@@ -321,7 +323,10 @@ impl<'cx> TyChecker<'cx> {
             id: SigID::dummy(),
             class_decl: Some(class_node_id),
         });
-        self.sig_ret_ty.insert(sig.id, ty);
+        let prev = self
+            .sig_links
+            .insert(sig.id, SigLinks::default().with_resolved_ret_ty(ty));
+        assert!(prev.is_none());
         self.alloc([sig])
     }
 
@@ -382,6 +387,11 @@ impl<'cx> TyChecker<'cx> {
             // TODO: `constructor_sigs`, `index_infos`
             ctor_sigs = &[];
             index_infos = &[]
+        } else if symbol_flags.intersects(SymbolFlags::OBJECT_LITERAL) {
+            members = symbol.expect_object().members.clone();
+            call_sigs = &[];
+            ctor_sigs = &[];
+            index_infos = &[]
         } else {
             members = FxHashMap::default();
             call_sigs = &[];
@@ -398,8 +408,7 @@ impl<'cx> TyChecker<'cx> {
             index_infos,
             props,
         });
-        let prev = self.ty_structured_members.insert(ty.id, m);
-        assert!(prev.is_none());
+        self.get_mut_ty_links(ty.id).set_structured_members(m);
     }
 
     fn resolve_union_type_members(&mut self, ty: &'cx ty::Ty<'cx>) {
@@ -427,12 +436,11 @@ impl<'cx> TyChecker<'cx> {
             index_infos: Default::default(),
             props: Default::default(),
         });
-        let prev = self.ty_structured_members.insert(ty.id, m);
-        assert!(prev.is_none());
+        self.get_mut_ty_links(ty.id).set_structured_members(m);
     }
 
     pub(super) fn resolve_structured_type_members(&mut self, ty: &'cx ty::Ty<'cx>) {
-        if self.ty_structured_members.get(&ty.id).is_some() {
+        if self.get_ty_links(ty.id).get_structured_members().is_some() {
             return;
         }
 

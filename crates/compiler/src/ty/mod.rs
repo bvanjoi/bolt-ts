@@ -14,12 +14,12 @@ use crate::{ast, keyword};
 
 pub use self::check_flags::CheckFlags;
 pub use self::facts::{has_type_facts, TypeFacts, TYPEOF_NE_FACTS};
-pub use self::flags::TypeFlags;
+pub use self::flags::{ObjectFlags, TypeFlags};
 pub use self::mapper::{ArrayTyMapper, SimpleTyMapper, TyMapper};
 pub use self::object_shape::ObjectShape;
 pub use self::object_ty::ElementFlags;
 pub use self::object_ty::SingleSigTy;
-pub use self::object_ty::{AnonymousTy, InterfaceTy, ObjectLitTy, ObjectTyKind};
+pub use self::object_ty::{AnonymousTy, InterfaceTy, ObjectTyKind};
 pub use self::object_ty::{DeclaredMembers, ReferenceTy, StructuredMembers};
 pub use self::object_ty::{IndexInfo, IndexInfos, ObjectTy, TupleShape, TupleTy};
 pub use self::sig::{Sig, SigFlags, SigID, SigKind, Sigs};
@@ -35,8 +35,9 @@ impl TyID {
 
 #[derive(Debug, Clone, Copy)]
 pub struct Ty<'cx> {
-    pub kind: TyKind<'cx>,
     pub id: TyID,
+    pub kind: TyKind<'cx>,
+    pub flags: TypeFlags,
 }
 
 impl PartialEq for Ty<'_> {
@@ -52,7 +53,27 @@ impl PartialEq for Ty<'_> {
 
 impl<'cx> Ty<'cx> {
     pub fn new(id: TyID, kind: TyKind<'cx>) -> Self {
-        Self { kind, id }
+        Self {
+            kind,
+            id,
+            flags: TypeFlags::empty(),
+        }
+    }
+
+    pub fn get_object_flags(&self) -> ObjectFlags {
+        match self.kind {
+            TyKind::Object(object) => object.flags,
+            _ => ObjectFlags::empty(),
+        }
+    }
+
+    pub fn get_propagating_flags_of_tys(
+        tys: Tys<'cx>,
+        _exclude_kinds: Option<TypeFlags>,
+    ) -> ObjectFlags {
+        tys.iter().fold(ObjectFlags::empty(), |flags, ty| {
+            flags | ty.get_object_flags()
+        })
     }
 }
 
@@ -208,7 +229,6 @@ impl Ty<'_> {
         match self.kind {
             TyKind::Object(ty) => match ty.kind {
                 ObjectTyKind::Interface(ty) => Some(ty.symbol),
-                ObjectTyKind::ObjectLit(ty) => Some(ty.symbol),
                 ObjectTyKind::Reference(ty) => ty.target.symbol(),
                 ObjectTyKind::Anonymous(ty) => Some(ty.symbol),
                 _ => None,
@@ -412,6 +432,7 @@ pub struct IndexedAccessTy<'cx> {
 #[derive(Debug, Clone, Copy)]
 pub struct UnionTy<'cx> {
     pub tys: Tys<'cx>,
+    pub object_flags: ObjectFlags,
 }
 
 #[derive(Debug, Clone, Copy)]

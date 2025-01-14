@@ -60,6 +60,9 @@ impl<'cx> TyChecker<'cx> {
     }
 
     fn get_declared_ty_of_type_alias(&mut self, symbol: SymbolID) -> &'cx ty::Ty<'cx> {
+        if let Some(ty) = self.get_symbol_links(symbol).get_declared_ty() {
+            return ty;
+        }
         if !self.push_ty_resolution(symbol) {
             return self.error_ty();
         }
@@ -95,14 +98,13 @@ impl<'cx> TyChecker<'cx> {
     }
 
     fn resolve_base_tys_of_class(&mut self, ty: &'cx ty::Ty<'cx>) -> ty::Tys<'cx> {
-        if let Some(tys) = self.resolved_base_tys.get(&ty.id) {
+        if let Some(tys) = self.get_ty_links(ty.id).get_resolved_base_tys() {
             return tys;
         }
         let base_ctor = self.get_base_constructor_type_of_class(ty);
         let tys = self.alloc([base_ctor]);
 
-        let prev = self.resolved_base_tys.insert(ty.id, tys);
-        assert!(prev.is_none());
+        self.get_mut_ty_links(ty.id).set_resolved_base_tys(tys);
         tys
     }
 
@@ -140,7 +142,7 @@ impl<'cx> TyChecker<'cx> {
         &mut self,
         ty: &'cx ty::Ty<'cx>,
     ) -> &'cx ty::Ty<'cx> {
-        if let Some(resolved_base_ctor_ty) = self.resolved_base_ctor_ty.get(&ty.id) {
+        if let Some(resolved_base_ctor_ty) = self.get_ty_links(ty.id).get_resolved_base_ctor_ty() {
             return resolved_base_ctor_ty;
         }
         let symbol = ty.symbol().unwrap();
@@ -149,9 +151,10 @@ impl<'cx> TyChecker<'cx> {
             return self.undefined_ty();
         };
         if !self.push_ty_resolution(symbol) {
-            let prev = self.resolved_base_ctor_ty.insert(ty.id, self.error_ty());
-            assert!(prev.is_none());
-            return self.error_ty();
+            let error_ty = self.error_ty();
+            self.get_mut_ty_links(ty.id)
+                .set_resolved_base_ctor_ty(error_ty);
+            return error_ty;
         }
         let resolved_base_ctor_ty = self.check_expr(extends);
         if !self.pop_ty_resolution() {
@@ -166,14 +169,13 @@ impl<'cx> TyChecker<'cx> {
                 decl: name,
             };
             self.push_error(Box::new(error));
-            let prev = self.resolved_base_ctor_ty.insert(ty.id, self.error_ty());
-            assert!(prev.is_none());
-            return self.error_ty();
+            let error_ty = self.error_ty();
+            self.get_mut_ty_links(ty.id)
+                .set_resolved_base_ctor_ty(error_ty);
+            return error_ty;
         }
-        let prev = self
-            .resolved_base_ctor_ty
-            .insert(ty.id, resolved_base_ctor_ty);
-        assert!(prev.is_none());
+        self.get_mut_ty_links(ty.id)
+            .set_resolved_base_ctor_ty(resolved_base_ctor_ty);
         resolved_base_ctor_ty
     }
 

@@ -313,7 +313,6 @@ impl ParserState<'_, '_> {
                     }
                 }
                 b'=' => {
-                    // todo: ==, ===
                     if self.next_ch() == Some(b'>') {
                         self.pos += 2;
                         Token::new(

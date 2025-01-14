@@ -1,7 +1,5 @@
-use crate::{
-    bind::SymbolID,
-    ty::{self, TyID, UnionReduction},
-};
+use crate::bind::SymbolID;
+use crate::ty::{self, ObjectFlags, TyID, UnionReduction};
 
 use super::{relation::RelationKind, TyChecker};
 
@@ -19,13 +17,16 @@ impl<'cx> TyChecker<'cx> {
         self.new_ty(ty::TyKind::Var(id))
     }
 
-    fn create_object_ty(&mut self, ty: ty::ObjectTyKind<'cx>) -> &'cx ty::Ty<'cx> {
-        let kind = ty::TyKind::Object(self.alloc(ty::ObjectTy { kind: ty }));
+    fn create_object_ty(
+        &mut self,
+        ty: ty::ObjectTyKind<'cx>,
+        object_flags: ObjectFlags,
+    ) -> &'cx ty::Ty<'cx> {
+        let kind = ty::TyKind::Object(self.alloc(ty::ObjectTy {
+            kind: ty,
+            flags: object_flags,
+        }));
         self.new_ty(kind)
-    }
-
-    pub(super) fn create_object_lit_ty(&mut self, ty: ty::ObjectLitTy<'cx>) -> &'cx ty::Ty<'cx> {
-        self.create_object_ty(ty::ObjectTyKind::ObjectLit(self.alloc(ty)))
     }
 
     pub(super) fn create_tuple_ty(&mut self, ty: ty::TupleTy<'cx>) -> &'cx ty::Ty<'cx> {
@@ -35,28 +36,72 @@ impl<'cx> TyChecker<'cx> {
             // is variant
             (flag & (flag - 1)) == 0
         }));
-        self.create_object_ty(ty::ObjectTyKind::Tuple(self.alloc(ty)))
+        self.create_object_ty(
+            ty::ObjectTyKind::Tuple(self.alloc(ty)),
+            ObjectFlags::empty(),
+        )
     }
 
     pub(super) fn create_reference_ty(&mut self, ty: ty::ReferenceTy<'cx>) -> &'cx ty::Ty<'cx> {
-        let ty = self.create_object_ty(ty::ObjectTyKind::Reference(self.alloc(ty)));
+        let ty = self.create_object_ty(
+            ty::ObjectTyKind::Reference(self.alloc(ty)),
+            ObjectFlags::empty(),
+        );
         self.resolve_structured_type_members(ty);
         ty
     }
 
     pub(super) fn crate_interface_ty(&mut self, ty: ty::InterfaceTy<'cx>) -> &'cx ty::Ty<'cx> {
-        self.create_object_ty(ty::ObjectTyKind::Interface(self.alloc(ty)))
+        self.create_object_ty(
+            ty::ObjectTyKind::Interface(self.alloc(ty)),
+            ObjectFlags::empty(),
+        )
     }
 
-    pub(super) fn create_anonymous_ty(&mut self, ty: ty::AnonymousTy<'cx>) -> &'cx ty::Ty<'cx> {
-        assert!(ty.target.is_none() || ty.target.as_ref().unwrap().kind.is_object_anonymous());
-        let ty = self.create_object_ty(ty::ObjectTyKind::Anonymous(self.alloc(ty)));
+    pub(super) fn create_anonymous_ty(
+        &mut self,
+        symbol: SymbolID,
+        object_flags: ObjectFlags,
+    ) -> &'cx ty::Ty<'cx> {
+        let ty = self.alloc(ty::AnonymousTy {
+            symbol,
+            target: None,
+            mapper: None,
+        });
+        let ty = self.create_object_ty(
+            ty::ObjectTyKind::Anonymous(ty),
+            object_flags | ObjectFlags::ANONYMOUS,
+        );
+        self.resolve_structured_type_members(ty);
+        ty
+    }
+
+    pub(super) fn create_instantiating_anonymous_ty(
+        &mut self,
+        symbol: SymbolID,
+        target: &'cx ty::Ty<'cx>,
+        mapper: &'cx ty::TyMapper<'cx>,
+        object_flags: ObjectFlags,
+    ) -> &'cx ty::Ty<'cx> {
+        assert!(target.kind.is_object_anonymous());
+        let ty = self.alloc(ty::AnonymousTy {
+            symbol,
+            target: Some(target),
+            mapper: Some(mapper),
+        });
+        let ty = self.create_object_ty(
+            ty::ObjectTyKind::Anonymous(ty),
+            object_flags | ObjectFlags::ANONYMOUS,
+        );
         self.resolve_structured_type_members(ty);
         ty
     }
 
     pub(super) fn create_single_sig_ty(&mut self, ty: ty::SingleSigTy<'cx>) -> &'cx ty::Ty<'cx> {
-        let ty = self.create_object_ty(ty::ObjectTyKind::SingleSigTy(self.alloc(ty)));
+        let ty = self.create_object_ty(
+            ty::ObjectTyKind::SingleSigTy(self.alloc(ty)),
+            ObjectFlags::empty(),
+        );
         ty
     }
 
@@ -107,15 +152,21 @@ impl<'cx> TyChecker<'cx> {
         // }
 
         tys.dedup();
-        if reduction == UnionReduction::Subtype {
-            tys = self.remove_subtypes(tys)
+        if reduction != UnionReduction::None {
+            if reduction == UnionReduction::Subtype {
+                tys = self.remove_subtypes(tys)
+            }
         }
+
         if tys.len() == 1 {
             tys[0]
         } else {
+            let object_flags = ty::Ty::get_propagating_flags_of_tys(&tys, None);
             let union = self.alloc(ty::UnionTy {
                 tys: self.alloc(tys),
+                object_flags,
             });
+
             self.new_ty(ty::TyKind::Union(union))
         }
     }
@@ -131,11 +182,11 @@ impl<'cx> TyChecker<'cx> {
             let source = tys[i];
             if source.kind.is_structured_or_instantiable() {
                 for target in tys.iter() {
-                    if !source.eq(target)
-                        && self.is_type_related_to(source, target, RelationKind::StrictSubtype)
-                    {
-                        tys.remove(i);
-                        break;
+                    if !source.eq(target) {
+                        if self.is_type_related_to(source, target, RelationKind::StrictSubtype) {
+                            tys.remove(i);
+                            break;
+                        }
                     }
                 }
             }

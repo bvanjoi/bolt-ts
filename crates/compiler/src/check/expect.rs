@@ -4,10 +4,10 @@ use crate::bind::SymbolID;
 
 impl<'cx> TyChecker<'cx> {
     pub(super) fn base_types(&self, ty: &'cx ty::Ty<'cx>) -> ty::Tys<'cx> {
-        if ty.kind.as_object_interface().is_some() {
-            self.ty_structured_members[&ty.id].base_tys
-        } else if ty.kind.is_object_reference() {
-            self.ty_structured_members[&ty.id].base_tys
+        if ty.kind.is_object_interface() || ty.kind.is_object_reference() {
+            self.expect_ty_links(ty.id)
+                .expect_structured_members()
+                .base_tys
         } else {
             &[]
         }
@@ -15,11 +15,17 @@ impl<'cx> TyChecker<'cx> {
 
     pub(super) fn index_infos_of_ty(&self, ty: &'cx ty::Ty<'cx>) -> ty::IndexInfos<'cx> {
         if let Some(i) = ty.kind.as_object_interface() {
-            self.ty_structured_members[&ty.id].index_infos
+            self.expect_ty_links(ty.id)
+                .expect_structured_members()
+                .index_infos
         } else if ty.kind.is_object_reference() {
-            self.ty_structured_members[&ty.id].index_infos
+            self.expect_ty_links(ty.id)
+                .expect_structured_members()
+                .index_infos
         } else if ty.kind.is_object_anonymous() {
-            self.ty_structured_members[&ty.id].index_infos
+            self.expect_ty_links(ty.id)
+                .expect_structured_members()
+                .index_infos
         } else {
             &[]
         }
@@ -28,7 +34,11 @@ impl<'cx> TyChecker<'cx> {
     pub(super) fn properties_of_object_type(&self, ty: &'cx ty::Ty<'cx>) -> &'cx [SymbolID] {
         ty.kind
             .is_object()
-            .then(|| self.ty_structured_members[&ty.id].props)
+            .then(|| {
+                self.expect_ty_links(ty.id)
+                    .expect_structured_members()
+                    .props
+            })
             .unwrap_or_default()
     }
 
@@ -41,10 +51,13 @@ impl<'cx> TyChecker<'cx> {
             .is_structured()
             .then(|| {
                 // TODO: remove this
-                if !self.ty_structured_members.contains_key(&ty.id) {
+                let Some(ty_links) = self.ty_links.get(&ty.id) else {
                     return Default::default();
-                }
-                let resolved = self.ty_structured_members[&ty.id];
+                };
+                // TODO: remove this
+                let Some(resolved) = ty_links.get_structured_members() else {
+                    return Default::default();
+                };
                 if matches!(kind, ty::SigKind::Call) {
                     resolved.call_sigs
                 } else {

@@ -9,6 +9,7 @@ mod check_fn_like_symbol;
 mod check_interface;
 mod check_var_like;
 mod create_ty;
+mod elaborate_error;
 mod errors;
 mod expect;
 mod get_base_ty;
@@ -24,12 +25,12 @@ mod index_info;
 mod infer;
 mod instantiate;
 mod is_context_sensitive;
-mod node_links;
+mod links;
+mod node_flags;
 mod relation;
 mod resolve;
 mod resolve_structured_member;
 mod sig;
-mod symbol_links;
 mod type_assignable;
 mod utils;
 
@@ -39,21 +40,22 @@ use bolt_ts_span::Span;
 use bolt_ts_utils::{fx_hashmap_with_capacity, no_hashmap_with_capacity};
 use get_contextual::ContextFlags;
 use infer::{InferenceFlags, InferencePriority};
+use links::{SigLinks, TyLinks};
 use rustc_hash::{FxBuildHasher, FxHashMap};
 
 use self::get_context::{InferenceContextual, TyContextual};
 use self::infer::InferenceContext;
-use self::node_links::NodeFlags;
-use self::node_links::NodeLinks;
+use self::links::NodeLinks;
+pub use self::links::SymbolLinks;
+use self::node_flags::NodeFlags;
 pub use self::resolve::ExpectedArgsCount;
-pub use self::symbol_links::SymbolLinks;
 
-use crate::ast::{pprint_ident, BinOp, NodeID};
+use crate::ast::{pprint_ident, BinOp};
 use crate::bind::{self, GlobalSymbols, Symbol, SymbolFlags, SymbolID, SymbolName};
 use crate::parser::{AssignmentKind, Parser};
 use crate::ty::{
-    has_type_facts, AccessFlags, CheckFlags, Sig, SigFlags, SigID, TupleShape, TyID, TyKind,
-    TyVarID, TypeFacts, TypeFlags, TYPEOF_NE_FACTS,
+    has_type_facts, AccessFlags, CheckFlags, ElementFlags, ObjectFlags, Sig, SigFlags, SigID,
+    TupleShape, TyID, TyKind, TyVarID, TypeFacts, TypeFlags, TYPEOF_NE_FACTS,
 };
 use crate::{ast, ecma_rules, ensure_sufficient_stack, keyword, ty};
 
@@ -109,7 +111,7 @@ impl From<usize> for F64Represent {
 
 impl Into<f64> for F64Represent {
     fn into(self) -> f64 {
-        unsafe { std::mem::transmute::<u64, f64>(self.inner) }
+        f64::from_bits(self.inner)
     }
 }
 
@@ -121,23 +123,22 @@ pub struct TyChecker<'cx> {
     arena: &'cx bumpalo::Bump,
     next_ty_var_id: TyVarID,
     tys: Vec<&'cx ty::Ty<'cx>>,
+    sigs: Vec<&'cx Sig<'cx>>,
     num_lit_tys: FxHashMap<F64Represent, TyID>,
     string_lit_tys: FxHashMap<AtomId, TyID>,
     intrinsic_tys: FxHashMap<AtomId, &'cx ty::Ty<'cx>>,
     type_name: FxHashMap<TyID, String>,
-    symbol_links: FxHashMap<SymbolID, SymbolLinks<'cx>>,
-    node_links: FxHashMap<ast::NodeID, NodeLinks<'cx>>,
-    pub ty_structured_members: FxHashMap<TyID, &'cx ty::StructuredMembers<'cx>>,
-    pub resolved_base_tys: FxHashMap<TyID, ty::Tys<'cx>>,
-    resolved_base_ctor_ty: FxHashMap<TyID, &'cx ty::Ty<'cx>>,
+
     check_mode: Option<CheckMode>,
     inferences: Vec<InferenceContext<'cx>>,
     inference_contextual: Vec<InferenceContextual>,
     type_contextual: Vec<TyContextual<'cx>>,
-    param_ty_mapper: FxHashMap<TyID, &'cx ty::TyMapper<'cx>>,
-    sigs: Vec<&'cx Sig<'cx>>,
-    sig_ret_ty: FxHashMap<SigID, &'cx ty::Ty<'cx>>,
     deferred_nodes: Vec<indexmap::IndexSet<ast::NodeID, FxBuildHasher>>,
+    // === links ===
+    symbol_links: FxHashMap<SymbolID, SymbolLinks<'cx>>,
+    node_links: FxHashMap<ast::NodeID, NodeLinks<'cx>>,
+    sig_links: FxHashMap<SigID, SigLinks<'cx>>,
+    ty_links: FxHashMap<TyID, TyLinks<'cx>>,
     // === ast ===
     pub p: &'cx Parser<'cx>,
     // === global ===
@@ -221,6 +222,7 @@ impl<'cx> TyChecker<'cx> {
             atoms,
             p,
             tys: Vec::with_capacity(p.module_count() * 1024),
+            sigs: Vec::with_capacity(p.module_count() * 256),
             next_ty_var_id: TyVarID::root(),
             arena: ty_arena,
             diags: Vec::with_capacity(p.module_count() * 32),
@@ -244,16 +246,11 @@ impl<'cx> TyChecker<'cx> {
 
             tuple_shapes: no_hashmap_with_capacity(1024 * 8),
             type_name: fx_hashmap_with_capacity(1024 * 8),
-            param_ty_mapper: fx_hashmap_with_capacity(p.module_count() * 256),
-
-            ty_structured_members: fx_hashmap_with_capacity(p.module_count() * 1024),
-            resolved_base_tys: fx_hashmap_with_capacity(p.module_count() * 256),
-            resolved_base_ctor_ty: fx_hashmap_with_capacity(p.module_count() * 256),
 
             symbol_links: fx_hashmap_with_capacity(p.module_count() * 1024),
             node_links: fx_hashmap_with_capacity(p.module_count() * 1024),
-            sigs: Vec::with_capacity(p.module_count() * 256),
-            sig_ret_ty: fx_hashmap_with_capacity(p.module_count() * 256),
+            sig_links: fx_hashmap_with_capacity(p.module_count() * 1024),
+            ty_links: fx_hashmap_with_capacity(p.module_count() * 1024),
             resolution_tys: thin_vec::ThinVec::with_capacity(128),
             resolution_res: thin_vec::ThinVec::with_capacity(128),
             binder,
@@ -311,11 +308,7 @@ impl<'cx> TyChecker<'cx> {
 
         this.typeof_ty.set(typeof_ty).unwrap();
 
-        let any_fn_ty = this.create_anonymous_ty(ty::AnonymousTy {
-            symbol: Symbol::ERR,
-            target: None,
-            mapper: None,
-        });
+        let any_fn_ty = this.create_anonymous_ty(Symbol::ERR, ObjectFlags::empty());
         this.any_fn_ty.set(any_fn_ty).unwrap();
 
         let global_object_ty =
@@ -358,32 +351,6 @@ impl<'cx> TyChecker<'cx> {
         } else {
             bitflags::Flags::empty()
         }
-    }
-
-    fn get_symbol_links(&mut self, symbol: SymbolID) -> &SymbolLinks<'cx> {
-        if let Some(t) = self.binder.get_transient(symbol) {
-            &t.links
-        } else {
-            self.symbol_links.entry(symbol).or_default()
-        }
-    }
-
-    fn get_mut_symbol_links(&mut self, symbol: SymbolID) -> &mut SymbolLinks<'cx> {
-        if let Some(t) = self.binder.get_mut_transient(symbol) {
-            &mut t.links
-        } else {
-            self.symbol_links.get_mut(&symbol).unwrap()
-        }
-    }
-
-    fn get_node_links(&mut self, node: NodeID) -> &NodeLinks<'cx> {
-        self.node_links
-            .entry(node)
-            .or_insert_with(|| NodeLinks::default().with_flags(NodeFlags::empty()))
-    }
-
-    fn get_mut_node_links(&mut self, node: NodeID) -> &mut NodeLinks<'cx> {
-        self.node_links.get_mut(&node).unwrap()
     }
 
     pub fn print_ty<'a>(&'a mut self, ty: &'cx ty::Ty<'cx>) -> &'a str {
@@ -531,7 +498,10 @@ impl<'cx> TyChecker<'cx> {
         }
 
         if let Some(i) = ty.kind.as_object_interface() {
-            let base_tys = self.ty_structured_members[&ty.id].base_tys;
+            let base_tys = self
+                .get_ty_links(ty.id)
+                .expect_structured_members()
+                .base_tys;
             for base_ty in base_tys {
                 self.check_index_constraint_for_prop(base_ty, prop, prop_name_ty, prop_ty);
             }
@@ -574,19 +544,19 @@ impl<'cx> TyChecker<'cx> {
         })
     }
 
-    fn check_return_stmt(&mut self, ret: &ast::RetStmt<'cx>) {
-        let Some(container) = self.get_containing_fn_or_class_static_block(ret.id) else {
+    fn check_return_stmt(&mut self, ret_stmt: &ast::RetStmt<'cx>) {
+        let Some(container) = self.get_containing_fn_or_class_static_block(ret_stmt.id) else {
             // delay bug
             return;
         };
         let sig = self.get_sig_from_decl(container);
         let ret_ty = self.get_ret_ty_of_sig(sig);
-        let expr_ty = ret
+        let expr_ty = ret_stmt
             .expr
             .map(|expr| self.check_expr(expr))
             .unwrap_or(self.undefined_ty());
         if matches!(self.p.node(container), ast::Node::ClassCtor(_)) {
-            if let Some(expr) = ret.expr {
+            if let Some(expr) = ret_stmt.expr {
                 let ret = sig
                     .ret
                     .map(|ret| {
@@ -598,10 +568,11 @@ impl<'cx> TyChecker<'cx> {
                     expr_ty,
                     ret,
                     Some(expr.id()),
+                    Some(expr.id()),
                 );
             }
         } else if self.get_ret_ty_from_anno(container).is_some() {
-            self.check_ret_expr(container, ret_ty, ret.expr, expr_ty);
+            self.check_ret_expr(container, ret_ty, ret_stmt.expr, expr_ty);
         }
     }
 
@@ -616,7 +587,9 @@ impl<'cx> TyChecker<'cx> {
             || !self.could_contain_ty_var(ret_ty)
         {
             let error_node = ret_expr.map(|expr| expr.id());
-            self.check_type_assignable_to_and_optionally_elaborate(expr_ty, ret_ty, error_node);
+            self.check_type_assignable_to_and_optionally_elaborate(
+                expr_ty, ret_ty, error_node, error_node,
+            );
             return;
         }
     }
@@ -840,9 +813,9 @@ impl<'cx> TyChecker<'cx> {
             mapper: None,
             outer_ty_params,
         });
-        let prev = self.ty_structured_members.insert(
+        let prev = self.ty_links.insert(
             ty.id,
-            self.alloc(ty::StructuredMembers {
+            TyLinks::default().with_structured_members(self.alloc(ty::StructuredMembers {
                 members: self.alloc(Default::default()),
                 base_tys: &[],
                 base_ctor_ty: None,
@@ -858,7 +831,7 @@ impl<'cx> TyChecker<'cx> {
                 },
                 index_infos: &[],
                 props: &[],
-            }),
+            })),
         );
         assert!(prev.is_none());
         ty
@@ -934,7 +907,7 @@ impl<'cx> TyChecker<'cx> {
             }
             NullLit(_) => self.null_ty(),
             Ident(ident) => self.check_ident(ident),
-            ArrayLit(lit) => self.check_array_lit(lit),
+            ArrayLit(lit) => self.check_array_lit(lit, false),
             Omit(_) => self.undefined_ty(),
             Paren(paren) => self.check_expr(paren.expr),
             Cond(cond) => self.check_cond(cond),
@@ -1188,7 +1161,10 @@ impl<'cx> TyChecker<'cx> {
 
     fn param_ty_mapper(&self, ty: &'cx ty::Ty<'cx>) -> Option<&'cx ty::TyMapper<'cx>> {
         let param = ty.kind.expect_param();
-        param.target.is_some().then(|| self.param_ty_mapper[&ty.id])
+        param
+            .target
+            .is_some()
+            .then(|| self.expect_ty_links(ty.id).expect_param_ty_mapper())
     }
 
     fn check_prefix_unary_expr(
@@ -1347,36 +1323,7 @@ impl<'cx> TyChecker<'cx> {
 
     fn check_object_lit(&mut self, lit: &'cx ast::ObjectLit<'cx>) -> &'cx ty::Ty<'cx> {
         // let ty = self.get_contextual_ty(lit.id);
-        let entires = lit.members.iter().map(|member| {
-            use ast::ObjectMemberKind::*;
-            match member.kind {
-                Shorthand(n) => {
-                    let member_symbol = self.get_symbol_of_decl(n.id);
-                    (SymbolName::Ele(n.name.name), member_symbol)
-                }
-                Prop(n) => {
-                    use ast::PropNameKind::*;
-                    let member_symbol = self.get_symbol_of_decl(n.id);
-                    // let member_ty = self.check_expr(n.value);
-                    match n.name.kind {
-                        Ident(ident) => (SymbolName::Ele(ident.name), member_symbol),
-                        NumLit(num) => (
-                            SymbolName::EleNum(F64Represent::new(num.val)),
-                            member_symbol,
-                        ),
-                        StringLit(lit) => (SymbolName::Ele(lit.val), member_symbol),
-                    }
-                }
-            }
-        });
-        let map = FxHashMap::from_iter(entires);
-        let members = self.alloc(map);
-        let declared_props = self.get_props_from_members(members);
-        self.create_object_lit_ty(ty::ObjectLitTy {
-            members,
-            declared_props,
-            symbol: self.binder.final_res(lit.id),
-        })
+        self.create_anonymous_ty(self.binder.final_res(lit.id), ObjectFlags::OBJECT_LITERAL)
     }
 
     fn check_cond(&mut self, cond: &'cx ast::CondExpr) -> &'cx ty::Ty<'cx> {
@@ -1386,22 +1333,34 @@ impl<'cx> TyChecker<'cx> {
         self.create_union_type(vec![ty1, ty2], ty::UnionReduction::Subtype)
     }
 
-    fn check_array_lit(&mut self, lit: &'cx ast::ArrayLit) -> &'cx ty::Ty<'cx> {
-        let mut elems = Vec::with_capacity(lit.elems.len());
+    fn check_array_lit(&mut self, lit: &'cx ast::ArrayLit, force_tuple: bool) -> &'cx ty::Ty<'cx> {
+        let mut elems_tys = Vec::with_capacity(lit.elems.len());
+        let mut element_flags = Vec::with_capacity(lit.elems.len());
+
         for elem in lit.elems.iter() {
-            elems.push(self.check_expr_for_mutable_location(elem));
+            elems_tys.push(self.check_expr_for_mutable_location(elem));
+            element_flags.push(ElementFlags::REQUIRED);
         }
-        let ty = if elems.is_empty() {
-            self.create_ty_var()
+
+        if force_tuple {
+            let tys: ty::Tys<'cx> = self.alloc(elems_tys);
+            let combined_flags = element_flags
+                .iter()
+                .fold(ElementFlags::empty(), |flags, current| flags | *current);
+            self.create_normalized_tuple_ty(tys, self.alloc(element_flags), combined_flags)
         } else {
-            self.create_union_type(elems, ty::UnionReduction::Subtype)
-        };
-        let refer = self.global_array_ty().kind.expect_object_reference();
-        let ty = self.create_reference_ty(ty::ReferenceTy {
-            target: refer.target,
-            resolved_ty_args: self.alloc(vec![ty]),
-        });
-        ty
+            let ty = if elems_tys.is_empty() {
+                self.create_ty_var()
+            } else {
+                self.create_union_type(elems_tys, ty::UnionReduction::Subtype)
+            };
+            let refer = self.global_array_ty().kind.expect_object_reference();
+            let ty = self.create_reference_ty(ty::ReferenceTy {
+                target: refer.target,
+                resolved_ty_args: self.alloc(vec![ty]),
+            });
+            ty
+        }
     }
 
     fn is_used_in_fn_or_instance_prop(&self, used: &'cx ast::Ident, decl: ast::NodeID) -> bool {

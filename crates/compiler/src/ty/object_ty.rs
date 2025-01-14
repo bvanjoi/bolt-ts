@@ -1,20 +1,19 @@
-use rustc_hash::FxHashMap;
-
 use crate::bind::{SymbolFlags, SymbolID, SymbolName};
 use crate::check::TyChecker;
 
+use super::flags::ObjectFlags;
 use super::Ty;
 
 #[derive(Debug, Clone, Copy)]
 pub struct ObjectTy<'cx> {
     pub kind: ObjectTyKind<'cx>,
+    pub flags: ObjectFlags,
 }
 
 #[derive(Debug, Clone, Copy)]
 pub enum ObjectTyKind<'cx> {
     Anonymous(&'cx AnonymousTy<'cx>),
     SingleSigTy(&'cx SingleSigTy<'cx>),
-    ObjectLit(&'cx ObjectLitTy<'cx>),
     Tuple(&'cx TupleTy<'cx>),
     Interface(&'cx InterfaceTy<'cx>),
     Reference(&'cx ReferenceTy<'cx>),
@@ -45,13 +44,6 @@ ty_kind_as_object_ty_kind!(
     as_object_anonymous,
     expect_object_anonymous,
     is_object_anonymous
-);
-ty_kind_as_object_ty_kind!(
-    &'cx ObjectLitTy<'cx>,
-    as_object_lit,
-    as_object_lit,
-    expect_object_lit,
-    is_object_lit
 );
 ty_kind_as_object_ty_kind!(
     &'cx TupleTy<'cx>,
@@ -94,12 +86,6 @@ macro_rules! as_object_ty_kind {
 }
 
 as_object_ty_kind!(Anonymous, &'cx AnonymousTy<'cx>, as_anonymous, is_anonymous);
-as_object_ty_kind!(
-    ObjectLit,
-    &'cx ObjectLitTy<'cx>,
-    as_object_lit,
-    is_object_lit
-);
 as_object_ty_kind!(Tuple, &'cx TupleTy<'cx>, as_tuple, is_tuple);
 as_object_ty_kind!(Interface, &'cx InterfaceTy<'cx>, as_interface, is_interface);
 as_object_ty_kind!(Reference, &'cx ReferenceTy<'cx>, as_reference, is_reference);
@@ -198,7 +184,12 @@ impl ObjectTyKind<'_> {
                     return format!("typeof {}", checker.atoms.get(name));
                 }
 
-                if let Some(sig) = checker.ty_structured_members[&self_ty.id].call_sigs.get(0) {
+                if let Some(sig) = checker
+                    .expect_ty_links(self_ty.id)
+                    .expect_structured_members()
+                    .call_sigs
+                    .first()
+                {
                     let params = sig.params;
                     let params = params
                         .iter()
@@ -223,10 +214,9 @@ impl ObjectTyKind<'_> {
                     };
                     format!("({params}) => {ret}")
                 } else {
-                    unreachable!()
+                    format!("object")
                 }
             }
-            ObjectTyKind::ObjectLit(_) => "Object".to_string(),
             ObjectTyKind::Tuple(TupleTy { tys, .. }) => {
                 format!(
                     "[{}]",
@@ -244,13 +234,6 @@ impl ObjectTyKind<'_> {
             ObjectTyKind::SingleSigTy(_) => "single signature type".to_string(),
         }
     }
-}
-
-#[derive(Debug, Clone, Copy)]
-pub struct ObjectLitTy<'cx> {
-    pub members: &'cx FxHashMap<SymbolName, SymbolID>,
-    pub declared_props: &'cx [SymbolID],
-    pub symbol: SymbolID,
 }
 
 #[derive(Debug, Clone, Copy)]

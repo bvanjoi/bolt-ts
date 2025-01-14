@@ -6,7 +6,7 @@ use rustc_hash::FxHashSet;
 use super::errors;
 use crate::ast;
 use crate::bind::{SymbolFlags, SymbolID, SymbolName};
-use crate::ty::{self, SigFlags, SigKind};
+use crate::ty::{self, ObjectFlags, SigFlags, SigKind};
 use crate::ty::{ObjectShape, ObjectTy, ObjectTyKind, Sig, Ty, TyKind, Tys};
 
 use super::{Ternary, TyChecker};
@@ -44,23 +44,42 @@ impl<'cx> TyChecker<'cx> {
         self.structured_related_to(source, target, relation, report_error)
     }
 
-    fn has_excess_properties(&mut self, source: &'cx Ty<'cx>, target: &'cx Ty<'cx>) -> bool {
-        let source = source.kind.expect_object_lit();
-        let Some(target) = target.kind.as_object_lit() else {
+    fn is_excess_property_check_target(&self, target: &'cx Ty<'cx>) -> bool {
+        let Some(object) = target.kind.as_object() else {
             return false;
         };
+        object.kind.is_anonymous()
+    }
+
+    fn has_excess_properties(
+        &mut self,
+        source: &'cx Ty<'cx>,
+        target_ty: &'cx Ty<'cx>,
+        report_error: bool,
+    ) -> bool {
+        if !self.is_excess_property_check_target(target_ty) {
+            return false;
+        }
+        let source = source.kind.expect_object_anonymous();
         for (name, symbol) in &self.binder.symbol(source.symbol).expect_object().members {
-            if target.members.contains_key(name) {
+            let target_members = self.ty_links[&target_ty.id]
+                .expect_structured_members()
+                .members;
+            if target_members.contains_key(name) {
                 continue;
             } else {
-                let span = self
-                    .p
-                    .node(self.binder.symbol(*symbol).expect_prop().decl)
-                    .span();
-                let field = self.atoms.get(name.expect_atom()).to_string();
-                let error =
-                    errors::ObjectLitMayOnlySpecifyKnownPropAndFieldDoesNotExist { span, field };
-                self.push_error(Box::new(error));
+                if report_error {
+                    let span = self
+                        .p
+                        .node(self.binder.symbol(*symbol).expect_prop().decl)
+                        .span();
+                    let field = self.atoms.get(name.expect_atom()).to_string();
+                    let error = errors::ObjectLitMayOnlySpecifyKnownPropAndFieldDoesNotExist {
+                        span,
+                        field,
+                    };
+                    self.push_error(Box::new(error));
+                }
                 return true;
             }
         }
@@ -158,9 +177,18 @@ impl<'cx> TyChecker<'cx> {
         if source.kind.is_structured_or_instantiable()
             || target.kind.is_structured_or_instantiable()
         {
-            let is_performing_excess_property_check = source.kind.as_object_lit().is_some();
-            if is_performing_excess_property_check && self.has_excess_properties(source, target) {
-                return true;
+            let is_performing_excess_property_check = source
+                .kind
+                .as_object()
+                .is_some_and(|object| object.flags.intersects(ObjectFlags::OBJECT_LITERAL));
+            if is_performing_excess_property_check
+                && self.has_excess_properties(source, target, report_error)
+            {
+                if report_error {
+                    return true;
+                } else {
+                    return false;
+                }
             }
             return self.recur_related_to(source, target, relation, report_error);
         }
@@ -532,12 +560,14 @@ impl<'cx> TyChecker<'cx> {
         source: &'cx Ty<'cx>,
         target: &'cx Ty<'cx>,
         error_node: Option<ast::NodeID>,
-    ) {
+        expr: Option<ast::NodeID>,
+    ) -> bool {
         self.check_type_related_to_and_optionally_elaborate(
             source,
             target,
             RelationKind::Assignable,
             error_node,
+            expr,
             |this, span, source, target| {
                 let source = if (source.kind.is_number_lit() && target.kind.is_number_lit())
                     || (source.kind.is_string_lit() && target.kind.is_string_lit())
@@ -552,7 +582,7 @@ impl<'cx> TyChecker<'cx> {
                     ty2: this.print_ty(target).to_string(),
                 })
             },
-        );
+        )
     }
 
     pub(super) fn check_type_related_to_and_optionally_elaborate(
@@ -561,23 +591,25 @@ impl<'cx> TyChecker<'cx> {
         target: &'cx Ty<'cx>,
         relation: RelationKind,
         error_node: Option<ast::NodeID>,
+        expr: Option<ast::NodeID>,
         error: impl FnOnce(&mut Self, Span, &'cx Ty<'cx>, &'cx Ty<'cx>) -> crate::Diag,
     ) -> bool {
         if self.is_type_related_to(source, target, relation) {
             return true;
         }
-        if error_node.is_some() {
+        if error_node.is_none() || !self.elaborate_error(expr, source, target, relation, error_node)
+        {
             if !self.check_type_related_to(source, target, relation, error_node) {
                 let span = self.p.node(error_node.unwrap()).span();
                 let error = error(self, span, source, target);
                 self.push_error(error);
-                false
+                return false;
             } else {
-                true
+                return true;
             }
-        } else {
-            false
         }
+
+        false
     }
 
     pub(super) fn check_type_assignable_to(
@@ -589,7 +621,7 @@ impl<'cx> TyChecker<'cx> {
         self.check_type_related_to(source, target, RelationKind::Assignable, error_node)
     }
 
-    fn check_type_related_to(
+    pub(super) fn check_type_related_to(
         &mut self,
         source: &'cx Ty<'cx>,
         target: &'cx Ty<'cx>,
@@ -664,8 +696,6 @@ impl<'cx> TyChecker<'cx> {
     ) -> &'cx [SymbolID] {
         if let ObjectTyKind::Interface(_) = ty.kind {
             self.properties_of_object_type(self_ty)
-        } else if let ObjectTyKind::ObjectLit(ty) = ty.kind {
-            ObjectShape::props(ty)
         } else if let ObjectTyKind::Tuple(ty) = ty.kind {
             ObjectShape::props(ty)
         } else if let ObjectTyKind::Reference(_) = ty.kind {
@@ -698,25 +728,24 @@ impl<'cx> TyChecker<'cx> {
         self.resolve_structured_type_members(ty);
 
         let symbol = if object_ty.kind.as_interface().is_some() {
-            self.ty_structured_members[&ty.id]
+            self.expect_ty_links(ty.id)
+                .expect_structured_members()
                 .members
                 .get(&name)
                 .copied()
-        } else if let Some(ty) = object_ty.kind.as_object_lit() {
-            ObjectShape::get_member(ty, &name)
         } else if let Some(ty) = object_ty.kind.as_tuple() {
             ObjectShape::get_member(ty, &name)
         } else if let Some(refer) = object_ty.kind.as_reference() {
-            if !self.ty_structured_members.contains_key(&ty.id) {
-                self.get_prop_of_ty(refer.target, name)
-            } else {
-                self.ty_structured_members[&ty.id]
-                    .members
-                    .get(&name)
-                    .copied()
-            }
+            let Some(ty_links) = self.ty_links.get(&ty.id) else {
+                return self.get_prop_of_ty(refer.target, name);
+            };
+            let Some(structured) = ty_links.get_structured_members() else {
+                return self.get_prop_of_ty(refer.target, name);
+            };
+            structured.members.get(&name).copied()
         } else if object_ty.kind.as_anonymous().is_some() {
-            self.ty_structured_members[&ty.id]
+            self.expect_ty_links(ty.id)
+                .expect_structured_members()
                 .members
                 .get(&name)
                 .copied()
@@ -731,15 +760,15 @@ impl<'cx> TyChecker<'cx> {
         let fn_ty = if ty.id == self.any_fn_ty().id {
             Some(self.global_array_ty())
         } else if self
-            .ty_structured_members
-            .get(&ty.id)
+            .get_ty_links(ty.id)
+            .get_structured_members()
             .map(|item| !item.call_sigs.is_empty())
             .unwrap_or_default()
         {
             Some(self.global_callable_fn_ty())
         } else if self
-            .ty_structured_members
-            .get(&ty.id)
+            .get_ty_links(ty.id)
+            .get_structured_members()
             .map(|item| !item.ctor_sigs.is_empty())
             .unwrap_or_default()
         {
@@ -766,7 +795,8 @@ impl<'cx> TyChecker<'cx> {
             return None;
         };
         self.resolve_structured_type_members(ty);
-        self.ty_structured_members[&ty.id]
+        self.expect_ty_links(ty.id)
+            .expect_structured_members()
             .members
             .get(&name)
             .copied()
@@ -805,7 +835,6 @@ impl<'cx> TyChecker<'cx> {
                 match ty.kind {
                     ObjectTyKind::Reference(ty) => recur(ty.target.kind.expect_object()),
                     ObjectTyKind::Interface(ty) => ty.symbol,
-                    ObjectTyKind::ObjectLit(ty) => ty.symbol,
                     ObjectTyKind::Anonymous(ty) => ty.symbol,
                     _ => unreachable!(),
                 }

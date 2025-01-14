@@ -1,4 +1,4 @@
-use super::node_links::NodeFlags;
+use super::NodeFlags;
 use super::{CheckMode, TyChecker};
 use crate::{ast, ir, ty};
 
@@ -48,10 +48,10 @@ impl<'cx> TyChecker<'cx> {
 
                 if contextual_sig.is_some()
                     && self.get_ret_ty_from_anno(id).is_none()
-                    && !self.sig_ret_ty.contains_key(&sig.id)
+                    && self.get_sig_links(sig.id).get_resolved_ret_ty().is_none()
                 {
                     let ret_ty = self.get_ret_ty_from_body(id);
-                    self.sig_ret_ty.insert(sig.id, ret_ty);
+                    self.get_mut_sig_links(sig.id).set_resolved_ret_ty(ret_ty);
                 }
             }
         }

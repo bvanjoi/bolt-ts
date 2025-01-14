@@ -30,6 +30,7 @@ use bolt_ts_fs::CachedFileSystem;
 use bolt_ts_span::{ModuleArena, ModuleID, ModulePath};
 
 use normalize_path::NormalizePath;
+use rayon::iter::{IntoParallelIterator, ParallelIterator};
 use rustc_hash::FxHashMap;
 
 type Diag = Box<dyn bolt_ts_errors::diag_ext::DiagnosticExt + Send + Sync + 'static>;
@@ -38,7 +39,7 @@ pub struct Output {
     pub cwd: PathBuf,
     pub tsconfig: NormalizedTsConfig,
     pub module_arena: ModuleArena,
-    pub output: FxHashMap<ModuleID, String>,
+    pub output: Vec<(ModuleID, String)>,
     pub diags: Vec<bolt_ts_errors::Diag>,
 }
 
@@ -54,7 +55,7 @@ pub fn output_files(
     cwd: &std::path::Path,
     tsconfig: &NormalizedTsConfig,
     module_arena: &ModuleArena,
-    output: &FxHashMap<ModuleID, String>,
+    output: &[(ModuleID, String)],
 ) -> FxHashMap<PathBuf, String> {
     let p = |m: ModuleID| match module_arena.get_path(m) {
         bolt_ts_span::ModulePath::Real(p) => p,
@@ -248,16 +249,16 @@ pub fn eval_from(cwd: PathBuf, tsconfig: NormalizedTsConfig) -> Output {
 
     // ==== codegen ====
     let output = entries
-        .iter()
+        .into_par_iter()
         .filter_map(|item| {
-            if module_arena.get_module(*item).global {
+            if module_arena.get_module(item).global {
                 None
             } else {
                 let mut emitter = emit::Emit::new(checker.atoms);
-                Some((*item, emitter.emit(p.root(*item))))
+                Some((item, emitter.emit(p.root(item))))
             }
         })
-        .collect::<FxHashMap<_, _>>();
+        .collect::<Vec<_>>();
 
     let diags = diags.into_iter().chain(checker.diags).collect();
 

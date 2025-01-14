@@ -21,6 +21,7 @@ impl<'cx> TyChecker<'cx> {
                     init_ty,
                     decl_ty,
                     Some(decl.name().id),
+                    Some(init.id()),
                 );
             }
         }

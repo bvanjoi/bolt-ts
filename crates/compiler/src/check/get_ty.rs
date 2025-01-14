@@ -1,12 +1,15 @@
 use bolt_ts_atom::AtomId;
 
-use super::symbol_links::SymbolLinks;
 use super::ty::{self, Ty, TyKind};
+use super::SymbolLinks;
 use super::{CheckMode, F64Represent, InferenceContextId, PropName, TyChecker};
 use crate::ast;
+
 use crate::bind::{SymbolFlags, SymbolID, SymbolName};
 use crate::keyword;
-use crate::ty::{AccessFlags, CheckFlags, ElementFlags, TupleShape, TyMapper, TypeFlags};
+use crate::ty::{
+    AccessFlags, CheckFlags, ElementFlags, ObjectFlags, TupleShape, TyMapper, TypeFlags,
+};
 
 impl<'cx> TyChecker<'cx> {
     pub(crate) fn get_type_of_symbol(&mut self, id: SymbolID) -> &'cx Ty<'cx> {
@@ -71,7 +74,9 @@ impl<'cx> TyChecker<'cx> {
 
     fn get_base_type_variable_of_class(&mut self, symbol: SymbolID) -> Option<&'cx Ty<'cx>> {
         let class_ty = self.get_declared_ty_of_symbol(symbol);
-        self.ty_structured_members[&class_ty.id].base_ctor_ty
+        self.expect_ty_links(class_ty.id)
+            .expect_structured_members()
+            .base_ctor_ty
     }
 
     // fn get_intersection_ty(&mut self, tys: &'cx [&'cx Ty<'cx>]) -> &'cx Ty<'cx> {
@@ -79,11 +84,7 @@ impl<'cx> TyChecker<'cx> {
     // }
 
     fn get_type_of_class_decl(&mut self, symbol: SymbolID) -> &'cx Ty<'cx> {
-        let ty = self.create_anonymous_ty(ty::AnonymousTy {
-            symbol,
-            target: None,
-            mapper: None,
-        });
+        let ty = self.create_anonymous_ty(symbol, ObjectFlags::empty());
         if let Some(base) = self.get_base_type_variable_of_class(symbol) {
             // TODO: get_intersection_ty
             base
@@ -97,11 +98,7 @@ impl<'cx> TyChecker<'cx> {
         if let Some(ty) = self.get_symbol_links(symbol).get_ty() {
             return ty;
         }
-        let ty = self.create_anonymous_ty(ty::AnonymousTy {
-            symbol,
-            target: None,
-            mapper: None,
-        });
+        let ty = self.create_anonymous_ty(symbol, ObjectFlags::empty());
         self.get_mut_symbol_links(symbol).set_ty(ty);
         ty
     }
@@ -128,18 +125,8 @@ impl<'cx> TyChecker<'cx> {
             Refer(refer) => self.get_ty_from_ty_reference(refer),
             Array(array) => self.get_ty_from_array_node(array),
             Tuple(tuple) => self.get_ty_from_tuple_node(tuple),
-            Fn(f) => self.get_ty_from_fn_node(f),
-            ObjectLit(lit) => {
-                let symbol = self.binder.final_res(lit.id);
-                let object = &self.binder.symbol(symbol).expect_object();
-                let members = self.alloc(object.members.clone());
-                let declared_props = self.get_props_from_members(members);
-                self.create_object_lit_ty(ty::ObjectLitTy {
-                    members,
-                    declared_props,
-                    symbol,
-                })
-            }
+            Fn(f) => self.get_ty_from_object_lit_or_fn_or_ctor_ty_node(f.id),
+            ObjectLit(lit) => self.get_ty_from_object_lit_or_fn_or_ctor_ty_node(lit.id),
             NumLit(num) => self.get_number_literal_type(num.val),
             StringLit(s) => self.get_string_literal_type(s.val),
             Rest(rest) => self.get_ty_from_rest_ty_node(rest),
@@ -150,22 +137,17 @@ impl<'cx> TyChecker<'cx> {
             Intersection(_) => self.undefined_ty(),
             BooleanLit(_) => todo!(),
             NullLit(_) => todo!(),
-            Mapped(n) => self.undefined_ty(),
-            TyOp(ty_op) => self.undefined_ty(),
+            Mapped(_) => self.undefined_ty(),
+            TyOp(_) => self.undefined_ty(),
         }
     }
 
-    fn get_ty_from_fn_node(&mut self, f: &'cx ast::FnTy<'cx>) -> &'cx Ty<'cx> {
-        if let Some(ty) = self.get_node_links(f.id).get_resolved_ty() {
+    fn get_ty_from_object_lit_or_fn_or_ctor_ty_node(&mut self, node: ast::NodeID) -> &'cx Ty<'cx> {
+        if let Some(ty) = self.get_node_links(node).get_resolved_ty() {
             return ty;
         }
-
-        let ty = self.create_anonymous_ty(ty::AnonymousTy {
-            symbol: self.binder.final_res(f.id),
-            target: None,
-            mapper: None,
-        });
-        self.get_mut_node_links(f.id).set_resolved_ty(ty);
+        let ty = self.create_anonymous_ty(self.binder.final_res(node), ObjectFlags::empty());
+        self.get_mut_node_links(node).set_resolved_ty(ty);
         ty
     }
 
@@ -578,7 +560,7 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
-    fn create_tuple_shape(&mut self, elem_tys: &[&'cx Ty]) -> &'cx TupleShape<'cx> {
+    pub(super) fn create_tuple_shape(&mut self, elem_tys: &[&'cx Ty]) -> &'cx TupleShape<'cx> {
         let key = elem_tys.len() as u32;
         if let Some(shape) = self.tuple_shapes.get(&key) {
             return shape;

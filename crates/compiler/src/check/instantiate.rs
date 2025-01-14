@@ -1,4 +1,5 @@
 use crate::bind::{SymbolFlags, SymbolID};
+use crate::ty::ObjectFlags;
 use crate::{ast, ty};
 
 use super::TyChecker;
@@ -106,11 +107,7 @@ impl<'cx> TyChecker<'cx> {
         mapper: &'cx ty::TyMapper<'cx>,
     ) -> &'cx ty::Ty<'cx> {
         let target = ty.kind.expect_object_anonymous();
-        self.create_anonymous_ty(ty::AnonymousTy {
-            symbol: target.symbol,
-            target: Some(ty),
-            mapper: Some(mapper),
-        })
+        self.create_instantiating_anonymous_ty(target.symbol, ty, mapper, ObjectFlags::empty())
     }
 
     fn get_object_ty_instantiation(

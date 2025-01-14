@@ -42,7 +42,7 @@ impl<'cx> TyChecker<'cx> {
     }
 
     pub(super) fn get_ret_ty_of_sig(&mut self, sig: &'cx Sig<'cx>) -> &'cx ty::Ty<'cx> {
-        if let Some(ty) = self.sig_ret_ty.get(&sig.id) {
+        if let Some(ty) = self.get_sig_links(sig.id).get_resolved_ret_ty() {
             return ty;
         }
         let ty = if let Some(target) = sig.target {
@@ -57,8 +57,7 @@ impl<'cx> TyChecker<'cx> {
         } else {
             self.any_ty()
         };
-        let prev = self.sig_ret_ty.insert(sig.id, ty);
-        assert!(prev.is_none());
+        self.get_mut_sig_links(sig.id).set_resolved_ret_ty(ty);
         ty
     }
 
@@ -258,6 +257,7 @@ impl<'cx> TyChecker<'cx> {
                 param_ty,
                 relation,
                 error_node,
+                Some(expr.id()),
                 |this, span, source, target| {
                     let source = this.get_base_ty_of_literal_ty(source);
                     Box::new(errors::ArgumentOfTyIsNotAssignableToParameterOfTy {
