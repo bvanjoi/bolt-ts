@@ -1,35 +1,21 @@
 use crate::bind::{Symbol, SymbolFlags, SymbolID};
 use crate::{ast, keyword, ty};
 
-use super::TyChecker;
+use super::{errors, TyChecker};
 
 pub(super) trait GetTypeFromTyReferLike<'cx> {
     fn id(&self) -> ast::NodeID;
+    fn span(&self) -> bolt_ts_span::Span;
     fn name(&self) -> Option<ast::EntityName<'cx>>;
     fn ty_args(&self) -> Option<&'cx ast::Tys<'cx>>;
-}
-
-impl<'cx> GetTypeFromTyReferLike<'cx> for ast::Expr<'cx> {
-    fn id(&self) -> ast::NodeID {
-        self.id()
-    }
-    fn name(&self) -> Option<ast::EntityName<'cx>> {
-        if let ast::ExprKind::Ident(ident) = self.kind {
-            Some(ast::EntityName {
-                kind: ast::EntityNameKind::Ident(ident),
-            })
-        } else {
-            None
-        }
-    }
-    fn ty_args(&self) -> Option<&'cx ast::Tys<'cx>> {
-        None
-    }
 }
 
 impl<'cx> GetTypeFromTyReferLike<'cx> for ast::ReferTy<'cx> {
     fn id(&self) -> ast::NodeID {
         self.id
+    }
+    fn span(&self) -> bolt_ts_span::Span {
+        self.span
     }
     fn name(&self) -> Option<ast::EntityName<'cx>> {
         Some(*self.name)
@@ -94,6 +80,46 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
+    fn get_ty_from_class_or_interface_refer(
+        &mut self,
+        node: &impl GetTypeFromTyReferLike<'cx>,
+        symbol: SymbolID,
+    ) -> &'cx ty::Ty<'cx> {
+        let ty = self.get_declared_ty_of_symbol(symbol);
+        let i = if let Some(i) = ty.kind.as_object_interface() {
+            i
+        } else if let Some(r) = ty.kind.as_object_reference() {
+            r.target.kind.expect_object_interface()
+        } else {
+            unreachable!()
+        };
+        if let Some(ty_params) = i.local_ty_params {
+            let num_ty_args = node
+                .ty_args()
+                .map(|args| args.list.len())
+                .unwrap_or_default();
+            let min_ty_arg_count = self.get_min_ty_args_count(ty_params);
+            if num_ty_args < min_ty_arg_count || num_ty_args > ty_params.len() {
+                let error: crate::Diag = if min_ty_arg_count == ty_params.len() {
+                    Box::new(errors::GenericTypeXRequiresNTypeArguments {
+                        span: node.span(),
+                        ty: self.print_ty(ty).to_string(),
+                        n: ty_params.len(),
+                    })
+                } else {
+                    Box::new(errors::GenericTypeXRequiresBetweenXAndYTypeArguments {
+                        span: node.span(),
+                        ty: self.print_ty(ty).to_string(),
+                        x: min_ty_arg_count,
+                        y: ty_params.len(),
+                    })
+                };
+                self.push_error(error);
+            }
+        }
+        ty
+    }
+
     pub(super) fn get_ty_refer_type(
         &mut self,
         node: &impl GetTypeFromTyReferLike<'cx>,
@@ -103,8 +129,10 @@ impl<'cx> TyChecker<'cx> {
             return self.error_ty();
         }
         let s = &self.binder.symbol(symbol);
-        if (SymbolFlags::CLASS | SymbolFlags::INTERFACE).intersects(s.flags) {
-            self.get_declared_ty_of_symbol(symbol)
+        if s.flags
+            .intersects(SymbolFlags::CLASS | SymbolFlags::INTERFACE)
+        {
+            self.get_ty_from_class_or_interface_refer(node, symbol)
         } else if s.flags == SymbolFlags::TYPE_ALIAS {
             self.get_ty_from_ty_alias_refer(node, symbol)
         } else if let Some(res) = self.try_get_declared_ty_of_symbol(symbol) {
@@ -122,8 +150,11 @@ impl<'cx> TyChecker<'cx> {
         &mut self,
         node: &impl GetTypeFromTyReferLike<'cx>,
     ) -> &'cx ty::Ty<'cx> {
+        if let Some(ty) = self.get_node_links(node.id()).get_resolved_ty() {
+            return ty;
+        }
         // TODO: cache
-        if let Some(name) = node.name() {
+        let ty = if let Some(name) = node.name() {
             if let ast::EntityNameKind::Ident(ident) = name.kind {
                 if ident.name == keyword::IDENT_BOOLEAN {
                     self.boolean_ty()
@@ -148,6 +179,8 @@ impl<'cx> TyChecker<'cx> {
         } else {
             // TODO:
             self.undefined_ty()
-        }
+        };
+        self.get_mut_node_links(node.id()).set_resolved_ty(ty);
+        ty
     }
 }

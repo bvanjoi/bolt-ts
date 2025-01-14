@@ -22,6 +22,10 @@ impl<'cx> Resolver<'cx, '_> {
     }
 
     pub(super) fn resolve_class_like(&mut self, class: &'cx impl ir::ClassLike<'cx>) {
+        if let Some(ty_params) = class.ty_params() {
+            self.resolve_ty_params(ty_params);
+        }
+
         if let Some(extends) = class.extends() {
             self.resolve_expr(extends.expr);
         }

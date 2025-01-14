@@ -267,3 +267,30 @@ pub(super) struct DidYourMeanToAccessTheStaticMemberInstead {
     pub class_name: String,
     pub prop_name: String,
 }
+
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
+#[error("Generic type '{ty}' requires {n} type argument{}.", { if *n > 1 { "s" } else { "" } })]
+pub(super) struct GenericTypeXRequiresNTypeArguments {
+    #[label(primary)]
+    pub span: Span,
+    pub ty: String,
+    pub n: usize,
+}
+
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
+#[error("Generic type '{ty}' requires between {x} and {y} type arguments.")]
+pub(super) struct GenericTypeXRequiresBetweenXAndYTypeArguments {
+    #[label(primary)]
+    pub span: Span,
+    pub ty: String,
+    pub x: usize,
+    pub y: usize,
+}
+
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
+#[error("Type '{x}' recursively references itself as a base type.")]
+pub(super) struct TypeXRecursivelyReferencesItselfAsABaseType {
+    #[label(primary)]
+    pub span: Span,
+    pub x: String,
+}

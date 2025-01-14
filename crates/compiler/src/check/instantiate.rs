@@ -256,7 +256,7 @@ impl<'cx> TyChecker<'cx> {
         self.instantiate_ty_with_alias(ty, mapper)
     }
 
-    fn get_min_ty_args_count(&self, ty_params: ty::Tys<'cx>) -> usize {
+    pub(super) fn get_min_ty_args_count(&self, ty_params: ty::Tys<'cx>) -> usize {
         let mut min = 0;
         for (i, param) in ty_params.iter().enumerate() {
             let param = param.kind.expect_param();

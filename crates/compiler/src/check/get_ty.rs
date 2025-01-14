@@ -309,6 +309,9 @@ impl<'cx> TyChecker<'cx> {
         } else if s.flags.intersects(SymbolFlags::INTERFACE) {
             let i = s.expect_interface();
             i.decl
+        } else if s.flags.intersects(SymbolFlags::CLASS) {
+            let c = s.expect_class();
+            c.decl
         } else {
             return None;
         };

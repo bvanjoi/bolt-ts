@@ -23,10 +23,12 @@ impl<'cx> TyChecker<'cx> {
         if let Some(ty) = self.get_symbol_links(id).get_declared_ty() {
             return Some(ty);
         }
-        let symbol = self.binder.symbol(id);
-        if (SymbolFlags::CLASS | SymbolFlags::INTERFACE).intersects(symbol.flags) {
+        let s = self.binder.symbol(id);
+        if s.flags
+            .intersects(SymbolFlags::CLASS | SymbolFlags::INTERFACE)
+        {
             Some(self.get_declared_ty_of_class_or_interface(id))
-        } else if symbol.flags == SymbolFlags::TYPE_ALIAS {
+        } else if s.flags == SymbolFlags::TYPE_ALIAS {
             let ty = self.get_declared_ty_of_type_alias(id);
             if let Some(ty_params) =
                 self.get_local_ty_params_of_class_or_interface_or_type_alias(id)
@@ -34,7 +36,7 @@ impl<'cx> TyChecker<'cx> {
                 self.get_mut_symbol_links(id).set_ty_params(ty_params);
             }
             Some(ty)
-        } else if symbol.flags == SymbolFlags::TYPE_PARAMETER {
+        } else if s.flags == SymbolFlags::TYPE_PARAMETER {
             let ty = self.get_declared_ty_of_ty_param(id);
             Some(ty)
         } else {
@@ -84,7 +86,19 @@ impl<'cx> TyChecker<'cx> {
         interface.extends.map(|extends| extends.list)
     }
 
-    fn resolve_base_tys_of_interface(&mut self, decl: ast::NodeID) -> &'cx [&'cx ty::Ty<'cx>] {
+    fn report_circular_base_ty(&mut self, decl: ast::NodeID, ty: &'cx ty::Ty<'cx>) {
+        let error = errors::TypeXRecursivelyReferencesItselfAsABaseType {
+            span: self.p.node(decl).ident_name().unwrap().span,
+            x: self.print_ty(ty).to_string(),
+        };
+        self.push_error(Box::new(error));
+    }
+
+    fn resolve_base_tys_of_interface(&mut self, ty: &'cx ty::Ty<'cx>) -> &'cx [&'cx ty::Ty<'cx>] {
+        let symbol = ty.symbol().unwrap();
+        let s = self.binder.symbol(symbol);
+        let i = s.expect_interface();
+        let decl = i.decl;
         assert!(self.p.node(decl).is_interface_decl());
         let Some(ty_nodes) = self.get_interface_base_ty_nodes(decl) else {
             return &[];
@@ -92,7 +106,11 @@ impl<'cx> TyChecker<'cx> {
         let mut tys = thin_vec::ThinVec::with_capacity(ty_nodes.len());
         for node in ty_nodes {
             let base_ty = self.get_ty_from_ty_reference(*node);
-            tys.push(base_ty);
+            if ty != base_ty {
+                tys.push(base_ty);
+            } else {
+                self.report_circular_base_ty(decl, ty);
+            }
         }
         self.alloc(tys)
     }
@@ -118,8 +136,7 @@ impl<'cx> TyChecker<'cx> {
             let tys = self.resolve_base_tys_of_class(ty);
             (Some(tys[0]), &tys)
         } else if symbol.flags.intersects(SymbolFlags::INTERFACE) {
-            let i = symbol.expect_interface();
-            (None, self.resolve_base_tys_of_interface(i.decl))
+            (None, self.resolve_base_tys_of_interface(ty))
         } else {
             unreachable!()
         }
@@ -190,61 +207,6 @@ impl<'cx> TyChecker<'cx> {
         self.alloc(props)
     }
 
-    fn get_resolved_member_or_exports_of_symbol(
-        &mut self,
-        symbol: SymbolID,
-        is_resolve_export: bool,
-    ) -> &'cx FxHashMap<SymbolName, SymbolID> {
-        let is_static = is_resolve_export;
-        self.alloc(self.members(symbol).clone())
-    }
-
-    fn get_resolved_member_of_symbol(
-        &mut self,
-        symbol: SymbolID,
-    ) -> &'cx FxHashMap<SymbolName, SymbolID> {
-        if let Some(resolved_members) = self.get_symbol_links(symbol).get_resolved_members() {
-            return resolved_members;
-        }
-        let resolved_members = self.get_resolved_member_or_exports_of_symbol(symbol, false);
-        self.get_mut_symbol_links(symbol)
-            .set_resolved_members(resolved_members);
-        resolved_members
-    }
-
-    fn get_members_of_late_binding_symbol(
-        &mut self,
-        symbol: SymbolID,
-    ) -> Option<&'cx FxHashMap<SymbolName, SymbolID>> {
-        self.binder
-            .symbol(symbol)
-            .flags
-            .intersects(SymbolFlags::LATE_BINDING_CONTAINER)
-            .then(|| self.get_resolved_member_of_symbol(symbol))
-    }
-
-    fn resolve_declared_members(&mut self, symbol: SymbolID) -> &'cx ty::DeclaredMembers<'cx> {
-        let members = self.get_members_of_late_binding_symbol(symbol).unwrap();
-        let props = self.get_props_from_members(&members);
-        let call_sigs = members
-            .get(&SymbolName::Call)
-            .copied()
-            .map(|s| self.get_sigs_of_symbol(s))
-            .unwrap_or_default();
-        let ctor_sigs = members
-            .get(&SymbolName::Constructor)
-            .copied()
-            .map(|s| self.get_sigs_of_symbol(s))
-            .unwrap_or_default();
-        let index_infos = self.get_index_infos_of_symbol(symbol);
-        self.alloc(ty::DeclaredMembers {
-            props,
-            index_infos,
-            ctor_sigs,
-            call_sigs,
-        })
-    }
-
     fn get_declared_ty_of_class_or_interface(&mut self, symbol: SymbolID) -> &'cx ty::Ty<'cx> {
         if let Some(ty) = self.get_symbol_links(symbol).get_declared_ty() {
             return ty;
@@ -252,7 +214,6 @@ impl<'cx> TyChecker<'cx> {
 
         let outer_ty_params = self.get_outer_ty_params_of_class_or_interface(symbol);
         let local_ty_params = self.get_local_ty_params_of_class_or_interface_or_type_alias(symbol);
-        let declared = self.resolve_declared_members(symbol);
 
         let ty = if outer_ty_params.is_some()
             || local_ty_params.is_some()
@@ -272,7 +233,6 @@ impl<'cx> TyChecker<'cx> {
                 outer_ty_params: (!outer_ty_params.is_empty()).then_some(outer_ty_params),
                 local_ty_params: (!local_ty_params.is_empty()).then_some(local_ty_params),
                 this_ty: Some(this_ty),
-                declared,
             });
             let ty = self.create_reference_ty(ty::ReferenceTy {
                 target,
@@ -287,7 +247,6 @@ impl<'cx> TyChecker<'cx> {
                 outer_ty_params: None,
                 local_ty_params: None,
                 this_ty: None,
-                declared,
             })
         };
 

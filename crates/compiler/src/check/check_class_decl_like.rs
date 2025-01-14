@@ -17,6 +17,11 @@ impl<'cx> TyChecker<'cx> {
 
     pub(super) fn check_class_decl_like(&mut self, class: &impl ClassLike<'cx>) {
         let symbol = self.get_symbol_of_decl(class.id());
+
+        if let Some(ty_params) = class.ty_params() {
+            self.check_ty_params(ty_params);
+        }
+
         let ty = self.get_declared_ty_of_symbol(symbol);
         let static_ty = self.get_type_of_symbol(symbol);
         self.check_index_constraints(ty, symbol);

@@ -199,11 +199,10 @@ impl<'cx> TyChecker<'cx> {
         ty_params: ty::Tys<'cx>,
         ty_args: ty::Tys<'cx>,
     ) {
-        let (base_ctor_ty, base_tys) = self.get_base_tys(ty);
-        // TODO: remove this
         if self.get_ty_links(ty.id).get_structured_members().is_some() {
             return;
         }
+        let (base_ctor_ty, base_tys) = self.get_base_tys(ty);
         let symbol = ty.symbol().unwrap();
 
         let mut members;
@@ -269,9 +268,71 @@ impl<'cx> TyChecker<'cx> {
         self.get_mut_ty_links(ty.id).set_structured_members(m);
     }
 
+    fn get_resolved_member_or_exports_of_symbol(
+        &mut self,
+        symbol: SymbolID,
+        is_resolve_export: bool,
+    ) -> &'cx FxHashMap<SymbolName, SymbolID> {
+        let is_static = is_resolve_export;
+        self.alloc(self.members(symbol).clone())
+    }
+
+    fn get_resolved_member_of_symbol(
+        &mut self,
+        symbol: SymbolID,
+    ) -> &'cx FxHashMap<SymbolName, SymbolID> {
+        if let Some(resolved_members) = self.get_symbol_links(symbol).get_resolved_members() {
+            return resolved_members;
+        }
+        let resolved_members = self.get_resolved_member_or_exports_of_symbol(symbol, false);
+        self.get_mut_symbol_links(symbol)
+            .set_resolved_members(resolved_members);
+        resolved_members
+    }
+
+    fn get_members_of_late_binding_symbol(
+        &mut self,
+        symbol: SymbolID,
+    ) -> Option<&'cx FxHashMap<SymbolName, SymbolID>> {
+        self.binder
+            .symbol(symbol)
+            .flags
+            .intersects(SymbolFlags::LATE_BINDING_CONTAINER)
+            .then(|| self.get_resolved_member_of_symbol(symbol))
+    }
+
+    fn resolve_declared_members(&mut self, ty: &'cx ty::Ty<'cx>) -> &'cx ty::DeclaredMembers<'cx> {
+        if let Some(declared_members) = self.get_ty_links(ty.id).get_declared_members() {
+            return declared_members;
+        };
+        let symbol = ty.symbol().unwrap();
+        let members = self.get_members_of_late_binding_symbol(symbol).unwrap();
+        let props = self.get_props_from_members(&members);
+        let call_sigs = members
+            .get(&SymbolName::Call)
+            .copied()
+            .map(|s| self.get_sigs_of_symbol(s))
+            .unwrap_or_default();
+        let ctor_sigs = members
+            .get(&SymbolName::Constructor)
+            .copied()
+            .map(|s| self.get_sigs_of_symbol(s))
+            .unwrap_or_default();
+        let index_infos = self.get_index_infos_of_symbol(symbol);
+        let declared_members = self.alloc(ty::DeclaredMembers {
+            props,
+            index_infos,
+            ctor_sigs,
+            call_sigs,
+        });
+        self.get_mut_ty_links(ty.id)
+            .set_declared_members(declared_members);
+        declared_members
+    }
+
     fn resolve_interface_members(&mut self, ty: &'cx ty::Ty<'cx>) {
-        let i = ty.kind.as_object_interface().unwrap();
-        self.resolve_object_type_members(ty, i.declared, &[], &[]);
+        let declared_members = self.resolve_declared_members(ty);
+        self.resolve_object_type_members(ty, declared_members, &[], &[]);
     }
 
     fn resolve_reference_members(&mut self, ty: &'cx ty::Ty<'cx>) {
@@ -295,7 +356,8 @@ impl<'cx> TyChecker<'cx> {
             padded_type_arguments.push(refer.target);
             self.alloc(padded_type_arguments)
         };
-        self.resolve_object_type_members(ty, i.declared, ty_params, padded_type_arguments);
+        let declared_members = self.resolve_declared_members(ty);
+        self.resolve_object_type_members(ty, declared_members, ty_params, padded_type_arguments);
     }
 
     fn get_default_construct_sigs(&mut self, ty: &'cx ty::Ty<'cx>) -> &'cx [&'cx ty::Sig<'cx>] {

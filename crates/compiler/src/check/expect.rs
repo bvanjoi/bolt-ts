@@ -77,7 +77,7 @@ impl<'cx> TyChecker<'cx> {
             && sigs.is_empty()
             && matches!(ty.kind, ty::TyKind::Union(_))
         {
-            // TODO: handle
+            // TODO: handle this branch
             sigs
         } else {
             sigs

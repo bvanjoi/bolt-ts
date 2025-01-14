@@ -1642,12 +1642,29 @@ impl<'cx> TyChecker<'cx> {
         self.diags.push(bolt_ts_errors::Diag { inner: error })
     }
 
-    fn check_type_reference_or_import(&mut self, node: &'cx ast::Ty<'cx>) {
-        let ty = self.get_ty_from_type_node(node);
+    fn check_ty_param(&mut self, ty_param: &'cx ast::TyParam<'cx>) {
+        if let Some(constraint) = ty_param.constraint {
+            self.check_ty(constraint);
+        }
     }
 
-    fn check_type_reference_node(&mut self, node: &'cx ast::Ty<'cx>) {
-        self.check_type_reference_or_import(node);
+    fn check_ty_refer_ty(&mut self, n: &'cx ast::ReferTy<'cx>) {
+        let ty = self.get_ty_from_ty_reference(n);
+    }
+
+    fn check_ty(&mut self, ty: &'cx ast::Ty<'cx>) {
+        use ast::TyKind::*;
+        match ty.kind {
+            Refer(n) => self.check_ty_refer_ty(n),
+            _ => (),
+        }
+    }
+
+    fn check_ty_params(&mut self, ty_params: ast::TyParams<'cx>) {
+        // let mut seen_default = false;
+        for ty_param in ty_params {
+            self.check_ty_param(ty_param)
+        }
     }
 
     pub fn check_and_aggregate_ret_expr_tys(
