@@ -3,7 +3,6 @@ use crate::ty;
 
 links!(
     TyLinks,
-    (declared_members, &'cx ty::DeclaredMembers<'cx>),
     (structured_members, &'cx ty::StructuredMembers<'cx>),
     (resolved_base_tys, ty::Tys<'cx>),
     (resolved_base_ctor_ty, &'cx ty::Ty<'cx>),

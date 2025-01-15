@@ -74,6 +74,7 @@ impl<'cx> TyChecker<'cx> {
 
     fn get_base_type_variable_of_class(&mut self, symbol: SymbolID) -> Option<&'cx Ty<'cx>> {
         let class_ty = self.get_declared_ty_of_symbol(symbol);
+        self.resolve_structured_type_members(class_ty);
         self.expect_ty_links(class_ty.id)
             .expect_structured_members()
             .base_ctor_ty

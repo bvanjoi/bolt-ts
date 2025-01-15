@@ -12,7 +12,6 @@ impl<'cx> TyChecker<'cx> {
         let ty = self
             .try_get_declared_ty_of_symbol(symbol)
             .unwrap_or_else(|| self.error_ty());
-        self.resolve_structured_type_members(ty);
         ty
     }
 
@@ -75,73 +74,6 @@ impl<'cx> TyChecker<'cx> {
         ty
     }
 
-    fn get_interface_base_ty_nodes(
-        &self,
-        decl: ast::NodeID,
-    ) -> Option<&'cx [&'cx ast::ReferTy<'cx>]> {
-        use ast::Node::*;
-        let InterfaceDecl(interface) = self.p.node(decl) else {
-            unreachable!()
-        };
-        interface.extends.map(|extends| extends.list)
-    }
-
-    fn report_circular_base_ty(&mut self, decl: ast::NodeID, ty: &'cx ty::Ty<'cx>) {
-        let error = errors::TypeXRecursivelyReferencesItselfAsABaseType {
-            span: self.p.node(decl).ident_name().unwrap().span,
-            x: self.print_ty(ty).to_string(),
-        };
-        self.push_error(Box::new(error));
-    }
-
-    fn resolve_base_tys_of_interface(&mut self, ty: &'cx ty::Ty<'cx>) -> &'cx [&'cx ty::Ty<'cx>] {
-        let symbol = ty.symbol().unwrap();
-        let s = self.binder.symbol(symbol);
-        let i = s.expect_interface();
-        let decl = i.decl;
-        assert!(self.p.node(decl).is_interface_decl());
-        let Some(ty_nodes) = self.get_interface_base_ty_nodes(decl) else {
-            return &[];
-        };
-        let mut tys = thin_vec::ThinVec::with_capacity(ty_nodes.len());
-        for node in ty_nodes {
-            let base_ty = self.get_ty_from_ty_reference(*node);
-            if ty != base_ty {
-                tys.push(base_ty);
-            } else {
-                self.report_circular_base_ty(decl, ty);
-            }
-        }
-        self.alloc(tys)
-    }
-
-    fn resolve_base_tys_of_class(&mut self, ty: &'cx ty::Ty<'cx>) -> ty::Tys<'cx> {
-        if let Some(tys) = self.get_ty_links(ty.id).get_resolved_base_tys() {
-            return tys;
-        }
-        let base_ctor = self.get_base_constructor_type_of_class(ty);
-        let tys = self.alloc([base_ctor]);
-
-        self.get_mut_ty_links(ty.id).set_resolved_base_tys(tys);
-        tys
-    }
-
-    pub(super) fn get_base_tys(
-        &mut self,
-        ty: &'cx ty::Ty<'cx>,
-    ) -> (Option<&'cx ty::Ty<'cx>>, &'cx [&'cx ty::Ty<'cx>]) {
-        let id = ty.symbol().unwrap();
-        let symbol = self.binder.symbol(id);
-        if symbol.flags.intersects(SymbolFlags::CLASS) {
-            let tys = self.resolve_base_tys_of_class(ty);
-            (Some(tys[0]), &tys)
-        } else if symbol.flags.intersects(SymbolFlags::INTERFACE) {
-            (None, self.resolve_base_tys_of_interface(ty))
-        } else {
-            unreachable!()
-        }
-    }
-
     pub(super) fn append_ty_params(
         &mut self,
         res: &mut Vec<&'cx ty::Ty<'cx>>,
@@ -168,10 +100,7 @@ impl<'cx> TyChecker<'cx> {
             return self.undefined_ty();
         };
         if !self.push_ty_resolution(symbol) {
-            let error_ty = self.error_ty();
-            self.get_mut_ty_links(ty.id)
-                .set_resolved_base_ctor_ty(error_ty);
-            return error_ty;
+            return self.error_ty();
         }
         let resolved_base_ctor_ty = self.check_expr(extends);
         if !self.pop_ty_resolution() {
@@ -207,6 +136,62 @@ impl<'cx> TyChecker<'cx> {
         self.alloc(props)
     }
 
+    fn get_resolved_member_or_exports_of_symbol(
+        &mut self,
+        symbol: SymbolID,
+        is_resolve_export: bool,
+    ) -> &'cx FxHashMap<SymbolName, SymbolID> {
+        let is_static = is_resolve_export;
+        self.alloc(self.members(symbol).clone())
+    }
+
+    fn get_resolved_member_of_symbol(
+        &mut self,
+        symbol: SymbolID,
+    ) -> &'cx FxHashMap<SymbolName, SymbolID> {
+        if let Some(resolved_members) = self.get_symbol_links(symbol).get_resolved_members() {
+            return resolved_members;
+        }
+        let resolved_members = self.get_resolved_member_or_exports_of_symbol(symbol, false);
+        self.get_mut_symbol_links(symbol)
+            .set_resolved_members(resolved_members);
+        resolved_members
+    }
+
+    fn get_members_of_late_binding_symbol(
+        &mut self,
+        symbol: SymbolID,
+    ) -> Option<&'cx FxHashMap<SymbolName, SymbolID>> {
+        self.binder
+            .symbol(symbol)
+            .flags
+            .intersects(SymbolFlags::LATE_BINDING_CONTAINER)
+            .then(|| self.get_resolved_member_of_symbol(symbol))
+    }
+
+    fn resolve_declared_members(&mut self, symbol: SymbolID) -> &'cx ty::DeclaredMembers<'cx> {
+        let members = self.get_members_of_late_binding_symbol(symbol).unwrap();
+        let props = self.get_props_from_members(&members);
+        let call_sigs = members
+            .get(&SymbolName::Call)
+            .copied()
+            .map(|s| self.get_sigs_of_symbol(s))
+            .unwrap_or_default();
+        let ctor_sigs = members
+            .get(&SymbolName::Constructor)
+            .copied()
+            .map(|s| self.get_sigs_of_symbol(s))
+            .unwrap_or_default();
+        let index_infos = self.get_index_infos_of_symbol(symbol);
+        let declared_members = self.alloc(ty::DeclaredMembers {
+            props,
+            index_infos,
+            ctor_sigs,
+            call_sigs,
+        });
+        declared_members
+    }
+
     fn get_declared_ty_of_class_or_interface(&mut self, symbol: SymbolID) -> &'cx ty::Ty<'cx> {
         if let Some(ty) = self.get_symbol_links(symbol).get_declared_ty() {
             return ty;
@@ -214,6 +199,7 @@ impl<'cx> TyChecker<'cx> {
 
         let outer_ty_params = self.get_outer_ty_params_of_class_or_interface(symbol);
         let local_ty_params = self.get_local_ty_params_of_class_or_interface_or_type_alias(symbol);
+        let declared_members = self.resolve_declared_members(symbol);
 
         let ty = if outer_ty_params.is_some()
             || local_ty_params.is_some()
@@ -233,6 +219,7 @@ impl<'cx> TyChecker<'cx> {
                 outer_ty_params: (!outer_ty_params.is_empty()).then_some(outer_ty_params),
                 local_ty_params: (!local_ty_params.is_empty()).then_some(local_ty_params),
                 this_ty: Some(this_ty),
+                declared_members,
             });
             let ty = self.create_reference_ty(ty::ReferenceTy {
                 target,
@@ -247,6 +234,7 @@ impl<'cx> TyChecker<'cx> {
                 outer_ty_params: None,
                 local_ty_params: None,
                 this_ty: None,
+                declared_members,
             })
         };
 

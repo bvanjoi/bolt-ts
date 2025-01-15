@@ -10,6 +10,7 @@ impl<'cx> TyChecker<'cx> {
         let decl_id = i.decl;
         if decl_id == interface.id {
             let ty = self.get_declared_ty_of_symbol(symbol);
+            self.resolve_structured_type_members(ty);
             for base_ty in self.base_types(ty) {
                 self.check_type_assignable_to(ty, base_ty, Some(decl_id));
             }

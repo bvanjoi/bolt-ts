@@ -523,6 +523,7 @@ impl<'cx> TyChecker<'cx> {
     }
 
     fn check_index_constraints(&mut self, ty: &'cx ty::Ty<'cx>, symbol: SymbolID) {
+        self.resolve_structured_type_members(ty);
         for prop in self.properties_of_object_type(ty) {
             let prop_ty = self.get_type_of_symbol(*prop);
             let prop_name_ty = self.get_lit_ty_from_prop(*prop);

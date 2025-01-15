@@ -281,6 +281,7 @@ impl<'cx> ParserState<'cx, '_> {
     }
 
     fn parse_entity_name(&mut self) -> PResult<&'cx ast::EntityName<'cx>> {
+        let start = self.token.start();
         let name = self.parse_ident_name()?;
         let kind = ast::EntityNameKind::Ident(name);
         let mut entity = self.alloc(ast::EntityName { kind });
@@ -296,6 +297,7 @@ impl<'cx> ParserState<'cx, '_> {
             let right = self.with_parent(id, Self::parse_right_side_of_dot)?;
             let qualified = self.alloc(ast::QualifiedName {
                 id,
+                span: self.new_span(start),
                 left: entity,
                 right,
             });

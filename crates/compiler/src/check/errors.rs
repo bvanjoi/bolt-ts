@@ -293,4 +293,6 @@ pub(super) struct TypeXRecursivelyReferencesItselfAsABaseType {
     #[label(primary)]
     pub span: Span,
     pub x: String,
+    #[label = "Base type is defined here."]
+    pub base_defined_span: Span,
 }

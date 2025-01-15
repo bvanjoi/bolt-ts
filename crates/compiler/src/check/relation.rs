@@ -60,6 +60,7 @@ impl<'cx> TyChecker<'cx> {
         if !self.is_excess_property_check_target(target_ty) {
             return false;
         }
+        self.resolve_structured_type_members(target_ty);
         let source = source.kind.expect_object_anonymous();
         for (name, symbol) in &self.binder.symbol(source.symbol).expect_object().members {
             let target_members = self.ty_links[&target_ty.id]

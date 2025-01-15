@@ -47,7 +47,6 @@ impl<'cx> TyChecker<'cx> {
             ty::ObjectTyKind::Reference(self.alloc(ty)),
             ObjectFlags::empty(),
         );
-        self.resolve_structured_type_members(ty);
         ty
     }
 
@@ -72,7 +71,6 @@ impl<'cx> TyChecker<'cx> {
             ty::ObjectTyKind::Anonymous(ty),
             object_flags | ObjectFlags::ANONYMOUS,
         );
-        self.resolve_structured_type_members(ty);
         ty
     }
 
@@ -93,7 +91,6 @@ impl<'cx> TyChecker<'cx> {
             ty::ObjectTyKind::Anonymous(ty),
             object_flags | ObjectFlags::ANONYMOUS,
         );
-        self.resolve_structured_type_members(ty);
         ty
     }
 
