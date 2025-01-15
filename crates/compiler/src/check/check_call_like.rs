@@ -93,7 +93,7 @@ impl<'cx> TyChecker<'cx> {
 
     fn resolve_new_expr(&mut self, expr: &impl CallLikeExpr<'cx>) -> &'cx Sig<'cx> {
         let ty = self.check_expr(expr.callee());
-        let sigs = self.signatures_of_type(ty, ty::SigKind::Constructor);
+        let sigs = self.get_signatures_of_type(ty, ty::SigKind::Constructor);
 
         if !sigs.is_empty() {
             let abstract_sigs = sigs
@@ -123,8 +123,8 @@ impl<'cx> TyChecker<'cx> {
 
     fn resolve_call_expr(&mut self, expr: &impl CallLikeExpr<'cx>) -> &'cx Sig<'cx> {
         let ty = self.check_expr(expr.callee());
-        let sigs = self.signatures_of_type(ty, ty::SigKind::Call);
-        let class_sigs = self.signatures_of_type(ty, ty::SigKind::Constructor);
+        let sigs = self.get_signatures_of_type(ty, ty::SigKind::Call);
+        let class_sigs = self.get_signatures_of_type(ty, ty::SigKind::Constructor);
 
         if sigs.is_empty() {
             if let Some(sig) = class_sigs.first() {

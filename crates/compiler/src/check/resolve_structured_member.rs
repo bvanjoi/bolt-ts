@@ -1,6 +1,7 @@
 use bolt_ts_span::Span;
 use rustc_hash::FxHashMap;
 
+use super::cycle_check::{Cycle, ResolutionKey};
 use super::links::SigLinks;
 use super::{errors, SymbolLinks, TyChecker};
 use crate::ast;
@@ -197,7 +198,7 @@ impl<'cx> TyChecker<'cx> {
         &mut self,
         decl: ast::NodeID,
         ty: &'cx ty::Ty<'cx>,
-        base_defined_span: Span,
+        base_defined_span: Option<Span>,
     ) {
         let error = errors::TypeXRecursivelyReferencesItselfAsABaseType {
             span: self.p.node(decl).ident_name().unwrap().span,
@@ -218,6 +219,28 @@ impl<'cx> TyChecker<'cx> {
         interface.extends.map(|extends| extends.list)
     }
 
+    fn has_base_ty(&mut self, ty: &'cx ty::Ty<'cx>, check_base: &'cx ty::Ty<'cx>) -> bool {
+        fn check<'cx>(
+            this: &mut TyChecker<'cx>,
+            ty: &'cx ty::Ty<'cx>,
+            self_ty: &'cx ty::Ty<'cx>,
+            check_base: &'cx ty::Ty<'cx>,
+        ) -> bool {
+            if ty.kind.is_object_interface() {
+                self_ty == check_base
+                    || this
+                        .get_base_tys(ty)
+                        .iter()
+                        .any(|base_ty| check(this, base_ty, base_ty, check_base))
+            } else if let Some(r) = ty.kind.as_object_reference() {
+                check(this, r.target, ty, check_base)
+            } else {
+                false
+            }
+        }
+        check(self, ty, ty, check_base)
+    }
+
     fn resolve_base_tys_of_interface(&mut self, ty: &'cx ty::Ty<'cx>) -> &'cx [&'cx ty::Ty<'cx>] {
         let symbol = ty.symbol().unwrap();
         let s = self.binder.symbol(symbol);
@@ -230,10 +253,10 @@ impl<'cx> TyChecker<'cx> {
         let mut tys = thin_vec::ThinVec::with_capacity(ty_nodes.len());
         for node in ty_nodes {
             let base_ty = self.get_ty_from_ty_reference(*node);
-            if ty != base_ty {
+            if ty != base_ty && !self.has_base_ty(base_ty, ty) {
                 tys.push(base_ty);
             } else {
-                self.report_circular_base_ty(decl, ty, node.name.span());
+                self.report_circular_base_ty(decl, ty, Some(node.name.span()));
             }
         }
         self.alloc(tys)
@@ -251,20 +274,28 @@ impl<'cx> TyChecker<'cx> {
             return tys;
         }
         let id = ty.symbol().unwrap();
-        let symbol = self.binder.symbol(id);
-        let tys = if symbol.flags.intersects(SymbolFlags::CLASS) {
-            self.resolve_base_tys_of_class(ty)
-        } else if symbol.flags.intersects(SymbolFlags::INTERFACE) {
-            self.resolve_base_tys_of_interface(ty)
+        if self.push_ty_resolution(ResolutionKey::ResolvedBaseTypes(ty.id)) {
+            let symbol = self.binder.symbol(id);
+            let tys = if symbol.flags.intersects(SymbolFlags::CLASS) {
+                self.resolve_base_tys_of_class(ty)
+            } else if symbol.flags.intersects(SymbolFlags::INTERFACE) {
+                self.resolve_base_tys_of_interface(ty)
+            } else {
+                unreachable!()
+            };
+            if let Cycle::Some(_) = self.pop_ty_resolution() {
+                if let Some(decl) = id.opt_decl(self.binder) {
+                    let p = self.p.node(decl);
+                    if p.is_class_decl() || p.is_interface_decl() {
+                        self.report_circular_base_ty(decl, ty, None);
+                    }
+                }
+            }
+            self.get_mut_ty_links(ty.id).set_resolved_base_tys(tys);
+            tys
         } else {
-            unreachable!()
-        };
-        // TODO: delete this
-        if let Some(tys) = self.get_ty_links(ty.id).get_resolved_base_tys() {
-            return tys;
+            &[]
         }
-        self.get_mut_ty_links(ty.id).set_resolved_base_tys(tys);
-        tys
     }
 
     fn resolve_object_type_members(
@@ -433,9 +464,9 @@ impl<'cx> TyChecker<'cx> {
 
         if let Some(target) = a.target {
             let mapper = a.mapper.unwrap();
-            let sigs = self.get_sigs_of_ty(target, SigKind::Call);
+            let sigs = self.get_signatures_of_type(target, SigKind::Call);
             call_sigs = self.instantiate_sigs(sigs, mapper);
-            let sigs = self.get_sigs_of_ty(target, SigKind::Constructor);
+            let sigs = self.get_signatures_of_type(target, SigKind::Constructor);
             ctor_sigs = self.instantiate_sigs(sigs, mapper);
             members = FxHashMap::default();
             index_infos = &[];
@@ -508,13 +539,13 @@ impl<'cx> TyChecker<'cx> {
         let call_sigs = union
             .tys
             .iter()
-            .flat_map(|ty| self.get_sigs_of_ty(ty, SigKind::Call))
+            .flat_map(|ty| self.get_signatures_of_type(ty, SigKind::Call))
             .copied()
             .collect::<Vec<_>>();
         let ctor_sigs = union
             .tys
             .iter()
-            .flat_map(|ty| self.get_sigs_of_ty(ty, SigKind::Constructor))
+            .flat_map(|ty| self.get_signatures_of_type(ty, SigKind::Constructor))
             .copied()
             .collect::<Vec<_>>();
         let m = self.alloc(ty::StructuredMembers {

@@ -351,28 +351,32 @@ impl Symbol<'_> {
 bolt_ts_utils::module_index!(SymbolID);
 
 impl SymbolID {
-    pub fn decl(&self, binder: &super::Binder) -> NodeID {
+    pub fn opt_decl(&self, binder: &super::Binder) -> Option<NodeID> {
         match &binder.symbol(*self).kind.0 {
-            SymbolKind::FunctionScopedVar(f) => f.decl,
-            SymbolKind::BlockScopedVar { decl } => *decl,
-            SymbolKind::Class(c) => c.decl,
-            SymbolKind::Prop(prop) => prop.decl,
-            SymbolKind::Object(object) => object.decl,
-            SymbolKind::Index(index) => index.decl,
-            SymbolKind::TyAlias(alias) => alias.decl,
-            SymbolKind::TyParam(param) => param.decl,
+            SymbolKind::FunctionScopedVar(f) => Some(f.decl),
+            SymbolKind::BlockScopedVar { decl } => Some(*decl),
+            SymbolKind::Class(c) => Some(c.decl),
+            SymbolKind::Prop(prop) => Some(prop.decl),
+            SymbolKind::Object(object) => Some(object.decl),
+            SymbolKind::Index(index) => Some(index.decl),
+            SymbolKind::TyAlias(alias) => Some(alias.decl),
+            SymbolKind::TyParam(param) => Some(param.decl),
+            SymbolKind::TyLit(ty_lit) => Some(ty_lit.decl),
+            SymbolKind::Alias(alias) => Some(alias.decl),
+            SymbolKind::Fn(f) => Some(f.decls[0]),
             SymbolKind::Transient(t) => {
                 if let Some(id) = t.origin {
-                    id.decl(binder)
+                    id.opt_decl(binder)
                 } else {
-                    unreachable!("{:#?}", binder.symbol(*self).flags);
+                    None
                 }
             }
-            SymbolKind::TyLit(ty_lit) => ty_lit.decl,
-            SymbolKind::Alias(alias) => alias.decl,
-            SymbolKind::Fn(f) => f.decls[0],
-            _ => unreachable!("{:#?}", binder.symbol(*self).flags),
+            _ => None,
         }
+    }
+    pub fn decl(&self, binder: &super::Binder) -> NodeID {
+        self.opt_decl(binder)
+            .unwrap_or_else(|| panic!("{:#?}", binder.symbol(*self).flags))
     }
 }
 

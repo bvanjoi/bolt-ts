@@ -130,7 +130,7 @@ impl<'cx> TyChecker<'cx> {
         id: ast::NodeID,
     ) -> Option<&'cx ty::Sig<'cx>> {
         let sigs = self
-            .get_sigs_of_ty(ty, ty::SigKind::Call)
+            .get_signatures_of_type(ty, ty::SigKind::Call)
             .iter()
             .filter(|sig| !self.is_arity_smaller(sig, id))
             .collect::<Vec<_>>();

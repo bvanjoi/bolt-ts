@@ -50,7 +50,6 @@ impl<'cx> TyChecker<'cx> {
             self.any_ty()
         };
 
-        self.resolve_structured_type_members(ty);
         ty
     }
 
@@ -74,10 +73,8 @@ impl<'cx> TyChecker<'cx> {
 
     fn get_base_type_variable_of_class(&mut self, symbol: SymbolID) -> Option<&'cx Ty<'cx>> {
         let class_ty = self.get_declared_ty_of_symbol(symbol);
-        self.resolve_structured_type_members(class_ty);
-        self.expect_ty_links(class_ty.id)
-            .expect_structured_members()
-            .base_ctor_ty
+        let base_ctor_ty = self.get_base_constructor_type_of_class(class_ty);
+        Some(base_ctor_ty)
     }
 
     // fn get_intersection_ty(&mut self, tys: &'cx [&'cx Ty<'cx>]) -> &'cx Ty<'cx> {

@@ -1,5 +1,4 @@
 use crate::ast;
-use crate::bind::SymbolID;
 use crate::ty;
 
 use super::InferenceContextId;
@@ -64,31 +63,5 @@ impl<'cx> TyChecker<'cx> {
             .rev()
             .find(|ctx| node == ctx.node && (include_caches || !ctx.is_cache))
             .copied()
-    }
-
-    fn find_resolution_cycle_start_index(&self, symbol: SymbolID) -> Option<usize> {
-        self.resolution_tys
-            .iter()
-            .rev()
-            .position(|ty| symbol.eq(ty))
-            .map(|rev_index| self.resolution_tys.len() - 1 - rev_index)
-    }
-
-    pub(super) fn push_ty_resolution(&mut self, symbol: SymbolID) -> bool {
-        if let Some(start) = self.find_resolution_cycle_start_index(symbol) {
-            for index in start..self.resolution_res.len() {
-                self.resolution_res[index] = false;
-            }
-            false
-        } else {
-            self.resolution_tys.push(symbol);
-            self.resolution_res.push(true);
-            true
-        }
-    }
-
-    pub(super) fn pop_ty_resolution(&mut self) -> bool {
-        self.resolution_tys.pop().unwrap();
-        self.resolution_res.pop().unwrap()
     }
 }

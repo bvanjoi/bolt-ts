@@ -682,10 +682,10 @@ impl<'cx> InferenceState<'cx, '_> {
         target: &'cx ty::Ty<'cx>,
         kind: SigKind,
     ) {
-        let source_sigs = self.checker.get_sigs_of_ty(source, kind);
+        let source_sigs = self.checker.get_signatures_of_type(source, kind);
         let source_len = source_sigs.len();
         if source_len > 0 {
-            let target_sigs = self.checker.get_sigs_of_ty(target, kind);
+            let target_sigs = self.checker.get_signatures_of_type(target, kind);
             let target_len = target_sigs.len();
             for i in 0..target_len {
                 let source_index = if source_len + i > target_len {

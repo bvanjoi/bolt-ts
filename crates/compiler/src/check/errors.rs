@@ -294,5 +294,5 @@ pub(super) struct TypeXRecursivelyReferencesItselfAsABaseType {
     pub span: Span,
     pub x: String,
     #[label = "Base type is defined here."]
-    pub base_defined_span: Span,
+    pub base_defined_span: Option<Span>,
 }

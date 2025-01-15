@@ -225,7 +225,6 @@ impl<'cx> TyChecker<'cx> {
             };
             if !unmatched.is_empty() && report_error {
                 let Some(source_symbol) = source.symbol() else {
-                    dbg!(source, target);
                     unreachable!()
                 };
                 let source_span = self.p.node(source_symbol.decl(self.binder)).span();
@@ -431,13 +430,13 @@ impl<'cx> TyChecker<'cx> {
             let Some(ty) = source.kind.as_object() else {
                 return Ternary::TRUE;
             };
-            self.signatures_of_type(source, kind)
+            self.get_signatures_of_type(source, kind)
         };
         let target_sigs = {
             let Some(ty) = target.kind.as_object() else {
                 return Ternary::TRUE;
             };
-            self.signatures_of_type(target, kind)
+            self.get_signatures_of_type(target, kind)
         };
 
         if kind == SigKind::Constructor && !source_sigs.is_empty() && !target_sigs.is_empty() {

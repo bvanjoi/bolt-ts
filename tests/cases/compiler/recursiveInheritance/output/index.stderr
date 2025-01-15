@@ -1,0 +1,20 @@
+  × Type 'I5' recursively references itself as a base type.
+   ╭─[../../tests/cases/compiler/recursiveInheritance/index.ts:3:11]
+ 3 │ I5 extends I5
+   · ──         ─┬
+   ·  │          ╰── Base type is defined here.
+   ╰────
+
+  × Type 'i8' recursively references itself as a base type.
+   ╭─[../../tests/cases/compiler/recursiveInheritance/index.ts:8:11]
+ 8 │ i8 extends i9
+   · ──         ─┬
+   ·  │          ╰── Base type is defined here.
+   ╰────
+
+  × Type 'i9' recursively references itself as a base type.
+    ╭─[../../tests/cases/compiler/recursiveInheritance/index.ts:10:11]
+ 10 │ i9 extends i8
+    · ──         ─┬
+    ·  │          ╰── Base type is defined here.
+    ╰────

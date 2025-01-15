@@ -62,7 +62,11 @@ impl<'cx> TyChecker<'cx> {
         self.alloc(sigs)
     }
 
-    pub(super) fn get_sigs_of_ty(&mut self, ty: &'cx ty::Ty<'cx>, kind: SigKind) -> ty::Sigs<'cx> {
+    pub(super) fn get_signatures_of_type(
+        &mut self,
+        ty: &'cx ty::Ty<'cx>,
+        kind: SigKind,
+    ) -> ty::Sigs<'cx> {
         self.resolve_structured_type_members(ty);
         let sigs = self.signatures_of_type(ty, kind);
         sigs

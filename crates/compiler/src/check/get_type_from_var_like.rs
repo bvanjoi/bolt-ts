@@ -1,3 +1,4 @@
+use super::cycle_check::ResolutionKey;
 use super::TyChecker;
 use crate::bind::SymbolID;
 use crate::ir;
@@ -12,7 +13,7 @@ impl<'cx> TyChecker<'cx> {
         let node_id = id.decl(self.binder);
         let node = self.p.node(node_id);
 
-        if !self.push_ty_resolution(id) {
+        if !self.push_ty_resolution(ResolutionKey::Type(id)) {
             // TODO: error handle
             return self.any_ty();
         }
@@ -32,7 +33,7 @@ impl<'cx> TyChecker<'cx> {
         };
         self.get_mut_symbol_links(id).set_ty(ty);
 
-        if !self.pop_ty_resolution() {
+        if self.pop_ty_resolution().has_cycle() {
             // TODO: error handle
             return self.any_ty();
         }

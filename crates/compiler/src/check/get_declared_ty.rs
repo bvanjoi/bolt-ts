@@ -1,5 +1,7 @@
 use rustc_hash::FxHashMap;
 
+use super::cycle_check::Cycle;
+use super::cycle_check::ResolutionKey;
 use super::errors;
 use super::ty;
 use super::utils::append_if_unique;
@@ -64,7 +66,7 @@ impl<'cx> TyChecker<'cx> {
         if let Some(ty) = self.get_symbol_links(symbol).get_declared_ty() {
             return ty;
         }
-        if !self.push_ty_resolution(symbol) {
+        if !self.push_ty_resolution(ResolutionKey::DeclaredType(symbol)) {
             return self.error_ty();
         }
         let alias = self.binder.symbol(symbol).expect_ty_alias();
@@ -99,11 +101,11 @@ impl<'cx> TyChecker<'cx> {
         let Some(extends) = self.get_effective_base_type_node(decl) else {
             return self.undefined_ty();
         };
-        if !self.push_ty_resolution(symbol) {
+        if !self.push_ty_resolution(ResolutionKey::ResolvedBaseConstructorType(ty.id)) {
             return self.error_ty();
         }
         let resolved_base_ctor_ty = self.check_expr(extends);
-        if !self.pop_ty_resolution() {
+        if let Cycle::Some(_) = self.pop_ty_resolution() {
             let decl = self.p.node(decl);
             let name = if let ast::Node::ClassDecl(c) = decl {
                 self.atoms.get(c.name.name).to_string()
@@ -291,7 +293,7 @@ impl<'cx> TyChecker<'cx> {
                     {
                         let symbol = self.get_symbol_of_decl(id);
                         let ty = self.get_type_of_symbol(symbol);
-                        let sigs = self.get_sigs_of_ty(ty, ty::SigKind::Call);
+                        let sigs = self.get_signatures_of_type(ty, ty::SigKind::Call);
                         if let Some(sigs) = sigs.first() {
                             if let Some(ty_params) = sigs.ty_params {
                                 outer_ty_params.extend(ty_params);

@@ -15,7 +15,7 @@ impl<'cx> TyChecker<'cx> {
                     .config_flags(|flags| flags | NodeFlags::CONTEXT_CHECKED);
                 let symbol = self.get_symbol_of_decl(id);
                 let ty = self.get_type_of_symbol(symbol);
-                let sigs = self.get_sigs_of_ty(ty, ty::SigKind::Call);
+                let sigs = self.get_signatures_of_type(ty, ty::SigKind::Call);
                 let Some(sig) = sigs.first() else { return };
                 if self.is_context_sensitive(id) {
                     if let Some(contextual_sig) = contextual_sig {

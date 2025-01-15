@@ -9,6 +9,7 @@ mod check_fn_like_symbol;
 mod check_interface;
 mod check_var_like;
 mod create_ty;
+mod cycle_check;
 mod elaborate_error;
 mod errors;
 mod expect;
@@ -38,6 +39,7 @@ use bolt_ts_atom::{AtomId, AtomMap};
 use bolt_ts_span::Span;
 
 use bolt_ts_utils::{fx_hashmap_with_capacity, no_hashmap_with_capacity};
+use cycle_check::ResolutionKey;
 use get_contextual::ContextFlags;
 use infer::{InferenceFlags, InferencePriority};
 use links::{SigLinks, TyLinks};
@@ -159,7 +161,8 @@ pub struct TyChecker<'cx> {
     pub binder: &'cx mut bind::Binder<'cx>,
     global_symbols: &'cx GlobalSymbols,
 
-    resolution_tys: thin_vec::ThinVec<SymbolID>,
+    resolution_start: i32,
+    resolution_tys: thin_vec::ThinVec<ResolutionKey>,
     resolution_res: thin_vec::ThinVec<bool>,
 }
 
@@ -251,8 +254,11 @@ impl<'cx> TyChecker<'cx> {
             node_links: fx_hashmap_with_capacity(p.module_count() * 1024),
             sig_links: fx_hashmap_with_capacity(p.module_count() * 1024),
             ty_links: fx_hashmap_with_capacity(p.module_count() * 1024),
+
             resolution_tys: thin_vec::ThinVec::with_capacity(128),
             resolution_res: thin_vec::ThinVec::with_capacity(128),
+            resolution_start: 0,
+
             binder,
             global_symbols,
             inferences: Vec::with_capacity(p.module_count() * 1024),
@@ -1582,7 +1588,7 @@ impl<'cx> TyChecker<'cx> {
                 }
                 ty
             }
-            Sub => todo!(),
+            Sub => self.number_ty(),
             Mul => self.undefined_ty(),
             Div => todo!(),
             Pipe => {
@@ -1606,8 +1612,8 @@ impl<'cx> TyChecker<'cx> {
             }
             EqEq => self.boolean_ty(),
             EqEqEq => self.boolean_ty(),
-            Less => todo!(),
-            LessEq => todo!(),
+            Less => self.boolean_ty(),
+            LessEq => self.boolean_ty(),
             Shl => todo!(),
             Great => todo!(),
             GreatEq => todo!(),
