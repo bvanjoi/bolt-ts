@@ -352,7 +352,9 @@ bolt_ts_utils::module_index!(SymbolID);
 
 impl SymbolID {
     pub fn opt_decl(&self, binder: &super::Binder) -> Option<NodeID> {
-        match &binder.symbol(*self).kind.0 {
+        let s = binder.symbol(*self);
+
+        let id = match &s.kind.0 {
             SymbolKind::FunctionScopedVar(f) => Some(f.decl),
             SymbolKind::BlockScopedVar { decl } => Some(*decl),
             SymbolKind::Class(c) => Some(c.decl),
@@ -372,7 +374,14 @@ impl SymbolID {
                 }
             }
             _ => None,
-        }
+        };
+        id.or_else(|| {
+            if let Some(i) = &s.kind.1 {
+                Some(i.decl)
+            } else {
+                None
+            }
+        })
     }
     pub fn decl(&self, binder: &super::Binder) -> NodeID {
         self.opt_decl(binder)

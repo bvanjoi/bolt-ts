@@ -11,7 +11,7 @@ use crate::ty::{ObjectShape, ObjectTy, ObjectTyKind, Sig, Ty, TyKind, Tys};
 
 use super::{Ternary, TyChecker};
 
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq, Hash, Eq)]
 pub(super) enum RelationKind {
     Subtype,
     StrictSubtype,
@@ -33,15 +33,43 @@ bitflags::bitflags! {
     }
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub struct RelationKey {
+    source: ty::TyID,
+    target: ty::TyID,
+    relation: RelationKind,
+}
+
 impl<'cx> TyChecker<'cx> {
+    fn get_relation_key(
+        source: &'cx Ty<'cx>,
+        target: &'cx Ty<'cx>,
+        relation: RelationKind,
+    ) -> RelationKey {
+        RelationKey {
+            source: source.id,
+            target: target.id,
+            relation,
+        }
+    }
+
     fn recur_related_to(
         &mut self,
         source: &'cx Ty<'cx>,
         target: &'cx Ty<'cx>,
         relation: RelationKind,
         report_error: bool,
-    ) -> bool {
-        self.structured_related_to(source, target, relation, report_error)
+    ) -> Ternary {
+        let key = Self::get_relation_key(source, target, relation);
+        if !self.maybe_keys_set.insert(key) {
+            // already being compared.
+            return Ternary::MAYBE;
+        }
+
+        let res = self.structured_related_to(source, target, relation, report_error);
+
+        self.maybe_keys_set.remove(&key);
+        res
     }
 
     fn is_excess_property_check_target(&self, target: &'cx Ty<'cx>) -> bool {
@@ -120,15 +148,15 @@ impl<'cx> TyChecker<'cx> {
         source: &'cx Ty<'cx>,
         target: &'cx Ty<'cx>,
         relation: RelationKind,
-    ) -> bool {
+    ) -> Ternary {
         if source.id == target.id {
             assert!(std::ptr::eq(&source.kind, &target.kind));
-            return true;
+            return Ternary::TRUE;
         }
         if self.is_simple_type_related_to(source, target, relation)
             || self.is_simple_type_related_to(target, source, relation)
         {
-            return true;
+            return Ternary::TRUE;
         }
 
         if source.kind.is_object() && target.kind.is_object() {
@@ -140,7 +168,7 @@ impl<'cx> TyChecker<'cx> {
         {
             self.check_type_related_to(source, target, relation, None)
         } else {
-            false
+            Ternary::FALSE
         }
     }
 
@@ -150,9 +178,9 @@ impl<'cx> TyChecker<'cx> {
         target: &'cx Ty<'cx>,
         relation: RelationKind,
         report_error: bool,
-    ) -> bool {
+    ) -> Ternary {
         if source.id == target.id {
-            return true;
+            return Ternary::TRUE;
         }
 
         if source.kind.definitely_non_nullable() && target.kind.is_union() {
@@ -164,7 +192,7 @@ impl<'cx> TyChecker<'cx> {
             };
             if let Some(candidate) = candidate {
                 if !candidate.kind.is_nullable() && candidate.id == source.id {
-                    return true;
+                    return Ternary::TRUE;
                 }
             }
         }
@@ -172,7 +200,7 @@ impl<'cx> TyChecker<'cx> {
         if self.is_simple_type_related_to(source, target, relation)
             || self.is_simple_type_related_to(target, source, relation)
         {
-            return true;
+            return Ternary::TRUE;
         }
 
         if source.kind.is_structured_or_instantiable()
@@ -186,15 +214,15 @@ impl<'cx> TyChecker<'cx> {
                 && self.has_excess_properties(source, target, report_error)
             {
                 if report_error {
-                    return true;
+                    return Ternary::TRUE;
                 } else {
-                    return false;
+                    return Ternary::FALSE;
                 }
             }
             return self.recur_related_to(source, target, relation, report_error);
         }
 
-        false
+        Ternary::FALSE
     }
 
     fn props_related_to(
@@ -256,19 +284,19 @@ impl<'cx> TyChecker<'cx> {
         source_ty_args: ty::Tys<'cx>,
         target_ty_args: ty::Tys<'cx>,
         relation: RelationKind,
-    ) -> bool {
+    ) -> Ternary {
         if source_ty_args.len() != target_ty_args.len() && relation != RelationKind::Identity {
-            return false;
+            return Ternary::FALSE;
         }
         let len = usize::min(source_ty_args.len(), target_ty_args.len());
         for i in 0..len {
             let source = source_ty_args[i];
             let target = target_ty_args[i];
-            if !self.is_related_to(source, target, relation, false) {
-                return false;
+            if self.is_related_to(source, target, relation, false) == Ternary::FALSE {
+                return Ternary::FALSE;
             }
         }
-        true
+        Ternary::TRUE
     }
 
     fn relate_variances(
@@ -276,7 +304,7 @@ impl<'cx> TyChecker<'cx> {
         source: ty::Tys<'cx>,
         target: ty::Tys<'cx>,
         relation: RelationKind,
-    ) -> Option<bool> {
+    ) -> Option<Ternary> {
         let res = self.type_args_related_to(source, target, relation);
         Some(res)
     }
@@ -298,7 +326,7 @@ impl<'cx> TyChecker<'cx> {
         target: &'cx Ty<'cx>,
         relation: RelationKind,
         report_error: bool,
-    ) -> bool {
+    ) -> Ternary {
         if source.kind.is_union_or_intersection() || target.kind.is_union_or_intersection() {
             return self.union_or_intersection_related_to(source, target, relation, report_error);
         }
@@ -308,7 +336,7 @@ impl<'cx> TyChecker<'cx> {
                 if let Some(target_refer) = target.kind.as_object_reference() {
                     if source_refer.target == target_refer.target {
                         if self.is_empty_array_lit_ty(source) {
-                            return true;
+                            return Ternary::TRUE;
                         }
                         if let Some(result) = self.relate_variances(
                             source_refer.resolved_ty_args,
@@ -349,12 +377,12 @@ impl<'cx> TyChecker<'cx> {
                         res &= self.index_sig_related_to(source, target, relation);
                     }
                 }
-                res != Ternary::FALSE
+                res
             } else {
-                false
+                Ternary::FALSE
             }
         } else {
-            true
+            Ternary::TRUE
         }
     }
 
@@ -363,9 +391,9 @@ impl<'cx> TyChecker<'cx> {
         source: &'cx ty::IndexInfo<'cx>,
         target: &'cx ty::IndexInfo<'cx>,
         relation: RelationKind,
-    ) -> bool {
+    ) -> Ternary {
         let res = self.is_related_to(source.val_ty, target.val_ty, relation, false);
-        if !res {
+        if res == Ternary::FALSE {
             if source.key_ty == target.key_ty {
                 let decl = self.binder.symbol(source.symbol).expect_index().decl;
                 let span = self.p.node(decl).expect_index_sig_decl().ty.span();
@@ -378,7 +406,7 @@ impl<'cx> TyChecker<'cx> {
                 todo!()
             }
         }
-        true
+        Ternary::TRUE
     }
 
     fn type_related_to_index_info(
@@ -477,7 +505,7 @@ impl<'cx> TyChecker<'cx> {
         target: &'cx Sig<'cx>,
         check_mode: SigCheckMode,
         report_error: bool,
-        compare: impl FnOnce(&mut Self, &'cx ty::Ty<'cx>, &'cx ty::Ty<'cx>, bool) -> bool,
+        compare: impl FnOnce(&mut Self, &'cx ty::Ty<'cx>, &'cx ty::Ty<'cx>, bool) -> Ternary,
     ) -> Ternary {
         if source == target {
             return Ternary::TRUE;
@@ -519,7 +547,7 @@ impl<'cx> TyChecker<'cx> {
                     compare(self, source_ret_ty, target_ret_ty, report_error)
                 };
 
-                if !res {
+                if res == Ternary::FALSE {
                     return Ternary::FALSE;
                 }
             }
@@ -561,7 +589,7 @@ impl<'cx> TyChecker<'cx> {
         target: &'cx Ty<'cx>,
         error_node: Option<ast::NodeID>,
         expr: Option<ast::NodeID>,
-    ) -> bool {
+    ) -> Ternary {
         self.check_type_related_to_and_optionally_elaborate(
             source,
             target,
@@ -593,23 +621,23 @@ impl<'cx> TyChecker<'cx> {
         error_node: Option<ast::NodeID>,
         expr: Option<ast::NodeID>,
         error: impl FnOnce(&mut Self, Span, &'cx Ty<'cx>, &'cx Ty<'cx>) -> crate::Diag,
-    ) -> bool {
-        if self.is_type_related_to(source, target, relation) {
-            return true;
+    ) -> Ternary {
+        if self.is_type_related_to(source, target, relation) != Ternary::FALSE {
+            return Ternary::TRUE;
         }
         if error_node.is_none() || !self.elaborate_error(expr, source, target, relation, error_node)
         {
-            if !self.check_type_related_to(source, target, relation, error_node) {
+            if self.check_type_related_to(source, target, relation, error_node) == Ternary::FALSE {
                 let span = self.p.node(error_node.unwrap()).span();
                 let error = error(self, span, source, target);
                 self.push_error(error);
-                return false;
+                return Ternary::FALSE;
             } else {
-                return true;
+                return Ternary::TRUE;
             }
         }
 
-        false
+        Ternary::FALSE
     }
 
     pub(super) fn check_type_assignable_to(
@@ -617,7 +645,7 @@ impl<'cx> TyChecker<'cx> {
         source: &'cx Ty<'cx>,
         target: &'cx Ty<'cx>,
         error_node: Option<ast::NodeID>,
-    ) -> bool {
+    ) -> Ternary {
         self.check_type_related_to(source, target, RelationKind::Assignable, error_node)
     }
 
@@ -627,7 +655,7 @@ impl<'cx> TyChecker<'cx> {
         target: &'cx Ty<'cx>,
         relation: RelationKind,
         error_node: Option<ast::NodeID>,
-    ) -> bool {
+    ) -> Ternary {
         self.is_related_to(source, target, relation, error_node.is_some())
     }
 
@@ -638,15 +666,15 @@ impl<'cx> TyChecker<'cx> {
         target: &'cx Ty<'cx>,
         relation: RelationKind,
         report_error: bool,
-    ) -> bool {
-        let res = true;
+    ) -> Ternary {
+        let res = Ternary::TRUE;
         for (idx, source_ty) in sources.iter().enumerate() {
             // if idx <= targets.len() {
             //     let related = self.is_related_to(source_ty, targets[idx]);
             // }
             let related = self.is_related_to(source_ty, target, relation, report_error);
-            if !related {
-                return false;
+            if related == Ternary::FALSE {
+                return Ternary::FALSE;
             }
         }
         res
@@ -658,15 +686,15 @@ impl<'cx> TyChecker<'cx> {
         target: &'cx Ty<'cx>,
         relation: RelationKind,
         report_error: bool,
-    ) -> bool {
+    ) -> Ternary {
         if let Some(unions) = target.kind.as_union() {
             if unions.tys.contains(&source) {
-                return true;
+                return Ternary::TRUE;
             }
             // TODO: compare
-            false
+            Ternary::FALSE
         } else {
-            false
+            Ternary::FALSE
         }
     }
 
@@ -676,7 +704,7 @@ impl<'cx> TyChecker<'cx> {
         target: &'cx Ty<'cx>,
         relation: RelationKind,
         report_error: bool,
-    ) -> bool {
+    ) -> Ternary {
         if let TyKind::Union(s) = source.kind {
             // if let TyKind::Union(t) = target.kind {
             // } else {
@@ -685,7 +713,7 @@ impl<'cx> TyChecker<'cx> {
         } else if target.kind.is_union() {
             self.ty_related_to_some_ty(source, target, relation, report_error)
         } else {
-            false
+            Ternary::FALSE
         }
     }
 
@@ -848,7 +876,7 @@ impl<'cx> TyChecker<'cx> {
         &mut self,
         source: &'cx Ty<'cx>,
         target: &'cx Ty<'cx>,
-    ) -> bool {
+    ) -> Ternary {
         self.is_type_related_to(source, target, RelationKind::Assignable)
     }
 }

@@ -253,8 +253,10 @@ impl<'cx> TyChecker<'cx> {
         let mut tys = thin_vec::ThinVec::with_capacity(ty_nodes.len());
         for node in ty_nodes {
             let base_ty = self.get_ty_from_ty_reference(*node);
-            if ty != base_ty && !self.has_base_ty(base_ty, ty) {
-                tys.push(base_ty);
+            if ty != base_ty {
+                if !self.has_base_ty(base_ty, ty) {
+                    tys.push(base_ty);
+                }
             } else {
                 self.report_circular_base_ty(decl, ty, Some(node.name.span()));
             }

@@ -51,7 +51,7 @@ fn run_test(arg: dir_test::Fixture<&str>) {
             std::fs::create_dir_all(&output_dir).unwrap();
         }
         let output_files = output_files(
-            &output.cwd,
+            &output.root,
             &output.tsconfig,
             &output.module_arena,
             &output.output,

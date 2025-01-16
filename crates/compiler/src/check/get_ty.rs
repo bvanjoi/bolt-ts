@@ -1,8 +1,8 @@
 use bolt_ts_atom::AtomId;
 
 use super::ty::{self, Ty, TyKind};
-use super::SymbolLinks;
 use super::{CheckMode, F64Represent, InferenceContextId, PropName, TyChecker};
+use super::{SymbolLinks, Ternary};
 use crate::ast;
 
 use crate::bind::{SymbolFlags, SymbolID, SymbolName};
@@ -220,7 +220,7 @@ impl<'cx> TyChecker<'cx> {
                 |t| t.kind.is_string_like() || t.kind.is_number_like(),
                 TypeFlags::STRING_LIKE | TypeFlags::NUMBER_LIKE | TypeFlags::ES_SYMBOL_LIKE,
                 false,
-            )
+            ) != Ternary::FALSE
         {
             if object_ty.kind.is_any() {
                 return object_ty;
@@ -316,7 +316,11 @@ impl<'cx> TyChecker<'cx> {
         let mut res = vec![];
         let ty_params = self.get_effective_ty_param_decls(decl);
         self.append_ty_params(&mut res, ty_params);
-        Some(self.alloc(res))
+        if res.is_empty() {
+            None
+        } else {
+            Some(self.alloc(res))
+        }
     }
 
     fn is_deferred_ty(&self, ty: &'cx Ty<'cx>, check_tuples: bool) -> bool {
@@ -455,10 +459,10 @@ impl<'cx> TyChecker<'cx> {
             if !check_ty_deferred && !self.is_deferred_ty(inferred_extends_ty, check_tuples) {
                 if !inferred_extends_ty.kind.is_any_or_unknown()
                     && (effective_check_ty.kind.is_any()
-                        || !self.is_type_assignable_to(
+                        || self.is_type_assignable_to(
                             self.get_permissive_instantiation(effective_check_ty),
                             self.get_permissive_instantiation(inferred_extends_ty),
-                        ))
+                        ) == Ternary::FALSE)
                 {
                     let false_ty = self.get_ty_from_type_node(root.node.false_ty);
                     if false_ty.kind.as_cond_ty().is_some() {
@@ -478,7 +482,7 @@ impl<'cx> TyChecker<'cx> {
                     || self.is_type_assignable_to(
                         self.get_restrictive_instantiation(effective_check_ty),
                         self.get_restrictive_instantiation(inferred_extends_ty),
-                    )
+                    ) != Ternary::FALSE
                 {
                     let true_ty = self.get_ty_from_type_node(root.node.true_ty);
                     break self.instantiate_ty(true_ty, mapper);

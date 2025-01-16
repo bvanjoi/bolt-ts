@@ -1,6 +1,6 @@
 use super::TyChecker;
 use crate::bind::SymbolID;
-use crate::ty::TyID;
+use crate::ty::{SigID, TyID};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(super) enum ResolutionKey {
@@ -8,6 +8,7 @@ pub(super) enum ResolutionKey {
     ResolvedBaseConstructorType(TyID),
     ResolvedBaseTypes(TyID),
     DeclaredType(SymbolID),
+    ResolvedReturnType(SigID),
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -41,6 +42,10 @@ impl<'cx> TyChecker<'cx> {
                 .ty_links
                 .get(&ty)
                 .is_some_and(|t| t.get_resolved_base_tys().is_some()),
+            ResolutionKey::ResolvedReturnType(sig_id) => self
+                .sig_links
+                .get(&sig_id)
+                .is_some_and(|s| s.get_resolved_ret_ty().is_some()),
         }
     }
 

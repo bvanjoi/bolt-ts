@@ -160,6 +160,8 @@ impl<'cx> TyChecker<'cx> {
             sig
         }
     }
+
+    // pub(super) fn is_resolving_return_type_of_sig(&self, sig: &'cx Sig<'cx>) -> bool {}
 }
 
 fn get_sig_from_decl<'cx>(

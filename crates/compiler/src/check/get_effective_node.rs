@@ -20,4 +20,9 @@ impl<'cx> TyChecker<'cx> {
         let node = self.p.node(id);
         node.ty_params().unwrap_or_default()
     }
+
+    #[inline]
+    pub(super) fn get_effective_ret_type_node(&self, id: ast::NodeID) -> Option<&'cx ast::Ty<'cx>> {
+        self.p.node(id).ret_ty()
+    }
 }

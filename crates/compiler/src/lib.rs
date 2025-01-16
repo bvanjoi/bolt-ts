@@ -36,7 +36,7 @@ use rustc_hash::FxHashMap;
 type Diag = Box<dyn bolt_ts_errors::diag_ext::DiagnosticExt + Send + Sync + 'static>;
 
 pub struct Output {
-    pub cwd: PathBuf,
+    pub root: PathBuf,
     pub tsconfig: NormalizedTsConfig,
     pub module_arena: ModuleArena,
     pub output: Vec<(ModuleID, String)>,
@@ -52,7 +52,7 @@ fn current_exe_dir() -> std::path::PathBuf {
 }
 
 pub fn output_files(
-    cwd: &std::path::Path,
+    root: &std::path::Path,
     tsconfig: &NormalizedTsConfig,
     module_arena: &ModuleArena,
     output: &[(ModuleID, String)],
@@ -67,7 +67,7 @@ pub fn output_files(
             .map(|(m, content)| (p(*m).with_extension("js"), content.to_string()))
             .collect(),
         bolt_ts_config::OutDir::Custom(dir) => {
-            let dir = cwd.join(dir);
+            let dir = root.join(dir);
             output
                 .iter()
                 .map(|(m, content)| {
@@ -103,7 +103,7 @@ fn init_atom<'atoms>() -> AtomMap<'atoms> {
     atoms
 }
 
-pub fn eval_from(cwd: PathBuf, tsconfig: NormalizedTsConfig) -> Output {
+pub fn eval_from(root: PathBuf, tsconfig: NormalizedTsConfig) -> Output {
     // ==== atom init ====
     let mut atoms = init_atom();
 
@@ -133,7 +133,7 @@ pub fn eval_from(cwd: PathBuf, tsconfig: NormalizedTsConfig) -> Output {
                     vec![p.to_path_buf()]
                 }
             } else {
-                let p = cwd.join(entry);
+                let p = root.join(entry);
                 let pattern = p.to_string_lossy();
                 glob::glob(&pattern)
                     .unwrap()
@@ -285,7 +285,7 @@ pub fn eval_from(cwd: PathBuf, tsconfig: NormalizedTsConfig) -> Output {
     }
 
     Output {
-        cwd,
+        root,
         tsconfig,
         module_arena,
         diags,

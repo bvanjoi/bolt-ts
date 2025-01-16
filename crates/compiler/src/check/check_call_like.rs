@@ -1,10 +1,11 @@
+use super::cycle_check::ResolutionKey;
 use super::infer::InferenceFlags;
 use super::relation::RelationKind;
 use super::ty::ElementFlags;
 use super::ty::{Sig, SigFlags, Sigs};
-use super::ExpectedArgsCount;
 use super::TyChecker;
 use super::{errors, CheckMode};
+use super::{ExpectedArgsCount, Ternary};
 use crate::ir;
 use crate::{ast, ty};
 use bolt_ts_span::Span;
@@ -45,7 +46,10 @@ impl<'cx> TyChecker<'cx> {
         if let Some(ty) = self.get_sig_links(sig.id).get_resolved_ret_ty() {
             return ty;
         }
-        let ty = if let Some(target) = sig.target {
+        if !self.push_ty_resolution(ResolutionKey::ResolvedReturnType(sig.id)) {
+            return self.error_ty();
+        }
+        let mut ty = if let Some(target) = sig.target {
             let ret_ty = self.get_ret_ty_of_sig(target);
             self.instantiate_ty(ret_ty, sig.mapper)
         } else if let Some(node_id) = sig.node_id {
@@ -57,6 +61,13 @@ impl<'cx> TyChecker<'cx> {
         } else {
             self.any_ty()
         };
+
+        if self.pop_ty_resolution().has_cycle() {
+            if let Some(node_id) = sig.node_id {
+                if let Some(ret_ty) = self.get_effective_ret_type_node(node_id) {}
+            }
+            ty = self.any_ty();
+        }
         self.get_mut_sig_links(sig.id).set_resolved_ret_ty(ty);
         ty
     }
@@ -252,7 +263,7 @@ impl<'cx> TyChecker<'cx> {
             let param_ty = self.get_ty_at_pos(sig, i);
             let arg_ty = self.check_expr_with_contextual_ty(arg, param_ty, None, check_mode);
             let error_node = report_error.then(|| arg.id());
-            if !self.check_type_related_to_and_optionally_elaborate(
+            if self.check_type_related_to_and_optionally_elaborate(
                 arg_ty,
                 param_ty,
                 relation,
@@ -266,7 +277,8 @@ impl<'cx> TyChecker<'cx> {
                         param_ty: this.print_ty(target).to_string(),
                     })
                 },
-            ) {
+            ) == Ternary::FALSE
+            {
                 has_error = true
             }
         }

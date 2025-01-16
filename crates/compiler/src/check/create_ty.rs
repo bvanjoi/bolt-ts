@@ -1,6 +1,7 @@
 use crate::bind::SymbolID;
 use crate::ty::{self, ObjectFlags, TyID, UnionReduction};
 
+use super::Ternary;
 use super::{relation::RelationKind, TyChecker};
 
 impl<'cx> TyChecker<'cx> {
@@ -180,7 +181,9 @@ impl<'cx> TyChecker<'cx> {
             if source.kind.is_structured_or_instantiable() {
                 for target in tys.iter() {
                     if !source.eq(target) {
-                        if self.is_type_related_to(source, target, RelationKind::StrictSubtype) {
+                        if self.is_type_related_to(source, target, RelationKind::StrictSubtype)
+                            != Ternary::FALSE
+                        {
                             tys.remove(i);
                             break;
                         }

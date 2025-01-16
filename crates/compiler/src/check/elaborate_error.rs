@@ -1,4 +1,5 @@
 use super::relation::RelationKind;
+use super::Ternary;
 use super::TyChecker;
 
 use crate::ast;
@@ -61,7 +62,7 @@ impl<'cx> TyChecker<'cx> {
         };
         for (idx, item) in source.tys.iter().enumerate() {
             let error_node = node.elems[idx].id();
-            if !self.check_type_related_to(item, target, relation, None) {
+            if self.check_type_related_to(item, target, relation, None) == Ternary::FALSE {
                 self.check_type_related_to(item, target, relation, Some(error_node));
                 return true;
             }

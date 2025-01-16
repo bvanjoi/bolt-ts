@@ -38,12 +38,13 @@ mod utils;
 use bolt_ts_atom::{AtomId, AtomMap};
 use bolt_ts_span::Span;
 
-use bolt_ts_utils::{fx_hashmap_with_capacity, no_hashmap_with_capacity};
+use bolt_ts_utils::{fx_hashmap_with_capacity, fx_hashset_with_capacity, no_hashmap_with_capacity};
 use cycle_check::ResolutionKey;
 use get_contextual::ContextFlags;
 use infer::{InferenceFlags, InferencePriority};
 use links::{SigLinks, TyLinks};
-use rustc_hash::{FxBuildHasher, FxHashMap};
+use relation::RelationKey;
+use rustc_hash::{FxBuildHasher, FxHashMap, FxHashSet};
 
 use self::get_context::{InferenceContextual, TyContextual};
 use self::infer::InferenceContext;
@@ -164,6 +165,8 @@ pub struct TyChecker<'cx> {
     resolution_start: i32,
     resolution_tys: thin_vec::ThinVec<ResolutionKey>,
     resolution_res: thin_vec::ThinVec<bool>,
+
+    maybe_keys_set: FxHashSet<RelationKey>,
 }
 
 macro_rules! intrinsic_type {
@@ -269,9 +272,14 @@ impl<'cx> TyChecker<'cx> {
                 indexmap::IndexSet::with_capacity_and_hasher(64, FxBuildHasher);
                 p.module_count()
             ],
+            maybe_keys_set: fx_hashset_with_capacity(4096),
         };
         for (kind, ty_name) in INTRINSIC_TYPES {
-            let ty = this.new_ty(*kind);
+            let ty = if *ty_name == keyword::IDENT_ERROR {
+                this.any_ty()
+            } else {
+                this.new_ty(*kind)
+            };
             let prev = this.intrinsic_tys.insert(*ty_name, ty);
             assert!(prev.is_none());
         }
@@ -421,7 +429,7 @@ impl<'cx> TyChecker<'cx> {
         &mut self,
         source: &'cx ty::Ty<'cx>,
         target: &'cx ty::Ty<'cx>,
-    ) -> bool {
+    ) -> Ternary {
         self.is_type_assignable_to(source, target)
     }
 
@@ -461,7 +469,7 @@ impl<'cx> TyChecker<'cx> {
         self.index_infos_of_ty(ty)
             .iter()
             .filter_map(|info| {
-                if self.is_applicable_index_ty(prop_name_ty, info.key_ty) {
+                if self.is_applicable_index_ty(prop_name_ty, info.key_ty) != Ternary::FALSE {
                     Some(*info)
                 } else {
                     None
@@ -478,7 +486,7 @@ impl<'cx> TyChecker<'cx> {
         prop_ty: &'cx ty::Ty<'cx>,
     ) {
         for index_info in self.get_applicable_index_infos(ty, prop_name_ty) {
-            if !self.is_type_assignable_to(prop_ty, index_info.val_ty) {
+            if self.is_type_assignable_to(prop_ty, index_info.val_ty) == Ternary::FALSE {
                 let prop_decl = prop.decl(self.binder);
                 let prop_node = self.p.node(prop_decl);
                 let prop_name = match prop_node {
@@ -558,22 +566,16 @@ impl<'cx> TyChecker<'cx> {
         };
         let sig = self.get_sig_from_decl(container);
         let ret_ty = self.get_ret_ty_of_sig(sig);
+
         let expr_ty = ret_stmt
             .expr
             .map(|expr| self.check_expr(expr))
             .unwrap_or(self.undefined_ty());
         if matches!(self.p.node(container), ast::Node::ClassCtor(_)) {
             if let Some(expr) = ret_stmt.expr {
-                let ret = sig
-                    .ret
-                    .map(|ret| {
-                        let symbol = self.binder.final_res(ret);
-                        self.get_declared_ty_of_symbol(symbol)
-                    })
-                    .unwrap_or_else(|| self.undefined_ty());
                 self.check_type_assignable_to_and_optionally_elaborate(
                     expr_ty,
-                    ret,
+                    ret_ty,
                     Some(expr.id()),
                     Some(expr.id()),
                 );
@@ -1227,7 +1229,7 @@ impl<'cx> TyChecker<'cx> {
         t: &'cx ty::Ty<'cx>,
         push_error: impl FnOnce(&mut Self),
     ) -> &'cx ty::Ty<'cx> {
-        if !self.is_type_assignable_to(t, self.number_ty()) {
+        if self.is_type_assignable_to(t, self.number_ty()) == Ternary::FALSE {
             push_error(self)
         }
         t
@@ -1300,7 +1302,9 @@ impl<'cx> TyChecker<'cx> {
         use ast::AssignOp::*;
         let ty = match assign.op {
             Eq => unreachable!(),
-            AddEq => self.check_binary_like_expr_for_add(l, r),
+            AddEq => self
+                .check_binary_like_expr_for_add(l, r)
+                .unwrap_or(self.any_ty()),
             SubEq => self.undefined_ty(),
             MulEq => self.undefined_ty(),
             DivEq => self.undefined_ty(),
@@ -1317,7 +1321,7 @@ impl<'cx> TyChecker<'cx> {
                 assign.op.as_str(),
             ),
         };
-        // if ty.id == self.any_ty().id {
+        // if ty == self.any_ty() {
         //     let error = errors::CannotAssignToNameBecauseItIsATy {
         //         name: self.atoms.get(assign.binding.name).to_string(),
         //         ty: l.kind.to_string(self.binder,self.atoms),
@@ -1534,33 +1538,37 @@ impl<'cx> TyChecker<'cx> {
         &mut self,
         left_ty: &'cx ty::Ty<'cx>,
         right_ty: &'cx ty::Ty<'cx>,
-    ) -> &'cx ty::Ty<'cx> {
+    ) -> Option<&'cx ty::Ty<'cx>> {
         if self.is_type_assignable_to_kind(
             left_ty,
             |ty| ty.kind.is_number_like(),
             TypeFlags::NUMBER_LIKE,
             true,
-        ) && self.is_type_assignable_to_kind(
+        ) & self.is_type_assignable_to_kind(
             right_ty,
             |ty| ty.kind.is_number_like(),
             TypeFlags::NUMBER_LIKE,
             true,
-        ) {
-            self.number_ty()
+        ) != Ternary::FALSE
+        {
+            Some(self.number_ty())
         } else if self.is_type_assignable_to_kind(
             left_ty,
             |ty| ty.kind.is_string_like(),
             TypeFlags::STRING_LIKE,
             true,
-        ) || self.is_type_assignable_to_kind(
+        ) | self.is_type_assignable_to_kind(
             right_ty,
             |ty| ty.kind.is_string_like(),
             TypeFlags::STRING_LIKE,
             true,
-        ) {
-            self.string_ty()
+        ) != Ternary::FALSE
+        {
+            Some(self.string_ty())
+        } else if left_ty == self.any_ty() || right_ty == self.any_ty() {
+            Some(self.any_ty())
         } else {
-            self.any_ty()
+            None
         }
     }
 
@@ -1576,16 +1584,19 @@ impl<'cx> TyChecker<'cx> {
         use ast::BinOpKind::*;
         match op.kind {
             Add => {
-                let ty = self.check_binary_like_expr_for_add(left_ty, right_ty);
-                if ty.id == self.any_ty().id {
-                    let error = errors::OperatorCannotBeAppliedToTy1AndTy2 {
-                        op: op.kind.to_string(),
-                        ty1: left_ty.to_string(self),
-                        ty2: right_ty.to_string(self),
-                        span: node.span,
-                    };
-                    self.push_error(Box::new(error));
-                }
+                let ty = match self.check_binary_like_expr_for_add(left_ty, right_ty) {
+                    Some(ty) => ty,
+                    None => {
+                        let error = errors::OperatorCannotBeAppliedToTy1AndTy2 {
+                            op: op.kind.to_string(),
+                            ty1: left_ty.to_string(self),
+                            ty2: right_ty.to_string(self),
+                            span: node.span,
+                        };
+                        self.push_error(Box::new(error));
+                        self.any_ty()
+                    }
+                };
                 ty
             }
             Sub => self.number_ty(),
@@ -1634,7 +1645,9 @@ impl<'cx> TyChecker<'cx> {
         right_ty: &'cx ty::Ty<'cx>,
     ) -> &'cx ty::Ty<'cx> {
         self.check_type_assignable_to(left_ty, self.string_number_symbol_ty(), Some(left.id()));
-        if !self.check_type_assignable_to(right_ty, self.non_primitive_ty(), Some(right.id())) {
+        if self.check_type_assignable_to(right_ty, self.non_primitive_ty(), Some(right.id()))
+            == Ternary::FALSE
+        {
             let right_ty = self.get_widened_literal_ty(right_ty);
             let error = ecma_rules::TheRightValueOfTheInOperatorMustBeAnObjectButGotTy {
                 span: right.span(),

@@ -1,4 +1,5 @@
 use crate::bind::{Symbol, SymbolFlags, SymbolID};
+use crate::ty::CheckFlags;
 use crate::{ast, keyword, ty};
 
 use super::{errors, TyChecker};
@@ -46,6 +47,9 @@ impl<'cx> TyChecker<'cx> {
         node: &impl GetTypeFromTyReferLike<'cx>,
         symbol: SymbolID,
     ) -> &'cx ty::Ty<'cx> {
+        if self.check_flags(symbol).intersects(CheckFlags::UNRESOLVED) {
+            return self.error_ty();
+        }
         let ty = self.get_declared_ty_of_symbol(symbol);
         if let Some(ty_params) = self.get_symbol_links(symbol).get_ty_params() {
             // let len = node.args().unwrap_or_default().len();
@@ -67,14 +71,17 @@ impl<'cx> TyChecker<'cx> {
                 .map(|args| self.ty_args_from_ty_refer_node(args))
                 .unwrap_or_default();
             self.get_type_alias_instantiation(symbol, args)
+        } else if self.check_no_ty_args(node) {
+            ty
         } else {
-            todo!()
+            self.error_ty()
         }
     }
 
     fn check_no_ty_args(&mut self, node: &impl GetTypeFromTyReferLike<'cx>) -> bool {
         if node.ty_args().is_some() {
-            todo!("error")
+            // TODO: report error
+            false
         } else {
             true
         }
