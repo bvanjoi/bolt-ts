@@ -131,6 +131,14 @@ impl<'cx> BinderState<'cx> {
         //         return *id;
         //     }
         // }
+        if let Some(old_id) = self.res.get(&key) {
+            let old = self.symbols.get_mut(*old_id);
+            if let SymbolKind::FunctionScopedVar(_) = &old.kind.0 {
+                old.flags |= flags;
+                old.kind.1 = Some(i);
+                return *old_id;
+            }
+        }
         let id = self.symbols.insert(Symbol::new_interface(name, flags, i));
         let prev = self.res.insert(key, id);
         id

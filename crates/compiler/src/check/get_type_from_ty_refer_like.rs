@@ -7,7 +7,7 @@ use super::{errors, TyChecker};
 pub(super) trait GetTypeFromTyReferLike<'cx> {
     fn id(&self) -> ast::NodeID;
     fn span(&self) -> bolt_ts_span::Span;
-    fn name(&self) -> Option<ast::EntityName<'cx>>;
+    fn name(&self) -> &'cx ast::EntityName<'cx>;
     fn ty_args(&self) -> Option<&'cx ast::Tys<'cx>>;
 }
 
@@ -18,8 +18,23 @@ impl<'cx> GetTypeFromTyReferLike<'cx> for ast::ReferTy<'cx> {
     fn span(&self) -> bolt_ts_span::Span {
         self.span
     }
-    fn name(&self) -> Option<ast::EntityName<'cx>> {
-        Some(*self.name)
+    fn name(&self) -> &'cx ast::EntityName<'cx> {
+        self.name
+    }
+    fn ty_args(&self) -> Option<&'cx ast::Tys<'cx>> {
+        self.ty_args
+    }
+}
+
+impl<'cx> GetTypeFromTyReferLike<'cx> for ast::ClassExtendsClause<'cx> {
+    fn id(&self) -> ast::NodeID {
+        self.id
+    }
+    fn span(&self) -> bolt_ts_span::Span {
+        self.span
+    }
+    fn name(&self) -> &'cx ast::EntityName<'cx> {
+        self.name
     }
     fn ty_args(&self) -> Option<&'cx ast::Tys<'cx>> {
         self.ty_args
@@ -87,7 +102,7 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
-    fn get_ty_from_class_or_interface_refer(
+    pub(super) fn get_ty_from_class_or_interface_refer(
         &mut self,
         node: &impl GetTypeFromTyReferLike<'cx>,
         symbol: SymbolID,
@@ -161,27 +176,23 @@ impl<'cx> TyChecker<'cx> {
             return ty;
         }
         // TODO: cache
-        let ty = if let Some(name) = node.name() {
-            if let ast::EntityNameKind::Ident(ident) = name.kind {
-                if ident.name == keyword::IDENT_BOOLEAN {
-                    self.boolean_ty()
-                } else if ident.name == keyword::IDENT_NUMBER {
-                    self.number_ty()
-                } else if ident.name == keyword::IDENT_STRING {
-                    self.string_ty()
-                } else if ident.name == keyword::IDENT_ANY {
-                    self.any_ty()
-                } else if ident.name == keyword::KW_VOID {
-                    self.void_ty()
-                } else if ident.name == keyword::IDENT_UNKNOWN {
-                    self.unknown_ty()
-                } else {
-                    let symbol = self.resolve_ty_refer_name(ident);
-                    self.get_ty_refer_type(node, symbol)
-                }
+        let name = node.name();
+        let ty = if let ast::EntityNameKind::Ident(ident) = name.kind {
+            if ident.name == keyword::IDENT_BOOLEAN {
+                self.boolean_ty()
+            } else if ident.name == keyword::IDENT_NUMBER {
+                self.number_ty()
+            } else if ident.name == keyword::IDENT_STRING {
+                self.string_ty()
+            } else if ident.name == keyword::IDENT_ANY {
+                self.any_ty()
+            } else if ident.name == keyword::KW_VOID {
+                self.void_ty()
+            } else if ident.name == keyword::IDENT_UNKNOWN {
+                self.unknown_ty()
             } else {
-                // TODO:
-                self.undefined_ty()
+                let symbol = self.resolve_ty_refer_name(ident);
+                self.get_ty_refer_type(node, symbol)
             }
         } else {
             // TODO:

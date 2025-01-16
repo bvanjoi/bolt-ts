@@ -54,7 +54,7 @@ impl<'cx> TyChecker<'cx> {
         decl: &impl ir::VarLike<'cx>,
     ) -> &'cx Ty<'cx> {
         if let Some(ty) = ty {
-            return ty;
+            return self.get_widened_ty(ty);
         }
         if let Some(decl) = self.p.node(decl.id()).as_param_decl() {
             if decl.dotdotdot.is_some() {

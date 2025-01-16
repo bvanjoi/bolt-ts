@@ -222,8 +222,9 @@ impl<'p> ParserState<'p, '_> {
     pub(super) fn parse_prop_name(&mut self) -> PResult<&'p ast::PropName<'p>> {
         let kind = match self.token.kind {
             TokenKind::String => {
-                let lit = self.parse_string_lit();
-                ast::PropNameKind::StringLit(lit)
+                let raw = self.parse_string_lit();
+                let key = self.string_key_value.unwrap();
+                ast::PropNameKind::StringLit { raw, key }
             }
             TokenKind::Number => {
                 let lit = self.parse_num_lit(self.number_token(), false);

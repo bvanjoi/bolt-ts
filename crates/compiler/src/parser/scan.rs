@@ -541,9 +541,17 @@ impl ParserState<'_, '_> {
                     )
                 }
                 b'\'' | b'"' => {
-                    let (offset, v) = self.scan_string(ch);
+                    let (offset, v, key_value) = self.scan_string(ch);
                     self.pos += offset;
+
+                    let len = v.len();
                     let atom = self.atoms.lock().unwrap().insert_by_vec(v);
+                    if len != key_value.len() {
+                        let key_atom = self.atoms.lock().unwrap().insert_by_vec(key_value);
+                        self.string_key_value = Some(key_atom);
+                    } else {
+                        self.string_key_value = Some(atom);
+                    };
                     self.token_value = Some(TokenValue::Ident { value: atom });
                     Token::new(
                         TokenKind::String,
@@ -592,10 +600,12 @@ impl ParserState<'_, '_> {
         )
     }
 
-    fn scan_string(&self, quote: u8) -> (usize, Vec<u8>) {
+    fn scan_string(&self, quote: u8) -> (usize, Vec<u8>, Vec<u8>) {
         let start = self.pos;
         let mut offset = 1;
         let mut v = Vec::with_capacity(32);
+        let mut prev = 0;
+        let mut key = Vec::with_capacity(32);
         loop {
             let idx = start + offset;
             if idx >= self.end() {
@@ -606,9 +616,15 @@ impl ParserState<'_, '_> {
             if ch == quote {
                 break;
             }
+            if !(ch == b'\n' && prev == b'\\') {
+                key.push(ch);
+            } else {
+                key.pop();
+            }
             v.push(ch);
+            prev = ch;
         }
-        (offset, v)
+        (offset, v, key)
     }
 
     pub(super) fn re_scan_greater(&mut self) -> TokenKind {

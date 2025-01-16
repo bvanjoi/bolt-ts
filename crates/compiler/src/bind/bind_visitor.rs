@@ -556,7 +556,7 @@ impl<'cx> BinderState<'cx> {
         self.bind_var_decls(var.list, var.kind);
     }
 
-    fn bind_entity_name(&mut self, name: &'cx ast::EntityName) {
+    pub(super) fn bind_entity_name(&mut self, name: &'cx ast::EntityName) {
         match name.kind {
             ast::EntityNameKind::Ident(ident) => self.bind_ident(ident),
             ast::EntityNameKind::Qualified(q) => {

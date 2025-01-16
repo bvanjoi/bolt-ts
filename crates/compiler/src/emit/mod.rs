@@ -125,4 +125,16 @@ impl<'cx> Emit<'cx> {
     fn emit_ident(&mut self, ident: &ast::Ident) {
         self.content.p(self.atoms.get(ident.name));
     }
+
+    fn emit_entity_name(&mut self, name: &ast::EntityName) {
+        use ast::EntityNameKind::*;
+        match name.kind {
+            Ident(n) => self.emit_ident(n),
+            Qualified(n) => {
+                self.emit_entity_name(n.left);
+                self.content.p_dot();
+                self.emit_ident(n.right);
+            }
+        };
+    }
 }

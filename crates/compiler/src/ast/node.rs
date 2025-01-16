@@ -101,6 +101,7 @@ pub enum Node<'cx> {
     TypeofExpr(&'cx super::TypeofExpr<'cx>),
     VoidExpr(&'cx super::VoidExpr<'cx>),
     SuperExpr(&'cx super::SuperExpr),
+    QualifiedName(&'cx super::QualifiedName<'cx>),
 
     // ty
     NumLitTy(&'cx super::NumLitTy),
@@ -1148,5 +1149,12 @@ as_node!(
         as_while_stmt,
         expect_while_stmt,
         is_while_stmt
+    ),
+    (
+        QualifiedName,
+        &'cx super::QualifiedName,
+        as_qualified_name,
+        expect_qualified_name,
+        is_qualified_name
     )
 );

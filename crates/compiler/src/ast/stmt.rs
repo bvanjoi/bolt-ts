@@ -386,7 +386,7 @@ pub struct InterfaceExtendsClause<'cx> {
 pub struct ClassExtendsClause<'cx> {
     pub id: NodeID,
     pub span: Span,
-    pub expr: &'cx Expr<'cx>,
+    pub name: &'cx EntityName<'cx>,
     pub ty_args: Option<&'cx self::Tys<'cx>>,
 }
 

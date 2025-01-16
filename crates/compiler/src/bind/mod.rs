@@ -183,6 +183,6 @@ fn prop_name(name: &ast::PropName) -> SymbolName {
     match name.kind {
         ast::PropNameKind::Ident(ident) => SymbolName::Ele(ident.name),
         ast::PropNameKind::NumLit(num) => SymbolName::EleNum(num.val.into()),
-        ast::PropNameKind::StringLit(lit) => SymbolName::Ele(lit.val),
+        ast::PropNameKind::StringLit { key, .. } => SymbolName::Ele(key),
     }
 }

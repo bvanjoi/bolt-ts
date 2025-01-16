@@ -264,10 +264,66 @@ impl<'cx> TyChecker<'cx> {
         self.alloc(tys)
     }
 
-    fn resolve_base_tys_of_class(&mut self, ty: &'cx ty::Ty<'cx>) -> ty::Tys<'cx> {
-        let base_ctor = self.get_base_constructor_type_of_class(ty);
-        let tys = self.alloc([base_ctor]);
+    fn get_base_type_node_of_class(
+        &self,
+        i: &'cx ty::Ty<'cx>,
+    ) -> Option<&'cx ast::ClassExtendsClause<'cx>> {
+        let symbol = i.symbol().unwrap();
+        let decl = self.binder.symbol(symbol).expect_class().decl;
+        self.get_effective_base_type_node(decl)
+    }
 
+    fn are_all_outer_parameters_applied(ty: &'cx ty::Ty<'cx>) -> bool {
+        let i = if let Some(i) = ty.kind.as_object_interface() {
+            i
+        } else if let Some(r) = ty.kind.as_object_reference() {
+            r.target.kind.expect_object_interface()
+        } else {
+            unreachable!()
+        };
+        if let Some(outer_ty_params) = i.outer_ty_params {
+            let last = outer_ty_params.len() - 1;
+            if let Some(ty_args) = ty.kind.as_object_reference() {
+                outer_ty_params[last].symbol() != ty_args.resolved_ty_args[last].symbol()
+            } else {
+                unreachable!()
+            }
+        } else {
+            true
+        }
+    }
+
+    fn resolve_base_tys_of_class(&mut self, ty: &'cx ty::Ty<'cx>) -> ty::Tys<'cx> {
+        let base_ctor_ty = self.get_base_constructor_type_of_class(ty);
+        if !(base_ctor_ty.kind.is_object() || base_ctor_ty.kind.is_any()) {
+            return &[];
+        }
+        let base_ty_node = self.get_base_type_node_of_class(ty);
+        let original_base_ty = base_ctor_ty
+            .symbol()
+            .map(|symbol| self.get_declared_ty_of_symbol(symbol));
+
+        let base_ty;
+        if base_ctor_ty.symbol().is_some()
+            && self
+                .binder
+                .symbol(base_ctor_ty.symbol().unwrap())
+                .flags
+                .intersects(SymbolFlags::CLASS)
+            && Self::are_all_outer_parameters_applied(original_base_ty.unwrap())
+        {
+            let symbol = base_ctor_ty.symbol().unwrap();
+            base_ty = self.get_ty_from_class_or_interface_refer(base_ty_node.unwrap(), symbol);
+        } else if base_ctor_ty.kind.is_any() {
+            base_ty = base_ctor_ty;
+        } else {
+            // TODO:
+            base_ty = base_ctor_ty;
+        }
+        if base_ty == self.error_ty() {
+            return &[];
+        }
+        let tys = self.alloc([base_ty]);
         tys
     }
 
@@ -310,8 +366,10 @@ impl<'cx> TyChecker<'cx> {
         if self.get_ty_links(ty.id).get_structured_members().is_some() {
             return;
         }
-        let base_tys = self.get_base_tys(ty);
         let symbol = ty.symbol().unwrap();
+
+        let base_tys = self.get_base_tys(ty);
+
         let base_ctor_ty = if self
             .binder
             .symbol(symbol)
@@ -358,6 +416,9 @@ impl<'cx> TyChecker<'cx> {
 
         for base_ty in base_tys {
             let props = self.get_props_of_ty(base_ty);
+            // for prop in props {
+            //     dbg!(self.binder.symbol(*prop).print_name(self.atoms));
+            // }
             self.add_inherited_members(&mut members, props);
             // TODO: instantiate them
             call_sigs.extend(self.signatures_of_type(base_ty, SigKind::Call).iter());

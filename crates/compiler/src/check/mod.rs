@@ -53,7 +53,7 @@ pub use self::links::SymbolLinks;
 use self::node_flags::NodeFlags;
 pub use self::resolve::ExpectedArgsCount;
 
-use crate::ast::{pprint_ident, BinOp};
+use crate::ast::{debug_ident, pprint_ident, BinOp};
 use crate::bind::{self, GlobalSymbols, Symbol, SymbolFlags, SymbolID, SymbolName};
 use crate::parser::{AssignmentKind, Parser};
 use crate::ty::{
@@ -497,7 +497,9 @@ impl<'cx> TyChecker<'cx> {
                 let prop_name = match prop_name.kind {
                     ast::PropNameKind::Ident(ident) => self.atoms.get(ident.name).to_string(),
                     ast::PropNameKind::NumLit(num) => num.val.to_string(),
-                    ast::PropNameKind::StringLit(lit) => format!("\"{}\"", self.atoms.get(lit.val)),
+                    ast::PropNameKind::StringLit { raw, .. } => {
+                        format!("\"{}\"", self.atoms.get(raw.val))
+                    }
                 };
                 let error = errors::PropertyAOfTypeBIsNotAssignableToCIndexTypeD {
                     span: prop_node.span(),
@@ -1120,41 +1122,42 @@ impl<'cx> TyChecker<'cx> {
                 }),
             );
             self.push_error(Box::new(error));
-        } else if let Some(a) = containing_ty.kind.as_object_anonymous() {
-            if self
-                .binder
-                .symbol(a.symbol)
-                .flags
-                .intersects(SymbolFlags::CLASS)
-            {
-                let mut error = errors::PropertyXDoesNotExistOnTypeY {
-                    span: prop_node.span,
-                    prop: missing_prop,
-                    ty: self.print_ty(containing_ty).to_string(),
-                    related: vec![],
-                };
-                self.push_error(Box::new(error));
-            }
-            // TODO: more case
+        } else if let Some(s) = containing_ty.symbol() {
+            let error = errors::PropertyXDoesNotExistOnTypeY {
+                span: prop_node.span,
+                prop: missing_prop,
+                ty: self.print_ty(containing_ty).to_string(),
+                related: vec![],
+            };
+            self.push_error(Box::new(error));
         }
     }
 
-    fn check_prop_access_expr(&mut self, node: &'cx ast::PropAccessExpr<'cx>) -> &'cx ty::Ty<'cx> {
-        let left = self.check_expr(node.expr);
-
+    pub(super) fn _get_prop_of_ty(
+        &mut self,
+        left: &'cx ty::Ty<'cx>,
+        prop: &'cx ast::Ident,
+    ) -> &'cx ty::Ty<'cx> {
         let is_any_like = left.kind.is_any();
 
         if is_any_like {
             return self.error_ty();
         }
 
-        let Some(prop) = self.get_prop_of_ty(left, SymbolName::Ele(node.name.name)) else {
-            self.report_non_existent_prop(node.name, left);
+        let Some(prop) = self.get_prop_of_ty(left, SymbolName::Ele(prop.name)) else {
+            self.report_non_existent_prop(&prop, left);
             return self.error_ty();
         };
 
         let ty = self.get_type_of_symbol(prop);
+        // TODO: remove `get_widened_literal_ty`
+        let ty = self.get_widened_literal_ty(ty);
         ty
+    }
+
+    fn check_prop_access_expr(&mut self, node: &'cx ast::PropAccessExpr<'cx>) -> &'cx ty::Ty<'cx> {
+        let left = self.check_expr(node.expr);
+        self._get_prop_of_ty(left, &node.name)
     }
 
     fn param_ty_constraint(&self, ty: &'cx ty::Ty<'cx>) -> Option<&'cx ty::Ty<'cx>> {
@@ -1334,6 +1337,21 @@ impl<'cx> TyChecker<'cx> {
 
     fn check_object_lit(&mut self, lit: &'cx ast::ObjectLit<'cx>) -> &'cx ty::Ty<'cx> {
         // let ty = self.get_contextual_ty(lit.id);
+        // let entires = lit.members.iter().map(|member| {
+        //     let member_symbol = self.get_symbol_of_decl(member.id());
+        //     // let member_ty = self.check_expr(member.value);
+        //     match member.name.kind {
+        //         ast::PropNameKind::Ident(ident) => (SymbolName::Ele(ident.name), member_symbol),
+        //         ast::PropNameKind::NumLit(num) => (
+        //             SymbolName::EleNum(F64Represent::new(num.val)),
+        //             member_symbol,
+        //         ),
+        //         ast::PropNameKind::StringLit(lit) => (SymbolName::Ele(lit.val), member_symbol),
+        //     }
+        // });
+        // let map = FxHashMap::from_iter(entires);
+        // let members = self.alloc(map);
+        // let declared_props = self.get_props_from_members(members);
         self.create_anonymous_ty(self.binder.final_res(lit.id), ObjectFlags::OBJECT_LITERAL)
     }
 

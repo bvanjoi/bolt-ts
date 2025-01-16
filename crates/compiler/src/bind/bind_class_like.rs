@@ -138,7 +138,7 @@ impl<'cx> BinderState<'cx> {
         }
 
         if let Some(extends) = class.extends() {
-            self.bind_expr(extends.expr);
+            self.bind_entity_name(extends.name);
         }
 
         if let Some(implements) = class.implements() {

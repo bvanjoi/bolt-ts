@@ -27,7 +27,7 @@ impl<'cx> Resolver<'cx, '_> {
         }
 
         if let Some(extends) = class.extends() {
-            self.resolve_expr(extends.expr);
+            self.resolve_entity_name(extends.name, false);
         }
 
         if let Some(implements) = class.implements() {

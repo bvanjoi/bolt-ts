@@ -203,7 +203,7 @@ impl PropName<'_> {
         match self.kind {
             PropNameKind::Ident(ident) => ident.span,
             PropNameKind::NumLit(num) => num.span,
-            PropNameKind::StringLit(lit) => lit.span,
+            PropNameKind::StringLit { raw, .. } => raw.span,
         }
     }
 }
@@ -211,7 +211,7 @@ impl PropName<'_> {
 #[derive(Debug, Clone, Copy)]
 pub enum PropNameKind<'cx> {
     Ident(&'cx Ident),
-    StringLit(&'cx StringLit),
+    StringLit { raw: &'cx StringLit, key: AtomId },
     NumLit(&'cx NumLit),
 }
 

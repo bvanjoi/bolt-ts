@@ -6,14 +6,13 @@ impl<'cx> TyChecker<'cx> {
     pub(super) fn get_effective_base_type_node(
         &self,
         id: ast::NodeID,
-    ) -> Option<&'cx ast::Expr<'cx>> {
+    ) -> Option<&'cx ast::ClassExtendsClause<'cx>> {
         let extends = match self.p.node(id) {
             ast::Node::ClassDecl(c) => c.extends,
             ast::Node::ClassExpr(c) => c.extends,
             _ => None,
         };
-        // TODO: type arguments
-        extends.map(|extends| extends.expr)
+        extends
     }
 
     pub(super) fn get_effective_ty_param_decls(&self, id: ast::NodeID) -> ast::TyParams<'cx> {

@@ -13,7 +13,7 @@ impl<'cx> Emit<'cx> {
         if let Some(extends) = class.extends() {
             self.content.p("extends");
             self.content.p_whitespace();
-            self.emit_expr(extends.expr);
+            self.emit_entity_name(extends.name);
             self.content.p_whitespace();
         }
         self.emit_block_like(class.elems());

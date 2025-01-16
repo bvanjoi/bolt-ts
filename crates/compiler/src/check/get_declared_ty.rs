@@ -7,6 +7,7 @@ use super::ty;
 use super::utils::append_if_unique;
 use super::TyChecker;
 use crate::ast;
+use crate::ast::EntityNameKind;
 use crate::bind::{SymbolFlags, SymbolID, SymbolName};
 
 impl<'cx> TyChecker<'cx> {
@@ -89,6 +90,16 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
+    fn check_entity_name(&mut self, name: &'cx ast::EntityName<'cx>) -> &'cx ty::Ty<'cx> {
+        match name.kind {
+            EntityNameKind::Ident(ident) => self.check_ident(ident),
+            EntityNameKind::Qualified(name) => {
+                let left = self.check_entity_name(name.left);
+                self._get_prop_of_ty(left, name.right)
+            }
+        }
+    }
+
     pub(super) fn get_base_constructor_type_of_class(
         &mut self,
         ty: &'cx ty::Ty<'cx>,
@@ -104,7 +115,7 @@ impl<'cx> TyChecker<'cx> {
         if !self.push_ty_resolution(ResolutionKey::ResolvedBaseConstructorType(ty.id)) {
             return self.error_ty();
         }
-        let resolved_base_ctor_ty = self.check_expr(extends);
+        let base_ctor_ty = self.check_entity_name(extends.name);
         if let Cycle::Some(_) = self.pop_ty_resolution() {
             let decl = self.p.node(decl);
             let name = if let ast::Node::ClassDecl(c) = decl {
@@ -123,8 +134,8 @@ impl<'cx> TyChecker<'cx> {
             return error_ty;
         }
         self.get_mut_ty_links(ty.id)
-            .set_resolved_base_ctor_ty(resolved_base_ctor_ty);
-        resolved_base_ctor_ty
+            .set_resolved_base_ctor_ty(base_ctor_ty);
+        base_ctor_ty
     }
 
     pub(super) fn get_props_from_members(

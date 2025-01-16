@@ -226,7 +226,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
             let mut last_ele_span = None;
             loop {
                 if list_ctx::HeritageClause.is_ele(self, false) {
-                    let e = self.parse_left_hand_side_expr();
+                    let e = self.parse_entity_name()?;
                     let args = self.parse_ty_args_in_expr()?;
                     if is_first {
                         ele = Some(e);
@@ -274,7 +274,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
             let clause = self.alloc(ast::ClassExtendsClause {
                 id,
                 span: self.new_span(start),
-                expr: ele,
+                name: ele,
                 ty_args,
             });
             self.insert_map(id, ast::Node::ClassExtendsClause(clause));

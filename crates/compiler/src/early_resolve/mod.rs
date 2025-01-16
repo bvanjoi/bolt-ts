@@ -178,19 +178,25 @@ impl<'cx> Resolver<'cx, '_> {
         }
     }
 
-    fn resolve_entity_name(&mut self, name: &'cx ast::EntityName<'cx>) {
+    fn resolve_entity_name(&mut self, name: &'cx ast::EntityName<'cx>, is_ty: bool) {
         use ast::EntityNameKind::*;
         match name.kind {
-            Ident(ident) => self.resolve_ty_by_ident(ident),
+            Ident(ident) => {
+                if is_ty {
+                    self.resolve_ty_by_ident(ident);
+                } else {
+                    self.resolve_value_by_ident(ident);
+                }
+            }
             Qualified(qualified) => {
-                // self.resolve_entity_name(qualified.left);
+                self.resolve_entity_name(qualified.left, is_ty);
                 // self.resolve_ty_by_ident(qualified.right);
             }
         }
     }
 
     fn resolve_refer_ty(&mut self, refer: &'cx ast::ReferTy<'cx>) {
-        self.resolve_entity_name(refer.name);
+        self.resolve_entity_name(refer.name, true);
         if let Some(ty_args) = refer.ty_args {
             for ty_arg in ty_args.list {
                 self.resolve_ty(ty_arg);
@@ -244,7 +250,7 @@ impl<'cx> Resolver<'cx, '_> {
                 }
             }
             Typeof(n) => {
-                self.resolve_entity_name(n.name);
+                self.resolve_entity_name(n.name, false);
             }
             Mapped(n) => {}
             TyOp(n) => {}
@@ -535,6 +541,17 @@ pub(super) fn resolve_symbol_by_ident<'a, 'cx>(
         if let Some(id) = binder.res.get(&(scope_id, key)).copied() {
             let symbol = binder.symbols.get(id);
             use crate::bind::SymbolKind::*;
+            if symbol.kind.2.is_some()
+                && resolver
+                    .p
+                    .parent(ident.id)
+                    .is_some_and(|n| resolver.p.node(n).is_qualified_name())
+            {
+                break ResolvedResult {
+                    symbol: id,
+                    associated_declaration_for_containing_initializer_or_binding_name,
+                };
+            }
             let decl = match &symbol.kind.0 {
                 FunctionScopedVar(var) => Some(var.decl),
                 _ => None,

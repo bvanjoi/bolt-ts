@@ -280,7 +280,7 @@ impl<'cx> ParserState<'cx, '_> {
         Ok(self.create_ident(self.is_ident(), None))
     }
 
-    fn parse_entity_name(&mut self) -> PResult<&'cx ast::EntityName<'cx>> {
+    pub(super) fn parse_entity_name(&mut self) -> PResult<&'cx ast::EntityName<'cx>> {
         let start = self.token.start();
         let name = self.parse_ident_name()?;
         let kind = ast::EntityNameKind::Ident(name);
@@ -301,6 +301,7 @@ impl<'cx> ParserState<'cx, '_> {
                 left: entity,
                 right,
             });
+            self.insert_map(id, ast::Node::QualifiedName(qualified));
             entity = self.alloc(ast::EntityName {
                 kind: ast::EntityNameKind::Qualified(qualified),
             });

@@ -39,7 +39,7 @@ impl<'cx> Emit<'cx> {
         match name.kind {
             Ident(ident) => self.emit_ident(ident),
             NumLit(num) => self.emit_num_lit(num),
-            StringLit(lit) => self.emit_string_lit(lit),
+            StringLit { raw, .. } => self.emit_string_lit(raw),
         }
     }
 
