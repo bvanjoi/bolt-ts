@@ -214,7 +214,7 @@ impl ObjectTyKind<'_> {
                     };
                     format!("({params}) => {ret}")
                 } else {
-                    format!("object")
+                    "object".to_string()
                 }
             }
             ObjectTyKind::Tuple(TupleTy { tys, .. }) => {

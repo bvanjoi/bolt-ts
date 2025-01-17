@@ -286,8 +286,9 @@ pub struct MappedTy<'cx> {
     pub id: NodeID,
     pub span: Span,
     pub ty_param: &'cx MappedTyParam<'cx>,
+    pub readonly_token: Option<Span>,
     pub name_ty: Option<&'cx Ty<'cx>>,
-    // pub question_token: Option<Span>,
+    pub question_token: Option<Span>,
     pub ty: Option<&'cx Ty<'cx>>,
     pub members: &'cx [&'cx ObjectTyMember<'cx>],
 }

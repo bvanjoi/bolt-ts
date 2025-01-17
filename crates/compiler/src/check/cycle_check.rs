@@ -23,7 +23,7 @@ impl Cycle {
     }
 }
 
-impl<'cx> TyChecker<'cx> {
+impl TyChecker<'_> {
     fn resolution_target_has_property(&self, key: ResolutionKey) -> bool {
         match key {
             ResolutionKey::Type(symbol) => self
@@ -85,8 +85,6 @@ impl<'cx> TyChecker<'cx> {
     /// `Some(xxx)` means there is a cycle, and `xxx` is the start index of the cycle.
     pub(super) fn pop_ty_resolution(&mut self) -> Cycle {
         let key = self.resolution_tys.pop().unwrap();
-        (!self.resolution_res.pop().unwrap())
-            .then(|| Cycle::Some(key))
-            .unwrap_or(Cycle::None)
+        if !self.resolution_res.pop().unwrap() { Cycle::Some(key) } else { Cycle::None }
     }
 }

@@ -146,7 +146,7 @@ impl<'cx> Emit<'cx> {
         self.content.p_whitespace();
         self.content.p("in");
         self.content.p_whitespace();
-        self.emit_expr(&n.expr);
+        self.emit_expr(n.expr);
         self.content.p(")");
         self.content.p_whitespace();
         self.emit_stmt(n.body);
@@ -552,7 +552,7 @@ impl<'cx> Emit<'cx> {
     fn emit_var_stmt(&mut self, var: &'cx ast::VarStmt<'cx>) {
         self.content.p("var");
         self.content.p_whitespace();
-        self.emit_var_decls(&var.list);
+        self.emit_var_decls(var.list);
     }
 
     fn emit_var_decls(&mut self, decls: ast::VarDecls<'cx>) {

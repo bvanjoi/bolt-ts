@@ -540,7 +540,7 @@ impl TokenKind {
             // Infer |
             // Intrinsic |
             Is |
-            // KeyOf |
+            Keyof |
             Module |
             Namespace |
             // Never |

@@ -996,8 +996,25 @@ interface DateConstructor {
 declare var Date: DateConstructor;
 
 /**
+ * Make all properties in T optional
+ */
+type Partial<T> = {
+  [P in keyof T]?: T[P];
+};
+
+/**
  * Construct a type with a set of properties K of type T
  */
 type Record<K extends keyof any, T> = {
   [P in K]: T;
 };
+
+/**
+ * Exclude from T those types that are assignable to U
+ */
+type Exclude<T, U> = T extends U ? never : T;
+
+/**
+ * Extract from T those types that are assignable to U
+ */
+type Extract<T, U> = T extends U ? T : never;

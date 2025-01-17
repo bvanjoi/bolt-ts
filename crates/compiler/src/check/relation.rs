@@ -6,6 +6,7 @@ use rustc_hash::FxHashSet;
 use super::errors;
 use crate::ast;
 use crate::bind::{SymbolFlags, SymbolID, SymbolName};
+use crate::keyword::IDENT_LENGTH;
 use crate::ty::{self, ObjectFlags, SigFlags, SigKind};
 use crate::ty::{ObjectShape, ObjectTy, ObjectTyKind, Sig, Ty, TyKind, Tys};
 
@@ -133,11 +134,7 @@ impl<'cx> TyChecker<'cx> {
         {
             true
         } else if relation == RelationKind::Assignable || relation == RelationKind::Comparable {
-            if source.kind.is_any() {
-                true
-            } else {
-                false
-            }
+            source.kind.is_any()
         } else {
             false
         }
@@ -225,12 +222,63 @@ impl<'cx> TyChecker<'cx> {
         Ternary::FALSE
     }
 
+    fn is_property_symbol_ty_related(
+        &mut self,
+        source_prop: SymbolID,
+        target_prop: SymbolID,
+        get_ty_of_source_prop: impl Fn(&mut Self, SymbolID) -> &'cx Ty<'cx>,
+        relation: RelationKind,
+        report_error: bool,
+    ) -> Ternary {
+        let effective_target = self.get_non_missing_type_of_symbol(target_prop);
+        let effective_source = get_ty_of_source_prop(self, source_prop);
+        self.is_related_to(effective_source, effective_target, relation, report_error)
+    }
+
+    fn prop_related_to(
+        &mut self,
+        source: &'cx Ty<'cx>,
+        target: &'cx Ty<'cx>,
+        source_prop: SymbolID,
+        target_prop: SymbolID,
+        get_ty_of_source_prop: impl Fn(&mut Self, SymbolID) -> &'cx Ty<'cx>,
+        relation: RelationKind,
+        report_error: bool,
+    ) -> Ternary {
+        let related = self.is_property_symbol_ty_related(
+            source_prop,
+            target_prop,
+            get_ty_of_source_prop,
+            relation,
+            report_error,
+        );
+        if related == Ternary::FALSE {
+            if report_error {
+                // TODO:
+            }
+            return Ternary::FALSE;
+        }
+        related
+    }
+
     fn props_related_to(
         &mut self,
         source: &'cx Ty<'cx>,
         target: &'cx Ty<'cx>,
+        relation: RelationKind,
         report_error: bool,
     ) -> Ternary {
+        if relation == RelationKind::Identity {
+            // TODO:
+        }
+
+        if target.kind.is_tuple() || target.kind.is_object_tuple() {
+            if self.is_array_or_tuple(source) || source.kind.is_object_tuple() {
+                // TODO:
+                return Ternary::TRUE;
+            }
+        }
+
         let unmatched = self.get_unmatched_prop(source, target);
         if let Some((unmatched, target_symbol)) = unmatched {
             let symbol = self.binder.symbol(target_symbol);
@@ -273,10 +321,43 @@ impl<'cx> TyChecker<'cx> {
                 return Ternary::TRUE;
             }
 
-            Ternary::FALSE
-        } else {
-            Ternary::TRUE
+            return Ternary::FALSE;
         }
+
+        let mut result = Ternary::TRUE;
+
+        let props = self.get_props_of_ty(target);
+        let numeric_names_only = source.kind.is_tuple() && target.kind.is_tuple();
+        for target_prop in props {
+            let name = self.binder.symbol(*target_prop).name;
+            if !self
+                .binder
+                .symbol(*target_prop)
+                .flags
+                .intersects(SymbolFlags::PROTOTYPE)
+                && (!numeric_names_only || name.is_numeric() || name.expect_atom() == IDENT_LENGTH)
+            {
+                if let Some(source_prop) = self.get_prop_of_ty(source, name) {
+                    if !source_prop.eq(target_prop) {
+                        let related = self.prop_related_to(
+                            source,
+                            target,
+                            source_prop,
+                            *target_prop,
+                            |this, symbol| this.get_non_missing_type_of_symbol(symbol),
+                            relation,
+                            report_error,
+                        );
+                        if related == Ternary::FALSE {
+                            return Ternary::FALSE;
+                        }
+                        result &= related;
+                    }
+                }
+            }
+        }
+
+        result
     }
 
     fn type_args_related_to(
@@ -361,7 +442,7 @@ impl<'cx> TyChecker<'cx> {
         if source.kind.is_object_or_intersection() && target.kind.is_object() {
             let report_error = report_error && !source_is_primitive;
 
-            let mut res = self.props_related_to(source, target, report_error);
+            let mut res = self.props_related_to(source, target, relation, report_error);
             if res != Ternary::FALSE {
                 // TODO: `sigs_related_to` with call tag
                 res &= self.sigs_related_to(source, target, SigKind::Call, relation, report_error);

@@ -416,9 +416,6 @@ impl<'cx> TyChecker<'cx> {
 
         for base_ty in base_tys {
             let props = self.get_props_of_ty(base_ty);
-            // for prop in props {
-            //     dbg!(self.binder.symbol(*prop).print_name(self.atoms));
-            // }
             self.add_inherited_members(&mut members, props);
             // TODO: instantiate them
             call_sigs.extend(self.signatures_of_type(base_ty, SigKind::Call).iter());

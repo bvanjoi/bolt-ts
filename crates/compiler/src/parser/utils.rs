@@ -129,7 +129,7 @@ impl<'p> ParserState<'p, '_> {
         use TokenKind::*;
         if matches!(
             self.token.kind,
-            String | Number | LBrace | LBracket | DotDotDot
+            String | Number | LBrace | LBracket | DotDotDot | Typeof
         ) {
             true
         } else {

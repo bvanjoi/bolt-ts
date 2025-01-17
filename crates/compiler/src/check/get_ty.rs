@@ -12,6 +12,12 @@ use crate::ty::{
 };
 
 impl<'cx> TyChecker<'cx> {
+    pub(super) fn get_non_missing_type_of_symbol(&mut self, id: SymbolID) -> &'cx Ty<'cx> {
+        let ty = self.get_type_of_symbol(id);
+        // TODO: resolving missing.
+        ty
+    }
+
     pub(crate) fn get_type_of_symbol(&mut self, id: SymbolID) -> &'cx Ty<'cx> {
         if let Some(t) = self.binder.get_transient(id) {
             if let Some(ty) = t.links.get_ty() {
@@ -207,7 +213,18 @@ impl<'cx> TyChecker<'cx> {
         let prop_name = self.get_prop_name_from_index(index_ty);
         let symbol_name = match prop_name {
             PropName::String(atom_id) => SymbolName::Ele(atom_id),
-            PropName::Num(num) => SymbolName::EleNum(num.into()),
+            PropName::Num(num) => {
+                if let Some(tuple) = object_ty.kind.as_object_tuple() {
+                    assert!(num.fract() == 0.0);
+                    let idx = num as usize;
+                    return if idx >= tuple.tys.len() {
+                        self.undefined_ty()
+                    } else {
+                        tuple.tys[idx]
+                    };
+                }
+                SymbolName::EleNum(num.into())
+            }
         };
         let symbol = self.get_prop_of_ty(object_ty, symbol_name);
         if let Some(symbol) = symbol {

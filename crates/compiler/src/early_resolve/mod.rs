@@ -48,7 +48,7 @@ fn early_resolve<'cx>(
     let final_res = fx_hashmap_with_capacity(states[module_id.as_usize()].res.len());
     let mut resolver = Resolver {
         diags: vec![],
-        states: &states,
+        states,
         module_id,
         final_res,
         p,

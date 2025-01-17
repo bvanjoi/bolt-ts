@@ -20,18 +20,18 @@ impl ParserState<'_, '_> {
 
     pub(super) fn is_start_of_mapped_ty(&mut self) -> PResult<bool> {
         self.next_token();
-        if self.token.kind == TokenKind::Plus || self.token.kind == TokenKind::Minus {
+        if matches!(self.token.kind, TokenKind::Plus | TokenKind::Minus) {
             self.next_token();
-            // return self.token.kind == TokenKind::Readonly;
-            todo!()
+            return Ok(self.token.kind == TokenKind::Readonly);
+        } else if self.token.kind == TokenKind::Readonly {
+            self.next_token();
         }
-
-        Ok(self.token.kind == TokenKind::LBracket
-            && self.next_token_is_ident().unwrap_or_default()
-            && {
+        Ok(
+            self.token.kind == TokenKind::LBracket && self.next_token_is_ident()? && {
                 self.next_token();
                 self.token.kind == TokenKind::In
-            })
+            },
+        )
     }
 
     pub(super) fn next_token_is_from_keyword_or_eq_token(&mut self) -> bool {
@@ -82,10 +82,14 @@ impl ParserState<'_, '_> {
                 }
                 Export => {
                     self.next_token();
-                    if self.token.kind == Type {
-                        self.next_token();
+                    let mut current = self.token.kind;
+                    if current == Type {
+                        current = self.lookahead(|this| {
+                            this.next_token();
+                            this.token.kind
+                        });
                     }
-                    if matches!(self.token.kind, Eq | Asterisk | LBrace | Default | As | At) {
+                    if matches!(current, Eq | Asterisk | LBrace | Default | As | At) {
                         return true;
                     }
                 }

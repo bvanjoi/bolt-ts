@@ -375,7 +375,7 @@ impl<'cx> ParserState<'cx, '_> {
         let start = self.token.start();
         self.expect(TokenKind::Type)?;
         let name = self.with_parent(id, Self::parse_ident_name)?;
-        let ty_params = self.with_parent(id, Self::parse_ty_params)?;
+        let ty_params = self.with_parent(id, Self::parse_ty_params).unwrap();
         self.expect(TokenKind::Eq)?;
         let ty = self.with_parent(id, Self::parse_ty)?;
         self.parse_semi();

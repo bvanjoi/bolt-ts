@@ -44,7 +44,7 @@ impl ModuleGraph {
     }
 
     pub fn push_error(&mut self, diag: crate::Diag) {
-        self.diags.push(bolt_ts_errors::Diag { inner: diag.into() });
+        self.diags.push(bolt_ts_errors::Diag { inner: diag });
     }
 
     pub fn steal_errors(&mut self) -> Vec<bolt_ts_errors::Diag> {
@@ -81,7 +81,7 @@ pub(super) fn build_graph<'cx>(
                     todo!()
                 };
                 let base_dir = file_path.parent().unwrap();
-                let base_dir = PathId::get(&base_dir);
+                let base_dir = PathId::get(base_dir);
                 let deps = deps
                     .into_par_iter()
                     .map(|(node_id, dep)| (node_id, resolver.resolve(base_dir, dep)))
@@ -98,7 +98,7 @@ pub(super) fn build_graph<'cx>(
             let ModulePath::Real(p) = module_arena.get_path(item) else {
                 todo!()
             };
-            let path_id = PathId::get(&p);
+            let path_id = PathId::get(p);
             resolved.insert(path_id, item);
         }
 

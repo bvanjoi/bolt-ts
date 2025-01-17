@@ -91,6 +91,7 @@ pub enum TyKind<'cx> {
     String,
     Number,
     Boolean,
+    Never,
     StringLit(&'cx StringLitTy),
     NumberLit(&'cx NumberLitTy),
     TrueLit,
@@ -163,6 +164,7 @@ as_ty_kind!(
 );
 as_ty_kind!(Void, is_void);
 as_ty_kind!(Any, is_any);
+as_ty_kind!(Never, is_never);
 as_ty_kind!(Number, is_number);
 as_ty_kind!(String, is_string);
 as_ty_kind!(Boolean, is_boolean);
@@ -222,6 +224,7 @@ impl Ty<'_> {
             TyKind::Undefined => keyword::IDENT_UNDEFINED_STR.to_string(),
             TyKind::Null => keyword::KW_NULL_STR.to_string(),
             TyKind::NonPrimitive => keyword::IDENT_OBJECT_STR.to_string(),
+            TyKind::Never => keyword::IDENT_NEVER_STR.to_string(),
         }
     }
 

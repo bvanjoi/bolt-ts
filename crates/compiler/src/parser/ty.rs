@@ -63,7 +63,7 @@ impl<'cx> ParserState<'cx, '_> {
             self.parse_fn_or_ctor_ty()
         } else {
             let start = self.token.start();
-            let ty = self.parse_union_ty()?;
+            let ty = self.parse_union_ty_or_higher()?;
             if !self.has_preceding_line_break() && self.parse_optional(TokenKind::Extends).is_some()
             {
                 let id = self.next_node_id();
@@ -146,7 +146,7 @@ impl<'cx> ParserState<'cx, '_> {
         self.parse_union_or_intersection_ty(TokenKind::Amp, Self::parse_ty_op_or_higher)
     }
 
-    fn parse_union_ty(&mut self) -> PResult<&'cx ast::Ty<'cx>> {
+    fn parse_union_ty_or_higher(&mut self) -> PResult<&'cx ast::Ty<'cx>> {
         self.parse_union_or_intersection_ty(TokenKind::Pipe, Self::parse_intersection_ty)
     }
 
@@ -315,12 +315,14 @@ impl<'cx> ParserState<'cx, '_> {
     fn parse_ty_args_of_ty_reference(&mut self) -> PResult<Option<&'cx ast::Tys<'cx>>> {
         if !self.has_preceding_line_break() && self.re_scan_less() == TokenKind::Less {
             let start = self.token.start();
-            let list = self.parse_bracketed_list(
-                TypeArguments,
-                TokenKind::Less,
-                Self::parse_ty,
-                TokenKind::Great,
-            )?;
+            let list = self
+                .parse_bracketed_list(
+                    TypeArguments,
+                    TokenKind::Less,
+                    Self::parse_ty,
+                    TokenKind::Great,
+                )
+                .unwrap();
             let tys = self.alloc(ast::Tys {
                 span: self.new_span(start),
                 list,
@@ -359,7 +361,7 @@ impl<'cx> ParserState<'cx, '_> {
         Ok((self.token.kind != TokenKind::Dot).then_some(token))
     }
 
-    fn try_parse_ty_args(&mut self) -> PResult<Option<&'cx ast::Tys<'cx>>> {
+    pub(super) fn try_parse_ty_args(&mut self) -> PResult<Option<&'cx ast::Tys<'cx>>> {
         if self.token.kind == TokenKind::Less {
             let start = self.token.start();
             let tys = self.parse_bracketed_list(
@@ -476,11 +478,17 @@ impl<'cx> ParserState<'cx, '_> {
         let start = self.token.start();
         let id = self.next_node_id();
         self.expect(TokenKind::LBrace)?;
+        let mut readonly_token = None;
         if matches!(
             self.token.kind,
             TokenKind::Readonly | TokenKind::Plus | TokenKind::Minus
         ) {
-            todo!()
+            let t = self.parse_token_node();
+            readonly_token = Some(t.span);
+            if matches!(t.kind, TokenKind::Plus | TokenKind::Minus) {
+                readonly_token = Some(self.token.span);
+                self.expect(TokenKind::Readonly)?;
+            }
         }
         self.expect(TokenKind::LBracket)?;
         let ty_param = self.parse_mapped_ty_param()?;
@@ -497,7 +505,7 @@ impl<'cx> ParserState<'cx, '_> {
             TokenKind::Question | TokenKind::Plus | TokenKind::Minus
         ) {
             let t = self.parse_token_node();
-            question_token = Some(t);
+            question_token = Some(t.span);
             if t.kind != TokenKind::Question {
                 self.expect(TokenKind::Question)?;
             };
@@ -510,9 +518,10 @@ impl<'cx> ParserState<'cx, '_> {
         let kind = self.alloc(ast::MappedTy {
             id,
             span: self.new_span(start),
+            readonly_token,
             ty_param,
             name_ty,
-            // question_token,
+            question_token,
             ty,
             members,
         });

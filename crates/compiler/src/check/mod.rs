@@ -53,7 +53,7 @@ pub use self::links::SymbolLinks;
 use self::node_flags::NodeFlags;
 pub use self::resolve::ExpectedArgsCount;
 
-use crate::ast::{debug_ident, pprint_ident, BinOp};
+use crate::ast::{pprint_ident, BinOp};
 use crate::bind::{self, GlobalSymbols, Symbol, SymbolFlags, SymbolID, SymbolName};
 use crate::parser::{AssignmentKind, Parser};
 use crate::ty::{
@@ -90,8 +90,6 @@ pub struct F64Represent {
     inner: u64,
 }
 
-impl nohash_hasher::IsEnabled for F64Represent {}
-
 impl F64Represent {
     fn new(val: f64) -> Self {
         Self {
@@ -112,9 +110,9 @@ impl From<usize> for F64Represent {
     }
 }
 
-impl Into<f64> for F64Represent {
-    fn into(self) -> f64 {
-        f64::from_bits(self.inner)
+impl From<F64Represent> for f64 {
+    fn from(val: F64Represent) -> Self {
+        f64::from_bits(val.inner)
     }
 }
 
@@ -185,6 +183,7 @@ macro_rules! intrinsic_type {
 intrinsic_type!(
     (any_ty, keyword::IDENT_ANY, TyKind::Any),
     (unknown_ty, keyword::IDENT_UNKNOWN, TyKind::Unknown),
+    (never_ty, keyword::IDENT_NEVER, TyKind::Never),
     (error_ty, keyword::IDENT_ERROR, TyKind::Any),
     (void_ty, keyword::KW_VOID, TyKind::Void),
     (undefined_ty, keyword::IDENT_UNDEFINED, TyKind::Undefined),
@@ -601,7 +600,6 @@ impl<'cx> TyChecker<'cx> {
             self.check_type_assignable_to_and_optionally_elaborate(
                 expr_ty, ret_ty, error_node, error_node,
             );
-            return;
         }
     }
 
@@ -957,7 +955,7 @@ impl<'cx> TyChecker<'cx> {
         let mut container = self.p.node(container_id);
 
         let mut captured_by_arrow_fn = false;
-        let mut this_in_computed_prop_name = false;
+        let this_in_computed_prop_name = false;
 
         if container.is_class_ctor() {
             // TODO: `check_this_before_super`
@@ -1030,7 +1028,7 @@ impl<'cx> TyChecker<'cx> {
                 .flags
                 .intersects(SymbolFlags::VARIABLE)
             {
-                let mut child = id;
+                let child = id;
                 while let Some(parent) = self.p.parent(child) {
                     let node = self.p.node(parent);
                     if let Some(for_in) = node.as_for_in_stmt() {
@@ -1145,7 +1143,7 @@ impl<'cx> TyChecker<'cx> {
         }
 
         let Some(prop) = self.get_prop_of_ty(left, SymbolName::Ele(prop.name)) else {
-            self.report_non_existent_prop(&prop, left);
+            self.report_non_existent_prop(prop, left);
             return self.error_ty();
         };
 
@@ -1157,7 +1155,7 @@ impl<'cx> TyChecker<'cx> {
 
     fn check_prop_access_expr(&mut self, node: &'cx ast::PropAccessExpr<'cx>) -> &'cx ty::Ty<'cx> {
         let left = self.check_expr(node.expr);
-        self._get_prop_of_ty(left, &node.name)
+        self._get_prop_of_ty(left, node.name)
     }
 
     fn param_ty_constraint(&self, ty: &'cx ty::Ty<'cx>) -> Option<&'cx ty::Ty<'cx>> {
@@ -1692,9 +1690,8 @@ impl<'cx> TyChecker<'cx> {
 
     fn check_ty(&mut self, ty: &'cx ast::Ty<'cx>) {
         use ast::TyKind::*;
-        match ty.kind {
-            Refer(n) => self.check_ty_refer_ty(n),
-            _ => (),
+        if let Refer(n) = ty.kind {
+            self.check_ty_refer_ty(n)
         }
     }
 
@@ -1780,6 +1777,10 @@ impl<'cx> TyChecker<'cx> {
         } else {
             Some(tys)
         }
+    }
+
+    fn is_array_or_tuple(&self, ty: &'cx ty::Ty<'cx>) -> bool {
+        ty.kind.is_array(self) || ty.kind.is_tuple()
     }
 }
 

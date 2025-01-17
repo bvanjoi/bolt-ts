@@ -55,11 +55,8 @@ impl<'cx> BinderState<'cx> {
         if name.as_atom().is_some() {
             if let Some(id) = self.res.get(&key).copied() {
                 let prev = self.symbols.get_mut(id);
-                if flags.intersects(SymbolFlags::ALIAS) {
-                    let id = self.symbols.insert(Symbol::new(name, flags, kind));
-                    let prev = self.res.insert(key, id);
-                    return id;
-                } else if matches!(prev.kind.0, SymbolKind::Alias(_)) {
+                if flags.intersects(SymbolFlags::ALIAS) || prev.flags.intersects(SymbolFlags::ALIAS)
+                {
                     let id = self.symbols.insert(Symbol::new(name, flags, kind));
                     let prev = self.res.insert(key, id);
                     return id;

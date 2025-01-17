@@ -150,10 +150,8 @@ impl<'cx> TyChecker<'cx> {
         // }
 
         tys.dedup();
-        if reduction != UnionReduction::None {
-            if reduction == UnionReduction::Subtype {
-                tys = self.remove_subtypes(tys)
-            }
+        if reduction != UnionReduction::None && reduction == UnionReduction::Subtype {
+            tys = self.remove_subtypes(tys)
         }
 
         if tys.len() == 1 {
@@ -180,13 +178,9 @@ impl<'cx> TyChecker<'cx> {
             let source = tys[i];
             if source.kind.is_structured_or_instantiable() {
                 for target in tys.iter() {
-                    if !source.eq(target) {
-                        if self.is_type_related_to(source, target, RelationKind::StrictSubtype)
-                            != Ternary::FALSE
-                        {
-                            tys.remove(i);
-                            break;
-                        }
+                    if !source.eq(target) && self.is_type_related_to(source, target, RelationKind::StrictSubtype) != Ternary::FALSE {
+                        tys.remove(i);
+                        break;
                     }
                 }
             }

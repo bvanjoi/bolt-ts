@@ -167,6 +167,6 @@ impl ListContext for TyArgs {
     }
 
     fn is_closing(&self, s: &mut ParserState) -> bool {
-        matches!(s.token.kind, TokenKind::Comma)
+        !matches!(s.token.kind, TokenKind::Comma)
     }
 }

@@ -79,7 +79,7 @@ struct Resolver<'cx, 'r> {
     atoms: &'cx AtomMap<'cx>,
 }
 
-impl<'cx, 'r> Resolver<'cx, 'r> {
+impl Resolver<'_, '_> {
     fn symbol_decl(&self, symbol_id: SymbolID) -> ast::NodeID {
         use crate::bind::SymbolKind::*;
         let s = self.symbol(symbol_id);
@@ -116,7 +116,7 @@ impl<'cx, 'r> Resolver<'cx, 'r> {
     }
 }
 
-impl<'cx, 'r> ast::Visitor<'cx> for Resolver<'cx, 'r> {
+impl<'cx> ast::Visitor<'cx> for Resolver<'cx, '_> {
     fn visit_import_decl(&mut self, node: &'cx ast::ImportDecl<'cx>) {
         let Some(dep) = self.mg.get_dep(self.module_id, node.id) else {
             unreachable!()

@@ -24,4 +24,8 @@ impl<'cx> TyChecker<'cx> {
     pub(super) fn get_effective_ret_type_node(&self, id: ast::NodeID) -> Option<&'cx ast::Ty<'cx>> {
         self.p.node(id).ret_ty()
     }
+
+    pub(super) fn get_effective_check_node(&self, id: ast::NodeID) -> ast::NodeID {
+        self.p.skip_outer_expr(id)
+    }
 }

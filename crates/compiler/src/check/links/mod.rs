@@ -87,7 +87,7 @@ impl<'cx> super::TyChecker<'cx> {
     pub fn get_sig_links(&mut self, sig: SigID) -> &SigLinks<'cx> {
         self.sig_links
             .entry(sig)
-            .or_insert_with(|| SigLinks::default())
+            .or_default()
     }
 
     pub fn get_mut_sig_links(&mut self, sig: SigID) -> &mut SigLinks<'cx> {
@@ -97,7 +97,7 @@ impl<'cx> super::TyChecker<'cx> {
     pub fn get_ty_links(&mut self, ty: TyID) -> &TyLinks<'cx> {
         self.ty_links
             .entry(ty)
-            .or_insert_with(|| TyLinks::default())
+            .or_default()
     }
 
     pub fn get_mut_ty_links(&mut self, ty: TyID) -> &mut TyLinks<'cx> {

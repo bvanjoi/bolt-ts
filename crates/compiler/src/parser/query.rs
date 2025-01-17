@@ -143,7 +143,7 @@ impl<'cx> Parser<'cx> {
         self.node(id).is_paren_expr()
     }
 
-    fn skip_outer_expr(&self, mut id: ast::NodeID) -> ast::NodeID {
+    pub fn skip_outer_expr(&self, mut id: ast::NodeID) -> ast::NodeID {
         while self.is_outer_expr(id) {
             let node = self.node(id);
             if let Some(child) = node.as_paren_expr() {

@@ -38,6 +38,17 @@ impl SymbolName {
             _ => None,
         }
     }
+
+    pub fn as_numeric(&self) -> Option<f64> {
+        match self {
+            SymbolName::EleNum(num) => Some(Into::<f64>::into(*num)),
+            _ => None,
+        }
+    }
+
+    pub fn is_numeric(&self) -> bool {
+        self.as_numeric().is_some()
+    }
 }
 
 bitflags::bitflags! {
@@ -375,13 +386,7 @@ impl SymbolID {
             }
             _ => None,
         };
-        id.or_else(|| {
-            if let Some(i) = &s.kind.1 {
-                Some(i.decl)
-            } else {
-                None
-            }
-        })
+        id.or_else(|| s.kind.1.as_ref().map(|i| i.decl))
     }
     pub fn decl(&self, binder: &super::Binder) -> NodeID {
         self.opt_decl(binder)
@@ -456,6 +461,12 @@ impl<'cx> Symbols<'cx> {
 }
 
 pub struct GlobalSymbols(FxHashMap<SymbolName, SymbolID>);
+
+impl Default for GlobalSymbols {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 
 impl GlobalSymbols {
     pub fn new() -> Self {

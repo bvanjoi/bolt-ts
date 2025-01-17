@@ -31,6 +31,10 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
+    pub(super) fn properties_of_ty(&self, ty: &'cx ty::Ty<'cx>) -> &'cx [SymbolID] {
+        self.properties_of_object_type(ty)
+    }
+
     pub(super) fn properties_of_object_type(&self, ty: &'cx ty::Ty<'cx>) -> &'cx [SymbolID] {
         ty.kind
             .is_object()

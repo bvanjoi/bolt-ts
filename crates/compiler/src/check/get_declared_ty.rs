@@ -184,7 +184,7 @@ impl<'cx> TyChecker<'cx> {
 
     fn resolve_declared_members(&mut self, symbol: SymbolID) -> &'cx ty::DeclaredMembers<'cx> {
         let members = self.get_members_of_late_binding_symbol(symbol).unwrap();
-        let props = self.get_props_from_members(&members);
+        let props = self.get_props_from_members(members);
         let call_sigs = members
             .get(&SymbolName::Call)
             .copied()

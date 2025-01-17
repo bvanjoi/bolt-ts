@@ -190,6 +190,8 @@ impl<'cx> TyChecker<'cx> {
                 self.void_ty()
             } else if ident.name == keyword::IDENT_UNKNOWN {
                 self.unknown_ty()
+            } else if ident.name == keyword::IDENT_NEVER {
+                self.never_ty()
             } else {
                 let symbol = self.resolve_ty_refer_name(ident);
                 self.get_ty_refer_type(node, symbol)
