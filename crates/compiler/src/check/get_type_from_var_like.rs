@@ -28,6 +28,8 @@ impl<'cx> TyChecker<'cx> {
             self.get_widened_ty_for_var_like_decl(decl)
         } else if let Some(decl) = node.as_object_prop_member() {
             self.get_widened_ty_for_var_like_decl(decl)
+        } else if let Some(decl) = node.as_object_shorthand_member() {
+            self.get_widened_ty_for_var_like_decl(decl)
         } else {
             unreachable!("node: {node:#?}")
         };
@@ -44,12 +46,19 @@ impl<'cx> TyChecker<'cx> {
         &mut self,
         decl: &impl ir::VarLike<'cx>,
     ) -> &'cx Ty<'cx> {
-        let ty = self.get_ty_for_var_like_decl(decl);
+        let ty = if let Some(decl_ty) = decl.decl_ty() {
+            Some(self.get_ty_from_type_node(decl_ty))
+        } else if let Some(init) = decl.init() {
+            let init_ty = self.check_expr_with_cache(init);
+            Some(self.widened_ty_from_init(init_ty))
+        } else {
+            None
+        };
         self.widen_ty_for_var_like_decl(ty, decl)
     }
 
     fn widen_ty_for_var_like_decl(
-        &self,
+        &mut self,
         ty: Option<&'cx Ty<'cx>>,
         decl: &impl ir::VarLike<'cx>,
     ) -> &'cx Ty<'cx> {
@@ -62,15 +71,5 @@ impl<'cx> TyChecker<'cx> {
             }
         }
         self.any_ty()
-    }
-
-    fn get_ty_for_var_like_decl(&mut self, decl: &impl ir::VarLike<'cx>) -> Option<&'cx Ty<'cx>> {
-        if let Some(decl_ty) = decl.decl_ty() {
-            Some(self.get_ty_from_type_node(decl_ty))
-        } else if let Some(init) = decl.init() {
-            Some(self.check_expr_with_cache(init))
-        } else {
-            None
-        }
     }
 }

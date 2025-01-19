@@ -1,0 +1,25 @@
+  × Property 'one' is missing.
+   ╭─[../../tests/cases/compiler/assignmentCompat1/index.ts:4:5]
+ 4 │ y
+   · ─
+   ╰────
+
+Advice: 
+  ☞ Property 'one' is defined here
+   ╭─[../../tests/cases/compiler/assignmentCompat1/index.ts:1:9]
+ 1 │ { one: 1 }
+   · ──────────
+   ╰────
+
+  × Property 'one' is missing.
+   ╭─[../../tests/cases/compiler/assignmentCompat1/index.ts:7:5]
+ 7 │ z
+   · ─
+   ╰────
+
+Advice: 
+  ☞ Property 'one' is defined here
+   ╭─[../../tests/cases/compiler/assignmentCompat1/index.ts:1:9]
+ 1 │ { one: 1 }
+   · ──────────
+   ╰────

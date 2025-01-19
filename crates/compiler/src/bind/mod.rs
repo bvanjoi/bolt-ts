@@ -101,6 +101,14 @@ impl<'cx> Binder<'cx> {
         }
     }
 
+    pub(crate) fn get_check_flags(&self, symbol: SymbolID) -> crate::ty::CheckFlags {
+        if let Some(t) = self.get_transient(symbol) {
+            t.links.get_check_flags().unwrap_or_default()
+        } else {
+            bitflags::Flags::empty()
+        }
+    }
+
     pub(crate) fn get_mut_transient(
         &mut self,
         symbol: SymbolID,
@@ -112,6 +120,13 @@ impl<'cx> Binder<'cx> {
             SymbolKind::Transient(ty) => Some(ty),
             _ => None,
         }
+    }
+
+    pub fn steal_errors(&mut self) -> Vec<bolt_ts_errors::Diag> {
+        self.binder_result
+            .iter_mut()
+            .flat_map(|result| std::mem::take(&mut result.diags))
+            .collect()
     }
 
     pub fn create_transient_symbol(
@@ -130,11 +145,20 @@ impl<'cx> Binder<'cx> {
         self.transient_binder.insert(symbol)
     }
 
-    pub fn steal_errors(&mut self) -> Vec<bolt_ts_errors::Diag> {
-        self.binder_result
-            .iter_mut()
-            .flat_map(|result| std::mem::take(&mut result.diags))
-            .collect()
+    pub fn create_transient_symbol_with_ty(
+        &mut self,
+        source: SymbolID,
+        ty: &'cx crate::ty::Ty<'cx>,
+    ) -> SymbolID {
+        let s = self.symbol(source);
+        let symbol_flags = s.flags;
+        let name = s.name;
+        let check_flags = self.get_check_flags(source) & crate::ty::CheckFlags::READONLY;
+        let links = crate::check::SymbolLinks::default()
+            .with_check_flags(check_flags)
+            .with_ty(ty)
+            .with_target(source);
+        self.create_transient_symbol(name, symbol_flags, Some(source), links)
     }
 }
 
@@ -179,7 +203,7 @@ fn bind<'cx>(
     state
 }
 
-fn prop_name(name: &ast::PropName) -> SymbolName {
+pub fn prop_name(name: &ast::PropName) -> SymbolName {
     match name.kind {
         ast::PropNameKind::Ident(ident) => SymbolName::Ele(ident.name),
         ast::PropNameKind::NumLit(num) => SymbolName::EleNum(num.val.into()),

@@ -229,6 +229,10 @@ impl<'cx> TyChecker<'cx> {
                 self.unknown_ty()
             } else if ident.name == keyword::IDENT_NEVER {
                 self.never_ty()
+            } else if ident.name == keyword::IDENT_UNDEFINED {
+                self.undefined_ty()
+            } else if ident.name == keyword::KW_NULL {
+                self.null_ty()
             } else {
                 let symbol = self.resolve_ty_refer_name(ident);
                 self.get_ty_refer_type(node, symbol)

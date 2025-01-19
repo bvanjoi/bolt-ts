@@ -35,6 +35,7 @@ impl<'cx> TyChecker<'cx> {
             expanding_flags: RecursionFlags::empty(),
             source_stack: Vec::with_capacity(32),
             target_stack: Vec::with_capacity(32),
+            error_node,
         };
         c.is_related_to(source, target, RecursionFlags::BOTH, error_node.is_some())
     }
@@ -54,6 +55,7 @@ struct TypeRelatedChecker<'cx, 'checker> {
     expanding_flags: RecursionFlags,
     source_stack: Vec<&'cx ty::Ty<'cx>>,
     target_stack: Vec<&'cx ty::Ty<'cx>>,
+    error_node: Option<ast::NodeID>,
 }
 
 impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
@@ -224,7 +226,6 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
                 let Some(source_symbol) = source.symbol() else {
                     unreachable!()
                 };
-                let source_span = self.c.p.node(source_symbol.decl(self.c.binder)).span();
                 for name in unmatched {
                     let field = self.c.atoms.get(name).to_string();
                     let defined = errors::DefinedHere {
@@ -232,8 +233,9 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
                         kind: errors::DeclKind::Property,
                         name: field.to_string(),
                     };
+                    let span = self.c.p.node(self.error_node.unwrap()).span();
                     let error = errors::PropertyXIsMissing {
-                        span: source_span,
+                        span,
                         field,
                         related: [defined],
                     };
@@ -669,21 +671,11 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
         if !self.c.is_excess_property_check_target(target_ty) {
             return false;
         }
-        self.c.resolve_structured_type_members(target_ty);
-        let source = source.kind.expect_object_anonymous();
-        for (name, symbol) in &self.c.binder.symbol(source.symbol).expect_object().members {
-            let target_members = self.c.ty_links[&target_ty.id]
-                .expect_structured_members()
-                .members;
-            if target_members.contains_key(name) {
-                continue;
-            } else {
+        for prop in self.c.get_props_of_ty(source) {
+            let name = self.c.binder.symbol(*prop).name;
+            if !self.c.is_known_prop(target_ty, name) {
                 if report_error {
-                    let span = self
-                        .c
-                        .p
-                        .node(self.c.binder.symbol(*symbol).expect_prop().decl)
-                        .span();
+                    let span = self.c.p.node(prop.decl(self.c.binder)).span();
                     let field = self.c.atoms.get(name.expect_atom()).to_string();
                     let error = errors::ObjectLitMayOnlySpecifyKnownPropAndFieldDoesNotExist {
                         span,

@@ -170,7 +170,7 @@ impl<'cx> TyChecker<'cx> {
         self.check_type_related_to(source, target, RelationKind::Assignable, error_node)
     }
 
-    fn get_props_of_object_ty(
+    fn _get_props_of_object_ty(
         &self,
         self_ty: &'cx ty::Ty<'cx>,
         ty: &'cx ObjectTy<'cx>,
@@ -188,10 +188,18 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
-    pub(super) fn get_props_of_ty(&mut self, ty: &'cx Ty<'cx>) -> &'cx [SymbolID] {
-        self.resolve_structured_type_members(ty);
+    pub(super) fn get_props_of_object_ty(&mut self, ty: &'cx Ty<'cx>) -> &'cx [SymbolID] {
         if let TyKind::Object(object_ty) = ty.kind {
-            self.get_props_of_object_ty(ty, object_ty)
+            self.resolve_structured_type_members(ty);
+            self._get_props_of_object_ty(ty, object_ty)
+        } else {
+            &[]
+        }
+    }
+
+    pub(super) fn get_props_of_ty(&mut self, ty: &'cx Ty<'cx>) -> &'cx [SymbolID] {
+        if ty.kind.is_object() {
+            self.get_props_of_object_ty(ty)
         } else {
             &[]
         }

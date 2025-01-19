@@ -105,3 +105,18 @@ impl<'cx> VarLike<'cx> for ast::ObjectPropMember<'cx> {
         Some(self.value)
     }
 }
+
+impl<'cx> VarLike<'cx> for ast::ObjectShorthandMember<'cx> {
+    fn id(&self) -> ast::NodeID {
+        self.id
+    }
+    fn name(&self) -> VarLikeName<'cx> {
+        VarLikeName::Ident(&self.name)
+    }
+    fn decl_ty(&self) -> Option<&'cx ast::Ty<'cx>> {
+        None
+    }
+    fn init(&self) -> Option<&'cx ast::Expr<'cx>> {
+        None
+    }
+}

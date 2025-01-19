@@ -67,6 +67,11 @@ impl<'cx> Ty<'cx> {
         }
     }
 
+    pub fn is_object_literal(&self) -> bool {
+        self.get_object_flags()
+            .contains(ObjectFlags::OBJECT_LITERAL)
+    }
+
     pub fn is_object_or_array_literal(&self) -> bool {
         self.get_object_flags()
             .intersects(ObjectFlags::OBJECT_LITERAL | ObjectFlags::ARRAY_LITERAL)

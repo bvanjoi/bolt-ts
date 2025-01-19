@@ -23,6 +23,7 @@ mod get_this_ty;
 mod get_ty;
 mod get_type_from_ty_refer_like;
 mod get_type_from_var_like;
+mod get_widened_ty;
 mod index_info;
 mod infer;
 mod instantiate;
@@ -357,11 +358,7 @@ impl<'cx> TyChecker<'cx> {
     }
 
     fn check_flags(&self, symbol: SymbolID) -> CheckFlags {
-        if let Some(t) = self.binder.get_transient(symbol) {
-            t.links.get_check_flags().unwrap()
-        } else {
-            bitflags::Flags::empty()
-        }
+        self.binder.get_check_flags(symbol)
     }
 
     pub fn print_ty<'a>(&'a mut self, ty: &'cx ty::Ty<'cx>) -> &'a str {
@@ -704,21 +701,6 @@ impl<'cx> TyChecker<'cx> {
         } else {
             let ty = self.check_expr(expr);
             self.get_mut_node_links(expr.id()).set_resolved_ty(ty);
-            ty
-        }
-    }
-
-    fn get_widened_ty(&self, ty: &'cx ty::Ty<'cx>) -> &'cx ty::Ty<'cx> {
-        // TODO: widened
-        ty
-    }
-
-    fn get_widened_literal_ty(&self, ty: &'cx ty::Ty<'cx>) -> &'cx ty::Ty<'cx> {
-        if ty.kind.is_number_lit() {
-            self.number_ty()
-        } else if ty.kind.is_string_lit() {
-            self.string_ty()
-        } else {
             ty
         }
     }
@@ -1164,8 +1146,6 @@ impl<'cx> TyChecker<'cx> {
         };
 
         let ty = self.get_type_of_symbol(prop);
-        // TODO: remove `get_widened_literal_ty`
-        let ty = self.get_widened_literal_ty(ty);
         ty
     }
 
@@ -1349,24 +1329,60 @@ impl<'cx> TyChecker<'cx> {
         ty
     }
 
-    fn check_object_lit(&mut self, lit: &'cx ast::ObjectLit<'cx>) -> &'cx ty::Ty<'cx> {
-        // let ty = self.get_contextual_ty(lit.id);
-        // let entires = lit.members.iter().map(|member| {
-        //     let member_symbol = self.get_symbol_of_decl(member.id());
-        //     // let member_ty = self.check_expr(member.value);
-        //     match member.name.kind {
-        //         ast::PropNameKind::Ident(ident) => (SymbolName::Ele(ident.name), member_symbol),
-        //         ast::PropNameKind::NumLit(num) => (
-        //             SymbolName::EleNum(F64Represent::new(num.val)),
-        //             member_symbol,
-        //         ),
-        //         ast::PropNameKind::StringLit(lit) => (SymbolName::Ele(lit.val), member_symbol),
-        //     }
-        // });
-        // let map = FxHashMap::from_iter(entires);
-        // let members = self.alloc(map);
-        // let declared_props = self.get_props_from_members(members);
-        self.create_anonymous_ty(self.binder.final_res(lit.id), ObjectFlags::OBJECT_LITERAL)
+    fn check_object_prop_member(
+        &mut self,
+        member: &'cx ast::ObjectPropMember<'cx>,
+    ) -> &'cx ty::Ty<'cx> {
+        let ty = self.check_expr_for_mutable_location(member.value);
+        ty
+    }
+
+    fn check_object_lit(&mut self, node: &'cx ast::ObjectLit<'cx>) -> &'cx ty::Ty<'cx> {
+        let mut object_flags = ObjectFlags::FRESH_LITERAL;
+        let members = node
+            .members
+            .into_iter()
+            .map(|member| {
+                let member_symbol = self.get_symbol_of_decl(member.id());
+                use ast::ObjectMemberKind::*;
+                let ty = match member.kind {
+                    Shorthand(n) => self.check_ident(n.name),
+                    Prop(n) => self.check_object_prop_member(n),
+                };
+                let name = match member.kind {
+                    Shorthand(n) => SymbolName::Ele(n.name.name),
+                    Prop(n) => crate::bind::prop_name(n.name),
+                };
+                object_flags |= ty.get_object_flags() & ObjectFlags::PROPAGATING_FLAGS;
+                let prop = self.binder.create_transient_symbol(
+                    name,
+                    SymbolFlags::PROPERTY | self.binder.symbol(member_symbol).flags,
+                    Some(member_symbol),
+                    SymbolLinks::default()
+                        .with_target(member_symbol)
+                        .with_ty(ty),
+                );
+                (name, prop)
+            })
+            .collect();
+        let ty = self.create_anonymous_ty(
+            self.binder.final_res(node.id),
+            ObjectFlags::OBJECT_LITERAL | ObjectFlags::CONTAINS_OBJECT_OR_ARRAY_LITERAL,
+        );
+        let props = self.get_props_from_members(&members);
+        self.ty_links.insert(
+            ty.id,
+            TyLinks::default().with_structured_members(self.alloc(ty::StructuredMembers {
+                members: self.alloc(members),
+                base_tys: Default::default(),
+                base_ctor_ty: Default::default(),
+                call_sigs: Default::default(),
+                ctor_sigs: Default::default(),
+                index_infos: Default::default(),
+                props,
+            })),
+        );
+        ty
     }
 
     fn check_cond(&mut self, cond: &'cx ast::CondExpr) -> &'cx ty::Ty<'cx> {
@@ -1800,6 +1816,16 @@ impl<'cx> TyChecker<'cx> {
 
     fn is_array_or_tuple(&self, ty: &'cx ty::Ty<'cx>) -> bool {
         ty.kind.is_array(self) || ty.kind.is_tuple()
+    }
+
+    fn is_known_prop(&mut self, target: &'cx ty::Ty<'cx>, name: SymbolName) -> bool {
+        if let Some(_) = target.kind.as_object() {
+            if self.get_prop_of_ty(target, name).is_some() {
+                return true;
+            }
+        }
+
+        false
     }
 }
 
