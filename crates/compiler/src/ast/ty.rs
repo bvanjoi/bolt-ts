@@ -32,6 +32,7 @@ impl Ty<'_> {
             TyKind::Typeof(n) => n.span,
             TyKind::Mapped(n) => n.span,
             TyKind::TyOp(n) => n.span,
+            TyKind::Ctor(n) => n.span,
         }
     }
 
@@ -54,6 +55,7 @@ impl Ty<'_> {
             TyKind::Typeof(n) => n.id,
             TyKind::Mapped(n) => n.id,
             TyKind::TyOp(n) => n.id,
+            TyKind::Ctor(n) => n.id,
         }
     }
 }
@@ -64,6 +66,7 @@ pub enum TyKind<'cx> {
     Array(&'cx ArrayTy<'cx>),
     IndexedAccess(&'cx IndexedAccessTy<'cx>),
     Fn(&'cx FnTy<'cx>),
+    Ctor(&'cx CtorTy<'cx>),
     ObjectLit(&'cx ObjectLitTy<'cx>),
     NumLit(&'cx NumLitTy),
     BooleanLit(&'cx BoolLitTy),
@@ -174,6 +177,17 @@ pub struct ObjectLitTy<'cx> {
 pub struct FnTy<'cx> {
     pub id: NodeID,
     pub span: Span,
+    pub ty_params: Option<TyParams<'cx>>,
+    pub params: ParamsDecl<'cx>,
+    pub ty: &'cx self::Ty<'cx>,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct CtorTy<'cx> {
+    pub id: NodeID,
+    pub span: Span,
+    pub modifiers: Option<&'cx Modifiers<'cx>>,
+    pub ty_params: Option<TyParams<'cx>>,
     pub params: ParamsDecl<'cx>,
     pub ty: &'cx self::Ty<'cx>,
 }
@@ -204,6 +218,14 @@ impl PropName<'_> {
             PropNameKind::Ident(ident) => ident.span,
             PropNameKind::NumLit(num) => num.span,
             PropNameKind::StringLit { raw, .. } => raw.span,
+        }
+    }
+
+    pub fn id(&self) -> NodeID {
+        match self.kind {
+            PropNameKind::Ident(ident) => ident.id,
+            PropNameKind::NumLit(num) => num.id,
+            PropNameKind::StringLit { raw, .. } => raw.id,
         }
     }
 }

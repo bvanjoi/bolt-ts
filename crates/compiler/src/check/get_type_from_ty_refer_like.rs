@@ -46,13 +46,16 @@ impl<'cx> TyChecker<'cx> {
         self.resolve_symbol_by_ident(name)
     }
 
-    fn ty_args_from_ty_refer_node(&mut self, ty_args: &'cx ast::Tys<'cx>) -> ty::Tys<'cx> {
-        let ty_args = ty_args
+    pub(super) fn ty_args_from_ty_refer_node(
+        &mut self,
+        ty_args: Option<&'cx ast::Tys<'cx>>,
+    ) -> Option<ty::Tys<'cx>> {
+        let ty_args = ty_args?
             .list
             .iter()
             .map(|arg| self.get_ty_from_type_node(arg))
             .collect::<Vec<_>>();
-        self.alloc(ty_args)
+        Some(self.alloc(ty_args))
     }
 
     // fn instantiate_ty_with_alias(&mut self) -> &'cx ty::Ty<'cx> {}
@@ -81,9 +84,8 @@ impl<'cx> TyChecker<'cx> {
             // {
             //     let alias_symbol = self.resolve_ty_refer_name(name)
             // }
-            let args = node
-                .ty_args()
-                .map(|args| self.ty_args_from_ty_refer_node(args))
+            let args = self
+                .ty_args_from_ty_refer_node(node.ty_args())
                 .unwrap_or_default();
             self.get_type_alias_instantiation(symbol, args)
         } else if self.check_no_ty_args(node) {
@@ -99,6 +101,26 @@ impl<'cx> TyChecker<'cx> {
             false
         } else {
             true
+        }
+    }
+
+    pub(super) fn concatenate<T: Copy>(
+        &mut self,
+        a: Option<&'cx [T]>,
+        b: Option<&'cx [T]>,
+    ) -> &'cx [T] {
+        match (a, b) {
+            (Some(a), Some(b)) => {
+                let v = a
+                    .into_iter()
+                    .chain(b.into_iter())
+                    .copied()
+                    .collect::<Vec<_>>();
+                self.alloc(v)
+            }
+            (Some(a), None) => a,
+            (None, Some(b)) => b,
+            (None, None) => &[],
         }
     }
 
@@ -138,8 +160,23 @@ impl<'cx> TyChecker<'cx> {
                 };
                 self.push_error(error);
             }
+
+            let resolved_ty_args = {
+                let self_ty_args = self.ty_args_from_ty_refer_node(node.ty_args());
+                let self_ty_args =
+                    self.fill_missing_ty_args(self_ty_args, i.local_ty_params, min_ty_arg_count);
+                self.concatenate(i.outer_ty_params, self_ty_args)
+            };
+            self.create_reference_ty(
+                ty::ReferenceTy {
+                    target: ty,
+                    resolved_ty_args,
+                },
+                ty.get_object_flags(),
+            )
+        } else {
+            ty
         }
-        ty
     }
 
     pub(super) fn get_ty_refer_type(

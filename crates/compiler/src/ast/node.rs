@@ -70,6 +70,8 @@ pub enum Node<'cx> {
     ContinueStmt(&'cx super::ContinueStmt<'cx>),
     TryStmt(&'cx super::TryStmt<'cx>),
     CatchClause(&'cx super::CatchClause<'cx>),
+    ObjectBindingElem(&'cx super::ObjectBindingElem<'cx>),
+    ObjectPat(&'cx super::ObjectPat<'cx>),
 
     // expr
     VarDecl(&'cx super::VarDecl<'cx>),
@@ -110,6 +112,7 @@ pub enum Node<'cx> {
     ArrayTy(&'cx super::ArrayTy<'cx>),
     IndexedAccessTy(&'cx super::IndexedAccessTy<'cx>),
     FnTy(&'cx super::FnTy<'cx>),
+    CtorTy(&'cx super::CtorTy<'cx>),
     ObjectLitTy(&'cx super::ObjectLitTy<'cx>),
     TyParam(&'cx super::TyParam<'cx>),
     MappedTyParam(&'cx super::MappedTyParam<'cx>),
@@ -274,7 +277,8 @@ impl<'cx> Node<'cx> {
             ClassMethodEle,
             MethodSignature,
             CallSigDecl,
-            FnTy
+            FnTy,
+            CtorTy,
         )
     }
 
@@ -730,6 +734,13 @@ as_node!(
         is_fn_ty
     ),
     (
+        CtorTy,
+        &'cx super::CtorTy<'cx>,
+        as_ctor_ty,
+        expect_ctor_ty,
+        is_ctor_ty
+    ),
+    (
         StringLitTy,
         &'cx super::StringLitTy,
         as_string_lit_ty,
@@ -1116,45 +1127,65 @@ as_node!(
     ),
     (
         MappedTy,
-        &'cx super::MappedTy,
+        &'cx super::MappedTy<'cx>,
         as_mapped_ty,
         expect_mapped_ty,
         is_mapped_ty
     ),
-    (TyOp, &'cx super::TyOp, as_ty_op, expect_ty_op, is_ty_op),
+    (
+        TyOp,
+        &'cx super::TyOp<'cx>,
+        as_ty_op,
+        expect_ty_op,
+        is_ty_op
+    ),
     (
         TryStmt,
-        &'cx super::TryStmt,
+        &'cx super::TryStmt<'cx>,
         as_try_stmt,
         expect_try_stmt,
         is_try_stmt
     ),
     (
         CatchClause,
-        &'cx super::CatchClause,
+        &'cx super::CatchClause<'cx>,
         as_catch_clause,
         expect_catch_clause,
         is_catch_clause
     ),
     (
         DoStmt,
-        &'cx super::DoStmt,
+        &'cx super::DoStmt<'cx>,
         as_do_stmt,
         expect_do_stmt,
         is_do_stmt
     ),
     (
         WhileStmt,
-        &'cx super::WhileStmt,
+        &'cx super::WhileStmt<'cx>,
         as_while_stmt,
         expect_while_stmt,
         is_while_stmt
     ),
     (
         QualifiedName,
-        &'cx super::QualifiedName,
+        &'cx super::QualifiedName<'cx>,
         as_qualified_name,
         expect_qualified_name,
         is_qualified_name
+    ),
+    (
+        ObjectPat,
+        &'cx super::ObjectPat<'cx>,
+        as_object_pat,
+        expect_object_pat,
+        is_object_pat
+    ),
+    (
+        ObjectBindingElem,
+        &'cx super::ObjectBindingElem<'cx>,
+        as_object_binding_elem,
+        expect_object_binding_elem,
+        is_object_binding_elem
     )
 );

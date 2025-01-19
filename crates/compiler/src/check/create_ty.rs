@@ -43,11 +43,12 @@ impl<'cx> TyChecker<'cx> {
         )
     }
 
-    pub(super) fn create_reference_ty(&mut self, ty: ty::ReferenceTy<'cx>) -> &'cx ty::Ty<'cx> {
-        let ty = self.create_object_ty(
-            ty::ObjectTyKind::Reference(self.alloc(ty)),
-            ObjectFlags::empty(),
-        );
+    pub(super) fn create_reference_ty(
+        &mut self,
+        ty: ty::ReferenceTy<'cx>,
+        flags: ObjectFlags,
+    ) -> &'cx ty::Ty<'cx> {
+        let ty = self.create_object_ty(ty::ObjectTyKind::Reference(self.alloc(ty)), flags);
         ty
     }
 
@@ -178,7 +179,10 @@ impl<'cx> TyChecker<'cx> {
             let source = tys[i];
             if source.kind.is_structured_or_instantiable() {
                 for target in tys.iter() {
-                    if !source.eq(target) && self.is_type_related_to(source, target, RelationKind::StrictSubtype) != Ternary::FALSE {
+                    if !source.eq(target)
+                        && self.is_type_related_to(source, target, RelationKind::StrictSubtype)
+                            != Ternary::FALSE
+                    {
                         tys.remove(i);
                         break;
                     }

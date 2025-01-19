@@ -13,6 +13,7 @@
 
   × Type 'i8' recursively references itself as a base type.
    ╭─[../../tests/cases/compiler/recursiveInheritance/index.ts:8:11]
- 8 │ i8
-   · ──
+ 8 │ i8 extends i9
+   · ──         ─┬
+   ·  │          ╰── Base type is defined here.
    ╰────

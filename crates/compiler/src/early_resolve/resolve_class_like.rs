@@ -28,6 +28,9 @@ impl<'cx> Resolver<'cx, '_> {
 
         if let Some(extends) = class.extends() {
             self.resolve_entity_name(extends.name, false);
+            if let Some(ty_args) = extends.ty_args {
+                self.resolve_tys(ty_args.list);
+            }
         }
 
         if let Some(implements) = class.implements() {

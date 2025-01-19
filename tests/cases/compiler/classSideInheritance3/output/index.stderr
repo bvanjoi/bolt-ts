@@ -1,0 +1,11 @@
+  × Type 'typeof B' is not assignable to type 'typeof A'.
+    ╭─[../../tests/cases/compiler/classSideInheritance3/index.ts:18:5]
+ 18 │ r1
+    · ──
+    ╰────
+
+  × Type 'typeof B' is not assignable to type 'new (x: string) => A'.
+    ╭─[../../tests/cases/compiler/classSideInheritance3/index.ts:20:5]
+ 20 │ r2
+    · ──
+    ╰────

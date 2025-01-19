@@ -392,6 +392,48 @@ impl<'cx> Emit<'cx> {
         self.content.p_r_paren();
     }
 
+    fn emit_object_binding_elem(&mut self, elem: &'cx ast::ObjectBindingElem<'cx>) {
+        if elem.dotdotdot.is_some() {
+            self.content.p_dot_dot_dot();
+        }
+        use ast::ObjectBindingName::*;
+        match elem.name {
+            Shorthand(ident) => {
+                self.emit_ident(ident);
+            }
+            Prop { prop_name, name } => {
+                self.emit_prop_name(prop_name);
+                self.content.p(":");
+                self.content.p_whitespace();
+                self.emit_binding(name);
+            }
+        }
+        if let Some(init) = elem.init {
+            self.content.p_whitespace();
+            self.content.p_eq();
+            self.content.p_whitespace();
+            self.emit_expr(init);
+        }
+    }
+
+    fn emit_binding(&mut self, binding: &'cx ast::Binding<'cx>) {
+        match binding {
+            ast::Binding::Ident(n) => self.emit_ident(n),
+            ast::Binding::ObjectPat(n) => {
+                self.content.p_l_brace();
+                self.emit_list(
+                    n.elems,
+                    |this, item| this.emit_object_binding_elem(item),
+                    |this, _| {
+                        this.content.p_comma();
+                        this.content.p_whitespace();
+                    },
+                );
+                self.content.p_r_brace();
+            }
+        };
+    }
+
     fn emit_ns_decl(&mut self, ns: &'cx ast::NsDecl) {
         if ns
             .modifiers
@@ -404,6 +446,24 @@ impl<'cx> Emit<'cx> {
             return;
         };
         // var name
+        fn sub_names_of_binding<'cx>(binding: &'cx ast::Binding<'cx>) -> Vec<bolt_ts_atom::AtomId> {
+            use ast::Binding::*;
+            match binding {
+                Ident(n) => vec![n.name],
+                ObjectPat(n) => n
+                    .elems
+                    .iter()
+                    .flat_map(|elem| {
+                        use ast::ObjectBindingName::*;
+                        match elem.name {
+                            Shorthand(ident) => vec![ident.name],
+                            Prop { name, .. } => sub_names_of_binding(name),
+                        }
+                    })
+                    .collect(),
+            }
+        }
+
         let mut sub_names = block
             .stmts
             .iter()
@@ -411,7 +471,7 @@ impl<'cx> Emit<'cx> {
                 ast::StmtKind::Var(v) => Some(
                     v.list
                         .iter()
-                        .map(|item| item.binding.name)
+                        .flat_map(|item| sub_names_of_binding(item.binding))
                         .collect::<Vec<_>>(),
                 ),
                 ast::StmtKind::Class(c) => Some(vec![c.name.name]),
@@ -456,11 +516,12 @@ impl<'cx> Emit<'cx> {
                             for item in v.list {
                                 this.content.p(&param_name);
                                 this.content.p_dot();
-                                this.emit_ident(item.binding);
+                                this.emit_binding(item.binding);
                                 this.content.p_whitespace();
                                 this.content.p_eq();
                                 this.content.p_whitespace();
-                                this.emit_ident(item.binding);
+                                // TODO: fix
+                                this.emit_binding(item.binding);
                                 this.content.p_newline();
                             }
                         }
@@ -567,7 +628,7 @@ impl<'cx> Emit<'cx> {
     }
 
     fn emit_var_decl(&mut self, decl: &'cx ast::VarDecl) {
-        self.content.p(self.atoms.get(decl.binding.name));
+        self.emit_binding(decl.binding);
         if let Some(init) = decl.init {
             self.content.p_whitespace();
             self.content.p_eq();

@@ -171,24 +171,59 @@ impl<'cx> ParserState<'cx, '_> {
         }
     }
 
+    fn parse_modifiers_for_ctor_ty(&mut self) -> PResult<Option<&'cx ast::Modifiers<'cx>>> {
+        if self.token.kind == TokenKind::Abstract {
+            let pos = self.token.start();
+            let m = self.parse_modifier(false)?.unwrap();
+            let m = self.alloc(ast::Modifiers {
+                span: self.new_span(pos),
+                flags: ast::ModifierKind::Abstract.into(),
+                list: self.alloc(vec![m]),
+            });
+            Ok(Some(m))
+        } else {
+            Ok(None)
+        }
+    }
+
     fn parse_fn_or_ctor_ty(&mut self) -> PResult<&'cx ast::Ty<'cx>> {
         let id = self.next_node_id();
         let start = self.token.start();
-        // let ty_params = self.with_parent(id, Self::parse_ty_params);
+        let modifiers = self.parse_modifiers(false)?;
+        let is_ctor_ty = self.parse_optional(TokenKind::New).is_some();
+        assert!(modifiers.is_none() || is_ctor_ty);
+        let ty_params = self.with_parent(id, Self::parse_ty_params)?;
         let params = self.with_parent(id, Self::parse_params)?;
         let ty = self
             .with_parent(id, Self::parse_arrow_fn_ret_type)?
             .unwrap();
-        let fn_ty = self.alloc(ast::FnTy {
-            id,
-            span: self.new_span(start),
-            params,
-            ty,
-        });
-        self.insert_map(id, ast::Node::FnTy(fn_ty));
-        let ty = self.alloc(ast::Ty {
-            kind: ast::TyKind::Fn(fn_ty),
-        });
+        let ty = if is_ctor_ty {
+            let ctor_ty = self.alloc(ast::CtorTy {
+                id,
+                span: self.new_span(start),
+                modifiers,
+                ty_params,
+                params,
+                ty,
+            });
+            self.insert_map(id, ast::Node::CtorTy(ctor_ty));
+            self.alloc(ast::Ty {
+                kind: ast::TyKind::Ctor(ctor_ty),
+            })
+        } else {
+            let fn_ty = self.alloc(ast::FnTy {
+                id,
+                span: self.new_span(start),
+                ty_params,
+                params,
+                ty,
+            });
+            self.insert_map(id, ast::Node::FnTy(fn_ty));
+            self.alloc(ast::Ty {
+                kind: ast::TyKind::Fn(fn_ty),
+            })
+        };
+
         Ok(ty)
     }
 
@@ -230,42 +265,45 @@ impl<'cx> ParserState<'cx, '_> {
 
     fn parse_prefix_ty(&mut self) -> PResult<&'cx ast::Ty<'cx>> {
         let start = self.token.start();
-        let ty = self.parse_non_array_ty()?;
-        match self.token.kind {
-            TokenKind::LBracket => {
-                let id = self.next_node_id();
-                self.expect(TokenKind::LBracket)?;
-                self.parent_map.r#override(ty.id(), id);
-                if self.is_start_of_ty() {
-                    let index_ty = self.with_parent(id, Self::parse_ty)?;
-                    self.expect(TokenKind::RBracket)?;
-                    self.parent_map.r#override(ty.id(), id);
-                    let kind = self.alloc(ast::IndexedAccessTy {
-                        id,
-                        span: self.new_span(start),
-                        ty,
-                        index_ty,
-                    });
-                    self.insert_map(id, ast::Node::IndexedAccessTy(kind));
-                    let ty = self.alloc(ast::Ty {
-                        kind: ast::TyKind::IndexedAccess(kind),
-                    });
-                    Ok(ty)
-                } else {
-                    self.expect(TokenKind::RBracket)?;
-                    let kind = self.alloc(ast::ArrayTy {
-                        id,
-                        span: self.new_span(ty.span().lo),
-                        ele: ty,
-                    });
-                    self.insert_map(id, ast::Node::ArrayTy(kind));
-                    let ty = self.alloc(ast::Ty {
-                        kind: ast::TyKind::Array(kind),
-                    });
-                    Ok(ty)
-                }
+        let mut ty = self.parse_non_array_ty()?;
+        loop {
+            if self.has_preceding_line_break() {
+                return Ok(ty);
             }
-            _ => Ok(ty),
+            match self.token.kind {
+                TokenKind::LBracket => {
+                    let id = self.next_node_id();
+                    self.expect(TokenKind::LBracket)?;
+                    self.parent_map.r#override(ty.id(), id);
+                    if self.is_start_of_ty() {
+                        let index_ty = self.with_parent(id, Self::parse_ty)?;
+                        self.expect(TokenKind::RBracket)?;
+                        self.parent_map.r#override(ty.id(), id);
+                        let kind = self.alloc(ast::IndexedAccessTy {
+                            id,
+                            span: self.new_span(start),
+                            ty,
+                            index_ty,
+                        });
+                        self.insert_map(id, ast::Node::IndexedAccessTy(kind));
+                        ty = self.alloc(ast::Ty {
+                            kind: ast::TyKind::IndexedAccess(kind),
+                        });
+                    } else {
+                        self.expect(TokenKind::RBracket)?;
+                        let kind = self.alloc(ast::ArrayTy {
+                            id,
+                            span: self.new_span(ty.span().lo),
+                            ele: ty,
+                        });
+                        self.insert_map(id, ast::Node::ArrayTy(kind));
+                        ty = self.alloc(ast::Ty {
+                            kind: ast::TyKind::Array(kind),
+                        });
+                    }
+                }
+                _ => return Ok(ty),
+            };
         }
     }
 

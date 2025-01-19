@@ -19,7 +19,10 @@ pub enum SymbolName {
     Object,
     /// function expression
     Fn,
+    /// constructor implements
     Constructor,
+    /// constructor sigs
+    New,
     Call,
     Interface,
     Index,
@@ -276,7 +279,7 @@ pub struct IndexSymbol {
 
 #[derive(Debug)]
 pub struct InterfaceSymbol {
-    pub decl: NodeID,
+    pub decls: thin_vec::ThinVec<NodeID>,
     pub members: FxHashMap<SymbolName, SymbolID>,
 }
 
@@ -386,7 +389,7 @@ impl SymbolID {
             }
             _ => None,
         };
-        id.or_else(|| s.kind.1.as_ref().map(|i| i.decl))
+        id.or_else(|| s.kind.1.as_ref().map(|i| i.decls[0]))
     }
     pub fn decl(&self, binder: &super::Binder) -> NodeID {
         self.opt_decl(binder)

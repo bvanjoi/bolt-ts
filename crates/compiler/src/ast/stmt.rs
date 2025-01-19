@@ -647,3 +647,37 @@ pub struct ExportNamedSpec<'cx> {
     pub prop_name: &'cx ModuleExportName<'cx>,
     pub name: &'cx ModuleExportName<'cx>,
 }
+
+#[derive(Debug, Clone, Copy)]
+pub enum Binding<'cx> {
+    Ident(&'cx Ident),
+    ObjectPat(&'cx ObjectPat<'cx>),
+    // ArrayPat()
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct ObjectPat<'cx> {
+    pub id: NodeID,
+    pub span: Span,
+    pub elems: ObjectBindingElems<'cx>,
+}
+
+pub type ObjectBindingElems<'cx> = &'cx [&'cx ObjectBindingElem<'cx>];
+
+#[derive(Debug, Clone, Copy)]
+pub struct ObjectBindingElem<'cx> {
+    pub id: NodeID,
+    pub span: Span,
+    pub dotdotdot: Option<Span>,
+    pub name: &'cx ObjectBindingName<'cx>,
+    pub init: Option<&'cx Expr<'cx>>,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub enum ObjectBindingName<'cx> {
+    Shorthand(&'cx Ident),
+    Prop {
+        prop_name: &'cx PropName<'cx>,
+        name: &'cx Binding<'cx>,
+    },
+}

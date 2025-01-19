@@ -1,9 +1,10 @@
 use super::token::TokenKind;
-use super::ParserState;
+use super::{errors, ParserState};
 
 pub(super) trait ListContext: Copy {
-    fn is_ele(&self, s: &mut ParserState, _: bool) -> bool;
+    fn is_ele(&self, s: &mut ParserState, is_error_recovery: bool) -> bool;
     fn is_closing(&self, s: &mut ParserState) -> bool;
+    fn parsing_context_errors(&self, s: &mut ParserState) {}
 }
 
 #[derive(Copy, Clone)]
@@ -39,6 +40,11 @@ impl ListContext for ArgExprs {
 
     fn is_closing(&self, s: &mut ParserState) -> bool {
         matches!(s.token.kind, TokenKind::RParen)
+    }
+
+    fn parsing_context_errors(&self, s: &mut ParserState) {
+        let error = errors::ArgumentExpressionExpected { span: s.token.span };
+        s.push_error(Box::new(error));
     }
 }
 
@@ -168,5 +174,18 @@ impl ListContext for TyArgs {
 
     fn is_closing(&self, s: &mut ParserState) -> bool {
         !matches!(s.token.kind, TokenKind::Comma)
+    }
+}
+
+#[derive(Copy, Clone)]
+pub(super) struct ObjectBindingElems;
+impl ListContext for ObjectBindingElems {
+    fn is_ele(&self, s: &mut ParserState, _: bool) -> bool {
+        let t = s.token.kind;
+        matches!(t, TokenKind::LBracket | TokenKind::DotDotDot) || t.is_lit_prop_name()
+    }
+
+    fn is_closing(&self, s: &mut ParserState) -> bool {
+        matches!(s.token.kind, TokenKind::RBrace)
     }
 }

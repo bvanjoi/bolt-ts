@@ -313,6 +313,16 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         self.alloc(list)
     }
 
+    fn abort_parsing_list_or_move_to_next_token(
+        &mut self,
+        ctx: impl list_ctx::ListContext,
+    ) -> bool {
+        ctx.parsing_context_errors(self);
+        // TODO: is_in_some_parsing_context
+        self.next_token();
+        false
+    }
+
     fn parse_delimited_list<T>(
         &mut self,
         ctx: impl list_ctx::ListContext,
@@ -330,15 +340,23 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
                 }
                 if self.parse_optional(TokenKind::Comma).is_some() {
                     continue;
-                } else {
+                }
+                if self.is_list_terminator(ctx) {
+                    break;
+                }
+
+                if self.expect(TokenKind::Comma).is_err() {
                     let error = errors::ExpectX {
                         span: self.token.span,
                         x: ",".to_string(),
                     };
                     self.push_error(Box::new(error));
                 }
+                continue;
             }
             if self.is_list_terminator(ctx) {
+                break;
+            } else if self.abort_parsing_list_or_move_to_next_token(ctx) {
                 break;
             }
         }

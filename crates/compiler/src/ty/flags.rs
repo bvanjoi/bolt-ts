@@ -77,7 +77,7 @@ bitflags::bitflags! {
 }
 
 bitflags::bitflags! {
-    #[derive(Clone, Copy, Debug)]
+    #[derive(Clone, Copy, Debug, PartialEq)]
     pub struct ObjectFlags: u32 {
         const CLASS = 1 << 0;
         const INTERFACE = 1 << 1;

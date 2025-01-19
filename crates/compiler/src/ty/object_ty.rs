@@ -179,17 +179,7 @@ impl ObjectTyKind<'_> {
             ObjectTyKind::Anonymous(a) => {
                 let symbol = a.symbol;
                 let symbol = checker.binder.symbol(symbol);
-                if symbol.flags.intersects(SymbolFlags::CLASS) {
-                    let name = symbol.name.expect_atom();
-                    return format!("typeof {}", checker.atoms.get(name));
-                }
-
-                if let Some(sig) = checker
-                    .expect_ty_links(self_ty.id)
-                    .expect_structured_members()
-                    .call_sigs
-                    .first()
-                {
+                let print_fn_like_str = |checker: &mut TyChecker, sig: &super::Sig| -> String {
                     let params = sig.params;
                     let params = params
                         .iter()
@@ -213,6 +203,24 @@ impl ObjectTyKind<'_> {
                         checker.any_ty().to_string(checker)
                     };
                     format!("({params}) => {ret}")
+                };
+                if symbol.flags.intersects(SymbolFlags::CLASS) {
+                    let name = symbol.name.expect_atom();
+                    format!("typeof {}", checker.atoms.get(name))
+                } else if let Some(sig) = checker
+                    .expect_ty_links(self_ty.id)
+                    .expect_structured_members()
+                    .call_sigs
+                    .first()
+                {
+                    print_fn_like_str(checker, &sig)
+                } else if let Some(sig) = checker
+                    .expect_ty_links(self_ty.id)
+                    .expect_structured_members()
+                    .ctor_sigs
+                    .first()
+                {
+                    format!("new {}", print_fn_like_str(checker, &sig))
                 } else {
                     "object".to_string()
                 }

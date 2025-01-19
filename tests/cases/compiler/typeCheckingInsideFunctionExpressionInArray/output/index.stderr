@@ -1,0 +1,23 @@
+  × Cannot find name 'derp'.
+    ╭─[../../tests/cases/compiler/typeCheckingInsideFunctionExpressionInArray/index.ts:10:5]
+ 10 │ derp
+    · ────
+    ╰────
+
+  × Type 'number' is not assignable to type 'string'.
+   ╭─[../../tests/cases/compiler/typeCheckingInsideFunctionExpressionInArray/index.ts:4:7]
+ 4 │ k
+   · ─
+   ╰────
+
+  × Type 'Object' is not assignable to type 'string'.
+   ╭─[../../tests/cases/compiler/typeCheckingInsideFunctionExpressionInArray/index.ts:6:9]
+ 6 │ new Object()
+   · ────────────
+   ╰────
+
+  × Property 'NonexistantMethod' does not exist on type 'number[]'.
+   ╭─[../../tests/cases/compiler/typeCheckingInsideFunctionExpressionInArray/index.ts:8:15]
+ 8 │ NonexistantMethod
+   · ─────────────────
+   ╰────

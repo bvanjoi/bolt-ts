@@ -139,3 +139,10 @@ pub(super) struct ExpectedToFindAToMatchTheBTokenHere {
     pub expected: String,
     pub found: String,
 }
+
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
+#[error("Argument expression expected.")]
+pub(super) struct ArgumentExpressionExpected {
+    #[label(primary)]
+    pub span: Span,
+}

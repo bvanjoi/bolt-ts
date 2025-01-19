@@ -84,7 +84,7 @@ impl Resolver<'_, '_> {
         use crate::bind::SymbolKind::*;
         let s = self.symbol(symbol_id);
         if let Some(s) = &s.kind.1 {
-            s.decl
+            s.decls[0]
         } else {
             match &s.kind.0 {
                 Fn(f) => f.decls[0],

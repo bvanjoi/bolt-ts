@@ -130,13 +130,13 @@ impl<'cx> BinderState<'cx> {
             let old = self.scope_id;
             self.scope_id = self.new_scope();
             if let Some(var) = catch.var {
-                let symbol = self.create_var_symbol(
-                    var.binding.name,
+                self.bind_var_binding(
+                    var.binding,
+                    ast::VarKind::Var,
+                    var.id,
                     SymbolFlags::FUNCTION_SCOPED_VARIABLE,
-                    SymbolKind::FunctionScopedVar(FunctionScopedVarSymbol { decl: var.id }),
                     SymbolFlags::FUNCTION_SCOPED_VARIABLE_EXCLUDES,
                 );
-                self.create_final_res(var.id, symbol);
             }
             self.bind_block_stmt(catch.block);
             self.scope_id = old;
@@ -393,7 +393,7 @@ impl<'cx> BinderState<'cx> {
                 self.create_fn_decl_like_symbol(
                     container,
                     decl,
-                    SymbolName::Constructor,
+                    SymbolName::New,
                     SymbolFnKind::Ctor,
                     false,
                 );
@@ -411,7 +411,7 @@ impl<'cx> BinderState<'cx> {
             assert!(prev.is_none());
         } else {
             unreachable!()
-        };
+        }
 
         let old = self.scope_id;
         self.scope_id = self.new_scope();
@@ -575,6 +575,12 @@ impl<'cx> BinderState<'cx> {
         }
     }
 
+    pub(super) fn bind_tys(&mut self, tys: &'cx [&'cx ast::Ty<'cx>]) {
+        for ty in tys {
+            self.bind_ty(ty);
+        }
+    }
+
     pub(super) fn bind_ty(&mut self, ty: &'cx ast::Ty) {
         use ast::TyKind::*;
         match ty.kind {
@@ -608,9 +614,14 @@ impl<'cx> BinderState<'cx> {
                 self.bind_ty(rest.ty);
             }
             Fn(f) => {
-                self.create_fn_ty_symbol(f);
+                self.create_fn_ty_symbol(f.id, SymbolName::Call);
                 self.bind_params(f.params);
                 self.bind_ty(f.ty);
+            }
+            Ctor(n) => {
+                self.create_fn_ty_symbol(n.id, SymbolName::New);
+                self.bind_params(n.params);
+                self.bind_ty(n.ty);
             }
             NumLit(_) | StringLit(_) | NullLit(_) | BooleanLit(_) => {}
             Union(u) => {
@@ -641,14 +652,72 @@ impl<'cx> BinderState<'cx> {
         }
     }
 
-    fn bind_var_decl(&mut self, decl: &'cx ast::VarDecl<'cx>, kind: ast::VarKind) {
-        self.connect(decl.id);
-        let kind = if kind == ast::VarKind::Let || kind == ast::VarKind::Const {
-            SymbolKind::BlockScopedVar { decl: decl.id }
-        } else {
-            SymbolKind::FunctionScopedVar(FunctionScopedVarSymbol { decl: decl.id })
+    fn bind_var_binding(
+        &mut self,
+        binding: &'cx ast::Binding<'cx>,
+        kind: ast::VarKind,
+        var_decl: ast::NodeID,
+        include_flags: SymbolFlags,
+        exclude_flags: SymbolFlags,
+    ) {
+        let symbol_kind = || {
+            if kind == ast::VarKind::Let || kind == ast::VarKind::Const {
+                SymbolKind::BlockScopedVar { decl: var_decl }
+            } else {
+                SymbolKind::FunctionScopedVar(FunctionScopedVarSymbol { decl: var_decl })
+            }
         };
-        self.create_var_decl(decl, kind);
+        use ast::Binding::*;
+        match binding {
+            Ident(ident) => {
+                self.connect(ident.id);
+                let symbol =
+                    self.create_var_symbol(ident.name, include_flags, symbol_kind(), exclude_flags);
+                self.create_final_res(ident.id, symbol);
+            }
+            ObjectPat(object) => {
+                for elem in object.elems {
+                    use ast::ObjectBindingName::*;
+                    match elem.name {
+                        Shorthand(ident) => {
+                            self.connect(ident.id);
+                            let symbol = self.create_var_symbol(
+                                ident.name,
+                                include_flags,
+                                symbol_kind(),
+                                exclude_flags,
+                            );
+                            self.create_final_res(ident.id, symbol);
+                        }
+                        Prop { name, .. } => {
+                            self.bind_var_binding(
+                                name,
+                                kind,
+                                var_decl,
+                                include_flags,
+                                exclude_flags,
+                            );
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    fn bind_var_decl(&mut self, decl: &'cx ast::VarDecl<'cx>, kind: ast::VarKind) {
+        let (include_flags, exclude_flags) =
+            if kind == ast::VarKind::Let || kind == ast::VarKind::Const {
+                (
+                    SymbolFlags::BLOCK_SCOPED_VARIABLE,
+                    SymbolFlags::BLOCK_SCOPED_VARIABLE_EXCLUDES,
+                )
+            } else {
+                (
+                    SymbolFlags::FUNCTION_SCOPED_VARIABLE,
+                    SymbolFlags::FUNCTION_SCOPED_VARIABLE_EXCLUDES,
+                )
+            };
+        self.bind_var_binding(decl.binding, kind, decl.id, include_flags, exclude_flags);
         if let Some(ty) = decl.ty {
             self.bind_ty(ty);
         }

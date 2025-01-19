@@ -134,10 +134,10 @@ impl<'cx> TyChecker<'cx> {
 
     fn resolve_call_expr(&mut self, expr: &impl CallLikeExpr<'cx>) -> &'cx Sig<'cx> {
         let ty = self.check_expr(expr.callee());
-        let sigs = self.get_signatures_of_type(ty, ty::SigKind::Call);
+        let call_sigs = self.get_signatures_of_type(ty, ty::SigKind::Call);
         let class_sigs = self.get_signatures_of_type(ty, ty::SigKind::Constructor);
 
-        if sigs.is_empty() {
+        if call_sigs.is_empty() {
             if let Some(sig) = class_sigs.first() {
                 assert_eq!(class_sigs.len(), 1);
                 let ast::Node::ClassDecl(decl) = self.p.node(sig.class_decl.unwrap()) else {
@@ -153,10 +153,26 @@ impl<'cx> TyChecker<'cx> {
             return self.unknown_sig();
         }
 
-        self.resolve_call(ty, expr, sigs)
+        self.resolve_call(ty, expr, call_sigs)
+    }
+
+    fn filter_type(
+        &mut self,
+        ty: &'cx ty::Ty<'cx>,
+        f: impl Fn(&'cx ty::Ty<'cx>) -> bool,
+    ) -> &'cx ty::Ty<'cx> {
+        if let Some(_) = ty.kind.as_union() {
+            // TODO:
+            ty
+        } else if f(ty) {
+            ty
+        } else {
+            self.never_ty()
+        }
     }
 
     pub(super) fn get_min_arg_count(&mut self, sig: &'cx Sig<'cx>) -> usize {
+        // TODO: cache
         let mut min_arg_count = None;
         if sig.has_rest_param() {
             let rest_ty = self.get_type_of_symbol(sig.params[sig.params.len() - 1]);
@@ -188,6 +204,9 @@ impl<'cx> TyChecker<'cx> {
 
         for i in (0..min_arg_count).rev() {
             let ty = self.get_ty_at_pos(sig, i);
+            if self.filter_type(ty, |ty| ty.kind.is_void()).kind.is_never() {
+                break;
+            }
             min_arg_count = i;
         }
         min_arg_count

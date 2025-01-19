@@ -537,7 +537,7 @@ impl<'cx> ParserState<'cx, '_> {
             }
         }
 
-        if let Some(i) = ident {
+        if let Some(_) = ident {
             if !matches!(self.token.kind, TokenKind::Comma | TokenKind::From) {
                 todo!("import_eq_decl")
             }
@@ -757,18 +757,80 @@ impl<'cx> ParserState<'cx, '_> {
     }
 
     fn parse_name_of_param(&mut self) -> PResult<&'cx ast::Ident> {
-        let name = self.parse_ident_or_pat();
-        Ok(name)
+        todo!()
+        // let name = self.parse_ident_or_pat();
+        // Ok(name)
     }
 
-    fn parse_ident_or_pat(&mut self) -> &'cx ast::Ident {
-        self.parse_binding_ident()
+    fn parse_ident_or_pat(&mut self) -> PResult<&'cx ast::Binding<'cx>> {
+        use TokenKind::*;
+        let binding = match self.token.kind {
+            LBrace => ast::Binding::ObjectPat(self.parse_object_binding_pat()?),
+            _ => ast::Binding::Ident(self.parse_binding_ident()),
+        };
+        Ok(self.alloc(binding))
+    }
+
+    fn parse_object_binding_ele(&mut self) -> PResult<&'cx ast::ObjectBindingElem<'cx>> {
+        let id = self.next_node_id();
+        let start = self.token.start();
+        let dotdotdot = self.parse_optional(TokenKind::DotDotDot).map(|t| t.span);
+        let token_is_ident = self.token.kind.is_binding_ident();
+        let name = if token_is_ident {
+            let name = self.with_parent(id, |this| this.create_ident(true, None));
+            if self.token.kind != TokenKind::Colon {
+                self.alloc(ast::ObjectBindingName::Shorthand(name))
+            } else {
+                let prop_name = self.alloc(ast::PropName {
+                    kind: ast::PropNameKind::Ident(name),
+                });
+                self.expect(TokenKind::Colon).unwrap();
+                let name = self.with_parent(id, Self::parse_ident_or_pat)?;
+                self.alloc(ast::ObjectBindingName::Prop { prop_name, name })
+            }
+        } else {
+            let prop_name = self.with_parent(id, Self::parse_prop_name)?;
+            if self.token.kind != TokenKind::Colon {
+                todo!("error")
+            } else {
+                self.expect(TokenKind::Colon).unwrap();
+                let name = self.with_parent(id, Self::parse_ident_or_pat)?;
+                self.alloc(ast::ObjectBindingName::Prop { prop_name, name })
+            }
+        };
+        let init = self.with_parent(id, Self::parse_init);
+        let ele = self.alloc(ast::ObjectBindingElem {
+            id,
+            span: self.new_span(start),
+            dotdotdot,
+            name,
+            init,
+        });
+
+        Ok(ele)
+    }
+
+    fn parse_object_binding_pat(&mut self) -> PResult<&'cx ast::ObjectPat<'cx>> {
+        let id = self.next_node_id();
+        let start = self.token.start();
+        self.expect(TokenKind::LBrace)?;
+        let elems = self.allow_in_and(|this| {
+            this.parse_delimited_list(list_ctx::ObjectBindingElems, Self::parse_object_binding_ele)
+        });
+        self.expect(TokenKind::RBrace)?;
+        let pat = self.alloc(ast::ObjectPat {
+            id,
+            span: self.new_span(start),
+            elems,
+        });
+        self.insert_map(id, ast::Node::ObjectPat(pat));
+        Ok(pat)
     }
 
     fn parse_var_decl(&mut self) -> PResult<&'cx ast::VarDecl<'cx>> {
         let id = self.next_node_id();
         let start = self.token.start();
-        let binding = self.with_parent(id, Self::parse_ident_or_pat);
+        let binding = self.with_parent(id, Self::parse_ident_or_pat)?;
         let ty = self.with_parent(id, Self::parse_ty_anno)?;
         let init = self.with_parent(id, Self::parse_init);
         let span = self.new_span(start);

@@ -67,6 +67,11 @@ impl<'cx> Ty<'cx> {
         }
     }
 
+    pub fn is_object_or_array_literal(&self) -> bool {
+        self.get_object_flags()
+            .intersects(ObjectFlags::OBJECT_LITERAL | ObjectFlags::ARRAY_LITERAL)
+    }
+
     pub fn get_propagating_flags_of_tys(
         tys: Tys<'cx>,
         _exclude_kinds: Option<TypeFlags>,
@@ -237,10 +242,10 @@ impl Ty<'_> {
                 _ => None,
             },
             TyKind::Param(ty) => Some(ty.symbol),
-            TyKind::Union(ty) => todo!(),
-            TyKind::Var(ty) => todo!(),
-            TyKind::IndexedAccess(ty) => todo!(),
-            TyKind::Cond(ty) => todo!(),
+            TyKind::Union(_) => todo!(),
+            TyKind::Var(_) => todo!(),
+            TyKind::IndexedAccess(_) => todo!(),
+            TyKind::Cond(_) => todo!(),
             _ => None,
         }
     }
@@ -265,6 +270,10 @@ impl TyKind<'_> {
         } else {
             matches!(self, Null)
         }
+    }
+
+    pub fn is_intersection(&self) -> bool {
+        false
     }
 
     pub fn is_union_or_intersection(&self) -> bool {

@@ -8,4 +8,4 @@ pub use binary_like::{BinaryLike, BinaryLikeOp};
 pub use call_like::CallLike;
 pub use class_like::ClassLike;
 pub use fn_like::{FnDeclLike, FnExprLike};
-pub use var_like::VarLike;
+pub use var_like::{VarLike, VarLikeName};

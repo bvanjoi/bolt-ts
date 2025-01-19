@@ -505,7 +505,7 @@ impl TokenKind {
     }
 
     pub fn is_binding_ident_or_private_ident_or_pat(self) -> bool {
-        self.is_binding_ident()
+        matches!(self, TokenKind::LBrace | TokenKind::LBracket) || self.is_binding_ident()
     }
 
     pub const fn is_keyword(self) -> bool {

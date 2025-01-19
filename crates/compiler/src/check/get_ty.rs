@@ -67,6 +67,7 @@ impl<'cx> TyChecker<'cx> {
 
         let target = links.get_target().unwrap();
         let mapper = links.get_ty_mapper();
+
         let ty = self.get_type_of_symbol(target);
         let ty = self.instantiate_ty(ty, mapper);
         self.get_mut_symbol_links(symbol).set_ty(ty);
@@ -129,8 +130,9 @@ impl<'cx> TyChecker<'cx> {
             Refer(refer) => self.get_ty_from_ty_reference(refer),
             Array(array) => self.get_ty_from_array_node(array),
             Tuple(tuple) => self.get_ty_from_tuple_node(tuple),
-            Fn(f) => self.get_ty_from_object_lit_or_fn_or_ctor_ty_node(f.id),
-            ObjectLit(lit) => self.get_ty_from_object_lit_or_fn_or_ctor_ty_node(lit.id),
+            Fn(node) => self.get_ty_from_object_lit_or_fn_or_ctor_ty_node(node.id),
+            ObjectLit(node) => self.get_ty_from_object_lit_or_fn_or_ctor_ty_node(node.id),
+            Ctor(node) => self.get_ty_from_object_lit_or_fn_or_ctor_ty_node(node.id),
             NumLit(num) => self.get_number_literal_type(num.val),
             StringLit(s) => self.get_string_literal_type(s.val),
             Rest(rest) => self.get_ty_from_rest_ty_node(rest),
@@ -196,7 +198,7 @@ impl<'cx> TyChecker<'cx> {
         } else if let Some(lit) = ty.kind.as_number_lit() {
             PropName::Num(lit.val)
         } else {
-            unreachable!()
+            unreachable!("ty: {ty:#?}")
         }
     }
 
@@ -323,7 +325,7 @@ impl<'cx> TyChecker<'cx> {
             alias.decl
         } else if s.flags.intersects(SymbolFlags::INTERFACE) {
             let i = s.expect_interface();
-            i.decl
+            i.decls[0]
         } else if s.flags.intersects(SymbolFlags::CLASS) {
             let c = s.expect_class();
             c.decl
@@ -552,10 +554,13 @@ impl<'cx> TyChecker<'cx> {
     fn get_ty_from_array_node(&mut self, node: &'cx ast::ArrayTy<'cx>) -> &'cx Ty<'cx> {
         let ele_ty = self.get_ty_from_type_node(node.ele);
         let refer = self.global_array_ty().kind.expect_object_reference();
-        self.create_reference_ty(ty::ReferenceTy {
-            target: refer.target,
-            resolved_ty_args: self.alloc(vec![ele_ty]),
-        })
+        self.create_reference_ty(
+            ty::ReferenceTy {
+                target: refer.target,
+                resolved_ty_args: self.alloc(vec![ele_ty]),
+            },
+            ObjectFlags::empty(),
+        )
     }
 
     fn get_array_ele_ty_node(node: &'cx ast::Ty<'cx>) -> Option<&'cx ast::Ty<'cx>> {
@@ -702,10 +707,13 @@ impl<'cx> TyChecker<'cx> {
             combined_flags,
             shape,
         });
-        self.create_reference_ty(ty::ReferenceTy {
-            target: tuple,
-            resolved_ty_args: expand_tys,
-        })
+        self.create_reference_ty(
+            ty::ReferenceTy {
+                target: tuple,
+                resolved_ty_args: expand_tys,
+            },
+            ObjectFlags::empty(),
+        )
     }
 
     fn get_ty_from_tuple_node(&mut self, node: &'cx ast::TupleTy<'cx>) -> &'cx Ty<'cx> {

@@ -139,6 +139,9 @@ impl<'cx> BinderState<'cx> {
 
         if let Some(extends) = class.extends() {
             self.bind_entity_name(extends.name);
+            if let Some(ty_args) = extends.ty_args {
+                self.bind_tys(ty_args.list);
+            }
         }
 
         if let Some(implements) = class.implements() {

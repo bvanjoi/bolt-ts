@@ -375,7 +375,7 @@ impl<'cx> TyChecker<'cx> {
         let mut state = InferenceState {
             priority,
             inference_priority: InferencePriority::MAX_VALUE,
-            checker: self,
+            c: self,
             inference,
             contravariant,
             bivariant: false,
@@ -433,7 +433,7 @@ impl<'cx> TyChecker<'cx> {
 struct InferenceState<'cx, 'checker> {
     priority: InferencePriority,
     inference_priority: InferencePriority,
-    checker: &'checker mut TyChecker<'cx>,
+    c: &'checker mut TyChecker<'cx>,
     inference: InferenceContextId,
     contravariant: bool,
     bivariant: bool,
@@ -442,7 +442,7 @@ struct InferenceState<'cx, 'checker> {
 
 impl<'cx> InferenceState<'cx, '_> {
     fn get_mut_inference(&mut self) -> &mut InferenceContext<'cx> {
-        &mut self.checker.inferences[self.inference.as_usize()]
+        &mut self.c.inferences[self.inference.as_usize()]
     }
 
     fn get_mut_inference_info(&mut self, idx: usize) -> &mut InferenceInfo<'cx> {
@@ -497,7 +497,7 @@ impl<'cx> InferenceState<'cx, '_> {
     }
 
     fn infer_from_tys(&mut self, source: &'cx ty::Ty<'cx>, target: &'cx ty::Ty<'cx>) {
-        if !self.checker.could_contain_ty_var(target) {
+        if !self.c.could_contain_ty_var(target) {
             return;
         }
 
@@ -520,11 +520,8 @@ impl<'cx> InferenceState<'cx, '_> {
         };
 
         if target.kind.is_type_variable() {
-            if let Some(idx) = self
-                .checker
-                .get_inference_info_for_ty(target, self.inference)
-            {
-                let info = self.checker.inference_info(self.inference, idx);
+            if let Some(idx) = self.c.get_inference_info_for_ty(target, self.inference) {
+                let info = self.c.inference_info(self.inference, idx);
                 if !info.is_fixed {
                     let candidate = self.propagation_ty.unwrap_or(source);
                     if info.priority.is_none() || self.priority < info.priority.unwrap() {
@@ -533,7 +530,7 @@ impl<'cx> InferenceState<'cx, '_> {
                         self.set_info_priority(idx, self.priority);
                         self.set_info_toplevel(idx);
                     }
-                    let info = self.checker.inference_info(self.inference, idx);
+                    let info = self.c.inference_info(self.inference, idx);
                     if Some(self.priority) == info.priority {
                         if self.contravariant && !self.bivariant {
                             if info
@@ -600,10 +597,10 @@ impl<'cx> InferenceState<'cx, '_> {
     }
 
     fn infer_from_object_tys(&mut self, source: &'cx ty::Ty<'cx>, target: &'cx ty::Ty<'cx>) {
-        if !self.checker.tys_definitely_unrelated(source, target) {
-            if source.kind.is_tuple() || source.kind.is_array(self.checker) {
+        if !self.c.tys_definitely_unrelated(source, target) {
+            if source.kind.is_tuple() || source.kind.is_array(self.c) {
                 target.kind.is_tuple();
-                if target.kind.is_array(self.checker) {
+                if target.kind.is_array(self.c) {
                     self.infer_from_index_tys(source, target);
                     return;
                 }
@@ -616,10 +613,10 @@ impl<'cx> InferenceState<'cx, '_> {
 
     fn infer_from_index_tys(&mut self, source: &'cx ty::Ty<'cx>, target: &'cx ty::Ty<'cx>) {
         let new_priority = InferencePriority::empty();
-        let target_index_infos = self.checker.get_index_infos_of_ty(target);
+        let target_index_infos = self.c.get_index_infos_of_ty(target);
         for target_index_info in target_index_infos {
             if let Some(source_info) = self
-                .checker
+                .c
                 .get_applicable_index_info(source, target_index_info.key_ty)
             {
                 self.infer_with_priority(
@@ -660,7 +657,7 @@ impl<'cx> InferenceState<'cx, '_> {
                     .filter(|t| !matched.contains(t))
                     .copied()
                     .collect::<Vec<_>>();
-                self.checker.alloc(tys)
+                self.c.alloc(tys)
             }
         };
 
@@ -682,10 +679,10 @@ impl<'cx> InferenceState<'cx, '_> {
         target: &'cx ty::Ty<'cx>,
         kind: SigKind,
     ) {
-        let source_sigs = self.checker.get_signatures_of_type(source, kind);
+        let source_sigs = self.c.get_signatures_of_type(source, kind);
         let source_len = source_sigs.len();
         if source_len > 0 {
-            let target_sigs = self.checker.get_signatures_of_type(target, kind);
+            let target_sigs = self.c.get_signatures_of_type(target, kind);
             let target_len = target_sigs.len();
             for i in 0..target_len {
                 let source_index = if source_len + i > target_len {
@@ -693,8 +690,8 @@ impl<'cx> InferenceState<'cx, '_> {
                 } else {
                     0
                 };
-                let source = self.checker.get_base_sig(source_sigs[source_index]);
-                let target = self.checker.get_erased_sig(target_sigs[i]);
+                let source = self.c.get_base_sig(source_sigs[source_index]);
+                let target = self.c.get_erased_sig(target_sigs[i]);
                 self.infer_from_sig(source, target);
             }
         }
@@ -707,18 +704,18 @@ impl<'cx> InferenceState<'cx, '_> {
         f: impl FnOnce(&mut Self, &'cx ty::Ty<'cx>, &'cx ty::Ty<'cx>),
     ) {
         // TODO: handle ty_pred
-        let target_ret_ty = self.checker.get_ret_ty_of_sig(target);
-        if self.checker.could_contain_ty_var(target_ret_ty) {
-            let source_ret_ty = self.checker.get_ret_ty_of_sig(source);
+        let target_ret_ty = self.c.get_ret_ty_of_sig(target);
+        if self.c.could_contain_ty_var(target_ret_ty) {
+            let source_ret_ty = self.c.get_ret_ty_of_sig(source);
             f(self, source_ret_ty, target_ret_ty);
         }
     }
 
     fn infer_from_props(&mut self, source: &'cx ty::Ty<'cx>, target: &'cx ty::Ty<'cx>) {
-        for target_prop in self.checker.get_props_of_ty(target) {
+        for target_prop in self.c.get_props_of_ty(target) {
             if let Some(source_prop) = self
-                .checker
-                .get_prop_of_ty(source, self.checker.binder.symbol(*target_prop).name)
+                .c
+                .get_prop_of_ty(source, self.c.binder.symbol(*target_prop).name)
             {
                 // TODO:
             }

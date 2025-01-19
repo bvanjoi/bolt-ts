@@ -9,6 +9,7 @@ use super::TyChecker;
 use crate::ast;
 use crate::ast::EntityNameKind;
 use crate::bind::{SymbolFlags, SymbolID, SymbolName};
+use crate::ty::ObjectFlags;
 
 impl<'cx> TyChecker<'cx> {
     pub(super) fn get_declared_ty_of_symbol(&mut self, symbol: SymbolID) -> &'cx ty::Ty<'cx> {
@@ -191,7 +192,7 @@ impl<'cx> TyChecker<'cx> {
             .map(|s| self.get_sigs_of_symbol(s))
             .unwrap_or_default();
         let ctor_sigs = members
-            .get(&SymbolName::Constructor)
+            .get(&SymbolName::New)
             .copied()
             .map(|s| self.get_sigs_of_symbol(s))
             .unwrap_or_default();
@@ -234,10 +235,13 @@ impl<'cx> TyChecker<'cx> {
                 this_ty: Some(this_ty),
                 declared_members,
             });
-            let ty = self.create_reference_ty(ty::ReferenceTy {
-                target,
-                resolved_ty_args: ty_params,
-            });
+            let ty = self.create_reference_ty(
+                ty::ReferenceTy {
+                    target,
+                    resolved_ty_args: ty_params,
+                },
+                ObjectFlags::empty(),
+            );
             ty
         } else {
             assert!(outer_ty_params.is_none() && local_ty_params.is_none());
@@ -264,7 +268,7 @@ impl<'cx> TyChecker<'cx> {
         let decl = if s.flags.intersects(SymbolFlags::CLASS) {
             s.expect_class().decl
         } else if s.flags.intersects(SymbolFlags::INTERFACE) {
-            s.expect_interface().decl
+            s.expect_interface().decls[0]
         } else {
             unreachable!()
         };
@@ -293,7 +297,7 @@ impl<'cx> TyChecker<'cx> {
             match node {
                 ClassDecl(_) | ClassExpr(_) | InterfaceDecl(_) | CallSigDecl(_)
                 | MethodSignature(_) | FnTy(_) | CtorSigDecl(_) | FnDecl(_) | ClassMethodEle(_)
-                | ArrowFnExpr(_) | TypeDecl(_) => {
+                | ArrowFnExpr(_) | TypeDecl(_) | CondTy(_) => {
                     let mut outer_ty_params = self
                         .get_outer_ty_params(id, include_this)
                         .unwrap_or_default();

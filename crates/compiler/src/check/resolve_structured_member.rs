@@ -241,11 +241,15 @@ impl<'cx> TyChecker<'cx> {
         check(self, ty, ty, check_base)
     }
 
-    fn resolve_base_tys_of_interface(&mut self, ty: &'cx ty::Ty<'cx>) -> &'cx [&'cx ty::Ty<'cx>] {
+    fn resolve_base_tys_of_interface(
+        &mut self,
+        ty: &'cx ty::Ty<'cx>,
+        cycle_reported: &mut bool,
+    ) -> &'cx [&'cx ty::Ty<'cx>] {
         let symbol = ty.symbol().unwrap();
         let s = self.binder.symbol(symbol);
         let i = s.expect_interface();
-        let decl = i.decl;
+        let decl = i.decls[0];
         assert!(self.p.node(decl).is_interface_decl());
         let Some(ty_nodes) = self.get_interface_base_ty_nodes(decl) else {
             return &[];
@@ -253,11 +257,10 @@ impl<'cx> TyChecker<'cx> {
         let mut tys = thin_vec::ThinVec::with_capacity(ty_nodes.len());
         for node in ty_nodes {
             let base_ty = self.get_ty_from_ty_reference(*node);
-            if ty != base_ty {
-                if !self.has_base_ty(base_ty, ty) {
-                    tys.push(base_ty);
-                }
+            if ty != base_ty && !self.has_base_ty(base_ty, ty) {
+                tys.push(base_ty);
             } else {
+                *cycle_reported = true;
                 self.report_circular_base_ty(decl, ty, Some(node.name.span()));
             }
         }
@@ -334,18 +337,21 @@ impl<'cx> TyChecker<'cx> {
         let id = ty.symbol().unwrap();
         if self.push_ty_resolution(ResolutionKey::ResolvedBaseTypes(ty.id)) {
             let symbol = self.binder.symbol(id);
+            let mut cycle_reported = false;
             let tys = if symbol.flags.intersects(SymbolFlags::CLASS) {
                 self.resolve_base_tys_of_class(ty)
             } else if symbol.flags.intersects(SymbolFlags::INTERFACE) {
-                self.resolve_base_tys_of_interface(ty)
+                self.resolve_base_tys_of_interface(ty, &mut cycle_reported)
             } else {
                 unreachable!()
             };
-            if let Cycle::Some(_) = self.pop_ty_resolution() {
-                if let Some(decl) = id.opt_decl(self.binder) {
-                    let p = self.p.node(decl);
-                    if p.is_class_decl() || p.is_interface_decl() {
-                        self.report_circular_base_ty(decl, ty, None);
+            if !cycle_reported {
+                if let Cycle::Some(_) = self.pop_ty_resolution() {
+                    if let Some(decl) = id.opt_decl(self.binder) {
+                        let p = self.p.node(decl);
+                        if p.is_class_decl() || p.is_interface_decl() {
+                            self.report_circular_base_ty(decl, ty, None);
+                        }
                     }
                 }
             }
@@ -457,10 +463,15 @@ impl<'cx> TyChecker<'cx> {
         let Some(refer) = ty.kind.as_object_reference() else {
             unreachable!()
         };
-        let Some(i) = refer.target.kind.as_object_interface() else {
-            // TODO: handle more case.
-            return;
-        };
+        fn depp_target<'cx>(ty: &'cx ty::Ty<'cx>) -> Option<&'cx ty::InterfaceTy<'cx>> {
+            if let Some(refer) = ty.kind.as_object_reference() {
+                depp_target(refer.target)
+            } else {
+                // TODO: handle more case
+                ty.kind.as_object_interface()
+            }
+        }
+        let Some(i) = depp_target(ty) else { return };
         let ty_params = {
             let mut ty_params = i.ty_params.unwrap().to_vec();
             ty_params.push(i.this_ty.unwrap());
@@ -524,11 +535,14 @@ impl<'cx> TyChecker<'cx> {
 
         if let Some(target) = a.target {
             let mapper = a.mapper.unwrap();
+            members = {
+                let props = self.get_props_of_ty(target);
+                self.create_instantiated_symbol_table(props, mapper, false)
+            };
             let sigs = self.get_signatures_of_type(target, SigKind::Call);
             call_sigs = self.instantiate_sigs(sigs, mapper);
             let sigs = self.get_signatures_of_type(target, SigKind::Constructor);
             ctor_sigs = self.instantiate_sigs(sigs, mapper);
-            members = FxHashMap::default();
             index_infos = &[];
             // TODO:  `index_infos`, `members` and instantiate them.
         } else if symbol_flags.intersects(SymbolFlags::FUNCTION) {
@@ -566,7 +580,10 @@ impl<'cx> TyChecker<'cx> {
                 .map(|s| self.get_sigs_of_symbol(*s))
                 .unwrap_or_default();
             // TODO: `constructor_sigs`, `index_infos`
-            ctor_sigs = &[];
+            ctor_sigs = members
+                .get(&SymbolName::New)
+                .map(|s| self.get_sigs_of_symbol(*s))
+                .unwrap_or_default();
             index_infos = &[]
         } else if symbol_flags.intersects(SymbolFlags::OBJECT_LITERAL) {
             members = symbol.expect_object().members.clone();

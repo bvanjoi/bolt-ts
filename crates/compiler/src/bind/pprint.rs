@@ -4,7 +4,15 @@ use super::Symbol;
 
 impl<'cx> Symbol<'cx> {
     pub(crate) fn print_name(&self, atoms: &AtomMap<'cx>) -> String {
-        match &self.name {
+        self.name.print(atoms)
+    }
+}
+
+use super::SymbolName;
+
+impl<'cx> SymbolName {
+    pub(crate) fn print(&self, atoms: &AtomMap<'cx>) -> String {
+        match &self {
             super::SymbolName::Normal(atom_id) => format!("Normal({})", atoms.get(*atom_id)),
             super::SymbolName::Ele(atom_id) => format!("Ele({})", atoms.get(*atom_id)),
             super::SymbolName::EleNum(f64_represent) => {
@@ -16,6 +24,7 @@ impl<'cx> Symbol<'cx> {
             super::SymbolName::Object => "Inner(Object)".to_string(),
             super::SymbolName::Fn => "Inner(Fn)".to_string(),
             super::SymbolName::Constructor => "Inner(Constructor)".to_string(),
+            super::SymbolName::New => "Inner(New)".to_string(),
             super::SymbolName::Call => "Inner(Call)".to_string(),
             super::SymbolName::Interface => "Inner(Interface)".to_string(),
             super::SymbolName::Index => "Inner(Index)".to_string(),

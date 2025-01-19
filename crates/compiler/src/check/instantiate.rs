@@ -131,10 +131,13 @@ impl<'cx> TyChecker<'cx> {
                         refer.target
                     }
                 }
-                _ => self.create_reference_ty(ty::ReferenceTy {
-                    target: refer.target,
-                    resolved_ty_args: ty_args,
-                }),
+                _ => self.create_reference_ty(
+                    ty::ReferenceTy {
+                        target: refer.target,
+                        resolved_ty_args: ty_args,
+                    },
+                    ObjectFlags::OBJECT_LITERAL,
+                ),
             }
         } else if let Some(a) = ty.kind.as_object_anonymous() {
             let s = self.binder.symbol(a.symbol);
@@ -143,6 +146,8 @@ impl<'cx> TyChecker<'cx> {
                 s.expect_fn().decls[0]
             } else if flags.intersects(SymbolFlags::TYPE_LITERAL) {
                 s.expect_ty_lit().decl
+            } else if flags.intersects(SymbolFlags::OBJECT_LITERAL) {
+                s.expect_object().decl
             } else {
                 return ty;
             };
@@ -267,11 +272,11 @@ impl<'cx> TyChecker<'cx> {
         min
     }
 
-    fn fill_missing_ty_args(
+    pub(super) fn fill_missing_ty_args(
         &mut self,
         args: Option<ty::Tys<'cx>>,
         params: Option<ty::Tys<'cx>>,
-        min_params_count: usize,
+        min_ty_argument_count: usize,
     ) -> Option<ty::Tys<'cx>> {
         let Some(params) = params else {
             return Some(&[]);
@@ -281,7 +286,7 @@ impl<'cx> TyChecker<'cx> {
         }
         let args_len = args.map_or(0, |args| args.len());
         let params_len = params.len();
-        if args_len >= min_params_count && args_len <= params_len {
+        if args_len >= min_ty_argument_count && args_len <= params_len {
             let mut result = Vec::with_capacity(params_len);
             if let Some(args) = args {
                 for arg in args {

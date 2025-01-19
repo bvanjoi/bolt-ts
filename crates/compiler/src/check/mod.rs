@@ -7,6 +7,7 @@ mod check_fn_like_decl;
 mod check_fn_like_expr;
 mod check_fn_like_symbol;
 mod check_interface;
+mod check_type_related_to;
 mod check_var_like;
 mod create_ty;
 mod cycle_check;
@@ -26,6 +27,7 @@ mod index_info;
 mod infer;
 mod instantiate;
 mod is_context_sensitive;
+mod is_deeply_nested_type;
 mod links;
 mod node_flags;
 mod relation;
@@ -38,13 +40,12 @@ mod utils;
 use bolt_ts_atom::{AtomId, AtomMap};
 use bolt_ts_span::Span;
 
-use bolt_ts_utils::{fx_hashmap_with_capacity, fx_hashset_with_capacity, no_hashmap_with_capacity};
+use bolt_ts_utils::{fx_hashmap_with_capacity, no_hashmap_with_capacity};
 use cycle_check::ResolutionKey;
 use get_contextual::ContextFlags;
 use infer::{InferenceFlags, InferencePriority};
 use links::{SigLinks, TyLinks};
-use relation::RelationKey;
-use rustc_hash::{FxBuildHasher, FxHashMap, FxHashSet};
+use rustc_hash::{FxBuildHasher, FxHashMap};
 
 use self::get_context::{InferenceContextual, TyContextual};
 use self::infer::InferenceContext;
@@ -163,8 +164,6 @@ pub struct TyChecker<'cx> {
     resolution_start: i32,
     resolution_tys: thin_vec::ThinVec<ResolutionKey>,
     resolution_res: thin_vec::ThinVec<bool>,
-
-    maybe_keys_set: FxHashSet<RelationKey>,
 }
 
 macro_rules! intrinsic_type {
@@ -271,7 +270,6 @@ impl<'cx> TyChecker<'cx> {
                 indexmap::IndexSet::with_capacity_and_hasher(64, FxBuildHasher);
                 p.module_count()
             ],
-            maybe_keys_set: fx_hashset_with_capacity(4096),
         };
         for (kind, ty_name) in INTRINSIC_TYPES {
             let ty = if *ty_name == keyword::IDENT_ERROR {
@@ -525,12 +523,30 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
+    fn get_lit_ty_from_prop_name(
+        &mut self,
+        prop_name: &'cx ast::PropName<'cx>,
+    ) -> &'cx ty::Ty<'cx> {
+        match prop_name.kind {
+            ast::PropNameKind::Ident(ident) => self.get_string_literal_type(ident.name),
+            ast::PropNameKind::NumLit(num) => self.get_number_literal_type(num.val),
+            ast::PropNameKind::StringLit { key, .. } => self.get_string_literal_type(key),
+        }
+    }
+
     fn get_lit_ty_from_prop(&mut self, prop: SymbolID) -> &'cx ty::Ty<'cx> {
         let symbol = self.binder.symbol(prop);
-        if symbol
-            .flags
-            .intersects(SymbolFlags::PROPERTY | SymbolFlags::FUNCTION)
-        {
+        if symbol.flags.intersects(SymbolFlags::PROPERTY) {
+            let prop = prop.decl(self.binder);
+            let name = match self.p.node(prop) {
+                ast::Node::ClassPropEle(prop) => prop.name,
+                ast::Node::ObjectPropMember(prop) => prop.name,
+                ast::Node::PropSignature(prop) => prop.name,
+                ast::Node::ParamDecl(_) => return self.string_ty(),
+                _ => unreachable!("prop: {:#?}", self.p.node(prop)),
+            };
+            self.get_lit_ty_from_prop_name(name)
+        } else if symbol.flags.intersects(SymbolFlags::FUNCTION) {
             self.string_ty()
         } else {
             self.undefined_ty()
@@ -1382,10 +1398,13 @@ impl<'cx> TyChecker<'cx> {
                 self.create_union_type(elems_tys, ty::UnionReduction::Subtype)
             };
             let refer = self.global_array_ty().kind.expect_object_reference();
-            let ty = self.create_reference_ty(ty::ReferenceTy {
-                target: refer.target,
-                resolved_ty_args: self.alloc(vec![ty]),
-            });
+            let ty = self.create_reference_ty(
+                ty::ReferenceTy {
+                    target: refer.target,
+                    resolved_ty_args: self.alloc(vec![ty]),
+                },
+                ObjectFlags::ARRAY_LITERAL | ObjectFlags::CONTAINS_OBJECT_OR_ARRAY_LITERAL,
+            );
             ty
         }
     }

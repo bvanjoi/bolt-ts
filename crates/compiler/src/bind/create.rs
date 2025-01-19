@@ -17,22 +17,6 @@ impl<'cx> BinderState<'cx> {
         assert!(prev.is_none());
     }
 
-    pub(super) fn create_var_decl(&mut self, decl: &'cx ast::VarDecl<'cx>, kind: SymbolKind<'cx>) {
-        let (include_flags, exclude_flags) = if matches!(kind, SymbolKind::BlockScopedVar { .. }) {
-            (
-                SymbolFlags::BLOCK_SCOPED_VARIABLE,
-                SymbolFlags::BLOCK_SCOPED_VARIABLE_EXCLUDES,
-            )
-        } else {
-            (
-                SymbolFlags::FUNCTION_SCOPED_VARIABLE,
-                SymbolFlags::FUNCTION_SCOPED_VARIABLE_EXCLUDES,
-            )
-        };
-        let symbol = self.create_var_symbol(decl.binding.name, include_flags, kind, exclude_flags);
-        self.create_final_res(decl.id, symbol);
-    }
-
     pub(super) fn create_var_symbol(
         &mut self,
         name: AtomId,
@@ -42,6 +26,14 @@ impl<'cx> BinderState<'cx> {
     ) -> SymbolID {
         let name = SymbolName::Normal(name);
         self.declare_symbol(name, flags, kind, exclude)
+    }
+
+    pub(super) fn declare_symbol_with_container(
+        &mut self,
+        container: ast::NodeID,
+        parent: Option<SymbolID>,
+        node: ast::NodeID,
+    ) {
     }
 
     pub(super) fn declare_symbol(
@@ -58,7 +50,7 @@ impl<'cx> BinderState<'cx> {
                 if flags.intersects(SymbolFlags::ALIAS) || prev.flags.intersects(SymbolFlags::ALIAS)
                 {
                     let id = self.symbols.insert(Symbol::new(name, flags, kind));
-                    let prev = self.res.insert(key, id);
+                    let _prev = self.res.insert(key, id);
                     return id;
                 }
                 if flags == SymbolFlags::FUNCTION_SCOPED_VARIABLE {
@@ -188,7 +180,10 @@ impl<'cx> BinderState<'cx> {
         let symbol = self.declare_symbol_with_interface(
             SymbolName::Normal(name),
             SymbolFlags::INTERFACE,
-            InterfaceSymbol { decl: id, members },
+            InterfaceSymbol {
+                decls: thin_vec::thin_vec![id],
+                members,
+            },
         );
         self.create_final_res(id, symbol);
         symbol
@@ -199,14 +194,13 @@ impl<'cx> BinderState<'cx> {
         self.create_fn_decl_like_symbol(container, decl, ele_name, SymbolFnKind::FnDecl, false);
     }
 
-    pub(super) fn create_fn_ty_symbol(&mut self, f: &'cx ast::FnTy<'cx>) {
-        let symbol_name = SymbolName::Call;
+    pub(super) fn create_fn_ty_symbol(&mut self, id: ast::NodeID, symbol_name: SymbolName) {
         let symbol = self.declare_symbol(
             symbol_name,
             SymbolFlags::SIGNATURE,
             SymbolKind::Fn(FnSymbol {
                 kind: SymbolFnKind::Call,
-                decls: thin_vec::thin_vec![f.id],
+                decls: thin_vec::thin_vec![id],
             }),
             SymbolFlags::empty(),
         );
@@ -216,13 +210,10 @@ impl<'cx> BinderState<'cx> {
         let lit_symbol = self.declare_symbol(
             SymbolName::Type,
             SymbolFlags::TYPE_LITERAL,
-            SymbolKind::TyLit(super::TyLitSymbol {
-                decl: f.id,
-                members,
-            }),
+            SymbolKind::TyLit(super::TyLitSymbol { decl: id, members }),
             SymbolFlags::empty(),
         );
-        self.create_final_res(f.id, lit_symbol);
+        self.create_final_res(id, lit_symbol);
     }
 
     pub(super) fn create_object_member_symbol(

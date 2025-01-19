@@ -178,7 +178,8 @@ fn get_sig_from_decl<'cx>(
             || node.is_class_method_ele()
             || node.is_method_signature()
             || node.is_call_sig_decl()
-            || node.is_fn_ty(),
+            || node.is_fn_ty()
+            || node.is_ctor_ty(),
         "node: {node:#?}",
     );
     let params_of_node = node.params().unwrap();
@@ -220,6 +221,7 @@ fn get_sig_from_decl<'cx>(
         ast::Node::MethodSignature(f) => f.ty.map(|ty| ty.id()),
         ast::Node::CallSigDecl(f) => f.ty.map(|ty| ty.id()),
         ast::Node::FnTy(f) => Some(f.ty.id()),
+        ast::Node::CtorTy(f) => Some(f.ty.id()),
         _ => unreachable!(),
     };
     Sig {

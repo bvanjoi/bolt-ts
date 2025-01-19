@@ -1,3 +1,4 @@
+use super::errors;
 use super::relation::RelationKind;
 use super::Ternary;
 use super::TyChecker;
@@ -40,11 +41,32 @@ impl<'cx> TyChecker<'cx> {
         target: &'cx ty::Ty<'cx>,
         relation: RelationKind,
     ) -> bool {
-        false
-        // if target.kind.is_primitive() || target.kind.is_never() {
-        //     return false;
-        // }
-        // self.elaborate_element_wise(node, source, target, relation)
+        if target.kind.is_primitive() || target.kind.is_never() {
+            return false;
+        }
+
+        let node = node
+            .members
+            .iter()
+            .map(|member| {
+                let s = self.get_symbol_of_decl(member.id());
+                let ty = self.get_lit_ty_from_prop(s);
+                use ast::ObjectMemberKind::*;
+                match member.kind {
+                    Shorthand(n) => Elaboration {
+                        error_node: n.name.id,
+                        inner_expr: None,
+                        name_ty: ty,
+                    },
+                    Prop(n) => Elaboration {
+                        error_node: n.name.id(),
+                        inner_expr: Some(n.value.id()),
+                        name_ty: ty,
+                    },
+                }
+            })
+            .collect::<Vec<_>>();
+        self.elaborate_element_wise(&node, source, target, relation)
     }
 
     fn generate_limited_tuple_elements(
@@ -83,6 +105,16 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
+    fn get_best_match_indexed_access_ty_or_undefined(
+        &mut self,
+        source: &'cx ty::Ty<'cx>,
+        target: &'cx ty::Ty<'cx>,
+        name_ty: &'cx ty::Ty<'cx>,
+    ) -> &'cx ty::Ty<'cx> {
+        let idx = self.get_indexed_access_ty(target, name_ty, None, None);
+        idx
+    }
+
     fn elaborate_element_wise(
         &mut self,
         node: &[Elaboration<'cx>],
@@ -90,20 +122,38 @@ impl<'cx> TyChecker<'cx> {
         target: &'cx ty::Ty<'cx>,
         relation: RelationKind,
     ) -> bool {
-        let target = if target.kind.is_array(self) {
-            target
-                .kind
-                .as_object_reference()
-                .map(|refer| refer.resolved_ty_args[0])
-                .unwrap()
-        } else {
-            return false;
-        };
         for e in node {
+            let target_prop_ty =
+                self.get_best_match_indexed_access_ty_or_undefined(source, target, e.name_ty);
             let error_node = e.error_node;
-            let source_item = self.get_indexed_access_ty(source, e.name_ty, None, None);
-            if self.check_type_related_to(source_item, target, relation, None) == Ternary::FALSE {
-                self.check_type_related_to(source_item, target, relation, Some(error_node));
+            let source_prop_ty = self.get_indexed_access_ty(source, e.name_ty, None, None);
+            if self.check_type_related_to(source_prop_ty, target_prop_ty, relation, None)
+                == Ternary::FALSE
+            {
+                let elaborated = self.elaborate_error(
+                    e.inner_expr,
+                    source_prop_ty,
+                    target_prop_ty,
+                    relation,
+                    e.inner_expr,
+                );
+                if !elaborated {
+                    let res = self.check_type_related_to(
+                        source_prop_ty,
+                        target_prop_ty,
+                        relation,
+                        Some(error_node),
+                    );
+                    if res == Ternary::FALSE {
+                        let span = self.p.node(error_node).span();
+                        let error = errors::TypeIsNotAssignableToType {
+                            span,
+                            ty1: self.print_ty(source_prop_ty).to_string(),
+                            ty2: self.print_ty(target_prop_ty).to_string(),
+                        };
+                        self.push_error(Box::new(error));
+                    }
+                }
                 return true;
             }
         }

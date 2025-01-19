@@ -198,9 +198,13 @@ impl<'cx> Resolver<'cx, '_> {
     fn resolve_refer_ty(&mut self, refer: &'cx ast::ReferTy<'cx>) {
         self.resolve_entity_name(refer.name, true);
         if let Some(ty_args) = refer.ty_args {
-            for ty_arg in ty_args.list {
-                self.resolve_ty(ty_arg);
-            }
+            self.resolve_tys(ty_args.list);
+        }
+    }
+
+    fn resolve_tys(&mut self, tys: &'cx [&'cx ast::Ty<'cx>]) {
+        for ty in tys {
+            self.resolve_ty(ty);
         }
     }
 
@@ -223,6 +227,10 @@ impl<'cx> Resolver<'cx, '_> {
                 for member in lit.members {
                     self.resolve_object_ty_member(member);
                 }
+            }
+            Ctor(node) => {
+                self.resolve_params(node.params);
+                self.resolve_ty(node.ty);
             }
             Tuple(tuple) => {
                 for ty in tuple.tys {

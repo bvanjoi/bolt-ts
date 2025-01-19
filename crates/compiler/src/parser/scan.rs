@@ -69,12 +69,12 @@ impl ParserState<'_, '_> {
     fn scan_number_fragment(&mut self) -> Vec<u8> {
         let start = self.pos;
         let mut allow_separator = false;
-        let mut is_previous_token_separator = false;
+        // let mut is_previous_token_separator = false;
         while let Some(ch) = self.ch() {
             if ch == b'_' {
                 if allow_separator {
                     allow_separator = false;
-                    is_previous_token_separator = true;
+                    // is_previous_token_separator = true;
                 } else {
                     todo!()
                 }
@@ -83,7 +83,7 @@ impl ParserState<'_, '_> {
 
             if ch.is_ascii_digit() {
                 allow_separator = true;
-                is_previous_token_separator = false;
+                // is_previous_token_separator = false;
                 self.pos += 1;
                 continue;
             }
