@@ -79,6 +79,7 @@ gen_atoms!(
     (IDENT_STRING, "string"),
     (IDENT_STRING_CLASS, "String"),
     (IDENT_BOOLEAN, "boolean"),
+    (IDENT_BOOLEAN_CLASS, "Boolean"),
     (IDENT_NEVER, "never"),
     (IDENT_UNKNOWN, "unknown"),
     (IDENT_BIGINT, "bitint"),

@@ -1,0 +1,5 @@
+  × Type 'typeof Foo' is not assignable to type 'new () => Foo'.
+   ╭─[../../tests/cases/compiler/assignmentCompatability44/index.ts:7:7]
+ 7 │ foo
+   · ───
+   ╰────

@@ -204,7 +204,22 @@ impl ObjectTyKind<'_> {
                     };
                     format!("({params}) => {ret}")
                 };
-                if symbol.flags.intersects(SymbolFlags::CLASS) {
+                if symbol.flags.intersects(SymbolFlags::OBJECT_LITERAL) {
+                    let members = checker
+                        .expect_ty_links(self_ty.id)
+                        .expect_structured_members()
+                        .members;
+                    let members = members
+                        .iter()
+                        .map(|(name, symbol)| {
+                            let name = checker.atoms.get(name.expect_atom());
+                            let ty = checker.get_type_of_symbol(*symbol);
+                            format!("{}: {}; ", name, ty.to_string(checker))
+                        })
+                        .collect::<Vec<_>>()
+                        .join("");
+                    format!("{{ {}}}", members)
+                } else if symbol.flags.intersects(SymbolFlags::CLASS) {
                     let name = symbol.name.expect_atom();
                     format!("typeof {}", checker.atoms.get(name))
                 } else if let Some(sig) = checker
@@ -221,6 +236,20 @@ impl ObjectTyKind<'_> {
                     .first()
                 {
                     format!("new {}", print_fn_like_str(checker, &sig))
+                } else if let Some(index_info) = checker
+                    .expect_ty_links(self_ty.id)
+                    .expect_structured_members()
+                    .index_infos
+                    .first()
+                {
+                    let decl = checker.binder.symbol(index_info.symbol).expect_index().decl;
+                    let key_name = checker.p.node(decl).expect_index_sig_decl().params[0].name;
+                    let key_name = checker.atoms.get(key_name.name);
+                    format!(
+                        "{{ [{key_name}: {}]: {} }}",
+                        index_info.key_ty.to_string(checker),
+                        index_info.val_ty.to_string(checker)
+                    )
                 } else {
                     "object".to_string()
                 }

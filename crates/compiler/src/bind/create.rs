@@ -206,14 +206,7 @@ impl<'cx> BinderState<'cx> {
         );
 
         let members = FxHashMap::from_iter([(symbol_name, symbol)]);
-
-        let lit_symbol = self.declare_symbol(
-            SymbolName::Type,
-            SymbolFlags::TYPE_LITERAL,
-            SymbolKind::TyLit(super::TyLitSymbol { decl: id, members }),
-            SymbolFlags::empty(),
-        );
-        self.create_final_res(id, lit_symbol);
+        self.create_object_lit_ty_symbol(id, members);
     }
 
     pub(super) fn create_object_member_symbol(

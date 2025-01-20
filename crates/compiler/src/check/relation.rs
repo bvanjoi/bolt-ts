@@ -6,7 +6,7 @@ use rustc_hash::FxHashSet;
 use super::errors;
 use crate::ast;
 use crate::bind::{SymbolID, SymbolName};
-use crate::ty;
+use crate::ty::{self, ObjectFlags};
 use crate::ty::{ObjectShape, ObjectTy, ObjectTyKind, Ty, TyKind};
 
 use super::{Ternary, TyChecker};
@@ -47,7 +47,9 @@ impl<'cx> TyChecker<'cx> {
         target: &'cx Ty<'cx>,
         relation: RelationKind,
     ) -> bool {
-        if source.kind.is_number_like() && target.kind.is_number() {
+        if target.kind.is_any() || source.kind.is_never() {
+            true
+        } else if source.kind.is_number_like() && target.kind.is_number() {
             true
         } else if source.kind.is_string_like() && target.kind.is_string() {
             true
@@ -55,6 +57,15 @@ impl<'cx> TyChecker<'cx> {
             true
         } else if source.kind.is_undefined() && !target.kind.is_union_or_intersection()
             || (target.kind.is_undefined() || target.kind.is_void())
+        {
+            true
+        } else if source.kind.is_object()
+            && target == self.non_primitive_ty()
+            && !(relation == RelationKind::StrictSubtype
+                && self.is_empty_anonymous_object_ty(source)
+                && !(source
+                    .get_object_flags()
+                    .intersects(ObjectFlags::FRESH_LITERAL)))
         {
             true
         } else if relation == RelationKind::Assignable || relation == RelationKind::Comparable {
@@ -74,10 +85,14 @@ impl<'cx> TyChecker<'cx> {
             assert!(std::ptr::eq(&source.kind, &target.kind));
             return Ternary::TRUE;
         }
-        if self.is_simple_type_related_to(source, target, relation)
-            || self.is_simple_type_related_to(target, source, relation)
-        {
-            return Ternary::TRUE;
+        if relation != RelationKind::Identity {
+            if (relation == RelationKind::Comparable
+                && !target.kind.is_never()
+                && self.is_simple_type_related_to(target, source, relation))
+                || self.is_simple_type_related_to(source, target, relation)
+            {
+                return Ternary::TRUE;
+            }
         }
 
         if source.kind.is_object() && target.kind.is_object() {

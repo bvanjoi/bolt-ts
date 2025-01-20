@@ -315,10 +315,8 @@ impl<'cx> BinderState<'cx> {
             let prev = o.members.insert(name, symbol);
             // FIXME: multiple index sig
             assert!(prev.is_none());
-        } else if let SymbolKind::Object(o) = &mut s.kind.0 {
-            let prev = o.members.insert(name, symbol);
-            // FIXME: multiple index sig
-            assert!(prev.is_none());
+        } else if let SymbolKind::Object(_) = &mut s.kind.0 {
+            unreachable!("object lit should not have index sig");
         } else {
             todo!()
         }

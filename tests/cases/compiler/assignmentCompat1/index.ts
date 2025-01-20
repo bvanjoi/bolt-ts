@@ -1,3 +1,5 @@
+// From `github.com/microsoft/TypeScript/blob/v5.7.3/tests/cases/compiler/assignmentCompat1.ts`, Apache-2.0 License
+
 var x = { one: 1 };
 var y: { [index: string]: any };
 var z: { [index: number]: any };
@@ -7,8 +9,9 @@ y = x;  // Ok because index signature type is any
 x = z;  // Error
 //~^ ERROR: Property 'one' is missing.
 z = x;  // Ok because index signature type is any
-// TODO: support them:
-// y = "foo"; // Error
-// z = "foo"; // OK, string has numeric indexer
-// z = false; // Error
+y = "foo"; // Error
+//~^ ERROR: Type 'string' is not assignable to type '{ [index: string]: any }'.
+z = "foo"; // OK, string has numeric indexer
+z = false; // Error
+//~^ ERROR: Type 'false' is not assignable to type '{ [index: number]: any }'.
 

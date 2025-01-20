@@ -38,8 +38,6 @@ mod sig;
 mod type_assignable;
 mod utils;
 
-use std::mem;
-
 use bolt_ts_atom::{AtomId, AtomMap};
 use bolt_ts_span::Span;
 
@@ -160,6 +158,7 @@ pub struct TyChecker<'cx> {
     global_array_ty: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
     global_number_ty: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
     global_string_ty: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
+    global_boolean_ty: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
     // === resolver ===
     pub binder: &'cx mut bind::Binder<'cx>,
     global_symbols: &'cx GlobalSymbols,
@@ -243,6 +242,7 @@ impl<'cx> TyChecker<'cx> {
             string_number_symbol_ty: Default::default(),
             global_number_ty: Default::default(),
             global_string_ty: Default::default(),
+            global_boolean_ty: Default::default(),
             global_array_ty: Default::default(),
             global_fn_ty: Default::default(),
             global_callable_fn_ty: Default::default(),
@@ -304,6 +304,10 @@ impl<'cx> TyChecker<'cx> {
         let global_number_ty =
             this.get_global_type(SymbolName::Normal(keyword::IDENT_NUMBER_CLASS));
         this.global_number_ty.set(global_number_ty).unwrap();
+
+        let global_boolean_ty =
+            this.get_global_type(SymbolName::Normal(keyword::IDENT_BOOLEAN_CLASS));
+        this.global_boolean_ty.set(global_boolean_ty).unwrap();
 
         let global_array_ty = this.get_global_type(SymbolName::Normal(keyword::IDENT_ARRAY_CLASS));
         this.global_array_ty.set(global_array_ty).unwrap();
@@ -448,6 +452,8 @@ impl<'cx> TyChecker<'cx> {
             self.global_number_ty()
         } else if ty.kind.is_string_like() {
             self.global_string_ty()
+        } else if ty.kind.is_boolean_like() {
+            self.global_boolean_ty()
         } else {
             ty
         }
@@ -509,7 +515,7 @@ impl<'cx> TyChecker<'cx> {
             }
         }
 
-        if let Some(i) = ty.kind.as_object_interface() {
+        if let Some(_) = ty.kind.as_object_interface() {
             let base_tys = self
                 .get_ty_links(ty.id)
                 .expect_structured_members()
@@ -1180,8 +1186,15 @@ impl<'cx> TyChecker<'cx> {
         expr: &'cx ast::PrefixUnaryExpr<'cx>,
     ) -> &'cx ty::Ty<'cx> {
         let op_ty = self.check_expr(expr.expr);
+
         match expr.op {
-            ast::PrefixUnaryOp::Plus => self.number_ty(),
+            ast::PrefixUnaryOp::Plus => {
+                if let ty::TyKind::NumberLit(n) = op_ty.kind {
+                    op_ty
+                } else {
+                    self.number_ty()
+                }
+            }
             ast::PrefixUnaryOp::Minus => {
                 if let ty::TyKind::NumberLit(n) = op_ty.kind {
                     self.get_number_literal_type(-n.val)
@@ -1823,6 +1836,55 @@ impl<'cx> TyChecker<'cx> {
 
         false
     }
+
+    fn ty_has_call_or_ctor_sigs(&mut self, ty: &'cx ty::Ty<'cx>) -> bool {
+        !self
+            .get_signatures_of_type(ty, ty::SigKind::Call)
+            .is_empty()
+            || !self
+                .get_signatures_of_type(ty, ty::SigKind::Constructor)
+                .is_empty()
+    }
+
+    fn is_object_ty_with_inferable_index(&mut self, ty: &'cx ty::Ty<'cx>) -> bool {
+        if ty.kind.is_intersection() {
+            // TODO:
+            false
+        } else if let Some(symbol) = ty.symbol() {
+            let flags = self.binder.symbol(symbol).flags;
+            flags.intersects(
+                SymbolFlags::OBJECT_LITERAL
+                    | SymbolFlags::TYPE_LITERAL
+                    | SymbolFlags::ENUM
+                    | SymbolFlags::VALUE_MODULE,
+            ) && !flags.intersects(SymbolFlags::CLASS)
+                && !self.ty_has_call_or_ctor_sigs(ty)
+        } else {
+            false
+        }
+    }
+
+    fn is_empty_anonymous_object_ty(&self, ty: &'cx ty::Ty<'cx>) -> bool {
+        ty.kind.as_object_anonymous().is_some_and(|a| {
+            if let Some(symbol) = ty.symbol() {
+                let s = self.binder.symbol(symbol);
+                s.flags.intersects(SymbolFlags::TYPE_LITERAL)
+                    && s.expect_ty_lit().members.is_empty()
+            } else if let Some(ty_link) = self.ty_links.get(&ty.id) {
+                if let Some(t) = ty_link.get_structured_members() {
+                    ty != self.any_fn_ty()
+                        && t.props.is_empty()
+                        && t.call_sigs.is_empty()
+                        && t.ctor_sigs.is_empty()
+                        && t.index_infos.is_empty()
+                } else {
+                    false
+                }
+            } else {
+                false
+            }
+        })
+    }
 }
 
 macro_rules! global_ty {
@@ -1844,6 +1906,7 @@ global_ty!(
     any_fn_ty,
     global_number_ty,
     global_string_ty,
+    global_boolean_ty,
     typeof_ty,
     global_array_ty,
     global_fn_ty,

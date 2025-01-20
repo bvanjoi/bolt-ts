@@ -1,4 +1,5 @@
 use crate::ast;
+use crate::bind::Symbol;
 use crate::bind::SymbolFlags;
 use crate::bind::SymbolID;
 
@@ -51,6 +52,8 @@ impl<'cx> Resolver<'cx, '_> {
                 )
                 .is_some()
         {
+            let prev = self.final_res.insert(ident.id, Symbol::ERR);
+            assert!(prev.is_some());
             let error =
                 errors::StaticMembersCannotReferenceClassTypeParameters { span: ident.span };
             Some(error)

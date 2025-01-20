@@ -6,7 +6,6 @@ use super::relation::{RelationKind, SigCheckMode};
 use crate::ast;
 use crate::bind::{SymbolFlags, SymbolID};
 use crate::keyword::IDENT_LENGTH;
-use crate::parser::token::TokenKind;
 use crate::ty::{self, ObjectFlags, SigFlags, SigKind};
 use crate::ty::{Sig, Ty, TyKind, Tys};
 
@@ -14,10 +13,16 @@ use super::{Ternary, TyChecker};
 
 bitflags::bitflags! {
     #[derive(Clone, Copy, Debug, PartialEq)]
-    pub(super) struct RecursionFlags: u8 {
+    struct RecursionFlags: u8 {
         const SOURCE = 1 << 0;
         const TARGET = 1 << 1;
         const BOTH   = Self::SOURCE.bits() | Self::TARGET.bits();
+    }
+
+    #[derive(Clone, Copy, Debug, PartialEq)]
+    struct IntersectionState: u8 {
+        const SOURCE = 1 << 0;
+        const TARGET = 1 << 1;
     }
 }
 
@@ -38,7 +43,13 @@ impl<'cx> TyChecker<'cx> {
             target_stack: Vec::with_capacity(32),
             error_node,
         };
-        c.is_related_to(source, target, RecursionFlags::BOTH, error_node.is_some())
+        c.is_related_to(
+            source,
+            target,
+            RecursionFlags::BOTH,
+            error_node.is_some(),
+            IntersectionState::empty(),
+        )
     }
 }
 
@@ -66,6 +77,7 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
         target: &'cx Ty<'cx>,
         recursion_flags: RecursionFlags,
         report_error: bool,
+        intersection_state: IntersectionState,
     ) -> Ternary {
         if source.id == target.id {
             return Ternary::TRUE;
@@ -99,12 +111,14 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
             }
         }
 
-        if self
-            .c
-            .is_simple_type_related_to(source, target, self.relation)
+        if (self.relation == RelationKind::Comparable
+            && !target.kind.is_never()
+            && self
+                .c
+                .is_simple_type_related_to(target, source, self.relation))
             || self
                 .c
-                .is_simple_type_related_to(target, source, self.relation)
+                .is_simple_type_related_to(source, target, self.relation)
         {
             return Ternary::TRUE;
         }
@@ -125,7 +139,13 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
                     return Ternary::FALSE;
                 }
             }
-            return self.recur_related_to(source, target, report_error, recursion_flags);
+            return self.recur_related_to(
+                source,
+                target,
+                report_error,
+                intersection_state,
+                recursion_flags,
+            );
         }
 
         Ternary::FALSE
@@ -149,6 +169,7 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
         target_prop: SymbolID,
         get_ty_of_source_prop: impl Fn(&mut Self, SymbolID) -> &'cx Ty<'cx>,
         report_error: bool,
+        intersection_state: IntersectionState,
     ) -> Ternary {
         let effective_target = self.c.get_non_missing_type_of_symbol(target_prop);
         let effective_source = get_ty_of_source_prop(self, source_prop);
@@ -157,6 +178,7 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
             effective_target,
             RecursionFlags::BOTH,
             report_error,
+            intersection_state,
         )
     }
 
@@ -168,12 +190,14 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
         target_prop: SymbolID,
         get_ty_of_source_prop: impl Fn(&mut Self, SymbolID) -> &'cx Ty<'cx>,
         report_error: bool,
+        intersection_state: IntersectionState,
     ) -> Ternary {
         let related = self.is_property_symbol_ty_related(
             source_prop,
             target_prop,
             get_ty_of_source_prop,
             report_error,
+            intersection_state,
         );
         if related == Ternary::FALSE {
             if report_error {
@@ -189,6 +213,7 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
         source: &'cx Ty<'cx>,
         target: &'cx Ty<'cx>,
         report_error: bool,
+        intersection_state: IntersectionState,
     ) -> Ternary {
         if self.relation == RelationKind::Identity {
             // TODO:
@@ -273,6 +298,7 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
                             *target_prop,
                             |this, symbol| this.c.get_non_missing_type_of_symbol(symbol),
                             report_error,
+                            intersection_state,
                         );
                         if related == Ternary::FALSE {
                             return Ternary::FALSE;
@@ -291,6 +317,7 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
         source_ty_args: ty::Tys<'cx>,
         target_ty_args: ty::Tys<'cx>,
         report_error: bool,
+        intersection_state: IntersectionState,
     ) -> Ternary {
         if source_ty_args.len() != target_ty_args.len() && self.relation != RelationKind::Identity {
             return Ternary::FALSE;
@@ -299,8 +326,13 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
         for i in 0..len {
             let source = source_ty_args[i];
             let target = target_ty_args[i];
-            if self.is_related_to(source, target, RecursionFlags::BOTH, report_error)
-                == Ternary::FALSE
+            if self.is_related_to(
+                source,
+                target,
+                RecursionFlags::BOTH,
+                report_error,
+                intersection_state,
+            ) == Ternary::FALSE
             {
                 return Ternary::FALSE;
             }
@@ -313,8 +345,9 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
         source: ty::Tys<'cx>,
         target: ty::Tys<'cx>,
         report_error: bool,
+        intersection_state: IntersectionState,
     ) -> Option<Ternary> {
-        let res = self.type_args_related_to(source, target, report_error);
+        let res = self.type_args_related_to(source, target, report_error, intersection_state);
         Some(res)
     }
 
@@ -324,13 +357,20 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
         sources: Tys<'cx>,
         target: &'cx Ty<'cx>,
         report_error: bool,
+        intersection_state: IntersectionState,
     ) -> Ternary {
         let res = Ternary::TRUE;
         for (idx, source_ty) in sources.iter().enumerate() {
             // if idx <= targets.len() {
             //     let related = self.is_related_to(source_ty, targets[idx]);
             // }
-            let related = self.is_related_to(source_ty, target, RecursionFlags::BOTH, report_error);
+            let related = self.is_related_to(
+                source_ty,
+                target,
+                RecursionFlags::BOTH,
+                report_error,
+                intersection_state,
+            );
             if related == Ternary::FALSE {
                 return Ternary::FALSE;
             }
@@ -343,12 +383,13 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
         source: &'cx Ty<'cx>,
         target: &'cx Ty<'cx>,
         report_error: bool,
+        intersection_state: IntersectionState,
     ) -> Ternary {
         if let TyKind::Union(s) = source.kind {
             // if let TyKind::Union(t) = target.kind {
             // } else {
             // }
-            self.each_type_related_to_type(source, s.tys, target, report_error)
+            self.each_type_related_to_type(source, s.tys, target, report_error, intersection_state)
         } else if target.kind.is_union() {
             self.ty_related_to_some_ty(source, target, report_error)
         } else {
@@ -378,9 +419,15 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
         source: &'cx Ty<'cx>,
         target: &'cx Ty<'cx>,
         report_error: bool,
+        intersection_state: IntersectionState,
     ) -> Ternary {
         if source.kind.is_union_or_intersection() || target.kind.is_union_or_intersection() {
-            return self.union_or_intersection_related_to(source, target, report_error);
+            return self.union_or_intersection_related_to(
+                source,
+                target,
+                report_error,
+                intersection_state,
+            );
         }
 
         if !source.kind.is_tuple() {
@@ -394,6 +441,7 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
                             source_refer.resolved_ty_args,
                             target_refer.resolved_ty_args,
                             report_error,
+                            intersection_state,
                         ) {
                             return result;
                         }
@@ -413,26 +461,37 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
         if source.kind.is_object_or_intersection() && target.kind.is_object() {
             let report_error = report_error && !source_is_primitive;
 
-            let mut res = self.props_related_to(source, target, report_error);
+            let mut res = self.props_related_to(source, target, report_error, intersection_state);
             if res != Ternary::FALSE {
-                res &= self.sigs_related_to(source, target, SigKind::Call, report_error);
+                res &= self.sigs_related_to(
+                    source,
+                    target,
+                    SigKind::Call,
+                    report_error,
+                    intersection_state,
+                );
                 if res != Ternary::FALSE {
-                    res &= self.sigs_related_to(source, target, SigKind::Constructor, report_error);
+                    res &= self.sigs_related_to(
+                        source,
+                        target,
+                        SigKind::Constructor,
+                        report_error,
+                        intersection_state,
+                    );
                     if res != Ternary::FALSE {
                         res &= self.index_sigs_related_to(
                             source,
                             target,
                             source_is_primitive,
                             report_error,
+                            intersection_state,
                         );
                     }
                 }
-                res
-            } else {
-                Ternary::FALSE
             }
+            res
         } else {
-            Ternary::TRUE
+            Ternary::FALSE
         }
     }
 
@@ -441,6 +500,7 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
         source: &'cx Ty<'cx>,
         target: &'cx Ty<'cx>,
         report_error: bool,
+        intersection_state: IntersectionState,
         recursion_flags: RecursionFlags,
     ) -> Ternary {
         let key = Self::get_relation_key(source, target, self.relation);
@@ -470,7 +530,7 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
         let res = if self.expanding_flags == RecursionFlags::BOTH {
             Ternary::MAYBE
         } else {
-            self.structured_related_to(source, target, report_error)
+            self.structured_related_to(source, target, report_error, intersection_state)
         };
 
         if recursion_flags.intersects(RecursionFlags::TARGET) {
@@ -489,8 +549,15 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
         &mut self,
         source: &'cx ty::IndexInfo<'cx>,
         target: &'cx ty::IndexInfo<'cx>,
+        intersection_state: IntersectionState,
     ) -> Ternary {
-        let res = self.is_related_to(source.val_ty, target.val_ty, RecursionFlags::BOTH, false);
+        let res = self.is_related_to(
+            source.val_ty,
+            target.val_ty,
+            RecursionFlags::BOTH,
+            false,
+            intersection_state,
+        );
         if res == Ternary::FALSE {
             if source.key_ty == target.key_ty {
                 let decl = self.c.binder.symbol(source.symbol).expect_index().decl;
@@ -512,13 +579,20 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
         source: &'cx Ty<'cx>,
         target: &'cx ty::IndexInfo<'cx>,
         report_error: bool,
+        intersection_state: IntersectionState,
     ) -> Ternary {
         let mut res = Ternary::TRUE;
         let props = self.c.get_props_of_ty(source);
         for prop in props {
             let prop_ty = self.c.get_non_missing_type_of_symbol(*prop);
             let ty = prop_ty;
-            let related = self.is_related_to(ty, target.val_ty, RecursionFlags::BOTH, report_error);
+            let related = self.is_related_to(
+                ty,
+                target.val_ty,
+                RecursionFlags::BOTH,
+                report_error,
+                intersection_state,
+            );
             if related == Ternary::FALSE {
                 return Ternary::FALSE;
             }
@@ -527,7 +601,7 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
 
         for info in self.c.get_index_infos_of_ty(source) {
             if self.c.is_applicable_index_ty(info.key_ty, target.key_ty) != Ternary::FALSE {
-                let related = self.index_info_related_to(info, target);
+                let related = self.index_info_related_to(info, target, intersection_state);
                 if related == Ternary::FALSE {
                     return Ternary::FALSE;
                 }
@@ -542,15 +616,18 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
         source: &'cx Ty<'cx>,
         target: &'cx ty::IndexInfo<'cx>,
         report_error: bool,
+        intersection_state: IntersectionState,
     ) -> Ternary {
         if let Some(source) = self.c.get_applicable_index_info(source, target.key_ty) {
-            self.index_info_related_to(source, target)
-        } else if self.relation != RelationKind::StrictSubtype
-            || source
-                .get_object_flags()
-                .intersects(ObjectFlags::FRESH_LITERAL)
+            self.index_info_related_to(source, target, intersection_state)
+        } else if !intersection_state.intersects(IntersectionState::SOURCE)
+            && (self.relation != RelationKind::StrictSubtype
+                || source
+                    .get_object_flags()
+                    .intersects(ObjectFlags::FRESH_LITERAL))
+            && self.c.is_object_ty_with_inferable_index(source)
         {
-            self.members_related_to_index_info(source, target, report_error)
+            self.members_related_to_index_info(source, target, report_error, intersection_state)
         } else {
             Ternary::FALSE
         }
@@ -562,6 +639,7 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
         target: &'cx Ty<'cx>,
         source_is_primitive: bool,
         report_error: bool,
+        intersection_state: IntersectionState,
     ) -> Ternary {
         if self.relation == RelationKind::Identity {
             return Ternary::TRUE;
@@ -577,7 +655,12 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
             {
                 Ternary::TRUE
             } else {
-                self.type_related_to_index_info(source, &target_info, report_error)
+                self.type_related_to_index_info(
+                    source,
+                    &target_info,
+                    report_error,
+                    intersection_state,
+                )
             };
             if related == Ternary::FALSE {
                 return Ternary::FALSE;
@@ -593,6 +676,7 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
         target: &'cx Ty<'cx>,
         kind: SigKind,
         report_error: bool,
+        intersection_state: IntersectionState,
     ) -> Ternary {
         if self.relation == RelationKind::Identity {
             todo!()
@@ -627,11 +711,19 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
             let erase_generics = self.relation == RelationKind::Comparable;
             let source_sig = source_sigs[0];
             let target_sig = target_sigs[0];
-            return self.sig_related_to(source_sig, target_sig, erase_generics, report_error);
+            return self.sig_related_to(
+                source_sig,
+                target_sig,
+                erase_generics,
+                report_error,
+                intersection_state,
+            );
         } else {
             for t in target_sigs {
                 for s in source_sigs {
-                    if self.sig_related_to(s, t, true, report_error) != Ternary::FALSE {
+                    if self.sig_related_to(s, t, true, report_error, intersection_state)
+                        != Ternary::FALSE
+                    {
                         continue;
                     }
                 }
@@ -647,6 +739,7 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
         target: &'cx Sig<'cx>,
         erase: bool,
         report_error: bool,
+        intersection_state: IntersectionState,
     ) -> Ternary {
         let check_mode = match self.relation {
             RelationKind::Subtype => SigCheckMode::STRICT_TOP_SIGNATURE,
@@ -662,7 +755,13 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
             check_mode,
             report_error,
             |this, source, target, report_error| {
-                this.is_related_to(source, target, RecursionFlags::BOTH, report_error)
+                this.is_related_to(
+                    source,
+                    target,
+                    RecursionFlags::BOTH,
+                    report_error,
+                    intersection_state,
+                )
             },
         )
     }
