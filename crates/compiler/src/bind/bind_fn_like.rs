@@ -34,6 +34,8 @@ impl<'cx> BinderState<'cx> {
                 &mut c.locals
             } else if let SymbolKind::Object(obj) = s {
                 &mut obj.members
+            } else if let SymbolKind::TyLit(obj) = s {
+                &mut obj.members
             } else {
                 unreachable!("{:#?}", s)
             }

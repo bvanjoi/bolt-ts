@@ -390,12 +390,14 @@ impl TryFrom<TokenKind> for ast::ModifierKind {
         use ast::ModifierKind::*;
         match value {
             TokenKind::Public => Ok(Public),
+            TokenKind::Private => Ok(Private),
+            TokenKind::Protected => Ok(Protected),
+            TokenKind::Readonly => Ok(Readonly),
+            TokenKind::Export => Ok(Export),
+            // TODO: override
             TokenKind::Abstract => Ok(Abstract),
             TokenKind::Static => Ok(Static),
             TokenKind::Declare => Ok(Declare),
-            TokenKind::Private => Ok(Private),
-            TokenKind::Export => Ok(Export),
-            TokenKind::Readonly => Ok(Readonly),
             _ => Err(()),
         }
     }

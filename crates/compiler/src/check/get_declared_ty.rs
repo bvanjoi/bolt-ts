@@ -296,8 +296,8 @@ impl<'cx> TyChecker<'cx> {
             use ast::Node::*;
             match node {
                 ClassDecl(_) | ClassExpr(_) | InterfaceDecl(_) | CallSigDecl(_)
-                | MethodSignature(_) | FnTy(_) | CtorSigDecl(_) | FnDecl(_) | ClassMethodEle(_)
-                | ArrowFnExpr(_) | TypeDecl(_) | CondTy(_) => {
+                | MethodSignature(_) | FnTy(_) | CtorSigDecl(_) | FnDecl(_)
+                | ClassMethodElem(_) | ArrowFnExpr(_) | TypeDecl(_) | CondTy(_) => {
                     let mut outer_ty_params = self
                         .get_outer_ty_params(id, include_this)
                         .unwrap_or_default();

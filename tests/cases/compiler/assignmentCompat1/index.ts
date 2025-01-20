@@ -7,7 +7,7 @@ y = x;  // Ok because index signature type is any
 x = z;  // Error
 //~^ ERROR: Property 'one' is missing.
 z = x;  // Ok because index signature type is any
-// TODO:
+// TODO: support them:
 // y = "foo"; // Error
 // z = "foo"; // OK, string has numeric indexer
 // z = false; // Error

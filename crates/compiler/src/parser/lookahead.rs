@@ -66,10 +66,16 @@ impl ParserState<'_, '_> {
         loop {
             match self.token.kind {
                 Var | Let | Const | Function | Class | Enum => return true,
-                Abstract | Declare | Public | Private => {
-                    // let prev = self.token.kind;
+                Abstract | Declare | Public | Private | Protected => {
+                    let prev = self.token.kind;
                     self.next_token();
-                    continue;
+                    if self.has_preceding_line_break() {
+                        return false;
+                    } else if prev == Declare && self.token.kind == Type {
+                        return true;
+                    } else {
+                        continue;
+                    }
                 }
                 Interface | Type => return self.next_token_is_identifier_on_same_line(),
                 Module | Namespace => {
@@ -93,7 +99,7 @@ impl ParserState<'_, '_> {
                         return true;
                     }
                 }
-                _ => unreachable!("{:#?}", self.token.kind),
+                _ => break false,
             }
         }
     }

@@ -50,11 +50,11 @@ impl<'cx> ParserState<'cx, '_> {
     fn parse_do_stmt(&mut self) -> PResult<&'cx ast::DoStmt<'cx>> {
         let id = self.next_node_id();
         let start = self.token.start();
-        self.expect(TokenKind::Do)?;
+        self.expect(TokenKind::Do);
         let stmt = self.parse_stmt()?;
-        self.expect(TokenKind::While)?;
+        self.expect(TokenKind::While);
         let open_pos = self.token.start() as usize;
-        let open_parsed = self.expect(TokenKind::LParen).is_ok();
+        let open_parsed = self.expect(TokenKind::LParen);
         let expr = self.parse_expr()?;
         self.parse_expected_matching_brackets(
             TokenKind::LParen,
@@ -76,8 +76,8 @@ impl<'cx> ParserState<'cx, '_> {
     fn parse_while_stmt(&mut self) -> PResult<&'cx ast::WhileStmt<'cx>> {
         let id = self.next_node_id();
         let start = self.token.start();
-        self.expect(TokenKind::While)?;
-        let open_parsed = self.expect(TokenKind::LParen).is_ok();
+        self.expect(TokenKind::While);
+        let open_parsed = self.expect(TokenKind::LParen);
         let expr = self.allow_in_and(Self::parse_expr)?;
         self.parse_expected_matching_brackets(
             TokenKind::LParen,
@@ -99,11 +99,11 @@ impl<'cx> ParserState<'cx, '_> {
     fn parse_catch_clause(&mut self) -> PResult<&'cx ast::CatchClause<'cx>> {
         let id = self.next_node_id();
         let start = self.token.start();
-        self.expect(TokenKind::Catch)?;
+        self.expect(TokenKind::Catch);
 
         let var = if self.parse_optional(TokenKind::LParen).is_some() {
             let v = self.with_parent(id, Self::parse_var_decl)?;
-            self.expect(TokenKind::RParen)?;
+            self.expect(TokenKind::RParen);
             Some(v)
         } else {
             None
@@ -122,7 +122,7 @@ impl<'cx> ParserState<'cx, '_> {
     fn parse_try_stmt(&mut self) -> PResult<&'cx ast::TryStmt<'cx>> {
         let id = self.next_node_id();
         let start = self.token.start();
-        self.expect(TokenKind::Try)?;
+        self.expect(TokenKind::Try);
         let try_block = self.parse_block()?;
         let catch_clause = if self.token.kind == TokenKind::Catch {
             Some(self.with_parent(id, Self::parse_catch_clause)?)
@@ -150,9 +150,9 @@ impl<'cx> ParserState<'cx, '_> {
         use TokenKind::*;
         let start = self.token.start();
         let id = self.next_node_id();
-        self.expect(For)?;
+        self.expect(For);
         let await_token = self.parse_optional(Await);
-        self.expect(LParen)?;
+        self.expect(LParen);
         let t = self.token.kind;
         let init = if t != Semi {
             if matches!(t, Var | Let | Const) {
@@ -169,14 +169,14 @@ impl<'cx> ParserState<'cx, '_> {
             None
         };
 
-        if (await_token.is_none() && self.expect(TokenKind::Of).is_ok())
+        if (await_token.is_some() && self.expect(TokenKind::Of))
             || self.parse_optional(TokenKind::Of).is_some()
         {
             let init = init.unwrap();
             let expr = self.with_parent(id, |this| {
                 this.allow_in_and(|this| this.parse_assign_expr(true))
             })?;
-            self.expect(TokenKind::RParen)?;
+            self.expect(TokenKind::RParen);
             let body = self.parse_stmt()?;
             let kind = self.alloc(ast::ForOfStmt {
                 id,
@@ -191,7 +191,7 @@ impl<'cx> ParserState<'cx, '_> {
         } else if self.parse_optional(TokenKind::In).is_some() {
             let init = init.unwrap();
             let expr = self.with_parent(id, |this| this.allow_in_and(Self::parse_expr))?;
-            self.expect(TokenKind::RParen)?;
+            self.expect(TokenKind::RParen);
             let body = self.parse_stmt()?;
             let kind = self.alloc(ast::ForInStmt {
                 id,
@@ -203,19 +203,19 @@ impl<'cx> ParserState<'cx, '_> {
             self.insert_map(id, ast::Node::ForInStmt(kind));
             Ok(ast::StmtKind::ForIn(kind))
         } else {
-            self.expect(Semi)?;
+            self.expect(Semi);
             let cond = if !matches!(self.token.kind, Semi | RParen) {
                 Some(self.with_parent(id, |this| this.allow_in_and(Self::parse_expr))?)
             } else {
                 None
             };
-            self.expect(Semi)?;
+            self.expect(Semi);
             let incr = if !matches!(self.token.kind, RParen) {
                 Some(self.with_parent(id, |this| this.allow_in_and(Self::parse_expr))?)
             } else {
                 None
             };
-            self.expect(TokenKind::RParen)?;
+            self.expect(TokenKind::RParen);
 
             let body = self.parse_stmt()?;
             let kind = self.alloc(ast::ForStmt {
@@ -237,11 +237,11 @@ impl<'cx> ParserState<'cx, '_> {
     ) -> PResult<&'cx ast::EnumDecl<'cx>> {
         let id = self.next_node_id();
         let start = self.token.start();
-        self.expect(TokenKind::Enum)?;
+        self.expect(TokenKind::Enum);
         let name = self.create_ident(self.is_ident(), None);
-        let members = if self.expect(TokenKind::LBrace).is_ok() {
+        let members = if self.expect(TokenKind::LBrace) {
             let member = self.parse_delimited_list(list_ctx::EnumMembers, Self::parse_enum_member);
-            self.expect(TokenKind::RBrace)?;
+            self.expect(TokenKind::RBrace);
             member
         } else {
             todo!("error handler")
@@ -287,7 +287,7 @@ impl<'cx> ParserState<'cx, '_> {
 
     fn parse_throw_stmt(&mut self) -> PResult<&'cx ast::ThrowStmt<'cx>> {
         let start = self.token.start();
-        self.expect(TokenKind::Throw)?;
+        self.expect(TokenKind::Throw);
         if self.has_preceding_line_break() {
             todo!("error handle")
         } else {
@@ -313,7 +313,7 @@ impl<'cx> ParserState<'cx, '_> {
         let id = self.next_node_id();
         let start = self.token.start();
         if self.parse_optional(TokenKind::Namespace).is_none() {
-            self.expect(TokenKind::Module)?;
+            self.expect(TokenKind::Module);
             if self.token.kind == TokenKind::String {
                 return self.parse_ambient_external_module_decl(id, start, mods);
             }
@@ -373,10 +373,10 @@ impl<'cx> ParserState<'cx, '_> {
     fn parse_type_decl(&mut self) -> PResult<&'cx ast::TypeDecl<'cx>> {
         let id = self.next_node_id();
         let start = self.token.start();
-        self.expect(TokenKind::Type)?;
+        self.expect(TokenKind::Type);
         let name = self.with_parent(id, Self::parse_ident_name)?;
         let ty_params = self.with_parent(id, Self::parse_ty_params).unwrap();
-        self.expect(TokenKind::Eq)?;
+        self.expect(TokenKind::Eq);
         let ty = self.with_parent(id, Self::parse_ty)?;
         self.parse_semi();
         let decl = self.alloc(ast::TypeDecl {
@@ -482,7 +482,7 @@ impl<'cx> ParserState<'cx, '_> {
 
     fn parse_glob_export(&mut self, start: u32) -> PResult<&'cx ast::GlobExport<'cx>> {
         let id = self.next_node_id();
-        self.expect(TokenKind::From)?;
+        self.expect(TokenKind::From);
         let module = self.parse_module_spec()?;
         let n = self.alloc(ast::GlobExport {
             id,
@@ -496,7 +496,7 @@ impl<'cx> ParserState<'cx, '_> {
     fn parse_ns_export(&mut self, start: u32) -> PResult<&'cx ast::NsExport<'cx>> {
         let id = self.next_node_id();
         let name = self.parse_module_export_name(|this| this.create_ident(true, None));
-        self.expect(TokenKind::From)?;
+        self.expect(TokenKind::From);
         let module = self.parse_module_spec()?;
         let ns = self.alloc(ast::NsExport {
             id,
@@ -512,7 +512,7 @@ impl<'cx> ParserState<'cx, '_> {
         let start = self.token.start();
         let id = self.next_node_id();
 
-        self.expect(TokenKind::Import)?;
+        self.expect(TokenKind::Import);
         let after_import_pos = self.token.start();
         let mut is_type_only = false;
         let mut ident = self
@@ -567,7 +567,7 @@ impl<'cx> ParserState<'cx, '_> {
     ) -> PResult<Option<&'cx ast::ImportClause<'cx>>> {
         if ident.is_some() || matches!(self.token.kind, TokenKind::Asterisk | TokenKind::LBrace) {
             let clause = self.parse_import_clause(ident, is_type_only)?;
-            self.expect(TokenKind::From)?;
+            self.expect(TokenKind::From);
             Ok(Some(clause))
         } else {
             Ok(None)
@@ -611,8 +611,8 @@ impl<'cx> ParserState<'cx, '_> {
         // `* as binding`
         let id = self.next_node_id();
         let start = self.token.start();
-        self.expect(TokenKind::Asterisk)?;
-        self.expect(TokenKind::As)?;
+        self.expect(TokenKind::Asterisk);
+        self.expect(TokenKind::As);
         let name = self.create_ident(true, None);
         let ns = self.alloc(ast::NsImport {
             id,
@@ -669,7 +669,7 @@ impl<'cx> ParserState<'cx, '_> {
     ) -> PResult<&'cx ast::InterfaceDecl<'cx>> {
         let id = self.next_node_id();
         let start = self.token.start();
-        self.expect(TokenKind::Interface)?;
+        self.expect(TokenKind::Interface);
         let name = self.with_parent(id, Self::parse_ident_name)?;
         let ty_params = self.with_parent(id, Self::parse_ty_params)?;
         let extends = self.with_parent(id, Self::parse_interface_extends_clause)?;
@@ -720,7 +720,7 @@ impl<'cx> ParserState<'cx, '_> {
     fn parse_empty_stmt(&mut self) -> PResult<&'cx ast::EmptyStmt> {
         let id = self.next_node_id();
         let start = self.token.start();
-        self.expect(TokenKind::Semi)?;
+        self.expect(TokenKind::Semi);
         let stmt = self.alloc(ast::EmptyStmt {
             id,
             span: self.new_span(start),
@@ -784,7 +784,7 @@ impl<'cx> ParserState<'cx, '_> {
                 let prop_name = self.alloc(ast::PropName {
                     kind: ast::PropNameKind::Ident(name),
                 });
-                self.expect(TokenKind::Colon).unwrap();
+                self.expect(TokenKind::Colon);
                 let name = self.with_parent(id, Self::parse_ident_or_pat)?;
                 self.alloc(ast::ObjectBindingName::Prop { prop_name, name })
             }
@@ -793,7 +793,7 @@ impl<'cx> ParserState<'cx, '_> {
             if self.token.kind != TokenKind::Colon {
                 todo!("error")
             } else {
-                self.expect(TokenKind::Colon).unwrap();
+                self.expect(TokenKind::Colon);
                 let name = self.with_parent(id, Self::parse_ident_or_pat)?;
                 self.alloc(ast::ObjectBindingName::Prop { prop_name, name })
             }
@@ -813,11 +813,11 @@ impl<'cx> ParserState<'cx, '_> {
     fn parse_object_binding_pat(&mut self) -> PResult<&'cx ast::ObjectPat<'cx>> {
         let id = self.next_node_id();
         let start = self.token.start();
-        self.expect(TokenKind::LBrace)?;
+        self.expect(TokenKind::LBrace);
         let elems = self.allow_in_and(|this| {
             this.parse_delimited_list(list_ctx::ObjectBindingElems, Self::parse_object_binding_ele)
         });
-        self.expect(TokenKind::RBrace)?;
+        self.expect(TokenKind::RBrace);
         let pat = self.alloc(ast::ObjectPat {
             id,
             span: self.new_span(start),
@@ -855,26 +855,15 @@ impl<'cx> ParserState<'cx, '_> {
         modifiers: Option<&'cx ast::Modifiers<'cx>>,
     ) -> PResult<&'cx ast::FnDecl<'cx>> {
         self.parse_fn_decl_or_expr(ParseFnDecl, modifiers)
-        // let f = self.alloc(ast::FnDecl {
-        //     id,
-        //     span: self.new_span(start ),
-        //     modifiers,
-        //     name,
-        //     params,
-        //     ret_ty,
-        //     body,
-        // });
-        // self.insert_map(id, ast::Node::FnDecl(f));
-        // Ok(f)
     }
 
     fn parse_if_stmt(&mut self) -> PResult<&'cx ast::IfStmt<'cx>> {
         let id = self.next_node_id();
         let start = self.token.start();
-        self.expect(TokenKind::If)?;
-        self.expect(TokenKind::LParen)?;
+        self.expect(TokenKind::If);
+        self.expect(TokenKind::LParen);
         let expr = self.with_parent(id, Self::parse_expr)?;
-        self.expect(TokenKind::RParen)?;
+        self.expect(TokenKind::RParen);
         let then = self.with_parent(id, Self::parse_stmt)?;
         let else_then = if self.parse_optional(TokenKind::Else).is_some() {
             Some(self.with_parent(id, Self::parse_stmt)?)
@@ -895,7 +884,7 @@ impl<'cx> ParserState<'cx, '_> {
     fn parse_ret_stmt(&mut self) -> PResult<&'cx ast::RetStmt<'cx>> {
         let id = self.next_node_id();
         let start = self.token.start();
-        self.expect(TokenKind::Return)?;
+        self.expect(TokenKind::Return);
         let expr = if self.can_parse_semi() {
             None
         } else {

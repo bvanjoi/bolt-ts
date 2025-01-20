@@ -38,8 +38,8 @@ pub enum Node<'cx> {
     ClassDecl(&'cx super::ClassDecl<'cx>),
     NamespaceDecl(&'cx super::NsDecl<'cx>),
     ClassCtor(&'cx super::ClassCtor<'cx>),
-    ClassPropEle(&'cx super::ClassPropEle<'cx>),
-    ClassMethodEle(&'cx super::ClassMethodEle<'cx>),
+    ClassPropElem(&'cx super::ClassPropElem<'cx>),
+    ClassMethodElem(&'cx super::ClassMethodElem<'cx>),
     GetterDecl(&'cx super::GetterDecl<'cx>),
     SetterDecl(&'cx super::SetterDecl<'cx>),
     ClassExtendsClause(&'cx super::ClassExtendsClause<'cx>),
@@ -141,7 +141,7 @@ impl<'cx> Node<'cx> {
         use Node::*;
         matches!(
             self,
-            FnDecl(_) | FnExpr(_) | ClassMethodEle(_) | ClassCtor(_) | ArrowFnExpr(_)
+            FnDecl(_) | FnExpr(_) | ClassMethodElem(_) | ClassCtor(_) | ArrowFnExpr(_)
         )
     }
 
@@ -214,11 +214,11 @@ impl<'cx> Node<'cx> {
             ClassExpr(n) => n.name,
             ParamDecl(n) => Some(n.name),
             InterfaceDecl(n) => Some(n.name),
-            ClassPropEle(n) => match n.name.kind {
+            ClassPropElem(n) => match n.name.kind {
                 super::PropNameKind::Ident(ident) => Some(ident),
                 _ => None,
             },
-            ClassMethodEle(n) => match n.name.kind {
+            ClassMethodElem(n) => match n.name.kind {
                 super::PropNameKind::Ident(ident) => Some(ident),
                 _ => None,
             },
@@ -251,7 +251,7 @@ impl<'cx> Node<'cx> {
             ClassDecl,
             ClassCtor,
             CtorSigDecl,
-            ClassMethodEle,
+            ClassMethodElem,
             TypeDecl,
             MethodSignature,
             CallSigDecl,
@@ -274,7 +274,7 @@ impl<'cx> Node<'cx> {
             ArrowFnExpr,
             ClassCtor,
             CtorSigDecl,
-            ClassMethodEle,
+            ClassMethodElem,
             MethodSignature,
             CallSigDecl,
             FnTy,
@@ -310,13 +310,13 @@ impl<'cx> Node<'cx> {
             CtorSigDecl,
             FnDecl,
             MethodSignature,
-            ClassMethodEle,
+            ClassMethodElem,
             FnExpr,
             ArrowFnExpr,
             VarDecl,
             ParamDecl,
             PropSignature,
-            ClassPropEle,
+            ClassPropElem,
             // TypePredicate,
             // ParenTy
             // TypeOp,
@@ -341,8 +341,8 @@ impl<'cx> Node<'cx> {
                 | ObjectPropMember(_)
                 | ClassDecl(_)
                 | ClassExpr(_)
-                | ClassPropEle(_)
-                | ClassMethodEle(_)
+                | ClassPropElem(_)
+                | ClassMethodElem(_)
                 | ArrowFnExpr(_)
                 | FnExpr(_)
                 | ClassCtor(_)
@@ -379,7 +379,7 @@ impl<'cx> Node<'cx> {
                 }
             };
         }
-        fn_body_with_option!(FnDecl, ClassMethodEle, ClassCtor)
+        fn_body_with_option!(FnDecl, ClassMethodElem, ClassCtor)
     }
 
     pub fn fn_flags(&self) -> FnFlags {
@@ -443,10 +443,22 @@ impl<'cx> Node<'cx> {
                 }
             };
         }
-        let Some(ms) = modifier!(ClassMethodEle) else {
+        let Some(ms) = modifier!(ClassMethodElem) else {
             return false;
         };
         ms.flags.intersects(flags)
+    }
+
+    pub fn modifiers(&self) -> Option<&'cx super::Modifiers> {
+        macro_rules! modifiers {
+            ($( $node_kind:ident),* $(,)?) => {
+                match self {
+                    $(Node::$node_kind(n) => n.modifiers,)*
+                    _ => None,
+                }
+            };
+        }
+        modifiers!(ClassMethodElem)
     }
 
     pub fn is_block_scope(&self, parent: Option<&Self>) -> bool {
@@ -471,6 +483,18 @@ impl<'cx> Node<'cx> {
         } else {
             false
         }
+    }
+
+    pub fn node_flags(&self) -> super::NodeFlags {
+        macro_rules! node_flags {
+            ($( $node_kind:ident),* $(,)?) => {
+                match self {
+                    $(Node::$node_kind(n) => n.flags,)*
+                    _ => Default::default(),
+                }
+            };
+        }
+        node_flags!(FnDecl, ClassMethodElem)
     }
 }
 
@@ -783,15 +807,15 @@ as_node!(
         is_modifier
     ),
     (
-        ClassPropEle,
-        &'cx super::ClassPropEle<'cx>,
+        ClassPropElem,
+        &'cx super::ClassPropElem<'cx>,
         as_class_prop_ele,
         expect_class_prop_ele,
         is_class_prop_ele
     ),
     (
-        ClassMethodEle,
-        &'cx super::ClassMethodEle<'cx>,
+        ClassMethodElem,
+        &'cx super::ClassMethodElem<'cx>,
         as_class_method_ele,
         expect_class_method_ele,
         is_class_method_ele

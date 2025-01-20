@@ -121,7 +121,8 @@ impl ListContext for TyParams {
 
     fn is_closing(&self, s: &mut ParserState) -> bool {
         use TokenKind::*;
-        matches!(s.token.kind, Great)
+        // Tokens other than '>' are here for better error recovery
+        matches!(s.token.kind, Great | LParen | LBrace | Extends | Implements)
     }
 }
 

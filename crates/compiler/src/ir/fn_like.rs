@@ -18,7 +18,7 @@ impl<'cx> FnLike<'cx> for ast::FnDecl<'cx> {
     }
 }
 
-impl<'cx> FnLike<'cx> for ast::ClassMethodEle<'cx> {
+impl<'cx> FnLike<'cx> for ast::ClassMethodElem<'cx> {
     fn id(&self) -> ast::NodeID {
         self.id
     }
@@ -124,7 +124,7 @@ impl<'cx> FnDeclLike<'cx> for ast::FnDecl<'cx> {
     }
 }
 
-impl<'cx> FnDeclLike<'cx> for ast::ClassMethodEle<'cx> {
+impl<'cx> FnDeclLike<'cx> for ast::ClassMethodElem<'cx> {
     fn body(&self) -> Option<&'cx ast::BlockStmt<'cx>> {
         self.body
     }

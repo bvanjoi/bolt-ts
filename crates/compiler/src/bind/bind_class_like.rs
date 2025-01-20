@@ -85,7 +85,7 @@ impl<'cx> BinderState<'cx> {
     fn bind_class_method_ele(
         &mut self,
         container: ast::NodeID,
-        ele: &'cx ast::ClassMethodEle<'cx>,
+        ele: &'cx ast::ClassMethodElem<'cx>,
     ) {
         let is_static = ele
             .modifiers
@@ -109,7 +109,7 @@ impl<'cx> BinderState<'cx> {
         }
     }
 
-    fn bind_class_prop_ele(&mut self, decl_id: ast::NodeID, ele: &'cx ast::ClassPropEle<'cx>) {
+    fn bind_class_prop_ele(&mut self, decl_id: ast::NodeID, ele: &'cx ast::ClassPropElem<'cx>) {
         let symbol =
             self.create_class_prop_ele(decl_id, prop_name(ele.name), ele.id, ele.modifiers);
         self.create_final_res(ele.id, symbol);

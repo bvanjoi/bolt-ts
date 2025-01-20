@@ -17,8 +17,15 @@ impl<'cx> TyChecker<'cx> {
         } else if s.flags.intersects(SymbolFlags::INTERFACE) {
             let i = s.expect_interface();
             &i.members
+        } else if s.flags.intersects(SymbolFlags::TYPE_LITERAL) {
+            let t = s.expect_ty_lit();
+            &t.members
+        } else if s.flags.intersects(SymbolFlags::OBJECT_LITERAL) {
+            // TODO: remove
+            let t = s.expect_object();
+            &t.members
         } else {
-            unreachable!()
+            unreachable!("s: {s:#?}")
         }
     }
 
@@ -579,17 +586,13 @@ impl<'cx> TyChecker<'cx> {
                 .get(&SymbolName::Call)
                 .map(|s| self.get_sigs_of_symbol(*s))
                 .unwrap_or_default();
-            // TODO: `constructor_sigs`, `index_infos`
             ctor_sigs = members
                 .get(&SymbolName::New)
                 .map(|s| self.get_sigs_of_symbol(*s))
                 .unwrap_or_default();
-            index_infos = &[]
+            index_infos = self.get_index_infos_of_symbol(a.symbol);
         } else if symbol_flags.intersects(SymbolFlags::OBJECT_LITERAL) {
-            members = symbol.expect_object().members.clone();
-            call_sigs = &[];
-            ctor_sigs = &[];
-            index_infos = &[]
+            unreachable!("Object literal should be resolved during check");
         } else {
             members = FxHashMap::default();
             call_sigs = &[];

@@ -311,6 +311,10 @@ impl<'cx> BinderState<'cx> {
             let prev = c.members.insert(name, symbol);
             // FIXME: multiple index sig
             assert!(prev.is_none());
+        } else if let SymbolKind::TyLit(o) = &mut s.kind.0 {
+            let prev = o.members.insert(name, symbol);
+            // FIXME: multiple index sig
+            assert!(prev.is_none());
         } else if let SymbolKind::Object(o) = &mut s.kind.0 {
             let prev = o.members.insert(name, symbol);
             // FIXME: multiple index sig
@@ -342,7 +346,7 @@ impl<'cx> BinderState<'cx> {
                     } else {
                         // TODO: prev
                     };
-                } else if let SymbolKind::Object(o) = &mut s.kind.0 {
+                } else if let SymbolKind::TyLit(o) = &mut s.kind.0 {
                     let prev = o.members.insert(name, symbol);
                     assert!(prev.is_none());
                 } else {
@@ -597,7 +601,7 @@ impl<'cx> BinderState<'cx> {
             ObjectLit(lit) => {
                 let old = self.scope_id;
                 self.scope_id = self.new_scope();
-                let symbol = self.create_object_lit_symbol(lit.id, Default::default());
+                let symbol = self.create_object_lit_ty_symbol(lit.id, Default::default());
                 for m in lit.members {
                     self.bind_object_ty_member(lit.id, m);
                 }

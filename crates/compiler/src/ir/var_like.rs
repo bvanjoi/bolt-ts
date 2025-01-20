@@ -49,7 +49,7 @@ impl<'cx> VarLike<'cx> for ast::ParamDecl<'cx> {
     }
 }
 
-impl<'cx> VarLike<'cx> for ast::ClassPropEle<'cx> {
+impl<'cx> VarLike<'cx> for ast::ClassPropElem<'cx> {
     fn id(&self) -> ast::NodeID {
         self.id
     }

@@ -88,7 +88,7 @@ impl<'cx> ParserState<'cx, '_> {
         let start = self.token.start();
         use TokenKind::*;
         let open = LBrace;
-        let open_brace_parsed = self.expect(LBrace).is_ok();
+        let open_brace_parsed = self.expect(LBrace);
         let stmts = self.with_parent(id, |this| {
             this.parse_list(list_ctx::BlockStmts, Self::parse_stmt)
         });
@@ -380,7 +380,7 @@ impl<'cx> ParserState<'cx, '_> {
 
     pub(super) fn parse_params(&mut self) -> PResult<ast::ParamsDecl<'cx>> {
         use TokenKind::*;
-        self.expect(LParen)?;
+        self.expect(LParen);
         let old_error = self.diags.len();
         let params = self.parse_delimited_list(list_ctx::Params, Self::parse_param);
         let has_error = self.diags.len() > old_error;
@@ -407,7 +407,7 @@ impl<'cx> ParserState<'cx, '_> {
             }
         }
 
-        self.expect(RParen)?;
+        self.expect(RParen);
         Ok(params)
     }
 

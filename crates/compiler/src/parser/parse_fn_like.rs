@@ -43,6 +43,7 @@ impl<'cx, 'p> FnLike<'cx, 'p> for ParseFnDecl {
         let decl = state.alloc(ast::FnDecl {
             id,
             span,
+            flags: state.context_flags,
             modifiers,
             name,
             ty_params,
@@ -100,7 +101,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         use TokenKind::*;
         let id = self.next_node_id();
         let start = self.token.start();
-        self.expect(Function)?;
+        self.expect(Function);
         let name = self.with_parent(id, |this| mode.parse_name(this))?;
         let ty_params = self.with_parent(id, Self::parse_ty_params)?;
         let params = self.with_parent(id, Self::parse_params)?;

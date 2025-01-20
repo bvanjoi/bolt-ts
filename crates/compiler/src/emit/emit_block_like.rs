@@ -16,7 +16,7 @@ pub(super) trait BlockLike<'cx> {
     fn elems(&self) -> &Self::Elems;
 }
 
-impl<'cx> ElemLike<'cx> for ast::ClassEle<'cx> {
+impl<'cx> ElemLike<'cx> for ast::ClassElem<'cx> {
     fn emit_item(&self, emitter: &mut Emit<'cx>) {
         emitter.emit_class_ele(self);
     }
@@ -27,8 +27,8 @@ impl<'cx> ElemLike<'cx> for ast::ClassEle<'cx> {
         }
     }
 }
-impl<'cx> ElemsLike<'cx> for &'cx [&'cx ast::ClassEle<'cx>] {
-    type Elem = ast::ClassEle<'cx>;
+impl<'cx> ElemsLike<'cx> for &'cx [&'cx ast::ClassElem<'cx>] {
+    type Elem = ast::ClassElem<'cx>;
     fn is_empty(&self) -> bool {
         self.len() == 0
     }
@@ -38,7 +38,7 @@ impl<'cx> ElemsLike<'cx> for &'cx [&'cx ast::ClassEle<'cx>] {
 }
 
 impl<'cx> BlockLike<'cx> for ast::ClassElems<'cx> {
-    type Elems = &'cx [&'cx ast::ClassEle<'cx>];
+    type Elems = &'cx [&'cx ast::ClassElem<'cx>];
 
     fn elems(&self) -> &Self::Elems {
         &self.elems

@@ -36,7 +36,7 @@ impl ListContext for TypeArguments {
 impl<'cx> ParserState<'cx, '_> {
     fn should_parse_ret_ty(&mut self, is_colon: bool, is_ty: bool) -> PResult<bool> {
         if !is_colon {
-            self.expect(TokenKind::EqGreat)?;
+            self.expect(TokenKind::EqGreat);
             Ok(true)
         } else if self.parse_optional(TokenKind::Colon).is_some() {
             Ok(true)
@@ -69,9 +69,9 @@ impl<'cx> ParserState<'cx, '_> {
                 let id = self.next_node_id();
                 self.parent_map.r#override(ty.id(), id);
                 let extends_ty = self.with_parent(id, Self::parse_ty)?;
-                self.expect(TokenKind::Question)?;
+                self.expect(TokenKind::Question);
                 let true_ty = self.with_parent(id, Self::parse_ty)?;
-                self.expect(TokenKind::Colon)?;
+                self.expect(TokenKind::Colon);
                 let false_ty = self.with_parent(id, Self::parse_ty)?;
                 let ty = self.alloc(ast::CondTy {
                     id,
@@ -273,11 +273,11 @@ impl<'cx> ParserState<'cx, '_> {
             match self.token.kind {
                 TokenKind::LBracket => {
                     let id = self.next_node_id();
-                    self.expect(TokenKind::LBracket)?;
+                    self.expect(TokenKind::LBracket);
                     self.parent_map.r#override(ty.id(), id);
                     if self.is_start_of_ty() {
                         let index_ty = self.with_parent(id, Self::parse_ty)?;
-                        self.expect(TokenKind::RBracket)?;
+                        self.expect(TokenKind::RBracket);
                         self.parent_map.r#override(ty.id(), id);
                         let kind = self.alloc(ast::IndexedAccessTy {
                             id,
@@ -290,7 +290,7 @@ impl<'cx> ParserState<'cx, '_> {
                             kind: ast::TyKind::IndexedAccess(kind),
                         });
                     } else {
-                        self.expect(TokenKind::RBracket)?;
+                        self.expect(TokenKind::RBracket);
                         let kind = self.alloc(ast::ArrayTy {
                             id,
                             span: self.new_span(ty.span().lo),
@@ -421,7 +421,7 @@ impl<'cx> ParserState<'cx, '_> {
     fn parse_ty_query(&mut self) -> PResult<&'cx ast::Ty<'cx>> {
         let id = self.next_node_id();
         let start = self.token.start();
-        self.expect(TokenKind::Typeof)?;
+        self.expect(TokenKind::Typeof);
         let name = self.with_parent(id, Self::parse_entity_name)?;
         let args = if self.has_preceding_line_break() {
             self.with_parent(id, Self::try_parse_ty_args)?
@@ -515,7 +515,7 @@ impl<'cx> ParserState<'cx, '_> {
     fn parse_mapped_ty(&mut self) -> PResult<&'cx ast::Ty<'cx>> {
         let start = self.token.start();
         let id = self.next_node_id();
-        self.expect(TokenKind::LBrace)?;
+        self.expect(TokenKind::LBrace);
         let mut readonly_token = None;
         if matches!(
             self.token.kind,
@@ -525,10 +525,10 @@ impl<'cx> ParserState<'cx, '_> {
             readonly_token = Some(t.span);
             if matches!(t.kind, TokenKind::Plus | TokenKind::Minus) {
                 readonly_token = Some(self.token.span);
-                self.expect(TokenKind::Readonly)?;
+                self.expect(TokenKind::Readonly);
             }
         }
-        self.expect(TokenKind::LBracket)?;
+        self.expect(TokenKind::LBracket);
         let ty_param = self.parse_mapped_ty_param()?;
         let name_ty = if self.parse_optional(TokenKind::As).is_some() {
             let ty = self.parse_ty()?;
@@ -536,7 +536,7 @@ impl<'cx> ParserState<'cx, '_> {
         } else {
             None
         };
-        self.expect(TokenKind::RBracket)?;
+        self.expect(TokenKind::RBracket);
         let mut question_token = None;
         if matches!(
             self.token.kind,
@@ -545,14 +545,14 @@ impl<'cx> ParserState<'cx, '_> {
             let t = self.parse_token_node();
             question_token = Some(t.span);
             if t.kind != TokenKind::Question {
-                self.expect(TokenKind::Question)?;
+                self.expect(TokenKind::Question);
             };
         }
 
         let ty = self.parse_ty_anno()?;
         self.parse_semi();
         let members = self.parse_list(list_ctx::TyMembers, Self::parse_ty_member);
-        self.expect(TokenKind::RBrace)?;
+        self.expect(TokenKind::RBrace);
         let kind = self.alloc(ast::MappedTy {
             id,
             span: self.new_span(start),
@@ -574,7 +574,7 @@ impl<'cx> ParserState<'cx, '_> {
         let start = self.token.start();
         let id = self.next_node_id();
         let name = self.create_ident(true, None);
-        self.expect(TokenKind::In)?;
+        self.expect(TokenKind::In);
         let constraint = self.parse_ty()?;
         let ty = self.alloc(ast::MappedTyParam {
             id,
@@ -654,9 +654,9 @@ impl<'cx> ParserState<'cx, '_> {
     }
 
     fn parse_paren_ty(&mut self) -> PResult<&'cx ast::Ty<'cx>> {
-        self.expect(TokenKind::LParen)?;
+        self.expect(TokenKind::LParen);
         let ty = self.parse_ty();
-        self.expect(TokenKind::RParen)?;
+        self.expect(TokenKind::RParen);
         ty
     }
 
@@ -706,7 +706,7 @@ impl<'cx> ParserState<'cx, '_> {
         let start = self.token.start();
 
         if !is_call {
-            self.expect(TokenKind::New)?;
+            self.expect(TokenKind::New);
         }
 
         let ty_params = self.with_parent(id, Self::parse_ty_params)?;
@@ -760,9 +760,9 @@ impl<'cx> ParserState<'cx, '_> {
     }
 
     pub(super) fn parse_object_ty_members(&mut self) -> PResult<ast::ObjectTyMembers<'cx>> {
-        self.expect(TokenKind::LBrace)?;
+        self.expect(TokenKind::LBrace);
         let members = self.parse_list(list_ctx::TyMembers, Self::parse_ty_member);
-        self.expect(TokenKind::RBrace)?;
+        self.expect(TokenKind::RBrace);
         Ok(members)
     }
 }

@@ -38,6 +38,8 @@ mod sig;
 mod type_assignable;
 mod utils;
 
+use std::mem;
+
 use bolt_ts_atom::{AtomId, AtomMap};
 use bolt_ts_span::Span;
 
@@ -484,7 +486,7 @@ impl<'cx> TyChecker<'cx> {
                 let prop_decl = prop.decl(self.binder);
                 let prop_node = self.p.node(prop_decl);
                 let prop_name = match prop_node {
-                    ast::Node::ClassPropEle(prop) => prop.name,
+                    ast::Node::ClassPropElem(prop) => prop.name,
                     ast::Node::PropSignature(prop) => prop.name,
                     _ => unreachable!(),
                 };
@@ -536,7 +538,7 @@ impl<'cx> TyChecker<'cx> {
         if symbol.flags.intersects(SymbolFlags::PROPERTY) {
             let prop = prop.decl(self.binder);
             let name = match self.p.node(prop) {
-                ast::Node::ClassPropEle(prop) => prop.name,
+                ast::Node::ClassPropElem(prop) => prop.name,
                 ast::Node::ObjectPropMember(prop) => prop.name,
                 ast::Node::PropSignature(prop) => prop.name,
                 ast::Node::ParamDecl(_) => return self.string_ty(),
@@ -1178,37 +1180,30 @@ impl<'cx> TyChecker<'cx> {
         expr: &'cx ast::PrefixUnaryExpr<'cx>,
     ) -> &'cx ty::Ty<'cx> {
         let op_ty = self.check_expr(expr.expr);
-        use ast::ExprKind::*;
-        match expr.expr.kind {
-            NumLit(_) => match expr.op {
-                ast::PrefixUnaryOp::Plus => op_ty,
-                ast::PrefixUnaryOp::Minus => {
-                    let val = if let ty::TyKind::NumberLit(n) = op_ty.kind {
-                        -n.val
-                    } else {
-                        todo!()
-                    };
-                    self.get_number_literal_type(val)
+        match expr.op {
+            ast::PrefixUnaryOp::Plus => self.number_ty(),
+            ast::PrefixUnaryOp::Minus => {
+                if let ty::TyKind::NumberLit(n) = op_ty.kind {
+                    self.get_number_literal_type(-n.val)
+                } else {
+                    self.number_ty()
                 }
-                ast::PrefixUnaryOp::PlusPlus => {
-                    let val = if let ty::TyKind::NumberLit(n) = op_ty.kind {
-                        n.val + 1.
-                    } else {
-                        todo!()
-                    };
-                    self.get_number_literal_type(val)
+            }
+            ast::PrefixUnaryOp::PlusPlus => {
+                if let ty::TyKind::NumberLit(n) = op_ty.kind {
+                    self.get_number_literal_type(n.val + 1.)
+                } else {
+                    self.number_ty()
                 }
-                ast::PrefixUnaryOp::MinusMinus => {
-                    let val = if let ty::TyKind::NumberLit(n) = op_ty.kind {
-                        n.val - 1.
-                    } else {
-                        todo!()
-                    };
-                    self.get_number_literal_type(val)
+            }
+            ast::PrefixUnaryOp::MinusMinus => {
+                if let ty::TyKind::NumberLit(n) = op_ty.kind {
+                    self.get_number_literal_type(n.val - 1.)
+                } else {
+                    self.number_ty()
                 }
-                ast::PrefixUnaryOp::Tilde => self.number_ty(),
-            },
-            _ => self.undefined_ty(),
+            }
+            ast::PrefixUnaryOp::Tilde => self.number_ty(),
         }
     }
 
@@ -1370,10 +1365,11 @@ impl<'cx> TyChecker<'cx> {
             ObjectFlags::OBJECT_LITERAL | ObjectFlags::CONTAINS_OBJECT_OR_ARRAY_LITERAL,
         );
         let props = self.get_props_from_members(&members);
+        let members = self.alloc(members);
         self.ty_links.insert(
             ty.id,
             TyLinks::default().with_structured_members(self.alloc(ty::StructuredMembers {
-                members: self.alloc(members),
+                members,
                 base_tys: Default::default(),
                 base_ctor_ty: Default::default(),
                 call_sigs: Default::default(),

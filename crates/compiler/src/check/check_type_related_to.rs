@@ -6,6 +6,7 @@ use super::relation::{RelationKind, SigCheckMode};
 use crate::ast;
 use crate::bind::{SymbolFlags, SymbolID};
 use crate::keyword::IDENT_LENGTH;
+use crate::parser::token::TokenKind;
 use crate::ty::{self, ObjectFlags, SigFlags, SigKind};
 use crate::ty::{Sig, Ty, TyKind, Tys};
 
@@ -219,8 +220,10 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
                     .unwrap()
                     .name
                     .span
-            } else {
+            } else if symbol.flags.intersects(SymbolFlags::OBJECT_LITERAL) {
                 self.c.p.node(symbol.expect_object().decl).span()
+            } else {
+                self.c.p.node(symbol.expect_ty_lit().decl).span()
             };
             if !unmatched.is_empty() && report_error {
                 let Some(source_symbol) = source.symbol() else {
@@ -416,7 +419,12 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
                 if res != Ternary::FALSE {
                     res &= self.sigs_related_to(source, target, SigKind::Constructor, report_error);
                     if res != Ternary::FALSE {
-                        res &= self.index_sigs_related_to(source, target);
+                        res &= self.index_sigs_related_to(
+                            source,
+                            target,
+                            source_is_primitive,
+                            report_error,
+                        );
                     }
                 }
                 res
@@ -499,27 +507,84 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
         Ternary::TRUE
     }
 
+    fn members_related_to_index_info(
+        &mut self,
+        source: &'cx Ty<'cx>,
+        target: &'cx ty::IndexInfo<'cx>,
+        report_error: bool,
+    ) -> Ternary {
+        let mut res = Ternary::TRUE;
+        let props = self.c.get_props_of_ty(source);
+        for prop in props {
+            let prop_ty = self.c.get_non_missing_type_of_symbol(*prop);
+            let ty = prop_ty;
+            let related = self.is_related_to(ty, target.val_ty, RecursionFlags::BOTH, report_error);
+            if related == Ternary::FALSE {
+                return Ternary::FALSE;
+            }
+            res &= related;
+        }
+
+        for info in self.c.get_index_infos_of_ty(source) {
+            if self.c.is_applicable_index_ty(info.key_ty, target.key_ty) != Ternary::FALSE {
+                let related = self.index_info_related_to(info, target);
+                if related == Ternary::FALSE {
+                    return Ternary::FALSE;
+                }
+                res &= related;
+            }
+        }
+        res
+    }
+
     fn type_related_to_index_info(
         &mut self,
         source: &'cx Ty<'cx>,
         target: &'cx ty::IndexInfo<'cx>,
+        report_error: bool,
     ) -> Ternary {
         if let Some(source) = self.c.get_applicable_index_info(source, target.key_ty) {
-            self.index_info_related_to(source, target);
-            Ternary::TRUE
+            self.index_info_related_to(source, target)
+        } else if self.relation != RelationKind::StrictSubtype
+            || source
+                .get_object_flags()
+                .intersects(ObjectFlags::FRESH_LITERAL)
+        {
+            self.members_related_to_index_info(source, target, report_error)
         } else {
             Ternary::FALSE
         }
     }
 
-    fn index_sigs_related_to(&mut self, source: &'cx Ty<'cx>, target: &'cx Ty<'cx>) -> Ternary {
+    fn index_sigs_related_to(
+        &mut self,
+        source: &'cx Ty<'cx>,
+        target: &'cx Ty<'cx>,
+        source_is_primitive: bool,
+        report_error: bool,
+    ) -> Ternary {
         if self.relation == RelationKind::Identity {
             return Ternary::TRUE;
         }
-        for info in self.c.index_infos_of_ty(target) {
-            self.type_related_to_index_info(source, info);
+        let index_infos = self.c.get_index_infos_of_ty(target);
+        let target_has_string_index = index_infos.iter().any(|i| i.key_ty == self.c.string_ty());
+        let mut result = Ternary::TRUE;
+        for target_info in index_infos {
+            let related = if self.relation != RelationKind::StrictSubtype
+                && !source_is_primitive
+                && target_has_string_index
+                && target_info.val_ty.kind.is_any()
+            {
+                Ternary::TRUE
+            } else {
+                self.type_related_to_index_info(source, &target_info, report_error)
+            };
+            if related == Ternary::FALSE {
+                return Ternary::FALSE;
+            }
+            result &= related;
         }
-        Ternary::TRUE
+        result
     }
 
     fn sigs_related_to(

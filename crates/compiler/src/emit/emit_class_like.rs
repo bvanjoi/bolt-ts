@@ -19,7 +19,7 @@ impl<'cx> Emit<'cx> {
         self.emit_block_like(class.elems());
     }
 
-    pub(super) fn emit_class_ele(&mut self, ele: &ast::ClassEle<'cx>) {
+    pub(super) fn emit_class_ele(&mut self, ele: &ast::ClassElem<'cx>) {
         use ast::ClassEleKind::*;
         match ele.kind {
             Prop(prop) => {
@@ -162,7 +162,7 @@ impl<'cx> Emit<'cx> {
         }
     }
 
-    fn emit_class_method(&mut self, method: &'cx ast::ClassMethodEle<'cx>) {
+    fn emit_class_method(&mut self, method: &'cx ast::ClassMethodElem<'cx>) {
         if let Some(mods) = method.modifiers {
             if mods.flags.contains(ast::ModifierKind::Static) {
                 self.content.p("static");
@@ -177,7 +177,7 @@ impl<'cx> Emit<'cx> {
         }
     }
 
-    fn emit_class_prop(&mut self, prop: &'cx ast::ClassPropEle<'cx>) {
+    fn emit_class_prop(&mut self, prop: &'cx ast::ClassPropElem<'cx>) {
         if let Some(mods) = prop.modifiers {
             if mods.flags.contains(ast::ModifierKind::Static) {
                 self.content.p("static");

@@ -7,11 +7,11 @@ impl<'cx> TyChecker<'cx> {
         self.check_fn_like_decl(ctor);
     }
 
-    fn check_class_method_ele(&mut self, method: &'cx ast::ClassMethodEle<'cx>) {
+    fn check_class_method_ele(&mut self, method: &'cx ast::ClassMethodElem<'cx>) {
         self.check_fn_like_decl(method);
     }
 
-    fn check_class_prop_ele(&mut self, prop: &'cx ast::ClassPropEle<'cx>) {
+    fn check_class_prop_ele(&mut self, prop: &'cx ast::ClassPropElem<'cx>) {
         self.check_var_like_decl(prop);
     }
 

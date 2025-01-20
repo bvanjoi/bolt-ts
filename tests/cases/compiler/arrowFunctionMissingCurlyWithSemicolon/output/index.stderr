@@ -1,5 +1,5 @@
   × Expression expected.
-   ╭─[../../tests/cases/compiler/arrowFunctionMissingCurlyWithSemicolon/index.ts:2:15]
- 2 │ ;
+   ╭─[../../tests/cases/compiler/arrowFunctionMissingCurlyWithSemicolon/index.ts:4:15]
+ 4 │ ;
    · ─
    ╰────

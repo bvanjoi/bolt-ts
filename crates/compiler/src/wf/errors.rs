@@ -14,3 +14,10 @@ pub(super) struct ClassNameCannotBe {
     pub span: Span,
     pub name: String,
 }
+
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
+#[error("Abstract methods can only appear within an abstract class.")]
+pub(super) struct AbstractMethodsCanOnlyAppearWithinAnAbstractClass {
+    #[label(primary)]
+    pub span: Span,
+}

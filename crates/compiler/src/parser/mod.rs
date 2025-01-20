@@ -281,9 +281,9 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         ele: impl Fn(&mut Self) -> PResult<T>,
         close: TokenKind,
     ) -> PResult<&'cx [T]> {
-        if self.expect(open).is_ok() {
+        if self.expect(open) {
             let elems = self.parse_delimited_list(ctx, ele);
-            self.expect(close)?;
+            self.expect(close);
             Ok(elems)
         } else {
             Ok(&[])
@@ -345,13 +345,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
                     break;
                 }
 
-                if self.expect(TokenKind::Comma).is_err() {
-                    let error = errors::ExpectX {
-                        span: self.token.span,
-                        x: ",".to_string(),
-                    };
-                    self.push_error(Box::new(error));
-                }
+                self.expect(TokenKind::Comma);
                 continue;
             }
             if self.is_list_terminator(ctx) {
@@ -439,12 +433,17 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         }
     }
 
-    fn expect(&mut self, t: TokenKind) -> PResult<()> {
+    fn expect(&mut self, t: TokenKind) -> bool {
         if self.token.kind == t {
             self.next_token();
-            Ok(())
+            true
         } else {
-            Err(())
+            let error = errors::ExpectX {
+                span: self.token.span,
+                x: t.as_str().to_string(),
+            };
+            self.push_error(Box::new(error));
+            false
         }
     }
 

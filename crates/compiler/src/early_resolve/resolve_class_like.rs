@@ -2,7 +2,7 @@ use super::Resolver;
 use crate::{ast, ir};
 
 impl<'cx> Resolver<'cx, '_> {
-    fn resolve_class_prop_ele(&mut self, ele: &'cx ast::ClassPropEle<'cx>) {
+    fn resolve_class_prop_ele(&mut self, ele: &'cx ast::ClassPropElem<'cx>) {
         if let Some(ty) = ele.ty {
             self.resolve_ty(ty);
         }
@@ -11,7 +11,7 @@ impl<'cx> Resolver<'cx, '_> {
         }
     }
 
-    fn resolve_class_method_ele(&mut self, ele: &'cx ast::ClassMethodEle<'cx>) {
+    fn resolve_class_method_ele(&mut self, ele: &'cx ast::ClassMethodElem<'cx>) {
         self.resolve_params(ele.params);
         if let Some(body) = ele.body {
             self.resolve_block_stmt(body);

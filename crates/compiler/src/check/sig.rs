@@ -217,7 +217,7 @@ fn get_sig_from_decl<'cx>(
             Some(class_id)
         }
         ast::Node::CtorSigDecl(c) => c.ty.map(|ty| ty.id()),
-        ast::Node::ClassMethodEle(f) => f.ty.map(|ty| ty.id()),
+        ast::Node::ClassMethodElem(f) => f.ty.map(|ty| ty.id()),
         ast::Node::MethodSignature(f) => f.ty.map(|ty| ty.id()),
         ast::Node::CallSigDecl(f) => f.ty.map(|ty| ty.id()),
         ast::Node::FnTy(f) => Some(f.ty.id()),

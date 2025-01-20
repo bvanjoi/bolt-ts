@@ -231,6 +231,23 @@ impl<'cx> BinderState<'cx> {
         symbol
     }
 
+    pub(super) fn create_object_lit_ty_symbol(
+        &mut self,
+        node_id: ast::NodeID,
+        members: FxHashMap<SymbolName, SymbolID>,
+    ) -> SymbolID {
+        let id = self.symbols.insert(Symbol::new(
+            SymbolName::Type,
+            SymbolFlags::TYPE_LITERAL,
+            SymbolKind::TyLit(super::TyLitSymbol {
+                decl: node_id,
+                members,
+            }),
+        ));
+        self.create_final_res(node_id, id);
+        id
+    }
+
     pub(super) fn create_object_lit_symbol(
         &mut self,
         node_id: ast::NodeID,

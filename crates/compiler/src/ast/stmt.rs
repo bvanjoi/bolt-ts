@@ -293,19 +293,19 @@ pub struct ClassDecl<'cx> {
 #[derive(Debug, Clone, Copy)]
 pub struct ClassElems<'cx> {
     pub span: Span,
-    pub elems: &'cx [&'cx ClassEle<'cx>],
+    pub elems: &'cx [&'cx ClassElem<'cx>],
 }
 
 #[derive(Debug, Clone, Copy)]
-pub struct ClassEle<'cx> {
+pub struct ClassElem<'cx> {
     pub kind: ClassEleKind<'cx>,
 }
 
 #[derive(Debug, Clone, Copy)]
 pub enum ClassEleKind<'cx> {
     Ctor(&'cx ClassCtor<'cx>),
-    Prop(&'cx ClassPropEle<'cx>),
-    Method(&'cx ClassMethodEle<'cx>),
+    Prop(&'cx ClassPropElem<'cx>),
+    Method(&'cx ClassMethodElem<'cx>),
     IndexSig(&'cx IndexSigDecl<'cx>),
     Getter(&'cx GetterDecl<'cx>),
     Setter(&'cx SetterDecl<'cx>),
@@ -342,7 +342,7 @@ pub struct ClassCtor<'cx> {
 }
 
 #[derive(Debug, Clone, Copy)]
-pub struct ClassMethodEle<'cx> {
+pub struct ClassMethodElem<'cx> {
     pub id: NodeID,
     pub flags: NodeFlags,
     pub span: Span,
@@ -355,7 +355,7 @@ pub struct ClassMethodEle<'cx> {
 }
 
 #[derive(Debug, Clone, Copy)]
-pub struct ClassPropEle<'cx> {
+pub struct ClassPropElem<'cx> {
     pub id: NodeID,
     pub span: Span,
     pub modifiers: Option<&'cx Modifiers<'cx>>,
@@ -494,6 +494,7 @@ pub struct Modifier {
 pub struct FnDecl<'cx> {
     pub id: NodeID,
     pub span: Span,
+    pub flags: NodeFlags,
     pub modifiers: Option<&'cx Modifiers<'cx>>,
     pub name: &'cx Ident,
     pub ty_params: Option<TyParams<'cx>>,
