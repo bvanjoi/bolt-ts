@@ -7,6 +7,7 @@ mod check_fn_like_decl;
 mod check_fn_like_expr;
 mod check_fn_like_symbol;
 mod check_interface;
+mod check_ty_refer_ty_or_import;
 mod check_type_related_to;
 mod check_var_like;
 mod create_ty;
@@ -151,6 +152,8 @@ pub struct TyChecker<'cx> {
     tuple_shapes: nohash_hasher::IntMap<u32, &'cx TupleShape<'cx>>,
     unknown_sig: std::cell::OnceCell<&'cx Sig<'cx>>,
     any_fn_ty: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
+    circular_constraint_ty: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
+    no_constraint_ty: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
     global_object_ty: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
     global_fn_ty: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
     global_callable_fn_ty: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
@@ -237,6 +240,8 @@ impl<'cx> TyChecker<'cx> {
             string_lit_tys: fx_hashmap_with_capacity(1024 * 8),
 
             any_fn_ty: Default::default(),
+            circular_constraint_ty: Default::default(),
+            no_constraint_ty: Default::default(),
             boolean_ty: Default::default(),
             typeof_ty: Default::default(),
             string_number_symbol_ty: Default::default(),
@@ -326,8 +331,38 @@ impl<'cx> TyChecker<'cx> {
 
         this.typeof_ty.set(typeof_ty).unwrap();
 
-        let any_fn_ty = this.create_anonymous_ty(Symbol::ERR, ObjectFlags::empty());
+        let any_fn_ty = this.create_anonymous_ty_with_resolved(
+            None,
+            ObjectFlags::NON_INFERRABLE_TYPE,
+            this.alloc(Default::default()),
+            Default::default(),
+            Default::default(),
+            Default::default(),
+        );
         this.any_fn_ty.set(any_fn_ty).unwrap();
+
+        let no_constraint_ty = this.create_anonymous_ty_with_resolved(
+            None,
+            Default::default(),
+            this.alloc(Default::default()),
+            Default::default(),
+            Default::default(),
+            Default::default(),
+        );
+
+        this.no_constraint_ty.set(no_constraint_ty).unwrap();
+
+        let circular_constraint_ty = this.create_anonymous_ty_with_resolved(
+            None,
+            Default::default(),
+            this.alloc(Default::default()),
+            Default::default(),
+            Default::default(),
+            Default::default(),
+        );
+        this.circular_constraint_ty
+            .set(circular_constraint_ty)
+            .unwrap();
 
         let global_object_ty =
             this.get_global_type(SymbolName::Normal(keyword::IDENT_OBJECT_CLASS));
@@ -655,21 +690,6 @@ impl<'cx> TyChecker<'cx> {
     fn check_var_decl(&mut self, decl: &'cx ast::VarDecl<'cx>) {
         self.check_var_like_decl(decl);
     }
-
-    // fn try_get_type_from_effective_type_node(
-    //     &mut self,
-    //     decl: &'cx ast::VarDecl,
-    // ) -> Option<&'cx ty::Ty<'cx>> {
-    //     self.get_effective_type_annotation_node(decl)
-    //         .map(|ty| self.get_ty_from_type_node(ty))
-    // }
-
-    // fn get_effective_type_annotation_node(
-    //     &self,
-    //     decl: &'cx ast::VarDecl<'cx>,
-    // ) -> Option<&'cx ast::Ty<'cx>> {
-    //     decl.ty
-    // }
 
     fn check_expr_with_contextual_ty(
         &mut self,
@@ -1729,13 +1749,19 @@ impl<'cx> TyChecker<'cx> {
     }
 
     fn check_ty_refer_ty(&mut self, n: &'cx ast::ReferTy<'cx>) {
-        let ty = self.get_ty_from_ty_reference(n);
+        if let Some(ty_args) = n.ty_args {
+            for ty_arg in ty_args.list {
+                self.check_ty(ty_arg);
+            }
+        }
+        self.check_ty_refer_ty_or_import(n);
     }
 
     fn check_ty(&mut self, ty: &'cx ast::Ty<'cx>) {
         use ast::TyKind::*;
-        if let Refer(n) = ty.kind {
-            self.check_ty_refer_ty(n)
+        match ty.kind {
+            Refer(n) => self.check_ty_refer_ty(n),
+            _ => (),
         }
     }
 
@@ -1885,6 +1911,18 @@ impl<'cx> TyChecker<'cx> {
             }
         })
     }
+
+    fn get_simplified_ty(&self, ty: &'cx ty::Ty<'cx>) -> &'cx ty::Ty<'cx> {
+        if let Some(_) = ty.kind.as_indexed_access() {
+            // TODO: handle indexed_access
+            ty
+        } else if let Some(_) = ty.kind.as_cond_ty() {
+            // TODO: handle indexed_cond
+            ty
+        } else {
+            ty
+        }
+    }
 }
 
 macro_rules! global_ty {
@@ -1904,6 +1942,8 @@ global_ty!(
     boolean_ty,
     string_number_symbol_ty,
     any_fn_ty,
+    circular_constraint_ty,
+    no_constraint_ty,
     global_number_ty,
     global_string_ty,
     global_boolean_ty,

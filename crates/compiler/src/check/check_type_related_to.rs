@@ -97,6 +97,15 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
             }
         }
 
+        if source.kind.is_param()
+            && self
+                .c
+                .get_constraint_of_ty(source)
+                .is_some_and(|constraint| constraint == target)
+        {
+            return Ternary::TRUE;
+        }
+
         if source.kind.definitely_non_nullable() && target.kind.is_union() {
             let t = target.kind.expect_union();
             let candidate = match t.tys.len() {
@@ -772,12 +781,13 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
         target: &'cx Sig<'cx>,
         check_mode: SigCheckMode,
         report_error: bool,
-        compare: impl FnOnce(&mut Self, &'cx ty::Ty<'cx>, &'cx ty::Ty<'cx>, bool) -> Ternary,
+        compare: impl Fn(&mut Self, &'cx ty::Ty<'cx>, &'cx ty::Ty<'cx>, bool) -> Ternary + Copy,
     ) -> Ternary {
         if source == target {
             return Ternary::TRUE;
         }
 
+        let mut result = Ternary::TRUE;
         let target_count = target.get_param_count(self.c);
         let source_has_more_params = !self.c.has_effective_rest_param(target)
             && (if check_mode.intersects(SigCheckMode::STRICT_ARITY) {
@@ -800,6 +810,83 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
         let source_rest_ty = source.get_non_array_rest_ty(self.c);
         let target_rest_ty = target.get_non_array_rest_ty(self.c);
 
+        let (param_count, rest_index) = if source_rest_ty.is_some() || target_rest_ty.is_some() {
+            let param_count = usize::min(source_count, target_count);
+            (param_count, param_count - 1)
+        } else {
+            (usize::max(source_count, target_count), usize::MAX)
+        };
+
+        for i in 0..param_count {
+            let source_ty = if i == rest_index {
+                todo!()
+            } else {
+                self.c.try_get_ty_at_pos(source, i)
+            };
+            let target_ty = if i == rest_index {
+                todo!()
+            } else {
+                self.c.try_get_ty_at_pos(target, i)
+            };
+            if let Some(source_ty) = source_ty {
+                if let Some(target_ty) = target_ty {
+                    if (source_ty != target_ty) || check_mode.intersects(SigCheckMode::STRICT_ARITY)
+                    {
+                        let source_sig = if check_mode.intersects(SigCheckMode::CALLBACK) {
+                            None
+                        } else {
+                            self.c.get_single_call_sig(source_ty)
+                        };
+                        let target_sig = if check_mode.intersects(SigCheckMode::CALLBACK) {
+                            None
+                        } else {
+                            self.c.get_single_call_sig(target_ty)
+                        };
+                        let callbacks = match (source_sig, target_sig) {
+                            (Some(_), Some(_)) => false,
+                            _ => false,
+                        };
+                        let mut related = if callbacks {
+                            let target_sig = target_sig.unwrap();
+                            let source_sig = source_sig.unwrap();
+                            self.compare_sig_related(
+                                target_sig,
+                                source_sig,
+                                check_mode & SigCheckMode::STRICT_ARITY,
+                                report_error,
+                                compare,
+                            )
+                        } else {
+                            if !check_mode.intersects(SigCheckMode::CALLBACK) {
+                                let res = compare(self, source_ty, target_ty, false);
+                                if res == Ternary::FALSE {
+                                    compare(self, target_ty, source_ty, false)
+                                } else {
+                                    res
+                                }
+                            } else {
+                                compare(self, target_ty, source_ty, false)
+                            }
+                        };
+
+                        if related != Ternary::FALSE
+                            && check_mode.intersects(SigCheckMode::STRICT_ARITY)
+                            && i >= self.c.get_min_arg_count(source)
+                            && i < self.c.get_min_arg_count(target)
+                            && compare(self, source_ty, target_ty, false) != Ternary::FALSE
+                        {
+                            related = Ternary::FALSE;
+                        }
+
+                        if related == Ternary::FALSE {
+                            return Ternary::FALSE;
+                        }
+                        result &= related;
+                    }
+                }
+            }
+        }
+
         if !check_mode.intersects(SigCheckMode::IGNORE_RETURN_TYPES) {
             let ret_ty = |this: &mut Self, sig: &'cx ty::Sig<'cx>| {
                 // TODO: cycle
@@ -811,19 +898,20 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
             } else {
                 let source_ret_ty = ret_ty(self, source);
                 // TODO: ty_predict
-                let res = if check_mode.intersects(SigCheckMode::BIVARIANT_CALLBACK) {
+                let related = if check_mode.intersects(SigCheckMode::BIVARIANT_CALLBACK) {
                     compare(self, source_ret_ty, target_ret_ty, false)
                 } else {
                     compare(self, source_ret_ty, target_ret_ty, report_error)
                 };
 
-                if res == Ternary::FALSE {
+                if related == Ternary::FALSE {
                     return Ternary::FALSE;
                 }
+                result &= related;
             }
         }
 
-        Ternary::TRUE
+        result
     }
 
     fn has_excess_properties(

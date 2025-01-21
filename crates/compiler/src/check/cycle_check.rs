@@ -9,6 +9,7 @@ pub(super) enum ResolutionKey {
     ResolvedBaseTypes(TyID),
     DeclaredType(SymbolID),
     ResolvedReturnType(SigID),
+    ImmediateBaseConstraint(TyID),
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -46,6 +47,10 @@ impl TyChecker<'_> {
                 .sig_links
                 .get(&sig_id)
                 .is_some_and(|s| s.get_resolved_ret_ty().is_some()),
+            ResolutionKey::ImmediateBaseConstraint(ty) => self
+                .ty_links
+                .get(&ty)
+                .is_some_and(|t| t.get_immediate_base_constraint().is_some()),
         }
     }
 
@@ -85,6 +90,10 @@ impl TyChecker<'_> {
     /// `Some(xxx)` means there is a cycle, and `xxx` is the start index of the cycle.
     pub(super) fn pop_ty_resolution(&mut self) -> Cycle {
         let key = self.resolution_tys.pop().unwrap();
-        if !self.resolution_res.pop().unwrap() { Cycle::Some(key) } else { Cycle::None }
+        if !self.resolution_res.pop().unwrap() {
+            Cycle::Some(key)
+        } else {
+            Cycle::None
+        }
     }
 }

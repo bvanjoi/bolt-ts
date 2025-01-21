@@ -118,6 +118,9 @@ impl<'cx> TyChecker<'cx> {
         use ty::ObjectTyKind::*;
         if let Some(refer) = ty.kind.as_object_reference() {
             let ty_args = self.instantiate_tys(refer.resolved_ty_args, mapper);
+            if refer.resolved_ty_args == ty_args {
+                return ty;
+            }
             let object_ty = refer.target.kind.expect_object();
             match &object_ty.kind {
                 Tuple(tuple) => {
@@ -136,7 +139,7 @@ impl<'cx> TyChecker<'cx> {
                         target: refer.target,
                         resolved_ty_args: ty_args,
                     },
-                    ObjectFlags::OBJECT_LITERAL,
+                    Default::default(),
                 ),
             }
         } else if let Some(a) = ty.kind.as_object_anonymous() {
@@ -274,34 +277,34 @@ impl<'cx> TyChecker<'cx> {
 
     pub(super) fn fill_missing_ty_args(
         &mut self,
-        args: Option<ty::Tys<'cx>>,
-        params: Option<ty::Tys<'cx>>,
+        ty_args: Option<ty::Tys<'cx>>,
+        ty_params: Option<ty::Tys<'cx>>,
         min_ty_argument_count: usize,
     ) -> Option<ty::Tys<'cx>> {
-        let Some(params) = params else {
+        let Some(ty_params) = ty_params else {
             return Some(&[]);
         };
-        if params.is_empty() {
+        if ty_params.is_empty() {
             return Some(&[]);
         }
-        let args_len = args.map_or(0, |args| args.len());
-        let params_len = params.len();
+        let args_len = ty_args.map_or(0, |args| args.len());
+        let params_len = ty_params.len();
         if args_len >= min_ty_argument_count && args_len <= params_len {
             let mut result = Vec::with_capacity(params_len);
-            if let Some(args) = args {
-                for arg in args {
+            if let Some(ty_args) = ty_args {
+                for arg in ty_args {
                     result.push(*arg);
                 }
             }
 
-            for param in params.iter().skip(args_len) {
+            for param in ty_params.iter().skip(args_len) {
                 let param = param.kind.expect_param();
                 let default_ty = self.get_default_ty_from_ty_param(param);
                 result.push(default_ty);
             }
             Some(self.alloc(result))
         } else {
-            args
+            ty_args
         }
     }
 

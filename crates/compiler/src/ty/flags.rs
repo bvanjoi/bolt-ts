@@ -1,5 +1,5 @@
 bitflags::bitflags! {
-  #[derive(Clone, Copy, Debug)]
+  #[derive(Clone, Copy, Debug, Default)]
     pub struct TypeFlags: u32 {
         const ANY = 1 << 0;
         const UNKNOWN = 1 << 1;
@@ -74,10 +74,9 @@ bitflags::bitflags! {
         const INCLUDES_ERROR = Self::RESERVED2.bits();
         const NOT_PRIMITIVE_UNION = Self::ANY.bits() | Self::UNKNOWN.bits() | Self::VOID.bits() | Self::NEVER.bits() | Self::OBJECT.bits() | Self::INTERSECTION.bits() | Self::INCLUDES_INSTANTIABLE.bits();
     }
-}
 
-bitflags::bitflags! {
-    #[derive(Clone, Copy, Debug, PartialEq)]
+
+    #[derive(Clone, Copy, Debug, Default, PartialEq)]
     pub struct ObjectFlags: u32 {
         const CLASS = 1 << 0;
         const INTERFACE = 1 << 1;

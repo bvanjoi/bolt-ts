@@ -1,0 +1,50 @@
+  × Expected ','.
+   ╭─[../../tests/cases/compiler/objectLiteralWithSemicolons1/index.ts:3:12]
+ 3 │ ;
+   · ─
+   ╰────
+
+  × Expected ','.
+   ╭─[../../tests/cases/compiler/objectLiteralWithSemicolons1/index.ts:3:15]
+ 3 │ ;
+   · ─
+   ╰────
+
+  × Cannot find name 'a'.
+   ╭─[../../tests/cases/compiler/objectLiteralWithSemicolons1/index.ts:3:11]
+ 3 │ a
+   · ─
+   ╰────
+
+Advice: 
+  ☞ Shorthand property need an initializer.
+   ╭─[../../tests/cases/compiler/objectLiteralWithSemicolons1/index.ts:3:11]
+ 3 │ a
+   · ─
+   ╰────
+
+  × Cannot find name 'b'.
+   ╭─[../../tests/cases/compiler/objectLiteralWithSemicolons1/index.ts:3:14]
+ 3 │ b
+   · ─
+   ╰────
+
+Advice: 
+  ☞ Shorthand property need an initializer.
+   ╭─[../../tests/cases/compiler/objectLiteralWithSemicolons1/index.ts:3:14]
+ 3 │ b
+   · ─
+   ╰────
+
+  × Cannot find name 'c'.
+   ╭─[../../tests/cases/compiler/objectLiteralWithSemicolons1/index.ts:3:17]
+ 3 │ c
+   · ─
+   ╰────
+
+Advice: 
+  ☞ Shorthand property need an initializer.
+   ╭─[../../tests/cases/compiler/objectLiteralWithSemicolons1/index.ts:3:17]
+ 3 │ c
+   · ─
+   ╰────

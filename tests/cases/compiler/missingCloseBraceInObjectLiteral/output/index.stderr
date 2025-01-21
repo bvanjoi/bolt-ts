@@ -2,8 +2,8 @@
    ╭─[../../tests/cases/compiler/missingCloseBraceInObjectLiteral/index.ts:7:25]
    ╰────
 
-Error: 
-  × Expected to find a '{' to match the '}' token here.
+Advice: 
+  ☞ Expected to find a '{' to match the '}' token here.
    ╭─[../../tests/cases/compiler/missingCloseBraceInObjectLiteral/index.ts:3:11]
  3 │ {
    · ─

@@ -4,13 +4,13 @@ use crate::ty::{self, ObjectFlags};
 use super::TyChecker;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum RecursionId {
+pub(super) enum RecursionId {
     Ty(ty::TyID),
     Symbol(SymbolID),
 }
 
 impl<'cx> TyChecker<'cx> {
-    fn get_recursion_id(&self, ty: &'cx ty::Ty<'cx>) -> RecursionId {
+    pub(super) fn get_recursion_id(&self, ty: &'cx ty::Ty<'cx>) -> RecursionId {
         if ty.kind.is_object() && !ty.is_object_or_array_literal() {
             // if ty.kind.is_object_reference()
             if let Some(symbol) = ty.symbol() {
@@ -52,6 +52,7 @@ impl<'cx> TyChecker<'cx> {
         if ty.kind.is_intersection() {
             todo!()
         }
+
         let id = self.get_recursion_id(ty);
         let mut count = 0;
         let mut last_type_id = 0;

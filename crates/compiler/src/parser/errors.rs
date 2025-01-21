@@ -133,6 +133,7 @@ pub(super) struct KindExpected {
 
 #[derive(Error, Diagnostic, DiagnosticExt, Debug)]
 #[error("Expected to find a '{expected}' to match the '{found}' token here.")]
+#[diagnostic(severity(Advice))]
 pub(super) struct ExpectedToFindAToMatchTheBTokenHere {
     #[label(primary)]
     pub span: Span,

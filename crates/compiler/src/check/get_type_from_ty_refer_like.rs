@@ -212,7 +212,6 @@ impl<'cx> TyChecker<'cx> {
         if let Some(ty) = self.get_node_links(node.id()).get_resolved_ty() {
             return ty;
         }
-        // TODO: cache
         let name = node.name();
         let ty = if let ast::EntityNameKind::Ident(ident) = name.kind {
             if ident.name == keyword::IDENT_BOOLEAN {
@@ -235,6 +234,8 @@ impl<'cx> TyChecker<'cx> {
                 self.null_ty()
             } else {
                 let symbol = self.resolve_ty_refer_name(ident);
+                self.get_mut_node_links(node.id())
+                    .set_resolved_symbol(symbol);
                 self.get_ty_refer_type(node, symbol)
             }
         } else {

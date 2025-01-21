@@ -28,7 +28,7 @@ impl<'cx> TyChecker<'cx> {
 
         if let Some(impls) = class.implements() {
             for ty in impls.list {
-                let _ = self.get_ty_from_ty_reference(*ty);
+                self.check_ty_refer_ty(ty);
             }
         }
 

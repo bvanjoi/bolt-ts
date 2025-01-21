@@ -1,4 +1,7 @@
-use crate::bind::SymbolID;
+use rustc_hash::FxHashMap;
+
+use crate::bind::{Symbol, SymbolID, SymbolName};
+use crate::check::links::TyLinks;
 use crate::ty::{self, ObjectFlags, TyID, UnionReduction};
 
 use super::Ternary;
@@ -73,6 +76,34 @@ impl<'cx> TyChecker<'cx> {
             ty::ObjectTyKind::Anonymous(ty),
             object_flags | ObjectFlags::ANONYMOUS,
         );
+        ty
+    }
+
+    pub(super) fn create_anonymous_ty_with_resolved(
+        &mut self,
+        symbol: Option<SymbolID>,
+        object_flags: ObjectFlags,
+        members: &'cx FxHashMap<SymbolName, SymbolID>,
+        call_sigs: ty::Sigs<'cx>,
+        ctor_sigs: ty::Sigs<'cx>,
+        index_infos: ty::IndexInfos<'cx>,
+    ) -> &'cx ty::Ty<'cx> {
+        let symbol = symbol.unwrap_or(Symbol::ERR);
+        let ty = self.create_anonymous_ty(symbol, object_flags);
+        let props = self.get_props_from_members(members);
+        let prev = self.ty_links.insert(
+            ty.id,
+            TyLinks::default().with_structured_members(self.alloc(ty::StructuredMembers {
+                members,
+                props,
+                call_sigs,
+                ctor_sigs,
+                index_infos,
+                base_tys: &[],
+                base_ctor_ty: None,
+            })),
+        );
+        assert!(prev.is_none());
         ty
     }
 

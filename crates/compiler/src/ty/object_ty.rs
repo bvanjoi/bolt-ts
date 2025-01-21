@@ -129,6 +129,20 @@ pub struct ReferenceTy<'cx> {
     pub resolved_ty_args: super::Tys<'cx>,
 }
 
+impl<'cx> ReferenceTy<'cx> {
+    pub fn deep_target(&self) -> &'cx Ty<'cx> {
+        let mut ty = self.target;
+        loop {
+            if let Some(reference) = ty.kind.as_object_reference() {
+                ty = reference.target;
+            } else {
+                break;
+            }
+        }
+        ty
+    }
+}
+
 #[derive(Debug, Clone, Copy)]
 pub struct IndexInfo<'cx> {
     pub symbol: SymbolID,

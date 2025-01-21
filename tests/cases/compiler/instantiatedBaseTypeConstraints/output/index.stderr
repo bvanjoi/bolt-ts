@@ -1,0 +1,5 @@
+  × Type 'C' is not assignable to type 'Foo'.
+    ╭─[../../tests/cases/compiler/instantiatedBaseTypeConstraints/index.ts:12:24]
+ 12 │ C
+    · ─
+    ╰────

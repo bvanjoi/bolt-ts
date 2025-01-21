@@ -235,6 +235,18 @@ impl<'cx> Node<'cx> {
         }
     }
 
+    pub fn ty_args(&self) -> Option<&'cx super::Tys<'cx>> {
+        macro_rules! ty_args {
+            ($($node_kind:ident),* $(,)?) => {
+                match self {
+                    $(Node::$node_kind(n) => n.ty_args,)*
+                    _ => None,
+                }
+            };
+        }
+        ty_args!(ReferTy)
+    }
+
     pub fn ty_params(&self) -> Option<super::TyParams<'cx>> {
         macro_rules! ty_params {
             ($($node_kind:ident),* $(,)?) => {

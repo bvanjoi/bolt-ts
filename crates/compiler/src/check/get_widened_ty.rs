@@ -2,7 +2,6 @@ use crate::bind::SymbolFlags;
 use crate::bind::SymbolID;
 use crate::ty::ObjectFlags;
 
-use super::links::TyLinks;
 use super::ty;
 use super::TyChecker;
 
@@ -69,23 +68,15 @@ impl<'cx> TyChecker<'cx> {
 
         let object_flags =
             ty.get_object_flags() & (ObjectFlags::JS_LITERAL | ObjectFlags::NON_INFERRABLE_TYPE);
-        let ty = self.create_anonymous_ty(ty.symbol().unwrap(), object_flags);
 
-        let props = self.get_props_from_members(&members);
-        let prev = self.ty_links.insert(
-            ty.id,
-            TyLinks::default().with_structured_members(self.alloc(ty::StructuredMembers {
-                members: self.alloc(members),
-                base_tys: &[],
-                base_ctor_ty: None,
-                call_sigs: &[],
-                ctor_sigs: &[],
-                index_infos: &[],
-                props,
-            })),
-        );
-        assert!(prev.is_none());
-        ty
+        self.create_anonymous_ty_with_resolved(
+            ty.symbol(),
+            object_flags,
+            self.alloc(members),
+            &[],
+            &[],
+            &[],
+        )
     }
 
     fn get_widened_lit_ty_for_init(&mut self, ty: &'cx ty::Ty<'cx>) -> &'cx ty::Ty<'cx> {

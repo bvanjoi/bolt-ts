@@ -470,15 +470,10 @@ impl<'cx> TyChecker<'cx> {
         let Some(refer) = ty.kind.as_object_reference() else {
             unreachable!()
         };
-        fn depp_target<'cx>(ty: &'cx ty::Ty<'cx>) -> Option<&'cx ty::InterfaceTy<'cx>> {
-            if let Some(refer) = ty.kind.as_object_reference() {
-                depp_target(refer.target)
-            } else {
-                // TODO: handle more case
-                ty.kind.as_object_interface()
-            }
-        }
-        let Some(i) = depp_target(ty) else { return };
+        let Some(i) = refer.deep_target().kind.as_object_interface() else {
+            // TODO: handle more case
+            return;
+        };
         let ty_params = {
             let mut ty_params = i.ty_params.unwrap().to_vec();
             ty_params.push(i.this_ty.unwrap());

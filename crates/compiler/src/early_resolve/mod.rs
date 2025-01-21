@@ -434,6 +434,9 @@ impl<'cx> Resolver<'cx, '_> {
         self.resolve_class_like(class);
     }
     fn resolve_interface_decl(&mut self, interface: &'cx ast::InterfaceDecl<'cx>) {
+        if let Some(ty_params) = interface.ty_params {
+            self.resolve_ty_params(ty_params);
+        }
         if let Some(extends) = interface.extends {
             for ty in extends.list {
                 self.resolve_refer_ty(ty);
