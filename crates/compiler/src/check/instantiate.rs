@@ -212,7 +212,7 @@ impl<'cx> TyChecker<'cx> {
         let ty_args = self.fill_missing_ty_args(
             ty_args,
             sig.ty_params,
-            self.get_min_ty_args_count(sig.ty_params.unwrap_or_default()),
+            self.get_min_ty_args_count(sig.ty_params),
         );
         let sig = self.get_sig_instantiation_without_filling_ty_args(sig, ty_args);
         if let Some(inferred_ty_params) = inferred_ty_params {
@@ -221,7 +221,7 @@ impl<'cx> TyChecker<'cx> {
         sig
     }
 
-    fn create_sig_instantiation(
+    pub(super) fn create_sig_instantiation(
         &mut self,
         sig: &'cx ty::Sig<'cx>,
         ty_args: Option<ty::Tys<'cx>>,
@@ -254,17 +254,20 @@ impl<'cx> TyChecker<'cx> {
         args: ty::Tys<'cx>,
     ) -> &'cx ty::Ty<'cx> {
         let ty = self.get_declared_ty_of_symbol(symbol);
-        let Some(params) = self.get_symbol_links(symbol).get_ty_params() else {
+        let Some(ty_params) = self.get_symbol_links(symbol).get_ty_params() else {
             unreachable!()
         };
-        let min_params_count = self.get_min_ty_args_count(params);
+        let min_params_count = self.get_min_ty_args_count(Some(ty_params));
         // TODO: cache
-        let args = self.fill_missing_ty_args(Some(args), Some(params), min_params_count);
-        let mapper = self.create_ty_mapper_with_optional_target(params, args);
+        let args = self.fill_missing_ty_args(Some(args), Some(ty_params), min_params_count);
+        let mapper = self.create_ty_mapper_with_optional_target(ty_params, args);
         self.instantiate_ty_with_alias(ty, mapper)
     }
 
-    pub(super) fn get_min_ty_args_count(&self, ty_params: ty::Tys<'cx>) -> usize {
+    pub(super) fn get_min_ty_args_count(&self, ty_params: Option<ty::Tys<'cx>>) -> usize {
+        let Some(ty_params) = ty_params else {
+            return 0;
+        };
         let mut min = 0;
         for (i, param) in ty_params.iter().enumerate() {
             let param = param.kind.expect_param();
@@ -297,10 +300,13 @@ impl<'cx> TyChecker<'cx> {
                 }
             }
 
+            let base_default_ty = self.any_ty();
             for param in ty_params.iter().skip(args_len) {
-                let param = param.kind.expect_param();
-                let default_ty = self.get_default_ty_from_ty_param(param);
-                result.push(default_ty);
+                if let Some(default_ty) = self.get_default_ty_from_ty_param(param) {
+                    result.push(default_ty);
+                } else {
+                    result.push(base_default_ty);
+                }
             }
             Some(self.alloc(result))
         } else {
@@ -308,12 +314,14 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
-    fn get_default_ty_from_ty_param(&mut self, param: &'cx ty::ParamTy) -> &'cx ty::Ty<'cx> {
+    pub(super) fn get_default_ty_from_ty_param(
+        &mut self,
+        ty: &'cx ty::Ty<'cx>,
+    ) -> Option<&'cx ty::Ty<'cx>> {
+        let param = ty.kind.expect_param();
         // TODO: cache `self.get_default_of_param(param_ty, id)`
-        let Some(default) = self.ty_param_node(param).default else {
-            unreachable!()
-        };
-        self.get_ty_from_type_node(default)
+        let default = self.ty_param_node(param).default?;
+        Some(self.get_ty_from_type_node(default))
     }
 
     fn has_ty_param_default(&self, ty_param: &'cx ty::ParamTy) -> bool {

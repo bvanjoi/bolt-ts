@@ -164,6 +164,8 @@ impl<'cx> TyChecker<'cx> {
         if let Some(_) = ty.kind.as_union() {
             // TODO:
             ty
+        } else if ty.kind.is_never() {
+            self.never_ty()
         } else if f(ty) {
             ty
         } else {
@@ -235,6 +237,29 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
+    fn has_correct_ty_arg_arity(
+        &mut self,
+        candidate: &'cx Sig<'cx>,
+        ty_args: Option<&'cx ast::Tys<'cx>>,
+    ) -> bool {
+        let num_ty_params = candidate
+            .ty_params
+            .map(|ty_params| ty_params.len())
+            .unwrap_or_default();
+        let min_ty_args = self.get_min_ty_args_count(candidate.ty_params);
+        if let Some(ty_args) = ty_args {
+            let ty_args = ty_args.list;
+            if ty_args.is_empty() {
+                true
+            } else {
+                let ty_args_len = ty_args.len();
+                ty_args_len >= min_ty_args && ty_args_len <= num_ty_params
+            }
+        } else {
+            true
+        }
+    }
+
     fn has_correct_arity(&mut self, expr: &impl CallLikeExpr<'cx>, sig: &'cx Sig<'cx>) -> bool {
         let param_count = sig.get_param_count(self);
         let min_args = self.get_min_arg_count(sig);
@@ -256,6 +281,9 @@ impl<'cx> TyChecker<'cx> {
 
         for i in arg_count..min_args {
             let ty = self.get_ty_at_pos(sig, i);
+            if self.filter_type(ty, |ty| ty.kind.is_void()).kind.is_never() {
+                return false;
+            }
         }
 
         true
@@ -329,7 +357,9 @@ impl<'cx> TyChecker<'cx> {
             }
         } else {
             for candidate in candidates {
-                if !self.has_correct_arity(expr, candidate) {
+                if !self.has_correct_ty_arg_arity(candidate, expr.ty_args())
+                    || !self.has_correct_arity(expr, candidate)
+                {
                     continue;
                 }
                 let mut check_candidate = *candidate;
@@ -412,12 +442,14 @@ impl<'cx> TyChecker<'cx> {
         let is_single = candidates.len() == 1;
         let is_single_non_generic_candidate = is_single && candidates[0].ty_params.is_none();
 
-        let mut check_mode = CheckMode::empty();
+        let mut argument_check_mode = CheckMode::empty();
         if !is_single_non_generic_candidate
             && args.iter().any(|arg| self.is_context_sensitive(arg.id()))
         {
-            check_mode |= CheckMode::SKIP_CONTEXT_SENSITIVE;
+            argument_check_mode |= CheckMode::SKIP_CONTEXT_SENSITIVE;
         }
+
+        let args = self.get_effective_call_args(expr);
 
         let mut res = None;
 
@@ -427,7 +459,7 @@ impl<'cx> TyChecker<'cx> {
                 candidates,
                 RelationKind::Subtype,
                 is_single_non_generic_candidate,
-                check_mode,
+                argument_check_mode,
             ) {
                 return sig;
             }
@@ -437,14 +469,22 @@ impl<'cx> TyChecker<'cx> {
                 candidates,
                 RelationKind::Assignable,
                 is_single_non_generic_candidate,
-                check_mode,
+                argument_check_mode,
             );
         }
+
+        if let Some(result) = res {
+            return result;
+        }
+
+        let (best_match_idx, candidate) =
+            self.get_candidate_for_overload_failure(expr, candidates, args);
 
         for sig in candidates {
             if sig.min_args_count < min_required_params {
                 min_required_params = sig.min_args_count;
             }
+            // max_required_params = usize::max(max, sig.get_param_count(self));
             max_required_params = if sig.has_rest_param() {
                 usize::MAX
             } else {
@@ -452,9 +492,7 @@ impl<'cx> TyChecker<'cx> {
             }
         }
 
-        // FIXME: overload
-        let candidate = candidates[0];
-
+        let prev_errors = self.diags.len();
         if min_required_params <= args.len() && args.len() <= max_required_params {
             // arguments had been check in `choose_overload`
         } else if min_required_params == max_required_params {
@@ -507,6 +545,190 @@ impl<'cx> TyChecker<'cx> {
             self.push_error(error);
         }
 
-        res.unwrap_or(candidate)
+        if prev_errors < self.diags.len() {
+            return candidate;
+        }
+
+        let sigs_with_correct_ty_arg_arity = candidates
+            .into_iter()
+            .filter(|sig| self.has_correct_ty_arg_arity(sig, expr.ty_args()))
+            .cloned()
+            .collect::<thin_vec::ThinVec<_>>();
+        if sigs_with_correct_ty_arg_arity.is_empty() {
+            self.get_ty_arg_arity_error(expr, &candidates, expr.ty_args());
+        } else {
+            self.get_arg_arity_error(expr, &sigs_with_correct_ty_arg_arity, args);
+        }
+
+        candidate
+    }
+
+    fn get_ty_arg_arity_error(
+        &mut self,
+        expr: &impl CallLikeExpr<'cx>,
+        sigs: &[&'cx Sig<'cx>],
+        ty_args: Option<&'cx ast::Tys<'cx>>,
+    ) {
+        let ty_arg_count = ty_args
+            .map(|ty_args| ty_args.list.len())
+            .unwrap_or_default();
+        if sigs.len() == 1 {
+            let sig = sigs[0];
+            let min = self.get_min_ty_args_count(sig.ty_params);
+            let max = sig
+                .ty_params
+                .map(|ty_params| ty_params.len())
+                .unwrap_or_default();
+            let x = if min == max {
+                super::ExpectedArgsCount::Count(min)
+            } else {
+                super::ExpectedArgsCount::Range { lo: min, hi: max }
+            };
+            let span = ty_args.map(|ty_args| ty_args.span).unwrap_or_else(|| {
+                let hi = expr.callee().span().hi;
+                Span::new(hi, hi, expr.span().module)
+            });
+            let error = errors::ExpectedXTyArgsButGotY {
+                span,
+                x,
+                y: ty_arg_count,
+            };
+            self.push_error(Box::new(error));
+        }
+    }
+
+    fn get_arg_arity_error(
+        &mut self,
+        expr: &impl CallLikeExpr<'cx>,
+        sigs: &[&'cx Sig<'cx>],
+        args: ast::Exprs<'cx>,
+    ) {
+        let mut min = usize::MAX;
+        let mut max = usize::MIN;
+        let mut max_below = usize::MIN;
+        let mut min_above = usize::MAX;
+        for sig in sigs {
+            let max_param = sig.get_param_count(self);
+            if sig.min_args_count < min {
+                min = sig.min_args_count;
+            }
+            max = usize::max(max, max_param);
+            if sig.min_args_count < args.len() && sig.min_args_count > max_below {
+                max_below = sig.min_args_count;
+            }
+            if args.len() < max_param && max_param < min_above {
+                min_above = max_param;
+            }
+        }
+
+        let has_rest_param = sigs.iter().any(|sig| self.has_effective_rest_param(sig));
+        let param_range = if has_rest_param {
+            (min, min)
+        } else if min < max {
+            (min, max)
+        } else {
+            (min, min)
+        };
+
+        if min < args.len() && args.len() < max {
+        } else if args.len() < min {
+            let (min, max) = param_range;
+            if min == max {
+                let error = errors::ExpectedXArgsButGotY {
+                    span: expr.span(),
+                    x: super::ExpectedArgsCount::Count(min),
+                    y: args.len(),
+                };
+                self.push_error(Box::new(error));
+            }
+        } else {
+        }
+    }
+
+    fn get_candidate_for_overload_failure(
+        &mut self,
+        expr: &impl CallLikeExpr<'cx>,
+        candidates: Sigs<'cx>,
+        args: ast::Exprs<'cx>,
+    ) -> (usize, &'cx ty::Sig<'cx>) {
+        assert!(!candidates.is_empty());
+        // self.check_node_deferred(expr.id());
+        if candidates.len() == 1
+            || candidates
+                .iter()
+                .any(|c| c.ty_params.is_some_and(|ty_params| !ty_params.is_empty()))
+        {
+            self.pick_longest_candidate_sig(expr, candidates, args)
+        } else {
+            (0, candidates[0])
+        }
+    }
+
+    fn get_longest_candidate_index(&mut self, candidates: Sigs<'cx>, args_count: usize) -> usize {
+        let mut max_params_index = usize::MAX;
+        let mut max_params = usize::MAX;
+
+        for (i, candidate) in candidates.iter().enumerate() {
+            let param_count = candidate.get_param_count(self);
+            if param_count >= args_count || self.has_effective_rest_param(candidate) {
+                return i;
+            }
+            if max_params == usize::MAX || param_count > max_params {
+                max_params = param_count;
+                max_params_index = i;
+            }
+        }
+
+        max_params_index
+    }
+
+    fn get_ty_args_from_nodes(
+        &mut self,
+        ty_args: &'cx ast::Tys<'cx>,
+        ty_params: ty::Tys<'cx>,
+    ) -> ty::Tys<'cx> {
+        let mut ty_args = ty_args
+            .list
+            .iter()
+            .map(|ty| self.get_ty_from_type_node(ty))
+            .collect::<Vec<_>>();
+        while ty_args.len() > ty_params.len() {
+            ty_args.pop();
+        }
+        while ty_args.len() < ty_params.len() {
+            let ty_param = ty_params[ty_args.len()];
+            let default_ty = self
+                .get_default_ty_from_ty_param(ty_param)
+                .or_else(|| self.get_constraint_of_ty_param(ty_param))
+                .unwrap_or_else(|| self.any_ty());
+            ty_args.push(default_ty);
+        }
+
+        self.alloc(ty_args)
+    }
+
+    fn pick_longest_candidate_sig(
+        &mut self,
+        expr: &impl CallLikeExpr<'cx>,
+        candidates: Sigs<'cx>,
+        args: ast::Exprs<'cx>,
+    ) -> (usize, &'cx Sig<'cx>) {
+        let best_index = self.get_longest_candidate_index(candidates, args.len());
+        let candidate = candidates[best_index];
+        let Some(ty_params) = candidate.ty_params else {
+            return (best_index, candidate);
+        };
+        if ty_params.is_empty() {
+            return (best_index, candidate);
+        }
+
+        let instantiated = if let Some(ty_args) = expr.ty_args() {
+            let ty_args = self.get_ty_args_from_nodes(ty_args, ty_params);
+            self.create_sig_instantiation(candidate, Some(ty_args))
+        } else {
+            // TODO: infer
+            candidate
+        };
+        (best_index, instantiated)
     }
 }

@@ -142,7 +142,7 @@ impl<'cx> TyChecker<'cx> {
                 .ty_args()
                 .map(|args| args.list.len())
                 .unwrap_or_default();
-            let min_ty_arg_count = self.get_min_ty_args_count(ty_params);
+            let min_ty_arg_count = self.get_min_ty_args_count(Some(ty_params));
             if num_ty_args < min_ty_arg_count || num_ty_args > ty_params.len() {
                 let error: crate::Diag = if min_ty_arg_count == ty_params.len() {
                     Box::new(errors::GenericTypeXRequiresNTypeArguments {

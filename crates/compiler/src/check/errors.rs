@@ -52,6 +52,15 @@ pub(super) struct ExpectedXArgsButGotY {
 }
 
 #[derive(Error, Diagnostic, DiagnosticExt, Debug)]
+#[error("Expected {x} type arguments, but got {y}.")]
+pub(super) struct ExpectedXTyArgsButGotY {
+    #[label(primary)]
+    pub span: Span,
+    pub x: crate::check::ExpectedArgsCount,
+    pub y: usize,
+}
+
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
 #[error("Expected at least {x} arguments, but got {y}.")]
 pub(super) struct ExpectedAtLeastXArgsButGotY {
     #[label(primary)]

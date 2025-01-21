@@ -506,7 +506,7 @@ impl<'cx> TyChecker<'cx> {
         }
         let sig = self.new_sig(ty::Sig {
             flags,
-            ty_params: None,
+            ty_params: i.local_ty_params,
             params: &[],
             min_args_count: 0,
             ret: None,

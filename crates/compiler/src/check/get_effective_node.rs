@@ -1,4 +1,4 @@
-use crate::{ast, ty};
+use crate::{ast, ir, ty};
 
 use super::TyChecker;
 
@@ -54,7 +54,14 @@ impl<'cx> TyChecker<'cx> {
         } else {
             None
         };
-        let min_ty_argument_count = self.get_min_ty_args_count(ty_params);
+        let min_ty_argument_count = self.get_min_ty_args_count(Some(ty_params));
         self.fill_missing_ty_args(ty_args, Some(ty_params), min_ty_argument_count)
+    }
+
+    pub(super) fn get_effective_call_args(
+        &mut self,
+        expr: &impl ir::CallLike<'cx>,
+    ) -> ast::Exprs<'cx> {
+        expr.args()
     }
 }
