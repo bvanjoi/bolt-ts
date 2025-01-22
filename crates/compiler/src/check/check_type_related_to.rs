@@ -1,3 +1,4 @@
+use bitflags::Flags;
 use bolt_ts_utils::fx_hashset_with_capacity;
 use rustc_hash::FxHashSet;
 
@@ -399,8 +400,14 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
             // } else {
             // }
             self.each_type_related_to_type(source, s.tys, target, report_error, intersection_state)
-        } else if target.kind.is_union() {
-            self.ty_related_to_some_ty(source, target, report_error)
+        } else if let Some(target_union) = target.kind.as_union() {
+            self.ty_related_to_some_ty(
+                source,
+                target,
+                target_union,
+                report_error,
+                intersection_state,
+            )
         } else {
             Ternary::FALSE
         }
@@ -410,17 +417,31 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
         &mut self,
         source: &'cx Ty<'cx>,
         target: &'cx Ty<'cx>,
+        target_union: &'cx ty::UnionTy<'cx>,
         report_error: bool,
+        intersection_state: IntersectionState,
     ) -> Ternary {
         if let Some(unions) = target.kind.as_union() {
             if unions.tys.contains(&source) {
                 return Ternary::TRUE;
             }
-            // TODO: compare
-            Ternary::FALSE
-        } else {
-            Ternary::FALSE
+            // TODO:
         }
+
+        for ty in target_union.tys {
+            let related = self.is_related_to(
+                source,
+                ty,
+                RecursionFlags::TARGET,
+                false,
+                intersection_state,
+            );
+            if related != Ternary::FALSE {
+                return related;
+            }
+        }
+
+        Ternary::FALSE
     }
 
     fn structured_related_to(
@@ -609,7 +630,7 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
         }
 
         for info in self.c.get_index_infos_of_ty(source) {
-            if self.c.is_applicable_index_ty(info.key_ty, target.key_ty) != Ternary::FALSE {
+            if self.c.is_applicable_index_ty(info.key_ty, target.key_ty) {
                 let related = self.index_info_related_to(info, target, intersection_state);
                 if related == Ternary::FALSE {
                     return Ternary::FALSE;

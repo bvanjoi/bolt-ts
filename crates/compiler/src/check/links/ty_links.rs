@@ -10,4 +10,5 @@ links!(
     (immediate_base_constraint, &'cx ty::Ty<'cx>),
     (param_ty_mapper, &'cx ty::TyMapper<'cx>),
     (param_ty_constraint, &'cx ty::Ty<'cx>),
+    (non_existent_prop_checked, bool)
 );

@@ -45,6 +45,7 @@ use bolt_ts_span::Span;
 use bolt_ts_utils::{fx_hashmap_with_capacity, no_hashmap_with_capacity};
 use cycle_check::ResolutionKey;
 use get_contextual::ContextFlags;
+use get_ty::IndexFlags;
 use infer::{InferenceFlags, InferencePriority};
 use links::{SigLinks, TyLinks};
 use rustc_hash::{FxBuildHasher, FxHashMap};
@@ -147,6 +148,7 @@ pub struct TyChecker<'cx> {
     pub p: &'cx Parser<'cx>,
     // === global ===
     boolean_ty: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
+    string_or_number_ty: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
     string_number_symbol_ty: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
     typeof_ty: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
     tuple_shapes: nohash_hasher::IntMap<u32, &'cx TupleShape<'cx>>,
@@ -244,6 +246,7 @@ impl<'cx> TyChecker<'cx> {
             no_constraint_ty: Default::default(),
             boolean_ty: Default::default(),
             typeof_ty: Default::default(),
+            string_or_number_ty: Default::default(),
             string_number_symbol_ty: Default::default(),
             global_number_ty: Default::default(),
             global_string_ty: Default::default(),
@@ -294,6 +297,15 @@ impl<'cx> TyChecker<'cx> {
         );
         this.type_name.insert(boolean_ty.id, "boolean".to_string());
         this.boolean_ty.set(boolean_ty).unwrap();
+
+        let string_or_number_ty = this.create_union_type(
+            vec![
+                this.string_ty(),
+                this.number_ty(), /* TODO: symbol_ty */
+            ],
+            ty::UnionReduction::Lit,
+        );
+        this.string_or_number_ty.set(string_or_number_ty).unwrap();
 
         let string_number_symbol_ty = this.create_union_type(
             vec![
@@ -437,8 +449,8 @@ impl<'cx> TyChecker<'cx> {
             Class(class) => self.check_class_decl(class),
             Interface(interface) => self.check_interface_decl(interface),
             Namespace(ns) => self.check_ns_decl(ns),
+            Type(ty) => self.check_ty_decl(ty),
             Empty(_) => {}
-            Type(_) => {}
             Throw(_) => {}
             Enum(_) => {}
             Import(_) => {}
@@ -454,6 +466,14 @@ impl<'cx> TyChecker<'cx> {
         };
     }
 
+    fn check_ty_decl(&mut self, ty: &'cx ast::TypeDecl<'cx>) {
+        if let Some(ty_params) = ty.ty_params {
+            self.check_ty_params(ty_params);
+        }
+
+        self.check_ty(ty.ty);
+    }
+
     fn check_ns_decl(&mut self, ns: &'cx ast::NsDecl<'cx>) {
         if let Some(block) = ns.block {
             self.check_block(block);
@@ -464,8 +484,10 @@ impl<'cx> TyChecker<'cx> {
         &mut self,
         source: &'cx ty::Ty<'cx>,
         target: &'cx ty::Ty<'cx>,
-    ) -> Ternary {
-        self.is_type_assignable_to(source, target)
+    ) -> bool {
+        self.is_type_assignable_to(source, target) != Ternary::FALSE
+            || (target == self.string_ty()
+                && self.is_type_assignable_to(source, self.number_ty()) != Ternary::FALSE)
     }
 
     fn get_base_constraint_of_ty(&self, ty: &'cx ty::Ty<'cx>) -> Option<&'cx ty::Ty<'cx>> {
@@ -506,7 +528,7 @@ impl<'cx> TyChecker<'cx> {
         self.index_infos_of_ty(ty)
             .iter()
             .filter_map(|info| {
-                if self.is_applicable_index_ty(prop_name_ty, info.key_ty) != Ternary::FALSE {
+                if self.is_applicable_index_ty(prop_name_ty, info.key_ty) {
                     Some(*info)
                 } else {
                     None
@@ -576,21 +598,23 @@ impl<'cx> TyChecker<'cx> {
 
     fn get_lit_ty_from_prop(&mut self, prop: SymbolID) -> &'cx ty::Ty<'cx> {
         let symbol = self.binder.symbol(prop);
-        if symbol.flags.intersects(SymbolFlags::PROPERTY) {
-            let prop = prop.decl(self.binder);
-            let name = match self.p.node(prop) {
-                ast::Node::ClassPropElem(prop) => prop.name,
-                ast::Node::ObjectPropMember(prop) => prop.name,
-                ast::Node::PropSignature(prop) => prop.name,
-                ast::Node::ParamDecl(_) => return self.string_ty(),
-                _ => unreachable!("prop: {:#?}", self.p.node(prop)),
+        let Some(prop) = prop.opt_decl(self.binder) else {
+            return if let Some(name) = symbol.name.as_atom() {
+                self.get_string_literal_type(name)
+            } else {
+                self.never_ty()
             };
-            self.get_lit_ty_from_prop_name(name)
-        } else if symbol.flags.intersects(SymbolFlags::FUNCTION) {
-            self.string_ty()
-        } else {
-            self.undefined_ty()
-        }
+        };
+        let name = match self.p.node(prop) {
+            ast::Node::ClassPropElem(prop) => prop.name,
+            ast::Node::ObjectPropMember(prop) => prop.name,
+            ast::Node::PropSignature(prop) => prop.name,
+            ast::Node::ClassMethodElem(prop) => prop.name,
+            ast::Node::MethodSignature(prop) => prop.name,
+            ast::Node::ParamDecl(_) => return self.string_ty(),
+            _ => unreachable!("prop: {:#?}", self.p.node(prop)),
+        };
+        self.get_lit_ty_from_prop_name(name)
     }
 
     fn check_index_constraints(&mut self, ty: &'cx ty::Ty<'cx>, symbol: SymbolID) {
@@ -1129,6 +1153,16 @@ impl<'cx> TyChecker<'cx> {
         prop_node: &'cx ast::Ident,
         containing_ty: &'cx ty::Ty<'cx>,
     ) {
+        if self
+            .get_ty_links(containing_ty.id)
+            .get_non_existent_prop_checked()
+            .unwrap_or_default()
+        {
+            return;
+        }
+        self.get_mut_ty_links(containing_ty.id)
+            .set_non_existent_prop_checked(true);
+
         let missing_prop = pprint_ident(prop_node, self.atoms);
 
         if self.type_has_static_prop(prop_node, containing_ty) {
@@ -1146,7 +1180,8 @@ impl<'cx> TyChecker<'cx> {
                 }),
             );
             self.push_error(Box::new(error));
-        } else if let Some(s) = containing_ty.symbol() {
+        } else if containing_ty != self.undefined_ty() {
+            // FIXME: remove `containing_ty != self.undefined_ty()`
             let error = errors::PropertyXDoesNotExistOnTypeY {
                 span: prop_node.span,
                 prop: missing_prop,
@@ -1237,6 +1272,7 @@ impl<'cx> TyChecker<'cx> {
                 }
             }
             ast::PrefixUnaryOp::Tilde => self.number_ty(),
+            ast::PrefixUnaryOp::Excl => self.boolean_ty(),
         }
     }
 
@@ -1711,7 +1747,7 @@ impl<'cx> TyChecker<'cx> {
             Shr => todo!(),
             UShr => todo!(),
             BitAnd => todo!(),
-            Instanceof => todo!(),
+            Instanceof => self.boolean_ty(),
             In => self.check_in_expr(left, left_ty, right, right_ty),
             Satisfies => todo!(),
         }
@@ -1761,8 +1797,48 @@ impl<'cx> TyChecker<'cx> {
         use ast::TyKind::*;
         match ty.kind {
             Refer(n) => self.check_ty_refer_ty(n),
+            IndexedAccess(n) => self.check_indexed_access_ty(n),
             _ => (),
         }
+    }
+
+    fn check_indexed_access_index_ty(
+        &mut self,
+        ty: &'cx ty::Ty<'cx>,
+        n: &'cx ast::IndexedAccessTy<'cx>,
+    ) -> &'cx ty::Ty<'cx> {
+        let Some(indexed_access_ty) = ty.kind.as_indexed_access() else {
+            return ty;
+        };
+        let object_index_ty = self.get_index_ty(indexed_access_ty.object_ty, IndexFlags::empty());
+        let has_number_index_info = self
+            .get_index_info_of_ty(indexed_access_ty.object_ty, self.number_ty())
+            .is_some();
+        if self.every_type(indexed_access_ty.index_ty, |this, t| {
+            this.is_type_assignable_to(t, object_index_ty) != Ternary::FALSE
+                || (has_number_index_info && this.is_applicable_index_ty(t, this.number_ty()))
+        }) {
+            return ty;
+        }
+
+        if indexed_access_ty.object_ty.kind.is_generic_object() {
+            // TODO:
+        }
+
+        let error = errors::TypeCannotBeUsedToIndexType {
+            span: n.span,
+            ty: self.print_ty(indexed_access_ty.index_ty).to_string(),
+            index_ty: self.print_ty(indexed_access_ty.object_ty).to_string(),
+        };
+        self.push_error(Box::new(error));
+        self.error_ty()
+    }
+
+    fn check_indexed_access_ty(&mut self, n: &'cx ast::IndexedAccessTy<'cx>) {
+        self.check_ty(n.ty);
+        self.check_ty(n.index_ty);
+        let ty = self.get_ty_from_indexed_access_node(n);
+        self.check_indexed_access_index_ty(ty, n);
     }
 
     fn check_ty_params(&mut self, ty_params: ast::TyParams<'cx>) {
@@ -1923,6 +1999,30 @@ impl<'cx> TyChecker<'cx> {
             ty
         }
     }
+
+    fn get_key_prop_name(&self, union_ty: &'cx ty::UnionTy<'cx>) -> Option<SymbolName> {
+        None
+    }
+
+    fn get_ty_of_prop_of_ty(
+        &mut self,
+        ty: &'cx ty::Ty<'cx>,
+        name: SymbolName,
+    ) -> Option<&'cx ty::Ty<'cx>> {
+        self.get_prop_of_ty(ty, name)
+            .map(|prop| self.get_type_of_symbol(prop))
+    }
+
+    fn get_matching_union_constituent_for_ty(
+        &mut self,
+        union_ty: &'cx ty::UnionTy<'cx>,
+        ty: &'cx ty::Ty<'cx>,
+    ) -> Option<&'cx ty::Ty<'cx>> {
+        let key_prop_name = self.get_key_prop_name(union_ty);
+        let prop_ty = key_prop_name.and_then(|name| self.get_ty_of_prop_of_ty(ty, name));
+        // TODO: prop_ty.and_then(|ty| self.)
+        None
+    }
 }
 
 macro_rules! global_ty {
@@ -1940,6 +2040,7 @@ macro_rules! global_ty {
 
 global_ty!(
     boolean_ty,
+    string_or_number_ty,
     string_number_symbol_ty,
     any_fn_ty,
     circular_constraint_ty,

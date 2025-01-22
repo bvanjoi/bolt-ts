@@ -337,12 +337,22 @@ impl<'cx> TyChecker<'cx> {
         tys
     }
 
+    fn get_tuple_base_ty(&mut self, ty: &'cx ty::Ty<'cx>) -> &'cx ty::Ty<'cx> {
+        self.create_array_ty(self.never_ty())
+    }
+
     fn get_base_tys(&mut self, ty: &'cx ty::Ty<'cx>) -> ty::Tys<'cx> {
         if let Some(tys) = self.get_ty_links(ty.id).get_resolved_base_tys() {
             return tys;
         }
-        let id = ty.symbol().unwrap();
         if self.push_ty_resolution(ResolutionKey::ResolvedBaseTypes(ty.id)) {
+            if ty.kind.is_tuple() || ty.kind.is_object_tuple() {
+                let base_ty = self.get_tuple_base_ty(ty);
+                let tys = self.alloc(vec![base_ty]);
+                self.get_mut_ty_links(ty.id).set_resolved_base_tys(tys);
+                return tys;
+            }
+            let id = ty.symbol().unwrap();
             let symbol = self.binder.symbol(id);
             let mut cycle_reported = false;
             let tys = if symbol.flags.intersects(SymbolFlags::CLASS) {
@@ -379,16 +389,15 @@ impl<'cx> TyChecker<'cx> {
         if self.get_ty_links(ty.id).get_structured_members().is_some() {
             return;
         }
-        let symbol = ty.symbol().unwrap();
 
         let base_tys = self.get_base_tys(ty);
 
-        let base_ctor_ty = if self
-            .binder
-            .symbol(symbol)
-            .flags
-            .intersects(SymbolFlags::CLASS)
-        {
+        let base_ctor_ty = if ty.symbol().is_some_and(|symbol| {
+            self.binder
+                .symbol(symbol)
+                .flags
+                .intersects(SymbolFlags::CLASS)
+        }) {
             Some(self.get_base_constructor_type_of_class(ty))
         } else {
             None
@@ -399,7 +408,10 @@ impl<'cx> TyChecker<'cx> {
         let mut ctor_sigs;
         let mut index_infos;
         if Self::range_eq(ty_params, ty_args, 0, ty_params.len()) {
-            members = self.members(symbol).clone();
+            members = ty
+                .symbol()
+                .map(|symbol| self.members(symbol).clone())
+                .unwrap_or_else(Default::default);
             if base_tys.is_empty() {
                 let m = self.alloc(ty::StructuredMembers {
                     members: self.alloc(members),
@@ -648,6 +660,15 @@ impl<'cx> TyChecker<'cx> {
             self.resolve_anonymous_type_members(ty);
         } else if ty.kind.is_union() {
             self.resolve_union_type_members(ty);
+        } else if ty.kind.is_tuple() || ty.kind.is_object_tuple() {
+            // TODO: delete this branch
+            let declared_members = self.alloc(ty::DeclaredMembers {
+                props: &[],
+                call_sigs: &[],
+                ctor_sigs: &[],
+                index_infos: &[],
+            });
+            self.resolve_object_type_members(ty, declared_members, &[], &[]);
         }
     }
 }

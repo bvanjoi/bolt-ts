@@ -175,6 +175,7 @@ pub enum TokenKind {
     Catch,
     Finally,
     Debugger,
+    Delete,
     Typeof,
     Package,
     Yield,
@@ -377,6 +378,7 @@ impl From<TokenKind> for ast::PrefixUnaryOp {
             TokenKind::PlusPlus => PlusPlus,
             TokenKind::MinusMinus => MinusMinus,
             TokenKind::Tilde => Tilde,
+            TokenKind::Excl => Excl,
             _ => {
                 unreachable!("{:#?}", value)
             }

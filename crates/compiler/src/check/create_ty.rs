@@ -172,6 +172,17 @@ impl<'cx> TyChecker<'cx> {
     //     }
     // }
 
+    pub(super) fn create_array_ty(&mut self, element_ty: &'cx ty::Ty<'cx>) -> &'cx ty::Ty<'cx> {
+        let refer = self.global_array_ty().kind.expect_object_reference();
+        self.create_reference_ty(
+            ty::ReferenceTy {
+                target: refer.target,
+                resolved_ty_args: self.alloc(vec![element_ty]),
+            },
+            ObjectFlags::empty(),
+        )
+    }
+
     pub(super) fn create_union_type(
         &mut self,
         mut tys: Vec<&'cx ty::Ty<'cx>>,

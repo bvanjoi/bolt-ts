@@ -150,7 +150,35 @@ impl<'cx> ParserState<'cx, '_> {
         self.parse_union_or_intersection_ty(TokenKind::Pipe, Self::parse_intersection_ty)
     }
 
+    fn parse_ty_pred_prefix(&mut self) -> PResult<Option<&'cx ast::Ident>> {
+        let id = self.create_ident(true, None);
+        if self.token.kind == TokenKind::Is && !self.has_preceding_line_break() {
+            self.next_token();
+            Ok(Some(id))
+        } else {
+            Err(())
+        }
+    }
+
     pub(super) fn parse_ty_or_ty_pred(&mut self) -> PResult<&'cx ast::Ty<'cx>> {
+        if self.token.kind.is_ident() {
+            let start = self.token.start();
+            if let Ok(Some(name)) = self.try_parse(Self::parse_ty_pred_prefix) {
+                let id = self.next_node_id();
+                let ty = self.with_parent(id, Self::parse_ty)?;
+                let ty = self.alloc(ast::PredTy {
+                    id,
+                    span: self.new_span(start),
+                    name,
+                    ty,
+                });
+                self.insert_map(id, ast::Node::PredTy(ty));
+                let ty = self.alloc(ast::Ty {
+                    kind: ast::TyKind::Pred(ty),
+                });
+                return Ok(ty);
+            }
+        }
         self.parse_ty()
     }
 

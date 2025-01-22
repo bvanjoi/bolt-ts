@@ -262,6 +262,10 @@ impl<'cx> Resolver<'cx, '_> {
             }
             Mapped(n) => {}
             TyOp(n) => {}
+            Pred(n) => {
+                self.resolve_value_by_ident(n.name);
+                self.resolve_ty(n.ty);
+            }
             BooleanLit(_) | NullLit(_) => unreachable!(),
         }
     }

@@ -1,0 +1,11 @@
+  × Type 'I' cannot be used to index type '["a"]'.
+   ╭─[../../tests/cases/compiler/genericNumberIndex/index.ts:5:28]
+ 5 │ ['a'][I]
+   · ────────
+   ╰────
+
+  × Type 'G' cannot be used to index type '["a"]'.
+   ╭─[../../tests/cases/compiler/genericNumberIndex/index.ts:8:28]
+ 8 │ ['a'][G]
+   · ────────
+   ╰────

@@ -11,6 +11,7 @@ use bolt_ts_span::ModuleID;
 use bolt_ts_utils::fx_hashmap_with_capacity;
 use thin_vec::thin_vec;
 
+use crate::ast::ModifierKind;
 use crate::ast::{self};
 use crate::bind::prop_name;
 use crate::bind::symbol::AliasSymbol;
@@ -259,10 +260,13 @@ impl<'cx> BinderState<'cx> {
             SymbolFlags::TYPE_ALIAS_EXCLUDES,
         );
         self.create_final_res(t.id, symbol);
+        let old = self.scope_id;
+        self.scope_id = self.new_scope();
         if let Some(ty_params) = t.ty_params {
             self.bind_ty_params(ty_params);
         }
         self.bind_ty(t.ty);
+        self.scope_id = old;
     }
 
     pub(super) fn bind_ty_params(&mut self, ty_params: ast::TyParams<'cx>) {
@@ -413,8 +417,15 @@ impl<'cx> BinderState<'cx> {
         if let SymbolKind::BlockContainer(c) =
             &mut self.symbols.get_mut(self.final_res[&container]).kind.0
         {
-            let prev = c.locals.insert(SymbolName::Normal(i.name.name), id);
+            let name = SymbolName::Normal(i.name.name);
+            let prev = c.locals.insert(name, id);
             assert!(prev.is_none());
+            if i.modifiers
+                .is_some_and(|ms| ms.flags.contains(ModifierKind::Export))
+            {
+                let prev = c.exports.insert(name, id);
+                assert!(prev.is_none());
+            }
         } else {
             unreachable!()
         }
@@ -645,6 +656,10 @@ impl<'cx> BinderState<'cx> {
             }
             Mapped(n) => {}
             TyOp(n) => {}
+            Pred(n) => {
+                self.bind_ident(n.name);
+                self.bind_ty(n.ty);
+            }
         }
     }
 

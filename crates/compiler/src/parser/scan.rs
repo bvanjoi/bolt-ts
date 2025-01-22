@@ -206,7 +206,7 @@ impl ParserState<'_, '_> {
                 if is_identifier_start(ch) {
                     self.pos += 1;
                 } else {
-                    assert!(ch >= 128);
+                    assert!(ch >= 128, "invalid char: {ch}");
                     self.scan_unicode_from_utf8(UTF8_CHAR_LEN_MAX)?;
                 }
                 first = false;
@@ -517,22 +517,14 @@ impl ParserState<'_, '_> {
                         )
                     }
                 }
-                b'.' => {
-                    if self.next_ch() == Some(b'.') && self.next_next_ch() == Some(b'.') {
-                        self.pos += 3;
-                        Token::new(
-                            TokenKind::DotDotDot,
-                            Span::new(start as u32, self.pos as u32, self.module_id),
-                        )
-                    } else {
-                        self.pos += 1;
-                        Token::new(
-                            TokenKind::Dot,
-                            Span::new(start as u32, self.pos as u32, self.module_id),
-                        )
-                    }
+                b'.' if self.next_ch() == Some(b'.') && self.next_next_ch() == Some(b'.') => {
+                    self.pos += 3;
+                    Token::new(
+                        TokenKind::DotDotDot,
+                        Span::new(start as u32, self.pos as u32, self.module_id),
+                    )
                 }
-                b',' | b';' | b':' | b'[' | b']' | b'(' | b')' | b'{' | b'}' => {
+                b',' | b';' | b':' | b'[' | b']' | b'(' | b')' | b'{' | b'}' | b'!' | b'.' => {
                     self.pos += 1;
                     let kind = unsafe { std::mem::transmute::<u8, TokenKind>(ch) };
                     Token::new(

@@ -1,0 +1,11 @@
+  × Generic type 'I' requires 1 type argument.
+   ╭─[../../tests/cases/compiler/genericInterfacesWithoutTypeArguments/index.ts:5:8]
+ 5 │ I
+   · ─
+   ╰────
+
+  × Generic type 'I' requires 1 type argument.
+   ╭─[../../tests/cases/compiler/genericInterfacesWithoutTypeArguments/index.ts:7:10]
+ 7 │ I
+   · ─
+   ╰────

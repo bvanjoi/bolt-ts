@@ -32,6 +32,7 @@ gen_atoms!(
     (KW_CATCH, "catch"),
     (KW_FINALLY, "finally"),
     (KW_DEBUGGER, "debugger"),
+    (KW_DELETE, "delete"),
     (KW_TYPEOF, "typeof"),
     (KW_PACKAGE, "package"),
     (KW_YIELD, "yield"),

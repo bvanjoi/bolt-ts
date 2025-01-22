@@ -1,4 +1,4 @@
-use super::{Ternary, TyChecker};
+use super::TyChecker;
 use crate::bind::{SymbolID, SymbolName};
 use crate::ty;
 
@@ -82,7 +82,7 @@ impl<'cx> TyChecker<'cx> {
         for info in index_infos {
             if info.key_ty == self.string_ty() {
                 string_index_info = Some(info)
-            } else if self.is_applicable_index_ty(key_ty, info.key_ty) != Ternary::FALSE {
+            } else if self.is_applicable_index_ty(key_ty, info.key_ty) {
                 if applicable_info.is_none() {
                     applicable_info = Some(info)
                 } else if let Some(applicable_infos) = applicable_infos.as_mut() {
@@ -99,7 +99,7 @@ impl<'cx> TyChecker<'cx> {
         } else if let Some(applicable_info) = applicable_info {
             Some(applicable_info)
         } else if string_index_info.is_some()
-            && self.is_applicable_index_ty(key_ty, self.string_ty()) != Ternary::FALSE
+            && self.is_applicable_index_ty(key_ty, self.string_ty())
         {
             string_index_info
         } else {

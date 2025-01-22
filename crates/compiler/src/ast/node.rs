@@ -129,6 +129,7 @@ pub enum Node<'cx> {
     TypeofTy(&'cx super::TypeofTy<'cx>),
     MappedTy(&'cx super::MappedTy<'cx>),
     TyOp(&'cx super::TyOp<'cx>),
+    PredTy(&'cx super::PredTy<'cx>),
 }
 
 impl<'cx> Node<'cx> {
@@ -1223,5 +1224,12 @@ as_node!(
         as_object_binding_elem,
         expect_object_binding_elem,
         is_object_binding_elem
+    ),
+    (
+        PredTy,
+        &'cx super::PredTy<'cx>,
+        as_pred_ty,
+        expect_pred_ty,
+        is_pred_ty
     )
 );

@@ -2,7 +2,7 @@ mod errors;
 
 use crate::ast::Visitor;
 use crate::bind::{
-    BinderState, BlockContainerSymbol, GlobalSymbols, SymbolID, SymbolName, Symbols,
+    BinderState, BlockContainerSymbol, GlobalSymbols, SymbolFlags, SymbolID, SymbolName, Symbols,
 };
 use crate::graph::{ModuleGraph, ModuleRes};
 use crate::{ast, parser};
@@ -131,15 +131,20 @@ impl<'cx> ast::Visitor<'cx> for Resolver<'cx, '_> {
                         use ast::ImportSpecKind::*;
                         match spec.kind {
                             Shorthand(n) => {
-                                let name = SymbolName::Normal(n.name.name); //baz
+                                let name = SymbolName::Normal(n.name.name);
                                 if !self.container(dep).exports.contains_key(&name) {
                                     let module_name = self.atoms.get(node.module.val).to_string();
                                     let symbol_name = self.atoms.get(n.name.name);
 
                                     if let Some(export) =
                                         self.container(dep).exports.values().find(|alias| {
-                                            let alias = self.symbol(**alias).expect_alias();
-                                            alias.source.expect_atom() == n.name.name
+                                            let s = self.symbol(**alias);
+                                            if s.flags.intersects(SymbolFlags::ALIAS) {
+                                                let alias = s.expect_alias();
+                                                alias.source.expect_atom() == n.name.name
+                                            } else {
+                                                false
+                                            }
                                         })
                                     {
                                         let alias_symbol = self.symbol(*export).expect_alias();

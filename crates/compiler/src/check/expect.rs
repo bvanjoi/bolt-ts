@@ -14,7 +14,7 @@ impl<'cx> TyChecker<'cx> {
     }
 
     pub(super) fn index_infos_of_ty(&self, ty: &'cx ty::Ty<'cx>) -> ty::IndexInfos<'cx> {
-        if let Some(i) = ty.kind.as_object_interface() {
+        if let Some(_) = ty.kind.as_object_interface() {
             self.expect_ty_links(ty.id)
                 .expect_structured_members()
                 .index_infos
@@ -23,6 +23,11 @@ impl<'cx> TyChecker<'cx> {
                 .expect_structured_members()
                 .index_infos
         } else if ty.kind.is_object_anonymous() {
+            self.expect_ty_links(ty.id)
+                .expect_structured_members()
+                .index_infos
+        } else if ty.kind.is_tuple() || ty.kind.is_object_tuple() {
+            // TODO: remove this
             self.expect_ty_links(ty.id)
                 .expect_structured_members()
                 .index_infos

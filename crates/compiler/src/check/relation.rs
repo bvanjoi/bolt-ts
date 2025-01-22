@@ -164,6 +164,9 @@ impl<'cx> TyChecker<'cx> {
         if error_node.is_none() || !self.elaborate_error(expr, source, target, relation, error_node)
         {
             if self.check_type_related_to(source, target, relation, error_node) == Ternary::FALSE {
+                if error_node.is_none() {
+                    return Ternary::FALSE;
+                }
                 let span = self.p.node(error_node.unwrap()).span();
                 let error = error(self, span, source, target);
                 self.push_error(error);
@@ -192,11 +195,12 @@ impl<'cx> TyChecker<'cx> {
     ) -> &'cx [SymbolID] {
         if let ObjectTyKind::Interface(_) = ty.kind {
             self.properties_of_object_type(self_ty)
-        } else if let ObjectTyKind::Tuple(ty) = ty.kind {
-            ObjectShape::props(ty)
         } else if let ObjectTyKind::Reference(_) = ty.kind {
             self.properties_of_object_type(self_ty)
         } else if let ObjectTyKind::Anonymous(_) = ty.kind {
+            self.properties_of_object_type(self_ty)
+        } else if ty.kind.is_tuple() {
+            // TODO: remove this branch
             self.properties_of_object_type(self_ty)
         } else {
             &[]
@@ -229,8 +233,8 @@ impl<'cx> TyChecker<'cx> {
         let TyKind::Object(object_ty) = ty.kind else {
             return None;
         };
-        self.resolve_structured_type_members(ty);
 
+        self.resolve_structured_type_members(ty);
         let symbol = if object_ty.kind.as_interface().is_some() {
             self.expect_ty_links(ty.id)
                 .expect_structured_members()

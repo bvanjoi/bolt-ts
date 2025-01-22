@@ -378,9 +378,13 @@ impl TyKind<'_> {
         self.is_instantiable_non_primitive() || self.is_generic_tuple_type()
     }
 
+    pub fn is_generic_index_ty(&self) -> bool {
+        self.is_instantiable_non_primitive()
+    }
+
     pub fn is_tuple(&self) -> bool {
         self.as_object_reference()
-            .map(|refer| refer.target.kind.is_object_tuple())
+            .map(|refer| refer.deep_target().kind.is_object_tuple())
             .unwrap_or_default()
     }
 

@@ -151,6 +151,7 @@ pub enum PrefixUnaryOp {
     PlusPlus,
     MinusMinus,
     Tilde,
+    Excl,
 }
 
 impl PrefixUnaryOp {
@@ -162,6 +163,7 @@ impl PrefixUnaryOp {
             PlusPlus => "++",
             MinusMinus => "--",
             Tilde => "~",
+            Excl => "!",
         }
     }
 }

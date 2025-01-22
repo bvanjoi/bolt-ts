@@ -14,7 +14,7 @@ impl<'cx> ParserState<'cx, '_> {
     fn is_update_expr(&self) -> bool {
         use TokenKind::*;
         match self.token.kind {
-            Plus | Minus | Tilde | Excl | Typeof | Void | Await => false,
+            Plus | Minus | Tilde | Excl | Delete | Typeof | Void | Await => false,
             Less => {
                 // TODO: is jsx
                 true
@@ -566,6 +566,7 @@ impl<'cx> ParserState<'cx, '_> {
                 });
                 Ok(expr)
             }
+
             _ => Ok(self.parse_ident(Some(errors::MissingIdentKind::ExpressionExpected))),
         }
     }

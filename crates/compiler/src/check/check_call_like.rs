@@ -156,23 +156,6 @@ impl<'cx> TyChecker<'cx> {
         self.resolve_call(ty, expr, call_sigs)
     }
 
-    fn filter_type(
-        &mut self,
-        ty: &'cx ty::Ty<'cx>,
-        f: impl Fn(&'cx ty::Ty<'cx>) -> bool,
-    ) -> &'cx ty::Ty<'cx> {
-        if let Some(_) = ty.kind.as_union() {
-            // TODO:
-            ty
-        } else if ty.kind.is_never() {
-            self.never_ty()
-        } else if f(ty) {
-            ty
-        } else {
-            self.never_ty()
-        }
-    }
-
     pub(super) fn get_min_arg_count(&mut self, sig: &'cx Sig<'cx>) -> usize {
         // TODO: cache
         let mut min_arg_count = None;
@@ -310,6 +293,8 @@ impl<'cx> TyChecker<'cx> {
             let param_ty = self.get_ty_at_pos(sig, i);
             let arg_ty = self.check_expr_with_contextual_ty(arg, param_ty, None, check_mode);
             let error_node = report_error.then(|| arg.id());
+            dbg!(arg_ty);
+            dbg!(param_ty);
             if self.check_type_related_to_and_optionally_elaborate(
                 arg_ty,
                 param_ty,
@@ -340,6 +325,8 @@ impl<'cx> TyChecker<'cx> {
         is_single_non_generic_candidate: bool,
         mut argument_check_mode: CheckMode,
     ) -> Option<&'cx Sig<'cx>> {
+        let args = expr.args();
+
         if is_single_non_generic_candidate {
             let candidate = candidates[0];
             if !self.has_correct_arity(expr, candidate)
@@ -398,6 +385,16 @@ impl<'cx> TyChecker<'cx> {
                     check_candidate =
                         self.get_sig_instantiation(candidate, ty_arg_tys, false, None);
                 }
+
+                // if self.get_signature_applicability_error(
+                //     expr,
+                //     check_candidate,
+                //     relation,
+                //     argument_check_mode,
+                //     true,
+                // ) {
+                //     continue;
+                // }
 
                 if !argument_check_mode.is_empty() {
                     argument_check_mode = CheckMode::empty();

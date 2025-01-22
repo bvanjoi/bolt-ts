@@ -402,20 +402,20 @@ interface String {
   // /** Removes the leading and trailing white space and line terminator characters from a string. */
   // trim(): string;
 
-  // /** Returns the length of a String object. */
-  // readonly length: number;
+  /** Returns the length of a String object. */
+  readonly length: number;
 
-  // // IE extensions
-  // /**
-  //  * Gets a substring beginning at the specified location and having the specified length.
-  //  * @deprecated A legacy feature for browser compatibility
-  //  * @param from The starting position of the desired substring. The index of the first character in the string is zero.
-  //  * @param length The number of characters to include in the returned substring.
-  //  */
-  // substr(from: number, length?: number): string;
+  // IE extensions
+  /**
+   * Gets a substring beginning at the specified location and having the specified length.
+   * @deprecated A legacy feature for browser compatibility
+   * @param from The starting position of the desired substring. The index of the first character in the string is zero.
+   * @param length The number of characters to include in the returned substring.
+   */
+  substr(from: number, length?: number): string;
 
-  // /** Returns the primitive value of the specified object. */
-  // valueOf(): string;
+  /** Returns the primitive value of the specified object. */
+  valueOf(): string;
 
   readonly [index: number]: string;
 }
@@ -637,18 +637,18 @@ interface Array<T> {
      * @param thisArg An object to which the this keyword can refer in the callbackfn function. If thisArg is omitted, undefined is used as the this value.
      */
     map<U>(callbackfn: (value: T, index: number, array: T[]) => U, thisArg?: any): U[];
-    // /**
-    //  * Returns the elements of an array that meet the condition specified in a callback function.
-    //  * @param predicate A function that accepts up to three arguments. The filter method calls the predicate function one time for each element in the array.
-    //  * @param thisArg An object to which the this keyword can refer in the predicate function. If thisArg is omitted, undefined is used as the this value.
-    //  */
-    // filter<S extends T>(predicate: (value: T, index: number, array: T[]) => value is S, thisArg?: any): S[];
-    // /**
-    //  * Returns the elements of an array that meet the condition specified in a callback function.
-    //  * @param predicate A function that accepts up to three arguments. The filter method calls the predicate function one time for each element in the array.
-    //  * @param thisArg An object to which the this keyword can refer in the predicate function. If thisArg is omitted, undefined is used as the this value.
-    //  */
-    // filter(predicate: (value: T, index: number, array: T[]) => unknown, thisArg?: any): T[];
+    /**
+     * Returns the elements of an array that meet the condition specified in a callback function.
+     * @param predicate A function that accepts up to three arguments. The filter method calls the predicate function one time for each element in the array.
+     * @param thisArg An object to which the this keyword can refer in the predicate function. If thisArg is omitted, undefined is used as the this value.
+     */
+    filter<S extends T>(predicate: (value: T, index: number, array: T[]) => value is S, thisArg?: any): S[];
+    /**
+     * Returns the elements of an array that meet the condition specified in a callback function.
+     * @param predicate A function that accepts up to three arguments. The filter method calls the predicate function one time for each element in the array.
+     * @param thisArg An object to which the this keyword can refer in the predicate function. If thisArg is omitted, undefined is used as the this value.
+     */
+    filter(predicate: (value: T, index: number, array: T[]) => unknown, thisArg?: any): T[];
     // /**
     //  * Calls the specified callback function for all the elements in an array. The return value of the callback function is the accumulated result, and is provided as an argument in the next call to the callback function.
     //  * @param callbackfn A function that accepts up to four arguments. The reduce method calls the callbackfn function one time for each element in the array.

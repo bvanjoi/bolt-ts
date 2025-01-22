@@ -145,6 +145,7 @@ impl<'cx> TyChecker<'cx> {
             NullLit(_) => todo!(),
             Mapped(_) => self.undefined_ty(),
             TyOp(_) => self.undefined_ty(),
+            Pred(_) => self.boolean_ty(),
         }
     }
 
@@ -263,7 +264,9 @@ impl<'cx> TyChecker<'cx> {
         access_node: Option<ast::NodeID>,
     ) -> &'cx Ty<'cx> {
         let mut access_flags = access_flags.unwrap_or(AccessFlags::empty());
-        let is_generic_index = if let Some(access_node) = access_node {
+        let is_generic_index = if index_ty.kind.is_generic_index_ty() {
+            true
+        } else if let Some(access_node) = access_node {
             if !self.p.node(access_node).is_indexed_access_ty() {
                 object_ty.kind.is_generic_tuple_type()
             } else {
@@ -287,13 +290,18 @@ impl<'cx> TyChecker<'cx> {
         self.get_prop_ty_for_index_ty(object_ty, apparent_object_ty, index_ty)
     }
 
-    fn get_ty_from_indexed_access_node(
+    pub(super) fn get_ty_from_indexed_access_node(
         &mut self,
         node: &'cx ast::IndexedAccessTy<'cx>,
     ) -> &'cx Ty<'cx> {
+        if let Some(ty) = self.get_node_links(node.id).get_resolved_ty() {
+            return ty;
+        }
         let object_ty = self.get_ty_from_type_node(node.ty);
         let index_ty = self.get_ty_from_type_node(node.index_ty);
-        self.get_indexed_access_ty(object_ty, index_ty, None, None)
+        let ty = self.get_indexed_access_ty(object_ty, index_ty, None, Some(node.id));
+        self.get_mut_node_links(node.id).set_resolved_ty(ty);
+        ty
     }
 
     pub(super) fn get_alias_symbol_for_ty_node(&self, node: ast::NodeID) -> Option<SymbolID> {
@@ -524,6 +532,10 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
+    fn is_ty_param_possibly_referenced(&mut self, ty: &'cx ty::Ty<'cx>) -> bool {
+        true
+    }
+
     fn get_ty_from_cond_node(&mut self, node: &'cx ast::CondTy<'cx>) -> &'cx Ty<'cx> {
         let check_ty = self.get_ty_from_type_node(node.check_ty);
         let alias_symbol = self.get_alias_symbol_for_ty_node(node.id);
@@ -538,7 +550,14 @@ impl<'cx> TyChecker<'cx> {
                 None
             }
         } else {
-            todo!()
+            all_outer_ty_params.map(|all_outer_ty_params| {
+                let ty_params = all_outer_ty_params
+                    .into_iter()
+                    .filter(|tp| self.is_ty_param_possibly_referenced(tp))
+                    .collect::<Vec<_>>();
+                let ty_params: ty::Tys<'cx> = self.alloc(ty_params);
+                ty_params
+            })
         };
         let extends_ty = self.get_ty_from_type_node(node.extends_ty);
         let root = self.alloc(ty::CondTyRoot {
@@ -552,15 +571,8 @@ impl<'cx> TyChecker<'cx> {
     }
 
     fn get_ty_from_array_node(&mut self, node: &'cx ast::ArrayTy<'cx>) -> &'cx Ty<'cx> {
-        let ele_ty = self.get_ty_from_type_node(node.ele);
-        let refer = self.global_array_ty().kind.expect_object_reference();
-        self.create_reference_ty(
-            ty::ReferenceTy {
-                target: refer.target,
-                resolved_ty_args: self.alloc(vec![ele_ty]),
-            },
-            ObjectFlags::empty(),
-        )
+        let element_ty = self.get_ty_from_type_node(node.ele);
+        self.create_array_ty(element_ty)
     }
 
     fn get_array_ele_ty_node(node: &'cx ast::Ty<'cx>) -> Option<&'cx ast::Ty<'cx>> {
@@ -636,6 +648,7 @@ impl<'cx> TyChecker<'cx> {
         // ====
         if !combined_flags.intersects(ElementFlags::NON_REQUIRED) {
             let shape = self.create_tuple_shape(elem_tys);
+            // TODO: use reference type here.
             return self.create_tuple_ty(ty::TupleTy {
                 combined_flags,
                 element_flags: elem_flags,
@@ -844,5 +857,54 @@ impl<'cx> TyChecker<'cx> {
         let ty = self.check_expr(expr);
         self.check_mode = old_check_mode;
         ty
+    }
+
+    fn get_literal_ty_from_props(
+        &mut self,
+        ty: &'cx ty::Ty<'cx>,
+        include: TypeFlags,
+        include_origin: bool,
+    ) -> &'cx ty::Ty<'cx> {
+        let mut property_tys = self
+            .get_props_of_ty(ty)
+            .iter()
+            .map(|prop| self.get_lit_ty_from_prop(*prop))
+            .collect::<Vec<_>>();
+        let index_key_tys = self.get_index_infos_of_ty(ty).iter().map(|info| {
+            if info.key_ty == self.string_ty() && include.intersects(TypeFlags::NUMBER) {
+                self.string_or_number_ty()
+            } else {
+                info.key_ty
+            }
+        });
+        property_tys.extend(index_key_tys);
+        let tys = property_tys;
+        self.create_union_type(tys, ty::UnionReduction::Lit)
+    }
+
+    pub(super) fn get_index_ty(
+        &mut self,
+        ty: &'cx ty::Ty<'cx>,
+        index_flags: IndexFlags,
+    ) -> &'cx ty::Ty<'cx> {
+        let include = if index_flags.intersects(IndexFlags::NO_INDEX_SIGNATURES) {
+            TypeFlags::STRING_LITERAL
+        } else {
+            TypeFlags::STRING_LIKE
+        } | if index_flags.intersects(IndexFlags::STRINGS_ONLY) {
+            TypeFlags::empty()
+        } else {
+            TypeFlags::NUMBER_LIKE | TypeFlags::ES_SYMBOL_LIKE
+        };
+        self.get_literal_ty_from_props(ty, include, index_flags == IndexFlags::empty())
+    }
+}
+
+bitflags::bitflags! {
+    #[derive(Clone, Copy, Debug, PartialEq)]
+    pub struct IndexFlags: u8 {
+        const STRINGS_ONLY          = 1 << 0;
+        const NO_INDEX_SIGNATURES   = 1 << 1;
+        const NO_REDUCIBLE_CHECK    = 1 << 2;
     }
 }

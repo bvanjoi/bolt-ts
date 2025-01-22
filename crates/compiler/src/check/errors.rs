@@ -305,3 +305,12 @@ pub(super) struct TypeXRecursivelyReferencesItselfAsABaseType {
     #[label = "Base type is defined here."]
     pub base_defined_span: Option<Span>,
 }
+
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
+#[error("Type '{ty}' cannot be used to index type '{index_ty}'.")]
+pub(super) struct TypeCannotBeUsedToIndexType {
+    #[label(primary)]
+    pub span: Span,
+    pub ty: String,
+    pub index_ty: String,
+}
