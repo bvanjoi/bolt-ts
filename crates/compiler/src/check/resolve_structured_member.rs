@@ -512,7 +512,7 @@ impl<'cx> TyChecker<'cx> {
         if let Some(c) = self.p.node(class_node_id).as_class_decl() {
             if let Some(mods) = c.modifiers {
                 if mods.flags.contains(ast::ModifierKind::Abstract) {
-                    flags.insert(ty::SigFlags::HAS_ABSTRACT);
+                    flags.insert(ty::SigFlags::ABSTRACT);
                 }
             }
         }

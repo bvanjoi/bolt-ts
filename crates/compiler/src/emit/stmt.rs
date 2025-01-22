@@ -320,7 +320,7 @@ impl<'cx> Emit<'cx> {
                 this.content.p_l_bracket();
                 match member.name.kind {
                     ast::PropNameKind::Ident(ident) => this.emit_as_string(ident.name),
-                    ast::PropNameKind::StringLit { .. } => todo!(),
+                    ast::PropNameKind::StringLit { raw, .. } => this.emit_as_string(raw.val),
                     ast::PropNameKind::NumLit(_) => todo!(),
                 }
                 this.content.p_r_bracket();
@@ -340,7 +340,7 @@ impl<'cx> Emit<'cx> {
                 this.content.p_whitespace();
                 match member.name.kind {
                     ast::PropNameKind::Ident(ident) => this.emit_as_string(ident.name),
-                    ast::PropNameKind::StringLit { .. } => todo!(),
+                    ast::PropNameKind::StringLit { raw, .. } => this.emit_as_string(raw.val),
                     ast::PropNameKind::NumLit(_) => todo!(),
                 }
             }

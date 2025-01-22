@@ -25,7 +25,6 @@ pub use self::object_ty::{IndexInfo, IndexInfos, ObjectTy, TupleShape, TupleTy};
 pub use self::sig::{Sig, SigFlags, SigID, SigKind, Sigs};
 
 bolt_ts_utils::index!(TyID);
-bolt_ts_utils::index!(TyVarID);
 
 impl TyID {
     pub(crate) fn new(id: u32) -> Self {
@@ -113,7 +112,6 @@ pub enum TyKind<'cx> {
     Union(&'cx UnionTy<'cx>),
     Object(&'cx ObjectTy<'cx>),
     Param(&'cx ParamTy<'cx>),
-    Var(TyVarID),
     IndexedAccess(&'cx IndexedAccessTy<'cx>),
     Cond(&'cx CondTy<'cx>),
 }
@@ -191,7 +189,6 @@ as_ty_kind!(
     is_object
 );
 as_ty_kind!(Param, &'cx ParamTy, as_param, expect_param, is_param);
-as_ty_kind!(Var, &TyVarID, as_ty_var, expect_ty_var, is_ty_var);
 as_ty_kind!(Cond, &CondTy<'cx>, as_cond_ty, expect_cond_ty, is_cond_ty);
 
 impl Ty<'_> {
@@ -213,10 +210,6 @@ impl Ty<'_> {
                 .collect::<Vec<_>>()
                 .join(" | "),
             TyKind::Object(object) => object.kind.to_string(self, checker),
-            TyKind::Var(id) => {
-                // todo: delay bug
-                format!("#{id:#?}")
-            }
             TyKind::Param(param) => checker
                 .atoms
                 .get(checker.binder.symbol(param.symbol).name.expect_atom())
@@ -248,7 +241,6 @@ impl Ty<'_> {
             },
             TyKind::Param(ty) => Some(ty.symbol),
             TyKind::Union(_) => todo!(),
-            TyKind::Var(_) => todo!(),
             TyKind::IndexedAccess(_) => todo!(),
             TyKind::Cond(_) => todo!(),
             _ => None,
@@ -341,7 +333,7 @@ impl TyKind<'_> {
     }
 
     pub fn is_type_variable(&self) -> bool {
-        self.is_ty_var() || self.is_param() || self.is_indexed_access()
+        self.is_param() || self.is_indexed_access()
     }
 
     pub fn is_instantiable_non_primitive(&self) -> bool {

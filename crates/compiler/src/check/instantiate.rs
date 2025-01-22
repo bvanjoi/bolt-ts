@@ -52,6 +52,10 @@ impl<'cx> TyChecker<'cx> {
     }
 
     pub(super) fn could_contain_ty_var(&self, ty: &'cx ty::Ty<'cx>) -> bool {
+        let object_flags = ty.get_object_flags();
+        if object_flags.intersects(ObjectFlags::COULD_CONTAIN_TYPE_VARIABLES_COMPUTED) {
+            return object_flags.intersects(ObjectFlags::COULD_CONTAIN_TYPE_VARIABLES);
+        }
         if ty.kind.is_instantiable_non_primitive() {
             true
         } else if let Some(object) = ty.kind.as_object() {
@@ -61,6 +65,8 @@ impl<'cx> TyChecker<'cx> {
             } else {
                 object.kind.is_anonymous()
             }
+        } else if let Some(unions) = ty.kind.as_union() {
+            unions.tys.iter().any(|t| self.could_contain_ty_var(t))
         } else if ty.kind.is_union_or_intersection() {
             // TODO: condition
             false
@@ -95,6 +101,13 @@ impl<'cx> TyChecker<'cx> {
             }
             Cond(_) => self.get_cond_ty_instantiation(ty, mapper),
             Object(_) => self.get_object_ty_instantiation(ty, mapper),
+            Union(u) => {
+                let new_tys = self.instantiate_tys(u.tys, mapper);
+                if new_tys == u.tys {
+                    return ty;
+                }
+                self.create_union_type(new_tys.to_vec(), ty::UnionReduction::Lit)
+            }
             _ => {
                 todo!("{:?}", ty.kind);
             }

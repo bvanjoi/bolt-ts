@@ -15,12 +15,6 @@ impl<'cx> TyChecker<'cx> {
         ty
     }
 
-    pub(super) fn create_ty_var(&mut self) -> &'cx ty::Ty<'cx> {
-        let id = self.next_ty_var_id;
-        self.next_ty_var_id = self.next_ty_var_id.next();
-        self.new_ty(ty::TyKind::Var(id))
-    }
-
     fn create_object_ty(
         &mut self,
         ty: ty::ObjectTyKind<'cx>,
@@ -51,7 +45,8 @@ impl<'cx> TyChecker<'cx> {
         ty: ty::ReferenceTy<'cx>,
         flags: ObjectFlags,
     ) -> &'cx ty::Ty<'cx> {
-        let ty = self.create_object_ty(ty::ObjectTyKind::Reference(self.alloc(ty)), flags);
+        let object_flags = flags | ty::Ty::get_propagating_flags_of_tys(ty.resolved_ty_args, None);
+        let ty = self.create_object_ty(ty::ObjectTyKind::Reference(self.alloc(ty)), object_flags);
         ty
     }
 

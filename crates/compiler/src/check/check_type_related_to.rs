@@ -1,4 +1,3 @@
-use bitflags::Flags;
 use bolt_ts_utils::fx_hashset_with_capacity;
 use rustc_hash::FxHashSet;
 
@@ -452,12 +451,16 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
         intersection_state: IntersectionState,
     ) -> Ternary {
         if source.kind.is_union_or_intersection() || target.kind.is_union_or_intersection() {
-            return self.union_or_intersection_related_to(
+            let result = self.union_or_intersection_related_to(
                 source,
                 target,
                 report_error,
                 intersection_state,
             );
+
+            if result != Ternary::FALSE {
+                return result;
+            }
         }
 
         if !source.kind.is_tuple() {
@@ -712,7 +715,7 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
             todo!()
         };
 
-        if source == self.c.any_ty() || target == self.c.any_ty() {
+        if source == self.c.any_fn_ty() || target == self.c.any_fn_ty() {
             return Ternary::TRUE;
         }
 
@@ -730,8 +733,8 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
         };
 
         if kind == SigKind::Constructor && !source_sigs.is_empty() && !target_sigs.is_empty() {
-            let source_is_abstract = source_sigs[0].flags.intersects(SigFlags::HAS_ABSTRACT);
-            let target_is_abstract = target_sigs[0].flags.intersects(SigFlags::HAS_ABSTRACT);
+            let source_is_abstract = source_sigs[0].flags.intersects(SigFlags::ABSTRACT);
+            let target_is_abstract = target_sigs[0].flags.intersects(SigFlags::ABSTRACT);
             if source_is_abstract && !target_is_abstract {
                 return Ternary::FALSE;
             }

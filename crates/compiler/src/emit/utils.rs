@@ -53,8 +53,14 @@ impl<'cx> Emit<'cx> {
     }
 
     pub(super) fn emit_as_string(&mut self, val: AtomId) {
+        let s = self.atoms.get(val);
         self.content.p("'");
-        self.content.p(self.atoms.get(val));
+        for c in s.chars() {
+            match c {
+                '\'' => self.content.p("\\'"),
+                _ => self.content.0.push(c),
+            }
+        }
         self.content.p("'");
     }
 }

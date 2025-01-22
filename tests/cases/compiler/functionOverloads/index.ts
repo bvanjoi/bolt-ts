@@ -3,7 +3,8 @@
 function foo(): string;
 function foo(bar: string): number;
 function foo(bar?: string): any { return "" };
-// var x = foo(5);
+var x = foo(5);
+//~^ ERROR: Argument of type 'number' is not assignable to parameter of type 'string'.
 
-// var y: string = foo();
-// var z: number = foo("''")
+var y: string = foo();
+var z: number = foo("''")

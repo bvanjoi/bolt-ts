@@ -112,7 +112,10 @@ impl<'cx> TyChecker<'cx> {
         if ty.kind.is_array(self) {
             ty.kind
                 .as_object_reference()
-                .map(|refer| refer.resolved_ty_args[0].kind.is_ty_var())
+                .map(|refer| {
+                    refer.resolved_ty_args.len() == 1
+                        && refer.resolved_ty_args[0] == self.never_ty()
+                })
                 .unwrap_or_default()
         } else {
             false

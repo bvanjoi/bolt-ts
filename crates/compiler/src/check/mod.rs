@@ -60,9 +60,11 @@ pub use self::resolve::ExpectedArgsCount;
 use crate::ast::{pprint_ident, BinOp};
 use crate::bind::{self, GlobalSymbols, Symbol, SymbolFlags, SymbolID, SymbolName};
 use crate::parser::{AssignmentKind, Parser};
+use crate::ty::has_type_facts;
+use crate::ty::TYPEOF_NE_FACTS;
 use crate::ty::{
-    has_type_facts, AccessFlags, CheckFlags, ElementFlags, ObjectFlags, Sig, SigFlags, SigID,
-    TupleShape, TyID, TyKind, TyVarID, TypeFacts, TypeFlags, TYPEOF_NE_FACTS,
+    AccessFlags, CheckFlags, ElementFlags, ObjectFlags, Sig, SigFlags, SigID, TupleShape, TyID,
+    TyKind, TypeFacts, TypeFlags,
 };
 use crate::{ast, ecma_rules, ensure_sufficient_stack, keyword, ty};
 
@@ -126,7 +128,6 @@ pub struct TyChecker<'cx> {
     pub atoms: &'cx AtomMap<'cx>,
     pub diags: Vec<bolt_ts_errors::Diag>,
     arena: &'cx bumpalo::Bump,
-    next_ty_var_id: TyVarID,
     tys: Vec<&'cx ty::Ty<'cx>>,
     sigs: Vec<&'cx Sig<'cx>>,
     num_lit_tys: FxHashMap<F64Represent, TyID>,
@@ -234,7 +235,6 @@ impl<'cx> TyChecker<'cx> {
             p,
             tys: Vec::with_capacity(p.module_count() * 1024),
             sigs: Vec::with_capacity(p.module_count() * 256),
-            next_ty_var_id: TyVarID::root(),
             arena: ty_arena,
             diags: Vec::with_capacity(p.module_count() * 32),
 
@@ -1474,7 +1474,7 @@ impl<'cx> TyChecker<'cx> {
             self.create_normalized_tuple_ty(tys, self.alloc(element_flags), combined_flags)
         } else {
             let ty = if elems_tys.is_empty() {
-                self.create_ty_var()
+                self.never_ty()
             } else {
                 self.create_union_type(elems_tys, ty::UnionReduction::Subtype)
             };

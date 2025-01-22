@@ -7,11 +7,27 @@ use crate::bind::SymbolID;
 use crate::check::TyChecker;
 
 bitflags::bitflags! {
-  #[derive(Debug, Clone, Copy)]
-  pub struct SigFlags: u8 {
-      const HAS_REST_PARAMETER  = 1 << 0;
-      const HAS_ABSTRACT = 1 << 2;
-  }
+    #[derive(Debug, Clone, Copy)]
+    pub struct SigFlags: u8 {
+        const HAS_REST_PARAMETER = 1 << 0;
+        const HAS_LITERAL_TYPES = 1 << 1;
+        const ABSTRACT = 1 << 2;
+
+        const IS_INNER_CALL_CHAIN = 1 << 3;
+        const IS_OUTER_CALL_CHAIN = 1 << 4;
+        const IS_UNTYPED_SIGNATURE_IN_JS_FILE = 1 << 5;
+        const IS_NON_INFERRABLE = 1 << 6;
+        const IS_SIGNATURE_CANDIDATE_FOR_OVERLOAD_FAILURE = 1 << 7;
+
+        const PROPAGATING_FLAGS = Self::HAS_REST_PARAMETER.bits()
+                                | Self::HAS_LITERAL_TYPES.bits()
+                                | Self::ABSTRACT.bits()
+                                | Self::IS_UNTYPED_SIGNATURE_IN_JS_FILE.bits()
+                                | Self::IS_SIGNATURE_CANDIDATE_FOR_OVERLOAD_FAILURE.bits();
+
+        const CALL_CHAIN_FLAGS = Self::IS_INNER_CALL_CHAIN.bits()
+                            | Self::IS_OUTER_CALL_CHAIN.bits();
+    }
 }
 
 bolt_ts_utils::index!(SigID);
@@ -46,6 +62,10 @@ impl<'cx> Sig<'cx> {
 
     pub const fn has_rest_param(&self) -> bool {
         self.flags.intersects(SigFlags::HAS_REST_PARAMETER)
+    }
+
+    pub const fn has_literal_tys(&self) -> bool {
+        self.flags.intersects(SigFlags::HAS_LITERAL_TYPES)
     }
 
     pub fn get_rest_ty(&self, checker: &mut TyChecker<'cx>) -> Option<&'cx super::Ty<'cx>> {
