@@ -599,7 +599,9 @@ impl<'cx> InferenceState<'cx, '_> {
     fn infer_from_object_tys(&mut self, source: &'cx ty::Ty<'cx>, target: &'cx ty::Ty<'cx>) {
         if !self.c.tys_definitely_unrelated(source, target) {
             if source.kind.is_tuple() || source.kind.is_array(self.c) {
-                target.kind.is_tuple();
+                if target.kind.is_tuple() {
+                    // TODO:
+                }
                 if target.kind.is_array(self.c) {
                     self.infer_from_index_tys(source, target);
                     return;

@@ -202,9 +202,6 @@ impl<'cx> TyChecker<'cx> {
             self.properties_of_object_type(self_ty)
         } else if let ObjectTyKind::Anonymous(_) = ty.kind {
             self.properties_of_object_type(self_ty)
-        } else if ty.kind.is_tuple() {
-            // TODO: remove this branch
-            self.properties_of_object_type(self_ty)
         } else {
             &[]
         }

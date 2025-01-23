@@ -25,7 +25,6 @@ impl<'cx> TyChecker<'cx> {
 
     #[inline]
     pub(super) fn get_symbol_of_decl(&self, id: ast::NodeID) -> SymbolID {
-        #[cfg(debug_assertions)]
         fn is_decl(p: &super::Parser, node: ast::NodeID) -> bool {
             if p.node(node).is_decl() {
                 true

@@ -4,11 +4,12 @@ mod flags;
 mod mapper;
 mod object_shape;
 mod object_ty;
+mod pprint;
 mod sig;
 
 use bolt_ts_atom::AtomId;
 
-use crate::bind::SymbolID;
+use crate::bind::{Symbol, SymbolID};
 use crate::check::TyChecker;
 use crate::{ast, keyword};
 
@@ -21,7 +22,7 @@ pub use self::object_ty::ElementFlags;
 pub use self::object_ty::SingleSigTy;
 pub use self::object_ty::{AnonymousTy, InterfaceTy, ObjectTyKind};
 pub use self::object_ty::{DeclaredMembers, ReferenceTy, StructuredMembers};
-pub use self::object_ty::{IndexInfo, IndexInfos, ObjectTy, TupleShape, TupleTy};
+pub use self::object_ty::{IndexInfo, IndexInfos, ObjectTy, TupleTy};
 pub use self::sig::{Sig, SigFlags, SigID, SigKind, Sigs};
 
 bolt_ts_utils::index!(TyID);
@@ -114,6 +115,7 @@ pub enum TyKind<'cx> {
     Param(&'cx ParamTy<'cx>),
     IndexedAccess(&'cx IndexedAccessTy<'cx>),
     Cond(&'cx CondTy<'cx>),
+    Index(&'cx IndexTy<'cx>),
 }
 
 macro_rules! as_ty_kind {
@@ -190,14 +192,22 @@ as_ty_kind!(
 );
 as_ty_kind!(Param, &'cx ParamTy, as_param, expect_param, is_param);
 as_ty_kind!(Cond, &CondTy<'cx>, as_cond_ty, expect_cond_ty, is_cond_ty);
+as_ty_kind!(
+    Index,
+    &IndexTy<'cx>,
+    as_index_ty,
+    expect_index_ty,
+    is_index_ty
+);
 
-impl Ty<'_> {
-    pub fn to_string(&self, checker: &mut TyChecker) -> String {
+impl<'cx> Ty<'cx> {
+    pub fn to_string(&self, checker: &mut TyChecker<'cx>) -> String {
         if self.kind.is_array(checker) {
             let ele = self.kind.expect_object_reference().resolved_ty_args[0].to_string(checker);
             return format!("{ele}[]");
         }
         match self.kind {
+            TyKind::Object(object) => object.kind.to_string(self, checker),
             TyKind::NumberLit(lit) => format!("{}", lit.val),
             TyKind::StringLit(lit) => format!("\"{}\"", checker.atoms.get(lit.val)),
             TyKind::Union(_) if self == checker.boolean_ty() => {
@@ -209,11 +219,14 @@ impl Ty<'_> {
                 .map(|ty| ty.to_string(checker))
                 .collect::<Vec<_>>()
                 .join(" | "),
-            TyKind::Object(object) => object.kind.to_string(self, checker),
-            TyKind::Param(param) => checker
-                .atoms
-                .get(checker.binder.symbol(param.symbol).name.expect_atom())
-                .to_string(),
+            TyKind::Param(param) => {
+                if param.symbol == Symbol::ERR {
+                    "error".to_string()
+                } else {
+                    let name = checker.binder.symbol(param.symbol).name;
+                    checker.atoms.get(name.expect_atom()).to_string()
+                }
+            }
             TyKind::IndexedAccess(_) => "indexedAccess".to_string(),
             TyKind::Cond(_) => "cond".to_string(),
             TyKind::Any => keyword::IDENT_ANY_STR.to_string(),
@@ -228,6 +241,7 @@ impl Ty<'_> {
             TyKind::Null => keyword::KW_NULL_STR.to_string(),
             TyKind::NonPrimitive => keyword::IDENT_OBJECT_STR.to_string(),
             TyKind::Never => keyword::IDENT_NEVER_STR.to_string(),
+            TyKind::Index(n) => n.ty.to_string(checker),
         }
     }
 
@@ -317,7 +331,7 @@ impl TyKind<'_> {
     }
 
     pub fn is_structured_or_instantiable(&self) -> bool {
-        self.is_structured()
+        self.is_structured() || self.is_instantiable()
     }
 
     pub fn definitely_non_nullable(&self) -> bool {
@@ -337,7 +351,7 @@ impl TyKind<'_> {
     }
 
     pub fn is_instantiable_non_primitive(&self) -> bool {
-        self.is_type_variable() || self.is_cond_ty()
+        self.is_index_ty() || self.is_type_variable() || self.is_cond_ty()
     }
 
     pub fn is_instantiable_primitive(&self) -> bool {
@@ -376,7 +390,7 @@ impl TyKind<'_> {
 
     pub fn is_tuple(&self) -> bool {
         self.as_object_reference()
-            .map(|refer| refer.deep_target().kind.is_object_tuple())
+            .map(|refer| refer.target.kind.is_object_tuple())
             .unwrap_or_default()
     }
 
@@ -464,4 +478,19 @@ pub struct ParamTy<'cx> {
     pub offset: usize,
     pub target: Option<&'cx self::Ty<'cx>>,
     pub is_this_ty: bool,
+}
+
+bitflags::bitflags! {
+    #[derive(Clone, Copy, Debug, PartialEq)]
+    pub struct IndexFlags: u8 {
+        const STRINGS_ONLY          = 1 << 0;
+        const NO_INDEX_SIGNATURES   = 1 << 1;
+        const NO_REDUCIBLE_CHECK    = 1 << 2;
+    }
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct IndexTy<'cx> {
+    pub ty: &'cx self::Ty<'cx>,
+    pub index_flags: IndexFlags,
 }

@@ -7,3 +7,7 @@ type Y<I extends string> = ['a'][I];
 
 type Z<G extends string> = ['a'][G];
 //~^ ERROR: Type 'G' cannot be used to index type '["a"]'.
+
+type F<T> = 0 extends 0 ? T['123'] : T['456'];
+//~^ ERROR: Type '"123"' cannot be used to index type 'T'.
+//~| ERROR: Type '"456"' cannot be used to index type 'T'.

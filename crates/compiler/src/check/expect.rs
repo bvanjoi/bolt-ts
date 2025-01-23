@@ -26,11 +26,6 @@ impl<'cx> TyChecker<'cx> {
             self.expect_ty_links(ty.id)
                 .expect_structured_members()
                 .index_infos
-        } else if ty.kind.is_tuple() || ty.kind.is_object_tuple() {
-            // TODO: remove this
-            self.expect_ty_links(ty.id)
-                .expect_structured_members()
-                .index_infos
         } else {
             &[]
         }

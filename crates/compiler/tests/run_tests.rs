@@ -27,26 +27,30 @@ fn ensure_all_cases_are_dir() {
 )]
 fn run_test(arg: dir_test::Fixture<&str>) {
     let entry = std::path::Path::new(arg.path());
+    const DEFAULT_OUTPUT: &str = "output";
+    const DEFAULT_TSCONFIG: &str = "tsconfig.json";
 
     let runner = |case: &std::path::Path| {
         let file_name = case.file_name().unwrap().to_str().unwrap();
         assert_eq!(file_name, "index.ts");
         let dir = case.parent().unwrap();
-        let tsconfig_file = dir.join("tsconfig.json");
+        let tsconfig_file = dir.join(DEFAULT_TSCONFIG);
         let tsconfig = if tsconfig_file.is_file() {
             let s = std::fs::read_to_string(tsconfig_file).unwrap();
             serde_json::from_str(&s).unwrap()
         } else {
             RawTsConfig::default()
         };
-        const OUTPUT: &str = "output";
         let tsconfig = tsconfig
             .with_include_if_none(vec!["index.ts".to_string()])
-            .config_compiler_options(|c| c.with_no_emit(true).with_out_dir(OUTPUT.to_string()));
+            .config_compiler_options(|c| {
+                c.with_no_emit(true)
+                    .with_out_dir(DEFAULT_OUTPUT.to_string())
+            });
 
         let cwd = dir.to_path_buf();
         let output = eval_from(cwd, tsconfig.normalize());
-        let output_dir = dir.join(OUTPUT);
+        let output_dir = dir.join(DEFAULT_OUTPUT);
         if !output_dir.exists() {
             std::fs::create_dir_all(&output_dir).unwrap();
         }

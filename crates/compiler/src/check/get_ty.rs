@@ -1,14 +1,13 @@
 use bolt_ts_atom::AtomId;
 
 use super::ty::{self, Ty, TyKind};
+use super::Ternary;
 use super::{CheckMode, F64Represent, InferenceContextId, PropName, TyChecker};
-use super::{SymbolLinks, Ternary};
 use crate::ast;
 
 use crate::bind::{SymbolFlags, SymbolID, SymbolName};
-use crate::keyword;
 use crate::ty::{
-    AccessFlags, CheckFlags, ElementFlags, ObjectFlags, TupleShape, TyMapper, TypeFlags,
+    AccessFlags, CheckFlags, ElementFlags, IndexFlags, ObjectFlags, TyMapper, TypeFlags,
 };
 
 impl<'cx> TyChecker<'cx> {
@@ -220,10 +219,10 @@ impl<'cx> TyChecker<'cx> {
                 if let Some(tuple) = object_ty.kind.as_object_tuple() {
                     assert!(num.fract() == 0.0);
                     let idx = num as usize;
-                    return if idx >= tuple.tys.len() {
+                    return if idx >= tuple.resolved_ty_args.len() {
                         self.undefined_ty()
                     } else {
-                        tuple.tys[idx]
+                        tuple.resolved_ty_args[idx]
                     };
                 }
                 SymbolName::EleNum(num.into())
@@ -353,10 +352,9 @@ impl<'cx> TyChecker<'cx> {
     fn is_deferred_ty(&self, ty: &'cx Ty<'cx>, check_tuples: bool) -> bool {
         ty.kind.is_generic()
             || (check_tuples
-                && ty
-                    .kind
-                    .as_object_tuple()
-                    .map_or(false, |tup| tup.tys.iter().any(|ty| ty.kind.is_generic())))
+                && ty.kind.as_object_tuple().map_or(false, |tup| {
+                    tup.resolved_ty_args.iter().any(|ty| ty.kind.is_generic())
+                }))
     }
 
     pub(super) fn get_restrictive_ty_param(&self, ty: &'cx Ty<'cx>) -> &'cx Ty<'cx> {
@@ -571,11 +569,17 @@ impl<'cx> TyChecker<'cx> {
     }
 
     fn get_ty_from_array_node(&mut self, node: &'cx ast::ArrayTy<'cx>) -> &'cx Ty<'cx> {
+        if let Some(ty) = self.get_node_links(node.id).get_resolved_ty() {
+            return ty;
+        }
+
         let element_ty = self.get_ty_from_type_node(node.ele);
-        self.create_array_ty(element_ty)
+        let ty = self.create_array_ty(element_ty);
+        self.get_mut_node_links(node.id).set_resolved_ty(ty);
+        ty
     }
 
-    fn get_array_ele_ty_node(node: &'cx ast::Ty<'cx>) -> Option<&'cx ast::Ty<'cx>> {
+    pub(super) fn get_array_ele_ty_node(node: &ast::Ty<'cx>) -> Option<&'cx ast::Ty<'cx>> {
         use ast::TyKind::*;
         match node.kind {
             Tuple(tup) if tup.tys.len() == 1 => {
@@ -599,155 +603,34 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
-    pub(super) fn create_tuple_shape(&mut self, elem_tys: &[&'cx Ty]) -> &'cx TupleShape<'cx> {
-        let key = elem_tys.len() as u32;
-        if let Some(shape) = self.tuple_shapes.get(&key) {
-            return shape;
-        };
-
-        let length_symbol_name = SymbolName::Ele(keyword::IDENT_LENGTH);
-        let ty = self.get_number_literal_type(elem_tys.len() as f64);
-        let length_symbol = self.binder.create_transient_symbol(
-            length_symbol_name,
-            SymbolFlags::PROPERTY,
-            None,
-            SymbolLinks::default().with_ty(ty),
-        );
-
-        let element_symbols = elem_tys.iter().enumerate().map(|(idx, _)| {
-            let name = SymbolName::EleNum(idx.into());
-            let index_ty = self.get_number_literal_type(idx as f64);
-            let symbol = self.binder.create_transient_symbol(
-                name,
-                SymbolFlags::PROPERTY,
-                None,
-                SymbolLinks::default().with_ty(index_ty),
-            );
-            symbol
-        });
-
-        let declared_props = std::iter::once(length_symbol)
-            .chain(element_symbols)
-            .collect::<Vec<_>>();
-        let declared_props = self.alloc(declared_props);
-        let shape = self.alloc(ty::TupleShape {
-            declared_props,
-            fixed_length: declared_props.len(),
-        });
-        let prev = self.tuple_shapes.insert(key, shape);
-        assert!(prev.is_none());
-        shape
-    }
-
-    pub(super) fn create_normalized_tuple_ty(
-        &mut self,
-        elem_tys: &'cx [&'cx Ty<'cx>],
-        elem_flags: &'cx [ElementFlags],
-        combined_flags: ElementFlags,
-    ) -> &'cx ty::Ty<'cx> {
-        // ====
-        if !combined_flags.intersects(ElementFlags::NON_REQUIRED) {
-            let shape = self.create_tuple_shape(elem_tys);
-            // TODO: use reference type here.
-            return self.create_tuple_ty(ty::TupleTy {
-                combined_flags,
-                element_flags: elem_flags,
-                tys: elem_tys,
-                shape,
-            });
+    pub fn get_tuple_element_flags(node: &'cx ast::Ty<'cx>) -> ElementFlags {
+        use ast::TyKind::*;
+        match node.kind {
+            Rest(rest) => Self::get_rest_ty_ele_flags(rest),
+            _ => ElementFlags::REQUIRED,
         }
-        let mut expanded_tys = vec![];
-        let mut expanded_flags = vec![];
-        let mut last_required_index = usize::MAX;
-        let mut first_rest_index = usize::MAX;
-        let mut last_optional_or_rest_index = usize::MAX;
-
-        let mut add_ele = |ty: &'cx Ty<'cx>, flags: ElementFlags| {
-            if flags.intersects(ElementFlags::REQUIRED) {
-                last_required_index = expanded_tys.len();
-            }
-            if flags.intersects(ElementFlags::REST) && first_rest_index == usize::MAX {
-                first_rest_index = expanded_tys.len()
-            }
-            if flags.intersects(ElementFlags::OPTIONAL | ElementFlags::REST) {
-                last_optional_or_rest_index = expanded_tys.len();
-            }
-            if flags.intersects(ElementFlags::OPTIONAL) {
-                todo!()
-            } else {
-                expanded_tys.push(ty);
-            }
-            expanded_flags.push(flags);
-        };
-
-        for (i, ele) in elem_tys.iter().enumerate() {
-            let flag = elem_flags[i];
-            if flag.intersects(ElementFlags::VARIADIC) {
-                if ele.kind.is_any() {
-                    todo!()
-                } else if ele.kind.is_instantiable_non_primitive() {
-                    add_ele(ele, ElementFlags::VARIADIC);
-                } else if ele.kind.is_tuple() {
-                    let tuple = ele
-                        .kind
-                        .expect_object_reference()
-                        .target
-                        .kind
-                        .expect_object_tuple();
-                    for i in 0..tuple.tys.len() {
-                        add_ele(tuple.tys[i], tuple.element_flags[i]);
-                    }
-                } else if let Some(tuple) = ele.kind.as_object_tuple() {
-                    for i in 0..tuple.tys.len() {
-                        add_ele(tuple.tys[i], tuple.element_flags[i]);
-                    }
-                } else {
-                    todo!()
-                }
-            } else {
-                add_ele(ele, flag)
-            }
-        }
-
-        let expand_tys = self.alloc(expanded_tys);
-        let combined_flags = expanded_flags
-            .iter()
-            .fold(ElementFlags::empty(), |flags, current| flags | *current);
-        let shape = self.create_tuple_shape(expand_tys);
-        let tuple = self.create_tuple_ty(ty::TupleTy {
-            tys: expand_tys,
-            element_flags: self.alloc(expanded_flags),
-            combined_flags,
-            shape,
-        });
-        self.create_reference_ty(
-            ty::ReferenceTy {
-                target: tuple,
-                resolved_ty_args: expand_tys,
-            },
-            ObjectFlags::empty(),
-        )
     }
 
     fn get_ty_from_tuple_node(&mut self, node: &'cx ast::TupleTy<'cx>) -> &'cx Ty<'cx> {
-        let tys = node
-            .tys
-            .iter()
-            .map(|ty| self.get_ty_from_type_node(ty))
-            .collect::<Vec<_>>();
+        if let Some(ty) = self.get_node_links(node.id).get_resolved_ty() {
+            return ty;
+        }
 
-        let get_tuple_ele_flags = |node: &'cx ast::Ty<'cx>| {
-            use ast::TyKind::*;
-            match node.kind {
-                Rest(rest) => Self::get_rest_ty_ele_flags(rest),
-                _ => ElementFlags::REQUIRED,
-            }
+        let target = self.get_array_or_tuple_target_ty(node);
+        let ty = if target == self.empty_generic_ty() {
+            self.empty_object_ty()
+        } else {
+            // TODO: deferred type
+            let element_tys = node
+                .tys
+                .iter()
+                .map(|ty| self.get_ty_from_type_node(ty))
+                .collect::<Vec<_>>();
+            let element_tys: ty::Tys<'cx> = self.alloc(element_tys);
+            self.create_normalized_ty_reference(target, element_tys)
         };
-        let flags: Vec<_> = node.tys.iter().map(|ty| get_tuple_ele_flags(ty)).collect();
-        let combined_flags = flags
-            .iter()
-            .fold(ElementFlags::empty(), |flags, current| flags | *current);
-        self.create_normalized_tuple_ty(self.alloc(tys), self.alloc(flags), combined_flags)
+        self.get_mut_node_links(node.id).set_resolved_ty(ty);
+        ty
     }
 
     pub(super) fn get_number_literal_type(&mut self, val: f64) -> &'cx Ty<'cx> {
@@ -882,29 +765,61 @@ impl<'cx> TyChecker<'cx> {
         self.create_union_type(tys, ty::UnionReduction::Lit)
     }
 
+    fn should_defer_index_ty(&self, ty: &'cx ty::Ty<'cx>, index_flags: IndexFlags) -> bool {
+        ty.kind.is_instantiable_non_primitive() || ty.kind.is_generic_tuple_type()
+    }
+
+    fn get_index_ty_for_generic_ty(
+        &mut self,
+        ty: &'cx ty::Ty<'cx>,
+        index_flags: IndexFlags,
+    ) -> &'cx ty::Ty<'cx> {
+        if index_flags.intersects(IndexFlags::STRINGS_ONLY) {
+            if let Some(ty) = self.get_ty_links(ty.id).get_resolved_string_index_ty() {
+                ty
+            } else {
+                let index_ty = self.create_index_ty(ty, IndexFlags::STRINGS_ONLY);
+                self.get_mut_ty_links(ty.id)
+                    .set_resolved_string_index_ty(index_ty);
+                index_ty
+            }
+        } else {
+            if let Some(ty) = self.get_ty_links(ty.id).get_resolved_index_ty() {
+                ty
+            } else {
+                let index_ty = self.create_index_ty(ty, IndexFlags::empty());
+                self.get_mut_ty_links(ty.id).set_resolved_index_ty(index_ty);
+                index_ty
+            }
+        }
+    }
+
+    pub(super) fn get_index_ty_of_ty(
+        &mut self,
+        ty: &'cx ty::Ty<'cx>,
+        key_ty: &'cx ty::Ty<'cx>,
+    ) -> Option<&'cx ty::Ty<'cx>> {
+        self.get_index_info_of_ty(ty, key_ty).map(|ty| ty.val_ty)
+    }
+
     pub(super) fn get_index_ty(
         &mut self,
         ty: &'cx ty::Ty<'cx>,
         index_flags: IndexFlags,
     ) -> &'cx ty::Ty<'cx> {
-        let include = if index_flags.intersects(IndexFlags::NO_INDEX_SIGNATURES) {
-            TypeFlags::STRING_LITERAL
+        if self.should_defer_index_ty(ty, index_flags) {
+            self.get_index_ty_for_generic_ty(ty, index_flags)
         } else {
-            TypeFlags::STRING_LIKE
-        } | if index_flags.intersects(IndexFlags::STRINGS_ONLY) {
-            TypeFlags::empty()
-        } else {
-            TypeFlags::NUMBER_LIKE | TypeFlags::ES_SYMBOL_LIKE
-        };
-        self.get_literal_ty_from_props(ty, include, index_flags == IndexFlags::empty())
-    }
-}
-
-bitflags::bitflags! {
-    #[derive(Clone, Copy, Debug, PartialEq)]
-    pub struct IndexFlags: u8 {
-        const STRINGS_ONLY          = 1 << 0;
-        const NO_INDEX_SIGNATURES   = 1 << 1;
-        const NO_REDUCIBLE_CHECK    = 1 << 2;
+            let include = if index_flags.intersects(IndexFlags::NO_INDEX_SIGNATURES) {
+                TypeFlags::STRING_LITERAL
+            } else {
+                TypeFlags::STRING_LIKE
+            } | if index_flags.intersects(IndexFlags::STRINGS_ONLY) {
+                TypeFlags::empty()
+            } else {
+                TypeFlags::NUMBER_LIKE | TypeFlags::ES_SYMBOL_LIKE
+            };
+            self.get_literal_ty_from_props(ty, include, index_flags == IndexFlags::empty())
+        }
     }
 }

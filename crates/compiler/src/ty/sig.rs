@@ -114,7 +114,7 @@ impl<'cx> Sig<'cx> {
                 } else {
                     1
                 };
-                return len + tuple.shape.fixed_length - var;
+                return len + tuple.fixed_length - var;
             }
         }
         len

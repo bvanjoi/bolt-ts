@@ -97,7 +97,7 @@ impl<'cx> TyChecker<'cx> {
         relation: RelationKind,
     ) -> bool {
         let tuple_ty = self.check_array_lit(node, true);
-        if tuple_ty.kind.is_object_tuple() {
+        if tuple_ty.kind.is_tuple() {
             let node = self.generate_limited_tuple_elements(node, target);
             self.elaborate_element_wise(&node, tuple_ty, target, relation)
         } else {

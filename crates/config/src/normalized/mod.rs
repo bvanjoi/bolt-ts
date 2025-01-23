@@ -17,7 +17,8 @@ normalized_option!(
     NormalizedCompilerOptions,
     (out_dir, OutDir),
     (no_emit, bool),
-    (strict, bool)
+    (strict, bool),
+    (declaration, bool),
 );
 normalized_option!(
     NormalizedTsConfig,

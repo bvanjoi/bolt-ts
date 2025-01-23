@@ -22,12 +22,14 @@ mod get_declared_ty;
 mod get_effective_node;
 mod get_this_ty;
 mod get_ty;
+mod get_ty_from_array_ty_like;
 mod get_type_from_ty_refer_like;
 mod get_type_from_var_like;
 mod get_widened_ty;
 mod index_info;
 mod infer;
 mod instantiate;
+mod instantiation_ty_map;
 mod is_context_sensitive;
 mod is_deeply_nested_type;
 mod links;
@@ -42,18 +44,18 @@ mod utils;
 use bolt_ts_atom::{AtomId, AtomMap};
 use bolt_ts_span::Span;
 
-use bolt_ts_utils::{fx_hashmap_with_capacity, no_hashmap_with_capacity};
-use cycle_check::ResolutionKey;
-use get_contextual::ContextFlags;
-use get_ty::IndexFlags;
-use infer::{InferenceFlags, InferencePriority};
-use links::{SigLinks, TyLinks};
+use bolt_ts_utils::fx_hashmap_with_capacity;
 use rustc_hash::{FxBuildHasher, FxHashMap};
 
+use self::cycle_check::ResolutionKey;
 use self::get_context::{InferenceContextual, TyContextual};
+use self::get_contextual::ContextFlags;
 use self::infer::InferenceContext;
+use self::infer::{InferenceFlags, InferencePriority};
+use self::instantiation_ty_map::InstantiationTyMap;
 use self::links::NodeLinks;
 pub use self::links::SymbolLinks;
+use self::links::{SigLinks, TyLinks};
 use self::node_flags::NodeFlags;
 pub use self::resolve::ExpectedArgsCount;
 
@@ -63,8 +65,8 @@ use crate::parser::{AssignmentKind, Parser};
 use crate::ty::has_type_facts;
 use crate::ty::TYPEOF_NE_FACTS;
 use crate::ty::{
-    AccessFlags, CheckFlags, ElementFlags, ObjectFlags, Sig, SigFlags, SigID, TupleShape, TyID,
-    TyKind, TypeFacts, TypeFlags,
+    AccessFlags, CheckFlags, ElementFlags, ObjectFlags, Sig, SigFlags, SigID, TyID, TyKind,
+    TypeFacts, TypeFlags,
 };
 use crate::{ast, ecma_rules, ensure_sufficient_stack, keyword, ty};
 
@@ -134,6 +136,7 @@ pub struct TyChecker<'cx> {
     string_lit_tys: FxHashMap<AtomId, TyID>,
     intrinsic_tys: FxHashMap<AtomId, &'cx ty::Ty<'cx>>,
     type_name: FxHashMap<TyID, String>,
+    tuple_tys: FxHashMap<u64, &'cx ty::Ty<'cx>>,
 
     check_mode: Option<CheckMode>,
     inferences: Vec<InferenceContext<'cx>>,
@@ -145,6 +148,7 @@ pub struct TyChecker<'cx> {
     node_links: FxHashMap<ast::NodeID, NodeLinks<'cx>>,
     sig_links: FxHashMap<SigID, SigLinks<'cx>>,
     ty_links: FxHashMap<TyID, TyLinks<'cx>>,
+    instantiation_ty_map: InstantiationTyMap<'cx>,
     // === ast ===
     pub p: &'cx Parser<'cx>,
     // === global ===
@@ -152,16 +156,18 @@ pub struct TyChecker<'cx> {
     string_or_number_ty: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
     string_number_symbol_ty: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
     typeof_ty: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
-    tuple_shapes: nohash_hasher::IntMap<u32, &'cx TupleShape<'cx>>,
     unknown_sig: std::cell::OnceCell<&'cx Sig<'cx>>,
     any_fn_ty: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
     circular_constraint_ty: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
     no_constraint_ty: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
+    empty_generic_ty: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
+    empty_object_ty: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
     global_object_ty: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
     global_fn_ty: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
     global_callable_fn_ty: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
     global_newable_fn_ty: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
     global_array_ty: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
+    global_readonly_array_ty: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
     global_number_ty: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
     global_string_ty: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
     global_boolean_ty: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
@@ -240,10 +246,13 @@ impl<'cx> TyChecker<'cx> {
 
             num_lit_tys: fx_hashmap_with_capacity(1024 * 8),
             string_lit_tys: fx_hashmap_with_capacity(1024 * 8),
+            instantiation_ty_map: InstantiationTyMap::new(1024 * 16),
 
             any_fn_ty: Default::default(),
             circular_constraint_ty: Default::default(),
             no_constraint_ty: Default::default(),
+            empty_generic_ty: Default::default(),
+            empty_object_ty: Default::default(),
             boolean_ty: Default::default(),
             typeof_ty: Default::default(),
             string_or_number_ty: Default::default(),
@@ -252,6 +261,7 @@ impl<'cx> TyChecker<'cx> {
             global_string_ty: Default::default(),
             global_boolean_ty: Default::default(),
             global_array_ty: Default::default(),
+            global_readonly_array_ty: Default::default(),
             global_fn_ty: Default::default(),
             global_callable_fn_ty: Default::default(),
             global_newable_fn_ty: Default::default(),
@@ -259,13 +269,13 @@ impl<'cx> TyChecker<'cx> {
 
             unknown_sig: Default::default(),
 
-            tuple_shapes: no_hashmap_with_capacity(1024 * 8),
             type_name: fx_hashmap_with_capacity(1024 * 8),
 
             symbol_links: fx_hashmap_with_capacity(p.module_count() * 1024),
             node_links: fx_hashmap_with_capacity(p.module_count() * 1024),
             sig_links: fx_hashmap_with_capacity(p.module_count() * 1024),
             ty_links: fx_hashmap_with_capacity(p.module_count() * 1024),
+            tuple_tys: fx_hashmap_with_capacity(p.module_count() * 1024),
 
             resolution_tys: thin_vec::ThinVec::with_capacity(128),
             resolution_res: thin_vec::ThinVec::with_capacity(128),
@@ -329,6 +339,12 @@ impl<'cx> TyChecker<'cx> {
         let global_array_ty = this.get_global_type(SymbolName::Normal(keyword::IDENT_ARRAY_CLASS));
         this.global_array_ty.set(global_array_ty).unwrap();
 
+        let global_readonly_array_ty =
+            this.get_global_type(SymbolName::Normal(keyword::IDENT_ARRAY_CLASS));
+        this.global_readonly_array_ty
+            .set(global_readonly_array_ty)
+            .unwrap();
+
         let global_string_ty =
             this.get_global_type(SymbolName::Normal(keyword::IDENT_STRING_CLASS));
         this.global_string_ty.set(global_string_ty).unwrap();
@@ -375,6 +391,28 @@ impl<'cx> TyChecker<'cx> {
         this.circular_constraint_ty
             .set(circular_constraint_ty)
             .unwrap();
+
+        let empty_generic_ty = this.create_anonymous_ty_with_resolved(
+            None,
+            Default::default(),
+            this.alloc(Default::default()),
+            Default::default(),
+            Default::default(),
+            Default::default(),
+        );
+
+        this.empty_generic_ty.set(empty_generic_ty).unwrap();
+
+        let empty_object_ty = this.create_anonymous_ty_with_resolved(
+            None,
+            Default::default(),
+            this.alloc(Default::default()),
+            Default::default(),
+            Default::default(),
+            Default::default(),
+        );
+
+        this.empty_object_ty.set(empty_object_ty).unwrap();
 
         let global_object_ty =
             this.get_global_type(SymbolName::Normal(keyword::IDENT_OBJECT_CLASS));
@@ -429,7 +467,7 @@ impl<'cx> TyChecker<'cx> {
         self.arena.alloc(t)
     }
 
-    pub fn check_program(&mut self, program: &'cx ast::Program) {
+    pub fn check_program(&mut self, program: &'cx ast::Program<'cx>) {
         for stmt in program.stmts {
             self.check_stmt(stmt);
         }
@@ -1458,35 +1496,54 @@ impl<'cx> TyChecker<'cx> {
     }
 
     fn check_array_lit(&mut self, lit: &'cx ast::ArrayLit, force_tuple: bool) -> &'cx ty::Ty<'cx> {
-        let mut elems_tys = Vec::with_capacity(lit.elems.len());
+        let mut element_types = Vec::with_capacity(lit.elems.len());
         let mut element_flags = Vec::with_capacity(lit.elems.len());
 
         for elem in lit.elems.iter() {
-            elems_tys.push(self.check_expr_for_mutable_location(elem));
+            element_types.push(self.check_expr_for_mutable_location(elem));
             element_flags.push(ElementFlags::REQUIRED);
         }
 
         if force_tuple {
-            let tys: ty::Tys<'cx> = self.alloc(elems_tys);
-            let combined_flags = element_flags
-                .iter()
-                .fold(ElementFlags::empty(), |flags, current| flags | *current);
-            self.create_normalized_tuple_ty(tys, self.alloc(element_flags), combined_flags)
+            let element_types: ty::Tys<'cx> = self.alloc(element_types);
+            let element_flags: &'cx [ElementFlags] = self.alloc(element_flags);
+            let tuple_ty = self.create_tuple_ty(element_types, Some(element_flags), false);
+            self.create_array_literal_ty(tuple_ty)
         } else {
-            let ty = if elems_tys.is_empty() {
+            let ty = if element_types.is_empty() {
                 self.never_ty()
             } else {
-                self.create_union_type(elems_tys, ty::UnionReduction::Subtype)
+                self.create_union_type(element_types, ty::UnionReduction::Subtype)
             };
-            let refer = self.global_array_ty().kind.expect_object_reference();
-            let ty = self.create_reference_ty(
-                ty::ReferenceTy {
-                    target: refer.target,
-                    resolved_ty_args: self.alloc(vec![ty]),
-                },
-                ObjectFlags::ARRAY_LITERAL | ObjectFlags::CONTAINS_OBJECT_OR_ARRAY_LITERAL,
-            );
+            let array_ty = self.create_array_ty(ty);
+            self.create_array_literal_ty(array_ty)
+        }
+    }
+
+    fn create_array_literal_ty(&mut self, ty: &'cx ty::Ty<'cx>) -> &'cx ty::Ty<'cx> {
+        if !ty.get_object_flags().intersects(ObjectFlags::REFERENCE) {
             ty
+        } else if let Some(literal_ty) = self.get_ty_links(ty.id).get_literal_ty() {
+            literal_ty
+        } else {
+            let object_flags = ty.get_object_flags()
+                | ObjectFlags::ARRAY_LITERAL
+                | ObjectFlags::CONTAINS_OBJECT_OR_ARRAY_LITERAL;
+            let (target, resolved_ty_args) = if let Some(tuple) = ty.kind.as_object_tuple() {
+                (ty, tuple.resolved_ty_args)
+            } else {
+                let ty = ty.kind.expect_object_reference();
+                (ty.target, ty.resolved_ty_args)
+            };
+            let literal_ty = self.create_reference_ty(
+                ty::ReferenceTy {
+                    target,
+                    resolved_ty_args,
+                },
+                object_flags,
+            );
+            self.get_mut_ty_links(ty.id).set_literal_ty(literal_ty);
+            literal_ty
         }
     }
 
@@ -1798,6 +1855,12 @@ impl<'cx> TyChecker<'cx> {
         match ty.kind {
             Refer(n) => self.check_ty_refer_ty(n),
             IndexedAccess(n) => self.check_indexed_access_ty(n),
+            Cond(n) => {
+                self.check_ty(n.check_ty);
+                self.check_ty(n.extends_ty);
+                self.check_ty(n.true_ty);
+                self.check_ty(n.false_ty);
+            }
             _ => (),
         }
     }
@@ -1810,7 +1873,8 @@ impl<'cx> TyChecker<'cx> {
         let Some(indexed_access_ty) = ty.kind.as_indexed_access() else {
             return ty;
         };
-        let object_index_ty = self.get_index_ty(indexed_access_ty.object_ty, IndexFlags::empty());
+        let object_index_ty =
+            self.get_index_ty(indexed_access_ty.object_ty, ty::IndexFlags::empty());
         let has_number_index_info = self
             .get_index_info_of_ty(indexed_access_ty.object_ty, self.number_ty())
             .is_some();
@@ -1988,6 +2052,18 @@ impl<'cx> TyChecker<'cx> {
         })
     }
 
+    fn get_simplified_ty_or_constraint(
+        &mut self,
+        ty: &'cx ty::Ty<'cx>,
+    ) -> Option<&'cx ty::Ty<'cx>> {
+        let simplified = self.get_simplified_ty(ty);
+        if simplified != ty {
+            Some(simplified)
+        } else {
+            self.get_constraint_of_ty(ty)
+        }
+    }
+
     fn get_simplified_ty(&self, ty: &'cx ty::Ty<'cx>) -> &'cx ty::Ty<'cx> {
         if let Some(_) = ty.kind.as_indexed_access() {
             // TODO: handle indexed_access
@@ -2044,12 +2120,15 @@ global_ty!(
     string_number_symbol_ty,
     any_fn_ty,
     circular_constraint_ty,
+    empty_generic_ty,
+    empty_object_ty,
     no_constraint_ty,
     global_number_ty,
     global_string_ty,
     global_boolean_ty,
     typeof_ty,
     global_array_ty,
+    global_readonly_array_ty,
     global_fn_ty,
     global_callable_fn_ty,
     global_newable_fn_ty,

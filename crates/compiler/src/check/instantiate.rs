@@ -5,7 +5,7 @@ use crate::{ast, ty};
 use super::TyChecker;
 
 impl<'cx> TyChecker<'cx> {
-    pub(super) fn instantiate_ty(
+    pub fn instantiate_ty(
         &mut self,
         ty: &'cx ty::Ty<'cx>,
         mapper: Option<&'cx ty::TyMapper<'cx>>,
@@ -136,13 +136,9 @@ impl<'cx> TyChecker<'cx> {
             }
             let object_ty = refer.target.kind.expect_object();
             match &object_ty.kind {
-                Tuple(tuple) => {
+                Tuple(_) => {
                     if !std::ptr::eq(ty_args, refer.resolved_ty_args) {
-                        self.create_normalized_tuple_ty(
-                            ty_args,
-                            tuple.element_flags,
-                            tuple.combined_flags,
-                        )
+                        self.create_normalized_tuple_ty(refer.target, ty_args)
                     } else {
                         refer.target
                     }

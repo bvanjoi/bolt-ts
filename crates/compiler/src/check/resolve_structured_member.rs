@@ -346,7 +346,7 @@ impl<'cx> TyChecker<'cx> {
             return tys;
         }
         if self.push_ty_resolution(ResolutionKey::ResolvedBaseTypes(ty.id)) {
-            if ty.kind.is_tuple() || ty.kind.is_object_tuple() {
+            if ty.kind.is_tuple() {
                 let base_ty = self.get_tuple_base_ty(ty);
                 let tys = self.alloc(vec![base_ty]);
                 self.get_mut_ty_links(ty.id).set_resolved_base_tys(tys);
@@ -482,9 +482,16 @@ impl<'cx> TyChecker<'cx> {
         let Some(refer) = ty.kind.as_object_reference() else {
             unreachable!()
         };
-        let Some(i) = refer.deep_target().kind.as_object_interface() else {
-            // TODO: handle more case
-            return;
+        let target = refer.deep_target();
+        let i = {
+            if let Some(i) = target.kind.as_object_interface() {
+                i
+            } else if let Some(t) = target.kind.as_object_tuple() {
+                t.ty.kind.expect_object_interface()
+            } else {
+                // TODO: handle more case
+                return;
+            }
         };
         let ty_params = {
             let mut ty_params = i.ty_params.unwrap().to_vec();
@@ -651,7 +658,6 @@ impl<'cx> TyChecker<'cx> {
         if self.get_ty_links(ty.id).get_structured_members().is_some() {
             return;
         }
-
         if ty.kind.is_object_reference() {
             self.resolve_reference_members(ty);
         } else if ty.kind.is_object_interface() {
@@ -660,15 +666,6 @@ impl<'cx> TyChecker<'cx> {
             self.resolve_anonymous_type_members(ty);
         } else if ty.kind.is_union() {
             self.resolve_union_type_members(ty);
-        } else if ty.kind.is_tuple() || ty.kind.is_object_tuple() {
-            // TODO: delete this branch
-            let declared_members = self.alloc(ty::DeclaredMembers {
-                props: &[],
-                call_sigs: &[],
-                ctor_sigs: &[],
-                index_infos: &[],
-            });
-            self.resolve_object_type_members(ty, declared_members, &[], &[]);
         }
     }
 }

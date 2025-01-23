@@ -2,6 +2,7 @@ use crate::bind::{SymbolFlags, SymbolID, SymbolName};
 use crate::check::TyChecker;
 
 use super::flags::ObjectFlags;
+use super::pprint::pprint_reference_ty;
 use super::Ty;
 
 #[derive(Debug, Clone, Copy)]
@@ -111,16 +112,18 @@ bitflags::bitflags! {
 
 #[derive(Debug, Clone, Copy)]
 pub struct TupleTy<'cx> {
-    pub tys: super::Tys<'cx>,
+    /// shape (an interface type)
+    pub ty: &'cx Ty<'cx>,
+
+    // instance
+    pub resolved_ty_args: super::Tys<'cx>,
+
+    // properties
+    pub min_length: usize,
+    pub fixed_length: usize,
     pub element_flags: &'cx [ElementFlags],
     pub combined_flags: ElementFlags,
-    pub shape: &'cx TupleShape<'cx>,
-}
-
-#[derive(Debug, Clone, Copy)]
-pub struct TupleShape<'cx> {
-    pub declared_props: &'cx [SymbolID],
-    pub fixed_length: usize,
+    pub readonly: bool,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -187,8 +190,8 @@ pub struct InterfaceTy<'cx> {
     pub declared_members: &'cx DeclaredMembers<'cx>,
 }
 
-impl ObjectTyKind<'_> {
-    pub(super) fn to_string(&self, self_ty: &Ty, checker: &mut TyChecker) -> String {
+impl<'cx> ObjectTyKind<'cx> {
+    pub(super) fn to_string(&self, self_ty: &Ty, checker: &mut TyChecker<'cx>) -> String {
         match self {
             ObjectTyKind::Anonymous(a) => {
                 let symbol = a.symbol;
@@ -268,10 +271,11 @@ impl ObjectTyKind<'_> {
                     "object".to_string()
                 }
             }
-            ObjectTyKind::Tuple(TupleTy { tys, .. }) => {
+            ObjectTyKind::Tuple(t) => {
                 format!(
                     "[{}]",
-                    tys.iter()
+                    t.resolved_ty_args
+                        .iter()
                         .map(|ty| ty.to_string(checker))
                         .collect::<Vec<_>>()
                         .join(",")
@@ -281,7 +285,7 @@ impl ObjectTyKind<'_> {
                 .atoms
                 .get(checker.binder.symbol(i.symbol).name.expect_atom())
                 .to_string(),
-            ObjectTyKind::Reference(refer) => refer.target.to_string(checker),
+            ObjectTyKind::Reference(refer) => pprint_reference_ty(refer, checker),
             ObjectTyKind::SingleSigTy(_) => "single signature type".to_string(),
         }
     }

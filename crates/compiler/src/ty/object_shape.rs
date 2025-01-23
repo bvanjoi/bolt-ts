@@ -4,14 +4,19 @@ use crate::keyword;
 
 pub trait ObjectShape<'cx> {
     fn get_member(&self, name: &SymbolName) -> Option<SymbolID>;
-    fn props(&self) -> &[SymbolID];
 }
 
 impl<'cx> ObjectShape<'cx> for TupleTy<'cx> {
     fn get_member(&self, name: &SymbolName) -> Option<SymbolID> {
         if let Some(atom) = name.as_atom() {
             if atom == keyword::IDENT_LENGTH {
-                Some(self.shape.declared_props[0])
+                Some(
+                    self.ty
+                        .kind
+                        .expect_object_interface()
+                        .declared_members
+                        .props[self.fixed_length],
+                )
             } else {
                 None
             }
@@ -21,8 +26,5 @@ impl<'cx> ObjectShape<'cx> for TupleTy<'cx> {
         } else {
             unreachable!()
         }
-    }
-    fn props(&self) -> &[SymbolID] {
-        self.shape.declared_props
     }
 }

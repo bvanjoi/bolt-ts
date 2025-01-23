@@ -1,11 +1,13 @@
 use rustc_hash::FxHashMap;
 
-use crate::bind::{Symbol, SymbolID, SymbolName};
+use crate::bind::{Symbol, SymbolFlags, SymbolID, SymbolName};
 use crate::check::links::TyLinks;
-use crate::ty::{self, ObjectFlags, TyID, UnionReduction};
+use crate::check::SymbolLinks;
+use crate::keyword;
+use crate::ty::{self, CheckFlags, ElementFlags, IndexFlags, ObjectFlags, TyID, UnionReduction};
 
-use super::Ternary;
 use super::{relation::RelationKind, TyChecker};
+use super::{InstantiationTyMap, Ternary};
 
 impl<'cx> TyChecker<'cx> {
     pub(super) fn new_ty(&mut self, kind: ty::TyKind<'cx>) -> &'cx ty::Ty<'cx> {
@@ -27,17 +29,138 @@ impl<'cx> TyChecker<'cx> {
         self.new_ty(kind)
     }
 
-    pub(super) fn create_tuple_ty(&mut self, ty: ty::TupleTy<'cx>) -> &'cx ty::Ty<'cx> {
-        assert_eq!(ty.tys.len(), ty.element_flags.len());
-        debug_assert!(ty.element_flags.iter().all(|flag| {
-            let flag = flag.bits();
-            // is variant
-            (flag & (flag - 1)) == 0
-        }));
-        self.create_object_ty(
-            ty::ObjectTyKind::Tuple(self.alloc(ty)),
-            ObjectFlags::empty(),
-        )
+    pub(super) fn create_tuple_ty(
+        &mut self,
+        element_types: ty::Tys<'cx>,
+        element_flags: Option<&'cx [ElementFlags]>,
+        readonly: bool,
+    ) -> &'cx ty::Ty<'cx> {
+        let element_flags = element_flags.unwrap_or_else(|| {
+            let element_flags = element_types
+                .iter()
+                .map(|_| ElementFlags::REQUIRED)
+                .collect::<Vec<_>>();
+            self.alloc(element_flags)
+        });
+        let tuple_target = self.create_tuple_target_type(element_flags, readonly);
+        if element_types.is_empty() {
+            tuple_target
+        } else {
+            self.create_normalized_ty_reference(tuple_target, element_types)
+        }
+    }
+
+    pub(super) fn create_normalized_ty_reference(
+        &mut self,
+        target: &'cx ty::Ty<'cx>,
+        resolved_ty_args: ty::Tys<'cx>,
+    ) -> &'cx ty::Ty<'cx> {
+        if target.kind.is_object_tuple() {
+            self.create_normalized_tuple_ty(target, resolved_ty_args)
+        } else {
+            self.create_reference_ty(
+                ty::ReferenceTy {
+                    target,
+                    resolved_ty_args,
+                },
+                ObjectFlags::empty(),
+            )
+        }
+    }
+
+    pub(super) fn create_normalized_tuple_ty(
+        &mut self,
+        ty: &'cx ty::Ty<'cx>,
+        element_types: ty::Tys<'cx>,
+    ) -> &'cx ty::Ty<'cx> {
+        let Some(target) = ty.kind.as_object_tuple() else {
+            unreachable!()
+        };
+        if !target.combined_flags.intersects(ElementFlags::NON_REQUIRED) {
+            let ty = ty::ReferenceTy {
+                target: ty,
+                resolved_ty_args: element_types,
+            };
+            return self.create_reference_ty(ty, ObjectFlags::empty());
+        } else if target.combined_flags.intersects(ElementFlags::VARIABLE) {
+            // TODO:
+        }
+
+        let mut expanded_tys = Vec::with_capacity(element_types.len());
+        let mut expanded_flags = Vec::with_capacity(element_types.len());
+        let mut last_required_index = usize::MAX;
+        let mut first_rest_index = usize::MAX;
+        let mut last_optional_or_rest_index = usize::MAX;
+
+        let mut add_ele = |ty: &'cx ty::Ty<'cx>, flags: ElementFlags| {
+            if flags.intersects(ElementFlags::REQUIRED) {
+                last_required_index = expanded_tys.len();
+            }
+            if flags.intersects(ElementFlags::REST) && first_rest_index == usize::MAX {
+                first_rest_index = expanded_tys.len()
+            }
+            if flags.intersects(ElementFlags::OPTIONAL | ElementFlags::REST) {
+                last_optional_or_rest_index = expanded_tys.len();
+            }
+            if flags.intersects(ElementFlags::OPTIONAL) {
+                todo!()
+            } else {
+                expanded_tys.push(ty);
+            }
+            expanded_flags.push(flags);
+        };
+
+        for (i, ele) in element_types.iter().enumerate() {
+            let flag = target.element_flags[i];
+            if flag.intersects(ElementFlags::VARIADIC) {
+                if ele.kind.is_any() {
+                    todo!()
+                } else if ele.kind.is_instantiable_non_primitive() {
+                    add_ele(ele, ElementFlags::VARIADIC);
+                } else if ele.kind.is_tuple() {
+                    let tuple = ele
+                        .kind
+                        .expect_object_reference()
+                        .target
+                        .kind
+                        .expect_object_tuple();
+                    for i in 0..tuple.resolved_ty_args.len() {
+                        add_ele(tuple.resolved_ty_args[i], tuple.element_flags[i]);
+                    }
+                } else if let Some(tuple) = ele.kind.as_object_tuple() {
+                    for i in 0..tuple.resolved_ty_args.len() {
+                        add_ele(tuple.resolved_ty_args[i], tuple.element_flags[i]);
+                    }
+                } else {
+                    todo!()
+                }
+            } else {
+                add_ele(ele, flag)
+            }
+        }
+
+        // for i in 0..last_required_index {
+        //     if expanded_flags[i].intersects(ElementFlags::OPTIONAL) {
+        //         expanded_flags[i] = ElementFlags::REQUIRED
+        //     }
+        // }
+
+        // while first_rest_index < last_optional_or_rest_index {
+        //    expanded_tys[first_rest_index] =
+        // }
+
+        let expanded_flags: &'cx [ElementFlags] = self.alloc(expanded_flags);
+        let tuple_target = self.create_tuple_target_type(expanded_flags, target.readonly);
+
+        if expanded_flags.is_empty() {
+            tuple_target
+        } else {
+            let ty = ty::ReferenceTy {
+                target: tuple_target,
+                resolved_ty_args: self.alloc(expanded_tys),
+            };
+            self.create_reference_ty(ty, ObjectFlags::empty())
+        }
     }
 
     pub(super) fn create_reference_ty(
@@ -45,9 +168,28 @@ impl<'cx> TyChecker<'cx> {
         ty: ty::ReferenceTy<'cx>,
         flags: ObjectFlags,
     ) -> &'cx ty::Ty<'cx> {
-        let object_flags = flags | ty::Ty::get_propagating_flags_of_tys(ty.resolved_ty_args, None);
-        let ty = self.create_object_ty(ty::ObjectTyKind::Reference(self.alloc(ty)), object_flags);
-        ty
+        if !flags.is_empty() {
+            // TODO: delete branch
+            let object_flags = flags
+                | ObjectFlags::REFERENCE
+                | ty::Ty::get_propagating_flags_of_tys(ty.resolved_ty_args, None);
+            let ty =
+                self.create_object_ty(ty::ObjectTyKind::Reference(self.alloc(ty)), object_flags);
+            return ty;
+        }
+
+        let id = InstantiationTyMap::create_id(ty.target.id, ty.resolved_ty_args);
+        if let Some(res) = self.instantiation_ty_map.get(id) {
+            res
+        } else {
+            let object_flags = flags
+                | ObjectFlags::REFERENCE
+                | ty::Ty::get_propagating_flags_of_tys(ty.resolved_ty_args, None);
+            let ty =
+                self.create_object_ty(ty::ObjectTyKind::Reference(self.alloc(ty)), object_flags);
+            self.instantiation_ty_map.insert(id, ty);
+            ty
+        }
     }
 
     pub(super) fn crate_interface_ty(&mut self, ty: ty::InterfaceTy<'cx>) -> &'cx ty::Ty<'cx> {
@@ -227,5 +369,117 @@ impl<'cx> TyChecker<'cx> {
             }
         }
         tys
+    }
+
+    pub(super) fn create_index_ty(
+        &mut self,
+        ty: &'cx ty::Ty<'cx>,
+        index_flags: IndexFlags,
+    ) -> &'cx ty::Ty<'cx> {
+        let ty = self.alloc(ty::IndexTy { ty, index_flags });
+        self.new_ty(ty::TyKind::Index(ty))
+    }
+
+    pub(super) fn create_tuple_target_type(
+        &mut self,
+        element_flags: &'cx [ElementFlags],
+        readonly: bool,
+    ) -> &'cx ty::Ty<'cx> {
+        let arity = element_flags.len();
+        let min_length = element_flags
+            .iter()
+            .filter(|flag| flag.intersects(ElementFlags::REQUIRED | ElementFlags::VARIADIC))
+            .count();
+        let mut ty_params: Option<ty::Tys<'cx>> = None;
+        let mut props = Vec::with_capacity(arity + 1);
+        let mut combined_flags = ElementFlags::empty();
+        let check_flags = if readonly {
+            CheckFlags::READONLY
+        } else {
+            CheckFlags::empty()
+        };
+        if arity > 0 {
+            let mut _ty_params = Vec::with_capacity(arity);
+            for i in 0..arity {
+                let ty_param = self.create_param_ty(Symbol::ERR, i, false);
+                _ty_params.push(ty_param);
+                let flag = element_flags[i];
+                combined_flags |= flag;
+                if !combined_flags.intersects(ElementFlags::VARIABLE) {
+                    let name = SymbolName::EleNum(i.into());
+                    let symbol_flags = SymbolFlags::PROPERTY
+                        | if flag.intersects(ElementFlags::OPTIONAL) {
+                            SymbolFlags::OPTIONAL
+                        } else {
+                            SymbolFlags::empty()
+                        };
+
+                    let property = self.binder.create_transient_symbol(
+                        name,
+                        symbol_flags,
+                        None,
+                        SymbolLinks::default()
+                            .with_ty(ty_param)
+                            .with_check_flags(check_flags),
+                    );
+                    props.push(property);
+                }
+            }
+            ty_params = Some(self.alloc(_ty_params));
+        }
+
+        let fixed_length = props.len();
+        let length_symbol_name = SymbolName::Ele(keyword::IDENT_LENGTH);
+        let ty = self.get_number_literal_type(fixed_length as f64);
+        // let ty = if combined_flags.intersects(ElementFlags::VARIABLE) {
+        //     self.number_ty()
+        // } else {
+        //     let tys = (min_length..arity)
+        //         .into_iter()
+        //         .map(|i| self.get_number_literal_type(i as f64))
+        //         .collect::<Vec<_>>();
+        //     self.create_union_type(tys, UnionReduction::Lit)
+        // };
+        let length_symbol = self.binder.create_transient_symbol(
+            length_symbol_name,
+            SymbolFlags::PROPERTY,
+            None,
+            SymbolLinks::default()
+                .with_ty(ty)
+                .with_check_flags(check_flags),
+        );
+        props.push(length_symbol);
+
+        let object_flags = ObjectFlags::TUPLE | ObjectFlags::REFERENCE;
+        let this_ty = self.create_param_ty(Symbol::ERR, usize::MAX, true);
+        let declared_members = self.alloc(ty::DeclaredMembers {
+            props: self.alloc(props),
+            call_sigs: &[],
+            ctor_sigs: &[],
+            index_infos: &[],
+        });
+        let ty = self.crate_interface_ty(ty::InterfaceTy {
+            symbol: Symbol::ERR,
+            ty_params,
+            outer_ty_params: None,
+            local_ty_params: ty_params,
+            this_ty: Some(this_ty),
+            declared_members,
+        });
+        let tuple = ty::TupleTy {
+            ty,
+            resolved_ty_args: ty_params.unwrap_or_default(),
+            min_length,
+            fixed_length,
+            element_flags,
+            combined_flags,
+            readonly,
+        };
+        let ty = self.create_object_ty(ty::ObjectTyKind::Tuple(self.alloc(tuple)), object_flags);
+        self.instantiation_ty_map.insert(
+            InstantiationTyMap::create_id(ty.id, ty_params.unwrap_or_default()),
+            ty,
+        );
+        ty
     }
 }

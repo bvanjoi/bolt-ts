@@ -193,12 +193,12 @@ impl<'cx> Node<'cx> {
         as_ty_node!(
             (ReferTy, Refer),
             (ArrayTy, Array),
+            (TupleTy, Tuple),
             (IndexedAccessTy, IndexedAccess),
             (FnTy, Fn),
             (ObjectLitTy, ObjectLit),
             (NumLitTy, NumLit),
             (StringLitTy, StringLit),
-            (TupleTy, Tuple),
             (RestTy, Rest),
             (CondTy, Cond),
             (UnionTy, Union),

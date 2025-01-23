@@ -197,7 +197,7 @@ impl<'cx> TyChecker<'cx> {
                 {
                     first_optional_index
                 } else {
-                    tuple.shape.fixed_length
+                    tuple.fixed_length
                 };
                 if required_count > 0 {
                     min_arg_count = Some(sig.params.len() - 1 + required_count);

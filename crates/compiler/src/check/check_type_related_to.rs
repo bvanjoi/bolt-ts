@@ -228,7 +228,7 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
             // TODO:
         }
 
-        if target.kind.is_tuple() || target.kind.is_object_tuple() {
+        if target.kind.is_tuple() {
             if self.c.is_array_or_tuple(source) || source.kind.is_object_tuple() {
                 // TODO:
                 return Ternary::TRUE;
@@ -479,6 +479,50 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
                             return result;
                         }
                     }
+                }
+            }
+        }
+
+        if target.kind.is_array(self.c)
+            && self
+                .c
+                .every_type(source, |_, t| t.kind.is_tuple() || t.kind.is_object_tuple())
+        {
+            return if self.relation != RelationKind::Identity {
+                let source = self
+                    .c
+                    .get_index_ty_of_ty(source, self.c.number_ty())
+                    .unwrap_or(self.c.any_ty());
+                let target = self
+                    .c
+                    .get_index_ty_of_ty(target, self.c.number_ty())
+                    .unwrap_or(self.c.any_ty());
+                self.is_related_to(
+                    source,
+                    target,
+                    RecursionFlags::BOTH,
+                    report_error,
+                    IntersectionState::empty(),
+                )
+            } else {
+                Ternary::FALSE
+            };
+        } else if let Some(target_index) = target.kind.as_index_ty() {
+            let target_ty = target_index.ty;
+            if let Some(constraint) = self.c.get_simplified_ty_or_constraint(target_ty) {
+                let index_ty = self.c.get_index_ty(
+                    constraint,
+                    target_index.index_flags | ty::IndexFlags::NO_REDUCIBLE_CHECK,
+                );
+                if self.is_related_to(
+                    source,
+                    index_ty,
+                    RecursionFlags::TARGET,
+                    report_error,
+                    IntersectionState::empty(),
+                ) == Ternary::TRUE
+                {
+                    return Ternary::TRUE;
                 }
             }
         }
