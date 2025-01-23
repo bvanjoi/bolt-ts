@@ -1535,13 +1535,7 @@ impl<'cx> TyChecker<'cx> {
                 let ty = ty.kind.expect_object_reference();
                 (ty.target, ty.resolved_ty_args)
             };
-            let literal_ty = self.create_reference_ty(
-                ty::ReferenceTy {
-                    target,
-                    resolved_ty_args,
-                },
-                object_flags,
-            );
+            let literal_ty = self.create_reference_ty(target, resolved_ty_args, object_flags);
             self.get_mut_ty_links(ty.id).set_literal_ty(literal_ty);
             literal_ty
         }

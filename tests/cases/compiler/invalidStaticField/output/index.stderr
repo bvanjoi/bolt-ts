@@ -1,0 +1,5 @@
+  × Property 'NULL' does not exist on type 'typeof B'.
+   ╭─[../../tests/cases/compiler/invalidStaticField/index.ts:3:28]
+ 3 │ NULL
+   · ────
+   ╰────

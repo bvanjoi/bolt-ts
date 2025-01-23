@@ -167,13 +167,7 @@ impl<'cx> TyChecker<'cx> {
                     self.fill_missing_ty_args(self_ty_args, i.local_ty_params, min_ty_arg_count);
                 self.concatenate(i.outer_ty_params, self_ty_args)
             };
-            self.create_reference_ty(
-                ty::ReferenceTy {
-                    target: ty,
-                    resolved_ty_args,
-                },
-                ty.get_object_flags(),
-            )
+            self.create_reference_ty(ty, resolved_ty_args, ty.get_object_flags())
         } else {
             ty
         }

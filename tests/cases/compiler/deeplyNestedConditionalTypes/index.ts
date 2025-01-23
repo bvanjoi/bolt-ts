@@ -108,6 +108,6 @@ type T1 = Foo<any>;
 
 let t0: T0 = '98';
 //~^ ERROR: Type '"98"' is not assignable to type '"99"'.
-// let t10: T1 = '42';
-// let t11: T1 = '0';
-// let t12: T1 = '99';
+let t10: T1 = '42';
+let t11: T1 = '0';
+let t12: T1 = '99';

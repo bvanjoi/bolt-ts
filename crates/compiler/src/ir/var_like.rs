@@ -9,6 +9,17 @@ pub enum VarLikeName<'cx> {
         key: bolt_ts_atom::AtomId,
     },
 }
+
+impl<'cx> From<&ast::PropName<'cx>> for VarLikeName<'cx> {
+    fn from(value: &ast::PropName<'cx>) -> Self {
+        match value.kind {
+            ast::PropNameKind::Ident(ident) => VarLikeName::Ident(ident),
+            ast::PropNameKind::NumLit(num) => VarLikeName::NumLit(num),
+            ast::PropNameKind::StringLit { raw, key } => VarLikeName::StringLit { raw, key },
+        }
+    }
+}
+
 pub trait VarLike<'cx>: Copy + std::fmt::Debug {
     fn id(&self) -> ast::NodeID;
     fn name(&self) -> VarLikeName<'cx>;
@@ -54,11 +65,7 @@ impl<'cx> VarLike<'cx> for ast::ClassPropElem<'cx> {
         self.id
     }
     fn name(&self) -> VarLikeName<'cx> {
-        match self.name.kind {
-            ast::PropNameKind::Ident(ident) => VarLikeName::Ident(ident),
-            ast::PropNameKind::NumLit(_) => todo!(),
-            ast::PropNameKind::StringLit { raw, key } => VarLikeName::StringLit { raw, key },
-        }
+        VarLikeName::from(self.name)
     }
     fn decl_ty(&self) -> Option<&'cx ast::Ty<'cx>> {
         self.ty
@@ -73,11 +80,7 @@ impl<'cx> VarLike<'cx> for ast::PropSignature<'cx> {
         self.id
     }
     fn name(&self) -> VarLikeName<'cx> {
-        match self.name.kind {
-            ast::PropNameKind::Ident(ident) => VarLikeName::Ident(ident),
-            ast::PropNameKind::NumLit(_) => todo!(),
-            ast::PropNameKind::StringLit { raw, key } => VarLikeName::StringLit { raw, key },
-        }
+        VarLikeName::from(self.name)
     }
     fn decl_ty(&self) -> Option<&'cx ast::Ty<'cx>> {
         self.ty
@@ -92,11 +95,7 @@ impl<'cx> VarLike<'cx> for ast::ObjectPropMember<'cx> {
         self.id
     }
     fn name(&self) -> VarLikeName<'cx> {
-        match self.name.kind {
-            ast::PropNameKind::Ident(ident) => VarLikeName::Ident(ident),
-            ast::PropNameKind::NumLit(_) => todo!(),
-            ast::PropNameKind::StringLit { raw, key } => VarLikeName::StringLit { raw, key },
-        }
+        VarLikeName::from(self.name)
     }
     fn decl_ty(&self) -> Option<&'cx ast::Ty<'cx>> {
         None

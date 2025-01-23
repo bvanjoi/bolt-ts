@@ -235,13 +235,7 @@ impl<'cx> TyChecker<'cx> {
                 this_ty: Some(this_ty),
                 declared_members,
             });
-            let ty = self.create_reference_ty(
-                ty::ReferenceTy {
-                    target,
-                    resolved_ty_args: ty_params,
-                },
-                ObjectFlags::empty(),
-            );
+            let ty = self.create_reference_ty(target, ty_params, ObjectFlags::empty());
             ty
         } else {
             assert!(outer_ty_params.is_none() && local_ty_params.is_none());

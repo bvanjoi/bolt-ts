@@ -2,7 +2,7 @@ use crate::bind::{SymbolFlags, SymbolID};
 use crate::ty::ObjectFlags;
 use crate::{ast, ty};
 
-use super::TyChecker;
+use super::{InstantiationTyMap, TyChecker};
 
 impl<'cx> TyChecker<'cx> {
     pub fn instantiate_ty(
@@ -128,28 +128,12 @@ impl<'cx> TyChecker<'cx> {
         ty: &'cx ty::Ty<'cx>,
         mapper: &'cx ty::TyMapper<'cx>,
     ) -> &'cx ty::Ty<'cx> {
-        use ty::ObjectTyKind::*;
         if let Some(refer) = ty.kind.as_object_reference() {
-            let ty_args = self.instantiate_tys(refer.resolved_ty_args, mapper);
-            if refer.resolved_ty_args == ty_args {
-                return ty;
-            }
-            let object_ty = refer.target.kind.expect_object();
-            match &object_ty.kind {
-                Tuple(_) => {
-                    if !std::ptr::eq(ty_args, refer.resolved_ty_args) {
-                        self.create_normalized_tuple_ty(refer.target, ty_args)
-                    } else {
-                        refer.target
-                    }
-                }
-                _ => self.create_reference_ty(
-                    ty::ReferenceTy {
-                        target: refer.target,
-                        resolved_ty_args: ty_args,
-                    },
-                    Default::default(),
-                ),
+            let new_ty_args = self.instantiate_tys(refer.resolved_ty_args, mapper);
+            if refer.resolved_ty_args == new_ty_args {
+                ty
+            } else {
+                self.create_normalized_ty_reference(refer.target, new_ty_args)
             }
         } else if let Some(a) = ty.kind.as_object_anonymous() {
             let s = self.binder.symbol(a.symbol);
@@ -187,20 +171,23 @@ impl<'cx> TyChecker<'cx> {
         ty: &'cx ty::Ty<'cx>,
         mapper: &'cx ty::TyMapper<'cx>,
     ) -> &'cx ty::Ty<'cx> {
-        let Some(cond_ty) = ty.kind.as_cond_ty() else {
-            unreachable!()
+        let cond_ty = ty.kind.expect_cond_ty();
+        let Some(outer_ty_params) = cond_ty.root.outer_ty_params else {
+            return ty;
         };
-        if let Some(outer_ty_params) = cond_ty.root.outer_ty_params {
-            let ty_args = outer_ty_params
-                .iter()
-                .map(|t| self.get_mapped_ty(mapper, t))
-                .collect::<Vec<_>>();
-            let ty_args = self.alloc(ty_args);
-            let mapper = self.alloc(ty::TyMapper::create(outer_ty_params, ty_args));
-            self.get_cond_ty(cond_ty.root, Some(mapper))
-        } else {
-            ty
+        let ty_args = outer_ty_params
+            .iter()
+            .map(|t| self.get_mapped_ty(mapper, t))
+            .collect::<Vec<_>>();
+        let key = InstantiationTyMap::create_id(ty.id, &ty_args);
+        if let Some(instantiated) = self.instantiation_ty_map.get(key) {
+            return instantiated;
         }
+        let ty_args = self.alloc(ty_args);
+        let mapper = self.alloc(ty::TyMapper::create(outer_ty_params, ty_args));
+        let ty = self.get_cond_ty(cond_ty.root, Some(mapper));
+        self.instantiation_ty_map.insert(key, ty);
+        ty
     }
 
     pub(super) fn get_permissive_instantiation(&self, ty: &'cx ty::Ty<'cx>) -> &'cx ty::Ty<'cx> {

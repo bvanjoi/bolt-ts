@@ -469,7 +469,8 @@ impl<'cx> TyChecker<'cx> {
                 None
             };
         let mut tailed = 0;
-        loop {
+        let mut extra_tys = Vec::with_capacity(16);
+        let result = loop {
             if tailed > 100 {
                 panic!()
             }
@@ -489,6 +490,11 @@ impl<'cx> TyChecker<'cx> {
                             self.get_permissive_instantiation(inferred_extends_ty),
                         ) == Ternary::FALSE)
                 {
+                    if effective_check_ty.kind.is_any() {
+                        let ty = self.get_ty_from_type_node(root.node.true_ty);
+                        let ty = self.instantiate_ty(ty, mapper);
+                        extra_tys.push(ty);
+                    }
                     let false_ty = self.get_ty_from_type_node(root.node.false_ty);
                     if false_ty.kind.as_cond_ty().is_some() {
                         if let Some((new_root, new_root_mapper)) =
@@ -527,6 +533,12 @@ impl<'cx> TyChecker<'cx> {
                 },
             });
             break self.new_ty(ty::TyKind::Cond(cond_ty));
+        };
+        if !extra_tys.is_empty() {
+            extra_tys.push(result);
+            self.create_union_type(extra_tys, ty::UnionReduction::Lit)
+        } else {
+            result
         }
     }
 

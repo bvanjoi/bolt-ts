@@ -49,7 +49,9 @@ impl<'cx> Resolver<'cx, '_> {
                         self.resolve_block_stmt(body);
                     }
                 }
-                ast::ClassEleKind::IndexSig(_) => {}
+                ast::ClassEleKind::IndexSig(n) => {
+                    self.resolve_index_sig(n);
+                }
                 ast::ClassEleKind::Getter(_) => {}
                 ast::ClassEleKind::Setter(_) => {}
             }
