@@ -3,9 +3,9 @@ use super::infer::InferenceFlags;
 use super::relation::RelationKind;
 use super::ty::ElementFlags;
 use super::ty::{Sig, SigFlags, Sigs};
-use super::TyChecker;
 use super::{errors, CheckMode};
 use super::{ExpectedArgsCount, Ternary};
+use super::{InferenceContextId, TyChecker};
 use crate::bind::SymbolID;
 use crate::ir;
 use crate::{ast, ty};
@@ -301,6 +301,7 @@ impl<'cx> TyChecker<'cx> {
         relation: RelationKind,
         check_mode: CheckMode,
         report_error: bool,
+        inference_context: Option<InferenceContextId>,
     ) -> bool {
         let args = expr.args();
         let rest_type = sig.get_non_array_rest_ty(self);
@@ -315,8 +316,14 @@ impl<'cx> TyChecker<'cx> {
             let param_ty = self.get_ty_at_pos(sig, i);
             let arg_ty = self.check_expr_with_contextual_ty(arg, param_ty, None, check_mode);
             let error_node = report_error.then(|| arg.id());
+            let check_arg_ty = if let Some(infer) = inference_context {
+                let mapper = self.create_inference_non_fixing_mapper(infer);
+                self.instantiate_ty(arg_ty, Some(mapper))
+            } else {
+                arg_ty
+            };
             if self.check_type_related_to_and_optionally_elaborate(
-                arg_ty,
+                check_arg_ty,
                 param_ty,
                 relation,
                 error_node,
@@ -346,8 +353,6 @@ impl<'cx> TyChecker<'cx> {
         mut argument_check_mode: CheckMode,
         candidates_for_arg_error: &mut Vec<&'cx ty::Sig<'cx>>,
     ) -> Option<&'cx Sig<'cx>> {
-        let args = expr.args();
-
         if is_single_non_generic_candidate {
             let candidate = candidates[0];
             if !self.has_correct_arity(expr, candidate)
@@ -357,6 +362,7 @@ impl<'cx> TyChecker<'cx> {
                     relation,
                     CheckMode::empty(),
                     true,
+                    None,
                 )
             {
                 None
@@ -411,6 +417,7 @@ impl<'cx> TyChecker<'cx> {
                     relation,
                     argument_check_mode,
                     false,
+                    infer_ctx,
                 ) {
                     if let Some(node_id) = check_candidate.node_id {
                         if self.p.node(node_id).fn_body().is_none() {
@@ -583,11 +590,12 @@ impl<'cx> TyChecker<'cx> {
                     RelationKind::Assignable,
                     CheckMode::empty(),
                     true,
+                    None,
                 );
             }
         } else {
             let sigs_with_correct_ty_arg_arity = candidates
-                .into_iter()
+                .iter()
                 .filter(|sig| self.has_correct_ty_arg_arity(sig, expr.ty_args()))
                 .cloned()
                 .collect::<thin_vec::ThinVec<_>>();

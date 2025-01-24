@@ -110,15 +110,7 @@ impl<'cx> TyChecker<'cx> {
                 Some(constraint)
             };
 
-        if let Some(constraint) = constraint {
-            if constraint == self.no_constraint_ty() {
-                None
-            } else {
-                Some(constraint)
-            }
-        } else {
-            None
-        }
+        constraint.filter(|c| *c != self.no_constraint_ty())
     }
 
     fn get_resolved_base_constraint(&mut self, ty: &'cx ty::Ty<'cx>) -> &'cx ty::Ty<'cx> {
@@ -257,9 +249,7 @@ impl<'cx> TyChecker<'cx> {
         {
             self.get_symbol_links(symbol).get_ty_params()
         } else if let Some(reference) = ty.kind.as_object_reference() {
-            let Some(refer) = reference.deep_target().kind.as_object_interface() else {
-                return None;
-            };
+            let refer = reference.deep_target().kind.as_object_interface()?;
             refer.local_ty_params
         } else {
             None

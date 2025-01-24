@@ -220,6 +220,9 @@ impl<'cx> Resolver<'cx, '_> {
                 self.resolve_ty(indexed.index_ty);
             }
             Fn(f) => {
+                if let Some(ty_params) = f.ty_params {
+                    self.resolve_ty_params(ty_params);
+                }
                 self.resolve_params(f.params);
                 self.resolve_ty(f.ty);
             }

@@ -34,15 +34,7 @@ impl<'cx> TyChecker<'cx> {
         relation: RelationKind,
         error_node: Option<ast::NodeID>,
     ) -> Ternary {
-        let mut c = TypeRelatedChecker {
-            c: self,
-            relation,
-            maybe_keys_set: fx_hashset_with_capacity(32),
-            expanding_flags: RecursionFlags::empty(),
-            source_stack: Vec::with_capacity(32),
-            target_stack: Vec::with_capacity(32),
-            error_node,
-        };
+        let mut c = TypeRelatedChecker::new(self, relation, error_node);
         c.is_related_to(
             source,
             target,
@@ -71,6 +63,22 @@ struct TypeRelatedChecker<'cx, 'checker> {
 }
 
 impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
+    fn new(
+        c: &'checker mut TyChecker<'cx>,
+        relation: RelationKind,
+        error_node: Option<ast::NodeID>,
+    ) -> Self {
+        TypeRelatedChecker {
+            c,
+            relation,
+            maybe_keys_set: fx_hashset_with_capacity(32),
+            expanding_flags: RecursionFlags::empty(),
+            source_stack: Vec::with_capacity(32),
+            target_stack: Vec::with_capacity(32),
+            error_node,
+        }
+    }
+
     fn is_related_to(
         &mut self,
         source: &'cx Ty<'cx>,
@@ -871,6 +879,7 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
             if target.ty_params.map_or(true, |target_ty_params| {
                 !std::ptr::eq(ty_params, target_ty_params)
             }) {
+                let old_relation = self.relation;
                 source = self.c.instantiate_sig_in_context_of(source, target, None);
             }
         }

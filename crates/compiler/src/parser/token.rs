@@ -447,6 +447,7 @@ impl TryFrom<TokenKind> for ast::TyOpKind {
         use ast::TyOpKind::*;
         match value {
             TokenKind::Keyof => Ok(Keyof),
+            TokenKind::Readonly => Ok(Readonly),
             _ => Err(()),
         }
     }

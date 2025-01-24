@@ -632,6 +632,9 @@ impl<'cx> BinderState<'cx> {
             }
             Fn(f) => {
                 self.create_fn_ty_symbol(f.id, SymbolName::Call);
+                if let Some(ty_params) = f.ty_params {
+                    self.bind_ty_params(ty_params);
+                }
                 self.bind_params(f.params);
                 self.bind_ty(f.ty);
             }

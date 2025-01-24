@@ -97,7 +97,6 @@ dependencies = [
  "serde_json",
  "stacker",
  "thin-vec",
- "xxhash-rust",
 ]
 
 [[package]]

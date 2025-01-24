@@ -268,7 +268,20 @@ impl<'cx> ObjectTyKind<'cx> {
                         index_info.val_ty.to_string(checker)
                     )
                 } else {
-                    "object".to_string()
+                    let members = checker
+                        .expect_ty_links(self_ty.id)
+                        .expect_structured_members()
+                        .members;
+                    let members = members
+                        .iter()
+                        .map(|(name, symbol)| {
+                            let name = checker.atoms.get(name.expect_atom());
+                            let ty = checker.get_type_of_symbol(*symbol);
+                            format!("{}: {}; ", name, ty.to_string(checker))
+                        })
+                        .collect::<Vec<_>>()
+                        .join("");
+                    format!("{{ {}}}", members)
                 }
             }
             ObjectTyKind::Tuple(t) => {

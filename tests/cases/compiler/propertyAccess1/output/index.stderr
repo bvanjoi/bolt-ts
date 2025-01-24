@@ -1,4 +1,4 @@
-  × Property 'b' does not exist on type 'object'.
+  × Property 'b' does not exist on type '{ a: number; }'.
    ╭─[../../tests/cases/compiler/propertyAccess1/index.ts:5:5]
  5 │ b
    · ─

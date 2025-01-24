@@ -7,21 +7,6 @@ use crate::ty::SigKind;
 use crate::ty::TyMapper;
 use crate::ty::{Sig, SigFlags};
 
-fn type_params<'cx>(checker: &mut TyChecker<'cx>, node: &ast::Node<'cx>) -> Option<ty::Tys<'cx>> {
-    if let Some(ty_params) = node.ty_params() {
-        let ty_params = ty_params
-            .iter()
-            .map(|param| {
-                let symbol = checker.binder.final_res(param.id);
-                checker.get_declared_ty_of_symbol(symbol)
-            })
-            .collect::<Vec<_>>();
-        Some(checker.alloc(ty_params))
-    } else {
-        None
-    }
-}
-
 impl<'cx> TyChecker<'cx> {
     pub(super) fn new_sig(&mut self, sig: Sig<'cx>) -> &'cx Sig<'cx> {
         let sig = sig.with_id(self.sigs.len());
@@ -35,29 +20,35 @@ impl<'cx> TyChecker<'cx> {
             return sig;
         }
         let node = self.p.node(id);
-        let ty_params = type_params(self, &node);
+        let ty_params = if let Some(ty_params) = node.ty_params() {
+            let mut res = vec![];
+            self.append_ty_params(&mut res, ty_params);
+            let ty_params: ty::Tys<'cx> = self.alloc(res);
+            Some(ty_params)
+        } else {
+            None
+        };
         let sig = get_sig_from_decl(self, node, ty_params);
         let sig = self.new_sig(sig);
         self.get_mut_node_links(id).set_resolved_sig(sig);
         sig
     }
 
-    pub(super) fn get_sigs_of_symbol(&mut self, id: SymbolID) -> &'cx [&'cx Sig<'cx>] {
-        let s = if let Some(s) = self.binder.get_transient(id) {
-            if let Some(s) = s.origin {
-                return self.get_sigs_of_symbol(s);
-            } else {
-                self.binder.symbol(id)
-            }
-        } else {
-            self.binder.symbol(id)
-        };
+    pub(super) fn get_sigs_of_symbol(&mut self, id: SymbolID) -> ty::Sigs<'cx> {
+        let s = self.binder.symbol(id);
         let sigs = s
             .expect_fn()
             .decls
             .clone()
             .into_iter()
-            .map(|id| self.get_sig_from_decl(id))
+            .enumerate()
+            .flat_map(|(i, decl)| {
+                if i > 0 && self.p.node(decl).fn_body().is_some() {
+                    None
+                } else {
+                    Some(self.get_sig_from_decl(decl))
+                }
+            })
             .collect::<Vec<_>>();
         self.alloc(sigs)
     }

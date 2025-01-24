@@ -23,6 +23,7 @@ pub use self::object_ty::SingleSigTy;
 pub use self::object_ty::{AnonymousTy, InterfaceTy, ObjectTyKind};
 pub use self::object_ty::{DeclaredMembers, ReferenceTy, StructuredMembers};
 pub use self::object_ty::{IndexInfo, IndexInfos, ObjectTy, TupleTy};
+pub use self::pprint::*;
 pub use self::sig::{Sig, SigFlags, SigID, SigKind, Sigs};
 
 bolt_ts_utils::index!(TyID);

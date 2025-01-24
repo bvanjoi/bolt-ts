@@ -329,6 +329,7 @@ pub struct MappedTy<'cx> {
 #[derive(Debug, Clone, Copy)]
 pub enum TyOpKind {
     Keyof,
+    Readonly,
 }
 
 #[derive(Debug, Clone, Copy)]

@@ -382,7 +382,7 @@ impl<'cx> TyChecker<'cx> {
                 self.global_array_ty()
             };
         }
-        let mut hasher = xxhash_rust::xxh3::Xxh3::new();
+        let mut hasher = rustc_hash::FxHasher::default();
         element_flags.iter().for_each(|flag| {
             let u = if flag.intersects(ElementFlags::REQUIRED) {
                 b'#'

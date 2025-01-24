@@ -20,7 +20,7 @@ impl<'cx> InstantiationTyMap<'cx> {
     }
 
     pub fn create_id(target_ty_id: ty::TyID, ty_args: &[&'cx ty::Ty<'cx>]) -> InstantiationTyKey {
-        let mut hasher = xxhash_rust::xxh3::Xxh3::new();
+        let mut hasher = rustc_hash::FxHasher::default();
         hasher.write_u32(target_ty_id.as_u32());
         ty_args
             .iter()

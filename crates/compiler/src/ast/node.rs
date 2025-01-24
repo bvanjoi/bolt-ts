@@ -269,6 +269,7 @@ impl<'cx> Node<'cx> {
             MethodSignature,
             CallSigDecl,
             InterfaceDecl,
+            FnTy,
         )
     }
 

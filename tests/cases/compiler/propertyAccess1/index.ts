@@ -3,4 +3,4 @@
 var foo: { a: number; };
 foo.a = 4;
 foo.b = 5;
-//~^ ERROR: Property 'b' does not exist on type 'object'. 
+//~^ ERROR: Property 'b' does not exist on type '{ a: number; }'. 

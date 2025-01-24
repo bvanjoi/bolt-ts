@@ -10,6 +10,7 @@ mod check_interface;
 mod check_ty_refer_ty_or_import;
 mod check_type_related_to;
 mod check_var_like;
+mod compare_tys;
 mod create_ty;
 mod cycle_check;
 mod elaborate_error;
@@ -20,6 +21,7 @@ mod get_context;
 mod get_contextual;
 mod get_declared_ty;
 mod get_effective_node;
+mod get_sig;
 mod get_this_ty;
 mod get_ty;
 mod get_ty_from_array_ty_like;
@@ -37,7 +39,6 @@ mod node_flags;
 mod relation;
 mod resolve;
 mod resolve_structured_member;
-mod sig;
 mod type_assignable;
 mod utils;
 
@@ -865,7 +866,7 @@ impl<'cx> TyChecker<'cx> {
                 inference.inference.map(|inference| {
                     self.inference_infos(inference)
                         .iter()
-                        .map(|info| info.ty_params)
+                        .map(|info| info.ty_param)
                         .collect::<Vec<_>>()
                 })
             })

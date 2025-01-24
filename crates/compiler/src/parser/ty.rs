@@ -265,7 +265,7 @@ impl<'cx> ParserState<'cx, '_> {
 
     fn parse_ty_op_or_higher(&mut self) -> PResult<&'cx ast::Ty<'cx>> {
         match self.token.kind {
-            TokenKind::Keyof => {
+            TokenKind::Keyof | TokenKind::Readonly => {
                 let op = self.token.kind.try_into().unwrap();
                 self.parse_ty_op(op)
             }

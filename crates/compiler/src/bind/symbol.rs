@@ -360,6 +360,25 @@ impl Symbol<'_> {
             SymbolKind::Alias(_) => todo!(),
         }
     }
+
+    pub fn opt_decl(&self) -> Option<NodeID> {
+        let id = match &self.kind.0 {
+            SymbolKind::FunctionScopedVar(f) => Some(f.decl),
+            SymbolKind::BlockScopedVar { decl } => Some(*decl),
+            SymbolKind::Class(c) => Some(c.decl),
+            SymbolKind::Prop(prop) => Some(prop.decl),
+            SymbolKind::Object(object) => Some(object.decl),
+            SymbolKind::Index(index) => Some(index.decl),
+            SymbolKind::TyAlias(alias) => Some(alias.decl),
+            SymbolKind::TyParam(param) => Some(param.decl),
+            SymbolKind::TyLit(ty_lit) => Some(ty_lit.decl),
+            SymbolKind::Alias(alias) => Some(alias.decl),
+            SymbolKind::Fn(f) => Some(f.decls[0]),
+            SymbolKind::Transient(t) => None,
+            _ => None,
+        };
+        id.or_else(|| self.kind.1.as_ref().and_then(|i| i.decls.get(0)).copied())
+    }
 }
 
 bolt_ts_utils::module_index!(SymbolID);
@@ -389,7 +408,7 @@ impl SymbolID {
             }
             _ => None,
         };
-        id.or_else(|| s.kind.1.as_ref().map(|i| i.decls[0]))
+        id.or_else(|| s.kind.1.as_ref().and_then(|i| i.decls.get(0)).copied())
     }
     pub fn decl(&self, binder: &super::Binder) -> NodeID {
         self.opt_decl(binder)

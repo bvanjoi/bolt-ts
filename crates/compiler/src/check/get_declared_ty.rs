@@ -81,10 +81,10 @@ impl<'cx> TyChecker<'cx> {
     pub(super) fn append_ty_params(
         &mut self,
         res: &mut Vec<&'cx ty::Ty<'cx>>,
-        params: ast::TyParams<'cx>,
+        ty_params: ast::TyParams<'cx>,
     ) {
-        for param in params {
-            let symbol = self.get_symbol_of_decl(param.id);
+        for ty_param in ty_params {
+            let symbol = self.get_symbol_of_decl(ty_param.id);
             let value = self.get_declared_ty_of_symbol(symbol);
             assert!(value.kind.is_param());
             append_if_unique(res, value);

@@ -6,7 +6,7 @@ use super::links::SigLinks;
 use super::{errors, SymbolLinks, TyChecker};
 use crate::ast;
 use crate::bind::{SymbolFlags, SymbolID, SymbolName};
-use crate::ty::{self, CheckFlags, SigID, SigKind, TyMapper};
+use crate::ty::{self, pprint_mapper, CheckFlags, SigID, SigKind, TyMapper};
 
 impl<'cx> TyChecker<'cx> {
     pub(super) fn members(&self, symbol: SymbolID) -> &FxHashMap<SymbolName, SymbolID> {

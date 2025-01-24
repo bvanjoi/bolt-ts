@@ -34,6 +34,9 @@ pub(super) enum CannotFindNameHelperKind {
     #[error(transparent)]
     #[diagnostic(transparent)]
     ShorthandPropertyNeedAnInitializer(ShorthandPropertyNeedAnInitializer),
+    #[error(transparent)]
+    #[diagnostic(transparent)]
+    OnlyReferToATypeButIsBeingUsedAsValueHere(OnlyReferToATypeButIsBeingUsedAsValueHere),
 }
 
 impl CannotFindNameHelperKind {
@@ -46,8 +49,22 @@ impl CannotFindNameHelperKind {
             CannotFindNameHelperKind::AClassCannotImplementAPrimTy(diag) => Box::new(diag),
             CannotFindNameHelperKind::CannotUseNamespaceAsTyOrValue(diag) => Box::new(diag),
             CannotFindNameHelperKind::ShorthandPropertyNeedAnInitializer(diag) => Box::new(diag),
+            CannotFindNameHelperKind::OnlyReferToATypeButIsBeingUsedAsValueHere(diag) => {
+                Box::new(diag)
+            }
         }
     }
+}
+
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
+#[error("'{name}' only refers to a type, but is being used as a value here.")]
+#[diagnostic(severity(Advice))]
+pub(super) struct OnlyReferToATypeButIsBeingUsedAsValueHere {
+    #[label(primary)]
+    pub span: Span,
+    pub name: String,
+    #[label("'{name}' is defined here.")]
+    pub defined_here: Span,
 }
 
 #[derive(Error, Diagnostic, DiagnosticExt, Debug)]

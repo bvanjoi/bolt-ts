@@ -4,13 +4,13 @@ use crate::{ast, ty::Sig};
 
 use super::get_contextual::ContextFlags;
 use super::utils::append_if_unique;
-use super::{CheckMode, InferenceContextId, TyChecker};
+use super::{CheckMode, InferenceContextId, Ternary, TyChecker};
 
-use thin_vec::thin_vec;
+use thin_vec::{thin_vec, ThinVec};
 
 #[derive(Debug, Clone)]
 pub struct InferenceInfo<'cx> {
-    pub ty_params: &'cx ty::Ty<'cx>,
+    pub ty_param: &'cx ty::Ty<'cx>,
     pub candidates: Option<thin_vec::ThinVec<&'cx ty::Ty<'cx>>>,
     pub contra_candidates: Option<thin_vec::ThinVec<&'cx ty::Ty<'cx>>>,
     pub is_fixed: bool,
@@ -20,9 +20,9 @@ pub struct InferenceInfo<'cx> {
 }
 
 impl<'cx> InferenceInfo<'cx> {
-    fn create(ty_params: &'cx ty::Ty<'cx>) -> Self {
+    fn create(ty_param: &'cx ty::Ty<'cx>) -> Self {
         Self {
-            ty_params,
+            ty_param,
             candidates: None,
             contra_candidates: None,
             is_fixed: false,
@@ -67,7 +67,6 @@ bitflags::bitflags! {
   }
 }
 
-#[derive(Debug, Clone)]
 pub struct InferenceContext<'cx> {
     pub inferences: thin_vec::ThinVec<InferenceInfo<'cx>>,
     pub sig: Option<&'cx ty::Sig<'cx>>,
@@ -121,7 +120,7 @@ impl<'cx> TyChecker<'cx> {
             .inference(id)
             .inferences
             .iter()
-            .map(|i| i.ty_params)
+            .map(|i| i.ty_param)
             .collect::<Vec<_>>();
         let sources = self.alloc(sources);
         let target = (0..self.inference(id).inferences.len())
@@ -142,7 +141,7 @@ impl<'cx> TyChecker<'cx> {
             .inference(id)
             .inferences
             .iter()
-            .map(|i| i.ty_params)
+            .map(|i| i.ty_param)
             .collect::<Vec<_>>();
         let sources = self.alloc(sources);
         let target = (0..self.inference(id).inferences.len())
@@ -172,12 +171,19 @@ impl<'cx> TyChecker<'cx> {
         &self.inferences[id.as_usize()]
     }
 
-    pub(crate) fn inference_info(
-        &self,
+    fn inference_info(&self, inference: InferenceContextId, idx: usize) -> &InferenceInfo<'cx> {
+        &self.inference_infos(inference)[idx]
+    }
+
+    pub(crate) fn set_inferred_ty_of_inference_info(
+        &mut self,
         inference: InferenceContextId,
         idx: usize,
-    ) -> &InferenceInfo<'cx> {
-        &self.inference_infos(inference)[idx]
+        ty: &'cx ty::Ty<'cx>,
+    ) {
+        let cache = &mut self.inferences[inference.as_usize()].inferences[idx].inferred_ty;
+        assert!(cache.is_none());
+        *cache = Some(ty)
     }
 
     pub(super) fn inference_infos(&self, inference: InferenceContextId) -> &[InferenceInfo<'cx>] {
@@ -199,22 +205,148 @@ impl<'cx> TyChecker<'cx> {
         self.alloc(tys)
     }
 
+    fn is_ty_param_at_top_level_in_ret_top(
+        &mut self,
+        sig: &'cx ty::Sig<'cx>,
+        ty_param: &'cx ty::Ty<'cx>,
+    ) -> bool {
+        let ret_ty = self.get_ret_ty_of_sig(sig);
+        self.is_ty_param_at_top_level(ret_ty, ty_param, 0)
+    }
+
+    fn is_ty_param_at_top_level(
+        &mut self,
+        ty: &'cx ty::Ty<'cx>,
+        ty_param: &'cx ty::Ty<'cx>,
+        depth: u8,
+    ) -> bool {
+        if ty == ty_param {
+            true
+        } else if let Some(union) = ty.kind.as_union() {
+            union
+                .tys
+                .iter()
+                .any(|ty| self.is_ty_param_at_top_level(ty, ty_param, depth))
+        } else if depth >= 3 {
+            false
+        } else if let Some(cond) = ty.kind.as_cond_ty() {
+            // TODO:
+            false
+        } else {
+            false
+        }
+    }
+
+    fn get_covariant_inference(
+        &mut self,
+        inference: InferenceContextId,
+        idx: usize,
+        sig: &'cx ty::Sig<'cx>,
+    ) -> &'cx ty::Ty<'cx> {
+        let candidates = self
+            .inference_info(inference, idx)
+            .candidates
+            .as_ref()
+            .unwrap();
+        let candidates = if candidates.len() > 1 {
+            let (object_literals, mut non_object_literals): (ThinVec<_>, ThinVec<_>) = candidates
+                .into_iter()
+                .map(|&x| x)
+                .partition(|c| c.is_object_or_array_literal());
+            if object_literals.is_empty() {
+                candidates.to_vec()
+            } else {
+                let lits =
+                    self.create_union_type(object_literals.into(), ty::UnionReduction::Subtype);
+                non_object_literals.push(lits);
+                non_object_literals.into()
+            }
+        } else {
+            candidates.to_vec()
+        };
+
+        let has_primitive_constraint = {
+            let ty_param = self.inference_info(inference, idx).ty_param;
+            self.get_constraint_of_ty_param(ty_param)
+                .is_some_and(|constraint| {
+                    let c = if let Some(_) = constraint.kind.as_cond_ty() {
+                        todo!()
+                    } else {
+                        constraint
+                    };
+                    c.kind
+                        .maybe_type_of_kind(|c| c.is_primitive() || c.is_index_ty())
+                })
+        };
+
+        let primitive_constraint = has_primitive_constraint;
+
+        let i = self.inference_info(inference, idx);
+
+        let widen_literal_tys = !primitive_constraint
+            && i.top_level
+            && (i.is_fixed || !self.is_ty_param_at_top_level_in_ret_top(sig, i.ty_param));
+
+        let base_candidates = if primitive_constraint {
+            candidates
+        } else if widen_literal_tys {
+            candidates
+                .iter()
+                .map(|c| self.get_widened_literal_ty(c))
+                .collect()
+        } else {
+            candidates
+        };
+
+        if base_candidates.len() == 1 {
+            self.get_widened_ty(base_candidates[0])
+        } else {
+            let ty = self.create_union_type(base_candidates, ty::UnionReduction::Lit);
+            self.get_widened_ty(ty)
+        }
+    }
+
+    fn get_ty_with_this_arg(&mut self, ty: &'cx ty::Ty<'cx>) -> &'cx ty::Ty<'cx> {
+        ty
+    }
+
     fn get_inferred_ty(&mut self, inference: InferenceContextId, idx: usize) -> &'cx ty::Ty<'cx> {
         let i = self.inference_info(inference, idx);
-        // TODO: cache
-        if let Some(sig) = self.get_inference_sig(inference) {
-            if let Some(candidates) = &i.candidates {
-                // TODO: use `get_covariant_inference`
-                self.create_union_type(candidates.to_vec(), ty::UnionReduction::Subtype)
+        if let Some(inferred_ty) = i.inferred_ty {
+            return inferred_ty;
+        }
+        let inferred_ty = if let Some(sig) = self.get_inference_sig(inference) {
+            if i.candidates.is_some() {
+                Some(self.get_covariant_inference(inference, idx, sig))
             } else if let Some(tys) = &i.contra_candidates {
                 todo!()
             } else {
-                self.any_ty()
+                None
             }
         } else {
             self.get_ty_from_inference(inference, idx)
-                .unwrap_or(self.undefined_ty())
-        }
+        };
+
+        let i = self.inference_info(inference, idx);
+        let ty = if let Some(constraint) = self.get_constraint_of_ty_param(i.ty_param) {
+            // let mapper = self.create_inference_non_fixing_mapper(inference);
+            let instantiated_constraint = self.instantiate_ty(constraint, None);
+            if inferred_ty.map_or(true, |inferred_ty| {
+                let ty = self.get_ty_with_this_arg(instantiated_constraint);
+                // TODO: more flexible compare types
+                self.is_type_related_to(inferred_ty, ty, super::relation::RelationKind::Assignable)
+                    == Ternary::FALSE
+            }) {
+                instantiated_constraint
+            } else {
+                inferred_ty.unwrap_or(self.any_ty())
+            }
+        } else {
+            inferred_ty.unwrap_or(self.any_ty())
+        };
+
+        self.set_inferred_ty_of_inference_info(inference, idx, ty);
+        ty
     }
 
     pub(super) fn get_inference_sig(
@@ -233,7 +365,7 @@ impl<'cx> TyChecker<'cx> {
             self.inferences[inference.as_usize()]
                 .inferences
                 .iter()
-                .position(|i| i.ty_params == ty)
+                .position(|i| i.ty_param == ty)
         } else {
             None
         }

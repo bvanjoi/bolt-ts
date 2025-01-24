@@ -141,6 +141,23 @@ impl<'cx> Resolver<'cx, '_> {
             }
         }
 
+        let res = resolve_symbol_by_ident(self, ident, Symbol::is_type).symbol;
+        if res != Symbol::ERR {
+            let error = errors::CannotFindNameHelperKind::OnlyReferToATypeButIsBeingUsedAsValueHere(
+                errors::OnlyReferToATypeButIsBeingUsedAsValueHere {
+                    span: ident.span,
+                    name: self.atoms.get(ident.name).to_string(),
+                    defined_here: self
+                        .p
+                        .node(self.symbol(res).opt_decl().unwrap())
+                        .ident_name()
+                        .unwrap()
+                        .span,
+                },
+            );
+            return Some(error);
+        }
+
         None
     }
 }

@@ -93,6 +93,6 @@ pub struct CompositeTyMapper<'cx> {
 
 #[derive(Clone, Copy, Debug)]
 pub struct MergedTyMapper<'cx> {
-    mapper1: &'cx TyMapper<'cx>,
-    mapper2: &'cx TyMapper<'cx>,
+    pub mapper1: &'cx TyMapper<'cx>,
+    pub mapper2: &'cx TyMapper<'cx>,
 }
