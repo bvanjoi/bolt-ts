@@ -159,6 +159,7 @@ impl<'cx> TyChecker<'cx> {
                     })
                 };
                 self.push_error(error);
+                return self.error_ty();
             }
 
             let resolved_ty_args = {

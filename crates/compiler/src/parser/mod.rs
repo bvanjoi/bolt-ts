@@ -335,9 +335,6 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
                     break;
                 };
                 list.push(ele);
-                if self.is_list_terminator(ctx) {
-                    break;
-                }
                 if self.parse_optional(TokenKind::Comma).is_some() {
                     continue;
                 }
@@ -387,21 +384,21 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         self.token_value.unwrap().number()
     }
 
+    fn create_ident_by_atom(&mut self, name: AtomId, span: Span) -> &'cx ast::Ident {
+        self.ident_count += 1;
+        let id = self.next_node_id();
+        let ident = self.alloc(ast::Ident { id, name, span });
+        self.insert_map(id, Node::Ident(ident));
+        ident
+    }
+
     fn create_ident(
         &mut self,
         is_ident: bool,
         missing_ident_kind: Option<errors::MissingIdentKind>,
     ) -> &'cx ast::Ident {
-        let ident = |this: &mut Self, name: AtomId| {
-            this.ident_count += 1;
-            let id = this.next_node_id();
-            let span = this.token.span;
-            let ident = this.alloc(ast::Ident { id, name, span });
-            this.insert_map(id, Node::Ident(ident));
-            ident
-        };
         if is_ident {
-            let res = ident(self, self.ident_token());
+            let res = self.create_ident_by_atom(self.ident_token(), self.token.span);
             self.next_token();
             res
         } else if self.token.kind == TokenKind::Private {
@@ -411,7 +408,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
             let kind = missing_ident_kind.unwrap_or(errors::MissingIdentKind::IdentifierExpected);
             let error = errors::MissingIdent { span, kind };
             self.push_error(Box::new(error));
-            ident(self, keyword::IDENT_EMPTY)
+            self.create_ident_by_atom(keyword::IDENT_EMPTY, self.token.span)
         }
     }
 

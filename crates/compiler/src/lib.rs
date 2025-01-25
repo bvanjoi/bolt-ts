@@ -198,7 +198,6 @@ pub fn eval_from(root: PathBuf, tsconfig: NormalizedTsConfig) -> Output {
         &atoms,
     );
 
-    // let mut states = fx_hashmap_with_capacity(module_arena.modules().len());
     let states = module_arena
         .modules()
         .iter()

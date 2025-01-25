@@ -314,7 +314,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         } else {
             // prop
             let ty = self.with_parent(id, Self::parse_ty_anno)?;
-            let init = self.with_parent(id, Self::parse_init);
+            let init = self.with_parent(id, Self::parse_init)?;
             let prop = self.alloc(ast::ClassPropElem {
                 id,
                 span: self.new_span(start as u32),

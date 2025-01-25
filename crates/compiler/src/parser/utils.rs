@@ -1,7 +1,7 @@
 use bolt_ts_span::Span;
 
 use crate::ast::ModifierKind;
-use crate::ecma_rules;
+use crate::{ecma_rules, keyword};
 
 use super::list_ctx;
 use super::token::{TokenFlags, TokenKind};
@@ -442,7 +442,7 @@ impl<'cx> ParserState<'cx, '_> {
         };
         let question = self.parse_optional(TokenKind::Question).map(|t| t.span);
         let ty = self.with_parent(id, Self::parse_ty_anno)?;
-        let init = self.with_parent(id, Self::parse_init);
+        let init = self.with_parent(id, Self::parse_init)?;
         let decl = self.alloc(ast::ParamDecl {
             id,
             span: self.new_span(start),
@@ -537,6 +537,24 @@ impl<'cx> ParserState<'cx, '_> {
             .intersects(TokenFlags::PRECEDING_LINE_BREAK)
     }
 
+    fn create_missing_ty(&mut self) -> &'cx ast::Ty<'cx> {
+        let id = self.next_node_id();
+        let start = self.token.start();
+        let ident = self.create_ident_by_atom(keyword::IDENT_EMPTY, self.token.span);
+        let name = self.alloc(ast::EntityName {
+            kind: ast::EntityNameKind::Ident(ident),
+        });
+        let ty = self.alloc(ast::ReferTy {
+            id,
+            span: self.new_span(start),
+            name,
+            ty_args: None,
+        });
+        self.alloc(ast::Ty {
+            kind: ast::TyKind::Refer(ty),
+        })
+    }
+
     pub(super) fn parse_index_sig_decl(
         &mut self,
         id: ast::NodeID,
@@ -549,8 +567,15 @@ impl<'cx> ParserState<'cx, '_> {
             Self::parse_param,
             TokenKind::RBracket,
         )?;
-        let Some(ty) = self.parse_ty_anno()? else {
-            todo!("error handler")
+        let ty = match self.parse_ty_anno()? {
+            Some(ty) => ty,
+            None => {
+                let lo = self.token.span.lo;
+                let span = Span::new(lo, lo, self.module_id);
+                let error = errors::AnIndexSignatureMustHaveATypeAnnotation { span };
+                self.push_error(Box::new(error));
+                self.create_missing_ty()
+            }
         };
         self.parse_ty_member_semi();
         let sig = self.alloc(ast::IndexSigDecl {

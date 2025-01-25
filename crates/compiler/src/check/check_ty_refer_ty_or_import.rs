@@ -202,16 +202,20 @@ impl<'cx> TyChecker<'cx> {
             if let Some(constraint) = self.get_constraint_of_ty_param(ty_param) {
                 if result {
                     let target = self.instantiate_ty(constraint, Some(mapper));
-                    let error_node = node.ty_args().unwrap().list[idx];
-                    if self.check_type_assignable_to(ty_arg, target, Some(error_node.id()))
+                    let error_node = node.ty_args().and_then(|ty_args| ty_args.list.get(idx));
+
+                    if self.check_type_assignable_to(ty_arg, target, error_node.map(|n| n.id()))
                         == Ternary::FALSE
                     {
-                        let error = errors::TypeIsNotAssignableToType {
-                            ty1: self.print_ty(ty_arg).to_string(),
-                            ty2: self.print_ty(target).to_string(),
-                            span: error_node.span(),
+                        if let Some(error_node) = error_node {
+                            let error = errors::TypeIsNotAssignableToType {
+                                ty1: self.print_ty(ty_arg).to_string(),
+                                ty2: self.print_ty(target).to_string(),
+                                span: error_node.span(),
+                            };
+                            self.push_error(Box::new(error));
                         };
-                        self.push_error(Box::new(error));
+
                         result = false;
                     }
                 }

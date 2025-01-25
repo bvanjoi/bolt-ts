@@ -182,7 +182,7 @@ fn get_sig_from_decl<'cx>(
     let mut flags = SigFlags::empty();
     let mut min_args_count = 0;
     let mut params = Vec::with_capacity(params_of_node.len());
-    for (i, param) in params_of_node.iter().enumerate() {
+    for param in params_of_node {
         let symbol = checker.binder.final_res(param.id);
         params.push(symbol);
         let is_opt = param.question.is_some() || param.dotdotdot.is_some() || param.init.is_some();
@@ -200,7 +200,7 @@ fn get_sig_from_decl<'cx>(
     }
     let params: &[SymbolID] = checker.alloc(params);
     let ret = match node {
-        ast::Node::FnDecl(decl) => None,
+        ast::Node::FnDecl(decl) => decl.ty.map(|ty| ty.id()),
         ast::Node::FnExpr(_) => None,
         ast::Node::ArrowFnExpr(_) => None,
         ast::Node::ClassCtor(c) => {

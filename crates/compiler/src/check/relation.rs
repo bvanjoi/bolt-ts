@@ -1,12 +1,13 @@
 use bolt_ts_atom::AtomId;
 use bolt_ts_span::Span;
 
+use bolt_ts_utils::fx_hashset_with_capacity;
 use rustc_hash::FxHashSet;
 
-use super::errors;
+use super::{errors, SymbolLinks};
 use crate::ast;
-use crate::bind::{SymbolID, SymbolName};
-use crate::ty::{self, ObjectFlags};
+use crate::bind::{SymbolFlags, SymbolID, SymbolName};
+use crate::ty::{self, CheckFlags, ObjectFlags};
 use crate::ty::{ObjectShape, ObjectTy, ObjectTyKind, Ty, TyKind};
 
 use super::{Ternary, TyChecker};
@@ -35,10 +36,17 @@ bitflags::bitflags! {
 
 impl<'cx> TyChecker<'cx> {
     pub(super) fn is_excess_property_check_target(&self, target: &'cx Ty<'cx>) -> bool {
-        let Some(object) = target.kind.as_object() else {
-            return false;
-        };
-        object.kind.is_anonymous()
+        if let Some(_) = target.kind.as_object() {
+            // TODO: exclude literal computed name
+            true
+        } else if let Some(union) = target.kind.as_union() {
+            union
+                .tys
+                .iter()
+                .any(|ty| self.is_excess_property_check_target(ty))
+        } else {
+            false
+        }
     }
 
     pub(super) fn is_simple_type_related_to(
@@ -230,68 +238,177 @@ impl<'cx> TyChecker<'cx> {
         name: SymbolName,
     ) -> Option<SymbolID> {
         let ty = self.get_reduced_apparent_ty(ty);
-        let TyKind::Object(object_ty) = ty.kind else {
-            return None;
-        };
+        if let TyKind::Object(object_ty) = ty.kind {
+            self.resolve_structured_type_members(ty);
 
-        self.resolve_structured_type_members(ty);
-        let symbol = if object_ty.kind.as_interface().is_some() {
-            self.expect_ty_links(ty.id)
-                .expect_structured_members()
-                .members
-                .get(&name)
-                .copied()
-        } else if let Some(ty) = object_ty.kind.as_tuple() {
-            ObjectShape::get_member(ty, &name)
-        } else if let Some(refer) = object_ty.kind.as_reference() {
-            let Some(ty_links) = self.ty_links.get(&ty.id) else {
-                return self.get_prop_of_ty(refer.target, name);
+            let symbol = if object_ty.kind.is_interface()
+                || object_ty.kind.is_anonymous()
+                || object_ty.kind.is_reference()
+            {
+                self.expect_ty_links(ty.id)
+                    .expect_structured_members()
+                    .members
+                    .get(&name)
+                    .copied()
+            } else if let Some(ty) = object_ty.kind.as_tuple() {
+                ObjectShape::get_member(ty, &name)
+            } else {
+                unreachable!("ty: {ty:#?}")
             };
-            let Some(structured) = ty_links.get_structured_members() else {
-                return self.get_prop_of_ty(refer.target, name);
+
+            if symbol.is_some() {
+                return symbol;
+            }
+
+            let fn_ty = if ty.id == self.any_fn_ty().id {
+                Some(self.global_array_ty())
+            } else if self
+                .get_ty_links(ty.id)
+                .get_structured_members()
+                .map(|item| !item.call_sigs.is_empty())
+                .unwrap_or_default()
+            {
+                Some(self.global_callable_fn_ty())
+            } else if self
+                .get_ty_links(ty.id)
+                .get_structured_members()
+                .map(|item| !item.ctor_sigs.is_empty())
+                .unwrap_or_default()
+            {
+                Some(self.global_newable_fn_ty())
+            } else {
+                None
             };
-            structured.members.get(&name).copied()
-        } else if object_ty.kind.as_anonymous().is_some() {
-            self.expect_ty_links(ty.id)
-                .expect_structured_members()
-                .members
-                .get(&name)
-                .copied()
-        } else {
-            unreachable!("ty: {ty:#?}")
-        };
 
-        if symbol.is_some() {
-            return symbol;
-        }
+            if let Some(fn_ty) = fn_ty {
+                if let Some(symbol) = self.get_prop_of_object_ty(fn_ty, name) {
+                    return Some(symbol);
+                }
+            }
 
-        let fn_ty = if ty.id == self.any_fn_ty().id {
-            Some(self.global_array_ty())
-        } else if self
-            .get_ty_links(ty.id)
-            .get_structured_members()
-            .map(|item| !item.call_sigs.is_empty())
-            .unwrap_or_default()
-        {
-            Some(self.global_callable_fn_ty())
-        } else if self
-            .get_ty_links(ty.id)
-            .get_structured_members()
-            .map(|item| !item.ctor_sigs.is_empty())
-            .unwrap_or_default()
-        {
-            Some(self.global_newable_fn_ty())
+            self.get_prop_of_object_ty(self.global_object_ty(), name)
+        } else if let Some(_) = ty.kind.as_union() {
+            self.get_prop_of_union_or_intersection_ty(ty, name)
         } else {
             None
+        }
+    }
+
+    fn get_prop_of_union_or_intersection_ty(
+        &mut self,
+        ty: &'cx Ty<'cx>,
+        name: SymbolName,
+    ) -> Option<SymbolID> {
+        self.get_union_or_intersection_prop(ty, name)
+            .and_then(|prop| {
+                if !self
+                    .binder
+                    .get_check_flags(prop)
+                    .intersects(CheckFlags::READ_PARTIAL)
+                {
+                    Some(prop)
+                } else {
+                    None
+                }
+            })
+    }
+
+    fn get_union_or_intersection_prop(
+        &mut self,
+        containing_ty: &'cx Ty<'cx>,
+        name: SymbolName,
+    ) -> Option<SymbolID> {
+        // TODO: cache
+        self.create_union_or_intersection_prop(containing_ty, name)
+    }
+
+    fn create_union_or_intersection_prop(
+        &mut self,
+        containing_ty: &'cx Ty<'cx>,
+        name: SymbolName,
+    ) -> Option<SymbolID> {
+        let (is_union, tys) = if let Some(union) = containing_ty.kind.as_union() {
+            (true, union.tys)
+        } else {
+            unreachable!("containing_ty: {containing_ty:#?}")
         };
 
-        if let Some(fn_ty) = fn_ty {
-            if let Some(symbol) = self.get_prop_of_object_ty(fn_ty, name) {
-                return Some(symbol);
+        let mut single_prop = None;
+        let mut prop_set = fx_hashset_with_capacity(tys.len());
+
+        let check_flags = if is_union {
+            CheckFlags::empty()
+        } else {
+            CheckFlags::READONLY
+        };
+
+        for current in tys {
+            let ty = self.get_apparent_ty(current);
+            if ty != self.error_ty() && ty != self.never_ty() {
+                if let Some(prop) = self.get_prop_of_ty(ty, name) {
+                    if let Some(single_prop) = single_prop {
+                        if single_prop != prop {
+                            if prop_set.is_empty() {
+                                prop_set.insert(single_prop);
+                            }
+                            prop_set.insert(prop);
+                        }
+                    } else {
+                        single_prop = Some(prop);
+                    }
+                }
             }
         }
 
-        self.get_prop_of_object_ty(self.global_object_ty(), name)
+        let props = if prop_set.is_empty() {
+            if let Some(single_prop) = single_prop {
+                vec![single_prop]
+            } else {
+                vec![]
+            }
+        } else {
+            prop_set.into_iter().collect::<Vec<_>>()
+        };
+
+        let mut first_ty = None;
+        let mut name_ty = None;
+        let mut prop_tys = Vec::with_capacity(props.len());
+
+        for prop in props {
+            let ty = self.get_type_of_symbol(prop);
+            if first_ty.is_none() {
+                first_ty = Some(ty);
+                name_ty = self.get_symbol_links(prop).get_name_ty();
+            }
+            let write_ty = self.get_write_type_of_symbol(prop);
+            // if first_ty.map_or(true, |first_ty| first_ty != ty)
+            // {}
+            prop_tys.push(ty);
+        }
+
+        let symbol_flags = SymbolFlags::PROPERTY;
+        let links = SymbolLinks::default().with_containing_ty(containing_ty);
+        let links = if let Some(name_ty) = name_ty {
+            links.with_name_ty(name_ty)
+        } else {
+            links
+        };
+        let links = if prop_tys.len() > 2 {
+            links
+        } else {
+            let ty = if is_union {
+                self.create_union_type(prop_tys, ty::UnionReduction::Lit)
+            } else {
+                todo!()
+            };
+            links.with_ty(ty)
+        };
+
+        let result = self
+            .binder
+            .create_transient_symbol(name, symbol_flags, None, links);
+
+        Some(result)
     }
 
     fn get_prop_of_object_ty(

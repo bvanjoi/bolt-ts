@@ -387,6 +387,9 @@ impl<'cx> Resolver<'cx, '_> {
             Typeof(node) => {
                 self.resolve_expr(node.expr);
             }
+            Void(n) => {
+                self.resolve_expr(n.expr);
+            }
             _ => {}
         }
     }

@@ -16,8 +16,17 @@ impl<'cx> TyChecker<'cx> {
             .intersects(ty::ObjectFlags::REQUIRES_WIDENING)
         {
             // TODO: cache
-            if ty.is_object_or_array_literal() {
+            if ty.is_object_literal() {
                 self.get_widened_type_of_object_lit(ty)
+            } else if self.is_array_or_tuple(ty) {
+                let refer = ty.kind.expect_object_reference();
+                let ty_args = refer
+                    .resolved_ty_args
+                    .into_iter()
+                    .map(|arg| self.get_widened_ty(arg))
+                    .collect::<Vec<_>>();
+                let ty_args = self.alloc(ty_args);
+                self.create_reference_ty(refer.target, ty_args, ObjectFlags::empty())
             } else {
                 ty
             }

@@ -8,6 +8,12 @@ impl<'cx> TyChecker<'cx> {
         decl_id: ast::NodeID,
         decl: &'cx impl ir::VarLike<'cx>,
     ) {
+        if !self.p.node(name_id).is_object_binding_elem() {
+            if let Some(ty) = decl.decl_ty() {
+                self.check_ty(ty);
+            }
+        }
+
         let symbol = if self.p.node(decl_id).is_var_decl() {
             self.get_symbol_of_decl(name_id)
         } else {

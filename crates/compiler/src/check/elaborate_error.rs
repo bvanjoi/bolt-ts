@@ -110,7 +110,7 @@ impl<'cx> TyChecker<'cx> {
         source: &'cx ty::Ty<'cx>,
         target: &'cx ty::Ty<'cx>,
         name_ty: &'cx ty::Ty<'cx>,
-    ) -> &'cx ty::Ty<'cx> {
+    ) -> Option<&'cx ty::Ty<'cx>> {
         let idx = self.get_indexed_access_ty(target, name_ty, None, None);
         idx
     }
@@ -122,11 +122,17 @@ impl<'cx> TyChecker<'cx> {
         target: &'cx ty::Ty<'cx>,
         relation: RelationKind,
     ) -> bool {
+        let mut reported_error = false;
         for e in node {
-            let target_prop_ty =
-                self.get_best_match_indexed_access_ty_or_undefined(source, target, e.name_ty);
+            let Some(target_prop_ty) =
+                self.get_best_match_indexed_access_ty_or_undefined(source, target, e.name_ty)
+            else {
+                continue;
+            };
             let error_node = e.error_node;
-            let source_prop_ty = self.get_indexed_access_ty(source, e.name_ty, None, None);
+            let source_prop_ty = self
+                .get_indexed_access_ty(source, e.name_ty, None, None)
+                .unwrap();
             if self.check_type_related_to(source_prop_ty, target_prop_ty, relation, None)
                 == Ternary::FALSE
             {
@@ -137,6 +143,7 @@ impl<'cx> TyChecker<'cx> {
                     relation,
                     e.inner_expr,
                 );
+                reported_error = true;
                 if !elaborated {
                     let res = self.check_type_related_to(
                         source_prop_ty,
@@ -154,9 +161,8 @@ impl<'cx> TyChecker<'cx> {
                         self.push_error(Box::new(error));
                     }
                 }
-                return true;
             }
         }
-        false
+        reported_error
     }
 }

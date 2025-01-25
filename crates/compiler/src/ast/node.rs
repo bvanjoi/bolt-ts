@@ -362,6 +362,7 @@ impl<'cx> Node<'cx> {
                 | ClassCtor(_)
                 | FnDecl(_)
                 | InterfaceDecl(_)
+                | ParamDecl(_)
                 | TyParam(_)
                 | ShorthandSpec(_)
         )

@@ -302,9 +302,8 @@ impl<'cx> TyChecker<'cx> {
     // }
 
     pub(super) fn create_array_ty(&mut self, element_ty: &'cx ty::Ty<'cx>) -> &'cx ty::Ty<'cx> {
-        let refer = self.global_array_ty().kind.expect_object_reference();
         self.create_reference_ty(
-            refer.target,
+            self.global_array_ty(),
             self.alloc(vec![element_ty]),
             ObjectFlags::empty(),
         )

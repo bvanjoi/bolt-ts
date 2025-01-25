@@ -1,7 +1,9 @@
+use std::net::ToSocketAddrs;
+
 use bolt_ts_atom::AtomId;
 
 use super::ty::{self, Ty, TyKind};
-use super::Ternary;
+use super::{errors, Ternary};
 use super::{CheckMode, F64Represent, InferenceContextId, PropName, TyChecker};
 use crate::ast;
 
@@ -56,6 +58,10 @@ impl<'cx> TyChecker<'cx> {
         };
 
         ty
+    }
+
+    pub(super) fn get_write_type_of_symbol(&mut self, symbol: SymbolID) -> &'cx Ty<'cx> {
+        self.get_type_of_symbol(symbol)
     }
 
     fn get_type_of_instantiated_symbol(&mut self, symbol: SymbolID) -> &'cx Ty<'cx> {
@@ -115,7 +121,7 @@ impl<'cx> TyChecker<'cx> {
         let inference = &self.inferences[inference.as_usize()].inferences[idx];
         if let Some(tys) = &inference.candidates {
             Some(self.create_union_type(tys.to_vec(), ty::UnionReduction::Subtype))
-        } else if let Some(tys) = &inference.contra_candidates {
+        } else if let Some(_) = &inference.contra_candidates {
             todo!("intersection")
         } else {
             None
@@ -192,17 +198,17 @@ impl<'cx> TyChecker<'cx> {
         self.get_ty_from_type_node(rest.ty)
     }
 
-    fn get_prop_name_from_ty(&self, ty: &'cx Ty<'cx>) -> PropName {
+    fn get_prop_name_from_ty(&self, ty: &'cx Ty<'cx>) -> Option<PropName> {
         if let Some(lit) = ty.kind.as_string_lit() {
-            PropName::String(lit.val)
+            Some(PropName::String(lit.val))
         } else if let Some(lit) = ty.kind.as_number_lit() {
-            PropName::Num(lit.val)
+            Some(PropName::Num(lit.val))
         } else {
-            unreachable!("ty: {ty:#?}")
+            None
         }
     }
 
-    fn get_prop_name_from_index(&self, index_ty: &'cx Ty<'cx>) -> PropName {
+    fn get_prop_name_from_index(&self, index_ty: &'cx Ty<'cx>) -> Option<PropName> {
         self.get_prop_name_from_ty(index_ty)
     }
 
@@ -211,26 +217,33 @@ impl<'cx> TyChecker<'cx> {
         origin_object_ty: &'cx Ty<'cx>,
         object_ty: &'cx Ty<'cx>,
         index_ty: &'cx Ty<'cx>,
-    ) -> &'cx Ty<'cx> {
+        access_node: Option<ast::NodeID>,
+    ) -> Option<&'cx Ty<'cx>> {
+        let access_expr = access_node.filter(|n| self.p.node(*n).is_ele_access_expr());
         let prop_name = self.get_prop_name_from_index(index_ty);
-        let symbol_name = match prop_name {
-            PropName::String(atom_id) => SymbolName::Ele(atom_id),
-            PropName::Num(num) => {
-                if let Some(tuple) = object_ty.kind.as_object_tuple() {
-                    assert!(num.fract() == 0.0);
-                    let idx = num as usize;
-                    return if idx >= tuple.resolved_ty_args.len() {
-                        self.undefined_ty()
-                    } else {
-                        tuple.resolved_ty_args[idx]
-                    };
+        let symbol_name = if let Some(prop_name) = prop_name {
+            match prop_name {
+                PropName::String(atom_id) => Some(SymbolName::Ele(atom_id)),
+                PropName::Num(num) => {
+                    if let Some(tuple) = object_ty.kind.as_object_tuple() {
+                        assert!(num.fract() == 0.0);
+                        let idx = num as usize;
+                        return if idx >= tuple.resolved_ty_args.len() {
+                            Some(self.undefined_ty())
+                        } else {
+                            Some(tuple.resolved_ty_args[idx])
+                        };
+                    }
+                    Some(SymbolName::EleNum(num.into()))
                 }
-                SymbolName::EleNum(num.into())
             }
+        } else {
+            None
         };
-        let symbol = self.get_prop_of_ty(object_ty, symbol_name);
+        let symbol =
+            symbol_name.and_then(|symbol_name| self.get_prop_of_ty(object_ty, symbol_name));
         if let Some(symbol) = symbol {
-            return self.get_type_of_symbol(symbol);
+            return Some(self.get_type_of_symbol(symbol));
         }
 
         if !index_ty.kind.is_nullable()
@@ -242,17 +255,40 @@ impl<'cx> TyChecker<'cx> {
             ) != Ternary::FALSE
         {
             if object_ty.kind.is_any() {
-                return object_ty;
+                return Some(object_ty);
             }
             let index_info = self
                 .get_applicable_index_info(object_ty, index_ty)
                 .or_else(|| self.get_index_info_of_ty(object_ty, self.string_ty()));
             if let Some(index_info) = index_info {
-                return index_info.val_ty;
+                return Some(index_info.val_ty);
+            }
+
+            if let Some(_) = access_expr {
+                return None;
             }
         }
 
-        self.undefined_ty()
+        if let Some(access_node) = access_node {
+            let index_node = self.get_index_node_for_access_expr(access_node);
+            let span = self.p.node(index_node).span();
+            let error = errors::TypeCannotBeUsedAsAnIndexType {
+                span,
+                ty: self.print_ty(index_ty).to_string(),
+            };
+            self.push_error(Box::new(error));
+        }
+
+        None
+    }
+
+    fn get_index_node_for_access_expr(&self, id: ast::NodeID) -> ast::NodeID {
+        use ast::Node::*;
+        match self.p.node(id) {
+            EleAccessExpr(node) => node.arg.id(),
+            IndexedAccessTy(node) => node.index_ty.id(),
+            _ => id,
+        }
     }
 
     pub(super) fn get_indexed_access_ty(
@@ -261,7 +297,7 @@ impl<'cx> TyChecker<'cx> {
         index_ty: &'cx Ty<'cx>,
         access_flags: Option<AccessFlags>,
         access_node: Option<ast::NodeID>,
-    ) -> &'cx Ty<'cx> {
+    ) -> Option<&'cx Ty<'cx>> {
         let mut access_flags = access_flags.unwrap_or(AccessFlags::empty());
         let is_generic_index = if index_ty.kind.is_generic_index_ty() {
             true
@@ -282,11 +318,31 @@ impl<'cx> TyChecker<'cx> {
                 index_ty,
                 access_flags,
             });
-            return self.new_ty(ty::TyKind::IndexedAccess(ty));
+            return Some(self.new_ty(ty::TyKind::IndexedAccess(ty)));
         };
 
         let apparent_object_ty = self.get_reduced_apparent_ty(object_ty);
-        self.get_prop_ty_for_index_ty(object_ty, apparent_object_ty, index_ty)
+
+        if let Some(union) = index_ty.kind.as_union() {
+            let mut prop_tys = Vec::with_capacity(union.tys.len());
+            for t in union.tys.iter() {
+                if let Some(prop_ty) =
+                    self.get_prop_ty_for_index_ty(object_ty, apparent_object_ty, t, access_node)
+                {
+                    prop_tys.push(prop_ty);
+                } else if access_node.is_none() {
+                    return None;
+                }
+            }
+
+            return if access_flags.intersects(AccessFlags::WRITING) {
+                todo!()
+            } else {
+                Some(self.create_union_type(prop_tys, ty::UnionReduction::Lit))
+            };
+        }
+
+        self.get_prop_ty_for_index_ty(object_ty, apparent_object_ty, index_ty, access_node)
     }
 
     pub(super) fn get_ty_from_indexed_access_node(
@@ -298,7 +354,9 @@ impl<'cx> TyChecker<'cx> {
         }
         let object_ty = self.get_ty_from_type_node(node.ty);
         let index_ty = self.get_ty_from_type_node(node.index_ty);
-        let ty = self.get_indexed_access_ty(object_ty, index_ty, None, Some(node.id));
+        let ty = self
+            .get_indexed_access_ty(object_ty, index_ty, None, Some(node.id))
+            .unwrap();
         self.get_mut_node_links(node.id).set_resolved_ty(ty);
         ty
     }
@@ -628,7 +686,19 @@ impl<'cx> TyChecker<'cx> {
             return ty;
         }
 
-        let target = self.get_array_or_tuple_target_ty(node);
+        let ty_node = self.p.node(node.id).as_ty().unwrap();
+        let target = if Self::get_array_ele_ty_node(&ty_node).is_some() {
+            self.global_array_ty()
+        } else {
+            let element_flags: Vec<_> = node
+                .tys
+                .iter()
+                .map(|ty| Self::get_tuple_element_flags(ty))
+                .collect();
+            let element_flags = self.alloc(element_flags);
+            self.get_tuple_target_ty(element_flags, false)
+        };
+
         let ty = if target == self.empty_generic_ty() {
             self.empty_object_ty()
         } else {

@@ -314,3 +314,18 @@ pub(super) struct TypeCannotBeUsedToIndexType {
     pub ty: String,
     pub index_ty: String,
 }
+
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
+#[error("Type '{ty}' cannot be used as an index type.")]
+pub(super) struct TypeCannotBeUsedAsAnIndexType {
+    #[label(primary)]
+    pub span: Span,
+    pub ty: String,
+}
+
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
+#[error("An index signature parameter type must be 'string', 'number', 'symbol', or a template literal type.")]
+pub(super) struct AnIndexSignatureParameterTypeMustBeStringNumberSymbolOrATemplateLiteralType {
+    #[label(primary)]
+    pub span: Span,
+}

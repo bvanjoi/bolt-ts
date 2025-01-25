@@ -255,7 +255,7 @@ impl<'cx> Ty<'cx> {
                 _ => None,
             },
             TyKind::Param(ty) => Some(ty.symbol),
-            TyKind::Union(_) => todo!(),
+            TyKind::Union(_) => None,
             TyKind::IndexedAccess(_) => todo!(),
             TyKind::Cond(_) => todo!(),
             _ => None,
@@ -396,12 +396,10 @@ impl TyKind<'_> {
     }
 
     pub fn is_array(&self, checker: &TyChecker) -> bool {
-        if let Some(a) = self.as_object_reference() {
-            let b = checker.global_array_ty().kind.expect_object_reference();
-            a.target == b.target
-        } else {
-            false
-        }
+        self.as_object_reference().is_some_and(|ty| {
+            ty.target == checker.global_array_ty()
+                || ty.target == checker.global_readonly_array_ty()
+        })
     }
 
     pub fn is_object_flags_type(&self) -> bool {

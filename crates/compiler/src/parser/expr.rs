@@ -27,9 +27,12 @@ impl<'cx> ParserState<'cx, '_> {
         self.parse_assign_expr(false)
     }
 
-    pub(super) fn parse_init(&mut self) -> Option<&'cx ast::Expr<'cx>> {
-        self.parse_optional(TokenKind::Eq)
-            .map(|_| self.parse_assign_expr(false).unwrap())
+    pub(super) fn parse_init(&mut self) -> PResult<Option<&'cx ast::Expr<'cx>>> {
+        if self.parse_optional(TokenKind::Eq).is_some() {
+            self.parse_assign_expr(false).map(Some)
+        } else {
+            Ok(None)
+        }
     }
 
     fn try_parse_paren_arrow_fn_expr(&mut self) -> PResult<Option<&'cx ast::Expr<'cx>>> {
@@ -54,6 +57,9 @@ impl<'cx> ParserState<'cx, '_> {
         // TODO: mods
         // TODO: isAsync
         let ty_params = self.with_parent(id, Self::parse_ty_params)?;
+        if self.token.kind != TokenKind::LParen {
+            return Ok(None);
+        }
         let params = self.with_parent(id, Self::parse_params)?;
         for param in params {
             if let Some(mods) = param.modifiers {
@@ -107,6 +113,7 @@ impl<'cx> ParserState<'cx, '_> {
         &mut self,
         param: &'cx ast::Ident,
     ) -> PResult<&'cx ast::Expr<'cx>> {
+        assert!(self.token.kind == TokenKind::EqGreat);
         let expr_id = self.next_node_id();
         let param_id = self.next_node_id();
         let param = self.alloc(ast::ParamDecl {
@@ -298,7 +305,7 @@ impl<'cx> ParserState<'cx, '_> {
             let id = self.next_node_id();
             let op = self.token.kind.into();
             self.next_token();
-            let expr = self.parse_left_hand_side_expr();
+            let expr = self.parse_left_hand_side_expr()?;
             let unary = self.alloc(ast::PrefixUnaryExpr {
                 id,
                 span: self.new_span(start),
@@ -338,7 +345,7 @@ impl<'cx> ParserState<'cx, '_> {
 
     fn parse_left_hand_side_expr_or_higher(&mut self) -> PResult<&'cx ast::Expr<'cx>> {
         let start = self.token.start();
-        let expr = self.parse_left_hand_side_expr();
+        let expr = self.parse_left_hand_side_expr()?;
         self.parse_call_expr(start as usize, expr)
     }
 
@@ -666,15 +673,15 @@ impl<'cx> ParserState<'cx, '_> {
         }
     }
 
-    pub(super) fn parse_left_hand_side_expr(&mut self) -> &'cx ast::Expr<'cx> {
+    pub(super) fn parse_left_hand_side_expr(&mut self) -> PResult<&'cx ast::Expr<'cx>> {
         let start = self.token.start();
         self.parse_member_expr()
     }
 
-    fn parse_member_expr(&mut self) -> &'cx ast::Expr<'cx> {
+    fn parse_member_expr(&mut self) -> PResult<&'cx ast::Expr<'cx>> {
         let start = self.token.start();
-        let expr = self.parse_primary_expr().unwrap();
-        self.parse_member_expr_rest(start as usize, expr).unwrap()
+        let expr = self.parse_primary_expr()?;
+        self.parse_member_expr_rest(start as usize, expr)
     }
 
     fn parse_right_side_dot(&mut self, allow_identifier_names: bool) -> PResult<&'cx ast::Ident> {

@@ -98,6 +98,7 @@ impl<'cx> TyChecker<'cx> {
                 let object_ty = self.instantiate_ty_with_alias(indexed.object_ty, mapper);
                 let index_ty = self.instantiate_ty_with_alias(indexed.index_ty, mapper);
                 self.get_indexed_access_ty(object_ty, index_ty, Some(indexed.access_flags), None)
+                    .unwrap()
             }
             Cond(_) => self.get_cond_ty_instantiation(ty, mapper),
             Object(_) => self.get_object_ty_instantiation(ty, mapper),

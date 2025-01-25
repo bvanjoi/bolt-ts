@@ -14,7 +14,7 @@ impl<'cx> TyChecker<'cx> {
         let node = self.p.node(node_id);
 
         if !self.push_ty_resolution(ResolutionKey::Type(id)) {
-            // TODO: error handle
+            // TO: error handle
             return self.any_ty();
         }
 
@@ -67,9 +67,12 @@ impl<'cx> TyChecker<'cx> {
         }
         if let Some(decl) = self.p.node(decl.id()).as_param_decl() {
             if decl.dotdotdot.is_some() {
-                return self.any_ty();
+                self.any_array_ty()
+            } else {
+                self.any_ty()
             }
+        } else {
+            self.any_ty()
         }
-        self.any_ty()
     }
 }

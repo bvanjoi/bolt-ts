@@ -13,4 +13,6 @@ links!(
     (target, SymbolID),
     (ty_mapper, &'cx ty::TyMapper<'cx>),
     (resolved_members, &'cx FxHashMap<SymbolName, SymbolID>),
+    (name_ty, &'cx ty::Ty<'cx>),
+    (containing_ty, &'cx ty::Ty<'cx>),
 );

@@ -211,13 +211,13 @@ impl<'cx> ObjectTyKind<'cx> {
                             )
                         })
                         .collect::<Vec<_>>()
-                        .join(",");
+                        .join(", ");
                     let ret = if let Some(ret) = sig.ret {
                         let ty = checker.p.node(ret);
                         let ty = checker.get_ty_from_type_node(&ty.as_ty().unwrap());
                         ty.to_string(checker)
                     } else {
-                        checker.any_ty().to_string(checker)
+                        checker.void_ty().to_string(checker)
                     };
                     format!("({params}) => {ret}")
                 };

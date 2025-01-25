@@ -262,7 +262,7 @@ impl<'cx> ParserState<'cx, '_> {
         let id = self.next_node_id();
         let start = self.token.start();
         let name = self.with_parent(id, Self::parse_prop_name)?;
-        let init = self.with_parent(id, Self::parse_init);
+        let init = self.with_parent(id, Self::parse_init)?;
         let span = self.new_span(start);
         let member = self.alloc(ast::EnumMember {
             id,
@@ -798,7 +798,7 @@ impl<'cx> ParserState<'cx, '_> {
                 self.alloc(ast::ObjectBindingName::Prop { prop_name, name })
             }
         };
-        let init = self.with_parent(id, Self::parse_init);
+        let init = self.with_parent(id, Self::parse_init)?;
         let ele = self.alloc(ast::ObjectBindingElem {
             id,
             span: self.new_span(start),
@@ -832,7 +832,7 @@ impl<'cx> ParserState<'cx, '_> {
         let start = self.token.start();
         let binding = self.with_parent(id, Self::parse_ident_or_pat)?;
         let ty = self.with_parent(id, Self::parse_ty_anno)?;
-        let init = self.with_parent(id, Self::parse_init);
+        let init = self.with_parent(id, Self::parse_init)?;
         let span = self.new_span(start);
         let node = self.alloc(ast::VarDecl {
             id,

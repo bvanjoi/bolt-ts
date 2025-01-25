@@ -147,3 +147,10 @@ pub(super) struct ArgumentExpressionExpected {
     #[label(primary)]
     pub span: Span,
 }
+
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
+#[error("An index signature must have a type annotation.")]
+pub(super) struct AnIndexSignatureMustHaveATypeAnnotation {
+    #[label(primary)]
+    pub span: Span,
+}

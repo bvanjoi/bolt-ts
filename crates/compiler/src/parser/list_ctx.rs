@@ -116,7 +116,7 @@ pub(super) struct TyParams;
 impl ListContext for TyParams {
     fn is_ele(&self, s: &mut ParserState, _: bool) -> bool {
         // FIXME: parse_state.is_ident
-        s.token.kind.is_binding_ident()
+        matches!(s.token.kind, TokenKind::In | TokenKind::Const) || s.token.kind.is_binding_ident()
     }
 
     fn is_closing(&self, s: &mut ParserState) -> bool {

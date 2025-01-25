@@ -374,7 +374,7 @@ impl Symbol<'_> {
             SymbolKind::TyLit(ty_lit) => Some(ty_lit.decl),
             SymbolKind::Alias(alias) => Some(alias.decl),
             SymbolKind::Fn(f) => Some(f.decls[0]),
-            SymbolKind::Transient(t) => None,
+            SymbolKind::Transient(_) => None,
             _ => None,
         };
         id.or_else(|| self.kind.1.as_ref().and_then(|i| i.decls.get(0)).copied())

@@ -498,6 +498,9 @@ impl<'cx> BinderState<'cx> {
             Typeof(node) => {
                 self.bind_expr(node.expr);
             }
+            Void(node) => {
+                self.bind_expr(node.expr);
+            }
             _ => (),
         }
     }
