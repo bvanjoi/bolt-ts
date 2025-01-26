@@ -1,4 +1,4 @@
 function f() {
-  new C2()
+  new C2();
 }
 class C2 {}

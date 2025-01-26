@@ -10,8 +10,8 @@ class B extends A {
     bar(callback) {}
     runme() {
       this.bar(() => {
-        super.foo()      
-})    
+        super.foo();      
+});    
 }  
 }
 test.B = B

@@ -28,14 +28,6 @@ impl<'cx> BinderState<'cx> {
         self.declare_symbol(name, flags, kind, exclude)
     }
 
-    pub(super) fn declare_symbol_with_container(
-        &mut self,
-        container: ast::NodeID,
-        parent: Option<SymbolID>,
-        node: ast::NodeID,
-    ) {
-    }
-
     pub(super) fn declare_symbol(
         &mut self,
         name: SymbolName,

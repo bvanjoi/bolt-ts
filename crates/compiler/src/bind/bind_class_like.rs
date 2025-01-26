@@ -156,10 +156,23 @@ impl<'cx> BinderState<'cx> {
                 ast::ClassEleKind::Method(n) => self.bind_class_method_ele(class.id(), n),
                 ast::ClassEleKind::Ctor(n) => self.bind_class_ctor(class.id(), n),
                 ast::ClassEleKind::IndexSig(n) => {
-                    self.bind_index_sig(class.id(), n);
+                    let is_static = n
+                        .modifiers
+                        .is_some_and(|ms| ms.flags.contains(ModifierKind::Static));
+                    self.bind_index_sig(class.id(), n, is_static);
                 }
-                ast::ClassEleKind::Getter(_) => {}
-                ast::ClassEleKind::Setter(_) => {}
+                ast::ClassEleKind::Getter(n) => {
+                    let is_static = n
+                        .modifiers
+                        .is_some_and(|ms| ms.flags.contains(ModifierKind::Static));
+                    self.bind_get_access(class.id(), n, is_static);
+                }
+                ast::ClassEleKind::Setter(n) => {
+                    let is_static = n
+                        .modifiers
+                        .is_some_and(|ms| ms.flags.contains(ModifierKind::Static));
+                    self.bind_set_access(class.id(), n, is_static);
+                }
             }
         }
         self.scope_id = old;

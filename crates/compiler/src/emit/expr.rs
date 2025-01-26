@@ -173,9 +173,17 @@ impl<'cx> Emit<'cx> {
     fn emit_object_member(&mut self, field: &'cx ast::ObjectMember<'cx>) {
         use ast::ObjectMemberKind::*;
         match field.kind {
-            Prop(prop) => self.emit_object_prop_member(prop),
-            Shorthand(shorthand) => self.emit_object_shorthand_member(shorthand),
+            Prop(n) => self.emit_object_prop_member(n),
+            Shorthand(n) => self.emit_object_shorthand_member(n),
+            Method(n) => self.emit_object_method_member(n),
         }
+    }
+
+    fn emit_object_method_member(&mut self, method: &'cx ast::ObjectMethodMember<'cx>) {
+        self.emit_prop_name(method.name);
+        self.emit_params(method.params);
+        self.content.p_whitespace();
+        self.emit_block_stmt(method.body);
     }
 
     fn emit_object_prop_member(&mut self, prop: &'cx ast::ObjectPropMember<'cx>) {

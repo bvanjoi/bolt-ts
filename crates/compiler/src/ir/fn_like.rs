@@ -90,6 +90,18 @@ impl<'cx> FnLike<'cx> for ast::MethodSignature<'cx> {
     }
 }
 
+impl<'cx> FnLike<'cx> for ast::ObjectMethodMember<'cx> {
+    fn id(&self) -> ast::NodeID {
+        self.id
+    }
+    fn params(&self) -> ast::ParamsDecl<'cx> {
+        self.params
+    }
+    fn body(&self) -> Option<ast::ArrowFnExprBody<'cx>> {
+        Some(ast::ArrowFnExprBody::Block(self.body))
+    }
+}
+
 impl<'cx> FnLike<'cx> for ast::CallSigDecl<'cx> {
     fn id(&self) -> ast::NodeID {
         self.id

@@ -96,7 +96,7 @@ impl<'cx> TyChecker<'cx> {
             EntityNameKind::Ident(ident) => self.check_ident(ident),
             EntityNameKind::Qualified(name) => {
                 let left = self.check_entity_name(name.left);
-                self._get_prop_of_ty(left, name.right)
+                self._get_prop_of_ty(name.id, left, name.right)
             }
         }
     }

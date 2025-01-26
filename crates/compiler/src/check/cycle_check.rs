@@ -5,6 +5,7 @@ use crate::ty::{SigID, TyID};
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(super) enum ResolutionKey {
     Type(SymbolID),
+    WriteType(SymbolID),
     ResolvedBaseConstructorType(TyID),
     ResolvedBaseTypes(TyID),
     DeclaredType(SymbolID),
@@ -31,6 +32,10 @@ impl TyChecker<'_> {
                 .symbol_links
                 .get(&symbol)
                 .is_some_and(|s| s.get_ty().is_some()),
+            ResolutionKey::WriteType(symbol) => self
+                .symbol_links
+                .get(&symbol)
+                .is_some_and(|s| s.get_write_ty().is_some()),
             ResolutionKey::DeclaredType(symbol) => self
                 .symbol_links
                 .get(&symbol)

@@ -1,0 +1,12 @@
+  × Property 'compareTo' is missing.
+    ╭─[../../tests/cases/compiler/testTypings/index.ts:12:6]
+ 12 │ [{ }]
+    · ─────
+    ╰────
+
+Advice: 
+  ☞ Property 'compareTo' is defined here
+   ╭─[../../tests/cases/compiler/testTypings/index.ts:3:11]
+ 3 │ IComparable
+   · ───────────
+   ╰────

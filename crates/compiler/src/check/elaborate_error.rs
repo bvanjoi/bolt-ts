@@ -63,6 +63,11 @@ impl<'cx> TyChecker<'cx> {
                         inner_expr: Some(n.value.id()),
                         name_ty: ty,
                     },
+                    Method(n) => Elaboration {
+                        error_node: n.name.id(),
+                        inner_expr: None,
+                        name_ty: ty,
+                    },
                 }
             })
             .collect::<Vec<_>>();

@@ -409,6 +409,16 @@ impl<'cx> Resolver<'cx, '_> {
             Prop(n) => {
                 self.resolve_expr(n.value);
             }
+            Method(n) => {
+                if let Some(ty_params) = n.ty_params {
+                    self.resolve_ty_params(ty_params);
+                }
+                self.resolve_params(n.params);
+                if let Some(ty) = n.ty {
+                    self.resolve_ty(ty);
+                }
+                self.resolve_block_stmt(n.body);
+            }
         }
     }
     fn resolve_fn_decl(&mut self, f: &'cx ast::FnDecl<'cx>) {

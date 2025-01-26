@@ -3,4 +3,4 @@ var func = function () {
 }
 func = function () {
   return "ONE"
-}
+};

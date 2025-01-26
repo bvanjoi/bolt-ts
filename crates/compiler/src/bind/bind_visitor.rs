@@ -1,5 +1,6 @@
 use super::symbol;
 use super::symbol::FunctionScopedVarSymbol;
+use super::symbol::GetterSetterSymbol;
 use super::symbol::IndexSymbol;
 use super::symbol::{SymbolFlags, SymbolFnKind, SymbolKind};
 use super::symbol::{SymbolID, SymbolName, Symbols};
@@ -296,10 +297,11 @@ impl<'cx> BinderState<'cx> {
         &mut self,
         container: ast::NodeID,
         index: &'cx ast::IndexSigDecl<'cx>,
+        is_export: bool,
     ) -> SymbolID {
         let name = SymbolName::Index;
         let symbol = self.declare_symbol(
-            SymbolName::Index,
+            name,
             SymbolFlags::SIGNATURE,
             SymbolKind::Index(IndexSymbol { decl: index.id }),
             SymbolFlags::empty(),
@@ -312,9 +314,15 @@ impl<'cx> BinderState<'cx> {
             // FIXME: multiple index sig
             assert!(prev.is_none());
         } else if let SymbolKind::Class(c) = &mut s.kind.0 {
-            let prev = c.members.insert(name, symbol);
-            // FIXME: multiple index sig
-            assert!(prev.is_none());
+            if is_export {
+                let prev = c.exports.insert(name, symbol);
+                // FIXME: multiple index sig
+                assert!(prev.is_none());
+            } else {
+                let prev = c.members.insert(name, symbol);
+                // FIXME: multiple index sig
+                assert!(prev.is_none());
+            }
         } else if let SymbolKind::TyLit(o) = &mut s.kind.0 {
             let prev = o.members.insert(name, symbol);
             // FIXME: multiple index sig
@@ -329,6 +337,91 @@ impl<'cx> BinderState<'cx> {
         self.bind_ty(index.ty);
 
         symbol
+    }
+
+    fn insert_getter_setter_symbol(
+        &mut self,
+        container: ast::NodeID,
+        name: &'cx ast::PropName<'cx>,
+        decl: ast::NodeID,
+        flags: SymbolFlags,
+        exclude_flags: SymbolFlags,
+        is_export: bool,
+    ) {
+        let name = prop_name(name);
+        if let Some(name) = self.members(container, is_export).get(&name).copied() {
+            if self.symbols.get(name).flags.intersects(exclude_flags) {
+                todo!("duplicate identifier");
+            } else if let SymbolKind::GetterSetter(symbol) = &mut self.symbols.get_mut(name).kind.0
+            {
+                if flags.intersects(SymbolFlags::GET_ACCESSOR) {
+                    symbol.getter_decl = Some(decl);
+                    assert!(symbol.setter_decl.is_some());
+                } else {
+                    symbol.setter_decl = Some(decl);
+                    assert!(symbol.getter_decl.is_some());
+                }
+            } else {
+                unreachable!()
+            }
+        } else {
+            let symbol = if flags.intersects(SymbolFlags::GET_ACCESSOR) {
+                self.declare_symbol(
+                    name,
+                    SymbolFlags::GET_ACCESSOR,
+                    SymbolKind::GetterSetter(GetterSetterSymbol {
+                        getter_decl: Some(decl),
+                        setter_decl: None,
+                    }),
+                    SymbolFlags::GET_ACCESSOR_EXCLUDES,
+                )
+            } else {
+                self.declare_symbol(
+                    name,
+                    SymbolFlags::SET_ACCESSOR,
+                    SymbolKind::GetterSetter(GetterSetterSymbol {
+                        getter_decl: None,
+                        setter_decl: Some(decl),
+                    }),
+                    SymbolFlags::SET_ACCESSOR_EXCLUDES,
+                )
+            };
+            self.create_final_res(decl, symbol);
+            let prev = self.members(container, is_export).insert(name, symbol);
+            assert!(prev.is_none());
+        }
+    }
+
+    pub(super) fn bind_get_access(
+        &mut self,
+        container: ast::NodeID,
+        getter: &'cx ast::GetterDecl<'cx>,
+        is_export: bool,
+    ) {
+        self.insert_getter_setter_symbol(
+            container,
+            getter.name,
+            getter.id,
+            SymbolFlags::GET_ACCESSOR,
+            SymbolFlags::GET_ACCESSOR_EXCLUDES,
+            is_export,
+        );
+    }
+
+    pub(super) fn bind_set_access(
+        &mut self,
+        container: ast::NodeID,
+        setter: &'cx ast::SetterDecl<'cx>,
+        is_export: bool,
+    ) {
+        self.insert_getter_setter_symbol(
+            container,
+            setter.name,
+            setter.id,
+            SymbolFlags::SET_ACCESSOR,
+            SymbolFlags::SET_ACCESSOR_EXCLUDES,
+            is_export,
+        );
     }
 
     fn bind_object_ty_member(&mut self, container: ast::NodeID, m: &'cx ast::ObjectTyMember<'cx>) {
@@ -388,7 +481,7 @@ impl<'cx> BinderState<'cx> {
                 self.scope_id = old;
             }
             IndexSig(index) => {
-                self.bind_index_sig(container, index);
+                self.bind_index_sig(container, index, false);
             }
             CtorSig(decl) => {
                 let old = self.scope_id;
@@ -562,6 +655,24 @@ impl<'cx> BinderState<'cx> {
                         let name = prop_name(n.name);
                         let symbol = self.create_object_member_symbol(name, n.id);
                         self.bind_expr(n.value);
+                        (name, symbol)
+                    }
+                    Method(n) => {
+                        let name = prop_name(n.name);
+                        let symbol = self.create_object_member_symbol(name, n.id);
+
+                        let old = self.scope_id;
+                        self.scope_id = self.new_scope();
+                        if let Some(ty_params) = n.ty_params {
+                            self.bind_ty_params(ty_params);
+                        }
+                        self.bind_params(n.params);
+                        if let Some(ty) = n.ty {
+                            self.bind_ty(ty);
+                        }
+                        self.bind_block_stmt(n.body);
+                        self.scope_id = old;
+
                         (name, symbol)
                     }
                 }

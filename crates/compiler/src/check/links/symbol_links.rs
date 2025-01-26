@@ -7,6 +7,7 @@ use rustc_hash::FxHashMap;
 links!(
     SymbolLinks,
     (ty, &'cx ty::Ty<'cx>),
+    (write_ty, &'cx ty::Ty<'cx>),
     (declared_ty, &'cx ty::Ty<'cx>),
     (ty_params, ty::Tys<'cx>),
     (check_flags, ty::CheckFlags),

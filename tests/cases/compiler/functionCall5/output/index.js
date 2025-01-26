@@ -12,4 +12,4 @@ function foo() {
 }
 
 var x = foo()
-x.a
+x.a;

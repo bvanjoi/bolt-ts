@@ -1,9 +1,7 @@
-use std::net::ToSocketAddrs;
-
 use bolt_ts_atom::AtomId;
 
 use super::ty::{self, Ty, TyKind};
-use super::{errors, Ternary};
+use super::{errors, ResolutionKey, Ternary};
 use super::{CheckMode, F64Represent, InferenceContextId, PropName, TyChecker};
 use crate::ast;
 
@@ -45,23 +43,57 @@ impl<'cx> TyChecker<'cx> {
         } else if symbol.is_variable() || symbol.flags.intersects(SymbolFlags::PROPERTY) {
             self.get_type_of_var_like(id)
         } else if symbol.flags == SymbolFlags::OBJECT_LITERAL {
-            let ty = self.get_type_of_object(id);
-            // TODO: delete
-            if let Some(ty) = self.get_symbol_links(id).get_ty() {
-                return ty;
-            }
-            self.get_mut_symbol_links(id).set_ty(ty);
-            // ---
-            ty
+            unreachable!("type literal")
+        } else if symbol.flags.intersects(SymbolFlags::ACCESSOR) {
+            self.get_ty_of_accessor(id)
         } else {
-            self.any_ty()
+            self.error_ty()
         };
 
         ty
     }
 
-    pub(super) fn get_write_type_of_symbol(&mut self, symbol: SymbolID) -> &'cx Ty<'cx> {
-        self.get_type_of_symbol(symbol)
+    pub(super) fn get_ty_of_accessor(&mut self, symbol: SymbolID) -> &'cx Ty<'cx> {
+        if let Some(ty) = self.get_symbol_links(symbol).get_ty() {
+            return ty;
+        };
+        if !self.push_ty_resolution(ResolutionKey::Type(symbol)) {
+            return self.error_ty();
+        }
+        let s = self.binder.symbol(symbol).expect_getter_setter();
+        let getter = s.getter_decl;
+        let setter = s.setter_decl;
+        let ty = if let Some(getter_ty) = getter
+            .and_then(|getter| {
+                let getter = self.p.node(getter).expect_getter_decl();
+                getter.ty
+            })
+            .map(|getter_ty| self.get_ty_from_type_node(getter_ty))
+        {
+            Some(getter_ty)
+        } else if let Some(setter_ty) = setter
+            .and_then(|setter| {
+                let setter = self.p.node(setter).expect_setter_decl();
+                setter.params[0].ty
+            })
+            .map(|setter_ty| self.get_ty_from_type_node(setter_ty))
+        {
+            Some(setter_ty)
+        } else {
+            None
+        };
+
+        let ty = if let Some(ty) = ty {
+            ty
+        } else {
+            // TODO: error
+            self.any_ty()
+        };
+        if self.pop_ty_resolution().has_cycle() {
+            todo!("cycle")
+        }
+        self.get_mut_symbol_links(symbol).set_ty(ty);
+        ty
     }
 
     fn get_type_of_instantiated_symbol(&mut self, symbol: SymbolID) -> &'cx Ty<'cx> {
@@ -77,10 +109,6 @@ impl<'cx> TyChecker<'cx> {
         let ty = self.instantiate_ty(ty, mapper);
         self.get_mut_symbol_links(symbol).set_ty(ty);
         ty
-    }
-
-    fn get_type_of_object(&mut self, symbol: SymbolID) -> &'cx Ty<'cx> {
-        self.undefined_ty()
     }
 
     fn get_base_type_variable_of_class(&mut self, symbol: SymbolID) -> Option<&'cx Ty<'cx>> {
@@ -254,7 +282,7 @@ impl<'cx> TyChecker<'cx> {
                 false,
             ) != Ternary::FALSE
         {
-            if object_ty.kind.is_any() {
+            if object_ty.kind.is_any() || object_ty.kind.is_never() {
                 return Some(object_ty);
             }
             let index_info = self

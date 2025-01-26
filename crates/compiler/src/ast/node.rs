@@ -88,6 +88,7 @@ pub enum Node<'cx> {
     EnumMember(&'cx super::EnumMember<'cx>),
     ObjectShorthandMember(&'cx super::ObjectShorthandMember<'cx>),
     ObjectPropMember(&'cx super::ObjectPropMember<'cx>),
+    ObjectMethodMember(&'cx super::ObjectMethodMember<'cx>),
     ObjectLit(&'cx super::ObjectLit<'cx>),
     CallExpr(&'cx super::CallExpr<'cx>),
     FnExpr(&'cx super::FnExpr<'cx>),
@@ -231,6 +232,10 @@ impl<'cx> Node<'cx> {
                 super::PropNameKind::Ident(ident) => Some(ident),
                 _ => None,
             },
+            ObjectMethodMember(n) => match n.name.kind {
+                super::PropNameKind::Ident(ident) => Some(ident),
+                _ => None,
+            },
             ObjectShorthandMember(n) => Some(n.name),
             _ => None,
         }
@@ -353,6 +358,7 @@ impl<'cx> Node<'cx> {
             VarDecl(_)
                 | ObjectShorthandMember(_)
                 | ObjectPropMember(_)
+                | ObjectMethodMember(_)
                 | ClassDecl(_)
                 | ClassExpr(_)
                 | ClassPropElem(_)
@@ -450,18 +456,8 @@ impl<'cx> Node<'cx> {
     }
 
     pub fn has_syntactic_modifier(&self, flags: enumflags2::BitFlags<ModifierKind>) -> bool {
-        macro_rules! modifier {
-            ($( $node_kind:ident),* $(,)?) => {
-                match self {
-                    $(Node::$node_kind(n) => n.modifiers,)*
-                    _ => None,
-                }
-            };
-        }
-        let Some(ms) = modifier!(ClassMethodElem) else {
-            return false;
-        };
-        ms.flags.intersects(flags)
+        self.modifiers()
+            .map_or(false, |ms| ms.flags.intersects(flags))
     }
 
     pub fn modifiers(&self) -> Option<&'cx super::Modifiers> {
@@ -473,7 +469,7 @@ impl<'cx> Node<'cx> {
                 }
             };
         }
-        modifiers!(ClassMethodElem)
+        modifiers!(ClassMethodElem, ClassPropElem)
     }
 
     pub fn is_block_scope(&self, parent: Option<&Self>) -> bool {
@@ -722,6 +718,13 @@ as_node!(
         as_object_prop_member,
         expect_object_prop_member,
         is_object_prop_member
+    ),
+    (
+        ObjectMethodMember,
+        &'cx super::ObjectMethodMember<'cx>,
+        as_object_method_member,
+        expect_object_method_member,
+        is_object_method_member
     ),
     (
         ObjectLit,

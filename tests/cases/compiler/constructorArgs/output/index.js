@@ -4,7 +4,7 @@ class Super {
 }
 class Sub extends Super {
   constructor(options) {
-    super(options.value)
+    super(options.value);
 this.options = options    
 }
 }

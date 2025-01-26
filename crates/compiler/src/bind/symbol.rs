@@ -192,6 +192,7 @@ pub(crate) enum SymbolKind<'cx> {
     Transient(TransientSymbol<'cx>),
     TyLit(TyLitSymbol),
     Alias(AliasSymbol),
+    GetterSetter(GetterSetterSymbol),
 }
 
 macro_rules! as_symbol_kind {
@@ -246,6 +247,12 @@ as_symbol_kind!(TyAlias, &TyAliasSymbol, as_ty_alias, expect_ty_alias);
 as_symbol_kind!(TyParam, &TyParamSymbol, as_ty_param, expect_ty_param);
 as_symbol_kind!(TyLit, &TyLitSymbol, as_ty_lit, expect_ty_lit);
 as_symbol_kind!(Alias, &AliasSymbol, as_alias, expect_alias);
+as_symbol_kind!(
+    GetterSetter,
+    &GetterSetterSymbol,
+    as_getter_setter,
+    expect_getter_setter
+);
 
 #[derive(Debug)]
 pub struct AliasSymbol {
@@ -270,6 +277,12 @@ pub struct TransientSymbol<'cx> {
 pub struct BlockContainerSymbol {
     pub locals: FxHashMap<SymbolName, SymbolID>,
     pub exports: FxHashMap<SymbolName, SymbolID>,
+}
+
+#[derive(Debug)]
+pub struct GetterSetterSymbol {
+    pub getter_decl: Option<NodeID>,
+    pub setter_decl: Option<NodeID>,
 }
 
 #[derive(Debug)]
@@ -358,6 +371,7 @@ impl Symbol<'_> {
             SymbolKind::Transient { .. } => todo!(),
             SymbolKind::TyLit(_) => todo!(),
             SymbolKind::Alias(_) => todo!(),
+            SymbolKind::GetterSetter(_) => todo!(),
         }
     }
 

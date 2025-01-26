@@ -9,7 +9,7 @@ this.y = y}
 }
 class ColoredPoint extends Point {
   constructor(x, y, color) {
-    super(x, y)
+    super(x, y);
 this.color = color    
 }
   toString() {

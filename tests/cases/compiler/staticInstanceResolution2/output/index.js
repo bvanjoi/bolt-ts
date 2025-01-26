@@ -1,8 +1,8 @@
 class A {}
-A.hasOwnProperty("foo")
+A.hasOwnProperty("foo");
 class B {
   constructor() {}
 }
-B.hasOwnProperty("foo")
+B.hasOwnProperty("foo");
 var a = A.hasOwnProperty("foo")
 var b = B.hasOwnProperty("foo")

@@ -1,0 +1,5 @@
+  × Static members cannot reference class type parameters.
+   ╭─[../../tests/cases/compiler/typeParametersInStaticProperties/index.ts:4:13]
+ 4 │ T
+   · ─
+   ╰────

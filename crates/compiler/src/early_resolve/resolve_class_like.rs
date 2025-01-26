@@ -13,11 +13,11 @@ impl<'cx> Resolver<'cx, '_> {
 
     fn resolve_class_method_ele(&mut self, ele: &'cx ast::ClassMethodElem<'cx>) {
         self.resolve_params(ele.params);
-        if let Some(body) = ele.body {
-            self.resolve_block_stmt(body);
-        }
         if let Some(ty) = ele.ty {
             self.resolve_ty(ty);
+        }
+        if let Some(body) = ele.body {
+            self.resolve_block_stmt(body);
         }
     }
 
@@ -40,20 +40,21 @@ impl<'cx> Resolver<'cx, '_> {
         }
 
         for ele in class.elems().elems {
+            use ast::ClassEleKind::*;
             match ele.kind {
-                ast::ClassEleKind::Prop(n) => self.resolve_class_prop_ele(n),
-                ast::ClassEleKind::Method(n) => self.resolve_class_method_ele(n),
-                ast::ClassEleKind::Ctor(n) => {
+                Prop(n) => self.resolve_class_prop_ele(n),
+                Method(n) => self.resolve_class_method_ele(n),
+                Ctor(n) => {
                     self.resolve_params(n.params);
                     if let Some(body) = n.body {
                         self.resolve_block_stmt(body);
                     }
                 }
-                ast::ClassEleKind::IndexSig(n) => {
+                IndexSig(n) => {
                     self.resolve_index_sig(n);
                 }
-                ast::ClassEleKind::Getter(_) => {}
-                ast::ClassEleKind::Setter(_) => {}
+                Getter(_) => {}
+                Setter(_) => {}
             }
         }
     }

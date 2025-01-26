@@ -67,6 +67,11 @@ impl<'cx> TyChecker<'cx> {
             || (target.kind.is_undefined() || target.kind.is_void())
         {
             true
+        } else if source.kind.is_null()
+            && (target.kind.is_null()
+                || (!*self.config.strict_null_checks() && !target.kind.is_union_or_intersection()))
+        {
+            true
         } else if source.kind.is_object()
             && target == self.non_primitive_ty()
             && !(relation == RelationKind::StrictSubtype

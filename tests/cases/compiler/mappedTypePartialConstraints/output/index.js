@@ -5,4 +5,4 @@ class MyClass {
 class MySubClass extends MyClass {}
 function fn(arg) {}
 
-fn(MySubClass)
+fn(MySubClass);

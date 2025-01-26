@@ -25,6 +25,10 @@ impl TyChecker<'_> {
         match n {
             FnExpr(expr) => self.check_fn_like_expr_deferred(expr),
             ArrowFnExpr(expr) => self.check_fn_like_expr_deferred(expr),
+            ObjectMethodMember(expr) => {
+                let body = ast::ArrowFnExprBody::Block(expr.body);
+                self.check_fn_like_expr_or_object_method_member_deferred(expr.id, body)
+            }
             _ => unreachable!("{n:#?}"),
         }
     }

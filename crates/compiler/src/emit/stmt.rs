@@ -8,15 +8,15 @@ impl<'cx> Emit<'cx> {
         use ast::StmtKind::*;
         match stmt.kind {
             Var(var) => self.emit_var_stmt(var),
-            Expr(expr) => self.emit_expr(expr),
+            Expr(expr) => {
+                self.emit_expr(expr);
+                self.content.p_semi();
+            }
             Fn(f) => self.emit_fn_decl(f),
             If(stmt) => self.emit_if_stmt(stmt),
             Block(block) => self.emit_block_stmt(block),
             Return(ret) => self.emit_ret_stmt(ret),
-            Empty(_) => {}
             Class(class) => self.emit_class_decl(class),
-            Interface(_) => {}
-            Type(_) => {}
             Throw(t) => self.emit_throw_stmt(t),
             Namespace(ns) => self.emit_ns_decl(ns),
             Enum(e) => self.emit_enum_decl(e),
@@ -30,6 +30,9 @@ impl<'cx> Emit<'cx> {
             Try(n) => self.emit_try_stmt(n),
             While(n) => self.emit_while_stmt(n),
             Do(n) => self.emit_do_stmt(n),
+            Interface(_) => {}
+            Type(_) => {}
+            Empty(_) => {}
         }
     }
 

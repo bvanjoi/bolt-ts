@@ -3,8 +3,7 @@ use super::{CheckMode, TyChecker};
 use crate::{ast, ir, ty};
 
 impl<'cx> TyChecker<'cx> {
-    fn contextually_check_fn_expr(&mut self, expr: &impl ir::FnExprLike<'cx>) {
-        let id = expr.id();
+    fn contextually_check_fn_expr_or_object_method_member(&mut self, id: ast::NodeID) {
         let flags = |this: &mut Self| this.get_node_links(id).flags();
 
         if !flags(self).intersects(NodeFlags::CONTEXT_CHECKED) {
@@ -57,36 +56,50 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
-    pub(super) fn check_fn_like_expr(
+    pub(super) fn check_fn_like_expr_or_object_method_member(
         &mut self,
-        expr: &impl ir::FnExprLike<'cx>,
+        id: ast::NodeID,
     ) -> &'cx ty::Ty<'cx> {
-        self.check_node_deferred(expr.id());
-
+        self.check_node_deferred(id);
         if let Some(mode) = self.check_mode {
             if mode.intersects(CheckMode::SKIP_CONTEXT_SENSITIVE) {
                 return self.any_fn_ty();
             }
         }
 
-        self.contextually_check_fn_expr(expr);
+        self.contextually_check_fn_expr_or_object_method_member(id);
 
-        let symbol = self.get_symbol_of_decl(expr.id());
+        let symbol = self.get_symbol_of_decl(id);
         self.get_type_of_symbol(symbol)
+    }
+
+    pub(super) fn check_fn_like_expr(
+        &mut self,
+        expr: &impl ir::FnExprLike<'cx>,
+    ) -> &'cx ty::Ty<'cx> {
+        self.check_fn_like_expr_or_object_method_member(expr.id())
     }
 
     pub(super) fn check_fn_like_expr_deferred(&mut self, expr: &impl ir::FnExprLike<'cx>) {
         let id = expr.id();
+        self.check_fn_like_expr_or_object_method_member_deferred(id, ir::FnExprLike::body(expr));
+    }
+
+    pub(super) fn check_fn_like_expr_or_object_method_member_deferred(
+        &mut self,
+        id: ast::NodeID,
+        body: ast::ArrowFnExprBody<'cx>,
+    ) {
         let n = self.p.node(id);
         let flags = n.fn_flags();
         let ret_ty = self.get_ret_ty_from_anno(id);
 
         use ast::ArrowFnExprBody::*;
-        match ir::FnExprLike::body(expr) {
+        match body {
             Block(block) => self.check_block(block),
             Expr(expr) => {
                 self.check_expr(expr);
             }
-        };
+        }
     }
 }

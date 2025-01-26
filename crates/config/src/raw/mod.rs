@@ -36,21 +36,24 @@ with_option!(
     RawCompilerOptions,
     (out_dir, String),
     (no_emit, bool),
-    (strict, bool),
     (declaration, bool),
+    (strict, bool),
+    (strict_null_checks, bool)
 );
 
 impl RawCompilerOptions {
     pub fn normalize(self) -> super::NormalizedCompilerOptions {
         let out_dir = self.out_dir.map_or(OutDir::default(), OutDir::Custom);
         let no_emit = self.no_emit.unwrap_or_default();
-        let strict = self.strict.unwrap_or_default();
         let declaration = self.declaration.unwrap_or_default();
+        let strict = self.strict.unwrap_or_default();
+        let strict_null_checks = strict || self.strict_null_checks.unwrap_or_default();
         super::NormalizedCompilerOptions {
             out_dir,
             no_emit,
-            strict,
             declaration,
+            strict,
+            strict_null_checks,
         }
     }
 }

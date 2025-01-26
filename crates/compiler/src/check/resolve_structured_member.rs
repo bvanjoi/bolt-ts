@@ -542,31 +542,54 @@ impl<'cx> TyChecker<'cx> {
         self.alloc([sig])
     }
 
+    fn get_export_of_symbol(&self, symbol: SymbolID) -> Option<&FxHashMap<SymbolName, SymbolID>> {
+        let s = self.binder.symbol(symbol);
+        if s.flags.intersects(SymbolFlags::CLASS) {
+            let c = s.expect_class();
+            Some(&c.exports)
+        } else {
+            None
+        }
+    }
+
     fn resolve_anonymous_type_members(&mut self, ty: &'cx ty::Ty<'cx>) {
         let Some(a) = ty.kind.as_object_anonymous() else {
             unreachable!()
         };
+        if let Some(target) = a.target {
+            let mapper = a.mapper.unwrap();
+            let members = {
+                let props = self.get_props_of_ty(target);
+                self.create_instantiated_symbol_table(props, mapper, false)
+            };
+            let sigs = self.get_signatures_of_type(target, SigKind::Call);
+            let call_sigs = self.instantiate_sigs(sigs, mapper);
+            let sigs = self.get_signatures_of_type(target, SigKind::Constructor);
+            let ctor_sigs = self.instantiate_sigs(sigs, mapper);
+            let index_infos = &[];
+            // TODO:  `index_infos`, `members` and instantiate them.
+            let props = self.get_props_from_members(&members);
+            let m = self.alloc(ty::StructuredMembers {
+                members: self.alloc(members),
+                base_tys: &[],
+                base_ctor_ty: None,
+                call_sigs,
+                ctor_sigs,
+                index_infos,
+                props,
+            });
+            self.get_mut_ty_links(ty.id).set_structured_members(m);
+            return;
+        }
         let symbol = self.binder.symbol(a.symbol);
         let symbol_flags = symbol.flags;
 
         let mut members;
         let call_sigs;
-        let mut ctor_sigs;
+        let mut ctor_sigs: ty::Sigs<'cx>;
         let index_infos: ty::IndexInfos<'cx>;
 
-        if let Some(target) = a.target {
-            let mapper = a.mapper.unwrap();
-            members = {
-                let props = self.get_props_of_ty(target);
-                self.create_instantiated_symbol_table(props, mapper, false)
-            };
-            let sigs = self.get_signatures_of_type(target, SigKind::Call);
-            call_sigs = self.instantiate_sigs(sigs, mapper);
-            let sigs = self.get_signatures_of_type(target, SigKind::Constructor);
-            ctor_sigs = self.instantiate_sigs(sigs, mapper);
-            index_infos = &[];
-            // TODO:  `index_infos`, `members` and instantiate them.
-        } else if symbol_flags.intersects(SymbolFlags::FUNCTION) {
+        if symbol_flags.intersects(SymbolFlags::FUNCTION) {
             call_sigs = self.get_sigs_of_symbol(a.symbol);
             ctor_sigs = &[];
             members = FxHashMap::default();
@@ -574,23 +597,30 @@ impl<'cx> TyChecker<'cx> {
             // TODO: `constructor_sigs`, `index_infos`
         } else if symbol_flags.intersects(SymbolFlags::CLASS) {
             call_sigs = &[];
-            // TODO: `get_exports_of_symbol`
-            members = symbol.expect_class().exports.clone();
+            members = self.get_export_of_symbol(a.symbol).unwrap().clone();
             if let Some(symbol) = symbol.expect_class().members.get(&SymbolName::Constructor) {
                 ctor_sigs = self.get_sigs_of_symbol(*symbol)
             } else {
                 ctor_sigs = &[];
             }
 
+            // let mut base_ctor_index_info = None;
             let class_ty = self.get_declared_ty_of_symbol(a.symbol);
             self.resolve_structured_type_members(class_ty);
             let base_ctor_ty = self.get_base_constructor_type_of_class(class_ty);
-            if base_ctor_ty.kind.is_object() {
+            if base_ctor_ty.kind.is_object() || base_ctor_ty.kind.is_type_variable() {
                 let props = self.get_props_of_ty(base_ctor_ty);
                 self.add_inherited_members(&mut members, props);
+            } else if base_ctor_ty == self.any_ty() {
+                // base_ctor_index_info = Some(self.any_base);
             }
 
-            index_infos = self.index_infos_of_ty(class_ty);
+            if let Some(index_symbol) = members.get(&SymbolName::Index) {
+                index_infos = self.get_index_infos_of_index_symbol(*index_symbol);
+            } else {
+                index_infos = &[];
+            }
+
             if ctor_sigs.is_empty() {
                 ctor_sigs = self.get_default_construct_sigs(class_ty);
             };

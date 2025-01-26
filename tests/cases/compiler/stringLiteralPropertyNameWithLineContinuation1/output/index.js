@@ -1,3 +1,3 @@
 var x = {'text\
 ': "hello"}
-x.text = "bar"
+x.text = "bar";

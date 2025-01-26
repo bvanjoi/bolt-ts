@@ -30,6 +30,7 @@ mod get_ty;
 mod get_type_from_ty_refer_like;
 mod get_type_from_var_like;
 mod get_widened_ty;
+mod get_write_ty;
 mod index_info;
 mod infer;
 mod instantiate;
@@ -46,6 +47,7 @@ mod utils;
 
 use bolt_ts_atom::{AtomId, AtomMap};
 
+use bolt_ts_config::NormalizedCompilerOptions;
 use bolt_ts_utils::fx_hashmap_with_capacity;
 use rustc_hash::{FxBuildHasher, FxHashMap};
 
@@ -63,7 +65,7 @@ pub use self::resolve::ExpectedArgsCount;
 
 use crate::ast::{pprint_ident, BinOp};
 use crate::bind::{self, GlobalSymbols, Symbol, SymbolFlags, SymbolID, SymbolName};
-use crate::parser::{AssignmentKind, Parser};
+use crate::parser::{AccessKind, AssignmentKind, Parser};
 use crate::ty::has_type_facts;
 use crate::ty::TYPEOF_NE_FACTS;
 use crate::ty::{
@@ -130,6 +132,7 @@ bolt_ts_utils::index!(InferenceContextId);
 pub struct TyChecker<'cx> {
     pub atoms: &'cx AtomMap<'cx>,
     pub diags: Vec<bolt_ts_errors::Diag>,
+    config: &'cx NormalizedCompilerOptions,
     arena: &'cx bumpalo::Bump,
     tys: Vec<&'cx ty::Ty<'cx>>,
     sigs: Vec<&'cx Sig<'cx>>,
@@ -226,12 +229,15 @@ impl<'cx> TyChecker<'cx> {
         atoms: &'cx AtomMap,
         binder: &'cx mut bind::Binder<'cx>,
         global_symbols: &'cx GlobalSymbols,
+        config: &'cx NormalizedCompilerOptions,
     ) -> Self {
         assert_eq!(ty_arena.allocated_bytes(), 0);
         let mut this = Self {
             intrinsic_tys: fx_hashmap_with_capacity(1024),
             atoms,
             p,
+            config,
+
             tys: Vec::with_capacity(p.module_count() * 1024),
             sigs: Vec::with_capacity(p.module_count() * 256),
             arena: ty_arena,
@@ -627,7 +633,7 @@ impl<'cx> TyChecker<'cx> {
 
     fn instantiate_ty_with_single_generic_call_sig(
         &mut self,
-        expr: &'cx ast::Expr<'cx>,
+        id: ast::NodeID,
         ty: &'cx ty::Ty<'cx>,
     ) -> &'cx ty::Ty<'cx> {
         let Some(check_mode) = self.check_mode else {
@@ -650,7 +656,7 @@ impl<'cx> TyChecker<'cx> {
             return ty;
         };
         let Some(contextual_ty) =
-            self.get_apparent_ty_of_contextual_ty(expr.id(), Some(ContextFlags::NoConstraints))
+            self.get_apparent_ty_of_contextual_ty(id, Some(ContextFlags::NoConstraints))
         else {
             return ty;
         };
@@ -661,11 +667,11 @@ impl<'cx> TyChecker<'cx> {
             return ty;
         }
         if check_mode.intersects(CheckMode::SKIP_GENERIC_FUNCTIONS) {
-            self.skip_generic_fn(expr.id(), check_mode);
+            self.skip_generic_fn(id, check_mode);
             return self.any_fn_ty();
         }
 
-        let context = self.get_inference_context(expr.id()).unwrap();
+        let context = self.get_inference_context(id).unwrap();
         let inference = context.inference.unwrap();
         let ret_sig = self
             .get_inference_sig(inference)
@@ -940,27 +946,31 @@ impl<'cx> TyChecker<'cx> {
 
     pub(super) fn _get_prop_of_ty(
         &mut self,
-        left: &'cx ty::Ty<'cx>,
+        node: ast::NodeID,
+        left_ty: &'cx ty::Ty<'cx>,
         prop: &'cx ast::Ident,
     ) -> &'cx ty::Ty<'cx> {
-        let is_any_like = left.kind.is_any();
+        let is_any_like = left_ty.kind.is_any();
 
         if is_any_like {
             return self.error_ty();
         }
 
-        let Some(prop) = self.get_prop_of_ty(left, SymbolName::Ele(prop.name)) else {
-            self.report_non_existent_prop(prop, left);
+        let Some(prop) = self.get_prop_of_ty(left_ty, SymbolName::Ele(prop.name)) else {
+            self.report_non_existent_prop(prop, left_ty);
             return self.error_ty();
         };
 
-        let ty = self.get_type_of_symbol(prop);
-        ty
+        if self.p.access_kind(node) == AccessKind::Write {
+            self.get_write_type_of_symbol(prop)
+        } else {
+            self.get_type_of_symbol(prop)
+        }
     }
 
     fn check_prop_access_expr(&mut self, node: &'cx ast::PropAccessExpr<'cx>) -> &'cx ty::Ty<'cx> {
         let left = self.check_expr(node.expr);
-        self._get_prop_of_ty(left, node.name)
+        self._get_prop_of_ty(node.id, left, node.name)
     }
 
     fn param_ty_constraint(&self, ty: &'cx ty::Ty<'cx>) -> Option<&'cx ty::Ty<'cx>> {
@@ -1003,6 +1013,14 @@ impl<'cx> TyChecker<'cx> {
     ) -> &'cx ty::Ty<'cx> {
         let ty = self.check_expr_for_mutable_location(member.value);
         ty
+    }
+
+    fn check_object_method_member(
+        &mut self,
+        member: &'cx ast::ObjectMethodMember<'cx>,
+    ) -> &'cx ty::Ty<'cx> {
+        let ty = self.check_fn_like_expr_or_object_method_member(member.id);
+        self.instantiate_ty_with_single_generic_call_sig(member.id, ty)
     }
 
     fn check_array_lit(&mut self, lit: &'cx ast::ArrayLit, force_tuple: bool) -> &'cx ty::Ty<'cx> {

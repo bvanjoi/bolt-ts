@@ -110,7 +110,7 @@ pub fn eval_from(root: PathBuf, tsconfig: NormalizedTsConfig) -> Output {
     // ==== fs init ====
     let mut fs = bolt_ts_fs::LocalFS::new(&mut atoms);
 
-    let mut entries = vec![];
+    let mut entries = Vec::with_capacity(1024);
     let mut module_arena = ModuleArena::new();
 
     // ==== collect entires ====
@@ -240,7 +240,14 @@ pub fn eval_from(root: PathBuf, tsconfig: NormalizedTsConfig) -> Output {
 
     // ==== type check ====
     let ty_arena = bumpalo::Bump::new();
-    let mut checker = check::TyChecker::new(&ty_arena, &p, &atoms, &mut binder, &global_symbols);
+    let mut checker = check::TyChecker::new(
+        &ty_arena,
+        &p,
+        &atoms,
+        &mut binder,
+        &global_symbols,
+        tsconfig.compiler_options(),
+    );
     for item in &entries {
         checker.check_program(p.root(*item));
         checker.check_deferred_nodes(*item);
@@ -259,7 +266,10 @@ pub fn eval_from(root: PathBuf, tsconfig: NormalizedTsConfig) -> Output {
         })
         .collect::<Vec<_>>();
 
-    let diags = diags.into_iter().chain(checker.diags).collect();
+    let diags = diags
+        .into_iter()
+        .chain(std::mem::take(&mut checker.diags))
+        .collect();
 
     if cfg!(test) {
         // each module should be created once
@@ -282,6 +292,8 @@ pub fn eval_from(root: PathBuf, tsconfig: NormalizedTsConfig) -> Output {
         let set = paths.iter().collect::<std::collections::HashSet<_>>();
         assert_eq!(paths.len(), set.len());
     }
+
+    drop(checker);
 
     Output {
         root,

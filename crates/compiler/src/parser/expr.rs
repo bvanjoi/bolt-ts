@@ -1,9 +1,7 @@
-use crate::ast::NodeFlags;
-
-use super::ast::{self, BinOp};
+use super::ast::{self, NodeFlags};
 use super::paren_rule::{NoParenRule, ParenRuleTrait};
 use super::parse_fn_like::ParseFnExpr;
-use super::token::{BinPrec, TokenKind};
+use super::token::{BinPrec, Token, TokenKind};
 use super::ty::TypeArguments;
 use super::utils::is_left_hand_side_expr_kind;
 use super::{errors, list_ctx};
@@ -206,7 +204,7 @@ impl<'cx> ParserState<'cx, '_> {
             if next_prec <= prec {
                 break Ok(left);
             }
-            let op = BinOp {
+            let op = ast::BinOp {
                 kind: self.token.kind.into(),
                 span: self.token.span,
             };
@@ -410,13 +408,65 @@ impl<'cx> ParserState<'cx, '_> {
         self.parse_assign_expr(false)
     }
 
+    fn parse_object_method_decl(
+        &mut self,
+        id: ast::NodeID,
+        start: u32,
+        name: &'cx ast::PropName<'cx>,
+        asterisk_token: Option<Token>,
+    ) -> PResult<&'cx ast::ObjectMember<'cx>> {
+        // let is_generator = if asterisk_token.is_some() {
+        //     todo!()
+        // } else {
+
+        // };
+        let ty_params = self.with_parent(id, Self::parse_ty_params)?;
+        let params = self.with_parent(id, Self::parse_params)?;
+        let ty = self.with_parent(id, Self::parse_ty_anno)?;
+        let body = self.with_parent(id, Self::parse_fn_block)?;
+        let node = self.alloc(ast::ObjectMethodMember {
+            id,
+            span: self.new_span(start),
+            name,
+            ty_params,
+            params,
+            ty,
+            body: body.unwrap(),
+        });
+        self.insert_map(id, ast::Node::ObjectMethodMember(node));
+        let member = self.alloc(ast::ObjectMember {
+            kind: ast::ObjectMemberKind::Method(node),
+        });
+        Ok(member)
+    }
+
     fn parse_object_lit_ele(&mut self) -> PResult<&'cx ast::ObjectMember<'cx>> {
         let id = self.next_node_id();
         let start = self.token.start();
+
+        if self.parse_optional(TokenKind::DotDotDot).is_some() {
+            todo!()
+        }
+
         let mods = self.with_parent(id, |this| this.parse_modifiers(false))?;
+
+        if self.parse_contextual_modifier(TokenKind::Get) {
+            // TODO:
+        } else if self.parse_contextual_modifier(TokenKind::Set) {
+            // TODO:
+        }
+
+        let asterisk_token = self.parse_optional(TokenKind::Asterisk);
+
         let name = self.with_parent(id, Self::parse_prop_name)?;
-        self.parse_optional(TokenKind::Question);
-        if let Some(name) = name.kind.as_ident() {
+        let question_token = self.parse_optional(TokenKind::Question);
+        let excl_token = self.parse_optional(TokenKind::Excl);
+
+        if asterisk_token.is_some()
+            || matches!(self.token.kind, TokenKind::LParen | TokenKind::Less)
+        {
+            return self.parse_object_method_decl(id, start, name, asterisk_token);
+        } else if let Some(name) = name.kind.as_ident() {
             if self.token.kind != TokenKind::Colon {
                 let kind = self.alloc(ast::ObjectShorthandMember {
                     id,

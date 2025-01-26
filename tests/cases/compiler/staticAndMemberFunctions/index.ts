@@ -4,3 +4,12 @@ class T {
   static x() { }
   public y() { }
 }
+
+T.x;
+T.x();
+
+(new T).y;
+(new T()).y;
+
+(new T).y();
+(new T()).y();

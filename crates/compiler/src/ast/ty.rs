@@ -265,15 +265,17 @@ pub struct ObjectMember<'cx> {
 impl ObjectMember<'_> {
     pub fn span(&self) -> Span {
         match self.kind {
-            ObjectMemberKind::Shorthand(shorthand) => shorthand.span,
-            ObjectMemberKind::Prop(prop) => prop.span,
+            ObjectMemberKind::Shorthand(n) => n.span,
+            ObjectMemberKind::Prop(n) => n.span,
+            ObjectMemberKind::Method(n) => n.span,
         }
     }
 
     pub fn id(&self) -> NodeID {
         match self.kind {
-            ObjectMemberKind::Shorthand(shorthand) => shorthand.id,
-            ObjectMemberKind::Prop(prop) => prop.id,
+            ObjectMemberKind::Shorthand(n) => n.id,
+            ObjectMemberKind::Prop(n) => n.id,
+            ObjectMemberKind::Method(n) => n.id,
         }
     }
 }
@@ -282,6 +284,18 @@ impl ObjectMember<'_> {
 pub enum ObjectMemberKind<'cx> {
     Shorthand(&'cx ObjectShorthandMember<'cx>),
     Prop(&'cx ObjectPropMember<'cx>),
+    Method(&'cx ObjectMethodMember<'cx>),
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct ObjectMethodMember<'cx> {
+    pub id: NodeID,
+    pub span: Span,
+    pub name: &'cx PropName<'cx>,
+    pub ty_params: Option<TyParams<'cx>>,
+    pub params: ParamsDecl<'cx>,
+    pub ty: Option<&'cx Ty<'cx>>,
+    pub body: &'cx BlockStmt<'cx>,
 }
 
 #[derive(Debug, Clone, Copy)]

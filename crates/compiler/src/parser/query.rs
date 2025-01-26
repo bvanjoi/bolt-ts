@@ -209,6 +209,34 @@ impl<'cx> Parser<'cx> {
 
     pub fn is_object_lit_method(&self, id: ast::NodeID) -> bool {
         // TODO: handle this after parse method in object
-        false
+        self.node(id).is_object_method_member()
     }
+
+    pub fn access_kind(&self, id: ast::NodeID) -> AccessKind {
+        let Some(p) = self.parent(id) else {
+            return AccessKind::Read;
+        };
+        use ast::Node::*;
+        match self.node(p) {
+            AssignExpr(n) => {
+                if n.left.id() == id {
+                    if n.op == ast::AssignOp::Eq {
+                        AccessKind::Write
+                    } else {
+                        AccessKind::ReadWrite
+                    }
+                } else {
+                    AccessKind::Read
+                }
+            }
+            _ => AccessKind::Read,
+        }
+    }
+}
+
+#[derive(Clone, Copy, PartialEq)]
+pub enum AccessKind {
+    Read,
+    Write,
+    ReadWrite,
 }

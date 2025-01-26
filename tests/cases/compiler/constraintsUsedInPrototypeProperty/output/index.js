@@ -1,2 +1,2 @@
 class Foo {}
-Foo.prototype
+Foo.prototype;

@@ -30,6 +30,10 @@ impl<'cx> TyChecker<'cx> {
             self.get_widened_ty_for_var_like_decl(decl)
         } else if let Some(decl) = node.as_object_shorthand_member() {
             self.get_widened_ty_for_var_like_decl(decl)
+        } else if let Some(decl) = node.as_object_method_member() {
+            decl.ty
+                .map(|ty| self.get_ty_from_type_node(ty))
+                .unwrap_or_else(|| self.check_object_method_member(decl))
         } else {
             unreachable!("node: {node:#?}")
         };

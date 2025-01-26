@@ -216,7 +216,7 @@ pub struct ArrowFnExpr<'cx> {
     pub body: ArrowFnExprBody<'cx>,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub enum AssignOp {
     Eq,
     AddEq,

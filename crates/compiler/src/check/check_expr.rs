@@ -67,7 +67,7 @@ impl<'cx> TyChecker<'cx> {
             Super(_) => self.undefined_ty(),
         };
 
-        self.instantiate_ty_with_single_generic_call_sig(expr, ty)
+        self.instantiate_ty_with_single_generic_call_sig(expr.id(), ty)
     }
 
     fn check_this_expr(&mut self, expr: &'cx ast::ThisExpr) -> &'cx ty::Ty<'cx> {
@@ -166,10 +166,12 @@ impl<'cx> TyChecker<'cx> {
                 let ty = match member.kind {
                     Shorthand(n) => self.check_ident(n.name),
                     Prop(n) => self.check_object_prop_member(n),
+                    Method(n) => self.check_object_method_member(n),
                 };
                 let name = match member.kind {
                     Shorthand(n) => SymbolName::Ele(n.name.name),
                     Prop(n) => crate::bind::prop_name(n.name),
+                    Method(n) => crate::bind::prop_name(n.name),
                 };
                 object_flags |= ty.get_object_flags() & ObjectFlags::PROPAGATING_FLAGS;
                 let prop = self.binder.create_transient_symbol(
