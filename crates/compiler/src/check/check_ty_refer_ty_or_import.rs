@@ -1,4 +1,4 @@
-use crate::bind::{SymbolFlags, SymbolID};
+use crate::bind::{Symbol, SymbolFlags, SymbolID};
 use crate::check::cycle_check::ResolutionKey;
 use crate::check::is_deeply_nested_type::RecursionId;
 use crate::ty::TyMapper;
@@ -62,8 +62,12 @@ impl<'cx> TyChecker<'cx> {
         if ty_param.kind.expect_param().is_this_ty {
             None
         } else if let Some(symbol) = ty_param.symbol() {
-            let decl = self.binder.symbol(symbol).expect_ty_param().decl;
-            self.get_effective_constraint_of_ty_param(decl)
+            if symbol == Symbol::ERR {
+                None
+            } else {
+                let decl = self.binder.symbol(symbol).expect_ty_param().decl;
+                self.get_effective_constraint_of_ty_param(decl)
+            }
         } else {
             None
         }

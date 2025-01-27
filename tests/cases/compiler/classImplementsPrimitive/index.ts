@@ -20,3 +20,16 @@ const C8 = class B implements string { }
 //~^ ERROR: A class cannot implement a primitive type like 'string'.
 const C9 = class C implements boolean { }
 //~^ ERROR: A class cannot implement a primitive type like 'boolean'.
+
+
+type T10 = number;
+class C10 implements T10 { }
+//~^ ERROR: A class cannot implement a primitive type like 'number'.
+
+type T11 = string;
+class C11 implements T11 { }
+//~^ ERROR: A class cannot implement a primitive type like 'string'.
+
+type T12 = boolean;
+class C12 implements T12 { }
+//~^ ERROR: A class cannot implement a primitive type like 'boolean'.

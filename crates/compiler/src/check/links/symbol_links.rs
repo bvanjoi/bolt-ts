@@ -1,5 +1,6 @@
 use super::links;
 use crate::bind::{SymbolID, SymbolName};
+use crate::check::get_variances::VarianceFlags;
 use crate::ty;
 
 use rustc_hash::FxHashMap;
@@ -16,4 +17,5 @@ links!(
     (resolved_members, &'cx FxHashMap<SymbolName, SymbolID>),
     (name_ty, &'cx ty::Ty<'cx>),
     (containing_ty, &'cx ty::Ty<'cx>),
+    (variances, &'cx [VarianceFlags]),
 );

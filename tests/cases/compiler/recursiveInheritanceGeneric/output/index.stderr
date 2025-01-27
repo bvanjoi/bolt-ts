@@ -1,4 +1,4 @@
-  × Type 'I5' recursively references itself as a base type.
+  × Type 'I5<T>' recursively references itself as a base type.
    ╭─[../../tests/cases/compiler/recursiveInheritanceGeneric/index.ts:3:11]
  3 │ I5<T> extends I5
    · ──            ─┬

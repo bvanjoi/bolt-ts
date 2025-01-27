@@ -60,3 +60,24 @@
     · ───────
     ╰────
   help: It can only implement other named object types.
+
+  × A class cannot implement a primitive type like 'number'.
+    ╭─[../../tests/cases/compiler/classImplementsPrimitive/index.ts:26:22]
+ 26 │ T10
+    · ───
+    ╰────
+  help: It can only implement other named object types.
+
+  × A class cannot implement a primitive type like 'string'.
+    ╭─[../../tests/cases/compiler/classImplementsPrimitive/index.ts:30:22]
+ 30 │ T11
+    · ───
+    ╰────
+  help: It can only implement other named object types.
+
+  × A class cannot implement a primitive type like 'boolean'.
+    ╭─[../../tests/cases/compiler/classImplementsPrimitive/index.ts:34:22]
+ 34 │ T12
+    · ───
+    ╰────
+  help: It can only implement other named object types.

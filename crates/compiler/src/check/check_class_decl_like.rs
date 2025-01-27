@@ -1,6 +1,6 @@
-use super::TyChecker;
-use crate::ast;
+use super::{errors, TyChecker};
 use crate::ir::ClassLike;
+use crate::{ast, ty};
 
 impl<'cx> TyChecker<'cx> {
     fn check_ctor(&mut self, ctor: &'cx ast::ClassCtor<'cx>) {
@@ -13,6 +13,23 @@ impl<'cx> TyChecker<'cx> {
 
     fn check_class_prop_ele(&mut self, prop: &'cx ast::ClassPropElem<'cx>) {
         self.check_var_like_decl(prop);
+    }
+
+    fn is_valid_base_ty(&self, ty: &'cx ty::Ty<'cx>) -> bool {
+        if let Some(param_ty) = ty.kind.as_param() {
+            if let Some(constraint) = self.get_base_constraint_of_ty(ty) {
+                return self.is_valid_base_ty(constraint);
+            }
+        }
+
+        if ty.kind.is_object() || ty == self.non_primitive_ty() || ty.kind.is_any() {
+            true
+            // TODO: !is_generic_mapped_ty
+        } else if ty.kind.is_intersection() {
+            true
+        } else {
+            false
+        }
     }
 
     pub(super) fn check_class_decl_like(&mut self, class: &impl ClassLike<'cx>) {
@@ -29,6 +46,23 @@ impl<'cx> TyChecker<'cx> {
         if let Some(impls) = class.implements() {
             for ty in impls.list {
                 self.check_ty_refer_ty(ty);
+                let t = self.get_ty_from_ty_reference(*ty);
+                if t == self.error_ty() {
+                    continue;
+                } else if t.kind.is_primitive() || t == self.boolean_ty() {
+                    let error = errors::AClassCannotImplementAPrimTy {
+                        span: ty.span,
+                        ty: self.print_ty(t).to_string(),
+                    };
+                    self.push_error(Box::new(error));
+                } else if self.is_valid_base_ty(t) {
+                    // TODO:
+                } else {
+                    let error = errors::AClassCanOnlyImplementAnObjectTypeOrIntersectionOfObjectTypesWithStaticallyKnownMembers {
+                        span: ty.span,
+                    };
+                    self.push_error(Box::new(error));
+                }
             }
         }
 

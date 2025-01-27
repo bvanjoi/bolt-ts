@@ -25,9 +25,9 @@ pub(super) enum CannotFindNameHelperKind {
     #[error(transparent)]
     #[diagnostic(transparent)]
     AnInterfaceCannotExtendAPrimTy(AnInterfaceCannotExtendAPrimTy),
-    #[error(transparent)]
-    #[diagnostic(transparent)]
-    AClassCannotImplementAPrimTy(AClassCannotImplementAPrimTy),
+    // #[error(transparent)]
+    // #[diagnostic(transparent)]
+    // AClassCannotImplementAPrimTy(AClassCannotImplementAPrimTy),
     #[error(transparent)]
     #[diagnostic(transparent)]
     CannotUseNamespaceAsTyOrValue(CannotUseNamespaceAsTyOrValue),
@@ -46,7 +46,7 @@ impl CannotFindNameHelperKind {
         match self {
             CannotFindNameHelperKind::DidYouMeanTheStaticMember(diag) => Box::new(diag),
             CannotFindNameHelperKind::AnInterfaceCannotExtendAPrimTy(diag) => Box::new(diag),
-            CannotFindNameHelperKind::AClassCannotImplementAPrimTy(diag) => Box::new(diag),
+            // CannotFindNameHelperKind::AClassCannotImplementAPrimTy(diag) => Box::new(diag),
             CannotFindNameHelperKind::CannotUseNamespaceAsTyOrValue(diag) => Box::new(diag),
             CannotFindNameHelperKind::ShorthandPropertyNeedAnInitializer(diag) => Box::new(diag),
             CannotFindNameHelperKind::OnlyReferToATypeButIsBeingUsedAsValueHere(diag) => {
@@ -75,15 +75,6 @@ pub(super) struct DidYouMeanTheStaticMember {
     pub span: Span,
     pub class_name: String,
     pub prop_name: String,
-}
-
-#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
-#[error("A class cannot implement a primitive type like '{ty}'.")]
-#[diagnostic(help = "It can only implement other named object types.")]
-pub(super) struct AClassCannotImplementAPrimTy {
-    #[label(primary)]
-    pub span: Span,
-    pub ty: String,
 }
 
 #[derive(Error, Diagnostic, DiagnosticExt, Debug)]

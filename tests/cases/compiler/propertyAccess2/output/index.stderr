@@ -1,0 +1,5 @@
+  × Property 'toBAZ' does not exist on type 'number'.
+   ╭─[../../tests/cases/compiler/propertyAccess2/index.ts:4:5]
+ 4 │ toBAZ
+   · ─────
+   ╰────

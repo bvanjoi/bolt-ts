@@ -1,4 +1,4 @@
-  × Generic type 'Foo' requires 1 type argument.
+  × Generic type 'Foo<T>' requires 1 type argument.
    ╭─[../../tests/cases/compiler/genericLambaArgWithoutTypeArguments/index.ts:9:11]
  9 │ Foo
    · ───

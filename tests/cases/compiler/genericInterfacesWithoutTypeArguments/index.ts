@@ -3,6 +3,6 @@
 interface I<T> { }
 class C<T> { }
 var i: I;
-//~^ ERROR: Generic type 'I' requires 1 type argument.
+//~^ ERROR: Generic type 'I<T>' requires 1 type argument.
 var c: C<I>;
-//~^ ERROR: Generic type 'I' requires 1 type argument.
+//~^ ERROR: Generic type 'I<T>' requires 1 type argument.

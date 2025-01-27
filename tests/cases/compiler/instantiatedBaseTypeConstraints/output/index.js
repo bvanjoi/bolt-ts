@@ -1,4 +1,0 @@
-
-class Bar {
-  foo(bar) {}
-}

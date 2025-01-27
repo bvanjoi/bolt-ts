@@ -93,10 +93,9 @@ impl<'cx> TyChecker<'cx> {
         source: &'cx Ty<'cx>,
         target: &'cx Ty<'cx>,
         relation: RelationKind,
-    ) -> Ternary {
-        if source.id == target.id {
-            assert!(std::ptr::eq(&source.kind, &target.kind));
-            return Ternary::TRUE;
+    ) -> bool {
+        if source == target {
+            return true;
         }
         if relation != RelationKind::Identity {
             if (relation == RelationKind::Comparable
@@ -104,7 +103,7 @@ impl<'cx> TyChecker<'cx> {
                 && self.is_simple_type_related_to(target, source, relation))
                 || self.is_simple_type_related_to(source, target, relation)
             {
-                return Ternary::TRUE;
+                return true;
             }
         }
 
@@ -115,9 +114,9 @@ impl<'cx> TyChecker<'cx> {
         if source.kind.is_structured_or_instantiable()
             || target.kind.is_structured_or_instantiable()
         {
-            self.check_type_related_to(source, target, relation, None)
+            self.check_type_related_to(source, target, relation, None) != Ternary::FALSE
         } else {
-            Ternary::FALSE
+            false
         }
     }
 
@@ -174,7 +173,7 @@ impl<'cx> TyChecker<'cx> {
         expr: Option<ast::NodeID>,
         error: impl FnOnce(&mut Self, Span, &'cx Ty<'cx>, &'cx Ty<'cx>) -> crate::Diag,
     ) -> Ternary {
-        if self.is_type_related_to(source, target, relation) != Ternary::FALSE {
+        if self.is_type_related_to(source, target, relation) {
             return Ternary::TRUE;
         }
         if error_node.is_none() || !self.elaborate_error(expr, source, target, relation, error_node)
@@ -478,7 +477,7 @@ impl<'cx> TyChecker<'cx> {
         &mut self,
         source: &'cx Ty<'cx>,
         target: &'cx Ty<'cx>,
-    ) -> Ternary {
+    ) -> bool {
         self.is_type_related_to(source, target, RelationKind::Assignable)
     }
 }

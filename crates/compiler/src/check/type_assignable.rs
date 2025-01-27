@@ -1,6 +1,6 @@
 use crate::ty::{Ty, TypeFlags};
 
-use super::{Ternary, TyChecker};
+use super::TyChecker;
 
 impl<'cx> TyChecker<'cx> {
     pub(super) fn is_type_assignable_to_kind(
@@ -9,9 +9,9 @@ impl<'cx> TyChecker<'cx> {
         f: impl FnOnce(&'cx Ty<'cx>) -> bool,
         flags: TypeFlags,
         strict: bool,
-    ) -> Ternary {
+    ) -> bool {
         if f(source) {
-            return Ternary::TRUE;
+            return true;
         }
         if strict
             && (source.kind.is_any_or_unknown()
@@ -19,7 +19,7 @@ impl<'cx> TyChecker<'cx> {
                 || source.kind.is_undefined()
                 || source.kind.is_null())
         {
-            return Ternary::FALSE;
+            return false;
         }
 
         if flags.intersects(TypeFlags::NUMBER_LIKE) {

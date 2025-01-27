@@ -1,7 +1,7 @@
 use bolt_ts_atom::AtomId;
 
 use super::ty::{self, Ty, TyKind};
-use super::{errors, ResolutionKey, Ternary};
+use super::{errors, ResolutionKey};
 use super::{CheckMode, F64Represent, InferenceContextId, PropName, TyChecker};
 use crate::ast;
 
@@ -157,7 +157,6 @@ impl<'cx> TyChecker<'cx> {
     }
 
     pub(crate) fn get_ty_from_type_node(&mut self, ty: &ast::Ty<'cx>) -> &'cx Ty<'cx> {
-        // TODO: cache
         use ast::TyKind::*;
         match ty.kind {
             Refer(refer) => self.get_ty_from_ty_reference(refer),
@@ -280,7 +279,7 @@ impl<'cx> TyChecker<'cx> {
                 |t| t.kind.is_string_like() || t.kind.is_number_like(),
                 TypeFlags::STRING_LIKE | TypeFlags::NUMBER_LIKE | TypeFlags::ES_SYMBOL_LIKE,
                 false,
-            ) != Ternary::FALSE
+            )
         {
             if object_ty.kind.is_any() || object_ty.kind.is_never() {
                 return Some(object_ty);
@@ -468,11 +467,8 @@ impl<'cx> TyChecker<'cx> {
         if let Some(targets) = targets {
             self.alloc(TyMapper::create(sources, targets))
         } else if sources.len() == 1 {
-            let mapper = ty::SimpleTyMapper {
-                source: sources[0],
-                target: self.any_ty(),
-            };
-            self.alloc(TyMapper::Simple(mapper))
+            let mapper = TyMapper::make_unary(sources[0], self.any_ty());
+            self.alloc(mapper)
         } else {
             let mapper = ty::ArrayTyMapper {
                 sources,
@@ -571,10 +567,10 @@ impl<'cx> TyChecker<'cx> {
             if !check_ty_deferred && !self.is_deferred_ty(inferred_extends_ty, check_tuples) {
                 if !inferred_extends_ty.kind.is_any_or_unknown()
                     && (effective_check_ty.kind.is_any()
-                        || self.is_type_assignable_to(
+                        || !self.is_type_assignable_to(
                             self.get_permissive_instantiation(effective_check_ty),
                             self.get_permissive_instantiation(inferred_extends_ty),
-                        ) == Ternary::FALSE)
+                        ))
                 {
                     if effective_check_ty.kind.is_any() {
                         let ty = self.get_ty_from_type_node(root.node.true_ty);
@@ -599,7 +595,7 @@ impl<'cx> TyChecker<'cx> {
                     || self.is_type_assignable_to(
                         self.get_restrictive_instantiation(effective_check_ty),
                         self.get_restrictive_instantiation(inferred_extends_ty),
-                    ) != Ternary::FALSE
+                    )
                 {
                     let true_ty = self.get_ty_from_type_node(root.node.true_ty);
                     break self.instantiate_ty(true_ty, mapper);
@@ -633,6 +629,9 @@ impl<'cx> TyChecker<'cx> {
     }
 
     fn get_ty_from_cond_node(&mut self, node: &'cx ast::CondTy<'cx>) -> &'cx Ty<'cx> {
+        if let Some(ty) = self.get_node_links(node.id).get_resolved_ty() {
+            return ty;
+        }
         let check_ty = self.get_ty_from_type_node(node.check_ty);
         let alias_symbol = self.get_alias_symbol_for_ty_node(node.id);
         let alias_ty_args = alias_symbol.and_then(|symbol| {
@@ -663,7 +662,9 @@ impl<'cx> TyChecker<'cx> {
             node,
             is_distributive: check_ty.kind.is_param(),
         });
-        self.get_cond_ty(root, None)
+        let ty = self.get_cond_ty(root, None);
+        self.get_mut_node_links(node.id).set_resolved_ty(ty);
+        ty
     }
 
     fn get_ty_from_array_node(&mut self, node: &'cx ast::ArrayTy<'cx>) -> &'cx Ty<'cx> {

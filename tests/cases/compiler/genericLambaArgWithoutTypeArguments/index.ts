@@ -7,4 +7,4 @@ function foo(a) {
   return null;
 }
 foo((arg: Foo) => { return arg.x; });
-//~^ ERROR: Generic type 'Foo' requires 1 type argument.
+//~^ ERROR: Generic type 'Foo<T>' requires 1 type argument.

@@ -37,6 +37,10 @@ impl<'cx> TyMapper<'cx> {
             mapper2: m2,
         })
     }
+
+    pub fn make_unary(source: &'cx Ty<'cx>, target: &'cx Ty<'cx>) -> TyMapper<'cx> {
+        TyMapper::Simple(SimpleTyMapper { source, target })
+    }
 }
 
 macro_rules! ty_mapper {

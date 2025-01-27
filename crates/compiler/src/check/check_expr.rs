@@ -300,7 +300,7 @@ impl<'cx> TyChecker<'cx> {
         t: &'cx ty::Ty<'cx>,
         push_error: impl FnOnce(&mut Self),
     ) -> &'cx ty::Ty<'cx> {
-        if self.is_type_assignable_to(t, self.number_ty()) == Ternary::FALSE {
+        if !self.is_type_assignable_to(t, self.number_ty()) {
             push_error(self)
         }
         t

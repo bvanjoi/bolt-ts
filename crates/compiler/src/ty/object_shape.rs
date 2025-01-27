@@ -2,6 +2,7 @@ use super::object_ty::TupleTy;
 use crate::bind::{SymbolID, SymbolName};
 use crate::keyword;
 
+// TODO: delete
 pub trait ObjectShape<'cx> {
     fn get_member(&self, name: &SymbolName) -> Option<SymbolID>;
 }

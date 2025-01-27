@@ -71,7 +71,8 @@ impl<'cx> Binder<'cx> {
             .unwrap_or_else(|| {
                 let node = self.p.node(id).expect_ident();
                 let name = self.atoms.get(node.name);
-                panic!("The resolution of `{name}` is not found.");
+                let span = self.p.node(id).span();
+                panic!("The resolution of `{name}({span})` is not found.");
             })
     }
 

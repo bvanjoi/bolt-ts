@@ -296,6 +296,9 @@ impl<'cx> Resolver<'cx, '_> {
                 }
             }
             CallSig(call) => {
+                if let Some(ty_params) = call.ty_params {
+                    self.resolve_ty_params(ty_params);
+                }
                 self.resolve_params(call.params);
                 if let Some(ty) = call.ty {
                     self.resolve_ty(ty);

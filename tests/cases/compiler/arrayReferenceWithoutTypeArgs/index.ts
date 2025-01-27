@@ -2,5 +2,5 @@
 
 class X {
   public f(a: Array) { }
-  //~^ ERROR: Generic type 'Array' requires 1 type argument.
+  //~^ ERROR: Generic type 'Array<T>' requires 1 type argument.
 }

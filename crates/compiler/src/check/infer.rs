@@ -334,8 +334,7 @@ impl<'cx> TyChecker<'cx> {
             if inferred_ty.map_or(true, |inferred_ty| {
                 let ty = self.get_ty_with_this_arg(instantiated_constraint);
                 // TODO: more flexible compare types
-                self.is_type_related_to(inferred_ty, ty, super::relation::RelationKind::Assignable)
-                    == Ternary::FALSE
+                !self.is_type_related_to(inferred_ty, ty, super::relation::RelationKind::Assignable)
             }) {
                 instantiated_constraint
             } else {

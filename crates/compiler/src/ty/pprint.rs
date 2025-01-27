@@ -4,17 +4,19 @@ pub fn pprint_reference_ty<'cx>(
     ty: &super::ReferenceTy<'cx>,
     checker: &mut TyChecker<'cx>,
 ) -> String {
+    let args = ty
+        .resolved_ty_args
+        .iter()
+        .map(|ty| ty.to_string(checker))
+        .collect::<Vec<_>>()
+        .join(", ");
     if let Some(_) = ty.target.kind.as_object_tuple() {
-        format!(
-            "[{}]",
-            ty.resolved_ty_args
-                .iter()
-                .map(|ty| ty.to_string(checker))
-                .collect::<Vec<_>>()
-                .join(",")
-        )
-    } else {
+        assert!(!args.is_empty());
+        format!("[{args}]",)
+    } else if args.is_empty() {
         ty.target.to_string(checker)
+    } else {
+        format!("{}<{args}>", ty.deep_target().to_string(checker))
     }
 }
 

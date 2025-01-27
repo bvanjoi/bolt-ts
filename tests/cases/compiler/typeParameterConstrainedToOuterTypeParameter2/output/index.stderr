@@ -1,0 +1,5 @@
+  × Type 'A<string>' is not assignable to type 'string'.
+    ╭─[../../tests/cases/compiler/typeParameterConstrainedToOuterTypeParameter2/index.ts:18:8]
+ 18 │ a
+    · ─
+    ╰────

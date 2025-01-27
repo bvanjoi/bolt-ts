@@ -26,6 +26,11 @@ macro_rules! _links {
                         self.$x = Some($x);
                     }
                     #[allow(unused)]
+                    pub fn [<override_ $x>](&mut self, $x: $ty) {
+                        assert!(self.$x.is_some());
+                        self.$x = Some($x);
+                    }
+                    #[allow(unused)]
                     pub fn [<get_ $x>](&self) -> Option<$ty> {
                         self.$x
                     }

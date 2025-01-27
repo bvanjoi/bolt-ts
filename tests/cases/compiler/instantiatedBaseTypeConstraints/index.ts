@@ -9,7 +9,7 @@ class Bar implements Foo<Bar, string> {
   }
 }
 
-class C implements Foo<C, string> { //~ERROR: Type 'C' is not assignable to type 'Foo'.
+class C implements Foo<C, string> { //~ERROR: Type 'C' is not assignable to type 'Foo<C, string>'.
   foo(bar: number): void {
   }
 }

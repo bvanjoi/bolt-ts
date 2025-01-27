@@ -29,6 +29,7 @@ mod get_this_ty;
 mod get_ty;
 mod get_type_from_ty_refer_like;
 mod get_type_from_var_like;
+mod get_variances;
 mod get_widened_ty;
 mod get_write_ty;
 mod index_info;
@@ -48,8 +49,9 @@ mod utils;
 use bolt_ts_atom::{AtomId, AtomMap};
 
 use bolt_ts_config::NormalizedCompilerOptions;
-use bolt_ts_utils::fx_hashmap_with_capacity;
-use rustc_hash::{FxBuildHasher, FxHashMap};
+use bolt_ts_utils::{fx_hashmap_with_capacity, fx_hashset_with_capacity};
+use get_variances::VarianceFlags;
+use rustc_hash::{FxBuildHasher, FxHashMap, FxHashSet};
 
 use self::cycle_check::ResolutionKey;
 use self::get_context::{InferenceContextual, TyContextual};
@@ -81,9 +83,7 @@ bitflags::bitflags! {
         const MAYBE = 0x3;
         const TRUE = u8::MAX;
     }
-}
 
-bitflags::bitflags! {
     #[derive(Clone, Copy, Debug, PartialEq)]
     pub struct CheckMode: u8 {
         const CONTEXTUAL                = 1 << 0;
@@ -153,6 +153,7 @@ pub struct TyChecker<'cx> {
     sig_links: FxHashMap<SigID, SigLinks<'cx>>,
     ty_links: FxHashMap<TyID, TyLinks<'cx>>,
     instantiation_ty_map: InstantiationTyMap<'cx>,
+    mark_tys: FxHashSet<TyID>,
     // === ast ===
     pub p: &'cx Parser<'cx>,
     // === global ===
@@ -176,6 +177,11 @@ pub struct TyChecker<'cx> {
     global_number_ty: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
     global_string_ty: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
     global_boolean_ty: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
+    mark_super_ty: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
+    mark_sub_ty: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
+    mark_other_ty: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
+    array_variances: std::cell::OnceCell<&'cx [VarianceFlags]>,
+    empty_array: &'cx [u8; 0],
     // === resolver ===
     pub binder: &'cx mut bind::Binder<'cx>,
     global_symbols: &'cx GlobalSymbols,
@@ -232,6 +238,7 @@ impl<'cx> TyChecker<'cx> {
         config: &'cx NormalizedCompilerOptions,
     ) -> Self {
         assert_eq!(ty_arena.allocated_bytes(), 0);
+        let empty_array = ty_arena.alloc([]);
         let mut this = Self {
             intrinsic_tys: fx_hashmap_with_capacity(1024),
             atoms,
@@ -246,7 +253,9 @@ impl<'cx> TyChecker<'cx> {
             num_lit_tys: fx_hashmap_with_capacity(1024 * 8),
             string_lit_tys: fx_hashmap_with_capacity(1024 * 8),
             instantiation_ty_map: InstantiationTyMap::new(1024 * 16),
+            mark_tys: fx_hashset_with_capacity(1024 * 4),
 
+            empty_array,
             any_fn_ty: Default::default(),
             circular_constraint_ty: Default::default(),
             no_constraint_ty: Default::default(),
@@ -266,6 +275,10 @@ impl<'cx> TyChecker<'cx> {
             global_callable_fn_ty: Default::default(),
             global_newable_fn_ty: Default::default(),
             global_object_ty: Default::default(),
+            array_variances: Default::default(),
+            mark_super_ty: Default::default(),
+            mark_sub_ty: Default::default(),
+            mark_other_ty: Default::default(),
 
             unknown_sig: Default::default(),
 
@@ -433,6 +446,15 @@ impl<'cx> TyChecker<'cx> {
             this.get_global_type(SymbolName::Normal(keyword::IDENT_NEWABLE_FUNCTION_CLASS));
         this.global_newable_fn_ty.set(global_newable_fn_ty).unwrap();
 
+        let mark_sub_ty = this.create_param_ty(Symbol::ERR, 0, false);
+        this.mark_sub_ty.set(mark_sub_ty).unwrap();
+
+        let mark_other_ty = this.create_param_ty(Symbol::ERR, 0, false);
+        this.mark_other_ty.set(mark_other_ty).unwrap();
+
+        let mark_super_ty = this.create_param_ty(Symbol::ERR, 0, false);
+        this.mark_super_ty.set(mark_super_ty).unwrap();
+
         let unknown_sig = this.new_sig(Sig {
             flags: SigFlags::empty(),
             ty_params: None,
@@ -446,6 +468,9 @@ impl<'cx> TyChecker<'cx> {
             class_decl: None,
         });
         this.unknown_sig.set(unknown_sig).unwrap();
+
+        let array_variances = this.alloc([VarianceFlags::COVARIANT]);
+        this.array_variances.set(array_variances).unwrap();
 
         this
     }
@@ -465,6 +490,10 @@ impl<'cx> TyChecker<'cx> {
         self.unknown_sig.get().unwrap()
     }
 
+    pub fn array_variances(&self) -> &'cx [VarianceFlags] {
+        self.array_variances.get().unwrap()
+    }
+
     fn alloc<T>(&self, t: T) -> &'cx T {
         self.arena.alloc(t)
     }
@@ -480,16 +509,19 @@ impl<'cx> TyChecker<'cx> {
         source: &'cx ty::Ty<'cx>,
         target: &'cx ty::Ty<'cx>,
     ) -> bool {
-        self.is_type_assignable_to(source, target) != Ternary::FALSE
-            || (target == self.string_ty()
-                && self.is_type_assignable_to(source, self.number_ty()) != Ternary::FALSE)
+        self.is_type_assignable_to(source, target)
+            || (target == self.string_ty() && self.is_type_assignable_to(source, self.number_ty()))
     }
 
     fn get_base_constraint_of_ty(&self, ty: &'cx ty::Ty<'cx>) -> Option<&'cx ty::Ty<'cx>> {
         if ty.kind.is_param() {
             self.param_ty_constraint(ty)
-        } else {
+        } else if ty.kind.is_union_or_intersection() {
             Some(ty)
+        } else if ty.kind.is_index_ty() {
+            Some(self.string_number_symbol_ty())
+        } else {
+            None
         }
     }
 
@@ -504,7 +536,7 @@ impl<'cx> TyChecker<'cx> {
             self.global_number_ty()
         } else if ty.kind.is_string_like() {
             self.global_string_ty()
-        } else if ty.kind.is_boolean_like() {
+        } else if ty.kind.is_boolean_like() || ty == self.boolean_ty() {
             self.global_boolean_ty()
         } else {
             ty
@@ -540,7 +572,7 @@ impl<'cx> TyChecker<'cx> {
         prop_ty: &'cx ty::Ty<'cx>,
     ) {
         for index_info in self.get_applicable_index_infos(ty, prop_name_ty) {
-            if self.is_type_assignable_to(prop_ty, index_info.val_ty) == Ternary::FALSE {
+            if !self.is_type_assignable_to(prop_ty, index_info.val_ty) {
                 let prop_decl = prop.decl(self.binder);
                 let prop_node = self.p.node(prop_decl);
                 let prop_name = match prop_node {
@@ -947,17 +979,18 @@ impl<'cx> TyChecker<'cx> {
     pub(super) fn _get_prop_of_ty(
         &mut self,
         node: ast::NodeID,
-        left_ty: &'cx ty::Ty<'cx>,
+        apparent_left_ty: &'cx ty::Ty<'cx>,
+        original_left_ty: &'cx ty::Ty<'cx>,
         prop: &'cx ast::Ident,
     ) -> &'cx ty::Ty<'cx> {
-        let is_any_like = left_ty.kind.is_any();
+        let is_any_like = apparent_left_ty.kind.is_any();
 
         if is_any_like {
             return self.error_ty();
         }
 
-        let Some(prop) = self.get_prop_of_ty(left_ty, SymbolName::Ele(prop.name)) else {
-            self.report_non_existent_prop(prop, left_ty);
+        let Some(prop) = self.get_prop_of_ty(apparent_left_ty, SymbolName::Ele(prop.name)) else {
+            self.report_non_existent_prop(prop, original_left_ty);
             return self.error_ty();
         };
 
@@ -970,7 +1003,8 @@ impl<'cx> TyChecker<'cx> {
 
     fn check_prop_access_expr(&mut self, node: &'cx ast::PropAccessExpr<'cx>) -> &'cx ty::Ty<'cx> {
         let left = self.check_expr(node.expr);
-        self._get_prop_of_ty(node.id, left, node.name)
+        let apparent_ty = self.get_apparent_ty(left);
+        self._get_prop_of_ty(node.id, apparent_ty, left, node.name)
     }
 
     fn param_ty_constraint(&self, ty: &'cx ty::Ty<'cx>) -> Option<&'cx ty::Ty<'cx>> {
@@ -978,6 +1012,8 @@ impl<'cx> TyChecker<'cx> {
         if param.is_this_ty {
             // assert!(param.constraint.is_none());
             Some(self.tys[ty.id.as_usize() + 2])
+        } else if ty == self.mark_sub_ty() {
+            Some(self.mark_super_ty())
         } else {
             // TODO:
             None
@@ -1239,26 +1275,24 @@ impl<'cx> TyChecker<'cx> {
             |ty| ty.kind.is_number_like(),
             TypeFlags::NUMBER_LIKE,
             true,
-        ) & self.is_type_assignable_to_kind(
+        ) && self.is_type_assignable_to_kind(
             right_ty,
             |ty| ty.kind.is_number_like(),
             TypeFlags::NUMBER_LIKE,
             true,
-        ) != Ternary::FALSE
-        {
+        ) {
             Some(self.number_ty())
         } else if self.is_type_assignable_to_kind(
             left_ty,
             |ty| ty.kind.is_string_like(),
             TypeFlags::STRING_LIKE,
             true,
-        ) | self.is_type_assignable_to_kind(
+        ) || self.is_type_assignable_to_kind(
             right_ty,
             |ty| ty.kind.is_string_like(),
             TypeFlags::STRING_LIKE,
             true,
-        ) != Ternary::FALSE
-        {
+        ) {
             Some(self.string_ty())
         } else if left_ty == self.any_ty() || right_ty == self.any_ty() {
             Some(self.any_ty())
@@ -1377,7 +1411,7 @@ impl<'cx> TyChecker<'cx> {
             .get_index_info_of_ty(indexed_access_ty.object_ty, self.number_ty())
             .is_some();
         if self.every_type(indexed_access_ty.index_ty, |this, t| {
-            this.is_type_assignable_to(t, object_index_ty) != Ternary::FALSE
+            this.is_type_assignable_to(t, object_index_ty)
                 || (has_number_index_info && this.is_applicable_index_ty(t, this.number_ty()))
         }) {
             return ty;
@@ -1590,6 +1624,10 @@ impl<'cx> TyChecker<'cx> {
         // TODO: prop_ty.and_then(|ty| self.)
         None
     }
+
+    fn empty_array<T>(&self) -> &'cx [T] {
+        unsafe { &*(self.empty_array as *const [u8] as *const [T]) }
+    }
 }
 
 macro_rules! global_ty {
@@ -1624,5 +1662,8 @@ global_ty!(
     global_fn_ty,
     global_callable_fn_ty,
     global_newable_fn_ty,
-    global_object_ty
+    global_object_ty,
+    mark_super_ty,
+    mark_sub_ty,
+    mark_other_ty
 );

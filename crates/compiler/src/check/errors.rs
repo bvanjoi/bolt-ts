@@ -329,3 +329,21 @@ pub(super) struct AnIndexSignatureParameterTypeMustBeStringNumberSymbolOrATempla
     #[label(primary)]
     pub span: Span,
 }
+
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
+#[error("A class can only implement an object type or intersection of object types with statically known members.")]
+
+pub(super) struct AClassCanOnlyImplementAnObjectTypeOrIntersectionOfObjectTypesWithStaticallyKnownMembers
+{
+    #[label(primary)]
+    pub span: Span,
+}
+
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
+#[error("A class cannot implement a primitive type like '{ty}'.")]
+#[diagnostic(help = "It can only implement other named object types.")]
+pub(super) struct AClassCannotImplementAPrimTy {
+    #[label(primary)]
+    pub span: Span,
+    pub ty: String,
+}

@@ -349,7 +349,6 @@ impl<'cx> TyChecker<'cx> {
                 for target in tys.iter() {
                     if !source.eq(target)
                         && self.is_type_related_to(source, target, RelationKind::StrictSubtype)
-                            != Ternary::FALSE
                     {
                         tys.remove(i);
                         break;

@@ -237,6 +237,7 @@ impl<'cx> Node<'cx> {
                 _ => None,
             },
             ObjectShorthandMember(n) => Some(n.name),
+            TyParam(n) => Some(&n.name),
             _ => None,
         }
     }

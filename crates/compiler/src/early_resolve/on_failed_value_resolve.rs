@@ -119,14 +119,16 @@ impl<'cx> Resolver<'cx, '_> {
             let grand_node = self.p.node(grand);
             let container_node = self.p.node(container);
             if grand_node.as_class_implements_clause().is_some() && container_node.is_class_like() {
-                return Some(
-                    errors::CannotFindNameHelperKind::AClassCannotImplementAPrimTy(
-                        errors::AClassCannotImplementAPrimTy {
-                            span: ident.span,
-                            ty: self.atoms.get(ident.name).to_string(),
-                        },
-                    ),
-                );
+                // report at type check
+                return None;
+                // return Some(
+                //     errors::CannotFindNameHelperKind::AClassCannotImplementAPrimTy(
+                //         errors::AClassCannotImplementAPrimTy {
+                //             span: ident.span,
+                //             ty: self.atoms.get(ident.name).to_string(),
+                //         },
+                //     ),
+                // );
             } else if grand_node.as_interface_extends_clause().is_some()
                 && container_node.is_interface_decl()
             {

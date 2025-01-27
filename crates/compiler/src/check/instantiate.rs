@@ -121,7 +121,11 @@ impl<'cx> TyChecker<'cx> {
         mapper: &'cx ty::TyMapper<'cx>,
     ) -> &'cx ty::Ty<'cx> {
         let target = ty.kind.expect_object_anonymous();
-        self.create_instantiating_anonymous_ty(target.symbol, ty, mapper, ObjectFlags::empty())
+        let object_flags = ty.get_object_flags()
+            & !(ObjectFlags::COULD_CONTAIN_TYPE_VARIABLES_COMPUTED
+                | ObjectFlags::COULD_CONTAIN_TYPE_VARIABLES)
+            | ObjectFlags::INSTANTIATED;
+        self.create_instantiating_anonymous_ty(target.symbol, ty, mapper, object_flags)
     }
 
     fn get_object_ty_instantiation(
