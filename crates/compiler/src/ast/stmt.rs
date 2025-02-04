@@ -30,6 +30,9 @@ pub enum StmtKind<'cx> {
     Enum(&'cx EnumDecl<'cx>),
     Import(&'cx ImportDecl<'cx>),
     Export(&'cx ExportDecl<'cx>),
+    Try(&'cx TryStmt<'cx>),
+    While(&'cx WhileStmt<'cx>),
+    Do(&'cx DoStmt<'cx>),
 }
 
 impl Stmt<'_> {
@@ -56,8 +59,44 @@ impl Stmt<'_> {
             ForIn(n) => n.id,
             Break(n) => n.id,
             Continue(n) => n.id,
+            Try(n) => n.id,
+            While(n) => n.id,
+            Do(n) => n.id,
         }
     }
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct DoStmt<'cx> {
+    pub id: NodeID,
+    pub span: Span,
+    pub stmt: &'cx Stmt<'cx>,
+    pub expr: &'cx Expr<'cx>,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct WhileStmt<'cx> {
+    pub id: NodeID,
+    pub span: Span,
+    pub expr: &'cx Expr<'cx>,
+    pub stmt: &'cx Stmt<'cx>,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct TryStmt<'cx> {
+    pub id: NodeID,
+    pub span: Span,
+    pub try_block: &'cx BlockStmt<'cx>,
+    pub catch_clause: Option<&'cx CatchClause<'cx>>,
+    pub finally_block: Option<&'cx BlockStmt<'cx>>,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct CatchClause<'cx> {
+    pub id: NodeID,
+    pub span: Span,
+    pub var: Option<&'cx VarDecl<'cx>>,
+    pub block: &'cx BlockStmt<'cx>,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -140,8 +179,30 @@ pub struct NsDecl<'cx> {
     pub id: NodeID,
     pub span: Span,
     pub modifiers: Option<&'cx Modifiers<'cx>>,
-    pub name: &'cx Ident,
-    pub block: &'cx BlockStmt<'cx>,
+    pub name: ModuleName<'cx>,
+    pub block: Option<&'cx BlockStmt<'cx>>,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub enum ModuleName<'cx> {
+    Ident(&'cx Ident),
+    StringLit(&'cx StringLit),
+}
+
+impl ModuleName<'_> {
+    pub fn id(&self) -> NodeID {
+        match self {
+            ModuleName::Ident(ident) => ident.id,
+            ModuleName::StringLit(string_lit) => string_lit.id,
+        }
+    }
+
+    pub fn span(&self) -> Span {
+        match self {
+            ModuleName::Ident(ident) => ident.span,
+            ModuleName::StringLit(string_lit) => string_lit.span,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -232,22 +293,49 @@ pub struct ClassDecl<'cx> {
 #[derive(Debug, Clone, Copy)]
 pub struct ClassElems<'cx> {
     pub span: Span,
-    pub elems: &'cx [&'cx ClassEle<'cx>],
+    pub elems: &'cx [&'cx ClassElem<'cx>],
 }
 
 #[derive(Debug, Clone, Copy)]
-pub struct ClassEle<'cx> {
+pub struct ClassElem<'cx> {
     pub kind: ClassEleKind<'cx>,
 }
 
 #[derive(Debug, Clone, Copy)]
 pub enum ClassEleKind<'cx> {
     Ctor(&'cx ClassCtor<'cx>),
-    Prop(&'cx ClassPropEle<'cx>),
-    Method(&'cx ClassMethodEle<'cx>),
+    Prop(&'cx ClassPropElem<'cx>),
+    Method(&'cx ClassMethodElem<'cx>),
     IndexSig(&'cx IndexSigDecl<'cx>),
     Getter(&'cx GetterDecl<'cx>),
     Setter(&'cx SetterDecl<'cx>),
+}
+
+impl ClassEleKind<'_> {
+    pub fn is_static(&self) -> bool {
+        use ClassEleKind::*;
+        let ms = match self {
+            Ctor(_) => None,
+            Prop(n) => n.modifiers,
+            Method(n) => n.modifiers,
+            IndexSig(n) => n.modifiers,
+            Getter(n) => n.modifiers,
+            Setter(n) => n.modifiers,
+        };
+        ms.is_some_and(|ms| ms.flags.contains(ModifierKind::Static))
+    }
+
+    pub fn id(&self) -> NodeID {
+        use ClassEleKind::*;
+        match self {
+            Ctor(n) => n.id,
+            Prop(n) => n.id,
+            Method(n) => n.id,
+            IndexSig(n) => n.id,
+            Getter(n) => n.id,
+            Setter(n) => n.id,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -256,7 +344,7 @@ pub struct GetterDecl<'cx> {
     pub span: Span,
     pub modifiers: Option<&'cx Modifiers<'cx>>,
     pub name: &'cx PropName<'cx>,
-    pub ret: Option<&'cx self::Ty<'cx>>,
+    pub ty: Option<&'cx self::Ty<'cx>>,
     pub body: Option<&'cx BlockStmt<'cx>>,
 }
 
@@ -281,7 +369,7 @@ pub struct ClassCtor<'cx> {
 }
 
 #[derive(Debug, Clone, Copy)]
-pub struct ClassMethodEle<'cx> {
+pub struct ClassMethodElem<'cx> {
     pub id: NodeID,
     pub flags: NodeFlags,
     pub span: Span,
@@ -294,7 +382,7 @@ pub struct ClassMethodEle<'cx> {
 }
 
 #[derive(Debug, Clone, Copy)]
-pub struct ClassPropEle<'cx> {
+pub struct ClassPropElem<'cx> {
     pub id: NodeID,
     pub span: Span,
     pub modifiers: Option<&'cx Modifiers<'cx>>,
@@ -325,7 +413,7 @@ pub struct InterfaceExtendsClause<'cx> {
 pub struct ClassExtendsClause<'cx> {
     pub id: NodeID,
     pub span: Span,
-    pub expr: &'cx Expr<'cx>,
+    pub name: &'cx EntityName<'cx>,
     pub ty_args: Option<&'cx self::Tys<'cx>>,
 }
 
@@ -433,6 +521,7 @@ pub struct Modifier {
 pub struct FnDecl<'cx> {
     pub id: NodeID,
     pub span: Span,
+    pub flags: NodeFlags,
     pub modifiers: Option<&'cx Modifiers<'cx>>,
     pub name: &'cx Ident,
     pub ty_params: Option<TyParams<'cx>>,
@@ -484,7 +573,7 @@ pub struct ImportSpec<'cx> {
 
 #[derive(Debug, Clone, Copy)]
 pub enum ImportSpecKind<'cx> {
-    ShortHand(&'cx ShorthandSpec<'cx>),
+    Shorthand(&'cx ShorthandSpec<'cx>),
     Named(&'cx ImportNamedSpec<'cx>),
 }
 
@@ -575,7 +664,7 @@ pub struct ExportSpec<'cx> {
 
 #[derive(Debug, Clone, Copy)]
 pub enum ExportSpecKind<'cx> {
-    ShortHand(&'cx ShorthandSpec<'cx>),
+    Shorthand(&'cx ShorthandSpec<'cx>),
     Named(&'cx ExportNamedSpec<'cx>),
 }
 
@@ -585,4 +674,38 @@ pub struct ExportNamedSpec<'cx> {
     pub span: Span,
     pub prop_name: &'cx ModuleExportName<'cx>,
     pub name: &'cx ModuleExportName<'cx>,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub enum Binding<'cx> {
+    Ident(&'cx Ident),
+    ObjectPat(&'cx ObjectPat<'cx>),
+    // ArrayPat()
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct ObjectPat<'cx> {
+    pub id: NodeID,
+    pub span: Span,
+    pub elems: ObjectBindingElems<'cx>,
+}
+
+pub type ObjectBindingElems<'cx> = &'cx [&'cx ObjectBindingElem<'cx>];
+
+#[derive(Debug, Clone, Copy)]
+pub struct ObjectBindingElem<'cx> {
+    pub id: NodeID,
+    pub span: Span,
+    pub dotdotdot: Option<Span>,
+    pub name: &'cx ObjectBindingName<'cx>,
+    pub init: Option<&'cx Expr<'cx>>,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub enum ObjectBindingName<'cx> {
+    Shorthand(&'cx Ident),
+    Prop {
+        prop_name: &'cx PropName<'cx>,
+        name: &'cx Binding<'cx>,
+    },
 }

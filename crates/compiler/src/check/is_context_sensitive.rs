@@ -1,4 +1,5 @@
 use crate::ast;
+use crate::ast::ArrowFnExprBody;
 use crate::keyword;
 
 use super::TyChecker;
@@ -26,10 +27,12 @@ impl TyChecker<'_> {
     fn has_context_sensitive_return_expr(&self, id: ast::NodeID) -> bool {
         let node = self.p.node(id);
         if node.ty_params().is_some() {
-            return false;
+            false
+        } else if let Some(ArrowFnExprBody::Expr(e)) = node.fn_body() {
+            self.is_context_sensitive(e.id())
+        } else {
+            false
         }
-
-        false
     }
 
     fn is_context_sensitive_fn_like(&self, id: ast::NodeID) -> bool {
@@ -38,7 +41,7 @@ impl TyChecker<'_> {
 
     pub(super) fn is_context_sensitive(&self, id: ast::NodeID) -> bool {
         let node = self.p.node(id);
-        assert!(!node.is_class_method_ele());
+        assert!(!node.is_class_method_ele(), "{:#?}", node);
         if node.is_fn_expr()
             || node.is_arrow_fn_expr()
             || node.is_method_signature()
@@ -46,7 +49,7 @@ impl TyChecker<'_> {
         {
             self.is_context_sensitive_fn_like(id)
         } else if let Some(o) = node.as_object_lit() {
-            o.members.iter().any(|m| self.is_context_sensitive(m.id))
+            o.members.iter().any(|m| self.is_context_sensitive(m.id()))
         } else if let Some(a) = node.as_array_lit() {
             a.elems.iter().any(|m| self.is_context_sensitive(m.id()))
         } else if let Some(c) = node.as_cond_expr() {

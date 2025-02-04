@@ -1,5 +1,5 @@
 class C {
   get 'foo'() {
-    return 0  
-}
+    return 0
+  }
 }

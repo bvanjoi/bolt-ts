@@ -1,0 +1,10 @@
+  × '}' expected.
+   ╭─[../../tests/cases/compiler/missingCloseBrace/index.ts:11:25]
+   ╰────
+
+Advice: 
+  ☞ Expected to find a '{' to match the '}' token here.
+   ╭─[../../tests/cases/compiler/missingCloseBrace/index.ts:3:22]
+ 3 │ {
+   · ─
+   ╰────

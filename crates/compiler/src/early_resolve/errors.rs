@@ -21,16 +21,22 @@ pub(super) struct CannotFindName {
 pub(super) enum CannotFindNameHelperKind {
     #[error(transparent)]
     #[diagnostic(transparent)]
-    DidYouMeanTheStaticMember(DidYourMeanTheStaticMember),
+    DidYouMeanTheStaticMember(DidYouMeanTheStaticMember),
     #[error(transparent)]
     #[diagnostic(transparent)]
     AnInterfaceCannotExtendAPrimTy(AnInterfaceCannotExtendAPrimTy),
-    #[error(transparent)]
-    #[diagnostic(transparent)]
-    AClassCannotImplementAPrimTy(AClassCannotImplementAPrimTy),
+    // #[error(transparent)]
+    // #[diagnostic(transparent)]
+    // AClassCannotImplementAPrimTy(AClassCannotImplementAPrimTy),
     #[error(transparent)]
     #[diagnostic(transparent)]
     CannotUseNamespaceAsTyOrValue(CannotUseNamespaceAsTyOrValue),
+    #[error(transparent)]
+    #[diagnostic(transparent)]
+    ShorthandPropertyNeedAnInitializer(ShorthandPropertyNeedAnInitializer),
+    #[error(transparent)]
+    #[diagnostic(transparent)]
+    OnlyReferToATypeButIsBeingUsedAsValueHere(OnlyReferToATypeButIsBeingUsedAsValueHere),
 }
 
 impl CannotFindNameHelperKind {
@@ -40,28 +46,35 @@ impl CannotFindNameHelperKind {
         match self {
             CannotFindNameHelperKind::DidYouMeanTheStaticMember(diag) => Box::new(diag),
             CannotFindNameHelperKind::AnInterfaceCannotExtendAPrimTy(diag) => Box::new(diag),
-            CannotFindNameHelperKind::AClassCannotImplementAPrimTy(diag) => Box::new(diag),
+            // CannotFindNameHelperKind::AClassCannotImplementAPrimTy(diag) => Box::new(diag),
             CannotFindNameHelperKind::CannotUseNamespaceAsTyOrValue(diag) => Box::new(diag),
+            CannotFindNameHelperKind::ShorthandPropertyNeedAnInitializer(diag) => Box::new(diag),
+            CannotFindNameHelperKind::OnlyReferToATypeButIsBeingUsedAsValueHere(diag) => {
+                Box::new(diag)
+            }
         }
     }
 }
 
 #[derive(Error, Diagnostic, DiagnosticExt, Debug)]
-#[error("Did you mean the static member '{name}'?")]
+#[error("'{name}' only refers to a type, but is being used as a value here.")]
 #[diagnostic(severity(Advice))]
-pub(super) struct DidYourMeanTheStaticMember {
+pub(super) struct OnlyReferToATypeButIsBeingUsedAsValueHere {
     #[label(primary)]
     pub span: Span,
     pub name: String,
+    #[label("'{name}' is defined here.")]
+    pub defined_here: Span,
 }
 
 #[derive(Error, Diagnostic, DiagnosticExt, Debug)]
-#[error("A class cannot implement a primitive type like '{ty}'.")]
-#[diagnostic(help = "It can only implement other named object types.")]
-pub(super) struct AClassCannotImplementAPrimTy {
+#[error("Did you mean the static member '{class_name}.{prop_name}'?")]
+#[diagnostic(severity(Advice))]
+pub(super) struct DidYouMeanTheStaticMember {
     #[label(primary)]
     pub span: Span,
-    pub ty: String,
+    pub class_name: String,
+    pub prop_name: String,
 }
 
 #[derive(Error, Diagnostic, DiagnosticExt, Debug)]
@@ -80,4 +93,27 @@ pub(super) struct CannotUseNamespaceAsTyOrValue {
     #[label(primary)]
     pub span: Span,
     pub is_ty: bool,
+}
+
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
+#[error("Parameter '{name}' cannot reference itself.")]
+pub(super) struct ParameterXCannotReferenceItself {
+    #[label(primary)]
+    pub span: Span,
+    pub name: String,
+}
+
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
+#[error("Shorthand property need an initializer.")]
+#[diagnostic(severity(Advice))]
+pub(super) struct ShorthandPropertyNeedAnInitializer {
+    #[label(primary)]
+    pub span: Span,
+}
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
+#[error("Static members cannot reference class type parameters.")]
+pub(super) struct StaticMembersCannotReferenceClassTypeParameters {
+    #[label(primary)]
+    pub span: Span,
 }

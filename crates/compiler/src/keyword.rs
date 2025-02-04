@@ -32,14 +32,21 @@ gen_atoms!(
     (KW_CATCH, "catch"),
     (KW_FINALLY, "finally"),
     (KW_DEBUGGER, "debugger"),
+    (KW_DELETE, "delete"),
     (KW_TYPEOF, "typeof"),
     (KW_PACKAGE, "package"),
     (KW_YIELD, "yield"),
     (KW_FOR, "for"),
     (KW_OF, "of"),
+    (KW_WHILE, "while"),
+    (KW_DO, "do"),
+    (KW_SWITCH, "switch"),
+    (KW_CASE, "case"),
     (KW_BREAK, "break"),
     (KW_CONTINUE, "continue"),
     (KW_INSTANCEOF, "instanceof"),
+    (KW_VOID, "void"),
+    (KW_UNDEFINED, "undefined"),
     (KW_IN, "in"),
     // ts keywords
     (KW_IMPLEMENTS, "implements"),
@@ -56,6 +63,7 @@ gen_atoms!(
     (KW_ENUM, "enum"),
     (KW_READONLY, "readonly"),
     (KW_SATISFIES, "satisfies"),
+    (KW_KEYOF, "keyof"),
     (KW_TYPE, "type"),
 );
 
@@ -64,24 +72,26 @@ gen_atoms!(
     (IDENT_EMPTY, ""),
     (IDENT_LENGTH, "length"),
     (IDENT_ERROR, "error"),
-    (IDENT_UNDEFINED, "undefined"),
     (IDENT_ANY, "any"),
-    (IDENT_VOID, "void"),
     (IDENT_NUMBER, "number"),
     (IDENT_NUMBER_CLASS, "Number"),
     (IDENT_ARRAY, "array"),
     (IDENT_ARRAY_CLASS, "Array"),
+    (IDENT_READONLY_ARRAY_CLASS, "ReadonlyArray"),
     (IDENT_STRING, "string"),
     (IDENT_STRING_CLASS, "String"),
     (IDENT_BOOLEAN, "boolean"),
+    (IDENT_BOOLEAN_CLASS, "Boolean"),
     (IDENT_NEVER, "never"),
     (IDENT_UNKNOWN, "unknown"),
     (IDENT_BIGINT, "bitint"),
     (IDENT_OBJECT, "object"),
+    (IDENT_OBJECT_CLASS, "Object"),
     (IDENT_SYMBOL, "symbol"),
     (IDENT_FUNCTION_CLASS, "Function"),
     (IDENT_CALLABLE_FUNCTION_CLASS, "CallableFunction"),
     (IDENT_NEWABLE_FUNCTION_CLASS, "NewableFunction"),
+    (IDENT_GLOBAL, "global"),
 );
 
 pub fn is_prim_ty_name(name: AtomId) -> bool {
@@ -94,13 +104,13 @@ pub fn is_prim_ty_name(name: AtomId) -> bool {
             | IDENT_BOOLEAN
             | IDENT_NEVER
             | IDENT_UNKNOWN
-            | IDENT_VOID
-            | IDENT_UNDEFINED
+            | KW_UNDEFINED
+            | KW_VOID
     )
 }
 
 pub fn is_prim_value_name(name: AtomId) -> bool {
-    matches!(name, KW_NULL | KW_FALSE | KW_TRUE | IDENT_UNDEFINED)
+    matches!(name, KW_NULL | KW_FALSE | KW_TRUE | KW_UNDEFINED)
 }
 
 pub fn is_reserved_type_name(name: AtomId) -> bool {
@@ -113,8 +123,8 @@ pub fn is_reserved_type_name(name: AtomId) -> bool {
             | IDENT_BIGINT
             | IDENT_BOOLEAN
             | IDENT_STRING
-            | IDENT_VOID
+            | KW_VOID
+            | KW_UNDEFINED
             | IDENT_OBJECT
-            | IDENT_UNDEFINED
     )
 }

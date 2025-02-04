@@ -1,0 +1,5 @@
+  × Type 'HTMLElement[]' is not assignable to type 'string[]'.
+    ╭─[../../tests/cases/compiler/genericMethodOverspecialization/index.ts:19:5]
+ 19 │ elements2
+    · ─────────
+    ╰────

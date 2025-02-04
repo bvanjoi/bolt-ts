@@ -1,0 +1,12 @@
+  × Class 'TextBase' used before its declaration.
+   ╭─[../../tests/cases/compiler/classSideInheritance2/index.ts:9:23]
+ 9 │ TextBase
+   · ────────
+   ╰────
+
+Advice: 
+  ☞ Class 'TextBase' is defined here
+    ╭─[../../tests/cases/compiler/classSideInheritance2/index.ts:16:7]
+ 16 │ TextBase
+    · ────────
+    ╰────

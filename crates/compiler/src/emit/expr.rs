@@ -46,6 +46,10 @@ impl<'cx> Emit<'cx> {
                 };
                 self.emit_expr(unary.expr);
             }
+            PostfixUnary(unary) => {
+                self.emit_expr(unary.expr);
+                self.content.p(unary.op.as_str());
+            }
             Class(class) => self.emit_class_like(class),
             PropAccess(prop) => {
                 self.emit_expr(prop.expr);
@@ -66,8 +70,13 @@ impl<'cx> Emit<'cx> {
                 self.content.p_whitespace();
                 self.emit_expr(n.expr);
             }
+            Void(n) => {
+                self.content.p("void");
+                self.content.p_whitespace();
+                self.emit_expr(n.expr);
+            }
             Super(_) => self.content.p("super"),
-        }
+        };
     }
 
     fn emit_arrow_fn(&mut self, f: &'cx ast::ArrowFnExpr<'cx>) {
@@ -152,7 +161,7 @@ impl<'cx> Emit<'cx> {
     fn emit_object_lit(&mut self, lit: &'cx ast::ObjectLit<'cx>) {
         self.content.p_l_brace();
         for (idx, field) in lit.members.iter().enumerate() {
-            self.emit_object_member_field(field);
+            self.emit_object_member(field);
             if idx != lit.members.len() - 1 {
                 self.content.p_comma();
                 self.content.p_newline();
@@ -161,10 +170,30 @@ impl<'cx> Emit<'cx> {
         self.content.p_r_brace();
     }
 
-    fn emit_object_member_field(&mut self, field: &'cx ast::ObjectMemberField<'cx>) {
-        self.emit_prop_name(field.name);
+    fn emit_object_member(&mut self, field: &'cx ast::ObjectMember<'cx>) {
+        use ast::ObjectMemberKind::*;
+        match field.kind {
+            Prop(n) => self.emit_object_prop_member(n),
+            Shorthand(n) => self.emit_object_shorthand_member(n),
+            Method(n) => self.emit_object_method_member(n),
+        }
+    }
+
+    fn emit_object_method_member(&mut self, method: &'cx ast::ObjectMethodMember<'cx>) {
+        self.emit_prop_name(method.name);
+        self.emit_params(method.params);
+        self.content.p_whitespace();
+        self.emit_block_stmt(method.body);
+    }
+
+    fn emit_object_prop_member(&mut self, prop: &'cx ast::ObjectPropMember<'cx>) {
+        self.emit_prop_name(prop.name);
         self.content.p_colon();
         self.content.p_whitespace();
-        self.emit_expr(field.value);
+        self.emit_expr(prop.value);
+    }
+
+    fn emit_object_shorthand_member(&mut self, shorthand: &'cx ast::ObjectShorthandMember<'cx>) {
+        self.emit_ident(shorthand.name);
     }
 }

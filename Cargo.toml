@@ -16,6 +16,7 @@ members = [
 
 [workspace.dependencies]
 rustc-hash = "2.1.0"
+nohash-hasher = "0.2.0"
 miette = { version = "7.1.0", features = ["fancy"] }
 thin-vec = "0.2.13"
 regex = { version = "1.10.2" }
@@ -27,3 +28,4 @@ bitflags = "2.6.0"
 paste = "1.0.15"
 normalize-path = "0.2.1"
 indexmap = "2.7.0"
+xxhash-rust = { version = "0.8.12", features = ["xxh3"] }

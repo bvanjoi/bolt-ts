@@ -1,6 +1,6 @@
 use bolt_ts_span::Span;
 
-use crate::ast::{AssignOp, BinOpKind, ModifierKind, PrefixUnaryOp, VarKind};
+use crate::ast;
 
 #[derive(Debug, Clone, Copy)]
 pub struct Token {
@@ -92,6 +92,8 @@ pub enum TokenKind {
     BangEq,
     /// `^=`
     CaretEq,
+    /// `?.`
+    QuestionDot,
     // =====
     /// `!`
     Excl = 0x21,
@@ -141,6 +143,8 @@ pub enum TokenKind {
     LBrace = 0x7B,
     /// `}`
     RBrace = 0x7D,
+    /// `~`
+    Tilde = 0x7E,
     // =====
     // keyword
     Null,
@@ -173,14 +177,21 @@ pub enum TokenKind {
     Catch,
     Finally,
     Debugger,
+    Delete,
     Typeof,
     Package,
     Yield,
     For,
     Of,
+    While,
+    Do,
+    Switch,
+    Case,
     Break,
     Continue,
     Instanceof,
+    Void,
+    Undefined,
     In,
     // ts keyword
     Implements,
@@ -197,99 +208,249 @@ pub enum TokenKind {
     Enum,
     Readonly,
     Satisfies,
+    Keyof,
     Type,
 }
 
-impl From<TokenKind> for BinOpKind {
-    fn from(value: TokenKind) -> Self {
-        match value {
-            TokenKind::Plus => BinOpKind::Add,
-            TokenKind::Pipe => BinOpKind::Pipe,
-            TokenKind::PipePipe => BinOpKind::PipePipe,
-            TokenKind::EqEq => BinOpKind::EqEq,
-            TokenKind::EqEqEq => BinOpKind::EqEqEq,
-            TokenKind::Minus => BinOpKind::Sub,
-            TokenKind::Asterisk => BinOpKind::Mul,
-            TokenKind::AsteriskEq => BinOpKind::Mul,
-            TokenKind::Slash => BinOpKind::Div,
-            TokenKind::SlashEq => BinOpKind::Div,
-            TokenKind::Amp => BinOpKind::BitAnd,
-            TokenKind::AmpAmp => BinOpKind::LogicalAnd,
-            TokenKind::Less => BinOpKind::Less,
-            TokenKind::LessEq => BinOpKind::LessEq,
-            TokenKind::LessLess => BinOpKind::Shl,
-            TokenKind::Great => BinOpKind::Great,
-            TokenKind::GreatEq => BinOpKind::GreatEq,
-            TokenKind::GreatGreat => BinOpKind::Shr,
-            TokenKind::GreatGreatGreat => BinOpKind::UShr,
-            TokenKind::Instanceof => BinOpKind::Instanceof,
-            TokenKind::In => BinOpKind::In,
-            TokenKind::Satisfies => BinOpKind::Satisfies,
-            _ => {
-                unreachable!("{:#?}", value)
-            }
-        }
-    }
-}
-
-impl From<TokenKind> for PrefixUnaryOp {
-    fn from(value: TokenKind) -> Self {
-        match value {
-            TokenKind::Plus => PrefixUnaryOp::Plus,
-            TokenKind::Minus => PrefixUnaryOp::Minus,
-            TokenKind::PlusPlus => PrefixUnaryOp::PlusPlus,
-            TokenKind::MinusMinus => PrefixUnaryOp::MinusMinus,
-            _ => {
-                unreachable!("{:#?}", value)
-            }
-        }
-    }
-}
-
-impl TryFrom<TokenKind> for ModifierKind {
-    type Error = ();
-    fn try_from(value: TokenKind) -> Result<Self, Self::Error> {
-        match value {
-            TokenKind::Public => Ok(ModifierKind::Public),
-            TokenKind::Abstract => Ok(ModifierKind::Abstract),
-            TokenKind::Static => Ok(ModifierKind::Static),
-            TokenKind::Declare => Ok(ModifierKind::Declare),
-            TokenKind::Private => Ok(ModifierKind::Private),
-            TokenKind::Export => Ok(ModifierKind::Export),
-            TokenKind::Readonly => Ok(ModifierKind::Readonly),
-            _ => Err(()),
-        }
-    }
-}
-
-impl From<TokenKind> for AssignOp {
-    fn from(value: TokenKind) -> Self {
-        match value {
-            TokenKind::Eq => AssignOp::Eq,
-            TokenKind::PlusEq => AssignOp::AddEq,
-            TokenKind::MinusEq => AssignOp::SubEq,
-            TokenKind::AsteriskEq => AssignOp::MulEq,
-            TokenKind::SlashEq => AssignOp::DivEq,
-            TokenKind::PercentEq => AssignOp::ModEq,
-            TokenKind::AmpEq => AssignOp::BitAndEq,
-            TokenKind::PipeEq => AssignOp::BitOrEq,
-            TokenKind::LessLessEq => AssignOp::ShlEq,
-            TokenKind::GreatGreatEq => AssignOp::ShrEq,
-            TokenKind::GreatGreatGreatEq => AssignOp::UShrEq,
-            TokenKind::CaretEq => AssignOp::BitXorEq,
+impl TokenKind {
+    pub fn as_str(&self) -> &'static str {
+        use TokenKind::*;
+        match self {
+            EqGreat => "=>",
+            DotDotDot => "...",
+            AmpEq => "&=",
+            AmpAmp => "&&",
+            PipePipe => "||",
+            PipeEq => "|=",
+            EqEq => "==",
+            EqEqEq => "===",
+            PlusEq => "+=",
+            PlusPlus => "++",
+            MinusEq => "-=",
+            MinusMinus => "--",
+            AsteriskEq => "*=",
+            SlashEq => "/=",
+            PercentEq => "%=",
+            LessLess => "<<",
+            LessEq => "<=",
+            LessLessEq => "<<=",
+            GreatEq => ">=",
+            GreatGreat => ">>",
+            GreatGreatGreat => ">>>",
+            GreatGreatEq => ">>=",
+            GreatGreatGreatEq => ">>>=",
+            BangEqEq => "!==",
+            BangEq => "!=",
+            CaretEq => "^=",
+            Excl => "!",
+            Percent => "%",
+            Amp => "&",
+            Asterisk => "*",
+            Plus => "+",
+            Comma => ",",
+            Minus => "-",
+            LParen => "(",
+            RParen => ")",
+            Dot => ".",
+            Colon => ":",
+            Semi => ";",
+            Less => "<",
+            Eq => "=",
+            Great => ">",
+            Question => "?",
+            At => "@",
+            LBracket => "[",
+            Slash => "\\",
+            RBracket => "]",
+            Caret => "^",
+            Pipe => "|",
+            LBrace => "{",
+            RBrace => "}",
+            Null => "null",
+            False => "false",
+            True => "true",
+            Var => "var",
+            Let => "let",
+            Const => "const",
+            Function => "function",
+            Return => "return",
+            If => "if",
+            Else => "else",
+            Class => "class",
+            Extends => "extends",
+            New => "new",
+            Async => "async",
+            Await => "await",
+            This => "this",
+            Static => "static",
+            Constructor => "constructor",
+            Super => "super",
+            Get => "get",
+            Set => "set",
+            Import => "import",
+            Export => "export",
+            From => "from",
+            Default => "default",
+            Throw => "throw",
+            Try => "try",
+            Catch => "catch",
+            Finally => "finally",
+            Debugger => "debugger",
+            Typeof => "typeof",
+            Package => "package",
+            Yield => "yield",
+            For => "for",
+            Of => "of",
+            Break => "break",
+            Continue => "continue",
+            Instanceof => "instanceof",
+            In => "in",
+            Implements => "implements",
+            Interface => "interface",
+            Abstract => "abstract",
+            Public => "public",
+            Protected => "protected",
+            Private => "private",
+            As => "as",
+            Is => "is",
+            Declare => "declare",
+            Module => "module",
+            Namespace => "namespace",
+            Enum => "enum",
+            Readonly => "readonly",
+            Satisfies => "satisfies",
+            Keyof => "keyof",
+            Type => "type",
             _ => unreachable!(),
         }
     }
 }
 
-impl TryFrom<TokenKind> for VarKind {
+impl From<TokenKind> for ast::BinOpKind {
+    fn from(value: TokenKind) -> Self {
+        use ast::BinOpKind::*;
+        match value {
+            TokenKind::Plus => Add,
+            TokenKind::Pipe => Pipe,
+            TokenKind::PipePipe => PipePipe,
+            TokenKind::EqEq => EqEq,
+            TokenKind::EqEqEq => EqEqEq,
+            TokenKind::Minus => Sub,
+            TokenKind::Asterisk => Mul,
+            TokenKind::AsteriskEq => Mul,
+            TokenKind::Slash => Div,
+            TokenKind::SlashEq => Div,
+            TokenKind::Amp => BitAnd,
+            TokenKind::AmpAmp => LogicalAnd,
+            TokenKind::Less => Less,
+            TokenKind::LessEq => LessEq,
+            TokenKind::LessLess => Shl,
+            TokenKind::Great => Great,
+            TokenKind::GreatEq => GreatEq,
+            TokenKind::GreatGreat => Shr,
+            TokenKind::GreatGreatGreat => UShr,
+            TokenKind::Instanceof => Instanceof,
+            TokenKind::In => In,
+            TokenKind::Satisfies => Satisfies,
+            _ => {
+                unreachable!("{:#?}", value)
+            }
+        }
+    }
+}
+
+impl From<TokenKind> for ast::PostfixUnaryOp {
+    fn from(value: TokenKind) -> Self {
+        use ast::PostfixUnaryOp::*;
+        match value {
+            TokenKind::PlusPlus => PlusPlus,
+            TokenKind::MinusMinus => MinusMinus,
+            _ => {
+                unreachable!("{:#?}", value)
+            }
+        }
+    }
+}
+
+impl From<TokenKind> for ast::PrefixUnaryOp {
+    fn from(value: TokenKind) -> Self {
+        use ast::PrefixUnaryOp::*;
+        match value {
+            TokenKind::Plus => Plus,
+            TokenKind::Minus => Minus,
+            TokenKind::PlusPlus => PlusPlus,
+            TokenKind::MinusMinus => MinusMinus,
+            TokenKind::Tilde => Tilde,
+            TokenKind::Excl => Excl,
+            _ => {
+                unreachable!("{:#?}", value)
+            }
+        }
+    }
+}
+
+impl TryFrom<TokenKind> for ast::ModifierKind {
+    type Error = ();
+    fn try_from(value: TokenKind) -> Result<Self, Self::Error> {
+        use ast::ModifierKind::*;
+        match value {
+            TokenKind::Public => Ok(Public),
+            TokenKind::Private => Ok(Private),
+            TokenKind::Protected => Ok(Protected),
+            TokenKind::Readonly => Ok(Readonly),
+            TokenKind::Export => Ok(Export),
+            // TODO: override
+            TokenKind::Abstract => Ok(Abstract),
+            TokenKind::Static => Ok(Static),
+            TokenKind::Declare => Ok(Declare),
+            _ => Err(()),
+        }
+    }
+}
+
+impl From<TokenKind> for ast::AssignOp {
+    fn from(value: TokenKind) -> Self {
+        use ast::AssignOp::*;
+        match value {
+            TokenKind::Eq => Eq,
+            TokenKind::PlusEq => AddEq,
+            TokenKind::MinusEq => SubEq,
+            TokenKind::AsteriskEq => MulEq,
+            TokenKind::SlashEq => DivEq,
+            TokenKind::PercentEq => ModEq,
+            TokenKind::AmpEq => BitAndEq,
+            TokenKind::PipeEq => BitOrEq,
+            TokenKind::LessLessEq => ShlEq,
+            TokenKind::GreatGreatEq => ShrEq,
+            TokenKind::GreatGreatGreatEq => UShrEq,
+            TokenKind::CaretEq => BitXorEq,
+            _ => unreachable!(),
+        }
+    }
+}
+
+impl TryFrom<TokenKind> for ast::VarKind {
     type Error = ();
     fn try_from(value: TokenKind) -> Result<Self, Self::Error> {
         use TokenKind::*;
         match value {
             Var | Let | Const => unsafe {
-                Ok(std::mem::transmute::<u8, VarKind>(value as u8 - Var as u8))
+                Ok(std::mem::transmute::<u8, ast::VarKind>(
+                    value as u8 - Var as u8,
+                ))
             },
+            _ => Err(()),
+        }
+    }
+}
+
+impl TryFrom<TokenKind> for ast::TyOpKind {
+    type Error = ();
+    fn try_from(value: TokenKind) -> Result<Self, Self::Error> {
+        use ast::TyOpKind::*;
+        match value {
+            TokenKind::Keyof => Ok(Keyof),
+            TokenKind::Readonly => Ok(Readonly),
             _ => Err(()),
         }
     }
@@ -352,7 +513,7 @@ impl TokenKind {
     }
 
     pub fn is_binding_ident_or_private_ident_or_pat(self) -> bool {
-        self.is_binding_ident()
+        matches!(self, TokenKind::LBrace | TokenKind::LBracket) || self.is_binding_ident()
     }
 
     pub const fn is_keyword(self) -> bool {
@@ -387,7 +548,7 @@ impl TokenKind {
             // Infer |
             // Intrinsic |
             Is |
-            // KeyOf |
+            Keyof |
             Module |
             Namespace |
             // Never |
@@ -400,7 +561,8 @@ impl TokenKind {
             Set |
             String |
             // Symbol |
-            Type | // Undefined |
+            Type | 
+            Undefined |
                  // Unique |
                  // Unknown |
                  // Using |
@@ -481,7 +643,7 @@ impl TokenKind {
     }
 
     pub fn is_modifier_kind(self) -> bool {
-        TryInto::<ModifierKind>::try_into(self).is_ok()
+        TryInto::<ast::ModifierKind>::try_into(self).is_ok()
     }
 
     pub fn is_accessibility_modifier(self) -> bool {

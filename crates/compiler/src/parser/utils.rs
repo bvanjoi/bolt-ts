@@ -1,6 +1,7 @@
 use bolt_ts_span::Span;
 
 use crate::ast::ModifierKind;
+use crate::{ecma_rules, keyword};
 
 use super::list_ctx;
 use super::token::{TokenFlags, TokenKind};
@@ -37,11 +38,15 @@ pub(super) fn is_left_hand_side_expr_kind(expr: &ast::Expr) -> bool {
             | Fn(_)
             | Ident(_)
             | This(_)
+            | NumLit(_)
+            | StringLit(_)
+            | BoolLit(_)
+            | Super(_)
     )
 }
 
-impl<'p> ParserState<'p, '_> {
-    pub(super) fn parse_fn_block(&mut self) -> PResult<Option<&'p ast::BlockStmt<'p>>> {
+impl<'cx> ParserState<'cx, '_> {
+    pub(super) fn parse_fn_block(&mut self) -> PResult<Option<&'cx ast::BlockStmt<'cx>>> {
         if self.token.kind != TokenKind::LBrace && self.can_parse_semi() {
             self.parse_semi();
             return Ok(None);
@@ -49,15 +54,45 @@ impl<'p> ParserState<'p, '_> {
         self.parse_block().map(Some)
     }
 
-    pub(super) fn parse_block(&mut self) -> PResult<&'p ast::BlockStmt<'p>> {
+    pub(super) fn parse_expected_matching_brackets(
+        &mut self,
+        open: TokenKind,
+        close: TokenKind,
+        open_parsed: bool,
+        open_pos: usize,
+    ) -> PResult<()> {
+        if self.token.kind == close {
+            self.next_token();
+            return Ok(());
+        }
+
+        let mut expected_error = errors::KindExpected {
+            span: self.token.span,
+            expected: close.as_str().to_string(),
+            related: None,
+        };
+
+        if open_parsed {
+            expected_error.related = Some(errors::ExpectedToFindAToMatchTheBTokenHere {
+                span: Span::new(open_pos as u32, open_pos as u32 + 1, self.module_id),
+                expected: open.as_str().to_string(),
+                found: close.as_str().to_string(),
+            });
+        }
+        self.push_error(Box::new(expected_error));
+        Ok(())
+    }
+
+    pub(super) fn parse_block(&mut self) -> PResult<&'cx ast::BlockStmt<'cx>> {
         let id = self.next_node_id();
         let start = self.token.start();
         use TokenKind::*;
-        self.expect(LBrace)?;
+        let open = LBrace;
+        let open_brace_parsed = self.expect(LBrace);
         let stmts = self.with_parent(id, |this| {
             this.parse_list(list_ctx::BlockStmts, Self::parse_stmt)
         });
-        self.expect(RBrace)?;
+        self.parse_expected_matching_brackets(open, RBrace, open_brace_parsed, start as usize)?;
         let stmt = self.alloc(ast::BlockStmt {
             id,
             span: self.new_span(start),
@@ -67,7 +102,7 @@ impl<'p> ParserState<'p, '_> {
         Ok(stmt)
     }
 
-    pub(super) fn parse_ty_params(&mut self) -> PResult<Option<ast::TyParams<'p>>> {
+    pub(super) fn parse_ty_params(&mut self) -> PResult<Option<ast::TyParams<'cx>>> {
         if self.token.kind == TokenKind::Less {
             let less_token_span = self.token.span;
             let ty_params = self.parse_bracketed_list(
@@ -94,7 +129,7 @@ impl<'p> ParserState<'p, '_> {
         use TokenKind::*;
         if matches!(
             self.token.kind,
-            String | Number | LBrace | LBracket | DotDotDot
+            String | Number | LBrace | LBracket | DotDotDot | Typeof | Null | Undefined | Void
         ) {
             true
         } else {
@@ -105,7 +140,24 @@ impl<'p> ParserState<'p, '_> {
     pub(super) fn is_start_of_expr(&self) -> bool {
         use TokenKind::*;
         let t = self.token.kind;
-        if t.is_start_of_left_hand_side_expr() || matches!(t, Plus | Minus | Typeof) {
+        if t.is_start_of_left_hand_side_expr()
+            || matches!(
+                t,
+                Plus | Minus
+                    | Tilde
+                    | Excl
+                    | Delete
+                    | Typeof
+                    | Void
+                    | PlusPlus
+                    | MinusMinus
+                    | Less
+                    | Await
+                    | Yield
+                    | Private
+                    | At
+            )
+        {
             true
         } else {
             self.is_ident()
@@ -144,7 +196,7 @@ impl<'p> ParserState<'p, '_> {
         }
     }
 
-    fn parse_ty_param(&mut self) -> PResult<&'p ast::TyParam<'p>> {
+    fn parse_ty_param(&mut self) -> PResult<&'cx ast::TyParam<'cx>> {
         let id = self.next_node_id();
         let start = self.token.start();
         let name = self.with_parent(id, Self::parse_binding_ident);
@@ -176,7 +228,7 @@ impl<'p> ParserState<'p, '_> {
     pub(super) fn parse_ident(
         &mut self,
         missing_ident_kind: Option<errors::MissingIdentKind>,
-    ) -> &'p ast::Expr<'p> {
+    ) -> &'cx ast::Expr<'cx> {
         let kind = self.create_ident(self.token.kind.is_ident(), missing_ident_kind);
         let expr = self.alloc(ast::Expr {
             kind: ast::ExprKind::Ident(kind),
@@ -184,11 +236,12 @@ impl<'p> ParserState<'p, '_> {
         expr
     }
 
-    pub(super) fn parse_prop_name(&mut self) -> PResult<&'p ast::PropName<'p>> {
+    pub(super) fn parse_prop_name(&mut self) -> PResult<&'cx ast::PropName<'cx>> {
         let kind = match self.token.kind {
             TokenKind::String => {
-                let lit = self.parse_string_lit();
-                ast::PropNameKind::StringLit(lit)
+                let raw = self.parse_string_lit();
+                let key = self.string_key_value.unwrap();
+                ast::PropNameKind::StringLit { raw, key }
             }
             TokenKind::Number => {
                 let lit = self.parse_num_lit(self.number_token(), false);
@@ -231,7 +284,7 @@ impl<'p> ParserState<'p, '_> {
     pub(super) fn parse_modifiers(
         &mut self,
         permit_const_as_modifier: bool,
-    ) -> PResult<Option<&'p ast::Modifiers<'p>>> {
+    ) -> PResult<Option<&'cx ast::Modifiers<'cx>>> {
         let start = self.token.start();
         let mut list = Vec::with_capacity(4);
         loop {
@@ -290,7 +343,7 @@ impl<'p> ParserState<'p, '_> {
         r
     }
 
-    pub(super) fn parse_ident_name(&mut self) -> PResult<&'p ast::Ident> {
+    pub(super) fn parse_ident_name(&mut self) -> PResult<&'cx ast::Ident> {
         let is_ident = self.token.kind.is_ident_or_keyword();
         Ok(self.create_ident(is_ident, None))
     }
@@ -342,18 +395,65 @@ impl<'p> ParserState<'p, '_> {
                 .unwrap_or_default()
     }
 
-    pub(super) fn parse_params(&mut self) -> PResult<ast::ParamsDecl<'p>> {
+    pub(super) fn parse_params(&mut self) -> PResult<ast::ParamsDecl<'cx>> {
         use TokenKind::*;
-        self.expect(LParen)?;
+        self.expect(LParen);
+        let old_error = self.diags.len();
         let params = self.parse_delimited_list(list_ctx::Params, Self::parse_param);
-        self.expect(RParen)?;
+        let has_error = self.diags.len() > old_error;
+        if !has_error {
+            let last_is_rest = params
+                .last()
+                .map(|p| p.dotdotdot.is_some())
+                .unwrap_or_default();
+            if let Some(rest_param_but_not_last) = (!last_is_rest).then(|| {
+                params
+                    .iter()
+                    .rev()
+                    .skip(1)
+                    .filter(|param| param.dotdotdot.is_some())
+                    .rev()
+                    .collect::<Vec<_>>()
+            }) {
+                for error_param in rest_param_but_not_last {
+                    let error = ecma_rules::ARestParameterMustBeLastInAParameterList {
+                        span: error_param.span,
+                    };
+                    self.push_error(Box::new(error));
+                }
+            }
+        }
+
+        self.expect(RParen);
         Ok(params)
     }
 
-    pub(super) fn parse_param(&mut self) -> PResult<&'p ast::ParamDecl<'p>> {
+    pub(super) fn parse_param(&mut self) -> PResult<&'cx ast::ParamDecl<'cx>> {
         let start = self.token.start();
         let id = self.next_node_id();
         let modifiers = self.parse_modifiers(false)?;
+        const INVALID_MODIFIERS: enumflags2::BitFlags<ModifierKind, u16> =
+            enumflags2::make_bitflags!(ModifierKind::{Static | Export});
+        if modifiers
+            .map(|ms| ms.flags.intersects(INVALID_MODIFIERS))
+            .unwrap_or_default()
+        {
+            if let Some(ms) = modifiers.map(|ms| {
+                ms.list
+                    .iter()
+                    .filter(|m| INVALID_MODIFIERS.intersects(m.kind))
+                    .copied()
+            }) {
+                for m in ms {
+                    let error = errors::ModifierCannotAppearOnAParameter {
+                        span: m.span,
+                        kind: m.kind,
+                    };
+                    self.push_error(Box::new(error));
+                }
+            }
+        }
+
         let dotdotdot = self.parse_optional(TokenKind::DotDotDot).map(|t| t.span);
         let name = self.with_parent(id, Self::parse_ident_name)?;
         if dotdotdot.is_some() {
@@ -381,7 +481,7 @@ impl<'p> ParserState<'p, '_> {
         };
         let question = self.parse_optional(TokenKind::Question).map(|t| t.span);
         let ty = self.with_parent(id, Self::parse_ty_anno)?;
-        let init = self.with_parent(id, Self::parse_init);
+        let init = self.with_parent(id, Self::parse_init)?;
         let decl = self.alloc(ast::ParamDecl {
             id,
             span: self.new_span(start),
@@ -405,11 +505,14 @@ impl<'p> ParserState<'p, '_> {
 
     pub(super) fn is_start_of_fn_or_ctor_ty(&mut self) -> bool {
         let t = self.token.kind;
-        if t == TokenKind::Less {
-            true
-        } else {
-            t == TokenKind::LParen && self.lookahead(Self::is_unambiguously_start_of_fn_ty)
-        }
+        (t == TokenKind::Less)
+            || (t == TokenKind::LParen && self.lookahead(Self::is_unambiguously_start_of_fn_ty))
+            || (t == TokenKind::New
+                || t == TokenKind::Abstract
+                    && self.lookahead(|this| {
+                        this.next_token();
+                        this.token.kind == TokenKind::New
+                    }))
     }
 
     fn skip_param_start(&mut self) -> PResult<bool> {
@@ -452,7 +555,7 @@ impl<'p> ParserState<'p, '_> {
         self.token.kind == t && self.try_parse(Self::next_token_can_follow_modifier)
     }
 
-    pub(super) fn parse_num_lit(&mut self, val: f64, neg: bool) -> &'p ast::NumLit {
+    pub(super) fn parse_num_lit(&mut self, val: f64, neg: bool) -> &'cx ast::NumLit {
         let val = if neg { -val } else { val };
         let lit = self.create_lit(val, self.token.span);
         self.insert_map(lit.id, ast::Node::NumLit(lit));
@@ -460,7 +563,7 @@ impl<'p> ParserState<'p, '_> {
         lit
     }
 
-    pub(super) fn parse_string_lit(&mut self) -> &'p ast::StringLit {
+    pub(super) fn parse_string_lit(&mut self) -> &'cx ast::StringLit {
         let val = self.string_token();
         let lit = self.create_lit(val, self.token.span);
         self.insert_map(lit.id, ast::Node::StringLit(lit));
@@ -473,20 +576,45 @@ impl<'p> ParserState<'p, '_> {
             .intersects(TokenFlags::PRECEDING_LINE_BREAK)
     }
 
+    fn create_missing_ty(&mut self) -> &'cx ast::Ty<'cx> {
+        let id = self.next_node_id();
+        let start = self.token.start();
+        let ident = self.create_ident_by_atom(keyword::IDENT_EMPTY, self.token.span);
+        let name = self.alloc(ast::EntityName {
+            kind: ast::EntityNameKind::Ident(ident),
+        });
+        let ty = self.alloc(ast::ReferTy {
+            id,
+            span: self.new_span(start),
+            name,
+            ty_args: None,
+        });
+        self.alloc(ast::Ty {
+            kind: ast::TyKind::Refer(ty),
+        })
+    }
+
     pub(super) fn parse_index_sig_decl(
         &mut self,
         id: ast::NodeID,
         start: usize,
-        modifiers: Option<&'p ast::Modifiers<'p>>,
-    ) -> PResult<&'p ast::IndexSigDecl<'p>> {
+        modifiers: Option<&'cx ast::Modifiers<'cx>>,
+    ) -> PResult<&'cx ast::IndexSigDecl<'cx>> {
         let params = self.parse_bracketed_list(
             list_ctx::Params,
             TokenKind::LBracket,
             Self::parse_param,
             TokenKind::RBracket,
         )?;
-        let Some(ty) = self.parse_ty_anno()? else {
-            todo!("error handler")
+        let ty = match self.parse_ty_anno()? {
+            Some(ty) => ty,
+            None => {
+                let lo = self.token.span.lo;
+                let span = Span::new(lo, lo, self.module_id);
+                let error = errors::AnIndexSignatureMustHaveATypeAnnotation { span };
+                self.push_error(Box::new(error));
+                self.create_missing_ty()
+            }
         };
         self.parse_ty_member_semi();
         let sig = self.alloc(ast::IndexSigDecl {

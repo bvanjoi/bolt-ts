@@ -6,12 +6,23 @@ mod utils;
 
 use crate::ast;
 use bolt_ts_atom::AtomMap;
+use bolt_ts_utils::fx_hashset_with_capacity;
+use rustc_hash::FxHashSet;
 
-struct PPrint(String);
+struct PPrint {
+    content: String,
+    indent: u32,
+}
 
 impl PPrint {
+    pub fn new(input_len: usize) -> Self {
+        PPrint {
+            content: String::with_capacity(input_len * 2),
+            indent: 0,
+        }
+    }
     fn p(&mut self, content: &str) {
-        self.0 += content
+        self.content += content
     }
     fn p_asterisk(&mut self) {
         self.p("*");
@@ -27,6 +38,7 @@ impl PPrint {
     }
     fn p_newline(&mut self) {
         self.p("\n");
+        self.p_pieces_of_whitespace(self.indent);
     }
     fn p_eq(&mut self) {
         self.p("=");
@@ -78,30 +90,40 @@ pub struct EmitterOptions {
     indent: u32,
 }
 
-struct EmitterState {
-    indent: u32,
+bolt_ts_utils::index! {
+    ScopeID
 }
 
 pub struct Emit<'cx> {
     pub atoms: &'cx AtomMap<'cx>,
     content: PPrint,
     options: EmitterOptions,
-    state: EmitterState,
+    ns_names: FxHashSet<(ScopeID, bolt_ts_atom::AtomId)>,
+    scope: ScopeID,
+    max_scope: ScopeID,
 }
 
 impl<'cx> Emit<'cx> {
-    pub fn new(atoms: &'cx AtomMap) -> Self {
+    fn next_scope(&mut self) -> ScopeID {
+        let scope = self.max_scope;
+        self.max_scope = self.max_scope.next();
+        scope
+    }
+
+    pub fn new(atoms: &'cx AtomMap, input_len: usize) -> Self {
         Self {
             atoms,
-            content: PPrint(String::with_capacity(1024 * 128)),
+            content: PPrint::new(input_len),
             options: EmitterOptions { indent: 2 },
-            state: EmitterState { indent: 0 },
+            ns_names: fx_hashset_with_capacity(256),
+            scope: ScopeID::root(),
+            max_scope: ScopeID::root(),
         }
     }
 
     pub fn emit(&mut self, root: &'cx ast::Program) -> String {
         self.emit_program(root);
-        std::mem::take(&mut self.content.0)
+        std::mem::take(&mut self.content.content)
     }
 
     fn emit_program(&mut self, p: &'cx ast::Program) {
@@ -124,5 +146,17 @@ impl<'cx> Emit<'cx> {
 
     fn emit_ident(&mut self, ident: &ast::Ident) {
         self.content.p(self.atoms.get(ident.name));
+    }
+
+    fn emit_entity_name(&mut self, name: &ast::EntityName) {
+        use ast::EntityNameKind::*;
+        match name.kind {
+            Ident(n) => self.emit_ident(n),
+            Qualified(n) => {
+                self.emit_entity_name(n.left);
+                self.content.p_dot();
+                self.emit_ident(n.right);
+            }
+        };
     }
 }

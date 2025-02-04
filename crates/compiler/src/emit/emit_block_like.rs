@@ -16,19 +16,18 @@ pub(super) trait BlockLike<'cx> {
     fn elems(&self) -> &Self::Elems;
 }
 
-impl<'cx> ElemLike<'cx> for ast::ClassEle<'cx> {
+impl<'cx> ElemLike<'cx> for ast::ClassElem<'cx> {
     fn emit_item(&self, emitter: &mut Emit<'cx>) {
         emitter.emit_class_ele(self);
     }
     fn emit_sep(&self, emitter: &mut Emit<'cx>) {
         if !matches!(self.kind, ast::ClassEleKind::IndexSig(_)) {
             emitter.content.p_newline();
-            emitter.content.p_pieces_of_whitespace(emitter.state.indent);
         }
     }
 }
-impl<'cx> ElemsLike<'cx> for &'cx [&'cx ast::ClassEle<'cx>] {
-    type Elem = ast::ClassEle<'cx>;
+impl<'cx> ElemsLike<'cx> for &'cx [&'cx ast::ClassElem<'cx>] {
+    type Elem = ast::ClassElem<'cx>;
     fn is_empty(&self) -> bool {
         self.len() == 0
     }
@@ -38,7 +37,7 @@ impl<'cx> ElemsLike<'cx> for &'cx [&'cx ast::ClassEle<'cx>] {
 }
 
 impl<'cx> BlockLike<'cx> for ast::ClassElems<'cx> {
-    type Elems = &'cx [&'cx ast::ClassEle<'cx>];
+    type Elems = &'cx [&'cx ast::ClassElem<'cx>];
 
     fn elems(&self) -> &Self::Elems {
         &self.elems
@@ -51,7 +50,6 @@ impl<'cx> ElemLike<'cx> for ast::Stmt<'cx> {
     }
     fn emit_sep(&self, emitter: &mut Emit<'cx>) {
         emitter.content.p_newline();
-        emitter.content.p_pieces_of_whitespace(emitter.state.indent);
     }
 }
 impl<'cx> ElemsLike<'cx> for ast::Stmts<'cx> {
@@ -76,9 +74,8 @@ impl<'cx> Emit<'cx> {
     pub(super) fn emit_block_like(&mut self, block: &impl BlockLike<'cx>) {
         self.content.p_l_brace();
         if !block.elems().is_empty() {
+            self.content.indent += self.options.indent;
             self.content.p_newline();
-            self.state.indent += self.options.indent;
-            self.content.p_pieces_of_whitespace(self.state.indent);
         }
         self.emit_list(
             block.elems().elems(),
@@ -86,8 +83,7 @@ impl<'cx> Emit<'cx> {
             |this, elem| elem.emit_sep(this),
         );
         if !block.elems().is_empty() {
-            self.state.indent -= self.options.indent;
-            self.content.p_pieces_of_whitespace(self.state.indent);
+            self.content.indent -= self.options.indent;
             self.content.p_newline();
         }
         self.content.p_r_brace();

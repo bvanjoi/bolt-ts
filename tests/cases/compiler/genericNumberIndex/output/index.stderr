@@ -1,0 +1,23 @@
+  × Type 'I' cannot be used to index type '["a"]'.
+   ╭─[../../tests/cases/compiler/genericNumberIndex/index.ts:5:28]
+ 5 │ ['a'][I]
+   · ────────
+   ╰────
+
+  × Type 'G' cannot be used to index type '["a"]'.
+   ╭─[../../tests/cases/compiler/genericNumberIndex/index.ts:8:28]
+ 8 │ ['a'][G]
+   · ────────
+   ╰────
+
+  × Type '"123"' cannot be used to index type 'T'.
+    ╭─[../../tests/cases/compiler/genericNumberIndex/index.ts:11:27]
+ 11 │ T['123']
+    · ────────
+    ╰────
+
+  × Type '"456"' cannot be used to index type 'T'.
+    ╭─[../../tests/cases/compiler/genericNumberIndex/index.ts:11:38]
+ 11 │ T['456']
+    · ────────
+    ╰────

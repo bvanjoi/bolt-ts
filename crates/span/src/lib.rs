@@ -1,4 +1,5 @@
 use std::sync::Arc;
+use std::u32;
 
 use bolt_ts_atom::AtomId;
 use bolt_ts_fs::CachedFileSystem;
@@ -6,12 +7,13 @@ use bolt_ts_fs::CachedFileSystem;
 bolt_ts_utils::index!(ModuleID);
 
 impl ModuleID {
-    pub const MOCK: ModuleID = ModuleID(u32::MAX);
+    pub const TRANSIENT: ModuleID = ModuleID(u32::MAX);
+    pub const DEFAULT: ModuleID = ModuleID(u32::MAX - 1);
 }
 
 impl Default for ModuleID {
     fn default() -> Self {
-        Self::MOCK
+        Self::DEFAULT
     }
 }
 
@@ -37,7 +39,7 @@ impl From<Span> for miette::SourceSpan {
 
 impl std::fmt::Display for Span {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}-{}", self.lo, self.hi)
+        write!(f, "{}:{}:{}", self.module.as_u32(), self.lo, self.hi)
     }
 }
 
@@ -59,6 +61,7 @@ pub struct ModuleArena {
 }
 
 impl ModuleArena {
+    #[allow(clippy::new_without_default)]
     pub fn new() -> Self {
         let cap = 1024 * 8;
         Self {

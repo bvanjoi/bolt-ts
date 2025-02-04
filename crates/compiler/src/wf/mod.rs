@@ -3,7 +3,7 @@ mod errors;
 use bolt_ts_atom::AtomMap;
 use bolt_ts_span::ModuleID;
 
-use crate::ast::{self, visitor};
+use crate::ast::{self, pprint_ident, visitor};
 use crate::ir;
 use crate::keyword::is_reserved_type_name;
 use crate::parser::Parser;
@@ -54,7 +54,7 @@ impl<'cx> CheckState<'cx> {
         if self.p.node(node).is_class_like() && is_reserved_type_name(name.name) {
             let error = errors::ClassNameCannotBe {
                 span: name.span,
-                name: self.atoms.get(name.name).to_string(),
+                name: pprint_ident(name, self.atoms),
             };
             self.push_error(Box::new(error));
         }
@@ -64,11 +64,42 @@ impl<'cx> CheckState<'cx> {
             self.check_collisions_for_decl_name(class.id(), name);
         };
     }
+    fn check_grammar_modifiers(&mut self, node: ast::NodeID) {
+        let n = self.p.node(node);
+        let Some(modifiers) = n.modifiers() else {
+            return;
+        };
+        for modifier in modifiers.list {
+            use ast::ModifierKind::*;
+            if modifier.kind == Abstract {
+                let parent = self.p.parent(node).unwrap();
+                let parent_node = self.p.node(parent);
+                if !(parent_node.is_class_decl()
+                    && parent_node.has_syntactic_modifier(ast::ModifierKind::Abstract.into()))
+                {
+                    let error = if n.is_class_prop_ele() {
+                        todo!()
+                    } else {
+                        errors::AbstractMethodsCanOnlyAppearWithinAnAbstractClass {
+                            span: modifier.span,
+                        }
+                    };
+                    self.push_error(Box::new(error));
+                    return;
+                }
+            }
+        }
+    }
 }
 
 impl<'cx> ast::Visitor<'cx> for CheckState<'cx> {
     fn visit_class_decl(&mut self, class: &'cx ast::ClassDecl<'cx>) {
         self.check_class_like(class);
         visitor::visit_class_decl(self, class);
+    }
+
+    fn visit_class_method_elem(&mut self, node: &'cx ast::ClassMethodElem<'cx>) {
+        self.check_grammar_modifiers(node.id);
+        visitor::visit_class_method_elem(self, node);
     }
 }

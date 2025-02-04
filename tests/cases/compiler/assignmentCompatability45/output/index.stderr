@@ -1,0 +1,5 @@
+  × Type 'typeof B' is not assignable to type 'typeof A'.
+   ╭─[../../tests/cases/compiler/assignmentCompatability45/index.ts:9:7]
+ 9 │ b
+   · ─
+   ╰────

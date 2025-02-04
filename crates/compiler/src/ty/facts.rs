@@ -332,7 +332,7 @@ pub const TYPEOF_NE_FACTS: [(AtomId, TypeFacts); 8] = [
     (keyword::IDENT_BIGINT, TypeFacts::TYPEOF_NE_BIGINT),
     (keyword::IDENT_BOOLEAN, TypeFacts::TYPEOF_NE_BOOLEAN),
     (keyword::IDENT_SYMBOL, TypeFacts::TYPEOF_NE_SYMBOL),
-    (keyword::IDENT_UNDEFINED, TypeFacts::NE_UNDEFINED),
+    (keyword::KW_UNDEFINED, TypeFacts::NE_UNDEFINED),
     (keyword::IDENT_OBJECT, TypeFacts::TYPEOF_NE_OBJECT),
     (keyword::KW_FUNCTION, TypeFacts::TYPEOF_NE_FUNCTION),
 ];

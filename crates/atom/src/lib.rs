@@ -1,5 +1,5 @@
+use bolt_ts_utils::fx_hashmap_with_capacity;
 pub use paste;
-use rustc_hash::FxHashMap;
 use std::borrow::Cow;
 
 #[derive(Debug, PartialEq, Eq, Hash, Clone, Copy)]
@@ -17,11 +17,11 @@ impl AtomId {
 }
 
 #[derive(Debug)]
-pub struct AtomMap<'a>(FxHashMap<AtomId, Cow<'a, str>>);
+pub struct AtomMap<'a>(rustc_hash::FxHashMap<AtomId, Cow<'a, str>>);
 
 impl<'a> AtomMap<'a> {
     pub fn new(capacity: usize) -> Self {
-        let map = bolt_ts_utils::fx_hashmap_with_capacity(capacity);
+        let map = fx_hashmap_with_capacity(capacity);
         Self(map)
     }
 

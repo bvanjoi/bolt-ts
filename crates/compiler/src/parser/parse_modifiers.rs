@@ -2,7 +2,7 @@ use super::token::TokenKind;
 use super::{PResult, ParserState};
 use crate::ast;
 
-impl<'cx, 'p> ParserState<'cx, 'p> {
+impl<'cx> ParserState<'cx, '_> {
     fn can_follow_modifier(&self) -> bool {
         let t = self.token.kind;
         use TokenKind::*;
@@ -35,7 +35,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
 
     fn next_token_can_follow_export_modifier(&mut self) -> bool {
         self.next_token();
-        return self.can_follow_export_modifier();
+        self.can_follow_export_modifier()
     }
 
     pub(super) fn next_token_can_follow_modifier(&mut self) -> bool {

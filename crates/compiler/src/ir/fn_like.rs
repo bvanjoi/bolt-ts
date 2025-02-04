@@ -1,3 +1,5 @@
+use bolt_ts_atom::AtomId;
+
 use crate::ast;
 
 pub trait FnLike<'cx>: Copy + std::fmt::Debug {
@@ -18,7 +20,7 @@ impl<'cx> FnLike<'cx> for ast::FnDecl<'cx> {
     }
 }
 
-impl<'cx> FnLike<'cx> for ast::ClassMethodEle<'cx> {
+impl<'cx> FnLike<'cx> for ast::ClassMethodElem<'cx> {
     fn id(&self) -> ast::NodeID {
         self.id
     }
@@ -90,7 +92,31 @@ impl<'cx> FnLike<'cx> for ast::MethodSignature<'cx> {
     }
 }
 
+impl<'cx> FnLike<'cx> for ast::ObjectMethodMember<'cx> {
+    fn id(&self) -> ast::NodeID {
+        self.id
+    }
+    fn params(&self) -> ast::ParamsDecl<'cx> {
+        self.params
+    }
+    fn body(&self) -> Option<ast::ArrowFnExprBody<'cx>> {
+        Some(ast::ArrowFnExprBody::Block(self.body))
+    }
+}
+
 impl<'cx> FnLike<'cx> for ast::CallSigDecl<'cx> {
+    fn id(&self) -> ast::NodeID {
+        self.id
+    }
+    fn params(&self) -> ast::ParamsDecl<'cx> {
+        self.params
+    }
+    fn body(&self) -> Option<ast::ArrowFnExprBody<'cx>> {
+        None
+    }
+}
+
+impl<'cx> FnLike<'cx> for ast::CtorTy<'cx> {
     fn id(&self) -> ast::NodeID {
         self.id
     }
@@ -112,7 +138,7 @@ impl<'cx> FnDeclLike<'cx> for ast::FnDecl<'cx> {
     }
 }
 
-impl<'cx> FnDeclLike<'cx> for ast::ClassMethodEle<'cx> {
+impl<'cx> FnDeclLike<'cx> for ast::ClassMethodElem<'cx> {
     fn body(&self) -> Option<&'cx ast::BlockStmt<'cx>> {
         self.body
     }
@@ -125,6 +151,12 @@ impl<'cx> FnDeclLike<'cx> for ast::ClassCtor<'cx> {
 }
 
 impl<'cx> FnDeclLike<'cx> for ast::CtorSigDecl<'cx> {
+    fn body(&self) -> Option<&'cx ast::BlockStmt<'cx>> {
+        None
+    }
+}
+
+impl<'cx> FnDeclLike<'cx> for ast::CtorTy<'cx> {
     fn body(&self) -> Option<&'cx ast::BlockStmt<'cx>> {
         None
     }
@@ -143,14 +175,21 @@ impl<'cx> FnDeclLike<'cx> for ast::CallSigDecl<'cx> {
 }
 
 pub trait FnExprLike<'cx>: FnLike<'cx> {
+    fn name(&self) -> Option<AtomId>;
     fn body(&self) -> ast::ArrowFnExprBody<'cx>;
 }
 impl<'cx> FnExprLike<'cx> for ast::FnExpr<'cx> {
+    fn name(&self) -> Option<AtomId> {
+        self.name.map(|name| name.name)
+    }
     fn body(&self) -> ast::ArrowFnExprBody<'cx> {
         ast::ArrowFnExprBody::Block(self.body)
     }
 }
 impl<'cx> FnExprLike<'cx> for ast::ArrowFnExpr<'cx> {
+    fn name(&self) -> Option<AtomId> {
+        None
+    }
     fn body(&self) -> ast::ArrowFnExprBody<'cx> {
         self.body
     }

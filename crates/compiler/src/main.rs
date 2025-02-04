@@ -40,8 +40,8 @@ fn main() {
 fn main_test() {
     compile_test::ensure_node_exist();
     let cwd = env::current_dir().unwrap();
-    let project_root = project_root::get_project_root().unwrap();
-    let p = project_root.join("tests/cases/compiler/innerFunc/index.ts");
+    let project_root: PathBuf = project_root::get_project_root().unwrap();
+    let p = project_root.join("tests/cases/compiler/fest/index.ts");
     let tsconfig = RawTsConfig::default().with_include(vec![p.to_str().unwrap().to_string()]);
     let output = eval_from(cwd, tsconfig.normalize());
     if output.diags.is_empty() {

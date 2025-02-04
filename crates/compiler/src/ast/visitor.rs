@@ -27,12 +27,30 @@ pub fn visit_stmt<'cx>(v: &mut impl Visitor<'cx>, stmt: &'cx super::Stmt) {
         ForIn(_) => (),
         Break(_) => (),
         Continue(_) => {}
+        Try(_) => {}
+        While(_) => {}
+        Do(_) => {}
     }
 }
 
-pub fn visit_class_decl<'cx>(v: &mut impl Visitor<'cx>, class: &'cx super::ClassDecl<'cx>) {}
+pub fn visit_class_decl<'cx>(v: &mut impl Visitor<'cx>, class: &'cx super::ClassDecl<'cx>) {
+    for ele in class.elems.elems {
+        v.visit_class_elem(ele);
+    }
+}
 
 pub fn visit_import_decl<'cx>(v: &mut impl Visitor<'cx>, import_decl: &'cx super::ImportDecl<'cx>) {
+}
+
+pub fn visit_class_elem<'cx>(v: &mut impl Visitor<'cx>, elem: &'cx super::ClassElem<'cx>) {
+    use super::ClassEleKind::*;
+    if let Method(n) = elem.kind { v.visit_class_method_elem(n) }
+}
+
+pub fn visit_class_method_elem<'cx>(
+    v: &mut impl Visitor<'cx>,
+    method: &'cx super::ClassMethodElem<'cx>,
+) {
 }
 
 macro_rules! make_visitor {
@@ -52,4 +70,6 @@ make_visitor!(
     (visit_stmt, &'cx super::Stmt<'cx>),
     (visit_import_decl, &'cx super::ImportDecl<'cx>),
     (visit_class_decl, &'cx super::ClassDecl<'cx>),
+    (visit_class_elem, &'cx super::ClassElem<'cx>),
+    (visit_class_method_elem, &'cx super::ClassMethodElem<'cx>),
 );

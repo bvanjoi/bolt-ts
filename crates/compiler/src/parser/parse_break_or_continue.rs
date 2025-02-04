@@ -65,7 +65,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         let id = self.next_node_id();
         let start = self.token.start();
 
-        self.expect(kind.expect_token())?;
+        self.expect(kind.expect_token());
 
         let label = if self.can_parse_semi() {
             None

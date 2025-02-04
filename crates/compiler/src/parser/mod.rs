@@ -24,6 +24,7 @@ use bolt_ts_utils::fx_hashmap_with_capacity;
 use rayon::prelude::*;
 use rustc_hash::FxHashMap;
 
+pub use self::query::AccessKind;
 pub use self::query::AssignmentKind;
 pub use self::token::KEYWORD_TOKEN_START;
 use self::token::{Token, TokenFlags, TokenKind};
@@ -41,6 +42,12 @@ enum Tristate {
 
 #[derive(Debug)]
 pub struct Nodes<'cx>(FxHashMap<u32, Node<'cx>>);
+
+impl Default for Nodes<'_> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 
 impl<'cx> Nodes<'cx> {
     pub fn new() -> Self {
@@ -102,30 +109,36 @@ impl<'cx> ParseResult<'cx> {
 }
 
 pub struct Parser<'cx> {
-    map: FxHashMap<ModuleID, ParseResult<'cx>>,
+    map: Vec<ParseResult<'cx>>,
+}
+
+impl Default for Parser<'_> {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl<'cx> Parser<'cx> {
     pub fn new() -> Self {
         Self {
-            map: Default::default(),
+            map: Vec::with_capacity(2048),
         }
     }
 
     #[inline(always)]
     pub fn insert(&mut self, id: ModuleID, result: ParseResult<'cx>) {
-        let prev = self.map.insert(id, result);
-        assert!(prev.is_none());
+        assert_eq!(id.as_usize(), self.map.len());
+        self.map.push(result);
     }
 
     #[inline(always)]
     fn get(&self, id: ModuleID) -> &ParseResult<'cx> {
-        self.map.get(&id).unwrap()
+        &self.map[id.as_usize()]
     }
 
     pub fn steal_errors(&mut self) -> Vec<bolt_ts_errors::Diag> {
         self.map
-            .values_mut()
+            .iter_mut()
             .flat_map(|result| std::mem::take(&mut result.diags))
             .collect()
     }
@@ -171,7 +184,7 @@ pub fn parse_parallel<'cx, 'p>(
         move |bump, module_id| {
             let input = module_arena.get_content(*module_id);
             let result = parse(atoms.clone(), bump, input.as_bytes(), *module_id);
-            assert!(!module_arena.get_module(*module_id).global || result.diags.is_empty());
+            // assert!(!module_arena.get_module(*module_id).global || result.diags.is_empty());
             (*module_id, result)
         },
     )
@@ -199,6 +212,7 @@ struct ParserState<'cx, 'p> {
     input: &'p [u8],
     token: Token,
     token_value: Option<TokenValue>,
+    string_key_value: Option<AtomId>,
     token_flags: TokenFlags,
     full_start_pos: usize,
     pos: usize,
@@ -230,6 +244,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
             input,
             token,
             token_value: None,
+            string_key_value: None,
             pos: 0,
             full_start_pos: 0,
             atoms,
@@ -279,9 +294,9 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         ele: impl Fn(&mut Self) -> PResult<T>,
         close: TokenKind,
     ) -> PResult<&'cx [T]> {
-        if self.expect(open).is_ok() {
+        if self.expect(open) {
             let elems = self.parse_delimited_list(ctx, ele);
-            self.expect(close)?;
+            self.expect(close);
             Ok(elems)
         } else {
             Ok(&[])
@@ -311,32 +326,41 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         self.alloc(list)
     }
 
+    fn abort_parsing_list_or_move_to_next_token(
+        &mut self,
+        ctx: impl list_ctx::ListContext,
+    ) -> bool {
+        ctx.parsing_context_errors(self);
+        // TODO: is_in_some_parsing_context
+        self.next_token();
+        false
+    }
+
     fn parse_delimited_list<T>(
         &mut self,
         ctx: impl list_ctx::ListContext,
         ele: impl Fn(&mut Self) -> PResult<T>,
     ) -> &'cx [T] {
-        let mut list = vec![];
+        let mut list = Vec::with_capacity(8);
         loop {
             if ctx.is_ele(self, false) {
                 let Ok(ele) = ele(self) else {
                     break;
                 };
                 list.push(ele);
+                if self.parse_optional(TokenKind::Comma).is_some() {
+                    continue;
+                }
                 if self.is_list_terminator(ctx) {
                     break;
                 }
-                if self.parse_optional(TokenKind::Comma).is_some() {
-                    continue;
-                } else {
-                    let error = errors::ExpectX {
-                        span: self.token.span,
-                        x: ",".to_string(),
-                    };
-                    self.push_error(Box::new(error));
-                }
+
+                self.expect(TokenKind::Comma);
+                continue;
             }
             if self.is_list_terminator(ctx) {
+                break;
+            } else if self.abort_parsing_list_or_move_to_next_token(ctx) {
                 break;
             }
         }
@@ -373,21 +397,21 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         self.token_value.unwrap().number()
     }
 
+    fn create_ident_by_atom(&mut self, name: AtomId, span: Span) -> &'cx ast::Ident {
+        self.ident_count += 1;
+        let id = self.next_node_id();
+        let ident = self.alloc(ast::Ident { id, name, span });
+        self.insert_map(id, Node::Ident(ident));
+        ident
+    }
+
     fn create_ident(
         &mut self,
         is_ident: bool,
         missing_ident_kind: Option<errors::MissingIdentKind>,
     ) -> &'cx ast::Ident {
-        let ident = |this: &mut Self, name: AtomId| {
-            this.ident_count += 1;
-            let id = this.next_node_id();
-            let span = this.token.span;
-            let ident = this.alloc(ast::Ident { id, name, span });
-            this.insert_map(id, Node::Ident(ident));
-            ident
-        };
         if is_ident {
-            let res = ident(self, self.ident_token());
+            let res = self.create_ident_by_atom(self.ident_token(), self.token.span);
             self.next_token();
             res
         } else if self.token.kind == TokenKind::Private {
@@ -397,7 +421,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
             let kind = missing_ident_kind.unwrap_or(errors::MissingIdentKind::IdentifierExpected);
             let error = errors::MissingIdent { span, kind };
             self.push_error(Box::new(error));
-            ident(self, keyword::IDENT_EMPTY)
+            self.create_ident_by_atom(keyword::IDENT_EMPTY, self.token.span)
         }
     }
 
@@ -419,12 +443,17 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         }
     }
 
-    fn expect(&mut self, t: TokenKind) -> PResult<()> {
+    fn expect(&mut self, t: TokenKind) -> bool {
         if self.token.kind == t {
             self.next_token();
-            Ok(())
+            true
         } else {
-            Err(())
+            let error = errors::ExpectX {
+                span: self.token.span,
+                x: t.as_str().to_string(),
+            };
+            self.push_error(Box::new(error));
+            false
         }
     }
 
@@ -433,9 +462,9 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         self.alloc(ast::Lit { id, val, span })
     }
 
-    fn create_lit_ty<T>(&mut self, val: T, span: Span) -> &'cx ast::LitTy<T> {
+    fn create_lit_ty(&mut self, kind: ast::LitTyKind, span: Span) -> &'cx ast::LitTy {
         let id = self.next_node_id();
-        self.alloc(ast::LitTy { id, val, span })
+        self.alloc(ast::LitTy { id, kind, span })
     }
 
     #[inline]
@@ -484,6 +513,14 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         } else {
             self.context_flags &= !flag;
         }
+    }
+
+    fn disallow_in_and<T>(&mut self, f: impl FnOnce(&mut Self) -> T) -> T {
+        self.do_inside_of_context(NodeFlags::DISALLOW_IN_CONTEXT, f)
+    }
+
+    fn allow_in_and<T>(&mut self, f: impl FnOnce(&mut Self) -> T) -> T {
+        self.do_outside_of_context(NodeFlags::DISALLOW_IN_CONTEXT, f)
     }
 
     fn do_outside_of_context<T>(

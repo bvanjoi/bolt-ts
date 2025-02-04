@@ -31,11 +31,13 @@ impl Expr<'_> {
             Assign(assign) => assign.span,
             ArrowFn(f) => f.span,
             PrefixUnary(unary) => unary.span,
+            PostfixUnary(unary) => unary.span,
             PropAccess(a) => a.span,
             EleAccess(a) => a.span,
             This(this) => this.span,
             Typeof(n) => n.span,
             Super(n) => n.span,
+            Void(n) => n.span,
         }
     }
 
@@ -60,11 +62,13 @@ impl Expr<'_> {
             Assign(assign) => assign.id,
             ArrowFn(f) => f.id,
             PrefixUnary(unary) => unary.id,
+            PostfixUnary(unary) => unary.id,
             PropAccess(a) => a.id,
             EleAccess(a) => a.id,
             This(this) => this.id,
             Typeof(n) => n.id,
             Super(n) => n.id,
+            Void(n) => n.id,
         }
     }
 }
@@ -90,10 +94,19 @@ pub enum ExprKind<'cx> {
     New(&'cx NewExpr<'cx>),
     ArrowFn(&'cx ArrowFnExpr<'cx>),
     PrefixUnary(&'cx PrefixUnaryExpr<'cx>),
+    PostfixUnary(&'cx PostfixUnaryExpr<'cx>),
     PropAccess(&'cx PropAccessExpr<'cx>),
     EleAccess(&'cx EleAccessExpr<'cx>),
-    Typeof(&'cx TypeofExpr<'cx>),
     Super(&'cx SuperExpr),
+    Typeof(&'cx TypeofExpr<'cx>),
+    Void(&'cx VoidExpr<'cx>),
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct VoidExpr<'cx> {
+    pub id: NodeID,
+    pub span: Span,
+    pub expr: &'cx Expr<'cx>,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -137,6 +150,8 @@ pub enum PrefixUnaryOp {
     Minus,
     PlusPlus,
     MinusMinus,
+    Tilde,
+    Excl,
 }
 
 impl PrefixUnaryOp {
@@ -147,6 +162,8 @@ impl PrefixUnaryOp {
             Minus => "-",
             PlusPlus => "++",
             MinusMinus => "--",
+            Tilde => "~",
+            Excl => "!",
         }
     }
 }
@@ -156,6 +173,30 @@ pub struct PrefixUnaryExpr<'cx> {
     pub id: NodeID,
     pub span: Span,
     pub op: PrefixUnaryOp,
+    pub expr: &'cx Expr<'cx>,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub enum PostfixUnaryOp {
+    PlusPlus,
+    MinusMinus,
+}
+
+impl PostfixUnaryOp {
+    pub fn as_str(self) -> &'static str {
+        use PostfixUnaryOp::*;
+        match self {
+            PlusPlus => "++",
+            MinusMinus => "--",
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct PostfixUnaryExpr<'cx> {
+    pub id: NodeID,
+    pub span: Span,
+    pub op: PostfixUnaryOp,
     pub expr: &'cx Expr<'cx>,
 }
 
@@ -175,7 +216,7 @@ pub struct ArrowFnExpr<'cx> {
     pub body: ArrowFnExprBody<'cx>,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub enum AssignOp {
     Eq,
     AddEq,
@@ -363,7 +404,7 @@ pub type StringLit = Lit<AtomId>;
 pub struct VarDecl<'cx> {
     pub id: NodeID,
     pub span: Span,
-    pub binding: &'cx Ident,
+    pub binding: &'cx Binding<'cx>,
     pub ty: Option<&'cx self::Ty<'cx>>,
     pub init: Option<&'cx Expr<'cx>>,
 }

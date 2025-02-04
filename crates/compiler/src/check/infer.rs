@@ -1,16 +1,17 @@
 use crate::ir;
-use crate::ty::{self, SigKind, TyMapper};
+use crate::ty::{self, SigKind, TypeFlags};
 use crate::{ast, ty::Sig};
 
+use super::create_ty::IntersectionFlags;
 use super::get_contextual::ContextFlags;
-use super::utils::append_if_unique;
+use super::utils::{append_if_unique, SameMapperResult};
 use super::{CheckMode, InferenceContextId, TyChecker};
 
-use thin_vec::thin_vec;
+use thin_vec::{thin_vec, ThinVec};
 
 #[derive(Debug, Clone)]
 pub struct InferenceInfo<'cx> {
-    pub ty_params: &'cx ty::Ty<'cx>,
+    pub ty_param: &'cx ty::Ty<'cx>,
     pub candidates: Option<thin_vec::ThinVec<&'cx ty::Ty<'cx>>>,
     pub contra_candidates: Option<thin_vec::ThinVec<&'cx ty::Ty<'cx>>>,
     pub is_fixed: bool,
@@ -20,9 +21,9 @@ pub struct InferenceInfo<'cx> {
 }
 
 impl<'cx> InferenceInfo<'cx> {
-    fn create(ty_params: &'cx ty::Ty<'cx>) -> Self {
+    fn create(ty_param: &'cx ty::Ty<'cx>) -> Self {
         Self {
-            ty_params,
+            ty_param,
             candidates: None,
             contra_candidates: None,
             is_fixed: false,
@@ -67,7 +68,6 @@ bitflags::bitflags! {
   }
 }
 
-#[derive(Debug, Clone)]
 pub struct InferenceContext<'cx> {
     pub inferences: thin_vec::ThinVec<InferenceInfo<'cx>>,
     pub sig: Option<&'cx ty::Sig<'cx>>,
@@ -116,46 +116,46 @@ impl<'cx> TyChecker<'cx> {
     pub(crate) fn create_inference_fixing_mapper(
         &mut self,
         id: InferenceContextId,
-    ) -> &'cx TyMapper<'cx> {
+    ) -> &'cx dyn ty::TyMap<'cx> {
         let sources = self
             .inference(id)
             .inferences
             .iter()
-            .map(|i| i.ty_params)
+            .map(|i| i.ty_param)
             .collect::<Vec<_>>();
         let sources = self.alloc(sources);
-        let target = (0..self.inference(id).inferences.len())
+        let targets = (0..self.inference(id).inferences.len())
             .map(|idx| {
                 // TODO: handle `!is_fixed`
                 self.get_inferred_ty(id, idx)
             })
             .collect::<Vec<_>>();
-        let target = self.alloc(target);
-        self.alloc(TyMapper::create(sources, target))
+        let targets = self.alloc(targets);
+        self.create_ty_mapper(sources, targets)
     }
 
     pub(crate) fn create_inference_non_fixing_mapper(
         &mut self,
         id: InferenceContextId,
-    ) -> &'cx TyMapper<'cx> {
+    ) -> &'cx dyn ty::TyMap<'cx> {
         let sources = self
             .inference(id)
             .inferences
             .iter()
-            .map(|i| i.ty_params)
+            .map(|i| i.ty_param)
             .collect::<Vec<_>>();
         let sources = self.alloc(sources);
-        let target = (0..self.inference(id).inferences.len())
+        let targets = (0..self.inference(id).inferences.len())
             .map(|idx| self.get_inferred_ty(id, idx))
             .collect::<Vec<_>>();
-        let target = self.alloc(target);
-        self.alloc(TyMapper::create(sources, target))
+        let targets = self.alloc(targets);
+        self.create_ty_mapper(sources, targets)
     }
 
     pub(crate) fn create_inference_ret_mapper(
         &mut self,
         inference: InferenceContextId,
-    ) -> Option<&'cx TyMapper<'cx>> {
+    ) -> Option<&'cx dyn ty::TyMap<'cx>> {
         self.inference(inference)
             .ret_mapper
             .map(|ret_mapper| self.create_inference_fixing_mapper(ret_mapper))
@@ -172,12 +172,19 @@ impl<'cx> TyChecker<'cx> {
         &self.inferences[id.as_usize()]
     }
 
-    pub(crate) fn inference_info(
-        &self,
+    fn inference_info(&self, inference: InferenceContextId, idx: usize) -> &InferenceInfo<'cx> {
+        &self.inference_infos(inference)[idx]
+    }
+
+    pub(crate) fn set_inferred_ty_of_inference_info(
+        &mut self,
         inference: InferenceContextId,
         idx: usize,
-    ) -> &InferenceInfo<'cx> {
-        &self.inference_infos(inference)[idx]
+        ty: &'cx ty::Ty<'cx>,
+    ) {
+        let cache = &mut self.inferences[inference.as_usize()].inferences[idx].inferred_ty;
+        assert!(cache.is_none());
+        *cache = Some(ty)
     }
 
     pub(super) fn inference_infos(&self, inference: InferenceContextId) -> &[InferenceInfo<'cx>] {
@@ -199,22 +206,165 @@ impl<'cx> TyChecker<'cx> {
         self.alloc(tys)
     }
 
+    fn is_ty_param_at_top_level_in_ret_top(
+        &mut self,
+        sig: &'cx ty::Sig<'cx>,
+        ty_param: &'cx ty::Ty<'cx>,
+    ) -> bool {
+        let ret_ty = self.get_ret_ty_of_sig(sig);
+        self.is_ty_param_at_top_level(ret_ty, ty_param, 0)
+    }
+
+    fn is_ty_param_at_top_level(
+        &mut self,
+        ty: &'cx ty::Ty<'cx>,
+        ty_param: &'cx ty::Ty<'cx>,
+        depth: u8,
+    ) -> bool {
+        if ty == ty_param {
+            true
+        } else if let Some(union) = ty.kind.as_union() {
+            union
+                .tys
+                .iter()
+                .any(|ty| self.is_ty_param_at_top_level(ty, ty_param, depth))
+        } else if depth >= 3 {
+            false
+        } else if let Some(cond) = ty.kind.as_cond_ty() {
+            // TODO:
+            false
+        } else {
+            false
+        }
+    }
+
+    fn get_covariant_inference(
+        &mut self,
+        inference: InferenceContextId,
+        idx: usize,
+        sig: &'cx ty::Sig<'cx>,
+    ) -> &'cx ty::Ty<'cx> {
+        let candidates = self
+            .inference_info(inference, idx)
+            .candidates
+            .as_ref()
+            .unwrap();
+        let candidates = if candidates.len() > 1 {
+            let (object_literals, mut non_object_literals): (ThinVec<_>, ThinVec<_>) = candidates
+                .into_iter()
+                .copied()
+                .partition(|c| c.is_object_or_array_literal());
+            if object_literals.is_empty() {
+                candidates.to_vec()
+            } else {
+                let lits = self.get_union_ty(&object_literals, ty::UnionReduction::Subtype);
+                non_object_literals.push(lits);
+                non_object_literals.into()
+            }
+        } else {
+            candidates.to_vec()
+        };
+
+        let has_primitive_constraint = {
+            let ty_param = self.inference_info(inference, idx).ty_param;
+            self.get_constraint_of_ty_param(ty_param)
+                .is_some_and(|constraint| {
+                    let flags = if constraint.flags.intersects(TypeFlags::CONDITIONAL) {
+                        todo!()
+                    } else {
+                        TypeFlags::PRIMITIVE
+                            | TypeFlags::INDEX
+                            | TypeFlags::TEMPLATE_LITERAL
+                            | TypeFlags::STRING_MAPPING
+                    };
+                    constraint.maybe_type_of_kind(flags)
+                })
+        };
+
+        let primitive_constraint = has_primitive_constraint;
+
+        let i = self.inference_info(inference, idx);
+
+        let widen_literal_tys = !primitive_constraint
+            && i.top_level
+            && (i.is_fixed || !self.is_ty_param_at_top_level_in_ret_top(sig, i.ty_param));
+
+        let base_candidates = if primitive_constraint {
+            candidates
+        } else if widen_literal_tys {
+            candidates
+                .iter()
+                .map(|c| self.get_widened_literal_ty(c))
+                .collect()
+        } else {
+            candidates
+        };
+
+        if base_candidates.len() == 1 {
+            self.get_widened_ty(base_candidates[0])
+        } else {
+            let ty = self.get_union_ty(&base_candidates, ty::UnionReduction::Lit);
+            self.get_widened_ty(ty)
+        }
+    }
+
+    pub(super) fn get_ty_with_this_arg(
+        &mut self,
+        ty: &'cx ty::Ty<'cx>,
+        this_arg: Option<&'cx ty::Ty<'cx>>,
+    ) -> &'cx ty::Ty<'cx> {
+        if let Some(i) = ty.kind.as_intersection() {
+            let tys = self.same_map(Some(i.tys), |this, ty, _| {
+                this.get_ty_with_this_arg(ty, this_arg)
+            });
+            match tys {
+                SameMapperResult::Old => ty,
+                SameMapperResult::New(tys) => {
+                    self.get_intersection_ty(tys, IntersectionFlags::None, None, None)
+                }
+            }
+        } else {
+            ty
+        }
+    }
+
     fn get_inferred_ty(&mut self, inference: InferenceContextId, idx: usize) -> &'cx ty::Ty<'cx> {
         let i = self.inference_info(inference, idx);
-        // TODO: cache
-        if let Some(sig) = self.get_inference_sig(inference) {
-            if let Some(candidates) = &i.candidates {
-                // TODO: use `get_covariant_inference`
-                self.create_union_type(candidates.to_vec(), ty::UnionReduction::Subtype)
+        if let Some(inferred_ty) = i.inferred_ty {
+            return inferred_ty;
+        }
+        let fallback_ty = None;
+        let inferred_ty = if let Some(sig) = self.get_inference_sig(inference) {
+            if i.candidates.is_some() {
+                Some(self.get_covariant_inference(inference, idx, sig))
             } else if let Some(tys) = &i.contra_candidates {
                 todo!()
             } else {
-                self.any_ty()
+                None
             }
         } else {
             self.get_ty_from_inference(inference, idx)
-                .unwrap_or(self.undefined_ty())
-        }
+        };
+
+        let i = self.inference_info(inference, idx);
+        let ty = if let Some(constraint) = self.get_constraint_of_ty_param(i.ty_param) {
+            // let mapper = self.create_inference_non_fixing_mapper(inference);
+            let instantiated_constraint = self.instantiate_ty(constraint, None);
+            if inferred_ty.map_or(true, |inferred_ty| {
+                let ty = self.get_ty_with_this_arg(instantiated_constraint, fallback_ty);
+                // TODO: more flexible compare types
+                !self.is_type_related_to(inferred_ty, ty, super::relation::RelationKind::Assignable)
+            }) {
+                instantiated_constraint
+            } else {
+                inferred_ty.unwrap_or(self.any_ty)
+            }
+        } else {
+            inferred_ty.unwrap_or(self.any_ty)
+        };
+
+        self.set_inferred_ty_of_inference_info(inference, idx, ty);
+        ty
     }
 
     pub(super) fn get_inference_sig(
@@ -233,7 +383,7 @@ impl<'cx> TyChecker<'cx> {
             self.inferences[inference.as_usize()]
                 .inferences
                 .iter()
-                .position(|i| i.ty_params == ty)
+                .position(|i| i.ty_param == ty)
         } else {
             None
         }
@@ -375,7 +525,7 @@ impl<'cx> TyChecker<'cx> {
         let mut state = InferenceState {
             priority,
             inference_priority: InferencePriority::MAX_VALUE,
-            checker: self,
+            c: self,
             inference,
             contravariant,
             bivariant: false,
@@ -433,7 +583,7 @@ impl<'cx> TyChecker<'cx> {
 struct InferenceState<'cx, 'checker> {
     priority: InferencePriority,
     inference_priority: InferencePriority,
-    checker: &'checker mut TyChecker<'cx>,
+    c: &'checker mut TyChecker<'cx>,
     inference: InferenceContextId,
     contravariant: bool,
     bivariant: bool,
@@ -442,7 +592,7 @@ struct InferenceState<'cx, 'checker> {
 
 impl<'cx> InferenceState<'cx, '_> {
     fn get_mut_inference(&mut self) -> &mut InferenceContext<'cx> {
-        &mut self.checker.inferences[self.inference.as_usize()]
+        &mut self.c.inferences[self.inference.as_usize()]
     }
 
     fn get_mut_inference_info(&mut self, idx: usize) -> &mut InferenceInfo<'cx> {
@@ -497,7 +647,7 @@ impl<'cx> InferenceState<'cx, '_> {
     }
 
     fn infer_from_tys(&mut self, source: &'cx ty::Ty<'cx>, target: &'cx ty::Ty<'cx>) {
-        if !self.checker.could_contain_ty_var(target) {
+        if !self.c.could_contain_ty_var(target) {
             return;
         }
 
@@ -520,11 +670,8 @@ impl<'cx> InferenceState<'cx, '_> {
         };
 
         if target.kind.is_type_variable() {
-            if let Some(idx) = self
-                .checker
-                .get_inference_info_for_ty(target, self.inference)
-            {
-                let info = self.checker.inference_info(self.inference, idx);
+            if let Some(idx) = self.c.get_inference_info_for_ty(target, self.inference) {
+                let info = self.c.inference_info(self.inference, idx);
                 if !info.is_fixed {
                     let candidate = self.propagation_ty.unwrap_or(source);
                     if info.priority.is_none() || self.priority < info.priority.unwrap() {
@@ -533,7 +680,7 @@ impl<'cx> InferenceState<'cx, '_> {
                         self.set_info_priority(idx, self.priority);
                         self.set_info_toplevel(idx);
                     }
-                    let info = self.checker.inference_info(self.inference, idx);
+                    let info = self.c.inference_info(self.inference, idx);
                     if Some(self.priority) == info.priority {
                         if self.contravariant && !self.bivariant {
                             if info
@@ -600,10 +747,12 @@ impl<'cx> InferenceState<'cx, '_> {
     }
 
     fn infer_from_object_tys(&mut self, source: &'cx ty::Ty<'cx>, target: &'cx ty::Ty<'cx>) {
-        if !self.checker.tys_definitely_unrelated(source, target) {
-            if source.kind.is_tuple() || source.kind.is_array(self.checker) {
-                target.kind.is_tuple();
-                if target.kind.is_array(self.checker) {
+        if !self.c.tys_definitely_unrelated(source, target) {
+            if source.kind.is_tuple() || source.kind.is_array(self.c) {
+                if target.kind.is_tuple() {
+                    // TODO:
+                }
+                if target.kind.is_array(self.c) {
                     self.infer_from_index_tys(source, target);
                     return;
                 }
@@ -616,10 +765,10 @@ impl<'cx> InferenceState<'cx, '_> {
 
     fn infer_from_index_tys(&mut self, source: &'cx ty::Ty<'cx>, target: &'cx ty::Ty<'cx>) {
         let new_priority = InferencePriority::empty();
-        let target_index_infos = self.checker.get_index_infos_of_ty(target);
+        let target_index_infos = self.c.get_index_infos_of_ty(target);
         for target_index_info in target_index_infos {
             if let Some(source_info) = self
-                .checker
+                .c
                 .get_applicable_index_info(source, target_index_info.key_ty)
             {
                 self.infer_with_priority(
@@ -660,7 +809,7 @@ impl<'cx> InferenceState<'cx, '_> {
                     .filter(|t| !matched.contains(t))
                     .copied()
                     .collect::<Vec<_>>();
-                self.checker.alloc(tys)
+                self.c.alloc(tys)
             }
         };
 
@@ -682,10 +831,10 @@ impl<'cx> InferenceState<'cx, '_> {
         target: &'cx ty::Ty<'cx>,
         kind: SigKind,
     ) {
-        let source_sigs = self.checker.get_sigs_of_ty(source, kind);
+        let source_sigs = self.c.get_signatures_of_type(source, kind);
         let source_len = source_sigs.len();
         if source_len > 0 {
-            let target_sigs = self.checker.get_sigs_of_ty(target, kind);
+            let target_sigs = self.c.get_signatures_of_type(target, kind);
             let target_len = target_sigs.len();
             for i in 0..target_len {
                 let source_index = if source_len + i > target_len {
@@ -693,8 +842,8 @@ impl<'cx> InferenceState<'cx, '_> {
                 } else {
                     0
                 };
-                let source = self.checker.get_base_sig(source_sigs[source_index]);
-                let target = self.checker.get_erased_sig(target_sigs[i]);
+                let source = self.c.get_base_sig(source_sigs[source_index]);
+                let target = self.c.get_erased_sig(target_sigs[i]);
                 self.infer_from_sig(source, target);
             }
         }
@@ -707,18 +856,18 @@ impl<'cx> InferenceState<'cx, '_> {
         f: impl FnOnce(&mut Self, &'cx ty::Ty<'cx>, &'cx ty::Ty<'cx>),
     ) {
         // TODO: handle ty_pred
-        let target_ret_ty = self.checker.get_ret_ty_of_sig(target);
-        if self.checker.could_contain_ty_var(target_ret_ty) {
-            let source_ret_ty = self.checker.get_ret_ty_of_sig(source);
+        let target_ret_ty = self.c.get_ret_ty_of_sig(target);
+        if self.c.could_contain_ty_var(target_ret_ty) {
+            let source_ret_ty = self.c.get_ret_ty_of_sig(source);
             f(self, source_ret_ty, target_ret_ty);
         }
     }
 
     fn infer_from_props(&mut self, source: &'cx ty::Ty<'cx>, target: &'cx ty::Ty<'cx>) {
-        for target_prop in self.checker.get_props_of_ty(target) {
+        for target_prop in self.c.get_props_of_ty(target) {
             if let Some(source_prop) = self
-                .checker
-                .get_prop_of_ty(source, self.checker.binder.symbol(*target_prop).name)
+                .c
+                .get_prop_of_ty(source, self.c.symbol(*target_prop).name())
             {
                 // TODO:
             }

@@ -1,8 +1,8 @@
 use super::Resolver;
-use crate::{ast, ir};
+use crate::{ast, bind::SymbolFlags, ir};
 
 impl<'cx> Resolver<'cx, '_> {
-    fn resolve_class_prop_ele(&mut self, ele: &'cx ast::ClassPropEle<'cx>) {
+    fn resolve_class_prop_ele(&mut self, ele: &'cx ast::ClassPropElem<'cx>) {
         if let Some(ty) = ele.ty {
             self.resolve_ty(ty);
         }
@@ -11,16 +11,26 @@ impl<'cx> Resolver<'cx, '_> {
         }
     }
 
-    fn resolve_class_method_ele(&mut self, ele: &'cx ast::ClassMethodEle<'cx>) {
+    fn resolve_class_method_ele(&mut self, ele: &'cx ast::ClassMethodElem<'cx>) {
         self.resolve_params(ele.params);
+        if let Some(ty) = ele.ty {
+            self.resolve_ty(ty);
+        }
         if let Some(body) = ele.body {
             self.resolve_block_stmt(body);
         }
     }
 
     pub(super) fn resolve_class_like(&mut self, class: &'cx impl ir::ClassLike<'cx>) {
+        if let Some(ty_params) = class.ty_params() {
+            self.resolve_ty_params(ty_params);
+        }
+
         if let Some(extends) = class.extends() {
-            self.resolve_expr(extends.expr);
+            self.resolve_entity_name(extends.name, SymbolFlags::VALUE);
+            if let Some(ty_args) = extends.ty_args {
+                self.resolve_tys(ty_args.list);
+            }
         }
 
         if let Some(implements) = class.implements() {
@@ -30,18 +40,28 @@ impl<'cx> Resolver<'cx, '_> {
         }
 
         for ele in class.elems().elems {
+            use ast::ClassEleKind::*;
             match ele.kind {
-                ast::ClassEleKind::Prop(n) => self.resolve_class_prop_ele(n),
-                ast::ClassEleKind::Method(n) => self.resolve_class_method_ele(n),
-                ast::ClassEleKind::Ctor(n) => {
+                Prop(n) => self.resolve_class_prop_ele(n),
+                Method(n) => self.resolve_class_method_ele(n),
+                Ctor(n) => {
                     self.resolve_params(n.params);
                     if let Some(body) = n.body {
                         self.resolve_block_stmt(body);
                     }
                 }
-                ast::ClassEleKind::IndexSig(_) => {}
-                ast::ClassEleKind::Getter(_) => {}
-                ast::ClassEleKind::Setter(_) => {}
+                IndexSig(n) => {
+                    self.resolve_index_sig(n);
+                }
+                Getter(n) => {
+                    if let Some(ty) = n.ty {
+                        self.resolve_ty(ty);
+                    }
+                }
+                Setter(n) => {
+                    assert!(n.params.len() == 1);
+                    self.resolve_params(n.params);
+                }
             }
         }
     }

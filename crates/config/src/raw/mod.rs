@@ -32,13 +32,39 @@ macro_rules! with_option {
     };
 }
 
-with_option!(RawCompilerOptions, (out_dir, String), (no_emit, bool));
+with_option!(
+    RawCompilerOptions,
+    (out_dir, String),
+    (no_emit, bool),
+    (declaration, bool),
+    (strict, bool),
+    (strict_null_checks, bool),
+    (no_implicit_any, bool),
+);
 
 impl RawCompilerOptions {
     pub fn normalize(self) -> super::NormalizedCompilerOptions {
         let out_dir = self.out_dir.map_or(OutDir::default(), OutDir::Custom);
         let no_emit = self.no_emit.unwrap_or_default();
-        super::NormalizedCompilerOptions { out_dir, no_emit }
+        let declaration = self.declaration.unwrap_or_default();
+        let strict = self.strict.unwrap_or_default();
+        let get_strict_option_value = |v: Option<bool>| {
+            if let Some(v) = v {
+                v
+            } else {
+                strict
+            }
+        };
+        let strict_null_checks = get_strict_option_value(self.strict_null_checks);
+        let no_implicit_any = get_strict_option_value(self.no_implicit_any);
+        super::NormalizedCompilerOptions {
+            out_dir,
+            no_emit,
+            declaration,
+            strict,
+            strict_null_checks,
+            no_implicit_any,
+        }
     }
 }
 

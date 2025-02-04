@@ -52,6 +52,15 @@ pub(super) struct ExpectedXArgsButGotY {
 }
 
 #[derive(Error, Diagnostic, DiagnosticExt, Debug)]
+#[error("Expected {x} type arguments, but got {y}.")]
+pub(super) struct ExpectedXTyArgsButGotY {
+    #[label(primary)]
+    pub span: Span,
+    pub x: crate::check::ExpectedArgsCount,
+    pub y: usize,
+}
+
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
 #[error("Expected at least {x} arguments, but got {y}.")]
 pub(super) struct ExpectedAtLeastXArgsButGotY {
     #[label(primary)]
@@ -238,4 +247,119 @@ pub(super) struct IndexSignaturesAreIncompatible {
     #[label(primary)]
     pub span: Span,
     pub ty: String,
+}
+
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
+#[error("Property '{prop}' does not exist on type '{ty}'.")]
+pub(super) struct PropertyXDoesNotExistOnTypeY {
+    #[label(primary)]
+    pub span: Span,
+    pub prop: String,
+    pub ty: String,
+    #[related]
+    pub related: Vec<PropertyXDoesNotExistOnTypeYHelperKind>,
+}
+
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
+pub(super) enum PropertyXDoesNotExistOnTypeYHelperKind {
+    #[error(transparent)]
+    #[diagnostic(transparent)]
+    DidYourMeanToAccessTheStaticMemberInstead(DidYourMeanToAccessTheStaticMemberInstead),
+}
+
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
+#[error("Did you mean to access the static member '{class_name}.{prop_name}' instead?")]
+#[diagnostic(severity(Advice))]
+pub(super) struct DidYourMeanToAccessTheStaticMemberInstead {
+    #[label(primary)]
+    pub span: Span,
+    pub class_name: String,
+    pub prop_name: String,
+}
+
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
+#[error("Generic type '{ty}' requires {n} type argument{}.", { if *n > 1 { "s" } else { "" } })]
+pub(super) struct GenericTypeXRequiresNTypeArguments {
+    #[label(primary)]
+    pub span: Span,
+    pub ty: String,
+    pub n: usize,
+}
+
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
+#[error("Generic type '{ty}' requires between {x} and {y} type arguments.")]
+pub(super) struct GenericTypeXRequiresBetweenXAndYTypeArguments {
+    #[label(primary)]
+    pub span: Span,
+    pub ty: String,
+    pub x: usize,
+    pub y: usize,
+}
+
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
+#[error("Type '{x}' recursively references itself as a base type.")]
+pub(super) struct TypeXRecursivelyReferencesItselfAsABaseType {
+    #[label(primary)]
+    pub span: Span,
+    pub x: String,
+    #[label = "Base type is defined here."]
+    pub base_defined_span: Option<Span>,
+}
+
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
+#[error("Type '{ty}' cannot be used to index type '{index_ty}'.")]
+pub(super) struct TypeCannotBeUsedToIndexType {
+    #[label(primary)]
+    pub span: Span,
+    pub ty: String,
+    pub index_ty: String,
+}
+
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
+#[error("Type '{ty}' cannot be used as an index type.")]
+pub(super) struct TypeCannotBeUsedAsAnIndexType {
+    #[label(primary)]
+    pub span: Span,
+    pub ty: String,
+}
+
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
+#[error("An index signature parameter type must be 'string', 'number', 'symbol', or a template literal type.")]
+pub(super) struct AnIndexSignatureParameterTypeMustBeStringNumberSymbolOrATemplateLiteralType {
+    #[label(primary)]
+    pub span: Span,
+}
+
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
+#[error("A class can only implement an object type or intersection of object types with statically known members.")]
+
+pub(super) struct AClassCanOnlyImplementAnObjectTypeOrIntersectionOfObjectTypesWithStaticallyKnownMembers
+{
+    #[label(primary)]
+    pub span: Span,
+}
+
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
+#[error("A class cannot implement a primitive type like '{ty}'.")]
+#[diagnostic(help = "It can only implement other named object types.")]
+pub(super) struct AClassCannotImplementAPrimTy {
+    #[label(primary)]
+    pub span: Span,
+    pub ty: String,
+}
+
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
+#[error("No overload matches this call.")]
+pub(super) struct NoOverloadMatchesThisCall {
+    #[label(primary)]
+    pub span: Span,
+    #[label(collection, "Unmatched call.")]
+    pub unmatched_calls: Vec<Span>,
+}
+
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
+#[error("This overload signature is not compatible with its implementation signature.")]
+pub(super) struct ThisOverloadSignatureIsNotCompatibleWithItsImplementationSignature {
+    #[label(primary)]
+    pub span: Span,
 }

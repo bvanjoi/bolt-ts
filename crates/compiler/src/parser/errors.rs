@@ -120,3 +120,45 @@ pub(super) struct ExtendsClauseMustPrecedeImplementsClause {
     #[label("'implements' clause defined here.")]
     pub implements_span: Span,
 }
+
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
+#[error("'{expected}' expected.")]
+pub(super) struct KindExpected {
+    #[label(primary)]
+    pub span: Span,
+    pub expected: String,
+    #[related]
+    pub related: Option<ExpectedToFindAToMatchTheBTokenHere>,
+}
+
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
+#[error("Expected to find a '{expected}' to match the '{found}' token here.")]
+#[diagnostic(severity(Advice))]
+pub(super) struct ExpectedToFindAToMatchTheBTokenHere {
+    #[label(primary)]
+    pub span: Span,
+    pub expected: String,
+    pub found: String,
+}
+
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
+#[error("Argument expression expected.")]
+pub(super) struct ArgumentExpressionExpected {
+    #[label(primary)]
+    pub span: Span,
+}
+
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
+#[error("An index signature must have a type annotation.")]
+pub(super) struct AnIndexSignatureMustHaveATypeAnnotation {
+    #[label(primary)]
+    pub span: Span,
+}
+
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
+#[error("'{kind}' modifier cannot appear on a parameter.")]
+pub(super) struct ModifierCannotAppearOnAParameter {
+    #[label(primary)]
+    pub span: Span,
+    pub kind: ModifierKind,
+}

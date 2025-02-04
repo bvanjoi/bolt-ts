@@ -5,6 +5,6 @@ edition = "2021"
 
 [dependencies]
 rustc-hash = { workspace = true }
-xxhash-rust = { version = "0.8.12", features = ["xxh3", "const_xxh3"] }
+xxhash-rust = { workspace = true, features = ["xxh3", "const_xxh3"] }
 paste = { workspace = true }
 bolt_ts_utils = { path = "../utils" }

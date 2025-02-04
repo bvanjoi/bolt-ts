@@ -8,52 +8,41 @@ use super::symbol::{
     SymbolFlags,
 };
 use super::{errors, BinderState, Symbol, SymbolFnKind, SymbolID, SymbolKind, SymbolName};
-use crate::ast;
+use crate::{ast, ir};
 use bolt_ts_utils::fx_hashmap_with_capacity;
 
 impl<'cx> BinderState<'cx> {
     pub(super) fn create_final_res(&mut self, id: ast::NodeID, symbol: SymbolID) {
         let prev = self.final_res.insert(id, symbol);
-        assert!(prev.is_none());
-    }
-
-    pub(super) fn create_var_decl(&mut self, decl: &'cx ast::VarDecl<'cx>, kind: SymbolKind<'cx>) {
-        let flags = if matches!(kind, SymbolKind::BlockScopedVar { .. }) {
-            SymbolFlags::BLOCK_SCOPED_VARIABLE
-        } else {
-            SymbolFlags::FUNCTION_SCOPED_VARIABLE
-        };
-        let symbol = self.create_var_symbol(decl.binding.name, flags, kind);
-        self.create_final_res(decl.id, symbol);
+        assert!(prev.is_none(), "prev: {:#?}", prev.unwrap());
     }
 
     pub(super) fn create_var_symbol(
         &mut self,
         name: AtomId,
         flags: SymbolFlags,
-        kind: SymbolKind<'cx>,
+        kind: SymbolKind,
+        exclude: SymbolFlags,
     ) -> SymbolID {
         let name = SymbolName::Normal(name);
-        self.create_symbol(name, flags, kind)
+        self.declare_symbol(name, flags, kind, exclude)
     }
 
-    pub(super) fn create_symbol(
+    pub(super) fn declare_symbol(
         &mut self,
         name: SymbolName,
         flags: SymbolFlags,
-        kind: SymbolKind<'cx>,
+        kind: SymbolKind,
+        exclude: SymbolFlags,
     ) -> SymbolID {
         let key = (self.scope_id, name);
         if name.as_atom().is_some() {
             if let Some(id) = self.res.get(&key).copied() {
                 let prev = self.symbols.get_mut(id);
-                if flags.intersects(SymbolFlags::ALIAS) {
+                if flags.intersects(SymbolFlags::ALIAS) || prev.flags.intersects(SymbolFlags::ALIAS)
+                {
                     let id = self.symbols.insert(Symbol::new(name, flags, kind));
-                    let prev = self.res.insert(key, id);
-                    return id;
-                } else if matches!(prev.kind.0, SymbolKind::Alias(_)) {
-                    let id = self.symbols.insert(Symbol::new(name, flags, kind));
-                    let prev = self.res.insert(key, id);
+                    let _prev = self.res.insert(key, id);
                     return id;
                 }
                 if flags == SymbolFlags::FUNCTION_SCOPED_VARIABLE {
@@ -63,9 +52,9 @@ impl<'cx> BinderState<'cx> {
                 } else if matches!(prev.kind.0, SymbolKind::Err) {
                     prev.flags |= flags;
                     let prev = &mut prev.kind;
-                    assert!(prev.1.is_some());
+                    assert!(prev.1.is_some() || prev.2.is_some());
                     prev.0 = kind;
-                } else {
+                } else if prev.flags.intersects(exclude) || prev.flags == SymbolFlags::PROPERTY {
                     let n = self.atoms.get(name.expect_atom());
                     let span = |kind: &SymbolKind| {
                         let id = match kind {
@@ -103,7 +92,7 @@ impl<'cx> BinderState<'cx> {
         id
     }
 
-    pub(super) fn create_symbol_with_interface(
+    pub(super) fn declare_symbol_with_interface(
         &mut self,
         name: SymbolName,
         flags: SymbolFlags,
@@ -123,12 +112,20 @@ impl<'cx> BinderState<'cx> {
         //         return *id;
         //     }
         // }
+        if let Some(old_id) = self.res.get(&key) {
+            let old = self.symbols.get_mut(*old_id);
+            if let SymbolKind::FunctionScopedVar(_) = &old.kind.0 {
+                old.flags |= flags;
+                old.kind.1 = Some(i);
+                return *old_id;
+            }
+        }
         let id = self.symbols.insert(Symbol::new_interface(name, flags, i));
         let prev = self.res.insert(key, id);
         id
     }
 
-    pub(super) fn create_symbol_with_ns(
+    pub(super) fn declare_symbol_with_ns(
         &mut self,
         name: SymbolName,
         flags: SymbolFlags,
@@ -153,16 +150,22 @@ impl<'cx> BinderState<'cx> {
         id
     }
 
-    pub(super) fn create_fn_expr_symbol(&mut self, id: ast::NodeID) {
-        let symbol = self.create_symbol(
-            SymbolName::Fn,
+    pub(super) fn create_fn_expr_symbol(
+        &mut self,
+        f: &impl ir::FnExprLike<'cx>,
+        decl: ast::NodeID,
+    ) {
+        let name = f.name().map(SymbolName::Normal).unwrap_or(SymbolName::Fn);
+        let symbol = self.declare_symbol(
+            name,
             SymbolFlags::FUNCTION,
             SymbolKind::Fn(FnSymbol {
                 kind: SymbolFnKind::FnExpr,
-                decls: thin_vec::thin_vec![id],
+                decls: thin_vec::thin_vec![decl],
             }),
+            SymbolFlags::empty(),
         );
-        self.create_final_res(id, symbol);
+        self.create_final_res(decl, symbol);
     }
 
     pub(super) fn create_interface_symbol(
@@ -171,10 +174,13 @@ impl<'cx> BinderState<'cx> {
         name: AtomId,
         members: FxHashMap<SymbolName, SymbolID>,
     ) -> SymbolID {
-        let symbol = self.create_symbol_with_interface(
+        let symbol = self.declare_symbol_with_interface(
             SymbolName::Normal(name),
             SymbolFlags::INTERFACE,
-            InterfaceSymbol { decl: id, members },
+            InterfaceSymbol {
+                decls: thin_vec::thin_vec![id],
+                members,
+            },
         );
         self.create_final_res(id, symbol);
         symbol
@@ -182,45 +188,62 @@ impl<'cx> BinderState<'cx> {
 
     pub(super) fn create_fn_symbol(&mut self, container: ast::NodeID, decl: &'cx ast::FnDecl<'cx>) {
         let ele_name = SymbolName::Normal(decl.name.name);
-        self.create_fn_decl_like_symbol(container, decl, ele_name, SymbolFnKind::FnDecl);
+        self.create_fn_decl_like_symbol(container, decl, ele_name, SymbolFnKind::FnDecl, false);
     }
 
-    pub(super) fn create_fn_ty_symbol(&mut self, f: &'cx ast::FnTy<'cx>) {
-        let symbol_name = SymbolName::Call;
-        let symbol = self.create_symbol(
+    pub(super) fn create_fn_ty_symbol(&mut self, id: ast::NodeID, symbol_name: SymbolName) {
+        let symbol = self.declare_symbol(
             symbol_name,
             SymbolFlags::SIGNATURE,
             SymbolKind::Fn(FnSymbol {
                 kind: SymbolFnKind::Call,
-                decls: thin_vec::thin_vec![f.id],
+                decls: thin_vec::thin_vec![id],
             }),
+            SymbolFlags::empty(),
         );
 
         let members = FxHashMap::from_iter([(symbol_name, symbol)]);
-
-        let lit_symbol = self.create_symbol(
-            SymbolName::Type,
-            SymbolFlags::TYPE_LITERAL,
-            SymbolKind::TyLit(super::TyLitSymbol {
-                decl: f.id,
-                members,
-            }),
-        );
-        self.create_final_res(f.id, lit_symbol);
+        self.create_object_lit_ty_symbol(id, members);
     }
 
     pub(super) fn create_object_member_symbol(
         &mut self,
         name: SymbolName,
         member: ast::NodeID,
+        is_optional: bool,
     ) -> SymbolID {
-        let symbol = self.create_symbol(
+        let flags = SymbolFlags::PROPERTY
+            | if is_optional {
+                SymbolFlags::OPTIONAL
+            } else {
+                SymbolFlags::empty()
+            };
+
+        let symbol = self.declare_symbol(
             name,
-            SymbolFlags::PROPERTY,
+            flags,
             SymbolKind::Prop(PropSymbol { decl: member }),
+            SymbolFlags::empty(),
         );
         self.create_final_res(member, symbol);
         symbol
+    }
+
+    pub(super) fn create_object_lit_ty_symbol(
+        &mut self,
+        node_id: ast::NodeID,
+        members: FxHashMap<SymbolName, SymbolID>,
+    ) -> SymbolID {
+        let id = self.symbols.insert(Symbol::new(
+            SymbolName::Type,
+            SymbolFlags::TYPE_LITERAL,
+            SymbolKind::TyLit(super::TyLitSymbol {
+                decl: node_id,
+                members,
+            }),
+        ));
+        self.create_final_res(node_id, id);
+        id
     }
 
     pub(super) fn create_object_lit_symbol(
@@ -241,13 +264,14 @@ impl<'cx> BinderState<'cx> {
     }
 
     pub(super) fn create_block_container_symbol(&mut self, node_id: ast::NodeID) -> SymbolID {
-        let symbol = self.create_symbol(
+        let symbol = self.declare_symbol(
             SymbolName::Container,
             SymbolFlags::VALUE_MODULE,
             SymbolKind::BlockContainer(BlockContainerSymbol {
                 locals: fx_hashmap_with_capacity(32),
                 exports: fx_hashmap_with_capacity(32),
             }),
+            SymbolFlags::empty(),
         );
         self.create_final_res(node_id, symbol);
         symbol

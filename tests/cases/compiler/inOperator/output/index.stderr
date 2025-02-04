@@ -1,4 +1,7 @@
-  × Type 'number' is not assignable to type 'object'.
+]8;;https://tc39.es/ecma262/#sec-relational-operators-runtime-semantics-evaluation\(link)]8;;\
+
+  × The right value of the `in` operator must be an 'object', but got
+  │ 'number'.
    ╭─[../../tests/cases/compiler/inOperator/index.ts:9:15]
  9 │ 0
    · ─

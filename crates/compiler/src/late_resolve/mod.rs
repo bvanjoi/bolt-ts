@@ -2,7 +2,7 @@ mod errors;
 
 use crate::ast::Visitor;
 use crate::bind::{
-    BinderState, BlockContainerSymbol, GlobalSymbols, SymbolID, SymbolName, Symbols,
+    BinderState, BlockContainerSymbol, GlobalSymbols, SymbolFlags, SymbolID, SymbolName, Symbols,
 };
 use crate::graph::{ModuleGraph, ModuleRes};
 use crate::{ast, parser};
@@ -11,8 +11,8 @@ use bolt_ts_span::{Module, ModuleID};
 use bolt_ts_utils::fx_hashmap_with_capacity;
 use rustc_hash::FxHashMap;
 
-pub struct ResolveResult<'cx> {
-    pub symbols: Symbols<'cx>,
+pub struct ResolveResult {
+    pub symbols: Symbols,
     pub final_res: FxHashMap<ast::NodeID, SymbolID>,
     pub diags: Vec<bolt_ts_errors::Diag>,
     pub deep_res: FxHashMap<ast::NodeID, SymbolID>,
@@ -25,7 +25,7 @@ pub fn late_resolve<'cx>(
     p: &'cx parser::Parser<'cx>,
     global: &'cx GlobalSymbols,
     atoms: &'cx AtomMap<'cx>,
-) -> Vec<(ModuleID, ResolveResult<'cx>)> {
+) -> Vec<(ModuleID, ResolveResult)> {
     let mut temp = Vec::with_capacity(modules.len());
     for module in modules {
         let module_id = module.id;
@@ -79,17 +79,16 @@ struct Resolver<'cx, 'r> {
     atoms: &'cx AtomMap<'cx>,
 }
 
-impl<'cx, 'r> Resolver<'cx, 'r> {
+impl Resolver<'_, '_> {
     fn symbol_decl(&self, symbol_id: SymbolID) -> ast::NodeID {
         use crate::bind::SymbolKind::*;
         let s = self.symbol(symbol_id);
         if let Some(s) = &s.kind.1 {
-            s.decl
+            s.decls[0]
         } else {
             match &s.kind.0 {
                 Fn(f) => f.decls[0],
                 Alias(a) => a.decl,
-                Transient(_) => unreachable!(),
                 _ => todo!(),
             }
         }
@@ -101,10 +100,8 @@ impl<'cx, 'r> Resolver<'cx, 'r> {
             .get(symbol_id)
     }
 
-    fn push_error(&mut self,  diag: crate::Diag) {
-        self.diags.push(bolt_ts_errors::Diag {
-            inner: diag,
-        })
+    fn push_error(&mut self, diag: crate::Diag) {
+        self.diags.push(bolt_ts_errors::Diag { inner: diag })
     }
 
     fn container(&self, m: ModuleRes) -> &BlockContainerSymbol {
@@ -118,7 +115,7 @@ impl<'cx, 'r> Resolver<'cx, 'r> {
     }
 }
 
-impl<'cx, 'r> ast::Visitor<'cx> for Resolver<'cx, 'r> {
+impl<'cx> ast::Visitor<'cx> for Resolver<'cx, '_> {
     fn visit_import_decl(&mut self, node: &'cx ast::ImportDecl<'cx>) {
         let Some(dep) = self.mg.get_dep(self.module_id, node.id) else {
             unreachable!()
@@ -132,16 +129,21 @@ impl<'cx, 'r> ast::Visitor<'cx> for Resolver<'cx, 'r> {
                     for spec in specs {
                         use ast::ImportSpecKind::*;
                         match spec.kind {
-                            ShortHand(n) => {
-                                let name = SymbolName::Normal(n.name.name); //baz
+                            Shorthand(n) => {
+                                let name = SymbolName::Normal(n.name.name);
                                 if !self.container(dep).exports.contains_key(&name) {
                                     let module_name = self.atoms.get(node.module.val).to_string();
                                     let symbol_name = self.atoms.get(n.name.name);
 
                                     if let Some(export) =
                                         self.container(dep).exports.values().find(|alias| {
-                                            let alias = self.symbol(**alias).expect_alias();
-                                            alias.source.expect_atom() == n.name.name
+                                            let s = self.symbol(**alias);
+                                            if s.flags.intersects(SymbolFlags::ALIAS) {
+                                                let alias = s.expect_alias();
+                                                alias.source.expect_atom() == n.name.name
+                                            } else {
+                                                false
+                                            }
                                         })
                                     {
                                         let alias_symbol = self.symbol(*export).expect_alias();
@@ -155,17 +157,17 @@ impl<'cx, 'r> ast::Visitor<'cx> for Resolver<'cx, 'r> {
                                                 .span;
                                             helper.push(
                                                 errors::ModuleADeclaresBLocallyButItIsExportedAsCHelperKind::NameIsDeclaredHere(
-                                                    errors::NameIsDeclaredHere { 
+                                                    errors::NameIsDeclaredHere {
                                                         span: symbol_span,
-                                                        name: symbol_name.to_string() 
+                                                        name: symbol_name.to_string()
                                                     }
                                                 ));
                                         }
                                         helper.push(
                                             errors::ModuleADeclaresBLocallyButItIsExportedAsCHelperKind::ExportedAliasHere(
-                                                errors::ExportedAliasHere { 
-                                                    span: self.p.node(self.symbol_decl(*export)).span(), 
-                                                    name: self.atoms.get(alias_symbol.target.expect_atom()).to_string() 
+                                                errors::ExportedAliasHere {
+                                                    span: self.p.node(self.symbol_decl(*export)).span(),
+                                                    name: self.atoms.get(alias_symbol.target.expect_atom()).to_string()
                                                 }
                                             )
                                         );
@@ -181,7 +183,7 @@ impl<'cx, 'r> ast::Visitor<'cx> for Resolver<'cx, 'r> {
                                                     .to_string(),
                                                 related: helper,
                                             };
-                                        self.push_error( Box::new(error));
+                                        self.push_error(Box::new(error));
                                     } else if let Some(local) =
                                         self.container(dep).locals.get(&name).copied()
                                     {
@@ -201,7 +203,7 @@ impl<'cx, 'r> ast::Visitor<'cx> for Resolver<'cx, 'r> {
                                                     name: symbol_name.to_string(),
                                                 }],
                                             };
-                                        self.push_error( Box::new(error));
+                                        self.push_error(Box::new(error));
                                     }
                                 }
                             }

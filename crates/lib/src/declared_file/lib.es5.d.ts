@@ -20,6 +20,158 @@ declare function eval(x: string): any;
  */
 declare function parseInt(string: string, radix?: number): number;
 
+// declare type PropertyKey = string | number | symbol;
+declare type PropertyKey = string;
+
+
+interface Object {
+  /** The initial value of Object.prototype.constructor is the standard built-in Object constructor. */
+  constructor: Function;
+
+  /** Returns a string representation of an object. */
+  toString(): string;
+
+  /** Returns a date converted to a string using the current locale. */
+  toLocaleString(): string;
+
+  /** Returns the primitive value of the specified object. */
+  valueOf(): Object;
+
+  /**
+   * Determines whether an object has a property with the specified name.
+   * @param v A property name.
+   */
+  hasOwnProperty(v: PropertyKey): boolean;
+
+  /**
+   * Determines whether an object exists in another object's prototype chain.
+   * @param v Another object whose prototype chain is to be checked.
+   */
+  isPrototypeOf(v: Object): boolean;
+
+  /**
+   * Determines whether a specified property is enumerable.
+   * @param v A property name.
+   */
+  propertyIsEnumerable(v: PropertyKey): boolean;
+}
+
+interface ObjectConstructor {
+  new (value?: any): Object;
+  (): any;
+  (value: any): any;
+
+  /** A reference to the prototype for a class of objects. */
+  readonly prototype: Object;
+
+  // /**
+  //  * Returns the prototype of an object.
+  //  * @param o The object that references the prototype.
+  //  */
+  // getPrototypeOf(o: any): any;
+
+  // /**
+  //  * Gets the own property descriptor of the specified object.
+  //  * An own property descriptor is one that is defined directly on the object and is not inherited from the object's prototype.
+  //  * @param o Object that contains the property.
+  //  * @param p Name of the property.
+  //  */
+  // getOwnPropertyDescriptor(o: any, p: PropertyKey): PropertyDescriptor | undefined;
+
+  // /**
+  //  * Returns the names of the own properties of an object. The own properties of an object are those that are defined directly
+  //  * on that object, and are not inherited from the object's prototype. The properties of an object include both fields (objects) and functions.
+  //  * @param o Object that contains the own properties.
+  //  */
+  // getOwnPropertyNames(o: any): string[];
+
+  // /**
+  //  * Creates an object that has the specified prototype or that has null prototype.
+  //  * @param o Object to use as a prototype. May be null.
+  //  */
+  // create(o: object | null): any;
+
+  // /**
+  //  * Creates an object that has the specified prototype, and that optionally contains specified properties.
+  //  * @param o Object to use as a prototype. May be null
+  //  * @param properties JavaScript object that contains one or more property descriptors.
+  //  */
+  // create(o: object | null, properties: PropertyDescriptorMap & ThisType<any>): any;
+
+  // /**
+  //  * Adds a property to an object, or modifies attributes of an existing property.
+  //  * @param o Object on which to add or modify the property. This can be a native JavaScript object (that is, a user-defined object or a built in object) or a DOM object.
+  //  * @param p The property name.
+  //  * @param attributes Descriptor for the property. It can be for a data property or an accessor property.
+  //  */
+  // defineProperty<T>(o: T, p: PropertyKey, attributes: PropertyDescriptor & ThisType<any>): T;
+
+  // /**
+  //  * Adds one or more properties to an object, and/or modifies attributes of existing properties.
+  //  * @param o Object on which to add or modify the properties. This can be a native JavaScript object or a DOM object.
+  //  * @param properties JavaScript object that contains one or more descriptor objects. Each descriptor object describes a data property or an accessor property.
+  //  */
+  // defineProperties<T>(o: T, properties: PropertyDescriptorMap & ThisType<any>): T;
+
+  // /**
+  //  * Prevents the modification of attributes of existing properties, and prevents the addition of new properties.
+  //  * @param o Object on which to lock the attributes.
+  //  */
+  // seal<T>(o: T): T;
+
+  // /**
+  //  * Prevents the modification of existing property attributes and values, and prevents the addition of new properties.
+  //  * @param f Object on which to lock the attributes.
+  //  */
+  // freeze<T extends Function>(f: T): T;
+
+  // /**
+  //  * Prevents the modification of existing property attributes and values, and prevents the addition of new properties.
+  //  * @param o Object on which to lock the attributes.
+  //  */
+  // freeze<T extends { [idx: string]: U | null | undefined | object; }, U extends string | bigint | number | boolean | symbol>(o: T): Readonly<T>;
+
+  // /**
+  //  * Prevents the modification of existing property attributes and values, and prevents the addition of new properties.
+  //  * @param o Object on which to lock the attributes.
+  //  */
+  // freeze<T>(o: T): Readonly<T>;
+
+  // /**
+  //  * Prevents the addition of new properties to an object.
+  //  * @param o Object to make non-extensible.
+  //  */
+  // preventExtensions<T>(o: T): T;
+
+  // /**
+  //  * Returns true if existing property attributes cannot be modified in an object and new properties cannot be added to the object.
+  //  * @param o Object to test.
+  //  */
+  // isSealed(o: any): boolean;
+
+  // /**
+  //  * Returns true if existing property attributes and values cannot be modified in an object, and new properties cannot be added to the object.
+  //  * @param o Object to test.
+  //  */
+  // isFrozen(o: any): boolean;
+
+  // /**
+  //  * Returns a value that indicates whether new properties can be added to an object.
+  //  * @param o Object to test.
+  //  */
+  // isExtensible(o: any): boolean;
+
+  // /**
+  //  * Returns the names of the enumerable string properties and methods of an object.
+  //  * @param o Object that contains the properties and methods. This can be an object that you created or an existing Document Object Model (DOM) object.
+  //  */
+  // keys(o: object): string[];
+}
+
+/**
+* Provides functionality common to all JavaScript objects.
+*/
+declare var Object: ObjectConstructor;
 
 /**
  * Creates a new function.
@@ -250,22 +402,22 @@ interface String {
   // /** Removes the leading and trailing white space and line terminator characters from a string. */
   // trim(): string;
 
-  // /** Returns the length of a String object. */
-  // readonly length: number;
+  /** Returns the length of a String object. */
+  readonly length: number;
 
-  // // IE extensions
-  // /**
-  //  * Gets a substring beginning at the specified location and having the specified length.
-  //  * @deprecated A legacy feature for browser compatibility
-  //  * @param from The starting position of the desired substring. The index of the first character in the string is zero.
-  //  * @param length The number of characters to include in the returned substring.
-  //  */
-  // substr(from: number, length?: number): string;
+  // IE extensions
+  /**
+   * Gets a substring beginning at the specified location and having the specified length.
+   * @deprecated A legacy feature for browser compatibility
+   * @param from The starting position of the desired substring. The index of the first character in the string is zero.
+   * @param length The number of characters to include in the returned substring.
+   */
+  substr(from: number, length?: number): string;
 
-  // /** Returns the primitive value of the specified object. */
-  // valueOf(): string;
+  /** Returns the primitive value of the specified object. */
+  valueOf(): string;
 
-  // readonly [index: number]: string;
+  readonly [index: number]: string;
 }
 
 interface StringConstructor {
@@ -334,6 +486,133 @@ interface Number {
 
   /** Returns the primitive value of the specified object. */
   valueOf(): number;
+}
+
+interface ReadonlyArray<T> {
+  /**
+   * Gets the length of the array. This is a number one higher than the highest element defined in an array.
+   */
+  readonly length: number;
+  // /**
+  //  * Returns a string representation of an array.
+  //  */
+  // toString(): string;
+  // /**
+  //  * Returns a string representation of an array. The elements are converted to string using their toLocaleString methods.
+  //  */
+  // toLocaleString(): string;
+  // /**
+  //  * Combines two or more arrays.
+  //  * @param items Additional items to add to the end of array1.
+  //  */
+  // concat(...items: ConcatArray<T>[]): T[];
+  // /**
+  //  * Combines two or more arrays.
+  //  * @param items Additional items to add to the end of array1.
+  //  */
+  // concat(...items: (T | ConcatArray<T>)[]): T[];
+  // /**
+  //  * Adds all the elements of an array separated by the specified separator string.
+  //  * @param separator A string used to separate one element of an array from the next in the resulting String. If omitted, the array elements are separated with a comma.
+  //  */
+  // join(separator?: string): string;
+  // /**
+  //  * Returns a section of an array.
+  //  * @param start The beginning of the specified portion of the array.
+  //  * @param end The end of the specified portion of the array. This is exclusive of the element at the index 'end'.
+  //  */
+  // slice(start?: number, end?: number): T[];
+  // /**
+  //  * Returns the index of the first occurrence of a value in an array.
+  //  * @param searchElement The value to locate in the array.
+  //  * @param fromIndex The array index at which to begin the search. If fromIndex is omitted, the search starts at index 0.
+  //  */
+  // indexOf(searchElement: T, fromIndex?: number): number;
+  // /**
+  //  * Returns the index of the last occurrence of a specified value in an array.
+  //  * @param searchElement The value to locate in the array.
+  //  * @param fromIndex The array index at which to begin the search. If fromIndex is omitted, the search starts at the last index in the array.
+  //  */
+  // lastIndexOf(searchElement: T, fromIndex?: number): number;
+  // /**
+  //  * Determines whether all the members of an array satisfy the specified test.
+  //  * @param predicate A function that accepts up to three arguments. The every method calls
+  //  * the predicate function for each element in the array until the predicate returns a value
+  //  * which is coercible to the Boolean value false, or until the end of the array.
+  //  * @param thisArg An object to which the this keyword can refer in the predicate function.
+  //  * If thisArg is omitted, undefined is used as the this value.
+  //  */
+  // every<S extends T>(predicate: (value: T, index: number, array: readonly T[]) => value is S, thisArg?: any): this is readonly S[];
+  // /**
+  //  * Determines whether all the members of an array satisfy the specified test.
+  //  * @param predicate A function that accepts up to three arguments. The every method calls
+  //  * the predicate function for each element in the array until the predicate returns a value
+  //  * which is coercible to the Boolean value false, or until the end of the array.
+  //  * @param thisArg An object to which the this keyword can refer in the predicate function.
+  //  * If thisArg is omitted, undefined is used as the this value.
+  //  */
+  // every(predicate: (value: T, index: number, array: readonly T[]) => unknown, thisArg?: any): boolean;
+  // /**
+  //  * Determines whether the specified callback function returns true for any element of an array.
+  //  * @param predicate A function that accepts up to three arguments. The some method calls
+  //  * the predicate function for each element in the array until the predicate returns a value
+  //  * which is coercible to the Boolean value true, or until the end of the array.
+  //  * @param thisArg An object to which the this keyword can refer in the predicate function.
+  //  * If thisArg is omitted, undefined is used as the this value.
+  //  */
+  // some(predicate: (value: T, index: number, array: readonly T[]) => unknown, thisArg?: any): boolean;
+  // /**
+  //  * Performs the specified action for each element in an array.
+  //  * @param callbackfn  A function that accepts up to three arguments. forEach calls the callbackfn function one time for each element in the array.
+  //  * @param thisArg  An object to which the this keyword can refer in the callbackfn function. If thisArg is omitted, undefined is used as the this value.
+  //  */
+  // forEach(callbackfn: (value: T, index: number, array: readonly T[]) => void, thisArg?: any): void;
+  // /**
+  //  * Calls a defined callback function on each element of an array, and returns an array that contains the results.
+  //  * @param callbackfn A function that accepts up to three arguments. The map method calls the callbackfn function one time for each element in the array.
+  //  * @param thisArg An object to which the this keyword can refer in the callbackfn function. If thisArg is omitted, undefined is used as the this value.
+  //  */
+  // map<U>(callbackfn: (value: T, index: number, array: readonly T[]) => U, thisArg?: any): U[];
+  // /**
+  //  * Returns the elements of an array that meet the condition specified in a callback function.
+  //  * @param predicate A function that accepts up to three arguments. The filter method calls the predicate function one time for each element in the array.
+  //  * @param thisArg An object to which the this keyword can refer in the predicate function. If thisArg is omitted, undefined is used as the this value.
+  //  */
+  // filter<S extends T>(predicate: (value: T, index: number, array: readonly T[]) => value is S, thisArg?: any): S[];
+  // /**
+  //  * Returns the elements of an array that meet the condition specified in a callback function.
+  //  * @param predicate A function that accepts up to three arguments. The filter method calls the predicate function one time for each element in the array.
+  //  * @param thisArg An object to which the this keyword can refer in the predicate function. If thisArg is omitted, undefined is used as the this value.
+  //  */
+  // filter(predicate: (value: T, index: number, array: readonly T[]) => unknown, thisArg?: any): T[];
+  /**
+   * Calls the specified callback function for all the elements in an array. The return value of the callback function is the accumulated result, and is provided as an argument in the next call to the callback function.
+   * @param callbackfn A function that accepts up to four arguments. The reduce method calls the callbackfn function one time for each element in the array.
+   * @param initialValue If initialValue is specified, it is used as the initial value to start the accumulation. The first call to the callbackfn function provides this value as an argument instead of an array value.
+   */
+  reduce(callbackfn: (previousValue: T, currentValue: T, currentIndex: number, array: readonly T[]) => T): T;
+  reduce(callbackfn: (previousValue: T, currentValue: T, currentIndex: number, array: readonly T[]) => T, initialValue: T): T;
+  /**
+   * Calls the specified callback function for all the elements in an array. The return value of the callback function is the accumulated result, and is provided as an argument in the next call to the callback function.
+   * @param callbackfn A function that accepts up to four arguments. The reduce method calls the callbackfn function one time for each element in the array.
+   * @param initialValue If initialValue is specified, it is used as the initial value to start the accumulation. The first call to the callbackfn function provides this value as an argument instead of an array value.
+   */
+  reduce<U>(callbackfn: (previousValue: U, currentValue: T, currentIndex: number, array: readonly T[]) => U, initialValue: U): U;
+  // /**
+  //  * Calls the specified callback function for all the elements in an array, in descending order. The return value of the callback function is the accumulated result, and is provided as an argument in the next call to the callback function.
+  //  * @param callbackfn A function that accepts up to four arguments. The reduceRight method calls the callbackfn function one time for each element in the array.
+  //  * @param initialValue If initialValue is specified, it is used as the initial value to start the accumulation. The first call to the callbackfn function provides this value as an argument instead of an array value.
+  //  */
+  // reduceRight(callbackfn: (previousValue: T, currentValue: T, currentIndex: number, array: readonly T[]) => T): T;
+  // reduceRight(callbackfn: (previousValue: T, currentValue: T, currentIndex: number, array: readonly T[]) => T, initialValue: T): T;
+  // /**
+  //  * Calls the specified callback function for all the elements in an array, in descending order. The return value of the callback function is the accumulated result, and is provided as an argument in the next call to the callback function.
+  //  * @param callbackfn A function that accepts up to four arguments. The reduceRight method calls the callbackfn function one time for each element in the array.
+  //  * @param initialValue If initialValue is specified, it is used as the initial value to start the accumulation. The first call to the callbackfn function provides this value as an argument instead of an array value.
+  //  */
+  // reduceRight<U>(callbackfn: (previousValue: U, currentValue: T, currentIndex: number, array: readonly T[]) => U, initialValue: U): U;
+
+  readonly [n: number]: T;
 }
 
 interface ConcatArray<T> {
@@ -455,15 +734,15 @@ interface Array<T> {
     //  * If thisArg is omitted, undefined is used as the this value.
     //  */
     // every<S extends T>(predicate: (value: T, index: number, array: T[]) => value is S, thisArg?: any): this is S[];
-    // /**
-    //  * Determines whether all the members of an array satisfy the specified test.
-    //  * @param predicate A function that accepts up to three arguments. The every method calls
-    //  * the predicate function for each element in the array until the predicate returns a value
-    //  * which is coercible to the Boolean value false, or until the end of the array.
-    //  * @param thisArg An object to which the this keyword can refer in the predicate function.
-    //  * If thisArg is omitted, undefined is used as the this value.
-    //  */
-    // every(predicate: (value: T, index: number, array: T[]) => unknown, thisArg?: any): boolean;
+    /**
+     * Determines whether all the members of an array satisfy the specified test.
+     * @param predicate A function that accepts up to three arguments. The every method calls
+     * the predicate function for each element in the array until the predicate returns a value
+     * which is coercible to the Boolean value false, or until the end of the array.
+     * @param thisArg An object to which the this keyword can refer in the predicate function.
+     * If thisArg is omitted, undefined is used as the this value.
+     */
+    every(predicate: (value: T, index: number, array: T[]) => unknown, thisArg?: any): boolean;
     // /**
     //  * Determines whether the specified callback function returns true for any element of an array.
     //  * @param predicate A function that accepts up to three arguments. The some method calls
@@ -485,44 +764,44 @@ interface Array<T> {
      * @param thisArg An object to which the this keyword can refer in the callbackfn function. If thisArg is omitted, undefined is used as the this value.
      */
     map<U>(callbackfn: (value: T, index: number, array: T[]) => U, thisArg?: any): U[];
-    // /**
-    //  * Returns the elements of an array that meet the condition specified in a callback function.
-    //  * @param predicate A function that accepts up to three arguments. The filter method calls the predicate function one time for each element in the array.
-    //  * @param thisArg An object to which the this keyword can refer in the predicate function. If thisArg is omitted, undefined is used as the this value.
-    //  */
-    // filter<S extends T>(predicate: (value: T, index: number, array: T[]) => value is S, thisArg?: any): S[];
-    // /**
-    //  * Returns the elements of an array that meet the condition specified in a callback function.
-    //  * @param predicate A function that accepts up to three arguments. The filter method calls the predicate function one time for each element in the array.
-    //  * @param thisArg An object to which the this keyword can refer in the predicate function. If thisArg is omitted, undefined is used as the this value.
-    //  */
-    // filter(predicate: (value: T, index: number, array: T[]) => unknown, thisArg?: any): T[];
-    // /**
-    //  * Calls the specified callback function for all the elements in an array. The return value of the callback function is the accumulated result, and is provided as an argument in the next call to the callback function.
-    //  * @param callbackfn A function that accepts up to four arguments. The reduce method calls the callbackfn function one time for each element in the array.
-    //  * @param initialValue If initialValue is specified, it is used as the initial value to start the accumulation. The first call to the callbackfn function provides this value as an argument instead of an array value.
-    //  */
-    // reduce(callbackfn: (previousValue: T, currentValue: T, currentIndex: number, array: T[]) => T): T;
-    // reduce(callbackfn: (previousValue: T, currentValue: T, currentIndex: number, array: T[]) => T, initialValue: T): T;
-    // /**
-    //  * Calls the specified callback function for all the elements in an array. The return value of the callback function is the accumulated result, and is provided as an argument in the next call to the callback function.
-    //  * @param callbackfn A function that accepts up to four arguments. The reduce method calls the callbackfn function one time for each element in the array.
-    //  * @param initialValue If initialValue is specified, it is used as the initial value to start the accumulation. The first call to the callbackfn function provides this value as an argument instead of an array value.
-    //  */
-    // reduce<U>(callbackfn: (previousValue: U, currentValue: T, currentIndex: number, array: T[]) => U, initialValue: U): U;
-    // /**
-    //  * Calls the specified callback function for all the elements in an array, in descending order. The return value of the callback function is the accumulated result, and is provided as an argument in the next call to the callback function.
-    //  * @param callbackfn A function that accepts up to four arguments. The reduceRight method calls the callbackfn function one time for each element in the array.
-    //  * @param initialValue If initialValue is specified, it is used as the initial value to start the accumulation. The first call to the callbackfn function provides this value as an argument instead of an array value.
-    //  */
-    // reduceRight(callbackfn: (previousValue: T, currentValue: T, currentIndex: number, array: T[]) => T): T;
-    // reduceRight(callbackfn: (previousValue: T, currentValue: T, currentIndex: number, array: T[]) => T, initialValue: T): T;
-    // /**
-    //  * Calls the specified callback function for all the elements in an array, in descending order. The return value of the callback function is the accumulated result, and is provided as an argument in the next call to the callback function.
-    //  * @param callbackfn A function that accepts up to four arguments. The reduceRight method calls the callbackfn function one time for each element in the array.
-    //  * @param initialValue If initialValue is specified, it is used as the initial value to start the accumulation. The first call to the callbackfn function provides this value as an argument instead of an array value.
-    //  */
-    // reduceRight<U>(callbackfn: (previousValue: U, currentValue: T, currentIndex: number, array: T[]) => U, initialValue: U): U;
+    /**
+     * Returns the elements of an array that meet the condition specified in a callback function.
+     * @param predicate A function that accepts up to three arguments. The filter method calls the predicate function one time for each element in the array.
+     * @param thisArg An object to which the this keyword can refer in the predicate function. If thisArg is omitted, undefined is used as the this value.
+     */
+    filter<S extends T>(predicate: (value: T, index: number, array: T[]) => value is S, thisArg?: any): S[];
+    /**
+     * Returns the elements of an array that meet the condition specified in a callback function.
+     * @param predicate A function that accepts up to three arguments. The filter method calls the predicate function one time for each element in the array.
+     * @param thisArg An object to which the this keyword can refer in the predicate function. If thisArg is omitted, undefined is used as the this value.
+     */
+    filter(predicate: (value: T, index: number, array: T[]) => unknown, thisArg?: any): T[];
+    /**
+     * Calls the specified callback function for all the elements in an array. The return value of the callback function is the accumulated result, and is provided as an argument in the next call to the callback function.
+     * @param callbackfn A function that accepts up to four arguments. The reduce method calls the callbackfn function one time for each element in the array.
+     * @param initialValue If initialValue is specified, it is used as the initial value to start the accumulation. The first call to the callbackfn function provides this value as an argument instead of an array value.
+     */
+    reduce(callbackfn: (previousValue: T, currentValue: T, currentIndex: number, array: T[]) => T): T;
+    reduce(callbackfn: (previousValue: T, currentValue: T, currentIndex: number, array: T[]) => T, initialValue: T): T;
+    /**
+     * Calls the specified callback function for all the elements in an array. The return value of the callback function is the accumulated result, and is provided as an argument in the next call to the callback function.
+     * @param callbackfn A function that accepts up to four arguments. The reduce method calls the callbackfn function one time for each element in the array.
+     * @param initialValue If initialValue is specified, it is used as the initial value to start the accumulation. The first call to the callbackfn function provides this value as an argument instead of an array value.
+     */
+    reduce<U>(callbackfn: (previousValue: U, currentValue: T, currentIndex: number, array: T[]) => U, initialValue: U): U;
+    /**
+     * Calls the specified callback function for all the elements in an array, in descending order. The return value of the callback function is the accumulated result, and is provided as an argument in the next call to the callback function.
+     * @param callbackfn A function that accepts up to four arguments. The reduceRight method calls the callbackfn function one time for each element in the array.
+     * @param initialValue If initialValue is specified, it is used as the initial value to start the accumulation. The first call to the callbackfn function provides this value as an argument instead of an array value.
+     */
+    reduceRight(callbackfn: (previousValue: T, currentValue: T, currentIndex: number, array: T[]) => T): T;
+    reduceRight(callbackfn: (previousValue: T, currentValue: T, currentIndex: number, array: T[]) => T, initialValue: T): T;
+    /**
+     * Calls the specified callback function for all the elements in an array, in descending order. The return value of the callback function is the accumulated result, and is provided as an argument in the next call to the callback function.
+     * @param callbackfn A function that accepts up to four arguments. The reduceRight method calls the callbackfn function one time for each element in the array.
+     * @param initialValue If initialValue is specified, it is used as the initial value to start the accumulation. The first call to the callbackfn function provides this value as an argument instead of an array value.
+     */
+    reduceRight<U>(callbackfn: (previousValue: U, currentValue: T, currentIndex: number, array: T[]) => U, initialValue: U): U;
 
     [n: number]: T;
 }
@@ -651,6 +930,159 @@ interface Math {
 /** An intrinsic object that provides basic mathematics functionality and constants. */
 declare var Math: Math;
 
+/** Enables basic storage and retrieval of dates and times. */
+interface Date {
+  /** Returns a string representation of a date. The format of the string depends on the locale. */
+  toString(): string;
+  /** Returns a date as a string value. */
+  toDateString(): string;
+  /** Returns a time as a string value. */
+  toTimeString(): string;
+  /** Returns a value as a string value appropriate to the host environment's current locale. */
+  toLocaleString(): string;
+  /** Returns a date as a string value appropriate to the host environment's current locale. */
+  toLocaleDateString(): string;
+  /** Returns a time as a string value appropriate to the host environment's current locale. */
+  toLocaleTimeString(): string;
+  /** Returns the stored time value in milliseconds since midnight, January 1, 1970 UTC. */
+  valueOf(): number;
+  /** Returns the stored time value in milliseconds since midnight, January 1, 1970 UTC. */
+  getTime(): number;
+  /** Gets the year, using local time. */
+  getFullYear(): number;
+  /** Gets the year using Universal Coordinated Time (UTC). */
+  getUTCFullYear(): number;
+  /** Gets the month, using local time. */
+  getMonth(): number;
+  /** Gets the month of a Date object using Universal Coordinated Time (UTC). */
+  getUTCMonth(): number;
+  /** Gets the day-of-the-month, using local time. */
+  getDate(): number;
+  /** Gets the day-of-the-month, using Universal Coordinated Time (UTC). */
+  getUTCDate(): number;
+  /** Gets the day of the week, using local time. */
+  getDay(): number;
+  /** Gets the day of the week using Universal Coordinated Time (UTC). */
+  getUTCDay(): number;
+  /** Gets the hours in a date, using local time. */
+  getHours(): number;
+  /** Gets the hours value in a Date object using Universal Coordinated Time (UTC). */
+  getUTCHours(): number;
+  /** Gets the minutes of a Date object, using local time. */
+  getMinutes(): number;
+  /** Gets the minutes of a Date object using Universal Coordinated Time (UTC). */
+  getUTCMinutes(): number;
+  /** Gets the seconds of a Date object, using local time. */
+  getSeconds(): number;
+  /** Gets the seconds of a Date object using Universal Coordinated Time (UTC). */
+  getUTCSeconds(): number;
+  /** Gets the milliseconds of a Date, using local time. */
+  getMilliseconds(): number;
+  /** Gets the milliseconds of a Date object using Universal Coordinated Time (UTC). */
+  getUTCMilliseconds(): number;
+  /** Gets the difference in minutes between Universal Coordinated Time (UTC) and the time on the local computer. */
+  getTimezoneOffset(): number;
+  /**
+   * Sets the date and time value in the Date object.
+   * @param time A numeric value representing the number of elapsed milliseconds since midnight, January 1, 1970 GMT.
+   */
+  setTime(time: number): number;
+  /**
+   * Sets the milliseconds value in the Date object using local time.
+   * @param ms A numeric value equal to the millisecond value.
+   */
+  setMilliseconds(ms: number): number;
+  /**
+   * Sets the milliseconds value in the Date object using Universal Coordinated Time (UTC).
+   * @param ms A numeric value equal to the millisecond value.
+   */
+  setUTCMilliseconds(ms: number): number;
+
+  /**
+   * Sets the seconds value in the Date object using local time.
+   * @param sec A numeric value equal to the seconds value.
+   * @param ms A numeric value equal to the milliseconds value.
+   */
+  setSeconds(sec: number, ms?: number): number;
+  /**
+   * Sets the seconds value in the Date object using Universal Coordinated Time (UTC).
+   * @param sec A numeric value equal to the seconds value.
+   * @param ms A numeric value equal to the milliseconds value.
+   */
+  setUTCSeconds(sec: number, ms?: number): number;
+  /**
+   * Sets the minutes value in the Date object using local time.
+   * @param min A numeric value equal to the minutes value.
+   * @param sec A numeric value equal to the seconds value.
+   * @param ms A numeric value equal to the milliseconds value.
+   */
+  setMinutes(min: number, sec?: number, ms?: number): number;
+  /**
+   * Sets the minutes value in the Date object using Universal Coordinated Time (UTC).
+   * @param min A numeric value equal to the minutes value.
+   * @param sec A numeric value equal to the seconds value.
+   * @param ms A numeric value equal to the milliseconds value.
+   */
+  setUTCMinutes(min: number, sec?: number, ms?: number): number;
+  /**
+   * Sets the hour value in the Date object using local time.
+   * @param hours A numeric value equal to the hours value.
+   * @param min A numeric value equal to the minutes value.
+   * @param sec A numeric value equal to the seconds value.
+   * @param ms A numeric value equal to the milliseconds value.
+   */
+  setHours(hours: number, min?: number, sec?: number, ms?: number): number;
+  /**
+   * Sets the hours value in the Date object using Universal Coordinated Time (UTC).
+   * @param hours A numeric value equal to the hours value.
+   * @param min A numeric value equal to the minutes value.
+   * @param sec A numeric value equal to the seconds value.
+   * @param ms A numeric value equal to the milliseconds value.
+   */
+  setUTCHours(hours: number, min?: number, sec?: number, ms?: number): number;
+  /**
+   * Sets the numeric day-of-the-month value of the Date object using local time.
+   * @param date A numeric value equal to the day of the month.
+   */
+  setDate(date: number): number;
+  /**
+   * Sets the numeric day of the month in the Date object using Universal Coordinated Time (UTC).
+   * @param date A numeric value equal to the day of the month.
+   */
+  setUTCDate(date: number): number;
+  /**
+   * Sets the month value in the Date object using local time.
+   * @param month A numeric value equal to the month. The value for January is 0, and other month values follow consecutively.
+   * @param date A numeric value representing the day of the month. If this value is not supplied, the value from a call to the getDate method is used.
+   */
+  setMonth(month: number, date?: number): number;
+  /**
+   * Sets the month value in the Date object using Universal Coordinated Time (UTC).
+   * @param month A numeric value equal to the month. The value for January is 0, and other month values follow consecutively.
+   * @param date A numeric value representing the day of the month. If it is not supplied, the value from a call to the getUTCDate method is used.
+   */
+  setUTCMonth(month: number, date?: number): number;
+  /**
+   * Sets the year of the Date object using local time.
+   * @param year A numeric value for the year.
+   * @param month A zero-based numeric value for the month (0 for January, 11 for December). Must be specified if numDate is specified.
+   * @param date A numeric value equal for the day of the month.
+   */
+  setFullYear(year: number, month?: number, date?: number): number;
+  /**
+   * Sets the year value in the Date object using Universal Coordinated Time (UTC).
+   * @param year A numeric value equal to the year.
+   * @param month A numeric value equal to the month. The value for January is 0, and other month values follow consecutively. Must be supplied if numDate is supplied.
+   * @param date A numeric value equal to the day of the month.
+   */
+  setUTCFullYear(year: number, month?: number, date?: number): number;
+  /** Returns a date converted to a string using Universal Coordinated Time (UTC). */
+  toUTCString(): string;
+  /** Returns a date as a string value in ISO format. */
+  toISOString(): string;
+  /** Used by the JSON.stringify method to enable the transformation of an object's data for JavaScript Object Notation (JSON) serialization. */
+  toJSON(key?: any): string;
+}
 
 interface DateConstructor {
   new (): Date;
@@ -689,3 +1121,147 @@ interface DateConstructor {
 }
 
 declare var Date: DateConstructor;
+
+
+interface RegExpMatchArray extends Array<string> {
+  /**
+   * The index of the search at which the result was found.
+   */
+  index?: number;
+  /**
+   * A copy of the search string.
+   */
+  input?: string;
+  /**
+   * The first match. This will always be present because `null` will be returned if there are no matches.
+   */
+  0: string;
+}
+
+interface RegExpExecArray extends Array<string> {
+  /**
+   * The index of the search at which the result was found.
+   */
+  index: number;
+  /**
+   * A copy of the search string.
+   */
+  input: string;
+  /**
+   * The first match. This will always be present because `null` will be returned if there are no matches.
+   */
+  0: string;
+}
+
+interface RegExp {
+  /**
+   * Executes a search on a string using a regular expression pattern, and returns an array containing the results of that search.
+   * @param string The String object or string literal on which to perform the search.
+   */
+  exec(string: string): RegExpExecArray | null;
+
+  /**
+   * Returns a Boolean value that indicates whether or not a pattern exists in a searched string.
+   * @param string String on which to perform the search.
+   */
+  test(string: string): boolean;
+
+  /** Returns a copy of the text of the regular expression pattern. Read-only. The regExp argument is a Regular expression object. It can be a variable name or a literal. */
+  readonly source: string;
+
+  /** Returns a Boolean value indicating the state of the global flag (g) used with a regular expression. Default is false. Read-only. */
+  readonly global: boolean;
+
+  /** Returns a Boolean value indicating the state of the ignoreCase flag (i) used with a regular expression. Default is false. Read-only. */
+  readonly ignoreCase: boolean;
+
+  /** Returns a Boolean value indicating the state of the multiline flag (m) used with a regular expression. Default is false. Read-only. */
+  readonly multiline: boolean;
+
+  lastIndex: number;
+
+  // // Non-standard extensions
+  // /** @deprecated A legacy feature for browser compatibility */
+  // compile(pattern: string, flags?: string): this;
+}
+
+interface RegExpConstructor {
+  new (pattern: RegExp | string): RegExp;
+  new (pattern: string, flags?: string): RegExp;
+  (pattern: RegExp | string): RegExp;
+  (pattern: string, flags?: string): RegExp;
+  readonly "prototype": RegExp;
+
+  // Non-standard extensions
+  /** @deprecated A legacy feature for browser compatibility */
+  "$1": string;
+  /** @deprecated A legacy feature for browser compatibility */
+  "$2": string;
+  /** @deprecated A legacy feature for browser compatibility */
+  "$3": string;
+  /** @deprecated A legacy feature for browser compatibility */
+  "$4": string;
+  /** @deprecated A legacy feature for browser compatibility */
+  "$5": string;
+  /** @deprecated A legacy feature for browser compatibility */
+  "$6": string;
+  /** @deprecated A legacy feature for browser compatibility */
+  "$7": string;
+  /** @deprecated A legacy feature for browser compatibility */
+  "$8": string;
+  /** @deprecated A legacy feature for browser compatibility */
+  "$9": string;
+  /** @deprecated A legacy feature for browser compatibility */
+  "input": string;
+  /** @deprecated A legacy feature for browser compatibility */
+  "$_": string;
+  /** @deprecated A legacy feature for browser compatibility */
+  "lastMatch": string;
+  /** @deprecated A legacy feature for browser compatibility */
+  "$&": string;
+  /** @deprecated A legacy feature for browser compatibility */
+  "lastParen": string;
+  /** @deprecated A legacy feature for browser compatibility */
+  "$+": string;
+  /** @deprecated A legacy feature for browser compatibility */
+  "leftContext": string;
+  /** @deprecated A legacy feature for browser compatibility */
+  "$`": string;
+  /** @deprecated A legacy feature for browser compatibility */
+  "rightContext": string;
+  /** @deprecated A legacy feature for browser compatibility */
+  "$'": string;
+}
+
+declare var RegExp: RegExpConstructor;
+
+/**
+ * Make all properties in T optional
+ */
+type Partial<T> = {
+  [P in keyof T]?: T[P];
+};
+
+/**
+ * Construct a type with a set of properties K of type T
+ */
+type Record<K extends keyof any, T> = {
+  [P in K]: T;
+};
+
+/**
+ * From T, pick a set of properties whose keys are in the union K
+ */
+type Pick<T, K extends keyof T> = {
+  [P in K]: T[P];
+};
+
+/**
+ * Exclude from T those types that are assignable to U
+ */
+type Exclude<T, U> = T extends U ? never : T;
+
+/**
+ * Extract from T those types that are assignable to U
+ */
+type Extract<T, U> = T extends U ? T : never;

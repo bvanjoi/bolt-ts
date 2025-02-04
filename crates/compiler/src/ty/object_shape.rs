@@ -1,34 +1,31 @@
-use super::object_ty::{ObjectLitTy, TupleTy};
+use super::object_ty::TupleTy;
 use crate::bind::{SymbolID, SymbolName};
 use crate::keyword;
 
+// TODO: delete
 pub trait ObjectShape<'cx> {
     fn get_member(&self, name: &SymbolName) -> Option<SymbolID>;
-    fn props(&self) -> &[SymbolID];
-}
-
-impl<'cx> ObjectShape<'cx> for ObjectLitTy<'cx> {
-    fn get_member(&self, name: &SymbolName) -> Option<SymbolID> {
-        self.members.get(name).copied()
-    }
-    fn props(&self) -> &[SymbolID] {
-        self.declared_props
-    }
 }
 
 impl<'cx> ObjectShape<'cx> for TupleTy<'cx> {
     fn get_member(&self, name: &SymbolName) -> Option<SymbolID> {
         if let Some(atom) = name.as_atom() {
             if atom == keyword::IDENT_LENGTH {
-                Some(self.shape.declared_props[0])
+                Some(
+                    self.ty
+                        .kind
+                        .expect_object_interface()
+                        .declared_members
+                        .props[self.fixed_length],
+                )
             } else {
                 None
             }
+        } else if let Some(idx) = name.as_numeric() {
+            assert_eq!(idx.fract(), 0.0);
+            todo!()
         } else {
-            todo!("index literal")
+            unreachable!()
         }
-    }
-    fn props(&self) -> &[SymbolID] {
-        self.shape.declared_props
     }
 }

@@ -1,0 +1,5 @@
+  × Expected '>'.
+   ╭─[../../tests/cases/compiler/assertInWrapSomeTypeParameter/index.ts:2:24]
+ 2 │ (
+   · ─
+   ╰────

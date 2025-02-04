@@ -9,17 +9,18 @@ impl<'cx> Emit<'cx> {
         if let Some(ident) = class.name() {
             self.emit_ident(ident);
             self.content.p_whitespace();
+            self.ns_names.insert((self.scope, ident.name));
         }
         if let Some(extends) = class.extends() {
             self.content.p("extends");
             self.content.p_whitespace();
-            self.emit_expr(extends.expr);
+            self.emit_entity_name(extends.name);
             self.content.p_whitespace();
         }
         self.emit_block_like(class.elems());
     }
 
-    pub(super) fn emit_class_ele(&mut self, ele: &ast::ClassEle<'cx>) {
+    pub(super) fn emit_class_ele(&mut self, ele: &ast::ClassElem<'cx>) {
         use ast::ClassEleKind::*;
         match ele.kind {
             Prop(prop) => {
@@ -68,11 +69,96 @@ impl<'cx> Emit<'cx> {
             self.content.p("constructor");
             self.emit_params(ctor.params);
             self.content.p_whitespace();
-            self.emit_block_stmt(body);
+
+            let block = body;
+            self.content.p_l_brace();
+            self.content.indent += self.options.indent;
+
+            let has_block_stmt = !block.stmts.is_empty()
+                && ctor.params.iter().any(|param| {
+                    param.dotdotdot.is_none()
+                        && param
+                            .modifiers
+                            .is_some_and(|ms| ms.flags.contains(ast::ModifierKind::Public))
+                });
+
+            if has_block_stmt {
+                self.content.p_newline();
+            }
+
+            let last_super_call = block.stmts.iter().rev().position(|stmt| {
+                if let ast::StmtKind::Expr(expr) = stmt.kind {
+                    if let ast::ExprKind::Call(call) = expr.kind {
+                        if let ast::ExprKind::Super(_) = call.expr.kind {
+                            return true;
+                        }
+                    }
+                }
+                false
+            });
+
+            let (prev_stmts, after_stmts) = if let Some(last_super_call) = last_super_call {
+                block.stmts.split_at(last_super_call + 1)
+            } else {
+                let after_stmts: ast::Stmts<'cx> = &[];
+                (block.stmts, after_stmts)
+            };
+
+            self.emit_list(
+                prev_stmts,
+                |this, elem| this.emit_stmt(elem),
+                |this, _| {
+                    this.content.p_newline();
+                },
+            );
+
+            self.emit_list(
+                ctor.params,
+                |this, param| {
+                    if param.dotdotdot.is_none()
+                        && param
+                            .modifiers
+                            .is_some_and(|ms| ms.flags.contains(ast::ModifierKind::Public))
+                    {
+                        this.content.p_newline();
+
+                        this.content.p("this");
+                        this.content.p_dot();
+                        this.emit_ident(param.name);
+                        this.content.p_whitespace();
+                        this.content.p_eq();
+                        this.content.p_whitespace();
+                        this.emit_ident(param.name);
+                    }
+                },
+                |this, param| {
+                    if param.dotdotdot.is_none()
+                        && param
+                            .modifiers
+                            .is_some_and(|ms| ms.flags.contains(ast::ModifierKind::Public))
+                    {
+                        this.content.p_newline();
+                    }
+                },
+            );
+
+            self.emit_list(
+                after_stmts,
+                |this, elem| this.emit_stmt(elem),
+                |this, _| {
+                    this.content.p_newline();
+                },
+            );
+
+            if has_block_stmt {
+                self.content.p_newline();
+            }
+            self.content.indent -= self.options.indent;
+            self.content.p_r_brace();
         }
     }
 
-    fn emit_class_method(&mut self, method: &'cx ast::ClassMethodEle<'cx>) {
+    fn emit_class_method(&mut self, method: &'cx ast::ClassMethodElem<'cx>) {
         if let Some(mods) = method.modifiers {
             if mods.flags.contains(ast::ModifierKind::Static) {
                 self.content.p("static");
@@ -87,7 +173,7 @@ impl<'cx> Emit<'cx> {
         }
     }
 
-    fn emit_class_prop(&mut self, prop: &'cx ast::ClassPropEle<'cx>) {
+    fn emit_class_prop(&mut self, prop: &'cx ast::ClassPropElem<'cx>) {
         if let Some(mods) = prop.modifiers {
             if mods.flags.contains(ast::ModifierKind::Static) {
                 self.content.p("static");

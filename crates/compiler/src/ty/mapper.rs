@@ -1,41 +1,20 @@
+use std::fmt::Debug;
+
+use crate::check::TyChecker;
+
 use super::{Ty, Tys};
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Debug)]
 pub enum TyMapper<'cx> {
     Simple(SimpleTyMapper<'cx>),
     Array(ArrayTyMapper<'cx>),
-    Fn(FnTyMapper<'cx>),
     Composite(CompositeTyMapper<'cx>),
     Merged(MergedTyMapper<'cx>),
 }
 
 impl<'cx> TyMapper<'cx> {
-    pub fn create(sources: Tys<'cx>, targets: Tys<'cx>) -> Self {
-        if sources.len() == 1 {
-            let target = if !targets.is_empty() {
-                targets[0]
-            } else {
-                todo!("use any")
-            };
-            let mapper = SimpleTyMapper {
-                source: sources[0],
-                target,
-            };
-            TyMapper::Simple(mapper)
-        } else {
-            let mapper = ArrayTyMapper {
-                sources,
-                targets: Some(targets),
-            };
-            TyMapper::Array(mapper)
-        }
-    }
-
-    pub fn make_composite(m1: &'cx TyMapper<'cx>, m2: &'cx TyMapper<'cx>) -> TyMapper<'cx> {
-        TyMapper::Composite(CompositeTyMapper {
-            mapper1: m1,
-            mapper2: m2,
-        })
+    pub fn make_unary(source: &'cx Ty<'cx>, target: &'cx Ty<'cx>) -> TyMapper<'cx> {
+        TyMapper::Simple(SimpleTyMapper { source, target })
     }
 }
 
@@ -59,7 +38,7 @@ macro_rules! ty_mapper {
 
 ty_mapper!(Simple, &SimpleTyMapper<'cx>, as_simple, is_simple);
 ty_mapper!(Array, &ArrayTyMapper<'cx>, as_array, is_array);
-ty_mapper!(Fn, &FnTyMapper<'cx>, as_fn, is_fn);
+// ty_mapper!(Fn, &FnTyMapper<'cx>, as_fn, is_fn);
 ty_mapper!(
     Composite,
     &CompositeTyMapper<'cx>,
@@ -80,19 +59,72 @@ pub struct ArrayTyMapper<'cx> {
     pub targets: Option<Tys<'cx>>,
 }
 
-#[derive(Clone, Copy, Debug)]
-pub struct FnTyMapper<'cx> {
-    func: [Ty<'cx>; 2],
-}
-
-#[derive(Clone, Copy, Debug)]
+#[derive(Debug, Clone, Copy)]
 pub struct CompositeTyMapper<'cx> {
-    pub mapper1: &'cx TyMapper<'cx>,
-    pub mapper2: &'cx TyMapper<'cx>,
+    pub mapper1: &'cx dyn TyMap<'cx>,
+    pub mapper2: &'cx dyn TyMap<'cx>,
 }
 
 #[derive(Clone, Copy, Debug)]
 pub struct MergedTyMapper<'cx> {
-    mapper1: &'cx TyMapper<'cx>,
-    mapper2: &'cx TyMapper<'cx>,
+    pub mapper1: &'cx TyMapper<'cx>,
+    pub mapper2: &'cx TyMapper<'cx>,
+}
+
+pub trait TyMap<'cx>: Debug {
+    fn get_mapped_ty(&self, ty: &'cx Ty<'cx>, checker: &mut TyChecker<'cx>) -> &'cx Ty<'cx>;
+}
+
+impl<'cx> TyMap<'cx> for SimpleTyMapper<'cx> {
+    fn get_mapped_ty(&self, ty: &'cx Ty<'cx>, _: &mut TyChecker<'cx>) -> &'cx Ty<'cx> {
+        if ty == self.source {
+            self.target
+        } else {
+            ty
+        }
+    }
+}
+
+impl<'cx> TyMap<'cx> for ArrayTyMapper<'cx> {
+    fn get_mapped_ty(&self, ty: &'cx Ty<'cx>, checker: &mut TyChecker<'cx>) -> &'cx Ty<'cx> {
+        for (idx, source) in self.sources.iter().enumerate() {
+            assert!(source.kind.is_param());
+            if source.eq(&ty) {
+                if let Some(targets) = &self.targets {
+                    return targets[idx];
+                } else {
+                    return checker.any_ty;
+                }
+            }
+        }
+        ty
+    }
+}
+
+impl<'cx> TyMap<'cx> for CompositeTyMapper<'cx> {
+    fn get_mapped_ty(&self, ty: &'cx Ty<'cx>, checker: &mut TyChecker<'cx>) -> &'cx Ty<'cx> {
+        let t1 = self.mapper1.get_mapped_ty(ty, checker);
+        if t1 != ty {
+            checker.instantiate_ty(t1, Some(self.mapper2))
+        } else {
+            self.mapper2.get_mapped_ty(t1, checker)
+        }
+    }
+}
+
+impl<'cx> TyMap<'cx> for MergedTyMapper<'cx> {
+    fn get_mapped_ty(&self, _: &'cx Ty<'cx>, _: &mut TyChecker<'cx>) -> &'cx Ty<'cx> {
+        todo!()
+    }
+}
+
+impl<'cx> TyMap<'cx> for TyMapper<'cx> {
+    fn get_mapped_ty(&self, ty: &'cx Ty<'cx>, checker: &mut TyChecker<'cx>) -> &'cx Ty<'cx> {
+        match self {
+            TyMapper::Simple(n) => n.get_mapped_ty(ty, checker),
+            TyMapper::Array(n) => n.get_mapped_ty(ty, checker),
+            TyMapper::Composite(n) => n.get_mapped_ty(ty, checker),
+            TyMapper::Merged(n) => n.get_mapped_ty(ty, checker),
+        }
+    }
 }

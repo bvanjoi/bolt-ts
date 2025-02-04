@@ -7,30 +7,32 @@ impl<'cx> TyChecker<'cx> {
         self.members(symbol).get(&SymbolName::Index).copied()
     }
 
-    pub(super) fn get_index_infos_of_symbol(
+    pub(super) fn get_index_infos_of_symbol(&mut self, symbol: SymbolID) -> ty::IndexInfos<'cx> {
+        self.get_index_symbol(symbol)
+            .map(|index_symbol| self.get_index_infos_of_index_symbol(index_symbol))
+            .unwrap_or_default()
+    }
+
+    pub(super) fn get_index_infos_of_index_symbol(
         &mut self,
         symbol: SymbolID,
-    ) -> &'cx [&'cx ty::IndexInfo<'cx>] {
-        let index_infos = self
-            .get_index_symbol(symbol)
-            .map(|index_symbol| {
-                let decl = self.binder.symbol(index_symbol).expect_index().decl;
-                let decl = self.p.node(decl).expect_index_sig_decl();
-                let val_ty = self.get_ty_from_type_node(decl.ty);
-                decl.params
-                    .iter()
-                    .map(|param| {
-                        let Some(ty) = param.ty else { unreachable!() };
-                        let key_ty = self.get_ty_from_type_node(ty);
-                        self.alloc(ty::IndexInfo {
-                            key_ty,
-                            val_ty,
-                            symbol: index_symbol,
-                        })
-                    })
-                    .collect::<Vec<_>>()
+    ) -> ty::IndexInfos<'cx> {
+        let index_symbol = self.binder.symbol(symbol).expect_index();
+        let decl = self.p.node(index_symbol.decl).expect_index_sig_decl();
+        let val_ty = self.get_ty_from_type_node(decl.ty);
+        let index_infos = decl
+            .params
+            .iter()
+            .map(|param| {
+                let Some(ty) = param.ty else { unreachable!() };
+                let key_ty = self.get_ty_from_type_node(ty);
+                self.alloc(ty::IndexInfo {
+                    key_ty,
+                    val_ty,
+                    symbol,
+                })
             })
-            .unwrap_or_default();
+            .collect::<Vec<_>>();
         self.alloc(index_infos)
     }
 
@@ -80,7 +82,7 @@ impl<'cx> TyChecker<'cx> {
         let mut applicable_infos: Option<Vec<&ty::IndexInfo<'_>>> = None;
 
         for info in index_infos {
-            if info.key_ty == self.string_ty() {
+            if info.key_ty == self.string_ty {
                 string_index_info = Some(info)
             } else if self.is_applicable_index_ty(key_ty, info.key_ty) {
                 if applicable_info.is_none() {
@@ -98,8 +100,7 @@ impl<'cx> TyChecker<'cx> {
             applicable_info
         } else if let Some(applicable_info) = applicable_info {
             Some(applicable_info)
-        } else if string_index_info.is_some()
-            && self.is_applicable_index_ty(key_ty, self.string_ty())
+        } else if string_index_info.is_some() && self.is_applicable_index_ty(key_ty, self.string_ty)
         {
             string_index_info
         } else {

@@ -1,6 +1,8 @@
 use bolt_ts_span::{ModuleID, Span};
 
-bolt_ts_utils::index_with_module!(NodeID);
+use super::{ExprKind, ModifierKind};
+
+bolt_ts_utils::module_index!(NodeID);
 
 impl NodeID {
     pub fn new(module: ModuleID, index: u32) -> Self {
@@ -36,8 +38,8 @@ pub enum Node<'cx> {
     ClassDecl(&'cx super::ClassDecl<'cx>),
     NamespaceDecl(&'cx super::NsDecl<'cx>),
     ClassCtor(&'cx super::ClassCtor<'cx>),
-    ClassPropEle(&'cx super::ClassPropEle<'cx>),
-    ClassMethodEle(&'cx super::ClassMethodEle<'cx>),
+    ClassPropElem(&'cx super::ClassPropElem<'cx>),
+    ClassMethodElem(&'cx super::ClassMethodElem<'cx>),
     GetterDecl(&'cx super::GetterDecl<'cx>),
     SetterDecl(&'cx super::SetterDecl<'cx>),
     ClassExtendsClause(&'cx super::ClassExtendsClause<'cx>),
@@ -62,8 +64,14 @@ pub enum Node<'cx> {
     ForStmt(&'cx super::ForStmt<'cx>),
     ForInStmt(&'cx super::ForInStmt<'cx>),
     ForOfStmt(&'cx super::ForOfStmt<'cx>),
+    WhileStmt(&'cx super::WhileStmt<'cx>),
+    DoStmt(&'cx super::DoStmt<'cx>),
     BreakStmt(&'cx super::BreakStmt<'cx>),
     ContinueStmt(&'cx super::ContinueStmt<'cx>),
+    TryStmt(&'cx super::TryStmt<'cx>),
+    CatchClause(&'cx super::CatchClause<'cx>),
+    ObjectBindingElem(&'cx super::ObjectBindingElem<'cx>),
+    ObjectPat(&'cx super::ObjectPat<'cx>),
 
     // expr
     VarDecl(&'cx super::VarDecl<'cx>),
@@ -78,7 +86,9 @@ pub enum Node<'cx> {
     ParenExpr(&'cx super::ParenExpr<'cx>),
     CondExpr(&'cx super::CondExpr<'cx>),
     EnumMember(&'cx super::EnumMember<'cx>),
-    ObjectMemberField(&'cx super::ObjectMemberField<'cx>),
+    ObjectShorthandMember(&'cx super::ObjectShorthandMember<'cx>),
+    ObjectPropMember(&'cx super::ObjectPropMember<'cx>),
+    ObjectMethodMember(&'cx super::ObjectMethodMember<'cx>),
     ObjectLit(&'cx super::ObjectLit<'cx>),
     CallExpr(&'cx super::CallExpr<'cx>),
     FnExpr(&'cx super::FnExpr<'cx>),
@@ -87,21 +97,25 @@ pub enum Node<'cx> {
     AssignExpr(&'cx super::AssignExpr<'cx>),
     ArrowFnExpr(&'cx super::ArrowFnExpr<'cx>),
     PrefixUnaryExpr(&'cx super::PrefixUnaryExpr<'cx>),
+    PostfixUnaryExpr(&'cx super::PostfixUnaryExpr<'cx>),
     PropAccessExpr(&'cx super::PropAccessExpr<'cx>),
     EleAccessExpr(&'cx super::EleAccessExpr<'cx>),
     ThisExpr(&'cx super::ThisExpr),
     TypeofExpr(&'cx super::TypeofExpr<'cx>),
+    VoidExpr(&'cx super::VoidExpr<'cx>),
     SuperExpr(&'cx super::SuperExpr),
+    QualifiedName(&'cx super::QualifiedName<'cx>),
 
     // ty
-    NumLitTy(&'cx super::NumLitTy),
-    StringLitTy(&'cx super::StringLitTy),
+    LitTy(&'cx super::LitTy),
     ReferTy(&'cx super::ReferTy<'cx>),
     ArrayTy(&'cx super::ArrayTy<'cx>),
     IndexedAccessTy(&'cx super::IndexedAccessTy<'cx>),
     FnTy(&'cx super::FnTy<'cx>),
+    CtorTy(&'cx super::CtorTy<'cx>),
     ObjectLitTy(&'cx super::ObjectLitTy<'cx>),
     TyParam(&'cx super::TyParam<'cx>),
+    MappedTyParam(&'cx super::MappedTyParam<'cx>),
     IndexSigDecl(&'cx super::IndexSigDecl<'cx>),
     CallSigDecl(&'cx super::CallSigDecl<'cx>),
     CtorSigDecl(&'cx super::CtorSigDecl<'cx>),
@@ -113,6 +127,9 @@ pub enum Node<'cx> {
     IntersectionTy(&'cx super::IntersectionTy<'cx>),
     UnionTy(&'cx super::UnionTy<'cx>),
     TypeofTy(&'cx super::TypeofTy<'cx>),
+    MappedTy(&'cx super::MappedTy<'cx>),
+    TyOp(&'cx super::TyOp<'cx>),
+    PredTy(&'cx super::PredTy<'cx>),
 }
 
 impl<'cx> Node<'cx> {
@@ -125,7 +142,13 @@ impl<'cx> Node<'cx> {
         use Node::*;
         matches!(
             self,
-            FnDecl(_) | FnExpr(_) | ClassMethodEle(_) | ClassCtor(_) | ArrowFnExpr(_)
+            FnDecl(_)
+                | ClassMethodElem(_)
+                | ClassCtor(_)
+                | GetterDecl(_)
+                | SetterDecl(_)
+                | FnExpr(_)
+                | ArrowFnExpr(_)
         )
     }
 
@@ -164,28 +187,29 @@ impl<'cx> Node<'cx> {
 
     pub fn as_ty(&self) -> Option<super::Ty<'cx>> {
         macro_rules! as_ty_node {
-            ($( ($node_kind:ident, $ty_node_kind: ident)),* $(,)?) => {
-                match self {
-                    $(Node::$node_kind(n) => Some(super::Ty {
-                        kind: super::TyKind::$ty_node_kind(n)
-                    }),)*
-                    _ => None,
+            ($( $ty:ident ),* $(,)?) => {
+                paste::paste! {
+                    match self {
+                        $(Node::[<$ty Ty>](n) => Some(super::Ty {
+                            kind: super::TyKind::$ty(n)
+                        }),)*
+                        _ => None,
+                    }
                 }
             };
         }
         as_ty_node!(
-            (ReferTy, Refer),
-            (ArrayTy, Array),
-            (IndexedAccessTy, IndexedAccess),
-            (FnTy, Fn),
-            (ObjectLitTy, ObjectLit),
-            (NumLitTy, NumLit),
-            (StringLitTy, StringLit),
-            (TupleTy, Tuple),
-            (RestTy, Rest),
-            (CondTy, Cond),
-            (UnionTy, Union),
-            (IntersectionTy, Intersection),
+            Refer,
+            Array,
+            Tuple,
+            IndexedAccess,
+            Fn,
+            ObjectLit,
+            Lit,
+            Rest,
+            Cond,
+            Union,
+            Intersection,
         )
     }
 
@@ -198,11 +222,11 @@ impl<'cx> Node<'cx> {
             ClassExpr(n) => n.name,
             ParamDecl(n) => Some(n.name),
             InterfaceDecl(n) => Some(n.name),
-            ClassPropEle(n) => match n.name.kind {
+            ClassPropElem(n) => match n.name.kind {
                 super::PropNameKind::Ident(ident) => Some(ident),
                 _ => None,
             },
-            ClassMethodEle(n) => match n.name.kind {
+            ClassMethodElem(n) => match n.name.kind {
                 super::PropNameKind::Ident(ident) => Some(ident),
                 _ => None,
             },
@@ -210,12 +234,30 @@ impl<'cx> Node<'cx> {
                 super::PropNameKind::Ident(ident) => Some(ident),
                 _ => None,
             },
-            ObjectMemberField(n) => match n.name.kind {
+            ObjectPropMember(n) => match n.name.kind {
                 super::PropNameKind::Ident(ident) => Some(ident),
                 _ => None,
             },
+            ObjectMethodMember(n) => match n.name.kind {
+                super::PropNameKind::Ident(ident) => Some(ident),
+                _ => None,
+            },
+            ObjectShorthandMember(n) => Some(n.name),
+            TyParam(n) => Some(n.name),
             _ => None,
         }
+    }
+
+    pub fn ty_args(&self) -> Option<&'cx super::Tys<'cx>> {
+        macro_rules! ty_args {
+            ($($node_kind:ident),* $(,)?) => {
+                match self {
+                    $(Node::$node_kind(n) => n.ty_args,)*
+                    _ => None,
+                }
+            };
+        }
+        ty_args!(ReferTy)
     }
 
     pub fn ty_params(&self) -> Option<super::TyParams<'cx>> {
@@ -234,11 +276,12 @@ impl<'cx> Node<'cx> {
             ClassDecl,
             ClassCtor,
             CtorSigDecl,
-            ClassMethodEle,
+            ClassMethodElem,
             TypeDecl,
             MethodSignature,
             CallSigDecl,
             InterfaceDecl,
+            FnTy,
         )
     }
 
@@ -257,10 +300,11 @@ impl<'cx> Node<'cx> {
             ArrowFnExpr,
             ClassCtor,
             CtorSigDecl,
-            ClassMethodEle,
+            ClassMethodElem,
             MethodSignature,
             CallSigDecl,
-            FnTy
+            FnTy,
+            CtorTy,
         )
     }
 
@@ -292,13 +336,13 @@ impl<'cx> Node<'cx> {
             CtorSigDecl,
             FnDecl,
             MethodSignature,
-            ClassMethodEle,
+            ClassMethodElem,
             FnExpr,
             ArrowFnExpr,
             VarDecl,
             ParamDecl,
             PropSignature,
-            ClassPropEle,
+            ClassPropElem,
             // TypePredicate,
             // ParenTy
             // TypeOp,
@@ -319,16 +363,19 @@ impl<'cx> Node<'cx> {
         matches!(
             self,
             VarDecl(_)
-                | ObjectMemberField(_)
+                | ObjectShorthandMember(_)
+                | ObjectPropMember(_)
+                | ObjectMethodMember(_)
                 | ClassDecl(_)
                 | ClassExpr(_)
-                | ClassPropEle(_)
-                | ClassMethodEle(_)
+                | ClassPropElem(_)
+                | ClassMethodElem(_)
                 | ArrowFnExpr(_)
                 | FnExpr(_)
                 | ClassCtor(_)
                 | FnDecl(_)
                 | InterfaceDecl(_)
+                | ParamDecl(_)
                 | TyParam(_)
                 | ShorthandSpec(_)
         )
@@ -360,7 +407,7 @@ impl<'cx> Node<'cx> {
                 }
             };
         }
-        fn_body_with_option!(FnDecl, ClassMethodEle, ClassCtor)
+        fn_body_with_option!(FnDecl, ClassMethodElem, ClassCtor)
     }
 
     pub fn fn_flags(&self) -> FnFlags {
@@ -383,7 +430,7 @@ impl<'cx> Node<'cx> {
 
     pub fn module_name(&self) -> Option<&'cx super::StringLit> {
         match self {
-            Node::ImportDecl(n) => Some(&n.module),
+            Node::ImportDecl(n) => Some(n.module),
             _ => None,
         }
     }
@@ -408,8 +455,76 @@ impl<'cx> Node<'cx> {
     }
 
     pub fn is_static(&self) -> bool {
-        // TODO: has static modifier
-        self.is_class_decl() && false
+        (self.is_class_ele() && self.has_static_modifier()) || self.is_class_static_block_decl()
+    }
+
+    pub fn has_static_modifier(&self) -> bool {
+        self.has_syntactic_modifier(enumflags2::BitFlags::from(ModifierKind::Static))
+    }
+
+    pub fn has_syntactic_modifier(&self, flags: enumflags2::BitFlags<ModifierKind>) -> bool {
+        self.modifiers()
+            .map_or(false, |ms| ms.flags.intersects(flags))
+    }
+
+    pub fn modifiers(&self) -> Option<&'cx super::Modifiers> {
+        macro_rules! modifiers {
+            ($( $node_kind:ident),* $(,)?) => {
+                match self {
+                    $(Node::$node_kind(n) => n.modifiers,)*
+                    _ => None,
+                }
+            };
+        }
+        modifiers!(ClassMethodElem, ClassPropElem)
+    }
+
+    pub fn is_block_scope(&self, parent: Option<&Self>) -> bool {
+        if self.is_program()
+            || self.is_namespace_decl()
+            || self.is_for_stmt()
+            || self.is_for_in_stmt()
+            || self.is_for_of_stmt()
+            || self.is_class_ctor()
+            || self.is_class_method_ele()
+            || self.is_fn_decl()
+            || self.is_fn_expr()
+            || self.is_class_prop_ele()
+        {
+            true
+        } else if self.is_block_stmt() {
+            if let Some(parent) = parent {
+                !parent.is_fn_like_or_class_static_block_decl()
+            } else {
+                false
+            }
+        } else {
+            false
+        }
+    }
+
+    pub fn node_flags(&self) -> super::NodeFlags {
+        macro_rules! node_flags {
+            ($( $node_kind:ident),* $(,)?) => {
+                match self {
+                    $(Node::$node_kind(n) => n.flags,)*
+                    _ => Default::default(),
+                }
+            };
+        }
+        node_flags!(FnDecl, ClassMethodElem)
+    }
+
+    pub fn is_super_call(&self) -> bool {
+        self.as_call_expr()
+            .is_some_and(|expr| matches!(expr.expr.kind, ExprKind::Super(_)))
+    }
+
+    pub fn is_optional_decl(&self) -> bool {
+        match self {
+            Node::PropSignature(n) => n.question.is_some(),
+            _ => false,
+        }
     }
 }
 
@@ -610,11 +725,25 @@ as_node!(
         is_enum_member
     ),
     (
-        ObjectMemberField,
-        &'cx super::ObjectMemberField<'cx>,
-        as_object_member_field,
-        expect_object_member_field,
-        is_object_member_field
+        ObjectShorthandMember,
+        &'cx super::ObjectShorthandMember<'cx>,
+        as_object_shorthand_member,
+        expect_object_shorthand_member,
+        is_object_shorthand_member
+    ),
+    (
+        ObjectPropMember,
+        &'cx super::ObjectPropMember<'cx>,
+        as_object_prop_member,
+        expect_object_prop_member,
+        is_object_prop_member
+    ),
+    (
+        ObjectMethodMember,
+        &'cx super::ObjectMethodMember<'cx>,
+        as_object_method_member,
+        expect_object_method_member,
+        is_object_method_member
     ),
     (
         ObjectLit,
@@ -666,18 +795,18 @@ as_node!(
         is_fn_ty
     ),
     (
-        StringLitTy,
-        &'cx super::StringLitTy,
-        as_string_lit_ty,
-        expect_string_lit_ty,
-        is_string_lit_ty
+        CtorTy,
+        &'cx super::CtorTy<'cx>,
+        as_ctor_ty,
+        expect_ctor_ty,
+        is_ctor_ty
     ),
     (
-        NumLitTy,
-        &'cx super::NumLitTy,
-        as_num_lit_ty,
-        expect_num_lit_ty,
-        is_num_lit_ty
+        LitTy,
+        &'cx super::LitTy,
+        as_lit_ty,
+        expect_lit_ty,
+        is_lit_ty
     ),
     (
         ObjectLitTy,
@@ -694,6 +823,13 @@ as_node!(
         is_ty_param
     ),
     (
+        MappedTyParam,
+        &'cx super::MappedTyParam<'cx>,
+        as_mapped_ty_param,
+        expect_mapped_ty_param,
+        is_mapped_ty_param
+    ),
+    (
         Modifier,
         &'cx super::Modifier,
         as_modifier,
@@ -701,15 +837,15 @@ as_node!(
         is_modifier
     ),
     (
-        ClassPropEle,
-        &'cx super::ClassPropEle<'cx>,
+        ClassPropElem,
+        &'cx super::ClassPropElem<'cx>,
         as_class_prop_ele,
         expect_class_prop_ele,
         is_class_prop_ele
     ),
     (
-        ClassMethodEle,
-        &'cx super::ClassMethodEle<'cx>,
+        ClassMethodElem,
+        &'cx super::ClassMethodElem<'cx>,
         as_class_method_ele,
         expect_class_method_ele,
         is_class_method_ele
@@ -727,6 +863,13 @@ as_node!(
         as_prefix_unary_expr,
         expect_prefix_unary_expr,
         is_prefix_unary_expr
+    ),
+    (
+        PostfixUnaryExpr,
+        &'cx super::PostfixUnaryExpr<'cx>,
+        as_postfix_unary_expr,
+        expect_postfix_unary_expr,
+        is_postfix_unary_expr
     ),
     (
         ClassExpr,
@@ -776,6 +919,13 @@ as_node!(
         as_typeof_expr,
         expect_typeof_expr,
         is_typeof_expr
+    ),
+    (
+        VoidExpr,
+        &'cx super::VoidExpr<'cx>,
+        as_void_expr,
+        expect_void_expr,
+        is_void_expr
     ),
     (
         EleAccessExpr,
@@ -1028,5 +1178,75 @@ as_node!(
         as_super_expr,
         expect_super_expr,
         is_super_expr
+    ),
+    (
+        MappedTy,
+        &'cx super::MappedTy<'cx>,
+        as_mapped_ty,
+        expect_mapped_ty,
+        is_mapped_ty
+    ),
+    (
+        TyOp,
+        &'cx super::TyOp<'cx>,
+        as_ty_op,
+        expect_ty_op,
+        is_ty_op
+    ),
+    (
+        TryStmt,
+        &'cx super::TryStmt<'cx>,
+        as_try_stmt,
+        expect_try_stmt,
+        is_try_stmt
+    ),
+    (
+        CatchClause,
+        &'cx super::CatchClause<'cx>,
+        as_catch_clause,
+        expect_catch_clause,
+        is_catch_clause
+    ),
+    (
+        DoStmt,
+        &'cx super::DoStmt<'cx>,
+        as_do_stmt,
+        expect_do_stmt,
+        is_do_stmt
+    ),
+    (
+        WhileStmt,
+        &'cx super::WhileStmt<'cx>,
+        as_while_stmt,
+        expect_while_stmt,
+        is_while_stmt
+    ),
+    (
+        QualifiedName,
+        &'cx super::QualifiedName<'cx>,
+        as_qualified_name,
+        expect_qualified_name,
+        is_qualified_name
+    ),
+    (
+        ObjectPat,
+        &'cx super::ObjectPat<'cx>,
+        as_object_pat,
+        expect_object_pat,
+        is_object_pat
+    ),
+    (
+        ObjectBindingElem,
+        &'cx super::ObjectBindingElem<'cx>,
+        as_object_binding_elem,
+        expect_object_binding_elem,
+        is_object_binding_elem
+    ),
+    (
+        PredTy,
+        &'cx super::PredTy<'cx>,
+        as_pred_ty,
+        expect_pred_ty,
+        is_pred_ty
     )
 );

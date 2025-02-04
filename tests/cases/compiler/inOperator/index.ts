@@ -7,7 +7,7 @@ for (var x in a) {}
 if (3 in a) {}
 
 var b = '' in 0;
-//~^ ERROR: Type 'number' is not assignable to type 'object'.
+//~^ ERROR: The right value of the `in` operator must be an 'object', but got 'number'.
 
 var c: any;
 var y: number;

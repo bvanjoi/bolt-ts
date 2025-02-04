@@ -16,10 +16,15 @@ macro_rules! normalized_option {
 normalized_option!(
     NormalizedCompilerOptions,
     (out_dir, OutDir),
-    (no_emit, bool)
+    (no_emit, bool),
+    (declaration, bool),
+    (strict, bool),
+    (strict_null_checks, bool),
+    (no_implicit_any, bool),
 );
+
 normalized_option!(
     NormalizedTsConfig,
     (include, Vec<String>),
-    (compiler_options, NormalizedCompilerOptions)
+    (compiler_options, NormalizedCompilerOptions),
 );

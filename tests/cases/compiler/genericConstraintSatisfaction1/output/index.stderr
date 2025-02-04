@@ -1,0 +1,6 @@
+  × Argument of type '{ s: number; }' is not assignable to parameter of type
+  │ '{ s: string; }'.
+   ╭─[../../tests/cases/compiler/genericConstraintSatisfaction1/index.ts:8:5]
+ 8 │ {s: 1}
+   · ──────
+   ╰────

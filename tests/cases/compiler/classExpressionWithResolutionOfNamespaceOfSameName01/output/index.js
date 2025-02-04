@@ -1,9 +1,9 @@
 var C = {};
 (function (C) {
 
-
-
-})(C)
+  
+  
+})(C);
 var x = class C {
   prop
 }

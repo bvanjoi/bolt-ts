@@ -1,6 +1,6 @@
 use super::TyChecker;
 use crate::ast;
-use crate::bind::{Symbol, SymbolID};
+use crate::bind::SymbolID;
 
 #[derive(Debug, Clone, Copy)]
 pub enum ExpectedArgsCount {
@@ -23,27 +23,27 @@ impl<'cx> TyChecker<'cx> {
         self.binder.final_res(ident.id)
     }
 
-    #[inline]
-    pub(super) fn get_symbol_of_decl(&self, id: ast::NodeID) -> SymbolID {
-        assert!(
-            self.p.node(id).is_decl(),
-            "expected a decl node, but got {:?}",
-            self.p.node(id)
-        );
-        self.binder.final_res(id)
-    }
-
-    #[inline]
-    pub(super) fn get_symbol_from_expr(&self, id: ast::NodeID) -> Option<SymbolID> {
-        let node = self.p.node(id);
-        if Symbol::can_have_symbol(node) {
-            Some(self.binder.final_res(id))
-        } else if let Some(ident) = node.as_ident() {
-            Some(self.resolve_symbol_by_ident(ident))
-        } else if node.as_prop_access_expr().is_some() {
-            todo!()
-        } else {
-            None
+    pub(super) fn resolve_entity_name(&mut self, name: &'cx ast::EntityName<'cx>) -> SymbolID {
+        use ast::EntityNameKind::*;
+        match name.kind {
+            Ident(n) => self.resolve_symbol_by_ident(n),
+            Qualified(n) => self.binder.final_res(n.id),
         }
     }
+
+    // fn resolve_qualified_name(
+    //     &mut self,
+    //     left: &'cx ast::EntityName<'cx>,
+    //     right: &'cx ast::Ident,
+    // ) -> SymbolID {
+    //     let left_symbol = self.resolve_entity_name(left);
+    //     let left_s = self.binder.symbol(left_symbol);
+    //     let ns = if left_s.flags.intersects(SymbolFlags::NAMESPACE) {
+    //         left_s.expect_ns()
+    //     } else {
+    //         return Symbol::ERR;
+    //     };
+    //     let name = SymbolName::Normal(right.name);
+    //     ns.exports.get(&name)
+    // }
 }

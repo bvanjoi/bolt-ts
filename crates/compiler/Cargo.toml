@@ -6,6 +6,7 @@ edition = "2021"
 [dependencies]
 rayon = "1.10.0"
 rustc-hash = { workspace = true }
+nohash-hasher = "0.2.0"
 bumpalo = { version = "3.16.0" }
 enumflags2 = { workspace = true }
 bitflags = { workspace = true }

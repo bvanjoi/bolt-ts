@@ -39,7 +39,7 @@ impl<'cx> Emit<'cx> {
         match name.kind {
             Ident(ident) => self.emit_ident(ident),
             NumLit(num) => self.emit_num_lit(num),
-            StringLit(lit) => self.emit_string_lit(lit),
+            StringLit { raw, .. } => self.emit_string_lit(raw),
         }
     }
 
@@ -53,8 +53,14 @@ impl<'cx> Emit<'cx> {
     }
 
     pub(super) fn emit_as_string(&mut self, val: AtomId) {
+        let s = self.atoms.get(val);
         self.content.p("'");
-        self.content.p(self.atoms.get(val));
+        for c in s.chars() {
+            match c {
+                '\'' => self.content.p("\\'"),
+                _ => self.content.content.push(c),
+            }
+        }
         self.content.p("'");
     }
 }

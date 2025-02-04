@@ -1,0 +1,5 @@
+  × Identifier expected.
+   ╭─[../../tests/cases/compiler/varArgWithNoParamName/index.ts:3:16]
+ 3 │ )
+   · ─
+   ╰────

@@ -1,0 +1,12 @@
+  × Cannot find name 's'.
+   ╭─[../../tests/cases/compiler/scopeCheckInsidePublicMethod1/index.ts:6:6]
+ 6 │ s
+   · ─
+   ╰────
+
+Advice: 
+  ☞ Did you mean the static member 'C.s'?
+   ╭─[../../tests/cases/compiler/scopeCheckInsidePublicMethod1/index.ts:4:10]
+ 4 │ s
+   · ─
+   ╰────

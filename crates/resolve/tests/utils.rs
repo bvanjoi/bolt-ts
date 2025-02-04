@@ -10,7 +10,7 @@ fn build_and_resolve(
     target: &str,
 ) -> Result<String, ResolveError> {
     let input = serde_json::from_value(map).unwrap();
-    let mut atoms = bolt_ts_atom::AtomMap::new(0);
+    let mut atoms = bolt_ts_atom::AtomMap::new(1024);
     let base_dir = PathId::new(std::path::Path::new(base_dir), &mut atoms);
     let target = atoms.insert_by_str(target.into());
 

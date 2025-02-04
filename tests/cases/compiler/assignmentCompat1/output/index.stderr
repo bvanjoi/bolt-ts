@@ -1,0 +1,37 @@
+  × Property 'one' is missing.
+   ╭─[../../tests/cases/compiler/assignmentCompat1/index.ts:6:5]
+ 6 │ y
+   · ─
+   ╰────
+
+Advice: 
+  ☞ Property 'one' is defined here
+   ╭─[../../tests/cases/compiler/assignmentCompat1/index.ts:3:9]
+ 3 │ { one: 1 }
+   · ──────────
+   ╰────
+
+  × Property 'one' is missing.
+   ╭─[../../tests/cases/compiler/assignmentCompat1/index.ts:9:5]
+ 9 │ z
+   · ─
+   ╰────
+
+Advice: 
+  ☞ Property 'one' is defined here
+   ╭─[../../tests/cases/compiler/assignmentCompat1/index.ts:3:9]
+ 3 │ { one: 1 }
+   · ──────────
+   ╰────
+
+  × Type 'string' is not assignable to type '{ [index: string]: any }'.
+    ╭─[../../tests/cases/compiler/assignmentCompat1/index.ts:12:5]
+ 12 │ "foo"
+    · ─────
+    ╰────
+
+  × Type 'false' is not assignable to type '{ [index: number]: any }'.
+    ╭─[../../tests/cases/compiler/assignmentCompat1/index.ts:15:5]
+ 15 │ false
+    · ─────
+    ╰────

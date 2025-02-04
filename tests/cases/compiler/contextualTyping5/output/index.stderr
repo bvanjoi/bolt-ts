@@ -1,6 +1,6 @@
   × Property 'id' is missing.
-   ╭─[../../tests/cases/compiler/contextualTyping5/index.ts:3:39]
- 3 │ { }
+   ╭─[../../tests/cases/compiler/contextualTyping5/index.ts:3:20]
+ 3 │ bar
    · ───
    ╰────
 

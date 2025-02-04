@@ -1,0 +1,4 @@
+
+class Bug {
+  foo(value) {}
+}

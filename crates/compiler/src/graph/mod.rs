@@ -44,7 +44,7 @@ impl ModuleGraph {
     }
 
     pub fn push_error(&mut self, diag: crate::Diag) {
-        self.diags.push(bolt_ts_errors::Diag { inner: diag.into() });
+        self.diags.push(bolt_ts_errors::Diag { inner: diag });
     }
 
     pub fn steal_errors(&mut self) -> Vec<bolt_ts_errors::Diag> {
@@ -81,7 +81,7 @@ pub(super) fn build_graph<'cx>(
                     todo!()
                 };
                 let base_dir = file_path.parent().unwrap();
-                let base_dir = PathId::get(&base_dir);
+                let base_dir = PathId::get(base_dir);
                 let deps = deps
                     .into_par_iter()
                     .map(|(node_id, dep)| (node_id, resolver.resolve(base_dir, dep)))
@@ -98,14 +98,14 @@ pub(super) fn build_graph<'cx>(
             let ModulePath::Real(p) = module_arena.get_path(item) else {
                 todo!()
             };
-            let path_id = PathId::get(&p);
+            let path_id = PathId::get(p);
             resolved.insert(path_id, item);
         }
 
         let atoms = &mut atoms.lock().unwrap();
         let fs = &mut fs.lock().unwrap();
 
-        let mut next = fx_hashset_with_capacity(modules.len() * 32);
+        let mut next = fx_hashmap_with_capacity(modules.len() * 32);
         for ResolvedModule {
             id,
             parse_result,
@@ -129,24 +129,28 @@ pub(super) fn build_graph<'cx>(
                 let to = match resolved.get(&dep) {
                     Some(to) => *to,
                     None => {
-                        let p = std::path::PathBuf::from(atoms.get(dep.into()));
-                        let content = fs.read_file(p.as_path(), atoms).unwrap();
-                        let module_path = ModulePath::Real(p);
-                        let to = module_arena.new_module_with_content(
-                            module_path,
-                            false,
-                            content,
-                            atoms,
-                        );
-                        next.insert(to);
-                        to
+                        if let Some(to) = next.get(&dep).copied() {
+                            to
+                        } else {
+                            let p = std::path::PathBuf::from(atoms.get(dep.into()));
+                            let content = fs.read_file(p.as_path(), atoms).unwrap();
+                            let module_path = ModulePath::Real(p);
+                            let to = module_arena.new_module_with_content(
+                                module_path,
+                                false,
+                                content,
+                                atoms,
+                            );
+                            next.insert(dep, to);
+                            to
+                        }
                     }
                 };
                 mg.add_dep(id, ast_id, ModuleRes::Res(to));
             }
         }
 
-        resolving = next.into_iter().collect();
+        resolving = next.into_values().collect();
     }
 
     mg

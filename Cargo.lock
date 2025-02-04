@@ -88,6 +88,7 @@ dependencies = [
  "glob",
  "include_dir",
  "indexmap",
+ "nohash-hasher",
  "normalize-path",
  "paste",
  "project-root",
@@ -145,7 +146,6 @@ dependencies = [
 name = "bolt_ts_lib"
 version = "0.1.0"
 dependencies = [
- "miette",
  "rustc-hash",
 ]
 
@@ -175,6 +175,7 @@ dependencies = [
 name = "bolt_ts_utils"
 version = "0.1.0"
 dependencies = [
+ "nohash-hasher",
  "rustc-hash",
 ]
 
@@ -445,6 +446,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "nohash-hasher"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2bf50223579dc7cdcfb3bfcacf7069ff68243f8c363f62ffa99cf000a6b9c451"
+
+[[package]]
 name = "normalize-path"
 version = "0.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -707,7 +714,7 @@ dependencies = [
  "cfg-if",
  "libc",
  "psm",
- "windows-sys 0.52.0",
+ "windows-sys 0.59.0",
 ]
 
 [[package]]

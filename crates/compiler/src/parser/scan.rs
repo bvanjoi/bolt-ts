@@ -58,10 +58,6 @@ impl ParserState<'_, '_> {
         self.input.get(self.pos + 2).copied()
     }
 
-    fn next_next_next_ch(&self) -> Option<u8> {
-        self.input.get(self.pos + 3).copied()
-    }
-
     pub(super) fn new_span(&self, lo: u32) -> Span {
         Span {
             lo,
@@ -73,12 +69,12 @@ impl ParserState<'_, '_> {
     fn scan_number_fragment(&mut self) -> Vec<u8> {
         let start = self.pos;
         let mut allow_separator = false;
-        let mut is_previous_token_separator = false;
+        // let mut is_previous_token_separator = false;
         while let Some(ch) = self.ch() {
             if ch == b'_' {
                 if allow_separator {
                     allow_separator = false;
-                    is_previous_token_separator = true;
+                    // is_previous_token_separator = true;
                 } else {
                     todo!()
                 }
@@ -87,7 +83,7 @@ impl ParserState<'_, '_> {
 
             if ch.is_ascii_digit() {
                 allow_separator = true;
-                is_previous_token_separator = false;
+                // is_previous_token_separator = false;
                 self.pos += 1;
                 continue;
             }
@@ -210,7 +206,7 @@ impl ParserState<'_, '_> {
                 if is_identifier_start(ch) {
                     self.pos += 1;
                 } else {
-                    assert!(ch >= 128);
+                    assert!(ch >= 128, "invalid char: {ch}");
                     self.scan_unicode_from_utf8(UTF8_CHAR_LEN_MAX)?;
                 }
                 first = false;
@@ -317,7 +313,6 @@ impl ParserState<'_, '_> {
                     }
                 }
                 b'=' => {
-                    // todo: ==, ===
                     if self.next_ch() == Some(b'>') {
                         self.pos += 2;
                         Token::new(
@@ -389,6 +384,13 @@ impl ParserState<'_, '_> {
                             Span::new(start as u32, self.pos as u32, self.module_id),
                         )
                     }
+                }
+                b'~' => {
+                    self.pos += 1;
+                    Token::new(
+                        TokenKind::Tilde,
+                        Span::new(start as u32, self.pos as u32, self.module_id),
+                    )
                 }
                 b'*' => {
                     if self.next_ch() == Some(b'*') {
@@ -493,51 +495,12 @@ impl ParserState<'_, '_> {
                     }
                 }
                 b'>' => {
-                    if self.next_ch() == Some(b'>') {
-                        if self.next_next_ch() == Some(b'>') {
-                            if self.next_next_next_ch() == Some(b'=') {
-                                // >>>=
-                                self.pos += 4;
-                                Token::new(
-                                    TokenKind::GreatGreatGreatEq,
-                                    Span::new(start as u32, self.pos as u32, self.module_id),
-                                )
-                            } else {
-                                // >>>
-                                self.pos += 3;
-                                Token::new(
-                                    TokenKind::GreatGreatGreat,
-                                    Span::new(start as u32, self.pos as u32, self.module_id),
-                                )
-                            }
-                        } else if self.next_next_ch() == Some(b'=') {
-                            // >>=
-                            self.pos += 3;
-                            Token::new(
-                                TokenKind::GreatGreatEq,
-                                Span::new(start as u32, self.pos as u32, self.module_id),
-                            )
-                        } else {
-                            // >>
-                            self.pos += 2;
-                            Token::new(
-                                TokenKind::GreatGreat,
-                                Span::new(start as u32, self.pos as u32, self.module_id),
-                            )
-                        }
-                    } else if self.next_ch() == Some(b'=') {
-                        self.pos += 1;
-                        Token::new(
-                            TokenKind::GreatEq,
-                            Span::new(start as u32, self.pos as u32, self.module_id),
-                        )
-                    } else {
-                        self.pos += 1;
-                        Token::new(
-                            TokenKind::Great,
-                            Span::new(start as u32, self.pos as u32, self.module_id),
-                        )
-                    }
+                    // `>>`, `>=`, `>>>`, `>>=`, `>>>=` will be handled in `re_scan_greater`
+                    self.pos += 1;
+                    Token::new(
+                        TokenKind::Great,
+                        Span::new(start as u32, self.pos as u32, self.module_id),
+                    )
                 }
                 b'^' => {
                     if self.next_ch() == Some(b'=') {
@@ -554,22 +517,14 @@ impl ParserState<'_, '_> {
                         )
                     }
                 }
-                b'.' => {
-                    if self.next_ch() == Some(b'.') && self.next_next_ch() == Some(b'.') {
-                        self.pos += 3;
-                        Token::new(
-                            TokenKind::DotDotDot,
-                            Span::new(start as u32, self.pos as u32, self.module_id),
-                        )
-                    } else {
-                        self.pos += 1;
-                        Token::new(
-                            TokenKind::Dot,
-                            Span::new(start as u32, self.pos as u32, self.module_id),
-                        )
-                    }
+                b'.' if self.next_ch() == Some(b'.') && self.next_next_ch() == Some(b'.') => {
+                    self.pos += 3;
+                    Token::new(
+                        TokenKind::DotDotDot,
+                        Span::new(start as u32, self.pos as u32, self.module_id),
+                    )
                 }
-                b',' | b';' | b':' | b'[' | b']' | b'(' | b')' | b'{' | b'}' => {
+                b',' | b';' | b':' | b'[' | b']' | b'(' | b')' | b'{' | b'}' | b'!' | b'.' => {
                     self.pos += 1;
                     let kind = unsafe { std::mem::transmute::<u8, TokenKind>(ch) };
                     Token::new(
@@ -578,9 +533,17 @@ impl ParserState<'_, '_> {
                     )
                 }
                 b'\'' | b'"' => {
-                    let (offset, v) = self.scan_string(ch);
+                    let (offset, v, key_value) = self.scan_string(ch);
                     self.pos += offset;
+
+                    let len = v.len();
                     let atom = self.atoms.lock().unwrap().insert_by_vec(v);
+                    if len != key_value.len() {
+                        let key_atom = self.atoms.lock().unwrap().insert_by_vec(key_value);
+                        self.string_key_value = Some(key_atom);
+                    } else {
+                        self.string_key_value = Some(atom);
+                    };
                     self.token_value = Some(TokenValue::Ident { value: atom });
                     Token::new(
                         TokenKind::String,
@@ -629,10 +592,12 @@ impl ParserState<'_, '_> {
         )
     }
 
-    fn scan_string(&self, quote: u8) -> (usize, Vec<u8>) {
+    fn scan_string(&self, quote: u8) -> (usize, Vec<u8>, Vec<u8>) {
         let start = self.pos;
         let mut offset = 1;
         let mut v = Vec::with_capacity(32);
+        let mut prev = 0;
+        let mut key = Vec::with_capacity(32);
         loop {
             let idx = start + offset;
             if idx >= self.end() {
@@ -643,12 +608,68 @@ impl ParserState<'_, '_> {
             if ch == quote {
                 break;
             }
+            if !(ch == b'\n' && prev == b'\\') {
+                key.push(ch);
+            } else {
+                key.pop();
+            }
             v.push(ch);
+            prev = ch;
         }
-        (offset, v)
+        (offset, v, key)
     }
 
     pub(super) fn re_scan_greater(&mut self) -> TokenKind {
+        if self.token.kind != TokenKind::Great {
+            return self.token.kind;
+        }
+        let start = self.token.start();
+        assert_eq!(start + 1, self.pos as u32);
+        self.token = if self.ch_unchecked() == b'>' {
+            // >>
+            if self.next_ch() == Some(b'>') {
+                // >>>
+                if self.next_next_ch() == Some(b'=') {
+                    // >>>=
+                    self.pos += 3;
+                    Token::new(
+                        TokenKind::GreatGreatGreatEq,
+                        Span::new(start, self.pos as u32, self.module_id),
+                    )
+                } else {
+                    // >>>
+                    self.pos += 2;
+                    Token::new(
+                        TokenKind::GreatGreatGreat,
+                        Span::new(start, self.pos as u32, self.module_id),
+                    )
+                }
+            } else if self.next_ch() == Some(b'=') {
+                // >>=
+                self.pos += 2;
+                Token::new(
+                    TokenKind::GreatGreatEq,
+                    Span::new(start, self.pos as u32, self.module_id),
+                )
+            } else {
+                // >>
+                self.pos += 1;
+                Token::new(
+                    TokenKind::GreatGreat,
+                    Span::new(start, self.pos as u32, self.module_id),
+                )
+            }
+        } else if self.ch_unchecked() == b'=' {
+            // >=
+            self.pos += 1;
+            Token::new(
+                TokenKind::GreatEq,
+                Span::new(start, self.pos as u32, self.module_id),
+            )
+        } else {
+            // >
+            self.token
+        };
         self.token.kind
     }
 

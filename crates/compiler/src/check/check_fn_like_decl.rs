@@ -3,9 +3,7 @@ use crate::{ast, ir};
 
 impl<'cx> TyChecker<'cx> {
     fn check_param_decl(&mut self, param: &'cx ast::ParamDecl<'cx>) {
-        if let Some(init) = param.init {
-            self.check_expr(init);
-        }
+        self.check_var_like_decl(param);
     }
 
     pub(super) fn check_fn_like_decl(&mut self, decl: &impl ir::FnDeclLike<'cx>) {

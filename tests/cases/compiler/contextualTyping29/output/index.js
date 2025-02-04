@@ -1,3 +1,3 @@
 function foo(param) {}
 
-foo([1, 3])
+foo([1, 3]);

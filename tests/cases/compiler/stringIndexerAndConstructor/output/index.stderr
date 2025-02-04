@@ -1,0 +1,13 @@
+  × Property '""' of type 'string' is not assignable to 'string' index type
+  │ 'number'.
+    ╭─[../../tests/cases/compiler/stringIndexerAndConstructor/index.ts:13:3]
+ 13 │ "": string
+    · ──────────
+    ╰────
+
+  × Property 'd' of type 'string' is not assignable to 'string' index type
+  │ 'number'.
+    ╭─[../../tests/cases/compiler/stringIndexerAndConstructor/index.ts:15:3]
+ 15 │ d: string
+    · ─────────
+    ╰────

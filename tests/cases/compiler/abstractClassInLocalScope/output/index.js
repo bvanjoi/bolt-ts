@@ -1,6 +1,6 @@
 (() => {
   class A {}
   class B extends A {}
-  new B()
+  new B();
   return A
-})()
+})();

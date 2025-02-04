@@ -18,10 +18,10 @@ pub trait CachedFileSystem: Send + Sync {
         self.read_file(p, atoms).is_ok()
     }
 
-    fn read_dir<'atoms>(
+    fn read_dir(
         &mut self,
         p: &std::path::Path,
-        atoms: &mut AtomMap<'atoms>,
+        atoms: &mut AtomMap<'_>,
     ) -> FsResult<impl Iterator<Item = std::path::PathBuf>>;
 }
 

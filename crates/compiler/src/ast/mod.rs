@@ -1,12 +1,14 @@
 mod expr;
 mod node;
 mod node_flags;
+mod pprint;
 mod stmt;
 mod ty;
 
 pub mod visitor;
 
 pub use expr::*;
+pub use pprint::*;
 pub use stmt::*;
 pub use ty::*;
 pub use visitor::Visitor;
@@ -27,6 +29,24 @@ pub struct EntityName<'cx> {
     pub kind: EntityNameKind<'cx>,
 }
 
+impl EntityName<'_> {
+    pub fn span(&self) -> Span {
+        use EntityNameKind::*;
+        match self.kind {
+            Ident(ident) => ident.span,
+            Qualified(name) => name.span,
+        }
+    }
+
+    pub fn id(&self) -> NodeID {
+        use EntityNameKind::*;
+        match self.kind {
+            Ident(ident) => ident.id,
+            Qualified(name) => name.id,
+        }
+    }
+}
+
 #[derive(Debug, Clone, Copy)]
 pub enum EntityNameKind<'cx> {
     Ident(&'cx Ident),
@@ -36,6 +56,7 @@ pub enum EntityNameKind<'cx> {
 #[derive(Debug, Clone, Copy)]
 pub struct QualifiedName<'cx> {
     pub id: NodeID,
+    pub span: Span,
     pub left: &'cx EntityName<'cx>,
     pub right: &'cx Ident,
 }

@@ -1,0 +1,23 @@
+  × Generic type 'IfNever' requires between 1 and 3 type arguments.
+    ╭─[../../tests/cases/compiler/fest/index.ts:18:12]
+ 18 │ IfNever
+    · ───────
+    ╰────
+
+  × Generic type 'IsNever' requires 1 type argument.
+    ╭─[../../tests/cases/compiler/fest/index.ts:82:13]
+ 82 │ IsNever
+    · ───────
+    ╰────
+
+  × Generic type 'IsNever' requires 1 type argument.
+    ╭─[../../tests/cases/compiler/fest/index.ts:84:13]
+ 84 │ IsNever<number, boolean>
+    · ────────────────────────
+    ╰────
+
+  × Generic type 'IsUnknown' requires 1 type argument.
+     ╭─[../../tests/cases/compiler/fest/index.ts:126:12]
+ 126 │ IsUnknown
+     · ─────────
+     ╰────

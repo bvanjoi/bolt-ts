@@ -1,0 +1,10 @@
+  × ']' expected.
+   ╭─[../../tests/cases/compiler/missingCloseBracketInArray/index.ts:4:25]
+   ╰────
+
+Advice: 
+  ☞ Expected to find a '[' to match the ']' token here.
+   ╭─[../../tests/cases/compiler/missingCloseBracketInArray/index.ts:3:32]
+ 3 │ [
+   · ─
+   ╰────
