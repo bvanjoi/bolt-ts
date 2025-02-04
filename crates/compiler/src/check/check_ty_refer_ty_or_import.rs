@@ -1,7 +1,7 @@
 use crate::bind::{Symbol, SymbolFlags, SymbolID};
 use crate::check::cycle_check::ResolutionKey;
 use crate::check::is_deeply_nested_type::RecursionId;
-use crate::ty::TyMapper;
+use crate::ty::TypeFlags;
 use crate::{ast, ty};
 
 use super::{errors, Ternary, TyChecker};
@@ -27,11 +27,9 @@ impl<'cx> TyReferTyOrImport<'cx> for ast::ReferTy<'cx> {
 impl<'cx> TyChecker<'cx> {
     pub(super) fn check_ty_refer_ty_or_import(&mut self, node: &impl TyReferTyOrImport<'cx>) {
         let ty = node.get_ty(self);
-        if ty != self.error_ty() {
-            if node.ty_args().is_some() {
-                if let Some(ty_params) = self.get_ty_params_for_ty_refer_ty_or_import(node) {
-                    self.check_ty_arg_constraints(node, ty_params);
-                }
+        if ty != self.error_ty && node.ty_args().is_some() {
+            if let Some(ty_params) = self.get_ty_params_for_ty_refer_ty_or_import(node) {
+                self.check_ty_arg_constraints(node, ty_params);
             }
         }
     }
@@ -58,7 +56,10 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
-    fn get_constraint_decl(&self, ty_param: &'cx ty::Ty<'cx>) -> Option<&'cx ast::Ty<'cx>> {
+    pub(super) fn get_constraint_decl(
+        &self,
+        ty_param: &'cx ty::Ty<'cx>,
+    ) -> Option<&'cx ast::Ty<'cx>> {
         if ty_param.kind.expect_param().is_this_ty {
             None
         } else if let Some(symbol) = ty_param.symbol() {
@@ -86,33 +87,34 @@ impl<'cx> TyChecker<'cx> {
         ty_param: &'cx ty::Ty<'cx>,
     ) -> Option<&'cx ty::Ty<'cx>> {
         let param_ty = ty_param.kind.expect_param();
-        let constraint =
-            if let Some(constraint) = self.get_ty_links(ty_param.id).get_param_ty_constraint() {
-                Some(constraint)
-            } else if let Some(target) = param_ty.target {
-                let constraint =
-                    if let Some(target_constraint) = self.get_constraint_of_ty_param(target) {
-                        let mapper = self.get_ty_links(ty_param.id).expect_param_ty_mapper();
-                        self.instantiate_ty(target_constraint, Some(mapper))
-                    } else {
-                        self.no_constraint_ty()
-                    };
-                self.get_mut_ty_links(ty_param.id)
-                    .set_param_ty_constraint(constraint);
-                Some(constraint)
-            } else {
-                let constraint = if let Some(constraint_decl) = self.get_constraint_decl(ty_param) {
-                    let ty = self.get_ty_from_type_node(constraint_decl);
-                    if ty.kind.is_any() && ty != self.error_ty() {}
-                    ty
+        let constraint = if let Some(constraint) = self.param_ty_constraint(ty_param) {
+            Some(constraint)
+        } else if let Some(target) = param_ty.target {
+            let constraint =
+                if let Some(target_constraint) = self.get_constraint_of_ty_param(target) {
+                    let mapper = self.get_ty_links(ty_param.id).expect_param_ty_mapper();
+                    self.instantiate_ty(target_constraint, Some(mapper))
                 } else {
-                    self.get_inferred_ty_param_constraint(ty_param)
-                        .unwrap_or(self.no_constraint_ty())
+                    self.no_constraint_ty()
                 };
-                self.get_mut_ty_links(ty_param.id)
-                    .set_param_ty_constraint(constraint);
-                Some(constraint)
+            self.get_mut_ty_links(ty_param.id)
+                .set_param_ty_constraint(constraint);
+            Some(constraint)
+        } else {
+            let constraint = if let Some(constraint_decl) = self.get_constraint_decl(ty_param) {
+                let mut ty = self.get_ty_from_type_node(constraint_decl);
+                if ty.flags.intersects(TypeFlags::ANY) {
+                    ty = self.error_ty;
+                }
+                ty
+            } else {
+                self.get_inferred_ty_param_constraint(ty_param)
+                    .unwrap_or(self.no_constraint_ty())
             };
+            self.get_mut_ty_links(ty_param.id)
+                .set_param_ty_constraint(constraint);
+            Some(constraint)
+        };
 
         constraint.filter(|c| *c != self.no_constraint_ty())
     }
@@ -201,7 +203,7 @@ impl<'cx> TyChecker<'cx> {
     ) -> bool {
         let mut result = true;
         let ty_args = self.get_effective_ty_args(node.id(), ty_params).unwrap();
-        let mapper = self.alloc(TyMapper::create(ty_params, ty_args));
+        let mapper = self.create_ty_mapper(ty_params, ty_args);
         for (idx, (ty_arg, ty_param)) in ty_args.iter().zip(ty_params.iter()).enumerate() {
             if let Some(constraint) = self.get_constraint_of_ty_param(ty_param) {
                 if result {
@@ -233,7 +235,7 @@ impl<'cx> TyChecker<'cx> {
         node: &impl TyReferTyOrImport<'cx>,
     ) -> Option<ty::Tys<'cx>> {
         let ty = node.get_ty(self);
-        if ty == self.error_ty() {
+        if ty == self.error_ty {
             None
         } else {
             self.get_node_links(node.id())
@@ -247,7 +249,7 @@ impl<'cx> TyChecker<'cx> {
         ty: &'cx ty::Ty<'cx>,
         symbol: SymbolID,
     ) -> Option<ty::Tys<'cx>> {
-        if ty == self.error_ty() {
+        if ty == self.error_ty {
             None
         } else if self
             .binder

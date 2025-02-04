@@ -2,16 +2,23 @@ use bolt_ts_atom::AtomMap;
 
 use super::Symbol;
 
-impl<'cx> Symbol<'cx> {
+impl<'cx> Symbol {
     pub(crate) fn print_name(&self, atoms: &AtomMap<'cx>) -> String {
         self.name.print(atoms)
+    }
+    pub(crate) fn to_string(&self, atoms: &'cx AtomMap<'cx>) -> &'cx str {
+        use super::SymbolName;
+        match self.name {
+            SymbolName::Normal(atom_id) => atoms.get(atom_id),
+            _ => todo!(),
+        }
     }
 }
 
 use super::SymbolName;
 
-impl<'cx> SymbolName {
-    pub(crate) fn print(&self, atoms: &AtomMap<'cx>) -> String {
+impl SymbolName {
+    pub(crate) fn print(&self, atoms: &AtomMap<'_>) -> String {
         match &self {
             super::SymbolName::Normal(atom_id) => format!("Normal({})", atoms.get(*atom_id)),
             super::SymbolName::Ele(atom_id) => format!("Ele({})", atoms.get(*atom_id)),

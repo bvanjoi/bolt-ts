@@ -50,7 +50,7 @@ impl<'cx> VarLike<'cx> for ast::ParamDecl<'cx> {
         self.id
     }
     fn name(&self) -> VarLikeName<'cx> {
-        VarLikeName::Ident(&self.name)
+        VarLikeName::Ident(self.name)
     }
     fn decl_ty(&self) -> Option<&'cx ast::Ty<'cx>> {
         self.ty
@@ -110,7 +110,7 @@ impl<'cx> VarLike<'cx> for ast::ObjectShorthandMember<'cx> {
         self.id
     }
     fn name(&self) -> VarLikeName<'cx> {
-        VarLikeName::Ident(&self.name)
+        VarLikeName::Ident(self.name)
     }
     fn decl_ty(&self) -> Option<&'cx ast::Ty<'cx>> {
         None

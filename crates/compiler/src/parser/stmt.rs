@@ -169,14 +169,12 @@ impl<'cx> ParserState<'cx, '_> {
             None
         };
 
-        if (await_token.is_some() && self.expect(TokenKind::Of))
-            || self.parse_optional(TokenKind::Of).is_some()
-        {
+        if (await_token.is_some() && self.expect(Of)) || self.parse_optional(Of).is_some() {
             let init = init.unwrap();
             let expr = self.with_parent(id, |this| {
                 this.allow_in_and(|this| this.parse_assign_expr(true))
             })?;
-            self.expect(TokenKind::RParen);
+            self.expect(RParen);
             let body = self.parse_stmt()?;
             let kind = self.alloc(ast::ForOfStmt {
                 id,
@@ -188,10 +186,10 @@ impl<'cx> ParserState<'cx, '_> {
             });
             self.insert_map(id, ast::Node::ForOfStmt(kind));
             Ok(ast::StmtKind::ForOf(kind))
-        } else if self.parse_optional(TokenKind::In).is_some() {
+        } else if self.parse_optional(In).is_some() {
             let init = init.unwrap();
             let expr = self.with_parent(id, |this| this.allow_in_and(Self::parse_expr))?;
-            self.expect(TokenKind::RParen);
+            self.expect(RParen);
             let body = self.parse_stmt()?;
             let kind = self.alloc(ast::ForInStmt {
                 id,
@@ -215,7 +213,7 @@ impl<'cx> ParserState<'cx, '_> {
             } else {
                 None
             };
-            self.expect(TokenKind::RParen);
+            self.expect(RParen);
 
             let body = self.parse_stmt()?;
             let kind = self.alloc(ast::ForStmt {
@@ -537,10 +535,8 @@ impl<'cx> ParserState<'cx, '_> {
             }
         }
 
-        if let Some(_) = ident {
-            if !matches!(self.token.kind, TokenKind::Comma | TokenKind::From) {
-                todo!("import_eq_decl")
-            }
+        if ident.is_some() && !matches!(self.token.kind, TokenKind::Comma | TokenKind::From) {
+            todo!("import_eq_decl")
         }
 
         let clause =

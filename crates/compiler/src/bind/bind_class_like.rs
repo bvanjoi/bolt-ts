@@ -121,14 +121,28 @@ impl<'cx> BinderState<'cx> {
         }
     }
 
-    pub(super) fn bind_class_like(&mut self, class: &'cx impl ir::ClassLike<'cx>, is_expr: bool) {
+    pub(super) fn bind_class_like(
+        &mut self,
+        container: Option<ast::NodeID>,
+        class: &'cx impl ir::ClassLike<'cx>,
+        is_expr: bool,
+    ) {
         self.connect(class.id());
         let old_old = self.scope_id;
         if is_expr {
             self.scope_id = self.new_scope();
         }
 
-        self.create_class_symbol(class);
+        let class_symbol = self.create_class_symbol(class);
+
+        if let Some(container) = container {
+            let is_export = class
+                .modifiers()
+                .is_some_and(|ms| ms.flags.contains(ModifierKind::Export));
+            let members = self.members(container, is_export);
+            let name = SymbolName::Normal(class.name().unwrap().name);
+            members.insert(name, class_symbol);
+        }
 
         let old = self.scope_id;
         self.scope_id = self.new_scope();
@@ -166,12 +180,18 @@ impl<'cx> BinderState<'cx> {
                         .modifiers
                         .is_some_and(|ms| ms.flags.contains(ModifierKind::Static));
                     self.bind_get_access(class.id(), n, is_static);
+                    if let Some(ty) = n.ty {
+                        self.bind_ty(ty);
+                    }
                 }
                 ast::ClassEleKind::Setter(n) => {
                     let is_static = n
                         .modifiers
                         .is_some_and(|ms| ms.flags.contains(ModifierKind::Static));
                     self.bind_set_access(class.id(), n, is_static);
+
+                    assert!(n.params.len() == 1);
+                    self.bind_params(n.params);
                 }
             }
         }

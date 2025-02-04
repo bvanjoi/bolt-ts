@@ -85,7 +85,7 @@ impl<'cx> BinderState<'cx> {
                     self.bind_expr(expr)
                 }
             }
-            Class(class) => self.bind_class_like(class, false),
+            Class(class) => self.bind_class_like(Some(container), class, false),
             Interface(interface) => self.bind_interface_decl(container, interface),
             Type(t) => self.bind_type_decl(t),
             Namespace(ns) => self.bind_ns_decl(container, ns),
@@ -240,8 +240,11 @@ impl<'cx> BinderState<'cx> {
             flags,
             super::symbol::NsSymbol {
                 decls: thin_vec::thin_vec![ns.id],
+                exports: fx_hashmap_with_capacity(16),
+                members: fx_hashmap_with_capacity(16),
             },
         );
+        self.create_final_res(ns.id, symbol);
 
         let container = self.final_res[&container];
         if let SymbolKind::BlockContainer(c) = &mut self.symbols.get_mut(container).kind.0 {
@@ -249,7 +252,7 @@ impl<'cx> BinderState<'cx> {
             c.locals.insert(name, symbol);
         }
         if let Some(block) = ns.block {
-            self.bind_block_stmt(block);
+            self.bind_block_stmt_with_container(ns.id, block);
         }
     }
 
@@ -432,7 +435,7 @@ impl<'cx> BinderState<'cx> {
                     self.bind_ty(ty);
                 }
                 let name = prop_name(m.name);
-                let symbol = self.create_object_member_symbol(name, m.id);
+                let symbol = self.create_object_member_symbol(name, m.id, m.question.is_some());
                 let s = self.final_res[&container];
                 let s = self.symbols.get_mut(s);
                 if let Some(i) = &mut s.kind.1 {
@@ -507,21 +510,13 @@ impl<'cx> BinderState<'cx> {
 
     fn bind_interface_decl(&mut self, container: ast::NodeID, i: &'cx ast::InterfaceDecl<'cx>) {
         let id = self.create_interface_symbol(i.id, i.name.name, Default::default());
-        if let SymbolKind::BlockContainer(c) =
-            &mut self.symbols.get_mut(self.final_res[&container]).kind.0
-        {
-            let name = SymbolName::Normal(i.name.name);
-            let prev = c.locals.insert(name, id);
-            assert!(prev.is_none());
-            if i.modifiers
-                .is_some_and(|ms| ms.flags.contains(ModifierKind::Export))
-            {
-                let prev = c.exports.insert(name, id);
-                assert!(prev.is_none());
-            }
-        } else {
-            unreachable!()
-        }
+        let is_export = i
+            .modifiers
+            .is_some_and(|ms| ms.flags.intersects(ModifierKind::Export));
+        let name = SymbolName::Normal(i.name.name);
+        let members = self.members(container, is_export);
+        let _prev = members.insert(name, id);
+        // assert!(prev.is_none());
 
         let old = self.scope_id;
         self.scope_id = self.new_scope();
@@ -554,6 +549,21 @@ impl<'cx> BinderState<'cx> {
         self.scope_id = old;
     }
 
+    pub(super) fn bind_block_stmt_with_container(
+        &mut self,
+        container: ast::NodeID,
+        block: &'cx ast::BlockStmt<'cx>,
+    ) {
+        let old = self.scope_id;
+        self.scope_id = self.new_scope();
+
+        for stmt in block.stmts {
+            self.bind_stmt(container, stmt)
+        }
+
+        self.scope_id = old;
+    }
+
     fn bind_ident(&mut self, ident: &'cx ast::Ident) {
         self.connect(ident.id)
     }
@@ -578,7 +588,7 @@ impl<'cx> BinderState<'cx> {
             Paren(paren) => self.bind_expr(paren.expr),
             ArrowFn(f) => self.bind_arrow_fn_expr(f),
             Fn(f) => self.bind_fn_expr(f),
-            Class(class) => self.bind_class_like(class, true),
+            Class(class) => self.bind_class_like(None, class, true),
             PrefixUnary(unary) => self.bind_expr(unary.expr),
             PostfixUnary(unary) => self.bind_expr(unary.expr),
             PropAccess(node) => {
@@ -599,10 +609,11 @@ impl<'cx> BinderState<'cx> {
     }
 
     fn bind_fn_expr(&mut self, f: &'cx ast::FnExpr<'cx>) {
-        self.create_fn_expr_symbol(f.id);
-
         let old = self.scope_id;
         self.scope_id = self.new_scope();
+
+        self.create_fn_expr_symbol(f, f.id);
+
         for param in f.params {
             self.bind_param(param);
         }
@@ -611,7 +622,7 @@ impl<'cx> BinderState<'cx> {
     }
 
     fn bind_arrow_fn_expr(&mut self, f: &'cx ast::ArrowFnExpr<'cx>) {
-        self.create_fn_expr_symbol(f.id);
+        self.create_fn_expr_symbol(f, f.id);
 
         let old = self.scope_id;
         self.scope_id = self.new_scope();
@@ -648,18 +659,18 @@ impl<'cx> BinderState<'cx> {
                     Shorthand(n) => {
                         self.bind_ident(n.name);
                         let name = SymbolName::Ele(n.name.name);
-                        let symbol = self.create_object_member_symbol(name, n.id);
+                        let symbol = self.create_object_member_symbol(name, n.id, false);
                         (name, symbol)
                     }
                     Prop(n) => {
                         let name = prop_name(n.name);
-                        let symbol = self.create_object_member_symbol(name, n.id);
+                        let symbol = self.create_object_member_symbol(name, n.id, false);
                         self.bind_expr(n.value);
                         (name, symbol)
                     }
                     Method(n) => {
                         let name = prop_name(n.name);
-                        let symbol = self.create_object_member_symbol(name, n.id);
+                        let symbol = self.create_object_member_symbol(name, n.id, false);
 
                         let old = self.scope_id;
                         self.scope_id = self.new_scope();
@@ -757,7 +768,7 @@ impl<'cx> BinderState<'cx> {
                 self.bind_params(n.params);
                 self.bind_ty(n.ty);
             }
-            NumLit(_) | StringLit(_) | NullLit(_) | BooleanLit(_) => {}
+            Lit(_) => {}
             Union(u) => {
                 for ty in u.tys {
                     self.bind_ty(ty);

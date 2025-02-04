@@ -1,4 +1,5 @@
 use std::sync::Arc;
+use std::u32;
 
 use bolt_ts_atom::AtomId;
 use bolt_ts_fs::CachedFileSystem;
@@ -6,12 +7,13 @@ use bolt_ts_fs::CachedFileSystem;
 bolt_ts_utils::index!(ModuleID);
 
 impl ModuleID {
-    pub const MOCK: ModuleID = ModuleID(u32::MAX);
+    pub const TRANSIENT: ModuleID = ModuleID(u32::MAX);
+    pub const DEFAULT: ModuleID = ModuleID(u32::MAX - 1);
 }
 
 impl Default for ModuleID {
     fn default() -> Self {
-        Self::MOCK
+        Self::DEFAULT
     }
 }
 

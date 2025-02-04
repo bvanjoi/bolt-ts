@@ -44,10 +44,7 @@ pub fn visit_import_decl<'cx>(v: &mut impl Visitor<'cx>, import_decl: &'cx super
 
 pub fn visit_class_elem<'cx>(v: &mut impl Visitor<'cx>, elem: &'cx super::ClassElem<'cx>) {
     use super::ClassEleKind::*;
-    match elem.kind {
-        Method(n) => v.visit_class_method_elem(n),
-        _ => (),
-    }
+    if let Method(n) = elem.kind { v.visit_class_method_elem(n) }
 }
 
 pub fn visit_class_method_elem<'cx>(

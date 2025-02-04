@@ -9,6 +9,7 @@ impl<'cx> Emit<'cx> {
         if let Some(ident) = class.name() {
             self.emit_ident(ident);
             self.content.p_whitespace();
+            self.ns_names.insert((self.scope, ident.name));
         }
         if let Some(extends) = class.extends() {
             self.content.p("extends");
@@ -71,7 +72,7 @@ impl<'cx> Emit<'cx> {
 
             let block = body;
             self.content.p_l_brace();
-            self.state.indent += self.options.indent;
+            self.content.indent += self.options.indent;
 
             let has_block_stmt = !block.stmts.is_empty()
                 && ctor.params.iter().any(|param| {
@@ -83,7 +84,6 @@ impl<'cx> Emit<'cx> {
 
             if has_block_stmt {
                 self.content.p_newline();
-                self.content.p_pieces_of_whitespace(self.state.indent);
             }
 
             let last_super_call = block.stmts.iter().rev().position(|stmt| {
@@ -109,7 +109,6 @@ impl<'cx> Emit<'cx> {
                 |this, elem| this.emit_stmt(elem),
                 |this, _| {
                     this.content.p_newline();
-                    this.content.p_pieces_of_whitespace(this.state.indent);
                 },
             );
 
@@ -139,7 +138,6 @@ impl<'cx> Emit<'cx> {
                             .is_some_and(|ms| ms.flags.contains(ast::ModifierKind::Public))
                     {
                         this.content.p_newline();
-                        this.content.p_pieces_of_whitespace(this.state.indent);
                     }
                 },
             );
@@ -149,15 +147,13 @@ impl<'cx> Emit<'cx> {
                 |this, elem| this.emit_stmt(elem),
                 |this, _| {
                     this.content.p_newline();
-                    this.content.p_pieces_of_whitespace(this.state.indent);
                 },
             );
 
             if has_block_stmt {
-                self.content.p_pieces_of_whitespace(self.state.indent);
                 self.content.p_newline();
             }
-            self.state.indent -= self.options.indent;
+            self.content.indent -= self.options.indent;
             self.content.p_r_brace();
         }
     }

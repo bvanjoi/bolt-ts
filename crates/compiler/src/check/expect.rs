@@ -14,7 +14,7 @@ impl<'cx> TyChecker<'cx> {
     }
 
     pub(super) fn index_infos_of_ty(&self, ty: &'cx ty::Ty<'cx>) -> ty::IndexInfos<'cx> {
-        if let Some(_) = ty.kind.as_object_interface() {
+        if ty.kind.as_object_interface().is_some() {
             self.expect_ty_links(ty.id)
                 .expect_structured_members()
                 .index_infos

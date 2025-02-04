@@ -15,7 +15,7 @@ impl<'cx> TyChecker<'cx> {
     pub(super) fn get_declared_ty_of_symbol(&mut self, symbol: SymbolID) -> &'cx ty::Ty<'cx> {
         let ty = self
             .try_get_declared_ty_of_symbol(symbol)
-            .unwrap_or_else(|| self.error_ty());
+            .unwrap_or_else(|| self.error_ty);
         ty
     }
 
@@ -33,11 +33,6 @@ impl<'cx> TyChecker<'cx> {
             Some(self.get_declared_ty_of_class_or_interface(id))
         } else if s.flags == SymbolFlags::TYPE_ALIAS {
             let ty = self.get_declared_ty_of_type_alias(id);
-            if let Some(ty_params) =
-                self.get_local_ty_params_of_class_or_interface_or_type_alias(id)
-            {
-                self.get_mut_symbol_links(id).set_ty_params(ty_params);
-            }
             Some(ty)
         } else if s.flags == SymbolFlags::TYPE_PARAMETER {
             let ty = self.get_declared_ty_of_ty_param(id);
@@ -69,11 +64,20 @@ impl<'cx> TyChecker<'cx> {
             return ty;
         }
         if !self.push_ty_resolution(ResolutionKey::DeclaredType(symbol)) {
-            return self.error_ty();
+            return self.error_ty;
         }
         let alias = self.binder.symbol(symbol).expect_ty_alias();
         let decl = self.p.node(alias.decl).expect_type_decl();
-        let ty = self.get_ty_from_type_node(decl.ty);
+        let mut ty = self.get_ty_from_type_node(decl.ty);
+        if !self.pop_ty_resolution().has_cycle() {
+            if let Some(ty_params) =
+                self.get_local_ty_params_of_class_or_interface_or_type_alias(symbol)
+            {
+                self.get_mut_symbol_links(symbol).set_ty_params(ty_params);
+            }
+        } else {
+            ty = self.error_ty;
+        }
         self.get_mut_symbol_links(symbol).set_declared_ty(ty);
         ty
     }
@@ -112,10 +116,10 @@ impl<'cx> TyChecker<'cx> {
         let symbol = ty.symbol().unwrap();
         let decl = self.binder.symbol(symbol).expect_class().decl;
         let Some(extends) = self.get_effective_base_type_node(decl) else {
-            return self.undefined_ty();
+            return self.undefined_ty;
         };
         if !self.push_ty_resolution(ResolutionKey::ResolvedBaseConstructorType(ty.id)) {
-            return self.error_ty();
+            return self.error_ty;
         }
         let base_ctor_ty = self.check_entity_name(extends.name);
         if let Cycle::Some(_) = self.pop_ty_resolution() {
@@ -130,10 +134,10 @@ impl<'cx> TyChecker<'cx> {
                 decl: name,
             };
             self.push_error(Box::new(error));
-            let error_ty = self.error_ty();
+            let error_ty = self.error_ty;
             self.get_mut_ty_links(ty.id)
                 .set_resolved_base_ctor_ty(error_ty);
-            return error_ty;
+            return self.error_ty;
         }
         self.get_mut_ty_links(ty.id)
             .set_resolved_base_ctor_ty(base_ctor_ty);
@@ -146,7 +150,7 @@ impl<'cx> TyChecker<'cx> {
     ) -> &'cx [SymbolID] {
         let props = members
             .values()
-            .filter_map(|m| self.binder.symbol(*m).name.as_atom().map(|_| *m))
+            .filter_map(|m| self.symbol(*m).name().as_atom().map(|_| *m))
             .collect::<Vec<_>>();
         self.alloc(props)
     }

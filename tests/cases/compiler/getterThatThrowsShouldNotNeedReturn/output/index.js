@@ -1,8 +1,8 @@
 class Greeter {
   get greet() {
-    throw ""  
-}
+    throw ""
+  }
   greeting() {
-    throw ""  
-}
+    throw ""
+  }
 }

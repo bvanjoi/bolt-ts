@@ -1,10 +1,11 @@
 use crate::ir;
-use crate::ty::{self, SigKind, TyMapper};
+use crate::ty::{self, SigKind, TypeFlags};
 use crate::{ast, ty::Sig};
 
+use super::create_ty::IntersectionFlags;
 use super::get_contextual::ContextFlags;
-use super::utils::append_if_unique;
-use super::{CheckMode, InferenceContextId, Ternary, TyChecker};
+use super::utils::{append_if_unique, SameMapperResult};
+use super::{CheckMode, InferenceContextId, TyChecker};
 
 use thin_vec::{thin_vec, ThinVec};
 
@@ -115,7 +116,7 @@ impl<'cx> TyChecker<'cx> {
     pub(crate) fn create_inference_fixing_mapper(
         &mut self,
         id: InferenceContextId,
-    ) -> &'cx TyMapper<'cx> {
+    ) -> &'cx dyn ty::TyMap<'cx> {
         let sources = self
             .inference(id)
             .inferences
@@ -123,20 +124,20 @@ impl<'cx> TyChecker<'cx> {
             .map(|i| i.ty_param)
             .collect::<Vec<_>>();
         let sources = self.alloc(sources);
-        let target = (0..self.inference(id).inferences.len())
+        let targets = (0..self.inference(id).inferences.len())
             .map(|idx| {
                 // TODO: handle `!is_fixed`
                 self.get_inferred_ty(id, idx)
             })
             .collect::<Vec<_>>();
-        let target = self.alloc(target);
-        self.alloc(TyMapper::create(sources, target))
+        let targets = self.alloc(targets);
+        self.create_ty_mapper(sources, targets)
     }
 
     pub(crate) fn create_inference_non_fixing_mapper(
         &mut self,
         id: InferenceContextId,
-    ) -> &'cx TyMapper<'cx> {
+    ) -> &'cx dyn ty::TyMap<'cx> {
         let sources = self
             .inference(id)
             .inferences
@@ -144,17 +145,17 @@ impl<'cx> TyChecker<'cx> {
             .map(|i| i.ty_param)
             .collect::<Vec<_>>();
         let sources = self.alloc(sources);
-        let target = (0..self.inference(id).inferences.len())
+        let targets = (0..self.inference(id).inferences.len())
             .map(|idx| self.get_inferred_ty(id, idx))
             .collect::<Vec<_>>();
-        let target = self.alloc(target);
-        self.alloc(TyMapper::create(sources, target))
+        let targets = self.alloc(targets);
+        self.create_ty_mapper(sources, targets)
     }
 
     pub(crate) fn create_inference_ret_mapper(
         &mut self,
         inference: InferenceContextId,
-    ) -> Option<&'cx TyMapper<'cx>> {
+    ) -> Option<&'cx dyn ty::TyMap<'cx>> {
         self.inference(inference)
             .ret_mapper
             .map(|ret_mapper| self.create_inference_fixing_mapper(ret_mapper))
@@ -251,13 +252,12 @@ impl<'cx> TyChecker<'cx> {
         let candidates = if candidates.len() > 1 {
             let (object_literals, mut non_object_literals): (ThinVec<_>, ThinVec<_>) = candidates
                 .into_iter()
-                .map(|&x| x)
+                .copied()
                 .partition(|c| c.is_object_or_array_literal());
             if object_literals.is_empty() {
                 candidates.to_vec()
             } else {
-                let lits =
-                    self.create_union_type(object_literals.into(), ty::UnionReduction::Subtype);
+                let lits = self.get_union_ty(&object_literals, ty::UnionReduction::Subtype);
                 non_object_literals.push(lits);
                 non_object_literals.into()
             }
@@ -269,13 +269,15 @@ impl<'cx> TyChecker<'cx> {
             let ty_param = self.inference_info(inference, idx).ty_param;
             self.get_constraint_of_ty_param(ty_param)
                 .is_some_and(|constraint| {
-                    let c = if let Some(_) = constraint.kind.as_cond_ty() {
+                    let flags = if constraint.flags.intersects(TypeFlags::CONDITIONAL) {
                         todo!()
                     } else {
-                        constraint
+                        TypeFlags::PRIMITIVE
+                            | TypeFlags::INDEX
+                            | TypeFlags::TEMPLATE_LITERAL
+                            | TypeFlags::STRING_MAPPING
                     };
-                    c.kind
-                        .maybe_type_of_kind(|c| c.is_primitive() || c.is_index_ty())
+                    constraint.maybe_type_of_kind(flags)
                 })
         };
 
@@ -301,13 +303,29 @@ impl<'cx> TyChecker<'cx> {
         if base_candidates.len() == 1 {
             self.get_widened_ty(base_candidates[0])
         } else {
-            let ty = self.create_union_type(base_candidates, ty::UnionReduction::Lit);
+            let ty = self.get_union_ty(&base_candidates, ty::UnionReduction::Lit);
             self.get_widened_ty(ty)
         }
     }
 
-    fn get_ty_with_this_arg(&mut self, ty: &'cx ty::Ty<'cx>) -> &'cx ty::Ty<'cx> {
-        ty
+    pub(super) fn get_ty_with_this_arg(
+        &mut self,
+        ty: &'cx ty::Ty<'cx>,
+        this_arg: Option<&'cx ty::Ty<'cx>>,
+    ) -> &'cx ty::Ty<'cx> {
+        if let Some(i) = ty.kind.as_intersection() {
+            let tys = self.same_map(Some(i.tys), |this, ty, _| {
+                this.get_ty_with_this_arg(ty, this_arg)
+            });
+            match tys {
+                SameMapperResult::Old => ty,
+                SameMapperResult::New(tys) => {
+                    self.get_intersection_ty(tys, IntersectionFlags::None, None, None)
+                }
+            }
+        } else {
+            ty
+        }
     }
 
     fn get_inferred_ty(&mut self, inference: InferenceContextId, idx: usize) -> &'cx ty::Ty<'cx> {
@@ -315,6 +333,7 @@ impl<'cx> TyChecker<'cx> {
         if let Some(inferred_ty) = i.inferred_ty {
             return inferred_ty;
         }
+        let fallback_ty = None;
         let inferred_ty = if let Some(sig) = self.get_inference_sig(inference) {
             if i.candidates.is_some() {
                 Some(self.get_covariant_inference(inference, idx, sig))
@@ -332,16 +351,16 @@ impl<'cx> TyChecker<'cx> {
             // let mapper = self.create_inference_non_fixing_mapper(inference);
             let instantiated_constraint = self.instantiate_ty(constraint, None);
             if inferred_ty.map_or(true, |inferred_ty| {
-                let ty = self.get_ty_with_this_arg(instantiated_constraint);
+                let ty = self.get_ty_with_this_arg(instantiated_constraint, fallback_ty);
                 // TODO: more flexible compare types
                 !self.is_type_related_to(inferred_ty, ty, super::relation::RelationKind::Assignable)
             }) {
                 instantiated_constraint
             } else {
-                inferred_ty.unwrap_or(self.any_ty())
+                inferred_ty.unwrap_or(self.any_ty)
             }
         } else {
-            inferred_ty.unwrap_or(self.any_ty())
+            inferred_ty.unwrap_or(self.any_ty)
         };
 
         self.set_inferred_ty_of_inference_info(inference, idx, ty);
@@ -848,7 +867,7 @@ impl<'cx> InferenceState<'cx, '_> {
         for target_prop in self.c.get_props_of_ty(target) {
             if let Some(source_prop) = self
                 .c
-                .get_prop_of_ty(source, self.c.binder.symbol(*target_prop).name)
+                .get_prop_of_ty(source, self.c.symbol(*target_prop).name())
             {
                 // TODO:
             }

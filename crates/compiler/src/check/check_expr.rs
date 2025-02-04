@@ -1,6 +1,7 @@
 use bolt_ts_span::Span;
 
 use crate::parser::AssignmentKind;
+use crate::ty::TypeFlags;
 
 use super::ast;
 use super::bind::{SymbolFlags, SymbolName};
@@ -8,7 +9,6 @@ use super::errors;
 use super::ty;
 use super::ty::AccessFlags;
 use super::ObjectFlags;
-use super::Ternary;
 use super::TyChecker;
 use super::{CheckMode, InferenceContextId, SymbolLinks, TyLinks};
 
@@ -30,15 +30,15 @@ impl<'cx> TyChecker<'cx> {
             StringLit(lit) => self.get_string_literal_type(lit.val),
             BoolLit(lit) => {
                 if lit.val {
-                    self.true_ty()
+                    self.true_ty
                 } else {
-                    self.false_ty()
+                    self.false_ty
                 }
             }
-            NullLit(_) => self.null_ty(),
+            NullLit(_) => self.null_ty,
             Ident(ident) => self.check_ident(ident),
             ArrayLit(lit) => self.check_array_lit(lit, false),
-            Omit(_) => self.undefined_ty(),
+            Omit(_) => self.undefined_ty,
             Paren(paren) => self.check_expr(paren.expr),
             Cond(cond) => self.check_cond(cond),
             ObjectLit(lit) => self.check_object_lit(lit),
@@ -51,7 +51,7 @@ impl<'cx> TyChecker<'cx> {
             PostfixUnary(unary) => self.check_postfix_unary_expr(unary),
             Class(class) => {
                 self.check_class_decl_like(class);
-                self.undefined_ty()
+                self.undefined_ty
             }
             PropAccess(node) => self.check_prop_access_expr(node),
             Typeof(n) => {
@@ -60,14 +60,20 @@ impl<'cx> TyChecker<'cx> {
             }
             Void(n) => {
                 self.check_expr(n.expr);
-                self.undefined_ty()
+                self.undefined_ty
             }
             EleAccess(node) => self.check_ele_access(node),
             This(n) => self.check_this_expr(n),
-            Super(_) => self.undefined_ty(),
+            Super(_) => self.undefined_ty,
         };
 
         self.instantiate_ty_with_single_generic_call_sig(expr.id(), ty)
+    }
+
+    pub(super) fn check_truthiness_expr(&mut self, expr: &'cx ast::Expr) -> &'cx ty::Ty<'cx> {
+        let ty = self.check_expr(expr);
+        // TODO: check truthiness of ty
+        ty
     }
 
     fn check_this_expr(&mut self, expr: &'cx ast::ThisExpr) -> &'cx ty::Ty<'cx> {
@@ -95,7 +101,7 @@ impl<'cx> TyChecker<'cx> {
 
         let ty = self.try_get_this_ty_at(expr, true, Some(container_id));
 
-        ty.unwrap_or(self.any_ty())
+        ty.unwrap_or(self.any_ty)
     }
 
     pub(super) fn check_expr_with_contextual_ty(
@@ -152,14 +158,14 @@ impl<'cx> TyChecker<'cx> {
         let ty = self.check_expr(cond.cond);
         let ty1 = self.check_expr(cond.when_true);
         let ty2 = self.check_expr(cond.when_false);
-        self.create_union_type(vec![ty1, ty2], ty::UnionReduction::Subtype)
+        self.get_union_ty(&[ty1, ty2], ty::UnionReduction::Subtype)
     }
 
     fn check_object_lit(&mut self, node: &'cx ast::ObjectLit<'cx>) -> &'cx ty::Ty<'cx> {
         let mut object_flags = ObjectFlags::FRESH_LITERAL;
         let members = node
             .members
-            .into_iter()
+            .iter()
             .map(|member| {
                 let member_symbol = self.get_symbol_of_decl(member.id());
                 use ast::ObjectMemberKind::*;
@@ -174,7 +180,7 @@ impl<'cx> TyChecker<'cx> {
                     Method(n) => crate::bind::prop_name(n.name),
                 };
                 object_flags |= ty.get_object_flags() & ObjectFlags::PROPAGATING_FLAGS;
-                let prop = self.binder.create_transient_symbol(
+                let prop = self.create_transient_symbol(
                     name,
                     SymbolFlags::PROPERTY | self.binder.symbol(member_symbol).flags,
                     Some(member_symbol),
@@ -218,14 +224,14 @@ impl<'cx> TyChecker<'cx> {
             Eq => unreachable!(),
             AddEq => self
                 .check_binary_like_expr_for_add(l, r)
-                .unwrap_or(self.any_ty()),
-            SubEq => self.undefined_ty(),
-            MulEq => self.undefined_ty(),
-            DivEq => self.undefined_ty(),
-            ModEq => self.undefined_ty(),
-            ShlEq => self.undefined_ty(),
-            ShrEq => self.undefined_ty(),
-            UShrEq => self.undefined_ty(),
+                .unwrap_or(self.any_ty),
+            SubEq => self.undefined_ty,
+            MulEq => self.undefined_ty,
+            DivEq => self.undefined_ty,
+            ModEq => self.undefined_ty,
+            ShlEq => self.undefined_ty,
+            ShrEq => self.undefined_ty,
+            UShrEq => self.undefined_ty,
             BitOrEq | BitAndEq | BitXorEq => self.check_bin_expr_for_normal(
                 assign.span,
                 l,
@@ -257,31 +263,31 @@ impl<'cx> TyChecker<'cx> {
                 if let ty::TyKind::NumberLit(n) = op_ty.kind {
                     op_ty
                 } else {
-                    self.number_ty()
+                    self.number_ty
                 }
             }
             ast::PrefixUnaryOp::Minus => {
                 if let ty::TyKind::NumberLit(n) = op_ty.kind {
                     self.get_number_literal_type(-n.val)
                 } else {
-                    self.number_ty()
+                    self.number_ty
                 }
             }
             ast::PrefixUnaryOp::PlusPlus => {
                 if let ty::TyKind::NumberLit(n) = op_ty.kind {
                     self.get_number_literal_type(n.val + 1.)
                 } else {
-                    self.number_ty()
+                    self.number_ty
                 }
             }
             ast::PrefixUnaryOp::MinusMinus => {
                 if let ty::TyKind::NumberLit(n) = op_ty.kind {
                     self.get_number_literal_type(n.val - 1.)
                 } else {
-                    self.number_ty()
+                    self.number_ty
                 }
             }
-            ast::PrefixUnaryOp::Tilde => self.number_ty(),
+            ast::PrefixUnaryOp::Tilde => self.number_ty,
             ast::PrefixUnaryOp::Excl => self.boolean_ty(),
         }
     }
@@ -300,7 +306,7 @@ impl<'cx> TyChecker<'cx> {
         t: &'cx ty::Ty<'cx>,
         push_error: impl FnOnce(&mut Self),
     ) -> &'cx ty::Ty<'cx> {
-        if !self.is_type_assignable_to(t, self.number_ty()) {
+        if !self.is_type_assignable_to(t, self.number_ty) {
             push_error(self)
         }
         t
@@ -316,7 +322,9 @@ impl<'cx> TyChecker<'cx> {
         op: &str,
     ) -> &'cx ty::Ty<'cx> {
         assert!(matches!(op, "^" | "^=" | "&" | "&=" | "|" | "|="));
-        if left_ty.kind.is_boolean_like() && right_ty.kind.is_boolean_like() {
+        if left_ty.flags.intersects(TypeFlags::BOOLEAN_LIKE)
+            && right_ty.flags.intersects(TypeFlags::BOOLEAN_LIKE)
+        {
             if let Some(sugg) = get_suggestion_boolean_op(op) {
                 let error = errors::TheOp1IsNotAllowedForBooleanTypesConsiderUsingOp2Instead {
                     span: expr_span,
@@ -324,7 +332,7 @@ impl<'cx> TyChecker<'cx> {
                     op2: sugg.to_string(),
                 };
                 self.push_error(Box::new(error));
-                return self.number_ty();
+                return self.number_ty;
             }
         }
 
@@ -345,7 +353,7 @@ impl<'cx> TyChecker<'cx> {
             this.push_error(Box::new(error));
         });
 
-        self.number_ty()
+        self.number_ty
     }
 
     fn check_ele_access(&mut self, node: &'cx ast::EleAccessExpr<'cx>) -> &'cx ty::Ty<'cx> {
@@ -360,12 +368,12 @@ impl<'cx> TyChecker<'cx> {
 
         let index_ty = self.check_expr(node.arg);
 
-        if object_ty == self.error_ty() {
-            return self.error_ty();
+        if object_ty == self.error_ty {
+            return self.error_ty;
         }
 
         let index_ty = if self.is_for_in_variable_for_numeric_prop_names(node.arg) {
-            self.number_ty()
+            self.number_ty
         } else {
             index_ty
         };
@@ -387,6 +395,5 @@ impl<'cx> TyChecker<'cx> {
         };
 
         self.get_indexed_access_ty(object_ty, index_ty, Some(access_flags), Some(node.id))
-            .unwrap_or(self.error_ty())
     }
 }

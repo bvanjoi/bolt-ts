@@ -1,0 +1,5 @@
+  × Type 'Position' is not assignable to type 'string'.
+    ╭─[../../tests/cases/compiler/externModuleClobber/index.ts:16:5]
+ 16 │ y
+    · ─
+    ╰────

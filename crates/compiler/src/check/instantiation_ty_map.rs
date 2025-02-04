@@ -33,6 +33,10 @@ impl<'cx> InstantiationTyMap<'cx> {
         self.inner.get(&key).copied()
     }
 
+    pub fn contain(&self, key: InstantiationTyKey) -> bool {
+        self.inner.contains_key(&key)
+    }
+
     pub fn insert(&mut self, key: InstantiationTyKey, ty: &'cx ty::Ty<'cx>) {
         let prev = self.inner.insert(key, ty);
         assert!(prev.is_none());

@@ -8,20 +8,20 @@ use super::symbol::{
     SymbolFlags,
 };
 use super::{errors, BinderState, Symbol, SymbolFnKind, SymbolID, SymbolKind, SymbolName};
-use crate::ast;
+use crate::{ast, ir};
 use bolt_ts_utils::fx_hashmap_with_capacity;
 
 impl<'cx> BinderState<'cx> {
     pub(super) fn create_final_res(&mut self, id: ast::NodeID, symbol: SymbolID) {
         let prev = self.final_res.insert(id, symbol);
-        assert!(prev.is_none());
+        assert!(prev.is_none(), "prev: {:#?}", prev.unwrap());
     }
 
     pub(super) fn create_var_symbol(
         &mut self,
         name: AtomId,
         flags: SymbolFlags,
-        kind: SymbolKind<'cx>,
+        kind: SymbolKind,
         exclude: SymbolFlags,
     ) -> SymbolID {
         let name = SymbolName::Normal(name);
@@ -32,7 +32,7 @@ impl<'cx> BinderState<'cx> {
         &mut self,
         name: SymbolName,
         flags: SymbolFlags,
-        kind: SymbolKind<'cx>,
+        kind: SymbolKind,
         exclude: SymbolFlags,
     ) -> SymbolID {
         let key = (self.scope_id, name);
@@ -150,17 +150,22 @@ impl<'cx> BinderState<'cx> {
         id
     }
 
-    pub(super) fn create_fn_expr_symbol(&mut self, id: ast::NodeID) {
+    pub(super) fn create_fn_expr_symbol(
+        &mut self,
+        f: &impl ir::FnExprLike<'cx>,
+        decl: ast::NodeID,
+    ) {
+        let name = f.name().map(SymbolName::Normal).unwrap_or(SymbolName::Fn);
         let symbol = self.declare_symbol(
-            SymbolName::Fn,
+            name,
             SymbolFlags::FUNCTION,
             SymbolKind::Fn(FnSymbol {
                 kind: SymbolFnKind::FnExpr,
-                decls: thin_vec::thin_vec![id],
+                decls: thin_vec::thin_vec![decl],
             }),
             SymbolFlags::empty(),
         );
-        self.create_final_res(id, symbol);
+        self.create_final_res(decl, symbol);
     }
 
     pub(super) fn create_interface_symbol(
@@ -205,10 +210,18 @@ impl<'cx> BinderState<'cx> {
         &mut self,
         name: SymbolName,
         member: ast::NodeID,
+        is_optional: bool,
     ) -> SymbolID {
+        let flags = SymbolFlags::PROPERTY
+            | if is_optional {
+                SymbolFlags::OPTIONAL
+            } else {
+                SymbolFlags::empty()
+            };
+
         let symbol = self.declare_symbol(
             name,
-            SymbolFlags::PROPERTY,
+            flags,
             SymbolKind::Prop(PropSymbol { decl: member }),
             SymbolFlags::empty(),
         );

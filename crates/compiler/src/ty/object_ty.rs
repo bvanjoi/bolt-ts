@@ -3,7 +3,7 @@ use crate::check::TyChecker;
 
 use super::flags::ObjectFlags;
 use super::pprint::pprint_reference_ty;
-use super::Ty;
+use super::{Ty, TyMap};
 
 #[derive(Debug, Clone, Copy)]
 pub struct ObjectTy<'cx> {
@@ -126,6 +126,32 @@ pub struct TupleTy<'cx> {
     pub readonly: bool,
 }
 
+impl<'cx> TupleTy<'cx> {
+    pub fn ty_params(&self) -> Option<super::Tys<'cx>> {
+        self.ty.kind.expect_object_interface().ty_params
+    }
+
+    pub fn get_start_elem_count(&self, flags: ElementFlags) -> usize {
+        let Some(index) = self.element_flags.iter().position(|e| !e.intersects(flags)) else {
+            return self.element_flags.len();
+        };
+        index
+    }
+
+    pub fn get_end_elem_count(&self, flags: ElementFlags) -> usize {
+        let len = self.element_flags.len();
+        let Some(idx) = self
+            .element_flags
+            .iter()
+            .rev()
+            .position(|e| !e.intersects(flags))
+        else {
+            return len;
+        };
+        idx
+    }
+}
+
 #[derive(Debug, Clone, Copy)]
 pub struct ReferenceTy<'cx> {
     pub target: &'cx Ty<'cx>,
@@ -201,7 +227,7 @@ impl<'cx> ObjectTyKind<'cx> {
                     let params = params
                         .iter()
                         .map(|param| {
-                            let decl = param.decl(checker.binder);
+                            let decl = checker.get_symbol_decl(*param).unwrap();
                             let name = checker.p.node(decl).ident_name().unwrap();
                             let ty = checker.get_type_of_symbol(*param);
                             format!(
@@ -217,7 +243,7 @@ impl<'cx> ObjectTyKind<'cx> {
                         let ty = checker.get_ty_from_type_node(&ty.as_ty().unwrap());
                         ty.to_string(checker)
                     } else {
-                        checker.void_ty().to_string(checker)
+                        checker.void_ty.to_string(checker)
                     };
                     format!("({params}) => {ret}")
                 };
@@ -245,14 +271,14 @@ impl<'cx> ObjectTyKind<'cx> {
                     .call_sigs
                     .first()
                 {
-                    print_fn_like_str(checker, &sig)
+                    print_fn_like_str(checker, sig)
                 } else if let Some(sig) = checker
                     .expect_ty_links(self_ty.id)
                     .expect_structured_members()
                     .ctor_sigs
                     .first()
                 {
-                    format!("new {}", print_fn_like_str(checker, &sig))
+                    format!("new {}", print_fn_like_str(checker, sig))
                 } else if let Some(index_info) = checker
                     .expect_ty_links(self_ty.id)
                     .expect_structured_members()
@@ -308,13 +334,13 @@ impl<'cx> ObjectTyKind<'cx> {
 pub struct AnonymousTy<'cx> {
     pub symbol: SymbolID,
     pub target: Option<&'cx Ty<'cx>>,
-    pub mapper: Option<&'cx super::TyMapper<'cx>>,
+    pub mapper: Option<&'cx dyn TyMap<'cx>>,
 }
 
 #[derive(Debug, Clone, Copy)]
 pub struct SingleSigTy<'cx> {
     pub symbol: SymbolID,
     pub target: Option<&'cx Ty<'cx>>,
-    pub mapper: Option<&'cx super::TyMapper<'cx>>,
+    pub mapper: Option<&'cx dyn TyMap<'cx>>,
     pub outer_ty_params: Option<super::Tys<'cx>>,
 }

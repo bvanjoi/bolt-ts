@@ -37,6 +37,14 @@ impl EntityName<'_> {
             Qualified(name) => name.span,
         }
     }
+
+    pub fn id(&self) -> NodeID {
+        use EntityNameKind::*;
+        match self.kind {
+            Ident(ident) => ident.id,
+            Qualified(name) => name.id,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy)]

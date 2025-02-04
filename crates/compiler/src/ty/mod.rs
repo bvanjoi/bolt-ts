@@ -16,14 +16,14 @@ use crate::{ast, keyword};
 pub use self::check_flags::CheckFlags;
 pub use self::facts::{has_type_facts, TypeFacts, TYPEOF_NE_FACTS};
 pub use self::flags::{ObjectFlags, TypeFlags};
-pub use self::mapper::{ArrayTyMapper, SimpleTyMapper, TyMapper};
+pub use self::mapper::CompositeTyMapper;
+pub use self::mapper::{ArrayTyMapper, TyMap, TyMapper};
 pub use self::object_shape::ObjectShape;
 pub use self::object_ty::ElementFlags;
 pub use self::object_ty::SingleSigTy;
 pub use self::object_ty::{AnonymousTy, InterfaceTy, ObjectTyKind};
 pub use self::object_ty::{DeclaredMembers, ReferenceTy, StructuredMembers};
 pub use self::object_ty::{IndexInfo, IndexInfos, ObjectTy, TupleTy};
-pub use self::pprint::*;
 pub use self::sig::{Sig, SigFlags, SigID, SigKind, Sigs};
 
 bolt_ts_utils::index!(TyID);
@@ -53,17 +53,16 @@ impl PartialEq for Ty<'_> {
 }
 
 impl<'cx> Ty<'cx> {
-    pub fn new(id: TyID, kind: TyKind<'cx>) -> Self {
-        Self {
-            kind,
-            id,
-            flags: TypeFlags::empty(),
-        }
+    pub fn new(id: TyID, kind: TyKind<'cx>, flags: TypeFlags) -> Self {
+        Self { kind, id, flags }
     }
 
     pub fn get_object_flags(&self) -> ObjectFlags {
         match self.kind {
             TyKind::Object(object) => object.flags,
+            TyKind::Intrinsic(i) => i.object_flags,
+            TyKind::Union(u) => u.object_flags,
+            TyKind::Intersection(i) => i.object_flags,
             _ => ObjectFlags::empty(),
         }
     }
@@ -79,7 +78,7 @@ impl<'cx> Ty<'cx> {
     }
 
     pub fn get_propagating_flags_of_tys(
-        tys: Tys<'cx>,
+        tys: &[&'cx Ty<'cx>],
         _exclude_kinds: Option<TypeFlags>,
     ) -> ObjectFlags {
         tys.iter().fold(ObjectFlags::empty(), |flags, ty| {
@@ -97,21 +96,11 @@ pub enum UnionReduction {
 
 #[derive(Debug, Clone, Copy)]
 pub enum TyKind<'cx> {
-    Any,
-    Unknown,
-    String,
-    Number,
-    Boolean,
-    Never,
+    Intrinsic(&'cx IntrinsicTy),
     StringLit(&'cx StringLitTy),
     NumberLit(&'cx NumberLitTy),
-    TrueLit,
-    FalseLit,
-    Void,
-    Undefined,
-    Null,
-    NonPrimitive,
     Union(&'cx UnionTy<'cx>),
+    Intersection(&'cx IntersectionTy<'cx>),
     Object(&'cx ObjectTy<'cx>),
     Param(&'cx ParamTy<'cx>),
     IndexedAccess(&'cx IndexedAccessTy<'cx>),
@@ -173,17 +162,14 @@ as_ty_kind!(
     expect_indexed_access,
     is_indexed_access
 );
-as_ty_kind!(Void, is_void);
-as_ty_kind!(Any, is_any);
-as_ty_kind!(Never, is_never);
-as_ty_kind!(Number, is_number);
-as_ty_kind!(String, is_string);
-as_ty_kind!(Boolean, is_boolean);
-as_ty_kind!(TrueLit, is_true_lit);
-as_ty_kind!(FalseLit, is_false_lit);
-as_ty_kind!(Null, is_null);
-as_ty_kind!(Undefined, is_undefined);
 as_ty_kind!(Union, &'cx UnionTy<'cx>, as_union, expect_union, is_union);
+as_ty_kind!(
+    Intersection,
+    &'cx IntersectionTy<'cx>,
+    as_intersection,
+    expect_intersection,
+    is_intersection
+);
 as_ty_kind!(
     Object,
     &'cx ObjectTy<'cx>,
@@ -191,8 +177,14 @@ as_ty_kind!(
     expect_object,
     is_object
 );
-as_ty_kind!(Param, &'cx ParamTy, as_param, expect_param, is_param);
-as_ty_kind!(Cond, &CondTy<'cx>, as_cond_ty, expect_cond_ty, is_cond_ty);
+as_ty_kind!(Param, &'cx ParamTy<'cx>, as_param, expect_param, is_param);
+as_ty_kind!(
+    Cond,
+    &'cx CondTy<'cx>,
+    as_cond_ty,
+    expect_cond_ty,
+    is_cond_ty
+);
 as_ty_kind!(
     Index,
     &IndexTy<'cx>,
@@ -220,6 +212,12 @@ impl<'cx> Ty<'cx> {
                 .map(|ty| ty.to_string(checker))
                 .collect::<Vec<_>>()
                 .join(" | "),
+            TyKind::Intersection(i) => i
+                .tys
+                .iter()
+                .map(|ty| ty.to_string(checker))
+                .collect::<Vec<_>>()
+                .join(" & "),
             TyKind::Param(param) => {
                 if param.symbol == Symbol::ERR {
                     "error".to_string()
@@ -230,19 +228,8 @@ impl<'cx> Ty<'cx> {
             }
             TyKind::IndexedAccess(_) => "indexedAccess".to_string(),
             TyKind::Cond(_) => "cond".to_string(),
-            TyKind::Any => keyword::IDENT_ANY_STR.to_string(),
-            TyKind::Unknown => keyword::IDENT_UNKNOWN_STR.to_string(),
-            TyKind::String => keyword::IDENT_STRING_STR.to_string(),
-            TyKind::Number => keyword::IDENT_NUMBER_STR.to_string(),
-            TyKind::Boolean => keyword::IDENT_BOOLEAN_STR.to_string(),
-            TyKind::TrueLit => keyword::KW_TRUE_STR.to_string(),
-            TyKind::FalseLit => keyword::KW_FALSE_STR.to_string(),
-            TyKind::Void => keyword::KW_VOID_STR.to_string(),
-            TyKind::Undefined => keyword::IDENT_UNDEFINED_STR.to_string(),
-            TyKind::Null => keyword::KW_NULL_STR.to_string(),
-            TyKind::NonPrimitive => keyword::IDENT_OBJECT_STR.to_string(),
-            TyKind::Never => keyword::IDENT_NEVER_STR.to_string(),
             TyKind::Index(n) => n.ty.to_string(checker),
+            TyKind::Intrinsic(i) => checker.atoms.get(i.name).to_string(),
         }
     }
 
@@ -261,70 +248,30 @@ impl<'cx> Ty<'cx> {
             _ => None,
         }
     }
-}
 
-impl TyKind<'_> {
-    pub fn maybe_type_of_kind(&self, f: impl Fn(&Self) -> bool + Copy) -> bool {
-        if f(self) {
+    pub fn is_boolean_like(&self) -> bool {
+        self.flags.intersects(TypeFlags::BOOLEAN_LIKE)
+    }
+
+    pub fn maybe_type_of_kind(&self, flags: TypeFlags) -> bool {
+        if self.flags.intersects(flags) {
             true
-        } else if let Some(union) = self.as_union() {
-            union.tys.iter().any(|ty| ty.kind.maybe_type_of_kind(f))
+        } else if let Some(union) = self.kind.as_union() {
+            union.tys.iter().any(|ty| ty.maybe_type_of_kind(flags))
         } else {
             // TODO: support intersection
             false
         }
     }
+}
 
-    pub fn is_primitive(&self) -> bool {
-        use TyKind::*;
-        if self.is_string_like() || self.is_number_like() || self.is_boolean_like() {
-            true
-        } else {
-            matches!(self, Null)
-        }
-    }
-
-    pub fn is_intersection(&self) -> bool {
-        false
-    }
-
+impl<'cx> TyKind<'cx> {
     pub fn is_union_or_intersection(&self) -> bool {
-        self.is_union()
+        self.is_union() || self.is_intersection()
     }
 
     pub fn is_object_or_intersection(&self) -> bool {
-        self.is_object()
-    }
-
-    pub fn is_lit(&self) -> bool {
-        use TyKind::*;
-        if matches!(self, StringLit(_) | NumberLit(_)) {
-            true
-        } else {
-            self.is_true_lit() | self.is_false_lit()
-        }
-    }
-
-    pub fn is_number_like(&self) -> bool {
-        use TyKind::*;
-        if matches!(self, NumberLit(_)) {
-            true
-        } else {
-            self.is_number()
-        }
-    }
-
-    pub fn is_string_like(&self) -> bool {
-        use TyKind::*;
-        if matches!(self, StringLit(_)) {
-            true
-        } else {
-            self.is_string()
-        }
-    }
-
-    pub fn is_boolean_like(&self) -> bool {
-        self.is_boolean() || self.is_true_lit() || self.is_false_lit()
+        self.is_object() || self.is_intersection()
     }
 
     pub fn is_structured(&self) -> bool {
@@ -333,18 +280,6 @@ impl TyKind<'_> {
 
     pub fn is_structured_or_instantiable(&self) -> bool {
         self.is_structured() || self.is_instantiable()
-    }
-
-    pub fn definitely_non_nullable(&self) -> bool {
-        self.is_number_like() || self.is_string_like()
-    }
-
-    pub fn is_nullable(&self) -> bool {
-        self.is_null() || self.is_undefined()
-    }
-
-    pub fn is_fresh(&self) -> bool {
-        self.is_lit()
     }
 
     pub fn is_type_variable(&self) -> bool {
@@ -365,7 +300,7 @@ impl TyKind<'_> {
     }
 
     pub fn is_generic(&self) -> bool {
-        self.is_instantiable_non_primitive()
+        !self.get_generic_object_flags().is_empty()
     }
 
     pub fn is_generic_tuple_type(&self) -> bool {
@@ -389,25 +324,32 @@ impl TyKind<'_> {
         self.is_instantiable_non_primitive()
     }
 
+    fn get_generic_object_flags(&self) -> ObjectFlags {
+        if self.is_union_or_intersection() {
+            // TODO:
+            ObjectFlags::empty()
+        } else {
+            if self.is_instantiable_non_primitive() || self.is_generic_tuple_type() {
+                ObjectFlags::IS_GENERIC_OBJECT_TYPE
+            } else if self.is_instantiable() || self.is_generic_index_ty() {
+                ObjectFlags::IS_GENERIC_INDEX_TYPE
+            } else {
+                ObjectFlags::empty()
+            }
+        }
+    }
+
     pub fn is_tuple(&self) -> bool {
         self.as_object_reference()
             .map(|refer| refer.target.kind.is_object_tuple())
             .unwrap_or_default()
     }
 
-    pub fn is_array(&self, checker: &TyChecker) -> bool {
+    pub fn is_array(&self, checker: &TyChecker<'cx>) -> bool {
         self.as_object_reference().is_some_and(|ty| {
             ty.target == checker.global_array_ty()
                 || ty.target == checker.global_readonly_array_ty()
         })
-    }
-
-    pub fn is_object_flags_type(&self) -> bool {
-        self.is_any() || self.is_nullable() | self.is_object() || self.is_union()
-    }
-
-    pub fn is_any_or_unknown(&self) -> bool {
-        self.is_any()
     }
 }
 
@@ -425,7 +367,9 @@ pub struct CondTy<'cx> {
     pub root: &'cx CondTyRoot<'cx>,
     pub check_ty: &'cx Ty<'cx>,
     pub extends_ty: &'cx Ty<'cx>,
-    pub mapper: Option<&'cx TyMapper<'cx>>,
+    pub mapper: Option<&'cx dyn TyMap<'cx>>,
+    pub alias_symbol: Option<SymbolID>,
+    pub alias_ty_args: Option<Tys<'cx>>,
 }
 
 pub type Tys<'cx> = &'cx [&'cx Ty<'cx>];
@@ -462,6 +406,14 @@ pub struct UnionTy<'cx> {
 }
 
 #[derive(Debug, Clone, Copy)]
+pub struct IntersectionTy<'cx> {
+    pub tys: Tys<'cx>,
+    pub object_flags: ObjectFlags,
+    pub alias_symbol: Option<SymbolID>,
+    pub alias_ty_arguments: Option<Tys<'cx>>,
+}
+
+#[derive(Debug, Clone, Copy)]
 pub struct NumberLitTy {
     pub val: f64,
 }
@@ -492,4 +444,10 @@ bitflags::bitflags! {
 pub struct IndexTy<'cx> {
     pub ty: &'cx self::Ty<'cx>,
     pub index_flags: IndexFlags,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct IntrinsicTy {
+    pub object_flags: ObjectFlags,
+    pub name: AtomId,
 }

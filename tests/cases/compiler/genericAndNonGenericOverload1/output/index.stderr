@@ -1,0 +1,5 @@
+  × Type 'string' is not assignable to type 'number'.
+   ╭─[../../tests/cases/compiler/genericAndNonGenericOverload1/index.ts:8:5]
+ 8 │ a
+   · ─
+   ╰────

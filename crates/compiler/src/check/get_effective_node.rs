@@ -54,7 +54,7 @@ impl<'cx> TyChecker<'cx> {
         } else {
             None
         };
-        let min_ty_argument_count = self.get_min_ty_args_count(Some(ty_params));
+        let min_ty_argument_count = self.get_min_ty_arg_count(Some(ty_params));
         self.fill_missing_ty_args(ty_args, Some(ty_params), min_ty_argument_count)
     }
 

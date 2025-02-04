@@ -11,14 +11,14 @@ impl<'cx> TyChecker<'cx> {
             .iter()
             .map(|ty| self.get_base_ty_of_literal_ty(ty))
             .collect::<Vec<_>>();
-        self.create_union_type(tys, ty::UnionReduction::None)
+        self.get_union_ty(&tys, ty::UnionReduction::None)
     }
 
     pub(super) fn get_base_ty_of_literal_ty(&mut self, ty: &'cx ty::Ty<'cx>) -> &'cx ty::Ty<'cx> {
         if ty.kind.is_number_lit() {
-            self.number_ty()
+            self.number_ty
         } else if ty.kind.is_string_lit() {
-            self.string_ty()
+            self.string_ty
         } else if let Some(union) = ty.kind.as_union() {
             self.get_base_type_of_literal_type_union(union)
         } else {

@@ -14,15 +14,15 @@ impl<'cx> TyChecker<'cx> {
         ty: &'cx ty::Ty<'cx>,
         f: impl Fn(&'cx ty::Ty<'cx>) -> bool,
     ) -> &'cx ty::Ty<'cx> {
-        if let Some(_) = ty.kind.as_union() {
+        if ty.kind.as_union().is_some() {
             // TODO:
             ty
-        } else if ty.kind.is_never() {
-            self.never_ty()
+        } else if ty.flags.intersects(ty::TypeFlags::NEVER) {
+            self.never_ty
         } else if f(ty) {
             ty
         } else {
-            self.never_ty()
+            self.never_ty
         }
     }
 
@@ -37,4 +37,40 @@ impl<'cx> TyChecker<'cx> {
             f(self, ty)
         }
     }
+
+    pub(super) fn same_map<T: PartialEq<U> + Copy, U: PartialEq<T> + Copy>(
+        &mut self,
+        array: Option<&'cx [T]>,
+        f: impl Fn(&mut Self, T, usize) -> U,
+    ) -> SameMapperResult<'cx, U>
+    where
+        T: Into<U>,
+    {
+        let Some(array) = array else {
+            return SameMapperResult::Old;
+        };
+        for i in 0..array.len() {
+            let item = array[i];
+            let mapped = f(self, item, i);
+            if item != mapped {
+                let mut result = Vec::with_capacity(array.len());
+                result.extend(array[0..i].iter().map(|item| (*item).into()));
+                result.push(mapped);
+                let start = i + 1;
+                for j in start..array.len() {
+                    let item = f(self, array[j], j);
+                    result.push(item);
+                }
+                assert_eq!(result.len(), array.len());
+                let result = self.alloc(result);
+                return SameMapperResult::New(result);
+            }
+        }
+        SameMapperResult::Old
+    }
+}
+
+pub enum SameMapperResult<'cx, T> {
+    Old,
+    New(&'cx [T]),
 }

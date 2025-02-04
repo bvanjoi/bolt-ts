@@ -49,7 +49,7 @@ impl<'cx> TyChecker<'cx> {
     ) -> &'cx ty::Ty<'cx> {
         assert!(source.kind.is_param());
         let ty = self.get_declared_ty_of_symbol(symbol);
-        if ty == self.error_ty() {
+        if ty == self.error_ty {
             return ty;
         }
         let mapper = self.alloc(TyMapper::make_unary(source, target));
@@ -61,7 +61,7 @@ impl<'cx> TyChecker<'cx> {
         {
             let ty_params = self.get_symbol_links(symbol).get_ty_params().unwrap();
             let tys = self.instantiate_tys(ty_params, mapper);
-            self.get_type_alias_instantiation(symbol, tys)
+            self.get_type_alias_instantiation(symbol, tys, None, None)
         } else {
             let ty_params = if let Some(i) = ty.kind.as_object_interface() {
                 i.ty_params

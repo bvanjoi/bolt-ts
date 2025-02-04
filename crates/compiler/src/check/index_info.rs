@@ -82,7 +82,7 @@ impl<'cx> TyChecker<'cx> {
         let mut applicable_infos: Option<Vec<&ty::IndexInfo<'_>>> = None;
 
         for info in index_infos {
-            if info.key_ty == self.string_ty() {
+            if info.key_ty == self.string_ty {
                 string_index_info = Some(info)
             } else if self.is_applicable_index_ty(key_ty, info.key_ty) {
                 if applicable_info.is_none() {
@@ -100,8 +100,7 @@ impl<'cx> TyChecker<'cx> {
             applicable_info
         } else if let Some(applicable_info) = applicable_info {
             Some(applicable_info)
-        } else if string_index_info.is_some()
-            && self.is_applicable_index_ty(key_ty, self.string_ty())
+        } else if string_index_info.is_some() && self.is_applicable_index_ty(key_ty, self.string_ty)
         {
             string_index_info
         } else {

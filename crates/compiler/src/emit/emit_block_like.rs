@@ -23,7 +23,6 @@ impl<'cx> ElemLike<'cx> for ast::ClassElem<'cx> {
     fn emit_sep(&self, emitter: &mut Emit<'cx>) {
         if !matches!(self.kind, ast::ClassEleKind::IndexSig(_)) {
             emitter.content.p_newline();
-            emitter.content.p_pieces_of_whitespace(emitter.state.indent);
         }
     }
 }
@@ -51,7 +50,6 @@ impl<'cx> ElemLike<'cx> for ast::Stmt<'cx> {
     }
     fn emit_sep(&self, emitter: &mut Emit<'cx>) {
         emitter.content.p_newline();
-        emitter.content.p_pieces_of_whitespace(emitter.state.indent);
     }
 }
 impl<'cx> ElemsLike<'cx> for ast::Stmts<'cx> {
@@ -76,9 +74,8 @@ impl<'cx> Emit<'cx> {
     pub(super) fn emit_block_like(&mut self, block: &impl BlockLike<'cx>) {
         self.content.p_l_brace();
         if !block.elems().is_empty() {
+            self.content.indent += self.options.indent;
             self.content.p_newline();
-            self.state.indent += self.options.indent;
-            self.content.p_pieces_of_whitespace(self.state.indent);
         }
         self.emit_list(
             block.elems().elems(),
@@ -86,8 +83,7 @@ impl<'cx> Emit<'cx> {
             |this, elem| elem.emit_sep(this),
         );
         if !block.elems().is_empty() {
-            self.state.indent -= self.options.indent;
-            self.content.p_pieces_of_whitespace(self.state.indent);
+            self.content.indent -= self.options.indent;
             self.content.p_newline();
         }
         self.content.p_r_brace();

@@ -7,23 +7,31 @@ use super::{errors, CheckMode};
 use super::{ExpectedArgsCount, Ternary};
 use super::{InferenceContextId, TyChecker};
 use crate::bind::SymbolID;
-use crate::ir;
+use crate::ir::{self, CallLike};
+use crate::ty::TypeFlags;
 use crate::{ast, ty};
 use bolt_ts_span::Span;
 
 pub(super) trait CallLikeExpr<'cx>: ir::CallLike<'cx> {
     fn resolve_sig(&self, checker: &mut TyChecker<'cx>) -> &'cx Sig<'cx>;
+    fn is_super_call(&self) -> bool;
 }
 
 impl<'cx> CallLikeExpr<'cx> for ast::CallExpr<'cx> {
     fn resolve_sig(&self, checker: &mut TyChecker<'cx>) -> &'cx Sig<'cx> {
         checker.resolve_call_expr(self)
     }
+    fn is_super_call(&self) -> bool {
+        matches!(self.callee().kind, ast::ExprKind::Super(..))
+    }
 }
 
 impl<'cx> CallLikeExpr<'cx> for ast::NewExpr<'cx> {
     fn resolve_sig(&self, checker: &mut TyChecker<'cx>) -> &'cx Sig<'cx> {
         checker.resolve_new_expr(self)
+    }
+    fn is_super_call(&self) -> bool {
+        false
     }
 }
 
@@ -48,7 +56,7 @@ impl<'cx> TyChecker<'cx> {
             return ty;
         }
         if !self.push_ty_resolution(ResolutionKey::ResolvedReturnType(sig.id)) {
-            return self.error_ty();
+            return self.error_ty;
         }
         let mut ty = if let Some(target) = sig.target {
             let ret_ty = self.get_ret_ty_of_sig(target);
@@ -60,21 +68,21 @@ impl<'cx> TyChecker<'cx> {
                 self.get_ret_ty_from_body(node_id)
             }
         } else {
-            self.any_ty()
+            self.any_ty
         };
 
         if self.pop_ty_resolution().has_cycle() {
             if let Some(node_id) = sig.node_id {
                 if let Some(ret_ty) = self.get_effective_ret_type_node(node_id) {}
             }
-            ty = self.any_ty();
+            ty = self.any_ty;
         }
         self.get_mut_sig_links(sig.id).set_resolved_ret_ty(ty);
         ty
     }
 
     pub(super) fn get_rest_ty_of_sig(&mut self, sig: &'cx Sig<'cx>) -> &'cx ty::Ty<'cx> {
-        self.try_get_rest_ty_of_sig(sig).unwrap_or(self.any_ty())
+        self.try_get_rest_ty_of_sig(sig).unwrap_or(self.any_ty)
     }
 
     pub(super) fn try_get_rest_ty_of_sig(
@@ -95,7 +103,7 @@ impl<'cx> TyChecker<'cx> {
     }
 
     pub(super) fn get_ty_at_pos(&mut self, sig: &Sig<'cx>, pos: usize) -> &'cx ty::Ty<'cx> {
-        self.try_get_ty_at_pos(sig, pos).unwrap_or(self.any_ty())
+        self.try_get_ty_at_pos(sig, pos).unwrap_or(self.any_ty)
     }
 
     pub(super) fn try_get_ty_at_pos(
@@ -157,11 +165,11 @@ impl<'cx> TyChecker<'cx> {
     fn resolve_call_expr(&mut self, expr: &impl CallLikeExpr<'cx>) -> &'cx Sig<'cx> {
         let ty = self.check_expr(expr.callee());
         let call_sigs = self.get_signatures_of_type(ty, ty::SigKind::Call);
-        let class_sigs = self.get_signatures_of_type(ty, ty::SigKind::Constructor);
+        let ctor_sigs = self.get_signatures_of_type(ty, ty::SigKind::Constructor);
 
         if call_sigs.is_empty() {
-            if let Some(sig) = class_sigs.first() {
-                assert_eq!(class_sigs.len(), 1);
+            if let Some(sig) = ctor_sigs.first() {
+                assert_eq!(ctor_sigs.len(), 1);
                 let ast::Node::ClassDecl(decl) = self.p.node(sig.class_decl.unwrap()) else {
                     unreachable!()
                 };
@@ -211,7 +219,11 @@ impl<'cx> TyChecker<'cx> {
 
         for i in (0..min_arg_count).rev() {
             let ty = self.get_ty_at_pos(sig, i);
-            if self.filter_type(ty, |ty| ty.kind.is_void()).kind.is_never() {
+            if self
+                .filter_type(ty, |ty| ty.flags.intersects(TypeFlags::VOID))
+                .flags
+                .intersects(TypeFlags::NEVER)
+            {
                 break;
             }
             min_arg_count = i;
@@ -251,7 +263,7 @@ impl<'cx> TyChecker<'cx> {
             .ty_params
             .map(|ty_params| ty_params.len())
             .unwrap_or_default();
-        let min_ty_args = self.get_min_ty_args_count(candidate.ty_params);
+        let min_ty_args = self.get_min_ty_arg_count(candidate.ty_params);
         if let Some(ty_args) = ty_args {
             let ty_args = ty_args.list;
             if ty_args.is_empty() {
@@ -286,7 +298,11 @@ impl<'cx> TyChecker<'cx> {
 
         for i in arg_count..min_args {
             let ty = self.get_ty_at_pos(sig, i);
-            if self.filter_type(ty, |ty| ty.kind.is_void()).kind.is_never() {
+            if self
+                .filter_type(ty, |ty| ty.flags.intersects(TypeFlags::VOID))
+                .flags
+                .intersects(TypeFlags::NEVER)
+            {
                 return false;
             }
         }
@@ -344,6 +360,49 @@ impl<'cx> TyChecker<'cx> {
         has_error
     }
 
+    fn check_ty_args(
+        &mut self,
+        sig: &'cx Sig<'cx>,
+        ty_args: &'cx ast::Tys<'cx>,
+        report_error: bool,
+    ) -> Option<ty::Tys<'cx>> {
+        let ty_params = sig.ty_params.unwrap();
+        let ty_arg_tys = {
+            let ty_arg_tys = ty_args
+                .list
+                .iter()
+                .map(|ty_arg| self.get_ty_from_type_node(ty_arg))
+                .collect::<Vec<_>>();
+            let min_ty_arg_count = self.get_min_ty_arg_count(Some(ty_params));
+            self.fill_missing_ty_args(
+                Some(self.alloc(ty_arg_tys)),
+                Some(ty_params),
+                min_ty_arg_count,
+            )
+        };
+        let mapper = self.create_ty_mapper(ty_params, ty_arg_tys.unwrap_or_default());
+        for i in 0..ty_params.len() {
+            let Some(constraint) = self.get_constraint_of_ty_param(ty_params[i]) else {
+                continue;
+            };
+            let ty_arg = ty_arg_tys.unwrap()[i];
+            let target = {
+                let ty = self.instantiate_ty(constraint, Some(mapper));
+                self.get_ty_with_this_arg(ty, Some(ty_arg))
+            };
+            if self.check_type_assignable_to(
+                ty_arg,
+                target,
+                report_error.then_some(ty_args.list[i].id()),
+            ) == Ternary::FALSE
+            {
+                return None;
+            }
+        }
+
+        ty_arg_tys
+    }
+
     fn choose_overload(
         &mut self,
         expr: &impl CallLikeExpr<'cx>,
@@ -353,6 +412,12 @@ impl<'cx> TyChecker<'cx> {
         mut argument_check_mode: CheckMode,
         candidates_for_arg_error: &mut Vec<&'cx ty::Sig<'cx>>,
     ) -> Option<&'cx Sig<'cx>> {
+        let ty_args = if !expr.is_super_call() {
+            expr.ty_args()
+        } else {
+            None
+        };
+
         if is_single_non_generic_candidate {
             let candidate = candidates[0];
             if !self.has_correct_arity(expr, candidate)
@@ -380,31 +445,36 @@ impl<'cx> TyChecker<'cx> {
                 let mut infer_ctx = None;
 
                 if let Some(ty_params) = candidate.ty_params {
-                    let infer = self.create_inference_context(
-                        ty_params,
-                        Some(candidate),
-                        InferenceFlags::empty(),
-                    );
-                    infer_ctx = Some(infer);
-                    let ty_arg_tys = Some({
-                        let tys = self.infer_ty_args(
-                            expr,
-                            candidate,
-                            expr.args(),
-                            argument_check_mode | CheckMode::SKIP_GENERIC_FUNCTIONS,
-                            infer,
-                        );
-                        let mapper = self.create_inference_non_fixing_mapper(infer);
-                        self.instantiate_tys(tys, mapper)
-                    });
-
-                    if self.inferences[infer.as_usize()]
-                        .flags
-                        .intersects(InferenceFlags::SKIPPED_GENERIC_FUNCTION)
-                    {
-                        argument_check_mode |= CheckMode::SKIP_GENERIC_FUNCTIONS;
+                    let ty_arg_tys;
+                    if let Some(ty_args) = ty_args {
+                        ty_arg_tys = self.check_ty_args(candidate, ty_args, false);
                     } else {
-                        argument_check_mode |= CheckMode::empty();
+                        let infer = self.create_inference_context(
+                            ty_params,
+                            Some(candidate),
+                            InferenceFlags::empty(),
+                        );
+                        infer_ctx = Some(infer);
+                        ty_arg_tys = Some({
+                            let tys = self.infer_ty_args(
+                                expr,
+                                candidate,
+                                expr.args(),
+                                argument_check_mode | CheckMode::SKIP_GENERIC_FUNCTIONS,
+                                infer,
+                            );
+                            let mapper = self.create_inference_non_fixing_mapper(infer);
+                            self.instantiate_tys(tys, mapper)
+                        });
+
+                        if self.inferences[infer.as_usize()]
+                            .flags
+                            .intersects(InferenceFlags::SKIPPED_GENERIC_FUNCTION)
+                        {
+                            argument_check_mode |= CheckMode::SKIP_GENERIC_FUNCTIONS;
+                        } else {
+                            argument_check_mode |= CheckMode::empty();
+                        }
                     }
 
                     check_candidate =
@@ -465,7 +535,7 @@ impl<'cx> TyChecker<'cx> {
         let mut min_required_params = usize::MAX;
         let mut max_required_params = usize::MIN;
 
-        let mut candidates_for_arg_error = vec![];
+        let mut candidates_for_arg_error = Vec::with_capacity(candidates.len());
 
         let args = expr.args();
 
@@ -592,6 +662,34 @@ impl<'cx> TyChecker<'cx> {
                     true,
                     None,
                 );
+            } else {
+                let error = errors::NoOverloadMatchesThisCall {
+                    span: expr.span(),
+                    unmatched_calls: candidates_for_arg_error
+                        .iter()
+                        .map(|c| self.p.node(c.def_id()).ident_name().unwrap().span)
+                        .collect(),
+                };
+                self.push_error(Box::new(error));
+                // TODO: more detail
+                // let mut max = 0;
+                // let mut min = usize::MAX;
+                // let mut min_index = 0;
+                // let mut i = 0;
+                // for c in candidates_for_arg_error {
+                //     let diags = self.get_signature_applicability_error(
+                //         expr,
+                //         c,
+                //         RelationKind::Assignable,
+                //         CheckMode::empty(),
+                //         true,
+                //         None,
+                //     );
+                //     if diags {
+                //         // TODO: chain
+                //         break;
+                //     }
+                // }
             }
         } else {
             let sigs_with_correct_ty_arg_arity = candidates
@@ -600,7 +698,7 @@ impl<'cx> TyChecker<'cx> {
                 .cloned()
                 .collect::<thin_vec::ThinVec<_>>();
             if sigs_with_correct_ty_arg_arity.is_empty() {
-                self.get_ty_arg_arity_error(expr, &candidates, expr.ty_args());
+                self.get_ty_arg_arity_error(expr, candidates, expr.ty_args());
             } else {
                 self.get_arg_arity_error(expr, &sigs_with_correct_ty_arg_arity, args);
             }
@@ -620,7 +718,7 @@ impl<'cx> TyChecker<'cx> {
             .unwrap_or_default();
         if sigs.len() == 1 {
             let sig = sigs[0];
-            let min = self.get_min_ty_args_count(sig.ty_params);
+            let min = self.get_min_ty_arg_count(sig.ty_params);
             let max = sig
                 .ty_params
                 .map(|ty_params| ty_params.len())
@@ -687,7 +785,6 @@ impl<'cx> TyChecker<'cx> {
                 };
                 self.push_error(Box::new(error));
             }
-        } else {
         }
     }
 
@@ -728,15 +825,15 @@ impl<'cx> TyChecker<'cx> {
         ty: &'cx ty::Ty<'cx>,
     ) -> SymbolID {
         let symbol = symbols[0];
-        self.binder.create_transient_symbol_with_ty(symbol, ty)
+        self.create_transient_symbol_with_ty(symbol, ty)
     }
 
     fn create_combined_symbol_from_tys(
         &mut self,
         symbols: Vec<SymbolID>,
-        tys: Vec<&'cx ty::Ty<'cx>>,
+        tys: &[&'cx ty::Ty<'cx>],
     ) -> SymbolID {
-        let union = self.create_union_type(tys, ty::UnionReduction::Subtype);
+        let union = self.get_union_ty(tys, ty::UnionReduction::Subtype);
         self.create_combined_symbol_for_overload_failure(symbols, union)
     }
 
@@ -784,7 +881,7 @@ impl<'cx> TyChecker<'cx> {
                 .iter()
                 .flat_map(|candidate| self.try_get_ty_at_pos(candidate, i))
                 .collect::<Vec<_>>();
-            let symbol = self.create_combined_symbol_from_tys(symbols, tys);
+            let symbol = self.create_combined_symbol_from_tys(symbols, &tys);
             params.push(symbol);
         }
         let rest_param_symbols = candidates
@@ -804,7 +901,7 @@ impl<'cx> TyChecker<'cx> {
                 .iter()
                 .flat_map(|c| self.try_get_rest_ty_of_sig(c))
                 .collect::<Vec<_>>();
-            let ty = self.create_union_type(tys, ty::UnionReduction::Subtype);
+            let ty = self.get_union_ty(&tys, ty::UnionReduction::Subtype);
             let ty = self.create_array_ty(ty);
             params.push(self.create_combined_symbol_for_overload_failure(rest_param_symbols, ty));
             flags |= SigFlags::HAS_REST_PARAMETER;
@@ -864,7 +961,7 @@ impl<'cx> TyChecker<'cx> {
             let default_ty = self
                 .get_default_ty_from_ty_param(ty_param)
                 .or_else(|| self.get_constraint_of_ty_param(ty_param))
-                .unwrap_or_else(|| self.any_ty());
+                .unwrap_or_else(|| self.any_ty);
             ty_args.push(default_ty);
         }
 

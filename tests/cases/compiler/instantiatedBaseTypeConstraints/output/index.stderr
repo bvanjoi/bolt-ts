@@ -3,3 +3,10 @@
  12 │ C
     · ─
     ╰────
+
+  × Type '(bar: number) => void' is not assignable to type '(bar: string) =>
+  │ void'.
+    ╭─[../../tests/cases/compiler/instantiatedBaseTypeConstraints/index.ts:13:3]
+ 13 │ foo
+    · ───
+    ╰────

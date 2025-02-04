@@ -1,24 +1,24 @@
 var A = {};
 (function (A) {
 
-class B {
+  class B {
     foo() {}
-    static bar() {}  
-}
-A.B = B
+    static bar() {}
+  }
+  A.B = B;
+  
+})(A);
 
-})(A)
-var A = {};
 (function (A) {
 
-var B = {};
-(function (B) {
+  var B = {};
+  (function (B) {
   
-var x = 1
-B.x = x
-
-  })(B)
-A.B = B
-
-})(A)
+    var x = 1
+    B.x = x
+    
+  })(B);
+  A.B = B;
+  
+})(A);
 var b

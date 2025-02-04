@@ -129,7 +129,7 @@ impl<'cx> ParserState<'cx, '_> {
         use TokenKind::*;
         if matches!(
             self.token.kind,
-            String | Number | LBrace | LBracket | DotDotDot | Typeof
+            String | Number | LBrace | LBracket | DotDotDot | Typeof | Null | Undefined | Void
         ) {
             true
         } else {
@@ -140,7 +140,24 @@ impl<'cx> ParserState<'cx, '_> {
     pub(super) fn is_start_of_expr(&self) -> bool {
         use TokenKind::*;
         let t = self.token.kind;
-        if t.is_start_of_left_hand_side_expr() || matches!(t, Plus | Minus | Typeof) {
+        if t.is_start_of_left_hand_side_expr()
+            || matches!(
+                t,
+                Plus | Minus
+                    | Tilde
+                    | Excl
+                    | Delete
+                    | Typeof
+                    | Void
+                    | PlusPlus
+                    | MinusMinus
+                    | Less
+                    | Await
+                    | Yield
+                    | Private
+                    | At
+            )
+        {
             true
         } else {
             self.is_ident()
@@ -415,6 +432,28 @@ impl<'cx> ParserState<'cx, '_> {
         let start = self.token.start();
         let id = self.next_node_id();
         let modifiers = self.parse_modifiers(false)?;
+        const INVALID_MODIFIERS: enumflags2::BitFlags<ModifierKind, u16> =
+            enumflags2::make_bitflags!(ModifierKind::{Static | Export});
+        if modifiers
+            .map(|ms| ms.flags.intersects(INVALID_MODIFIERS))
+            .unwrap_or_default()
+        {
+            if let Some(ms) = modifiers.map(|ms| {
+                ms.list
+                    .iter()
+                    .filter(|m| INVALID_MODIFIERS.intersects(m.kind))
+                    .copied()
+            }) {
+                for m in ms {
+                    let error = errors::ModifierCannotAppearOnAParameter {
+                        span: m.span,
+                        kind: m.kind,
+                    };
+                    self.push_error(Box::new(error));
+                }
+            }
+        }
+
         let dotdotdot = self.parse_optional(TokenKind::DotDotDot).map(|t| t.span);
         let name = self.with_parent(id, Self::parse_ident_name)?;
         if dotdotdot.is_some() {

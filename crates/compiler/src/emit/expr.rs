@@ -76,7 +76,7 @@ impl<'cx> Emit<'cx> {
                 self.emit_expr(n.expr);
             }
             Super(_) => self.content.p("super"),
-        }
+        };
     }
 
     fn emit_arrow_fn(&mut self, f: &'cx ast::ArrowFnExpr<'cx>) {

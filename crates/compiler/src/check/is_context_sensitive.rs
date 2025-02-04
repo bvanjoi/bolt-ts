@@ -1,4 +1,5 @@
 use crate::ast;
+use crate::ast::ArrowFnExprBody;
 use crate::keyword;
 
 use super::TyChecker;
@@ -26,10 +27,12 @@ impl TyChecker<'_> {
     fn has_context_sensitive_return_expr(&self, id: ast::NodeID) -> bool {
         let node = self.p.node(id);
         if node.ty_params().is_some() {
-            return false;
+            false
+        } else if let Some(ArrowFnExprBody::Expr(e)) = node.fn_body() {
+            self.is_context_sensitive(e.id())
+        } else {
+            false
         }
-
-        false
     }
 
     fn is_context_sensitive_fn_like(&self, id: ast::NodeID) -> bool {

@@ -4,7 +4,6 @@ use crate::bind::SymbolID;
 use crate::ty;
 use crate::ty::SigID;
 use crate::ty::SigKind;
-use crate::ty::TyMapper;
 use crate::ty::{Sig, SigFlags};
 
 impl<'cx> TyChecker<'cx> {
@@ -58,9 +57,21 @@ impl<'cx> TyChecker<'cx> {
         ty: &'cx ty::Ty<'cx>,
         kind: SigKind,
     ) -> ty::Sigs<'cx> {
-        self.resolve_structured_type_members(ty);
-        let sigs = self.signatures_of_type(ty, kind);
-        sigs
+        let ty = self.get_reduced_apparent_ty(ty);
+        self.get_signatures_of_structured_type(ty, kind)
+    }
+
+    fn get_signatures_of_structured_type(
+        &mut self,
+        ty: &'cx ty::Ty<'cx>,
+        kind: SigKind,
+    ) -> ty::Sigs<'cx> {
+        if ty.kind.is_structured() {
+            self.resolve_structured_type_members(ty);
+            self.signatures_of_type(ty, kind)
+        } else {
+            self.empty_array()
+        }
     }
 
     pub(super) fn get_sig_of_ty_tag(&mut self, id: ast::NodeID) -> Option<&'cx Sig<'cx>> {
@@ -117,11 +128,11 @@ impl<'cx> TyChecker<'cx> {
                     .iter()
                     .map(|_| {
                         // todo: get_constraint
-                        self.any_ty()
+                        self.any_ty
                     })
                     .collect::<Vec<_>>(),
             );
-            let base_constraint_mapper = self.alloc(TyMapper::create(ty_params, targets));
+            let base_constraint_mapper = self.create_ty_mapper(ty_params, targets);
             let base_constraints = ty_params
                 .iter()
                 .map(|ty| self.instantiate_ty(ty, Some(base_constraint_mapper)))
@@ -131,7 +142,7 @@ impl<'cx> TyChecker<'cx> {
                 base_constraints = self.instantiate_tys(base_constraints, base_constraint_mapper)
             }
             base_constraints = self.instantiate_tys(base_constraints, ty_eraser);
-            let mapper = self.alloc(TyMapper::create(ty_params, base_constraints));
+            let mapper = self.create_ty_mapper(ty_params, base_constraints);
             self.instantiate_sig(sig, mapper, true)
         } else {
             sig

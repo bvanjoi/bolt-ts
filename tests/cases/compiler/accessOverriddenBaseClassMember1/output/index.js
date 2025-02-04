@@ -1,20 +1,20 @@
 class Point {
   constructor(x, y) {
-this.x = x
+    this.x = x
     
-this.y = y}
+    this.y = y}
   toString() {
-    return "x=" + this.x + " y=" + this.y  
-}
+    return "x=" + this.x + " y=" + this.y
+  }
 }
 class ColoredPoint extends Point {
   constructor(x, y, color) {
     super(x, y);
-this.color = color    
-}
+    this.color = color
+    }
   toString() {
-    return super.toString() + " color=" + this.color  
-}
+    return super.toString() + " color=" + this.color
+  }
 }
 var p = new Point(1, 2)
 var px = p.x

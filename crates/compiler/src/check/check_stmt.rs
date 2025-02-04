@@ -17,13 +17,13 @@ impl<'cx> TyChecker<'cx> {
             Class(class) => self.check_class_decl(class),
             Interface(interface) => self.check_interface_decl(interface),
             Namespace(ns) => self.check_ns_decl(ns),
-            Type(ty) => self.check_ty_decl(ty),
+            Type(ty) => self.check_type_decl(ty),
+            For(node) => self.check_for_stmt(node),
             Empty(_) => {}
             Throw(_) => {}
             Enum(_) => {}
             Import(_) => {}
             Export(_) => {}
-            For(_) => {}
             ForOf(_) => {}
             ForIn(_) => {}
             Break(_) => {}
@@ -32,6 +32,26 @@ impl<'cx> TyChecker<'cx> {
             While(_) => {}
             Do(_) => {}
         };
+    }
+
+    fn check_for_stmt(&mut self, node: &'cx ast::ForStmt<'cx>) {
+        if let Some(init) = node.init {
+            match init {
+                ast::ForInitKind::Var((kind, list)) => self.check_var_decl_list(list),
+                ast::ForInitKind::Expr(expr) => {
+                    self.check_expr(expr);
+                }
+            }
+        }
+        if let Some(cond) = node.cond {
+            self.check_truthiness_expr(cond);
+        }
+
+        if let Some(incr) = node.incr {
+            self.check_expr(incr);
+        }
+
+        self.check_stmt(node.body);
     }
 
     fn check_var_stmt(&mut self, var: &'cx ast::VarStmt<'cx>) {
@@ -83,7 +103,7 @@ impl<'cx> TyChecker<'cx> {
         let expr_ty = ret_stmt
             .expr
             .map(|expr| self.check_expr(expr))
-            .unwrap_or(self.undefined_ty());
+            .unwrap_or(self.undefined_ty);
         if matches!(self.p.node(container), ast::Node::ClassCtor(_)) {
             if let Some(expr) = ret_stmt.expr {
                 self.check_type_assignable_to_and_optionally_elaborate(
@@ -119,7 +139,7 @@ impl<'cx> TyChecker<'cx> {
         self.check_class_decl_like(class)
     }
 
-    fn check_ty_decl(&mut self, ty: &'cx ast::TypeDecl<'cx>) {
+    fn check_type_decl(&mut self, ty: &'cx ast::TypeDecl<'cx>) {
         if let Some(ty_params) = ty.ty_params {
             self.check_ty_params(ty_params);
         }

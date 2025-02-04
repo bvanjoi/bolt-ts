@@ -1,20 +1,39 @@
-use rustc_hash::FxHashMap;
+use bolt_ts_utils::fx_hashset_with_capacity;
+use rustc_hash::{FxHashMap, FxHashSet};
 use std::hash::Hasher;
 
 use crate::bind::{Symbol, SymbolFlags, SymbolID, SymbolName};
 use crate::check::links::TyLinks;
 use crate::check::SymbolLinks;
 use crate::keyword;
-use crate::ty::{self, CheckFlags, ElementFlags, IndexFlags, ObjectFlags, TyID, UnionReduction};
+use crate::ty::{
+    self, CheckFlags, ElementFlags, IndexFlags, ObjectFlags, TyID, TypeFlags, UnionReduction,
+};
 
+use super::InstantiationTyMap;
 use super::{relation::RelationKind, TyChecker};
-use super::{InstantiationTyMap, Ternary};
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum IntersectionFlags {
+    None,
+    NoSuperTypeReduction,
+    NoConstraintReduction,
+}
 
 impl<'cx> TyChecker<'cx> {
-    pub(super) fn new_ty(&mut self, kind: ty::TyKind<'cx>) -> &'cx ty::Ty<'cx> {
-        let id = TyID::new(self.tys.len() as u32);
-        let ty = self.alloc(ty::Ty::new(id, kind));
-        self.tys.push(ty);
+    pub(super) fn new_ty(&mut self, kind: ty::TyKind<'cx>, flags: TypeFlags) -> &'cx ty::Ty<'cx> {
+        Self::make_ty(kind, flags, &mut self.tys, self.arena)
+    }
+
+    pub(super) fn make_ty(
+        kind: ty::TyKind<'cx>,
+        flags: TypeFlags,
+        tys: &mut Vec<&'cx ty::Ty<'cx>>,
+        arena: &'cx bumpalo::Bump,
+    ) -> &'cx ty::Ty<'cx> {
+        let id = TyID::new(tys.len() as u32);
+        let ty = arena.alloc(ty::Ty::new(id, kind, flags));
+        tys.push(ty);
         ty
     }
 
@@ -27,7 +46,7 @@ impl<'cx> TyChecker<'cx> {
             kind: ty,
             flags: object_flags,
         }));
-        self.new_ty(kind)
+        self.new_ty(kind, TypeFlags::OBJECT)
     }
 
     pub(super) fn create_tuple_ty(
@@ -104,7 +123,7 @@ impl<'cx> TyChecker<'cx> {
         for (i, ele) in element_types.iter().enumerate() {
             let flag = target.element_flags[i];
             if flag.intersects(ElementFlags::VARIADIC) {
-                if ele.kind.is_any() {
+                if ele.flags.intersects(TypeFlags::ANY) {
                     todo!()
                 } else if ele.kind.is_instantiable_non_primitive() {
                     add_ele(ele, ElementFlags::VARIADIC);
@@ -140,7 +159,7 @@ impl<'cx> TyChecker<'cx> {
         //    expanded_tys[first_rest_index] =
         // }
 
-        let expanded_flags: &'cx [ElementFlags] = self.alloc(expanded_flags);
+        let expanded_flags = self.alloc(expanded_flags);
         let tuple_target = self.get_tuple_target_ty(expanded_flags, target.readonly);
 
         if expanded_flags.is_empty() {
@@ -240,7 +259,7 @@ impl<'cx> TyChecker<'cx> {
         &mut self,
         symbol: SymbolID,
         target: &'cx ty::Ty<'cx>,
-        mapper: &'cx ty::TyMapper<'cx>,
+        mapper: &'cx dyn ty::TyMap<'cx>,
         object_flags: ObjectFlags,
     ) -> &'cx ty::Ty<'cx> {
         assert!(target.kind.is_object_anonymous());
@@ -270,7 +289,7 @@ impl<'cx> TyChecker<'cx> {
             target: Some(old),
             ..*old_param
         });
-        self.new_ty(ty::TyKind::Param(param_ty))
+        self.new_ty(ty::TyKind::Param(param_ty), old.flags)
     }
 
     pub(super) fn create_param_ty(
@@ -286,20 +305,53 @@ impl<'cx> TyChecker<'cx> {
             is_this_ty,
         };
         let parm_ty = self.alloc(ty);
-        self.new_ty(ty::TyKind::Param(parm_ty))
+        self.new_ty(ty::TyKind::Param(parm_ty), TypeFlags::TYPE_PARAMETER)
     }
 
-    // fn add_types_to_union(set: &mut Vec<&'cx ty::Ty<'cx>>, includes: TypeFlags, tys: &[&'cx ty::Ty<'cx>]) {
-    //     let mut last_ty = None;
-    //     for ty in tys {
-    //         if let Some(last_ty) = last_ty {
-    //             if last_ty != ty {
-    //             }
-    //         } else {
-    //             last_ty = Some(ty)
-    //         }
-    //     }
-    // }
+    fn add_ty_to_union(
+        &self,
+        set: &mut FxHashSet<TyID>,
+        mut includes: TypeFlags,
+        ty: &'cx ty::Ty<'cx>,
+    ) -> TypeFlags {
+        let flags = ty.flags;
+        if !flags.intersects(TypeFlags::NEVER) {
+            includes |= flags & TypeFlags::INCLUDES_MASK;
+            if flags.intersects(TypeFlags::INSTANTIABLE) {
+                includes |= TypeFlags::INSTANTIABLE;
+            }
+            if ty == self.wildcard_ty {
+                includes |= TypeFlags::INCLUDES_WILDCARD;
+            }
+
+            if !*self.config.strict_null_checks() && flags.intersects(TypeFlags::NULLABLE) {
+            } else {
+                set.insert(ty.id);
+            }
+        }
+        includes
+    }
+
+    fn add_tys_to_union(
+        &self,
+        set: &mut FxHashSet<TyID>,
+        mut includes: TypeFlags,
+        tys: &[&'cx ty::Ty<'cx>],
+    ) -> TypeFlags {
+        let mut last_ty = None;
+        for ty in tys {
+            let is_last = last_ty.is_some_and(|last_ty| last_ty == ty);
+            if !is_last {
+                includes = if let Some(u) = ty.kind.as_union() {
+                    self.add_tys_to_union(set, includes, u.tys)
+                } else {
+                    self.add_ty_to_union(set, includes, ty)
+                };
+                last_ty = Some(ty)
+            }
+        }
+        includes
+    }
 
     pub(super) fn create_array_ty(&mut self, element_ty: &'cx ty::Ty<'cx>) -> &'cx ty::Ty<'cx> {
         self.create_reference_ty(
@@ -309,31 +361,64 @@ impl<'cx> TyChecker<'cx> {
         )
     }
 
-    pub(super) fn create_union_type(
+    pub(super) fn get_union_ty(
         &mut self,
-        mut tys: Vec<&'cx ty::Ty<'cx>>,
+        tys: &[&'cx ty::Ty<'cx>],
         reduction: UnionReduction,
     ) -> &'cx ty::Ty<'cx> {
-        // if tys.is_empty() {
-        //     // TODO: never type
-        // }
-
-        tys.dedup();
-        if reduction != UnionReduction::None && reduction == UnionReduction::Subtype {
-            tys = self.remove_subtypes(tys)
+        if tys.is_empty() {
+            return self.never_ty;
+        } else if tys.len() == 1 {
+            return tys[0];
         }
 
-        if tys.len() == 1 {
-            tys[0]
-        } else {
-            let object_flags = ty::Ty::get_propagating_flags_of_tys(&tys, None);
-            let union = self.alloc(ty::UnionTy {
-                tys: self.alloc(tys),
-                object_flags,
-            });
+        let mut set = fx_hashset_with_capacity(tys.len());
+        let includes = self.add_tys_to_union(&mut set, TypeFlags::empty(), &tys);
 
-            self.new_ty(ty::TyKind::Union(union))
+        let mut set = {
+            let mut set = set
+                .into_iter()
+                .map(|ty| self.tys[ty.as_usize()])
+                .collect::<Vec<_>>();
+            set.sort_by(|a, b| a.id.as_u32().cmp(&b.id.as_u32()));
+            set
+        };
+
+        if reduction != UnionReduction::None {
+            if includes.intersects(TypeFlags::ANY_OR_UNKNOWN) {
+                return if includes.intersects(TypeFlags::ANY) {
+                    self.any_ty
+                } else if includes.intersects(TypeFlags::INCLUDES_WILDCARD) {
+                    self.wildcard_ty
+                } else if includes.intersects(TypeFlags::INCLUDES_ERROR) {
+                    self.error_ty
+                } else {
+                    self.unknown_ty
+                };
+            }
+            if reduction == UnionReduction::Subtype {
+                set = self.remove_subtypes(set);
+            }
+
+            if set.is_empty() {
+                return self.never_ty;
+            }
         }
+
+        if set.is_empty() {
+            return self.never_ty;
+        } else if set.len() == 1 {
+            return set[0];
+        }
+        set.dedup();
+
+        let object_flags = ty::Ty::get_propagating_flags_of_tys(&set, None);
+        let union = self.alloc(ty::UnionTy {
+            tys: self.alloc(set),
+            object_flags,
+        });
+
+        self.new_ty(ty::TyKind::Union(union), TypeFlags::UNION)
     }
 
     fn remove_subtypes(&mut self, mut tys: Vec<&'cx ty::Ty<'cx>>) -> Vec<&'cx ty::Ty<'cx>> {
@@ -365,7 +450,7 @@ impl<'cx> TyChecker<'cx> {
         index_flags: IndexFlags,
     ) -> &'cx ty::Ty<'cx> {
         let ty = self.alloc(ty::IndexTy { ty, index_flags });
-        self.new_ty(ty::TyKind::Index(ty))
+        self.new_ty(ty::TyKind::Index(ty), TypeFlags::INDEX)
     }
 
     pub(super) fn get_tuple_target_ty(
@@ -435,7 +520,7 @@ impl<'cx> TyChecker<'cx> {
                                 SymbolFlags::empty()
                             };
 
-                        let property = this.binder.create_transient_symbol(
+                        let property = this.create_transient_symbol(
                             name,
                             symbol_flags,
                             None,
@@ -461,7 +546,7 @@ impl<'cx> TyChecker<'cx> {
             //         .collect::<Vec<_>>();
             //     this.create_union_type(tys, UnionReduction::Lit)
             // };
-            let length_symbol = this.binder.create_transient_symbol(
+            let length_symbol = this.create_transient_symbol(
                 length_symbol_name,
                 SymbolFlags::PROPERTY,
                 None,
@@ -509,5 +594,191 @@ impl<'cx> TyChecker<'cx> {
         let prev = self.tuple_tys.insert(key, ty);
         assert!(prev.is_none());
         ty
+    }
+
+    fn add_ty_to_intersection(
+        &self,
+        set: &mut FxHashSet<TyID>,
+        mut includes: TypeFlags,
+        ty: &'cx ty::Ty<'cx>,
+    ) -> TypeFlags {
+        let flags = ty.flags;
+        if flags.intersects(TypeFlags::INTERSECTION) {
+            let ty = ty.kind.expect_intersection();
+            return self.add_tys_to_intersection(set, includes, ty.tys);
+        }
+
+        if self.is_empty_anonymous_object_ty(ty) {
+            if !includes.intersects(TypeFlags::INCLUDES_EMPTY_OBJECT) {
+                includes |= TypeFlags::INCLUDES_EMPTY_OBJECT;
+                set.insert(ty.id);
+            }
+        } else {
+            if flags.intersects(TypeFlags::ANY_OR_UNKNOWN) {
+                if ty == self.wildcard_ty {
+                    includes |= TypeFlags::INCLUDES_WILDCARD;
+                }
+            } else if *self.config.strict_null_checks() || !flags.intersects(TypeFlags::NULLABLE) {
+                if !set.contains(&ty.id) {
+                    if ty.flags.intersects(TypeFlags::UNIT) && includes.intersects(TypeFlags::UNIT)
+                    {
+                        includes |= TypeFlags::NON_PRIMITIVE;
+                    }
+                    set.insert(ty.id);
+                }
+            }
+            includes |= flags & TypeFlags::INCLUDES_MASK;
+        }
+
+        includes
+    }
+
+    fn add_tys_to_intersection(
+        &self,
+        set: &mut FxHashSet<TyID>,
+        mut includes: TypeFlags,
+        tys: &[&'cx ty::Ty<'cx>],
+    ) -> TypeFlags {
+        for ty in tys {
+            includes = self.add_ty_to_intersection(set, includes, ty)
+        }
+        includes
+    }
+
+    fn create_intersection_ty(
+        &mut self,
+        set: ty::Tys<'cx>,
+        flags: ObjectFlags,
+        alias_symbol: Option<SymbolID>,
+        alias_symbol_ty_args: Option<ty::Tys<'cx>>,
+    ) -> &'cx ty::Ty<'cx> {
+        let object_flags =
+            flags | ty::Ty::get_propagating_flags_of_tys(set, Some(TypeFlags::NULLABLE));
+        let ty = self.alloc(ty::IntersectionTy {
+            tys: set,
+            object_flags,
+            alias_symbol,
+            alias_ty_arguments: alias_symbol_ty_args,
+        });
+        self.new_ty(ty::TyKind::Intersection(ty), TypeFlags::INTERSECTION)
+    }
+
+    pub(super) fn get_intersection_ty(
+        &mut self,
+        tys: &[&'cx ty::Ty<'cx>],
+        flags: IntersectionFlags,
+        alias_symbol: Option<SymbolID>,
+        alias_symbol_ty_args: Option<ty::Tys<'cx>>,
+    ) -> &'cx ty::Ty<'cx> {
+        let mut set = fx_hashset_with_capacity(tys.len());
+        let includes = self.add_tys_to_intersection(&mut set, TypeFlags::empty(), tys);
+        let ty_set = set
+            .into_iter()
+            .map(|id| self.tys[id.as_usize()])
+            .collect::<Vec<_>>();
+
+        let object_flags = ObjectFlags::empty();
+
+        if includes.intersects(TypeFlags::NEVER) {
+            return self.never_ty;
+        }
+
+        let strict_null_checks = *self.config.strict_null_checks();
+
+        if strict_null_checks
+            && ((includes.intersects(TypeFlags::NULLABLE)
+                && includes.intersects(
+                    TypeFlags::OBJECT | TypeFlags::NON_PRIMITIVE | TypeFlags::INCLUDES_EMPTY_OBJECT,
+                ))
+                || (includes.intersects(TypeFlags::NON_PRIMITIVE)
+                    && includes
+                        .intersects(TypeFlags::DISJOINT_DOMAINS & !TypeFlags::DISJOINT_DOMAINS)))
+            || includes.intersects(TypeFlags::STRING_LIKE)
+                && includes.intersects(TypeFlags::DISJOINT_DOMAINS & !TypeFlags::STRING_LIKE)
+            || includes.intersects(TypeFlags::NUMBER_LIKE)
+                && includes.intersects(TypeFlags::DISJOINT_DOMAINS & !TypeFlags::NUMBER_LIKE)
+            || includes.intersects(TypeFlags::BIG_INT_LIKE)
+                && includes.intersects(TypeFlags::DISJOINT_DOMAINS & !TypeFlags::BIG_INT_LIKE)
+            || includes.intersects(TypeFlags::ES_SYMBOL_LIKE)
+                && includes.intersects(TypeFlags::DISJOINT_DOMAINS & !TypeFlags::ES_SYMBOL_LIKE)
+            || includes.intersects(TypeFlags::VOID_LIKE)
+                && includes.intersects(TypeFlags::DISJOINT_DOMAINS & !TypeFlags::VOID_LIKE)
+        {
+            return self.never_ty;
+        }
+
+        // if includes.intersects(TypeFlags::TEMPLATE_LITERAL | TypeFlags::STRING_MAPPING) && includes.intersects(TypeFlags::STRING_LIKE) &&
+
+        if includes.intersects(TypeFlags::ANY) {
+            if includes.intersects(TypeFlags::INCLUDES_WILDCARD) {
+                return self.wildcard_ty;
+            } else if includes.intersects(TypeFlags::INCLUDES_ERROR) {
+                return self.error_ty;
+            } else {
+                return self.any_ty;
+            }
+        }
+
+        if !strict_null_checks && includes.intersects(TypeFlags::NULLABLE) {
+            if includes.intersects(TypeFlags::INCLUDES_EMPTY_OBJECT) {
+                return self.never_ty;
+            } else if includes.intersects(TypeFlags::UNDEFINED) {
+                return self.undefined_ty;
+            } else {
+                return self.null_ty;
+            }
+        }
+        if includes.intersects(TypeFlags::STRING)
+            && includes.intersects(
+                TypeFlags::STRING_LITERAL | TypeFlags::TEMPLATE_LITERAL | TypeFlags::STRING_MAPPING,
+            )
+            || includes.intersects(TypeFlags::NUMBER)
+                && includes.intersects(TypeFlags::NUMBER_LITERAL)
+            || includes.intersects(TypeFlags::BIG_INT)
+                && includes.intersects(TypeFlags::BIG_INT_LITERAL)
+            || includes.intersects(TypeFlags::ES_SYMBOL)
+                && includes.intersects(TypeFlags::UNIQUE_ES_SYMBOL)
+            || includes.intersects(TypeFlags::VOID) && includes.intersects(TypeFlags::UNDEFINED)
+            || includes.intersects(TypeFlags::INCLUDES_EMPTY_OBJECT)
+                && includes.intersects(TypeFlags::DEFINITELY_NON_NULLABLE)
+        {
+            if flags != IntersectionFlags::NoSuperTypeReduction {
+                todo!()
+            };
+        }
+
+        if includes.intersects(TypeFlags::INCLUDES_MISSING_TYPE) {
+            todo!()
+        }
+
+        if ty_set.is_empty() {
+            return self.unknown_ty;
+        } else if ty_set.len() == 1 {
+            return ty_set[0];
+        }
+
+        if ty_set.len() == 2 && flags != IntersectionFlags::NoConstraintReduction {
+            let ty_var_index = if ty_set[0].flags.intersects(TypeFlags::TYPE_VARIABLE) {
+                0
+            } else {
+                1
+            };
+            let primitive_ty = ty_set[1 - ty_var_index];
+            let ty_var = ty_set[ty_var_index];
+            if ty_var.flags.intersects(TypeFlags::TYPE_VARIABLE)
+                && (primitive_ty
+                    .flags
+                    .intersects(TypeFlags::PRIMITIVE | TypeFlags::NON_PRIMITIVE))
+            {
+                todo!()
+            }
+        }
+
+        if includes.intersects(TypeFlags::UNION) {
+            todo!()
+        } else {
+            let tys = self.alloc(ty_set);
+            self.create_intersection_ty(tys, object_flags, alias_symbol, alias_symbol_ty_args)
+        }
     }
 }

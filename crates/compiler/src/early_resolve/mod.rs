@@ -1,4 +1,5 @@
 mod errors;
+mod get_exports;
 mod on_failed_value_resolve;
 mod on_success_resolve;
 mod resolve_call_like;
@@ -10,7 +11,7 @@ use bolt_ts_utils::fx_hashmap_with_capacity;
 use rayon::prelude::*;
 use rustc_hash::FxHashMap;
 
-use crate::bind::{BinderState, GlobalSymbols, Symbol, SymbolID, SymbolName};
+use crate::bind::{BinderState, GlobalSymbols, Symbol, SymbolFlags, SymbolID, SymbolName};
 use crate::keyword::{is_prim_ty_name, is_prim_value_name};
 use crate::parser::Parser;
 use crate::{ast, keyword};
@@ -54,6 +55,7 @@ fn early_resolve<'cx>(
         p,
         global,
         atoms,
+        resolved_exports: fx_hashmap_with_capacity(1024),
     };
     resolver.resolve_program(root);
     let diags = std::mem::take(&mut resolver.diags);
@@ -71,6 +73,7 @@ pub(super) struct Resolver<'cx, 'r> {
     final_res: FxHashMap<ast::NodeID, SymbolID>,
     global: &'cx GlobalSymbols,
     atoms: &'cx bolt_ts_atom::AtomMap<'cx>,
+    resolved_exports: FxHashMap<SymbolID, FxHashMap<SymbolName, SymbolID>>,
 }
 
 impl<'cx> Resolver<'cx, '_> {
@@ -110,7 +113,15 @@ impl<'cx> Resolver<'cx, '_> {
             Enum(enum_decl) => {}
             Import(import_decl) => {}
             Export(export_decl) => {}
-            For(for_stmt) => {}
+            For(n) => {
+                if let Some(cond) = n.cond {
+                    self.resolve_expr(cond);
+                }
+                if let Some(update) = n.incr {
+                    self.resolve_expr(update);
+                }
+                self.resolve_stmt(n.body);
+            }
             ForOf(n) => {
                 self.resolve_expr(n.expr);
                 self.resolve_stmt(n.body);
@@ -121,12 +132,12 @@ impl<'cx> Resolver<'cx, '_> {
             }
             Break(n) => {
                 if let Some(ident) = n.label {
-                    self.resolve_symbol_by_ident(ident, Symbol::is_value);
+                    self.resolve_symbol_by_ident(ident, SymbolFlags::VALUE);
                 }
             }
             Continue(n) => {
                 if let Some(ident) = n.label {
-                    self.resolve_symbol_by_ident(ident, Symbol::is_value);
+                    self.resolve_symbol_by_ident(ident, SymbolFlags::VALUE);
                 }
             }
             Try(n) => {}
@@ -178,25 +189,37 @@ impl<'cx> Resolver<'cx, '_> {
         }
     }
 
-    fn resolve_entity_name(&mut self, name: &'cx ast::EntityName<'cx>, is_ty: bool) {
+    fn resolve_entity_name(&mut self, name: &'cx ast::EntityName<'cx>, meaning: SymbolFlags) {
         use ast::EntityNameKind::*;
         match name.kind {
             Ident(ident) => {
-                if is_ty {
+                if meaning == SymbolFlags::TYPE {
                     self.resolve_ty_by_ident(ident);
-                } else {
+                } else if meaning == SymbolFlags::VALUE {
                     self.resolve_value_by_ident(ident);
+                } else if meaning == SymbolFlags::NAMESPACE {
+                    self.resolve_symbol_by_ident(ident, meaning);
+                } else {
+                    unreachable!()
                 }
             }
             Qualified(qualified) => {
-                self.resolve_entity_name(qualified.left, is_ty);
-                // self.resolve_ty_by_ident(qualified.right);
+                self.resolve_entity_name(qualified.left, SymbolFlags::NAMESPACE);
+                let left = self.final_res[&qualified.left.id()];
+                let exports = self.get_exports_of_symbol(left);
+                let name = SymbolName::Normal(qualified.right.name);
+                let v = exports
+                    .and_then(|exports| exports.get(&name))
+                    .copied()
+                    .unwrap_or(Symbol::ERR);
+                let prev = self.final_res.insert(qualified.id, v);
+                assert!(prev.is_none());
             }
         }
     }
 
     fn resolve_refer_ty(&mut self, refer: &'cx ast::ReferTy<'cx>) {
-        self.resolve_entity_name(refer.name, true);
+        self.resolve_entity_name(refer.name, SymbolFlags::TYPE);
         if let Some(ty_args) = refer.ty_args {
             self.resolve_tys(ty_args.list);
         }
@@ -249,7 +272,7 @@ impl<'cx> Resolver<'cx, '_> {
                 self.resolve_ty(cond.true_ty);
                 self.resolve_ty(cond.false_ty);
             }
-            NumLit(_) | StringLit(_) => {}
+            Lit(_) => {}
             Union(u) => {
                 for ty in u.tys {
                     self.resolve_ty(ty);
@@ -261,7 +284,11 @@ impl<'cx> Resolver<'cx, '_> {
                 }
             }
             Typeof(n) => {
-                self.resolve_entity_name(n.name, false);
+                use ast::EntityNameKind::*;
+                match n.name.kind {
+                    Ident(ident) => self.resolve_value_by_ident(ident),
+                    Qualified(_) => (),
+                }
             }
             Mapped(n) => {}
             TyOp(n) => {}
@@ -269,7 +296,6 @@ impl<'cx> Resolver<'cx, '_> {
                 self.resolve_value_by_ident(n.name);
                 self.resolve_ty(n.ty);
             }
-            BooleanLit(_) | NullLit(_) => unreachable!(),
         }
     }
 
@@ -472,14 +498,14 @@ impl<'cx> Resolver<'cx, '_> {
 
     fn resolve_value_by_ident(&mut self, ident: &'cx ast::Ident) {
         if ident.name == keyword::IDENT_EMPTY {
-            // delay bug
+            // TODO: delay bug
             let prev = self.final_res.insert(ident.id, Symbol::ERR);
             assert!(prev.is_none());
             return;
         } else if is_prim_value_name(ident.name) {
             return;
         }
-        let res = self.resolve_symbol_by_ident(ident, Symbol::is_value);
+        let res = self.resolve_symbol_by_ident(ident, SymbolFlags::VALUE);
         if res.symbol == Symbol::ERR {
             let error = errors::CannotFindName {
                 span: ident.span,
@@ -509,7 +535,9 @@ impl<'cx> Resolver<'cx, '_> {
             }
             return;
         }
-        let res = self.resolve_symbol_by_ident(ident, Symbol::is_type).symbol;
+        let res = self
+            .resolve_symbol_by_ident(ident, SymbolFlags::TYPE)
+            .symbol;
 
         if res == Symbol::ERR {
             let error = errors::CannotFindName {
@@ -526,9 +554,9 @@ impl<'cx> Resolver<'cx, '_> {
     fn resolve_symbol_by_ident(
         &mut self,
         ident: &'cx ast::Ident,
-        ns: impl Fn(&Symbol<'cx>) -> bool,
+        meaning: SymbolFlags,
     ) -> ResolvedResult {
-        let res = resolve_symbol_by_ident(self, ident, ns);
+        let res = resolve_symbol_by_ident(self, ident, meaning);
         let prev = self.final_res.insert(ident.id, res.symbol);
         assert!(
             prev.is_none(),
@@ -547,7 +575,7 @@ pub(super) struct ResolvedResult {
 pub(super) fn resolve_symbol_by_ident<'a, 'cx>(
     resolver: &'a Resolver<'cx, 'a>,
     ident: &'cx ast::Ident,
-    ns: impl Fn(&'a Symbol<'cx>) -> bool,
+    meaning: SymbolFlags,
 ) -> ResolvedResult {
     let binder = &resolver.states[resolver.module_id.as_usize()];
     let key = SymbolName::Normal(ident.name);
@@ -560,7 +588,7 @@ pub(super) fn resolve_symbol_by_ident<'a, 'cx>(
         if !scope_id.is_root() {
             if let Some(id) = binder.res.get(&(scope_id, SymbolName::Container)).copied() {
                 let symbol = binder.symbols.get(id);
-                if ns(symbol) {
+                if symbol.flags.intersects(meaning) {
                     let container = symbol.expect_block_container();
                     if let Some(id) = container.locals.get(&key) {
                         break ResolvedResult {
@@ -597,7 +625,7 @@ pub(super) fn resolve_symbol_by_ident<'a, 'cx>(
                     associated_declaration_for_containing_initializer_or_binding_name = Some(decl);
                 }
             }
-            if ns(symbol) {
+            if symbol.flags.intersects(meaning) {
                 break ResolvedResult {
                     symbol: id,
                     associated_declaration_for_containing_initializer_or_binding_name,

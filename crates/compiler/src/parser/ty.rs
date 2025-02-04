@@ -335,7 +335,10 @@ impl<'cx> ParserState<'cx, '_> {
         }
     }
 
-    fn parse_right_side_of_dot(&mut self) -> PResult<&'cx ast::Ident> {
+    pub(super) fn parse_right_side_of_dot(
+        &mut self,
+        allow_identifier_name: bool,
+    ) -> PResult<&'cx ast::Ident> {
         if self.has_preceding_line_break() && self.token.kind.is_ident_or_keyword() {
             let matches_pattern =
                 self.lookahead(Self::next_token_is_ident_or_keyword_on_same_line)?;
@@ -343,10 +346,17 @@ impl<'cx> ParserState<'cx, '_> {
                 todo!()
             }
         }
-        Ok(self.create_ident(self.is_ident(), None))
+        if allow_identifier_name {
+            self.parse_ident_name()
+        } else {
+            Ok(self.create_ident(self.is_ident(), None))
+        }
     }
 
-    pub(super) fn parse_entity_name(&mut self) -> PResult<&'cx ast::EntityName<'cx>> {
+    pub(super) fn parse_entity_name(
+        &mut self,
+        allow_reserved_word: bool,
+    ) -> PResult<&'cx ast::EntityName<'cx>> {
         let start = self.token.start();
         let name = self.parse_ident_name()?;
         let kind = ast::EntityNameKind::Ident(name);
@@ -360,7 +370,8 @@ impl<'cx> ParserState<'cx, '_> {
             if self.token.kind == TokenKind::Less {
                 break;
             }
-            let right = self.with_parent(id, Self::parse_right_side_of_dot)?;
+            let right =
+                self.with_parent(id, |this| this.parse_right_side_of_dot(allow_reserved_word))?;
             let qualified = self.alloc(ast::QualifiedName {
                 id,
                 span: self.new_span(start),
@@ -402,7 +413,7 @@ impl<'cx> ParserState<'cx, '_> {
     pub(super) fn parse_entity_name_of_ty_reference(&mut self) -> PResult<&'cx ast::ReferTy<'cx>> {
         let id = self.next_node_id();
         let start = self.token.start();
-        let name = self.with_parent(id, Self::parse_entity_name)?;
+        let name = self.with_parent(id, |this| this.parse_entity_name(true))?;
         let ty_args = self.with_parent(id, Self::parse_ty_args_of_ty_reference)?;
         let ty = self.alloc(ast::ReferTy {
             id,
@@ -450,7 +461,7 @@ impl<'cx> ParserState<'cx, '_> {
         let id = self.next_node_id();
         let start = self.token.start();
         self.expect(TokenKind::Typeof);
-        let name = self.with_parent(id, Self::parse_entity_name)?;
+        let name = self.with_parent(id, |this| this.parse_entity_name(true))?;
         let args = if self.has_preceding_line_break() {
             self.with_parent(id, Self::try_parse_ty_args)?
         } else {
@@ -472,8 +483,22 @@ impl<'cx> ParserState<'cx, '_> {
     fn parse_non_array_ty(&mut self) -> PResult<&'cx ast::Ty<'cx>> {
         use TokenKind::*;
         match self.token.kind {
-            True | False => {
-                todo!()
+            True | False | Null | Void | Undefined => {
+                let kind = match self.token.kind {
+                    True => ast::LitTyKind::True,
+                    False => ast::LitTyKind::False,
+                    Null => ast::LitTyKind::Null,
+                    Void => ast::LitTyKind::Void,
+                    Undefined => ast::LitTyKind::Undefined,
+                    _ => unreachable!(),
+                };
+                let lit = self.create_lit_ty(kind, self.token.span);
+                self.insert_map(lit.id, ast::Node::LitTy(lit));
+                self.next_token();
+                let ty = self.alloc(ast::Ty {
+                    kind: ast::TyKind::Lit(lit),
+                });
+                Ok(ty)
             }
             Number | String => {
                 let token_val = self.token_value.unwrap();
@@ -481,18 +506,20 @@ impl<'cx> ParserState<'cx, '_> {
                     let ty = match node.kind {
                         Number => {
                             let val = token_val.number();
-                            let lit = self.create_lit_ty(val, self.token.span);
-                            self.insert_map(lit.id, ast::Node::NumLitTy(lit));
+                            let kind = ast::LitTyKind::Num(val);
+                            let lit = self.create_lit_ty(kind, self.token.span);
+                            self.insert_map(lit.id, ast::Node::LitTy(lit));
                             self.alloc(ast::Ty {
-                                kind: ast::TyKind::NumLit(lit),
+                                kind: ast::TyKind::Lit(lit),
                             })
                         }
                         String => {
                             let val = token_val.ident();
-                            let lit = self.create_lit_ty(val, self.token.span);
-                            self.insert_map(lit.id, ast::Node::StringLitTy(lit));
+                            let kind = ast::LitTyKind::String(val);
+                            let lit = self.create_lit_ty(kind, self.token.span);
+                            self.insert_map(lit.id, ast::Node::LitTy(lit));
                             self.alloc(ast::Ty {
-                                kind: ast::TyKind::StringLit(lit),
+                                kind: ast::TyKind::Lit(lit),
                             })
                         }
                         _ => unreachable!(),
@@ -525,11 +552,12 @@ impl<'cx> ParserState<'cx, '_> {
                 if self.lookahead(Self::next_token_is_numeric_or_big_int_literal) {
                     self.next_token();
                     let val = -self.number_token();
-                    let lit = self.create_lit_ty(val, self.token.span);
-                    self.insert_map(lit.id, ast::Node::NumLitTy(lit));
+                    let kind = ast::LitTyKind::Num(val);
+                    let lit = self.create_lit_ty(kind, self.token.span);
+                    self.insert_map(lit.id, ast::Node::LitTy(lit));
                     self.next_token();
                     let ty = self.alloc(ast::Ty {
-                        kind: ast::TyKind::NumLit(lit),
+                        kind: ast::TyKind::Lit(lit),
                     });
                     Ok(ty)
                 } else {

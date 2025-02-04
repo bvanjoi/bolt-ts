@@ -91,9 +91,7 @@ impl<'cx> Resolver<'cx, '_> {
         &mut self,
         ident: &'cx ast::Ident,
     ) -> Option<errors::CannotFindNameHelperKind> {
-        let symbol =
-            resolve_symbol_by_ident(self, ident, |ns| ns.flags == SymbolFlags::NAMESPACE_MODULE)
-                .symbol;
+        let symbol = resolve_symbol_by_ident(self, ident, SymbolFlags::NAMESPACE_MODULE).symbol;
         if symbol == Symbol::ERR {
             None
         } else {
@@ -143,7 +141,7 @@ impl<'cx> Resolver<'cx, '_> {
             }
         }
 
-        let res = resolve_symbol_by_ident(self, ident, Symbol::is_type).symbol;
+        let res = resolve_symbol_by_ident(self, ident, SymbolFlags::TYPE).symbol;
         if res != Symbol::ERR {
             let error = errors::CannotFindNameHelperKind::OnlyReferToATypeButIsBeingUsedAsValueHere(
                 errors::OnlyReferToATypeButIsBeingUsedAsValueHere {

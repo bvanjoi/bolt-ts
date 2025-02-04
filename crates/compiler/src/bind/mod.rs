@@ -17,7 +17,6 @@ use rustc_hash::FxHashMap;
 pub use self::symbol::BlockContainerSymbol;
 use self::symbol::ClassSymbol;
 pub(crate) use self::symbol::SymbolKind;
-use self::symbol::TransientSymbol;
 use self::symbol::TyLitSymbol;
 pub use self::symbol::{GlobalSymbols, Symbol, SymbolID, SymbolName, Symbols};
 pub use self::symbol::{SymbolFlags, SymbolFnKind};
@@ -37,8 +36,7 @@ impl ScopeID {
 pub struct Binder<'cx> {
     p: &'cx Parser<'cx>,
     atoms: &'cx AtomMap<'cx>,
-    binder_result: Vec<ResolveResult<'cx>>,
-    transient_binder: Symbols<'cx>,
+    binder_result: Vec<ResolveResult>,
 }
 
 impl<'cx> Binder<'cx> {
@@ -47,17 +45,16 @@ impl<'cx> Binder<'cx> {
             p,
             atoms,
             binder_result: Vec::with_capacity(p.module_count() + 1),
-            transient_binder: Symbols::new(ModuleID::MOCK),
         }
     }
 
-    pub fn insert(&mut self, id: ModuleID, result: ResolveResult<'cx>) {
+    pub fn insert(&mut self, id: ModuleID, result: ResolveResult) {
         assert_eq!(self.binder_result.len(), id.as_usize());
         self.binder_result.push(result);
     }
 
     #[inline(always)]
-    fn get(&self, id: ModuleID) -> &ResolveResult<'cx> {
+    fn get(&self, id: ModuleID) -> &ResolveResult {
         let index = id.as_usize();
         &self.binder_result[index]
     }
@@ -77,50 +74,9 @@ impl<'cx> Binder<'cx> {
     }
 
     #[inline(always)]
-    pub fn symbols(&self, id: ModuleID) -> &Symbols<'cx> {
-        if id == ModuleID::MOCK {
-            &self.transient_binder
-        } else {
-            &self.get(id).symbols
-        }
-    }
-
-    #[inline(always)]
-    pub fn symbol(&self, id: SymbolID) -> &Symbol<'cx> {
+    pub(super) fn symbol(&self, id: SymbolID) -> &Symbol {
         let m = id.module();
-        if m == ModuleID::MOCK {
-            self.transient_binder.get(id)
-        } else {
-            self.get(m).symbols.get(id)
-        }
-    }
-
-    pub(crate) fn get_transient(&self, symbol: SymbolID) -> Option<&TransientSymbol<'cx>> {
-        match &self.symbol(symbol).kind.0 {
-            SymbolKind::Transient(ty) => Some(ty),
-            _ => None,
-        }
-    }
-
-    pub(crate) fn get_check_flags(&self, symbol: SymbolID) -> crate::ty::CheckFlags {
-        if let Some(t) = self.get_transient(symbol) {
-            t.links.get_check_flags().unwrap_or_default()
-        } else {
-            bitflags::Flags::empty()
-        }
-    }
-
-    pub(crate) fn get_mut_transient(
-        &mut self,
-        symbol: SymbolID,
-    ) -> Option<&mut TransientSymbol<'cx>> {
-        if symbol.module() != ModuleID::MOCK {
-            return None;
-        }
-        match &mut self.transient_binder.get_mut(symbol).kind.0 {
-            SymbolKind::Transient(ty) => Some(ty),
-            _ => None,
-        }
+        self.get(m).symbols.get(id)
     }
 
     pub fn steal_errors(&mut self) -> Vec<bolt_ts_errors::Diag> {
@@ -128,38 +84,6 @@ impl<'cx> Binder<'cx> {
             .iter_mut()
             .flat_map(|result| std::mem::take(&mut result.diags))
             .collect()
-    }
-
-    pub fn create_transient_symbol(
-        &mut self,
-        name: SymbolName,
-        symbol_flags: SymbolFlags,
-        origin: Option<SymbolID>,
-        links: crate::check::SymbolLinks<'cx>,
-    ) -> SymbolID {
-        let symbol_flags = symbol_flags | SymbolFlags::TRANSIENT;
-        let symbol = Symbol::new(
-            name,
-            symbol_flags,
-            SymbolKind::Transient(TransientSymbol { links, origin }),
-        );
-        self.transient_binder.insert(symbol)
-    }
-
-    pub fn create_transient_symbol_with_ty(
-        &mut self,
-        source: SymbolID,
-        ty: &'cx crate::ty::Ty<'cx>,
-    ) -> SymbolID {
-        let s = self.symbol(source);
-        let symbol_flags = s.flags;
-        let name = s.name;
-        let check_flags = self.get_check_flags(source) & crate::ty::CheckFlags::READONLY;
-        let links = crate::check::SymbolLinks::default()
-            .with_check_flags(check_flags)
-            .with_ty(ty)
-            .with_target(source);
-        self.create_transient_symbol(name, symbol_flags, Some(source), links)
     }
 }
 
@@ -170,7 +94,7 @@ pub struct BinderState<'cx> {
     pub(crate) atoms: &'cx AtomMap<'cx>,
     pub(crate) scope_id_parent_map: Vec<Option<ScopeID>>,
     pub(crate) node_id_to_scope_id: FxHashMap<ast::NodeID, ScopeID>,
-    pub(crate) symbols: Symbols<'cx>,
+    pub(crate) symbols: Symbols,
     pub(super) res: FxHashMap<(ScopeID, SymbolName), SymbolID>,
     pub(crate) final_res: FxHashMap<ast::NodeID, SymbolID>,
 }

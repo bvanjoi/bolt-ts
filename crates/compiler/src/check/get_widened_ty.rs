@@ -22,7 +22,7 @@ impl<'cx> TyChecker<'cx> {
                 let refer = ty.kind.expect_object_reference();
                 let ty_args = refer
                     .resolved_ty_args
-                    .into_iter()
+                    .iter()
                     .map(|arg| self.get_widened_ty(arg))
                     .collect::<Vec<_>>();
                 let ty_args = self.alloc(ty_args);
@@ -37,21 +37,16 @@ impl<'cx> TyChecker<'cx> {
 
     pub(super) fn get_widened_literal_ty(&self, ty: &'cx ty::Ty<'cx>) -> &'cx ty::Ty<'cx> {
         if ty.kind.is_number_lit() {
-            self.number_ty()
+            self.number_ty
         } else if ty.kind.is_string_lit() {
-            self.string_ty()
+            self.string_ty
         } else {
             ty
         }
     }
 
     fn get_widened_prop(&mut self, prop: SymbolID) -> SymbolID {
-        if !self
-            .binder
-            .symbol(prop)
-            .flags
-            .intersects(SymbolFlags::PROPERTY)
-        {
+        if !self.symbol(prop).flags().intersects(SymbolFlags::PROPERTY) {
             prop
         } else {
             let original = self.get_type_of_symbol(prop);
@@ -59,7 +54,7 @@ impl<'cx> TyChecker<'cx> {
             if original != widened {
                 prop
             } else {
-                self.binder.create_transient_symbol_with_ty(prop, widened)
+                self.create_transient_symbol_with_ty(prop, widened)
             }
         }
     }
@@ -67,9 +62,9 @@ impl<'cx> TyChecker<'cx> {
     fn get_widened_type_of_object_lit(&mut self, ty: &'cx ty::Ty<'cx>) -> &'cx ty::Ty<'cx> {
         let members = self
             .get_props_of_object_ty(ty)
-            .into_iter()
+            .iter()
             .map(|prop| {
-                let name = self.binder.symbol(*prop).name;
+                let name = self.symbol(*prop).name();
                 let ty = self.get_widened_prop(*prop);
                 (name, ty)
             })

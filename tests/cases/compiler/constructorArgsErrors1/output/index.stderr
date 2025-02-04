@@ -1,0 +1,5 @@
+  × 'static' modifier cannot appear on a parameter.
+   ╭─[../../tests/cases/compiler/constructorArgsErrors1/index.ts:4:16]
+ 4 │ static
+   · ──────
+   ╰────

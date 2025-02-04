@@ -1,0 +1,11 @@
+  × Expected 1 arguments, but got 0.
+   ╭─[../../tests/cases/compiler/functionOverloads29/index.ts:6:9]
+ 6 │ foo
+   · ───
+   ╰────
+
+  × Expected 1 arguments, but got 2.
+   ╭─[../../tests/cases/compiler/functionOverloads29/index.ts:8:16]
+ 8 │ 2
+   · ─
+   ╰────

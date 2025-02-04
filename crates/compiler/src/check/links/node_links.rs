@@ -7,7 +7,8 @@ links!(
     (resolved_ty, &'cx ty::Ty<'cx>),
     (resolved_sig, &'cx ty::Sig<'cx>),
     (resolved_symbol, bind::SymbolID),
-    (flags, NodeFlags)
+    (flags, NodeFlags),
+    (outer_ty_params, ty::Tys<'cx>),
 );
 
 impl NodeLinks<'_> {

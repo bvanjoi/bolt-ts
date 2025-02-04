@@ -127,15 +127,15 @@ bitflags::bitflags! {
 }
 
 #[derive(Debug)]
-pub struct Symbol<'cx> {
+pub struct Symbol {
     pub name: SymbolName,
     pub flags: SymbolFlags,
-    pub(crate) kind: (SymbolKind<'cx>, Option<InterfaceSymbol>, Option<NsSymbol>),
+    pub(crate) kind: (SymbolKind, Option<InterfaceSymbol>, Option<NsSymbol>),
 }
 
-impl<'cx> Symbol<'cx> {
+impl<'cx> Symbol {
     pub const ERR: SymbolID = SymbolID::root(ModuleID::root());
-    pub(super) fn new(name: SymbolName, flags: SymbolFlags, kind: SymbolKind<'cx>) -> Self {
+    pub(super) fn new(name: SymbolName, flags: SymbolFlags, kind: SymbolKind) -> Self {
         Self {
             name,
             flags,
@@ -173,7 +173,7 @@ pub enum SymbolFnKind {
 }
 
 #[derive(Debug)]
-pub(crate) enum SymbolKind<'cx> {
+pub(crate) enum SymbolKind {
     Err,
     BlockContainer(BlockContainerSymbol),
     /// `var` or parameter
@@ -189,7 +189,6 @@ pub(crate) enum SymbolKind<'cx> {
     Index(IndexSymbol),
     TyAlias(TyAliasSymbol),
     TyParam(TyParamSymbol),
-    Transient(TransientSymbol<'cx>),
     TyLit(TyLitSymbol),
     Alias(AliasSymbol),
     GetterSetter(GetterSetterSymbol),
@@ -197,7 +196,7 @@ pub(crate) enum SymbolKind<'cx> {
 
 macro_rules! as_symbol_kind {
     ($kind: ident, $ty:ty, $as_kind: ident, $expect_kind: ident) => {
-        impl<'cx> Symbol<'cx> {
+        impl Symbol {
             #[inline(always)]
             pub(super) fn $as_kind(&self) -> Option<$ty> {
                 match &self.kind.0 {
@@ -213,7 +212,7 @@ macro_rules! as_symbol_kind {
     };
 }
 
-impl Symbol<'_> {
+impl Symbol {
     #[inline(always)]
     pub(super) fn as_interface(&self) -> Option<&InterfaceSymbol> {
         self.kind.1.as_ref()
@@ -267,12 +266,6 @@ pub struct TyLitSymbol {
     pub members: FxHashMap<SymbolName, SymbolID>,
 }
 
-#[derive(Debug, Clone, Copy)]
-pub struct TransientSymbol<'cx> {
-    pub links: crate::check::SymbolLinks<'cx>,
-    pub origin: Option<SymbolID>,
-}
-
 #[derive(Debug)]
 pub struct BlockContainerSymbol {
     pub locals: FxHashMap<SymbolName, SymbolID>,
@@ -308,6 +301,8 @@ pub struct TyAliasSymbol {
 #[derive(Debug)]
 pub struct NsSymbol {
     pub decls: thin_vec::ThinVec<NodeID>,
+    pub exports: FxHashMap<SymbolName, SymbolID>,
+    pub members: FxHashMap<SymbolName, SymbolID>,
 }
 
 #[derive(Debug)]
@@ -339,7 +334,7 @@ pub struct FunctionScopedVarSymbol {
     pub decl: NodeID,
 }
 
-impl Symbol<'_> {
+impl Symbol {
     #[inline(always)]
     pub fn is_variable(&self) -> bool {
         self.flags.intersects(SymbolFlags::VARIABLE)
@@ -368,7 +363,6 @@ impl Symbol<'_> {
             SymbolKind::Index { .. } => todo!(),
             SymbolKind::TyAlias { .. } => todo!(),
             SymbolKind::TyParam { .. } => todo!(),
-            SymbolKind::Transient { .. } => todo!(),
             SymbolKind::TyLit(_) => todo!(),
             SymbolKind::Alias(_) => todo!(),
             SymbolKind::GetterSetter(_) => todo!(),
@@ -388,10 +382,9 @@ impl Symbol<'_> {
             SymbolKind::TyLit(ty_lit) => Some(ty_lit.decl),
             SymbolKind::Alias(alias) => Some(alias.decl),
             SymbolKind::Fn(f) => Some(f.decls[0]),
-            SymbolKind::Transient(_) => None,
             _ => None,
         };
-        id.or_else(|| self.kind.1.as_ref().and_then(|i| i.decls.get(0)).copied())
+        id.or_else(|| self.kind.1.as_ref().and_then(|i| i.decls.first()).copied())
     }
 }
 
@@ -400,7 +393,6 @@ bolt_ts_utils::module_index!(SymbolID);
 impl SymbolID {
     pub fn opt_decl(&self, binder: &super::Binder) -> Option<NodeID> {
         let s = binder.symbol(*self);
-
         let id = match &s.kind.0 {
             SymbolKind::FunctionScopedVar(f) => Some(f.decl),
             SymbolKind::BlockScopedVar { decl } => Some(*decl),
@@ -413,38 +405,39 @@ impl SymbolID {
             SymbolKind::TyLit(ty_lit) => Some(ty_lit.decl),
             SymbolKind::Alias(alias) => Some(alias.decl),
             SymbolKind::Fn(f) => Some(f.decls[0]),
-            SymbolKind::Transient(t) => {
-                if let Some(id) = t.origin {
-                    id.opt_decl(binder)
-                } else {
-                    None
-                }
-            }
             _ => None,
         };
-        id.or_else(|| s.kind.1.as_ref().and_then(|i| i.decls.get(0)).copied())
+        id.or_else(|| s.kind.1.as_ref().and_then(|i| i.decls.first()).copied())
     }
     pub fn decl(&self, binder: &super::Binder) -> NodeID {
         self.opt_decl(binder)
             .unwrap_or_else(|| panic!("{:#?}", binder.symbol(*self).flags))
     }
+
+    pub(crate) fn new(module: ModuleID, index: u32) -> Self {
+        debug_assert!(
+            module == ModuleID::TRANSIENT,
+            "only use for transient during check"
+        );
+        Self { module, index }
+    }
 }
 
-pub struct Symbols<'cx> {
+pub struct Symbols {
     module_id: ModuleID,
-    data: Vec<Symbol<'cx>>,
+    data: Vec<Symbol>,
 }
 
-impl Default for Symbols<'_> {
+impl Default for Symbols {
     fn default() -> Self {
         Self {
             module_id: ModuleID::root(),
-            data: Vec::new(),
+            data: Vec::with_capacity(1024),
         }
     }
 }
 
-impl<'cx> Symbols<'cx> {
+impl Symbols {
     pub fn new(module_id: ModuleID) -> Self {
         let mut this = Self {
             module_id,
@@ -459,7 +452,7 @@ impl<'cx> Symbols<'cx> {
         this
     }
 
-    pub fn insert(&mut self, symbol: Symbol<'cx>) -> SymbolID {
+    pub fn insert(&mut self, symbol: Symbol) -> SymbolID {
         let index = self.data.len() as u32;
         self.data.push(symbol);
         SymbolID {
@@ -468,16 +461,16 @@ impl<'cx> Symbols<'cx> {
         }
     }
 
-    pub fn get(&self, id: SymbolID) -> &Symbol<'cx> {
+    pub fn get(&self, id: SymbolID) -> &Symbol {
         &self.data[id.index_as_usize()]
     }
 
-    pub fn get_container(&self, module: ModuleID) -> &Symbol<'cx> {
+    pub fn get_container(&self, module: ModuleID) -> &Symbol {
         let id = SymbolID { module, index: 1 };
         self.get(id)
     }
 
-    pub fn get_mut(&mut self, id: SymbolID) -> &mut Symbol<'cx> {
+    pub fn get_mut(&mut self, id: SymbolID) -> &mut Symbol {
         self.data.get_mut(id.index_as_usize()).unwrap()
     }
 

@@ -19,7 +19,6 @@ use std::sync::{Arc, Mutex};
 use self::bind::bind_parallel;
 use self::bind::GlobalSymbols;
 use self::early_resolve::early_resolve_parallel;
-use self::graph::build_graph;
 use self::parser::token::keyword_idx_to_token;
 use self::parser::token::TokenKind;
 use self::wf::well_formed_check_parallel;
@@ -154,7 +153,7 @@ pub fn eval_from(root: PathBuf, tsconfig: NormalizedTsConfig) -> Output {
     let mut p = parser::Parser::new();
     let atoms = Arc::new(Mutex::new(atoms));
     let herd = bumpalo_herd::Herd::new();
-    let mut mg = build_graph(
+    let mut mg = graph::build_graph(
         &mut module_arena,
         &entries,
         atoms.clone(),
@@ -260,7 +259,8 @@ pub fn eval_from(root: PathBuf, tsconfig: NormalizedTsConfig) -> Output {
             if module_arena.get_module(item).global {
                 None
             } else {
-                let mut emitter = emit::Emit::new(checker.atoms);
+                let input_len = module_arena.get_content(item).len();
+                let mut emitter = emit::Emit::new(checker.atoms, input_len);
                 Some((item, emitter.emit(p.root(item))))
             }
         })

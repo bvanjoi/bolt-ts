@@ -58,7 +58,7 @@ impl<'cx> Emit<'cx> {
         for c in s.chars() {
             match c {
                 '\'' => self.content.p("\\'"),
-                _ => self.content.0.push(c),
+                _ => self.content.content.push(c),
             }
         }
         self.content.p("'");

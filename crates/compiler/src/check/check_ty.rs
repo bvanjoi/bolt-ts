@@ -1,3 +1,5 @@
+use crate::ty::TypeFlags;
+
 use super::ast;
 use super::errors;
 use super::TyChecker;
@@ -45,7 +47,7 @@ impl<'cx> TyChecker<'cx> {
         let ty = self.get_ty_from_type_node(n.params[0].ty.unwrap());
         if !self.every_type(ty, |_, ty| {
             // is valid index key type
-            ty.kind.is_string() || ty.kind.is_number()
+            ty.flags.intersects(TypeFlags::STRING | TypeFlags::NUMBER)
         }) {
             let error = errors::AnIndexSignatureParameterTypeMustBeStringNumberSymbolOrATemplateLiteralType {
                 span: n.span,

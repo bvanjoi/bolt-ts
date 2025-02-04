@@ -1,9 +1,9 @@
 
 class None {
   get() {
-    throw null  
-}
+    throw null
+  }
   flatten() {
-    return new None()  
-}
+    return new None()
+  }
 }

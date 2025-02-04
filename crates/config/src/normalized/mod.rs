@@ -20,7 +20,9 @@ normalized_option!(
     (declaration, bool),
     (strict, bool),
     (strict_null_checks, bool),
+    (no_implicit_any, bool),
 );
+
 normalized_option!(
     NormalizedTsConfig,
     (include, Vec<String>),

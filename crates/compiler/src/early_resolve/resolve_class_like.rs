@@ -1,5 +1,5 @@
 use super::Resolver;
-use crate::{ast, ir};
+use crate::{ast, bind::SymbolFlags, ir};
 
 impl<'cx> Resolver<'cx, '_> {
     fn resolve_class_prop_ele(&mut self, ele: &'cx ast::ClassPropElem<'cx>) {
@@ -27,7 +27,7 @@ impl<'cx> Resolver<'cx, '_> {
         }
 
         if let Some(extends) = class.extends() {
-            self.resolve_entity_name(extends.name, false);
+            self.resolve_entity_name(extends.name, SymbolFlags::VALUE);
             if let Some(ty_args) = extends.ty_args {
                 self.resolve_tys(ty_args.list);
             }
@@ -53,8 +53,15 @@ impl<'cx> Resolver<'cx, '_> {
                 IndexSig(n) => {
                     self.resolve_index_sig(n);
                 }
-                Getter(_) => {}
-                Setter(_) => {}
+                Getter(n) => {
+                    if let Some(ty) = n.ty {
+                        self.resolve_ty(ty);
+                    }
+                }
+                Setter(n) => {
+                    assert!(n.params.len() == 1);
+                    self.resolve_params(n.params);
+                }
             }
         }
     }

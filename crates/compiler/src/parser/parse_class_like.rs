@@ -226,7 +226,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
             let mut last_ele_span = None;
             loop {
                 if list_ctx::HeritageClause.is_ele(self, false) {
-                    let e = self.parse_entity_name()?;
+                    let e = self.parse_entity_name(true)?;
                     let args = self.try_parse_ty_args()?;
                     if is_first {
                         ele = Some(e);

@@ -6,12 +6,12 @@ use super::links::SigLinks;
 use super::{errors, SymbolLinks, TyChecker};
 use crate::ast;
 use crate::bind::{SymbolFlags, SymbolID, SymbolName};
-use crate::ty::{self, pprint_mapper, CheckFlags, SigID, SigKind, TyMapper};
+use crate::ty::{self, CheckFlags, SigID, SigKind, TypeFlags};
 
 impl<'cx> TyChecker<'cx> {
     pub(super) fn members(&self, symbol: SymbolID) -> &FxHashMap<SymbolName, SymbolID> {
         let s = self.binder.symbol(symbol);
-        if s.flags == SymbolFlags::CLASS {
+        if s.flags.intersects(SymbolFlags::CLASS) {
             let c = s.expect_class();
             &c.members
         } else if s.flags.intersects(SymbolFlags::INTERFACE) {
@@ -35,8 +35,8 @@ impl<'cx> TyChecker<'cx> {
         base_symbols: &'cx [SymbolID],
     ) {
         for base_id in base_symbols {
-            let base = self.binder.symbol(*base_id);
-            members.entry(base.name).or_insert(*base_id);
+            let base_name = self.symbol(*base_id).name();
+            members.entry(base_name).or_insert(*base_id);
         }
     }
 
@@ -71,13 +71,13 @@ impl<'cx> TyChecker<'cx> {
     fn create_instantiated_symbol_table(
         &mut self,
         declared_props: &'cx [SymbolID],
-        mapper: &'cx TyMapper<'cx>,
+        mapper: &'cx dyn ty::TyMap<'cx>,
         mapping_only_this: bool,
     ) -> FxHashMap<SymbolName, SymbolID> {
         declared_props
             .iter()
             .map(|symbol| {
-                let name = self.binder.symbol(*symbol).name;
+                let name = self.symbol(*symbol).name();
                 if mapping_only_this && self.in_this_less(*symbol) {
                     (name, *symbol)
                 } else {
@@ -90,7 +90,7 @@ impl<'cx> TyChecker<'cx> {
     fn instantiate_symbol(
         &mut self,
         mut symbol: SymbolID,
-        mut mapper: &'cx TyMapper<'cx>,
+        mut mapper: &'cx dyn ty::TyMap<'cx>,
     ) -> SymbolID {
         if let Some(ty) = self.get_symbol_links(symbol).get_ty() {
             if !self.could_contain_ty_var(ty) {
@@ -100,7 +100,7 @@ impl<'cx> TyChecker<'cx> {
         }
 
         if self
-            .check_flags(symbol)
+            .get_check_flags(symbol)
             .intersects(CheckFlags::INSTANTIATED)
         {
             let links = self.get_symbol_links(symbol);
@@ -109,11 +109,8 @@ impl<'cx> TyChecker<'cx> {
             mapper = self.combine_ty_mappers(ty_mapper, mapper);
         }
 
-        let s = self.binder.symbol(symbol);
-        let name = s.name;
-        let symbol_flags = s.flags;
         let check_flags = CheckFlags::INSTANTIATED
-            | (self.check_flags(symbol)
+            | (self.get_check_flags(symbol)
                 & (CheckFlags::READONLY
                     | CheckFlags::LATE
                     | CheckFlags::OPTIONAL_PARAMETER
@@ -123,14 +120,17 @@ impl<'cx> TyChecker<'cx> {
             .with_ty_mapper(mapper)
             .with_target(symbol);
 
-        self.binder
-            .create_transient_symbol(name, symbol_flags, Some(symbol), links)
+        let s = self.symbol(symbol);
+        let name = s.name();
+        let symbol_flags = s.flags();
+
+        self.create_transient_symbol(name, symbol_flags, Some(symbol), links)
     }
 
     fn instantiate_sigs(
         &mut self,
         sigs: ty::Sigs<'cx>,
-        mapper: &'cx TyMapper<'cx>,
+        mapper: &'cx dyn ty::TyMap<'cx>,
     ) -> ty::Sigs<'cx> {
         self.instantiate_list(sigs, mapper, |this, sig, mapper| {
             this.instantiate_sig(sig, mapper, false)
@@ -140,7 +140,7 @@ impl<'cx> TyChecker<'cx> {
     fn instantiate_index_infos(
         &mut self,
         index_infos: ty::IndexInfos<'cx>,
-        mapper: &'cx TyMapper<'cx>,
+        mapper: &'cx dyn ty::TyMap<'cx>,
     ) -> ty::IndexInfos<'cx> {
         self.instantiate_list(index_infos, mapper, |this, index_info, mapper| {
             this.instantiate_index_info(index_info, mapper)
@@ -150,7 +150,7 @@ impl<'cx> TyChecker<'cx> {
     fn instantiate_index_info(
         &mut self,
         info: &'cx ty::IndexInfo<'cx>,
-        mapper: &'cx TyMapper<'cx>,
+        mapper: &'cx dyn ty::TyMap<'cx>,
     ) -> &'cx ty::IndexInfo<'cx> {
         let ty = self.instantiate_ty(info.val_ty, Some(mapper));
         self.alloc(ty::IndexInfo {
@@ -162,7 +162,7 @@ impl<'cx> TyChecker<'cx> {
     pub(super) fn instantiate_sig(
         &mut self,
         sig: &'cx ty::Sig<'cx>,
-        mut mapper: &'cx TyMapper<'cx>,
+        mut mapper: &'cx dyn ty::TyMap<'cx>,
         erase_ty_params: bool,
     ) -> &'cx ty::Sig<'cx> {
         let mut fresh_ty_params = None;
@@ -174,7 +174,7 @@ impl<'cx> TyChecker<'cx> {
                     .collect::<Vec<_>>();
                 let new_ty_params: ty::Tys<'cx> = self.alloc(new_ty_params);
                 fresh_ty_params = Some(new_ty_params);
-                let new_mapper = self.alloc(TyMapper::create(ty_params, new_ty_params));
+                let new_mapper = self.create_ty_mapper(ty_params, new_ty_params);
                 mapper = self.combine_ty_mappers(Some(new_mapper), mapper);
                 for ty in new_ty_params {
                     let prev = self.ty_links.insert(
@@ -305,7 +305,7 @@ impl<'cx> TyChecker<'cx> {
 
     fn resolve_base_tys_of_class(&mut self, ty: &'cx ty::Ty<'cx>) -> ty::Tys<'cx> {
         let base_ctor_ty = self.get_base_constructor_type_of_class(ty);
-        if !(base_ctor_ty.kind.is_object() || base_ctor_ty.kind.is_any()) {
+        if !(base_ctor_ty.kind.is_object() || base_ctor_ty.flags.intersects(TypeFlags::ANY)) {
             return &[];
         }
         let base_ty_node = self.get_base_type_node_of_class(ty);
@@ -324,13 +324,13 @@ impl<'cx> TyChecker<'cx> {
         {
             let symbol = base_ctor_ty.symbol().unwrap();
             base_ty = self.get_ty_from_class_or_interface_refer(base_ty_node.unwrap(), symbol);
-        } else if base_ctor_ty.kind.is_any() {
+        } else if base_ctor_ty.flags.intersects(TypeFlags::ANY) {
             base_ty = base_ctor_ty;
         } else {
             // TODO:
             base_ty = base_ctor_ty;
         }
-        if base_ty == self.error_ty() {
+        if base_ty == self.error_ty {
             return &[];
         }
         let tys = self.alloc([base_ty]);
@@ -338,7 +338,7 @@ impl<'cx> TyChecker<'cx> {
     }
 
     fn get_tuple_base_ty(&mut self, ty: &'cx ty::Ty<'cx>) -> &'cx ty::Ty<'cx> {
-        self.create_array_ty(self.never_ty())
+        self.create_array_ty(self.never_ty)
     }
 
     fn get_base_tys(&mut self, ty: &'cx ty::Ty<'cx>) -> ty::Tys<'cx> {
@@ -411,7 +411,7 @@ impl<'cx> TyChecker<'cx> {
             members = ty
                 .symbol()
                 .map(|symbol| self.members(symbol).clone())
-                .unwrap_or_else(Default::default);
+                .unwrap_or_default();
             if base_tys.is_empty() {
                 let m = self.alloc(ty::StructuredMembers {
                     members: self.alloc(members),
@@ -429,7 +429,7 @@ impl<'cx> TyChecker<'cx> {
             ctor_sigs = declared.ctor_sigs.to_vec();
             index_infos = declared.index_infos.to_vec();
         } else {
-            let mapper = self.alloc(TyMapper::create(ty_params, ty_args));
+            let mapper = self.create_ty_mapper(ty_params, ty_args);
             members =
                 self.create_instantiated_symbol_table(declared.props, mapper, ty_params.len() == 1);
             call_sigs = self.instantiate_sigs(declared.call_sigs, mapper).to_vec();
@@ -542,11 +542,16 @@ impl<'cx> TyChecker<'cx> {
         self.alloc([sig])
     }
 
-    fn get_export_of_symbol(&self, symbol: SymbolID) -> Option<&FxHashMap<SymbolName, SymbolID>> {
-        let s = self.binder.symbol(symbol);
-        if s.flags.intersects(SymbolFlags::CLASS) {
-            let c = s.expect_class();
+    pub(super) fn get_exports_of_symbol(
+        &mut self,
+        symbol: SymbolID,
+    ) -> Option<&FxHashMap<SymbolName, SymbolID>> {
+        let flags = self.binder.symbol(symbol).flags;
+        if flags.intersects(SymbolFlags::CLASS) {
+            let c = self.binder.symbol(symbol).expect_class();
             Some(&c.exports)
+        } else if flags.intersects(SymbolFlags::MODULE) {
+            unreachable!()
         } else {
             None
         }
@@ -597,13 +602,12 @@ impl<'cx> TyChecker<'cx> {
             // TODO: `constructor_sigs`, `index_infos`
         } else if symbol_flags.intersects(SymbolFlags::CLASS) {
             call_sigs = &[];
-            members = self.get_export_of_symbol(a.symbol).unwrap().clone();
             if let Some(symbol) = symbol.expect_class().members.get(&SymbolName::Constructor) {
                 ctor_sigs = self.get_sigs_of_symbol(*symbol)
             } else {
                 ctor_sigs = &[];
             }
-
+            members = self.get_exports_of_symbol(a.symbol).unwrap().clone();
             // let mut base_ctor_index_info = None;
             let class_ty = self.get_declared_ty_of_symbol(a.symbol);
             self.resolve_structured_type_members(class_ty);
@@ -611,7 +615,7 @@ impl<'cx> TyChecker<'cx> {
             if base_ctor_ty.kind.is_object() || base_ctor_ty.kind.is_type_variable() {
                 let props = self.get_props_of_ty(base_ctor_ty);
                 self.add_inherited_members(&mut members, props);
-            } else if base_ctor_ty == self.any_ty() {
+            } else if base_ctor_ty == self.any_ty {
                 // base_ctor_index_info = Some(self.any_base);
             }
 

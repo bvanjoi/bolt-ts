@@ -1,0 +1,6 @@
+  × This overload signature is not compatible with its implementation
+  │ signature.
+   ╭─[../../tests/cases/compiler/functionOverloads11/index.ts:3:10]
+ 3 │ foo
+   · ───
+   ╰────

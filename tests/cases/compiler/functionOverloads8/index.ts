@@ -3,3 +3,6 @@
 function foo();
 function foo(foo:string);
 function foo(foo?:any){ return '' }
+
+let a = foo();
+let b = foo('1')

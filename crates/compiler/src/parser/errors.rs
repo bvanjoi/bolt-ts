@@ -154,3 +154,11 @@ pub(super) struct AnIndexSignatureMustHaveATypeAnnotation {
     #[label(primary)]
     pub span: Span,
 }
+
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
+#[error("'{kind}' modifier cannot appear on a parameter.")]
+pub(super) struct ModifierCannotAppearOnAParameter {
+    #[label(primary)]
+    pub span: Span,
+    pub kind: ModifierKind,
+}

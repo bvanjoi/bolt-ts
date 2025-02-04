@@ -1,11 +1,11 @@
 use super::cycle_check::ResolutionKey;
 use super::TyChecker;
 use crate::bind::SymbolID;
-use crate::ir;
 use crate::ty::Ty;
+use crate::{ir, ty};
 
 impl<'cx> TyChecker<'cx> {
-    pub fn get_type_of_var_like(&mut self, id: SymbolID) -> &'cx Ty<'cx> {
+    pub fn get_type_for_var_like(&mut self, id: SymbolID) -> &'cx Ty<'cx> {
         if let Some(ty) = self.get_symbol_links(id).get_ty() {
             return ty;
         }
@@ -15,7 +15,7 @@ impl<'cx> TyChecker<'cx> {
 
         if !self.push_ty_resolution(ResolutionKey::Type(id)) {
             // TO: error handle
-            return self.any_ty();
+            return self.any_ty;
         }
 
         let ty = if let Some(decl) = node.as_var_decl() {
@@ -41,7 +41,7 @@ impl<'cx> TyChecker<'cx> {
 
         if self.pop_ty_resolution().has_cycle() {
             // TODO: error handle
-            return self.any_ty();
+            return self.any_ty;
         }
         ty
     }
@@ -50,15 +50,51 @@ impl<'cx> TyChecker<'cx> {
         &mut self,
         decl: &impl ir::VarLike<'cx>,
     ) -> &'cx Ty<'cx> {
+        let ty = self.get_ty_for_var_like_decl(decl, true);
+        self.widen_ty_for_var_like_decl(ty, decl)
+    }
+
+    pub(super) fn get_optional_ty(&mut self, ty: &'cx Ty<'cx>, is_property: bool) -> &'cx Ty<'cx> {
+        assert!(*self.config.strict_null_checks());
+        let missing_or_undefined = if is_property {
+            // self.missing_or_undefined_ty()
+            self.undefined_ty
+        } else {
+            self.undefined_ty
+        };
+        self.get_union_ty(&[ty, missing_or_undefined], ty::UnionReduction::Lit)
+    }
+
+    fn add_optionality(
+        &mut self,
+        declared_ty: &'cx Ty<'cx>,
+        is_property: bool,
+        is_optional: bool,
+    ) -> &'cx Ty<'cx> {
+        if *self.config.strict_null_checks() && is_optional {
+            self.get_optional_ty(declared_ty, is_property)
+        } else {
+            declared_ty
+        }
+    }
+
+    fn get_ty_for_var_like_decl(
+        &mut self,
+        decl: &impl ir::VarLike<'cx>,
+        include_optionality: bool,
+    ) -> Option<&'cx Ty<'cx>> {
         let ty = if let Some(decl_ty) = decl.decl_ty() {
-            Some(self.get_ty_from_type_node(decl_ty))
+            let is_property = self.p.node(decl.id()).is_prop_signature();
+            let is_optional = include_optionality && self.p.node(decl.id()).is_optional_decl();
+            let ty = self.get_ty_from_type_node(decl_ty);
+            Some(self.add_optionality(ty, is_property, is_optional))
         } else if let Some(init) = decl.init() {
             let init_ty = self.check_expr_with_cache(init);
             Some(self.widened_ty_from_init(init_ty))
         } else {
             None
         };
-        self.widen_ty_for_var_like_decl(ty, decl)
+        ty
     }
 
     fn widen_ty_for_var_like_decl(
@@ -73,10 +109,10 @@ impl<'cx> TyChecker<'cx> {
             if decl.dotdotdot.is_some() {
                 self.any_array_ty()
             } else {
-                self.any_ty()
+                self.any_ty
             }
         } else {
-            self.any_ty()
+            self.any_ty
         }
     }
 }

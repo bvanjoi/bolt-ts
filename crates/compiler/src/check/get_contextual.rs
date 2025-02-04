@@ -1,3 +1,5 @@
+use crate::ty::TypeFlags;
+
 use super::ast;
 use super::ty;
 use super::TyChecker;
@@ -104,7 +106,7 @@ impl<'cx> TyChecker<'cx> {
         flags: Option<ContextFlags>,
     ) -> Option<&'cx ty::Ty<'cx>> {
         if let Some(ty) = ty {
-            if ty.kind.maybe_type_of_kind(|kind| kind.is_instantiable()) {
+            if ty.maybe_type_of_kind(TypeFlags::INSTANTIABLE) {
                 todo!()
             }
         }

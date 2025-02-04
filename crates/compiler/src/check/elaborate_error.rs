@@ -5,6 +5,7 @@ use super::TyChecker;
 
 use crate::ast;
 use crate::ty;
+use crate::ty::TypeFlags;
 
 struct Elaboration<'cx> {
     error_node: ast::NodeID,
@@ -41,7 +42,9 @@ impl<'cx> TyChecker<'cx> {
         target: &'cx ty::Ty<'cx>,
         relation: RelationKind,
     ) -> bool {
-        if target.kind.is_primitive() || target.kind.is_never() {
+        if target.flags.intersects(TypeFlags::PRIMITIVE)
+            || target.flags.intersects(TypeFlags::NEVER)
+        {
             return false;
         }
 
@@ -116,7 +119,7 @@ impl<'cx> TyChecker<'cx> {
         target: &'cx ty::Ty<'cx>,
         name_ty: &'cx ty::Ty<'cx>,
     ) -> Option<&'cx ty::Ty<'cx>> {
-        let idx = self.get_indexed_access_ty(target, name_ty, None, None);
+        let idx = self.get_indexed_access_ty_or_undefined(target, name_ty, None, None);
         idx
     }
 
@@ -135,9 +138,11 @@ impl<'cx> TyChecker<'cx> {
                 continue;
             };
             let error_node = e.error_node;
-            let source_prop_ty = self
-                .get_indexed_access_ty(source, e.name_ty, None, None)
-                .unwrap();
+            let Some(source_prop_ty) =
+                self.get_indexed_access_ty_or_undefined(source, e.name_ty, None, None)
+            else {
+                continue;
+            };
             if self.check_type_related_to(source_prop_ty, target_prop_ty, relation, None)
                 == Ternary::FALSE
             {

@@ -347,3 +347,19 @@ pub(super) struct AClassCannotImplementAPrimTy {
     pub span: Span,
     pub ty: String,
 }
+
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
+#[error("No overload matches this call.")]
+pub(super) struct NoOverloadMatchesThisCall {
+    #[label(primary)]
+    pub span: Span,
+    #[label(collection, "Unmatched call.")]
+    pub unmatched_calls: Vec<Span>,
+}
+
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
+#[error("This overload signature is not compatible with its implementation signature.")]
+pub(super) struct ThisOverloadSignatureIsNotCompatibleWithItsImplementationSignature {
+    #[label(primary)]
+    pub span: Span,
+}

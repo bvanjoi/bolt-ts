@@ -105,7 +105,7 @@ pub(super) fn build_graph<'cx>(
         let atoms = &mut atoms.lock().unwrap();
         let fs = &mut fs.lock().unwrap();
 
-        let mut next = fx_hashset_with_capacity(modules.len() * 32);
+        let mut next = fx_hashmap_with_capacity(modules.len() * 32);
         for ResolvedModule {
             id,
             parse_result,
@@ -129,24 +129,28 @@ pub(super) fn build_graph<'cx>(
                 let to = match resolved.get(&dep) {
                     Some(to) => *to,
                     None => {
-                        let p = std::path::PathBuf::from(atoms.get(dep.into()));
-                        let content = fs.read_file(p.as_path(), atoms).unwrap();
-                        let module_path = ModulePath::Real(p);
-                        let to = module_arena.new_module_with_content(
-                            module_path,
-                            false,
-                            content,
-                            atoms,
-                        );
-                        next.insert(to);
-                        to
+                        if let Some(to) = next.get(&dep).copied() {
+                            to
+                        } else {
+                            let p = std::path::PathBuf::from(atoms.get(dep.into()));
+                            let content = fs.read_file(p.as_path(), atoms).unwrap();
+                            let module_path = ModulePath::Real(p);
+                            let to = module_arena.new_module_with_content(
+                                module_path,
+                                false,
+                                content,
+                                atoms,
+                            );
+                            next.insert(dep, to);
+                            to
+                        }
                     }
                 };
                 mg.add_dep(id, ast_id, ModuleRes::Res(to));
             }
         }
 
-        resolving = next.into_iter().collect();
+        resolving = next.into_values().collect();
     }
 
     mg

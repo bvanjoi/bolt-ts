@@ -43,6 +43,12 @@ enum Tristate {
 #[derive(Debug)]
 pub struct Nodes<'cx>(FxHashMap<u32, Node<'cx>>);
 
+impl Default for Nodes<'_> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl<'cx> Nodes<'cx> {
     pub fn new() -> Self {
         Self(fx_hashmap_with_capacity(2048))
@@ -103,30 +109,36 @@ impl<'cx> ParseResult<'cx> {
 }
 
 pub struct Parser<'cx> {
-    map: FxHashMap<ModuleID, ParseResult<'cx>>,
+    map: Vec<ParseResult<'cx>>,
+}
+
+impl Default for Parser<'_> {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl<'cx> Parser<'cx> {
     pub fn new() -> Self {
         Self {
-            map: Default::default(),
+            map: Vec::with_capacity(2048),
         }
     }
 
     #[inline(always)]
     pub fn insert(&mut self, id: ModuleID, result: ParseResult<'cx>) {
-        let prev = self.map.insert(id, result);
-        assert!(prev.is_none());
+        assert_eq!(id.as_usize(), self.map.len());
+        self.map.push(result);
     }
 
     #[inline(always)]
     fn get(&self, id: ModuleID) -> &ParseResult<'cx> {
-        self.map.get(&id).unwrap()
+        &self.map[id.as_usize()]
     }
 
     pub fn steal_errors(&mut self) -> Vec<bolt_ts_errors::Diag> {
         self.map
-            .values_mut()
+            .iter_mut()
             .flat_map(|result| std::mem::take(&mut result.diags))
             .collect()
     }
@@ -329,7 +341,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         ctx: impl list_ctx::ListContext,
         ele: impl Fn(&mut Self) -> PResult<T>,
     ) -> &'cx [T] {
-        let mut list = vec![];
+        let mut list = Vec::with_capacity(8);
         loop {
             if ctx.is_ele(self, false) {
                 let Ok(ele) = ele(self) else {
@@ -450,9 +462,9 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         self.alloc(ast::Lit { id, val, span })
     }
 
-    fn create_lit_ty<T>(&mut self, val: T, span: Span) -> &'cx ast::LitTy<T> {
+    fn create_lit_ty(&mut self, kind: ast::LitTyKind, span: Span) -> &'cx ast::LitTy {
         let id = self.next_node_id();
-        self.alloc(ast::LitTy { id, val, span })
+        self.alloc(ast::LitTy { id, kind, span })
     }
 
     #[inline]
@@ -508,7 +520,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
     }
 
     fn allow_in_and<T>(&mut self, f: impl FnOnce(&mut Self) -> T) -> T {
-        self.do_inside_of_context(NodeFlags::DISALLOW_IN_CONTEXT, f)
+        self.do_outside_of_context(NodeFlags::DISALLOW_IN_CONTEXT, f)
     }
 
     fn do_outside_of_context<T>(

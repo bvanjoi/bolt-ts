@@ -24,11 +24,21 @@ impl<'cx> BinderState<'cx> {
                 &mut c.members
             }
         } else if let SymbolKind::BlockContainer(c) = s {
-            &mut c.locals
+            if is_export {
+                &mut c.exports
+            } else {
+                &mut c.locals
+            }
         } else if let SymbolKind::Object(obj) = s {
             &mut obj.members
         } else if let SymbolKind::TyLit(obj) = s {
             &mut obj.members
+        } else if let Some(ns) = container.kind.2.as_mut() {
+            if is_export {
+                &mut ns.exports
+            } else {
+                &mut ns.members
+            }
         } else {
             unreachable!("{:#?}", s)
         }

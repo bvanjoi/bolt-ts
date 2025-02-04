@@ -1,3 +1,5 @@
+use bolt_ts_atom::AtomId;
+
 use crate::ast;
 
 pub trait FnLike<'cx>: Copy + std::fmt::Debug {
@@ -173,14 +175,21 @@ impl<'cx> FnDeclLike<'cx> for ast::CallSigDecl<'cx> {
 }
 
 pub trait FnExprLike<'cx>: FnLike<'cx> {
+    fn name(&self) -> Option<AtomId>;
     fn body(&self) -> ast::ArrowFnExprBody<'cx>;
 }
 impl<'cx> FnExprLike<'cx> for ast::FnExpr<'cx> {
+    fn name(&self) -> Option<AtomId> {
+        self.name.map(|name| name.name)
+    }
     fn body(&self) -> ast::ArrowFnExprBody<'cx> {
         ast::ArrowFnExprBody::Block(self.body)
     }
 }
 impl<'cx> FnExprLike<'cx> for ast::ArrowFnExpr<'cx> {
+    fn name(&self) -> Option<AtomId> {
+        None
+    }
     fn body(&self) -> ast::ArrowFnExprBody<'cx> {
         self.body
     }

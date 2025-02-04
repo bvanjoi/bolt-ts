@@ -4,10 +4,11 @@ use bolt_ts_span::Span;
 use bolt_ts_utils::fx_hashset_with_capacity;
 use rustc_hash::FxHashSet;
 
+use super::create_ty::IntersectionFlags;
 use super::{errors, SymbolLinks};
 use crate::ast;
 use crate::bind::{SymbolFlags, SymbolID, SymbolName};
-use crate::ty::{self, CheckFlags, ObjectFlags};
+use crate::ty::{self, CheckFlags, ObjectFlags, TypeFlags};
 use crate::ty::{ObjectShape, ObjectTy, ObjectTyKind, Ty, TyKind};
 
 use super::{Ternary, TyChecker};
@@ -36,7 +37,7 @@ bitflags::bitflags! {
 
 impl<'cx> TyChecker<'cx> {
     pub(super) fn is_excess_property_check_target(&self, target: &'cx Ty<'cx>) -> bool {
-        if let Some(_) = target.kind.as_object() {
+        if target.kind.as_object().is_some() {
             // TODO: exclude literal computed name
             true
         } else if let Some(union) = target.kind.as_union() {
@@ -55,25 +56,35 @@ impl<'cx> TyChecker<'cx> {
         target: &'cx Ty<'cx>,
         relation: RelationKind,
     ) -> bool {
-        if target.kind.is_any() || source.kind.is_never() {
+        let s = source.flags;
+        let t = target.flags;
+        let strict_null_checks = *self.config.strict_null_checks();
+        if t.intersects(TypeFlags::ANY) || s.intersects(TypeFlags::NEVER) {
             true
-        } else if source.kind.is_number_like() && target.kind.is_number() {
-            true
-        } else if source.kind.is_string_like() && target.kind.is_string() {
-            true
-        } else if source.kind.is_boolean_like() && target.kind.is_boolean() {
-            true
-        } else if source.kind.is_undefined() && !target.kind.is_union_or_intersection()
-            || (target.kind.is_undefined() || target.kind.is_void())
+        } else if t.intersects(TypeFlags::UNKNOWN)
+            && !(relation != RelationKind::StrictSubtype && s.intersects(TypeFlags::ANY))
         {
             true
-        } else if source.kind.is_null()
-            && (target.kind.is_null()
-                || (!*self.config.strict_null_checks() && !target.kind.is_union_or_intersection()))
+        } else if t.intersects(TypeFlags::NEVER) {
+            false
+        } else if s.intersects(TypeFlags::NUMBER_LIKE) && t.intersects(TypeFlags::NUMBER) {
+            true
+        } else if s.intersects(TypeFlags::STRING_LIKE) && t.intersects(TypeFlags::STRING) {
+            true
+        } else if s.intersects(TypeFlags::BOOLEAN_LIKE) && t.intersects(TypeFlags::BOOLEAN) {
+            true
+        } else if s.intersects(TypeFlags::UNDEFINED)
+            && ((!strict_null_checks && !target.kind.is_union_or_intersection())
+                || t.intersects(TypeFlags::UNDEFINED | TypeFlags::VOID))
+        {
+            true
+        } else if s.intersects(TypeFlags::NULL)
+            && (t.intersects(TypeFlags::NULL)
+                || (!strict_null_checks && !target.kind.is_union_or_intersection()))
         {
             true
         } else if source.kind.is_object()
-            && target == self.non_primitive_ty()
+            && t.intersects(TypeFlags::NON_PRIMITIVE)
             && !(relation == RelationKind::StrictSubtype
                 && self.is_empty_anonymous_object_ty(source)
                 && !(source
@@ -81,8 +92,16 @@ impl<'cx> TyChecker<'cx> {
                     .intersects(ObjectFlags::FRESH_LITERAL)))
         {
             true
-        } else if relation == RelationKind::Assignable || relation == RelationKind::Comparable {
-            source.kind.is_any()
+        } else if matches!(
+            relation,
+            RelationKind::Assignable | RelationKind::Comparable
+        ) {
+            if s.intersects(TypeFlags::ANY) {
+                true
+            } else {
+                // TODO:
+                false
+            }
         } else {
             false
         }
@@ -97,14 +116,13 @@ impl<'cx> TyChecker<'cx> {
         if source == target {
             return true;
         }
-        if relation != RelationKind::Identity {
-            if (relation == RelationKind::Comparable
-                && !target.kind.is_never()
+        if relation != RelationKind::Identity
+            && ((relation == RelationKind::Comparable
+                && !target.flags.intersects(TypeFlags::NEVER)
                 && self.is_simple_type_related_to(target, source, relation))
-                || self.is_simple_type_related_to(source, target, relation)
-            {
-                return true;
-            }
+                || self.is_simple_type_related_to(source, target, relation))
+        {
+            return true;
         }
 
         if source.kind.is_object() && target.kind.is_object() {
@@ -125,8 +143,7 @@ impl<'cx> TyChecker<'cx> {
             ty.kind
                 .as_object_reference()
                 .map(|refer| {
-                    refer.resolved_ty_args.len() == 1
-                        && refer.resolved_ty_args[0] == self.never_ty()
+                    refer.resolved_ty_args.len() == 1 && refer.resolved_ty_args[0] == self.never_ty
                 })
                 .unwrap_or_default()
         } else {
@@ -291,8 +308,14 @@ impl<'cx> TyChecker<'cx> {
             }
 
             self.get_prop_of_object_ty(self.global_object_ty(), name)
-        } else if let Some(_) = ty.kind.as_union() {
+        } else if ty.kind.as_union().is_some() {
             self.get_prop_of_union_or_intersection_ty(ty, name)
+        } else if ty.kind.as_intersection().is_some() {
+            if let Some(prop) = self.get_prop_of_union_or_intersection_ty(ty, name) {
+                return Some(prop);
+            } else {
+                None
+            }
         } else {
             None
         }
@@ -306,7 +329,6 @@ impl<'cx> TyChecker<'cx> {
         self.get_union_or_intersection_prop(ty, name)
             .and_then(|prop| {
                 if !self
-                    .binder
                     .get_check_flags(prop)
                     .intersects(CheckFlags::READ_PARTIAL)
                 {
@@ -333,6 +355,8 @@ impl<'cx> TyChecker<'cx> {
     ) -> Option<SymbolID> {
         let (is_union, tys) = if let Some(union) = containing_ty.kind.as_union() {
             (true, union.tys)
+        } else if let Some(i) = containing_ty.kind.as_intersection() {
+            (false, i.tys)
         } else {
             unreachable!("containing_ty: {containing_ty:#?}")
         };
@@ -348,7 +372,7 @@ impl<'cx> TyChecker<'cx> {
 
         for current in tys {
             let ty = self.get_apparent_ty(current);
-            if ty != self.error_ty() && ty != self.never_ty() {
+            if ty != self.error_ty && ty != self.never_ty {
                 if let Some(prop) = self.get_prop_of_ty(ty, name) {
                     if let Some(single_prop) = single_prop {
                         if single_prop != prop {
@@ -401,16 +425,14 @@ impl<'cx> TyChecker<'cx> {
             links
         } else {
             let ty = if is_union {
-                self.create_union_type(prop_tys, ty::UnionReduction::Lit)
+                self.get_union_ty(&prop_tys, ty::UnionReduction::Lit)
             } else {
-                todo!()
+                self.get_intersection_ty(&prop_tys, IntersectionFlags::None, None, None)
             };
             links.with_ty(ty)
         };
 
-        let result = self
-            .binder
-            .create_transient_symbol(name, symbol_flags, None, links);
+        let result = self.create_transient_symbol(name, symbol_flags, None, links);
 
         Some(result)
     }
@@ -448,8 +470,12 @@ impl<'cx> TyChecker<'cx> {
         let set: FxHashSet<_> = symbols
             .iter()
             .filter_map(|symbol| {
-                let name = self.binder.symbol(*symbol).name;
-                if self.get_prop_of_ty(source, name).is_none() {
+                let s = self.symbol(*symbol);
+                let flags = s.flags();
+                let name = s.name();
+                if flags.intersects(SymbolFlags::OPTIONAL) {
+                    None
+                } else if self.get_prop_of_ty(source, name).is_none() {
                     Some(name.expect_atom())
                 } else {
                     None

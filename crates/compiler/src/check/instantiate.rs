@@ -1,17 +1,18 @@
-use crate::bind::{SymbolFlags, SymbolID};
-use crate::ty::ObjectFlags;
+use crate::bind::SymbolID;
+use crate::ty::{ObjectFlags, TypeFlags};
 use crate::{ast, ty};
 
+use super::create_ty::IntersectionFlags;
 use super::{InstantiationTyMap, TyChecker};
 
 impl<'cx> TyChecker<'cx> {
     pub fn instantiate_ty(
         &mut self,
         ty: &'cx ty::Ty<'cx>,
-        mapper: Option<&'cx ty::TyMapper<'cx>>,
+        mapper: Option<&'cx dyn ty::TyMap<'cx>>,
     ) -> &'cx ty::Ty<'cx> {
         if let Some(mapper) = mapper {
-            self.instantiate_ty_with_alias(ty, mapper)
+            self.instantiate_ty_with_alias(ty, mapper, None, None)
         } else {
             ty
         }
@@ -20,8 +21,8 @@ impl<'cx> TyChecker<'cx> {
     pub fn instantiate_list<T: PartialEq + Copy>(
         &mut self,
         list: &'cx [T],
-        mapper: &'cx ty::TyMapper<'cx>,
-        f: impl Fn(&mut Self, T, &'cx ty::TyMapper<'cx>) -> T,
+        mapper: &'cx dyn ty::TyMap<'cx>,
+        f: impl Fn(&mut Self, T, &'cx dyn ty::TyMap<'cx>) -> T,
     ) -> &'cx [T] {
         let len = list.len();
         for i in 0..len {
@@ -30,7 +31,8 @@ impl<'cx> TyChecker<'cx> {
             if item != mapped {
                 let mut result = Vec::with_capacity(list.len());
                 result.extend(list[0..i].iter());
-                for j in i..len {
+                result.push(mapped);
+                for j in i + 1..len {
                     result.push(f(self, list[j], mapper));
                 }
                 assert_eq!(result.len(), list.len());
@@ -44,7 +46,7 @@ impl<'cx> TyChecker<'cx> {
     pub(super) fn instantiate_tys(
         &mut self,
         tys: ty::Tys<'cx>,
-        mapper: &'cx ty::TyMapper<'cx>,
+        mapper: &'cx dyn ty::TyMap<'cx>,
     ) -> ty::Tys<'cx> {
         self.instantiate_list(tys, mapper, |this, item, mapper| {
             this.instantiate_ty(item, Some(mapper))
@@ -67,9 +69,8 @@ impl<'cx> TyChecker<'cx> {
             }
         } else if let Some(unions) = ty.kind.as_union() {
             unions.tys.iter().any(|t| self.could_contain_ty_var(t))
-        } else if ty.kind.is_union_or_intersection() {
-            // TODO: condition
-            false
+        } else if let Some(i) = ty.kind.as_intersection() {
+            i.tys.iter().any(|t| self.could_contain_ty_var(t))
         } else {
             false
         }
@@ -78,47 +79,97 @@ impl<'cx> TyChecker<'cx> {
     pub(super) fn instantiate_ty_with_alias(
         &mut self,
         ty: &'cx ty::Ty<'cx>,
-        mapper: &'cx ty::TyMapper<'cx>,
+        mapper: &'cx dyn ty::TyMap<'cx>,
+        alias_symbol: Option<SymbolID>,
+        alias_ty_args: Option<ty::Tys<'cx>>,
     ) -> &'cx ty::Ty<'cx> {
         if !self.could_contain_ty_var(ty) {
             return ty;
         }
-        self.instantiate(ty, mapper)
+        self.instantiate(ty, mapper, alias_symbol, alias_ty_args)
     }
 
     fn instantiate(
         &mut self,
         ty: &'cx ty::Ty<'cx>,
-        mapper: &'cx ty::TyMapper<'cx>,
+        mapper: &'cx dyn ty::TyMap<'cx>,
+        alias_symbol: Option<SymbolID>,
+        alias_ty_args: Option<ty::Tys<'cx>>,
     ) -> &'cx ty::Ty<'cx> {
         use ty::TyKind::*;
         match ty.kind {
             Param(_) => self.get_mapped_ty(mapper, ty),
             IndexedAccess(indexed) => {
-                let object_ty = self.instantiate_ty_with_alias(indexed.object_ty, mapper);
-                let index_ty = self.instantiate_ty_with_alias(indexed.index_ty, mapper);
+                let object_ty = self.instantiate_ty_with_alias(
+                    indexed.object_ty,
+                    mapper,
+                    alias_symbol,
+                    alias_ty_args,
+                );
+                let index_ty = self.instantiate_ty_with_alias(
+                    indexed.index_ty,
+                    mapper,
+                    alias_symbol,
+                    alias_ty_args,
+                );
                 self.get_indexed_access_ty(object_ty, index_ty, Some(indexed.access_flags), None)
-                    .unwrap()
             }
-            Cond(_) => self.get_cond_ty_instantiation(ty, mapper),
+            Cond(cond) => {
+                let mapper = self.combine_ty_mappers(cond.mapper, mapper);
+                self.get_cond_ty_instantiation(ty, mapper, alias_symbol, alias_ty_args)
+            }
             Object(_) => self.get_object_ty_instantiation(ty, mapper),
-            Union(u) => {
-                let new_tys = self.instantiate_tys(u.tys, mapper);
-                if new_tys == u.tys {
-                    return ty;
-                }
-                self.create_union_type(new_tys.to_vec(), ty::UnionReduction::Lit)
-            }
+            Union(u) => self.instantiate_union_or_intersection(
+                ty,
+                u.tys,
+                true,
+                mapper,
+                alias_symbol,
+                alias_ty_args,
+            ),
+            Intersection(i) => self.instantiate_union_or_intersection(
+                ty,
+                i.tys,
+                false,
+                mapper,
+                alias_symbol,
+                alias_ty_args,
+            ),
             _ => {
                 todo!("{:?}", ty.kind);
             }
         }
     }
 
+    fn instantiate_union_or_intersection(
+        &mut self,
+        ty: &'cx ty::Ty<'cx>,
+        tys: ty::Tys<'cx>,
+        is_union: bool,
+        mapper: &'cx dyn ty::TyMap<'cx>,
+        alias_symbol: Option<SymbolID>,
+        alias_ty_args: Option<ty::Tys<'cx>>,
+    ) -> &'cx ty::Ty<'cx> {
+        let new_tys = self.instantiate_tys(tys, mapper);
+        if new_tys == tys {
+            return ty;
+        }
+        if is_union {
+            self.get_union_ty(new_tys, ty::UnionReduction::Lit)
+        } else {
+            self.get_intersection_ty(
+                new_tys,
+                IntersectionFlags::None,
+                alias_symbol,
+                alias_ty_args,
+            )
+        }
+    }
+
     fn instantiate_anonymous_ty(
         &mut self,
         ty: &'cx ty::Ty<'cx>,
-        mapper: &'cx ty::TyMapper<'cx>,
+        mapper: &'cx dyn ty::TyMap<'cx>,
     ) -> &'cx ty::Ty<'cx> {
         let target = ty.kind.expect_object_anonymous();
         let object_flags = ty.get_object_flags()
@@ -131,7 +182,7 @@ impl<'cx> TyChecker<'cx> {
     fn get_object_ty_instantiation(
         &mut self,
         ty: &'cx ty::Ty<'cx>,
-        mapper: &'cx ty::TyMapper<'cx>,
+        mapper: &'cx dyn ty::TyMap<'cx>,
     ) -> &'cx ty::Ty<'cx> {
         if let Some(refer) = ty.kind.as_object_reference() {
             let new_ty_args = self.instantiate_tys(refer.resolved_ty_args, mapper);
@@ -142,27 +193,46 @@ impl<'cx> TyChecker<'cx> {
             }
         } else if let Some(a) = ty.kind.as_object_anonymous() {
             let s = self.binder.symbol(a.symbol);
-            let flags = s.flags;
-            let decl = if flags.intersects(SymbolFlags::FUNCTION) {
-                s.expect_fn().decls[0]
-            } else if flags.intersects(SymbolFlags::TYPE_LITERAL) {
-                s.expect_ty_lit().decl
-            } else if flags.intersects(SymbolFlags::OBJECT_LITERAL) {
-                s.expect_object().decl
+            let decl = if let Some(decl) = s.opt_decl() {
+                decl
             } else {
+                // TODO: delete return
                 return ty;
             };
-            // TODO: use `node_links`
-            let outer_params = self.get_outer_ty_params(decl, true);
-            let ty_params = outer_params.unwrap_or_default();
+            // TODO: single_signature_type
+            let ty_params = if let Some(ty_params) = self.get_node_links(decl).get_outer_ty_params()
+            {
+                ty_params
+            } else {
+                let outer_params = if let Some(outer_params) = self.get_outer_ty_params(decl, true)
+                {
+                    self.alloc(outer_params)
+                } else {
+                    self.empty_array()
+                };
+                self.get_mut_node_links(decl)
+                    .set_outer_ty_params(outer_params);
+                outer_params
+            };
             if !ty_params.is_empty() {
+                // TODO: alias_symbol
+                let ty_params_id = InstantiationTyMap::create_id(ty.id, ty_params);
+                if !self.instantiation_ty_map.contain(ty_params_id) {
+                    self.instantiation_ty_map.insert(ty_params_id, ty);
+                }
                 let combined_mapper = self.combine_ty_mappers(a.mapper, mapper);
                 let ty_args = ty_params
                     .iter()
                     .map(|t| self.get_mapped_ty(combined_mapper, t))
                     .collect::<Vec<_>>();
-                let new_mapper = ty::TyMapper::create(self.alloc(ty_params), self.alloc(ty_args));
-                self.instantiate_anonymous_ty(ty, self.alloc(new_mapper))
+                let id = InstantiationTyMap::create_id(ty.id, &ty_args);
+                if let Some(instantiated) = self.instantiation_ty_map.get(id) {
+                    return instantiated;
+                }
+                let new_mapper = self.create_ty_mapper(ty_params, self.alloc(ty_args));
+                let ty = self.instantiate_anonymous_ty(ty, new_mapper);
+                self.instantiation_ty_map.insert(id, ty);
+                ty
             } else {
                 ty
             }
@@ -174,7 +244,9 @@ impl<'cx> TyChecker<'cx> {
     fn get_cond_ty_instantiation(
         &mut self,
         ty: &'cx ty::Ty<'cx>,
-        mapper: &'cx ty::TyMapper<'cx>,
+        mapper: &'cx dyn ty::TyMap<'cx>,
+        alias_symbol: Option<SymbolID>,
+        alias_ty_args: Option<ty::Tys<'cx>>,
     ) -> &'cx ty::Ty<'cx> {
         let cond_ty = ty.kind.expect_cond_ty();
         let Some(outer_ty_params) = cond_ty.root.outer_ty_params else {
@@ -189,17 +261,70 @@ impl<'cx> TyChecker<'cx> {
             return instantiated;
         }
         let ty_args = self.alloc(ty_args);
-        let mapper = self.alloc(ty::TyMapper::create(outer_ty_params, ty_args));
-        let ty = self.get_cond_ty(cond_ty.root, Some(mapper));
+        let new_mapper = self.create_ty_mapper(outer_ty_params, ty_args);
+        let ty = self.get_cond_ty(cond_ty.root, Some(new_mapper), alias_symbol, alias_ty_args);
         self.instantiation_ty_map.insert(key, ty);
         ty
     }
 
-    pub(super) fn get_permissive_instantiation(&self, ty: &'cx ty::Ty<'cx>) -> &'cx ty::Ty<'cx> {
-        if ty.kind.is_param() {
-            self.any_ty()
-        } else {
+    pub(super) fn get_permissive_instantiation(
+        &mut self,
+        ty: &'cx ty::Ty<'cx>,
+    ) -> &'cx ty::Ty<'cx> {
+        if ty
+            .flags
+            .intersects(TypeFlags::PRIMITIVE | TypeFlags::ANY_OR_UNKNOWN | TypeFlags::NEVER)
+        {
             ty
+        } else if let Some(ty) = self.get_ty_links(ty.id).get_permissive_instantiation() {
+            ty
+        } else {
+            let instantiated = self.instantiate_ty(ty, Some(self.permissive_mapper));
+            self.get_mut_ty_links(ty.id)
+                .set_permissive_instantiation(instantiated);
+            instantiated
+        }
+    }
+
+    pub(super) fn get_restrictive_instantiation(
+        &mut self,
+        ty: &'cx ty::Ty<'cx>,
+    ) -> &'cx ty::Ty<'cx> {
+        if ty
+            .flags
+            .intersects(TypeFlags::PRIMITIVE | TypeFlags::ANY_OR_UNKNOWN | TypeFlags::NEVER)
+        {
+            ty
+        } else if let Some(ty) = self.get_ty_links(ty.id).get_restrictive_instantiation() {
+            ty
+        } else {
+            let same = if ty.kind.is_param() {
+                if let Some(c) = self.param_ty_constraint(ty) {
+                    c == self.no_constraint_ty()
+                } else {
+                    self.get_constraint_decl(ty).is_none()
+                }
+            } else {
+                true
+            };
+
+            let restrictive_instantiation = self.instantiate_ty(ty, Some(self.restrictive_mapper));
+
+            if same {
+                assert_eq!(
+                    restrictive_instantiation, ty,
+                    "should not instantiation a new type"
+                );
+                self.get_mut_ty_links(ty.id)
+                    .set_restrictive_instantiation(restrictive_instantiation);
+                return ty;
+            } else {
+                self.get_mut_ty_links(ty.id)
+                    .override_restrictive_instantiation(restrictive_instantiation);
+                self.get_mut_ty_links(restrictive_instantiation.id)
+                    .set_restrictive_instantiation(restrictive_instantiation);
+                restrictive_instantiation
+            }
         }
     }
 
@@ -213,7 +338,7 @@ impl<'cx> TyChecker<'cx> {
         let ty_args = self.fill_missing_ty_args(
             ty_args,
             sig.ty_params,
-            self.get_min_ty_args_count(sig.ty_params),
+            self.get_min_ty_arg_count(sig.ty_params),
         );
         let sig = self.get_sig_instantiation_without_filling_ty_args(sig, ty_args);
         if let Some(inferred_ty_params) = inferred_ty_params {
@@ -241,31 +366,25 @@ impl<'cx> TyChecker<'cx> {
         self.create_sig_instantiation(sig, ty_args)
     }
 
-    pub(super) fn get_restrictive_instantiation(&self, ty: &'cx ty::Ty<'cx>) -> &'cx ty::Ty<'cx> {
-        if ty.kind.is_param() {
-            self.get_restrictive_ty_param(ty)
-        } else {
-            ty
-        }
-    }
-
     pub(super) fn get_type_alias_instantiation(
         &mut self,
         symbol: SymbolID,
         args: ty::Tys<'cx>,
+        alias_symbol: Option<SymbolID>,
+        alias_ty_args: Option<ty::Tys<'cx>>,
     ) -> &'cx ty::Ty<'cx> {
         let ty = self.get_declared_ty_of_symbol(symbol);
         let Some(ty_params) = self.get_symbol_links(symbol).get_ty_params() else {
             unreachable!()
         };
-        let min_params_count = self.get_min_ty_args_count(Some(ty_params));
+        let min_params_count = self.get_min_ty_arg_count(Some(ty_params));
         // TODO: cache
         let args = self.fill_missing_ty_args(Some(args), Some(ty_params), min_params_count);
         let mapper = self.create_ty_mapper_with_optional_target(ty_params, args);
-        self.instantiate_ty_with_alias(ty, mapper)
+        self.instantiate_ty_with_alias(ty, mapper, alias_symbol, alias_ty_args)
     }
 
-    pub(super) fn get_min_ty_args_count(&self, ty_params: Option<ty::Tys<'cx>>) -> usize {
+    pub(super) fn get_min_ty_arg_count(&self, ty_params: Option<ty::Tys<'cx>>) -> usize {
         let Some(ty_params) = ty_params else {
             return 0;
         };
@@ -301,7 +420,7 @@ impl<'cx> TyChecker<'cx> {
                 }
             }
 
-            let base_default_ty = self.any_ty();
+            let base_default_ty = self.any_ty;
             for param in ty_params.iter().skip(args_len) {
                 if let Some(default_ty) = self.get_default_ty_from_ty_param(param) {
                     result.push(default_ty);

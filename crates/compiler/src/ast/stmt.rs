@@ -311,6 +311,33 @@ pub enum ClassEleKind<'cx> {
     Setter(&'cx SetterDecl<'cx>),
 }
 
+impl ClassEleKind<'_> {
+    pub fn is_static(&self) -> bool {
+        use ClassEleKind::*;
+        let ms = match self {
+            Ctor(_) => None,
+            Prop(n) => n.modifiers,
+            Method(n) => n.modifiers,
+            IndexSig(n) => n.modifiers,
+            Getter(n) => n.modifiers,
+            Setter(n) => n.modifiers,
+        };
+        ms.is_some_and(|ms| ms.flags.contains(ModifierKind::Static))
+    }
+
+    pub fn id(&self) -> NodeID {
+        use ClassEleKind::*;
+        match self {
+            Ctor(n) => n.id,
+            Prop(n) => n.id,
+            Method(n) => n.id,
+            IndexSig(n) => n.id,
+            Getter(n) => n.id,
+            Setter(n) => n.id,
+        }
+    }
+}
+
 #[derive(Debug, Clone, Copy)]
 pub struct GetterDecl<'cx> {
     pub id: NodeID,

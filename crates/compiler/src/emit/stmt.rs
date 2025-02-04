@@ -356,14 +356,16 @@ impl<'cx> Emit<'cx> {
         param_name: &str,
         f: impl FnOnce(&mut Self),
     ) {
-        self.content.p("var");
-        self.content.p_whitespace();
-        self.emit_ident(decl_name);
-        self.content.p_whitespace();
-        self.content.p_eq();
-        self.content.p_whitespace();
-        self.content.p("{}");
-        self.content.p_semi();
+        if self.ns_names.insert((self.scope, decl_name.name)) {
+            self.content.p("var");
+            self.content.p_whitespace();
+            self.emit_ident(decl_name);
+            self.content.p_whitespace();
+            self.content.p_eq();
+            self.content.p_whitespace();
+            self.content.p("{}");
+            self.content.p_semi();
+        }
 
         self.content.p_newline();
 
@@ -379,20 +381,22 @@ impl<'cx> Emit<'cx> {
         // emit block
         self.content.p_l_brace();
         self.content.p_newline();
-        self.content.p_pieces_of_whitespace(self.state.indent);
-        self.state.indent += self.options.indent;
+        self.content.indent += self.options.indent;
+        let old = self.scope;
+        self.scope = self.next_scope();
 
         f(self);
 
-        self.state.indent -= self.options.indent;
+        self.scope = old;
+        self.content.indent -= self.options.indent;
         self.content.p_newline();
-        self.content.p_pieces_of_whitespace(self.state.indent);
         self.content.p_r_brace();
 
         self.content.p_r_paren();
         self.content.p_l_paren();
         self.emit_ident(decl_name);
         self.content.p_r_paren();
+        self.content.p_semi();
     }
 
     fn emit_object_binding_elem(&mut self, elem: &'cx ast::ObjectBindingElem<'cx>) {
@@ -448,6 +452,7 @@ impl<'cx> Emit<'cx> {
         let Some(block) = ns.block else {
             return;
         };
+
         // var name
         fn sub_names_of_binding<'cx>(binding: &'cx ast::Binding<'cx>) -> Vec<bolt_ts_atom::AtomId> {
             use ast::Binding::*;
@@ -553,6 +558,7 @@ impl<'cx> Emit<'cx> {
                     this.content.p_eq();
                     this.content.p_whitespace();
                     this.emit_ident(name);
+                    this.content.p_semi();
                     this.content.p_newline();
                 }
             }
@@ -597,7 +603,6 @@ impl<'cx> Emit<'cx> {
             |this, item| this.emit_stmt(item),
             |this, _| {
                 this.content.p_newline();
-                this.content.p_pieces_of_whitespace(this.state.indent);
             },
         )
     }

@@ -71,25 +71,22 @@ impl<'cx> CheckState<'cx> {
         };
         for modifier in modifiers.list {
             use ast::ModifierKind::*;
-            match modifier.kind {
-                Abstract => {
-                    let parent = self.p.parent(node).unwrap();
-                    let parent_node = self.p.node(parent);
-                    if !(parent_node.is_class_decl()
-                        && parent_node.has_syntactic_modifier(ast::ModifierKind::Abstract.into()))
-                    {
-                        let error = if n.is_class_prop_ele() {
-                            todo!()
-                        } else {
-                            errors::AbstractMethodsCanOnlyAppearWithinAnAbstractClass {
-                                span: modifier.span,
-                            }
-                        };
-                        self.push_error(Box::new(error));
-                        return;
-                    }
+            if modifier.kind == Abstract {
+                let parent = self.p.parent(node).unwrap();
+                let parent_node = self.p.node(parent);
+                if !(parent_node.is_class_decl()
+                    && parent_node.has_syntactic_modifier(ast::ModifierKind::Abstract.into()))
+                {
+                    let error = if n.is_class_prop_ele() {
+                        todo!()
+                    } else {
+                        errors::AbstractMethodsCanOnlyAppearWithinAnAbstractClass {
+                            span: modifier.span,
+                        }
+                    };
+                    self.push_error(Box::new(error));
+                    return;
                 }
-                _ => (),
             }
         }
     }

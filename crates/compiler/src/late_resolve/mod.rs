@@ -11,8 +11,8 @@ use bolt_ts_span::{Module, ModuleID};
 use bolt_ts_utils::fx_hashmap_with_capacity;
 use rustc_hash::FxHashMap;
 
-pub struct ResolveResult<'cx> {
-    pub symbols: Symbols<'cx>,
+pub struct ResolveResult {
+    pub symbols: Symbols,
     pub final_res: FxHashMap<ast::NodeID, SymbolID>,
     pub diags: Vec<bolt_ts_errors::Diag>,
     pub deep_res: FxHashMap<ast::NodeID, SymbolID>,
@@ -25,7 +25,7 @@ pub fn late_resolve<'cx>(
     p: &'cx parser::Parser<'cx>,
     global: &'cx GlobalSymbols,
     atoms: &'cx AtomMap<'cx>,
-) -> Vec<(ModuleID, ResolveResult<'cx>)> {
+) -> Vec<(ModuleID, ResolveResult)> {
     let mut temp = Vec::with_capacity(modules.len());
     for module in modules {
         let module_id = module.id;
@@ -89,7 +89,6 @@ impl Resolver<'_, '_> {
             match &s.kind.0 {
                 Fn(f) => f.decls[0],
                 Alias(a) => a.decl,
-                Transient(_) => unreachable!(),
                 _ => todo!(),
             }
         }

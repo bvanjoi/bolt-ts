@@ -7,7 +7,7 @@ function R2() {
 }
 function R3(n) {
   if (n == 0) {} else {
-    R3(n--);  
-}
-
+    R3(n--);
+  }
+  
 }

@@ -92,6 +92,8 @@ pub enum TokenKind {
     BangEq,
     /// `^=`
     CaretEq,
+    /// `?.`
+    QuestionDot,
     // =====
     /// `!`
     Excl = 0x21,
@@ -189,6 +191,7 @@ pub enum TokenKind {
     Continue,
     Instanceof,
     Void,
+    Undefined,
     In,
     // ts keyword
     Implements,
@@ -558,7 +561,8 @@ impl TokenKind {
             Set |
             String |
             // Symbol |
-            Type | // Undefined |
+            Type | 
+            Undefined |
                  // Unique |
                  // Unknown |
                  // Using |

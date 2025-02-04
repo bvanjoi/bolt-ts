@@ -7,7 +7,7 @@ class Board {
   cells
   allShipsSunk() {
     return this.ships.every(function (val) {
-      return val.isSunk    
-})  
-}
+      return val.isSunk
+    })
+  }
 }

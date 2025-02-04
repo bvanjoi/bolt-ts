@@ -1,6 +1,6 @@
 use bolt_ts_span::{ModuleID, Span};
 
-use super::ModifierKind;
+use super::{ExprKind, ModifierKind};
 
 bolt_ts_utils::module_index!(NodeID);
 
@@ -107,8 +107,7 @@ pub enum Node<'cx> {
     QualifiedName(&'cx super::QualifiedName<'cx>),
 
     // ty
-    NumLitTy(&'cx super::NumLitTy),
-    StringLitTy(&'cx super::StringLitTy),
+    LitTy(&'cx super::LitTy),
     ReferTy(&'cx super::ReferTy<'cx>),
     ArrayTy(&'cx super::ArrayTy<'cx>),
     IndexedAccessTy(&'cx super::IndexedAccessTy<'cx>),
@@ -143,7 +142,13 @@ impl<'cx> Node<'cx> {
         use Node::*;
         matches!(
             self,
-            FnDecl(_) | FnExpr(_) | ClassMethodElem(_) | ClassCtor(_) | ArrowFnExpr(_)
+            FnDecl(_)
+                | ClassMethodElem(_)
+                | ClassCtor(_)
+                | GetterDecl(_)
+                | SetterDecl(_)
+                | FnExpr(_)
+                | ArrowFnExpr(_)
         )
     }
 
@@ -182,28 +187,29 @@ impl<'cx> Node<'cx> {
 
     pub fn as_ty(&self) -> Option<super::Ty<'cx>> {
         macro_rules! as_ty_node {
-            ($( ($node_kind:ident, $ty_node_kind: ident)),* $(,)?) => {
-                match self {
-                    $(Node::$node_kind(n) => Some(super::Ty {
-                        kind: super::TyKind::$ty_node_kind(n)
-                    }),)*
-                    _ => None,
+            ($( $ty:ident ),* $(,)?) => {
+                paste::paste! {
+                    match self {
+                        $(Node::[<$ty Ty>](n) => Some(super::Ty {
+                            kind: super::TyKind::$ty(n)
+                        }),)*
+                        _ => None,
+                    }
                 }
             };
         }
         as_ty_node!(
-            (ReferTy, Refer),
-            (ArrayTy, Array),
-            (TupleTy, Tuple),
-            (IndexedAccessTy, IndexedAccess),
-            (FnTy, Fn),
-            (ObjectLitTy, ObjectLit),
-            (NumLitTy, NumLit),
-            (StringLitTy, StringLit),
-            (RestTy, Rest),
-            (CondTy, Cond),
-            (UnionTy, Union),
-            (IntersectionTy, Intersection),
+            Refer,
+            Array,
+            Tuple,
+            IndexedAccess,
+            Fn,
+            ObjectLit,
+            Lit,
+            Rest,
+            Cond,
+            Union,
+            Intersection,
         )
     }
 
@@ -237,7 +243,7 @@ impl<'cx> Node<'cx> {
                 _ => None,
             },
             ObjectShorthandMember(n) => Some(n.name),
-            TyParam(n) => Some(&n.name),
+            TyParam(n) => Some(n.name),
             _ => None,
         }
     }
@@ -507,6 +513,18 @@ impl<'cx> Node<'cx> {
             };
         }
         node_flags!(FnDecl, ClassMethodElem)
+    }
+
+    pub fn is_super_call(&self) -> bool {
+        self.as_call_expr()
+            .is_some_and(|expr| matches!(expr.expr.kind, ExprKind::Super(_)))
+    }
+
+    pub fn is_optional_decl(&self) -> bool {
+        match self {
+            Node::PropSignature(n) => n.question.is_some(),
+            _ => false,
+        }
     }
 }
 
@@ -784,18 +802,11 @@ as_node!(
         is_ctor_ty
     ),
     (
-        StringLitTy,
-        &'cx super::StringLitTy,
-        as_string_lit_ty,
-        expect_string_lit_ty,
-        is_string_lit_ty
-    ),
-    (
-        NumLitTy,
-        &'cx super::NumLitTy,
-        as_num_lit_ty,
-        expect_num_lit_ty,
-        is_num_lit_ty
+        LitTy,
+        &'cx super::LitTy,
+        as_lit_ty,
+        expect_lit_ty,
+        is_lit_ty
     ),
     (
         ObjectLitTy,

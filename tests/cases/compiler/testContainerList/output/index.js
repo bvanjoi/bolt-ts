@@ -1,9 +1,9 @@
 var A = {};
 (function (A) {
 
-class C {
+  class C {
     constructor(d) {
-this.d = d}  
-}
-
-})(A)
+      this.d = d}
+  }
+  
+})(A);
