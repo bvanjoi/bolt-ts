@@ -281,10 +281,9 @@ impl<'cx> TyChecker<'cx> {
 
     pub(super) fn get_outer_ty_params(
         &mut self,
-        id: ast::NodeID,
+        mut id: ast::NodeID,
         include_this: bool,
     ) -> Option<Vec<&'cx ty::Ty<'cx>>> {
-        let mut id = id;
         loop {
             if let Some(next) = self.p.parent(id) {
                 id = next;

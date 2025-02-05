@@ -1,5 +1,5 @@
 bitflags::bitflags! {
-  #[derive(Clone, Copy, Debug, Default)]
+  #[derive(Clone, Copy, Debug, Default, PartialEq)]
     pub struct TypeFlags: u32 {
         const ANY = 1 << 0;
         const UNKNOWN = 1 << 1;
