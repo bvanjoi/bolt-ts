@@ -646,27 +646,62 @@ impl<'cx> InferenceState<'cx, '_> {
         }
     }
 
-    fn infer_from_tys(&mut self, source: &'cx ty::Ty<'cx>, target: &'cx ty::Ty<'cx>) {
+    fn infer_to_cond_ty(&mut self, source: &'cx ty::Ty<'cx>, target: &'cx ty::Ty<'cx>) {
+        let Some(target_cond) = target.kind.as_cond_ty() else {
+            unreachable!()
+        };
+        if let Some(source_cond) = source.kind.as_cond_ty() {
+            self.infer_from_tys(source_cond.check_ty, target_cond.check_ty);
+            self.infer_from_tys(source_cond.extends_ty, target_cond.extends_ty);
+            // TODO:
+        } else {
+            // TODO:
+        }
+    }
+
+    fn infer_from_tys(&mut self, mut source: &'cx ty::Ty<'cx>, mut target: &'cx ty::Ty<'cx>) {
         if !self.c.could_contain_ty_var(target) {
             return;
         }
 
         if source == target && source.kind.is_union_or_intersection() {
-            if let Some(union) = source.kind.as_union() {
-                // TODO: as intersection
-                for t in union.tys {
-                    self.infer_from_tys(t, t);
-                }
-                return;
+            let tys = if let Some(union) = source.kind.as_union() {
+                union.tys
+            } else if let Some(intersection) = source.kind.as_intersection() {
+                intersection.tys
+            } else {
+                unreachable!()
+            };
+            for t in tys {
+                self.infer_from_tys(t, t);
             }
+            return;
         }
 
         if let Some(target_union) = target.kind.as_union() {
-            if let Some(source_union) = source.kind.as_union() {
-                // source_union.tys
+            let source_tys = if let Some(source_union) = source.kind.as_union() {
+                source_union.tys
             } else {
-                // [source]
+                self.c.alloc([source])
+            };
+            let target_tys = target_union.tys;
+            let (temp_sources, temp_targets) =
+                self.infer_from_matching_tys(source_tys, target_tys, |this, s, t| {
+                    this.c.is_ty_or_base_identical_to(s, t)
+                });
+            let (sources, targets) =
+                self.infer_from_matching_tys(temp_sources, temp_targets, |_, s, t| {
+                    TyChecker::is_ty_closely_matched_by(s, t)
+                });
+            if targets.is_empty() {
+                return;
             }
+            target = self.c.get_union_ty(targets, ty::UnionReduction::Lit);
+            if sources.is_empty() {
+                self.infer_with_priority(source, target, InferencePriority::NAKED_TYPE_VARIABLE);
+                return;
+            }
+            source = self.c.get_union_ty(sources, ty::UnionReduction::Lit);
         };
 
         if target.kind.is_type_variable() {
@@ -710,7 +745,10 @@ impl<'cx> InferenceState<'cx, '_> {
             }
         }
 
-        if let Some(target_cond) = target.kind.as_cond_ty() {
+        if target.kind.is_cond_ty() {
+            self.invoke_once(source, target, |this, source, target| {
+                this.infer_to_cond_ty(source, target);
+            });
         } else if source.kind.is_object() {
             self.invoke_once(source, target, |this, source, target| {
                 this.infer_from_object_tys(source, target);
@@ -747,6 +785,7 @@ impl<'cx> InferenceState<'cx, '_> {
     }
 
     fn infer_from_object_tys(&mut self, source: &'cx ty::Ty<'cx>, target: &'cx ty::Ty<'cx>) {
+        assert!(source.kind.is_object());
         if !self.c.tys_definitely_unrelated(source, target) {
             if source.kind.is_tuple() || source.kind.is_array(self.c) {
                 if target.kind.is_tuple() {
@@ -784,15 +823,13 @@ impl<'cx> InferenceState<'cx, '_> {
         &mut self,
         sources: ty::Tys<'cx>,
         targets: ty::Tys<'cx>,
-        matches: impl Fn(&'cx ty::Ty<'cx>, &'cx ty::Ty<'cx>) -> bool,
-        priority: InferencePriority,
-        inference: InferenceContextId,
+        matches: impl Fn(&mut Self, &'cx ty::Ty<'cx>, &'cx ty::Ty<'cx>) -> bool,
     ) -> (ty::Tys<'cx>, ty::Tys<'cx>) {
         let mut matched_sources = Vec::with_capacity(sources.len());
         let mut matched_targets = Vec::with_capacity(targets.len());
         for t in targets {
             for s in sources {
-                if matches(s, t) {
+                if matches(self, s, t) {
                     self.infer_from_tys(s, t);
                     append_if_unique(&mut matched_sources, *s);
                     append_if_unique(&mut matched_targets, *t);

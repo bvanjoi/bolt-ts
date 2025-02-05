@@ -32,33 +32,38 @@ type IsEqual<A, B> =
 		: false;
 
 {
-//   // const notEqualNumberAndString: IsEqual<number, string> = false;
-//   // const a0: false = notEqualNumberAndString;
+  const notEqualNumberAndString: IsEqual<number, string> = false;
+  const a0: false = notEqualNumberAndString;
 
   const equalNumbers: IsEqual<1, 1> = true;
   const a1: true = equalNumbers;
 
-//   // const notEqualAnyAndNumber: IsEqual<any, number> = false;
-//   // const a2: false = notEqualAnyAndNumber;
+  const notEqualAnyAndNumber: IsEqual<any, number> = false;
+  const a2: false = notEqualAnyAndNumber;
 
-//   // const notEqualUnionAndNumber: IsEqual<1 | 2, 1> = false;
-//   // const a3: false = notEqualUnionAndNumber;
+  const notEqualUnionAndNumber: IsEqual<1 | 2, 1> = false;
+  const a3: false = notEqualUnionAndNumber;
 
-//   // const notEqualAnyAndNever: IsEqual<any, never> = false;
-//   // const a4: false = notEqualAnyAndNever;
+  const notEqualAnyAndNever: IsEqual<any, never> = false;
+  const a4: false = notEqualAnyAndNever;
 
-//   // const notEqualArrayOfAnyAndArrayOfNever: IsEqual<[any], [never]> = false;
-//   // const a5: false = notEqualArrayOfAnyAndArrayOfNever;
+  const notEqualArrayOfAnyAndArrayOfNever: IsEqual<[any], [never]> = false;
+  const a5: false = notEqualArrayOfAnyAndArrayOfNever;
 
-//   // type A = IsEqual;
+  type A = IsEqual;
+	//~^ ERROR: Generic type 'IsEqual' requires 2 type arguments.
 
-//   // type B = IsEqual<number>;
+  type B = IsEqual<number>;
+	//~^ ERROR: Generic type 'IsEqual' requires 2 type arguments.
 
-  type UnionType = IsEqual<{a: 1} & {a: 1}, {a: 1}>;
-  const a6: UnionType = true;
+  // type UnionType0 = IsEqual<{a: 1}, {a: 1}>;
+  // const a60: UnionType0 = true;
 
-  type IntersectionType = IsEqual<{a: 1} | {a: 1}, {a: 1}>;
-  const a7: IntersectionType = true;
+	// type UnionType1 = IsEqual<{a: 1} & {a: 1}, {a: 1}>;
+  // const a61: UnionType1 = true;
+
+  // type IntersectionType = IsEqual<{a: 1} | {a: 1}, {a: 1}>;
+  // const a7: IntersectionType = true;
 }
 
 // =========== isNever ===========

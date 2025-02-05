@@ -8,6 +8,7 @@ use crate::ty::{Sig, SigFlags};
 
 impl<'cx> TyChecker<'cx> {
     pub(super) fn new_sig(&mut self, sig: Sig<'cx>) -> &'cx Sig<'cx> {
+        assert!(sig.id == SigID::dummy(), "TODO: hidden id");
         let sig = sig.with_id(self.sigs.len());
         let s = self.alloc(sig);
         self.sigs.push(s);

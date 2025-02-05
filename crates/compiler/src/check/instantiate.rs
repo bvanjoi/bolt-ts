@@ -170,12 +170,9 @@ impl<'cx> TyChecker<'cx> {
         &mut self,
         ty: &'cx ty::Ty<'cx>,
         mapper: &'cx dyn ty::TyMap<'cx>,
+        object_flags: ObjectFlags,
     ) -> &'cx ty::Ty<'cx> {
         let target = ty.kind.expect_object_anonymous();
-        let object_flags = ty.get_object_flags()
-            & !(ObjectFlags::COULD_CONTAIN_TYPE_VARIABLES_COMPUTED
-                | ObjectFlags::COULD_CONTAIN_TYPE_VARIABLES)
-            | ObjectFlags::INSTANTIATED;
         self.create_instantiating_anonymous_ty(target.symbol, ty, mapper, object_flags)
     }
 
@@ -229,8 +226,35 @@ impl<'cx> TyChecker<'cx> {
                 if let Some(instantiated) = self.instantiation_ty_map.get(id) {
                     return instantiated;
                 }
+                let mut object_flags = ty.get_object_flags()
+                    & !(ObjectFlags::COULD_CONTAIN_TYPE_VARIABLES_COMPUTED
+                        | ObjectFlags::COULD_CONTAIN_TYPE_VARIABLES)
+                    | ObjectFlags::INSTANTIATED /* TODO: propagating for alias_ty_args */;
+                if ty.flags.intersects(TypeFlags::OBJECT_FLAGS_TYPE)
+                    && !object_flags.intersects(ObjectFlags::COULD_CONTAIN_TYPE_VARIABLES_COMPUTED)
+                {
+                    let result_could_contain_ty_vars = ty_args
+                        .iter()
+                        .any(|ty_arg| self.could_contain_ty_var(ty_arg));
+                    if object_flags.intersects(
+                        ObjectFlags::MAPPED | ObjectFlags::ANONYMOUS | ObjectFlags::REFERENCE,
+                    ) {
+                        object_flags |= ObjectFlags::COULD_CONTAIN_TYPE_VARIABLES_COMPUTED
+                            | if result_could_contain_ty_vars {
+                                ObjectFlags::COULD_CONTAIN_TYPE_VARIABLES
+                            } else {
+                                ObjectFlags::empty()
+                            };
+                    } else {
+                        object_flags |= if !result_could_contain_ty_vars {
+                            ObjectFlags::COULD_CONTAIN_TYPE_VARIABLES_COMPUTED
+                        } else {
+                            ObjectFlags::empty()
+                        }
+                    }
+                }
                 let new_mapper = self.create_ty_mapper(ty_params, self.alloc(ty_args));
-                let ty = self.instantiate_anonymous_ty(ty, new_mapper);
+                let ty = self.instantiate_anonymous_ty(ty, new_mapper, object_flags);
                 self.instantiation_ty_map.insert(id, ty);
                 ty
             } else {

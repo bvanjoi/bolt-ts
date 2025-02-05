@@ -627,13 +627,14 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
         Ternary::FALSE
     }
 
-    fn structured_related_to(
+    fn structured_ty_related_to(
         &mut self,
         source: &'cx Ty<'cx>,
         target: &'cx Ty<'cx>,
         report_error: bool,
         intersection_state: IntersectionState,
     ) -> Ternary {
+        let mut result = Ternary::TRUE;
         if source.kind.is_union_or_intersection() || target.kind.is_union_or_intersection() {
             let result = self.union_or_intersection_related_to(
                 source,
@@ -644,6 +645,69 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
 
             if result != Ternary::FALSE {
                 return result;
+            }
+        }
+
+        if let Some(_) = target.kind.as_cond_ty() {
+            if self.c.is_deeply_nested_type(target, &self.target_stack, 10) {
+                return Ternary::FALSE;
+            }
+        }
+
+        if let Some(source_cond) = source.kind.as_cond_ty() {
+            if self.c.is_deeply_nested_type(source, &self.target_stack, 10) {
+                return Ternary::FALSE;
+            } else if let Some(target_cond) = target.kind.as_cond_ty() {
+                let source_extends = source_cond.extends_ty;
+                let mapper = None;
+                if self
+                    .c
+                    .is_type_identical_to(source_extends, target_cond.extends_ty)
+                    && (self.is_related_to(
+                        source_cond.check_ty,
+                        target_cond.check_ty,
+                        RecursionFlags::BOTH,
+                        false,
+                        IntersectionState::empty(),
+                    ) != Ternary::FALSE
+                        || self.is_related_to(
+                            target_cond.check_ty,
+                            source_cond.check_ty,
+                            RecursionFlags::BOTH,
+                            false,
+                            IntersectionState::empty(),
+                        ) != Ternary::FALSE)
+                {
+                    result = {
+                        let source_true_ty = {
+                            let true_ty = self.c.get_true_ty_from_cond_ty(source);
+                            self.c.instantiate_ty(true_ty, mapper)
+                        };
+                        let target_true_ty = self.c.get_true_ty_from_cond_ty(target);
+                        self.is_related_to(
+                            source_true_ty,
+                            target_true_ty,
+                            RecursionFlags::BOTH,
+                            report_error,
+                            IntersectionState::empty(),
+                        )
+                    };
+                    if result != Ternary::FALSE {
+                        let source_false_ty = self.c.get_false_ty_from_cond_ty(source);
+                        let target_false_ty = self.c.get_false_ty_from_cond_ty(target);
+                        result &= self.is_related_to(
+                            source_false_ty,
+                            target_false_ty,
+                            RecursionFlags::BOTH,
+                            report_error,
+                            IntersectionState::empty(),
+                        );
+                    }
+
+                    if result != Ternary::FALSE {
+                        return result;
+                    }
+                }
             }
         }
 
@@ -800,7 +864,7 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
         let res = if self.expanding_flags == RecursionFlags::BOTH {
             Ternary::MAYBE
         } else {
-            self.structured_related_to(source, target, report_error, intersection_state)
+            self.structured_ty_related_to(source, target, report_error, intersection_state)
         };
 
         if recursion_flags.intersects(RecursionFlags::TARGET) {

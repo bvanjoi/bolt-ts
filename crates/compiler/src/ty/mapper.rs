@@ -1,5 +1,3 @@
-use std::fmt::Debug;
-
 use crate::check::TyChecker;
 
 use super::{Ty, Tys};
@@ -17,35 +15,6 @@ impl<'cx> TyMapper<'cx> {
         TyMapper::Simple(SimpleTyMapper { source, target })
     }
 }
-
-macro_rules! ty_mapper {
-    ($kind: ident, $ty: ty, $as_kind: ident, $is_kind: ident) => {
-        impl<'cx> TyMapper<'cx> {
-            #[inline(always)]
-            pub fn $as_kind(&self) -> Option<$ty> {
-                match self {
-                    TyMapper::$kind(ty) => Some(ty),
-                    _ => None,
-                }
-            }
-            #[inline(always)]
-            pub fn $is_kind(&self) -> bool {
-                self.$as_kind().is_some()
-            }
-        }
-    };
-}
-
-ty_mapper!(Simple, &SimpleTyMapper<'cx>, as_simple, is_simple);
-ty_mapper!(Array, &ArrayTyMapper<'cx>, as_array, is_array);
-// ty_mapper!(Fn, &FnTyMapper<'cx>, as_fn, is_fn);
-ty_mapper!(
-    Composite,
-    &CompositeTyMapper<'cx>,
-    as_composite,
-    is_composite
-);
-ty_mapper!(Merged, &MergedTyMapper<'cx>, as_merged, is_merged);
 
 #[derive(Clone, Copy, Debug)]
 pub struct SimpleTyMapper<'cx> {
@@ -71,7 +40,7 @@ pub struct MergedTyMapper<'cx> {
     pub mapper2: &'cx TyMapper<'cx>,
 }
 
-pub trait TyMap<'cx>: Debug {
+pub trait TyMap<'cx>: std::fmt::Debug {
     fn get_mapped_ty(&self, ty: &'cx Ty<'cx>, checker: &mut TyChecker<'cx>) -> &'cx Ty<'cx>;
 }
 

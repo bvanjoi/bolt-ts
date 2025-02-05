@@ -3,7 +3,6 @@ use std::hash::Hash;
 use super::ast;
 use super::ElementFlags;
 use super::TyMap;
-use super::TyMapper;
 use super::TypeFlags;
 use crate::bind::SymbolID;
 use crate::check::TyChecker;

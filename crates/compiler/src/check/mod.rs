@@ -56,8 +56,10 @@ use bolt_ts_config::NormalizedCompilerOptions;
 use bolt_ts_utils::{fx_hashmap_with_capacity, fx_hashset_with_capacity};
 use fn_mapper::{PermissiveMapper, RestrictiveMapper};
 use get_variances::VarianceFlags;
+use instantiation_ty_map::UnionOrIntersectionMap;
 use rustc_hash::{FxBuildHasher, FxHashMap, FxHashSet};
 use transient_symbol::{create_transient_symbol, TransientSymbol};
+use utils::contains_ty;
 
 use self::cycle_check::ResolutionKey;
 use self::get_context::{InferenceContextual, TyContextual};
@@ -140,8 +142,10 @@ pub struct TyChecker<'cx> {
     arena: &'cx bumpalo::Bump,
     tys: Vec<&'cx ty::Ty<'cx>>,
     sigs: Vec<&'cx Sig<'cx>>,
-    num_lit_tys: FxHashMap<F64Represent, TyID>,
-    string_lit_tys: FxHashMap<AtomId, TyID>,
+    num_lit_tys: FxHashMap<F64Represent, &'cx ty::Ty<'cx>>,
+    string_lit_tys: FxHashMap<AtomId, &'cx ty::Ty<'cx>>,
+    union_tys: UnionOrIntersectionMap<'cx>,
+    intersection_tys: UnionOrIntersectionMap<'cx>,
     type_name: FxHashMap<TyID, String>,
     tuple_tys: FxHashMap<u64, &'cx ty::Ty<'cx>>,
     transient_symbols: Vec<TransientSymbol<'cx>>,
@@ -360,6 +364,8 @@ impl<'cx> TyChecker<'cx> {
 
             num_lit_tys: fx_hashmap_with_capacity(1024 * 8),
             string_lit_tys: fx_hashmap_with_capacity(1024 * 8),
+            union_tys: UnionOrIntersectionMap::new(1024 * 8),
+            intersection_tys: UnionOrIntersectionMap::new(1024 * 8),
             instantiation_ty_map: InstantiationTyMap::new(1024 * 16),
             mark_tys: fx_hashset_with_capacity(1024 * 4),
             transient_symbols,
@@ -369,7 +375,7 @@ impl<'cx> TyChecker<'cx> {
             any_ty,
             auto_ty,
             wildcard_ty,
-            error_ty: any_ty,
+            error_ty,
             unknown_ty,
             undefined_ty,
             never_ty,
@@ -1500,7 +1506,7 @@ impl<'cx> TyChecker<'cx> {
             || self.is_type_assignable_to_kind(right_ty, TypeFlags::STRING_LIKE, true)
         {
             Some(self.string_ty)
-        } else if left_ty == self.any_ty || right_ty == self.any_ty {
+        } else if self.is_type_any(Some(left_ty)) || self.is_type_any(Some(right_ty)) {
             Some(self.any_ty)
         } else {
             None
@@ -1866,6 +1872,59 @@ impl<'cx> TyChecker<'cx> {
         } else {
             ty
         }
+    }
+
+    fn is_ty_or_base_identical_to(&mut self, s: &'cx ty::Ty<'cx>, t: &'cx ty::Ty<'cx>) -> bool {
+        (t.flags.intersects(TypeFlags::STRING) && s.flags.intersects(TypeFlags::STRING_LITERAL))
+            || (t.flags.intersects(TypeFlags::NUMBER)
+                && s.flags.intersects(TypeFlags::NUMBER_LITERAL))
+            || self.is_type_identical_to(s, t)
+    }
+
+    fn is_type_identical_to(&mut self, s: &'cx ty::Ty<'cx>, t: &'cx ty::Ty<'cx>) -> bool {
+        self.is_type_related_to(s, t, relation::RelationKind::Identity)
+    }
+
+    fn is_ty_closely_matched_by(s: &'cx ty::Ty<'cx>, t: &'cx ty::Ty<'cx>) -> bool {
+        if s.kind.is_object() && t.kind.is_object() {
+            let s_symbol = s.symbol();
+            s_symbol.is_some() && s_symbol == t.symbol()
+        } else {
+            // TODO: alias_symbol
+            false
+        }
+    }
+
+    pub fn each_union_contains(
+        &self,
+        union_tys: &[&'cx ty::Ty<'cx>],
+        ty: &'cx ty::Ty<'cx>,
+    ) -> bool {
+        for t in union_tys {
+            let Some(u) = t.kind.as_union() else {
+                unreachable!()
+            };
+
+            if !contains_ty(u.tys, ty) {
+                // TODO: missing_ty, undefined_ty
+                // if ty == self.undefined_ty {
+                //     return
+                // }
+
+                let primitive = if ty.flags.intersects(TypeFlags::STRING_LITERAL) {
+                    self.string_ty
+                } else if ty.flags.intersects(TypeFlags::NUMBER_LITERAL) {
+                    self.number_ty
+                } else {
+                    return false;
+                };
+                if !contains_ty(u.tys, primitive) {
+                    return false;
+                }
+            }
+        }
+
+        true
     }
 }
 

@@ -586,6 +586,22 @@ impl<'cx> TyChecker<'cx> {
         mapper.get_mapped_ty(ty, self)
     }
 
+    pub(super) fn get_true_ty_from_cond_ty(&mut self, ty: &'cx Ty<'cx>) -> &'cx Ty<'cx> {
+        // TODO: cache
+        let cond_ty = ty.kind.expect_cond_ty();
+        let true_ty = self.get_ty_from_type_node(cond_ty.root.node.true_ty);
+        let true_ty = self.instantiate_ty(true_ty, cond_ty.mapper);
+        true_ty
+    }
+
+    pub(super) fn get_false_ty_from_cond_ty(&mut self, ty: &'cx Ty<'cx>) -> &'cx Ty<'cx> {
+        // TODO: cache
+        let cond_ty = ty.kind.expect_cond_ty();
+        let false_ty = self.get_ty_from_type_node(cond_ty.root.node.false_ty);
+        let false_ty = self.instantiate_ty(false_ty, cond_ty.mapper);
+        false_ty
+    }
+
     pub(super) fn get_cond_ty(
         &mut self,
         mut root: &'cx ty::CondTyRoot<'cx>,
@@ -837,23 +853,23 @@ impl<'cx> TyChecker<'cx> {
 
     pub(super) fn get_number_literal_type(&mut self, val: f64) -> &'cx Ty<'cx> {
         let key = F64Represent::new(val);
-        if let Some(id) = self.num_lit_tys.get(&key) {
-            self.tys[id.as_usize()]
+        if let Some(ty) = self.num_lit_tys.get(&key) {
+            ty
         } else {
             let kind = TyKind::NumberLit(self.alloc(ty::NumberLitTy { val }));
             let ty = self.new_ty(kind, TypeFlags::NUMBER_LITERAL);
-            self.num_lit_tys.insert(key, ty.id);
+            self.num_lit_tys.insert(key, ty);
             ty
         }
     }
 
     pub(super) fn get_string_literal_type(&mut self, val: AtomId) -> &'cx Ty<'cx> {
-        if let Some(id) = self.string_lit_tys.get(&val) {
-            self.tys[id.as_usize()]
+        if let Some(ty) = self.string_lit_tys.get(&val) {
+            ty
         } else {
             let kind = TyKind::StringLit(self.alloc(ty::StringLitTy { val }));
             let ty = self.new_ty(kind, TypeFlags::STRING_LITERAL);
-            self.string_lit_tys.insert(val, ty.id);
+            self.string_lit_tys.insert(val, ty);
             ty
         }
     }

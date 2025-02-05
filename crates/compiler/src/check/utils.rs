@@ -8,6 +8,23 @@ pub fn append_if_unique<'a, T>(array: &mut Vec<&'a T>, value: &'a T) {
     }
 }
 
+pub fn insert_ty<'cx>(tys: &mut Vec<&'cx ty::Ty<'cx>>, ty: &'cx ty::Ty<'cx>) -> bool {
+    let id = ty.id.as_u32();
+    if let Err(pos) = tys.binary_search_by(|probe| probe.id.as_u32().cmp(&id)) {
+        tys.insert(pos, ty);
+        true
+    } else {
+        false
+    }
+}
+
+pub fn contains_ty<'cx>(tys: &[&'cx ty::Ty<'cx>], ty: &'cx ty::Ty<'cx>) -> bool {
+    debug_assert!(tys.is_sorted_by_key(|ty| ty.id.as_u32()));
+    let id = ty.id.as_u32();
+    tys.binary_search_by(|probe| probe.id.as_u32().cmp(&id))
+        .is_ok()
+}
+
 impl<'cx> TyChecker<'cx> {
     pub(super) fn filter_type(
         &mut self,
