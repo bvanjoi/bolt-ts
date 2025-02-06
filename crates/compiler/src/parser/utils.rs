@@ -129,7 +129,17 @@ impl<'cx> ParserState<'cx, '_> {
         use TokenKind::*;
         if matches!(
             self.token.kind,
-            String | Number | LBrace | LBracket | DotDotDot | Typeof | Null | Undefined | Void
+            LBrace
+                | LBracket
+                | DotDotDot
+                | Typeof
+                | String
+                | Number
+                | Null
+                | Undefined
+                | Void
+                | True
+                | False
         ) {
             true
         } else {

@@ -338,7 +338,29 @@ impl<'cx> TyChecker<'cx> {
     }
 
     fn get_tuple_base_ty(&mut self, ty: &'cx ty::Ty<'cx>) -> &'cx ty::Ty<'cx> {
-        self.create_array_ty(self.never_ty)
+        let ty = ty.kind.expect_object_tuple();
+        let element_tys = ty
+            .ty_params()
+            .unwrap_or_default()
+            .iter()
+            .enumerate()
+            .map(|(idx, ty_arg)| {
+                if ty.element_flags[idx].intersects(ty::ElementFlags::VARIADIC) {
+                    self.get_indexed_access_ty(ty_arg, self.number_ty, None, None)
+                } else {
+                    ty_arg
+                }
+            })
+            .collect::<Vec<_>>();
+        let ty = self.get_union_ty(
+            if element_tys.is_empty() {
+                self.empty_array()
+            } else {
+                &element_tys
+            },
+            ty::UnionReduction::Lit,
+        );
+        self.create_array_ty(ty)
     }
 
     fn get_base_tys(&mut self, ty: &'cx ty::Ty<'cx>) -> ty::Tys<'cx> {
@@ -347,7 +369,8 @@ impl<'cx> TyChecker<'cx> {
         }
         if self.push_ty_resolution(ResolutionKey::ResolvedBaseTypes(ty.id)) {
             if ty.kind.is_tuple() {
-                let base_ty = self.get_tuple_base_ty(ty);
+                let r = ty.kind.expect_object_reference();
+                let base_ty = self.get_tuple_base_ty(r.target);
                 let tys = self.alloc(vec![base_ty]);
                 self.get_mut_ty_links(ty.id).set_resolved_base_tys(tys);
                 return tys;
@@ -382,6 +405,7 @@ impl<'cx> TyChecker<'cx> {
     fn resolve_object_type_members(
         &mut self,
         ty: &'cx ty::Ty<'cx>,
+        source: &'cx ty::Ty<'cx>,
         declared: &'cx ty::DeclaredMembers<'cx>,
         ty_params: ty::Tys<'cx>,
         ty_args: ty::Tys<'cx>,
@@ -390,6 +414,8 @@ impl<'cx> TyChecker<'cx> {
             return;
         }
 
+        let mapper: Option<&'cx dyn ty::TyMap<'cx>>;
+        // TODO: use source type
         let base_tys = self.get_base_tys(ty);
 
         let base_ctor_ty = if ty.symbol().is_some_and(|symbol| {
@@ -408,6 +434,7 @@ impl<'cx> TyChecker<'cx> {
         let mut ctor_sigs;
         let mut index_infos;
         if Self::range_eq(ty_params, ty_args, 0, ty_params.len()) {
+            mapper = None;
             members = ty
                 .symbol()
                 .map(|symbol| self.members(symbol).clone())
@@ -429,27 +456,38 @@ impl<'cx> TyChecker<'cx> {
             ctor_sigs = declared.ctor_sigs.to_vec();
             index_infos = declared.index_infos.to_vec();
         } else {
-            let mapper = self.create_ty_mapper(ty_params, ty_args);
+            let m = self.create_ty_mapper(ty_params, ty_args);
+            mapper = Some(m);
             members =
-                self.create_instantiated_symbol_table(declared.props, mapper, ty_params.len() == 1);
-            call_sigs = self.instantiate_sigs(declared.call_sigs, mapper).to_vec();
-            ctor_sigs = self.instantiate_sigs(declared.ctor_sigs, mapper).to_vec();
+                self.create_instantiated_symbol_table(declared.props, m, ty_params.len() == 1);
+            call_sigs = self.instantiate_sigs(declared.call_sigs, m).to_vec();
+            ctor_sigs = self.instantiate_sigs(declared.ctor_sigs, m).to_vec();
             index_infos = self
-                .instantiate_index_infos(declared.index_infos, mapper)
+                .instantiate_index_infos(declared.index_infos, m)
                 .to_vec();
         }
 
+        let this_arg = ty_params.last();
         for base_ty in base_tys {
-            let props = self.get_props_of_ty(base_ty);
+            let instantiated_base_ty = if let Some(this_arg) = this_arg {
+                let ty = self.instantiate_ty(base_ty, mapper);
+                self.get_ty_with_this_arg(ty, Some(this_arg))
+            } else {
+                base_ty
+            };
+            let props = self.get_props_of_ty(instantiated_base_ty);
             self.add_inherited_members(&mut members, props);
             // TODO: instantiate them
-            call_sigs.extend(self.signatures_of_type(base_ty, SigKind::Call).iter());
+            call_sigs.extend(
+                self.signatures_of_type(instantiated_base_ty, SigKind::Call)
+                    .iter(),
+            );
             ctor_sigs.extend(
-                self.signatures_of_type(base_ty, SigKind::Constructor)
+                self.signatures_of_type(instantiated_base_ty, SigKind::Constructor)
                     .iter(),
             );
             let inherited_index_infos = self
-                .index_infos_of_ty(base_ty)
+                .index_infos_of_ty(instantiated_base_ty)
                 .iter()
                 .filter(|info| self.find_index_info(&index_infos, info.key_ty).is_none())
                 .collect::<Vec<_>>();
@@ -475,7 +513,7 @@ impl<'cx> TyChecker<'cx> {
 
     fn resolve_interface_members(&mut self, ty: &'cx ty::Ty<'cx>) {
         let declared_members = ty.kind.expect_object_interface().declared_members;
-        self.resolve_object_type_members(ty, declared_members, &[], &[]);
+        self.resolve_object_type_members(ty, ty, declared_members, &[], &[]);
     }
 
     fn resolve_reference_members(&mut self, ty: &'cx ty::Ty<'cx>) {
@@ -507,7 +545,13 @@ impl<'cx> TyChecker<'cx> {
             self.alloc(padded_type_arguments)
         };
         let declared_members = i.declared_members;
-        self.resolve_object_type_members(ty, declared_members, ty_params, padded_type_arguments);
+        self.resolve_object_type_members(
+            ty,
+            target,
+            declared_members,
+            ty_params,
+            padded_type_arguments,
+        );
     }
 
     fn get_default_construct_sigs(&mut self, ty: &'cx ty::Ty<'cx>) -> &'cx [&'cx ty::Sig<'cx>] {

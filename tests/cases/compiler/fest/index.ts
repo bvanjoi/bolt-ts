@@ -4,6 +4,26 @@ function n(): never {
   throw new Error();
 }
 
+// =========== And ===========
+
+type And<A extends boolean, B extends boolean> = [A, B][number] extends true
+	? true
+	: true extends [IsEqual<A, false>, IsEqual<B, false>][number]
+		? false
+		: never;
+
+{
+  declare const never: never;
+
+  // const a1: And<true, true> = true;
+  // const a2: And<true, false> = false;
+  // const a3: And<false, true> = false;
+  // const a4: And<false, false> = false;
+  // const a5: And<true, boolean> = never;
+  // const a6: And<false, boolean> = false;
+  // const a7: And<boolean, boolean> = never;
+}
+
 // =========== ifNever ===========
 type IfNever<T, TypeIfNever = true, TypeIfNotNever = false> = (
 	IsNever<T> extends true ? TypeIfNever : TypeIfNotNever
@@ -56,14 +76,17 @@ type IsEqual<A, B> =
   type B = IsEqual<number>;
 	//~^ ERROR: Generic type 'IsEqual' requires 2 type arguments.
 
-  // type UnionType0 = IsEqual<{a: 1}, {a: 1}>;
-  // const a60: UnionType0 = true;
+  type UnionType0 = IsEqual<{a: 1}, {a: 1}>;
+  const a60: UnionType0 = true;
 
-	// type UnionType1 = IsEqual<{a: 1} & {a: 1}, {a: 1}>;
-  // const a61: UnionType1 = true;
+	type UnionType1 = IsEqual<{a: 1} & {a: 1}, {a: 1}>;
+  const a61: UnionType1 = true;
 
-  // type IntersectionType = IsEqual<{a: 1} | {a: 1}, {a: 1}>;
-  // const a7: IntersectionType = true;
+  type UnionType2 = IsEqual<{a: 1} & {a: 2}, {a: 1}>;
+  const a62: UnionType2 = false;
+
+  type IntersectionType = IsEqual<{a: 1} | {a: 1}, {a: 1}>;
+  const a7: IntersectionType = true;
 }
 
 // =========== isNever ===========
@@ -104,7 +127,6 @@ type IsNull<T> = [T] extends [null] ? true : false;
 }
 
 // =========== isUnknown ===========
-
 type IsUnknown<T> = (
 	unknown extends T // `T` can be `unknown` or `any`
 		? IsNull<T> extends false // `any` can be `null`, but `unknown` can't be

@@ -35,7 +35,9 @@ pub const fn keyword_idx_to_token(idx: usize) -> TokenKind {
 pub enum TokenKind {
     // =====
     EOF,
+    /// number literal
     Number,
+    /// string literal
     String,
     Ident,
     NoSubstitutionTemplate,

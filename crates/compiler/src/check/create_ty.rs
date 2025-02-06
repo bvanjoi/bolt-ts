@@ -94,7 +94,12 @@ impl<'cx> TyChecker<'cx> {
         if !target.combined_flags.intersects(ElementFlags::NON_REQUIRED) {
             return self.create_reference_ty(ty, element_types, ObjectFlags::empty());
         } else if target.combined_flags.intersects(ElementFlags::VARIABLE) {
-            // TODO:
+            if let Some(_) = element_types.iter().enumerate().position(|(i, t)| {
+                target.element_flags[i].intersects(ElementFlags::VARIADIC)
+                    && t.flags.intersects(TypeFlags::NEVER | TypeFlags::UNION)
+            }) {
+                // TODO:
+            }
         }
 
         let mut expanded_tys = Vec::with_capacity(element_types.len());
@@ -121,15 +126,15 @@ impl<'cx> TyChecker<'cx> {
             expanded_flags.push(flags);
         };
 
-        for (i, ele) in element_types.iter().enumerate() {
+        for (i, ty) in element_types.iter().enumerate() {
             let flag = target.element_flags[i];
             if flag.intersects(ElementFlags::VARIADIC) {
-                if ele.flags.intersects(TypeFlags::ANY) {
+                if ty.flags.intersects(TypeFlags::ANY) {
                     todo!()
-                } else if ele.kind.is_instantiable_non_primitive() {
-                    add_ele(ele, ElementFlags::VARIADIC);
-                } else if ele.kind.is_tuple() {
-                    let tuple = ele
+                } else if ty.kind.is_instantiable_non_primitive() {
+                    add_ele(ty, ElementFlags::VARIADIC);
+                } else if ty.kind.is_tuple() {
+                    let tuple = ty
                         .kind
                         .expect_object_reference()
                         .target
@@ -138,7 +143,7 @@ impl<'cx> TyChecker<'cx> {
                     for i in 0..tuple.resolved_ty_args.len() {
                         add_ele(tuple.resolved_ty_args[i], tuple.element_flags[i]);
                     }
-                } else if let Some(tuple) = ele.kind.as_object_tuple() {
+                } else if let Some(tuple) = ty.kind.as_object_tuple() {
                     for i in 0..tuple.resolved_ty_args.len() {
                         add_ele(tuple.resolved_ty_args[i], tuple.element_flags[i]);
                     }
@@ -146,7 +151,7 @@ impl<'cx> TyChecker<'cx> {
                     todo!()
                 }
             } else {
-                add_ele(ele, flag)
+                add_ele(ty, flag)
             }
         }
 

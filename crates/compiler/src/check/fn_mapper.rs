@@ -1,4 +1,4 @@
-use super::TyChecker;
+use super::{links, TyChecker};
 use crate::ty;
 
 #[derive(Debug, Clone, Copy)]
@@ -45,9 +45,10 @@ impl<'cx> ty::TyMap<'cx> for RestrictiveMapper {
             let restrictive_instantiation =
                 checker.create_param_ty(param.symbol, param.offset, false);
             let no_constraint_ty = checker.no_constraint_ty();
-            checker
-                .get_mut_ty_links(restrictive_instantiation.id)
-                .set_param_ty_constraint(no_constraint_ty);
+            checker.ty_links.insert(
+                restrictive_instantiation.id,
+                links::TyLinks::default().with_param_ty_constraint(no_constraint_ty),
+            );
             checker
                 .get_mut_ty_links(ty.id)
                 .set_restrictive_instantiation(restrictive_instantiation);

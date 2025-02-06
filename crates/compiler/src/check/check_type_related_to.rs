@@ -730,13 +730,55 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
             }
         }
 
+        // TODO: handle `source/target.kind.readonly` and `isMutableArrayOrTuple`
+        if (source.kind.is_single_element_generic_tuple_type() && {
+            let ty_arg = source.kind.expect_object_reference().resolved_ty_args[0];
+            result = self.is_related_to(
+                ty_arg,
+                target,
+                RecursionFlags::SOURCE,
+                false,
+                IntersectionState::empty(),
+            );
+            result != Ternary::FALSE
+        }) || (target.kind.is_single_element_generic_tuple_type() && {
+            let ty_arg = target.kind.expect_object_reference().resolved_ty_args[0];
+            result = self.is_related_to(
+                source,
+                ty_arg,
+                RecursionFlags::TARGET,
+                false,
+                IntersectionState::empty(),
+            );
+            result != Ternary::FALSE
+        }) {
+            return result;
+        }
+
         if let Some(_) = target.kind.as_cond_ty() {
             if self.c.is_deeply_nested_type(target, &self.target_stack, 10) {
                 return Ternary::FALSE;
             }
         }
 
-        if let Some(source_cond) = source.kind.as_cond_ty() {
+        if source.flags.intersects(TypeFlags::TYPE_VARIABLE) {
+            if !(source.kind.is_indexed_access() && target.kind.is_indexed_access()) {
+                let constraint = self
+                    .c
+                    .get_constraint_of_ty(source)
+                    .unwrap_or(self.c.unknown_ty);
+                result = self.is_related_to(
+                    constraint,
+                    target,
+                    RecursionFlags::SOURCE,
+                    false,
+                    intersection_state,
+                );
+                if result != Ternary::FALSE {
+                    return result;
+                }
+            }
+        } else if let Some(source_cond) = source.kind.as_cond_ty() {
             if self.c.is_deeply_nested_type(source, &self.target_stack, 10) {
                 return Ternary::FALSE;
             } else if let Some(target_cond) = target.kind.as_cond_ty() {
@@ -825,7 +867,7 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
         if target.kind.is_array(self.c)
             && self
                 .c
-                .every_type(source, |_, t| t.kind.is_tuple() || t.kind.is_object_tuple())
+                .every_type(source, |this, t| this.is_array_or_tuple(t))
         {
             return if self.relation != RelationKind::Identity {
                 let source = self

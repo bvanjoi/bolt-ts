@@ -491,7 +491,7 @@ impl<'cx> TyChecker<'cx> {
                     ObjectTyKind::Reference(ty) => recur(ty.target.kind.expect_object()),
                     ObjectTyKind::Interface(ty) => ty.symbol,
                     ObjectTyKind::Anonymous(ty) => ty.symbol,
-                    _ => unreachable!(),
+                    _ => unreachable!("{ty:#?}"),
                 }
             }
             let symbol = recur(ty);

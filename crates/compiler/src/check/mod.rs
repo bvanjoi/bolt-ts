@@ -56,7 +56,7 @@ use bolt_ts_config::NormalizedCompilerOptions;
 use bolt_ts_utils::{fx_hashmap_with_capacity, fx_hashset_with_capacity};
 use fn_mapper::{PermissiveMapper, RestrictiveMapper};
 use get_variances::VarianceFlags;
-use instantiation_ty_map::UnionOrIntersectionMap;
+use instantiation_ty_map::{IndexedAccessTyMap, UnionOrIntersectionMap};
 use rustc_hash::{FxBuildHasher, FxHashMap, FxHashSet};
 use transient_symbol::{create_transient_symbol, TransientSymbol};
 use utils::contains_ty;
@@ -146,6 +146,7 @@ pub struct TyChecker<'cx> {
     string_lit_tys: FxHashMap<AtomId, &'cx ty::Ty<'cx>>,
     union_tys: UnionOrIntersectionMap<'cx>,
     intersection_tys: UnionOrIntersectionMap<'cx>,
+    indexed_access_tys: IndexedAccessTyMap<'cx>,
     type_name: FxHashMap<TyID, String>,
     tuple_tys: FxHashMap<u64, &'cx ty::Ty<'cx>>,
     transient_symbols: Vec<TransientSymbol<'cx>>,
@@ -366,6 +367,7 @@ impl<'cx> TyChecker<'cx> {
             string_lit_tys: fx_hashmap_with_capacity(1024 * 8),
             union_tys: UnionOrIntersectionMap::new(1024 * 8),
             intersection_tys: UnionOrIntersectionMap::new(1024 * 8),
+            indexed_access_tys: IndexedAccessTyMap::new(1024 * 8),
             instantiation_ty_map: InstantiationTyMap::new(1024 * 16),
             mark_tys: fx_hashset_with_capacity(1024 * 4),
             transient_symbols,
@@ -659,7 +661,7 @@ impl<'cx> TyChecker<'cx> {
             self.global_number_ty()
         } else if ty.flags.intersects(TypeFlags::STRING_LIKE) {
             self.global_string_ty()
-        } else if ty.is_boolean_like() || ty == self.boolean_ty() {
+        } else if ty.flags.intersects(TypeFlags::BOOLEAN_LIKE) {
             self.global_boolean_ty()
         } else {
             ty

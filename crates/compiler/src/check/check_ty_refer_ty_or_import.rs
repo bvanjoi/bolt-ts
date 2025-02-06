@@ -40,9 +40,58 @@ impl<'cx> TyChecker<'cx> {
     ) -> Option<&'cx ty::Ty<'cx>> {
         if ty.kind.is_param() {
             self.get_constraint_of_ty_param(ty)
+        } else if ty.kind.is_indexed_access() {
+            self.get_constraint_of_indexed_access(ty)
         } else {
             None
         }
+    }
+
+    fn get_constraint_of_indexed_access(
+        &mut self,
+        ty: &'cx ty::Ty<'cx>,
+    ) -> Option<&'cx ty::Ty<'cx>> {
+        if self.has_non_circular_constraint(ty) {
+            self.get_constraint_from_indexed_access(ty)
+        } else {
+            None
+        }
+    }
+
+    fn get_constraint_from_indexed_access(
+        &mut self,
+        ty: &'cx ty::Ty<'cx>,
+    ) -> Option<&'cx ty::Ty<'cx>> {
+        let indexed_access_ty = ty.kind.expect_indexed_access();
+        if let Some(index_constraint) =
+            self.get_simplified_ty_or_constraint(indexed_access_ty.index_ty)
+        {
+            if index_constraint != indexed_access_ty.index_ty {
+                if let Some(indexed_access) = self.get_indexed_access_ty_or_undefined(
+                    indexed_access_ty.object_ty,
+                    index_constraint,
+                    Some(indexed_access_ty.access_flags),
+                    None,
+                ) {
+                    return Some(indexed_access);
+                }
+            }
+        }
+
+        if let Some(object_constraint) =
+            self.get_simplified_ty_or_constraint(indexed_access_ty.object_ty)
+        {
+            if object_constraint != indexed_access_ty.object_ty {
+                return self.get_indexed_access_ty_or_undefined(
+                    object_constraint,
+                    indexed_access_ty.index_ty,
+                    Some(indexed_access_ty.access_flags),
+                    None,
+                );
+            }
+        }
+
+        None
     }
 
     pub(super) fn get_constraint_of_ty_param(

@@ -2,7 +2,7 @@ use bolt_ts_atom::AtomId;
 
 use super::create_ty::IntersectionFlags;
 use super::ty::{self, Ty, TyKind};
-use super::{errors, ResolutionKey};
+use super::{errors, IndexedAccessTyMap, ResolutionKey};
 use super::{CheckMode, F64Represent, InferenceContextId, PropName, TyChecker};
 use crate::ast;
 
@@ -383,11 +383,15 @@ impl<'cx> TyChecker<'cx> {
 
     pub(super) fn get_indexed_access_ty_or_undefined(
         &mut self,
-        object_ty: &'cx Ty<'cx>,
+        mut object_ty: &'cx Ty<'cx>,
         index_ty: &'cx Ty<'cx>,
         access_flags: Option<AccessFlags>,
         access_node: Option<ast::NodeID>,
     ) -> Option<&'cx Ty<'cx>> {
+        if object_ty == self.wildcard_ty || index_ty == self.wildcard_ty {
+            return Some(self.undefined_ty);
+        }
+        object_ty = self.get_reduced_ty(object_ty);
         let mut access_flags = access_flags.unwrap_or(AccessFlags::empty());
         let is_generic_index = if index_ty.kind.is_generic_index_ty() {
             true
@@ -402,13 +406,19 @@ impl<'cx> TyChecker<'cx> {
         };
 
         if is_generic_index {
-            access_flags.insert(AccessFlags::PERSISTENT);
+            let persistent_access_flags = access_flags.intersection(AccessFlags::PERSISTENT);
+            let id = IndexedAccessTyMap::create_id(persistent_access_flags, object_ty, index_ty);
+            if let Some(ty) = self.indexed_access_tys.get(id) {
+                return Some(ty);
+            }
             let ty = self.alloc(ty::IndexedAccessTy {
                 object_ty,
                 index_ty,
-                access_flags,
+                access_flags: persistent_access_flags,
             });
-            return Some(self.new_ty(ty::TyKind::IndexedAccess(ty), TypeFlags::INDEXED_ACCESS));
+            let ty = self.new_ty(ty::TyKind::IndexedAccess(ty), TypeFlags::INDEXED_ACCESS);
+            self.indexed_access_tys.insert(id, ty);
+            return Some(ty);
         };
 
         let apparent_object_ty = self.get_reduced_apparent_ty(object_ty);

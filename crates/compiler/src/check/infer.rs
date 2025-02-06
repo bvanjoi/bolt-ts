@@ -313,7 +313,23 @@ impl<'cx> TyChecker<'cx> {
         ty: &'cx ty::Ty<'cx>,
         this_arg: Option<&'cx ty::Ty<'cx>>,
     ) -> &'cx ty::Ty<'cx> {
-        if let Some(i) = ty.kind.as_intersection() {
+        if let Some(_) = ty.kind.as_object_reference() {
+            ty
+            // let target = r.target.kind.expect_object_interface();
+            // let ty_args = r.resolved_ty_args;
+            // if target
+            //     .ty_params
+            //     .map(|ty_params| ty_params.len())
+            //     .unwrap_or_default()
+            //     == ty_args.len()
+            // {
+            //     let mut ty_args = ty_args.to_vec();
+            //     ty_args.push(this_arg.unwrap_or(target.this_ty.unwrap()));
+            //     self.create_reference_ty(r.target, self.alloc(ty_args), ObjectFlags::empty())
+            // } else {
+            //     ty
+            // }
+        } else if let Some(i) = ty.kind.as_intersection() {
             let tys = self.same_map(Some(i.tys), |this, ty, _| {
                 this.get_ty_with_this_arg(ty, this_arg)
             });

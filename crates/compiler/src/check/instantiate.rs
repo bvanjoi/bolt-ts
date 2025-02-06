@@ -189,6 +189,12 @@ impl<'cx> TyChecker<'cx> {
                 self.create_normalized_ty_reference(refer.target, new_ty_args)
             }
         } else if let Some(a) = ty.kind.as_object_anonymous() {
+            let object_flags = ty.get_object_flags();
+            let target = if object_flags.intersects(ObjectFlags::INSTANTIATED) {
+                a.target.unwrap()
+            } else {
+                ty
+            };
             let s = self.binder.symbol(a.symbol);
             let decl = if let Some(decl) = s.opt_decl() {
                 decl
@@ -213,16 +219,16 @@ impl<'cx> TyChecker<'cx> {
             };
             if !ty_params.is_empty() {
                 // TODO: alias_symbol
-                let ty_params_id = InstantiationTyMap::create_id(ty.id, ty_params);
-                if !self.instantiation_ty_map.contain(ty_params_id) {
-                    self.instantiation_ty_map.insert(ty_params_id, ty);
+                let target_ty_params_id = InstantiationTyMap::create_id(target.id, ty_params);
+                if !self.instantiation_ty_map.contain(target_ty_params_id) {
+                    self.instantiation_ty_map.insert(target_ty_params_id, ty);
                 }
                 let combined_mapper = self.combine_ty_mappers(a.mapper, mapper);
                 let ty_args = ty_params
                     .iter()
                     .map(|t| self.get_mapped_ty(combined_mapper, t))
                     .collect::<Vec<_>>();
-                let id = InstantiationTyMap::create_id(ty.id, &ty_args);
+                let id = InstantiationTyMap::create_id(target.id, &ty_args);
                 if let Some(instantiated) = self.instantiation_ty_map.get(id) {
                     return instantiated;
                 }

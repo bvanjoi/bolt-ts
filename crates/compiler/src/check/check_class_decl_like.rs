@@ -111,7 +111,7 @@ impl<'cx> TyChecker<'cx> {
                 };
                 if t == self.error_ty {
                     continue;
-                } else if t.flags.intersects(TypeFlags::PRIMITIVE) || t == self.boolean_ty() {
+                } else if t.flags.intersects(TypeFlags::PRIMITIVE) {
                     let error = errors::AClassCannotImplementAPrimTy {
                         span: ty_ref_node.span,
                         ty: self.print_ty(t).to_string(),

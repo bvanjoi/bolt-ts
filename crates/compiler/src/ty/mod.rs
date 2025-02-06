@@ -249,10 +249,6 @@ impl<'cx> Ty<'cx> {
         }
     }
 
-    pub fn is_boolean_like(&self) -> bool {
-        self.flags.intersects(TypeFlags::BOOLEAN_LIKE)
-    }
-
     pub fn maybe_type_of_kind(&self, flags: TypeFlags) -> bool {
         if self.flags.intersects(flags) {
             true
@@ -301,6 +297,13 @@ impl<'cx> TyKind<'cx> {
 
     pub fn is_generic(&self) -> bool {
         !self.get_generic_object_flags().is_empty()
+    }
+
+    pub fn is_single_element_generic_tuple_type(&self) -> bool {
+        self.is_generic_tuple_type() && {
+            let r = self.expect_object_reference();
+            r.target.kind.expect_object_tuple().element_flags.len() == 1
+        }
     }
 
     pub fn is_generic_tuple_type(&self) -> bool {

@@ -21,6 +21,7 @@ normalized_option!(
     (strict, bool),
     (strict_null_checks, bool),
     (no_implicit_any, bool),
+    (no_unchecked_indexed_access, bool)
 );
 
 normalized_option!(

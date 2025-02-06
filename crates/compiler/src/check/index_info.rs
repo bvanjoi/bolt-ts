@@ -69,6 +69,7 @@ impl<'cx> TyChecker<'cx> {
     }
 
     pub(super) fn get_index_infos_of_ty(&mut self, ty: &'cx ty::Ty<'cx>) -> ty::IndexInfos<'cx> {
+        let ty = self.get_reduced_apparent_ty(ty);
         self.get_index_infos_of_structured_ty(ty)
     }
 
