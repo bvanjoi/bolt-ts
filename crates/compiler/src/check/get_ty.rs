@@ -576,10 +576,7 @@ impl<'cx> TyChecker<'cx> {
             let mapper = TyMapper::make_unary(sources[0], self.any_ty);
             self.alloc(mapper)
         } else {
-            let mapper = ty::ArrayTyMapper {
-                sources,
-                targets: None,
-            };
+            let mapper = ty::ArrayTyMapper::new(sources, None, self);
             self.alloc(TyMapper::Array(mapper))
         }
     }
@@ -654,6 +651,11 @@ impl<'cx> TyChecker<'cx> {
                 panic!()
             }
             let check_ty = self.instantiate_ty(root.check_ty, mapper);
+            // if mapper.is_some() {
+            //     if let Some(r) = check_ty.kind.as_object_reference() {
+            //         dbg!(r.resolved_ty_args);
+            //     }
+            // }
             let extends_ty = self.instantiate_ty(root.extends_ty, mapper);
             if check_ty == self.error_ty || extends_ty == self.error_ty {
                 return self.error_ty;
@@ -710,6 +712,7 @@ impl<'cx> TyChecker<'cx> {
                     || {
                         let source = self.get_restrictive_instantiation(effective_check_ty);
                         let target = self.get_restrictive_instantiation(inferred_extends_ty);
+                        // dbg!(source, target);
                         self.is_type_assignable_to(source, target)
                     }
                 {

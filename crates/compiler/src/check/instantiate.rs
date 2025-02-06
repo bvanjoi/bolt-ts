@@ -3,6 +3,7 @@ use crate::ty::{ObjectFlags, TypeFlags};
 use crate::{ast, ty};
 
 use super::create_ty::IntersectionFlags;
+use super::links::TyLinks;
 use super::{InstantiationTyMap, TyChecker};
 
 impl<'cx> TyChecker<'cx> {
@@ -328,33 +329,14 @@ impl<'cx> TyChecker<'cx> {
         } else if let Some(ty) = self.get_ty_links(ty.id).get_restrictive_instantiation() {
             ty
         } else {
-            let same = if ty.kind.is_param() {
-                if let Some(c) = self.param_ty_constraint(ty) {
-                    c == self.no_constraint_ty()
-                } else {
-                    self.get_constraint_decl(ty).is_none()
-                }
-            } else {
-                true
-            };
-
             let restrictive_instantiation = self.instantiate_ty(ty, Some(self.restrictive_mapper));
-
-            if same {
-                assert_eq!(
-                    restrictive_instantiation, ty,
-                    "should not instantiation a new type"
-                );
-                self.get_mut_ty_links(ty.id)
-                    .set_restrictive_instantiation(restrictive_instantiation);
-                return ty;
-            } else {
-                self.get_mut_ty_links(ty.id)
-                    .override_restrictive_instantiation(restrictive_instantiation);
-                self.get_mut_ty_links(restrictive_instantiation.id)
-                    .set_restrictive_instantiation(restrictive_instantiation);
-                restrictive_instantiation
-            }
+            self.get_mut_ty_links(ty.id)
+                .set_restrictive_instantiation(restrictive_instantiation);
+            self.ty_links.insert(
+                restrictive_instantiation.id,
+                TyLinks::default().with_restrictive_instantiation(restrictive_instantiation),
+            );
+            restrictive_instantiation
         }
     }
 
@@ -399,7 +381,7 @@ impl<'cx> TyChecker<'cx> {
     pub(super) fn get_type_alias_instantiation(
         &mut self,
         symbol: SymbolID,
-        args: ty::Tys<'cx>,
+        ty_args: ty::Tys<'cx>,
         alias_symbol: Option<SymbolID>,
         alias_ty_args: Option<ty::Tys<'cx>>,
     ) -> &'cx ty::Ty<'cx> {
@@ -409,8 +391,8 @@ impl<'cx> TyChecker<'cx> {
         };
         let min_params_count = self.get_min_ty_arg_count(Some(ty_params));
         // TODO: cache
-        let args = self.fill_missing_ty_args(Some(args), Some(ty_params), min_params_count);
-        let mapper = self.create_ty_mapper_with_optional_target(ty_params, args);
+        let ty_args = self.fill_missing_ty_args(Some(ty_args), Some(ty_params), min_params_count);
+        let mapper = self.create_ty_mapper_with_optional_target(ty_params, ty_args);
         self.instantiate_ty_with_alias(ty, mapper, alias_symbol, alias_ty_args)
     }
 

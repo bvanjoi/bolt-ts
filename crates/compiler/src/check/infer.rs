@@ -117,14 +117,10 @@ impl<'cx> TyChecker<'cx> {
         &mut self,
         id: InferenceContextId,
     ) -> &'cx dyn ty::TyMap<'cx> {
-        let sources = self
-            .inference(id)
-            .inferences
-            .iter()
-            .map(|i| i.ty_param)
-            .collect::<Vec<_>>();
+        let inferences = &self.inference(id).inferences;
+        let sources = inferences.iter().map(|i| i.ty_param).collect::<Vec<_>>();
         let sources = self.alloc(sources);
-        let targets = (0..self.inference(id).inferences.len())
+        let targets = (0..inferences.len())
             .map(|idx| {
                 // TODO: handle `!is_fixed`
                 self.get_inferred_ty(id, idx)
@@ -138,14 +134,10 @@ impl<'cx> TyChecker<'cx> {
         &mut self,
         id: InferenceContextId,
     ) -> &'cx dyn ty::TyMap<'cx> {
-        let sources = self
-            .inference(id)
-            .inferences
-            .iter()
-            .map(|i| i.ty_param)
-            .collect::<Vec<_>>();
+        let inferences = &self.inference(id).inferences;
+        let sources = inferences.iter().map(|i| i.ty_param).collect::<Vec<_>>();
         let sources = self.alloc(sources);
-        let targets = (0..self.inference(id).inferences.len())
+        let targets = (0..inferences.len())
             .map(|idx| self.get_inferred_ty(id, idx))
             .collect::<Vec<_>>();
         let targets = self.alloc(targets);

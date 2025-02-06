@@ -126,7 +126,7 @@ impl<'cx> TyChecker<'cx> {
         }
 
         if source.kind.is_object() && target.kind.is_object() {
-            // skip
+            // TODO: cache
         }
 
         if source.kind.is_structured_or_instantiable()

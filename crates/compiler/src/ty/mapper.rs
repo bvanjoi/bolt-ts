@@ -24,8 +24,29 @@ pub struct SimpleTyMapper<'cx> {
 
 #[derive(Clone, Copy, Debug)]
 pub struct ArrayTyMapper<'cx> {
-    pub sources: Tys<'cx>,
-    pub targets: Option<Tys<'cx>>,
+    pub mapper: &'cx [(&'cx Ty<'cx>, &'cx Ty<'cx>)],
+}
+
+impl<'cx> ArrayTyMapper<'cx> {
+    pub fn new(
+        sources: Tys<'cx>,
+        targets: Option<Tys<'cx>>,
+        checker: &TyChecker<'cx>,
+    ) -> ArrayTyMapper<'cx> {
+        assert!(sources.len() >= targets.map(|t| t.len()).unwrap_or_default());
+        let mut mapper = sources
+            .iter()
+            .enumerate()
+            .map(|(idx, &source)| {
+                assert!(source.kind.is_param());
+                let target = targets.map_or(checker.any_ty, |t| t[idx]);
+                (source, target)
+            })
+            .collect::<Vec<_>>();
+        mapper.sort_by_key(|(source, _)| source.id.as_u32());
+        let mapper = checker.alloc(mapper);
+        ArrayTyMapper { mapper }
+    }
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -55,18 +76,16 @@ impl<'cx> TyMap<'cx> for SimpleTyMapper<'cx> {
 }
 
 impl<'cx> TyMap<'cx> for ArrayTyMapper<'cx> {
-    fn get_mapped_ty(&self, ty: &'cx Ty<'cx>, checker: &mut TyChecker<'cx>) -> &'cx Ty<'cx> {
-        for (idx, source) in self.sources.iter().enumerate() {
-            assert!(source.kind.is_param());
-            if source.eq(&ty) {
-                if let Some(targets) = &self.targets {
-                    return targets[idx];
-                } else {
-                    return checker.any_ty;
-                }
-            }
-        }
-        ty
+    fn get_mapped_ty(&self, ty: &'cx Ty<'cx>, _: &mut TyChecker<'cx>) -> &'cx Ty<'cx> {
+        debug_assert!(
+            self.mapper
+                .is_sorted_by_key(|(source, _)| source.id.as_u32()),
+            "mapper must be sorted by source type, but got {:#?}",
+            self.mapper
+        );
+        self.mapper
+            .binary_search_by_key(&ty.id.as_u32(), |(source, _)| source.id.as_u32())
+            .map_or(ty, |idx| &self.mapper[idx].1)
     }
 }
 

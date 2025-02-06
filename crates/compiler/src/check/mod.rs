@@ -619,7 +619,7 @@ impl<'cx> TyChecker<'cx> {
         self.array_variances.get().unwrap()
     }
 
-    fn alloc<T>(&self, t: T) -> &'cx T {
+    pub(crate) fn alloc<T>(&self, t: T) -> &'cx T {
         self.arena.alloc(t)
     }
 
@@ -1847,17 +1847,10 @@ impl<'cx> TyChecker<'cx> {
         targets: ty::Tys<'cx>,
     ) -> &'cx ty::TyMapper<'cx> {
         let mapper = if sources.len() == 1 {
-            let target = if !targets.is_empty() {
-                targets[0]
-            } else {
-                self.any_ty
-            };
+            let target = targets.get(0).copied().unwrap_or(self.any_ty);
             ty::TyMapper::make_unary(sources[0], target)
         } else {
-            let mapper = ty::ArrayTyMapper {
-                sources,
-                targets: Some(targets),
-            };
+            let mapper = ty::ArrayTyMapper::new(sources, Some(targets), self);
             ty::TyMapper::Array(mapper)
         };
         self.alloc(mapper)
@@ -1925,7 +1918,6 @@ impl<'cx> TyChecker<'cx> {
                 }
             }
         }
-
         true
     }
 }
