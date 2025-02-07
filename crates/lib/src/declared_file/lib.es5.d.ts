@@ -813,8 +813,8 @@ interface ArrayConstructor {
   (arrayLength?: number): any[];
   <T>(arrayLength: number): T[];
   <T>(...items: T[]): T[];
-  // isArray(arg: any): arg is any[];
-  // readonly prototype: any[];
+  isArray(arg: any): arg is any[];
+  readonly prototype: any[];
 }
 
 declare var Array: ArrayConstructor;

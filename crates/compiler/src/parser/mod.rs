@@ -550,4 +550,14 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
             f(self)
         }
     }
+
+    #[inline]
+    fn in_context(&self, flags: NodeFlags) -> bool {
+        self.context_flags.intersects(flags)
+    }
+
+    #[inline]
+    fn in_disallow_in_context(&self) -> bool {
+        self.in_context(NodeFlags::DISALLOW_IN_CONTEXT)
+    }
 }

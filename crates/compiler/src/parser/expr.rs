@@ -201,26 +201,66 @@ impl<'cx> ParserState<'cx, '_> {
             self.re_scan_greater();
 
             let next_prec = self.token.kind.prec();
-            if next_prec <= prec {
+            let consume = if self.token.kind == TokenKind::AsteriskAsterisk {
+                next_prec >= prec
+            } else {
+                next_prec > prec
+            };
+            if !consume {
                 break Ok(left);
             }
-            let op = ast::BinOp {
-                kind: self.token.kind.into(),
-                span: self.token.span,
-            };
-            let bin_expr_id = self.next_node_id();
+            if self.token.kind == TokenKind::In && self.in_disallow_in_context() {
+                break Ok(left);
+            }
+
+            if matches!(self.token.kind, TokenKind::As | TokenKind::Satisfies) {
+                if self.has_preceding_line_break() {
+                    break Ok(left);
+                }
+            }
+
+            let t = self.token;
             self.next_token();
-            self.parent_map.r#override(left.id(), bin_expr_id);
-            let right = self.with_parent(bin_expr_id, |this| this.parse_binary_expr(next_prec))?;
-            let bin_expr = self.alloc(ast::BinExpr {
-                id: bin_expr_id,
-                left,
-                op,
-                right,
-                span: self.new_span(start as u32),
-            });
-            self.insert_map(bin_expr_id, ast::Node::BinExpr(bin_expr));
-            let kind = ast::ExprKind::Bin(bin_expr);
+            let next_expr_id = self.next_node_id();
+            self.parent_map.r#override(left.id(), next_expr_id);
+            let kind = if matches!(t.kind, TokenKind::As | TokenKind::Satisfies) {
+                let ty = self.with_parent(next_expr_id, Self::parse_ty)?;
+                let kind = if t.kind == TokenKind::Satisfies {
+                    let expr = self.alloc(ast::SatisfiesExpr {
+                        id: next_expr_id,
+                        span: self.new_span(start as u32),
+                        expr: left,
+                        ty,
+                    });
+                    ast::ExprKind::Satisfies(expr)
+                } else {
+                    let expr = self.alloc(ast::AsExpr {
+                        id: next_expr_id,
+                        span: self.new_span(start as u32),
+                        expr: left,
+                        ty,
+                    });
+                    ast::ExprKind::As(expr)
+                };
+                kind
+            } else {
+                let op = ast::BinOp {
+                    kind: t.kind.into(),
+                    span: t.span,
+                };
+                let right =
+                    self.with_parent(next_expr_id, |this| this.parse_binary_expr(next_prec))?;
+                let bin_expr = self.alloc(ast::BinExpr {
+                    id: next_expr_id,
+                    left,
+                    op,
+                    right,
+                    span: self.new_span(start as u32),
+                });
+                self.insert_map(next_expr_id, ast::Node::BinExpr(bin_expr));
+                let kind = ast::ExprKind::Bin(bin_expr);
+                kind
+            };
             left = self.alloc(ast::Expr { kind });
         }
     }

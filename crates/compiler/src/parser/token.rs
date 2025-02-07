@@ -66,6 +66,8 @@ pub enum TokenKind {
     MinusEq,
     /// `--`
     MinusMinus,
+    /// `**`
+    AsteriskAsterisk,
     /// `*=`
     AsteriskEq,
     /// `/=`

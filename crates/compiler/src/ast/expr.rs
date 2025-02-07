@@ -38,6 +38,8 @@ impl Expr<'_> {
             Typeof(n) => n.span,
             Super(n) => n.span,
             Void(n) => n.span,
+            As(n) => n.span,
+            Satisfies(n) => n.span,
         }
     }
 
@@ -69,6 +71,8 @@ impl Expr<'_> {
             Typeof(n) => n.id,
             Super(n) => n.id,
             Void(n) => n.id,
+            As(n) => n.id,
+            Satisfies(n) => n.id,
         }
     }
 }
@@ -100,6 +104,24 @@ pub enum ExprKind<'cx> {
     Super(&'cx SuperExpr),
     Typeof(&'cx TypeofExpr<'cx>),
     Void(&'cx VoidExpr<'cx>),
+    As(&'cx AsExpr<'cx>),
+    Satisfies(&'cx SatisfiesExpr<'cx>),
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct SatisfiesExpr<'cx> {
+    pub id: NodeID,
+    pub span: Span,
+    pub expr: &'cx Expr<'cx>,
+    pub ty: &'cx Ty<'cx>,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct AsExpr<'cx> {
+    pub id: NodeID,
+    pub span: Span,
+    pub expr: &'cx Expr<'cx>,
+    pub ty: &'cx Ty<'cx>,
 }
 
 #[derive(Debug, Clone, Copy)]

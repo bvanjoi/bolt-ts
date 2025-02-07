@@ -76,6 +76,12 @@ impl<'cx> Emit<'cx> {
                 self.emit_expr(n.expr);
             }
             Super(_) => self.content.p("super"),
+            As(n) => {
+                self.emit_expr(n.expr);
+            }
+            Satisfies(n) => {
+                self.emit_expr(n.expr);
+            }
         };
     }
 

@@ -105,6 +105,8 @@ pub enum Node<'cx> {
     VoidExpr(&'cx super::VoidExpr<'cx>),
     SuperExpr(&'cx super::SuperExpr),
     QualifiedName(&'cx super::QualifiedName<'cx>),
+    AsExpr(&'cx super::AsExpr<'cx>),
+    SatisfiesExpr(&'cx super::SatisfiesExpr<'cx>),
 
     // ty
     LitTy(&'cx super::LitTy),
@@ -529,724 +531,204 @@ impl<'cx> Node<'cx> {
 }
 
 macro_rules! as_node {
-    ($( ($kind:ident, $ty: ty, $as_kind: ident, $expect_kind: ident, $is_kind: ident)),* $(,)?) => {
-        impl<'cx> Node<'cx> {
-            pub fn id(&self) -> NodeID {
-                match self {
-                    $(Node::$kind(n) => n.id,)*
-                }
-            }
-
-            pub fn span(&self) -> Span {
-                match self {
-                    $(Node::$kind(n) => n.span,)*
-                }
-            }
-
-            $(
-                #[track_caller]
-                #[inline(always)]
-                pub fn $as_kind(&self) -> Option<$ty> {
-                    if let Node::$kind(n) = self {
-                        Some(n)
-                    } else {
-                        None
+    ($( ($kind:ident, $ty: ty, $name: ident)),* $(,)?) => {
+        paste::paste! {
+            impl<'cx> Node<'cx> {
+                pub fn id(&self) -> NodeID {
+                    match self {
+                        $(Node::$kind(n) => n.id,)*
                     }
                 }
-                #[track_caller]
-                #[inline(always)]
-                pub fn $is_kind(&self) -> bool {
-                    self.$as_kind().is_some()
+
+                pub fn span(&self) -> Span {
+                    match self {
+                        $(Node::$kind(n) => n.span,)*
+                    }
                 }
-                #[track_caller]
-                #[inline(always)]
-                pub fn $expect_kind(&self) -> $ty {
-                    self.$as_kind().unwrap()
-                }
-            )*
+
+                $(
+                    #[track_caller]
+                    #[inline(always)]
+                    pub fn [<as_ $name>](&self) -> Option<&'cx $ty> {
+                        if let Node::$kind(n) = self {
+                            Some(n)
+                        } else {
+                            None
+                        }
+                    }
+
+                    #[track_caller]
+                    #[inline(always)]
+                    pub fn [<is_ $name>](&self) -> bool {
+                        self.[<as_ $name>]().is_some()
+                    }
+
+                    #[track_caller]
+                    #[inline(always)]
+                    pub fn [<expect_ $name>](&self) -> &'cx $ty {
+                        self.[<as_ $name>]().unwrap()
+                    }
+                )*
+            }
         }
     };
 }
 
 as_node!(
-    (
-        Program,
-        &'cx super::Program<'cx>,
-        as_program,
-        expect_program,
-        is_program
-    ),
-    (
-        VarStmt,
-        &'cx super::VarStmt<'cx>,
-        as_var_stmt,
-        expect_var_stmt,
-        is_var_stmt
-    ),
-    (
-        ParamDecl,
-        &'cx super::ParamDecl<'cx>,
-        as_param_decl,
-        expect_param_decl,
-        is_param_decl
-    ),
-    (
-        FnDecl,
-        &'cx super::FnDecl<'cx>,
-        as_fn_decl,
-        expect_fn_decl,
-        is_fn_decl
-    ),
-    (
-        IfStmt,
-        &'cx super::IfStmt<'cx>,
-        as_if_stmt,
-        expect_if_stmt,
-        is_if_stmt
-    ),
-    (
-        RetStmt,
-        &'cx super::RetStmt<'cx>,
-        as_ret_stmt,
-        expect_ret_stmt,
-        is_ret_stmt
-    ),
-    (
-        EmptyStmt,
-        &'cx super::EmptyStmt,
-        as_empty_stmt,
-        expect_empty_stmt,
-        is_empty_stmt
-    ),
-    (
-        ClassDecl,
-        &'cx super::ClassDecl<'cx>,
-        as_class_decl,
-        expect_class_decl,
-        is_class_decl
-    ),
-    (
-        EnumDecl,
-        &'cx super::EnumDecl<'cx>,
-        as_enum_decl,
-        expect_enum_decl,
-        is_enum_decl
-    ),
-    (
-        NamespaceDecl,
-        &'cx super::NsDecl<'cx>,
-        as_namespace_decl,
-        expect_namespace_decl,
-        is_namespace_decl
-    ),
-    (
-        BlockStmt,
-        &'cx super::BlockStmt<'cx>,
-        as_block_stmt,
-        expect_block_stmt,
-        is_block_stmt
-    ),
-    (
-        VarDecl,
-        &'cx super::VarDecl<'cx>,
-        as_var_decl,
-        expect_var_decl,
-        is_var_decl
-    ),
-    (
-        BinExpr,
-        &'cx super::BinExpr<'cx>,
-        as_bin_expr,
-        expect_bin_expr,
-        is_bin_expr
-    ),
-    (
-        NumLit,
-        &'cx super::NumLit,
-        as_num_lit,
-        expect_num_lit,
-        is_num_lit
-    ),
-    (
-        BoolLit,
-        &'cx super::BoolLit,
-        as_bool_lit,
-        expect_bool_lit,
-        is_bool_lit
-    ),
-    (
-        NullLit,
-        &'cx super::NullLit,
-        as_null_lit,
-        expect_null_lit,
-        is_null_lit
-    ),
-    (
-        StringLit,
-        &'cx super::StringLit,
-        as_string_lit,
-        expect_string_lit,
-        is_string_lit
-    ),
-    (
-        ArrayLit,
-        &'cx super::ArrayLit<'cx>,
-        as_array_lit,
-        expect_array_lit,
-        is_array_lit
-    ),
-    (Ident, &'cx super::Ident, as_ident, expect_ident, is_ident),
-    (
-        OmitExpr,
-        &'cx super::OmitExpr,
-        as_omit_expr,
-        expect_omit_expr,
-        is_omit_expr
-    ),
-    (
-        ParenExpr,
-        &'cx super::ParenExpr<'cx>,
-        as_paren_expr,
-        expect_paren_expr,
-        is_paren_expr
-    ),
-    (
-        CondExpr,
-        &'cx super::CondExpr<'cx>,
-        as_cond_expr,
-        expect_cond_expr,
-        is_cond_expr
-    ),
-    (
-        EnumMember,
-        &'cx super::EnumMember<'cx>,
-        as_enum_member,
-        expect_enum_member,
-        is_enum_member
-    ),
+    (Program, super::Program<'cx>, program),
+    (VarStmt, super::VarStmt<'cx>, var_stmt),
+    (ParamDecl, super::ParamDecl<'cx>, param_decl),
+    (FnDecl, super::FnDecl<'cx>, fn_decl),
+    (IfStmt, super::IfStmt<'cx>, if_stmt),
+    (RetStmt, super::RetStmt<'cx>, ret_stmt),
+    (EmptyStmt, super::EmptyStmt, empty_stmt),
+    (ClassDecl, super::ClassDecl<'cx>, class_decl),
+    (EnumDecl, super::EnumDecl<'cx>, enum_decl),
+    (NamespaceDecl, super::NsDecl<'cx>, namespace_decl),
+    (BlockStmt, super::BlockStmt<'cx>, block_stmt),
+    (VarDecl, super::VarDecl<'cx>, var_decl),
+    (BinExpr, super::BinExpr<'cx>, bin_expr),
+    (NumLit, super::NumLit, num_lit),
+    (BoolLit, super::BoolLit, bool_lit),
+    (NullLit, super::NullLit, null_lit),
+    (StringLit, super::StringLit, string_lit),
+    (ArrayLit, super::ArrayLit<'cx>, array_lit),
+    (Ident, super::Ident, ident),
+    (OmitExpr, super::OmitExpr, omit_expr),
+    (ParenExpr, super::ParenExpr<'cx>, paren_expr),
+    (CondExpr, super::CondExpr<'cx>, cond_expr),
+    (EnumMember, super::EnumMember<'cx>, enum_member),
     (
         ObjectShorthandMember,
-        &'cx super::ObjectShorthandMember<'cx>,
-        as_object_shorthand_member,
-        expect_object_shorthand_member,
-        is_object_shorthand_member
+        super::ObjectShorthandMember<'cx>,
+        object_shorthand_member
     ),
     (
         ObjectPropMember,
-        &'cx super::ObjectPropMember<'cx>,
-        as_object_prop_member,
-        expect_object_prop_member,
-        is_object_prop_member
+        super::ObjectPropMember<'cx>,
+        object_prop_member
     ),
     (
         ObjectMethodMember,
-        &'cx super::ObjectMethodMember<'cx>,
-        as_object_method_member,
-        expect_object_method_member,
-        is_object_method_member
+        super::ObjectMethodMember<'cx>,
+        object_method_member
     ),
-    (
-        ObjectLit,
-        &'cx super::ObjectLit<'cx>,
-        as_object_lit,
-        expect_object_lit,
-        is_object_lit
-    ),
-    (
-        CallExpr,
-        &'cx super::CallExpr<'cx>,
-        as_call_expr,
-        expect_call_expr,
-        is_call_expr
-    ),
-    (
-        FnExpr,
-        &'cx super::FnExpr<'cx>,
-        as_fn_expr,
-        expect_fn_expr,
-        is_fn_expr
-    ),
-    (
-        NewExpr,
-        &'cx super::NewExpr<'cx>,
-        as_new_expr,
-        expect_new_expr,
-        is_new_expr
-    ),
-    (
-        AssignExpr,
-        &'cx super::AssignExpr<'cx>,
-        as_assign_expr,
-        expect_assign_expr,
-        is_assign_expr
-    ),
-    (
-        ArrayTy,
-        &'cx super::ArrayTy<'cx>,
-        as_array_ty,
-        expect_array_ty,
-        is_array_ty
-    ),
-    (
-        FnTy,
-        &'cx super::FnTy<'cx>,
-        as_fn_ty,
-        expect_fn_ty,
-        is_fn_ty
-    ),
-    (
-        CtorTy,
-        &'cx super::CtorTy<'cx>,
-        as_ctor_ty,
-        expect_ctor_ty,
-        is_ctor_ty
-    ),
-    (
-        LitTy,
-        &'cx super::LitTy,
-        as_lit_ty,
-        expect_lit_ty,
-        is_lit_ty
-    ),
-    (
-        ObjectLitTy,
-        &'cx super::ObjectLitTy<'cx>,
-        as_object_lit_ty,
-        expect_object_lit_ty,
-        is_object_lit_ty
-    ),
-    (
-        TyParam,
-        &'cx super::TyParam<'cx>,
-        as_ty_param,
-        expect_ty_param,
-        is_ty_param
-    ),
-    (
-        MappedTyParam,
-        &'cx super::MappedTyParam<'cx>,
-        as_mapped_ty_param,
-        expect_mapped_ty_param,
-        is_mapped_ty_param
-    ),
-    (
-        Modifier,
-        &'cx super::Modifier,
-        as_modifier,
-        expect_modifier,
-        is_modifier
-    ),
-    (
-        ClassPropElem,
-        &'cx super::ClassPropElem<'cx>,
-        as_class_prop_ele,
-        expect_class_prop_ele,
-        is_class_prop_ele
-    ),
+    (ObjectLit, super::ObjectLit<'cx>, object_lit),
+    (CallExpr, super::CallExpr<'cx>, call_expr),
+    (FnExpr, super::FnExpr<'cx>, fn_expr),
+    (NewExpr, super::NewExpr<'cx>, new_expr),
+    (AssignExpr, super::AssignExpr<'cx>, assign_expr),
+    (ArrayTy, super::ArrayTy<'cx>, array_ty),
+    (FnTy, super::FnTy<'cx>, fn_ty),
+    (CtorTy, super::CtorTy<'cx>, ctor_ty),
+    (LitTy, super::LitTy, lit_ty),
+    (ObjectLitTy, super::ObjectLitTy<'cx>, object_lit_ty),
+    (TyParam, super::TyParam<'cx>, ty_param),
+    (MappedTyParam, super::MappedTyParam<'cx>, mapped_ty_param),
+    (Modifier, super::Modifier, modifier),
+    (ClassPropElem, super::ClassPropElem<'cx>, class_prop_ele),
     (
         ClassMethodElem,
-        &'cx super::ClassMethodElem<'cx>,
-        as_class_method_ele,
-        expect_class_method_ele,
-        is_class_method_ele
+        super::ClassMethodElem<'cx>,
+        class_method_ele
     ),
-    (
-        ArrowFnExpr,
-        &'cx super::ArrowFnExpr<'cx>,
-        as_arrow_fn_expr,
-        expect_arrow_fn_expr,
-        is_arrow_fn_expr
-    ),
+    (ArrowFnExpr, super::ArrowFnExpr<'cx>, arrow_fn_expr),
     (
         PrefixUnaryExpr,
-        &'cx super::PrefixUnaryExpr<'cx>,
-        as_prefix_unary_expr,
-        expect_prefix_unary_expr,
-        is_prefix_unary_expr
+        super::PrefixUnaryExpr<'cx>,
+        prefix_unary_expr
     ),
     (
         PostfixUnaryExpr,
-        &'cx super::PostfixUnaryExpr<'cx>,
-        as_postfix_unary_expr,
-        expect_postfix_unary_expr,
-        is_postfix_unary_expr
+        super::PostfixUnaryExpr<'cx>,
+        postfix_unary_expr
     ),
-    (
-        ClassExpr,
-        &'cx super::ClassExpr<'cx>,
-        as_class_expr,
-        expect_class_expr,
-        is_class_expr
-    ),
+    (ClassExpr, super::ClassExpr<'cx>, class_expr),
     (
         ClassExtendsClause,
-        &'cx super::ClassExtendsClause<'cx>,
-        as_class_extends_clause,
-        expect_class_extends_clause,
-        is_class_extends_clause
+        super::ClassExtendsClause<'cx>,
+        class_extends_clause
     ),
     (
         ClassImplementsClause,
-        &'cx super::ClassImplementsClause<'cx>,
-        as_class_implements_clause,
-        expect_class_implements_clause,
-        is_class_implements_clause
+        super::ClassImplementsClause<'cx>,
+        class_implements_clause
     ),
     (
         InterfaceExtendsClause,
-        &'cx super::InterfaceExtendsClause<'cx>,
-        as_interface_extends_clause,
-        expect_interface_extends_clause,
-        is_interface_extends_clause
+        super::InterfaceExtendsClause<'cx>,
+        interface_extends_clause
     ),
-    (
-        IndexSigDecl,
-        &'cx super::IndexSigDecl<'cx>,
-        as_index_sig_decl,
-        expect_index_sig_decl,
-        is_index_sig_decl
-    ),
-    (
-        PropAccessExpr,
-        &'cx super::PropAccessExpr<'cx>,
-        as_prop_access_expr,
-        expect_prop_access_expr,
-        is_prop_access_expr
-    ),
-    (
-        TypeofExpr,
-        &'cx super::TypeofExpr<'cx>,
-        as_typeof_expr,
-        expect_typeof_expr,
-        is_typeof_expr
-    ),
-    (
-        VoidExpr,
-        &'cx super::VoidExpr<'cx>,
-        as_void_expr,
-        expect_void_expr,
-        is_void_expr
-    ),
-    (
-        EleAccessExpr,
-        &'cx super::EleAccessExpr<'cx>,
-        as_ele_access_expr,
-        expect_ele_access_expr,
-        is_ele_access_expr
-    ),
-    (
-        ClassCtor,
-        &'cx super::ClassCtor<'cx>,
-        as_class_ctor,
-        expect_class_ctor,
-        is_class_ctor
-    ),
-    (
-        GetterDecl,
-        &'cx super::GetterDecl<'cx>,
-        as_getter_decl,
-        expect_getter_decl,
-        is_getter_decl
-    ),
-    (
-        SetterDecl,
-        &'cx super::SetterDecl<'cx>,
-        as_setter_decl,
-        expect_setter_decl,
-        is_setter_decl
-    ),
-    (
-        CtorSigDecl,
-        &'cx super::CtorSigDecl<'cx>,
-        as_ctor_sig_decl,
-        expect_ctor_sig_decl,
-        is_ctor_sig_decl
-    ),
-    (
-        CallSigDecl,
-        &'cx super::CallSigDecl<'cx>,
-        as_call_sig_decl,
-        expect_call_sig_decl,
-        is_call_sig_decl
-    ),
-    (
-        InterfaceDecl,
-        &'cx super::InterfaceDecl<'cx>,
-        as_interface_decl,
-        expect_interface_decl,
-        is_interface_decl
-    ),
-    (
-        PropSignature,
-        &'cx super::PropSignature<'cx>,
-        as_prop_signature,
-        expect_prop_signature,
-        is_prop_signature
-    ),
+    (IndexSigDecl, super::IndexSigDecl<'cx>, index_sig_decl),
+    (PropAccessExpr, super::PropAccessExpr<'cx>, prop_access_expr),
+    (TypeofExpr, super::TypeofExpr<'cx>, typeof_expr),
+    (VoidExpr, super::VoidExpr<'cx>, void_expr),
+    (EleAccessExpr, super::EleAccessExpr<'cx>, ele_access_expr),
+    (ClassCtor, super::ClassCtor<'cx>, class_ctor),
+    (GetterDecl, super::GetterDecl<'cx>, getter_decl),
+    (SetterDecl, super::SetterDecl<'cx>, setter_decl),
+    (CtorSigDecl, super::CtorSigDecl<'cx>, ctor_sig_decl),
+    (CallSigDecl, super::CallSigDecl<'cx>, call_sig_decl),
+    (InterfaceDecl, super::InterfaceDecl<'cx>, interface_decl),
+    (PropSignature, super::PropSignature<'cx>, prop_signature),
     (
         MethodSignature,
-        &'cx super::MethodSignature<'cx>,
-        as_method_signature,
-        expect_method_signature,
-        is_method_signature
+        super::MethodSignature<'cx>,
+        method_signature
     ),
-    (
-        ThisExpr,
-        &'cx super::ThisExpr,
-        as_this_expr,
-        expect_this_expr,
-        is_this_expr
-    ),
-    (
-        TypeDecl,
-        &'cx super::TypeDecl<'cx>,
-        as_type_decl,
-        expect_type_decl,
-        is_type_decl
-    ),
-    (
-        RestTy,
-        &'cx super::RestTy<'cx>,
-        as_rest_ty,
-        expect_rest_ty,
-        is_rest_ty
-    ),
-    (
-        TupleTy,
-        &'cx super::TupleTy<'cx>,
-        as_tuple_ty,
-        expect_tuple_ty,
-        is_tuple_ty
-    ),
+    (ThisExpr, super::ThisExpr, this_expr),
+    (AsExpr, super::AsExpr<'cx>, as_expr),
+    (SatisfiesExpr, super::SatisfiesExpr<'cx>, satisfies_expr),
+    (TypeDecl, super::TypeDecl<'cx>, type_decl),
+    (RestTy, super::RestTy<'cx>, rest_ty),
+    (TupleTy, super::TupleTy<'cx>, tuple_ty),
     (
         IndexedAccessTy,
-        &'cx super::IndexedAccessTy<'cx>,
-        as_indexed_access_ty,
-        expect_indexed_access_ty,
-        is_indexed_access_ty
+        super::IndexedAccessTy<'cx>,
+        indexed_access_ty
     ),
-    (
-        CondTy,
-        &'cx super::CondTy<'cx>,
-        as_cond_ty,
-        expect_cond_ty,
-        is_cond_ty
-    ),
-    (
-        ReferTy,
-        &'cx super::ReferTy<'cx>,
-        as_refer_ty,
-        expect_refer_ty,
-        is_refer_ty
-    ),
-    (
-        IntersectionTy,
-        &'cx super::IntersectionTy<'cx>,
-        as_intersection_ty,
-        expect_intersection_ty,
-        is_intersection_ty
-    ),
-    (
-        UnionTy,
-        &'cx super::UnionTy<'cx>,
-        as_union_ty,
-        expect_union_ty,
-        is_union_ty
-    ),
-    (
-        TypeofTy,
-        &'cx super::TypeofTy<'cx>,
-        as_typeof_ty,
-        expect_typeof_ty,
-        is_typeof_ty
-    ),
-    (
-        ThrowStmt,
-        &'cx super::ThrowStmt<'cx>,
-        as_throw_stmt,
-        expect_throw_stmt,
-        is_throw_stmt
-    ),
-    (
-        ShorthandSpec,
-        &'cx super::ShorthandSpec<'cx>,
-        as_shorthand_spec,
-        expect_shorthand_spec,
-        is_shorthand_spec
-    ),
-    (
-        NsImport,
-        &'cx super::NsImport<'cx>,
-        as_ns_import,
-        expect_ns_import,
-        is_ns_import
-    ),
+    (CondTy, super::CondTy<'cx>, cond_ty),
+    (ReferTy, super::ReferTy<'cx>, refer_ty),
+    (IntersectionTy, super::IntersectionTy<'cx>, intersection_ty),
+    (UnionTy, super::UnionTy<'cx>, union_ty),
+    (TypeofTy, super::TypeofTy<'cx>, typeof_ty),
+    (ThrowStmt, super::ThrowStmt<'cx>, throw_stmt),
+    (ShorthandSpec, super::ShorthandSpec<'cx>, shorthand_spec),
+    (NsImport, super::NsImport<'cx>, ns_import),
     (
         ImportNamedSpec,
-        &'cx super::ImportNamedSpec<'cx>,
-        as_import_named_spec,
-        expect_import_named_spec,
-        is_import_named_spec
+        super::ImportNamedSpec<'cx>,
+        import_named_spec
     ),
-    (
-        ImportClause,
-        &'cx super::ImportClause<'cx>,
-        as_import_clause,
-        expect_import_clause,
-        is_import_clause
-    ),
-    (
-        ImportDecl,
-        &'cx super::ImportDecl<'cx>,
-        as_import_decl,
-        expect_import_decl,
-        is_import_decl
-    ),
-    (
-        NsExport,
-        &'cx super::NsExport<'cx>,
-        as_ns_export,
-        expect_ns_export,
-        is_ns_export
-    ),
+    (ImportClause, super::ImportClause<'cx>, import_clause),
+    (ImportDecl, super::ImportDecl<'cx>, import_decl),
+    (NsExport, super::NsExport<'cx>, ns_export),
     (
         ExportNamedSpec,
-        &'cx super::ExportNamedSpec<'cx>,
-        as_export_named_spec,
-        expect_export_named_spec,
-        is_export_named_spec
+        super::ExportNamedSpec<'cx>,
+        export_named_spec
     ),
-    (
-        ExportDecl,
-        &'cx super::ExportDecl<'cx>,
-        as_export_decl,
-        expect_export_decl,
-        is_export_decl
-    ),
-    (
-        GlobExport,
-        &'cx super::GlobExport<'cx>,
-        as_glob_export,
-        expect_glob_export,
-        is_glob_export
-    ),
-    (
-        SpecsExport,
-        &'cx super::SpecsExport<'cx>,
-        as_specs_export,
-        expect_specs_export,
-        is_specs_export
-    ),
-    (
-        ForStmt,
-        &'cx super::ForStmt<'cx>,
-        as_for_stmt,
-        expect_for_stmt,
-        is_for_stmt
-    ),
-    (
-        ForInStmt,
-        &'cx super::ForInStmt<'cx>,
-        as_for_in_stmt,
-        expect_for_in_stmt,
-        is_for_in_stmt
-    ),
-    (
-        ForOfStmt,
-        &'cx super::ForOfStmt<'cx>,
-        as_for_of_stmt,
-        expect_for_of_stmt,
-        is_for_of_stmt
-    ),
-    (
-        BreakStmt,
-        &'cx super::BreakStmt<'cx>,
-        as_break_stmt,
-        expect_break_stmt,
-        is_break_stmt
-    ),
-    (
-        ContinueStmt,
-        &'cx super::ContinueStmt<'cx>,
-        as_continue_stmt,
-        expect_continue_stmt,
-        is_continue_stmt
-    ),
-    (
-        SuperExpr,
-        &'cx super::SuperExpr,
-        as_super_expr,
-        expect_super_expr,
-        is_super_expr
-    ),
-    (
-        MappedTy,
-        &'cx super::MappedTy<'cx>,
-        as_mapped_ty,
-        expect_mapped_ty,
-        is_mapped_ty
-    ),
-    (
-        TyOp,
-        &'cx super::TyOp<'cx>,
-        as_ty_op,
-        expect_ty_op,
-        is_ty_op
-    ),
-    (
-        TryStmt,
-        &'cx super::TryStmt<'cx>,
-        as_try_stmt,
-        expect_try_stmt,
-        is_try_stmt
-    ),
-    (
-        CatchClause,
-        &'cx super::CatchClause<'cx>,
-        as_catch_clause,
-        expect_catch_clause,
-        is_catch_clause
-    ),
-    (
-        DoStmt,
-        &'cx super::DoStmt<'cx>,
-        as_do_stmt,
-        expect_do_stmt,
-        is_do_stmt
-    ),
-    (
-        WhileStmt,
-        &'cx super::WhileStmt<'cx>,
-        as_while_stmt,
-        expect_while_stmt,
-        is_while_stmt
-    ),
-    (
-        QualifiedName,
-        &'cx super::QualifiedName<'cx>,
-        as_qualified_name,
-        expect_qualified_name,
-        is_qualified_name
-    ),
-    (
-        ObjectPat,
-        &'cx super::ObjectPat<'cx>,
-        as_object_pat,
-        expect_object_pat,
-        is_object_pat
-    ),
+    (ExportDecl, super::ExportDecl<'cx>, export_decl),
+    (GlobExport, super::GlobExport<'cx>, glob_export),
+    (SpecsExport, super::SpecsExport<'cx>, specs_export),
+    (ForStmt, super::ForStmt<'cx>, for_stmt),
+    (ForInStmt, super::ForInStmt<'cx>, for_in_stmt),
+    (ForOfStmt, super::ForOfStmt<'cx>, for_of_stmt),
+    (BreakStmt, super::BreakStmt<'cx>, break_stmt),
+    (ContinueStmt, super::ContinueStmt<'cx>, continue_stmt),
+    (SuperExpr, super::SuperExpr, super_expr),
+    (MappedTy, super::MappedTy<'cx>, mapped_ty),
+    (TyOp, super::TyOp<'cx>, ty_op),
+    (TryStmt, super::TryStmt<'cx>, try_stmt),
+    (CatchClause, super::CatchClause<'cx>, catch_clause),
+    (DoStmt, super::DoStmt<'cx>, do_stmt),
+    (WhileStmt, super::WhileStmt<'cx>, while_stmt),
+    (QualifiedName, super::QualifiedName<'cx>, qualified_name),
+    (ObjectPat, super::ObjectPat<'cx>, object_pat),
     (
         ObjectBindingElem,
-        &'cx super::ObjectBindingElem<'cx>,
-        as_object_binding_elem,
-        expect_object_binding_elem,
-        is_object_binding_elem
+        super::ObjectBindingElem<'cx>,
+        object_binding_elem
     ),
-    (
-        PredTy,
-        &'cx super::PredTy<'cx>,
-        as_pred_ty,
-        expect_pred_ty,
-        is_pred_ty
-    )
+    (PredTy, super::PredTy<'cx>, pred_ty)
 );

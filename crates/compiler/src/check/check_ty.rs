@@ -17,8 +17,13 @@ impl<'cx> TyChecker<'cx> {
                 self.check_ty(n.false_ty);
             }
             ObjectLit(n) => self.check_object_lit_ty(n),
+            TyOp(n) => self.check_ty_op(n),
             _ => (),
         }
+    }
+
+    fn check_ty_op(&mut self, n: &'cx ast::TyOp<'cx>) {
+        self.check_ty(n.ty);
     }
 
     pub(super) fn check_ty_refer_ty(&mut self, n: &'cx ast::ReferTy<'cx>) {

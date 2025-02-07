@@ -3,7 +3,6 @@ use crate::ty::{ObjectFlags, TypeFlags};
 use crate::{ast, ty};
 
 use super::create_ty::IntersectionFlags;
-use super::links::TyLinks;
 use super::{InstantiationTyMap, TyChecker};
 
 impl<'cx> TyChecker<'cx> {

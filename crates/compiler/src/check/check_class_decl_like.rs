@@ -16,7 +16,7 @@ impl<'cx> TyChecker<'cx> {
         self.check_var_like_decl(prop);
     }
 
-    fn is_valid_base_ty(&self, ty: &'cx ty::Ty<'cx>) -> bool {
+    fn is_valid_base_ty(&mut self, ty: &'cx ty::Ty<'cx>) -> bool {
         if let Some(param_ty) = ty.kind.as_param() {
             if let Some(constraint) = self.get_base_constraint_of_ty(ty) {
                 return self.is_valid_base_ty(constraint);

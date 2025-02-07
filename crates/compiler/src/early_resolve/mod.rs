@@ -291,7 +291,9 @@ impl<'cx> Resolver<'cx, '_> {
                 }
             }
             Mapped(n) => {}
-            TyOp(n) => {}
+            TyOp(n) => {
+                self.resolve_ty(n.ty);
+            }
             Pred(n) => {
                 self.resolve_value_by_ident(n.name);
                 self.resolve_ty(n.ty);

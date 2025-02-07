@@ -638,11 +638,21 @@ impl<'cx> TyChecker<'cx> {
             || (target == self.string_ty && self.is_type_assignable_to(source, self.number_ty))
     }
 
-    fn get_base_constraint_of_ty(&self, ty: &'cx ty::Ty<'cx>) -> Option<&'cx ty::Ty<'cx>> {
-        if ty.kind.is_param() {
-            self.param_ty_constraint(ty)
-        } else if ty.kind.is_union_or_intersection() {
-            Some(ty)
+    fn get_base_constraint_of_ty(&mut self, ty: &'cx ty::Ty<'cx>) -> Option<&'cx ty::Ty<'cx>> {
+        if ty.flags.intersects(
+            TypeFlags::INSTANTIABLE_NON_PRIMITIVE
+                | TypeFlags::UNION_OR_INTERSECTION
+                | TypeFlags::TEMPLATE_LITERAL
+                | TypeFlags::STRING_MAPPING,
+        ) || ty.kind.is_generic_tuple_type()
+        {
+            let constraint = self.get_resolved_base_constraint(ty);
+            if constraint != self.no_constraint_ty() && constraint != self.circular_constraint_ty()
+            {
+                Some(constraint)
+            } else {
+                None
+            }
         } else if ty.kind.is_index_ty() {
             Some(self.string_number_symbol_ty())
         } else {
@@ -1624,6 +1634,13 @@ impl<'cx> TyChecker<'cx> {
         if let Some(constraint) = ty_param.constraint {
             self.check_ty(constraint);
         }
+        if let Some(default) = ty_param.default {
+            self.check_ty(default);
+        }
+
+        let symbol = self.get_symbol_of_decl(ty_param.id);
+        let ty_param = self.get_declared_ty_of_ty_param(symbol);
+        self.get_base_constraint_of_ty(ty_param);
     }
 
     fn check_indexed_access_index_ty(

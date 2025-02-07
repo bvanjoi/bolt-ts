@@ -65,6 +65,8 @@ impl<'cx> TyChecker<'cx> {
             EleAccess(node) => self.check_ele_access(node),
             This(n) => self.check_this_expr(n),
             Super(_) => self.undefined_ty,
+            As(n) => self.check_expr(n.expr),
+            Satisfies(n) => self.check_expr(n.expr),
         };
 
         self.instantiate_ty_with_single_generic_call_sig(expr.id(), ty)

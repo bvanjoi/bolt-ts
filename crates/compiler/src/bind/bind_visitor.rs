@@ -793,7 +793,9 @@ impl<'cx> BinderState<'cx> {
                 self.bind_entity_name(n.name);
             }
             Mapped(n) => {}
-            TyOp(n) => {}
+            TyOp(n) => {
+                self.bind_ty(n.ty);
+            }
             Pred(n) => {
                 self.bind_ident(n.name);
                 self.bind_ty(n.ty);

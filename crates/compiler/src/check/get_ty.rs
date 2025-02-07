@@ -171,7 +171,7 @@ impl<'cx> TyChecker<'cx> {
             Typeof(node) => self.get_ty_from_typeof_node(node),
             Intersection(node) => self.get_ty_from_intersection_ty_node(node),
             Mapped(_) => self.undefined_ty,
-            TyOp(_) => self.undefined_ty,
+            TyOp(node) => self.get_ty_from_ty_op(node),
             Pred(_) => self.boolean_ty(),
             Lit(node) => {
                 use ast::LitTyKind::*;
@@ -186,6 +186,19 @@ impl<'cx> TyChecker<'cx> {
                 }
             }
         }
+    }
+
+    fn get_ty_from_ty_op(&mut self, node: &'cx ast::TyOp<'cx>) -> &'cx Ty<'cx> {
+        if let Some(ty) = self.get_node_links(node.id).get_resolved_ty() {
+            return ty;
+        }
+        let ty = match node.op {
+            ast::TyOpKind::Keyof => self.undefined_ty,
+            ast::TyOpKind::Unique => self.undefined_ty,
+            ast::TyOpKind::Readonly => self.get_ty_from_type_node(node.ty),
+        };
+        self.get_mut_node_links(node.id).set_resolved_ty(ty);
+        ty
     }
 
     fn get_ty_from_intersection_ty_node(

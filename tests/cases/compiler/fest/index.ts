@@ -1,5 +1,42 @@
 // From `github.com/sindresorhus/type-fest`, MIT License
 
+// type ArrayValues<T extends readonly unknown[]> = T[number];
+// {
+//   // const values = ['a', 'b', 'c'] as const;
+//   // type Values = ArrayValues<typeof values>;
+
+//   // const test: 'a' | 'b' | 'c' = 'a';
+//   // const a0: Values = test;
+
+//   // const a1: Values = 'a';
+//   // const a2: Values = 'b';
+//   // const a3: Values = 'c';
+
+//   // const a4: Values = '';
+//   // const a5: Values = 0;
+
+//   // type TupleValues = ArrayValues<['1', 2, {c: true}]>;
+
+//   // declare const testTuple: '1' | 2 | {c: true};
+//   // expectType<TupleValues>(testTuple);
+
+//   // expectAssignable<TupleValues>('1');
+//   // expectAssignable<TupleValues>(2);
+//   // expectAssignable<TupleValues>({c: true});
+
+//   // expectNotAssignable<TupleValues>({});
+//   // expectNotAssignable<TupleValues>(1);
+//   // expectNotAssignable<TupleValues>('2');
+
+//   // type AnyStringValues = ArrayValues<string[]>;
+//   // expectAssignable<AnyStringValues>('');
+//   // expectAssignable<AnyStringValues>('123');
+//   // expectNotAssignable<AnyStringValues>(123);
+//   // expectNotAssignable<AnyStringValues>(undefined);
+//   // expectNotAssignable<AnyStringValues>(null);
+// }
+
+
 function n(): never {
   throw new Error();
 }
@@ -22,6 +59,45 @@ type And<A extends boolean, B extends boolean> = [A, B][number] extends true
   const a5: And<true, boolean> = never;
   const a6: And<false, boolean> = false;
   const a7: And<boolean, boolean> = never;
+}
+
+// ========= ArrayValues =========
+
+type ArrayValues<T extends readonly unknown[]> = T[number];
+
+{
+  const values = ['a', 'b', 'c'] as const;
+  // type Values = ArrayValues<typeof values>;
+
+  // const test: 'a' | 'b' | 'c' = 'a';
+  // const a0: Values = test;
+
+  // const a1: Values = 'a';
+  // const a2: Values = 'b';
+  // const a3: Values = 'c';
+
+  // const a4: Values = '';
+  // const a5: Values = 0;
+
+  // type TupleValues = ArrayValues<['1', 2, {c: true}]>;
+
+  // declare const testTuple: '1' | 2 | {c: true};
+  // expectType<TupleValues>(testTuple);
+
+  // expectAssignable<TupleValues>('1');
+  // expectAssignable<TupleValues>(2);
+  // expectAssignable<TupleValues>({c: true});
+
+  // expectNotAssignable<TupleValues>({});
+  // expectNotAssignable<TupleValues>(1);
+  // expectNotAssignable<TupleValues>('2');
+
+  // type AnyStringValues = ArrayValues<string[]>;
+  // expectAssignable<AnyStringValues>('');
+  // expectAssignable<AnyStringValues>('123');
+  // expectNotAssignable<AnyStringValues>(123);
+  // expectNotAssignable<AnyStringValues>(undefined);
+  // expectNotAssignable<AnyStringValues>(null);
 }
 
 // =========== ifNever ===========

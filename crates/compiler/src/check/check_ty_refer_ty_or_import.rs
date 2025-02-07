@@ -168,7 +168,10 @@ impl<'cx> TyChecker<'cx> {
         constraint.filter(|c| *c != self.no_constraint_ty())
     }
 
-    fn get_resolved_base_constraint(&mut self, ty: &'cx ty::Ty<'cx>) -> &'cx ty::Ty<'cx> {
+    pub(super) fn get_resolved_base_constraint(
+        &mut self,
+        ty: &'cx ty::Ty<'cx>,
+    ) -> &'cx ty::Ty<'cx> {
         if let Some(ty) = self.get_ty_links(ty.id).get_resolved_base_ctor_ty() {
             return ty;
         }
