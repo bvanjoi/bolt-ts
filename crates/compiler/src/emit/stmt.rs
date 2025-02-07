@@ -622,6 +622,7 @@ impl<'cx> Emit<'cx> {
         self.content.p("var");
         self.content.p_whitespace();
         self.emit_var_decls(var.list);
+        self.content.p_semi();
     }
 
     fn emit_var_decls(&mut self, decls: ast::VarDecls<'cx>) {

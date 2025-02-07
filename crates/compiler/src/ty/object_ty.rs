@@ -1,3 +1,4 @@
+use crate::ast;
 use crate::bind::{SymbolFlags, SymbolID, SymbolName};
 use crate::check::TyChecker;
 
@@ -155,7 +156,8 @@ impl<'cx> TupleTy<'cx> {
 #[derive(Debug, Clone, Copy)]
 pub struct ReferenceTy<'cx> {
     pub target: &'cx Ty<'cx>,
-    pub resolved_ty_args: super::Tys<'cx>,
+    pub mapper: Option<&'cx dyn TyMap<'cx>>,
+    pub node: Option<ast::NodeID>,
 }
 
 impl<'cx> ReferenceTy<'cx> {
@@ -217,7 +219,7 @@ pub struct InterfaceTy<'cx> {
 }
 
 impl<'cx> ObjectTyKind<'cx> {
-    pub(super) fn to_string(&self, self_ty: &Ty, checker: &mut TyChecker<'cx>) -> String {
+    pub(super) fn to_string(&self, self_ty: &'cx Ty<'cx>, checker: &mut TyChecker<'cx>) -> String {
         match self {
             ObjectTyKind::Anonymous(a) => {
                 let symbol = a.symbol;
@@ -324,7 +326,7 @@ impl<'cx> ObjectTyKind<'cx> {
                 .atoms
                 .get(checker.binder.symbol(i.symbol).name.expect_atom())
                 .to_string(),
-            ObjectTyKind::Reference(refer) => pprint_reference_ty(refer, checker),
+            ObjectTyKind::Reference(_) => pprint_reference_ty(self_ty, checker),
             ObjectTyKind::SingleSigTy(_) => "single signature type".to_string(),
         }
     }

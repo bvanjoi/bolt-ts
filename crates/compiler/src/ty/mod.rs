@@ -194,9 +194,10 @@ as_ty_kind!(
 );
 
 impl<'cx> Ty<'cx> {
-    pub fn to_string(&self, checker: &mut TyChecker<'cx>) -> String {
+    pub fn to_string(&'cx self, checker: &mut TyChecker<'cx>) -> String {
         if self.kind.is_array(checker) {
-            let ele = self.kind.expect_object_reference().resolved_ty_args[0].to_string(checker);
+            let ele = checker.get_ty_arguments(self)[0];
+            let ele = ele.to_string(checker);
             return format!("{ele}[]");
         }
         match self.kind {

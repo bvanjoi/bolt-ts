@@ -1,4 +1,4 @@
 
 var x = function Foo() {
-  var x
-}
+  var x;
+};

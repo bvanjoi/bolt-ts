@@ -6,4 +6,4 @@ function bar() {
   return foo
 }
 
-var x = bar()
+var x = bar();

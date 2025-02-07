@@ -1,3 +1,3 @@
 function then(x) {
-  var match
+  var match;
 }

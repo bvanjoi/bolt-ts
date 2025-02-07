@@ -1168,7 +1168,22 @@ impl<'cx> TyChecker<'cx> {
             return self.error_ty;
         }
 
-        let Some(prop) = self.get_prop_of_ty(apparent_left_ty, SymbolName::Ele(prop.name)) else {
+        let name = if original_left_ty
+            .symbol()
+            .map(|symbol| {
+                self.binder
+                    .symbol(symbol)
+                    .flags
+                    .intersects(SymbolFlags::MODULE)
+            })
+            .unwrap_or_default()
+        {
+            SymbolName::Normal(prop.name)
+        } else {
+            SymbolName::Ele(prop.name)
+        };
+
+        let Some(prop) = self.get_prop_of_ty(apparent_left_ty, name) else {
             self.report_non_existent_prop(prop, original_left_ty);
             return self.error_ty;
         };
@@ -1250,8 +1265,8 @@ impl<'cx> TyChecker<'cx> {
         }
 
         if force_tuple {
-            let element_types: ty::Tys<'cx> = self.alloc(element_types);
-            let element_flags: &'cx [ElementFlags] = self.alloc(element_flags);
+            let element_types = self.alloc(element_types);
+            let element_flags = self.alloc(element_flags);
             let tuple_ty = self.create_tuple_ty(element_types, Some(element_flags), false);
             self.create_array_literal_ty(tuple_ty)
         } else {
@@ -1275,10 +1290,10 @@ impl<'cx> TyChecker<'cx> {
                 | ObjectFlags::ARRAY_LITERAL
                 | ObjectFlags::CONTAINS_OBJECT_OR_ARRAY_LITERAL;
             let (target, resolved_ty_args) = if let Some(tuple) = ty.kind.as_object_tuple() {
-                (ty, tuple.resolved_ty_args)
+                (ty, Some(tuple.resolved_ty_args))
             } else {
-                let ty = ty.kind.expect_object_reference();
-                (ty.target, ty.resolved_ty_args)
+                let r = ty.kind.expect_object_reference();
+                (r.target, self.get_ty_links(ty.id).get_resolved_ty_args())
             };
             let literal_ty = self.create_reference_ty(target, resolved_ty_args, object_flags);
             self.get_mut_ty_links(ty.id).set_literal_ty(literal_ty);

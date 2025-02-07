@@ -17,19 +17,19 @@
     ╰────
 
   × Generic type 'IsNever' requires 1 type argument.
-     ╭─[../../tests/cases/compiler/fest/index.ts:110:13]
- 110 │ IsNever
+     ╭─[../../tests/cases/compiler/fest/index.ts:114:13]
+ 114 │ IsNever
      · ───────
      ╰────
 
   × Generic type 'IsNever' requires 1 type argument.
-     ╭─[../../tests/cases/compiler/fest/index.ts:112:13]
- 112 │ IsNever<number, boolean>
+     ╭─[../../tests/cases/compiler/fest/index.ts:116:13]
+ 116 │ IsNever<number, boolean>
      · ────────────────────────
      ╰────
 
   × Generic type 'IsUnknown' requires 1 type argument.
-     ╭─[../../tests/cases/compiler/fest/index.ts:153:12]
- 153 │ IsUnknown
+     ╭─[../../tests/cases/compiler/fest/index.ts:157:12]
+ 157 │ IsUnknown
      · ─────────
      ╰────

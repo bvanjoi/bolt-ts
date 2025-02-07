@@ -1,5 +1,5 @@
 class A {
   foo() {}
 }
-var x = A
+var x = A;
 class C extends x {}

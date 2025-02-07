@@ -4,6 +4,6 @@ var M = {};
   class Foo {}
   M.Foo = Foo;
   
-  var bar = () => {}
+  var bar = () => {};
   
 })(M);

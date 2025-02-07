@@ -1,3 +1,3 @@
 class C {}
 
-var baz
+var baz;

@@ -1,4 +1,4 @@
-var someVariable
+var someVariable;
 class Class1 {}
 class Class2 extends Class1 {}
 class Class3 {

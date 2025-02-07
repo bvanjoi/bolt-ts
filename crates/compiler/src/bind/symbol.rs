@@ -10,6 +10,7 @@ use crate::keyword;
 #[derive(Debug, Clone, Copy, Hash, PartialEq, Eq)]
 pub enum SymbolName {
     Container,
+    // TODO: merge `Normal` and `Ele`
     Normal(AtomId),
     Ele(AtomId),
     EleNum(F64Represent),
@@ -408,6 +409,7 @@ impl SymbolID {
             _ => None,
         };
         id.or_else(|| s.kind.1.as_ref().and_then(|i| i.decls.first()).copied())
+            .or_else(|| s.kind.2.as_ref().and_then(|i| i.decls.first()).copied())
     }
     pub fn decl(&self, binder: &super::Binder) -> NodeID {
         self.opt_decl(binder)

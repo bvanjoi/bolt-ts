@@ -363,3 +363,10 @@ pub(super) struct ThisOverloadSignatureIsNotCompatibleWithItsImplementationSigna
     #[label(primary)]
     pub span: Span,
 }
+
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
+#[error("This expression is not constructable.")]
+pub(super) struct ThisExpressionIsNotConstructable {
+    #[label(primary)]
+    pub span: Span,
+}

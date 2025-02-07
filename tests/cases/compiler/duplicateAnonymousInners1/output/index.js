@@ -5,7 +5,7 @@ var Foo = {};
   
   class Inner {}
   
-  var Outer = 0
+  var Outer = 0;
   Foo.Outer = Outer
   
 })(Foo);

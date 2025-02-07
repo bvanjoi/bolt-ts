@@ -138,17 +138,20 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
-    pub(super) fn is_empty_array_lit_ty(&self, ty: &'cx Ty<'cx>) -> bool {
-        if ty.kind.is_array(self) {
-            ty.kind
-                .as_object_reference()
-                .map(|refer| {
-                    refer.resolved_ty_args.len() == 1 && refer.resolved_ty_args[0] == self.never_ty
-                })
-                .unwrap_or_default()
-        } else {
-            false
-        }
+    fn get_element_ty_of_array_ty(&mut self, ty: &'cx Ty<'cx>) -> Option<&'cx Ty<'cx>> {
+        ty.kind.is_array(self).then(|| self.get_ty_arguments(ty)[0])
+    }
+
+    fn is_empty_literal_ty(&self, ty: &'cx Ty<'cx>) -> bool {
+        // TODO: use `implicit_never_ty`
+        ty == self.never_ty
+    }
+
+    pub(super) fn is_empty_array_lit_ty(&mut self, ty: &'cx Ty<'cx>) -> bool {
+        let Some(element_ty) = self.get_element_ty_of_array_ty(ty) else {
+            return false;
+        };
+        self.is_empty_literal_ty(element_ty)
     }
 
     pub(super) fn check_type_assignable_to_and_optionally_elaborate(

@@ -120,12 +120,17 @@ impl<'cx> TyChecker<'cx> {
             Some(self.get_type_of_symbol(sig.params[pos]))
         } else if sig.has_rest_param() {
             let rest_ty = self.get_type_of_symbol(sig.params[param_count]);
-            // let index = pos - param_count;
-            (!rest_ty.kind.is_tuple()).then(|| {
-                rest_ty.kind.expect_object_reference().resolved_ty_args[0]
-                // TODO:
-                // let index_ty = self.get_number_literal_type(index as f64);
-                // self.get_indexed_access_ty(rest_ty, index_ty, None)
+            let index = pos - param_count;
+            let use_indexed_access = if rest_ty.kind.is_tuple() {
+                let r = rest_ty.kind.expect_object_reference();
+                let t = r.target.kind.expect_object_tuple();
+                t.combined_flags.intersects(ElementFlags::VARIABLE) || index < t.fixed_length
+            } else {
+                true
+            };
+            use_indexed_access.then(|| {
+                let index_ty = self.get_number_literal_type(index as f64);
+                self.get_indexed_access_ty(rest_ty, index_ty, None, None)
             })
         } else {
             None
@@ -133,7 +138,10 @@ impl<'cx> TyChecker<'cx> {
     }
 
     fn resolve_new_expr(&mut self, expr: &impl CallLikeExpr<'cx>) -> &'cx Sig<'cx> {
-        let ty = self.check_expr(expr.callee());
+        let mut ty = self.check_expr(expr.callee());
+
+        ty = self.get_apparent_ty(ty);
+
         let sigs = self.get_signatures_of_type(ty, ty::SigKind::Constructor);
 
         if !sigs.is_empty() {
@@ -158,8 +166,24 @@ impl<'cx> TyChecker<'cx> {
                 };
                 self.push_error(Box::new(error));
             }
+
+            self.resolve_call(ty, expr, sigs)
+        } else if ty != self.error_ty {
+            self.invocation_error(expr, ty, ty::SigKind::Constructor);
+            self.unknown_sig()
+        } else {
+            self.unknown_sig()
         }
-        self.resolve_call(ty, expr, sigs)
+    }
+
+    fn invocation_error(
+        &mut self,
+        expr: &impl CallLikeExpr<'cx>,
+        apparent_ty: &'cx ty::Ty<'cx>,
+        kind: ty::SigKind,
+    ) {
+        let error = errors::ThisExpressionIsNotConstructable { span: expr.span() };
+        self.push_error(Box::new(error));
     }
 
     fn resolve_call_expr(&mut self, expr: &impl CallLikeExpr<'cx>) -> &'cx Sig<'cx> {

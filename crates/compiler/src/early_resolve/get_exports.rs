@@ -16,7 +16,7 @@ impl<'cx> Resolver<'cx, '_> {
         } else if flags.intersects(SymbolFlags::MODULE) {
             self.get_exports_of_module(symbol)
         } else {
-            unreachable!()
+            None
         }
     }
 

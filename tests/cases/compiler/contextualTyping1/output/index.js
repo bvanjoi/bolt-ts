@@ -1,1 +1,1 @@
-var foo = {id: 4}
+var foo = {id: 4};

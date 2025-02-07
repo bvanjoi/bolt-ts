@@ -350,10 +350,11 @@ pub struct MappedTy<'cx> {
     pub members: &'cx [&'cx ObjectTyMember<'cx>],
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub enum TyOpKind {
     Keyof,
     Readonly,
+    Unique,
 }
 
 #[derive(Debug, Clone, Copy)]

@@ -16,8 +16,8 @@ class ColoredPoint extends Point {
     return super.toString() + " color=" + this.color
   }
 }
-var p = new Point(1, 2)
-var px = p.x
-var py = p.y
-var cp = new ColoredPoint(1, 2, "red")
-var cpColor = cp.color
+var p = new Point(1, 2);
+var px = p.x;
+var py = p.y;
+var cp = new ColoredPoint(1, 2, "red");
+var cpColor = cp.color;

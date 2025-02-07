@@ -283,7 +283,7 @@ impl<'cx> TyChecker<'cx> {
         self.get_effective_base_type_node(decl)
     }
 
-    fn are_all_outer_parameters_applied(ty: &'cx ty::Ty<'cx>) -> bool {
+    fn are_all_outer_parameters_applied(&mut self, ty: &'cx ty::Ty<'cx>) -> bool {
         let i = if let Some(i) = ty.kind.as_object_interface() {
             i
         } else if let Some(r) = ty.kind.as_object_reference() {
@@ -293,11 +293,8 @@ impl<'cx> TyChecker<'cx> {
         };
         if let Some(outer_ty_params) = i.outer_ty_params {
             let last = outer_ty_params.len() - 1;
-            if let Some(ty_args) = ty.kind.as_object_reference() {
-                outer_ty_params[last].symbol() != ty_args.resolved_ty_args[last].symbol()
-            } else {
-                unreachable!()
-            }
+            let ty_args = self.get_ty_arguments(ty);
+            outer_ty_params[last].symbol() != ty_args[last].symbol()
         } else {
             true
         }
@@ -320,7 +317,7 @@ impl<'cx> TyChecker<'cx> {
                 .symbol(base_ctor_ty.symbol().unwrap())
                 .flags
                 .intersects(SymbolFlags::CLASS)
-            && Self::are_all_outer_parameters_applied(original_base_ty.unwrap())
+            && self.are_all_outer_parameters_applied(original_base_ty.unwrap())
         {
             let symbol = base_ctor_ty.symbol().unwrap();
             base_ty = self.get_ty_from_class_or_interface_refer(base_ty_node.unwrap(), symbol);
@@ -352,14 +349,12 @@ impl<'cx> TyChecker<'cx> {
                 }
             })
             .collect::<Vec<_>>();
-        let ty = self.get_union_ty(
-            if element_tys.is_empty() {
-                self.empty_array()
-            } else {
-                &element_tys
-            },
-            ty::UnionReduction::Lit,
-        );
+        let tys = if element_tys.is_empty() {
+            self.empty_array()
+        } else {
+            &element_tys
+        };
+        let ty = self.get_union_ty(tys, ty::UnionReduction::Lit);
         self.create_array_ty(ty)
     }
 
@@ -536,7 +531,7 @@ impl<'cx> TyChecker<'cx> {
             ty_params.push(i.this_ty.unwrap());
             self.alloc(ty_params)
         };
-        let ty_args = refer.resolved_ty_args;
+        let ty_args = self.get_ty_arguments(ty);
         let padded_type_arguments = if ty_params.len() == ty_args.len() {
             ty_args
         } else {
@@ -595,16 +590,21 @@ impl<'cx> TyChecker<'cx> {
             let c = self.binder.symbol(symbol).expect_class();
             Some(&c.exports)
         } else if flags.intersects(SymbolFlags::MODULE) {
-            unreachable!()
+            let ns = self.binder.symbol(symbol).expect_ns();
+            Some(&ns.exports)
         } else {
             None
         }
     }
 
     fn resolve_anonymous_type_members(&mut self, ty: &'cx ty::Ty<'cx>) {
-        let Some(a) = ty.kind.as_object_anonymous() else {
-            unreachable!()
-        };
+        let a = ty.kind.expect_object_anonymous();
+        let symbol = self.binder.symbol(a.symbol);
+        assert!(
+            !symbol.flags.intersects(SymbolFlags::OBJECT_LITERAL),
+            "Object literal should be resolved during check"
+        );
+
         if let Some(target) = a.target {
             let mapper = a.mapper.unwrap();
             let members = {
@@ -629,19 +629,45 @@ impl<'cx> TyChecker<'cx> {
             });
             self.get_mut_ty_links(ty.id).set_structured_members(m);
             return;
+        } else if symbol.flags.intersects(SymbolFlags::TYPE_LITERAL) {
+            let members = symbol.expect_ty_lit().members.clone();
+            let call_sigs = members
+                .get(&SymbolName::Call)
+                .map(|s| self.get_sigs_of_symbol(*s))
+                .unwrap_or_default();
+            let ctor_sigs = members
+                .get(&SymbolName::New)
+                .map(|s| self.get_sigs_of_symbol(*s))
+                .unwrap_or_default();
+            let index_infos = self.get_index_infos_of_symbol(a.symbol);
+            let props = self.get_props_from_members(&members);
+            let m = self.alloc(ty::StructuredMembers {
+                members: self.alloc(members),
+                base_tys: &[],
+                base_ctor_ty: None,
+                call_sigs,
+                ctor_sigs,
+                index_infos,
+                props,
+            });
+            self.get_mut_ty_links(ty.id).set_structured_members(m);
+            return;
         }
+
         let symbol = self.binder.symbol(a.symbol);
         let symbol_flags = symbol.flags;
 
-        let mut members;
+        let mut members = self
+            .get_exports_of_symbol(a.symbol)
+            .cloned()
+            .unwrap_or_default();
         let call_sigs;
         let mut ctor_sigs: ty::Sigs<'cx>;
         let index_infos: ty::IndexInfos<'cx>;
 
-        if symbol_flags.intersects(SymbolFlags::FUNCTION) {
+        if symbol_flags.intersects(SymbolFlags::FUNCTION | SymbolFlags::METHOD) {
             call_sigs = self.get_sigs_of_symbol(a.symbol);
             ctor_sigs = &[];
-            members = FxHashMap::default();
             index_infos = &[];
             // TODO: `constructor_sigs`, `index_infos`
         } else if symbol_flags.intersects(SymbolFlags::CLASS) {
@@ -651,7 +677,6 @@ impl<'cx> TyChecker<'cx> {
             } else {
                 ctor_sigs = &[];
             }
-            members = self.get_exports_of_symbol(a.symbol).unwrap().clone();
             // let mut base_ctor_index_info = None;
             let class_ty = self.get_declared_ty_of_symbol(a.symbol);
             self.resolve_structured_type_members(class_ty);
@@ -672,21 +697,7 @@ impl<'cx> TyChecker<'cx> {
             if ctor_sigs.is_empty() {
                 ctor_sigs = self.get_default_construct_sigs(class_ty);
             };
-        } else if symbol_flags.intersects(SymbolFlags::TYPE_LITERAL) {
-            members = symbol.expect_ty_lit().members.clone();
-            call_sigs = members
-                .get(&SymbolName::Call)
-                .map(|s| self.get_sigs_of_symbol(*s))
-                .unwrap_or_default();
-            ctor_sigs = members
-                .get(&SymbolName::New)
-                .map(|s| self.get_sigs_of_symbol(*s))
-                .unwrap_or_default();
-            index_infos = self.get_index_infos_of_symbol(a.symbol);
-        } else if symbol_flags.intersects(SymbolFlags::OBJECT_LITERAL) {
-            unreachable!("Object literal should be resolved during check");
         } else {
-            members = FxHashMap::default();
             call_sigs = &[];
             ctor_sigs = &[];
             index_infos = &[]

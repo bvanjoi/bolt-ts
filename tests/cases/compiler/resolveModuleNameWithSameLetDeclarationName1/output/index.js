@@ -1,2 +1,2 @@
 
-var foo
+var foo;

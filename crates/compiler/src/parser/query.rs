@@ -327,6 +327,23 @@ impl<'cx> Parser<'cx> {
         })
         .unwrap()
     }
+
+    pub fn is_resolved_by_ty_alias(&self, node: ast::NodeID) -> bool {
+        let Some(p) = self.parent(node) else {
+            return false;
+        };
+        self.find_ancestor(p, |n| {
+            use ast::Node::*;
+            match n {
+                TypeDecl(_) => Some(true),
+                // TODO: ParenTy
+                ReferTy(_) | UnionTy(_) | IntersectionTy(_) | IndexedAccessTy(_) | CondTy(_)
+                | TyOp(_) | ArrayTy(_) | TupleTy(_) => None,
+                _ => Some(false),
+            }
+        })
+        .is_some()
+    }
 }
 
 #[derive(Clone, Copy, PartialEq)]

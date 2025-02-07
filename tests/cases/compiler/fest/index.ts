@@ -13,14 +13,14 @@ type And<A extends boolean, B extends boolean> = [A, B][number] extends true
 		: never;
 
 {
-  declare const never: never;
+  const never: never = n();
 
   const a1: And<true, true> = true;
-  // const a2: And<true, false> = false;
-  // const a3: And<false, true> = false;
-  // const a4: And<false, false> = false;
+  const a2: And<true, false> = false;
+  const a3: And<false, true> = false;
+  const a4: And<false, false> = false;
   const a5: And<true, boolean> = never;
-  // const a6: And<false, boolean> = false;
+  const a6: And<false, boolean> = false;
   const a7: And<boolean, boolean> = never;
 }
 
@@ -87,6 +87,10 @@ type IsEqual<A, B> =
 
   type IntersectionType = IsEqual<{a: 1} | {a: 1}, {a: 1}>;
   const a7: IntersectionType = true;
+
+
+  const a80: [IsEqual<true, false>, IsEqual<false, false>][number] = true;
+  const a81: [IsEqual<true, false>, IsEqual<false, false>][number] = false;
 }
 
 // =========== isNever ===========
@@ -120,7 +124,7 @@ type IsNull<T> = [T] extends [null] ? true : false;
   const a0: IsNull<null> = true;
   const a1: IsNull<any> = true;
   const a2: IsNull<never> = true;
-  // const a3: IsNull<undefined> = true; // Depends on `strictNullChecks`
+  const a3: IsNull<undefined> = true; // Depends on `strictNullChecks`
   const a4: IsNull<unknown> = false;
   const a5: IsNull<void> = false;
   const a6: IsNull<{}> = false;

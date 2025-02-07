@@ -183,90 +183,121 @@ impl<'cx> TyChecker<'cx> {
         mapper: &'cx dyn ty::TyMap<'cx>,
     ) -> &'cx ty::Ty<'cx> {
         if let Some(refer) = ty.kind.as_object_reference() {
-            let new_ty_args = self.instantiate_tys(refer.resolved_ty_args, mapper);
-            if refer.resolved_ty_args == new_ty_args {
-                ty
-            } else {
-                self.create_normalized_ty_reference(refer.target, new_ty_args)
+            if refer.node.is_none() {
+                let Some(resolved_ty_args) = self.ty_links[&ty.id].get_resolved_ty_args() else {
+                    return ty;
+                };
+                let new_ty_args = self.instantiate_tys(resolved_ty_args, mapper);
+                return if resolved_ty_args == new_ty_args {
+                    ty
+                } else {
+                    self.create_normalized_ty_reference(refer.target, new_ty_args)
+                };
             }
-        } else if let Some(a) = ty.kind.as_object_anonymous() {
-            let object_flags = ty.get_object_flags();
-            let target = if object_flags.intersects(ObjectFlags::INSTANTIATED) {
-                a.target.unwrap()
-            } else {
-                ty
-            };
-            let s = self.binder.symbol(a.symbol);
-            let decl = if let Some(decl) = s.opt_decl() {
+        }
+
+        let decl = if let Some(refer) = ty.kind.as_object_reference() {
+            refer.node.unwrap()
+        } else if let Some(s) = ty.symbol() {
+            if let Some(decl) = self.binder.symbol(s).opt_decl() {
                 decl
             } else {
                 // TODO: delete return
                 return ty;
-            };
-            // TODO: single_signature_type
-            let ty_params = if let Some(ty_params) = self.get_node_links(decl).get_outer_ty_params()
-            {
-                ty_params
+            }
+        } else {
+            // TODO: delete return
+            return ty;
+        };
+
+        let object_flags = ty.get_object_flags();
+        let target = if let Some(_) = ty.kind.as_object_reference() {
+            // TODO: resolved type
+            ty
+        } else if object_flags.intersects(ObjectFlags::INSTANTIATED) {
+            if let Some(r) = ty.kind.as_object_reference() {
+                r.target
+            } else if let Some(a) = ty.kind.as_object_anonymous() {
+                a.target.unwrap()
             } else {
-                let outer_params = if let Some(outer_params) = self.get_outer_ty_params(decl, true)
-                {
-                    self.alloc(outer_params)
-                } else {
-                    self.empty_array()
-                };
-                self.get_mut_node_links(decl)
-                    .set_outer_ty_params(outer_params);
-                outer_params
+                unreachable!()
+            }
+        } else {
+            ty
+        };
+
+        let ty_mapper = if let Some(refer) = ty.kind.as_object_reference() {
+            refer.mapper
+        } else if let Some(a) = ty.kind.as_object_anonymous() {
+            a.mapper
+        } else {
+            None
+        };
+
+        // TODO: single_signature_type
+        let ty_params = if let Some(ty_params) = self.get_node_links(decl).get_outer_ty_params() {
+            ty_params
+        } else {
+            let outer_params = if let Some(outer_params) = self.get_outer_ty_params(decl, true) {
+                self.alloc(outer_params)
+            } else {
+                self.empty_array()
             };
-            if !ty_params.is_empty() {
-                // TODO: alias_symbol
-                let target_ty_params_id = InstantiationTyMap::create_id(target.id, ty_params);
-                if !self.instantiation_ty_map.contain(target_ty_params_id) {
-                    self.instantiation_ty_map.insert(target_ty_params_id, ty);
-                }
-                let combined_mapper = self.combine_ty_mappers(a.mapper, mapper);
-                let ty_args = ty_params
-                    .iter()
-                    .map(|t| self.get_mapped_ty(combined_mapper, t))
-                    .collect::<Vec<_>>();
-                let id = InstantiationTyMap::create_id(target.id, &ty_args);
-                if let Some(instantiated) = self.instantiation_ty_map.get(id) {
-                    return instantiated;
-                }
-                let mut object_flags = ty.get_object_flags()
+            self.get_mut_node_links(decl)
+                .set_outer_ty_params(outer_params);
+            outer_params
+        };
+        if !ty_params.is_empty() {
+            // TODO: alias_symbol
+            let target_ty_params_id = InstantiationTyMap::create_id(target.id, ty_params);
+            if !self.instantiation_ty_map.contain(target_ty_params_id) {
+                self.instantiation_ty_map.insert(target_ty_params_id, ty);
+            }
+            let combined_mapper = self.combine_ty_mappers(ty_mapper, mapper);
+            let ty_args = ty_params
+                .iter()
+                .map(|t| self.get_mapped_ty(combined_mapper, t))
+                .collect::<Vec<_>>();
+            let id = InstantiationTyMap::create_id(target.id, &ty_args);
+            if let Some(instantiated) = self.instantiation_ty_map.get(id) {
+                return instantiated;
+            }
+            let mut object_flags = ty.get_object_flags()
                     & !(ObjectFlags::COULD_CONTAIN_TYPE_VARIABLES_COMPUTED
                         | ObjectFlags::COULD_CONTAIN_TYPE_VARIABLES)
                     | ObjectFlags::INSTANTIATED /* TODO: propagating for alias_ty_args */;
-                if ty.flags.intersects(TypeFlags::OBJECT_FLAGS_TYPE)
-                    && !object_flags.intersects(ObjectFlags::COULD_CONTAIN_TYPE_VARIABLES_COMPUTED)
-                {
-                    let result_could_contain_ty_vars = ty_args
-                        .iter()
-                        .any(|ty_arg| self.could_contain_ty_var(ty_arg));
-                    if object_flags.intersects(
-                        ObjectFlags::MAPPED | ObjectFlags::ANONYMOUS | ObjectFlags::REFERENCE,
-                    ) {
-                        object_flags |= ObjectFlags::COULD_CONTAIN_TYPE_VARIABLES_COMPUTED
-                            | if result_could_contain_ty_vars {
-                                ObjectFlags::COULD_CONTAIN_TYPE_VARIABLES
-                            } else {
-                                ObjectFlags::empty()
-                            };
-                    } else {
-                        object_flags |= if !result_could_contain_ty_vars {
-                            ObjectFlags::COULD_CONTAIN_TYPE_VARIABLES_COMPUTED
+            if ty.flags.intersects(TypeFlags::OBJECT_FLAGS_TYPE)
+                && !object_flags.intersects(ObjectFlags::COULD_CONTAIN_TYPE_VARIABLES_COMPUTED)
+            {
+                let result_could_contain_ty_vars = ty_args
+                    .iter()
+                    .any(|ty_arg| self.could_contain_ty_var(ty_arg));
+                if object_flags.intersects(
+                    ObjectFlags::MAPPED | ObjectFlags::ANONYMOUS | ObjectFlags::REFERENCE,
+                ) {
+                    object_flags |= ObjectFlags::COULD_CONTAIN_TYPE_VARIABLES_COMPUTED
+                        | if result_could_contain_ty_vars {
+                            ObjectFlags::COULD_CONTAIN_TYPE_VARIABLES
                         } else {
                             ObjectFlags::empty()
-                        }
+                        };
+                } else {
+                    object_flags |= if !result_could_contain_ty_vars {
+                        ObjectFlags::COULD_CONTAIN_TYPE_VARIABLES_COMPUTED
+                    } else {
+                        ObjectFlags::empty()
                     }
                 }
-                let new_mapper = self.create_ty_mapper(ty_params, self.alloc(ty_args));
-                let ty = self.instantiate_anonymous_ty(ty, new_mapper, object_flags);
-                self.instantiation_ty_map.insert(id, ty);
-                ty
-            } else {
-                ty
             }
+            let new_mapper = self.create_ty_mapper(ty_params, self.alloc(ty_args));
+            let ty = if target.kind.is_object_reference() {
+                let ty = ty.kind.expect_object_reference();
+                self.create_deferred_ty_reference(ty.target, ty.node.unwrap(), Some(new_mapper))
+            } else {
+                self.instantiate_anonymous_ty(target, new_mapper, object_flags)
+            };
+            self.instantiation_ty_map.insert(id, ty);
+            ty
         } else {
             ty
         }
@@ -332,10 +363,16 @@ impl<'cx> TyChecker<'cx> {
             let restrictive_instantiation = self.instantiate_ty(ty, Some(self.restrictive_mapper));
             self.get_mut_ty_links(ty.id)
                 .set_restrictive_instantiation(restrictive_instantiation);
-            self.ty_links.insert(
-                restrictive_instantiation.id,
-                TyLinks::default().with_restrictive_instantiation(restrictive_instantiation),
-            );
+            if let Some(t) = self
+                .get_ty_links(restrictive_instantiation.id)
+                .get_restrictive_instantiation()
+            {
+                assert!(t == restrictive_instantiation);
+                return t;
+            } else {
+                self.get_mut_ty_links(restrictive_instantiation.id)
+                    .set_restrictive_instantiation(restrictive_instantiation);
+            }
             restrictive_instantiation
         }
     }

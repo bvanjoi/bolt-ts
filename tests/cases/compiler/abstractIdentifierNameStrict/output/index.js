@@ -1,5 +1,5 @@
-var abstract = true
+var abstract = true;
 function foo() {
   "use strict";
-  var abstract = true
+  var abstract = true;
 }

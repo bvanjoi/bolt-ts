@@ -5,10 +5,10 @@ use std::hash::Hasher;
 use crate::bind::{Symbol, SymbolFlags, SymbolID, SymbolName};
 use crate::check::links::TyLinks;
 use crate::check::SymbolLinks;
-use crate::keyword;
 use crate::ty::{
     self, CheckFlags, ElementFlags, IndexFlags, ObjectFlags, TyID, TypeFlags, UnionReduction,
 };
+use crate::{ast, keyword};
 
 use super::utils::insert_ty;
 use super::{relation::RelationKind, TyChecker};
@@ -81,8 +81,27 @@ impl<'cx> TyChecker<'cx> {
         if target.kind.is_object_tuple() {
             self.create_normalized_tuple_ty(target, resolved_ty_args)
         } else {
-            self.create_reference_ty(target, resolved_ty_args, ObjectFlags::empty())
+            self.create_reference_ty(target, Some(resolved_ty_args), ObjectFlags::empty())
         }
+    }
+
+    pub(super) fn create_deferred_ty_reference(
+        &mut self,
+        target: &'cx ty::Ty<'cx>,
+        node: ast::NodeID,
+        mapper: Option<&'cx dyn ty::TyMap<'cx>>,
+    ) -> &'cx ty::Ty<'cx> {
+        // TODO: mapper
+        let ty = ty::ReferenceTy {
+            target,
+            node: Some(node),
+            mapper,
+        };
+        let ty = self.create_object_ty(
+            ty::ObjectTyKind::Reference(self.alloc(ty)),
+            ObjectFlags::REFERENCE,
+        );
+        ty
     }
 
     pub(super) fn create_normalized_tuple_ty(
@@ -92,7 +111,7 @@ impl<'cx> TyChecker<'cx> {
     ) -> &'cx ty::Ty<'cx> {
         let target = ty.kind.expect_object_tuple();
         if !target.combined_flags.intersects(ElementFlags::NON_REQUIRED) {
-            return self.create_reference_ty(ty, element_types, ObjectFlags::empty());
+            return self.create_reference_ty(ty, Some(element_types), ObjectFlags::empty());
         } else if target.combined_flags.intersects(ElementFlags::VARIABLE) {
             if let Some(_) = element_types.iter().enumerate().position(|(i, t)| {
                 target.element_flags[i].intersects(ElementFlags::VARIADIC)
@@ -171,39 +190,58 @@ impl<'cx> TyChecker<'cx> {
         if expanded_flags.is_empty() {
             tuple_target
         } else {
-            self.create_reference_ty(tuple_target, self.alloc(expanded_tys), ObjectFlags::empty())
+            self.create_reference_ty(
+                tuple_target,
+                Some(self.alloc(expanded_tys)),
+                ObjectFlags::empty(),
+            )
         }
     }
 
     pub(super) fn create_reference_ty(
         &mut self,
         target: &'cx ty::Ty<'cx>,
-        resolved_ty_args: ty::Tys<'cx>,
+        resolved_ty_args: Option<ty::Tys<'cx>>,
         flags: ObjectFlags,
     ) -> &'cx ty::Ty<'cx> {
         let ty = ty::ReferenceTy {
             target,
-            resolved_ty_args,
+            mapper: None,
+            node: None,
         };
         if !flags.is_empty() {
             // TODO: delete branch
             let object_flags = flags
                 | ObjectFlags::REFERENCE
-                | ty::Ty::get_propagating_flags_of_tys(ty.resolved_ty_args, None);
+                | ty::Ty::get_propagating_flags_of_tys(resolved_ty_args.unwrap_or_default(), None);
             let ty =
                 self.create_object_ty(ty::ObjectTyKind::Reference(self.alloc(ty)), object_flags);
+            assert!(!self.ty_links.contains_key(&ty.id));
+            if let Some(resolved_ty_args) = resolved_ty_args {
+                self.ty_links.insert(
+                    ty.id,
+                    TyLinks::default().with_resolved_ty_args(resolved_ty_args),
+                );
+            }
             return ty;
         }
 
-        let id = InstantiationTyMap::create_id(ty.target.id, ty.resolved_ty_args);
+        let id = InstantiationTyMap::create_id(ty.target.id, resolved_ty_args.unwrap_or_default());
         if let Some(res) = self.instantiation_ty_map.get(id) {
             res
         } else {
             let object_flags = flags
                 | ObjectFlags::REFERENCE
-                | ty::Ty::get_propagating_flags_of_tys(ty.resolved_ty_args, None);
+                | ty::Ty::get_propagating_flags_of_tys(resolved_ty_args.unwrap_or_default(), None);
             let ty =
                 self.create_object_ty(ty::ObjectTyKind::Reference(self.alloc(ty)), object_flags);
+            assert!(!self.ty_links.contains_key(&ty.id));
+            if let Some(resolved_ty_args) = resolved_ty_args {
+                self.ty_links.insert(
+                    ty.id,
+                    TyLinks::default().with_resolved_ty_args(resolved_ty_args),
+                );
+            }
             self.instantiation_ty_map.insert(id, ty);
             ty
         }
@@ -362,7 +400,7 @@ impl<'cx> TyChecker<'cx> {
     pub(super) fn create_array_ty(&mut self, element_ty: &'cx ty::Ty<'cx>) -> &'cx ty::Ty<'cx> {
         self.create_reference_ty(
             self.global_array_ty(),
-            self.alloc(vec![element_ty]),
+            Some(self.alloc(vec![element_ty])),
             ObjectFlags::empty(),
         )
     }

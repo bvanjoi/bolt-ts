@@ -298,8 +298,8 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
                     // TODO: report
                     return Ternary::FALSE;
                 }
-                let source_ty_args = s.resolved_ty_args;
-                let target_ty_args = t.resolved_ty_args;
+                let source_ty_args = self.c.get_ty_arguments(source);
+                let target_ty_args = self.c.get_ty_arguments(target);
                 let target_start_count = t_tuple.get_start_elem_count(ElementFlags::NON_REST);
                 let target_end_count = t_tuple.get_end_elem_count(ElementFlags::NON_REST);
                 for source_pos in 0..source_arity {
@@ -732,7 +732,7 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
 
         // TODO: handle `source/target.kind.readonly` and `isMutableArrayOrTuple`
         if (source.kind.is_single_element_generic_tuple_type() && {
-            let ty_arg = source.kind.expect_object_reference().resolved_ty_args[0];
+            let ty_arg = self.c.get_ty_arguments(source)[0];
             result = self.is_related_to(
                 ty_arg,
                 target,
@@ -742,7 +742,7 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
             );
             result != Ternary::FALSE
         }) || (target.kind.is_single_element_generic_tuple_type() && {
-            let ty_arg = target.kind.expect_object_reference().resolved_ty_args[0];
+            let ty_arg = self.c.get_ty_arguments(target)[0];
             result = self.is_related_to(
                 source,
                 ty_arg,
@@ -850,9 +850,11 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
                             // cycle
                             return Ternary::UNKNOWN;
                         }
+                        let source_ty_args = self.c.get_ty_arguments(source);
+                        let target_ty_args = self.c.get_ty_arguments(target);
                         if let Some(result) = self.relate_variances(
-                            source_refer.resolved_ty_args,
-                            target_refer.resolved_ty_args,
+                            source_ty_args,
+                            target_ty_args,
                             variances,
                             report_error,
                             intersection_state,

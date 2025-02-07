@@ -4,7 +4,7 @@ var test = {};
   
   
   function map() {
-    var ys = []
+    var ys = [];
   }
   
 })(test);

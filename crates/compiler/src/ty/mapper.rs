@@ -39,7 +39,10 @@ impl<'cx> ArrayTyMapper<'cx> {
             .enumerate()
             .map(|(idx, &source)| {
                 assert!(source.kind.is_param());
-                let target = targets.map_or(checker.any_ty, |t| t[idx]);
+                let target = targets
+                    .and_then(|tys| tys.get(idx))
+                    .copied()
+                    .unwrap_or(checker.any_ty);
                 (source, target)
             })
             .collect::<Vec<_>>();

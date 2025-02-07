@@ -1,2 +1,2 @@
 do {} while (false)
-var n
+var n;

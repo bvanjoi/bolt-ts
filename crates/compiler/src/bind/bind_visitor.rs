@@ -69,7 +69,7 @@ impl<'cx> BinderState<'cx> {
         use ast::StmtKind::*;
         match stmt.kind {
             Empty(_) => (),
-            Var(var) => self.bind_var_stmt(var),
+            Var(var) => self.bind_var_stmt(container, var),
             Expr(expr) => self.bind_expr(expr),
             Fn(f) => self.bind_fn_decl(container, f),
             If(stmt) => {
@@ -133,6 +133,8 @@ impl<'cx> BinderState<'cx> {
             self.scope_id = self.new_scope();
             if let Some(var) = catch.var {
                 self.bind_var_binding(
+                    None,
+                    false,
                     var.binding,
                     ast::VarKind::Var,
                     var.id,
@@ -151,7 +153,7 @@ impl<'cx> BinderState<'cx> {
     fn bind_for_init(&mut self, init: &ast::ForInitKind<'cx>) {
         use ast::ForInitKind::*;
         match init {
-            Var((kind, var)) => self.bind_var_decls(var, *kind),
+            Var((kind, var)) => self.bind_var_decls(None, var, *kind, false),
             Expr(expr) => self.bind_expr(expr),
         }
     }
@@ -223,7 +225,7 @@ impl<'cx> BinderState<'cx> {
     fn bind_ns_decl(&mut self, container: ast::NodeID, ns: &'cx ast::NsDecl<'cx>) {
         let name = match ns.name {
             ast::ModuleName::Ident(ident) => ident.name,
-            ast::ModuleName::StringLit(lit) => {
+            ast::ModuleName::StringLit(_) => {
                 if let Some(block) = ns.block {
                     self.bind_block_stmt(block);
                 }
@@ -246,9 +248,14 @@ impl<'cx> BinderState<'cx> {
         );
         self.create_final_res(ns.id, symbol);
 
+        let is_export = ns
+            .modifiers
+            .is_some_and(|mods| mods.flags.contains(ModifierKind::Export));
+        let name = SymbolName::Normal(name);
+        self.members(container, is_export).insert(name, symbol);
+
         let container = self.final_res[&container];
         if let SymbolKind::BlockContainer(c) = &mut self.symbols.get_mut(container).kind.0 {
-            let name = SymbolName::Normal(name);
             c.locals.insert(name, symbol);
         }
         if let Some(block) = ns.block {
@@ -693,9 +700,12 @@ impl<'cx> BinderState<'cx> {
         self.create_object_lit_symbol(lit.id, members);
     }
 
-    fn bind_var_stmt(&mut self, var: &'cx ast::VarStmt) {
+    fn bind_var_stmt(&mut self, container: ast::NodeID, var: &'cx ast::VarStmt) {
         self.connect(var.id);
-        self.bind_var_decls(var.list, var.kind);
+        let is_export = var
+            .modifiers
+            .is_some_and(|mods| mods.flags.contains(ModifierKind::Export));
+        self.bind_var_decls(Some(container), var.list, var.kind, is_export);
     }
 
     pub(super) fn bind_entity_name(&mut self, name: &'cx ast::EntityName) {
@@ -795,14 +805,22 @@ impl<'cx> BinderState<'cx> {
         self.bind_ty(array.ele)
     }
 
-    fn bind_var_decls(&mut self, decls: ast::VarDecls<'cx>, kind: ast::VarKind) {
+    fn bind_var_decls(
+        &mut self,
+        container: Option<ast::NodeID>,
+        decls: ast::VarDecls<'cx>,
+        kind: ast::VarKind,
+        is_export: bool,
+    ) {
         for decl in decls {
-            self.bind_var_decl(decl, kind);
+            self.bind_var_decl(container, decl, kind, is_export);
         }
     }
 
     fn bind_var_binding(
         &mut self,
+        container: Option<ast::NodeID>,
+        is_export: bool,
         binding: &'cx ast::Binding<'cx>,
         kind: ast::VarKind,
         var_decl: ast::NodeID,
@@ -823,6 +841,10 @@ impl<'cx> BinderState<'cx> {
                 let symbol =
                     self.create_var_symbol(ident.name, include_flags, symbol_kind(), exclude_flags);
                 self.create_final_res(ident.id, symbol);
+                if let Some(container) = container {
+                    let members = self.members(container, is_export);
+                    members.insert(SymbolName::Normal(ident.name), symbol);
+                }
             }
             ObjectPat(object) => {
                 for elem in object.elems {
@@ -840,6 +862,8 @@ impl<'cx> BinderState<'cx> {
                         }
                         Prop { name, .. } => {
                             self.bind_var_binding(
+                                None,
+                                false,
                                 name,
                                 kind,
                                 var_decl,
@@ -853,7 +877,13 @@ impl<'cx> BinderState<'cx> {
         }
     }
 
-    fn bind_var_decl(&mut self, decl: &'cx ast::VarDecl<'cx>, kind: ast::VarKind) {
+    fn bind_var_decl(
+        &mut self,
+        container: Option<ast::NodeID>,
+        decl: &'cx ast::VarDecl<'cx>,
+        kind: ast::VarKind,
+        is_export: bool,
+    ) {
         let (include_flags, exclude_flags) =
             if kind == ast::VarKind::Let || kind == ast::VarKind::Const {
                 (
@@ -866,7 +896,15 @@ impl<'cx> BinderState<'cx> {
                     SymbolFlags::FUNCTION_SCOPED_VARIABLE_EXCLUDES,
                 )
             };
-        self.bind_var_binding(decl.binding, kind, decl.id, include_flags, exclude_flags);
+        self.bind_var_binding(
+            container,
+            is_export,
+            decl.binding,
+            kind,
+            decl.id,
+            include_flags,
+            exclude_flags,
+        );
         if let Some(ty) = decl.ty {
             self.bind_ty(ty);
         }
