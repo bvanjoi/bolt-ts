@@ -4,7 +4,7 @@ use crate::{ast, ty::Sig};
 
 use super::create_ty::IntersectionFlags;
 use super::get_contextual::ContextFlags;
-use super::utils::{append_if_unique, SameMapperResult};
+use super::utils::append_if_unique;
 use super::{CheckMode, InferenceContextId, TyChecker};
 
 use thin_vec::{thin_vec, ThinVec};
@@ -322,15 +322,12 @@ impl<'cx> TyChecker<'cx> {
             //     ty
             // }
         } else if let Some(i) = ty.kind.as_intersection() {
-            let tys = self.same_map(Some(i.tys), |this, ty, _| {
-                this.get_ty_with_this_arg(ty, this_arg)
-            });
-            match tys {
-                SameMapperResult::Old => ty,
-                SameMapperResult::New(tys) => {
-                    self.get_intersection_ty(tys, IntersectionFlags::None, None, None)
-                }
-            }
+            let tys = self
+                .same_map_tys(Some(i.tys), |this, ty, _| {
+                    this.get_ty_with_this_arg(ty, this_arg)
+                })
+                .unwrap();
+            self.get_intersection_ty(tys, IntersectionFlags::None, None, None)
         } else {
             ty
         }
@@ -673,13 +670,7 @@ impl<'cx> InferenceState<'cx, '_> {
         }
 
         if source == target && source.kind.is_union_or_intersection() {
-            let tys = if let Some(union) = source.kind.as_union() {
-                union.tys
-            } else if let Some(intersection) = source.kind.as_intersection() {
-                intersection.tys
-            } else {
-                unreachable!()
-            };
+            let tys = source.kind.tys_of_union_or_intersection().unwrap();
             for t in tys {
                 self.infer_from_tys(t, t);
             }

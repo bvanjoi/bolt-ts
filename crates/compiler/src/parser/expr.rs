@@ -225,13 +225,14 @@ impl<'cx> ParserState<'cx, '_> {
             self.parent_map.r#override(left.id(), next_expr_id);
             let kind = if matches!(t.kind, TokenKind::As | TokenKind::Satisfies) {
                 let ty = self.with_parent(next_expr_id, Self::parse_ty)?;
-                let kind = if t.kind == TokenKind::Satisfies {
+                if t.kind == TokenKind::Satisfies {
                     let expr = self.alloc(ast::SatisfiesExpr {
                         id: next_expr_id,
                         span: self.new_span(start as u32),
                         expr: left,
                         ty,
                     });
+                    self.insert_map(next_expr_id, ast::Node::SatisfiesExpr(expr));
                     ast::ExprKind::Satisfies(expr)
                 } else {
                     let expr = self.alloc(ast::AsExpr {
@@ -240,9 +241,9 @@ impl<'cx> ParserState<'cx, '_> {
                         expr: left,
                         ty,
                     });
+                    self.insert_map(next_expr_id, ast::Node::AsExpr(expr));
                     ast::ExprKind::As(expr)
-                };
-                kind
+                }
             } else {
                 let op = ast::BinOp {
                     kind: t.kind.into(),
@@ -250,16 +251,15 @@ impl<'cx> ParserState<'cx, '_> {
                 };
                 let right =
                     self.with_parent(next_expr_id, |this| this.parse_binary_expr(next_prec))?;
-                let bin_expr = self.alloc(ast::BinExpr {
+                let expr = self.alloc(ast::BinExpr {
                     id: next_expr_id,
                     left,
                     op,
                     right,
                     span: self.new_span(start as u32),
                 });
-                self.insert_map(next_expr_id, ast::Node::BinExpr(bin_expr));
-                let kind = ast::ExprKind::Bin(bin_expr);
-                kind
+                self.insert_map(next_expr_id, ast::Node::BinExpr(expr));
+                ast::ExprKind::Bin(expr)
             };
             left = self.alloc(ast::Expr { kind });
         }

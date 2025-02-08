@@ -1,3 +1,7 @@
+use super::flow::FlowCond;
+use super::flow::FlowFlags;
+use super::flow::FlowID;
+use super::flow::FlowNodeKind;
 use super::symbol;
 use super::symbol::FunctionScopedVarSymbol;
 use super::symbol::GetterSetterSymbol;
@@ -5,6 +9,7 @@ use super::symbol::IndexSymbol;
 use super::symbol::{SymbolFlags, SymbolFnKind, SymbolKind};
 use super::symbol::{SymbolID, SymbolName, Symbols};
 use super::BinderState;
+use super::FlowNodes;
 use super::ScopeID;
 
 use bolt_ts_atom::AtomMap;
@@ -16,21 +21,35 @@ use crate::ast::ModifierKind;
 use crate::ast::{self};
 use crate::bind::prop_name;
 use crate::bind::symbol::AliasSymbol;
+use crate::bind::FlowNode;
 use crate::parser::Parser;
 
 impl<'cx> BinderState<'cx> {
     pub fn new(atoms: &'cx AtomMap, parser: &'cx Parser<'cx>, module_id: ModuleID) -> Self {
         let symbols = Symbols::new(module_id);
+        let mut flow_nodes = FlowNodes::new(module_id);
+        let unreachable_flow_node = flow_nodes.create_flow_unreachable();
+        let report_unreachable_flow_node = flow_nodes.create_flow_unreachable();
+
         BinderState {
             atoms,
             p: parser,
             scope_id: ScopeID::root(module_id),
             scope_id_parent_map: Vec::with_capacity(512),
-            res: fx_hashmap_with_capacity(128),
-            final_res: fx_hashmap_with_capacity(256),
-            node_id_to_scope_id: fx_hashmap_with_capacity(32),
+            res: fx_hashmap_with_capacity(512),
+            final_res: fx_hashmap_with_capacity(512),
+            node_id_to_scope_id: fx_hashmap_with_capacity(512),
             symbols,
             diags: Vec::new(),
+
+            flow_nodes,
+            current_flow: None,
+            current_true_target: None,
+            current_false_target: None,
+            unreachable_flow_node,
+            report_unreachable_flow_node,
+            has_flow_effects: false,
+            in_return_position: false,
         }
     }
 
@@ -58,6 +77,7 @@ impl<'cx> BinderState<'cx> {
         assert!(self.scope_id_parent_map.is_empty());
         self.scope_id_parent_map.push(None);
         self.connect(root.id);
+        self.current_flow = Some(self.flow_nodes.create_start(None));
         let id = self.create_block_container_symbol(root.id);
         assert_eq!(id.index_as_u32(), 1);
         for stmt in root.stmts {
@@ -80,18 +100,12 @@ impl<'cx> BinderState<'cx> {
                 }
             }
             Block(block) => self.bind_block_stmt(block),
-            Return(ret) => {
-                if let Some(expr) = ret.expr {
-                    self.bind_expr(expr)
-                }
-            }
+            Return(ret) => self.bind_ret_or_throw(ret.expr, true),
+            Throw(t) => self.bind_ret_or_throw(Some(t.expr), false),
             Class(class) => self.bind_class_like(Some(container), class, false),
             Interface(interface) => self.bind_interface_decl(container, interface),
             Type(t) => self.bind_type_decl(t),
             Namespace(ns) => self.bind_ns_decl(container, ns),
-            Throw(t) => {
-                self.bind_expr(t.expr);
-            }
             Enum(_) => {}
             Import(_) => {}
             Export(decl) => self.bind_export_decl(container, decl),
@@ -124,6 +138,20 @@ impl<'cx> BinderState<'cx> {
             While(n) => {}
             Do(n) => {}
         }
+    }
+
+    fn bind_ret_or_throw(&mut self, expr: Option<&'cx ast::Expr<'cx>>, is_ret: bool) {
+        let saved_in_return_position = self.in_return_position;
+        self.in_return_position = true;
+        if let Some(expr) = expr {
+            self.bind_expr(expr);
+        }
+        self.in_return_position = saved_in_return_position;
+        if is_ret {
+            // TODO:
+        }
+        self.current_flow = Some(self.unreachable_flow_node);
+        self.has_flow_effects = true;
     }
 
     fn bind_try_stmt(&mut self, container: ast::NodeID, stmt: &'cx ast::TryStmt<'cx>) {
@@ -575,7 +603,7 @@ impl<'cx> BinderState<'cx> {
         self.connect(ident.id)
     }
 
-    pub(super) fn bind_expr(&mut self, expr: &'cx ast::Expr) {
+    pub(super) fn bind_expr(&mut self, expr: &ast::Expr<'cx>) {
         use ast::ExprKind::*;
         match expr.kind {
             Ident(ident) => self.bind_ident(ident),
@@ -633,6 +661,9 @@ impl<'cx> BinderState<'cx> {
 
         let old = self.scope_id;
         self.scope_id = self.new_scope();
+        if let Some(ty_params) = f.ty_params {
+            self.bind_ty_params(ty_params);
+        }
         self.bind_params(f.params);
         use ast::ArrowFnExprBody::*;
         match f.body {
@@ -642,10 +673,153 @@ impl<'cx> BinderState<'cx> {
         self.scope_id = old;
     }
 
+    pub(super) fn finish_flow_label(&mut self, id: FlowID) -> FlowID {
+        let node = self.flow_nodes.get_flow_node(id);
+        let FlowNodeKind::Label(label) = &node.kind else {
+            unreachable!()
+        };
+        let Some(antecedents) = &label.antecedent else {
+            return self.unreachable_flow_node;
+        };
+        if antecedents.len() == 1 {
+            antecedents[0]
+        } else {
+            id
+        }
+    }
+
     fn bind_cond_expr(&mut self, cond: &'cx ast::CondExpr<'cx>) {
-        self.bind_expr(cond.cond);
+        let true_label = self.flow_nodes.create_branch_label();
+        let false_label = self.flow_nodes.create_branch_label();
+        let post_expression_label = self.flow_nodes.create_branch_label();
+
+        let saved_current_flow = self.current_flow;
+        let saved_has_flow_effects = self.has_flow_effects;
+
+        self.has_flow_effects = false;
+        self.bind_cond(Some(cond.cond), true_label, false_label);
+
+        self.current_flow = Some(self.finish_flow_label(true_label));
+        let when_true_flow = self.current_flow.unwrap();
         self.bind_expr(cond.when_true);
+        self.flow_nodes
+            .add_antecedent(post_expression_label, when_true_flow);
+
+        self.current_flow = Some(self.finish_flow_label(false_label));
+        let when_false_flow = self.current_flow.unwrap();
+        if self.in_return_position {
+            self.flow_nodes
+                .insert_cond_expr_flow(cond, when_true_flow, when_false_flow);
+        }
         self.bind_expr(cond.when_false);
+        self.flow_nodes
+            .add_antecedent(post_expression_label, when_false_flow);
+
+        self.current_flow = if self.has_flow_effects {
+            Some(self.finish_flow_label(post_expression_label))
+        } else {
+            saved_current_flow
+        };
+        if !self.has_flow_effects {
+            self.has_flow_effects = saved_has_flow_effects;
+        }
+    }
+
+    fn do_with_cond_branch<T>(
+        &mut self,
+        f: impl FnOnce(&mut Self, T),
+        value: T,
+        true_target: FlowID,
+        false_target: FlowID,
+    ) {
+        let saved_true_target = self.current_true_target;
+        let saved_false_target = self.current_false_target;
+
+        self.current_true_target = Some(true_target);
+        self.current_false_target = Some(false_target);
+        f(self, value);
+        self.current_true_target = saved_true_target;
+        self.current_false_target = saved_false_target;
+    }
+
+    fn create_flow_condition(
+        &mut self,
+        flags: FlowFlags,
+        antecedent: FlowID,
+        expr: Option<&'cx ast::Expr<'cx>>,
+    ) -> FlowID {
+        let antecedent_flags = self.flow_nodes.get_flow_node(antecedent).flags;
+        if antecedent_flags.intersects(FlowFlags::UNREACHABLE) {
+            return antecedent;
+        }
+        let Some(expr) = expr else {
+            return if flags.intersects(FlowFlags::TRUE_CONDITION) {
+                antecedent
+            } else {
+                self.unreachable_flow_node
+            };
+        };
+        if match &expr.kind {
+            ast::ExprKind::BoolLit(lit)
+                if lit.val && flags.intersects(FlowFlags::FALSE_CONDITION) =>
+            {
+                true
+            }
+            ast::ExprKind::BoolLit(lit)
+                if !lit.val && flags.intersects(FlowFlags::TRUE_CONDITION) =>
+            {
+                true
+            }
+            _ => false,
+        } {
+            return self.unreachable_flow_node;
+        };
+
+        self.flow_nodes.set_flow_node_referenced(antecedent);
+
+        let node = FlowNode {
+            flags,
+            kind: FlowNodeKind::Cond(FlowCond {
+                node: expr,
+                antecedent,
+            }),
+        };
+        self.flow_nodes.insert_flow_node(node)
+    }
+
+    fn bind_cond(
+        &mut self,
+        node: Option<&'cx ast::Expr<'cx>>,
+        true_target: FlowID,
+        false_target: FlowID,
+    ) {
+        self.do_with_cond_branch(
+            |this, value| {
+                if let Some(node) = value {
+                    this.bind_expr(node);
+                }
+            },
+            node,
+            true_target,
+            false_target,
+        );
+        let should_add_antecedent = node.map_or(true, |node| {
+            !node.kind.is_logical_assignment() && !node.kind.is_logical_expr()
+        });
+        if should_add_antecedent {
+            let t = self.create_flow_condition(
+                FlowFlags::TRUE_CONDITION,
+                self.current_flow.unwrap(),
+                node,
+            );
+            self.flow_nodes.add_antecedent(true_target, t);
+            let f = self.create_flow_condition(
+                FlowFlags::FALSE_CONDITION,
+                self.current_flow.unwrap(),
+                node,
+            );
+            self.flow_nodes.add_antecedent(false_target, f);
+        }
     }
 
     fn bind_array_lit(&mut self, lit: &'cx ast::ArrayLit<'cx>) {

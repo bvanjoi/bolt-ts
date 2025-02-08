@@ -267,6 +267,16 @@ impl<'cx> TyKind<'cx> {
         self.is_union() || self.is_intersection()
     }
 
+    pub fn tys_of_union_or_intersection(&self) -> Option<Tys<'cx>> {
+        if let Some(union) = self.as_union() {
+            Some(union.tys)
+        } else if let Some(intersection) = self.as_intersection() {
+            Some(intersection.tys)
+        } else {
+            None
+        }
+    }
+
     pub fn is_object_or_intersection(&self) -> bool {
         self.is_object() || self.is_intersection()
     }

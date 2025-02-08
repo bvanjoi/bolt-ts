@@ -1,54 +1,16 @@
 // From `github.com/sindresorhus/type-fest`, MIT License
 
-// type ArrayValues<T extends readonly unknown[]> = T[number];
-// {
-//   // const values = ['a', 'b', 'c'] as const;
-//   // type Values = ArrayValues<typeof values>;
-
-//   // const test: 'a' | 'b' | 'c' = 'a';
-//   // const a0: Values = test;
-
-//   // const a1: Values = 'a';
-//   // const a2: Values = 'b';
-//   // const a3: Values = 'c';
-
-//   // const a4: Values = '';
-//   // const a5: Values = 0;
-
-//   // type TupleValues = ArrayValues<['1', 2, {c: true}]>;
-
-//   // declare const testTuple: '1' | 2 | {c: true};
-//   // expectType<TupleValues>(testTuple);
-
-//   // expectAssignable<TupleValues>('1');
-//   // expectAssignable<TupleValues>(2);
-//   // expectAssignable<TupleValues>({c: true});
-
-//   // expectNotAssignable<TupleValues>({});
-//   // expectNotAssignable<TupleValues>(1);
-//   // expectNotAssignable<TupleValues>('2');
-
-//   // type AnyStringValues = ArrayValues<string[]>;
-//   // expectAssignable<AnyStringValues>('');
-//   // expectAssignable<AnyStringValues>('123');
-//   // expectNotAssignable<AnyStringValues>(123);
-//   // expectNotAssignable<AnyStringValues>(undefined);
-//   // expectNotAssignable<AnyStringValues>(null);
-// }
-
 
 function n(): never {
   throw new Error();
 }
 
 // =========== And ===========
-
 type And<A extends boolean, B extends boolean> = [A, B][number] extends true
 	? true
 	: true extends [IsEqual<A, false>, IsEqual<B, false>][number]
 		? false
 		: never;
-
 {
   const never: never = n();
 
@@ -62,42 +24,72 @@ type And<A extends boolean, B extends boolean> = [A, B][number] extends true
 }
 
 // ========= ArrayValues =========
-
 type ArrayValues<T extends readonly unknown[]> = T[number];
-
 {
   const values = ['a', 'b', 'c'] as const;
-  // type Values = ArrayValues<typeof values>;
+  type Values = ArrayValues<typeof values>;
 
-  // const test: 'a' | 'b' | 'c' = 'a';
-  // const a0: Values = test;
+  const test: 'a' | 'b' | 'c' = 'a';
+  const a0: Values = test;
 
-  // const a1: Values = 'a';
-  // const a2: Values = 'b';
-  // const a3: Values = 'c';
+  const a1: Values = 'a';
+  const a2: Values = 'b';
+  const a3: Values = 'c';
 
-  // const a4: Values = '';
-  // const a5: Values = 0;
+  const a4: Values = '';
+  //~^ ERROR: Type 'string' is not assignable to type '"a" | "b" | "c"'.
+  const a5: Values = 0;
+  //~^ ERROR: Type 'number' is not assignable to type '"a" | "b" | "c"'.
 
-  // type TupleValues = ArrayValues<['1', 2, {c: true}]>;
+  type TupleValues = ArrayValues<['1', 2, {c: true}]>;
 
-  // declare const testTuple: '1' | 2 | {c: true};
-  // expectType<TupleValues>(testTuple);
+  const testTuple: '1' | 2 | {c: true} = '1';
+  const b0: TupleValues = testTuple;
 
-  // expectAssignable<TupleValues>('1');
-  // expectAssignable<TupleValues>(2);
-  // expectAssignable<TupleValues>({c: true});
+  const b1: TupleValues = '1';
+  const b2: TupleValues = 2;
+  const b3: TupleValues = {c: true};
 
-  // expectNotAssignable<TupleValues>({});
-  // expectNotAssignable<TupleValues>(1);
-  // expectNotAssignable<TupleValues>('2');
+  const b4: TupleValues = {};
+  //~^ ERROR: Type '{ }' is not assignable to type '2 | "1" | { c: true; }'.
+  const b5: TupleValues = 1;
+  //~^ ERROR: Type 'number' is not assignable to type '2 | "1" | { c: true; }'.
+  const b6: TupleValues = '2';
+  //~^ ERROR: Type 'string' is not assignable to type '2 | "1" | { c: true; }'.
 
-  // type AnyStringValues = ArrayValues<string[]>;
-  // expectAssignable<AnyStringValues>('');
-  // expectAssignable<AnyStringValues>('123');
-  // expectNotAssignable<AnyStringValues>(123);
-  // expectNotAssignable<AnyStringValues>(undefined);
-  // expectNotAssignable<AnyStringValues>(null);
+  type AnyStringValues = ArrayValues<string[]>;
+  const c0: AnyStringValues = '';
+  const c1: AnyStringValues = '123';
+
+  const c2: AnyStringValues = 123;
+  //~^ ERROR: Type 'number' is not assignable to type 'string'.
+  const c3: AnyStringValues = undefined; // Depends on `strictNullChecks`
+  const c4: AnyStringValues = null;      // Depends on `strictNullChecks`
+}
+
+// ========== Arrayable ==========
+type Arrayable<T> = T | T[];
+{
+  const unknown: unknown = 'unknown';
+  // expectType<Arrayable<string>>(unknown as string | string[]);
+  // expectType<Arrayable<string | {foo: number}>>(unknown as (string | {foo: number}) | Array<string | {foo: number}>);
+  // expectType<Arrayable<never>>(unknown as /* never | */ never[]);
+  // expectType<Arrayable<string[]>>(unknown as string[] | string[][]);
+
+  // // Test for issue https://github.com/sindresorhus/type-fest/issues/952
+  // type Item = number;
+  // function castArray1(value: Arrayable<Item>): Item[] {
+  //   return Array.isArray(value) ? value : [value];
+  // }
+
+  // expectType<Item[]>(unknown as ReturnType<typeof castArray1>);
+
+  // function castArray2<T>(value: Arrayable<T>): T[] {
+  //   return Array.isArray(value) ? value : [value];
+  // }
+
+  // const a0: number[] = castArray2(1);
+  // const a1: number[] = castArray2([1, 2, 3]);
 }
 
 // =========== ifNever ===========

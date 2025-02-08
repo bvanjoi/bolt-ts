@@ -23,18 +23,13 @@ impl<'cx> TyChecker<'cx> {
         &mut self,
         id: SymbolID,
     ) -> Option<&'cx ty::Ty<'cx>> {
-        if let Some(ty) = self.get_symbol_links(id).get_declared_ty() {
-            return Some(ty);
-        }
-        let s = self.binder.symbol(id);
-        if s.flags
-            .intersects(SymbolFlags::CLASS | SymbolFlags::INTERFACE)
-        {
+        let flags = self.binder.symbol(id).flags;
+        if flags.intersects(SymbolFlags::CLASS | SymbolFlags::INTERFACE) {
             Some(self.get_declared_ty_of_class_or_interface(id))
-        } else if s.flags == SymbolFlags::TYPE_ALIAS {
+        } else if flags == SymbolFlags::TYPE_ALIAS {
             let ty = self.get_declared_ty_of_type_alias(id);
             Some(ty)
-        } else if s.flags == SymbolFlags::TYPE_PARAMETER {
+        } else if flags == SymbolFlags::TYPE_PARAMETER {
             let ty = self.get_declared_ty_of_ty_param(id);
             Some(ty)
         } else {

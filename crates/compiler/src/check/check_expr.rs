@@ -152,8 +152,13 @@ impl<'cx> TyChecker<'cx> {
         &mut self,
         expr: &'cx ast::Expr<'cx>,
     ) -> &'cx ty::Ty<'cx> {
+        let id = expr.id();
         let ty = self.check_expr(expr);
-        self.get_widened_literal_ty(ty)
+        if self.p.is_const_context(id) {
+            ty
+        } else {
+            self.get_widened_literal_ty(ty)
+        }
     }
 
     fn check_cond(&mut self, cond: &'cx ast::CondExpr) -> &'cx ty::Ty<'cx> {

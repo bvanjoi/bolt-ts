@@ -4,6 +4,7 @@ mod bind_fn_like;
 mod bind_visitor;
 mod create;
 mod errors;
+mod flow;
 mod pprint;
 mod symbol;
 
@@ -11,9 +12,11 @@ use bolt_ts_atom::AtomMap;
 use bolt_ts_span::Module;
 use bolt_ts_span::ModuleID;
 
+use flow::FlowID;
 use rayon::prelude::*;
 use rustc_hash::FxHashMap;
 
+pub use self::flow::{FlowNode, FlowNodes};
 pub use self::symbol::BlockContainerSymbol;
 use self::symbol::ClassSymbol;
 pub(crate) use self::symbol::SymbolKind;
@@ -95,6 +98,16 @@ pub struct BinderState<'cx> {
     pub(crate) scope_id_parent_map: Vec<Option<ScopeID>>,
     pub(crate) node_id_to_scope_id: FxHashMap<ast::NodeID, ScopeID>,
     pub(crate) symbols: Symbols,
+
+    pub(crate) flow_nodes: FlowNodes<'cx>,
+    current_flow: Option<FlowID>,
+    has_flow_effects: bool,
+    in_return_position: bool,
+    current_true_target: Option<FlowID>,
+    current_false_target: Option<FlowID>,
+    unreachable_flow_node: FlowID,
+    report_unreachable_flow_node: FlowID,
+
     pub(super) res: FxHashMap<(ScopeID, SymbolName), SymbolID>,
     pub(crate) final_res: FxHashMap<ast::NodeID, SymbolID>,
 }

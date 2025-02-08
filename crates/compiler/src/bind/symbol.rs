@@ -479,16 +479,6 @@ impl Symbols {
     pub fn len(&self) -> u32 {
         self.data.len() as u32
     }
-
-    pub fn iter(&self) -> impl Iterator<Item = (SymbolID, &Symbol)> {
-        self.data.iter().enumerate().map(|(index, symbol)| {
-            let id = SymbolID {
-                module: self.module_id,
-                index: index as u32,
-            };
-            (id, symbol)
-        })
-    }
 }
 
 pub struct GlobalSymbols(FxHashMap<SymbolName, SymbolID>);

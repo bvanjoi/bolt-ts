@@ -172,7 +172,14 @@ pub fn eval_from(root: PathBuf, tsconfig: NormalizedTsConfig) -> Output {
     let atoms = Arc::try_unwrap(atoms).unwrap();
     let atoms = atoms.into_inner().unwrap();
 
-    let bind_list = bind_parallel(module_arena.modules(), &atoms, &p);
+    let mut bind_list = bind_parallel(module_arena.modules(), &atoms, &p);
+
+    let flow_nodes = bind_list
+        .iter_mut()
+        .map(|x| std::mem::take(&mut x.flow_nodes))
+        .collect::<Vec<_>>();
+
+    let bind_list = bind_list;
 
     let mut global_symbols = GlobalSymbols::new();
     for state in bind_list
@@ -243,9 +250,10 @@ pub fn eval_from(root: PathBuf, tsconfig: NormalizedTsConfig) -> Output {
         &ty_arena,
         &p,
         &atoms,
-        &mut binder,
+        &binder,
         &global_symbols,
         tsconfig.compiler_options(),
+        flow_nodes,
     );
     for item in &entries {
         checker.check_program(p.root(*item));

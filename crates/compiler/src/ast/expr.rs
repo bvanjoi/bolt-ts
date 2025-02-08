@@ -108,6 +108,45 @@ pub enum ExprKind<'cx> {
     Satisfies(&'cx SatisfiesExpr<'cx>),
 }
 
+impl<'cx> ExprKind<'cx> {
+    fn skip_paren(&'cx self) -> &'cx ExprKind<'cx> {
+        match self {
+            ExprKind::Paren(p) => p.expr.kind.skip_paren(),
+            _ => self,
+        }
+    }
+
+    pub fn is_logical_assignment(&self) -> bool {
+        let expr = self.skip_paren();
+        expr.is_logical_or_coalescing_assignment()
+    }
+
+    fn is_logical_or_coalescing_assignment(&self) -> bool {
+        match self {
+            ExprKind::Assign(n) => n.op.is_logical_or_coalescing_assign_op(),
+            _ => false,
+        }
+    }
+
+    fn is_logical_or_coalescing_binary(&self) -> bool {
+        match self {
+            ExprKind::Bin(bin) => bin.op.kind.is_logical_or_coalescing_op(),
+            _ => false,
+        }
+    }
+
+    pub fn is_logical_expr(&self) -> bool {
+        let mut n = self;
+        loop {
+            match n {
+                ExprKind::Paren(p) => n = &p.expr.kind,
+                ExprKind::PrefixUnary(p) if p.op == PrefixUnaryOp::Excl => n = &p.expr.kind,
+                _ => return self.is_logical_or_coalescing_binary(),
+            };
+        }
+    }
+}
+
 #[derive(Debug, Clone, Copy)]
 pub struct SatisfiesExpr<'cx> {
     pub id: NodeID,
@@ -166,7 +205,7 @@ pub struct PropAccessExpr<'cx> {
     pub name: &'cx Ident,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub enum PrefixUnaryOp {
     Plus,
     Minus,
@@ -271,6 +310,10 @@ impl AssignOp {
             BitXorEq => "^=",
             BitOrEq => "|=",
         }
+    }
+
+    pub fn is_logical_or_coalescing_assign_op(self) -> bool {
+        false
     }
 }
 
@@ -392,6 +435,16 @@ impl BinOpKind {
             In => "in",
             Satisfies => "satisfies",
         }
+    }
+
+    fn is_logical_op(self) -> bool {
+        // TODO: BarBar | AmpersandAmpersand
+        false
+    }
+
+    pub fn is_logical_or_coalescing_op(self) -> bool {
+        // TODO: QuestionQuestion
+        self.is_logical_op() || false
     }
 }
 

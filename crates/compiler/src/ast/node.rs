@@ -528,6 +528,23 @@ impl<'cx> Node<'cx> {
             _ => false,
         }
     }
+
+    pub fn is_assertion_expr(&self) -> bool {
+        // TODO: is_type_assertion_expr
+        self.is_as_expr()
+    }
+
+    pub fn has_flow_node(&self) -> bool {
+        macro_rules! has_flow_node {
+            ($( $node_kind:ident),* $(,)?) => {
+                match self {
+                    $(Node::$node_kind(_) => true,)*
+                    _ => false,
+                }
+            };
+        }
+        has_flow_node!(Ident, ThisExpr, SuperExpr)
+    }
 }
 
 macro_rules! as_node {

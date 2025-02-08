@@ -737,11 +737,6 @@ impl<'cx> TyChecker<'cx> {
                 panic!()
             }
             let check_ty = self.instantiate_ty(root.check_ty, mapper);
-            // if mapper.is_some() {
-            //     if let Some(r) = check_ty.kind.as_object_reference() {
-            //         dbg!(r.resolved_ty_args);
-            //     }
-            // }
             let extends_ty = self.instantiate_ty(root.extends_ty, mapper);
             if check_ty == self.error_ty || extends_ty == self.error_ty {
                 return self.error_ty;

@@ -74,7 +74,7 @@ use self::node_flags::NodeFlags;
 pub use self::resolve::ExpectedArgsCount;
 
 use crate::ast::{pprint_ident, BinOp};
-use crate::bind::{self, GlobalSymbols, Symbol, SymbolFlags, SymbolID, SymbolName};
+use crate::bind::{self, FlowNodes, GlobalSymbols, Symbol, SymbolFlags, SymbolID, SymbolName};
 use crate::parser::{AccessKind, AssignmentKind, Parser};
 use crate::ty::has_type_facts;
 use crate::ty::TYPEOF_NE_FACTS;
@@ -142,6 +142,7 @@ pub struct TyChecker<'cx> {
     arena: &'cx bumpalo::Bump,
     tys: Vec<&'cx ty::Ty<'cx>>,
     sigs: Vec<&'cx Sig<'cx>>,
+    flow_nodes: Vec<FlowNodes<'cx>>,
     num_lit_tys: FxHashMap<F64Represent, &'cx ty::Ty<'cx>>,
     string_lit_tys: FxHashMap<AtomId, &'cx ty::Ty<'cx>>,
     union_tys: UnionOrIntersectionMap<'cx>,
@@ -163,6 +164,7 @@ pub struct TyChecker<'cx> {
     ty_links: FxHashMap<TyID, TyLinks<'cx>>,
     instantiation_ty_map: InstantiationTyMap<'cx>,
     mark_tys: FxHashSet<TyID>,
+    shared_flow_count: u32,
     // === ast ===
     pub p: &'cx Parser<'cx>,
     // === global ===
@@ -235,6 +237,7 @@ impl<'cx> TyChecker<'cx> {
         binder: &'cx bind::Binder<'cx>,
         global_symbols: &'cx GlobalSymbols,
         config: &'cx NormalizedCompilerOptions,
+        flow_nodes: Vec<FlowNodes<'cx>>,
     ) -> Self {
         assert_eq!(ty_arena.allocated_bytes(), 0);
         let empty_array = ty_arena.alloc([]);
@@ -371,6 +374,8 @@ impl<'cx> TyChecker<'cx> {
             instantiation_ty_map: InstantiationTyMap::new(1024 * 16),
             mark_tys: fx_hashset_with_capacity(1024 * 4),
             transient_symbols,
+            shared_flow_count: 0,
+            flow_nodes,
 
             empty_ty_literal_symbol,
             empty_array,
@@ -1442,54 +1447,62 @@ impl<'cx> TyChecker<'cx> {
                 return self.error_ty;
             }
         }
-        // let decl = symbol.decl(self.binder);
-        // let immediate_decl = decl;
 
-        // let decl_container = self.get_control_flow_container(decl);
-        // let is_alias = self
-        //     .binder
-        //     .symbol(symbol)
-        //     .flags
-        //     .intersects(SymbolFlags::ALIAS);
-        // let flow_container = self.get_control_flow_container(ident.id);
-        // let is_param = self.p.node(self.p.get_root_decl(decl)).is_param_decl();
+        let Some(mut decl) = symbol.opt_decl(self.binder) else {
+            return ty;
+        };
+
+        let is_alias = self
+            .binder
+            .symbol(symbol)
+            .flags
+            .intersects(SymbolFlags::ALIAS);
+
+        let immediate_decl = decl;
+
+        let decl_container = self.p.get_control_flow_container(decl);
+        let flow_container = self.p.get_control_flow_container(ident.id);
+        let is_outer_variable = flow_container != decl_container;
+
+        let is_param = self.p.node(self.p.get_root_decl(decl)).is_param_decl();
         // let is_outer_variable = flow_container != decl_container;
-        // let type_is_auto = false; // TODO: check ty == self.auto_ty();
-        // let is_automatic_ty_is_non_null = type_is_auto;
+        let type_is_auto = ty == self.auto_ty;
+        let is_automatic_ty_is_non_null = type_is_auto;
 
-        // let is_never_initialized = if let Some(v) = self.p.node(immediate_decl).as_var_decl() {
-        //     v.init.is_none()
-        // } else {
-        //     false
-        // };
-        // let assume_initialized = is_param
-        //     || is_alias
-        //     || (is_outer_variable && !is_never_initialized)
-        //     || self
-        //         .p
-        //         .node(decl)
-        //         .node_flags()
-        //         .intersects(ast::NodeFlags::AMBIENT);
+        let is_never_initialized = if let Some(v) = self.p.node(immediate_decl).as_var_decl() {
+            v.init.is_none()
+        } else {
+            false
+        };
+        let assume_initialized = is_param
+            || is_alias
+            || (is_outer_variable && !is_never_initialized)
+            || self
+                .p
+                .node(decl)
+                .node_flags()
+                .intersects(ast::NodeFlags::AMBIENT);
+        let init_ty = if is_automatic_ty_is_non_null {
+            self.undefined_ty
+        } else if assume_initialized {
+            if is_param {
+                // TODO: remove_optionality_from_decl_ty
+                ty
+            } else {
+                ty
+            }
+        } else if type_is_auto {
+            self.undefined_ty
+        } else {
+            // self.get_optional_ty(ty, false)
+            self.undefined_ty
+        };
 
-        // let init_ty = if is_automatic_ty_is_non_null {
-        //     self.undefined_ty
-        // } else if assume_initialized {
-        //     if is_param {
-        //         // TODO: remove_optionality_from_decl_ty
-        //         ty
-        //     } else {
-        //         ty
-        //     }
-        // } else if type_is_auto {
-        //     self.undefined_ty
-        // } else {
-        //     self.get_optional_ty(ty, false)
-        // };
-        // let flow_ty = if is_automatic_ty_is_non_null {
-        //     todo!()
-        // } else {
-        //     self.get_flow_ty_of_reference()
-        // };
+        let flow_ty =
+            self.get_flow_ty_of_reference(ident.id, ty, Some(init_ty), Some(flow_container), None);
+        if is_automatic_ty_is_non_null {
+            // TODO: get_non_nullable
+        };
         ty
     }
 
@@ -1765,10 +1778,20 @@ impl<'cx> TyChecker<'cx> {
     }
 
     fn is_known_prop(&mut self, target: &'cx ty::Ty<'cx>, name: SymbolName) -> bool {
-        if target.kind.as_object().is_some() && self.get_prop_of_ty(target, name).is_some() {
-            return true;
-        }
-
+        if target.kind.as_object().is_some() {
+            if self.get_prop_of_ty(target, name).is_some() {
+                return true;
+            }
+        } else if target.kind.is_union_or_intersection()
+            && self.is_excess_property_check_target(target)
+        {
+            let tys = target.kind.tys_of_union_or_intersection().unwrap();
+            for t in tys {
+                if self.is_known_prop(t, name) {
+                    return true;
+                }
+            }
+        };
         false
     }
 

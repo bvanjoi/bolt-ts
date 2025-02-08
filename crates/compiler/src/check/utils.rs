@@ -55,7 +55,7 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
-    pub(super) fn same_map<T: PartialEq<U> + Copy, U: PartialEq<T> + Copy>(
+    fn same_map<T: PartialEq<U> + Copy, U: PartialEq<T> + Copy>(
         &mut self,
         array: Option<&'cx [T]>,
         f: impl Fn(&mut Self, T, usize) -> U,
@@ -85,9 +85,20 @@ impl<'cx> TyChecker<'cx> {
         }
         SameMapperResult::Old
     }
+
+    pub fn same_map_tys(
+        &mut self,
+        input: Option<ty::Tys<'cx>>,
+        f: impl Fn(&mut Self, &'cx ty::Ty<'cx>, usize) -> &'cx ty::Ty<'cx>,
+    ) -> Option<ty::Tys<'cx>> {
+        match self.same_map(input, |this, ty, i| f(this, ty, i)) {
+            SameMapperResult::Old => input,
+            SameMapperResult::New(tys) => Some(tys),
+        }
+    }
 }
 
-pub enum SameMapperResult<'cx, T> {
+enum SameMapperResult<'cx, T> {
     Old,
     New(&'cx [T]),
 }

@@ -1,6 +1,7 @@
 use crate::bind::SymbolFlags;
 use crate::bind::SymbolID;
 use crate::ty::ObjectFlags;
+use crate::ty::TypeFlags;
 
 use super::ty;
 use super::TyChecker;
@@ -21,12 +22,10 @@ impl<'cx> TyChecker<'cx> {
             } else if self.is_array_or_tuple(ty) {
                 let refer = ty.kind.expect_object_reference();
                 let ty_args = self.get_ty_arguments(ty);
-                let ty_args = ty_args
-                    .iter()
-                    .map(|arg| self.get_widened_ty(arg))
-                    .collect::<Vec<_>>();
-                let ty_args = self.alloc(ty_args);
-                self.create_reference_ty(refer.target, Some(ty_args), ObjectFlags::empty())
+                let ty_args =
+                    self.same_map_tys(Some(ty_args), |this, ty_arg, _| this.get_widened_ty(ty_arg));
+                assert!(ty_args.is_some());
+                self.create_reference_ty(refer.target, ty_args, ObjectFlags::empty())
             } else {
                 ty
             }
@@ -35,10 +34,14 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
+    pub(super) fn is_fresh_literal_ty(&self, ty: &'cx ty::Ty<'cx>) -> bool {
+        ty.flags.intersects(TypeFlags::FRESHABLE)
+    }
+
     pub(super) fn get_widened_literal_ty(&self, ty: &'cx ty::Ty<'cx>) -> &'cx ty::Ty<'cx> {
-        if ty.kind.is_number_lit() {
+        if ty.kind.is_number_lit() && self.is_fresh_literal_ty(ty) {
             self.number_ty
-        } else if ty.kind.is_string_lit() {
+        } else if ty.kind.is_string_lit() && self.is_fresh_literal_ty(ty) {
             self.string_ty
         } else {
             ty

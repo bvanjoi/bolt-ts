@@ -1,3 +1,5 @@
+use crate::keyword;
+
 use super::*;
 use bolt_ts_atom::AtomId;
 
@@ -66,6 +68,16 @@ impl Ty<'_> {
             return false;
         };
         !tuple.tys.is_empty() && !tuple.tys.iter().any(|e| matches!(e.kind, TyKind::Rest(..)))
+    }
+
+    pub fn is_const_ty_refer(&self) -> bool {
+        let TyKind::Refer(refer) = self.kind else {
+            return false;
+        };
+        let EntityNameKind::Ident(name) = refer.name.kind else {
+            return false;
+        };
+        name.name == keyword::KW_CONST && refer.ty_args.is_none()
     }
 }
 

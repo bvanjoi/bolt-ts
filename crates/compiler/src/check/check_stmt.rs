@@ -102,7 +102,7 @@ impl<'cx> TyChecker<'cx> {
 
         let expr_ty = ret_stmt
             .expr
-            .map(|expr| self.check_expr(expr))
+            .map(|expr| self.check_expr_with_cache(expr))
             .unwrap_or(self.undefined_ty);
         if matches!(self.p.node(container), ast::Node::ClassCtor(_)) {
             if let Some(expr) = ret_stmt.expr {
