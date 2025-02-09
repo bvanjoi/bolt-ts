@@ -833,126 +833,127 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
                     }
                 }
             }
-        }
-
-        if !source.kind.is_tuple() {
-            if let Some(source_refer) = source.kind.as_object_reference() {
-                if let Some(target_refer) = target.kind.as_object_reference() {
-                    if source_refer.target == target_refer.target
-                        && !source.kind.is_tuple()
-                        && !(self.c.is_marker_ty(source) || self.c.is_marker_ty(target))
-                    {
-                        if self.c.is_empty_array_lit_ty(source) {
-                            return Ternary::TRUE;
-                        }
-                        let variances = self.c.get_variances(source_refer.target);
-                        if variances == self.c.empty_array() {
-                            // cycle
-                            return Ternary::UNKNOWN;
-                        }
-                        let source_ty_args = self.c.get_ty_arguments(source);
-                        let target_ty_args = self.c.get_ty_arguments(target);
-                        if let Some(result) = self.relate_variances(
-                            source_ty_args,
-                            target_ty_args,
-                            variances,
-                            report_error,
-                            intersection_state,
-                        ) {
-                            return result;
+        } else {
+            if !source.kind.is_tuple() {
+                if let Some(source_refer) = source.kind.as_object_reference() {
+                    if let Some(target_refer) = target.kind.as_object_reference() {
+                        if source_refer.target == target_refer.target
+                            && !source.kind.is_tuple()
+                            && !(self.c.is_marker_ty(source) || self.c.is_marker_ty(target))
+                        {
+                            if self.c.is_empty_array_lit_ty(source) {
+                                return Ternary::TRUE;
+                            }
+                            let variances = self.c.get_variances(source_refer.target);
+                            if variances == self.c.empty_array() {
+                                // cycle
+                                return Ternary::UNKNOWN;
+                            }
+                            let source_ty_args = self.c.get_ty_arguments(source);
+                            let target_ty_args = self.c.get_ty_arguments(target);
+                            if let Some(result) = self.relate_variances(
+                                source_ty_args,
+                                target_ty_args,
+                                variances,
+                                report_error,
+                                intersection_state,
+                            ) {
+                                return result;
+                            }
                         }
                     }
                 }
             }
-        }
 
-        if target.kind.is_array(self.c)
-            && self
-                .c
-                .every_type(source, |this, t| this.is_array_or_tuple(t))
-        {
-            return if self.relation != RelationKind::Identity {
-                let source = self
+            if target.kind.is_array(self.c)
+                && self
                     .c
-                    .get_index_ty_of_ty(source, self.c.number_ty)
-                    .unwrap_or(self.c.any_ty);
-                let target = self
-                    .c
-                    .get_index_ty_of_ty(target, self.c.number_ty)
-                    .unwrap_or(self.c.any_ty);
-                self.is_related_to(
-                    source,
-                    target,
-                    RecursionFlags::BOTH,
-                    report_error,
-                    IntersectionState::empty(),
-                )
-            } else {
-                Ternary::FALSE
-            };
-        } else if let Some(target_index) = target.kind.as_index_ty() {
-            let target_ty = target_index.ty;
-            if let Some(constraint) = self.c.get_simplified_ty_or_constraint(target_ty) {
-                let index_ty = self.c.get_index_ty(
-                    constraint,
-                    target_index.index_flags | ty::IndexFlags::NO_REDUCIBLE_CHECK,
-                );
-                if self.is_related_to(
-                    source,
-                    index_ty,
-                    RecursionFlags::TARGET,
-                    report_error,
-                    IntersectionState::empty(),
-                ) == Ternary::TRUE
-                {
-                    return Ternary::TRUE;
+                    .every_type(source, |this, t| this.is_array_or_tuple(t))
+            {
+                return if self.relation != RelationKind::Identity {
+                    let source = self
+                        .c
+                        .get_index_ty_of_ty(source, self.c.number_ty)
+                        .unwrap_or(self.c.any_ty);
+                    let target = self
+                        .c
+                        .get_index_ty_of_ty(target, self.c.number_ty)
+                        .unwrap_or(self.c.any_ty);
+                    self.is_related_to(
+                        source,
+                        target,
+                        RecursionFlags::BOTH,
+                        report_error,
+                        IntersectionState::empty(),
+                    )
+                } else {
+                    Ternary::FALSE
+                };
+            } else if let Some(target_index) = target.kind.as_index_ty() {
+                let target_ty = target_index.ty;
+                if let Some(constraint) = self.c.get_simplified_ty_or_constraint(target_ty) {
+                    let index_ty = self.c.get_index_ty(
+                        constraint,
+                        target_index.index_flags | ty::IndexFlags::NO_REDUCIBLE_CHECK,
+                    );
+                    if self.is_related_to(
+                        source,
+                        index_ty,
+                        RecursionFlags::TARGET,
+                        report_error,
+                        IntersectionState::empty(),
+                    ) == Ternary::TRUE
+                    {
+                        return Ternary::TRUE;
+                    }
                 }
             }
-        }
 
-        let source_is_primitive = source.flags.intersects(TypeFlags::PRIMITIVE);
+            let source_is_primitive = source.flags.intersects(TypeFlags::PRIMITIVE);
 
-        let source = if self.relation != RelationKind::Identity {
-            self.c.get_apparent_ty(source)
-        } else {
-            source
-        };
+            let source = if self.relation != RelationKind::Identity {
+                self.c.get_apparent_ty(source)
+            } else {
+                source
+            };
 
-        if source.kind.is_object_or_intersection() && target.kind.is_object() {
-            let report_error = report_error && !source_is_primitive;
+            if source.kind.is_object_or_intersection() && target.kind.is_object() {
+                let report_error = report_error && !source_is_primitive;
 
-            let mut res = self.props_related_to(source, target, report_error, intersection_state);
-            if res != Ternary::FALSE {
-                res &= self.sigs_related_to(
-                    source,
-                    target,
-                    SigKind::Call,
-                    report_error,
-                    intersection_state,
-                );
+                let mut res =
+                    self.props_related_to(source, target, report_error, intersection_state);
                 if res != Ternary::FALSE {
                     res &= self.sigs_related_to(
                         source,
                         target,
-                        SigKind::Constructor,
+                        SigKind::Call,
                         report_error,
                         intersection_state,
                     );
                     if res != Ternary::FALSE {
-                        res &= self.index_sigs_related_to(
+                        res &= self.sigs_related_to(
                             source,
                             target,
-                            source_is_primitive,
+                            SigKind::Constructor,
                             report_error,
                             intersection_state,
                         );
+                        if res != Ternary::FALSE {
+                            res &= self.index_sigs_related_to(
+                                source,
+                                target,
+                                source_is_primitive,
+                                report_error,
+                                intersection_state,
+                            );
+                        }
                     }
                 }
+                return res;
             }
-            res
-        } else {
-            Ternary::FALSE
         }
+
+        Ternary::FALSE
     }
 
     fn recur_ty_related_to(

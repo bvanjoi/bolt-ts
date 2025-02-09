@@ -393,10 +393,10 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         let is_getter = t == TokenKind::Get;
         assert!(is_getter || t == TokenKind::Set);
         let name = self.with_parent(id, Self::parse_prop_name)?;
-        let ty_params = self.parse_ty_params()?;
-        let params = self.parse_params()?;
-        let ty = self.parse_ret_ty(true)?;
-        let body = self.parse_fn_block()?;
+        let ty_params = self.with_parent(id, Self::parse_ty_params)?;
+        let params = self.with_parent(id, Self::parse_params)?;
+        let ty = self.with_parent(id, |this| this.parse_ret_ty(true))?;
+        let body = self.with_parent(id, Self::parse_fn_block)?;
         let kind = if is_getter {
             let decl = self.alloc(ast::GetterDecl {
                 id,

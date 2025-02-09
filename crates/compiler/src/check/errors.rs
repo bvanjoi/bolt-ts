@@ -153,9 +153,10 @@ pub(super) struct ClassNameHasAbstractModifier {
 }
 
 #[derive(Clone, Copy, Debug, Default)]
-pub(super) enum DeclKind {
+pub(crate) enum DeclKind {
     #[default]
     Class,
+    Interface,
     Enum,
     Property,
 }
@@ -166,6 +167,7 @@ impl DeclKind {
             DeclKind::Class => "Class",
             DeclKind::Enum => "Enum",
             DeclKind::Property => "Property",
+            DeclKind::Interface => "Interface",
         }
     }
 }
@@ -369,4 +371,12 @@ pub(super) struct ThisOverloadSignatureIsNotCompatibleWithItsImplementationSigna
 pub(super) struct ThisExpressionIsNotConstructable {
     #[label(primary)]
     pub span: Span,
+}
+
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
+#[error("Type parameter '{ty}' has a circular constraint.")]
+pub(super) struct TypeParameterXHasACircularConstraint {
+    #[label(primary)]
+    pub span: Span,
+    pub ty: String,
 }

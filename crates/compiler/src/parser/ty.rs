@@ -710,10 +710,21 @@ impl<'cx> ParserState<'cx, '_> {
     }
 
     fn parse_paren_ty(&mut self) -> PResult<&'cx ast::Ty<'cx>> {
+        let start = self.token.start();
+        let id = self.next_node_id();
         self.expect(TokenKind::LParen);
-        let ty = self.parse_ty();
+        let ty = self.with_parent(id, Self::parse_ty)?;
         self.expect(TokenKind::RParen);
-        ty
+        let kind = self.alloc(ast::ParenTy {
+            id,
+            span: self.new_span(start),
+            ty,
+        });
+        self.insert_map(id, ast::Node::ParenTy(kind));
+        let ty = self.alloc(ast::Ty {
+            kind: ast::TyKind::Paren(kind),
+        });
+        Ok(ty)
     }
 
     fn parse_prop_or_method_sig(

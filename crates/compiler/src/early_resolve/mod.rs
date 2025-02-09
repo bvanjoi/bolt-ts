@@ -298,6 +298,9 @@ impl<'cx> Resolver<'cx, '_> {
                 self.resolve_value_by_ident(n.name);
                 self.resolve_ty(n.ty);
             }
+            Paren(n) => {
+                self.resolve_ty(n.ty);
+            }
         }
     }
 

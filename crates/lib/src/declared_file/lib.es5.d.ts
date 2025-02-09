@@ -372,35 +372,35 @@ interface String {
    */
   slice(start?: number, end?: number): string;
 
-  // /**
-  //  * Split a string into substrings using the specified separator and return them as an array.
-  //  * @param separator A string that identifies character or characters to use in separating the string. If omitted, a single-element array containing the entire string is returned.
-  //  * @param limit A value used to limit the number of elements returned in the array.
-  //  */
-  // split(separator: string | RegExp, limit?: number): string[];
+  /**
+   * Split a string into substrings using the specified separator and return them as an array.
+   * @param separator A string that identifies character or characters to use in separating the string. If omitted, a single-element array containing the entire string is returned.
+   * @param limit A value used to limit the number of elements returned in the array.
+   */
+  split(separator: string | RegExp, limit?: number): string[];
 
-  // /**
-  //  * Returns the substring at the specified location within a String object.
-  //  * @param start The zero-based index number indicating the beginning of the substring.
-  //  * @param end Zero-based index number indicating the end of the substring. The substring includes the characters up to, but not including, the character indicated by end.
-  //  * If end is omitted, the characters from start through the end of the original string are returned.
-  //  */
-  // substring(start: number, end?: number): string;
+  /**
+   * Returns the substring at the specified location within a String object.
+   * @param start The zero-based index number indicating the beginning of the substring.
+   * @param end Zero-based index number indicating the end of the substring. The substring includes the characters up to, but not including, the character indicated by end.
+   * If end is omitted, the characters from start through the end of the original string are returned.
+   */
+  substring(start: number, end?: number): string;
 
-  // /** Converts all the alphabetic characters in a string to lowercase. */
-  // toLowerCase(): string;
+  /** Converts all the alphabetic characters in a string to lowercase. */
+  toLowerCase(): string;
 
-  // /** Converts all alphabetic characters to lowercase, taking into account the host environment's current locale. */
-  // toLocaleLowerCase(locales?: string | string[]): string;
+  /** Converts all alphabetic characters to lowercase, taking into account the host environment's current locale. */
+  toLocaleLowerCase(locales?: string | string[]): string;
 
-  // /** Converts all the alphabetic characters in a string to uppercase. */
-  // toUpperCase(): string;
+  /** Converts all the alphabetic characters in a string to uppercase. */
+  toUpperCase(): string;
 
-  // /** Returns a string where all alphabetic characters have been converted to uppercase, taking into account the host environment's current locale. */
-  // toLocaleUpperCase(locales?: string | string[]): string;
+  /** Returns a string where all alphabetic characters have been converted to uppercase, taking into account the host environment's current locale. */
+  toLocaleUpperCase(locales?: string | string[]): string;
 
-  // /** Removes the leading and trailing white space and line terminator characters from a string. */
-  // trim(): string;
+  /** Removes the leading and trailing white space and line terminator characters from a string. */
+  trim(): string;
 
   /** Returns the length of a String object. */
   readonly length: number;

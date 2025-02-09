@@ -6,13 +6,16 @@ use bolt_ts_errors::thiserror::Error;
 use bolt_ts_errors::DiagnosticExt;
 use bolt_ts_span::Span;
 
+use crate::check::errors::DeclKind;
+
 #[derive(Error, Diagnostic, DiagnosticExt, Debug)]
-#[error("Class name cannot be '{name}'.")]
+#[error("{kind} name cannot be '{name}'.")]
 #[diagnostic(help("Reserved type names are not permitted."))]
-pub(super) struct ClassNameCannotBe {
+pub(super) struct DeclNameCannotBe {
     #[label(primary)]
     pub span: Span,
     pub name: String,
+    pub kind: DeclKind,
 }
 
 #[derive(Error, Diagnostic, DiagnosticExt, Debug)]

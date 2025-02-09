@@ -9,6 +9,7 @@ pub fn visit_stmt<'cx>(v: &mut impl Visitor<'cx>, stmt: &'cx super::Stmt) {
     match stmt.kind {
         Class(node) => v.visit_class_decl(node),
         Import(node) => v.visit_import_decl(node),
+        Interface(node) => v.visit_interface_decl(node),
         Export(_) => {}
         Empty(_) => (),
         Var(_) => (),
@@ -17,7 +18,6 @@ pub fn visit_stmt<'cx>(v: &mut impl Visitor<'cx>, stmt: &'cx super::Stmt) {
         Block(_) => (),
         Fn(_) => (),
         Expr(_) => (),
-        Interface(_) => (),
         Type(_) => (),
         Namespace(_) => (),
         Throw(_) => (),
@@ -39,12 +39,20 @@ pub fn visit_class_decl<'cx>(v: &mut impl Visitor<'cx>, class: &'cx super::Class
     }
 }
 
+pub fn visit_interface_decl<'cx>(v: &mut impl Visitor<'cx>, i: &'cx super::InterfaceDecl<'cx>) {
+    // for ele in i.members {
+    //     v.visit_class_elem(ele);
+    // }
+}
+
 pub fn visit_import_decl<'cx>(v: &mut impl Visitor<'cx>, import_decl: &'cx super::ImportDecl<'cx>) {
 }
 
 pub fn visit_class_elem<'cx>(v: &mut impl Visitor<'cx>, elem: &'cx super::ClassElem<'cx>) {
     use super::ClassEleKind::*;
-    if let Method(n) = elem.kind { v.visit_class_method_elem(n) }
+    if let Method(n) = elem.kind {
+        v.visit_class_method_elem(n)
+    }
 }
 
 pub fn visit_class_method_elem<'cx>(
@@ -69,6 +77,7 @@ make_visitor!(
     (visit_program, &'cx super::Program<'cx>),
     (visit_stmt, &'cx super::Stmt<'cx>),
     (visit_import_decl, &'cx super::ImportDecl<'cx>),
+    (visit_interface_decl, &'cx super::InterfaceDecl<'cx>),
     (visit_class_decl, &'cx super::ClassDecl<'cx>),
     (visit_class_elem, &'cx super::ClassElem<'cx>),
     (visit_class_method_elem, &'cx super::ClassMethodElem<'cx>),

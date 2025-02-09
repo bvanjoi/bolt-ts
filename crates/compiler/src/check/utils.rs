@@ -29,14 +29,14 @@ impl<'cx> TyChecker<'cx> {
     pub(super) fn filter_type(
         &mut self,
         ty: &'cx ty::Ty<'cx>,
-        f: impl Fn(&'cx ty::Ty<'cx>) -> bool,
+        f: impl Fn(&mut Self, &'cx ty::Ty<'cx>) -> bool,
     ) -> &'cx ty::Ty<'cx> {
         if ty.kind.as_union().is_some() {
             // TODO:
             ty
         } else if ty.flags.intersects(ty::TypeFlags::NEVER) {
             self.never_ty
-        } else if f(ty) {
+        } else if f(self, ty) {
             ty
         } else {
             self.never_ty
@@ -94,6 +94,55 @@ impl<'cx> TyChecker<'cx> {
         match self.same_map(input, |this, ty, i| f(this, ty, i)) {
             SameMapperResult::Old => input,
             SameMapperResult::New(tys) => Some(tys),
+        }
+    }
+
+    pub(super) fn map_ty(
+        &mut self,
+        ty: &'cx ty::Ty<'cx>,
+        mapper: impl Fn(&mut Self, &'cx ty::Ty<'cx>) -> Option<&'cx ty::Ty<'cx>> + Copy,
+        no_reduction: bool,
+    ) -> Option<&'cx ty::Ty<'cx>> {
+        if ty.flags.intersects(ty::TypeFlags::NEVER) {
+            Some(self.never_ty)
+        } else if let Some(u) = ty.kind.as_union() {
+            // TODO: union.origin
+            let tys = u.tys;
+            let mut mapped_tys: Option<Vec<_>> = None;
+            let mut changed = false;
+            for t in tys {
+                let mapped = if t.kind.is_union() {
+                    self.map_ty(t, mapper, no_reduction)
+                } else {
+                    mapper(self, t)
+                };
+                if let Some(mapped) = mapped {
+                    changed |= !mapped.eq(ty);
+                    if let Some(mapped_tys) = &mut mapped_tys {
+                        mapped_tys.push(mapped);
+                    } else {
+                        let mut v = Vec::with_capacity(tys.len());
+                        v.push(mapped);
+                        mapped_tys = Some(v);
+                    };
+                }
+            }
+            if changed {
+                if let Some(mapped_tys) = mapped_tys {
+                    let reduction = if no_reduction {
+                        ty::UnionReduction::None
+                    } else {
+                        ty::UnionReduction::Lit
+                    };
+                    Some(self.get_union_ty(&mapped_tys, reduction))
+                } else {
+                    None
+                }
+            } else {
+                Some(ty)
+            }
+        } else {
+            mapper(self, ty)
         }
     }
 }

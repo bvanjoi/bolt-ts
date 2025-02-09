@@ -48,7 +48,13 @@ impl<'cx> Resolver<'cx, '_> {
                 .p
                 .find_ancestor(
                     ident.id,
-                    |node| if node.is_static() { Some(true) } else { None },
+                    |node| {
+                        if node.is_static() {
+                            Some(true)
+                        } else {
+                            None
+                        }
+                    },
                 )
                 .is_some()
         {

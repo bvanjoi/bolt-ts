@@ -2,6 +2,7 @@ mod bind_call_like;
 mod bind_class_like;
 mod bind_fn_like;
 mod bind_visitor;
+mod container_flags;
 mod create;
 mod errors;
 mod flow;
@@ -12,11 +13,10 @@ use bolt_ts_atom::AtomMap;
 use bolt_ts_span::Module;
 use bolt_ts_span::ModuleID;
 
-use flow::FlowID;
 use rayon::prelude::*;
 use rustc_hash::FxHashMap;
 
-pub use self::flow::{FlowNode, FlowNodes};
+pub use self::flow::{FlowFlags, FlowID, FlowNode, FlowNodeKind, FlowNodes};
 pub use self::symbol::BlockContainerSymbol;
 use self::symbol::ClassSymbol;
 pub(crate) use self::symbol::SymbolKind;
@@ -69,7 +69,10 @@ impl<'cx> Binder<'cx> {
             .get(&id)
             .copied()
             .unwrap_or_else(|| {
-                let node = self.p.node(id).expect_ident();
+                let n = self.p.node(id);
+                let Some(node) = n.as_ident() else {
+                    unreachable!("final_res not found for {:#?}", n);
+                };
                 let name = self.atoms.get(node.name);
                 let span = self.p.node(id).span();
                 panic!("The resolution of `{name}({span})` is not found.");

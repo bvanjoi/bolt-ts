@@ -33,6 +33,7 @@ impl Ty<'_> {
             TyKind::Ctor(n) => n.span,
             TyKind::Pred(n) => n.span,
             TyKind::Lit(n) => n.span,
+            TyKind::Paren(n) => n.span,
         }
     }
 
@@ -54,6 +55,7 @@ impl Ty<'_> {
             TyKind::Ctor(n) => n.id,
             TyKind::Pred(n) => n.id,
             TyKind::Lit(n) => n.id,
+            TyKind::Paren(n) => n.id,
         }
     }
 
@@ -99,6 +101,14 @@ pub enum TyKind<'cx> {
     Mapped(&'cx MappedTy<'cx>),
     TyOp(&'cx TyOp<'cx>),
     Pred(&'cx PredTy<'cx>),
+    Paren(&'cx ParenTy<'cx>),
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct ParenTy<'cx> {
+    pub id: NodeID,
+    pub span: Span,
+    pub ty: &'cx Ty<'cx>,
 }
 
 #[derive(Debug, Clone, Copy)]

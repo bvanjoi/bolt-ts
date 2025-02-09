@@ -132,6 +132,7 @@ pub enum Node<'cx> {
     MappedTy(&'cx super::MappedTy<'cx>),
     TyOp(&'cx super::TyOp<'cx>),
     PredTy(&'cx super::PredTy<'cx>),
+    ParenTy(&'cx super::ParenTy<'cx>),
 }
 
 impl<'cx> Node<'cx> {
@@ -478,7 +479,7 @@ impl<'cx> Node<'cx> {
                 }
             };
         }
-        modifiers!(ClassMethodElem, ClassPropElem)
+        modifiers!(ClassMethodElem, ClassPropElem, GetterDecl, SetterDecl)
     }
 
     pub fn is_block_scope(&self, parent: Option<&Self>) -> bool {
@@ -747,5 +748,6 @@ as_node!(
         super::ObjectBindingElem<'cx>,
         object_binding_elem
     ),
-    (PredTy, super::PredTy<'cx>, pred_ty)
+    (PredTy, super::PredTy<'cx>, pred_ty),
+    (ParenTy, super::ParenTy<'cx>, paren_ty)
 );

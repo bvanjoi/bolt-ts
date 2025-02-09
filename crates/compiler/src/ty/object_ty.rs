@@ -1,4 +1,4 @@
-use crate::ast;
+use crate::ast::{self, pprint_ident};
 use crate::bind::{SymbolFlags, SymbolID, SymbolName};
 use crate::check::TyChecker;
 
@@ -268,9 +268,7 @@ impl<'cx> ObjectTyKind<'cx> {
                     let name = symbol.name.expect_atom();
                     format!("typeof {}", checker.atoms.get(name))
                 } else if let Some(sig) = checker
-                    .expect_ty_links(self_ty.id)
-                    .expect_structured_members()
-                    .call_sigs
+                    .get_signatures_of_type(self_ty, super::SigKind::Call)
                     .first()
                 {
                     print_fn_like_str(checker, sig)

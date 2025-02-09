@@ -313,6 +313,7 @@ impl AssignOp {
     }
 
     pub fn is_logical_or_coalescing_assign_op(self) -> bool {
+        // ||=, ??=
         false
     }
 }
@@ -438,8 +439,8 @@ impl BinOpKind {
     }
 
     fn is_logical_op(self) -> bool {
-        // TODO: BarBar | AmpersandAmpersand
-        false
+        // TODO:  AmpersandAmpersand
+        matches!(self, Self::PipePipe)
     }
 
     pub fn is_logical_or_coalescing_op(self) -> bool {
@@ -501,7 +502,14 @@ pub struct OmitExpr {
 pub struct CallExpr<'cx> {
     pub id: NodeID,
     pub span: Span,
+    pub flags: NodeFlags,
     pub expr: &'cx Expr<'cx>,
     pub ty_args: Option<&'cx self::Tys<'cx>>,
     pub args: Exprs<'cx>,
+}
+
+impl CallExpr<'_> {
+    pub fn is_call_chain(&self) -> bool {
+        self.flags.intersects(NodeFlags::OPTIONAL_CHAIN)
+    }
 }

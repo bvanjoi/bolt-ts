@@ -1,0 +1,5 @@
+  × Type 'B<string>' is not assignable to type 'B<number>'.
+    ╭─[../../tests/cases/compiler/overloadGenericFunctionWithRestArgs/index.ts:14:5]
+ 14 │ b
+    · ─
+    ╰────

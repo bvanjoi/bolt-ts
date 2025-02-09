@@ -197,6 +197,15 @@ impl<'cx> TyChecker<'cx> {
             };
 
             if checker.pop_ty_resolution().has_cycle() {
+                if ty.flags.intersects(TypeFlags::TYPE_PARAMETER) {
+                    if let Some(decl) = checker.get_constraint_decl(ty) {
+                        let error = errors::TypeParameterXHasACircularConstraint {
+                            ty: checker.print_ty(ty).to_string(),
+                            span: decl.span(),
+                        };
+                        checker.push_error(Box::new(error));
+                    }
+                }
                 result = Some(checker.circular_constraint_ty());
             }
 

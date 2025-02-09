@@ -365,6 +365,11 @@ impl<'cx> TyKind<'cx> {
                 || ty.target == checker.global_readonly_array_ty()
         })
     }
+
+    pub fn is_readonly_array(&self, checker: &TyChecker<'cx>) -> bool {
+        self.as_object_reference()
+            .is_some_and(|ty| ty.target == checker.global_readonly_array_ty())
+    }
 }
 
 #[derive(Debug, Clone, Copy)]

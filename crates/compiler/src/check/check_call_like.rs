@@ -244,7 +244,7 @@ impl<'cx> TyChecker<'cx> {
         for i in (0..min_arg_count).rev() {
             let ty = self.get_ty_at_pos(sig, i);
             if self
-                .filter_type(ty, |ty| ty.flags.intersects(TypeFlags::VOID))
+                .filter_type(ty, |_, ty| ty.flags.intersects(TypeFlags::VOID))
                 .flags
                 .intersects(TypeFlags::NEVER)
             {
@@ -323,7 +323,7 @@ impl<'cx> TyChecker<'cx> {
         for i in arg_count..min_args {
             let ty = self.get_ty_at_pos(sig, i);
             if self
-                .filter_type(ty, |ty| ty.flags.intersects(TypeFlags::VOID))
+                .filter_type(ty, |_, ty| ty.flags.intersects(TypeFlags::VOID))
                 .flags
                 .intersects(TypeFlags::NEVER)
             {

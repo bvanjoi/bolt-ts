@@ -226,7 +226,11 @@ impl<'cx> TyChecker<'cx> {
         interface.extends.map(|extends| extends.list)
     }
 
-    fn has_base_ty(&mut self, ty: &'cx ty::Ty<'cx>, check_base: &'cx ty::Ty<'cx>) -> bool {
+    pub(super) fn has_base_ty(
+        &mut self,
+        ty: &'cx ty::Ty<'cx>,
+        check_base: &'cx ty::Ty<'cx>,
+    ) -> bool {
         fn check<'cx>(
             this: &mut TyChecker<'cx>,
             ty: &'cx ty::Ty<'cx>,

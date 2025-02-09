@@ -431,6 +431,7 @@ impl<'cx> ParserState<'cx, '_> {
                     let call = this.alloc(ast::CallExpr {
                         id,
                         span: this.new_span(start as u32),
+                        flags: NodeFlags::empty(),
                         ty_args,
                         expr,
                         args,

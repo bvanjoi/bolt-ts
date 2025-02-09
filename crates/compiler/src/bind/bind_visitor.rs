@@ -87,6 +87,7 @@ impl<'cx> BinderState<'cx> {
 
     fn bind_stmt(&mut self, container: ast::NodeID, stmt: &'cx ast::Stmt) {
         use ast::StmtKind::*;
+
         match stmt.kind {
             Empty(_) => (),
             Var(var) => self.bind_var_stmt(container, var),
@@ -571,17 +572,27 @@ impl<'cx> BinderState<'cx> {
         self.scope_id = old;
     }
 
-    pub(super) fn bind_block_stmt(&mut self, block: &'cx ast::BlockStmt<'cx>) {
+    fn bind_container(&mut self, _node: ast::NodeID, f: impl FnOnce(&mut Self)) {
         let old = self.scope_id;
         self.scope_id = self.new_scope();
 
-        self.create_block_container_symbol(block.id);
+        // TODO: container flags;
+        let saved_current_flow = self.current_flow;
 
-        for stmt in block.stmts {
-            self.bind_stmt(block.id, stmt)
-        }
+        f(self);
+
+        self.current_flow = saved_current_flow;
 
         self.scope_id = old;
+    }
+
+    pub(super) fn bind_block_stmt(&mut self, block: &'cx ast::BlockStmt<'cx>) {
+        self.bind_container(block.id, |this| {
+            this.create_block_container_symbol(block.id);
+            for stmt in block.stmts {
+                this.bind_stmt(block.id, stmt)
+            }
+        });
     }
 
     pub(super) fn bind_block_stmt_with_container(
@@ -600,6 +611,9 @@ impl<'cx> BinderState<'cx> {
     }
 
     fn bind_ident(&mut self, ident: &'cx ast::Ident) {
+        if let Some(flow) = self.current_flow {
+            self.flow_nodes.insert_container_map(ident.id, flow);
+        }
         self.connect(ident.id)
     }
 
@@ -663,6 +677,9 @@ impl<'cx> BinderState<'cx> {
         self.scope_id = self.new_scope();
         if let Some(ty_params) = f.ty_params {
             self.bind_ty_params(ty_params);
+        }
+        if let Some(ty) = f.ty {
+            self.bind_ty(ty);
         }
         self.bind_params(f.params);
         use ast::ArrowFnExprBody::*;
@@ -972,6 +989,9 @@ impl<'cx> BinderState<'cx> {
             }
             Pred(n) => {
                 self.bind_ident(n.name);
+                self.bind_ty(n.ty);
+            }
+            Paren(n) => {
                 self.bind_ty(n.ty);
             }
         }

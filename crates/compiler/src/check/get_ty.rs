@@ -185,6 +185,7 @@ impl<'cx> TyChecker<'cx> {
                     String(n) => self.get_string_literal_type(n),
                 }
             }
+            Paren(n) => self.get_ty_from_type_node(n.ty),
         }
     }
 

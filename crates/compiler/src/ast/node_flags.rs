@@ -1,6 +1,7 @@
 bitflags::bitflags! {
   #[derive(Clone, Copy, Debug, Default)]
   pub struct NodeFlags: u32 {
+    const OPTIONAL_CHAIN      = 1<< 6;
     const DECORATOR_CONTEXT   = 1 << 15;
     const DISALLOW_IN_CONTEXT = 1 << 17;
     const AMBIENT             = 1 << 25;

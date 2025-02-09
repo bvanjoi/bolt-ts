@@ -39,6 +39,7 @@ pub enum FlowNodeKind<'cx> {
     Unreachable(FlowUnreachable),
 }
 
+#[derive(Clone, Copy)]
 pub struct FlowCond<'cx> {
     pub node: &'cx ast::Expr<'cx>,
     pub antecedent: FlowID,
@@ -51,15 +52,15 @@ pub struct FlowLabel {
 pub struct FlowUnreachable;
 
 pub struct FlowStart {
-    node: Option<ast::NodeID>,
+    pub node: Option<ast::NodeID>,
 }
 
 #[derive(Default)]
 pub struct FlowNodes<'cx> {
     module_id: bolt_ts_span::ModuleID,
     data: Vec<FlowNode<'cx>>,
-    container_map: FxHashMap<ast::NodeID, usize>,
-    cond_expr_map: FxHashMap<ast::NodeID, (FlowID, FlowID)>,
+    container_map: FxHashMap<u32, u32>,
+    cond_expr_map: FxHashMap<u32, (FlowID, FlowID)>,
 }
 
 impl<'cx> FlowNodes<'cx> {
@@ -82,7 +83,7 @@ impl<'cx> FlowNodes<'cx> {
         &mut self.data[id.index as usize]
     }
 
-    pub fn insert_flow_node(&mut self, node: FlowNode<'cx>) -> FlowID {
+    pub(super) fn insert_flow_node(&mut self, node: FlowNode<'cx>) -> FlowID {
         let id = self.data.len() as u32;
         self.data.push(node);
         FlowID {
@@ -144,7 +145,9 @@ impl<'cx> FlowNodes<'cx> {
         when_true: FlowID,
         when_false: FlowID,
     ) {
-        let prev = self.cond_expr_map.insert(cond.id, (when_true, when_false));
+        let prev = self
+            .cond_expr_map
+            .insert(cond.id.index_as_u32(), (when_true, when_false));
         assert!(prev.is_none());
     }
 
@@ -154,5 +157,21 @@ impl<'cx> FlowNodes<'cx> {
             kind: FlowNodeKind::Start(FlowStart { node }),
         };
         self.insert_flow_node(node)
+    }
+
+    pub(super) fn insert_container_map(&mut self, node: ast::NodeID, flow: FlowID) {
+        let prev = self
+            .container_map
+            .insert(node.index_as_u32(), flow.index as u32);
+        assert!(prev.is_none());
+    }
+
+    pub(crate) fn get_flow_node_of_node(&self, node: ast::NodeID) -> Option<FlowID> {
+        self.container_map
+            .get(&node.index_as_u32())
+            .map(|&index| FlowID {
+                module: self.module_id,
+                index,
+            })
     }
 }

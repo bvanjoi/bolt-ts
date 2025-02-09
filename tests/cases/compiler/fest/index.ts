@@ -1,6 +1,5 @@
 // From `github.com/sindresorhus/type-fest`, MIT License
 
-
 function n(): never {
   throw new Error();
 }
@@ -76,20 +75,20 @@ type Arrayable<T> = T | T[];
   // expectType<Arrayable<never>>(unknown as /* never | */ never[]);
   // expectType<Arrayable<string[]>>(unknown as string[] | string[][]);
 
-  // // Test for issue https://github.com/sindresorhus/type-fest/issues/952
-  // type Item = number;
-  // function castArray1(value: Arrayable<Item>): Item[] {
-  //   return Array.isArray(value) ? value : [value];
-  // }
+  // Test for issue https://github.com/sindresorhus/type-fest/issues/952
+  type Item = number;
+  function castArray1(value: Arrayable<Item>): Item[] {
+    return Array.isArray(value) ? value : [value];
+  }
 
   // expectType<Item[]>(unknown as ReturnType<typeof castArray1>);
 
-  // function castArray2<T>(value: Arrayable<T>): T[] {
-  //   return Array.isArray(value) ? value : [value];
-  // }
+  function castArray2<T>(value: Arrayable<T>): T[] {
+    return Array.isArray(value) ? value : [value];
+  }
 
-  // const a0: number[] = castArray2(1);
-  // const a1: number[] = castArray2([1, 2, 3]);
+  const a0: number[] = castArray2(1);
+  const a1: number[] = castArray2([1, 2, 3]);
 }
 
 // =========== ifNever ===========
