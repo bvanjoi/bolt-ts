@@ -838,10 +838,10 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
                 {
                     result = {
                         let source_true_ty = {
-                            let true_ty = self.c.get_true_ty_from_cond_ty(source);
+                            let true_ty = self.c.get_true_ty_from_cond_ty(source, source_cond);
                             self.c.instantiate_ty(true_ty, mapper)
                         };
-                        let target_true_ty = self.c.get_true_ty_from_cond_ty(target);
+                        let target_true_ty = self.c.get_true_ty_from_cond_ty(target, target_cond);
                         self.is_related_to(
                             source_true_ty,
                             target_true_ty,
@@ -851,8 +851,8 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
                         )
                     };
                     if result != Ternary::FALSE {
-                        let source_false_ty = self.c.get_false_ty_from_cond_ty(source);
-                        let target_false_ty = self.c.get_false_ty_from_cond_ty(target);
+                        let source_false_ty = self.c.get_false_ty_from_cond_ty(source, source_cond);
+                        let target_false_ty = self.c.get_false_ty_from_cond_ty(target, target_cond);
                         result &= self.is_related_to(
                             source_false_ty,
                             target_false_ty,
@@ -865,6 +865,37 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
                     if result != Ternary::FALSE {
                         return result;
                     }
+                }
+            }
+            let default_constraint = self.c.get_default_constraint_of_cond_ty(source);
+            result = self.is_related_to(
+                default_constraint,
+                target,
+                RecursionFlags::SOURCE,
+                report_error,
+                IntersectionState::empty(),
+            );
+            if result != Ternary::FALSE {
+                return result;
+            }
+            let distributive_constraint = if !target_flags.intersects(TypeFlags::CONDITIONAL)
+                && self.c.has_non_circular_constraint(source)
+            {
+                self.c.get_constraint_of_distributive_cond_ty(source)
+            } else {
+                None
+            };
+            if let Some(distributive_constraint) = distributive_constraint {
+                // TODO: resetErrorInfo(saveErrorInfo);
+                result = self.is_related_to(
+                    distributive_constraint,
+                    target,
+                    RecursionFlags::SOURCE,
+                    report_error,
+                    IntersectionState::empty(),
+                );
+                if result != Ternary::FALSE {
+                    return result;
                 }
             }
         } else {

@@ -306,7 +306,7 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
-    fn get_cond_ty_instantiation(
+    pub(super) fn get_cond_ty_instantiation(
         &mut self,
         ty: &'cx ty::Ty<'cx>,
         mapper: &'cx dyn ty::TyMap<'cx>,

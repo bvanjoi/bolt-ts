@@ -1,6 +1,5 @@
 use super::cycle_check::ResolutionKey;
 use super::TyChecker;
-use crate::ast::pprint_ident;
 use crate::bind::SymbolID;
 use crate::ty::Ty;
 use crate::{ir, ty};

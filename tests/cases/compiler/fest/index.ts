@@ -81,7 +81,7 @@ type Arrayable<T> = T | T[];
     return Array.isArray(value) ? value : [value];
   }
 
-  // expectType<Item[]>(unknown as ReturnType<typeof castArray1>);
+  const b0: Item[] = unknown as ReturnType<typeof castArray1>;
 
   function castArray2<T>(value: Arrayable<T>): T[] {
     return Array.isArray(value) ? value : [value];

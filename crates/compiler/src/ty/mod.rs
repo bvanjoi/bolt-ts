@@ -16,8 +16,8 @@ use crate::{ast, keyword};
 pub use self::check_flags::CheckFlags;
 pub use self::facts::{has_type_facts, TypeFacts, TYPEOF_NE_FACTS};
 pub use self::flags::{ObjectFlags, TypeFlags};
-pub use self::mapper::CompositeTyMapper;
 pub use self::mapper::{ArrayTyMapper, TyMap, TyMapper};
+pub use self::mapper::{CompositeTyMapper, MergedTyMapper};
 pub use self::object_shape::ObjectShape;
 pub use self::object_ty::ElementFlags;
 pub use self::object_ty::SingleSigTy;
@@ -356,6 +356,7 @@ pub struct CondTy<'cx> {
     pub check_ty: &'cx Ty<'cx>,
     pub extends_ty: &'cx Ty<'cx>,
     pub mapper: Option<&'cx dyn TyMap<'cx>>,
+    pub combined_mapper: Option<&'cx dyn TyMap<'cx>>,
     pub alias_symbol: Option<SymbolID>,
     pub alias_ty_args: Option<Tys<'cx>>,
 }

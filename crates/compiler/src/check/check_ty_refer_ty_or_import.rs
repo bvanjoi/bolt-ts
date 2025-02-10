@@ -44,6 +44,8 @@ impl<'cx> TyChecker<'cx> {
             self.get_constraint_of_ty_param(ty)
         } else if ty.kind.is_indexed_access() {
             self.get_constraint_of_indexed_access(ty)
+        } else if ty.kind.is_cond_ty() {
+            self.get_constraint_of_cond_ty(ty)
         } else {
             self.get_base_constraint_of_ty(ty)
         }
@@ -170,6 +172,14 @@ impl<'cx> TyChecker<'cx> {
         constraint.filter(|c| *c != self.no_constraint_ty())
     }
 
+    pub(super) fn get_constraint_from_cond_ty(
+        &mut self,
+        ty: &'cx ty::Ty<'cx>,
+    ) -> Option<&'cx ty::Ty<'cx>> {
+        self.get_constraint_of_distributive_cond_ty(ty)
+            .or_else(|| Some(self.get_default_constraint_of_cond_ty(ty)))
+    }
+
     pub(super) fn get_resolved_base_constraint(
         &mut self,
         ty: &'cx ty::Ty<'cx>,
@@ -194,7 +204,8 @@ impl<'cx> TyChecker<'cx> {
             let mut result = None;
             if stack.len() < 10 || (stack.len() < 50 && !stack.contains(&id)) {
                 stack.push(id);
-                result = compute_base_constraint(checker, checker.get_simplified_ty(ty), stack);
+                result =
+                    compute_base_constraint(checker, checker.get_simplified_ty(ty, false), stack);
                 stack.pop();
             };
 
@@ -273,6 +284,12 @@ impl<'cx> TyChecker<'cx> {
                 } else {
                     None
                 }
+            } else if ty.kind.is_cond_ty() {
+                if let Some(constraint) = checker.get_constraint_from_cond_ty(ty) {
+                    get_base_constraint(checker, constraint, stack)
+                } else {
+                    None
+                }
             } else if ty.kind.is_substitution_ty() {
                 let ty = checker.get_substitution_intersection(ty);
                 get_base_constraint(checker, ty, stack)
@@ -286,7 +303,7 @@ impl<'cx> TyChecker<'cx> {
         get_immediate_base_constraint(self, ty, &mut stack)
     }
 
-    fn has_non_circular_constraint(&mut self, ty_param: &'cx ty::Ty<'cx>) -> bool {
+    pub(super) fn has_non_circular_constraint(&mut self, ty_param: &'cx ty::Ty<'cx>) -> bool {
         self.get_resolved_base_constraint(ty_param) != self.circular_constraint_ty()
     }
 

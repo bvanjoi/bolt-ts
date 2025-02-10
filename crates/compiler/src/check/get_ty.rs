@@ -186,11 +186,21 @@ impl<'cx> TyChecker<'cx> {
                 }
             }
             Paren(n) => self.get_ty_from_type_node(n.ty),
-            Infer(n) => self.undefined_ty,
+            Infer(n) => self.get_ty_from_infer_ty_node(n),
             Mapped(_) => self.undefined_ty,
         };
 
         self.get_conditional_flow_of_ty(ty, node.id())
+    }
+
+    fn get_ty_from_infer_ty_node(&mut self, node: &'cx ast::InferTy<'cx>) -> &'cx Ty<'cx> {
+        if let Some(ty) = self.get_node_links(node.id).get_resolved_ty() {
+            return ty;
+        }
+        let symbol = self.get_symbol_of_decl(node.ty_param.id);
+        let ty = self.get_declared_ty_of_ty_param(symbol);
+        self.get_mut_node_links(node.id).set_resolved_ty(ty);
+        ty
     }
 
     fn get_actual_ty_variable(&self, ty: &'cx Ty<'cx>) -> &'cx Ty<'cx> {
@@ -761,20 +771,78 @@ impl<'cx> TyChecker<'cx> {
         mapper.get_mapped_ty(ty, self)
     }
 
-    pub(super) fn get_true_ty_from_cond_ty(&mut self, ty: &'cx Ty<'cx>) -> &'cx Ty<'cx> {
-        // TODO: cache
-        let cond_ty = ty.kind.expect_cond_ty();
+    pub(super) fn get_true_ty_from_cond_ty(
+        &mut self,
+        ty: &'cx Ty<'cx>,
+        cond_ty: &'cx ty::CondTy<'cx>,
+    ) -> &'cx Ty<'cx> {
+        if let Some(ty) = self.get_ty_links(ty.id).get_resolved_true_ty() {
+            return ty;
+        }
         let true_ty = self.get_ty_from_type_node(cond_ty.root.node.true_ty);
         let true_ty = self.instantiate_ty(true_ty, cond_ty.mapper);
+        self.get_mut_ty_links(ty.id).set_resolved_true_ty(true_ty);
         true_ty
     }
 
-    pub(super) fn get_false_ty_from_cond_ty(&mut self, ty: &'cx Ty<'cx>) -> &'cx Ty<'cx> {
-        // TODO: cache
-        let cond_ty = ty.kind.expect_cond_ty();
+    pub(super) fn get_false_ty_from_cond_ty(
+        &mut self,
+        ty: &'cx Ty<'cx>,
+        cond_ty: &'cx ty::CondTy<'cx>,
+    ) -> &'cx Ty<'cx> {
+        if let Some(ty) = self.get_ty_links(ty.id).get_resolved_false_ty() {
+            return ty;
+        }
         let false_ty = self.get_ty_from_type_node(cond_ty.root.node.false_ty);
         let false_ty = self.instantiate_ty(false_ty, cond_ty.mapper);
+        self.get_mut_ty_links(ty.id).set_resolved_false_ty(false_ty);
         false_ty
+    }
+
+    pub(super) fn get_constraint_of_distributive_cond_ty(
+        &mut self,
+        ty: &'cx Ty<'cx>,
+    ) -> Option<&'cx Ty<'cx>> {
+        let cond_ty = ty.kind.expect_cond_ty();
+        if let Some(ty) = self
+            .get_ty_links(ty.id)
+            .get_resolved_constraint_of_distribute()
+        {
+            return ty;
+        }
+        if cond_ty.root.is_distributive
+            && self.ty_links[&ty.id]
+                .get_restrictive_instantiation()
+                .map_or(true, |t| t != ty)
+        {
+            let simplified = self.get_simplified_ty(cond_ty.check_ty, false);
+            let constraint = if simplified == cond_ty.check_ty {
+                self.get_constraint_of_ty(simplified)
+            } else {
+                None
+            };
+            if let Some(constraint) = constraint {
+                if constraint != cond_ty.check_ty {
+                    let mapper =
+                        self.prepend_ty_mapping(cond_ty.root.check_ty, constraint, cond_ty.mapper);
+                    let instantiated = self.get_cond_ty_instantiation(ty, mapper, None, None);
+                    self.get_mut_ty_links(ty.id)
+                        .set_resolved_constraint_of_distribute(Some(instantiated));
+                    return Some(instantiated);
+                }
+            }
+        }
+        self.get_mut_ty_links(ty.id)
+            .set_resolved_constraint_of_distribute(None);
+        None
+    }
+
+    pub(super) fn get_constraint_of_cond_ty(&mut self, ty: &'cx Ty<'cx>) -> Option<&'cx Ty<'cx>> {
+        if self.has_non_circular_constraint(ty) {
+            self.get_constraint_from_cond_ty(ty)
+        } else {
+            None
+        }
     }
 
     pub(super) fn get_cond_ty(
@@ -827,7 +895,6 @@ impl<'cx> TyChecker<'cx> {
             }
             let check_ty_node = root.node.check_ty.skip_ty_parens();
             let extends_ty_node = root.node.extends_ty.skip_ty_parens();
-            let effective_check_ty = check_ty;
             let check_tuples =
                 check_ty_node.is_simple_tuple_ty() && extends_ty_node.is_simple_tuple_ty() && {
                     let ast::TyKind::Tuple(a) = check_ty_node.kind else {
@@ -838,7 +905,7 @@ impl<'cx> TyChecker<'cx> {
                     };
                     a.tys.len() == b.tys.len()
                 };
-            let check_ty_deferred = self.is_deferred_ty(effective_check_ty, check_tuples);
+            let check_ty_deferred = self.is_deferred_ty(check_ty, check_tuples);
             let mut combined_mapper = None;
             if let Some(infer_ty_params) = root.infer_ty_params {
                 let context =
@@ -874,13 +941,13 @@ impl<'cx> TyChecker<'cx> {
                 if !inferred_extends_ty
                     .flags
                     .intersects(TypeFlags::ANY_OR_UNKNOWN)
-                    && (effective_check_ty.flags.intersects(TypeFlags::ANY) || {
-                        let source = self.get_permissive_instantiation(effective_check_ty);
+                    && (check_ty.flags.intersects(TypeFlags::ANY) || {
+                        let source = self.get_permissive_instantiation(check_ty);
                         let target = self.get_permissive_instantiation(inferred_extends_ty);
                         !self.is_type_assignable_to(source, target)
                     })
                 {
-                    if effective_check_ty.flags.intersects(TypeFlags::ANY) {
+                    if check_ty.flags.intersects(TypeFlags::ANY) {
                         let ty = self.get_ty_from_type_node(root.node.true_ty);
                         let ty = self.instantiate_ty(ty, mapper);
                         extra_tys.push(ty);
@@ -903,12 +970,13 @@ impl<'cx> TyChecker<'cx> {
                     .flags
                     .intersects(TypeFlags::ANY_OR_UNKNOWN)
                     || {
-                        let source = self.get_restrictive_instantiation(effective_check_ty);
+                        let source = self.get_restrictive_instantiation(check_ty);
                         let target = self.get_restrictive_instantiation(inferred_extends_ty);
                         self.is_type_assignable_to(source, target)
                     }
                 {
                     let true_ty = self.get_ty_from_type_node(root.node.true_ty);
+                    let mapper = combined_mapper.or(mapper);
                     break self.instantiate_ty(true_ty, mapper);
                 }
             }
@@ -919,11 +987,8 @@ impl<'cx> TyChecker<'cx> {
                 root,
                 check_ty,
                 extends_ty,
-                mapper: if let Some(mapper) = mapper {
-                    Some(mapper)
-                } else {
-                    None
-                },
+                mapper,
+                combined_mapper,
                 alias_symbol,
                 alias_ty_args,
             });

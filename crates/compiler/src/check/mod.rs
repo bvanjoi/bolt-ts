@@ -27,6 +27,7 @@ mod get_contextual;
 mod get_declared_ty;
 mod get_effective_node;
 mod get_sig;
+mod get_simplified_ty;
 mod get_symbol;
 mod get_this_ty;
 mod get_ty;
@@ -81,8 +82,8 @@ use crate::bind::{
     self, FlowID, FlowNodes, GlobalSymbols, Symbol, SymbolFlags, SymbolID, SymbolName,
 };
 use crate::parser::{AccessKind, AssignmentKind, Parser};
-use crate::ty::has_type_facts;
 use crate::ty::TYPEOF_NE_FACTS;
+use crate::ty::{has_type_facts, TyMapper};
 use crate::ty::{ElementFlags, ObjectFlags, Sig, SigFlags, SigID, TyID, TypeFacts, TypeFlags};
 use crate::{ast, ecma_rules, ensure_sufficient_stack, keyword, ty};
 
@@ -1052,9 +1053,12 @@ impl<'cx> TyChecker<'cx> {
         } else {
             contextual_sig
         };
-        self.apply_to_param_tys(source_sig, sig, |this, source, target| {
-            this.infer_tys(context, source, target, None, false)
-        });
+
+        self.infer_state(context, None, false).apply_to_param_tys(
+            source_sig,
+            sig,
+            |this, source, target| this.infer_from_tys(source, target),
+        );
         if inference_context.is_none() {
             self.apply_to_ret_ty(contextual_sig, sig, |this, source, target| {
                 this.infer_tys(
@@ -1884,30 +1888,6 @@ impl<'cx> TyChecker<'cx> {
         })
     }
 
-    fn get_simplified_ty_or_constraint(
-        &mut self,
-        ty: &'cx ty::Ty<'cx>,
-    ) -> Option<&'cx ty::Ty<'cx>> {
-        let simplified = self.get_simplified_ty(ty);
-        if simplified != ty {
-            Some(simplified)
-        } else {
-            self.get_constraint_of_ty(ty)
-        }
-    }
-
-    fn get_simplified_ty(&self, ty: &'cx ty::Ty<'cx>) -> &'cx ty::Ty<'cx> {
-        if ty.kind.as_indexed_access().is_some() {
-            // TODO: handle indexed_access
-            ty
-        } else if ty.kind.as_cond_ty().is_some() {
-            // TODO: handle indexed_cond
-            ty
-        } else {
-            ty
-        }
-    }
-
     fn get_key_prop_name(&self, union_ty: &'cx ty::UnionTy<'cx>) -> Option<SymbolName> {
         None
     }
@@ -2163,6 +2143,25 @@ impl<'cx> TyChecker<'cx> {
             }
         } else {
             FlowTy::Ty(ty)
+        }
+    }
+
+    fn prepend_ty_mapping(
+        &self,
+        source: &'cx ty::Ty<'cx>,
+        target: &'cx ty::Ty<'cx>,
+        mapper: Option<&'cx dyn ty::TyMap<'cx>>,
+    ) -> &'cx dyn ty::TyMap<'cx> {
+        if let Some(mapper) = mapper {
+            let mapper1 = ty::TyMapper::make_unary(source, target);
+            let mapper1 = self.alloc(mapper1);
+            self.alloc(ty::MergedTyMapper {
+                mapper1,
+                mapper2: mapper,
+            })
+        } else {
+            let mapper = ty::TyMapper::make_unary(source, target);
+            self.alloc(mapper)
         }
     }
 }

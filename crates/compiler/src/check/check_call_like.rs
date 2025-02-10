@@ -102,6 +102,45 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
+    pub(super) fn get_rest_ty_at_pos(
+        &mut self,
+        source: &'cx ty::Sig<'cx>,
+        pos: usize,
+        readonly: bool,
+    ) -> &'cx ty::Ty<'cx> {
+        let param_count = source.get_param_count(self);
+        let min_arg_count = self.get_min_arg_count(source);
+        let rest_ty = source.get_rest_ty(self);
+        if let Some(rest_ty) = rest_ty {
+            if pos >= param_count - 1 {
+                return if pos == param_count - 1 {
+                    rest_ty
+                } else {
+                    let ty = self.get_indexed_access_ty(rest_ty, self.number_ty, None, None);
+                    self.create_array_ty(ty)
+                };
+            }
+        }
+        let mut tys = Vec::with_capacity(param_count);
+        let mut flags = Vec::with_capacity(param_count);
+        // let mut names = Vec::with_capacity(param_count);
+        for i in pos..param_count {
+            if rest_ty.is_none() || i < param_count - 1 {
+                tys.push(self.get_ty_at_pos(source, i));
+                flags.push(if i < min_arg_count {
+                    ElementFlags::REQUIRED
+                } else {
+                    ElementFlags::OPTIONAL
+                });
+            } else {
+                tys.push(rest_ty.unwrap());
+                flags.push(ElementFlags::VARIADIC);
+            }
+            // names.push(self.getnam);
+        }
+        self.create_tuple_ty(self.alloc(tys), Some(self.alloc(flags)), readonly)
+    }
+
     pub(super) fn get_ty_at_pos(&mut self, sig: &Sig<'cx>, pos: usize) -> &'cx ty::Ty<'cx> {
         self.try_get_ty_at_pos(sig, pos).unwrap_or(self.any_ty)
     }

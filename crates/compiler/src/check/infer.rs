@@ -1,5 +1,5 @@
 use crate::ir;
-use crate::ty::{self, SigKind, TypeFlags};
+use crate::ty::{self, SigFlags, SigKind, TypeFlags};
 use crate::{ast, ty::Sig};
 
 use super::create_ty::IntersectionFlags;
@@ -524,6 +524,24 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
+    pub(super) fn infer_state<'checker>(
+        &'checker mut self,
+        inference: InferenceContextId,
+        priority: Option<InferencePriority>,
+        contravariant: bool,
+    ) -> InferenceState<'cx, 'checker> {
+        let priority = priority.unwrap_or(InferencePriority::empty());
+        InferenceState {
+            priority,
+            inference_priority: InferencePriority::MAX_VALUE,
+            c: self,
+            inference,
+            contravariant,
+            bivariant: false,
+            propagation_ty: None,
+        }
+    }
+
     pub(super) fn infer_tys(
         &mut self,
         inference: InferenceContextId,
@@ -532,48 +550,8 @@ impl<'cx> TyChecker<'cx> {
         priority: Option<InferencePriority>,
         contravariant: bool,
     ) {
-        let priority = priority.unwrap_or(InferencePriority::empty());
-        let mut state = InferenceState {
-            priority,
-            inference_priority: InferencePriority::MAX_VALUE,
-            c: self,
-            inference,
-            contravariant,
-            bivariant: false,
-            propagation_ty: None,
-        };
+        let mut state = self.infer_state(inference, priority, contravariant);
         state.infer_from_tys(original_source, original_target);
-    }
-
-    pub(super) fn apply_to_param_tys(
-        &mut self,
-        source: &'cx ty::Sig<'cx>,
-        target: &'cx ty::Sig<'cx>,
-        callback: impl Fn(&mut Self, &'cx ty::Ty<'cx>, &'cx ty::Ty<'cx>),
-    ) {
-        let source_count = source.get_param_count(self);
-        let target_count = target.get_param_count(self);
-        let source_rest_ty = source.get_rest_ty(self);
-        let target_rest_ty = target.get_rest_ty(self);
-        let target_non_rest_count = if target_rest_ty.is_some() {
-            target_count - 1
-        } else {
-            target_count
-        };
-        let param_count = if source_rest_ty.is_some() {
-            target_count
-        } else {
-            usize::min(source_count, target_non_rest_count)
-        };
-        // TODO: `source_this_ty`
-        for i in 0..param_count {
-            let source_ty = self.get_ty_at_pos(source, i);
-            let target_ty = self.get_ty_at_pos(target, i);
-            callback(self, source_ty, target_ty);
-        }
-        if let Some(target_rest_ty) = target_rest_ty {
-            todo!()
-        }
     }
 
     pub(super) fn apply_to_ret_ty(
@@ -600,7 +578,7 @@ impl<'cx> TyChecker<'cx> {
     }
 }
 
-struct InferenceState<'cx, 'checker> {
+pub(super) struct InferenceState<'cx, 'checker> {
     priority: InferencePriority,
     inference_priority: InferencePriority,
     c: &'checker mut TyChecker<'cx>,
@@ -639,6 +617,11 @@ impl<'cx> InferenceState<'cx, '_> {
         info.top_level = true;
     }
 
+    fn set_info_toplevel_false(&mut self, idx: usize) {
+        let info = self.get_mut_inference_info(idx);
+        info.top_level = false;
+    }
+
     fn append_candidate(&mut self, idx: usize, candidate: &'cx ty::Ty<'cx>) {
         let info = self.get_mut_inference_info(idx);
         if let Some(candidates) = &mut info.candidates {
@@ -670,8 +653,13 @@ impl<'cx> InferenceState<'cx, '_> {
         }
     }
 
-    fn infer_from_tys(&mut self, mut source: &'cx ty::Ty<'cx>, mut target: &'cx ty::Ty<'cx>) {
-        if !self.c.could_contain_ty_var(target) {
+    pub(super) fn infer_from_tys(
+        &mut self,
+        mut source: &'cx ty::Ty<'cx>,
+        mut target: &'cx ty::Ty<'cx>,
+    ) {
+        let original_target = target;
+        if !self.c.could_contain_ty_var(target) || target.is_no_infer_ty() {
             return;
         }
 
@@ -739,6 +727,15 @@ impl<'cx> InferenceState<'cx, '_> {
                             self.append_candidate(idx, candidate);
                             self.c.clear_cached_inferences(self.inference);
                         }
+                    }
+
+                    if !(self.priority.intersects(InferencePriority::RETURN_TYPE)
+                        && target.flags.intersects(TypeFlags::TYPE_PARAMETER)
+                        && self.c.inference_info(self.inference, idx).top_level
+                        && self.c.is_ty_param_at_top_level(original_target, target, 0))
+                    {
+                        self.set_info_toplevel_false(idx);
+                        self.c.clear_cached_inferences(self.inference);
                     }
                 }
                 self.inference_priority = if self.inference_priority < self.priority {
@@ -879,7 +876,66 @@ impl<'cx> InferenceState<'cx, '_> {
         )
     }
 
+    pub(super) fn apply_to_param_tys(
+        &mut self,
+        source: &'cx ty::Sig<'cx>,
+        target: &'cx ty::Sig<'cx>,
+        callback: impl Fn(&mut Self, &'cx ty::Ty<'cx>, &'cx ty::Ty<'cx>),
+    ) {
+        let source_count = source.get_param_count(self.c);
+        let target_count = target.get_param_count(self.c);
+        let source_rest_ty = source.get_rest_ty(self.c);
+        let target_rest_ty = target.get_rest_ty(self.c);
+        let target_non_rest_count = if target_rest_ty.is_some() {
+            target_count - 1
+        } else {
+            target_count
+        };
+        let param_count = if source_rest_ty.is_some() {
+            target_count
+        } else {
+            usize::min(source_count, target_non_rest_count)
+        };
+        // TODO: `source_this_ty`
+        for i in 0..param_count {
+            let source_ty = self.c.get_ty_at_pos(source, i);
+            let target_ty = self.c.get_ty_at_pos(target, i);
+            callback(self, source_ty, target_ty);
+        }
+        if let Some(target_rest_ty) = target_rest_ty {
+            let readonly = false;
+            let rest_ty = self.c.get_rest_ty_at_pos(source, param_count, readonly);
+            callback(self, rest_ty, target_rest_ty);
+        }
+    }
+
+    fn infer_from_contravariant_tys(&mut self, source: &'cx ty::Ty<'cx>, target: &'cx ty::Ty<'cx>) {
+        self.contravariant = !self.contravariant;
+        self.infer_from_tys(source, target);
+        self.contravariant = !self.contravariant;
+    }
+
     fn infer_from_sig(&mut self, source: &'cx ty::Sig<'cx>, target: &'cx ty::Sig<'cx>) {
+        if !source.flags.intersects(SigFlags::IS_NON_INFERRABLE) {
+            let save_bivariant = self.bivariant;
+            let n = self.c.p.node(target.def_id());
+            self.bivariant = self.bivariant
+                || n.is_class_method_ele()
+                || n.is_object_method_member()
+                || n.is_method_signature()
+                || n.is_class_ctor();
+
+            self.apply_to_param_tys(source, target, |this, source, target| {
+                let strict_fn_tys = false; // TODO: config;
+                if strict_fn_tys || this.priority.intersects(InferencePriority::ALWAYS_STRICT) {
+                    this.infer_from_contravariant_tys(source, target);
+                } else {
+                    this.infer_from_tys(source, target);
+                }
+            });
+
+            self.bivariant = save_bivariant;
+        }
         self.apply_to_ret_ty(source, target, |this, source, target| {
             this.infer_from_tys(source, target);
         });

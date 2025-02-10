@@ -553,6 +553,50 @@ impl<'cx> TyChecker<'cx> {
         );
     }
 
+    pub(super) fn get_default_constraint_of_cond_ty(
+        &mut self,
+        ty: &'cx ty::Ty<'cx>,
+    ) -> &'cx ty::Ty<'cx> {
+        let cond_ty = ty.kind.expect_cond_ty();
+        if let Some(ty) = self.get_ty_links(ty.id).get_resolved_default_constraint() {
+            return ty;
+        }
+        let true_constraint = self.get_inferred_true_ty_from_cond_ty(ty, cond_ty);
+        let false_constraint = self.get_false_ty_from_cond_ty(ty, cond_ty);
+        let res = if self.is_type_any(Some(true_constraint)) {
+            false_constraint
+        } else if self.is_type_any(Some(false_constraint)) {
+            true_constraint
+        } else {
+            self.get_union_ty(
+                &[true_constraint, false_constraint],
+                ty::UnionReduction::Lit,
+            )
+        };
+        self.get_mut_ty_links(ty.id)
+            .set_resolved_default_constraint(res);
+        res
+    }
+
+    pub(super) fn get_inferred_true_ty_from_cond_ty(
+        &mut self,
+        ty: &'cx ty::Ty<'cx>,
+        cond_ty: &'cx ty::CondTy<'cx>,
+    ) -> &'cx ty::Ty<'cx> {
+        if let Some(ty) = self.get_ty_links(ty.id).get_resolved_inferred_true_ty() {
+            return ty;
+        }
+        let res = if let Some(m) = cond_ty.combined_mapper {
+            let ty = self.get_ty_from_type_node(cond_ty.root.node.true_ty);
+            self.instantiate_ty(ty, Some(m))
+        } else {
+            self.get_true_ty_from_cond_ty(ty, cond_ty)
+        };
+        self.get_mut_ty_links(ty.id)
+            .set_resolved_inferred_true_ty(res);
+        res
+    }
+
     fn get_default_construct_sigs(&mut self, ty: &'cx ty::Ty<'cx>) -> &'cx [&'cx ty::Sig<'cx>] {
         let r = ty.kind.expect_object_reference();
         let i = r.target.kind.expect_object_interface();

@@ -139,7 +139,8 @@ impl<'cx> TyChecker<'cx> {
                 last_optional_or_rest_index = expanded_tys.len();
             }
             if flags.intersects(ElementFlags::OPTIONAL) {
-                todo!()
+                // TODO: self.add_optionality
+                expanded_tys.push(ty);
             } else {
                 expanded_tys.push(ty);
             }

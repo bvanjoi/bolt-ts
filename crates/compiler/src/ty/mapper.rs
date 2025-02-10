@@ -60,8 +60,8 @@ pub struct CompositeTyMapper<'cx> {
 
 #[derive(Clone, Copy, Debug)]
 pub struct MergedTyMapper<'cx> {
-    pub mapper1: &'cx TyMapper<'cx>,
-    pub mapper2: &'cx TyMapper<'cx>,
+    pub mapper1: &'cx dyn TyMap<'cx>,
+    pub mapper2: &'cx dyn TyMap<'cx>,
 }
 
 pub trait TyMap<'cx>: std::fmt::Debug {
@@ -104,8 +104,9 @@ impl<'cx> TyMap<'cx> for CompositeTyMapper<'cx> {
 }
 
 impl<'cx> TyMap<'cx> for MergedTyMapper<'cx> {
-    fn get_mapped_ty(&self, _: &'cx Ty<'cx>, _: &mut TyChecker<'cx>) -> &'cx Ty<'cx> {
-        todo!()
+    fn get_mapped_ty(&self, ty: &'cx Ty<'cx>, checker: &mut TyChecker<'cx>) -> &'cx Ty<'cx> {
+        let t1 = self.mapper1.get_mapped_ty(ty, checker);
+        self.mapper2.get_mapped_ty(t1, checker)
     }
 }
 
