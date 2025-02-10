@@ -44,11 +44,8 @@ impl<'cx> TyChecker<'cx> {
         let ty_param_id = self.binder.symbol(symbol).expect_ty_param().decl;
         let container = self.p.node(self.p.parent(ty_param_id).unwrap());
         let ty_params = container.ty_params();
-        let offset = ty_params
-            .unwrap()
-            .iter()
-            .position(|p| p.id == ty_param_id)
-            .unwrap();
+        let offset =
+            ty_params.map(|ty_params| ty_params.iter().position(|p| p.id == ty_param_id).unwrap());
         let ty = self.create_param_ty(symbol, offset, false);
         self.get_mut_symbol_links(symbol).set_declared_ty(ty);
         ty
@@ -226,7 +223,7 @@ impl<'cx> TyChecker<'cx> {
                 v.extend(local_ty_params);
                 self.alloc(v)
             };
-            let this_ty = self.create_param_ty(symbol, usize::MAX, true);
+            let this_ty = self.create_param_ty(symbol, None, true);
             let target = self.crate_interface_ty(ty::InterfaceTy {
                 symbol,
                 ty_params: Some(ty_params),
@@ -308,6 +305,12 @@ impl<'cx> TyChecker<'cx> {
                                 return Some(outer_ty_params);
                             }
                         }
+                    }
+                    if let Some(cond) = node.as_cond_ty() {
+                        if let Some(infer_ty_params) = self.get_infer_ty_params(cond) {
+                            outer_ty_params.extend(infer_ty_params);
+                        }
+                        return Some(outer_ty_params);
                     }
                     self.append_ty_params(
                         &mut outer_ty_params,

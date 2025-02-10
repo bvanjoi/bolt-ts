@@ -1,4 +1,4 @@
-use crate::ast::{self, pprint_ident};
+use crate::ast;
 use crate::bind::{SymbolFlags, SymbolID, SymbolName};
 use crate::check::TyChecker;
 

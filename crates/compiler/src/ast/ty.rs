@@ -14,7 +14,7 @@ pub struct Tys<'cx> {
     pub list: &'cx [&'cx Ty<'cx>],
 }
 
-impl Ty<'_> {
+impl<'cx> Ty<'cx> {
     pub fn span(&self) -> Span {
         match self.kind {
             TyKind::Array(array) => array.span,
@@ -34,6 +34,7 @@ impl Ty<'_> {
             TyKind::Pred(n) => n.span,
             TyKind::Lit(n) => n.span,
             TyKind::Paren(n) => n.span,
+            TyKind::Infer(n) => n.span,
         }
     }
 
@@ -56,6 +57,7 @@ impl Ty<'_> {
             TyKind::Pred(n) => n.id,
             TyKind::Lit(n) => n.id,
             TyKind::Paren(n) => n.id,
+            TyKind::Infer(n) => n.id,
         }
     }
 
@@ -81,6 +83,13 @@ impl Ty<'_> {
         };
         name.name == keyword::KW_CONST && refer.ty_args.is_none()
     }
+
+    pub fn as_unary_tuple_ty(&'cx self) -> Option<&'cx Ty<'cx>> {
+        let TyKind::Tuple(tuple) = self.kind else {
+            return None;
+        };
+        (tuple.tys.len() == 1).then(|| tuple.tys[0])
+    }
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -102,6 +111,7 @@ pub enum TyKind<'cx> {
     TyOp(&'cx TyOp<'cx>),
     Pred(&'cx PredTy<'cx>),
     Paren(&'cx ParenTy<'cx>),
+    Infer(&'cx InferTy<'cx>),
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -385,4 +395,11 @@ pub struct TyOp<'cx> {
     pub span: Span,
     pub op: TyOpKind,
     pub ty: &'cx Ty<'cx>,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct InferTy<'cx> {
+    pub id: NodeID,
+    pub span: Span,
+    pub ty_param: &'cx TyParam<'cx>,
 }

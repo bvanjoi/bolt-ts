@@ -85,6 +85,13 @@ impl<'cx> Ty<'cx> {
             flags | ty.get_object_flags()
         })
     }
+
+    pub fn is_no_infer_ty(&self) -> bool {
+        self.kind
+            .as_substitution_ty()
+            .map(|sub| sub.constraint.flags.intersects(TypeFlags::UNKNOWN))
+            .unwrap_or_default()
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -106,92 +113,43 @@ pub enum TyKind<'cx> {
     IndexedAccess(&'cx IndexedAccessTy<'cx>),
     Cond(&'cx CondTy<'cx>),
     Index(&'cx IndexTy<'cx>),
+    Substitution(&'cx SubstitutionTy<'cx>),
 }
 
 macro_rules! as_ty_kind {
-    ($kind: ident, $ty:ty, $as_kind: ident, $expect_kind: ident, $is_kind: ident) => {
-        impl<'cx> TyKind<'cx> {
-            #[inline(always)]
-            pub fn $as_kind(&self) -> Option<$ty> {
-                match self {
-                    TyKind::$kind(ty) => Some(ty),
-                    _ => None,
+    ($kind: ident, $ty:ty, $name: ident) => {
+        paste::paste! {
+            impl<'cx> TyKind<'cx> {
+                #[inline(always)]
+                pub fn [<as_ $name>](&self) -> Option<$ty> {
+                    match self {
+                        TyKind::$kind(ty) => Some(ty),
+                        _ => None,
+                    }
                 }
-            }
-            #[inline(always)]
-            pub fn $is_kind(&self) -> bool {
-                self.$as_kind().is_some()
-            }
-            #[inline(always)]
-            pub fn $expect_kind(&self) -> $ty {
-                self.$as_kind().unwrap()
-            }
-        }
-    };
-    ($kind: ident, $is_kind: ident) => {
-        impl<'cx> TyKind<'cx> {
-            #[inline(always)]
-            pub fn $is_kind(&self) -> bool {
-                match self {
-                    TyKind::$kind => true,
-                    _ => false,
+                #[inline(always)]
+                pub fn [<is_ $name>](&self) -> bool {
+                    self.[<as_ $name>]().is_some()
+                }
+                #[inline(always)]
+                pub fn [<expect_ $name>](&self) -> $ty {
+                    self.[<as_ $name>]().unwrap()
                 }
             }
         }
     };
 }
 
-as_ty_kind!(
-    StringLit,
-    &'cx StringLitTy,
-    as_string_lit,
-    expect_string_lit,
-    is_string_lit
-);
-as_ty_kind!(
-    NumberLit,
-    &'cx NumberLitTy,
-    as_number_lit,
-    expect_number_lit,
-    is_number_lit
-);
-as_ty_kind!(
-    IndexedAccess,
-    &'cx IndexedAccessTy<'cx>,
-    as_indexed_access,
-    expect_indexed_access,
-    is_indexed_access
-);
-as_ty_kind!(Union, &'cx UnionTy<'cx>, as_union, expect_union, is_union);
-as_ty_kind!(
-    Intersection,
-    &'cx IntersectionTy<'cx>,
-    as_intersection,
-    expect_intersection,
-    is_intersection
-);
-as_ty_kind!(
-    Object,
-    &'cx ObjectTy<'cx>,
-    as_object,
-    expect_object,
-    is_object
-);
-as_ty_kind!(Param, &'cx ParamTy<'cx>, as_param, expect_param, is_param);
-as_ty_kind!(
-    Cond,
-    &'cx CondTy<'cx>,
-    as_cond_ty,
-    expect_cond_ty,
-    is_cond_ty
-);
-as_ty_kind!(
-    Index,
-    &IndexTy<'cx>,
-    as_index_ty,
-    expect_index_ty,
-    is_index_ty
-);
+as_ty_kind!(StringLit, &'cx StringLitTy, string_lit);
+as_ty_kind!(NumberLit, &'cx NumberLitTy, number_lit);
+as_ty_kind!(IndexedAccess, &'cx IndexedAccessTy<'cx>, indexed_access);
+as_ty_kind!(Union, &'cx UnionTy<'cx>, union);
+as_ty_kind!(Intersection, &'cx IntersectionTy<'cx>, intersection);
+as_ty_kind!(Object, &'cx ObjectTy<'cx>, object);
+as_ty_kind!(Param, &'cx ParamTy<'cx>, param);
+as_ty_kind!(Cond, &'cx CondTy<'cx>, cond_ty);
+as_ty_kind!(Index, &IndexTy<'cx>, index_ty);
+as_ty_kind!(Substitution, &SubstitutionTy<'cx>, substitution_ty);
 
 impl<'cx> Ty<'cx> {
     pub fn to_string(&'cx self, checker: &mut TyChecker<'cx>) -> String {
@@ -231,6 +189,7 @@ impl<'cx> Ty<'cx> {
             TyKind::Cond(_) => "cond".to_string(),
             TyKind::Index(n) => n.ty.to_string(checker),
             TyKind::Intrinsic(i) => checker.atoms.get(i.name).to_string(),
+            TyKind::Substitution(_) => "substitution".to_string(),
         }
     }
 
@@ -294,12 +253,12 @@ impl<'cx> TyKind<'cx> {
     }
 
     pub fn is_instantiable_non_primitive(&self) -> bool {
-        self.is_index_ty() || self.is_type_variable() || self.is_cond_ty()
+        self.is_type_variable() || self.is_cond_ty() || self.is_substitution_ty()
     }
 
     pub fn is_instantiable_primitive(&self) -> bool {
-        // todo: `index`, `template literal`, `string mapping`
-        false
+        // todo: `template literal`, `string mapping`
+        self.is_index_ty()
     }
 
     pub fn is_instantiable(&self) -> bool {
@@ -331,25 +290,34 @@ impl<'cx> TyKind<'cx> {
     }
 
     pub fn is_generic_object(&self) -> bool {
-        self.is_instantiable_non_primitive() || self.is_generic_tuple_type()
+        self.get_generic_object_flags()
+            .intersects(ObjectFlags::IS_GENERIC_OBJECT_TYPE)
     }
 
     pub fn is_generic_index_ty(&self) -> bool {
-        self.is_instantiable_non_primitive()
+        self.get_generic_object_flags()
+            .intersects(ObjectFlags::IS_GENERIC_INDEX_TYPE)
     }
 
     fn get_generic_object_flags(&self) -> ObjectFlags {
         if self.is_union_or_intersection() {
             // TODO:
             ObjectFlags::empty()
+        } else if let Some(ty) = self.as_substitution_ty() {
+            // TODO: cache?
+            (ty.base_ty.kind.get_generic_object_flags()
+                | ty.constraint.kind.get_generic_object_flags())
+                & ObjectFlags::IS_GENERIC_TYPE
         } else {
-            if self.is_instantiable_non_primitive() || self.is_generic_tuple_type() {
+            (if self.is_instantiable_non_primitive() || self.is_generic_tuple_type() {
                 ObjectFlags::IS_GENERIC_OBJECT_TYPE
-            } else if self.is_instantiable() || self.is_generic_index_ty() {
+            } else {
+                ObjectFlags::empty()
+            }) | (if self.is_instantiable() || self.is_index_ty() {
                 ObjectFlags::IS_GENERIC_INDEX_TYPE
             } else {
                 ObjectFlags::empty()
-            }
+            })
         }
     }
 
@@ -379,6 +347,7 @@ pub struct CondTyRoot<'cx> {
     pub extends_ty: &'cx Ty<'cx>,
     pub outer_ty_params: Option<Tys<'cx>>,
     pub is_distributive: bool,
+    pub infer_ty_params: Option<Tys<'cx>>,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -445,7 +414,7 @@ pub struct StringLitTy {
 #[derive(Debug, Clone, Copy)]
 pub struct ParamTy<'cx> {
     pub symbol: SymbolID,
-    pub offset: usize,
+    pub offset: Option<usize>,
     pub target: Option<&'cx self::Ty<'cx>>,
     pub is_this_ty: bool,
 }
@@ -469,4 +438,11 @@ pub struct IndexTy<'cx> {
 pub struct IntrinsicTy {
     pub object_flags: ObjectFlags,
     pub name: AtomId,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct SubstitutionTy<'cx> {
+    pub object_flags: ObjectFlags,
+    pub base_ty: &'cx self::Ty<'cx>,
+    pub constraint: &'cx self::Ty<'cx>,
 }

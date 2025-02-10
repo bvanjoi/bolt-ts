@@ -301,6 +301,9 @@ impl<'cx> Resolver<'cx, '_> {
             Paren(n) => {
                 self.resolve_ty(n.ty);
             }
+            Infer(n) => {
+                self.resolve_ty_param(n.ty_param);
+            }
         }
     }
 
@@ -423,6 +426,12 @@ impl<'cx> Resolver<'cx, '_> {
             }
             Void(n) => {
                 self.resolve_expr(n.expr);
+            }
+            As(n) => {
+                self.resolve_expr(n.expr);
+                if !n.ty.is_const_ty_refer() {
+                    self.resolve_ty(n.ty);
+                }
             }
             _ => {}
         }
@@ -585,7 +594,7 @@ pub(super) fn resolve_symbol_by_ident<'a, 'cx>(
     let binder = &resolver.states[resolver.module_id.as_usize()];
     let key = SymbolName::Normal(ident.name);
     let Some(mut scope_id) = binder.node_id_to_scope_id.get(&ident.id).copied() else {
-        let name = resolver.atoms.get(ident.name);
+        let name = ast::debug_ident(ident, resolver.atoms);
         unreachable!("the scope of {name:?} is not stored");
     };
     let mut associated_declaration_for_containing_initializer_or_binding_name = None;

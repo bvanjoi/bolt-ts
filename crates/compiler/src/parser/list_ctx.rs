@@ -170,7 +170,7 @@ impl ListContext for ArrayLiteralMembers {
 pub(super) struct TyArgs;
 impl ListContext for TyArgs {
     fn is_ele(&self, s: &mut ParserState, _: bool) -> bool {
-        matches!(s.token.kind, TokenKind::Comma) || s.is_start_of_ty()
+        matches!(s.token.kind, TokenKind::Comma) || s.is_start_of_ty(false)
     }
 
     fn is_closing(&self, s: &mut ParserState) -> bool {

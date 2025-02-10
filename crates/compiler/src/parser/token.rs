@@ -213,6 +213,7 @@ pub enum TokenKind {
     Readonly,
     Satisfies,
     Keyof,
+    Infer,
     Type,
 }
 
@@ -324,6 +325,7 @@ impl TokenKind {
             Readonly => "readonly",
             Satisfies => "satisfies",
             Keyof => "keyof",
+            Infer => "infer",
             Type => "type",
             _ => unreachable!(),
         }
@@ -549,7 +551,7 @@ impl TokenKind {
             Constructor |
             Declare |
             Get |
-            // Infer |
+            Infer |
             // Intrinsic |
             Is |
             Keyof |
@@ -565,7 +567,7 @@ impl TokenKind {
             Set |
             String |
             // Symbol |
-            Type | 
+            Type |
             Undefined |
                  // Unique |
                  // Unknown |

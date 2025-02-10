@@ -755,7 +755,41 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
             return result;
         }
 
-        if let Some(_) = target.kind.as_cond_ty() {
+        if target_flags.intersects(TypeFlags::INDEX) {
+            if source_flags.intersects(TypeFlags::INDEX) {
+                let source_ty = source.kind.expect_index_ty().ty;
+                let target_ty = target.kind.expect_index_ty().ty;
+                result = self.is_related_to(
+                    target_ty,
+                    source_ty,
+                    RecursionFlags::BOTH,
+                    false,
+                    IntersectionState::empty(),
+                );
+                if result != Ternary::FALSE {
+                    return result;
+                }
+            } else if target.kind.is_tuple() {
+                todo!()
+            } else {
+                let target_ty = target.kind.expect_index_ty();
+                if let Some(constraint) = self.c.get_simplified_ty_or_constraint(target_ty.ty) {
+                    let index_flags = target_ty.index_flags | ty::IndexFlags::NO_REDUCIBLE_CHECK;
+                    let index_ty = self.c.get_index_ty(constraint, index_flags);
+                    if self.is_related_to(
+                        source,
+                        index_ty,
+                        RecursionFlags::TARGET,
+                        report_error,
+                        IntersectionState::empty(),
+                    ) == Ternary::TRUE
+                    {
+                        return Ternary::TRUE;
+                    }
+                }
+                // TODO: is_generic_mapped_ty(target_ty)
+            }
+        } else if let Some(_) = target.kind.as_cond_ty() {
             if self.c.is_deeply_nested_type(target, &self.target_stack, 10) {
                 return Ternary::FALSE;
             }

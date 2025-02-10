@@ -1,4 +1,4 @@
-use super::{links, TyChecker};
+use super::{links, InferenceContextId, TyChecker};
 use crate::ty;
 
 #[derive(Debug, Clone, Copy)]
@@ -54,5 +54,52 @@ impl<'cx> ty::TyMap<'cx> for RestrictiveMapper {
                 .set_restrictive_instantiation(restrictive_instantiation);
             restrictive_instantiation
         }
+    }
+}
+
+#[derive(Debug, Clone, Copy)]
+pub(super) struct NonFixingMapper<'cx> {
+    pub(super) inference: InferenceContextId,
+    pub(super) sources: ty::Tys<'cx>,
+}
+
+impl<'cx> ty::TyMap<'cx> for NonFixingMapper<'cx> {
+    fn get_mapped_ty(
+        &self,
+        ty: &'cx ty::Ty<'cx>,
+        checker: &mut TyChecker<'cx>,
+    ) -> &'cx ty::Ty<'cx> {
+        for idx in 0..self.sources.len() {
+            if self.sources[idx].id == ty.id {
+                return checker.get_inferred_ty(self.inference, idx);
+            }
+        }
+        ty
+    }
+}
+
+#[derive(Debug, Clone, Copy)]
+pub(super) struct FixingMapper<'cx> {
+    pub(super) inference: InferenceContextId,
+    pub(super) sources: ty::Tys<'cx>,
+}
+
+impl<'cx> ty::TyMap<'cx> for FixingMapper<'cx> {
+    fn get_mapped_ty(
+        &self,
+        ty: &'cx ty::Ty<'cx>,
+        checker: &mut TyChecker<'cx>,
+    ) -> &'cx ty::Ty<'cx> {
+        for idx in 0..self.sources.len() {
+            if self.sources[idx].id == ty.id {
+                if !checker.inference_info(self.inference, idx).is_fixed {
+                    // TODO: `inferFromIntraExpressionSites`
+                    checker.clear_cached_inferences(self.inference);
+                    checker.inferences[self.inference.as_usize()].inferences[idx].is_fixed = true;
+                }
+                return checker.get_inferred_ty(self.inference, idx);
+            }
+        }
+        ty
     }
 }

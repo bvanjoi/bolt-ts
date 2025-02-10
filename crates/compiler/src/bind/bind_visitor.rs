@@ -17,8 +17,7 @@ use bolt_ts_span::ModuleID;
 use bolt_ts_utils::fx_hashmap_with_capacity;
 use thin_vec::thin_vec;
 
-use crate::ast::ModifierKind;
-use crate::ast::{self};
+use crate::ast;
 use crate::bind::prop_name;
 use crate::bind::symbol::AliasSymbol;
 use crate::bind::FlowNode;
@@ -50,6 +49,7 @@ impl<'cx> BinderState<'cx> {
             report_unreachable_flow_node,
             has_flow_effects: false,
             in_return_position: false,
+            locals: fx_hashmap_with_capacity(128),
         }
     }
 
@@ -279,7 +279,7 @@ impl<'cx> BinderState<'cx> {
 
         let is_export = ns
             .modifiers
-            .is_some_and(|mods| mods.flags.contains(ModifierKind::Export));
+            .is_some_and(|mods| mods.flags.contains(ast::ModifierKind::Export));
         let name = SymbolName::Normal(name);
         self.members(container, is_export).insert(name, symbol);
 
@@ -330,6 +330,44 @@ impl<'cx> BinderState<'cx> {
         if let Some(default) = ty_param.default {
             self.bind_ty(default);
         }
+
+        let parent = self.p.parent(ty_param.id).unwrap();
+        let p = self.p.node(parent);
+        if let Some(infer_ty) = p.as_infer_ty() {
+            assert!(ty_param.default.is_none());
+            // get infer ty container
+            let extends_ty = self.p.find_ancestor(infer_ty.id, |n| {
+                let n_id = n.id();
+                let Some(p) = self.p.parent(n_id) else {
+                    return None;
+                };
+                if let Some(cond) = self.p.node(p).as_cond_ty() {
+                    if cond.extends_ty.id() == n_id {
+                        return Some(true);
+                    }
+                }
+                None
+            });
+            let container = extends_ty.map(|extends_ty| {
+                let p = self.p.parent(extends_ty).unwrap();
+                let n = self.p.node(p);
+                assert!(n.is_cond_ty());
+                p
+            });
+            if let Some(container) = container {
+                let name = SymbolName::Normal(ty_param.name.name);
+                self.inset_into_locals(container, name, symbol);
+            }
+        }
+    }
+
+    fn inset_into_locals(&mut self, container: ast::NodeID, name: SymbolName, symbol: SymbolID) {
+        assert!(self.p.node(container).has_locals());
+        let locals = self
+            .locals
+            .entry(container)
+            .or_insert_with(|| fx_hashmap_with_capacity(64));
+        locals.insert(name, symbol);
     }
 
     pub(super) fn bind_index_sig(
@@ -548,7 +586,7 @@ impl<'cx> BinderState<'cx> {
         let id = self.create_interface_symbol(i.id, i.name.name, Default::default());
         let is_export = i
             .modifiers
-            .is_some_and(|ms| ms.flags.intersects(ModifierKind::Export));
+            .is_some_and(|ms| ms.flags.intersects(ast::ModifierKind::Export));
         let name = SymbolName::Normal(i.name.name);
         let members = self.members(container, is_export);
         let _prev = members.insert(name, id);
@@ -652,6 +690,12 @@ impl<'cx> BinderState<'cx> {
             }
             Void(node) => {
                 self.bind_expr(node.expr);
+            }
+            As(node) => {
+                self.bind_expr(node.expr);
+                if !node.ty.is_const_ty_refer() {
+                    self.bind_ty(node.ty);
+                }
             }
             _ => (),
         }
@@ -895,7 +939,7 @@ impl<'cx> BinderState<'cx> {
         self.connect(var.id);
         let is_export = var
             .modifiers
-            .is_some_and(|mods| mods.flags.contains(ModifierKind::Export));
+            .is_some_and(|mods| mods.flags.contains(ast::ModifierKind::Export));
         self.bind_var_decls(Some(container), var.list, var.kind, is_export);
     }
 
@@ -993,6 +1037,9 @@ impl<'cx> BinderState<'cx> {
             }
             Paren(n) => {
                 self.bind_ty(n.ty);
+            }
+            Infer(n) => {
+                self.bind_ty_param(n.ty_param);
             }
         }
     }

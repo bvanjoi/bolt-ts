@@ -5,8 +5,9 @@ use std::hash::Hasher;
 use crate::bind::{Symbol, SymbolFlags, SymbolID, SymbolName};
 use crate::check::links::TyLinks;
 use crate::check::SymbolLinks;
+use crate::ty;
 use crate::ty::{
-    self, CheckFlags, ElementFlags, IndexFlags, ObjectFlags, TyID, TypeFlags, UnionReduction,
+    CheckFlags, ElementFlags, IndexFlags, ObjectFlags, TyID, TypeFlags, UnionReduction,
 };
 use crate::{ast, keyword};
 
@@ -339,7 +340,7 @@ impl<'cx> TyChecker<'cx> {
     pub(super) fn create_param_ty(
         &mut self,
         symbol: SymbolID,
-        offset: usize,
+        offset: Option<usize>,
         is_this_ty: bool,
     ) -> &'cx ty::Ty<'cx> {
         let ty = ty::ParamTy {
@@ -584,7 +585,7 @@ impl<'cx> TyChecker<'cx> {
             if arity > 0 {
                 let mut _ty_params = Vec::with_capacity(arity);
                 for i in 0..arity {
-                    let ty_param = this.create_param_ty(Symbol::ERR, i, false);
+                    let ty_param = this.create_param_ty(Symbol::ERR, Some(i), false);
                     _ty_params.push(ty_param);
                     let flag = element_flags[i];
                     combined_flags |= flag;
@@ -634,7 +635,7 @@ impl<'cx> TyChecker<'cx> {
             props.push(length_symbol);
 
             let object_flags = ObjectFlags::TUPLE | ObjectFlags::REFERENCE;
-            let this_ty = this.create_param_ty(Symbol::ERR, usize::MAX, true);
+            let this_ty = this.create_param_ty(Symbol::ERR, None, true);
             let declared_members = this.alloc(ty::DeclaredMembers {
                 props: this.alloc(props),
                 call_sigs: &[],
@@ -803,7 +804,7 @@ impl<'cx> TyChecker<'cx> {
             .map(|id| self.tys[id.as_usize()])
             .collect::<Vec<_>>();
 
-        let object_flags = ObjectFlags::empty();
+        let mut object_flags = ObjectFlags::empty();
 
         if includes.intersects(TypeFlags::NEVER) {
             return self.never_ty;
@@ -974,5 +975,53 @@ impl<'cx> TyChecker<'cx> {
         }
 
         intersections
+    }
+
+    pub fn get_substitution_ty(
+        &mut self,
+        base_ty: &'cx ty::Ty<'cx>,
+        constraint: &'cx ty::Ty<'cx>,
+    ) -> &'cx ty::Ty<'cx> {
+        if constraint.flags.intersects(TypeFlags::ANY_OR_UNKNOWN)
+            || base_ty == constraint
+            || base_ty.flags.intersects(TypeFlags::ANY)
+        {
+            base_ty
+        } else {
+            self.get_or_create_substitution_ty(base_ty, constraint)
+        }
+    }
+
+    fn get_or_create_substitution_ty(
+        &mut self,
+        base_ty: &'cx ty::Ty<'cx>,
+        constraint: &'cx ty::Ty<'cx>,
+    ) -> &'cx ty::Ty<'cx> {
+        // TODO: cache
+        let ty = self.alloc(ty::SubstitutionTy {
+            object_flags: ObjectFlags::empty(),
+            base_ty,
+            constraint,
+        });
+        self.new_ty(ty::TyKind::Substitution(ty), TypeFlags::SUBSTITUTION)
+    }
+
+    pub(super) fn get_substitution_intersection(
+        &mut self,
+        ty: &'cx ty::Ty<'cx>,
+    ) -> &'cx ty::Ty<'cx> {
+        let Some(sub) = ty.kind.as_substitution_ty() else {
+            unreachable!()
+        };
+        if ty.is_no_infer_ty() {
+            sub.base_ty
+        } else {
+            self.get_intersection_ty(
+                &[sub.constraint, sub.base_ty],
+                IntersectionFlags::None,
+                None,
+                None,
+            )
+        }
     }
 }

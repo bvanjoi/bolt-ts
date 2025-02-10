@@ -13,9 +13,13 @@ use rustc_hash::FxHashMap;
 
 pub struct ResolveResult {
     pub symbols: Symbols,
+    // TODO: use `NodeId::index` is enough
     pub final_res: FxHashMap<ast::NodeID, SymbolID>,
     pub diags: Vec<bolt_ts_errors::Diag>,
+    // TODO: use `NodeId::index` is enough
     pub deep_res: FxHashMap<ast::NodeID, SymbolID>,
+    // TODO: use `NodeId::index` is enough
+    pub locals: FxHashMap<ast::NodeID, FxHashMap<SymbolName, SymbolID>>,
 }
 
 pub fn late_resolve<'cx>(
@@ -44,7 +48,6 @@ pub fn late_resolve<'cx>(
         resolver.visit_program(root);
         let deep_res = std::mem::take(&mut resolver.deep_res);
         let resolver_diags = std::mem::take(&mut resolver.diags);
-        drop(resolver);
         temp.push((deep_res, resolver_diags));
     }
 
@@ -53,15 +56,16 @@ pub fn late_resolve<'cx>(
         .zip(states)
         .zip(temp)
         .map(|((module, mut state), (deep_res, diags))| {
-            let symbols = std::mem::take(&mut state.symbols);
-            let final_res = std::mem::take(&mut state.final_res);
+            let symbols = state.symbols;
+            let final_res = state.final_res;
             state.diags.extend(diags);
-            let diags = std::mem::take(&mut state.diags);
+            let diags = state.diags;
             let result = ResolveResult {
                 symbols,
                 final_res,
                 diags,
                 deep_res,
+                locals: state.locals,
             };
             (module.id, result)
         })

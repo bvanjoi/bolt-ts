@@ -91,6 +91,10 @@ impl<'cx> Binder<'cx> {
             .flat_map(|result| std::mem::take(&mut result.diags))
             .collect()
     }
+
+    pub fn locals(&self, id: ast::NodeID) -> Option<&FxHashMap<SymbolName, SymbolID>> {
+        self.get(id.module()).locals.get(&id)
+    }
 }
 
 pub struct BinderState<'cx> {
@@ -99,8 +103,11 @@ pub struct BinderState<'cx> {
     pub(crate) diags: Vec<bolt_ts_errors::Diag>,
     pub(crate) atoms: &'cx AtomMap<'cx>,
     pub(crate) scope_id_parent_map: Vec<Option<ScopeID>>,
+    // TODO: use `NodeId::index` is enough
     pub(crate) node_id_to_scope_id: FxHashMap<ast::NodeID, ScopeID>,
     pub(crate) symbols: Symbols,
+    // TODO: use `NodeId::index` is enough
+    pub(crate) locals: FxHashMap<ast::NodeID, FxHashMap<SymbolName, SymbolID>>,
 
     pub(crate) flow_nodes: FlowNodes<'cx>,
     current_flow: Option<FlowID>,
@@ -112,6 +119,7 @@ pub struct BinderState<'cx> {
     report_unreachable_flow_node: FlowID,
 
     pub(super) res: FxHashMap<(ScopeID, SymbolName), SymbolID>,
+    // TODO: use `NodeId::index` is enough
     pub(crate) final_res: FxHashMap<ast::NodeID, SymbolID>,
 }
 

@@ -357,7 +357,7 @@ impl<'cx> TyChecker<'cx> {
             let arg_ty = self.check_expr_with_contextual_ty(arg, param_ty, None, check_mode);
             let error_node = report_error.then(|| arg.id());
             let check_arg_ty = if let Some(infer) = inference_context {
-                let mapper = self.create_inference_non_fixing_mapper(infer);
+                let mapper = self.inference(infer).non_fixing_mapper;
                 self.instantiate_ty(arg_ty, Some(mapper))
             } else {
                 arg_ty
@@ -487,7 +487,7 @@ impl<'cx> TyChecker<'cx> {
                                 argument_check_mode | CheckMode::SKIP_GENERIC_FUNCTIONS,
                                 infer,
                             );
-                            let mapper = self.create_inference_non_fixing_mapper(infer);
+                            let mapper = self.inference(infer).non_fixing_mapper;
                             self.instantiate_tys(tys, mapper)
                         });
 
@@ -532,7 +532,7 @@ impl<'cx> TyChecker<'cx> {
                                 argument_check_mode,
                                 infer,
                             );
-                            let mapper = self.create_inference_fixing_mapper(infer);
+                            let mapper = self.inference(infer).mapper;
                             self.instantiate_tys(tys, mapper)
                         };
                         check_candidate =

@@ -70,10 +70,10 @@ type ArrayValues<T extends readonly unknown[]> = T[number];
 type Arrayable<T> = T | T[];
 {
   const unknown: unknown = 'unknown';
-  // expectType<Arrayable<string>>(unknown as string | string[]);
-  // expectType<Arrayable<string | {foo: number}>>(unknown as (string | {foo: number}) | Array<string | {foo: number}>);
-  // expectType<Arrayable<never>>(unknown as /* never | */ never[]);
-  // expectType<Arrayable<string[]>>(unknown as string[] | string[][]);
+  const a0: Arrayable<string> = unknown as string | string[];
+  const a1: Arrayable<string | {foo: number}> = unknown as (string | {foo: number}) | Array<string | {foo: number}>;
+  const a2: Arrayable<never> = unknown as /* never | */ never[];
+  const a3: Arrayable<string[]> = unknown as string[] | string[][];
 
   // Test for issue https://github.com/sindresorhus/type-fest/issues/952
   type Item = number;
@@ -87,8 +87,8 @@ type Arrayable<T> = T | T[];
     return Array.isArray(value) ? value : [value];
   }
 
-  const a0: number[] = castArray2(1);
-  const a1: number[] = castArray2([1, 2, 3]);
+  const c0: number[] = castArray2(1);
+  const c1: number[] = castArray2([1, 2, 3]);
 }
 
 // =========== ifNever ===========

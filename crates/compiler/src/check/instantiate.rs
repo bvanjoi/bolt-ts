@@ -135,6 +135,10 @@ impl<'cx> TyChecker<'cx> {
                 alias_symbol,
                 alias_ty_args,
             ),
+            Substitution(_) => {
+                // TODO:
+                ty
+            }
             _ => {
                 todo!("{:?}", ty.kind);
             }
@@ -323,6 +327,21 @@ impl<'cx> TyChecker<'cx> {
         }
         let ty_args = self.alloc(ty_args);
         let new_mapper = self.create_ty_mapper(outer_ty_params, ty_args);
+        let check_ty = cond_ty.root.check_ty;
+        let distribution_ty = cond_ty
+            .root
+            .is_distributive
+            .then(|| self.get_mapped_ty(new_mapper, check_ty));
+        if let Some(distribution_ty) = distribution_ty {
+            if check_ty != distribution_ty
+                && distribution_ty
+                    .flags
+                    .intersects(TypeFlags::UNION | TypeFlags::NEVER)
+            {
+                // TODO;
+                // ty = Some()
+            }
+        }
         let ty = self.get_cond_ty(cond_ty.root, Some(new_mapper), alias_symbol, alias_ty_args);
         self.instantiation_ty_map.insert(key, ty);
         ty

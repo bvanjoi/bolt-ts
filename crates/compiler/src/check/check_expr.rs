@@ -65,11 +65,31 @@ impl<'cx> TyChecker<'cx> {
             EleAccess(node) => self.check_ele_access(node),
             This(n) => self.check_this_expr(n),
             Super(_) => self.undefined_ty,
-            As(n) => self.check_expr(n.expr),
+            As(n) => self.check_assertion(n.expr, n.ty),
             Satisfies(n) => self.check_expr(n.expr),
         };
 
         self.instantiate_ty_with_single_generic_call_sig(expr.id(), ty)
+    }
+
+    pub(super) fn get_regular_ty_of_literal_ty(
+        &mut self,
+        ty: &'cx ty::Ty<'cx>,
+    ) -> &'cx ty::Ty<'cx> {
+        ty
+    }
+
+    fn check_assertion(
+        &mut self,
+        assert_expr: &'cx ast::Expr<'cx>,
+        assert_ty: &'cx ast::Ty<'cx>,
+    ) -> &'cx ty::Ty<'cx> {
+        let expr_ty = self.check_expr(assert_expr);
+        if assert_ty.is_const_ty_refer() {
+            self.get_regular_ty_of_literal_ty(expr_ty)
+        } else {
+            self.get_ty_from_type_node(assert_ty)
+        }
     }
 
     pub(super) fn check_truthiness_expr(&mut self, expr: &'cx ast::Expr) -> &'cx ty::Ty<'cx> {

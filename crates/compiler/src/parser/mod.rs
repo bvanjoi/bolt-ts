@@ -560,4 +560,16 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
     fn in_disallow_in_context(&self) -> bool {
         self.in_context(NodeFlags::DISALLOW_IN_CONTEXT)
     }
+
+    fn allow_conditional_tys_and<T>(&mut self, f: impl FnOnce(&mut Self) -> T) -> T {
+        self.do_outside_of_context(NodeFlags::DISALLOW_CONDITIONAL_TYPES_CONTEXT, f)
+    }
+
+    fn disallow_conditional_tys_and<T>(&mut self, f: impl FnOnce(&mut Self) -> T) -> T {
+        self.do_inside_of_context(NodeFlags::DISALLOW_CONDITIONAL_TYPES_CONTEXT, f)
+    }
+
+    fn in_disallow_conditional_tys_context(&self) -> bool {
+        self.in_context(NodeFlags::DISALLOW_CONDITIONAL_TYPES_CONTEXT)
+    }
 }

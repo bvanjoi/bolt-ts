@@ -5,7 +5,7 @@ use crate::{ast, ty::Sig};
 use super::create_ty::IntersectionFlags;
 use super::get_contextual::ContextFlags;
 use super::utils::append_if_unique;
-use super::{CheckMode, InferenceContextId, TyChecker};
+use super::{fn_mapper, CheckMode, InferenceContextId, TyChecker};
 
 use thin_vec::{thin_vec, ThinVec};
 
@@ -72,11 +72,15 @@ pub struct InferenceContext<'cx> {
     pub inferences: thin_vec::ThinVec<InferenceInfo<'cx>>,
     pub sig: Option<&'cx ty::Sig<'cx>>,
     pub flags: InferenceFlags,
-    pub ret_mapper: Option<InferenceContextId>,
+    pub mapper: &'cx fn_mapper::FixingMapper<'cx>,
+    pub non_fixing_mapper: &'cx dyn ty::TyMap<'cx>,
+    pub ret_mapper: Option<&'cx dyn ty::TyMap<'cx>>,
 }
 
 impl<'cx> InferenceContext<'cx> {
     fn create(
+        checker: &TyChecker<'cx>,
+        id: InferenceContextId,
         ty_params: ty::Tys<'cx>,
         sig: Option<&'cx ty::Sig<'cx>>,
         flags: InferenceFlags,
@@ -84,12 +88,16 @@ impl<'cx> InferenceContext<'cx> {
         let inferences = ty_params
             .iter()
             .map(|ty_param| InferenceInfo::create(ty_param))
-            .collect();
+            .collect::<thin_vec::ThinVec<_>>();
+        let mapper = checker.making_inference_fixing_mapper(id, &inferences);
+        let non_fixing_mapper = checker.making_inference_non_fixing_mapper(id, &inferences);
         Self {
             inferences,
             sig,
             flags,
             ret_mapper: None,
+            mapper,
+            non_fixing_mapper,
         }
     }
 }
@@ -101,70 +109,55 @@ impl<'cx> TyChecker<'cx> {
         sig: Option<&'cx ty::Sig<'cx>>,
         flags: InferenceFlags,
     ) -> InferenceContextId {
-        self.create_inference_context_worker(InferenceContext::create(ty_params, sig, flags))
-    }
-
-    fn create_inference_context_worker(
-        &mut self,
-        inference: InferenceContext<'cx>,
-    ) -> InferenceContextId {
         let id = InferenceContextId(self.inferences.len() as u32);
+        let inference = InferenceContext::create(self, id, ty_params, sig, flags);
         self.inferences.push(inference);
         id
     }
 
-    pub(crate) fn create_inference_fixing_mapper(
-        &mut self,
+    fn making_inference_fixing_mapper(
+        &self,
         id: InferenceContextId,
-    ) -> &'cx dyn ty::TyMap<'cx> {
-        let inferences = &self.inference(id).inferences;
+        inferences: &[InferenceInfo<'cx>],
+    ) -> &'cx fn_mapper::FixingMapper<'cx> {
         let sources = inferences.iter().map(|i| i.ty_param).collect::<Vec<_>>();
         let sources = self.alloc(sources);
-        let targets = (0..inferences.len())
-            .map(|idx| {
-                // TODO: handle `!is_fixed`
-                self.get_inferred_ty(id, idx)
-            })
-            .collect::<Vec<_>>();
-        let targets = self.alloc(targets);
-        self.create_ty_mapper(sources, targets)
+        self.alloc(fn_mapper::FixingMapper {
+            inference: id,
+            sources,
+        })
     }
 
-    pub(crate) fn create_inference_non_fixing_mapper(
-        &mut self,
+    fn making_inference_non_fixing_mapper(
+        &self,
         id: InferenceContextId,
-    ) -> &'cx dyn ty::TyMap<'cx> {
-        let inferences = &self.inference(id).inferences;
+        inferences: &[InferenceInfo<'cx>],
+    ) -> &'cx fn_mapper::NonFixingMapper<'cx> {
         let sources = inferences.iter().map(|i| i.ty_param).collect::<Vec<_>>();
         let sources = self.alloc(sources);
-        let targets = (0..inferences.len())
-            .map(|idx| self.get_inferred_ty(id, idx))
-            .collect::<Vec<_>>();
-        let targets = self.alloc(targets);
-        self.create_ty_mapper(sources, targets)
+        self.alloc(fn_mapper::NonFixingMapper {
+            inference: id,
+            sources,
+        })
     }
 
-    pub(crate) fn create_inference_ret_mapper(
+    fn set_inference_ret_mapper(
         &mut self,
         inference: InferenceContextId,
-    ) -> Option<&'cx dyn ty::TyMap<'cx>> {
-        self.inference(inference)
-            .ret_mapper
-            .map(|ret_mapper| self.create_inference_fixing_mapper(ret_mapper))
-    }
-    pub(crate) fn set_inference_ret_mapper(
-        &mut self,
-        inference: InferenceContextId,
-        mapper_ctx: Option<InferenceContextId>,
+        mapper: Option<&'cx dyn ty::TyMap<'cx>>,
     ) {
-        self.inferences[inference.as_usize()].ret_mapper = mapper_ctx;
+        self.inferences[inference.as_usize()].ret_mapper = mapper;
     }
 
     pub(crate) fn inference(&self, id: InferenceContextId) -> &InferenceContext<'cx> {
         &self.inferences[id.as_usize()]
     }
 
-    fn inference_info(&self, inference: InferenceContextId, idx: usize) -> &InferenceInfo<'cx> {
+    pub(super) fn inference_info(
+        &self,
+        inference: InferenceContextId,
+        idx: usize,
+    ) -> &InferenceInfo<'cx> {
         &self.inference_infos(inference)[idx]
     }
 
@@ -333,7 +326,11 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
-    fn get_inferred_ty(&mut self, inference: InferenceContextId, idx: usize) -> &'cx ty::Ty<'cx> {
+    pub(crate) fn get_inferred_ty(
+        &mut self,
+        inference: InferenceContextId,
+        idx: usize,
+    ) -> &'cx ty::Ty<'cx> {
         let i = self.inference_info(inference, idx);
         if let Some(inferred_ty) = i.inferred_ty {
             return inferred_ty;
@@ -427,9 +424,12 @@ impl<'cx> TyChecker<'cx> {
                     let outer_context = self.get_inference_context(node_id);
                     let is_from_binding_pattern = false;
                     if !is_from_binding_pattern {
-                        let outer_mapper = outer_context
-                            .and_then(|ctx| ctx.inference)
-                            .map(|inference| self.create_inference_fixing_mapper(inference));
+                        let outer_mapper =
+                            outer_context
+                                .and_then(|ctx| ctx.inference)
+                                .map(|inference| {
+                                    self.inference(inference).mapper as &'cx dyn ty::TyMap<'cx>
+                                });
                         let instantiated_ty = self.instantiate_ty(contextual_ty, outer_mapper);
                         let inference_source_ty = if let Some(contextual_sig) =
                             self.get_single_call_sig(instantiated_ty)
@@ -459,7 +459,7 @@ impl<'cx> TyChecker<'cx> {
                     );
                     let ret_mapper = outer_context
                         .and_then(|ctx| ctx.inference)
-                        .and_then(|ctx| self.create_inference_ret_mapper(ctx));
+                        .and_then(|ctx| self.inference(ctx).ret_mapper);
                     let ret_source_ty = self.instantiate_ty(contextual_ty, ret_mapper);
                     self.infer_tys(ret_ctx, ret_source_ty, inference_target_ty, None, false);
                     let ret_inference = self.inference(ret_ctx);
@@ -467,23 +467,29 @@ impl<'cx> TyChecker<'cx> {
                         .inferences
                         .iter()
                         .filter(|i| i.has_inference_candidates())
+                        .cloned()
                         .collect::<thin_vec::ThinVec<_>>();
                     if ret_inferences.is_empty() {
                         drop(ret_inferences);
                         self.set_inference_ret_mapper(ret_ctx, None);
                     } else {
-                        let inferences = ret_inferences
-                            .into_iter()
-                            .cloned()
-                            .collect::<thin_vec::ThinVec<_>>();
+                        let id = InferenceContextId(self.inferences.len() as u32);
+                        let mapper = self.making_inference_fixing_mapper(id, &ret_inferences);
+                        let non_fixing_mapper =
+                            self.making_inference_non_fixing_mapper(id, &ret_inferences);
                         let inference = InferenceContext {
-                            inferences,
+                            inferences: ret_inferences,
                             sig: ret_inference.sig,
                             flags: ret_inference.flags,
                             ret_mapper: None,
+                            mapper,
+                            non_fixing_mapper,
                         };
-                        let id = self.create_inference_context_worker(inference);
-                        self.set_inference_ret_mapper(ret_ctx, Some(id));
+                        self.set_inference_ret_mapper(
+                            ret_ctx,
+                            Some(inference.mapper as &'cx dyn ty::TyMap<'cx>),
+                        );
+                        self.inferences.push(inference);
                     };
                 }
             }
@@ -583,6 +589,15 @@ impl<'cx> TyChecker<'cx> {
             f(self, source_ret_ty, target_ret_ty);
         }
     }
+
+    pub(super) fn clear_cached_inferences(&mut self, id: InferenceContextId) {
+        let list = &mut self.inferences[id.as_usize()].inferences;
+        for i in list {
+            if !i.is_fixed {
+                i.inferred_ty = None;
+            }
+        }
+    }
 }
 
 struct InferenceState<'cx, 'checker> {
@@ -622,15 +637,6 @@ impl<'cx> InferenceState<'cx, '_> {
     fn set_info_toplevel(&mut self, idx: usize) {
         let info = self.get_mut_inference_info(idx);
         info.top_level = true;
-    }
-
-    fn clear_cached_inferences(&mut self) {
-        let list = &mut self.get_mut_inference().inferences;
-        for i in list {
-            if !i.is_fixed {
-                i.inferred_ty = None;
-            }
-        }
     }
 
     fn append_candidate(&mut self, idx: usize, candidate: &'cx ty::Ty<'cx>) {
@@ -723,7 +729,7 @@ impl<'cx> InferenceState<'cx, '_> {
                                 .map_or(true, |cs| !cs.contains(&candidate))
                             {
                                 self.append_candidate(idx, candidate);
-                                self.clear_cached_inferences();
+                                self.c.clear_cached_inferences(self.inference);
                             }
                         } else if info
                             .candidates
@@ -731,7 +737,7 @@ impl<'cx> InferenceState<'cx, '_> {
                             .map_or(true, |cs| !cs.contains(&candidate))
                         {
                             self.append_candidate(idx, candidate);
-                            self.clear_cached_inferences();
+                            self.c.clear_cached_inferences(self.inference);
                         }
                     }
                 }
@@ -748,10 +754,28 @@ impl<'cx> InferenceState<'cx, '_> {
             self.invoke_once(source, target, |this, source, target| {
                 this.infer_to_cond_ty(source, target);
             });
-        } else if source.kind.is_object() {
-            self.invoke_once(source, target, |this, source, target| {
-                this.infer_from_object_tys(source, target);
-            });
+        } else {
+            source = self.c.get_reduced_ty(source);
+            if !(self.priority.intersects(InferencePriority::NO_CONSTRAINTS)
+                && source
+                    .flags
+                    .intersects(TypeFlags::INTERSECTION | TypeFlags::INSTANTIABLE))
+            {
+                let apparent_source = self.c.get_apparent_ty(source);
+                if apparent_source != source
+                    && !(apparent_source
+                        .flags
+                        .intersects(TypeFlags::OBJECT | TypeFlags::INTERSECTION))
+                {
+                    return self.infer_from_tys(apparent_source, target);
+                }
+                source = apparent_source;
+            }
+            if source.kind.is_object() {
+                self.invoke_once(source, target, |this, source, target| {
+                    this.infer_from_object_tys(source, target);
+                });
+            }
         }
     }
 

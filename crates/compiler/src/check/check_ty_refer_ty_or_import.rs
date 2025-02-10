@@ -1,4 +1,5 @@
 use crate::bind::{Symbol, SymbolFlags, SymbolID};
+use crate::check::create_ty::IntersectionFlags;
 use crate::check::cycle_check::ResolutionKey;
 use crate::check::is_deeply_nested_type::RecursionId;
 use crate::ty::TypeFlags;
@@ -17,7 +18,8 @@ impl<'cx> TyReferTyOrImport<'cx> for ast::ReferTy<'cx> {
         self.id
     }
     fn get_ty(&self, checker: &mut TyChecker<'cx>) -> &'cx ty::Ty<'cx> {
-        checker.get_ty_from_ty_reference(self)
+        let ty = checker.get_ty_from_ty_reference(self);
+        checker.get_conditional_flow_of_ty(ty, self.id())
     }
     fn ty_args(&self) -> Option<&'cx ast::Tys<'cx>> {
         self.ty_args
@@ -43,7 +45,7 @@ impl<'cx> TyChecker<'cx> {
         } else if ty.kind.is_indexed_access() {
             self.get_constraint_of_indexed_access(ty)
         } else {
-            None
+            self.get_base_constraint_of_ty(ty)
         }
     }
 
@@ -243,6 +245,37 @@ impl<'cx> TyChecker<'cx> {
                 } else {
                     None
                 }
+            } else if let Some(tys) = ty.kind.tys_of_union_or_intersection() {
+                let mut base_tys = Vec::with_capacity(tys.len());
+                let mut different = false;
+                for ty in tys {
+                    if let Some(base_ty) = get_base_constraint(checker, ty, stack) {
+                        if !base_ty.eq(ty) {
+                            different = true;
+                        }
+                        base_tys.push(base_ty);
+                    } else {
+                        different = true
+                    }
+                }
+                if !different {
+                    return Some(ty);
+                };
+                if ty.kind.is_union() && base_tys.len() == tys.len() {
+                    Some(checker.get_union_ty(&base_tys, ty::UnionReduction::Lit))
+                } else if ty.kind.is_intersection() && !base_tys.is_empty() {
+                    Some(checker.get_intersection_ty(
+                        &base_tys,
+                        IntersectionFlags::None,
+                        None,
+                        None,
+                    ))
+                } else {
+                    None
+                }
+            } else if ty.kind.is_substitution_ty() {
+                let ty = checker.get_substitution_intersection(ty);
+                get_base_constraint(checker, ty, stack)
             } else {
                 // TODO: more case
                 Some(ty)

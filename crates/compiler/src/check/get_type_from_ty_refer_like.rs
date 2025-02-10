@@ -221,12 +221,14 @@ impl<'cx> TyChecker<'cx> {
         if s.flags
             .intersects(SymbolFlags::CLASS | SymbolFlags::INTERFACE)
         {
-            self.get_ty_from_class_or_interface_refer(node, symbol)
+            return self.get_ty_from_class_or_interface_refer(node, symbol);
         } else if s.flags == SymbolFlags::TYPE_ALIAS {
-            self.get_ty_from_ty_alias_refer(node, symbol)
-        } else if let Some(res) = self.try_get_declared_ty_of_symbol(symbol) {
+            return self.get_ty_from_ty_alias_refer(node, symbol);
+        }
+
+        if let Some(res) = self.try_get_declared_ty_of_symbol(symbol) {
             if self.check_no_ty_args(node) {
-                res
+                self.get_regular_ty_of_literal_ty(res)
             } else {
                 self.error_ty
             }

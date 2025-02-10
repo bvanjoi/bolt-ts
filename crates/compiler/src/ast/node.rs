@@ -133,6 +133,7 @@ pub enum Node<'cx> {
     TyOp(&'cx super::TyOp<'cx>),
     PredTy(&'cx super::PredTy<'cx>),
     ParenTy(&'cx super::ParenTy<'cx>),
+    InferTy(&'cx super::InferTy<'cx>),
 }
 
 impl<'cx> Node<'cx> {
@@ -384,6 +385,25 @@ impl<'cx> Node<'cx> {
         )
     }
 
+    pub fn is_stmt_but_not_decl(&self) -> bool {
+        use super::Node::*;
+        matches!(
+            self,
+            BreakStmt(_)
+                | ContinueStmt(_)
+                | DoStmt(_)
+                | EmptyStmt(_)
+                | ForStmt(_)
+                | ForInStmt(_)
+                | ForOfStmt(_)
+                | IfStmt(_)
+                | RetStmt(_)
+                | ThrowStmt(_)
+                | VarStmt(_)
+                | WhileStmt(_)
+        )
+    }
+
     pub fn fn_body(&self) -> Option<super::ArrowFnExprBody<'cx>> {
         if let Some(f) = self.as_arrow_fn_expr() {
             return Some(f.body);
@@ -545,6 +565,15 @@ impl<'cx> Node<'cx> {
             };
         }
         has_flow_node!(Ident, ThisExpr, SuperExpr)
+    }
+
+    pub fn is_stmt(&self) -> bool {
+        self.is_block_stmt() || self.is_decl() || self.is_stmt_but_not_decl()
+    }
+
+    pub fn has_locals(&self) -> bool {
+        use Node::*;
+        matches!(self, CondTy(_))
     }
 }
 
@@ -749,5 +778,6 @@ as_node!(
         object_binding_elem
     ),
     (PredTy, super::PredTy<'cx>, pred_ty),
-    (ParenTy, super::ParenTy<'cx>, paren_ty)
+    (ParenTy, super::ParenTy<'cx>, paren_ty),
+    (InferTy, super::InferTy<'cx>, infer_ty)
 );

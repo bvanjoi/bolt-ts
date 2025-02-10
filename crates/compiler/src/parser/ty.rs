@@ -4,7 +4,7 @@ use super::token::{Token, TokenKind};
 use super::{PResult, ParserState};
 
 fn is_ele_for_tuple_ele_tys_and_ty_args(s: &mut ParserState) -> bool {
-    s.token.kind == TokenKind::Comma || s.is_start_of_ty()
+    s.token.kind == TokenKind::Comma || s.is_start_of_ty(false)
 }
 
 #[derive(Copy, Clone)]
@@ -182,14 +182,6 @@ impl<'cx> ParserState<'cx, '_> {
         self.parse_ty()
     }
 
-    fn parse_arrow_fn_ret_type(&mut self) -> PResult<Option<&'cx ast::Ty<'cx>>> {
-        if self.parse_optional(TokenKind::EqGreat).is_some() {
-            self.parse_ty_or_ty_pred().map(Some)
-        } else {
-            Ok(None)
-        }
-    }
-
     fn parse_fn_or_ctor_ty_to_error(&mut self) -> PResult<Option<&'cx ast::Ty<'cx>>> {
         if self.is_start_of_fn_or_ctor_ty() {
             let ty = self.parse_fn_or_ctor_ty()?;
@@ -217,13 +209,13 @@ impl<'cx> ParserState<'cx, '_> {
     fn parse_fn_or_ctor_ty(&mut self) -> PResult<&'cx ast::Ty<'cx>> {
         let id = self.next_node_id();
         let start = self.token.start();
-        let modifiers = self.parse_modifiers(false)?;
+        let modifiers = self.parse_modifiers_for_ctor_ty()?;
         let is_ctor_ty = self.parse_optional(TokenKind::New).is_some();
         assert!(modifiers.is_none() || is_ctor_ty);
         let ty_params = self.with_parent(id, Self::parse_ty_params)?;
         let params = self.with_parent(id, Self::parse_params)?;
         let ty = self
-            .with_parent(id, Self::parse_arrow_fn_ret_type)?
+            .with_parent(id, |this| this.parse_ret_ty(false))?
             .unwrap();
         let ty = if is_ctor_ty {
             let ctor_ty = self.alloc(ast::CtorTy {
@@ -263,12 +255,60 @@ impl<'cx> ParserState<'cx, '_> {
         }
     }
 
+    fn parse_infer_ty(&mut self) -> PResult<&'cx ast::Ty<'cx>> {
+        let start = self.token.start();
+        let id = self.next_node_id();
+        self.expect(TokenKind::Infer);
+        let ty_param = self.with_parent(id, Self::parse_ty_param_of_infer_ty)?;
+        let ty = self.alloc(ast::InferTy {
+            id,
+            span: self.new_span(start),
+            ty_param,
+        });
+        self.insert_map(id, ast::Node::InferTy(ty));
+        let ty = self.alloc(ast::Ty {
+            kind: ast::TyKind::Infer(ty),
+        });
+        Ok(ty)
+    }
+
+    fn parse_ty_param_of_infer_ty(&mut self) -> PResult<&'cx ast::TyParam<'cx>> {
+        let start = self.token.start();
+        let id = self.next_node_id();
+        let name = self.create_ident(true, None);
+        let constraint = self.try_parse(Self::try_parse_constraint_of_infer_ty)?;
+        let ty = self.alloc(ast::TyParam {
+            id,
+            span: self.new_span(start),
+            name,
+            constraint,
+            default: None,
+        });
+        self.insert_map(id, ast::Node::TyParam(ty));
+        Ok(ty)
+    }
+
+    fn try_parse_constraint_of_infer_ty(&mut self) -> PResult<Option<&'cx ast::Ty<'cx>>> {
+        if self.parse_optional(TokenKind::Extends).is_some() {
+            let constraint = self.disallow_conditional_tys_and(Self::parse_ty)?;
+            if self.in_disallow_conditional_tys_context() || self.token.kind != TokenKind::Question
+            {
+                Ok(Some(constraint))
+            } else {
+                Err(())
+            }
+        } else {
+            Ok(None)
+        }
+    }
+
     fn parse_ty_op_or_higher(&mut self) -> PResult<&'cx ast::Ty<'cx>> {
         match self.token.kind {
             TokenKind::Keyof | TokenKind::Readonly => {
                 let op = self.token.kind.try_into().unwrap();
                 self.parse_ty_op(op)
             }
+            TokenKind::Infer => self.parse_infer_ty(),
             _ => self.parse_prefix_ty(),
         }
     }
@@ -303,7 +343,7 @@ impl<'cx> ParserState<'cx, '_> {
                     let id = self.next_node_id();
                     self.expect(TokenKind::LBracket);
                     self.parent_map.r#override(ty.id(), id);
-                    if self.is_start_of_ty() {
+                    if self.is_start_of_ty(false) {
                         let index_ty = self.with_parent(id, Self::parse_ty)?;
                         self.expect(TokenKind::RBracket);
                         self.parent_map.r#override(ty.id(), id);

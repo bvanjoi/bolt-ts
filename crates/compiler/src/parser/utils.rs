@@ -125,7 +125,7 @@ impl<'cx> ParserState<'cx, '_> {
         }
     }
 
-    pub(super) fn is_start_of_ty(&mut self) -> bool {
+    pub(super) fn is_start_of_ty(&mut self, is_start_of_param: bool) -> bool {
         use TokenKind::*;
         if matches!(
             self.token.kind,
@@ -142,6 +142,12 @@ impl<'cx> ParserState<'cx, '_> {
                 | False
         ) {
             true
+        } else if self.token.kind == TokenKind::LParen && !is_start_of_param {
+            self.lookahead(|this| {
+                this.next_token();
+                let t = this.token.kind;
+                t == TokenKind::RParen || t.is_start_of_param() || this.is_start_of_ty(false)
+            })
         } else {
             self.is_ident()
         }
@@ -211,7 +217,7 @@ impl<'cx> ParserState<'cx, '_> {
         let start = self.token.start();
         let name = self.with_parent(id, Self::parse_binding_ident);
         let constraint = if self.parse_optional(TokenKind::Extends).is_some() {
-            if self.is_start_of_ty() || !self.is_start_of_expr() {
+            if self.is_start_of_ty(false) || !self.is_start_of_expr() {
                 Some(self.parse_ty()?)
             } else {
                 todo!("token: {:#?}", self.token.kind)

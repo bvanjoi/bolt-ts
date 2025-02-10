@@ -1,6 +1,7 @@
 use bolt_ts_atom::AtomId;
 
 use super::create_ty::IntersectionFlags;
+use super::infer::{InferenceFlags, InferencePriority};
 use super::ty::{self, Ty, TyKind};
 use super::{errors, IndexedAccessTyMap, ResolutionKey};
 use super::{CheckMode, F64Represent, InferenceContextId, PropName, TyChecker};
@@ -155,9 +156,9 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
-    pub(crate) fn get_ty_from_type_node(&mut self, ty: &ast::Ty<'cx>) -> &'cx Ty<'cx> {
+    pub(crate) fn get_ty_from_type_node(&mut self, node: &ast::Ty<'cx>) -> &'cx Ty<'cx> {
         use ast::TyKind::*;
-        match ty.kind {
+        let ty = match node.kind {
             Refer(node) => self.get_ty_from_ty_reference(node),
             Array(node) => self.get_ty_from_array_node(node),
             Tuple(node) => self.get_ty_from_tuple_node(node),
@@ -170,7 +171,6 @@ impl<'cx> TyChecker<'cx> {
             Union(node) => self.get_ty_from_union_ty_node(node),
             Typeof(node) => self.get_ty_from_typeof_node(node),
             Intersection(node) => self.get_ty_from_intersection_ty_node(node),
-            Mapped(_) => self.undefined_ty,
             TyOp(node) => self.get_ty_from_ty_op(node),
             Pred(_) => self.boolean_ty(),
             Lit(node) => {
@@ -186,6 +186,87 @@ impl<'cx> TyChecker<'cx> {
                 }
             }
             Paren(n) => self.get_ty_from_type_node(n.ty),
+            Infer(n) => self.undefined_ty,
+            Mapped(_) => self.undefined_ty,
+        };
+
+        self.get_conditional_flow_of_ty(ty, node.id())
+    }
+
+    fn get_actual_ty_variable(&self, ty: &'cx Ty<'cx>) -> &'cx Ty<'cx> {
+        if let Some(sub) = ty.kind.as_substitution_ty() {
+            return self.get_actual_ty_variable(sub.base_ty);
+        } else if let Some(indexed_access) = ty.kind.as_indexed_access() {
+            if indexed_access
+                .object_ty
+                .flags
+                .intersects(TypeFlags::SUBSTITUTION)
+                || indexed_access
+                    .index_ty
+                    .flags
+                    .intersects(TypeFlags::SUBSTITUTION)
+            {
+                // TODO:
+            }
+        }
+        ty
+    }
+
+    fn get_implied_constraint(
+        &mut self,
+        ty: &'cx Ty<'cx>,
+        check_ty: &'cx ast::Ty<'cx>,
+        extends_ty: &'cx ast::Ty<'cx>,
+    ) -> Option<&'cx Ty<'cx>> {
+        if let Some(check_ty) = check_ty.as_unary_tuple_ty() {
+            if let Some(extends_ty) = extends_ty.as_unary_tuple_ty() {
+                return self.get_implied_constraint(ty, check_ty, extends_ty);
+            }
+        }
+        let ty_of_check_ty = self.get_ty_from_type_node(check_ty);
+        if self.get_actual_ty_variable(ty_of_check_ty) == ty {
+            Some(self.get_ty_from_type_node(extends_ty))
+        } else {
+            None
+        }
+    }
+
+    pub fn get_conditional_flow_of_ty(
+        &mut self,
+        ty: &'cx Ty<'cx>,
+        mut node: ast::NodeID,
+    ) -> &'cx Ty<'cx> {
+        let mut constraints = Vec::with_capacity(8);
+        let mut covariant = true;
+        while !self.p.node(node).is_stmt() {
+            let Some(parent) = self.p.parent(node) else {
+                break;
+            };
+            let parent_node = self.p.node(parent);
+            if parent_node.is_param_decl() {
+                covariant = !covariant;
+            }
+            if covariant || ty.flags.intersects(TypeFlags::TYPE_VARIABLE) {
+                if let Some(cond) = parent_node.as_cond_ty() {
+                    if cond.true_ty.id() == node {
+                        if let Some(constraint) =
+                            self.get_implied_constraint(ty, cond.check_ty, cond.extends_ty)
+                        {
+                            constraints.push(constraint);
+                        }
+                    }
+                }
+            } else if ty.flags.intersects(TypeFlags::TYPE_PARAMETER) {
+                // TODO: mapped_ty
+            }
+            node = parent;
+        }
+        if !constraints.is_empty() {
+            let constraint =
+                self.get_intersection_ty(&constraints, IntersectionFlags::None, None, None);
+            self.get_substitution_ty(ty, constraint)
+        } else {
+            ty
         }
     }
 
@@ -737,7 +818,7 @@ impl<'cx> TyChecker<'cx> {
             if tailed > 100 {
                 panic!()
             }
-            let check_ty = self.instantiate_ty(root.check_ty, mapper);
+            let check_ty = self.instantiate_ty(self.get_actual_ty_variable(root.check_ty), mapper);
             let extends_ty = self.instantiate_ty(root.extends_ty, mapper);
             if check_ty == self.error_ty || extends_ty == self.error_ty {
                 return self.error_ty;
@@ -758,7 +839,37 @@ impl<'cx> TyChecker<'cx> {
                     a.tys.len() == b.tys.len()
                 };
             let check_ty_deferred = self.is_deferred_ty(effective_check_ty, check_tuples);
-            let inferred_extends_ty = extends_ty;
+            let mut combined_mapper = None;
+            if let Some(infer_ty_params) = root.infer_ty_params {
+                let context =
+                    self.create_inference_context(infer_ty_params, None, InferenceFlags::empty());
+                if let Some(mapper) = mapper {
+                    let non_fixing_mapper = self.inference(context).non_fixing_mapper;
+                    let m = self.combine_ty_mappers(Some(non_fixing_mapper), mapper);
+                    self.inferences[context.as_usize()].non_fixing_mapper = m;
+                }
+                if !check_ty_deferred {
+                    self.infer_tys(
+                        context,
+                        check_ty,
+                        extends_ty,
+                        Some(InferencePriority::NO_CONSTRAINTS | InferencePriority::ALWAYS_STRICT),
+                        false,
+                    );
+                }
+
+                let m = self.inference(context).mapper;
+                combined_mapper = if let Some(mapper) = mapper {
+                    Some(self.combine_ty_mappers(Some(m), mapper))
+                } else {
+                    Some(m)
+                };
+            }
+            let inferred_extends_ty = if let Some(combined_mapper) = combined_mapper {
+                self.instantiate_ty(root.extends_ty, Some(combined_mapper))
+            } else {
+                extends_ty
+            };
             if !check_ty_deferred && !self.is_deferred_ty(inferred_extends_ty, check_tuples) {
                 if !inferred_extends_ty
                     .flags
@@ -831,6 +942,30 @@ impl<'cx> TyChecker<'cx> {
         true
     }
 
+    pub(super) fn get_infer_ty_params(
+        &mut self,
+        node: &'cx ast::CondTy<'cx>,
+    ) -> Option<ty::Tys<'cx>> {
+        let id = node.id;
+        let locals = self.binder.locals(id)?;
+        let ty_params = locals
+            .iter()
+            .flat_map(|(_, symbol)| {
+                let s = self.binder.symbol(*symbol);
+                if s.flags.intersects(SymbolFlags::TYPE_PARAMETER) {
+                    Some(self.get_declared_ty_of_symbol(*symbol))
+                } else {
+                    None
+                }
+            })
+            .collect::<Vec<_>>();
+        if ty_params.is_empty() {
+            None
+        } else {
+            Some(self.alloc(ty_params))
+        }
+    }
+
     fn get_ty_from_cond_node(&mut self, node: &'cx ast::CondTy<'cx>) -> &'cx Ty<'cx> {
         if let Some(ty) = self.get_node_links(node.id).get_resolved_ty() {
             return ty;
@@ -856,12 +991,14 @@ impl<'cx> TyChecker<'cx> {
             })
         };
         let extends_ty = self.get_ty_from_type_node(node.extends_ty);
+        let infer_ty_params = self.get_infer_ty_params(node);
         let root = self.alloc(ty::CondTyRoot {
             check_ty,
             extends_ty,
             outer_ty_params,
             node,
             is_distributive: check_ty.kind.is_param(),
+            infer_ty_params,
         });
         let ty = self.get_cond_ty(root, None, alias_symbol, alias_ty_args);
         self.get_mut_node_links(node.id).set_resolved_ty(ty);
@@ -1125,6 +1262,7 @@ impl<'cx> TyChecker<'cx> {
         ty: &'cx ty::Ty<'cx>,
         index_flags: IndexFlags,
     ) -> &'cx ty::Ty<'cx> {
+        let ty = self.get_reduced_ty(ty);
         if self.should_defer_index_ty(ty, index_flags) {
             self.get_index_ty_for_generic_ty(ty, index_flags)
         } else {

@@ -612,13 +612,13 @@ impl<'cx> TyChecker<'cx> {
             this.get_global_type(SymbolName::Normal(keyword::IDENT_NEWABLE_FUNCTION_CLASS));
         this.global_newable_fn_ty.set(global_newable_fn_ty).unwrap();
 
-        let mark_sub_ty = this.create_param_ty(Symbol::ERR, 0, false);
+        let mark_sub_ty = this.create_param_ty(Symbol::ERR, None, false);
         this.mark_sub_ty.set(mark_sub_ty).unwrap();
 
-        let mark_other_ty = this.create_param_ty(Symbol::ERR, 0, false);
+        let mark_other_ty = this.create_param_ty(Symbol::ERR, None, false);
         this.mark_other_ty.set(mark_other_ty).unwrap();
 
-        let mark_super_ty = this.create_param_ty(Symbol::ERR, 0, false);
+        let mark_super_ty = this.create_param_ty(Symbol::ERR, None, false);
         this.mark_super_ty.set(mark_super_ty).unwrap();
 
         let unknown_sig = this.new_sig(Sig {
@@ -724,7 +724,7 @@ impl<'cx> TyChecker<'cx> {
                 .object_flags
                 .intersects(ObjectFlags::CONTAINS_INTERSECTIONS)
             {
-                todo!()
+                // TODO:
             }
         } else if let Some(intersection) = ty.kind.as_intersection() {
             if !intersection
@@ -1041,10 +1041,10 @@ impl<'cx> TyChecker<'cx> {
         if let Some(inference_context) = inference_context {
             if let Some(rest_ty) = rest_ty {
                 if rest_ty.kind.is_param() {
-                    mapper = Some(self.create_inference_non_fixing_mapper(inference_context))
+                    mapper = Some(self.inference(inference_context).non_fixing_mapper);
                 }
             } else {
-                mapper = Some(self.create_inference_fixing_mapper(inference_context))
+                mapper = Some(self.inference(inference_context).mapper);
             }
         };
         let source_sig = if let Some(mapper) = mapper {
