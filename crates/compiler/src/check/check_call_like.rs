@@ -91,7 +91,7 @@ impl<'cx> TyChecker<'cx> {
     ) -> Option<&'cx ty::Ty<'cx>> {
         if sig.has_rest_param() {
             let sig_rest_ty = self.get_type_of_symbol(sig.params[sig.params.len() - 1]);
-            let rest_ty = if sig_rest_ty.kind.is_tuple() {
+            let rest_ty = if sig_rest_ty.is_tuple() {
                 todo!()
             } else {
                 sig_rest_ty
@@ -160,7 +160,7 @@ impl<'cx> TyChecker<'cx> {
         } else if sig.has_rest_param() {
             let rest_ty = self.get_type_of_symbol(sig.params[param_count]);
             let index = pos - param_count;
-            let use_indexed_access = if rest_ty.kind.is_tuple() {
+            let use_indexed_access = if rest_ty.is_tuple() {
                 let r = rest_ty.kind.expect_object_reference();
                 let t = r.target.kind.expect_object_tuple();
                 t.combined_flags.intersects(ElementFlags::VARIABLE) || index < t.fixed_length
@@ -254,7 +254,7 @@ impl<'cx> TyChecker<'cx> {
         let mut min_arg_count = None;
         if sig.has_rest_param() {
             let rest_ty = self.get_type_of_symbol(sig.params[sig.params.len() - 1]);
-            if rest_ty.kind.is_tuple() {
+            if rest_ty.is_tuple() {
                 let tuple = rest_ty
                     .kind
                     .expect_object_reference()
@@ -302,7 +302,7 @@ impl<'cx> TyChecker<'cx> {
     pub(super) fn has_effective_rest_param(&mut self, sig: &'cx Sig<'cx>) -> bool {
         if sig.has_rest_param() {
             let rest_ty = self.get_type_of_symbol(sig.params[sig.params.len() - 1]);
-            if !rest_ty.kind.is_tuple() {
+            if !rest_ty.is_tuple() {
                 return true;
             }
             let tuple = rest_ty

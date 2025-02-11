@@ -262,17 +262,19 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
 
         let mut result = Ternary::TRUE;
 
-        if target.kind.is_tuple() {
-            let Some(t) = target.kind.as_object_reference() else {
-                unreachable!()
-            };
-            let t_tuple = t.target.kind.expect_object_tuple();
+        if let Some(t_tuple) = target.as_tuple() {
             if self.c.is_array_or_tuple(source) {
                 let Some(s) = source.kind.as_object_reference() else {
                     unreachable!()
                 };
                 let source_arity = TyChecker::get_ty_reference_arity(s);
-                let target_arity = TyChecker::get_ty_reference_arity(t);
+                let target_arity = if let Some(t) = target.kind.as_object_reference() {
+                    TyChecker::get_ty_reference_arity(t)
+                } else if let Some(t) = target.kind.as_object_tuple() {
+                    t.ty_params().map_or(0, |ty_params| ty_params.len())
+                } else {
+                    unreachable!()
+                };
                 let source_rest_flags = if let Some(s_tuple) = s.target.kind.as_object_tuple() {
                     s_tuple.combined_flags.intersection(ElementFlags::REST)
                 } else {
@@ -389,19 +391,39 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
                     // TODO: unreachable!()
                     return Ternary::TRUE;
                 };
-                for name in unmatched {
-                    let field = self.c.atoms.get(name).to_string();
-                    let defined = errors::DefinedHere {
-                        span: target_span,
-                        kind: errors::DeclKind::Property,
-                        name: field.to_string(),
-                    };
+                let mut unmatched = unmatched.into_iter().collect::<Vec<_>>();
+                unmatched.sort();
+                if unmatched.len() < 3 {
+                    for name in unmatched {
+                        let field = self.c.atoms.get(name).to_string();
+                        let defined = errors::DefinedHere {
+                            span: target_span,
+                            kind: errors::DeclKind::Property,
+                            name: field.to_string(),
+                        };
+                        let span = self.c.p.node(self.error_node.unwrap()).span();
+                        let error = errors::PropertyXIsMissing {
+                            span,
+                            field,
+                            related: [defined],
+                        };
+                        self.c.push_error(Box::new(error));
+                    }
+                } else {
+                    let props = vec![
+                        self.c.atoms.get(unmatched[0]).to_string(),
+                        self.c.atoms.get(unmatched[1]).to_string(),
+                    ];
+                    let len = unmatched.len() - 2;
                     let span = self.c.p.node(self.error_node.unwrap()).span();
-                    let error = errors::PropertyXIsMissing {
-                        span,
-                        field,
-                        related: [defined],
-                    };
+                    let error =
+                        errors::Type0IsMissingTheFollowingPropertiesFromType1Colon2And3More {
+                            span,
+                            ty1: self.c.print_ty(source).to_string(),
+                            ty2: self.c.print_ty(target).to_string(),
+                            props,
+                            len,
+                        };
                     self.c.push_error(Box::new(error));
                 }
                 return Ternary::TRUE;
@@ -411,7 +433,7 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
         }
 
         let props = self.c.properties_of_ty(target);
-        let numeric_names_only = source.kind.is_tuple() && target.kind.is_tuple();
+        let numeric_names_only = source.is_tuple() && target.is_tuple();
         for target_prop in props {
             let s = self.c.symbol(*target_prop);
             let name = s.name();
@@ -769,7 +791,7 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
                 if result != Ternary::FALSE {
                     return result;
                 }
-            } else if target.kind.is_tuple() {
+            } else if target.is_tuple() {
                 todo!()
             } else {
                 let target_ty = target.kind.expect_index_ty();
@@ -899,11 +921,11 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
                 }
             }
         } else {
-            if !source.kind.is_tuple() {
+            if !source.is_tuple() {
                 if let Some(source_refer) = source.kind.as_object_reference() {
                     if let Some(target_refer) = target.kind.as_object_reference() {
                         if source_refer.target == target_refer.target
-                            && !source.kind.is_tuple()
+                            && !source.is_tuple()
                             && !(self.c.is_marker_ty(source) || self.c.is_marker_ty(target))
                         {
                             if self.c.is_empty_array_lit_ty(source) {

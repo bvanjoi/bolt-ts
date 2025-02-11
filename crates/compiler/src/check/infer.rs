@@ -396,7 +396,7 @@ impl<'cx> TyChecker<'cx> {
         source: &'cx ty::Ty<'cx>,
         target: &'cx ty::Ty<'cx>,
     ) -> bool {
-        if source.kind.is_tuple() && target.kind.is_tuple() {
+        if source.is_tuple() && target.is_tuple() {
             todo!()
         } else {
             self.get_unmatched_prop(source, target).is_some()
@@ -807,8 +807,8 @@ impl<'cx> InferenceState<'cx, '_> {
     fn infer_from_object_tys(&mut self, source: &'cx ty::Ty<'cx>, target: &'cx ty::Ty<'cx>) {
         assert!(source.kind.is_object());
         if !self.c.tys_definitely_unrelated(source, target) {
-            if source.kind.is_tuple() || source.kind.is_array(self.c) {
-                if target.kind.is_tuple() {
+            if source.is_tuple() || source.kind.is_array(self.c) {
+                if target.is_tuple() {
                     // TODO:
                 }
                 if target.kind.is_array(self.c) {

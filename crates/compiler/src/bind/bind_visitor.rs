@@ -93,13 +93,7 @@ impl<'cx> BinderState<'cx> {
             Var(var) => self.bind_var_stmt(container, var),
             Expr(expr) => self.bind_expr(expr),
             Fn(f) => self.bind_fn_decl(container, f),
-            If(stmt) => {
-                self.bind_expr(stmt.expr);
-                self.bind_stmt(container, stmt.then);
-                if let Some(alt) = stmt.else_then {
-                    self.bind_stmt(container, alt)
-                }
-            }
+            If(n) => self.bind_if_stmt(container, n),
             Block(block) => self.bind_block_stmt(block),
             Return(ret) => self.bind_ret_or_throw(ret.expr, true),
             Throw(t) => self.bind_ret_or_throw(Some(t.expr), false),
@@ -139,6 +133,25 @@ impl<'cx> BinderState<'cx> {
             While(n) => {}
             Do(n) => {}
         }
+    }
+
+    fn bind_if_stmt(&mut self, container: ast::NodeID, n: &'cx ast::IfStmt<'cx>) {
+        let then_label = self.flow_nodes.create_branch_label();
+        let else_label = self.flow_nodes.create_branch_label();
+        let post_if_label = self.flow_nodes.create_branch_label();
+        self.bind_cond(Some(n.expr), then_label, else_label);
+        self.current_flow = Some(self.finish_flow_label(then_label));
+        self.bind_stmt(container, n.then);
+        self.flow_nodes
+            .add_antecedent(post_if_label, self.current_flow.unwrap());
+        self.current_flow = Some(self.finish_flow_label(else_label));
+
+        if let Some(alt) = n.else_then {
+            self.bind_stmt(container, alt)
+        }
+        self.flow_nodes
+            .add_antecedent(post_if_label, self.current_flow.unwrap());
+        self.current_flow = Some(self.finish_flow_label(post_if_label));
     }
 
     fn bind_ret_or_throw(&mut self, expr: Option<&'cx ast::Expr<'cx>>, is_ret: bool) {
@@ -1027,7 +1040,11 @@ impl<'cx> BinderState<'cx> {
             Typeof(n) => {
                 self.bind_entity_name(n.name);
             }
-            Mapped(n) => {}
+            Mapped(n) => {
+                assert!(n.ty_param.default.is_none());
+                assert!(n.ty_param.constraint.is_some());
+                self.bind_ty_param(n.ty_param);
+            }
             TyOp(n) => {
                 self.bind_ty(n.ty);
             }

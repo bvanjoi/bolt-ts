@@ -174,4 +174,12 @@ impl<'cx> FlowNodes<'cx> {
                 index,
             })
     }
+
+    pub(crate) fn create_loop_label(&mut self) -> FlowID {
+        let node = FlowNode {
+            flags: FlowFlags::LOOP_LABEL,
+            kind: FlowNodeKind::Label(FlowLabel { antecedent: None }),
+        };
+        self.insert_flow_node(node)
+    }
 }

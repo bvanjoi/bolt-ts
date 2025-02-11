@@ -53,12 +53,12 @@ impl<'cx> TyChecker<'cx> {
     }
 
     fn in_this_less(&self, symbol: SymbolID) -> bool {
-        let s = self.binder.symbol(symbol);
-        if s.flags.intersects(SymbolFlags::PROPERTY) {
+        let flags = self.symbol(symbol).flags();
+        if flags.intersects(SymbolFlags::PROPERTY) {
             // let p = s.expect_prop();
             // c.this_ty.is_none()
             false
-        } else if s.flags == SymbolFlags::INTERFACE {
+        } else if flags == SymbolFlags::INTERFACE {
             // let i = s.expect_interface();
             // i.this_ty.is_none()
             false
@@ -367,7 +367,7 @@ impl<'cx> TyChecker<'cx> {
             return tys;
         }
         if self.push_ty_resolution(ResolutionKey::ResolvedBaseTypes(ty.id)) {
-            if ty.kind.is_tuple() {
+            if ty.is_tuple() {
                 let r = ty.kind.expect_object_reference();
                 let base_ty = self.get_tuple_base_ty(r.target);
                 let tys = self.alloc(vec![base_ty]);
@@ -520,21 +520,21 @@ impl<'cx> TyChecker<'cx> {
             unreachable!()
         };
         let target = refer.deep_target();
-        let i = {
-            if let Some(i) = target.kind.as_object_interface() {
-                i
-            } else if let Some(t) = target.kind.as_object_tuple() {
-                t.ty.kind.expect_object_interface()
-            } else {
-                // TODO: handle more case
-                return;
-            }
-        };
-        let ty_params = {
+
+        let ty_params = if let Some(i) = target.kind.as_object_interface() {
             let mut ty_params = i.ty_params.unwrap().to_vec();
             ty_params.push(i.this_ty.unwrap());
             self.alloc(ty_params)
+        } else if let Some(t) = target.kind.as_object_tuple() {
+            let i = t.ty.kind.expect_object_interface();
+            let mut ty_params = i.ty_params.unwrap_or_default().to_vec();
+            ty_params.push(i.this_ty.unwrap());
+            self.alloc(ty_params)
+        } else {
+            // TODO: handle more case
+            return;
         };
+
         let ty_args = self.get_ty_arguments(ty);
         let padded_type_arguments = if ty_params.len() == ty_args.len() {
             ty_args
@@ -543,7 +543,13 @@ impl<'cx> TyChecker<'cx> {
             padded_type_arguments.push(refer.target);
             self.alloc(padded_type_arguments)
         };
-        let declared_members = i.declared_members;
+        let declared_members = if let Some(i) = target.kind.as_object_interface() {
+            i.declared_members
+        } else if let Some(t) = target.kind.as_object_tuple() {
+            t.ty.kind.expect_object_interface().declared_members
+        } else {
+            unreachable!()
+        };
         self.resolve_object_type_members(
             ty,
             target,
@@ -791,16 +797,60 @@ impl<'cx> TyChecker<'cx> {
         self.get_mut_ty_links(ty.id).set_structured_members(m);
     }
 
+    pub fn get_name_ty_from_mapped_ty(&mut self, ty: &'cx ty::Ty<'cx>) -> Option<&'cx ty::Ty<'cx>> {
+        let mapped_ty = ty.kind.expect_object_mapped();
+        if let Some(name_ty) = mapped_ty.decl.name_ty {
+            if let Some(ty) = self.get_ty_links(ty.id).get_named_ty() {
+                return Some(ty);
+            }
+            let name_ty = self.get_ty_from_type_node(name_ty);
+            let name_ty = self.instantiate_ty(name_ty, mapped_ty.mapper);
+            self.get_mut_ty_links(ty.id).set_named_ty(name_ty);
+            Some(name_ty)
+        } else {
+            None
+        }
+    }
+
+    fn resolve_mapped_ty_members(&mut self, ty: &'cx ty::Ty<'cx>) {
+        let mapped_ty = ty.kind.expect_object_mapped();
+        let ty_param = mapped_ty.ty_param;
+        let constraint_ty = mapped_ty.constraint_ty;
+        let mapped_ty = if let Some(target) = mapped_ty.target {
+            target.kind.expect_object_mapped()
+        } else {
+            mapped_ty
+        };
+        let name_ty = self.get_name_ty_from_mapped_ty(ty);
+        // TODO:
+        let m = self.alloc(ty::StructuredMembers {
+            members: self.alloc(FxHashMap::default()),
+            base_tys: &[],
+            base_ctor_ty: None,
+            call_sigs: Default::default(),
+            ctor_sigs: Default::default(),
+            index_infos: Default::default(),
+            props: Default::default(),
+        });
+        self.get_mut_ty_links(ty.id).set_structured_members(m);
+    }
+
     pub(super) fn resolve_structured_type_members(&mut self, ty: &'cx ty::Ty<'cx>) {
         if self.get_ty_links(ty.id).get_structured_members().is_some() {
             return;
         }
-        if ty.kind.is_object_reference() {
-            self.resolve_reference_members(ty);
-        } else if ty.kind.is_object_interface() {
-            self.resolve_interface_members(ty);
-        } else if ty.kind.is_object_anonymous() {
-            self.resolve_anonymous_type_members(ty);
+        if ty.kind.is_object() {
+            if ty.kind.is_object_reference() {
+                self.resolve_reference_members(ty);
+            } else if ty.kind.is_object_interface() {
+                self.resolve_interface_members(ty);
+            } else if ty.kind.is_object_anonymous() {
+                self.resolve_anonymous_type_members(ty);
+            } else if ty.kind.is_object_mapped() {
+                self.resolve_mapped_ty_members(ty);
+            } else {
+                // TODO: unreachable!()
+            }
         } else if ty.kind.is_union() {
             self.resolve_union_type_members(ty);
         }

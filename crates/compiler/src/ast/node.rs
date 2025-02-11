@@ -117,7 +117,6 @@ pub enum Node<'cx> {
     CtorTy(&'cx super::CtorTy<'cx>),
     ObjectLitTy(&'cx super::ObjectLitTy<'cx>),
     TyParam(&'cx super::TyParam<'cx>),
-    MappedTyParam(&'cx super::MappedTyParam<'cx>),
     IndexSigDecl(&'cx super::IndexSigDecl<'cx>),
     CallSigDecl(&'cx super::CallSigDecl<'cx>),
     CtorSigDecl(&'cx super::CtorSigDecl<'cx>),
@@ -214,6 +213,7 @@ impl<'cx> Node<'cx> {
             Cond,
             Union,
             Intersection,
+            Mapped
         )
     }
 
@@ -671,7 +671,6 @@ as_node!(
     (LitTy, super::LitTy, lit_ty),
     (ObjectLitTy, super::ObjectLitTy<'cx>, object_lit_ty),
     (TyParam, super::TyParam<'cx>, ty_param),
-    (MappedTyParam, super::MappedTyParam<'cx>, mapped_ty_param),
     (Modifier, super::Modifier, modifier),
     (ClassPropElem, super::ClassPropElem<'cx>, class_prop_ele),
     (

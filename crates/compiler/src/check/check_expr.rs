@@ -144,7 +144,7 @@ impl<'cx> TyChecker<'cx> {
                 CheckMode::empty()
             };
         self.check_mode = Some(check_mode);
-        self.push_type_context(node, ctx_ty, false);
+        self.push_type_context(node, Some(ctx_ty), false);
         self.push_inference_context(node, inference);
 
         let ty = self.check_expr(expr);

@@ -1,3 +1,4 @@
+use crate::ty::ObjectFlags;
 use crate::ty::TypeFlags;
 
 use super::ast;
@@ -21,7 +22,7 @@ impl<'cx> TyChecker<'cx> {
     ) -> Option<&'cx ty::Ty<'cx>> {
         let includes_caches = flags.map_or(true, |flags| flags == ContextFlags::None);
         if let Some(ctx) = self.find_context_node(id, includes_caches) {
-            return Some(ctx.ty);
+            return ctx.ty;
         }
         let Some(parent_id) = self.p.parent(id) else {
             unreachable!()
@@ -30,7 +31,9 @@ impl<'cx> TyChecker<'cx> {
         use ast::Node::*;
         match parent {
             VarDecl(node) => self.get_contextual_ty_for_var_like_decl(node.id),
-            AssignExpr(node) => self.get_contextual_ty_for_assign(node.id, parent_id, flags),
+            AssignExpr(node) if id == node.right.id() => {
+                self.get_contextual_ty_for_assign(node.id, parent_id, flags)
+            }
             _ => None,
         }
     }
@@ -89,12 +92,26 @@ impl<'cx> TyChecker<'cx> {
     ) -> Option<&'cx ty::Ty<'cx>> {
         // TODO: `is_object_literal_method`
         let contextual_ty = self.get_contextual_ty(node, flags);
-        if let Some(ty) = self.instantiate_contextual_ty(contextual_ty, node, flags) {
-            if let Some(flags) = flags {
-                if !(flags != ContextFlags::NoConstraints && ty.kind.is_type_variable()) {
-                    return Some(ty);
-                }
-            }
+        let Some(instantiated_ty) = self.instantiate_contextual_ty(contextual_ty, node, flags)
+        else {
+            return None;
+        };
+
+        if flags.map_or(true, |flags| {
+            !(flags != ContextFlags::NoConstraints && instantiated_ty.kind.is_type_variable())
+        }) {
+            let apparent_ty = self.map_ty(
+                instantiated_ty,
+                |this, t| {
+                    if t.get_object_flags().intersects(ObjectFlags::MAPPED) {
+                        Some(t)
+                    } else {
+                        Some(this.get_apparent_ty(t))
+                    }
+                },
+                true,
+            );
+            return apparent_ty;
         }
         None
     }
@@ -107,7 +124,7 @@ impl<'cx> TyChecker<'cx> {
     ) -> Option<&'cx ty::Ty<'cx>> {
         if let Some(ty) = ty {
             if ty.maybe_type_of_kind(TypeFlags::INSTANTIABLE) {
-                todo!()
+                // TODO:
             }
         }
         ty

@@ -205,7 +205,6 @@ type IsUnknown<T> = (
 			: false
 		: false
 );
-
 {
   const _unknown: unknown = 'unknown';
   const something = 'something';
@@ -223,4 +222,58 @@ type IsUnknown<T> = (
 
   type A = IsUnknown;
   //~^ ERROR: Generic type 'IsUnknown' requires 1 type argument.
+}
+
+// =============== Or ===============
+type Or<A extends boolean, B extends boolean> = [A, B][number] extends false
+	? false
+	: true extends [IsEqual<A, true>, IsEqual<B, true>][number]
+		? true
+		: never;
+
+{
+  const never: never = n();
+
+  const a0: Or<true, true> = true;
+  const a1: Or<true, false> = true;
+  const a2: Or<false, true> = true;
+  const a3: Or<false, false> = false;
+  const a4: Or<true, boolean> = true;
+  const a5: Or<false, boolean> = never;
+  const a6: Or<boolean, boolean> = never;
+}
+
+// =========== UnknownArray ===========
+type UnknownArray = readonly unknown[];
+{
+  const foo: readonly [] = [];
+  const bar: {
+    readonly array: unknown[]
+  } = { array: [] };
+
+  const a0: UnknownArray = foo;
+  const a1: UnknownArray = bar.array;
+  const a2: UnknownArray = [];
+  const a3: UnknownArray = ['foo'];
+
+    const b0: UnknownArray = null;      // depend on `strictNullChecks`
+    const b1: UnknownArray = undefined; // depend on `strictNullChecks`
+    const b2: UnknownArray = {};
+    //~^ ERROR: Type '{ }' is missing the following properties from type 'unknown[]': length, join, and 
+    const b3: UnknownArray = {0: 1};
+    //~^ ERROR: Type '{ 0: number; }' is missing the following properties from type 'unknown[]': length, join, and 
+    const b4: UnknownArray = 1;
+    //~^ ERROR: Type 'number' is not assignable to type 'unknown[]'.
+    const b5: UnknownArray = Date;
+    //~^ ERROR: Type 'DateConstructor' is missing the following properties from type 'unknown[]': join, reverse, and
+    //~| ERROR: Type 'DateConstructor' is not assignable to type 'unknown[]'.
+
+    type IsArray<T> = T extends UnknownArray ? true : false;
+
+    const string: IsArray<string> = false;
+    const array: IsArray<[]> = true;
+    const tuple: IsArray<['foo']> = true;
+    const readonlyArray: IsArray<readonly number[]> = true;
+    const leadingSpread: IsArray<readonly [number, ...string[]]> = true;
+    const trailingSpread: IsArray<readonly [...string[], number]> = true;
 }

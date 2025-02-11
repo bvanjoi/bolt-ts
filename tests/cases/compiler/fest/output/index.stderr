@@ -65,7 +65,40 @@
      ╰────
 
   × Generic type 'IsUnknown' requires 1 type argument.
-     ╭─[../../tests/cases/compiler/fest/index.ts:224:12]
- 224 │ IsUnknown
+     ╭─[../../tests/cases/compiler/fest/index.ts:223:12]
+ 223 │ IsUnknown
      · ─────────
+     ╰────
+
+  × Type '{ }' is missing the following properties from type 'unknown[]':
+  │ length, join, and 16 more.
+     ╭─[../../tests/cases/compiler/fest/index.ts:261:11]
+ 261 │ b2
+     · ──
+     ╰────
+
+  × Type '{ 0: number; }' is missing the following properties from type
+  │ 'unknown[]': length, join, and 16 more.
+     ╭─[../../tests/cases/compiler/fest/index.ts:263:11]
+ 263 │ b3
+     · ──
+     ╰────
+
+  × Type 'number' is not assignable to type 'unknown[]'.
+     ╭─[../../tests/cases/compiler/fest/index.ts:265:11]
+ 265 │ b4
+     · ──
+     ╰────
+
+  × Type 'DateConstructor' is missing the following properties from type
+  │ 'unknown[]': join, reverse, and 15 more.
+     ╭─[../../tests/cases/compiler/fest/index.ts:267:11]
+ 267 │ b5
+     · ──
+     ╰────
+
+  × Type 'DateConstructor' is not assignable to type 'unknown[]'.
+     ╭─[../../tests/cases/compiler/fest/index.ts:267:11]
+ 267 │ b5
+     · ──
      ╰────

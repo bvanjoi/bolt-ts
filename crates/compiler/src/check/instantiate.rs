@@ -135,9 +135,34 @@ impl<'cx> TyChecker<'cx> {
                 alias_symbol,
                 alias_ty_args,
             ),
-            Substitution(_) => {
-                // TODO:
-                ty
+            Substitution(sub) => {
+                let new_base_ty = self.instantiate_ty(sub.base_ty, Some(mapper));
+                if ty.is_no_infer_ty() {
+                    return self.get_no_infer_ty(new_base_ty);
+                }
+                let new_constraint = self.instantiate_ty(sub.constraint, Some(mapper));
+                if new_base_ty.flags.intersects(TypeFlags::TYPE_VARIABLE)
+                    && new_constraint.kind.is_generic()
+                {
+                    self.get_substitution_ty(new_base_ty, new_constraint)
+                } else if new_constraint.flags.intersects(TypeFlags::ANY_OR_UNKNOWN) || {
+                    let source = self.get_restrictive_instantiation(new_base_ty);
+                    let target = self.get_restrictive_instantiation(new_constraint);
+                    self.is_type_assignable_to(source, target)
+                } {
+                    if new_base_ty.flags.intersects(TypeFlags::TYPE_VARIABLE) {
+                        self.get_substitution_ty(new_base_ty, new_constraint)
+                    } else {
+                        self.get_intersection_ty(
+                            &[new_base_ty, new_constraint],
+                            IntersectionFlags::None,
+                            None,
+                            None,
+                        )
+                    }
+                } else {
+                    ty
+                }
             }
             _ => {
                 todo!("{:?}", ty.kind);

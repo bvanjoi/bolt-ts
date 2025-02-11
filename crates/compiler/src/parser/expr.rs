@@ -817,7 +817,7 @@ impl<'cx> ParserState<'cx, '_> {
         question_dot_token: bool,
     ) -> PResult<&'cx ast::PropAccessExpr<'cx>> {
         let id = self.next_node_id();
-        let name = self.parse_right_side_of_dot(true)?;
+        let name = self.with_parent(id, |this| this.parse_right_side_of_dot(true))?;
         let prop = if question_dot_token {
             todo!()
         } else {
@@ -869,6 +869,7 @@ impl<'cx> ParserState<'cx, '_> {
             let is_property_access = self.parse_optional(TokenKind::Dot).is_some();
             if is_property_access {
                 let prop = self.parse_prop_access_expr_rest(start, expr, false)?;
+                self.parent_map.r#override(expr.id(), prop.id);
                 expr = self.alloc(ast::Expr {
                     kind: ast::ExprKind::PropAccess(prop),
                 });

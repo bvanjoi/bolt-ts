@@ -2,7 +2,7 @@ use bolt_ts_utils::fx_hashmap_with_capacity;
 pub use paste;
 use std::borrow::Cow;
 
-#[derive(Debug, PartialEq, Eq, Hash, Clone, Copy)]
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Clone, Copy)]
 pub struct AtomId(u64);
 
 impl AtomId {

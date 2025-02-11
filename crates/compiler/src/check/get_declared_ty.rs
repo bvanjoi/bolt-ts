@@ -45,7 +45,7 @@ impl<'cx> TyChecker<'cx> {
         let container = self.p.node(self.p.parent(ty_param_id).unwrap());
         let ty_params = container.ty_params();
         let offset =
-            ty_params.map(|ty_params| ty_params.iter().position(|p| p.id == ty_param_id).unwrap());
+            ty_params.and_then(|ty_params| ty_params.iter().position(|p| p.id == ty_param_id));
         let ty = self.create_param_ty(symbol, offset, false);
         self.get_mut_symbol_links(symbol).set_declared_ty(ty);
         ty

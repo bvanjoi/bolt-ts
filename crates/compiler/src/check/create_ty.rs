@@ -154,13 +154,7 @@ impl<'cx> TyChecker<'cx> {
                     todo!()
                 } else if ty.kind.is_instantiable_non_primitive() {
                     add_ele(ty, ElementFlags::VARIADIC);
-                } else if ty.kind.is_tuple() {
-                    let tuple = ty
-                        .kind
-                        .expect_object_reference()
-                        .target
-                        .kind
-                        .expect_object_tuple();
+                } else if let Some(tuple) = ty.as_tuple() {
                     for i in 0..tuple.resolved_ty_args.len() {
                         add_ele(tuple.resolved_ty_args[i], tuple.element_flags[i]);
                     }
@@ -1024,5 +1018,51 @@ impl<'cx> TyChecker<'cx> {
                 None,
             )
         }
+    }
+
+    pub(super) fn get_no_infer_ty(&mut self, ty: &'cx ty::Ty<'cx>) -> &'cx ty::Ty<'cx> {
+        if self.is_no_infer_target_ty(ty) {
+            self.get_or_create_substitution_ty(ty, self.unknown_ty)
+        } else {
+            ty
+        }
+    }
+
+    pub(super) fn is_no_infer_target_ty(&self, ty: &'cx ty::Ty<'cx>) -> bool {
+        if let Some(tys) = ty.kind.tys_of_union_or_intersection() {
+            tys.iter().any(|ty| self.is_no_infer_target_ty(ty))
+        } else if let Some(sub) = ty.kind.as_substitution_ty() {
+            !ty.is_no_infer_ty() && self.is_no_infer_target_ty(sub.base_ty)
+        } else if ty.kind.is_object() {
+            !self.is_empty_anonymous_object_ty(ty)
+        } else if ty
+            .flags
+            .intersects(TypeFlags::INSTANTIABLE & !TypeFlags::SUBSTITUTION)
+        {
+            // TODO: !is_pattern_literal_ty
+            false
+        } else {
+            false
+        }
+    }
+
+    pub(super) fn create_mapper_ty(
+        &mut self,
+        decl: &'cx ast::MappedTy<'cx>,
+        alias_symbol: Option<SymbolID>,
+        alias_ty_arguments: Option<ty::Tys<'cx>>,
+        ty_param: &'cx ty::Ty<'cx>,
+        constraint_ty: &'cx ty::Ty<'cx>,
+    ) -> &'cx ty::Ty<'cx> {
+        let ty = self.alloc(ty::MappedTy {
+            decl,
+            alias_symbol,
+            alias_ty_arguments,
+            ty_param,
+            constraint_ty,
+            target: None,
+            mapper: None,
+        });
+        self.create_object_ty(ty::ObjectTyKind::Mapped(ty), ObjectFlags::MAPPED)
     }
 }

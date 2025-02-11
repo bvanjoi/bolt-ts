@@ -22,6 +22,8 @@ impl<'cx> TyChecker<'cx> {
         let decl_ty = self.get_type_of_symbol(symbol);
         if let Some(init) = decl.init() {
             let init_ty = self.check_expr_with_cache(init);
+            // dbg!(init_ty);
+            // dbg!(decl_ty);
             assert!(
                 decl.decl_ty().is_none() || self.node_links[&init.id()].get_resolved_ty().is_some(),
             );

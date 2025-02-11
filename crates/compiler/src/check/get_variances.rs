@@ -25,7 +25,7 @@ impl<'cx> TyChecker<'cx> {
     pub(super) fn get_variances(&mut self, target: &'cx ty::Ty<'cx>) -> &'cx [VarianceFlags] {
         if target == self.global_array_ty()
             || target == self.global_readonly_array_ty()
-            || target.kind.is_tuple()
+            || target.is_tuple()
             || target.kind.is_object_tuple()
         {
             return self.array_variances();

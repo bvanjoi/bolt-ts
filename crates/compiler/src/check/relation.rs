@@ -268,6 +268,7 @@ impl<'cx> TyChecker<'cx> {
             let symbol = if object_ty.kind.is_interface()
                 || object_ty.kind.is_anonymous()
                 || object_ty.kind.is_reference()
+                || object_ty.kind.is_mapped()
             {
                 self.expect_ty_links(ty.id)
                     .expect_structured_members()

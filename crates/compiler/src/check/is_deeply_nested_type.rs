@@ -23,7 +23,7 @@ impl<'cx> TyChecker<'cx> {
                 {
                     return RecursionId::Symbol(symbol);
                 }
-                if ty.kind.is_tuple() {
+                if ty.is_tuple() {
                     // return ty;
                 }
             }

@@ -1312,13 +1312,22 @@ impl<'cx> TyChecker<'cx> {
     fn check_array_lit(&mut self, lit: &'cx ast::ArrayLit, force_tuple: bool) -> &'cx ty::Ty<'cx> {
         let mut element_types = Vec::with_capacity(lit.elems.len());
         let mut element_flags = Vec::with_capacity(lit.elems.len());
+        self.push_cached_contextual_type(lit.id);
+        let contextual_ty = self.get_apparent_ty_of_contextual_ty(lit.id, None);
+        let is_tuple_context = if let Some(contextual_ty) = contextual_ty {
+            self.is_tuple_like(contextual_ty)
+        } else {
+            false
+        };
 
         for elem in lit.elems.iter() {
             element_types.push(self.check_expr_for_mutable_location(elem));
             element_flags.push(ElementFlags::REQUIRED);
         }
 
-        if force_tuple {
+        self.pop_type_context();
+
+        if force_tuple || is_tuple_context {
             let element_types = self.alloc(element_types);
             let element_flags = self.alloc(element_flags);
             let tuple_ty = self.create_tuple_ty(element_types, Some(element_flags), false);
@@ -1818,7 +1827,7 @@ impl<'cx> TyChecker<'cx> {
     }
 
     fn is_array_or_tuple(&self, ty: &'cx ty::Ty<'cx>) -> bool {
-        ty.kind.is_array(self) || ty.kind.is_tuple()
+        ty.kind.is_array(self) || ty.is_tuple()
     }
 
     fn is_known_prop(&mut self, target: &'cx ty::Ty<'cx>, name: SymbolName) -> bool {
@@ -2163,6 +2172,10 @@ impl<'cx> TyChecker<'cx> {
             let mapper = ty::TyMapper::make_unary(source, target);
             self.alloc(mapper)
         }
+    }
+
+    fn is_tuple_like(&self, ty: &'cx ty::Ty<'cx>) -> bool {
+        ty.is_tuple() || ty.kind.is_array(self)
     }
 }
 

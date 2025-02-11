@@ -20,10 +20,10 @@ pub use self::mapper::{ArrayTyMapper, TyMap, TyMapper};
 pub use self::mapper::{CompositeTyMapper, MergedTyMapper};
 pub use self::object_shape::ObjectShape;
 pub use self::object_ty::ElementFlags;
-pub use self::object_ty::SingleSigTy;
 pub use self::object_ty::{AnonymousTy, InterfaceTy, ObjectTyKind};
 pub use self::object_ty::{DeclaredMembers, ReferenceTy, StructuredMembers};
 pub use self::object_ty::{IndexInfo, IndexInfos, ObjectTy, TupleTy};
+pub use self::object_ty::{MappedTy, SingleSigTy};
 pub use self::sig::{Sig, SigFlags, SigID, SigKind, Sigs};
 
 bolt_ts_utils::index!(TyID);
@@ -219,6 +219,21 @@ impl<'cx> Ty<'cx> {
             false
         }
     }
+
+    pub fn is_tuple(&self) -> bool {
+        self.as_tuple().is_some()
+    }
+
+    pub fn as_tuple(&self) -> Option<&'cx TupleTy<'cx>> {
+        if self.get_object_flags().intersects(ObjectFlags::REFERENCE) {
+            if let Some(refer) = self.kind.as_object_reference() {
+                return refer.target.kind.as_object_tuple();
+            } else if let Some(tup) = self.kind.as_object_tuple() {
+                return Some(tup);
+            }
+        };
+        None
+    }
 }
 
 impl<'cx> TyKind<'cx> {
@@ -319,12 +334,6 @@ impl<'cx> TyKind<'cx> {
                 ObjectFlags::empty()
             })
         }
-    }
-
-    pub fn is_tuple(&self) -> bool {
-        self.as_object_reference()
-            .map(|refer| refer.target.kind.is_object_tuple())
-            .unwrap_or_default()
     }
 
     pub fn is_array(&self, checker: &TyChecker<'cx>) -> bool {

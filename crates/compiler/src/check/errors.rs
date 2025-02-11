@@ -135,6 +135,21 @@ pub(super) struct PropertyXIsMissing {
 }
 
 #[derive(Error, Diagnostic, DiagnosticExt, Debug)]
+#[error(
+    "Type '{ty1}' is missing the following properties from type '{ty2}': {}, and {len} more.", {
+        props.join(", ")
+    }
+)]
+pub(super) struct Type0IsMissingTheFollowingPropertiesFromType1Colon2And3More {
+    #[label(primary)]
+    pub span: Span,
+    pub ty1: String,
+    pub ty2: String,
+    pub props: Vec<String>,
+    pub len: usize,
+}
+
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
 #[error("Cannot create an instance of an abstract class.")]
 pub(super) struct CannotCreateAnInstanceOfAnAbstractClass {
     #[label(primary)]

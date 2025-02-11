@@ -666,19 +666,20 @@ impl<'cx> ParserState<'cx, '_> {
         Ok(ty)
     }
 
-    fn parse_mapped_ty_param(&mut self) -> PResult<&'cx ast::MappedTyParam<'cx>> {
+    fn parse_mapped_ty_param(&mut self) -> PResult<&'cx ast::TyParam<'cx>> {
         let start = self.token.start();
         let id = self.next_node_id();
         let name = self.create_ident(true, None);
         self.expect(TokenKind::In);
         let constraint = self.parse_ty()?;
-        let ty = self.alloc(ast::MappedTyParam {
+        let ty = self.alloc(ast::TyParam {
             id,
             span: self.new_span(start),
             name,
-            constraint,
+            constraint: Some(constraint),
+            default: None,
         });
-        self.insert_map(id, ast::Node::MappedTyParam(ty));
+        self.insert_map(id, ast::Node::TyParam(ty));
         Ok(ty)
     }
 

@@ -5,9 +5,10 @@ use super::infer::{InferenceFlags, InferencePriority};
 use super::ty::{self, Ty, TyKind};
 use super::{errors, IndexedAccessTyMap, ResolutionKey};
 use super::{CheckMode, F64Represent, InferenceContextId, PropName, TyChecker};
-use crate::ast;
+use crate::ast::{self, EntityName, EntityNameKind};
 
 use crate::bind::{SymbolFlags, SymbolID, SymbolName};
+use crate::keyword::is_prim_ty_name;
 use crate::ty::{
     AccessFlags, CheckFlags, ElementFlags, IndexFlags, ObjectFlags, TyMapper, TypeFlags,
 };
@@ -29,7 +30,9 @@ impl<'cx> TyChecker<'cx> {
         let check_flags = self.get_check_flags(id);
         if check_flags.intersects(CheckFlags::INSTANTIATED) {
             return self.get_type_of_instantiated_symbol(id);
-        };
+        } else if check_flags.intersects(CheckFlags::MAPPED) {
+            // return self.get_type_of_resolved_symbol(id);
+        }
 
         let symbol = self.binder.symbol(id);
 
@@ -187,10 +190,35 @@ impl<'cx> TyChecker<'cx> {
             }
             Paren(n) => self.get_ty_from_type_node(n.ty),
             Infer(n) => self.get_ty_from_infer_ty_node(n),
-            Mapped(_) => self.undefined_ty,
+            Mapped(n) => self.get_ty_from_mapped_ty_node(n),
         };
 
         self.get_conditional_flow_of_ty(ty, node.id())
+    }
+
+    fn get_ty_from_mapped_ty_node(&mut self, node: &'cx ast::MappedTy<'cx>) -> &'cx Ty<'cx> {
+        if let Some(ty) = self.get_node_links(node.id).get_resolved_ty() {
+            return ty;
+        };
+        let alias_symbol = self.get_alias_symbol_for_ty_node(node.id);
+        let alias_ty_arguments = self.get_ty_args_for_alias_symbol(alias_symbol);
+        let ty_param = {
+            let param_ty = self.get_symbol_of_decl(node.ty_param.id);
+            self.get_declared_ty_of_ty_param(param_ty)
+        };
+        let constraint_ty = self
+            .get_constraint_of_ty_param(ty_param)
+            .unwrap_or(self.error_ty);
+        let ty = self.create_mapper_ty(
+            node,
+            alias_symbol,
+            alias_ty_arguments,
+            ty_param,
+            constraint_ty,
+        );
+
+        self.get_mut_node_links(node.id).set_resolved_ty(ty);
+        ty
     }
 
     fn get_ty_from_infer_ty_node(&mut self, node: &'cx ast::InferTy<'cx>) -> &'cx Ty<'cx> {
@@ -415,7 +443,7 @@ impl<'cx> TyChecker<'cx> {
                     Some(name)
                 }
                 PropName::Num(num) => {
-                    if object_ty.kind.is_tuple() {
+                    if object_ty.is_tuple() {
                         let resolved_ty_args = self.get_ty_arguments(object_ty);
                         assert!(num.fract() == 0.0);
                         let idx = num as usize;
@@ -583,6 +611,11 @@ impl<'cx> TyChecker<'cx> {
         use ast::Node::*;
         match self.p.node(node) {
             ReferTy(n) => {
+                if let EntityNameKind::Ident(i) = n.name.kind {
+                    if is_prim_ty_name(i.name) {
+                        return false;
+                    }
+                }
                 let id = n.name.id();
                 let s = self.binder.final_res(id);
                 self.symbol(s).flags().intersects(SymbolFlags::TYPE_ALIAS)
@@ -616,8 +649,7 @@ impl<'cx> TyChecker<'cx> {
         has_default_ty_arguments: bool,
     ) -> bool {
         assert!(self.p.node(node).is_ty());
-
-        self.get_alias_symbol_for_ty_node(node).is_none()
+        self.get_alias_symbol_for_ty_node(node).is_some()
             || self.p.is_resolved_by_ty_alias(node) && {
                 use ast::Node::*;
                 let n = self.p.node(node);
@@ -698,14 +730,16 @@ impl<'cx> TyChecker<'cx> {
             t.ty_params()
         } else if let Some(i) = ty.target.kind.as_object_interface() {
             i.ty_params
+        } else if let Some(r) = ty.target.kind.as_object_reference() {
+            return Self::get_ty_reference_arity(r);
         } else {
-            unreachable!();
+            unreachable!()
         };
         ty_params.map_or(0, |ty_params| ty_params.len())
     }
 
     fn get_element_tys(&mut self, ty: &'cx Ty<'cx>) -> ty::Tys<'cx> {
-        if !ty.kind.is_tuple() {
+        if !ty.is_tuple() {
             return Default::default();
         };
         let Some(r) = ty.kind.as_object_reference() else {
@@ -723,7 +757,7 @@ impl<'cx> TyChecker<'cx> {
     fn is_deferred_ty(&mut self, ty: &'cx Ty<'cx>, check_tuples: bool) -> bool {
         ty.kind.is_generic()
             || (check_tuples
-                && ty.kind.is_tuple()
+                && ty.is_tuple()
                 && self.get_element_tys(ty).iter().any(|t| t.kind.is_generic()))
     }
 
@@ -849,36 +883,43 @@ impl<'cx> TyChecker<'cx> {
         &mut self,
         mut root: &'cx ty::CondTyRoot<'cx>,
         mut mapper: Option<&'cx dyn ty::TyMap<'cx>>,
-        alias_symbol: Option<SymbolID>,
-        alias_ty_args: Option<ty::Tys<'cx>>,
+        mut alias_symbol: Option<SymbolID>,
+        mut alias_ty_args: Option<ty::Tys<'cx>>,
     ) -> &'cx Ty<'cx> {
         let can_tail_recurse =
             |this: &mut Self, new_ty: &'cx Ty<'cx>, new_mapper: Option<&'cx dyn ty::TyMap<'cx>>| {
-                if let Some(cond) = new_ty.kind.as_cond_ty() {
-                    if let Some(new_mapper) = new_mapper {
-                        let new_root = cond.root;
-                        if let Some(out_ty_params) = new_root.outer_ty_params {
-                            let ty_param_mapper = this.combine_ty_mappers(cond.mapper, new_mapper);
-                            let ty_args = out_ty_params
-                                .iter()
-                                .map(|t| this.get_mapped_ty(ty_param_mapper, t))
-                                .collect::<Vec<_>>();
-                            let new_root_mapper =
-                                this.create_ty_mapper(out_ty_params, this.alloc(ty_args));
-                            let use_new = if new_root.is_distributive {
-                                let new_check_ty =
-                                    this.get_mapped_ty(new_root_mapper, new_root.check_ty);
-                                new_check_ty == new_root.check_ty || !new_check_ty.kind.is_union()
-                            } else {
-                                true
-                            };
-                            if use_new {
-                                return Some((new_root, new_root_mapper));
-                            }
-                        }
-                    }
+                let Some(cond) = new_ty.kind.as_cond_ty() else {
+                    return None;
+                };
+                let Some(new_mapper) = new_mapper else {
+                    return None;
+                };
+                let new_root = cond.root;
+                let Some(outer_ty_params) = new_root.outer_ty_params else {
+                    return None;
+                };
+                let ty_param_mapper = this.combine_ty_mappers(cond.mapper, new_mapper);
+                let ty_args = outer_ty_params
+                    .iter()
+                    .map(|t| this.get_mapped_ty(ty_param_mapper, t))
+                    .collect::<Vec<_>>();
+                let new_root_mapper = this.create_ty_mapper(outer_ty_params, this.alloc(ty_args));
+                let new_check_ty = new_root
+                    .is_distributive
+                    .then(|| this.get_mapped_ty(new_root_mapper, new_root.check_ty));
+                let use_new = if let Some(new_check_ty) = new_check_ty {
+                    new_check_ty == new_root.check_ty
+                        || !new_check_ty
+                            .flags
+                            .intersects(TypeFlags::UNION | TypeFlags::NEVER)
+                } else {
+                    true
+                };
+                if use_new {
+                    Some((new_root, new_root_mapper))
+                } else {
+                    None
                 }
-                None
             };
         let mut tailed = 0;
         let mut extra_tys = Vec::with_capacity(16);
@@ -976,8 +1017,16 @@ impl<'cx> TyChecker<'cx> {
                     }
                 {
                     let true_ty = self.get_ty_from_type_node(root.node.true_ty);
-                    let mapper = combined_mapper.or(mapper);
-                    break self.instantiate_ty(true_ty, mapper);
+                    let true_mapper = combined_mapper.or(mapper);
+                    if let Some((new_root, new_root_mapper)) =
+                        can_tail_recurse(self, true_ty, true_mapper)
+                    {
+                        root = new_root;
+                        mapper = Some(new_root_mapper);
+                        tailed += 1;
+                        continue;
+                    }
+                    break self.instantiate_ty(true_ty, true_mapper);
                 }
             }
 
@@ -1133,10 +1182,12 @@ impl<'cx> TyChecker<'cx> {
 
         let ty = if target == self.empty_generic_ty() {
             self.empty_object_ty()
-        } else if !node.tys.iter().any(|e| {
-            Self::get_tuple_element_flags(e).intersects(ElementFlags::VARIADIC)
-                && self.is_deferred_ty_reference_node(e.id(), false)
-        }) {
+        } else if !node
+            .tys
+            .iter()
+            .any(|e| Self::get_tuple_element_flags(e).intersects(ElementFlags::VARIADIC))
+            && self.is_deferred_ty_reference_node(node.id, false)
+        {
             if node.tys.is_empty() {
                 target
             } else {
@@ -1350,7 +1401,11 @@ impl<'cx> TyChecker<'cx> {
         };
 
         let Some(r) = ty.kind.as_object_reference() else {
-            unreachable!()
+            if let Some(t) = ty.kind.as_object_tuple() {
+                return t.resolved_ty_args;
+            } else {
+                unreachable!()
+            }
         };
 
         if !self.push_ty_resolution(ResolutionKey::ResolvedTypeArguments(ty.id)) {

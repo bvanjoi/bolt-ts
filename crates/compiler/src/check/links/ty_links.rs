@@ -1,6 +1,7 @@
 use super::links;
 use crate::ty;
 
+// TODO: split them into type def.
 links!(
     TyLinks,
     (structured_members, &'cx ty::StructuredMembers<'cx>),
@@ -23,6 +24,8 @@ links!(
     (resolved_true_ty, &'cx ty::Ty<'cx>),
     (resolved_false_ty, &'cx ty::Ty<'cx>),
     (resolved_constraint_of_distribute, Option<&'cx ty::Ty<'cx>>),
+    // mapped type
+    (named_ty, &'cx ty::Ty<'cx>),
     //
     (permissive_instantiation, &'cx ty::Ty<'cx>),
     (restrictive_instantiation, &'cx ty::Ty<'cx>)

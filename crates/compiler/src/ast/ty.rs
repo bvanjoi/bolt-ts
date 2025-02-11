@@ -363,18 +363,10 @@ pub struct ObjectLit<'cx> {
 }
 
 #[derive(Debug, Clone, Copy)]
-pub struct MappedTyParam<'cx> {
-    pub id: NodeID,
-    pub span: Span,
-    pub name: &'cx Ident,
-    pub constraint: &'cx Ty<'cx>,
-}
-
-#[derive(Debug, Clone, Copy)]
 pub struct MappedTy<'cx> {
     pub id: NodeID,
     pub span: Span,
-    pub ty_param: &'cx MappedTyParam<'cx>,
+    pub ty_param: &'cx self::TyParam<'cx>,
     pub readonly_token: Option<Span>,
     pub name_ty: Option<&'cx Ty<'cx>>,
     pub question_token: Option<Span>,
