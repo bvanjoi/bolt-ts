@@ -145,6 +145,20 @@ impl<'cx> TyChecker<'cx> {
             mapper(self, ty)
         }
     }
+
+    pub(super) fn for_each_ty(
+        &mut self,
+        ty: &'cx ty::Ty<'cx>,
+        mut f: impl FnMut(&mut Self, &'cx ty::Ty<'cx>),
+    ) {
+        if let Some(u) = ty.kind.as_union() {
+            for ty in u.tys {
+                f(self, ty)
+            }
+        } else {
+            f(self, ty)
+        }
+    }
 }
 
 enum SameMapperResult<'cx, T> {

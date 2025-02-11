@@ -5,7 +5,7 @@ use super::infer::{InferenceFlags, InferencePriority};
 use super::ty::{self, Ty, TyKind};
 use super::{errors, IndexedAccessTyMap, ResolutionKey};
 use super::{CheckMode, F64Represent, InferenceContextId, PropName, TyChecker};
-use crate::ast::{self, EntityName, EntityNameKind};
+use crate::ast::{self, EntityNameKind};
 
 use crate::bind::{SymbolFlags, SymbolID, SymbolName};
 use crate::keyword::is_prim_ty_name;
@@ -196,7 +196,10 @@ impl<'cx> TyChecker<'cx> {
         self.get_conditional_flow_of_ty(ty, node.id())
     }
 
-    fn get_ty_from_mapped_ty_node(&mut self, node: &'cx ast::MappedTy<'cx>) -> &'cx Ty<'cx> {
+    pub(super) fn get_ty_from_mapped_ty_node(
+        &mut self,
+        node: &'cx ast::MappedTy<'cx>,
+    ) -> &'cx Ty<'cx> {
         if let Some(ty) = self.get_node_links(node.id).get_resolved_ty() {
             return ty;
         };
@@ -216,7 +219,6 @@ impl<'cx> TyChecker<'cx> {
             ty_param,
             constraint_ty,
         );
-
         self.get_mut_node_links(node.id).set_resolved_ty(ty);
         ty
     }
@@ -402,7 +404,7 @@ impl<'cx> TyChecker<'cx> {
         self.get_ty_from_type_node(rest.ty)
     }
 
-    fn get_prop_name_from_ty(&self, ty: &'cx Ty<'cx>) -> Option<PropName> {
+    pub(super) fn get_prop_name_from_ty(&self, ty: &'cx Ty<'cx>) -> Option<PropName> {
         if let Some(lit) = ty.kind.as_string_lit() {
             Some(PropName::String(lit.val))
         } else {
@@ -412,6 +414,13 @@ impl<'cx> TyChecker<'cx> {
 
     fn get_prop_name_from_index(&self, index_ty: &'cx Ty<'cx>) -> Option<PropName> {
         self.get_prop_name_from_ty(index_ty)
+    }
+
+    pub(super) fn get_symbol_name_from_prop_name(&self, prop_name: PropName) -> SymbolName {
+        match prop_name {
+            PropName::String(atom_id) => SymbolName::Normal(atom_id),
+            PropName::Num(num) => SymbolName::EleNum(num.into()),
+        }
     }
 
     fn get_prop_ty_for_index_ty(

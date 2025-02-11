@@ -120,6 +120,7 @@ impl<'cx> TyChecker<'cx> {
                 None
             } else {
                 let decl = self.binder.symbol(symbol).expect_ty_param().decl;
+                let decl = self.p.node(decl).expect_ty_param();
                 self.get_effective_constraint_of_ty_param(decl)
             }
         } else {

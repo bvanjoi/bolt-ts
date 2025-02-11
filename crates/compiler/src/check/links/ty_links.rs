@@ -26,6 +26,9 @@ links!(
     (resolved_constraint_of_distribute, Option<&'cx ty::Ty<'cx>>),
     // mapped type
     (named_ty, &'cx ty::Ty<'cx>),
+    (key_ty, &'cx ty::Ty<'cx>),
+    (template_ty, &'cx ty::Ty<'cx>),
+    (modifiers_ty, &'cx ty::Ty<'cx>),
     //
     (permissive_instantiation, &'cx ty::Ty<'cx>),
     (restrictive_instantiation, &'cx ty::Ty<'cx>)

@@ -22,5 +22,6 @@ links!(
     (check_flags, ty::CheckFlags),
     // mapped symbol
     (mapped_ty, &'cx ty::Ty<'cx>),
+    (named_ty, &'cx ty::Ty<'cx>),
     (key_ty, &'cx ty::Ty<'cx>),
 );

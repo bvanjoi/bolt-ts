@@ -4,9 +4,9 @@ use rustc_hash::FxHashMap;
 use super::cycle_check::{Cycle, ResolutionKey};
 use super::links::SigLinks;
 use super::{errors, SymbolLinks, TyChecker};
-use crate::ast;
-use crate::bind::{SymbolFlags, SymbolID, SymbolName};
-use crate::ty::{self, CheckFlags, SigID, SigKind, TypeFlags};
+use crate::ast::{self, MappedTyModifiers};
+use crate::bind::{Symbol, SymbolFlags, SymbolID, SymbolName};
+use crate::ty::{self, CheckFlags, ObjectFlags, SigID, SigKind, TypeFlags};
 
 impl<'cx> TyChecker<'cx> {
     pub(super) fn members(&self, symbol: SymbolID) -> &FxHashMap<SymbolName, SymbolID> {
@@ -338,8 +338,7 @@ impl<'cx> TyChecker<'cx> {
         tys
     }
 
-    fn get_tuple_base_ty(&mut self, ty: &'cx ty::Ty<'cx>) -> &'cx ty::Ty<'cx> {
-        let ty = ty.kind.expect_object_tuple();
+    fn get_tuple_base_ty(&mut self, ty: &'cx ty::TupleTy<'cx>) -> &'cx ty::Ty<'cx> {
         let element_tys = ty
             .ty_params()
             .unwrap_or_default()
@@ -367,9 +366,8 @@ impl<'cx> TyChecker<'cx> {
             return tys;
         }
         if self.push_ty_resolution(ResolutionKey::ResolvedBaseTypes(ty.id)) {
-            if ty.is_tuple() {
-                let r = ty.kind.expect_object_reference();
-                let base_ty = self.get_tuple_base_ty(r.target);
+            if let Some(t) = ty.as_tuple() {
+                let base_ty = self.get_tuple_base_ty(t);
                 let tys = self.alloc(vec![base_ty]);
                 self.get_mut_ty_links(ty.id).set_resolved_base_tys(tys);
                 return tys;
@@ -516,13 +514,16 @@ impl<'cx> TyChecker<'cx> {
     }
 
     fn resolve_reference_members(&mut self, ty: &'cx ty::Ty<'cx>) {
-        let Some(refer) = ty.kind.as_object_reference() else {
+        let target = if let Some(refer) = ty.kind.as_object_reference() {
+            refer.deep_target()
+        } else if let Some(t) = ty.kind.as_object_tuple() {
+            t.ty
+        } else {
             unreachable!()
         };
-        let target = refer.deep_target();
 
         let ty_params = if let Some(i) = target.kind.as_object_interface() {
-            let mut ty_params = i.ty_params.unwrap().to_vec();
+            let mut ty_params = i.ty_params.unwrap_or_default().to_vec();
             ty_params.push(i.this_ty.unwrap());
             self.alloc(ty_params)
         } else if let Some(t) = target.kind.as_object_tuple() {
@@ -540,7 +541,7 @@ impl<'cx> TyChecker<'cx> {
             ty_args
         } else {
             let mut padded_type_arguments = ty_args.to_vec();
-            padded_type_arguments.push(refer.target);
+            padded_type_arguments.push(target);
             self.alloc(padded_type_arguments)
         };
         let declared_members = if let Some(i) = target.kind.as_object_interface() {
@@ -797,7 +798,7 @@ impl<'cx> TyChecker<'cx> {
         self.get_mut_ty_links(ty.id).set_structured_members(m);
     }
 
-    pub fn get_name_ty_from_mapped_ty(&mut self, ty: &'cx ty::Ty<'cx>) -> Option<&'cx ty::Ty<'cx>> {
+    fn get_name_ty_from_mapped_ty(&mut self, ty: &'cx ty::Ty<'cx>) -> Option<&'cx ty::Ty<'cx>> {
         let mapped_ty = ty.kind.expect_object_mapped();
         if let Some(name_ty) = mapped_ty.decl.name_ty {
             if let Some(ty) = self.get_ty_links(ty.id).get_named_ty() {
@@ -812,6 +813,92 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
+    fn get_mapped_ty_name_ty_kind(&mut self, ty: &'cx ty::Ty<'cx>) -> ty::MappedTyNameTyKind {
+        let mapped_ty = ty.kind.expect_object_mapped();
+        let name_ty = self.get_name_ty_from_mapped_ty(ty);
+        if let Some(name_ty) = name_ty {
+            if self.is_type_assignable_to(name_ty, mapped_ty.ty_param) {
+                ty::MappedTyNameTyKind::Filtering
+            } else {
+                ty::MappedTyNameTyKind::Remapping
+            }
+        } else {
+            ty::MappedTyNameTyKind::None
+        }
+    }
+
+    fn get_template_ty_from_mapped_ty(&mut self, ty: &'cx ty::Ty<'cx>) -> &'cx ty::Ty<'cx> {
+        let mapped_ty = ty.kind.expect_object_mapped();
+        if let Some(template_ty) = self.get_ty_links(ty.id).get_template_ty() {
+            return template_ty;
+        }
+        let template_ty = if let Some(decl_ty) = mapped_ty.decl.ty {
+            let decl_ty = self.get_ty_from_type_node(decl_ty);
+            // TODO: add_optionality
+            self.instantiate_ty(decl_ty, mapped_ty.mapper)
+        } else {
+            self.error_ty
+        };
+        self.get_mut_ty_links(ty.id).set_template_ty(template_ty);
+        template_ty
+    }
+
+    fn get_constraint_decl_for_mapped_ty(
+        &self,
+        ty: &'cx ty::MappedTy<'cx>,
+    ) -> Option<&'cx ast::Ty<'cx>> {
+        self.get_effective_constraint_of_ty_param(ty.decl.ty_param)
+    }
+
+    fn is_mapped_ty_with_keyof_constraint_decl(&self, ty: &'cx ty::MappedTy<'cx>) -> bool {
+        let constraint_decl = self.get_constraint_decl_for_mapped_ty(ty).unwrap();
+        if let ast::TyKind::TyOp(t) = constraint_decl.kind {
+            t.op == ast::TyOpKind::Keyof
+        } else {
+            false
+        }
+    }
+
+    fn get_modifier_ty_from_mapped_ty(&mut self, ty: &'cx ty::Ty<'cx>) -> &'cx ty::Ty<'cx> {
+        let mapped_ty = ty.kind.expect_object_mapped();
+        if let Some(ty) = self.get_ty_links(ty.id).get_modifiers_ty() {
+            return ty;
+        }
+        let modifiers_ty = if self.is_mapped_ty_with_keyof_constraint_decl(mapped_ty) {
+            let ty_node = if let ast::TyKind::TyOp(t) = self
+                .get_constraint_decl_for_mapped_ty(mapped_ty)
+                .unwrap()
+                .kind
+            {
+                t.ty
+            } else {
+                unimplemented!()
+            };
+            let t = self.get_ty_from_type_node(ty_node);
+            self.instantiate_ty(t, mapped_ty.mapper)
+        } else {
+            let declare_ty = self.get_ty_from_mapped_ty_node(mapped_ty.decl);
+            let constraint = declare_ty.kind.expect_object_mapped().constraint_ty;
+            let extended_constraint = if constraint.flags.intersects(ty::TypeFlags::TYPE_PARAMETER)
+            {
+                self.get_constraint_of_ty_param(constraint)
+            } else {
+                Some(constraint)
+            };
+            extended_constraint
+                .and_then(|extended_constraint| {
+                    if let Some(index) = extended_constraint.kind.as_index_ty() {
+                        Some(self.instantiate_ty(index.ty, mapped_ty.mapper))
+                    } else {
+                        None
+                    }
+                })
+                .unwrap_or(self.undefined_ty)
+        };
+        self.get_mut_ty_links(ty.id).set_modifiers_ty(modifiers_ty);
+        modifiers_ty
+    }
+
     fn resolve_mapped_ty_members(&mut self, ty: &'cx ty::Ty<'cx>) {
         let mapped_ty = ty.kind.expect_object_mapped();
         let ty_param = mapped_ty.ty_param;
@@ -822,15 +909,162 @@ impl<'cx> TyChecker<'cx> {
             mapped_ty
         };
         let name_ty = self.get_name_ty_from_mapped_ty(ty);
-        // TODO:
+        let should_link_prop_decls =
+            self.get_mapped_ty_name_ty_kind(ty) != ty::MappedTyNameTyKind::Remapping;
+        let template_ty = self.get_template_ty_from_mapped_ty(ty);
+        let modifiers_ty = {
+            let ty = self.get_modifier_ty_from_mapped_ty(ty);
+            self.get_apparent_ty(ty)
+        };
+        let template_modifier = mapped_ty.decl.get_modifiers();
+
+        let mut members: FxHashMap<SymbolName, SymbolID> = FxHashMap::default();
+        let mut index_infos = vec![];
+
+        let include = TypeFlags::STRING_OR_NUMBER_LITERAL_OR_UNIQUE;
+        let mut add_member_for_key_ty_worker =
+            |this: &mut Self, key_ty: &'cx ty::Ty<'cx>, prop_name_ty: &'cx ty::Ty<'cx>| {
+                if prop_name_ty.useable_as_prop_name() {
+                    let prop_name = this.get_prop_name_from_ty(prop_name_ty).unwrap();
+                    let symbol_name = this.get_symbol_name_from_prop_name(prop_name);
+                    if let Some(existing_prop) = members.get(&symbol_name) {
+                        let named_ty = {
+                            let old = this.get_symbol_links(*existing_prop).expect_named_ty();
+                            this.get_union_ty(&[old, prop_name_ty], ty::UnionReduction::Lit)
+                        };
+                        this.get_mut_symbol_links(*existing_prop)
+                            .override_name_ty(named_ty);
+
+                        let key_ty = {
+                            let old = this.get_symbol_links(*existing_prop).expect_key_ty();
+                            this.get_union_ty(&[old, key_ty], ty::UnionReduction::Lit)
+                        };
+                        this.get_mut_symbol_links(*existing_prop)
+                            .override_key_ty(key_ty);
+                    } else {
+                        let modifiers_prop = if key_ty.useable_as_prop_name() {
+                            let prop_name = this.get_prop_name_from_ty(key_ty).unwrap();
+                            let symbol_name = this.get_symbol_name_from_prop_name(prop_name);
+                            this.get_prop_of_ty(modifiers_ty, symbol_name)
+                        } else {
+                            None
+                        };
+                        let is_optional = template_modifier
+                            .intersects(MappedTyModifiers::INCLUDE_OPTIONAL)
+                            || !(template_modifier.intersects(MappedTyModifiers::EXCLUDE_OPTIONAL)
+                                && modifiers_prop.is_some_and(|m| {
+                                    this.symbol(m).flags().intersects(SymbolFlags::OPTIONAL)
+                                }));
+                        let is_readonly = template_modifier
+                            .intersects(MappedTyModifiers::INCLUDE_READONLY)
+                            || !(template_modifier.intersects(MappedTyModifiers::EXCLUDE_READONLY)
+                                && modifiers_prop.is_some_and(|m| this.is_readonly_symbol(m)));
+                        let strip_optional = false; // TODO: strict_null_checks;
+                        let late_flag = modifiers_prop
+                            .map_or(ty::CheckFlags::default(), |m| this.get_late_flag(m));
+                        let symbol_flags = SymbolFlags::PROPERTY
+                            | if is_optional {
+                                SymbolFlags::OPTIONAL
+                            } else {
+                                SymbolFlags::empty()
+                            };
+                        let links = SymbolLinks::default()
+                            .with_mapped_ty(ty)
+                            .with_name_ty(prop_name_ty)
+                            .with_key_ty(key_ty)
+                            .with_check_flags(
+                                late_flag
+                                    | CheckFlags::MAPPED
+                                    | if is_readonly {
+                                        CheckFlags::READONLY
+                                    } else {
+                                        CheckFlags::empty()
+                                    }
+                                    | if strip_optional {
+                                        CheckFlags::STRIP_OPTIONAL
+                                    } else {
+                                        CheckFlags::empty()
+                                    },
+                            );
+                        let symbol =
+                            this.create_transient_symbol(symbol_name, symbol_flags, None, links);
+                        let prev = members.insert(symbol_name, symbol);
+                        assert!(prev.is_none());
+                    }
+                } else if prop_name_ty.is_valid_index_key_ty()
+                    || prop_name_ty
+                        .flags
+                        .intersects(TypeFlags::ANY | TypeFlags::ENUM)
+                {
+                    let index_key_ty = if prop_name_ty
+                        .flags
+                        .intersects(TypeFlags::ANY | TypeFlags::STRING)
+                    {
+                        this.string_ty
+                    } else if prop_name_ty
+                        .flags
+                        .intersects(TypeFlags::NUMBER | TypeFlags::ENUM)
+                    {
+                        this.number_ty
+                    } else {
+                        prop_name_ty
+                    };
+                    let prop_ty = {
+                        let mapper = this.append_ty_mapping(mapped_ty.mapper, ty_param, key_ty);
+                        this.instantiate_ty(template_ty, Some(mapper))
+                    };
+                    let modifiers_index_info =
+                        this.get_applicable_index_info(modifiers_ty, prop_name_ty);
+                    let is_readonly = template_modifier
+                        .intersects(MappedTyModifiers::INCLUDE_READONLY)
+                        || !(template_modifier.intersects(MappedTyModifiers::EXCLUDE_READONLY)
+                            && modifiers_index_info.is_some_and(|i| i.is_readonly));
+                    let index_info = this.alloc(ty::IndexInfo {
+                        key_ty: index_key_ty,
+                        val_ty: prop_ty,
+                        is_readonly,
+                        symbol: Symbol::ERR,
+                    });
+                    index_infos.push(index_info);
+                }
+            };
+        let mut add_member_for_key_ty = |this: &mut Self, key_ty: &'cx ty::Ty<'cx>| {
+            let prop_name_ty = if let Some(name_ty) = name_ty {
+                let mapper = this.append_ty_mapping(mapped_ty.mapper, ty_param, name_ty);
+                this.instantiate_ty(name_ty, Some(mapper))
+            } else {
+                key_ty
+            };
+            this.for_each_ty(prop_name_ty, |this, t| {
+                add_member_for_key_ty_worker(this, key_ty, t)
+            });
+        };
+        if self.is_mapped_ty_with_keyof_constraint_decl(mapped_ty) {
+            self.for_each_mapped_ty_prop_key_ty_and_index_sig_key_ty(
+                modifiers_ty,
+                include,
+                false,
+                |this, key_ty| add_member_for_key_ty(this, key_ty),
+            );
+        } else {
+            let ty = self.get_lower_bound_of_key_ty(constraint_ty);
+            self.for_each_ty(ty, |this, ty| {
+                add_member_for_key_ty(this, ty);
+            });
+        };
+        let props = self.get_props_from_members(&members);
         let m = self.alloc(ty::StructuredMembers {
-            members: self.alloc(FxHashMap::default()),
+            members: self.alloc(members),
             base_tys: &[],
             base_ctor_ty: None,
-            call_sigs: Default::default(),
-            ctor_sigs: Default::default(),
-            index_infos: Default::default(),
-            props: Default::default(),
+            call_sigs: self.alloc(vec![]),
+            ctor_sigs: self.alloc(vec![]),
+            index_infos: if index_infos.is_empty() {
+                self.empty_array()
+            } else {
+                self.alloc(index_infos)
+            },
+            props,
         });
         self.get_mut_ty_links(ty.id).set_structured_members(m);
     }
@@ -840,7 +1074,7 @@ impl<'cx> TyChecker<'cx> {
             return;
         }
         if ty.kind.is_object() {
-            if ty.kind.is_object_reference() {
+            if ty.get_object_flags().intersects(ObjectFlags::REFERENCE) {
                 self.resolve_reference_members(ty);
             } else if ty.kind.is_object_interface() {
                 self.resolve_interface_members(ty);

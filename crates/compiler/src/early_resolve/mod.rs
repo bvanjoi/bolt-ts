@@ -290,7 +290,12 @@ impl<'cx> Resolver<'cx, '_> {
                     Qualified(_) => (),
                 }
             }
-            Mapped(n) => {}
+            Mapped(n) => {
+                self.resolve_ty_param(n.ty_param);
+                if let Some(ty) = n.ty {
+                    self.resolve_ty(ty);
+                }
+            }
             TyOp(n) => {
                 self.resolve_ty(n.ty);
             }

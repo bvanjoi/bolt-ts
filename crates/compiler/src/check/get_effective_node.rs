@@ -31,9 +31,8 @@ impl<'cx> TyChecker<'cx> {
 
     pub(super) fn get_effective_constraint_of_ty_param(
         &self,
-        id: ast::NodeID,
+        node: &'cx ast::TyParam<'cx>,
     ) -> Option<&'cx ast::Ty<'cx>> {
-        let node = self.p.node(id).expect_ty_param();
         node.constraint
     }
 

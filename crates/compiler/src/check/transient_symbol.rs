@@ -1,7 +1,10 @@
 use bolt_ts_span::ModuleID;
 
 use super::ast::NodeID;
-use crate::bind::{Symbol, SymbolFlags, SymbolID, SymbolName};
+use crate::{
+    bind::{Symbol, SymbolFlags, SymbolID, SymbolName},
+    ty,
+};
 
 use super::TyChecker;
 
@@ -124,5 +127,16 @@ impl<'cx> TyChecker<'cx> {
         } else {
             symbol.opt_decl(self.binder)
         }
+    }
+
+    pub(crate) fn is_readonly_symbol(&self, symbol: SymbolID) -> bool {
+        self.get_check_flags(symbol)
+            .intersects(ty::CheckFlags::READONLY)
+            || false
+    }
+
+    pub(crate) fn get_late_flag(&self, symbol: SymbolID) -> ty::CheckFlags {
+        self.get_check_flags(symbol)
+            .intersection(ty::CheckFlags::LATE)
     }
 }

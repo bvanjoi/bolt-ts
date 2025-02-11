@@ -1044,6 +1044,9 @@ impl<'cx> BinderState<'cx> {
                 assert!(n.ty_param.default.is_none());
                 assert!(n.ty_param.constraint.is_some());
                 self.bind_ty_param(n.ty_param);
+                if let Some(ty) = n.ty {
+                    self.bind_ty(ty);
+                }
             }
             TyOp(n) => {
                 self.bind_ty(n.ty);

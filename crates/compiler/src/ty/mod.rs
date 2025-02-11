@@ -20,10 +20,11 @@ pub use self::mapper::{ArrayTyMapper, TyMap, TyMapper};
 pub use self::mapper::{CompositeTyMapper, MergedTyMapper};
 pub use self::object_shape::ObjectShape;
 pub use self::object_ty::ElementFlags;
+pub use self::object_ty::SingleSigTy;
 pub use self::object_ty::{AnonymousTy, InterfaceTy, ObjectTyKind};
 pub use self::object_ty::{DeclaredMembers, ReferenceTy, StructuredMembers};
 pub use self::object_ty::{IndexInfo, IndexInfos, ObjectTy, TupleTy};
-pub use self::object_ty::{MappedTy, SingleSigTy};
+pub use self::object_ty::{MappedTy, MappedTyNameTyKind};
 pub use self::sig::{Sig, SigFlags, SigID, SigKind, Sigs};
 
 bolt_ts_utils::index!(TyID);
@@ -91,6 +92,16 @@ impl<'cx> Ty<'cx> {
             .as_substitution_ty()
             .map(|sub| sub.constraint.flags.intersects(TypeFlags::UNKNOWN))
             .unwrap_or_default()
+    }
+
+    pub fn is_valid_index_key_ty(&self) -> bool {
+        self.flags
+            .intersects(TypeFlags::STRING | TypeFlags::NUMBER | TypeFlags::ES_SYMBOL)
+            || self.kind.as_intersection().is_some_and(|i| {
+                !self.kind.get_generic_object_flags().is_empty()
+                    && i.tys.iter().any(|ty| ty.is_valid_index_key_ty())
+            })
+        // || isPatternLiteralType
     }
 }
 
@@ -233,6 +244,11 @@ impl<'cx> Ty<'cx> {
             }
         };
         None
+    }
+
+    pub fn useable_as_prop_name(&self) -> bool {
+        self.flags
+            .intersects(TypeFlags::STRING_OR_NUMBER_LITERAL_OR_UNIQUE)
     }
 }
 

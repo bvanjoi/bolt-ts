@@ -1,4 +1,4 @@
-use crate::ty::{self, TypeFlags};
+use crate::ty;
 
 use super::TyChecker;
 

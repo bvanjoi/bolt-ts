@@ -1,6 +1,6 @@
 use super::TyChecker;
 use crate::bind::{SymbolID, SymbolName};
-use crate::ty;
+use crate::{ast, ty};
 
 impl<'cx> TyChecker<'cx> {
     pub(super) fn get_index_symbol(&self, symbol: SymbolID) -> Option<SymbolID> {
@@ -26,10 +26,14 @@ impl<'cx> TyChecker<'cx> {
             .map(|param| {
                 let Some(ty) = param.ty else { unreachable!() };
                 let key_ty = self.get_ty_from_type_node(ty);
+                let is_readonly = param
+                    .modifiers
+                    .is_some_and(|mods| mods.flags.contains(ast::ModifierKind::Readonly));
                 self.alloc(ty::IndexInfo {
                     key_ty,
                     val_ty,
                     symbol,
+                    is_readonly,
                 })
             })
             .collect::<Vec<_>>();

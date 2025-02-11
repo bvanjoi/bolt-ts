@@ -162,6 +162,7 @@ pub struct IndexInfo<'cx> {
     pub symbol: SymbolID,
     pub key_ty: &'cx Ty<'cx>,
     pub val_ty: &'cx Ty<'cx>,
+    pub is_readonly: bool,
 }
 
 impl PartialEq for &IndexInfo<'_> {
@@ -344,4 +345,11 @@ pub struct MappedTy<'cx> {
     pub constraint_ty: &'cx Ty<'cx>,
     pub target: Option<&'cx Ty<'cx>>,
     pub mapper: Option<&'cx dyn TyMap<'cx>>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum MappedTyNameTyKind {
+    None,
+    Filtering,
+    Remapping,
 }

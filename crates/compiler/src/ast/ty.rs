@@ -1,4 +1,5 @@
 use crate::keyword;
+use crate::parser::token::{Token, TokenKind};
 
 use super::*;
 use bolt_ts_atom::AtomId;
@@ -367,11 +368,43 @@ pub struct MappedTy<'cx> {
     pub id: NodeID,
     pub span: Span,
     pub ty_param: &'cx self::TyParam<'cx>,
-    pub readonly_token: Option<Span>,
+    pub readonly_token: Option<Token>,
     pub name_ty: Option<&'cx Ty<'cx>>,
-    pub question_token: Option<Span>,
+    pub question_token: Option<Token>,
     pub ty: Option<&'cx Ty<'cx>>,
     pub members: &'cx [&'cx ObjectTyMember<'cx>],
+}
+
+bitflags::bitflags! {
+    #[derive(Debug, Clone, Copy)]
+    pub struct MappedTyModifiers: u8 {
+        const INCLUDE_READONLY  = 1 << 0;
+        const EXCLUDE_READONLY  = 1 << 1;
+        const INCLUDE_OPTIONAL  = 1 << 2;
+        const EXCLUDE_OPTIONAL  = 1 << 3;
+    }
+}
+
+impl MappedTy<'_> {
+    pub fn get_modifiers(&self) -> MappedTyModifiers {
+        (if let Some(r) = self.readonly_token {
+            if r.kind == TokenKind::Minus {
+                MappedTyModifiers::EXCLUDE_READONLY
+            } else {
+                MappedTyModifiers::INCLUDE_READONLY
+            }
+        } else {
+            MappedTyModifiers::empty()
+        }) | (if let Some(q) = self.question_token {
+            if q.kind == TokenKind::Minus {
+                MappedTyModifiers::EXCLUDE_OPTIONAL
+            } else {
+                MappedTyModifiers::INCLUDE_OPTIONAL
+            }
+        } else {
+            MappedTyModifiers::empty()
+        })
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]

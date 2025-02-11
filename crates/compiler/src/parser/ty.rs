@@ -618,9 +618,9 @@ impl<'cx> ParserState<'cx, '_> {
             TokenKind::Readonly | TokenKind::Plus | TokenKind::Minus
         ) {
             let t = self.parse_token_node();
-            readonly_token = Some(t.span);
+            readonly_token = Some(t);
             if matches!(t.kind, TokenKind::Plus | TokenKind::Minus) {
-                readonly_token = Some(self.token.span);
+                readonly_token = Some(self.token);
                 self.expect(TokenKind::Readonly);
             }
         }
@@ -639,7 +639,7 @@ impl<'cx> ParserState<'cx, '_> {
             TokenKind::Question | TokenKind::Plus | TokenKind::Minus
         ) {
             let t = self.parse_token_node();
-            question_token = Some(t.span);
+            question_token = Some(t);
             if t.kind != TokenKind::Question {
                 self.expect(TokenKind::Question);
             };

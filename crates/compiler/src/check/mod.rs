@@ -56,6 +56,7 @@ use bolt_ts_atom::{AtomId, AtomMap};
 
 use bolt_ts_config::NormalizedCompilerOptions;
 use bolt_ts_utils::{fx_hashmap_with_capacity, fx_hashset_with_capacity};
+use create_ty::IntersectionFlags;
 use flow::FlowTy;
 use fn_mapper::{PermissiveMapper, RestrictiveMapper};
 use get_variances::VarianceFlags;
@@ -82,8 +83,8 @@ use crate::bind::{
     self, FlowID, FlowNodes, GlobalSymbols, Symbol, SymbolFlags, SymbolID, SymbolName,
 };
 use crate::parser::{AccessKind, AssignmentKind, Parser};
+use crate::ty::has_type_facts;
 use crate::ty::TYPEOF_NE_FACTS;
-use crate::ty::{has_type_facts, TyMapper};
 use crate::ty::{ElementFlags, ObjectFlags, Sig, SigFlags, SigID, TyID, TypeFacts, TypeFlags};
 use crate::{ast, ecma_rules, ensure_sufficient_stack, keyword, ty};
 
@@ -2174,8 +2175,92 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
+    fn append_ty_mapping(
+        &mut self,
+        mapper: Option<&'cx dyn ty::TyMap<'cx>>,
+        source: &'cx ty::Ty<'cx>,
+        target: &'cx ty::Ty<'cx>,
+    ) -> &'cx dyn ty::TyMap<'cx> {
+        if let Some(mapper) = mapper {
+            let mapper2 = ty::TyMapper::make_unary(source, target);
+            let mapper2 = self.alloc(mapper2);
+            self.alloc(ty::MergedTyMapper {
+                mapper1: mapper,
+                mapper2,
+            })
+        } else {
+            let mapper = ty::TyMapper::make_unary(source, target);
+            self.alloc(mapper)
+        }
+    }
+
     fn is_tuple_like(&self, ty: &'cx ty::Ty<'cx>) -> bool {
         ty.is_tuple() || ty.kind.is_array(self)
+    }
+
+    fn for_each_mapped_ty_prop_key_ty_and_index_sig_key_ty(
+        &mut self,
+        ty: &'cx ty::Ty<'cx>,
+        include: TypeFlags,
+        string_only: bool,
+        mut cb: impl FnMut(&mut Self, &'cx ty::Ty<'cx>),
+    ) {
+        let props = self.get_props_of_ty(ty);
+        for prop in props {
+            let prop = self.get_lit_ty_from_prop(*prop);
+            cb(self, prop)
+        }
+        if ty.flags.intersects(TypeFlags::ANY) {
+            cb(self, self.string_ty);
+        } else {
+            let infos = self.get_index_infos_of_ty(ty);
+            for info in infos {
+                if !string_only
+                    || info
+                        .key_ty
+                        .flags
+                        .intersects(TypeFlags::STRING | TypeFlags::TEMPLATE_LITERAL)
+                {
+                    cb(self, info.key_ty);
+                }
+            }
+        }
+    }
+
+    fn get_lower_bound_of_key_ty(&mut self, ty: &'cx ty::Ty<'cx>) -> &'cx ty::Ty<'cx> {
+        if let Some(index_ty) = ty.kind.as_index_ty() {
+            let t = self.get_apparent_ty(index_ty.ty);
+            return if t.kind.is_generic_tuple_type() {
+                // TODO: get_known_keys_of_tuple_ty
+                t
+            } else {
+                self.get_index_ty(t, ty::IndexFlags::empty())
+            };
+        } else if let Some(cond) = ty.kind.as_cond_ty() {
+            // TODO: is_distributive
+            return ty;
+        } else if let Some(u) = ty.kind.as_union() {
+            return self
+                .map_ty(ty, |this, t| Some(this.get_lower_bound_of_key_ty(t)), true)
+                .unwrap();
+        } else if let Some(i) = ty.kind.as_intersection() {
+            let tys = i.tys;
+            if tys.len() == 2
+                && tys[0]
+                    .flags
+                    .intersects(TypeFlags::STRING | TypeFlags::NUMBER | TypeFlags::BIG_INT)
+                && tys[1] == self.empty_ty_literal_ty()
+            {
+                return ty;
+            } else {
+                let tys = self
+                    .same_map_tys(Some(tys), |this, t, _| this.get_lower_bound_of_key_ty(t))
+                    .unwrap();
+                self.get_intersection_ty(tys, IntersectionFlags::None, None, None)
+            }
+        } else {
+            ty
+        }
     }
 }
 

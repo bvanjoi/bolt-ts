@@ -387,6 +387,11 @@ impl Symbol {
         };
         id.or_else(|| self.kind.1.as_ref().and_then(|i| i.decls.first()).copied())
     }
+
+    pub fn is_readonly_symbol(&self) -> bool {
+        // TODO:
+        false
+    }
 }
 
 bolt_ts_utils::module_index!(SymbolID);
@@ -411,6 +416,7 @@ impl SymbolID {
         id.or_else(|| s.kind.1.as_ref().and_then(|i| i.decls.first()).copied())
             .or_else(|| s.kind.2.as_ref().and_then(|i| i.decls.first()).copied())
     }
+
     pub fn decl(&self, binder: &super::Binder) -> NodeID {
         self.opt_decl(binder)
             .unwrap_or_else(|| panic!("{:#?}", binder.symbol(*self).flags))
