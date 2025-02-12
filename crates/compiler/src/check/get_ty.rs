@@ -2,6 +2,7 @@ use bolt_ts_atom::AtomId;
 
 use super::create_ty::IntersectionFlags;
 use super::infer::{InferenceFlags, InferencePriority};
+use super::instantiation_ty_map::hash_ty_args;
 use super::ty::{self, Ty, TyKind};
 use super::{errors, IndexedAccessTyMap, ResolutionKey};
 use super::{CheckMode, F64Represent, InferenceContextId, PropName, TyChecker};
@@ -362,8 +363,14 @@ impl<'cx> TyChecker<'cx> {
             return ty;
         }
         let ty = match node.op {
-            ast::TyOpKind::Keyof => self.undefined_ty,
-            ast::TyOpKind::Unique => self.undefined_ty,
+            ast::TyOpKind::Keyof => {
+                let t = self.get_ty_from_type_node(node.ty);
+                self.get_index_ty(t, ty::IndexFlags::empty())
+            }
+            ast::TyOpKind::Unique => {
+                // TODO: symbol kind;
+                self.error_ty
+            }
             ast::TyOpKind::Readonly => self.get_ty_from_type_node(node.ty),
         };
         self.get_mut_node_links(node.id).set_resolved_ty(ty);
@@ -606,6 +613,9 @@ impl<'cx> TyChecker<'cx> {
         };
 
         if is_generic_index {
+            if object_ty.flags.intersects(TypeFlags::ANY_OR_UNKNOWN) {
+                return Some(object_ty);
+            }
             let persistent_access_flags = access_flags.intersection(AccessFlags::PERSISTENT);
             let id = IndexedAccessTyMap::create_id(persistent_access_flags, object_ty, index_ty);
             if let Some(ty) = self.indexed_access_tys.get(id) {
@@ -1393,8 +1403,118 @@ impl<'cx> TyChecker<'cx> {
         self.get_union_ty(&tys, ty::UnionReduction::Lit)
     }
 
-    fn should_defer_index_ty(&self, ty: &'cx ty::Ty<'cx>, index_flags: IndexFlags) -> bool {
-        ty.kind.is_instantiable_non_primitive() || ty.kind.is_generic_tuple_type()
+    fn has_distributive_name_ty(&mut self, ty: &'cx ty::Ty<'cx>) -> bool {
+        let map = ty.kind.expect_object_mapped();
+        let ty_var = map.ty_param;
+        fn is_distributive<'cx>(ty: &'cx ty::Ty<'cx>, ty_var: &'cx ty::Ty<'cx>) -> bool {
+            if ty.flags.intersects(
+                TypeFlags::ANY_OR_UNKNOWN
+                    | TypeFlags::PRIMITIVE
+                    | TypeFlags::NEVER
+                    | TypeFlags::TYPE_PARAMETER
+                    | TypeFlags::OBJECT
+                    | TypeFlags::NON_PRIMITIVE,
+            ) {
+                true
+            } else if let Some(cond) = ty.kind.as_cond_ty() {
+                cond.root.is_distributive && cond.check_ty == ty_var
+            } else if let Some(tys) = ty.kind.tys_of_union_or_intersection() {
+                tys.iter().all(|t| is_distributive(t, ty_var))
+            } else if ty.flags.intersects(TypeFlags::TEMPLATE_LITERAL) {
+                todo!()
+            } else if let Some(i) = ty.kind.as_indexed_access() {
+                is_distributive(i.object_ty, ty_var) && is_distributive(i.index_ty, ty_var)
+            } else if let Some(s) = ty.kind.as_substitution_ty() {
+                is_distributive(s.base_ty, ty_var) && is_distributive(s.constraint, ty_var)
+            } else if ty.flags.intersects(TypeFlags::STRING_MAPPING) {
+                todo!()
+            } else {
+                false
+            }
+        }
+        let ty = self.get_name_ty_from_mapped_ty(ty).unwrap_or(ty_var);
+        is_distributive(ty, ty_var)
+    }
+
+    fn should_defer_index_ty(&mut self, ty: &'cx ty::Ty<'cx>, index_flags: IndexFlags) -> bool {
+        ty.kind.is_instantiable_non_primitive()
+            || ty.kind.is_generic_tuple_type()
+            || (self.is_generic_mapped_ty(ty)
+                && (!self.has_distributive_name_ty(ty)
+                    || self.get_mapped_ty_name_ty_kind(ty) == ty::MappedTyNameTyKind::Remapping))
+            || ((index_flags.intersects(IndexFlags::NO_REDUCIBLE_CHECK)) && ty.kind.is_union()/* TODO: && is_generic_reducible_ty(ty) */)
+            || ty.maybe_type_of_kind(TypeFlags::INSTANTIABLE)
+                && ty
+                    .kind
+                    .as_intersection()
+                    .is_some_and(|i| i.tys.iter().any(|t| self.is_empty_anonymous_object_ty(t)))
+    }
+
+    pub(super) fn get_index_ty_for_mapped_ty(
+        &mut self,
+        ty: &'cx ty::Ty<'cx>,
+        index_flags: IndexFlags,
+    ) -> &'cx ty::Ty<'cx> {
+        let map = ty.kind.expect_object_mapped();
+        let name_ty = self.get_name_ty_from_mapped_ty(map.target.unwrap_or(ty));
+        if name_ty.is_none() && !index_flags.intersects(IndexFlags::NO_INDEX_SIGNATURES) {
+            return map.constraint_ty;
+        }
+        let mut key_tys = vec![];
+        let mut add_member_for_key_ty = |this: &mut Self, key_ty: &'cx ty::Ty<'cx>| {
+            let prop_name_ty = match name_ty {
+                Some(name_ty) => {
+                    let mapper = this.append_ty_mapping(map.mapper, map.ty_param, key_ty);
+                    this.instantiate_ty(name_ty, Some(mapper))
+                }
+                None => key_ty,
+            };
+            if prop_name_ty == this.string_ty {
+                key_tys.push(this.string_or_number_ty());
+            } else {
+                key_tys.push(prop_name_ty);
+            }
+        };
+        if self.is_generic_index_ty(map.constraint_ty) {
+            if self.is_mapped_ty_with_keyof_constraint_decl(map) {
+                return self.get_index_ty_for_generic_ty(ty, index_flags);
+            }
+            self.for_each_ty(map.constraint_ty, |this, key_ty| {
+                add_member_for_key_ty(this, key_ty)
+            });
+        } else if self.is_mapped_ty_with_keyof_constraint_decl(map) {
+            let modifiers_ty = {
+                let t = self.get_modifier_ty_from_mapped_ty(ty);
+                self.get_apparent_ty(t)
+            };
+            self.for_each_mapped_ty_prop_key_ty_and_index_sig_key_ty(
+                modifiers_ty,
+                TypeFlags::STRING_OR_NUMBER_LITERAL_OR_UNIQUE,
+                index_flags.intersects(IndexFlags::STRINGS_ONLY),
+                |this, key_ty| add_member_for_key_ty(this, key_ty),
+            );
+        } else {
+            let t = self.get_lower_bound_of_key_ty(map.constraint_ty);
+            self.for_each_ty(t, |this, key_ty| add_member_for_key_ty(this, key_ty));
+        };
+
+        let result = if index_flags.intersects(IndexFlags::NO_INDEX_SIGNATURES) {
+            let t = self.get_union_ty(&key_tys, ty::UnionReduction::Lit);
+            self.filter_type(t, |_, t| {
+                !t.flags.intersects(TypeFlags::ANY | TypeFlags::STRING)
+            })
+        } else {
+            self.get_union_ty(&key_tys, ty::UnionReduction::Lit)
+        };
+
+        if let Some(result) = result.kind.as_union() {
+            if let Some(c) = map.constraint_ty.kind.as_union() {
+                if hash_ty_args(result.tys) == hash_ty_args(c.tys) {
+                    return map.constraint_ty;
+                }
+            }
+        }
+        result
     }
 
     fn get_index_ty_for_generic_ty(
@@ -1436,6 +1556,10 @@ impl<'cx> TyChecker<'cx> {
         let ty = self.get_reduced_ty(ty);
         if self.should_defer_index_ty(ty, index_flags) {
             self.get_index_ty_for_generic_ty(ty, index_flags)
+        } else if ty.kind.is_object_mapped() {
+            self.get_index_ty_for_mapped_ty(ty, index_flags)
+        } else if ty == self.wildcard_ty {
+            self.wildcard_ty
         } else {
             let include = if index_flags.intersects(IndexFlags::NO_INDEX_SIGNATURES) {
                 TypeFlags::STRING_LITERAL

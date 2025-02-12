@@ -254,15 +254,17 @@ impl<'cx> TyChecker<'cx> {
             let ty_param = self.inference_info(inference, idx).ty_param;
             self.get_constraint_of_ty_param(ty_param)
                 .is_some_and(|constraint| {
-                    let flags = if constraint.flags.intersects(TypeFlags::CONDITIONAL) {
-                        todo!()
+                    let t = if constraint.flags.intersects(TypeFlags::CONDITIONAL) {
+                        self.get_default_constraint_of_cond_ty(constraint)
                     } else {
+                        constraint
+                    };
+                    t.maybe_type_of_kind(
                         TypeFlags::PRIMITIVE
                             | TypeFlags::INDEX
                             | TypeFlags::TEMPLATE_LITERAL
-                            | TypeFlags::STRING_MAPPING
-                    };
-                    constraint.maybe_type_of_kind(flags)
+                            | TypeFlags::STRING_MAPPING,
+                    )
                 })
         };
 

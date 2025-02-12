@@ -140,8 +140,11 @@ impl<'cx> ParserState<'cx, '_> {
                 | Void
                 | True
                 | False
+                | Readonly
         ) {
             true
+        } else if self.token.kind == TokenKind::Function {
+            !is_start_of_param
         } else if self.token.kind == TokenKind::LParen && !is_start_of_param {
             self.lookahead(|this| {
                 this.next_token();

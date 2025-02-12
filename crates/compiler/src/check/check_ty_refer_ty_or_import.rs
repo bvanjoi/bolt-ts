@@ -185,7 +185,7 @@ impl<'cx> TyChecker<'cx> {
         &mut self,
         ty: &'cx ty::Ty<'cx>,
     ) -> &'cx ty::Ty<'cx> {
-        if let Some(ty) = self.get_ty_links(ty.id).get_resolved_base_ctor_ty() {
+        if let Some(ty) = self.get_ty_links(ty.id).get_resolved_base_constraint() {
             return ty;
         }
 
@@ -301,7 +301,10 @@ impl<'cx> TyChecker<'cx> {
         }
 
         let mut stack = vec![];
-        get_immediate_base_constraint(self, ty, &mut stack)
+        let res = get_immediate_base_constraint(self, ty, &mut stack);
+        self.get_mut_ty_links(ty.id)
+            .set_resolved_base_constraint(res);
+        res
     }
 
     pub(super) fn has_non_circular_constraint(&mut self, ty_param: &'cx ty::Ty<'cx>) -> bool {

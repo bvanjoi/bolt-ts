@@ -84,7 +84,7 @@ impl<'cx> Ty<'cx> {
     ) -> ObjectFlags {
         tys.iter().fold(ObjectFlags::empty(), |flags, ty| {
             flags | ty.get_object_flags()
-        })
+        }) & ObjectFlags::PROPAGATING_FLAGS
     }
 
     pub fn is_no_infer_ty(&self) -> bool {

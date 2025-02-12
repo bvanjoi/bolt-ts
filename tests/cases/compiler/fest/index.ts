@@ -1,10 +1,5 @@
 // From `github.com/sindresorhus/type-fest`, MIT License
 
-// type ArrayIndices<Element extends readonly unknown[]> =
-// 	Exclude<Partial<Element>['length'], Element['length']>;
-
-// const a0: ArrayIndices<['a', 'b', 'c']> = 4;
-
 function n(): never {
   throw new Error();
 }

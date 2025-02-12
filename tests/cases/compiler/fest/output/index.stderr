@@ -1,104 +1,104 @@
   × Type 'string' is not assignable to type '"a" | "b" | "c"'.
-    ╭─[../../tests/cases/compiler/fest/index.ts:72:9]
- 72 │ a4
+    ╭─[../../tests/cases/compiler/fest/index.ts:67:9]
+ 67 │ a4
     · ──
     ╰────
 
   × Type 'number' is not assignable to type '"a" | "b" | "c"'.
-    ╭─[../../tests/cases/compiler/fest/index.ts:74:9]
- 74 │ a5
+    ╭─[../../tests/cases/compiler/fest/index.ts:69:9]
+ 69 │ a5
     · ──
     ╰────
 
   × Type '{ }' is not assignable to type '2 | "1" | { c: true; }'.
-    ╭─[../../tests/cases/compiler/fest/index.ts:86:9]
- 86 │ b4
+    ╭─[../../tests/cases/compiler/fest/index.ts:81:9]
+ 81 │ b4
     · ──
     ╰────
 
   × Type 'number' is not assignable to type '2 | "1" | { c: true; }'.
-    ╭─[../../tests/cases/compiler/fest/index.ts:88:9]
- 88 │ b5
+    ╭─[../../tests/cases/compiler/fest/index.ts:83:9]
+ 83 │ b5
     · ──
     ╰────
 
   × Type 'string' is not assignable to type '2 | "1" | { c: true; }'.
-    ╭─[../../tests/cases/compiler/fest/index.ts:90:9]
- 90 │ b6
+    ╭─[../../tests/cases/compiler/fest/index.ts:85:9]
+ 85 │ b6
     · ──
     ╰────
 
   × Type 'number' is not assignable to type 'string'.
-    ╭─[../../tests/cases/compiler/fest/index.ts:97:9]
- 97 │ c2
+    ╭─[../../tests/cases/compiler/fest/index.ts:92:9]
+ 92 │ c2
     · ──
     ╰────
 
   × Generic type 'IfNever' requires between 1 and 3 type arguments.
-     ╭─[../../tests/cases/compiler/fest/index.ts:139:12]
- 139 │ IfNever
+     ╭─[../../tests/cases/compiler/fest/index.ts:134:12]
+ 134 │ IfNever
      · ───────
      ╰────
 
   × Generic type 'IsEqual' requires 2 type arguments.
-     ╭─[../../tests/cases/compiler/fest/index.ts:174:12]
- 174 │ IsEqual
+     ╭─[../../tests/cases/compiler/fest/index.ts:169:12]
+ 169 │ IsEqual
      · ───────
      ╰────
 
   × Generic type 'IsEqual' requires 2 type arguments.
-     ╭─[../../tests/cases/compiler/fest/index.ts:177:12]
- 177 │ IsEqual<number>
+     ╭─[../../tests/cases/compiler/fest/index.ts:172:12]
+ 172 │ IsEqual<number>
      · ───────────────
      ╰────
 
   × Generic type 'IsNever' requires 1 type argument.
-     ╭─[../../tests/cases/compiler/fest/index.ts:215:13]
- 215 │ IsNever
+     ╭─[../../tests/cases/compiler/fest/index.ts:210:13]
+ 210 │ IsNever
      · ───────
      ╰────
 
   × Generic type 'IsNever' requires 1 type argument.
-     ╭─[../../tests/cases/compiler/fest/index.ts:217:13]
- 217 │ IsNever<number, boolean>
+     ╭─[../../tests/cases/compiler/fest/index.ts:212:13]
+ 212 │ IsNever<number, boolean>
      · ────────────────────────
      ╰────
 
   × Generic type 'IsUnknown' requires 1 type argument.
-     ╭─[../../tests/cases/compiler/fest/index.ts:257:12]
- 257 │ IsUnknown
+     ╭─[../../tests/cases/compiler/fest/index.ts:252:12]
+ 252 │ IsUnknown
      · ─────────
      ╰────
 
   × Type '{ }' is missing the following properties from type 'unknown[]':
   │ length, join, and 16 more.
-     ╭─[../../tests/cases/compiler/fest/index.ts:295:11]
- 295 │ b2
+     ╭─[../../tests/cases/compiler/fest/index.ts:290:11]
+ 290 │ b2
      · ──
      ╰────
 
   × Type '{ 0: number; }' is missing the following properties from type
   │ 'unknown[]': length, join, and 16 more.
-     ╭─[../../tests/cases/compiler/fest/index.ts:297:11]
- 297 │ b3
+     ╭─[../../tests/cases/compiler/fest/index.ts:292:11]
+ 292 │ b3
      · ──
      ╰────
 
   × Type 'number' is not assignable to type 'unknown[]'.
-     ╭─[../../tests/cases/compiler/fest/index.ts:299:11]
- 299 │ b4
+     ╭─[../../tests/cases/compiler/fest/index.ts:294:11]
+ 294 │ b4
      · ──
      ╰────
 
   × Type 'DateConstructor' is missing the following properties from type
   │ 'unknown[]': join, reverse, and 15 more.
-     ╭─[../../tests/cases/compiler/fest/index.ts:301:11]
- 301 │ b5
+     ╭─[../../tests/cases/compiler/fest/index.ts:296:11]
+ 296 │ b5
      · ──
      ╰────
 
   × Type 'DateConstructor' is not assignable to type 'unknown[]'.
-     ╭─[../../tests/cases/compiler/fest/index.ts:301:11]
- 301 │ b5
+     ╭─[../../tests/cases/compiler/fest/index.ts:296:11]
+ 296 │ b5
      · ──
      ╰────

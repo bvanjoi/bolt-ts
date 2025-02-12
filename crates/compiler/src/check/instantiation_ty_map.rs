@@ -5,10 +5,17 @@ use rustc_hash::FxHashMap;
 
 use crate::ty;
 
-fn hash_ty_args(hasher: &mut rustc_hash::FxHasher, ty_args: &[&ty::Ty]) {
+fn _hash_ty_args(hasher: &mut rustc_hash::FxHasher, ty_args: &[&ty::Ty]) {
     ty_args
         .iter()
         .for_each(|ty| hasher.write_u32(ty.id.as_u32()));
+}
+
+pub(super) fn hash_ty_args(ty_args: &[&ty::Ty]) -> TyKey {
+    let mut hasher = rustc_hash::FxHasher::default();
+    _hash_ty_args(&mut hasher, ty_args);
+    let id = hasher.finish();
+    TyKey(id)
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -53,7 +60,7 @@ impl<'cx> UnionOrIntersectionMap<'cx> {
 
     pub fn create_id(ty_args: &[&'cx ty::Ty<'cx>]) -> TyKey {
         let mut hasher = rustc_hash::FxHasher::default();
-        hash_ty_args(&mut hasher, ty_args);
+        _hash_ty_args(&mut hasher, ty_args);
         let id = hasher.finish();
         TyKey(id)
     }
@@ -89,7 +96,7 @@ impl<'cx> InstantiationTyMap<'cx> {
     pub fn create_id(target_ty_id: ty::TyID, ty_args: &[&'cx ty::Ty<'cx>]) -> TyKey {
         let mut hasher = rustc_hash::FxHasher::default();
         hasher.write_u32(target_ty_id.as_u32());
-        hash_ty_args(&mut hasher, ty_args);
+        _hash_ty_args(&mut hasher, ty_args);
         let id = hasher.finish();
         TyKey(id)
     }

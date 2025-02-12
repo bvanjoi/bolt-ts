@@ -519,7 +519,7 @@ impl<'cx> TyChecker<'cx> {
         } else if let Some(t) = ty.kind.as_object_tuple() {
             t.ty
         } else {
-            unreachable!()
+            unreachable!("{:#?}", ty)
         };
 
         let ty_params = if let Some(i) = target.kind.as_object_interface() {
@@ -816,7 +816,10 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
-    fn get_mapped_ty_name_ty_kind(&mut self, ty: &'cx ty::Ty<'cx>) -> ty::MappedTyNameTyKind {
+    pub(super) fn get_mapped_ty_name_ty_kind(
+        &mut self,
+        ty: &'cx ty::Ty<'cx>,
+    ) -> ty::MappedTyNameTyKind {
         let mapped_ty = ty.kind.expect_object_mapped();
         let name_ty = self.get_name_ty_from_mapped_ty(ty);
         if let Some(name_ty) = name_ty {
@@ -856,7 +859,10 @@ impl<'cx> TyChecker<'cx> {
         self.get_effective_constraint_of_ty_param(ty.decl.ty_param)
     }
 
-    fn is_mapped_ty_with_keyof_constraint_decl(&self, ty: &'cx ty::MappedTy<'cx>) -> bool {
+    pub(super) fn is_mapped_ty_with_keyof_constraint_decl(
+        &self,
+        ty: &'cx ty::MappedTy<'cx>,
+    ) -> bool {
         let constraint_decl = self.get_constraint_decl_for_mapped_ty(ty).unwrap();
         if let ast::TyKind::TyOp(t) = constraint_decl.kind {
             t.op == ast::TyOpKind::Keyof
@@ -865,7 +871,10 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
-    fn get_modifier_ty_from_mapped_ty(&mut self, ty: &'cx ty::Ty<'cx>) -> &'cx ty::Ty<'cx> {
+    pub(super) fn get_modifier_ty_from_mapped_ty(
+        &mut self,
+        ty: &'cx ty::Ty<'cx>,
+    ) -> &'cx ty::Ty<'cx> {
         let mapped_ty = ty.kind.expect_object_mapped();
         if let Some(ty) = self.get_ty_links(ty.id).get_modifiers_ty() {
             return ty;

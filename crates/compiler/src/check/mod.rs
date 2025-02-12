@@ -1718,8 +1718,14 @@ impl<'cx> TyChecker<'cx> {
         let Some(indexed_access_ty) = ty.kind.as_indexed_access() else {
             return ty;
         };
-        let object_index_ty =
-            self.get_index_ty(indexed_access_ty.object_ty, ty::IndexFlags::empty());
+        let object_index_ty = if self.is_generic_mapped_ty(indexed_access_ty.object_ty)
+            && self.get_mapped_ty_name_ty_kind(indexed_access_ty.object_ty)
+                == ty::MappedTyNameTyKind::Remapping
+        {
+            self.get_index_ty_for_mapped_ty(indexed_access_ty.object_ty, ty::IndexFlags::empty())
+        } else {
+            self.get_index_ty(indexed_access_ty.object_ty, ty::IndexFlags::empty())
+        };
         let has_number_index_info = self
             .get_index_info_of_ty(indexed_access_ty.object_ty, self.number_ty)
             .is_some();

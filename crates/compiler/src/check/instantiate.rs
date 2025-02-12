@@ -59,7 +59,7 @@ impl<'cx> TyChecker<'cx> {
         if object_flags.intersects(ObjectFlags::COULD_CONTAIN_TYPE_VARIABLES_COMPUTED) {
             return object_flags.intersects(ObjectFlags::COULD_CONTAIN_TYPE_VARIABLES);
         }
-        if ty.kind.is_instantiable_non_primitive() {
+        if ty.kind.is_instantiable() {
             true
         } else if let Some(object) = ty.kind.as_object() {
             // TODO: !isNonGenericTopLevelType(type)
@@ -80,6 +80,7 @@ impl<'cx> TyChecker<'cx> {
         } else if let Some(i) = ty.kind.as_intersection() {
             i.tys.iter().any(|t| self.could_contain_ty_var(t))
         } else {
+            // TODO: object_flags cache
             false
         }
     }
@@ -107,6 +108,27 @@ impl<'cx> TyChecker<'cx> {
         use ty::TyKind::*;
         match ty.kind {
             Param(_) => self.get_mapped_ty(mapper, ty),
+            Object(_) => self.get_object_ty_instantiation(ty, mapper),
+            Union(u) => self.instantiate_union_or_intersection(
+                ty,
+                u.tys,
+                true,
+                mapper,
+                alias_symbol,
+                alias_ty_args,
+            ),
+            Intersection(i) => self.instantiate_union_or_intersection(
+                ty,
+                i.tys,
+                false,
+                mapper,
+                alias_symbol,
+                alias_ty_args,
+            ),
+            Index(index) => {
+                let t = self.instantiate_ty(index.ty, Some(mapper));
+                self.get_index_ty(t, ty::IndexFlags::empty())
+            }
             IndexedAccess(indexed) => {
                 let object_ty = self.instantiate_ty_with_alias(
                     indexed.object_ty,
@@ -126,23 +148,7 @@ impl<'cx> TyChecker<'cx> {
                 let mapper = self.combine_ty_mappers(cond.mapper, mapper);
                 self.get_cond_ty_instantiation(ty, mapper, alias_symbol, alias_ty_args)
             }
-            Object(_) => self.get_object_ty_instantiation(ty, mapper),
-            Union(u) => self.instantiate_union_or_intersection(
-                ty,
-                u.tys,
-                true,
-                mapper,
-                alias_symbol,
-                alias_ty_args,
-            ),
-            Intersection(i) => self.instantiate_union_or_intersection(
-                ty,
-                i.tys,
-                false,
-                mapper,
-                alias_symbol,
-                alias_ty_args,
-            ),
+
             Substitution(sub) => {
                 let new_base_ty = self.instantiate_ty(sub.base_ty, Some(mapper));
                 if ty.is_no_infer_ty() {
@@ -291,6 +297,7 @@ impl<'cx> TyChecker<'cx> {
             ty_var: &'cx ty::Ty<'cx>,
             mapped_ty_var: &'cx ty::Ty<'cx>,
             mapper: &'cx dyn ty::TyMap<'cx>,
+            object_flags: ObjectFlags,
         ) -> &'cx ty::Ty<'cx> {
             let mapped_ty = ty.kind.expect_object_mapped();
             if mapped_ty_var.flags.intersects(
@@ -319,9 +326,17 @@ impl<'cx> TyChecker<'cx> {
                             }
                         }
                     }
+
+                    if mapped_ty_var.is_tuple() {
+                        // TODO:
+                    }
+                    // TODO: is_array_or_tuple_intersection()
                 }
+                let mapper = c.prepend_ty_mapping(ty_var, mapped_ty_var, Some(mapper));
+                c.instantiate_anonymous_for_mapped_ty(ty, mapper, object_flags)
+            } else {
+                mapped_ty_var
             }
-            mapped_ty_var
         }
 
         let map = ty.kind.expect_object_mapped();
@@ -329,22 +344,23 @@ impl<'cx> TyChecker<'cx> {
             let mapped_ty_var = self.instantiate_ty(ty_var, Some(mapper));
             if ty_var != mapped_ty_var {
                 let mapped_ty_var = self.get_reduced_ty(mapped_ty_var);
-
-                self.map_ty_with_alias(
-                    mapped_ty_var,
-                    |this, mapped_ty_var| {
-                        Some(instantiate_constituent(
-                            this,
-                            ty,
-                            ty_var,
-                            mapped_ty_var,
-                            mapper,
-                        ))
-                    },
-                    None,
-                    None,
-                );
-                return ty;
+                return self
+                    .map_ty_with_alias(
+                        mapped_ty_var,
+                        |this, mapped_ty_var| {
+                            Some(instantiate_constituent(
+                                this,
+                                ty,
+                                ty_var,
+                                mapped_ty_var,
+                                mapper,
+                                object_flags,
+                            ))
+                        },
+                        None,
+                        None,
+                    )
+                    .unwrap();
             }
         }
 
@@ -382,13 +398,18 @@ impl<'cx> TyChecker<'cx> {
             object_flags
         };
 
+        // FIXME: maybe use lazy?
+        let constraint_ty = self
+            .get_constraint_of_ty_param(fresh_ty_param)
+            .unwrap_or(self.error_ty);
+
         let ty = self.alloc(ty::MappedTy {
             symbol: map.symbol,
             decl: map.decl,
             alias_symbol: map.alias_symbol,
             alias_ty_arguments,
             ty_param: fresh_ty_param,
-            constraint_ty: map.constraint_ty,
+            constraint_ty,
             target: Some(ty),
             mapper: Some(mapper),
         });
