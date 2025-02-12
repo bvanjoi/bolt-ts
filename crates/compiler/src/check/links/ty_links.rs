@@ -29,6 +29,7 @@ links!(
     (key_ty, &'cx ty::Ty<'cx>),
     (template_ty, &'cx ty::Ty<'cx>),
     (modifiers_ty, &'cx ty::Ty<'cx>),
+    (contain_error, bool),
     //
     (permissive_instantiation, &'cx ty::Ty<'cx>),
     (restrictive_instantiation, &'cx ty::Ty<'cx>)

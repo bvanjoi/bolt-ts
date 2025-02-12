@@ -64,7 +64,7 @@ impl TyChecker<'_> {
         }
     }
 
-    fn find_resolution_cycle_start_index(&self, key: ResolutionKey) -> Option<usize> {
+    pub(super) fn find_resolution_cycle_start_index(&self, key: ResolutionKey) -> Option<usize> {
         if self.resolution_tys.is_empty() {
             return None;
         }

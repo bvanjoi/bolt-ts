@@ -1,4 +1,4 @@
-use crate::ty;
+use crate::{bind::SymbolID, ty};
 
 use super::TyChecker;
 
@@ -144,6 +144,27 @@ impl<'cx> TyChecker<'cx> {
         } else {
             mapper(self, ty)
         }
+    }
+
+    pub(super) fn map_ty_with_alias(
+        &mut self,
+        ty: &'cx ty::Ty<'cx>,
+        mapper: impl Fn(&mut Self, &'cx ty::Ty<'cx>) -> Option<&'cx ty::Ty<'cx>> + Copy,
+        alias_symbol: Option<SymbolID>,
+        alias_symbol_ty_args: Option<ty::Tys<'cx>>,
+    ) -> Option<&'cx ty::Ty<'cx>> {
+        if let Some(u) = ty.kind.as_union() {
+            if let Some(alias_symbol) = alias_symbol {
+                let tys: Vec<_> = u
+                    .tys
+                    .iter()
+                    .map(|ty| self.map_ty(ty, mapper, false).unwrap())
+                    .collect::<Vec<_>>();
+                return Some(self.get_union_ty(&tys, ty::UnionReduction::Lit));
+            }
+        }
+
+        self.map_ty(ty, mapper, false)
     }
 
     pub(super) fn for_each_ty(

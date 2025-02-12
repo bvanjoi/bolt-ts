@@ -405,6 +405,16 @@ impl MappedTy<'_> {
             MappedTyModifiers::empty()
         })
     }
+
+    pub fn get_modified_readonly_state(state: bool, modifiers: MappedTyModifiers) -> bool {
+        if modifiers.contains(MappedTyModifiers::INCLUDE_READONLY) {
+            true
+        } else if modifiers.contains(MappedTyModifiers::EXCLUDE_READONLY) {
+            false
+        } else {
+            state
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]

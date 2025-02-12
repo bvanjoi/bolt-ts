@@ -21,6 +21,7 @@ use crate::ast;
 use crate::bind::prop_name;
 use crate::bind::symbol::AliasSymbol;
 use crate::bind::FlowNode;
+use crate::bind::Symbol;
 use crate::parser::Parser;
 
 impl<'cx> BinderState<'cx> {
@@ -1041,6 +1042,12 @@ impl<'cx> BinderState<'cx> {
                 self.bind_entity_name(n.name);
             }
             Mapped(n) => {
+                let symbol = self.symbols.insert(Symbol::new(
+                    SymbolName::Type,
+                    SymbolFlags::TYPE_LITERAL,
+                    SymbolKind::TyMapped { decl: n.id },
+                ));
+                self.final_res.insert(n.id, symbol);
                 assert!(n.ty_param.default.is_none());
                 assert!(n.ty_param.constraint.is_some());
                 self.bind_ty_param(n.ty_param);

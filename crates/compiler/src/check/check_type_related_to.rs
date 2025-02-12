@@ -340,7 +340,7 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
                     let target_check_ty = if source_flags.intersects(ElementFlags::VARIADIC)
                         && target_flags.intersects(ElementFlags::REST)
                     {
-                        self.c.create_array_ty(target_ty)
+                        self.c.create_array_ty(target_ty, false)
                     } else {
                         target_ty
                     };
@@ -363,35 +363,45 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
             }
         }
 
-        if let Some((unmatched, target_symbol)) = self.c.get_unmatched_prop(source, target) {
-            let symbol = self.c.binder.symbol(target_symbol);
-            let target_span = if symbol.flags.intersects(SymbolFlags::CLASS) {
-                self.c
-                    .p
-                    .node(symbol.expect_class().decl)
-                    .as_class_decl()
-                    .unwrap()
-                    .name
-                    .span
-            } else if symbol.flags.intersects(SymbolFlags::INTERFACE) {
-                self.c
-                    .p
-                    .node(symbol.expect_interface().decls[0])
-                    .as_interface_decl()
-                    .unwrap()
-                    .name
-                    .span
-            } else if symbol.flags.intersects(SymbolFlags::OBJECT_LITERAL) {
-                self.c.p.node(symbol.expect_object().decl).span()
-            } else {
-                self.c.p.node(symbol.expect_ty_lit().decl).span()
-            };
-            if !unmatched.is_empty() && report_error {
+        let require_optional_properties = matches!(
+            self.relation,
+            RelationKind::Subtype | RelationKind::StrictSubtype
+        ) && !source.is_object_literal()
+            && !self.c.is_empty_array_lit_ty(source)
+            && !source.is_tuple();
+        if let Some((unmatched, target_symbol)) =
+            self.c
+                .get_unmatched_prop(source, target, require_optional_properties)
+        {
+            assert!(!unmatched.is_empty());
+            if report_error {
+                let symbol = self.c.binder.symbol(target_symbol);
+                let target_span = if symbol.flags.intersects(SymbolFlags::CLASS) {
+                    self.c
+                        .p
+                        .node(symbol.expect_class().decl)
+                        .as_class_decl()
+                        .unwrap()
+                        .name
+                        .span
+                } else if symbol.flags.intersects(SymbolFlags::INTERFACE) {
+                    self.c
+                        .p
+                        .node(symbol.expect_interface().decls[0])
+                        .as_interface_decl()
+                        .unwrap()
+                        .name
+                        .span
+                } else if symbol.flags.intersects(SymbolFlags::OBJECT_LITERAL) {
+                    self.c.p.node(symbol.expect_object().decl).span()
+                } else {
+                    self.c.p.node(symbol.expect_ty_lit().decl).span()
+                };
                 let Some(source_symbol) = source.symbol() else {
                     // TODO: unreachable!()
                     return Ternary::TRUE;
                 };
-                let mut unmatched = unmatched.into_iter().collect::<Vec<_>>();
+                let mut unmatched = unmatched;
                 unmatched.sort();
                 if unmatched.len() < 3 {
                     for name in unmatched {

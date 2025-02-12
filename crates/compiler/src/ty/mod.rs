@@ -93,16 +93,6 @@ impl<'cx> Ty<'cx> {
             .map(|sub| sub.constraint.flags.intersects(TypeFlags::UNKNOWN))
             .unwrap_or_default()
     }
-
-    pub fn is_valid_index_key_ty(&self) -> bool {
-        self.flags
-            .intersects(TypeFlags::STRING | TypeFlags::NUMBER | TypeFlags::ES_SYMBOL)
-            || self.kind.as_intersection().is_some_and(|i| {
-                !self.kind.get_generic_object_flags().is_empty()
-                    && i.tys.iter().any(|ty| ty.is_valid_index_key_ty())
-            })
-        // || isPatternLiteralType
-    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -210,6 +200,7 @@ impl<'cx> Ty<'cx> {
                 ObjectTyKind::Interface(ty) => Some(ty.symbol),
                 ObjectTyKind::Reference(ty) => ty.target.symbol(),
                 ObjectTyKind::Anonymous(ty) => Some(ty.symbol),
+                ObjectTyKind::Mapped(ty) => Some(ty.symbol),
                 _ => None,
             },
             TyKind::Param(ty) => Some(ty.symbol),
@@ -296,10 +287,6 @@ impl<'cx> TyKind<'cx> {
         self.is_instantiable_non_primitive() || self.is_instantiable_primitive()
     }
 
-    pub fn is_generic(&self) -> bool {
-        !self.get_generic_object_flags().is_empty()
-    }
-
     pub fn is_single_element_generic_tuple_type(&self) -> bool {
         self.is_generic_tuple_type() && {
             let r = self.expect_object_reference();
@@ -318,38 +305,6 @@ impl<'cx> TyKind<'cx> {
         self.as_param()
             .map(|param| param.is_this_ty)
             .unwrap_or_default()
-    }
-
-    pub fn is_generic_object(&self) -> bool {
-        self.get_generic_object_flags()
-            .intersects(ObjectFlags::IS_GENERIC_OBJECT_TYPE)
-    }
-
-    pub fn is_generic_index_ty(&self) -> bool {
-        self.get_generic_object_flags()
-            .intersects(ObjectFlags::IS_GENERIC_INDEX_TYPE)
-    }
-
-    fn get_generic_object_flags(&self) -> ObjectFlags {
-        if self.is_union_or_intersection() {
-            // TODO:
-            ObjectFlags::empty()
-        } else if let Some(ty) = self.as_substitution_ty() {
-            // TODO: cache?
-            (ty.base_ty.kind.get_generic_object_flags()
-                | ty.constraint.kind.get_generic_object_flags())
-                & ObjectFlags::IS_GENERIC_TYPE
-        } else {
-            (if self.is_instantiable_non_primitive() || self.is_generic_tuple_type() {
-                ObjectFlags::IS_GENERIC_OBJECT_TYPE
-            } else {
-                ObjectFlags::empty()
-            }) | (if self.is_instantiable() || self.is_index_ty() {
-                ObjectFlags::IS_GENERIC_INDEX_TYPE
-            } else {
-                ObjectFlags::empty()
-            })
-        }
     }
 
     pub fn is_array(&self, checker: &TyChecker<'cx>) -> bool {

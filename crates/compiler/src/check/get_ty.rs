@@ -5,7 +5,7 @@ use super::infer::{InferenceFlags, InferencePriority};
 use super::ty::{self, Ty, TyKind};
 use super::{errors, IndexedAccessTyMap, ResolutionKey};
 use super::{CheckMode, F64Represent, InferenceContextId, PropName, TyChecker};
-use crate::ast::{self, EntityNameKind};
+use crate::ast::{self, pprint_ident, EntityNameKind};
 
 use crate::bind::{SymbolFlags, SymbolID, SymbolName};
 use crate::keyword::is_prim_ty_name;
@@ -31,7 +31,7 @@ impl<'cx> TyChecker<'cx> {
         if check_flags.intersects(CheckFlags::INSTANTIATED) {
             return self.get_type_of_instantiated_symbol(id);
         } else if check_flags.intersects(CheckFlags::MAPPED) {
-            // return self.get_type_of_resolved_symbol(id);
+            return self.get_type_of_mapped_symbol(id);
         }
 
         let symbol = self.binder.symbol(id);
@@ -137,6 +137,49 @@ impl<'cx> TyChecker<'cx> {
         ty
     }
 
+    fn get_type_of_mapped_symbol(&mut self, symbol: SymbolID) -> &'cx Ty<'cx> {
+        let links = self.get_symbol_links(symbol);
+        if let Some(ty) = links.get_ty() {
+            return ty;
+        };
+        let ty = links.get_mapped_ty().unwrap();
+        let check_flags = links.expect_check_flags();
+        let key_ty = links.expect_key_ty();
+
+        if !self.push_ty_resolution(ResolutionKey::Type(symbol)) {
+            self.get_mut_ty_links(ty.id).set_contain_error(true);
+            return self.error_ty;
+        }
+
+        let mapped_ty = ty.kind.expect_object_mapped();
+        let template_ty = self.get_template_ty_from_mapped_ty(mapped_ty.target.unwrap_or(ty));
+        let mapper = {
+            let source = mapped_ty.ty_param;
+            self.append_ty_mapping(mapped_ty.mapper, source, key_ty)
+        };
+        let prop_ty = self.instantiate_ty(template_ty, Some(mapper));
+        let ty = if *self.config.strict_null_checks()
+            && self
+                .symbol(symbol)
+                .flags()
+                .intersects(SymbolFlags::OPTIONAL)
+            && !prop_ty.maybe_type_of_kind(TypeFlags::UNDEFINED | TypeFlags::VOID)
+        {
+            self.get_optional_ty(prop_ty, true)
+        } else if check_flags.intersects(CheckFlags::STRIP_OPTIONAL) {
+            // TODO: remove missing or undefined type
+            prop_ty
+        } else {
+            prop_ty
+        };
+        if self.pop_ty_resolution().has_cycle() {
+            // TODO: error report
+            return self.error_ty;
+        }
+        self.get_mut_symbol_links(symbol).set_ty(ty);
+        ty
+    }
+
     fn get_base_type_variable_of_class(&mut self, symbol: SymbolID) -> Option<&'cx Ty<'cx>> {
         let class_ty = self.get_declared_ty_of_symbol(symbol);
         let base_ctor_ty = self.get_base_constructor_type_of_class(class_ty);
@@ -212,7 +255,9 @@ impl<'cx> TyChecker<'cx> {
         let constraint_ty = self
             .get_constraint_of_ty_param(ty_param)
             .unwrap_or(self.error_ty);
+        let symbol = self.binder.final_res(node.id);
         let ty = self.create_mapper_ty(
+            symbol,
             node,
             alias_symbol,
             alias_ty_arguments,
@@ -233,7 +278,7 @@ impl<'cx> TyChecker<'cx> {
         ty
     }
 
-    fn get_actual_ty_variable(&self, ty: &'cx Ty<'cx>) -> &'cx Ty<'cx> {
+    pub(super) fn get_actual_ty_variable(&mut self, ty: &'cx Ty<'cx>) -> &'cx Ty<'cx> {
         if let Some(sub) = ty.kind.as_substitution_ty() {
             return self.get_actual_ty_variable(sub.base_ty);
         } else if let Some(indexed_access) = ty.kind.as_indexed_access() {
@@ -246,7 +291,9 @@ impl<'cx> TyChecker<'cx> {
                     .flags
                     .intersects(TypeFlags::SUBSTITUTION)
             {
-                // TODO:
+                let object_ty = self.get_actual_ty_variable(indexed_access.object_ty);
+                let index_ty = self.get_actual_ty_variable(indexed_access.index_ty);
+                return self.get_indexed_access_ty(object_ty, index_ty, None, None);
             }
         }
         ty
@@ -418,7 +465,7 @@ impl<'cx> TyChecker<'cx> {
 
     pub(super) fn get_symbol_name_from_prop_name(&self, prop_name: PropName) -> SymbolName {
         match prop_name {
-            PropName::String(atom_id) => SymbolName::Normal(atom_id),
+            PropName::String(atom_id) => SymbolName::Ele(atom_id),
             PropName::Num(num) => SymbolName::EleNum(num.into()),
         }
     }
@@ -550,16 +597,12 @@ impl<'cx> TyChecker<'cx> {
         }
         object_ty = self.get_reduced_ty(object_ty);
         let mut access_flags = access_flags.unwrap_or(AccessFlags::empty());
-        let is_generic_index = if index_ty.kind.is_generic_index_ty() {
+        let is_generic_index = if self.is_generic_index_ty(index_ty) {
             true
-        } else if let Some(access_node) = access_node {
-            if !self.p.node(access_node).is_indexed_access_ty() {
-                object_ty.kind.is_generic_tuple_type()
-            } else {
-                object_ty.kind.is_generic_object()
-            }
+        } else if access_node.is_some_and(|n| !self.p.node(n).is_indexed_access_ty()) {
+            object_ty.kind.is_generic_tuple_type()
         } else {
-            object_ty.kind.is_generic_object()
+            self.is_generic_object(object_ty)
         };
 
         if is_generic_index {
@@ -764,10 +807,10 @@ impl<'cx> TyChecker<'cx> {
     }
 
     fn is_deferred_ty(&mut self, ty: &'cx Ty<'cx>, check_tuples: bool) -> bool {
-        ty.kind.is_generic()
+        self.is_generic(ty)
             || (check_tuples
                 && ty.is_tuple()
-                && self.get_element_tys(ty).iter().any(|t| t.kind.is_generic()))
+                && self.get_element_tys(ty).iter().any(|t| self.is_generic(t)))
     }
 
     pub fn combine_ty_mappers(
@@ -936,7 +979,10 @@ impl<'cx> TyChecker<'cx> {
             if tailed > 100 {
                 panic!()
             }
-            let check_ty = self.instantiate_ty(self.get_actual_ty_variable(root.check_ty), mapper);
+            let check_ty = {
+                let ty = self.get_actual_ty_variable(root.check_ty);
+                self.instantiate_ty(ty, mapper)
+            };
             let extends_ty = self.instantiate_ty(root.extends_ty, mapper);
             if check_ty == self.error_ty || extends_ty == self.error_ty {
                 return self.error_ty;
@@ -1134,7 +1180,7 @@ impl<'cx> TyChecker<'cx> {
         }
         let element_ty = self.get_ty_from_type_node(node.ele);
         // TODO: defer type
-        let ty = self.create_array_ty(element_ty);
+        let ty = self.create_array_ty(element_ty, false);
         self.get_mut_node_links(node.id).set_resolved_ty(ty);
         ty
     }

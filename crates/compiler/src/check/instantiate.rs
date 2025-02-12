@@ -1,5 +1,6 @@
+use crate::ast::MappedTyModifiers;
 use crate::bind::SymbolID;
-use crate::ty::{ObjectFlags, TypeFlags};
+use crate::ty::{ObjectFlags, TyMapper, TypeFlags};
 use crate::{ast, ty};
 
 use super::create_ty::IntersectionFlags;
@@ -64,8 +65,15 @@ impl<'cx> TyChecker<'cx> {
             // TODO: !isNonGenericTopLevelType(type)
             if object.kind.is_reference() {
                 true
+            } else if object.kind.is_anonymous() {
+                true
             } else {
-                object.kind.is_anonymous()
+                object_flags.intersects(
+                    ObjectFlags::MAPPED
+                        | ObjectFlags::REVERSE_MAPPED
+                        | ObjectFlags::OBJECT_REST_TYPE
+                        | ObjectFlags::INSTANTIATION_EXPRESSION_TYPE,
+                )
             }
         } else if let Some(unions) = ty.kind.as_union() {
             unions.tys.iter().any(|t| self.could_contain_ty_var(t))
@@ -142,7 +150,7 @@ impl<'cx> TyChecker<'cx> {
                 }
                 let new_constraint = self.instantiate_ty(sub.constraint, Some(mapper));
                 if new_base_ty.flags.intersects(TypeFlags::TYPE_VARIABLE)
-                    && new_constraint.kind.is_generic()
+                    && self.is_generic(new_constraint)
                 {
                     self.get_substitution_ty(new_base_ty, new_constraint)
                 } else if new_constraint.flags.intersects(TypeFlags::ANY_OR_UNKNOWN) || {
@@ -205,6 +213,191 @@ impl<'cx> TyChecker<'cx> {
         self.create_instantiating_anonymous_ty(target.symbol, ty, mapper, object_flags)
     }
 
+    fn get_homomorphic_ty_var(&mut self, ty: &'cx ty::Ty<'cx>) -> Option<&'cx ty::Ty<'cx>> {
+        let mapped_ty = ty.kind.expect_object_mapped();
+        mapped_ty
+            .constraint_ty
+            .kind
+            .as_index_ty()
+            .and_then(|index_ty| {
+                let ty_var = self.get_actual_ty_variable(index_ty.ty);
+                if ty_var.flags.intersects(TypeFlags::TYPE_PARAMETER) {
+                    Some(ty_var)
+                } else {
+                    None
+                }
+            })
+    }
+
+    fn instantiate_mapped_array_ty(
+        &mut self,
+        array_ty: &'cx ty::Ty<'cx>,
+        mapped_ty: &'cx ty::Ty<'cx>,
+        mapper: &'cx dyn ty::TyMap<'cx>,
+    ) -> &'cx ty::Ty<'cx> {
+        let m = mapped_ty.kind.expect_object_mapped();
+        let element_ty =
+            self.instantiate_mapped_ty_template(mapped_ty, self.number_ty, true, mapper);
+        if self.is_error(element_ty) {
+            self.error_ty
+        } else {
+            let is_readonly = array_ty.kind.is_readonly_array(self);
+            let modifiers = m.decl.get_modifiers();
+            let readonly = ast::MappedTy::get_modified_readonly_state(is_readonly, modifiers);
+            self.create_array_ty(element_ty, readonly)
+        }
+    }
+
+    fn instantiate_mapped_ty_template(
+        &mut self,
+        ty: &'cx ty::Ty<'cx>,
+        key: &'cx ty::Ty<'cx>,
+        is_optional: bool,
+        mapper: &'cx dyn ty::TyMap<'cx>,
+    ) -> &'cx ty::Ty<'cx> {
+        let m = ty.kind.expect_object_mapped();
+        let template_mapper = self.append_ty_mapping(Some(mapper), m.ty_param, key);
+        let prop_ty = {
+            let template_ty = self.get_template_ty_from_mapped_ty(m.target.unwrap_or(ty));
+            self.instantiate_ty(template_ty, Some(template_mapper))
+        };
+        let modifiers = m.decl.get_modifiers();
+        let strict_null_checks = *self.config.strict_null_checks();
+        if strict_null_checks
+            && modifiers.intersects(MappedTyModifiers::INCLUDE_OPTIONAL)
+            && !prop_ty.maybe_type_of_kind(TypeFlags::UNDEFINED | TypeFlags::VOID)
+        {
+            self.get_optional_ty(prop_ty, true)
+        } else if strict_null_checks
+            && modifiers.intersects(MappedTyModifiers::EXCLUDE_OPTIONAL)
+            && is_optional
+        {
+            // TODO: self.get_ty_with_facts
+            prop_ty
+        } else {
+            prop_ty
+        }
+    }
+
+    fn instantiate_mapped_ty(
+        &mut self,
+        ty: &'cx ty::Ty<'cx>,
+        mapper: &'cx dyn ty::TyMap<'cx>,
+        object_flags: ObjectFlags,
+    ) -> &'cx ty::Ty<'cx> {
+        fn instantiate_constituent<'cx>(
+            c: &mut TyChecker<'cx>,
+            ty: &'cx ty::Ty<'cx>,
+            ty_var: &'cx ty::Ty<'cx>,
+            mapped_ty_var: &'cx ty::Ty<'cx>,
+            mapper: &'cx dyn ty::TyMap<'cx>,
+        ) -> &'cx ty::Ty<'cx> {
+            let mapped_ty = ty.kind.expect_object_mapped();
+            if mapped_ty_var.flags.intersects(
+                TypeFlags::ANY_OR_UNKNOWN
+                    | TypeFlags::INSTANTIABLE_NON_PRIMITIVE
+                    | TypeFlags::OBJECT
+                    | TypeFlags::INTERSECTION,
+            ) && mapped_ty_var != c.wildcard_ty
+                && mapped_ty_var != c.error_ty
+            {
+                if mapped_ty.decl.name_ty.is_none() {
+                    let constraint;
+                    if mapped_ty_var.kind.is_array(c)
+                        || mapped_ty_var.flags.intersects(TypeFlags::ANY)
+                            && c.find_resolution_cycle_start_index(
+                                super::ResolutionKey::ImmediateBaseConstraint(ty_var.id),
+                            )
+                            .is_none()
+                    {
+                        constraint = c.get_constraint_of_ty_param(ty_var);
+                        if let Some(constraint) = constraint {
+                            if c.every_type(constraint, |this, ty| this.is_array_or_tuple(ty)) {
+                                let mapper =
+                                    c.prepend_ty_mapping(ty_var, mapped_ty_var, Some(mapper));
+                                return c.instantiate_mapped_array_ty(mapped_ty_var, ty, mapper);
+                            }
+                        }
+                    }
+                }
+            }
+            mapped_ty_var
+        }
+
+        let map = ty.kind.expect_object_mapped();
+        if let Some(ty_var) = self.get_homomorphic_ty_var(ty) {
+            let mapped_ty_var = self.instantiate_ty(ty_var, Some(mapper));
+            if ty_var != mapped_ty_var {
+                let mapped_ty_var = self.get_reduced_ty(mapped_ty_var);
+
+                self.map_ty_with_alias(
+                    mapped_ty_var,
+                    |this, mapped_ty_var| {
+                        Some(instantiate_constituent(
+                            this,
+                            ty,
+                            ty_var,
+                            mapped_ty_var,
+                            mapper,
+                        ))
+                    },
+                    None,
+                    None,
+                );
+                return ty;
+            }
+        }
+
+        if self.instantiate_ty(map.constraint_ty, Some(mapper)) == self.wildcard_ty {
+            self.wildcard_ty
+        } else {
+            self.instantiate_anonymous_for_mapped_ty(ty, mapper, object_flags)
+        }
+    }
+
+    fn instantiate_anonymous_for_mapped_ty(
+        &mut self,
+        ty: &'cx ty::Ty<'cx>,
+        mapper: &'cx dyn ty::TyMap<'cx>,
+        object_flags: ObjectFlags,
+    ) -> &'cx ty::Ty<'cx> {
+        let map = ty.kind.expect_object_mapped();
+        let orig_ty_param = map.ty_param;
+        let fresh_ty_param = self.clone_param_ty(orig_ty_param);
+        let mapper = {
+            let m = self.alloc(TyMapper::make_unary(orig_ty_param, fresh_ty_param));
+            self.combine_ty_mappers(Some(m), mapper)
+        };
+        let prev = self.ty_links.insert(
+            fresh_ty_param.id,
+            super::TyLinks::default().with_param_ty_mapper(mapper),
+        );
+        assert!(prev.is_none());
+        let alias_ty_arguments = map
+            .alias_ty_arguments
+            .map(|alias_ty_args| self.instantiate_tys(alias_ty_args, mapper));
+        let object_flags = if let Some(args) = alias_ty_arguments {
+            object_flags | ty::Ty::get_propagating_flags_of_tys(args, None)
+        } else {
+            object_flags
+        };
+
+        let ty = self.alloc(ty::MappedTy {
+            symbol: map.symbol,
+            decl: map.decl,
+            alias_symbol: map.alias_symbol,
+            alias_ty_arguments,
+            ty_param: fresh_ty_param,
+            constraint_ty: map.constraint_ty,
+            target: Some(ty),
+            mapper: Some(mapper),
+        });
+        self.create_object_ty(
+            ty::ObjectTyKind::Mapped(ty),
+            object_flags | ObjectFlags::MAPPED,
+        )
+    }
+
     fn get_object_ty_instantiation(
         &mut self,
         ty: &'cx ty::Ty<'cx>,
@@ -247,6 +440,8 @@ impl<'cx> TyChecker<'cx> {
                 r.target
             } else if let Some(a) = ty.kind.as_object_anonymous() {
                 a.target.unwrap()
+            } else if let Some(mapped) = ty.kind.as_object_mapped() {
+                mapped.target.unwrap()
             } else {
                 unreachable!()
             }
@@ -258,6 +453,8 @@ impl<'cx> TyChecker<'cx> {
             refer.mapper
         } else if let Some(a) = ty.kind.as_object_anonymous() {
             a.mapper
+        } else if let Some(t) = ty.kind.as_object_mapped() {
+            t.mapper
         } else {
             None
         };
@@ -321,6 +518,8 @@ impl<'cx> TyChecker<'cx> {
             let ty = if target.kind.is_object_reference() {
                 let ty = ty.kind.expect_object_reference();
                 self.create_deferred_ty_reference(ty.target, ty.node.unwrap(), Some(new_mapper))
+            } else if target.kind.is_object_mapped() {
+                self.instantiate_mapped_ty(target, new_mapper, object_flags)
             } else {
                 self.instantiate_anonymous_ty(target, new_mapper, object_flags)
             };
@@ -353,21 +552,29 @@ impl<'cx> TyChecker<'cx> {
         let ty_args = self.alloc(ty_args);
         let new_mapper = self.create_ty_mapper(outer_ty_params, ty_args);
         let check_ty = cond_ty.root.check_ty;
-        let distribution_ty = cond_ty
-            .root
-            .is_distributive
-            .then(|| self.get_mapped_ty(new_mapper, check_ty));
-        if let Some(distribution_ty) = distribution_ty {
-            if check_ty != distribution_ty
+        let distribution_ty = cond_ty.root.is_distributive.then(|| {
+            let ty = self.get_mapped_ty(new_mapper, check_ty);
+            self.get_reduced_ty(ty)
+        });
+        let ty = if let Some(distribution_ty) = distribution_ty.filter(|distribution_ty| {
+            !check_ty.eq(distribution_ty)
                 && distribution_ty
                     .flags
                     .intersects(TypeFlags::UNION | TypeFlags::NEVER)
-            {
-                // TODO;
-                // ty = Some()
-            }
-        }
-        let ty = self.get_cond_ty(cond_ty.root, Some(new_mapper), alias_symbol, alias_ty_args);
+        }) {
+            self.map_ty_with_alias(
+                distribution_ty,
+                |this, t| {
+                    let mapper = this.prepend_ty_mapping(check_ty, t, Some(new_mapper));
+                    Some(this.get_cond_ty(cond_ty.root, Some(mapper), alias_symbol, alias_ty_args))
+                },
+                alias_symbol,
+                alias_ty_args,
+            )
+            .unwrap()
+        } else {
+            self.get_cond_ty(cond_ty.root, Some(new_mapper), alias_symbol, alias_ty_args)
+        };
         self.instantiation_ty_map.insert(key, ty);
         ty
     }

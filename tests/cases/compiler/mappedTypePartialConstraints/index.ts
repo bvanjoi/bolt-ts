@@ -5,7 +5,7 @@ interface MyInterface {
 }
 
 class MyClass<T extends MyInterface> {
-  doIt(data : Partial<T>) {}
+doIt(data : Partial<T>) {}
 }
 
 class MySubClass extends MyClass<MyInterface> {}

@@ -185,7 +185,8 @@ impl<'cx> TyChecker<'cx> {
                 func_ty = Some(self.check_non_null_expr(expr));
             };
             let sigs = if let Some(func_ty) = func_ty {
-                self.get_signatures_of_type(func_ty, SigKind::Call)
+                let apparent_ty = self.get_apparent_ty(func_ty);
+                self.get_signatures_of_type(apparent_ty, SigKind::Call)
             } else {
                 self.get_signatures_of_type(self.unknown_ty, SigKind::Call)
             };
@@ -197,7 +198,9 @@ impl<'cx> TyChecker<'cx> {
             } else {
                 None
             };
-            let sig = candidate.unwrap_or_else(|| self.unknown_sig());
+            let sig = candidate
+                .filter(|sig| self.has_ty_pred_or_never_ret_ty(sig))
+                .unwrap_or(self.unknown_sig());
             self.get_mut_node_links(node).set_effects_sig(sig);
             sig
         };

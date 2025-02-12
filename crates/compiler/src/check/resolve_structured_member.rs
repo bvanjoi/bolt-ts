@@ -358,7 +358,7 @@ impl<'cx> TyChecker<'cx> {
             &element_tys
         };
         let ty = self.get_union_ty(tys, ty::UnionReduction::Lit);
-        self.create_array_ty(ty)
+        self.create_array_ty(ty, false)
     }
 
     fn get_base_tys(&mut self, ty: &'cx ty::Ty<'cx>) -> ty::Tys<'cx> {
@@ -798,7 +798,10 @@ impl<'cx> TyChecker<'cx> {
         self.get_mut_ty_links(ty.id).set_structured_members(m);
     }
 
-    fn get_name_ty_from_mapped_ty(&mut self, ty: &'cx ty::Ty<'cx>) -> Option<&'cx ty::Ty<'cx>> {
+    pub(super) fn get_name_ty_from_mapped_ty(
+        &mut self,
+        ty: &'cx ty::Ty<'cx>,
+    ) -> Option<&'cx ty::Ty<'cx>> {
         let mapped_ty = ty.kind.expect_object_mapped();
         if let Some(name_ty) = mapped_ty.decl.name_ty {
             if let Some(ty) = self.get_ty_links(ty.id).get_named_ty() {
@@ -827,7 +830,10 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
-    fn get_template_ty_from_mapped_ty(&mut self, ty: &'cx ty::Ty<'cx>) -> &'cx ty::Ty<'cx> {
+    pub(super) fn get_template_ty_from_mapped_ty(
+        &mut self,
+        ty: &'cx ty::Ty<'cx>,
+    ) -> &'cx ty::Ty<'cx> {
         let mapped_ty = ty.kind.expect_object_mapped();
         if let Some(template_ty) = self.get_ty_links(ty.id).get_template_ty() {
             return template_ty;
@@ -991,7 +997,7 @@ impl<'cx> TyChecker<'cx> {
                         let prev = members.insert(symbol_name, symbol);
                         assert!(prev.is_none());
                     }
-                } else if prop_name_ty.is_valid_index_key_ty()
+                } else if this.is_valid_index_key_ty(prop_name_ty)
                     || prop_name_ty
                         .flags
                         .intersects(TypeFlags::ANY | TypeFlags::ENUM)

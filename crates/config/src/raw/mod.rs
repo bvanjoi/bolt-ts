@@ -3,6 +3,7 @@ use super::OutDir;
 macro_rules! with_option {
     ($s: ident, $(($option: ident, $ty: ty)),* $(,)?) => {
         #[derive(Debug, Default, serde::Deserialize, serde::Serialize)]
+        #[serde(rename_all = "camelCase")]
         pub struct $s {
             $(pub(super) $option: Option<$ty>,)*
         }

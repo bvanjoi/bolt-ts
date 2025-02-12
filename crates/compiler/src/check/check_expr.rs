@@ -409,7 +409,7 @@ impl<'cx> TyChecker<'cx> {
             AccessFlags::EXPRESSION_POSITION
         } else {
             AccessFlags::WRITING
-                | if object_ty.kind.is_generic_object() && object_ty.kind.is_this_ty_param() {
+                | if self.is_generic_object(object_ty) && object_ty.kind.is_this_ty_param() {
                     AccessFlags::NO_INDEX_SIGNATURES
                 } else {
                     AccessFlags::empty()

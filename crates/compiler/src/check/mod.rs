@@ -83,8 +83,8 @@ use crate::bind::{
     self, FlowID, FlowNodes, GlobalSymbols, Symbol, SymbolFlags, SymbolID, SymbolName,
 };
 use crate::parser::{AccessKind, AssignmentKind, Parser};
-use crate::ty::has_type_facts;
 use crate::ty::TYPEOF_NE_FACTS;
+use crate::ty::{has_type_facts, TyMapper};
 use crate::ty::{ElementFlags, ObjectFlags, Sig, SigFlags, SigID, TyID, TypeFacts, TypeFlags};
 use crate::{ast, ecma_rules, ensure_sufficient_stack, keyword, ty};
 
@@ -516,7 +516,7 @@ impl<'cx> TyChecker<'cx> {
         };
         this.typeof_ty.set(typeof_ty).unwrap();
 
-        let any_array_ty = this.create_array_ty(this.any_ty);
+        let any_array_ty = this.create_array_ty(this.any_ty, false);
         this.any_array_ty.set(any_array_ty).unwrap();
 
         let any_fn_ty = this.create_anonymous_ty_with_resolved(
@@ -574,7 +574,7 @@ impl<'cx> TyChecker<'cx> {
 
         this.empty_object_ty.set(empty_object_ty).unwrap();
 
-        let mut auto_array_ty = this.create_array_ty(this.auto_ty);
+        let mut auto_array_ty = this.create_array_ty(this.auto_ty, false);
         if auto_array_ty == empty_object_ty {
             auto_array_ty = this.create_anonymous_ty_with_resolved(
                 None,
@@ -1339,7 +1339,7 @@ impl<'cx> TyChecker<'cx> {
             } else {
                 self.get_union_ty(&element_types, ty::UnionReduction::Subtype)
             };
-            let array_ty = self.create_array_ty(ty);
+            let array_ty = self.create_array_ty(ty, false);
             self.create_array_literal_ty(array_ty)
         }
     }
@@ -1730,7 +1730,7 @@ impl<'cx> TyChecker<'cx> {
             return ty;
         }
 
-        if indexed_access_ty.object_ty.kind.is_generic_object() {
+        if self.is_generic_object(indexed_access_ty.object_ty) {
             // TODO:
         }
 
@@ -2261,6 +2261,89 @@ impl<'cx> TyChecker<'cx> {
         } else {
             ty
         }
+    }
+
+    fn is_error(&self, ty: &'cx ty::Ty<'cx>) -> bool {
+        ty == self.error_ty
+    }
+
+    fn get_element_ty_of_array_ty(&mut self, ty: &'cx ty::Ty<'cx>) -> Option<&'cx ty::Ty<'cx>> {
+        ty.kind.is_array(self).then(|| self.get_ty_arguments(ty)[0])
+    }
+
+    fn is_empty_literal_ty(&self, ty: &'cx ty::Ty<'cx>) -> bool {
+        // TODO: use `implicit_never_ty`
+        ty == self.never_ty
+    }
+
+    fn is_empty_array_lit_ty(&mut self, ty: &'cx ty::Ty<'cx>) -> bool {
+        let Some(element_ty) = self.get_element_ty_of_array_ty(ty) else {
+            return false;
+        };
+        self.is_empty_literal_ty(element_ty)
+    }
+
+    fn is_generic_mapped_ty(&mut self, ty: &'cx ty::Ty<'cx>) -> bool {
+        ty.kind.as_object_mapped().is_some_and(|m| {
+            if self.is_generic_index_ty(m.constraint_ty) {
+                true
+            } else {
+                self.get_name_ty_from_mapped_ty(ty).is_some_and(|name_ty| {
+                    let mapper = TyMapper::make_unary(m.ty_param, m.constraint_ty);
+                    let mapper = self.alloc(mapper);
+                    let ty = self.instantiate_ty(name_ty, Some(mapper));
+                    self.is_generic_index_ty(ty)
+                })
+            }
+        })
+    }
+
+    fn is_generic_object(&mut self, ty: &'cx ty::Ty<'cx>) -> bool {
+        self.get_generic_object_flags(ty)
+            .intersects(ObjectFlags::IS_GENERIC_OBJECT_TYPE)
+    }
+
+    fn is_generic_index_ty(&mut self, ty: &'cx ty::Ty<'cx>) -> bool {
+        self.get_generic_object_flags(ty)
+            .intersects(ObjectFlags::IS_GENERIC_INDEX_TYPE)
+    }
+
+    fn get_generic_object_flags(&mut self, ty: &'cx ty::Ty<'cx>) -> ObjectFlags {
+        if ty.kind.is_union_or_intersection() {
+            // TODO:
+            ObjectFlags::empty()
+        } else if let Some(ty) = ty.kind.as_substitution_ty() {
+            // TODO: cache?
+            (self.get_generic_object_flags(ty.base_ty)
+                | self.get_generic_object_flags(ty.constraint))
+                & ObjectFlags::IS_GENERIC_TYPE
+        } else {
+            (if ty.kind.is_instantiable_non_primitive()
+                || self.is_generic_mapped_ty(ty)
+                || ty.kind.is_generic_tuple_type()
+            {
+                ObjectFlags::IS_GENERIC_OBJECT_TYPE
+            } else {
+                ObjectFlags::empty()
+            }) | (if ty.kind.is_instantiable() || ty.kind.is_index_ty() {
+                ObjectFlags::IS_GENERIC_INDEX_TYPE
+            } else {
+                ObjectFlags::empty()
+            })
+        }
+    }
+
+    fn is_generic(&mut self, ty: &'cx ty::Ty<'cx>) -> bool {
+        !self.get_generic_object_flags(ty).is_empty()
+    }
+
+    pub fn is_valid_index_key_ty(&mut self, ty: &'cx ty::Ty<'cx>) -> bool {
+        ty.flags
+            .intersects(TypeFlags::STRING | TypeFlags::NUMBER | TypeFlags::ES_SYMBOL)
+            || ty.kind.as_intersection().is_some_and(|i| {
+                !self.is_generic(ty) && i.tys.iter().any(|ty| self.is_valid_index_key_ty(ty))
+            })
+        // || isPatternLiteralType
     }
 }
 

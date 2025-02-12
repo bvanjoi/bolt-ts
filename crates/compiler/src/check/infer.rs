@@ -399,8 +399,8 @@ impl<'cx> TyChecker<'cx> {
         if source.is_tuple() && target.is_tuple() {
             todo!()
         } else {
-            self.get_unmatched_prop(source, target).is_some()
-                && self.get_unmatched_prop(target, source).is_some()
+            self.get_unmatched_prop(source, target, false).is_some()
+                && self.get_unmatched_prop(target, source, false).is_some()
         }
     }
 

@@ -21,7 +21,6 @@ impl<'cx> TyChecker<'cx> {
         writing: bool,
     ) -> &'cx ty::Ty<'cx> {
         if let Some(indexed_access_ty) = ty.kind.as_indexed_access() {
-            // TODO: handle indexed_access
             self.get_simplified_index_access_ty(ty, indexed_access_ty, writing)
         } else if ty.kind.as_cond_ty().is_some() {
             // TODO: handle indexed_cond

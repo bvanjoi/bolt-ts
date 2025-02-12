@@ -193,6 +193,9 @@ pub(crate) enum SymbolKind {
     TyLit(TyLitSymbol),
     Alias(AliasSymbol),
     GetterSetter(GetterSetterSymbol),
+    TyMapped {
+        decl: NodeID,
+    },
 }
 
 macro_rules! as_symbol_kind {
@@ -367,6 +370,7 @@ impl Symbol {
             SymbolKind::TyLit(_) => todo!(),
             SymbolKind::Alias(_) => todo!(),
             SymbolKind::GetterSetter(_) => todo!(),
+            SymbolKind::TyMapped { .. } => todo!(),
         }
     }
 
@@ -383,6 +387,7 @@ impl Symbol {
             SymbolKind::TyLit(ty_lit) => Some(ty_lit.decl),
             SymbolKind::Alias(alias) => Some(alias.decl),
             SymbolKind::Fn(f) => Some(f.decls[0]),
+            SymbolKind::TyMapped { decl } => Some(*decl),
             _ => None,
         };
         id.or_else(|| self.kind.1.as_ref().and_then(|i| i.decls.first()).copied())

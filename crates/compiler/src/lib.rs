@@ -33,6 +33,7 @@ use rayon::iter::{IntoParallelIterator, ParallelIterator};
 use rustc_hash::FxHashMap;
 
 type Diag = Box<dyn bolt_ts_errors::diag_ext::DiagnosticExt + Send + Sync + 'static>;
+pub const DEFAULT_TSCONFIG: &str = "tsconfig.json";
 
 pub struct Output {
     pub root: PathBuf,

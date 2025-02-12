@@ -123,10 +123,10 @@ impl<'cx> TyChecker<'cx> {
 
                 // }
             }
-            let args = self
+            let ty_args = self
                 .ty_args_from_ty_refer_node(node.ty_args())
                 .unwrap_or_default();
-            self.get_type_alias_instantiation(symbol, args, new_alias_symbol, alias_ty_args)
+            self.get_type_alias_instantiation(symbol, ty_args, new_alias_symbol, alias_ty_args)
         } else if self.check_no_ty_args(node) {
             ty
         } else {
@@ -217,12 +217,10 @@ impl<'cx> TyChecker<'cx> {
         if symbol == Symbol::ERR {
             return self.error_ty;
         }
-        let s = &self.binder.symbol(symbol);
-        if s.flags
-            .intersects(SymbolFlags::CLASS | SymbolFlags::INTERFACE)
-        {
+        let flags = self.binder.symbol(symbol).flags;
+        if flags.intersects(SymbolFlags::CLASS | SymbolFlags::INTERFACE) {
             return self.get_ty_from_class_or_interface_refer(node, symbol);
-        } else if s.flags == SymbolFlags::TYPE_ALIAS {
+        } else if flags == SymbolFlags::TYPE_ALIAS {
             return self.get_ty_from_ty_alias_refer(node, symbol);
         }
 

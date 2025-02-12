@@ -338,6 +338,7 @@ pub struct SingleSigTy<'cx> {
 
 #[derive(Debug, Clone, Copy)]
 pub struct MappedTy<'cx> {
+    pub symbol: SymbolID,
     pub decl: &'cx ast::MappedTy<'cx>,
     pub alias_symbol: Option<SymbolID>,
     pub alias_ty_arguments: Option<super::Tys<'cx>>,

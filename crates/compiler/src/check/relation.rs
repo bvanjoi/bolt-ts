@@ -2,7 +2,6 @@ use bolt_ts_atom::AtomId;
 use bolt_ts_span::Span;
 
 use bolt_ts_utils::fx_hashset_with_capacity;
-use rustc_hash::FxHashSet;
 
 use super::create_ty::IntersectionFlags;
 use super::{errors, SymbolLinks};
@@ -138,22 +137,6 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
-    fn get_element_ty_of_array_ty(&mut self, ty: &'cx Ty<'cx>) -> Option<&'cx Ty<'cx>> {
-        ty.kind.is_array(self).then(|| self.get_ty_arguments(ty)[0])
-    }
-
-    fn is_empty_literal_ty(&self, ty: &'cx Ty<'cx>) -> bool {
-        // TODO: use `implicit_never_ty`
-        ty == self.never_ty
-    }
-
-    pub(super) fn is_empty_array_lit_ty(&mut self, ty: &'cx Ty<'cx>) -> bool {
-        let Some(element_ty) = self.get_element_ty_of_array_ty(ty) else {
-            return false;
-        };
-        self.is_empty_literal_ty(element_ty)
-    }
-
     pub(super) fn check_type_assignable_to_and_optionally_elaborate(
         &mut self,
         source: &'cx Ty<'cx>,
@@ -233,6 +216,8 @@ impl<'cx> TyChecker<'cx> {
         } else if let ObjectTyKind::Reference(_) = ty.kind {
             self.properties_of_object_type(self_ty)
         } else if let ObjectTyKind::Anonymous(_) = ty.kind {
+            self.properties_of_object_type(self_ty)
+        } else if let ObjectTyKind::Mapped(_) = ty.kind {
             self.properties_of_object_type(self_ty)
         } else {
             &[]
@@ -461,32 +446,35 @@ impl<'cx> TyChecker<'cx> {
         &mut self,
         source: &'cx Ty<'cx>,
         target: &'cx Ty<'cx>,
-    ) -> Option<(FxHashSet<AtomId>, SymbolID)> {
-        self.get_unmatched_props(source, target)
+        require_optional_properties: bool,
+    ) -> Option<(Vec<AtomId>, SymbolID)> {
+        self.get_unmatched_props(source, target, require_optional_properties)
     }
 
     fn get_unmatched_props(
         &mut self,
         source: &'cx Ty<'cx>,
         target: &'cx Ty<'cx>,
-    ) -> Option<(FxHashSet<AtomId>, SymbolID)> {
-        let symbols = self.get_props_of_ty(target);
-        let set: FxHashSet<_> = symbols
-            .iter()
-            .filter_map(|symbol| {
-                let s = self.symbol(*symbol);
-                let flags = s.flags();
-                let name = s.name();
-                if flags.intersects(SymbolFlags::OPTIONAL) {
-                    None
-                } else if self.get_prop_of_ty(source, name).is_none() {
-                    Some(name.expect_atom())
-                } else {
-                    None
-                }
-            })
-            .collect();
-        if set.is_empty() {
+        require_optional_properties: bool,
+    ) -> Option<(Vec<AtomId>, SymbolID)> {
+        let properties = self.get_props_of_ty(target);
+        let mut unmatched = Vec::with_capacity(properties.len());
+        for target_prop in properties {
+            let s = self.symbol(*target_prop);
+            if require_optional_properties
+                || !(s.flags().intersects(SymbolFlags::OPTIONAL)
+                    || self
+                        .get_check_flags(*target_prop)
+                        .intersects(CheckFlags::PARTIAL))
+            {
+                let target_prop_name = s.name();
+                let Some(source_prop) = self.get_prop_of_ty(source, target_prop_name) else {
+                    unmatched.push(target_prop_name.expect_atom());
+                    continue;
+                };
+            }
+        }
+        if unmatched.is_empty() {
             None
         } else {
             let ty = target.kind.expect_object();
@@ -495,11 +483,12 @@ impl<'cx> TyChecker<'cx> {
                     ObjectTyKind::Reference(ty) => recur(ty.target.kind.expect_object()),
                     ObjectTyKind::Interface(ty) => ty.symbol,
                     ObjectTyKind::Anonymous(ty) => ty.symbol,
+                    ObjectTyKind::Mapped(ty) => ty.symbol,
                     _ => unreachable!("{ty:#?}"),
                 }
             }
             let symbol = recur(ty);
-            Some((set, symbol))
+            Some((unmatched, symbol))
         }
     }
 

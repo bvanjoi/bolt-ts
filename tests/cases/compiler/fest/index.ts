@@ -1,5 +1,10 @@
 // From `github.com/sindresorhus/type-fest`, MIT License
 
+// type ArrayIndices<Element extends readonly unknown[]> =
+// 	Exclude<Partial<Element>['length'], Element['length']>;
+
+// const a0: ArrayIndices<['a', 'b', 'c']> = 4;
+
 function n(): never {
   throw new Error();
 }
@@ -20,6 +25,35 @@ type And<A extends boolean, B extends boolean> = [A, B][number] extends true
   const a5: And<true, boolean> = never;
   const a6: And<false, boolean> = false;
   const a7: And<boolean, boolean> = never;
+}
+
+// ========= ArrayIndices =========
+type ArrayIndices<Element extends readonly unknown[]> =
+	Exclude<Partial<Element>['length'], Element['length']>;
+{
+  const values = ['a', 'b', 'c'] as const;
+  type ValueKeys = ArrayIndices<typeof values>;
+
+  const test: 0 | 1 | 2 = 0;
+  // const a0: ValueKeys = test;
+
+  // expectAssignable<ValueKeys>(0);
+  // expectAssignable<ValueKeys>(1);
+  // expectAssignable<ValueKeys>(2);
+
+  // expectNotAssignable<ValueKeys>(-1);
+  // expectNotAssignable<ValueKeys>(3);
+
+  // type TupleKeys = ArrayIndices<['a', 2]>;
+
+  // declare const testTuple: 0 | 1;
+  // expectType<TupleKeys>(testTuple);
+
+  // expectAssignable<TupleKeys>(0);
+  // expectAssignable<TupleKeys>(1);
+
+  // expectNotAssignable<TupleKeys>(-1);
+  // expectNotAssignable<TupleKeys>(2);
 }
 
 // ========= ArrayValues =========

@@ -117,7 +117,7 @@ impl<'cx> TyChecker<'cx> {
                     rest_ty
                 } else {
                     let ty = self.get_indexed_access_ty(rest_ty, self.number_ty, None, None);
-                    self.create_array_ty(ty)
+                    self.create_array_ty(ty, false)
                 };
             }
         }
@@ -965,7 +965,7 @@ impl<'cx> TyChecker<'cx> {
                 .flat_map(|c| self.try_get_rest_ty_of_sig(c))
                 .collect::<Vec<_>>();
             let ty = self.get_union_ty(&tys, ty::UnionReduction::Subtype);
-            let ty = self.create_array_ty(ty);
+            let ty = self.create_array_ty(ty, false);
             params.push(self.create_combined_symbol_for_overload_failure(rest_param_symbols, ty));
             flags |= SigFlags::HAS_REST_PARAMETER;
         }

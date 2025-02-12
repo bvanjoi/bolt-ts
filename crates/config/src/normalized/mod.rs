@@ -2,6 +2,7 @@ use crate::options::OutDir;
 
 macro_rules! normalized_option {
     ($s: ident, $(($option: ident, $ty: ty)),* $(,)?) => {
+        #[derive(Debug)]
         pub struct $s {
             $(pub(super) $option: $ty,)*
         }

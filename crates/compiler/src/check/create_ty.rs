@@ -39,7 +39,7 @@ impl<'cx> TyChecker<'cx> {
         ty
     }
 
-    fn create_object_ty(
+    pub(super) fn create_object_ty(
         &mut self,
         ty: ty::ObjectTyKind<'cx>,
         object_flags: ObjectFlags,
@@ -393,9 +393,18 @@ impl<'cx> TyChecker<'cx> {
         includes
     }
 
-    pub(super) fn create_array_ty(&mut self, element_ty: &'cx ty::Ty<'cx>) -> &'cx ty::Ty<'cx> {
+    pub(super) fn create_array_ty(
+        &mut self,
+        element_ty: &'cx ty::Ty<'cx>,
+        readonly: bool,
+    ) -> &'cx ty::Ty<'cx> {
+        let target = if readonly {
+            self.global_readonly_array_ty()
+        } else {
+            self.global_array_ty()
+        };
         self.create_reference_ty(
-            self.global_array_ty(),
+            target,
             Some(self.alloc(vec![element_ty])),
             ObjectFlags::empty(),
         )
@@ -1048,6 +1057,7 @@ impl<'cx> TyChecker<'cx> {
 
     pub(super) fn create_mapper_ty(
         &mut self,
+        symbol: SymbolID,
         decl: &'cx ast::MappedTy<'cx>,
         alias_symbol: Option<SymbolID>,
         alias_ty_arguments: Option<ty::Tys<'cx>>,
@@ -1055,6 +1065,7 @@ impl<'cx> TyChecker<'cx> {
         constraint_ty: &'cx ty::Ty<'cx>,
     ) -> &'cx ty::Ty<'cx> {
         let ty = self.alloc(ty::MappedTy {
+            symbol,
             decl,
             alias_symbol,
             alias_ty_arguments,
