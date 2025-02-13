@@ -148,7 +148,6 @@ impl<'cx> TyChecker<'cx> {
                 let mapper = self.combine_ty_mappers(cond.mapper, mapper);
                 self.get_cond_ty_instantiation(ty, mapper, alias_symbol, alias_ty_args)
             }
-
             Substitution(sub) => {
                 let new_base_ty = self.instantiate_ty(sub.base_ty, Some(mapper));
                 if ty.is_no_infer_ty() {
@@ -233,6 +232,96 @@ impl<'cx> TyChecker<'cx> {
                     None
                 }
             })
+    }
+
+    fn instantiate_mapped_tuple_ty(
+        &mut self,
+        tuple_ty: &'cx ty::Ty<'cx>,
+        mapped_ty: &'cx ty::Ty<'cx>,
+        ty_var: &'cx ty::Ty<'cx>,
+        mapper: &'cx dyn ty::TyMap<'cx>,
+    ) -> &'cx ty::Ty<'cx> {
+        let Some(t) = tuple_ty.as_tuple() else {
+            unreachable!()
+        };
+        let element_flags = t.element_flags;
+        let fixed_length = t.fixed_length;
+        let fixed_mapper = if fixed_length > 0 {
+            self.prepend_ty_mapping(ty_var, tuple_ty, Some(mapper))
+        } else {
+            mapper
+        };
+        let new_elements_tys = self
+            .get_element_tys(tuple_ty)
+            .iter()
+            .enumerate()
+            .map(|(i, ty)| {
+                let flags = element_flags[i];
+                if i < fixed_length {
+                    // TODO: use string literal type?
+                    // let val = self.atoms.insert_by_str(i.to_string().into());
+                    // let key = self.get_string_literal_type(val);
+                    let key = self.get_number_literal_type(i as f64);
+                    self.instantiate_mapped_ty_template(
+                        mapped_ty,
+                        key,
+                        flags.intersects(ty::ElementFlags::OPTIONAL),
+                        fixed_mapper,
+                    )
+                } else if flags.intersects(ty::ElementFlags::VARIADIC) {
+                    let mapper = self.prepend_ty_mapping(ty_var, ty, Some(mapper));
+                    self.instantiate_ty(mapped_ty, Some(mapper))
+                } else {
+                    let target = self.create_array_ty(ty, false);
+                    let mapper = self.prepend_ty_mapping(ty_var, target, Some(mapper));
+                    let t = self.instantiate_ty(mapped_ty, Some(mapper));
+                    self.get_element_ty_of_array_ty(t)
+                        .unwrap_or(self.unknown_ty)
+                }
+            })
+            .collect::<Vec<_>>();
+        let mapped_ty_decl = mapped_ty.kind.expect_object_mapped().decl;
+        let modifiers = mapped_ty_decl.get_modifiers();
+        let new_element_flags = if modifiers.intersects(MappedTyModifiers::INCLUDE_OPTIONAL) {
+            self.alloc(
+                element_flags
+                    .iter()
+                    .map(|f| {
+                        if f.intersects(ty::ElementFlags::REQUIRED) {
+                            ty::ElementFlags::OPTIONAL
+                        } else {
+                            *f
+                        }
+                    })
+                    .collect::<Vec<_>>(),
+            )
+        } else if modifiers.intersects(MappedTyModifiers::INCLUDE_OPTIONAL) {
+            self.alloc(
+                element_flags
+                    .iter()
+                    .map(|f| {
+                        if f.intersects(ty::ElementFlags::OPTIONAL) {
+                            ty::ElementFlags::REQUIRED
+                        } else {
+                            *f
+                        }
+                    })
+                    .collect::<Vec<_>>(),
+            )
+        } else {
+            element_flags
+        };
+
+        let new_readonly = ast::MappedTy::get_modified_readonly_state(t.readonly, modifiers);
+        if new_elements_tys.contains(&self.error_ty) {
+            self.error_ty
+        } else {
+            self.create_tuple_ty(
+                self.alloc(new_elements_tys),
+                Some(new_element_flags),
+                new_readonly,
+            )
+        }
     }
 
     fn instantiate_mapped_array_ty(
@@ -328,7 +417,7 @@ impl<'cx> TyChecker<'cx> {
                     }
 
                     if mapped_ty_var.is_tuple() {
-                        // TODO:
+                        return c.instantiate_mapped_tuple_ty(mapped_ty_var, ty, ty_var, mapper);
                     }
                     // TODO: is_array_or_tuple_intersection()
                 }
@@ -740,15 +829,31 @@ impl<'cx> TyChecker<'cx> {
                 }
             }
 
-            let base_default_ty = self.any_ty;
-            for param in ty_params.iter().skip(args_len) {
-                if let Some(default_ty) = self.get_default_ty_from_ty_param(param) {
-                    result.push(default_ty);
-                } else {
-                    result.push(base_default_ty);
-                }
+            for _ in args_len..params_len {
+                result.push(self.error_ty);
             }
-            Some(self.alloc(result))
+
+            let len = result.len();
+            assert!(len == params_len);
+            let result = self.arena.alloc(result);
+
+            let base_default_ty = self.any_ty;
+            for i in args_len..params_len {
+                let dest = std::ptr::addr_of_mut!(result[i]);
+                let param = ty_params[i];
+                let ty = if let Some(default_ty) = self.get_default_ty_from_ty_param(param) {
+                    let ty = {
+                        let targets = unsafe { std::slice::from_raw_parts(result.as_ptr(), len) };
+                        let mapper = self.create_ty_mapper(ty_params, targets);
+                        self.instantiate_ty(default_ty, Some(mapper))
+                    };
+                    ty
+                } else {
+                    base_default_ty
+                };
+                unsafe { std::ptr::write(dest, ty) };
+            }
+            Some(result)
         } else {
             ty_args
         }

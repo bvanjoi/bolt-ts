@@ -6,7 +6,7 @@ use crate::bind::SymbolID;
 use super::errors;
 use super::Resolver;
 
-impl<'cx> Resolver<'cx, '_> {
+impl<'cx> Resolver<'cx, '_, '_> {
     fn check_param_refer_itself(
         &self,
         ident: &'cx ast::Ident,

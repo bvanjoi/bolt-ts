@@ -107,6 +107,7 @@ pub fn is_prim_ty_name(name: AtomId) -> bool {
             | IDENT_UNKNOWN
             | KW_UNDEFINED
             | KW_VOID
+            | IDENT_SYMBOL
     )
 }
 

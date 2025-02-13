@@ -1,7 +1,7 @@
 use super::Resolver;
 use crate::{ast, bind::SymbolFlags, ir};
 
-impl<'cx> Resolver<'cx, '_> {
+impl<'cx> Resolver<'cx, '_, '_> {
     fn resolve_class_prop_ele(&mut self, ele: &'cx ast::ClassPropElem<'cx>) {
         if let Some(ty) = ele.ty {
             self.resolve_ty(ty);

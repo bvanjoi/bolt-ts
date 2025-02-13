@@ -219,8 +219,10 @@ impl<'cx> TyChecker<'cx> {
             })
             .collect();
         let ty = self.create_anonymous_ty(
-            self.binder.final_res(node.id),
-            ObjectFlags::OBJECT_LITERAL | ObjectFlags::CONTAINS_OBJECT_OR_ARRAY_LITERAL,
+            self.final_res(node.id),
+            object_flags
+                | ObjectFlags::OBJECT_LITERAL
+                | ObjectFlags::CONTAINS_OBJECT_OR_ARRAY_LITERAL,
         );
         let props = self.get_props_from_members(&members);
         let members = self.alloc(members);

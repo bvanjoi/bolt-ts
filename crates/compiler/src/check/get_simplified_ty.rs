@@ -1,6 +1,6 @@
-use crate::ty;
+use crate::ty::{self, TypeFlags};
 
-use super::TyChecker;
+use super::{utils::insert_ty, TyChecker};
 
 impl<'cx> TyChecker<'cx> {
     pub(super) fn get_simplified_ty_or_constraint(
@@ -41,6 +41,12 @@ impl<'cx> TyChecker<'cx> {
         let index_ty = self.get_simplified_ty(indexed_access_ty.index_ty, writing);
 
         // if !index_ty.flags.intersects(TypeFlags::INSTANTIABLE) {}
+
+        if object_ty.kind.is_generic_tuple_type()
+            && index_ty.flags.intersects(TypeFlags::NUMBER_LIKE)
+        {
+            // TODO:
+        }
 
         return ty;
     }

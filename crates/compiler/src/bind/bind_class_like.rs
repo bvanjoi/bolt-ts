@@ -5,7 +5,7 @@ use crate::{ast, ir};
 
 use bolt_ts_utils::fx_hashmap_with_capacity;
 
-impl<'cx> BinderState<'cx> {
+impl<'cx> BinderState<'cx, '_> {
     fn create_class_symbol(&mut self, c: &impl ir::ClassLike<'cx>) -> SymbolID {
         let name = c
             .name()

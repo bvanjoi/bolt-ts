@@ -121,4 +121,14 @@ impl<'cx> TyChecker<'cx> {
         let index_infos = self.get_index_infos_of_ty(ty);
         self.find_applicable_index_info(index_infos, key_ty)
     }
+
+    pub(super) fn get_applicable_index_for_name(
+        &mut self,
+        ty: &'cx ty::Ty<'cx>,
+        name: SymbolName,
+    ) -> Option<&'cx ty::IndexInfo<'cx>> {
+        // TODO: is late name
+        let key_ty = self.get_string_literal_type(name.expect_atom());
+        self.get_applicable_index_info(ty, key_ty)
+    }
 }

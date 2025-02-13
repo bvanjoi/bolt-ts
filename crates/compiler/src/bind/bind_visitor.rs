@@ -24,8 +24,8 @@ use crate::bind::FlowNode;
 use crate::bind::Symbol;
 use crate::parser::Parser;
 
-impl<'cx> BinderState<'cx> {
-    pub fn new(atoms: &'cx AtomMap, parser: &'cx Parser<'cx>, module_id: ModuleID) -> Self {
+impl<'cx, 'atoms> BinderState<'cx, 'atoms> {
+    pub fn new(atoms: &'atoms AtomMap<'cx>, parser: &'cx Parser<'cx>, module_id: ModuleID) -> Self {
         let symbols = Symbols::new(module_id);
         let mut flow_nodes = FlowNodes::new(module_id);
         let unreachable_flow_node = flow_nodes.create_flow_unreachable();

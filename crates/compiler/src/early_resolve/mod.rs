@@ -21,9 +21,9 @@ pub struct EarlyResolveResult {
     pub diags: Vec<bolt_ts_errors::Diag>,
 }
 
-pub fn early_resolve_parallel<'cx>(
+pub fn early_resolve_parallel<'cx, 'atoms>(
     modules: &[Module],
-    states: &[BinderState<'cx>],
+    states: &[BinderState<'cx, 'atoms>],
     p: &'cx Parser<'cx>,
     global: &'cx GlobalSymbols,
     atoms: &'cx bolt_ts_atom::AtomMap<'cx>,
@@ -38,8 +38,8 @@ pub fn early_resolve_parallel<'cx>(
         .collect()
 }
 
-fn early_resolve<'cx>(
-    states: &[BinderState<'cx>],
+fn early_resolve<'cx, 'atoms>(
+    states: &[BinderState<'cx, 'atoms>],
     module_id: bolt_ts_span::ModuleID,
     root: &'cx ast::Program<'cx>,
     p: &'cx Parser<'cx>,
@@ -65,8 +65,8 @@ fn early_resolve<'cx>(
     }
 }
 
-pub(super) struct Resolver<'cx, 'r> {
-    states: &'r [BinderState<'cx>],
+pub(super) struct Resolver<'cx, 'r, 'atoms> {
+    states: &'r [BinderState<'cx, 'atoms>],
     module_id: bolt_ts_span::ModuleID,
     p: &'cx Parser<'cx>,
     pub diags: Vec<bolt_ts_errors::Diag>,
@@ -76,7 +76,7 @@ pub(super) struct Resolver<'cx, 'r> {
     resolved_exports: FxHashMap<SymbolID, FxHashMap<SymbolName, SymbolID>>,
 }
 
-impl<'cx> Resolver<'cx, '_> {
+impl<'cx> Resolver<'cx, '_, '_> {
     fn symbol(&self, symbol_id: SymbolID) -> &crate::bind::Symbol {
         self.states[symbol_id.module().as_usize()]
             .symbols
@@ -591,8 +591,8 @@ pub(super) struct ResolvedResult {
     associated_declaration_for_containing_initializer_or_binding_name: Option<ast::NodeID>,
 }
 
-pub(super) fn resolve_symbol_by_ident<'a, 'cx>(
-    resolver: &'a Resolver<'cx, 'a>,
+pub(super) fn resolve_symbol_by_ident<'a, 'cx, 'atoms>(
+    resolver: &'a Resolver<'cx, 'a, 'atoms>,
     ident: &'cx ast::Ident,
     meaning: SymbolFlags,
 ) -> ResolvedResult {

@@ -22,8 +22,8 @@ pub struct ResolveResult {
     pub locals: FxHashMap<ast::NodeID, FxHashMap<SymbolName, SymbolID>>,
 }
 
-pub fn late_resolve<'cx>(
-    mut states: Vec<BinderState<'cx>>,
+pub fn late_resolve<'cx, 'atoms>(
+    mut states: Vec<BinderState<'cx, 'atoms>>,
     modules: &[Module],
     mg: &'cx ModuleGraph,
     p: &'cx parser::Parser<'cx>,
@@ -72,10 +72,10 @@ pub fn late_resolve<'cx>(
         .collect::<Vec<_>>()
 }
 
-struct Resolver<'cx, 'r> {
+struct Resolver<'cx, 'r, 'atoms> {
     mg: &'cx ModuleGraph,
     module_id: ModuleID,
-    states: &'r mut Vec<BinderState<'cx>>,
+    states: &'r mut Vec<BinderState<'cx, 'atoms>>,
     p: &'cx parser::Parser<'cx>,
     pub diags: Vec<bolt_ts_errors::Diag>,
     global: &'cx GlobalSymbols,
@@ -83,7 +83,7 @@ struct Resolver<'cx, 'r> {
     atoms: &'cx AtomMap<'cx>,
 }
 
-impl Resolver<'_, '_> {
+impl Resolver<'_, '_, '_> {
     fn symbol_decl(&self, symbol_id: SymbolID) -> ast::NodeID {
         use crate::bind::SymbolKind::*;
         let s = self.symbol(symbol_id);
@@ -119,7 +119,7 @@ impl Resolver<'_, '_> {
     }
 }
 
-impl<'cx> ast::Visitor<'cx> for Resolver<'cx, '_> {
+impl<'cx> ast::Visitor<'cx> for Resolver<'cx, '_, '_> {
     fn visit_import_decl(&mut self, node: &'cx ast::ImportDecl<'cx>) {
         let Some(dep) = self.mg.get_dep(self.module_id, node.id) else {
             unreachable!()

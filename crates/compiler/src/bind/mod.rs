@@ -38,15 +38,13 @@ impl ScopeID {
 
 pub struct Binder<'cx> {
     p: &'cx Parser<'cx>,
-    atoms: &'cx AtomMap<'cx>,
     binder_result: Vec<ResolveResult>,
 }
 
 impl<'cx> Binder<'cx> {
-    pub fn new(p: &'cx Parser<'cx>, atoms: &'cx AtomMap) -> Self {
+    pub fn new(p: &'cx Parser<'cx>) -> Self {
         Self {
             p,
-            atoms,
             binder_result: Vec::with_capacity(p.module_count() + 1),
         }
     }
@@ -57,26 +55,9 @@ impl<'cx> Binder<'cx> {
     }
 
     #[inline(always)]
-    fn get(&self, id: ModuleID) -> &ResolveResult {
+    pub(crate) fn get(&self, id: ModuleID) -> &ResolveResult {
         let index = id.as_usize();
         &self.binder_result[index]
-    }
-
-    #[inline(always)]
-    pub fn final_res(&self, id: ast::NodeID) -> SymbolID {
-        self.get(id.module())
-            .final_res
-            .get(&id)
-            .copied()
-            .unwrap_or_else(|| {
-                let n = self.p.node(id);
-                let Some(node) = n.as_ident() else {
-                    unreachable!("final_res not found for {:#?}", n);
-                };
-                let name = self.atoms.get(node.name);
-                let span = self.p.node(id).span();
-                panic!("The resolution of `{name}({span})` is not found.");
-            })
     }
 
     #[inline(always)]
@@ -97,11 +78,11 @@ impl<'cx> Binder<'cx> {
     }
 }
 
-pub struct BinderState<'cx> {
+pub struct BinderState<'cx, 'atoms> {
     scope_id: ScopeID,
     p: &'cx Parser<'cx>,
     pub(crate) diags: Vec<bolt_ts_errors::Diag>,
-    pub(crate) atoms: &'cx AtomMap<'cx>,
+    pub(crate) atoms: &'atoms AtomMap<'cx>,
     pub(crate) scope_id_parent_map: Vec<Option<ScopeID>>,
     // TODO: use `NodeId::index` is enough
     pub(crate) node_id_to_scope_id: FxHashMap<ast::NodeID, ScopeID>,
@@ -123,11 +104,11 @@ pub struct BinderState<'cx> {
     pub(crate) final_res: FxHashMap<ast::NodeID, SymbolID>,
 }
 
-pub fn bind_parallel<'cx>(
+pub fn bind_parallel<'cx, 'atoms>(
     modules: &[Module],
-    atoms: &'cx AtomMap<'cx>,
+    atoms: &'atoms AtomMap<'cx>,
     parser: &'cx Parser<'cx>,
-) -> Vec<BinderState<'cx>> {
+) -> Vec<BinderState<'cx, 'atoms>> {
     modules
         .into_par_iter()
         .map(|m| {
@@ -141,12 +122,12 @@ pub fn bind_parallel<'cx>(
         .collect()
 }
 
-fn bind<'cx>(
-    atoms: &'cx AtomMap<'cx>,
+fn bind<'cx, 'atoms>(
+    atoms: &'atoms AtomMap<'cx>,
     parser: &'cx Parser<'cx>,
     root: &'cx ast::Program,
     module_id: ModuleID,
-) -> BinderState<'cx> {
+) -> BinderState<'cx, 'atoms> {
     let mut state = BinderState::new(atoms, parser, module_id);
     state.bind_program(root);
     state

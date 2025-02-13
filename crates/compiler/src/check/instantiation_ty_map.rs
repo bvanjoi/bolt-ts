@@ -1,6 +1,6 @@
 use std::hash::Hasher;
 
-use bolt_ts_utils::fx_hashmap_with_capacity;
+use bolt_ts_utils::{fx_hashmap_with_capacity, no_hashmap_with_capacity};
 use rustc_hash::FxHashMap;
 
 use crate::ty;
@@ -21,14 +21,16 @@ pub(super) fn hash_ty_args(ty_args: &[&ty::Ty]) -> TyKey {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub(super) struct TyKey(u64);
 
+impl nohash_hasher::IsEnabled for TyKey {}
+
 struct TyCache<'cx> {
-    inner: FxHashMap<TyKey, &'cx ty::Ty<'cx>>,
+    inner: nohash_hasher::IntMap<TyKey, &'cx ty::Ty<'cx>>,
 }
 
 impl<'cx> TyCache<'cx> {
     pub fn new(capacity: usize) -> Self {
         Self {
-            inner: fx_hashmap_with_capacity(capacity),
+            inner: no_hashmap_with_capacity(capacity),
         }
     }
 

@@ -4,6 +4,7 @@ mod check_call_like;
 mod check_class_decl_like;
 mod check_deferred;
 mod check_expr;
+mod check_expr_with_ty_args;
 mod check_fn_like_decl;
 mod check_fn_like_expr;
 mod check_fn_like_symbol;
@@ -55,13 +56,13 @@ mod utils;
 use bolt_ts_atom::{AtomId, AtomMap};
 
 use bolt_ts_config::NormalizedCompilerOptions;
-use bolt_ts_utils::{fx_hashmap_with_capacity, fx_hashset_with_capacity};
+use bolt_ts_utils::{fx_hashmap_with_capacity, no_hashmap_with_capacity, no_hashset_with_capacity};
 use create_ty::IntersectionFlags;
 use flow::FlowTy;
 use fn_mapper::{PermissiveMapper, RestrictiveMapper};
 use get_variances::VarianceFlags;
 use instantiation_ty_map::{IndexedAccessTyMap, UnionOrIntersectionMap};
-use rustc_hash::{FxBuildHasher, FxHashMap, FxHashSet};
+use rustc_hash::{FxBuildHasher, FxHashMap};
 use transient_symbol::{create_transient_symbol, TransientSymbol};
 use type_predicate::TyPred;
 use utils::contains_ty;
@@ -140,23 +141,25 @@ impl From<F64Represent> for f64 {
     }
 }
 
+impl nohash_hasher::IsEnabled for F64Represent {}
+
 bolt_ts_utils::index!(InferenceContextId);
 
 pub struct TyChecker<'cx> {
-    pub atoms: &'cx AtomMap<'cx>,
+    pub atoms: &'cx mut AtomMap<'cx>,
     pub diags: Vec<bolt_ts_errors::Diag>,
     config: &'cx NormalizedCompilerOptions,
     arena: &'cx bumpalo::Bump,
     tys: Vec<&'cx ty::Ty<'cx>>,
     sigs: Vec<&'cx Sig<'cx>>,
     flow_nodes: Vec<FlowNodes<'cx>>,
-    num_lit_tys: FxHashMap<F64Represent, &'cx ty::Ty<'cx>>,
-    string_lit_tys: FxHashMap<AtomId, &'cx ty::Ty<'cx>>,
+    num_lit_tys: nohash_hasher::IntMap<F64Represent, &'cx ty::Ty<'cx>>,
+    string_lit_tys: nohash_hasher::IntMap<AtomId, &'cx ty::Ty<'cx>>,
     union_tys: UnionOrIntersectionMap<'cx>,
     intersection_tys: UnionOrIntersectionMap<'cx>,
     indexed_access_tys: IndexedAccessTyMap<'cx>,
-    type_name: FxHashMap<TyID, String>,
-    tuple_tys: FxHashMap<u64, &'cx ty::Ty<'cx>>,
+    type_name: nohash_hasher::IntMap<TyID, String>,
+    tuple_tys: nohash_hasher::IntMap<u64, &'cx ty::Ty<'cx>>,
     transient_symbols: Vec<TransientSymbol<'cx>>,
 
     check_mode: Option<CheckMode>,
@@ -167,10 +170,10 @@ pub struct TyChecker<'cx> {
     // === links ===
     symbol_links: FxHashMap<SymbolID, SymbolLinks<'cx>>,
     node_links: FxHashMap<ast::NodeID, NodeLinks<'cx>>,
-    sig_links: FxHashMap<SigID, SigLinks<'cx>>,
-    ty_links: FxHashMap<TyID, TyLinks<'cx>>,
+    sig_links: nohash_hasher::IntMap<SigID, SigLinks<'cx>>,
+    ty_links: nohash_hasher::IntMap<TyID, TyLinks<'cx>>,
     instantiation_ty_map: InstantiationTyMap<'cx>,
-    mark_tys: FxHashSet<TyID>,
+    mark_tys: nohash_hasher::IntSet<TyID>,
     shared_flow_info: Vec<(FlowID, FlowTy<'cx>)>,
     // === ast ===
     pub p: &'cx Parser<'cx>,
@@ -191,6 +194,7 @@ pub struct TyChecker<'cx> {
     pub number_ty: &'cx ty::Ty<'cx>,
     pub string_ty: &'cx ty::Ty<'cx>,
     pub non_primitive_ty: &'cx ty::Ty<'cx>,
+    pub symbol_ty: &'cx ty::Ty<'cx>,
 
     permissive_mapper: &'cx PermissiveMapper,
     restrictive_mapper: &'cx RestrictiveMapper,
@@ -243,7 +247,7 @@ impl<'cx> TyChecker<'cx> {
     pub fn new(
         ty_arena: &'cx bumpalo::Bump,
         p: &'cx Parser<'cx>,
-        atoms: &'cx AtomMap,
+        atoms: &'cx mut AtomMap<'cx>,
         binder: &'cx bind::Binder<'cx>,
         global_symbols: &'cx GlobalSymbols,
         config: &'cx NormalizedCompilerOptions,
@@ -262,112 +266,39 @@ impl<'cx> TyChecker<'cx> {
             create_transient_symbol(&mut transient_symbols, symbol)
         };
         let mut tys = Vec::with_capacity(p.module_count() * 1024);
+
         macro_rules! make_intrinsic_type {
-            ($( ($name: ident, $atom_id: expr, $ty_flags: expr, $object_flags: expr) ),* $(,)?) => {
-                paste::paste! {
-                    $(let $name = {
+            ( { $( ($name: ident, $atom_id: expr, $ty_flags: expr, $object_flags: expr) ),* $(,)? } ) => {
+                $(
+                    let $name = {
                         let ty = ty::IntrinsicTy {
                             object_flags: $object_flags,
                             name: $atom_id,
                         };
                         let kind = ty::TyKind::Intrinsic(ty_arena.alloc(ty));
                         TyChecker::make_ty(kind, $ty_flags, &mut tys, ty_arena)
-                    };)*
-                }
+                    };
+                )*
             };
         }
-        make_intrinsic_type!(
-            (
-                any_ty,
-                keyword::IDENT_ANY,
-                TypeFlags::ANY,
-                ObjectFlags::empty()
-            ),
-            (
-                auto_ty,
-                keyword::IDENT_ANY,
-                TypeFlags::ANY,
-                ObjectFlags::NON_INFERRABLE_TYPE
-            ),
-            (
-                wildcard_ty,
-                keyword::IDENT_ANY,
-                TypeFlags::ANY,
-                ObjectFlags::empty()
-            ),
-            (
-                error_ty,
-                keyword::IDENT_ERROR,
-                TypeFlags::ANY,
-                ObjectFlags::empty()
-            ),
-            (
-                unknown_ty,
-                keyword::IDENT_UNKNOWN,
-                TypeFlags::UNKNOWN,
-                ObjectFlags::empty()
-            ),
-            (
-                undefined_ty,
-                keyword::KW_UNDEFINED,
-                TypeFlags::UNDEFINED,
-                ObjectFlags::empty()
-            ),
-            (
-                never_ty,
-                keyword::IDENT_NEVER,
-                TypeFlags::NEVER,
-                ObjectFlags::empty()
-            ),
-            (
-                silent_never_ty,
-                keyword::IDENT_NEVER,
-                TypeFlags::NEVER,
-                ObjectFlags::NON_INFERRABLE_TYPE
-            ),
-            (
-                void_ty,
-                keyword::KW_VOID,
-                TypeFlags::VOID,
-                ObjectFlags::empty()
-            ),
-            (
-                null_ty,
-                keyword::KW_NULL,
-                TypeFlags::NULL,
-                ObjectFlags::empty()
-            ),
-            (
-                true_ty,
-                keyword::KW_TRUE,
-                TypeFlags::BOOLEAN_LITERAL,
-                ObjectFlags::empty()
-            ),
-            (
-                false_ty,
-                keyword::KW_FALSE,
-                TypeFlags::BOOLEAN_LITERAL,
-                ObjectFlags::empty()
-            ),
-            (
-                number_ty,
-                keyword::IDENT_NUMBER,
-                TypeFlags::NUMBER,
-                ObjectFlags::empty()
-            ),
-            (
-                string_ty,
-                keyword::IDENT_STRING,
-                TypeFlags::STRING,
-                ObjectFlags::empty()
-            ),
-            (
-                non_primitive_ty,
-                keyword::IDENT_OBJECT,
-                TypeFlags::NON_PRIMITIVE,
-                ObjectFlags::empty()
-            ),
-        );
+        make_intrinsic_type!({
+            (any_ty,            keyword::IDENT_ANY,     TypeFlags::ANY,             ObjectFlags::empty()),
+            (wildcard_ty,       keyword::IDENT_ANY,     TypeFlags::ANY,             ObjectFlags::empty()),
+            (error_ty,          keyword::IDENT_ERROR,   TypeFlags::ANY,             ObjectFlags::empty()),
+            (unknown_ty,        keyword::IDENT_UNKNOWN, TypeFlags::UNKNOWN,         ObjectFlags::empty()),
+            (undefined_ty,      keyword::KW_UNDEFINED,  TypeFlags::UNDEFINED,       ObjectFlags::empty()),
+            (symbol_ty,         keyword::IDENT_SYMBOL,  TypeFlags::ES_SYMBOL,       ObjectFlags::empty()),
+            (void_ty,           keyword::KW_VOID,       TypeFlags::VOID,            ObjectFlags::empty()),
+            (never_ty,          keyword::IDENT_NEVER,   TypeFlags::NEVER,           ObjectFlags::empty()),
+            (null_ty,           keyword::KW_NULL,       TypeFlags::NULL,            ObjectFlags::empty()),
+            (true_ty,           keyword::KW_TRUE,       TypeFlags::BOOLEAN_LITERAL, ObjectFlags::empty()),
+            (false_ty,          keyword::KW_FALSE,      TypeFlags::BOOLEAN_LITERAL, ObjectFlags::empty()),
+            (number_ty,         keyword::IDENT_NUMBER,  TypeFlags::NUMBER,          ObjectFlags::empty()),
+            (string_ty,         keyword::IDENT_STRING,  TypeFlags::STRING,          ObjectFlags::empty()),
+            (non_primitive_ty,  keyword::IDENT_OBJECT,  TypeFlags::NON_PRIMITIVE,   ObjectFlags::empty()),
+            (auto_ty,           keyword::IDENT_ANY,     TypeFlags::ANY,             ObjectFlags::NON_INFERRABLE_TYPE),
+            (silent_never_ty,   keyword::IDENT_NEVER,   TypeFlags::NEVER,           ObjectFlags::NON_INFERRABLE_TYPE),
+        });
 
         let restrictive_mapper = ty_arena.alloc(RestrictiveMapper);
         let permissive_mapper = ty_arena.alloc(PermissiveMapper);
@@ -382,13 +313,13 @@ impl<'cx> TyChecker<'cx> {
             arena: ty_arena,
             diags: Vec::with_capacity(p.module_count() * 32),
 
-            num_lit_tys: fx_hashmap_with_capacity(1024 * 8),
-            string_lit_tys: fx_hashmap_with_capacity(1024 * 8),
+            num_lit_tys: no_hashmap_with_capacity(1024 * 8),
+            string_lit_tys: no_hashmap_with_capacity(1024 * 8),
             union_tys: UnionOrIntersectionMap::new(1024 * 8),
             intersection_tys: UnionOrIntersectionMap::new(1024 * 8),
             indexed_access_tys: IndexedAccessTyMap::new(1024 * 8),
             instantiation_ty_map: InstantiationTyMap::new(1024 * 16),
-            mark_tys: fx_hashset_with_capacity(1024 * 4),
+            mark_tys: no_hashset_with_capacity(1024 * 4),
             transient_symbols,
 
             shared_flow_info: Vec::with_capacity(1024),
@@ -411,6 +342,7 @@ impl<'cx> TyChecker<'cx> {
             number_ty,
             string_ty,
             non_primitive_ty,
+            symbol_ty,
 
             restrictive_mapper,
             permissive_mapper,
@@ -445,13 +377,13 @@ impl<'cx> TyChecker<'cx> {
 
             unknown_sig: Default::default(),
 
-            type_name: fx_hashmap_with_capacity(1024 * 8),
+            type_name: no_hashmap_with_capacity(1024 * 8),
 
             symbol_links: fx_hashmap_with_capacity(p.module_count() * 1024),
             node_links: fx_hashmap_with_capacity(p.module_count() * 1024),
-            sig_links: fx_hashmap_with_capacity(p.module_count() * 1024),
-            ty_links: fx_hashmap_with_capacity(p.module_count() * 1024),
-            tuple_tys: fx_hashmap_with_capacity(p.module_count() * 1024),
+            sig_links: no_hashmap_with_capacity(p.module_count() * 1024),
+            ty_links: no_hashmap_with_capacity(p.module_count() * 1024),
+            tuple_tys: no_hashmap_with_capacity(p.module_count() * 1024),
 
             resolution_tys: thin_vec::ThinVec::with_capacity(128),
             resolution_res: thin_vec::ThinVec::with_capacity(128),
@@ -479,7 +411,7 @@ impl<'cx> TyChecker<'cx> {
         this.string_or_number_ty.set(string_or_number_ty).unwrap();
 
         let string_number_symbol_ty = this.get_union_ty(
-            &[this.string_ty, this.number_ty /* TODO: symbol_ty */],
+            &[this.string_ty, this.number_ty, this.symbol_ty],
             ty::UnionReduction::Lit,
         );
         this.string_number_symbol_ty
@@ -1315,6 +1247,7 @@ impl<'cx> TyChecker<'cx> {
         let mut element_flags = Vec::with_capacity(lit.elems.len());
         self.push_cached_contextual_type(lit.id);
         let contextual_ty = self.get_apparent_ty_of_contextual_ty(lit.id, None);
+        let is_const_context = self.p.is_const_context(lit.id);
         let is_tuple_context = if let Some(contextual_ty) = contextual_ty {
             self.is_tuple_like(contextual_ty)
         } else {
@@ -1328,7 +1261,7 @@ impl<'cx> TyChecker<'cx> {
 
         self.pop_type_context();
 
-        if force_tuple || is_tuple_context {
+        if force_tuple || is_const_context || is_tuple_context {
             let element_types = self.alloc(element_types);
             let element_flags = self.alloc(element_flags);
             let tuple_ty = self.create_tuple_ty(element_types, Some(element_flags), false);
@@ -1839,7 +1772,9 @@ impl<'cx> TyChecker<'cx> {
 
     fn is_known_prop(&mut self, target: &'cx ty::Ty<'cx>, name: SymbolName) -> bool {
         if target.kind.as_object().is_some() {
-            if self.get_prop_of_ty(target, name).is_some() {
+            if self.get_prop_of_ty(target, name).is_some()
+                || self.get_applicable_index_for_name(target, name).is_some()
+            {
                 return true;
             }
         } else if target.kind.is_union_or_intersection()
@@ -2242,10 +2177,10 @@ impl<'cx> TyChecker<'cx> {
             } else {
                 self.get_index_ty(t, ty::IndexFlags::empty())
             };
-        } else if let Some(cond) = ty.kind.as_cond_ty() {
+        } else if ty.kind.is_cond_ty() {
             // TODO: is_distributive
             return ty;
-        } else if let Some(u) = ty.kind.as_union() {
+        } else if ty.kind.is_union() {
             return self
                 .map_ty(ty, |this, t| Some(this.get_lower_bound_of_key_ty(t)), true)
                 .unwrap();

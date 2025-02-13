@@ -6,7 +6,7 @@ use super::instantiation_ty_map::hash_ty_args;
 use super::ty::{self, Ty, TyKind};
 use super::{errors, IndexedAccessTyMap, ResolutionKey};
 use super::{CheckMode, F64Represent, InferenceContextId, PropName, TyChecker};
-use crate::ast::{self, pprint_ident, EntityNameKind};
+use crate::ast::{self, EntityNameKind};
 
 use crate::bind::{SymbolFlags, SymbolID, SymbolName};
 use crate::keyword::is_prim_ty_name;
@@ -256,7 +256,7 @@ impl<'cx> TyChecker<'cx> {
         let constraint_ty = self
             .get_constraint_of_ty_param(ty_param)
             .unwrap_or(self.error_ty);
-        let symbol = self.binder.final_res(node.id);
+        let symbol = self.final_res(node.id);
         let ty = self.create_mapper_ty(
             symbol,
             node,
@@ -418,7 +418,7 @@ impl<'cx> TyChecker<'cx> {
         if let Some(ty) = self.get_node_links(node).get_resolved_ty() {
             return ty;
         }
-        let ty = self.create_anonymous_ty(self.binder.final_res(node), ObjectFlags::empty());
+        let ty = self.create_anonymous_ty(self.final_res(node), ObjectFlags::empty());
         self.get_mut_node_links(node).set_resolved_ty(ty);
         ty
     }
@@ -427,14 +427,9 @@ impl<'cx> TyChecker<'cx> {
         if let Some(ty) = self.get_node_links(node.id).get_resolved_ty() {
             return ty;
         }
-        let ty = match node.name.kind {
-            ast::EntityNameKind::Ident(ident) => self.check_ident(ident),
-            ast::EntityNameKind::Qualified(_) => {
-                // TODO: fix
-                self.undefined_ty
-            }
-        };
-        // TODO: ty args
+        let ty = self.check_expr_with_ty_args(node);
+        let ty = self.get_widened_ty(ty);
+        let ty = self.get_regular_ty_of_literal_ty(ty);
         self.get_mut_node_links(node.id).set_resolved_ty(ty);
         ty
     }
@@ -679,7 +674,7 @@ impl<'cx> TyChecker<'cx> {
                     }
                 }
                 let id = n.name.id();
-                let s = self.binder.final_res(id);
+                let s = self.final_res(id);
                 self.symbol(s).flags().intersects(SymbolFlags::TYPE_ALIAS)
             }
             TyOp(n) => n.op != ast::TyOpKind::Unique && self.may_resolve_ty_alias(n.ty.id()),
@@ -746,7 +741,7 @@ impl<'cx> TyChecker<'cx> {
         }
         host.and_then(|node_id| self.p.node(node_id).is_type_decl().then_some(node_id))
             .map(|node_id| {
-                let symbol = self.binder.final_res(node_id);
+                let symbol = self.final_res(node_id);
                 assert!(self.binder.symbol(symbol).flags == SymbolFlags::TYPE_ALIAS);
                 symbol
             })
@@ -800,7 +795,7 @@ impl<'cx> TyChecker<'cx> {
         ty_params.map_or(0, |ty_params| ty_params.len())
     }
 
-    fn get_element_tys(&mut self, ty: &'cx Ty<'cx>) -> ty::Tys<'cx> {
+    pub(super) fn get_element_tys(&mut self, ty: &'cx Ty<'cx>) -> ty::Tys<'cx> {
         if !ty.is_tuple() {
             return Default::default();
         };
@@ -1560,6 +1555,10 @@ impl<'cx> TyChecker<'cx> {
             self.get_index_ty_for_mapped_ty(ty, index_flags)
         } else if ty == self.wildcard_ty {
             self.wildcard_ty
+        } else if ty.flags.intersects(TypeFlags::UNKNOWN) {
+            self.never_ty
+        } else if ty.flags.intersects(TypeFlags::ANY | TypeFlags::NEVER) {
+            self.string_number_symbol_ty()
         } else {
             let include = if index_flags.intersects(IndexFlags::NO_INDEX_SIGNATURES) {
                 TypeFlags::STRING_LITERAL

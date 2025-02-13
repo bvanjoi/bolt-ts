@@ -618,16 +618,15 @@ impl<'cx> TyChecker<'cx> {
 
             let fixed_length = props.len();
             let length_symbol_name = SymbolName::Ele(keyword::IDENT_LENGTH);
-            let ty = this.get_number_literal_type(fixed_length as f64);
-            // let ty = if combined_flags.intersects(ElementFlags::VARIABLE) {
-            //     this.number_ty()
-            // } else {
-            //     let tys = (min_length..arity)
-            //         .into_iter()
-            //         .map(|i| this.get_number_literal_type(i as f64))
-            //         .collect::<Vec<_>>();
-            //     this.create_union_type(tys, UnionReduction::Lit)
-            // };
+            let ty = if combined_flags.intersects(ElementFlags::VARIABLE) {
+                this.number_ty
+            } else {
+                let tys = (min_length..=arity)
+                    .into_iter()
+                    .map(|i| this.get_number_literal_type(i as f64))
+                    .collect::<Vec<_>>();
+                this.get_union_ty(&tys, UnionReduction::Lit)
+            };
             let length_symbol = this.create_transient_symbol(
                 length_symbol_name,
                 SymbolFlags::PROPERTY,

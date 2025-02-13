@@ -30,25 +30,35 @@ type ArrayIndices<Element extends readonly unknown[]> =
   type ValueKeys = ArrayIndices<typeof values>;
 
   const test: 0 | 1 | 2 = 0;
-  // const a0: ValueKeys = test;
+  const a0: ValueKeys = test;
 
-  // expectAssignable<ValueKeys>(0);
-  // expectAssignable<ValueKeys>(1);
-  // expectAssignable<ValueKeys>(2);
+  const a1:ValueKeys = 0;
+  const a2:ValueKeys = 1;
+  const a3:ValueKeys = 2;
 
-  // expectNotAssignable<ValueKeys>(-1);
-  // expectNotAssignable<ValueKeys>(3);
+  const a4: ValueKeys = -1;
+  //~^ ERROR: Type 'number' is not assignable to type '2 | 1 | 0'.
+  const a5: ValueKeys = 3;
+  //~^ ERROR: Type 'number' is not assignable to type '2 | 1 | 0'.
 
-  // type TupleKeys = ArrayIndices<['a', 2]>;
+  type TupleKeys = ArrayIndices<['a', 2]>;
 
-  // declare const testTuple: 0 | 1;
-  // expectType<TupleKeys>(testTuple);
+  const testTuple: 0 | 1 = 0;
+  const b0: TupleKeys = testTuple;
 
-  // expectAssignable<TupleKeys>(0);
-  // expectAssignable<TupleKeys>(1);
+  const b1: TupleKeys = 0;
+  const b2: TupleKeys = 1;
 
-  // expectNotAssignable<TupleKeys>(-1);
-  // expectNotAssignable<TupleKeys>(2);
+  const b3: TupleKeys = -1;
+  //~^ ERROR: Type 'number' is not assignable to type '1 | 0'.
+  const b4: TupleKeys = 2;
+  //~^ ERROR: Type 'number' is not assignable to type '1 | 0'.
+
+	const c0: ArrayIndices<['a', 'b', 'c']> = 0;
+	const c1: ArrayIndices<['a', 'b', 'c']> = 1;
+	const c2: ArrayIndices<['a', 'b', 'c']> = 2;
+	const c3: ArrayIndices<['a', 'b', 'c']> = 3;
+	//~^ ERROR: Type 'number' is not assignable to type '2 | 1 | 0'.
 }
 
 // ========= ArrayValues =========
@@ -124,7 +134,6 @@ type Arrayable<T> = T | T[];
 type IfNever<T, TypeIfNever = true, TypeIfNotNever = false> = (
 	IsNever<T> extends true ? TypeIfNever : TypeIfNotNever
 );
-
 {
   const a0: IfNever<never> = true;
   const a1: IfNever<string> = false;
@@ -215,7 +224,6 @@ type IsNever<T> = [T] extends [never] ? true : false;
 
 // =========== isNull ===========
 type IsNull<T> = [T] extends [null] ? true : false;
-
 {
   const a0: IsNull<null> = true;
   const a1: IsNull<any> = true;
@@ -272,6 +280,43 @@ type Or<A extends boolean, B extends boolean> = [A, B][number] extends false
   const a6: Or<boolean, boolean> = never;
 }
 
+// ========== TupleToUnion ==========
+type TupleToUnion<ArrayType> = ArrayType extends readonly unknown[] ? ArrayType[number] : never;
+{
+  const options = ['a', 'b', 'c'] as const;
+  type Options = TupleToUnion<typeof options>;
+
+  // const a: Options = 'a';
+  // expectAssignable<Options>(a);
+  // expectType<'a'>(a);
+  // expectNotType<'b'>(a);
+  // expectNotType<'c'>(a);
+
+  // const b: Options = 'b';
+  // expectAssignable<Options>(b);
+  // expectNotType<'a'>(b);
+  // expectType<'b'>(b);
+  // expectNotType<'c'>(b);
+
+  // const c: Options = 'c';
+  // expectAssignable<Options>(c);
+  // expectNotType<'a'>(c);
+  // expectNotType<'b'>(c);
+  // expectType<'c'>(c);
+
+  // declare const notAnArray: TupleToUnion<[]>;
+  // expectType<never>(notAnArray);
+
+  // declare const worksWithArrays: TupleToUnion<Array<string | number>>;
+  // expectType<string | number>(worksWithArrays);
+
+  // declare const resolvesToNeverForNonArrays: TupleToUnion<string | number>;
+  // expectType<never>(resolvesToNeverForNonArrays);
+
+  // declare const infiniteRestArguments: TupleToUnion<[string, ...number[]]>;
+  // expectType<string | number>(infiniteRestArguments);
+}
+
 // =========== UnknownArray ===========
 type UnknownArray = readonly unknown[];
 {
@@ -285,24 +330,65 @@ type UnknownArray = readonly unknown[];
   const a2: UnknownArray = [];
   const a3: UnknownArray = ['foo'];
 
-    const b0: UnknownArray = null;      // depend on `strictNullChecks`
-    const b1: UnknownArray = undefined; // depend on `strictNullChecks`
-    const b2: UnknownArray = {};
-    //~^ ERROR: Type '{ }' is missing the following properties from type 'unknown[]': length, join, and 
-    const b3: UnknownArray = {0: 1};
-    //~^ ERROR: Type '{ 0: number; }' is missing the following properties from type 'unknown[]': length, join, and 
-    const b4: UnknownArray = 1;
-    //~^ ERROR: Type 'number' is not assignable to type 'unknown[]'.
-    const b5: UnknownArray = Date;
-    //~^ ERROR: Type 'DateConstructor' is missing the following properties from type 'unknown[]': join, reverse, and
-    //~| ERROR: Type 'DateConstructor' is not assignable to type 'unknown[]'.
+  const b0: UnknownArray = null;      // depend on `strictNullChecks`
+  const b1: UnknownArray = undefined; // depend on `strictNullChecks`
+  const b2: UnknownArray = {};
+  //~^ ERROR: Type '{ }' is missing the following properties from type 'unknown[]': length, join, and 
+  const b3: UnknownArray = {0: 1};
+  //~^ ERROR: Type '{ 0: number; }' is missing the following properties from type 'unknown[]': length, join, and 
+  const b4: UnknownArray = 1;
+  //~^ ERROR: Type 'number' is not assignable to type 'unknown[]'.
+  const b5: UnknownArray = Date;
+  //~^ ERROR: Type 'DateConstructor' is missing the following properties from type 'unknown[]': join, reverse, and
+  //~| ERROR: Type 'DateConstructor' is not assignable to type 'unknown[]'.
 
-    type IsArray<T> = T extends UnknownArray ? true : false;
+  type IsArray<T> = T extends UnknownArray ? true : false;
 
-    const string: IsArray<string> = false;
-    const array: IsArray<[]> = true;
-    const tuple: IsArray<['foo']> = true;
-    const readonlyArray: IsArray<readonly number[]> = true;
-    const leadingSpread: IsArray<readonly [number, ...string[]]> = true;
-    const trailingSpread: IsArray<readonly [...string[], number]> = true;
+  const string: IsArray<string> = false;
+  const array: IsArray<[]> = true;
+  const tuple: IsArray<['foo']> = true;
+  const readonlyArray: IsArray<readonly number[]> = true;
+  const leadingSpread: IsArray<readonly [number, ...string[]]> = true;
+  const trailingSpread: IsArray<readonly [...string[], number]> = true;
+}
+
+// =========== UnknownRecord ===========
+type UnknownRecord = Record<PropertyKey, unknown>;
+{
+  let foo: UnknownRecord = {};
+
+  const a0: UnknownRecord = foo;
+  const a1: UnknownRecord = foo = {};
+  const a2: UnknownRecord = foo = {bar: 'baz'};
+  const a3: UnknownRecord = foo = {bar: {baz: 'hello'}};
+
+  foo = [];
+  //~^ ERROR: Type 'never[]' is not assignable to type 'Record'.
+  foo = 42;
+  //~^ ERROR: Type 'number' is not assignable to type 'Record'.
+  foo = null; // Depends on `strictNullChecks`
+
+  const b0: unknown = foo['bar'];
+}
+
+// =========== ValueOf ===========
+type ValueOf<ObjectType, ValueType extends keyof ObjectType = keyof ObjectType> = ObjectType[ValueType];
+{
+  const value: ValueOf<{a: 1; b: 2; c: 3}> = 3;
+  const value1: ValueOf<{a: 1; b: 2; c: 3}> = 1;
+  const value2: ValueOf<{a: 1; b: 2; c: 3}> = 2;
+
+  const a0: 1 | 2 | 3 = value;
+  const a1: 4 = value;
+  //~^ ERROR: Type 'number' is not assignable to type '4'.
+
+  const valueRestricted: ValueOf<{a: 1; b: 2; c: 3}, 'a'> = 1;
+  const valueRestricted1: ValueOf<{a: 1; b: 2; c: 3}, 'b'> = 2;
+  const valueRestricted2: ValueOf<{a: 1; b: 2; c: 3}, 'c'> = 3;
+
+  const b0: 1 = valueRestricted
+  const b1: 2 = valueRestricted;
+  //~^ ERROR: Type '1' is not assignable to type '2'.
+  const b2: 3 = valueRestricted;
+  //~^ ERROR: Type '1' is not assignable to type '3'.
 }

@@ -135,7 +135,7 @@ pub struct TypeofTy<'cx> {
     pub id: NodeID,
     pub span: Span,
     pub name: &'cx EntityName<'cx>,
-    pub args: Option<&'cx self::Tys<'cx>>,
+    pub ty_args: Option<&'cx self::Tys<'cx>>,
 }
 
 #[derive(Debug, Clone, Copy)]

@@ -20,9 +20,7 @@ declare function eval(x: string): any;
  */
 declare function parseInt(string: string, radix?: number): number;
 
-// declare type PropertyKey = string | number | symbol;
-declare type PropertyKey = string;
-
+declare type PropertyKey = string | number | symbol;
 
 interface Object {
   /** The initial value of Object.prototype.constructor is the standard built-in Object constructor. */

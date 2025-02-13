@@ -307,7 +307,7 @@ fn get_sig_from_decl<'cx>(
     let mut min_args_count = 0;
     let mut params = Vec::with_capacity(params_of_node.len());
     for param in params_of_node {
-        let symbol = checker.binder.final_res(param.id);
+        let symbol = checker.final_res(param.id);
         params.push(symbol);
         let is_opt = param.question.is_some() || param.dotdotdot.is_some() || param.init.is_some();
         if !is_opt {

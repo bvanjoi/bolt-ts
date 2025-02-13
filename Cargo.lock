@@ -61,6 +61,7 @@ name = "bolt_ts_atom"
 version = "0.1.0"
 dependencies = [
  "bolt_ts_utils",
+ "nohash-hasher",
  "paste",
  "rustc-hash",
  "xxhash-rust",

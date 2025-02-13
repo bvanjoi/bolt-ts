@@ -16,6 +16,8 @@ impl AtomId {
     }
 }
 
+impl nohash_hasher::IsEnabled for AtomId {}
+
 #[derive(Debug)]
 pub struct AtomMap<'a>(rustc_hash::FxHashMap<AtomId, Cow<'a, str>>);
 

@@ -171,7 +171,7 @@ pub fn eval_from(root: PathBuf, tsconfig: NormalizedTsConfig) -> Output {
 
     // ==== bind ====
     let atoms = Arc::try_unwrap(atoms).unwrap();
-    let atoms = atoms.into_inner().unwrap();
+    let mut atoms = atoms.into_inner().unwrap();
 
     let mut bind_list = bind_parallel(module_arena.modules(), &atoms, &p);
 
@@ -223,7 +223,7 @@ pub fn eval_from(root: PathBuf, tsconfig: NormalizedTsConfig) -> Output {
         })
         .collect::<Vec<_>>();
 
-    let mut binder = bind::Binder::new(&p, &atoms);
+    let mut binder = bind::Binder::new(&p);
     for (m, res) in late_resolve::late_resolve(
         states,
         module_arena.modules(),
@@ -250,7 +250,7 @@ pub fn eval_from(root: PathBuf, tsconfig: NormalizedTsConfig) -> Output {
     let mut checker = check::TyChecker::new(
         &ty_arena,
         &p,
-        &atoms,
+        &mut atoms,
         &binder,
         &global_symbols,
         tsconfig.compiler_options(),

@@ -1,10 +1,11 @@
 use bolt_ts_span::Span;
+use indexmap::map;
 use rustc_hash::FxHashMap;
 
 use super::cycle_check::{Cycle, ResolutionKey};
 use super::links::SigLinks;
 use super::{errors, SymbolLinks, TyChecker};
-use crate::ast::{self, MappedTyModifiers};
+use crate::ast::{self, MappedTyModifiers, ObjectMethodMember};
 use crate::bind::{Symbol, SymbolFlags, SymbolID, SymbolName};
 use crate::ty::{self, CheckFlags, ObjectFlags, SigID, SigKind, TypeFlags};
 
@@ -843,8 +844,12 @@ impl<'cx> TyChecker<'cx> {
         }
         let template_ty = if let Some(decl_ty) = mapped_ty.decl.ty {
             let decl_ty = self.get_ty_from_type_node(decl_ty);
-            // TODO: add_optionality
-            self.instantiate_ty(decl_ty, mapped_ty.mapper)
+            let is_optional = mapped_ty
+                .decl
+                .get_modifiers()
+                .intersects(MappedTyModifiers::INCLUDE_OPTIONAL);
+            let t = self.add_optionality(decl_ty, true, is_optional);
+            self.instantiate_ty(t, mapped_ty.mapper)
         } else {
             self.error_ty
         };
@@ -918,15 +923,15 @@ impl<'cx> TyChecker<'cx> {
         let mapped_ty = ty.kind.expect_object_mapped();
         let ty_param = mapped_ty.ty_param;
         let constraint_ty = mapped_ty.constraint_ty;
-        let mapped_ty = if let Some(target) = mapped_ty.target {
-            target.kind.expect_object_mapped()
-        } else {
-            mapped_ty
+        let (name_ty, should_link_prop_decls, template_ty) = {
+            let target = mapped_ty.target.unwrap_or(ty);
+            assert!(target.kind.is_object_mapped());
+            let name_ty = self.get_name_ty_from_mapped_ty(target);
+            let should_link_prop_decls =
+                self.get_mapped_ty_name_ty_kind(target) != ty::MappedTyNameTyKind::Remapping;
+            let template_ty = self.get_template_ty_from_mapped_ty(target);
+            (name_ty, should_link_prop_decls, template_ty)
         };
-        let name_ty = self.get_name_ty_from_mapped_ty(ty);
-        let should_link_prop_decls =
-            self.get_mapped_ty_name_ty_kind(ty) != ty::MappedTyNameTyKind::Remapping;
-        let template_ty = self.get_template_ty_from_mapped_ty(ty);
         let modifiers_ty = {
             let ty = self.get_modifier_ty_from_mapped_ty(ty);
             self.get_apparent_ty(ty)

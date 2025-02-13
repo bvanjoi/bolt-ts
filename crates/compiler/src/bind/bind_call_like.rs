@@ -1,7 +1,7 @@
 use super::BinderState;
 use crate::ir::CallLike;
 
-impl<'cx> BinderState<'cx> {
+impl<'cx> BinderState<'cx, '_> {
     pub(super) fn bind_call_like(&mut self, expr: &'cx impl CallLike<'cx>) {
         self.bind_expr(expr.callee());
         if let Some(ty_args) = expr.ty_args() {

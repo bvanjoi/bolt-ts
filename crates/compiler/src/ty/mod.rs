@@ -29,6 +29,8 @@ pub use self::sig::{Sig, SigFlags, SigID, SigKind, Sigs};
 
 bolt_ts_utils::index!(TyID);
 
+impl nohash_hasher::IsEnabled for TyID {}
+
 impl TyID {
     pub(crate) fn new(id: u32) -> Self {
         Self(id)
@@ -263,7 +265,7 @@ impl<'cx> TyKind<'cx> {
     }
 
     pub fn is_structured(&self) -> bool {
-        self.is_union() || self.is_object()
+        self.is_object() || self.is_union() || self.is_intersection()
     }
 
     pub fn is_structured_or_instantiable(&self) -> bool {

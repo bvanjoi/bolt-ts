@@ -33,6 +33,8 @@ bitflags::bitflags! {
 
 bolt_ts_utils::index!(SigID);
 
+impl nohash_hasher::IsEnabled for SigID {}
+
 impl SigID {
     pub const fn dummy() -> Self {
         Self(u32::MAX)

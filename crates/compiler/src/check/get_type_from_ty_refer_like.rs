@@ -254,6 +254,7 @@ impl<'cx> TyChecker<'cx> {
                 keyword::IDENT_NEVER => self.never_ty,
                 keyword::KW_UNDEFINED => self.undefined_ty,
                 keyword::KW_NULL => self.null_ty,
+                keyword::IDENT_SYMBOL => self.symbol_ty,
                 _ => {
                     let symbol = self.resolve_ty_refer_name(name);
                     self.get_mut_node_links(node.id())

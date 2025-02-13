@@ -603,14 +603,18 @@ impl TokenKind {
             String
                 | Number
                 | Readonly
+                | Void
+                | Undefined
                 | Null
-                | This
-                | Type
+                | Typeof
                 | LBrace
                 | LBracket
-                | Less
                 | Pipe
                 | Amp
+                | New
+                | This
+                | Type
+                | Less
                 | True
                 | False
                 | Asterisk

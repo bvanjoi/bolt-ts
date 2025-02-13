@@ -19,14 +19,14 @@ impl<'cx> TyChecker<'cx> {
             "expected a decl node, but got {:#?}",
             self.p.node(id)
         );
-        self.binder.final_res(id)
+        self.final_res(id)
     }
 
     #[inline]
     pub(super) fn get_symbol_from_expr(&self, id: ast::NodeID) -> Option<SymbolID> {
         let node = self.p.node(id);
         if Symbol::can_have_symbol(node) {
-            Some(self.binder.final_res(id))
+            Some(self.final_res(id))
         } else if let Some(ident) = node.as_ident() {
             Some(self.resolve_symbol_by_ident(ident))
         } else if node.as_prop_access_expr().is_some() {

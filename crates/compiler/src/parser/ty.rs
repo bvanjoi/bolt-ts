@@ -502,7 +502,7 @@ impl<'cx> ParserState<'cx, '_> {
         let start = self.token.start();
         self.expect(TokenKind::Typeof);
         let name = self.with_parent(id, |this| this.parse_entity_name(true))?;
-        let args = if self.has_preceding_line_break() {
+        let ty_args = if self.has_preceding_line_break() {
             self.with_parent(id, Self::try_parse_ty_args)?
         } else {
             None
@@ -511,7 +511,7 @@ impl<'cx> ParserState<'cx, '_> {
             id,
             span: self.new_span(start),
             name,
-            args,
+            ty_args,
         });
         self.insert_map(id, ast::Node::TypeofTy(kind));
         let ty = self.alloc(ast::Ty {

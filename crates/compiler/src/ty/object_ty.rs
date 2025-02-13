@@ -217,9 +217,9 @@ impl<'cx> ObjectTyKind<'cx> {
                             let name = checker.p.node(decl).ident_name().unwrap();
                             let ty = checker.get_type_of_symbol(*param);
                             format!(
-                                "{}: {}",
-                                checker.atoms.get(name.name),
-                                ty.to_string(checker)
+                                "{name}: {ty}",
+                                ty = ty.to_string(checker),
+                                name = checker.atoms.get(name.name),
                             )
                         })
                         .collect::<Vec<_>>()
@@ -277,11 +277,11 @@ impl<'cx> ObjectTyKind<'cx> {
                 {
                     let decl = checker.binder.symbol(index_info.symbol).expect_index().decl;
                     let key_name = checker.p.node(decl).expect_index_sig_decl().params[0].name;
-                    let key_name = checker.atoms.get(key_name.name);
                     format!(
-                        "{{ [{key_name}: {}]: {} }}",
-                        index_info.key_ty.to_string(checker),
-                        index_info.val_ty.to_string(checker)
+                        "{{ [{key_name}: {key_ty}]: {val_ty} }}",
+                        key_ty = index_info.key_ty.to_string(checker),
+                        val_ty = index_info.val_ty.to_string(checker),
+                        key_name = checker.atoms.get(key_name.name)
                     )
                 } else {
                     let members = checker
@@ -291,9 +291,12 @@ impl<'cx> ObjectTyKind<'cx> {
                     let members = members
                         .iter()
                         .map(|(name, symbol)| {
-                            let name = checker.atoms.get(name.expect_atom());
                             let ty = checker.get_type_of_symbol(*symbol);
-                            format!("{}: {}; ", name, ty.to_string(checker))
+                            format!(
+                                "{field_name}: {filed_ty}; ",
+                                filed_ty = ty.to_string(checker),
+                                field_name = checker.atoms.get(name.expect_atom()),
+                            )
                         })
                         .collect::<Vec<_>>()
                         .join("");
@@ -316,7 +319,16 @@ impl<'cx> ObjectTyKind<'cx> {
                 .to_string(),
             ObjectTyKind::Reference(_) => pprint_reference_ty(self_ty, checker),
             ObjectTyKind::SingleSigTy(_) => "single signature type".to_string(),
-            ObjectTyKind::Mapped(_) => "mapped type".to_string(),
+            ObjectTyKind::Mapped(m) => {
+                if let Some(s) = m.alias_symbol {
+                    checker
+                        .atoms
+                        .get(checker.binder.symbol(s).name.expect_atom())
+                        .to_string()
+                } else {
+                    "mapped type".to_string()
+                }
+            }
         }
     }
 }
