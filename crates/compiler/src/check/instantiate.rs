@@ -163,18 +163,16 @@ impl<'cx> TyChecker<'cx> {
                     let target = self.get_restrictive_instantiation(new_constraint);
                     self.is_type_assignable_to(source, target)
                 } {
-                    if new_base_ty.flags.intersects(TypeFlags::TYPE_VARIABLE) {
-                        self.get_substitution_ty(new_base_ty, new_constraint)
-                    } else {
-                        self.get_intersection_ty(
-                            &[new_base_ty, new_constraint],
-                            IntersectionFlags::None,
-                            None,
-                            None,
-                        )
-                    }
+                    new_base_ty
+                } else if new_base_ty.flags.intersects(TypeFlags::TYPE_VARIABLE) {
+                    self.get_substitution_ty(new_base_ty, new_constraint)
                 } else {
-                    ty
+                    self.get_intersection_ty(
+                        &[new_base_ty, new_constraint],
+                        IntersectionFlags::None,
+                        None,
+                        None,
+                    )
                 }
             }
             _ => {

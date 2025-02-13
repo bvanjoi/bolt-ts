@@ -60,7 +60,7 @@ impl<'cx> TyChecker<'cx> {
     ) -> Option<&'cx ty::Ty<'cx>> {
         let assign = self.p.node(parent).expect_assign_expr();
         // TODO: assign_kind;
-        let lhs_symbol = self.get_symbol_from_expr(assign.left.id());
+        let lhs_symbol = self.get_symbol_for_expr(assign.left.id());
         if let Some(lhs_symbol) = lhs_symbol {
             // TODO: handle
             return None;

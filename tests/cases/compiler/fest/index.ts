@@ -286,9 +286,9 @@ type TupleToUnion<ArrayType> = ArrayType extends readonly unknown[] ? ArrayType[
   const options = ['a', 'b', 'c'] as const;
   type Options = TupleToUnion<typeof options>;
 
-  // const a: Options = 'a';
-  // expectAssignable<Options>(a);
-  // expectType<'a'>(a);
+  const a: Options = 'a';
+  const a0: Options = 'a';
+  // const a1: 'a' = a;
   // expectNotType<'b'>(a);
   // expectNotType<'c'>(a);
 

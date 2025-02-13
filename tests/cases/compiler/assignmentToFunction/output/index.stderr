@@ -1,0 +1,11 @@
+  × Cannot assign to 'fn' because it is a function.
+   ╭─[../../tests/cases/compiler/assignmentToFunction/index.ts:4:1]
+ 4 │ fn
+   · ──
+   ╰────
+
+  × Cannot assign to 'bar' because it is a function.
+    ╭─[../../tests/cases/compiler/assignmentToFunction/index.ts:11:9]
+ 11 │ bar
+    · ───
+    ╰────

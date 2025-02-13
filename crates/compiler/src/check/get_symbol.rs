@@ -1,6 +1,6 @@
 use super::TyChecker;
 use crate::ast;
-use crate::bind::{Symbol, SymbolID};
+use crate::bind::{Symbol, SymbolID, SymbolName};
 
 impl<'cx> TyChecker<'cx> {
     #[inline]
@@ -23,14 +23,16 @@ impl<'cx> TyChecker<'cx> {
     }
 
     #[inline]
-    pub(super) fn get_symbol_from_expr(&self, id: ast::NodeID) -> Option<SymbolID> {
+    pub(super) fn get_symbol_for_expr(&mut self, id: ast::NodeID) -> Option<SymbolID> {
         let node = self.p.node(id);
         if Symbol::can_have_symbol(node) {
             Some(self.final_res(id))
         } else if let Some(ident) = node.as_ident() {
             Some(self.resolve_symbol_by_ident(ident))
-        } else if node.as_prop_access_expr().is_some() {
-            todo!()
+        } else if let Some(p) = node.as_prop_access_expr() {
+            let lhs_ty = self.get_ty_of_expr(p.expr);
+            // TODO: is_private
+            self.get_prop_of_ty(lhs_ty, SymbolName::Ele(p.name.name))
         } else {
             None
         }

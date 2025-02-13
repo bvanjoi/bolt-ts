@@ -49,25 +49,27 @@ impl<'cx> TyChecker<'cx> {
         if ty.get_object_flags() == ObjectFlags::INSTANTIATED_MAPPED {
             todo!()
         }
-        if ty.kind.is_intersection() {
-            todo!()
-        }
-
-        let id = self.get_recursion_id(ty);
-        let mut count = 0;
-        let mut last_type_id = 0;
-        for i in 0..depth {
-            let t = stack[i];
-            if self.has_matching_recursion_ident(t, id) {
-                if t.id.as_u32() >= last_type_id {
-                    count += 1;
-                    if count >= max_depth {
-                        return true;
+        if let Some(i) = ty.kind.as_intersection() {
+            i.tys
+                .iter()
+                .any(|t| self.is_deeply_nested_type(t, stack, max_depth))
+        } else {
+            let id = self.get_recursion_id(ty);
+            let mut count = 0;
+            let mut last_type_id = 0;
+            for i in 0..depth {
+                let t = stack[i];
+                if self.has_matching_recursion_ident(t, id) {
+                    if t.id.as_u32() >= last_type_id {
+                        count += 1;
+                        if count >= max_depth {
+                            return true;
+                        }
                     }
+                    last_type_id = t.id.as_u32();
                 }
-                last_type_id = t.id.as_u32();
             }
+            false
         }
-        false
     }
 }
