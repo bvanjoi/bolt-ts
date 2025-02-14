@@ -228,8 +228,14 @@ impl<'cx> TyChecker<'cx> {
                     False => self.false_ty,
                     Undefined => self.undefined_ty,
                     Void => self.void_ty,
-                    Num(n) => self.get_number_literal_type(n),
-                    String(n) => self.get_string_literal_type(n),
+                    Num(n) => {
+                        let ty = self.get_number_literal_type(n);
+                        self.get_regular_ty_of_literal_ty(ty)
+                    }
+                    String(n) => {
+                        let ty = self.get_string_literal_type(n);
+                        self.get_regular_ty_of_literal_ty(ty)
+                    }
                 }
             }
             Paren(n) => self.get_ty_from_type_node(n.ty),
@@ -450,7 +456,8 @@ impl<'cx> TyChecker<'cx> {
     }
 
     fn get_ty_from_rest_ty_node(&mut self, rest: &'cx ast::RestTy<'cx>) -> &'cx Ty<'cx> {
-        self.get_ty_from_type_node(rest.ty)
+        let ty_node = Self::get_array_ele_ty_node(rest.ty).unwrap_or(rest.ty);
+        self.get_ty_from_type_node(ty_node)
     }
 
     pub(super) fn get_prop_name_from_ty(&self, ty: &'cx Ty<'cx>) -> Option<PropName> {
@@ -1086,7 +1093,9 @@ impl<'cx> TyChecker<'cx> {
                         tailed += 1;
                         continue;
                     }
-                    break self.instantiate_ty(true_ty, true_mapper);
+
+                    let t = self.instantiate_ty(true_ty, true_mapper);
+                    break t;
                 }
             }
 
@@ -1273,6 +1282,10 @@ impl<'cx> TyChecker<'cx> {
         } else {
             let kind = TyKind::NumberLit(self.alloc(ty::NumberLitTy { val }));
             let ty = self.new_ty(kind, TypeFlags::NUMBER_LITERAL);
+            let prev = self
+                .ty_links
+                .insert(ty.id, super::TyLinks::default().with_regular_ty(ty));
+            assert!(prev.is_none());
             self.num_lit_tys.insert(key, ty);
             ty
         }
@@ -1284,6 +1297,10 @@ impl<'cx> TyChecker<'cx> {
         } else {
             let kind = TyKind::StringLit(self.alloc(ty::StringLitTy { val }));
             let ty = self.new_ty(kind, TypeFlags::STRING_LITERAL);
+            let prev = self
+                .ty_links
+                .insert(ty.id, super::TyLinks::default().with_regular_ty(ty));
+            assert!(prev.is_none());
             self.string_lit_tys.insert(val, ty);
             ty
         }

@@ -3,6 +3,7 @@
 function fn() { }
 fn = () => 3;
 //~^ ERROR: Cannot assign to 'fn' because it is a function.
+//~| ERROR: Cannot assign to 'fn' because it is a function.
 
 module foo {
     function xyz() {

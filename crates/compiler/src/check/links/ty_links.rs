@@ -12,6 +12,9 @@ links!(
     (resolved_index_ty, &'cx ty::Ty<'cx>),
     (resolved_ty_args, ty::Tys<'cx>),
     (immediate_base_constraint, &'cx ty::Ty<'cx>),
+    // fresh type
+    (fresh_ty, &'cx ty::Ty<'cx>),
+    (regular_ty, &'cx ty::Ty<'cx>),
     // parameter type
     (param_ty_mapper, &'cx dyn ty::TyMap<'cx>),
     (param_ty_constraint, &'cx ty::Ty<'cx>),

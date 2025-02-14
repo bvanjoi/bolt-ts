@@ -12,5 +12,5 @@ function Choice<T>(...v_args: T[]): A<T> {
 }
 
 var b0: B<number> = Choice('').GetEnumerator();
-//~^ ERROR:  Type 'B<"">' is not assignable to type 'B<number>'.
+//~^ ERROR:  Type 'B<string>' is not assignable to type 'B<number>'.
 var b1: B<number> = Choice(42).GetEnumerator();

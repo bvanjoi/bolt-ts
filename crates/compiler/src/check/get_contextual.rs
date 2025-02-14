@@ -61,9 +61,13 @@ impl<'cx> TyChecker<'cx> {
         let assign = self.p.node(parent).expect_assign_expr();
         // TODO: assign_kind;
         let lhs_symbol = self.get_symbol_for_expr(assign.left.id());
-        if let Some(lhs_symbol) = lhs_symbol {
-            // TODO: handle
-            return None;
+        let decl = lhs_symbol.and_then(|s| self.binder.symbol(s).opt_decl());
+        if let Some(decl) = decl {
+            let n = self.p.node(decl);
+            if n.is_class_prop_ele() || n.is_prop_signature() {
+                // TODO: handle this;
+                return None;
+            }
         }
         Some(self.get_ty_of_expr(assign.left))
     }

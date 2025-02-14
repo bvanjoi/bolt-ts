@@ -108,10 +108,16 @@ impl<'cx> TyChecker<'cx> {
 
     pub(super) fn is_type_related_to(
         &mut self,
-        source: &'cx Ty<'cx>,
-        target: &'cx Ty<'cx>,
+        mut source: &'cx Ty<'cx>,
+        mut target: &'cx Ty<'cx>,
         relation: RelationKind,
     ) -> bool {
+        if self.is_fresh_literal_ty(source) {
+            source = self.ty_links[&source.id].get_regular_ty().unwrap();
+        }
+        if self.is_fresh_literal_ty(target) {
+            target = self.ty_links[&target.id].get_regular_ty().unwrap();
+        }
         if source == target {
             return true;
         }

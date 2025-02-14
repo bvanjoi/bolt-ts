@@ -1,5 +1,5 @@
 use crate::ir;
-use crate::ty::{self, SigFlags, SigKind, TypeFlags};
+use crate::ty::{self, ObjectFlags, SigFlags, SigKind, TypeFlags};
 use crate::{ast, ty::Sig};
 
 use super::create_ty::IntersectionFlags;
@@ -68,7 +68,7 @@ bitflags::bitflags! {
   }
 }
 
-pub struct InferenceContext<'cx> {
+pub(super) struct InferenceContext<'cx> {
     pub inferences: thin_vec::ThinVec<InferenceInfo<'cx>>,
     pub sig: Option<&'cx ty::Sig<'cx>>,
     pub flags: InferenceFlags,
@@ -272,6 +272,10 @@ impl<'cx> TyChecker<'cx> {
 
         let i = self.inference_info(inference, idx);
 
+        // for case:
+        // `function foo<T>(a: T, b: T): void`
+        // the call `foo('a', 'b')` should widen `'a'` and `'b'` into
+        // string type rather than string literal type.
         let widen_literal_tys = !primitive_constraint
             && i.top_level
             && (i.is_fixed || !self.is_ty_param_at_top_level_in_ret_top(sig, i.ty_param));
@@ -303,7 +307,7 @@ impl<'cx> TyChecker<'cx> {
         if let Some(_) = ty.kind.as_object_reference() {
             ty
             // let target = r.target.kind.expect_object_interface();
-            // let ty_args = r.resolved_ty_args;
+            // let ty_args = self.get_ty_arguments(ty);
             // if target
             //     .ty_params
             //     .map(|ty_params| ty_params.len())
@@ -312,7 +316,8 @@ impl<'cx> TyChecker<'cx> {
             // {
             //     let mut ty_args = ty_args.to_vec();
             //     ty_args.push(this_arg.unwrap_or(target.this_ty.unwrap()));
-            //     self.create_reference_ty(r.target, self.alloc(ty_args), ObjectFlags::empty())
+            //     let ty_args = self.alloc(ty_args);
+            //     self.create_reference_ty(r.target, Some(ty_args), ObjectFlags::empty())
             // } else {
             //     ty
             // }
@@ -731,10 +736,10 @@ impl<'cx> InferenceState<'cx, '_> {
                         }
                     }
 
-                    if !(self.priority.intersects(InferencePriority::RETURN_TYPE)
+                    if !self.priority.intersects(InferencePriority::RETURN_TYPE)
                         && target.flags.intersects(TypeFlags::TYPE_PARAMETER)
                         && self.c.inference_info(self.inference, idx).top_level
-                        && self.c.is_ty_param_at_top_level(original_target, target, 0))
+                        && !self.c.is_ty_param_at_top_level(original_target, target, 0)
                     {
                         self.set_info_toplevel_false(idx);
                         self.c.clear_cached_inferences(self.inference);

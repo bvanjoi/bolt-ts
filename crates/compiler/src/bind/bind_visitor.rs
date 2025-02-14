@@ -20,7 +20,6 @@ use thin_vec::thin_vec;
 use crate::ast;
 use crate::bind::prop_name;
 use crate::bind::symbol::AliasSymbol;
-use crate::bind::FlowNode;
 use crate::bind::Symbol;
 use crate::parser::Parser;
 
@@ -46,6 +45,7 @@ impl<'cx, 'atoms> BinderState<'cx, 'atoms> {
             current_flow: None,
             current_true_target: None,
             current_false_target: None,
+            current_exception_target: None,
             unreachable_flow_node,
             report_unreachable_flow_node,
             has_flow_effects: false,
@@ -817,51 +817,6 @@ impl<'cx, 'atoms> BinderState<'cx, 'atoms> {
         self.current_false_target = saved_false_target;
     }
 
-    fn create_flow_condition(
-        &mut self,
-        flags: FlowFlags,
-        antecedent: FlowID,
-        expr: Option<&'cx ast::Expr<'cx>>,
-    ) -> FlowID {
-        let antecedent_flags = self.flow_nodes.get_flow_node(antecedent).flags;
-        if antecedent_flags.intersects(FlowFlags::UNREACHABLE) {
-            return antecedent;
-        }
-        let Some(expr) = expr else {
-            return if flags.intersects(FlowFlags::TRUE_CONDITION) {
-                antecedent
-            } else {
-                self.unreachable_flow_node
-            };
-        };
-        if match &expr.kind {
-            ast::ExprKind::BoolLit(lit)
-                if lit.val && flags.intersects(FlowFlags::FALSE_CONDITION) =>
-            {
-                true
-            }
-            ast::ExprKind::BoolLit(lit)
-                if !lit.val && flags.intersects(FlowFlags::TRUE_CONDITION) =>
-            {
-                true
-            }
-            _ => false,
-        } {
-            return self.unreachable_flow_node;
-        };
-
-        self.flow_nodes.set_flow_node_referenced(antecedent);
-
-        let node = FlowNode {
-            flags,
-            kind: FlowNodeKind::Cond(FlowCond {
-                node: expr,
-                antecedent,
-            }),
-        };
-        self.flow_nodes.insert_flow_node(node)
-    }
-
     fn bind_cond(
         &mut self,
         node: Option<&'cx ast::Expr<'cx>>,
@@ -1180,7 +1135,12 @@ impl<'cx, 'atoms> BinderState<'cx, 'atoms> {
         }
         if let Some(init) = decl.init {
             self.bind_expr(init);
+            self.bind_init_var_flow(decl.id);
         }
+    }
+
+    fn bind_init_var_flow(&mut self, id: ast::NodeID) {
+        self.current_flow = Some(self.create_flow_assign(self.current_flow.unwrap(), id))
     }
 
     pub(super) fn bind_params(&mut self, params: ast::ParamsDecl<'cx>) {

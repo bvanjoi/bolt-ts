@@ -470,7 +470,7 @@ impl<'cx> TyChecker<'cx> {
         self.get_union_ty_from_sorted_list(set, pre_computed_object_flags)
     }
 
-    fn get_union_ty_from_sorted_list(
+    pub(super) fn get_union_ty_from_sorted_list(
         &mut self,
         tys: Vec<&'cx ty::Ty<'cx>>,
         pre_computed_object_flags: ObjectFlags,

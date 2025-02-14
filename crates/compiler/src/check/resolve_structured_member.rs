@@ -1,11 +1,10 @@
 use bolt_ts_span::Span;
-use indexmap::map;
 use rustc_hash::FxHashMap;
 
 use super::cycle_check::{Cycle, ResolutionKey};
 use super::links::SigLinks;
 use super::{errors, SymbolLinks, TyChecker};
-use crate::ast::{self, MappedTyModifiers, ObjectMethodMember};
+use crate::ast::{self, MappedTyModifiers};
 use crate::bind::{Symbol, SymbolFlags, SymbolID, SymbolName};
 use crate::ty::{self, CheckFlags, ObjectFlags, SigID, SigKind, TypeFlags};
 

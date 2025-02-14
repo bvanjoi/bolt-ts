@@ -287,34 +287,72 @@ type TupleToUnion<ArrayType> = ArrayType extends readonly unknown[] ? ArrayType[
   type Options = TupleToUnion<typeof options>;
 
   const a: Options = 'a';
-  const a0: Options = 'a';
-  // const a1: 'a' = a;
-  // expectNotType<'b'>(a);
-  // expectNotType<'c'>(a);
+  const a1: 'a' = a;
+  const a2: TupleToUnion<['a', 'b', 'c']> = 'a';
+  const a3: 'b' = a;
+  //~^ ERROR: Type '"a"' is not assignable to type '"b"'.
+  const a4: 'c' = a;
+  //~^ ERROR: Type '"a"' is not assignable to type '"c"'.
 
-  // const b: Options = 'b';
-  // expectAssignable<Options>(b);
-  // expectNotType<'a'>(b);
-  // expectType<'b'>(b);
-  // expectNotType<'c'>(b);
+  const b: Options = 'b';
+  const b0: Options = b;
+  const b1: 'a' = b;
+  //~^ ERROR: Type '"b"' is not assignable to type '"a"'.
+  const b2: 'b' = b;
+  const b3: 'c' = b;
+  //~^ ERROR: Type '"b"' is not assignable to type '"c"'.
 
-  // const c: Options = 'c';
-  // expectAssignable<Options>(c);
-  // expectNotType<'a'>(c);
-  // expectNotType<'b'>(c);
-  // expectType<'c'>(c);
+  const c: Options = 'c';
+  const c0: Options = c;
+  const c1: 'a' = c;
+  //~^ ERROR: Type '"c"' is not assignable to type '"a"'.
+  const c2: 'b' = c;
+  //~^ ERROR: Type '"c"' is not assignable to type '"b"'.
+  const c3: 'c' = c;
 
-  // declare const notAnArray: TupleToUnion<[]>;
-  // expectType<never>(notAnArray);
+  const notAnArray: TupleToUnion<[]> = n();
+  const d0: never = notAnArray;
 
-  // declare const worksWithArrays: TupleToUnion<Array<string | number>>;
-  // expectType<string | number>(worksWithArrays);
+  const notAnArray2: TupleToUnion<[]> = undefined;
+  //~^ ERROR: Type 'undefined' is not assignable to type 'never'.
 
-  // declare const resolvesToNeverForNonArrays: TupleToUnion<string | number>;
-  // expectType<never>(resolvesToNeverForNonArrays);
+  const worksWithArrays: TupleToUnion<Array<string | number>> = 1;
+  const e0: string | number  = worksWithArrays;
 
-  // declare const infiniteRestArguments: TupleToUnion<[string, ...number[]]>;
-  // expectType<string | number>(infiniteRestArguments);
+  const resolvesToNeverForNonArrays: TupleToUnion<string | number> = n();
+  const f0: never = resolvesToNeverForNonArrays;
+
+  const infiniteRestArguments: TupleToUnion<[string, ...number[]]> = 1;
+  const g0: string | number = infiniteRestArguments
+}
+
+// ======= UnionToIntersection =======
+type UnionToIntersection<Union> = (
+	// `extends unknown` is always going to be the case and is used to convert the
+	// `Union` into a [distributive conditional
+	// type](https://www.typescriptlang.org/docs/handbook/release-notes/typescript-2-8.html#distributive-conditional-types).
+	Union extends unknown
+		// The union type is used as the only argument to a function since the union
+		// of function arguments is an intersection.
+		? (distributedUnion: Union) => void
+		// This won't happen.
+		: never
+		// Infer the `Intersection` type since TypeScript represents the positional
+		// arguments of unions of functions as an intersection of the union.
+) extends ((mergedIntersection: infer Intersection) => void)
+	// The `& Union` is to allow indexing by the resulting type
+	? Intersection & Union
+	: never;
+{
+  const intersection1: UnionToIntersection<{a: string} | {b: number}> = {a: '42', b: 42 }; 
+  const a0: {a: string; b: number} = intersection1;
+
+  const intersection2: UnionToIntersection<{a: string} | {b: number} | {a: () => void}> = {a: n(), b: 42};
+  const b0: {a: string | (() => void); b: number} = intersection2;
+
+  type ObjectsUnion = {a: string; z: string} | {b: string; z: string} | {c: string; z: string};
+  // const value: ObjectsUnion[UnionToIntersection<keyof ObjectsUnion>] = '';
+  // const c0: string = value;
 }
 
 // =========== UnknownArray ===========
@@ -380,7 +418,7 @@ type ValueOf<ObjectType, ValueType extends keyof ObjectType = keyof ObjectType> 
 
   const a0: 1 | 2 | 3 = value;
   const a1: 4 = value;
-  //~^ ERROR: Type 'number' is not assignable to type '4'.
+  //~^ ERROR: Type '3' is not assignable to type '4'.
 
   const valueRestricted: ValueOf<{a: 1; b: 2; c: 3}, 'a'> = 1;
   const valueRestricted1: ValueOf<{a: 1; b: 2; c: 3}, 'b'> = 2;

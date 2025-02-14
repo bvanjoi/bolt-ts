@@ -1,4 +1,7 @@
-use crate::{bind::SymbolID, ty};
+use crate::{
+    bind::SymbolID,
+    ty::{self, ObjectFlags},
+};
 
 use super::TyChecker;
 
@@ -31,9 +34,20 @@ impl<'cx> TyChecker<'cx> {
         ty: &'cx ty::Ty<'cx>,
         f: impl Fn(&mut Self, &'cx ty::Ty<'cx>) -> bool,
     ) -> &'cx ty::Ty<'cx> {
-        if ty.kind.as_union().is_some() {
-            // TODO:
-            ty
+        if let Some(u) = ty.kind.as_union() {
+            let filtered = u
+                .tys
+                .iter()
+                .filter(|t| f(self, t))
+                .copied()
+                .collect::<Vec<_>>();
+            // TODO: filter should reduce alloc
+            // TODO: handle origin
+            return self.get_union_ty_from_sorted_list(
+                filtered,
+                ty.get_object_flags()
+                    & (ObjectFlags::PRIMITIVE_UNION | ObjectFlags::CONTAINS_INTERSECTIONS),
+            );
         } else if ty.flags.intersects(ty::TypeFlags::NEVER) {
             self.never_ty
         } else if f(self, ty) {
@@ -44,6 +58,18 @@ impl<'cx> TyChecker<'cx> {
     }
 
     pub(super) fn every_type(
+        &mut self,
+        ty: &'cx ty::Ty<'cx>,
+        f: impl Fn(&mut Self, &'cx ty::Ty<'cx>) -> bool,
+    ) -> bool {
+        if let Some(union) = ty.kind.as_union() {
+            union.tys.iter().all(|ty| f(self, ty))
+        } else {
+            f(self, ty)
+        }
+    }
+
+    pub(super) fn some_type(
         &mut self,
         ty: &'cx ty::Ty<'cx>,
         f: impl Fn(&mut Self, &'cx ty::Ty<'cx>) -> bool,

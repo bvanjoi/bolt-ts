@@ -1,5 +1,6 @@
 use bolt_ts_span::Span;
 
+use crate::ensure_sufficient_stack;
 use crate::parser::AssignmentKind;
 use crate::ty::TypeFlags;
 
@@ -22,12 +23,50 @@ fn get_suggestion_boolean_op(op: &str) -> Option<&str> {
 }
 
 impl<'cx> TyChecker<'cx> {
+    pub(super) fn get_fresh_ty_of_literal_ty(&mut self, ty: &'cx ty::Ty<'cx>) -> &'cx ty::Ty<'cx> {
+        if ty.flags.intersects(TypeFlags::FRESHABLE) {
+            if let Some(fresh_ty) = self.get_ty_links(ty.id).get_fresh_ty() {
+                fresh_ty
+            } else {
+                let fresh_ty = match ty.kind {
+                    ty::TyKind::NumberLit(lit) => {
+                        let t = self.alloc(ty::NumberLitTy { val: lit.val });
+                        self.new_ty(ty::TyKind::NumberLit(t), ty.flags)
+                    }
+                    ty::TyKind::StringLit(lit) => {
+                        let t = self.alloc(ty::StringLitTy { val: lit.val });
+                        self.new_ty(ty::TyKind::StringLit(t), ty.flags)
+                    }
+                    _ => unreachable!(),
+                };
+                let prev = self.ty_links.insert(
+                    fresh_ty.id,
+                    TyLinks::default()
+                        .with_fresh_ty(fresh_ty)
+                        .with_regular_ty(ty),
+                );
+                assert!(prev.is_none());
+                self.get_mut_ty_links(ty.id).set_fresh_ty(fresh_ty);
+                assert!(self.get_ty_links(ty.id).get_regular_ty().is_some());
+                fresh_ty
+            }
+        } else {
+            ty
+        }
+    }
+
     pub(super) fn check_expr(&mut self, expr: &'cx ast::Expr<'cx>) -> &'cx ty::Ty<'cx> {
         use ast::ExprKind::*;
         let ty = match expr.kind {
-            Bin(bin) => self.check_bin_expr(bin),
-            NumLit(lit) => self.get_number_literal_type(lit.val),
-            StringLit(lit) => self.get_string_literal_type(lit.val),
+            Bin(bin) => ensure_sufficient_stack(|| self.check_bin_expr(bin)),
+            NumLit(lit) => {
+                let t = self.get_number_literal_type(lit.val);
+                self.get_fresh_ty_of_literal_ty(t)
+            }
+            StringLit(lit) => {
+                let t = self.get_string_literal_type(lit.val);
+                self.get_fresh_ty_of_literal_ty(t)
+            }
             BoolLit(lit) => {
                 if lit.val {
                     self.true_ty
@@ -76,7 +115,25 @@ impl<'cx> TyChecker<'cx> {
         &mut self,
         ty: &'cx ty::Ty<'cx>,
     ) -> &'cx ty::Ty<'cx> {
-        ty
+        if ty.flags.intersects(TypeFlags::FRESHABLE) {
+            self.ty_links[&ty.id].expect_regular_ty()
+        } else if let Some(u) = ty.kind.as_union() {
+            if let Some(t) = self.get_ty_links(ty.id).get_regular_ty() {
+                t
+            } else {
+                let regular_ty = self
+                    .map_ty(
+                        ty,
+                        |this, t| Some(this.get_regular_ty_of_literal_ty(t)),
+                        false,
+                    )
+                    .unwrap();
+                self.get_mut_ty_links(ty.id).set_regular_ty(regular_ty);
+                regular_ty
+            }
+        } else {
+            ty
+        }
     }
 
     fn check_assertion(
@@ -175,6 +232,8 @@ impl<'cx> TyChecker<'cx> {
         let id = expr.id();
         let ty = self.check_expr(expr);
         if self.p.is_const_context(id) {
+            self.get_regular_ty_of_literal_ty(ty)
+        } else if expr.kind.is_type_assertion() {
             ty
         } else {
             self.get_widened_literal_ty(ty)
@@ -286,6 +345,24 @@ impl<'cx> TyChecker<'cx> {
         expr: &'cx ast::PrefixUnaryExpr<'cx>,
     ) -> &'cx ty::Ty<'cx> {
         let op_ty = self.check_expr(expr.expr);
+        if op_ty == self.silent_never_ty {
+            return op_ty;
+        }
+
+        match expr.expr.kind {
+            ast::ExprKind::NumLit(lit) => match expr.op {
+                ast::PrefixUnaryOp::Minus => {
+                    let ty = self.get_number_literal_type(-lit.val);
+                    return self.get_fresh_ty_of_literal_ty(ty);
+                }
+                ast::PrefixUnaryOp::Plus => {
+                    let ty = self.get_number_literal_type(lit.val);
+                    return self.get_fresh_ty_of_literal_ty(ty);
+                }
+                _ => (),
+            },
+            _ => (),
+        }
 
         match expr.op {
             ast::PrefixUnaryOp::Plus => {

@@ -37,6 +37,13 @@ pub enum FlowNodeKind<'cx> {
     Cond(FlowCond<'cx>),
     Label(FlowLabel),
     Unreachable(FlowUnreachable),
+    Assign(FlowAssign),
+}
+
+#[derive(Clone, Copy)]
+pub struct FlowAssign {
+    pub node: ast::NodeID,
+    pub antecedent: FlowID,
 }
 
 #[derive(Clone, Copy)]
@@ -181,5 +188,66 @@ impl<'cx> FlowNodes<'cx> {
             kind: FlowNodeKind::Label(FlowLabel { antecedent: None }),
         };
         self.insert_flow_node(node)
+    }
+}
+
+impl<'cx> super::BinderState<'cx, '_> {
+    pub fn create_flow_condition(
+        &mut self,
+        flags: FlowFlags,
+        antecedent: FlowID,
+        expr: Option<&'cx ast::Expr<'cx>>,
+    ) -> FlowID {
+        let antecedent_flags = self.flow_nodes.get_flow_node(antecedent).flags;
+        if antecedent_flags.intersects(FlowFlags::UNREACHABLE) {
+            return antecedent;
+        }
+        let Some(expr) = expr else {
+            return if flags.intersects(FlowFlags::TRUE_CONDITION) {
+                antecedent
+            } else {
+                self.unreachable_flow_node
+            };
+        };
+        if match &expr.kind {
+            ast::ExprKind::BoolLit(lit)
+                if lit.val && flags.intersects(FlowFlags::FALSE_CONDITION) =>
+            {
+                true
+            }
+            ast::ExprKind::BoolLit(lit)
+                if !lit.val && flags.intersects(FlowFlags::TRUE_CONDITION) =>
+            {
+                true
+            }
+            _ => false,
+        } {
+            return self.unreachable_flow_node;
+        };
+
+        self.flow_nodes.set_flow_node_referenced(antecedent);
+
+        let node = FlowNode {
+            flags,
+            kind: FlowNodeKind::Cond(FlowCond {
+                node: expr,
+                antecedent,
+            }),
+        };
+        self.flow_nodes.insert_flow_node(node)
+    }
+
+    pub fn create_flow_assign(&mut self, antecedent: FlowID, node: ast::NodeID) -> FlowID {
+        self.has_flow_effects = true;
+        let node = FlowAssign { node, antecedent };
+        let result = FlowNode {
+            flags: FlowFlags::ASSIGNMENT,
+            kind: FlowNodeKind::Assign(node),
+        };
+        let id = self.flow_nodes.insert_flow_node(result);
+        if let Some(current_exception_target) = self.current_exception_target {
+            self.flow_nodes.add_antecedent(current_exception_target, id);
+        }
+        id
     }
 }

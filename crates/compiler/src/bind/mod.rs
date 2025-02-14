@@ -96,6 +96,7 @@ pub struct BinderState<'cx, 'atoms> {
     in_return_position: bool,
     current_true_target: Option<FlowID>,
     current_false_target: Option<FlowID>,
+    current_exception_target: Option<FlowID>,
     unreachable_flow_node: FlowID,
     report_unreachable_flow_node: FlowID,
 

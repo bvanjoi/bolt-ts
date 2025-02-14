@@ -64,7 +64,7 @@ impl<'cx> TyChecker<'cx> {
 
     fn get_ty_at_flow_node(
         &mut self,
-        flow: FlowID,
+        mut flow: FlowID,
         refer: ast::NodeID,
         shared_flow_start: usize,
         declared_ty: &'cx ty::Ty<'cx>,
@@ -86,6 +86,21 @@ impl<'cx> TyChecker<'cx> {
             let ty;
             if flags.intersects(FlowFlags::CONDITION) {
                 ty = self.get_ty_at_flow_cond(flow, refer, shared_flow_start, declared_ty, init_ty);
+            } else if flags.intersects(FlowFlags::ASSIGNMENT) {
+                let Some(t) = self.get_ty_at_flow_assign(
+                    flow,
+                    refer,
+                    shared_flow_start,
+                    declared_ty,
+                    init_ty,
+                ) else {
+                    let FlowNodeKind::Assign(n) = self.flow_node(flow).kind else {
+                        unreachable!()
+                    };
+                    flow = n.antecedent;
+                    continue;
+                };
+                ty = t;
             } else if flags.intersects(FlowFlags::START) {
                 let FlowNodeKind::Start(start) = &n.kind else {
                     unreachable!()
@@ -103,6 +118,41 @@ impl<'cx> TyChecker<'cx> {
             }
             return ty;
         }
+    }
+
+    fn get_init_or_assign_ty(&mut self, flow: FlowID, refer: ast::NodeID) -> &'cx ty::Ty<'cx> {
+        let FlowNodeKind::Assign(n) = self.flow_node(flow).kind else {
+            unreachable!()
+        };
+        let ty = match self.p.node(n.node) {
+            ast::Node::VarDecl(decl) => self.get_init_ty_of_var_decl(decl),
+            _ => unreachable!(),
+        };
+        self.get_narrow_ty_for_reference(ty, refer, None)
+    }
+
+    fn get_ty_at_flow_assign(
+        &mut self,
+        flow: FlowID,
+        refer: ast::NodeID,
+        shared_flow_start: usize,
+        declared_ty: &'cx ty::Ty<'cx>,
+        init_ty: &'cx ty::Ty<'cx>,
+    ) -> Option<FlowTy<'cx>> {
+        let FlowNodeKind::Assign(n) = self.flow_node(flow).kind else {
+            unreachable!()
+        };
+        if self.is_matching_reference(refer, n.node) {
+            let t = declared_ty;
+            let t = if t.kind.is_union() {
+                let init_ty = self.get_init_or_assign_ty(flow, refer);
+                self.get_assign_reduced_ty(t, init_ty)
+            } else {
+                t
+            };
+            return Some(FlowTy::Ty(t));
+        }
+        None
     }
 
     fn get_ty_at_flow_cond(
@@ -350,6 +400,27 @@ impl<'cx> TyChecker<'cx> {
             candidate
         } else {
             self.get_intersection_ty(&[ty, candidate], IntersectionFlags::None, None, None)
+        }
+    }
+
+    fn get_narrow_ty_for_reference(
+        &mut self,
+        mut ty: &'cx ty::Ty<'cx>,
+        refer: ast::NodeID,
+        check_mode: Option<super::CheckMode>,
+    ) -> &'cx ty::Ty<'cx> {
+        if ty.is_no_infer_ty() {
+            let sub = ty.kind.expect_substitution_ty();
+            ty = sub.base_ty;
+        }
+
+        if check_mode.is_some_and(|check_mode| check_mode.intersects(super::CheckMode::INFERENTIAL))
+            && false
+        // TODO:
+        {
+            ty
+        } else {
+            ty
         }
     }
 }

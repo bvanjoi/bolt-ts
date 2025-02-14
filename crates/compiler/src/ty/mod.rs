@@ -160,14 +160,13 @@ impl<'cx> Ty<'cx> {
             let ele = checker.get_ty_arguments(self)[0];
             let ele = ele.to_string(checker);
             return format!("{ele}[]");
+        } else if self == checker.boolean_ty() {
+            return keyword::IDENT_BOOLEAN_STR.to_string();
         }
         match self.kind {
             TyKind::Object(object) => object.kind.to_string(self, checker),
             TyKind::NumberLit(lit) => format!("{}", lit.val),
             TyKind::StringLit(lit) => format!("\"{}\"", checker.atoms.get(lit.val)),
-            TyKind::Union(_) if self == checker.boolean_ty() => {
-                keyword::IDENT_BOOLEAN_STR.to_string()
-            }
             TyKind::Union(union) => union
                 .tys
                 .iter()

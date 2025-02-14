@@ -83,29 +83,33 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
 
     fn is_related_to(
         &mut self,
-        source: &'cx Ty<'cx>,
+        original_source: &'cx Ty<'cx>,
         target: &'cx Ty<'cx>,
         recursion_flags: RecursionFlags,
         report_error: bool,
         intersection_state: IntersectionState,
     ) -> Ternary {
-        if source.id == target.id {
+        if original_source.id == target.id {
             return Ternary::TRUE;
-        } else if source.kind.is_object() && target.flags.intersects(TypeFlags::PRIMITIVE) {
+        } else if original_source.kind.is_object() && target.flags.intersects(TypeFlags::PRIMITIVE)
+        {
             if self.relation == RelationKind::Comparable
                 && !target.flags.intersects(TypeFlags::NEVER)
                 && (self
                     .c
-                    .is_simple_type_related_to(target, source, self.relation)
+                    .is_simple_type_related_to(target, original_source, self.relation)
                     || self
                         .c
-                        .is_simple_type_related_to(source, target, self.relation))
+                        .is_simple_type_related_to(original_source, target, self.relation))
             {
                 return Ternary::TRUE;
             } else {
                 return Ternary::FALSE;
             }
         }
+
+        let source = self.c.get_normalized_ty(original_source, false);
+        let target = self.c.get_normalized_ty(target, true);
 
         if self.relation == RelationKind::Identity {
             return if source.flags != target.flags {

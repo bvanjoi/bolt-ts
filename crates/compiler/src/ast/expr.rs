@@ -145,6 +145,15 @@ impl<'cx> ExprKind<'cx> {
             };
         }
     }
+
+    pub fn is_type_assertion(&self) -> bool {
+        match self {
+            ExprKind::Paren(p) => p.expr.kind.is_type_assertion(),
+            ExprKind::As(_) => true,
+            // TODO: type assertion expression, is jsdoc type assertion
+            _ => false,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy)]

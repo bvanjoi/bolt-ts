@@ -189,8 +189,10 @@ pub struct TyChecker<'cx> {
     pub silent_never_ty: &'cx ty::Ty<'cx>,
     pub void_ty: &'cx ty::Ty<'cx>,
     pub null_ty: &'cx ty::Ty<'cx>,
-    pub true_ty: &'cx ty::Ty<'cx>,
     pub false_ty: &'cx ty::Ty<'cx>,
+    pub regular_false_ty: &'cx ty::Ty<'cx>,
+    pub true_ty: &'cx ty::Ty<'cx>,
+    pub regular_true_ty: &'cx ty::Ty<'cx>,
     pub number_ty: &'cx ty::Ty<'cx>,
     pub string_ty: &'cx ty::Ty<'cx>,
     pub non_primitive_ty: &'cx ty::Ty<'cx>,
@@ -291,8 +293,10 @@ impl<'cx> TyChecker<'cx> {
             (void_ty,           keyword::KW_VOID,       TypeFlags::VOID,            ObjectFlags::empty()),
             (never_ty,          keyword::IDENT_NEVER,   TypeFlags::NEVER,           ObjectFlags::empty()),
             (null_ty,           keyword::KW_NULL,       TypeFlags::NULL,            ObjectFlags::empty()),
-            (true_ty,           keyword::KW_TRUE,       TypeFlags::BOOLEAN_LITERAL, ObjectFlags::empty()),
             (false_ty,          keyword::KW_FALSE,      TypeFlags::BOOLEAN_LITERAL, ObjectFlags::empty()),
+            (regular_false_ty,  keyword::KW_FALSE,      TypeFlags::BOOLEAN_LITERAL, ObjectFlags::empty()),
+            (true_ty,           keyword::KW_TRUE,       TypeFlags::BOOLEAN_LITERAL, ObjectFlags::empty()),
+            (regular_true_ty,   keyword::KW_TRUE,       TypeFlags::BOOLEAN_LITERAL, ObjectFlags::empty()),
             (number_ty,         keyword::IDENT_NUMBER,  TypeFlags::NUMBER,          ObjectFlags::empty()),
             (string_ty,         keyword::IDENT_STRING,  TypeFlags::STRING,          ObjectFlags::empty()),
             (non_primitive_ty,  keyword::IDENT_OBJECT,  TypeFlags::NON_PRIMITIVE,   ObjectFlags::empty()),
@@ -337,8 +341,10 @@ impl<'cx> TyChecker<'cx> {
             silent_never_ty,
             void_ty,
             null_ty,
-            true_ty,
             false_ty,
+            regular_false_ty,
+            true_ty,
+            regular_true_ty,
             number_ty,
             string_ty,
             non_primitive_ty,
@@ -400,7 +406,39 @@ impl<'cx> TyChecker<'cx> {
                 p.module_count()
             ],
         };
-        let boolean_ty = this.get_union_ty(&[this.true_ty, this.false_ty], ty::UnionReduction::Lit);
+        let prev = this.ty_links.insert(
+            true_ty.id,
+            TyLinks::default()
+                .with_regular_ty(regular_true_ty)
+                .with_fresh_ty(true_ty),
+        );
+        assert!(prev.is_none());
+        let prev = this.ty_links.insert(
+            regular_true_ty.id,
+            TyLinks::default()
+                .with_regular_ty(regular_false_ty)
+                .with_fresh_ty(false_ty),
+        );
+        assert!(prev.is_none());
+        let prev = this.ty_links.insert(
+            false_ty.id,
+            TyLinks::default()
+                .with_regular_ty(regular_false_ty)
+                .with_fresh_ty(true_ty),
+        );
+        assert!(prev.is_none());
+        let prev = this.ty_links.insert(
+            regular_false_ty.id,
+            TyLinks::default()
+                .with_regular_ty(regular_false_ty)
+                .with_fresh_ty(false_ty),
+        );
+        assert!(prev.is_none());
+
+        let boolean_ty = this.get_union_ty(
+            &[regular_false_ty, regular_true_ty],
+            ty::UnionReduction::Lit,
+        );
         this.type_name.insert(boolean_ty.id, "boolean".to_string());
         this.boolean_ty.set(boolean_ty).unwrap();
 
@@ -1489,7 +1527,7 @@ impl<'cx> TyChecker<'cx> {
 
     fn check_bin_expr(&mut self, node: &'cx ast::BinExpr) -> &'cx ty::Ty<'cx> {
         let l = self.check_expr(node.left);
-        let r = ensure_sufficient_stack(|| self.check_expr(node.right));
+        let r = self.check_expr(node.right);
         self.check_bin_like_expr(node, node.op, node.left, l, node.right, r)
     }
 
@@ -1968,7 +2006,15 @@ impl<'cx> TyChecker<'cx> {
                     t.is_this_expr()
                 } else if let Some(t_ident) = t.as_ident() {
                     self.resolve_symbol_by_ident(s_ident) == self.resolve_symbol_by_ident(t_ident)
-                } else if t.is_var_decl() || t.is_object_binding_elem() {
+                } else if let Some(v) = t.as_var_decl() {
+                    match v.binding {
+                        ast::Binding::Ident(ident) => {
+                            self.resolve_symbol_by_ident(s_ident)
+                                == self.resolve_symbol_by_ident(ident)
+                        }
+                        ast::Binding::ObjectPat(_) => todo!(),
+                    }
+                } else if t.is_object_binding_elem() {
                     todo!()
                 } else {
                     false
@@ -2285,6 +2331,88 @@ impl<'cx> TyChecker<'cx> {
                 !self.is_generic(ty) && i.tys.iter().any(|ty| self.is_valid_index_key_ty(ty))
             })
         // || isPatternLiteralType
+    }
+
+    fn get_normalized_ty(&mut self, mut ty: &'cx ty::Ty<'cx>, writing: bool) -> &'cx ty::Ty<'cx> {
+        loop {
+            let t = if self.is_fresh_literal_ty(ty) {
+                self.ty_links[&ty.id].get_regular_ty().unwrap()
+            } else {
+                ty
+            };
+            if t == ty {
+                break t;
+            };
+            ty = t;
+        }
+    }
+
+    fn get_ty_of_init(&mut self, init: &'cx ast::Expr<'cx>) -> &'cx ty::Ty<'cx> {
+        if let Some(ty) = self.get_node_links(init.id()).get_resolved_ty() {
+            ty
+        } else {
+            self.get_ty_of_expr(init)
+        }
+    }
+
+    fn get_init_ty_of_var_decl(&mut self, var_decl: &'cx ast::VarDecl<'cx>) -> &'cx ty::Ty<'cx> {
+        if let Some(init) = var_decl.init {
+            self.get_ty_of_init(init)
+        } else {
+            self.error_ty
+        }
+    }
+
+    fn ty_maybe_assignable_to(
+        &mut self,
+        source: &'cx ty::Ty<'cx>,
+        target: &'cx ty::Ty<'cx>,
+    ) -> bool {
+        if let Some(u) = source.kind.as_union() {
+            for t in u.tys {
+                if self.is_type_assignable_to(t, target) {
+                    return true;
+                }
+            }
+        } else {
+            return self.is_type_assignable_to(source, target);
+        }
+        false
+    }
+
+    fn get_assign_reduced_ty(
+        &mut self,
+        decl_ty: &'cx ty::Ty<'cx>,
+        assigned_ty: &'cx ty::Ty<'cx>,
+    ) -> &'cx ty::Ty<'cx> {
+        if decl_ty == assigned_ty {
+            decl_ty
+        } else if assigned_ty.flags.intersects(TypeFlags::NEVER) {
+            return assigned_ty;
+        } else {
+            // TODO: cache
+            assert!(decl_ty.kind.is_union());
+            let filtered_ty = self.filter_type(decl_ty, |this, t| {
+                this.ty_maybe_assignable_to(assigned_ty, t)
+            });
+            let reduced_ty = if assigned_ty.flags.intersects(TypeFlags::BOOLEAN_LIKE)
+                && self.is_fresh_literal_ty(assigned_ty)
+            {
+                self.map_ty(
+                    filtered_ty,
+                    |this, t| Some(this.get_fresh_ty_of_literal_ty(t)),
+                    false,
+                )
+                .unwrap()
+            } else {
+                filtered_ty
+            };
+            if self.is_type_assignable_to(assigned_ty, reduced_ty) {
+                reduced_ty
+            } else {
+                decl_ty
+            }
+        }
     }
 }
 
