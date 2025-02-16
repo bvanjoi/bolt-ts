@@ -200,7 +200,6 @@ type IsEqual<A, B> =
 
 // =========== isNever ===========
 type IsNever<T> = [T] extends [never] ? true : false;
-
 {
   const _never: never = n();
   const something = 'something';
@@ -351,8 +350,42 @@ type UnionToIntersection<Union> = (
   const b0: {a: string | (() => void); b: number} = intersection2;
 
   type ObjectsUnion = {a: string; z: string} | {b: string; z: string} | {c: string; z: string};
-  // const value: ObjectsUnion[UnionToIntersection<keyof ObjectsUnion>] = '';
-  // const c0: string = value;
+  let t: keyof ObjectsUnion = 'a';
+  //~^ ERROR: Type '"a"' is not assignable to type '"z"'.
+  const value: ObjectsUnion[UnionToIntersection<keyof ObjectsUnion>] = '';
+  const c0: string = value;
+}
+
+// =========== UnionToTuple ===========
+type LastOfUnion<T> =
+UnionToIntersection<T extends any ? () => T : never> extends () => (infer R)
+	? R
+	: never;
+
+{
+	let a0: LastOfUnion<'a'> = 'a';
+	let a1: LastOfUnion<'a' | 'b'> = 'b';
+	let a2: LastOfUnion<'a' | 'b' | 'c'> = 'c';
+	// let a3: LastOfUnion<'a' | 'b' | 'c'> = 'b';
+	// let a4: LastOfUnion<'a' | 'b' | 'c'> = 'd';
+}
+
+type UnionToTuple<T, L = LastOfUnion<T>> =
+IsNever<T> extends false
+	? [...UnionToTuple<Exclude<T, L>>, L]
+	: [];
+
+{
+	// type Options = UnionToTuple<'a' | 'b' | 'c'>;
+	// // Results unordered
+	// const a0: ['a', 'b', 'c'] | ['a', 'c', 'b'] | ['b', 'a', 'c'] | ['b', 'c', 'a'] | ['c', 'a', 'b'] | ['c', 'b', 'a'] = {} as Options;
+	// const a1: Options[number] = 'a' as ('a' | 'b' | 'c');
+
+	// type Options1 = UnionToTuple<1 | 2 | 3>;
+	// const a2: Options1[number] = 1 as (1 | 2 | 3)
+
+	// type Options2 = UnionToTuple<boolean | 1>;
+	// const a3: Options2[number] = 1 as (1 | false | true);
 }
 
 // =========== UnknownArray ===========

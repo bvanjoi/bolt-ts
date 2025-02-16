@@ -29,7 +29,9 @@ impl<'cx> TyChecker<'cx> {
         };
 
         let check_flags = self.get_check_flags(id);
-        if check_flags.intersects(CheckFlags::INSTANTIATED) {
+        if check_flags.intersects(CheckFlags::DEFERRED_TYPE) {
+            return self.get_type_of_symbol_with_deferred_type(id);
+        } else if check_flags.intersects(CheckFlags::INSTANTIATED) {
             return self.get_type_of_instantiated_symbol(id);
         } else if check_flags.intersects(CheckFlags::MAPPED) {
             return self.get_type_of_mapped_symbol(id);
@@ -47,10 +49,10 @@ impl<'cx> TyChecker<'cx> {
             self.get_ty_of_func_class_enum_module(id)
         } else if symbol.is_variable() || symbol.flags.intersects(SymbolFlags::PROPERTY) {
             self.get_type_for_var_like(id)
-        } else if symbol.flags == SymbolFlags::OBJECT_LITERAL {
-            unreachable!("type literal")
         } else if symbol.flags.intersects(SymbolFlags::ACCESSOR) {
             self.get_ty_of_accessor(id)
+        } else if symbol.flags == SymbolFlags::OBJECT_LITERAL {
+            unreachable!("type literal")
         } else {
             self.error_ty
         };
@@ -119,6 +121,22 @@ impl<'cx> TyChecker<'cx> {
         if self.pop_ty_resolution().has_cycle() {
             todo!("cycle")
         }
+        self.get_mut_symbol_links(symbol).set_ty(ty);
+        ty
+    }
+
+    fn get_type_of_symbol_with_deferred_type(&mut self, symbol: SymbolID) -> &'cx Ty<'cx> {
+        let links = self.get_symbol_links(symbol);
+        if let Some(ty) = links.get_ty() {
+            return ty;
+        }
+        let deferral_parent = links.get_deferral_parent().unwrap();
+        let deferral_constituents = links.get_deferral_constituents().unwrap();
+        let ty = if deferral_parent.flags.intersects(TypeFlags::UNION) {
+            self.get_union_ty(deferral_constituents, ty::UnionReduction::Lit)
+        } else {
+            self.get_intersection_ty(deferral_constituents, IntersectionFlags::None, None, None)
+        };
         self.get_mut_symbol_links(symbol).set_ty(ty);
         ty
     }
@@ -194,10 +212,13 @@ impl<'cx> TyChecker<'cx> {
     ) -> Option<&'cx Ty<'cx>> {
         let inference = &self.inferences[inference.as_usize()].inferences[idx];
         if let Some(tys) = &inference.candidates {
+            // TODO: remove clone
             let tys = tys.clone();
             Some(self.get_union_ty(&tys, ty::UnionReduction::Subtype))
-        } else if inference.contra_candidates.is_some() {
-            todo!("intersection")
+        } else if let Some(tys) = &inference.contra_candidates {
+            // TODO: remove clone
+            let tys = tys.clone();
+            Some(self.get_intersection_ty(&tys, IntersectionFlags::None, None, None))
         } else {
             None
         }
@@ -1093,9 +1114,7 @@ impl<'cx> TyChecker<'cx> {
                         tailed += 1;
                         continue;
                     }
-
-                    let t = self.instantiate_ty(true_ty, true_mapper);
-                    break t;
+                    break self.instantiate_ty(true_ty, true_mapper);
                 }
             }
 
@@ -1566,8 +1585,26 @@ impl<'cx> TyChecker<'cx> {
         index_flags: IndexFlags,
     ) -> &'cx ty::Ty<'cx> {
         let ty = self.get_reduced_ty(ty);
-        if self.should_defer_index_ty(ty, index_flags) {
+        if ty.is_no_infer_ty() {
+            let sub = ty.kind.expect_substitution_ty();
+            let index_ty = self.get_index_ty(sub.base_ty, index_flags);
+            self.get_no_infer_ty(index_ty)
+        } else if self.should_defer_index_ty(ty, index_flags) {
             self.get_index_ty_for_generic_ty(ty, index_flags)
+        } else if let Some(u) = ty.kind.as_union() {
+            let tys = u
+                .tys
+                .iter()
+                .map(|t| self.get_index_ty(t, index_flags))
+                .collect::<Vec<_>>();
+            self.get_intersection_ty(&tys, IntersectionFlags::None, None, None)
+        } else if let Some(i) = ty.kind.as_intersection() {
+            let tys = i
+                .tys
+                .iter()
+                .map(|t| self.get_index_ty(t, index_flags))
+                .collect::<Vec<_>>();
+            self.get_union_ty(&tys, ty::UnionReduction::Lit)
         } else if ty.kind.is_object_mapped() {
             self.get_index_ty_for_mapped_ty(ty, index_flags)
         } else if ty == self.wildcard_ty {

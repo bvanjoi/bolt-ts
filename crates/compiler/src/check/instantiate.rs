@@ -861,18 +861,59 @@ impl<'cx> TyChecker<'cx> {
         &mut self,
         ty: &'cx ty::Ty<'cx>,
     ) -> Option<&'cx ty::Ty<'cx>> {
-        let param = ty.kind.expect_param();
-        // TODO: cache `self.get_default_of_param(param_ty, id)`
-        let default = self.ty_param_node(param).default?;
-        Some(self.get_ty_from_type_node(default))
+        assert!(ty.kind.is_param());
+        let default_ty = self.get_resolved_ty_param_default(ty);
+        if default_ty != self.no_constraint_ty() && default_ty != self.circular_constraint_ty() {
+            Some(default_ty)
+        } else {
+            None
+        }
     }
 
-    fn has_ty_param_default(&self, ty_param: &'cx ty::ParamTy) -> bool {
+    fn get_resolved_ty_param_default(&mut self, ty: &'cx ty::Ty<'cx>) -> &'cx ty::Ty<'cx> {
+        let param = ty.kind.expect_param();
+        if let Some(default_ty) = self.get_ty_links(ty.id).get_default() {
+            return if default_ty == self.resolving_default_type() {
+                let circular_constraint_ty = self.circular_constraint_ty();
+                self.get_mut_ty_links(ty.id)
+                    .override_default(circular_constraint_ty);
+                circular_constraint_ty
+            } else {
+                default_ty
+            };
+        }
+        if let Some(target) = param.target {
+            let target_default = self.get_resolved_ty_param_default(target);
+            let mapper = self.ty_links[&ty.id].get_param_ty_mapper().unwrap();
+            let default_ty = self.instantiate_ty(target_default, Some(mapper));
+            self.get_mut_ty_links(ty.id).set_default(default_ty);
+            default_ty
+        } else {
+            let resolving_default_type = self.resolving_default_type();
+            self.get_mut_ty_links(ty.id)
+                .set_default(resolving_default_type);
+            let default_decl = self.ty_param_node(param).default;
+            let default_ty = if let Some(default_decl) = default_decl {
+                self.get_ty_from_type_node(default_decl)
+            } else {
+                self.no_constraint_ty()
+            };
+            if self.ty_links[&ty.id]
+                .get_default()
+                .is_some_and(|t| t == resolving_default_type)
+            {
+                self.get_mut_ty_links(ty.id).override_default(default_ty);
+            };
+            default_ty
+        }
+    }
+
+    fn has_ty_param_default(&self, ty_param: &'cx ty::ParamTy<'cx>) -> bool {
         let param = self.ty_param_node(ty_param);
         param.default.is_some()
     }
 
-    fn ty_param_node(&self, ty_param: &'cx ty::ParamTy) -> &'cx ast::TyParam<'cx> {
+    fn ty_param_node(&self, ty_param: &'cx ty::ParamTy<'cx>) -> &'cx ast::TyParam<'cx> {
         let symbol = self.binder.symbol(ty_param.symbol);
         let symbol = symbol.expect_ty_param();
         let node = self.p.node(symbol.decl);

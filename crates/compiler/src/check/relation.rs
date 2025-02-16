@@ -396,6 +396,7 @@ impl<'cx> TyChecker<'cx> {
         let mut first_ty = None;
         let mut name_ty = None;
         let mut prop_tys = Vec::with_capacity(props.len());
+        let mut write_tys: Option<Vec<&'cx Ty<'cx>>> = None;
 
         for prop in props {
             let ty = self.get_type_of_symbol(prop);
@@ -404,20 +405,40 @@ impl<'cx> TyChecker<'cx> {
                 name_ty = self.get_symbol_links(prop).get_name_ty();
             }
             let write_ty = self.get_write_type_of_symbol(prop);
+            if write_tys.is_some() || write_ty != ty {
+                if let Some(write_tys) = &mut write_tys {
+                    write_tys.push(write_ty);
+                } else {
+                    let mut t = prop_tys.clone();
+                    t.push(write_ty);
+                    write_tys = Some(t);
+                }
+            }
             // if first_ty.map_or(true, |first_ty| first_ty != ty)
             // {}
             prop_tys.push(ty);
         }
 
         let symbol_flags = SymbolFlags::PROPERTY;
-        let links = SymbolLinks::default().with_containing_ty(containing_ty);
-        let links = if let Some(name_ty) = name_ty {
+        let links = SymbolLinks::default()
+            .with_containing_ty(containing_ty)
+            .with_check_flags(CheckFlags::empty());
+        let mut links = if let Some(name_ty) = name_ty {
             links.with_name_ty(name_ty)
         } else {
             links
         };
         let links = if prop_tys.len() > 2 {
-            links
+            let prop_tys = self.alloc(prop_tys);
+            links.config_check_flags(|config| config | CheckFlags::DEFERRED_TYPE);
+            let links = links
+                .with_deferral_parent(containing_ty)
+                .with_deferral_constituents(prop_tys);
+            if let Some(write_tys) = write_tys {
+                links.with_deferral_constituents(self.alloc(write_tys))
+            } else {
+                links
+            }
         } else {
             let ty = if is_union {
                 self.get_union_ty(&prop_tys, ty::UnionReduction::Lit)

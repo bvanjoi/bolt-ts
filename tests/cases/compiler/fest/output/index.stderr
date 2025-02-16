@@ -83,124 +83,130 @@
      ╰────
 
   × Generic type 'IsNever' requires 1 type argument.
-     ╭─[../../tests/cases/compiler/fest/index.ts:219:13]
- 219 │ IsNever
+     ╭─[../../tests/cases/compiler/fest/index.ts:218:13]
+ 218 │ IsNever
      · ───────
      ╰────
 
   × Generic type 'IsNever' requires 1 type argument.
-     ╭─[../../tests/cases/compiler/fest/index.ts:221:13]
- 221 │ IsNever<number, boolean>
+     ╭─[../../tests/cases/compiler/fest/index.ts:220:13]
+ 220 │ IsNever<number, boolean>
      · ────────────────────────
      ╰────
 
   × Generic type 'IsUnknown' requires 1 type argument.
-     ╭─[../../tests/cases/compiler/fest/index.ts:260:12]
- 260 │ IsUnknown
+     ╭─[../../tests/cases/compiler/fest/index.ts:259:12]
+ 259 │ IsUnknown
      · ─────────
      ╰────
 
   × Type '"a"' is not assignable to type '"b"'.
-     ╭─[../../tests/cases/compiler/fest/index.ts:292:9]
- 292 │ a3
+     ╭─[../../tests/cases/compiler/fest/index.ts:291:9]
+ 291 │ a3
      · ──
      ╰────
 
   × Type '"a"' is not assignable to type '"c"'.
-     ╭─[../../tests/cases/compiler/fest/index.ts:294:9]
- 294 │ a4
+     ╭─[../../tests/cases/compiler/fest/index.ts:293:9]
+ 293 │ a4
      · ──
      ╰────
 
   × Type '"b"' is not assignable to type '"a"'.
-     ╭─[../../tests/cases/compiler/fest/index.ts:299:9]
- 299 │ b1
+     ╭─[../../tests/cases/compiler/fest/index.ts:298:9]
+ 298 │ b1
      · ──
      ╰────
 
   × Type '"b"' is not assignable to type '"c"'.
-     ╭─[../../tests/cases/compiler/fest/index.ts:302:9]
- 302 │ b3
+     ╭─[../../tests/cases/compiler/fest/index.ts:301:9]
+ 301 │ b3
      · ──
      ╰────
 
   × Type '"c"' is not assignable to type '"a"'.
-     ╭─[../../tests/cases/compiler/fest/index.ts:307:9]
- 307 │ c1
+     ╭─[../../tests/cases/compiler/fest/index.ts:306:9]
+ 306 │ c1
      · ──
      ╰────
 
   × Type '"c"' is not assignable to type '"b"'.
-     ╭─[../../tests/cases/compiler/fest/index.ts:309:9]
- 309 │ c2
+     ╭─[../../tests/cases/compiler/fest/index.ts:308:9]
+ 308 │ c2
      · ──
      ╰────
 
   × Type 'undefined' is not assignable to type 'never'.
-     ╭─[../../tests/cases/compiler/fest/index.ts:316:9]
- 316 │ notAnArray2
+     ╭─[../../tests/cases/compiler/fest/index.ts:315:9]
+ 315 │ notAnArray2
      · ───────────
+     ╰────
+
+  × Type '"a"' is not assignable to type '"z"'.
+     ╭─[../../tests/cases/compiler/fest/index.ts:353:7]
+ 353 │ t
+     · ─
      ╰────
 
   × Type '{ }' is missing the following properties from type 'unknown[]':
   │ length, join, and 16 more.
-     ╭─[../../tests/cases/compiler/fest/index.ts:373:9]
- 373 │ b2
+     ╭─[../../tests/cases/compiler/fest/index.ts:406:9]
+ 406 │ b2
      · ──
      ╰────
 
   × Type '{ 0: number; }' is missing the following properties from type
   │ 'unknown[]': length, join, and 16 more.
-     ╭─[../../tests/cases/compiler/fest/index.ts:375:9]
- 375 │ b3
+     ╭─[../../tests/cases/compiler/fest/index.ts:408:9]
+ 408 │ b3
      · ──
      ╰────
 
   × Type 'number' is not assignable to type 'unknown[]'.
-     ╭─[../../tests/cases/compiler/fest/index.ts:377:9]
- 377 │ b4
+     ╭─[../../tests/cases/compiler/fest/index.ts:410:9]
+ 410 │ b4
      · ──
      ╰────
 
   × Type 'DateConstructor' is missing the following properties from type
   │ 'unknown[]': join, reverse, and 15 more.
-     ╭─[../../tests/cases/compiler/fest/index.ts:379:9]
- 379 │ b5
+     ╭─[../../tests/cases/compiler/fest/index.ts:412:9]
+ 412 │ b5
      · ──
      ╰────
 
   × Type 'DateConstructor' is not assignable to type 'unknown[]'.
-     ╭─[../../tests/cases/compiler/fest/index.ts:379:9]
- 379 │ b5
+     ╭─[../../tests/cases/compiler/fest/index.ts:412:9]
+ 412 │ b5
      · ──
      ╰────
 
   × Type 'never[]' is not assignable to type 'Record'.
-     ╭─[../../tests/cases/compiler/fest/index.ts:403:9]
- 403 │ []
+     ╭─[../../tests/cases/compiler/fest/index.ts:436:9]
+ 436 │ []
      · ──
      ╰────
 
   × Type 'number' is not assignable to type 'Record'.
-     ╭─[../../tests/cases/compiler/fest/index.ts:405:9]
- 405 │ 42
+     ╭─[../../tests/cases/compiler/fest/index.ts:438:9]
+ 438 │ 42
      · ──
      ╰────
 
   × Type '3' is not assignable to type '4'.
-     ╭─[../../tests/cases/compiler/fest/index.ts:420:9]
- 420 │ a1
+     ╭─[../../tests/cases/compiler/fest/index.ts:453:9]
+ 453 │ a1
      · ──
      ╰────
 
   × Type '1' is not assignable to type '2'.
-     ╭─[../../tests/cases/compiler/fest/index.ts:428:9]
- 428 │ b1
+     ╭─[../../tests/cases/compiler/fest/index.ts:461:9]
+ 461 │ b1
      · ──
      ╰────
 
   × Type '1' is not assignable to type '3'.
-     ╭─[../../tests/cases/compiler/fest/index.ts:430:9]
- 430 │ b2
+     ╭─[../../tests/cases/compiler/fest/index.ts:463:9]
+ 463 │ b2
      · ──
      ╰────

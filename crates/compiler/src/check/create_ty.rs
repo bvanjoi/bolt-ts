@@ -151,7 +151,7 @@ impl<'cx> TyChecker<'cx> {
             let flag = target.element_flags[i];
             if flag.intersects(ElementFlags::VARIADIC) {
                 if ty.flags.intersects(TypeFlags::ANY) {
-                    todo!()
+                    add_ele(ty, ElementFlags::REST);
                 } else if ty.kind.is_instantiable_non_primitive() {
                     add_ele(ty, ElementFlags::VARIADIC);
                 } else if let Some(tuple) = ty.as_tuple() {
@@ -775,15 +775,24 @@ impl<'cx> TyChecker<'cx> {
         let mut checked = Vec::with_capacity(tys.len());
         let mut result = Vec::with_capacity(tys.len());
         for ty in &union_tys {
-            let Some(u) = ty.kind.as_union() else {
-                unreachable!()
-            };
+            let u = ty.kind.expect_union();
             for t in u.tys {
                 if insert_ty(&mut checked, t) {
-                    if self.each_union_contains(&union_tys, ty) {
+                    if self.each_union_contains(&union_tys, t) {
                         // TODO: missing_ty and undefined_ty
-                        // if ty==self.undefined_ty && !result.is_empty() && result[0] ==
-                        insert_ty(&mut result, ty);
+                        if *t == self.undefined_ty
+                            && !result.is_empty()
+                            && result[0] == self.missing_ty
+                        {
+                            continue;
+                        } else if *t == self.missing_ty
+                            && !result.is_empty()
+                            && result[0] == self.undefined_ty
+                        {
+                            result[0] = self.undefined_ty;
+                            continue;
+                        }
+                        insert_ty(&mut result, t);
                     }
                 }
             }
@@ -911,7 +920,7 @@ impl<'cx> TyChecker<'cx> {
 
         let ty = if includes.intersects(TypeFlags::UNION) {
             if self.intersect_unions_of_prim_tys(&mut ty_set) {
-                todo!()
+                self.get_intersection_ty(&ty_set, IntersectionFlags::None, None, None)
             } else if ty_set.iter().all(|ty| {
                 ty.kind
                     .as_union()

@@ -622,6 +622,34 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
         result
     }
 
+    fn some_type_related_to_type(
+        &mut self,
+        source: &'cx Ty<'cx>,
+        target: &'cx Ty<'cx>,
+        report_error: bool,
+        intersection_state: IntersectionState,
+    ) -> Ternary {
+        let Some(tys) = source.kind.tys_of_union_or_intersection() else {
+            unreachable!()
+        };
+        if source.kind.is_union() && contains_ty(tys, target) {
+            return Ternary::TRUE;
+        }
+        for i in 0..tys.len() {
+            let related = self.is_related_to(
+                tys[i],
+                target,
+                RecursionFlags::SOURCE,
+                report_error && i == tys.len() - 1,
+                intersection_state,
+            );
+            if related != Ternary::FALSE {
+                return related;
+            }
+        }
+        Ternary::FALSE
+    }
+
     fn each_type_related_to_type(
         &mut self,
         source: &'cx Ty<'cx>,
@@ -681,7 +709,12 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
             // } else {
             // }
             return if self.relation == RelationKind::Comparable {
-                todo!()
+                self.some_type_related_to_type(
+                    source,
+                    target,
+                    report_error && !source.flags.intersects(TypeFlags::PRIMITIVE),
+                    intersection_state,
+                )
             } else {
                 self.each_type_related_to_type(
                     source,
@@ -698,9 +731,42 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
                 report_error,
                 intersection_state,
             )
+        } else if let Some(i) = target.kind.as_intersection() {
+            self.ty_related_to_each_ty(
+                source,
+                target,
+                i.tys,
+                report_error,
+                IntersectionState::TARGET,
+            )
         } else {
-            Ternary::FALSE
+            self.some_type_related_to_type(source, target, false, IntersectionState::SOURCE)
         }
+    }
+
+    fn ty_related_to_each_ty(
+        &mut self,
+        source: &'cx Ty<'cx>,
+        target: &'cx Ty<'cx>,
+        target_tys: ty::Tys<'cx>,
+        report_error: bool,
+        intersection_state: IntersectionState,
+    ) -> Ternary {
+        let mut result = Ternary::TRUE;
+        for target_ty in target_tys {
+            let related = self.is_related_to(
+                source,
+                target_ty,
+                RecursionFlags::TARGET,
+                report_error,
+                intersection_state,
+            );
+            if related == Ternary::FALSE {
+                return Ternary::FALSE;
+            }
+            result &= related;
+        }
+        result
     }
 
     fn ty_related_to_some_ty(
@@ -1388,6 +1454,7 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
         } else {
             (usize::max(source_count, target_count), usize::MAX)
         };
+        let strict_variance = false;
 
         for i in 0..param_count {
             let source_ty = if i == rest_index {
@@ -1407,11 +1474,13 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
                         let source_sig = if check_mode.intersects(SigCheckMode::CALLBACK) {
                             None
                         } else {
+                            let source_ty = self.c.get_non_nullable_ty(source_ty);
                             self.c.get_single_call_sig(source_ty)
                         };
                         let target_sig = if check_mode.intersects(SigCheckMode::CALLBACK) {
                             None
                         } else {
+                            let target_ty = self.c.get_non_nullable_ty(target_ty);
                             self.c.get_single_call_sig(target_ty)
                         };
                         let callbacks = match (source_sig, target_sig) {
@@ -1428,14 +1497,17 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
                                 report_error,
                                 compare,
                             )
-                        } else if !check_mode.intersects(SigCheckMode::CALLBACK) {
+                        } else if !check_mode.intersects(SigCheckMode::CALLBACK) && !strict_variance
+                        {
                             let res = compare(self, source_ty, target_ty, false);
                             if res == Ternary::FALSE {
+                                // TODO: use report_error param
                                 compare(self, target_ty, source_ty, false)
                             } else {
                                 res
                             }
                         } else {
+                            // TODO: use report_error param
                             compare(self, target_ty, source_ty, false)
                         };
 

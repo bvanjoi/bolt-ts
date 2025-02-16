@@ -185,6 +185,7 @@ pub struct TyChecker<'cx> {
     pub error_ty: &'cx ty::Ty<'cx>,
     pub unknown_ty: &'cx ty::Ty<'cx>,
     pub undefined_ty: &'cx ty::Ty<'cx>,
+    pub missing_ty: &'cx ty::Ty<'cx>,
     pub never_ty: &'cx ty::Ty<'cx>,
     pub silent_never_ty: &'cx ty::Ty<'cx>,
     pub void_ty: &'cx ty::Ty<'cx>,
@@ -211,6 +212,7 @@ pub struct TyChecker<'cx> {
     unknown_sig: std::cell::OnceCell<&'cx Sig<'cx>>,
     any_fn_ty: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
     circular_constraint_ty: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
+    resolving_default_type: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
     no_constraint_ty: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
     empty_generic_ty: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
     empty_object_ty: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
@@ -289,6 +291,7 @@ impl<'cx> TyChecker<'cx> {
             (error_ty,          keyword::IDENT_ERROR,   TypeFlags::ANY,             ObjectFlags::empty()),
             (unknown_ty,        keyword::IDENT_UNKNOWN, TypeFlags::UNKNOWN,         ObjectFlags::empty()),
             (undefined_ty,      keyword::KW_UNDEFINED,  TypeFlags::UNDEFINED,       ObjectFlags::empty()),
+            (missing_ty,        keyword::KW_UNDEFINED,  TypeFlags::UNDEFINED,       ObjectFlags::empty()),
             (symbol_ty,         keyword::IDENT_SYMBOL,  TypeFlags::ES_SYMBOL,       ObjectFlags::empty()),
             (void_ty,           keyword::KW_VOID,       TypeFlags::VOID,            ObjectFlags::empty()),
             (never_ty,          keyword::IDENT_NEVER,   TypeFlags::NEVER,           ObjectFlags::empty()),
@@ -337,6 +340,7 @@ impl<'cx> TyChecker<'cx> {
             error_ty,
             unknown_ty,
             undefined_ty,
+            missing_ty,
             never_ty,
             silent_never_ty,
             void_ty,
@@ -356,6 +360,7 @@ impl<'cx> TyChecker<'cx> {
             any_fn_ty: Default::default(),
             circular_constraint_ty: Default::default(),
             no_constraint_ty: Default::default(),
+            resolving_default_type: Default::default(),
             empty_generic_ty: Default::default(),
             empty_object_ty: Default::default(),
             boolean_ty: Default::default(),
@@ -520,6 +525,18 @@ impl<'cx> TyChecker<'cx> {
         );
         this.circular_constraint_ty
             .set(circular_constraint_ty)
+            .unwrap();
+
+        let resolving_default_type = this.create_anonymous_ty_with_resolved(
+            None,
+            Default::default(),
+            this.alloc(Default::default()),
+            Default::default(),
+            Default::default(),
+            Default::default(),
+        );
+        this.resolving_default_type
+            .set(resolving_default_type)
             .unwrap();
 
         let empty_generic_ty = this.create_anonymous_ty_with_resolved(
@@ -691,13 +708,12 @@ impl<'cx> TyChecker<'cx> {
     }
 
     fn get_reduced_ty(&mut self, ty: &'cx ty::Ty<'cx>) -> &'cx ty::Ty<'cx> {
-        if let Some(union) = ty.kind.as_union() {
-            if union
+        if ty.kind.as_union().is_some_and(|union| {
+            union
                 .object_flags
                 .intersects(ObjectFlags::CONTAINS_INTERSECTIONS)
-            {
-                // TODO:
-            }
+        }) {
+            // TODO:
         } else if let Some(intersection) = ty.kind.as_intersection() {
             if !intersection
                 .object_flags
@@ -1954,21 +1970,15 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
-    pub fn each_union_contains(
-        &self,
-        union_tys: &[&'cx ty::Ty<'cx>],
-        ty: &'cx ty::Ty<'cx>,
-    ) -> bool {
+    fn each_union_contains(&self, union_tys: &[&'cx ty::Ty<'cx>], ty: &'cx ty::Ty<'cx>) -> bool {
         for t in union_tys {
-            let Some(u) = t.kind.as_union() else {
-                unreachable!()
-            };
-
+            let u = t.kind.expect_union();
             if !contains_ty(u.tys, ty) {
-                // TODO: missing_ty, undefined_ty
-                // if ty == self.undefined_ty {
-                //     return
-                // }
+                if ty == self.missing_ty {
+                    return contains_ty(u.tys, self.undefined_ty);
+                } else if ty == self.undefined_ty {
+                    return contains_ty(u.tys, self.missing_ty);
+                }
 
                 let primitive = if ty.flags.intersects(TypeFlags::STRING_LITERAL) {
                     self.string_ty
@@ -2414,6 +2424,59 @@ impl<'cx> TyChecker<'cx> {
             }
         }
     }
+
+    fn get_common_sub_ty(&mut self, tys: &[&'cx ty::Ty<'cx>]) -> &'cx ty::Ty<'cx> {
+        self.reduced_left(
+            tys,
+            |this, s, t, _| {
+                if this.is_ty_sub_type_of(t, s) {
+                    t
+                } else {
+                    s
+                }
+            },
+            None,
+            None,
+            None,
+        )
+        .unwrap()
+    }
+
+    fn reduced_left<T>(
+        &mut self,
+        array: &[&'cx T],
+        f: impl Fn(&mut Self, &'cx T, &'cx T, usize) -> &'cx T,
+        init: Option<&'cx T>,
+        start: Option<usize>,
+        count: Option<usize>,
+    ) -> Option<&'cx T> {
+        if !array.is_empty() {
+            let size = array.len();
+            if size > 0 {
+                let mut pos = start.unwrap_or(0);
+                let end = count.map_or(size - 1, |count| {
+                    if pos + count > size - 1 {
+                        size - 1
+                    } else {
+                        pos + count
+                    }
+                });
+                let mut result;
+                if init.is_none() && start.is_none() && count.is_none() {
+                    result = array[pos];
+                    pos += 2;
+                } else {
+                    result = init.unwrap();
+                };
+                while pos <= end {
+                    result = f(self, result, array[pos], pos);
+                    pos += 1;
+                }
+                return Some(result);
+            }
+        }
+        init
+    }
 }
 
 macro_rules! global_ty {
@@ -2437,6 +2500,7 @@ global_ty!(
     auto_array_ty,
     any_fn_ty,
     circular_constraint_ty,
+    resolving_default_type,
     empty_generic_ty,
     empty_object_ty,
     empty_ty_literal_ty,

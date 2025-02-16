@@ -19,6 +19,7 @@ links!(
     (param_ty_mapper, &'cx dyn ty::TyMap<'cx>),
     (param_ty_constraint, &'cx ty::Ty<'cx>),
     (non_existent_prop_checked, bool),
+    (default, &'cx ty::Ty<'cx>),
     // reference type
     (literal_ty, &'cx ty::Ty<'cx>),
     // conditional type

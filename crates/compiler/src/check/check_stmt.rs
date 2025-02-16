@@ -1,3 +1,5 @@
+use crate::ast::pprint_ident;
+
 use super::ast;
 use super::ty;
 use super::TyChecker;
@@ -143,7 +145,6 @@ impl<'cx> TyChecker<'cx> {
         if let Some(ty_params) = ty.ty_params {
             self.check_ty_params(ty_params);
         }
-
         self.check_ty(ty.ty);
     }
 }

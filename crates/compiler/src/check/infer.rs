@@ -1,5 +1,5 @@
 use crate::ir;
-use crate::ty::{self, ObjectFlags, SigFlags, SigKind, TypeFlags};
+use crate::ty::{self, SigFlags, SigKind, TypeFlags};
 use crate::{ast, ty::Sig};
 
 use super::create_ty::IntersectionFlags;
@@ -149,7 +149,7 @@ impl<'cx> TyChecker<'cx> {
         self.inferences[inference.as_usize()].ret_mapper = mapper;
     }
 
-    pub(crate) fn inference(&self, id: InferenceContextId) -> &InferenceContext<'cx> {
+    pub(super) fn inference(&self, id: InferenceContextId) -> &InferenceContext<'cx> {
         &self.inferences[id.as_usize()]
     }
 
@@ -299,6 +299,25 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
+    fn get_contravariant_inference(
+        &mut self,
+        inference: InferenceContextId,
+        idx: usize,
+    ) -> &'cx ty::Ty<'cx> {
+        let info = self.inference_info(inference, idx);
+        // TODO: remove clone
+        let cs = info.candidates.as_ref().unwrap().clone();
+        if info
+            .priority
+            .unwrap()
+            .intersects(InferencePriority::PRIORITY_IMPLIES_COMBINATION)
+        {
+            self.get_intersection_ty(&cs, IntersectionFlags::None, None, None)
+        } else {
+            self.get_common_sub_ty(&cs)
+        }
+    }
+
     pub(super) fn get_ty_with_this_arg(
         &mut self,
         ty: &'cx ty::Ty<'cx>,
@@ -342,22 +361,93 @@ impl<'cx> TyChecker<'cx> {
         if let Some(inferred_ty) = i.inferred_ty {
             return inferred_ty;
         }
-        let fallback_ty = None;
-        let inferred_ty = if let Some(sig) = self.get_inference_sig(inference) {
-            if i.candidates.is_some() {
+        let mut inferred_ty = None;
+        let mut fallback_ty = None;
+        if let Some(sig) = self.get_inference_sig(inference) {
+            let candidates_is_some = i.candidates.is_some();
+            let contra_candidates_is_some = i.contra_candidates.is_some();
+            let inferred_covariant_ty = if candidates_is_some {
                 Some(self.get_covariant_inference(inference, idx, sig))
-            } else if let Some(tys) = &i.contra_candidates {
-                todo!()
             } else {
                 None
+            };
+            let inferred_contravariant_ty = if contra_candidates_is_some {
+                Some(self.get_contravariant_inference(inference, idx))
+            } else {
+                None
+            };
+            if inferred_covariant_ty.is_some() || inferred_contravariant_ty.is_some() {
+                let prefer_covariant_ty =
+                    inferred_covariant_ty.is_some_and(|inferred_covariant_ty| {
+                        inferred_contravariant_ty.map_or(true, |inferred_contravariant_ty| {
+                            !inferred_contravariant_ty
+                                .flags
+                                .intersects(TypeFlags::NEVER | TypeFlags::ANY)
+                                && self
+                                    .inference_info(inference, idx)
+                                    .contra_candidates
+                                    .as_ref()
+                                    .cloned()
+                                    .is_some_and(|cs| {
+                                        cs.iter().any(|t| {
+                                            self.is_type_assignable_to(inferred_covariant_ty, t)
+                                        })
+                                    })
+                                && (0..self.inference(inference).inferences.len()).all(|other| {
+                                    other == idx
+                                        && self
+                                            .get_constraint_of_ty_param(
+                                                self.inference_info(inference, other).ty_param,
+                                            )
+                                            .is_some_and(|t| {
+                                                t != self.inference_info(inference, idx).ty_param
+                                            })
+                                        || self
+                                            .inference_info(inference, other)
+                                            .candidates
+                                            .as_ref()
+                                            .cloned()
+                                            .map_or(true, |cs| {
+                                                cs.iter().all(|t| {
+                                                    self.is_type_assignable_to(
+                                                        t,
+                                                        inferred_covariant_ty,
+                                                    )
+                                                })
+                                            })
+                                })
+                        })
+                    });
+                inferred_ty = if prefer_covariant_ty {
+                    inferred_covariant_ty
+                } else {
+                    inferred_contravariant_ty
+                };
+                fallback_ty = if prefer_covariant_ty {
+                    inferred_contravariant_ty
+                } else {
+                    inferred_covariant_ty
+                };
+            } else if self
+                .inference(inference)
+                .flags
+                .intersects(InferenceFlags::NO_DEFAULT)
+            {
+                inferred_ty = Some(self.silent_never_ty);
+            } else {
+                let ty_param = self.inference_info(inference, idx).ty_param;
+                if let Some(default_ty) = self.get_default_ty_from_ty_param(ty_param) {
+                    todo!("back reference mapper")
+                    // let back_reference_mapper =
+                    // inferred_ty =
+                }
             }
         } else {
-            self.get_ty_from_inference(inference, idx)
+            inferred_ty = self.get_ty_from_inference(inference, idx)
         };
 
         let i = self.inference_info(inference, idx);
         let ty = if let Some(constraint) = self.get_constraint_of_ty_param(i.ty_param) {
-            // let mapper = self.create_inference_non_fixing_mapper(inference);
             let instantiated_constraint = self.instantiate_ty(constraint, None);
             if inferred_ty.map_or(true, |inferred_ty| {
                 let ty = self.get_ty_with_this_arg(instantiated_constraint, fallback_ty);
@@ -723,7 +813,7 @@ impl<'cx> InferenceState<'cx, '_> {
                                 .as_ref()
                                 .map_or(true, |cs| !cs.contains(&candidate))
                             {
-                                self.append_candidate(idx, candidate);
+                                self.append_contra_candidate(idx, candidate);
                                 self.c.clear_cached_inferences(self.inference);
                             }
                         } else if info
@@ -758,6 +848,10 @@ impl<'cx> InferenceState<'cx, '_> {
             self.invoke_once(source, target, |this, source, target| {
                 this.infer_to_cond_ty(source, target);
             });
+        } else if let Some(u) = source.kind.as_union() {
+            for ty in u.tys {
+                self.infer_from_tys(ty, target);
+            }
         } else {
             source = self.c.get_reduced_ty(source);
             if !(self.priority.intersects(InferencePriority::NO_CONSTRAINTS)
@@ -775,7 +869,7 @@ impl<'cx> InferenceState<'cx, '_> {
                 }
                 source = apparent_source;
             }
-            if source.kind.is_object() {
+            if source.kind.is_object_or_intersection() {
                 self.invoke_once(source, target, |this, source, target| {
                     this.infer_from_object_tys(source, target);
                 });
@@ -812,7 +906,6 @@ impl<'cx> InferenceState<'cx, '_> {
     }
 
     fn infer_from_object_tys(&mut self, source: &'cx ty::Ty<'cx>, target: &'cx ty::Ty<'cx>) {
-        assert!(source.kind.is_object());
         if !self.c.tys_definitely_unrelated(source, target) {
             if source.is_tuple() || source.kind.is_array(self.c) {
                 if target.is_tuple() {

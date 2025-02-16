@@ -523,51 +523,51 @@ impl<'cx> ParserState<'cx, '_> {
     }
 
     pub(super) fn is_start_of_fn_or_ctor_ty(&mut self) -> bool {
+        let skip_param_start = |this: &mut Self| -> PResult<bool> {
+            if this.token.kind.is_modifier_kind() {
+                this.parse_modifiers(false)?;
+            }
+            if this.token.kind.is_ident() || this.token.kind == TokenKind::This {
+                this.next_token();
+                Ok(true)
+            } else if matches!(this.token.kind, TokenKind::LBracket | TokenKind::LBrace) {
+                let len = this.diags.len();
+                // todo: parse ident or pattern
+                this.parse_ident(None);
+                this.diags.truncate(len);
+                Ok(true)
+            } else {
+                Ok(false)
+            }
+        };
+        let is_unambiguously_start_of_fn_ty = |this: &mut Self| {
+            this.next_token();
+            let t = this.token.kind;
+            use TokenKind::*;
+            if matches!(t, TokenKind::RParen | TokenKind::DotDotDot) {
+                return true;
+            } else if skip_param_start(this).unwrap_or_default() {
+                if matches!(this.token.kind, Colon | Comma | Question | Eq) {
+                    return true;
+                } else if this.token.kind == RParen {
+                    this.next_token();
+                    if this.token.kind == EqGreat {
+                        return true;
+                    }
+                }
+            }
+            false
+        };
+
         let t = self.token.kind;
         (t == TokenKind::Less)
-            || (t == TokenKind::LParen && self.lookahead(Self::is_unambiguously_start_of_fn_ty))
+            || (t == TokenKind::LParen && self.lookahead(is_unambiguously_start_of_fn_ty))
             || (t == TokenKind::New
                 || t == TokenKind::Abstract
                     && self.lookahead(|this| {
                         this.next_token();
                         this.token.kind == TokenKind::New
                     }))
-    }
-
-    fn skip_param_start(&mut self) -> PResult<bool> {
-        if self.token.kind.is_modifier_kind() {
-            self.parse_modifiers(false)?;
-        }
-        if self.token.kind.is_ident() || self.token.kind == TokenKind::This {
-            self.next_token();
-            Ok(true)
-        } else if matches!(self.token.kind, TokenKind::LBracket | TokenKind::LBrace) {
-            // todo: parse ident or pattern
-            self.parse_ident(None);
-            Ok(true)
-        } else {
-            Ok(false)
-        }
-    }
-
-    fn is_unambiguously_start_of_fn_ty(&mut self) -> bool {
-        self.next_token();
-        let t = self.token.kind;
-        use TokenKind::*;
-        if matches!(t, TokenKind::RParen | TokenKind::DotDotDot) {
-            return true;
-        } else if self.skip_param_start().unwrap_or_default() {
-            if matches!(self.token.kind, Colon | Comma | Question | Eq) {
-                return true;
-            } else if self.token.kind == RParen {
-                self.next_token();
-                if self.token.kind == EqGreat {
-                    return true;
-                }
-            }
-        }
-
-        false
     }
 
     pub(super) fn parse_contextual_modifier(&mut self, t: TokenKind) -> bool {
