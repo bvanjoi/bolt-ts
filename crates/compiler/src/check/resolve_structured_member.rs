@@ -1,12 +1,13 @@
 use bolt_ts_span::Span;
 use rustc_hash::FxHashMap;
 
+use super::create_ty::IntersectionFlags;
 use super::cycle_check::{Cycle, ResolutionKey};
 use super::links::SigLinks;
-use super::{errors, SymbolLinks, TyChecker};
+use super::{errors, SymbolLinks, Ternary, TyChecker};
 use crate::ast::{self, MappedTyModifiers};
 use crate::bind::{Symbol, SymbolFlags, SymbolID, SymbolName};
-use crate::ty::{self, CheckFlags, ObjectFlags, SigID, SigKind, TypeFlags};
+use crate::ty::{self, CheckFlags, ObjectFlags, SigID, SigKind, TyMapper, TypeFlags};
 
 impl<'cx> TyChecker<'cx> {
     pub(super) fn members(&self, symbol: SymbolID) -> &FxHashMap<SymbolName, SymbolID> {
@@ -771,9 +772,7 @@ impl<'cx> TyChecker<'cx> {
     }
 
     fn resolve_union_type_members(&mut self, ty: &'cx ty::Ty<'cx>) {
-        let Some(union) = ty.kind.as_union() else {
-            unreachable!()
-        };
+        let union = ty.kind.expect_union();
         let call_sigs = union
             .tys
             .iter()
@@ -796,6 +795,200 @@ impl<'cx> TyChecker<'cx> {
             props: Default::default(),
         });
         self.get_mut_ty_links(ty.id).set_structured_members(m);
+    }
+
+    fn resolve_intersection_type_members(&mut self, ty: &'cx ty::Ty<'cx>) {
+        let t = ty.kind.expect_intersection();
+        let mut call_sigs = Vec::with_capacity(t.tys.len());
+        // let ctor_sigs = Vec::with_capacity(t.tys.len());
+        let mut index_infos = Vec::with_capacity(t.tys.len());
+        // TODO: mixin
+        for i in 0..t.tys.len() {
+            let t = t.tys[i];
+            // let sigs = self.get_signatures_of_type(t, ty::SigKind::Call);
+
+            let sigs = self.get_signatures_of_type(t, ty::SigKind::Call);
+            self.append_sigs(&mut call_sigs, sigs);
+            for index_info in self.get_index_infos_of_ty(t) {
+                self.append_index_info(&mut index_infos, index_info, false);
+            }
+        }
+
+        let m = self.alloc(ty::StructuredMembers {
+            members: self.alloc(FxHashMap::default()),
+            base_tys: &[],
+            base_ctor_ty: None,
+            call_sigs: if call_sigs.is_empty() {
+                self.empty_array()
+            } else {
+                self.alloc(call_sigs)
+            },
+            ctor_sigs: self.empty_array(),
+            index_infos: if index_infos.is_empty() {
+                self.empty_array()
+            } else {
+                self.alloc(index_infos)
+            },
+            props: Default::default(),
+        });
+        self.get_mut_ty_links(ty.id).set_structured_members(m);
+    }
+
+    fn append_sigs(&mut self, sigs: &mut Vec<&'cx ty::Sig<'cx>>, new_sigs: &[&'cx ty::Sig<'cx>]) {
+        for new_sig in new_sigs {
+            if sigs.iter().all(|s| {
+                !self.compare_sigs_identical(s, new_sig, false, false, false, |this, s, t| {
+                    this.compare_types_identical(s, t)
+                }) != Ternary::FALSE
+            }) {
+                sigs.push(*new_sig);
+            }
+        }
+    }
+
+    fn compare_sigs_identical(
+        &mut self,
+        mut source: &'cx ty::Sig<'cx>,
+        target: &'cx ty::Sig<'cx>,
+        partial_match: bool,
+        ignore_this_tys: bool,
+        ignore_return_tys: bool,
+        compare_tys: impl Fn(&mut Self, &'cx ty::Ty<'cx>, &'cx ty::Ty<'cx>) -> Ternary,
+    ) -> Ternary {
+        if source == target {
+            return Ternary::TRUE;
+        } else if !self.is_matching_sig(source, target, partial_match) {
+            return Ternary::FALSE;
+        } else if source.ty_params.map(|t| t.len()) != target.ty_params.map(|t| t.len()) {
+            return Ternary::FALSE;
+        }
+        if let Some(target_ty_params) = target.ty_params {
+            let source_ty_params = source.ty_params.unwrap();
+            let mapper = self.create_ty_mapper(source_ty_params, target_ty_params);
+            for i in 0..target_ty_params.len() {
+                let s = source_ty_params[i];
+                let t = target_ty_params[i];
+                if !(s == t
+                    || ({
+                        let s = self
+                            .get_constraint_of_ty_param(s)
+                            .map(|s| self.instantiate_ty(s, Some(mapper)))
+                            .unwrap_or(self.unknown_ty);
+                        let t = self
+                            .get_constraint_of_ty_param(t)
+                            .map(|t| self.instantiate_ty(t, Some(mapper)))
+                            .unwrap_or(self.unknown_ty);
+                        compare_tys(self, &s, &t) != Ternary::FALSE
+                    }) && {
+                        let s = self
+                            .get_default_ty_from_ty_param(s)
+                            .map(|s| self.instantiate_ty(s, Some(mapper)))
+                            .unwrap_or(self.unknown_ty);
+                        let t = self
+                            .get_default_ty_from_ty_param(t)
+                            .map(|t| self.instantiate_ty(t, Some(mapper)))
+                            .unwrap_or(self.unknown_ty);
+                        compare_tys(self, &s, &t) != Ternary::FALSE
+                    })
+                {
+                    return Ternary::FALSE;
+                }
+            }
+            source = self.instantiate_sig(source, mapper, true);
+        }
+
+        let mut result = Ternary::TRUE;
+        if !ignore_this_tys {
+            // TODO:
+        }
+
+        let target_len = target.get_param_count(self);
+        for i in 0..target_len {
+            let s = self.get_ty_at_pos(source, i);
+            let t = self.get_ty_at_pos(target, i);
+            let related = compare_tys(self, s, t);
+            if related == Ternary::FALSE {
+                return Ternary::FALSE;
+            }
+            result &= related;
+        }
+
+        if !ignore_return_tys {
+            let source_ty_pred = self.get_ty_predicate_of_sig(source);
+            let target_ty_pred = self.get_ty_predicate_of_sig(target);
+            result &= if source_ty_pred.is_some() || target_ty_pred.is_some() {
+                // TODO:
+                Ternary::TRUE
+            } else {
+                let source_ret_ty = self.get_ret_ty_of_sig(source);
+                let target_ret_ty = self.get_ret_ty_of_sig(target);
+                compare_tys(self, source_ret_ty, target_ret_ty)
+            }
+        }
+
+        result
+    }
+
+    fn is_matching_sig(
+        &mut self,
+        source: &'cx ty::Sig<'cx>,
+        target: &'cx ty::Sig<'cx>,
+        partial_match: bool,
+    ) -> bool {
+        let source_min_argument_count = self.get_min_arg_count(source);
+        let target_min_argument_count = self.get_min_arg_count(target);
+        if partial_match && source_min_argument_count <= target_min_argument_count {
+            return true;
+        } else if source_min_argument_count != target_min_argument_count {
+            return false;
+        }
+        let source_param_count = source.get_param_count(self);
+        let target_param_count = target.get_param_count(self);
+        if source_param_count != target_param_count {
+            return false;
+        }
+        let source_has_rest_param = self.has_effective_rest_param(source);
+        let target_has_rest_param = self.has_effective_rest_param(target);
+        if source_has_rest_param != target_has_rest_param {
+            return false;
+        }
+        true
+    }
+
+    fn append_index_info(
+        &mut self,
+        infos: &mut Vec<&'cx ty::IndexInfo<'cx>>,
+        new_info: &'cx ty::IndexInfo<'cx>,
+        union: bool,
+    ) {
+        for i in 0..infos.len() {
+            let info = infos[i];
+            if info.key_ty == new_info.key_ty {
+                let val_ty = if union {
+                    self.get_union_ty(&[info.val_ty, new_info.val_ty], ty::UnionReduction::Lit)
+                } else {
+                    self.get_intersection_ty(
+                        &[info.val_ty, new_info.val_ty],
+                        IntersectionFlags::None,
+                        None,
+                        None,
+                    )
+                };
+                let is_readonly = if union {
+                    info.is_readonly || new_info.is_readonly
+                } else {
+                    info.is_readonly && new_info.is_readonly
+                };
+                infos[i] = self.alloc(ty::IndexInfo {
+                    key_ty: info.key_ty,
+                    val_ty,
+                    symbol: info.symbol,
+                    is_readonly,
+                });
+                return;
+            }
+        }
+        infos.push(new_info);
     }
 
     pub(super) fn get_name_ty_from_mapped_ty(
@@ -938,7 +1131,7 @@ impl<'cx> TyChecker<'cx> {
         let template_modifier = mapped_ty.decl.get_modifiers();
 
         let mut members: FxHashMap<SymbolName, SymbolID> = FxHashMap::default();
-        let mut index_infos = vec![];
+        let mut index_infos = Vec::with_capacity(4);
 
         let include = TypeFlags::STRING_OR_NUMBER_LITERAL_OR_UNIQUE;
         let mut add_member_for_key_ty_worker =
@@ -1044,7 +1237,7 @@ impl<'cx> TyChecker<'cx> {
                         is_readonly,
                         symbol: Symbol::ERR,
                     });
-                    index_infos.push(index_info);
+                    this.append_index_info(&mut index_infos, index_info, true);
                 }
             };
         let mut add_member_for_key_ty = |this: &mut Self, key_ty: &'cx ty::Ty<'cx>| {
@@ -1102,10 +1295,15 @@ impl<'cx> TyChecker<'cx> {
             } else if ty.kind.is_object_mapped() {
                 self.resolve_mapped_ty_members(ty);
             } else {
-                // TODO: unreachable!()
+                unreachable!()
             }
         } else if ty.kind.is_union() {
             self.resolve_union_type_members(ty);
-        }
+        } else if ty.kind.is_intersection() {
+            self.resolve_intersection_type_members(ty);
+        } else {
+            unreachable!()
+        };
+        assert!(self.get_ty_links(ty.id).get_structured_members().is_some());
     }
 }

@@ -908,12 +908,7 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
-    fn has_ty_param_default(&self, ty_param: &'cx ty::ParamTy<'cx>) -> bool {
-        let param = self.ty_param_node(ty_param);
-        param.default.is_some()
-    }
-
-    fn ty_param_node(&self, ty_param: &'cx ty::ParamTy<'cx>) -> &'cx ast::TyParam<'cx> {
+    pub(super) fn ty_param_node(&self, ty_param: &'cx ty::ParamTy<'cx>) -> &'cx ast::TyParam<'cx> {
         let symbol = self.binder.symbol(ty_param.symbol);
         let symbol = symbol.expect_ty_param();
         let node = self.p.node(symbol.decl);

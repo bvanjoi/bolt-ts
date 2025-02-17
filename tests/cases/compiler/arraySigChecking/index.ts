@@ -24,7 +24,7 @@ var strArray: string[] = [myVar.voidFn()];
 
 var myArray: number[][][];
 myArray = [[1, 2]];
-//~^ ERROR: Type '[number[]]' is not assignable to type 'number[][][]'.
+//~^ ERROR: Type '[[number, number]]' is not assignable to type 'number[][][]'.
 
 function isEmpty(l: { length: number }) {
   return l.length === 0;

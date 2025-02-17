@@ -7,6 +7,7 @@ use super::get_contextual::ContextFlags;
 use super::utils::append_if_unique;
 use super::{fn_mapper, CheckMode, InferenceContextId, TyChecker};
 
+use enumflags2::BitFlag;
 use thin_vec::{thin_vec, ThinVec};
 
 #[derive(Debug, Clone)]
@@ -35,6 +36,12 @@ impl<'cx> InferenceInfo<'cx> {
 
     pub(super) fn has_inference_candidates(&self) -> bool {
         self.candidates.is_some() || self.contra_candidates.is_some()
+    }
+
+    pub(super) fn has_inference_candidates_or_default(&self, checker: &TyChecker<'cx>) -> bool {
+        self.candidates.is_some()
+            || self.contra_candidates.is_some()
+            || checker.has_ty_param_default(self.ty_param.kind.expect_param())
     }
 }
 
@@ -515,7 +522,9 @@ impl<'cx> TyChecker<'cx> {
 
         let node_id = node.id();
         if !self.p.node(node_id).is_bin_expr() {
-            if let Some(contextual_ty) = self.get_contextual_ty(node_id, Some(ContextFlags::None)) {
+            if let Some(contextual_ty) =
+                self.get_contextual_ty(node_id, Some(ContextFlags::empty()))
+            {
                 let inference_target_ty = self.get_ret_ty_of_sig(sig);
                 if self.could_contain_ty_var(inference_target_ty) {
                     let outer_context = self.get_inference_context(node_id);

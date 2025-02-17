@@ -362,6 +362,13 @@ impl<'cx> Parser<'cx> {
             false
         }
     }
+
+    pub fn index_of_node(&self, elements: &[&'cx ast::Expr<'cx>], id: ast::NodeID) -> usize {
+        debug_assert!(elements.is_sorted_by_key(|probe| probe.span().lo));
+        elements
+            .binary_search_by_key(&self.node(id).span().lo, |probe| probe.span().lo)
+            .unwrap()
+    }
 }
 
 #[derive(Clone, Copy, PartialEq)]

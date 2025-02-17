@@ -236,7 +236,9 @@ impl<'cx> TyChecker<'cx> {
         } else if expr.kind.is_type_assertion() {
             ty
         } else {
-            self.get_widened_literal_ty(ty)
+            let contextual_ty = self.get_contextual_ty(id, None);
+            let contextual_ty = self.instantiate_contextual_ty(contextual_ty, id, None);
+            self.get_widened_lit_like_ty_for_contextual_ty(ty, contextual_ty)
         }
     }
 

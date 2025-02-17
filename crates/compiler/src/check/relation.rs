@@ -6,7 +6,7 @@ use bolt_ts_utils::fx_hashset_with_capacity;
 use super::create_ty::IntersectionFlags;
 use super::{errors, SymbolLinks};
 use crate::ast;
-use crate::bind::{SymbolFlags, SymbolID, SymbolName};
+use crate::bind::{Symbol, SymbolFlags, SymbolID, SymbolName};
 use crate::ty::{self, CheckFlags, ObjectFlags, TypeFlags};
 use crate::ty::{ObjectShape, ObjectTy, ObjectTyKind, Ty, TyKind};
 
@@ -511,6 +511,7 @@ impl<'cx> TyChecker<'cx> {
                     ObjectTyKind::Interface(ty) => ty.symbol,
                     ObjectTyKind::Anonymous(ty) => ty.symbol,
                     ObjectTyKind::Mapped(ty) => ty.symbol,
+                    ObjectTyKind::Tuple(ty) => Symbol::ERR,
                     _ => unreachable!("{ty:#?}"),
                 }
             }

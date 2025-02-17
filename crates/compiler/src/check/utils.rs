@@ -207,6 +207,11 @@ impl<'cx> TyChecker<'cx> {
             f(self, ty)
         }
     }
+
+    pub(super) fn has_ty_param_default(&self, ty_param: &'cx ty::ParamTy<'cx>) -> bool {
+        let param = self.ty_param_node(ty_param);
+        param.default.is_some()
+    }
 }
 
 enum SameMapperResult<'cx, T> {

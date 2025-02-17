@@ -84,8 +84,8 @@ use crate::bind::{
     self, FlowID, FlowNodes, GlobalSymbols, Symbol, SymbolFlags, SymbolID, SymbolName,
 };
 use crate::parser::{AccessKind, AssignmentKind, Parser};
-use crate::ty::TYPEOF_NE_FACTS;
 use crate::ty::{has_type_facts, TyMapper};
+use crate::ty::{CheckFlags, TYPEOF_NE_FACTS};
 use crate::ty::{ElementFlags, ObjectFlags, Sig, SigFlags, SigID, TyID, TypeFacts, TypeFlags};
 use crate::{ast, ecma_rules, ensure_sufficient_stack, keyword, ty};
 
@@ -223,6 +223,7 @@ pub struct TyChecker<'cx> {
     global_newable_fn_ty: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
     global_array_ty: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
     global_readonly_array_ty: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
+    any_readonly_array_ty: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
     global_number_ty: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
     global_string_ty: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
     global_boolean_ty: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
@@ -375,6 +376,7 @@ impl<'cx> TyChecker<'cx> {
             global_boolean_ty: Default::default(),
             global_array_ty: Default::default(),
             global_readonly_array_ty: Default::default(),
+            any_readonly_array_ty: Default::default(),
             global_fn_ty: Default::default(),
             global_callable_fn_ty: Default::default(),
             global_newable_fn_ty: Default::default(),
@@ -421,15 +423,15 @@ impl<'cx> TyChecker<'cx> {
         let prev = this.ty_links.insert(
             regular_true_ty.id,
             TyLinks::default()
-                .with_regular_ty(regular_false_ty)
-                .with_fresh_ty(false_ty),
+                .with_regular_ty(regular_true_ty)
+                .with_fresh_ty(true_ty),
         );
         assert!(prev.is_none());
         let prev = this.ty_links.insert(
             false_ty.id,
             TyLinks::default()
                 .with_regular_ty(regular_false_ty)
-                .with_fresh_ty(true_ty),
+                .with_fresh_ty(false_ty),
         );
         assert!(prev.is_none());
         let prev = this.ty_links.insert(
@@ -472,10 +474,18 @@ impl<'cx> TyChecker<'cx> {
         let global_array_ty = this.get_global_type(SymbolName::Normal(keyword::IDENT_ARRAY_CLASS));
         this.global_array_ty.set(global_array_ty).unwrap();
 
+        let any_array_ty = this.create_array_ty(this.any_ty, false);
+        this.any_array_ty.set(any_array_ty).unwrap();
+
         let global_readonly_array_ty =
             this.get_global_type(SymbolName::Normal(keyword::IDENT_ARRAY_CLASS));
         this.global_readonly_array_ty
             .set(global_readonly_array_ty)
+            .unwrap();
+
+        let any_readonly_array_ty = this.any_array_ty();
+        this.any_readonly_array_ty
+            .set(any_readonly_array_ty)
             .unwrap();
 
         let global_string_ty =
@@ -490,9 +500,6 @@ impl<'cx> TyChecker<'cx> {
             this.get_union_ty(&tys, ty::UnionReduction::Lit)
         };
         this.typeof_ty.set(typeof_ty).unwrap();
-
-        let any_array_ty = this.create_array_ty(this.any_ty, false);
-        this.any_array_ty.set(any_array_ty).unwrap();
 
         let any_fn_ty = this.create_anonymous_ty_with_resolved(
             None,
@@ -879,7 +886,7 @@ impl<'cx> TyChecker<'cx> {
             return ty;
         };
         let Some(contextual_ty) =
-            self.get_apparent_ty_of_contextual_ty(id, Some(ContextFlags::NoConstraints))
+            self.get_apparent_ty_of_contextual_ty(id, Some(ContextFlags::NO_CONSTRAINTS))
         else {
             return ty;
         };
@@ -1960,6 +1967,14 @@ impl<'cx> TyChecker<'cx> {
         self.is_type_related_to(s, t, relation::RelationKind::Identity)
     }
 
+    fn compare_types_identical(&mut self, s: &'cx ty::Ty<'cx>, t: &'cx ty::Ty<'cx>) -> Ternary {
+        if self.is_type_identical_to(s, t) {
+            Ternary::TRUE
+        } else {
+            Ternary::FALSE
+        }
+    }
+
     fn is_ty_closely_matched_by(s: &'cx ty::Ty<'cx>, t: &'cx ty::Ty<'cx>) -> bool {
         if s.kind.is_object() && t.kind.is_object() {
             let s_symbol = s.symbol();
@@ -2477,6 +2492,39 @@ impl<'cx> TyChecker<'cx> {
         }
         init
     }
+
+    fn is_array_like_ty(&mut self, ty: &'cx ty::Ty<'cx>) -> bool {
+        ty.kind.is_array(self)
+            || !ty.flags.intersects(TypeFlags::NULLABLE)
+                && self.is_type_assignable_to(ty, self.any_readonly_array_ty())
+    }
+
+    fn substitute_indexed_mapped_ty(
+        &mut self,
+        object_ty: &'cx ty::Ty<'cx>,
+        index_ty: &'cx ty::Ty<'cx>,
+    ) -> &'cx ty::Ty<'cx> {
+        let mapped_ty = object_ty.kind.expect_object_mapped();
+        let template_mapper = self.alloc(TyMapper::make_unary(mapped_ty.ty_param, index_ty));
+        let instantiated_template_ty = {
+            let template_ty =
+                self.get_template_ty_from_mapped_ty(mapped_ty.target.unwrap_or(object_ty));
+            self.instantiate_ty(template_ty, Some(template_mapper))
+        };
+        // TODO: optional
+        instantiated_template_ty
+    }
+
+    fn is_circular_mapped_prop(&self, symbol: SymbolID) -> bool {
+        self.get_check_flags(symbol).intersects(CheckFlags::MAPPED)
+            && !(self
+                .symbol_links
+                .get(&symbol)
+                .is_some_and(|s| s.get_ty().is_some())
+                && self
+                    .find_resolution_cycle_start_index(ResolutionKey::Type(symbol))
+                    .is_some())
+    }
 }
 
 macro_rules! global_ty {
@@ -2511,6 +2559,7 @@ global_ty!(
     global_boolean_ty,
     global_array_ty,
     global_readonly_array_ty,
+    any_readonly_array_ty,
     global_fn_ty,
     global_callable_fn_ty,
     global_newable_fn_ty,

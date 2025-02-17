@@ -9,7 +9,6 @@ pub fn pprint_reference_ty<'cx>(ty: &'cx super::Ty<'cx>, checker: &mut TyChecker
         .collect::<Vec<_>>()
         .join(", ");
     if refer.target.kind.as_object_tuple().is_some() {
-        assert!(!args.is_empty());
         format!("[{args}]",)
     } else if args.is_empty() {
         refer.target.to_string(checker)

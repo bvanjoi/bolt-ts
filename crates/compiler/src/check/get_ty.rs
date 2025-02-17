@@ -245,10 +245,10 @@ impl<'cx> TyChecker<'cx> {
                 use ast::LitTyKind::*;
                 match node.kind {
                     Null => self.null_ty,
-                    True => self.true_ty,
-                    False => self.false_ty,
                     Undefined => self.undefined_ty,
                     Void => self.void_ty,
+                    True => self.get_regular_ty_of_literal_ty(self.true_ty),
+                    False => self.get_regular_ty_of_literal_ty(self.false_ty),
                     Num(n) => {
                         let ty = self.get_number_literal_type(n);
                         self.get_regular_ty_of_literal_ty(ty)
@@ -810,27 +810,34 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
-    pub(super) fn get_ty_reference_arity(ty: &'cx ty::ReferenceTy<'cx>) -> usize {
-        let ty_params = if let Some(t) = ty.target.kind.as_object_tuple() {
-            t.ty_params()
-        } else if let Some(i) = ty.target.kind.as_object_interface() {
-            i.ty_params
-        } else if let Some(r) = ty.target.kind.as_object_reference() {
-            return Self::get_ty_reference_arity(r);
+    pub(super) fn get_ty_reference_arity(ty: &'cx ty::Ty<'cx>) -> usize {
+        assert!(ty.get_object_flags().intersects(ObjectFlags::REFERENCE));
+        if let Some(ty) = ty.kind.as_object_reference() {
+            let ty_params = if let Some(t) = ty.target.kind.as_object_tuple() {
+                t.ty_params()
+            } else if let Some(i) = ty.target.kind.as_object_interface() {
+                i.ty_params
+            } else if ty.target.kind.is_object_reference() {
+                return Self::get_ty_reference_arity(ty.target);
+            } else {
+                unreachable!()
+            };
+            ty_params.map_or(0, |ty_params| ty_params.len())
+        } else if let Some(tup) = ty.kind.as_object_tuple() {
+            tup.ty_params().map_or(0, |ty_params| ty_params.len())
         } else {
             unreachable!()
-        };
-        ty_params.map_or(0, |ty_params| ty_params.len())
+        }
     }
 
     pub(super) fn get_element_tys(&mut self, ty: &'cx Ty<'cx>) -> ty::Tys<'cx> {
         if !ty.is_tuple() {
             return Default::default();
         };
-        let Some(r) = ty.kind.as_object_reference() else {
+        if !ty.kind.is_object_reference() {
             return Default::default();
         };
-        let arity = Self::get_ty_reference_arity(r);
+        let arity = Self::get_ty_reference_arity(ty);
         let ty_args = self.get_ty_arguments(ty);
         if ty_args.len() == arity {
             ty_args
@@ -895,6 +902,10 @@ impl<'cx> TyChecker<'cx> {
         ty: &'cx Ty<'cx>,
         cond_ty: &'cx ty::CondTy<'cx>,
     ) -> &'cx Ty<'cx> {
+        assert!(ty
+            .kind
+            .as_cond_ty()
+            .is_some_and(|c| std::ptr::eq(c, cond_ty)));
         if let Some(ty) = self.get_ty_links(ty.id).get_resolved_true_ty() {
             return ty;
         }

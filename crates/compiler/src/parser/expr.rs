@@ -758,8 +758,9 @@ impl<'cx> ParserState<'cx, '_> {
         let open = LBrace;
         let open_brace_parsed = self.expect(LBrace);
         let id = self.next_node_id();
-        let props =
-            self.parse_delimited_list(list_ctx::ObjectLitMembers, Self::parse_object_lit_ele);
+        let props = self.with_parent(id, |this| {
+            this.parse_delimited_list(list_ctx::ObjectLitMembers, Self::parse_object_lit_ele)
+        });
         let close = RBrace;
         self.parse_expected_matching_brackets(open, close, open_brace_parsed, start as usize)?;
         let lit = self.alloc(ast::ObjectLit {

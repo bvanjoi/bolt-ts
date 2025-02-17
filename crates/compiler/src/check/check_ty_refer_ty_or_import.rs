@@ -136,7 +136,7 @@ impl<'cx> TyChecker<'cx> {
         None
     }
 
-    fn get_constraint_from_ty_param(
+    pub(super) fn get_constraint_from_ty_param(
         &mut self,
         ty_param: &'cx ty::Ty<'cx>,
     ) -> Option<&'cx ty::Ty<'cx>> {

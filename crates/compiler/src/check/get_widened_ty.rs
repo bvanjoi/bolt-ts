@@ -1,9 +1,11 @@
+use crate::ast;
 use crate::bind::SymbolFlags;
 use crate::bind::SymbolID;
 use crate::ty::ObjectFlags;
 use crate::ty::TypeFlags;
 
 use super::ty;
+use super::ContextFlags;
 use super::TyChecker;
 
 impl<'cx> TyChecker<'cx> {
@@ -47,6 +49,8 @@ impl<'cx> TyChecker<'cx> {
             self.number_ty
         } else if ty.kind.is_string_lit() && self.is_fresh_literal_ty(ty) {
             self.string_ty
+        } else if ty.flags.intersects(TypeFlags::BOOLEAN_LITERAL) && self.is_fresh_literal_ty(ty) {
+            self.boolean_ty()
         } else {
             ty
         }
@@ -97,5 +101,112 @@ impl<'cx> TyChecker<'cx> {
 
     pub(super) fn widened_ty_from_init(&mut self, ty: &'cx ty::Ty<'cx>) -> &'cx ty::Ty<'cx> {
         self.get_widened_lit_ty_for_init(ty)
+    }
+
+    fn is_literal_of_contextual_ty(
+        &mut self,
+        candidate_ty: &'cx ty::Ty<'cx>,
+        contextual_ty: Option<&'cx ty::Ty<'cx>>,
+    ) -> bool {
+        let Some(contextual_ty) = contextual_ty else {
+            return false;
+        };
+        if let Some(tys) = contextual_ty.kind.tys_of_union_or_intersection() {
+            return tys
+                .iter()
+                .any(|ty| self.is_literal_of_contextual_ty(candidate_ty, Some(ty)));
+        } else if contextual_ty
+            .flags
+            .intersects(TypeFlags::INSTANTIABLE_NON_PRIMITIVE)
+        {
+            let constraint = self
+                .get_base_constraint_of_ty(contextual_ty)
+                .unwrap_or(self.unknown_ty);
+            return if constraint.maybe_type_of_kind(TypeFlags::STRING)
+                && candidate_ty.maybe_type_of_kind(TypeFlags::STRING_LITERAL)
+            {
+                true
+            } else if constraint.maybe_type_of_kind(TypeFlags::NUMBER)
+                && candidate_ty.maybe_type_of_kind(TypeFlags::NUMBER_LITERAL)
+            {
+                true
+            } else if constraint.maybe_type_of_kind(TypeFlags::BIG_INT)
+                && candidate_ty.maybe_type_of_kind(TypeFlags::BIG_INT_LITERAL)
+            {
+                true
+            } else if constraint.maybe_type_of_kind(TypeFlags::ES_SYMBOL)
+                && candidate_ty.maybe_type_of_kind(TypeFlags::UNIQUE_ES_SYMBOL)
+            {
+                true
+            } else {
+                self.is_literal_of_contextual_ty(candidate_ty, Some(constraint))
+            };
+        } else {
+            if contextual_ty.flags.intersects(
+                TypeFlags::STRING_LITERAL
+                    | TypeFlags::INDEX
+                    | TypeFlags::TEMPLATE_LITERAL
+                    | TypeFlags::STRING_MAPPING,
+            ) && candidate_ty.maybe_type_of_kind(TypeFlags::STRING_LITERAL)
+            {
+                true
+            } else if contextual_ty.flags.intersects(TypeFlags::NUMBER_LITERAL)
+                && candidate_ty.maybe_type_of_kind(TypeFlags::NUMBER_LITERAL)
+            {
+                true
+            } else if contextual_ty.flags.intersects(TypeFlags::BIG_INT_LITERAL)
+                && candidate_ty.maybe_type_of_kind(TypeFlags::BIG_INT_LITERAL)
+            {
+                true
+            } else if contextual_ty.flags.intersects(TypeFlags::BOOLEAN_LITERAL)
+                && candidate_ty.maybe_type_of_kind(TypeFlags::BOOLEAN_LITERAL)
+            {
+                true
+            } else if contextual_ty.flags.intersects(TypeFlags::UNIQUE_ES_SYMBOL)
+                && candidate_ty.maybe_type_of_kind(TypeFlags::UNIQUE_ES_SYMBOL)
+            {
+                true
+            } else {
+                false
+            }
+        }
+    }
+
+    pub(super) fn get_widened_lit_like_ty_for_contextual_ty(
+        &mut self,
+        mut ty: &'cx ty::Ty<'cx>,
+        contextual_ty: Option<&'cx ty::Ty<'cx>>,
+    ) -> &'cx ty::Ty<'cx> {
+        if !self.is_literal_of_contextual_ty(ty, contextual_ty) {
+            ty = self.get_widened_literal_ty(ty);
+        }
+        self.get_regular_ty_of_literal_ty(ty)
+    }
+
+    pub(super) fn instantiate_contextual_ty(
+        &mut self,
+        contextual_ty: Option<&'cx ty::Ty<'cx>>,
+        node: ast::NodeID,
+        context_flags: Option<ContextFlags>,
+    ) -> Option<&'cx ty::Ty<'cx>> {
+        if let Some(contextual_ty) = contextual_ty {
+            if contextual_ty.flags.intersects(TypeFlags::INSTANTIABLE) {
+                let inference_context = self.get_inference_context(node);
+                if let Some(inference_context) = inference_context {
+                    if context_flags
+                        .is_some_and(|check_flags| check_flags.intersects(ContextFlags::SIGNATURE))
+                        && self
+                            .inference_infos(inference_context.inference.unwrap())
+                            .iter()
+                            .any(|i| i.has_inference_candidates_or_default(self))
+                    {
+                        // TODO:
+                        return Some(contextual_ty);
+                    }
+                }
+                // TODO:
+            }
+        }
+        contextual_ty
     }
 }

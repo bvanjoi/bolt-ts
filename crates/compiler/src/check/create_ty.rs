@@ -163,7 +163,13 @@ impl<'cx> TyChecker<'cx> {
                         add_ele(tuple.resolved_ty_args[i], tuple.element_flags[i]);
                     }
                 } else {
-                    todo!()
+                    let t = if self.is_array_like_ty(ty) {
+                        self.get_index_ty_of_ty(ty, self.number_ty)
+                            .unwrap_or(self.error_ty)
+                    } else {
+                        self.error_ty
+                    };
+                    add_ele(t, ElementFlags::REST);
                 }
             } else {
                 add_ele(ty, flag)
@@ -679,7 +685,7 @@ impl<'cx> TyChecker<'cx> {
 
     fn add_ty_to_intersection(
         &self,
-        set: &mut FxHashSet<TyID>,
+        set: &mut indexmap::IndexSet<TyID>,
         mut includes: TypeFlags,
         ty: &'cx ty::Ty<'cx>,
     ) -> TypeFlags {
@@ -716,7 +722,7 @@ impl<'cx> TyChecker<'cx> {
 
     fn add_tys_to_intersection(
         &self,
-        set: &mut FxHashSet<TyID>,
+        set: &mut indexmap::IndexSet<TyID>,
         mut includes: TypeFlags,
         tys: &[&'cx ty::Ty<'cx>],
     ) -> TypeFlags {
@@ -809,7 +815,7 @@ impl<'cx> TyChecker<'cx> {
         alias_symbol: Option<SymbolID>,
         alias_symbol_ty_args: Option<ty::Tys<'cx>>,
     ) -> &'cx ty::Ty<'cx> {
-        let mut set = fx_hashset_with_capacity(tys.len());
+        let mut set = indexmap::IndexSet::with_capacity(tys.len());
         let includes = self.add_tys_to_intersection(&mut set, TypeFlags::empty(), tys);
         let mut ty_set = set
             .into_iter()

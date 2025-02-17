@@ -366,8 +366,10 @@ UnionToIntersection<T extends any ? () => T : never> extends () => (infer R)
 	let a0: LastOfUnion<'a'> = 'a';
 	let a1: LastOfUnion<'a' | 'b'> = 'b';
 	let a2: LastOfUnion<'a' | 'b' | 'c'> = 'c';
-	// let a3: LastOfUnion<'a' | 'b' | 'c'> = 'b';
-	// let a4: LastOfUnion<'a' | 'b' | 'c'> = 'd';
+	let a3: LastOfUnion<'a' | 'b' | 'c'> = 'b';
+	//~^ ERROR: Type '"b"' is not assignable to type '"c"'.
+	let a4: LastOfUnion<'a' | 'b' | 'c'> = 'd';
+	//~^ ERROR: Type '"d"' is not assignable to type '"c"'.
 }
 
 type UnionToTuple<T, L = LastOfUnion<T>> =
@@ -376,8 +378,11 @@ IsNever<T> extends false
 	: [];
 
 {
-	// type Options = UnionToTuple<'a' | 'b' | 'c'>;
-	// // Results unordered
+	let b0: UnionToTuple<'a'> = ['a'];
+	let b1: UnionToTuple<'a'> = [];
+	//~^ ERROR: Type '[]' is not assignable to type '["a"]'.
+	type Options = UnionToTuple<'a' | 'b' | 'c'>;
+	// Results unordered
 	// const a0: ['a', 'b', 'c'] | ['a', 'c', 'b'] | ['b', 'a', 'c'] | ['b', 'c', 'a'] | ['c', 'a', 'b'] | ['c', 'b', 'a'] = {} as Options;
 	// const a1: Options[number] = 'a' as ('a' | 'b' | 'c');
 

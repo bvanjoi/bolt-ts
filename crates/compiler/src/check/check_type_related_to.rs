@@ -267,17 +267,9 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
 
         if let Some(t_tuple) = target.as_tuple() {
             if self.c.is_array_or_tuple(source) {
-                let Some(s) = source.kind.as_object_reference() else {
-                    unreachable!()
-                };
-                let source_arity = TyChecker::get_ty_reference_arity(s);
-                let target_arity = if let Some(t) = target.kind.as_object_reference() {
-                    TyChecker::get_ty_reference_arity(t)
-                } else if let Some(t) = target.kind.as_object_tuple() {
-                    t.ty_params().map_or(0, |ty_params| ty_params.len())
-                } else {
-                    unreachable!()
-                };
+                let s = source.kind.expect_object_reference();
+                let source_arity = TyChecker::get_ty_reference_arity(source);
+                let target_arity = TyChecker::get_ty_reference_arity(target);
                 let source_rest_flags = if let Some(s_tuple) = s.target.kind.as_object_tuple() {
                     s_tuple.combined_flags.intersection(ElementFlags::REST)
                 } else {
@@ -291,7 +283,7 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
                     0
                 };
                 let target_min_length = t_tuple.min_length;
-                if !source_rest_flags.is_empty() && source_arity < target_min_length {
+                if source_rest_flags.is_empty() && source_arity < target_min_length {
                     // TODO: report
                     return Ternary::FALSE;
                 } else if !target_has_rest_elem && target_arity < source_min_length {
