@@ -1,0 +1,5 @@
+  × Cannot find name 'Comparable'.
+   ╭─[../../tests/cases/compiler/protoAssignment/index.ts:3:26]
+ 3 │ Comparable
+   · ──────────
+   ╰────

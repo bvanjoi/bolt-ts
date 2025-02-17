@@ -279,6 +279,63 @@ type Or<A extends boolean, B extends boolean> = [A, B][number] extends false
   const a6: Or<boolean, boolean> = never;
 }
 
+// ============ Simplify ============
+type Simplify<T> = {[KeyType in keyof T]: T[KeyType]} & {};
+{
+  type PositionProperties = {
+    top: number;
+    left: number;
+  };
+  
+  type SizeProperties = {
+    width: number;
+    height: number;
+  };
+  
+  // Flatten the type output to improve type hints shown in editors.
+  const flattenProperties = {top: 120, left: 240, width: 480, height: 600};
+  const a0: Simplify<PositionProperties & SizeProperties> = flattenProperties;
+  
+  interface SomeInterface {
+    foo: number;
+    bar?: string;
+    baz: number | undefined;
+  }
+  
+  type SomeInterfaceAsTypeWrittenByHand = {
+    foo: number;
+    bar?: string;
+    baz: number | undefined;
+  };
+  
+  const valueAsLiteral = {foo: 123, bar: 'hello', baz: 456};
+  const valueAsSimplifiedInterface: Simplify<SomeInterface> = valueAsLiteral;
+  const valueAsInterface: SomeInterface = valueAsLiteral;
+  
+  const a: Simplify<SomeInterface> = valueAsSimplifiedInterface;
+  const a1: SomeInterfaceAsTypeWrittenByHand = a;
+  
+  // Interface is assignable to its Simplified type (created with Simplify, and by hand)
+  const a2: Simplify<SomeInterface> = valueAsInterface;
+  const a3: SomeInterfaceAsTypeWrittenByHand = valueAsInterface;
+  
+  // The following demonstrates one reason a type may be preferred over an interface is that it can be assigned to alternate types. In this example the interface cannot be because it is not sealed and elsewhere a non-string property could be added.
+  const a4: Record<string, unknown> = valueAsLiteral;
+  // const a5: Record<string, unknown> = valueAsSimplifiedInterface;
+  const a6: Record<string, unknown> = valueAsInterface; // Index signature is missing in interface
+  //~^ ERROR: Type 'SomeInterface' is not assignable to type 'Record'. 
+
+  // The following tests should be fixed once we have determined the cause of the bug reported in https://github.com/sindresorhus/type-fest/issues/436
+  
+  type SomeFunction = (type: string) => string;
+  type SimplifiedFunction = Simplify<SomeFunction>; // Return '{}' expected 'SomeFunction'
+  
+  const someFunction: SimplifiedFunction = {};
+  
+  const b0: SomeFunction = someFunction;
+  //~^ ERROR: Type 'mapped type & { }' is not assignable to type '(type: string) => string'.
+}
+
 // ========== TupleToUnion ==========
 type TupleToUnion<ArrayType> = ArrayType extends readonly unknown[] ? ArrayType[number] : never;
 {
@@ -383,14 +440,14 @@ IsNever<T> extends false
 	//~^ ERROR: Type '[]' is not assignable to type '["a"]'.
 	type Options = UnionToTuple<'a' | 'b' | 'c'>;
 	// Results unordered
-	// const a0: ['a', 'b', 'c'] | ['a', 'c', 'b'] | ['b', 'a', 'c'] | ['b', 'c', 'a'] | ['c', 'a', 'b'] | ['c', 'b', 'a'] = {} as Options;
-	// const a1: Options[number] = 'a' as ('a' | 'b' | 'c');
+	const a0: ['a', 'b', 'c'] | ['a', 'c', 'b'] | ['b', 'a', 'c'] | ['b', 'c', 'a'] | ['c', 'a', 'b'] | ['c', 'b', 'a'] = {} as Options;
+	const a1: Options[number] = 'a' as ('a' | 'b' | 'c');
 
-	// type Options1 = UnionToTuple<1 | 2 | 3>;
-	// const a2: Options1[number] = 1 as (1 | 2 | 3)
+	type Options1 = UnionToTuple<1 | 2 | 3>;
+	const a2: Options1[number] = 1 as (1 | 2 | 3)
 
-	// type Options2 = UnionToTuple<boolean | 1>;
-	// const a3: Options2[number] = 1 as (1 | false | true);
+	type Options2 = UnionToTuple<boolean | 1>;
+	const a3: Options2[number] = 1 as (1 | false | true);
 }
 
 // =========== UnknownArray ===========

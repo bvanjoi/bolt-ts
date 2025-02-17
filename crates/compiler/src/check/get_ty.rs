@@ -1232,6 +1232,7 @@ impl<'cx> TyChecker<'cx> {
     pub(super) fn get_array_ele_ty_node(node: &ast::Ty<'cx>) -> Option<&'cx ast::Ty<'cx>> {
         use ast::TyKind::*;
         match node.kind {
+            Paren(p) => Self::get_array_ele_ty_node(p.ty),
             Tuple(tup) if tup.tys.len() == 1 => {
                 let node = tup.tys[0];
                 if let Rest(rest) = node.kind {
@@ -1267,8 +1268,16 @@ impl<'cx> TyChecker<'cx> {
         }
 
         let ty_node = self.p.node(node.id).as_ty().unwrap();
+        let readonly = self
+            .p
+            .parent(node.id)
+            .map_or(false, |parent| self.p.node(parent).is_readonly_ty_op());
         let target = if Self::get_array_ele_ty_node(&ty_node).is_some() {
-            self.global_array_ty()
+            if readonly {
+                self.global_readonly_array_ty()
+            } else {
+                self.global_array_ty()
+            }
         } else {
             let element_flags: Vec<_> = node
                 .tys
@@ -1276,7 +1285,7 @@ impl<'cx> TyChecker<'cx> {
                 .map(|ty| Self::get_tuple_element_flags(ty))
                 .collect();
             let element_flags = self.alloc(element_flags);
-            self.get_tuple_target_ty(element_flags, false)
+            self.get_tuple_target_ty(element_flags, readonly)
         };
 
         let ty = if target == self.empty_generic_ty() {

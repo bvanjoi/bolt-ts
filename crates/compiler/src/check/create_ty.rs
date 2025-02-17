@@ -155,8 +155,9 @@ impl<'cx> TyChecker<'cx> {
                 } else if ty.kind.is_instantiable_non_primitive() {
                     add_ele(ty, ElementFlags::VARIADIC);
                 } else if let Some(tuple) = ty.as_tuple() {
-                    for i in 0..tuple.resolved_ty_args.len() {
-                        add_ele(tuple.resolved_ty_args[i], tuple.element_flags[i]);
+                    let elements = self.get_element_tys(ty);
+                    for (n, t) in elements.iter().enumerate() {
+                        add_ele(t, tuple.element_flags[n]);
                     }
                 } else if let Some(tuple) = ty.kind.as_object_tuple() {
                     for i in 0..tuple.resolved_ty_args.len() {
@@ -888,7 +889,7 @@ impl<'cx> TyChecker<'cx> {
                 && includes.intersects(TypeFlags::DEFINITELY_NON_NULLABLE)
         {
             if flags != IntersectionFlags::NoSuperTypeReduction {
-                todo!()
+                // todo!()
             };
         }
 

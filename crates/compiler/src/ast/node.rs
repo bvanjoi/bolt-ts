@@ -575,6 +575,11 @@ impl<'cx> Node<'cx> {
         use Node::*;
         matches!(self, CondTy(_))
     }
+
+    pub fn is_readonly_ty_op(&self) -> bool {
+        self.as_ty_op()
+            .is_some_and(|n| n.op == super::TyOpKind::Readonly)
+    }
 }
 
 macro_rules! as_node {

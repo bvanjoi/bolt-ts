@@ -392,11 +392,6 @@ impl Symbol {
         };
         id.or_else(|| self.kind.1.as_ref().and_then(|i| i.decls.first()).copied())
     }
-
-    pub fn is_readonly_symbol(&self) -> bool {
-        // TODO:
-        false
-    }
 }
 
 bolt_ts_utils::module_index!(SymbolID);

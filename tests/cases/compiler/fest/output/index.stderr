@@ -100,131 +100,144 @@
      · ─────────
      ╰────
 
+  × Type 'SomeInterface' is not assignable to type 'Record'.
+     ╭─[../../tests/cases/compiler/fest/index.ts:325:9]
+ 325 │ a6
+     · ──
+     ╰────
+
+  × Type 'mapped type & { }' is not assignable to type '(type: string) =>
+  │ string'.
+     ╭─[../../tests/cases/compiler/fest/index.ts:335:9]
+ 335 │ b0
+     · ──
+     ╰────
+
   × Type '"a"' is not assignable to type '"b"'.
-     ╭─[../../tests/cases/compiler/fest/index.ts:291:9]
- 291 │ a3
+     ╭─[../../tests/cases/compiler/fest/index.ts:348:9]
+ 348 │ a3
      · ──
      ╰────
 
   × Type '"a"' is not assignable to type '"c"'.
-     ╭─[../../tests/cases/compiler/fest/index.ts:293:9]
- 293 │ a4
+     ╭─[../../tests/cases/compiler/fest/index.ts:350:9]
+ 350 │ a4
      · ──
      ╰────
 
   × Type '"b"' is not assignable to type '"a"'.
-     ╭─[../../tests/cases/compiler/fest/index.ts:298:9]
- 298 │ b1
+     ╭─[../../tests/cases/compiler/fest/index.ts:355:9]
+ 355 │ b1
      · ──
      ╰────
 
   × Type '"b"' is not assignable to type '"c"'.
-     ╭─[../../tests/cases/compiler/fest/index.ts:301:9]
- 301 │ b3
+     ╭─[../../tests/cases/compiler/fest/index.ts:358:9]
+ 358 │ b3
      · ──
      ╰────
 
   × Type '"c"' is not assignable to type '"a"'.
-     ╭─[../../tests/cases/compiler/fest/index.ts:306:9]
- 306 │ c1
+     ╭─[../../tests/cases/compiler/fest/index.ts:363:9]
+ 363 │ c1
      · ──
      ╰────
 
   × Type '"c"' is not assignable to type '"b"'.
-     ╭─[../../tests/cases/compiler/fest/index.ts:308:9]
- 308 │ c2
+     ╭─[../../tests/cases/compiler/fest/index.ts:365:9]
+ 365 │ c2
      · ──
      ╰────
 
   × Type 'undefined' is not assignable to type 'never'.
-     ╭─[../../tests/cases/compiler/fest/index.ts:315:9]
- 315 │ notAnArray2
+     ╭─[../../tests/cases/compiler/fest/index.ts:372:9]
+ 372 │ notAnArray2
      · ───────────
      ╰────
 
   × Type '"a"' is not assignable to type '"z"'.
-     ╭─[../../tests/cases/compiler/fest/index.ts:353:7]
- 353 │ t
+     ╭─[../../tests/cases/compiler/fest/index.ts:410:7]
+ 410 │ t
      · ─
      ╰────
 
   × Type '"b"' is not assignable to type '"c"'.
-     ╭─[../../tests/cases/compiler/fest/index.ts:369:6]
- 369 │ a3
+     ╭─[../../tests/cases/compiler/fest/index.ts:426:6]
+ 426 │ a3
      · ──
      ╰────
 
   × Type '"d"' is not assignable to type '"c"'.
-     ╭─[../../tests/cases/compiler/fest/index.ts:371:6]
- 371 │ a4
+     ╭─[../../tests/cases/compiler/fest/index.ts:428:6]
+ 428 │ a4
      · ──
      ╰────
 
   × Type '[]' is not assignable to type '["a"]'.
-     ╭─[../../tests/cases/compiler/fest/index.ts:382:6]
- 382 │ b1
+     ╭─[../../tests/cases/compiler/fest/index.ts:439:6]
+ 439 │ b1
      · ──
      ╰────
 
   × Type '{ }' is missing the following properties from type 'unknown[]':
   │ length, join, and 16 more.
-     ╭─[../../tests/cases/compiler/fest/index.ts:411:9]
- 411 │ b2
+     ╭─[../../tests/cases/compiler/fest/index.ts:468:9]
+ 468 │ b2
      · ──
      ╰────
 
   × Type '{ 0: number; }' is missing the following properties from type
   │ 'unknown[]': length, join, and 16 more.
-     ╭─[../../tests/cases/compiler/fest/index.ts:413:9]
- 413 │ b3
+     ╭─[../../tests/cases/compiler/fest/index.ts:470:9]
+ 470 │ b3
      · ──
      ╰────
 
   × Type 'number' is not assignable to type 'unknown[]'.
-     ╭─[../../tests/cases/compiler/fest/index.ts:415:9]
- 415 │ b4
+     ╭─[../../tests/cases/compiler/fest/index.ts:472:9]
+ 472 │ b4
      · ──
      ╰────
 
   × Type 'DateConstructor' is missing the following properties from type
   │ 'unknown[]': join, reverse, and 15 more.
-     ╭─[../../tests/cases/compiler/fest/index.ts:417:9]
- 417 │ b5
+     ╭─[../../tests/cases/compiler/fest/index.ts:474:9]
+ 474 │ b5
      · ──
      ╰────
 
   × Type 'DateConstructor' is not assignable to type 'unknown[]'.
-     ╭─[../../tests/cases/compiler/fest/index.ts:417:9]
- 417 │ b5
+     ╭─[../../tests/cases/compiler/fest/index.ts:474:9]
+ 474 │ b5
      · ──
      ╰────
 
   × Type 'never[]' is not assignable to type 'Record'.
-     ╭─[../../tests/cases/compiler/fest/index.ts:441:9]
- 441 │ []
+     ╭─[../../tests/cases/compiler/fest/index.ts:498:9]
+ 498 │ []
      · ──
      ╰────
 
   × Type 'number' is not assignable to type 'Record'.
-     ╭─[../../tests/cases/compiler/fest/index.ts:443:9]
- 443 │ 42
+     ╭─[../../tests/cases/compiler/fest/index.ts:500:9]
+ 500 │ 42
      · ──
      ╰────
 
   × Type '3' is not assignable to type '4'.
-     ╭─[../../tests/cases/compiler/fest/index.ts:458:9]
- 458 │ a1
+     ╭─[../../tests/cases/compiler/fest/index.ts:515:9]
+ 515 │ a1
      · ──
      ╰────
 
   × Type '1' is not assignable to type '2'.
-     ╭─[../../tests/cases/compiler/fest/index.ts:466:9]
- 466 │ b1
+     ╭─[../../tests/cases/compiler/fest/index.ts:523:9]
+ 523 │ b1
      · ──
      ╰────
 
   × Type '1' is not assignable to type '3'.
-     ╭─[../../tests/cases/compiler/fest/index.ts:468:9]
- 468 │ b2
+     ╭─[../../tests/cases/compiler/fest/index.ts:525:9]
+ 525 │ b2
      · ──
      ╰────

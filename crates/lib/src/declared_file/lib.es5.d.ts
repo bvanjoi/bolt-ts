@@ -443,6 +443,421 @@ interface BooleanConstructor {
 
 declare var Boolean: BooleanConstructor;
 
+interface Math {
+  /** The mathematical constant e. This is Euler's number, the base of natural logarithms. */
+  readonly E: number;
+  /** The natural logarithm of 10. */
+  readonly LN10: number;
+  /** The natural logarithm of 2. */
+  readonly LN2: number;
+  /** The base-2 logarithm of e. */
+  readonly LOG2E: number;
+  /** The base-10 logarithm of e. */
+  readonly LOG10E: number;
+  /** Pi. This is the ratio of the circumference of a circle to its diameter. */
+  readonly PI: number;
+  /** The square root of 0.5, or, equivalently, one divided by the square root of 2. */
+  readonly SQRT1_2: number;
+  /** The square root of 2. */
+  readonly SQRT2: number;
+  /**
+   * Returns the absolute value of a number (the value without regard to whether it is positive or negative).
+   * For example, the absolute value of -5 is the same as the absolute value of 5.
+   * @param x A numeric expression for which the absolute value is needed.
+   */
+  abs(x: number): number;
+  /**
+   * Returns the arc cosine (or inverse cosine) of a number.
+   * @param x A numeric expression.
+   */
+  acos(x: number): number;
+  /**
+   * Returns the arcsine of a number.
+   * @param x A numeric expression.
+   */
+  asin(x: number): number;
+  /**
+   * Returns the arctangent of a number.
+   * @param x A numeric expression for which the arctangent is needed.
+   */
+  atan(x: number): number;
+  /**
+   * Returns the angle (in radians) from the X axis to a point.
+   * @param y A numeric expression representing the cartesian y-coordinate.
+   * @param x A numeric expression representing the cartesian x-coordinate.
+   */
+  atan2(y: number, x: number): number;
+  /**
+   * Returns the smallest integer greater than or equal to its numeric argument.
+   * @param x A numeric expression.
+   */
+  ceil(x: number): number;
+  /**
+   * Returns the cosine of a number.
+   * @param x A numeric expression that contains an angle measured in radians.
+   */
+  cos(x: number): number;
+  /**
+   * Returns e (the base of natural logarithms) raised to a power.
+   * @param x A numeric expression representing the power of e.
+   */
+  exp(x: number): number;
+  /**
+   * Returns the greatest integer less than or equal to its numeric argument.
+   * @param x A numeric expression.
+   */
+  floor(x: number): number;
+  /**
+   * Returns the natural logarithm (base e) of a number.
+   * @param x A numeric expression.
+   */
+  log(x: number): number;
+  /**
+   * Returns the larger of a set of supplied numeric expressions.
+   * @param values Numeric expressions to be evaluated.
+   */
+  max(...values: number[]): number;
+  /**
+   * Returns the smaller of a set of supplied numeric expressions.
+   * @param values Numeric expressions to be evaluated.
+   */
+  min(...values: number[]): number;
+  /**
+   * Returns the value of a base expression taken to a specified power.
+   * @param x The base value of the expression.
+   * @param y The exponent value of the expression.
+   */
+  pow(x: number, y: number): number;
+  /** Returns a pseudorandom number between 0 and 1. */
+  random(): number;
+  /**
+   * Returns a supplied numeric expression rounded to the nearest integer.
+   * @param x The value to be rounded to the nearest integer.
+   */
+  round(x: number): number;
+  /**
+   * Returns the sine of a number.
+   * @param x A numeric expression that contains an angle measured in radians.
+   */
+  sin(x: number): number;
+  /**
+   * Returns the square root of a number.
+   * @param x A numeric expression.
+   */
+  sqrt(x: number): number;
+  /**
+   * Returns the tangent of a number.
+   * @param x A numeric expression that contains an angle measured in radians.
+   */
+  tan(x: number): number;
+}
+/** An intrinsic object that provides basic mathematics functionality and constants. */
+declare var Math: Math;
+
+/** Enables basic storage and retrieval of dates and times. */
+interface Date {
+  /** Returns a string representation of a date. The format of the string depends on the locale. */
+  toString(): string;
+  /** Returns a date as a string value. */
+  toDateString(): string;
+  /** Returns a time as a string value. */
+  toTimeString(): string;
+  /** Returns a value as a string value appropriate to the host environment's current locale. */
+  toLocaleString(): string;
+  /** Returns a date as a string value appropriate to the host environment's current locale. */
+  toLocaleDateString(): string;
+  /** Returns a time as a string value appropriate to the host environment's current locale. */
+  toLocaleTimeString(): string;
+  /** Returns the stored time value in milliseconds since midnight, January 1, 1970 UTC. */
+  valueOf(): number;
+  /** Returns the stored time value in milliseconds since midnight, January 1, 1970 UTC. */
+  getTime(): number;
+  /** Gets the year, using local time. */
+  getFullYear(): number;
+  /** Gets the year using Universal Coordinated Time (UTC). */
+  getUTCFullYear(): number;
+  /** Gets the month, using local time. */
+  getMonth(): number;
+  /** Gets the month of a Date object using Universal Coordinated Time (UTC). */
+  getUTCMonth(): number;
+  /** Gets the day-of-the-month, using local time. */
+  getDate(): number;
+  /** Gets the day-of-the-month, using Universal Coordinated Time (UTC). */
+  getUTCDate(): number;
+  /** Gets the day of the week, using local time. */
+  getDay(): number;
+  /** Gets the day of the week using Universal Coordinated Time (UTC). */
+  getUTCDay(): number;
+  /** Gets the hours in a date, using local time. */
+  getHours(): number;
+  /** Gets the hours value in a Date object using Universal Coordinated Time (UTC). */
+  getUTCHours(): number;
+  /** Gets the minutes of a Date object, using local time. */
+  getMinutes(): number;
+  /** Gets the minutes of a Date object using Universal Coordinated Time (UTC). */
+  getUTCMinutes(): number;
+  /** Gets the seconds of a Date object, using local time. */
+  getSeconds(): number;
+  /** Gets the seconds of a Date object using Universal Coordinated Time (UTC). */
+  getUTCSeconds(): number;
+  /** Gets the milliseconds of a Date, using local time. */
+  getMilliseconds(): number;
+  /** Gets the milliseconds of a Date object using Universal Coordinated Time (UTC). */
+  getUTCMilliseconds(): number;
+  /** Gets the difference in minutes between Universal Coordinated Time (UTC) and the time on the local computer. */
+  getTimezoneOffset(): number;
+  /**
+   * Sets the date and time value in the Date object.
+   * @param time A numeric value representing the number of elapsed milliseconds since midnight, January 1, 1970 GMT.
+   */
+  setTime(time: number): number;
+  /**
+   * Sets the milliseconds value in the Date object using local time.
+   * @param ms A numeric value equal to the millisecond value.
+   */
+  setMilliseconds(ms: number): number;
+  /**
+   * Sets the milliseconds value in the Date object using Universal Coordinated Time (UTC).
+   * @param ms A numeric value equal to the millisecond value.
+   */
+  setUTCMilliseconds(ms: number): number;
+
+  /**
+   * Sets the seconds value in the Date object using local time.
+   * @param sec A numeric value equal to the seconds value.
+   * @param ms A numeric value equal to the milliseconds value.
+   */
+  setSeconds(sec: number, ms?: number): number;
+  /**
+   * Sets the seconds value in the Date object using Universal Coordinated Time (UTC).
+   * @param sec A numeric value equal to the seconds value.
+   * @param ms A numeric value equal to the milliseconds value.
+   */
+  setUTCSeconds(sec: number, ms?: number): number;
+  /**
+   * Sets the minutes value in the Date object using local time.
+   * @param min A numeric value equal to the minutes value.
+   * @param sec A numeric value equal to the seconds value.
+   * @param ms A numeric value equal to the milliseconds value.
+   */
+  setMinutes(min: number, sec?: number, ms?: number): number;
+  /**
+   * Sets the minutes value in the Date object using Universal Coordinated Time (UTC).
+   * @param min A numeric value equal to the minutes value.
+   * @param sec A numeric value equal to the seconds value.
+   * @param ms A numeric value equal to the milliseconds value.
+   */
+  setUTCMinutes(min: number, sec?: number, ms?: number): number;
+  /**
+   * Sets the hour value in the Date object using local time.
+   * @param hours A numeric value equal to the hours value.
+   * @param min A numeric value equal to the minutes value.
+   * @param sec A numeric value equal to the seconds value.
+   * @param ms A numeric value equal to the milliseconds value.
+   */
+  setHours(hours: number, min?: number, sec?: number, ms?: number): number;
+  /**
+   * Sets the hours value in the Date object using Universal Coordinated Time (UTC).
+   * @param hours A numeric value equal to the hours value.
+   * @param min A numeric value equal to the minutes value.
+   * @param sec A numeric value equal to the seconds value.
+   * @param ms A numeric value equal to the milliseconds value.
+   */
+  setUTCHours(hours: number, min?: number, sec?: number, ms?: number): number;
+  /**
+   * Sets the numeric day-of-the-month value of the Date object using local time.
+   * @param date A numeric value equal to the day of the month.
+   */
+  setDate(date: number): number;
+  /**
+   * Sets the numeric day of the month in the Date object using Universal Coordinated Time (UTC).
+   * @param date A numeric value equal to the day of the month.
+   */
+  setUTCDate(date: number): number;
+  /**
+   * Sets the month value in the Date object using local time.
+   * @param month A numeric value equal to the month. The value for January is 0, and other month values follow consecutively.
+   * @param date A numeric value representing the day of the month. If this value is not supplied, the value from a call to the getDate method is used.
+   */
+  setMonth(month: number, date?: number): number;
+  /**
+   * Sets the month value in the Date object using Universal Coordinated Time (UTC).
+   * @param month A numeric value equal to the month. The value for January is 0, and other month values follow consecutively.
+   * @param date A numeric value representing the day of the month. If it is not supplied, the value from a call to the getUTCDate method is used.
+   */
+  setUTCMonth(month: number, date?: number): number;
+  /**
+   * Sets the year of the Date object using local time.
+   * @param year A numeric value for the year.
+   * @param month A zero-based numeric value for the month (0 for January, 11 for December). Must be specified if numDate is specified.
+   * @param date A numeric value equal for the day of the month.
+   */
+  setFullYear(year: number, month?: number, date?: number): number;
+  /**
+   * Sets the year value in the Date object using Universal Coordinated Time (UTC).
+   * @param year A numeric value equal to the year.
+   * @param month A numeric value equal to the month. The value for January is 0, and other month values follow consecutively. Must be supplied if numDate is supplied.
+   * @param date A numeric value equal to the day of the month.
+   */
+  setUTCFullYear(year: number, month?: number, date?: number): number;
+  /** Returns a date converted to a string using Universal Coordinated Time (UTC). */
+  toUTCString(): string;
+  /** Returns a date as a string value in ISO format. */
+  toISOString(): string;
+  /** Used by the JSON.stringify method to enable the transformation of an object's data for JavaScript Object Notation (JSON) serialization. */
+  toJSON(key?: any): string;
+}
+
+interface DateConstructor {
+  new (): Date;
+  new (value: number | string): Date;
+  /**
+   * Creates a new Date.
+   * @param year The full year designation is required for cross-century date accuracy. If year is between 0 and 99 is used, then year is assumed to be 1900 + year.
+   * @param monthIndex The month as a number between 0 and 11 (January to December).
+   * @param date The date as a number between 1 and 31.
+   * @param hours Must be supplied if minutes is supplied. A number from 0 to 23 (midnight to 11pm) that specifies the hour.
+   * @param minutes Must be supplied if seconds is supplied. A number from 0 to 59 that specifies the minutes.
+   * @param seconds Must be supplied if milliseconds is supplied. A number from 0 to 59 that specifies the seconds.
+   * @param ms A number from 0 to 999 that specifies the milliseconds.
+   */
+  new (year: number, monthIndex: number, date?: number, hours?: number, minutes?: number, seconds?: number, ms?: number): Date;
+  (): string;
+  readonly prototype: Date;
+  /**
+   * Parses a string containing a date, and returns the number of milliseconds between that date and midnight, January 1, 1970.
+   * @param s A date string
+   */
+  parse(s: string): number;
+  /**
+   * Returns the number of milliseconds between midnight, January 1, 1970 Universal Coordinated Time (UTC) (or GMT) and the specified date.
+   * @param year The full year designation is required for cross-century date accuracy. If year is between 0 and 99 is used, then year is assumed to be 1900 + year.
+   * @param monthIndex The month as a number between 0 and 11 (January to December).
+   * @param date The date as a number between 1 and 31.
+   * @param hours Must be supplied if minutes is supplied. A number from 0 to 23 (midnight to 11pm) that specifies the hour.
+   * @param minutes Must be supplied if seconds is supplied. A number from 0 to 59 that specifies the minutes.
+   * @param seconds Must be supplied if milliseconds is supplied. A number from 0 to 59 that specifies the seconds.
+   * @param ms A number from 0 to 999 that specifies the milliseconds.
+   */
+  UTC(year: number, monthIndex: number, date?: number, hours?: number, minutes?: number, seconds?: number, ms?: number): number;
+  /** Returns the number of milliseconds elapsed since midnight, January 1, 1970 Universal Coordinated Time (UTC). */
+  now(): number;
+}
+
+declare var Date: DateConstructor;
+
+interface RegExpMatchArray extends Array<string> {
+  /**
+   * The index of the search at which the result was found.
+   */
+  index?: number;
+  /**
+   * A copy of the search string.
+   */
+  input?: string;
+  /**
+   * The first match. This will always be present because `null` will be returned if there are no matches.
+   */
+  0: string;
+}
+
+interface RegExpExecArray extends Array<string> {
+  /**
+   * The index of the search at which the result was found.
+   */
+  index: number;
+  /**
+   * A copy of the search string.
+   */
+  input: string;
+  /**
+   * The first match. This will always be present because `null` will be returned if there are no matches.
+   */
+  0: string;
+}
+
+interface RegExp {
+  /**
+   * Executes a search on a string using a regular expression pattern, and returns an array containing the results of that search.
+   * @param string The String object or string literal on which to perform the search.
+   */
+  exec(string: string): RegExpExecArray | null;
+
+  /**
+   * Returns a Boolean value that indicates whether or not a pattern exists in a searched string.
+   * @param string String on which to perform the search.
+   */
+  test(string: string): boolean;
+
+  /** Returns a copy of the text of the regular expression pattern. Read-only. The regExp argument is a Regular expression object. It can be a variable name or a literal. */
+  readonly source: string;
+
+  /** Returns a Boolean value indicating the state of the global flag (g) used with a regular expression. Default is false. Read-only. */
+  readonly global: boolean;
+
+  /** Returns a Boolean value indicating the state of the ignoreCase flag (i) used with a regular expression. Default is false. Read-only. */
+  readonly ignoreCase: boolean;
+
+  /** Returns a Boolean value indicating the state of the multiline flag (m) used with a regular expression. Default is false. Read-only. */
+  readonly multiline: boolean;
+
+  lastIndex: number;
+
+  // // Non-standard extensions
+  // /** @deprecated A legacy feature for browser compatibility */
+  // compile(pattern: string, flags?: string): this;
+}
+
+interface RegExpConstructor {
+  new (pattern: RegExp | string): RegExp;
+  new (pattern: string, flags?: string): RegExp;
+  (pattern: RegExp | string): RegExp;
+  (pattern: string, flags?: string): RegExp;
+  readonly "prototype": RegExp;
+
+  // Non-standard extensions
+  /** @deprecated A legacy feature for browser compatibility */
+  "$1": string;
+  /** @deprecated A legacy feature for browser compatibility */
+  "$2": string;
+  /** @deprecated A legacy feature for browser compatibility */
+  "$3": string;
+  /** @deprecated A legacy feature for browser compatibility */
+  "$4": string;
+  /** @deprecated A legacy feature for browser compatibility */
+  "$5": string;
+  /** @deprecated A legacy feature for browser compatibility */
+  "$6": string;
+  /** @deprecated A legacy feature for browser compatibility */
+  "$7": string;
+  /** @deprecated A legacy feature for browser compatibility */
+  "$8": string;
+  /** @deprecated A legacy feature for browser compatibility */
+  "$9": string;
+  /** @deprecated A legacy feature for browser compatibility */
+  "input": string;
+  /** @deprecated A legacy feature for browser compatibility */
+  "$_": string;
+  /** @deprecated A legacy feature for browser compatibility */
+  "lastMatch": string;
+  /** @deprecated A legacy feature for browser compatibility */
+  "$&": string;
+  /** @deprecated A legacy feature for browser compatibility */
+  "lastParen": string;
+  /** @deprecated A legacy feature for browser compatibility */
+  "$+": string;
+  /** @deprecated A legacy feature for browser compatibility */
+  "leftContext": string;
+  /** @deprecated A legacy feature for browser compatibility */
+  "$`": string;
+  /** @deprecated A legacy feature for browser compatibility */
+  "rightContext": string;
+  /** @deprecated A legacy feature for browser compatibility */
+  "$'": string;
+}
+
+declare var RegExp: RegExpConstructor;
+
 interface Error {
   name: string;
   message: string;
@@ -817,422 +1232,56 @@ interface ArrayConstructor {
 
 declare var Array: ArrayConstructor;
 
-interface Math {
-  /** The mathematical constant e. This is Euler's number, the base of natural logarithms. */
-  readonly E: number;
-  /** The natural logarithm of 10. */
-  readonly LN10: number;
-  /** The natural logarithm of 2. */
-  readonly LN2: number;
-  /** The base-2 logarithm of e. */
-  readonly LOG2E: number;
-  /** The base-10 logarithm of e. */
-  readonly LOG10E: number;
-  /** Pi. This is the ratio of the circumference of a circle to its diameter. */
-  readonly PI: number;
-  /** The square root of 0.5, or, equivalently, one divided by the square root of 2. */
-  readonly SQRT1_2: number;
-  /** The square root of 2. */
-  readonly SQRT2: number;
-  /**
-   * Returns the absolute value of a number (the value without regard to whether it is positive or negative).
-   * For example, the absolute value of -5 is the same as the absolute value of 5.
-   * @param x A numeric expression for which the absolute value is needed.
-   */
-  abs(x: number): number;
-  /**
-   * Returns the arc cosine (or inverse cosine) of a number.
-   * @param x A numeric expression.
-   */
-  acos(x: number): number;
-  /**
-   * Returns the arcsine of a number.
-   * @param x A numeric expression.
-   */
-  asin(x: number): number;
-  /**
-   * Returns the arctangent of a number.
-   * @param x A numeric expression for which the arctangent is needed.
-   */
-  atan(x: number): number;
-  /**
-   * Returns the angle (in radians) from the X axis to a point.
-   * @param y A numeric expression representing the cartesian y-coordinate.
-   * @param x A numeric expression representing the cartesian x-coordinate.
-   */
-  atan2(y: number, x: number): number;
-  /**
-   * Returns the smallest integer greater than or equal to its numeric argument.
-   * @param x A numeric expression.
-   */
-  ceil(x: number): number;
-  /**
-   * Returns the cosine of a number.
-   * @param x A numeric expression that contains an angle measured in radians.
-   */
-  cos(x: number): number;
-  /**
-   * Returns e (the base of natural logarithms) raised to a power.
-   * @param x A numeric expression representing the power of e.
-   */
-  exp(x: number): number;
-  /**
-   * Returns the greatest integer less than or equal to its numeric argument.
-   * @param x A numeric expression.
-   */
-  floor(x: number): number;
-  /**
-   * Returns the natural logarithm (base e) of a number.
-   * @param x A numeric expression.
-   */
-  log(x: number): number;
-  /**
-   * Returns the larger of a set of supplied numeric expressions.
-   * @param values Numeric expressions to be evaluated.
-   */
-  max(...values: number[]): number;
-  /**
-   * Returns the smaller of a set of supplied numeric expressions.
-   * @param values Numeric expressions to be evaluated.
-   */
-  min(...values: number[]): number;
-  /**
-   * Returns the value of a base expression taken to a specified power.
-   * @param x The base value of the expression.
-   * @param y The exponent value of the expression.
-   */
-  pow(x: number, y: number): number;
-  /** Returns a pseudorandom number between 0 and 1. */
-  random(): number;
-  /**
-   * Returns a supplied numeric expression rounded to the nearest integer.
-   * @param x The value to be rounded to the nearest integer.
-   */
-  round(x: number): number;
-  /**
-   * Returns the sine of a number.
-   * @param x A numeric expression that contains an angle measured in radians.
-   */
-  sin(x: number): number;
-  /**
-   * Returns the square root of a number.
-   * @param x A numeric expression.
-   */
-  sqrt(x: number): number;
-  /**
-   * Returns the tangent of a number.
-   * @param x A numeric expression that contains an angle measured in radians.
-   */
-  tan(x: number): number;
-}
-/** An intrinsic object that provides basic mathematics functionality and constants. */
-declare var Math: Math;
-
-/** Enables basic storage and retrieval of dates and times. */
-interface Date {
-  /** Returns a string representation of a date. The format of the string depends on the locale. */
-  toString(): string;
-  /** Returns a date as a string value. */
-  toDateString(): string;
-  /** Returns a time as a string value. */
-  toTimeString(): string;
-  /** Returns a value as a string value appropriate to the host environment's current locale. */
-  toLocaleString(): string;
-  /** Returns a date as a string value appropriate to the host environment's current locale. */
-  toLocaleDateString(): string;
-  /** Returns a time as a string value appropriate to the host environment's current locale. */
-  toLocaleTimeString(): string;
-  /** Returns the stored time value in milliseconds since midnight, January 1, 1970 UTC. */
-  valueOf(): number;
-  /** Returns the stored time value in milliseconds since midnight, January 1, 1970 UTC. */
-  getTime(): number;
-  /** Gets the year, using local time. */
-  getFullYear(): number;
-  /** Gets the year using Universal Coordinated Time (UTC). */
-  getUTCFullYear(): number;
-  /** Gets the month, using local time. */
-  getMonth(): number;
-  /** Gets the month of a Date object using Universal Coordinated Time (UTC). */
-  getUTCMonth(): number;
-  /** Gets the day-of-the-month, using local time. */
-  getDate(): number;
-  /** Gets the day-of-the-month, using Universal Coordinated Time (UTC). */
-  getUTCDate(): number;
-  /** Gets the day of the week, using local time. */
-  getDay(): number;
-  /** Gets the day of the week using Universal Coordinated Time (UTC). */
-  getUTCDay(): number;
-  /** Gets the hours in a date, using local time. */
-  getHours(): number;
-  /** Gets the hours value in a Date object using Universal Coordinated Time (UTC). */
-  getUTCHours(): number;
-  /** Gets the minutes of a Date object, using local time. */
-  getMinutes(): number;
-  /** Gets the minutes of a Date object using Universal Coordinated Time (UTC). */
-  getUTCMinutes(): number;
-  /** Gets the seconds of a Date object, using local time. */
-  getSeconds(): number;
-  /** Gets the seconds of a Date object using Universal Coordinated Time (UTC). */
-  getUTCSeconds(): number;
-  /** Gets the milliseconds of a Date, using local time. */
-  getMilliseconds(): number;
-  /** Gets the milliseconds of a Date object using Universal Coordinated Time (UTC). */
-  getUTCMilliseconds(): number;
-  /** Gets the difference in minutes between Universal Coordinated Time (UTC) and the time on the local computer. */
-  getTimezoneOffset(): number;
-  /**
-   * Sets the date and time value in the Date object.
-   * @param time A numeric value representing the number of elapsed milliseconds since midnight, January 1, 1970 GMT.
-   */
-  setTime(time: number): number;
-  /**
-   * Sets the milliseconds value in the Date object using local time.
-   * @param ms A numeric value equal to the millisecond value.
-   */
-  setMilliseconds(ms: number): number;
-  /**
-   * Sets the milliseconds value in the Date object using Universal Coordinated Time (UTC).
-   * @param ms A numeric value equal to the millisecond value.
-   */
-  setUTCMilliseconds(ms: number): number;
-
-  /**
-   * Sets the seconds value in the Date object using local time.
-   * @param sec A numeric value equal to the seconds value.
-   * @param ms A numeric value equal to the milliseconds value.
-   */
-  setSeconds(sec: number, ms?: number): number;
-  /**
-   * Sets the seconds value in the Date object using Universal Coordinated Time (UTC).
-   * @param sec A numeric value equal to the seconds value.
-   * @param ms A numeric value equal to the milliseconds value.
-   */
-  setUTCSeconds(sec: number, ms?: number): number;
-  /**
-   * Sets the minutes value in the Date object using local time.
-   * @param min A numeric value equal to the minutes value.
-   * @param sec A numeric value equal to the seconds value.
-   * @param ms A numeric value equal to the milliseconds value.
-   */
-  setMinutes(min: number, sec?: number, ms?: number): number;
-  /**
-   * Sets the minutes value in the Date object using Universal Coordinated Time (UTC).
-   * @param min A numeric value equal to the minutes value.
-   * @param sec A numeric value equal to the seconds value.
-   * @param ms A numeric value equal to the milliseconds value.
-   */
-  setUTCMinutes(min: number, sec?: number, ms?: number): number;
-  /**
-   * Sets the hour value in the Date object using local time.
-   * @param hours A numeric value equal to the hours value.
-   * @param min A numeric value equal to the minutes value.
-   * @param sec A numeric value equal to the seconds value.
-   * @param ms A numeric value equal to the milliseconds value.
-   */
-  setHours(hours: number, min?: number, sec?: number, ms?: number): number;
-  /**
-   * Sets the hours value in the Date object using Universal Coordinated Time (UTC).
-   * @param hours A numeric value equal to the hours value.
-   * @param min A numeric value equal to the minutes value.
-   * @param sec A numeric value equal to the seconds value.
-   * @param ms A numeric value equal to the milliseconds value.
-   */
-  setUTCHours(hours: number, min?: number, sec?: number, ms?: number): number;
-  /**
-   * Sets the numeric day-of-the-month value of the Date object using local time.
-   * @param date A numeric value equal to the day of the month.
-   */
-  setDate(date: number): number;
-  /**
-   * Sets the numeric day of the month in the Date object using Universal Coordinated Time (UTC).
-   * @param date A numeric value equal to the day of the month.
-   */
-  setUTCDate(date: number): number;
-  /**
-   * Sets the month value in the Date object using local time.
-   * @param month A numeric value equal to the month. The value for January is 0, and other month values follow consecutively.
-   * @param date A numeric value representing the day of the month. If this value is not supplied, the value from a call to the getDate method is used.
-   */
-  setMonth(month: number, date?: number): number;
-  /**
-   * Sets the month value in the Date object using Universal Coordinated Time (UTC).
-   * @param month A numeric value equal to the month. The value for January is 0, and other month values follow consecutively.
-   * @param date A numeric value representing the day of the month. If it is not supplied, the value from a call to the getUTCDate method is used.
-   */
-  setUTCMonth(month: number, date?: number): number;
-  /**
-   * Sets the year of the Date object using local time.
-   * @param year A numeric value for the year.
-   * @param month A zero-based numeric value for the month (0 for January, 11 for December). Must be specified if numDate is specified.
-   * @param date A numeric value equal for the day of the month.
-   */
-  setFullYear(year: number, month?: number, date?: number): number;
-  /**
-   * Sets the year value in the Date object using Universal Coordinated Time (UTC).
-   * @param year A numeric value equal to the year.
-   * @param month A numeric value equal to the month. The value for January is 0, and other month values follow consecutively. Must be supplied if numDate is supplied.
-   * @param date A numeric value equal to the day of the month.
-   */
-  setUTCFullYear(year: number, month?: number, date?: number): number;
-  /** Returns a date converted to a string using Universal Coordinated Time (UTC). */
-  toUTCString(): string;
-  /** Returns a date as a string value in ISO format. */
-  toISOString(): string;
-  /** Used by the JSON.stringify method to enable the transformation of an object's data for JavaScript Object Notation (JSON) serialization. */
-  toJSON(key?: any): string;
+interface TypedPropertyDescriptor<T> {
+  enumerable?: boolean;
+  configurable?: boolean;
+  writable?: boolean;
+  value?: T;
+  get?: () => T;
+  set?: (value: T) => void;
 }
 
-interface DateConstructor {
-  new (): Date;
-  new (value: number | string): Date;
+// declare type PromiseConstructorLike = new <T>(executor: (resolve: (value: T | PromiseLike<T>) => void, reject: (reason?: any) => void) => void) => PromiseLike<T>;
+
+interface PromiseLike<T> {
   /**
-   * Creates a new Date.
-   * @param year The full year designation is required for cross-century date accuracy. If year is between 0 and 99 is used, then year is assumed to be 1900 + year.
-   * @param monthIndex The month as a number between 0 and 11 (January to December).
-   * @param date The date as a number between 1 and 31.
-   * @param hours Must be supplied if minutes is supplied. A number from 0 to 23 (midnight to 11pm) that specifies the hour.
-   * @param minutes Must be supplied if seconds is supplied. A number from 0 to 59 that specifies the minutes.
-   * @param seconds Must be supplied if milliseconds is supplied. A number from 0 to 59 that specifies the seconds.
-   * @param ms A number from 0 to 999 that specifies the milliseconds.
+   * Attaches callbacks for the resolution and/or rejection of the Promise.
+   * @param onfulfilled The callback to execute when the Promise is resolved.
+   * @param onrejected The callback to execute when the Promise is rejected.
+   * @returns A Promise for the completion of which ever callback is executed.
    */
-  new (year: number, monthIndex: number, date?: number, hours?: number, minutes?: number, seconds?: number, ms?: number): Date;
-  (): string;
-  readonly prototype: Date;
-  /**
-   * Parses a string containing a date, and returns the number of milliseconds between that date and midnight, January 1, 1970.
-   * @param s A date string
-   */
-  parse(s: string): number;
-  /**
-   * Returns the number of milliseconds between midnight, January 1, 1970 Universal Coordinated Time (UTC) (or GMT) and the specified date.
-   * @param year The full year designation is required for cross-century date accuracy. If year is between 0 and 99 is used, then year is assumed to be 1900 + year.
-   * @param monthIndex The month as a number between 0 and 11 (January to December).
-   * @param date The date as a number between 1 and 31.
-   * @param hours Must be supplied if minutes is supplied. A number from 0 to 23 (midnight to 11pm) that specifies the hour.
-   * @param minutes Must be supplied if seconds is supplied. A number from 0 to 59 that specifies the minutes.
-   * @param seconds Must be supplied if milliseconds is supplied. A number from 0 to 59 that specifies the seconds.
-   * @param ms A number from 0 to 999 that specifies the milliseconds.
-   */
-  UTC(year: number, monthIndex: number, date?: number, hours?: number, minutes?: number, seconds?: number, ms?: number): number;
-  /** Returns the number of milliseconds elapsed since midnight, January 1, 1970 Universal Coordinated Time (UTC). */
-  now(): number;
+  then<TResult1 = T, TResult2 = never>(onfulfilled?: ((value: T) => TResult1 | PromiseLike<TResult1>) | undefined | null, onrejected?: ((reason: any) => TResult2 | PromiseLike<TResult2>) | undefined | null): PromiseLike<TResult1 | TResult2>;
 }
 
-declare var Date: DateConstructor;
+/**
+* Represents the completion of an asynchronous operation
+*/
+interface Promise<T> {
+  /**
+   * Attaches callbacks for the resolution and/or rejection of the Promise.
+   * @param onfulfilled The callback to execute when the Promise is resolved.
+   * @param onrejected The callback to execute when the Promise is rejected.
+   * @returns A Promise for the completion of which ever callback is executed.
+   */
+  then<TResult1 = T, TResult2 = never>(onfulfilled?: ((value: T) => TResult1 | PromiseLike<TResult1>) | undefined | null, onrejected?: ((reason: any) => TResult2 | PromiseLike<TResult2>) | undefined | null): Promise<TResult1 | TResult2>;
 
-
-interface RegExpMatchArray extends Array<string> {
   /**
-   * The index of the search at which the result was found.
+   * Attaches a callback for only the rejection of the Promise.
+   * @param onrejected The callback to execute when the Promise is rejected.
+   * @returns A Promise for the completion of the callback.
    */
-  index?: number;
-  /**
-   * A copy of the search string.
-   */
-  input?: string;
-  /**
-   * The first match. This will always be present because `null` will be returned if there are no matches.
-   */
-  0: string;
+  catch<TResult = never>(onrejected?: ((reason: any) => TResult | PromiseLike<TResult>) | undefined | null): Promise<T | TResult>;
 }
 
-interface RegExpExecArray extends Array<string> {
-  /**
-   * The index of the search at which the result was found.
-   */
-  index: number;
-  /**
-   * A copy of the search string.
-   */
-  input: string;
-  /**
-   * The first match. This will always be present because `null` will be returned if there are no matches.
-   */
-  0: string;
-}
-
-interface RegExp {
-  /**
-   * Executes a search on a string using a regular expression pattern, and returns an array containing the results of that search.
-   * @param string The String object or string literal on which to perform the search.
-   */
-  exec(string: string): RegExpExecArray | null;
-
-  /**
-   * Returns a Boolean value that indicates whether or not a pattern exists in a searched string.
-   * @param string String on which to perform the search.
-   */
-  test(string: string): boolean;
-
-  /** Returns a copy of the text of the regular expression pattern. Read-only. The regExp argument is a Regular expression object. It can be a variable name or a literal. */
-  readonly source: string;
-
-  /** Returns a Boolean value indicating the state of the global flag (g) used with a regular expression. Default is false. Read-only. */
-  readonly global: boolean;
-
-  /** Returns a Boolean value indicating the state of the ignoreCase flag (i) used with a regular expression. Default is false. Read-only. */
-  readonly ignoreCase: boolean;
-
-  /** Returns a Boolean value indicating the state of the multiline flag (m) used with a regular expression. Default is false. Read-only. */
-  readonly multiline: boolean;
-
-  lastIndex: number;
-
-  // // Non-standard extensions
-  // /** @deprecated A legacy feature for browser compatibility */
-  // compile(pattern: string, flags?: string): this;
-}
-
-interface RegExpConstructor {
-  new (pattern: RegExp | string): RegExp;
-  new (pattern: string, flags?: string): RegExp;
-  (pattern: RegExp | string): RegExp;
-  (pattern: string, flags?: string): RegExp;
-  readonly "prototype": RegExp;
-
-  // Non-standard extensions
-  /** @deprecated A legacy feature for browser compatibility */
-  "$1": string;
-  /** @deprecated A legacy feature for browser compatibility */
-  "$2": string;
-  /** @deprecated A legacy feature for browser compatibility */
-  "$3": string;
-  /** @deprecated A legacy feature for browser compatibility */
-  "$4": string;
-  /** @deprecated A legacy feature for browser compatibility */
-  "$5": string;
-  /** @deprecated A legacy feature for browser compatibility */
-  "$6": string;
-  /** @deprecated A legacy feature for browser compatibility */
-  "$7": string;
-  /** @deprecated A legacy feature for browser compatibility */
-  "$8": string;
-  /** @deprecated A legacy feature for browser compatibility */
-  "$9": string;
-  /** @deprecated A legacy feature for browser compatibility */
-  "input": string;
-  /** @deprecated A legacy feature for browser compatibility */
-  "$_": string;
-  /** @deprecated A legacy feature for browser compatibility */
-  "lastMatch": string;
-  /** @deprecated A legacy feature for browser compatibility */
-  "$&": string;
-  /** @deprecated A legacy feature for browser compatibility */
-  "lastParen": string;
-  /** @deprecated A legacy feature for browser compatibility */
-  "$+": string;
-  /** @deprecated A legacy feature for browser compatibility */
-  "leftContext": string;
-  /** @deprecated A legacy feature for browser compatibility */
-  "$`": string;
-  /** @deprecated A legacy feature for browser compatibility */
-  "rightContext": string;
-  /** @deprecated A legacy feature for browser compatibility */
-  "$'": string;
-}
-
-declare var RegExp: RegExpConstructor;
-
+// /**
+// * Recursively unwraps the "awaited type" of a type. Non-promise "thenables" should resolve to `never`. This emulates the behavior of `await`.
+// */
+// type Awaited<T> = T extends null | undefined ? T : // special case for `null | undefined` when not in `--strictNullChecks` mode
+//   T extends object & { then(onfulfilled: infer F, ...args: infer _): any; } ? // `await` only unwraps object types with a callable `then`. Non-object types are not unwrapped
+//       F extends ((value: infer V, ...args: infer _) => any) ? // if the argument to `then` is callable, extracts the first argument
+//           Awaited<V> : // recursively unwrap the value
+//       never : // the argument to `then` was not callable
+//   T; // non-object or non-thenable
 
 interface ArrayLike<T> {
   readonly length: number;
