@@ -1,46 +1,5 @@
 // From `github.com/sindresorhus/type-fest`, MIT License
 
-// type IsEqual<A, B> =
-// 	(<G>() => G extends A & G | G ? 1 : 2) extends
-// 	(<G>() => G extends B & G | G ? 1 : 2)
-// 		? true
-// 		: false;
-
-// type WritableKeysOf<T> = {
-// 	[P in keyof T]: IsEqual<{[Q in P]: T[P]}, {readonly [Q in P]: T[P]}> extends false ? P : never
-// };
-
-// {
-//   type TestType1 = {
-//     readonly a: string;
-//     b: boolean;
-//   };
-  
-//   // type TestType2 = {
-//   //   a: string;
-//   //   b: boolean;
-//   // };
-  
-//   // type TestType3 = {
-//   //   readonly a: string;
-//   //   readonly b: boolean;
-//   // };
-
-//   type WritableKeysOf1 = WritableKeysOf<TestType1>;
-//   // type WritableKeysOf2 = WritableKeysOf<TestType2>;
-//   // type WritableKeysOf3 = WritableKeysOf<TestType3>;
-  
-//   const test1: WritableKeysOf1['b'] = 'c';
-//   // const test2: WritableKeysOf1 = 'a';
-//   // const test2: WritableKeysOf2 = 'b';
-//   // const test3: WritableKeysOf2 = 'a';
-//   // const test4: WritableKeysOf3 = n();
-  
-//   // const a0: 'b' = test1;
-//   // const a1: 'a' | 'b' = test2;
-//   // const a2: never = test4;
-// }
-
 function n(): never {
   throw new Error();
 }
@@ -362,6 +321,42 @@ type IsUnknown<T> = (
   //~^ ERROR: Generic type 'IsUnknown' requires 1 type argument.
 }
 
+// ========= OptionalKeysOf =========
+type OptionalKeysOf<BaseType extends object> = Exclude<{
+	[Key in keyof BaseType]: BaseType extends Record<Key, BaseType[Key]>
+		? never
+		: Key
+}[keyof BaseType], undefined>;
+{
+  type TestType1 = {
+    a: string;
+    b?: boolean;
+  };
+  
+  type TestType2 = {
+    a?: string;
+    b?: boolean;
+  };
+  
+  type TestType3 = {
+    a: string;
+    b: boolean;
+  };
+  
+  type OptionalKeysOf1 = OptionalKeysOf<TestType1>;
+  type OptionalKeysOf2 = OptionalKeysOf<TestType2>;
+  type OptionalKeysOf3 = OptionalKeysOf<TestType3>;
+  
+  // const test1: OptionalKeysOf1 = 'b';
+  // const test2: OptionalKeysOf2 = 'a';
+  // const test3: OptionalKeysOf3 = 'b';
+  // const test4: OptionalKeysOf3 = n();
+  
+  // const a0: 'b' = test1;
+  // const a1: 'a' | 'b' = test2;
+  // const a2: never = test3;
+}
+
 // =============== Or ===============
 type Or<A extends boolean, B extends boolean> = [A, B][number] extends false
 	? false
@@ -436,6 +431,59 @@ type Simplify<T> = {[KeyType in keyof T]: T[KeyType]} & {};
   
   const b0: SomeFunction = someFunction;
   //~^ ERROR: Type 'mapped type' is not assignable to type '(type: string) => string'.
+}
+
+// ============ Stringified ============
+type Stringified<ObjectType> = {[KeyType in keyof ObjectType]: string};
+{
+  const stringified: Stringified<{a: number; b: string}> = {a: 'a', b: 'b'};
+  const a0: {a: string; b: string} = stringified;
+
+  type Car = {
+    model: string;
+    speed: number;
+  };
+  const b0: Stringified<Car> = {model: 'Foo', speed: 101};
+  //~^ ERROR: Type 'number' is not assignable to type 'string'.
+  const b1: Stringified<Car> = {model: 'Foo', speed: '101'};
+}
+
+// ============ TaggedUnion ============
+type TaggedUnion<
+	TagKey extends string,
+	UnionMembers extends Record<string, Record<string, unknown>>,
+> = {
+	[Name in keyof UnionMembers]: {[Key in TagKey]: Name} & UnionMembers[Name];
+}[keyof UnionMembers];
+{
+  type Union = TaggedUnion<'tag', {str: {a: string} ; num: {b: number}}>;
+  const first = {
+    tag: 'str' as const,
+    a: 'some-string',
+  };
+
+  const second = {
+    tag: 'num' as const,
+    b: 1,
+  };
+
+  const a0: Union = first;
+  const a1: Union = second;
+
+  const fails = {
+    tag: 'num' as const,
+    b: 'should not be string',
+  };
+
+  const failsToo = {
+    tag: 'str' as const,
+    b: 2,
+  };
+
+  const b0: Union = fails;
+  //~^ ERROR: Type '{ tag: "num"; b: string; }' is not assignable to type 'mapped type & { a: string; } | mapped type & { b: number; }'.
+  const b1: Union = failsToo;
+  //~^ ERROR: Type '{ tag: "str"; b: number; }' is not assignable to type 'mapped type & { a: string; } | mapped type & { b: number; }'.
 }
 
 // ========== TupleToUnion ==========
@@ -657,12 +705,12 @@ type WritableKeysOf<T> = NonNullable<{
   type WritableKeysOf2 = WritableKeysOf<TestType2>;
   type WritableKeysOf3 = WritableKeysOf<TestType3>;
   
-  // const test1: WritableKeysOf1 = 'b';
-  // const test2: WritableKeysOf2 = 'b';
-  // const test3: WritableKeysOf2 = 'a';
-  // const test4: WritableKeysOf3 = n();
+  const test1: WritableKeysOf1 = 'b';
+  const test2: WritableKeysOf2 = 'b';
+  const test3: WritableKeysOf2 = 'a';
+  const test4: WritableKeysOf3 = n();
   
-  // const a0: 'b' = test1;
-  // const a1: 'a' | 'b' = test2;
-  // const a2: never = test4;
+  const a0: 'b' = test1;
+  const a1: 'a' | 'b' = test2;
+  const a2: never = test4;
 }

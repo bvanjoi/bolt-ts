@@ -548,7 +548,8 @@ impl<'cx> TyChecker<'cx> {
         let symbol =
             symbol_name.and_then(|symbol_name| self.get_prop_of_ty(object_ty, symbol_name));
         if let Some(symbol) = symbol {
-            return Some(self.get_type_of_symbol(symbol));
+            let prop_ty = self.get_type_of_symbol(symbol);
+            return Some(prop_ty);
         }
 
         if !index_ty.flags.intersects(TypeFlags::NULLABLE)

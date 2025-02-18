@@ -243,29 +243,26 @@ impl<'cx> TyChecker<'cx> {
             return ty;
         }
         let name = node.name();
-        let ty = if let ast::EntityNameKind::Ident(ident) = name.kind {
+        if let ast::EntityNameKind::Ident(ident) = name.kind {
             match ident.name {
-                keyword::IDENT_BOOLEAN => self.boolean_ty(),
-                keyword::IDENT_NUMBER => self.number_ty,
-                keyword::IDENT_STRING => self.string_ty,
-                keyword::IDENT_ANY => self.any_ty,
-                keyword::KW_VOID => self.void_ty,
-                keyword::IDENT_UNKNOWN => self.unknown_ty,
-                keyword::IDENT_NEVER => self.never_ty,
-                keyword::KW_UNDEFINED => self.undefined_ty,
-                keyword::KW_NULL => self.null_ty,
-                keyword::IDENT_SYMBOL => self.symbol_ty,
-                _ => {
-                    let symbol = self.resolve_ty_refer_name(name);
-                    self.get_mut_node_links(node.id())
-                        .set_resolved_symbol(symbol);
-                    self.get_ty_refer_type(node, symbol)
-                }
+                keyword::IDENT_BOOLEAN => return self.boolean_ty(),
+                keyword::IDENT_NUMBER => return self.number_ty,
+                keyword::IDENT_STRING => return self.string_ty,
+                keyword::IDENT_ANY => return self.any_ty,
+                keyword::KW_VOID => return self.void_ty,
+                keyword::IDENT_UNKNOWN => return self.unknown_ty,
+                keyword::IDENT_NEVER => return self.never_ty,
+                keyword::KW_UNDEFINED => return self.undefined_ty,
+                keyword::KW_NULL => return self.null_ty,
+                keyword::IDENT_SYMBOL => return self.symbol_ty,
+                keyword::IDENT_OBJECT => return self.non_primitive_ty,
+                _ => {}
             }
-        } else {
-            let symbol = self.resolve_ty_refer_name(name);
-            self.get_ty_refer_type(node, symbol)
-        };
+        }
+        let symbol = self.resolve_ty_refer_name(name);
+        self.get_mut_node_links(node.id())
+            .set_resolved_symbol(symbol);
+        let ty = self.get_ty_refer_type(node, symbol);
         self.get_mut_node_links(node.id()).set_resolved_ty(ty);
         ty
     }

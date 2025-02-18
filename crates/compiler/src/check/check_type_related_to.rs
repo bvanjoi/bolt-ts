@@ -1420,6 +1420,17 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
             _ => SigCheckMode::empty(),
         };
 
+        let source = if erase {
+            self.c.get_erased_sig(source)
+        } else {
+            source
+        };
+        let target = if erase {
+            self.c.get_erased_sig(target)
+        } else {
+            target
+        };
+
         self.compare_sig_related(
             source,
             target,
