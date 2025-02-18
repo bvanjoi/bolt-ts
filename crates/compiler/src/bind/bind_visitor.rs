@@ -1,4 +1,3 @@
-use super::flow::FlowCond;
 use super::flow::FlowFlags;
 use super::flow::FlowID;
 use super::flow::FlowNodeKind;

@@ -451,7 +451,7 @@ impl<'cx> ParserState<'cx, '_> {
         let start = self.token.start();
         let id = self.next_node_id();
         let modifiers = self.parse_modifiers(false)?;
-        const INVALID_MODIFIERS: enumflags2::BitFlags<ModifierKind, u16> =
+        const INVALID_MODIFIERS: enumflags2::BitFlags<ModifierKind, u32> =
             enumflags2::make_bitflags!(ModifierKind::{Static | Export});
         if modifiers
             .map(|ms| ms.flags.intersects(INVALID_MODIFIERS))

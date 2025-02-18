@@ -1,5 +1,46 @@
 // From `github.com/sindresorhus/type-fest`, MIT License
 
+// type IsEqual<A, B> =
+// 	(<G>() => G extends A & G | G ? 1 : 2) extends
+// 	(<G>() => G extends B & G | G ? 1 : 2)
+// 		? true
+// 		: false;
+
+// type WritableKeysOf<T> = {
+// 	[P in keyof T]: IsEqual<{[Q in P]: T[P]}, {readonly [Q in P]: T[P]}> extends false ? P : never
+// };
+
+// {
+//   type TestType1 = {
+//     readonly a: string;
+//     b: boolean;
+//   };
+  
+//   // type TestType2 = {
+//   //   a: string;
+//   //   b: boolean;
+//   // };
+  
+//   // type TestType3 = {
+//   //   readonly a: string;
+//   //   readonly b: boolean;
+//   // };
+
+//   type WritableKeysOf1 = WritableKeysOf<TestType1>;
+//   // type WritableKeysOf2 = WritableKeysOf<TestType2>;
+//   // type WritableKeysOf3 = WritableKeysOf<TestType3>;
+  
+//   const test1: WritableKeysOf1['b'] = 'c';
+//   // const test2: WritableKeysOf1 = 'a';
+//   // const test2: WritableKeysOf2 = 'b';
+//   // const test3: WritableKeysOf2 = 'a';
+//   // const test4: WritableKeysOf3 = n();
+  
+//   // const a0: 'b' = test1;
+//   // const a1: 'a' | 'b' = test2;
+//   // const a2: never = test4;
+// }
+
 function n(): never {
   throw new Error();
 }
@@ -130,6 +171,21 @@ type Arrayable<T> = T | T[];
   const c1: number[] = castArray2([1, 2, 3]);
 }
 
+// ============ IfAny ============
+type IfAny<T, TypeIfAny = true, TypeIfNotAny = false> = (
+	IsAny<T> extends true ? TypeIfAny : TypeIfNotAny
+);
+{
+  // `IfAny` should return `true`/`false` if only `T` is specified
+  const a0: IfAny<any> = true;
+  const a1: IfAny<string> = false;
+  const a2: IfAny<any, 'T', 'F'> = 'T';
+  const a3: IfAny<string, 'T', 'F'> = 'F';
+
+  type A = IfAny;
+  //~^ ERROR: Generic type 'IfAny' requires between 1 and 3 type arguments.
+}
+
 // =========== ifNever ===========
 type IfNever<T, TypeIfNever = true, TypeIfNotNever = false> = (
 	IsNever<T> extends true ? TypeIfNever : TypeIfNotNever
@@ -148,6 +204,52 @@ type IfNever<T, TypeIfNever = true, TypeIfNotNever = false> = (
 type IfNull<T, TypeIfNull = true, TypeIfNotNull = false> = (
 	IsNull<T> extends true ? TypeIfNull : TypeIfNotNull
 );
+
+// =========== IfUnknown ===========
+type IfUnknown<T, TypeIfUnknown = true, TypeIfNotUnknown = false> = (
+	IsUnknown<T> extends true ? TypeIfUnknown : TypeIfNotUnknown
+);
+{
+  const a0: IfUnknown<unknown> = true;
+  const a1: IfUnknown<string> = false;
+  const a2: IfUnknown<unknown, 'T', 'F'> = 'T';
+  const a3: IfUnknown<string, 'T', 'F'> = 'F';
+
+  type A = IfUnknown;
+  //~^ ERROR: Generic type 'IfUnknown' requires between 1 and 3 type arguments.
+}
+
+// =========== IsAny ===========
+// Can eventually be replaced with the built-in once this library supports
+// TS5.4+ only. Tracked in https://github.com/sindresorhus/type-fest/issues/848
+type NoInfer<T> = T extends infer U ? U : never;
+type IsAny<T> = 0 extends 1 & NoInfer<T> ? true : false;
+
+{
+  const anything: any = 1;
+  const something = 'something';
+  
+  // `IsAny` should only be true for `any`
+  const a0: IsAny<any> = true;
+  const a1: IsAny<typeof anything> = true;
+  const a2: IsAny<string> = false;
+  const a3: IsAny<typeof something> = false;
+  const a4: IsAny<never> = false;
+  const a5: IsAny<unknown> = false;
+  const a6: IsAny<null> = false;
+  const a7: IsAny<undefined> = false;
+  const a8: IsAny<void> = false;
+  
+  type A = IsAny;
+  //~^ ERROR: Generic type 'IsAny' requires 1 type argument.
+  
+  // Verify that are no circular reference issues
+  // https://github.com/sindresorhus/type-fest/issues/846
+  type OnlyAny<T extends IsAny<T> extends true ? any : never> = T;
+  type B = OnlyAny<any>;
+  type C = OnlyAny<string>;
+  //~^ ERROR: Type 'string' is not assignable to type 'never'.
+}
 
 // =========== IsEqual ===========
 type IsEqual<A, B> =
@@ -321,7 +423,7 @@ type Simplify<T> = {[KeyType in keyof T]: T[KeyType]} & {};
   
   // The following demonstrates one reason a type may be preferred over an interface is that it can be assigned to alternate types. In this example the interface cannot be because it is not sealed and elsewhere a non-string property could be added.
   const a4: Record<string, unknown> = valueAsLiteral;
-  // const a5: Record<string, unknown> = valueAsSimplifiedInterface;
+  const a5: Record<string, unknown> = valueAsSimplifiedInterface;
   const a6: Record<string, unknown> = valueAsInterface; // Index signature is missing in interface
   //~^ ERROR: Type 'SomeInterface' is not assignable to type 'Record'. 
 
@@ -333,7 +435,7 @@ type Simplify<T> = {[KeyType in keyof T]: T[KeyType]} & {};
   const someFunction: SimplifiedFunction = {};
   
   const b0: SomeFunction = someFunction;
-  //~^ ERROR: Type 'mapped type & { }' is not assignable to type '(type: string) => string'.
+  //~^ ERROR: Type 'mapped type' is not assignable to type '(type: string) => string'.
 }
 
 // ========== TupleToUnion ==========
@@ -524,4 +626,43 @@ type ValueOf<ObjectType, ValueType extends keyof ObjectType = keyof ObjectType> 
   //~^ ERROR: Type '1' is not assignable to type '2'.
   const b2: 3 = valueRestricted;
   //~^ ERROR: Type '1' is not assignable to type '3'.
+}
+
+// ========= WritableKeysOf =========
+type WritableKeysOf<T> = NonNullable<{
+	[P in keyof T]: 
+    IsEqual<
+      {[Q in P]: T[P]}, 
+      {readonly [Q in P]: T[P]}
+    > extends false ? P : never
+}[keyof T]>;
+
+{
+  type TestType1 = {
+    readonly a: string;
+    b: boolean;
+  };
+  
+  type TestType2 = {
+    a: string;
+    b: boolean;
+  };
+  
+  type TestType3 = {
+    readonly a: string;
+    readonly b: boolean;
+  };
+
+  type WritableKeysOf1 = WritableKeysOf<TestType1>;
+  type WritableKeysOf2 = WritableKeysOf<TestType2>;
+  type WritableKeysOf3 = WritableKeysOf<TestType3>;
+  
+  // const test1: WritableKeysOf1 = 'b';
+  // const test2: WritableKeysOf2 = 'b';
+  // const test3: WritableKeysOf2 = 'a';
+  // const test4: WritableKeysOf3 = n();
+  
+  // const a0: 'b' = test1;
+  // const a1: 'a' | 'b' = test2;
+  // const a2: never = test4;
 }

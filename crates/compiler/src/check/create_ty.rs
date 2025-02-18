@@ -372,6 +372,12 @@ impl<'cx> TyChecker<'cx> {
             }
 
             if !*self.config.strict_null_checks() && flags.intersects(TypeFlags::NULLABLE) {
+                if !ty
+                    .get_object_flags()
+                    .intersects(ObjectFlags::CONTAINS_WIDENING_TYPE)
+                {
+                    includes |= TypeFlags::INCLUDES_NON_WIDENING_TYPE;
+                }
             } else {
                 set.insert(ty.id);
             }
@@ -454,16 +460,35 @@ impl<'cx> TyChecker<'cx> {
                     self.unknown_ty
                 };
             }
+            if includes.intersects(TypeFlags::UNDEFINED) {
+                if set.len() >= 2 && set[0] == self.undefined_ty && set[0] == self.missing_ty {
+                    set.remove(1);
+                }
+            }
             if reduction == UnionReduction::Subtype {
                 set = self.remove_subtypes(set);
             }
 
             if set.is_empty() {
-                return self.never_ty;
+                return if includes.intersects(TypeFlags::NULL) {
+                    if includes.intersects(TypeFlags::INCLUDES_NON_WIDENING_TYPE) {
+                        self.null_ty
+                    } else {
+                        // TODO: null_widening_ty
+                        self.null_ty
+                    }
+                } else if includes.intersects(TypeFlags::UNDEFINED) {
+                    if includes.intersects(TypeFlags::INCLUDES_NON_WIDENING_TYPE) {
+                        self.undefined_ty
+                    } else {
+                        // TODO: undefined_widening_ty
+                        self.undefined_ty
+                    }
+                } else {
+                    self.never_ty
+                };
             }
         }
-
-        set.dedup();
 
         let pre_computed_object_flags = if includes.intersects(TypeFlags::NOT_PRIMITIVE_UNION) {
             ObjectFlags::empty()
@@ -809,6 +834,32 @@ impl<'cx> TyChecker<'cx> {
         true
     }
 
+    fn remove_redundant_super_tys(&self, tys: &mut Vec<&'cx ty::Ty<'cx>>, includes: TypeFlags) {
+        let mut i = tys.len();
+        while i > 0 {
+            i -= 1;
+            let t = tys[i];
+            let remove = t.flags.intersects(TypeFlags::STRING)
+                && includes.intersects(
+                    TypeFlags::STRING_LITERAL
+                        | TypeFlags::TEMPLATE_LITERAL
+                        | TypeFlags::STRING_MAPPING,
+                )
+                || t.flags.intersects(TypeFlags::NUMBER)
+                    && includes.intersects(TypeFlags::NUMBER_LITERAL)
+                || t.flags.intersects(TypeFlags::BIG_INT)
+                    && includes.intersects(TypeFlags::BIG_INT_LITERAL)
+                || t.flags.intersects(TypeFlags::ES_SYMBOL)
+                    && includes.intersects(TypeFlags::UNIQUE_ES_SYMBOL)
+                || t.flags.intersects(TypeFlags::VOID) && includes.intersects(TypeFlags::UNDEFINED)
+                || self.is_empty_anonymous_object_ty(t)
+                    && includes.intersects(TypeFlags::DEFINITELY_NON_NULLABLE);
+            if remove {
+                tys.remove(i);
+            }
+        }
+    }
+
     pub(super) fn get_intersection_ty(
         &mut self,
         tys: &[&'cx ty::Ty<'cx>],
@@ -889,7 +940,7 @@ impl<'cx> TyChecker<'cx> {
                 && includes.intersects(TypeFlags::DEFINITELY_NON_NULLABLE)
         {
             if flags != IntersectionFlags::NoSuperTypeReduction {
-                // todo!()
+                self.remove_redundant_super_tys(&mut ty_set, includes);
             };
         }
 

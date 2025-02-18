@@ -499,7 +499,17 @@ impl<'cx> Node<'cx> {
                 }
             };
         }
-        modifiers!(ClassMethodElem, ClassPropElem, GetterDecl, SetterDecl)
+        modifiers!(
+            ClassMethodElem,
+            ClassPropElem,
+            GetterDecl,
+            SetterDecl,
+            PropSignature
+        )
+    }
+
+    pub fn can_have_modifiers(&self) -> bool {
+        self.modifiers().is_some()
     }
 
     pub fn is_block_scope(&self, parent: Option<&Self>) -> bool {

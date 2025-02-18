@@ -287,10 +287,11 @@ impl<'cx> TyChecker<'cx> {
             match node {
                 ClassDecl(_) | ClassExpr(_) | InterfaceDecl(_) | CallSigDecl(_)
                 | MethodSignature(_) | FnTy(_) | CtorSigDecl(_) | FnDecl(_)
-                | ClassMethodElem(_) | ArrowFnExpr(_) | TypeDecl(_) | CondTy(_) => {
+                | ClassMethodElem(_) | ArrowFnExpr(_) | TypeDecl(_) | MappedTy(_) | CondTy(_) => {
                     let mut outer_ty_params = self
                         .get_outer_ty_params(id, include_this)
                         .unwrap_or_default();
+
                     if (node.is_fn_expr()
                         || node.is_arrow_fn_expr()
                         || self.p.is_object_lit_method(id))
@@ -306,7 +307,13 @@ impl<'cx> TyChecker<'cx> {
                             }
                         }
                     }
-                    if let Some(cond) = node.as_cond_ty() {
+
+                    if let Some(mapped) = node.as_mapped_ty() {
+                        let symbol = self.get_symbol_of_decl(mapped.ty_param.id);
+                        let ty = self.get_declared_ty_of_ty_param(symbol);
+                        outer_ty_params.push(ty);
+                        return Some(outer_ty_params);
+                    } else if let Some(cond) = node.as_cond_ty() {
                         if let Some(infer_ty_params) = self.get_infer_ty_params(cond) {
                             outer_ty_params.extend(infer_ty_params);
                         }

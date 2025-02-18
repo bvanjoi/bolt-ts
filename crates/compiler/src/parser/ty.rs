@@ -625,9 +625,9 @@ impl<'cx> ParserState<'cx, '_> {
             }
         }
         self.expect(TokenKind::LBracket);
-        let ty_param = self.parse_mapped_ty_param()?;
+        let ty_param = self.with_parent(id, Self::parse_mapped_ty_param)?;
         let name_ty = if self.parse_optional(TokenKind::As).is_some() {
-            let ty = self.parse_ty()?;
+            let ty = self.with_parent(id, Self::parse_ty)?;
             Some(ty)
         } else {
             None
@@ -645,9 +645,11 @@ impl<'cx> ParserState<'cx, '_> {
             };
         }
 
-        let ty = self.parse_ty_anno()?;
+        let ty = self.with_parent(id, Self::parse_ty_anno)?;
         self.parse_semi();
-        let members = self.parse_list(list_ctx::TyMembers, Self::parse_ty_member);
+        let members = self.with_parent(id, |this| {
+            this.parse_list(list_ctx::TyMembers, Self::parse_ty_member)
+        });
         self.expect(TokenKind::RBrace);
         let kind = self.alloc(ast::MappedTy {
             id,

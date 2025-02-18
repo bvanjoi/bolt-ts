@@ -3,7 +3,7 @@ use bolt_ts_span::ModuleID;
 use bolt_ts_utils::fx_hashmap_with_capacity;
 use rustc_hash::FxHashMap;
 
-use crate::ast::NodeID;
+use crate::ast::{self, NodeID};
 use crate::check::F64Represent;
 use crate::keyword;
 

@@ -369,6 +369,64 @@ impl<'cx> Parser<'cx> {
             .binary_search_by_key(&self.node(id).span().lo, |probe| probe.span().lo)
             .unwrap()
     }
+
+    pub fn get_combined_flags<T: std::ops::BitOrAssign>(
+        &self,
+        mut id: ast::NodeID,
+        get_flag: impl Fn(&Self, ast::NodeID) -> T,
+    ) -> T {
+        let mut flags = get_flag(self, id);
+        if self.node(id).is_var_decl() {
+            id = self.parent(id).unwrap();
+        }
+        // TODO: variable list
+
+        if let Some(s) = self.node(id).as_var_stmt() {
+            flags |= get_flag(self, s.id);
+        }
+        flags
+    }
+
+    pub fn get_combined_modifier_flags(
+        &self,
+        id: ast::NodeID,
+    ) -> enumflags2::BitFlags<ast::ModifierKind> {
+        self.get_combined_flags(id, |p, id| p.get_effective_modifier_flags(id))
+    }
+
+    pub fn get_effective_modifier_flags(
+        &self,
+        id: ast::NodeID,
+    ) -> enumflags2::BitFlags<ast::ModifierKind> {
+        self.get_modifier_flags(id, true, false)
+    }
+
+    fn get_modifier_flags(
+        &self,
+        id: ast::NodeID,
+        include_js_doc: bool,
+        always_include_js_doc: bool,
+    ) -> enumflags2::BitFlags<ast::ModifierKind> {
+        let m = self.get_syntactic_modifier_flags_no_cache(id);
+        ast::ModifierKind::get_syntactic_modifier_flags(m)
+    }
+
+    fn get_syntactic_modifier_flags_no_cache(
+        &self,
+        id: ast::NodeID,
+    ) -> enumflags2::BitFlags<ast::ModifierKind> {
+        let n = self.node(id);
+        let flags = n.modifiers().map_or(Default::default(), |m| m.flags);
+        let node_flags = n.node_flags();
+        if node_flags.intersects(ast::NodeFlags::NESTED_NAMESPACE)
+            || n.is_ident()
+                && node_flags.intersects(ast::NodeFlags::IDENTIFIER_IS_IN_JS_DOC_NAMESPACE)
+        {
+            flags | ast::ModifierKind::Export
+        } else {
+            flags
+        }
+    }
 }
 
 #[derive(Clone, Copy, PartialEq)]

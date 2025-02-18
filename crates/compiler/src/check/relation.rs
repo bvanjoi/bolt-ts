@@ -453,7 +453,7 @@ impl<'cx> TyChecker<'cx> {
         Some(result)
     }
 
-    fn get_prop_of_object_ty(
+    pub(super) fn get_prop_of_object_ty(
         &mut self,
         ty: &'cx ty::Ty<'cx>,
         name: SymbolName,

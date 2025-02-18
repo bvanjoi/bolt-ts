@@ -465,7 +465,7 @@ pub struct VarStmt<'cx> {
 }
 
 #[enumflags2::bitflags]
-#[repr(u16)]
+#[repr(u32)]
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub enum ModifierKind {
     Public = 1 << 0,
@@ -475,8 +475,16 @@ pub enum ModifierKind {
     Override = 1 << 4,
     Export = 1 << 5,
     Abstract = 1 << 6,
-    Static = 1 << 7,
-    Declare = 1 << 8,
+    Ambient = 1 << 7,
+    Static = 1 << 8,
+    Accessor = 1 << 9,
+    Async = 1 << 10,
+    Default = 1 << 11,
+    Const = 1 << 12,
+    In = 1 << 13,
+    Out = 1 << 14,
+    Decorator = 1 << 15,
+    Declare = 1 << 16,
 }
 
 impl std::fmt::Display for ModifierKind {
@@ -491,16 +499,44 @@ impl std::fmt::Display for ModifierKind {
             ModifierKind::Abstract => keyword::KW_ABSTRACT_STR,
             ModifierKind::Static => keyword::KW_STATIC_STR,
             ModifierKind::Declare => keyword::KW_DECLARE_STR,
+            ModifierKind::Ambient => todo!(),
+            ModifierKind::Decorator => todo!(),
+            ModifierKind::Accessor => todo!(),
+            ModifierKind::Async => todo!(),
+            ModifierKind::Default => todo!(),
+            ModifierKind::Const => todo!(),
+            ModifierKind::In => todo!(),
+            ModifierKind::Out => todo!(),
         };
         write!(f, "{}", s)
     }
 }
 
 impl ModifierKind {
+    pub const SYNTACTIC_OR_JS_MODIFIERS: enumflags2::BitFlags<ModifierKind> = enumflags2::make_bitflags!(ModifierKind::{Public | Private | Protected | Readonly | Override});
+    pub const SYNTACTIC_ONLY_MODIFIERS: enumflags2::BitFlags<ModifierKind> = enumflags2::make_bitflags!(ModifierKind::{Export | Ambient | Abstract | Static | Accessor | Async | Default | Const | In | Out | Decorator});
+    // pub const SYNTACTIC_MODIFIER: enumflags2::BitFlags<ModifierKind> =
+    //     enumflags2::BitFlags::<ModifierKind>::from_bits_truncate_c(
+    //         Self::SYNTACTIC_OR_JS_MODIFIERS.bits() | Self::SYNTACTIC_ONLY_MODIFIERS.bits(),
+    //         enumflags2::BitFlags::CONST_TOKEN,
+    //     );
+
     pub const ACCESSIBILITY: enumflags2::BitFlags<ModifierKind> =
         enumflags2::make_bitflags!(ModifierKind::{Public | Private | Protected});
     pub const PARAMETER_PROPERTY: enumflags2::BitFlags<ModifierKind> =
         enumflags2::make_bitflags!(Self::{Public | Private | Protected | Readonly | Override});
+    pub const NON_PUBLIC_ACCESSIBILITY_MODIFIER: enumflags2::BitFlags<ModifierKind> =
+        enumflags2::make_bitflags!(ModifierKind::{Private | Protected});
+
+    fn syntactic_modifier() -> enumflags2::BitFlags<ModifierKind> {
+        Self::SYNTACTIC_ONLY_MODIFIERS | Self::SYNTACTIC_OR_JS_MODIFIERS
+    }
+
+    pub fn get_syntactic_modifier_flags(
+        flags: enumflags2::BitFlags<ModifierKind>,
+    ) -> enumflags2::BitFlags<ModifierKind> {
+        flags & Self::syntactic_modifier()
+    }
 }
 
 #[derive(Debug, Clone, Copy)]

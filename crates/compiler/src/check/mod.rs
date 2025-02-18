@@ -1878,7 +1878,7 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
-    fn is_empty_anonymous_object_ty(&self, ty: &'cx ty::Ty<'cx>) -> bool {
+    pub(crate) fn is_empty_anonymous_object_ty(&self, ty: &'cx ty::Ty<'cx>) -> bool {
         ty.kind.as_object_anonymous().is_some_and(|a| {
             if let Some(symbol) = ty.symbol() {
                 let s = self.binder.symbol(symbol);
@@ -2524,6 +2524,64 @@ impl<'cx> TyChecker<'cx> {
                 && self
                     .find_resolution_cycle_start_index(ResolutionKey::Type(symbol))
                     .is_some())
+    }
+
+    pub fn decl_modifier_flags_from_symbol(
+        &self,
+        symbol: SymbolID,
+    ) -> enumflags2::BitFlags<ast::ModifierKind> {
+        if let Some(decl) = self.symbol_opt_decl(symbol) {
+            let flags = self.p.get_combined_modifier_flags(decl);
+            // TODO: handle symbol parent
+            return flags & !ast::ModifierKind::ACCESSIBILITY;
+        };
+
+        if self
+            .symbol(symbol)
+            .flags()
+            .intersects(SymbolFlags::PROPERTY)
+        {
+            return ast::ModifierKind::Public | ast::ModifierKind::Static;
+        }
+        enumflags2::BitFlags::empty()
+    }
+
+    fn get_mapped_ty_optionality(&self, ty: &'cx ty::MappedTy<'cx>) -> i32 {
+        let ms = ty.decl.get_modifiers();
+        if ms.intersects(ast::MappedTyModifiers::EXCLUDE_OPTIONAL) {
+            -1
+        } else if ms.intersects(ast::MappedTyModifiers::INCLUDE_OPTIONAL) {
+            1
+        } else {
+            0
+        }
+    }
+
+    fn get_combined_mapped_ty_optionality(&mut self, ty: &'cx ty::Ty<'cx>) -> i32 {
+        if ty.get_object_flags().intersects(ObjectFlags::MAPPED) {
+            let n = self.get_mapped_ty_optionality(ty.kind.expect_object_mapped());
+            if n != 0 {
+                n
+            } else {
+                let t = self.get_modifier_ty_from_mapped_ty(ty);
+                self.get_combined_mapped_ty_optionality(t)
+            }
+        } else if let Some(intersection) = ty.kind.as_intersection() {
+            let optionality = self.get_combined_mapped_ty_optionality(intersection.tys[0]);
+            if intersection.tys.iter().enumerate().all(|(i, t)| {
+                if i == 0 {
+                    true
+                } else {
+                    self.get_combined_mapped_ty_optionality(t) == optionality
+                }
+            }) {
+                optionality
+            } else {
+                0
+            }
+        } else {
+            0
+        }
     }
 }
 

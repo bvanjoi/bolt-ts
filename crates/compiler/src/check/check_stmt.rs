@@ -1,5 +1,3 @@
-use crate::ast::pprint_ident;
-
 use super::ast;
 use super::ty;
 use super::TyChecker;

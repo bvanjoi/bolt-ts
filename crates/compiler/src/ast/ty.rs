@@ -376,7 +376,7 @@ pub struct MappedTy<'cx> {
 }
 
 bitflags::bitflags! {
-    #[derive(Debug, Clone, Copy)]
+    #[derive(Debug, Clone, Copy, PartialEq)]
     pub struct MappedTyModifiers: u8 {
         const INCLUDE_READONLY  = 1 << 0;
         const EXCLUDE_READONLY  = 1 << 1;
