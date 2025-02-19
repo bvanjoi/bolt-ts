@@ -1362,3 +1362,40 @@ type ReturnType<T extends (...args: any) => any> = T extends (...args: any) => i
  * Obtain the return type of a constructor function type
  */
 type InstanceType<T extends abstract new (...args: any) => any> = T extends abstract new (...args: any) => infer R ? R : any;
+
+/**
+ * Convert string literal type to uppercase
+ */
+type Uppercase<S extends string> = intrinsic;
+
+/**
+ * Convert string literal type to lowercase
+ */
+type Lowercase<S extends string> = intrinsic;
+
+/**
+ * Convert first character of string literal type to uppercase
+ */
+type Capitalize<S extends string> = intrinsic;
+
+/**
+ * Convert first character of string literal type to lowercase
+ */
+type Uncapitalize<S extends string> = intrinsic;
+
+/**
+ * Marker for non-inference type position
+ */
+type NoInfer<T> = intrinsic;
+
+/**
+ * Marker for contextual 'this' type
+ */
+interface ThisType<T> {}
+
+/**
+ * Stores types to be used with WeakSet, WeakMap, WeakRef, and FinalizationRegistry
+ */
+interface WeakKeyTypes {
+    object: object;
+}

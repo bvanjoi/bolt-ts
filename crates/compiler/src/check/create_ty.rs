@@ -3,6 +3,7 @@ use rustc_hash::{FxHashMap, FxHashSet};
 use std::hash::Hasher;
 
 use crate::bind::{Symbol, SymbolFlags, SymbolID, SymbolName};
+use crate::check::instantiation_ty_map::TyCacheTrait;
 use crate::check::links::TyLinks;
 use crate::check::SymbolLinks;
 use crate::ty;
@@ -11,8 +12,9 @@ use crate::ty::{
 };
 use crate::{ast, keyword};
 
+use super::relation::RelationKind;
 use super::utils::insert_ty;
-use super::{relation::RelationKind, TyChecker};
+use super::TyChecker;
 use super::{InstantiationTyMap, UnionOrIntersectionMap};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -513,7 +515,7 @@ impl<'cx> TyChecker<'cx> {
         } else if tys.len() == 1 {
             return tys[0];
         }
-        let id = UnionOrIntersectionMap::create_id(&tys);
+        let id = UnionOrIntersectionMap::create_ty_key(&tys);
         if let Some(result) = self.union_tys.get(id) {
             return result;
         }
@@ -971,7 +973,7 @@ impl<'cx> TyChecker<'cx> {
             // }
         }
 
-        let id = UnionOrIntersectionMap::create_id(&ty_set);
+        let id = UnionOrIntersectionMap::create_ty_key(&ty_set);
         if let Some(ty) = self.intersection_tys.get(id) {
             return ty;
         }
@@ -1141,5 +1143,14 @@ impl<'cx> TyChecker<'cx> {
             mapper: None,
         });
         self.create_object_ty(ty::ObjectTyKind::Mapped(ty), ObjectFlags::MAPPED)
+    }
+
+    pub(super) fn create_string_mapping_ty(
+        &mut self,
+        symbol: SymbolID,
+        ty: &'cx ty::Ty<'cx>,
+    ) -> &'cx ty::Ty<'cx> {
+        let ty = self.alloc(ty::StringMappingTy { symbol, ty });
+        self.new_ty(ty::TyKind::StringMapping(ty), TypeFlags::STRING_MAPPING)
     }
 }

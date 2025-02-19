@@ -117,6 +117,7 @@ pub enum TyKind<'cx> {
     Cond(&'cx CondTy<'cx>),
     Index(&'cx IndexTy<'cx>),
     Substitution(&'cx SubstitutionTy<'cx>),
+    StringMapping(&'cx StringMappingTy<'cx>),
 }
 
 macro_rules! as_ty_kind {
@@ -153,6 +154,7 @@ as_ty_kind!(Param, &'cx ParamTy<'cx>, param);
 as_ty_kind!(Cond, &'cx CondTy<'cx>, cond_ty);
 as_ty_kind!(Index, &IndexTy<'cx>, index_ty);
 as_ty_kind!(Substitution, &SubstitutionTy<'cx>, substitution_ty);
+as_ty_kind!(StringMapping, &StringMappingTy<'cx>, string_mapping_ty);
 
 impl<'cx> Ty<'cx> {
     pub fn to_string(&'cx self, checker: &mut TyChecker<'cx>) -> String {
@@ -192,6 +194,10 @@ impl<'cx> Ty<'cx> {
             TyKind::Index(n) => n.ty.to_string(checker),
             TyKind::Intrinsic(i) => checker.atoms.get(i.name).to_string(),
             TyKind::Substitution(_) => "substitution".to_string(),
+            TyKind::StringMapping(s) => {
+                let name = checker.binder.symbol(s.symbol).name;
+                checker.atoms.get(name.expect_atom()).to_string()
+            }
         }
     }
 
@@ -319,6 +325,12 @@ impl<'cx> TyKind<'cx> {
         self.as_object_reference()
             .is_some_and(|ty| ty.target == checker.global_readonly_array_ty())
     }
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct StringMappingTy<'cx> {
+    pub symbol: SymbolID,
+    pub ty: &'cx Ty<'cx>,
 }
 
 #[derive(Debug, Clone, Copy)]

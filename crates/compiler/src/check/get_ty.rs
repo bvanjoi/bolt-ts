@@ -4,7 +4,7 @@ use super::create_ty::IntersectionFlags;
 use super::infer::{InferenceFlags, InferencePriority};
 use super::instantiation_ty_map::hash_ty_args;
 use super::ty::{self, Ty, TyKind};
-use super::{errors, IndexedAccessTyMap, ResolutionKey};
+use super::{errors, IndexedAccessTyMap, ResolutionKey, TyCacheTrait};
 use super::{CheckMode, F64Represent, InferenceContextId, PropName, TyChecker};
 use crate::ast::{self, EntityNameKind};
 
@@ -262,6 +262,7 @@ impl<'cx> TyChecker<'cx> {
             Paren(n) => self.get_ty_from_type_node(n.ty),
             Infer(n) => self.get_ty_from_infer_ty_node(n),
             Mapped(n) => self.get_ty_from_mapped_ty_node(n),
+            Intrinsic(_) => return self.intrinsic_marker_ty,
         };
 
         self.get_conditional_flow_of_ty(ty, node.id())
@@ -500,12 +501,61 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
+    fn get_rest_ty_of_tuple_ty(&mut self, ty: &'cx Ty<'cx>) -> Option<&'cx ty::Ty<'cx>> {
+        let tup = ty.as_tuple().unwrap();
+        self.get_element_ty_of_slice_of_tuple_ty(ty, tup.fixed_length, None, None, None)
+    }
+
+    fn get_end_elem_count(&mut self, ty: &'cx Ty<'cx>, flags: ElementFlags) -> usize {
+        let tup = ty.as_tuple().unwrap();
+        tup.element_flags.len()
+            - if let Some(i) = tup.element_flags.iter().rposition(|f| !f.intersects(flags)) {
+                i - 1
+            } else {
+                0
+            }
+    }
+
+    fn get_total_fixed_elem_count(&mut self, ty: &'cx Ty<'cx>) -> usize {
+        let tup = ty.as_tuple().unwrap();
+        tup.fixed_length + self.get_end_elem_count(ty, ElementFlags::FIXED)
+    }
+
+    fn get_tuple_elem_ty_out_of_start_count(
+        &mut self,
+        ty: &'cx Ty<'cx>,
+        index: usize,
+        undefined_or_missing_ty: Option<&'cx ty::Ty<'cx>>,
+    ) -> &'cx ty::Ty<'cx> {
+        self.map_ty(
+            ty,
+            |this, t| {
+                let Some(rest_ty) = this.get_rest_ty_of_tuple_ty(t) else {
+                    return Some(this.undefined_ty);
+                };
+                if let Some(undefined_or_missing_ty) = undefined_or_missing_ty {
+                    if index >= this.get_total_fixed_elem_count(t) {
+                        return Some(this.get_union_ty(
+                            &[rest_ty, undefined_or_missing_ty],
+                            ty::UnionReduction::Lit,
+                        ));
+                    }
+                }
+
+                Some(rest_ty)
+            },
+            false,
+        )
+        .unwrap()
+    }
+
     fn get_prop_ty_for_index_ty(
         &mut self,
         origin_object_ty: &'cx Ty<'cx>,
         object_ty: &'cx Ty<'cx>,
         index_ty: &'cx Ty<'cx>,
         access_node: Option<ast::NodeID>,
+        access_flags: AccessFlags,
     ) -> Option<&'cx Ty<'cx>> {
         let access_expr = access_node.filter(|n| self.p.node(*n).is_ele_access_expr());
         let prop_name = self.get_prop_name_from_index(index_ty);
@@ -528,19 +578,7 @@ impl<'cx> TyChecker<'cx> {
                     };
                     Some(name)
                 }
-                PropName::Num(num) => {
-                    if object_ty.is_tuple() {
-                        let resolved_ty_args = self.get_ty_arguments(object_ty);
-                        assert!(num.fract() == 0.0);
-                        let idx = num as usize;
-                        return if idx >= resolved_ty_args.len() {
-                            Some(self.undefined_ty)
-                        } else {
-                            Some(resolved_ty_args[idx])
-                        };
-                    }
-                    Some(SymbolName::EleNum(num.into()))
-                }
+                PropName::Num(num) => Some(SymbolName::EleNum(num.into())),
             }
         } else {
             None
@@ -552,6 +590,23 @@ impl<'cx> TyChecker<'cx> {
             return Some(prop_ty);
         }
 
+        if self.every_type(object_ty, |_, t| t.is_tuple()) {
+            if let Some(PropName::Num(num)) = prop_name {
+                if num >= 0. {
+                    // TODO: num is not integer
+                    return Some(
+                        self.get_tuple_elem_ty_out_of_start_count(
+                            object_ty,
+                            num as usize,
+                            access_flags
+                                .intersects(AccessFlags::INCLUDE_UNDEFINED)
+                                .then_some(self.missing_ty),
+                        ),
+                    );
+                }
+            }
+        }
+
         if !index_ty.flags.intersects(TypeFlags::NULLABLE)
             && self.is_type_assignable_to_kind(
                 index_ty,
@@ -559,8 +614,9 @@ impl<'cx> TyChecker<'cx> {
                 false,
             )
         {
-            if object_ty.flags.intersects(TypeFlags::ANY)
-                || object_ty.flags.intersects(TypeFlags::NEVER)
+            if object_ty
+                .flags
+                .intersects(TypeFlags::ANY | TypeFlags::NEVER)
             {
                 return Some(object_ty);
             }
@@ -641,7 +697,8 @@ impl<'cx> TyChecker<'cx> {
                 return Some(object_ty);
             }
             let persistent_access_flags = access_flags.intersection(AccessFlags::PERSISTENT);
-            let id = IndexedAccessTyMap::create_id(persistent_access_flags, object_ty, index_ty);
+            let id =
+                IndexedAccessTyMap::create_ty_key(&(persistent_access_flags, object_ty, index_ty));
             if let Some(ty) = self.indexed_access_tys.get(id) {
                 return Some(ty);
             }
@@ -659,10 +716,20 @@ impl<'cx> TyChecker<'cx> {
 
         if let Some(union) = index_ty.kind.as_union() {
             let mut prop_tys = Vec::with_capacity(union.tys.len());
+            let mut was_missing_prop = false;
             for t in union.tys.iter() {
-                if let Some(prop_ty) =
-                    self.get_prop_ty_for_index_ty(object_ty, apparent_object_ty, t, access_node)
-                {
+                if let Some(prop_ty) = self.get_prop_ty_for_index_ty(
+                    object_ty,
+                    apparent_object_ty,
+                    t,
+                    access_node,
+                    access_flags
+                        | if was_missing_prop {
+                            AccessFlags::SUPPRESS_NO_IMPLICIT_ANY_ERROR
+                        } else {
+                            AccessFlags::empty()
+                        },
+                ) {
                     prop_tys.push(prop_ty);
                 } else if access_node.is_none() {
                     return None;
@@ -676,7 +743,13 @@ impl<'cx> TyChecker<'cx> {
             };
         }
 
-        self.get_prop_ty_for_index_ty(object_ty, apparent_object_ty, index_ty, access_node)
+        self.get_prop_ty_for_index_ty(
+            object_ty,
+            apparent_object_ty,
+            index_ty,
+            access_node,
+            access_flags | AccessFlags::CACHE_SYMBOL | AccessFlags::REPORT_DEPRECATED,
+        )
     }
 
     pub(super) fn get_ty_from_indexed_access_node(

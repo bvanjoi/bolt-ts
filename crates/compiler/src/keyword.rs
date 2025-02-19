@@ -65,6 +65,7 @@ gen_atoms!(
     (KW_SATISFIES, "satisfies"),
     (KW_KEYOF, "keyof"),
     (KW_INFER, "infer"),
+    (KW_INTRINSIC, "intrinsic"),
     (KW_TYPE, "type"),
 );
 
@@ -85,7 +86,7 @@ gen_atoms!(
     (IDENT_BOOLEAN_CLASS, "Boolean"),
     (IDENT_NEVER, "never"),
     (IDENT_UNKNOWN, "unknown"),
-    (IDENT_BIGINT, "bitint"),
+    (IDENT_BIGINT, "bigint"),
     (IDENT_OBJECT, "object"),
     (IDENT_OBJECT_CLASS, "Object"),
     (IDENT_SYMBOL, "symbol"),
@@ -93,6 +94,11 @@ gen_atoms!(
     (IDENT_CALLABLE_FUNCTION_CLASS, "CallableFunction"),
     (IDENT_NEWABLE_FUNCTION_CLASS, "NewableFunction"),
     (IDENT_GLOBAL, "global"),
+    (INTRINSIC_TYPE_UPPERCASE, "Uppercase"),
+    (INTRINSIC_TYPE_LOWERCASE, "Lowercase"),
+    (INTRINSIC_TYPE_CAPITALIZE, "Capitalize"),
+    (INTRINSIC_TYPE_UNCAPITALIZE, "Uncapitalize"),
+    (INTRINSIC_TYPE_NOINFER, "NoInfer"),
 );
 
 pub fn is_prim_ty_name(name: AtomId) -> bool {
@@ -109,6 +115,7 @@ pub fn is_prim_ty_name(name: AtomId) -> bool {
             | KW_VOID
             | IDENT_SYMBOL
             | IDENT_OBJECT
+            | IDENT_BIGINT
     )
 }
 
@@ -129,5 +136,16 @@ pub fn is_reserved_type_name(name: AtomId) -> bool {
             | KW_VOID
             | KW_UNDEFINED
             | IDENT_OBJECT
+    )
+}
+
+pub fn is_intrinsic_type_name(name: AtomId) -> bool {
+    matches!(
+        name,
+        INTRINSIC_TYPE_UPPERCASE
+            | INTRINSIC_TYPE_LOWERCASE
+            | INTRINSIC_TYPE_CAPITALIZE
+            | INTRINSIC_TYPE_UNCAPITALIZE
+            | INTRINSIC_TYPE_NOINFER
     )
 }

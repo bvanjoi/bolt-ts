@@ -309,6 +309,7 @@ impl<'cx> Resolver<'cx, '_, '_> {
             Infer(n) => {
                 self.resolve_ty_param(n.ty_param);
             }
+            Intrinsic(_) => {}
         }
     }
 

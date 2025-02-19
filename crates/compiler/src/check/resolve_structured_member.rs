@@ -1171,7 +1171,11 @@ impl<'cx> TyChecker<'cx> {
                             .intersects(MappedTyModifiers::INCLUDE_READONLY)
                             || !template_modifier.intersects(MappedTyModifiers::EXCLUDE_READONLY)
                                 && modifiers_prop.is_some_and(|m| this.is_readonly_symbol(m));
-                        let strip_optional = false; // TODO: strict_null_checks;
+                        let strip_optional = *self.config.strict_null_checks()
+                            && !is_optional
+                            && modifiers_prop.is_some_and(|m| {
+                                this.symbol(m).flags().intersects(SymbolFlags::OPTIONAL)
+                            });
                         let late_flag = modifiers_prop
                             .map_or(ty::CheckFlags::default(), |m| this.get_late_flag(m));
                         let symbol_flags = SymbolFlags::PROPERTY

@@ -375,7 +375,18 @@ impl<'cx> ParserState<'cx, '_> {
         let name = self.with_parent(id, Self::parse_ident_name)?;
         let ty_params = self.with_parent(id, Self::parse_ty_params).unwrap();
         self.expect(TokenKind::Eq);
-        let ty = self.with_parent(id, Self::parse_ty)?;
+        let ty = if self.token.kind == TokenKind::Intrinsic {
+            let t = self.alloc(ast::IntrinsicTy {
+                span: self.token.span,
+            });
+            let t = self.alloc(ast::Ty {
+                kind: ast::TyKind::Intrinsic(t),
+            });
+            self.next_token();
+            t
+        } else {
+            self.with_parent(id, Self::parse_ty)?
+        };
         self.parse_semi();
         let decl = self.alloc(ast::TypeDecl {
             id,

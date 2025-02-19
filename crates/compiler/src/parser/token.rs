@@ -214,6 +214,7 @@ pub enum TokenKind {
     Satisfies,
     Keyof,
     Infer,
+    Intrinsic,
     Type,
 }
 
@@ -326,6 +327,7 @@ impl TokenKind {
             Satisfies => "satisfies",
             Keyof => "keyof",
             Infer => "infer",
+            Intrinsic => "intrinsic",
             Type => "type",
             _ => unreachable!(),
         }

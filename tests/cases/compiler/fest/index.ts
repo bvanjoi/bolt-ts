@@ -1,8 +1,42 @@
 // From `github.com/sindresorhus/type-fest`, MIT License
 
+// type BuildTupleHelper<Element, Length extends number, Rest extends Element[]> =
+// 	Rest['length'] extends Length ?
+// 		readonly [...Rest] : // Terminate with readonly array (aka tuple)
+// 		BuildTupleHelper<Element, Length, [Element, ...Rest]>;
+
+// type ReadonlyTuple<Element, Length extends number> =
+//     number extends Length
+//       // Because `Length extends number` and `number extends Length`, then `Length` is not a specific finite number.
+//       ? readonly Element[] // It's not fixed length.
+//       : BuildTupleHelper<Element, Length, []>; // Otherwise it is a fixed length tuple.
+// {
+//   type TupleOfThreeStrings = ReadonlyTuple<string, 3>;
+
+//   const test: TupleOfThreeStrings = ['a', 'b', 'c'];
+
+//   const b0: TupleOfThreeStrings = ['a', 'b', 123];
+//   const b1: TupleOfThreeStrings = ['a'];
+//   const b2: TupleOfThreeStrings = ['a', 'b'];
+
+//   const _a: unknown = test.push;
+//   test[2] = 'a';
+// }
+
 function n(): never {
   throw new Error();
 }
+
+type Primitive =
+	| null
+	| undefined
+	| string
+	| number
+	| boolean
+	| symbol
+	| bigint;
+
+type BuiltIns = Primitive | void | Date | RegExp;
 
 // =========== And ===========
 type And<A extends boolean, B extends boolean> = [A, B][number] extends true
@@ -128,6 +162,68 @@ type Arrayable<T> = T | T[];
 
   const c0: number[] = castArray2(1);
   const c1: number[] = castArray2([1, 2, 3]);
+}
+
+// ======= HasRequiredKeys =======
+type HasRequiredKeys<BaseType extends object> = RequiredKeysOf<BaseType> extends never ? false : true;
+{
+  type TestType1 = {
+    a: string;
+    b?: boolean;
+  };
+  
+  type TestType2 = {
+    a?: string;
+    b?: boolean;
+  };
+  
+  type TestType3 = {
+    a: string;
+    b: boolean;
+  };
+  
+  type HasRequiredKeys1 = HasRequiredKeys<TestType1>;
+  type HasRequiredKeys2 = HasRequiredKeys<TestType2>;
+  type HasRequiredKeys3 = HasRequiredKeys<TestType3>;
+  
+  const test1: HasRequiredKeys1 = true;
+  const test2: HasRequiredKeys2 = false;
+  const test3: HasRequiredKeys3 = true;
+  
+  const a0: true = test1;
+  const a1: false = test2;
+  const a2: true = test3;
+}
+
+// ======= HasRequiredKeys =======
+type HasWritableKeys<BaseType extends object> = WritableKeysOf<BaseType> extends never ? false : true;
+{
+  type TestType1 = {
+    a: string;
+    readonly b: boolean;
+  };
+  
+  type TestType2 = {
+    readonly a: string;
+    readonly b: boolean;
+  };
+  
+  type TestType3 = {
+    a: string;
+    b: boolean;
+  };
+  
+  type HasWritableKeys1 = HasWritableKeys<TestType1>;
+  type HasWritableKeys2 = HasWritableKeys<TestType2>;
+  type HasWritableKeys3 = HasWritableKeys<TestType3>;
+  
+  const test1: HasWritableKeys1 = true;
+  const test2: HasWritableKeys2 = false;
+  const test3: HasWritableKeys3 = true;
+  
+  const a0: true = test1;
+  const a1: false = test2;
+  const a2: true = test3;
 }
 
 // ============ IfAny ============
@@ -321,11 +417,19 @@ type IsUnknown<T> = (
   //~^ ERROR: Generic type 'IsUnknown' requires 1 type argument.
 }
 
+// ========= NonEmptyTuple =========
+type NonEmptyTuple<T = unknown> = readonly [T, ...T[]];
+{
+  const sum: (...numbers: NonEmptyTuple<number>) => number = () => 42;
+  const a0: number = sum(1, 2, 3);
+  const a1: number = sum(1);
+  sum();
+  //~^ ERROR: Expected 1 arguments, but got 0.
+}
+
 // ========= OptionalKeysOf =========
 type OptionalKeysOf<BaseType extends object> = Exclude<{
-	[Key in keyof BaseType]: BaseType extends Record<Key, BaseType[Key]>
-		? never
-		: Key
+	[Key in keyof BaseType]: BaseType extends Record<Key, BaseType[Key]> ? never : Key
 }[keyof BaseType], undefined>;
 {
   type TestType1 = {
@@ -347,14 +451,14 @@ type OptionalKeysOf<BaseType extends object> = Exclude<{
   type OptionalKeysOf2 = OptionalKeysOf<TestType2>;
   type OptionalKeysOf3 = OptionalKeysOf<TestType3>;
   
-  // const test1: OptionalKeysOf1 = 'b';
-  // const test2: OptionalKeysOf2 = 'a';
-  // const test3: OptionalKeysOf3 = 'b';
-  // const test4: OptionalKeysOf3 = n();
+  const test1: OptionalKeysOf1 = 'b';
+  const test2: OptionalKeysOf2 = 'a';
+  const test3: OptionalKeysOf2 = 'b';
+  const test4: OptionalKeysOf3 = n();
   
-  // const a0: 'b' = test1;
-  // const a1: 'a' | 'b' = test2;
-  // const a2: never = test3;
+  const a0: 'b' = test1;
+  const a1: 'a' | 'b' = test2;
+  const a2: never = test4;
 }
 
 // =============== Or ===============
@@ -375,6 +479,72 @@ type Or<A extends boolean, B extends boolean> = [A, B][number] extends false
   const a5: Or<false, boolean> = never;
   const a6: Or<boolean, boolean> = never;
 }
+
+// ========= RequiredKeysOf =========
+type RequiredKeysOf<BaseType extends object> = Exclude<{
+	[Key in keyof BaseType]: BaseType extends Record<Key, BaseType[Key]>
+		? Key
+		: never
+}[keyof BaseType], undefined>;
+{
+  type TestType1 = {
+    a: string;
+    b?: boolean;
+  };
+  
+  type TestType2 = {
+    a?: string;
+    b?: boolean;
+  };
+  
+  type TestType3 = {
+    a: string;
+    b: boolean;
+  };
+  
+  type RequiredKeysOf1 = RequiredKeysOf<TestType1>;
+  type RequiredKeysOf2 = RequiredKeysOf<TestType2>;
+  type RequiredKeysOf3 = RequiredKeysOf<TestType3>;
+  
+  const test1: RequiredKeysOf1 = 'a';
+  const test2: RequiredKeysOf2 = n();
+  const test3: RequiredKeysOf3 = 'a';
+  const test4: RequiredKeysOf3 = 'b';
+  
+  const a0: 'a' = test1;
+  const a1: never = test2;
+  const a2: 'a' | 'b' = test3;
+}
+
+// ========= ReadonlyTuple =========
+type BuildTupleHelper<Element, Length extends number, Rest extends Element[]> =
+	Rest['length'] extends Length ?
+		readonly [...Rest] : // Terminate with readonly array (aka tuple)
+		BuildTupleHelper<Element, Length, [Element, ...Rest]>;
+
+type ReadonlyTuple<Element, Length extends number> =
+    number extends Length
+      // Because `Length extends number` and `number extends Length`, then `Length` is not a specific finite number.
+      ? readonly Element[] // It's not fixed length.
+      : BuildTupleHelper<Element, Length, []>; // Otherwise it is a fixed length tuple.
+{
+  type TupleOfThreeStrings = ReadonlyTuple<string, 3>;
+
+  const test: TupleOfThreeStrings = ['a', 'b', 'c'];
+
+  const b0: TupleOfThreeStrings = ['a', 'b', 123];
+  //~^ ERROR: Type 'number' is not assignable to type 'string'.
+  const b1: TupleOfThreeStrings = ['a'];
+  //~^ ERROR: Type '[string]' is not assignable to type '[string, string, string]'.
+  const b2: TupleOfThreeStrings = ['a', 'b'];
+  //~^ ERROR: Type '[string, string]' is not assignable to type '[string, string, string]'.
+  const b3: TupleOfThreeStrings = ['a', 'b', 'c', 'd'];
+  //~^ ERROR: Type '[string, string, string, string]' is not assignable to type '[string, string, string]'.
+
+  // const _a: unknown = test.push;
+  // test[2] = 'a';
+}
+  
 
 // ============ Simplify ============
 type Simplify<T> = {[KeyType in keyof T]: T[KeyType]} & {};
@@ -654,7 +824,7 @@ type UnknownRecord = Record<PropertyKey, unknown>;
   const b0: unknown = foo['bar'];
 }
 
-// =========== ValueOf ===========
+// ============ ValueOf ============
 type ValueOf<ObjectType, ValueType extends keyof ObjectType = keyof ObjectType> = ObjectType[ValueType];
 {
   const value: ValueOf<{a: 1; b: 2; c: 3}> = 3;
@@ -684,7 +854,6 @@ type WritableKeysOf<T> = NonNullable<{
       {readonly [Q in P]: T[P]}
     > extends false ? P : never
 }[keyof T]>;
-
 {
   type TestType1 = {
     readonly a: string;

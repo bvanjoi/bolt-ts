@@ -80,6 +80,7 @@ impl<'cx> TyChecker<'cx> {
             return self.error_ty;
         }
         let ty = self.get_declared_ty_of_symbol(symbol);
+
         if let Some(ty_params) = self.get_symbol_links(symbol).get_ty_params() {
             // let len = node.args().unwrap_or_default().len();
             let num_ty_args = node
@@ -256,6 +257,7 @@ impl<'cx> TyChecker<'cx> {
                 keyword::KW_NULL => return self.null_ty,
                 keyword::IDENT_SYMBOL => return self.symbol_ty,
                 keyword::IDENT_OBJECT => return self.non_primitive_ty,
+                keyword::IDENT_BIGINT => return self.bigint_ty,
                 _ => {}
             }
         }

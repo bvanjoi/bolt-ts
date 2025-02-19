@@ -7,7 +7,6 @@ use super::get_contextual::ContextFlags;
 use super::utils::append_if_unique;
 use super::{fn_mapper, CheckMode, InferenceContextId, TyChecker};
 
-use enumflags2::BitFlag;
 use thin_vec::{thin_vec, ThinVec};
 
 #[derive(Debug, Clone)]

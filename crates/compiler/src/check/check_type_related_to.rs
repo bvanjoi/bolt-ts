@@ -239,6 +239,7 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
         get_ty_of_source_prop: impl Fn(&mut Self, SymbolID) -> &'cx Ty<'cx>,
         report_error: bool,
         intersection_state: IntersectionState,
+        skip_optional: bool,
     ) -> Ternary {
         let related = self.is_property_symbol_ty_related(
             source_prop,
@@ -250,6 +251,25 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
         if related == Ternary::FALSE {
             if report_error {
                 // TODO:
+            }
+            return Ternary::FALSE;
+        }
+
+        if !skip_optional
+            && self
+                .c
+                .symbol(source_prop)
+                .flags()
+                .intersects(SymbolFlags::OPTIONAL)
+            && {
+                let target_prop_flags = self.c.symbol(target_prop).flags();
+
+                target_prop_flags.intersects(SymbolFlags::CLASS_MEMBER)
+                    && !target_prop_flags.intersects(SymbolFlags::OPTIONAL)
+            }
+        {
+            if report_error {
+                //TODO:
             }
             return Ternary::FALSE;
         }
@@ -493,6 +513,7 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
                             |this, symbol| this.c.get_non_missing_type_of_symbol(symbol),
                             report_error,
                             intersection_state,
+                            self.relation == RelationKind::Comparable,
                         );
                         if related == Ternary::FALSE {
                             return Ternary::FALSE;

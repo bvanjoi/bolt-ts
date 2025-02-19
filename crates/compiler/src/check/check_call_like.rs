@@ -160,9 +160,7 @@ impl<'cx> TyChecker<'cx> {
         } else if sig.has_rest_param() {
             let rest_ty = self.get_type_of_symbol(sig.params[param_count]);
             let index = pos - param_count;
-            let use_indexed_access = if rest_ty.is_tuple() {
-                let r = rest_ty.kind.expect_object_reference();
-                let t = r.target.kind.expect_object_tuple();
+            let use_indexed_access = if let Some(t) = rest_ty.as_tuple() {
                 t.combined_flags.intersects(ElementFlags::VARIABLE) || index < t.fixed_length
             } else {
                 true
@@ -814,14 +812,17 @@ impl<'cx> TyChecker<'cx> {
         let mut max = usize::MIN;
         let mut max_below = usize::MIN;
         let mut min_above = usize::MAX;
+        let mut closest_sig = None;
         for sig in sigs {
+            let min_param = self.get_min_arg_count(sig);
             let max_param = sig.get_param_count(self);
-            if sig.min_args_count < min {
-                min = sig.min_args_count;
+            if min_param < min {
+                min = min_param;
+                closest_sig = Some(sig);
             }
             max = usize::max(max, max_param);
-            if sig.min_args_count < args.len() && sig.min_args_count > max_below {
-                max_below = sig.min_args_count;
+            if min_param < args.len() && min_param > max_below {
+                max_below = min_param;
             }
             if args.len() < max_param && max_param < min_above {
                 min_above = max_param;

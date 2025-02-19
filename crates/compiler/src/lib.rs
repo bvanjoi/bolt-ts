@@ -94,11 +94,8 @@ fn init_atom<'atoms>() -> AtomMap<'atoms> {
         }
     }
     let mut atoms = AtomMap::new(1024 * 128);
-    for (atom, id) in keyword::KEYWORDS {
+    for (atom, id) in keyword::KEYWORDS.into_iter().chain(keyword::IDENTIFIER) {
         atoms.insert(*id, Cow::Borrowed(atom));
-    }
-    for (atom, id) in keyword::IDENTIFIER {
-        atoms.insert(*id, Cow::Borrowed(atom))
     }
     atoms
 }

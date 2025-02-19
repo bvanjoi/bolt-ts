@@ -97,14 +97,27 @@ impl<'cx> ParserState<'cx, '_> {
         expect: TokenKind,
         parse_constituent_type: impl FnOnce(&mut Self) -> PResult<&'cx ast::Ty<'cx>> + Copy,
     ) -> PResult<&'cx ast::Ty<'cx>> {
-        // let start = self.token.start();
-        let ty = parse_constituent_type(self)?;
+        let start = self.token.start();
+        let is_union_ty = expect == TokenKind::Pipe;
+        let has_leading_operator = self.parse_optional(expect).is_some();
+        let ty = if has_leading_operator {
+            if let Some(ty) = self.parse_fn_or_ctor_ty_to_error(is_union_ty)? {
+                ty
+            } else {
+                parse_constituent_type(self)?
+            }
+        } else {
+            parse_constituent_type(self)?
+        };
+
         if self.token.kind == expect {
             let mut tys = vec![ty];
             let parent = self.next_node_id();
             self.parent_map.r#override(ty.id(), parent);
             while self.parse_optional(expect).is_some() {
-                if let Some(ty) = self.with_parent(parent, Self::parse_fn_or_ctor_ty_to_error)? {
+                if let Some(ty) = self.with_parent(parent, |this| {
+                    this.parse_fn_or_ctor_ty_to_error(is_union_ty)
+                })? {
                     tys.push(ty);
                 } else {
                     let ty = self.with_parent(parent, parse_constituent_type)?;
@@ -182,9 +195,13 @@ impl<'cx> ParserState<'cx, '_> {
         self.parse_ty()
     }
 
-    fn parse_fn_or_ctor_ty_to_error(&mut self) -> PResult<Option<&'cx ast::Ty<'cx>>> {
+    fn parse_fn_or_ctor_ty_to_error(
+        &mut self,
+        is_union_ty: bool,
+    ) -> PResult<Option<&'cx ast::Ty<'cx>>> {
         if self.is_start_of_fn_or_ctor_ty() {
             let ty = self.parse_fn_or_ctor_ty()?;
+            // TODO: error
             Ok(Some(ty))
         } else {
             Ok(None)

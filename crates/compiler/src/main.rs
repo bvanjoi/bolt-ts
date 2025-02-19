@@ -28,11 +28,11 @@ fn main() {
     let tsconfig = RawTsConfig::default().with_include(vec![p.to_str().unwrap().to_string()]);
     let cwd = env::current_dir().unwrap();
     let output = eval_from(cwd, tsconfig.normalize());
+    let duration = start.elapsed();
     output
         .diags
         .into_iter()
         .for_each(|diag| diag.emit(&output.module_arena));
-    let duration = start.elapsed();
     dbg!(duration);
 }
 

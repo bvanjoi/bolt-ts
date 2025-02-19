@@ -61,7 +61,7 @@ use create_ty::IntersectionFlags;
 use flow::FlowTy;
 use fn_mapper::{PermissiveMapper, RestrictiveMapper};
 use get_variances::VarianceFlags;
-use instantiation_ty_map::{IndexedAccessTyMap, UnionOrIntersectionMap};
+use instantiation_ty_map::{IndexedAccessTyMap, TyCacheTrait, UnionOrIntersectionMap};
 use rustc_hash::{FxBuildHasher, FxHashMap};
 use transient_symbol::{create_transient_symbol, TransientSymbol};
 use type_predicate::TyPred;
@@ -87,7 +87,7 @@ use crate::parser::{AccessKind, AssignmentKind, Parser};
 use crate::ty::{has_type_facts, TyMapper};
 use crate::ty::{CheckFlags, TYPEOF_NE_FACTS};
 use crate::ty::{ElementFlags, ObjectFlags, Sig, SigFlags, SigID, TyID, TypeFacts, TypeFlags};
-use crate::{ast, ecma_rules, ensure_sufficient_stack, keyword, ty};
+use crate::{ast, ecma_rules, keyword, ty};
 
 bitflags::bitflags! {
     #[derive(Clone, Copy, Debug, PartialEq)]
@@ -196,8 +196,11 @@ pub struct TyChecker<'cx> {
     pub regular_true_ty: &'cx ty::Ty<'cx>,
     pub number_ty: &'cx ty::Ty<'cx>,
     pub string_ty: &'cx ty::Ty<'cx>,
+    pub bigint_ty: &'cx ty::Ty<'cx>,
     pub non_primitive_ty: &'cx ty::Ty<'cx>,
     pub symbol_ty: &'cx ty::Ty<'cx>,
+    pub non_inferrable_any_ty: &'cx ty::Ty<'cx>,
+    pub intrinsic_marker_ty: &'cx ty::Ty<'cx>,
 
     permissive_mapper: &'cx PermissiveMapper,
     restrictive_mapper: &'cx RestrictiveMapper,
@@ -243,6 +246,7 @@ pub struct TyChecker<'cx> {
     resolution_res: thin_vec::ThinVec<bool>,
 }
 
+#[derive(Clone, Copy, Debug)]
 enum PropName {
     String(AtomId),
     Num(f64),
@@ -287,25 +291,28 @@ impl<'cx> TyChecker<'cx> {
             };
         }
         make_intrinsic_type!({
-            (any_ty,            keyword::IDENT_ANY,     TypeFlags::ANY,             ObjectFlags::empty()),
-            (wildcard_ty,       keyword::IDENT_ANY,     TypeFlags::ANY,             ObjectFlags::empty()),
-            (error_ty,          keyword::IDENT_ERROR,   TypeFlags::ANY,             ObjectFlags::empty()),
-            (unknown_ty,        keyword::IDENT_UNKNOWN, TypeFlags::UNKNOWN,         ObjectFlags::empty()),
-            (undefined_ty,      keyword::KW_UNDEFINED,  TypeFlags::UNDEFINED,       ObjectFlags::empty()),
-            (missing_ty,        keyword::KW_UNDEFINED,  TypeFlags::UNDEFINED,       ObjectFlags::empty()),
-            (symbol_ty,         keyword::IDENT_SYMBOL,  TypeFlags::ES_SYMBOL,       ObjectFlags::empty()),
-            (void_ty,           keyword::KW_VOID,       TypeFlags::VOID,            ObjectFlags::empty()),
-            (never_ty,          keyword::IDENT_NEVER,   TypeFlags::NEVER,           ObjectFlags::empty()),
-            (null_ty,           keyword::KW_NULL,       TypeFlags::NULL,            ObjectFlags::empty()),
-            (false_ty,          keyword::KW_FALSE,      TypeFlags::BOOLEAN_LITERAL, ObjectFlags::empty()),
-            (regular_false_ty,  keyword::KW_FALSE,      TypeFlags::BOOLEAN_LITERAL, ObjectFlags::empty()),
-            (true_ty,           keyword::KW_TRUE,       TypeFlags::BOOLEAN_LITERAL, ObjectFlags::empty()),
-            (regular_true_ty,   keyword::KW_TRUE,       TypeFlags::BOOLEAN_LITERAL, ObjectFlags::empty()),
-            (number_ty,         keyword::IDENT_NUMBER,  TypeFlags::NUMBER,          ObjectFlags::empty()),
-            (string_ty,         keyword::IDENT_STRING,  TypeFlags::STRING,          ObjectFlags::empty()),
-            (non_primitive_ty,  keyword::IDENT_OBJECT,  TypeFlags::NON_PRIMITIVE,   ObjectFlags::empty()),
-            (auto_ty,           keyword::IDENT_ANY,     TypeFlags::ANY,             ObjectFlags::NON_INFERRABLE_TYPE),
-            (silent_never_ty,   keyword::IDENT_NEVER,   TypeFlags::NEVER,           ObjectFlags::NON_INFERRABLE_TYPE),
+            (any_ty,                keyword::IDENT_ANY,     TypeFlags::ANY,             ObjectFlags::empty()),
+            (auto_ty,               keyword::IDENT_ANY,     TypeFlags::ANY,             ObjectFlags::NON_INFERRABLE_TYPE),
+            (wildcard_ty,           keyword::IDENT_ANY,     TypeFlags::ANY,             ObjectFlags::empty()),
+            (error_ty,              keyword::IDENT_ERROR,   TypeFlags::ANY,             ObjectFlags::empty()),
+            (non_inferrable_any_ty, keyword::IDENT_ANY,     TypeFlags::ANY,             ObjectFlags::CONTAINS_WIDENING_TYPE),
+            (intrinsic_marker_ty,   keyword::KW_INTRINSIC,  TypeFlags::ANY,             ObjectFlags::empty()),
+            (unknown_ty,            keyword::IDENT_UNKNOWN, TypeFlags::UNKNOWN,         ObjectFlags::empty()),
+            (undefined_ty,          keyword::KW_UNDEFINED,  TypeFlags::UNDEFINED,       ObjectFlags::empty()),
+            (missing_ty,            keyword::KW_UNDEFINED,  TypeFlags::UNDEFINED,       ObjectFlags::empty()),
+            (symbol_ty,             keyword::IDENT_SYMBOL,  TypeFlags::ES_SYMBOL,       ObjectFlags::empty()),
+            (void_ty,               keyword::KW_VOID,       TypeFlags::VOID,            ObjectFlags::empty()),
+            (never_ty,              keyword::IDENT_NEVER,   TypeFlags::NEVER,           ObjectFlags::empty()),
+            (null_ty,               keyword::KW_NULL,       TypeFlags::NULL,            ObjectFlags::empty()),
+            (false_ty,              keyword::KW_FALSE,      TypeFlags::BOOLEAN_LITERAL, ObjectFlags::empty()),
+            (regular_false_ty,      keyword::KW_FALSE,      TypeFlags::BOOLEAN_LITERAL, ObjectFlags::empty()),
+            (true_ty,               keyword::KW_TRUE,       TypeFlags::BOOLEAN_LITERAL, ObjectFlags::empty()),
+            (regular_true_ty,       keyword::KW_TRUE,       TypeFlags::BOOLEAN_LITERAL, ObjectFlags::empty()),
+            (number_ty,             keyword::IDENT_NUMBER,  TypeFlags::NUMBER,          ObjectFlags::empty()),
+            (string_ty,             keyword::IDENT_STRING,  TypeFlags::STRING,          ObjectFlags::empty()),
+            (bigint_ty,             keyword::IDENT_BIGINT,  TypeFlags::BIG_INT,         ObjectFlags::empty()),
+            (non_primitive_ty,      keyword::IDENT_OBJECT,  TypeFlags::NON_PRIMITIVE,   ObjectFlags::empty()),
+            (silent_never_ty,       keyword::IDENT_NEVER,   TypeFlags::NEVER,           ObjectFlags::NON_INFERRABLE_TYPE),
         });
 
         let restrictive_mapper = ty_arena.alloc(RestrictiveMapper);
@@ -352,8 +359,11 @@ impl<'cx> TyChecker<'cx> {
             regular_true_ty,
             number_ty,
             string_ty,
+            bigint_ty,
             non_primitive_ty,
             symbol_ty,
+            non_inferrable_any_ty,
+            intrinsic_marker_ty,
 
             restrictive_mapper,
             permissive_mapper,
@@ -449,10 +459,8 @@ impl<'cx> TyChecker<'cx> {
         this.type_name.insert(boolean_ty.id, "boolean".to_string());
         this.boolean_ty.set(boolean_ty).unwrap();
 
-        let string_or_number_ty = this.get_union_ty(
-            &[this.string_ty, this.number_ty /* TODO: symbol_ty */],
-            ty::UnionReduction::Lit,
-        );
+        let string_or_number_ty =
+            this.get_union_ty(&[this.string_ty, this.number_ty], ty::UnionReduction::Lit);
         this.string_or_number_ty.set(string_or_number_ty).unwrap();
 
         let string_number_symbol_ty = this.get_union_ty(
@@ -2206,8 +2214,16 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
-    fn is_tuple_like(&self, ty: &'cx ty::Ty<'cx>) -> bool {
-        ty.is_tuple() || ty.kind.is_array(self)
+    fn is_tuple_like(&mut self, ty: &'cx ty::Ty<'cx>) -> bool {
+        ty.is_tuple()
+            || (ty.kind.is_array(self)
+                && self
+                    .get_ty_of_prop_of_ty(ty, SymbolName::Ele(keyword::IDENT_LENGTH))
+                    .is_some_and(|length_ty| {
+                        self.every_type(length_ty, |_, t| {
+                            t.flags.intersects(TypeFlags::NUMBER_LITERAL)
+                        })
+                    }))
     }
 
     fn for_each_mapped_ty_prop_key_ty_and_index_sig_key_ty(
@@ -2281,6 +2297,48 @@ impl<'cx> TyChecker<'cx> {
 
     fn get_element_ty_of_array_ty(&mut self, ty: &'cx ty::Ty<'cx>) -> Option<&'cx ty::Ty<'cx>> {
         ty.kind.is_array(self).then(|| self.get_ty_arguments(ty)[0])
+    }
+
+    fn get_element_ty_of_slice_of_tuple_ty(
+        &mut self,
+        ty: &'cx ty::Ty<'cx>,
+        index: usize,
+        end_skip_count: Option<usize>,
+        writing: Option<bool>,
+        no_reductions: Option<bool>,
+    ) -> Option<&'cx ty::Ty<'cx>> {
+        let end_skip_count = end_skip_count.unwrap_or(0);
+        let writing = writing.unwrap_or(false);
+        let no_reductions = no_reductions.unwrap_or(false);
+        let length = Self::get_ty_reference_arity(ty) - end_skip_count;
+        let tup = ty.as_tuple().unwrap();
+        if index < length {
+            let ty_args = self.get_ty_arguments(ty);
+            let mut element_tys = Vec::with_capacity(length);
+            for i in index..length {
+                let t = ty_args[i];
+                let t = if tup.element_flags[i].intersects(ElementFlags::VARIADIC) {
+                    self.get_indexed_access_ty(t, self.number_ty, None, None)
+                } else {
+                    t
+                };
+                element_tys.push(t);
+            }
+            Some(if writing {
+                self.get_intersection_ty(&element_tys, IntersectionFlags::None, None, None)
+            } else {
+                self.get_union_ty(
+                    &element_tys,
+                    if no_reductions {
+                        ty::UnionReduction::None
+                    } else {
+                        ty::UnionReduction::Lit
+                    },
+                )
+            })
+        } else {
+            None
+        }
     }
 
     fn is_empty_literal_ty(&self, ty: &'cx ty::Ty<'cx>) -> bool {

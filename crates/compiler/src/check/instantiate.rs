@@ -1,9 +1,13 @@
+use std::borrow::Cow;
+
 use crate::ast::MappedTyModifiers;
 use crate::bind::SymbolID;
+use crate::keyword::{self, is_intrinsic_type_name};
 use crate::ty::{ObjectFlags, TyMapper, TypeFlags};
 use crate::{ast, ty};
 
 use super::create_ty::IntersectionFlags;
+use super::instantiation_ty_map::TyCacheTrait;
 use super::{InstantiationTyMap, TyChecker};
 
 impl<'cx> TyChecker<'cx> {
@@ -773,6 +777,77 @@ impl<'cx> TyChecker<'cx> {
         self.create_sig_instantiation(sig, ty_args)
     }
 
+    fn get_string_mapping_ty(
+        &mut self,
+        symbol: SymbolID,
+        ty: &'cx ty::Ty<'cx>,
+    ) -> &'cx ty::Ty<'cx> {
+        if ty.flags.intersects(TypeFlags::UNION | TypeFlags::NEVER) {
+            self.map_ty(
+                ty,
+                |this, t| Some(this.get_string_mapping_ty(symbol, t)),
+                false,
+            )
+            .unwrap()
+        } else if let Some(s) = ty.kind.as_string_lit() {
+            let atom = self.apply_string_mapping(symbol, s.val);
+            self.get_string_literal_type(atom)
+        } else if ty.flags.intersects(TypeFlags::TEMPLATE_LITERAL) {
+            todo!()
+        } else if ty.flags.intersects(TypeFlags::STRING_MAPPING) && Some(symbol) == ty.symbol() {
+            todo!()
+        } else if ty
+            .flags
+            .intersects(TypeFlags::ANY | TypeFlags::STRING | TypeFlags::STRING_MAPPING)
+            || self.is_generic_index_ty(ty)
+        {
+            self.get_string_mapping_ty_for_generic_ty(symbol, ty)
+        } else {
+            // TODO: if is_pattern_literal
+            ty
+        }
+    }
+
+    fn get_string_mapping_ty_for_generic_ty(
+        &mut self,
+        symbol: SymbolID,
+        ty: &'cx ty::Ty<'cx>,
+    ) -> &'cx ty::Ty<'cx> {
+        // TODO: string_mapping_tys cache
+        self.create_string_mapping_ty(symbol, ty)
+    }
+
+    fn apply_string_mapping(
+        &mut self,
+        symbol: SymbolID,
+        atom: bolt_ts_atom::AtomId,
+    ) -> bolt_ts_atom::AtomId {
+        let str = self.atoms.get(atom);
+        let ty = self.symbol(symbol).name().expect_atom();
+        let str = match ty {
+            keyword::INTRINSIC_TYPE_UPPERCASE => Cow::Owned(str.to_uppercase()),
+            keyword::INTRINSIC_TYPE_LOWERCASE => Cow::Owned(str.to_lowercase()),
+            keyword::INTRINSIC_TYPE_CAPITALIZE => {
+                let mut chars = str.chars();
+                let s = match chars.next() {
+                    Some(first) => first.to_uppercase().chain(chars).collect(),
+                    None => String::new(),
+                };
+                Cow::Owned(s)
+            }
+            keyword::INTRINSIC_TYPE_UNCAPITALIZE => {
+                let mut chars = str.chars();
+                let s = match chars.next() {
+                    Some(first) => first.to_lowercase().chain(chars).collect(),
+                    None => String::new(),
+                };
+                Cow::Owned(s)
+            }
+            _ => unreachable!(),
+        };
+        self.atoms.insert_by_str(str)
+    }
+
     pub(super) fn get_type_alias_instantiation(
         &mut self,
         symbol: SymbolID,
@@ -781,9 +856,18 @@ impl<'cx> TyChecker<'cx> {
         alias_ty_args: Option<ty::Tys<'cx>>,
     ) -> &'cx ty::Ty<'cx> {
         let ty = self.get_declared_ty_of_symbol(symbol);
-        let Some(ty_params) = self.get_symbol_links(symbol).get_ty_params() else {
-            unreachable!()
-        };
+        if ty == self.intrinsic_marker_ty {
+            let name = self.symbol(symbol).name().expect_atom();
+            assert!(is_intrinsic_type_name(name));
+            if ty_args.len() == 1 {
+                if name == keyword::INTRINSIC_TYPE_NOINFER {
+                    todo!("get_no_infer_ty")
+                } else {
+                    return self.get_string_mapping_ty(symbol, ty_args[0]);
+                }
+            }
+        }
+        let ty_params = self.get_symbol_links(symbol).expect_ty_params();
         let min_params_count = self.get_min_ty_arg_count(Some(ty_params));
         // TODO: cache
         let ty_args = self.fill_missing_ty_args(Some(ty_args), Some(ty_params), min_params_count);

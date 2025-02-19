@@ -36,6 +36,7 @@ impl<'cx> Ty<'cx> {
             TyKind::Lit(n) => n.span,
             TyKind::Paren(n) => n.span,
             TyKind::Infer(n) => n.span,
+            TyKind::Intrinsic(n) => n.span,
         }
     }
 
@@ -59,6 +60,7 @@ impl<'cx> Ty<'cx> {
             TyKind::Lit(n) => n.id,
             TyKind::Paren(n) => n.id,
             TyKind::Infer(n) => n.id,
+            TyKind::Intrinsic(_) => unreachable!(),
         }
     }
 
@@ -113,6 +115,12 @@ pub enum TyKind<'cx> {
     Pred(&'cx PredTy<'cx>),
     Paren(&'cx ParenTy<'cx>),
     Infer(&'cx InferTy<'cx>),
+    Intrinsic(&'cx IntrinsicTy),
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct IntrinsicTy {
+    pub span: Span,
 }
 
 #[derive(Debug, Clone, Copy)]

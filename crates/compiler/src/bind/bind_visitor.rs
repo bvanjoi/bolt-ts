@@ -1022,6 +1022,7 @@ impl<'cx, 'atoms> BinderState<'cx, 'atoms> {
             Infer(n) => {
                 self.bind_ty_param(n.ty_param);
             }
+            Intrinsic(_) => {}
         }
     }
 
