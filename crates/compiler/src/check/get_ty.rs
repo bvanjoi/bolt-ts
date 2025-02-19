@@ -10,6 +10,7 @@ use crate::ast::{self, EntityNameKind};
 
 use crate::bind::{SymbolFlags, SymbolID, SymbolName};
 use crate::keyword::is_prim_ty_name;
+use crate::parser::AssignmentKind;
 use crate::ty::{
     AccessFlags, CheckFlags, ElementFlags, IndexFlags, ObjectFlags, TyMapper, TypeFlags,
 };
@@ -549,6 +550,42 @@ impl<'cx> TyChecker<'cx> {
         .unwrap()
     }
 
+    fn is_assignment_to_readonly_entity(
+        &mut self,
+        expr: ast::NodeID,
+        symbol: SymbolID,
+        assignment_kind: AssignmentKind,
+    ) -> bool {
+        if assignment_kind == AssignmentKind::None {
+            return false;
+        }
+        let n = self.p.node(expr);
+        if self.is_readonly_symbol(symbol) {
+            // TODO: more case
+            return true;
+        } else if n.is_access_expr() {
+            let expr = if let Some(e) = n.as_ele_access_expr() {
+                e.expr
+            } else if let Some(e) = n.as_prop_access_expr() {
+                e.expr
+            } else {
+                unreachable!()
+            };
+            let n = self.p.skip_parens(expr.id());
+            let n = self.p.node(n);
+            if n.is_ident() {
+                let symbol = self.node_links[&n.id()].expect_resolved_symbol();
+                let flags = self.symbol(symbol).flags();
+                if flags.intersects(SymbolFlags::ALIAS) {
+                    return self
+                        .symbol_opt_decl(symbol)
+                        .is_some_and(|symbol| self.p.node(symbol).is_ns_import());
+                }
+            }
+        }
+        false
+    }
+
     fn get_prop_ty_for_index_ty(
         &mut self,
         origin_object_ty: &'cx Ty<'cx>,
@@ -583,10 +620,25 @@ impl<'cx> TyChecker<'cx> {
         } else {
             None
         };
-        let symbol =
-            symbol_name.and_then(|symbol_name| self.get_prop_of_ty(object_ty, symbol_name));
-        if let Some(symbol) = symbol {
-            let prop_ty = self.get_type_of_symbol(symbol);
+        let prop = symbol_name.and_then(|symbol_name| self.get_prop_of_ty(object_ty, symbol_name));
+        if let Some(prop) = prop {
+            if let Some(access_expr) = access_expr {
+                let assignment_target_kind = self.p.get_assignment_kind(access_expr);
+                if self.is_assignment_to_readonly_entity(access_expr, prop, assignment_target_kind)
+                {
+                    let error = errors::CannotAssignTo0BecauseItIsAReadOnlyProperty {
+                        span: self.p.node(access_expr).span(),
+                        prop: self.symbol(prop).name().to_string(self.atoms),
+                    };
+                    self.push_error(Box::new(error));
+                    return None;
+                }
+            }
+            let prop_ty = if access_flags.intersects(AccessFlags::WRITING) {
+                self.get_write_type_of_symbol(prop)
+            } else {
+                self.get_type_of_symbol(prop)
+            };
             return Some(prop_ty);
         }
 

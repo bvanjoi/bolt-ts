@@ -340,26 +340,26 @@ impl<'cx> TyChecker<'cx> {
     }
 
     fn get_tuple_base_ty(&mut self, ty: &'cx ty::TupleTy<'cx>) -> &'cx ty::Ty<'cx> {
-        let element_tys = ty
-            .ty_params()
-            .unwrap_or_default()
-            .iter()
-            .enumerate()
-            .map(|(idx, ty_arg)| {
-                if ty.element_flags[idx].intersects(ty::ElementFlags::VARIADIC) {
-                    self.get_indexed_access_ty(ty_arg, self.number_ty, None, None)
-                } else {
-                    ty_arg
-                }
-            })
-            .collect::<Vec<_>>();
-        let tys = if element_tys.is_empty() {
-            self.empty_array()
+        let readonly = ty.readonly;
+        let element_tys = ty.ty_params().map(|ty_params| {
+            ty_params
+                .iter()
+                .enumerate()
+                .map(|(i, t)| {
+                    if ty.element_flags[i].intersects(ty::ElementFlags::VARIADIC) {
+                        self.get_indexed_access_ty(t, self.number_ty, None, None)
+                    } else {
+                        t
+                    }
+                })
+                .collect::<Vec<_>>()
+        });
+        let ty = if let Some(element_tys) = element_tys {
+            self.get_union_ty(&element_tys, ty::UnionReduction::Lit)
         } else {
-            &element_tys
+            self.never_ty
         };
-        let ty = self.get_union_ty(tys, ty::UnionReduction::Lit);
-        self.create_array_ty(ty, false)
+        self.create_array_ty(ty, readonly)
     }
 
     fn get_base_tys(&mut self, ty: &'cx ty::Ty<'cx>) -> ty::Tys<'cx> {

@@ -144,7 +144,6 @@ impl<'cx> TyChecker<'cx> {
             return true;
         }
         let symbol_flags = self.symbol(symbol).flags();
-
         symbol_flags.intersects(SymbolFlags::PROPERTY)
             && self
                 .decl_modifier_flags_from_symbol(symbol)

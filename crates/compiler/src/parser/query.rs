@@ -79,11 +79,7 @@ impl<'cx> Parser<'cx> {
         while let Some(p) = parent {
             match self.node(p) {
                 ast::Node::AssignExpr(assign) => {
-                    return if let ast::ExprKind::Ident(binding) = assign.left.kind {
-                        (binding.id == id).then_some(assign.id)
-                    } else {
-                        None
-                    }
+                    return (assign.left.id() == id).then(|| assign.id);
                 }
                 ast::Node::BinExpr(_) => return None,
                 _ => return None,

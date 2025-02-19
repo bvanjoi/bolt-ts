@@ -89,7 +89,7 @@ impl<'cx> TyChecker<'cx> {
                 .unwrap_or_default();
             let min_ty_arg_count = self.get_min_ty_arg_count(Some(ty_params));
             if num_ty_args < min_ty_arg_count || num_ty_args > ty_params.len() {
-                let ty = self.binder.symbol(symbol).to_string(self.atoms).to_string();
+                let ty = self.binder.symbol(symbol).name.to_string(self.atoms);
                 let error: crate::Diag = if min_ty_arg_count == ty_params.len() {
                     Box::new(errors::GenericTypeXRequiresNTypeArguments {
                         span: node.span(),

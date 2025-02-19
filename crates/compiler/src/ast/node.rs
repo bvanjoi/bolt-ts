@@ -590,6 +590,10 @@ impl<'cx> Node<'cx> {
         self.as_ty_op()
             .is_some_and(|n| n.op == super::TyOpKind::Readonly)
     }
+
+    pub fn is_access_expr(&self) -> bool {
+        self.is_prop_access_expr() || self.is_ele_access_expr()
+    }
 }
 
 macro_rules! as_node {

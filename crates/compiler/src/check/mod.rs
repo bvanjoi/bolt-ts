@@ -121,6 +121,9 @@ impl F64Represent {
             inner: unsafe { std::mem::transmute::<f64, u64>(val) },
         }
     }
+    pub fn val(&self) -> f64 {
+        unsafe { std::mem::transmute::<u64, f64>(self.inner) }
+    }
 }
 
 impl From<f64> for F64Represent {
@@ -486,7 +489,7 @@ impl<'cx> TyChecker<'cx> {
         this.any_array_ty.set(any_array_ty).unwrap();
 
         let global_readonly_array_ty =
-            this.get_global_type(SymbolName::Normal(keyword::IDENT_ARRAY_CLASS));
+            this.get_global_type(SymbolName::Normal(keyword::IDENT_READONLY_ARRAY_CLASS));
         this.global_readonly_array_ty
             .set(global_readonly_array_ty)
             .unwrap();

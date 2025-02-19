@@ -395,3 +395,11 @@ pub(super) struct TypeParameterXHasACircularConstraint {
     pub span: Span,
     pub ty: String,
 }
+
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
+#[error("Cannot assign to '{prop}' because it is a read-only property.")]
+pub(super) struct CannotAssignTo0BecauseItIsAReadOnlyProperty {
+    #[label(primary)]
+    pub span: Span,
+    pub prop: String,
+}

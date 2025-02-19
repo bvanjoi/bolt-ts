@@ -1,28 +1,5 @@
 // From `github.com/sindresorhus/type-fest`, MIT License
 
-// type BuildTupleHelper<Element, Length extends number, Rest extends Element[]> =
-// 	Rest['length'] extends Length ?
-// 		readonly [...Rest] : // Terminate with readonly array (aka tuple)
-// 		BuildTupleHelper<Element, Length, [Element, ...Rest]>;
-
-// type ReadonlyTuple<Element, Length extends number> =
-//     number extends Length
-//       // Because `Length extends number` and `number extends Length`, then `Length` is not a specific finite number.
-//       ? readonly Element[] // It's not fixed length.
-//       : BuildTupleHelper<Element, Length, []>; // Otherwise it is a fixed length tuple.
-// {
-//   type TupleOfThreeStrings = ReadonlyTuple<string, 3>;
-
-//   const test: TupleOfThreeStrings = ['a', 'b', 'c'];
-
-//   const b0: TupleOfThreeStrings = ['a', 'b', 123];
-//   const b1: TupleOfThreeStrings = ['a'];
-//   const b2: TupleOfThreeStrings = ['a', 'b'];
-
-//   const _a: unknown = test.push;
-//   test[2] = 'a';
-// }
-
 function n(): never {
   throw new Error();
 }
@@ -541,8 +518,10 @@ type ReadonlyTuple<Element, Length extends number> =
   const b3: TupleOfThreeStrings = ['a', 'b', 'c', 'd'];
   //~^ ERROR: Type '[string, string, string, string]' is not assignable to type '[string, string, string]'.
 
-  // const _a: unknown = test.push;
-  // test[2] = 'a';
+  const _a: unknown = test.push;
+  //~^ ERROR: Property 'push' does not exist on type '[string, string, string]'.
+  test[2] = 'a';
+  //~^ ERROR: Cannot assign to '2' because it is a read-only property.
 }
   
 
