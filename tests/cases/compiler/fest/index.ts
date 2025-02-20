@@ -5,7 +5,44 @@ function n(): never {
 }
 
 type BuiltIns = Primitive | void | Date | RegExp;
+type IsBothExtends<BaseType, FirstType, SecondType> = FirstType extends BaseType
+	? SecondType extends BaseType
+		? true
+		: false
+	: false;
+type Numeric = number | bigint;
 type NonRecursiveType = BuiltIns | Function | (new (...arguments_: any[]) => unknown);
+type StringDigit = '0' | '1' | '2' | '3' | '4' | '5' | '6' | '7' | '8' | '9';
+type UpperCaseCharacters = 'A' | 'B' | 'C' | 'D' | 'E' | 'F' | 'G' | 'H' | 'I' | 'J' | 'K' | 'L' | 'M' | 'N' | 'O' | 'P' | 'Q' | 'R' | 'S' | 'T' | 'U' | 'V' | 'W' | 'X' | 'Y' | 'Z';
+type Whitespace =
+	| '\u{9}' // '\t'
+	| '\u{A}' // '\n'
+	| '\u{B}' // '\v'
+	| '\u{C}' // '\f'
+	| '\u{D}' // '\r'
+	| '\u{20}' // ' '
+	| '\u{85}'
+	| '\u{A0}'
+	| '\u{1680}'
+	| '\u{2000}'
+	| '\u{2001}'
+	| '\u{2002}'
+	| '\u{2003}'
+	| '\u{2004}'
+	| '\u{2005}'
+	| '\u{2006}'
+	| '\u{2007}'
+	| '\u{2008}'
+	| '\u{2009}'
+	| '\u{200A}'
+	| '\u{2028}'
+	| '\u{2029}'
+	| '\u{202F}'
+	| '\u{205F}'
+	| '\u{3000}'
+	| '\u{FEFF}';
+type WordSeparators = '-' | '_' | Whitespace;
+type Zero = 0 | 0n;
 
 // =========== And ===========
 type And<A extends boolean, B extends boolean> = [A, B][number] extends true
@@ -133,6 +170,19 @@ type Arrayable<T> = T | T[];
   const c1: number[] = castArray2([1, 2, 3]);
 }
 
+// ========== BuildTuple ==========
+type BuildTuple<L extends number, Fill = unknown, T extends readonly unknown[] = []> = number extends L
+	? Fill[]
+	: L extends T['length']
+		? T
+		: BuildTuple<L, Fill, [...T, Fill]>;
+{
+  const a0: BuildTuple<3, null> = [null, null, null];
+  const a1: BuildTuple<5, 0> = [0, 0, 0, 0, 0];
+  const a2: BuildTuple<0, 0> = [];
+  const a3: BuildTuple<2 | 3, 0> = {} as [0, 0] | [0, 0, 0];
+  const a4: BuildTuple<number, 0> = {} as Array<0>;
+}
 
 // ======= HasMultipleCallSignatures =======
 type HasMultipleCallSignatures<T extends (...arguments_: any[]) => unknown> =
@@ -159,8 +209,8 @@ type HasMultipleCallSignatures<T extends (...arguments_: any[]) => unknown> =
 		baz: boolean[];
 	};
 	
-	// const a0: true = {} as HasMultipleCallSignatures<Overloaded>;
-	// const a1: true = {} as HasMultipleCallSignatures<Overloaded2>;
+	const a0: true = {} as HasMultipleCallSignatures<Overloaded>;
+	const a1: false = {} as HasMultipleCallSignatures<Overloaded2>; // dependent on `strictNullChecks` and `strictFunctionTypes`
 	const a2: false = {} as HasMultipleCallSignatures<Namespace>;
 }
 		
@@ -851,6 +901,23 @@ type TaggedUnion<
   //~^ ERROR: Type '{ tag: "num"; b: string; }' is not assignable to type 'mapped type & { a: string; } | mapped type & { b: number; }'.
   const b1: Union = failsToo;
   //~^ ERROR: Type '{ tag: "str"; b: number; }' is not assignable to type 'mapped type & { a: string; } | mapped type & { b: number; }'.
+}
+
+// =========== TupleLength ===========
+type TupleLength<T extends UnknownArray> =
+	// `extends unknown` is used to convert `T` (if `T` is a union type) to
+	// a [distributive conditionaltype](https://www.typescriptlang.org/docs/handbook/release-notes/typescript-2-8.html#distributive-conditional-types))
+	T extends unknown
+		? number extends T['length']
+			? never // Return never if the given type is an non-flexed-length array like `Array<string>`
+			: T['length']
+		: never;
+{
+  const a0: TupleLength<[string, number, boolean]> = 42;
+  //~^ ERROR: Type '42' is not assignable to type '3'.
+  const a1: TupleLength<string[]> = n();
+  const a2: TupleLength<[] | [1, 2, 3] | Array<number>> = 42;
+  //~^ ERROR: Type 'number' is not assignable to type '3 | 0'.
 }
 
 // ========== TupleToUnion ==========

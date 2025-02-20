@@ -580,6 +580,13 @@ impl<'cx> TyChecker<'cx> {
             } else {
                 self.empty_array()
             };
+            // let ty_params = if target
+            //     .get_object_flags()
+            //     .intersects(ObjectFlags::REFERENCE | ObjectFlags::INSTANTIATION_EXPRESSION_TYPE)
+            // {
+            // } else {
+            //     outer_params
+            // };
             self.get_mut_node_links(decl)
                 .set_outer_ty_params(outer_params);
             outer_params

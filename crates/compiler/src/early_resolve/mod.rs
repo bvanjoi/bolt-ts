@@ -402,7 +402,6 @@ impl<'cx> Resolver<'cx, '_, '_> {
                 self.resolve_call_like_expr(new);
             }
             Bin(bin) => {
-                dbg!(bin);
                 self.resolve_expr(bin.left);
                 self.resolve_expr(bin.right);
             }

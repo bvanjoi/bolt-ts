@@ -557,7 +557,7 @@ impl<'cx> ParserState<'cx, '_> {
                 });
                 Ok(ty)
             }
-            Number | String => {
+            Number | String | BigInt => {
                 let token_val = self.token_value.unwrap();
                 if let Some(node) = self.try_parse(Self::parse_keyword_and_not_dot)? {
                     let ty = match node.kind {
@@ -573,6 +573,15 @@ impl<'cx> ParserState<'cx, '_> {
                         String => {
                             let val = token_val.ident();
                             let kind = ast::LitTyKind::String(val);
+                            let lit = self.create_lit_ty(kind, self.token.span);
+                            self.insert_map(lit.id, ast::Node::LitTy(lit));
+                            self.alloc(ast::Ty {
+                                kind: ast::TyKind::Lit(lit),
+                            })
+                        }
+                        BigInt => {
+                            let val = token_val.ident();
+                            let kind = ast::LitTyKind::BigInt(val);
                             let lit = self.create_lit_ty(kind, self.token.span);
                             self.insert_map(lit.id, ast::Node::LitTy(lit));
                             self.alloc(ast::Ty {

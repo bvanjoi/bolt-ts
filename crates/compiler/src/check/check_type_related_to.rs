@@ -1380,6 +1380,7 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
         report_error: bool,
         intersection_state: IntersectionState,
     ) -> Ternary {
+        let mut result = Ternary::TRUE;
         if self.relation == RelationKind::Identity {
             return self.index_sigs_identical_to(source, target);
         };
@@ -1411,18 +1412,18 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
                 intersection_state,
             );
         } else {
-            for t in target_sigs {
+            'outer: for t in target_sigs {
                 for s in source_sigs {
-                    if self.sig_related_to(s, t, true, report_error, intersection_state)
-                        != Ternary::FALSE
-                    {
-                        continue;
+                    let related = self.sig_related_to(s, t, true, report_error, intersection_state);
+                    if related != Ternary::FALSE {
+                        result &= related;
+                        continue 'outer;
                     }
                 }
                 return Ternary::FALSE;
             }
         }
-        Ternary::TRUE
+        result
     }
 
     fn sig_related_to(

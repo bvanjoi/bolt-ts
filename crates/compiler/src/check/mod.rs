@@ -1674,8 +1674,8 @@ impl<'cx> TyChecker<'cx> {
             Instanceof => self.boolean_ty(),
             In => self.check_in_expr(left, left_ty, right, right_ty),
             Satisfies => todo!(),
-            BangEq => todo!(),
-            BangEqEq => todo!(),
+            NEq => self.boolean_ty(),
+            NEqEq => self.boolean_ty(),
         }
     }
 

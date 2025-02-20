@@ -147,18 +147,20 @@ impl ParserState<'_, '_> {
         if self.ch() == Some(b'e') || self.ch() == Some(b'E') {
             todo!()
         }
-        if self.ch() == Some(b'n') {
-            todo!()
-        }
+        let kind = if self.ch() == Some(b'n') {
+            self.pos += 1;
+            let value = self.atoms.lock().unwrap().insert_by_vec(fragment);
+            self.token_value = Some(TokenValue::Ident { value });
+            TokenKind::BigInt
+        } else {
+            let num = unsafe { String::from_utf8_unchecked(fragment) }
+                .parse::<f64>()
+                .unwrap();
+            self.token_value = Some(TokenValue::Number { value: num });
+            TokenKind::Number
+        };
         let end = self.pos;
-        let num = unsafe { String::from_utf8_unchecked(fragment) }
-            .parse::<f64>()
-            .unwrap();
-        self.token_value = Some(TokenValue::Number { value: num });
-        Token::new(
-            TokenKind::Number,
-            Span::new(start as u32, end as u32, self.module_id),
-        )
+        Token::new(kind, Span::new(start as u32, end as u32, self.module_id))
     }
 
     // From `quickjs/cutils.c/unicode_from_utf8`
@@ -525,7 +527,7 @@ impl ParserState<'_, '_> {
                     )
                 }
                 b'!' if self.next_ch() == Some(b'=') => {
-                    let kind = if self.next_next_ch() == Some(b'.') {
+                    let kind = if self.next_next_ch() == Some(b'=') {
                         self.pos += 3;
                         TokenKind::BangEqEq
                     } else {

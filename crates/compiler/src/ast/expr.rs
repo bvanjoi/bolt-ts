@@ -425,8 +425,8 @@ pub enum BinOpKind {
     LogicalAnd,
     EqEq,
     EqEqEq,
-    BangEq,
-    BangEqEq,
+    NEq,
+    NEqEq,
     Instanceof,
     In,
     Satisfies,
@@ -456,8 +456,8 @@ impl BinOpKind {
             Instanceof => "instanceof",
             In => "in",
             Satisfies => "satisfies",
-            BangEq => "!=",
-            BangEqEq => "!==",
+            NEq => "!=",
+            NEqEq => "!==",
         }
     }
 

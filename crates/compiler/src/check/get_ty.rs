@@ -258,6 +258,11 @@ impl<'cx> TyChecker<'cx> {
                         let ty = self.get_string_literal_type(n);
                         self.get_regular_ty_of_literal_ty(ty)
                     }
+                    BigInt(n) => {
+                        todo!()
+                        // let ty = self.get_big_int_literal_type(n);
+                        // self.get_regular_ty_of_literal_ty(ty)
+                    }
                 }
             }
             Paren(n) => self.get_ty_from_type_node(n.ty),

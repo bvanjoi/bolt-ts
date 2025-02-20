@@ -33,15 +33,6 @@ pub const fn keyword_idx_to_token(idx: usize) -> TokenKind {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum TokenKind {
-    // =====
-    EOF,
-    /// number literal
-    Number,
-    /// string literal
-    String,
-    Ident,
-    NoSubstitutionTemplate,
-    // ======
     /// `=>`
     EqGreat,
     /// `...`
@@ -216,6 +207,16 @@ pub enum TokenKind {
     Infer,
     Intrinsic,
     Type,
+    // =====
+    EOF,
+    /// number literal
+    Number,
+    /// string literal
+    String,
+    /// bigint literal
+    BigInt,
+    Ident,
+    NoSubstitutionTemplate,
 }
 
 impl TokenKind {
@@ -360,6 +361,8 @@ impl From<TokenKind> for ast::BinOpKind {
             TokenKind::Instanceof => Instanceof,
             TokenKind::In => In,
             TokenKind::Satisfies => Satisfies,
+            TokenKind::BangEq => NEq,
+            TokenKind::BangEqEq => NEqEq,
             _ => {
                 unreachable!("{:#?}", value)
             }

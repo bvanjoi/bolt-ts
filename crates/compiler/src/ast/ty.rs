@@ -162,6 +162,7 @@ pub enum LitTyKind {
     Void,
     Num(f64),
     String(AtomId),
+    BigInt(AtomId),
 }
 
 #[derive(Debug, Clone, Copy)]
