@@ -72,6 +72,7 @@ pub enum Node<'cx> {
     CatchClause(&'cx super::CatchClause<'cx>),
     ObjectBindingElem(&'cx super::ObjectBindingElem<'cx>),
     ObjectPat(&'cx super::ObjectPat<'cx>),
+    DebuggerStmt(&'cx super::DebuggerStmt),
 
     // expr
     VarDecl(&'cx super::VarDecl<'cx>),
@@ -107,6 +108,7 @@ pub enum Node<'cx> {
     QualifiedName(&'cx super::QualifiedName<'cx>),
     AsExpr(&'cx super::AsExpr<'cx>),
     SatisfiesExpr(&'cx super::SatisfiesExpr<'cx>),
+    NonNullExpr(&'cx super::NonNullExpr<'cx>),
 
     // ty
     LitTy(&'cx super::LitTy),
@@ -213,7 +215,8 @@ impl<'cx> Node<'cx> {
             Cond,
             Union,
             Intersection,
-            Mapped
+            Mapped,
+            Infer,
         )
     }
 
@@ -654,6 +657,7 @@ as_node!(
     (BlockStmt, super::BlockStmt<'cx>, block_stmt),
     (VarDecl, super::VarDecl<'cx>, var_decl),
     (BinExpr, super::BinExpr<'cx>, bin_expr),
+    (NonNullExpr, super::NonNullExpr<'cx>, non_null_expr),
     (NumLit, super::NumLit, num_lit),
     (BoolLit, super::BoolLit, bool_lit),
     (NullLit, super::NullLit, null_lit),
@@ -735,6 +739,7 @@ as_node!(
     (CtorSigDecl, super::CtorSigDecl<'cx>, ctor_sig_decl),
     (CallSigDecl, super::CallSigDecl<'cx>, call_sig_decl),
     (InterfaceDecl, super::InterfaceDecl<'cx>, interface_decl),
+    (DebuggerStmt, super::DebuggerStmt, debugger_stmt),
     (PropSignature, super::PropSignature<'cx>, prop_signature),
     (
         MethodSignature,

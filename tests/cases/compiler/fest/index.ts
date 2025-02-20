@@ -4,16 +4,8 @@ function n(): never {
   throw new Error();
 }
 
-type Primitive =
-	| null
-	| undefined
-	| string
-	| number
-	| boolean
-	| symbol
-	| bigint;
-
 type BuiltIns = Primitive | void | Date | RegExp;
+type NonRecursiveType = BuiltIns | Function | (new (...arguments_: any[]) => unknown);
 
 // =========== And ===========
 type And<A extends boolean, B extends boolean> = [A, B][number] extends true
@@ -141,6 +133,99 @@ type Arrayable<T> = T | T[];
   const c1: number[] = castArray2([1, 2, 3]);
 }
 
+
+// ======= HasMultipleCallSignatures =======
+type HasMultipleCallSignatures<T extends (...arguments_: any[]) => unknown> =
+	T extends {(...arguments_: infer A): unknown; (...arguments_: infer B): unknown}
+		? B extends A
+			? A extends B
+				? false
+				: true
+			: true
+		: false;
+{
+	type Overloaded = {
+		(foo: number): string;
+		(foo: string, bar: number): number;
+	};
+	
+	type Overloaded2 = {
+		(foo: number | undefined): string;
+		(foo: number): string;
+	};
+	
+	type Namespace = {
+		(foo: number): string;
+		baz: boolean[];
+	};
+	
+	// const a0: true = {} as HasMultipleCallSignatures<Overloaded>;
+	// const a1: true = {} as HasMultipleCallSignatures<Overloaded2>;
+	const a2: false = {} as HasMultipleCallSignatures<Namespace>;
+}
+		
+// ======= HasOptionalKeys =======
+type HasOptionalKeys<BaseType extends object> = OptionalKeysOf<BaseType> extends never ? false : true;
+{
+  type TestType1 = {
+    a: string;
+    b?: boolean;
+  };
+  
+  type TestType2 = {
+    a?: string;
+    b?: boolean;
+  };
+  
+  type TestType3 = {
+    a: string;
+    b: boolean;
+  };
+  
+  type HasOptionalKeys1 = HasOptionalKeys<TestType1>;
+  type HasOptionalKeys2 = HasOptionalKeys<TestType2>;
+  type HasOptionalKeys3 = HasOptionalKeys<TestType3>;
+  
+  const test1: HasOptionalKeys1 = true;
+  const test2: HasOptionalKeys2 = true;
+  const test3: HasOptionalKeys3 = false;
+  
+  const a0: true = test1;
+  const a1: true = test2;
+  const a2: false = test3;
+}
+
+// ======= HasReadonlyKeys =======
+type HasReadonlyKeys<BaseType extends object> = ReadonlyKeysOf<BaseType> extends never ? false : true;
+{
+  type TestType1 = {
+    a: string;
+    readonly b: boolean;
+  };
+  
+  type TestType2 = {
+    readonly a: string;
+    readonly b: boolean;
+  };
+  
+  type TestType3 = {
+    a: string;
+    b: boolean;
+  };
+  
+  type HasReadonlyKeys1 = HasReadonlyKeys<TestType1>;
+  type HasReadonlyKeys2 = HasReadonlyKeys<TestType2>;
+  type HasReadonlyKeys3 = HasReadonlyKeys<TestType3>;
+  
+  const test1: HasReadonlyKeys1 = true;
+  const test2: HasReadonlyKeys2 = true;
+  const test3: HasReadonlyKeys3 = false;
+  
+  const a0: true = test1;
+  const a1: true = test2;
+  const a2: false = test3;
+}
+
 // ======= HasRequiredKeys =======
 type HasRequiredKeys<BaseType extends object> = RequiredKeysOf<BaseType> extends never ? false : true;
 {
@@ -172,7 +257,7 @@ type HasRequiredKeys<BaseType extends object> = RequiredKeysOf<BaseType> extends
   const a2: true = test3;
 }
 
-// ======= HasRequiredKeys =======
+// ======= HasWritableKeys =======
 type HasWritableKeys<BaseType extends object> = WritableKeysOf<BaseType> extends never ? false : true;
 {
   type TestType1 = {
@@ -256,7 +341,6 @@ type IfUnknown<T, TypeIfUnknown = true, TypeIfNotUnknown = false> = (
 // TS5.4+ only. Tracked in https://github.com/sindresorhus/type-fest/issues/848
 type NoInfer<T> = T extends infer U ? U : never;
 type IsAny<T> = 0 extends 1 & NoInfer<T> ? true : false;
-
 {
   const anything: any = 1;
   const something = 'something';
@@ -355,6 +439,25 @@ type IsNever<T> = [T] extends [never] ? true : false;
   //~^ ERROR: Generic type 'IsNever' requires 1 type argument.
 }
 
+// =========== IsNotFalse ===========
+type IsNotFalse<T extends boolean> = [T] extends [false] ? false : true;
+{
+  const a0: IsNotFalse<true> = false;
+  //~^ ERROR: Type 'false' is not assignable to type 'true'.
+  const a1: IsNotFalse<boolean> = false;
+  //~^ ERROR: Type 'false' is not assignable to type 'true'.
+  const a2: IsNotFalse<true | false> = false;
+  //~^ ERROR: Type 'false' is not assignable to type 'true'.
+  const a3: IsNotFalse<true | false | false | false> = false;
+  //~^ ERROR: Type 'false' is not assignable to type 'true'.
+  const a4: IsNotFalse<false> = true;
+  //~^ ERROR: Type 'true' is not assignable to type 'false'.
+  const a5: IsNotFalse<false | false> = true;
+  //~^ ERROR: Type 'true' is not assignable to type 'false'.
+  const a6: IsNotFalse<false | false | false | false> = true;
+  //~^ ERROR: Type 'true' is not assignable to type 'false'.
+}
+
 // =========== isNull ===========
 type IsNull<T> = [T] extends [null] ? true : false;
 {
@@ -365,6 +468,55 @@ type IsNull<T> = [T] extends [null] ? true : false;
   const a4: IsNull<unknown> = false;
   const a5: IsNull<void> = false;
   const a6: IsNull<{}> = false;
+}
+
+// =========== IsPrimitive ===========
+type IsPrimitive<T> = [T] extends [Primitive] ? true : false;
+{
+  let a: IsPrimitive<'string'> = true;
+  let b: IsPrimitive<string> = true;
+  let c: IsPrimitive<Object> = false;
+}
+
+// =========== IsUnion ===========
+type IsUnion<T> = InternalIsUnion<T>;
+
+/**
+The actual implementation of `IsUnion`.
+*/
+type InternalIsUnion<T, U = T> =
+(
+	// @link https://ghaiklor.github.io/type-challenges-solutions/en/medium-isunion.html
+	IsNever<T> extends true
+		? false
+		: T extends any
+			? [U] extends [T]
+				? false
+				: true
+			: never
+) extends infer Result
+	// In some cases `Result` will return `false | true` which is `boolean`,
+	// that means `T` has at least two types and it's a union type,
+	// so we will return `true` instead of `boolean`.
+	? boolean extends Result ? true
+		: Result
+	: never; // Should never happen
+{
+  const a0: IsUnion<1> = false;
+  const a1: IsUnion<true> = false;
+  const a2: IsUnion<'foo'> = false;
+  const a3: IsUnion<[]> = false;
+  const a4: IsUnion<{}> = false;
+  const a5: IsUnion<1 & {}> = false;
+  const a6: IsUnion<never> = false;
+  const a7: IsUnion<unknown> = false;
+  const a8: IsUnion<any> = false;
+
+  const b0: IsUnion<1 | 2> = true;
+  const b1: IsUnion<'foo' | 'bar'> = true;
+  const b2: IsUnion<'foo' | 'bar' | 1> = true;
+  const b3: IsUnion<'foo' | 1> = true;
+  const b4: IsUnion<[] | {}> = true;
 }
 
 // =========== isUnknown ===========
@@ -402,6 +554,19 @@ type NonEmptyTuple<T = unknown> = readonly [T, ...T[]];
   const a1: number = sum(1);
   sum();
   //~^ ERROR: Expected 1 arguments, but got 0.
+}
+
+// ============== Not ==============
+type Not<A extends boolean> = A extends true
+	? false
+	: A extends false
+		? true
+		: never;
+{
+	const a0: Not<true> = false;
+	const a1: Not<false> = true;
+	// FIXME
+	const a2: Not<boolean> = null! as boolean;
 }
 
 // ========= OptionalKeysOf =========
@@ -491,6 +656,59 @@ type RequiredKeysOf<BaseType extends object> = Exclude<{
   const a0: 'a' = test1;
   const a1: never = test2;
   const a2: 'a' | 'b' = test3;
+}
+
+// =========== Primitive ===========
+type Primitive =
+	| null
+	| undefined
+	| string
+	| number
+	| boolean
+	| symbol
+	| bigint;
+
+// ========== Promisable ==========
+type Promisable<T> = T | PromiseLike<T>;
+{
+  const promisable: Promisable<string> = '';
+  const a0: PromiseLike<string> | string = promisable;
+  const a1: Promisable<string> = Promise.resolve(42);
+}
+
+// ======== ReadonlyKeysOf ========
+type ReadonlyKeysOf<T> = NonNullable<{
+	[P in keyof T]: IsEqual<{[Q in P]: T[P]}, {readonly [Q in P]: T[P]}> extends true ? P : never
+}[keyof T]>;
+{
+  type TestType1 = {
+    a: string;
+    readonly b: boolean;
+  };
+  
+  type TestType2 = {
+    readonly a: string;
+    readonly b: boolean;
+  };
+  
+  type TestType3 = {
+    a: string;
+    b: boolean;
+  };
+  
+  type ReadonlyKeysOf1 = ReadonlyKeysOf<TestType1>;
+  type ReadonlyKeysOf2 = ReadonlyKeysOf<TestType2>;
+  type ReadonlyKeysOf3 = ReadonlyKeysOf<TestType3>;
+  
+  const test1: ReadonlyKeysOf1 = 'b';
+  const test2: ReadonlyKeysOf2 = 'a';
+  const test3: ReadonlyKeysOf2 = 'b';
+  const test4: ReadonlyKeysOf3 = n();
+  
+  const a0: 'b' = test1;
+  const a1: 'a' = test2;
+  const a3: 'b' = test3;
+  const a2: never = test4;
 }
 
 // ========= ReadonlyTuple =========

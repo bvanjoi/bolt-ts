@@ -885,6 +885,21 @@ impl<'cx> ParserState<'cx, '_> {
                 continue;
             }
 
+            if self.token.kind == TokenKind::Excl && !self.has_preceding_line_break() {
+                self.next_token();
+                let id = self.next_node_id();
+                self.parent_map.r#override(expr.id(), id);
+                let ele = self.alloc(ast::NonNullExpr {
+                    id,
+                    span: self.new_span(start as u32),
+                    expr,
+                });
+                self.insert_map(id, ast::Node::NonNullExpr(ele));
+                expr = self.alloc(ast::Expr {
+                    kind: ast::ExprKind::NonNull(ele),
+                });
+            }
+
             return Ok(expr);
         }
     }

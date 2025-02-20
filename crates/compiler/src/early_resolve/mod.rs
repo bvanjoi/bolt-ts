@@ -77,6 +77,10 @@ pub(super) struct Resolver<'cx, 'r, 'atoms> {
 }
 
 impl<'cx> Resolver<'cx, '_, '_> {
+    fn locals(&self, id: ast::NodeID) -> Option<&FxHashMap<SymbolName, SymbolID>> {
+        self.states[id.module().as_usize()].locals.get(&id)
+    }
+
     fn symbol(&self, symbol_id: SymbolID) -> &crate::bind::Symbol {
         self.states[symbol_id.module().as_usize()]
             .symbols
@@ -105,14 +109,14 @@ impl<'cx> Resolver<'cx, '_, '_> {
             Empty(_) => {}
             Class(class) => self.resolve_class_decl(class),
             Interface(interface) => self.resolve_interface_decl(interface),
-            Type(ty) => self.resolve_type_decl(ty),
+            Type(node) => self.resolve_type_decl(node),
             Namespace(ns) => self.resolve_ns_decl(ns),
             Throw(t) => {
                 self.resolve_expr(t.expr);
             }
-            Enum(enum_decl) => {}
-            Import(import_decl) => {}
-            Export(export_decl) => {}
+            Enum(_) => {}
+            Import(_) => {}
+            Export(_) => {}
             For(n) => {
                 if let Some(cond) = n.cond {
                     self.resolve_expr(cond);
@@ -143,6 +147,7 @@ impl<'cx> Resolver<'cx, '_, '_> {
             Try(n) => {}
             While(n) => {}
             Do(n) => {}
+            Debugger(_) => {}
         };
     }
 
@@ -249,14 +254,17 @@ impl<'cx> Resolver<'cx, '_, '_> {
                 self.resolve_params(f.params);
                 self.resolve_ty(f.ty);
             }
+            Ctor(node) => {
+                if let Some(ty_params) = node.ty_params {
+                    self.resolve_ty_params(ty_params);
+                }
+                self.resolve_params(node.params);
+                self.resolve_ty(node.ty);
+            }
             ObjectLit(lit) => {
                 for member in lit.members {
                     self.resolve_object_ty_member(member);
                 }
-            }
-            Ctor(node) => {
-                self.resolve_params(node.params);
-                self.resolve_ty(node.ty);
             }
             Tuple(tuple) => {
                 for ty in tuple.tys {
@@ -376,6 +384,14 @@ impl<'cx> Resolver<'cx, '_, '_> {
     fn resolve_expr(&mut self, expr: &'cx ast::Expr<'cx>) {
         use ast::ExprKind::*;
         match expr.kind {
+            ArrowFn(f) => {
+                self.resolve_params(f.params);
+                use ast::ArrowFnExprBody::*;
+                match f.body {
+                    Block(block) => self.resolve_block_stmt(block),
+                    Expr(expr) => self.resolve_expr(expr),
+                }
+            }
             Ident(ident) => {
                 self.resolve_value_by_ident(ident);
             }
@@ -386,6 +402,7 @@ impl<'cx> Resolver<'cx, '_, '_> {
                 self.resolve_call_like_expr(new);
             }
             Bin(bin) => {
+                dbg!(bin);
                 self.resolve_expr(bin.left);
                 self.resolve_expr(bin.right);
             }
@@ -405,14 +422,6 @@ impl<'cx> Resolver<'cx, '_, '_> {
                 self.resolve_expr(cond.when_false);
             }
             Paren(paren) => self.resolve_expr(paren.expr),
-            ArrowFn(f) => {
-                self.resolve_params(f.params);
-                use ast::ArrowFnExprBody::*;
-                match f.body {
-                    Block(block) => self.resolve_block_stmt(block),
-                    Expr(expr) => self.resolve_expr(expr),
-                }
-            }
             Fn(f) => {
                 self.resolve_params(f.params);
                 self.resolve_block_stmt(f.body);
@@ -599,6 +608,7 @@ pub(super) fn resolve_symbol_by_ident<'a, 'cx, 'atoms>(
 ) -> ResolvedResult {
     let binder = &resolver.states[resolver.module_id.as_usize()];
     let key = SymbolName::Normal(ident.name);
+    // TODO: use locals rather than scope.
     let Some(mut scope_id) = binder.node_id_to_scope_id.get(&ident.id).copied() else {
         let name = ast::debug_ident(ident, resolver.atoms);
         unreachable!("the scope of {name:?} is not stored");
@@ -611,7 +621,7 @@ pub(super) fn resolve_symbol_by_ident<'a, 'cx, 'atoms>(
                 if symbol.flags.intersects(meaning) {
                     let container = symbol.expect_block_container();
                     if let Some(id) = container.locals.get(&key) {
-                        break ResolvedResult {
+                        return ResolvedResult {
                             symbol: *id,
                             associated_declaration_for_containing_initializer_or_binding_name,
                         };
@@ -629,7 +639,7 @@ pub(super) fn resolve_symbol_by_ident<'a, 'cx, 'atoms>(
                     .parent(ident.id)
                     .is_some_and(|n| resolver.p.node(n).is_qualified_name())
             {
-                break ResolvedResult {
+                return ResolvedResult {
                     symbol: id,
                     associated_declaration_for_containing_initializer_or_binding_name,
                 };
@@ -646,7 +656,7 @@ pub(super) fn resolve_symbol_by_ident<'a, 'cx, 'atoms>(
                 }
             }
             if symbol.flags.intersects(meaning) {
-                break ResolvedResult {
+                return ResolvedResult {
                     symbol: id,
                     associated_declaration_for_containing_initializer_or_binding_name,
                 };
@@ -656,15 +666,30 @@ pub(super) fn resolve_symbol_by_ident<'a, 'cx, 'atoms>(
         if let Some(parent) = binder.scope_id_parent_map[scope_id.index_as_usize()] {
             scope_id = parent;
         } else if let Some(symbol) = resolver.global.get(key) {
-            break ResolvedResult {
+            return ResolvedResult {
                 symbol,
                 associated_declaration_for_containing_initializer_or_binding_name,
             };
         } else {
-            break ResolvedResult {
-                symbol: Symbol::ERR,
-                associated_declaration_for_containing_initializer_or_binding_name,
-            };
+            break;
         }
+    }
+
+    let mut location = resolver.p.parent(ident.id);
+    while let Some(id) = location {
+        if let Some(locals) = resolver.locals(id) {
+            if let Some(symbol) = locals.get(&SymbolName::Normal(ident.name)).copied() {
+                return ResolvedResult {
+                    symbol,
+                    associated_declaration_for_containing_initializer_or_binding_name,
+                };
+            }
+        }
+        location = resolver.p.parent(id);
+    }
+
+    ResolvedResult {
+        symbol: Symbol::ERR,
+        associated_declaration_for_containing_initializer_or_binding_name,
     }
 }

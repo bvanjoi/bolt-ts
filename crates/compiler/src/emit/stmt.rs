@@ -33,6 +33,7 @@ impl<'cx> Emit<'cx> {
             Interface(_) => {}
             Type(_) => {}
             Empty(_) => {}
+            Debugger(_) => self.content.p("debugger"),
         }
     }
 

@@ -41,9 +41,23 @@ impl<'cx> ParserState<'cx, '_> {
             Try => ast::StmtKind::Try(self.parse_try_stmt()?),
             While => ast::StmtKind::While(self.parse_while_stmt()?),
             Do => ast::StmtKind::Do(self.parse_do_stmt()?),
+            Debugger => ast::StmtKind::Debugger(self.parse_debugger_stmt()?),
             _ => ast::StmtKind::Expr(self.parse_expr_or_labeled_stmt()?),
         };
         let stmt = self.alloc(ast::Stmt { kind });
+        Ok(stmt)
+    }
+
+    fn parse_debugger_stmt(&mut self) -> PResult<&'cx ast::DebuggerStmt> {
+        let id = self.next_node_id();
+        let start = self.token.start();
+        self.expect(TokenKind::Debugger);
+        self.parse_optional(TokenKind::Semi);
+        let stmt = self.alloc(ast::DebuggerStmt {
+            id,
+            span: self.new_span(start),
+        });
+        self.insert_map(id, ast::Node::DebuggerStmt(stmt));
         Ok(stmt)
     }
 

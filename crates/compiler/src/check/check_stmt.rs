@@ -31,6 +31,7 @@ impl<'cx> TyChecker<'cx> {
             Try(_) => {}
             While(_) => {}
             Do(_) => {}
+            Debugger(n) => {}
         };
     }
 

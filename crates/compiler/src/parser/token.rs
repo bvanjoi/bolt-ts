@@ -476,7 +476,7 @@ impl TokenKind {
             Plus | Minus => BinPrec::Additive,
             PipePipe => BinPrec::LogicalOr,
             AmpAmp => BinPrec::LogicalAnd,
-            EqEq | EqEqEq => BinPrec::Eq,
+            BangEq | BangEqEq | EqEq | EqEqEq => BinPrec::Eq,
             Asterisk | Slash | Percent => BinPrec::Multiplicative,
             _ => BinPrec::Invalid,
         }

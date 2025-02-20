@@ -40,6 +40,7 @@ impl Expr<'_> {
             Void(n) => n.span,
             As(n) => n.span,
             Satisfies(n) => n.span,
+            NonNull(n) => n.span,
         }
     }
 
@@ -73,6 +74,7 @@ impl Expr<'_> {
             Void(n) => n.id,
             As(n) => n.id,
             Satisfies(n) => n.id,
+            NonNull(n) => n.id,
         }
     }
 }
@@ -106,6 +108,7 @@ pub enum ExprKind<'cx> {
     Void(&'cx VoidExpr<'cx>),
     As(&'cx AsExpr<'cx>),
     Satisfies(&'cx SatisfiesExpr<'cx>),
+    NonNull(&'cx NonNullExpr<'cx>),
 }
 
 impl<'cx> ExprKind<'cx> {
@@ -154,6 +157,13 @@ impl<'cx> ExprKind<'cx> {
             _ => false,
         }
     }
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct NonNullExpr<'cx> {
+    pub id: NodeID,
+    pub span: Span,
+    pub expr: &'cx Expr<'cx>,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -415,6 +425,8 @@ pub enum BinOpKind {
     LogicalAnd,
     EqEq,
     EqEqEq,
+    BangEq,
+    BangEqEq,
     Instanceof,
     In,
     Satisfies,
@@ -444,6 +456,8 @@ impl BinOpKind {
             Instanceof => "instanceof",
             In => "in",
             Satisfies => "satisfies",
+            BangEq => "!=",
+            BangEqEq => "!==",
         }
     }
 

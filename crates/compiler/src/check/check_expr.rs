@@ -106,6 +106,7 @@ impl<'cx> TyChecker<'cx> {
             Super(_) => self.undefined_ty,
             As(n) => self.check_assertion(n.expr, n.ty),
             Satisfies(n) => self.check_expr(n.expr),
+            NonNull(n) => self.check_expr(n.expr),
         };
 
         self.instantiate_ty_with_single_generic_call_sig(expr.id(), ty)

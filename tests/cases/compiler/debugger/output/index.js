@@ -1,0 +1,4 @@
+debugger
+function foo() {
+  debugger
+}

@@ -30,6 +30,7 @@ pub fn visit_stmt<'cx>(v: &mut impl Visitor<'cx>, stmt: &'cx super::Stmt) {
         Try(_) => {}
         While(_) => {}
         Do(_) => {}
+        Debugger(_) => {}
     }
 }
 

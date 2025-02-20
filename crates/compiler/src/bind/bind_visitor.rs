@@ -132,6 +132,7 @@ impl<'cx, 'atoms> BinderState<'cx, 'atoms> {
             }
             While(n) => {}
             Do(n) => {}
+            Debugger(_) => {}
         }
     }
 
@@ -978,6 +979,9 @@ impl<'cx, 'atoms> BinderState<'cx, 'atoms> {
             }
             Ctor(n) => {
                 self.create_fn_ty_symbol(n.id, SymbolName::New);
+                if let Some(ty_params) = n.ty_params {
+                    self.bind_ty_params(ty_params);
+                }
                 self.bind_params(n.params);
                 self.bind_ty(n.ty);
             }

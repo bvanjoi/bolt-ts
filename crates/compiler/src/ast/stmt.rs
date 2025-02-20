@@ -33,6 +33,7 @@ pub enum StmtKind<'cx> {
     Try(&'cx TryStmt<'cx>),
     While(&'cx WhileStmt<'cx>),
     Do(&'cx DoStmt<'cx>),
+    Debugger(&'cx DebuggerStmt),
 }
 
 impl Stmt<'_> {
@@ -62,8 +63,15 @@ impl Stmt<'_> {
             Try(n) => n.id,
             While(n) => n.id,
             Do(n) => n.id,
+            Debugger(n) => n.id,
         }
     }
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct DebuggerStmt {
+    pub id: NodeID,
+    pub span: Span,
 }
 
 #[derive(Debug, Clone, Copy)]

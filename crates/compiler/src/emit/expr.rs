@@ -82,6 +82,9 @@ impl<'cx> Emit<'cx> {
             Satisfies(n) => {
                 self.emit_expr(n.expr);
             }
+            NonNull(n) => {
+                self.emit_expr(n.expr);
+            }
         };
     }
 

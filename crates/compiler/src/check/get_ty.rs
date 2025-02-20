@@ -1129,19 +1129,13 @@ impl<'cx> TyChecker<'cx> {
                 let new_check_ty = new_root
                     .is_distributive
                     .then(|| this.get_mapped_ty(new_root_mapper, new_root.check_ty));
-                let use_new = if let Some(new_check_ty) = new_check_ty {
+                let use_new = new_check_ty.map_or(true, |new_check_ty| {
                     new_check_ty == new_root.check_ty
                         || !new_check_ty
                             .flags
                             .intersects(TypeFlags::UNION | TypeFlags::NEVER)
-                } else {
-                    true
-                };
-                if use_new {
-                    Some((new_root, new_root_mapper))
-                } else {
-                    None
-                }
+                });
+                use_new.then(|| (new_root, new_root_mapper))
             };
         let mut tailed = 0;
         let mut extra_tys = Vec::with_capacity(16);

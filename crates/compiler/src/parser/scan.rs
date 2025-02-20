@@ -524,6 +524,18 @@ impl ParserState<'_, '_> {
                         Span::new(start as u32, self.pos as u32, self.module_id),
                     )
                 }
+                b'!' if self.next_ch() == Some(b'=') => {
+                    let kind = if self.next_next_ch() == Some(b'.') {
+                        self.pos += 3;
+                        TokenKind::BangEqEq
+                    } else {
+                        self.pos += 2;
+                        TokenKind::BangEq
+                    };
+
+                    let span = Span::new(start as u32, self.pos as u32, self.module_id);
+                    Token::new(kind, span)
+                }
                 b',' | b';' | b':' | b'[' | b']' | b'(' | b')' | b'{' | b'}' | b'!' | b'.' => {
                     self.pos += 1;
                     let kind = unsafe { std::mem::transmute::<u8, TokenKind>(ch) };
