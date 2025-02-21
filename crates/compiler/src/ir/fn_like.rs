@@ -1,6 +1,6 @@
 use bolt_ts_atom::AtomId;
 
-use crate::ast;
+use bolt_ts_ast as ast;
 
 pub trait FnLike<'cx>: Copy + std::fmt::Debug {
     fn id(&self) -> ast::NodeID;

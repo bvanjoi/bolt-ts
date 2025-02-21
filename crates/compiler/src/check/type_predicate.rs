@@ -1,6 +1,7 @@
+use bolt_ts_ast as ast;
 use bolt_ts_atom::AtomId;
 
-use crate::{ast, keyword, ty};
+use crate::{keyword, ty};
 
 #[derive(Debug, Clone, Copy)]
 pub struct TyPred<'cx> {

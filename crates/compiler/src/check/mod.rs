@@ -63,7 +63,7 @@ use fn_mapper::{PermissiveMapper, RestrictiveMapper};
 use get_variances::VarianceFlags;
 use instantiation_ty_map::{IndexedAccessTyMap, TyCacheTrait, UnionOrIntersectionMap};
 use rustc_hash::{FxBuildHasher, FxHashMap};
-use transient_symbol::{create_transient_symbol, TransientSymbol};
+use transient_symbol::{TransientSymbol, create_transient_symbol};
 use type_predicate::TyPred;
 use utils::contains_ty;
 
@@ -79,15 +79,16 @@ use self::links::{SigLinks, TyLinks};
 use self::node_flags::NodeFlags;
 pub use self::resolve::ExpectedArgsCount;
 
-use crate::ast::{pprint_ident, BinOp};
 use crate::bind::{
     self, FlowID, FlowNodes, GlobalSymbols, Symbol, SymbolFlags, SymbolID, SymbolName,
 };
 use crate::parser::{AccessKind, AssignmentKind, Parser};
-use crate::ty::{has_type_facts, TyMapper};
 use crate::ty::{CheckFlags, TYPEOF_NE_FACTS};
 use crate::ty::{ElementFlags, ObjectFlags, Sig, SigFlags, SigID, TyID, TypeFacts, TypeFlags};
-use crate::{ast, ecma_rules, keyword, ty};
+use crate::ty::{TyMapper, has_type_facts};
+use crate::{ecma_rules, keyword, ty};
+use bolt_ts_ast as ast;
+use bolt_ts_ast::{BinOp, pprint_ident};
 
 bitflags::bitflags! {
     #[derive(Clone, Copy, Debug, PartialEq)]
@@ -953,7 +954,7 @@ impl<'cx> TyChecker<'cx> {
     ) -> &'cx ty::Ty<'cx> {
         //TODO:cache
         let is_constructor = sig.node_id.map_or(true, |node_id| {
-            use ast::Node::*;
+            use bolt_ts_ast::Node::*;
             matches!(self.p.node(node_id), ClassCtor(_) | CtorSigDecl(_))
         });
         if let Some(node_id) = sig.node_id {
@@ -1326,8 +1327,10 @@ impl<'cx> TyChecker<'cx> {
             false
         };
 
+        let has_omitted_expr = false;
         for elem in lit.elems.iter() {
-            element_types.push(self.check_expr_for_mutable_location(elem));
+            let ty = self.check_expr_for_mutable_location(elem);
+            element_types.push(self.add_optionality(ty, true, has_omitted_expr));
             element_flags.push(ElementFlags::REQUIRED);
         }
 
@@ -1621,7 +1624,7 @@ impl<'cx> TyChecker<'cx> {
         right: &'cx ast::Expr,
         right_ty: &'cx ty::Ty<'cx>,
     ) -> &'cx ty::Ty<'cx> {
-        use ast::BinOpKind::*;
+        use bolt_ts_ast::BinOpKind::*;
         match op.kind {
             Add => {
                 let ty = match self.check_binary_like_expr_for_add(left_ty, right_ty) {
@@ -2036,7 +2039,7 @@ impl<'cx> TyChecker<'cx> {
     fn is_matching_reference(&self, source: ast::NodeID, target: ast::NodeID) -> bool {
         let t = self.p.node(target);
         let s = self.p.node(source);
-        use ast::Node::*;
+        use bolt_ts_ast::Node::*;
 
         match s {
             Ident(s_ident) => {
@@ -2056,7 +2059,7 @@ impl<'cx> TyChecker<'cx> {
                     todo!()
                 } else {
                     false
-                }
+                };
             }
             ThisExpr(_) => t.is_this_expr(),
             _ => false,
@@ -2068,7 +2071,7 @@ impl<'cx> TyChecker<'cx> {
     }
 
     fn has_matching_arg(&mut self, expr: &'cx ast::Expr<'cx>, refer: ast::NodeID) -> bool {
-        use ast::ExprKind::*;
+        use bolt_ts_ast::ExprKind::*;
         let (args, expr) = match expr.kind {
             Call(call) => (call.args, call.expr),
             New(new) => (new.args.unwrap_or_default(), new.expr),
@@ -2507,11 +2510,7 @@ impl<'cx> TyChecker<'cx> {
         self.reduced_left(
             tys,
             |this, s, t, _| {
-                if this.is_ty_sub_type_of(t, s) {
-                    t
-                } else {
-                    s
-                }
+                if this.is_ty_sub_type_of(t, s) { t } else { s }
             },
             None,
             None,
@@ -2645,6 +2644,11 @@ impl<'cx> TyChecker<'cx> {
         } else {
             0
         }
+    }
+
+    fn get_rest_ty_of_tuple_ty(&mut self, ty: &'cx ty::Ty<'cx>) -> Option<&'cx ty::Ty<'cx>> {
+        let t = ty.as_tuple().unwrap();
+        self.get_element_ty_of_slice_of_tuple_ty(ty, t.fixed_length, None, None, None)
     }
 }
 

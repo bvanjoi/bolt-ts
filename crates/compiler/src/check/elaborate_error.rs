@@ -1,13 +1,12 @@
-use super::errors;
-use super::relation::RelationKind;
 use super::Ternary;
 use super::TyChecker;
+use super::errors;
+use super::relation::RelationKind;
 
-use crate::ast;
-use crate::ast::ContinueStmt;
 use crate::bind::SymbolName;
 use crate::ty;
 use crate::ty::TypeFlags;
+use bolt_ts_ast as ast;
 
 struct Elaboration<'cx> {
     error_node: ast::NodeID,
@@ -28,7 +27,7 @@ impl<'cx> TyChecker<'cx> {
             return false;
         };
 
-        use ast::Node::*;
+        use bolt_ts_ast::Node::*;
         let node = self.p.node(node);
         match node {
             ArrayLit(node) => self.elaborate_array_lit(node, source, target, relation),
@@ -56,7 +55,7 @@ impl<'cx> TyChecker<'cx> {
             .map(|member| {
                 let s = self.get_symbol_of_decl(member.id());
                 let ty = self.get_lit_ty_from_prop(s);
-                use ast::ObjectMemberKind::*;
+                use bolt_ts_ast::ObjectMemberKind::*;
                 match member.kind {
                     Shorthand(n) => Elaboration {
                         error_node: n.name.id,

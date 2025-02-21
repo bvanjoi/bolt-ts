@@ -1,9 +1,9 @@
 use std::hash::Hash;
 
-use super::ast;
 use super::ElementFlags;
 use super::TyMap;
 use super::TypeFlags;
+use super::ast;
 use crate::bind::SymbolID;
 use crate::check::TyChecker;
 

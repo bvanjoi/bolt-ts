@@ -1,8 +1,8 @@
+use bolt_ts_ast::{self as ast, NodeID};
 use bolt_ts_span::ModuleID;
 
-use super::ast::NodeID;
 use crate::bind::{Symbol, SymbolFlags, SymbolID, SymbolName};
-use crate::{ast, ty};
+use crate::ty;
 
 use super::TyChecker;
 

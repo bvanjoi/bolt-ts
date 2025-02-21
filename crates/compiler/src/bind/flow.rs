@@ -1,7 +1,7 @@
 use bolt_ts_utils::fx_hashmap_with_capacity;
 use rustc_hash::FxHashMap;
 
-use crate::ast;
+use bolt_ts_ast as ast;
 
 bitflags::bitflags! {
     #[derive(Clone, Copy, Debug, Default)]

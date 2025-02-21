@@ -52,14 +52,15 @@ macro_rules! _links {
 }
 
 use _links as links;
+use bolt_ts_ast::NodeID;
 use bolt_ts_span::ModuleID;
+
 pub use node_links::NodeLinks;
 pub use sig_links::SigLinks;
 pub use symbol_links::SymbolLinks;
 pub use ty_links::TyLinks;
 
 use super::NodeFlags;
-use crate::ast::NodeID;
 use crate::bind::SymbolID;
 use crate::ty::{SigID, TyID};
 

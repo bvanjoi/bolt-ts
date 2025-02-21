@@ -1,16 +1,16 @@
-use super::ast::{self, NodeFlags};
 use super::paren_rule::{NoParenRule, ParenRuleTrait};
 use super::parse_fn_like::ParseFnExpr;
-use super::token::{BinPrec, Token, TokenKind};
 use super::ty::TypeArguments;
 use super::utils::is_left_hand_side_expr_kind;
-use super::{errors, list_ctx};
-use super::{parse_class_like, Tristate};
 use super::{PResult, ParserState};
+use super::{Tristate, parse_class_like};
+use super::{errors, list_ctx};
+use bolt_ts_ast::{self as ast, NodeFlags};
+use bolt_ts_ast::{BinPrec, Token, TokenKind};
 
 impl<'cx> ParserState<'cx, '_> {
     fn is_update_expr(&self) -> bool {
-        use TokenKind::*;
+        use bolt_ts_ast::TokenKind::*;
         match self.token.kind {
             Plus | Minus | Tilde | Excl | Delete | Typeof | Void | Await => false,
             Less => {
@@ -297,7 +297,7 @@ impl<'cx> ParserState<'cx, '_> {
     }
 
     fn parse_simple_unary_expr(&mut self) -> PResult<&'cx ast::Expr<'cx>> {
-        use TokenKind::*;
+        use bolt_ts_ast::TokenKind::*;
         match self.token.kind {
             Plus | Minus | Tilde | Excl => {
                 self.parse_prefix_unary_expr(Self::parse_simple_unary_expr)
@@ -636,7 +636,7 @@ impl<'cx> ParserState<'cx, '_> {
     }
 
     fn parse_lit_expr(&mut self) -> &'cx ast::Expr<'cx> {
-        use TokenKind::*;
+        use bolt_ts_ast::TokenKind::*;
         let kind = match self.token.kind {
             Number => {
                 let val = self.number_token();
@@ -688,7 +688,7 @@ impl<'cx> ParserState<'cx, '_> {
     }
 
     fn parse_primary_expr(&mut self) -> PResult<&'cx ast::Expr<'cx>> {
-        use TokenKind::*;
+        use bolt_ts_ast::TokenKind::*;
         match self.token.kind {
             NoSubstitutionTemplate | String | Number | True | False | Null | This => {
                 Ok(self.parse_lit_expr())
@@ -712,7 +712,7 @@ impl<'cx> ParserState<'cx, '_> {
     }
 
     fn parse_new_expr(&mut self) -> PResult<&'cx ast::Expr<'cx>> {
-        use TokenKind::*;
+        use bolt_ts_ast::TokenKind::*;
         let start = self.token.start();
         let id = self.next_node_id();
         self.expect(New);
@@ -753,7 +753,7 @@ impl<'cx> ParserState<'cx, '_> {
     }
 
     fn parse_object_lit(&mut self) -> PResult<&'cx ast::Expr<'cx>> {
-        use TokenKind::*;
+        use bolt_ts_ast::TokenKind::*;
         let start = self.token.start();
         let open = LBrace;
         let open_brace_parsed = self.expect(LBrace);
@@ -927,7 +927,7 @@ impl<'cx> ParserState<'cx, '_> {
     }
 
     fn can_follow_ty_args_in_expr(&self) -> bool {
-        use TokenKind::*;
+        use bolt_ts_ast::TokenKind::*;
         if matches!(self.token.kind, LParen) {
             true
         } else if matches!(self.token.kind, Less | Great | Plus | Minus) {

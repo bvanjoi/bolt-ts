@@ -1,4 +1,4 @@
-use crate::ast;
+use bolt_ts_ast as ast;
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum BinaryLikeOp {

@@ -1,6 +1,7 @@
 mod errors;
 
-use crate::ast::{self, Visitor};
+use bolt_ts_ast as ast;
+use bolt_ts_ast::Visitor;
 
 use super::parser;
 use super::parser::parse_parallel;

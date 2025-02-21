@@ -1,3 +1,6 @@
+use super::BinderState;
+use super::FlowNodes;
+use super::ScopeID;
 use super::flow::FlowFlags;
 use super::flow::FlowID;
 use super::flow::FlowNodeKind;
@@ -7,20 +10,17 @@ use super::symbol::GetterSetterSymbol;
 use super::symbol::IndexSymbol;
 use super::symbol::{SymbolFlags, SymbolFnKind, SymbolKind};
 use super::symbol::{SymbolID, SymbolName, Symbols};
-use super::BinderState;
-use super::FlowNodes;
-use super::ScopeID;
 
 use bolt_ts_atom::AtomMap;
 use bolt_ts_span::ModuleID;
 use bolt_ts_utils::fx_hashmap_with_capacity;
 use thin_vec::thin_vec;
 
-use crate::ast;
+use crate::bind::Symbol;
 use crate::bind::prop_name;
 use crate::bind::symbol::AliasSymbol;
-use crate::bind::Symbol;
 use crate::parser::Parser;
+use bolt_ts_ast as ast;
 
 impl<'cx, 'atoms> BinderState<'cx, 'atoms> {
     pub fn new(atoms: &'atoms AtomMap<'cx>, parser: &'cx Parser<'cx>, module_id: ModuleID) -> Self {
@@ -86,7 +86,7 @@ impl<'cx, 'atoms> BinderState<'cx, 'atoms> {
     }
 
     fn bind_stmt(&mut self, container: ast::NodeID, stmt: &'cx ast::Stmt) {
-        use ast::StmtKind::*;
+        use bolt_ts_ast::StmtKind::*;
 
         match stmt.kind {
             Empty(_) => (),
@@ -194,7 +194,7 @@ impl<'cx, 'atoms> BinderState<'cx, 'atoms> {
     }
 
     fn bind_for_init(&mut self, init: &ast::ForInitKind<'cx>) {
-        use ast::ForInitKind::*;
+        use bolt_ts_ast::ForInitKind::*;
         match init {
             Var((kind, var)) => self.bind_var_decls(None, var, *kind, false),
             Expr(expr) => self.bind_expr(expr),
@@ -202,7 +202,7 @@ impl<'cx, 'atoms> BinderState<'cx, 'atoms> {
     }
 
     fn bind_spec_export(&mut self, container: ast::NodeID, spec: &'cx ast::ExportSpec<'cx>) {
-        use ast::ExportSpecKind::*;
+        use bolt_ts_ast::ExportSpecKind::*;
         let (name, symbol) = match spec.kind {
             Shorthand(spec) => {
                 let name = spec.name.name;
@@ -221,7 +221,7 @@ impl<'cx, 'atoms> BinderState<'cx, 'atoms> {
                 (name, symbol)
             }
             Named(named) => {
-                use ast::ModuleExportNameKind::*;
+                use bolt_ts_ast::ModuleExportNameKind::*;
                 let n = |name: &ast::ModuleExportName| match name.kind {
                     Ident(ident) => SymbolName::Normal(ident.name),
                     StringLit(lit) => SymbolName::Normal(lit.val),
@@ -253,7 +253,7 @@ impl<'cx, 'atoms> BinderState<'cx, 'atoms> {
     }
 
     fn bind_export_decl(&mut self, container: ast::NodeID, decl: &'cx ast::ExportDecl<'cx>) {
-        use ast::ExportClauseKind::*;
+        use bolt_ts_ast::ExportClauseKind::*;
         match decl.clause.kind {
             Glob(glob_export) => todo!(),
             Ns(ns_export) => todo!(),
@@ -516,7 +516,7 @@ impl<'cx, 'atoms> BinderState<'cx, 'atoms> {
     }
 
     fn bind_object_ty_member(&mut self, container: ast::NodeID, m: &'cx ast::ObjectTyMember<'cx>) {
-        use ast::ObjectTyMemberKind::*;
+        use bolt_ts_ast::ObjectTyMemberKind::*;
         match m.kind {
             Prop(m) => {
                 if let Some(ty) = m.ty {
@@ -670,7 +670,7 @@ impl<'cx, 'atoms> BinderState<'cx, 'atoms> {
     }
 
     pub(super) fn bind_expr(&mut self, expr: &ast::Expr<'cx>) {
-        use ast::ExprKind::*;
+        use bolt_ts_ast::ExprKind::*;
         match expr.kind {
             Ident(ident) => self.bind_ident(ident),
             Call(call) => self.bind_call_like(call),
@@ -740,7 +740,7 @@ impl<'cx, 'atoms> BinderState<'cx, 'atoms> {
             self.bind_ty(ty);
         }
         self.bind_params(f.params);
-        use ast::ArrowFnExprBody::*;
+        use bolt_ts_ast::ArrowFnExprBody::*;
         match f.body {
             Block(block) => self.bind_block_stmt(block),
             Expr(expr) => self.bind_expr(expr),
@@ -865,7 +865,7 @@ impl<'cx, 'atoms> BinderState<'cx, 'atoms> {
             .members
             .iter()
             .map(|member| {
-                use ast::ObjectMemberKind::*;
+                use bolt_ts_ast::ObjectMemberKind::*;
                 match member.kind {
                     Shorthand(n) => {
                         self.bind_ident(n.name);
@@ -938,7 +938,7 @@ impl<'cx, 'atoms> BinderState<'cx, 'atoms> {
     }
 
     pub(super) fn bind_ty(&mut self, ty: &'cx ast::Ty) {
-        use ast::TyKind::*;
+        use bolt_ts_ast::TyKind::*;
         match ty.kind {
             Array(array) => self.bind_array_ty(array),
             Tuple(tup) => {
@@ -1026,7 +1026,14 @@ impl<'cx, 'atoms> BinderState<'cx, 'atoms> {
             Infer(n) => {
                 self.bind_ty_param(n.ty_param);
             }
+            Nullable(n) => {
+                self.bind_ty(n.ty);
+            }
             Intrinsic(_) => {}
+            NamedTuple(n) => {
+                self.bind_ident(n.name);
+                self.bind_ty(n.ty);
+            }
         }
     }
 
@@ -1063,7 +1070,7 @@ impl<'cx, 'atoms> BinderState<'cx, 'atoms> {
                 SymbolKind::FunctionScopedVar(FunctionScopedVarSymbol { decl: var_decl })
             }
         };
-        use ast::Binding::*;
+        use bolt_ts_ast::Binding::*;
         match binding {
             Ident(ident) => {
                 self.connect(ident.id);
@@ -1077,7 +1084,7 @@ impl<'cx, 'atoms> BinderState<'cx, 'atoms> {
             }
             ObjectPat(object) => {
                 for elem in object.elems {
-                    use ast::ObjectBindingName::*;
+                    use bolt_ts_ast::ObjectBindingName::*;
                     match elem.name {
                         Shorthand(ident) => {
                             self.connect(ident.id);

@@ -1,10 +1,11 @@
 use std::borrow::Cow;
 
-use crate::ast::MappedTyModifiers;
 use crate::bind::SymbolID;
 use crate::keyword::{self, is_intrinsic_type_name};
+use crate::ty;
 use crate::ty::{ObjectFlags, TyMapper, TypeFlags};
-use crate::{ast, ty};
+use bolt_ts_ast as ast;
+use bolt_ts_ast::MappedTyModifiers;
 
 use super::create_ty::IntersectionFlags;
 use super::instantiation_ty_map::TyCacheTrait;

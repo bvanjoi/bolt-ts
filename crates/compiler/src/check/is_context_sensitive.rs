@@ -1,6 +1,5 @@
-use crate::ast;
-use crate::ast::ArrowFnExprBody;
 use crate::keyword;
+use bolt_ts_ast as ast;
 
 use super::TyChecker;
 
@@ -28,7 +27,7 @@ impl TyChecker<'_> {
         let node = self.p.node(id);
         if node.ty_params().is_some() {
             false
-        } else if let Some(ArrowFnExprBody::Expr(e)) = node.fn_body() {
+        } else if let Some(ast::ArrowFnExprBody::Expr(e)) = node.fn_body() {
             self.is_context_sensitive(e.id())
         } else {
             false

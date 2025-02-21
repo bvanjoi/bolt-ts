@@ -1,7 +1,7 @@
+use bolt_ts_ast as ast;
+use bolt_ts_ast::TokenKind;
 use bolt_ts_span::Span;
 
-use super::ast;
-use super::token::TokenKind;
 use super::{PResult, ParserState};
 
 pub(super) trait FnLike<'cx, 'p> {
@@ -98,7 +98,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         mode: impl FnLike<'cx, 'p, Node = Node>,
         modifiers: Option<&'cx ast::Modifiers<'cx>>,
     ) -> PResult<Node> {
-        use TokenKind::*;
+        use bolt_ts_ast::TokenKind::*;
         let id = self.next_node_id();
         let start = self.token.start();
         self.expect(Function);

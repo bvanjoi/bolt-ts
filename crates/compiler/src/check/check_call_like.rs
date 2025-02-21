@@ -3,13 +3,15 @@ use super::infer::InferenceFlags;
 use super::relation::RelationKind;
 use super::ty::ElementFlags;
 use super::ty::{Sig, SigFlags, Sigs};
-use super::{errors, CheckMode};
+use super::{CheckMode, errors};
 use super::{ExpectedArgsCount, Ternary};
 use super::{InferenceContextId, TyChecker};
 use crate::bind::SymbolID;
 use crate::ir::{self, CallLike};
+use crate::ty;
 use crate::ty::TypeFlags;
-use crate::{ast, ty};
+
+use bolt_ts_ast as ast;
 use bolt_ts_span::Span;
 
 pub(super) trait CallLikeExpr<'cx>: ir::CallLike<'cx> {

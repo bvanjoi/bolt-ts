@@ -1,6 +1,7 @@
-use crate::{ast, ty};
+use crate::ty;
 
 use super::TyChecker;
+use bolt_ts_ast as ast;
 
 pub(super) trait ExprWithTyArgs<'cx> {
     fn id(&self) -> ast::NodeID;
@@ -30,7 +31,7 @@ impl<'cx> TyChecker<'cx> {
                 self.check_ty(ty_arg);
             }
         }
-        use ast::EntityNameKind;
+        use bolt_ts_ast::EntityNameKind;
         let expr_ty = match node.expr_name().kind {
             EntityNameKind::Ident(ident) => self.check_ident(ident),
             EntityNameKind::Qualified(_) => {

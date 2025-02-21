@@ -1,5 +1,4 @@
 use crate::keyword;
-use crate::parser::token::{Token, TokenKind};
 
 use super::*;
 use bolt_ts_atom::AtomId;
@@ -37,6 +36,8 @@ impl<'cx> Ty<'cx> {
             TyKind::Paren(n) => n.span,
             TyKind::Infer(n) => n.span,
             TyKind::Intrinsic(n) => n.span,
+            TyKind::Nullable(n) => n.span,
+            TyKind::NamedTuple(n) => n.span,
         }
     }
 
@@ -60,6 +61,8 @@ impl<'cx> Ty<'cx> {
             TyKind::Lit(n) => n.id,
             TyKind::Paren(n) => n.id,
             TyKind::Infer(n) => n.id,
+            TyKind::Nullable(n) => n.id,
+            TyKind::NamedTuple(n) => n.id,
             TyKind::Intrinsic(_) => unreachable!(),
         }
     }
@@ -104,6 +107,7 @@ pub enum TyKind<'cx> {
     Ctor(&'cx CtorTy<'cx>),
     ObjectLit(&'cx ObjectLitTy<'cx>),
     Lit(&'cx LitTy),
+    NamedTuple(&'cx NamedTupleTy<'cx>),
     Tuple(&'cx TupleTy<'cx>),
     Rest(&'cx RestTy<'cx>),
     Cond(&'cx CondTy<'cx>),
@@ -116,6 +120,14 @@ pub enum TyKind<'cx> {
     Paren(&'cx ParenTy<'cx>),
     Infer(&'cx InferTy<'cx>),
     Intrinsic(&'cx IntrinsicTy),
+    Nullable(&'cx NullableTy<'cx>),
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct NullableTy<'cx> {
+    pub id: NodeID,
+    pub span: Span,
+    pub ty: &'cx Ty<'cx>,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -202,6 +214,16 @@ pub struct RestTy<'cx> {
     pub id: NodeID,
     pub span: Span,
     pub ty: &'cx self::Ty<'cx>,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct NamedTupleTy<'cx> {
+    pub id: NodeID,
+    pub span: Span,
+    pub dotdotdot: Option<Span>,
+    pub name: &'cx Ident,
+    pub question: Option<Span>,
+    pub ty: &'cx Ty<'cx>,
 }
 
 #[derive(Debug, Clone, Copy)]

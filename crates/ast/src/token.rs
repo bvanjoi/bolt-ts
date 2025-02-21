@@ -1,7 +1,5 @@
 use bolt_ts_span::Span;
 
-use crate::ast;
-
 #[derive(Debug, Clone, Copy)]
 pub struct Token {
     pub kind: TokenKind,
@@ -335,9 +333,9 @@ impl TokenKind {
     }
 }
 
-impl From<TokenKind> for ast::BinOpKind {
+impl From<TokenKind> for super::BinOpKind {
     fn from(value: TokenKind) -> Self {
-        use ast::BinOpKind::*;
+        use super::BinOpKind::*;
         match value {
             TokenKind::Plus => Add,
             TokenKind::Pipe => Pipe,
@@ -370,9 +368,9 @@ impl From<TokenKind> for ast::BinOpKind {
     }
 }
 
-impl From<TokenKind> for ast::PostfixUnaryOp {
+impl From<TokenKind> for super::PostfixUnaryOp {
     fn from(value: TokenKind) -> Self {
-        use ast::PostfixUnaryOp::*;
+        use super::PostfixUnaryOp::*;
         match value {
             TokenKind::PlusPlus => PlusPlus,
             TokenKind::MinusMinus => MinusMinus,
@@ -383,9 +381,9 @@ impl From<TokenKind> for ast::PostfixUnaryOp {
     }
 }
 
-impl From<TokenKind> for ast::PrefixUnaryOp {
+impl From<TokenKind> for super::PrefixUnaryOp {
     fn from(value: TokenKind) -> Self {
-        use ast::PrefixUnaryOp::*;
+        use super::PrefixUnaryOp::*;
         match value {
             TokenKind::Plus => Plus,
             TokenKind::Minus => Minus,
@@ -400,10 +398,10 @@ impl From<TokenKind> for ast::PrefixUnaryOp {
     }
 }
 
-impl TryFrom<TokenKind> for ast::ModifierKind {
+impl TryFrom<TokenKind> for super::ModifierKind {
     type Error = ();
     fn try_from(value: TokenKind) -> Result<Self, Self::Error> {
-        use ast::ModifierKind::*;
+        use super::ModifierKind::*;
         match value {
             TokenKind::Public => Ok(Public),
             TokenKind::Private => Ok(Private),
@@ -419,9 +417,9 @@ impl TryFrom<TokenKind> for ast::ModifierKind {
     }
 }
 
-impl From<TokenKind> for ast::AssignOp {
+impl From<TokenKind> for super::AssignOp {
     fn from(value: TokenKind) -> Self {
-        use ast::AssignOp::*;
+        use super::AssignOp::*;
         match value {
             TokenKind::Eq => Eq,
             TokenKind::PlusEq => AddEq,
@@ -440,13 +438,13 @@ impl From<TokenKind> for ast::AssignOp {
     }
 }
 
-impl TryFrom<TokenKind> for ast::VarKind {
+impl TryFrom<TokenKind> for super::VarKind {
     type Error = ();
     fn try_from(value: TokenKind) -> Result<Self, Self::Error> {
         use TokenKind::*;
         match value {
             Var | Let | Const => unsafe {
-                Ok(std::mem::transmute::<u8, ast::VarKind>(
+                Ok(std::mem::transmute::<u8, super::VarKind>(
                     value as u8 - Var as u8,
                 ))
             },
@@ -455,10 +453,10 @@ impl TryFrom<TokenKind> for ast::VarKind {
     }
 }
 
-impl TryFrom<TokenKind> for ast::TyOpKind {
+impl TryFrom<TokenKind> for super::TyOpKind {
     type Error = ();
     fn try_from(value: TokenKind) -> Result<Self, Self::Error> {
-        use ast::TyOpKind::*;
+        use super::TyOpKind::*;
         match value {
             TokenKind::Keyof => Ok(Keyof),
             TokenKind::Readonly => Ok(Readonly),
@@ -485,7 +483,7 @@ impl TokenKind {
         }
     }
 
-    pub(super) const fn is_ident(&self) -> bool {
+    pub const fn is_ident(&self) -> bool {
         if matches!(self, TokenKind::Ident) {
             return true;
         }
@@ -658,7 +656,7 @@ impl TokenKind {
     }
 
     pub fn is_modifier_kind(self) -> bool {
-        TryInto::<ast::ModifierKind>::try_into(self).is_ok()
+        TryInto::<super::ModifierKind>::try_into(self).is_ok()
     }
 
     pub fn is_accessibility_modifier(self) -> bool {

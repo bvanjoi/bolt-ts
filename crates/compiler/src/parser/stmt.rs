@@ -1,8 +1,7 @@
 use bolt_ts_atom::AtomId;
 
-use crate::ast::{NodeFlags, VarDecls};
-use crate::keyword::{self, IDENT_GLOBAL};
-use crate::parser::parse_break_or_continue::{ParseBreak, ParseContinue};
+use bolt_ts_ast::TokenKind;
+use bolt_ts_ast::{NodeFlags, VarDecls};
 
 use super::ast;
 use super::errors;
@@ -11,12 +10,13 @@ use super::parse_class_like::ParseClassDecl;
 use super::parse_fn_like::ParseFnDecl;
 use super::parse_import_export_spec::ParseNamedExports;
 use super::parse_import_export_spec::ParseNamedImports;
-use super::token::TokenKind;
 use super::{PResult, ParserState};
+use crate::keyword::{self, IDENT_GLOBAL};
+use crate::parser::parse_break_or_continue::{ParseBreak, ParseContinue};
 
 impl<'cx> ParserState<'cx, '_> {
     pub fn parse_stmt(&mut self) -> PResult<&'cx ast::Stmt<'cx>> {
-        use TokenKind::*;
+        use bolt_ts_ast::TokenKind::*;
         if matches!(self.token.kind, Abstract | Declare | Export | Import)
             && self.is_start_of_decl()
         {
@@ -161,7 +161,7 @@ impl<'cx> ParserState<'cx, '_> {
     }
 
     fn parse_for_stmt(&mut self) -> PResult<ast::StmtKind<'cx>> {
-        use TokenKind::*;
+        use bolt_ts_ast::TokenKind::*;
         let start = self.token.start();
         let id = self.next_node_id();
         self.expect(For);
@@ -421,7 +421,7 @@ impl<'cx> ParserState<'cx, '_> {
         &mut self,
         mods: Option<&'cx ast::Modifiers<'cx>>,
     ) -> PResult<&'cx ast::Stmt<'cx>> {
-        use TokenKind::*;
+        use bolt_ts_ast::TokenKind::*;
         let kind = match self.token.kind {
             Var | Let | Const => ast::StmtKind::Var(self.parse_var_stmt(mods)),
             Function => ast::StmtKind::Fn(self.parse_fn_decl(mods)?),
@@ -784,7 +784,7 @@ impl<'cx> ParserState<'cx, '_> {
     }
 
     fn parse_ident_or_pat(&mut self) -> PResult<&'cx ast::Binding<'cx>> {
-        use TokenKind::*;
+        use bolt_ts_ast::TokenKind::*;
         let binding = match self.token.kind {
             LBrace => ast::Binding::ObjectPat(self.parse_object_binding_pat()?),
             _ => ast::Binding::Ident(self.parse_binding_ident()),

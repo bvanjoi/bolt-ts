@@ -2,10 +2,11 @@ use crate::bind::{Symbol, SymbolFlags, SymbolID};
 use crate::check::create_ty::IntersectionFlags;
 use crate::check::cycle_check::ResolutionKey;
 use crate::check::is_deeply_nested_type::RecursionId;
+use crate::ty;
 use crate::ty::TypeFlags;
-use crate::{ast, ty};
+use bolt_ts_ast as ast;
 
-use super::{errors, Ternary, TyChecker};
+use super::{Ternary, TyChecker, errors};
 
 pub(super) trait TyReferTyOrImport<'cx> {
     fn id(&self) -> ast::NodeID;
@@ -131,9 +132,37 @@ impl<'cx> TyChecker<'cx> {
     fn get_inferred_ty_param_constraint(
         &mut self,
         ty_param: &'cx ty::Ty<'cx>,
+        omit_ty_references: bool,
     ) -> Option<&'cx ty::Ty<'cx>> {
-        // TODO:
-        None
+        let mut inferences = vec![];
+        let decl = ty_param.symbol().and_then(|s| self.symbol_opt_decl(s))?;
+        let parent = self.p.parent(decl)?;
+        let parent_parent = self.p.parent(parent)?;
+        let (chid_ty_param, grand_parent) = self
+            .p
+            .walk_up_paren_tys_and_get_parent_and_child(parent_parent);
+        let child_ty_param = chid_ty_param.map_or(parent, |n| n.id);
+        if !omit_ty_references {
+            let grand_parent_node = self.p.node(grand_parent);
+            if let Some(grand) = grand_parent_node.as_refer_ty() {
+                // TODO:
+            } else if grand_parent_node
+                .as_param_decl()
+                .is_some_and(|n| n.dotdotdot.is_some())
+                || grand_parent_node.is_rest_ty()
+            // TODO: named tuple member
+            {
+                inferences.push(self.create_array_ty(self.unknown_ty, false));
+            } else {
+                // TODO: handle more case
+            }
+        }
+
+        if inferences.is_empty() {
+            None
+        } else {
+            Some(self.get_intersection_ty(&inferences, IntersectionFlags::None, None, None))
+        }
     }
 
     pub(super) fn get_constraint_from_ty_param(
@@ -162,7 +191,7 @@ impl<'cx> TyChecker<'cx> {
                 }
                 ty
             } else {
-                self.get_inferred_ty_param_constraint(ty_param)
+                self.get_inferred_ty_param_constraint(ty_param, false)
                     .unwrap_or(self.no_constraint_ty())
             };
             self.get_mut_ty_links(ty_param.id)

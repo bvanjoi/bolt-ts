@@ -1,5 +1,6 @@
 use super::TyChecker;
-use crate::{ast, ir};
+use crate::ir;
+use bolt_ts_ast as ast;
 
 impl<'cx> TyChecker<'cx> {
     fn check_non_pat_var_like_decl(

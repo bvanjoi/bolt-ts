@@ -4,11 +4,12 @@ use super::create_ty::IntersectionFlags;
 use super::infer::{InferenceFlags, InferencePriority};
 use super::instantiation_ty_map::hash_ty_args;
 use super::ty::{self, Ty, TyKind};
-use super::{errors, IndexedAccessTyMap, ResolutionKey, TyCacheTrait};
 use super::{CheckMode, F64Represent, InferenceContextId, PropName, TyChecker};
-use crate::ast::{self, EntityNameKind};
+use super::{IndexedAccessTyMap, ResolutionKey, TyCacheTrait, errors};
+use bolt_ts_ast::{self as ast, EntityNameKind};
 
 use crate::bind::{SymbolFlags, SymbolID, SymbolName};
+use crate::ir;
 use crate::keyword::is_prim_ty_name;
 use crate::parser::AssignmentKind;
 use crate::ty::{
@@ -226,11 +227,12 @@ impl<'cx> TyChecker<'cx> {
     }
 
     pub(crate) fn get_ty_from_type_node(&mut self, node: &ast::Ty<'cx>) -> &'cx Ty<'cx> {
-        use ast::TyKind::*;
+        use bolt_ts_ast::TyKind::*;
         let ty = match node.kind {
             Refer(node) => self.get_ty_from_ty_reference(node),
             Array(node) => self.get_ty_from_array_node(node),
             Tuple(node) => self.get_ty_from_tuple_node(node),
+            NamedTuple(node) => self.get_ty_from_named_tuple_node(node),
             Fn(node) => self.get_ty_from_object_lit_or_fn_or_ctor_ty_node(node.id),
             ObjectLit(node) => self.get_ty_from_object_lit_or_fn_or_ctor_ty_node(node.id),
             Ctor(node) => self.get_ty_from_object_lit_or_fn_or_ctor_ty_node(node.id),
@@ -243,7 +245,7 @@ impl<'cx> TyChecker<'cx> {
             TyOp(node) => self.get_ty_from_ty_op(node),
             Pred(_) => self.boolean_ty(),
             Lit(node) => {
-                use ast::LitTyKind::*;
+                use bolt_ts_ast::LitTyKind::*;
                 match node.kind {
                     Null => self.null_ty,
                     Undefined => self.undefined_ty,
@@ -268,6 +270,7 @@ impl<'cx> TyChecker<'cx> {
             Paren(n) => self.get_ty_from_type_node(n.ty),
             Infer(n) => self.get_ty_from_infer_ty_node(n),
             Mapped(n) => self.get_ty_from_mapped_ty_node(n),
+            Nullable(n) => self.get_ty_from_type_node(n.ty),
             Intrinsic(_) => return self.intrinsic_marker_ty,
         };
 
@@ -483,8 +486,10 @@ impl<'cx> TyChecker<'cx> {
         ty
     }
 
-    fn get_ty_from_rest_ty_node(&mut self, rest: &'cx ast::RestTy<'cx>) -> &'cx Ty<'cx> {
-        let ty_node = Self::get_array_ele_ty_node(rest.ty).unwrap_or(rest.ty);
+    fn get_ty_from_rest_ty_node(&mut self, rest: &impl ir::RestTyLike<'cx>) -> &'cx Ty<'cx> {
+        //TODO: fallback
+        let ty = rest.ty().unwrap();
+        let ty_node = Self::get_array_ele_ty_node(ty).unwrap_or(ty);
         self.get_ty_from_type_node(ty_node)
     }
 
@@ -505,11 +510,6 @@ impl<'cx> TyChecker<'cx> {
             PropName::String(atom_id) => SymbolName::Ele(atom_id),
             PropName::Num(num) => SymbolName::EleNum(num.into()),
         }
-    }
-
-    fn get_rest_ty_of_tuple_ty(&mut self, ty: &'cx Ty<'cx>) -> Option<&'cx ty::Ty<'cx>> {
-        let tup = ty.as_tuple().unwrap();
-        self.get_element_ty_of_slice_of_tuple_ty(ty, tup.fixed_length, None, None, None)
     }
 
     fn get_end_elem_count(&mut self, ty: &'cx Ty<'cx>, flags: ElementFlags) -> usize {
@@ -703,7 +703,7 @@ impl<'cx> TyChecker<'cx> {
     }
 
     fn get_index_node_for_access_expr(&self, id: ast::NodeID) -> ast::NodeID {
-        use ast::Node::*;
+        use bolt_ts_ast::Node::*;
         match self.p.node(id) {
             EleAccessExpr(node) => node.arg.id(),
             IndexedAccessTy(node) => node.index_ty.id(),
@@ -824,7 +824,7 @@ impl<'cx> TyChecker<'cx> {
     }
 
     pub fn may_resolve_ty_alias(&self, node: ast::NodeID) -> bool {
-        use ast::Node::*;
+        use bolt_ts_ast::Node::*;
         match self.p.node(node) {
             ReferTy(n) => {
                 if let EntityNameKind::Ident(i) = n.name.kind {
@@ -867,7 +867,7 @@ impl<'cx> TyChecker<'cx> {
         assert!(self.p.node(node).is_ty());
         self.get_alias_symbol_for_ty_node(node).is_some()
             || self.p.is_resolved_by_ty_alias(node) && {
-                use ast::Node::*;
+                use bolt_ts_ast::Node::*;
                 let n = self.p.node(node);
                 match n {
                     ArrayTy(n) => self.may_resolve_ty_alias(n.ele.id()),
@@ -1033,10 +1033,11 @@ impl<'cx> TyChecker<'cx> {
         ty: &'cx Ty<'cx>,
         cond_ty: &'cx ty::CondTy<'cx>,
     ) -> &'cx Ty<'cx> {
-        assert!(ty
-            .kind
-            .as_cond_ty()
-            .is_some_and(|c| std::ptr::eq(c, cond_ty)));
+        assert!(
+            ty.kind
+                .as_cond_ty()
+                .is_some_and(|c| std::ptr::eq(c, cond_ty))
+        );
         if let Some(ty) = self.get_ty_links(ty.id).get_resolved_true_ty() {
             return ty;
         }
@@ -1347,15 +1348,20 @@ impl<'cx> TyChecker<'cx> {
         if let Some(ty) = self.get_node_links(node.id).get_resolved_ty() {
             return ty;
         }
+        let ty_node = self.p.node(node.id).as_ty().unwrap();
+        let readonly = self
+            .p
+            .parent(node.id)
+            .map_or(false, |parent| self.p.node(parent).is_readonly_ty_op());
         let element_ty = self.get_ty_from_type_node(node.ele);
         // TODO: defer type
-        let ty = self.create_array_ty(element_ty, false);
+        let ty = self.create_array_ty(element_ty, readonly);
         self.get_mut_node_links(node.id).set_resolved_ty(ty);
         ty
     }
 
     pub(super) fn get_array_ele_ty_node(node: &ast::Ty<'cx>) -> Option<&'cx ast::Ty<'cx>> {
-        use ast::TyKind::*;
+        use bolt_ts_ast::TyKind::*;
         match node.kind {
             Paren(p) => Self::get_array_ele_ty_node(p.ty),
             Tuple(tup) if tup.tys.len() == 1 => {
@@ -1380,11 +1386,28 @@ impl<'cx> TyChecker<'cx> {
     }
 
     pub fn get_tuple_element_flags(node: &'cx ast::Ty<'cx>) -> ElementFlags {
-        use ast::TyKind::*;
+        use bolt_ts_ast::TyKind::*;
         match node.kind {
             Rest(rest) => Self::get_rest_ty_ele_flags(rest),
             _ => ElementFlags::REQUIRED,
         }
+    }
+
+    fn get_ty_from_named_tuple_node(
+        &mut self,
+        node: &'cx ast::NamedTupleTy<'cx>,
+    ) -> &'cx ty::Ty<'cx> {
+        if let Some(ty) = self.get_node_links(node.id).get_resolved_ty() {
+            return ty;
+        }
+        let ty = if node.dotdotdot.is_some() {
+            self.get_ty_from_rest_ty_node(node)
+        } else {
+            let ty = self.get_ty_from_type_node(node.ty);
+            self.add_optionality(ty, true, node.question.is_some())
+        };
+        self.get_mut_node_links(node.id).set_resolved_ty(ty);
+        ty
     }
 
     fn get_ty_from_tuple_node(&mut self, node: &'cx ast::TupleTy<'cx>) -> &'cx Ty<'cx> {
@@ -1791,7 +1814,7 @@ impl<'cx> TyChecker<'cx> {
         }
 
         let ty_args = if let Some(node) = r.node {
-            use ast::Node::*;
+            use bolt_ts_ast::Node::*;
             match self.p.node(node) {
                 ReferTy(_) => {
                     let i = r.target.kind.expect_object_interface();

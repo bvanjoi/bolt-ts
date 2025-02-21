@@ -1,10 +1,10 @@
-use super::type_predicate::{IdentTyPred, TyPred};
 use super::TyChecker;
-use crate::ast;
+use super::type_predicate::{IdentTyPred, TyPred};
 use crate::bind::{FlowFlags, FlowID, FlowNode, FlowNodeKind};
 use crate::check::create_ty::IntersectionFlags;
 use crate::check::type_predicate::TyPredKind;
 use crate::ty::{self, ObjectFlags, TypeFlags};
+use bolt_ts_ast as ast;
 
 #[derive(Debug, Clone, Copy)]
 pub enum FlowTy<'cx> {
@@ -215,7 +215,7 @@ impl<'cx> TyChecker<'cx> {
         expr: &'cx ast::Expr<'cx>,
         assume_true: bool,
     ) -> &'cx ty::Ty<'cx> {
-        use ast::ExprKind::*;
+        use bolt_ts_ast::ExprKind::*;
         match expr.kind {
             Call(node) => self.narrow_ty_by_call_expr(ty, refer, expr, node, assume_true),
             _ => ty,
@@ -247,7 +247,7 @@ impl<'cx> TyChecker<'cx> {
                             i,
                             call_expr,
                             assume_true,
-                        )
+                        );
                     }
                 }
             }
@@ -310,7 +310,8 @@ impl<'cx> TyChecker<'cx> {
                 ty
             };
             let true_ty = self.get_narrowed_ty(ty, candidate, true, false);
-            return true_ty;
+            // TODO: self.recombine_unknown_ty()
+            return self.filter_type(ty, |this, t| !this.is_ty_sub_type_of(t, true_ty));
         } else if ty.flags.intersects(TypeFlags::ANY_OR_UNKNOWN) {
             return candidate;
         } else if ty == candidate {

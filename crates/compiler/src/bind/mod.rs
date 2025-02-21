@@ -24,9 +24,9 @@ use self::symbol::TyLitSymbol;
 pub use self::symbol::{GlobalSymbols, Symbol, SymbolID, SymbolName, Symbols};
 pub use self::symbol::{SymbolFlags, SymbolFnKind};
 
-use crate::ast;
 use crate::late_resolve::ResolveResult;
 use crate::parser::Parser;
+use bolt_ts_ast as ast;
 
 bolt_ts_utils::module_index!(ScopeID);
 

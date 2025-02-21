@@ -1,4 +1,4 @@
-use super::{links, InferenceContextId, TyChecker};
+use super::{InferenceContextId, TyChecker, links};
 use crate::ty;
 
 #[derive(Debug, Clone, Copy)]

@@ -1,6 +1,6 @@
+use super::TyChecker;
 use super::ast;
 use super::type_predicate::TyPred;
-use super::TyChecker;
 use crate::bind::SymbolID;
 use crate::ty;
 use crate::ty::SigID;

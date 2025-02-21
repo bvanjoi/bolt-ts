@@ -7,14 +7,15 @@ mod object_ty;
 mod pprint;
 mod sig;
 
+use bolt_ts_ast as ast;
 use bolt_ts_atom::AtomId;
 
 use crate::bind::{Symbol, SymbolID};
 use crate::check::TyChecker;
-use crate::{ast, keyword};
+use crate::keyword;
 
 pub use self::check_flags::CheckFlags;
-pub use self::facts::{has_type_facts, TypeFacts, TYPEOF_NE_FACTS};
+pub use self::facts::{TYPEOF_NE_FACTS, TypeFacts, has_type_facts};
 pub use self::flags::{ObjectFlags, TypeFlags};
 pub use self::mapper::{ArrayTyMapper, TyMap, TyMapper};
 pub use self::mapper::{CompositeTyMapper, MergedTyMapper};

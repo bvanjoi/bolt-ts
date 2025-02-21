@@ -1,12 +1,12 @@
 use crate::ty::TypeFlags;
 
+use super::TyChecker;
 use super::ast;
 use super::errors;
-use super::TyChecker;
 
 impl<'cx> TyChecker<'cx> {
     pub(super) fn check_ty(&mut self, ty: &'cx ast::Ty<'cx>) {
-        use ast::TyKind::*;
+        use bolt_ts_ast::TyKind::*;
         match ty.kind {
             Refer(n) => self.check_ty_refer_ty(n),
             IndexedAccess(n) => self.check_indexed_access_ty(n),
@@ -37,7 +37,7 @@ impl<'cx> TyChecker<'cx> {
 
     fn check_object_lit_ty(&mut self, n: &'cx ast::ObjectLitTy<'cx>) {
         for prop in n.members.iter() {
-            use ast::ObjectTyMemberKind::*;
+            use bolt_ts_ast::ObjectTyMemberKind::*;
             match &prop.kind {
                 IndexSig(n) => self.check_index_sig_decl(n),
                 Prop(_) => (),

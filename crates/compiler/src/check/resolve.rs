@@ -1,6 +1,6 @@
 use super::TyChecker;
-use crate::ast;
 use crate::bind::SymbolID;
+use bolt_ts_ast as ast;
 
 #[derive(Debug, Clone, Copy)]
 pub enum ExpectedArgsCount {
@@ -42,7 +42,7 @@ impl<'cx> TyChecker<'cx> {
     }
 
     pub(super) fn resolve_entity_name(&mut self, name: &'cx ast::EntityName<'cx>) -> SymbolID {
-        use ast::EntityNameKind::*;
+        use bolt_ts_ast::EntityNameKind::*;
         match name.kind {
             Ident(n) => self.resolve_symbol_by_ident(n),
             Qualified(n) => self.final_res(n.id),

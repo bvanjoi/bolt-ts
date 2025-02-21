@@ -1,5 +1,5 @@
-use super::ty;
 use super::TyChecker;
+use super::ty;
 use crate::bind::SymbolID;
 use crate::ty::TypeFlags;
 

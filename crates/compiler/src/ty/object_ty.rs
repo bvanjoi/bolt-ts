@@ -1,6 +1,6 @@
-use crate::ast;
 use crate::bind::{SymbolFlags, SymbolID, SymbolName};
 use crate::check::TyChecker;
+use bolt_ts_ast as ast;
 
 use super::flags::ObjectFlags;
 use super::pprint::pprint_reference_ty;
@@ -76,7 +76,7 @@ as_object_ty_kind!(Reference, &'cx ReferenceTy<'cx>, reference);
 as_object_ty_kind!(Mapped, &'cx MappedTy<'cx>, mapped);
 
 bitflags::bitflags! {
-    #[derive(Debug, Clone, Copy)]
+    #[derive(Debug, Clone, Copy, PartialEq)]
     pub struct ElementFlags: u8 {
         /// `T`
         const REQUIRED  = 1 << 0;

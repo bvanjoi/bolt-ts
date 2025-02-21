@@ -3,10 +3,10 @@ use crate::ty::MappedTyNameTyKind;
 use crate::ty::ObjectFlags;
 use crate::ty::TypeFlags;
 
+use super::TyChecker;
 use super::ast;
 use super::create_ty::IntersectionFlags;
 use super::ty;
-use super::TyChecker;
 
 bitflags::bitflags! {
     #[derive(Debug, Clone, Copy, PartialEq)]
@@ -32,7 +32,7 @@ impl<'cx> TyChecker<'cx> {
             unreachable!()
         };
         let parent = self.p.node(parent_id);
-        use ast::Node::*;
+        use bolt_ts_ast::Node::*;
         match parent {
             VarDecl(node) => self.get_contextual_ty_for_var_like_decl(node.id),
             AssignExpr(node) if id == node.right.id() => {
@@ -123,7 +123,7 @@ impl<'cx> TyChecker<'cx> {
 
     fn get_contextual_ty_for_var_like_decl(&mut self, id: ast::NodeID) -> Option<&'cx ty::Ty<'cx>> {
         let node = self.p.node(id);
-        use ast::Node::*;
+        use bolt_ts_ast::Node::*;
         match node {
             VarDecl(decl) => {
                 if let Some(init) = decl.init {
@@ -435,11 +435,7 @@ impl<'cx> TyChecker<'cx> {
             .iter()
             .filter(|sig| !self.is_arity_smaller(sig, id))
             .collect::<Vec<_>>();
-        if sigs.is_empty() {
-            None
-        } else {
-            Some(sigs[0])
-        }
+        if sigs.is_empty() { None } else { Some(sigs[0]) }
     }
 
     pub(super) fn get_contextual_sig(&mut self, id: ast::NodeID) -> Option<&'cx ty::Sig<'cx>> {

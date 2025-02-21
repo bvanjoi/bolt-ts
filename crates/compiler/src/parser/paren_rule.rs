@@ -1,4 +1,4 @@
-use crate::ast;
+use bolt_ts_ast as ast;
 
 use super::utils::is_left_hand_side_expr_kind;
 

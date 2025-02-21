@@ -1,5 +1,5 @@
-use super::cycle_check::ResolutionKey;
 use super::TyChecker;
+use super::cycle_check::ResolutionKey;
 use crate::bind::SymbolID;
 use crate::ty::Ty;
 use crate::{ir, ty};

@@ -1,10 +1,10 @@
+use super::TyChecker;
 use super::ast;
 use super::ty;
-use super::TyChecker;
 
 impl<'cx> TyChecker<'cx> {
     pub(super) fn check_stmt(&mut self, stmt: &'cx ast::Stmt) {
-        use ast::StmtKind::*;
+        use bolt_ts_ast::StmtKind::*;
         match stmt.kind {
             Var(var) => self.check_var_stmt(var),
             Expr(expr) => {

@@ -1,13 +1,14 @@
 use crate::ir;
+use crate::ty::Sig;
 use crate::ty::{self, SigFlags, SigKind, TypeFlags};
-use crate::{ast, ty::Sig};
+use bolt_ts_ast as ast;
 
 use super::create_ty::IntersectionFlags;
 use super::get_contextual::ContextFlags;
 use super::utils::append_if_unique;
-use super::{fn_mapper, CheckMode, InferenceContextId, TyChecker};
+use super::{CheckMode, InferenceContextId, TyChecker, fn_mapper};
 
-use thin_vec::{thin_vec, ThinVec};
+use thin_vec::{ThinVec, thin_vec};
 
 #[derive(Debug, Clone)]
 pub struct InferenceInfo<'cx> {
@@ -18,6 +19,7 @@ pub struct InferenceInfo<'cx> {
     pub top_level: bool,
     pub priority: Option<InferencePriority>,
     pub inferred_ty: Option<&'cx ty::Ty<'cx>>,
+    pub implied_arity: Option<usize>,
 }
 
 impl<'cx> InferenceInfo<'cx> {
@@ -30,6 +32,7 @@ impl<'cx> InferenceInfo<'cx> {
             top_level: true,
             priority: None,
             inferred_ty: None,
+            implied_arity: None,
         }
     }
 
@@ -479,19 +482,17 @@ impl<'cx> TyChecker<'cx> {
         self.inference(inference).sig
     }
 
-    fn get_inference_info_for_ty(
-        &self,
-        ty: &'cx ty::Ty<'cx>,
-        inference: InferenceContextId,
-    ) -> Option<usize> {
-        if ty.kind.is_type_variable() {
-            self.inferences[inference.as_usize()]
-                .inferences
-                .iter()
-                .position(|i| i.ty_param == ty)
-        } else {
-            None
-        }
+    fn tuple_tys_definitely_unrelated(
+        &mut self,
+        source: &'cx ty::Ty<'cx>,
+        target: &'cx ty::Ty<'cx>,
+    ) -> bool {
+        let s = source.as_tuple().unwrap();
+        let t = target.as_tuple().unwrap();
+        !t.combined_flags.intersects(ty::ElementFlags::VARIADIC) && t.min_length > s.min_length
+            || !t.combined_flags.intersects(ty::ElementFlags::VARIABLE)
+                && (s.combined_flags.intersects(ty::ElementFlags::VARIABLE)
+                    || t.fixed_length < s.fixed_length)
     }
 
     fn tys_definitely_unrelated(
@@ -500,7 +501,7 @@ impl<'cx> TyChecker<'cx> {
         target: &'cx ty::Ty<'cx>,
     ) -> bool {
         if source.is_tuple() && target.is_tuple() {
-            todo!()
+            self.tuple_tys_definitely_unrelated(source, target)
         } else {
             self.get_unmatched_prop(source, target, false).is_some()
                 && self.get_unmatched_prop(target, source, false).is_some()
@@ -694,6 +695,16 @@ pub(super) struct InferenceState<'cx, 'checker> {
 }
 
 impl<'cx> InferenceState<'cx, '_> {
+    fn get_inference_info_for_ty(&self, ty: &'cx ty::Ty<'cx>) -> Option<usize> {
+        if ty.kind.is_type_variable() {
+            self.c.inferences[self.inference.as_usize()]
+                .inferences
+                .iter()
+                .position(|i| i.ty_param == ty)
+        } else {
+            None
+        }
+    }
     fn get_mut_inference(&mut self) -> &mut InferenceContext<'cx> {
         &mut self.c.inferences[self.inference.as_usize()]
     }
@@ -803,7 +814,7 @@ impl<'cx> InferenceState<'cx, '_> {
         };
 
         if target.kind.is_type_variable() {
-            if let Some(idx) = self.c.get_inference_info_for_ty(target, self.inference) {
+            if let Some(idx) = self.get_inference_info_for_ty(target) {
                 let info = self.c.inference_info(self.inference, idx);
                 if !info.is_fixed {
                     let candidate = self.propagation_ty.unwrap_or(source);
@@ -916,10 +927,212 @@ impl<'cx> InferenceState<'cx, '_> {
     fn infer_from_object_tys(&mut self, source: &'cx ty::Ty<'cx>, target: &'cx ty::Ty<'cx>) {
         if !self.c.tys_definitely_unrelated(source, target) {
             if source.is_tuple() || source.kind.is_array(self.c) {
-                if target.is_tuple() {
-                    // TODO:
-                }
-                if target.kind.is_array(self.c) {
+                if let Some(target_tuple) = target.as_tuple() {
+                    let source_arity = TyChecker::get_ty_reference_arity(source);
+                    let target_arity = TyChecker::get_ty_reference_arity(target);
+                    let is_tuple_ty_structure_matching = |t1: &ty::TupleTy, t2: &ty::TupleTy| {
+                        source_arity == target_arity
+                            && t1.element_flags.iter().enumerate().all(|(i, f)| {
+                                f.intersection(ty::ElementFlags::VARIABLE)
+                                    == t2.element_flags[i].intersection(ty::ElementFlags::VARIABLE)
+                            })
+                    };
+                    let element_tys = self.c.get_ty_arguments(target);
+                    let element_flags = target_tuple.element_flags;
+                    if let Some(source_tuple) = source.as_tuple() {
+                        if is_tuple_ty_structure_matching(source_tuple, &target_tuple) {
+                            for i in 0..target_arity {
+                                let s = self.c.get_ty_arguments(source);
+                                self.infer_from_tys(s[i], element_tys[i]);
+                            }
+                            return;
+                        }
+                    }
+                    let start_len = if let Some(s) = source.as_tuple() {
+                        usize::min(s.fixed_length, target_tuple.fixed_length)
+                    } else {
+                        0
+                    };
+
+                    let end_len = usize::min(
+                        if let Some(s) = source.as_tuple() {
+                            s.get_end_elem_count(ty::ElementFlags::FIXED)
+                        } else {
+                            0
+                        },
+                        if target_tuple
+                            .combined_flags
+                            .intersects(ty::ElementFlags::VARIABLE)
+                        {
+                            target_tuple.get_end_elem_count(ty::ElementFlags::FIXED)
+                        } else {
+                            0
+                        },
+                    );
+
+                    for i in 0..start_len {
+                        let s = self.c.get_ty_arguments(source);
+                        self.infer_from_tys(s[i], element_tys[i]);
+                    }
+                    if source.as_tuple().map_or(true, |s| {
+                        source_arity - start_len - end_len == 1
+                            && s.element_flags[start_len].intersects(ty::ElementFlags::REST)
+                    }) {
+                        let rest_ty = self.c.get_ty_arguments(source)[start_len];
+                        for i in start_len..target_arity - end_len {
+                            let s = if element_flags[i].intersects(ty::ElementFlags::VARIADIC) {
+                                self.c.create_array_ty(rest_ty, false)
+                            } else {
+                                rest_ty
+                            };
+                            self.infer_from_tys(s, element_tys[i]);
+                        }
+                    } else {
+                        let middle_length = target_arity - start_len - end_len;
+                        if middle_length == 2 {
+                            if element_flags[start_len]
+                                .intersection(element_flags[start_len + 1])
+                                .intersects(ty::ElementFlags::VARIADIC)
+                            {
+                                if let Some(target_info) =
+                                    self.get_inference_info_for_ty(element_tys[start_len])
+                                {
+                                    if let Some(implied_arity) = self
+                                        .c
+                                        .inference_info(self.inference, target_info)
+                                        .implied_arity
+                                    {
+                                        let s = self.c.slice_tuple_ty(
+                                            source,
+                                            start_len,
+                                            end_len + source_arity - implied_arity,
+                                        );
+                                        self.infer_from_tys(s, element_tys[start_len]);
+                                        let s = self.c.slice_tuple_ty(
+                                            source,
+                                            start_len + implied_arity,
+                                            end_len,
+                                        );
+                                        self.infer_from_tys(s, element_tys[start_len + 1]);
+                                    }
+                                }
+                            } else if element_flags[start_len]
+                                .intersects(ty::ElementFlags::VARIADIC)
+                                && element_flags[start_len + 1].intersects(ty::ElementFlags::REST)
+                            {
+                                let info_idx =
+                                    self.get_inference_info_for_ty(element_tys[start_len]);
+                                let param = info_idx.map(|info_idx| {
+                                    self.c.inference_info(self.inference, info_idx).ty_param
+                                });
+                                let constraint =
+                                    param.and_then(|param| self.c.get_base_constraint_of_ty(param));
+                                if let Some(constraint) = constraint {
+                                    if let Some(t) = constraint.as_tuple() {
+                                        if !t.combined_flags.intersects(ty::ElementFlags::VARIABLE)
+                                        {
+                                            let implied_arity = t.fixed_length;
+                                            let s = self.c.slice_tuple_ty(
+                                                source,
+                                                start_len,
+                                                source_arity - (start_len + implied_arity),
+                                            );
+                                            self.infer_from_tys(s, element_tys[start_len]);
+                                            let s = self
+                                                .c
+                                                .get_element_ty_of_slice_of_tuple_ty(
+                                                    source,
+                                                    start_len + implied_arity,
+                                                    Some(end_len),
+                                                    None,
+                                                    None,
+                                                )
+                                                .unwrap();
+                                            self.infer_from_tys(s, element_tys[start_len + 1]);
+                                        }
+                                    }
+                                }
+                            } else if element_flags[start_len].intersects(ty::ElementFlags::REST)
+                                && element_flags[start_len + 1]
+                                    .intersects(ty::ElementFlags::VARIADIC)
+                            {
+                                let info_idx =
+                                    self.get_inference_info_for_ty(element_tys[start_len]);
+                                let param = info_idx.map(|info_idx| {
+                                    self.c.inference_info(self.inference, info_idx).ty_param
+                                });
+                                let constraint =
+                                    param.and_then(|param| self.c.get_base_constraint_of_ty(param));
+                                if let Some(constraint) = constraint {
+                                    if let Some(t) = constraint.as_tuple() {
+                                        if !t.combined_flags.intersects(ty::ElementFlags::VARIABLE)
+                                        {
+                                            let implied_arity = t.fixed_length;
+                                            let end_index = source_arity
+                                                - t.get_end_elem_count(ty::ElementFlags::FIXED);
+                                            let start_index = end_index - implied_arity;
+                                            let trailing_slice = {
+                                                let tys = &self.c.get_ty_arguments(source)
+                                                    [start_index..end_index];
+                                                let flags =
+                                                    &source.as_tuple().unwrap().element_flags
+                                                        [start_index..end_index];
+                                                self.c.create_tuple_ty(tys, Some(flags), false)
+                                            };
+                                            let s = self
+                                                .c
+                                                .get_element_ty_of_slice_of_tuple_ty(
+                                                    source,
+                                                    start_index,
+                                                    Some(end_len + implied_arity),
+                                                    None,
+                                                    None,
+                                                )
+                                                .unwrap();
+                                            self.infer_from_tys(s, element_tys[start_len]);
+                                            self.infer_from_tys(
+                                                trailing_slice,
+                                                element_tys[start_len + 1],
+                                            );
+                                        }
+                                    }
+                                }
+                            }
+                        } else if middle_length == 1
+                            && element_flags[start_len].intersects(ty::ElementFlags::VARIADIC)
+                        {
+                            let ends_in_optionals = target_tuple.element_flags[target_arity - 1]
+                                .intersects(ty::ElementFlags::OPTIONAL);
+                            let source_slice = self.c.slice_tuple_ty(source, start_len, end_len);
+                            self.infer_with_priority(
+                                source_slice,
+                                element_tys[start_len],
+                                if ends_in_optionals {
+                                    InferencePriority::SPECULATIVE_TUPLE
+                                } else {
+                                    InferencePriority::empty()
+                                },
+                            );
+                        } else if middle_length == 1
+                            && element_flags[start_len].intersects(ty::ElementFlags::REST)
+                        {
+                            if let Some(rest_ty) = self.c.get_element_ty_of_slice_of_tuple_ty(
+                                source,
+                                start_len,
+                                Some(end_len),
+                                None,
+                                None,
+                            ) {
+                                self.infer_from_tys(rest_ty, element_tys[start_len]);
+                            }
+                        }
+                    }
+                    for i in 0..end_len {
+                        let s = self.c.get_ty_arguments(source)[source_arity - i - 1];
+                        self.infer_from_tys(s, element_tys[target_arity - i - 1]);
+                    }
+                    return;
+                } else if target.kind.is_array(self.c) {
                     self.infer_from_index_tys(source, target);
                     return;
                 }

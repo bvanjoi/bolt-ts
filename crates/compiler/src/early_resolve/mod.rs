@@ -12,9 +12,10 @@ use rayon::prelude::*;
 use rustc_hash::FxHashMap;
 
 use crate::bind::{BinderState, GlobalSymbols, Symbol, SymbolFlags, SymbolID, SymbolName};
+use crate::keyword;
 use crate::keyword::{is_prim_ty_name, is_prim_value_name};
 use crate::parser::Parser;
-use crate::{ast, keyword};
+use bolt_ts_ast as ast;
 
 pub struct EarlyResolveResult {
     pub final_res: FxHashMap<ast::NodeID, SymbolID>,
@@ -98,7 +99,7 @@ impl<'cx> Resolver<'cx, '_, '_> {
     }
 
     fn resolve_stmt(&mut self, stmt: &'cx ast::Stmt<'cx>) {
-        use ast::StmtKind::*;
+        use bolt_ts_ast::StmtKind::*;
         match stmt.kind {
             Var(var) => self.resolve_var_stmt(var),
             Expr(expr) => self.resolve_expr(expr),
@@ -195,7 +196,7 @@ impl<'cx> Resolver<'cx, '_, '_> {
     }
 
     fn resolve_entity_name(&mut self, name: &'cx ast::EntityName<'cx>, meaning: SymbolFlags) {
-        use ast::EntityNameKind::*;
+        use bolt_ts_ast::EntityNameKind::*;
         match name.kind {
             Ident(ident) => {
                 if meaning == SymbolFlags::TYPE {
@@ -237,7 +238,7 @@ impl<'cx> Resolver<'cx, '_, '_> {
     }
 
     fn resolve_ty(&mut self, ty: &'cx ast::Ty<'cx>) {
-        use ast::TyKind::*;
+        use bolt_ts_ast::TyKind::*;
         match ty.kind {
             Refer(refer) => self.resolve_refer_ty(refer),
             Array(array) => {
@@ -292,7 +293,7 @@ impl<'cx> Resolver<'cx, '_, '_> {
                 }
             }
             Typeof(n) => {
-                use ast::EntityNameKind::*;
+                use bolt_ts_ast::EntityNameKind::*;
                 match n.name.kind {
                     Ident(ident) => self.resolve_value_by_ident(ident),
                     Qualified(_) => (),
@@ -317,7 +318,13 @@ impl<'cx> Resolver<'cx, '_, '_> {
             Infer(n) => {
                 self.resolve_ty_param(n.ty_param);
             }
+            Nullable(n) => {
+                self.resolve_ty(n.ty);
+            }
             Intrinsic(_) => {}
+            NamedTuple(n) => {
+                self.resolve_ty(n.ty);
+            }
         }
     }
 
@@ -327,7 +334,7 @@ impl<'cx> Resolver<'cx, '_, '_> {
     }
 
     fn resolve_object_ty_member(&mut self, m: &'cx ast::ObjectTyMember<'cx>) {
-        use ast::ObjectTyMemberKind::*;
+        use bolt_ts_ast::ObjectTyMemberKind::*;
         match m.kind {
             Prop(m) => {
                 if let Some(ty) = m.ty {
@@ -382,11 +389,11 @@ impl<'cx> Resolver<'cx, '_, '_> {
     }
 
     fn resolve_expr(&mut self, expr: &'cx ast::Expr<'cx>) {
-        use ast::ExprKind::*;
+        use bolt_ts_ast::ExprKind::*;
         match expr.kind {
             ArrowFn(f) => {
                 self.resolve_params(f.params);
-                use ast::ArrowFnExprBody::*;
+                use bolt_ts_ast::ArrowFnExprBody::*;
                 match f.body {
                     Block(block) => self.resolve_block_stmt(block),
                     Expr(expr) => self.resolve_expr(expr),
@@ -458,7 +465,7 @@ impl<'cx> Resolver<'cx, '_, '_> {
     }
 
     fn resolve_object_member(&mut self, member: &'cx ast::ObjectMember<'cx>) {
-        use ast::ObjectMemberKind::*;
+        use bolt_ts_ast::ObjectMemberKind::*;
         match member.kind {
             Shorthand(n) => {
                 self.resolve_value_by_ident(n.name);

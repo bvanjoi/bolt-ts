@@ -1,7 +1,7 @@
 use super::ast;
 use super::list_ctx::{self, ListContext};
-use super::token::{Token, TokenKind};
 use super::{PResult, ParserState};
+use bolt_ts_ast::{Token, TokenKind};
 
 fn is_ele_for_tuple_ele_tys_and_ty_args(s: &mut ParserState) -> bool {
     s.token.kind == TokenKind::Comma || s.is_start_of_ty(false)
@@ -97,7 +97,6 @@ impl<'cx> ParserState<'cx, '_> {
         expect: TokenKind,
         parse_constituent_type: impl FnOnce(&mut Self) -> PResult<&'cx ast::Ty<'cx>> + Copy,
     ) -> PResult<&'cx ast::Ty<'cx>> {
-        let start = self.token.start();
         let is_union_ty = expect == TokenKind::Pipe;
         let has_leading_operator = self.parse_optional(expect).is_some();
         let ty = if has_leading_operator {
@@ -326,7 +325,7 @@ impl<'cx> ParserState<'cx, '_> {
                 self.parse_ty_op(op)
             }
             TokenKind::Infer => self.parse_infer_ty(),
-            _ => self.parse_prefix_ty(),
+            _ => self.parse_postfix_ty(),
         }
     }
 
@@ -348,7 +347,7 @@ impl<'cx> ParserState<'cx, '_> {
         Ok(ty)
     }
 
-    fn parse_prefix_ty(&mut self) -> PResult<&'cx ast::Ty<'cx>> {
+    fn parse_postfix_ty(&mut self) -> PResult<&'cx ast::Ty<'cx>> {
         let start = self.token.start();
         let mut ty = self.parse_non_array_ty()?;
         loop {
@@ -356,6 +355,24 @@ impl<'cx> ParserState<'cx, '_> {
                 return Ok(ty);
             }
             match self.token.kind {
+                TokenKind::Question => {
+                    if self.lookahead(Self::next_token_is_start_of_expr) {
+                        return Ok(ty);
+                    } else {
+                        self.next_token();
+                        let id = self.next_node_id();
+                        self.parent_map.r#override(ty.id(), id);
+                        let n = self.alloc(ast::NullableTy {
+                            id,
+                            span: self.new_span(start),
+                            ty,
+                        });
+                        self.insert_map(id, ast::Node::NullableTy(n));
+                        ty = self.alloc(ast::Ty {
+                            kind: ast::TyKind::Nullable(n),
+                        })
+                    }
+                }
                 TokenKind::LBracket => {
                     let id = self.next_node_id();
                     self.expect(TokenKind::LBracket);
@@ -538,7 +555,7 @@ impl<'cx> ParserState<'cx, '_> {
     }
 
     fn parse_non_array_ty(&mut self) -> PResult<&'cx ast::Ty<'cx>> {
-        use TokenKind::*;
+        use bolt_ts_ast::TokenKind::*;
         match self.token.kind {
             True | False | Null | Void | Undefined => {
                 let kind = match self.token.kind {
@@ -736,7 +753,23 @@ impl<'cx> ParserState<'cx, '_> {
 
     fn parse_tuple_ele_name_or_tuple_ele_ty(&mut self) -> PResult<&'cx ast::Ty<'cx>> {
         if self.lookahead(Self::is_tuple_ele_name) {
-            todo!()
+            let start = self.token.start();
+            let id = self.next_node_id();
+            let dotdotdot = self.parse_optional(TokenKind::DotDotDot);
+            let name = self.parse_ident_name()?;
+            let question = self.parse_optional(TokenKind::Question);
+            self.expect(TokenKind::Colon);
+            let ty = self.parse_tuple_ele_ty()?;
+            let n = self.alloc(ast::NamedTupleTy {
+                id,
+                span: self.new_span(start),
+                dotdotdot: dotdotdot.map(|t| t.span),
+                name,
+                question: question.map(|t| t.span),
+                ty,
+            });
+            self.insert_map(id, ast::Node::NamedTupleTy(n));
+            Ok(ty)
         } else {
             self.parse_tuple_ele_ty()
         }

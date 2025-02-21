@@ -1,11 +1,12 @@
 mod errors;
 
-use crate::ast::Visitor;
 use crate::bind::{
     BinderState, BlockContainerSymbol, GlobalSymbols, SymbolFlags, SymbolID, SymbolName, Symbols,
 };
 use crate::graph::{ModuleGraph, ModuleRes};
-use crate::{ast, parser};
+use crate::parser;
+use bolt_ts_ast as ast;
+use bolt_ts_ast::Visitor;
 use bolt_ts_atom::AtomMap;
 use bolt_ts_span::{Module, ModuleID};
 use bolt_ts_utils::fx_hashmap_with_capacity;
@@ -126,12 +127,12 @@ impl<'cx> ast::Visitor<'cx> for Resolver<'cx, '_, '_> {
         };
 
         if let Some(clause) = node.clause.kind {
-            use ast::ImportClauseKind::*;
+            use bolt_ts_ast::ImportClauseKind::*;
             match clause {
                 Ns(n) => {}
                 Specs(specs) => {
                     for spec in specs {
-                        use ast::ImportSpecKind::*;
+                        use bolt_ts_ast::ImportSpecKind::*;
                         match spec.kind {
                             Shorthand(n) => {
                                 let name = SymbolName::Normal(n.name.name);

@@ -11,7 +11,6 @@ mod parse_modifiers;
 mod query;
 mod scan;
 mod stmt;
-pub mod token;
 mod ty;
 mod utils;
 
@@ -26,10 +25,10 @@ use rustc_hash::FxHashMap;
 
 pub use self::query::AccessKind;
 pub use self::query::AssignmentKind;
-pub use self::token::KEYWORD_TOKEN_START;
-use self::token::{Token, TokenFlags, TokenKind};
-use crate::ast::{self, Node, NodeFlags, NodeID};
 use crate::keyword;
+pub use bolt_ts_ast::KEYWORD_TOKEN_START;
+use bolt_ts_ast::{self as ast, Node, NodeFlags, NodeID};
+use bolt_ts_ast::{Token, TokenFlags, TokenKind};
 
 type PResult<T> = Result<T, ()>;
 
@@ -383,7 +382,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
     }
 
     fn string_token(&self) -> AtomId {
-        use TokenKind::*;
+        use bolt_ts_ast::TokenKind::*;
         assert!(
             matches!(self.token.kind, String | NoSubstitutionTemplate),
             "{:#?}",

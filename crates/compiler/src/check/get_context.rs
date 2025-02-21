@@ -1,5 +1,5 @@
-use crate::ast;
 use crate::ty;
+use bolt_ts_ast as ast;
 
 use super::InferenceContextId;
 use super::TyChecker;

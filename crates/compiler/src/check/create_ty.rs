@@ -1,20 +1,21 @@
+use bolt_ts_ast as ast;
 use bolt_ts_utils::fx_hashset_with_capacity;
 use rustc_hash::{FxHashMap, FxHashSet};
 use std::hash::Hasher;
 
 use crate::bind::{Symbol, SymbolFlags, SymbolID, SymbolName};
+use crate::check::SymbolLinks;
 use crate::check::instantiation_ty_map::TyCacheTrait;
 use crate::check::links::TyLinks;
-use crate::check::SymbolLinks;
+use crate::keyword;
 use crate::ty;
 use crate::ty::{
     CheckFlags, ElementFlags, IndexFlags, ObjectFlags, TyID, TypeFlags, UnionReduction,
 };
-use crate::{ast, keyword};
 
+use super::TyChecker;
 use super::relation::RelationKind;
 use super::utils::insert_ty;
-use super::TyChecker;
 use super::{InstantiationTyMap, UnionOrIntersectionMap};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -1152,5 +1153,23 @@ impl<'cx> TyChecker<'cx> {
     ) -> &'cx ty::Ty<'cx> {
         let ty = self.alloc(ty::StringMappingTy { symbol, ty });
         self.new_ty(ty::TyKind::StringMapping(ty), TypeFlags::STRING_MAPPING)
+    }
+
+    pub(crate) fn slice_tuple_ty(
+        &mut self,
+        ty: &'cx ty::Ty<'cx>,
+        index: usize,
+        end_skip_count: usize,
+    ) -> &'cx ty::Ty<'cx> {
+        let tuple = ty.as_tuple().unwrap();
+        let end_index = TyChecker::get_ty_reference_arity(ty) - end_skip_count;
+        if index > tuple.fixed_length {
+            self.get_rest_ty_of_tuple_ty(ty)
+                .unwrap_or_else(|| self.create_tuple_ty(self.empty_array(), None, false))
+        } else {
+            let tys = &self.get_ty_arguments(ty)[index..end_index];
+            let element_flags = &tuple.element_flags[index..end_index];
+            self.create_tuple_ty(tys, Some(element_flags), false)
+        }
     }
 }

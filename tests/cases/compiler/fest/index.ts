@@ -4,15 +4,55 @@ function n(): never {
   throw new Error();
 }
 
+type ArrayElement<T> = T extends readonly unknown[] ? T[0] : never;
+type BaseKeyFilter<Type, Key extends keyof Type> = Key extends symbol
+	? never
+	: Type[Key] extends symbol
+		? never
+		: Type[Key] extends Record<string, unknown>
+			? Key
+			: [(...arguments_: any[]) => any] extends [Type[Key]]
+				? never
+				: Key;
 type BuiltIns = Primitive | void | Date | RegExp;
+type FilterDefinedKeys<T extends object> = Exclude<
+  {
+    [Key in keyof T]: IsAny<T[Key]> extends true
+      ? Key
+      : undefined extends T[Key]
+        ? never
+        : T[Key] extends undefined
+          ? never
+          : BaseKeyFilter<T, Key>;
+  }[keyof T],
+  undefined
+>;
+type FilterOptionalKeys<T extends object> = Exclude<
+  {
+    [Key in keyof T]: IsAny<T[Key]> extends true
+      ? never
+      : undefined extends T[Key]
+        ? T[Key] extends undefined
+          ? never
+          : BaseKeyFilter<T, Key>
+        : never;
+  }[keyof T],
+  undefined
+>;
+type FirstArrayElement<TArray extends UnknownArrayOrTuple> = TArray extends readonly [infer THead, ...unknown[]]
+	? THead
+	: never;
 type IsBothExtends<BaseType, FirstType, SecondType> = FirstType extends BaseType
 	? SecondType extends BaseType
 		? true
 		: false
 	: false;
+type LiteralKeyOf<T> = keyof {[K in keyof T as IsLiteral<K> extends true ? K : never]-?: never};
 type Numeric = number | bigint;
 type NonRecursiveType = BuiltIns | Function | (new (...arguments_: any[]) => unknown);
+type RequireNone<KeysType extends PropertyKey> = Partial<Record<KeysType, never>>;
 type StringDigit = '0' | '1' | '2' | '3' | '4' | '5' | '6' | '7' | '8' | '9';
+type UnknownArrayOrTuple = readonly [...unknown[]];
 type UpperCaseCharacters = 'A' | 'B' | 'C' | 'D' | 'E' | 'F' | 'G' | 'H' | 'I' | 'J' | 'K' | 'L' | 'M' | 'N' | 'O' | 'P' | 'Q' | 'R' | 'S' | 'T' | 'U' | 'V' | 'W' | 'X' | 'Y' | 'Z';
 type Whitespace =
 	| '\u{9}' // '\t'
@@ -77,9 +117,9 @@ type ArrayIndices<Element extends readonly unknown[]> =
   const a3:ValueKeys = 2;
 
   const a4: ValueKeys = -1;
-  //~^ ERROR: Type 'number' is not assignable to type '2 | 1 | 0'.
+  //~^ ERROR: Type 'number' is not assignable to type '0 | 1 | 2'.
   const a5: ValueKeys = 3;
-  //~^ ERROR: Type 'number' is not assignable to type '2 | 1 | 0'.
+  //~^ ERROR: Type 'number' is not assignable to type '0 | 1 | 2'.
 
   type TupleKeys = ArrayIndices<['a', 2]>;
 
@@ -90,15 +130,15 @@ type ArrayIndices<Element extends readonly unknown[]> =
   const b2: TupleKeys = 1;
 
   const b3: TupleKeys = -1;
-  //~^ ERROR: Type 'number' is not assignable to type '1 | 0'.
+  //~^ ERROR: Type 'number' is not assignable to type '0 | 1'.
   const b4: TupleKeys = 2;
-  //~^ ERROR: Type 'number' is not assignable to type '1 | 0'.
+  //~^ ERROR: Type 'number' is not assignable to type '0 | 1'.
 
 	const c0: ArrayIndices<['a', 'b', 'c']> = 0;
 	const c1: ArrayIndices<['a', 'b', 'c']> = 1;
 	const c2: ArrayIndices<['a', 'b', 'c']> = 2;
 	const c3: ArrayIndices<['a', 'b', 'c']> = 3;
-	//~^ ERROR: Type 'number' is not assignable to type '2 | 1 | 0'.
+	//~^ ERROR: Type 'number' is not assignable to type '0 | 1 | 2'.
 }
 
 // ========= ArrayValues =========
@@ -353,6 +393,46 @@ type IfAny<T, TypeIfAny = true, TypeIfNotAny = false> = (
   //~^ ERROR: Generic type 'IfAny' requires between 1 and 3 type arguments.
 }
 
+
+// ======= IfArrayReadonly =======
+type IfArrayReadonly<T extends UnknownArray, TypeIfArrayReadonly = true, TypeIfNotArrayReadonly = false> =
+	IsArrayReadonly<T> extends infer Result
+		? Result extends true ? TypeIfArrayReadonly : TypeIfNotArrayReadonly
+		: never; // Should never happen
+{
+  // Non-readonly arrays
+  const a0: IfArrayReadonly<[]> = false;
+  const a1: IfArrayReadonly<number[], string, number> = {} as number;
+  const a2: IfArrayReadonly<[string?, number?], string> = false;
+  const a3: IfArrayReadonly<[string, number, ...string[]], false, true> = true;
+
+  // Readonly arrays
+  const b0: IfArrayReadonly<readonly []> = true;
+  const b1: IfArrayReadonly<readonly number[], string, number> = {} as string;
+  const b2: IfArrayReadonly<readonly [string?, number?], string> = {} as string;
+  const b3: IfArrayReadonly<readonly [string, number, ...string[]], false, true> = false;
+
+  // Union
+  const c0: IfArrayReadonly<[] | [string, number]> = false;
+  const c1: IfArrayReadonly<[] | [string, number], string, number> = {} as number;
+  const c2: IfArrayReadonly<readonly [] | readonly [string, number]> = true;
+  const c3: IfArrayReadonly<readonly [] | readonly [string, number], string, number> = {} as string;
+
+  // Returns union of `TypeIfArrayReadonly` and `TypeIfNotArrayReadonly` when `T` is a union of readonly and non-readonly arrays.
+  const d0: IfArrayReadonly<[] | readonly []> = {} as boolean;
+  const d1: IfArrayReadonly<[string, number] | readonly [string, number, ...string[]], string, number> = {} as string | number;
+  const d2: IfArrayReadonly<[string, number] | readonly [string, number, ...string[]], string> = {} as string | false;
+
+  // Returns union of `TypeIfArrayReadonly` and `TypeIfNotArrayReadonly` when `T` is `any`.
+  const e0: IfArrayReadonly<any> = {} as boolean;
+  const e1: IfArrayReadonly<any, string, number> = {} as string | number;
+  const e2: IfArrayReadonly<any, string> = {} as string | false;
+
+  // Returns `TypeIfNotArrayReadonly` when `T` is `never`.
+  const f0: IfArrayReadonly<never> = false;
+  const f1: IfArrayReadonly<never, string, number> = {} as number;
+}
+
 // =========== ifNever ===========
 type IfNever<T, TypeIfNever = true, TypeIfNotNever = false> = (
 	IsNever<T> extends true ? TypeIfNever : TypeIfNotNever
@@ -415,6 +495,34 @@ type IsAny<T> = 0 extends 1 & NoInfer<T> ? true : false;
   type B = OnlyAny<any>;
   type C = OnlyAny<string>;
   //~^ ERROR: Type 'string' is not assignable to type 'never'.
+}
+
+// ========= IsArrayReadonly =========
+type IsArrayReadonly<T extends UnknownArray> = IfNever<T, false, T extends unknown[] ? false : true>;
+{
+  // Non-readonly arrays
+  const a0: IsArrayReadonly<[]> = false;
+  const a1: IsArrayReadonly<number[]> = false;
+  const a2: IsArrayReadonly<[string, number?, ...string[]]> = false;
+  const a3: IsArrayReadonly<[x: number, y: number, z?: number]> = false;
+  const a4: IsArrayReadonly<[...string[], number, string]> = false;
+
+  // Readonly arrays
+  const b0: IsArrayReadonly<readonly []> = true;
+  const b1: IsArrayReadonly<readonly number[]> = true;
+  const b2: IsArrayReadonly<readonly [string, number?, ...string[]]> = true;
+  const b3: IsArrayReadonly<readonly [x: number, y: number, z?: number]> = true;
+  const b4: IsArrayReadonly<readonly [...string[], number, string]> = true;
+
+  // Union
+  const c0: IsArrayReadonly<[] | readonly []> = {} as boolean;
+  const c1: IsArrayReadonly<[string, number] | readonly [string, number, ...string[]]> = {} as boolean;
+  const c2: IsArrayReadonly<[] | [string, number]> = false;
+  const c3: IsArrayReadonly<readonly [] | readonly [string, number]> = true;
+
+  // Boundary types
+  const d0: IsArrayReadonly<any> = {} as boolean;
+  const d1: IsArrayReadonly<never> = false;
 }
 
 // =========== IsEqual ===========
@@ -508,7 +616,7 @@ type IsNotFalse<T extends boolean> = [T] extends [false] ? false : true;
   //~^ ERROR: Type 'true' is not assignable to type 'false'.
 }
 
-// =========== isNull ===========
+// ============= isNull =============
 type IsNull<T> = [T] extends [null] ? true : false;
 {
   const a0: IsNull<null> = true;
@@ -791,6 +899,22 @@ type ReadonlyTuple<Element, Length extends number> =
   test[2] = 'a';
   //~^ ERROR: Cannot assign to '2' because it is a read-only property.
 }
+
+
+// ========= SetArrayAccess =========
+type SetArrayAccess<T extends UnknownArray, IsReadonly extends boolean> =
+T extends readonly [...infer U] ?
+	IsReadonly extends true
+		? readonly [...U]
+		: [...U]
+	: T;
+{
+  let a0: SetArrayAccess<string[], true> = [];
+  a0.push('42');
+  //~^ ERROR: Property 'push' does not exist on type 'unknown[]'.
+  let a1: SetArrayAccess<string[], false> = [];
+  a1.push('42');
+}
   
 
 // ============ Simplify ============
@@ -849,6 +973,23 @@ type Simplify<T> = {[KeyType in keyof T]: T[KeyType]} & {};
   const b0: SomeFunction = someFunction;
   //~^ ERROR: Type 'mapped type' is not assignable to type '(type: string) => string'.
 }
+
+// ========= StaticPartOfArray =========
+type StaticPartOfArray<T extends UnknownArray, Result extends UnknownArray = []> =
+	T extends unknown
+		? number extends T['length'] ?
+			T extends readonly [infer U, ...infer V]
+				? StaticPartOfArray<V, [...Result, U]>
+				: Result
+			: T
+		: never;
+{
+  type A = [string, number, boolean, ...string[]];
+  type B = StaticPartOfArray<A>;
+  let b: B = [];
+  //~^ ERROR: Type '[]' is not assignable to type '[string, number, boolean]'.
+}
+
 
 // ============ Stringified ============
 type Stringified<ObjectType> = {[KeyType in keyof ObjectType]: string};
@@ -917,7 +1058,7 @@ type TupleLength<T extends UnknownArray> =
   //~^ ERROR: Type '42' is not assignable to type '3'.
   const a1: TupleLength<string[]> = n();
   const a2: TupleLength<[] | [1, 2, 3] | Array<number>> = 42;
-  //~^ ERROR: Type 'number' is not assignable to type '3 | 0'.
+  //~^ ERROR: Type 'number' is not assignable to type '0 | 3'.
 }
 
 // ========== TupleToUnion ==========
@@ -1056,7 +1197,7 @@ type UnknownArray = readonly unknown[];
   const b4: UnknownArray = 1;
   //~^ ERROR: Type 'number' is not assignable to type 'unknown[]'.
   const b5: UnknownArray = Date;
-  //~^ ERROR: Type 'DateConstructor' is missing the following properties from type 'unknown[]': join, reverse, and
+  //~^ ERROR: Type 'DateConstructor' is missing the following properties from type 'unknown[]': join, forEach, and
   //~| ERROR: Type 'DateConstructor' is not assignable to type 'unknown[]'.
 
   type IsArray<T> = T extends UnknownArray ? true : false;
@@ -1088,6 +1229,20 @@ type UnknownRecord = Record<PropertyKey, unknown>;
   const b0: unknown = foo['bar'];
 }
 
+// ======== VariablePartOfArray ========
+type VariablePartOfArray<T extends UnknownArray> =
+	T extends unknown
+		? T extends readonly [...StaticPartOfArray<T>, ...infer U]
+			? U
+			: []
+		: never;
+{
+  type A = [string, number, boolean, ...string[]];
+  type B = VariablePartOfArray<A>;
+  let b: VariablePartOfArray<A> = [42];
+  //~^ ERROR: Type 'number' is not assignable to type 'string'.
+}
+
 // ============ ValueOf ============
 type ValueOf<ObjectType, ValueType extends keyof ObjectType = keyof ObjectType> = ObjectType[ValueType];
 {
@@ -1112,11 +1267,7 @@ type ValueOf<ObjectType, ValueType extends keyof ObjectType = keyof ObjectType> 
 
 // ========= WritableKeysOf =========
 type WritableKeysOf<T> = NonNullable<{
-	[P in keyof T]: 
-    IsEqual<
-      {[Q in P]: T[P]}, 
-      {readonly [Q in P]: T[P]}
-    > extends false ? P : never
+	[P in keyof T]: IsEqual<{[Q in P]: T[P]}, {readonly [Q in P]: T[P]}> extends false ? P : never
 }[keyof T]>;
 {
   type TestType1 = {

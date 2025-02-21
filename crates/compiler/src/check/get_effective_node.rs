@@ -1,4 +1,5 @@
-use crate::{ast, ir, ty};
+use crate::{ir, ty};
+use bolt_ts_ast as ast;
 
 use super::TyChecker;
 

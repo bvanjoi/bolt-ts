@@ -1,4 +1,4 @@
-use crate::ast;
+use bolt_ts_ast as ast;
 
 pub enum VarLikeName<'cx> {
     Ident(&'cx ast::Ident),

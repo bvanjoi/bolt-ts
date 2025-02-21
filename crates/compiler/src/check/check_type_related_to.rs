@@ -5,11 +5,11 @@ use super::errors;
 use super::get_variances::VarianceFlags;
 use super::relation::{RelationKind, SigCheckMode};
 use super::utils::contains_ty;
-use crate::ast;
 use crate::bind::{SymbolFlags, SymbolID};
 use crate::keyword::IDENT_LENGTH;
 use crate::ty::{self, ElementFlags, ObjectFlags, Sig, SigFlags, SigKind, TypeFlags};
 use crate::ty::{Ty, TyKind};
+use bolt_ts_ast as ast;
 
 use super::{Ternary, TyChecker};
 
@@ -1080,11 +1080,15 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
                 }
             }
 
-            if target.kind.is_array(self.c)
-                && self
-                    .c
+            if if target.kind.is_readonly_array(self.c) {
+                self.c
                     .every_type(source, |this, t| this.is_array_or_tuple(t))
-            {
+            } else if target.kind.is_array(self.c) {
+                self.c
+                    .every_type(source, |_, t| t.as_tuple().is_some_and(|t| !t.readonly))
+            } else {
+                false
+            } {
                 return if self.relation != RelationKind::Identity {
                     let source = self
                         .c

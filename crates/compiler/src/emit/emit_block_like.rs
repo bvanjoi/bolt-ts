@@ -1,5 +1,5 @@
 use super::Emit;
-use crate::ast;
+use bolt_ts_ast as ast;
 
 pub(super) trait ElemLike<'cx> {
     fn emit_item(&self, emitter: &mut Emit<'cx>);

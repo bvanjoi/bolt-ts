@@ -1,4 +1,3 @@
-mod ast;
 mod bind;
 pub mod check;
 mod early_resolve;
@@ -6,7 +5,6 @@ mod ecma_rules;
 mod emit;
 mod graph;
 mod ir;
-mod keyword;
 mod late_resolve;
 pub mod parser;
 mod ty;
@@ -16,13 +14,14 @@ use std::borrow::Cow;
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 
-use self::bind::bind_parallel;
 use self::bind::GlobalSymbols;
+use self::bind::bind_parallel;
 use self::early_resolve::early_resolve_parallel;
-use self::parser::token::keyword_idx_to_token;
-use self::parser::token::TokenKind;
 use self::wf::well_formed_check_parallel;
+use bolt_ts_ast::TokenKind;
+use bolt_ts_ast::keyword_idx_to_token;
 
+use bolt_ts_ast::keyword;
 use bolt_ts_atom::AtomMap;
 use bolt_ts_config::NormalizedTsConfig;
 use bolt_ts_fs::CachedFileSystem;

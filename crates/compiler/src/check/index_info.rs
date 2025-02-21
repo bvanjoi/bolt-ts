@@ -1,6 +1,7 @@
 use super::TyChecker;
 use crate::bind::{SymbolID, SymbolName};
-use crate::{ast, ty};
+use crate::ty;
+use bolt_ts_ast as ast;
 
 impl<'cx> TyChecker<'cx> {
     pub(super) fn get_index_symbol(&self, symbol: SymbolID) -> Option<SymbolID> {

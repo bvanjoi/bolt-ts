@@ -1,13 +1,13 @@
+use bolt_ts_ast::{self as ast, MappedTyModifiers};
 use bolt_ts_span::Span;
 use rustc_hash::FxHashMap;
 
 use super::create_ty::IntersectionFlags;
 use super::cycle_check::{Cycle, ResolutionKey};
 use super::links::SigLinks;
-use super::{errors, SymbolLinks, Ternary, TyChecker};
-use crate::ast::{self, MappedTyModifiers};
+use super::{SymbolLinks, Ternary, TyChecker, errors};
 use crate::bind::{Symbol, SymbolFlags, SymbolID, SymbolName};
-use crate::ty::{self, CheckFlags, ObjectFlags, SigID, SigKind, TyMapper, TypeFlags};
+use crate::ty::{self, CheckFlags, ObjectFlags, SigID, SigKind, TypeFlags};
 
 impl<'cx> TyChecker<'cx> {
     pub(super) fn members(&self, symbol: SymbolID) -> &FxHashMap<SymbolName, SymbolID> {
@@ -220,7 +220,7 @@ impl<'cx> TyChecker<'cx> {
         &self,
         decl: ast::NodeID,
     ) -> Option<&'cx [&'cx ast::ReferTy<'cx>]> {
-        use ast::Node::*;
+        use bolt_ts_ast::Node::*;
         let InterfaceDecl(interface) = self.p.node(decl) else {
             unreachable!()
         };

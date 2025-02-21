@@ -1,6 +1,6 @@
 use crate::ty::{self, TypeFlags};
 
-use super::{utils::insert_ty, TyChecker};
+use super::TyChecker;
 
 impl<'cx> TyChecker<'cx> {
     pub(super) fn get_simplified_ty_or_constraint(

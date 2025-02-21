@@ -1,4 +1,4 @@
-use bolt_ts_span::{ModuleID, Span};
+use bolt_ts_span::ModuleID;
 
 use super::{ExprKind, ModifierKind};
 
@@ -125,6 +125,7 @@ pub enum Node<'cx> {
     PropSignature(&'cx super::PropSignature<'cx>),
     MethodSignature(&'cx super::MethodSignature<'cx>),
     RestTy(&'cx super::RestTy<'cx>),
+    NamedTupleTy(&'cx super::NamedTupleTy<'cx>),
     TupleTy(&'cx super::TupleTy<'cx>),
     CondTy(&'cx super::CondTy<'cx>),
     IntersectionTy(&'cx super::IntersectionTy<'cx>),
@@ -135,6 +136,7 @@ pub enum Node<'cx> {
     PredTy(&'cx super::PredTy<'cx>),
     ParenTy(&'cx super::ParenTy<'cx>),
     InferTy(&'cx super::InferTy<'cx>),
+    NullableTy(&'cx super::NullableTy<'cx>),
 }
 
 impl<'cx> Node<'cx> {
@@ -609,7 +611,7 @@ macro_rules! as_node {
                     }
                 }
 
-                pub fn span(&self) -> Span {
+                pub fn span(&self) -> bolt_ts_span::Span {
                     match self {
                         $(Node::$kind(n) => n.span,)*
                     }
@@ -751,6 +753,7 @@ as_node!(
     (SatisfiesExpr, super::SatisfiesExpr<'cx>, satisfies_expr),
     (TypeDecl, super::TypeDecl<'cx>, type_decl),
     (RestTy, super::RestTy<'cx>, rest_ty),
+    (NamedTupleTy, super::NamedTupleTy<'cx>, named_tuple_ty),
     (TupleTy, super::TupleTy<'cx>, tuple_ty),
     (
         IndexedAccessTy,
@@ -802,5 +805,6 @@ as_node!(
     ),
     (PredTy, super::PredTy<'cx>, pred_ty),
     (ParenTy, super::ParenTy<'cx>, paren_ty),
-    (InferTy, super::InferTy<'cx>, infer_ty)
+    (InferTy, super::InferTy<'cx>, infer_ty),
+    (NullableTy, super::NullableTy<'cx>, nullable_ty),
 );

@@ -4,10 +4,10 @@ use crate::check::errors::DeclKind;
 use bolt_ts_atom::AtomMap;
 use bolt_ts_span::ModuleID;
 
-use crate::ast::{self, pprint_ident, visitor};
 use crate::ir;
 use crate::keyword::is_reserved_type_name;
 use crate::parser::Parser;
+use bolt_ts_ast::{self as ast, pprint_ident, visitor};
 
 pub fn well_formed_check_parallel(
     p: &Parser,
@@ -82,7 +82,7 @@ impl<'cx> CheckState<'cx> {
             return;
         };
         for modifier in modifiers.list {
-            use ast::ModifierKind::*;
+            use bolt_ts_ast::ModifierKind::*;
             if modifier.kind == Abstract {
                 let parent = self.p.parent(node).unwrap();
                 let parent_node = self.p.node(parent);

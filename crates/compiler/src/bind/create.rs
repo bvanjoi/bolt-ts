@@ -7,8 +7,10 @@ use super::symbol::{
     BlockContainerSymbol, FnSymbol, InterfaceSymbol, NsSymbol, ObjectSymbol, PropSymbol,
     SymbolFlags,
 };
-use super::{errors, BinderState, Symbol, SymbolFnKind, SymbolID, SymbolKind, SymbolName};
-use crate::{ast, ir};
+use super::{BinderState, Symbol, SymbolFnKind, SymbolID, SymbolKind, SymbolName, errors};
+use crate::ir;
+
+use bolt_ts_ast as ast;
 use bolt_ts_utils::fx_hashmap_with_capacity;
 
 impl<'cx, 'atoms> BinderState<'cx, 'atoms> {

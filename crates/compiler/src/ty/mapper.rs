@@ -70,11 +70,7 @@ pub trait TyMap<'cx>: std::fmt::Debug {
 
 impl<'cx> TyMap<'cx> for SimpleTyMapper<'cx> {
     fn get_mapped_ty(&self, ty: &'cx Ty<'cx>, _: &mut TyChecker<'cx>) -> &'cx Ty<'cx> {
-        if ty == self.source {
-            self.target
-        } else {
-            ty
-        }
+        if ty == self.source { self.target } else { ty }
     }
 }
 

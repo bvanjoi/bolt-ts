@@ -1,6 +1,5 @@
+use bolt_ts_ast as ast;
 use bolt_ts_span::Span;
-
-use crate::ast;
 
 pub trait CallLike<'cx>: Copy + std::fmt::Debug {
     fn id(&self) -> ast::NodeID;

@@ -1,10 +1,10 @@
-use crate::ast;
 use crate::bind::Symbol;
 use crate::bind::SymbolFlags;
 use crate::bind::SymbolID;
+use bolt_ts_ast as ast;
 
-use super::errors;
 use super::Resolver;
+use super::errors;
 
 impl<'cx> Resolver<'cx, '_, '_> {
     fn check_param_refer_itself(
@@ -49,11 +49,7 @@ impl<'cx> Resolver<'cx, '_, '_> {
                 .find_ancestor(
                     ident.id,
                     |node| {
-                        if node.is_static() {
-                            Some(true)
-                        } else {
-                            None
-                        }
+                        if node.is_static() { Some(true) } else { None }
                     },
                 )
                 .is_some()

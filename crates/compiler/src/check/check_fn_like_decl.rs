@@ -1,5 +1,6 @@
 use super::TyChecker;
-use crate::{ast, ir};
+use crate::ir;
+use bolt_ts_ast as ast;
 
 impl<'cx> TyChecker<'cx> {
     fn check_param_decl(&mut self, param: &'cx ast::ParamDecl<'cx>) {

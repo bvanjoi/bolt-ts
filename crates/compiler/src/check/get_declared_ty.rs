@@ -1,15 +1,14 @@
 use rustc_hash::FxHashMap;
 
+use super::TyChecker;
 use super::cycle_check::Cycle;
 use super::cycle_check::ResolutionKey;
 use super::errors;
 use super::ty;
 use super::utils::append_if_unique;
-use super::TyChecker;
-use crate::ast;
-use crate::ast::EntityNameKind;
 use crate::bind::{SymbolFlags, SymbolID, SymbolName};
 use crate::ty::ObjectFlags;
+use bolt_ts_ast as ast;
 
 impl<'cx> TyChecker<'cx> {
     pub(super) fn get_declared_ty_of_symbol(&mut self, symbol: SymbolID) -> &'cx ty::Ty<'cx> {
@@ -89,8 +88,8 @@ impl<'cx> TyChecker<'cx> {
 
     fn check_entity_name(&mut self, name: &'cx ast::EntityName<'cx>) -> &'cx ty::Ty<'cx> {
         match name.kind {
-            EntityNameKind::Ident(ident) => self.check_ident(ident),
-            EntityNameKind::Qualified(name) => {
+            ast::EntityNameKind::Ident(ident) => self.check_ident(ident),
+            ast::EntityNameKind::Qualified(name) => {
                 let left = self.check_entity_name(name.left);
                 let apparent_ty = self.get_apparent_ty(left);
                 self._get_prop_of_ty(name.id, apparent_ty, left, name.right)
@@ -283,7 +282,7 @@ impl<'cx> TyChecker<'cx> {
                 return None;
             }
             let node = self.p.node(id);
-            use ast::Node::*;
+            use bolt_ts_ast::Node::*;
             match node {
                 ClassDecl(_) | ClassExpr(_) | InterfaceDecl(_) | CallSigDecl(_)
                 | MethodSignature(_) | FnTy(_) | CtorSigDecl(_) | FnDecl(_)

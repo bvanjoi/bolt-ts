@@ -1,6 +1,6 @@
 use super::TyChecker;
-use crate::ast;
 use crate::bind::{Symbol, SymbolID, SymbolName};
+use bolt_ts_ast as ast;
 
 impl<'cx> TyChecker<'cx> {
     #[inline]
@@ -44,7 +44,7 @@ impl<'cx> TyChecker<'cx> {
     }
 
     pub(super) fn get_symbol_at_loc(&self, id: ast::NodeID) -> Option<SymbolID> {
-        use ast::Node::*;
+        use bolt_ts_ast::Node::*;
         if self.p.is_decl_name_or_import_prop_name(id) {
             let p = self.p.parent(id).unwrap();
             let parent_symbol = self.get_symbol_of_decl(p);

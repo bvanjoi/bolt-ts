@@ -1,9 +1,9 @@
 use bolt_ts_span::ModuleID;
 
-use crate::ast::CallExpr;
+use bolt_ts_ast::CallExpr;
 
-use super::ast;
 use super::Parser;
+use super::ast;
 
 #[derive(PartialEq)]
 pub enum AssignmentKind {
@@ -219,7 +219,7 @@ impl<'cx> Parser<'cx> {
         let Some(p) = self.parent(id) else {
             return AccessKind::Read;
         };
-        use ast::Node::*;
+        use bolt_ts_ast::Node::*;
         match self.node(p) {
             AssignExpr(n) => {
                 if n.left.id() == id {
@@ -265,7 +265,7 @@ impl<'cx> Parser<'cx> {
     }
 
     pub fn is_decl_name_or_import_prop_name(&self, id: ast::NodeID) -> bool {
-        use ast::Node::*;
+        use bolt_ts_ast::Node::*;
         self.parent(id).is_some_and(|p| match self.node(p) {
             ImportNamedSpec(_) | ExportNamedSpec(_) => {
                 matches!(self.node(id), Ident(_) | StringLit(_))
@@ -329,7 +329,7 @@ impl<'cx> Parser<'cx> {
             return false;
         };
         self.find_ancestor(p, |n| {
-            use ast::Node::*;
+            use bolt_ts_ast::Node::*;
             match n {
                 TypeDecl(_) => Some(true),
                 // TODO: ParenTy
@@ -422,6 +422,25 @@ impl<'cx> Parser<'cx> {
         } else {
             flags
         }
+    }
+
+    pub fn walk_up_paren_tys_and_get_parent_and_child(
+        &self,
+        n: ast::NodeID,
+    ) -> (Option<&'cx ast::ParenTy<'cx>>, ast::NodeID) {
+        let mut node = n;
+        let mut child = None;
+        loop {
+            let Some(n) = self.node(node).as_paren_ty() else {
+                break;
+            };
+            child = Some(n);
+            let Some(n) = self.parent(node) else {
+                break;
+            };
+            node = n;
+        }
+        (child, node)
     }
 }
 

@@ -1,12 +1,12 @@
+use bolt_ts_ast::ModifierKind;
+use bolt_ts_ast::{TokenFlags, TokenKind};
 use bolt_ts_span::Span;
 
-use crate::ast::ModifierKind;
 use crate::{ecma_rules, keyword};
 
 use super::list_ctx;
-use super::token::{TokenFlags, TokenKind};
-use super::{ast, errors};
 use super::{PResult, ParserState};
+use super::{ast, errors};
 
 pub(super) trait ParseSuccess {
     fn is_success(&self) -> bool;
@@ -25,7 +25,7 @@ impl<T, E> ParseSuccess for Result<Option<T>, E> {
 }
 
 pub(super) fn is_left_hand_side_expr_kind(expr: &ast::Expr) -> bool {
-    use ast::ExprKind::*;
+    use bolt_ts_ast::ExprKind::*;
     matches!(
         expr.kind,
         PropAccess(_)
@@ -86,7 +86,7 @@ impl<'cx> ParserState<'cx, '_> {
     pub(super) fn parse_block(&mut self) -> PResult<&'cx ast::BlockStmt<'cx>> {
         let id = self.next_node_id();
         let start = self.token.start();
-        use TokenKind::*;
+        use bolt_ts_ast::TokenKind::*;
         let open = LBrace;
         let open_brace_parsed = self.expect(LBrace);
         let stmts = self.with_parent(id, |this| {
@@ -126,7 +126,7 @@ impl<'cx> ParserState<'cx, '_> {
     }
 
     pub(super) fn is_start_of_ty(&mut self, is_start_of_param: bool) -> bool {
-        use TokenKind::*;
+        use bolt_ts_ast::TokenKind::*;
         if matches!(
             self.token.kind,
             LBrace
@@ -157,7 +157,7 @@ impl<'cx> ParserState<'cx, '_> {
     }
 
     pub(super) fn is_start_of_expr(&self) -> bool {
-        use TokenKind::*;
+        use bolt_ts_ast::TokenKind::*;
         let t = self.token.kind;
         if t.is_start_of_left_hand_side_expr()
             || matches!(
@@ -184,7 +184,7 @@ impl<'cx> ParserState<'cx, '_> {
     }
 
     pub(super) fn is_start_of_stmt(&mut self) -> bool {
-        use TokenKind::*;
+        use bolt_ts_ast::TokenKind::*;
         let t = self.token.kind;
         if matches!(t, Export | Const) {
             self.is_start_of_decl()
@@ -415,7 +415,7 @@ impl<'cx> ParserState<'cx, '_> {
     }
 
     pub(super) fn parse_params(&mut self) -> PResult<ast::ParamsDecl<'cx>> {
-        use TokenKind::*;
+        use bolt_ts_ast::TokenKind::*;
         self.expect(LParen);
         let old_error = self.diags.len();
         let params = self.parse_delimited_list(list_ctx::Params, Self::parse_param);
@@ -543,7 +543,7 @@ impl<'cx> ParserState<'cx, '_> {
         let is_unambiguously_start_of_fn_ty = |this: &mut Self| {
             this.next_token();
             let t = this.token.kind;
-            use TokenKind::*;
+            use bolt_ts_ast::TokenKind::*;
             if matches!(t, TokenKind::RParen | TokenKind::DotDotDot) {
                 return true;
             } else if skip_param_start(this).unwrap_or_default() {

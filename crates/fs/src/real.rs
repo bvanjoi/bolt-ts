@@ -1,8 +1,8 @@
 use normalize_path::NormalizePath;
 
+use crate::CachedFileSystem;
 use crate::errors::FsResult;
 use crate::tree::FSTree;
-use crate::CachedFileSystem;
 
 pub struct LocalFS {
     tree: FSTree,

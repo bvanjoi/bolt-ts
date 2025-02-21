@@ -4,13 +4,13 @@ use crate::ensure_sufficient_stack;
 use crate::parser::AssignmentKind;
 use crate::ty::TypeFlags;
 
+use super::ObjectFlags;
+use super::TyChecker;
 use super::ast;
 use super::bind::{SymbolFlags, SymbolName};
 use super::errors;
 use super::ty;
 use super::ty::AccessFlags;
-use super::ObjectFlags;
-use super::TyChecker;
 use super::{CheckMode, InferenceContextId, SymbolLinks, TyLinks};
 
 fn get_suggestion_boolean_op(op: &str) -> Option<&str> {
@@ -56,7 +56,7 @@ impl<'cx> TyChecker<'cx> {
     }
 
     pub(super) fn check_expr(&mut self, expr: &'cx ast::Expr<'cx>) -> &'cx ty::Ty<'cx> {
-        use ast::ExprKind::*;
+        use bolt_ts_ast::ExprKind::*;
         let ty = match expr.kind {
             Bin(bin) => ensure_sufficient_stack(|| self.check_bin_expr(bin)),
             NumLit(lit) => {
@@ -257,7 +257,7 @@ impl<'cx> TyChecker<'cx> {
             .iter()
             .map(|member| {
                 let member_symbol = self.get_symbol_of_decl(member.id());
-                use ast::ObjectMemberKind::*;
+                use bolt_ts_ast::ObjectMemberKind::*;
                 let ty = match member.kind {
                     Shorthand(n) => self.check_ident(n.name),
                     Prop(n) => self.check_object_prop_member(n),
@@ -310,7 +310,7 @@ impl<'cx> TyChecker<'cx> {
         };
         let l = self.check_expr(assign.left);
         let r = self.check_expr(assign.right);
-        use ast::AssignOp::*;
+        use bolt_ts_ast::AssignOp::*;
         let ty = match assign.op {
             Eq => unreachable!(),
             AddEq => self

@@ -1,4 +1,5 @@
-use crate::{ast, ir};
+use crate::ir;
+use bolt_ts_ast as ast;
 
 use super::Emit;
 
@@ -21,7 +22,7 @@ impl<'cx> Emit<'cx> {
     }
 
     pub(super) fn emit_class_ele(&mut self, ele: &ast::ClassElem<'cx>) {
-        use ast::ClassEleKind::*;
+        use bolt_ts_ast::ClassEleKind::*;
         match ele.kind {
             Prop(prop) => {
                 self.emit_class_prop(prop);

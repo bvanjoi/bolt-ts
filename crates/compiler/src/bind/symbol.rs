@@ -3,9 +3,9 @@ use bolt_ts_span::ModuleID;
 use bolt_ts_utils::fx_hashmap_with_capacity;
 use rustc_hash::FxHashMap;
 
-use crate::ast::{self, NodeID};
 use crate::check::F64Represent;
 use crate::keyword;
+use bolt_ts_ast::NodeID;
 
 #[derive(Debug, Clone, Copy, Hash, PartialEq, Eq)]
 pub enum SymbolName {
@@ -158,8 +158,8 @@ impl<'cx> Symbol {
         }
     }
 
-    pub fn can_have_symbol(node: crate::ast::Node<'cx>) -> bool {
-        use crate::ast::Node::*;
+    pub fn can_have_symbol(node: bolt_ts_ast::Node<'cx>) -> bool {
+        use bolt_ts_ast::Node::*;
         node.is_decl() || matches!(node, FnTy(_))
     }
 }

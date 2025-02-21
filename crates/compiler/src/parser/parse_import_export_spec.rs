@@ -1,17 +1,16 @@
+use bolt_ts_ast as ast;
+use bolt_ts_ast::TokenKind;
 use bolt_ts_span::Span;
 
-use crate::ast;
-use crate::keyword;
-
-use super::token::TokenKind;
 use super::ParserState;
-use super::{list_ctx, PResult};
+use super::{PResult, list_ctx};
+use crate::keyword;
 
 #[derive(Copy, Clone)]
 pub(super) struct ImportOrExportSpecs;
 impl list_ctx::ListContext for ImportOrExportSpecs {
     fn is_ele(&self, s: &mut ParserState, _: bool) -> bool {
-        use TokenKind::*;
+        use bolt_ts_ast::TokenKind::*;
         if s.token.kind == From
             && s.lookahead(|this| {
                 this.next_token();
@@ -27,7 +26,7 @@ impl list_ctx::ListContext for ImportOrExportSpecs {
     }
 
     fn is_closing(&self, s: &mut ParserState) -> bool {
-        use TokenKind::*;
+        use bolt_ts_ast::TokenKind::*;
         matches!(s.token.kind, RBrace)
     }
 }

@@ -1,5 +1,5 @@
 use quote::quote;
-use syn::{parse_macro_input, Attribute, DeriveInput};
+use syn::{Attribute, DeriveInput, parse_macro_input};
 
 fn find_field_satisfy_attr(
     input: &DeriveInput,
@@ -65,7 +65,7 @@ impl DiagnosticExt {
         }
     }
 
-    fn gen(self) -> proc_macro2::TokenStream {
+    fn r#gen(self) -> proc_macro2::TokenStream {
         match self {
             Self::Struct {
                 name,
@@ -136,7 +136,7 @@ impl DiagnosticExt {
 #[proc_macro_derive(DiagnosticExt, attributes(label, related))]
 pub fn derive_diagnostic_ext(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let input = parse_macro_input!(input as DeriveInput);
-    let stream = DiagnosticExt::from_derive_input(input).gen();
+    let stream = DiagnosticExt::from_derive_input(input).r#gen();
 
     proc_macro::TokenStream::from(stream)
 }

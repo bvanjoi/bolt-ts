@@ -1,7 +1,8 @@
-use crate::{ast, ir};
+use crate::ir;
 
 use super::symbol::{FnSymbol, SymbolKind};
 use super::{BinderState, SymbolFlags};
+use bolt_ts_ast as ast;
 use rustc_hash::FxHashMap;
 use thin_vec::thin_vec;
 

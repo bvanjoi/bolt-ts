@@ -3,8 +3,8 @@ use crate::bind::SymbolID;
 use crate::ty::ObjectFlags;
 use crate::ty::TyMapper;
 
-use super::ty;
 use super::TyChecker;
+use super::ty;
 
 bitflags::bitflags! {
   #[derive(Clone, Copy, Debug, PartialEq)]

@@ -1,11 +1,11 @@
-use super::token::TokenKind;
 use super::{PResult, ParserState};
-use crate::ast;
+use bolt_ts_ast as ast;
+use bolt_ts_ast::TokenKind;
 
 impl<'cx> ParserState<'cx, '_> {
     fn can_follow_modifier(&self) -> bool {
         let t = self.token.kind;
-        use TokenKind::*;
+        use bolt_ts_ast::TokenKind::*;
         matches!(t, LBracket | LBrace | Asterisk | DotDotDot) || t.is_lit_prop_name()
     }
 
@@ -20,14 +20,14 @@ impl<'cx> ParserState<'cx, '_> {
 
     fn can_follow_export_modifier(&self) -> bool {
         let t = self.token.kind;
-        use TokenKind::*;
+        use bolt_ts_ast::TokenKind::*;
         (t == TokenKind::At) || (!matches!(t, Asterisk | As | LBrace) && self.can_follow_modifier())
     }
 
     fn next_token_can_follow_default_keyword(&mut self) -> bool {
         self.next_token();
         let t = self.token.kind;
-        use TokenKind::*;
+        use bolt_ts_ast::TokenKind::*;
         matches!(t, Class | Function | Interface | At)
             || (t == Abstract && self.lookahead(Self::next_token_is_class_kw_on_same_line))
             || (t == Async && self.lookahead(Self::next_token_is_function_kw_on_same_line))
@@ -39,7 +39,7 @@ impl<'cx> ParserState<'cx, '_> {
     }
 
     pub(super) fn next_token_can_follow_modifier(&mut self) -> bool {
-        use TokenKind::*;
+        use bolt_ts_ast::TokenKind::*;
         match self.token.kind {
             Const => {
                 self.next_token();

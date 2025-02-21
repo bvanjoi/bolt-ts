@@ -1,7 +1,9 @@
-use super::{errors, Ternary, TyChecker};
+use super::{Ternary, TyChecker, errors};
 use crate::ir::ClassLike;
+use crate::ty;
 use crate::ty::TypeFlags;
-use crate::{ast, ty};
+
+use bolt_ts_ast as ast;
 
 impl<'cx> TyChecker<'cx> {
     fn check_ctor(&mut self, ctor: &'cx ast::ClassCtor<'cx>) {
@@ -46,7 +48,7 @@ impl<'cx> TyChecker<'cx> {
             if member.kind.is_static() {
                 continue;
             }
-            use ast::ClassEleKind::*;
+            use bolt_ts_ast::ClassEleKind::*;
             let member_name = match member.kind {
                 Ctor(_) => None,
                 Prop(n) => Some(n.name.id()),
@@ -141,7 +143,7 @@ impl<'cx> TyChecker<'cx> {
         }
 
         for ele in class.elems().elems {
-            use ast::ClassEleKind::*;
+            use bolt_ts_ast::ClassEleKind::*;
             match ele.kind {
                 Prop(prop) => self.check_class_prop_ele(prop),
                 Method(method) => self.check_class_method_ele(method),
