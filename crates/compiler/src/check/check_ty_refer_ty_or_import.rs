@@ -10,6 +10,7 @@ use super::{Ternary, TyChecker, errors};
 
 pub(super) trait TyReferTyOrImport<'cx> {
     fn id(&self) -> ast::NodeID;
+    fn span(&self) -> bolt_ts_span::Span;
     fn get_ty(&self, checker: &mut TyChecker<'cx>) -> &'cx ty::Ty<'cx>;
     fn ty_args(&self) -> Option<&'cx ast::Tys<'cx>>;
 }
@@ -17,6 +18,9 @@ pub(super) trait TyReferTyOrImport<'cx> {
 impl<'cx> TyReferTyOrImport<'cx> for ast::ReferTy<'cx> {
     fn id(&self) -> ast::NodeID {
         self.id
+    }
+    fn span(&self) -> bolt_ts_span::Span {
+        self.span
     }
     fn get_ty(&self, checker: &mut TyChecker<'cx>) -> &'cx ty::Ty<'cx> {
         let ty = checker.get_ty_from_ty_reference(self);
@@ -153,6 +157,8 @@ impl<'cx> TyChecker<'cx> {
             // TODO: named tuple member
             {
                 inferences.push(self.create_array_ty(self.unknown_ty, false));
+            } else if grand_parent_node.is_template_span_ty() {
+                inferences.push(self.string_ty);
             } else {
                 // TODO: handle more case
             }

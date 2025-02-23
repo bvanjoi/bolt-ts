@@ -934,6 +934,13 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
                 return Ternary::FALSE;
             }
             // TODO: isDistributionDependent
+        } else if target.kind.is_template_lit_ty() {
+            if source.kind.is_template_lit_ty() {
+                // TODO:
+            }
+            if self.c.is_ty_matched_by_template_lit_ty(source, target) {
+                return Ternary::TRUE;
+            }
         }
 
         if source.flags.intersects(TypeFlags::TYPE_VARIABLE) {

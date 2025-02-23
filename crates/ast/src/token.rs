@@ -90,6 +90,8 @@ pub enum TokenKind {
     // =====
     /// `!`
     Excl = 0x21,
+    /// `$`
+    Dollar = 0x24,
     /// `%`
     Percent = 0x25,
     /// `&`
@@ -130,6 +132,8 @@ pub enum TokenKind {
     RBracket = 0x5D,
     /// `^`
     Caret = 0x5E,
+    /// `` ` ``
+    Backtick = 0x60,
     /// `|`
     Pipe = 0x7C,
     /// `{`
@@ -215,6 +219,9 @@ pub enum TokenKind {
     BigInt,
     Ident,
     NoSubstitutionTemplate,
+    TemplateHead,
+    TemplateMiddle,
+    TemplateTail,
 }
 
 impl TokenKind {
@@ -328,7 +335,7 @@ impl TokenKind {
             Infer => "infer",
             Intrinsic => "intrinsic",
             Type => "type",
-            _ => unreachable!(),
+            _ => unreachable!("{:#?}", self),
         }
     }
 }
@@ -512,6 +519,7 @@ impl TokenKind {
                 | Slash
                 | SlashEq
                 | Ident
+                | TemplateHead
         ) || self.is_ident()
     }
 
@@ -679,6 +687,16 @@ impl TokenKind {
 
     pub fn is_in_or_of_keyword(self) -> bool {
         matches!(self, TokenKind::In | TokenKind::Of)
+    }
+
+    pub fn is_template(self) -> bool {
+        matches!(
+            self,
+            TokenKind::TemplateHead
+                | TokenKind::TemplateMiddle
+                | TokenKind::TemplateTail
+                | TokenKind::NoSubstitutionTemplate
+        )
     }
 }
 

@@ -13,6 +13,7 @@ members = [
   "crates/resolve",
   "crates/span",
   "crates/utils",
+  "crates/wasm",
 ]
 
 [workspace.dependencies]

@@ -325,6 +325,11 @@ impl<'cx> Resolver<'cx, '_, '_> {
             NamedTuple(n) => {
                 self.resolve_ty(n.ty);
             }
+            TemplateLit(n) => {
+                for item in n.spans {
+                    self.resolve_ty(item.ty);
+                }
+            }
         }
     }
 
@@ -452,6 +457,11 @@ impl<'cx> Resolver<'cx, '_, '_> {
                 self.resolve_expr(n.expr);
                 if !n.ty.is_const_ty_refer() {
                     self.resolve_ty(n.ty);
+                }
+            }
+            Template(n) => {
+                for item in n.spans {
+                    self.resolve_expr(item.expr);
                 }
             }
             _ => {}

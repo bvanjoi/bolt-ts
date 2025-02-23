@@ -6,7 +6,7 @@ pub fn hello() -> String {
 }
 
 #[wasm_bindgen]
-pub fn eval(files: JsValue, root: String) -> String {
+pub fn eval() -> String {
     // TODO:
     String::from("hello world")
 }

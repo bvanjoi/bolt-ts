@@ -128,6 +128,18 @@ impl<'cx> TyChecker<'cx> {
                 || self.is_simple_type_related_to(source, target, relation))
         {
             return true;
+        } else if !(source.flags | target.flags).intersects(
+            TypeFlags::UNION_OR_INTERSECTION
+                | TypeFlags::INDEXED_ACCESS
+                | TypeFlags::CONDITIONAL
+                | TypeFlags::SUBSTITUTION,
+        ) {
+            // if source.flags != target.flags {
+            //     return false;
+            // }
+            // if source.flags.intersects(TypeFlags::SINGLETON) {
+            //     return true;
+            // }
         }
 
         if source.kind.is_object() && target.kind.is_object() {

@@ -109,6 +109,9 @@ pub enum Node<'cx> {
     AsExpr(&'cx super::AsExpr<'cx>),
     SatisfiesExpr(&'cx super::SatisfiesExpr<'cx>),
     NonNullExpr(&'cx super::NonNullExpr<'cx>),
+    TemplateExpr(&'cx super::TemplateExpr<'cx>),
+    TemplateHead(&'cx super::TemplateHead),
+    TemplateSpan(&'cx super::TemplateSpan<'cx>),
 
     // ty
     LitTy(&'cx super::LitTy),
@@ -137,6 +140,8 @@ pub enum Node<'cx> {
     ParenTy(&'cx super::ParenTy<'cx>),
     InferTy(&'cx super::InferTy<'cx>),
     NullableTy(&'cx super::NullableTy<'cx>),
+    TemplateLitTy(&'cx super::TemplateLitTy<'cx>),
+    TemplateSpanTy(&'cx super::TemplateSpanTy<'cx>),
 }
 
 impl<'cx> Node<'cx> {
@@ -660,6 +665,9 @@ as_node!(
     (VarDecl, super::VarDecl<'cx>, var_decl),
     (BinExpr, super::BinExpr<'cx>, bin_expr),
     (NonNullExpr, super::NonNullExpr<'cx>, non_null_expr),
+    (TemplateExpr, super::TemplateExpr<'cx>, template_expr),
+    (TemplateHead, super::TemplateHead, template_head),
+    (TemplateSpan, super::TemplateSpan<'cx>, template_span),
     (NumLit, super::NumLit, num_lit),
     (BoolLit, super::BoolLit, bool_lit),
     (NullLit, super::NullLit, null_lit),
@@ -807,4 +815,6 @@ as_node!(
     (ParenTy, super::ParenTy<'cx>, paren_ty),
     (InferTy, super::InferTy<'cx>, infer_ty),
     (NullableTy, super::NullableTy<'cx>, nullable_ty),
+    (TemplateLitTy, super::TemplateLitTy<'cx>, template_lit_ty),
+    (TemplateSpanTy, super::TemplateSpanTy<'cx>, template_span_ty),
 );

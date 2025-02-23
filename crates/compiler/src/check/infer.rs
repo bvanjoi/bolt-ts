@@ -1,7 +1,9 @@
+use std::borrow::Cow;
+
 use crate::ir;
 use crate::ty::Sig;
 use crate::ty::{self, SigFlags, SigKind, TypeFlags};
-use bolt_ts_ast as ast;
+use bolt_ts_ast::{self as ast, keyword};
 
 use super::create_ty::IntersectionFlags;
 use super::get_contextual::ContextFlags;
@@ -682,6 +684,208 @@ impl<'cx> TyChecker<'cx> {
             }
         }
     }
+
+    fn infer_from_lit_parts_to_template_lit(
+        &mut self,
+        source_texts: &[bolt_ts_atom::AtomId],
+        source_tys: &[&'cx ty::Ty<'cx>],
+        target: &'cx ty::Ty<'cx>,
+    ) -> Option<ty::Tys<'cx>> {
+        let last_source_index = source_texts.len() - 1;
+        let source_start_text = source_texts[0];
+        let source_start_text_str = self.atoms.get(source_start_text);
+        let source_end_text = source_texts[last_source_index];
+        let source_end_text_str = self.atoms.get(source_end_text);
+
+        let t = target.kind.expect_template_lit_ty();
+        let target_texts = t.texts;
+        let last_target_index = target_texts.len() - 1;
+        let target_start_text = target_texts[0];
+        let target_start_text_str = self.atoms.get(target_start_text);
+        let target_end_text = target_texts[last_target_index];
+        let target_end_text_str = self.atoms.get(target_end_text);
+        let target_end_text_len = target_end_text_str.len();
+
+        if (last_source_index == 0
+            && source_start_text_str.len() < target_start_text_str.len() + target_end_text_len)
+            || !source_start_text_str.starts_with(target_start_text_str)
+            || !source_end_text_str.ends_with(target_end_text_str)
+        {
+            return None;
+        }
+
+        let mut matches = Vec::with_capacity(last_target_index);
+        let mut seg: usize = 0;
+        let mut pos: usize = target_start_text_str.len();
+
+        fn get_source_text<'a>(
+            atoms: &'a bolt_ts_atom::AtomMap,
+            index: usize,
+            last_source_index: usize,
+            source_end_text: bolt_ts_atom::AtomId,
+            target_end_text_len: usize,
+            source_texts: &[bolt_ts_atom::AtomId],
+        ) -> &'a str {
+            if index < last_source_index {
+                atoms.get(source_texts[index])
+            } else {
+                let source_end_text_str = atoms.get(source_end_text);
+                let len = source_end_text_str.len();
+                &source_end_text_str[..len - target_end_text_len]
+            }
+        }
+
+        let add_match = |this: &mut Self,
+                         s: usize,
+                         p: usize,
+                         seg: &mut usize,
+                         pos: &mut usize,
+                         matches: &mut Vec<&'cx ty::Ty<'cx>>| {
+            if s == *seg {
+                let sub = &get_source_text(
+                    this.atoms,
+                    s,
+                    last_source_index,
+                    source_end_text,
+                    target_end_text_len,
+                    source_texts,
+                )[*pos..p];
+                let atom = bolt_ts_atom::AtomId::from_str(sub);
+                if !this.atoms.contains(atom) {
+                    let sub = sub.to_string();
+                    this.atoms.insert(atom, Cow::Owned(sub));
+                }
+                let match_type = this.get_string_literal_type(atom);
+                matches.push(match_type);
+            } else {
+                let mut parts = Vec::with_capacity(source_texts.len() + 1);
+                parts.extend(source_texts[0..*pos].iter());
+                parts.extend(source_texts[*seg + 1..s].iter());
+                let sub = &get_source_text(
+                    this.atoms,
+                    s,
+                    last_source_index,
+                    source_end_text,
+                    target_end_text_len,
+                    source_texts,
+                )[0..p];
+                let atom = bolt_ts_atom::AtomId::from_str(sub);
+                if !this.atoms.contains(atom) {
+                    let sub = sub.to_string();
+                    this.atoms.insert(atom, Cow::Owned(sub));
+                }
+                parts.push(atom);
+                let match_type = this.get_template_lit_ty(&parts, &source_tys[*seg..s]);
+                matches.push(match_type);
+            }
+            *seg = s;
+            *pos = p;
+        };
+
+        for i in 1..last_target_index {
+            let delim = self.atoms.get(target_texts[i]);
+            if !delim.is_empty() {
+                let mut s = seg;
+                let mut p = pos;
+                loop {
+                    let src_text = get_source_text(
+                        self.atoms,
+                        s,
+                        last_source_index,
+                        source_end_text,
+                        target_end_text_len,
+                        source_texts,
+                    );
+                    if let Some(found) = src_text[p..].find(delim) {
+                        p = p + found;
+                        break;
+                    }
+                    s += 1;
+                    if s == source_texts.len() {
+                        return None;
+                    }
+                    p = 0;
+                }
+                let delim_len = delim.len();
+                add_match(self, s, p, &mut seg, &mut pos, &mut matches);
+                pos += delim_len;
+            } else if pos
+                < get_source_text(
+                    self.atoms,
+                    seg,
+                    last_source_index,
+                    source_end_text,
+                    target_end_text_len,
+                    source_texts,
+                )
+                .len()
+            {
+                add_match(self, seg, pos + 1, &mut seg, &mut pos, &mut matches);
+            } else if seg < last_source_index {
+                add_match(self, seg + 1, 0, &mut seg, &mut pos, &mut matches);
+            } else {
+                return None;
+            }
+        }
+        let p = get_source_text(
+            self.atoms,
+            last_source_index,
+            last_source_index,
+            source_end_text,
+            target_end_text_len,
+            source_texts,
+        )
+        .len();
+        add_match(self, last_source_index, p, &mut seg, &mut pos, &mut matches);
+        Some(self.alloc(matches))
+    }
+
+    fn infer_tys_from_template_lit_ty(
+        &mut self,
+        source: &'cx ty::Ty<'cx>,
+        target: &'cx ty::Ty<'cx>,
+    ) -> Option<ty::Tys<'cx>> {
+        let t = target.kind.expect_template_lit_ty();
+        if let Some(s) = source.kind.as_string_lit() {
+            self.infer_from_lit_parts_to_template_lit(&[s.val], self.empty_array(), target)
+        } else if let Some(s) = source.kind.as_template_lit_ty() {
+            if self.array_is_equal(Some(s.texts), Some(t.texts)) {
+                let tys = s
+                    .tys
+                    .iter()
+                    .enumerate()
+                    .map(|(i, s)| {
+                        let s_base = self.get_base_constraint_or_ty(s);
+                        let t_base = self.get_base_constraint_or_ty(t.tys[i]);
+                        if self.is_type_assignable_to(s_base, t_base) {
+                            s
+                        } else {
+                            self.get_string_like_ty_for_ty(s)
+                        }
+                    })
+                    .collect::<Vec<_>>();
+                Some(self.alloc(tys))
+            } else {
+                self.infer_from_lit_parts_to_template_lit(s.texts, s.tys, target)
+            }
+        } else {
+            None
+        }
+    }
+
+    pub(super) fn is_ty_matched_by_template_lit_ty(
+        &mut self,
+        source: &'cx ty::Ty<'cx>,
+        target: &'cx ty::Ty<'cx>,
+    ) -> bool {
+        let Some(inferences) = self.infer_tys_from_template_lit_ty(source, target) else {
+            return false;
+        };
+        inferences.iter().enumerate().all(|(i, r)| {
+            // TODO: isValidTypeForTemplateLiteralPlaceholder
+            false
+        })
+    }
 }
 
 pub(super) struct InferenceState<'cx, 'checker> {
@@ -871,6 +1075,8 @@ impl<'cx> InferenceState<'cx, '_> {
             for ty in u.tys {
                 self.infer_from_tys(ty, target);
             }
+        } else if target.kind.is_template_lit_ty() {
+            self.infer_to_template_lit_ty(source, target)
         } else {
             source = self.c.get_reduced_ty(source);
             if !(self.priority.intersects(InferencePriority::NO_CONSTRAINTS)
@@ -922,6 +1128,171 @@ impl<'cx> InferenceState<'cx, '_> {
         self.priority |= new_priority;
         self.infer_from_tys(source, target);
         self.priority = saved_priority
+    }
+
+    fn infer_to_template_lit_ty(&mut self, source: &'cx ty::Ty<'cx>, target: &'cx ty::Ty<'cx>) {
+        let t = target.kind.expect_template_lit_ty();
+        let matches = self.c.infer_tys_from_template_lit_ty(source, target);
+        let tys = t.tys;
+        if matches.is_some() || t.texts.iter().all(|t| *t == keyword::IDENT_EMPTY) {
+            for i in 0..tys.len() {
+                let source = matches.map_or(self.c.never_ty, |m| m[i]);
+                let target = tys[i];
+                if source.flags.intersects(TypeFlags::STRING_LITERAL)
+                    && target.flags.intersects(TypeFlags::TYPE_VARIABLE)
+                {
+                    let inference_context = self.get_inference_info_for_ty(target);
+                    let constraint = if let Some(inference_context) = inference_context {
+                        let ty_param = self
+                            .c
+                            .inference_info(self.inference, inference_context)
+                            .ty_param;
+                        self.c.get_base_constraint_of_ty(ty_param)
+                    } else {
+                        None
+                    };
+                    if let Some(constraint) = constraint {
+                        if !self.c.is_type_any(Some(constraint)) {
+                            let constraint_tys = if let Some(u) = constraint.kind.as_union() {
+                                u.tys
+                            } else {
+                                &[constraint]
+                            };
+                            let mut all_ty_flags = self
+                                .c
+                                .reduced_left(
+                                    constraint_tys,
+                                    |_, flags, t, _| flags | t.flags,
+                                    Some(TypeFlags::empty()),
+                                    None,
+                                    None,
+                                )
+                                .unwrap();
+                            if !all_ty_flags.intersects(TypeFlags::STRING) {
+                                let str = source.kind.expect_string_lit();
+                                if all_ty_flags.intersects(TypeFlags::NUMBER_LIKE) {
+                                    all_ty_flags &= !TypeFlags::NUMBER_LIKE;
+                                }
+                                if all_ty_flags.intersects(TypeFlags::BIG_INT_LIKE) {
+                                    all_ty_flags &= !TypeFlags::BIG_INT_LIKE;
+                                }
+                                let matching_ty = self
+                                    .c
+                                    .reduced_left(
+                                        constraint_tys,
+                                        |this, left, right, _| {
+                                            if !right.flags.intersects(all_ty_flags) {
+                                                left
+                                            } else if left.flags.intersects(TypeFlags::STRING) {
+                                                left
+                                            } else if right.flags.intersects(TypeFlags::STRING) {
+                                                source
+                                            } else if left
+                                                .flags
+                                                .intersects(TypeFlags::TEMPLATE_LITERAL)
+                                            {
+                                                left
+                                            } else if right
+                                                .flags
+                                                .intersects(TypeFlags::TEMPLATE_LITERAL)
+                                                && this
+                                                    .is_ty_matched_by_template_lit_ty(source, right)
+                                            {
+                                                source
+                                            } else if left
+                                                .flags
+                                                .intersects(TypeFlags::STRING_MAPPING)
+                                            {
+                                                left
+                                            } else if right
+                                                .flags
+                                                .intersects(TypeFlags::STRING_MAPPING)
+                                                && str.val
+                                                    == this.apply_string_mapping(
+                                                        right.symbol().unwrap(),
+                                                        str.val,
+                                                    )
+                                            {
+                                                source
+                                            } else if left
+                                                .flags
+                                                .intersects(TypeFlags::STRING_LITERAL)
+                                            {
+                                                left
+                                            } else if right
+                                                .kind
+                                                .as_string_lit()
+                                                .is_some_and(|r| r.val == str.val)
+                                            {
+                                                right
+                                            } else if left.flags.intersects(TypeFlags::NUMBER) {
+                                                left
+                                            } else if right.flags.intersects(TypeFlags::NUMBER) {
+                                                // this.get_number_literal_type(str)
+                                                todo!()
+                                            } else if left.flags.intersects(TypeFlags::ENUM) {
+                                                left
+                                            } else if right.flags.intersects(TypeFlags::ENUM) {
+                                                // getNumberLiteralType(+str)
+                                                todo!()
+                                            } else if left
+                                                .flags
+                                                .intersects(TypeFlags::NUMBER_LITERAL)
+                                            {
+                                                left
+                                            } else if right
+                                                .kind
+                                                .as_number_lit()
+                                                .is_some_and(|r| /*r.val == str*/ todo!())
+                                            {
+                                                right
+                                            } else if left.flags.intersects(TypeFlags::BIG_INT) {
+                                                left
+                                                // TODO: else if right.kind flags.intersects(TypeFlags::BigInt){parseBigIntLiteralType}(str)
+                                                // TODO: else if left.flags.intersects(TypeFlags::BigIntLiteral){left} else if right.flags.intersects(TypeFlags::BigIntLiteral) && pseudoBigIntToString((right as BigIntLiteralType).value) === str{right}
+                                            } else if left.flags.intersects(TypeFlags::BOOLEAN) {
+                                                left
+                                            } else if right.flags.intersects(TypeFlags::BOOLEAN) {
+                                                if str.val == keyword::KW_TRUE {
+                                                    this.true_ty
+                                                } else if str.val == keyword::KW_FALSE {
+                                                    this.false_ty
+                                                } else {
+                                                    this.boolean_ty()
+                                                }
+                                            } else if left
+                                                .flags
+                                                .intersects(TypeFlags::BOOLEAN_LITERAL)
+                                            {
+                                                left
+                                                // TODO: else if right.flags.intersects(TypeFlags::BOOLEAN_LITERAL) && (right as IntrinsicType).intrinsicName === str{right}
+                                            } else if left.flags.intersects(TypeFlags::UNDEFINED) {
+                                                left
+                                                // TODO: else if right.flags.intersects(TypeFlags::UNDEFINED) && (right as IntrinsicType).intrinsicName === str{right}
+                                            } else if left.flags.intersects(TypeFlags::NULL) {
+                                                left
+                                                // TODO: else if right.flags.intersects(TypeFlags::NULL) && (right as IntrinsicType).intrinsicName === str{right}
+                                            } else {
+                                                left
+                                            }
+                                        },
+                                        Some(self.c.never_ty),
+                                        None,
+                                        None,
+                                    )
+                                    .unwrap();
+
+                                if !matching_ty.flags.intersects(TypeFlags::NEVER) {
+                                    self.infer_from_tys(matching_ty, target);
+                                    continue;
+                                }
+                            }
+                        }
+                    }
+                }
+                self.infer_from_tys(source, target);
+            }
+        }
     }
 
     fn infer_from_object_tys(&mut self, source: &'cx ty::Ty<'cx>, target: &'cx ty::Ty<'cx>) {

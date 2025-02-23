@@ -7,7 +7,7 @@ mod object_ty;
 mod pprint;
 mod sig;
 
-use bolt_ts_ast as ast;
+use bolt_ts_ast::{self as ast};
 use bolt_ts_atom::AtomId;
 
 use crate::bind::{Symbol, SymbolID};
@@ -43,6 +43,12 @@ pub struct Ty<'cx> {
     pub id: TyID,
     pub kind: TyKind<'cx>,
     pub flags: TypeFlags,
+}
+
+impl Into<TypeFlags> for &Ty<'_> {
+    fn into(self) -> TypeFlags {
+        self.flags
+    }
 }
 
 impl PartialEq for Ty<'_> {
@@ -96,6 +102,12 @@ impl<'cx> Ty<'cx> {
             .map(|sub| sub.constraint.flags.intersects(TypeFlags::UNKNOWN))
             .unwrap_or_default()
     }
+
+    pub fn is_generic_string_like(&self) -> bool {
+        self.flags
+            .intersects(TypeFlags::TEMPLATE_LITERAL | TypeFlags::STRING_MAPPING)
+            && !self.is_pattern_lit_ty()
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -119,6 +131,7 @@ pub enum TyKind<'cx> {
     Index(&'cx IndexTy<'cx>),
     Substitution(&'cx SubstitutionTy<'cx>),
     StringMapping(&'cx StringMappingTy<'cx>),
+    TemplateLit(&'cx TemplateLitTy<'cx>),
 }
 
 macro_rules! as_ty_kind {
@@ -156,6 +169,7 @@ as_ty_kind!(Cond, &'cx CondTy<'cx>, cond_ty);
 as_ty_kind!(Index, &IndexTy<'cx>, index_ty);
 as_ty_kind!(Substitution, &SubstitutionTy<'cx>, substitution_ty);
 as_ty_kind!(StringMapping, &StringMappingTy<'cx>, string_mapping_ty);
+as_ty_kind!(TemplateLit, &TemplateLitTy<'cx>, template_lit_ty);
 
 impl<'cx> Ty<'cx> {
     pub fn to_string(&'cx self, checker: &mut TyChecker<'cx>) -> String {
@@ -199,6 +213,7 @@ impl<'cx> Ty<'cx> {
                 let name = checker.binder.symbol(s.symbol).name;
                 checker.atoms.get(name.expect_atom()).to_string()
             }
+            TyKind::TemplateLit(_) => "template literal".to_string(),
         }
     }
 
@@ -215,6 +230,7 @@ impl<'cx> Ty<'cx> {
             TyKind::Union(_) => None,
             TyKind::IndexedAccess(_) => todo!(),
             TyKind::Cond(_) => todo!(),
+            TyKind::TemplateLit(_) => todo!(),
             _ => None,
         }
     }
@@ -248,6 +264,34 @@ impl<'cx> Ty<'cx> {
     pub fn useable_as_prop_name(&self) -> bool {
         self.flags
             .intersects(TypeFlags::STRING_OR_NUMBER_LITERAL_OR_UNIQUE)
+    }
+
+    pub fn is_pattern_lit_placeholder_ty(&self) -> bool {
+        if let Some(i) = self.kind.as_intersection() {
+            let mut seen_placeholder = false;
+            for t in i.tys {
+                if t.flags.intersects(TypeFlags::LITERAL | TypeFlags::NULLABLE)
+                    || t.is_pattern_lit_placeholder_ty()
+                {
+                    seen_placeholder = true;
+                } else if !t.flags.intersects(TypeFlags::OBJECT) {
+                    return false;
+                }
+            }
+            seen_placeholder
+        } else {
+            self.flags.intersects(
+                TypeFlags::ANY | TypeFlags::STRING | TypeFlags::NUMBER | TypeFlags::BIG_INT,
+            ) || self.is_pattern_lit_ty()
+        }
+    }
+
+    pub fn is_pattern_lit_ty(&self) -> bool {
+        match self.kind {
+            TyKind::TemplateLit(n) => n.tys.iter().all(|ty| ty.is_pattern_lit_placeholder_ty()),
+            TyKind::StringMapping(n) => n.ty.is_pattern_lit_placeholder_ty(),
+            _ => false,
+        }
     }
 }
 
@@ -287,8 +331,7 @@ impl<'cx> TyKind<'cx> {
     }
 
     pub fn is_instantiable_primitive(&self) -> bool {
-        // todo: `template literal`, `string mapping`
-        self.is_index_ty()
+        self.is_index_ty() || self.is_string_mapping_ty() | self.is_template_lit_ty()
     }
 
     pub fn is_instantiable(&self) -> bool {
@@ -326,6 +369,12 @@ impl<'cx> TyKind<'cx> {
         self.as_object_reference()
             .is_some_and(|ty| ty.target == checker.global_readonly_array_ty())
     }
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct TemplateLitTy<'cx> {
+    pub texts: &'cx [AtomId],
+    pub tys: Tys<'cx>,
 }
 
 #[derive(Debug, Clone, Copy)]

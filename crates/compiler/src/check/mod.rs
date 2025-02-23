@@ -239,6 +239,7 @@ pub struct TyChecker<'cx> {
     mark_other_ty: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
     array_variances: std::cell::OnceCell<&'cx [VarianceFlags]>,
     no_ty_pred: std::cell::OnceCell<&'cx TyPred<'cx>>,
+    template_constraint_ty: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
     empty_array: &'cx [u8; 0],
     // === resolver ===
     pub binder: &'cx bind::Binder<'cx>,
@@ -399,6 +400,7 @@ impl<'cx> TyChecker<'cx> {
             mark_super_ty: Default::default(),
             mark_sub_ty: Default::default(),
             mark_other_ty: Default::default(),
+            template_constraint_ty: Default::default(),
 
             no_ty_pred: Default::default(),
 
@@ -649,6 +651,21 @@ impl<'cx> TyChecker<'cx> {
         let no_ty_pred = this.create_ident_ty_pred(keyword::IDENT_EMPTY, 0, Some(any_ty));
         this.no_ty_pred.set(no_ty_pred).unwrap();
 
+        let template_constraint_ty = this.get_union_ty(
+            &[
+                string_ty,
+                number_ty,
+                boolean_ty,
+                bigint_ty,
+                null_ty,
+                undefined_ty,
+            ],
+            ty::UnionReduction::Lit,
+        );
+        this.template_constraint_ty
+            .set(template_constraint_ty)
+            .unwrap();
+
         this
     }
 
@@ -684,6 +701,10 @@ impl<'cx> TyChecker<'cx> {
     ) -> bool {
         self.is_type_assignable_to(source, target)
             || (target == self.string_ty && self.is_type_assignable_to(source, self.number_ty))
+    }
+
+    fn get_base_constraint_or_ty(&mut self, ty: &'cx ty::Ty<'cx>) -> &'cx ty::Ty<'cx> {
+        self.get_base_constraint_of_ty(ty).unwrap_or(ty)
     }
 
     fn get_base_constraint_of_ty(&mut self, ty: &'cx ty::Ty<'cx>) -> Option<&'cx ty::Ty<'cx>> {
@@ -2403,7 +2424,10 @@ impl<'cx> TyChecker<'cx> {
                 ObjectFlags::IS_GENERIC_OBJECT_TYPE
             } else {
                 ObjectFlags::empty()
-            }) | (if ty.kind.is_instantiable() || ty.kind.is_index_ty() {
+            }) | (if ty.kind.is_instantiable_non_primitive()
+                || ty.kind.is_index_ty()
+                || ty.is_generic_string_like()
+            {
                 ObjectFlags::IS_GENERIC_INDEX_TYPE
             } else {
                 ObjectFlags::empty()
@@ -2519,14 +2543,14 @@ impl<'cx> TyChecker<'cx> {
         .unwrap()
     }
 
-    fn reduced_left<T>(
+    fn reduced_left<T: Copy + Into<U>, U>(
         &mut self,
-        array: &[&'cx T],
-        f: impl Fn(&mut Self, &'cx T, &'cx T, usize) -> &'cx T,
-        init: Option<&'cx T>,
+        array: &[T],
+        f: impl Fn(&mut Self, U, T, usize) -> U,
+        init: Option<U>,
         start: Option<usize>,
         count: Option<usize>,
-    ) -> Option<&'cx T> {
+    ) -> Option<U> {
         if !array.is_empty() {
             let size = array.len();
             if size > 0 {
@@ -2540,7 +2564,7 @@ impl<'cx> TyChecker<'cx> {
                 });
                 let mut result;
                 if init.is_none() && start.is_none() && count.is_none() {
-                    result = array[pos];
+                    result = array[pos].into();
                     pos += 2;
                 } else {
                     result = init.unwrap();
@@ -2650,6 +2674,14 @@ impl<'cx> TyChecker<'cx> {
         let t = ty.as_tuple().unwrap();
         self.get_element_ty_of_slice_of_tuple_ty(ty, t.fixed_length, None, None, None)
     }
+
+    fn get_string_like_ty_for_ty(&mut self, ty: &'cx ty::Ty<'cx>) -> &'cx ty::Ty<'cx> {
+        if ty.flags.intersects(TypeFlags::ANY | TypeFlags::STRING_LIKE) {
+            ty
+        } else {
+            self.get_template_lit_ty(&[keyword::IDENT_EMPTY, keyword::IDENT_EMPTY], &[ty])
+        }
+    }
 }
 
 macro_rules! global_ty {
@@ -2689,6 +2721,7 @@ global_ty!(
     global_callable_fn_ty,
     global_newable_fn_ty,
     global_object_ty,
+    template_constraint_ty,
     mark_super_ty,
     mark_sub_ty,
     mark_other_ty,

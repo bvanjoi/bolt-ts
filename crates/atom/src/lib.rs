@@ -50,6 +50,10 @@ impl<'a> AtomMap<'a> {
         assert!(prev.is_none());
     }
 
+    pub fn contains(&self, atom: AtomId) -> bool {
+        self.0.contains_key(&atom)
+    }
+
     pub fn get(&self, atom: AtomId) -> &str {
         self.0.get(&atom).unwrap()
     }

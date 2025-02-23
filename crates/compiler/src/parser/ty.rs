@@ -325,7 +325,7 @@ impl<'cx> ParserState<'cx, '_> {
                 self.parse_ty_op(op)
             }
             TokenKind::Infer => self.parse_infer_ty(),
-            _ => self.parse_postfix_ty(),
+            _ => self.allow_conditional_tys_and(Self::parse_postfix_ty),
         }
     }
 
@@ -574,7 +574,7 @@ impl<'cx> ParserState<'cx, '_> {
                 });
                 Ok(ty)
             }
-            Number | String | BigInt => {
+            Number | String | BigInt | NoSubstitutionTemplate => {
                 let token_val = self.token_value.unwrap();
                 if let Some(node) = self.try_parse(Self::parse_keyword_and_not_dot)? {
                     let ty = match node.kind {
@@ -587,7 +587,7 @@ impl<'cx> ParserState<'cx, '_> {
                                 kind: ast::TyKind::Lit(lit),
                             })
                         }
-                        String => {
+                        String | NoSubstitutionTemplate => {
                             let val = token_val.ident();
                             let kind = ast::LitTyKind::String(val);
                             let lit = self.create_lit_ty(kind, self.token.span);
@@ -647,8 +647,45 @@ impl<'cx> ParserState<'cx, '_> {
                     todo!()
                 }
             }
+            TemplateHead => self.parse_template_ty(),
             _ => self.parse_ty_reference(),
         }
+    }
+
+    fn parse_template_ty(&mut self) -> PResult<&'cx ast::Ty<'cx>> {
+        let start = self.token.start();
+        let id = self.next_node_id();
+        let head = self.with_parent(id, |this| this.parse_template_head(false))?;
+        let spans = self.with_parent(id, |this| {
+            this.parse_template_spans(|this| this.parse_template_ty_span().map(|n| (n, !n.is_tail)))
+        })?;
+        let kind = self.alloc(ast::TemplateLitTy {
+            id,
+            span: self.new_span(start),
+            head,
+            spans,
+        });
+        self.insert_map(id, ast::Node::TemplateLitTy(kind));
+        let ty = self.alloc(ast::Ty {
+            kind: ast::TyKind::TemplateLit(kind),
+        });
+        Ok(ty)
+    }
+
+    fn parse_template_ty_span(&mut self) -> PResult<&'cx ast::TemplateSpanTy<'cx>> {
+        let id = self.next_node_id();
+        let start = self.token.start();
+        let ty = self.with_parent(id, Self::parse_ty)?;
+        let (text, is_tail) = self.parse_template_span_text(false);
+        let node = self.alloc(ast::TemplateSpanTy {
+            id,
+            span: self.new_span(start),
+            ty,
+            text,
+            is_tail,
+        });
+        self.insert_map(node.id, ast::Node::TemplateSpanTy(node));
+        Ok(node)
     }
 
     fn parse_mapped_ty(&mut self) -> PResult<&'cx ast::Ty<'cx>> {

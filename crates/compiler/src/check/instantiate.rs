@@ -134,6 +134,11 @@ impl<'cx> TyChecker<'cx> {
                 let t = self.instantiate_ty(index.ty, Some(mapper));
                 self.get_index_ty(t, ty::IndexFlags::empty())
             }
+            TemplateLit(lit) => {
+                let tys = self.instantiate_tys(lit.tys, mapper);
+                self.get_template_lit_ty(lit.texts, tys)
+            }
+            StringMapping(_) => todo!(),
             IndexedAccess(indexed) => {
                 let object_ty = self.instantiate_ty_with_alias(
                     indexed.object_ty,
@@ -825,7 +830,7 @@ impl<'cx> TyChecker<'cx> {
         self.create_string_mapping_ty(symbol, ty)
     }
 
-    fn apply_string_mapping(
+    pub(super) fn apply_string_mapping(
         &mut self,
         symbol: SymbolID,
         atom: bolt_ts_atom::AtomId,

@@ -38,6 +38,7 @@ impl<'cx> Ty<'cx> {
             TyKind::Intrinsic(n) => n.span,
             TyKind::Nullable(n) => n.span,
             TyKind::NamedTuple(n) => n.span,
+            TyKind::TemplateLit(n) => n.span,
         }
     }
 
@@ -63,6 +64,7 @@ impl<'cx> Ty<'cx> {
             TyKind::Infer(n) => n.id,
             TyKind::Nullable(n) => n.id,
             TyKind::NamedTuple(n) => n.id,
+            TyKind::TemplateLit(n) => n.id,
             TyKind::Intrinsic(_) => unreachable!(),
         }
     }
@@ -121,6 +123,24 @@ pub enum TyKind<'cx> {
     Infer(&'cx InferTy<'cx>),
     Intrinsic(&'cx IntrinsicTy),
     Nullable(&'cx NullableTy<'cx>),
+    TemplateLit(&'cx TemplateLitTy<'cx>),
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct TemplateLitTy<'cx> {
+    pub id: NodeID,
+    pub span: Span,
+    pub head: &'cx TemplateHead,
+    pub spans: &'cx [&'cx TemplateSpanTy<'cx>],
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct TemplateSpanTy<'cx> {
+    pub id: NodeID,
+    pub span: Span,
+    pub ty: &'cx Ty<'cx>,
+    pub text: AtomId,
+    pub is_tail: bool,
 }
 
 #[derive(Debug, Clone, Copy)]

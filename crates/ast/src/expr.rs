@@ -41,6 +41,7 @@ impl Expr<'_> {
             As(n) => n.span,
             Satisfies(n) => n.span,
             NonNull(n) => n.span,
+            Template(n) => n.span,
         }
     }
 
@@ -75,6 +76,7 @@ impl Expr<'_> {
             As(n) => n.id,
             Satisfies(n) => n.id,
             NonNull(n) => n.id,
+            Template(n) => n.id,
         }
     }
 }
@@ -109,6 +111,7 @@ pub enum ExprKind<'cx> {
     As(&'cx AsExpr<'cx>),
     Satisfies(&'cx SatisfiesExpr<'cx>),
     NonNull(&'cx NonNullExpr<'cx>),
+    Template(&'cx TemplateExpr<'cx>),
 }
 
 impl<'cx> ExprKind<'cx> {
@@ -157,6 +160,30 @@ impl<'cx> ExprKind<'cx> {
             _ => false,
         }
     }
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct TemplateExpr<'cx> {
+    pub id: NodeID,
+    pub span: Span,
+    pub head: &'cx TemplateHead,
+    pub spans: &'cx [&'cx TemplateSpan<'cx>],
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct TemplateHead {
+    pub id: NodeID,
+    pub span: Span,
+    pub text: AtomId,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct TemplateSpan<'cx> {
+    pub id: NodeID,
+    pub span: Span,
+    pub expr: &'cx self::Expr<'cx>,
+    pub text: AtomId,
+    pub is_tail: bool,
 }
 
 #[derive(Debug, Clone, Copy)]

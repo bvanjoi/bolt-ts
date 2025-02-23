@@ -1172,4 +1172,111 @@ impl<'cx> TyChecker<'cx> {
             self.create_tuple_ty(tys, Some(element_flags), false)
         }
     }
+
+    pub(super) fn get_template_lit_ty(
+        &mut self,
+        texts: &[bolt_ts_atom::AtomId],
+        tys: &[&'cx ty::Ty<'cx>],
+    ) -> &'cx ty::Ty<'cx> {
+        assert!(texts.len() == tys.len() + 1);
+        fn add_spans<'cx>(
+            this: &mut TyChecker<'cx>,
+            texts: &[bolt_ts_atom::AtomId],
+            tys: &[&'cx ty::Ty<'cx>],
+            new_texts: &mut Vec<bolt_ts_atom::AtomId>,
+            new_tys: &mut Vec<&'cx ty::Ty<'cx>>,
+            text: &mut String,
+        ) -> bool {
+            for i in 0..tys.len() {
+                let t = tys[i];
+                if t.flags
+                    .intersects(TypeFlags::LITERAL | TypeFlags::NULL | TypeFlags::UNDEFINED)
+                {
+                    if let Some(s) = t.kind.as_string_lit() {
+                        text.push_str(this.atoms.get(s.val));
+                    } else if let Some(n) = t.kind.as_number_lit() {
+                        text.push_str(&n.val.to_string());
+                    } else if t
+                        .flags
+                        .intersects(TypeFlags::BOOLEAN_LITERAL | TypeFlags::NULLABLE)
+                    {
+                    } else {
+                        // TODO: bigint
+                    }
+                    text.push_str(this.atoms.get(texts[i + 1]));
+                } else if let Some(template) = t.kind.as_template_lit_ty() {
+                    text.push_str(this.atoms.get(template.texts[0]));
+                    if !add_spans(this, template.texts, template.tys, new_texts, new_tys, text) {
+                        return false;
+                    }
+                    text.push_str(this.atoms.get(texts[i + 1]));
+                } else if this.is_generic_index_ty(t) || t.is_pattern_lit_placeholder_ty() {
+                    new_tys.push(t);
+                    let t = std::mem::take(text);
+                    let atom = this.atoms.insert_by_str(std::borrow::Cow::Owned(t));
+                    new_texts.push(atom);
+                    *text = this.atoms.get(texts[i + 1]).to_string();
+                } else {
+                    return false;
+                }
+            }
+            true
+        }
+
+        if let Some(union_index) = tys
+            .iter()
+            .position(|t| t.flags.intersects(TypeFlags::NEVER | TypeFlags::UNION))
+        {
+            // TODO: check_cross_product_union
+            return self
+                .map_ty(
+                    tys[union_index],
+                    |this, t| {
+                        let mut tys = tys.to_vec();
+                        tys[union_index] = t;
+                        Some(this.get_template_lit_ty(texts, &tys))
+                    },
+                    false,
+                )
+                .unwrap();
+        };
+        if tys.contains(&self.wildcard_ty) {
+            return self.wildcard_ty;
+        }
+        let mut new_tys = Vec::with_capacity(tys.len());
+        let mut new_texts = Vec::with_capacity(texts.len());
+        let mut text = self.atoms.get(texts[0]).to_string();
+        if !add_spans(self, texts, tys, &mut new_texts, &mut new_tys, &mut text) {
+            return self.string_ty;
+        }
+
+        let text = self.atoms.insert_by_str(std::borrow::Cow::Owned(text));
+        if new_tys.is_empty() {
+            return self.get_string_literal_type(text);
+        };
+        new_texts.push(text);
+        if new_texts.iter().all(|t| *t == keyword::IDENT_EMPTY) {
+            if new_tys
+                .iter()
+                .all(|t| t.flags.intersects(TypeFlags::STRING))
+            {
+                return self.string_ty;
+            }
+            // if new_tys.len() == 1 &&
+            // TODO: is_pattern_lit_placeholder_ty
+        }
+        // TODO: cache;
+        let new_texts = self.alloc(new_texts);
+        let new_tys = self.alloc(new_tys);
+        self.create_template_lit_ty(new_texts, new_tys)
+    }
+
+    fn create_template_lit_ty(
+        &mut self,
+        texts: &'cx [bolt_ts_atom::AtomId],
+        tys: ty::Tys<'cx>,
+    ) -> &'cx ty::Ty<'cx> {
+        let t = self.alloc(ty::TemplateLitTy { texts, tys });
+        self.new_ty(ty::TyKind::TemplateLit(t), TypeFlags::TEMPLATE_LITERAL)
+    }
 }

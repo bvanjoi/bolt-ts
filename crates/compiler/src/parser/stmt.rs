@@ -922,7 +922,7 @@ impl<'cx> ParserState<'cx, '_> {
     }
 
     fn parse_expr_or_labeled_stmt(&mut self) -> PResult<&'cx ast::Expr<'cx>> {
-        let expr = self.parse_expr();
+        let expr = self.allow_in_and(Self::parse_expr);
         self.parse_semi();
         expr
     }

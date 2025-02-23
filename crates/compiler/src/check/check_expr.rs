@@ -107,9 +107,29 @@ impl<'cx> TyChecker<'cx> {
             As(n) => self.check_assertion(n.expr, n.ty),
             Satisfies(n) => self.check_expr(n.expr),
             NonNull(n) => self.check_expr(n.expr),
+            Template(n) => self.check_template_expr(n),
         };
 
         self.instantiate_ty_with_single_generic_call_sig(expr.id(), ty)
+    }
+
+    fn check_template_expr(&mut self, node: &'cx ast::TemplateExpr<'cx>) -> &'cx ty::Ty<'cx> {
+        let mut texts = Vec::with_capacity(8);
+        texts.push(node.head.text);
+        let mut tys = Vec::with_capacity(8);
+        for span in node.spans {
+            let ty = self.check_expr(span.expr);
+            texts.push(span.text);
+            if self.is_type_assignable_to(ty, self.template_constraint_ty()) {
+                tys.push(ty);
+            } else {
+                tys.push(self.string_ty);
+            }
+        }
+        if self.p.is_const_context(node.id) {
+            // TODO:
+        }
+        self.string_ty
     }
 
     pub(super) fn get_regular_ty_of_literal_ty(

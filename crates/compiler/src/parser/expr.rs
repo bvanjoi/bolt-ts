@@ -5,7 +5,7 @@ use super::utils::is_left_hand_side_expr_kind;
 use super::{PResult, ParserState};
 use super::{Tristate, parse_class_like};
 use super::{errors, list_ctx};
-use bolt_ts_ast::{self as ast, NodeFlags};
+use bolt_ts_ast::{self as ast, NodeFlags, keyword};
 use bolt_ts_ast::{BinPrec, Token, TokenKind};
 
 impl<'cx> ParserState<'cx, '_> {
@@ -700,8 +700,100 @@ impl<'cx> ParserState<'cx, '_> {
             New => self.parse_new_expr(),
             Class => self.parse_class_expr(),
             Super => Ok(self.make_super_expr()),
+            TemplateHead => self.prase_template_expr(false),
             _ => Ok(self.parse_ident(Some(errors::MissingIdentKind::ExpressionExpected))),
         }
+    }
+
+    fn prase_template_expr(&mut self, is_tagged_template: bool) -> PResult<&'cx ast::Expr<'cx>> {
+        let start = self.token.start();
+        let id = self.next_node_id();
+        let head = self.with_parent(id, |this| this.parse_template_head(is_tagged_template))?;
+        let spans = self.with_parent(id, |this| {
+            this.parse_template_spans(|this| {
+                this.parse_template_span(is_tagged_template)
+                    .map(|n| (n, !n.is_tail))
+            })
+        })?;
+        let n = self.alloc(ast::TemplateExpr {
+            id,
+            span: self.new_span(start),
+            head,
+            spans,
+        });
+        self.insert_map(n.id, ast::Node::TemplateExpr(n));
+        let expr = self.alloc(ast::Expr {
+            kind: ast::ExprKind::Template(n),
+        });
+        Ok(expr)
+    }
+
+    pub(super) fn parse_template_head(
+        &mut self,
+        is_tagged_template: bool,
+    ) -> PResult<&'cx ast::TemplateHead> {
+        if !is_tagged_template {
+            // self.re_scan_greater()
+        }
+        let id = self.next_node_id();
+        let node = self.alloc(ast::TemplateHead {
+            id,
+            span: self.token.span,
+            text: self.token_value.unwrap().ident(),
+        });
+        self.insert_map(node.id, ast::Node::TemplateHead(node));
+        self.next_token();
+        Ok(node)
+    }
+
+    pub(super) fn parse_template_spans<T>(
+        &mut self,
+        f: impl Fn(&mut Self) -> PResult<(&'cx T, bool)>,
+    ) -> PResult<&'cx [&'cx T]> {
+        let mut spans = Vec::with_capacity(8);
+        loop {
+            let (node, is_template_middle) = f(self)?;
+            spans.push(node);
+            if !is_template_middle {
+                break;
+            }
+        }
+        Ok(self.alloc(spans))
+    }
+
+    pub(super) fn parse_template_span_text(
+        &mut self,
+        is_tagged_template: bool,
+    ) -> (bolt_ts_atom::AtomId, bool) {
+        if self.token.kind == TokenKind::RBrace {
+            self.re_scan_template_token(is_tagged_template);
+            let atom = self.token_value.unwrap().ident();
+            let is_tail = self.token.kind == TokenKind::TemplateTail;
+            self.next_token();
+            (atom, is_tail)
+        } else {
+            self.expect(TokenKind::TemplateTail);
+            (keyword::IDENT_EMPTY, true)
+        }
+    }
+
+    fn parse_template_span(
+        &mut self,
+        is_tagged_template: bool,
+    ) -> PResult<&'cx ast::TemplateSpan<'cx>> {
+        let id = self.next_node_id();
+        let start = self.token.start();
+        let expr = self.with_parent(id, |this| this.allow_in_and(Self::parse_expr))?;
+        let (text, is_tail) = self.parse_template_span_text(is_tagged_template);
+        let node = self.alloc(ast::TemplateSpan {
+            id,
+            span: self.new_span(start),
+            expr,
+            text,
+            is_tail,
+        });
+        self.insert_map(node.id, ast::Node::TemplateSpan(node));
+        Ok(node)
     }
 
     fn parse_class_expr(&mut self) -> PResult<&'cx ast::Expr<'cx>> {

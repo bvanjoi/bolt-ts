@@ -271,10 +271,28 @@ impl<'cx> TyChecker<'cx> {
             Infer(n) => self.get_ty_from_infer_ty_node(n),
             Mapped(n) => self.get_ty_from_mapped_ty_node(n),
             Nullable(n) => self.get_ty_from_type_node(n.ty),
+            TemplateLit(n) => self.get_ty_from_template_ty_node(n),
             Intrinsic(_) => return self.intrinsic_marker_ty,
         };
 
         self.get_conditional_flow_of_ty(ty, node.id())
+    }
+
+    fn get_ty_from_template_ty_node(&mut self, node: &'cx ast::TemplateLitTy<'cx>) -> &'cx Ty<'cx> {
+        if let Some(ty) = self.get_node_links(node.id).get_resolved_ty() {
+            return ty;
+        }
+        let texts = std::iter::once(node.head.text)
+            .chain(node.spans.iter().map(|s| s.text))
+            .collect::<Vec<_>>();
+        let tys = node
+            .spans
+            .iter()
+            .map(|s| self.get_ty_from_type_node(s.ty))
+            .collect::<Vec<_>>();
+        let ty = self.get_template_lit_ty(&texts, &tys);
+        self.get_mut_node_links(node.id).set_resolved_ty(ty);
+        ty
     }
 
     pub(super) fn get_ty_from_mapped_ty_node(

@@ -212,6 +212,22 @@ impl<'cx> TyChecker<'cx> {
         let param = self.ty_param_node(ty_param);
         param.default.is_some()
     }
+
+    pub(super) fn array_is_equal<T: PartialEq>(&self, a1: Option<&[T]>, a2: Option<&[T]>) -> bool {
+        let (Some(a1), Some(a2)) = (a1, a2) else {
+            return false;
+        };
+        if a1.len() != a2.len() {
+            return false;
+        }
+        for i in 0..a1.len() {
+            // TODO: custom compare fn
+            if a1[i] != a2[i] {
+                return false;
+            }
+        }
+        true
+    }
 }
 
 enum SameMapperResult<'cx, T> {

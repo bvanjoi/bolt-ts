@@ -1,5 +1,37 @@
 // From `github.com/sindresorhus/type-fest`, MIT License
 
+// type Whitespace =
+// 	| '\u{9}' // '\t'
+// 	| '\u{A}' // '\n'
+// 	| '\u{B}' // '\v'
+// 	| '\u{C}' // '\f'
+// 	| '\u{D}' // '\r'
+// 	| '\u{20}' // ' '
+// 	| '\u{85}'
+// 	| '\u{A0}'
+// 	| '\u{1680}'
+// 	| '\u{2000}'
+// 	| '\u{2001}'
+// 	| '\u{2002}'
+// 	| '\u{2003}'
+// 	| '\u{2004}'
+// 	| '\u{2005}'
+// 	| '\u{2006}'
+// 	| '\u{2007}'
+// 	| '\u{2008}'
+// 	| '\u{2009}'
+// 	| '\u{200A}'
+// 	| '\u{2028}'
+// 	| '\u{2029}'
+// 	| '\u{202F}'
+// 	| '\u{205F}'
+// 	| '\u{3000}'
+// 	| '\u{FEFF}';
+// type TrimLeft<V extends string> = V extends `${Whitespace}${infer R}` ? TrimLeft<R> : V;
+// type A = TrimLeft<'  foo'>;
+// let a0: A = 'foo';
+
+
 function n(): never {
   throw new Error();
 }
@@ -49,6 +81,7 @@ type IsBothExtends<BaseType, FirstType, SecondType> = FirstType extends BaseType
 	: false;
 type LiteralKeyOf<T> = keyof {[K in keyof T as IsLiteral<K> extends true ? K : never]-?: never};
 type Numeric = number | bigint;
+type NumericString = '0123456789';
 type NonRecursiveType = BuiltIns | Function | (new (...arguments_: any[]) => unknown);
 type RequireNone<KeysType extends PropertyKey> = Partial<Record<KeysType, never>>;
 type StringDigit = '0' | '1' | '2' | '3' | '4' | '5' | '6' | '7' | '8' | '9';
@@ -1043,6 +1076,25 @@ type TaggedUnion<
   const b1: Union = failsToo;
   //~^ ERROR: Type '{ tag: "str"; b: number; }' is not assignable to type 'mapped type & { a: string; } | mapped type & { b: number; }'.
 }
+
+// ================ Trim ================
+type TrimLeft<V extends string> = V extends `${Whitespace}${infer R}` ? TrimLeft<R> : V;
+
+type TrimRight<V extends string> = V extends `${infer R}${Whitespace}` ? TrimRight<R> : V;
+
+type Trim<V extends string> = TrimLeft<TrimRight<V>>;
+// {
+// 	function trim<S extends string>(value: S): Trim<S> { return value as Trim<S> }
+
+// 	const a0: 'foo' = trim(' foo');
+// 	const a1: 'bar' = trim('bar ');
+// 	const a2: 'baz' = trim(' baz ');
+// 	const a3: 'waldo' = trim('  waldo  ');
+// 	const a4: 'fr ed' = trim(' fr ed ');
+// 	const a5: 'foo' = trim(' foo\n');
+// 	const a6: 'foo' = trim(' foo\n\t ');
+// 	const a7: ' foo ' = trim(' foo ');
+// }
 
 // =========== TupleLength ===========
 type TupleLength<T extends UnknownArray> =

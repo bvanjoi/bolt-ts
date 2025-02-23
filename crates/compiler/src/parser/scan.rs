@@ -564,7 +564,7 @@ impl ParserState<'_, '_> {
                         Span::new(start as u32, self.pos as u32, self.module_id),
                     )
                 }
-                b'`' => self.scan_temp_string(),
+                b'`' => self.scan_template_and_set_token_value(false),
                 b'0' => self.scan_number(),
                 b'1'..=b'9' => self.scan_number(),
                 _ if ch.is_ascii_whitespace() => {
@@ -581,27 +581,48 @@ impl ParserState<'_, '_> {
         }
     }
 
-    fn scan_temp_string(&mut self) -> Token {
+    fn scan_template_and_set_token_value(
+        &mut self,
+        should_emit_invalid_escape_error: bool,
+    ) -> Token {
+        let started_with_backtick = self.ch_unchecked() == b'`';
         let start = self.pos;
         self.pos += 1;
-        let mut v = Vec::with_capacity(32);
-        loop {
+        let mut contents = Vec::with_capacity(32);
+        let kind = loop {
             if self.pos == self.end() {
-                break;
-            } else if self.ch_unchecked() == b'`' {
+                return Token::new(
+                    TokenKind::EOF,
+                    Span::new(start as u32, start as u32, self.module_id),
+                );
+            }
+            let ch = self.ch_unchecked();
+            if ch == b'`' {
                 self.pos += 1;
-                let atom = self.atoms.lock().unwrap().insert_by_vec(v);
+                let atom = self.atoms.lock().unwrap().insert_by_vec(contents);
                 self.token_value = Some(TokenValue::Ident { value: atom });
-                break;
-            } else if self.ch_unchecked() == b'$' && self.next_ch() == Some(b'{') {
-                todo!()
+                break if started_with_backtick {
+                    TokenKind::NoSubstitutionTemplate
+                } else {
+                    TokenKind::TemplateTail
+                };
+            } else if ch == b'$' && self.next_ch() == Some(b'{') {
+                // `${`
+                let atom = self.atoms.lock().unwrap().insert_by_vec(contents);
+                self.token_value = Some(TokenValue::Ident { value: atom });
+                self.pos += 2;
+                break if started_with_backtick {
+                    TokenKind::TemplateHead
+                } else {
+                    TokenKind::TemplateMiddle
+                };
             } else {
-                v.push(self.ch_unchecked());
+                contents.push(ch);
                 self.pos += 1;
             }
-        }
+        };
         Token::new(
-            TokenKind::NoSubstitutionTemplate,
+            kind,
             Span::new(start as u32, self.pos as u32, self.module_id),
         )
     }
@@ -689,5 +710,11 @@ impl ParserState<'_, '_> {
 
     pub(super) fn re_scan_less(&mut self) -> TokenKind {
         self.token.kind
+    }
+
+    pub(super) fn re_scan_template_token(&mut self, is_tagged_template: bool) -> Token {
+        self.pos = self.token.start() as usize;
+        self.token = self.scan_template_and_set_token_value(!is_tagged_template);
+        self.token
     }
 }

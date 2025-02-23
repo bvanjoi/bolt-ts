@@ -86,6 +86,17 @@ impl<'cx> Emit<'cx> {
             NonNull(n) => {
                 self.emit_expr(n.expr);
             }
+            Template(n) => {
+                self.content.p("`");
+                self.content.p(self.atoms.get(n.head.text));
+                for span in n.spans {
+                    self.content.p("${");
+                    self.emit_expr(span.expr);
+                    self.content.p("}");
+                    self.content.p(self.atoms.get(span.text));
+                }
+                self.content.p("`");
+            }
         };
     }
 

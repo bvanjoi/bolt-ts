@@ -255,8 +255,8 @@ impl<'cx, 'atoms> BinderState<'cx, 'atoms> {
     fn bind_export_decl(&mut self, container: ast::NodeID, decl: &'cx ast::ExportDecl<'cx>) {
         use bolt_ts_ast::ExportClauseKind::*;
         match decl.clause.kind {
-            Glob(glob_export) => todo!(),
-            Ns(ns_export) => todo!(),
+            Glob(_) => todo!(),
+            Ns(_) => todo!(),
             Specs(n) => {
                 for spec in n.list {
                     self.bind_spec_export(container, spec);
@@ -711,6 +711,11 @@ impl<'cx, 'atoms> BinderState<'cx, 'atoms> {
                     self.bind_ty(node.ty);
                 }
             }
+            Template(node) => {
+                for item in node.spans {
+                    self.bind_expr(item.expr);
+                }
+            }
             _ => (),
         }
     }
@@ -1033,6 +1038,11 @@ impl<'cx, 'atoms> BinderState<'cx, 'atoms> {
             NamedTuple(n) => {
                 self.bind_ident(n.name);
                 self.bind_ty(n.ty);
+            }
+            TemplateLit(n) => {
+                for item in n.spans {
+                    self.bind_ty(item.ty);
+                }
             }
         }
     }
