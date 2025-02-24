@@ -1,3 +1,4 @@
+use bolt_ts_atom::AtomId;
 use bolt_ts_span::Span;
 
 use crate::ensure_sufficient_stack;
@@ -37,6 +38,10 @@ impl<'cx> TyChecker<'cx> {
                         let t = self.alloc(ty::StringLitTy { val: lit.val });
                         self.new_ty(ty::TyKind::StringLit(t), ty.flags)
                     }
+                    ty::TyKind::BigIntLit(lit) => {
+                        let t = self.alloc(ty::BigIntLitTy { val: lit.val });
+                        self.new_ty(ty::TyKind::BigIntLit(t), ty.flags)
+                    }
                     _ => unreachable!(),
                 };
                 let prev = self.ty_links.insert(
@@ -55,18 +60,31 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
+    pub(super) fn check_num_lit(&mut self, val: f64) -> &'cx ty::Ty<'cx> {
+        // TODO: check grammar
+        let t = self.get_number_literal_type(val);
+        self.get_fresh_ty_of_literal_ty(t)
+    }
+
+    pub(super) fn check_string_lit(&mut self, val: AtomId) -> &'cx ty::Ty<'cx> {
+        // TODO: hasSkipDirectInferenceFlag
+        let t = self.get_string_literal_type(val);
+        self.get_fresh_ty_of_literal_ty(t)
+    }
+
+    pub(super) fn check_bigint_lit(&mut self, val: AtomId) -> &'cx ty::Ty<'cx> {
+        // TODO: check grammar
+        let t = self.get_bigint_literal_type(val);
+        self.get_fresh_ty_of_literal_ty(t)
+    }
+
     pub(super) fn check_expr(&mut self, expr: &'cx ast::Expr<'cx>) -> &'cx ty::Ty<'cx> {
         use bolt_ts_ast::ExprKind::*;
         let ty = match expr.kind {
             Bin(bin) => ensure_sufficient_stack(|| self.check_bin_expr(bin)),
-            NumLit(lit) => {
-                let t = self.get_number_literal_type(lit.val);
-                self.get_fresh_ty_of_literal_ty(t)
-            }
-            StringLit(lit) => {
-                let t = self.get_string_literal_type(lit.val);
-                self.get_fresh_ty_of_literal_ty(t)
-            }
+            NumLit(lit) => self.check_num_lit(lit.val),
+            StringLit(lit) => self.check_string_lit(lit.val),
+            BigIntLit(lit) => self.check_bigint_lit(lit.val),
             BoolLit(lit) => {
                 if lit.val {
                     self.true_ty
@@ -138,7 +156,7 @@ impl<'cx> TyChecker<'cx> {
     ) -> &'cx ty::Ty<'cx> {
         if ty.flags.intersects(TypeFlags::FRESHABLE) {
             self.ty_links[&ty.id].expect_regular_ty()
-        } else if let Some(u) = ty.kind.as_union() {
+        } else if ty.kind.is_union() {
             if let Some(t) = self.get_ty_links(ty.id).get_regular_ty() {
                 t
             } else {

@@ -630,6 +630,22 @@ type IsNotFalse<T extends boolean> = [T] extends [false] ? false : true;
   //~^ ERROR: Type 'true' is not assignable to type 'false'.
 }
 
+// ============= isNumberLike =============
+type IsNumberLike<N> =
+	N extends number ? true
+		:	N extends `${number}`
+			? true
+			: N extends `${number}.${number}`
+				? true
+				: false;
+{
+  const a0: IsNumberLike<'1'> = true;
+  const a1: IsNumberLike<1> = true;
+  const a2: IsNumberLike<'-1.1'> = true;
+  const a3: IsNumberLike< -1.1> = true;
+  const a4: IsNumberLike<'foo'> = false;
+}
+
 // ============= isNull =============
 type IsNull<T> = [T] extends [null] ? true : false;
 {

@@ -253,19 +253,16 @@ impl<'cx> TyChecker<'cx> {
                     True => self.get_regular_ty_of_literal_ty(self.true_ty),
                     False => self.get_regular_ty_of_literal_ty(self.false_ty),
                     Num(n) => {
-                        // TODO: use check_number_literal
-                        let ty = self.get_number_literal_type(n);
+                        let ty = self.check_num_lit(n);
                         self.get_regular_ty_of_literal_ty(ty)
                     }
                     String(n) => {
-                        // TODO: use check_string_literal
-                        let ty = self.get_string_literal_type(n);
+                        let ty = self.check_string_lit(n);
                         self.get_regular_ty_of_literal_ty(ty)
                     }
                     BigInt(n) => {
-                        todo!()
-                        // let ty = self.get_big_int_literal_type(n);
-                        // self.get_regular_ty_of_literal_ty(ty)
+                        let ty = self.check_bigint_lit(n);
+                        self.get_regular_ty_of_literal_ty(ty)
                     }
                 }
             }
@@ -1509,6 +1506,21 @@ impl<'cx> TyChecker<'cx> {
                 .insert(ty.id, super::TyLinks::default().with_regular_ty(ty));
             assert!(prev.is_none());
             self.string_lit_tys.insert(val, ty);
+            ty
+        }
+    }
+
+    pub(super) fn get_bigint_literal_type(&mut self, val: AtomId) -> &'cx Ty<'cx> {
+        if let Some(ty) = self.bigint_lit_tys.get(&val) {
+            ty
+        } else {
+            let kind = TyKind::BigIntLit(self.alloc(ty::BigIntLitTy { val }));
+            let ty = self.new_ty(kind, TypeFlags::BIG_INT_LITERAL);
+            let prev = self
+                .ty_links
+                .insert(ty.id, super::TyLinks::default().with_regular_ty(ty));
+            assert!(prev.is_none());
+            self.bigint_lit_tys.insert(val, ty);
             ty
         }
     }

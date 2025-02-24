@@ -17,6 +17,7 @@ impl Expr<'_> {
             BoolLit(lit) => lit.span,
             NumLit(lit) => lit.span,
             NullLit(lit) => lit.span,
+            BigIntLit(lit) => lit.span,
             StringLit(lit) => lit.span,
             Ident(ident) => ident.span,
             ArrayLit(lit) => lit.span,
@@ -51,6 +52,7 @@ impl Expr<'_> {
             Bin(bin) => bin.id,
             BoolLit(lit) => lit.id,
             NumLit(lit) => lit.id,
+            BigIntLit(lit) => lit.id,
             NullLit(lit) => lit.id,
             StringLit(lit) => lit.id,
             Ident(ident) => ident.id,
@@ -88,6 +90,7 @@ pub enum ExprKind<'cx> {
     This(&'cx ThisExpr),
     BoolLit(&'cx BoolLit),
     NumLit(&'cx NumLit),
+    BigIntLit(&'cx BigIntLit),
     StringLit(&'cx StringLit),
     NullLit(&'cx NullLit),
     ArrayLit(&'cx ArrayLit<'cx>),
@@ -522,6 +525,7 @@ pub struct Lit<T> {
 }
 
 pub type NumLit = Lit<f64>;
+pub type BigIntLit = Lit<AtomId>;
 pub type BoolLit = Lit<bool>;
 pub type NullLit = Lit<()>;
 pub type StringLit = Lit<AtomId>;

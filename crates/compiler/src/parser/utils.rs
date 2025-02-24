@@ -125,7 +125,7 @@ impl<'cx> ParserState<'cx, '_> {
         }
     }
 
-    pub(super) fn is_start_of_ty(&mut self, is_start_of_param: bool) -> bool {
+    pub(super) fn is_start_of_ty(&mut self, in_start_of_param: bool) -> bool {
         use bolt_ts_ast::TokenKind::*;
         if matches!(
             self.token.kind,
@@ -144,13 +144,16 @@ impl<'cx> ParserState<'cx, '_> {
         ) {
             true
         } else if self.token.kind == TokenKind::Function {
-            !is_start_of_param
-        } else if self.token.kind == TokenKind::LParen && !is_start_of_param {
+            !in_start_of_param
+        } else if self.token.kind == TokenKind::LParen && !in_start_of_param {
             self.lookahead(|this| {
                 this.next_token();
                 let t = this.token.kind;
                 t == TokenKind::RParen || t.is_start_of_param() || this.is_start_of_ty(false)
             })
+        } else if self.token.kind == TokenKind::Minus {
+            !in_start_of_param
+                && self.lookahead(|this| this.next_token_is_numeric_or_big_int_literal())
         } else {
             self.is_ident()
         }

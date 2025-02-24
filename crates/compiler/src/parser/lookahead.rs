@@ -41,8 +41,7 @@ impl ParserState<'_, '_> {
 
     pub(super) fn next_token_is_numeric_or_big_int_literal(&mut self) -> bool {
         self.next_token();
-        // TODO: big int lit
-        matches!(self.token.kind, TokenKind::Number)
+        matches!(self.token.kind, TokenKind::Number | TokenKind::BigInt)
     }
 
     fn next_token_is_identifier_on_same_line(&mut self) -> bool {

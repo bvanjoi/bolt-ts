@@ -155,8 +155,12 @@ impl ParserState<'_, '_> {
         } else {
             self.scan_number_fragment()
         };
+        let decimal_frag;
         if self.ch() == Some(b'.') {
-            todo!()
+            self.pos += 1;
+            decimal_frag = Some(self.scan_number_fragment());
+        } else {
+            decimal_frag = None;
         }
         let mut scientific_frag = None;
         let mut end = self.pos;

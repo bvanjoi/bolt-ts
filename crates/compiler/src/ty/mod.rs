@@ -126,6 +126,7 @@ pub enum TyKind<'cx> {
     Intrinsic(&'cx IntrinsicTy),
     StringLit(&'cx StringLitTy),
     NumberLit(&'cx NumberLitTy),
+    BigIntLit(&'cx BigIntLitTy),
     Union(&'cx UnionTy<'cx>),
     Intersection(&'cx IntersectionTy<'cx>),
     Object(&'cx ObjectTy<'cx>),
@@ -165,6 +166,7 @@ macro_rules! as_ty_kind {
 as_ty_kind!(Intrinsic, &'cx IntrinsicTy, intrinsic);
 as_ty_kind!(StringLit, &'cx StringLitTy, string_lit);
 as_ty_kind!(NumberLit, &'cx NumberLitTy, number_lit);
+as_ty_kind!(BigIntLit, &'cx BigIntLitTy, bigint_lit);
 as_ty_kind!(IndexedAccess, &'cx IndexedAccessTy<'cx>, indexed_access);
 as_ty_kind!(Union, &'cx UnionTy<'cx>, union);
 as_ty_kind!(Intersection, &'cx IntersectionTy<'cx>, intersection);
@@ -188,6 +190,7 @@ impl<'cx> Ty<'cx> {
         match self.kind {
             TyKind::Object(object) => object.kind.to_string(self, checker),
             TyKind::NumberLit(lit) => format!("{}", lit.val),
+            TyKind::BigIntLit(lit) => format!("{}n", checker.atoms.get(lit.val)),
             TyKind::StringLit(lit) => format!("\"{}\"", checker.atoms.get(lit.val)),
             TyKind::Union(union) => union
                 .tys
@@ -468,6 +471,11 @@ pub struct NumberLitTy {
 
 #[derive(Debug, Clone, Copy)]
 pub struct StringLitTy {
+    pub val: AtomId,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct BigIntLitTy {
     pub val: AtomId,
 }
 
