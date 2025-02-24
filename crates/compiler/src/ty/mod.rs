@@ -108,6 +108,10 @@ impl<'cx> Ty<'cx> {
             .intersects(TypeFlags::TEMPLATE_LITERAL | TypeFlags::STRING_MAPPING)
             && !self.is_pattern_lit_ty()
     }
+
+    pub fn intrinsic_name(&self) -> Option<AtomId> {
+        self.kind.as_intrinsic().map(|i| i.name)
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -158,6 +162,7 @@ macro_rules! as_ty_kind {
     };
 }
 
+as_ty_kind!(Intrinsic, &'cx IntrinsicTy, intrinsic);
 as_ty_kind!(StringLit, &'cx StringLitTy, string_lit);
 as_ty_kind!(NumberLit, &'cx NumberLitTy, number_lit);
 as_ty_kind!(IndexedAccess, &'cx IndexedAccessTy<'cx>, indexed_access);
@@ -213,7 +218,18 @@ impl<'cx> Ty<'cx> {
                 let name = checker.binder.symbol(s.symbol).name;
                 checker.atoms.get(name.expect_atom()).to_string()
             }
-            TyKind::TemplateLit(_) => "template literal".to_string(),
+            TyKind::TemplateLit(n) => {
+                let mut s = String::new();
+                for i in 0..n.texts.len() {
+                    let text = n.texts[i];
+
+                    s.push_str(&checker.atoms.get(text));
+                    if let Some(ty) = n.tys.get(i) {
+                        s.push_str(&ty.to_string(checker));
+                    }
+                }
+                s
+            }
         }
     }
 

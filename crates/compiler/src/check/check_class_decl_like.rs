@@ -18,25 +18,6 @@ impl<'cx> TyChecker<'cx> {
         self.check_var_like_decl(prop);
     }
 
-    fn is_valid_base_ty(&mut self, ty: &'cx ty::Ty<'cx>) -> bool {
-        if let Some(param_ty) = ty.kind.as_param() {
-            if let Some(constraint) = self.get_base_constraint_of_ty(ty) {
-                return self.is_valid_base_ty(constraint);
-            }
-        }
-
-        if ty.kind.is_object()
-            || ty
-                .flags
-                .intersects(TypeFlags::NON_PRIMITIVE | TypeFlags::ANY)
-        {
-            true
-            // TODO: !is_generic_mapped_ty
-        } else {
-            ty.kind.is_intersection()
-        }
-    }
-
     fn issue_member_spec_error(
         &mut self,
         class: &impl ClassLike<'cx>,

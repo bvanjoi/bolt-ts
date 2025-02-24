@@ -253,10 +253,12 @@ impl<'cx> TyChecker<'cx> {
                     True => self.get_regular_ty_of_literal_ty(self.true_ty),
                     False => self.get_regular_ty_of_literal_ty(self.false_ty),
                     Num(n) => {
+                        // TODO: use check_number_literal
                         let ty = self.get_number_literal_type(n);
                         self.get_regular_ty_of_literal_ty(ty)
                     }
                     String(n) => {
+                        // TODO: use check_string_literal
                         let ty = self.get_string_literal_type(n);
                         self.get_regular_ty_of_literal_ty(ty)
                     }

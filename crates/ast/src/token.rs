@@ -725,9 +725,12 @@ pub enum BinPrec {
 
 bitflags::bitflags! {
     pub struct TokenFlags: u16 {
-        const PRECEDING_LINE_BREAK  = 1 << 0;
+        const PRECEDING_LINE_BREAK      = 1 << 0;
+        const EXTENDED_UNICODE_ESCAPE   = 1 << 3;
+        const SCIENTIFIC                = 1 << 4;
         /// `123_456`
-        const CONTAINS_SEPARATOR    = 1 << 9;
-        const NUMERIC_LITERAL_FLAGS = Self::CONTAINS_SEPARATOR.bits() | Self::PRECEDING_LINE_BREAK.bits();
+        const CONTAINS_SEPARATOR        = 1 << 9;
+        const CONTAINS_INVALID_ESCAPE   = 1 << 11;
+        const NUMERIC_LITERAL_FLAGS     = Self::CONTAINS_SEPARATOR.bits() | Self::PRECEDING_LINE_BREAK.bits();
     }
 }

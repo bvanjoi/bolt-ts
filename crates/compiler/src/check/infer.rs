@@ -881,10 +881,11 @@ impl<'cx> TyChecker<'cx> {
         let Some(inferences) = self.infer_tys_from_template_lit_ty(source, target) else {
             return false;
         };
-        inferences.iter().enumerate().all(|(i, r)| {
-            // TODO: isValidTypeForTemplateLiteralPlaceholder
-            false
-        })
+        let t = target.kind.expect_template_lit_ty();
+        inferences
+            .iter()
+            .enumerate()
+            .all(|(i, r)| self.is_valid_ty_for_template_lit_placeholder(r, t.tys[i]))
     }
 }
 
@@ -1015,7 +1016,33 @@ impl<'cx> InferenceState<'cx, '_> {
                 return;
             }
             source = self.c.get_union_ty(sources, ty::UnionReduction::Lit);
-        };
+        } else if target
+            .kind
+            .as_intersection()
+            .is_some_and(|i| !i.tys.iter().all(|t| self.c.is_non_generic_object_ty(t)))
+        {
+            let t = target.kind.expect_intersection();
+            if !source.kind.is_union() {
+                let sources = if let Some(s) = source.kind.as_intersection() {
+                    s.tys
+                } else {
+                    self.c.alloc([source])
+                };
+                let (sources, targets) =
+                    self.infer_from_matching_tys(sources, t.tys, |this, s, t| {
+                        this.c.is_type_identical_to(s, t)
+                    });
+                if sources.is_empty() || targets.is_empty() {
+                    return;
+                };
+                source = self
+                    .c
+                    .get_intersection_ty(sources, IntersectionFlags::None, None, None);
+                target = self
+                    .c
+                    .get_intersection_ty(targets, IntersectionFlags::None, None, None);
+            }
+        }
 
         if target.kind.is_type_variable() {
             if let Some(idx) = self.get_inference_info_for_ty(target) {
@@ -1071,6 +1098,8 @@ impl<'cx> InferenceState<'cx, '_> {
             self.invoke_once(source, target, |this, source, target| {
                 this.infer_to_cond_ty(source, target);
             });
+        } else if let Some(tys) = target.kind.tys_of_union_or_intersection() {
+            self.infer_to_multiple_tys(source, tys, target.flags);
         } else if let Some(u) = source.kind.as_union() {
             for ty in u.tys {
                 self.infer_from_tys(ty, target);
@@ -1098,6 +1127,114 @@ impl<'cx> InferenceState<'cx, '_> {
                 self.invoke_once(source, target, |this, source, target| {
                     this.infer_from_object_tys(source, target);
                 });
+            }
+        }
+    }
+
+    fn get_single_type_variable_from_intersection_types(
+        &self,
+        tys: ty::Tys<'cx>,
+    ) -> Option<&'cx ty::Ty<'cx>> {
+        let mut type_variable = None;
+        for ty in tys {
+            let Some(ty) = ty.kind.as_intersection() else {
+                return None;
+            };
+            let t = ty
+                .tys
+                .iter()
+                .find(|t| self.get_inference_info_for_ty(t).is_some())
+                .copied();
+            if type_variable.is_some() && t != type_variable {
+                return None;
+            }
+            type_variable = t;
+        }
+        type_variable
+    }
+
+    fn infer_to_multiple_tys(
+        &mut self,
+        source: &'cx ty::Ty<'cx>,
+        targets: ty::Tys<'cx>,
+        target_flags: TypeFlags,
+    ) {
+        let mut type_variable_count = 0;
+        if target_flags.intersects(TypeFlags::UNION) {
+            let mut naked_type_variable = None;
+            let sources = if let Some(source_union) = source.kind.as_union() {
+                source_union.tys
+            } else {
+                self.c.alloc([source])
+            };
+            let mut matched = vec![false; sources.len()];
+            let mut inference_circularity = false;
+            for t in targets {
+                if self.get_inference_info_for_ty(t).is_some() {
+                    naked_type_variable = Some(t);
+                    type_variable_count += 1;
+                } else {
+                    for i in 0..sources.len() {
+                        let save_inference_priority = self.inference_priority;
+                        self.inference_priority = InferencePriority::MAX_VALUE;
+                        self.infer_from_tys(sources[i], t);
+                        if self.inference_priority == self.priority {
+                            matched[i] = true
+                        }
+                        inference_circularity = inference_circularity
+                            || self.inference_priority == InferencePriority::CIRCULARITY;
+                        self.inference_priority =
+                            if self.inference_priority < save_inference_priority {
+                                self.inference_priority
+                            } else {
+                                save_inference_priority
+                            };
+                    }
+                }
+            }
+            if type_variable_count == 0 {
+                let intersection_type_variable =
+                    self.get_single_type_variable_from_intersection_types(targets);
+                if let Some(intersection_type_variable) = intersection_type_variable {
+                    self.infer_with_priority(
+                        source,
+                        intersection_type_variable,
+                        InferencePriority::NAKED_TYPE_VARIABLE,
+                    );
+                }
+                return;
+            }
+            if type_variable_count == 1 && !inference_circularity {
+                let unmatched = sources
+                    .iter()
+                    .enumerate()
+                    .flat_map(|(i, s)| if matched[i] { None } else { Some(s) })
+                    .copied()
+                    .collect::<Vec<_>>();
+                if !unmatched.is_empty() {
+                    let source = self.c.get_union_ty(&unmatched, ty::UnionReduction::Lit);
+                    self.infer_from_tys(source, naked_type_variable.unwrap());
+                    return;
+                }
+            }
+        } else {
+            for t in targets {
+                if self.get_inference_info_for_ty(t).is_some() {
+                    type_variable_count += 1;
+                } else {
+                    self.infer_from_tys(source, t);
+                }
+            }
+        }
+        if if target_flags.intersects(TypeFlags::INTERSECTION) {
+            type_variable_count == 1
+        } else {
+            type_variable_count > 0
+        } {
+            for t in targets {
+                if self.get_inference_info_for_ty(t).is_some() {
+                    self.infer_with_priority(source, t, InferencePriority::NAKED_TYPE_VARIABLE);
+                }
             }
         }
     }

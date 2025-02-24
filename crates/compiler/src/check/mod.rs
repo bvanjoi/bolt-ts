@@ -43,6 +43,7 @@ mod instantiate;
 mod instantiation_ty_map;
 mod is_context_sensitive;
 mod is_deeply_nested_type;
+mod is_valid;
 mod links;
 mod node_flags;
 mod relation;
@@ -2382,6 +2383,10 @@ impl<'cx> TyChecker<'cx> {
         self.is_empty_literal_ty(element_ty)
     }
 
+    fn is_non_generic_object_ty(&mut self, ty: &'cx ty::Ty<'cx>) -> bool {
+        ty.kind.is_object() && !self.is_generic_mapped_ty(ty)
+    }
+
     fn is_generic_mapped_ty(&mut self, ty: &'cx ty::Ty<'cx>) -> bool {
         ty.kind.as_object_mapped().is_some_and(|m| {
             if self.is_generic_index_ty(m.constraint_ty) {
@@ -2439,19 +2444,16 @@ impl<'cx> TyChecker<'cx> {
         !self.get_generic_object_flags(ty).is_empty()
     }
 
-    pub fn is_valid_index_key_ty(&mut self, ty: &'cx ty::Ty<'cx>) -> bool {
-        ty.flags
-            .intersects(TypeFlags::STRING | TypeFlags::NUMBER | TypeFlags::ES_SYMBOL)
-            || ty.kind.as_intersection().is_some_and(|i| {
-                !self.is_generic(ty) && i.tys.iter().any(|ty| self.is_valid_index_key_ty(ty))
-            })
-        // || isPatternLiteralType
-    }
-
     fn get_normalized_ty(&mut self, mut ty: &'cx ty::Ty<'cx>, writing: bool) -> &'cx ty::Ty<'cx> {
         loop {
             let t = if self.is_fresh_literal_ty(ty) {
                 self.ty_links[&ty.id].get_regular_ty().unwrap()
+            } else if let Some(s) = ty.kind.as_substitution_ty() {
+                if writing {
+                    s.base_ty
+                } else {
+                    self.get_substitution_intersection(ty)
+                }
             } else {
                 ty
             };

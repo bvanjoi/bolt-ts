@@ -426,6 +426,40 @@ impl<'cx> TyChecker<'cx> {
         )
     }
 
+    fn remove_redundant_lit_tys(
+        &mut self,
+        mut tys: Vec<&'cx ty::Ty<'cx>>,
+        includes: TypeFlags,
+        reduce_void_undefined: bool,
+    ) -> Vec<&'cx ty::Ty<'cx>> {
+        let mut i = tys.len();
+        while i > 0 {
+            i -= 1;
+            let t = tys[i];
+            let flags = t.flags;
+            let remove = (flags.intersects(
+                TypeFlags::STRING_LITERAL | TypeFlags::TEMPLATE_LITERAL | TypeFlags::STRING_MAPPING,
+            ) && includes.intersects(TypeFlags::STRING))
+                || (flags.intersects(TypeFlags::NUMBER_LITERAL)
+                    && includes.intersects(TypeFlags::NUMBER))
+                || (flags.intersects(TypeFlags::BIG_INT_LITERAL)
+                    && includes.intersects(TypeFlags::BIG_INT))
+                || (flags.intersects(TypeFlags::UNIQUE_ES_SYMBOL)
+                    && includes.intersects(TypeFlags::ES_SYMBOL))
+                || (reduce_void_undefined
+                    && flags.intersects(TypeFlags::UNDEFINED)
+                    && includes.intersects(TypeFlags::VOID))
+                || self.is_fresh_literal_ty(t)
+                    && tys.contains(&self.ty_links[&t.id].expect_regular_ty());
+
+            if remove {
+                tys.remove(i);
+            }
+        }
+
+        tys
+    }
+
     pub(super) fn get_union_ty(
         &mut self,
         tys: &[&'cx ty::Ty<'cx>],
@@ -468,6 +502,28 @@ impl<'cx> TyChecker<'cx> {
                     set.remove(1);
                 }
             }
+            if includes.intersects(
+                TypeFlags::ENUM
+                    | TypeFlags::LITERAL
+                    | TypeFlags::UNIQUE_ES_SYMBOL
+                    | TypeFlags::TEMPLATE_LITERAL
+                    | TypeFlags::STRING_MAPPING,
+            ) || includes.intersects(TypeFlags::VOID)
+                && includes.intersects(TypeFlags::UNDEFINED)
+            {
+                set = self.remove_redundant_lit_tys(
+                    set,
+                    includes,
+                    reduction == UnionReduction::Subtype,
+                );
+            }
+
+            if includes.intersects(TypeFlags::STRING_LITERAL)
+                && includes.intersects(TypeFlags::TEMPLATE_LITERAL | TypeFlags::STRING_MAPPING)
+            {
+                // TODO:
+            }
+
             if reduction == UnionReduction::Subtype {
                 set = self.remove_subtypes(set);
             }
@@ -1083,9 +1139,7 @@ impl<'cx> TyChecker<'cx> {
         &mut self,
         ty: &'cx ty::Ty<'cx>,
     ) -> &'cx ty::Ty<'cx> {
-        let Some(sub) = ty.kind.as_substitution_ty() else {
-            unreachable!()
-        };
+        let sub = ty.kind.expect_substitution_ty();
         if ty.is_no_infer_ty() {
             sub.base_ty
         } else {

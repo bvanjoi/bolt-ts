@@ -1,37 +1,5 @@
 // From `github.com/sindresorhus/type-fest`, MIT License
 
-// type Whitespace =
-// 	| '\u{9}' // '\t'
-// 	| '\u{A}' // '\n'
-// 	| '\u{B}' // '\v'
-// 	| '\u{C}' // '\f'
-// 	| '\u{D}' // '\r'
-// 	| '\u{20}' // ' '
-// 	| '\u{85}'
-// 	| '\u{A0}'
-// 	| '\u{1680}'
-// 	| '\u{2000}'
-// 	| '\u{2001}'
-// 	| '\u{2002}'
-// 	| '\u{2003}'
-// 	| '\u{2004}'
-// 	| '\u{2005}'
-// 	| '\u{2006}'
-// 	| '\u{2007}'
-// 	| '\u{2008}'
-// 	| '\u{2009}'
-// 	| '\u{200A}'
-// 	| '\u{2028}'
-// 	| '\u{2029}'
-// 	| '\u{202F}'
-// 	| '\u{205F}'
-// 	| '\u{3000}'
-// 	| '\u{FEFF}';
-// type TrimLeft<V extends string> = V extends `${Whitespace}${infer R}` ? TrimLeft<R> : V;
-// type A = TrimLeft<'  foo'>;
-// let a0: A = 'foo';
-
-
 function n(): never {
   throw new Error();
 }
@@ -80,11 +48,14 @@ type IsBothExtends<BaseType, FirstType, SecondType> = FirstType extends BaseType
 		: false
 	: false;
 type LiteralKeyOf<T> = keyof {[K in keyof T as IsLiteral<K> extends true ? K : never]-?: never};
+type NegativeInfinity = -1e999;
 type Numeric = number | bigint;
 type NumericString = '0123456789';
 type NonRecursiveType = BuiltIns | Function | (new (...arguments_: any[]) => unknown);
+type PositiveInfinity = 1e999;
 type RequireNone<KeysType extends PropertyKey> = Partial<Record<KeysType, never>>;
 type StringDigit = '0' | '1' | '2' | '3' | '4' | '5' | '6' | '7' | '8' | '9';
+type ToString<T> = T extends string | number ? `${T}` : never;
 type UnknownArrayOrTuple = readonly [...unknown[]];
 type UpperCaseCharacters = 'A' | 'B' | 'C' | 'D' | 'E' | 'F' | 'G' | 'H' | 'I' | 'J' | 'K' | 'L' | 'M' | 'N' | 'O' | 'P' | 'Q' | 'R' | 'S' | 'T' | 'U' | 'V' | 'W' | 'X' | 'Y' | 'Z';
 type Whitespace =
@@ -607,6 +578,16 @@ type IsEqual<A, B> =
   const a81: [IsEqual<true, false>, IsEqual<false, false>][number] = false;
 }
 
+// =========== IsFloat ===========
+// type IsFloat<T> =
+// T extends number
+// 	? `${T}` extends `${infer _Sign extends '' | '-'}${number}.${infer Decimal extends number}`
+// 		? Decimal extends Zero
+// 			? false
+// 			: true
+// 		: false
+// 	: false;
+  
 // =========== isNever ===========
 type IsNever<T> = [T] extends [never] ? true : false;
 {
@@ -659,6 +640,32 @@ type IsNull<T> = [T] extends [null] ? true : false;
   const a4: IsNull<unknown> = false;
   const a5: IsNull<void> = false;
   const a6: IsNull<{}> = false;
+}
+
+// ============= IsNumeric =============
+type IsNumeric<T extends string> = T extends `${number}`
+	? Trim<T> extends T
+		? true
+		: false
+	: false;
+{
+  const a0: IsNumeric<''> = false;
+  const a1: IsNumeric<'0'> = true;
+  const a2: IsNumeric<'1'> = true;
+  const a3: IsNumeric<'-1'> = true;
+  const a4: IsNumeric<'123'> = true;
+  const a5: IsNumeric<'1e2'> = true;
+  const a6: IsNumeric<'1.23'> = true;
+  const a7: IsNumeric<'123.456'> = true;
+  const a8: IsNumeric<'1.23e4'> = true;
+  const a9: IsNumeric<'1.23e-4'> = true;
+  const a10: IsNumeric<' '> = false;
+  const a11: IsNumeric<'\n'> = false;
+  const a12: IsNumeric<'\u{9}'> = false;
+  const a13: IsNumeric<' 1.2'> = false;
+  const a14: IsNumeric<'1 2'> = false;
+  const a15: IsNumeric<'1_200'> = false;
+  const a16: IsNumeric<' 1 '> = false;
 }
 
 // =========== IsPrimitive ===========
@@ -735,6 +742,24 @@ type IsUnknown<T> = (
 
   type A = IsUnknown;
   //~^ ERROR: Generic type 'IsUnknown' requires 1 type argument.
+}
+
+
+// ========== IsWhitespace ==========
+type IsWhitespace<T extends string> = T extends Whitespace
+	? true
+	: T extends `${Whitespace}${infer Rest}`
+		? IsWhitespace<Rest>
+		: false;
+{
+  const a0: IsWhitespace<''> = false;
+  const a1: IsWhitespace<' '> = true;
+  const a2: IsWhitespace<'\n'> = true;
+  const a3: IsWhitespace<'\u{9}'> = true;
+  const a4: IsWhitespace<'a'> = false;
+  const a5: IsWhitespace<'a '> = false;
+  const a6: IsWhitespace<'   '> = true;
+  const a7: IsWhitespace<' \t '> = true;
 }
 
 // ========= NonEmptyTuple =========
@@ -1023,7 +1048,6 @@ type StaticPartOfArray<T extends UnknownArray, Result extends UnknownArray = []>
   //~^ ERROR: Type '[]' is not assignable to type '[string, number, boolean]'.
 }
 
-
 // ============ Stringified ============
 type Stringified<ObjectType> = {[KeyType in keyof ObjectType]: string};
 {
@@ -1083,18 +1107,19 @@ type TrimLeft<V extends string> = V extends `${Whitespace}${infer R}` ? TrimLeft
 type TrimRight<V extends string> = V extends `${infer R}${Whitespace}` ? TrimRight<R> : V;
 
 type Trim<V extends string> = TrimLeft<TrimRight<V>>;
-// {
-// 	function trim<S extends string>(value: S): Trim<S> { return value as Trim<S> }
+{
+	function trim<S extends string>(value: S): Trim<S> { return value as Trim<S> }
 
-// 	const a0: 'foo' = trim(' foo');
-// 	const a1: 'bar' = trim('bar ');
-// 	const a2: 'baz' = trim(' baz ');
-// 	const a3: 'waldo' = trim('  waldo  ');
-// 	const a4: 'fr ed' = trim(' fr ed ');
-// 	const a5: 'foo' = trim(' foo\n');
-// 	const a6: 'foo' = trim(' foo\n\t ');
-// 	const a7: ' foo ' = trim(' foo ');
-// }
+	const a0: 'foo' = trim(' foo');
+	const a1: 'bar' = trim('bar ');
+	const a2: 'baz' = trim(' baz ');
+	const a3: 'waldo' = trim('  waldo  ');
+	const a4: 'fr ed' = trim(' fr ed ');
+	const a5: 'foo' = trim(' foo\n');
+	const a6: 'foo' = trim(' foo\n\t ');
+	const a7: ' foo ' = trim(' foo ');
+  //~^ ERROR: Type '"foo"' is not assignable to type '" foo "'.
+}
 
 // =========== TupleLength ===========
 type TupleLength<T extends UnknownArray> =
