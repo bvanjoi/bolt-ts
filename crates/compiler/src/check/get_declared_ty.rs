@@ -14,7 +14,7 @@ impl<'cx> TyChecker<'cx> {
     pub(super) fn get_declared_ty_of_symbol(&mut self, symbol: SymbolID) -> &'cx ty::Ty<'cx> {
         let ty = self
             .try_get_declared_ty_of_symbol(symbol)
-            .unwrap_or_else(|| self.error_ty);
+            .unwrap_or(self.error_ty);
         ty
     }
 

@@ -132,7 +132,7 @@ impl<'cx> FlowNodes<'cx> {
         }
         label
             .antecedent
-            .get_or_insert_with(|| vec![])
+            .get_or_insert_with(std::vec::Vec::new)
             .push(antecedent);
         self.set_flow_node_referenced(antecedent);
     }
@@ -169,7 +169,7 @@ impl<'cx> FlowNodes<'cx> {
     pub(super) fn insert_container_map(&mut self, node: ast::NodeID, flow: FlowID) {
         let prev = self
             .container_map
-            .insert(node.index_as_u32(), flow.index as u32);
+            .insert(node.index_as_u32(), flow.index);
         assert!(prev.is_none());
     }
 

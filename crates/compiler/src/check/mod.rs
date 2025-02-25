@@ -758,10 +758,9 @@ impl<'cx> TyChecker<'cx> {
         }) {
             // TODO:
         } else if let Some(intersection) = ty.kind.as_intersection() {
-            if !intersection
+            intersection
                 .object_flags
-                .intersects(ObjectFlags::IS_NEVER_INTERSECTION_COMPUTED)
-            {}
+                .intersects(ObjectFlags::IS_NEVER_INTERSECTION_COMPUTED);
 
             if intersection
                 .object_flags
@@ -977,7 +976,7 @@ impl<'cx> TyChecker<'cx> {
         outer_ty_params: Option<ty::Tys<'cx>>,
     ) -> &'cx ty::Ty<'cx> {
         //TODO:cache
-        let is_constructor = sig.node_id.map_or(true, |node_id| {
+        let is_constructor = sig.node_id.is_none_or(|node_id| {
             use bolt_ts_ast::Node::*;
             matches!(self.p.node(node_id), ClassCtor(_) | CtorSigDecl(_))
         });
@@ -1529,7 +1528,7 @@ impl<'cx> TyChecker<'cx> {
             }
         }
 
-        let Some(mut decl) = symbol.opt_decl(self.binder) else {
+        let Some(decl) = symbol.opt_decl(self.binder) else {
             return ty;
         };
 
@@ -1974,7 +1973,7 @@ impl<'cx> TyChecker<'cx> {
         targets: ty::Tys<'cx>,
     ) -> &'cx ty::TyMapper<'cx> {
         let mapper = if sources.len() == 1 {
-            let target = targets.get(0).copied().unwrap_or(self.any_ty);
+            let target = targets.first().copied().unwrap_or(self.any_ty);
             ty::TyMapper::make_unary(sources[0], target)
         } else {
             let mapper = ty::ArrayTyMapper::new(sources, Some(targets), self);
@@ -2067,7 +2066,7 @@ impl<'cx> TyChecker<'cx> {
 
         match s {
             Ident(s_ident) => {
-                return if self.p.is_this_in_type_query(source) {
+                if self.p.is_this_in_type_query(source) {
                     t.is_this_expr()
                 } else if let Some(t_ident) = t.as_ident() {
                     self.resolve_symbol_by_ident(s_ident) == self.resolve_symbol_by_ident(t_ident)
@@ -2083,7 +2082,7 @@ impl<'cx> TyChecker<'cx> {
                     todo!()
                 } else {
                     false
-                };
+                }
             }
             ThisExpr(_) => t.is_this_expr(),
             _ => false,
@@ -2290,12 +2289,12 @@ impl<'cx> TyChecker<'cx> {
     fn get_lower_bound_of_key_ty(&mut self, ty: &'cx ty::Ty<'cx>) -> &'cx ty::Ty<'cx> {
         if let Some(index_ty) = ty.kind.as_index_ty() {
             let t = self.get_apparent_ty(index_ty.ty);
-            return if t.kind.is_generic_tuple_type() {
+            if t.kind.is_generic_tuple_type() {
                 // TODO: get_known_keys_of_tuple_ty
                 t
             } else {
                 self.get_index_ty(t, ty::IndexFlags::empty())
-            };
+            }
         } else if ty.kind.is_cond_ty() {
             // TODO: is_distributive
             return ty;

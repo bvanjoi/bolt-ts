@@ -33,7 +33,7 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
-    fn is_valid_number_string(&self, v: AtomId) -> bool {
+    pub(super) fn is_valid_number_string(&self, v: AtomId, round_trip_only: bool) -> bool {
         if v == keyword::IDENT_EMPTY {
             false
         } else {
@@ -59,7 +59,7 @@ impl<'cx> TyChecker<'cx> {
             true
         } else if let Some(s) = source.kind.as_string_lit() {
             let v = s.val;
-            (target.flags.intersects(TypeFlags::NUMBER) && self.is_valid_number_string(v))
+            (target.flags.intersects(TypeFlags::NUMBER) && self.is_valid_number_string(v, false))
                 || (target.flags.intersects(TypeFlags::BIG_INT) && false/* TODO: handle bigint */)
                 || (target
                     .flags

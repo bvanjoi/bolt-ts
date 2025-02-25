@@ -45,9 +45,9 @@ pub struct Ty<'cx> {
     pub flags: TypeFlags,
 }
 
-impl Into<TypeFlags> for &Ty<'_> {
-    fn into(self) -> TypeFlags {
-        self.flags
+impl From<&Ty<'_>> for TypeFlags {
+    fn from(val: &Ty<'_>) -> Self {
+        val.flags
     }
 }
 
@@ -189,7 +189,15 @@ impl<'cx> Ty<'cx> {
         }
         match self.kind {
             TyKind::Object(object) => object.kind.to_string(self, checker),
-            TyKind::NumberLit(lit) => format!("{}", lit.val),
+            TyKind::NumberLit(lit) => {
+                if lit.val == std::f64::INFINITY {
+                    "Infinity".to_string()
+                } else if lit.val == std::f64::NEG_INFINITY {
+                    "-Infinity".to_string()
+                } else {
+                    format!("{}", lit.val)
+                }
+            }
             TyKind::BigIntLit(lit) => format!("{}n", checker.atoms.get(lit.val)),
             TyKind::StringLit(lit) => format!("\"{}\"", checker.atoms.get(lit.val)),
             TyKind::Union(union) => union
@@ -226,7 +234,7 @@ impl<'cx> Ty<'cx> {
                 for i in 0..n.texts.len() {
                     let text = n.texts[i];
 
-                    s.push_str(&checker.atoms.get(text));
+                    s.push_str(checker.atoms.get(text));
                     if let Some(ty) = n.tys.get(i) {
                         s.push_str(&ty.to_string(checker));
                     }

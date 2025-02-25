@@ -2,7 +2,7 @@ use super::TyChecker;
 use crate::bind::{Symbol, SymbolID, SymbolName};
 use bolt_ts_ast as ast;
 
-impl<'cx> TyChecker<'cx> {
+impl TyChecker<'_> {
     #[inline]
     pub(super) fn get_symbol_of_decl(&self, id: ast::NodeID) -> SymbolID {
         fn is_decl(p: &super::Parser, node: ast::NodeID) -> bool {

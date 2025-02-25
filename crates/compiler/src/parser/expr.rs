@@ -213,10 +213,8 @@ impl<'cx> ParserState<'cx, '_> {
                 break Ok(left);
             }
 
-            if matches!(self.token.kind, TokenKind::As | TokenKind::Satisfies) {
-                if self.has_preceding_line_break() {
-                    break Ok(left);
-                }
+            if matches!(self.token.kind, TokenKind::As | TokenKind::Satisfies) && self.has_preceding_line_break() {
+                break Ok(left);
             }
 
             let t = self.token;

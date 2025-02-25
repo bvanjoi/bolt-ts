@@ -134,7 +134,7 @@ pub struct Symbol {
     pub(crate) kind: (SymbolKind, Option<InterfaceSymbol>, Option<NsSymbol>),
 }
 
-impl<'cx> Symbol {
+impl Symbol {
     pub const ERR: SymbolID = SymbolID::root(ModuleID::root());
     pub(super) fn new(name: SymbolName, flags: SymbolFlags, kind: SymbolKind) -> Self {
         Self {
@@ -158,7 +158,7 @@ impl<'cx> Symbol {
         }
     }
 
-    pub fn can_have_symbol(node: bolt_ts_ast::Node<'cx>) -> bool {
+    pub fn can_have_symbol(node: bolt_ts_ast::Node<'_>) -> bool {
         use bolt_ts_ast::Node::*;
         node.is_decl() || matches!(node, FnTy(_))
     }

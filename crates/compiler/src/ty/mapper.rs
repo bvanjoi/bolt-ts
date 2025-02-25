@@ -84,7 +84,7 @@ impl<'cx> TyMap<'cx> for ArrayTyMapper<'cx> {
         );
         self.mapper
             .binary_search_by_key(&ty.id.as_u32(), |(source, _)| source.id.as_u32())
-            .map_or(ty, |idx| &self.mapper[idx].1)
+            .map_or(ty, |idx| self.mapper[idx].1)
     }
 }
 

@@ -390,20 +390,17 @@ impl<'cx> TyChecker<'cx> {
             return op_ty;
         }
 
-        match expr.expr.kind {
-            ast::ExprKind::NumLit(lit) => match expr.op {
-                ast::PrefixUnaryOp::Minus => {
-                    let ty = self.get_number_literal_type(-lit.val);
-                    return self.get_fresh_ty_of_literal_ty(ty);
-                }
-                ast::PrefixUnaryOp::Plus => {
-                    let ty = self.get_number_literal_type(lit.val);
-                    return self.get_fresh_ty_of_literal_ty(ty);
-                }
-                _ => (),
-            },
+        if let ast::ExprKind::NumLit(lit) = expr.expr.kind { match expr.op {
+            ast::PrefixUnaryOp::Minus => {
+                let ty = self.get_number_literal_type(-lit.val);
+                return self.get_fresh_ty_of_literal_ty(ty);
+            }
+            ast::PrefixUnaryOp::Plus => {
+                let ty = self.get_number_literal_type(lit.val);
+                return self.get_fresh_ty_of_literal_ty(ty);
+            }
             _ => (),
-        }
+        } }
 
         match expr.op {
             ast::PrefixUnaryOp::Plus => {

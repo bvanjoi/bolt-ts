@@ -44,11 +44,11 @@ impl<'cx> TyChecker<'cx> {
                 .collect::<Vec<_>>();
             // TODO: filter should reduce alloc
             // TODO: handle origin
-            return self.get_union_ty_from_sorted_list(
+            self.get_union_ty_from_sorted_list(
                 filtered,
                 ty.get_object_flags()
                     & (ObjectFlags::PRIMITIVE_UNION | ObjectFlags::CONTAINS_INTERSECTIONS),
-            );
+            )
         } else if ty.flags.intersects(ty::TypeFlags::NEVER) {
             self.never_ty
         } else if f(self, ty) {

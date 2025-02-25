@@ -678,15 +678,11 @@ impl ParserState<'_, '_> {
         }
         let ch = self.ch_unchecked();
         self.pos += 1;
-        if ch == b'0' {
-            if self.pos >= end || !self.ch_unchecked().is_ascii_digit() {
-                return vec![b'\0'];
-            }
+        if ch == b'0' && (self.pos >= end || !self.ch_unchecked().is_ascii_digit()) {
+            return vec![b'\0'];
         }
-        if matches!(ch, b'0'..=b'3') {
-            if self.pos < end && is_octal_digit(self.ch_unchecked()) {
-                self.pos += 1;
-            }
+        if matches!(ch, b'0'..=b'3') && self.pos < end && is_octal_digit(self.ch_unchecked()) {
+            self.pos += 1;
         }
         if matches!(ch, b'0'..=b'7') {
             if self.pos < end && is_octal_digit(self.ch_unchecked()) {

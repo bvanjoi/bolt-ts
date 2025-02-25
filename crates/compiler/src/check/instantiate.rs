@@ -550,7 +550,7 @@ impl<'cx> TyChecker<'cx> {
         };
 
         let object_flags = ty.get_object_flags();
-        let target = if let Some(_) = ty.kind.as_object_reference() {
+        let target = if ty.kind.as_object_reference().is_some() {
             // TODO: resolved type
             ty
         } else if object_flags.intersects(ObjectFlags::INSTANTIATED) {

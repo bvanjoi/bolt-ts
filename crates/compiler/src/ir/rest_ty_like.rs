@@ -6,7 +6,7 @@ pub trait RestTyLike<'cx>: Copy {
 
 impl<'cx> RestTyLike<'cx> for ast::RestTy<'cx> {
     fn ty(&self) -> Option<&'cx ast::Ty<'cx>> {
-        Some(&self.ty)
+        Some(self.ty)
     }
 }
 

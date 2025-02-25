@@ -334,7 +334,7 @@ impl<'cx> TyChecker<'cx> {
         ty: &'cx ty::Ty<'cx>,
         this_arg: Option<&'cx ty::Ty<'cx>>,
     ) -> &'cx ty::Ty<'cx> {
-        if let Some(_) = ty.kind.as_object_reference() {
+        if ty.kind.as_object_reference().is_some() {
             ty
             // let target = r.target.kind.expect_object_interface();
             // let ty_args = self.get_ty_arguments(ty);
@@ -390,7 +390,7 @@ impl<'cx> TyChecker<'cx> {
             if inferred_covariant_ty.is_some() || inferred_contravariant_ty.is_some() {
                 let prefer_covariant_ty =
                     inferred_covariant_ty.is_some_and(|inferred_covariant_ty| {
-                        inferred_contravariant_ty.map_or(true, |inferred_contravariant_ty| {
+                        inferred_contravariant_ty.is_none_or(|inferred_contravariant_ty| {
                             !inferred_contravariant_ty
                                 .flags
                                 .intersects(TypeFlags::NEVER | TypeFlags::ANY)
@@ -417,8 +417,7 @@ impl<'cx> TyChecker<'cx> {
                                             .inference_info(inference, other)
                                             .candidates
                                             .as_ref()
-                                            .cloned()
-                                            .map_or(true, |cs| {
+                                            .cloned().is_none_or(|cs| {
                                                 cs.iter().all(|t| {
                                                     self.is_type_assignable_to(
                                                         t,
@@ -460,7 +459,7 @@ impl<'cx> TyChecker<'cx> {
         let i = self.inference_info(inference, idx);
         let ty = if let Some(constraint) = self.get_constraint_of_ty_param(i.ty_param) {
             let instantiated_constraint = self.instantiate_ty(constraint, None);
-            if inferred_ty.map_or(true, |inferred_ty| {
+            if inferred_ty.is_none_or(|inferred_ty| {
                 let ty = self.get_ty_with_this_arg(instantiated_constraint, fallback_ty);
                 // TODO: more flexible compare types
                 !self.is_type_related_to(inferred_ty, ty, super::relation::RelationKind::Assignable)
@@ -797,7 +796,7 @@ impl<'cx> TyChecker<'cx> {
                         source_texts,
                     );
                     if let Some(found) = src_text[p..].find(delim) {
-                        p = p + found;
+                        p += found;
                         break;
                     }
                     s += 1;
@@ -1060,16 +1059,14 @@ impl<'cx> InferenceState<'cx, '_> {
                         if self.contravariant && !self.bivariant {
                             if info
                                 .contra_candidates
-                                .as_ref()
-                                .map_or(true, |cs| !cs.contains(&candidate))
+                                .as_ref().is_none_or(|cs| !cs.contains(&candidate))
                             {
                                 self.append_contra_candidate(idx, candidate);
                                 self.c.clear_cached_inferences(self.inference);
                             }
                         } else if info
                             .candidates
-                            .as_ref()
-                            .map_or(true, |cs| !cs.contains(&candidate))
+                            .as_ref().is_none_or(|cs| !cs.contains(&candidate))
                         {
                             self.append_candidate(idx, candidate);
                             self.c.clear_cached_inferences(self.inference);
@@ -1307,10 +1304,14 @@ impl<'cx> InferenceState<'cx, '_> {
                                 .unwrap();
                             if !all_ty_flags.intersects(TypeFlags::STRING) {
                                 let str = source.kind.expect_string_lit();
-                                if all_ty_flags.intersects(TypeFlags::NUMBER_LIKE) {
+                                if all_ty_flags.intersects(TypeFlags::NUMBER_LIKE)
+                                    && !self.c.is_valid_number_string(str.val, true)
+                                {
                                     all_ty_flags &= !TypeFlags::NUMBER_LIKE;
                                 }
-                                if all_ty_flags.intersects(TypeFlags::BIG_INT_LIKE) {
+                                if all_ty_flags.intersects(TypeFlags::BIG_INT_LIKE) && false
+                                /* !is_valid_big_int_string */
+                                {
                                     all_ty_flags &= !TypeFlags::BIG_INT_LIKE;
                                 }
                                 let matching_ty = self
@@ -1365,8 +1366,9 @@ impl<'cx> InferenceState<'cx, '_> {
                                             } else if left.flags.intersects(TypeFlags::NUMBER) {
                                                 left
                                             } else if right.flags.intersects(TypeFlags::NUMBER) {
-                                                // this.get_number_literal_type(str)
-                                                todo!()
+                                                let val =
+                                                    this.atoms.get(str.val).parse::<f64>().unwrap();
+                                                this.get_number_literal_type(val)
                                             } else if left.flags.intersects(TypeFlags::ENUM) {
                                                 left
                                             } else if right.flags.intersects(TypeFlags::ENUM) {
@@ -1448,7 +1450,7 @@ impl<'cx> InferenceState<'cx, '_> {
                     let element_tys = self.c.get_ty_arguments(target);
                     let element_flags = target_tuple.element_flags;
                     if let Some(source_tuple) = source.as_tuple() {
-                        if is_tuple_ty_structure_matching(source_tuple, &target_tuple) {
+                        if is_tuple_ty_structure_matching(source_tuple, target_tuple) {
                             for i in 0..target_arity {
                                 let s = self.c.get_ty_arguments(source);
                                 self.infer_from_tys(s[i], element_tys[i]);
@@ -1482,7 +1484,7 @@ impl<'cx> InferenceState<'cx, '_> {
                         let s = self.c.get_ty_arguments(source);
                         self.infer_from_tys(s[i], element_tys[i]);
                     }
-                    if source.as_tuple().map_or(true, |s| {
+                    if source.as_tuple().is_none_or(|s| {
                         source_arity - start_len - end_len == 1
                             && s.element_flags[start_len].intersects(ty::ElementFlags::REST)
                     }) {

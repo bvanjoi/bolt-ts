@@ -757,7 +757,7 @@ impl<'cx> TyChecker<'cx> {
             return Some(self.undefined_ty);
         }
         object_ty = self.get_reduced_ty(object_ty);
-        let mut access_flags = access_flags.unwrap_or(AccessFlags::empty());
+        let access_flags = access_flags.unwrap_or(AccessFlags::empty());
         let is_generic_index = if self.is_generic_index_ty(index_ty) {
             true
         } else if access_node.is_some_and(|n| !self.p.node(n).is_indexed_access_ty()) {
@@ -790,7 +790,7 @@ impl<'cx> TyChecker<'cx> {
 
         if let Some(union) = index_ty.kind.as_union() {
             let mut prop_tys = Vec::with_capacity(union.tys.len());
-            let mut was_missing_prop = false;
+            let was_missing_prop = false;
             for t in union.tys.iter() {
                 if let Some(prop_ty) = self.get_prop_ty_for_index_ty(
                     object_ty,
@@ -1128,8 +1128,8 @@ impl<'cx> TyChecker<'cx> {
         &mut self,
         mut root: &'cx ty::CondTyRoot<'cx>,
         mut mapper: Option<&'cx dyn ty::TyMap<'cx>>,
-        mut alias_symbol: Option<SymbolID>,
-        mut alias_ty_args: Option<ty::Tys<'cx>>,
+        alias_symbol: Option<SymbolID>,
+        alias_ty_args: Option<ty::Tys<'cx>>,
     ) -> &'cx Ty<'cx> {
         let can_tail_recurse =
             |this: &mut Self, new_ty: &'cx Ty<'cx>, new_mapper: Option<&'cx dyn ty::TyMap<'cx>>| {
@@ -1152,13 +1152,13 @@ impl<'cx> TyChecker<'cx> {
                 let new_check_ty = new_root
                     .is_distributive
                     .then(|| this.get_mapped_ty(new_root_mapper, new_root.check_ty));
-                let use_new = new_check_ty.map_or(true, |new_check_ty| {
+                let use_new = new_check_ty.is_none_or(|new_check_ty| {
                     new_check_ty == new_root.check_ty
                         || !new_check_ty
                             .flags
                             .intersects(TypeFlags::UNION | TypeFlags::NEVER)
                 });
-                use_new.then(|| (new_root, new_root_mapper))
+                use_new.then_some((new_root, new_root_mapper))
             };
         let mut tailed = 0;
         let mut extra_tys = Vec::with_capacity(16);
@@ -1368,8 +1368,7 @@ impl<'cx> TyChecker<'cx> {
         let ty_node = self.p.node(node.id).as_ty().unwrap();
         let readonly = self
             .p
-            .parent(node.id)
-            .map_or(false, |parent| self.p.node(parent).is_readonly_ty_op());
+            .parent(node.id).is_some_and(|parent| self.p.node(parent).is_readonly_ty_op());
         let element_ty = self.get_ty_from_type_node(node.ele);
         // TODO: defer type
         let ty = self.create_array_ty(element_ty, readonly);
@@ -1435,8 +1434,7 @@ impl<'cx> TyChecker<'cx> {
         let ty_node = self.p.node(node.id).as_ty().unwrap();
         let readonly = self
             .p
-            .parent(node.id)
-            .map_or(false, |parent| self.p.node(parent).is_readonly_ty_op());
+            .parent(node.id).is_some_and(|parent| self.p.node(parent).is_readonly_ty_op());
         let target = if Self::get_array_ele_ty_node(&ty_node).is_some() {
             if readonly {
                 self.global_readonly_array_ty()
@@ -1722,11 +1720,11 @@ impl<'cx> TyChecker<'cx> {
                 modifiers_ty,
                 TypeFlags::STRING_OR_NUMBER_LITERAL_OR_UNIQUE,
                 index_flags.intersects(IndexFlags::STRINGS_ONLY),
-                |this, key_ty| add_member_for_key_ty(this, key_ty),
+                &mut add_member_for_key_ty,
             );
         } else {
             let t = self.get_lower_bound_of_key_ty(map.constraint_ty);
-            self.for_each_ty(t, |this, key_ty| add_member_for_key_ty(this, key_ty));
+            self.for_each_ty(t, add_member_for_key_ty);
         };
 
         let result = if index_flags.intersects(IndexFlags::NO_INDEX_SIGNATURES) {

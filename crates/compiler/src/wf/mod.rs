@@ -116,7 +116,7 @@ impl<'cx> ast::Visitor<'cx> for CheckState<'cx> {
     }
 
     fn visit_interface_decl(&mut self, node: &'cx ast::InterfaceDecl<'cx>) {
-        self.check_collisions_for_decl_name(node.id, &node.name);
+        self.check_collisions_for_decl_name(node.id, node.name);
         visitor::visit_interface_decl(self, node);
     }
 }

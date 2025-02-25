@@ -112,9 +112,9 @@ impl<'cx> TyChecker<'cx> {
             return false;
         };
         if let Some(tys) = contextual_ty.kind.tys_of_union_or_intersection() {
-            return tys
+            tys
                 .iter()
-                .any(|ty| self.is_literal_of_contextual_ty(candidate_ty, Some(ty)));
+                .any(|ty| self.is_literal_of_contextual_ty(candidate_ty, Some(ty)))
         } else if contextual_ty
             .flags
             .intersects(TypeFlags::INSTANTIABLE_NON_PRIMITIVE)
@@ -141,35 +141,27 @@ impl<'cx> TyChecker<'cx> {
             } else {
                 self.is_literal_of_contextual_ty(candidate_ty, Some(constraint))
             };
-        } else {
-            if contextual_ty.flags.intersects(
-                TypeFlags::STRING_LITERAL
-                    | TypeFlags::INDEX
-                    | TypeFlags::TEMPLATE_LITERAL
-                    | TypeFlags::STRING_MAPPING,
-            ) && candidate_ty.maybe_type_of_kind(TypeFlags::STRING_LITERAL)
-            {
-                true
-            } else if contextual_ty.flags.intersects(TypeFlags::NUMBER_LITERAL)
-                && candidate_ty.maybe_type_of_kind(TypeFlags::NUMBER_LITERAL)
-            {
-                true
-            } else if contextual_ty.flags.intersects(TypeFlags::BIG_INT_LITERAL)
-                && candidate_ty.maybe_type_of_kind(TypeFlags::BIG_INT_LITERAL)
-            {
-                true
-            } else if contextual_ty.flags.intersects(TypeFlags::BOOLEAN_LITERAL)
-                && candidate_ty.maybe_type_of_kind(TypeFlags::BOOLEAN_LITERAL)
-            {
-                true
-            } else if contextual_ty.flags.intersects(TypeFlags::UNIQUE_ES_SYMBOL)
-                && candidate_ty.maybe_type_of_kind(TypeFlags::UNIQUE_ES_SYMBOL)
-            {
-                true
-            } else {
-                false
-            }
-        }
+        } else if contextual_ty.flags.intersects(
+            TypeFlags::STRING_LITERAL
+                | TypeFlags::INDEX
+                | TypeFlags::TEMPLATE_LITERAL
+                | TypeFlags::STRING_MAPPING,
+        ) && candidate_ty.maybe_type_of_kind(TypeFlags::STRING_LITERAL)
+        {
+            true
+        } else if contextual_ty.flags.intersects(TypeFlags::NUMBER_LITERAL)
+            && candidate_ty.maybe_type_of_kind(TypeFlags::NUMBER_LITERAL)
+        {
+            true
+        } else if contextual_ty.flags.intersects(TypeFlags::BIG_INT_LITERAL)
+            && candidate_ty.maybe_type_of_kind(TypeFlags::BIG_INT_LITERAL)
+        {
+            true
+        } else if contextual_ty.flags.intersects(TypeFlags::BOOLEAN_LITERAL)
+            && candidate_ty.maybe_type_of_kind(TypeFlags::BOOLEAN_LITERAL)
+        {
+            true
+        } else { contextual_ty.flags.intersects(TypeFlags::UNIQUE_ES_SYMBOL) && candidate_ty.maybe_type_of_kind(TypeFlags::UNIQUE_ES_SYMBOL) }
     }
 
     pub(super) fn get_widened_lit_like_ty_for_contextual_ty(

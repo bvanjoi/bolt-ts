@@ -68,11 +68,14 @@ impl<'cx> ParserState<'cx, '_> {
             {
                 let id = self.next_node_id();
                 self.parent_map.r#override(ty.id(), id);
-                let extends_ty = self.with_parent(id, Self::parse_ty)?;
+                let extends_ty =
+                    self.disallow_conditional_tys_and(|this| this.with_parent(id, Self::parse_ty))?;
                 self.expect(TokenKind::Question);
-                let true_ty = self.with_parent(id, Self::parse_ty)?;
+                let true_ty =
+                    self.allow_conditional_tys_and(|this| this.with_parent(id, Self::parse_ty))?;
                 self.expect(TokenKind::Colon);
-                let false_ty = self.with_parent(id, Self::parse_ty)?;
+                let false_ty =
+                    self.allow_conditional_tys_and(|this| this.with_parent(id, Self::parse_ty))?;
                 let ty = self.alloc(ast::CondTy {
                     id,
                     span: self.new_span(start),

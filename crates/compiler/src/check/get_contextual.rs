@@ -24,7 +24,7 @@ impl<'cx> TyChecker<'cx> {
         id: ast::NodeID,
         flags: Option<ContextFlags>,
     ) -> Option<&'cx ty::Ty<'cx>> {
-        let includes_caches = flags.map_or(true, |flags| ContextFlags::empty() == flags);
+        let includes_caches = flags.is_none_or(|flags| ContextFlags::empty() == flags);
         if let Some(ctx) = self.find_context_node(id, includes_caches) {
             return ctx.ty;
         }
@@ -40,11 +40,11 @@ impl<'cx> TyChecker<'cx> {
             }
             ArrayLit(node) => {
                 let ty = self.get_apparent_ty_of_contextual_ty(node.id, flags);
-                let element_idx = self.p.index_of_node(&node.elems, id);
+                let element_idx = self.p.index_of_node(node.elems, id);
                 let spread_indices = {
                     // TODO: cache
-                    let mut first = None;
-                    let mut last = None;
+                    let first = None;
+                    let last = None;
                     for i in 0..node.elems.len() {
                         // TODO: spread
                     }
@@ -150,15 +150,14 @@ impl<'cx> TyChecker<'cx> {
             ty?,
             |this, t| {
                 if let Some(tup) = t.as_tuple() {
-                    if first_spread_index
-                        .map_or(true, |first_spread_index| index < first_spread_index)
+                    if first_spread_index.is_none_or(|first_spread_index| index < first_spread_index)
                         && index < tup.fixed_length
                     {
                         let t = this.get_ty_arguments(t)[index];
                         // TODO: resolve_missing_ty
                         return Some(t);
                     }
-                    let offset = if last_spread_index.map_or(true, |last| index > last) {
+                    let offset = if last_spread_index.is_none_or(|last| index > last) {
                         length.map_or(0, |len| len.saturating_sub(index))
                     } else {
                         0
@@ -175,7 +174,7 @@ impl<'cx> TyChecker<'cx> {
                         return this.get_ty_arguments(t).get(idx).copied();
                     }
                 }
-                if first_spread_index.map_or(true, |first_spread_index| index < first_spread_index)
+                if first_spread_index.is_none_or(|first_spread_index| index < first_spread_index)
                 {
                     if let Some(t) = this.get_ty_of_prop_of_contextual_ty(
                         t,
@@ -250,19 +249,17 @@ impl<'cx> TyChecker<'cx> {
                     }
                 } else if !t.flags.intersects(TypeFlags::OBJECT) {
                     None
+                } else if this.is_generic_mapped_ty(t)
+                    && this.get_mapped_ty_name_ty_kind(t) != MappedTyNameTyKind::Remapping
+                {
+                    this.get_indexed_mapped_type_substituted_ty_of_contextual_ty(
+                        t, name, name_ty,
+                    )
                 } else {
-                    if this.is_generic_mapped_ty(t)
-                        && this.get_mapped_ty_name_ty_kind(t) != MappedTyNameTyKind::Remapping
-                    {
-                        this.get_indexed_mapped_type_substituted_ty_of_contextual_ty(
-                            t, name, name_ty,
-                        )
-                    } else {
-                        this.get_ty_of_concrete_prop_of_contextual_ty(t, name)
-                            .or_else(|| {
-                                this.get_ty_from_index_infos_of_contextual_ty(t, name, name_ty)
-                            })
-                    }
+                    this.get_ty_of_concrete_prop_of_contextual_ty(t, name)
+                        .or_else(|| {
+                            this.get_ty_from_index_infos_of_contextual_ty(t, name, name_ty)
+                        })
                 }
             },
             true,
@@ -298,7 +295,7 @@ impl<'cx> TyChecker<'cx> {
         name: SymbolName,
     ) -> Option<&'cx ty::Ty<'cx>> {
         let prop = self.get_prop_of_ty(ty, name);
-        if prop.map_or(true, |p| self.is_circular_mapped_prop(p)) {
+        if prop.is_none_or(|p| self.is_circular_mapped_prop(p)) {
             return None;
         }
         let t = self.get_type_of_symbol(prop.unwrap());
@@ -392,7 +389,7 @@ impl<'cx> TyChecker<'cx> {
             return None;
         };
 
-        if flags.map_or(true, |flags| {
+        if flags.is_none_or(|flags| {
             !(flags.intersects(ContextFlags::NO_CONSTRAINTS)
                 && instantiated_ty.kind.is_type_variable())
         }) {

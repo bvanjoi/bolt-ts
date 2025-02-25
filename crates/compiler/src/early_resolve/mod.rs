@@ -22,9 +22,9 @@ pub struct EarlyResolveResult {
     pub diags: Vec<bolt_ts_errors::Diag>,
 }
 
-pub fn early_resolve_parallel<'cx, 'atoms>(
+pub fn early_resolve_parallel<'cx>(
     modules: &[Module],
-    states: &[BinderState<'cx, 'atoms>],
+    states: &[BinderState<'cx, '_>],
     p: &'cx Parser<'cx>,
     global: &'cx GlobalSymbols,
     atoms: &'cx bolt_ts_atom::AtomMap<'cx>,
@@ -39,8 +39,8 @@ pub fn early_resolve_parallel<'cx, 'atoms>(
         .collect()
 }
 
-fn early_resolve<'cx, 'atoms>(
-    states: &[BinderState<'cx, 'atoms>],
+fn early_resolve<'cx>(
+    states: &[BinderState<'cx, '_>],
     module_id: bolt_ts_span::ModuleID,
     root: &'cx ast::Program<'cx>,
     p: &'cx Parser<'cx>,
@@ -617,8 +617,8 @@ pub(super) struct ResolvedResult {
     associated_declaration_for_containing_initializer_or_binding_name: Option<ast::NodeID>,
 }
 
-pub(super) fn resolve_symbol_by_ident<'a, 'cx, 'atoms>(
-    resolver: &'a Resolver<'cx, 'a, 'atoms>,
+pub(super) fn resolve_symbol_by_ident<'a, 'cx>(
+    resolver: &'a Resolver<'cx, 'a, '_>,
     ident: &'cx ast::Ident,
     meaning: SymbolFlags,
 ) -> ResolvedResult {

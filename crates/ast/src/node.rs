@@ -496,8 +496,7 @@ impl<'cx> Node<'cx> {
     }
 
     pub fn has_syntactic_modifier(&self, flags: enumflags2::BitFlags<ModifierKind>) -> bool {
-        self.modifiers()
-            .map_or(false, |ms| ms.flags.intersects(flags))
+        self.modifiers().is_some_and(|ms| ms.flags.intersects(flags))
     }
 
     pub fn modifiers(&self) -> Option<&'cx super::Modifiers> {

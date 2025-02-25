@@ -4,7 +4,7 @@ use crate::bind::{SymbolFlags, SymbolID, SymbolName};
 
 use super::Resolver;
 
-impl<'cx> Resolver<'cx, '_, '_> {
+impl Resolver<'_, '_, '_> {
     pub(super) fn get_exports_of_symbol(
         &mut self,
         symbol: SymbolID,

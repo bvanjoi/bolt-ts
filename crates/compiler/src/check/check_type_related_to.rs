@@ -747,7 +747,7 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
             // if let TyKind::Union(t) = target.kind {
             // } else {
             // }
-            return if self.relation == RelationKind::Comparable {
+            if self.relation == RelationKind::Comparable {
                 self.some_type_related_to_type(
                     source,
                     target,
@@ -761,7 +761,7 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
                     report_error && !source.flags.intersects(TypeFlags::PRIMITIVE),
                     intersection_state,
                 )
-            };
+            }
         } else if let Some(target_union) = target.kind.as_union() {
             self.ty_related_to_some_ty(
                 source,
@@ -847,7 +847,7 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
         intersection_state: IntersectionState,
     ) -> Ternary {
         let mut result = Ternary::TRUE;
-        let mut source_flags = source.flags;
+        let source_flags = source.flags;
         let target_flags = target.flags;
         if self.relation == RelationKind::Identity {
             if source.kind.is_union_or_intersection() {
@@ -929,7 +929,7 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
                 }
                 // TODO: is_generic_mapped_ty(target_ty)
             }
-        } else if let Some(_) = target.kind.as_cond_ty() {
+        } else if target.kind.as_cond_ty().is_some() {
             if self.c.is_deeply_nested_type(target, &self.target_stack, 10) {
                 return Ternary::FALSE;
             }
@@ -1506,7 +1506,7 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
             return Ternary::FALSE;
         }
         if let Some(ty_params) = source.ty_params {
-            if target.ty_params.map_or(true, |target_ty_params| {
+            if target.ty_params.is_none_or(|target_ty_params| {
                 !std::ptr::eq(ty_params, target_ty_params)
             }) {
                 // when compare signatures, such as:
@@ -1700,9 +1700,9 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
         if modifiers_related {
             let target_constraint = target_mapped_ty.constraint_ty;
             let source_constraint = {
-                let constraint = source_mapped_ty.constraint_ty;
+                
                 // TODO: instantiate
-                constraint
+                source_mapped_ty.constraint_ty
             };
             let result = self.is_related_to(
                 target_constraint,

@@ -1027,7 +1027,7 @@ impl<'cx> TyChecker<'cx> {
             let default_ty = self
                 .get_default_ty_from_ty_param(ty_param)
                 .or_else(|| self.get_constraint_of_ty_param(ty_param))
-                .unwrap_or_else(|| self.any_ty);
+                .unwrap_or(self.any_ty);
             ty_args.push(default_ty);
         }
 

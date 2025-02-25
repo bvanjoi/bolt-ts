@@ -23,8 +23,8 @@ pub struct ResolveResult {
     pub locals: FxHashMap<ast::NodeID, FxHashMap<SymbolName, SymbolID>>,
 }
 
-pub fn late_resolve<'cx, 'atoms>(
-    mut states: Vec<BinderState<'cx, 'atoms>>,
+pub fn late_resolve<'cx>(
+    mut states: Vec<BinderState<'cx, '_>>,
     modules: &[Module],
     mg: &'cx ModuleGraph,
     p: &'cx parser::Parser<'cx>,

@@ -287,7 +287,7 @@ impl<'cx> TyChecker<'cx> {
             }
         }
 
-        return ty;
+        ty
     }
 
     fn get_narrowed_ty(

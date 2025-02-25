@@ -1,5 +1,47 @@
 // From `github.com/sindresorhus/type-fest`, MIT License
 
+// type NumericString = '0123456789';
+// type PositiveNumericCharacterGt<A extends string, B extends string> = NumericString extends `${infer HeadA}${A}${infer TailA}`
+// 	? NumericString extends `${infer HeadB}${B}${infer TailB}`
+// 		? HeadA extends `${HeadB}${infer _}${infer __}`
+// 			? true
+// 			: false
+// 		: never
+// 	: never;
+// type StringToArray<S extends string, Result extends string[] = []> = string extends S
+// 	? never
+// 	: S extends `${infer F}${infer R}`
+// 		? StringToArray<R, [...Result, F]>
+// 		: Result;
+// type StringLength<S extends string> = string extends S
+// 	? never
+// 	: StringToArray<S>['length'];
+// type BuildTuple<L extends number, Fill = unknown, T extends readonly unknown[] = []> = number extends L
+// 	? Fill[]
+// 	: L extends T['length']
+// 		? T
+// 		: BuildTuple<L, Fill, [...T, Fill]>;
+// type SameLengthPositiveNumericStringGt<A extends string, B extends string> = A extends `${infer FirstA}${infer RestA}`
+//     ? B extends `${infer FirstB}${infer RestB}`
+//       ? FirstA extends FirstB
+//         ? SameLengthPositiveNumericStringGt<RestA, RestB>
+//         : PositiveNumericCharacterGt<FirstA, FirstB>
+//       : never
+//     : false;
+
+// type PositiveNumericStringGt<A extends string, B extends string> = [BuildTuple<StringLength<A>, 0>, BuildTuple<StringLength<B>, 0>] extends infer R extends [readonly unknown[], readonly unknown[]]
+// 		? R[0] extends [...R[1], ...infer Remain extends readonly unknown[]]
+// 			? 0 extends Remain['length']
+// 				? SameLengthPositiveNumericStringGt<A, B>
+// 				: true
+// 			: false
+// 		: never;
+// {
+//   let a0: PositiveNumericStringGt<'500', '1'> = true;
+//   let a1: PositiveNumericStringGt<'1', '1'> = false;
+//   let a2: PositiveNumericStringGt<'1', '500'> = false;
+// }
+
 function n(): never {
   throw new Error();
 }
@@ -47,6 +89,8 @@ type IsBothExtends<BaseType, FirstType, SecondType> = FirstType extends BaseType
 		? true
 		: false
 	: false;
+type IsLowerCase<T extends string> = T extends Lowercase<T> ? true : false;
+type IsUpperCase<T extends string> = T extends Uppercase<T> ? true : false
 type LiteralKeyOf<T> = keyof {[K in keyof T as IsLiteral<K> extends true ? K : never]-?: never};
 type NegativeInfinity = -1e999;
 type Numeric = number | bigint;
@@ -578,16 +622,6 @@ type IsEqual<A, B> =
   const a81: [IsEqual<true, false>, IsEqual<false, false>][number] = false;
 }
 
-// =========== IsFloat ===========
-// type IsFloat<T> =
-// T extends number
-// 	? `${T}` extends `${infer _Sign extends '' | '-'}${number}.${infer Decimal extends number}`
-// 		? Decimal extends Zero
-// 			? false
-// 			: true
-// 		: false
-// 	: false;
-  
 // =========== isNever ===========
 type IsNever<T> = [T] extends [never] ? true : false;
 {
@@ -890,6 +924,37 @@ type RequiredKeysOf<BaseType extends object> = Exclude<{
   const a2: 'a' | 'b' = test3;
 }
 
+// === PositiveNumericCharacterGt ===
+type PositiveNumericCharacterGt<A extends string, B extends string> = NumericString extends `${infer HeadA}${A}${infer TailA}`
+	? NumericString extends `${infer HeadB}${B}${infer TailB}`
+		? HeadA extends `${HeadB}${infer _}${infer __}`
+			? true
+			: false
+		: never
+	: never;
+{
+  let a0: PositiveNumericCharacterGt<'5', '1'> = true;
+  let a1: PositiveNumericCharacterGt<'5', '5'> = false;
+  let a2: PositiveNumericCharacterGt<'1', '5'> = false;
+  let a3: PositiveNumericCharacterGt<'30', '2'> = n();
+}
+
+// === PositiveNumericStringGt ===
+type PositiveNumericStringGt<A extends string, B extends string> = A extends B
+	? false
+	: [BuildTuple<StringLength<A>, 0>, BuildTuple<StringLength<B>, 0>] extends infer R extends [readonly unknown[], readonly unknown[]]
+		? R[0] extends [...R[1], ...infer Remain extends readonly unknown[]]
+			? 0 extends Remain['length']
+				? SameLengthPositiveNumericStringGt<A, B>
+				: true
+			: false
+		: never;
+// {
+//   let a0: PositiveNumericStringGt<'500', '1'> = true;
+//   let a1: PositiveNumericStringGt<'1', '1'> = false;
+//   let a2: PositiveNumericStringGt<'1', '500'> = false;
+// }
+
 // =========== Primitive ===========
 type Primitive =
 	| null
@@ -974,6 +1039,18 @@ type ReadonlyTuple<Element, Length extends number> =
   //~^ ERROR: Cannot assign to '2' because it is a read-only property.
 }
 
+// = SameLengthPositiveNumericStringGt =
+type SameLengthPositiveNumericStringGt<A extends string, B extends string> = A extends `${infer FirstA}${infer RestA}`
+	? B extends `${infer FirstB}${infer RestB}`
+		? FirstA extends FirstB
+			? SameLengthPositiveNumericStringGt<RestA, RestB>
+			: PositiveNumericCharacterGt<FirstA, FirstB>
+		: never
+	: false;
+{
+	let a0: SameLengthPositiveNumericStringGt<'50', '10'> = true;
+	let a1: SameLengthPositiveNumericStringGt<'50', '50'> = false;
+}
 
 // ========= SetArrayAccess =========
 type SetArrayAccess<T extends UnknownArray, IsReadonly extends boolean> =
@@ -990,7 +1067,6 @@ T extends readonly [...infer U] ?
   a1.push('42');
 }
   
-
 // ============ Simplify ============
 type Simplify<T> = {[KeyType in keyof T]: T[KeyType]} & {};
 {
@@ -1048,6 +1124,19 @@ type Simplify<T> = {[KeyType in keyof T]: T[KeyType]} & {};
   //~^ ERROR: Type 'mapped type' is not assignable to type '(type: string) => string'.
 }
 
+// ============ StartsWith ============
+type StartsWith<S extends string, SearchString extends string> = string extends S | SearchString
+	? never
+	: S extends `${SearchString}${infer T}`
+		? true
+		: false;
+{
+  let a0: StartsWith<'abcde', 'abc'> = true;
+  let a1: StartsWith<'abcde', 'bc'> = false;
+  let a2: StartsWith<string, 'bc'> = n();
+  let a3: StartsWith<'abcde', string> = n();
+}
+
 // ========= StaticPartOfArray =========
 type StaticPartOfArray<T extends UnknownArray, Result extends UnknownArray = []> =
 	T extends unknown
@@ -1077,6 +1166,51 @@ type Stringified<ObjectType> = {[KeyType in keyof ObjectType]: string};
   const b0: Stringified<Car> = {model: 'Foo', speed: 101};
   //~^ ERROR: Type 'number' is not assignable to type 'string'.
   const b1: Stringified<Car> = {model: 'Foo', speed: '101'};
+}
+
+// ========== StringLength ==========
+type StringLength<S extends string> = string extends S
+	? never
+	: StringToArray<S>['length'];
+{
+  let a0: StringLength<'abcde'> = 4;
+  //~^ ERROR: Type '4' is not assignable to type '5'.
+  let a1: StringLength<string> = n();
+}
+
+// ========== StringToArray ==========
+type StringToArray<S extends string, Result extends string[] = []> = string extends S
+	? never
+	: S extends `${infer F}${infer R}`
+		? StringToArray<R, [...Result, F]>
+		: Result;
+{
+  let a0: StringToArray<'abcde'> = ['a', 'b', 'c', 'd'];
+  //~^ ERROR: Type '["a", "b", "c", "d"]' is not assignable to type '["a", "b", "c", "d", "e"]'.
+  let a1: StringToArray<string> = n();
+}
+
+// ========== StringToNumber ==========
+type StringToNumber<S extends string> = S extends `${infer N extends number}`
+	? N
+	: S extends 'Infinity'
+		? PositiveInfinity
+		: S extends '-Infinity'
+			? NegativeInfinity
+			: never;
+{
+  let a0: StringToNumber<'1234'> = 42;
+  //~^ ERROR: Type '42' is not assignable to type '1234'.
+  let a1: StringToNumber<'-1234'> = 42;
+  //~^ ERROR: Type '42' is not assignable to type '-1234'.
+  let a2: StringToNumber<'1234.56'> = 42;
+  //~^ ERROR: Type '42' is not assignable to type '1234.56'.
+  let a3: StringToNumber<'-1234.56'> = 42;
+  //~^ ERROR: Type '42' is not assignable to type '-1234.56'.
+  let a4: StringToNumber<'Infinity'> = 42;
+  //~^ ERROR: Type '42' is not assignable to type 'Infinity'.
+  let a5: StringToNumber<'-Infinity'> = 42;
+  //~^ ERROR: Type '42' is not assignable to type '-Infinity'.
 }
 
 // ============ TaggedUnion ============

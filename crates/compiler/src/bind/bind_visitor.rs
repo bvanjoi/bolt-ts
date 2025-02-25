@@ -838,7 +838,7 @@ impl<'cx, 'atoms> BinderState<'cx, 'atoms> {
             true_target,
             false_target,
         );
-        let should_add_antecedent = node.map_or(true, |node| {
+        let should_add_antecedent = node.is_none_or(|node| {
             !node.kind.is_logical_assignment() && !node.kind.is_logical_expr()
         });
         if should_add_antecedent {

@@ -70,9 +70,7 @@ impl<'cx> Ty<'cx> {
     }
 
     pub fn skip_ty_parens(&self) -> &Ty {
-        match self.kind {
-            _ => self,
-        }
+        self
     }
 
     pub fn is_simple_tuple_ty(&self) -> bool {

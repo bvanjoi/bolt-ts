@@ -48,6 +48,6 @@ impl<'cx> TyChecker<'cx> {
             // TODO:
         }
 
-        return ty;
+        ty
     }
 }

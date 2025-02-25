@@ -13,7 +13,7 @@ use crate::ir;
 use bolt_ts_ast as ast;
 use bolt_ts_utils::fx_hashmap_with_capacity;
 
-impl<'cx, 'atoms> BinderState<'cx, 'atoms> {
+impl<'cx> BinderState<'cx, '_> {
     pub(super) fn create_final_res(&mut self, id: ast::NodeID, symbol: SymbolID) {
         let prev = self.final_res.insert(id, symbol);
         assert!(prev.is_none(), "prev: {:#?}", prev.unwrap());

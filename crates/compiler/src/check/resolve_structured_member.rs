@@ -878,7 +878,7 @@ impl<'cx> TyChecker<'cx> {
                             .get_constraint_of_ty_param(t)
                             .map(|t| self.instantiate_ty(t, Some(mapper)))
                             .unwrap_or(self.unknown_ty);
-                        compare_tys(self, &s, &t) != Ternary::FALSE
+                        compare_tys(self, s, t) != Ternary::FALSE
                     }) && {
                         let s = self
                             .get_default_ty_from_ty_param(s)
@@ -888,7 +888,7 @@ impl<'cx> TyChecker<'cx> {
                             .get_default_ty_from_ty_param(t)
                             .map(|t| self.instantiate_ty(t, Some(mapper)))
                             .unwrap_or(self.unknown_ty);
-                        compare_tys(self, &s, &t) != Ternary::FALSE
+                        compare_tys(self, s, t) != Ternary::FALSE
                     })
                 {
                     return Ternary::FALSE;
@@ -1099,11 +1099,7 @@ impl<'cx> TyChecker<'cx> {
             };
             extended_constraint
                 .and_then(|extended_constraint| {
-                    if let Some(index) = extended_constraint.kind.as_index_ty() {
-                        Some(self.instantiate_ty(index.ty, mapped_ty.mapper))
-                    } else {
-                        None
-                    }
+                    extended_constraint.kind.as_index_ty().map(|index| self.instantiate_ty(index.ty, mapped_ty.mapper))
                 })
                 .unwrap_or(self.undefined_ty)
         };
@@ -1260,7 +1256,7 @@ impl<'cx> TyChecker<'cx> {
                 modifiers_ty,
                 include,
                 false,
-                |this, key_ty| add_member_for_key_ty(this, key_ty),
+                &mut add_member_for_key_ty,
             );
         } else {
             let ty = self.get_lower_bound_of_key_ty(constraint_ty);

@@ -116,13 +116,11 @@ impl<'cx> TyChecker<'cx> {
         let target = ty.kind.expect_object_tuple();
         if !target.combined_flags.intersects(ElementFlags::NON_REQUIRED) {
             return self.create_reference_ty(ty, Some(element_types), ObjectFlags::empty());
-        } else if target.combined_flags.intersects(ElementFlags::VARIABLE) {
-            if let Some(_) = element_types.iter().enumerate().position(|(i, t)| {
+        } else if target.combined_flags.intersects(ElementFlags::VARIABLE) && element_types.iter().enumerate().position(|(i, t)| {
                 target.element_flags[i].intersects(ElementFlags::VARIADIC)
                     && t.flags.intersects(TypeFlags::NEVER | TypeFlags::UNION)
-            }) {
-                // TODO:
-            }
+            }).is_some() {
+            // TODO:
         }
 
         let mut expanded_tys = Vec::with_capacity(element_types.len());
@@ -472,7 +470,7 @@ impl<'cx> TyChecker<'cx> {
         }
 
         let mut set = fx_hashset_with_capacity(tys.len());
-        let includes = self.add_tys_to_union(&mut set, TypeFlags::empty(), &tys);
+        let includes = self.add_tys_to_union(&mut set, TypeFlags::empty(), tys);
 
         let mut set = {
             let mut set = set
@@ -497,10 +495,8 @@ impl<'cx> TyChecker<'cx> {
                     self.unknown_ty
                 };
             }
-            if includes.intersects(TypeFlags::UNDEFINED) {
-                if set.len() >= 2 && set[0] == self.undefined_ty && set[0] == self.missing_ty {
-                    set.remove(1);
-                }
+            if includes.intersects(TypeFlags::UNDEFINED) && set.len() >= 2 && set[0] == self.undefined_ty && set[0] == self.missing_ty {
+                set.remove(1);
             }
             if includes.intersects(
                 TypeFlags::ENUM
@@ -713,7 +709,6 @@ impl<'cx> TyChecker<'cx> {
                 this.number_ty
             } else {
                 let tys = (min_length..=arity)
-                    .into_iter()
                     .map(|i| this.get_number_literal_type(i as f64))
                     .collect::<Vec<_>>();
                 this.get_union_ty(&tys, UnionReduction::Lit)
@@ -790,14 +785,12 @@ impl<'cx> TyChecker<'cx> {
                 if ty == self.wildcard_ty {
                     includes |= TypeFlags::INCLUDES_WILDCARD;
                 }
-            } else if *self.config.strict_null_checks() || !flags.intersects(TypeFlags::NULLABLE) {
-                if !set.contains(&ty.id) {
-                    if ty.flags.intersects(TypeFlags::UNIT) && includes.intersects(TypeFlags::UNIT)
-                    {
-                        includes |= TypeFlags::NON_PRIMITIVE;
-                    }
-                    set.insert(ty.id);
+            } else if (*self.config.strict_null_checks() || !flags.intersects(TypeFlags::NULLABLE)) && !set.contains(&ty.id) {
+                if ty.flags.intersects(TypeFlags::UNIT) && includes.intersects(TypeFlags::UNIT)
+                {
+                    includes |= TypeFlags::NON_PRIMITIVE;
                 }
+                set.insert(ty.id);
             }
             includes |= flags & TypeFlags::INCLUDES_MASK;
         }
@@ -868,23 +861,21 @@ impl<'cx> TyChecker<'cx> {
         for ty in &union_tys {
             let u = ty.kind.expect_union();
             for t in u.tys {
-                if insert_ty(&mut checked, t) {
-                    if self.each_union_contains(&union_tys, t) {
-                        // TODO: missing_ty and undefined_ty
-                        if *t == self.undefined_ty
-                            && !result.is_empty()
-                            && result[0] == self.missing_ty
-                        {
-                            continue;
-                        } else if *t == self.missing_ty
-                            && !result.is_empty()
-                            && result[0] == self.undefined_ty
-                        {
-                            result[0] = self.undefined_ty;
-                            continue;
-                        }
-                        insert_ty(&mut result, t);
+                if insert_ty(&mut checked, t) && self.each_union_contains(&union_tys, t) {
+                    // TODO: missing_ty and undefined_ty
+                    if *t == self.undefined_ty
+                        && !result.is_empty()
+                        && result[0] == self.missing_ty
+                    {
+                        continue;
+                    } else if *t == self.missing_ty
+                        && !result.is_empty()
+                        && result[0] == self.undefined_ty
+                    {
+                        result[0] = self.undefined_ty;
+                        continue;
                     }
+                    insert_ty(&mut result, t);
                 }
             }
         }
@@ -933,7 +924,7 @@ impl<'cx> TyChecker<'cx> {
             .map(|id| self.tys[id.as_usize()])
             .collect::<Vec<_>>();
 
-        let mut object_flags = ObjectFlags::empty();
+        let object_flags = ObjectFlags::empty();
 
         if includes.intersects(TypeFlags::NEVER) {
             return self.never_ty;
@@ -984,7 +975,7 @@ impl<'cx> TyChecker<'cx> {
                 return self.null_ty;
             }
         }
-        if includes.intersects(TypeFlags::STRING)
+        if (includes.intersects(TypeFlags::STRING)
             && includes.intersects(
                 TypeFlags::STRING_LITERAL | TypeFlags::TEMPLATE_LITERAL | TypeFlags::STRING_MAPPING,
             )
@@ -994,13 +985,9 @@ impl<'cx> TyChecker<'cx> {
                 && includes.intersects(TypeFlags::BIG_INT_LITERAL)
             || includes.intersects(TypeFlags::ES_SYMBOL)
                 && includes.intersects(TypeFlags::UNIQUE_ES_SYMBOL)
-            || includes.intersects(TypeFlags::VOID) && includes.intersects(TypeFlags::UNDEFINED)
-            || includes.intersects(TypeFlags::INCLUDES_EMPTY_OBJECT)
-                && includes.intersects(TypeFlags::DEFINITELY_NON_NULLABLE)
-        {
-            if flags != IntersectionFlags::NoSuperTypeReduction {
-                self.remove_redundant_super_tys(&mut ty_set, includes);
-            };
+            || includes.intersects(TypeFlags::VOID) && includes.intersects(TypeFlags::UNDEFINED) || includes.intersects(TypeFlags::INCLUDES_EMPTY_OBJECT)
+                && includes.intersects(TypeFlags::DEFINITELY_NON_NULLABLE)) && flags != IntersectionFlags::NoSuperTypeReduction {
+            self.remove_redundant_super_tys(&mut ty_set, includes);
         }
 
         if includes.intersects(TypeFlags::INCLUDES_MISSING_TYPE) {
@@ -1093,7 +1080,7 @@ impl<'cx> TyChecker<'cx> {
                     let source_tys = u.tys;
                     let len = source_tys.len();
                     constituents[j] = source_tys[n % len];
-                    n = n / len;
+                    n /= len;
                 }
             }
 
@@ -1309,15 +1296,10 @@ impl<'cx> TyChecker<'cx> {
             return self.get_string_literal_type(text);
         };
         new_texts.push(text);
-        if new_texts.iter().all(|t| *t == keyword::IDENT_EMPTY) {
-            if new_tys
+        if new_texts.iter().all(|t| *t == keyword::IDENT_EMPTY) && new_tys
                 .iter()
-                .all(|t| t.flags.intersects(TypeFlags::STRING))
-            {
-                return self.string_ty;
-            }
-            // if new_tys.len() == 1 &&
-            // TODO: is_pattern_lit_placeholder_ty
+                .all(|t| t.flags.intersects(TypeFlags::STRING)) {
+            return self.string_ty;
         }
         // TODO: cache;
         let new_texts = self.alloc(new_texts);
