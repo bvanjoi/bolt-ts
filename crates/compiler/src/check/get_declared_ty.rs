@@ -7,6 +7,9 @@ use super::errors;
 use super::ty;
 use super::utils::append_if_unique;
 use crate::bind::{SymbolFlags, SymbolID, SymbolName};
+use crate::check::InstantiationTyMap;
+use crate::check::TyCacheTrait;
+use crate::check::links::TyLinks;
 use crate::ty::ObjectFlags;
 use bolt_ts_ast as ast;
 
@@ -231,7 +234,17 @@ impl<'cx> TyChecker<'cx> {
                 this_ty: Some(this_ty),
                 declared_members,
             });
-            let ty = self.create_reference_ty(target, Some(ty_params), ObjectFlags::empty());
+            let ty = self.alloc(ty::ReferenceTy {
+                target,
+                mapper: None,
+                node: None,
+            });
+            let ty = self.create_object_ty(ty::ObjectTyKind::Reference(ty), ObjectFlags::REFERENCE);
+            assert!(!self.ty_links.contains_key(&ty.id));
+            self.ty_links
+                .insert(ty.id, TyLinks::default().with_resolved_ty_args(ty_params));
+            let id = InstantiationTyMap::create_id(target.id, ty_params);
+            self.instantiation_ty_map.insert(id, ty);
             ty
         } else {
             assert!(outer_ty_params.is_none() && local_ty_params.is_none());

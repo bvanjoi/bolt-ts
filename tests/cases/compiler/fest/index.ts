@@ -1,47 +1,5 @@
 // From `github.com/sindresorhus/type-fest`, MIT License
 
-// type NumericString = '0123456789';
-// type PositiveNumericCharacterGt<A extends string, B extends string> = NumericString extends `${infer HeadA}${A}${infer TailA}`
-// 	? NumericString extends `${infer HeadB}${B}${infer TailB}`
-// 		? HeadA extends `${HeadB}${infer _}${infer __}`
-// 			? true
-// 			: false
-// 		: never
-// 	: never;
-// type StringToArray<S extends string, Result extends string[] = []> = string extends S
-// 	? never
-// 	: S extends `${infer F}${infer R}`
-// 		? StringToArray<R, [...Result, F]>
-// 		: Result;
-// type StringLength<S extends string> = string extends S
-// 	? never
-// 	: StringToArray<S>['length'];
-// type BuildTuple<L extends number, Fill = unknown, T extends readonly unknown[] = []> = number extends L
-// 	? Fill[]
-// 	: L extends T['length']
-// 		? T
-// 		: BuildTuple<L, Fill, [...T, Fill]>;
-// type SameLengthPositiveNumericStringGt<A extends string, B extends string> = A extends `${infer FirstA}${infer RestA}`
-//     ? B extends `${infer FirstB}${infer RestB}`
-//       ? FirstA extends FirstB
-//         ? SameLengthPositiveNumericStringGt<RestA, RestB>
-//         : PositiveNumericCharacterGt<FirstA, FirstB>
-//       : never
-//     : false;
-
-// type PositiveNumericStringGt<A extends string, B extends string> = [BuildTuple<StringLength<A>, 0>, BuildTuple<StringLength<B>, 0>] extends infer R extends [readonly unknown[], readonly unknown[]]
-// 		? R[0] extends [...R[1], ...infer Remain extends readonly unknown[]]
-// 			? 0 extends Remain['length']
-// 				? SameLengthPositiveNumericStringGt<A, B>
-// 				: true
-// 			: false
-// 		: never;
-// {
-//   let a0: PositiveNumericStringGt<'500', '1'> = true;
-//   let a1: PositiveNumericStringGt<'1', '1'> = false;
-//   let a2: PositiveNumericStringGt<'1', '500'> = false;
-// }
-
 function n(): never {
   throw new Error();
 }
@@ -949,11 +907,14 @@ type PositiveNumericStringGt<A extends string, B extends string> = A extends B
 				: true
 			: false
 		: never;
-// {
-//   let a0: PositiveNumericStringGt<'500', '1'> = true;
-//   let a1: PositiveNumericStringGt<'1', '1'> = false;
-//   let a2: PositiveNumericStringGt<'1', '500'> = false;
-// }
+{
+  let a0: PositiveNumericStringGt<'500', '1'> = false;
+  //~^ ERROR: Type 'false' is not assignable to type 'true'.
+  let a1: PositiveNumericStringGt<'1', '1'> = true;
+  //~^ ERROR: Type 'true' is not assignable to type 'false'.
+  let a2: PositiveNumericStringGt<'1', '500'> = true;
+  //~^ ERROR: Type 'true' is not assignable to type 'false'.
+}
 
 // =========== Primitive ===========
 type Primitive =

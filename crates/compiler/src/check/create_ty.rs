@@ -116,10 +116,16 @@ impl<'cx> TyChecker<'cx> {
         let target = ty.kind.expect_object_tuple();
         if !target.combined_flags.intersects(ElementFlags::NON_REQUIRED) {
             return self.create_reference_ty(ty, Some(element_types), ObjectFlags::empty());
-        } else if target.combined_flags.intersects(ElementFlags::VARIABLE) && element_types.iter().enumerate().position(|(i, t)| {
-                target.element_flags[i].intersects(ElementFlags::VARIADIC)
-                    && t.flags.intersects(TypeFlags::NEVER | TypeFlags::UNION)
-            }).is_some() {
+        } else if target.combined_flags.intersects(ElementFlags::VARIABLE)
+            && element_types
+                .iter()
+                .enumerate()
+                .position(|(i, t)| {
+                    target.element_flags[i].intersects(ElementFlags::VARIADIC)
+                        && t.flags.intersects(TypeFlags::NEVER | TypeFlags::UNION)
+                })
+                .is_some()
+        {
             // TODO:
         }
 
@@ -495,7 +501,11 @@ impl<'cx> TyChecker<'cx> {
                     self.unknown_ty
                 };
             }
-            if includes.intersects(TypeFlags::UNDEFINED) && set.len() >= 2 && set[0] == self.undefined_ty && set[0] == self.missing_ty {
+            if includes.intersects(TypeFlags::UNDEFINED)
+                && set.len() >= 2
+                && set[0] == self.undefined_ty
+                && set[0] == self.missing_ty
+            {
                 set.remove(1);
             }
             if includes.intersects(
@@ -785,9 +795,10 @@ impl<'cx> TyChecker<'cx> {
                 if ty == self.wildcard_ty {
                     includes |= TypeFlags::INCLUDES_WILDCARD;
                 }
-            } else if (*self.config.strict_null_checks() || !flags.intersects(TypeFlags::NULLABLE)) && !set.contains(&ty.id) {
-                if ty.flags.intersects(TypeFlags::UNIT) && includes.intersects(TypeFlags::UNIT)
-                {
+            } else if (*self.config.strict_null_checks() || !flags.intersects(TypeFlags::NULLABLE))
+                && !set.contains(&ty.id)
+            {
+                if ty.flags.intersects(TypeFlags::UNIT) && includes.intersects(TypeFlags::UNIT) {
                     includes |= TypeFlags::NON_PRIMITIVE;
                 }
                 set.insert(ty.id);
@@ -863,9 +874,7 @@ impl<'cx> TyChecker<'cx> {
             for t in u.tys {
                 if insert_ty(&mut checked, t) && self.each_union_contains(&union_tys, t) {
                     // TODO: missing_ty and undefined_ty
-                    if *t == self.undefined_ty
-                        && !result.is_empty()
-                        && result[0] == self.missing_ty
+                    if *t == self.undefined_ty && !result.is_empty() && result[0] == self.missing_ty
                     {
                         continue;
                     } else if *t == self.missing_ty
@@ -985,8 +994,11 @@ impl<'cx> TyChecker<'cx> {
                 && includes.intersects(TypeFlags::BIG_INT_LITERAL)
             || includes.intersects(TypeFlags::ES_SYMBOL)
                 && includes.intersects(TypeFlags::UNIQUE_ES_SYMBOL)
-            || includes.intersects(TypeFlags::VOID) && includes.intersects(TypeFlags::UNDEFINED) || includes.intersects(TypeFlags::INCLUDES_EMPTY_OBJECT)
-                && includes.intersects(TypeFlags::DEFINITELY_NON_NULLABLE)) && flags != IntersectionFlags::NoSuperTypeReduction {
+            || includes.intersects(TypeFlags::VOID) && includes.intersects(TypeFlags::UNDEFINED)
+            || includes.intersects(TypeFlags::INCLUDES_EMPTY_OBJECT)
+                && includes.intersects(TypeFlags::DEFINITELY_NON_NULLABLE))
+            && flags != IntersectionFlags::NoSuperTypeReduction
+        {
             self.remove_redundant_super_tys(&mut ty_set, includes);
         }
 
@@ -1296,9 +1308,11 @@ impl<'cx> TyChecker<'cx> {
             return self.get_string_literal_type(text);
         };
         new_texts.push(text);
-        if new_texts.iter().all(|t| *t == keyword::IDENT_EMPTY) && new_tys
+        if new_texts.iter().all(|t| *t == keyword::IDENT_EMPTY)
+            && new_tys
                 .iter()
-                .all(|t| t.flags.intersects(TypeFlags::STRING)) {
+                .all(|t| t.flags.intersects(TypeFlags::STRING))
+        {
             return self.string_ty;
         }
         // TODO: cache;

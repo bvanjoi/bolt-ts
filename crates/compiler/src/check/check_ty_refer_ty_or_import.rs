@@ -408,7 +408,7 @@ impl<'cx> TyChecker<'cx> {
         {
             self.get_symbol_links(symbol).get_ty_params()
         } else if let Some(reference) = ty.kind.as_object_reference() {
-            let refer = reference.deep_target().kind.as_object_interface()?;
+            let refer = reference.interface_target()?.kind.expect_object_interface();
             refer.local_ty_params
         } else {
             None

@@ -22,23 +22,14 @@ bitflags::bitflags! {
 }
 
 impl<'cx> TyChecker<'cx> {
-    pub(super) fn get_variances(&mut self, target: &'cx ty::Ty<'cx>) -> &'cx [VarianceFlags] {
-        if target == self.global_array_ty()
-            || target == self.global_readonly_array_ty()
-            || target.is_tuple()
-            || target.kind.is_object_tuple()
-        {
+    pub(super) fn get_variances(&mut self, ty: &'cx ty::Ty<'cx>) -> &'cx [VarianceFlags] {
+        assert!(ty.kind.is_object_reference());
+        if ty == self.global_array_ty() || ty == self.global_readonly_array_ty() || ty.is_tuple() {
             return self.array_variances();
         }
-        let (symbol, ty_params) = if let Some(i) = target.kind.as_object_interface() {
-            (i.symbol, i.ty_params)
-        } else if let Some(r) = target.kind.as_object_reference() {
-            let i = r.deep_target().kind.expect_object_interface();
-            (i.symbol, i.ty_params)
-        } else {
-            unreachable!()
-        };
-        self._get_variances(symbol, ty_params)
+        let r = ty.kind.expect_object_reference();
+        let i = r.target.kind.expect_object_interface();
+        self._get_variances(i.symbol, i.ty_params)
     }
 
     fn create_marker_ty(
@@ -65,8 +56,12 @@ impl<'cx> TyChecker<'cx> {
         } else {
             let ty_params = if let Some(i) = ty.kind.as_object_interface() {
                 i.ty_params
-            } else if let Some(r) = ty.kind.as_object_reference() {
-                let i = r.deep_target().kind.expect_object_interface();
+            } else if let Some(t) = ty
+                .kind
+                .as_object_reference()
+                .and_then(|r| r.interface_target())
+            {
+                let i = t.kind.expect_object_interface();
                 i.ty_params
             } else {
                 unreachable!("target: {:#?}", target)

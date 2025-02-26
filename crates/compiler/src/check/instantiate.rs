@@ -59,7 +59,7 @@ impl<'cx> TyChecker<'cx> {
         })
     }
 
-    pub(super) fn could_contain_ty_var(&self, ty: &'cx ty::Ty<'cx>) -> bool {
+    pub(super) fn could_contain_ty_var(&mut self, ty: &'cx ty::Ty<'cx>) -> bool {
         let object_flags = ty.get_object_flags();
         if object_flags.intersects(ObjectFlags::COULD_CONTAIN_TYPE_VARIABLES_COMPUTED) {
             return object_flags.intersects(ObjectFlags::COULD_CONTAIN_TYPE_VARIABLES);
@@ -68,8 +68,12 @@ impl<'cx> TyChecker<'cx> {
             true
         } else if let Some(object) = ty.kind.as_object() {
             // TODO: !isNonGenericTopLevelType(type)
-            if object.kind.is_reference() {
-                true
+            if object.flags.intersects(ObjectFlags::REFERENCE) {
+                object.kind.as_reference().is_some_and(|r| r.node.is_some())
+                    || self
+                        .get_ty_arguments(ty)
+                        .iter()
+                        .any(|t| self.could_contain_ty_var(t))
             } else if object.kind.is_anonymous() {
                 true
             } else {

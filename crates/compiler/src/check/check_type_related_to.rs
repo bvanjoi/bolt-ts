@@ -535,7 +535,7 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
         report_error: bool,
         intersection_state: IntersectionState,
     ) -> Ternary {
-        if source_ty_args.len() != target_ty_args.len() && self.relation != RelationKind::Identity {
+        if source_ty_args.len() != target_ty_args.len() && self.relation == RelationKind::Identity {
             return Ternary::FALSE;
         }
         let len = usize::min(source_ty_args.len(), target_ty_args.len());
@@ -856,6 +856,104 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
                     result &= self.each_type_related_to_some_type(target, source);
                 }
                 return result;
+            } else if let Some(s_index) = source.kind.as_index_ty() {
+                let t_index = target.kind.expect_index_ty();
+                return self.is_related_to(
+                    s_index.ty,
+                    t_index.ty,
+                    RecursionFlags::BOTH,
+                    false,
+                    IntersectionState::empty(),
+                );
+            } else if let Some(s_indexed_access) = source.kind.as_indexed_access() {
+                let t_indexed_access = target.kind.expect_indexed_access();
+                result = self.is_related_to(
+                    s_indexed_access.object_ty,
+                    t_indexed_access.object_ty,
+                    RecursionFlags::BOTH,
+                    false,
+                    IntersectionState::empty(),
+                );
+                if result != Ternary::FALSE {
+                    result &= self.is_related_to(
+                        s_indexed_access.index_ty,
+                        t_indexed_access.index_ty,
+                        RecursionFlags::BOTH,
+                        false,
+                        IntersectionState::empty(),
+                    );
+                    if result != Ternary::FALSE {
+                        return result;
+                    }
+                }
+            } else if let Some(s_cond) = source.kind.as_cond_ty() {
+                let t_cond = target.kind.expect_cond_ty();
+                if s_cond.root.is_distributive == t_cond.root.is_distributive {
+                    result = self.is_related_to(
+                        s_cond.root.check_ty,
+                        t_cond.root.check_ty,
+                        RecursionFlags::BOTH,
+                        false,
+                        IntersectionState::empty(),
+                    );
+                    if result != Ternary::FALSE {
+                        result &= self.is_related_to(
+                            s_cond.root.extends_ty,
+                            t_cond.root.extends_ty,
+                            RecursionFlags::BOTH,
+                            false,
+                            IntersectionState::empty(),
+                        );
+                        if result != Ternary::FALSE {
+                            let s = self.c.get_true_ty_from_cond_ty(source, s_cond);
+                            let t = self.c.get_true_ty_from_cond_ty(target, t_cond);
+                            result &= self.is_related_to(
+                                s,
+                                t,
+                                RecursionFlags::BOTH,
+                                false,
+                                IntersectionState::empty(),
+                            );
+                            if result != Ternary::FALSE {
+                                let s = self.c.get_false_ty_from_cond_ty(source, s_cond);
+                                let t = self.c.get_false_ty_from_cond_ty(target, t_cond);
+                                result &= self.is_related_to(
+                                    s,
+                                    t,
+                                    RecursionFlags::BOTH,
+                                    false,
+                                    IntersectionState::empty(),
+                                );
+                                if result != Ternary::FALSE {
+                                    return result;
+                                }
+                            }
+                        }
+                    }
+                }
+            } else if let Some(s_sub) = source.kind.as_substitution_ty() {
+                let t_sub = target.kind.expect_substitution_ty();
+                result = self.is_related_to(
+                    s_sub.base_ty,
+                    t_sub.base_ty,
+                    RecursionFlags::BOTH,
+                    false,
+                    IntersectionState::empty(),
+                );
+                if result != Ternary::FALSE {
+                    result &= self.is_related_to(
+                        s_sub.constraint,
+                        t_sub.constraint,
+                        RecursionFlags::BOTH,
+                        false,
+                        IntersectionState::empty(),
+                    );
+                    if result != Ternary::FALSE {
+                        return result;
+                    }
+                }
+            } else if !source.kind.is_object() {
+                return Ternary::FALSE;
             }
         } else if source.kind.is_union_or_intersection() || target.kind.is_union_or_intersection() {
             result = self.union_or_intersection_related_to(
@@ -961,8 +1059,8 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
                 }
             }
         } else if let Some(source_cond) = source.kind.as_cond_ty() {
-            if self.c.is_deeply_nested_type(source, &self.target_stack, 10) {
-                return Ternary::FALSE;
+            if self.c.is_deeply_nested_type(source, &self.source_stack, 10) {
+                return Ternary::MAYBE;
             } else if let Some(target_cond) = target.kind.as_cond_ty() {
                 let source_extends = source_cond.extends_ty;
                 let mapper = None;
@@ -1506,9 +1604,10 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
             return Ternary::FALSE;
         }
         if let Some(ty_params) = source.ty_params {
-            if target.ty_params.is_none_or(|target_ty_params| {
-                !std::ptr::eq(ty_params, target_ty_params)
-            }) {
+            if target
+                .ty_params
+                .is_none_or(|target_ty_params| !std::ptr::eq(ty_params, target_ty_params))
+            {
                 // when compare signatures, such as:
                 // `<G>() => G` and `<T>() => T`
                 // we should canonical the type parameters `G` and `T` into the same type parameter
@@ -1700,7 +1799,6 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
         if modifiers_related {
             let target_constraint = target_mapped_ty.constraint_ty;
             let source_constraint = {
-                
                 // TODO: instantiate
                 source_mapped_ty.constraint_ty
             };

@@ -144,16 +144,18 @@ pub struct ReferenceTy<'cx> {
 }
 
 impl<'cx> ReferenceTy<'cx> {
-    pub fn deep_target(&self) -> &'cx Ty<'cx> {
-        let mut ty = self.target;
-        loop {
-            if let Some(reference) = ty.kind.as_object_reference() {
-                ty = reference.target;
+    pub fn interface_target(&self) -> Option<&'cx Ty<'cx>> {
+        if self.target.kind.is_object_interface() {
+            Some(self.target)
+        } else if let Some(r) = self.target.kind.as_object_reference() {
+            if r.target.kind.is_object_interface() {
+                Some(r.target)
             } else {
-                break;
+                None
             }
+        } else {
+            None
         }
-        ty
     }
 }
 

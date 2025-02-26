@@ -23,17 +23,36 @@ impl<'cx> TyChecker<'cx> {
                 {
                     return RecursionId::Symbol(symbol);
                 }
-                if ty.is_tuple() {
-                    // return ty;
+            }
+            if ty.is_tuple() {
+                if let Some(refer) = ty.kind.as_object_reference() {
+                    assert!(refer.target.kind.is_object_tuple());
+                    return RecursionId::Ty(refer.target.id);
+                } else if ty.kind.is_object_tuple() {
+                    return RecursionId::Ty(ty.id);
                 }
             }
+        } else if let Some(cond) = ty.kind.as_cond_ty() {
+            //TODO: maybe use `cond.root_id`?
+            return RecursionId::Ty(cond.root.check_ty.id);
         }
-
         RecursionId::Ty(ty.id)
     }
 
     fn has_matching_recursion_ident(&self, ty: &'cx ty::Ty<'cx>, id: RecursionId) -> bool {
-        self.get_recursion_id(ty) == id
+        if ty
+            .get_object_flags()
+            .contains(ObjectFlags::INSTANTIATED_MAPPED)
+        {
+            // TODO:
+        }
+        if let Some(i) = ty.kind.as_intersection() {
+            i.tys
+                .iter()
+                .any(|t| self.has_matching_recursion_ident(t, id))
+        } else {
+            self.get_recursion_id(ty) == id
+        }
     }
 
     pub(super) fn is_deeply_nested_type(
@@ -46,8 +65,11 @@ impl<'cx> TyChecker<'cx> {
         if depth < max_depth {
             return false;
         }
-        if ty.get_object_flags() == ObjectFlags::INSTANTIATED_MAPPED {
-            todo!()
+        if ty
+            .get_object_flags()
+            .contains(ObjectFlags::INSTANTIATED_MAPPED)
+        {
+            // TODO:
         }
         if let Some(i) = ty.kind.as_intersection() {
             i.tys

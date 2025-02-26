@@ -413,8 +413,7 @@ impl<'cx> TyChecker<'cx> {
         }
 
         let mapper: Option<&'cx dyn ty::TyMap<'cx>>;
-        // TODO: use source type
-        let base_tys = self.get_base_tys(ty);
+        let base_tys = self.get_base_tys(source);
 
         let base_ctor_ty = if ty.symbol().is_some_and(|symbol| {
             self.binder
@@ -515,27 +514,18 @@ impl<'cx> TyChecker<'cx> {
     }
 
     fn resolve_reference_members(&mut self, ty: &'cx ty::Ty<'cx>) {
-        let target = if let Some(refer) = ty.kind.as_object_reference() {
-            refer.deep_target()
-        } else if let Some(t) = ty.kind.as_object_tuple() {
+        let target = if let Some(t) = ty.as_tuple() {
             t.ty
+        } else if let Some(refer) = ty.kind.as_object_reference() {
+            refer.interface_target().unwrap()
         } else {
             unreachable!("{:#?}", ty)
         };
 
-        let ty_params = if let Some(i) = target.kind.as_object_interface() {
-            let mut ty_params = i.ty_params.unwrap_or_default().to_vec();
-            ty_params.push(i.this_ty.unwrap());
-            self.alloc(ty_params)
-        } else if let Some(t) = target.kind.as_object_tuple() {
-            let i = t.ty.kind.expect_object_interface();
-            let mut ty_params = i.ty_params.unwrap_or_default().to_vec();
-            ty_params.push(i.this_ty.unwrap());
-            self.alloc(ty_params)
-        } else {
-            // TODO: handle more case
-            return;
-        };
+        let i = target.kind.expect_object_interface();
+        let mut ty_params = i.ty_params.unwrap_or_default().to_vec();
+        ty_params.push(i.this_ty.unwrap());
+        let ty_params = self.alloc(ty_params);
 
         let ty_args = self.get_ty_arguments(ty);
         let padded_type_arguments = if ty_params.len() == ty_args.len() {
@@ -552,9 +542,20 @@ impl<'cx> TyChecker<'cx> {
         } else {
             unreachable!()
         };
+        let source = if let Some(refer) = ty.kind.as_object_reference() {
+            if refer.target.kind.is_object_interface() {
+                ty
+            } else {
+                refer.target
+            }
+        } else if ty.kind.is_object_tuple() {
+            ty
+        } else {
+            unreachable!("{:#?}", ty)
+        };
         self.resolve_object_type_members(
             ty,
-            target,
+            source,
             declared_members,
             ty_params,
             padded_type_arguments,
@@ -1099,7 +1100,10 @@ impl<'cx> TyChecker<'cx> {
             };
             extended_constraint
                 .and_then(|extended_constraint| {
-                    extended_constraint.kind.as_index_ty().map(|index| self.instantiate_ty(index.ty, mapped_ty.mapper))
+                    extended_constraint
+                        .kind
+                        .as_index_ty()
+                        .map(|index| self.instantiate_ty(index.ty, mapped_ty.mapper))
                 })
                 .unwrap_or(self.undefined_ty)
         };

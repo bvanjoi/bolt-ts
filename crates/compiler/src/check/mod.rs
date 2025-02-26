@@ -2685,6 +2685,25 @@ impl<'cx> TyChecker<'cx> {
             self.get_template_lit_ty(&[keyword::IDENT_EMPTY, keyword::IDENT_EMPTY], &[ty])
         }
     }
+
+    fn is_generic_reducible_ty(&mut self, ty: &'cx ty::Ty<'cx>) -> bool {
+        if let Some(u) = ty.kind.as_union() {
+            u.object_flags
+                .intersects(ObjectFlags::CONTAINS_INTERSECTIONS)
+                && u.tys.iter().any(|t| self.is_generic_reducible_ty(t))
+        } else if ty.kind.is_intersection() {
+            self.is_reducible_intersection(ty)
+        } else {
+            false
+        }
+    }
+
+    fn is_reducible_intersection(&mut self, ty: &'cx ty::Ty<'cx>) -> bool {
+        let i = ty.kind.expect_intersection();
+        // TODO: cache
+        // let unique_literal_filled_instantiation = self.instantiate_ty(ty, mapper);
+        false
+    }
 }
 
 macro_rules! global_ty {

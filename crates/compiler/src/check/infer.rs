@@ -1,8 +1,8 @@
 use std::borrow::Cow;
 
 use crate::ir;
-use crate::ty::Sig;
 use crate::ty::{self, SigFlags, SigKind, TypeFlags};
+use crate::ty::{ObjectFlags, Sig};
 use bolt_ts_ast::{self as ast, keyword};
 
 use super::create_ty::IntersectionFlags;
@@ -183,6 +183,17 @@ impl<'cx> TyChecker<'cx> {
         *cache = Some(ty)
     }
 
+    pub(crate) fn override_inferred_ty_of_inference_info(
+        &mut self,
+        inference: InferenceContextId,
+        idx: usize,
+        ty: &'cx ty::Ty<'cx>,
+    ) {
+        let cache = &mut self.inferences[inference.as_usize()].inferences[idx].inferred_ty;
+        assert!(cache.is_some());
+        *cache = Some(ty)
+    }
+
     pub(super) fn inference_infos(&self, inference: InferenceContextId) -> &[InferenceInfo<'cx>] {
         &self.inference(inference).inferences
     }
@@ -334,23 +345,43 @@ impl<'cx> TyChecker<'cx> {
         ty: &'cx ty::Ty<'cx>,
         this_arg: Option<&'cx ty::Ty<'cx>>,
     ) -> &'cx ty::Ty<'cx> {
-        if ty.kind.as_object_reference().is_some() {
-            ty
-            // let target = r.target.kind.expect_object_interface();
-            // let ty_args = self.get_ty_arguments(ty);
-            // if target
-            //     .ty_params
-            //     .map(|ty_params| ty_params.len())
-            //     .unwrap_or_default()
-            //     == ty_args.len()
-            // {
-            //     let mut ty_args = ty_args.to_vec();
-            //     ty_args.push(this_arg.unwrap_or(target.this_ty.unwrap()));
-            //     let ty_args = self.alloc(ty_args);
-            //     self.create_reference_ty(r.target, Some(ty_args), ObjectFlags::empty())
-            // } else {
-            //     ty
-            // }
+        if ty.get_object_flags().intersects(ObjectFlags::REFERENCE) {
+            let ty_args = self.get_ty_arguments(ty);
+            let i = if let Some(t) = ty.as_tuple() {
+                t.ty.kind.expect_object_interface()
+            } else {
+                ty.kind
+                    .expect_object_reference()
+                    .interface_target()
+                    .unwrap()
+                    .kind
+                    .expect_object_interface()
+            };
+            if i.ty_params
+                .map(|ty_params| ty_params.len())
+                .unwrap_or_default()
+                == ty_args.len()
+            {
+                let mut ty_args = ty_args.to_vec();
+                ty_args.push(this_arg.unwrap_or(i.this_ty.unwrap()));
+                let ty_args = self.alloc(ty_args);
+
+                // TODO: remove this into `create_reference_ty`
+                let target = if let Some(refer) = ty.kind.as_object_reference() {
+                    if refer.target.kind.is_object_interface() {
+                        ty
+                    } else {
+                        refer.target
+                    }
+                } else if ty.kind.is_object_tuple() {
+                    ty
+                } else {
+                    unreachable!("{:#?}", ty)
+                };
+                self.create_reference_ty(target, Some(ty_args), ObjectFlags::empty())
+            } else {
+                ty
+            }
         } else if let Some(i) = ty.kind.as_intersection() {
             let tys = self
                 .same_map_tys(Some(i.tys), |this, ty, _| {
@@ -417,7 +448,8 @@ impl<'cx> TyChecker<'cx> {
                                             .inference_info(inference, other)
                                             .candidates
                                             .as_ref()
-                                            .cloned().is_none_or(|cs| {
+                                            .cloned()
+                                            .is_none_or(|cs| {
                                                 cs.iter().all(|t| {
                                                     self.is_type_assignable_to(
                                                         t,
@@ -456,24 +488,29 @@ impl<'cx> TyChecker<'cx> {
             inferred_ty = self.get_ty_from_inference(inference, idx)
         };
 
+        self.set_inferred_ty_of_inference_info(inference, idx, inferred_ty.unwrap_or(self.any_ty));
+
         let i = self.inference_info(inference, idx);
-        let ty = if let Some(constraint) = self.get_constraint_of_ty_param(i.ty_param) {
-            let instantiated_constraint = self.instantiate_ty(constraint, None);
+        if let Some(constraint) = self.get_constraint_of_ty_param(i.ty_param) {
+            let instantiated_constraint = self.instantiate_ty(
+                constraint,
+                Some(self.inference(inference).non_fixing_mapper),
+            );
             if inferred_ty.is_none_or(|inferred_ty| {
-                let ty = self.get_ty_with_this_arg(instantiated_constraint, fallback_ty);
+                let ty = self.get_ty_with_this_arg(instantiated_constraint, Some(inferred_ty));
                 // TODO: more flexible compare types
                 !self.is_type_related_to(inferred_ty, ty, super::relation::RelationKind::Assignable)
             }) {
-                instantiated_constraint
-            } else {
-                inferred_ty.unwrap_or(self.any_ty)
+                // TODO: fallback
+                self.override_inferred_ty_of_inference_info(
+                    inference,
+                    idx,
+                    instantiated_constraint,
+                );
             }
-        } else {
-            inferred_ty.unwrap_or(self.any_ty)
-        };
+        }
 
-        self.set_inferred_ty_of_inference_info(inference, idx, ty);
-        ty
+        self.inference_info(inference, idx).inferred_ty.unwrap()
     }
 
     pub(super) fn get_inference_sig(
@@ -1059,14 +1096,16 @@ impl<'cx> InferenceState<'cx, '_> {
                         if self.contravariant && !self.bivariant {
                             if info
                                 .contra_candidates
-                                .as_ref().is_none_or(|cs| !cs.contains(&candidate))
+                                .as_ref()
+                                .is_none_or(|cs| !cs.contains(&candidate))
                             {
                                 self.append_contra_candidate(idx, candidate);
                                 self.c.clear_cached_inferences(self.inference);
                             }
                         } else if info
                             .candidates
-                            .as_ref().is_none_or(|cs| !cs.contains(&candidate))
+                            .as_ref()
+                            .is_none_or(|cs| !cs.contains(&candidate))
                         {
                             self.append_candidate(idx, candidate);
                             self.c.clear_cached_inferences(self.inference);

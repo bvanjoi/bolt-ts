@@ -1326,6 +1326,7 @@ impl<'cx> TyChecker<'cx> {
         if let Some(ty) = self.get_node_links(node.id).get_resolved_ty() {
             return ty;
         }
+
         let check_ty = self.get_ty_from_type_node(node.check_ty);
         let alias_symbol = self.get_alias_symbol_for_ty_node(node.id);
         let alias_ty_args = self.get_ty_args_for_alias_symbol(alias_symbol);
@@ -1368,7 +1369,8 @@ impl<'cx> TyChecker<'cx> {
         let ty_node = self.p.node(node.id).as_ty().unwrap();
         let readonly = self
             .p
-            .parent(node.id).is_some_and(|parent| self.p.node(parent).is_readonly_ty_op());
+            .parent(node.id)
+            .is_some_and(|parent| self.p.node(parent).is_readonly_ty_op());
         let element_ty = self.get_ty_from_type_node(node.ele);
         // TODO: defer type
         let ty = self.create_array_ty(element_ty, readonly);
@@ -1434,7 +1436,8 @@ impl<'cx> TyChecker<'cx> {
         let ty_node = self.p.node(node.id).as_ty().unwrap();
         let readonly = self
             .p
-            .parent(node.id).is_some_and(|parent| self.p.node(parent).is_readonly_ty_op());
+            .parent(node.id)
+            .is_some_and(|parent| self.p.node(parent).is_readonly_ty_op());
         let target = if Self::get_array_ele_ty_node(&ty_node).is_some() {
             if readonly {
                 self.global_readonly_array_ty()
@@ -1671,7 +1674,9 @@ impl<'cx> TyChecker<'cx> {
             || (self.is_generic_mapped_ty(ty)
                 && (!self.has_distributive_name_ty(ty)
                     || self.get_mapped_ty_name_ty_kind(ty) == ty::MappedTyNameTyKind::Remapping))
-            || ((index_flags.intersects(IndexFlags::NO_REDUCIBLE_CHECK)) && ty.kind.is_union()/* TODO: && is_generic_reducible_ty(ty) */)
+            || ((index_flags.intersects(IndexFlags::NO_REDUCIBLE_CHECK))
+                && ty.kind.is_union()
+                && self.is_generic_reducible_ty(ty))
             || ty.maybe_type_of_kind(TypeFlags::INSTANTIABLE)
                 && ty
                     .kind
