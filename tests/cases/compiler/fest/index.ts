@@ -580,6 +580,33 @@ type IsEqual<A, B> =
   const a81: [IsEqual<true, false>, IsEqual<false, false>][number] = false;
 }
 
+// =========== IsFloat ===========
+type IsFloat<T> =
+T extends number
+	? `${T}` extends `${infer _Sign extends '' | '-'}${number}.${infer Decimal extends number}`
+		? Decimal extends Zero
+			? false
+			: true
+		: false
+	: false;
+
+{
+	const a0: false = {} as IsFloat<0>;
+	const a1: false = {} as IsFloat<1>;
+	const a2: false = {} as IsFloat<1.0>;
+	const a3: true = {} as IsFloat<1.5>;
+	const a4: false = {} as IsFloat<-1>;
+	const a5: false = {} as IsFloat<number>;
+	const a6: false = {} as IsFloat<0o10>;
+	// const a7: false = {} as IsFloat<1n>;
+	// const a8: false = {} as IsFloat<0n>;
+	const a9: false = {} as IsFloat<0b10>;
+	// const a10: false = {} as IsFloat<0x10>;
+	const a11: false = {} as IsFloat<1e+100>;
+	// const a12: false = {} as IsFloat<PositiveInfinity>;
+	// const a13: false = {} as IsFloat<typeof Number.POSITIVE_INFINITY>;
+}
+
 // =========== isNever ===========
 type IsNever<T> = [T] extends [never] ? true : false;
 {

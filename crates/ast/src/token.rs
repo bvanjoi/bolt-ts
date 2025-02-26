@@ -728,6 +728,8 @@ bitflags::bitflags! {
         const PRECEDING_LINE_BREAK      = 1 << 0;
         const EXTENDED_UNICODE_ESCAPE   = 1 << 3;
         const SCIENTIFIC                = 1 << 4;
+        const BINARY_SPECIFIER          = 1 << 7;
+        const OCTAL_SPECIFIER           = 1 << 8;
         /// `123_456`
         const CONTAINS_SEPARATOR        = 1 << 9;
         const CONTAINS_INVALID_ESCAPE   = 1 << 11;

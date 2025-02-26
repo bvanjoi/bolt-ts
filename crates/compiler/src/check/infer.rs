@@ -794,10 +794,16 @@ impl<'cx> TyChecker<'cx> {
                 let match_type = this.get_string_literal_type(atom);
                 matches.push(match_type);
             } else {
-                let mut parts = Vec::with_capacity(source_texts.len() + 1);
-                parts.extend(source_texts[0..*pos].iter());
+                let mut parts = Vec::with_capacity(source_texts.len());
+                let a = &this.atoms.get(source_texts[*seg])[*pos..];
+                let a_atom = bolt_ts_atom::AtomId::from_str(a);
+                if !this.atoms.contains(a_atom) {
+                    let a = a.to_string();
+                    this.atoms.insert(a_atom, Cow::Owned(a));
+                }
+                parts.push(a_atom);
                 parts.extend(source_texts[*seg + 1..s].iter());
-                let sub = &get_source_text(
+                let b = &get_source_text(
                     this.atoms,
                     s,
                     last_source_index,
@@ -805,12 +811,12 @@ impl<'cx> TyChecker<'cx> {
                     target_end_text_len,
                     source_texts,
                 )[0..p];
-                let atom = bolt_ts_atom::AtomId::from_str(sub);
-                if !this.atoms.contains(atom) {
-                    let sub = sub.to_string();
-                    this.atoms.insert(atom, Cow::Owned(sub));
+                let b_atom = bolt_ts_atom::AtomId::from_str(b);
+                if !this.atoms.contains(b_atom) {
+                    let b = b.to_string();
+                    this.atoms.insert(b_atom, Cow::Owned(b));
                 }
-                parts.push(atom);
+                parts.push(b_atom);
                 let match_type = this.get_template_lit_ty(&parts, &source_tys[*seg..s]);
                 matches.push(match_type);
             }

@@ -1231,7 +1231,7 @@ impl<'cx> TyChecker<'cx> {
         texts: &[bolt_ts_atom::AtomId],
         tys: &[&'cx ty::Ty<'cx>],
     ) -> &'cx ty::Ty<'cx> {
-        assert!(texts.len() == tys.len() + 1);
+        assert_eq!(texts.len(), tys.len() + 1);
         fn add_spans<'cx>(
             this: &mut TyChecker<'cx>,
             texts: &[bolt_ts_atom::AtomId],

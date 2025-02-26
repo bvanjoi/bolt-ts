@@ -901,6 +901,39 @@ interface Number {
   valueOf(): number;
 }
 
+interface NumberConstructor {
+  new (value?: any): Number;
+  (value?: any): number;
+  readonly prototype: Number;
+
+  /** The largest number that can be represented in JavaScript. Equal to approximately 1.79E+308. */
+  readonly MAX_VALUE: number;
+
+  /** The closest number to zero that can be represented in JavaScript. Equal to approximately 5.00E-324. */
+  readonly MIN_VALUE: number;
+
+  /**
+   * A value that is not a number.
+   * In equality comparisons, NaN does not equal any value, including itself. To test whether a value is equivalent to NaN, use the isNaN function.
+   */
+  readonly NaN: number;
+
+  /**
+   * A value that is less than the largest negative number that can be represented in JavaScript.
+   * JavaScript displays NEGATIVE_INFINITY values as -infinity.
+   */
+  readonly NEGATIVE_INFINITY: number;
+
+  /**
+   * A value greater than the largest number that can be represented in JavaScript.
+   * JavaScript displays POSITIVE_INFINITY values as infinity.
+   */
+  readonly POSITIVE_INFINITY: number;
+}
+
+/** An object that represents a number of any kind. All JavaScript numbers are 64-bit floating-point numbers. */
+declare var Number: NumberConstructor;
+
 interface ReadonlyArray<T> {
   /**
    * Gets the length of the array. This is a number one higher than the highest element defined in an array.

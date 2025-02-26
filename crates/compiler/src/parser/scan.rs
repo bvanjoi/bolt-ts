@@ -1,4 +1,4 @@
-use std::borrow::Cow;
+use std::{borrow::Cow, str};
 
 use bolt_ts_atom::AtomId;
 use bolt_ts_span::Span;
@@ -78,6 +78,40 @@ impl ParserState<'_, '_> {
             hi: self.full_start_pos as u32,
             module: self.module_id,
         }
+    }
+
+    fn scan_binary_or_octal_digits(&mut self, base: u8) -> Vec<u8> {
+        assert!(base == 2 || base == 8);
+        let mut sep_allowed = false;
+        let mut is_prev_token_sep = false;
+        let mut v = Vec::with_capacity(16);
+        loop {
+            let ch = self.ch_unchecked();
+            if ch == b'_' {
+                self.token_flags |= TokenFlags::CONTAINS_SEPARATOR;
+                if sep_allowed {
+                    sep_allowed = false;
+                    is_prev_token_sep = true;
+                } else if is_prev_token_sep {
+                    todo!("error")
+                } else {
+                    todo!("error");
+                }
+                self.pos += 1;
+                continue;
+            }
+            sep_allowed = true;
+            if !ch.is_ascii_digit() || ch - b'0' >= base {
+                break;
+            }
+            v.push(self.input[self.pos]);
+            self.pos += 1;
+            is_prev_token_sep = false;
+        }
+        if self.input[self.pos - 1] == b'_' {
+            todo!("error");
+        }
+        v
     }
 
     fn scan_number_fragment(&mut self) -> Vec<u8> {
@@ -605,8 +639,48 @@ impl ParserState<'_, '_> {
                     )
                 }
                 b'`' => self.scan_template_and_set_token_value(false),
-                b'0' => self.scan_number(),
-                b'1'..=b'9' => self.scan_number(),
+                b'0' if self.pos + 2 < self.end()
+                    && self.next_ch().is_some_and(|c| matches!(c, b'X' | b'x')) =>
+                {
+                    todo!()
+                }
+                b'0' if self.pos + 2 < self.end()
+                    && self.next_ch().is_some_and(|c| matches!(c, b'B' | b'b')) =>
+                {
+                    self.pos += 2;
+                    let v = self.scan_binary_or_octal_digits(8);
+                    if v.is_empty() {
+                        todo!()
+                    }
+                    self.token_flags = TokenFlags::BINARY_SPECIFIER;
+                    let s = unsafe { str::from_boxed_utf8_unchecked(v.into()) };
+                    let v = u32::from_str_radix(&s, 8).unwrap();
+                    // TODO: check bigint suffix
+                    self.token_value = Some(TokenValue::Number { value: v as f64 });
+                    Token::new(
+                        TokenKind::Number,
+                        Span::new(start as u32, self.pos as u32, self.module_id),
+                    )
+                }
+                b'0' if self.pos + 2 < self.end()
+                    && self.next_ch().is_some_and(|c| matches!(c, b'O' | b'o')) =>
+                {
+                    self.pos += 2;
+                    let v = self.scan_binary_or_octal_digits(8);
+                    if v.is_empty() {
+                        todo!()
+                    }
+                    self.token_flags = TokenFlags::OCTAL_SPECIFIER;
+                    let s = unsafe { str::from_boxed_utf8_unchecked(v.into()) };
+                    let v = u32::from_str_radix(&s, 8).unwrap();
+                    // TODO: check bigint suffix
+                    self.token_value = Some(TokenValue::Number { value: v as f64 });
+                    Token::new(
+                        TokenKind::Number,
+                        Span::new(start as u32, self.pos as u32, self.module_id),
+                    )
+                }
+                b'0'..=b'9' => self.scan_number(),
                 _ if ch.is_ascii_whitespace() => {
                     if ch == b'\n' {
                         self.token_flags.insert(TokenFlags::PRECEDING_LINE_BREAK);
