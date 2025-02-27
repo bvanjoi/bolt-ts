@@ -484,6 +484,7 @@ pub struct StringLitTy {
 
 #[derive(Debug, Clone, Copy)]
 pub struct BigIntLitTy {
+    pub neg: bool,
     pub val: AtomId,
 }
 

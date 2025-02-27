@@ -70,6 +70,8 @@ impl<'cx> TyChecker<'cx> {
             true
         } else if s.intersects(TypeFlags::STRING_LIKE) && t.intersects(TypeFlags::STRING) {
             true
+        } else if s.intersects(TypeFlags::BIG_INT_LIKE) && t.intersects(TypeFlags::BIG_INT) {
+            true
         } else if s.intersects(TypeFlags::BOOLEAN_LIKE) && t.intersects(TypeFlags::BOOLEAN) {
             true
         } else if s.intersects(TypeFlags::UNDEFINED)

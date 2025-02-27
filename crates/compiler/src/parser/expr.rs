@@ -213,7 +213,9 @@ impl<'cx> ParserState<'cx, '_> {
                 break Ok(left);
             }
 
-            if matches!(self.token.kind, TokenKind::As | TokenKind::Satisfies) && self.has_preceding_line_break() {
+            if matches!(self.token.kind, TokenKind::As | TokenKind::Satisfies)
+                && self.has_preceding_line_break()
+            {
                 break Ok(left);
             }
 
@@ -641,6 +643,13 @@ impl<'cx> ParserState<'cx, '_> {
                 let lit = self.parse_num_lit(val, false);
                 ast::ExprKind::NumLit(lit)
             }
+            BigInt => {
+                let val = self.ident_token();
+                let lit = self.create_lit((false, val), self.token.span);
+                self.insert_map(lit.id, ast::Node::BigIntLit(lit));
+                self.next_token();
+                ast::ExprKind::BigIntLit(lit)
+            }
             False | True => {
                 let v = self.token.kind == True;
                 let lit = self.create_lit(v, self.token.span);
@@ -688,7 +697,7 @@ impl<'cx> ParserState<'cx, '_> {
     fn parse_primary_expr(&mut self) -> PResult<&'cx ast::Expr<'cx>> {
         use bolt_ts_ast::TokenKind::*;
         match self.token.kind {
-            NoSubstitutionTemplate | String | Number | True | False | Null | This => {
+            NoSubstitutionTemplate | String | BigInt | Number | True | False | Null | This => {
                 Ok(self.parse_lit_expr())
             }
             LBracket => Ok(self.parse_array_lit()),

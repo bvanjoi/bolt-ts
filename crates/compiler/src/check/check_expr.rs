@@ -39,7 +39,7 @@ impl<'cx> TyChecker<'cx> {
                         self.new_ty(ty::TyKind::StringLit(t), ty.flags)
                     }
                     ty::TyKind::BigIntLit(lit) => {
-                        let t = self.alloc(ty::BigIntLitTy { val: lit.val });
+                        let t = self.alloc(ty::BigIntLitTy { ..*lit });
                         self.new_ty(ty::TyKind::BigIntLit(t), ty.flags)
                     }
                     _ => unreachable!(),
@@ -72,9 +72,9 @@ impl<'cx> TyChecker<'cx> {
         self.get_fresh_ty_of_literal_ty(t)
     }
 
-    pub(super) fn check_bigint_lit(&mut self, val: AtomId) -> &'cx ty::Ty<'cx> {
+    pub(super) fn check_bigint_lit(&mut self, neg: bool, val: AtomId) -> &'cx ty::Ty<'cx> {
         // TODO: check grammar
-        let t = self.get_bigint_literal_type(val);
+        let t = self.get_bigint_literal_type(neg, val);
         self.get_fresh_ty_of_literal_ty(t)
     }
 
@@ -84,7 +84,7 @@ impl<'cx> TyChecker<'cx> {
             Bin(bin) => ensure_sufficient_stack(|| self.check_bin_expr(bin)),
             NumLit(lit) => self.check_num_lit(lit.val),
             StringLit(lit) => self.check_string_lit(lit.val),
-            BigIntLit(lit) => self.check_bigint_lit(lit.val),
+            BigIntLit(lit) => self.check_bigint_lit(lit.val.0, lit.val.1),
             BoolLit(lit) => {
                 if lit.val {
                     self.true_ty
@@ -390,17 +390,34 @@ impl<'cx> TyChecker<'cx> {
             return op_ty;
         }
 
-        if let ast::ExprKind::NumLit(lit) = expr.expr.kind { match expr.op {
-            ast::PrefixUnaryOp::Minus => {
-                let ty = self.get_number_literal_type(-lit.val);
-                return self.get_fresh_ty_of_literal_ty(ty);
-            }
-            ast::PrefixUnaryOp::Plus => {
-                let ty = self.get_number_literal_type(lit.val);
-                return self.get_fresh_ty_of_literal_ty(ty);
-            }
+        match expr.expr.kind {
+            ast::ExprKind::NumLit(lit) => match expr.op {
+                ast::PrefixUnaryOp::Minus => {
+                    let ty = self.get_number_literal_type(-lit.val);
+                    return self.get_fresh_ty_of_literal_ty(ty);
+                }
+                ast::PrefixUnaryOp::Plus => {
+                    let ty = self.get_number_literal_type(lit.val);
+                    return self.get_fresh_ty_of_literal_ty(ty);
+                }
+                _ => (),
+            },
+            ast::ExprKind::BigIntLit(lit) => match expr.op {
+                ast::PrefixUnaryOp::Minus => {
+                    let neg = if lit.val.0 { false } else { true };
+                    let ty = self.get_bigint_literal_type(neg, lit.val.1);
+                    return self.get_fresh_ty_of_literal_ty(ty);
+                }
+                ast::PrefixUnaryOp::Plus => {
+                    let neg = if lit.val.0 { true } else { false };
+                    let ty = self.get_bigint_literal_type(neg, lit.val.1);
+                    return self.get_fresh_ty_of_literal_ty(ty);
+                }
+                _ => (),
+            },
             _ => (),
-        } }
+        }
+        if let ast::ExprKind::NumLit(lit) = expr.expr.kind {}
 
         match expr.op {
             ast::PrefixUnaryOp::Plus => {

@@ -1,4 +1,118 @@
 // From `github.com/sindresorhus/type-fest`, MIT License
+// type StringToNumber<S extends string> = S extends `${infer N extends number}`
+// 	? N
+// 	: S extends 'Infinity'
+// 		? PositiveInfinity
+// 		: S extends '-Infinity'
+// 			? NegativeInfinity
+// 			: never;
+// type NumberAbsolute<N extends number> = `${N}` extends `-${infer StringPositiveN}` ? StringToNumber<StringPositiveN> : N;
+// type Zero = 0 | 0n;
+// type Numeric = number | bigint;
+// type Negative<T extends Numeric> = T extends Zero ? never : `${T}` extends `-${string}` ? T : never;
+// type NumericString = '0123456789';
+// type IsNegative<T extends Numeric> = T extends Negative<T> ? true : false;
+// type Or<A extends boolean, B extends boolean> = [A, B][number] extends false
+// 	? false
+// 	: true extends [IsEqual<A, true>, IsEqual<B, true>][number]
+// 		? true
+// 		: never;
+// type And<A extends boolean, B extends boolean> = [A, B][number] extends true
+// 	? true
+// 	: true extends [IsEqual<A, false>, IsEqual<B, false>][number]
+// 		? false
+// 		: never;
+// type StringLength<S extends string> = string extends S
+// 	? never
+// 	: StringToArray<S>['length'];
+
+// type StringToArray<S extends string, Result extends string[] = []> = string extends S
+// 	? never
+// 	: S extends `${infer F}${infer R}`
+// 		? StringToArray<R, [...Result, F]>
+// 		: Result;
+// type PositiveNumericCharacterGt<A extends string, B extends string> = NumericString extends `${infer HeadA}${A}${infer TailA}`
+// 	? NumericString extends `${infer HeadB}${B}${infer TailB}`
+// 		? HeadA extends `${HeadB}${infer _}${infer __}`
+// 			? true
+// 			: false
+// 		: never
+// 	: never;
+// type SameLengthPositiveNumericStringGt<A extends string, B extends string> = A extends `${infer FirstA}${infer RestA}`
+// 	? B extends `${infer FirstB}${infer RestB}`
+// 		? FirstA extends FirstB
+// 			? SameLengthPositiveNumericStringGt<RestA, RestB>
+// 			: PositiveNumericCharacterGt<FirstA, FirstB>
+// 		: never
+// 	: false;
+// type BuildTuple<L extends number, Fill = unknown, T extends readonly unknown[] = []> = number extends L
+// 	? Fill[]
+// 	: L extends T['length']
+// 		? T
+// 		: BuildTuple<L, Fill, [...T, Fill]>;
+// type PositiveNumericStringGt<A extends string, B extends string> = A extends B
+// 	? false
+// 	: [BuildTuple<StringLength<A>, 0>, BuildTuple<StringLength<B>, 0>] extends infer R extends [readonly unknown[], readonly unknown[]]
+// 		? R[0] extends [...R[1], ...infer Remain extends readonly unknown[]]
+// 			? 0 extends Remain['length']
+// 				? SameLengthPositiveNumericStringGt<A, B>
+// 				: true
+// 			: false
+// 		: never;
+// type IsEqual<A, B> =
+// 	(<G>() => G extends A & G | G ? 1 : 2) extends
+// 	(<G>() => G extends B & G | G ? 1 : 2)
+// 		? true
+// 		: false;
+// type PositiveInfinity = 1e999;
+// type NegativeInfinity = -1e999;
+
+// // type GreaterThan<A extends number, B extends number> = [
+// // 		IsEqual<A, PositiveInfinity>, IsEqual<A, NegativeInfinity>,
+// // 		IsEqual<B, PositiveInfinity>, IsEqual<B, NegativeInfinity>,
+// // 	] extends infer R extends [boolean, boolean, boolean, boolean]
+// // 		? Or<
+// // 		And<IsEqual<R[0], true>, IsEqual<R[2], false>>,
+// // 		And<IsEqual<R[3], true>, IsEqual<R[1], false>>
+// // 		> extends true
+// // 			? true
+// // 			: Or<
+// // 			And<IsEqual<R[1], true>, IsEqual<R[3], false>>,
+// // 			And<IsEqual<R[2], true>, IsEqual<R[0], false>>
+// // 			> extends true
+// // 				? false
+// // 				: true extends R[number]
+// // 					? false
+// // 					: [IsNegative<A>, IsNegative<B>] extends infer R extends [boolean, boolean]
+// // 						? [true, false] extends R
+// // 							? false
+// // 							: [false, true] extends R
+// // 								? true
+// // 								: [false, false] extends R
+// // 									? PositiveNumericStringGt<`${A}`, `${B}`>
+// // 									: PositiveNumericStringGt<`${NumberAbsolute<B>}`, `${NumberAbsolute<A>}`>
+// // 						: never
+// // 		: never;
+// type F = [true] extends infer R extends [boolean] ? IsEqual<R[0], true> : false;
+// let a: F = true;
+// [true, false, false, true]
+// {
+  // const a0: GreaterThan<1, 2> = false;
+  // const a1: GreaterThan<2, 1> = true;
+  // const a2: GreaterThan<10, 2> = true;
+  // const a3: GreaterThan<10, -2> = true;
+  // const a4: GreaterThan<2, 2> = false;
+  // const a5: GreaterThan<-2, -2> = false;
+  // const a6: GreaterThan<-2, -3> = true;
+  // const a7: GreaterThan<-2, number> = n();
+
+  // const b0: GreaterThan<PositiveInfinity, -999> = true;
+  // const b1: GreaterThan<PositiveInfinity, 999> = true;
+  // const b3: GreaterThan<999, NegativeInfinity> = true;
+  // const b4: GreaterThan<-999, NegativeInfinity> = true;
+  // const b7: GreaterThan<PositiveInfinity, NegativeInfinity> = true;
+// }
+
 
 function n(): never {
   throw new Error();
@@ -39,6 +153,7 @@ type FilterOptionalKeys<T extends object> = Exclude<
   }[keyof T],
   undefined
 >;
+type Finite<T extends number> = T extends PositiveInfinity | NegativeInfinity ? never : T;
 type FirstArrayElement<TArray extends UnknownArrayOrTuple> = TArray extends readonly [infer THead, ...unknown[]]
 	? THead
 	: never;
@@ -50,6 +165,7 @@ type IsBothExtends<BaseType, FirstType, SecondType> = FirstType extends BaseType
 type IsLowerCase<T extends string> = T extends Lowercase<T> ? true : false;
 type IsUpperCase<T extends string> = T extends Uppercase<T> ? true : false
 type LiteralKeyOf<T> = keyof {[K in keyof T as IsLiteral<K> extends true ? K : never]-?: never};
+type LiteralStringUnion<T> = LiteralUnion<T, string>;
 type NegativeInfinity = -1e999;
 type Numeric = number | bigint;
 type NumericString = '0123456789';
@@ -228,6 +344,69 @@ type BuildTuple<L extends number, Fill = unknown, T extends readonly unknown[] =
   const a2: BuildTuple<0, 0> = [];
   const a3: BuildTuple<2 | 3, 0> = {} as [0, 0] | [0, 0, 0];
   const a4: BuildTuple<number, 0> = {} as Array<0>;
+}
+
+// ============ Float ============
+type Float<T> =
+T extends unknown // To distributive type
+	? IsFloat<T> extends true ? T : never
+	: never;
+
+{
+  const a0: Float<1.5> = 1.5;
+  const a1: Float<1.5 | -1.5 | 1> = 1.5;
+  const a2: Float<1.5 | -1.5 | 1> = -1.5;
+  const a3: Float<1> = n();
+  const a4: Float<PositiveInfinity | NegativeInfinity> = n();
+}
+
+// ========= GreaterThan =========
+type GreaterThan<A extends number, B extends number> = number extends A | B
+	? never
+	: [
+		IsEqual<A, PositiveInfinity>, IsEqual<A, NegativeInfinity>,
+		IsEqual<B, PositiveInfinity>, IsEqual<B, NegativeInfinity>,
+	] extends infer R extends [boolean, boolean, boolean, boolean]
+		? Or<
+		And<IsEqual<R[0], true>, IsEqual<R[2], false>>,
+		And<IsEqual<R[3], true>, IsEqual<R[1], false>>
+		> extends true
+			? true
+			: Or<
+			And<IsEqual<R[1], true>, IsEqual<R[3], false>>,
+			And<IsEqual<R[2], true>, IsEqual<R[0], false>>
+			> extends true
+				? false
+				: true extends R[number]
+					? false
+					: [IsNegative<A>, IsNegative<B>] extends infer R extends [boolean, boolean]
+						? [true, false] extends R
+							? false
+							: [false, true] extends R
+								? true
+								: [false, false] extends R
+									? PositiveNumericStringGt<`${A}`, `${B}`>
+									: PositiveNumericStringGt<`${NumberAbsolute<B>}`, `${NumberAbsolute<A>}`>
+						: never
+		: never;
+{
+  // const a0: GreaterThan<1, 2> = false;
+  // const a1: GreaterThan<2, 1> = true;
+  // const a2: GreaterThan<10, 2> = true;
+  // const a3: GreaterThan<10, -2> = true;
+  // const a4: GreaterThan<2, 2> = false;
+  // const a5: GreaterThan<-2, -2> = false;
+  // const a6: GreaterThan<-2, -3> = true;
+  // const a7: GreaterThan<-2, number> = n();
+
+  // const b0: GreaterThan<PositiveInfinity, -999> = true;
+  // const b1: GreaterThan<PositiveInfinity, 999> = true;
+  const b2: GreaterThan<999, PositiveInfinity> = false;
+  // const b3: GreaterThan<999, NegativeInfinity> = true;
+  // const b4: GreaterThan<-999, NegativeInfinity> = true;
+  const b5: GreaterThan<PositiveInfinity, PositiveInfinity> = false;
+  const b6: GreaterThan<NegativeInfinity, NegativeInfinity> = false;
+  // const b7: GreaterThan<PositiveInfinity, NegativeInfinity> = true;
 }
 
 // ======= HasMultipleCallSignatures =======
@@ -472,6 +651,25 @@ type IfUnknown<T, TypeIfUnknown = true, TypeIfNotUnknown = false> = (
   //~^ ERROR: Generic type 'IfUnknown' requires between 1 and 3 type arguments.
 }
 
+// =========== Integer ===========
+type Integer<T> =
+	T extends unknown // To distributive type
+		? IsInteger<T> extends true ? T : never
+		: never; // Never happens
+{
+  let a0: Integer<1> = 1;
+  let a1: Integer<1.0> = 1;
+  let a2: Integer<1 | 1.5 | -1> = 1;
+  let a3: Integer<1 | 1.5 | -1> = -1;
+  let a4: Integer<1e+100> = 1e+100;
+  let a5: Integer<0o10> = 8;
+  let a6: Integer<0b10> = 2;
+  let a7: Integer<0x10> = 16;
+  let a8: Integer<1.5> = n();
+  let a9: Integer<PositiveInfinity | NegativeInfinity> = n();
+  let a10: Integer<typeof Number.POSITIVE_INFINITY> = n();
+}
+
 // =========== IsAny ===========
 // Can eventually be replaced with the built-in once this library supports
 // TS5.4+ only. Tracked in https://github.com/sindresorhus/type-fest/issues/848
@@ -598,13 +796,49 @@ T extends number
 	const a4: false = {} as IsFloat<-1>;
 	const a5: false = {} as IsFloat<number>;
 	const a6: false = {} as IsFloat<0o10>;
-	// const a7: false = {} as IsFloat<1n>;
-	// const a8: false = {} as IsFloat<0n>;
+	const a7: false = {} as IsFloat<1n>;
+	const a8: false = {} as IsFloat<0n>;
 	const a9: false = {} as IsFloat<0b10>;
-	// const a10: false = {} as IsFloat<0x10>;
+	const a10: false = {} as IsFloat<0x10>;
 	const a11: false = {} as IsFloat<1e+100>;
-	// const a12: false = {} as IsFloat<PositiveInfinity>;
-	// const a13: false = {} as IsFloat<typeof Number.POSITIVE_INFINITY>;
+	const a12: false = {} as IsFloat<PositiveInfinity>;
+	const a13: false = {} as IsFloat<typeof Number.POSITIVE_INFINITY>;
+}
+
+// =========== IsInteger ===========
+type IsInteger<T> =
+T extends bigint
+	? true
+	: T extends number
+		? number extends T
+			? false
+			: T extends PositiveInfinity | NegativeInfinity
+				? false
+				: Not<IsFloat<T>>
+		: false;
+
+{
+	const a0: true = {} as IsInteger<0>;
+  const a1: true = {} as IsInteger<1>;
+  const a2: true = {} as IsInteger<1.0>;
+  const a3: false = {} as IsInteger<1.5>;
+  const a4: true = {} as IsInteger<-1>;
+  const a5: false = {} as IsInteger<number>;
+  const a6: true = {} as IsInteger<0o10>;
+  const a7: true = {} as IsInteger<1n>;
+  const a8: true = {} as IsInteger<0n>;
+  const a9: true = {} as IsInteger<0b10>;
+  const a10: true = {} as IsInteger<0x10>;
+  const a11: true = {} as IsInteger<1e+100>;
+  const a12: false = {} as IsInteger<PositiveInfinity>;
+  const a13: false = {} as IsInteger<typeof Number.POSITIVE_INFINITY>;
+}
+
+// ========= IsNegative =========
+type IsNegative<T extends Numeric> = T extends Negative<T> ? true : false;
+{
+  let a0: NonNegativeInteger<-1 | 0 | 1> = 0;
+  let a1: NonNegativeInteger<-1 | 0 | 1> = 1;
 }
 
 // =========== isNever ===========
@@ -711,12 +945,37 @@ type IsPrimitive<T> = [T] extends [Primitive] ? true : false;
   let c: IsPrimitive<Object> = false;
 }
 
+// =========== IsTuple ===========
+type IsTuple<
+	TArray extends UnknownArray,
+	Options extends IsTupleOptions = {fixedLengthOnly: true},
+> =
+	IfAny<TArray, boolean, IfNever<TArray, false,
+	TArray extends unknown // For distributing `TArray`
+		? number extends TArray['length']
+			? Options['fixedLengthOnly'] extends false
+				? IfNever<keyof TArray & `${number}`,
+				TArray extends readonly [...any, any] ? true : false, // To handle cases where a non-rest element follows a rest element, e.g., `[...number[], number]`
+				true>
+				: false
+			: true
+		: false
+	>>;
+type IsTupleOptions = {
+  fixedLengthOnly?: boolean;
+};
+
+{
+  let a0: IsTuple<[1, 2, 3]> = true;
+  let a1: IsTuple<number[]> = false;
+  let a2: IsTuple<[1?, 2?]> = true;
+  let a3: IsTuple<[1, 2, ...number[]]> = false;
+  let a4: IsTuple<[1, 2, ...number[]], {fixedLengthOnly: false}> = true;
+}
+
 // =========== IsUnion ===========
 type IsUnion<T> = InternalIsUnion<T>;
 
-/**
-The actual implementation of `IsUnion`.
-*/
 type InternalIsUnion<T, U = T> =
 (
 	// @link https://ghaiklor.github.io/type-challenges-solutions/en/medium-isunion.html
@@ -779,7 +1038,6 @@ type IsUnknown<T> = (
   //~^ ERROR: Generic type 'IsUnknown' requires 1 type argument.
 }
 
-
 // ========== IsWhitespace ==========
 type IsWhitespace<T extends string> = T extends Whitespace
 	? true
@@ -797,6 +1055,39 @@ type IsWhitespace<T extends string> = T extends Whitespace
   const a7: IsWhitespace<' \t '> = true;
 }
 
+// ========== LiteralUnion ==========
+type LiteralUnion<
+	LiteralType,
+	BaseType extends Primitive,
+> = LiteralType | (BaseType & Record<never, never>);
+{
+  const a0: LiteralUnion<'foo', string> = 'foo';
+  const a1: LiteralUnion<'foo', string> = 'bar'; 
+  const a3: LiteralUnion<'dot' | 'cat', string> = 'dot';
+  const a4: LiteralUnion<'dot' | 'cat', string> = 'cat';
+  const a5: LiteralUnion<'dot' | 'cat', string> = 'foo';
+}
+
+
+// ============ Negative ============
+type Negative<T extends Numeric> = T extends Zero ? never : `${T}` extends `-${string}` ? T : never;
+{
+  const a0: Negative<-1 | -1n | 0 | 0n | 1 | 1n> = -1;
+  const a1: Negative<-1 | -1n | 0 | 0n | 1 | 1n> = -1n;
+}
+
+// ========== NegativeFloat ==========
+type NegativeFloat<T extends number> = Negative<Float<T>>;
+{
+  const a0: NegativeFloat<-1.5 | -1 | 0 | 1 | 1.5> = -1.5;
+}
+
+// ========= NegativeInteger =========
+type NegativeInteger<T extends number> = Negative<Integer<T>>;
+{
+  const a0: NegativeInteger<-1 | 0 | 1> = -1;
+}
+
 // ========= NonEmptyTuple =========
 type NonEmptyTuple<T = unknown> = readonly [T, ...T[]];
 {
@@ -806,6 +1097,23 @@ type NonEmptyTuple<T = unknown> = readonly [T, ...T[]];
   sum();
   //~^ ERROR: Expected 1 arguments, but got 0.
 }
+
+// ========== NonNegative ==========
+type NonNegative<T extends Numeric> = T extends Zero ? T : Negative<T> extends never ? T : never;
+{
+  let a0: NonNegative<-1 | -1n | 0 | 0n | 1 | 1n> = 0;
+  let a1: NonNegative<-1 | -1n | 0 | 0n | 1 | 1n> = 0n;
+  let a2: NonNegative<-1 | -1n | 0 | 0n | 1 | 1n> = 1;
+  let a3: NonNegative<-1 | -1n | 0 | 0n | 1 | 1n> = 1n;
+}
+
+// ======= NonNegativeInteger =======
+type NonNegativeInteger<T extends number> = NonNegative<Integer<T>>;
+{
+  const a0: NonNegativeInteger<-1 | 0 | 1> = 0;
+  const a1: NonNegativeInteger<-1 | 0 | 1> = 1;
+}
+
 
 // ============== Not ==============
 type Not<A extends boolean> = A extends true
@@ -818,6 +1126,15 @@ type Not<A extends boolean> = A extends true
 	const a1: Not<false> = true;
 	// FIXME
 	const a2: Not<boolean> = null! as boolean;
+}
+
+// ========= NumberAbsolute =========
+type NumberAbsolute<N extends number> = `${N}` extends `-${infer StringPositiveN}` ? StringToNumber<StringPositiveN> : N;
+{
+  let a0: NumberAbsolute<-1> = 1;
+  let a1: NumberAbsolute<1> = 1;
+  let a2: NumberAbsolute<NegativeInfinity> = -1e999;
+  //~^ ERROR: Type '-Infinity' is not assignable to type 'Infinity'.
 }
 
 // ========= OptionalKeysOf =========
@@ -1320,6 +1637,30 @@ type TupleToUnion<ArrayType> = ArrayType extends readonly unknown[] ? ArrayType[
 
   const infiniteRestArguments: TupleToUnion<[string, ...number[]]> = 1;
   const g0: string | number = infiniteRestArguments
+}
+
+// =========== UnionMax ===========
+type UnionMax<N extends number> = InternalUnionMax<N>;
+
+type InternalUnionMax<N extends number, T extends UnknownArray = []> =
+	IsNever<N> extends true
+		? T['length']
+		:	T['length'] extends N
+			? InternalUnionMax<Exclude<N, T['length']>, T>
+			: InternalUnionMax<N, [...T, unknown]>;
+{
+  let a: UnionMax<3 | 1 | 2> = 3;
+}
+
+// =========== UnionMin ===========
+type UnionMin<N extends number> = InternalUnionMin<N>;
+
+type InternalUnionMin<N extends number, T extends UnknownArray = []> =
+	T['length'] extends N
+		? T['length']
+		: InternalUnionMin<N, [...T, unknown]>;
+{
+  let a: UnionMin<3 | 1 | 2> = 1;
 }
 
 // ======= UnionToIntersection =======

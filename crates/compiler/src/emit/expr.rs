@@ -98,7 +98,10 @@ impl<'cx> Emit<'cx> {
                 self.content.p("`");
             }
             BigIntLit(lit) => {
-                self.content.p(self.atoms.get(lit.val));
+                if lit.val.0 {
+                    self.content.p("-");
+                }
+                self.content.p(self.atoms.get(lit.val.1));
                 self.content.p("n");
             }
         };

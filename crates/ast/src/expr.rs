@@ -525,7 +525,7 @@ pub struct Lit<T> {
 }
 
 pub type NumLit = Lit<f64>;
-pub type BigIntLit = Lit<AtomId>;
+pub type BigIntLit = Lit<(bool, AtomId)>;
 pub type BoolLit = Lit<bool>;
 pub type NullLit = Lit<()>;
 pub type StringLit = Lit<AtomId>;

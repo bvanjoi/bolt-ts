@@ -642,7 +642,20 @@ impl ParserState<'_, '_> {
                 b'0' if self.pos + 2 < self.end()
                     && self.next_ch().is_some_and(|c| matches!(c, b'X' | b'x')) =>
                 {
-                    todo!()
+                    self.pos += 2;
+                    let v = self.scan_minimum_number_of_hex_digits(1, true);
+                    if v.is_empty() {
+                        todo!()
+                    }
+                    self.token_flags = TokenFlags::HEX_SPECIFIER;
+                    let s = unsafe { str::from_boxed_utf8_unchecked(v.into()) };
+                    let v = u32::from_str_radix(&s, 16).unwrap();
+                    // TODO: check bigint suffix
+                    self.token_value = Some(TokenValue::Number { value: v as f64 });
+                    Token::new(
+                        TokenKind::Number,
+                        Span::new(start as u32, self.pos as u32, self.module_id),
+                    )
                 }
                 b'0' if self.pos + 2 < self.end()
                     && self.next_ch().is_some_and(|c| matches!(c, b'B' | b'b')) =>
@@ -654,7 +667,7 @@ impl ParserState<'_, '_> {
                     }
                     self.token_flags = TokenFlags::BINARY_SPECIFIER;
                     let s = unsafe { str::from_boxed_utf8_unchecked(v.into()) };
-                    let v = u32::from_str_radix(&s, 8).unwrap();
+                    let v = u32::from_str_radix(&s, 2).unwrap();
                     // TODO: check bigint suffix
                     self.token_value = Some(TokenValue::Number { value: v as f64 });
                     Token::new(

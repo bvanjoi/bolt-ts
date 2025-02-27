@@ -135,12 +135,15 @@ impl<'cx> ParserState<'cx, '_> {
                 | Typeof
                 | String
                 | Number
+                | BigInt
                 | Null
                 | Undefined
                 | Void
                 | True
                 | False
                 | Readonly
+                | NoSubstitutionTemplate
+                | TemplateHead
         ) {
             true
         } else if self.token.kind == TokenKind::Function {

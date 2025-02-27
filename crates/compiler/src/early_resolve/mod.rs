@@ -293,11 +293,7 @@ impl<'cx> Resolver<'cx, '_, '_> {
                 }
             }
             Typeof(n) => {
-                use bolt_ts_ast::EntityNameKind::*;
-                match n.name.kind {
-                    Ident(ident) => self.resolve_value_by_ident(ident),
-                    Qualified(_) => (),
-                }
+                self.resolve_entity_name(n.name, SymbolFlags::VALUE);
             }
             Mapped(n) => {
                 self.resolve_ty_param(n.ty_param);

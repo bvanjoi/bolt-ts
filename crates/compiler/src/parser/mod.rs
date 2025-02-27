@@ -377,7 +377,11 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
     }
 
     fn ident_token(&self) -> AtomId {
-        assert!(self.token.kind.is_ident_or_keyword(), "{:#?}", self.token);
+        assert!(
+            self.token.kind.is_ident_or_keyword() || self.token.kind == TokenKind::BigInt,
+            "{:#?}",
+            self.token
+        );
         self.token_value.unwrap().ident()
     }
 

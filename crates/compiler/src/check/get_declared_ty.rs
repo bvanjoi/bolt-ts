@@ -89,15 +89,21 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
-    fn check_entity_name(&mut self, name: &'cx ast::EntityName<'cx>) -> &'cx ty::Ty<'cx> {
+    pub(super) fn check_entity_name(
+        &mut self,
+        name: &'cx ast::EntityName<'cx>,
+    ) -> &'cx ty::Ty<'cx> {
+        use bolt_ts_ast::EntityNameKind;
         match name.kind {
-            ast::EntityNameKind::Ident(ident) => self.check_ident(ident),
-            ast::EntityNameKind::Qualified(name) => {
-                let left = self.check_entity_name(name.left);
-                let apparent_ty = self.get_apparent_ty(left);
-                self._get_prop_of_ty(name.id, apparent_ty, left, name.right)
-            }
+            EntityNameKind::Ident(ident) => self.check_ident(ident),
+            EntityNameKind::Qualified(name) => self.check_qualified_name(name),
         }
+    }
+
+    fn check_qualified_name(&mut self, node: &'cx ast::QualifiedName<'cx>) -> &'cx ty::Ty<'cx> {
+        let left = self.check_entity_name(node.left);
+        let apparent_ty = self.get_apparent_ty(left);
+        self._get_prop_of_ty(node.id, apparent_ty, left, node.right)
     }
 
     pub(super) fn get_base_constructor_type_of_class(

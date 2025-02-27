@@ -160,7 +160,7 @@ pub struct TyChecker<'cx> {
     flow_nodes: Vec<FlowNodes<'cx>>,
     num_lit_tys: nohash_hasher::IntMap<F64Represent, &'cx ty::Ty<'cx>>,
     string_lit_tys: nohash_hasher::IntMap<AtomId, &'cx ty::Ty<'cx>>,
-    bigint_lit_tys: nohash_hasher::IntMap<AtomId, &'cx ty::Ty<'cx>>,
+    bigint_lit_tys: FxHashMap<(bool, AtomId), &'cx ty::Ty<'cx>>,
     union_tys: UnionOrIntersectionMap<'cx>,
     intersection_tys: UnionOrIntersectionMap<'cx>,
     indexed_access_tys: IndexedAccessTyMap<'cx>,
@@ -337,7 +337,7 @@ impl<'cx> TyChecker<'cx> {
 
             num_lit_tys: no_hashmap_with_capacity(1024 * 8),
             string_lit_tys: no_hashmap_with_capacity(1024 * 8),
-            bigint_lit_tys: no_hashmap_with_capacity(512),
+            bigint_lit_tys: fx_hashmap_with_capacity(512),
             union_tys: UnionOrIntersectionMap::new(1024 * 8),
             intersection_tys: UnionOrIntersectionMap::new(1024 * 8),
             indexed_access_tys: IndexedAccessTyMap::new(1024 * 8),

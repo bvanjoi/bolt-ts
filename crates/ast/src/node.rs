@@ -78,6 +78,7 @@ pub enum Node<'cx> {
     VarDecl(&'cx super::VarDecl<'cx>),
     BinExpr(&'cx super::BinExpr<'cx>),
     NumLit(&'cx super::NumLit),
+    BigIntLit(&'cx super::BigIntLit),
     BoolLit(&'cx super::BoolLit),
     NullLit(&'cx super::NullLit),
     StringLit(&'cx super::StringLit),
@@ -496,7 +497,8 @@ impl<'cx> Node<'cx> {
     }
 
     pub fn has_syntactic_modifier(&self, flags: enumflags2::BitFlags<ModifierKind>) -> bool {
-        self.modifiers().is_some_and(|ms| ms.flags.intersects(flags))
+        self.modifiers()
+            .is_some_and(|ms| ms.flags.intersects(flags))
     }
 
     pub fn modifiers(&self) -> Option<&'cx super::Modifiers> {
@@ -668,6 +670,7 @@ as_node!(
     (TemplateHead, super::TemplateHead, template_head),
     (TemplateSpan, super::TemplateSpan<'cx>, template_span),
     (NumLit, super::NumLit, num_lit),
+    (BigIntLit, super::BigIntLit, big_int_lit),
     (BoolLit, super::BoolLit, bool_lit),
     (NullLit, super::NullLit, null_lit),
     (StringLit, super::StringLit, string_lit),

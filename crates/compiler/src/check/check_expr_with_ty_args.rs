@@ -31,14 +31,7 @@ impl<'cx> TyChecker<'cx> {
                 self.check_ty(ty_arg);
             }
         }
-        use bolt_ts_ast::EntityNameKind;
-        let expr_ty = match node.expr_name().kind {
-            EntityNameKind::Ident(ident) => self.check_ident(ident),
-            EntityNameKind::Qualified(_) => {
-                // TODO: fix
-                self.undefined_ty
-            }
-        };
+        let expr_ty = self.check_entity_name(node.expr_name());
         self.get_instantiation_expr_ty(expr_ty, node)
     }
 

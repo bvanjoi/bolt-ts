@@ -577,44 +577,7 @@ impl<'cx> ParserState<'cx, '_> {
                 });
                 Ok(ty)
             }
-            Number | String | BigInt | NoSubstitutionTemplate => {
-                let token_val = self.token_value.unwrap();
-                if let Some(node) = self.try_parse(Self::parse_keyword_and_not_dot)? {
-                    let ty = match node.kind {
-                        Number => {
-                            let val = token_val.number();
-                            let kind = ast::LitTyKind::Num(val);
-                            let lit = self.create_lit_ty(kind, self.token.span);
-                            self.insert_map(lit.id, ast::Node::LitTy(lit));
-                            self.alloc(ast::Ty {
-                                kind: ast::TyKind::Lit(lit),
-                            })
-                        }
-                        String | NoSubstitutionTemplate => {
-                            let val = token_val.ident();
-                            let kind = ast::LitTyKind::String(val);
-                            let lit = self.create_lit_ty(kind, self.token.span);
-                            self.insert_map(lit.id, ast::Node::LitTy(lit));
-                            self.alloc(ast::Ty {
-                                kind: ast::TyKind::Lit(lit),
-                            })
-                        }
-                        BigInt => {
-                            let val = token_val.ident();
-                            let kind = ast::LitTyKind::BigInt(val);
-                            let lit = self.create_lit_ty(kind, self.token.span);
-                            self.insert_map(lit.id, ast::Node::LitTy(lit));
-                            self.alloc(ast::Ty {
-                                kind: ast::TyKind::Lit(lit),
-                            })
-                        }
-                        _ => unreachable!(),
-                    };
-                    Ok(ty)
-                } else {
-                    self.parse_ty_reference()
-                }
-            }
+            Number | String | BigInt | NoSubstitutionTemplate => self.parse_literal_ty(false),
             Typeof => {
                 if self.lookahead(Self::is_start_of_ty_of_import_ty) {
                     todo!()
@@ -636,22 +599,58 @@ impl<'cx> ParserState<'cx, '_> {
             LBracket => self.parse_tuple_ty(),
             Minus => {
                 if self.lookahead(Self::next_token_is_numeric_or_big_int_literal) {
-                    self.next_token();
-                    let val = -self.number_token();
-                    let kind = ast::LitTyKind::Num(val);
-                    let lit = self.create_lit_ty(kind, self.token.span);
-                    self.insert_map(lit.id, ast::Node::LitTy(lit));
-                    self.next_token();
-                    let ty = self.alloc(ast::Ty {
-                        kind: ast::TyKind::Lit(lit),
-                    });
-                    Ok(ty)
+                    self.parse_literal_ty(true)
                 } else {
                     todo!()
                 }
             }
             TemplateHead => self.parse_template_ty(),
             _ => self.parse_ty_reference(),
+        }
+    }
+
+    fn parse_literal_ty(&mut self, neg: bool) -> PResult<&'cx ast::Ty<'cx>> {
+        if neg {
+            self.expect(TokenKind::Minus);
+        }
+        use bolt_ts_ast::TokenKind::*;
+        let token_val = self.token_value.unwrap();
+        if let Some(node) = self.try_parse(Self::parse_keyword_and_not_dot)? {
+            let ty = match node.kind {
+                Number => {
+                    let val = token_val.number();
+                    let val = if neg { -val } else { val };
+                    let kind = ast::LitTyKind::Num(val);
+                    let lit = self.create_lit_ty(kind, self.token.span);
+                    self.insert_map(lit.id, ast::Node::LitTy(lit));
+                    self.alloc(ast::Ty {
+                        kind: ast::TyKind::Lit(lit),
+                    })
+                }
+                BigInt => {
+                    let val = token_val.ident();
+                    let kind = ast::LitTyKind::BigInt { val, neg };
+                    let lit = self.create_lit_ty(kind, self.token.span);
+                    self.insert_map(lit.id, ast::Node::LitTy(lit));
+                    self.alloc(ast::Ty {
+                        kind: ast::TyKind::Lit(lit),
+                    })
+                }
+                String | NoSubstitutionTemplate => {
+                    let val = token_val.ident();
+                    let kind = ast::LitTyKind::String(val);
+                    let lit = self.create_lit_ty(kind, self.token.span);
+                    self.insert_map(lit.id, ast::Node::LitTy(lit));
+                    self.alloc(ast::Ty {
+                        kind: ast::TyKind::Lit(lit),
+                    })
+                }
+
+                _ => unreachable!(),
+            };
+            Ok(ty)
+        } else {
+            self.parse_ty_reference()
         }
     }
 

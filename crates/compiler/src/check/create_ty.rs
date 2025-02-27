@@ -1249,12 +1249,17 @@ impl<'cx> TyChecker<'cx> {
                         text.push_str(this.atoms.get(s.val));
                     } else if let Some(n) = t.kind.as_number_lit() {
                         text.push_str(&n.val.to_string());
+                    } else if let Some(n) = t.kind.as_bigint_lit() {
+                        if n.neg {
+                            text.push('-');
+                        }
+                        let s = this.atoms.get(n.val);
+                        text.push_str(s);
                     } else if t
                         .flags
                         .intersects(TypeFlags::BOOLEAN_LITERAL | TypeFlags::NULLABLE)
                     {
-                    } else {
-                        // TODO: bigint
+                        // TODO:
                     }
                     text.push_str(this.atoms.get(texts[i + 1]));
                 } else if let Some(template) = t.kind.as_template_lit_ty() {
