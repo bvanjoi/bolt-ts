@@ -236,6 +236,7 @@ pub struct TyChecker<'cx> {
     global_number_ty: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
     global_string_ty: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
     global_boolean_ty: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
+    global_symbol_ty: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
     mark_super_ty: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
     mark_sub_ty: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
     mark_other_ty: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
@@ -391,6 +392,7 @@ impl<'cx> TyChecker<'cx> {
             empty_ty_literal_ty: Default::default(),
             global_number_ty: Default::default(),
             global_string_ty: Default::default(),
+            global_symbol_ty: Default::default(),
             global_boolean_ty: Default::default(),
             global_array_ty: Default::default(),
             global_readonly_array_ty: Default::default(),
@@ -487,6 +489,10 @@ impl<'cx> TyChecker<'cx> {
         let global_boolean_ty =
             this.get_global_type(SymbolName::Normal(keyword::IDENT_BOOLEAN_CLASS));
         this.global_boolean_ty.set(global_boolean_ty).unwrap();
+
+        let global_symbol_ty =
+            this.get_global_type(SymbolName::Normal(keyword::IDENT_SYMBOL_CLASS));
+        this.global_symbol_ty.set(global_symbol_ty).unwrap();
 
         let global_array_ty = this.get_global_type(SymbolName::Normal(keyword::IDENT_ARRAY_CLASS));
         this.global_array_ty.set(global_array_ty).unwrap();
@@ -745,6 +751,8 @@ impl<'cx> TyChecker<'cx> {
             self.global_string_ty()
         } else if ty.flags.intersects(TypeFlags::BOOLEAN_LIKE) {
             self.global_boolean_ty()
+        } else if ty.flags.intersects(TypeFlags::ES_SYMBOL_LIKE) {
+            self.global_symbol_ty()
         } else {
             ty
         }
@@ -2414,9 +2422,18 @@ impl<'cx> TyChecker<'cx> {
     }
 
     fn get_generic_object_flags(&mut self, ty: &'cx ty::Ty<'cx>) -> ObjectFlags {
-        if ty.kind.is_union_or_intersection() {
-            // TODO:
-            ObjectFlags::empty()
+        if let Some(tys) = ty.kind.tys_of_union_or_intersection() {
+            // TODO: cache?
+            let object_flags = self
+                .reduced_left(
+                    tys,
+                    |this, flags, t, _| flags | this.get_generic_object_flags(t),
+                    Some(ObjectFlags::empty()),
+                    None,
+                    None,
+                )
+                .unwrap();
+            object_flags.intersection(ObjectFlags::IS_GENERIC_TYPE)
         } else if let Some(ty) = ty.kind.as_substitution_ty() {
             // TODO: cache?
             (self.get_generic_object_flags(ty.base_ty)
@@ -2594,7 +2611,8 @@ impl<'cx> TyChecker<'cx> {
         index_ty: &'cx ty::Ty<'cx>,
     ) -> &'cx ty::Ty<'cx> {
         let mapped_ty = object_ty.kind.expect_object_mapped();
-        let template_mapper = self.alloc(TyMapper::make_unary(mapped_ty.ty_param, index_ty));
+        let mapper = self.alloc(TyMapper::make_unary(mapped_ty.ty_param, index_ty));
+        let template_mapper = self.combine_ty_mappers(mapped_ty.mapper, mapper);
         let instantiated_template_ty = {
             let template_ty =
                 self.get_template_ty_from_mapped_ty(mapped_ty.target.unwrap_or(object_ty));
@@ -2704,6 +2722,19 @@ impl<'cx> TyChecker<'cx> {
         // let unique_literal_filled_instantiation = self.instantiate_ty(ty, mapper);
         false
     }
+
+    fn is_nullable_ty(&self, ty: &'cx ty::Ty<'cx>) -> bool {
+        // TODO: has_ty_facts
+        false
+    }
+
+    fn get_non_nullable_ty_if_needed(&mut self, ty: &'cx ty::Ty<'cx>) -> &'cx ty::Ty<'cx> {
+        if self.is_nullable_ty(ty) {
+            self.get_non_nullable_ty(ty)
+        } else {
+            ty
+        }
+    }
 }
 
 macro_rules! global_ty {
@@ -2736,6 +2767,7 @@ global_ty!(
     global_number_ty,
     global_string_ty,
     global_boolean_ty,
+    global_symbol_ty,
     global_array_ty,
     global_readonly_array_ty,
     any_readonly_array_ty,

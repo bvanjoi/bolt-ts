@@ -933,7 +933,7 @@ impl<'cx> TyChecker<'cx> {
             .map(|id| self.tys[id.as_usize()])
             .collect::<Vec<_>>();
 
-        let object_flags = ObjectFlags::empty();
+        let mut object_flags = ObjectFlags::empty();
 
         if includes.intersects(TypeFlags::NEVER) {
             return self.never_ty;
@@ -1020,13 +1020,36 @@ impl<'cx> TyChecker<'cx> {
             };
             let primitive_ty = ty_set[1 - ty_var_index];
             let ty_var = ty_set[ty_var_index];
-            // if ty_var.flags.intersects(TypeFlags::TYPE_VARIABLE)
-            //     && (primitive_ty
-            //         .flags
-            //         .intersects(TypeFlags::PRIMITIVE | TypeFlags::NON_PRIMITIVE))
-            // {
-            //     todo!()
-            // }
+            if ty_var.flags.intersects(TypeFlags::TYPE_VARIABLE)
+                && (primitive_ty
+                    .flags
+                    .intersects(TypeFlags::PRIMITIVE | TypeFlags::NON_PRIMITIVE)
+                    && !primitive_ty.is_generic_string_like()
+                    || includes.intersects(TypeFlags::INCLUDES_EMPTY_OBJECT))
+            {
+                if let Some(constraint) = self.get_base_constraint_of_ty(ty_var) {
+                    if self.every_type(constraint, |this, t| {
+                        t.flags
+                            .intersects(TypeFlags::PRIMITIVE | TypeFlags::NON_PRIMITIVE)
+                            || this.is_empty_anonymous_object_ty(t)
+                    }) {
+                        if self.is_ty_strict_sub_type_of(constraint, primitive_ty) {
+                            return ty_var;
+                        }
+                        if !(constraint.kind.is_union()
+                            && self.every_type(constraint, |this, c| {
+                                this.is_ty_strict_sub_type_of(c, primitive_ty)
+                            }))
+                        {
+                            if !self.is_ty_strict_sub_type_of(primitive_ty, constraint) {
+                                return self.never_ty;
+                            }
+                        }
+
+                        object_flags |= ObjectFlags::IS_CONSTRAINED_TYPE_VARIABLE;
+                    }
+                }
+            }
         }
 
         let id = UnionOrIntersectionMap::create_ty_key(&ty_set);

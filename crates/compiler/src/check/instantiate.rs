@@ -736,12 +736,21 @@ impl<'cx> TyChecker<'cx> {
             .intersects(TypeFlags::PRIMITIVE | TypeFlags::ANY_OR_UNKNOWN | TypeFlags::NEVER)
         {
             ty
-        } else if let Some(ty) = self.get_ty_links(ty.id).get_restrictive_instantiation() {
-            ty
+        } else if let Some(t) = self.get_ty_links(ty.id).get_restrictive_instantiation() {
+            t
         } else {
             let restrictive_instantiation = self.instantiate_ty(ty, Some(self.restrictive_mapper));
-            self.get_mut_ty_links(ty.id)
-                .set_restrictive_instantiation(restrictive_instantiation);
+
+            if ty == restrictive_instantiation {
+                self.get_mut_ty_links(ty.id)
+                    .set_restrictive_instantiation(restrictive_instantiation);
+            } else if let Some(cached) = self.ty_links[&ty.id].get_restrictive_instantiation() {
+                assert_eq!(cached, restrictive_instantiation);
+            } else {
+                self.get_mut_ty_links(ty.id)
+                    .set_restrictive_instantiation(restrictive_instantiation);
+            }
+
             if let Some(t) = self
                 .get_ty_links(restrictive_instantiation.id)
                 .get_restrictive_instantiation()
@@ -794,7 +803,7 @@ impl<'cx> TyChecker<'cx> {
         self.create_sig_instantiation(sig, ty_args)
     }
 
-    fn get_string_mapping_ty(
+    pub(super) fn get_string_mapping_ty(
         &mut self,
         symbol: SymbolID,
         ty: &'cx ty::Ty<'cx>,

@@ -20,6 +20,14 @@ declare function eval(x: string): any;
  */
 declare function parseInt(string: string, radix?: number): number;
 
+interface Symbol {
+  /** Returns a string representation of an object. */
+  toString(): string;
+
+  /** Returns the primitive value of the specified object. */
+  valueOf(): symbol;
+}
+
 declare type PropertyKey = string | number | symbol;
 
 interface Object {

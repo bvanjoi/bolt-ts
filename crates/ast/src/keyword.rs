@@ -91,6 +91,7 @@ gen_atoms!(
     (IDENT_OBJECT, "object"),
     (IDENT_OBJECT_CLASS, "Object"),
     (IDENT_SYMBOL, "symbol"),
+    (IDENT_SYMBOL_CLASS, "Symbol"),
     (IDENT_FUNCTION_CLASS, "Function"),
     (IDENT_CALLABLE_FUNCTION_CLASS, "CallableFunction"),
     (IDENT_NEWABLE_FUNCTION_CLASS, "NewableFunction"),

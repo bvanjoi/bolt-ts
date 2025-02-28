@@ -12,7 +12,7 @@ impl TyChecker<'_> {
         }
     }
 
-    pub fn check_deferred_nodes(&mut self, module_id: bolt_ts_span::ModuleID) {
+    pub(crate) fn check_deferred_nodes(&mut self, module_id: bolt_ts_span::ModuleID) {
         let mut deferred_nodes = std::mem::take(&mut self.deferred_nodes[module_id.as_usize()]);
         while let Some(node) = deferred_nodes.pop() {
             self.check_deferred_node(node);

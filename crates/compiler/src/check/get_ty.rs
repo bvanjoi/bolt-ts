@@ -754,7 +754,7 @@ impl<'cx> TyChecker<'cx> {
         access_node: Option<ast::NodeID>,
     ) -> Option<&'cx Ty<'cx>> {
         if object_ty == self.wildcard_ty || index_ty == self.wildcard_ty {
-            return Some(self.undefined_ty);
+            return Some(self.wildcard_ty);
         }
         object_ty = self.get_reduced_ty(object_ty);
         let access_flags = access_flags.unwrap_or(AccessFlags::empty());
@@ -1171,6 +1171,7 @@ impl<'cx> TyChecker<'cx> {
                 self.instantiate_ty(ty, mapper)
             };
             let extends_ty = self.instantiate_ty(root.extends_ty, mapper);
+
             if check_ty == self.error_ty || extends_ty == self.error_ty {
                 return self.error_ty;
             } else if check_ty == self.wildcard_ty || extends_ty == self.wildcard_ty {
@@ -1246,7 +1247,8 @@ impl<'cx> TyChecker<'cx> {
                             continue;
                         }
                     }
-                    break self.instantiate_ty(false_ty, mapper);
+                    let t = self.instantiate_ty(false_ty, mapper);
+                    break t;
                 }
 
                 if inferred_extends_ty
@@ -1268,7 +1270,8 @@ impl<'cx> TyChecker<'cx> {
                         tailed += 1;
                         continue;
                     }
-                    break self.instantiate_ty(true_ty, true_mapper);
+                    let t = self.instantiate_ty(true_ty, true_mapper);
+                    break t;
                 }
             }
 
@@ -1840,7 +1843,7 @@ impl<'cx> TyChecker<'cx> {
             if let Some(t) = ty.kind.as_object_tuple() {
                 return t.resolved_ty_args;
             } else {
-                unreachable!()
+                unreachable!("ty: {:#?}", ty);
             }
         };
 

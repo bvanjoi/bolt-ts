@@ -240,8 +240,8 @@ impl<'cx> TyChecker<'cx> {
             let mut result = None;
             if stack.len() < 10 || (stack.len() < 50 && !stack.contains(&id)) {
                 stack.push(id);
-                result =
-                    compute_base_constraint(checker, checker.get_simplified_ty(ty, false), stack);
+                let ty = checker.get_simplified_ty(ty, false);
+                result = compute_base_constraint(checker, ty, stack);
                 stack.pop();
             };
 
@@ -320,7 +320,49 @@ impl<'cx> TyChecker<'cx> {
                 } else {
                     None
                 }
-            } else if ty.kind.is_cond_ty() {
+            } else if ty.flags.intersects(TypeFlags::INDEX) {
+                Some(checker.string_number_symbol_ty())
+            } else if let Some(t) = ty.kind.as_template_lit_ty() {
+                let constraints = t
+                    .tys
+                    .iter()
+                    .map(|t| get_base_constraint(checker, t, stack))
+                    .map(|c| c.unwrap())
+                    .collect::<Vec<_>>();
+                if constraints.len() == t.tys.len() {
+                    let tys = checker.alloc(constraints);
+                    Some(checker.get_template_lit_ty(t.texts, tys))
+                } else {
+                    Some(checker.string_ty)
+                }
+            } else if let Some(s) = ty.kind.as_string_mapping_ty() {
+                let constraint = get_base_constraint(checker, s.ty, stack);
+                if let Some(constraint) = constraint {
+                    if constraint != s.ty {
+                        return Some(checker.get_string_mapping_ty(s.symbol, constraint));
+                    }
+                }
+                Some(checker.string_ty)
+            } else if let Some(i) = ty.kind.as_indexed_access() {
+                // TODO: isMappedTypeGenericIndexedAccess
+                let base_object_ty = get_base_constraint(checker, i.object_ty, stack);
+                let base_index_ty = get_base_constraint(checker, i.index_ty, stack);
+                if let Some(base_object_ty) = base_object_ty {
+                    if let Some(base_index_ty) = base_index_ty {
+                        if let Some(base_indexed_access) = checker
+                            .get_indexed_access_ty_or_undefined(
+                                base_object_ty,
+                                base_index_ty,
+                                Some(i.access_flags),
+                                None,
+                            )
+                        {
+                            return get_base_constraint(checker, base_indexed_access, stack);
+                        }
+                    }
+                }
+                None
+            } else if ty.flags.intersects(TypeFlags::CONDITIONAL) {
                 if let Some(constraint) = checker.get_constraint_from_cond_ty(ty) {
                     get_base_constraint(checker, constraint, stack)
                 } else {

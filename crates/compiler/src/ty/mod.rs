@@ -50,6 +50,11 @@ impl From<&Ty<'_>> for TypeFlags {
         val.flags
     }
 }
+impl From<&Ty<'_>> for ObjectFlags {
+    fn from(val: &Ty<'_>) -> Self {
+        val.get_object_flags()
+    }
+}
 
 impl PartialEq for Ty<'_> {
     fn eq(&self, other: &Self) -> bool {

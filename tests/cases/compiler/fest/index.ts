@@ -67,52 +67,41 @@
 // type PositiveInfinity = 1e999;
 // type NegativeInfinity = -1e999;
 
-// // type GreaterThan<A extends number, B extends number> = [
-// // 		IsEqual<A, PositiveInfinity>, IsEqual<A, NegativeInfinity>,
-// // 		IsEqual<B, PositiveInfinity>, IsEqual<B, NegativeInfinity>,
-// // 	] extends infer R extends [boolean, boolean, boolean, boolean]
-// // 		? Or<
-// // 		And<IsEqual<R[0], true>, IsEqual<R[2], false>>,
-// // 		And<IsEqual<R[3], true>, IsEqual<R[1], false>>
-// // 		> extends true
-// // 			? true
-// // 			: Or<
-// // 			And<IsEqual<R[1], true>, IsEqual<R[3], false>>,
-// // 			And<IsEqual<R[2], true>, IsEqual<R[0], false>>
-// // 			> extends true
-// // 				? false
-// // 				: true extends R[number]
-// // 					? false
-// // 					: [IsNegative<A>, IsNegative<B>] extends infer R extends [boolean, boolean]
-// // 						? [true, false] extends R
-// // 							? false
-// // 							: [false, true] extends R
-// // 								? true
-// // 								: [false, false] extends R
-// // 									? PositiveNumericStringGt<`${A}`, `${B}`>
-// // 									: PositiveNumericStringGt<`${NumberAbsolute<B>}`, `${NumberAbsolute<A>}`>
-// // 						: never
-// // 		: never;
-// type F = [true] extends infer R extends [boolean] ? IsEqual<R[0], true> : false;
-// let a: F = true;
-// [true, false, false, true]
+// type GreaterThan<A extends number, B extends number> = [
+// 		IsEqual<A, PositiveInfinity>, IsEqual<A, NegativeInfinity>,
+// 		IsEqual<B, PositiveInfinity>, IsEqual<B, NegativeInfinity>,
+// 	] extends infer R extends [boolean, boolean, boolean, boolean]
+// 		? Or<
+// 		And<IsEqual<R[0], true>, IsEqual<R[2], false>>,
+// 		And<IsEqual<R[3], true>, IsEqual<R[1], false>>
+// 		> extends true
+// 			? true
+// 			: Or<
+// 			And<IsEqual<R[1], true>, IsEqual<R[3], false>>,
+// 			And<IsEqual<R[2], true>, IsEqual<R[0], false>>
+// 			> extends true
+// 				? false
+// 				: true extends R[number]
+// 					? false
+// 					: [IsNegative<A>, IsNegative<B>] extends infer R extends [boolean, boolean]
+// 						? [true, false] extends R
+// 							? false
+// 							: [false, true] extends R
+// 								? true
+// 								: [false, false] extends R
+// 									? PositiveNumericStringGt<`${A}`, `${B}`>
+// 									: PositiveNumericStringGt<`${NumberAbsolute<B>}`, `${NumberAbsolute<A>}`>
+// 						: never
+// 		: never;
 // {
-  // const a0: GreaterThan<1, 2> = false;
-  // const a1: GreaterThan<2, 1> = true;
-  // const a2: GreaterThan<10, 2> = true;
-  // const a3: GreaterThan<10, -2> = true;
-  // const a4: GreaterThan<2, 2> = false;
-  // const a5: GreaterThan<-2, -2> = false;
-  // const a6: GreaterThan<-2, -3> = true;
-  // const a7: GreaterThan<-2, number> = n();
-
-  // const b0: GreaterThan<PositiveInfinity, -999> = true;
-  // const b1: GreaterThan<PositiveInfinity, 999> = true;
-  // const b3: GreaterThan<999, NegativeInfinity> = true;
-  // const b4: GreaterThan<-999, NegativeInfinity> = true;
-  // const b7: GreaterThan<PositiveInfinity, NegativeInfinity> = true;
+//   // const a0: GreaterThan<1, 2> = false;
+//   // const a1: GreaterThan<2, 1> = true;
+//   // const a2: GreaterThan<10, 2> = true;
+//   // const a3: GreaterThan<10, -2> = true;
+//   // const a4: GreaterThan<2, 2> = false;
+//   // const a5: GreaterThan<-2, -2> = false;
+//   // const a6: GreaterThan<-2, -3> = true;
 // }
-
 
 function n(): never {
   throw new Error();
@@ -397,16 +386,16 @@ type GreaterThan<A extends number, B extends number> = number extends A | B
   // const a4: GreaterThan<2, 2> = false;
   // const a5: GreaterThan<-2, -2> = false;
   // const a6: GreaterThan<-2, -3> = true;
-  // const a7: GreaterThan<-2, number> = n();
+  const a7: GreaterThan<-2, number> = n();
 
-  // const b0: GreaterThan<PositiveInfinity, -999> = true;
-  // const b1: GreaterThan<PositiveInfinity, 999> = true;
+  const b0: GreaterThan<PositiveInfinity, -999> = true;
+  const b1: GreaterThan<PositiveInfinity, 999> = true;
   const b2: GreaterThan<999, PositiveInfinity> = false;
-  // const b3: GreaterThan<999, NegativeInfinity> = true;
-  // const b4: GreaterThan<-999, NegativeInfinity> = true;
+  const b3: GreaterThan<999, NegativeInfinity> = true;
+  const b4: GreaterThan<-999, NegativeInfinity> = true;
   const b5: GreaterThan<PositiveInfinity, PositiveInfinity> = false;
   const b6: GreaterThan<NegativeInfinity, NegativeInfinity> = false;
-  // const b7: GreaterThan<PositiveInfinity, NegativeInfinity> = true;
+  const b7: GreaterThan<PositiveInfinity, NegativeInfinity> = true;
 }
 
 // ======= HasMultipleCallSignatures =======

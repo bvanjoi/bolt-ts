@@ -1,5 +1,8 @@
+use crate::ty::TypeFlags;
+
 use super::TyChecker;
 use super::ast;
+use super::errors;
 use super::ty;
 
 impl<'cx> TyChecker<'cx> {
@@ -19,20 +22,48 @@ impl<'cx> TyChecker<'cx> {
             Namespace(ns) => self.check_ns_decl(ns),
             Type(ty) => self.check_type_decl(ty),
             For(node) => self.check_for_stmt(node),
+            ForIn(node) => self.check_for_in_stmt(node),
             Empty(_) => {}
             Throw(_) => {}
             Enum(_) => {}
             Import(_) => {}
             Export(_) => {}
             ForOf(_) => {}
-            ForIn(_) => {}
             Break(_) => {}
             Continue(_) => {}
             Try(_) => {}
             While(_) => {}
             Do(_) => {}
-            Debugger(n) => {}
+            Debugger(_) => {}
         };
+    }
+
+    fn check_for_in_stmt(&mut self, node: &'cx ast::ForInStmt<'cx>) {
+        let right_ty = {
+            let ty = self.check_expr(node.expr);
+            self.get_non_nullable_ty(ty)
+        };
+        let left_ty = match node.init {
+            ast::ForInitKind::Expr(expr) => self.check_expr(expr),
+            ast::ForInitKind::Var(_) => {
+                // TODO:
+                self.any_ty
+            }
+        };
+
+        if right_ty == self.never_ty
+            || !self.is_type_assignable_to_kind(
+                &right_ty,
+                TypeFlags::NON_PRIMITIVE | TypeFlags::INSTANTIABLE,
+                false,
+            )
+        {
+            let error = errors::TheRightHandSideOfAForInStatementMustBeOfTypeAnyAnObjectTypeOrATypeParameterButHereHasType0 {
+                span: node.expr.span(),
+                ty: self.print_ty(&right_ty).to_string(),
+            };
+            self.push_error(Box::new(error));
+        }
     }
 
     fn check_for_stmt(&mut self, node: &'cx ast::ForStmt<'cx>) {
