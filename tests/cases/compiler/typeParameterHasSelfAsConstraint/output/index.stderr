@@ -1,0 +1,11 @@
+  × Type parameter 'T' has a circular constraint.
+   ╭─[../../tests/cases/compiler/typeParameterHasSelfAsConstraint/index.ts:3:24]
+ 3 │ T
+   · ─
+   ╰────
+
+  × Type 'T' is not assignable to type 'number'.
+   ╭─[../../tests/cases/compiler/typeParameterHasSelfAsConstraint/index.ts:5:10]
+ 5 │ x
+   · ─
+   ╰────

@@ -1,5 +1,6 @@
 use crate::bind::{SymbolFlags, SymbolID, SymbolName};
 use crate::check::TyChecker;
+use bolt_ts_ast as ast;
 
 use super::flags::ObjectFlags;
 use super::pprint::pprint_reference_ty;
@@ -18,81 +19,64 @@ pub enum ObjectTyKind<'cx> {
     Tuple(&'cx TupleTy<'cx>),
     Interface(&'cx InterfaceTy<'cx>),
     Reference(&'cx ReferenceTy<'cx>),
+    Mapped(&'cx MappedTy<'cx>),
 }
 
 macro_rules! ty_kind_as_object_ty_kind {
-    ($ty:ty, $as_kind: ident, $as_object_kind: ident, $expect_object_kind: ident, $is_object_kind: ident) => {
-        impl<'cx> super::TyKind<'cx> {
-            #[inline(always)]
-            pub fn $as_object_kind(&self) -> Option<$ty> {
-                self.as_object().and_then(|object| object.kind.$as_kind())
-            }
-            #[inline(always)]
-            pub fn $is_object_kind(&self) -> bool {
-                self.$as_object_kind().is_some()
-            }
-            #[inline(always)]
-            pub fn $expect_object_kind(&self) -> $ty {
-                self.$as_object_kind().unwrap()
-            }
-        }
-    };
-}
-
-ty_kind_as_object_ty_kind!(
-    &'cx AnonymousTy<'cx>,
-    as_anonymous,
-    as_object_anonymous,
-    expect_object_anonymous,
-    is_object_anonymous
-);
-ty_kind_as_object_ty_kind!(
-    &'cx TupleTy<'cx>,
-    as_tuple,
-    as_object_tuple,
-    expect_object_tuple,
-    is_object_tuple
-);
-ty_kind_as_object_ty_kind!(
-    &'cx InterfaceTy<'cx>,
-    as_interface,
-    as_object_interface,
-    expect_object_interface,
-    is_object_interface
-);
-ty_kind_as_object_ty_kind!(
-    &'cx ReferenceTy<'cx>,
-    as_reference,
-    as_object_reference,
-    expect_object_reference,
-    is_object_reference
-);
-
-macro_rules! as_object_ty_kind {
-    ($kind: ident, $ty:ty, $as_kind: ident, $is_kind: ident) => {
-        impl<'cx> ObjectTyKind<'cx> {
-            #[inline(always)]
-            pub fn $as_kind(&self) -> Option<$ty> {
-                match self {
-                    ObjectTyKind::$kind(ty) => Some(ty),
-                    _ => None,
+    ($ty:ty, $name: ident) => {
+        paste::paste! {
+            impl<'cx> super::TyKind<'cx> {
+                #[inline(always)]
+                pub fn [<as_object_ $name>](&self) -> Option<$ty> {
+                    self.as_object().and_then(|object| object.kind.[<as_ $name>]())
+                }
+                #[inline(always)]
+                pub fn [<is_object_ $name>](&self) -> bool {
+                    self.[<as_object_ $name>]().is_some()
+                }
+                #[inline(always)]
+                pub fn [<expect_object_ $name>](&self) -> $ty {
+                    self.[<as_object_ $name>]().unwrap()
                 }
             }
-            #[inline(always)]
-            pub fn $is_kind(&self) -> bool {
-                self.$as_kind().is_some()
+        }
+    };
+}
+
+ty_kind_as_object_ty_kind!(&'cx AnonymousTy<'cx>, anonymous);
+ty_kind_as_object_ty_kind!(&'cx TupleTy<'cx>, tuple);
+ty_kind_as_object_ty_kind!(&'cx InterfaceTy<'cx>, interface);
+ty_kind_as_object_ty_kind!(&'cx ReferenceTy<'cx>, reference);
+ty_kind_as_object_ty_kind!(&'cx MappedTy<'cx>, mapped);
+
+macro_rules! as_object_ty_kind {
+    ($kind: ident, $ty:ty, $name: ident) => {
+        paste::paste! {
+            impl<'cx> ObjectTyKind<'cx> {
+                #[inline(always)]
+                pub fn [<as_ $name>](&self) -> Option<$ty> {
+                    match self {
+                        ObjectTyKind::$kind(ty) => Some(ty),
+                        _ => None,
+                    }
+                }
+                #[inline(always)]
+                pub fn [<is_ $name>](&self) -> bool {
+                    self.[<as_ $name>]().is_some()
+                }
             }
         }
     };
 }
 
-as_object_ty_kind!(Anonymous, &'cx AnonymousTy<'cx>, as_anonymous, is_anonymous);
-as_object_ty_kind!(Tuple, &'cx TupleTy<'cx>, as_tuple, is_tuple);
-as_object_ty_kind!(Interface, &'cx InterfaceTy<'cx>, as_interface, is_interface);
-as_object_ty_kind!(Reference, &'cx ReferenceTy<'cx>, as_reference, is_reference);
+as_object_ty_kind!(Anonymous, &'cx AnonymousTy<'cx>, anonymous);
+as_object_ty_kind!(Tuple, &'cx TupleTy<'cx>, tuple);
+as_object_ty_kind!(Interface, &'cx InterfaceTy<'cx>, interface);
+as_object_ty_kind!(Reference, &'cx ReferenceTy<'cx>, reference);
+as_object_ty_kind!(Mapped, &'cx MappedTy<'cx>, mapped);
 
 bitflags::bitflags! {
-    #[derive(Debug, Clone, Copy)]
+    #[derive(Debug, Clone, Copy, PartialEq)]
     pub struct ElementFlags: u8 {
         /// `T`
         const REQUIRED  = 1 << 0;
@@ -155,20 +139,23 @@ impl<'cx> TupleTy<'cx> {
 #[derive(Debug, Clone, Copy)]
 pub struct ReferenceTy<'cx> {
     pub target: &'cx Ty<'cx>,
-    pub resolved_ty_args: super::Tys<'cx>,
+    pub mapper: Option<&'cx dyn TyMap<'cx>>,
+    pub node: Option<ast::NodeID>,
 }
 
 impl<'cx> ReferenceTy<'cx> {
-    pub fn deep_target(&self) -> &'cx Ty<'cx> {
-        let mut ty = self.target;
-        loop {
-            if let Some(reference) = ty.kind.as_object_reference() {
-                ty = reference.target;
+    pub fn interface_target(&self) -> Option<&'cx Ty<'cx>> {
+        if self.target.kind.is_object_interface() {
+            Some(self.target)
+        } else if let Some(r) = self.target.kind.as_object_reference() {
+            if r.target.kind.is_object_interface() {
+                Some(r.target)
             } else {
-                break;
+                None
             }
+        } else {
+            None
         }
-        ty
     }
 }
 
@@ -177,6 +164,7 @@ pub struct IndexInfo<'cx> {
     pub symbol: SymbolID,
     pub key_ty: &'cx Ty<'cx>,
     pub val_ty: &'cx Ty<'cx>,
+    pub is_readonly: bool,
 }
 
 impl PartialEq for &IndexInfo<'_> {
@@ -217,7 +205,7 @@ pub struct InterfaceTy<'cx> {
 }
 
 impl<'cx> ObjectTyKind<'cx> {
-    pub(super) fn to_string(&self, self_ty: &Ty, checker: &mut TyChecker<'cx>) -> String {
+    pub(super) fn to_string(&self, self_ty: &'cx Ty<'cx>, checker: &mut TyChecker<'cx>) -> String {
         match self {
             ObjectTyKind::Anonymous(a) => {
                 let symbol = a.symbol;
@@ -231,9 +219,9 @@ impl<'cx> ObjectTyKind<'cx> {
                             let name = checker.p.node(decl).ident_name().unwrap();
                             let ty = checker.get_type_of_symbol(*param);
                             format!(
-                                "{}: {}",
-                                checker.atoms.get(name.name),
-                                ty.to_string(checker)
+                                "{name}: {ty}",
+                                ty = ty.to_string(checker),
+                                name = checker.atoms.get(name.name),
                             )
                         })
                         .collect::<Vec<_>>()
@@ -255,7 +243,13 @@ impl<'cx> ObjectTyKind<'cx> {
                     let members = members
                         .iter()
                         .map(|(name, symbol)| {
-                            let name = checker.atoms.get(name.expect_atom());
+                            let name = if let Some(name) = name.as_atom() {
+                                checker.atoms.get(name).to_string()
+                            } else if let Some(num) = name.as_numeric() {
+                                num.to_string()
+                            } else {
+                                unreachable!()
+                            };
                             let ty = checker.get_type_of_symbol(*symbol);
                             format!("{}: {}; ", name, ty.to_string(checker))
                         })
@@ -266,9 +260,7 @@ impl<'cx> ObjectTyKind<'cx> {
                     let name = symbol.name.expect_atom();
                     format!("typeof {}", checker.atoms.get(name))
                 } else if let Some(sig) = checker
-                    .expect_ty_links(self_ty.id)
-                    .expect_structured_members()
-                    .call_sigs
+                    .get_signatures_of_type(self_ty, super::SigKind::Call)
                     .first()
                 {
                     print_fn_like_str(checker, sig)
@@ -287,11 +279,11 @@ impl<'cx> ObjectTyKind<'cx> {
                 {
                     let decl = checker.binder.symbol(index_info.symbol).expect_index().decl;
                     let key_name = checker.p.node(decl).expect_index_sig_decl().params[0].name;
-                    let key_name = checker.atoms.get(key_name.name);
                     format!(
-                        "{{ [{key_name}: {}]: {} }}",
-                        index_info.key_ty.to_string(checker),
-                        index_info.val_ty.to_string(checker)
+                        "{{ [{key_name}: {key_ty}]: {val_ty} }}",
+                        key_ty = index_info.key_ty.to_string(checker),
+                        val_ty = index_info.val_ty.to_string(checker),
+                        key_name = checker.atoms.get(key_name.name)
                     )
                 } else {
                     let members = checker
@@ -301,9 +293,12 @@ impl<'cx> ObjectTyKind<'cx> {
                     let members = members
                         .iter()
                         .map(|(name, symbol)| {
-                            let name = checker.atoms.get(name.expect_atom());
                             let ty = checker.get_type_of_symbol(*symbol);
-                            format!("{}: {}; ", name, ty.to_string(checker))
+                            format!(
+                                "{field_name}: {filed_ty}; ",
+                                filed_ty = ty.to_string(checker),
+                                field_name = checker.atoms.get(name.expect_atom()),
+                            )
                         })
                         .collect::<Vec<_>>()
                         .join("");
@@ -324,8 +319,18 @@ impl<'cx> ObjectTyKind<'cx> {
                 .atoms
                 .get(checker.binder.symbol(i.symbol).name.expect_atom())
                 .to_string(),
-            ObjectTyKind::Reference(refer) => pprint_reference_ty(refer, checker),
+            ObjectTyKind::Reference(_) => pprint_reference_ty(self_ty, checker),
             ObjectTyKind::SingleSigTy(_) => "single signature type".to_string(),
+            ObjectTyKind::Mapped(m) => {
+                if let Some(s) = m.alias_symbol {
+                    checker
+                        .atoms
+                        .get(checker.binder.symbol(s).name.expect_atom())
+                        .to_string()
+                } else {
+                    "mapped type".to_string()
+                }
+            }
         }
     }
 }
@@ -343,4 +348,23 @@ pub struct SingleSigTy<'cx> {
     pub target: Option<&'cx Ty<'cx>>,
     pub mapper: Option<&'cx dyn TyMap<'cx>>,
     pub outer_ty_params: Option<super::Tys<'cx>>,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct MappedTy<'cx> {
+    pub symbol: SymbolID,
+    pub decl: &'cx ast::MappedTy<'cx>,
+    pub alias_symbol: Option<SymbolID>,
+    pub alias_ty_arguments: Option<super::Tys<'cx>>,
+    pub ty_param: &'cx Ty<'cx>,
+    pub constraint_ty: &'cx Ty<'cx>,
+    pub target: Option<&'cx Ty<'cx>>,
+    pub mapper: Option<&'cx dyn TyMap<'cx>>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum MappedTyNameTyKind {
+    None,
+    Filtering,
+    Remapping,
 }

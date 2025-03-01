@@ -1,4 +1,4 @@
-use crate::ast;
+use bolt_ts_ast as ast;
 use bolt_ts_atom::AtomId;
 
 use super::Emit;
@@ -35,7 +35,7 @@ impl<'cx> Emit<'cx> {
     }
 
     pub(super) fn emit_prop_name(&mut self, name: &'cx ast::PropName<'cx>) {
-        use ast::PropNameKind::*;
+        use bolt_ts_ast::PropNameKind::*;
         match name.kind {
             Ident(ident) => self.emit_ident(ident),
             NumLit(num) => self.emit_num_lit(num),

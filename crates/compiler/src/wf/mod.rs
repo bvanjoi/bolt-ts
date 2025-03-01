@@ -1,12 +1,13 @@
 mod errors;
+use crate::check::errors::DeclKind;
 
 use bolt_ts_atom::AtomMap;
 use bolt_ts_span::ModuleID;
 
-use crate::ast::{self, pprint_ident, visitor};
 use crate::ir;
 use crate::keyword::is_reserved_type_name;
 use crate::parser::Parser;
+use bolt_ts_ast::{self as ast, pprint_ident, visitor};
 
 pub fn well_formed_check_parallel(
     p: &Parser,
@@ -51,12 +52,23 @@ impl<'cx> CheckState<'cx> {
         self.diags.push(bolt_ts_errors::Diag { inner: error })
     }
     fn check_collisions_for_decl_name(&mut self, node: ast::NodeID, name: &'cx ast::Ident) {
-        if self.p.node(node).is_class_like() && is_reserved_type_name(name.name) {
-            let error = errors::ClassNameCannotBe {
-                span: name.span,
-                name: pprint_ident(name, self.atoms),
-            };
-            self.push_error(Box::new(error));
+        let n = self.p.node(node);
+        let kind = if n.is_class_like() {
+            Some(DeclKind::Class)
+        } else if n.is_interface_decl() {
+            Some(DeclKind::Interface)
+        } else {
+            None
+        };
+        if is_reserved_type_name(name.name) {
+            if let Some(kind) = kind {
+                let error = errors::DeclNameCannotBe {
+                    span: name.span,
+                    name: pprint_ident(name, self.atoms),
+                    kind,
+                };
+                self.push_error(Box::new(error));
+            }
         }
     }
     fn check_class_like(&mut self, class: &impl ir::ClassLike<'cx>) {
@@ -70,7 +82,7 @@ impl<'cx> CheckState<'cx> {
             return;
         };
         for modifier in modifiers.list {
-            use ast::ModifierKind::*;
+            use bolt_ts_ast::ModifierKind::*;
             if modifier.kind == Abstract {
                 let parent = self.p.parent(node).unwrap();
                 let parent_node = self.p.node(parent);
@@ -101,5 +113,10 @@ impl<'cx> ast::Visitor<'cx> for CheckState<'cx> {
     fn visit_class_method_elem(&mut self, node: &'cx ast::ClassMethodElem<'cx>) {
         self.check_grammar_modifiers(node.id);
         visitor::visit_class_method_elem(self, node);
+    }
+
+    fn visit_interface_decl(&mut self, node: &'cx ast::InterfaceDecl<'cx>) {
+        self.check_collisions_for_decl_name(node.id, node.name);
+        visitor::visit_interface_decl(self, node);
     }
 }

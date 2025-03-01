@@ -1,8 +1,8 @@
 use super::TyChecker;
-use crate::ast;
-use crate::bind::{Symbol, SymbolID};
+use crate::bind::{Symbol, SymbolID, SymbolName};
+use bolt_ts_ast as ast;
 
-impl<'cx> TyChecker<'cx> {
+impl TyChecker<'_> {
     #[inline]
     pub(super) fn get_symbol_of_decl(&self, id: ast::NodeID) -> SymbolID {
         fn is_decl(p: &super::Parser, node: ast::NodeID) -> bool {
@@ -19,18 +19,20 @@ impl<'cx> TyChecker<'cx> {
             "expected a decl node, but got {:#?}",
             self.p.node(id)
         );
-        self.binder.final_res(id)
+        self.final_res(id)
     }
 
     #[inline]
-    pub(super) fn get_symbol_from_expr(&self, id: ast::NodeID) -> Option<SymbolID> {
+    pub(super) fn get_symbol_for_expr(&mut self, id: ast::NodeID) -> Option<SymbolID> {
         let node = self.p.node(id);
         if Symbol::can_have_symbol(node) {
-            Some(self.binder.final_res(id))
+            Some(self.final_res(id))
         } else if let Some(ident) = node.as_ident() {
             Some(self.resolve_symbol_by_ident(ident))
-        } else if node.as_prop_access_expr().is_some() {
-            todo!()
+        } else if let Some(p) = node.as_prop_access_expr() {
+            let lhs_ty = self.get_ty_of_expr(p.expr);
+            // TODO: is_private
+            self.get_prop_of_ty(lhs_ty, SymbolName::Ele(p.name.name))
         } else {
             None
         }
@@ -42,7 +44,7 @@ impl<'cx> TyChecker<'cx> {
     }
 
     pub(super) fn get_symbol_at_loc(&self, id: ast::NodeID) -> Option<SymbolID> {
-        use ast::Node::*;
+        use bolt_ts_ast::Node::*;
         if self.p.is_decl_name_or_import_prop_name(id) {
             let p = self.p.parent(id).unwrap();
             let parent_symbol = self.get_symbol_of_decl(p);

@@ -1,2 +1,2 @@
-var toString = 0
+var toString = 0;
 export { toString }

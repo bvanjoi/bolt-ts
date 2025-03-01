@@ -1,8 +1,8 @@
+use bolt_ts_ast as ast;
+use bolt_ts_ast::TokenKind;
 use bolt_ts_span::Span;
 
-use crate::ast;
-
-use super::{token::TokenKind, PResult, ParserState};
+use super::{PResult, ParserState};
 
 #[derive(Copy, Clone)]
 pub(super) struct ParseBreak;

@@ -1,5 +1,5 @@
 class A {
   foo() {}
 }
-var a = new A()
+var a = new A();
 a.foo();

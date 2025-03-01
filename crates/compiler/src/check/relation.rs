@@ -2,14 +2,13 @@ use bolt_ts_atom::AtomId;
 use bolt_ts_span::Span;
 
 use bolt_ts_utils::fx_hashset_with_capacity;
-use rustc_hash::FxHashSet;
 
 use super::create_ty::IntersectionFlags;
-use super::{errors, SymbolLinks};
-use crate::ast;
-use crate::bind::{SymbolFlags, SymbolID, SymbolName};
+use super::{SymbolLinks, errors};
+use crate::bind::{Symbol, SymbolFlags, SymbolID, SymbolName};
 use crate::ty::{self, CheckFlags, ObjectFlags, TypeFlags};
 use crate::ty::{ObjectShape, ObjectTy, ObjectTyKind, Ty, TyKind};
+use bolt_ts_ast as ast;
 
 use super::{Ternary, TyChecker};
 
@@ -71,6 +70,8 @@ impl<'cx> TyChecker<'cx> {
             true
         } else if s.intersects(TypeFlags::STRING_LIKE) && t.intersects(TypeFlags::STRING) {
             true
+        } else if s.intersects(TypeFlags::BIG_INT_LIKE) && t.intersects(TypeFlags::BIG_INT) {
+            true
         } else if s.intersects(TypeFlags::BOOLEAN_LIKE) && t.intersects(TypeFlags::BOOLEAN) {
             true
         } else if s.intersects(TypeFlags::UNDEFINED)
@@ -109,43 +110,49 @@ impl<'cx> TyChecker<'cx> {
 
     pub(super) fn is_type_related_to(
         &mut self,
-        source: &'cx Ty<'cx>,
-        target: &'cx Ty<'cx>,
+        mut source: &'cx Ty<'cx>,
+        mut target: &'cx Ty<'cx>,
         relation: RelationKind,
     ) -> bool {
+        if self.is_fresh_literal_ty(source) {
+            source = self.ty_links[&source.id].get_regular_ty().unwrap();
+        }
+        if self.is_fresh_literal_ty(target) {
+            target = self.ty_links[&target.id].get_regular_ty().unwrap();
+        }
         if source == target {
             return true;
         }
-        if relation != RelationKind::Identity
-            && ((relation == RelationKind::Comparable
+        if relation != RelationKind::Identity {
+            if (relation == RelationKind::Comparable
                 && !target.flags.intersects(TypeFlags::NEVER)
                 && self.is_simple_type_related_to(target, source, relation))
-                || self.is_simple_type_related_to(source, target, relation))
-        {
-            return true;
+                || self.is_simple_type_related_to(source, target, relation)
+            {
+                return true;
+            }
+        } else if !(source.flags | target.flags).intersects(
+            TypeFlags::UNION_OR_INTERSECTION
+                | TypeFlags::INDEXED_ACCESS
+                | TypeFlags::CONDITIONAL
+                | TypeFlags::SUBSTITUTION,
+        ) {
+            if source.flags != target.flags {
+                return false;
+            }
+            if source.flags.intersects(TypeFlags::SINGLETON) {
+                return true;
+            }
         }
 
         if source.kind.is_object() && target.kind.is_object() {
-            // skip
+            // TODO: cache
         }
 
         if source.kind.is_structured_or_instantiable()
             || target.kind.is_structured_or_instantiable()
         {
             self.check_type_related_to(source, target, relation, None) != Ternary::FALSE
-        } else {
-            false
-        }
-    }
-
-    pub(super) fn is_empty_array_lit_ty(&self, ty: &'cx Ty<'cx>) -> bool {
-        if ty.kind.is_array(self) {
-            ty.kind
-                .as_object_reference()
-                .map(|refer| {
-                    refer.resolved_ty_args.len() == 1 && refer.resolved_ty_args[0] == self.never_ty
-                })
-                .unwrap_or_default()
         } else {
             false
         }
@@ -220,26 +227,10 @@ impl<'cx> TyChecker<'cx> {
         self.check_type_related_to(source, target, RelationKind::Assignable, error_node)
     }
 
-    fn _get_props_of_object_ty(
-        &self,
-        self_ty: &'cx ty::Ty<'cx>,
-        ty: &'cx ObjectTy<'cx>,
-    ) -> &'cx [SymbolID] {
-        if let ObjectTyKind::Interface(_) = ty.kind {
-            self.properties_of_object_type(self_ty)
-        } else if let ObjectTyKind::Reference(_) = ty.kind {
-            self.properties_of_object_type(self_ty)
-        } else if let ObjectTyKind::Anonymous(_) = ty.kind {
-            self.properties_of_object_type(self_ty)
-        } else {
-            &[]
-        }
-    }
-
     pub(super) fn get_props_of_object_ty(&mut self, ty: &'cx Ty<'cx>) -> &'cx [SymbolID] {
-        if let TyKind::Object(object_ty) = ty.kind {
+        if ty.kind.is_object() {
             self.resolve_structured_type_members(ty);
-            self._get_props_of_object_ty(ty, object_ty)
+            self.properties_of_object_type(ty)
         } else {
             &[]
         }
@@ -265,6 +256,7 @@ impl<'cx> TyChecker<'cx> {
             let symbol = if object_ty.kind.is_interface()
                 || object_ty.kind.is_anonymous()
                 || object_ty.kind.is_reference()
+                || object_ty.kind.is_mapped()
             {
                 self.expect_ty_links(ty.id)
                     .expect_structured_members()
@@ -401,6 +393,7 @@ impl<'cx> TyChecker<'cx> {
         let mut first_ty = None;
         let mut name_ty = None;
         let mut prop_tys = Vec::with_capacity(props.len());
+        let mut write_tys: Option<Vec<&'cx Ty<'cx>>> = None;
 
         for prop in props {
             let ty = self.get_type_of_symbol(prop);
@@ -409,20 +402,40 @@ impl<'cx> TyChecker<'cx> {
                 name_ty = self.get_symbol_links(prop).get_name_ty();
             }
             let write_ty = self.get_write_type_of_symbol(prop);
+            if write_tys.is_some() || write_ty != ty {
+                if let Some(write_tys) = &mut write_tys {
+                    write_tys.push(write_ty);
+                } else {
+                    let mut t = prop_tys.clone();
+                    t.push(write_ty);
+                    write_tys = Some(t);
+                }
+            }
             // if first_ty.map_or(true, |first_ty| first_ty != ty)
             // {}
             prop_tys.push(ty);
         }
 
         let symbol_flags = SymbolFlags::PROPERTY;
-        let links = SymbolLinks::default().with_containing_ty(containing_ty);
-        let links = if let Some(name_ty) = name_ty {
+        let links = SymbolLinks::default()
+            .with_containing_ty(containing_ty)
+            .with_check_flags(CheckFlags::empty());
+        let mut links = if let Some(name_ty) = name_ty {
             links.with_name_ty(name_ty)
         } else {
             links
         };
         let links = if prop_tys.len() > 2 {
-            links
+            let prop_tys = self.alloc(prop_tys);
+            links.config_check_flags(|config| config | CheckFlags::DEFERRED_TYPE);
+            let links = links
+                .with_deferral_parent(containing_ty)
+                .with_deferral_constituents(prop_tys);
+            if let Some(write_tys) = write_tys {
+                links.with_deferral_constituents(self.alloc(write_tys))
+            } else {
+                links
+            }
         } else {
             let ty = if is_union {
                 self.get_union_ty(&prop_tys, ty::UnionReduction::Lit)
@@ -437,7 +450,7 @@ impl<'cx> TyChecker<'cx> {
         Some(result)
     }
 
-    fn get_prop_of_object_ty(
+    pub(super) fn get_prop_of_object_ty(
         &mut self,
         ty: &'cx ty::Ty<'cx>,
         name: SymbolName,
@@ -457,32 +470,35 @@ impl<'cx> TyChecker<'cx> {
         &mut self,
         source: &'cx Ty<'cx>,
         target: &'cx Ty<'cx>,
-    ) -> Option<(FxHashSet<AtomId>, SymbolID)> {
-        self.get_unmatched_props(source, target)
+        require_optional_properties: bool,
+    ) -> Option<(Vec<AtomId>, SymbolID)> {
+        self.get_unmatched_props(source, target, require_optional_properties)
     }
 
     fn get_unmatched_props(
         &mut self,
         source: &'cx Ty<'cx>,
         target: &'cx Ty<'cx>,
-    ) -> Option<(FxHashSet<AtomId>, SymbolID)> {
-        let symbols = self.get_props_of_ty(target);
-        let set: FxHashSet<_> = symbols
-            .iter()
-            .filter_map(|symbol| {
-                let s = self.symbol(*symbol);
-                let flags = s.flags();
-                let name = s.name();
-                if flags.intersects(SymbolFlags::OPTIONAL) {
-                    None
-                } else if self.get_prop_of_ty(source, name).is_none() {
-                    Some(name.expect_atom())
-                } else {
-                    None
-                }
-            })
-            .collect();
-        if set.is_empty() {
+        require_optional_properties: bool,
+    ) -> Option<(Vec<AtomId>, SymbolID)> {
+        let properties = self.get_props_of_ty(target);
+        let mut unmatched = Vec::with_capacity(properties.len());
+        for target_prop in properties {
+            let s = self.symbol(*target_prop);
+            if require_optional_properties
+                || !(s.flags().intersects(SymbolFlags::OPTIONAL)
+                    || self
+                        .get_check_flags(*target_prop)
+                        .intersects(CheckFlags::PARTIAL))
+            {
+                let target_prop_name = s.name();
+                let Some(source_prop) = self.get_prop_of_ty(source, target_prop_name) else {
+                    unmatched.push(target_prop_name.expect_atom());
+                    continue;
+                };
+            }
+        }
+        if unmatched.is_empty() {
             None
         } else {
             let ty = target.kind.expect_object();
@@ -491,11 +507,13 @@ impl<'cx> TyChecker<'cx> {
                     ObjectTyKind::Reference(ty) => recur(ty.target.kind.expect_object()),
                     ObjectTyKind::Interface(ty) => ty.symbol,
                     ObjectTyKind::Anonymous(ty) => ty.symbol,
-                    _ => unreachable!(),
+                    ObjectTyKind::Mapped(ty) => ty.symbol,
+                    ObjectTyKind::Tuple(ty) => Symbol::ERR,
+                    _ => unreachable!("{ty:#?}"),
                 }
             }
             let symbol = recur(ty);
-            Some((set, symbol))
+            Some((unmatched, symbol))
         }
     }
 

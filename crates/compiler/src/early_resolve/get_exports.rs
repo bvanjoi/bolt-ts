@@ -4,7 +4,7 @@ use crate::bind::{SymbolFlags, SymbolID, SymbolName};
 
 use super::Resolver;
 
-impl<'cx> Resolver<'cx, '_> {
+impl Resolver<'_, '_, '_> {
     pub(super) fn get_exports_of_symbol(
         &mut self,
         symbol: SymbolID,
@@ -16,7 +16,7 @@ impl<'cx> Resolver<'cx, '_> {
         } else if flags.intersects(SymbolFlags::MODULE) {
             self.get_exports_of_module(symbol)
         } else {
-            unreachable!()
+            None
         }
     }
 

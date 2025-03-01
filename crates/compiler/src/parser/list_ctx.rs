@@ -1,5 +1,5 @@
-use super::token::TokenKind;
-use super::{errors, ParserState};
+use super::{ParserState, errors};
+use bolt_ts_ast::TokenKind;
 
 pub(super) trait ListContext: Copy {
     fn is_ele(&self, s: &mut ParserState, is_error_recovery: bool) -> bool;
@@ -52,7 +52,7 @@ impl ListContext for ArgExprs {
 pub(super) struct ObjectLitMembers;
 impl ListContext for ObjectLitMembers {
     fn is_ele(&self, s: &mut ParserState, _: bool) -> bool {
-        use TokenKind::*;
+        use bolt_ts_ast::TokenKind::*;
         matches!(s.token.kind, LBrace) || s.token.kind.is_lit_prop_name()
     }
 
@@ -62,7 +62,7 @@ impl ListContext for ObjectLitMembers {
 }
 
 fn is_ty_member_start(s: &mut ParserState) -> bool {
-    use TokenKind::*;
+    use bolt_ts_ast::TokenKind::*;
     if matches!(s.token.kind, LParen | Less | Get | Set) {
         return true;
     }
@@ -106,7 +106,7 @@ impl ListContext for Params {
     }
 
     fn is_closing(&self, s: &mut ParserState) -> bool {
-        use TokenKind::*;
+        use bolt_ts_ast::TokenKind::*;
         matches!(s.token.kind, RParen | RBracket)
     }
 }
@@ -120,7 +120,7 @@ impl ListContext for TyParams {
     }
 
     fn is_closing(&self, s: &mut ParserState) -> bool {
-        use TokenKind::*;
+        use bolt_ts_ast::TokenKind::*;
         // Tokens other than '>' are here for better error recovery
         matches!(s.token.kind, Great | LParen | LBrace | Extends | Implements)
     }
@@ -135,7 +135,7 @@ impl ListContext for HeritageClause {
     }
 
     fn is_closing(&self, s: &mut ParserState) -> bool {
-        use TokenKind::*;
+        use bolt_ts_ast::TokenKind::*;
         matches!(s.token.kind, LBrace) || s.token.kind.is_heritage_clause()
     }
 }
@@ -170,7 +170,7 @@ impl ListContext for ArrayLiteralMembers {
 pub(super) struct TyArgs;
 impl ListContext for TyArgs {
     fn is_ele(&self, s: &mut ParserState, _: bool) -> bool {
-        matches!(s.token.kind, TokenKind::Comma) || s.is_start_of_ty()
+        matches!(s.token.kind, TokenKind::Comma) || s.is_start_of_ty(false)
     }
 
     fn is_closing(&self, s: &mut ParserState) -> bool {

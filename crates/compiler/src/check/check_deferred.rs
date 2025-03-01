@@ -1,4 +1,4 @@
-use crate::ast;
+use bolt_ts_ast as ast;
 
 use super::NodeFlags;
 use super::TyChecker;
@@ -12,7 +12,7 @@ impl TyChecker<'_> {
         }
     }
 
-    pub fn check_deferred_nodes(&mut self, module_id: bolt_ts_span::ModuleID) {
+    pub(crate) fn check_deferred_nodes(&mut self, module_id: bolt_ts_span::ModuleID) {
         let mut deferred_nodes = std::mem::take(&mut self.deferred_nodes[module_id.as_usize()]);
         while let Some(node) = deferred_nodes.pop() {
             self.check_deferred_node(node);
@@ -21,7 +21,7 @@ impl TyChecker<'_> {
 
     fn check_deferred_node(&mut self, node: ast::NodeID) {
         let n = self.p.node(node);
-        use ast::Node::*;
+        use bolt_ts_ast::Node::*;
         match n {
             FnExpr(expr) => self.check_fn_like_expr_deferred(expr),
             ArrowFnExpr(expr) => self.check_fn_like_expr_deferred(expr),

@@ -1,10 +1,9 @@
 use std::hash::Hash;
 
-use super::ast;
 use super::ElementFlags;
 use super::TyMap;
-use super::TyMapper;
 use super::TypeFlags;
+use super::ast;
 use crate::bind::SymbolID;
 use crate::check::TyChecker;
 
@@ -33,6 +32,8 @@ bitflags::bitflags! {
 }
 
 bolt_ts_utils::index!(SigID);
+
+impl nohash_hasher::IsEnabled for SigID {}
 
 impl SigID {
     pub const fn dummy() -> Self {
@@ -73,7 +74,7 @@ impl<'cx> Sig<'cx> {
     pub fn get_rest_ty(&self, checker: &mut TyChecker<'cx>) -> Option<&'cx super::Ty<'cx>> {
         self.has_rest_param().then(|| {
             let rest_ty = checker.get_type_of_symbol(*self.params.last().unwrap());
-            if !rest_ty.kind.is_tuple() {
+            if !rest_ty.is_tuple() {
                 if rest_ty.flags.intersects(TypeFlags::ANY) {
                     checker.any_array_ty()
                 } else {
@@ -103,7 +104,7 @@ impl<'cx> Sig<'cx> {
         let len = self.params.len();
         if self.has_rest_param() {
             let rest_ty = checker.get_type_of_symbol(self.params[len - 1]);
-            if rest_ty.kind.is_tuple() {
+            if rest_ty.is_tuple() {
                 let tuple = rest_ty
                     .kind
                     .expect_object_reference()

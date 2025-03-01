@@ -4,5 +4,5 @@ class B {
   constructor() {}
 }
 B.hasOwnProperty("foo");
-var a = A.hasOwnProperty("foo")
-var b = B.hasOwnProperty("foo")
+var a = A.hasOwnProperty("foo");
+var b = B.hasOwnProperty("foo");

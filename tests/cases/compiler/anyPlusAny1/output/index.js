@@ -1,3 +1,3 @@
-var x
+var x;
 x.name = "hello";
-var z = x + x
+var z = x + x;

@@ -2,7 +2,7 @@ use bolt_ts_utils::fx_hashmap_with_capacity;
 pub use paste;
 use std::borrow::Cow;
 
-#[derive(Debug, PartialEq, Eq, Hash, Clone, Copy)]
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Clone, Copy)]
 pub struct AtomId(u64);
 
 impl AtomId {
@@ -15,6 +15,8 @@ impl AtomId {
         Self(xxh3_64(bytes))
     }
 }
+
+impl nohash_hasher::IsEnabled for AtomId {}
 
 #[derive(Debug)]
 pub struct AtomMap<'a>(rustc_hash::FxHashMap<AtomId, Cow<'a, str>>);
@@ -46,6 +48,10 @@ impl<'a> AtomMap<'a> {
     pub fn insert(&mut self, atom: AtomId, value: Cow<'a, str>) {
         let prev = self.0.insert(atom, value);
         assert!(prev.is_none());
+    }
+
+    pub fn contains(&self, atom: AtomId) -> bool {
+        self.0.contains_key(&atom)
     }
 
     pub fn get(&self, atom: AtomId) -> &str {

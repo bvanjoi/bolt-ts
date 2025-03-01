@@ -21,20 +21,30 @@ impl<'cx> TyChecker<'cx> {
             return false;
         }
 
-        if flags.intersects(TypeFlags::NUMBER_LIKE) {
-            self.is_type_assignable_to(source, self.number_ty)
-        } else if flags.intersects(TypeFlags::STRING_LIKE) {
-            self.is_type_assignable_to(source, self.string_ty)
-        } else if flags.intersects(TypeFlags::BOOLEAN_LIKE) {
-            self.is_type_assignable_to(source, self.boolean_ty())
-        } else if flags.intersects(TypeFlags::VOID) {
-            self.is_type_assignable_to(source, self.void_ty)
-        } else if flags.intersects(TypeFlags::NULL) {
-            self.is_type_assignable_to(source, self.null_ty)
-        } else if flags.intersects(TypeFlags::UNDEFINED) {
-            self.is_type_assignable_to(source, self.undefined_ty)
-        } else {
-            unreachable!()
+        macro_rules! check_assignable {
+            ($flags:expr, $source:expr, $self:expr, { $($flag:ident => $ty:expr),* }) => {
+                $(
+                    if $flags.intersects(TypeFlags::$flag) && $self.is_type_assignable_to($source, $ty) {
+                        return true;
+                    }
+                )*
+            };
         }
+
+        check_assignable!(flags, source, self, {
+            NUMBER_LIKE => self.number_ty,
+            BIG_INT_LIKE => self.bigint_ty,
+            STRING_LIKE => self.string_ty,
+            BOOLEAN_LIKE => self.boolean_ty(),
+            VOID => self.void_ty,
+            NULL => self.null_ty,
+            NEVER => self.never_ty,
+            NULL => self.null_ty,
+            UNDEFINED => self.undefined_ty,
+            ES_SYMBOL_LIKE => self.symbol_ty,
+            NON_PRIMITIVE => self.non_primitive_ty
+        });
+
+        false
     }
 }

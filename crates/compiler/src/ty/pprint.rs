@@ -1,22 +1,22 @@
 use crate::check::TyChecker;
 
-pub fn pprint_reference_ty<'cx>(
-    ty: &super::ReferenceTy<'cx>,
-    checker: &mut TyChecker<'cx>,
-) -> String {
-    let args = ty
-        .resolved_ty_args
+pub fn pprint_reference_ty<'cx>(ty: &'cx super::Ty<'cx>, checker: &mut TyChecker<'cx>) -> String {
+    let refer = ty.kind.expect_object_reference();
+    let ty_args = checker.get_ty_arguments(ty);
+    if ty_args.is_empty() {
+        return refer.target.to_string(checker);
+    }
+    let args = ty_args
         .iter()
         .map(|ty| ty.to_string(checker))
         .collect::<Vec<_>>()
         .join(", ");
-    if ty.target.kind.as_object_tuple().is_some() {
-        assert!(!args.is_empty());
+    if refer.target.kind.as_object_tuple().is_some() {
         format!("[{args}]",)
-    } else if args.is_empty() {
-        ty.target.to_string(checker)
+    } else if let Some(i) = refer.interface_target() {
+        format!("{}<{args}>", i.to_string(checker))
     } else {
-        format!("{}<{args}>", ty.deep_target().to_string(checker))
+        unreachable!()
     }
 }
 

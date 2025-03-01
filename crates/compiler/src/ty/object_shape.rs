@@ -23,7 +23,8 @@ impl<'cx> ObjectShape<'cx> for TupleTy<'cx> {
             }
         } else if let Some(idx) = name.as_numeric() {
             assert_eq!(idx.fract(), 0.0);
-            todo!()
+            // query later
+            None
         } else {
             unreachable!()
         }

@@ -1,9 +1,10 @@
 use super::Emit;
-use crate::{ast, ensure_sufficient_stack};
+use crate::ensure_sufficient_stack;
+use bolt_ts_ast as ast;
 
 impl<'cx> Emit<'cx> {
     pub(super) fn emit_expr(&mut self, expr: &'cx ast::Expr<'cx>) {
-        use ast::ExprKind::*;
+        use bolt_ts_ast::ExprKind::*;
         match expr.kind {
             Bin(bin) => self.emit_bin_expr(bin),
             BoolLit(bool) => self.content.p(&bool.val.to_string()),
@@ -76,6 +77,33 @@ impl<'cx> Emit<'cx> {
                 self.emit_expr(n.expr);
             }
             Super(_) => self.content.p("super"),
+            As(n) => {
+                self.emit_expr(n.expr);
+            }
+            Satisfies(n) => {
+                self.emit_expr(n.expr);
+            }
+            NonNull(n) => {
+                self.emit_expr(n.expr);
+            }
+            Template(n) => {
+                self.content.p("`");
+                self.content.p(self.atoms.get(n.head.text));
+                for span in n.spans {
+                    self.content.p("${");
+                    self.emit_expr(span.expr);
+                    self.content.p("}");
+                    self.content.p(self.atoms.get(span.text));
+                }
+                self.content.p("`");
+            }
+            BigIntLit(lit) => {
+                if lit.val.0 {
+                    self.content.p("-");
+                }
+                self.content.p(self.atoms.get(lit.val.1));
+                self.content.p("n");
+            }
         };
     }
 
@@ -171,7 +199,7 @@ impl<'cx> Emit<'cx> {
     }
 
     fn emit_object_member(&mut self, field: &'cx ast::ObjectMember<'cx>) {
-        use ast::ObjectMemberKind::*;
+        use bolt_ts_ast::ObjectMemberKind::*;
         match field.kind {
             Prop(n) => self.emit_object_prop_member(n),
             Shorthand(n) => self.emit_object_shorthand_member(n),

@@ -1,1 +1,1 @@
-var foo = [{id: 1}, {id: 2}]
+var foo = [{id: 1}, {id: 2}];

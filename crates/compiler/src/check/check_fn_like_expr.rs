@@ -1,6 +1,7 @@
 use super::NodeFlags;
 use super::{CheckMode, TyChecker};
-use crate::{ast, ir, ty};
+use crate::{ir, ty};
+use bolt_ts_ast as ast;
 
 impl<'cx> TyChecker<'cx> {
     fn contextually_check_fn_expr_or_object_method_member(&mut self, id: ast::NodeID) {
@@ -32,8 +33,7 @@ impl<'cx> TyChecker<'cx> {
                                 if inference.inference.is_none() {
                                     return;
                                 }
-                                let mapper = self
-                                    .create_inference_fixing_mapper(inference.inference.unwrap());
+                                let mapper = self.inference(inference.inference.unwrap()).mapper;
                                 instantiated_contextual_sig =
                                     Some(self.instantiate_sig(contextual_sig, mapper, false));
                             } else {
@@ -94,7 +94,7 @@ impl<'cx> TyChecker<'cx> {
         let flags = n.fn_flags();
         let ret_ty = self.get_ret_ty_from_anno(id);
 
-        use ast::ArrowFnExprBody::*;
+        use bolt_ts_ast::ArrowFnExprBody::*;
         match body {
             Block(block) => self.check_block(block),
             Expr(expr) => {

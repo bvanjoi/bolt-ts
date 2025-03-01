@@ -7,11 +7,13 @@ use super::symbol::{
     BlockContainerSymbol, FnSymbol, InterfaceSymbol, NsSymbol, ObjectSymbol, PropSymbol,
     SymbolFlags,
 };
-use super::{errors, BinderState, Symbol, SymbolFnKind, SymbolID, SymbolKind, SymbolName};
-use crate::{ast, ir};
+use super::{BinderState, Symbol, SymbolFnKind, SymbolID, SymbolKind, SymbolName, errors};
+use crate::ir;
+
+use bolt_ts_ast as ast;
 use bolt_ts_utils::fx_hashmap_with_capacity;
 
-impl<'cx> BinderState<'cx> {
+impl<'cx> BinderState<'cx, '_> {
     pub(super) fn create_final_res(&mut self, id: ast::NodeID, symbol: SymbolID) {
         let prev = self.final_res.insert(id, symbol);
         assert!(prev.is_none(), "prev: {:#?}", prev.unwrap());

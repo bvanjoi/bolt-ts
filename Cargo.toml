@@ -1,6 +1,7 @@
 [workspace]
 resolver = "2"
 members = [
+  "crates/ast",
   "crates/atom",
   "crates/compiler",
   "crates/compile-test",
@@ -12,6 +13,7 @@ members = [
   "crates/resolve",
   "crates/span",
   "crates/utils",
+  "crates/wasm",
 ]
 
 [workspace.dependencies]

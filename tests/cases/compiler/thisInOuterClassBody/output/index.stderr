@@ -1,0 +1,18 @@
+  × Property 'y' does not exist on type 'Foo'.
+    ╭─[../../tests/cases/compiler/thisInOuterClassBody/index.ts:14:20]
+ 14 │ y
+    · ─
+    ╰────
+
+Advice: 
+  ☞ Did you mean to access the static member 'Foo.y' instead?
+    ╭─[../../tests/cases/compiler/thisInOuterClassBody/index.ts:14:20]
+ 14 │ y
+    · ─
+    ╰────
+
+  × Property 'x' does not exist on type 'typeof Foo'.
+    ╭─[../../tests/cases/compiler/thisInOuterClassBody/index.ts:21:20]
+ 21 │ x
+    · ─
+    ╰────

@@ -1,10 +1,10 @@
-use std::borrow::Cow;
+use std::{borrow::Cow, str};
 
 use bolt_ts_atom::AtomId;
 use bolt_ts_span::Span;
 
-use super::token::{keyword_idx_to_token, Token, TokenFlags, TokenKind};
 use super::{PResult, ParserState, TokenValue};
+use bolt_ts_ast::{Token, TokenFlags, TokenKind, keyword_idx_to_token};
 
 use crate::keyword::KEYWORDS;
 
@@ -40,6 +40,20 @@ fn is_octal_digit(ch: u8) -> bool {
 
 const UTF8_CHAR_LEN_MAX: u32 = 6;
 
+bitflags::bitflags! {
+    pub struct EscapeSequenceScanningFlags: u32 {
+        const STRING                  = 1 << 0;
+        const REPORT_ERRORS           = 1 << 1;
+        const REGULAR_EXPRESSION      = 1 << 2;
+        const ANNEX_B                 = 1 << 3;
+        const ANY_UNICODE_MODE        = 1 << 4;
+        const ATOM_ESCAPE             = 1 << 5;
+
+        const REPORT_INVALID_ESCAPE_ERRORS  = Self::REGULAR_EXPRESSION.bits() | Self::REPORT_ERRORS.bits();
+        const ALLOW_EXTENDED_UNICODE_ESCAPE = Self::STRING.bits() | Self::ANY_UNICODE_MODE.bits();
+    }
+}
+
 impl ParserState<'_, '_> {
     fn ch(&self) -> Option<u8> {
         self.input.get(self.pos).copied()
@@ -64,6 +78,40 @@ impl ParserState<'_, '_> {
             hi: self.full_start_pos as u32,
             module: self.module_id,
         }
+    }
+
+    fn scan_binary_or_octal_digits(&mut self, base: u8) -> Vec<u8> {
+        assert!(base == 2 || base == 8);
+        let mut sep_allowed = false;
+        let mut is_prev_token_sep = false;
+        let mut v = Vec::with_capacity(16);
+        loop {
+            let ch = self.ch_unchecked();
+            if ch == b'_' {
+                self.token_flags |= TokenFlags::CONTAINS_SEPARATOR;
+                if sep_allowed {
+                    sep_allowed = false;
+                    is_prev_token_sep = true;
+                } else if is_prev_token_sep {
+                    todo!("error")
+                } else {
+                    todo!("error");
+                }
+                self.pos += 1;
+                continue;
+            }
+            sep_allowed = true;
+            if !ch.is_ascii_digit() || ch - b'0' >= base {
+                break;
+            }
+            v.push(self.input[self.pos]);
+            self.pos += 1;
+            is_prev_token_sep = false;
+        }
+        if self.input[self.pos - 1] == b'_' {
+            todo!("error");
+        }
+        v
     }
 
     fn scan_number_fragment(&mut self) -> Vec<u8> {
@@ -116,7 +164,7 @@ impl ParserState<'_, '_> {
 
     fn scan_number(&mut self) -> Token {
         let start = self.pos;
-        let fragment = if self.input[self.pos] == b'0' {
+        let main_frag = if self.input[self.pos] == b'0' {
             self.pos += 1;
             if self.ch() == Some(b'_') {
                 todo!()
@@ -141,24 +189,54 @@ impl ParserState<'_, '_> {
         } else {
             self.scan_number_fragment()
         };
+        let decimal_frag;
         if self.ch() == Some(b'.') {
-            todo!()
+            self.pos += 1;
+            decimal_frag = Some(self.scan_number_fragment());
+        } else {
+            decimal_frag = None;
         }
-        if self.ch() == Some(b'e') || self.ch() == Some(b'E') {
-            todo!()
+        let mut scientific_frag = None;
+        let mut end = self.pos;
+        if self.ch().is_some_and(|c| matches!(c, b'e' | b'E')) {
+            self.pos += 1;
+            self.token_flags |= TokenFlags::SCIENTIFIC;
+            if self.ch().is_some_and(|c| matches!(c, b'+' | b'-')) {
+                self.pos += 1;
+            }
+            let pre_numeric_part = self.pos;
+            let final_frag = self.scan_number_fragment();
+            if final_frag.is_empty() {
+                todo!("error");
+            } else {
+                let mut t = self.input[end..pre_numeric_part].to_vec();
+                t.extend(final_frag.iter());
+                // `e{xxx}`
+                scientific_frag = Some(t);
+                end = self.pos;
+            }
         }
-        if self.ch() == Some(b'n') {
+
+        let result = if self.token_flags.intersects(TokenFlags::CONTAINS_SEPARATOR) {
             todo!()
-        }
+        } else {
+            self.input[start..end].to_vec()
+        };
+
+        let kind = if self.ch() == Some(b'n') {
+            self.pos += 1;
+            let value = self.atoms.lock().unwrap().insert_by_vec(result);
+            self.token_value = Some(TokenValue::Ident { value });
+            TokenKind::BigInt
+        } else {
+            let num = unsafe { String::from_utf8_unchecked(result) }
+                .parse::<f64>()
+                .unwrap();
+            self.token_value = Some(TokenValue::Number { value: num });
+            TokenKind::Number
+        };
         let end = self.pos;
-        let num = unsafe { String::from_utf8_unchecked(fragment) }
-            .parse::<f64>()
-            .unwrap();
-        self.token_value = Some(TokenValue::Number { value: num });
-        Token::new(
-            TokenKind::Number,
-            Span::new(start as u32, end as u32, self.module_id),
-        )
+        Token::new(kind, Span::new(start as u32, end as u32, self.module_id))
     }
 
     // From `quickjs/cutils.c/unicode_from_utf8`
@@ -524,6 +602,18 @@ impl ParserState<'_, '_> {
                         Span::new(start as u32, self.pos as u32, self.module_id),
                     )
                 }
+                b'!' if self.next_ch() == Some(b'=') => {
+                    let kind = if self.next_next_ch() == Some(b'=') {
+                        self.pos += 3;
+                        TokenKind::BangEqEq
+                    } else {
+                        self.pos += 2;
+                        TokenKind::BangEq
+                    };
+
+                    let span = Span::new(start as u32, self.pos as u32, self.module_id);
+                    Token::new(kind, span)
+                }
                 b',' | b';' | b':' | b'[' | b']' | b'(' | b')' | b'{' | b'}' | b'!' | b'.' => {
                     self.pos += 1;
                     let kind = unsafe { std::mem::transmute::<u8, TokenKind>(ch) };
@@ -533,9 +623,7 @@ impl ParserState<'_, '_> {
                     )
                 }
                 b'\'' | b'"' => {
-                    let (offset, v, key_value) = self.scan_string(ch);
-                    self.pos += offset;
-
+                    let (v, key_value) = self.scan_string(ch, false);
                     let len = v.len();
                     let atom = self.atoms.lock().unwrap().insert_by_vec(v);
                     if len != key_value.len() {
@@ -550,9 +638,62 @@ impl ParserState<'_, '_> {
                         Span::new(start as u32, self.pos as u32, self.module_id),
                     )
                 }
-                b'`' => self.scan_temp_string(),
-                b'0' => self.scan_number(),
-                b'1'..=b'9' => self.scan_number(),
+                b'`' => self.scan_template_and_set_token_value(false),
+                b'0' if self.pos + 2 < self.end()
+                    && self.next_ch().is_some_and(|c| matches!(c, b'X' | b'x')) =>
+                {
+                    self.pos += 2;
+                    let v = self.scan_minimum_number_of_hex_digits(1, true);
+                    if v.is_empty() {
+                        todo!()
+                    }
+                    self.token_flags = TokenFlags::HEX_SPECIFIER;
+                    let s = unsafe { str::from_boxed_utf8_unchecked(v.into()) };
+                    let v = u32::from_str_radix(&s, 16).unwrap();
+                    // TODO: check bigint suffix
+                    self.token_value = Some(TokenValue::Number { value: v as f64 });
+                    Token::new(
+                        TokenKind::Number,
+                        Span::new(start as u32, self.pos as u32, self.module_id),
+                    )
+                }
+                b'0' if self.pos + 2 < self.end()
+                    && self.next_ch().is_some_and(|c| matches!(c, b'B' | b'b')) =>
+                {
+                    self.pos += 2;
+                    let v = self.scan_binary_or_octal_digits(8);
+                    if v.is_empty() {
+                        todo!()
+                    }
+                    self.token_flags = TokenFlags::BINARY_SPECIFIER;
+                    let s = unsafe { str::from_boxed_utf8_unchecked(v.into()) };
+                    let v = u32::from_str_radix(&s, 2).unwrap();
+                    // TODO: check bigint suffix
+                    self.token_value = Some(TokenValue::Number { value: v as f64 });
+                    Token::new(
+                        TokenKind::Number,
+                        Span::new(start as u32, self.pos as u32, self.module_id),
+                    )
+                }
+                b'0' if self.pos + 2 < self.end()
+                    && self.next_ch().is_some_and(|c| matches!(c, b'O' | b'o')) =>
+                {
+                    self.pos += 2;
+                    let v = self.scan_binary_or_octal_digits(8);
+                    if v.is_empty() {
+                        todo!()
+                    }
+                    self.token_flags = TokenFlags::OCTAL_SPECIFIER;
+                    let s = unsafe { str::from_boxed_utf8_unchecked(v.into()) };
+                    let v = u32::from_str_radix(&s, 8).unwrap();
+                    // TODO: check bigint suffix
+                    self.token_value = Some(TokenValue::Number { value: v as f64 });
+                    Token::new(
+                        TokenKind::Number,
+                        Span::new(start as u32, self.pos as u32, self.module_id),
+                    )
+                }
+                b'0'..=b'9' => self.scan_number(),
                 _ if ch.is_ascii_whitespace() => {
                     if ch == b'\n' {
                         self.token_flags.insert(TokenFlags::PRECEDING_LINE_BREAK);
@@ -567,56 +708,268 @@ impl ParserState<'_, '_> {
         }
     }
 
-    fn scan_temp_string(&mut self) -> Token {
+    fn scan_template_and_set_token_value(
+        &mut self,
+        should_emit_invalid_escape_error: bool,
+    ) -> Token {
+        let started_with_backtick = self.ch_unchecked() == b'`';
         let start = self.pos;
         self.pos += 1;
-        let mut v = Vec::with_capacity(32);
-        loop {
+        let mut contents = Vec::with_capacity(32);
+        let kind = loop {
             if self.pos == self.end() {
-                break;
-            } else if self.ch_unchecked() == b'`' {
+                return Token::new(
+                    TokenKind::EOF,
+                    Span::new(start as u32, start as u32, self.module_id),
+                );
+            }
+            let ch = self.ch_unchecked();
+            if ch == b'`' {
                 self.pos += 1;
-                let atom = self.atoms.lock().unwrap().insert_by_vec(v);
+                let atom = self.atoms.lock().unwrap().insert_by_vec(contents);
                 self.token_value = Some(TokenValue::Ident { value: atom });
-                break;
-            } else if self.ch_unchecked() == b'$' && self.next_ch() == Some(b'{') {
-                todo!()
+                break if started_with_backtick {
+                    TokenKind::NoSubstitutionTemplate
+                } else {
+                    TokenKind::TemplateTail
+                };
+            } else if ch == b'$' && self.next_ch() == Some(b'{') {
+                // `${`
+                let atom = self.atoms.lock().unwrap().insert_by_vec(contents);
+                self.token_value = Some(TokenValue::Ident { value: atom });
+                self.pos += 2;
+                break if started_with_backtick {
+                    TokenKind::TemplateHead
+                } else {
+                    TokenKind::TemplateMiddle
+                };
             } else {
-                v.push(self.ch_unchecked());
+                contents.push(ch);
                 self.pos += 1;
             }
-        }
+        };
         Token::new(
-            TokenKind::NoSubstitutionTemplate,
+            kind,
             Span::new(start as u32, self.pos as u32, self.module_id),
         )
     }
 
-    fn scan_string(&self, quote: u8) -> (usize, Vec<u8>, Vec<u8>) {
+    fn scan_escape_sequence(&mut self, flags: EscapeSequenceScanningFlags) -> Vec<u8> {
+        assert_eq!(self.ch_unchecked(), b'\\');
         let start = self.pos;
-        let mut offset = 1;
+        self.pos += 1;
+        let end = self.end();
+        if self.pos >= end {
+            // TODO: error
+            return Vec::new();
+        }
+        let ch = self.ch_unchecked();
+        self.pos += 1;
+        if ch == b'0' && (self.pos >= end || !self.ch_unchecked().is_ascii_digit()) {
+            return vec![b'\0'];
+        }
+        if matches!(ch, b'0'..=b'3') && self.pos < end && is_octal_digit(self.ch_unchecked()) {
+            self.pos += 1;
+        }
+        if matches!(ch, b'0'..=b'7') {
+            if self.pos < end && is_octal_digit(self.ch_unchecked()) {
+                self.pos += 1;
+            }
+            self.token_flags |= TokenFlags::CONTAINS_SEPARATOR;
+            if flags.intersects(EscapeSequenceScanningFlags::REPORT_INVALID_ESCAPE_ERRORS) {
+                todo!()
+            }
+            return self.input[start..self.pos].to_vec();
+        }
+        if matches!(ch, b'8' | b'9') {
+            self.token_flags |= TokenFlags::CONTAINS_SEPARATOR;
+            if flags.intersects(EscapeSequenceScanningFlags::REPORT_INVALID_ESCAPE_ERRORS) {
+                todo!()
+            }
+            return self.input[start..self.pos].to_vec();
+        }
+        match ch {
+            b'b' => vec![8],
+            b't' => vec![9],
+            b'n' => vec![b'\n'],
+            b'v' => vec![11],
+            b'f' => vec![12],
+            b'r' => vec![b'\r'],
+            b'\'' => vec![b'\''],
+            b'"' => vec![b'"'],
+            b'u' => {
+                if self.pos < end && self.ch_unchecked() == b'{' {
+                    self.pos -= 2;
+                    let result = self.scan_extended_unicode_escape(
+                        flags.intersects(EscapeSequenceScanningFlags::REPORT_INVALID_ESCAPE_ERRORS),
+                    );
+                    if !flags.intersects(EscapeSequenceScanningFlags::ALLOW_EXTENDED_UNICODE_ESCAPE)
+                    {
+                        self.token_flags |= TokenFlags::CONTAINS_INVALID_ESCAPE;
+                        if flags
+                            .intersects(EscapeSequenceScanningFlags::REPORT_INVALID_ESCAPE_ERRORS)
+                        {
+                            // TODO: handle error
+                        }
+                    }
+                    return result;
+                }
+                // TODO: more case
+                vec![ch]
+            }
+            b'\r' => {
+                if self.pos < end && self.ch_unchecked() == b'\n' {
+                    self.pos += 1;
+                }
+                vec![]
+            }
+            b'\n' => vec![],
+            // TODO: more case
+            _ => {
+                if flags.intersects(EscapeSequenceScanningFlags::ANY_UNICODE_MODE)
+                    || flags.intersects(EscapeSequenceScanningFlags::REGULAR_EXPRESSION)
+                        && !flags.intersects(EscapeSequenceScanningFlags::ANNEX_B)
+                        && is_identifier_start(ch)
+                {
+                    todo!("error handle")
+                }
+                vec![ch]
+            }
+        }
+    }
+
+    fn scan_extended_unicode_escape(&mut self, should_emit_invalid_escape_error: bool) -> Vec<u8> {
+        let start = self.pos;
+        assert_eq!(self.ch_unchecked(), b'\\');
+        assert_eq!(self.next_ch(), Some(b'u'));
+        assert_eq!(self.next_next_ch(), Some(b'{'));
+        self.pos += 3;
+        // let escaped_start = self.pos;
+        let escaped_value_string = self.scan_minimum_number_of_hex_digits(1, false);
+        let escape_value = u32::from_str_radix(
+            unsafe { core::str::from_utf8_unchecked(&escaped_value_string) },
+            16,
+        );
+        let mut is_invalid_extended_escape = false;
+        match escape_value {
+            Ok(escape_value) => {
+                if escape_value > 0x10ffff {
+                    if should_emit_invalid_escape_error {
+                        todo!()
+                    }
+                    is_invalid_extended_escape = true;
+                }
+            }
+            Err(_) => {
+                if should_emit_invalid_escape_error {
+                    todo!()
+                }
+                is_invalid_extended_escape = true
+            }
+        }
+
+        if self.pos >= self.end() {
+            if should_emit_invalid_escape_error {
+                todo!()
+            }
+            is_invalid_extended_escape = true;
+        } else if self.ch_unchecked() == b'}' {
+            self.pos += 1;
+        } else {
+            if should_emit_invalid_escape_error {
+                todo!()
+            }
+            is_invalid_extended_escape = true;
+        }
+
+        if is_invalid_extended_escape {
+            self.token_flags |= TokenFlags::CONTAINS_INVALID_ESCAPE;
+            self.input[start..self.pos].to_vec()
+        } else {
+            self.token_flags |= TokenFlags::EXTENDED_UNICODE_ESCAPE;
+            utf16_encode_as_bytes(escape_value.unwrap())
+        }
+    }
+
+    fn scan_minimum_number_of_hex_digits(&mut self, count: usize, can_have_sep: bool) -> Vec<u8> {
+        self.scan_hex_digits(count, true, can_have_sep)
+    }
+
+    fn scan_hex_digits(
+        &mut self,
+        min_count: usize,
+        scan_as_many_as_possible: bool,
+        can_have_sep: bool,
+    ) -> Vec<u8> {
+        let mut value_chars = Vec::with_capacity(8);
+        let mut allow_sep = false;
+        let mut is_prev_token_sep = false;
+        while value_chars.len() < min_count || scan_as_many_as_possible {
+            let mut ch = self.ch_unchecked();
+            if can_have_sep && ch == b'_' {
+                if allow_sep {
+                    allow_sep = false;
+                    is_prev_token_sep = true;
+                } else if is_prev_token_sep {
+                    todo!()
+                } else {
+                    todo!()
+                }
+                self.pos += 1;
+                continue;
+            }
+            allow_sep = can_have_sep;
+            if matches!(ch, b'A'..=b'F') {
+                ch += b'a' - b'A';
+            } else if !matches!(ch, b'0'..=b'9' | b'a'..=b'f') {
+                break;
+            }
+            value_chars.push(ch);
+            self.pos += 1;
+            is_prev_token_sep = false;
+        }
+        if value_chars.len() < min_count {
+            value_chars.clear();
+        }
+        if self.input[self.pos - 1] == b'_' {
+            todo!()
+        };
+        value_chars
+    }
+
+    fn scan_string(&mut self, quote: u8, jsx_attribute_string: bool) -> (Vec<u8>, Vec<u8>) {
+        self.pos += 1;
         let mut v = Vec::with_capacity(32);
         let mut prev = 0;
         let mut key = Vec::with_capacity(32);
         loop {
-            let idx = start + offset;
-            if idx >= self.end() {
+            if self.pos >= self.end() {
                 break;
             }
-            let ch = self.input[idx];
-            offset += 1;
+            let ch = self.ch_unchecked();
             if ch == quote {
+                self.pos += 1;
                 break;
+            } else if ch == b'\\' && !jsx_attribute_string {
+                let t = self.scan_escape_sequence(
+                    EscapeSequenceScanningFlags::STRING
+                        | EscapeSequenceScanningFlags::REPORT_ERRORS,
+                );
+                v.extend(t.iter());
+                key.extend(t.iter());
+                continue;
             }
+
             if !(ch == b'\n' && prev == b'\\') {
                 key.push(ch);
             } else {
                 key.pop();
             }
+            self.pos += 1;
             v.push(ch);
             prev = ch;
         }
-        (offset, v, key)
+        (v, key)
     }
 
     pub(super) fn re_scan_greater(&mut self) -> TokenKind {
@@ -676,4 +1029,37 @@ impl ParserState<'_, '_> {
     pub(super) fn re_scan_less(&mut self) -> TokenKind {
         self.token.kind
     }
+
+    pub(super) fn re_scan_template_token(&mut self, is_tagged_template: bool) -> Token {
+        self.pos = self.token.start() as usize;
+        self.token = self.scan_template_and_set_token_value(!is_tagged_template);
+        self.token
+    }
+}
+
+fn utf16_encode_as_bytes(code_point: u32) -> Vec<u8> {
+    assert!(code_point <= 0x10FFFF);
+    if code_point < 256 {
+        return vec![code_point as u8];
+    } else if code_point <= 0xFFFF {
+        let lo = (code_point & 0xFF) as u8;
+        let hi = ((code_point >> 8) & 0xFF) as u8;
+        return vec![lo, hi];
+    }
+
+    let surrogate = code_point - 0x10000;
+    let high_surrogate = ((surrogate >> 10) + 0xD800) as u16;
+    let low_surrogate = ((surrogate & 0x3FF) + 0xDC00) as u16;
+
+    let mut buf = Vec::with_capacity(4);
+    buf.extend_from_slice(&high_surrogate.to_le_bytes());
+    buf.extend_from_slice(&low_surrogate.to_le_bytes());
+    buf
+}
+
+#[test]
+fn test_utf16_encode_as_bytes() {
+    assert_eq!(utf16_encode_as_bytes(9), vec![9]);
+    assert_eq!(utf16_encode_as_bytes(20), vec![20]);
+    assert_eq!(utf16_encode_as_bytes(255), vec![255]);
 }

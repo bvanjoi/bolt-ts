@@ -11,7 +11,6 @@ links!(
     (write_ty, &'cx ty::Ty<'cx>),
     (declared_ty, &'cx ty::Ty<'cx>),
     (ty_params, ty::Tys<'cx>),
-    (check_flags, ty::CheckFlags),
     (target, SymbolID),
     (ty_mapper, &'cx dyn ty::TyMap<'cx>),
     (resolved_members, &'cx FxHashMap<SymbolName, SymbolID>),
@@ -19,4 +18,14 @@ links!(
     (name_ty, &'cx ty::Ty<'cx>),
     (containing_ty, &'cx ty::Ty<'cx>),
     (variances, &'cx [VarianceFlags]),
+    // transient symbol
+    (check_flags, ty::CheckFlags),
+    // mapped symbol
+    (mapped_ty, &'cx ty::Ty<'cx>),
+    (named_ty, &'cx ty::Ty<'cx>),
+    (key_ty, &'cx ty::Ty<'cx>),
+    // deferral
+    (deferral_parent, &'cx ty::Ty<'cx>),
+    (deferral_constituents, ty::Tys<'cx>),
+    (deferral_write_constituents, ty::Tys<'cx>),
 );

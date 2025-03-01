@@ -1,4 +1,4 @@
 
 
-var p
-var stuck = p
+var p;
+var stuck = p;

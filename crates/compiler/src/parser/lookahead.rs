@@ -1,5 +1,5 @@
-use super::token::TokenKind;
 use super::{PResult, ParserState, Tristate};
+use bolt_ts_ast::TokenKind;
 
 impl ParserState<'_, '_> {
     pub(super) fn is_tuple_ele_name(&mut self) -> bool {
@@ -41,8 +41,7 @@ impl ParserState<'_, '_> {
 
     pub(super) fn next_token_is_numeric_or_big_int_literal(&mut self) -> bool {
         self.next_token();
-        // TODO: big int lit
-        matches!(self.token.kind, TokenKind::Number)
+        matches!(self.token.kind, TokenKind::Number | TokenKind::BigInt)
     }
 
     fn next_token_is_identifier_on_same_line(&mut self) -> bool {
@@ -62,7 +61,7 @@ impl ParserState<'_, '_> {
     }
 
     fn is_decl(&mut self) -> bool {
-        use TokenKind::*;
+        use bolt_ts_ast::TokenKind::*;
         loop {
             match self.token.kind {
                 Var | Let | Const | Function | Class | Enum => return true,
@@ -79,7 +78,7 @@ impl ParserState<'_, '_> {
                 }
                 Interface | Type => return self.next_token_is_identifier_on_same_line(),
                 Module | Namespace => {
-                    return self.next_token_is_identifier_or_string_literal_on_same_line()
+                    return self.next_token_is_identifier_or_string_literal_on_same_line();
                 }
                 Import => {
                     self.next_token();
@@ -109,7 +108,7 @@ impl ParserState<'_, '_> {
     }
 
     fn _is_paren_arrow_fn_expr(&mut self) -> Tristate {
-        use TokenKind::*;
+        use bolt_ts_ast::TokenKind::*;
         if self.token.kind == TokenKind::Async {
             self.next_token();
             if self.has_preceding_line_break() || !matches!(self.token.kind, LParen | Less) {
@@ -198,5 +197,10 @@ impl ParserState<'_, '_> {
     pub(super) fn next_token_is_function_kw_on_same_line(&mut self) -> bool {
         self.next_token();
         self.token.kind == TokenKind::Function && !self.has_preceding_line_break()
+    }
+
+    pub(super) fn next_token_is_start_of_expr(&mut self) -> bool {
+        self.next_token();
+        self.is_start_of_expr()
     }
 }

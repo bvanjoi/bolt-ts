@@ -1,4 +1,3 @@
-mod ast;
 mod bind;
 pub mod check;
 mod early_resolve;
@@ -6,7 +5,6 @@ mod ecma_rules;
 mod emit;
 mod graph;
 mod ir;
-mod keyword;
 mod late_resolve;
 pub mod parser;
 mod ty;
@@ -16,13 +14,14 @@ use std::borrow::Cow;
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 
-use self::bind::bind_parallel;
 use self::bind::GlobalSymbols;
+use self::bind::bind_parallel;
 use self::early_resolve::early_resolve_parallel;
-use self::parser::token::keyword_idx_to_token;
-use self::parser::token::TokenKind;
 use self::wf::well_formed_check_parallel;
+use bolt_ts_ast::TokenKind;
+use bolt_ts_ast::keyword_idx_to_token;
 
+use bolt_ts_ast::keyword;
 use bolt_ts_atom::AtomMap;
 use bolt_ts_config::NormalizedTsConfig;
 use bolt_ts_fs::CachedFileSystem;
@@ -33,6 +32,7 @@ use rayon::iter::{IntoParallelIterator, ParallelIterator};
 use rustc_hash::FxHashMap;
 
 type Diag = Box<dyn bolt_ts_errors::diag_ext::DiagnosticExt + Send + Sync + 'static>;
+pub const DEFAULT_TSCONFIG: &str = "tsconfig.json";
 
 pub struct Output {
     pub root: PathBuf,
@@ -93,11 +93,8 @@ fn init_atom<'atoms>() -> AtomMap<'atoms> {
         }
     }
     let mut atoms = AtomMap::new(1024 * 128);
-    for (atom, id) in keyword::KEYWORDS {
+    for (atom, id) in keyword::KEYWORDS.iter().chain(keyword::IDENTIFIER) {
         atoms.insert(*id, Cow::Borrowed(atom));
-    }
-    for (atom, id) in keyword::IDENTIFIER {
-        atoms.insert(*id, Cow::Borrowed(atom))
     }
     atoms
 }
@@ -170,9 +167,16 @@ pub fn eval_from(root: PathBuf, tsconfig: NormalizedTsConfig) -> Output {
 
     // ==== bind ====
     let atoms = Arc::try_unwrap(atoms).unwrap();
-    let atoms = atoms.into_inner().unwrap();
+    let mut atoms = atoms.into_inner().unwrap();
 
-    let bind_list = bind_parallel(module_arena.modules(), &atoms, &p);
+    let mut bind_list = bind_parallel(module_arena.modules(), &atoms, &p);
+
+    let flow_nodes = bind_list
+        .iter_mut()
+        .map(|x| std::mem::take(&mut x.flow_nodes))
+        .collect::<Vec<_>>();
+
+    let bind_list = bind_list;
 
     let mut global_symbols = GlobalSymbols::new();
     for state in bind_list
@@ -215,7 +219,7 @@ pub fn eval_from(root: PathBuf, tsconfig: NormalizedTsConfig) -> Output {
         })
         .collect::<Vec<_>>();
 
-    let mut binder = bind::Binder::new(&p, &atoms);
+    let mut binder = bind::Binder::new(&p);
     for (m, res) in late_resolve::late_resolve(
         states,
         module_arena.modules(),
@@ -242,10 +246,11 @@ pub fn eval_from(root: PathBuf, tsconfig: NormalizedTsConfig) -> Output {
     let mut checker = check::TyChecker::new(
         &ty_arena,
         &p,
-        &atoms,
-        &mut binder,
+        &mut atoms,
+        &binder,
         &global_symbols,
         tsconfig.compiler_options(),
+        flow_nodes,
     );
     for item in &entries {
         checker.check_program(p.root(*item));

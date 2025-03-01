@@ -1,11 +1,12 @@
 mod errors;
 
-use crate::ast::Visitor;
 use crate::bind::{
     BinderState, BlockContainerSymbol, GlobalSymbols, SymbolFlags, SymbolID, SymbolName, Symbols,
 };
 use crate::graph::{ModuleGraph, ModuleRes};
-use crate::{ast, parser};
+use crate::parser;
+use bolt_ts_ast as ast;
+use bolt_ts_ast::Visitor;
 use bolt_ts_atom::AtomMap;
 use bolt_ts_span::{Module, ModuleID};
 use bolt_ts_utils::fx_hashmap_with_capacity;
@@ -13,13 +14,17 @@ use rustc_hash::FxHashMap;
 
 pub struct ResolveResult {
     pub symbols: Symbols,
+    // TODO: use `NodeId::index` is enough
     pub final_res: FxHashMap<ast::NodeID, SymbolID>,
     pub diags: Vec<bolt_ts_errors::Diag>,
+    // TODO: use `NodeId::index` is enough
     pub deep_res: FxHashMap<ast::NodeID, SymbolID>,
+    // TODO: use `NodeId::index` is enough
+    pub locals: FxHashMap<ast::NodeID, FxHashMap<SymbolName, SymbolID>>,
 }
 
 pub fn late_resolve<'cx>(
-    mut states: Vec<BinderState<'cx>>,
+    mut states: Vec<BinderState<'cx, '_>>,
     modules: &[Module],
     mg: &'cx ModuleGraph,
     p: &'cx parser::Parser<'cx>,
@@ -44,7 +49,6 @@ pub fn late_resolve<'cx>(
         resolver.visit_program(root);
         let deep_res = std::mem::take(&mut resolver.deep_res);
         let resolver_diags = std::mem::take(&mut resolver.diags);
-        drop(resolver);
         temp.push((deep_res, resolver_diags));
     }
 
@@ -53,25 +57,26 @@ pub fn late_resolve<'cx>(
         .zip(states)
         .zip(temp)
         .map(|((module, mut state), (deep_res, diags))| {
-            let symbols = std::mem::take(&mut state.symbols);
-            let final_res = std::mem::take(&mut state.final_res);
+            let symbols = state.symbols;
+            let final_res = state.final_res;
             state.diags.extend(diags);
-            let diags = std::mem::take(&mut state.diags);
+            let diags = state.diags;
             let result = ResolveResult {
                 symbols,
                 final_res,
                 diags,
                 deep_res,
+                locals: state.locals,
             };
             (module.id, result)
         })
         .collect::<Vec<_>>()
 }
 
-struct Resolver<'cx, 'r> {
+struct Resolver<'cx, 'r, 'atoms> {
     mg: &'cx ModuleGraph,
     module_id: ModuleID,
-    states: &'r mut Vec<BinderState<'cx>>,
+    states: &'r mut Vec<BinderState<'cx, 'atoms>>,
     p: &'cx parser::Parser<'cx>,
     pub diags: Vec<bolt_ts_errors::Diag>,
     global: &'cx GlobalSymbols,
@@ -79,7 +84,7 @@ struct Resolver<'cx, 'r> {
     atoms: &'cx AtomMap<'cx>,
 }
 
-impl Resolver<'_, '_> {
+impl Resolver<'_, '_, '_> {
     fn symbol_decl(&self, symbol_id: SymbolID) -> ast::NodeID {
         use crate::bind::SymbolKind::*;
         let s = self.symbol(symbol_id);
@@ -115,19 +120,19 @@ impl Resolver<'_, '_> {
     }
 }
 
-impl<'cx> ast::Visitor<'cx> for Resolver<'cx, '_> {
+impl<'cx> ast::Visitor<'cx> for Resolver<'cx, '_, '_> {
     fn visit_import_decl(&mut self, node: &'cx ast::ImportDecl<'cx>) {
         let Some(dep) = self.mg.get_dep(self.module_id, node.id) else {
             unreachable!()
         };
 
         if let Some(clause) = node.clause.kind {
-            use ast::ImportClauseKind::*;
+            use bolt_ts_ast::ImportClauseKind::*;
             match clause {
                 Ns(n) => {}
                 Specs(specs) => {
                     for spec in specs {
-                        use ast::ImportSpecKind::*;
+                        use bolt_ts_ast::ImportSpecKind::*;
                         match spec.kind {
                             Shorthand(n) => {
                                 let name = SymbolName::Normal(n.name.name);

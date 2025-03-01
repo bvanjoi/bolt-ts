@@ -1,13 +1,11 @@
+use bolt_ts_ast as ast;
+use bolt_ts_ast::TokenKind;
 use bolt_ts_span::Span;
 
-use crate::ast::Modifiers;
-use crate::keyword;
-
-use super::ast;
 use super::errors;
 use super::list_ctx::{self, ListContext};
-use super::token::TokenKind;
 use super::{PResult, ParserState};
+use crate::keyword;
 
 fn is_class_ele_start(s: &mut ParserState) -> bool {
     let mut id_token = None;
@@ -38,7 +36,7 @@ fn is_class_ele_start(s: &mut ParserState) -> bool {
         if !t.is_keyword() || matches!(t, TokenKind::Get | TokenKind::Set) {
             true
         } else {
-            use TokenKind::*;
+            use bolt_ts_ast::TokenKind::*;
             match s.token.kind {
                 LParen | Less | Colon | Eq | Question | Excl => true,
                 _ => s.can_parse_semi(),
@@ -154,7 +152,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         mode: impl ClassLike<'cx, 'p, Node = Node>,
         modifiers: Option<&'cx ast::Modifiers<'cx>>,
     ) -> PResult<Node> {
-        use TokenKind::*;
+        use bolt_ts_ast::TokenKind::*;
         let start = self.token.start();
         self.expect(Class);
         let id = self.next_node_id();
@@ -333,7 +331,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
     }
 
     fn parse_ctor_name(&mut self) -> bool {
-        use TokenKind::*;
+        use bolt_ts_ast::TokenKind::*;
         let t = self.token;
         if t.kind == Constructor {
             self.expect(Constructor)
@@ -356,7 +354,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         &mut self,
         id: ast::NodeID,
         start: usize,
-        mods: Option<&'cx Modifiers<'cx>>,
+        mods: Option<&'cx ast::Modifiers<'cx>>,
     ) -> PResult<Option<&'cx ast::ClassElem<'cx>>> {
         self.try_parse(|this| {
             if this.parse_ctor_name() {
@@ -393,10 +391,10 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         let is_getter = t == TokenKind::Get;
         assert!(is_getter || t == TokenKind::Set);
         let name = self.with_parent(id, Self::parse_prop_name)?;
-        let ty_params = self.parse_ty_params()?;
-        let params = self.parse_params()?;
-        let ty = self.parse_ret_ty(true)?;
-        let body = self.parse_fn_block()?;
+        let ty_params = self.with_parent(id, Self::parse_ty_params)?;
+        let params = self.with_parent(id, Self::parse_params)?;
+        let ty = self.with_parent(id, |this| this.parse_ret_ty(true))?;
+        let body = self.with_parent(id, Self::parse_fn_block)?;
         let kind = if is_getter {
             let decl = self.alloc(ast::GetterDecl {
                 id,

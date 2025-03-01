@@ -4,4 +4,4 @@ class Shape {
   }
 }
 
-var x = Shape
+var x = Shape;

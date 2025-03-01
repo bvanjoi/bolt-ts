@@ -1,7 +1,7 @@
 use std::path::Path;
 
 use crate::common::{FailMode, PassMode};
-use crate::{errors, TestConfig, TestProps};
+use crate::{TestConfig, TestProps, errors};
 
 pub fn run(test_file: &Path, runner: impl FnOnce(&Path) -> Result<(), Vec<errors::Error>>) {
     let mut config = TestConfig::default();

@@ -8,8 +8,9 @@ pub(super) enum ResolutionKey {
     WriteType(SymbolID),
     ResolvedBaseConstructorType(TyID),
     ResolvedBaseTypes(TyID),
-    DeclaredType(SymbolID),
     ResolvedReturnType(SigID),
+    ResolvedTypeArguments(TyID),
+    DeclaredType(SymbolID),
     ImmediateBaseConstraint(TyID),
 }
 
@@ -48,6 +49,10 @@ impl TyChecker<'_> {
                 .ty_links
                 .get(&ty)
                 .is_some_and(|t| t.get_resolved_base_tys().is_some()),
+            ResolutionKey::ResolvedTypeArguments(t) => self
+                .ty_links
+                .get(&t)
+                .is_some_and(|t| t.get_resolved_ty_args().is_some()),
             ResolutionKey::ResolvedReturnType(sig_id) => self
                 .sig_links
                 .get(&sig_id)
@@ -59,7 +64,7 @@ impl TyChecker<'_> {
         }
     }
 
-    fn find_resolution_cycle_start_index(&self, key: ResolutionKey) -> Option<usize> {
+    pub(super) fn find_resolution_cycle_start_index(&self, key: ResolutionKey) -> Option<usize> {
         if self.resolution_tys.is_empty() {
             return None;
         }

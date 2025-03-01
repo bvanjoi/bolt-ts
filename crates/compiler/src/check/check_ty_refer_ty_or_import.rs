@@ -1,13 +1,16 @@
 use crate::bind::{Symbol, SymbolFlags, SymbolID};
+use crate::check::create_ty::IntersectionFlags;
 use crate::check::cycle_check::ResolutionKey;
 use crate::check::is_deeply_nested_type::RecursionId;
+use crate::ty;
 use crate::ty::TypeFlags;
-use crate::{ast, ty};
+use bolt_ts_ast as ast;
 
-use super::{errors, Ternary, TyChecker};
+use super::{Ternary, TyChecker, errors};
 
 pub(super) trait TyReferTyOrImport<'cx> {
     fn id(&self) -> ast::NodeID;
+    fn span(&self) -> bolt_ts_span::Span;
     fn get_ty(&self, checker: &mut TyChecker<'cx>) -> &'cx ty::Ty<'cx>;
     fn ty_args(&self) -> Option<&'cx ast::Tys<'cx>>;
 }
@@ -16,8 +19,12 @@ impl<'cx> TyReferTyOrImport<'cx> for ast::ReferTy<'cx> {
     fn id(&self) -> ast::NodeID {
         self.id
     }
+    fn span(&self) -> bolt_ts_span::Span {
+        self.span
+    }
     fn get_ty(&self, checker: &mut TyChecker<'cx>) -> &'cx ty::Ty<'cx> {
-        checker.get_ty_from_ty_reference(self)
+        let ty = checker.get_ty_from_ty_reference(self);
+        checker.get_conditional_flow_of_ty(ty, self.id())
     }
     fn ty_args(&self) -> Option<&'cx ast::Tys<'cx>> {
         self.ty_args
@@ -40,9 +47,60 @@ impl<'cx> TyChecker<'cx> {
     ) -> Option<&'cx ty::Ty<'cx>> {
         if ty.kind.is_param() {
             self.get_constraint_of_ty_param(ty)
+        } else if ty.kind.is_indexed_access() {
+            self.get_constraint_of_indexed_access(ty)
+        } else if ty.kind.is_cond_ty() {
+            self.get_constraint_of_cond_ty(ty)
+        } else {
+            self.get_base_constraint_of_ty(ty)
+        }
+    }
+
+    fn get_constraint_of_indexed_access(
+        &mut self,
+        ty: &'cx ty::Ty<'cx>,
+    ) -> Option<&'cx ty::Ty<'cx>> {
+        if self.has_non_circular_constraint(ty) {
+            self.get_constraint_from_indexed_access(ty)
         } else {
             None
         }
+    }
+
+    fn get_constraint_from_indexed_access(
+        &mut self,
+        ty: &'cx ty::Ty<'cx>,
+    ) -> Option<&'cx ty::Ty<'cx>> {
+        let indexed_access_ty = ty.kind.expect_indexed_access();
+        if let Some(index_constraint) =
+            self.get_simplified_ty_or_constraint(indexed_access_ty.index_ty)
+        {
+            if index_constraint != indexed_access_ty.index_ty {
+                if let Some(indexed_access) = self.get_indexed_access_ty_or_undefined(
+                    indexed_access_ty.object_ty,
+                    index_constraint,
+                    Some(indexed_access_ty.access_flags),
+                    None,
+                ) {
+                    return Some(indexed_access);
+                }
+            }
+        }
+
+        if let Some(object_constraint) =
+            self.get_simplified_ty_or_constraint(indexed_access_ty.object_ty)
+        {
+            if object_constraint != indexed_access_ty.object_ty {
+                return self.get_indexed_access_ty_or_undefined(
+                    object_constraint,
+                    indexed_access_ty.index_ty,
+                    Some(indexed_access_ty.access_flags),
+                    None,
+                );
+            }
+        }
+
+        None
     }
 
     pub(super) fn get_constraint_of_ty_param(
@@ -67,6 +125,7 @@ impl<'cx> TyChecker<'cx> {
                 None
             } else {
                 let decl = self.binder.symbol(symbol).expect_ty_param().decl;
+                let decl = self.p.node(decl).expect_ty_param();
                 self.get_effective_constraint_of_ty_param(decl)
             }
         } else {
@@ -77,12 +136,42 @@ impl<'cx> TyChecker<'cx> {
     fn get_inferred_ty_param_constraint(
         &mut self,
         ty_param: &'cx ty::Ty<'cx>,
+        omit_ty_references: bool,
     ) -> Option<&'cx ty::Ty<'cx>> {
-        // TODO:
-        None
+        let mut inferences = vec![];
+        let decl = ty_param.symbol().and_then(|s| self.symbol_opt_decl(s))?;
+        let parent = self.p.parent(decl)?;
+        let parent_parent = self.p.parent(parent)?;
+        let (chid_ty_param, grand_parent) = self
+            .p
+            .walk_up_paren_tys_and_get_parent_and_child(parent_parent);
+        let child_ty_param = chid_ty_param.map_or(parent, |n| n.id);
+        if !omit_ty_references {
+            let grand_parent_node = self.p.node(grand_parent);
+            if let Some(grand) = grand_parent_node.as_refer_ty() {
+                // TODO:
+            } else if grand_parent_node
+                .as_param_decl()
+                .is_some_and(|n| n.dotdotdot.is_some())
+                || grand_parent_node.is_rest_ty()
+            // TODO: named tuple member
+            {
+                inferences.push(self.create_array_ty(self.unknown_ty, false));
+            } else if grand_parent_node.is_template_span_ty() {
+                inferences.push(self.string_ty);
+            } else {
+                // TODO: handle more case
+            }
+        }
+
+        if inferences.is_empty() {
+            None
+        } else {
+            Some(self.get_intersection_ty(&inferences, IntersectionFlags::None, None, None))
+        }
     }
 
-    fn get_constraint_from_ty_param(
+    pub(super) fn get_constraint_from_ty_param(
         &mut self,
         ty_param: &'cx ty::Ty<'cx>,
     ) -> Option<&'cx ty::Ty<'cx>> {
@@ -108,7 +197,7 @@ impl<'cx> TyChecker<'cx> {
                 }
                 ty
             } else {
-                self.get_inferred_ty_param_constraint(ty_param)
+                self.get_inferred_ty_param_constraint(ty_param, false)
                     .unwrap_or(self.no_constraint_ty())
             };
             self.get_mut_ty_links(ty_param.id)
@@ -119,8 +208,19 @@ impl<'cx> TyChecker<'cx> {
         constraint.filter(|c| *c != self.no_constraint_ty())
     }
 
-    fn get_resolved_base_constraint(&mut self, ty: &'cx ty::Ty<'cx>) -> &'cx ty::Ty<'cx> {
-        if let Some(ty) = self.get_ty_links(ty.id).get_resolved_base_ctor_ty() {
+    pub(super) fn get_constraint_from_cond_ty(
+        &mut self,
+        ty: &'cx ty::Ty<'cx>,
+    ) -> Option<&'cx ty::Ty<'cx>> {
+        self.get_constraint_of_distributive_cond_ty(ty)
+            .or_else(|| Some(self.get_default_constraint_of_cond_ty(ty)))
+    }
+
+    pub(super) fn get_resolved_base_constraint(
+        &mut self,
+        ty: &'cx ty::Ty<'cx>,
+    ) -> &'cx ty::Ty<'cx> {
+        if let Some(ty) = self.get_ty_links(ty.id).get_resolved_base_constraint() {
             return ty;
         }
 
@@ -140,11 +240,21 @@ impl<'cx> TyChecker<'cx> {
             let mut result = None;
             if stack.len() < 10 || (stack.len() < 50 && !stack.contains(&id)) {
                 stack.push(id);
-                result = compute_base_constraint(checker, checker.get_simplified_ty(ty), stack);
+                let ty = checker.get_simplified_ty(ty, false);
+                result = compute_base_constraint(checker, ty, stack);
                 stack.pop();
             };
 
             if checker.pop_ty_resolution().has_cycle() {
+                if ty.flags.intersects(TypeFlags::TYPE_PARAMETER) {
+                    if let Some(decl) = checker.get_constraint_decl(ty) {
+                        let error = errors::TypeParameterXHasACircularConstraint {
+                            ty: checker.print_ty(ty).to_string(),
+                            span: decl.span(),
+                        };
+                        checker.push_error(Box::new(error));
+                    }
+                }
                 result = Some(checker.circular_constraint_ty());
             }
 
@@ -182,6 +292,85 @@ impl<'cx> TyChecker<'cx> {
                 } else {
                     None
                 }
+            } else if let Some(tys) = ty.kind.tys_of_union_or_intersection() {
+                let mut base_tys = Vec::with_capacity(tys.len());
+                let mut different = false;
+                for ty in tys {
+                    if let Some(base_ty) = get_base_constraint(checker, ty, stack) {
+                        if !base_ty.eq(ty) {
+                            different = true;
+                        }
+                        base_tys.push(base_ty);
+                    } else {
+                        different = true
+                    }
+                }
+                if !different {
+                    return Some(ty);
+                };
+                if ty.kind.is_union() && base_tys.len() == tys.len() {
+                    Some(checker.get_union_ty(&base_tys, ty::UnionReduction::Lit))
+                } else if ty.kind.is_intersection() && !base_tys.is_empty() {
+                    Some(checker.get_intersection_ty(
+                        &base_tys,
+                        IntersectionFlags::None,
+                        None,
+                        None,
+                    ))
+                } else {
+                    None
+                }
+            } else if ty.flags.intersects(TypeFlags::INDEX) {
+                Some(checker.string_number_symbol_ty())
+            } else if let Some(t) = ty.kind.as_template_lit_ty() {
+                let constraints = t
+                    .tys
+                    .iter()
+                    .map(|t| get_base_constraint(checker, t, stack))
+                    .map(|c| c.unwrap())
+                    .collect::<Vec<_>>();
+                if constraints.len() == t.tys.len() {
+                    let tys = checker.alloc(constraints);
+                    Some(checker.get_template_lit_ty(t.texts, tys))
+                } else {
+                    Some(checker.string_ty)
+                }
+            } else if let Some(s) = ty.kind.as_string_mapping_ty() {
+                let constraint = get_base_constraint(checker, s.ty, stack);
+                if let Some(constraint) = constraint {
+                    if constraint != s.ty {
+                        return Some(checker.get_string_mapping_ty(s.symbol, constraint));
+                    }
+                }
+                Some(checker.string_ty)
+            } else if let Some(i) = ty.kind.as_indexed_access() {
+                // TODO: isMappedTypeGenericIndexedAccess
+                let base_object_ty = get_base_constraint(checker, i.object_ty, stack);
+                let base_index_ty = get_base_constraint(checker, i.index_ty, stack);
+                if let Some(base_object_ty) = base_object_ty {
+                    if let Some(base_index_ty) = base_index_ty {
+                        if let Some(base_indexed_access) = checker
+                            .get_indexed_access_ty_or_undefined(
+                                base_object_ty,
+                                base_index_ty,
+                                Some(i.access_flags),
+                                None,
+                            )
+                        {
+                            return get_base_constraint(checker, base_indexed_access, stack);
+                        }
+                    }
+                }
+                None
+            } else if ty.flags.intersects(TypeFlags::CONDITIONAL) {
+                if let Some(constraint) = checker.get_constraint_from_cond_ty(ty) {
+                    get_base_constraint(checker, constraint, stack)
+                } else {
+                    None
+                }
+            } else if ty.kind.is_substitution_ty() {
+                let ty = checker.get_substitution_intersection(ty);
+                get_base_constraint(checker, ty, stack)
             } else {
                 // TODO: more case
                 Some(ty)
@@ -189,10 +378,13 @@ impl<'cx> TyChecker<'cx> {
         }
 
         let mut stack = vec![];
-        get_immediate_base_constraint(self, ty, &mut stack)
+        let res = get_immediate_base_constraint(self, ty, &mut stack);
+        self.get_mut_ty_links(ty.id)
+            .set_resolved_base_constraint(res);
+        res
     }
 
-    fn has_non_circular_constraint(&mut self, ty_param: &'cx ty::Ty<'cx>) -> bool {
+    pub(super) fn has_non_circular_constraint(&mut self, ty_param: &'cx ty::Ty<'cx>) -> bool {
         self.get_resolved_base_constraint(ty_param) != self.circular_constraint_ty()
     }
 
@@ -209,7 +401,6 @@ impl<'cx> TyChecker<'cx> {
                 if result {
                     let target = self.instantiate_ty(constraint, Some(mapper));
                     let error_node = node.ty_args().and_then(|ty_args| ty_args.list.get(idx));
-
                     if self.check_type_assignable_to(ty_arg, target, error_node.map(|n| n.id()))
                         == Ternary::FALSE
                     {
@@ -259,7 +450,7 @@ impl<'cx> TyChecker<'cx> {
         {
             self.get_symbol_links(symbol).get_ty_params()
         } else if let Some(reference) = ty.kind.as_object_reference() {
-            let refer = reference.deep_target().kind.as_object_interface()?;
+            let refer = reference.interface_target()?.kind.expect_object_interface();
             refer.local_ty_params
         } else {
             None

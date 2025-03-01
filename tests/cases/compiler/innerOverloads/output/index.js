@@ -6,4 +6,4 @@ function outer() {
   }
   return inner(0)
 }
-var x = outer()
+var x = outer();

@@ -1,2 +1,2 @@
 
-var bar
+var bar;

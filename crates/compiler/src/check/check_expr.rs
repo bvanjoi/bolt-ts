@@ -1,15 +1,17 @@
+use bolt_ts_atom::AtomId;
 use bolt_ts_span::Span;
 
+use crate::ensure_sufficient_stack;
 use crate::parser::AssignmentKind;
 use crate::ty::TypeFlags;
 
+use super::ObjectFlags;
+use super::TyChecker;
 use super::ast;
 use super::bind::{SymbolFlags, SymbolName};
 use super::errors;
 use super::ty;
 use super::ty::AccessFlags;
-use super::ObjectFlags;
-use super::TyChecker;
 use super::{CheckMode, InferenceContextId, SymbolLinks, TyLinks};
 
 fn get_suggestion_boolean_op(op: &str) -> Option<&str> {
@@ -22,12 +24,67 @@ fn get_suggestion_boolean_op(op: &str) -> Option<&str> {
 }
 
 impl<'cx> TyChecker<'cx> {
+    pub(super) fn get_fresh_ty_of_literal_ty(&mut self, ty: &'cx ty::Ty<'cx>) -> &'cx ty::Ty<'cx> {
+        if ty.flags.intersects(TypeFlags::FRESHABLE) {
+            if let Some(fresh_ty) = self.get_ty_links(ty.id).get_fresh_ty() {
+                fresh_ty
+            } else {
+                let fresh_ty = match ty.kind {
+                    ty::TyKind::NumberLit(lit) => {
+                        let t = self.alloc(ty::NumberLitTy { val: lit.val });
+                        self.new_ty(ty::TyKind::NumberLit(t), ty.flags)
+                    }
+                    ty::TyKind::StringLit(lit) => {
+                        let t = self.alloc(ty::StringLitTy { val: lit.val });
+                        self.new_ty(ty::TyKind::StringLit(t), ty.flags)
+                    }
+                    ty::TyKind::BigIntLit(lit) => {
+                        let t = self.alloc(ty::BigIntLitTy { ..*lit });
+                        self.new_ty(ty::TyKind::BigIntLit(t), ty.flags)
+                    }
+                    _ => unreachable!(),
+                };
+                let prev = self.ty_links.insert(
+                    fresh_ty.id,
+                    TyLinks::default()
+                        .with_fresh_ty(fresh_ty)
+                        .with_regular_ty(ty),
+                );
+                assert!(prev.is_none());
+                self.get_mut_ty_links(ty.id).set_fresh_ty(fresh_ty);
+                assert!(self.get_ty_links(ty.id).get_regular_ty().is_some());
+                fresh_ty
+            }
+        } else {
+            ty
+        }
+    }
+
+    pub(super) fn check_num_lit(&mut self, val: f64) -> &'cx ty::Ty<'cx> {
+        // TODO: check grammar
+        let t = self.get_number_literal_type(val);
+        self.get_fresh_ty_of_literal_ty(t)
+    }
+
+    pub(super) fn check_string_lit(&mut self, val: AtomId) -> &'cx ty::Ty<'cx> {
+        // TODO: hasSkipDirectInferenceFlag
+        let t = self.get_string_literal_type(val);
+        self.get_fresh_ty_of_literal_ty(t)
+    }
+
+    pub(super) fn check_bigint_lit(&mut self, neg: bool, val: AtomId) -> &'cx ty::Ty<'cx> {
+        // TODO: check grammar
+        let t = self.get_bigint_literal_type(neg, val);
+        self.get_fresh_ty_of_literal_ty(t)
+    }
+
     pub(super) fn check_expr(&mut self, expr: &'cx ast::Expr<'cx>) -> &'cx ty::Ty<'cx> {
-        use ast::ExprKind::*;
+        use bolt_ts_ast::ExprKind::*;
         let ty = match expr.kind {
-            Bin(bin) => self.check_bin_expr(bin),
-            NumLit(lit) => self.get_number_literal_type(lit.val),
-            StringLit(lit) => self.get_string_literal_type(lit.val),
+            Bin(bin) => ensure_sufficient_stack(|| self.check_bin_expr(bin)),
+            NumLit(lit) => self.check_num_lit(lit.val),
+            StringLit(lit) => self.check_string_lit(lit.val),
+            BigIntLit(lit) => self.check_bigint_lit(lit.val.0, lit.val.1),
             BoolLit(lit) => {
                 if lit.val {
                     self.true_ty
@@ -65,9 +122,70 @@ impl<'cx> TyChecker<'cx> {
             EleAccess(node) => self.check_ele_access(node),
             This(n) => self.check_this_expr(n),
             Super(_) => self.undefined_ty,
+            As(n) => self.check_assertion(n.expr, n.ty),
+            Satisfies(n) => self.check_expr(n.expr),
+            NonNull(n) => self.check_expr(n.expr),
+            Template(n) => self.check_template_expr(n),
         };
 
         self.instantiate_ty_with_single_generic_call_sig(expr.id(), ty)
+    }
+
+    fn check_template_expr(&mut self, node: &'cx ast::TemplateExpr<'cx>) -> &'cx ty::Ty<'cx> {
+        let mut texts = Vec::with_capacity(8);
+        texts.push(node.head.text);
+        let mut tys = Vec::with_capacity(8);
+        for span in node.spans {
+            let ty = self.check_expr(span.expr);
+            texts.push(span.text);
+            if self.is_type_assignable_to(ty, self.template_constraint_ty()) {
+                tys.push(ty);
+            } else {
+                tys.push(self.string_ty);
+            }
+        }
+        if self.p.is_const_context(node.id) {
+            // TODO:
+        }
+        self.string_ty
+    }
+
+    pub(super) fn get_regular_ty_of_literal_ty(
+        &mut self,
+        ty: &'cx ty::Ty<'cx>,
+    ) -> &'cx ty::Ty<'cx> {
+        if ty.flags.intersects(TypeFlags::FRESHABLE) {
+            self.ty_links[&ty.id].expect_regular_ty()
+        } else if ty.kind.is_union() {
+            if let Some(t) = self.get_ty_links(ty.id).get_regular_ty() {
+                t
+            } else {
+                let regular_ty = self
+                    .map_ty(
+                        ty,
+                        |this, t| Some(this.get_regular_ty_of_literal_ty(t)),
+                        false,
+                    )
+                    .unwrap();
+                self.get_mut_ty_links(ty.id).set_regular_ty(regular_ty);
+                regular_ty
+            }
+        } else {
+            ty
+        }
+    }
+
+    fn check_assertion(
+        &mut self,
+        assert_expr: &'cx ast::Expr<'cx>,
+        assert_ty: &'cx ast::Ty<'cx>,
+    ) -> &'cx ty::Ty<'cx> {
+        let expr_ty = self.check_expr(assert_expr);
+        if assert_ty.is_const_ty_refer() {
+            self.get_regular_ty_of_literal_ty(expr_ty)
+        } else {
+            self.get_ty_from_type_node(assert_ty)
+        }
     }
 
     pub(super) fn check_truthiness_expr(&mut self, expr: &'cx ast::Expr) -> &'cx ty::Ty<'cx> {
@@ -122,7 +240,7 @@ impl<'cx> TyChecker<'cx> {
                 CheckMode::empty()
             };
         self.check_mode = Some(check_mode);
-        self.push_type_context(node, ctx_ty, false);
+        self.push_type_context(node, Some(ctx_ty), false);
         self.push_inference_context(node, inference);
 
         let ty = self.check_expr(expr);
@@ -150,8 +268,17 @@ impl<'cx> TyChecker<'cx> {
         &mut self,
         expr: &'cx ast::Expr<'cx>,
     ) -> &'cx ty::Ty<'cx> {
+        let id = expr.id();
         let ty = self.check_expr(expr);
-        self.get_widened_literal_ty(ty)
+        if self.p.is_const_context(id) {
+            self.get_regular_ty_of_literal_ty(ty)
+        } else if expr.kind.is_type_assertion() {
+            ty
+        } else {
+            let contextual_ty = self.get_contextual_ty(id, None);
+            let contextual_ty = self.instantiate_contextual_ty(contextual_ty, id, None);
+            self.get_widened_lit_like_ty_for_contextual_ty(ty, contextual_ty)
+        }
     }
 
     fn check_cond(&mut self, cond: &'cx ast::CondExpr) -> &'cx ty::Ty<'cx> {
@@ -168,7 +295,7 @@ impl<'cx> TyChecker<'cx> {
             .iter()
             .map(|member| {
                 let member_symbol = self.get_symbol_of_decl(member.id());
-                use ast::ObjectMemberKind::*;
+                use bolt_ts_ast::ObjectMemberKind::*;
                 let ty = match member.kind {
                     Shorthand(n) => self.check_ident(n.name),
                     Prop(n) => self.check_object_prop_member(n),
@@ -192,8 +319,10 @@ impl<'cx> TyChecker<'cx> {
             })
             .collect();
         let ty = self.create_anonymous_ty(
-            self.binder.final_res(node.id),
-            ObjectFlags::OBJECT_LITERAL | ObjectFlags::CONTAINS_OBJECT_OR_ARRAY_LITERAL,
+            self.final_res(node.id),
+            object_flags
+                | ObjectFlags::OBJECT_LITERAL
+                | ObjectFlags::CONTAINS_OBJECT_OR_ARRAY_LITERAL,
         );
         let props = self.get_props_from_members(&members);
         let members = self.alloc(members);
@@ -219,7 +348,7 @@ impl<'cx> TyChecker<'cx> {
         };
         let l = self.check_expr(assign.left);
         let r = self.check_expr(assign.right);
-        use ast::AssignOp::*;
+        use bolt_ts_ast::AssignOp::*;
         let ty = match assign.op {
             Eq => unreachable!(),
             AddEq => self
@@ -257,6 +386,38 @@ impl<'cx> TyChecker<'cx> {
         expr: &'cx ast::PrefixUnaryExpr<'cx>,
     ) -> &'cx ty::Ty<'cx> {
         let op_ty = self.check_expr(expr.expr);
+        if op_ty == self.silent_never_ty {
+            return op_ty;
+        }
+
+        match expr.expr.kind {
+            ast::ExprKind::NumLit(lit) => match expr.op {
+                ast::PrefixUnaryOp::Minus => {
+                    let ty = self.get_number_literal_type(-lit.val);
+                    return self.get_fresh_ty_of_literal_ty(ty);
+                }
+                ast::PrefixUnaryOp::Plus => {
+                    let ty = self.get_number_literal_type(lit.val);
+                    return self.get_fresh_ty_of_literal_ty(ty);
+                }
+                _ => (),
+            },
+            ast::ExprKind::BigIntLit(lit) => match expr.op {
+                ast::PrefixUnaryOp::Minus => {
+                    let neg = if lit.val.0 { false } else { true };
+                    let ty = self.get_bigint_literal_type(neg, lit.val.1);
+                    return self.get_fresh_ty_of_literal_ty(ty);
+                }
+                ast::PrefixUnaryOp::Plus => {
+                    let neg = if lit.val.0 { true } else { false };
+                    let ty = self.get_bigint_literal_type(neg, lit.val.1);
+                    return self.get_fresh_ty_of_literal_ty(ty);
+                }
+                _ => (),
+            },
+            _ => (),
+        }
+        if let ast::ExprKind::NumLit(lit) = expr.expr.kind {}
 
         match expr.op {
             ast::PrefixUnaryOp::Plus => {
@@ -382,7 +543,7 @@ impl<'cx> TyChecker<'cx> {
             AccessFlags::EXPRESSION_POSITION
         } else {
             AccessFlags::WRITING
-                | if object_ty.kind.is_generic_object() && object_ty.kind.is_this_ty_param() {
+                | if self.is_generic_object(object_ty) && object_ty.kind.is_this_ty_param() {
                     AccessFlags::NO_INDEX_SIGNATURES
                 } else {
                     AccessFlags::empty()

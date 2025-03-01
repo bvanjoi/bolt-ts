@@ -28,22 +28,31 @@ fn main() {
     let tsconfig = RawTsConfig::default().with_include(vec![p.to_str().unwrap().to_string()]);
     let cwd = env::current_dir().unwrap();
     let output = eval_from(cwd, tsconfig.normalize());
+    let duration = start.elapsed();
     output
         .diags
         .into_iter()
         .for_each(|diag| diag.emit(&output.module_arena));
-    let duration = start.elapsed();
     dbg!(duration);
 }
 
 #[test]
 fn main_test() {
     compile_test::ensure_node_exist();
-    let cwd = env::current_dir().unwrap();
     let project_root: PathBuf = project_root::get_project_root().unwrap();
-    let p = project_root.join("tests/cases/compiler/fest/index.ts");
-    let tsconfig = RawTsConfig::default().with_include(vec![p.to_str().unwrap().to_string()]);
-    let output = eval_from(cwd, tsconfig.normalize());
+    let case_root = project_root.join("tests/cases/compiler/fest/");
+    if !case_root.is_dir() {
+        panic!("'{:#?}' not found", case_root.display());
+    }
+    let tsconfig_file = case_root.join(bolt_ts_compiler::DEFAULT_TSCONFIG);
+    let tsconfig = if tsconfig_file.is_file() {
+        let s = std::fs::read_to_string(tsconfig_file).unwrap();
+        serde_json::from_str(&s).unwrap()
+    } else {
+        RawTsConfig::default()
+    };
+    let tsconfig = tsconfig.with_include_if_none(vec!["index.ts".to_string()]);
+    let output = eval_from(case_root, tsconfig.normalize());
     if output.diags.is_empty() {
         let mut file_paths = vec![];
         for (m, contents) in &output.output {

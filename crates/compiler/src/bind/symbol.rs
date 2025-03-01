@@ -3,13 +3,14 @@ use bolt_ts_span::ModuleID;
 use bolt_ts_utils::fx_hashmap_with_capacity;
 use rustc_hash::FxHashMap;
 
-use crate::ast::NodeID;
 use crate::check::F64Represent;
 use crate::keyword;
+use bolt_ts_ast::NodeID;
 
 #[derive(Debug, Clone, Copy, Hash, PartialEq, Eq)]
 pub enum SymbolName {
     Container,
+    // TODO: merge `Normal` and `Ele`
     Normal(AtomId),
     Ele(AtomId),
     EleNum(F64Represent),
@@ -133,7 +134,7 @@ pub struct Symbol {
     pub(crate) kind: (SymbolKind, Option<InterfaceSymbol>, Option<NsSymbol>),
 }
 
-impl<'cx> Symbol {
+impl Symbol {
     pub const ERR: SymbolID = SymbolID::root(ModuleID::root());
     pub(super) fn new(name: SymbolName, flags: SymbolFlags, kind: SymbolKind) -> Self {
         Self {
@@ -157,8 +158,8 @@ impl<'cx> Symbol {
         }
     }
 
-    pub fn can_have_symbol(node: crate::ast::Node<'cx>) -> bool {
-        use crate::ast::Node::*;
+    pub fn can_have_symbol(node: bolt_ts_ast::Node<'_>) -> bool {
+        use bolt_ts_ast::Node::*;
         node.is_decl() || matches!(node, FnTy(_))
     }
 }
@@ -192,6 +193,9 @@ pub(crate) enum SymbolKind {
     TyLit(TyLitSymbol),
     Alias(AliasSymbol),
     GetterSetter(GetterSetterSymbol),
+    TyMapped {
+        decl: NodeID,
+    },
 }
 
 macro_rules! as_symbol_kind {
@@ -366,6 +370,7 @@ impl Symbol {
             SymbolKind::TyLit(_) => todo!(),
             SymbolKind::Alias(_) => todo!(),
             SymbolKind::GetterSetter(_) => todo!(),
+            SymbolKind::TyMapped { .. } => todo!(),
         }
     }
 
@@ -382,6 +387,7 @@ impl Symbol {
             SymbolKind::TyLit(ty_lit) => Some(ty_lit.decl),
             SymbolKind::Alias(alias) => Some(alias.decl),
             SymbolKind::Fn(f) => Some(f.decls[0]),
+            SymbolKind::TyMapped { decl } => Some(*decl),
             _ => None,
         };
         id.or_else(|| self.kind.1.as_ref().and_then(|i| i.decls.first()).copied())
@@ -408,7 +414,9 @@ impl SymbolID {
             _ => None,
         };
         id.or_else(|| s.kind.1.as_ref().and_then(|i| i.decls.first()).copied())
+            .or_else(|| s.kind.2.as_ref().and_then(|i| i.decls.first()).copied())
     }
+
     pub fn decl(&self, binder: &super::Binder) -> NodeID {
         self.opt_decl(binder)
             .unwrap_or_else(|| panic!("{:#?}", binder.symbol(*self).flags))
@@ -476,16 +484,6 @@ impl Symbols {
 
     pub fn len(&self) -> u32 {
         self.data.len() as u32
-    }
-
-    pub fn iter(&self) -> impl Iterator<Item = (SymbolID, &Symbol)> {
-        self.data.iter().enumerate().map(|(index, symbol)| {
-            let id = SymbolID {
-                module: self.module_id,
-                index: index as u32,
-            };
-            (id, symbol)
-        })
     }
 }
 

@@ -1,11 +1,11 @@
 use std::borrow::Cow;
 
 use super::Emit;
-use crate::ast;
+use bolt_ts_ast as ast;
 
 impl<'cx> Emit<'cx> {
     pub(super) fn emit_stmt(&mut self, stmt: &ast::Stmt<'cx>) {
-        use ast::StmtKind::*;
+        use bolt_ts_ast::StmtKind::*;
         match stmt.kind {
             Var(var) => self.emit_var_stmt(var),
             Expr(expr) => {
@@ -33,6 +33,7 @@ impl<'cx> Emit<'cx> {
             Interface(_) => {}
             Type(_) => {}
             Empty(_) => {}
+            Debugger(_) => self.content.p("debugger"),
         }
     }
 
@@ -106,7 +107,7 @@ impl<'cx> Emit<'cx> {
     }
 
     fn emit_for_init(&mut self, n: &'cx ast::ForInitKind<'cx>) {
-        use ast::ForInitKind::*;
+        use bolt_ts_ast::ForInitKind::*;
         match n {
             Var((kind, decls)) => {
                 self.content.p("var");
@@ -175,7 +176,7 @@ impl<'cx> Emit<'cx> {
     }
 
     fn emit_export_spec(&mut self, spec: &'cx ast::ExportSpec<'cx>) {
-        use ast::ExportSpecKind::*;
+        use bolt_ts_ast::ExportSpecKind::*;
         match spec.kind {
             Shorthand(n) => self.emit_shorthand_spec(n),
             Named(n) => self.emit_export_named_spec(n),
@@ -250,7 +251,7 @@ impl<'cx> Emit<'cx> {
     }
 
     fn emit_module_export_name(&mut self, n: &'cx ast::ModuleExportName<'cx>) {
-        use ast::ModuleExportNameKind::*;
+        use bolt_ts_ast::ModuleExportNameKind::*;
         match n.kind {
             Ident(ident) => self.emit_ident(ident),
             StringLit(lit) => self.emit_string_lit(lit),
@@ -258,7 +259,7 @@ impl<'cx> Emit<'cx> {
     }
 
     fn emit_import_spec(&mut self, spec: &'cx ast::ImportSpec<'cx>) {
-        use ast::ImportSpecKind::*;
+        use bolt_ts_ast::ImportSpecKind::*;
         match spec.kind {
             Shorthand(n) => self.emit_shorthand_spec(n),
             Named(n) => {
@@ -403,7 +404,7 @@ impl<'cx> Emit<'cx> {
         if elem.dotdotdot.is_some() {
             self.content.p_dot_dot_dot();
         }
-        use ast::ObjectBindingName::*;
+        use bolt_ts_ast::ObjectBindingName::*;
         match elem.name {
             Shorthand(ident) => {
                 self.emit_ident(ident);
@@ -455,14 +456,14 @@ impl<'cx> Emit<'cx> {
 
         // var name
         fn sub_names_of_binding<'cx>(binding: &'cx ast::Binding<'cx>) -> Vec<bolt_ts_atom::AtomId> {
-            use ast::Binding::*;
+            use bolt_ts_ast::Binding::*;
             match binding {
                 Ident(n) => vec![n.name],
                 ObjectPat(n) => n
                     .elems
                     .iter()
                     .flat_map(|elem| {
-                        use ast::ObjectBindingName::*;
+                        use bolt_ts_ast::ObjectBindingName::*;
                         match elem.name {
                             Shorthand(ident) => vec![ident.name],
                             Prop { name, .. } => sub_names_of_binding(name),
@@ -511,7 +512,7 @@ impl<'cx> Emit<'cx> {
 
         self.emit_with_var_fn_wrapper(ident, &param_name, |this| {
             for stmt in block.stmts {
-                use ast::StmtKind::*;
+                use bolt_ts_ast::StmtKind::*;
                 this.content.p_newline();
                 this.emit_stmt(stmt);
                 this.content.p_newline();
@@ -622,6 +623,7 @@ impl<'cx> Emit<'cx> {
         self.content.p("var");
         self.content.p_whitespace();
         self.emit_var_decls(var.list);
+        self.content.p_semi();
     }
 
     fn emit_var_decls(&mut self, decls: ast::VarDecls<'cx>) {

@@ -1,13 +1,14 @@
+use bolt_ts_ast as ast;
+use bolt_ts_ast::ArrowFnExprBody;
 use bolt_ts_span::Span;
 
-use crate::ast::ArrowFnExprBody;
 use crate::bind::{SymbolFnKind, SymbolID};
-use crate::{ast, keyword, ty};
+use crate::{keyword, ty};
 
+use super::TyChecker;
 use super::check_type_related_to::TypeRelatedChecker;
 use super::relation::{RelationKind, SigCheckMode};
-use super::TyChecker;
-use super::{errors, Ternary};
+use super::{Ternary, errors};
 
 impl<'cx> TyChecker<'cx> {
     pub(super) fn check_fn_like_symbol(&mut self, symbol: SymbolID) {

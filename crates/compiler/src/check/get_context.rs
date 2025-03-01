@@ -1,5 +1,5 @@
-use crate::ast;
 use crate::ty;
+use bolt_ts_ast as ast;
 
 use super::InferenceContextId;
 use super::TyChecker;
@@ -8,7 +8,7 @@ use super::TyChecker;
 pub(super) struct TyContextual<'cx> {
     node: ast::NodeID,
     is_cache: bool,
-    pub(super) ty: &'cx ty::Ty<'cx>,
+    pub(super) ty: Option<&'cx ty::Ty<'cx>>,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -21,11 +21,16 @@ impl<'cx> TyChecker<'cx> {
     pub(super) fn push_type_context(
         &mut self,
         node: ast::NodeID,
-        ty: &'cx ty::Ty<'cx>,
+        ty: Option<&'cx ty::Ty<'cx>>,
         is_cache: bool,
     ) {
         self.type_contextual
             .push(TyContextual { node, ty, is_cache });
+    }
+
+    pub(super) fn push_cached_contextual_type(&mut self, node: ast::NodeID) {
+        let ty = self.get_contextual_ty(node, None);
+        self.push_type_context(node, ty, true);
     }
 
     pub(super) fn pop_type_context(&mut self) {

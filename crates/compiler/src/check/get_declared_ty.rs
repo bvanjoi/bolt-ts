@@ -1,21 +1,23 @@
 use rustc_hash::FxHashMap;
 
+use super::TyChecker;
 use super::cycle_check::Cycle;
 use super::cycle_check::ResolutionKey;
 use super::errors;
 use super::ty;
 use super::utils::append_if_unique;
-use super::TyChecker;
-use crate::ast;
-use crate::ast::EntityNameKind;
 use crate::bind::{SymbolFlags, SymbolID, SymbolName};
+use crate::check::InstantiationTyMap;
+use crate::check::TyCacheTrait;
+use crate::check::links::TyLinks;
 use crate::ty::ObjectFlags;
+use bolt_ts_ast as ast;
 
 impl<'cx> TyChecker<'cx> {
     pub(super) fn get_declared_ty_of_symbol(&mut self, symbol: SymbolID) -> &'cx ty::Ty<'cx> {
         let ty = self
             .try_get_declared_ty_of_symbol(symbol)
-            .unwrap_or_else(|| self.error_ty);
+            .unwrap_or(self.error_ty);
         ty
     }
 
@@ -23,18 +25,13 @@ impl<'cx> TyChecker<'cx> {
         &mut self,
         id: SymbolID,
     ) -> Option<&'cx ty::Ty<'cx>> {
-        if let Some(ty) = self.get_symbol_links(id).get_declared_ty() {
-            return Some(ty);
-        }
-        let s = self.binder.symbol(id);
-        if s.flags
-            .intersects(SymbolFlags::CLASS | SymbolFlags::INTERFACE)
-        {
+        let flags = self.binder.symbol(id).flags;
+        if flags.intersects(SymbolFlags::CLASS | SymbolFlags::INTERFACE) {
             Some(self.get_declared_ty_of_class_or_interface(id))
-        } else if s.flags == SymbolFlags::TYPE_ALIAS {
+        } else if flags == SymbolFlags::TYPE_ALIAS {
             let ty = self.get_declared_ty_of_type_alias(id);
             Some(ty)
-        } else if s.flags == SymbolFlags::TYPE_PARAMETER {
+        } else if flags == SymbolFlags::TYPE_PARAMETER {
             let ty = self.get_declared_ty_of_ty_param(id);
             Some(ty)
         } else {
@@ -49,11 +46,8 @@ impl<'cx> TyChecker<'cx> {
         let ty_param_id = self.binder.symbol(symbol).expect_ty_param().decl;
         let container = self.p.node(self.p.parent(ty_param_id).unwrap());
         let ty_params = container.ty_params();
-        let offset = ty_params
-            .unwrap()
-            .iter()
-            .position(|p| p.id == ty_param_id)
-            .unwrap();
+        let offset =
+            ty_params.and_then(|ty_params| ty_params.iter().position(|p| p.id == ty_param_id));
         let ty = self.create_param_ty(symbol, offset, false);
         self.get_mut_symbol_links(symbol).set_declared_ty(ty);
         ty
@@ -95,15 +89,21 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
-    fn check_entity_name(&mut self, name: &'cx ast::EntityName<'cx>) -> &'cx ty::Ty<'cx> {
+    pub(super) fn check_entity_name(
+        &mut self,
+        name: &'cx ast::EntityName<'cx>,
+    ) -> &'cx ty::Ty<'cx> {
+        use bolt_ts_ast::EntityNameKind;
         match name.kind {
             EntityNameKind::Ident(ident) => self.check_ident(ident),
-            EntityNameKind::Qualified(name) => {
-                let left = self.check_entity_name(name.left);
-                let apparent_ty = self.get_apparent_ty(left);
-                self._get_prop_of_ty(name.id, apparent_ty, left, name.right)
-            }
+            EntityNameKind::Qualified(name) => self.check_qualified_name(name),
         }
+    }
+
+    fn check_qualified_name(&mut self, node: &'cx ast::QualifiedName<'cx>) -> &'cx ty::Ty<'cx> {
+        let left = self.check_entity_name(node.left);
+        let apparent_ty = self.get_apparent_ty(left);
+        self._get_prop_of_ty(node.id, apparent_ty, left, node.right)
     }
 
     pub(super) fn get_base_constructor_type_of_class(
@@ -231,7 +231,7 @@ impl<'cx> TyChecker<'cx> {
                 v.extend(local_ty_params);
                 self.alloc(v)
             };
-            let this_ty = self.create_param_ty(symbol, usize::MAX, true);
+            let this_ty = self.create_param_ty(symbol, None, true);
             let target = self.crate_interface_ty(ty::InterfaceTy {
                 symbol,
                 ty_params: Some(ty_params),
@@ -240,7 +240,17 @@ impl<'cx> TyChecker<'cx> {
                 this_ty: Some(this_ty),
                 declared_members,
             });
-            let ty = self.create_reference_ty(target, ty_params, ObjectFlags::empty());
+            let ty = self.alloc(ty::ReferenceTy {
+                target,
+                mapper: None,
+                node: None,
+            });
+            let ty = self.create_object_ty(ty::ObjectTyKind::Reference(ty), ObjectFlags::REFERENCE);
+            assert!(!self.ty_links.contains_key(&ty.id));
+            self.ty_links
+                .insert(ty.id, TyLinks::default().with_resolved_ty_args(ty_params));
+            let id = InstantiationTyMap::create_id(target.id, ty_params);
+            self.instantiation_ty_map.insert(id, ty);
             ty
         } else {
             assert!(outer_ty_params.is_none() && local_ty_params.is_none());
@@ -281,10 +291,9 @@ impl<'cx> TyChecker<'cx> {
 
     pub(super) fn get_outer_ty_params(
         &mut self,
-        id: ast::NodeID,
+        mut id: ast::NodeID,
         include_this: bool,
     ) -> Option<Vec<&'cx ty::Ty<'cx>>> {
-        let mut id = id;
         loop {
             if let Some(next) = self.p.parent(id) {
                 id = next;
@@ -292,14 +301,15 @@ impl<'cx> TyChecker<'cx> {
                 return None;
             }
             let node = self.p.node(id);
-            use ast::Node::*;
+            use bolt_ts_ast::Node::*;
             match node {
                 ClassDecl(_) | ClassExpr(_) | InterfaceDecl(_) | CallSigDecl(_)
                 | MethodSignature(_) | FnTy(_) | CtorSigDecl(_) | FnDecl(_)
-                | ClassMethodElem(_) | ArrowFnExpr(_) | TypeDecl(_) | CondTy(_) => {
+                | ClassMethodElem(_) | ArrowFnExpr(_) | TypeDecl(_) | MappedTy(_) | CondTy(_) => {
                     let mut outer_ty_params = self
                         .get_outer_ty_params(id, include_this)
                         .unwrap_or_default();
+
                     if (node.is_fn_expr()
                         || node.is_arrow_fn_expr()
                         || self.p.is_object_lit_method(id))
@@ -314,6 +324,18 @@ impl<'cx> TyChecker<'cx> {
                                 return Some(outer_ty_params);
                             }
                         }
+                    }
+
+                    if let Some(mapped) = node.as_mapped_ty() {
+                        let symbol = self.get_symbol_of_decl(mapped.ty_param.id);
+                        let ty = self.get_declared_ty_of_ty_param(symbol);
+                        outer_ty_params.push(ty);
+                        return Some(outer_ty_params);
+                    } else if let Some(cond) = node.as_cond_ty() {
+                        if let Some(infer_ty_params) = self.get_infer_ty_params(cond) {
+                            outer_ty_params.extend(infer_ty_params);
+                        }
+                        return Some(outer_ty_params);
                     }
                     self.append_ty_params(
                         &mut outer_ty_params,

@@ -3,5 +3,5 @@
 function foo(bar) {
   return ""
 }
-var x = foo("baz")
-var y = x
+var x = foo("baz");
+var y = x;

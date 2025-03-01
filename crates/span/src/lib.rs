@@ -1,5 +1,4 @@
 use std::sync::Arc;
-use std::u32;
 
 use bolt_ts_atom::AtomId;
 use bolt_ts_fs::CachedFileSystem;

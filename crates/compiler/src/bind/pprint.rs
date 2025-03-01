@@ -1,24 +1,9 @@
 use bolt_ts_atom::AtomMap;
 
-use super::Symbol;
-
-impl<'cx> Symbol {
-    pub(crate) fn print_name(&self, atoms: &AtomMap<'cx>) -> String {
-        self.name.print(atoms)
-    }
-    pub(crate) fn to_string(&self, atoms: &'cx AtomMap<'cx>) -> &'cx str {
-        use super::SymbolName;
-        match self.name {
-            SymbolName::Normal(atom_id) => atoms.get(atom_id),
-            _ => todo!(),
-        }
-    }
-}
-
 use super::SymbolName;
 
-impl SymbolName {
-    pub(crate) fn print(&self, atoms: &AtomMap<'_>) -> String {
+impl<'cx> SymbolName {
+    pub(crate) fn debug_print(&self, atoms: &AtomMap<'_>) -> String {
         match &self {
             super::SymbolName::Normal(atom_id) => format!("Normal({})", atoms.get(*atom_id)),
             super::SymbolName::Ele(atom_id) => format!("Ele({})", atoms.get(*atom_id)),
@@ -36,6 +21,15 @@ impl SymbolName {
             super::SymbolName::Interface => "Inner(Interface)".to_string(),
             super::SymbolName::Index => "Inner(Index)".to_string(),
             super::SymbolName::Type => "Inner(Type)".to_string(),
+        }
+    }
+    pub(crate) fn to_string(self, atoms: &'cx AtomMap<'cx>) -> String {
+        use super::SymbolName;
+        match self {
+            SymbolName::Normal(atom_id) => atoms.get(atom_id).to_string(),
+            SymbolName::Ele(atom_id) => atoms.get(atom_id).to_string(),
+            SymbolName::EleNum(val) => val.val().to_string(),
+            _ => todo!(),
         }
     }
 }

@@ -1,8 +1,9 @@
 use crate::bind::{Symbol, SymbolFlags, SymbolID};
 use crate::ty::CheckFlags;
-use crate::{ast, keyword, ty};
+use crate::{keyword, ty};
+use bolt_ts_ast as ast;
 
-use super::{errors, TyChecker};
+use super::{TyChecker, errors};
 
 pub(super) trait GetTypeFromTyReferLike<'cx> {
     fn id(&self) -> ast::NodeID;
@@ -80,6 +81,7 @@ impl<'cx> TyChecker<'cx> {
             return self.error_ty;
         }
         let ty = self.get_declared_ty_of_symbol(symbol);
+
         if let Some(ty_params) = self.get_symbol_links(symbol).get_ty_params() {
             // let len = node.args().unwrap_or_default().len();
             let num_ty_args = node
@@ -88,7 +90,7 @@ impl<'cx> TyChecker<'cx> {
                 .unwrap_or_default();
             let min_ty_arg_count = self.get_min_ty_arg_count(Some(ty_params));
             if num_ty_args < min_ty_arg_count || num_ty_args > ty_params.len() {
-                let ty = self.binder.symbol(symbol).to_string(self.atoms).to_string();
+                let ty = self.binder.symbol(symbol).name.to_string(self.atoms);
                 let error: crate::Diag = if min_ty_arg_count == ty_params.len() {
                     Box::new(errors::GenericTypeXRequiresNTypeArguments {
                         span: node.span(),
@@ -123,10 +125,10 @@ impl<'cx> TyChecker<'cx> {
 
                 // }
             }
-            let args = self
+            let ty_args = self
                 .ty_args_from_ty_refer_node(node.ty_args())
                 .unwrap_or_default();
-            self.get_type_alias_instantiation(symbol, args, new_alias_symbol, alias_ty_args)
+            self.get_type_alias_instantiation(symbol, ty_args, new_alias_symbol, alias_ty_args)
         } else if self.check_no_ty_args(node) {
             ty
         } else {
@@ -155,7 +157,7 @@ impl<'cx> TyChecker<'cx> {
             }
             (Some(a), None) => a,
             (None, Some(b)) => b,
-            (None, None) => &[],
+            (None, None) => self.empty_array(),
         }
     }
 
@@ -203,7 +205,7 @@ impl<'cx> TyChecker<'cx> {
                     self.fill_missing_ty_args(self_ty_args, i.local_ty_params, min_ty_arg_count);
                 self.concatenate(i.outer_ty_params, self_ty_args)
             };
-            self.create_reference_ty(ty, resolved_ty_args, ty.get_object_flags())
+            self.create_reference_ty(ty, Some(resolved_ty_args), ty.get_object_flags())
         } else {
             ty
         }
@@ -217,16 +219,16 @@ impl<'cx> TyChecker<'cx> {
         if symbol == Symbol::ERR {
             return self.error_ty;
         }
-        let s = &self.binder.symbol(symbol);
-        if s.flags
-            .intersects(SymbolFlags::CLASS | SymbolFlags::INTERFACE)
-        {
-            self.get_ty_from_class_or_interface_refer(node, symbol)
-        } else if s.flags == SymbolFlags::TYPE_ALIAS {
-            self.get_ty_from_ty_alias_refer(node, symbol)
-        } else if let Some(res) = self.try_get_declared_ty_of_symbol(symbol) {
+        let flags = self.binder.symbol(symbol).flags;
+        if flags.intersects(SymbolFlags::CLASS | SymbolFlags::INTERFACE) {
+            return self.get_ty_from_class_or_interface_refer(node, symbol);
+        } else if flags == SymbolFlags::TYPE_ALIAS {
+            return self.get_ty_from_ty_alias_refer(node, symbol);
+        }
+
+        if let Some(res) = self.try_get_declared_ty_of_symbol(symbol) {
             if self.check_no_ty_args(node) {
-                res
+                self.get_regular_ty_of_literal_ty(res)
             } else {
                 self.error_ty
             }
@@ -243,28 +245,27 @@ impl<'cx> TyChecker<'cx> {
             return ty;
         }
         let name = node.name();
-        let ty = if let ast::EntityNameKind::Ident(ident) = name.kind {
+        if let ast::EntityNameKind::Ident(ident) = name.kind {
             match ident.name {
-                keyword::IDENT_BOOLEAN => self.boolean_ty(),
-                keyword::IDENT_NUMBER => self.number_ty,
-                keyword::IDENT_STRING => self.string_ty,
-                keyword::IDENT_ANY => self.any_ty,
-                keyword::KW_VOID => self.void_ty,
-                keyword::IDENT_UNKNOWN => self.unknown_ty,
-                keyword::IDENT_NEVER => self.never_ty,
-                keyword::KW_UNDEFINED => self.undefined_ty,
-                keyword::KW_NULL => self.null_ty,
-                _ => {
-                    let symbol = self.resolve_ty_refer_name(name);
-                    self.get_mut_node_links(node.id())
-                        .set_resolved_symbol(symbol);
-                    self.get_ty_refer_type(node, symbol)
-                }
+                keyword::IDENT_BOOLEAN => return self.boolean_ty(),
+                keyword::IDENT_NUMBER => return self.number_ty,
+                keyword::IDENT_STRING => return self.string_ty,
+                keyword::IDENT_ANY => return self.any_ty,
+                keyword::KW_VOID => return self.void_ty,
+                keyword::IDENT_UNKNOWN => return self.unknown_ty,
+                keyword::IDENT_NEVER => return self.never_ty,
+                keyword::KW_UNDEFINED => return self.undefined_ty,
+                keyword::KW_NULL => return self.null_ty,
+                keyword::IDENT_SYMBOL => return self.symbol_ty,
+                keyword::IDENT_OBJECT => return self.non_primitive_ty,
+                keyword::IDENT_BIGINT => return self.bigint_ty,
+                _ => {}
             }
-        } else {
-            let symbol = self.resolve_ty_refer_name(name);
-            self.get_ty_refer_type(node, symbol)
-        };
+        }
+        let symbol = self.resolve_ty_refer_name(name);
+        self.get_mut_node_links(node.id())
+            .set_resolved_symbol(symbol);
+        let ty = self.get_ty_refer_type(node, symbol);
         self.get_mut_node_links(node.id()).set_resolved_ty(ty);
         ty
     }

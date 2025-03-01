@@ -1,11 +1,11 @@
-use crate::ast;
 use crate::bind::{Symbol, SymbolFlags};
 use crate::keyword::is_prim_ty_name;
+use bolt_ts_ast as ast;
 
 use super::Resolver;
 use super::{errors, resolve_symbol_by_ident};
 
-impl<'cx> Resolver<'cx, '_> {
+impl<'cx> Resolver<'cx, '_, '_> {
     pub(super) fn on_failed_to_resolve_value_symbol(
         &mut self,
         ident: &'cx ast::Ident,

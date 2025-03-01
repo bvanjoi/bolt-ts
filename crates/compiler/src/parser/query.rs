@@ -1,9 +1,9 @@
 use bolt_ts_span::ModuleID;
 
-use crate::ast::CallExpr;
+use bolt_ts_ast::CallExpr;
 
-use super::ast;
 use super::Parser;
+use super::ast;
 
 #[derive(PartialEq)]
 pub enum AssignmentKind {
@@ -79,11 +79,7 @@ impl<'cx> Parser<'cx> {
         while let Some(p) = parent {
             match self.node(p) {
                 ast::Node::AssignExpr(assign) => {
-                    return if let ast::ExprKind::Ident(binding) = assign.left.kind {
-                        (binding.id == id).then_some(assign.id)
-                    } else {
-                        None
-                    }
+                    return (assign.left.id() == id).then_some(assign.id);
                 }
                 ast::Node::BinExpr(_) => return None,
                 _ => return None,
@@ -223,7 +219,7 @@ impl<'cx> Parser<'cx> {
         let Some(p) = self.parent(id) else {
             return AccessKind::Read;
         };
-        use ast::Node::*;
+        use bolt_ts_ast::Node::*;
         match self.node(p) {
             AssignExpr(n) => {
                 if n.left.id() == id {
@@ -269,7 +265,7 @@ impl<'cx> Parser<'cx> {
     }
 
     pub fn is_decl_name_or_import_prop_name(&self, id: ast::NodeID) -> bool {
-        use ast::Node::*;
+        use bolt_ts_ast::Node::*;
         self.parent(id).is_some_and(|p| match self.node(p) {
             ImportNamedSpec(_) | ExportNamedSpec(_) => {
                 matches!(self.node(id), Ident(_) | StringLit(_))
@@ -326,6 +322,125 @@ impl<'cx> Parser<'cx> {
             }
         })
         .unwrap()
+    }
+
+    pub fn is_resolved_by_ty_alias(&self, node: ast::NodeID) -> bool {
+        let Some(p) = self.parent(node) else {
+            return false;
+        };
+        self.find_ancestor(p, |n| {
+            use bolt_ts_ast::Node::*;
+            match n {
+                TypeDecl(_) => Some(true),
+                // TODO: ParenTy
+                ReferTy(_) | UnionTy(_) | IntersectionTy(_) | IndexedAccessTy(_) | CondTy(_)
+                | TyOp(_) | ArrayTy(_) | TupleTy(_) => None,
+                _ => Some(false),
+            }
+        })
+        .is_some()
+    }
+
+    pub fn is_const_context(&self, node: ast::NodeID) -> bool {
+        let Some(parent) = self.parent(node) else {
+            return false;
+        };
+        let p = self.node(parent);
+        if p.is_assertion_expr() {
+            let ty = match p {
+                ast::Node::AsExpr(n) => n.ty,
+                _ => unreachable!(),
+            };
+            ty.is_const_ty_refer()
+        } else if p.is_array_lit() {
+            self.is_const_context(parent)
+        } else {
+            false
+        }
+    }
+
+    pub fn index_of_node(&self, elements: &[&'cx ast::Expr<'cx>], id: ast::NodeID) -> usize {
+        debug_assert!(elements.is_sorted_by_key(|probe| probe.span().lo));
+        elements
+            .binary_search_by_key(&self.node(id).span().lo, |probe| probe.span().lo)
+            .unwrap()
+    }
+
+    pub fn get_combined_flags<T: std::ops::BitOrAssign>(
+        &self,
+        mut id: ast::NodeID,
+        get_flag: impl Fn(&Self, ast::NodeID) -> T,
+    ) -> T {
+        let mut flags = get_flag(self, id);
+        if self.node(id).is_var_decl() {
+            id = self.parent(id).unwrap();
+        }
+        // TODO: variable list
+
+        if let Some(s) = self.node(id).as_var_stmt() {
+            flags |= get_flag(self, s.id);
+        }
+        flags
+    }
+
+    pub fn get_combined_modifier_flags(
+        &self,
+        id: ast::NodeID,
+    ) -> enumflags2::BitFlags<ast::ModifierKind> {
+        self.get_combined_flags(id, |p, id| p.get_effective_modifier_flags(id))
+    }
+
+    pub fn get_effective_modifier_flags(
+        &self,
+        id: ast::NodeID,
+    ) -> enumflags2::BitFlags<ast::ModifierKind> {
+        self.get_modifier_flags(id, true, false)
+    }
+
+    fn get_modifier_flags(
+        &self,
+        id: ast::NodeID,
+        include_js_doc: bool,
+        always_include_js_doc: bool,
+    ) -> enumflags2::BitFlags<ast::ModifierKind> {
+        let m = self.get_syntactic_modifier_flags_no_cache(id);
+        ast::ModifierKind::get_syntactic_modifier_flags(m)
+    }
+
+    fn get_syntactic_modifier_flags_no_cache(
+        &self,
+        id: ast::NodeID,
+    ) -> enumflags2::BitFlags<ast::ModifierKind> {
+        let n = self.node(id);
+        let flags = n.modifiers().map_or(Default::default(), |m| m.flags);
+        let node_flags = n.node_flags();
+        if node_flags.intersects(ast::NodeFlags::NESTED_NAMESPACE)
+            || n.is_ident()
+                && node_flags.intersects(ast::NodeFlags::IDENTIFIER_IS_IN_JS_DOC_NAMESPACE)
+        {
+            flags | ast::ModifierKind::Export
+        } else {
+            flags
+        }
+    }
+
+    pub fn walk_up_paren_tys_and_get_parent_and_child(
+        &self,
+        n: ast::NodeID,
+    ) -> (Option<&'cx ast::ParenTy<'cx>>, ast::NodeID) {
+        let mut node = n;
+        let mut child = None;
+        loop {
+            let Some(n) = self.node(node).as_paren_ty() else {
+                break;
+            };
+            child = Some(n);
+            let Some(n) = self.parent(node) else {
+                break;
+            };
+            node = n;
+        }
+        (child, node)
     }
 }
 

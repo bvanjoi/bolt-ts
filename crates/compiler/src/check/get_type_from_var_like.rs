@@ -1,5 +1,5 @@
-use super::cycle_check::ResolutionKey;
 use super::TyChecker;
+use super::cycle_check::ResolutionKey;
 use crate::bind::SymbolID;
 use crate::ty::Ty;
 use crate::{ir, ty};
@@ -65,7 +65,7 @@ impl<'cx> TyChecker<'cx> {
         self.get_union_ty(&[ty, missing_or_undefined], ty::UnionReduction::Lit)
     }
 
-    fn add_optionality(
+    pub(super) fn add_optionality(
         &mut self,
         declared_ty: &'cx Ty<'cx>,
         is_property: bool,

@@ -1,9 +1,9 @@
+use bolt_ts_errors::DiagnosticExt;
 use bolt_ts_errors::diag_ext;
 use bolt_ts_errors::miette;
 use bolt_ts_errors::miette::Diagnostic;
 use bolt_ts_errors::thiserror;
 use bolt_ts_errors::thiserror::Error;
-use bolt_ts_errors::DiagnosticExt;
 use bolt_ts_span::Span;
 
 #[derive(Error, Diagnostic, DiagnosticExt, Debug)]
@@ -109,7 +109,9 @@ impl std::fmt::Display for LeftOrRight {
 }
 
 #[derive(Error, Diagnostic, DiagnosticExt, Debug)]
-#[error("The {left_or_right}-hand side of an arithmetic operation must be of type 'any', 'number', 'bigint' or an enum type.")]
+#[error(
+    "The {left_or_right}-hand side of an arithmetic operation must be of type 'any', 'number', 'bigint' or an enum type."
+)]
 pub(super) struct TheSideOfAnArithmeticOperationMustBeOfTypeAnyNumberBigintOrAnEnumType {
     #[label(primary)]
     pub span: Span,
@@ -135,6 +137,21 @@ pub(super) struct PropertyXIsMissing {
 }
 
 #[derive(Error, Diagnostic, DiagnosticExt, Debug)]
+#[error(
+    "Type '{ty1}' is missing the following properties from type '{ty2}': {}, and {len} more.", {
+        props.join(", ")
+    }
+)]
+pub(super) struct Type0IsMissingTheFollowingPropertiesFromType1Colon2And3More {
+    #[label(primary)]
+    pub span: Span,
+    pub ty1: String,
+    pub ty2: String,
+    pub props: Vec<String>,
+    pub len: usize,
+}
+
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
 #[error("Cannot create an instance of an abstract class.")]
 pub(super) struct CannotCreateAnInstanceOfAnAbstractClass {
     #[label(primary)]
@@ -153,9 +170,10 @@ pub(super) struct ClassNameHasAbstractModifier {
 }
 
 #[derive(Clone, Copy, Debug, Default)]
-pub(super) enum DeclKind {
+pub(crate) enum DeclKind {
     #[default]
     Class,
+    Interface,
     Enum,
     Property,
 }
@@ -166,6 +184,7 @@ impl DeclKind {
             DeclKind::Class => "Class",
             DeclKind::Enum => "Enum",
             DeclKind::Property => "Property",
+            DeclKind::Interface => "Interface",
         }
     }
 }
@@ -324,14 +343,18 @@ pub(super) struct TypeCannotBeUsedAsAnIndexType {
 }
 
 #[derive(Error, Diagnostic, DiagnosticExt, Debug)]
-#[error("An index signature parameter type must be 'string', 'number', 'symbol', or a template literal type.")]
+#[error(
+    "An index signature parameter type must be 'string', 'number', 'symbol', or a template literal type."
+)]
 pub(super) struct AnIndexSignatureParameterTypeMustBeStringNumberSymbolOrATemplateLiteralType {
     #[label(primary)]
     pub span: Span,
 }
 
 #[derive(Error, Diagnostic, DiagnosticExt, Debug)]
-#[error("A class can only implement an object type or intersection of object types with statically known members.")]
+#[error(
+    "A class can only implement an object type or intersection of object types with statically known members."
+)]
 
 pub(super) struct AClassCanOnlyImplementAnObjectTypeOrIntersectionOfObjectTypesWithStaticallyKnownMembers
 {
@@ -362,4 +385,38 @@ pub(super) struct NoOverloadMatchesThisCall {
 pub(super) struct ThisOverloadSignatureIsNotCompatibleWithItsImplementationSignature {
     #[label(primary)]
     pub span: Span,
+}
+
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
+#[error("This expression is not constructable.")]
+pub(super) struct ThisExpressionIsNotConstructable {
+    #[label(primary)]
+    pub span: Span,
+}
+
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
+#[error("Type parameter '{ty}' has a circular constraint.")]
+pub(super) struct TypeParameterXHasACircularConstraint {
+    #[label(primary)]
+    pub span: Span,
+    pub ty: String,
+}
+
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
+#[error("Cannot assign to '{prop}' because it is a read-only property.")]
+pub(super) struct CannotAssignTo0BecauseItIsAReadOnlyProperty {
+    #[label(primary)]
+    pub span: Span,
+    pub prop: String,
+}
+
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
+#[error(
+    "The right-hand side of a 'for...in' statement must be of type 'any', an object type or a type parameter, but here has type '{ty}'."
+)]
+pub(super) struct TheRightHandSideOfAForInStatementMustBeOfTypeAnyAnObjectTypeOrATypeParameterButHereHasType0
+{
+    #[label(primary)]
+    pub span: Span,
+    pub ty: String,
 }

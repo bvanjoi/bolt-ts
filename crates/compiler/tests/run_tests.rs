@@ -28,13 +28,12 @@ fn ensure_all_cases_are_dir() {
 fn run_test(arg: dir_test::Fixture<&str>) {
     let entry = std::path::Path::new(arg.path());
     const DEFAULT_OUTPUT: &str = "output";
-    const DEFAULT_TSCONFIG: &str = "tsconfig.json";
 
     let runner = |case: &std::path::Path| {
         let file_name = case.file_name().unwrap().to_str().unwrap();
         assert_eq!(file_name, "index.ts");
         let dir = case.parent().unwrap();
-        let tsconfig_file = dir.join(DEFAULT_TSCONFIG);
+        let tsconfig_file = dir.join(bolt_ts_compiler::DEFAULT_TSCONFIG);
         let tsconfig = if tsconfig_file.is_file() {
             let s = std::fs::read_to_string(tsconfig_file).unwrap();
             serde_json::from_str(&s).unwrap()

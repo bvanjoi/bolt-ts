@@ -2,4 +2,4 @@ function foo() {
   return ""
 }
 
-var x = foo()
+var x = foo();

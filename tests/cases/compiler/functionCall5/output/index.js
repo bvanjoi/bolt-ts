@@ -11,5 +11,5 @@ function foo() {
   return new m1.c1()
 }
 
-var x = foo()
+var x = foo();
 x.a;

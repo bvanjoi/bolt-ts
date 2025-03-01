@@ -4,7 +4,7 @@ mod expr;
 mod stmt;
 mod utils;
 
-use crate::ast;
+use bolt_ts_ast as ast;
 use bolt_ts_atom::AtomMap;
 use bolt_ts_utils::fx_hashset_with_capacity;
 use rustc_hash::FxHashSet;
@@ -149,7 +149,7 @@ impl<'cx> Emit<'cx> {
     }
 
     fn emit_entity_name(&mut self, name: &ast::EntityName) {
-        use ast::EntityNameKind::*;
+        use bolt_ts_ast::EntityNameKind::*;
         match name.kind {
             Ident(n) => self.emit_ident(n),
             Qualified(n) => {

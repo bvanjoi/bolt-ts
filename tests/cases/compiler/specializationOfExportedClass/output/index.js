@@ -5,4 +5,4 @@ var M = {};
   M.C = C;
   
 })(M);
-var x = new M.C()
+var x = new M.C();

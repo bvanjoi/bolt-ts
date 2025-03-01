@@ -1,7 +1,9 @@
-use super::{errors, Ternary, TyChecker};
+use super::{Ternary, TyChecker, errors};
 use crate::ir::ClassLike;
+use crate::ty;
 use crate::ty::TypeFlags;
-use crate::{ast, ty};
+
+use bolt_ts_ast as ast;
 
 impl<'cx> TyChecker<'cx> {
     fn check_ctor(&mut self, ctor: &'cx ast::ClassCtor<'cx>) {
@@ -16,25 +18,6 @@ impl<'cx> TyChecker<'cx> {
         self.check_var_like_decl(prop);
     }
 
-    fn is_valid_base_ty(&self, ty: &'cx ty::Ty<'cx>) -> bool {
-        if let Some(param_ty) = ty.kind.as_param() {
-            if let Some(constraint) = self.get_base_constraint_of_ty(ty) {
-                return self.is_valid_base_ty(constraint);
-            }
-        }
-
-        if ty.kind.is_object()
-            || ty
-                .flags
-                .intersects(TypeFlags::NON_PRIMITIVE | TypeFlags::ANY)
-        {
-            true
-            // TODO: !is_generic_mapped_ty
-        } else {
-            ty.kind.is_intersection()
-        }
-    }
-
     fn issue_member_spec_error(
         &mut self,
         class: &impl ClassLike<'cx>,
@@ -46,7 +29,7 @@ impl<'cx> TyChecker<'cx> {
             if member.kind.is_static() {
                 continue;
             }
-            use ast::ClassEleKind::*;
+            use bolt_ts_ast::ClassEleKind::*;
             let member_name = match member.kind {
                 Ctor(_) => None,
                 Prop(n) => Some(n.name.id()),
@@ -111,7 +94,7 @@ impl<'cx> TyChecker<'cx> {
                 };
                 if t == self.error_ty {
                     continue;
-                } else if t.flags.intersects(TypeFlags::PRIMITIVE) || t == self.boolean_ty() {
+                } else if t.flags.intersects(TypeFlags::PRIMITIVE) {
                     let error = errors::AClassCannotImplementAPrimTy {
                         span: ty_ref_node.span,
                         ty: self.print_ty(t).to_string(),
@@ -141,7 +124,7 @@ impl<'cx> TyChecker<'cx> {
         }
 
         for ele in class.elems().elems {
-            use ast::ClassEleKind::*;
+            use bolt_ts_ast::ClassEleKind::*;
             match ele.kind {
                 Prop(prop) => self.check_class_prop_ele(prop),
                 Method(method) => self.check_class_method_ele(method),

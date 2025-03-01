@@ -6,7 +6,7 @@ var M = {};
   
   
   
-  var x = 10
+  var x = 10;
   M.x = x
   
 })(M);

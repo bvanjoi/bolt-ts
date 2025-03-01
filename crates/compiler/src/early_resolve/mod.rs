@@ -12,9 +12,10 @@ use rayon::prelude::*;
 use rustc_hash::FxHashMap;
 
 use crate::bind::{BinderState, GlobalSymbols, Symbol, SymbolFlags, SymbolID, SymbolName};
+use crate::keyword;
 use crate::keyword::{is_prim_ty_name, is_prim_value_name};
 use crate::parser::Parser;
-use crate::{ast, keyword};
+use bolt_ts_ast as ast;
 
 pub struct EarlyResolveResult {
     pub final_res: FxHashMap<ast::NodeID, SymbolID>,
@@ -23,7 +24,7 @@ pub struct EarlyResolveResult {
 
 pub fn early_resolve_parallel<'cx>(
     modules: &[Module],
-    states: &[BinderState<'cx>],
+    states: &[BinderState<'cx, '_>],
     p: &'cx Parser<'cx>,
     global: &'cx GlobalSymbols,
     atoms: &'cx bolt_ts_atom::AtomMap<'cx>,
@@ -39,7 +40,7 @@ pub fn early_resolve_parallel<'cx>(
 }
 
 fn early_resolve<'cx>(
-    states: &[BinderState<'cx>],
+    states: &[BinderState<'cx, '_>],
     module_id: bolt_ts_span::ModuleID,
     root: &'cx ast::Program<'cx>,
     p: &'cx Parser<'cx>,
@@ -65,8 +66,8 @@ fn early_resolve<'cx>(
     }
 }
 
-pub(super) struct Resolver<'cx, 'r> {
-    states: &'r [BinderState<'cx>],
+pub(super) struct Resolver<'cx, 'r, 'atoms> {
+    states: &'r [BinderState<'cx, 'atoms>],
     module_id: bolt_ts_span::ModuleID,
     p: &'cx Parser<'cx>,
     pub diags: Vec<bolt_ts_errors::Diag>,
@@ -76,7 +77,11 @@ pub(super) struct Resolver<'cx, 'r> {
     resolved_exports: FxHashMap<SymbolID, FxHashMap<SymbolName, SymbolID>>,
 }
 
-impl<'cx> Resolver<'cx, '_> {
+impl<'cx> Resolver<'cx, '_, '_> {
+    fn locals(&self, id: ast::NodeID) -> Option<&FxHashMap<SymbolName, SymbolID>> {
+        self.states[id.module().as_usize()].locals.get(&id)
+    }
+
     fn symbol(&self, symbol_id: SymbolID) -> &crate::bind::Symbol {
         self.states[symbol_id.module().as_usize()]
             .symbols
@@ -94,7 +99,7 @@ impl<'cx> Resolver<'cx, '_> {
     }
 
     fn resolve_stmt(&mut self, stmt: &'cx ast::Stmt<'cx>) {
-        use ast::StmtKind::*;
+        use bolt_ts_ast::StmtKind::*;
         match stmt.kind {
             Var(var) => self.resolve_var_stmt(var),
             Expr(expr) => self.resolve_expr(expr),
@@ -105,14 +110,14 @@ impl<'cx> Resolver<'cx, '_> {
             Empty(_) => {}
             Class(class) => self.resolve_class_decl(class),
             Interface(interface) => self.resolve_interface_decl(interface),
-            Type(ty) => self.resolve_type_decl(ty),
+            Type(node) => self.resolve_type_decl(node),
             Namespace(ns) => self.resolve_ns_decl(ns),
             Throw(t) => {
                 self.resolve_expr(t.expr);
             }
-            Enum(enum_decl) => {}
-            Import(import_decl) => {}
-            Export(export_decl) => {}
+            Enum(_) => {}
+            Import(_) => {}
+            Export(_) => {}
             For(n) => {
                 if let Some(cond) = n.cond {
                     self.resolve_expr(cond);
@@ -143,6 +148,7 @@ impl<'cx> Resolver<'cx, '_> {
             Try(n) => {}
             While(n) => {}
             Do(n) => {}
+            Debugger(_) => {}
         };
     }
 
@@ -190,7 +196,7 @@ impl<'cx> Resolver<'cx, '_> {
     }
 
     fn resolve_entity_name(&mut self, name: &'cx ast::EntityName<'cx>, meaning: SymbolFlags) {
-        use ast::EntityNameKind::*;
+        use bolt_ts_ast::EntityNameKind::*;
         match name.kind {
             Ident(ident) => {
                 if meaning == SymbolFlags::TYPE {
@@ -232,7 +238,7 @@ impl<'cx> Resolver<'cx, '_> {
     }
 
     fn resolve_ty(&mut self, ty: &'cx ast::Ty<'cx>) {
-        use ast::TyKind::*;
+        use bolt_ts_ast::TyKind::*;
         match ty.kind {
             Refer(refer) => self.resolve_refer_ty(refer),
             Array(array) => {
@@ -249,14 +255,17 @@ impl<'cx> Resolver<'cx, '_> {
                 self.resolve_params(f.params);
                 self.resolve_ty(f.ty);
             }
+            Ctor(node) => {
+                if let Some(ty_params) = node.ty_params {
+                    self.resolve_ty_params(ty_params);
+                }
+                self.resolve_params(node.params);
+                self.resolve_ty(node.ty);
+            }
             ObjectLit(lit) => {
                 for member in lit.members {
                     self.resolve_object_ty_member(member);
                 }
-            }
-            Ctor(node) => {
-                self.resolve_params(node.params);
-                self.resolve_ty(node.ty);
             }
             Tuple(tuple) => {
                 for ty in tuple.tys {
@@ -284,17 +293,38 @@ impl<'cx> Resolver<'cx, '_> {
                 }
             }
             Typeof(n) => {
-                use ast::EntityNameKind::*;
-                match n.name.kind {
-                    Ident(ident) => self.resolve_value_by_ident(ident),
-                    Qualified(_) => (),
+                self.resolve_entity_name(n.name, SymbolFlags::VALUE);
+            }
+            Mapped(n) => {
+                self.resolve_ty_param(n.ty_param);
+                if let Some(ty) = n.ty {
+                    self.resolve_ty(ty);
                 }
             }
-            Mapped(n) => {}
-            TyOp(n) => {}
+            TyOp(n) => {
+                self.resolve_ty(n.ty);
+            }
             Pred(n) => {
                 self.resolve_value_by_ident(n.name);
                 self.resolve_ty(n.ty);
+            }
+            Paren(n) => {
+                self.resolve_ty(n.ty);
+            }
+            Infer(n) => {
+                self.resolve_ty_param(n.ty_param);
+            }
+            Nullable(n) => {
+                self.resolve_ty(n.ty);
+            }
+            Intrinsic(_) => {}
+            NamedTuple(n) => {
+                self.resolve_ty(n.ty);
+            }
+            TemplateLit(n) => {
+                for item in n.spans {
+                    self.resolve_ty(item.ty);
+                }
             }
         }
     }
@@ -305,7 +335,7 @@ impl<'cx> Resolver<'cx, '_> {
     }
 
     fn resolve_object_ty_member(&mut self, m: &'cx ast::ObjectTyMember<'cx>) {
-        use ast::ObjectTyMemberKind::*;
+        use bolt_ts_ast::ObjectTyMemberKind::*;
         match m.kind {
             Prop(m) => {
                 if let Some(ty) = m.ty {
@@ -360,8 +390,16 @@ impl<'cx> Resolver<'cx, '_> {
     }
 
     fn resolve_expr(&mut self, expr: &'cx ast::Expr<'cx>) {
-        use ast::ExprKind::*;
+        use bolt_ts_ast::ExprKind::*;
         match expr.kind {
+            ArrowFn(f) => {
+                self.resolve_params(f.params);
+                use bolt_ts_ast::ArrowFnExprBody::*;
+                match f.body {
+                    Block(block) => self.resolve_block_stmt(block),
+                    Expr(expr) => self.resolve_expr(expr),
+                }
+            }
             Ident(ident) => {
                 self.resolve_value_by_ident(ident);
             }
@@ -391,14 +429,6 @@ impl<'cx> Resolver<'cx, '_> {
                 self.resolve_expr(cond.when_false);
             }
             Paren(paren) => self.resolve_expr(paren.expr),
-            ArrowFn(f) => {
-                self.resolve_params(f.params);
-                use ast::ArrowFnExprBody::*;
-                match f.body {
-                    Block(block) => self.resolve_block_stmt(block),
-                    Expr(expr) => self.resolve_expr(expr),
-                }
-            }
             Fn(f) => {
                 self.resolve_params(f.params);
                 self.resolve_block_stmt(f.body);
@@ -419,6 +449,17 @@ impl<'cx> Resolver<'cx, '_> {
             Void(n) => {
                 self.resolve_expr(n.expr);
             }
+            As(n) => {
+                self.resolve_expr(n.expr);
+                if !n.ty.is_const_ty_refer() {
+                    self.resolve_ty(n.ty);
+                }
+            }
+            Template(n) => {
+                for item in n.spans {
+                    self.resolve_expr(item.expr);
+                }
+            }
             _ => {}
         }
     }
@@ -430,7 +471,7 @@ impl<'cx> Resolver<'cx, '_> {
     }
 
     fn resolve_object_member(&mut self, member: &'cx ast::ObjectMember<'cx>) {
-        use ast::ObjectMemberKind::*;
+        use bolt_ts_ast::ObjectMemberKind::*;
         match member.kind {
             Shorthand(n) => {
                 self.resolve_value_by_ident(n.name);
@@ -573,14 +614,15 @@ pub(super) struct ResolvedResult {
 }
 
 pub(super) fn resolve_symbol_by_ident<'a, 'cx>(
-    resolver: &'a Resolver<'cx, 'a>,
+    resolver: &'a Resolver<'cx, 'a, '_>,
     ident: &'cx ast::Ident,
     meaning: SymbolFlags,
 ) -> ResolvedResult {
     let binder = &resolver.states[resolver.module_id.as_usize()];
     let key = SymbolName::Normal(ident.name);
+    // TODO: use locals rather than scope.
     let Some(mut scope_id) = binder.node_id_to_scope_id.get(&ident.id).copied() else {
-        let name = resolver.atoms.get(ident.name);
+        let name = ast::debug_ident(ident, resolver.atoms);
         unreachable!("the scope of {name:?} is not stored");
     };
     let mut associated_declaration_for_containing_initializer_or_binding_name = None;
@@ -591,7 +633,7 @@ pub(super) fn resolve_symbol_by_ident<'a, 'cx>(
                 if symbol.flags.intersects(meaning) {
                     let container = symbol.expect_block_container();
                     if let Some(id) = container.locals.get(&key) {
-                        break ResolvedResult {
+                        return ResolvedResult {
                             symbol: *id,
                             associated_declaration_for_containing_initializer_or_binding_name,
                         };
@@ -609,7 +651,7 @@ pub(super) fn resolve_symbol_by_ident<'a, 'cx>(
                     .parent(ident.id)
                     .is_some_and(|n| resolver.p.node(n).is_qualified_name())
             {
-                break ResolvedResult {
+                return ResolvedResult {
                     symbol: id,
                     associated_declaration_for_containing_initializer_or_binding_name,
                 };
@@ -626,7 +668,7 @@ pub(super) fn resolve_symbol_by_ident<'a, 'cx>(
                 }
             }
             if symbol.flags.intersects(meaning) {
-                break ResolvedResult {
+                return ResolvedResult {
                     symbol: id,
                     associated_declaration_for_containing_initializer_or_binding_name,
                 };
@@ -636,15 +678,30 @@ pub(super) fn resolve_symbol_by_ident<'a, 'cx>(
         if let Some(parent) = binder.scope_id_parent_map[scope_id.index_as_usize()] {
             scope_id = parent;
         } else if let Some(symbol) = resolver.global.get(key) {
-            break ResolvedResult {
+            return ResolvedResult {
                 symbol,
                 associated_declaration_for_containing_initializer_or_binding_name,
             };
         } else {
-            break ResolvedResult {
-                symbol: Symbol::ERR,
-                associated_declaration_for_containing_initializer_or_binding_name,
-            };
+            break;
         }
+    }
+
+    let mut location = resolver.p.parent(ident.id);
+    while let Some(id) = location {
+        if let Some(locals) = resolver.locals(id) {
+            if let Some(symbol) = locals.get(&SymbolName::Normal(ident.name)).copied() {
+                return ResolvedResult {
+                    symbol,
+                    associated_declaration_for_containing_initializer_or_binding_name,
+                };
+            }
+        }
+        location = resolver.p.parent(id);
+    }
+
+    ResolvedResult {
+        symbol: Symbol::ERR,
+        associated_declaration_for_containing_initializer_or_binding_name,
     }
 }

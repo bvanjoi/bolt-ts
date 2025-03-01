@@ -14,11 +14,11 @@ var A = {};
   var B = {};
   (function (B) {
   
-    var x = 1
+    var x = 1;
     B.x = x
     
   })(B);
   A.B = B;
   
 })(A);
-var b
+var b;

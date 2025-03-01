@@ -1,36 +1,55 @@
+use super::BinderState;
+use super::FlowNodes;
+use super::ScopeID;
+use super::flow::FlowFlags;
+use super::flow::FlowID;
+use super::flow::FlowNodeKind;
 use super::symbol;
 use super::symbol::FunctionScopedVarSymbol;
 use super::symbol::GetterSetterSymbol;
 use super::symbol::IndexSymbol;
 use super::symbol::{SymbolFlags, SymbolFnKind, SymbolKind};
 use super::symbol::{SymbolID, SymbolName, Symbols};
-use super::BinderState;
-use super::ScopeID;
 
 use bolt_ts_atom::AtomMap;
 use bolt_ts_span::ModuleID;
 use bolt_ts_utils::fx_hashmap_with_capacity;
 use thin_vec::thin_vec;
 
-use crate::ast::ModifierKind;
-use crate::ast::{self};
+use crate::bind::Symbol;
 use crate::bind::prop_name;
 use crate::bind::symbol::AliasSymbol;
 use crate::parser::Parser;
+use bolt_ts_ast as ast;
 
-impl<'cx> BinderState<'cx> {
-    pub fn new(atoms: &'cx AtomMap, parser: &'cx Parser<'cx>, module_id: ModuleID) -> Self {
+impl<'cx, 'atoms> BinderState<'cx, 'atoms> {
+    pub fn new(atoms: &'atoms AtomMap<'cx>, parser: &'cx Parser<'cx>, module_id: ModuleID) -> Self {
         let symbols = Symbols::new(module_id);
+        let mut flow_nodes = FlowNodes::new(module_id);
+        let unreachable_flow_node = flow_nodes.create_flow_unreachable();
+        let report_unreachable_flow_node = flow_nodes.create_flow_unreachable();
+
         BinderState {
             atoms,
             p: parser,
             scope_id: ScopeID::root(module_id),
             scope_id_parent_map: Vec::with_capacity(512),
-            res: fx_hashmap_with_capacity(128),
-            final_res: fx_hashmap_with_capacity(256),
-            node_id_to_scope_id: fx_hashmap_with_capacity(32),
+            res: fx_hashmap_with_capacity(512),
+            final_res: fx_hashmap_with_capacity(512),
+            node_id_to_scope_id: fx_hashmap_with_capacity(512),
             symbols,
             diags: Vec::new(),
+
+            flow_nodes,
+            current_flow: None,
+            current_true_target: None,
+            current_false_target: None,
+            current_exception_target: None,
+            unreachable_flow_node,
+            report_unreachable_flow_node,
+            has_flow_effects: false,
+            in_return_position: false,
+            locals: fx_hashmap_with_capacity(128),
         }
     }
 
@@ -58,6 +77,7 @@ impl<'cx> BinderState<'cx> {
         assert!(self.scope_id_parent_map.is_empty());
         self.scope_id_parent_map.push(None);
         self.connect(root.id);
+        self.current_flow = Some(self.flow_nodes.create_start(None));
         let id = self.create_block_container_symbol(root.id);
         assert_eq!(id.index_as_u32(), 1);
         for stmt in root.stmts {
@@ -66,32 +86,21 @@ impl<'cx> BinderState<'cx> {
     }
 
     fn bind_stmt(&mut self, container: ast::NodeID, stmt: &'cx ast::Stmt) {
-        use ast::StmtKind::*;
+        use bolt_ts_ast::StmtKind::*;
+
         match stmt.kind {
             Empty(_) => (),
-            Var(var) => self.bind_var_stmt(var),
+            Var(var) => self.bind_var_stmt(container, var),
             Expr(expr) => self.bind_expr(expr),
             Fn(f) => self.bind_fn_decl(container, f),
-            If(stmt) => {
-                self.bind_expr(stmt.expr);
-                self.bind_stmt(container, stmt.then);
-                if let Some(alt) = stmt.else_then {
-                    self.bind_stmt(container, alt)
-                }
-            }
+            If(n) => self.bind_if_stmt(container, n),
             Block(block) => self.bind_block_stmt(block),
-            Return(ret) => {
-                if let Some(expr) = ret.expr {
-                    self.bind_expr(expr)
-                }
-            }
+            Return(ret) => self.bind_ret_or_throw(ret.expr, true),
+            Throw(t) => self.bind_ret_or_throw(Some(t.expr), false),
             Class(class) => self.bind_class_like(Some(container), class, false),
             Interface(interface) => self.bind_interface_decl(container, interface),
             Type(t) => self.bind_type_decl(t),
             Namespace(ns) => self.bind_ns_decl(container, ns),
-            Throw(t) => {
-                self.bind_expr(t.expr);
-            }
             Enum(_) => {}
             Import(_) => {}
             Export(decl) => self.bind_export_decl(container, decl),
@@ -123,7 +132,41 @@ impl<'cx> BinderState<'cx> {
             }
             While(n) => {}
             Do(n) => {}
+            Debugger(_) => {}
         }
+    }
+
+    fn bind_if_stmt(&mut self, container: ast::NodeID, n: &'cx ast::IfStmt<'cx>) {
+        let then_label = self.flow_nodes.create_branch_label();
+        let else_label = self.flow_nodes.create_branch_label();
+        let post_if_label = self.flow_nodes.create_branch_label();
+        self.bind_cond(Some(n.expr), then_label, else_label);
+        self.current_flow = Some(self.finish_flow_label(then_label));
+        self.bind_stmt(container, n.then);
+        self.flow_nodes
+            .add_antecedent(post_if_label, self.current_flow.unwrap());
+        self.current_flow = Some(self.finish_flow_label(else_label));
+
+        if let Some(alt) = n.else_then {
+            self.bind_stmt(container, alt)
+        }
+        self.flow_nodes
+            .add_antecedent(post_if_label, self.current_flow.unwrap());
+        self.current_flow = Some(self.finish_flow_label(post_if_label));
+    }
+
+    fn bind_ret_or_throw(&mut self, expr: Option<&'cx ast::Expr<'cx>>, is_ret: bool) {
+        let saved_in_return_position = self.in_return_position;
+        self.in_return_position = true;
+        if let Some(expr) = expr {
+            self.bind_expr(expr);
+        }
+        self.in_return_position = saved_in_return_position;
+        if is_ret {
+            // TODO:
+        }
+        self.current_flow = Some(self.unreachable_flow_node);
+        self.has_flow_effects = true;
     }
 
     fn bind_try_stmt(&mut self, container: ast::NodeID, stmt: &'cx ast::TryStmt<'cx>) {
@@ -133,6 +176,8 @@ impl<'cx> BinderState<'cx> {
             self.scope_id = self.new_scope();
             if let Some(var) = catch.var {
                 self.bind_var_binding(
+                    None,
+                    false,
                     var.binding,
                     ast::VarKind::Var,
                     var.id,
@@ -149,15 +194,15 @@ impl<'cx> BinderState<'cx> {
     }
 
     fn bind_for_init(&mut self, init: &ast::ForInitKind<'cx>) {
-        use ast::ForInitKind::*;
+        use bolt_ts_ast::ForInitKind::*;
         match init {
-            Var((kind, var)) => self.bind_var_decls(var, *kind),
+            Var((kind, var)) => self.bind_var_decls(None, var, *kind, false),
             Expr(expr) => self.bind_expr(expr),
         }
     }
 
     fn bind_spec_export(&mut self, container: ast::NodeID, spec: &'cx ast::ExportSpec<'cx>) {
-        use ast::ExportSpecKind::*;
+        use bolt_ts_ast::ExportSpecKind::*;
         let (name, symbol) = match spec.kind {
             Shorthand(spec) => {
                 let name = spec.name.name;
@@ -176,7 +221,7 @@ impl<'cx> BinderState<'cx> {
                 (name, symbol)
             }
             Named(named) => {
-                use ast::ModuleExportNameKind::*;
+                use bolt_ts_ast::ModuleExportNameKind::*;
                 let n = |name: &ast::ModuleExportName| match name.kind {
                     Ident(ident) => SymbolName::Normal(ident.name),
                     StringLit(lit) => SymbolName::Normal(lit.val),
@@ -208,10 +253,10 @@ impl<'cx> BinderState<'cx> {
     }
 
     fn bind_export_decl(&mut self, container: ast::NodeID, decl: &'cx ast::ExportDecl<'cx>) {
-        use ast::ExportClauseKind::*;
+        use bolt_ts_ast::ExportClauseKind::*;
         match decl.clause.kind {
-            Glob(glob_export) => todo!(),
-            Ns(ns_export) => todo!(),
+            Glob(_) => todo!(),
+            Ns(_) => todo!(),
             Specs(n) => {
                 for spec in n.list {
                     self.bind_spec_export(container, spec);
@@ -223,7 +268,7 @@ impl<'cx> BinderState<'cx> {
     fn bind_ns_decl(&mut self, container: ast::NodeID, ns: &'cx ast::NsDecl<'cx>) {
         let name = match ns.name {
             ast::ModuleName::Ident(ident) => ident.name,
-            ast::ModuleName::StringLit(lit) => {
+            ast::ModuleName::StringLit(_) => {
                 if let Some(block) = ns.block {
                     self.bind_block_stmt(block);
                 }
@@ -246,9 +291,14 @@ impl<'cx> BinderState<'cx> {
         );
         self.create_final_res(ns.id, symbol);
 
+        let is_export = ns
+            .modifiers
+            .is_some_and(|mods| mods.flags.contains(ast::ModifierKind::Export));
+        let name = SymbolName::Normal(name);
+        self.members(container, is_export).insert(name, symbol);
+
         let container = self.final_res[&container];
         if let SymbolKind::BlockContainer(c) = &mut self.symbols.get_mut(container).kind.0 {
-            let name = SymbolName::Normal(name);
             c.locals.insert(name, symbol);
         }
         if let Some(block) = ns.block {
@@ -294,6 +344,44 @@ impl<'cx> BinderState<'cx> {
         if let Some(default) = ty_param.default {
             self.bind_ty(default);
         }
+
+        let parent = self.p.parent(ty_param.id).unwrap();
+        let p = self.p.node(parent);
+        if let Some(infer_ty) = p.as_infer_ty() {
+            assert!(ty_param.default.is_none());
+            // get infer ty container
+            let extends_ty = self.p.find_ancestor(infer_ty.id, |n| {
+                let n_id = n.id();
+                let Some(p) = self.p.parent(n_id) else {
+                    return None;
+                };
+                if let Some(cond) = self.p.node(p).as_cond_ty() {
+                    if cond.extends_ty.id() == n_id {
+                        return Some(true);
+                    }
+                }
+                None
+            });
+            let container = extends_ty.map(|extends_ty| {
+                let p = self.p.parent(extends_ty).unwrap();
+                let n = self.p.node(p);
+                assert!(n.is_cond_ty());
+                p
+            });
+            if let Some(container) = container {
+                let name = SymbolName::Normal(ty_param.name.name);
+                self.inset_into_locals(container, name, symbol);
+            }
+        }
+    }
+
+    fn inset_into_locals(&mut self, container: ast::NodeID, name: SymbolName, symbol: SymbolID) {
+        assert!(self.p.node(container).has_locals());
+        let locals = self
+            .locals
+            .entry(container)
+            .or_insert_with(|| fx_hashmap_with_capacity(64));
+        locals.insert(name, symbol);
     }
 
     pub(super) fn bind_index_sig(
@@ -428,7 +516,7 @@ impl<'cx> BinderState<'cx> {
     }
 
     fn bind_object_ty_member(&mut self, container: ast::NodeID, m: &'cx ast::ObjectTyMember<'cx>) {
-        use ast::ObjectTyMemberKind::*;
+        use bolt_ts_ast::ObjectTyMemberKind::*;
         match m.kind {
             Prop(m) => {
                 if let Some(ty) = m.ty {
@@ -512,7 +600,7 @@ impl<'cx> BinderState<'cx> {
         let id = self.create_interface_symbol(i.id, i.name.name, Default::default());
         let is_export = i
             .modifiers
-            .is_some_and(|ms| ms.flags.intersects(ModifierKind::Export));
+            .is_some_and(|ms| ms.flags.intersects(ast::ModifierKind::Export));
         let name = SymbolName::Normal(i.name.name);
         let members = self.members(container, is_export);
         let _prev = members.insert(name, id);
@@ -536,17 +624,27 @@ impl<'cx> BinderState<'cx> {
         self.scope_id = old;
     }
 
-    pub(super) fn bind_block_stmt(&mut self, block: &'cx ast::BlockStmt<'cx>) {
+    fn bind_container(&mut self, _node: ast::NodeID, f: impl FnOnce(&mut Self)) {
         let old = self.scope_id;
         self.scope_id = self.new_scope();
 
-        self.create_block_container_symbol(block.id);
+        // TODO: container flags;
+        let saved_current_flow = self.current_flow;
 
-        for stmt in block.stmts {
-            self.bind_stmt(block.id, stmt)
-        }
+        f(self);
+
+        self.current_flow = saved_current_flow;
 
         self.scope_id = old;
+    }
+
+    pub(super) fn bind_block_stmt(&mut self, block: &'cx ast::BlockStmt<'cx>) {
+        self.bind_container(block.id, |this| {
+            this.create_block_container_symbol(block.id);
+            for stmt in block.stmts {
+                this.bind_stmt(block.id, stmt)
+            }
+        });
     }
 
     pub(super) fn bind_block_stmt_with_container(
@@ -565,11 +663,14 @@ impl<'cx> BinderState<'cx> {
     }
 
     fn bind_ident(&mut self, ident: &'cx ast::Ident) {
+        if let Some(flow) = self.current_flow {
+            self.flow_nodes.insert_container_map(ident.id, flow);
+        }
         self.connect(ident.id)
     }
 
-    pub(super) fn bind_expr(&mut self, expr: &'cx ast::Expr) {
-        use ast::ExprKind::*;
+    pub(super) fn bind_expr(&mut self, expr: &ast::Expr<'cx>) {
+        use bolt_ts_ast::ExprKind::*;
         match expr.kind {
             Ident(ident) => self.bind_ident(ident),
             Call(call) => self.bind_call_like(call),
@@ -604,6 +705,17 @@ impl<'cx> BinderState<'cx> {
             Void(node) => {
                 self.bind_expr(node.expr);
             }
+            As(node) => {
+                self.bind_expr(node.expr);
+                if !node.ty.is_const_ty_refer() {
+                    self.bind_ty(node.ty);
+                }
+            }
+            Template(node) => {
+                for item in node.spans {
+                    self.bind_expr(item.expr);
+                }
+            }
             _ => (),
         }
     }
@@ -626,8 +738,14 @@ impl<'cx> BinderState<'cx> {
 
         let old = self.scope_id;
         self.scope_id = self.new_scope();
+        if let Some(ty_params) = f.ty_params {
+            self.bind_ty_params(ty_params);
+        }
+        if let Some(ty) = f.ty {
+            self.bind_ty(ty);
+        }
         self.bind_params(f.params);
-        use ast::ArrowFnExprBody::*;
+        use bolt_ts_ast::ArrowFnExprBody::*;
         match f.body {
             Block(block) => self.bind_block_stmt(block),
             Expr(expr) => self.bind_expr(expr),
@@ -635,10 +753,108 @@ impl<'cx> BinderState<'cx> {
         self.scope_id = old;
     }
 
+    pub(super) fn finish_flow_label(&mut self, id: FlowID) -> FlowID {
+        let node = self.flow_nodes.get_flow_node(id);
+        let FlowNodeKind::Label(label) = &node.kind else {
+            unreachable!()
+        };
+        let Some(antecedents) = &label.antecedent else {
+            return self.unreachable_flow_node;
+        };
+        if antecedents.len() == 1 {
+            antecedents[0]
+        } else {
+            id
+        }
+    }
+
     fn bind_cond_expr(&mut self, cond: &'cx ast::CondExpr<'cx>) {
-        self.bind_expr(cond.cond);
+        let true_label = self.flow_nodes.create_branch_label();
+        let false_label = self.flow_nodes.create_branch_label();
+        let post_expression_label = self.flow_nodes.create_branch_label();
+
+        let saved_current_flow = self.current_flow;
+        let saved_has_flow_effects = self.has_flow_effects;
+
+        self.has_flow_effects = false;
+        self.bind_cond(Some(cond.cond), true_label, false_label);
+
+        self.current_flow = Some(self.finish_flow_label(true_label));
+        let when_true_flow = self.current_flow.unwrap();
         self.bind_expr(cond.when_true);
+        self.flow_nodes
+            .add_antecedent(post_expression_label, when_true_flow);
+
+        self.current_flow = Some(self.finish_flow_label(false_label));
+        let when_false_flow = self.current_flow.unwrap();
+        if self.in_return_position {
+            self.flow_nodes
+                .insert_cond_expr_flow(cond, when_true_flow, when_false_flow);
+        }
         self.bind_expr(cond.when_false);
+        self.flow_nodes
+            .add_antecedent(post_expression_label, when_false_flow);
+
+        self.current_flow = if self.has_flow_effects {
+            Some(self.finish_flow_label(post_expression_label))
+        } else {
+            saved_current_flow
+        };
+        if !self.has_flow_effects {
+            self.has_flow_effects = saved_has_flow_effects;
+        }
+    }
+
+    fn do_with_cond_branch<T>(
+        &mut self,
+        f: impl FnOnce(&mut Self, T),
+        value: T,
+        true_target: FlowID,
+        false_target: FlowID,
+    ) {
+        let saved_true_target = self.current_true_target;
+        let saved_false_target = self.current_false_target;
+
+        self.current_true_target = Some(true_target);
+        self.current_false_target = Some(false_target);
+        f(self, value);
+        self.current_true_target = saved_true_target;
+        self.current_false_target = saved_false_target;
+    }
+
+    fn bind_cond(
+        &mut self,
+        node: Option<&'cx ast::Expr<'cx>>,
+        true_target: FlowID,
+        false_target: FlowID,
+    ) {
+        self.do_with_cond_branch(
+            |this, value| {
+                if let Some(node) = value {
+                    this.bind_expr(node);
+                }
+            },
+            node,
+            true_target,
+            false_target,
+        );
+        let should_add_antecedent = node.is_none_or(|node| {
+            !node.kind.is_logical_assignment() && !node.kind.is_logical_expr()
+        });
+        if should_add_antecedent {
+            let t = self.create_flow_condition(
+                FlowFlags::TRUE_CONDITION,
+                self.current_flow.unwrap(),
+                node,
+            );
+            self.flow_nodes.add_antecedent(true_target, t);
+            let f = self.create_flow_condition(
+                FlowFlags::FALSE_CONDITION,
+                self.current_flow.unwrap(),
+                node,
+            );
+            self.flow_nodes.add_antecedent(false_target, f);
+        }
     }
 
     fn bind_array_lit(&mut self, lit: &'cx ast::ArrayLit<'cx>) {
@@ -654,7 +870,7 @@ impl<'cx> BinderState<'cx> {
             .members
             .iter()
             .map(|member| {
-                use ast::ObjectMemberKind::*;
+                use bolt_ts_ast::ObjectMemberKind::*;
                 match member.kind {
                     Shorthand(n) => {
                         self.bind_ident(n.name);
@@ -693,9 +909,12 @@ impl<'cx> BinderState<'cx> {
         self.create_object_lit_symbol(lit.id, members);
     }
 
-    fn bind_var_stmt(&mut self, var: &'cx ast::VarStmt) {
+    fn bind_var_stmt(&mut self, container: ast::NodeID, var: &'cx ast::VarStmt) {
         self.connect(var.id);
-        self.bind_var_decls(var.list, var.kind);
+        let is_export = var
+            .modifiers
+            .is_some_and(|mods| mods.flags.contains(ast::ModifierKind::Export));
+        self.bind_var_decls(Some(container), var.list, var.kind, is_export);
     }
 
     pub(super) fn bind_entity_name(&mut self, name: &'cx ast::EntityName) {
@@ -724,7 +943,7 @@ impl<'cx> BinderState<'cx> {
     }
 
     pub(super) fn bind_ty(&mut self, ty: &'cx ast::Ty) {
-        use ast::TyKind::*;
+        use bolt_ts_ast::TyKind::*;
         match ty.kind {
             Array(array) => self.bind_array_ty(array),
             Tuple(tup) => {
@@ -765,6 +984,9 @@ impl<'cx> BinderState<'cx> {
             }
             Ctor(n) => {
                 self.create_fn_ty_symbol(n.id, SymbolName::New);
+                if let Some(ty_params) = n.ty_params {
+                    self.bind_ty_params(ty_params);
+                }
                 self.bind_params(n.params);
                 self.bind_ty(n.ty);
             }
@@ -782,11 +1004,45 @@ impl<'cx> BinderState<'cx> {
             Typeof(n) => {
                 self.bind_entity_name(n.name);
             }
-            Mapped(n) => {}
-            TyOp(n) => {}
+            Mapped(n) => {
+                let symbol = self.symbols.insert(Symbol::new(
+                    SymbolName::Type,
+                    SymbolFlags::TYPE_LITERAL,
+                    SymbolKind::TyMapped { decl: n.id },
+                ));
+                self.final_res.insert(n.id, symbol);
+                assert!(n.ty_param.default.is_none());
+                assert!(n.ty_param.constraint.is_some());
+                self.bind_ty_param(n.ty_param);
+                if let Some(ty) = n.ty {
+                    self.bind_ty(ty);
+                }
+            }
+            TyOp(n) => {
+                self.bind_ty(n.ty);
+            }
             Pred(n) => {
                 self.bind_ident(n.name);
                 self.bind_ty(n.ty);
+            }
+            Paren(n) => {
+                self.bind_ty(n.ty);
+            }
+            Infer(n) => {
+                self.bind_ty_param(n.ty_param);
+            }
+            Nullable(n) => {
+                self.bind_ty(n.ty);
+            }
+            Intrinsic(_) => {}
+            NamedTuple(n) => {
+                self.bind_ident(n.name);
+                self.bind_ty(n.ty);
+            }
+            TemplateLit(n) => {
+                for item in n.spans {
+                    self.bind_ty(item.ty);
+                }
             }
         }
     }
@@ -795,14 +1051,22 @@ impl<'cx> BinderState<'cx> {
         self.bind_ty(array.ele)
     }
 
-    fn bind_var_decls(&mut self, decls: ast::VarDecls<'cx>, kind: ast::VarKind) {
+    fn bind_var_decls(
+        &mut self,
+        container: Option<ast::NodeID>,
+        decls: ast::VarDecls<'cx>,
+        kind: ast::VarKind,
+        is_export: bool,
+    ) {
         for decl in decls {
-            self.bind_var_decl(decl, kind);
+            self.bind_var_decl(container, decl, kind, is_export);
         }
     }
 
     fn bind_var_binding(
         &mut self,
+        container: Option<ast::NodeID>,
+        is_export: bool,
         binding: &'cx ast::Binding<'cx>,
         kind: ast::VarKind,
         var_decl: ast::NodeID,
@@ -816,17 +1080,21 @@ impl<'cx> BinderState<'cx> {
                 SymbolKind::FunctionScopedVar(FunctionScopedVarSymbol { decl: var_decl })
             }
         };
-        use ast::Binding::*;
+        use bolt_ts_ast::Binding::*;
         match binding {
             Ident(ident) => {
                 self.connect(ident.id);
                 let symbol =
                     self.create_var_symbol(ident.name, include_flags, symbol_kind(), exclude_flags);
                 self.create_final_res(ident.id, symbol);
+                if let Some(container) = container {
+                    let members = self.members(container, is_export);
+                    members.insert(SymbolName::Normal(ident.name), symbol);
+                }
             }
             ObjectPat(object) => {
                 for elem in object.elems {
-                    use ast::ObjectBindingName::*;
+                    use bolt_ts_ast::ObjectBindingName::*;
                     match elem.name {
                         Shorthand(ident) => {
                             self.connect(ident.id);
@@ -840,6 +1108,8 @@ impl<'cx> BinderState<'cx> {
                         }
                         Prop { name, .. } => {
                             self.bind_var_binding(
+                                None,
+                                false,
                                 name,
                                 kind,
                                 var_decl,
@@ -853,7 +1123,13 @@ impl<'cx> BinderState<'cx> {
         }
     }
 
-    fn bind_var_decl(&mut self, decl: &'cx ast::VarDecl<'cx>, kind: ast::VarKind) {
+    fn bind_var_decl(
+        &mut self,
+        container: Option<ast::NodeID>,
+        decl: &'cx ast::VarDecl<'cx>,
+        kind: ast::VarKind,
+        is_export: bool,
+    ) {
         let (include_flags, exclude_flags) =
             if kind == ast::VarKind::Let || kind == ast::VarKind::Const {
                 (
@@ -866,13 +1142,26 @@ impl<'cx> BinderState<'cx> {
                     SymbolFlags::FUNCTION_SCOPED_VARIABLE_EXCLUDES,
                 )
             };
-        self.bind_var_binding(decl.binding, kind, decl.id, include_flags, exclude_flags);
+        self.bind_var_binding(
+            container,
+            is_export,
+            decl.binding,
+            kind,
+            decl.id,
+            include_flags,
+            exclude_flags,
+        );
         if let Some(ty) = decl.ty {
             self.bind_ty(ty);
         }
         if let Some(init) = decl.init {
             self.bind_expr(init);
+            self.bind_init_var_flow(decl.id);
         }
+    }
+
+    fn bind_init_var_flow(&mut self, id: ast::NodeID) {
+        self.current_flow = Some(self.create_flow_assign(self.current_flow.unwrap(), id))
     }
 
     pub(super) fn bind_params(&mut self, params: ast::ParamsDecl<'cx>) {

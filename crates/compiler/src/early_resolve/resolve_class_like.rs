@@ -1,7 +1,9 @@
 use super::Resolver;
-use crate::{ast, bind::SymbolFlags, ir};
+use crate::bind::SymbolFlags;
+use crate::ir;
+use bolt_ts_ast as ast;
 
-impl<'cx> Resolver<'cx, '_> {
+impl<'cx> Resolver<'cx, '_, '_> {
     fn resolve_class_prop_ele(&mut self, ele: &'cx ast::ClassPropElem<'cx>) {
         if let Some(ty) = ele.ty {
             self.resolve_ty(ty);
@@ -40,7 +42,7 @@ impl<'cx> Resolver<'cx, '_> {
         }
 
         for ele in class.elems().elems {
-            use ast::ClassEleKind::*;
+            use bolt_ts_ast::ClassEleKind::*;
             match ele.kind {
                 Prop(n) => self.resolve_class_prop_ele(n),
                 Method(n) => self.resolve_class_method_ele(n),

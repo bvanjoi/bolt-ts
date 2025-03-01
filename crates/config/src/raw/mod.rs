@@ -3,6 +3,7 @@ use super::OutDir;
 macro_rules! with_option {
     ($s: ident, $(($option: ident, $ty: ty)),* $(,)?) => {
         #[derive(Debug, Default, serde::Deserialize, serde::Serialize)]
+        #[serde(rename_all = "camelCase")]
         pub struct $s {
             $(pub(super) $option: Option<$ty>,)*
         }
@@ -40,6 +41,7 @@ with_option!(
     (strict, bool),
     (strict_null_checks, bool),
     (no_implicit_any, bool),
+    (no_unchecked_indexed_access, bool)
 );
 
 impl RawCompilerOptions {
@@ -48,15 +50,10 @@ impl RawCompilerOptions {
         let no_emit = self.no_emit.unwrap_or_default();
         let declaration = self.declaration.unwrap_or_default();
         let strict = self.strict.unwrap_or_default();
-        let get_strict_option_value = |v: Option<bool>| {
-            if let Some(v) = v {
-                v
-            } else {
-                strict
-            }
-        };
+        let get_strict_option_value = |v: Option<bool>| v.unwrap_or(strict);
         let strict_null_checks = get_strict_option_value(self.strict_null_checks);
         let no_implicit_any = get_strict_option_value(self.no_implicit_any);
+        let no_unchecked_indexed_access = self.no_unchecked_indexed_access.unwrap_or_default();
         super::NormalizedCompilerOptions {
             out_dir,
             no_emit,
@@ -64,6 +61,7 @@ impl RawCompilerOptions {
             strict,
             strict_null_checks,
             no_implicit_any,
+            no_unchecked_indexed_access,
         }
     }
 }

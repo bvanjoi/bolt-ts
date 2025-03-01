@@ -1,7 +1,8 @@
+use bolt_ts_ast::{self as ast, NodeID};
 use bolt_ts_span::ModuleID;
 
-use super::ast::NodeID;
 use crate::bind::{Symbol, SymbolFlags, SymbolID, SymbolName};
+use crate::ty;
 
 use super::TyChecker;
 
@@ -23,19 +24,19 @@ pub(super) fn create_transient_symbol<'cx>(
 }
 
 #[derive(Debug, Clone, Copy)]
-pub(super) enum CheckSymbol<'cx, 'checker> {
+pub(crate) enum CheckSymbol<'cx, 'checker> {
     Transient(&'checker TransientSymbol<'cx>),
     Normal(&'checker Symbol),
 }
 
 impl CheckSymbol<'_, '_> {
-    pub(super) fn flags(&self) -> SymbolFlags {
+    pub(crate) fn flags(&self) -> SymbolFlags {
         match self {
             CheckSymbol::Transient(symbol) => symbol.flags,
             CheckSymbol::Normal(symbol) => symbol.flags,
         }
     }
-    pub(super) fn name(&self) -> SymbolName {
+    pub(crate) fn name(&self) -> SymbolName {
         match self {
             CheckSymbol::Transient(symbol) => symbol.name,
             CheckSymbol::Normal(symbol) => symbol.name,
@@ -104,13 +105,22 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
-    pub(super) fn symbol(&self, symbol: SymbolID) -> CheckSymbol<'cx, '_> {
+    pub(crate) fn symbol(&self, symbol: SymbolID) -> CheckSymbol<'cx, '_> {
         if symbol.module() == ModuleID::TRANSIENT {
             let symbol = self.get_transient(symbol).unwrap();
             CheckSymbol::Transient(symbol)
         } else {
             let symbol = self.binder.symbol(symbol);
             CheckSymbol::Normal(symbol)
+        }
+    }
+
+    pub(crate) fn symbol_opt_decl(&self, symbol: SymbolID) -> Option<ast::NodeID> {
+        if symbol.module() == ModuleID::TRANSIENT {
+            let symbol = self.get_transient(symbol).unwrap();
+            symbol.origin.and_then(|s| self.symbol_opt_decl(s))
+        } else {
+            symbol.opt_decl(self.binder)
         }
     }
 
@@ -124,5 +134,25 @@ impl<'cx> TyChecker<'cx> {
         } else {
             symbol.opt_decl(self.binder)
         }
+    }
+
+    pub(crate) fn is_readonly_symbol(&self, symbol: SymbolID) -> bool {
+        if self
+            .get_check_flags(symbol)
+            .intersects(ty::CheckFlags::READONLY)
+        {
+            return true;
+        }
+        let symbol_flags = self.symbol(symbol).flags();
+        symbol_flags.intersects(SymbolFlags::PROPERTY)
+            && self
+                .decl_modifier_flags_from_symbol(symbol)
+                .intersects(ast::ModifierKind::Readonly)
+            || symbol_flags.intersects(SymbolFlags::ENUM_MEMBER)
+    }
+
+    pub(crate) fn get_late_flag(&self, symbol: SymbolID) -> ty::CheckFlags {
+        self.get_check_flags(symbol)
+            .intersection(ty::CheckFlags::LATE)
     }
 }

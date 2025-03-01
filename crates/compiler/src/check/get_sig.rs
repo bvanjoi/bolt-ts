@@ -1,13 +1,16 @@
-use super::ast;
 use super::TyChecker;
+use super::ast;
+use super::type_predicate::TyPred;
 use crate::bind::SymbolID;
 use crate::ty;
 use crate::ty::SigID;
 use crate::ty::SigKind;
+use crate::ty::TypeFlags;
 use crate::ty::{Sig, SigFlags};
 
 impl<'cx> TyChecker<'cx> {
     pub(super) fn new_sig(&mut self, sig: Sig<'cx>) -> &'cx Sig<'cx> {
+        assert!(sig.id == SigID::dummy(), "TODO: hidden id");
         let sig = sig.with_id(self.sigs.len());
         let s = self.alloc(sig);
         self.sigs.push(s);
@@ -52,7 +55,7 @@ impl<'cx> TyChecker<'cx> {
         self.alloc(sigs)
     }
 
-    pub(super) fn get_signatures_of_type(
+    pub(crate) fn get_signatures_of_type(
         &mut self,
         ty: &'cx ty::Ty<'cx>,
         kind: SigKind,
@@ -163,7 +166,117 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
-    // pub(super) fn is_resolving_return_type_of_sig(&self, sig: &'cx Sig<'cx>) -> bool {}
+    pub(super) fn get_effects_sig(&mut self, node: ast::NodeID) -> Option<&'cx Sig<'cx>> {
+        let sig = if let Some(sig) = self.get_node_links(node).get_effects_sig() {
+            sig
+        } else {
+            let mut func_ty = None;
+            let n = self.p.node(node);
+            let expr = match n {
+                ast::Node::CallExpr(call) => call.expr,
+                // TODO: instanceof
+                _ => unreachable!(),
+            };
+            if let Some(bin) = n.as_bin_expr() {
+                let right_ty = self.check_expr(bin.right);
+                // func_ty = Some()
+                todo!()
+            } else if !matches!(expr.kind, ast::ExprKind::Super(_)) {
+                func_ty = Some(self.check_non_null_expr(expr));
+            };
+            let sigs = if let Some(func_ty) = func_ty {
+                let apparent_ty = self.get_apparent_ty(func_ty);
+                self.get_signatures_of_type(apparent_ty, SigKind::Call)
+            } else {
+                self.get_signatures_of_type(self.unknown_ty, SigKind::Call)
+            };
+            let candidate = if sigs.len() == 1 && sigs[0].ty_params.is_none() {
+                Some(sigs[0])
+            } else if sigs.iter().any(|sig| self.has_ty_pred_or_never_ret_ty(sig)) {
+                // TODO: get_resolved_sig(node)
+                None
+            } else {
+                None
+            };
+            let sig = candidate
+                .filter(|sig| self.has_ty_pred_or_never_ret_ty(sig))
+                .unwrap_or(self.unknown_sig());
+            self.get_mut_node_links(node).set_effects_sig(sig);
+            sig
+        };
+        if sig == self.unknown_sig() {
+            None
+        } else {
+            Some(sig)
+        }
+    }
+
+    fn has_ty_pred_or_never_ret_ty(&mut self, sig: &'cx Sig<'cx>) -> bool {
+        self.get_ty_predicate_of_sig(sig).is_some()
+            || sig.node_id.is_some_and(|decl| {
+                self.get_ret_ty_from_anno(decl)
+                    .unwrap_or(self.unknown_ty)
+                    .flags
+                    .intersects(TypeFlags::NEVER)
+            })
+    }
+
+    fn instantiate_ty_pred(
+        &mut self,
+        pred: &'cx TyPred<'cx>,
+        mapper: Option<&'cx dyn ty::TyMap<'cx>>,
+    ) -> &'cx TyPred<'cx> {
+        use super::type_predicate::TyPredKind::*;
+        match pred.kind {
+            Ident(p) => {
+                let ty = p.ty.map(|ty| self.instantiate_ty(ty, mapper));
+                self.create_ident_ty_pred(p.param_name, p.param_index, ty)
+            }
+        }
+    }
+
+    pub(super) fn get_ty_predicate_of_sig(
+        &mut self,
+        sig: &'cx ty::Sig<'cx>,
+    ) -> Option<&'cx TyPred<'cx>> {
+        let pred = if let Some(pred) = self.get_sig_links(sig.id).get_resolved_ty_pred() {
+            pred
+        } else if let Some(target) = sig.target {
+            let pred = if let Some(target_ty_pred) = self.get_ty_predicate_of_sig(target) {
+                assert!(sig.mapper.is_some());
+                let pred = self.instantiate_ty_pred(target_ty_pred, sig.mapper);
+                pred
+            } else {
+                self.no_ty_pred()
+            };
+            self.get_mut_sig_links(sig.id).set_resolved_ty_pred(pred);
+            pred
+        } else {
+            // TODO: composite sigs
+            let ty = sig
+                .node_id
+                .and_then(|node_id| self.get_effective_ret_type_node(node_id));
+            let pred = if let Some(ty) = ty {
+                if let ast::TyKind::Pred(p) = ty.kind {
+                    self.create_ty_pred_from_node(p, sig)
+                } else {
+                    self.no_ty_pred()
+                }
+            } else if let Some(decl) = sig.node_id {
+                // TODO:
+                self.no_ty_pred()
+            } else {
+                self.no_ty_pred()
+            };
+            self.get_mut_sig_links(sig.id).set_resolved_ty_pred(pred);
+            pred
+        };
+        if std::ptr::eq(pred, self.no_ty_pred()) {
+            None
+        } else {
+            Some(pred)
+        }
+    }
 }
 
 fn get_sig_from_decl<'cx>(
@@ -194,7 +307,7 @@ fn get_sig_from_decl<'cx>(
     let mut min_args_count = 0;
     let mut params = Vec::with_capacity(params_of_node.len());
     for param in params_of_node {
-        let symbol = checker.binder.final_res(param.id);
+        let symbol = checker.final_res(param.id);
         params.push(symbol);
         let is_opt = param.question.is_some() || param.dotdotdot.is_some() || param.init.is_some();
         if !is_opt {

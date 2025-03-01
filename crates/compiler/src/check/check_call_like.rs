@@ -3,13 +3,15 @@ use super::infer::InferenceFlags;
 use super::relation::RelationKind;
 use super::ty::ElementFlags;
 use super::ty::{Sig, SigFlags, Sigs};
-use super::{errors, CheckMode};
+use super::{CheckMode, errors};
 use super::{ExpectedArgsCount, Ternary};
 use super::{InferenceContextId, TyChecker};
 use crate::bind::SymbolID;
 use crate::ir::{self, CallLike};
+use crate::ty;
 use crate::ty::TypeFlags;
-use crate::{ast, ty};
+
+use bolt_ts_ast as ast;
 use bolt_ts_span::Span;
 
 pub(super) trait CallLikeExpr<'cx>: ir::CallLike<'cx> {
@@ -91,7 +93,7 @@ impl<'cx> TyChecker<'cx> {
     ) -> Option<&'cx ty::Ty<'cx>> {
         if sig.has_rest_param() {
             let sig_rest_ty = self.get_type_of_symbol(sig.params[sig.params.len() - 1]);
-            let rest_ty = if sig_rest_ty.kind.is_tuple() {
+            let rest_ty = if sig_rest_ty.is_tuple() {
                 todo!()
             } else {
                 sig_rest_ty
@@ -100,6 +102,45 @@ impl<'cx> TyChecker<'cx> {
         } else {
             None
         }
+    }
+
+    pub(super) fn get_rest_ty_at_pos(
+        &mut self,
+        source: &'cx ty::Sig<'cx>,
+        pos: usize,
+        readonly: bool,
+    ) -> &'cx ty::Ty<'cx> {
+        let param_count = source.get_param_count(self);
+        let min_arg_count = self.get_min_arg_count(source);
+        let rest_ty = source.get_rest_ty(self);
+        if let Some(rest_ty) = rest_ty {
+            if pos >= param_count - 1 {
+                return if pos == param_count - 1 {
+                    rest_ty
+                } else {
+                    let ty = self.get_indexed_access_ty(rest_ty, self.number_ty, None, None);
+                    self.create_array_ty(ty, false)
+                };
+            }
+        }
+        let mut tys = Vec::with_capacity(param_count);
+        let mut flags = Vec::with_capacity(param_count);
+        // let mut names = Vec::with_capacity(param_count);
+        for i in pos..param_count {
+            if rest_ty.is_none() || i < param_count - 1 {
+                tys.push(self.get_ty_at_pos(source, i));
+                flags.push(if i < min_arg_count {
+                    ElementFlags::REQUIRED
+                } else {
+                    ElementFlags::OPTIONAL
+                });
+            } else {
+                tys.push(rest_ty.unwrap());
+                flags.push(ElementFlags::VARIADIC);
+            }
+            // names.push(self.getnam);
+        }
+        self.create_tuple_ty(self.alloc(tys), Some(self.alloc(flags)), readonly)
     }
 
     pub(super) fn get_ty_at_pos(&mut self, sig: &Sig<'cx>, pos: usize) -> &'cx ty::Ty<'cx> {
@@ -120,12 +161,15 @@ impl<'cx> TyChecker<'cx> {
             Some(self.get_type_of_symbol(sig.params[pos]))
         } else if sig.has_rest_param() {
             let rest_ty = self.get_type_of_symbol(sig.params[param_count]);
-            // let index = pos - param_count;
-            (!rest_ty.kind.is_tuple()).then(|| {
-                rest_ty.kind.expect_object_reference().resolved_ty_args[0]
-                // TODO:
-                // let index_ty = self.get_number_literal_type(index as f64);
-                // self.get_indexed_access_ty(rest_ty, index_ty, None)
+            let index = pos - param_count;
+            let use_indexed_access = if let Some(t) = rest_ty.as_tuple() {
+                t.combined_flags.intersects(ElementFlags::VARIABLE) || index < t.fixed_length
+            } else {
+                true
+            };
+            use_indexed_access.then(|| {
+                let index_ty = self.get_number_literal_type(index as f64);
+                self.get_indexed_access_ty(rest_ty, index_ty, None, None)
             })
         } else {
             None
@@ -133,7 +177,10 @@ impl<'cx> TyChecker<'cx> {
     }
 
     fn resolve_new_expr(&mut self, expr: &impl CallLikeExpr<'cx>) -> &'cx Sig<'cx> {
-        let ty = self.check_expr(expr.callee());
+        let mut ty = self.check_expr(expr.callee());
+
+        ty = self.get_apparent_ty(ty);
+
         let sigs = self.get_signatures_of_type(ty, ty::SigKind::Constructor);
 
         if !sigs.is_empty() {
@@ -158,8 +205,24 @@ impl<'cx> TyChecker<'cx> {
                 };
                 self.push_error(Box::new(error));
             }
+
+            self.resolve_call(ty, expr, sigs)
+        } else if ty != self.error_ty {
+            self.invocation_error(expr, ty, ty::SigKind::Constructor);
+            self.unknown_sig()
+        } else {
+            self.unknown_sig()
         }
-        self.resolve_call(ty, expr, sigs)
+    }
+
+    fn invocation_error(
+        &mut self,
+        expr: &impl CallLikeExpr<'cx>,
+        apparent_ty: &'cx ty::Ty<'cx>,
+        kind: ty::SigKind,
+    ) {
+        let error = errors::ThisExpressionIsNotConstructable { span: expr.span() };
+        self.push_error(Box::new(error));
     }
 
     fn resolve_call_expr(&mut self, expr: &impl CallLikeExpr<'cx>) -> &'cx Sig<'cx> {
@@ -191,7 +254,7 @@ impl<'cx> TyChecker<'cx> {
         let mut min_arg_count = None;
         if sig.has_rest_param() {
             let rest_ty = self.get_type_of_symbol(sig.params[sig.params.len() - 1]);
-            if rest_ty.kind.is_tuple() {
+            if rest_ty.is_tuple() {
                 let tuple = rest_ty
                     .kind
                     .expect_object_reference()
@@ -220,7 +283,7 @@ impl<'cx> TyChecker<'cx> {
         for i in (0..min_arg_count).rev() {
             let ty = self.get_ty_at_pos(sig, i);
             if self
-                .filter_type(ty, |ty| ty.flags.intersects(TypeFlags::VOID))
+                .filter_type(ty, |_, ty| ty.flags.intersects(TypeFlags::VOID))
                 .flags
                 .intersects(TypeFlags::NEVER)
             {
@@ -239,7 +302,7 @@ impl<'cx> TyChecker<'cx> {
     pub(super) fn has_effective_rest_param(&mut self, sig: &'cx Sig<'cx>) -> bool {
         if sig.has_rest_param() {
             let rest_ty = self.get_type_of_symbol(sig.params[sig.params.len() - 1]);
-            if !rest_ty.kind.is_tuple() {
+            if !rest_ty.is_tuple() {
                 return true;
             }
             let tuple = rest_ty
@@ -299,7 +362,7 @@ impl<'cx> TyChecker<'cx> {
         for i in arg_count..min_args {
             let ty = self.get_ty_at_pos(sig, i);
             if self
-                .filter_type(ty, |ty| ty.flags.intersects(TypeFlags::VOID))
+                .filter_type(ty, |_, ty| ty.flags.intersects(TypeFlags::VOID))
                 .flags
                 .intersects(TypeFlags::NEVER)
             {
@@ -333,7 +396,7 @@ impl<'cx> TyChecker<'cx> {
             let arg_ty = self.check_expr_with_contextual_ty(arg, param_ty, None, check_mode);
             let error_node = report_error.then(|| arg.id());
             let check_arg_ty = if let Some(infer) = inference_context {
-                let mapper = self.create_inference_non_fixing_mapper(infer);
+                let mapper = self.inference(infer).non_fixing_mapper;
                 self.instantiate_ty(arg_ty, Some(mapper))
             } else {
                 arg_ty
@@ -463,7 +526,7 @@ impl<'cx> TyChecker<'cx> {
                                 argument_check_mode | CheckMode::SKIP_GENERIC_FUNCTIONS,
                                 infer,
                             );
-                            let mapper = self.create_inference_non_fixing_mapper(infer);
+                            let mapper = self.inference(infer).non_fixing_mapper;
                             self.instantiate_tys(tys, mapper)
                         });
 
@@ -508,7 +571,7 @@ impl<'cx> TyChecker<'cx> {
                                 argument_check_mode,
                                 infer,
                             );
-                            let mapper = self.create_inference_fixing_mapper(infer);
+                            let mapper = self.inference(infer).mapper;
                             self.instantiate_tys(tys, mapper)
                         };
                         check_candidate =
@@ -751,14 +814,17 @@ impl<'cx> TyChecker<'cx> {
         let mut max = usize::MIN;
         let mut max_below = usize::MIN;
         let mut min_above = usize::MAX;
+        let mut closest_sig = None;
         for sig in sigs {
+            let min_param = self.get_min_arg_count(sig);
             let max_param = sig.get_param_count(self);
-            if sig.min_args_count < min {
-                min = sig.min_args_count;
+            if min_param < min {
+                min = min_param;
+                closest_sig = Some(sig);
             }
             max = usize::max(max, max_param);
-            if sig.min_args_count < args.len() && sig.min_args_count > max_below {
-                max_below = sig.min_args_count;
+            if min_param < args.len() && min_param > max_below {
+                max_below = min_param;
             }
             if args.len() < max_param && max_param < min_above {
                 min_above = max_param;
@@ -902,7 +968,7 @@ impl<'cx> TyChecker<'cx> {
                 .flat_map(|c| self.try_get_rest_ty_of_sig(c))
                 .collect::<Vec<_>>();
             let ty = self.get_union_ty(&tys, ty::UnionReduction::Subtype);
-            let ty = self.create_array_ty(ty);
+            let ty = self.create_array_ty(ty, false);
             params.push(self.create_combined_symbol_for_overload_failure(rest_param_symbols, ty));
             flags |= SigFlags::HAS_REST_PARAMETER;
         }
@@ -961,7 +1027,7 @@ impl<'cx> TyChecker<'cx> {
             let default_ty = self
                 .get_default_ty_from_ty_param(ty_param)
                 .or_else(|| self.get_constraint_of_ty_param(ty_param))
-                .unwrap_or_else(|| self.any_ty);
+                .unwrap_or(self.any_ty);
             ty_args.push(default_ty);
         }
 

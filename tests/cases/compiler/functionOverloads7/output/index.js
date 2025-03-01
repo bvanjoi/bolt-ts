@@ -5,7 +5,7 @@ class foo {
     return "foo"
   }
   n() {
-    var foo = this.bar()
+    var foo = this.bar();
     foo = this.bar("test");
   }
 }

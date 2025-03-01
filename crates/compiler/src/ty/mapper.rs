@@ -1,5 +1,3 @@
-use std::fmt::Debug;
-
 use crate::check::TyChecker;
 
 use super::{Ty, Tys};
@@ -18,35 +16,6 @@ impl<'cx> TyMapper<'cx> {
     }
 }
 
-macro_rules! ty_mapper {
-    ($kind: ident, $ty: ty, $as_kind: ident, $is_kind: ident) => {
-        impl<'cx> TyMapper<'cx> {
-            #[inline(always)]
-            pub fn $as_kind(&self) -> Option<$ty> {
-                match self {
-                    TyMapper::$kind(ty) => Some(ty),
-                    _ => None,
-                }
-            }
-            #[inline(always)]
-            pub fn $is_kind(&self) -> bool {
-                self.$as_kind().is_some()
-            }
-        }
-    };
-}
-
-ty_mapper!(Simple, &SimpleTyMapper<'cx>, as_simple, is_simple);
-ty_mapper!(Array, &ArrayTyMapper<'cx>, as_array, is_array);
-// ty_mapper!(Fn, &FnTyMapper<'cx>, as_fn, is_fn);
-ty_mapper!(
-    Composite,
-    &CompositeTyMapper<'cx>,
-    as_composite,
-    is_composite
-);
-ty_mapper!(Merged, &MergedTyMapper<'cx>, as_merged, is_merged);
-
 #[derive(Clone, Copy, Debug)]
 pub struct SimpleTyMapper<'cx> {
     pub source: &'cx Ty<'cx>,
@@ -55,8 +24,32 @@ pub struct SimpleTyMapper<'cx> {
 
 #[derive(Clone, Copy, Debug)]
 pub struct ArrayTyMapper<'cx> {
-    pub sources: Tys<'cx>,
-    pub targets: Option<Tys<'cx>>,
+    pub mapper: &'cx [(&'cx Ty<'cx>, &'cx Ty<'cx>)],
+}
+
+impl<'cx> ArrayTyMapper<'cx> {
+    pub fn new(
+        sources: Tys<'cx>,
+        targets: Option<Tys<'cx>>,
+        checker: &TyChecker<'cx>,
+    ) -> ArrayTyMapper<'cx> {
+        assert!(sources.len() >= targets.map(|t| t.len()).unwrap_or_default());
+        let mut mapper = sources
+            .iter()
+            .enumerate()
+            .map(|(idx, &source)| {
+                assert!(source.kind.is_param());
+                let target = targets
+                    .and_then(|tys| tys.get(idx))
+                    .copied()
+                    .unwrap_or(checker.any_ty);
+                (source, target)
+            })
+            .collect::<Vec<_>>();
+        mapper.sort_by_key(|(source, _)| source.id.as_u32());
+        let mapper = checker.alloc(mapper);
+        ArrayTyMapper { mapper }
+    }
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -67,37 +60,31 @@ pub struct CompositeTyMapper<'cx> {
 
 #[derive(Clone, Copy, Debug)]
 pub struct MergedTyMapper<'cx> {
-    pub mapper1: &'cx TyMapper<'cx>,
-    pub mapper2: &'cx TyMapper<'cx>,
+    pub mapper1: &'cx dyn TyMap<'cx>,
+    pub mapper2: &'cx dyn TyMap<'cx>,
 }
 
-pub trait TyMap<'cx>: Debug {
+pub trait TyMap<'cx>: std::fmt::Debug {
     fn get_mapped_ty(&self, ty: &'cx Ty<'cx>, checker: &mut TyChecker<'cx>) -> &'cx Ty<'cx>;
 }
 
 impl<'cx> TyMap<'cx> for SimpleTyMapper<'cx> {
     fn get_mapped_ty(&self, ty: &'cx Ty<'cx>, _: &mut TyChecker<'cx>) -> &'cx Ty<'cx> {
-        if ty == self.source {
-            self.target
-        } else {
-            ty
-        }
+        if ty == self.source { self.target } else { ty }
     }
 }
 
 impl<'cx> TyMap<'cx> for ArrayTyMapper<'cx> {
-    fn get_mapped_ty(&self, ty: &'cx Ty<'cx>, checker: &mut TyChecker<'cx>) -> &'cx Ty<'cx> {
-        for (idx, source) in self.sources.iter().enumerate() {
-            assert!(source.kind.is_param());
-            if source.eq(&ty) {
-                if let Some(targets) = &self.targets {
-                    return targets[idx];
-                } else {
-                    return checker.any_ty;
-                }
-            }
-        }
-        ty
+    fn get_mapped_ty(&self, ty: &'cx Ty<'cx>, _: &mut TyChecker<'cx>) -> &'cx Ty<'cx> {
+        debug_assert!(
+            self.mapper
+                .is_sorted_by_key(|(source, _)| source.id.as_u32()),
+            "mapper must be sorted by source type, but got {:#?}",
+            self.mapper
+        );
+        self.mapper
+            .binary_search_by_key(&ty.id.as_u32(), |(source, _)| source.id.as_u32())
+            .map_or(ty, |idx| self.mapper[idx].1)
     }
 }
 
@@ -113,8 +100,9 @@ impl<'cx> TyMap<'cx> for CompositeTyMapper<'cx> {
 }
 
 impl<'cx> TyMap<'cx> for MergedTyMapper<'cx> {
-    fn get_mapped_ty(&self, _: &'cx Ty<'cx>, _: &mut TyChecker<'cx>) -> &'cx Ty<'cx> {
-        todo!()
+    fn get_mapped_ty(&self, ty: &'cx Ty<'cx>, checker: &mut TyChecker<'cx>) -> &'cx Ty<'cx> {
+        let t1 = self.mapper1.get_mapped_ty(ty, checker);
+        self.mapper2.get_mapped_ty(t1, checker)
     }
 }
 

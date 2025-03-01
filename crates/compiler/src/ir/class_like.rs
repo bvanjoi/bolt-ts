@@ -1,4 +1,4 @@
-use crate::ast;
+use bolt_ts_ast as ast;
 
 pub trait ClassLike<'cx>: Copy + std::fmt::Debug {
     fn id(&self) -> ast::NodeID;

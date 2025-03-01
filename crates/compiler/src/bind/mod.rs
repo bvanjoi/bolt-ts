@@ -2,8 +2,10 @@ mod bind_call_like;
 mod bind_class_like;
 mod bind_fn_like;
 mod bind_visitor;
+mod container_flags;
 mod create;
 mod errors;
+mod flow;
 mod pprint;
 mod symbol;
 
@@ -14,6 +16,7 @@ use bolt_ts_span::ModuleID;
 use rayon::prelude::*;
 use rustc_hash::FxHashMap;
 
+pub use self::flow::{FlowFlags, FlowID, FlowNode, FlowNodeKind, FlowNodes};
 pub use self::symbol::BlockContainerSymbol;
 use self::symbol::ClassSymbol;
 pub(crate) use self::symbol::SymbolKind;
@@ -21,9 +24,9 @@ use self::symbol::TyLitSymbol;
 pub use self::symbol::{GlobalSymbols, Symbol, SymbolID, SymbolName, Symbols};
 pub use self::symbol::{SymbolFlags, SymbolFnKind};
 
-use crate::ast;
 use crate::late_resolve::ResolveResult;
 use crate::parser::Parser;
+use bolt_ts_ast as ast;
 
 bolt_ts_utils::module_index!(ScopeID);
 
@@ -35,15 +38,13 @@ impl ScopeID {
 
 pub struct Binder<'cx> {
     p: &'cx Parser<'cx>,
-    atoms: &'cx AtomMap<'cx>,
     binder_result: Vec<ResolveResult>,
 }
 
 impl<'cx> Binder<'cx> {
-    pub fn new(p: &'cx Parser<'cx>, atoms: &'cx AtomMap) -> Self {
+    pub fn new(p: &'cx Parser<'cx>) -> Self {
         Self {
             p,
-            atoms,
             binder_result: Vec::with_capacity(p.module_count() + 1),
         }
     }
@@ -54,23 +55,9 @@ impl<'cx> Binder<'cx> {
     }
 
     #[inline(always)]
-    fn get(&self, id: ModuleID) -> &ResolveResult {
+    pub(crate) fn get(&self, id: ModuleID) -> &ResolveResult {
         let index = id.as_usize();
         &self.binder_result[index]
-    }
-
-    #[inline(always)]
-    pub fn final_res(&self, id: ast::NodeID) -> SymbolID {
-        self.get(id.module())
-            .final_res
-            .get(&id)
-            .copied()
-            .unwrap_or_else(|| {
-                let node = self.p.node(id).expect_ident();
-                let name = self.atoms.get(node.name);
-                let span = self.p.node(id).span();
-                panic!("The resolution of `{name}({span})` is not found.");
-            })
     }
 
     #[inline(always)]
@@ -85,25 +72,44 @@ impl<'cx> Binder<'cx> {
             .flat_map(|result| std::mem::take(&mut result.diags))
             .collect()
     }
+
+    pub fn locals(&self, id: ast::NodeID) -> Option<&FxHashMap<SymbolName, SymbolID>> {
+        self.get(id.module()).locals.get(&id)
+    }
 }
 
-pub struct BinderState<'cx> {
+pub struct BinderState<'cx, 'atoms> {
     scope_id: ScopeID,
     p: &'cx Parser<'cx>,
     pub(crate) diags: Vec<bolt_ts_errors::Diag>,
-    pub(crate) atoms: &'cx AtomMap<'cx>,
+    pub(crate) atoms: &'atoms AtomMap<'cx>,
     pub(crate) scope_id_parent_map: Vec<Option<ScopeID>>,
+    // TODO: use `NodeId::index` is enough
     pub(crate) node_id_to_scope_id: FxHashMap<ast::NodeID, ScopeID>,
     pub(crate) symbols: Symbols,
+    // TODO: use `NodeId::index` is enough
+    pub(crate) locals: FxHashMap<ast::NodeID, FxHashMap<SymbolName, SymbolID>>,
+
+    pub(crate) flow_nodes: FlowNodes<'cx>,
+    current_flow: Option<FlowID>,
+    has_flow_effects: bool,
+    in_return_position: bool,
+    current_true_target: Option<FlowID>,
+    current_false_target: Option<FlowID>,
+    current_exception_target: Option<FlowID>,
+    unreachable_flow_node: FlowID,
+    report_unreachable_flow_node: FlowID,
+
     pub(super) res: FxHashMap<(ScopeID, SymbolName), SymbolID>,
+    // TODO: use `NodeId::index` is enough
     pub(crate) final_res: FxHashMap<ast::NodeID, SymbolID>,
 }
 
-pub fn bind_parallel<'cx>(
+pub fn bind_parallel<'cx, 'atoms>(
     modules: &[Module],
-    atoms: &'cx AtomMap<'cx>,
+    atoms: &'atoms AtomMap<'cx>,
     parser: &'cx Parser<'cx>,
-) -> Vec<BinderState<'cx>> {
+) -> Vec<BinderState<'cx, 'atoms>> {
     modules
         .into_par_iter()
         .map(|m| {
@@ -117,12 +123,12 @@ pub fn bind_parallel<'cx>(
         .collect()
 }
 
-fn bind<'cx>(
-    atoms: &'cx AtomMap<'cx>,
+fn bind<'cx, 'atoms>(
+    atoms: &'atoms AtomMap<'cx>,
     parser: &'cx Parser<'cx>,
     root: &'cx ast::Program,
     module_id: ModuleID,
-) -> BinderState<'cx> {
+) -> BinderState<'cx, 'atoms> {
     let mut state = BinderState::new(atoms, parser, module_id);
     state.bind_program(root);
     state

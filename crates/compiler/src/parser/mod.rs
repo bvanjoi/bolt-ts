@@ -11,7 +11,6 @@ mod parse_modifiers;
 mod query;
 mod scan;
 mod stmt;
-pub mod token;
 mod ty;
 mod utils;
 
@@ -26,10 +25,10 @@ use rustc_hash::FxHashMap;
 
 pub use self::query::AccessKind;
 pub use self::query::AssignmentKind;
-pub use self::token::KEYWORD_TOKEN_START;
-use self::token::{Token, TokenFlags, TokenKind};
-use crate::ast::{self, Node, NodeFlags, NodeID};
 use crate::keyword;
+pub use bolt_ts_ast::KEYWORD_TOKEN_START;
+use bolt_ts_ast::{self as ast, Node, NodeFlags, NodeID};
+use bolt_ts_ast::{Token, TokenFlags, TokenKind};
 
 type PResult<T> = Result<T, ()>;
 
@@ -184,7 +183,7 @@ pub fn parse_parallel<'cx, 'p>(
         move |bump, module_id| {
             let input = module_arena.get_content(*module_id);
             let result = parse(atoms.clone(), bump, input.as_bytes(), *module_id);
-            // assert!(!module_arena.get_module(*module_id).global || result.diags.is_empty());
+            assert!(!module_arena.get_module(*module_id).global || result.diags.is_empty());
             (*module_id, result)
         },
     )
@@ -378,12 +377,16 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
     }
 
     fn ident_token(&self) -> AtomId {
-        assert!(self.token.kind.is_ident_or_keyword(), "{:#?}", self.token);
+        assert!(
+            self.token.kind.is_ident_or_keyword() || self.token.kind == TokenKind::BigInt,
+            "{:#?}",
+            self.token
+        );
         self.token_value.unwrap().ident()
     }
 
     fn string_token(&self) -> AtomId {
-        use TokenKind::*;
+        use bolt_ts_ast::TokenKind::*;
         assert!(
             matches!(self.token.kind, String | NoSubstitutionTemplate),
             "{:#?}",
@@ -549,5 +552,27 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         } else {
             f(self)
         }
+    }
+
+    #[inline]
+    fn in_context(&self, flags: NodeFlags) -> bool {
+        self.context_flags.intersects(flags)
+    }
+
+    #[inline]
+    fn in_disallow_in_context(&self) -> bool {
+        self.in_context(NodeFlags::DISALLOW_IN_CONTEXT)
+    }
+
+    fn allow_conditional_tys_and<T>(&mut self, f: impl FnOnce(&mut Self) -> T) -> T {
+        self.do_outside_of_context(NodeFlags::DISALLOW_CONDITIONAL_TYPES_CONTEXT, f)
+    }
+
+    fn disallow_conditional_tys_and<T>(&mut self, f: impl FnOnce(&mut Self) -> T) -> T {
+        self.do_inside_of_context(NodeFlags::DISALLOW_CONDITIONAL_TYPES_CONTEXT, f)
+    }
+
+    fn in_disallow_conditional_tys_context(&self) -> bool {
+        self.in_context(NodeFlags::DISALLOW_CONDITIONAL_TYPES_CONTEXT)
     }
 }

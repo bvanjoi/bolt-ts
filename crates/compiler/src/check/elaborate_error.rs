@@ -1,11 +1,12 @@
-use super::errors;
-use super::relation::RelationKind;
 use super::Ternary;
 use super::TyChecker;
+use super::errors;
+use super::relation::RelationKind;
 
-use crate::ast;
+use crate::bind::SymbolName;
 use crate::ty;
 use crate::ty::TypeFlags;
+use bolt_ts_ast as ast;
 
 struct Elaboration<'cx> {
     error_node: ast::NodeID,
@@ -26,7 +27,7 @@ impl<'cx> TyChecker<'cx> {
             return false;
         };
 
-        use ast::Node::*;
+        use bolt_ts_ast::Node::*;
         let node = self.p.node(node);
         match node {
             ArrayLit(node) => self.elaborate_array_lit(node, source, target, relation),
@@ -54,7 +55,7 @@ impl<'cx> TyChecker<'cx> {
             .map(|member| {
                 let s = self.get_symbol_of_decl(member.id());
                 let ty = self.get_lit_ty_from_prop(s);
-                use ast::ObjectMemberKind::*;
+                use bolt_ts_ast::ObjectMemberKind::*;
                 match member.kind {
                     Shorthand(n) => Elaboration {
                         error_node: n.name.id,
@@ -85,13 +86,21 @@ impl<'cx> TyChecker<'cx> {
         node.elems
             .iter()
             .enumerate()
-            .map(|(i, ele)| {
-                let name_ty = self.get_number_literal_type(i as f64);
-                let check_node = self.get_effective_check_node(ele.id());
-                Elaboration {
-                    error_node: check_node,
-                    inner_expr: Some(check_node),
-                    name_ty,
+            .flat_map(|(i, ele)| {
+                if self.is_tuple_like(target)
+                    && self
+                        .get_prop_of_ty(target, SymbolName::EleNum((i as f64).into()))
+                        .is_none()
+                {
+                    None
+                } else {
+                    let name_ty = self.get_number_literal_type(i as f64);
+                    let check_node = self.get_effective_check_node(ele.id());
+                    Some(Elaboration {
+                        error_node: check_node,
+                        inner_expr: Some(check_node),
+                        name_ty,
+                    })
                 }
             })
             .collect()
@@ -104,10 +113,22 @@ impl<'cx> TyChecker<'cx> {
         target: &'cx ty::Ty<'cx>,
         relation: RelationKind,
     ) -> bool {
-        let tuple_ty = self.check_array_lit(node, true);
-        if tuple_ty.kind.is_tuple() {
-            let node = self.generate_limited_tuple_elements(node, target);
-            self.elaborate_element_wise(&node, tuple_ty, target, relation)
+        if target
+            .flags
+            .intersects(TypeFlags::PRIMITIVE | TypeFlags::NEVER)
+        {
+            return false;
+        }
+        if self.is_tuple_like(source) {
+            let nodes = self.generate_limited_tuple_elements(node, target);
+            return self.elaborate_element_wise(&nodes, source, target, relation);
+        }
+        self.push_type_context(node.id, Some(target), false);
+        let tupleized_ty = self.check_array_lit(node, true);
+        self.pop_type_context();
+        if self.is_tuple_like(tupleized_ty) {
+            let nodes = self.generate_limited_tuple_elements(node, target);
+            self.elaborate_element_wise(&nodes, tupleized_ty, target, relation)
         } else {
             false
         }
@@ -137,6 +158,9 @@ impl<'cx> TyChecker<'cx> {
             else {
                 continue;
             };
+            if target_prop_ty.flags.intersects(TypeFlags::INDEXED_ACCESS) {
+                continue;
+            }
             let error_node = e.error_node;
             let Some(source_prop_ty) =
                 self.get_indexed_access_ty_or_undefined(source, e.name_ty, None, None)

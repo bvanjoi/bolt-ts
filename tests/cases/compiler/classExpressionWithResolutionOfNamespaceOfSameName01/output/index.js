@@ -6,4 +6,4 @@ var C = {};
 })(C);
 var x = class C {
   prop
-}
+};

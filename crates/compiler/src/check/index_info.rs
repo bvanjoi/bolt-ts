@@ -1,6 +1,7 @@
 use super::TyChecker;
 use crate::bind::{SymbolID, SymbolName};
 use crate::ty;
+use bolt_ts_ast as ast;
 
 impl<'cx> TyChecker<'cx> {
     pub(super) fn get_index_symbol(&self, symbol: SymbolID) -> Option<SymbolID> {
@@ -26,10 +27,14 @@ impl<'cx> TyChecker<'cx> {
             .map(|param| {
                 let Some(ty) = param.ty else { unreachable!() };
                 let key_ty = self.get_ty_from_type_node(ty);
+                let is_readonly = param
+                    .modifiers
+                    .is_some_and(|mods| mods.flags.contains(ast::ModifierKind::Readonly));
                 self.alloc(ty::IndexInfo {
                     key_ty,
                     val_ty,
                     symbol,
+                    is_readonly,
                 })
             })
             .collect::<Vec<_>>();
@@ -69,6 +74,7 @@ impl<'cx> TyChecker<'cx> {
     }
 
     pub(super) fn get_index_infos_of_ty(&mut self, ty: &'cx ty::Ty<'cx>) -> ty::IndexInfos<'cx> {
+        let ty = self.get_reduced_apparent_ty(ty);
         self.get_index_infos_of_structured_ty(ty)
     }
 
@@ -115,5 +121,15 @@ impl<'cx> TyChecker<'cx> {
     ) -> Option<&'cx ty::IndexInfo<'cx>> {
         let index_infos = self.get_index_infos_of_ty(ty);
         self.find_applicable_index_info(index_infos, key_ty)
+    }
+
+    pub(super) fn get_applicable_index_for_name(
+        &mut self,
+        ty: &'cx ty::Ty<'cx>,
+        name: SymbolName,
+    ) -> Option<&'cx ty::IndexInfo<'cx>> {
+        // TODO: is late name
+        let key_ty = self.get_string_literal_type(name.expect_atom());
+        self.get_applicable_index_info(ty, key_ty)
     }
 }

@@ -9,7 +9,7 @@ var M = {};
   
   
   
-  var i
+  var i;
   
   f(i);
   
