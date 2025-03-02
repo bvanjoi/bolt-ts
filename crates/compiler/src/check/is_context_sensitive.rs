@@ -15,7 +15,11 @@ impl TyChecker<'_> {
 
             if !node.is_arrow_fn_expr() {
                 let param = node.params().and_then(|params| params.first());
-                if param.is_none() || param.unwrap().name.name != keyword::KW_THIS {
+                if param.map_or(true, |param| match param.name {
+                    bolt_ts_ast::Binding::Ident(ident) => ident.name == keyword::KW_THIS,
+                    bolt_ts_ast::Binding::ObjectPat(_) => false,
+                    bolt_ts_ast::Binding::ArrayPat(_) => todo!(),
+                }) {
                     return true;
                 }
             }

@@ -1,107 +1,4 @@
 // From `github.com/sindresorhus/type-fest`, MIT License
-// type StringToNumber<S extends string> = S extends `${infer N extends number}`
-// 	? N
-// 	: S extends 'Infinity'
-// 		? PositiveInfinity
-// 		: S extends '-Infinity'
-// 			? NegativeInfinity
-// 			: never;
-// type NumberAbsolute<N extends number> = `${N}` extends `-${infer StringPositiveN}` ? StringToNumber<StringPositiveN> : N;
-// type Zero = 0 | 0n;
-// type Numeric = number | bigint;
-// type Negative<T extends Numeric> = T extends Zero ? never : `${T}` extends `-${string}` ? T : never;
-// type NumericString = '0123456789';
-// type IsNegative<T extends Numeric> = T extends Negative<T> ? true : false;
-// type Or<A extends boolean, B extends boolean> = [A, B][number] extends false
-// 	? false
-// 	: true extends [IsEqual<A, true>, IsEqual<B, true>][number]
-// 		? true
-// 		: never;
-// type And<A extends boolean, B extends boolean> = [A, B][number] extends true
-// 	? true
-// 	: true extends [IsEqual<A, false>, IsEqual<B, false>][number]
-// 		? false
-// 		: never;
-// type StringLength<S extends string> = string extends S
-// 	? never
-// 	: StringToArray<S>['length'];
-
-// type StringToArray<S extends string, Result extends string[] = []> = string extends S
-// 	? never
-// 	: S extends `${infer F}${infer R}`
-// 		? StringToArray<R, [...Result, F]>
-// 		: Result;
-// type PositiveNumericCharacterGt<A extends string, B extends string> = NumericString extends `${infer HeadA}${A}${infer TailA}`
-// 	? NumericString extends `${infer HeadB}${B}${infer TailB}`
-// 		? HeadA extends `${HeadB}${infer _}${infer __}`
-// 			? true
-// 			: false
-// 		: never
-// 	: never;
-// type SameLengthPositiveNumericStringGt<A extends string, B extends string> = A extends `${infer FirstA}${infer RestA}`
-// 	? B extends `${infer FirstB}${infer RestB}`
-// 		? FirstA extends FirstB
-// 			? SameLengthPositiveNumericStringGt<RestA, RestB>
-// 			: PositiveNumericCharacterGt<FirstA, FirstB>
-// 		: never
-// 	: false;
-// type BuildTuple<L extends number, Fill = unknown, T extends readonly unknown[] = []> = number extends L
-// 	? Fill[]
-// 	: L extends T['length']
-// 		? T
-// 		: BuildTuple<L, Fill, [...T, Fill]>;
-// type PositiveNumericStringGt<A extends string, B extends string> = A extends B
-// 	? false
-// 	: [BuildTuple<StringLength<A>, 0>, BuildTuple<StringLength<B>, 0>] extends infer R extends [readonly unknown[], readonly unknown[]]
-// 		? R[0] extends [...R[1], ...infer Remain extends readonly unknown[]]
-// 			? 0 extends Remain['length']
-// 				? SameLengthPositiveNumericStringGt<A, B>
-// 				: true
-// 			: false
-// 		: never;
-// type IsEqual<A, B> =
-// 	(<G>() => G extends A & G | G ? 1 : 2) extends
-// 	(<G>() => G extends B & G | G ? 1 : 2)
-// 		? true
-// 		: false;
-// type PositiveInfinity = 1e999;
-// type NegativeInfinity = -1e999;
-
-// type GreaterThan<A extends number, B extends number> = [
-// 		IsEqual<A, PositiveInfinity>, IsEqual<A, NegativeInfinity>,
-// 		IsEqual<B, PositiveInfinity>, IsEqual<B, NegativeInfinity>,
-// 	] extends infer R extends [boolean, boolean, boolean, boolean]
-// 		? Or<
-// 		And<IsEqual<R[0], true>, IsEqual<R[2], false>>,
-// 		And<IsEqual<R[3], true>, IsEqual<R[1], false>>
-// 		> extends true
-// 			? true
-// 			: Or<
-// 			And<IsEqual<R[1], true>, IsEqual<R[3], false>>,
-// 			And<IsEqual<R[2], true>, IsEqual<R[0], false>>
-// 			> extends true
-// 				? false
-// 				: true extends R[number]
-// 					? false
-// 					: [IsNegative<A>, IsNegative<B>] extends infer R extends [boolean, boolean]
-// 						? [true, false] extends R
-// 							? false
-// 							: [false, true] extends R
-// 								? true
-// 								: [false, false] extends R
-// 									? PositiveNumericStringGt<`${A}`, `${B}`>
-// 									: PositiveNumericStringGt<`${NumberAbsolute<B>}`, `${NumberAbsolute<A>}`>
-// 						: never
-// 		: never;
-// {
-//   // const a0: GreaterThan<1, 2> = false;
-//   // const a1: GreaterThan<2, 1> = true;
-//   // const a2: GreaterThan<10, 2> = true;
-//   // const a3: GreaterThan<10, -2> = true;
-//   // const a4: GreaterThan<2, 2> = false;
-//   // const a5: GreaterThan<-2, -2> = false;
-//   // const a6: GreaterThan<-2, -3> = true;
-// }
 
 function n(): never {
   throw new Error();
@@ -379,14 +276,15 @@ type GreaterThan<A extends number, B extends number> = number extends A | B
 						: never
 		: never;
 {
-  // const a0: GreaterThan<1, 2> = false;
-  // const a1: GreaterThan<2, 1> = true;
-  // const a2: GreaterThan<10, 2> = true;
-  // const a3: GreaterThan<10, -2> = true;
-  // const a4: GreaterThan<2, 2> = false;
-  // const a5: GreaterThan<-2, -2> = false;
-  // const a6: GreaterThan<-2, -3> = true;
+  const a0: GreaterThan<1, 2> = false;
+  const a1: GreaterThan<2, 1> = true;
+  const a2: GreaterThan<10, 2> = true;
+  const a3: GreaterThan<10, -2> = true;
+  const a4: GreaterThan<2, 2> = false;
+  const a5: GreaterThan<-2, -2> = false;
+  const a6: GreaterThan<-2, -3> = true;
   const a7: GreaterThan<-2, number> = n();
+  const a8: GreaterThan<-2, 3> = false;
 
   const b0: GreaterThan<PositiveInfinity, -999> = true;
   const b1: GreaterThan<PositiveInfinity, 999> = true;
@@ -396,6 +294,30 @@ type GreaterThan<A extends number, B extends number> = number extends A | B
   const b5: GreaterThan<PositiveInfinity, PositiveInfinity> = false;
   const b6: GreaterThan<NegativeInfinity, NegativeInfinity> = false;
   const b7: GreaterThan<PositiveInfinity, NegativeInfinity> = true;
+}
+
+// ===== GreaterThanOrEqual =====
+type GreaterThanOrEqual<A extends number, B extends number> = number extends A | B
+	? never
+	: A extends B ? true : GreaterThan<A, B>;
+{
+	const a0: GreaterThanOrEqual<1, 2> = false;
+	const a1: GreaterThanOrEqual<2, 1> = true;
+	const a2: GreaterThanOrEqual<10, 2> = true;
+	const a3: GreaterThanOrEqual<10, -2> = true;
+	const a4: GreaterThanOrEqual<2, 2> = true;
+	const a5: GreaterThanOrEqual<-2, -2> = true;
+	const a6: GreaterThanOrEqual<-2, -3> = true;
+	const a7: GreaterThanOrEqual<-2, number> = n();
+
+	const b0: GreaterThanOrEqual<PositiveInfinity, -999> = true;
+	const b1: GreaterThanOrEqual<PositiveInfinity, 999> = true;
+	const b2: GreaterThanOrEqual<999, PositiveInfinity> = false;
+	const b3: GreaterThanOrEqual<999, NegativeInfinity> = true;
+	const b4: GreaterThanOrEqual<-999, NegativeInfinity> = true;
+	const b5: GreaterThanOrEqual<PositiveInfinity, PositiveInfinity> = true;
+	const b6: GreaterThanOrEqual<NegativeInfinity, NegativeInfinity> = true;
+	const b7: GreaterThanOrEqual<PositiveInfinity, NegativeInfinity> = true;
 }
 
 // ======= HasMultipleCallSignatures =======
@@ -566,7 +488,6 @@ type IfAny<T, TypeIfAny = true, TypeIfNotAny = false> = (
   type A = IfAny;
   //~^ ERROR: Generic type 'IfAny' requires between 1 and 3 type arguments.
 }
-
 
 // ======= IfArrayReadonly =======
 type IfArrayReadonly<T extends UnknownArray, TypeIfArrayReadonly = true, TypeIfNotArrayReadonly = false> =
@@ -1044,6 +965,181 @@ type IsWhitespace<T extends string> = T extends Whitespace
   const a7: IsWhitespace<' \t '> = true;
 }
 
+// ========== KeysOfUnion ==========
+type KeysOfUnion<ObjectType> =
+  keyof UnionToIntersection<ObjectType extends unknown ? Record<keyof ObjectType, never> : never>;
+{
+	type Example1 = {
+		string: string;
+		number: number;
+		boolean: boolean;
+		null: null;
+		array: number[];
+	};
+	
+	type Expected1 = keyof Example1;
+	
+	const actual1: KeysOfUnion<Example1> = 'string';
+	
+	const a0: Expected1 = actual1;
+	const a1: KeysOfUnion<Example1> = 'string';
+	const a2: KeysOfUnion<Example1> = 'number';
+	const a3: KeysOfUnion<Example1> = 'boolean';
+	const a4: KeysOfUnion<Example1> = 'null';
+	const a5: KeysOfUnion<Example1> = 'array';
+	
+	// When passing a type that is a union, it returns a union of all keys of all union members.
+	
+	type Example2 = {
+		common: string;
+		a: number;
+	} | {
+		common: string;
+		b: string;
+	} | {
+		common: string;
+		c: boolean;
+	};
+	
+	type Expected2 = 'common' | 'a' | 'b' | 'c';
+	
+	const actual2: KeysOfUnion<Example2> = 'a';
+	
+	const b0: Expected2 = actual2;
+  const b1: KeysOfUnion<Example2> = 'common';
+	const b2: KeysOfUnion<Example2> = 'a';
+	const b3: KeysOfUnion<Example2> = 'b';
+	const b4: KeysOfUnion<Example2> = 'c';
+	
+	// With property modifiers
+	const actual3: KeysOfUnion<{a?: string; readonly b: number} | {a: number; b: string}> = 'a';
+  const c0: 'a' = actual3;
+  const actual30: KeysOfUnion<{a?: string; readonly b: number} | {a: number; b: string}> = 'b';
+  const c1: 'b' = actual30;
+	
+	// `KeysOfUnion<T>` should NOT be assignable to `keyof T`
+	type Assignability1<T, _K extends keyof T> = unknown;
+	type Test1<T> = Assignability1<T, KeysOfUnion<T>>; //~ ERROR: Type 'cond' is not assignable to type 'T'.
+	
+	// `keyof T` should be assignable to `KeysOfUnion<T>`
+	type Assignability2<T, _K extends KeysOfUnion<T>> = unknown;
+	type Test2<T> = Assignability2<T, keyof T>;
+	
+	// `KeysOfUnion<T>` should be assignable to `PropertyKey`
+	type Assignability3<_T, _K extends PropertyKey> = unknown;
+	type Test3<T> = Assignability3<T, KeysOfUnion<T>>;
+	
+	// `PropertyKey` should NOT be assignable to `KeysOfUnion<T>`
+	type Assignability4<T, _K extends KeysOfUnion<T>> = unknown;
+	type Test4<T> = Assignability4<T, PropertyKey>; //~ ERROR: Type 'symbol | number | string' is not assignable to type 'cond'.
+	
+	// `keyof T` should be assignable to `KeysOfUnion<T>` even when `T` is constrained to `Record<string, unknown>`
+	type Assignability5<T extends Record<string, unknown>, _K extends KeysOfUnion<T>> = unknown;
+	type Test5<T extends Record<string, unknown>> = Assignability5<T, keyof T>;
+	
+	// `keyof T` should be assignable to `KeysOfUnion<T>` even when `T` is constrained to `object`
+	type Assignability6<T extends object, _K extends KeysOfUnion<T>> = unknown;
+	type Test6<T extends object> = Assignability6<T, keyof T>;
+	
+	// `keyof T` should be assignable to `KeysOfUnion<T>` even when `T` is constrained to `UnknownRecord`
+	type Assignability7<T extends UnknownRecord, _K extends KeysOfUnion<T>> = unknown;
+	type Test7<T extends UnknownRecord> = Assignability7<T, keyof T>;
+	
+	// `KeysOfUnion<T>` should NOT be assignable to `keyof T` even when `T` is constrained to `Record<string, unknown>`
+	type Assignability8<T extends Record<string, unknown>, _K extends keyof T> = unknown;
+	type Test8<T extends Record<string, unknown>> = Assignability8<T, KeysOfUnion<T>>; //~ ERROR: Type 'cond' is not assignable to type 'T'.
+	
+	// `KeysOfUnion<T>` should NOT be assignable to `keyof T` even when `T` is constrained to `object`
+	type Assignability9<T extends object, _K extends keyof T> = unknown;
+	type Test9<T extends object> = Assignability9<T, KeysOfUnion<T>>; //~ ERROR: Type 'cond' is not assignable to type 'T'.
+}
+
+// ======= LastArrayElement =======
+type LastArrayElement<Elements extends readonly unknown[], ElementBeforeTailingSpreadElement = never> =
+	// If the last element of an array is a spread element, the `LastArrayElement` result should be `'the type of the element before the spread element' | 'the type of the spread element'`.
+	Elements extends readonly []
+		? ElementBeforeTailingSpreadElement
+		: Elements extends readonly [...infer U, infer V]
+			? V
+			: Elements extends readonly [infer U, ...infer V]
+				// If we return `V[number] | U` directly, it would be wrong for `[[string, boolean, object, ...number[]]`.
+				// So we need to recurse type `V` and carry over the type of the element before the spread element.
+				? LastArrayElement<V, U>
+				: Elements extends ReadonlyArray<infer U>
+					? U | ElementBeforeTailingSpreadElement
+					: never;
+{
+  function lastOf<V extends readonly unknown[]>(array: V): LastArrayElement<V> {
+    return undefined as any;
+  }
+  const array: ['foo', 2, 'bar'] = ['foo', 2, 'bar'];
+  const mixedArray: ['bar', 'foo', 2] = ['bar', 'foo', 2];
+
+  const a0: 'bar' = lastOf(array);
+  const a1: 2 = lastOf(mixedArray);
+  const a2: string = lastOf(['a', 'b', 'c']);
+  const a3: string | number = lastOf(['a', 'b', 1]);
+  const a4: 1 = lastOf(['a', 'b', 1] as const);
+
+  const leadingSpreadTuple: [...string[], object, number] = ['', {}, 1]
+  const b0: number = lastOf(leadingSpreadTuple);
+
+  const trailingSpreadTuple1: [string, ...number[]] = ['1', 1];
+  const c0: number | string = lastOf(trailingSpreadTuple1);
+
+  const trailingSpreadTuple2: [string, boolean, ...number[]] = ['1', false, 1];
+  const d0: number | boolean = lastOf(trailingSpreadTuple2);
+
+  const trailingSpreadTuple3: ['foo', true, ...(1 | '2')[]] = ['foo', true, 1];
+  const e0: true | 1 | '2' = lastOf(trailingSpreadTuple3);
+}
+
+// =========== LessThan ===========
+type LessThan<A extends number, B extends number> = number extends A | B
+	? never
+	: GreaterThanOrEqual<A, B> extends true ? false : true;
+{
+  const a0: LessThan<1, 2> = true;
+  const a1: LessThan<2, 1> = false;
+  const a2: LessThan<10, 2> = false;
+  const a3: LessThan<10, -2> = false;
+  const a4: LessThan<2, 2> = false;
+  const a5: LessThan<-2, -2> = false;
+  const a6: LessThan<-2, -3> = false;
+  const a7: LessThan<-2, number> = n();
+  const a8: LessThan<PositiveInfinity, -999> = false;
+  const a9: LessThan<PositiveInfinity, 999> = false;
+  const a10: LessThan<999, PositiveInfinity> = true;
+  const a11: LessThan<999, NegativeInfinity> = false;
+  const a12: LessThan<-999, NegativeInfinity> = false;
+  const a13: LessThan<PositiveInfinity, PositiveInfinity> = false;
+  const a14: LessThan<NegativeInfinity, NegativeInfinity> = false;
+  const a15: LessThan<PositiveInfinity, NegativeInfinity> = false;
+}
+
+// ======== LessThanOrEqual ========
+type LessThanOrEqual<A extends number, B extends number> = number extends A | B
+	? never
+	: GreaterThan<A, B> extends true ? false : true;
+{
+  const a0: LessThanOrEqual<1, 2> = true;
+  const a1: LessThanOrEqual<2, 1> = false;
+  const a2: LessThanOrEqual<10, 2> = false;
+  const a3: LessThanOrEqual<10, -2> = false;
+  const a4: LessThanOrEqual<2, 2> = true;
+  const a5: LessThanOrEqual<-2, -2> = true;
+  const a6: LessThanOrEqual<-2, -3> = false;
+  const a7: LessThanOrEqual<-2, number> = n();
+  const a8: LessThanOrEqual<PositiveInfinity, -999> = false;
+  const a9: LessThanOrEqual<PositiveInfinity, 999> = false;
+  const a10: LessThanOrEqual<999, PositiveInfinity> = true;
+  const a11: LessThanOrEqual<999, NegativeInfinity> = false;
+  const a12: LessThanOrEqual<-999, NegativeInfinity> = false;
+  const a13: LessThanOrEqual<PositiveInfinity, PositiveInfinity> = true;
+  const a14: LessThanOrEqual<NegativeInfinity, NegativeInfinity> = true;
+  const a15: LessThanOrEqual<PositiveInfinity, NegativeInfinity> = false;
+}
+
 // ========== LiteralUnion ==========
 type LiteralUnion<
 	LiteralType,
@@ -1507,6 +1603,122 @@ type StringToNumber<S extends string> = S extends `${infer N extends number}`
   //~^ ERROR: Type '42' is not assignable to type '-Infinity'.
 }
 
+// ============== Subtract =============
+type Subtract<A extends number, B extends number> = number extends A | B
+	? number
+	: [
+		IsEqual<A, PositiveInfinity>, IsEqual<A, NegativeInfinity>,
+		IsEqual<B, PositiveInfinity>, IsEqual<B, NegativeInfinity>,
+	] extends infer R extends [boolean, boolean, boolean, boolean]
+		? Or<
+		And<IsEqual<R[0], true>, IsEqual<R[2], false>>,
+		And<IsEqual<R[3], true>, IsEqual<R[1], false>>
+		> extends true
+			? PositiveInfinity
+			: Or<
+			And<IsEqual<R[1], true>, IsEqual<R[3], false>>,
+			And<IsEqual<R[2], true>, IsEqual<R[0], false>>
+			> extends true
+				? NegativeInfinity
+				: true extends R[number]
+					? number
+					: [IsNegative<A>, IsNegative<B>] extends infer R
+						? [false, false] extends R
+							? BuildTuple<A> extends infer R
+								? R extends [...BuildTuple<B>, ...infer R]
+									? R['length']
+									: number
+								: never
+							: LessThan<A, B> extends true
+								? number
+								: [false, true] extends R
+									? Sum<A, NumberAbsolute<B>>
+									: Subtract<NumberAbsolute<B>, NumberAbsolute<A>>
+						: never
+		: never;
+{
+  const a0: Subtract<10, -2> = 12;
+  const a1: Subtract<2, 2> = 0;
+  const a2: Subtract<-1, -3> = 2;
+
+  const a3: Subtract<1, 2> = null! as number; // Note: you can only get `number` for now
+
+	const a4: Subtract<PositiveInfinity, 999> = null! as PositiveInfinity;
+	const a5: Subtract<-999, PositiveInfinity> = null! as NegativeInfinity;
+	const a6: Subtract<NegativeInfinity, 999> = null! as NegativeInfinity;
+	const a7: Subtract<999, NegativeInfinity> = null! as PositiveInfinity;
+	const a8: Subtract<NegativeInfinity, PositiveInfinity> = null! as NegativeInfinity;
+	const a9: Subtract<NegativeInfinity, NegativeInfinity> = null! as number;
+	const a10: Subtract<PositiveInfinity, PositiveInfinity> = null! as number;
+
+  const b0: Subtract<number, 2> = null! as number;
+  const b1: Subtract<2, number> = null! as number;
+  const b2: Subtract<number, number> = null! as number;
+  const b3: Subtract<number, PositiveInfinity> = null! as number;
+
+  // Union
+  const b4: Subtract<10, 1 | 2> = {} as 9 | 8;
+  const b5: Subtract<10 | 5, 1> = {} as 9 | 4;
+  const b6: Subtract<10 | 5, 1 | 2> = {} as 9 | 8 | 4 | 3;
+}
+
+// ================ Sum ================
+type Sum<A extends number, B extends number> = number extends A | B
+? number
+: [
+  IsEqual<A, PositiveInfinity>, IsEqual<A, NegativeInfinity>,
+  IsEqual<B, PositiveInfinity>, IsEqual<B, NegativeInfinity>,
+] extends infer R extends [boolean, boolean, boolean, boolean]
+  ? Or<
+  And<IsEqual<R[0], true>, IsEqual<R[3], false>>,
+  And<IsEqual<R[2], true>, IsEqual<R[1], false>>
+  > extends true
+    ? PositiveInfinity
+    : Or<
+    And<IsEqual<R[1], true>, IsEqual<R[2], false>>,
+    And<IsEqual<R[3], true>, IsEqual<R[0], false>>
+    > extends true
+      ? NegativeInfinity
+      : true extends R[number]
+        ? number
+        : ([IsNegative<A>, IsNegative<B>] extends infer R
+          ? [false, false] extends R
+            ? [...BuildTuple<A>, ...BuildTuple<B>]['length']
+            : [true, true] extends R
+              ? number
+              : TupleMax<[NumberAbsolute<A>, NumberAbsolute<B>]> extends infer Max_
+                ? TupleMin<[NumberAbsolute<A>, NumberAbsolute<B>]> extends infer Min_ extends number
+                  ? Max_ extends A | B
+                    ? Subtract<Max_, Min_>
+                    : number
+                  : never
+                : never
+          : never) & number
+  : never;
+{
+  const a5: Sum<1, 2> = 3;
+  const a6: Sum<10, -2> = 8;
+  const a7: Sum<2, -2> = 0;
+
+  const a8: Sum<-1, -2> = null! as number; // Note: you can only get `number` for now
+
+  const a0: Sum<PositiveInfinity, -999> = null! as PositiveInfinity;
+  const a1: Sum<-999, PositiveInfinity> = null! as PositiveInfinity;
+  const a2: Sum<NegativeInfinity, 999> = null! as NegativeInfinity;
+  const a3: Sum<999, NegativeInfinity> = null! as NegativeInfinity;
+  const a4: Sum<NegativeInfinity, PositiveInfinity> = null! as number;
+
+  const b0: Sum<number, 1> = null! as number;
+  const b1: Sum<1, number> = null! as number;
+  const b2: Sum<number, number> = null! as number;
+  const b3: Sum<number, PositiveInfinity> = null! as number;
+
+  // Union
+  const c0: Sum<1, 2 | 3> = {} as 3 | 4;
+  const c1: Sum<1 | 2, 3> = {} as 4 | 5;
+  const c2: Sum<1 | 2 | 3, 4 | 5> = {} as 5 | 6 | 7 | 8;
+}
+
 // ============ TaggedUnion ============
 type TaggedUnion<
 	TagKey extends string,
@@ -1580,6 +1792,39 @@ type TupleLength<T extends UnknownArray> =
   const a1: TupleLength<string[]> = n();
   const a2: TupleLength<[] | [1, 2, 3] | Array<number>> = 42;
   //~^ ERROR: Type 'number' is not assignable to type '0 | 3'.
+}
+
+// =========== TupleMax ===========
+type TupleMax<A extends number[], Result extends number = NegativeInfinity> = number extends A[number]
+	? never :
+	A extends [infer F extends number, ...infer R extends number[]]
+		? GreaterThan<F, Result> extends true
+			? TupleMax<R, F>
+			: TupleMax<R, Result>
+		: Result;
+
+{
+  const a0: TupleMax<[1, 2, 5, 3, 7, -9, -5, 0]> = 7;
+  const a1: TupleMax<[1, 2, 5, 3, 7, -9, -5, 0, PositiveInfinity]> = null! as PositiveInfinity;
+  const a2: TupleMax<[1, 1, 1, 1, 1, 1]> = 1;
+  const a3: TupleMax<[-1, -2, -5]> = -1;
+  const a4: TupleMax<[10, 2]> = 10;
+}
+
+// =========== TupleMin ===========
+type TupleMin<A extends number[], Result extends number = PositiveInfinity> = number extends A[number]
+	? never
+	: A extends [infer F extends number, ...infer R extends number[]]
+		? LessThan<F, Result> extends true
+			? TupleMin<R, F>
+			: TupleMin<R, Result>
+		: Result;
+{
+  const a0: TupleMin<[1, 2, 5, 3, 7, -9, -5, 0]> = -9;
+  const a1: TupleMin<[1, 2, 5, 3, 7, -9, -5, 0, PositiveInfinity, NegativeInfinity]> = null! as NegativeInfinity;
+  const a2: TupleMin<[1, 1, 1, 1, 1, 1]> = 1;
+  const a3: TupleMin<[-1, -2, -5]> = -5;
+  const a4: TupleMin<[-1, -2, number, -5]> = n();
 }
 
 // ========== TupleToUnion ==========

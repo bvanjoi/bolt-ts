@@ -20,7 +20,8 @@ impl<'cx> Resolver<'cx, '_, '_> {
                 .p
                 .node(associated_declaration_for_containing_initializer_or_binding_name);
             if let Some(param_decl) = node.as_param_decl() {
-                if symbol == self.states[self.module_id.as_usize()].final_res[&param_decl.id] {
+                if symbol == self.states[self.module_id.as_usize()].final_res[&param_decl.name.id()]
+                {
                     let error = errors::ParameterXCannotReferenceItself {
                         span: ident.span,
                         name: self.atoms.get(ident.name).to_string(),

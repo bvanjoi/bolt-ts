@@ -35,6 +35,7 @@ impl<'cx> VarLike<'cx> for ast::VarDecl<'cx> {
         match self.binding {
             ast::Binding::Ident(n) => VarLikeName::Ident(n),
             ast::Binding::ObjectPat(n) => VarLikeName::ObjectPat(n),
+            bolt_ts_ast::Binding::ArrayPat(array_pat) => todo!(),
         }
     }
     fn decl_ty(&self) -> Option<&'cx ast::Ty<'cx>> {
@@ -50,7 +51,11 @@ impl<'cx> VarLike<'cx> for ast::ParamDecl<'cx> {
         self.id
     }
     fn name(&self) -> VarLikeName<'cx> {
-        VarLikeName::Ident(self.name)
+        match self.name {
+            bolt_ts_ast::Binding::Ident(n) => VarLikeName::Ident(n),
+            bolt_ts_ast::Binding::ObjectPat(n) => VarLikeName::ObjectPat(n),
+            bolt_ts_ast::Binding::ArrayPat(n) => todo!(),
+        }
     }
     fn decl_ty(&self) -> Option<&'cx ast::Ty<'cx>> {
         self.ty

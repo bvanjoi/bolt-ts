@@ -1039,11 +1039,8 @@ impl<'cx> TyChecker<'cx> {
                         if !(constraint.kind.is_union()
                             && self.every_type(constraint, |this, c| {
                                 this.is_ty_strict_sub_type_of(c, primitive_ty)
-                            }))
-                        {
-                            if !self.is_ty_strict_sub_type_of(primitive_ty, constraint) {
-                                return self.never_ty;
-                            }
+                            })) && !self.is_ty_strict_sub_type_of(primitive_ty, constraint) {
+                            return self.never_ty;
                         }
 
                         object_flags |= ObjectFlags::IS_CONSTRAINED_TYPE_VARIABLE;

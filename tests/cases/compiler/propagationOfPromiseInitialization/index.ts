@@ -1,4 +1,4 @@
-// From `github.com/microsoft/TypeScript/blob/v5.7.3/tests/cases/compiler/propagationOfPromiseInitialization.ts`, Apache-2.0 License
+// From `github.com/microsoft/TypeScript/blob/v5.8.2/tests/cases/compiler/propagationOfPromiseInitialization.ts`, Apache-2.0 License
 
 interface IPromise<T> {
   then<TResult>(successCallback: (promiseValue: T) => TResult, errorCallback?: (reason: any) => TResult): IPromise<TResult>;

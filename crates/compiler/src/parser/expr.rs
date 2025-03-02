@@ -119,7 +119,7 @@ impl<'cx> ParserState<'cx, '_> {
             span: param.span,
             modifiers: None,
             dotdotdot: None,
-            name: param,
+            name: self.alloc(ast::Binding::Ident(param)),
             question: None,
             ty: None,
             init: None,

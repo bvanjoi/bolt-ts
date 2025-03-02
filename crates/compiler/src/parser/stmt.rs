@@ -777,15 +777,26 @@ impl<'cx> ParserState<'cx, '_> {
         node
     }
 
-    fn parse_name_of_param(&mut self) -> PResult<&'cx ast::Ident> {
-        todo!()
-        // let name = self.parse_ident_or_pat();
-        // Ok(name)
+    pub(super) fn parse_name_of_param(&mut self) -> PResult<&'cx ast::Binding<'cx>> {
+        let binding = self.parse_ident_or_pat()?;
+        // if (getFullWidth(name) === 0 && !some(modifiers) && isModifierKind(token())) {
+        //     // in cases like
+        //     // 'use strict'
+        //     // function foo(static)
+        //     // isParameter('static') === true, because of isModifier('static')
+        //     // however 'static' is not a legal identifier in a strict mode.
+        //     // so result of this function will be ParameterDeclaration (flags = 0, name = missing, type = undefined, initializer = undefined)
+        //     // and current token will not change => parsing of the enclosing parameter list will last till the end of time (or OOM)
+        //     // to avoid this we'll advance cursor to the next token.
+        //     nextToken();
+        // }
+        Ok(binding)
     }
 
     fn parse_ident_or_pat(&mut self) -> PResult<&'cx ast::Binding<'cx>> {
         use bolt_ts_ast::TokenKind::*;
         let binding = match self.token.kind {
+            LBracket => ast::Binding::ArrayPat(self.parse_array_binding_pat()?),
             LBrace => ast::Binding::ObjectPat(self.parse_object_binding_pat()?),
             _ => ast::Binding::Ident(self.parse_binding_ident()),
         };
@@ -845,6 +856,20 @@ impl<'cx> ParserState<'cx, '_> {
             elems,
         });
         self.insert_map(id, ast::Node::ObjectPat(pat));
+        Ok(pat)
+    }
+
+    fn parse_array_binding_pat(&mut self) -> PResult<&'cx ast::ArrayPat> {
+        let id = self.next_node_id();
+        let start = self.token.start();
+        self.expect(TokenKind::LBracket);
+        // TODO: elements
+        self.expect(TokenKind::RBracket);
+        let pat = self.alloc(ast::ArrayPat {
+            id,
+            span: self.new_span(start),
+        });
+        self.insert_map(id, ast::Node::ArrayPat(pat));
         Ok(pat)
     }
 

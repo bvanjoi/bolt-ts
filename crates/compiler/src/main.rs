@@ -40,7 +40,8 @@ fn main() {
 fn main_test() {
     compile_test::ensure_node_exist();
     let project_root: PathBuf = project_root::get_project_root().unwrap();
-    let case_root = project_root.join("tests/cases/compiler/fest/");
+    let case_root =
+        project_root.join("tests/cases/compiler/parenthesizedExpressionInternalComments/");
     if !case_root.is_dir() {
         panic!("'{:#?}' not found", case_root.display());
     }

@@ -198,6 +198,26 @@ pub(crate) enum SymbolKind {
     },
 }
 
+impl SymbolKind {
+    pub fn opt_decl(&self) -> Option<NodeID> {
+        match &self {
+            SymbolKind::FunctionScopedVar(f) => Some(f.decl),
+            SymbolKind::BlockScopedVar { decl } => Some(*decl),
+            SymbolKind::Class(c) => Some(c.decl),
+            SymbolKind::Prop(prop) => Some(prop.decl),
+            SymbolKind::Object(object) => Some(object.decl),
+            SymbolKind::Index(index) => Some(index.decl),
+            SymbolKind::TyAlias(alias) => Some(alias.decl),
+            SymbolKind::TyParam(param) => Some(param.decl),
+            SymbolKind::TyLit(ty_lit) => Some(ty_lit.decl),
+            SymbolKind::Alias(alias) => Some(alias.decl),
+            SymbolKind::Fn(f) => Some(f.decls[0]),
+            SymbolKind::TyMapped { decl } => Some(*decl),
+            _ => None,
+        }
+    }
+}
+
 macro_rules! as_symbol_kind {
     ($kind: ident, $ty:ty, $as_kind: ident, $expect_kind: ident) => {
         impl Symbol {
@@ -375,21 +395,7 @@ impl Symbol {
     }
 
     pub fn opt_decl(&self) -> Option<NodeID> {
-        let id = match &self.kind.0 {
-            SymbolKind::FunctionScopedVar(f) => Some(f.decl),
-            SymbolKind::BlockScopedVar { decl } => Some(*decl),
-            SymbolKind::Class(c) => Some(c.decl),
-            SymbolKind::Prop(prop) => Some(prop.decl),
-            SymbolKind::Object(object) => Some(object.decl),
-            SymbolKind::Index(index) => Some(index.decl),
-            SymbolKind::TyAlias(alias) => Some(alias.decl),
-            SymbolKind::TyParam(param) => Some(param.decl),
-            SymbolKind::TyLit(ty_lit) => Some(ty_lit.decl),
-            SymbolKind::Alias(alias) => Some(alias.decl),
-            SymbolKind::Fn(f) => Some(f.decls[0]),
-            SymbolKind::TyMapped { decl } => Some(*decl),
-            _ => None,
-        };
+        let id = self.kind.0.opt_decl();
         id.or_else(|| self.kind.1.as_ref().and_then(|i| i.decls.first()).copied())
     }
 }

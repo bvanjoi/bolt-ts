@@ -485,10 +485,18 @@ impl<'cx> TyChecker<'cx> {
                 }
             }
         } else {
-            inferred_ty = self.get_ty_from_inference(inference, idx)
+            inferred_ty = self.get_ty_from_inference(inference, idx);
         };
 
-        self.set_inferred_ty_of_inference_info(inference, idx, inferred_ty.unwrap_or(self.any_ty));
+        let is_in_javascript_file = self
+            .inference(inference)
+            .flags
+            .intersects(InferenceFlags::ANY_DEFAULT);
+        self.set_inferred_ty_of_inference_info(
+            inference,
+            idx,
+            inferred_ty.unwrap_or(self.get_default_ty_argument_ty(is_in_javascript_file)),
+        );
 
         let i = self.inference_info(inference, idx);
         if let Some(constraint) = self.get_constraint_of_ty_param(i.ty_param) {

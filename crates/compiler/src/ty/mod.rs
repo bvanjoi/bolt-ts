@@ -195,9 +195,9 @@ impl<'cx> Ty<'cx> {
         match self.kind {
             TyKind::Object(object) => object.kind.to_string(self, checker),
             TyKind::NumberLit(lit) => {
-                if lit.val == std::f64::INFINITY {
+                if lit.val == f64::INFINITY {
                     "Infinity".to_string()
-                } else if lit.val == std::f64::NEG_INFINITY {
+                } else if lit.val == f64::NEG_INFINITY {
                     "-Infinity".to_string()
                 } else {
                     format!("{}", lit.val)

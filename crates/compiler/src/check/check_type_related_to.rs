@@ -325,17 +325,16 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
 
         if let Some(t_tuple) = target.as_tuple() {
             if self.c.is_array_or_tuple(source) {
-                let s = source.kind.expect_object_reference();
                 let source_arity = TyChecker::get_ty_reference_arity(source);
                 let target_arity = TyChecker::get_ty_reference_arity(target);
-                let source_rest_flags = if let Some(s_tuple) = s.target.kind.as_object_tuple() {
+                let source_rest_flags = if let Some(s_tuple) = source.as_tuple() {
                     s_tuple.combined_flags.intersection(ElementFlags::REST)
                 } else {
                     ElementFlags::REST
                 };
                 let target_has_rest_elem =
                     t_tuple.combined_flags.intersects(ElementFlags::VARIABLE);
-                let source_min_length = if let Some(s_tuple) = s.target.kind.as_object_tuple() {
+                let source_min_length = if let Some(s_tuple) = source.as_tuple() {
                     s_tuple.min_length
                 } else {
                     0
@@ -358,7 +357,7 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
                 let target_start_count = t_tuple.get_start_elem_count(ElementFlags::NON_REST);
                 let target_end_count = t_tuple.get_end_elem_count(ElementFlags::NON_REST);
                 for source_pos in 0..source_arity {
-                    let source_flags = if let Some(s_tuple) = s.target.kind.as_object_tuple() {
+                    let source_flags = if let Some(s_tuple) = source.as_tuple() {
                         s_tuple.element_flags[source_pos]
                     } else {
                         ElementFlags::REST
@@ -1057,6 +1056,17 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
                 if result != Ternary::FALSE {
                     return result;
                 }
+            }
+        } else if source.flags.intersects(TypeFlags::INDEX) {
+            result = self.is_related_to(
+                self.c.string_number_symbol_ty(),
+                target,
+                RecursionFlags::SOURCE,
+                report_error,
+                IntersectionState::empty(),
+            );
+            if result != Ternary::FALSE {
+                return result;
             }
         } else if let Some(source_cond) = source.kind.as_cond_ty() {
             if self.c.is_deeply_nested_type(source, &self.source_stack, 10) {

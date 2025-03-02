@@ -130,8 +130,8 @@ impl<'cx, 'atoms> BinderState<'cx, 'atoms> {
             Try(n) => {
                 self.bind_try_stmt(container, n);
             }
-            While(n) => {}
-            Do(n) => {}
+            While(_) => {}
+            Do(_) => {}
             Debugger(_) => {}
         }
     }
@@ -169,7 +169,7 @@ impl<'cx, 'atoms> BinderState<'cx, 'atoms> {
         self.has_flow_effects = true;
     }
 
-    fn bind_try_stmt(&mut self, container: ast::NodeID, stmt: &'cx ast::TryStmt<'cx>) {
+    fn bind_try_stmt(&mut self, _container: ast::NodeID, stmt: &'cx ast::TryStmt<'cx>) {
         self.bind_block_stmt(stmt.try_block);
         if let Some(catch) = stmt.catch_clause {
             let old = self.scope_id;
@@ -838,9 +838,8 @@ impl<'cx, 'atoms> BinderState<'cx, 'atoms> {
             true_target,
             false_target,
         );
-        let should_add_antecedent = node.is_none_or(|node| {
-            !node.kind.is_logical_assignment() && !node.kind.is_logical_expr()
-        });
+        let should_add_antecedent = node
+            .is_none_or(|node| !node.kind.is_logical_assignment() && !node.kind.is_logical_expr());
         if should_add_antecedent {
             let t = self.create_flow_condition(
                 FlowFlags::TRUE_CONDITION,
@@ -954,7 +953,7 @@ impl<'cx, 'atoms> BinderState<'cx, 'atoms> {
             ObjectLit(lit) => {
                 let old = self.scope_id;
                 self.scope_id = self.new_scope();
-                let symbol = self.create_object_lit_ty_symbol(lit.id, Default::default());
+                self.create_object_lit_ty_symbol(lit.id, Default::default());
                 for m in lit.members {
                     self.bind_object_ty_member(lit.id, m);
                 }
@@ -1120,6 +1119,7 @@ impl<'cx, 'atoms> BinderState<'cx, 'atoms> {
                     }
                 }
             }
+            ArrayPat(_) => todo!(),
         }
     }
 
@@ -1171,13 +1171,15 @@ impl<'cx, 'atoms> BinderState<'cx, 'atoms> {
     }
 
     pub(super) fn bind_param(&mut self, param: &'cx ast::ParamDecl) {
-        let symbol = self.create_var_symbol(
-            param.name.name,
+        self.bind_var_binding(
+            None,
+            false,
+            param.name,
+            ast::VarKind::Var,
+            param.id,
             SymbolFlags::FUNCTION_SCOPED_VARIABLE,
-            SymbolKind::FunctionScopedVar(FunctionScopedVarSymbol { decl: param.id }),
             SymbolFlags::empty(),
         );
-        self.create_final_res(param.id, symbol);
         if let Some(ty) = param.ty {
             self.bind_ty(ty);
         }

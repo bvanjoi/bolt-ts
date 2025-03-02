@@ -1,6 +1,6 @@
 use crate::bind::{SymbolFlags, SymbolID, SymbolName};
 use crate::check::TyChecker;
-use bolt_ts_ast as ast;
+use bolt_ts_ast::{self as ast, pprint_binding};
 
 use super::flags::ObjectFlags;
 use super::pprint::pprint_reference_ty;
@@ -283,7 +283,7 @@ impl<'cx> ObjectTyKind<'cx> {
                         "{{ [{key_name}: {key_ty}]: {val_ty} }}",
                         key_ty = index_info.key_ty.to_string(checker),
                         val_ty = index_info.val_ty.to_string(checker),
-                        key_name = checker.atoms.get(key_name.name)
+                        key_name = pprint_binding(key_name, checker.atoms),
                     )
                 } else {
                     let members = checker

@@ -2080,11 +2080,12 @@ impl<'cx> TyChecker<'cx> {
                     self.resolve_symbol_by_ident(s_ident) == self.resolve_symbol_by_ident(t_ident)
                 } else if let Some(v) = t.as_var_decl() {
                     match v.binding {
-                        ast::Binding::Ident(ident) => {
+                        bolt_ts_ast::Binding::Ident(ident) => {
                             self.resolve_symbol_by_ident(s_ident)
                                 == self.resolve_symbol_by_ident(ident)
                         }
-                        ast::Binding::ObjectPat(_) => todo!(),
+                        bolt_ts_ast::Binding::ObjectPat(_) => todo!(),
+                        bolt_ts_ast::Binding::ArrayPat(array_pat) => todo!(),
                     }
                 } else if t.is_object_binding_elem() {
                     todo!()
@@ -2733,6 +2734,14 @@ impl<'cx> TyChecker<'cx> {
             self.get_non_nullable_ty(ty)
         } else {
             ty
+        }
+    }
+
+    fn get_default_ty_argument_ty(&self, is_in_javascript_file: bool) -> &'cx ty::Ty<'cx> {
+        if is_in_javascript_file {
+            self.any_ty
+        } else {
+            self.undefined_ty
         }
     }
 }

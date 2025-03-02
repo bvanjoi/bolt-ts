@@ -1133,16 +1133,10 @@ impl<'cx> TyChecker<'cx> {
     ) -> &'cx Ty<'cx> {
         let can_tail_recurse =
             |this: &mut Self, new_ty: &'cx Ty<'cx>, new_mapper: Option<&'cx dyn ty::TyMap<'cx>>| {
-                let Some(cond) = new_ty.kind.as_cond_ty() else {
-                    return None;
-                };
-                let Some(new_mapper) = new_mapper else {
-                    return None;
-                };
+                let cond = new_ty.kind.as_cond_ty()?;
+                let new_mapper = new_mapper?;
                 let new_root = cond.root;
-                let Some(outer_ty_params) = new_root.outer_ty_params else {
-                    return None;
-                };
+                let outer_ty_params = new_root.outer_ty_params?;
                 let ty_param_mapper = this.combine_ty_mappers(cond.mapper, new_mapper);
                 let ty_args = outer_ty_params
                     .iter()
@@ -1171,7 +1165,6 @@ impl<'cx> TyChecker<'cx> {
                 self.instantiate_ty(ty, mapper)
             };
             let extends_ty = self.instantiate_ty(root.extends_ty, mapper);
-
             if check_ty == self.error_ty || extends_ty == self.error_ty {
                 return self.error_ty;
             } else if check_ty == self.wildcard_ty || extends_ty == self.wildcard_ty {

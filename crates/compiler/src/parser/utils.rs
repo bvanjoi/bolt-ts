@@ -479,8 +479,26 @@ impl<'cx> ParserState<'cx, '_> {
             }
         }
 
+        if self.token.kind == TokenKind::This {
+            let ident = self.create_ident(true, None);
+            let ty = self.parse_ty_anno()?;
+            let name = self.alloc(ast::Binding::Ident(ident));
+            let decl = self.alloc(ast::ParamDecl {
+                id,
+                span: self.new_span(start),
+                modifiers,
+                dotdotdot: None,
+                name,
+                question: None,
+                ty,
+                init: None,
+            });
+            self.insert_map(id, ast::Node::ParamDecl(decl));
+            return Ok(decl);
+        }
+
         let dotdotdot = self.parse_optional(TokenKind::DotDotDot).map(|t| t.span);
-        let name = self.with_parent(id, Self::parse_ident_name)?;
+        let name = self.with_parent(id, Self::parse_name_of_param)?;
         if dotdotdot.is_some() {
             if let Some(ms) = modifiers {
                 if ms.flags.intersects(ModifierKind::PARAMETER_PROPERTY) {
@@ -495,7 +513,7 @@ impl<'cx> ParserState<'cx, '_> {
                             }
                         })
                         .collect::<Vec<_>>();
-                    let span = Span::new(ms.span.lo, name.span.hi, name.span.module);
+                    let span = Span::new(ms.span.lo, name.span().hi, name.span().module);
                     let error = errors::AParameterPropertyCannotBeDeclaredUsingARestParameter {
                         span,
                         kinds,

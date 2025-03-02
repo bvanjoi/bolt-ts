@@ -580,7 +580,7 @@ pub struct ParamDecl<'cx> {
     pub span: Span,
     pub modifiers: Option<&'cx Modifiers<'cx>>,
     pub dotdotdot: Option<Span>,
-    pub name: &'cx Ident,
+    pub name: &'cx Binding<'cx>,
     pub question: Option<Span>,
     pub ty: Option<&'cx self::Ty<'cx>>,
     pub init: Option<&'cx Expr<'cx>>,
@@ -724,7 +724,27 @@ pub struct ExportNamedSpec<'cx> {
 pub enum Binding<'cx> {
     Ident(&'cx Ident),
     ObjectPat(&'cx ObjectPat<'cx>),
-    // ArrayPat()
+    ArrayPat(&'cx ArrayPat),
+}
+
+impl Binding<'_> {
+    pub fn id(&self) -> NodeID {
+        use Binding::*;
+        match self {
+            Ident(ident) => ident.id,
+            ObjectPat(pat) => pat.id,
+            ArrayPat(pat) => pat.id,
+        }
+    }
+
+    pub fn span(&self) -> Span {
+        use Binding::*;
+        match self {
+            Ident(ident) => ident.span,
+            ObjectPat(pat) => pat.span,
+            ArrayPat(pat) => pat.span,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -732,6 +752,12 @@ pub struct ObjectPat<'cx> {
     pub id: NodeID,
     pub span: Span,
     pub elems: ObjectBindingElems<'cx>,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct ArrayPat {
+    pub id: NodeID,
+    pub span: Span,
 }
 
 pub type ObjectBindingElems<'cx> = &'cx [&'cx ObjectBindingElem<'cx>];

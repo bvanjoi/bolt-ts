@@ -70,12 +70,16 @@ impl<'cx> BinderState<'cx, '_> {
                     .modifiers
                     .is_some_and(|ms| ms.flags.contains(ModifierKind::Public))
             {
-                self.create_class_prop_ele(
-                    container,
-                    SymbolName::Ele(param.name.name),
-                    param.id,
-                    param.modifiers,
-                );
+                match param.name {
+                    bolt_ts_ast::Binding::Ident(ident) => self.create_class_prop_ele(
+                        container,
+                        SymbolName::Ele(ident.name),
+                        param.id,
+                        param.modifiers,
+                    ),
+                    bolt_ts_ast::Binding::ObjectPat(_) => todo!(),
+                    bolt_ts_ast::Binding::ArrayPat(_) => todo!(),
+                };
             }
         }
         if let Some(body) = ctor.body {

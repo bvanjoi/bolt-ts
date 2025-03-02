@@ -15,7 +15,7 @@ use crate::bind::{BinderState, GlobalSymbols, Symbol, SymbolFlags, SymbolID, Sym
 use crate::keyword;
 use crate::keyword::{is_prim_ty_name, is_prim_value_name};
 use crate::parser::Parser;
-use bolt_ts_ast as ast;
+use bolt_ts_ast::{self as ast};
 
 pub struct EarlyResolveResult {
     pub final_res: FxHashMap<ast::NodeID, SymbolID>,
@@ -618,6 +618,27 @@ pub(super) fn resolve_symbol_by_ident<'a, 'cx>(
     ident: &'cx ast::Ident,
     meaning: SymbolFlags,
 ) -> ResolvedResult {
+    let mut associated_declaration_for_containing_initializer_or_binding_name = None;
+    let mut last_location = None;
+    let mut location = resolver.p.parent(ident.id);
+    while let Some(id) = location {
+        if let Some(locals) = resolver.locals(id) {
+            if let Some(symbol) = locals.get(&SymbolName::Normal(ident.name)).copied() {
+                let mut use_result = true;
+                if let Some(cond) = resolver.p.node(id).as_cond_ty() {
+                    use_result = last_location.is_some_and(|last| last == cond.true_ty.id())
+                }
+                if use_result {
+                    return ResolvedResult {
+                        symbol,
+                        associated_declaration_for_containing_initializer_or_binding_name,
+                    };
+                }
+            }
+        }
+        last_location = location;
+        location = resolver.p.parent(id);
+    }
     let binder = &resolver.states[resolver.module_id.as_usize()];
     let key = SymbolName::Normal(ident.name);
     // TODO: use locals rather than scope.
@@ -625,7 +646,6 @@ pub(super) fn resolve_symbol_by_ident<'a, 'cx>(
         let name = ast::debug_ident(ident, resolver.atoms);
         unreachable!("the scope of {name:?} is not stored");
     };
-    let mut associated_declaration_for_containing_initializer_or_binding_name = None;
     loop {
         if !scope_id.is_root() {
             if let Some(id) = binder.res.get(&(scope_id, SymbolName::Container)).copied() {
@@ -685,19 +705,6 @@ pub(super) fn resolve_symbol_by_ident<'a, 'cx>(
         } else {
             break;
         }
-    }
-
-    let mut location = resolver.p.parent(ident.id);
-    while let Some(id) = location {
-        if let Some(locals) = resolver.locals(id) {
-            if let Some(symbol) = locals.get(&SymbolName::Normal(ident.name)).copied() {
-                return ResolvedResult {
-                    symbol,
-                    associated_declaration_for_containing_initializer_or_binding_name,
-                };
-            }
-        }
-        location = resolver.p.parent(id);
     }
 
     ResolvedResult {

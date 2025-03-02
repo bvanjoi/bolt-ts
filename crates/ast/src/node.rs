@@ -72,6 +72,7 @@ pub enum Node<'cx> {
     CatchClause(&'cx super::CatchClause<'cx>),
     ObjectBindingElem(&'cx super::ObjectBindingElem<'cx>),
     ObjectPat(&'cx super::ObjectPat<'cx>),
+    ArrayPat(&'cx super::ArrayPat),
     DebuggerStmt(&'cx super::DebuggerStmt),
 
     // expr
@@ -235,7 +236,11 @@ impl<'cx> Node<'cx> {
             FnDecl(n) => Some(n.name),
             ClassDecl(n) => Some(n.name),
             ClassExpr(n) => n.name,
-            ParamDecl(n) => Some(n.name),
+            ParamDecl(n) => match n.name {
+                super::Binding::Ident(n) => Some(n),
+                super::Binding::ObjectPat(_) => None,
+                super::Binding::ArrayPat(_) => None,
+            },
             InterfaceDecl(n) => Some(n.name),
             ClassPropElem(n) => match n.name.kind {
                 super::PropNameKind::Ident(ident) => Some(ident),
@@ -808,6 +813,7 @@ as_node!(
     (WhileStmt, super::WhileStmt<'cx>, while_stmt),
     (QualifiedName, super::QualifiedName<'cx>, qualified_name),
     (ObjectPat, super::ObjectPat<'cx>, object_pat),
+    (ArrayPat, super::ArrayPat, array_pat),
     (
         ObjectBindingElem,
         super::ObjectBindingElem<'cx>,

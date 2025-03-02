@@ -404,12 +404,12 @@ impl<'cx> TyChecker<'cx> {
             },
             ast::ExprKind::BigIntLit(lit) => match expr.op {
                 ast::PrefixUnaryOp::Minus => {
-                    let neg = if lit.val.0 { false } else { true };
+                    let neg = !lit.val.0;
                     let ty = self.get_bigint_literal_type(neg, lit.val.1);
                     return self.get_fresh_ty_of_literal_ty(ty);
                 }
                 ast::PrefixUnaryOp::Plus => {
-                    let neg = if lit.val.0 { true } else { false };
+                    let neg = lit.val.0;
                     let ty = self.get_bigint_literal_type(neg, lit.val.1);
                     return self.get_fresh_ty_of_literal_ty(ty);
                 }

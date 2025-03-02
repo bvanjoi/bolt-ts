@@ -424,7 +424,7 @@ impl<'cx> Emit<'cx> {
         }
     }
 
-    fn emit_binding(&mut self, binding: &'cx ast::Binding<'cx>) {
+    pub(super) fn emit_binding(&mut self, binding: &'cx ast::Binding<'cx>) {
         match binding {
             ast::Binding::Ident(n) => self.emit_ident(n),
             ast::Binding::ObjectPat(n) => {
@@ -439,6 +439,7 @@ impl<'cx> Emit<'cx> {
                 );
                 self.content.p_r_brace();
             }
+            bolt_ts_ast::Binding::ArrayPat(_) => todo!(),
         };
     }
 
@@ -470,6 +471,7 @@ impl<'cx> Emit<'cx> {
                         }
                     })
                     .collect(),
+                ArrayPat(_) => todo!(),
             }
         }
 

@@ -572,11 +572,9 @@ impl TokenKind {
             // Out |
             Readonly |
             // Require |
-            Number |
             // Object |
             // Satisfies |
             Set |
-            String |
             // Symbol |
             Type |
             Undefined |

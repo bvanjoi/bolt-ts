@@ -1,4 +1,4 @@
-// From `github.com/microsoft/TypeScript/blob/v5.7.3/tests/cases/compiler/scopingInCatchBlocks.ts`, Apache-2.0 License
+// From `github.com/microsoft/TypeScript/blob/v5.8.2/tests/cases/compiler/scopingInCatchBlocks.ts`, Apache-2.0 License
 
 try { } catch(ex1) { 
 	throw ex1;

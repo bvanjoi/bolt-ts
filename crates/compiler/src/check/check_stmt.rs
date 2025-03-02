@@ -53,14 +53,14 @@ impl<'cx> TyChecker<'cx> {
 
         if right_ty == self.never_ty
             || !self.is_type_assignable_to_kind(
-                &right_ty,
+                right_ty,
                 TypeFlags::NON_PRIMITIVE | TypeFlags::INSTANTIABLE,
                 false,
             )
         {
             let error = errors::TheRightHandSideOfAForInStatementMustBeOfTypeAnyAnObjectTypeOrATypeParameterButHereHasType0 {
                 span: node.expr.span(),
-                ty: self.print_ty(&right_ty).to_string(),
+                ty: self.print_ty(right_ty).to_string(),
             };
             self.push_error(Box::new(error));
         }

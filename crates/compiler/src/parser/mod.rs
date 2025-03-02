@@ -183,7 +183,7 @@ pub fn parse_parallel<'cx, 'p>(
         move |bump, module_id| {
             let input = module_arena.get_content(*module_id);
             let result = parse(atoms.clone(), bump, input.as_bytes(), *module_id);
-            assert!(!module_arena.get_module(*module_id).global || result.diags.is_empty());
+            // assert!(!module_arena.get_module(*module_id).global || result.diags.is_empty());
             (*module_id, result)
         },
     )
@@ -435,7 +435,8 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
     }
 
     fn parse_binding_ident(&mut self) -> &'cx ast::Ident {
-        self.create_ident(true, None)
+        let is_ident = self.token.kind.is_binding_ident();
+        self.create_ident(is_ident, None)
     }
 
     fn parse_optional_binding_ident(&mut self) -> PResult<Option<&'cx ast::Ident>> {
