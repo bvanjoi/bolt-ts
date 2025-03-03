@@ -41,9 +41,7 @@ fn main_test() {
     compile_test::ensure_node_exist();
     let project_root: PathBuf = project_root::get_project_root().unwrap();
     let case_root = project_root.join("tests/cases/compiler/fest/");
-    if !case_root.is_dir() {
-        panic!("'{:#?}' not found", case_root.display());
-    }
+    assert!(case_root.is_dir(), "'{case_root:#?}' not found.",);
     let tsconfig_file = case_root.join(bolt_ts_compiler::DEFAULT_TSCONFIG);
     let tsconfig = if tsconfig_file.is_file() {
         let s = std::fs::read_to_string(tsconfig_file).unwrap();

@@ -420,3 +420,10 @@ pub(super) struct TheRightHandSideOfAForInStatementMustBeOfTypeAnyAnObjectTypeOr
     pub span: Span,
     pub ty: String,
 }
+
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
+#[error("Type produces a tuple type that is too large to represent.")]
+pub(super) struct TypeProducesATupleTypeThatIsTooLargeToRepresent {
+    #[label(primary)]
+    pub span: Span,
+}

@@ -65,7 +65,7 @@ impl<'cx> Ty<'cx> {
             TyKind::Nullable(n) => n.id,
             TyKind::NamedTuple(n) => n.id,
             TyKind::TemplateLit(n) => n.id,
-            TyKind::Intrinsic(_) => unreachable!(),
+            TyKind::Intrinsic(n) => n.id,
         }
     }
 
@@ -150,6 +150,7 @@ pub struct NullableTy<'cx> {
 
 #[derive(Debug, Clone, Copy)]
 pub struct IntrinsicTy {
+    pub id: NodeID,
     pub span: Span,
 }
 

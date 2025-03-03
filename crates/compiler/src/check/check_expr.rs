@@ -80,6 +80,8 @@ impl<'cx> TyChecker<'cx> {
 
     pub(super) fn check_expr(&mut self, expr: &'cx ast::Expr<'cx>) -> &'cx ty::Ty<'cx> {
         use bolt_ts_ast::ExprKind::*;
+        let saved_current_node = self.current_node;
+        self.current_node = Some(expr.id());
         let ty = match expr.kind {
             Bin(bin) => ensure_sufficient_stack(|| self.check_bin_expr(bin)),
             NumLit(lit) => self.check_num_lit(lit.val),
@@ -127,8 +129,9 @@ impl<'cx> TyChecker<'cx> {
             NonNull(n) => self.check_expr(n.expr),
             Template(n) => self.check_template_expr(n),
         };
-
-        self.instantiate_ty_with_single_generic_call_sig(expr.id(), ty)
+        let ty = self.instantiate_ty_with_single_generic_call_sig(expr.id(), ty);
+        self.current_node = saved_current_node;
+        ty
     }
 
     fn check_template_expr(&mut self, node: &'cx ast::TemplateExpr<'cx>) -> &'cx ty::Ty<'cx> {

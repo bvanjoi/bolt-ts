@@ -985,8 +985,8 @@ impl<'cx> TyChecker<'cx> {
         if !ty.kind.is_object_reference() {
             return Default::default();
         };
-        let arity = Self::get_ty_reference_arity(ty);
         let ty_args = self.get_ty_arguments(ty);
+        let arity = Self::get_ty_reference_arity(ty);
         if ty_args.len() == arity {
             ty_args
         } else {
@@ -1391,8 +1391,9 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
-    fn get_rest_ty_ele_flags(node: &'cx ast::RestTy<'cx>) -> ElementFlags {
-        if Self::get_array_ele_ty_node(node.ty).is_some() {
+    fn get_rest_ty_ele_flags(node: &impl ir::RestTyLike<'cx>) -> ElementFlags {
+        let ty = node.ty().unwrap();
+        if Self::get_array_ele_ty_node(ty).is_some() {
             ElementFlags::REST
         } else {
             ElementFlags::VARIADIC
@@ -1403,6 +1404,15 @@ impl<'cx> TyChecker<'cx> {
         use bolt_ts_ast::TyKind::*;
         match node.kind {
             Rest(rest) => Self::get_rest_ty_ele_flags(rest),
+            NamedTuple(named) => {
+                if named.question.is_some() {
+                    ElementFlags::OPTIONAL
+                } else if named.dotdotdot.is_some() {
+                    Self::get_rest_ty_ele_flags(named)
+                } else {
+                    ElementFlags::REQUIRED
+                }
+            }
             _ => ElementFlags::REQUIRED,
         }
     }
@@ -1424,7 +1434,7 @@ impl<'cx> TyChecker<'cx> {
         ty
     }
 
-    fn get_ty_from_tuple_node(&mut self, node: &'cx ast::TupleTy<'cx>) -> &'cx Ty<'cx> {
+    pub(super) fn get_ty_from_tuple_node(&mut self, node: &'cx ast::TupleTy<'cx>) -> &'cx Ty<'cx> {
         if let Some(ty) = self.get_node_links(node.id).get_resolved_ty() {
             return ty;
         }

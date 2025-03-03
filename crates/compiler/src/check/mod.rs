@@ -252,6 +252,7 @@ pub struct TyChecker<'cx> {
     resolution_start: i32,
     resolution_tys: thin_vec::ThinVec<ResolutionKey>,
     resolution_res: thin_vec::ThinVec<bool>,
+    current_node: Option<ast::NodeID>,
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -433,6 +434,7 @@ impl<'cx> TyChecker<'cx> {
                 indexmap::IndexSet::with_capacity_and_hasher(64, FxBuildHasher);
                 p.module_count()
             ],
+            current_node: None,
         };
         let prev = this.ty_links.insert(
             true_ty.id,

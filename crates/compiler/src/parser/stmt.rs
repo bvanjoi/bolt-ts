@@ -390,7 +390,9 @@ impl<'cx> ParserState<'cx, '_> {
         let ty_params = self.with_parent(id, Self::parse_ty_params).unwrap();
         self.expect(TokenKind::Eq);
         let ty = if self.token.kind == TokenKind::Intrinsic {
+            let id = self.next_node_id();
             let t = self.alloc(ast::IntrinsicTy {
+                id,
                 span: self.token.span,
             });
             let t = self.alloc(ast::Ty {

@@ -1,0 +1,5 @@
+  × Type produces a tuple type that is too large to represent.
+   ╭─[../../tests/cases/compiler/excessivelyLargeTupleSpread/index.ts:6:10]
+ 6 │ BuildTuple<3>
+   · ─────────────
+   ╰────

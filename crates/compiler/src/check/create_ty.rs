@@ -13,10 +13,10 @@ use crate::ty::{
     CheckFlags, ElementFlags, IndexFlags, ObjectFlags, TyID, TypeFlags, UnionReduction,
 };
 
-use super::TyChecker;
 use super::relation::RelationKind;
 use super::utils::insert_ty;
 use super::{InstantiationTyMap, UnionOrIntersectionMap};
+use super::{TyChecker, errors};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum IntersectionFlags {
@@ -135,40 +135,49 @@ impl<'cx> TyChecker<'cx> {
         let mut first_rest_index = usize::MAX;
         let mut last_optional_or_rest_index = usize::MAX;
 
-        let mut add_ele = |ty: &'cx ty::Ty<'cx>, flags: ElementFlags| {
-            if flags.intersects(ElementFlags::REQUIRED) {
-                last_required_index = expanded_tys.len();
-            }
-            if flags.intersects(ElementFlags::REST) && first_rest_index == usize::MAX {
-                first_rest_index = expanded_tys.len()
-            }
-            if flags.intersects(ElementFlags::OPTIONAL | ElementFlags::REST) {
-                last_optional_or_rest_index = expanded_tys.len();
-            }
-            if flags.intersects(ElementFlags::OPTIONAL) {
-                // TODO: self.add_optionality
-                expanded_tys.push(ty);
-            } else {
-                expanded_tys.push(ty);
-            }
-            expanded_flags.push(flags);
-        };
+        let mut add_ele =
+            |ty: &'cx ty::Ty<'cx>, flags: ElementFlags, expanded_tys: &mut Vec<&ty::Ty<'cx>>| {
+                if flags.intersects(ElementFlags::REQUIRED) {
+                    last_required_index = expanded_tys.len();
+                }
+                if flags.intersects(ElementFlags::REST) && first_rest_index == usize::MAX {
+                    first_rest_index = expanded_tys.len()
+                }
+                if flags.intersects(ElementFlags::OPTIONAL | ElementFlags::REST) {
+                    last_optional_or_rest_index = expanded_tys.len();
+                }
+                if flags.intersects(ElementFlags::OPTIONAL) {
+                    // TODO: self.add_optionality
+                    expanded_tys.push(ty);
+                } else {
+                    expanded_tys.push(ty);
+                }
+                expanded_flags.push(flags);
+            };
 
         for (i, ty) in element_types.iter().enumerate() {
             let flag = target.element_flags[i];
             if flag.intersects(ElementFlags::VARIADIC) {
                 if ty.flags.intersects(TypeFlags::ANY) {
-                    add_ele(ty, ElementFlags::REST);
-                } else if ty.kind.is_instantiable_non_primitive() {
-                    add_ele(ty, ElementFlags::VARIADIC);
+                    add_ele(ty, ElementFlags::REST, &mut expanded_tys);
+                } else if ty.kind.is_instantiable_non_primitive() || self.is_generic_mapped_ty(ty) {
+                    add_ele(ty, ElementFlags::VARIADIC, &mut expanded_tys);
                 } else if let Some(tuple) = ty.as_tuple() {
                     let elements = self.get_element_tys(ty);
-                    for (n, t) in elements.iter().enumerate() {
-                        add_ele(t, tuple.element_flags[n]);
+                    if elements.len() + expanded_tys.len() >= 20_000 {
+                        if let Some(current_node) = self.current_node {
+                            let error = errors::TypeProducesATupleTypeThatIsTooLargeToRepresent {
+                                span: self.p.node(current_node).span(),
+                            };
+                            self.push_error(Box::new(error));
+                        } else {
+                            todo!()
+                        }
+
+                        return self.error_ty;
                     }
-                } else if let Some(tuple) = ty.kind.as_object_tuple() {
-                    for i in 0..tuple.resolved_ty_args.len() {
-                        add_ele(tuple.resolved_ty_args[i], tuple.element_flags[i]);
+                    for (n, t) in elements.iter().enumerate() {
+                        add_ele(t, tuple.element_flags[n], &mut expanded_tys);
                     }
                 } else {
                     let t = if self.is_array_like_ty(ty) {
@@ -177,10 +186,10 @@ impl<'cx> TyChecker<'cx> {
                     } else {
                         self.error_ty
                     };
-                    add_ele(t, ElementFlags::REST);
+                    add_ele(t, ElementFlags::REST, &mut expanded_tys);
                 }
             } else {
-                add_ele(ty, flag)
+                add_ele(ty, flag, &mut expanded_tys);
             }
         }
 
