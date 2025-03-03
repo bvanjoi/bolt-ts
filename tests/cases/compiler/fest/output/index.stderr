@@ -65,441 +65,441 @@
      ╰────
 
   × Generic type 'IfAny' requires between 1 and 3 type arguments.
-     ╭─[../../tests/cases/compiler/fest/index.ts:488:12]
- 488 │ IfAny
+     ╭─[../../tests/cases/compiler/fest/index.ts:522:12]
+ 522 │ IfAny
      · ─────
      ╰────
 
   × Generic type 'IfNever' requires between 1 and 3 type arguments.
-     ╭─[../../tests/cases/compiler/fest/index.ts:541:12]
- 541 │ IfNever
+     ╭─[../../tests/cases/compiler/fest/index.ts:575:12]
+ 575 │ IfNever
      · ───────
      ╰────
 
   × Generic type 'IfUnknown' requires between 1 and 3 type arguments.
-     ╭─[../../tests/cases/compiler/fest/index.ts:560:12]
- 560 │ IfUnknown
+     ╭─[../../tests/cases/compiler/fest/index.ts:594:12]
+ 594 │ IfUnknown
      · ─────────
      ╰────
 
   × Generic type 'IsAny' requires 1 type argument.
-     ╭─[../../tests/cases/compiler/fest/index.ts:603:12]
- 603 │ IsAny
+     ╭─[../../tests/cases/compiler/fest/index.ts:637:12]
+ 637 │ IsAny
      · ─────
      ╰────
 
   × Type 'string' is not assignable to type 'never'.
-     ╭─[../../tests/cases/compiler/fest/index.ts:610:20]
- 610 │ string
+     ╭─[../../tests/cases/compiler/fest/index.ts:644:20]
+ 644 │ string
      · ──────
      ╰────
 
   × Generic type 'IsEqual' requires 2 type arguments.
-     ╭─[../../tests/cases/compiler/fest/index.ts:668:12]
- 668 │ IsEqual
+     ╭─[../../tests/cases/compiler/fest/index.ts:702:12]
+ 702 │ IsEqual
      · ───────
      ╰────
 
   × Generic type 'IsEqual' requires 2 type arguments.
-     ╭─[../../tests/cases/compiler/fest/index.ts:671:12]
- 671 │ IsEqual<number>
+     ╭─[../../tests/cases/compiler/fest/index.ts:705:12]
+ 705 │ IsEqual<number>
      · ───────────────
      ╰────
 
   × Generic type 'IsNever' requires 1 type argument.
-     ╭─[../../tests/cases/compiler/fest/index.ts:771:13]
- 771 │ IsNever
+     ╭─[../../tests/cases/compiler/fest/index.ts:805:13]
+ 805 │ IsNever
      · ───────
      ╰────
 
   × Generic type 'IsNever' requires 1 type argument.
-     ╭─[../../tests/cases/compiler/fest/index.ts:773:13]
- 773 │ IsNever<number, boolean>
+     ╭─[../../tests/cases/compiler/fest/index.ts:807:13]
+ 807 │ IsNever<number, boolean>
      · ────────────────────────
      ╰────
 
   × Type 'false' is not assignable to type 'true'.
-     ╭─[../../tests/cases/compiler/fest/index.ts:780:9]
- 780 │ a0
+     ╭─[../../tests/cases/compiler/fest/index.ts:814:9]
+ 814 │ a0
      · ──
      ╰────
 
   × Type 'false' is not assignable to type 'true'.
-     ╭─[../../tests/cases/compiler/fest/index.ts:782:9]
- 782 │ a1
+     ╭─[../../tests/cases/compiler/fest/index.ts:816:9]
+ 816 │ a1
      · ──
      ╰────
 
   × Type 'false' is not assignable to type 'true'.
-     ╭─[../../tests/cases/compiler/fest/index.ts:784:9]
- 784 │ a2
+     ╭─[../../tests/cases/compiler/fest/index.ts:818:9]
+ 818 │ a2
      · ──
      ╰────
 
   × Type 'false' is not assignable to type 'true'.
-     ╭─[../../tests/cases/compiler/fest/index.ts:786:9]
- 786 │ a3
+     ╭─[../../tests/cases/compiler/fest/index.ts:820:9]
+ 820 │ a3
      · ──
      ╰────
 
   × Type 'true' is not assignable to type 'false'.
-     ╭─[../../tests/cases/compiler/fest/index.ts:788:9]
- 788 │ a4
+     ╭─[../../tests/cases/compiler/fest/index.ts:822:9]
+ 822 │ a4
      · ──
      ╰────
 
   × Type 'true' is not assignable to type 'false'.
-     ╭─[../../tests/cases/compiler/fest/index.ts:790:9]
- 790 │ a5
+     ╭─[../../tests/cases/compiler/fest/index.ts:824:9]
+ 824 │ a5
      · ──
      ╰────
 
   × Type 'true' is not assignable to type 'false'.
-     ╭─[../../tests/cases/compiler/fest/index.ts:792:9]
- 792 │ a6
+     ╭─[../../tests/cases/compiler/fest/index.ts:826:9]
+ 826 │ a6
      · ──
      ╰────
 
   × Generic type 'IsUnknown' requires 1 type argument.
-     ╭─[../../tests/cases/compiler/fest/index.ts:947:12]
- 947 │ IsUnknown
+     ╭─[../../tests/cases/compiler/fest/index.ts:980:12]
+ 980 │ IsUnknown
      · ─────────
      ╰────
 
   × Type 'cond' is not assignable to type 'T'.
-      ╭─[../../tests/cases/compiler/fest/index.ts:1022:36]
- 1022 │ KeysOfUnion<T>
+      ╭─[../../tests/cases/compiler/fest/index.ts:1055:36]
+ 1055 │ KeysOfUnion<T>
       · ──────────────
       ╰────
 
   × Type 'symbol | number | string' is not assignable to type 'cond'.
-      ╭─[../../tests/cases/compiler/fest/index.ts:1034:36]
- 1034 │ PropertyKey
+      ╭─[../../tests/cases/compiler/fest/index.ts:1067:36]
+ 1067 │ PropertyKey
       · ───────────
       ╰────
 
   × Type 'cond' is not assignable to type 'T'.
-      ╭─[../../tests/cases/compiler/fest/index.ts:1050:68]
- 1050 │ KeysOfUnion<T>
+      ╭─[../../tests/cases/compiler/fest/index.ts:1083:68]
+ 1083 │ KeysOfUnion<T>
       · ──────────────
       ╰────
 
   × Type 'cond' is not assignable to type 'T'.
-      ╭─[../../tests/cases/compiler/fest/index.ts:1054:51]
- 1054 │ KeysOfUnion<T>
+      ╭─[../../tests/cases/compiler/fest/index.ts:1087:51]
+ 1087 │ KeysOfUnion<T>
       · ──────────────
       ╰────
 
   × Expected 1 arguments, but got 0.
-      ╭─[../../tests/cases/compiler/fest/index.ts:1182:3]
- 1182 │ sum()
+      ╭─[../../tests/cases/compiler/fest/index.ts:1214:3]
+ 1214 │ sum()
       · ─────
       ╰────
 
   × Type '-Infinity' is not assignable to type 'Infinity'.
-      ╭─[../../tests/cases/compiler/fest/index.ts:1221:7]
- 1221 │ a2
+      ╭─[../../tests/cases/compiler/fest/index.ts:1252:7]
+ 1252 │ a2
       · ──
       ╰────
 
   × Type 'false' is not assignable to type 'true'.
-      ╭─[../../tests/cases/compiler/fest/index.ts:1340:7]
- 1340 │ a0
+      ╭─[../../tests/cases/compiler/fest/index.ts:1452:7]
+ 1452 │ a0
       · ──
       ╰────
 
   × Type 'true' is not assignable to type 'false'.
-      ╭─[../../tests/cases/compiler/fest/index.ts:1342:7]
- 1342 │ a1
+      ╭─[../../tests/cases/compiler/fest/index.ts:1454:7]
+ 1454 │ a1
       · ──
       ╰────
 
   × Type 'true' is not assignable to type 'false'.
-      ╭─[../../tests/cases/compiler/fest/index.ts:1344:7]
- 1344 │ a2
+      ╭─[../../tests/cases/compiler/fest/index.ts:1456:7]
+ 1456 │ a2
       · ──
       ╰────
 
   × Type 'number' is not assignable to type 'string'.
-      ╭─[../../tests/cases/compiler/fest/index.ts:1417:46]
- 1417 │ 123
+      ╭─[../../tests/cases/compiler/fest/index.ts:1529:46]
+ 1529 │ 123
       · ───
       ╰────
 
   × Type '[string]' is not assignable to type '[string, string, string]'.
-      ╭─[../../tests/cases/compiler/fest/index.ts:1419:9]
- 1419 │ b1
+      ╭─[../../tests/cases/compiler/fest/index.ts:1531:9]
+ 1531 │ b1
       · ──
       ╰────
 
   × Type '[string, string]' is not assignable to type '[string, string,
   │ string]'.
-      ╭─[../../tests/cases/compiler/fest/index.ts:1421:9]
- 1421 │ b2
+      ╭─[../../tests/cases/compiler/fest/index.ts:1533:9]
+ 1533 │ b2
       · ──
       ╰────
 
   × Type '[string, string, string, string]' is not assignable to type
   │ '[string, string, string]'.
-      ╭─[../../tests/cases/compiler/fest/index.ts:1423:9]
- 1423 │ b3
+      ╭─[../../tests/cases/compiler/fest/index.ts:1535:9]
+ 1535 │ b3
       · ──
       ╰────
 
   × Property 'push' does not exist on type '[string, string, string]'.
-      ╭─[../../tests/cases/compiler/fest/index.ts:1426:28]
- 1426 │ push
+      ╭─[../../tests/cases/compiler/fest/index.ts:1538:28]
+ 1538 │ push
       · ────
       ╰────
 
   × Cannot assign to '2' because it is a read-only property.
-      ╭─[../../tests/cases/compiler/fest/index.ts:1428:3]
- 1428 │ test[2]
+      ╭─[../../tests/cases/compiler/fest/index.ts:1540:3]
+ 1540 │ test[2]
       · ───────
       ╰────
 
   × Property 'push' does not exist on type 'unknown[]'.
-      ╭─[../../tests/cases/compiler/fest/index.ts:1454:6]
- 1454 │ push
+      ╭─[../../tests/cases/compiler/fest/index.ts:1566:6]
+ 1566 │ push
       · ────
       ╰────
 
   × Type 'SomeInterface' is not assignable to type 'Record'.
-      ╭─[../../tests/cases/compiler/fest/index.ts:1503:9]
- 1503 │ a6
+      ╭─[../../tests/cases/compiler/fest/index.ts:1615:9]
+ 1615 │ a6
       · ──
       ╰────
 
   × Type 'mapped type' is not assignable to type '(type: string) => string'.
-      ╭─[../../tests/cases/compiler/fest/index.ts:1513:9]
- 1513 │ b0
+      ╭─[../../tests/cases/compiler/fest/index.ts:1625:9]
+ 1625 │ b0
       · ──
       ╰────
 
   × Type '[]' is not assignable to type '[string, number, boolean]'.
-      ╭─[../../tests/cases/compiler/fest/index.ts:1542:7]
- 1542 │ b
+      ╭─[../../tests/cases/compiler/fest/index.ts:1654:7]
+ 1654 │ b
       · ─
       ╰────
 
   × Type 'number' is not assignable to type 'string'.
-      ╭─[../../tests/cases/compiler/fest/index.ts:1556:47]
- 1556 │ speed
+      ╭─[../../tests/cases/compiler/fest/index.ts:1668:47]
+ 1668 │ speed
       · ─────
       ╰────
 
   × Type '4' is not assignable to type '5'.
-      ╭─[../../tests/cases/compiler/fest/index.ts:1566:7]
- 1566 │ a0
+      ╭─[../../tests/cases/compiler/fest/index.ts:1678:7]
+ 1678 │ a0
       · ──
       ╰────
 
   × Type '["a", "b", "c", "d"]' is not assignable to type '["a", "b", "c",
   │ "d", "e"]'.
-      ╭─[../../tests/cases/compiler/fest/index.ts:1578:7]
- 1578 │ a0
+      ╭─[../../tests/cases/compiler/fest/index.ts:1690:7]
+ 1690 │ a0
       · ──
       ╰────
 
   × Type '42' is not assignable to type '1234'.
-      ╭─[../../tests/cases/compiler/fest/index.ts:1592:7]
- 1592 │ a0
+      ╭─[../../tests/cases/compiler/fest/index.ts:1704:7]
+ 1704 │ a0
       · ──
       ╰────
 
   × Type '42' is not assignable to type '-1234'.
-      ╭─[../../tests/cases/compiler/fest/index.ts:1594:7]
- 1594 │ a1
+      ╭─[../../tests/cases/compiler/fest/index.ts:1706:7]
+ 1706 │ a1
       · ──
       ╰────
 
   × Type '42' is not assignable to type '1234.56'.
-      ╭─[../../tests/cases/compiler/fest/index.ts:1596:7]
- 1596 │ a2
+      ╭─[../../tests/cases/compiler/fest/index.ts:1708:7]
+ 1708 │ a2
       · ──
       ╰────
 
   × Type '42' is not assignable to type '-1234.56'.
-      ╭─[../../tests/cases/compiler/fest/index.ts:1598:7]
- 1598 │ a3
+      ╭─[../../tests/cases/compiler/fest/index.ts:1710:7]
+ 1710 │ a3
       · ──
       ╰────
 
   × Type '42' is not assignable to type 'Infinity'.
-      ╭─[../../tests/cases/compiler/fest/index.ts:1600:7]
- 1600 │ a4
+      ╭─[../../tests/cases/compiler/fest/index.ts:1712:7]
+ 1712 │ a4
       · ──
       ╰────
 
   × Type '42' is not assignable to type '-Infinity'.
-      ╭─[../../tests/cases/compiler/fest/index.ts:1602:7]
- 1602 │ a5
+      ╭─[../../tests/cases/compiler/fest/index.ts:1714:7]
+ 1714 │ a5
       · ──
       ╰────
 
   × Type '{ tag: "num"; b: string; }' is not assignable to type 'mapped type &
   │ { a: string; } | mapped type & { b: number; }'.
-      ╭─[../../tests/cases/compiler/fest/index.ts:1754:9]
- 1754 │ b0
+      ╭─[../../tests/cases/compiler/fest/index.ts:1866:9]
+ 1866 │ b0
       · ──
       ╰────
 
   × Type '{ tag: "str"; b: number; }' is not assignable to type 'mapped type &
   │ { a: string; } | mapped type & { b: number; }'.
-      ╭─[../../tests/cases/compiler/fest/index.ts:1756:9]
- 1756 │ b1
+      ╭─[../../tests/cases/compiler/fest/index.ts:1868:9]
+ 1868 │ b1
       · ──
       ╰────
 
   × Type '"foo"' is not assignable to type '" foo "'.
-      ╭─[../../tests/cases/compiler/fest/index.ts:1776:8]
- 1776 │ a7
+      ╭─[../../tests/cases/compiler/fest/index.ts:1888:8]
+ 1888 │ a7
       · ──
       ╰────
 
   × Type '42' is not assignable to type '3'.
-      ╭─[../../tests/cases/compiler/fest/index.ts:1790:9]
- 1790 │ a0
+      ╭─[../../tests/cases/compiler/fest/index.ts:1902:9]
+ 1902 │ a0
       · ──
       ╰────
 
   × Type 'number' is not assignable to type '0 | 3'.
-      ╭─[../../tests/cases/compiler/fest/index.ts:1793:9]
- 1793 │ a2
+      ╭─[../../tests/cases/compiler/fest/index.ts:1905:9]
+ 1905 │ a2
       · ──
       ╰────
 
   × Type '"a"' is not assignable to type '"b"'.
-      ╭─[../../tests/cases/compiler/fest/index.ts:1839:9]
- 1839 │ a3
+      ╭─[../../tests/cases/compiler/fest/index.ts:1951:9]
+ 1951 │ a3
       · ──
       ╰────
 
   × Type '"a"' is not assignable to type '"c"'.
-      ╭─[../../tests/cases/compiler/fest/index.ts:1841:9]
- 1841 │ a4
+      ╭─[../../tests/cases/compiler/fest/index.ts:1953:9]
+ 1953 │ a4
       · ──
       ╰────
 
   × Type '"b"' is not assignable to type '"a"'.
-      ╭─[../../tests/cases/compiler/fest/index.ts:1846:9]
- 1846 │ b1
+      ╭─[../../tests/cases/compiler/fest/index.ts:1958:9]
+ 1958 │ b1
       · ──
       ╰────
 
   × Type '"b"' is not assignable to type '"c"'.
-      ╭─[../../tests/cases/compiler/fest/index.ts:1849:9]
- 1849 │ b3
+      ╭─[../../tests/cases/compiler/fest/index.ts:1961:9]
+ 1961 │ b3
       · ──
       ╰────
 
   × Type '"c"' is not assignable to type '"a"'.
-      ╭─[../../tests/cases/compiler/fest/index.ts:1854:9]
- 1854 │ c1
+      ╭─[../../tests/cases/compiler/fest/index.ts:1966:9]
+ 1966 │ c1
       · ──
       ╰────
 
   × Type '"c"' is not assignable to type '"b"'.
-      ╭─[../../tests/cases/compiler/fest/index.ts:1856:9]
- 1856 │ c2
+      ╭─[../../tests/cases/compiler/fest/index.ts:1968:9]
+ 1968 │ c2
       · ──
       ╰────
 
   × Type 'undefined' is not assignable to type 'never'.
-      ╭─[../../tests/cases/compiler/fest/index.ts:1863:9]
- 1863 │ notAnArray2
+      ╭─[../../tests/cases/compiler/fest/index.ts:1975:9]
+ 1975 │ notAnArray2
       · ───────────
       ╰────
 
   × Type '"a"' is not assignable to type '"z"'.
-      ╭─[../../tests/cases/compiler/fest/index.ts:1925:7]
- 1925 │ t
+      ╭─[../../tests/cases/compiler/fest/index.ts:2037:7]
+ 2037 │ t
       · ─
       ╰────
 
   × Type '"b"' is not assignable to type '"c"'.
-      ╭─[../../tests/cases/compiler/fest/index.ts:1941:6]
- 1941 │ a3
+      ╭─[../../tests/cases/compiler/fest/index.ts:2053:6]
+ 2053 │ a3
       · ──
       ╰────
 
   × Type '"d"' is not assignable to type '"c"'.
-      ╭─[../../tests/cases/compiler/fest/index.ts:1943:6]
- 1943 │ a4
+      ╭─[../../tests/cases/compiler/fest/index.ts:2055:6]
+ 2055 │ a4
       · ──
       ╰────
 
   × Type '[]' is not assignable to type '["a"]'.
-      ╭─[../../tests/cases/compiler/fest/index.ts:1954:6]
- 1954 │ b1
+      ╭─[../../tests/cases/compiler/fest/index.ts:2066:6]
+ 2066 │ b1
       · ──
       ╰────
 
   × Type '{ }' is missing the following properties from type 'unknown[]':
   │ length, join, and 11 more.
-      ╭─[../../tests/cases/compiler/fest/index.ts:1983:9]
- 1983 │ b2
+      ╭─[../../tests/cases/compiler/fest/index.ts:2095:9]
+ 2095 │ b2
       · ──
       ╰────
 
   × Type '{ 0: number; }' is missing the following properties from type
   │ 'unknown[]': length, join, and 11 more.
-      ╭─[../../tests/cases/compiler/fest/index.ts:1985:9]
- 1985 │ b3
+      ╭─[../../tests/cases/compiler/fest/index.ts:2097:9]
+ 2097 │ b3
       · ──
       ╰────
 
   × Type 'number' is not assignable to type 'unknown[]'.
-      ╭─[../../tests/cases/compiler/fest/index.ts:1987:9]
- 1987 │ b4
+      ╭─[../../tests/cases/compiler/fest/index.ts:2099:9]
+ 2099 │ b4
       · ──
       ╰────
 
   × Type 'DateConstructor' is missing the following properties from type
   │ 'unknown[]': join, forEach, and 10 more.
-      ╭─[../../tests/cases/compiler/fest/index.ts:1989:9]
- 1989 │ b5
+      ╭─[../../tests/cases/compiler/fest/index.ts:2101:9]
+ 2101 │ b5
       · ──
       ╰────
 
   × Type 'DateConstructor' is not assignable to type 'unknown[]'.
-      ╭─[../../tests/cases/compiler/fest/index.ts:1989:9]
- 1989 │ b5
+      ╭─[../../tests/cases/compiler/fest/index.ts:2101:9]
+ 2101 │ b5
       · ──
       ╰────
 
   × Type 'never[]' is not assignable to type 'Record'.
-      ╭─[../../tests/cases/compiler/fest/index.ts:2013:9]
- 2013 │ []
+      ╭─[../../tests/cases/compiler/fest/index.ts:2125:9]
+ 2125 │ []
       · ──
       ╰────
 
   × Type 'number' is not assignable to type 'Record'.
-      ╭─[../../tests/cases/compiler/fest/index.ts:2015:9]
- 2015 │ 42
+      ╭─[../../tests/cases/compiler/fest/index.ts:2127:9]
+ 2127 │ 42
       · ──
       ╰────
 
   × Type 'number' is not assignable to type 'string'.
-      ╭─[../../tests/cases/compiler/fest/index.ts:2032:36]
- 2032 │ 42
+      ╭─[../../tests/cases/compiler/fest/index.ts:2144:36]
+ 2144 │ 42
       · ──
       ╰────
 
   × Type '3' is not assignable to type '4'.
-      ╭─[../../tests/cases/compiler/fest/index.ts:2044:9]
- 2044 │ a1
+      ╭─[../../tests/cases/compiler/fest/index.ts:2156:9]
+ 2156 │ a1
       · ──
       ╰────
 
   × Type '1' is not assignable to type '2'.
-      ╭─[../../tests/cases/compiler/fest/index.ts:2052:9]
- 2052 │ b1
+      ╭─[../../tests/cases/compiler/fest/index.ts:2164:9]
+ 2164 │ b1
       · ──
       ╰────
 
   × Type '1' is not assignable to type '3'.
-      ╭─[../../tests/cases/compiler/fest/index.ts:2054:9]
- 2054 │ b2
+      ╭─[../../tests/cases/compiler/fest/index.ts:2166:9]
+ 2166 │ b2
       · ──
       ╰────

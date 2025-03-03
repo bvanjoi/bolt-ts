@@ -62,6 +62,8 @@ impl<'cx> BinderState<'cx, '_> {
             super::SymbolFnKind::Ctor,
             false,
         );
+        let old = self.scope_id;
+        self.scope_id = self.new_scope();
         for param in ctor.params {
             self.bind_param(param);
 
@@ -85,6 +87,7 @@ impl<'cx> BinderState<'cx, '_> {
         if let Some(body) = ctor.body {
             self.bind_block_stmt(body);
         }
+        self.scope_id = old;
     }
 
     fn bind_class_method_ele(

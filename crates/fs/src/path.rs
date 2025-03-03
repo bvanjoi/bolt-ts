@@ -45,7 +45,11 @@ impl<'a> PathId {
             let slice = p.as_encoded_bytes();
             insert_by_slice(slice, atoms)
         };
-        assert!(p.is_absolute());
+        if cfg!(target_arch = "wasm32") {
+            assert!(p.has_root());
+        } else {
+            assert!(p.is_absolute(), "Path should be absolute, but got {p:?}");
+        }
         if p.is_normalized() {
             let mut slice = p.as_os_str().as_encoded_bytes();
             if slice == [b'/'] {
@@ -59,15 +63,6 @@ impl<'a> PathId {
         } else {
             insert(p.normalize().as_os_str(), atoms)
         }
-    }
-
-    pub fn new_unnormalize(p: &std::path::Path, atoms: &mut AtomMap<'a>) -> Self {
-        let slice = p.as_os_str().as_encoded_bytes();
-        let atom = AtomId::from_bytes(slice);
-        atoms.insert_if_not_exist(atom, || unsafe {
-            std::borrow::Cow::Owned(String::from_utf8_unchecked(slice.to_vec()))
-        });
-        Self::_new(atom, atoms)
     }
 
     pub fn get(p: &std::path::Path) -> Self {

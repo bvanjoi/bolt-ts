@@ -99,7 +99,6 @@ dependencies = [
  "dir-test",
  "enumflags2",
  "expect-test",
- "glob",
  "include_dir",
  "indexmap",
  "nohash-hasher",
@@ -149,6 +148,7 @@ version = "0.1.0"
 dependencies = [
  "bolt_ts_atom",
  "bolt_ts_utils",
+ "glob",
  "indexmap",
  "normalize-path",
  "rustc-hash",
@@ -197,8 +197,17 @@ dependencies = [
 name = "bolt_ts_wasm"
 version = "0.1.0"
 dependencies = [
+ "bolt_ts_atom",
  "bolt_ts_compiler",
+ "bolt_ts_config",
+ "bolt_ts_errors",
+ "bolt_ts_fs",
+ "bolt_ts_lib",
+ "bolt_ts_span",
+ "console_error_panic_hook",
+ "indexmap",
  "serde",
+ "serde-wasm-bindgen",
  "serde_json",
  "wasm-bindgen",
 ]
@@ -239,6 +248,16 @@ version = "0.1.0"
 dependencies = [
  "regex",
  "tempdir",
+]
+
+[[package]]
+name = "console_error_panic_hook"
+version = "0.1.7"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a06aeb73f470f66dcdbf7223caeebb85984942f22f1adb2a088cf9668146bbbc"
+dependencies = [
+ "cfg-if",
+ "wasm-bindgen",
 ]
 
 [[package]]
@@ -410,6 +429,16 @@ name = "itoa"
 version = "1.0.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "49f1f14873335454500d59611f1cf4a4b0f786f9ac11f4312a78e4cf2566695b"
+
+[[package]]
+name = "js-sys"
+version = "0.3.77"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1cfaf33c695fc6e08064efbc1f72ec937429614f25eef83af942d0e227c3a28f"
+dependencies = [
+ "once_cell",
+ "wasm-bindgen",
+]
 
 [[package]]
 name = "libc"
@@ -702,6 +731,17 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c8e3592472072e6e22e0a54d5904d9febf8508f65fb8552499a1abc7d1078c3a"
 dependencies = [
  "serde_derive",
+]
+
+[[package]]
+name = "serde-wasm-bindgen"
+version = "0.6.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8302e169f0eddcc139c70f139d19d6467353af16f9fce27e8c30158036a1e16b"
+dependencies = [
+ "js-sys",
+ "serde",
+ "wasm-bindgen",
 ]
 
 [[package]]

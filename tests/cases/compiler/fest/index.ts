@@ -50,7 +50,7 @@ type IsBothExtends<BaseType, FirstType, SecondType> = FirstType extends BaseType
 	: false;
 type IsLowerCase<T extends string> = T extends Lowercase<T> ? true : false;
 type IsUpperCase<T extends string> = T extends Uppercase<T> ? true : false
-type LiteralKeyOf<T> = keyof {[K in keyof T as IsLiteral<K> extends true ? K : never]-?: never};
+// type LiteralKeyOf<T> = keyof {[K in keyof T as IsLiteral<K> extends true ? K : never]-?: never};
 type LiteralStringUnion<T> = LiteralUnion<T, string>;
 type NegativeInfinity = -1e999;
 type Numeric = number | bigint;
@@ -230,6 +230,40 @@ type BuildTuple<L extends number, Fill = unknown, T extends readonly unknown[] =
   const a2: BuildTuple<0, 0> = [];
   const a3: BuildTuple<2 | 3, 0> = {} as [0, 0] | [0, 0, 0];
   const a4: BuildTuple<number, 0> = {} as Array<0>;
+}
+
+// ======== ConditionalKeys ========
+type ConditionalKeys<Base, Condition> =
+{
+	// Map through all the keys of the given base type.
+	[Key in keyof Base]-?:
+	// Pick only keys with types extending the given `Condition` type.
+	Base[Key] extends Condition
+	// Retain this key
+	// If the value for the key extends never, only include it if `Condition` also extends never
+		? IfNever<Base[Key], IfNever<Condition, Key, never>, Key>
+	// Discard this key since the condition fails.
+		: never;
+	// Convert the produced object into a union type of the keys which passed the conditional test.
+}[keyof Base];
+{
+  type Example = {
+    a: string;
+    b?: string | number;
+    c?: string;
+    d: Record<string, unknown>;
+    e: never;
+  };
+  
+  const exampleConditionalKeys: ConditionalKeys<Example, string> = 'a';
+  const a0: 'a' = exampleConditionalKeys;
+  
+  const exampleConditionalKeysWithUndefined: ConditionalKeys<Example, string | undefined> = 'a'
+  const a2: ConditionalKeys<Example, string | undefined> = 'c';
+  const a1: 'a' | 'c' = exampleConditionalKeysWithUndefined;
+  
+  const exampleConditionalKeysTargetingNever: ConditionalKeys<Example, never> = 'e';
+  const a3: 'e' = exampleConditionalKeysTargetingNever;
 }
 
 // ============ Float ============
@@ -874,7 +908,6 @@ type IsTuple<
 type IsTupleOptions = {
   fixedLengthOnly?: boolean;
 };
-
 {
   let a0: IsTuple<[1, 2, 3]> = true;
   let a1: IsTuple<number[]> = false;
@@ -1153,7 +1186,6 @@ type LiteralUnion<
   const a5: LiteralUnion<'dot' | 'cat', string> = 'foo';
 }
 
-
 // ============ Negative ============
 type Negative<T extends Numeric> = T extends Zero ? never : `${T}` extends `-${string}` ? T : never;
 {
@@ -1199,7 +1231,6 @@ type NonNegativeInteger<T extends number> = NonNegative<Integer<T>>;
   const a1: NonNegativeInteger<-1 | 0 | 1> = 1;
 }
 
-
 // ============== Not ==============
 type Not<A extends boolean> = A extends true
 	? false
@@ -1220,6 +1251,87 @@ type NumberAbsolute<N extends number> = `${N}` extends `-${infer StringPositiveN
   let a1: NumberAbsolute<1> = 1;
   let a2: NumberAbsolute<NegativeInfinity> = -1e999;
   //~^ ERROR: Type '-Infinity' is not assignable to type 'Infinity'.
+}
+
+// ========== ObjectValue ==========
+type ObjectValue<T, K> =
+	K extends keyof T
+		? T[K]
+		: ToString<K> extends keyof T
+			? T[ToString<K>]
+			: K extends `${infer NumberK extends number}`
+				? NumberK extends keyof T
+					? T[NumberK]
+					: never
+				: never;
+{
+  type ObjectT = {
+    string: string;
+    0: number;
+    '1': number;
+  };
+  
+  const normal: ObjectValue<ObjectT, 'string'> = '42';
+  const a0: string = normal;
+  
+  // TODO:
+  // const test0: ObjectValue<ObjectT, 0> = 42;
+  // const a1: number = test0;
+  // const teststring0: ObjectValue<ObjectT, '0'> = 42;
+  // const a2: number = teststring0;
+  // declare const test1: ObjectValue<ObjectT, 1>;
+  // expectType<number>(test1);
+  // declare const teststring1: ObjectValue<ObjectT, '1'>;
+  // expectType<number>(teststring1);
+}
+
+// ======= OmitIndexSignature =======
+type OmitIndexSignature<ObjectType> = {
+	[KeyType in keyof ObjectType as {} extends Record<KeyType, unknown>
+		? never
+		: KeyType]: ObjectType[KeyType];
+};
+
+{
+  type ExampleInterface = {
+    // These index signatures will be removed.
+    [x: string]: any;
+    // [x: number]: any;
+    // [x: symbol]: any;
+    // [x: `head-${string}`]: string;
+    // [x: `${string}-tail`]: string;
+    // [x: `head-${string}-tail`]: string;
+    // [x: `${bigint}`]: string;
+    // [x: `embedded-${number}`]: string;
+  
+    // These explicitly defined keys will remain.
+    foo: 'bar';
+    qux?: 'baz';
+  };
+  
+  type MappedType<ObjectType> = {
+    [Key in keyof ObjectType]: {
+      key: Key;
+      value: Exclude<ObjectType[Key], undefined>;
+    };
+  };
+  
+  // const exampleInterfaceKnownKeys: OmitIndexSignature<ExampleInterface> = {
+  //   foo: 'bar',
+  //   qux: 'baz',
+  // }
+  // const a: {
+  //   foo: 'bar',
+  //   qux?: 'baz'
+  // } = exampleInterfaceKnownKeys;
+  
+  // declare const exampleMappedTypeKnownKeys: OmitIndexSignature<
+  // MappedType<ExampleInterface>
+  // >;
+  // expectType<{
+  //   foo: {key: 'foo'; value: 'bar'};
+  //   qux?: {key: 'qux'; value: 'baz'};
+  // }>(exampleMappedTypeKnownKeys);
 }
 
 // ========= OptionalKeysOf =========

@@ -92,7 +92,7 @@ impl<'atoms> FSTree {
         let node = FSNode { id, kind: node };
         self.nodes.push(node);
         let FSNodeKind::Dir(dir) = &mut self.mut_node(parent).kind else {
-            unreachable!()
+            unreachable!("parent should not be a directory")
         };
         dir.children.push(id);
         id

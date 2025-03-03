@@ -104,16 +104,28 @@ pub fn eval_from(root: PathBuf, tsconfig: NormalizedTsConfig) -> Output {
     let mut atoms = init_atom();
 
     // ==== fs init ====
-    let mut fs = bolt_ts_fs::LocalFS::new(&mut atoms);
+    let fs = bolt_ts_fs::LocalFS::new(&mut atoms);
+    let dir = current_exe_dir();
+    let libs = bolt_ts_lib::LIB_ENTIRES
+        .iter()
+        .map(|(_, file)| ModulePath::Real(dir.join(file)))
+        .collect::<Vec<_>>();
+    eval_from_with_fs(root, tsconfig, libs, fs, atoms)
+}
 
+pub fn eval_from_with_fs<'cx>(
+    root: PathBuf,
+    tsconfig: NormalizedTsConfig,
+    libs: Vec<ModulePath>,
+    mut fs: impl CachedFileSystem,
+    mut atoms: bolt_ts_atom::AtomMap<'cx>,
+) -> Output {
     let mut entries = Vec::with_capacity(1024);
     let mut module_arena = ModuleArena::new();
 
     // ==== collect entires ====
-    let dir = current_exe_dir();
-    for (_, file) in bolt_ts_lib::LIB_ENTIRES {
-        let module_id =
-            module_arena.new_module(ModulePath::Real(dir.join(file)), true, &mut fs, &mut atoms);
+    for p in libs {
+        let module_id = module_arena.new_module(p, true, &mut fs, &mut atoms);
         entries.push(module_id);
     }
 
@@ -130,12 +142,9 @@ pub fn eval_from(root: PathBuf, tsconfig: NormalizedTsConfig) -> Output {
                 }
             } else {
                 let p = root.join(entry);
+                let p = p.normalize();
                 let pattern = p.to_string_lossy();
-                glob::glob(&pattern)
-                    .unwrap()
-                    .filter_map(Result::ok)
-                    .map(|entry| entry.to_path_buf())
-                    .collect::<Vec<_>>()
+                fs.glob(&pattern, &atoms)
             }
         })
         .collect::<Vec<_>>();

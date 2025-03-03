@@ -1275,7 +1275,12 @@ impl<'cx> TyChecker<'cx> {
         };
 
         let Some(prop) = self.get_prop_of_ty(apparent_left_ty, name) else {
-            self.report_non_existent_prop(prop, original_left_ty);
+            if name
+                .as_atom()
+                .is_some_and(|atom| atom != keyword::IDENT_EMPTY)
+            {
+                self.report_non_existent_prop(prop, original_left_ty);
+            }
             return self.error_ty;
         };
 
@@ -1287,7 +1292,7 @@ impl<'cx> TyChecker<'cx> {
     }
 
     fn check_prop_access_expr(&mut self, node: &'cx ast::PropAccessExpr<'cx>) -> &'cx ty::Ty<'cx> {
-        let left = self.check_expr(node.expr);
+        let left = self.check_non_null_expr(node.expr);
         let apparent_ty = self.get_apparent_ty(left);
         self._get_prop_of_ty(node.id, apparent_ty, left, node.name)
     }

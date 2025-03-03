@@ -23,6 +23,8 @@ pub trait CachedFileSystem: Send + Sync {
         p: &std::path::Path,
         atoms: &mut AtomMap<'_>,
     ) -> FsResult<impl Iterator<Item = std::path::PathBuf>>;
+
+    fn glob(&self, pattern: &str, atoms: &AtomMap<'_>) -> Vec<std::path::PathBuf>;
 }
 
 pub fn has_slash_suffix_and_not_root(p: &std::path::Path) -> bool {

@@ -53,6 +53,14 @@ impl CachedFileSystem for LocalFS {
         let entry = std::fs::read_dir(p).unwrap();
         Ok(entry.map(|entry| entry.unwrap().path()))
     }
+
+    fn glob(&self, pattern: &str, _: &bolt_ts_atom::AtomMap<'_>) -> Vec<std::path::PathBuf> {
+        glob::glob(&pattern)
+            .unwrap()
+            .filter_map(Result::ok)
+            .map(|entry| entry.to_path_buf())
+            .collect::<Vec<_>>()
+    }
 }
 
 fn read_file_with_encoding(file: &std::path::Path) -> std::io::Result<String> {

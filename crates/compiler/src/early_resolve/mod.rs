@@ -22,7 +22,7 @@ pub struct EarlyResolveResult {
     pub diags: Vec<bolt_ts_errors::Diag>,
 }
 
-pub fn early_resolve_parallel<'cx>(
+pub(super) fn early_resolve_parallel<'cx>(
     modules: &[Module],
     states: &[BinderState<'cx, '_>],
     p: &'cx Parser<'cx>,
@@ -297,6 +297,9 @@ impl<'cx> Resolver<'cx, '_, '_> {
             }
             Mapped(n) => {
                 self.resolve_ty_param(n.ty_param);
+                if let Some(name_ty) = n.name_ty {
+                    self.resolve_ty(name_ty);
+                }
                 if let Some(ty) = n.ty {
                     self.resolve_ty(ty);
                 }

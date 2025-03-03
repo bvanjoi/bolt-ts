@@ -13,6 +13,7 @@ use bolt_ts_atom::AtomMap;
 use bolt_ts_span::Module;
 use bolt_ts_span::ModuleID;
 
+use rayon::prelude::*;
 use rustc_hash::FxHashMap;
 
 pub use self::flow::{FlowFlags, FlowID, FlowNode, FlowNodeKind, FlowNodes};
@@ -110,8 +111,7 @@ pub fn bind_parallel<'cx, 'atoms>(
     parser: &'cx Parser<'cx>,
 ) -> Vec<BinderState<'cx, 'atoms>> {
     modules
-        // .into_par_iter()
-        .into_iter()
+        .into_par_iter()
         .map(|m| {
             let module_id = m.id;
             let is_global = m.global;

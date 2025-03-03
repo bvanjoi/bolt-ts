@@ -1039,7 +1039,9 @@ impl<'cx> TyChecker<'cx> {
                         if !(constraint.kind.is_union()
                             && self.every_type(constraint, |this, c| {
                                 this.is_ty_strict_sub_type_of(c, primitive_ty)
-                            })) && !self.is_ty_strict_sub_type_of(primitive_ty, constraint) {
+                            }))
+                            && !self.is_ty_strict_sub_type_of(primitive_ty, constraint)
+                        {
                             return self.never_ty;
                         }
 
@@ -1071,7 +1073,10 @@ impl<'cx> TyChecker<'cx> {
             }) {
                 todo!()
             } else if ty_set.len() >= 3 && tys.len() > 2 {
-                todo!()
+                let middle = ty_set.len() / 2;
+                let l = self.get_intersection_ty(&ty_set[..middle], flags, None, None);
+                let r = self.get_intersection_ty(&ty_set[middle..], flags, None, None);
+                self.get_intersection_ty(&[l, r], flags, alias_symbol, alias_symbol_ty_args)
             } else {
                 let constituents = self.get_cross_product_intersections(tys, flags);
                 // TODO: origin

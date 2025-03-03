@@ -91,7 +91,6 @@ fn run_test(arg: dir_test::Fixture<&str>) {
                 .iter()
                 .filter_map(|diag| {
                     let labels = diag.inner.labels()?;
-                    let msg = diag.inner.to_string();
                     let kind = diag.inner.severity().map_or(
                         compile_test::errors::ErrorKind::Error,
                         |severity| match severity {
@@ -108,7 +107,7 @@ fn run_test(arg: dir_test::Fixture<&str>) {
                     let msg = if let Some(msg) = primary_label.label() {
                         msg.to_string()
                     } else {
-                        msg.clone()
+                        diag.inner.to_string()
                     };
                     let code = output.module_arena.get_content(diag.inner.module_id());
                     let start =

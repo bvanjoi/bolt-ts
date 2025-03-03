@@ -983,11 +983,14 @@ impl<'cx, 'atoms> BinderState<'cx, 'atoms> {
             }
             Ctor(n) => {
                 self.create_fn_ty_symbol(n.id, SymbolName::New);
+                let old = self.scope_id;
+                self.scope_id = self.new_scope();
                 if let Some(ty_params) = n.ty_params {
                     self.bind_ty_params(ty_params);
                 }
                 self.bind_params(n.params);
                 self.bind_ty(n.ty);
+                self.scope_id = old;
             }
             Lit(_) => {}
             Union(u) => {
@@ -1013,6 +1016,9 @@ impl<'cx, 'atoms> BinderState<'cx, 'atoms> {
                 assert!(n.ty_param.default.is_none());
                 assert!(n.ty_param.constraint.is_some());
                 self.bind_ty_param(n.ty_param);
+                if let Some(named_ty) = n.name_ty {
+                    self.bind_ty(named_ty);
+                }
                 if let Some(ty) = n.ty {
                     self.bind_ty(ty);
                 }
