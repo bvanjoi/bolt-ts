@@ -59,10 +59,16 @@ impl<'cx> Resolver<'cx, '_, '_> {
                     if let Some(ty) = n.ty {
                         self.resolve_ty(ty);
                     }
+                    if let Some(body) = n.body {
+                        self.resolve_block_stmt(body);
+                    }
                 }
                 Setter(n) => {
                     assert!(n.params.len() == 1);
                     self.resolve_params(n.params);
+                    if let Some(body) = n.body {
+                        self.resolve_block_stmt(body);
+                    }
                 }
             }
         }

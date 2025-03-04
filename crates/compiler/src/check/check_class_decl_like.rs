@@ -128,10 +128,10 @@ impl<'cx> TyChecker<'cx> {
             match ele.kind {
                 Prop(prop) => self.check_class_prop_ele(prop),
                 Method(method) => self.check_class_method_ele(method),
-                IndexSig(_) => {}
                 Ctor(ctor) => self.check_ctor(ctor),
-                Getter(_) => {}
-                Setter(_) => {}
+                IndexSig(_) => {}
+                Getter(n) => self.check_accessor_decl(n),
+                Setter(n) => self.check_accessor_decl(n),
             }
         }
     }

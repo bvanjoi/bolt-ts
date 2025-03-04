@@ -191,6 +191,9 @@ impl<'cx> BinderState<'cx, '_> {
                     if let Some(ty) = n.ty {
                         self.bind_ty(ty);
                     }
+                    if let Some(body) = n.body {
+                        self.bind_block_stmt(body);
+                    }
                 }
                 ast::ClassEleKind::Setter(n) => {
                     let is_static = n
@@ -200,6 +203,9 @@ impl<'cx> BinderState<'cx, '_> {
 
                     assert!(n.params.len() == 1);
                     self.bind_params(n.params);
+                    if let Some(body) = n.body {
+                        self.bind_block_stmt(body);
+                    }
                 }
             }
         }

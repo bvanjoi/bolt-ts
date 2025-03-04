@@ -57,6 +57,14 @@ type Numeric = number | bigint;
 type NumericString = '0123456789';
 type NonRecursiveType = BuiltIns | Function | (new (...arguments_: any[]) => unknown);
 type PositiveInfinity = 1e999;
+type Primitive =
+	| null
+	| undefined
+	| string
+	| number
+	| boolean
+	| symbol
+	| bigint;
 type RequireNone<KeysType extends PropertyKey> = Partial<Record<KeysType, never>>;
 type StringDigit = '0' | '1' | '2' | '3' | '4' | '5' | '6' | '7' | '8' | '9';
 type ToString<T> = T extends string | number ? `${T}` : never;
@@ -614,6 +622,46 @@ type Integer<T> =
   let a10: Integer<typeof Number.POSITIVE_INFINITY> = n();
 }
 
+// ========== IntRange ==========
+type IntRange<Start extends number, End extends number, Step extends number = 1> = PrivateIntRange<Start, End, Step>;
+
+/**
+The actual implementation of `IntRange`. It's private because it has some arguments that don't need to be exposed.
+*/
+type PrivateIntRange<
+	Start extends number,
+	End extends number,
+	Step extends number,
+	Gap extends number = Subtract<Step, 1>, // The gap between each number, gap = step - 1
+	List extends unknown[] = BuildTuple<Start, never>, // The final `List` is `[...StartLengthTuple, ...[number, ...GapLengthTuple], ...[number, ...GapLengthTuple], ... ...]`, so can initialize the `List` with `[...StartLengthTuple]`
+	EndLengthTuple extends unknown[] = BuildTuple<End>,
+> = Gap extends 0 ?
+	// Handle the case that without `Step`
+	List['length'] extends End // The result of "List[length] === End"
+		? Exclude<List[number], never> // All unused elements are `never`, so exclude them
+		: PrivateIntRange<Start, End, Step, Gap, [...List, List['length'] ]>
+	// Handle the case that with `Step`
+	: List extends [...(infer U), ...EndLengthTuple] // The result of "List[length] >= End", because the `...BuildTuple<Gap, never>` maybe make `List` too long.
+		? Exclude<List[number], never>
+		: PrivateIntRange<Start, End, Step, Gap, [...List, List['length'], ...BuildTuple<Gap, never>]>;
+{
+  const test: IntRange<0, 5> = 6;
+  //~^ ERROR: Type 'number' is not assignable to type '0 | 1 | 2 | 3 | 4'.
+  
+  const startTest: IntRange<5, 10> = 11;
+  //~^ ERROR: Type 'number' is not assignable to type '5 | 6 | 7 | 8 | 9'.
+  
+  const stepTest1: IntRange<10, 20, 2> = 8;
+  //~^ ERROR: Type 'number' is not assignable to type '10 | 16 | 12 | 14 | 18'.
+
+  const stepTest2: IntRange<10, 20, 100> = 9;
+  //~^ ERROR: Type '9' is not assignable to type '10'.
+
+  // TODO: slowly
+  const maxNumberTest: IntRange<0, 999> = 123;
+}
+
+
 // =========== IsAny ===========
 // Can eventually be replaced with the built-in once this library supports
 // TS5.4+ only. Tracked in https://github.com/sindresorhus/type-fest/issues/848
@@ -881,12 +929,73 @@ type IsNumeric<T extends string> = T extends `${number}`
   const a16: IsNumeric<' 1 '> = false;
 }
 
+// ========== IsNumericLiteral ==========
+type IsNumericLiteral<T> = LiteralChecks<T, Numeric>;
+{
+  type EndsWith<TValue, TEndsWith extends string> =
+    TValue extends string
+      ? IsStringLiteral<TEndsWith> extends true
+        ? IsStringLiteral<TValue> extends true
+          ? TValue extends `${string}${TEndsWith}`
+            ? true
+            : false
+          : boolean
+        : boolean
+      : TValue extends number
+        ? IsNumericLiteral<TValue> extends true
+          ? EndsWith<`${TValue}`, TEndsWith>
+          : false
+        : false;
+
+  function endsWith<Input extends string | number, End extends string>(input: Input, end: End) {
+    return false as EndsWith<Input, End>;
+  }
+
+  const a0: true = endsWith('abc', 'c');
+  const a1: true = endsWith(123456, '456');
+  const end = '123' as string;
+  const a2: true = endsWith('abc123', end);
+  //~^ ERROR: Type 'boolean' is not assignable to type 'true'.
+}
+
 // =========== IsPrimitive ===========
 type IsPrimitive<T> = [T] extends [Primitive] ? true : false;
 {
   let a: IsPrimitive<'string'> = true;
   let b: IsPrimitive<string> = true;
   let c: IsPrimitive<Object> = false;
+}
+
+// ======= IsStringLiteral =======
+type IsStringLiteral<T> = IfNever<T, false,
+// If `T` is an infinite string type (e.g., `on${string}`), `Record<T, never>` produces an index signature,
+// and since `{}` extends index signatures, the result becomes `false`.
+T extends string
+	? {} extends Record<T, never>
+		? false
+		: true
+	: false>;
+{
+  let a0: IsStringLiteral<Uppercase<string>> = false;
+  let a1: IsStringLiteral<`on${string}`> = false;
+  type Length<S extends string, Counter extends never[] = []> =
+	  IsStringLiteral<S> extends false
+		  ? number // return `number` for infinite string types
+		  : S extends `${string}${infer Tail}`
+			  ? Length<Tail, [...Counter, never]>
+			  : Counter['length'];
+  let a2: Length<`${number}`> = 42;
+  let a3: Length<`${number}`> = 420;
+  let a4: Length<`${number}`> = 4200;
+  let a5: Length<`${number}`> = 42000;
+  let a6: Length<`${number}`> = 420000;
+  let a7: Length<`${number}`> = 4200000;
+  let a8: Length<`${number}`> = 42000000;
+  let a9: Length<`${number}`> = 420000000;
+  let a10: Length<`${number}`> = 4200000000;
+  let a11: Length<`${number}`> = 42000000000;
+  let a12: Length<`${number}`> = 420000000000;
+  let a13: Length<`${number}`> = 4200000000000;
 }
 
 // =========== IsTuple ===========
@@ -1173,6 +1282,37 @@ type LessThanOrEqual<A extends number, B extends number> = number extends A | B
   const a15: LessThanOrEqual<PositiveInfinity, NegativeInfinity> = false;
 }
 
+// ========== LiteralCheck ==========
+type LiteralCheck<T, LiteralType extends Primitive> = (
+	IsNever<T> extends false // Must be wider than `never`
+		? [T] extends [LiteralType & infer U] // Remove any branding
+			? [U] extends [LiteralType] // Must be narrower than `LiteralType`
+				? [LiteralType] extends [U] // Cannot be wider than `LiteralType`
+					? false
+					: true
+				: false
+			: false
+		: false
+);
+{
+  let a0: LiteralCheck<1, number> = true;
+  let a1: LiteralCheck<number, number> = false;
+  let a2: LiteralCheck<1, string> = false;
+}
+
+// ========== LiteralChecks ==========
+type LiteralChecks<T, LiteralUnionType> = (
+	IsNotFalse<LiteralUnionType extends Primitive
+		? LiteralCheck<T, LiteralUnionType>
+		: never
+	>
+);
+{
+  let a0: LiteralChecks<1, Numeric> = true;
+  let a1: LiteralChecks<1n, Numeric> = true;
+  let a2: LiteralChecks<bigint, Numeric> = false;
+}
+
 // ========== LiteralUnion ==========
 type LiteralUnion<
 	LiteralType,
@@ -1456,16 +1596,6 @@ type PositiveNumericStringGt<A extends string, B extends string> = A extends B
   let a2: PositiveNumericStringGt<'1', '500'> = true;
   //~^ ERROR: Type 'true' is not assignable to type 'false'.
 }
-
-// =========== Primitive ===========
-type Primitive =
-	| null
-	| undefined
-	| string
-	| number
-	| boolean
-	| symbol
-	| bigint;
 
 // ========== Promisable ==========
 type Promisable<T> = T | PromiseLike<T>;

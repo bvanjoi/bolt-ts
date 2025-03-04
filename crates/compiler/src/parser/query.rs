@@ -175,7 +175,6 @@ impl<'cx> Parser<'cx> {
         include_arrow_fn: bool,
         include_class_computed_prop_name: bool,
     ) -> ast::NodeID {
-        assert!(self.parent(id).is_some());
         while let Some(parent) = self.parent(id) {
             id = parent;
             let node = self.node(id);
@@ -185,15 +184,14 @@ impl<'cx> Parser<'cx> {
                 } else {
                     return id;
                 }
-            } else if node.is_fn_decl()
-                || node.is_fn_expr()
-                || node.is_class_static_block_decl()
-                || node.is_class_prop_ele()
-                || node.is_class_method_ele()
-                || node.is_class_ctor()
-                || node.is_ctor_sig_decl()
-            {
-                return id;
+            } else {
+                use ast::Node::*;
+                match node {
+                    FnDecl(_) | FnExpr(_) | ClassPropElem(_) | ClassMethodElem(_)
+                    | ClassCtor(_) | CtorSigDecl(_) | GetterDecl(_) | SetterDecl(_)
+                    | IndexSigDecl(_) | EnumDecl(_) | Program(_) => return id,
+                    _ => {}
+                }
             }
         }
 

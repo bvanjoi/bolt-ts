@@ -484,17 +484,11 @@ impl<'cx> TyChecker<'cx> {
             return tys[0];
         }
 
-        let mut set = fx_hashset_with_capacity(tys.len());
+        let mut set = FxHashSet::with_capacity_and_hasher(tys.len(), Default::default());
         let includes = self.add_tys_to_union(&mut set, TypeFlags::empty(), tys);
 
-        let mut set = {
-            let mut set = set
-                .into_iter()
-                .map(|ty| self.tys[ty.as_usize()])
-                .collect::<Vec<_>>();
-            set.sort_by(|a, b| a.id.as_u32().cmp(&b.id.as_u32()));
-            set
-        };
+        let mut set: Vec<_> = set.into_iter().map(|ty| self.tys[ty.as_usize()]).collect();
+        set.sort_unstable_by_key(|ty| ty.id.as_u32());
 
         if reduction != UnionReduction::None {
             if includes.intersects(TypeFlags::ANY_OR_UNKNOWN) {

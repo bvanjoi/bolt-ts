@@ -46,7 +46,7 @@ impl<'cx> ArrayTyMapper<'cx> {
                 (source, target)
             })
             .collect::<Vec<_>>();
-        mapper.sort_by_key(|(source, _)| source.id.as_u32());
+        mapper.sort_unstable_by_key(|(source, _)| source.id.as_u32());
         let mapper = checker.alloc(mapper);
         ArrayTyMapper { mapper }
     }

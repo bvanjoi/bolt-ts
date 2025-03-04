@@ -227,8 +227,13 @@ impl<'cx> TyChecker<'cx> {
     }
 
     pub(crate) fn get_ty_from_type_node(&mut self, node: &ast::Ty<'cx>) -> &'cx Ty<'cx> {
+        let ty = self._get_ty_from_type_node(node);
+        self.get_conditional_flow_of_ty(ty, node.id())
+    }
+
+    pub(super) fn _get_ty_from_type_node(&mut self, node: &ast::Ty<'cx>) -> &'cx Ty<'cx> {
         use bolt_ts_ast::TyKind::*;
-        let ty = match node.kind {
+        match node.kind {
             Refer(node) => self.get_ty_from_ty_reference(node),
             Array(node) => self.get_ty_from_array_node(node),
             Tuple(node) => self.get_ty_from_tuple_node(node),
@@ -238,7 +243,7 @@ impl<'cx> TyChecker<'cx> {
             Ctor(node) => self.get_ty_from_object_lit_or_fn_or_ctor_ty_node(node.id),
             Rest(rest) => self.get_ty_from_rest_ty_node(rest),
             IndexedAccess(node) => self.get_ty_from_indexed_access_node(node),
-            Cond(node) => self.get_ty_from_cond_node(node),
+            Cond(node) => self.get_ty_from_cond_ty_node(node),
             Union(node) => self.get_ty_from_union_ty_node(node),
             Typeof(node) => self.get_ty_from_typeof_node(node),
             Intersection(node) => self.get_ty_from_intersection_ty_node(node),
@@ -271,10 +276,8 @@ impl<'cx> TyChecker<'cx> {
             Mapped(n) => self.get_ty_from_mapped_ty_node(n),
             Nullable(n) => self.get_ty_from_type_node(n.ty),
             TemplateLit(n) => self.get_ty_from_template_ty_node(n),
-            Intrinsic(_) => return self.intrinsic_marker_ty,
-        };
-
-        self.get_conditional_flow_of_ty(ty, node.id())
+            Intrinsic(_) => self.intrinsic_marker_ty,
+        }
     }
 
     fn get_ty_from_template_ty_node(&mut self, node: &'cx ast::TemplateLitTy<'cx>) -> &'cx Ty<'cx> {
@@ -1017,6 +1020,22 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
+    pub fn merge_ty_mappers(
+        &self,
+        m1: Option<&'cx dyn ty::TyMap<'cx>>,
+        m2: &'cx dyn ty::TyMap<'cx>,
+    ) -> &'cx dyn ty::TyMap<'cx> {
+        if let Some(m1) = m1 {
+            let mapper = ty::MergedTyMapper {
+                mapper1: m1,
+                mapper2: m2,
+            };
+            self.alloc(mapper)
+        } else {
+            m2
+        }
+    }
+
     pub fn create_ty_mapper_with_optional_target(
         &self,
         sources: ty::Tys<'cx>,
@@ -1128,8 +1147,8 @@ impl<'cx> TyChecker<'cx> {
         &mut self,
         mut root: &'cx ty::CondTyRoot<'cx>,
         mut mapper: Option<&'cx dyn ty::TyMap<'cx>>,
-        alias_symbol: Option<SymbolID>,
-        alias_ty_args: Option<ty::Tys<'cx>>,
+        mut alias_symbol: Option<SymbolID>,
+        mut alias_ty_args: Option<ty::Tys<'cx>>,
     ) -> &'cx Ty<'cx> {
         let can_tail_recurse =
             |this: &mut Self, new_ty: &'cx Ty<'cx>, new_mapper: Option<&'cx dyn ty::TyMap<'cx>>| {
@@ -1157,7 +1176,7 @@ impl<'cx> TyChecker<'cx> {
         let mut tailed = 0;
         let mut extra_tys = Vec::with_capacity(16);
         let result = loop {
-            if tailed > 100 {
+            if tailed >= 1000 {
                 panic!()
             }
             let check_ty = {
@@ -1236,7 +1255,11 @@ impl<'cx> TyChecker<'cx> {
                         {
                             root = new_root;
                             mapper = Some(new_root_mapper);
-                            tailed += 1;
+                            alias_symbol = None;
+                            alias_ty_args = None;
+                            if new_root.alias_symbol.is_some() {
+                                tailed += 1;
+                            }
                             continue;
                         }
                     }
@@ -1260,7 +1283,11 @@ impl<'cx> TyChecker<'cx> {
                     {
                         root = new_root;
                         mapper = Some(new_root_mapper);
-                        tailed += 1;
+                        alias_symbol = None;
+                        alias_ty_args = None;
+                        if new_root.alias_symbol.is_some() {
+                            tailed += 1;
+                        }
                         continue;
                     }
                     let t = self.instantiate_ty(true_ty, true_mapper);
@@ -1289,11 +1316,6 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
-    fn is_ty_param_possibly_referenced(&mut self, ty: &'cx ty::Ty<'cx>) -> bool {
-        // TODO:
-        true
-    }
-
     pub(super) fn get_infer_ty_params(
         &mut self,
         node: &'cx ast::CondTy<'cx>,
@@ -1318,7 +1340,7 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
-    fn get_ty_from_cond_node(&mut self, node: &'cx ast::CondTy<'cx>) -> &'cx Ty<'cx> {
+    fn get_ty_from_cond_ty_node(&mut self, node: &'cx ast::CondTy<'cx>) -> &'cx Ty<'cx> {
         if let Some(ty) = self.get_node_links(node.id).get_resolved_ty() {
             return ty;
         }
@@ -1337,7 +1359,7 @@ impl<'cx> TyChecker<'cx> {
             all_outer_ty_params.map(|all_outer_ty_params| {
                 let ty_params = all_outer_ty_params
                     .into_iter()
-                    .filter(|tp| self.is_ty_param_possibly_referenced(tp))
+                    .filter(|tp| self.is_ty_param_possibly_referenced(tp, node.id))
                     .collect::<Vec<_>>();
                 let ty_params: ty::Tys<'cx> = self.alloc(ty_params);
                 ty_params
@@ -1345,13 +1367,18 @@ impl<'cx> TyChecker<'cx> {
         };
         let extends_ty = self.get_ty_from_type_node(node.extends_ty);
         let infer_ty_params = self.get_infer_ty_params(node);
+        let id = self.cond_ty_root_count;
+        self.cond_ty_root_count = self.cond_ty_root_count.next();
         let root = self.alloc(ty::CondTyRoot {
+            id,
             check_ty,
             extends_ty,
             outer_ty_params,
             node,
             is_distributive: check_ty.kind.is_param(),
             infer_ty_params,
+            alias_symbol,
+            alias_ty_args,
         });
         let ty = self.get_cond_ty(root, None, alias_symbol, alias_ty_args);
         self.get_mut_node_links(node.id).set_resolved_ty(ty);

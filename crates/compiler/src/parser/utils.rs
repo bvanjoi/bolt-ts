@@ -34,6 +34,7 @@ pub(super) fn is_left_hand_side_expr_kind(expr: &ast::Expr) -> bool {
             | Call(_)
             | ArrayLit(_)
             | Paren(_)
+            | ObjectLit(_)
             | Class(_)
             | Fn(_)
             | Ident(_)
@@ -41,7 +42,9 @@ pub(super) fn is_left_hand_side_expr_kind(expr: &ast::Expr) -> bool {
             | NumLit(_)
             | StringLit(_)
             | BoolLit(_)
+            | Template(_)
             | Super(_)
+            | NonNull(_)
     )
 }
 

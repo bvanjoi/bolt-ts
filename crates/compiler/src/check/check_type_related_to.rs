@@ -1026,11 +1026,58 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
                 }
                 // TODO: is_generic_mapped_ty(target_ty)
             }
-        } else if target.kind.as_cond_ty().is_some() {
+        } else if let Some(target_cond) = target.kind.as_cond_ty() {
             if self.c.is_deeply_nested_type(target, &self.target_stack, 10) {
-                return Ternary::FALSE;
+                return Ternary::MAYBE;
             }
-            // TODO: isDistributionDependent
+
+            // if target_cond.root.infer_ty_params.is_none()
+            //     && !self.c.is_distribution_dependent(&target_cond.root)
+            //     && !source
+            //         .kind
+            //         .as_cond_ty()
+            //         .is_some_and(|s| std::ptr::eq(s.root, target_cond.root))
+            // {
+            //     let skip_true = {
+            //         let s = self.c.get_permissive_instantiation(target_cond.check_ty);
+            //         let t = self.c.get_permissive_instantiation(target_cond.extends_ty);
+            //         !self.c.is_type_assignable_to(s, t)
+            //     };
+            //     let skip_false = !skip_true && {
+            //         let s = self.c.get_restrictive_instantiation(target_cond.check_ty);
+            //         let t = self.c.get_restrictive_instantiation(target_cond.extends_ty);
+            //         self.c.is_type_assignable_to(s, t)
+            //     };
+            //     result = if skip_true {
+            //         Ternary::TRUE
+            //     } else {
+            //         let target = self.c.get_true_ty_from_cond_ty(target, target_cond);
+            //         self.is_related_to(
+            //             source,
+            //             target,
+            //             RecursionFlags::TARGET,
+            //             false,
+            //             intersection_state,
+            //         )
+            //     };
+            //     if result != Ternary::FALSE {
+            //         result &= if skip_false {
+            //             Ternary::TRUE
+            //         } else {
+            //             let target = self.c.get_false_ty_from_cond_ty(target, target_cond);
+            //             self.is_related_to(
+            //                 source,
+            //                 target,
+            //                 RecursionFlags::TARGET,
+            //                 false,
+            //                 intersection_state,
+            //             )
+            //         };
+            //         if result != Ternary::FALSE {
+            //             return result;
+            //         }
+            //     }
+            // }
         } else if target.kind.is_template_lit_ty() {
             if source.kind.is_template_lit_ty() {
                 // TODO:

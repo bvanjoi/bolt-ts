@@ -341,18 +341,12 @@ impl<'cx> TyChecker<'cx> {
 
     fn get_tuple_base_ty(&mut self, ty: &'cx ty::TupleTy<'cx>) -> &'cx ty::Ty<'cx> {
         let readonly = ty.readonly;
-        let element_tys = ty.ty_params().map(|ty_params| {
-            ty_params
-                .iter()
-                .enumerate()
-                .map(|(i, t)| {
-                    if ty.element_flags[i].intersects(ty::ElementFlags::VARIADIC) {
-                        self.get_indexed_access_ty(t, self.number_ty, None, None)
-                    } else {
-                        t
-                    }
-                })
-                .collect::<Vec<_>>()
+        let element_tys = self.same_map_tys(ty.ty_params(), |this, t, i| {
+            if ty.element_flags[i].intersects(ty::ElementFlags::VARIADIC) {
+                this.get_indexed_access_ty(t, self.number_ty, None, None)
+            } else {
+                t
+            }
         });
         let ty = if let Some(element_tys) = element_tys {
             self.get_union_ty(&element_tys, ty::UnionReduction::Lit)

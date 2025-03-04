@@ -1,3 +1,4 @@
+use crate::ir;
 use crate::ty::TypeFlags;
 
 use super::TyChecker;
@@ -176,5 +177,11 @@ impl<'cx> TyChecker<'cx> {
             self.check_ty_params(ty_params);
         }
         self.check_ty(ty.ty);
+    }
+
+    pub(super) fn check_accessor_decl(&mut self, decl: &impl ir::AccessorLike<'cx>) {
+        if let Some(body) = decl.body() {
+            self.check_block(body);
+        }
     }
 }

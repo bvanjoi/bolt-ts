@@ -155,6 +155,7 @@ pub struct TyChecker<'cx> {
     pub diags: Vec<bolt_ts_errors::Diag>,
     config: &'cx NormalizedCompilerOptions,
     arena: &'cx bumpalo::Bump,
+    cond_ty_root_count: ty::CondTyRootID,
     tys: Vec<&'cx ty::Ty<'cx>>,
     sigs: Vec<&'cx Sig<'cx>>,
     flow_nodes: Vec<FlowNodes<'cx>>,
@@ -333,6 +334,7 @@ impl<'cx> TyChecker<'cx> {
             config,
 
             tys,
+            cond_ty_root_count: ty::CondTyRootID::root(),
             sigs: Vec::with_capacity(p.module_count() * 256),
             arena: ty_arena,
             diags: Vec::with_capacity(p.module_count() * 32),
@@ -2750,6 +2752,43 @@ impl<'cx> TyChecker<'cx> {
         } else {
             self.undefined_ty
         }
+    }
+
+    fn is_distribution_dependent(&mut self, root: &ty::CondTyRoot<'cx>) -> bool {
+        root.is_distributive
+            && (self.is_ty_param_possibly_referenced(root.check_ty, root.node.check_ty.id())
+                || self.is_ty_param_possibly_referenced(root.check_ty, root.node.false_ty.id()))
+    }
+
+    fn is_ty_param_possibly_referenced(&mut self, ty: &'cx ty::Ty<'cx>, node: ast::NodeID) -> bool {
+        // fn contains_reference<'cx>(
+        //     this: &mut TyChecker<'cx>,
+        //     n: ast::NodeID,
+        //     tp: &'cx ty::ParamTy<'cx>,
+        // ) -> bool {
+        //     // TODO:
+        //     true
+        // }
+        // let tp = ty.kind.expect_param();
+        // if let Some(container) = tp.symbol.opt_decl(self.binder) {
+        //     let mut n = node;
+        //     while n != container {
+        //         let node = self.p.node(n);
+        //         if node.is_block_stmt()
+        //             || node
+        //                 .as_cond_ty()
+        //                 .is_some_and(|c| contains_reference(self, c.extends_ty.id(), tp))
+        //         {
+        //             return true;
+        //         };
+        //         let Some(next) = self.p.parent(n) else {
+        //             break;
+        //         };
+        //         n = next;
+        //     }
+        //     return contains_reference(self, n, tp);
+        // }
+        true
     }
 }
 

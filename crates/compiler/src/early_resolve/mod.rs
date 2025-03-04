@@ -397,6 +397,9 @@ impl<'cx> Resolver<'cx, '_, '_> {
         match expr.kind {
             ArrowFn(f) => {
                 self.resolve_params(f.params);
+                if let Some(ty) = f.ty {
+                    self.resolve_ty(ty);
+                }
                 use bolt_ts_ast::ArrowFnExprBody::*;
                 match f.body {
                     Block(block) => self.resolve_block_stmt(block),

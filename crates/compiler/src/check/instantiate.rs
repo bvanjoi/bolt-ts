@@ -8,7 +8,7 @@ use bolt_ts_ast as ast;
 use bolt_ts_ast::MappedTyModifiers;
 
 use super::create_ty::IntersectionFlags;
-use super::instantiation_ty_map::TyCacheTrait;
+use super::instantiation_ty_map::{ConditionalTyInstantiationTyMap, TyCacheTrait};
 use super::{InstantiationTyMap, TyChecker};
 
 impl<'cx> TyChecker<'cx> {
@@ -142,7 +142,10 @@ impl<'cx> TyChecker<'cx> {
                 let tys = self.instantiate_tys(lit.tys, mapper);
                 self.get_template_lit_ty(lit.texts, tys)
             }
-            StringMapping(_) => todo!(),
+            StringMapping(s) => {
+                let ty = self.instantiate_ty(s.ty, Some(mapper));
+                self.get_string_mapping_ty(s.symbol, ty)
+            }
             IndexedAccess(indexed) => {
                 let object_ty = self.instantiate_ty_with_alias(
                     indexed.object_ty,
@@ -674,7 +677,7 @@ impl<'cx> TyChecker<'cx> {
             .iter()
             .map(|t| self.get_mapped_ty(mapper, t))
             .collect::<Vec<_>>();
-        let key = InstantiationTyMap::create_id(ty.id, &ty_args);
+        let key = ConditionalTyInstantiationTyMap::create_id(cond_ty.root.id, &ty_args);
         if let Some(instantiated) = self.instantiation_ty_map.get(key) {
             return instantiated;
         }

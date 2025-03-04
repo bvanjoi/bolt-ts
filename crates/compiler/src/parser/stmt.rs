@@ -395,6 +395,7 @@ impl<'cx> ParserState<'cx, '_> {
                 id,
                 span: self.token.span,
             });
+            self.insert_map(id, ast::Node::IntrinsicTy(t));
             let t = self.alloc(ast::Ty {
                 kind: ast::TyKind::Intrinsic(t),
             });

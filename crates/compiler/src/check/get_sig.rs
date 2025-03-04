@@ -294,10 +294,16 @@ fn get_sig_from_decl<'cx>(
             || node.is_method_signature()
             || node.is_call_sig_decl()
             || node.is_fn_ty()
-            || node.is_ctor_ty(),
+            || node.is_ctor_ty()
+            || node.is_getter_decl()
+            || node.is_setter_decl(),
         "node: {node:#?}",
     );
-    let params_of_node = node.params().unwrap();
+    let params_of_node = if node.is_getter_decl() {
+        Default::default()
+    } else {
+        node.params().unwrap()
+    };
     let has_rest_param = params_of_node
         .last()
         .map(|param| param.dotdotdot.is_some())
@@ -341,6 +347,8 @@ fn get_sig_from_decl<'cx>(
         ast::Node::CallSigDecl(f) => f.ty.map(|ty| ty.id()),
         ast::Node::FnTy(f) => Some(f.ty.id()),
         ast::Node::CtorTy(f) => Some(f.ty.id()),
+        ast::Node::GetterDecl(f) => f.ty.map(|ty| ty.id()),
+        ast::Node::SetterDecl(_) => None,
         _ => unreachable!(),
     };
     Sig {

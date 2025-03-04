@@ -62,6 +62,143 @@ pub fn visit_class_method_elem<'cx>(
 ) {
 }
 
+pub fn visit_ty<'cx>(v: &mut impl Visitor<'cx>, ty: &'cx super::Ty<'cx>) {
+    use crate::TyKind::*;
+    match ty.kind {
+        Refer(n) => visit_refer_ty(v, n),
+        Array(n) => visit_array_ty(v, n),
+        IndexedAccess(n) => visit_indexed_access_ty(v, n),
+        Fn(n) => visit_fn_ty(v, n),
+        Ctor(n) => visit_ctor_ty(v, n),
+        ObjectLit(n) => visit_object_lit_ty(v, n),
+        Lit(n) => visit_lit_ty(v, n),
+        NamedTuple(n) => visit_named_tuple_ty(v, n),
+        Tuple(n) => visit_tuple_ty(v, n),
+        Rest(n) => visit_rest_ty(v, n),
+        Cond(n) => visit_cond_ty(v, n),
+        Union(n) => visit_union_ty(v, n),
+        Intersection(n) => visit_intersection_ty(v, n),
+        Typeof(n) => visit_typeof_ty(v, n),
+        Mapped(n) => visit_mapped_ty(v, n),
+        TyOp(n) => visit_ty_op_ty(v, n),
+        Pred(n) => visit_pred_ty(v, n),
+        Paren(n) => visit_paren_ty(v, n),
+        Infer(n) => visit_infer_ty(v, n),
+        Intrinsic(n) => visit_intrinsic_ty(v, n),
+        Nullable(n) => visit_nullable_ty(v, n),
+        TemplateLit(n) => visit_template_lit_ty(v, n),
+    }
+}
+
+pub fn visit_refer_ty<'cx>(v: &mut impl Visitor<'cx>, n: &'cx super::ReferTy<'cx>) {
+    // TODO: name
+    if let Some(ty_args) = n.ty_args {
+        for ty in ty_args.list {
+            v.visit_ty(ty);
+        }
+    }
+}
+pub fn visit_array_ty<'cx>(v: &mut impl Visitor<'cx>, n: &'cx super::ArrayTy<'cx>) {
+    v.visit_ty(n.ele);
+}
+pub fn visit_indexed_access_ty<'cx>(
+    v: &mut impl Visitor<'cx>,
+    n: &'cx super::IndexedAccessTy<'cx>,
+) {
+    v.visit_ty(n.ty);
+    v.visit_ty(n.index_ty);
+}
+pub fn visit_fn_ty<'cx>(v: &mut impl Visitor<'cx>, n: &'cx super::FnTy<'cx>) {
+    // if let Some(ty_params) = n.ty_params {
+    //     for ty_param in ty_params {
+    //         v.visit_ty_param(ty_param);
+    //     }
+    // }
+    // for param in n.params {
+    //     v.visit_param(param);
+    // }
+    v.visit_ty(n.ty);
+}
+pub fn visit_ctor_ty<'cx>(v: &mut impl Visitor<'cx>, n: &'cx super::CtorTy<'cx>) {
+    // for param in n.params {
+    //     v.visit_param(param);
+    // }
+    v.visit_ty(n.ty);
+}
+pub fn visit_object_lit_ty<'cx>(v: &mut impl Visitor<'cx>, n: &'cx super::ObjectLitTy<'cx>) {
+    // for prop in n.members {
+    //     v.visit_ty_element(prop);
+    // }
+}
+pub fn visit_lit_ty<'cx>(v: &mut impl Visitor<'cx>, n: &'cx super::LitTy) {
+    // Literal types have no child nodes to visit
+}
+pub fn visit_named_tuple_ty<'cx>(v: &mut impl Visitor<'cx>, n: &'cx super::NamedTupleTy<'cx>) {
+    v.visit_ty(n.ty);
+}
+pub fn visit_tuple_ty<'cx>(v: &mut impl Visitor<'cx>, n: &'cx super::TupleTy<'cx>) {
+    for ty in n.tys {
+        v.visit_ty(ty);
+    }
+}
+pub fn visit_rest_ty<'cx>(v: &mut impl Visitor<'cx>, n: &'cx super::RestTy<'cx>) {
+    v.visit_ty(n.ty);
+}
+pub fn visit_cond_ty<'cx>(v: &mut impl Visitor<'cx>, n: &'cx super::CondTy<'cx>) {
+    v.visit_ty(n.check_ty);
+    v.visit_ty(n.extends_ty);
+    v.visit_ty(n.true_ty);
+    v.visit_ty(n.false_ty);
+}
+pub fn visit_union_ty<'cx>(v: &mut impl Visitor<'cx>, n: &'cx super::UnionTy<'cx>) {
+    for ty in n.tys {
+        v.visit_ty(ty);
+    }
+}
+pub fn visit_intersection_ty<'cx>(v: &mut impl Visitor<'cx>, n: &'cx super::IntersectionTy<'cx>) {
+    for ty in n.tys {
+        v.visit_ty(ty);
+    }
+}
+pub fn visit_typeof_ty<'cx>(v: &mut impl Visitor<'cx>, n: &'cx super::TypeofTy<'cx>) {
+    if let Some(ty_args) = n.ty_args {
+        for ty in ty_args.list {
+            v.visit_ty(ty);
+        }
+    }
+}
+pub fn visit_mapped_ty<'cx>(v: &mut impl Visitor<'cx>, n: &'cx super::MappedTy<'cx>) {
+    if let Some(ty) = n.ty {
+        v.visit_ty(ty);
+    }
+    if let Some(name_ty) = n.name_ty {
+        v.visit_ty(name_ty);
+    }
+}
+pub fn visit_ty_op_ty<'cx>(v: &mut impl Visitor<'cx>, n: &'cx super::TyOp<'cx>) {
+    v.visit_ty(n.ty);
+}
+pub fn visit_pred_ty<'cx>(v: &mut impl Visitor<'cx>, n: &'cx super::PredTy<'cx>) {
+    v.visit_ty(n.ty);
+}
+pub fn visit_paren_ty<'cx>(v: &mut impl Visitor<'cx>, n: &'cx super::ParenTy<'cx>) {
+    v.visit_ty(n.ty);
+}
+pub fn visit_infer_ty<'cx>(_: &mut impl Visitor<'cx>, _: &'cx super::InferTy<'cx>) {
+    // Infer types have no child nodes to visit
+}
+pub fn visit_intrinsic_ty<'cx>(_: &mut impl Visitor<'cx>, _: &'cx super::IntrinsicTy) {
+    // Intrinsic types have no child nodes to visit
+}
+pub fn visit_nullable_ty<'cx>(v: &mut impl Visitor<'cx>, n: &'cx super::NullableTy<'cx>) {
+    v.visit_ty(n.ty);
+}
+pub fn visit_template_lit_ty<'cx>(v: &mut impl Visitor<'cx>, n: &'cx super::TemplateLitTy<'cx>) {
+    for span in n.spans {
+        v.visit_ty(span.ty);
+    }
+}
+
 macro_rules! make_visitor {
     ( $( ($visit_node: ident, $ty: ty) ),* $(,)? ) => {
       pub trait Visitor<'cx>: Sized {
@@ -82,4 +219,27 @@ make_visitor!(
     (visit_class_decl, &'cx super::ClassDecl<'cx>),
     (visit_class_elem, &'cx super::ClassElem<'cx>),
     (visit_class_method_elem, &'cx super::ClassMethodElem<'cx>),
+    (visit_ty, &'cx super::Ty<'cx>),
+    (visit_refer_ty, &'cx super::ReferTy<'cx>),
+    (visit_array_ty, &'cx super::ArrayTy<'cx>),
+    (visit_indexed_access_ty, &'cx super::IndexedAccessTy<'cx>),
+    (visit_fn_ty, &'cx super::FnTy<'cx>),
+    (visit_ctor_ty, &'cx super::CtorTy<'cx>),
+    (visit_object_lit_ty, &'cx super::ObjectLitTy<'cx>),
+    (visit_lit_ty, &'cx super::LitTy),
+    (visit_named_tuple_ty, &'cx super::NamedTupleTy<'cx>),
+    (visit_tuple_ty, &'cx super::TupleTy<'cx>),
+    (visit_rest_ty, &'cx super::RestTy<'cx>),
+    (visit_cond_ty, &'cx super::CondTy<'cx>),
+    (visit_union_ty, &'cx super::UnionTy<'cx>),
+    (visit_intersection_ty, &'cx super::IntersectionTy<'cx>),
+    (visit_typeof_ty, &'cx super::TypeofTy<'cx>),
+    (visit_mapped_ty, &'cx super::MappedTy<'cx>),
+    (visit_ty_op_ty, &'cx super::TyOp<'cx>),
+    (visit_pred_ty, &'cx super::PredTy<'cx>),
+    (visit_paren_ty, &'cx super::ParenTy<'cx>),
+    (visit_infer_ty, &'cx super::InferTy<'cx>),
+    (visit_intrinsic_ty, &'cx super::IntrinsicTy),
+    (visit_nullable_ty, &'cx super::NullableTy<'cx>),
+    (visit_template_lit_ty, &'cx super::TemplateLitTy<'cx>),
 );

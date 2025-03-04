@@ -100,7 +100,7 @@ impl<'cx> TyCacheTrait<'cx> for InstantiationTyMap<'cx> {
             inner: TyCache::new(capacity),
         }
     }
-    fn create_ty_key(input: &Self::Input) -> TyKey {
+    fn create_ty_key(_: &Self::Input) -> TyKey {
         unreachable!("use InstantiationTyMap::create_id instead")
     }
     fn inner(&self) -> &TyCache<'cx> {
@@ -113,6 +113,36 @@ impl<'cx> TyCacheTrait<'cx> for InstantiationTyMap<'cx> {
 
 impl<'cx> InstantiationTyMap<'cx> {
     pub fn create_id(target_ty_id: ty::TyID, ty_args: &[&'cx ty::Ty<'cx>]) -> TyKey {
+        let mut hasher = rustc_hash::FxHasher::default();
+        hasher.write_u32(target_ty_id.as_u32());
+        _hash_ty_args(&mut hasher, ty_args);
+        let id = hasher.finish();
+        TyKey(id)
+    }
+}
+
+pub(super) struct ConditionalTyInstantiationTyMap<'cx> {
+    inner: TyCache<'cx>,
+}
+impl<'cx> TyCacheTrait<'cx> for ConditionalTyInstantiationTyMap<'cx> {
+    type Input = (ty::CondTyRootID, ty::Tys<'cx>);
+    fn new(capacity: usize) -> Self {
+        Self {
+            inner: TyCache::new(capacity),
+        }
+    }
+    fn create_ty_key(_: &Self::Input) -> TyKey {
+        unreachable!("use ConditionalTyInstantiationTyMap::create_id instead")
+    }
+    fn inner(&self) -> &TyCache<'cx> {
+        &self.inner
+    }
+    fn inner_mut(&mut self) -> &mut TyCache<'cx> {
+        &mut self.inner
+    }
+}
+impl<'cx> ConditionalTyInstantiationTyMap<'cx> {
+    pub fn create_id(target_ty_id: ty::CondTyRootID, ty_args: &[&'cx ty::Ty<'cx>]) -> TyKey {
         let mut hasher = rustc_hash::FxHasher::default();
         hasher.write_u32(target_ty_id.as_u32());
         _hash_ty_args(&mut hasher, ty_args);

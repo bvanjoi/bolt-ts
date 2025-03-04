@@ -415,14 +415,19 @@ pub struct StringMappingTy<'cx> {
     pub ty: &'cx Ty<'cx>,
 }
 
+bolt_ts_utils::index!(CondTyRootID);
+
 #[derive(Debug, Clone, Copy)]
 pub struct CondTyRoot<'cx> {
+    pub id: CondTyRootID,
     pub node: &'cx ast::CondTy<'cx>,
     pub check_ty: &'cx Ty<'cx>,
     pub extends_ty: &'cx Ty<'cx>,
-    pub outer_ty_params: Option<Tys<'cx>>,
     pub is_distributive: bool,
     pub infer_ty_params: Option<Tys<'cx>>,
+    pub outer_ty_params: Option<Tys<'cx>>,
+    pub alias_symbol: Option<SymbolID>,
+    pub alias_ty_args: Option<Tys<'cx>>,
 }
 
 #[derive(Debug, Clone, Copy)]

@@ -479,9 +479,23 @@ impl<'cx> TyChecker<'cx> {
             } else {
                 let ty_param = self.inference_info(inference, idx).ty_param;
                 if let Some(default_ty) = self.get_default_ty_from_ty_param(ty_param) {
-                    todo!("back reference mapper")
-                    // let back_reference_mapper =
-                    // inferred_ty =
+                    let forward_inferences = &self.inference(inference).inferences[idx..];
+                    let sources = forward_inferences
+                        .iter()
+                        .map(|i| i.ty_param)
+                        .collect::<Vec<_>>();
+                    let sources = self.alloc(sources);
+                    let targets = forward_inferences
+                        .iter()
+                        .map(|_| self.unknown_ty)
+                        .collect::<Vec<_>>();
+                    let targets = self.alloc(targets);
+                    let mapper = self.create_ty_mapper(sources, targets);
+                    let mapper = self.merge_ty_mappers(
+                        Some(mapper),
+                        self.inference(inference).non_fixing_mapper,
+                    );
+                    inferred_ty = Some(self.instantiate_ty(default_ty, Some(mapper)));
                 }
             }
         } else {

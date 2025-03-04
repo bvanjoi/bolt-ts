@@ -144,6 +144,7 @@ pub enum Node<'cx> {
     NullableTy(&'cx super::NullableTy<'cx>),
     TemplateLitTy(&'cx super::TemplateLitTy<'cx>),
     TemplateSpanTy(&'cx super::TemplateSpanTy<'cx>),
+    IntrinsicTy(&'cx super::IntrinsicTy),
 }
 
 impl<'cx> Node<'cx> {
@@ -325,6 +326,7 @@ impl<'cx> Node<'cx> {
             CallSigDecl,
             FnTy,
             CtorTy,
+            SetterDecl,
         )
     }
 
@@ -825,4 +827,5 @@ as_node!(
     (NullableTy, super::NullableTy<'cx>, nullable_ty),
     (TemplateLitTy, super::TemplateLitTy<'cx>, template_lit_ty),
     (TemplateSpanTy, super::TemplateSpanTy<'cx>, template_span_ty),
+    (IntrinsicTy, super::IntrinsicTy, intrinsic_ty),
 );
