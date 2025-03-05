@@ -206,7 +206,7 @@ impl SymbolKind {
             SymbolKind::Class(c) => Some(c.decl),
             SymbolKind::Prop(prop) => Some(prop.decl),
             SymbolKind::Object(object) => Some(object.decl),
-            SymbolKind::Index(index) => Some(index.decl),
+            SymbolKind::Index(index) => Some(index.decls[0]),
             SymbolKind::TyAlias(alias) => Some(alias.decl),
             SymbolKind::TyParam(param) => Some(param.decl),
             SymbolKind::TyLit(ty_lit) => Some(ty_lit.decl),
@@ -304,7 +304,7 @@ pub struct GetterSetterSymbol {
 
 #[derive(Debug)]
 pub struct IndexSymbol {
-    pub decl: NodeID,
+    pub decls: thin_vec::ThinVec<NodeID>,
 }
 
 #[derive(Debug)]
@@ -405,20 +405,7 @@ bolt_ts_utils::module_index!(SymbolID);
 impl SymbolID {
     pub fn opt_decl(&self, binder: &super::Binder) -> Option<NodeID> {
         let s = binder.symbol(*self);
-        let id = match &s.kind.0 {
-            SymbolKind::FunctionScopedVar(f) => Some(f.decl),
-            SymbolKind::BlockScopedVar { decl } => Some(*decl),
-            SymbolKind::Class(c) => Some(c.decl),
-            SymbolKind::Prop(prop) => Some(prop.decl),
-            SymbolKind::Object(object) => Some(object.decl),
-            SymbolKind::Index(index) => Some(index.decl),
-            SymbolKind::TyAlias(alias) => Some(alias.decl),
-            SymbolKind::TyParam(param) => Some(param.decl),
-            SymbolKind::TyLit(ty_lit) => Some(ty_lit.decl),
-            SymbolKind::Alias(alias) => Some(alias.decl),
-            SymbolKind::Fn(f) => Some(f.decls[0]),
-            _ => None,
-        };
+        let id = s.kind.0.opt_decl();
         id.or_else(|| s.kind.1.as_ref().and_then(|i| i.decls.first()).copied())
             .or_else(|| s.kind.2.as_ref().and_then(|i| i.decls.first()).copied())
     }

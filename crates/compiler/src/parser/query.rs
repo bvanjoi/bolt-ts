@@ -1,3 +1,5 @@
+use bolt_ts_ast::keyword;
+use bolt_ts_ast::keyword::is_prim_ty_name;
 use bolt_ts_span::ModuleID;
 
 use bolt_ts_ast::CallExpr;
@@ -439,6 +441,58 @@ impl<'cx> Parser<'cx> {
             node = n;
         }
         (child, node)
+    }
+
+    pub fn is_part_of_ty_node(&self, n: ast::NodeID) -> bool {
+        let mut node = self.node(n);
+        if node.is_ty() {
+            return true;
+        }
+        use ast::Node::*;
+        match node {
+            Ident(ident) if ident.name == keyword::KW_VOID => {
+                let p = self.parent(n).unwrap();
+                let p = self.node(p);
+                return !matches!(p, VoidExpr(_));
+            }
+            Ident(ident) if is_prim_ty_name(ident.name) => return true,
+            _ => (),
+        }
+        if let Ident(ident) = node {
+            let p = self.parent(n).unwrap();
+            let p = self.node(p);
+            if p.as_qualified_name()
+                .is_some_and(|p| std::ptr::eq(p.right, ident))
+            {
+                node = p;
+            } else if p
+                .as_prop_access_expr()
+                .is_some_and(|p| std::ptr::eq(p.name, ident))
+            {
+                node = p;
+            }
+            assert!(node.is_ident() || node.is_qualified_name() || node.is_prop_access_expr());
+        }
+        match node {
+            Ident(_) | QualifiedName(_) | PropAccessExpr(_) => {
+                //TODO:
+                false
+            }
+            _ => false,
+        }
+    }
+
+    pub fn maybe_ty_param_reference(&self, node: ast::NodeID) -> bool {
+        let Some(parent) = self.parent(node) else {
+            return false;
+        };
+        let p = self.node(parent);
+        use ast::Node::*;
+        !match p {
+            ReferTy(r) => r.ty_args.is_some() && node == r.name.id(),
+            // TODO: import ty
+            _ => false,
+        }
     }
 }
 

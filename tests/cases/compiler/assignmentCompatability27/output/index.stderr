@@ -1,0 +1,6 @@
+  × Type 'interfaceWithPublicAndOptional<number, string>' is not assignable to
+  │ type '{ two: string; }'.
+    ╭─[../../tests/cases/compiler/assignmentCompatability27/index.ts:11:23]
+ 11 │ __test1__.__val__obj4
+    · ─────────────────────
+    ╰────

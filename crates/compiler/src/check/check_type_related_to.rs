@@ -1031,53 +1031,53 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
                 return Ternary::MAYBE;
             }
 
-            // if target_cond.root.infer_ty_params.is_none()
-            //     && !self.c.is_distribution_dependent(&target_cond.root)
-            //     && !source
-            //         .kind
-            //         .as_cond_ty()
-            //         .is_some_and(|s| std::ptr::eq(s.root, target_cond.root))
-            // {
-            //     let skip_true = {
-            //         let s = self.c.get_permissive_instantiation(target_cond.check_ty);
-            //         let t = self.c.get_permissive_instantiation(target_cond.extends_ty);
-            //         !self.c.is_type_assignable_to(s, t)
-            //     };
-            //     let skip_false = !skip_true && {
-            //         let s = self.c.get_restrictive_instantiation(target_cond.check_ty);
-            //         let t = self.c.get_restrictive_instantiation(target_cond.extends_ty);
-            //         self.c.is_type_assignable_to(s, t)
-            //     };
-            //     result = if skip_true {
-            //         Ternary::TRUE
-            //     } else {
-            //         let target = self.c.get_true_ty_from_cond_ty(target, target_cond);
-            //         self.is_related_to(
-            //             source,
-            //             target,
-            //             RecursionFlags::TARGET,
-            //             false,
-            //             intersection_state,
-            //         )
-            //     };
-            //     if result != Ternary::FALSE {
-            //         result &= if skip_false {
-            //             Ternary::TRUE
-            //         } else {
-            //             let target = self.c.get_false_ty_from_cond_ty(target, target_cond);
-            //             self.is_related_to(
-            //                 source,
-            //                 target,
-            //                 RecursionFlags::TARGET,
-            //                 false,
-            //                 intersection_state,
-            //             )
-            //         };
-            //         if result != Ternary::FALSE {
-            //             return result;
-            //         }
-            //     }
-            // }
+            if target_cond.root.infer_ty_params.is_none()
+                && !self.c.is_distribution_dependent(&target_cond.root)
+                && !source
+                    .kind
+                    .as_cond_ty()
+                    .is_some_and(|s| std::ptr::eq(s.root, target_cond.root))
+            {
+                let skip_true = {
+                    let s = self.c.get_permissive_instantiation(target_cond.check_ty);
+                    let t = self.c.get_permissive_instantiation(target_cond.extends_ty);
+                    !self.c.is_type_assignable_to(s, t)
+                };
+                let skip_false = !skip_true && {
+                    let s = self.c.get_restrictive_instantiation(target_cond.check_ty);
+                    let t = self.c.get_restrictive_instantiation(target_cond.extends_ty);
+                    self.c.is_type_assignable_to(s, t)
+                };
+                result = if skip_true {
+                    Ternary::TRUE
+                } else {
+                    let target = self.c.get_true_ty_from_cond_ty(target, target_cond);
+                    self.is_related_to(
+                        source,
+                        target,
+                        RecursionFlags::TARGET,
+                        false,
+                        intersection_state,
+                    )
+                };
+                if result != Ternary::FALSE {
+                    result &= if skip_false {
+                        Ternary::TRUE
+                    } else {
+                        let target = self.c.get_false_ty_from_cond_ty(target, target_cond);
+                        self.is_related_to(
+                            source,
+                            target,
+                            RecursionFlags::TARGET,
+                            false,
+                            intersection_state,
+                        )
+                    };
+                    if result != Ternary::FALSE {
+                        return result;
+                    }
+                }
+            }
         } else if target.kind.is_template_lit_ty() {
             if source.kind.is_template_lit_ty() {
                 // TODO:
@@ -1402,7 +1402,7 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
         );
         if res == Ternary::FALSE {
             if source.key_ty == target.key_ty {
-                let decl = self.c.binder.symbol(source.symbol).expect_index().decl;
+                let decl = self.c.binder.symbol(source.symbol).expect_index().decls[0];
                 let span = self.c.p.node(decl).expect_index_sig_decl().ty.span();
                 let error = errors::IndexSignaturesAreIncompatible {
                     span,

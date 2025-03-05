@@ -1,5 +1,4 @@
 use bolt_ts_ast as ast;
-use bolt_ts_utils::fx_hashset_with_capacity;
 use rustc_hash::{FxHashMap, FxHashSet};
 use std::hash::Hasher;
 

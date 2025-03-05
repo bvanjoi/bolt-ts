@@ -198,12 +198,13 @@ pub fn visit_template_lit_ty<'cx>(v: &mut impl Visitor<'cx>, n: &'cx super::Temp
         v.visit_ty(span.ty);
     }
 }
+pub fn visit_ident<'cx>(_: &mut impl Visitor<'cx>, _: &'cx super::Ident) {}
 
 macro_rules! make_visitor {
     ( $( ($visit_node: ident, $ty: ty) ),* $(,)? ) => {
       pub trait Visitor<'cx>: Sized {
         $(
-          fn $visit_node(&mut self, node: $ty) {
+          fn $visit_node(&mut self, node: &'cx $ty) {
             $visit_node(self, node)
           }
         )*
@@ -212,34 +213,49 @@ macro_rules! make_visitor {
 }
 
 make_visitor!(
-    (visit_program, &'cx super::Program<'cx>),
-    (visit_stmt, &'cx super::Stmt<'cx>),
-    (visit_import_decl, &'cx super::ImportDecl<'cx>),
-    (visit_interface_decl, &'cx super::InterfaceDecl<'cx>),
-    (visit_class_decl, &'cx super::ClassDecl<'cx>),
-    (visit_class_elem, &'cx super::ClassElem<'cx>),
-    (visit_class_method_elem, &'cx super::ClassMethodElem<'cx>),
-    (visit_ty, &'cx super::Ty<'cx>),
-    (visit_refer_ty, &'cx super::ReferTy<'cx>),
-    (visit_array_ty, &'cx super::ArrayTy<'cx>),
-    (visit_indexed_access_ty, &'cx super::IndexedAccessTy<'cx>),
-    (visit_fn_ty, &'cx super::FnTy<'cx>),
-    (visit_ctor_ty, &'cx super::CtorTy<'cx>),
-    (visit_object_lit_ty, &'cx super::ObjectLitTy<'cx>),
-    (visit_lit_ty, &'cx super::LitTy),
-    (visit_named_tuple_ty, &'cx super::NamedTupleTy<'cx>),
-    (visit_tuple_ty, &'cx super::TupleTy<'cx>),
-    (visit_rest_ty, &'cx super::RestTy<'cx>),
-    (visit_cond_ty, &'cx super::CondTy<'cx>),
-    (visit_union_ty, &'cx super::UnionTy<'cx>),
-    (visit_intersection_ty, &'cx super::IntersectionTy<'cx>),
-    (visit_typeof_ty, &'cx super::TypeofTy<'cx>),
-    (visit_mapped_ty, &'cx super::MappedTy<'cx>),
-    (visit_ty_op_ty, &'cx super::TyOp<'cx>),
-    (visit_pred_ty, &'cx super::PredTy<'cx>),
-    (visit_paren_ty, &'cx super::ParenTy<'cx>),
-    (visit_infer_ty, &'cx super::InferTy<'cx>),
-    (visit_intrinsic_ty, &'cx super::IntrinsicTy),
-    (visit_nullable_ty, &'cx super::NullableTy<'cx>),
-    (visit_template_lit_ty, &'cx super::TemplateLitTy<'cx>),
+    (visit_program, super::Program<'cx>),
+    (visit_stmt, super::Stmt<'cx>),
+    (visit_import_decl, super::ImportDecl<'cx>),
+    (visit_interface_decl, super::InterfaceDecl<'cx>),
+    (visit_class_decl, super::ClassDecl<'cx>),
+    (visit_class_elem, super::ClassElem<'cx>),
+    (visit_class_method_elem, super::ClassMethodElem<'cx>),
+    (visit_ident, super::Ident),
+    (visit_ty, super::Ty<'cx>),
+    (visit_refer_ty, super::ReferTy<'cx>),
+    (visit_array_ty, super::ArrayTy<'cx>),
+    (visit_indexed_access_ty, super::IndexedAccessTy<'cx>),
+    (visit_fn_ty, super::FnTy<'cx>),
+    (visit_ctor_ty, super::CtorTy<'cx>),
+    (visit_object_lit_ty, super::ObjectLitTy<'cx>),
+    (visit_lit_ty, super::LitTy),
+    (visit_named_tuple_ty, super::NamedTupleTy<'cx>),
+    (visit_tuple_ty, super::TupleTy<'cx>),
+    (visit_rest_ty, super::RestTy<'cx>),
+    (visit_cond_ty, super::CondTy<'cx>),
+    (visit_union_ty, super::UnionTy<'cx>),
+    (visit_intersection_ty, super::IntersectionTy<'cx>),
+    (visit_typeof_ty, super::TypeofTy<'cx>),
+    (visit_mapped_ty, super::MappedTy<'cx>),
+    (visit_ty_op_ty, super::TyOp<'cx>),
+    (visit_pred_ty, super::PredTy<'cx>),
+    (visit_paren_ty, super::ParenTy<'cx>),
+    (visit_infer_ty, super::InferTy<'cx>),
+    (visit_intrinsic_ty, super::IntrinsicTy),
+    (visit_nullable_ty, super::NullableTy<'cx>),
+    (visit_template_lit_ty, super::TemplateLitTy<'cx>),
 );
+
+pub fn visit_node<'cx>(v: &mut impl Visitor<'cx>, node: &super::Node<'cx>) {
+    macro_rules! v {
+        ($( ($variant: ident, $node: ident ) ),* $(,)?) => {
+            match node {
+                $(
+                    super::Node::$variant(n) => v.$node(n),
+                )*
+                _ => {}, // TODO: Handle all other variants
+            }
+        };
+    }
+    v!((Program, visit_program),);
+}

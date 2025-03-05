@@ -389,36 +389,70 @@ impl<'cx, 'atoms> BinderState<'cx, 'atoms> {
         container: ast::NodeID,
         index: &'cx ast::IndexSigDecl<'cx>,
         is_export: bool,
-    ) -> SymbolID {
+    ) {
         let name = SymbolName::Index;
-        let symbol = self.declare_symbol(
-            name,
-            SymbolFlags::SIGNATURE,
-            SymbolKind::Index(IndexSymbol { decl: index.id }),
-            SymbolFlags::empty(),
-        );
-        self.create_final_res(index.id, symbol);
+        let insert = |this: &mut Self, id: SymbolID, decl: ast::NodeID| {
+            let s = this.symbols.get_mut(id);
+            let SymbolKind::Index(index) = &mut s.kind.0 else {
+                unreachable!()
+            };
+            index.decls.push(decl);
+        };
+        let add = |this: &mut Self, decl: ast::NodeID| -> SymbolID {
+            let symbol = this.declare_symbol(
+                name,
+                SymbolFlags::SIGNATURE,
+                SymbolKind::Index(IndexSymbol {
+                    decls: thin_vec::thin_vec![decl],
+                }),
+                SymbolFlags::empty(),
+            );
+            this.create_final_res(index.id, symbol);
+            symbol
+        };
         let container = self.final_res[&container];
-        let s = self.symbols.get_mut(container);
-        if let Some(i) = &mut s.kind.1 {
-            let prev = i.members.insert(name, symbol);
-            // FIXME: multiple index sig
-            assert!(prev.is_none());
-        } else if let SymbolKind::Class(c) = &mut s.kind.0 {
-            if is_export {
-                let prev = c.exports.insert(name, symbol);
-                // FIXME: multiple index sig
-                assert!(prev.is_none());
+        let s = self.symbols.get(container);
+        if let Some(i) = &s.kind.1 {
+            if let Some(id) = i.members.get(&name).copied() {
+                insert(self, id, index.id);
             } else {
-                let prev = c.members.insert(name, symbol);
-                // FIXME: multiple index sig
-                assert!(prev.is_none());
+                let id = add(self, index.id);
+                let i = self.symbols.get_mut(container).kind.1.as_mut().unwrap();
+                i.members.insert(name, id);
             }
-        } else if let SymbolKind::TyLit(o) = &mut s.kind.0 {
-            let prev = o.members.insert(name, symbol);
-            // FIXME: multiple index sig
-            assert!(prev.is_none());
-        } else if let SymbolKind::Object(_) = &mut s.kind.0 {
+        } else if let SymbolKind::Class(c) = &s.kind.0 {
+            if is_export {
+                if let Some(id) = c.exports.get(&name).copied() {
+                    insert(self, id, index.id);
+                } else {
+                    let id = add(self, index.id);
+                    let SymbolKind::Class(c) = &mut self.symbols.get_mut(container).kind.0 else {
+                        unreachable!()
+                    };
+                    c.exports.insert(name, id);
+                }
+            } else {
+                if let Some(id) = c.members.get(&name).copied() {
+                    insert(self, id, index.id);
+                } else {
+                    let id = add(self, index.id);
+                    let SymbolKind::Class(c) = &mut self.symbols.get_mut(container).kind.0 else {
+                        unreachable!()
+                    };
+                    c.members.insert(name, id);
+                }
+            }
+        } else if let SymbolKind::TyLit(o) = &s.kind.0 {
+            if let Some(id) = o.members.get(&name).copied() {
+                insert(self, id, index.id);
+            } else {
+                let id = add(self, index.id);
+                let SymbolKind::TyLit(o) = &mut self.symbols.get_mut(container).kind.0 else {
+                    unreachable!()
+                };
+                o.members.insert(name, id);
+            }
+        } else if let SymbolKind::Object(_) = s.kind.0 {
             unreachable!("object lit should not have index sig");
         } else {
             todo!()
@@ -426,8 +460,6 @@ impl<'cx, 'atoms> BinderState<'cx, 'atoms> {
 
         self.bind_params(index.params);
         self.bind_ty(index.ty);
-
-        symbol
     }
 
     fn insert_getter_setter_symbol(

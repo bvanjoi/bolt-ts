@@ -277,7 +277,11 @@ impl<'cx> ObjectTyKind<'cx> {
                     .index_infos
                     .first()
                 {
-                    let decl = checker.binder.symbol(index_info.symbol).expect_index().decl;
+                    let decl = checker
+                        .binder
+                        .symbol(index_info.symbol)
+                        .expect_index()
+                        .decls[0];
                     let key_name = checker.p.node(decl).expect_index_sig_decl().params[0].name;
                     format!(
                         "{{ [{key_name}: {key_ty}]: {val_ty} }}",

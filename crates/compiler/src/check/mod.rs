@@ -2761,33 +2761,58 @@ impl<'cx> TyChecker<'cx> {
     }
 
     fn is_ty_param_possibly_referenced(&mut self, ty: &'cx ty::Ty<'cx>, node: ast::NodeID) -> bool {
-        // fn contains_reference<'cx>(
-        //     this: &mut TyChecker<'cx>,
-        //     n: ast::NodeID,
-        //     tp: &'cx ty::ParamTy<'cx>,
-        // ) -> bool {
-        //     // TODO:
-        //     true
-        // }
-        // let tp = ty.kind.expect_param();
-        // if let Some(container) = tp.symbol.opt_decl(self.binder) {
-        //     let mut n = node;
-        //     while n != container {
-        //         let node = self.p.node(n);
-        //         if node.is_block_stmt()
-        //             || node
-        //                 .as_cond_ty()
-        //                 .is_some_and(|c| contains_reference(self, c.extends_ty.id(), tp))
-        //         {
-        //             return true;
-        //         };
-        //         let Some(next) = self.p.parent(n) else {
-        //             break;
-        //         };
-        //         n = next;
-        //     }
-        //     return contains_reference(self, n, tp);
-        // }
+        struct ContainReferenceVisitor<'cx, 'checker> {
+            tp: &'cx ty::Ty<'cx>,
+            checker: &'checker mut TyChecker<'cx>,
+            contain_reference: bool,
+        }
+
+        impl<'cx, 'checker> ContainReferenceVisitor<'cx, 'checker> {
+            fn new(ty: &'cx ty::Ty<'cx>, checker: &'checker mut TyChecker<'cx>) -> Self {
+                Self {
+                    tp: ty,
+                    checker,
+                    contain_reference: false,
+                }
+            }
+        }
+        impl<'cx, 'checker> bolt_ts_ast::Visitor<'cx> for ContainReferenceVisitor<'cx, 'checker> {
+            fn visit_ident(&mut self, n: &'cx bolt_ts_ast::Ident) {
+                let t = self.tp.kind.expect_param();
+                if !t.is_this_ty
+                    && self.checker.p.is_part_of_ty_node(n.id)
+                    && self.checker.p.maybe_ty_param_reference(n.id)
+                    && self.checker.get_ty_from_ident(n) == self.tp
+                {
+                    self.contain_reference = true;
+                }
+            }
+        }
+
+        let tp = ty.kind.expect_param();
+        if let Some(container) = tp.symbol.opt_decl(self.binder) {
+            let mut n = node;
+            while n != container {
+                let node = self.p.node(n);
+                if node.is_block_stmt()
+                    || node.as_cond_ty().is_some_and(|c| {
+                        let mut v = ContainReferenceVisitor::new(ty, self);
+                        bolt_ts_ast::visitor::visit_ty(&mut v, c.extends_ty);
+                        v.contain_reference
+                    })
+                {
+                    return true;
+                };
+                let Some(next) = self.p.parent(n) else {
+                    break;
+                };
+                n = next;
+            }
+            let n = self.p.node(n);
+            let mut v = ContainReferenceVisitor::new(ty, self);
+            bolt_ts_ast::visitor::visit_node(&mut v, &n);
+            return v.contain_reference;
+        }
         true
     }
 }

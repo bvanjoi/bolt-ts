@@ -280,6 +280,11 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
+    pub(super) fn get_ty_from_ident(&mut self, node: &ast::Ident) -> &'cx ty::Ty<'cx> {
+        let symbol = self.get_symbol_of_decl(node.id);
+        self.get_type_of_symbol(symbol)
+    }
+
     fn get_ty_from_template_ty_node(&mut self, node: &'cx ast::TemplateLitTy<'cx>) -> &'cx Ty<'cx> {
         if let Some(ty) = self.get_node_links(node.id).get_resolved_ty() {
             return ty;
@@ -1356,12 +1361,16 @@ impl<'cx> TyChecker<'cx> {
                 None
             }
         } else {
-            all_outer_ty_params.map(|all_outer_ty_params| {
-                let ty_params = all_outer_ty_params
-                    .into_iter()
-                    .filter(|tp| self.is_ty_param_possibly_referenced(tp, node.id))
-                    .collect::<Vec<_>>();
-                let ty_params: ty::Tys<'cx> = self.alloc(ty_params);
+            // all_outer_ty_params.map(|all_outer_ty_params| {
+            //     let ty_params = all_outer_ty_params
+            //         .into_iter()
+            //         .filter(|tp| self.is_ty_param_possibly_referenced(tp, node.id))
+            //         .collect::<Vec<_>>();
+            //     let ty_params: ty::Tys<'cx> = self.alloc(ty_params);
+            //     ty_params
+            // })
+            all_outer_ty_params.map(|t| {
+                let ty_params: ty::Tys<'cx> = self.alloc(t);
                 ty_params
             })
         };
