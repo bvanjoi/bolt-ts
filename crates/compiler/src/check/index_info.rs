@@ -133,7 +133,13 @@ impl<'cx> TyChecker<'cx> {
         name: SymbolName,
     ) -> Option<&'cx ty::IndexInfo<'cx>> {
         // TODO: is late name
-        let key_ty = self.get_string_literal_type(name.expect_atom());
+        let key_ty = if let Some(name) = name.as_atom() {
+            self.get_string_literal_type(name)
+        } else if let Some(v) = name.as_numeric() {
+            self.get_number_literal_type(v)
+        } else {
+            unreachable!()
+        };
         self.get_applicable_index_info(ty, key_ty)
     }
 }

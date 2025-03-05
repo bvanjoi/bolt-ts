@@ -1414,15 +1414,17 @@ type ObjectValue<T, K> =
   const normal: ObjectValue<ObjectT, 'string'> = '42';
   const a0: string = normal;
   
-  // TODO:
-  // const test0: ObjectValue<ObjectT, 0> = 42;
-  // const a1: number = test0;
-  // const teststring0: ObjectValue<ObjectT, '0'> = 42;
-  // const a2: number = teststring0;
-  // declare const test1: ObjectValue<ObjectT, 1>;
-  // expectType<number>(test1);
-  // declare const teststring1: ObjectValue<ObjectT, '1'>;
-  // expectType<number>(teststring1);
+  const test0: ObjectValue<ObjectT, 0> = 42;
+  const a1: ObjectValue<ObjectT, 0> = 420;
+  const a2: number = test0;
+  const teststring0: ObjectValue<ObjectT, '0'> = 42;
+  const a3: number = teststring0;
+  const test1: ObjectValue<ObjectT, 1> = 42;
+  const a4: ObjectValue<ObjectT, 1> = 420;
+  const a5: number = test1;
+  const teststring1: ObjectValue<ObjectT, '1'> = 42;
+  const a6: ObjectValue<ObjectT, '1'> = 420;
+  const a7: number = teststring1;
 }
 
 // ======= OmitIndexSignature =======

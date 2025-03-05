@@ -150,7 +150,14 @@ impl<'cx> TyChecker<'cx> {
     ) -> &'cx [SymbolID] {
         let props = members
             .values()
-            .filter_map(|m| self.symbol(*m).name().as_atom().map(|_| *m))
+            .filter_map(|m| {
+                let name = self.symbol(*m).name();
+                if name.is_numeric() || name.as_atom().is_some() {
+                    Some(*m)
+                } else {
+                    None
+                }
+            })
             .collect::<Vec<_>>();
         self.alloc(props)
     }

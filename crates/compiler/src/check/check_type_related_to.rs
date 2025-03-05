@@ -178,13 +178,13 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
                 && source
                     .get_object_flags()
                     .contains(ObjectFlags::OBJECT_LITERAL | ObjectFlags::FRESH_LITERAL);
-            if is_performing_excess_property_check
-                && self.has_excess_properties(source, target, report_error)
-            {
-                if report_error {
-                    return Ternary::TRUE;
-                } else {
-                    return Ternary::FALSE;
+            if is_performing_excess_property_check {
+                if self.has_excess_properties(source, target, report_error) {
+                    if report_error {
+                        return Ternary::TRUE;
+                    } else {
+                        return Ternary::FALSE;
+                    }
                 }
             }
             return self.recur_ty_related_to(
@@ -1823,13 +1823,15 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
             let name = self.c.symbol(*prop).name();
             if !self.c.is_known_prop(target_ty, name) {
                 if report_error {
-                    let span = self.c.p.node(self.c.get_symbol_decl(*prop).unwrap()).span();
-                    let field = self.c.atoms.get(name.expect_atom()).to_string();
-                    let error = errors::ObjectLitMayOnlySpecifyKnownPropAndFieldDoesNotExist {
-                        span,
-                        field,
-                    };
-                    self.c.push_error(Box::new(error));
+                    if let Some(name) = name.as_atom() {
+                        let span = self.c.p.node(self.c.get_symbol_decl(*prop).unwrap()).span();
+                        let field = self.c.atoms.get(name).to_string();
+                        let error = errors::ObjectLitMayOnlySpecifyKnownPropAndFieldDoesNotExist {
+                            span,
+                            field,
+                        };
+                        self.c.push_error(Box::new(error));
+                    }
                 }
                 return true;
             }

@@ -493,7 +493,9 @@ impl<'cx> TyChecker<'cx> {
             {
                 let target_prop_name = s.name();
                 let Some(source_prop) = self.get_prop_of_ty(source, target_prop_name) else {
-                    unmatched.push(target_prop_name.expect_atom());
+                    if let Some(target_prop_name) = target_prop_name.as_atom() {
+                        unmatched.push(target_prop_name);
+                    }
                     continue;
                 };
             }
