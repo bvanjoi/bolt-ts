@@ -349,7 +349,7 @@ impl<'cx> TyChecker<'cx> {
             }
         });
         let ty = if let Some(element_tys) = element_tys {
-            self.get_union_ty(&element_tys, ty::UnionReduction::Lit)
+            self.get_union_ty(element_tys, ty::UnionReduction::Lit)
         } else {
             self.never_ty
         };
@@ -986,32 +986,14 @@ impl<'cx> TyChecker<'cx> {
         infos.push(new_info);
     }
 
-    pub(super) fn get_name_ty_from_mapped_ty(
-        &mut self,
-        ty: &'cx ty::Ty<'cx>,
-    ) -> Option<&'cx ty::Ty<'cx>> {
-        let mapped_ty = ty.kind.expect_object_mapped();
-        if let Some(name_ty) = mapped_ty.decl.name_ty {
-            if let Some(ty) = self.get_ty_links(ty.id).get_named_ty() {
-                return Some(ty);
-            }
-            let name_ty = self.get_ty_from_type_node(name_ty);
-            let name_ty = self.instantiate_ty(name_ty, mapped_ty.mapper);
-            self.get_mut_ty_links(ty.id).set_named_ty(name_ty);
-            Some(name_ty)
-        } else {
-            None
-        }
-    }
-
     pub(super) fn get_mapped_ty_name_ty_kind(
         &mut self,
         ty: &'cx ty::Ty<'cx>,
     ) -> ty::MappedTyNameTyKind {
-        let mapped_ty = ty.kind.expect_object_mapped();
         let name_ty = self.get_name_ty_from_mapped_ty(ty);
         if let Some(name_ty) = name_ty {
-            if self.is_type_assignable_to(name_ty, mapped_ty.ty_param) {
+            let target = self.get_ty_param_from_mapped_ty(ty);
+            if self.is_type_assignable_to(name_ty, target) {
                 ty::MappedTyNameTyKind::Filtering
             } else {
                 ty::MappedTyNameTyKind::Remapping
@@ -1019,36 +1001,6 @@ impl<'cx> TyChecker<'cx> {
         } else {
             ty::MappedTyNameTyKind::None
         }
-    }
-
-    pub(super) fn get_template_ty_from_mapped_ty(
-        &mut self,
-        ty: &'cx ty::Ty<'cx>,
-    ) -> &'cx ty::Ty<'cx> {
-        let mapped_ty = ty.kind.expect_object_mapped();
-        if let Some(template_ty) = self.get_ty_links(ty.id).get_template_ty() {
-            return template_ty;
-        }
-        let template_ty = if let Some(decl_ty) = mapped_ty.decl.ty {
-            let decl_ty = self.get_ty_from_type_node(decl_ty);
-            let is_optional = mapped_ty
-                .decl
-                .get_modifiers()
-                .intersects(MappedTyModifiers::INCLUDE_OPTIONAL);
-            let t = self.add_optionality(decl_ty, true, is_optional);
-            self.instantiate_ty(t, mapped_ty.mapper)
-        } else {
-            self.error_ty
-        };
-        self.get_mut_ty_links(ty.id).set_template_ty(template_ty);
-        template_ty
-    }
-
-    fn get_constraint_decl_for_mapped_ty(
-        &self,
-        ty: &'cx ty::MappedTy<'cx>,
-    ) -> Option<&'cx ast::Ty<'cx>> {
-        self.get_effective_constraint_of_ty_param(ty.decl.ty_param)
     }
 
     pub(super) fn is_mapped_ty_with_keyof_constraint_decl(
@@ -1063,12 +1015,12 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
-    pub(super) fn get_modifier_ty_from_mapped_ty(
+    pub(super) fn get_modifiers_ty_from_mapped_ty(
         &mut self,
         ty: &'cx ty::Ty<'cx>,
     ) -> &'cx ty::Ty<'cx> {
         let mapped_ty = ty.kind.expect_object_mapped();
-        if let Some(ty) = self.get_ty_links(ty.id).get_modifiers_ty() {
+        if let Some(ty) = self.get_ty_links(ty.id).get_mapped_modifiers_ty() {
             return ty;
         }
         let modifiers_ty = if self.is_mapped_ty_with_keyof_constraint_decl(mapped_ty) {
@@ -1085,7 +1037,7 @@ impl<'cx> TyChecker<'cx> {
             self.instantiate_ty(t, mapped_ty.mapper)
         } else {
             let declare_ty = self.get_ty_from_mapped_ty_node(mapped_ty.decl);
-            let constraint = declare_ty.kind.expect_object_mapped().constraint_ty;
+            let constraint = self.get_constraint_ty_from_mapped_ty(declare_ty);
             let extended_constraint = if constraint.flags.intersects(ty::TypeFlags::TYPE_PARAMETER)
             {
                 self.get_constraint_of_ty_param(constraint)
@@ -1101,14 +1053,15 @@ impl<'cx> TyChecker<'cx> {
                 })
                 .unwrap_or(self.undefined_ty)
         };
-        self.get_mut_ty_links(ty.id).set_modifiers_ty(modifiers_ty);
+        self.get_mut_ty_links(ty.id)
+            .set_mapped_modifiers_ty(modifiers_ty);
         modifiers_ty
     }
 
     fn resolve_mapped_ty_members(&mut self, ty: &'cx ty::Ty<'cx>) {
         let mapped_ty = ty.kind.expect_object_mapped();
-        let ty_param = mapped_ty.ty_param;
-        let constraint_ty = mapped_ty.constraint_ty;
+        let ty_param = self.get_ty_param_from_mapped_ty(ty);
+        let constraint_ty = self.get_constraint_ty_from_mapped_ty(ty);
         let (name_ty, should_link_prop_decls, template_ty) = {
             let target = mapped_ty.target.unwrap_or(ty);
             assert!(target.kind.is_object_mapped());
@@ -1119,7 +1072,7 @@ impl<'cx> TyChecker<'cx> {
             (name_ty, should_link_prop_decls, template_ty)
         };
         let modifiers_ty = {
-            let ty = self.get_modifier_ty_from_mapped_ty(ty);
+            let ty = self.get_modifiers_ty_from_mapped_ty(ty);
             self.get_apparent_ty(ty)
         };
         let template_modifier = mapped_ty.decl.get_modifiers();
@@ -1200,6 +1153,8 @@ impl<'cx> TyChecker<'cx> {
                             this.create_transient_symbol(symbol_name, symbol_flags, None, links);
                         let prev = members.insert(symbol_name, symbol);
                         assert!(prev.is_none());
+                        let prev = this.symbol_links.insert(symbol, links);
+                        assert!(prev.is_none());
                     }
                 } else if this.is_valid_index_key_ty(prop_name_ty)
                     || prop_name_ty
@@ -1240,7 +1195,7 @@ impl<'cx> TyChecker<'cx> {
             };
         let mut add_member_for_key_ty = |this: &mut Self, key_ty: &'cx ty::Ty<'cx>| {
             let prop_name_ty = if let Some(name_ty) = name_ty {
-                let mapper = this.append_ty_mapping(mapped_ty.mapper, ty_param, name_ty);
+                let mapper = this.append_ty_mapping(mapped_ty.mapper, ty_param, key_ty);
                 this.instantiate_ty(name_ty, Some(mapper))
             } else {
                 key_ty

@@ -52,7 +52,6 @@ pub fn compile(cwd: String, files: JsValue) -> JsValue {
                     .inner
                     .labels()
                     .unwrap()
-                    .into_iter()
                     .find(|label| label.primary())
                     .expect("at least one primary label");
                 let msg = if let Some(msg) = primary_label.label() {

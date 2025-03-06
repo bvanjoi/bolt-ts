@@ -55,7 +55,7 @@ impl CachedFileSystem for LocalFS {
     }
 
     fn glob(&self, pattern: &str, _: &bolt_ts_atom::AtomMap<'_>) -> Vec<std::path::PathBuf> {
-        glob::glob(&pattern)
+        glob::glob(pattern)
             .unwrap()
             .filter_map(Result::ok)
             .map(|entry| entry.to_path_buf())

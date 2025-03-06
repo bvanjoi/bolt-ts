@@ -543,7 +543,7 @@ impl<'cx> ParserState<'cx, '_> {
     }
 
     pub(super) fn parse_ty_member_semi(&mut self) {
-        if self.parse_optional(TokenKind::Semi).is_some() {
+        if self.parse_optional(TokenKind::Comma).is_some() {
             return;
         }
         self.parse_semi();

@@ -1,4 +1,4 @@
-  × Type '{ a: string; x: K; }' is not assignable to type 'cond & { x: K; }'.
+  × Type '{ a: string; x: K; }' is not assignable to type 'Foo & { x: K; }'.
    ╭─[../../tests/cases/compiler/excessPropertyCheckingIntersectionWithConditional/index.ts:9:10]
  9 │ { a: '1', x: x }
    · ────────────────

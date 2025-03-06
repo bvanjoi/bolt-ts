@@ -113,12 +113,12 @@ pub fn eval_from(root: PathBuf, tsconfig: NormalizedTsConfig) -> Output {
     eval_from_with_fs(root, tsconfig, libs, fs, atoms)
 }
 
-pub fn eval_from_with_fs<'cx>(
+pub fn eval_from_with_fs(
     root: PathBuf,
     tsconfig: NormalizedTsConfig,
     libs: Vec<ModulePath>,
     mut fs: impl CachedFileSystem,
-    mut atoms: bolt_ts_atom::AtomMap<'cx>,
+    mut atoms: bolt_ts_atom::AtomMap<'_>,
 ) -> Output {
     let mut entries = Vec::with_capacity(1024);
     let mut module_arena = ModuleArena::new();

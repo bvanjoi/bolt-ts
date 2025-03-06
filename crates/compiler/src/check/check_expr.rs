@@ -292,6 +292,8 @@ impl<'cx> TyChecker<'cx> {
     }
 
     fn check_object_lit(&mut self, node: &'cx ast::ObjectLit<'cx>) -> &'cx ty::Ty<'cx> {
+        self.push_cached_contextual_type(node.id);
+
         let mut object_flags = ObjectFlags::FRESH_LITERAL;
         let members = node
             .members
@@ -327,6 +329,8 @@ impl<'cx> TyChecker<'cx> {
                 | ObjectFlags::OBJECT_LITERAL
                 | ObjectFlags::CONTAINS_OBJECT_OR_ARRAY_LITERAL,
         );
+        self.pop_type_context();
+
         let props = self.get_props_from_members(&members);
         let members = self.alloc(members);
         self.ty_links.insert(

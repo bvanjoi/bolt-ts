@@ -721,6 +721,70 @@ type IsArrayReadonly<T extends UnknownArray> = IfNever<T, false, T extends unkno
   const d1: IsArrayReadonly<never> = false;
 }
 
+// =========== Includes ===========
+type Includes<Value extends readonly any[], Item> =
+	Value extends readonly [Value[0], ...infer rest]
+		? IsEqual<Value[0], Item> extends true
+			? true
+			: Includes<rest, Item>
+		: false;
+{
+  const includesEmptyArray: Includes<[], 'abc'> = false;
+  const a0: false = includesEmptyArray;
+
+  const includesSingleItemArray: Includes<['colors'], 'colors'> = true;
+  const a1: true = includesSingleItemArray;
+
+  const readonlyArray = ['a', 'b', 'c'] as const;
+  const includesReadonlyArray: Includes<typeof readonlyArray, 'a'> = true;
+  const a2: true = includesReadonlyArray;
+
+  // const includesComplexMultiTypeArray: Includes<[
+  //   {
+  //     prop: 'value';
+  //     num: 5;
+  //     anotherArr: [1, '5', false];
+  //   },
+  //   true,
+  //   null,
+  //   'abcd',
+  // ], 'abc'> = false;
+  // const a3: false = includesComplexMultiTypeArray;
+
+  // const noExtendsProblem: Includes<[boolean], true> = false;
+  // const a4: false = noExtendsProblem;
+
+  // const objectIncludes: Includes<[{}], {a: 1}> = false;
+  // const a5: false = objectIncludes;
+
+  // const objectIncludesPass: Includes<[{a: 1}], {a: 1}> = true;
+  // const a6: true = objectIncludesPass;
+
+  // const nullIncludesUndefined: Includes<[null], undefined> = false;
+  // const a7: false = nullIncludesUndefined;
+
+  // const nullIncludesNullPass: Includes<[null], null> = true;
+  // const a8: true = nullIncludesNullPass;
+
+  // // Verify that incorrect usage of `Includes` produces an error.
+
+  // // Missing all generic parameters.
+  // // @ts-expect-error
+  // type A0 = Includes;
+
+  // // Missing `Item` generic parameter.
+  // // @ts-expect-error
+  // type A1 = Includes<['my', 'array', 'has', 'stuff']>;
+
+  // // Value generic parameter is a string not an array.
+  // // @ts-expect-error
+  // type A2 = Includes<'why a string?', 5>;
+
+  // // Value generic parameter is an object not an array.
+  // // @ts-expect-error
+  // type A3 = Includes<{key: 'value'}, 7>;
+}
+
 // =========== IsEqual ===========
 type IsEqual<A, B> =
 	(<G>() => G extends A & G | G ? 1 : 2) extends
@@ -1161,7 +1225,7 @@ type KeysOfUnion<ObjectType> =
 	
 	// `KeysOfUnion<T>` should NOT be assignable to `keyof T`
 	type Assignability1<T, _K extends keyof T> = unknown;
-	type Test1<T> = Assignability1<T, KeysOfUnion<T>>; //~ ERROR: Type 'cond' is not assignable to type 'T'.
+	type Test1<T> = Assignability1<T, KeysOfUnion<T>>; //~ ERROR: Type 'UnionToIntersection' is not assignable to type 'T'.
 	
 	// `keyof T` should be assignable to `KeysOfUnion<T>`
 	type Assignability2<T, _K extends KeysOfUnion<T>> = unknown;
@@ -1173,7 +1237,7 @@ type KeysOfUnion<ObjectType> =
 	
 	// `PropertyKey` should NOT be assignable to `KeysOfUnion<T>`
 	type Assignability4<T, _K extends KeysOfUnion<T>> = unknown;
-	type Test4<T> = Assignability4<T, PropertyKey>; //~ ERROR: Type 'symbol | number | string' is not assignable to type 'cond'.
+	type Test4<T> = Assignability4<T, PropertyKey>; //~ ERROR: Type 'symbol | number | string' is not assignable to type 'UnionToIntersection'.
 	
 	// `keyof T` should be assignable to `KeysOfUnion<T>` even when `T` is constrained to `Record<string, unknown>`
 	type Assignability5<T extends Record<string, unknown>, _K extends KeysOfUnion<T>> = unknown;
@@ -1189,11 +1253,11 @@ type KeysOfUnion<ObjectType> =
 	
 	// `KeysOfUnion<T>` should NOT be assignable to `keyof T` even when `T` is constrained to `Record<string, unknown>`
 	type Assignability8<T extends Record<string, unknown>, _K extends keyof T> = unknown;
-	type Test8<T extends Record<string, unknown>> = Assignability8<T, KeysOfUnion<T>>; //~ ERROR: Type 'cond' is not assignable to type 'T'.
+	type Test8<T extends Record<string, unknown>> = Assignability8<T, KeysOfUnion<T>>; //~ ERROR: Type 'UnionToIntersection' is not assignable to type 'T'.
 	
 	// `KeysOfUnion<T>` should NOT be assignable to `keyof T` even when `T` is constrained to `object`
 	type Assignability9<T extends object, _K extends keyof T> = unknown;
-	type Test9<T extends object> = Assignability9<T, KeysOfUnion<T>>; //~ ERROR: Type 'cond' is not assignable to type 'T'.
+	type Test9<T extends object> = Assignability9<T, KeysOfUnion<T>>; //~ ERROR: Type 'UnionToIntersection' is not assignable to type 'T'.
 }
 
 // ======= LastArrayElement =======
@@ -1451,29 +1515,28 @@ type OmitIndexSignature<ObjectType> = {
     qux?: 'baz';
   };
   
+  const exampleInterfaceKnownKeys: OmitIndexSignature<ExampleInterface> = {
+    foo: 'bar',
+    qux: 'baz',
+  }
+  const a0: {
+    foo: 'bar',
+    qux?: 'baz',
+  } = exampleInterfaceKnownKeys;
+
   type MappedType<ObjectType> = {
     [Key in keyof ObjectType]: {
       key: Key;
       value: Exclude<ObjectType[Key], undefined>;
     };
   };
-  
-  // const exampleInterfaceKnownKeys: OmitIndexSignature<ExampleInterface> = {
-  //   foo: 'bar',
-  //   qux: 'baz',
-  // }
-  // const a: {
-  //   foo: 'bar',
-  //   qux?: 'baz'
-  // } = exampleInterfaceKnownKeys;
-  
-  // declare const exampleMappedTypeKnownKeys: OmitIndexSignature<
-  // MappedType<ExampleInterface>
-  // >;
-  // expectType<{
-  //   foo: {key: 'foo'; value: 'bar'};
-  //   qux?: {key: 'qux'; value: 'baz'};
-  // }>(exampleMappedTypeKnownKeys);
+  const exampleMappedTypeKnownKeys: OmitIndexSignature<MappedType<ExampleInterface>> = {
+    foo: { key: 'foo', value: 'bar' }
+  };
+  const a1: {
+    foo: {key: 'foo'; value: 'bar'};
+    qux?: {key: 'qux'; value: 'baz'};
+  } = exampleMappedTypeKnownKeys;
 }
 
 // ========= OptionalKeysOf =========
@@ -2143,19 +2206,10 @@ type InternalUnionMin<N extends number, T extends UnknownArray = []> =
 
 // ======= UnionToIntersection =======
 type UnionToIntersection<Union> = (
-	// `extends unknown` is always going to be the case and is used to convert the
-	// `Union` into a [distributive conditional
-	// type](https://www.typescriptlang.org/docs/handbook/release-notes/typescript-2-8.html#distributive-conditional-types).
 	Union extends unknown
-		// The union type is used as the only argument to a function since the union
-		// of function arguments is an intersection.
 		? (distributedUnion: Union) => void
-		// This won't happen.
 		: never
-		// Infer the `Intersection` type since TypeScript represents the positional
-		// arguments of unions of functions as an intersection of the union.
 ) extends ((mergedIntersection: infer Intersection) => void)
-	// The `& Union` is to allow indexing by the resulting type
 	? Intersection & Union
 	: never;
 {

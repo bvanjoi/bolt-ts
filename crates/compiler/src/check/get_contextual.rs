@@ -150,7 +150,8 @@ impl<'cx> TyChecker<'cx> {
             ty?,
             |this, t| {
                 if let Some(tup) = t.as_tuple() {
-                    if first_spread_index.is_none_or(|first_spread_index| index < first_spread_index)
+                    if first_spread_index
+                        .is_none_or(|first_spread_index| index < first_spread_index)
                         && index < tup.fixed_length
                     {
                         let t = this.get_ty_arguments(t)[index];
@@ -174,8 +175,7 @@ impl<'cx> TyChecker<'cx> {
                         return this.get_ty_arguments(t).get(idx).copied();
                     }
                 }
-                if first_spread_index.is_none_or(|first_spread_index| index < first_spread_index)
-                {
+                if first_spread_index.is_none_or(|first_spread_index| index < first_spread_index) {
                     if let Some(t) = this.get_ty_of_prop_of_contextual_ty(
                         t,
                         SymbolName::EleNum(index.into()),
@@ -252,14 +252,10 @@ impl<'cx> TyChecker<'cx> {
                 } else if this.is_generic_mapped_ty(t)
                     && this.get_mapped_ty_name_ty_kind(t) != MappedTyNameTyKind::Remapping
                 {
-                    this.get_indexed_mapped_type_substituted_ty_of_contextual_ty(
-                        t, name, name_ty,
-                    )
+                    this.get_indexed_mapped_type_substituted_ty_of_contextual_ty(t, name, name_ty)
                 } else {
                     this.get_ty_of_concrete_prop_of_contextual_ty(t, name)
-                        .or_else(|| {
-                            this.get_ty_from_index_infos_of_contextual_ty(t, name, name_ty)
-                        })
+                        .or_else(|| this.get_ty_from_index_infos_of_contextual_ty(t, name, name_ty))
                 }
             },
             true,
@@ -349,7 +345,6 @@ impl<'cx> TyChecker<'cx> {
         name: SymbolName,
         name_ty: Option<&'cx ty::Ty<'cx>>,
     ) -> Option<&'cx ty::Ty<'cx>> {
-        let mapped_ty = ty.kind.expect_object_mapped();
         let property_name_ty = name_ty.unwrap_or_else(|| {
             if let Some(atom) = name.as_atom() {
                 self.get_string_literal_type(atom)
@@ -359,10 +354,10 @@ impl<'cx> TyChecker<'cx> {
                 unreachable!()
             }
         });
-        let constraint = mapped_ty.constraint_ty;
+        let constraint = self.get_constraint_ty_from_mapped_ty(ty);
         if self
             .get_ty_links(ty.id)
-            .get_named_ty()
+            .get_mapped_named_ty()
             .is_some_and(|name_ty| self.is_excluded_mapped_property_name(name_ty, property_name_ty))
             || self.is_excluded_mapped_property_name(constraint, property_name_ty)
         {

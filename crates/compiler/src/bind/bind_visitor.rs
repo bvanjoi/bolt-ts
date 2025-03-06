@@ -431,16 +431,14 @@ impl<'cx, 'atoms> BinderState<'cx, 'atoms> {
                     };
                     c.exports.insert(name, id);
                 }
+            } else if let Some(id) = c.members.get(&name).copied() {
+                insert(self, id, index.id);
             } else {
-                if let Some(id) = c.members.get(&name).copied() {
-                    insert(self, id, index.id);
-                } else {
-                    let id = add(self, index.id);
-                    let SymbolKind::Class(c) = &mut self.symbols.get_mut(container).kind.0 else {
-                        unreachable!()
-                    };
-                    c.members.insert(name, id);
-                }
+                let id = add(self, index.id);
+                let SymbolKind::Class(c) = &mut self.symbols.get_mut(container).kind.0 else {
+                    unreachable!()
+                };
+                c.members.insert(name, id);
             }
         } else if let SymbolKind::TyLit(o) = &s.kind.0 {
             if let Some(id) = o.members.get(&name).copied() {
@@ -773,10 +771,10 @@ impl<'cx, 'atoms> BinderState<'cx, 'atoms> {
         if let Some(ty_params) = f.ty_params {
             self.bind_ty_params(ty_params);
         }
+        self.bind_params(f.params);
         if let Some(ty) = f.ty {
             self.bind_ty(ty);
         }
-        self.bind_params(f.params);
         use bolt_ts_ast::ArrowFnExprBody::*;
         match f.body {
             Block(block) => self.bind_block_stmt(block),

@@ -5,7 +5,7 @@ pub fn pprint_ident(ident: &super::Ident, atoms: &AtomMap) -> String {
     atoms.get(ident.name).to_string()
 }
 
-pub fn pprint_binding<'cx>(binding: &super::Binding<'cx>, atoms: &AtomMap) -> String {
+pub fn pprint_binding(binding: &super::Binding<'_>, atoms: &AtomMap) -> String {
     match binding {
         super::Binding::Ident(ident) => pprint_ident(ident, atoms),
         super::Binding::ObjectPat(pat) => todo!(),

@@ -226,7 +226,14 @@ impl<'cx> Ty<'cx> {
                 }
             }
             TyKind::IndexedAccess(_) => "indexedAccess".to_string(),
-            TyKind::Cond(_) => "cond".to_string(),
+            TyKind::Cond(n) => {
+                if let Some(symbol) = n.root.alias_symbol {
+                    let name = checker.binder.symbol(symbol).name;
+                    checker.atoms.get(name.expect_atom()).to_string()
+                } else {
+                    "cond".to_string()
+                }
+            }
             TyKind::Index(n) => n.ty.to_string(checker),
             TyKind::Intrinsic(i) => checker.atoms.get(i.name).to_string(),
             TyKind::Substitution(_) => "substitution".to_string(),

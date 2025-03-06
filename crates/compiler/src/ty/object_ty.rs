@@ -360,8 +360,6 @@ pub struct MappedTy<'cx> {
     pub decl: &'cx ast::MappedTy<'cx>,
     pub alias_symbol: Option<SymbolID>,
     pub alias_ty_arguments: Option<super::Tys<'cx>>,
-    pub ty_param: &'cx Ty<'cx>,
-    pub constraint_ty: &'cx Ty<'cx>,
     pub target: Option<&'cx Ty<'cx>>,
     pub mapper: Option<&'cx dyn TyMap<'cx>>,
 }

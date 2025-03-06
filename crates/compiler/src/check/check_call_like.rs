@@ -483,16 +483,17 @@ impl<'cx> TyChecker<'cx> {
 
         if is_single_non_generic_candidate {
             let candidate = candidates[0];
-            if !self.has_correct_arity(expr, candidate)
-                || self.get_signature_applicability_error(
-                    expr,
-                    candidate,
-                    relation,
-                    CheckMode::empty(),
-                    true,
-                    None,
-                )
-            {
+            if !self.has_correct_arity(expr, candidate) {
+                None
+            } else if self.get_signature_applicability_error(
+                expr,
+                candidate,
+                relation,
+                CheckMode::empty(),
+                true,
+                None,
+            ) {
+                // TODO: candidates_for_argument_error
                 None
             } else {
                 Some(candidate)

@@ -1210,16 +1210,12 @@ impl<'cx> TyChecker<'cx> {
         decl: &'cx ast::MappedTy<'cx>,
         alias_symbol: Option<SymbolID>,
         alias_ty_arguments: Option<ty::Tys<'cx>>,
-        ty_param: &'cx ty::Ty<'cx>,
-        constraint_ty: &'cx ty::Ty<'cx>,
     ) -> &'cx ty::Ty<'cx> {
         let ty = self.alloc(ty::MappedTy {
             symbol,
             decl,
             alias_symbol,
             alias_ty_arguments,
-            ty_param,
-            constraint_ty,
             target: None,
             mapper: None,
         });

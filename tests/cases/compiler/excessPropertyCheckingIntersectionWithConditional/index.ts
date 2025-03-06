@@ -7,5 +7,5 @@ const createDefaultExample = <K,>(x: K): Foo<K> & { x: K; } => {
 
 const foo = <K,>(x: K): Foo<K> & { x: K; } => {
   return { a: '1', x: x };
-  //~^ ERROR: Type '{ a: string; x: K; }' is not assignable to type 'cond & { x: K; }'.
+  //~^ ERROR: Type '{ a: string; x: K; }' is not assignable to type 'Foo & { x: K; }'.
 }

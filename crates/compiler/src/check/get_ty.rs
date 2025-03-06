@@ -1,12 +1,11 @@
+use bolt_ts_ast::{self as ast, EntityNameKind};
 use bolt_ts_atom::AtomId;
 
 use super::create_ty::IntersectionFlags;
 use super::infer::{InferenceFlags, InferencePriority};
-use super::instantiation_ty_map::hash_ty_args;
 use super::ty::{self, Ty, TyKind};
 use super::{CheckMode, F64Represent, InferenceContextId, PropName, TyChecker};
 use super::{IndexedAccessTyMap, ResolutionKey, TyCacheTrait, errors};
-use bolt_ts_ast::{self as ast, EntityNameKind};
 
 use crate::bind::{SymbolFlags, SymbolID, SymbolName};
 use crate::ir;
@@ -168,14 +167,14 @@ impl<'cx> TyChecker<'cx> {
         let key_ty = links.expect_key_ty();
 
         if !self.push_ty_resolution(ResolutionKey::Type(symbol)) {
-            self.get_mut_ty_links(ty.id).set_contain_error(true);
+            self.get_mut_ty_links(ty.id).set_mapped_contains_error(true);
             return self.error_ty;
         }
 
         let mapped_ty = ty.kind.expect_object_mapped();
         let template_ty = self.get_template_ty_from_mapped_ty(mapped_ty.target.unwrap_or(ty));
         let mapper = {
-            let source = mapped_ty.ty_param;
+            let source = self.get_ty_param_from_mapped_ty(ty);
             self.append_ty_mapping(mapped_ty.mapper, source, key_ty)
         };
         let prop_ty = self.instantiate_ty(template_ty, Some(mapper));
@@ -311,22 +310,9 @@ impl<'cx> TyChecker<'cx> {
         };
         let alias_symbol = self.get_alias_symbol_for_ty_node(node.id);
         let alias_ty_arguments = self.get_ty_args_for_alias_symbol(alias_symbol);
-        let ty_param = {
-            let param_ty = self.get_symbol_of_decl(node.ty_param.id);
-            self.get_declared_ty_of_ty_param(param_ty)
-        };
-        let constraint_ty = self
-            .get_constraint_of_ty_param(ty_param)
-            .unwrap_or(self.error_ty);
         let symbol = self.final_res(node.id);
-        let ty = self.create_mapper_ty(
-            symbol,
-            node,
-            alias_symbol,
-            alias_ty_arguments,
-            ty_param,
-            constraint_ty,
-        );
+        let ty = self.create_mapper_ty(symbol, node, alias_symbol, alias_ty_arguments);
+        self.get_constraint_ty_from_mapped_ty(ty);
         self.get_mut_node_links(node.id).set_resolved_ty(ty);
         ty
     }
@@ -1439,6 +1425,7 @@ impl<'cx> TyChecker<'cx> {
     pub fn get_tuple_element_flags(node: &'cx ast::Ty<'cx>) -> ElementFlags {
         use bolt_ts_ast::TyKind::*;
         match node.kind {
+            Nullable(_) => ElementFlags::OPTIONAL,
             Rest(rest) => Self::get_rest_ty_ele_flags(rest),
             NamedTuple(named) => {
                 if named.question.is_some() {
@@ -1679,8 +1666,7 @@ impl<'cx> TyChecker<'cx> {
     }
 
     fn has_distributive_name_ty(&mut self, ty: &'cx ty::Ty<'cx>) -> bool {
-        let map = ty.kind.expect_object_mapped();
-        let ty_var = map.ty_param;
+        let ty_var = self.get_ty_param_from_mapped_ty(ty);
         fn is_distributive<'cx>(ty: &'cx ty::Ty<'cx>, ty_var: &'cx ty::Ty<'cx>) -> bool {
             if ty.flags.intersects(
                 TypeFlags::ANY_OR_UNKNOWN
@@ -1727,74 +1713,7 @@ impl<'cx> TyChecker<'cx> {
                     .is_some_and(|i| i.tys.iter().any(|t| self.is_empty_anonymous_object_ty(t)))
     }
 
-    pub(super) fn get_index_ty_for_mapped_ty(
-        &mut self,
-        ty: &'cx ty::Ty<'cx>,
-        index_flags: IndexFlags,
-    ) -> &'cx ty::Ty<'cx> {
-        let map = ty.kind.expect_object_mapped();
-        let name_ty = self.get_name_ty_from_mapped_ty(map.target.unwrap_or(ty));
-        if name_ty.is_none() && !index_flags.intersects(IndexFlags::NO_INDEX_SIGNATURES) {
-            return map.constraint_ty;
-        }
-        let mut key_tys = vec![];
-        let mut add_member_for_key_ty = |this: &mut Self, key_ty: &'cx ty::Ty<'cx>| {
-            let prop_name_ty = match name_ty {
-                Some(name_ty) => {
-                    let mapper = this.append_ty_mapping(map.mapper, map.ty_param, key_ty);
-                    this.instantiate_ty(name_ty, Some(mapper))
-                }
-                None => key_ty,
-            };
-            if prop_name_ty == this.string_ty {
-                key_tys.push(this.string_or_number_ty());
-            } else {
-                key_tys.push(prop_name_ty);
-            }
-        };
-        if self.is_generic_index_ty(map.constraint_ty) {
-            if self.is_mapped_ty_with_keyof_constraint_decl(map) {
-                return self.get_index_ty_for_generic_ty(ty, index_flags);
-            }
-            self.for_each_ty(map.constraint_ty, |this, key_ty| {
-                add_member_for_key_ty(this, key_ty)
-            });
-        } else if self.is_mapped_ty_with_keyof_constraint_decl(map) {
-            let modifiers_ty = {
-                let t = self.get_modifier_ty_from_mapped_ty(ty);
-                self.get_apparent_ty(t)
-            };
-            self.for_each_mapped_ty_prop_key_ty_and_index_sig_key_ty(
-                modifiers_ty,
-                TypeFlags::STRING_OR_NUMBER_LITERAL_OR_UNIQUE,
-                index_flags.intersects(IndexFlags::STRINGS_ONLY),
-                &mut add_member_for_key_ty,
-            );
-        } else {
-            let t = self.get_lower_bound_of_key_ty(map.constraint_ty);
-            self.for_each_ty(t, add_member_for_key_ty);
-        };
-
-        let result = if index_flags.intersects(IndexFlags::NO_INDEX_SIGNATURES) {
-            let t = self.get_union_ty(&key_tys, ty::UnionReduction::Lit);
-            self.filter_type(t, |_, t| {
-                !t.flags.intersects(TypeFlags::ANY | TypeFlags::STRING)
-            })
-        } else {
-            self.get_union_ty(&key_tys, ty::UnionReduction::Lit)
-        };
-
-        if let Some(result) = result.kind.as_union() {
-            if let Some(c) = map.constraint_ty.kind.as_union() {
-                if hash_ty_args(result.tys) == hash_ty_args(c.tys) {
-                    return map.constraint_ty;
-                }
-            }
-        }
-        result
-    }
-
-    fn get_index_ty_for_generic_ty(
+    pub(super) fn get_index_ty_for_generic_ty(
         &mut self,
         ty: &'cx ty::Ty<'cx>,
         index_flags: IndexFlags,

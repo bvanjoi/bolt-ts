@@ -396,6 +396,9 @@ impl<'cx> Resolver<'cx, '_, '_> {
         use bolt_ts_ast::ExprKind::*;
         match expr.kind {
             ArrowFn(f) => {
+                if let Some(ty_params) = f.ty_params {
+                    self.resolve_ty_params(ty_params);
+                }
                 self.resolve_params(f.params);
                 if let Some(ty) = f.ty {
                     self.resolve_ty(ty);

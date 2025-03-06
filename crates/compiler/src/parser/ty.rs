@@ -799,7 +799,7 @@ impl<'cx> ParserState<'cx, '_> {
             let question = self.parse_optional(TokenKind::Question);
             self.expect(TokenKind::Colon);
             let ty = self.parse_tuple_ele_ty()?;
-            let n = self.alloc(ast::NamedTupleTy {
+            let ty = self.alloc(ast::NamedTupleTy {
                 id,
                 span: self.new_span(start),
                 dotdotdot: dotdotdot.map(|t| t.span),
@@ -807,7 +807,10 @@ impl<'cx> ParserState<'cx, '_> {
                 question: question.map(|t| t.span),
                 ty,
             });
-            self.insert_map(id, ast::Node::NamedTupleTy(n));
+            self.insert_map(id, ast::Node::NamedTupleTy(ty));
+            let ty = self.alloc(ast::Ty {
+                kind: ast::TyKind::NamedTuple(ty),
+            });
             Ok(ty)
         } else {
             self.parse_tuple_ele_ty()

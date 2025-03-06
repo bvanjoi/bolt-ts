@@ -1,15 +1,15 @@
 use std::borrow::Cow;
 
+use super::create_ty::IntersectionFlags;
+use super::instantiation_ty_map::{ConditionalTyInstantiationTyMap, TyCacheTrait};
+use super::{InstantiationTyMap, TyChecker};
 use crate::bind::SymbolID;
 use crate::keyword::{self, is_intrinsic_type_name};
 use crate::ty;
 use crate::ty::{ObjectFlags, TyMapper, TypeFlags};
+
 use bolt_ts_ast as ast;
 use bolt_ts_ast::MappedTyModifiers;
-
-use super::create_ty::IntersectionFlags;
-use super::instantiation_ty_map::{ConditionalTyInstantiationTyMap, TyCacheTrait};
-use super::{InstantiationTyMap, TyChecker};
 
 impl<'cx> TyChecker<'cx> {
     pub fn instantiate_ty(
@@ -234,19 +234,15 @@ impl<'cx> TyChecker<'cx> {
     }
 
     fn get_homomorphic_ty_var(&mut self, ty: &'cx ty::Ty<'cx>) -> Option<&'cx ty::Ty<'cx>> {
-        let mapped_ty = ty.kind.expect_object_mapped();
-        mapped_ty
-            .constraint_ty
-            .kind
-            .as_index_ty()
-            .and_then(|index_ty| {
-                let ty_var = self.get_actual_ty_variable(index_ty.ty);
-                if ty_var.flags.intersects(TypeFlags::TYPE_PARAMETER) {
-                    Some(ty_var)
-                } else {
-                    None
-                }
-            })
+        let constraint_ty = self.get_constraint_ty_from_mapped_ty(ty);
+        constraint_ty.kind.as_index_ty().and_then(|index_ty| {
+            let ty_var = self.get_actual_ty_variable(index_ty.ty);
+            if ty_var.flags.intersects(TypeFlags::TYPE_PARAMETER) {
+                Some(ty_var)
+            } else {
+                None
+            }
+        })
     }
 
     fn instantiate_mapped_tuple_ty(
@@ -366,7 +362,8 @@ impl<'cx> TyChecker<'cx> {
         mapper: &'cx dyn ty::TyMap<'cx>,
     ) -> &'cx ty::Ty<'cx> {
         let m = ty.kind.expect_object_mapped();
-        let template_mapper = self.append_ty_mapping(Some(mapper), m.ty_param, key);
+        let source = self.get_ty_param_from_mapped_ty(ty);
+        let template_mapper = self.append_ty_mapping(Some(mapper), source, key);
         let prop_ty = {
             let template_ty = self.get_template_ty_from_mapped_ty(m.target.unwrap_or(ty));
             self.instantiate_ty(template_ty, Some(template_mapper))
@@ -468,7 +465,8 @@ impl<'cx> TyChecker<'cx> {
             }
         }
 
-        if self.instantiate_ty(map.constraint_ty, Some(mapper)) == self.wildcard_ty {
+        let constraint_ty = self.get_constraint_ty_from_mapped_ty(ty);
+        if self.instantiate_ty(constraint_ty, Some(mapper)) == self.wildcard_ty {
             self.wildcard_ty
         } else {
             self.instantiate_anonymous_for_mapped_ty(ty, mapper, object_flags)
@@ -482,7 +480,7 @@ impl<'cx> TyChecker<'cx> {
         object_flags: ObjectFlags,
     ) -> &'cx ty::Ty<'cx> {
         let map = ty.kind.expect_object_mapped();
-        let orig_ty_param = map.ty_param;
+        let orig_ty_param = self.get_ty_param_from_mapped_ty(ty);
         let fresh_ty_param = self.clone_param_ty(orig_ty_param);
         let mapper = {
             let m = self.alloc(TyMapper::make_unary(orig_ty_param, fresh_ty_param));
@@ -502,25 +500,24 @@ impl<'cx> TyChecker<'cx> {
             object_flags
         };
 
-        // FIXME: maybe use lazy?
-        let constraint_ty = self
-            .get_constraint_of_ty_param(fresh_ty_param)
-            .unwrap_or(self.error_ty);
-
         let ty = self.alloc(ty::MappedTy {
             symbol: map.symbol,
             decl: map.decl,
             alias_symbol: map.alias_symbol,
             alias_ty_arguments,
-            ty_param: fresh_ty_param,
-            constraint_ty,
             target: Some(ty),
             mapper: Some(mapper),
         });
-        self.create_object_ty(
+        let ty = self.create_object_ty(
             ty::ObjectTyKind::Mapped(ty),
             object_flags | ObjectFlags::MAPPED,
-        )
+        );
+        let prev = self.ty_links.insert(
+            ty.id,
+            super::TyLinks::default().with_mapped_ty_param(fresh_ty_param),
+        );
+        assert!(prev.is_none());
+        ty
     }
 
     fn get_object_ty_instantiation(

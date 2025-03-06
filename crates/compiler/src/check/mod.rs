@@ -27,6 +27,7 @@ mod get_context;
 mod get_contextual;
 mod get_declared_ty;
 mod get_effective_node;
+mod get_mapped_ty_info;
 mod get_sig;
 mod get_simplified_ty;
 mod get_symbol;
@@ -2407,12 +2408,14 @@ impl<'cx> TyChecker<'cx> {
     }
 
     fn is_generic_mapped_ty(&mut self, ty: &'cx ty::Ty<'cx>) -> bool {
-        ty.kind.as_object_mapped().is_some_and(|m| {
-            if self.is_generic_index_ty(m.constraint_ty) {
+        ty.kind.as_object_mapped().is_some_and(|_| {
+            let constraint_ty = self.get_constraint_ty_from_mapped_ty(ty);
+            if self.is_generic_index_ty(constraint_ty) {
                 true
             } else {
                 self.get_name_ty_from_mapped_ty(ty).is_some_and(|name_ty| {
-                    let mapper = TyMapper::make_unary(m.ty_param, m.constraint_ty);
+                    let source = self.get_ty_param_from_mapped_ty(ty);
+                    let mapper = TyMapper::make_unary(source, constraint_ty);
                     let mapper = self.alloc(mapper);
                     let ty = self.instantiate_ty(name_ty, Some(mapper));
                     self.is_generic_index_ty(ty)
@@ -2621,26 +2624,25 @@ impl<'cx> TyChecker<'cx> {
         index_ty: &'cx ty::Ty<'cx>,
     ) -> &'cx ty::Ty<'cx> {
         let mapped_ty = object_ty.kind.expect_object_mapped();
-        let mapper = self.alloc(TyMapper::make_unary(mapped_ty.ty_param, index_ty));
+        let source = self.get_ty_param_from_mapped_ty(object_ty);
+        let mapper = self.alloc(TyMapper::make_unary(source, index_ty));
         let template_mapper = self.combine_ty_mappers(mapped_ty.mapper, mapper);
         let instantiated_template_ty = {
             let template_ty =
                 self.get_template_ty_from_mapped_ty(mapped_ty.target.unwrap_or(object_ty));
             self.instantiate_ty(template_ty, Some(template_mapper))
         };
-        // TODO: optional
-        instantiated_template_ty
+        // TODO: is_optional
+        let is_optional = false;
+        self.add_optionality(instantiated_template_ty, true, is_optional)
     }
 
     fn is_circular_mapped_prop(&self, symbol: SymbolID) -> bool {
         self.get_check_flags(symbol).intersects(CheckFlags::MAPPED)
-            && !(self
-                .symbol_links
-                .get(&symbol)
-                .is_some_and(|s| s.get_ty().is_some())
-                && self
-                    .find_resolution_cycle_start_index(ResolutionKey::Type(symbol))
-                    .is_some())
+            && self.symbol_links[&symbol].get_ty().is_none()
+            && self
+                .find_resolution_cycle_start_index(ResolutionKey::Type(symbol))
+                .is_some()
     }
 
     pub fn decl_modifier_flags_from_symbol(
@@ -2680,7 +2682,7 @@ impl<'cx> TyChecker<'cx> {
             if n != 0 {
                 n
             } else {
-                let t = self.get_modifier_ty_from_mapped_ty(ty);
+                let t = self.get_modifiers_ty_from_mapped_ty(ty);
                 self.get_combined_mapped_ty_optionality(t)
             }
         } else if let Some(intersection) = ty.kind.as_intersection() {
@@ -2776,7 +2778,7 @@ impl<'cx> TyChecker<'cx> {
                 }
             }
         }
-        impl<'cx, 'checker> bolt_ts_ast::Visitor<'cx> for ContainReferenceVisitor<'cx, 'checker> {
+        impl<'cx> bolt_ts_ast::Visitor<'cx> for ContainReferenceVisitor<'cx, '_> {
             fn visit_ident(&mut self, n: &'cx bolt_ts_ast::Ident) {
                 let t = self.tp.kind.expect_param();
                 if !t.is_this_ty
