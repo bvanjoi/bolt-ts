@@ -563,7 +563,7 @@ impl<'cx> Node<'cx> {
                 }
             };
         }
-        node_flags!(FnDecl, ClassMethodElem)
+        node_flags!(VarStmt, FnDecl, ClassMethodElem)
     }
 
     pub fn is_super_call(&self) -> bool {

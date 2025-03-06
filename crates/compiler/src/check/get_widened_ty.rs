@@ -1,5 +1,6 @@
 use crate::bind::SymbolFlags;
 use crate::bind::SymbolID;
+use crate::ir;
 use crate::ty::ObjectFlags;
 use crate::ty::TypeFlags;
 use bolt_ts_ast as ast;
@@ -94,13 +95,27 @@ impl<'cx> TyChecker<'cx> {
         )
     }
 
-    fn get_widened_lit_ty_for_init(&mut self, ty: &'cx ty::Ty<'cx>) -> &'cx ty::Ty<'cx> {
+    fn get_widened_lit_ty_for_init(
+        &mut self,
+        decl: &impl ir::VarLike<'cx>,
+        ty: &'cx ty::Ty<'cx>,
+    ) -> &'cx ty::Ty<'cx> {
         // TODO: as const
-        self.get_widened_literal_ty(ty)
+        let id = decl.id();
+        let flags = self.p.get_combined_node_flags(id);
+        if flags.intersects(ast::NodeFlags::CONSTANT) {
+            ty
+        } else {
+            self.get_widened_literal_ty(ty)
+        }
     }
 
-    pub(super) fn widened_ty_from_init(&mut self, ty: &'cx ty::Ty<'cx>) -> &'cx ty::Ty<'cx> {
-        self.get_widened_lit_ty_for_init(ty)
+    pub(super) fn widened_ty_from_init(
+        &mut self,
+        decl: &impl ir::VarLike<'cx>,
+        ty: &'cx ty::Ty<'cx>,
+    ) -> &'cx ty::Ty<'cx> {
+        self.get_widened_lit_ty_for_init(decl, ty)
     }
 
     fn is_literal_of_contextual_ty(
@@ -112,8 +127,7 @@ impl<'cx> TyChecker<'cx> {
             return false;
         };
         if let Some(tys) = contextual_ty.kind.tys_of_union_or_intersection() {
-            tys
-                .iter()
+            tys.iter()
                 .any(|ty| self.is_literal_of_contextual_ty(candidate_ty, Some(ty)))
         } else if contextual_ty
             .flags
@@ -161,7 +175,10 @@ impl<'cx> TyChecker<'cx> {
             && candidate_ty.maybe_type_of_kind(TypeFlags::BOOLEAN_LITERAL)
         {
             true
-        } else { contextual_ty.flags.intersects(TypeFlags::UNIQUE_ES_SYMBOL) && candidate_ty.maybe_type_of_kind(TypeFlags::UNIQUE_ES_SYMBOL) }
+        } else {
+            contextual_ty.flags.intersects(TypeFlags::UNIQUE_ES_SYMBOL)
+                && candidate_ty.maybe_type_of_kind(TypeFlags::UNIQUE_ES_SYMBOL)
+        }
     }
 
     pub(super) fn get_widened_lit_like_ty_for_contextual_ty(

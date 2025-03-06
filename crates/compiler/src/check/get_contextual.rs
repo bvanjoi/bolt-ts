@@ -126,7 +126,7 @@ impl<'cx> TyChecker<'cx> {
         use bolt_ts_ast::Node::*;
         match node {
             VarDecl(decl) => {
-                if let Some(init) = decl.init {
+                if decl.init.is_some() {
                     if let Some(decl_ty) = decl.ty {
                         return Some(self.get_ty_from_type_node(decl_ty));
                     }

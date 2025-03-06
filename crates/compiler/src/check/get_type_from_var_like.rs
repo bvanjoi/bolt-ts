@@ -90,7 +90,7 @@ impl<'cx> TyChecker<'cx> {
             Some(self.add_optionality(ty, is_property, is_optional))
         } else if let Some(init) = decl.init() {
             let init_ty = self.check_expr_with_cache(init);
-            Some(self.widened_ty_from_init(init_ty))
+            Some(self.widened_ty_from_init(decl, init_ty))
         } else {
             None
         };

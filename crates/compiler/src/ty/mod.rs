@@ -242,15 +242,16 @@ impl<'cx> Ty<'cx> {
                 checker.atoms.get(name.expect_atom()).to_string()
             }
             TyKind::TemplateLit(n) => {
-                let mut s = String::new();
+                let mut s = String::with_capacity(32);
+                s.push('`');
                 for i in 0..n.texts.len() {
                     let text = n.texts[i];
-
                     s.push_str(checker.atoms.get(text));
                     if let Some(ty) = n.tys.get(i) {
-                        s.push_str(&ty.to_string(checker));
+                        s.push_str(&format!("${{{}}}", ty.to_string(checker)));
                     }
                 }
+                s.push('`');
                 s
             }
         }

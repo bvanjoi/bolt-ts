@@ -355,7 +355,6 @@ pub(super) struct AnIndexSignatureParameterTypeMustBeStringNumberSymbolOrATempla
 #[error(
     "A class can only implement an object type or intersection of object types with statically known members."
 )]
-
 pub(super) struct AClassCanOnlyImplementAnObjectTypeOrIntersectionOfObjectTypesWithStaticallyKnownMembers
 {
     #[label(primary)]

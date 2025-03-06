@@ -134,6 +134,17 @@ impl<'cx> TyChecker<'cx> {
         ty
     }
 
+    fn is_template_literal_contextual_ty(&mut self, ty: &'cx ty::Ty<'cx>) -> bool {
+        ty.flags
+            .intersects(TypeFlags::STRING_LITERAL | TypeFlags::TEMPLATE_LITERAL)
+            || ty.flags.intersects(TypeFlags::INSTANTIABLE_NON_PRIMITIVE) && {
+                let t = self
+                    .get_base_constraint_of_ty(ty)
+                    .unwrap_or(self.unknown_ty);
+                t.maybe_type_of_kind(TypeFlags::STRING_LIKE)
+            }
+    }
+
     fn check_template_expr(&mut self, node: &'cx ast::TemplateExpr<'cx>) -> &'cx ty::Ty<'cx> {
         let mut texts = Vec::with_capacity(8);
         texts.push(node.head.text);
@@ -147,10 +158,16 @@ impl<'cx> TyChecker<'cx> {
                 tys.push(self.string_ty);
             }
         }
-        if self.p.is_const_context(node.id) {
-            // TODO:
+        if self.p.is_const_context(node.id) || {
+            let t = self
+                .get_contextual_ty(node.id, None)
+                .unwrap_or(self.unknown_ty);
+            self.some_type(t, |this, t| this.is_template_literal_contextual_ty(t))
+        } {
+            self.get_template_lit_ty(&texts, &tys)
+        } else {
+            self.string_ty
         }
-        self.string_ty
     }
 
     pub(super) fn get_regular_ty_of_literal_ty(

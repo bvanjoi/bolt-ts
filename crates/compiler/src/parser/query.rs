@@ -383,6 +383,13 @@ impl<'cx> Parser<'cx> {
         flags
     }
 
+    pub fn get_combined_node_flags(&self, id: ast::NodeID) -> ast::NodeFlags {
+        self.get_combined_flags(id, |p, id| {
+            let n = p.node(id);
+            n.node_flags()
+        })
+    }
+
     pub fn get_combined_modifier_flags(
         &self,
         id: ast::NodeID,

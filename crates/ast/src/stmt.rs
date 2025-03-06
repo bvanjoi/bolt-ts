@@ -466,6 +466,7 @@ pub type VarDecls<'cx> = &'cx [&'cx VarDecl<'cx>];
 #[derive(Debug, Clone, Copy)]
 pub struct VarStmt<'cx> {
     pub id: NodeID,
+    pub flags: NodeFlags,
     pub kind: VarKind,
     pub span: Span,
     pub modifiers: Option<&'cx Modifiers<'cx>>,

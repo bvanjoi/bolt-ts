@@ -760,6 +760,11 @@ impl<'cx> ParserState<'cx, '_> {
         let id = self.next_node_id();
         let start = self.token.start();
         let kind = self.token.kind.try_into().unwrap();
+        let flags = if kind == ast::VarKind::Const {
+            ast::NodeFlags::CONST
+        } else {
+            ast::NodeFlags::empty()
+        };
         let list = self.with_parent(id, |this| this.parse_var_decl_list(false));
         if list.is_empty() {
             let span = self.new_span(start);
@@ -770,6 +775,7 @@ impl<'cx> ParserState<'cx, '_> {
         let span = self.new_span(start);
         let node = self.alloc(ast::VarStmt {
             id,
+            flags,
             kind,
             span,
             modifiers,

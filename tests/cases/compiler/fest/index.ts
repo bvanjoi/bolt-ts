@@ -739,50 +739,50 @@ type Includes<Value extends readonly any[], Item> =
   const includesReadonlyArray: Includes<typeof readonlyArray, 'a'> = true;
   const a2: true = includesReadonlyArray;
 
-  // const includesComplexMultiTypeArray: Includes<[
-  //   {
-  //     prop: 'value';
-  //     num: 5;
-  //     anotherArr: [1, '5', false];
-  //   },
-  //   true,
-  //   null,
-  //   'abcd',
-  // ], 'abc'> = false;
-  // const a3: false = includesComplexMultiTypeArray;
+  const includesComplexMultiTypeArray: Includes<[
+    {
+      prop: 'value';
+      num: 5;
+      anotherArr: [1, '5', false];
+    },
+    true,
+    // null, // dependent `strict`
+    'abcd',
+  ], 'abc'> = false;
+  const a3: false = includesComplexMultiTypeArray;
 
-  // const noExtendsProblem: Includes<[boolean], true> = false;
-  // const a4: false = noExtendsProblem;
+  const noExtendsProblem: Includes<[boolean], true> = false;
+  const a4: false = noExtendsProblem;
 
-  // const objectIncludes: Includes<[{}], {a: 1}> = false;
-  // const a5: false = objectIncludes;
+  const objectIncludes: Includes<[{}], {a: 1}> = false;
+  const a5: false = objectIncludes;
 
-  // const objectIncludesPass: Includes<[{a: 1}], {a: 1}> = true;
-  // const a6: true = objectIncludesPass;
+  const objectIncludesPass: Includes<[{a: 1}], {a: 1}> = true;
+  const a6: true = objectIncludesPass;
 
-  // const nullIncludesUndefined: Includes<[null], undefined> = false;
-  // const a7: false = nullIncludesUndefined;
+  const nullIncludesUndefined: Includes<[null], undefined> = true; // dependent `strict`
+  const a7: true = nullIncludesUndefined;
 
-  // const nullIncludesNullPass: Includes<[null], null> = true;
-  // const a8: true = nullIncludesNullPass;
+  const nullIncludesNullPass: Includes<[null], null> = true;
+  const a8: true = nullIncludesNullPass;
 
-  // // Verify that incorrect usage of `Includes` produces an error.
+  // Verify that incorrect usage of `Includes` produces an error.
 
-  // // Missing all generic parameters.
-  // // @ts-expect-error
-  // type A0 = Includes;
+  // Missing all generic parameters.
+  type A0 = Includes;
+  //~^ ERROR: Generic type 'Includes' requires 2 type arguments.
 
-  // // Missing `Item` generic parameter.
-  // // @ts-expect-error
-  // type A1 = Includes<['my', 'array', 'has', 'stuff']>;
+  // Missing `Item` generic parameter.
+  type A1 = Includes<['my', 'array', 'has', 'stuff']>;
+  //~^ ERROR: Generic type 'Includes' requires 2 type arguments.
 
-  // // Value generic parameter is a string not an array.
-  // // @ts-expect-error
-  // type A2 = Includes<'why a string?', 5>;
+  // Value generic parameter is a string not an array.
+  type A2 = Includes<'why a string?', 5>;
+  //~^ ERROR: Type '"why a string?"' is not assignable to type 'any[]'.
 
-  // // Value generic parameter is an object not an array.
-  // // @ts-expect-error
-  // type A3 = Includes<{key: 'value'}, 7>;
+  // Value generic parameter is an object not an array.
+  type A3 = Includes<{key: 'value'}, 7>;
+  //~^ ERROR: Type '{ key: "value"; }' is missing the following properties from type 'any[]': length, join, and 11 more.
 }
 
 // =========== IsEqual ===========
@@ -1873,6 +1873,73 @@ type StringLength<S extends string> = string extends S
   let a0: StringLength<'abcde'> = 4;
   //~^ ERROR: Type '4' is not assignable to type '5'.
   let a1: StringLength<string> = n();
+}
+
+// ========== StringRepeat ==========
+type StringRepeat<
+	Input extends string,
+	Count extends number,
+> = StringRepeatHelper<Input, Count>;
+
+type StringRepeatHelper<
+	Input extends string,
+	Count extends number,
+	Counter extends never[] = [],
+	Accumulator extends string = '',
+> =
+	IsNegative<Count> extends true
+		? never
+		: Input extends ''
+			? ''
+			: Count extends Counter['length']
+				? Accumulator
+				: IsNumericLiteral<Count> extends false
+					? string
+					: StringRepeatHelper<Input, Count, [...Counter, never], `${Accumulator}${Input}`>;
+{
+  const a0: StringRepeat<'', 0> = '';
+  const a1: StringRepeat<'', -1> = n();
+  const a2: StringRepeat<string, 0> = '';
+  const a3: StringRepeat<string, -1> = n();
+  const a4: StringRepeat<'', number> = '';
+  let s0: string = ''
+  const a5: StringRepeat<string, number> = s0;
+  const a6: StringRepeat<'0', number> = s0;
+  const a7: StringRepeat<'0', -1> = n();
+  const a8: StringRepeat<'0', 0> = '42';
+  //~^ ERROR: Type '"42"' is not assignable to type '""'.
+  const a9: StringRepeat<'0', 1> = '42';
+  //~^ ERROR: Type '"42"' is not assignable to type '"0"'.
+  const a10: StringRepeat<'0', 5> = '42';
+  //~^ ERROR: Type '"42"' is not assignable to type '"00000"'.
+  const a11: StringRepeat<'012345-', 0> = '42';
+  //~^ ERROR: Type '"42"' is not assignable to type '""'.
+  const a12: StringRepeat<'012345-', 1> = '42';
+  //~^ ERROR: Type '"42"' is not assignable to type '"012345-"'.
+  const a13: StringRepeat<'012345-', 5> = '42';
+  //~^ ERROR: Type '"42"' is not assignable to type '"012345-012345-012345-012345-012345-"'.
+  
+  // Non literal strings
+  const a14: StringRepeat<string, 2> = s0;
+  const a15: StringRepeat<`abc${string}`, 2> = `abc${s0}abc${s0}`;
+  const a16: StringRepeat<Uppercase<string>, 2> = `${s0}${s0}`;
+  //~^ ERROR: Type 'string' is not assignable to type '`${Uppercase}${Uppercase}`'
+  
+  // Union cases
+  const a17: StringRepeat<'0' | '1', 5> = '42';
+  //~^ ERROR: Type 'string' is not assignable to type '"00000" | "11111"'.
+  const a18: StringRepeat<'0', 4 | 5> = '42';
+  //~^ ERROR: Type 'string' is not assignable to type '"0000" | "00000"'.
+  const a19: StringRepeat<'0' | '1', 4 | 5> = '42';
+  //~^ ERROR: Type 'string' is not assignable to type '"0000" | "00000" | "1111" | "11111"'.
+  
+  // Recursion depth at which a non-tail recursive implementation starts to fail.
+  const a20: StringRepeat<'0', 50> = '42';
+  //~^ ERROR: Type '"42"' is not assignable to type '"00000000000000000000000000000000000000000000000000"'.
+  
+  // Maximum allowed recursion depth for a tail recursive implementation.
+  const nineHundredNinetyNineZeroes = '000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000';
+  const a21: StringRepeat<'0', 999> = nineHundredNinetyNineZeroes;
 }
 
 // ========== StringToArray ==========
