@@ -843,6 +843,7 @@ impl<'cx> TyChecker<'cx> {
                     ast::PropNameKind::StringLit { raw, .. } => {
                         format!("\"{}\"", self.atoms.get(raw.val))
                     }
+                    bolt_ts_ast::PropNameKind::Computed(_) => "[...]".to_string(),
                 };
                 let error = errors::PropertyAOfTypeBIsNotAssignableToCIndexTypeD {
                     span: prop_node.span(),
@@ -875,8 +876,12 @@ impl<'cx> TyChecker<'cx> {
     ) -> &'cx ty::Ty<'cx> {
         match prop_name.kind {
             ast::PropNameKind::Ident(ident) => self.get_string_literal_type(ident.name),
-            ast::PropNameKind::NumLit(num) => self.get_number_literal_type(num.val),
+            ast::PropNameKind::NumLit(num) => {
+                let ty = self.get_number_literal_type(num.val);
+                self.get_regular_ty_of_literal_ty(ty)
+            }
             ast::PropNameKind::StringLit { key, .. } => self.get_string_literal_type(key),
+            bolt_ts_ast::PropNameKind::Computed(n) => todo!(),
         }
     }
 

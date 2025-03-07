@@ -603,6 +603,28 @@ type IfUnknown<T, TypeIfUnknown = true, TypeIfNotUnknown = false> = (
   //~^ ERROR: Generic type 'IfUnknown' requires between 1 and 3 type arguments.
 }
 
+// =========== IntClosedRange ===========
+type IntClosedRange<Start extends number, End extends number, Skip extends number = 1> = IntRange<Start, Sum<End, 1>, Skip>;
+{
+  const test: IntClosedRange<0, 5> = 6;
+  //~^ ERROR: Type 'number' is not assignable to type '0 | 1 | 2 | 3 | 5 | 4'.
+
+  const startTest: IntClosedRange<5, 10> = 42;
+  //~^ ERROR: Type 'number' is not assignable to type '5 | 6 | 7 | 8 | 9 | 10'.
+
+  const stepTest1: IntClosedRange<10, 20, 2> = 42;
+  //~^ ERROR: Type 'number' is not assignable to type '10 | 20 | 12 | 14 | 16 | 18'
+
+  // Test for step > end - start
+  const stepTest2: IntClosedRange<10, 20, 100> = 42;
+  //~^ ERROR: Type '42' is not assignable to type '10'.
+
+  // TODO: slowly
+  const maxNumberTest: IntClosedRange<0, 998> = 42;
+  // TODO: slowly
+  const maxNumberTest2: IntClosedRange<0, 998> = 998;
+}
+
 // =========== Integer ===========
 type Integer<T> =
 	T extends unknown // To distributive type
@@ -652,7 +674,7 @@ type PrivateIntRange<
   //~^ ERROR: Type 'number' is not assignable to type '5 | 6 | 7 | 8 | 9'.
   
   const stepTest1: IntRange<10, 20, 2> = 8;
-  //~^ ERROR: Type 'number' is not assignable to type '10 | 16 | 12 | 14 | 18'.
+  //~^ ERROR: Type 'number' is not assignable to type '10 | 12 | 14 | 16 | 18'.
 
   const stepTest2: IntRange<10, 20, 100> = 9;
   //~^ ERROR: Type '9' is not assignable to type '10'.
@@ -719,6 +741,39 @@ type IsArrayReadonly<T extends UnknownArray> = IfNever<T, false, T extends unkno
   // Boundary types
   const d0: IsArrayReadonly<any> = {} as boolean;
   const d1: IsArrayReadonly<never> = false;
+}
+
+// ========= IsBooleanLiteral =========
+type IsBooleanLiteral<T> = LiteralCheck<T, boolean>;
+{
+  const id = 123;
+
+  type GetId<AsString extends boolean> =
+    IsBooleanLiteral<AsString> extends true
+      ? AsString extends true
+        ? `${typeof id}`
+        : typeof id
+      : number | string;
+  
+  function getId<AsString extends boolean = false>(options?: {asString: AsString}) {
+    return '' as GetId<AsString>;
+  }
+  
+  const numberId: 123 = getId();
+  
+  const stringId: '123' = getId<true>({asString: true});
+  
+  const _boolean: boolean = false;
+  const eitherId: string | number = getId({asString: _boolean});
+
+  const booleanLiteral = true;
+  const a0: IsBooleanLiteral<typeof booleanLiteral> = true;
+  const a1: IsBooleanLiteral<typeof _boolean> = true;
+  var a: boolean;
+  const a2: IsBooleanLiteral<typeof a> = false;
+  type A3 = IsBooleanLiteral;
+  //~^ ERROR: Generic type 'IsBooleanLiteral' requires 1 type argument.
+  const a3: IsBooleanLiteral<Tagged<boolean, 'Tag'>> = false;
 }
 
 // =========== Includes ===========
@@ -1020,6 +1075,19 @@ type IsNumericLiteral<T> = LiteralChecks<T, Numeric>;
   const end = '123' as string;
   const a2: true = endsWith('abc123', end);
   //~^ ERROR: Type 'boolean' is not assignable to type 'true'.
+
+  const numberLiteral = 1;
+  const bigintLiteral = 1n;
+  const _number: number = 1;
+  const _bigint: bigint = 1n;
+
+  const b0: IsNumericLiteral<typeof numberLiteral> = true;
+  const b1: IsNumericLiteral<typeof bigintLiteral> = true;
+  const b2: IsNumericLiteral<typeof _number> = false;
+  const b3: IsNumericLiteral<typeof _bigint> = false;
+  type A2 = IsNumericLiteral;
+  //~^ ERROR: Generic type 'IsNumericLiteral' requires 1 type argument.
+  const b4: IsNumericLiteral<Tagged<number, 'Tag'>> = false;
 }
 
 // =========== IsPrimitive ===========
@@ -1060,6 +1128,54 @@ T extends string
   let a11: Length<`${number}`> = 42000000000;
   let a12: Length<`${number}`> = 420000000000;
   let a13: Length<`${number}`> = 4200000000000;
+
+  const stringLiteral = '';
+  const _string: string = '';
+  const b0: IsStringLiteral<typeof stringLiteral> = true;
+  const b1: IsStringLiteral<typeof _string> = false;
+
+  // Strings with infinite set of possible values return `false`
+  const b2: IsStringLiteral<Uppercase<string>> = false;
+  const b3: IsStringLiteral<Lowercase<string>> = false;
+  const b4: IsStringLiteral<Capitalize<string>> = false;
+  const b5: IsStringLiteral<Uncapitalize<string>> = false;
+  const b6: IsStringLiteral<Capitalize<Lowercase<string>>> = false;
+  const b7: IsStringLiteral<Uncapitalize<Uppercase<string>>> = false;
+  const b8: IsStringLiteral<`abc${string}`> = false;
+  const b9: IsStringLiteral<`${string}abc`> = false;
+  const b10: IsStringLiteral<`${number}:${string}`> = false;
+  const b11: IsStringLiteral<`abc${Uppercase<string>}`> = false;
+  const b12: IsStringLiteral<`${Lowercase<string>}abc`> = false;
+  const b13: IsStringLiteral<`${number}`> = false;
+  const b14: IsStringLiteral<`${number}${string}`> = false;
+  const b15: IsStringLiteral<`${number}` | Uppercase<string>> = false;
+  const b16: IsStringLiteral<Capitalize<string> | Uppercase<string>> = false;
+  const b17: IsStringLiteral<`abc${string}` | `${string}abc`> = false;
+
+  // Strings with finite set of possible values return `true`
+  const b18: IsStringLiteral<'a' | 'b'> = true;
+  const b19: IsStringLiteral<Uppercase<'a'>> = true;
+  const b20: IsStringLiteral<Lowercase<'a'>> = true;
+  const b21: IsStringLiteral<Uppercase<'a' | 'b'>> = true;
+  const b22: IsStringLiteral<Lowercase<'a' | 'b'>> = true;
+  const b23: IsStringLiteral<Capitalize<'abc' | 'xyz'>> = true;
+  const b24: IsStringLiteral<Uncapitalize<'Abc' | 'Xyz'>> = true;
+  const b25: IsStringLiteral<`ab${'c' | 'd' | 'e'}`> = true;
+  const b26: IsStringLiteral<Uppercase<'a' | 'b'> | 'C' | 'D'> = true;
+  const b27: IsStringLiteral<Lowercase<'xyz'> | Capitalize<'abc'>> = true;
+
+  // Strings with union of literals and non-literals return `boolean`
+  const b28: IsStringLiteral<Uppercase<string> | 'abc'>  = {} as boolean;
+  const b29: IsStringLiteral<Lowercase<string> | 'Abc'> = {} as boolean;
+  const b30: IsStringLiteral<null | '1' | '2' | '3'> = true; // dependent on `strictNullChecks`
+
+  // Boundary types
+  const b31: IsStringLiteral<any> = false;
+  const b32: IsStringLiteral<never> = false;
+
+  type A1 = IsStringLiteral;
+  //~^ ERROR: Generic type 'IsStringLiteral' requires 1 type argument.
+  const b34: IsStringLiteral<Tagged<string, 'Tag'>> = false;
 }
 
 // =========== IsTuple ===========
@@ -2092,6 +2208,14 @@ type Sum<A extends number, B extends number> = number extends A | B
   const c1: Sum<1 | 2, 3> = {} as 4 | 5;
   const c2: Sum<1 | 2 | 3, 4 | 5> = {} as 5 | 6 | 7 | 8;
 }
+// ============ tagged ============
+declare const tag: unique symbol;
+type TagContainer<Token> = {
+	readonly [tag]: Token;
+};
+
+type Tag<Token extends PropertyKey, TagMetadata> = TagContainer<{[K in Token]: TagMetadata}>;
+type Tagged<Type, TagName extends PropertyKey, TagMetadata = never> = Type & Tag<TagName, TagMetadata>;
 
 // ============ TaggedUnion ============
 type TaggedUnion<

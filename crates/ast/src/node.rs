@@ -115,6 +115,7 @@ pub enum Node<'cx> {
     TemplateExpr(&'cx super::TemplateExpr<'cx>),
     TemplateHead(&'cx super::TemplateHead),
     TemplateSpan(&'cx super::TemplateSpan<'cx>),
+    ComputedPropName(&'cx super::ComputedPropName<'cx>),
 
     // ty
     LitTy(&'cx super::LitTy),
@@ -683,6 +684,11 @@ as_node!(
     (TemplateExpr, super::TemplateExpr<'cx>, template_expr),
     (TemplateHead, super::TemplateHead, template_head),
     (TemplateSpan, super::TemplateSpan<'cx>, template_span),
+    (
+        ComputedPropName,
+        super::ComputedPropName<'cx>,
+        computed_prop_name
+    ),
     (NumLit, super::NumLit, num_lit),
     (BigIntLit, super::BigIntLit, big_int_lit),
     (BoolLit, super::BoolLit, bool_lit),

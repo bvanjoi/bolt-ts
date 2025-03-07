@@ -536,7 +536,7 @@ impl<'cx> ParserState<'cx, '_> {
 
         let asterisk_token = self.parse_optional(TokenKind::Asterisk);
 
-        let name = self.with_parent(id, Self::parse_prop_name)?;
+        let name = self.with_parent(id, |this| this.parse_prop_name(false))?;
         let question_token = self.parse_optional(TokenKind::Question);
         let excl_token = self.parse_optional(TokenKind::Excl);
 

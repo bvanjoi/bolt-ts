@@ -287,7 +287,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         start: usize,
         modifiers: Option<&'cx ast::Modifiers<'cx>>,
     ) -> PResult<&'cx ast::ClassElem<'cx>> {
-        let name = self.with_parent(id, Self::parse_prop_name)?;
+        let name = self.with_parent(id, |this| this.parse_prop_name(false))?;
         let ele = if matches!(self.token.kind, TokenKind::LParen | TokenKind::Less) {
             // method
             let ty_params = self.with_parent(id, Self::parse_ty_params)?;

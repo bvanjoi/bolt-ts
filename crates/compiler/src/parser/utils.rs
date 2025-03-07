@@ -128,23 +128,44 @@ impl<'cx> ParserState<'cx, '_> {
         }
     }
 
+    pub(super) fn is_start_of_param(&mut self) -> bool {
+        let t = self.token.kind;
+        matches!(t, TokenKind::DotDotDot)
+            || t.is_binding_ident_or_private_ident_or_pat()
+            || t.is_modifier_kind()
+            || t == TokenKind::At
+            || self.is_start_of_ty(true)
+    }
+
     pub(super) fn is_start_of_ty(&mut self, in_start_of_param: bool) -> bool {
         use bolt_ts_ast::TokenKind::*;
         if matches!(
             self.token.kind,
-            LBrace
-                | LBracket
-                | DotDotDot
+            Readonly
+                | Unique
+                | Void
+                | Undefined
+                | Null
                 | Typeof
+                | LBrace
+                | LBracket
+                | Pipe
+                | Amp
+                | This
+                | Type
+                | Less
+                | New
                 | String
                 | Number
                 | BigInt
-                | Null
-                | Undefined
-                | Void
                 | True
                 | False
-                | Readonly
+                | Asterisk
+                | Question
+                | Excl
+                | DotDotDot
+                | Infer
+                | Import
                 | NoSubstitutionTemplate
                 | TemplateHead
         ) {
@@ -155,7 +176,7 @@ impl<'cx> ParserState<'cx, '_> {
             self.lookahead(|this| {
                 this.next_token();
                 let t = this.token.kind;
-                t == TokenKind::RParen || t.is_start_of_param() || this.is_start_of_ty(false)
+                t == TokenKind::RParen || this.is_start_of_param() || this.is_start_of_ty(false)
             })
         } else if self.token.kind == TokenKind::Minus {
             !in_start_of_param
@@ -265,24 +286,53 @@ impl<'cx> ParserState<'cx, '_> {
         expr
     }
 
-    pub(super) fn parse_prop_name(&mut self) -> PResult<&'cx ast::PropName<'cx>> {
+    pub(super) fn parse_prop_name(
+        &mut self,
+        allow_computed_prop_names: bool,
+    ) -> PResult<&'cx ast::PropName<'cx>> {
         let kind = match self.token.kind {
             TokenKind::String => {
                 let raw = self.parse_string_lit();
                 let key = self.string_key_value.unwrap();
-                ast::PropNameKind::StringLit { raw, key }
+                Some(ast::PropNameKind::StringLit { raw, key })
             }
             TokenKind::Number => {
                 let lit = self.parse_num_lit(self.number_token(), false);
-                ast::PropNameKind::NumLit(lit)
+                Some(ast::PropNameKind::NumLit(lit))
             }
-            _ => {
-                let ident = self.parse_ident_name()?;
-                ast::PropNameKind::Ident(ident)
+            TokenKind::BigInt => {
+                todo!()
+                // let lit = self.parse_big_int_lit();
+                // ast::PropNameKind::BigIntLit(lit)
             }
+            _ => None,
         };
-        let prop_name = self.alloc(ast::PropName { kind });
-        Ok(prop_name)
+        if let Some(kind) = kind {
+            let prop_name = self.alloc(ast::PropName { kind });
+            Ok(prop_name)
+        } else if allow_computed_prop_names && self.token.kind == TokenKind::LBracket {
+            let id = self.next_node_id();
+            let start = self.token.start();
+            self.expect(TokenKind::LBracket);
+            let expr = self.with_parent(id, |this| this.allow_in_and(Self::parse_expr))?;
+            self.expect(TokenKind::RBracket);
+            let kind = self.alloc(ast::ComputedPropName {
+                id,
+                span: self.new_span(start),
+                expr,
+            });
+            self.insert_map(id, ast::Node::ComputedPropName(kind));
+            let prop_name = self.alloc(ast::PropName {
+                kind: ast::PropNameKind::Computed(kind),
+            });
+            Ok(prop_name)
+        } else {
+            // TODO: Private
+            let ident = self.parse_ident_name()?;
+            let kind = ast::PropNameKind::Ident(ident);
+            let prop_name = self.alloc(ast::PropName { kind });
+            Ok(prop_name)
+        }
     }
 
     #[inline(always)]
@@ -700,7 +750,7 @@ impl<'cx> ParserState<'cx, '_> {
         modifiers: Option<&'cx ast::Modifiers<'cx>>,
         ambient: bool,
     ) -> PResult<&'cx ast::GetterDecl<'cx>> {
-        let name = self.with_parent(id, Self::parse_prop_name)?;
+        let name = self.with_parent(id, |this| this.parse_prop_name(false))?;
         let ty_params = self.with_parent(id, Self::parse_ty_params)?;
         let params = self.with_parent(id, Self::parse_params)?;
         // TODO: assert params.is_none
@@ -733,7 +783,7 @@ impl<'cx> ParserState<'cx, '_> {
         modifiers: Option<&'cx ast::Modifiers<'cx>>,
         ambient: bool,
     ) -> PResult<&'cx ast::SetterDecl<'cx>> {
-        let name = self.with_parent(id, Self::parse_prop_name)?;
+        let name = self.with_parent(id, |this| this.parse_prop_name(false))?;
         let ty_params = self.with_parent(id, Self::parse_ty_params)?;
         let params = self.with_parent(id, Self::parse_params)?;
         let ty = self.with_parent(id, |this| this.parse_ret_ty(true))?;

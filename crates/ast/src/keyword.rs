@@ -66,6 +66,7 @@ gen_atoms!(
     (KW_KEYOF, "keyof"),
     (KW_INFER, "infer"),
     (KW_INTRINSIC, "intrinsic"),
+    (KW_UNIQUE, "unique"),
     (KW_TYPE, "type"),
 );
 

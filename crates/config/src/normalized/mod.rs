@@ -1,4 +1,4 @@
-use crate::options::OutDir;
+use crate::options::{OutDir, Target};
 
 macro_rules! normalized_option {
     ($s: ident, $(($option: ident, $ty: ty)),* $(,)?) => {
@@ -22,7 +22,8 @@ normalized_option!(
     (strict, bool),
     (strict_null_checks, bool),
     (no_implicit_any, bool),
-    (no_unchecked_indexed_access, bool)
+    (no_unchecked_indexed_access, bool),
+    (target, Target)
 );
 
 normalized_option!(

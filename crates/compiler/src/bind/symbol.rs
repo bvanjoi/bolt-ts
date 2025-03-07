@@ -507,6 +507,7 @@ impl GlobalSymbols {
     }
 
     pub fn insert(&mut self, name: SymbolName, symbol_id: SymbolID) {
+        assert!(matches!(name, SymbolName::Normal(_)));
         let prev = self.0.insert(name, symbol_id);
         assert!(prev.is_none(), "prev symbol: {prev:#?}")
     }

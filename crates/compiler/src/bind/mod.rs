@@ -137,5 +137,13 @@ pub fn prop_name(name: &ast::PropName) -> SymbolName {
         ast::PropNameKind::Ident(ident) => SymbolName::Ele(ident.name),
         ast::PropNameKind::NumLit(num) => SymbolName::EleNum(num.val.into()),
         ast::PropNameKind::StringLit { key, .. } => SymbolName::Ele(key),
+        ast::PropNameKind::Computed(c) => {
+            use bolt_ts_ast::ExprKind::*;
+            match c.expr.kind {
+                Ident(n) => SymbolName::Ele(n.name),
+                StringLit(n) => SymbolName::Ele(n.val),
+                _ => unreachable!(),
+            }
+        }
     }
 }

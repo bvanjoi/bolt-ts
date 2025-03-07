@@ -326,6 +326,7 @@ impl<'cx> Emit<'cx> {
                     ast::PropNameKind::Ident(ident) => this.emit_as_string(ident.name),
                     ast::PropNameKind::StringLit { raw, .. } => this.emit_as_string(raw.val),
                     ast::PropNameKind::NumLit(_) => todo!(),
+                    ast::PropNameKind::Computed(_) => todo!(),
                 }
                 this.content.p_r_bracket();
                 this.content.p_whitespace();
@@ -346,6 +347,7 @@ impl<'cx> Emit<'cx> {
                     ast::PropNameKind::Ident(ident) => this.emit_as_string(ident.name),
                     ast::PropNameKind::StringLit { raw, .. } => this.emit_as_string(raw.val),
                     ast::PropNameKind::NumLit(_) => todo!(),
+                    ast::PropNameKind::Computed(_) => todo!(),
                 }
             }
         })

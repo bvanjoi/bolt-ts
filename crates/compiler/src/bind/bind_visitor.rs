@@ -1250,20 +1250,23 @@ impl<'cx, 'atoms> BinderState<'cx, 'atoms> {
             .is_some_and(|ms| ms.flags.contains(ModifierKind::Export));
         self.declare_symbol_and_add_to_symbol_table(container, name, symbol, f.id, is_export);
 
+        let old_old = self.scope_id;
+        self.scope_id = self.new_scope();
+
         if let Some(ty_params) = f.ty_params {
             self.bind_ty_params(ty_params);
         }
 
-        let old = self.scope_id;
         self.scope_id = self.new_scope();
+
         self.bind_params(f.params);
-        if let Some(body) = f.body {
-            self.bind_block_stmt(body);
-        }
         if let Some(ty) = f.ty {
             self.bind_ty(ty);
         }
-        self.scope_id = old;
+        if let Some(body) = f.body {
+            self.bind_block_stmt(body);
+        }
+        self.scope_id = old_old;
     }
 
     pub(super) fn declare_symbol_and_add_to_symbol_table(

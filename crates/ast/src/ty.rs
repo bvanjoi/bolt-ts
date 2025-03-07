@@ -322,6 +322,7 @@ impl PropName<'_> {
             PropNameKind::Ident(ident) => ident.span,
             PropNameKind::NumLit(num) => num.span,
             PropNameKind::StringLit { raw, .. } => raw.span,
+            PropNameKind::Computed(n) => n.span,
         }
     }
 
@@ -330,6 +331,7 @@ impl PropName<'_> {
             PropNameKind::Ident(ident) => ident.id,
             PropNameKind::NumLit(num) => num.id,
             PropNameKind::StringLit { raw, .. } => raw.id,
+            PropNameKind::Computed(n) => n.id,
         }
     }
 }
@@ -339,6 +341,7 @@ pub enum PropNameKind<'cx> {
     Ident(&'cx Ident),
     StringLit { raw: &'cx StringLit, key: AtomId },
     NumLit(&'cx NumLit),
+    Computed(&'cx ComputedPropName<'cx>),
 }
 
 impl PropNameKind<'_> {
@@ -348,6 +351,13 @@ impl PropNameKind<'_> {
             _ => None,
         }
     }
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct ComputedPropName<'cx> {
+    pub id: NodeID,
+    pub span: Span,
+    pub expr: &'cx Expr<'cx>,
 }
 
 #[derive(Debug, Clone, Copy)]

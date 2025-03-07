@@ -24,7 +24,7 @@ pub(super) fn create_transient_symbol<'cx>(
 }
 
 #[derive(Debug, Clone, Copy)]
-pub(crate) enum CheckSymbol<'cx, 'checker> {
+pub(super) enum CheckSymbol<'cx, 'checker> {
     Transient(&'checker TransientSymbol<'cx>),
     Normal(&'checker Symbol),
 }

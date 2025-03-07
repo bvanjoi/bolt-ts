@@ -10,3 +10,11 @@ foo(x => {
   //~^ ERROR: Type 'string' is not assignable to type 'number'.
   return x;
 });
+
+function bar<T>(a: {a: T}): T {
+  return a.a
+}
+
+let b0: number = bar({a: 1});
+let b1: number = bar({a: "1"});
+//~^ ERROR: Type 'T' is not assignable to type 'number'.

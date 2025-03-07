@@ -16,6 +16,7 @@ impl<'cx> From<&ast::PropName<'cx>> for VarLikeName<'cx> {
             ast::PropNameKind::Ident(ident) => VarLikeName::Ident(ident),
             ast::PropNameKind::NumLit(num) => VarLikeName::NumLit(num),
             ast::PropNameKind::StringLit { raw, key } => VarLikeName::StringLit { raw, key },
+            ast::PropNameKind::Computed(n) => todo!(),
         }
     }
 }

@@ -20,7 +20,7 @@ pub fn compile(cwd: String, files: JsValue) -> JsValue {
         serde_json::from_str(atoms.get(raw_tsconfig)).unwrap();
     let libs = bolt_ts_lib::LIB_ENTIRES
         .iter()
-        .map(|(_, file)| bolt_ts_span::ModulePath::Real(root.join(file)))
+        .map(|(_, file)| root.join(file))
         .collect::<Vec<_>>();
     let tsconfig = tsconfig.normalize();
     let output = bolt_ts_compiler::eval_from_with_fs(root, tsconfig, libs, fs, atoms);
@@ -28,13 +28,8 @@ pub fn compile(cwd: String, files: JsValue) -> JsValue {
         let mut result = indexmap::IndexMap::new();
         for (m, value) in output.output {
             let path = output.module_arena.get_path(m);
-            match path {
-                bolt_ts_span::ModulePath::Real(p) => {
-                    let file_path = p.with_extension("js");
-                    result.insert(file_path.to_string_lossy().to_string(), value)
-                }
-                bolt_ts_span::ModulePath::Virtual => todo!(),
-            };
+            let file_path = path.with_extension("js");
+            result.insert(file_path.to_string_lossy().to_string(), value);
         }
         serde_wasm_bindgen::to_value(&result).unwrap()
     } else {
@@ -44,10 +39,7 @@ pub fn compile(cwd: String, files: JsValue) -> JsValue {
             .map(|diag| {
                 let m = diag.inner.module_id();
                 let path = output.module_arena.get_path(m);
-                let path = match path {
-                    bolt_ts_span::ModulePath::Real(p) => p.to_string_lossy().to_string(),
-                    bolt_ts_span::ModulePath::Virtual => todo!(),
-                };
+                let path = path.to_string_lossy().to_string();
                 let primary_label = diag
                     .inner
                     .labels()

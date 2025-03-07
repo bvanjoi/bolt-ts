@@ -56,10 +56,7 @@ pub fn output_files(
     module_arena: &ModuleArena,
     output: &[(ModuleID, String)],
 ) -> FxHashMap<PathBuf, String> {
-    let p = |m: ModuleID| match module_arena.get_path(m) {
-        bolt_ts_span::ModulePath::Real(p) => p,
-        bolt_ts_span::ModulePath::Virtual => todo!(),
-    };
+    let p = |m: ModuleID| module_arena.get_path(m);
     match tsconfig.compiler_options().out_dir() {
         bolt_ts_config::OutDir::OwnRoot => output
             .iter()
@@ -108,7 +105,7 @@ pub fn eval_from(root: PathBuf, tsconfig: NormalizedTsConfig) -> Output {
     let dir = current_exe_dir();
     let libs = bolt_ts_lib::LIB_ENTIRES
         .iter()
-        .map(|(_, file)| ModulePath::Real(dir.join(file)))
+        .map(|(_, file)| dir.join(file))
         .collect::<Vec<_>>();
     eval_from_with_fs(root, tsconfig, libs, fs, atoms)
 }
@@ -151,8 +148,7 @@ pub fn eval_from_with_fs(
 
     entries.extend(include.into_iter().map(|item| {
         let p = item.normalize();
-        let entry = ModulePath::Real(p);
-        module_arena.new_module(entry, false, &mut fs, &mut atoms)
+        module_arena.new_module(p, false, &mut fs, &mut atoms)
     }));
 
     // ==== build graph ====
@@ -194,7 +190,7 @@ pub fn eval_from_with_fs(
         .filter_map(|(state, m)| m.global.then_some(state))
     {
         for ((scope_id, name), symbol) in state.res.iter() {
-            if !scope_id.is_root() {
+            if !scope_id.is_root() || !matches!(name, bind::SymbolName::Normal(_)) {
                 continue;
             }
             global_symbols.insert(*name, *symbol);
@@ -291,16 +287,13 @@ pub fn eval_from_with_fs(
             .modules()
             .iter()
             .map(|m| {
-                if let ModulePath::Real(p) = module_arena.get_path(m.id) {
-                    assert!(
-                        p.is_normalized(),
-                        "path should be normalized, but got: {:?}",
-                        p
-                    );
+                let p = module_arena.get_path(m.id);
+                assert!(
+                    p.is_normalized(),
+                    "path should be normalized, but got: {:?}",
                     p
-                } else {
-                    todo!()
-                }
+                );
+                p
             })
             .collect::<Vec<_>>();
         let set = paths.iter().collect::<std::collections::HashSet<_>>();

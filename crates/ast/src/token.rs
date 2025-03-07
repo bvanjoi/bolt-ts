@@ -208,6 +208,7 @@ pub enum TokenKind {
     Keyof,
     Infer,
     Intrinsic,
+    Unique,
     Type,
     // =====
     EOF,
@@ -467,6 +468,7 @@ impl TryFrom<TokenKind> for super::TyOpKind {
         match value {
             TokenKind::Keyof => Ok(Keyof),
             TokenKind::Readonly => Ok(Readonly),
+            TokenKind::Unique => Ok(Unique),
             _ => Err(()),
         }
     }
@@ -563,7 +565,7 @@ impl TokenKind {
             Declare |
             Get |
             Infer |
-            // Intrinsic |
+            Intrinsic |
             Is |
             Keyof |
             Module |
@@ -578,7 +580,7 @@ impl TokenKind {
             // Symbol |
             Type |
             Undefined |
-                 // Unique |
+                 Unique |
                  // Unknown |
                  // Using |
                  From // Global |
@@ -594,49 +596,6 @@ impl TokenKind {
     pub fn is_lit_prop_name(self) -> bool {
         use TokenKind::*;
         self.is_ident_or_keyword() || matches!(self, String | Number)
-    }
-
-    pub fn is_start_of_param(self) -> bool {
-        matches!(self, TokenKind::DotDotDot)
-            || self.is_binding_ident_or_private_ident_or_pat()
-            || self.is_modifier_kind()
-            || self == TokenKind::At
-            || self.is_start_of_ty(true)
-    }
-
-    pub fn is_start_of_ty(self, is_start_of_param: bool) -> bool {
-        use TokenKind::*;
-
-        if matches!(
-            self,
-            String
-                | Number
-                | Readonly
-                | Void
-                | Undefined
-                | Null
-                | Typeof
-                | LBrace
-                | LBracket
-                | Pipe
-                | Amp
-                | New
-                | This
-                | Type
-                | Less
-                | True
-                | False
-                | Asterisk
-                | Question
-                | Excl
-                | DotDotDot
-        ) {
-            true
-        } else if matches!(self, Function) {
-            !is_start_of_param
-        } else {
-            self.is_ident()
-        }
     }
 
     pub fn is_heritage_clause(&self) -> bool {

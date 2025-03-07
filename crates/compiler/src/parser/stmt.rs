@@ -273,7 +273,7 @@ impl<'cx> ParserState<'cx, '_> {
     fn parse_enum_member(&mut self) -> PResult<&'cx ast::EnumMember<'cx>> {
         let id = self.next_node_id();
         let start = self.token.start();
-        let name = self.with_parent(id, Self::parse_prop_name)?;
+        let name = self.with_parent(id, |this| this.parse_prop_name(false))?;
         let init = self.with_parent(id, Self::parse_init)?;
         let span = self.new_span(start);
         let member = self.alloc(ast::EnumMember {
@@ -846,7 +846,7 @@ impl<'cx> ParserState<'cx, '_> {
                 self.alloc(ast::ObjectBindingName::Prop { prop_name, name })
             }
         } else {
-            let prop_name = self.with_parent(id, Self::parse_prop_name)?;
+            let prop_name = self.with_parent(id, |this| this.parse_prop_name(false))?;
             if self.token.kind != TokenKind::Colon {
                 todo!("error")
             } else {
