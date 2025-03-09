@@ -213,6 +213,7 @@ pub struct TyChecker<'cx> {
     permissive_mapper: &'cx PermissiveMapper,
     restrictive_mapper: &'cx RestrictiveMapper,
     // =======================
+    arguments_symbol: SymbolID,
     empty_ty_literal_symbol: SymbolID,
     boolean_ty: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
     string_or_number_ty: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
@@ -247,7 +248,7 @@ pub struct TyChecker<'cx> {
     template_constraint_ty: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
     empty_array: &'cx [u8; 0],
     // === resolver ===
-    pub binder: &'cx bind::Binder<'cx>,
+    pub binder: &'cx bind::Binder,
     global_symbols: &'cx GlobalSymbols,
 
     // === cycle check ===
@@ -268,7 +269,7 @@ impl<'cx> TyChecker<'cx> {
         ty_arena: &'cx bumpalo::Bump,
         p: &'cx Parser<'cx>,
         atoms: &'cx mut AtomMap<'cx>,
-        binder: &'cx bind::Binder<'cx>,
+        binder: &'cx bind::Binder,
         global_symbols: &'cx GlobalSymbols,
         config: &'cx NormalizedCompilerOptions,
         flow_nodes: Vec<FlowNodes<'cx>>,
@@ -276,6 +277,15 @@ impl<'cx> TyChecker<'cx> {
         assert_eq!(ty_arena.allocated_bytes(), 0);
         let empty_array = ty_arena.alloc([]);
         let mut transient_symbols = Vec::with_capacity(p.module_count() * 1024);
+        let arguments_symbol = {
+            let symbol = TransientSymbol {
+                name: SymbolName::Normal(keyword::IDENT_ARGUMENTS),
+                flags: SymbolFlags::PROPERTY,
+                links: Default::default(),
+                origin: None,
+            };
+            create_transient_symbol(&mut transient_symbols, symbol)
+        };
         let empty_ty_literal_symbol = {
             let symbol = TransientSymbol {
                 name: SymbolName::Type,
@@ -354,6 +364,7 @@ impl<'cx> TyChecker<'cx> {
             flow_nodes,
 
             empty_ty_literal_symbol,
+            arguments_symbol,
             empty_array,
             any_ty,
             auto_ty,
@@ -2089,13 +2100,13 @@ impl<'cx> TyChecker<'cx> {
                 } else if let Some(t_ident) = t.as_ident() {
                     self.resolve_symbol_by_ident(s_ident) == self.resolve_symbol_by_ident(t_ident)
                 } else if let Some(v) = t.as_var_decl() {
-                    match v.binding {
-                        bolt_ts_ast::Binding::Ident(ident) => {
+                    match v.binding.kind {
+                        bolt_ts_ast::BindingKind::Ident(ident) => {
                             self.resolve_symbol_by_ident(s_ident)
                                 == self.resolve_symbol_by_ident(ident)
                         }
-                        bolt_ts_ast::Binding::ObjectPat(_) => todo!(),
-                        bolt_ts_ast::Binding::ArrayPat(array_pat) => todo!(),
+                        bolt_ts_ast::BindingKind::ObjectPat(_) => todo!(),
+                        bolt_ts_ast::BindingKind::ArrayPat(_) => todo!(),
                     }
                 } else if t.is_object_binding_elem() {
                     todo!()
@@ -2816,6 +2827,12 @@ impl<'cx> TyChecker<'cx> {
             return v.contain_reference;
         }
         true
+    }
+
+    fn get_annotated_accessor_ty(&mut self, n: ast::NodeID) -> Option<&'cx ty::Ty<'cx>> {
+        self.p
+            .get_annotated_accessor_ty_node(n)
+            .map(|n| self.get_ty_from_type_node(n))
     }
 }
 

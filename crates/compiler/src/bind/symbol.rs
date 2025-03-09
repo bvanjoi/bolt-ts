@@ -4,8 +4,7 @@ use bolt_ts_utils::fx_hashmap_with_capacity;
 use rustc_hash::FxHashMap;
 
 use crate::check::F64Represent;
-use crate::keyword;
-use bolt_ts_ast::NodeID;
+use bolt_ts_ast::{NodeID, keyword};
 
 #[derive(Debug, Clone, Copy, Hash, PartialEq, Eq)]
 pub enum SymbolName {
@@ -135,7 +134,9 @@ pub struct Symbol {
 }
 
 impl Symbol {
-    pub const ERR: SymbolID = SymbolID::root(ModuleID::root());
+    pub const ERR: SymbolID = SymbolID::ERR;
+    pub const ARGUMENTS: SymbolID = SymbolID::ARGUMENTS;
+
     pub(super) fn new(name: SymbolName, flags: SymbolFlags, kind: SymbolKind) -> Self {
         Self {
             name,
@@ -403,6 +404,15 @@ impl Symbol {
 bolt_ts_utils::module_index!(SymbolID);
 
 impl SymbolID {
+    pub(super) const ERR: Self = SymbolID {
+        module: ModuleID::root(), // TODO: `ModuleID::BUILTIN`
+        index: 0,
+    };
+    pub(super) const ARGUMENTS: Self = SymbolID {
+        module: ModuleID::BUILTIN,
+        index: 1,
+    };
+
     pub fn opt_decl(&self, binder: &super::Binder) -> Option<NodeID> {
         let s = binder.symbol(*self);
         let id = s.kind.0.opt_decl();
@@ -440,10 +450,13 @@ impl Default for Symbols {
 
 impl Symbols {
     pub fn new(module_id: ModuleID) -> Self {
+        assert_ne!(module_id, ModuleID::DEFAULT);
+
         let mut this = Self {
             module_id,
             data: Vec::with_capacity(512),
         };
+        // TODO: remove
         let err = this.insert(Symbol::new(
             SymbolName::Normal(keyword::IDENT_EMPTY),
             SymbolFlags::empty(),

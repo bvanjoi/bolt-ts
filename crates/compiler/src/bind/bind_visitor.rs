@@ -11,6 +11,7 @@ use super::symbol::IndexSymbol;
 use super::symbol::{SymbolFlags, SymbolFnKind, SymbolKind};
 use super::symbol::{SymbolID, SymbolName, Symbols};
 
+use bolt_ts_ast::ModifierKind;
 use bolt_ts_atom::AtomMap;
 use bolt_ts_span::ModuleID;
 use bolt_ts_utils::fx_hashmap_with_capacity;
@@ -79,7 +80,7 @@ impl<'cx, 'atoms> BinderState<'cx, 'atoms> {
         self.connect(root.id);
         self.current_flow = Some(self.flow_nodes.create_start(None));
         let id = self.create_block_container_symbol(root.id);
-        assert_eq!(id.index_as_u32(), 1);
+        assert_eq!(id.index_as_u32(), 1); // TODO: `1` -> `0`
         for stmt in root.stmts {
             self.bind_stmt(root.id, stmt)
         }
@@ -485,6 +486,7 @@ impl<'cx, 'atoms> BinderState<'cx, 'atoms> {
             } else {
                 unreachable!()
             }
+            self.create_final_res(decl, name);
         } else {
             let symbol = if flags.intersects(SymbolFlags::GET_ACCESSOR) {
                 self.declare_symbol(
@@ -621,6 +623,19 @@ impl<'cx, 'atoms> BinderState<'cx, 'atoms> {
                     SymbolFnKind::Ctor,
                     false,
                 );
+                self.scope_id = old;
+            }
+            Setter(n) => {
+                let old = self.scope_id;
+                self.scope_id = self.new_scope();
+                self.bind_params(n.params);
+                self.bind_set_access(container, n, false);
+                self.scope_id = old;
+            }
+            Getter(n) => {
+                let old = self.scope_id;
+                self.scope_id = self.new_scope();
+                self.bind_get_access(container, n, false);
                 self.scope_id = old;
             }
         }
@@ -1115,16 +1130,18 @@ impl<'cx, 'atoms> BinderState<'cx, 'atoms> {
                 SymbolKind::FunctionScopedVar(FunctionScopedVarSymbol { decl: var_decl })
             }
         };
-        use bolt_ts_ast::Binding::*;
-        match binding {
+        use bolt_ts_ast::BindingKind::*;
+        match binding.kind {
             Ident(ident) => {
                 self.connect(ident.id);
                 let symbol =
                     self.create_var_symbol(ident.name, include_flags, symbol_kind(), exclude_flags);
                 self.create_final_res(ident.id, symbol);
                 if let Some(container) = container {
-                    let members = self.members(container, is_export);
-                    members.insert(SymbolName::Normal(ident.name), symbol);
+                    let name = SymbolName::Normal(ident.name);
+                    self.declare_symbol_and_add_to_symbol_table(
+                        container, name, symbol, binding.id, is_export,
+                    );
                 }
             }
             ObjectPat(object) => {
@@ -1226,7 +1243,12 @@ impl<'cx, 'atoms> BinderState<'cx, 'atoms> {
 
     fn bind_fn_decl(&mut self, container: ast::NodeID, f: &'cx ast::FnDecl<'cx>) {
         self.connect(f.id);
-        self.create_fn_symbol(container, f);
+        let symbol = self.create_fn_symbol(container, f);
+        let name = SymbolName::Normal(f.name.name);
+        let is_export = f
+            .modifiers
+            .is_some_and(|ms| ms.flags.contains(ModifierKind::Export));
+        self.declare_symbol_and_add_to_symbol_table(container, name, symbol, f.id, is_export);
 
         if let Some(ty_params) = f.ty_params {
             self.bind_ty_params(ty_params);
@@ -1242,5 +1264,52 @@ impl<'cx, 'atoms> BinderState<'cx, 'atoms> {
             self.bind_ty(ty);
         }
         self.scope_id = old;
+    }
+
+    pub(super) fn declare_symbol_and_add_to_symbol_table(
+        &mut self,
+        container: ast::NodeID,
+        name: SymbolName,
+        symbol: SymbolID,
+        current: ast::NodeID,
+        // TODO: delete `is_export`
+        is_export: bool,
+    ) {
+        let c = self.p.node(container);
+        use ast::Node::*;
+        match c {
+            NamespaceDecl(_) => self.declare_module_member(container, name, symbol, current),
+            _ => {
+                // TODO: handle more case:
+                if is_export {
+                    let members = self.members(container, true);
+                    members.insert(name, symbol);
+                } else {
+                    let members = self.members(container, false);
+                    members.insert(name, symbol);
+                }
+            }
+        }
+    }
+
+    fn declare_module_member(
+        &mut self,
+        container: ast::NodeID,
+        name: SymbolName,
+        symbol: SymbolID,
+        current: ast::NodeID,
+    ) {
+        let c = self.p.node(container).expect_namespace_decl();
+        let has_export_modifier = self
+            .p
+            .get_combined_modifier_flags(current)
+            .intersects(ModifierKind::Export);
+        if has_export_modifier || c.flags.intersects(bolt_ts_ast::NodeFlags::EXPORT_CONTEXT) {
+            let members = self.members(container, true);
+            members.insert(name, symbol);
+        } else {
+            let members = self.members(container, false);
+            members.insert(name, symbol);
+        }
     }
 }

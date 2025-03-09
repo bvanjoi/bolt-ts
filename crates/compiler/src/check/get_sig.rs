@@ -313,10 +313,10 @@ fn get_sig_from_decl<'cx>(
     let mut min_args_count = 0;
     let mut params = Vec::with_capacity(params_of_node.len());
     for param in params_of_node {
-        let symbol = match param.name {
-            ast::Binding::Ident(ident) => checker.final_res(ident.id),
-            ast::Binding::ObjectPat(_) => todo!(),
-            bolt_ts_ast::Binding::ArrayPat(array_pat) => todo!(),
+        let symbol = match param.name.kind {
+            ast::BindingKind::Ident(ident) => checker.final_res(ident.id),
+            ast::BindingKind::ObjectPat(_) => todo!(),
+            bolt_ts_ast::BindingKind::ArrayPat(array_pat) => todo!(),
         };
         params.push(symbol);
         let is_opt = param.question.is_some() || param.dotdotdot.is_some() || param.init.is_some();

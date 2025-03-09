@@ -1573,12 +1573,24 @@ impl<'cx> TyChecker<'cx> {
             let class = self.p.parent(id).unwrap();
             assert!(self.p.node(class).is_class_like());
             let symbol = self.get_symbol_of_decl(class);
-            Some(self.get_declared_ty_of_symbol(symbol))
+            return Some(self.get_declared_ty_of_symbol(symbol));
         } else if let Some(ty_node) = n.ret_ty() {
-            Some(self.get_ty_from_type_node(ty_node))
-        } else {
-            self.get_ret_ty_of_ty_tag(id)
+            return Some(self.get_ty_from_type_node(ty_node));
+        } else if self.p.node(id).is_getter_decl() {
+            let symbol = self.get_symbol_of_decl(id);
+            let setter = self
+                .binder
+                .symbol(symbol)
+                .expect_getter_setter()
+                .setter_decl;
+            if let Some(setter) = setter {
+                if let Some(ty) = self.get_annotated_accessor_ty(setter) {
+                    return Some(ty);
+                }
+            }
         }
+
+        self.get_ret_ty_of_ty_tag(id)
     }
 
     pub fn get_ret_ty_from_body(&mut self, id: ast::NodeID) -> &'cx ty::Ty<'cx> {

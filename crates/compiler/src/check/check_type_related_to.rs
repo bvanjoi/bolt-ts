@@ -178,7 +178,9 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
                 && source
                     .get_object_flags()
                     .contains(ObjectFlags::OBJECT_LITERAL | ObjectFlags::FRESH_LITERAL);
-            if is_performing_excess_property_check && self.has_excess_properties(source, target, report_error) {
+            if is_performing_excess_property_check
+                && self.has_excess_properties(source, target, report_error)
+            {
                 if report_error {
                     return Ternary::TRUE;
                 } else {

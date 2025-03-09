@@ -36,15 +36,13 @@ impl ScopeID {
     }
 }
 
-pub struct Binder<'cx> {
-    p: &'cx Parser<'cx>,
+pub struct Binder {
     binder_result: Vec<ResolveResult>,
 }
 
-impl<'cx> Binder<'cx> {
-    pub fn new(p: &'cx Parser<'cx>) -> Self {
+impl Binder {
+    pub fn new(p: &Parser) -> Self {
         Self {
-            p,
             binder_result: Vec::with_capacity(p.module_count() + 1),
         }
     }

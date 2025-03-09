@@ -5,5 +5,6 @@ interface Foo {
 }
 
 interface Bar extends Foo {
+  //~^ ERROR: Interface 'Bar' incorrectly extends interface 'Foo'.
   f(key: string): string;
 }

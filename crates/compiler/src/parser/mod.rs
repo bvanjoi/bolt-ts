@@ -577,3 +577,11 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         self.in_context(NodeFlags::DISALLOW_CONDITIONAL_TYPES_CONTEXT)
     }
 }
+
+fn has_export_decls(stmts: &bolt_ts_ast::Stmts<'_>) -> bool {
+    stmts.iter().any(|stmt| match stmt.kind {
+        bolt_ts_ast::StmtKind::Export(_) => true,
+        // TODO: export assignment
+        _ => false,
+    })
+}

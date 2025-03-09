@@ -15,10 +15,10 @@ impl TyChecker<'_> {
 
             if !node.is_arrow_fn_expr() {
                 let param = node.params().and_then(|params| params.first());
-                if param.is_none_or(|param| match param.name {
-                    bolt_ts_ast::Binding::Ident(ident) => ident.name == keyword::KW_THIS,
-                    bolt_ts_ast::Binding::ObjectPat(_) => false,
-                    bolt_ts_ast::Binding::ArrayPat(_) => todo!(),
+                if param.is_none_or(|param| match param.name.kind {
+                    bolt_ts_ast::BindingKind::Ident(ident) => ident.name == keyword::KW_THIS,
+                    bolt_ts_ast::BindingKind::ObjectPat(_) => false,
+                    bolt_ts_ast::BindingKind::ArrayPat(_) => todo!(),
                 }) {
                     return true;
                 }

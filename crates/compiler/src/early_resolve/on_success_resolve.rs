@@ -20,8 +20,12 @@ impl<'cx> Resolver<'cx, '_, '_> {
                 .p
                 .node(associated_declaration_for_containing_initializer_or_binding_name);
             if let Some(param_decl) = node.as_param_decl() {
-                if symbol == self.states[self.module_id.as_usize()].final_res[&param_decl.name.id()]
-                {
+                let id = match param_decl.name.kind {
+                    bolt_ts_ast::BindingKind::Ident(ident) => ident.id,
+                    bolt_ts_ast::BindingKind::ObjectPat(_) => todo!(),
+                    bolt_ts_ast::BindingKind::ArrayPat(_) => todo!(),
+                };
+                if symbol == self.states[self.module_id.as_usize()].final_res[&id] {
                     let error = errors::ParameterXCannotReferenceItself {
                         span: ident.span,
                         name: self.atoms.get(ident.name).to_string(),

@@ -425,9 +425,9 @@ impl<'cx> Emit<'cx> {
     }
 
     pub(super) fn emit_binding(&mut self, binding: &'cx ast::Binding<'cx>) {
-        match binding {
-            ast::Binding::Ident(n) => self.emit_ident(n),
-            ast::Binding::ObjectPat(n) => {
+        match binding.kind {
+            ast::BindingKind::Ident(n) => self.emit_ident(n),
+            ast::BindingKind::ObjectPat(n) => {
                 self.content.p_l_brace();
                 self.emit_list(
                     n.elems,
@@ -439,7 +439,7 @@ impl<'cx> Emit<'cx> {
                 );
                 self.content.p_r_brace();
             }
-            bolt_ts_ast::Binding::ArrayPat(_) => todo!(),
+            bolt_ts_ast::BindingKind::ArrayPat(_) => todo!(),
         };
     }
 
@@ -457,8 +457,8 @@ impl<'cx> Emit<'cx> {
 
         // var name
         fn sub_names_of_binding<'cx>(binding: &'cx ast::Binding<'cx>) -> Vec<bolt_ts_atom::AtomId> {
-            use bolt_ts_ast::Binding::*;
-            match binding {
+            use bolt_ts_ast::BindingKind::*;
+            match binding.kind {
                 Ident(n) => vec![n.name],
                 ObjectPat(n) => n
                     .elems

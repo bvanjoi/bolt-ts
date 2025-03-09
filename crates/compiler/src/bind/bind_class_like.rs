@@ -72,15 +72,15 @@ impl<'cx> BinderState<'cx, '_> {
                     .modifiers
                     .is_some_and(|ms| ms.flags.contains(ModifierKind::Public))
             {
-                match param.name {
-                    bolt_ts_ast::Binding::Ident(ident) => self.create_class_prop_ele(
+                match param.name.kind {
+                    bolt_ts_ast::BindingKind::Ident(ident) => self.create_class_prop_ele(
                         container,
                         SymbolName::Ele(ident.name),
                         param.id,
                         param.modifiers,
                     ),
-                    bolt_ts_ast::Binding::ObjectPat(_) => todo!(),
-                    bolt_ts_ast::Binding::ArrayPat(_) => todo!(),
+                    bolt_ts_ast::BindingKind::ObjectPat(_) => todo!(),
+                    bolt_ts_ast::BindingKind::ArrayPat(_) => todo!(),
                 };
             }
         }
@@ -147,9 +147,14 @@ impl<'cx> BinderState<'cx, '_> {
             let is_export = class
                 .modifiers()
                 .is_some_and(|ms| ms.flags.contains(ModifierKind::Export));
-            let members = self.members(container, is_export);
             let name = SymbolName::Normal(class.name().unwrap().name);
-            members.insert(name, class_symbol);
+            self.declare_symbol_and_add_to_symbol_table(
+                container,
+                name,
+                class_symbol,
+                class.id(),
+                is_export,
+            );
         }
 
         let old = self.scope_id;

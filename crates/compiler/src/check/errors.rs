@@ -426,3 +426,19 @@ pub(super) struct TypeProducesATupleTypeThatIsTooLargeToRepresent {
     #[label(primary)]
     pub span: Span,
 }
+
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
+#[error("Interface '{derived}' incorrectly extends interface '{base}'.")]
+pub(super) struct Interface0IncorrectlyExtendsInterface1 {
+    #[label(primary)]
+    pub span: Span,
+    pub base: String,
+    pub derived: String,
+}
+
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
+#[error("Ambient module declaration cannot specify relative module name.")]
+pub(super) struct AmbientModuleDeclarationCannotSpecifyRelativeModuleName {
+    #[label(primary)]
+    pub span: Span,
+}

@@ -25,6 +25,9 @@ pub trait VarLike<'cx>: Copy + std::fmt::Debug {
     fn name(&self) -> VarLikeName<'cx>;
     fn decl_ty(&self) -> Option<&'cx ast::Ty<'cx>>;
     fn init(&self) -> Option<&'cx ast::Expr<'cx>>;
+    fn is_param(&self) -> bool {
+        false
+    }
 }
 
 impl<'cx> VarLike<'cx> for ast::VarDecl<'cx> {
@@ -32,10 +35,10 @@ impl<'cx> VarLike<'cx> for ast::VarDecl<'cx> {
         self.id
     }
     fn name(&self) -> VarLikeName<'cx> {
-        match self.binding {
-            ast::Binding::Ident(n) => VarLikeName::Ident(n),
-            ast::Binding::ObjectPat(n) => VarLikeName::ObjectPat(n),
-            bolt_ts_ast::Binding::ArrayPat(array_pat) => todo!(),
+        match self.binding.kind {
+            ast::BindingKind::Ident(n) => VarLikeName::Ident(n),
+            ast::BindingKind::ObjectPat(n) => VarLikeName::ObjectPat(n),
+            bolt_ts_ast::BindingKind::ArrayPat(array_pat) => todo!(),
         }
     }
     fn decl_ty(&self) -> Option<&'cx ast::Ty<'cx>> {
@@ -51,10 +54,10 @@ impl<'cx> VarLike<'cx> for ast::ParamDecl<'cx> {
         self.id
     }
     fn name(&self) -> VarLikeName<'cx> {
-        match self.name {
-            bolt_ts_ast::Binding::Ident(n) => VarLikeName::Ident(n),
-            bolt_ts_ast::Binding::ObjectPat(n) => VarLikeName::ObjectPat(n),
-            bolt_ts_ast::Binding::ArrayPat(n) => todo!(),
+        match self.name.kind {
+            bolt_ts_ast::BindingKind::Ident(n) => VarLikeName::Ident(n),
+            bolt_ts_ast::BindingKind::ObjectPat(n) => VarLikeName::ObjectPat(n),
+            bolt_ts_ast::BindingKind::ArrayPat(n) => todo!(),
         }
     }
     fn decl_ty(&self) -> Option<&'cx ast::Ty<'cx>> {
@@ -62,6 +65,9 @@ impl<'cx> VarLike<'cx> for ast::ParamDecl<'cx> {
     }
     fn init(&self) -> Option<&'cx ast::Expr<'cx>> {
         self.init
+    }
+    fn is_param(&self) -> bool {
+        true
     }
 }
 

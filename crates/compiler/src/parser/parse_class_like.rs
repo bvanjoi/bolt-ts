@@ -390,32 +390,11 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
     ) -> PResult<&'cx ast::ClassElem<'cx>> {
         let is_getter = t == TokenKind::Get;
         assert!(is_getter || t == TokenKind::Set);
-        let name = self.with_parent(id, Self::parse_prop_name)?;
-        let ty_params = self.with_parent(id, Self::parse_ty_params)?;
-        let params = self.with_parent(id, Self::parse_params)?;
-        let ty = self.with_parent(id, |this| this.parse_ret_ty(true))?;
-        let body = self.with_parent(id, Self::parse_fn_block)?;
         let kind = if is_getter {
-            let decl = self.alloc(ast::GetterDecl {
-                id,
-                modifiers,
-                span: self.new_span(start as u32),
-                name,
-                ty,
-                body,
-            });
-            self.insert_map(id, ast::Node::GetterDecl(decl));
+            let decl = self.parse_getter_accessor_decl(id, start, modifiers, false)?;
             ast::ClassEleKind::Getter(decl)
         } else {
-            let decl = self.alloc(ast::SetterDecl {
-                id,
-                span: self.new_span(start as u32),
-                modifiers,
-                name,
-                params,
-                body,
-            });
-            self.insert_map(id, ast::Node::SetterDecl(decl));
+            let decl = self.parse_setter_accessor_decl(id, start, modifiers, false)?;
             ast::ClassEleKind::Setter(decl)
         };
         let ele = self.alloc(ast::ClassElem { kind });

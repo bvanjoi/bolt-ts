@@ -114,12 +114,13 @@ impl<'cx> ParserState<'cx, '_> {
         assert!(self.token.kind == TokenKind::EqGreat);
         let expr_id = self.next_node_id();
         let param_id = self.next_node_id();
+        let name = self.with_parent(param_id, |this| this.parse_binding_with_ident(Some(param)));
         let param = self.alloc(ast::ParamDecl {
             id: param_id,
             span: param.span,
             modifiers: None,
             dotdotdot: None,
-            name: self.alloc(ast::Binding::Ident(param)),
+            name,
             question: None,
             ty: None,
             init: None,

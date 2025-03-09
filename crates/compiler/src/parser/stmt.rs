@@ -3,7 +3,6 @@ use bolt_ts_atom::AtomId;
 use bolt_ts_ast::TokenKind;
 use bolt_ts_ast::{NodeFlags, VarDecls};
 
-use super::ast;
 use super::errors;
 use super::list_ctx;
 use super::parse_class_like::ParseClassDecl;
@@ -11,6 +10,7 @@ use super::parse_fn_like::ParseFnDecl;
 use super::parse_import_export_spec::ParseNamedExports;
 use super::parse_import_export_spec::ParseNamedImports;
 use super::{PResult, ParserState};
+use super::{ast, has_export_decls};
 use crate::keyword::{self, IDENT_GLOBAL};
 use crate::parser::parse_break_or_continue::{ParseBreak, ParseContinue};
 
@@ -333,15 +333,7 @@ impl<'cx> ParserState<'cx, '_> {
         let name = self.parse_ident_name()?;
         let block = self.parse_module_block()?;
         let span = self.new_span(start);
-        let decl = self.alloc(ast::NsDecl {
-            id,
-            span,
-            modifiers: mods,
-            name: ast::ModuleName::Ident(name),
-            block: Some(block),
-        });
-        self.insert_map(id, ast::Node::NamespaceDecl(decl));
-        Ok(decl)
+        Ok(self.create_ns_decl(id, span, mods, ast::ModuleName::Ident(name), Some(block)))
     }
 
     pub(super) fn is_ident_name(&self, name: AtomId) -> bool {
@@ -371,15 +363,34 @@ impl<'cx> ParserState<'cx, '_> {
             None
         };
         let span = self.new_span(start);
+        Ok(self.create_ns_decl(id, span, mods, name, block))
+    }
+
+    fn create_ns_decl(
+        &mut self,
+        id: ast::NodeID,
+        span: bolt_ts_span::Span,
+        modifiers: Option<&'cx bolt_ts_ast::Modifiers<'cx>>,
+        name: bolt_ts_ast::ModuleName<'cx>,
+        block: Option<&'cx bolt_ts_ast::BlockStmt<'cx>>,
+    ) -> &'cx ast::NsDecl<'cx> {
+        let flags = if self.context_flags.intersects(ast::NodeFlags::AMBIENT)
+            && block.is_some_and(|body| !has_export_decls(&body.stmts))
+        {
+            NodeFlags::EXPORT_CONTEXT | self.context_flags
+        } else {
+            self.context_flags
+        };
         let decl = self.alloc(ast::NsDecl {
             id,
             span,
-            modifiers: mods,
+            modifiers,
             name,
             block,
+            flags,
         });
         self.insert_map(id, ast::Node::NamespaceDecl(decl));
-        Ok(decl)
+        decl
     }
 
     fn parse_type_decl(&mut self) -> PResult<&'cx ast::TypeDecl<'cx>> {
@@ -804,12 +815,17 @@ impl<'cx> ParserState<'cx, '_> {
 
     fn parse_ident_or_pat(&mut self) -> PResult<&'cx ast::Binding<'cx>> {
         use bolt_ts_ast::TokenKind::*;
-        let binding = match self.token.kind {
-            LBracket => ast::Binding::ArrayPat(self.parse_array_binding_pat()?),
-            LBrace => ast::Binding::ObjectPat(self.parse_object_binding_pat()?),
-            _ => ast::Binding::Ident(self.parse_binding_ident()),
+        let id = self.next_node_id();
+        let span = self.token.start();
+        let kind = match self.token.kind {
+            LBracket => ast::BindingKind::ArrayPat(self.parse_array_binding_pat()?),
+            LBrace => ast::BindingKind::ObjectPat(self.parse_object_binding_pat()?),
+            _ => ast::BindingKind::Ident(self.parse_binding_ident()),
         };
-        Ok(self.alloc(binding))
+        let span = self.new_span(span);
+        let binding = self.alloc(ast::Binding { id, span, kind });
+        self.insert_map(id, ast::Node::Binding(binding));
+        Ok(binding)
     }
 
     fn parse_object_binding_ele(&mut self) -> PResult<&'cx ast::ObjectBindingElem<'cx>> {
@@ -888,6 +904,13 @@ impl<'cx> ParserState<'cx, '_> {
         let binding = self.with_parent(id, Self::parse_ident_or_pat)?;
         let ty = self.with_parent(id, Self::parse_ty_anno)?;
         let init = self.with_parent(id, Self::parse_init)?;
+        if self.context_flags.intersects(NodeFlags::AMBIENT) {
+            if let Some(init) = init {
+                let error =
+                    errors::InitializersAreNotAllowedInAmbientContexts { span: init.span() };
+                self.push_error(Box::new(error));
+            }
+        }
         let span = self.new_span(start);
         let node = self.alloc(ast::VarDecl {
             id,

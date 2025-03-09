@@ -6,10 +6,10 @@ pub fn pprint_ident(ident: &super::Ident, atoms: &AtomMap) -> String {
 }
 
 pub fn pprint_binding(binding: &super::Binding<'_>, atoms: &AtomMap) -> String {
-    match binding {
-        super::Binding::Ident(ident) => pprint_ident(ident, atoms),
-        super::Binding::ObjectPat(pat) => todo!(),
-        crate::Binding::ArrayPat(pat) => todo!(),
+    match binding.kind {
+        super::BindingKind::Ident(ident) => pprint_ident(ident, atoms),
+        super::BindingKind::ObjectPat(pat) => todo!(),
+        crate::BindingKind::ArrayPat(pat) => todo!(),
     }
 }
 

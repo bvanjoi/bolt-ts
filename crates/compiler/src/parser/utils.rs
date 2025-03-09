@@ -212,6 +212,7 @@ impl<'cx> ParserState<'cx, '_> {
                 | If
                 | Return
                 | Class
+                | Enum
                 | For
                 | Continue
                 | Break
@@ -456,6 +457,25 @@ impl<'cx> ParserState<'cx, '_> {
         Ok(params)
     }
 
+    pub(super) fn parse_binding_with_ident(
+        &mut self,
+        ident: Option<&'cx ast::Ident>,
+    ) -> &'cx ast::Binding<'cx> {
+        let start = self.token.start();
+        let id = self.next_node_id();
+        let ident = if let Some(ident) = ident {
+            self.parent_map.r#override(ident.id, id);
+            ident
+        } else {
+            self.with_parent(id, |this| this.create_ident(true, None))
+        };
+        let kind = ast::BindingKind::Ident(ident);
+        let span = self.new_span(start);
+        let name = self.alloc(ast::Binding { id, span, kind });
+        self.insert_map(id, ast::Node::Binding(name));
+        name
+    }
+
     pub(super) fn parse_param(&mut self) -> PResult<&'cx ast::ParamDecl<'cx>> {
         let start = self.token.start();
         let id = self.next_node_id();
@@ -483,9 +503,8 @@ impl<'cx> ParserState<'cx, '_> {
         }
 
         if self.token.kind == TokenKind::This {
-            let ident = self.create_ident(true, None);
-            let ty = self.parse_ty_anno()?;
-            let name = self.alloc(ast::Binding::Ident(ident));
+            let name = self.with_parent(id, |this| this.parse_binding_with_ident(None));
+            let ty = self.with_parent(id, Self::parse_ty_anno)?;
             let decl = self.alloc(ast::ParamDecl {
                 id,
                 span: self.new_span(start),
@@ -516,7 +535,7 @@ impl<'cx> ParserState<'cx, '_> {
                             }
                         })
                         .collect::<Vec<_>>();
-                    let span = Span::new(ms.span.lo, name.span().hi, name.span().module);
+                    let span = Span::new(ms.span.lo, name.span.hi, name.span.module);
                     let error = errors::AParameterPropertyCannotBeDeclaredUsingARestParameter {
                         span,
                         kinds,
@@ -672,5 +691,70 @@ impl<'cx> ParserState<'cx, '_> {
         });
         self.insert_map(id, ast::Node::IndexSigDecl(sig));
         Ok(sig)
+    }
+
+    pub(super) fn parse_getter_accessor_decl(
+        &mut self,
+        id: ast::NodeID,
+        start: usize,
+        modifiers: Option<&'cx ast::Modifiers<'cx>>,
+        ambient: bool,
+    ) -> PResult<&'cx ast::GetterDecl<'cx>> {
+        let name = self.with_parent(id, Self::parse_prop_name)?;
+        let ty_params = self.with_parent(id, Self::parse_ty_params)?;
+        let params = self.with_parent(id, Self::parse_params)?;
+        // TODO: assert params.is_none
+        let ty = self.with_parent(id, |this| this.parse_ret_ty(true))?;
+        let mut body = self.with_parent(id, Self::parse_fn_block)?;
+        if ambient {
+            if let Some(body) = body {
+                let error =
+                    errors::AnImplementationCannotBeDeclaredInAmbientContexts { span: body.span };
+                self.push_error(Box::new(error));
+            }
+            body = None;
+        }
+        let decl = self.alloc(ast::GetterDecl {
+            id,
+            modifiers,
+            span: self.new_span(start as u32),
+            name,
+            ty,
+            body,
+        });
+        self.insert_map(id, ast::Node::GetterDecl(decl));
+        Ok(decl)
+    }
+
+    pub(super) fn parse_setter_accessor_decl(
+        &mut self,
+        id: ast::NodeID,
+        start: usize,
+        modifiers: Option<&'cx ast::Modifiers<'cx>>,
+        ambient: bool,
+    ) -> PResult<&'cx ast::SetterDecl<'cx>> {
+        let name = self.with_parent(id, Self::parse_prop_name)?;
+        let ty_params = self.with_parent(id, Self::parse_ty_params)?;
+        let params = self.with_parent(id, Self::parse_params)?;
+        let ty = self.with_parent(id, |this| this.parse_ret_ty(true))?;
+        let mut body = self.with_parent(id, Self::parse_fn_block)?;
+        if ambient {
+            if let Some(body) = body {
+                let error =
+                    errors::AnImplementationCannotBeDeclaredInAmbientContexts { span: body.span };
+                self.push_error(Box::new(error));
+            }
+            body = None;
+        }
+        let decl = self.alloc(ast::SetterDecl {
+            id,
+            span: self.new_span(start as u32),
+            modifiers,
+            name,
+            params,
+            body,
+        });
+        self.insert_map(id, ast::Node::SetterDecl(decl));
+        Ok(decl)
     }
 }

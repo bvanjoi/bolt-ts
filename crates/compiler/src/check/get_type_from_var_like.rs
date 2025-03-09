@@ -83,18 +83,37 @@ impl<'cx> TyChecker<'cx> {
         decl: &impl ir::VarLike<'cx>,
         include_optionality: bool,
     ) -> Option<&'cx Ty<'cx>> {
-        let ty = if let Some(decl_ty) = decl.decl_ty() {
+        if let Some(decl_ty) = decl.decl_ty() {
             let is_property = self.p.node(decl.id()).is_prop_signature();
             let is_optional = include_optionality && self.p.node(decl.id()).is_optional_decl();
             let ty = self.get_ty_from_type_node(decl_ty);
-            Some(self.add_optionality(ty, is_property, is_optional))
-        } else if let Some(init) = decl.init() {
+            return Some(self.add_optionality(ty, is_property, is_optional));
+        }
+
+        if decl.is_param() {
+            let parent = self.p.parent(decl.id()).unwrap();
+            let func = self.p.node(parent);
+            if let Some(setter) = func.as_setter_decl() {
+                let symbol = self.get_symbol_of_decl(setter.id);
+                let getter = self
+                    .binder
+                    .symbol(symbol)
+                    .expect_getter_setter()
+                    .getter_decl;
+                if let Some(getter) = getter {
+                    let getter_sig = self.get_sig_from_decl(getter);
+                    // TODO: this_param
+                    return Some(self.get_ret_ty_of_sig(getter_sig));
+                }
+            }
+        }
+
+        if let Some(init) = decl.init() {
             let init_ty = self.check_expr_with_cache(init);
             Some(self.widened_ty_from_init(decl, init_ty))
         } else {
             None
-        };
-        ty
+        }
     }
 
     fn widen_ty_for_var_like_decl(

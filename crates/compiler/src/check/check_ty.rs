@@ -89,6 +89,8 @@ impl<'cx> TyChecker<'cx> {
                 Method(_) => (),
                 CallSig(_) => (),
                 CtorSig(_) => (),
+                Setter(_) => (),
+                Getter(_) => (),
             }
         }
     }

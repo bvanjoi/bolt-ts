@@ -181,10 +181,9 @@ impl<'cx> TyChecker<'cx> {
 
         ty = self.get_apparent_ty(ty);
 
-        let sigs = self.get_signatures_of_type(ty, ty::SigKind::Constructor);
-
-        if !sigs.is_empty() {
-            let abstract_sigs = sigs
+        let ctor_sigs = self.get_signatures_of_type(ty, ty::SigKind::Constructor);
+        if !ctor_sigs.is_empty() {
+            let abstract_sigs = ctor_sigs
                 .iter()
                 .filter(|sig| sig.flags.contains(SigFlags::ABSTRACT))
                 .collect::<thin_vec::ThinVec<_>>();
@@ -206,8 +205,16 @@ impl<'cx> TyChecker<'cx> {
                 self.push_error(Box::new(error));
             }
 
-            self.resolve_call(ty, expr, sigs)
-        } else if ty != self.error_ty {
+            return self.resolve_call(ty, expr, ctor_sigs);
+        }
+
+        let call_sigs = self.get_signatures_of_type(ty, ty::SigKind::Call);
+        if !call_sigs.is_empty() {
+            let sig = self.resolve_call(ty, expr, call_sigs);
+            return sig;
+        }
+
+        if ty != self.error_ty {
             self.invocation_error(expr, ty, ty::SigKind::Constructor);
             self.unknown_sig()
         } else {
@@ -731,7 +738,7 @@ impl<'cx> TyChecker<'cx> {
                     span: expr.span(),
                     unmatched_calls: candidates_for_arg_error
                         .iter()
-                        .map(|c| self.p.node(c.def_id()).ident_name().unwrap().span)
+                        .flat_map(|c| self.p.node(c.def_id()).ident_name().map(|i| i.span))
                         .collect(),
                 };
                 self.push_error(Box::new(error));

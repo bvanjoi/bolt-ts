@@ -5,6 +5,7 @@ use super::TyChecker;
 use super::ast;
 use super::errors;
 use super::ty;
+use super::utils::is_external_module_relative;
 
 impl<'cx> TyChecker<'cx> {
     pub(super) fn check_stmt(&mut self, stmt: &'cx ast::Stmt) {
@@ -122,6 +123,23 @@ impl<'cx> TyChecker<'cx> {
     fn check_ns_decl(&mut self, ns: &'cx ast::NsDecl<'cx>) {
         if let Some(block) = ns.block {
             self.check_block(block);
+        }
+
+        let is_ambient_external_module = matches!(ns.name, ast::ModuleName::StringLit(_));
+        if is_ambient_external_module {
+            let p = self.p.parent(ns.id).unwrap();
+            if self.p.node(p).is_program() {
+                if let ast::ModuleName::StringLit(lit) = ns.name {
+                    let module_name = self.atoms.get(lit.val);
+                    if is_external_module_relative(module_name) {
+                        let error =
+                            errors::AmbientModuleDeclarationCannotSpecifyRelativeModuleName {
+                                span: lit.span,
+                            };
+                        self.push_error(Box::new(error));
+                    }
+                }
+            }
         }
     }
 

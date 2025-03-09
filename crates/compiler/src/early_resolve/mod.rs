@@ -370,6 +370,14 @@ impl<'cx> Resolver<'cx, '_, '_> {
                     self.resolve_ty(ty);
                 }
             }
+            Setter(n) => {
+                self.resolve_params(n.params);
+            }
+            Getter(n) => {
+                if let Some(ty) = n.ty {
+                    self.resolve_ty(ty);
+                }
+            }
         }
     }
 

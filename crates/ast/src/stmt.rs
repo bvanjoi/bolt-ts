@@ -186,6 +186,7 @@ pub struct ThrowStmt<'cx> {
 pub struct NsDecl<'cx> {
     pub id: NodeID,
     pub span: Span,
+    pub flags: NodeFlags,
     pub modifiers: Option<&'cx Modifiers<'cx>>,
     pub name: ModuleName<'cx>,
     pub block: Option<&'cx BlockStmt<'cx>>,
@@ -256,6 +257,8 @@ pub enum ObjectTyMemberKind<'cx> {
     Method(&'cx MethodSignature<'cx>),
     CallSig(&'cx CallSigDecl<'cx>),
     CtorSig(&'cx CtorSigDecl<'cx>),
+    Setter(&'cx SetterDecl<'cx>),
+    Getter(&'cx GetterDecl<'cx>),
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -364,6 +367,26 @@ pub struct SetterDecl<'cx> {
     pub name: &'cx PropName<'cx>,
     pub params: ParamsDecl<'cx>,
     pub body: Option<&'cx BlockStmt<'cx>>,
+}
+
+impl<'cx> SetterDecl<'cx> {
+    pub fn get_effective_ty_annotation_node(&self) -> Option<&'cx self::Ty<'cx>> {
+        self.get_value_param().and_then(|p| p.ty)
+    }
+
+    pub fn get_value_param(&self) -> Option<&'cx self::ParamDecl<'cx>> {
+        (!self.params.is_empty()).then(|| {
+            let len = self.params.len();
+            if len == 2 {
+                if let self::BindingKind::Ident(i) = self.params[0].name.kind {
+                    if i.name == keyword::KW_THIS {
+                        return self.params[1];
+                    }
+                }
+            }
+            self.params[0]
+        })
+    }
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -722,30 +745,17 @@ pub struct ExportNamedSpec<'cx> {
 }
 
 #[derive(Debug, Clone, Copy)]
-pub enum Binding<'cx> {
+pub struct Binding<'cx> {
+    pub id: NodeID,
+    pub span: Span,
+    pub kind: BindingKind<'cx>,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub enum BindingKind<'cx> {
     Ident(&'cx Ident),
     ObjectPat(&'cx ObjectPat<'cx>),
     ArrayPat(&'cx ArrayPat),
-}
-
-impl Binding<'_> {
-    pub fn id(&self) -> NodeID {
-        use Binding::*;
-        match self {
-            Ident(ident) => ident.id,
-            ObjectPat(pat) => pat.id,
-            ArrayPat(pat) => pat.id,
-        }
-    }
-
-    pub fn span(&self) -> Span {
-        use Binding::*;
-        match self {
-            Ident(ident) => ident.span,
-            ObjectPat(pat) => pat.span,
-            ArrayPat(pat) => pat.span,
-        }
-    }
 }
 
 #[derive(Debug, Clone, Copy)]

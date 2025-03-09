@@ -1,0 +1,5 @@
+  × Type '[]' cannot be used as an index type.
+   ╭─[../../tests/cases/compiler/anyIndexedAccessArrayNoException/index.ts:3:12]
+ 3 │ []
+   · ──
+   ╰────

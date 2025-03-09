@@ -28,6 +28,7 @@ paste = { workspace = true }
 serde_json = { workspace = true }
 normalize-path = { workspace = true }
 indexmap = { workspace = true }
+regex = "1.11.1"
 
 [dev-dependencies]
 expect-test = "1.2.2"

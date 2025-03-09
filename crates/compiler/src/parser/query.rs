@@ -366,18 +366,36 @@ impl<'cx> Parser<'cx> {
             .unwrap()
     }
 
+    fn walkup_binding_elements_and_patterns(&self, binding: ast::NodeID) -> ast::NodeID {
+        let mut n = self.parent(binding).unwrap();
+        loop {
+            let p = self.parent(n).unwrap();
+            if self.node(p).is_binding() {
+                n = self.parent(p).unwrap()
+            } else {
+                break self.parent(n).unwrap();
+            }
+        }
+    }
+
     pub fn get_combined_flags<T: std::ops::BitOrAssign>(
         &self,
         mut id: ast::NodeID,
         get_flag: impl Fn(&Self, ast::NodeID) -> T,
     ) -> T {
+        let mut n = self.node(id);
+        if n.is_binding() {
+            id = self.walkup_binding_elements_and_patterns(id);
+            n = self.node(id);
+        }
         let mut flags = get_flag(self, id);
-        if self.node(id).is_var_decl() {
+
+        if n.is_var_decl() {
             id = self.parent(id).unwrap();
+            n = self.node(id);
         }
         // TODO: variable list
-
-        if let Some(s) = self.node(id).as_var_stmt() {
+        if let Some(s) = n.as_var_stmt() {
             flags |= get_flag(self, s.id);
         }
         flags
@@ -499,6 +517,16 @@ impl<'cx> Parser<'cx> {
             ReferTy(r) => r.ty_args.is_some() && node == r.name.id(),
             // TODO: import ty
             _ => false,
+        }
+    }
+
+    pub fn get_annotated_accessor_ty_node(&self, node: ast::NodeID) -> Option<&'cx ast::Ty<'cx>> {
+        let node = self.node(node);
+        match node {
+            ast::Node::GetterDecl(n) => n.ty,
+            ast::Node::SetterDecl(n) => n.get_effective_ty_annotation_node(),
+            ast::Node::PropSignature(_) => todo!(),
+            _ => None,
         }
     }
 }

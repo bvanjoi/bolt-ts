@@ -85,6 +85,7 @@ pub enum Node<'cx> {
     StringLit(&'cx super::StringLit),
     ArrayLit(&'cx super::ArrayLit<'cx>),
     Ident(&'cx super::Ident),
+    Binding(&'cx super::Binding<'cx>),
     OmitExpr(&'cx super::OmitExpr),
     ParenExpr(&'cx super::ParenExpr<'cx>),
     CondExpr(&'cx super::CondExpr<'cx>),
@@ -237,10 +238,10 @@ impl<'cx> Node<'cx> {
             FnDecl(n) => Some(n.name),
             ClassDecl(n) => Some(n.name),
             ClassExpr(n) => n.name,
-            ParamDecl(n) => match n.name {
-                super::Binding::Ident(n) => Some(n),
-                super::Binding::ObjectPat(_) => None,
-                super::Binding::ArrayPat(_) => None,
+            ParamDecl(n) => match n.name.kind {
+                super::BindingKind::Ident(n) => Some(n),
+                super::BindingKind::ObjectPat(_) => None,
+                super::BindingKind::ArrayPat(_) => None,
             },
             InterfaceDecl(n) => Some(n.name),
             ClassPropElem(n) => match n.name.kind {
@@ -370,6 +371,7 @@ impl<'cx> Node<'cx> {
             // TypeOp,
             // Mapped,
             // AssertionExpr
+            GetterDecl,
         )
     }
 
@@ -400,6 +402,8 @@ impl<'cx> Node<'cx> {
                 | ParamDecl(_)
                 | TyParam(_)
                 | ShorthandSpec(_)
+                | GetterDecl(_)
+                | SetterDecl(_)
         )
     }
 
@@ -522,7 +526,10 @@ impl<'cx> Node<'cx> {
             ClassPropElem,
             GetterDecl,
             SetterDecl,
-            PropSignature
+            PropSignature,
+            FnDecl,
+            VarStmt,
+            ClassDecl
         )
     }
 
@@ -683,6 +690,7 @@ as_node!(
     (StringLit, super::StringLit, string_lit),
     (ArrayLit, super::ArrayLit<'cx>, array_lit),
     (Ident, super::Ident, ident),
+    (Binding, super::Binding, binding),
     (OmitExpr, super::OmitExpr, omit_expr),
     (ParenExpr, super::ParenExpr<'cx>, paren_expr),
     (CondExpr, super::CondExpr<'cx>, cond_expr),
