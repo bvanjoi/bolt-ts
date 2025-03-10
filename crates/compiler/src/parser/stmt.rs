@@ -186,7 +186,7 @@ impl<'cx> ParserState<'cx, '_> {
         if (await_token.is_some() && self.expect(Of)) || self.parse_optional(Of).is_some() {
             let init = init.unwrap();
             let expr = self.with_parent(id, |this| {
-                this.allow_in_and(|this| this.parse_assign_expr(true))
+                this.allow_in_and(|this| this.parse_assign_expr_or_higher(true))
             })?;
             self.expect(RParen);
             let body = self.parse_stmt()?;

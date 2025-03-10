@@ -8,7 +8,6 @@ bolt_ts_utils::index!(ModuleID);
 impl ModuleID {
     pub const TRANSIENT: ModuleID = ModuleID(u32::MAX);
     pub const DEFAULT: ModuleID = ModuleID(u32::MAX - 1);
-    pub const BUILTIN: ModuleID = ModuleID(u32::MAX - 2);
 }
 
 impl Default for ModuleID {

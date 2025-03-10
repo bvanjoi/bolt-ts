@@ -208,7 +208,7 @@ impl<'cx> ObjectTyKind<'cx> {
     pub(super) fn to_string(&self, self_ty: &'cx Ty<'cx>, checker: &mut TyChecker<'cx>) -> String {
         match self {
             ObjectTyKind::Anonymous(a) => {
-                let symbol = a.symbol;
+                let symbol = a.symbol.unwrap();
                 let symbol = checker.binder.symbol(symbol);
                 let print_fn_like_str = |checker: &mut TyChecker, sig: &super::Sig| -> String {
                     let params = sig.params;
@@ -341,7 +341,7 @@ impl<'cx> ObjectTyKind<'cx> {
 
 #[derive(Debug, Clone, Copy)]
 pub struct AnonymousTy<'cx> {
-    pub symbol: SymbolID,
+    pub symbol: Option<SymbolID>,
     pub target: Option<&'cx Ty<'cx>>,
     pub mapper: Option<&'cx dyn TyMap<'cx>>,
 }

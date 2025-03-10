@@ -353,7 +353,6 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
                 if self.is_list_terminator(ctx) {
                     break;
                 }
-
                 self.expect(TokenKind::Comma);
                 continue;
             }

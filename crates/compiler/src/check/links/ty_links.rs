@@ -1,4 +1,5 @@
 use super::links;
+use crate::bind::SymbolID;
 use crate::ty;
 
 // TODO: split them into type def.
@@ -8,8 +9,9 @@ links!(
     (resolved_base_tys, ty::Tys<'cx>),
     (resolved_base_ctor_ty, &'cx ty::Ty<'cx>),
     (resolved_base_constraint, &'cx ty::Ty<'cx>),
-    (resolved_string_index_ty, &'cx ty::Ty<'cx>),
+    (resolved_properties, &'cx [SymbolID]),
     (resolved_index_ty, &'cx ty::Ty<'cx>),
+    (resolved_string_index_ty, &'cx ty::Ty<'cx>),
     (resolved_ty_args, ty::Tys<'cx>),
     (immediate_base_constraint, &'cx ty::Ty<'cx>),
     // fresh type

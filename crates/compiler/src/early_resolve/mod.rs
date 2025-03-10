@@ -199,18 +199,29 @@ impl<'cx> Resolver<'cx, '_, '_> {
         use bolt_ts_ast::EntityNameKind::*;
         match name.kind {
             Ident(ident) => {
-                if meaning == SymbolFlags::TYPE {
-                    self.resolve_ty_by_ident(ident);
-                } else if meaning == SymbolFlags::VALUE {
+                if meaning.contains(SymbolFlags::TYPE) {
+                    let report = meaning == SymbolFlags::TYPE;
+                    let res = self.resolve_ty_by_ident(ident, report);
+                    if res != Symbol::ERR || report {
+                        let prev = self.final_res.insert(ident.id, res);
+                        assert!(prev.is_none());
+                        return;
+                    }
+                }
+
+                if meaning == SymbolFlags::VALUE {
                     self.resolve_value_by_ident(ident);
-                } else if meaning == SymbolFlags::NAMESPACE {
+                } else if meaning.contains(SymbolFlags::NAMESPACE) {
                     self.resolve_symbol_by_ident(ident, meaning);
                 } else {
                     unreachable!()
                 }
             }
             Qualified(qualified) => {
-                self.resolve_entity_name(qualified.left, SymbolFlags::NAMESPACE);
+                self.resolve_entity_name(
+                    qualified.left,
+                    SymbolFlags::NAMESPACE | SymbolFlags::TYPE,
+                );
                 let left = self.final_res[&qualified.left.id()];
                 let exports = self.get_exports_of_symbol(left);
                 let name = SymbolName::Normal(qualified.right.name);
@@ -506,6 +517,9 @@ impl<'cx> Resolver<'cx, '_, '_> {
                 }
                 self.resolve_block_stmt(n.body);
             }
+            SpreadAssignment(n) => {
+                self.resolve_expr(n.expr);
+            }
         }
     }
     fn resolve_fn_decl(&mut self, f: &'cx ast::FnDecl<'cx>) {
@@ -581,32 +595,31 @@ impl<'cx> Resolver<'cx, '_, '_> {
         }
     }
 
-    fn resolve_ty_by_ident(&mut self, ident: &'cx ast::Ident) {
+    fn resolve_ty_by_ident(&mut self, ident: &'cx ast::Ident, report: bool) -> SymbolID {
         if ident.name == keyword::IDENT_EMPTY {
             // delay bug
-            let prev = self.final_res.insert(ident.id, Symbol::ERR);
-            assert!(prev.is_none());
-            return;
+            return Symbol::ERR;
         } else if is_prim_ty_name(ident.name) {
             if let Some(error) = self.check_using_type_as_value(ident) {
                 self.push_error(error.into_diag());
             }
-            return;
+            return Symbol::ERR;
         }
-        let res = self
-            .resolve_symbol_by_ident(ident, SymbolFlags::TYPE)
-            .symbol;
 
-        if res == Symbol::ERR {
+        let mut res = resolve_symbol_by_ident(self, ident, SymbolFlags::TYPE).symbol;
+
+        if res == Symbol::ERR && report {
             let error = errors::CannotFindName {
                 span: ident.span,
                 name: self.atoms.get(ident.name).to_string(),
                 errors: vec![],
             };
             self.push_error(Box::new(error));
-        } else {
-            self.on_success_resolved_type_symbol(ident, res);
-        }
+        } else if res != Symbol::ERR {
+            self.on_success_resolved_type_symbol(ident, &mut res);
+        };
+
+        res
     }
 
     fn resolve_symbol_by_ident(

@@ -652,7 +652,7 @@ impl<'cx> TyChecker<'cx> {
 
     fn resolve_anonymous_type_members(&mut self, ty: &'cx ty::Ty<'cx>) {
         let a = ty.kind.expect_object_anonymous();
-        let symbol = self.binder.symbol(a.symbol);
+        let symbol = self.binder.symbol(a.symbol.unwrap());
         assert!(
             !symbol.flags.intersects(SymbolFlags::OBJECT_LITERAL),
             "Object literal should be resolved during check"
@@ -692,7 +692,7 @@ impl<'cx> TyChecker<'cx> {
                 .get(&SymbolName::New)
                 .map(|s| self.get_sigs_of_symbol(*s))
                 .unwrap_or_default();
-            let index_infos = self.get_index_infos_of_symbol(a.symbol);
+            let index_infos = self.get_index_infos_of_symbol(a.symbol.unwrap());
             let props = self.get_props_from_members(&members);
             let m = self.alloc(ty::StructuredMembers {
                 members: self.alloc(members),
@@ -707,11 +707,11 @@ impl<'cx> TyChecker<'cx> {
             return;
         }
 
-        let symbol = self.binder.symbol(a.symbol);
+        let symbol = self.binder.symbol(a.symbol.unwrap());
         let symbol_flags = symbol.flags;
 
         let mut members = self
-            .get_exports_of_symbol(a.symbol)
+            .get_exports_of_symbol(a.symbol.unwrap())
             .cloned()
             .unwrap_or_default();
         let call_sigs;
@@ -719,7 +719,7 @@ impl<'cx> TyChecker<'cx> {
         let index_infos: ty::IndexInfos<'cx>;
 
         if symbol_flags.intersects(SymbolFlags::FUNCTION | SymbolFlags::METHOD) {
-            call_sigs = self.get_sigs_of_symbol(a.symbol);
+            call_sigs = self.get_sigs_of_symbol(a.symbol.unwrap());
             ctor_sigs = &[];
             index_infos = &[];
             // TODO: `constructor_sigs`, `index_infos`
@@ -731,7 +731,7 @@ impl<'cx> TyChecker<'cx> {
                 ctor_sigs = &[];
             }
             // let mut base_ctor_index_info = None;
-            let class_ty = self.get_declared_ty_of_symbol(a.symbol);
+            let class_ty = self.get_declared_ty_of_symbol(a.symbol.unwrap());
             self.resolve_structured_type_members(class_ty);
             let base_ctor_ty = self.get_base_constructor_type_of_class(class_ty);
             if base_ctor_ty.kind.is_object() || base_ctor_ty.kind.is_type_variable() {

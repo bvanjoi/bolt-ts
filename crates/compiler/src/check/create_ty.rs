@@ -274,7 +274,7 @@ impl<'cx> TyChecker<'cx> {
 
     pub(super) fn create_anonymous_ty(
         &mut self,
-        symbol: SymbolID,
+        symbol: Option<SymbolID>,
         object_flags: ObjectFlags,
     ) -> &'cx ty::Ty<'cx> {
         let ty = self.alloc(ty::AnonymousTy {
@@ -298,7 +298,6 @@ impl<'cx> TyChecker<'cx> {
         ctor_sigs: ty::Sigs<'cx>,
         index_infos: ty::IndexInfos<'cx>,
     ) -> &'cx ty::Ty<'cx> {
-        let symbol = symbol.unwrap_or(Symbol::ERR);
         let ty = self.create_anonymous_ty(symbol, object_flags);
         let props = self.get_props_from_members(members);
         let prev = self.ty_links.insert(
@@ -326,7 +325,7 @@ impl<'cx> TyChecker<'cx> {
     ) -> &'cx ty::Ty<'cx> {
         assert!(target.kind.is_object_anonymous());
         let ty = self.alloc(ty::AnonymousTy {
-            symbol,
+            symbol: Some(symbol),
             target: Some(target),
             mapper: Some(mapper),
         });

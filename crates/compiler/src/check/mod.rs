@@ -276,25 +276,7 @@ impl<'cx> TyChecker<'cx> {
     ) -> Self {
         assert_eq!(ty_arena.allocated_bytes(), 0);
         let empty_array = ty_arena.alloc([]);
-        let mut transient_symbols = Vec::with_capacity(p.module_count() * 1024);
-        let arguments_symbol = {
-            let symbol = TransientSymbol {
-                name: SymbolName::Normal(keyword::IDENT_ARGUMENTS),
-                flags: SymbolFlags::PROPERTY,
-                links: Default::default(),
-                origin: None,
-            };
-            create_transient_symbol(&mut transient_symbols, symbol)
-        };
-        let empty_ty_literal_symbol = {
-            let symbol = TransientSymbol {
-                name: SymbolName::Type,
-                flags: SymbolFlags::TYPE_LITERAL,
-                links: Default::default(),
-                origin: None,
-            };
-            create_transient_symbol(&mut transient_symbols, symbol)
-        };
+
         let mut tys = Vec::with_capacity(p.module_count() * 1024);
 
         macro_rules! make_intrinsic_type {
@@ -335,6 +317,41 @@ impl<'cx> TyChecker<'cx> {
             (non_primitive_ty,      keyword::IDENT_OBJECT,  TypeFlags::NON_PRIMITIVE,   ObjectFlags::empty()),
             (silent_never_ty,       keyword::IDENT_NEVER,   TypeFlags::NEVER,           ObjectFlags::NON_INFERRABLE_TYPE),
         });
+
+        let mut symbol_links = fx_hashmap_with_capacity(p.module_count() * 1024);
+        let mut transient_symbols = Vec::with_capacity(p.module_count() * 1024);
+        let error_symbol = {
+            let links = SymbolLinks::default().with_ty(error_ty);
+            let symbol = TransientSymbol {
+                name: SymbolName::Normal(keyword::IDENT_EMPTY),
+                flags: SymbolFlags::empty(),
+                links,
+                origin: None,
+            };
+            let s = create_transient_symbol(&mut transient_symbols, symbol);
+            symbol_links.insert(s, links);
+            s
+        };
+        assert_eq!(error_symbol, Symbol::ERR);
+        let arguments_symbol = {
+            let symbol = TransientSymbol {
+                name: SymbolName::Normal(keyword::IDENT_ARGUMENTS),
+                flags: SymbolFlags::PROPERTY,
+                links: Default::default(),
+                origin: None,
+            };
+            create_transient_symbol(&mut transient_symbols, symbol)
+        };
+        assert_eq!(arguments_symbol, Symbol::ARGUMENTS);
+        let empty_ty_literal_symbol = {
+            let symbol = TransientSymbol {
+                name: SymbolName::Type,
+                flags: SymbolFlags::TYPE_LITERAL,
+                links: Default::default(),
+                origin: None,
+            };
+            create_transient_symbol(&mut transient_symbols, symbol)
+        };
 
         let restrictive_mapper = ty_arena.alloc(RestrictiveMapper);
         let permissive_mapper = ty_arena.alloc(PermissiveMapper);
@@ -428,7 +445,7 @@ impl<'cx> TyChecker<'cx> {
 
             type_name: no_hashmap_with_capacity(1024 * 8),
 
-            symbol_links: fx_hashmap_with_capacity(p.module_count() * 1024),
+            symbol_links,
             node_links: fx_hashmap_with_capacity(p.module_count() * 1024),
             sig_links: no_hashmap_with_capacity(p.module_count() * 1024),
             ty_links: no_hashmap_with_capacity(p.module_count() * 1024),
@@ -1543,7 +1560,11 @@ impl<'cx> TyChecker<'cx> {
 
         let symbol = self.resolve_symbol_by_ident(ident);
 
-        if self.binder.symbol(symbol).flags == SymbolFlags::CLASS {
+        if symbol == Symbol::ERR {
+            return self.error_ty;
+        }
+
+        if self.symbol(symbol).flags() == SymbolFlags::CLASS {
             self.check_resolved_block_scoped_var(ident, symbol);
         }
 
@@ -2501,6 +2522,8 @@ impl<'cx> TyChecker<'cx> {
                 } else {
                     self.get_substitution_intersection(ty)
                 }
+            } else if ty.flags.intersects(TypeFlags::SIMPLIFIABLE) {
+                self.get_simplified_ty(ty, writing)
             } else {
                 ty
             };

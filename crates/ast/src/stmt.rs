@@ -418,6 +418,8 @@ pub struct ClassPropElem<'cx> {
     pub span: Span,
     pub modifiers: Option<&'cx Modifiers<'cx>>,
     pub name: &'cx PropName<'cx>,
+    pub question: Option<Span>,
+    pub excl: Option<Span>,
     pub ty: Option<&'cx self::Ty<'cx>>,
     pub init: Option<&'cx Expr<'cx>>,
 }

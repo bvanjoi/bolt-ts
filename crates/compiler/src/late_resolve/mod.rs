@@ -129,7 +129,7 @@ impl<'cx> ast::Visitor<'cx> for Resolver<'cx, '_, '_> {
         if let Some(clause) = node.clause.kind {
             use bolt_ts_ast::ImportClauseKind::*;
             match clause {
-                Ns(n) => {}
+                Ns(_) => {}
                 Specs(specs) => {
                     for spec in specs {
                         use bolt_ts_ast::ImportSpecKind::*;

@@ -315,33 +315,39 @@ impl<'cx> TyChecker<'cx> {
         let members = node
             .members
             .iter()
-            .map(|member| {
-                let member_symbol = self.get_symbol_of_decl(member.id());
+            .flat_map(|member| {
                 use bolt_ts_ast::ObjectMemberKind::*;
-                let ty = match member.kind {
-                    Shorthand(n) => self.check_ident(n.name),
-                    Prop(n) => self.check_object_prop_member(n),
-                    Method(n) => self.check_object_method_member(n),
-                };
-                let name = match member.kind {
-                    Shorthand(n) => SymbolName::Ele(n.name.name),
-                    Prop(n) => crate::bind::prop_name(n.name),
-                    Method(n) => crate::bind::prop_name(n.name),
-                };
-                object_flags |= ty.get_object_flags() & ObjectFlags::PROPAGATING_FLAGS;
-                let prop = self.create_transient_symbol(
-                    name,
-                    SymbolFlags::PROPERTY | self.binder.symbol(member_symbol).flags,
-                    Some(member_symbol),
-                    SymbolLinks::default()
-                        .with_target(member_symbol)
-                        .with_ty(ty),
-                );
-                (name, prop)
+                if matches!(member.kind, Shorthand(_) | Prop(_) | Method(_)) {
+                    let member_symbol = self.get_symbol_of_decl(member.id());
+                    let ty = match member.kind {
+                        Shorthand(n) => self.check_ident(n.name),
+                        Prop(n) => self.check_object_prop_member(n),
+                        Method(n) => self.check_object_method_member(n),
+                        SpreadAssignment(_) => unreachable!(),
+                    };
+                    let name = match member.kind {
+                        Shorthand(n) => SymbolName::Ele(n.name.name),
+                        Prop(n) => crate::bind::prop_name(n.name),
+                        Method(n) => crate::bind::prop_name(n.name),
+                        SpreadAssignment(_) => unreachable!(),
+                    };
+                    object_flags |= ty.get_object_flags() & ObjectFlags::PROPAGATING_FLAGS;
+                    let prop = self.create_transient_symbol(
+                        name,
+                        SymbolFlags::PROPERTY | self.binder.symbol(member_symbol).flags,
+                        Some(member_symbol),
+                        SymbolLinks::default()
+                            .with_target(member_symbol)
+                            .with_ty(ty),
+                    );
+                    Some((name, prop))
+                } else {
+                    None
+                }
             })
             .collect();
         let ty = self.create_anonymous_ty(
-            self.final_res(node.id),
+            Some(self.final_res(node.id)),
             object_flags
                 | ObjectFlags::OBJECT_LITERAL
                 | ObjectFlags::CONTAINS_OBJECT_OR_ARRAY_LITERAL,

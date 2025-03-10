@@ -67,7 +67,7 @@ impl<'cx> TyChecker<'cx> {
         };
         let s = self.binder.symbol(symbol);
         let decl = symbol.decl(self.binder);
-        let ty = self.create_anonymous_ty(symbol, ObjectFlags::empty());
+        let ty = self.create_anonymous_ty(Some(symbol), ObjectFlags::empty());
 
         if s.flags.intersects(SymbolFlags::CLASS) {
             if let Some(base) = self.get_base_type_variable_of_class(symbol) {
@@ -466,7 +466,7 @@ impl<'cx> TyChecker<'cx> {
         if let Some(ty) = self.get_node_links(node).get_resolved_ty() {
             return ty;
         }
-        let ty = self.create_anonymous_ty(self.final_res(node), ObjectFlags::empty());
+        let ty = self.create_anonymous_ty(Some(self.final_res(node)), ObjectFlags::empty());
         self.get_mut_node_links(node).set_resolved_ty(ty);
         ty
     }

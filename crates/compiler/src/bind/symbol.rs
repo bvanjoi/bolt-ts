@@ -405,13 +405,17 @@ bolt_ts_utils::module_index!(SymbolID);
 
 impl SymbolID {
     pub(super) const ERR: Self = SymbolID {
-        module: ModuleID::root(), // TODO: `ModuleID::BUILTIN`
+        module: ModuleID::TRANSIENT,
         index: 0,
     };
     pub(super) const ARGUMENTS: Self = SymbolID {
-        module: ModuleID::BUILTIN,
+        module: ModuleID::TRANSIENT,
         index: 1,
     };
+
+    pub const fn container(module: ModuleID) -> Self {
+        Self { module, index: 0 }
+    }
 
     pub fn opt_decl(&self, binder: &super::Binder) -> Option<NodeID> {
         let s = binder.symbol(*self);
@@ -450,20 +454,12 @@ impl Default for Symbols {
 
 impl Symbols {
     pub fn new(module_id: ModuleID) -> Self {
+        assert_ne!(module_id, ModuleID::TRANSIENT);
         assert_ne!(module_id, ModuleID::DEFAULT);
-
-        let mut this = Self {
+        Self {
             module_id,
             data: Vec::with_capacity(512),
-        };
-        // TODO: remove
-        let err = this.insert(Symbol::new(
-            SymbolName::Normal(keyword::IDENT_EMPTY),
-            SymbolFlags::empty(),
-            SymbolKind::Err,
-        ));
-        assert_eq!(err.index_as_usize(), 0);
-        this
+        }
     }
 
     pub fn insert(&mut self, symbol: Symbol) -> SymbolID {
@@ -480,7 +476,7 @@ impl Symbols {
     }
 
     pub fn get_container(&self, module: ModuleID) -> &Symbol {
-        let id = SymbolID { module, index: 1 };
+        let id = SymbolID::container(module);
         self.get(id)
     }
 

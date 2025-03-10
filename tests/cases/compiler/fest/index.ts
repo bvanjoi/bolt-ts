@@ -274,6 +274,131 @@ type ConditionalKeys<Base, Condition> =
   const a3: 'e' = exampleConditionalKeysTargetingNever;
 }
 
+// ======== ConditionalPick ========
+type ConditionalPick<Base, Condition> = Pick<Base, ConditionalKeys<Base, Condition>>;
+{
+  class Awesome {
+    name!: string;
+    successes!: number;
+    failures!: bigint;
+  
+    run(): void {
+      // Empty
+    }
+  }
+  
+  type Example = {
+    a: string;
+    b?: string | number;
+    c?: string;
+    d: Record<string, unknown>;
+  };
+  
+  const exampleConditionalPick: ConditionalPick<Example, string> = {a: 42};
+  //~^ ERROR: Type 'number' is not assignable to type 'string'.
+  const awesomeConditionalPick: ConditionalPick<Awesome, Primitive> = {name: 'foo', successes: 1, failures: 0n};
+  const exampleConditionalPickWithUndefined: ConditionalPick<Example, string | undefined> = {a: '42'};
+  const a0: ConditionalPick<Example, string | undefined> = {a: '42', c: '42'};
+  const a1: ConditionalPick<Example, string | undefined> = {a: '42', b: '42'};
+  //~^ ERROR: Object literal may only specify known properties, and 'b' does not exist.
+}
+
+// ========== ConditionalSimplify ==========
+type ConditionalSimplify<Type, ExcludeType = never, IncludeType = unknown> = Type extends ExcludeType
+	? Type
+	: Type extends IncludeType
+		? {[TypeKey in keyof Type]: Type[TypeKey]}
+		: Type;
+
+type ConditionalSimplifyDeep<Type, ExcludeType = never, IncludeType = unknown> = Type extends ExcludeType
+	? Type
+	: Type extends IncludeType
+		? {[TypeKey in keyof Type]: ConditionalSimplifyDeep<Type[TypeKey], ExcludeType, IncludeType>}
+		: Type;
+
+{
+  type Position = {top: number; left: number};
+  type Size = {width: number; height: number};
+
+  // In your editor, hovering over `PositionAndSizeSimplified` will show a simplified object with all the properties.
+  type PositionAndSizeIntersection = Position & Size;
+  type PositionAndSizeSimplified = ConditionalSimplify<PositionAndSizeIntersection>;
+
+  const position = {top: 120, left: 240};
+  const size = {width: 480, height: 600};
+  const positionAndSize = {...position, ...size};
+  // expectType<PositionAndSizeSimplified>(positionAndSize);
+
+  // Exclude function type to be simplified.
+  // type SomeFunction = (type: string) => string;
+  // type SimplifiedFunctionFail = ConditionalSimplify<SomeFunction>; // Return '{}'
+  // type SimplifiedFunctionPass = ConditionalSimplify<SomeFunction, Function>; // Return '(type: string) => string'
+
+  // declare const simplifiedFunctionFail: SimplifiedFunctionFail;
+  // declare const simplifiedFunctionPass: SimplifiedFunctionPass;
+
+  // expectNotAssignable<SomeFunction>(simplifiedFunctionFail);
+  // expectType<SomeFunction>(simplifiedFunctionPass);
+
+  // // Should simplify interface deeply.
+  // type SomeNode = {
+  //   parent: PositionAndSizeIntersection;
+  //   childs: Array<{parent: PositionAndSizeIntersection}>;
+  // };
+
+  // // In your editor, hovering over `SomeNodeSimplified` will show a simplified object with all the properties.
+  // type SomeNodeSimplified = ConditionalSimplifyDeep<SomeNode>;
+
+  // const someNode = {parent: positionAndSize, childs: [{parent: positionAndSize}, {parent: positionAndSize}]};
+  // expectType<SomeNodeSimplified>(someNode);
+
+  // // Should simplify interface deeply excluding Function type.
+  // // TODO: Convert this to a `type`.
+  // // eslint-disable-next-line @typescript-eslint/consistent-type-definitions
+  // interface MovablePosition extends Position {
+  //   move(position: Position): Position;
+  // }
+
+  // type MovableCollection = {
+  //   position: MovablePosition;
+  //   top: {position: MovablePosition; size: Size};
+  //   left: {position: MovablePosition; size: Size};
+  // };
+
+  // type MovableNodeSimplifiedFail = ConditionalSimplifyDeep<MovableCollection>;
+  // type MovableNodeSimplifiedPass = ConditionalSimplifyDeep<MovableCollection, Function>;
+
+  // declare const movableNodeSimplifiedFail: MovableNodeSimplifiedFail;
+  // declare const movableNodeSimplifiedPass: MovableNodeSimplifiedPass;
+
+  // expectNotAssignable<MovableCollection>(movableNodeSimplifiedFail);
+  // expectType<MovableCollection>(movableNodeSimplifiedPass);
+
+  // const movablePosition = {
+  //   top: 42,
+  //   left: 42,
+  //   move(position: Position) {
+  //     return position;
+  //   },
+  // };
+
+  // const movableNode = {
+  //   position: movablePosition,
+  //   top: {position: movablePosition, size},
+  //   left: {position: movablePosition, size},
+  // };
+
+  // expectType<MovableNodeSimplifiedPass>(movableNode);
+
+  // // Should exclude `Function` and `Size` type (mainly visual, mouse over the statement).
+  // type ExcludeFunctionAndSize1 = ConditionalSimplifyDeep<MovableCollection, Function | Size>;
+  // expectType<ExcludeFunctionAndSize1>(movableNode);
+
+  // // Same as above but using `IncludeType` parameter (mainly visual, mouse over the statement).
+  // type ExcludeFunctionAndSize2 = ConditionalSimplifyDeep<MovableCollection, Function, MovableCollection | Position>;
+  // expectType<ExcludeFunctionAndSize2>(movableNode);
+}
+
 // ============ Float ============
 type Float<T> =
 T extends unknown // To distributive type
@@ -1879,7 +2004,58 @@ T extends readonly [...infer U] ?
   let a1: SetArrayAccess<string[], false> = [];
   a1.push('42');
 }
-  
+
+// ========== SetFieldType ==========
+type SetFieldTypeOptions = {
+	preservePropertyModifiers?: boolean;
+};
+
+type SetFieldType<BaseType, Keys extends keyof BaseType, NewType, Options extends SetFieldTypeOptions = {preservePropertyModifiers: true}> =
+	Simplify<{
+		[P in keyof BaseType]: P extends Keys ? NewType : BaseType[P];
+	} & (
+		Options['preservePropertyModifiers'] extends false ? Record<Keys, NewType> : unknown
+)>;
+
+{
+  const variation1: SetFieldType<{a: number}, 'a', string> = {a: 42};
+  //~^ ERROR: Type 'number' is not assignable to type 'string'.
+  const variation2: SetFieldType<{a: number; b: boolean; c: Date}, 'a' | 'b', string> = {a: 42, b: true, c: new Date() };
+  //~^ ERROR: Type 'number' is not assignable to type 'string'.
+  //~| ERROR: Type 'boolean' is not assignable to type 'string'.
+  const variation3: SetFieldType<{a: string; b: boolean; c: Date}, 'b' | 'c', number> = {a: '42', b: 42, c: 42 };
+  const variation4: SetFieldType<{a: string; b: string; c: string}, 'b', number> = {a: '42', b: 42, c: '42' };
+
+  const variation5: SetFieldType<{a: string; b: string} | {a: number; c: number}, 'a', boolean> = { a: false, b: '42' };
+  const a0: SetFieldType<{a: string; b: string} | {a: number; c: number}, 'a', boolean> = { a: true, b: '42' };
+  const a1: SetFieldType<{a: string; b: string} | {a: number; c: number}, 'a', boolean> = { a: true, c: 42 };
+  const a2: SetFieldType<{a: string; b: string} | {a: number; c: number}, 'a', boolean> = { a: false, c: 42 };
+
+  const variation6: SetFieldType<{a: string; b: string} | {a: number; c: number}, 'a', boolean, {preservePropertyModifiers: false}> = {a: false, b: '42'}
+  const b0: SetFieldType<{a: string; b: string} | {a: number; c: number}, 'a', boolean, {preservePropertyModifiers: false}> = {a: true, b: '42'}
+  const b1: SetFieldType<{a: string; b: string} | {a: number; c: number}, 'a', boolean, {preservePropertyModifiers: false}> = {a: true, c: 42}
+  const b2: SetFieldType<{a: string; b: string} | {a: number; c: number}, 'a', boolean, {preservePropertyModifiers: false}> = {a: false, c: 42}
+
+  // Property modifiers are always preserved for properties that are not being updated
+  const variation7: SetFieldType<{a?: string; readonly b: string; c: string}, 'c', number> = {b: '42', c: 42};
+  const c0: {a?: string; readonly b: string; c: number} = variation7
+
+  const variation8: SetFieldType<{a?: string; readonly b: string; c: string}, 'c', number, {preservePropertyModifiers: false}> = {b: '42', c: 42};
+  const d0: {a?: string; readonly b: string; c: number} = variation8;
+
+  // Preserves property modifiers
+  const variation9: SetFieldType<{a?: string; readonly b: string; readonly c?: string}, 'a' | 'c', number> = {b: '42', a: 42, c: 42};
+  const e0: {a?: number; readonly b: string; readonly c?: number} = variation9;
+
+  // Doesn't preserve property modifiers when `preservePropertyModifiers` is `false`
+  const variation10: SetFieldType<{a?: string; readonly b: string; readonly c?: string}, 'a' | 'c', number, {preservePropertyModifiers: false}> = {b: '42', a: 42, c: 42};
+  const f0: {a: number; readonly b: string; c: number} = variation10;
+
+  // Falls back to default of `true`, if `preservePropertyModifiers` is set to `boolean`
+  const variation11: SetFieldType<{a?: string; readonly b: string; readonly c?: string}, 'a' | 'c', number, {preservePropertyModifiers: boolean}> = {b: '42', a: 42, c: 42};
+  const g0: {a?: number; readonly b: string; readonly c?: number} = variation11;
+}
+
 // ============ Simplify ============
 type Simplify<T> = {[KeyType in keyof T]: T[KeyType]} & {};
 {
@@ -1935,6 +2111,9 @@ type Simplify<T> = {[KeyType in keyof T]: T[KeyType]} & {};
   
   const b0: SomeFunction = someFunction;
   //~^ ERROR: Type 'mapped type' is not assignable to type '(type: string) => string'.
+
+  const c0: Simplify<{ a: boolean, b: string } & { a: number }> = n();
+  const c1: Simplify<{a?: string} & {c:number}> = {c: 42};
 }
 
 // ============ StartsWith ============

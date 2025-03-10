@@ -93,6 +93,7 @@ pub enum Node<'cx> {
     ObjectShorthandMember(&'cx super::ObjectShorthandMember<'cx>),
     ObjectPropMember(&'cx super::ObjectPropMember<'cx>),
     ObjectMethodMember(&'cx super::ObjectMethodMember<'cx>),
+    SpreadAssignment(&'cx super::SpreadAssignment<'cx>),
     ObjectLit(&'cx super::ObjectLit<'cx>),
     CallExpr(&'cx super::CallExpr<'cx>),
     FnExpr(&'cx super::FnExpr<'cx>),
@@ -715,6 +716,11 @@ as_node!(
         ObjectMethodMember,
         super::ObjectMethodMember<'cx>,
         object_method_member
+    ),
+    (
+        SpreadAssignment,
+        super::SpreadAssignment<'cx>,
+        spread_assignment
     ),
     (ObjectLit, super::ObjectLit<'cx>, object_lit),
     (CallExpr, super::CallExpr<'cx>, call_expr),

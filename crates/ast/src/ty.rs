@@ -371,6 +371,7 @@ impl ObjectMember<'_> {
             ObjectMemberKind::Shorthand(n) => n.span,
             ObjectMemberKind::Prop(n) => n.span,
             ObjectMemberKind::Method(n) => n.span,
+            ObjectMemberKind::SpreadAssignment(n) => n.span,
         }
     }
 
@@ -379,6 +380,7 @@ impl ObjectMember<'_> {
             ObjectMemberKind::Shorthand(n) => n.id,
             ObjectMemberKind::Prop(n) => n.id,
             ObjectMemberKind::Method(n) => n.id,
+            ObjectMemberKind::SpreadAssignment(n) => n.id,
         }
     }
 }
@@ -388,6 +390,14 @@ pub enum ObjectMemberKind<'cx> {
     Shorthand(&'cx ObjectShorthandMember<'cx>),
     Prop(&'cx ObjectPropMember<'cx>),
     Method(&'cx ObjectMethodMember<'cx>),
+    SpreadAssignment(&'cx SpreadAssignment<'cx>),
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct SpreadAssignment<'cx> {
+    pub id: NodeID,
+    pub span: Span,
+    pub expr: &'cx Expr<'cx>,
 }
 
 #[derive(Debug, Clone, Copy)]

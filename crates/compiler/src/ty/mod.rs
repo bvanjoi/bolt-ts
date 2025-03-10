@@ -262,7 +262,7 @@ impl<'cx> Ty<'cx> {
             TyKind::Object(ty) => match ty.kind {
                 ObjectTyKind::Interface(ty) => Some(ty.symbol),
                 ObjectTyKind::Reference(ty) => ty.target.symbol(),
-                ObjectTyKind::Anonymous(ty) => Some(ty.symbol),
+                ObjectTyKind::Anonymous(ty) => ty.symbol,
                 ObjectTyKind::Mapped(ty) => Some(ty.symbol),
                 _ => None,
             },

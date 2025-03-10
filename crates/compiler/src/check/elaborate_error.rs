@@ -72,6 +72,11 @@ impl<'cx> TyChecker<'cx> {
                         inner_expr: None,
                         name_ty: ty,
                     },
+                    SpreadAssignment(n) => Elaboration {
+                        error_node: n.id,
+                        inner_expr: None,
+                        name_ty: ty,
+                    },
                 }
             })
             .collect::<Vec<_>>();

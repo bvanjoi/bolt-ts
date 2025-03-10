@@ -230,7 +230,7 @@ impl<'cx> TyChecker<'cx> {
         object_flags: ObjectFlags,
     ) -> &'cx ty::Ty<'cx> {
         let target = ty.kind.expect_object_anonymous();
-        self.create_instantiating_anonymous_ty(target.symbol, ty, mapper, object_flags)
+        self.create_instantiating_anonymous_ty(target.symbol.unwrap(), ty, mapper, object_flags)
     }
 
     fn get_homomorphic_ty_var(&mut self, ty: &'cx ty::Ty<'cx>) -> Option<&'cx ty::Ty<'cx>> {
@@ -440,7 +440,6 @@ impl<'cx> TyChecker<'cx> {
             }
         }
 
-        let map = ty.kind.expect_object_mapped();
         if let Some(ty_var) = self.get_homomorphic_ty_var(ty) {
             let mapped_ty_var = self.instantiate_ty(ty_var, Some(mapper));
             if ty_var != mapped_ty_var {

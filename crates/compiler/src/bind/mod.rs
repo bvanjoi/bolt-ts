@@ -53,12 +53,14 @@ impl Binder {
     }
 
     #[inline(always)]
+    #[track_caller]
     pub(crate) fn get(&self, id: ModuleID) -> &ResolveResult {
         let index = id.as_usize();
         &self.binder_result[index]
     }
 
     #[inline(always)]
+    #[track_caller]
     pub(super) fn symbol(&self, id: SymbolID) -> &Symbol {
         let m = id.module();
         self.get(m).symbols.get(id)

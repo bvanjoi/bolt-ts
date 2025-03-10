@@ -80,7 +80,7 @@ impl<'cx, 'atoms> BinderState<'cx, 'atoms> {
         self.connect(root.id);
         self.current_flow = Some(self.flow_nodes.create_start(None));
         let id = self.create_block_container_symbol(root.id);
-        assert_eq!(id.index_as_u32(), 1); // TODO: `1` -> `0`
+        assert_eq!(id, SymbolID::container(id.module()));
         for stmt in root.stmts {
             self.bind_stmt(root.id, stmt)
         }
@@ -913,20 +913,20 @@ impl<'cx, 'atoms> BinderState<'cx, 'atoms> {
         let members = lit
             .members
             .iter()
-            .map(|member| {
+            .flat_map(|member| {
                 use bolt_ts_ast::ObjectMemberKind::*;
                 match member.kind {
                     Shorthand(n) => {
                         self.bind_ident(n.name);
                         let name = SymbolName::Ele(n.name.name);
                         let symbol = self.create_object_member_symbol(name, n.id, false);
-                        (name, symbol)
+                        Some((name, symbol))
                     }
                     Prop(n) => {
                         let name = prop_name(n.name);
                         let symbol = self.create_object_member_symbol(name, n.id, false);
                         self.bind_expr(n.value);
-                        (name, symbol)
+                        Some((name, symbol))
                     }
                     Method(n) => {
                         let name = prop_name(n.name);
@@ -944,7 +944,11 @@ impl<'cx, 'atoms> BinderState<'cx, 'atoms> {
                         self.bind_block_stmt(n.body);
                         self.scope_id = old;
 
-                        (name, symbol)
+                        Some((name, symbol))
+                    }
+                    SpreadAssignment(n) => {
+                        self.bind_expr(n.expr);
+                        None
                     }
                 }
             })

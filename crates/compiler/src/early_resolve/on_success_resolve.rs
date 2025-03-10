@@ -59,8 +59,6 @@ impl<'cx> Resolver<'cx, '_, '_> {
                 )
                 .is_some()
         {
-            let prev = self.final_res.insert(ident.id, Symbol::ERR);
-            assert!(prev.is_some());
             let error =
                 errors::StaticMembersCannotReferenceClassTypeParameters { span: ident.span };
             Some(error)
@@ -87,10 +85,12 @@ impl<'cx> Resolver<'cx, '_, '_> {
     pub(super) fn on_success_resolved_type_symbol(
         &mut self,
         ident: &'cx ast::Ident,
-        symbol: SymbolID,
+        symbol: &mut SymbolID,
     ) {
-        if let Some(error) = self.check_ty_param_used_in_static_but_declared_at_class(ident, symbol)
+        if let Some(error) =
+            self.check_ty_param_used_in_static_but_declared_at_class(ident, *symbol)
         {
+            *symbol = Symbol::ERR;
             self.push_error(Box::new(error));
         }
     }

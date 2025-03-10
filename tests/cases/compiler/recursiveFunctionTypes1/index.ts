@@ -3,3 +3,8 @@
 class C {
   static g(t: typeof C.g){ }
 }
+
+C.g(C.g)
+C.g((a) => {
+  a(a)
+})

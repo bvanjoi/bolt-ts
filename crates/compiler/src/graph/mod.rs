@@ -12,7 +12,6 @@ use std::sync::{Arc, Mutex};
 use bolt_ts_atom::{AtomId, AtomMap};
 use bolt_ts_fs::PathId;
 use bolt_ts_resolve::RResult;
-use bolt_ts_span::ModulePath;
 use bolt_ts_utils::{fx_hashmap_with_capacity, fx_hashset_with_capacity};
 use rayon::prelude::*;
 use rustc_hash::{FxHashMap, FxHashSet};

@@ -311,6 +311,11 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
             })
         } else {
             // prop
+            let excl = if !self.has_preceding_line_break() {
+                self.parse_optional(TokenKind::Excl)
+            } else {
+                None
+            };
             let ty = self.with_parent(id, Self::parse_ty_anno)?;
             let init = self.with_parent(id, Self::parse_init)?;
             let prop = self.alloc(ast::ClassPropElem {
@@ -320,6 +325,8 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
                 name,
                 ty,
                 init,
+                question: None,
+                excl: excl.map(|e| e.span),
             });
             self.insert_map(id, ast::Node::ClassPropElem(prop));
             self.parse_semi_after_prop_name();
