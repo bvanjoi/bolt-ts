@@ -329,10 +329,10 @@ impl<'cx> TyChecker<'cx> {
                 origin: None,
             };
             let s = create_transient_symbol(&mut transient_symbols, symbol);
+            assert_eq!(s, Symbol::ERR);
             symbol_links.insert(s, links);
             s
         };
-        assert_eq!(error_symbol, Symbol::ERR);
         let arguments_symbol = {
             let symbol = TransientSymbol {
                 name: SymbolName::Normal(keyword::IDENT_ARGUMENTS),
@@ -340,9 +340,10 @@ impl<'cx> TyChecker<'cx> {
                 links: Default::default(),
                 origin: None,
             };
-            create_transient_symbol(&mut transient_symbols, symbol)
+            let s = create_transient_symbol(&mut transient_symbols, symbol);
+            assert_eq!(s, Symbol::ARGUMENTS);
+            s
         };
-        assert_eq!(arguments_symbol, Symbol::ARGUMENTS);
         let empty_ty_literal_symbol = {
             let symbol = TransientSymbol {
                 name: SymbolName::Type,
@@ -547,6 +548,10 @@ impl<'cx> TyChecker<'cx> {
         let global_string_ty =
             this.get_global_type(SymbolName::Normal(keyword::IDENT_STRING_CLASS));
         this.global_string_ty.set(global_string_ty).unwrap();
+
+        let iarguments = this.get_global_type(SymbolName::Normal(keyword::IDENT_IARGUMENTS_CLASS));
+        this.get_mut_symbol_links(arguments_symbol)
+            .set_ty(iarguments);
 
         let typeof_ty = {
             let tys = TYPEOF_NE_FACTS
@@ -1562,6 +1567,10 @@ impl<'cx> TyChecker<'cx> {
 
         if symbol == Symbol::ERR {
             return self.error_ty;
+        }
+
+        if symbol == self.arguments_symbol {
+            return self.get_type_of_symbol(symbol);
         }
 
         if self.symbol(symbol).flags() == SymbolFlags::CLASS {

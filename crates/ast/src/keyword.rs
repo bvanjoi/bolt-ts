@@ -98,6 +98,7 @@ gen_atoms!(
     (IDENT_NEWABLE_FUNCTION_CLASS, "NewableFunction"),
     (IDENT_GLOBAL, "global"),
     (IDENT_ARGUMENTS, "arguments"),
+    (IDENT_IARGUMENTS_CLASS, "IArguments"),
     (INTRINSIC_TYPE_UPPERCASE, "Uppercase"),
     (INTRINSIC_TYPE_LOWERCASE, "Lowercase"),
     (INTRINSIC_TYPE_CAPITALIZE, "Capitalize"),

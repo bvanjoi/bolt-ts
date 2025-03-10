@@ -38,9 +38,9 @@ impl<'cx> TyChecker<'cx> {
             return self.get_type_of_mapped_symbol(id);
         }
 
-        let symbol = self.binder.symbol(id);
+        let flags = self.symbol(id).flags();
 
-        let ty = if symbol.flags.intersects(
+        let ty = if flags.intersects(
             SymbolFlags::FUNCTION
                 | SymbolFlags::METHOD
                 | SymbolFlags::CLASS
@@ -48,11 +48,11 @@ impl<'cx> TyChecker<'cx> {
                 | SymbolFlags::VALUE_MODULE,
         ) {
             self.get_ty_of_func_class_enum_module(id)
-        } else if symbol.is_variable() || symbol.flags.intersects(SymbolFlags::PROPERTY) {
+        } else if flags.intersects(SymbolFlags::PROPERTY | SymbolFlags::VARIABLE) {
             self.get_type_for_var_like(id)
-        } else if symbol.flags.intersects(SymbolFlags::ACCESSOR) {
+        } else if flags.intersects(SymbolFlags::ACCESSOR) {
             self.get_ty_of_accessor(id)
-        } else if symbol.flags == SymbolFlags::OBJECT_LITERAL {
+        } else if flags == SymbolFlags::OBJECT_LITERAL {
             unreachable!("type literal")
         } else {
             self.error_ty

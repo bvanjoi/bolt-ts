@@ -648,6 +648,7 @@ pub(super) fn resolve_symbol_by_ident<'a, 'cx>(
     ident: &'cx ast::Ident,
     meaning: SymbolFlags,
 ) -> ResolvedResult {
+    use ast::Node::*;
     let mut associated_declaration_for_containing_initializer_or_binding_name = None;
     let mut last_location = None;
     let mut location = resolver.p.parent(ident.id);
@@ -667,6 +668,21 @@ pub(super) fn resolve_symbol_by_ident<'a, 'cx>(
             }
         }
         last_location = location;
+
+        match resolver.p.node(id) {
+            ArrowFnExpr(_) | ClassMethodElem(_) | ClassCtor(_) | GetterDecl(_) | SetterDecl(_)
+            | FnDecl(_) => {
+                if meaning.intersects(SymbolFlags::VARIABLE)
+                    && ident.name == keyword::IDENT_ARGUMENTS
+                {
+                    return ResolvedResult {
+                        symbol: Symbol::ARGUMENTS,
+                        associated_declaration_for_containing_initializer_or_binding_name,
+                    };
+                }
+            }
+            _ => {}
+        }
         location = resolver.p.parent(id);
     }
     let binder = &resolver.states[resolver.module_id.as_usize()];
