@@ -2,7 +2,6 @@ use bolt_ts_ast as ast;
 use bolt_ts_utils::fx_hashmap_with_capacity;
 use rustc_hash::{FxHashMap, FxHashSet};
 use std::hash::Hasher;
-use std::mem;
 
 use crate::bind::{Symbol, SymbolFlags, SymbolID, SymbolName};
 use crate::check::SymbolLinks;

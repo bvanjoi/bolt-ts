@@ -673,7 +673,12 @@ impl<'cx> TyChecker<'cx> {
             .iter()
             .map(|t| self.get_mapped_ty(mapper, t))
             .collect::<Vec<_>>();
-        let key = ConditionalTyInstantiationTyMap::create_id(cond_ty.root.id, &ty_args);
+        let key = ConditionalTyInstantiationTyMap::create_id(
+            cond_ty.root.node.id,
+            &ty_args,
+            alias_symbol,
+            alias_ty_args,
+        );
         if let Some(instantiated) = self.instantiation_ty_map.get(key) {
             return instantiated;
         }

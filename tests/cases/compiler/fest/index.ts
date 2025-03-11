@@ -442,15 +442,16 @@ type Except<ObjectType, KeysType extends keyof ObjectType, Options extends Excep
 
 {
   const a0: {a: number} = {a: 42};
-  // const except: Except<{a: number; b: string}, 'b'> = a0;
-  // const _a: unknown = except.b;
+  const except: Except<{a: number; b: string}, 'b'> = a0;
+  const _a: unknown = except.b;
+  //~^ ERROR: Property 'b' does not exist on type 'mapped type'.
 
-  // const nonStrict = {
-  //   a: 1,
-  //   b: '2',
-  // };
+  const nonStrict = {
+    a: 1,
+    b: '2',
+  };
 
-  // const nonStrictAssignment: typeof except = nonStrict; // No error
+  const nonStrictAssignment: typeof except = nonStrict; // No error
 
   // declare const strictExcept: Except<{a: number; b: string}, 'b', {requireExactProps: true}>;
 

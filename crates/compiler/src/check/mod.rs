@@ -14,7 +14,6 @@ mod check_ty;
 mod check_ty_refer_ty_or_import;
 mod check_type_related_to;
 mod check_var_like;
-mod compare_tys;
 mod create_ty;
 mod cycle_check;
 mod elaborate_error;
@@ -156,7 +155,6 @@ pub struct TyChecker<'cx> {
     pub diags: Vec<bolt_ts_errors::Diag>,
     config: &'cx NormalizedCompilerOptions,
     arena: &'cx bumpalo::Bump,
-    cond_ty_root_count: ty::CondTyRootID,
     tys: Vec<&'cx ty::Ty<'cx>>,
     sigs: Vec<&'cx Sig<'cx>>,
     flow_nodes: Vec<FlowNodes<'cx>>,
@@ -363,7 +361,6 @@ impl<'cx> TyChecker<'cx> {
             config,
 
             tys,
-            cond_ty_root_count: ty::CondTyRootID::root(),
             sigs: Vec::with_capacity(p.module_count() * 256),
             arena: ty_arena,
             diags: Vec::with_capacity(p.module_count() * 32),

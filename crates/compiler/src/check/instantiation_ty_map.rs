@@ -2,7 +2,7 @@ use std::hash::Hasher;
 
 use bolt_ts_utils::no_hashmap_with_capacity;
 
-use crate::ty;
+use crate::{bind::SymbolID, ty};
 
 fn _hash_ty_args(hasher: &mut rustc_hash::FxHasher, ty_args: &[&ty::Ty]) {
     ty_args
@@ -124,10 +124,23 @@ impl<'cx> InstantiationTyMap<'cx> {
 pub(super) struct ConditionalTyInstantiationTyMap;
 
 impl<'cx> ConditionalTyInstantiationTyMap {
-    pub fn create_id(target_ty_id: ty::CondTyRootID, ty_args: &[&'cx ty::Ty<'cx>]) -> TyKey {
+    pub fn create_id(
+        root_node_id: bolt_ts_ast::NodeID,
+        ty_args: &[&'cx ty::Ty<'cx>],
+        alias_symbol: Option<SymbolID>,
+        alias_ty_arguments: Option<ty::Tys<'cx>>,
+    ) -> TyKey {
         let mut hasher = rustc_hash::FxHasher::default();
-        hasher.write_u32(target_ty_id.as_u32());
+        hasher.write_u32(root_node_id.module().as_u32());
+        hasher.write_u32(root_node_id.index_as_u32());
         _hash_ty_args(&mut hasher, ty_args);
+        if let Some(alias_symbol) = alias_symbol {
+            hasher.write_u32(alias_symbol.module().as_u32());
+            hasher.write_u32(alias_symbol.index_as_u32());
+        }
+        if let Some(alias_ty_arguments) = alias_ty_arguments {
+            _hash_ty_args(&mut hasher, alias_ty_arguments);
+        }
         let id = hasher.finish();
         TyKey(id)
     }

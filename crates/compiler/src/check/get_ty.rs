@@ -1170,6 +1170,7 @@ impl<'cx> TyChecker<'cx> {
             if tailed >= 1000 {
                 panic!()
             }
+
             let check_ty = {
                 let ty = self.get_actual_ty_variable(root.check_ty);
                 self.instantiate_ty(ty, mapper)
@@ -1362,14 +1363,11 @@ impl<'cx> TyChecker<'cx> {
         };
         let extends_ty = self.get_ty_from_type_node(node.extends_ty);
         let infer_ty_params = self.get_infer_ty_params(node);
-        let id = self.cond_ty_root_count;
-        self.cond_ty_root_count = self.cond_ty_root_count.next();
         let root = self.alloc(ty::CondTyRoot {
-            id,
+            node,
             check_ty,
             extends_ty,
             outer_ty_params,
-            node,
             is_distributive: check_ty.kind.is_param(),
             infer_ty_params,
             alias_symbol,
@@ -1384,7 +1382,6 @@ impl<'cx> TyChecker<'cx> {
         if let Some(ty) = self.get_node_links(node.id).get_resolved_ty() {
             return ty;
         }
-        let ty_node = self.p.node(node.id).as_ty().unwrap();
         let readonly = self
             .p
             .parent(node.id)
