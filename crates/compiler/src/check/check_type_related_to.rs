@@ -4,6 +4,7 @@ use rustc_hash::FxHashSet;
 use super::errors;
 use super::get_variances::VarianceFlags;
 use super::relation::{RelationKind, SigCheckMode};
+use super::transient_symbol::CheckSymbol;
 use super::utils::contains_ty;
 use crate::bind::{SymbolFlags, SymbolID};
 use crate::keyword::IDENT_LENGTH;
@@ -1795,6 +1796,35 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
         compare(self, s, t, false)
     }
 
+    fn should_check_as_excess_prop(&self, prop: SymbolID, container: SymbolID) -> bool {
+        let p = self.c.symbol(prop);
+        let c = self.c.symbol(container);
+        match (p, c) {
+            (CheckSymbol::Normal(sub), CheckSymbol::Normal(container)) => {
+                let Some(sub) = sub.opt_decl() else {
+                    return false;
+                };
+                let Some(container) = container.opt_decl() else {
+                    return false;
+                };
+                self.c.p.parent(sub).is_some_and(|p| p == container)
+            }
+            (CheckSymbol::Transient(p), CheckSymbol::Transient(c)) => {
+                let Some(p) = p.origin else { return false };
+                let Some(c) = c.origin else { return false };
+                self.should_check_as_excess_prop(p, c)
+            }
+            (CheckSymbol::Transient(p), CheckSymbol::Normal(_)) => {
+                let Some(p) = p.origin else { return false };
+                self.should_check_as_excess_prop(p, container)
+            }
+            (CheckSymbol::Normal(_), CheckSymbol::Transient(c)) => {
+                let Some(c) = c.origin else { return false };
+                self.should_check_as_excess_prop(prop, c)
+            }
+        }
+    }
+
     fn has_excess_properties(
         &mut self,
         source: &'cx Ty<'cx>,
@@ -1805,20 +1835,23 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
             return false;
         }
         for prop in self.c.get_props_of_ty(source) {
-            let name = self.c.symbol(*prop).name();
-            if !self.c.is_known_prop(target_ty, name) {
-                if report_error {
-                    if let Some(name) = name.as_atom() {
-                        let span = self.c.p.node(self.c.get_symbol_decl(*prop).unwrap()).span();
-                        let field = self.c.atoms.get(name).to_string();
-                        let error = errors::ObjectLitMayOnlySpecifyKnownPropAndFieldDoesNotExist {
-                            span,
-                            field,
-                        };
-                        self.c.push_error(Box::new(error));
+            if self.should_check_as_excess_prop(*prop, source.symbol().unwrap()) {
+                let name = self.c.symbol(*prop).name();
+                if !self.c.is_known_prop(target_ty, name) {
+                    if report_error {
+                        if let Some(name) = name.as_atom() {
+                            let span = self.c.p.node(self.c.get_symbol_decl(*prop).unwrap()).span();
+                            let field = self.c.atoms.get(name).to_string();
+                            let error =
+                                errors::ObjectLitMayOnlySpecifyKnownPropAndFieldDoesNotExist {
+                                    span,
+                                    field,
+                                };
+                            self.c.push_error(Box::new(error));
+                        }
                     }
+                    return true;
                 }
-                return true;
             }
         }
 

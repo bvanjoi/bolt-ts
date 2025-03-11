@@ -1,6 +1,8 @@
 use bolt_ts_ast as ast;
+use bolt_ts_utils::fx_hashmap_with_capacity;
 use rustc_hash::{FxHashMap, FxHashSet};
 use std::hash::Hasher;
+use std::mem;
 
 use crate::bind::{Symbol, SymbolFlags, SymbolID, SymbolName};
 use crate::check::SymbolLinks;
@@ -1103,6 +1105,16 @@ impl<'cx> TyChecker<'cx> {
         })
     }
 
+    fn check_cross_product_union(tys: &[&'cx ty::Ty<'cx>]) -> bool {
+        let size = Self::get_cross_product_union_size(tys);
+        if size >= 100_000 {
+            // TODO: error
+            false
+        } else {
+            true
+        }
+    }
+
     fn get_cross_product_intersections(
         &mut self,
         tys: &[&'cx ty::Ty<'cx>],
@@ -1355,5 +1367,145 @@ impl<'cx> TyChecker<'cx> {
     ) -> &'cx ty::Ty<'cx> {
         let t = self.alloc(ty::TemplateLitTy { texts, tys });
         self.new_ty(ty::TyKind::TemplateLit(t), TypeFlags::TEMPLATE_LITERAL)
+    }
+
+    pub(super) fn get_spread_ty(
+        &mut self,
+        mut left: &'cx ty::Ty<'cx>,
+        mut right: &'cx ty::Ty<'cx>,
+        symbol: Option<SymbolID>,
+        object_flags: ObjectFlags,
+        is_readonly: bool,
+    ) -> &'cx ty::Ty<'cx> {
+        if left.flags.intersects(TypeFlags::ANY) || right.flags.intersects(TypeFlags::ANY) {
+            return self.any_ty;
+        } else if left.flags.intersects(TypeFlags::UNKNOWN)
+            || right.flags.intersects(TypeFlags::UNKNOWN)
+        {
+            return self.unknown_ty;
+        } else if left.flags.intersects(TypeFlags::NEVER) {
+            return right;
+        } else if right.flags.intersects(TypeFlags::NEVER) {
+            return left;
+        }
+
+        left = self.try_merge_union_of_object_ty_and_empty_object(left, is_readonly);
+        if left.flags.intersects(TypeFlags::UNION) {
+            return if Self::check_cross_product_union(&[left, right]) {
+                self.map_ty(
+                    left,
+                    |this, ty| {
+                        Some(this.get_spread_ty(ty, right, symbol, object_flags, is_readonly))
+                    },
+                    false,
+                )
+                .unwrap()
+            } else {
+                self.error_ty
+            };
+        }
+
+        right = self.try_merge_union_of_object_ty_and_empty_object(right, is_readonly);
+        if right.flags.intersects(TypeFlags::UNION) {
+            return if Self::check_cross_product_union(&[left, right]) {
+                self.map_ty(
+                    right,
+                    |this, ty| {
+                        Some(this.get_spread_ty(left, ty, symbol, object_flags, is_readonly))
+                    },
+                    false,
+                )
+                .unwrap()
+            } else {
+                self.error_ty
+            };
+        }
+
+        if right.flags.intersects(
+            TypeFlags::BOOLEAN_LIKE
+                | TypeFlags::NUMBER_LIKE
+                | TypeFlags::BIG_INT_LIKE
+                | TypeFlags::STRING_LIKE
+                | TypeFlags::ENUM_LIKE
+                | TypeFlags::NON_PRIMITIVE
+                | TypeFlags::INDEX,
+        ) {
+            return left;
+        }
+
+        if self.is_generic_object(left) || self.is_generic_object(right) {
+            if self.is_empty_object_ty(left) {
+                return right;
+            } else if let Some(i) = left.kind.as_intersection() {
+                let last_ty = i.tys[i.tys.len() - 1];
+                if self.is_non_generic_object_ty(last_ty) && self.is_non_generic_object_ty(right) {
+                    let a = &i.tys[0..i.tys.len() - 1];
+                    let b = self.get_spread_ty(last_ty, right, symbol, object_flags, is_readonly);
+                    let tys = {
+                        let mut a = a.to_vec();
+                        a.push(b);
+                        self.alloc(a)
+                    };
+                    return self.get_intersection_ty(tys, IntersectionFlags::None, None, None);
+                }
+                return self.get_intersection_ty(
+                    &[left, right],
+                    IntersectionFlags::None,
+                    None,
+                    None,
+                );
+            }
+        }
+
+        let left_props = self.get_props_of_ty(left);
+        let right_props = self.get_props_of_ty(right);
+        let mut members = fx_hashmap_with_capacity(left_props.len() + right_props.len());
+        let index_infos = if left == self.empty_object_ty() {
+            self.get_index_infos_of_ty(right)
+        } else {
+            self.get_union_index_infos(&[left, right])
+        };
+
+        for right_prop in right_props {
+            let name = self.symbol(*right_prop).name();
+            // TODO: skip private and project
+            let symbol = self.get_spread_symbol(*right_prop, is_readonly);
+            members.insert(name, symbol);
+        }
+
+        for left_prop in left_props {
+            let name = self.symbol(*left_prop).name();
+            if members.contains_key(&name) {
+                todo!()
+            } else {
+                let symbol = self.get_spread_symbol(*left_prop, is_readonly);
+                members.insert(name, symbol);
+            }
+        }
+
+        let index_infos = self
+            .same_map_index_infos(Some(index_infos), |this, index_info, _| {
+                if index_info.is_readonly != is_readonly {
+                    this.alloc(ty::IndexInfo {
+                        is_readonly,
+                        ..*index_info
+                    })
+                } else {
+                    index_info
+                }
+            })
+            .unwrap();
+        let spread = self.create_anonymous_ty_with_resolved(
+            symbol,
+            ObjectFlags::OBJECT_LITERAL
+                | ObjectFlags::CONTAINS_OBJECT_OR_ARRAY_LITERAL
+                | ObjectFlags::CONTAINS_SPREAD
+                | object_flags,
+            self.alloc(members),
+            self.empty_array(),
+            self.empty_array(),
+            index_infos,
+        );
+        spread
     }
 }

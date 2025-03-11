@@ -2003,6 +2003,38 @@ impl<'cx> TyChecker<'cx> {
         })
     }
 
+    fn is_empty_resolved_ty(&self, ty: &'cx ty::Ty<'cx>) -> bool {
+        let Some(m) = self
+            .ty_links
+            .get(&ty.id)
+            .and_then(|l| l.get_structured_members())
+        else {
+            unreachable!()
+        };
+        ty != self.any_fn_ty()
+            && m.props.is_empty()
+            && m.call_sigs.is_empty()
+            && m.ctor_sigs.is_empty()
+            && m.index_infos.is_empty()
+    }
+
+    pub(crate) fn is_empty_object_ty(&mut self, ty: &'cx ty::Ty<'cx>) -> bool {
+        if ty.flags.intersects(TypeFlags::OBJECT) {
+            !self.is_generic_mapped_ty(ty) && {
+                self.resolve_structured_type_members(ty);
+                self.is_empty_resolved_ty(ty)
+            }
+        } else if ty.flags.intersects(TypeFlags::NON_PRIMITIVE) {
+            true
+        } else if let Some(u) = ty.kind.as_union() {
+            u.tys.iter().any(|t| self.is_empty_object_ty(t))
+        } else if let Some(i) = ty.kind.as_intersection() {
+            i.tys.iter().all(|t| self.is_empty_object_ty(t))
+        } else {
+            false
+        }
+    }
+
     fn get_key_prop_name(&self, union_ty: &'cx ty::UnionTy<'cx>) -> Option<SymbolName> {
         None
     }
@@ -2870,6 +2902,78 @@ impl<'cx> TyChecker<'cx> {
         self.p
             .get_annotated_accessor_ty_node(n)
             .map(|n| self.get_ty_from_type_node(n))
+    }
+
+    fn remove_definitely_falsy_tys(&mut self, ty: &'cx ty::Ty<'cx>) -> &'cx ty::Ty<'cx> {
+        self.filter_type(ty, |_, t| has_type_facts(t, TypeFacts::TRUTHY))
+    }
+
+    fn get_union_index_infos(&mut self, tys: &[&'cx ty::Ty<'cx>]) -> ty::IndexInfos<'cx> {
+        let source_infos = self.get_index_infos_of_ty(tys[0]);
+        let mut result = Vec::with_capacity(source_infos.len());
+        for info in source_infos {
+            if tys
+                .iter()
+                .all(|t| self.get_index_info_of_ty(t, info.key_ty).is_some())
+            {
+                let is_readonly = tys.iter().any(|t| {
+                    self.get_index_info_of_ty(t, info.key_ty)
+                        .unwrap()
+                        .is_readonly
+                });
+                let tys = tys
+                    .iter()
+                    .map(|t| self.get_index_ty_of_ty(t, info.key_ty).unwrap())
+                    .collect::<Vec<_>>();
+                let val_ty = self.get_union_ty(&tys, ty::UnionReduction::Lit);
+                let index_info = self.alloc(ty::IndexInfo {
+                    key_ty: info.key_ty,
+                    val_ty,
+                    is_readonly,
+                    symbol: Symbol::ERR,
+                });
+                result.push(index_info);
+            }
+        }
+
+        if result.is_empty() {
+            self.empty_array()
+        } else {
+            self.alloc(result)
+        }
+    }
+
+    pub(super) fn get_spread_symbol(&mut self, prop: SymbolID, readonly: bool) -> SymbolID {
+        let prop_flags = self.symbol(prop).flags();
+        let is_setonly_accessor = prop_flags.intersects(SymbolFlags::SET_ACCESSOR)
+            && !prop_flags.intersects(SymbolFlags::GET_ACCESSOR);
+        if !is_setonly_accessor && readonly == self.is_readonly_symbol(prop) {
+            return prop;
+        } else {
+            // TODO: is_late_check_flags
+            let check_flags = if readonly {
+                CheckFlags::READONLY
+            } else {
+                CheckFlags::empty()
+            };
+            let flags = SymbolFlags::PROPERTY | prop_flags.intersection(SymbolFlags::OPTIONAL);
+            let name = self.symbol(prop).name();
+            let name_ty = self.get_symbol_links(prop).get_name_ty();
+            let ty = if is_setonly_accessor {
+                self.undefined_ty
+            } else {
+                self.get_type_of_symbol(prop)
+            };
+            let links = SymbolLinks::default()
+                .with_ty(ty)
+                .with_check_flags(check_flags);
+            let links = if let Some(name_ty) = name_ty {
+                links.with_name_ty(name_ty)
+            } else {
+                links
+            };
+            self.create_transient_symbol(name, flags, None, links)
+        }
     }
 }
 

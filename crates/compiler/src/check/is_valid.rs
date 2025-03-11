@@ -78,4 +78,19 @@ impl<'cx> TyChecker<'cx> {
             false
         }
     }
+
+    pub(super) fn is_valid_spread_ty(&mut self, ty: &'cx ty::Ty<'cx>) -> bool {
+        let t = self
+            .map_ty(ty, |this, t| Some(this.get_base_constraint_or_ty(t)), false)
+            .unwrap();
+        t.flags.intersects(
+            TypeFlags::ANY
+                | TypeFlags::NON_PRIMITIVE
+                | TypeFlags::OBJECT
+                | TypeFlags::INSTANTIABLE_NON_PRIMITIVE,
+        ) || t
+            .kind
+            .tys_of_union_or_intersection()
+            .is_some_and(|tys| tys.iter().all(|t| self.is_valid_spread_ty(t)))
+    }
 }

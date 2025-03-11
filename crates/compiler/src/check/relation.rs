@@ -35,15 +35,23 @@ bitflags::bitflags! {
 }
 
 impl<'cx> TyChecker<'cx> {
-    pub(super) fn is_excess_property_check_target(&self, target: &'cx Ty<'cx>) -> bool {
-        if target.kind.as_object().is_some() {
-            // TODO: exclude literal computed name
+    pub(super) fn is_excess_property_check_target(&self, ty: &'cx Ty<'cx>) -> bool {
+        if ty.kind.is_object() {
+            let flags = ty.get_object_flags();
+            !flags.intersects(ObjectFlags::OBJECT_LITERAL_PATTERN_WITH_COMPUTED_PROPERTIES)
+        } else if ty.flags.intersects(TypeFlags::NON_PRIMITIVE) {
             true
-        } else if let Some(union) = target.kind.as_union() {
+        } else if let Some(s) = ty.kind.as_substitution_ty() {
+            self.is_excess_property_check_target(s.base_ty)
+        } else if let Some(union) = ty.kind.as_union() {
             union
                 .tys
                 .iter()
-                .any(|ty| self.is_excess_property_check_target(ty))
+                .any(|t| self.is_excess_property_check_target(t))
+        } else if let Some(i) = ty.kind.as_intersection() {
+            i.tys
+                .iter()
+                .all(|t| self.is_excess_property_check_target(t))
         } else {
             false
         }

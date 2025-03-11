@@ -11,6 +11,7 @@ pub(super) struct TransientSymbol<'cx> {
     pub(super) name: SymbolName,
     pub(super) flags: SymbolFlags,
     pub(super) links: crate::check::SymbolLinks<'cx>,
+    // TODO: flatten
     pub(super) origin: Option<SymbolID>,
 }
 
@@ -105,7 +106,7 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
-    pub(crate) fn symbol(&self, symbol: SymbolID) -> CheckSymbol<'cx, '_> {
+    pub(super) fn symbol(&self, symbol: SymbolID) -> CheckSymbol<'cx, '_> {
         if symbol.module() == ModuleID::TRANSIENT {
             let symbol = self.get_transient(symbol).unwrap();
             CheckSymbol::Transient(symbol)

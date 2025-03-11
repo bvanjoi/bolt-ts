@@ -240,6 +240,36 @@ type BuildTuple<L extends number, Fill = unknown, T extends readonly unknown[] =
   const a4: BuildTuple<number, 0> = {} as Array<0>;
 }
 
+// ======= ConditionalExcept =======
+// type ConditionalExcept<Base, Condition> = Except<Base, ConditionalKeys<Base, Condition>>;
+
+// {
+//   class Awesome {
+//     name!: string;
+//     successes!: number;
+//     failures!: bigint;
+  
+//     run(): void {
+//       // Empty
+//     }
+//   }
+  
+//   type Example = {
+//     a: string;
+//     b?: string | number;
+//     c?: string;
+//     d: Record<string, unknown>;
+//   };
+  
+//   const a0: {b?: string | number; c?: string; d: Record<string, unknown>} = {d: {}};
+//   const exampleConditionalExcept: ConditionalExcept<Example, string> = a0;
+  
+//   const b0: {run: () => void} = { run() {} };
+//   const awesomeConditionalExcept: ConditionalExcept<Awesome, Primitive> = b0;
+
+//   const c0: {b?: string | number; d: Record<string, unknown>} = {d: {}};
+//   const exampleConditionalExceptWithUndefined: ConditionalExcept<Example, string | undefined> = c0;
+// }
 // ======== ConditionalKeys ========
 type ConditionalKeys<Base, Condition> =
 {
@@ -327,76 +357,124 @@ type ConditionalSimplifyDeep<Type, ExcludeType = never, IncludeType = unknown> =
   const position = {top: 120, left: 240};
   const size = {width: 480, height: 600};
   const positionAndSize = {...position, ...size};
-  // expectType<PositionAndSizeSimplified>(positionAndSize);
+  const a0: PositionAndSizeSimplified = positionAndSize;
 
   // Exclude function type to be simplified.
-  // type SomeFunction = (type: string) => string;
-  // type SimplifiedFunctionFail = ConditionalSimplify<SomeFunction>; // Return '{}'
-  // type SimplifiedFunctionPass = ConditionalSimplify<SomeFunction, Function>; // Return '(type: string) => string'
+  type SomeFunction = (type: string) => string;
+  type SimplifiedFunctionFail = ConditionalSimplify<SomeFunction>; // Return '{}'
+  type SimplifiedFunctionPass = ConditionalSimplify<SomeFunction, Function>; // Return '(type: string) => string'
 
-  // declare const simplifiedFunctionFail: SimplifiedFunctionFail;
-  // declare const simplifiedFunctionPass: SimplifiedFunctionPass;
+  const simplifiedFunctionFail: SimplifiedFunctionFail = {};
+  const b0: SimplifiedFunctionFail = (a: string) => a;
+  const simplifiedFunctionPass: SimplifiedFunctionPass = (a: string) => a;
+  const b1: SimplifiedFunctionPass = (a: number) => a;
+  //~^ ERROR: Type '(a: number) => void' is not assignable to type '(type: string) => string'.
 
-  // expectNotAssignable<SomeFunction>(simplifiedFunctionFail);
-  // expectType<SomeFunction>(simplifiedFunctionPass);
+  // Should simplify interface deeply.
+  type SomeNode = {
+    parent: PositionAndSizeIntersection;
+    childs: Array<{parent: PositionAndSizeIntersection}>;
+  };
 
-  // // Should simplify interface deeply.
-  // type SomeNode = {
-  //   parent: PositionAndSizeIntersection;
-  //   childs: Array<{parent: PositionAndSizeIntersection}>;
+  // In your editor, hovering over `SomeNodeSimplified` will show a simplified object with all the properties.
+  type SomeNodeSimplified = ConditionalSimplifyDeep<SomeNode>;
+
+  const someNode: SomeNodeSimplified = {parent: positionAndSize, childs: [{parent: positionAndSize}, {parent: positionAndSize}]};
+
+  // Should simplify interface deeply excluding Function type.
+  // TODO: Convert this to a `type`.
+  interface MovablePosition extends Position {
+    move(position: Position): Position;
+  }
+
+  type MovableCollection = {
+    position: MovablePosition;
+    top: {position: MovablePosition; size: Size};
+    left: {position: MovablePosition; size: Size};
+  };
+
+  type MovableNodeSimplifiedFail = ConditionalSimplifyDeep<MovableCollection>;
+  type MovableNodeSimplifiedPass = ConditionalSimplifyDeep<MovableCollection, Function>;
+
+  function f0(movableNodeSimplifiedFail: MovableNodeSimplifiedFail) {
+    let a0: MovableCollection = movableNodeSimplifiedFail;
+    //~^ ERROR: Type 'mapped type' is not assignable to type '{ position: MovablePosition; left: { position: MovablePosition; size: { width: number; height: number; }; }; top: { position: MovablePosition; size: { width: number; height: number; }; }; }'.
+  }
+  function f1(movableNodeSimplifiedPass: MovableNodeSimplifiedPass) {
+    let a0: MovableCollection = movableNodeSimplifiedPass;
+  }
+
+  const movablePosition = {
+    top: 42,
+    left: 42,
+    move(position: Position) {
+      return position;
+    },
+  };
+
+  const movableNode = {
+    position: movablePosition,
+    top: {position: movablePosition, size},
+    left: {position: movablePosition, size},
+  };
+
+  const c0: MovableNodeSimplifiedPass = movableNode;
+
+  // Should exclude `Function` and `Size` type (mainly visual, mouse over the statement).
+  type ExcludeFunctionAndSize1 = ConditionalSimplifyDeep<MovableCollection, Function | Size>;
+  const c1: ExcludeFunctionAndSize1 = movableNode;
+
+  // Same as above but using `IncludeType` parameter (mainly visual, mouse over the statement).
+  type ExcludeFunctionAndSize2 = ConditionalSimplifyDeep<MovableCollection, Function, MovableCollection | Position>;
+  const c2: ExcludeFunctionAndSize2 = movableNode;
+}
+
+// =========== Except ===========
+type ExceptOptions = {
+	requireExactProps?: boolean;
+};
+
+type Except<ObjectType, KeysType extends keyof ObjectType, Options extends ExceptOptions = {requireExactProps: false}> = {
+	[KeyType in keyof ObjectType as Filter<KeyType, KeysType>]: ObjectType[KeyType];
+} & (Options['requireExactProps'] extends true
+	? Partial<Record<KeysType, never>>
+	: {});
+
+{
+  const a0: {a: number} = {a: 42};
+  // const except: Except<{a: number; b: string}, 'b'> = a0;
+  // const _a: unknown = except.b;
+
+  // const nonStrict = {
+  //   a: 1,
+  //   b: '2',
   // };
 
-  // // In your editor, hovering over `SomeNodeSimplified` will show a simplified object with all the properties.
-  // type SomeNodeSimplified = ConditionalSimplifyDeep<SomeNode>;
+  // const nonStrictAssignment: typeof except = nonStrict; // No error
 
-  // const someNode = {parent: positionAndSize, childs: [{parent: positionAndSize}, {parent: positionAndSize}]};
-  // expectType<SomeNodeSimplified>(someNode);
+  // declare const strictExcept: Except<{a: number; b: string}, 'b', {requireExactProps: true}>;
 
-  // // Should simplify interface deeply excluding Function type.
-  // // TODO: Convert this to a `type`.
-  // // eslint-disable-next-line @typescript-eslint/consistent-type-definitions
-  // interface MovablePosition extends Position {
-  //   move(position: Position): Position;
-  // }
+  // // @ts-expect-error
+  // const strictAssignment: typeof strictExcept = nonStrict;
 
-  // type MovableCollection = {
-  //   position: MovablePosition;
-  //   top: {position: MovablePosition; size: Size};
-  //   left: {position: MovablePosition; size: Size};
+  // // Generic properties
+  // type Example = {
+  //   [key: string]: unknown;
+  //   foo: number;
+  //   bar: string;
   // };
 
-  // type MovableNodeSimplifiedFail = ConditionalSimplifyDeep<MovableCollection>;
-  // type MovableNodeSimplifiedPass = ConditionalSimplifyDeep<MovableCollection, Function>;
+  // const test: Except<Example, 'bar', {requireExactProps: false}> = {foo: 123, bar: 'asdf'};
+  // expectType<number>(test.foo);
+  // expectType<unknown>(test['bar']);
+}
 
-  // declare const movableNodeSimplifiedFail: MovableNodeSimplifiedFail;
-  // declare const movableNodeSimplifiedPass: MovableNodeSimplifiedPass;
-
-  // expectNotAssignable<MovableCollection>(movableNodeSimplifiedFail);
-  // expectType<MovableCollection>(movableNodeSimplifiedPass);
-
-  // const movablePosition = {
-  //   top: 42,
-  //   left: 42,
-  //   move(position: Position) {
-  //     return position;
-  //   },
-  // };
-
-  // const movableNode = {
-  //   position: movablePosition,
-  //   top: {position: movablePosition, size},
-  //   left: {position: movablePosition, size},
-  // };
-
-  // expectType<MovableNodeSimplifiedPass>(movableNode);
-
-  // // Should exclude `Function` and `Size` type (mainly visual, mouse over the statement).
-  // type ExcludeFunctionAndSize1 = ConditionalSimplifyDeep<MovableCollection, Function | Size>;
-  // expectType<ExcludeFunctionAndSize1>(movableNode);
-
-  // // Same as above but using `IncludeType` parameter (mainly visual, mouse over the statement).
-  // type ExcludeFunctionAndSize2 = ConditionalSimplifyDeep<MovableCollection, Function, MovableCollection | Position>;
-  // expectType<ExcludeFunctionAndSize2>(movableNode);
+// =========== Filter ===========
+type Filter<KeyType, ExcludeType> = IsEqual<KeyType, ExcludeType> extends true ? never : (KeyType extends ExcludeType ? never : KeyType);
+{
+  let a0: Filter<'foo', 'foo'> = n();
+  let a1: Filter<'bar', string> = n();
+  let a2: Filter<'bar', 'foo'> = 'bar';
 }
 
 // ============ Float ============
@@ -807,7 +885,6 @@ type PrivateIntRange<
   // TODO: slowly
   const maxNumberTest: IntRange<0, 999> = 123;
 }
-
 
 // =========== IsAny ===========
 // Can eventually be replaced with the built-in once this library supports

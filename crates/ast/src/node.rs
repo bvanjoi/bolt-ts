@@ -406,6 +406,7 @@ impl<'cx> Node<'cx> {
                 | ShorthandSpec(_)
                 | GetterDecl(_)
                 | SetterDecl(_)
+                | ObjectLit(_)
         )
     }
 

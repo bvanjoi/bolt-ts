@@ -113,12 +113,23 @@ impl<'cx> TyChecker<'cx> {
         SameMapperResult::Old
     }
 
-    pub fn same_map_tys(
+    pub(super) fn same_map_tys(
         &mut self,
         input: Option<ty::Tys<'cx>>,
         f: impl Fn(&mut Self, &'cx ty::Ty<'cx>, usize) -> &'cx ty::Ty<'cx>,
     ) -> Option<ty::Tys<'cx>> {
         match self.same_map(input, |this, ty, i| f(this, ty, i)) {
+            SameMapperResult::Old => input,
+            SameMapperResult::New(tys) => Some(tys),
+        }
+    }
+
+    pub(super) fn same_map_index_infos(
+        &mut self,
+        input: Option<ty::IndexInfos<'cx>>,
+        f: impl Fn(&mut Self, &'cx ty::IndexInfo<'cx>, usize) -> &'cx ty::IndexInfo<'cx>,
+    ) -> Option<ty::IndexInfos<'cx>> {
+        match self.same_map(input, |this, t, i| f(this, t, i)) {
             SameMapperResult::Old => input,
             SameMapperResult::New(tys) => Some(tys),
         }
@@ -257,9 +268,12 @@ fn get_file_url_volume_separator_end(path: &str, start: usize) -> isize {
     if bytes.get(start).is_some_and(|c| *c == b':') {
         return (start + 1) as isize;
     }
-    if bytes.get(start).is_some_and(|c| *c == b'%') && bytes.get(start + 1).is_some_and(|c| *c == 0x33) && bytes
+    if bytes.get(start).is_some_and(|c| *c == b'%')
+        && bytes.get(start + 1).is_some_and(|c| *c == 0x33)
+        && bytes
             .get(start + 2)
-            .is_some_and(|c| *c == b'a' || *c == b'A') {
+            .is_some_and(|c| *c == b'a' || *c == b'A')
+    {
         return (start + 3) as isize;
     }
     -1
