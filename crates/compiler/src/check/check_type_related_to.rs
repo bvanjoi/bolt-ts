@@ -16,7 +16,7 @@ use super::{Ternary, TyChecker};
 
 bitflags::bitflags! {
     #[derive(Clone, Copy, Debug, PartialEq)]
-    struct RecursionFlags: u8 {
+    pub struct RecursionFlags: u8 {
         const SOURCE = 1 << 0;
         const TARGET = 1 << 1;
         const BOTH   = Self::SOURCE.bits() | Self::TARGET.bits();

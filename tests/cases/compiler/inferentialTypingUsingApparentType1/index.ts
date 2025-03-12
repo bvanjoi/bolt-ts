@@ -17,4 +17,4 @@ function bar<T>(a: {a: T}): T {
 
 let b0: number = bar({a: 1});
 let b1: number = bar({a: "1"});
-//~^ ERROR: Type 'T' is not assignable to type 'number'.
+//~^ ERROR: Type 'string' is not assignable to type 'number'.

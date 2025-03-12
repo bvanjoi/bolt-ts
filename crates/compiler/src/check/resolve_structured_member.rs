@@ -843,7 +843,7 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
-    fn compare_sigs_identical(
+    pub(super) fn compare_sigs_identical(
         &mut self,
         mut source: &'cx ty::Sig<'cx>,
         target: &'cx ty::Sig<'cx>,

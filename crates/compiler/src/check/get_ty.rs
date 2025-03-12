@@ -587,10 +587,9 @@ impl<'cx> TyChecker<'cx> {
             } else {
                 unreachable!()
             };
-            let n = self.p.skip_parens(expr.id());
-            let n = self.p.node(n);
-            if n.is_ident() {
-                let symbol = self.node_links[&n.id()].expect_resolved_symbol();
+            let n = self.p.skip_parens(expr);
+            if let ast::ExprKind::Ident(n) = n.kind {
+                let symbol = self.node_links[&n.id].expect_resolved_symbol();
                 let flags = self.symbol(symbol).flags();
                 if flags.intersects(SymbolFlags::ALIAS) {
                     return self
@@ -1596,7 +1595,6 @@ impl<'cx> TyChecker<'cx> {
             return self.error_ty;
         };
 
-        let flags = n.fn_flags();
         let ret_ty;
         if let ast::ArrowFnExprBody::Expr(expr) = body {
             let old = if let Some(check_mode) = self.check_mode {

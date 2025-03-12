@@ -21,7 +21,8 @@ pub(super) fn create_transient_symbol<'cx>(
 ) -> SymbolID {
     let len = symbols.len();
     symbols.push(symbol);
-    SymbolID::new(ModuleID::TRANSIENT, len as u32)
+    let s = SymbolID::new(ModuleID::TRANSIENT, len as u32);
+    s
 }
 
 #[derive(Debug, Clone, Copy)]

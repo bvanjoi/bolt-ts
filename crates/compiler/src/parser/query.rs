@@ -139,22 +139,25 @@ impl<'cx> Parser<'cx> {
         }
     }
 
-    fn is_outer_expr(&self, id: ast::NodeID) -> bool {
-        self.node(id).is_paren_expr()
+    fn is_outer_expr(&self, expr: &'cx ast::Expr<'cx>) -> bool {
+        match expr.kind {
+            ast::ExprKind::Paren(_) => true,
+            // TODO: handle more case
+            _ => false,
+        }
     }
 
-    pub fn skip_outer_expr(&self, mut id: ast::NodeID) -> ast::NodeID {
-        while self.is_outer_expr(id) {
-            let node = self.node(id);
-            if let Some(child) = node.as_paren_expr() {
-                id = child.id;
+    pub fn skip_outer_expr(&self, mut expr: &'cx ast::Expr<'cx>) -> &'cx ast::Expr<'cx> {
+        while self.is_outer_expr(expr) {
+            if let ast::ExprKind::Paren(child) = expr.kind {
+                expr = child.expr;
             }
         }
-        id
+        expr
     }
 
-    pub fn skip_parens(&self, id: ast::NodeID) -> ast::NodeID {
-        self.skip_outer_expr(id)
+    pub fn skip_parens(&self, expr: &'cx ast::Expr<'cx>) -> &'cx ast::Expr<'cx> {
+        self.skip_outer_expr(expr)
     }
 
     pub fn is_in_type_query(&self, id: ast::NodeID) -> bool {
@@ -528,6 +531,60 @@ impl<'cx> Parser<'cx> {
             ast::Node::PropSignature(_) => todo!(),
             _ => None,
         }
+    }
+
+    pub fn is_immediately_used_in_init_or_block_scoped_var(
+        &self,
+        decl: &'cx ast::VarDecl<'cx>,
+        usage: ast::NodeID,
+        decl_container: ast::NodeID,
+    ) -> bool {
+        let parent = self.parent(decl.id).unwrap();
+        match self.node(parent) {
+            ast::Node::VarStmt(_)
+                if self.is_same_scope_descendent_of(usage, Some(decl.id), decl_container) =>
+            {
+                return true;
+            }
+            // TODO: handle other case
+            _ => (),
+        }
+
+        let grand = self.parent(parent).unwrap();
+        let g = self.node(grand);
+        if let Some(g) = g.as_for_in_stmt() {
+            self.is_same_scope_descendent_of(usage, Some(g.expr.id()), decl_container)
+        } else if let Some(g) = g.as_for_of_stmt() {
+            self.is_same_scope_descendent_of(usage, Some(g.expr.id()), decl_container)
+        } else {
+            false
+        }
+    }
+
+    fn is_same_scope_descendent_of(
+        &self,
+        init: ast::NodeID,
+        parent: Option<ast::NodeID>,
+        stop_at: ast::NodeID,
+    ) -> bool {
+        let Some(parent) = parent else {
+            return false;
+        };
+        self.find_ancestor(init, |n| {
+            let id = n.id();
+            if id == parent {
+                Some(true)
+            } else if id == stop_at
+                || n.is_fn_like()
+                    && (self.get_immediately_invoked_fn_expr(id).is_none()
+                        || n.fn_flags().intersects(ast::FnFlags::ASYNC_GENERATOR))
+            {
+                Some(false)
+            } else {
+                None
+            }
+        })
+        .is_some()
     }
 }
 

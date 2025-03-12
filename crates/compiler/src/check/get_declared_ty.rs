@@ -83,7 +83,7 @@ impl<'cx> TyChecker<'cx> {
     ) {
         for ty_param in ty_params {
             let symbol = self.get_symbol_of_decl(ty_param.id);
-            let value = self.get_declared_ty_of_symbol(symbol);
+            let value = self.get_declared_ty_of_ty_param(symbol);
             assert!(value.kind.is_param(), "value: {:#?}", value);
             append_if_unique(res, value);
         }

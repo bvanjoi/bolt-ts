@@ -241,35 +241,35 @@ type BuildTuple<L extends number, Fill = unknown, T extends readonly unknown[] =
 }
 
 // ======= ConditionalExcept =======
-// type ConditionalExcept<Base, Condition> = Except<Base, ConditionalKeys<Base, Condition>>;
+type ConditionalExcept<Base, Condition> = Except<Base, ConditionalKeys<Base, Condition>>;
 
-// {
-//   class Awesome {
-//     name!: string;
-//     successes!: number;
-//     failures!: bigint;
+{
+  class Awesome {
+    name!: string;
+    successes!: number;
+    failures!: bigint;
   
-//     run(): void {
-//       // Empty
-//     }
-//   }
+    run(): void {
+      // Empty
+    }
+  }
   
-//   type Example = {
-//     a: string;
-//     b?: string | number;
-//     c?: string;
-//     d: Record<string, unknown>;
-//   };
+  type Example = {
+    a: string;
+    b?: string | number;
+    c?: string;
+    d: Record<string, unknown>;
+  };
   
-//   const a0: {b?: string | number; c?: string; d: Record<string, unknown>} = {d: {}};
-//   const exampleConditionalExcept: ConditionalExcept<Example, string> = a0;
+  const a0: {b?: string | number; c?: string; d: Record<string, unknown>} = {d: {}};
+  const exampleConditionalExcept: ConditionalExcept<Example, string> = a0;
   
-//   const b0: {run: () => void} = { run() {} };
-//   const awesomeConditionalExcept: ConditionalExcept<Awesome, Primitive> = b0;
+  const b0: {run: () => void} = { run() {} };
+  const awesomeConditionalExcept: ConditionalExcept<Awesome, Primitive> = b0;
 
-//   const c0: {b?: string | number; d: Record<string, unknown>} = {d: {}};
-//   const exampleConditionalExceptWithUndefined: ConditionalExcept<Example, string | undefined> = c0;
-// }
+  const c0: {b?: string | number; d: Record<string, unknown>} = {d: {}};
+  const exampleConditionalExceptWithUndefined: ConditionalExcept<Example, string | undefined> = c0;
+}
 // ======== ConditionalKeys ========
 type ConditionalKeys<Base, Condition> =
 {
@@ -453,21 +453,24 @@ type Except<ObjectType, KeysType extends keyof ObjectType, Options extends Excep
 
   const nonStrictAssignment: typeof except = nonStrict; // No error
 
-  // declare const strictExcept: Except<{a: number; b: string}, 'b', {requireExactProps: true}>;
+  const strictExcept: Except<{a: number; b: string}, 'b', {requireExactProps: true}> = {
+    a: 42,
+    b: n()
+  }
 
-  // // @ts-expect-error
-  // const strictAssignment: typeof strictExcept = nonStrict;
+  const strictAssignment: typeof strictExcept = nonStrict;
+  //~^ ERROR: Type '{ a: number; b: string; }' is not assignable to type 'mapped type & Partial'.
 
-  // // Generic properties
-  // type Example = {
-  //   [key: string]: unknown;
-  //   foo: number;
-  //   bar: string;
-  // };
+  // Generic properties
+  type Example = {
+    [key: string]: unknown;
+    foo: number;
+    bar: string;
+  };
 
-  // const test: Except<Example, 'bar', {requireExactProps: false}> = {foo: 123, bar: 'asdf'};
-  // expectType<number>(test.foo);
-  // expectType<unknown>(test['bar']);
+  const test: Except<Example, 'bar', {requireExactProps: false}> = {foo: 123, bar: 'asdf'};
+  const b0: number = test.foo;
+  const b1: unknown = test['bar'];
 }
 
 // =========== Filter ===========
@@ -2022,6 +2025,26 @@ type ReadonlyKeysOf<T> = NonNullable<{
   const a1: 'a' = test2;
   const a3: 'b' = test3;
   const a2: never = test4;
+}
+// ====== ReadonlyKeysOfUnion ======
+type ReadonlyKeysOfUnion<Union> = Union extends unknown ? keyof {
+	[Key in keyof Union as IsEqual<{[K in Key]: Union[Key]}, {readonly [K in Key]: Union[Key]}> extends true ? Key : never]: never
+} : never;
+
+{
+  const a0: 'a' = 'a';
+  const test1: ReadonlyKeysOfUnion<{readonly a: 1; b: 2}> = a0;
+  const a1: 'a' | 'c' = 'a';
+  const test2: ReadonlyKeysOfUnion<{readonly a: 1; b?: 2} | {readonly c?: 3; d: 4}> = a1;
+  const a2: 'a' | 'c' = 'c';
+  const test3: ReadonlyKeysOfUnion<{readonly a: 1; b?: 2} | {readonly c?: 3; d: 4} | {readonly c: 5} | {d: 6}> = a2;
+  const a3: never = n();
+  const test4: ReadonlyKeysOfUnion<{a: 1; b?: 2} | {c?: 3; d: 4}> = a3;
+  const a4: string | number | symbol = 42;
+  const test5: ReadonlyKeysOfUnion<{readonly [x: string]: number; a: 1} | {readonly [x: symbol]: number; a: 2}> = a4;
+  // const a5: number | typeof Symbol.unscopables | '0' | '1' | 'length' = '0'
+  // const test7: ReadonlyKeysOfUnion<readonly string[] | readonly [number, number]> = a5;
+  const test8: ReadonlyKeysOfUnion<(() => void) | {(): void; readonly a: 1}> = a0;
 }
 
 // ========= ReadonlyTuple =========

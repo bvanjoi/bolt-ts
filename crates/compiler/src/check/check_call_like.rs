@@ -413,7 +413,7 @@ impl<'cx> TyChecker<'cx> {
                 param_ty,
                 relation,
                 error_node,
-                Some(expr.id()),
+                Some(arg.id()),
                 |this, span, source, target| {
                     let source = this.get_base_ty_of_literal_ty(source);
                     Box::new(errors::ArgumentOfTyIsNotAssignableToParameterOfTy {

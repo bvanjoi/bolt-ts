@@ -176,6 +176,7 @@ pub(crate) enum DeclKind {
     Interface,
     Enum,
     Property,
+    BlockScopedVariable,
 }
 
 impl DeclKind {
@@ -185,6 +186,7 @@ impl DeclKind {
             DeclKind::Enum => "Enum",
             DeclKind::Property => "Property",
             DeclKind::Interface => "Interface",
+            DeclKind::BlockScopedVariable => "Block-scoped variable",
         }
     }
 }

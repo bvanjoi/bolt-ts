@@ -908,53 +908,46 @@ impl<'cx, 'atoms> BinderState<'cx, 'atoms> {
     }
 
     fn bind_object_lit(&mut self, lit: &'cx ast::ObjectLit<'cx>) {
+        self.create_object_lit_symbol(lit.id, fx_hashmap_with_capacity(lit.members.len()));
         let old = self.scope_id;
         self.scope_id = self.new_scope();
-        let members = lit
-            .members
-            .iter()
-            .flat_map(|member| {
-                use bolt_ts_ast::ObjectMemberKind::*;
-                match member.kind {
-                    Shorthand(n) => {
-                        self.bind_ident(n.name);
-                        let name = SymbolName::Ele(n.name.name);
-                        let symbol = self.create_object_member_symbol(name, n.id, false);
-                        Some((name, symbol))
-                    }
-                    Prop(n) => {
-                        let name = prop_name(n.name);
-                        let symbol = self.create_object_member_symbol(name, n.id, false);
-                        self.bind_expr(n.value);
-                        Some((name, symbol))
-                    }
-                    Method(n) => {
-                        let name = prop_name(n.name);
-                        let symbol = self.create_object_member_symbol(name, n.id, false);
 
-                        let old = self.scope_id;
-                        self.scope_id = self.new_scope();
-                        if let Some(ty_params) = n.ty_params {
-                            self.bind_ty_params(ty_params);
-                        }
-                        self.bind_params(n.params);
-                        if let Some(ty) = n.ty {
-                            self.bind_ty(ty);
-                        }
-                        self.bind_block_stmt(n.body);
-                        self.scope_id = old;
-
-                        Some((name, symbol))
-                    }
-                    SpreadAssignment(n) => {
-                        self.bind_expr(n.expr);
-                        None
-                    }
+        for member in lit.members {
+            use bolt_ts_ast::ObjectMemberKind::*;
+            match member.kind {
+                Shorthand(n) => {
+                    self.bind_ident(n.name);
+                    let name = SymbolName::Ele(n.name.name);
+                    let symbol = self.create_object_member_symbol(name, n.id, false);
+                    self.members(lit.id, false).insert(name, symbol);
                 }
-            })
-            .collect();
+                Prop(n) => {
+                    let name = prop_name(n.name);
+                    let symbol = self.create_object_member_symbol(name, n.id, false);
+                    self.members(lit.id, false).insert(name, symbol);
+                    self.bind_expr(n.value);
+                }
+                Method(n) => {
+                    let name = prop_name(n.name);
+                    self.create_fn_decl_like_symbol(lit.id, n, name, SymbolFnKind::Method, false);
+                    let old = self.scope_id;
+                    self.scope_id = self.new_scope();
+                    if let Some(ty_params) = n.ty_params {
+                        self.bind_ty_params(ty_params);
+                    }
+                    self.bind_params(n.params);
+                    if let Some(ty) = n.ty {
+                        self.bind_ty(ty);
+                    }
+                    self.bind_block_stmt(n.body);
+                    self.scope_id = old;
+                }
+                SpreadAssignment(n) => {
+                    self.bind_expr(n.expr);
+                }
+            }
+        }
         self.scope_id = old;
-        self.create_object_lit_symbol(lit.id, members);
     }
 
     fn bind_var_stmt(&mut self, container: ast::NodeID, var: &'cx ast::VarStmt) {

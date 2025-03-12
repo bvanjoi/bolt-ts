@@ -326,6 +326,7 @@ impl<'cx> Node<'cx> {
             CtorSigDecl,
             ClassMethodElem,
             MethodSignature,
+            ObjectMethodMember,
             CallSigDecl,
             FnTy,
             CtorTy,
@@ -443,7 +444,7 @@ impl<'cx> Node<'cx> {
             };
         }
 
-        if let Some(body) = fn_body!(FnExpr) {
+        if let Some(body) = fn_body!(FnExpr, ObjectMethodMember) {
             return Some(body);
         }
 
@@ -455,7 +456,7 @@ impl<'cx> Node<'cx> {
                 }
             };
         }
-        fn_body_with_option!(FnDecl, ClassMethodElem, ClassCtor)
+        fn_body_with_option!(FnDecl, ClassMethodElem, ClassCtor,)
     }
 
     pub fn fn_flags(&self) -> FnFlags {

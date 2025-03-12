@@ -83,6 +83,7 @@ pub use self::resolve::ExpectedArgsCount;
 use crate::bind::{
     self, FlowID, FlowNodes, GlobalSymbols, Symbol, SymbolFlags, SymbolID, SymbolName,
 };
+use crate::ir::VarLike;
 use crate::parser::{AccessKind, AssignmentKind, Parser};
 use crate::ty::{CheckFlags, TYPEOF_NE_FACTS};
 use crate::ty::{ElementFlags, ObjectFlags, Sig, SigFlags, SigID, TyID, TypeFacts, TypeFlags};
@@ -919,6 +920,7 @@ impl<'cx> TyChecker<'cx> {
             ast::Node::PropSignature(prop) => prop.name,
             ast::Node::ClassMethodElem(prop) => prop.name,
             ast::Node::MethodSignature(prop) => prop.name,
+            ast::Node::ObjectMethodMember(prop) => prop.name,
             ast::Node::ParamDecl(_) => return self.string_ty,
             _ => unreachable!("prop: {:#?}", self.p.node(prop)),
         };
@@ -1202,10 +1204,8 @@ impl<'cx> TyChecker<'cx> {
     }
 
     fn is_for_in_variable_for_numeric_prop_names(&self, expr: &'cx ast::Expr<'cx>) -> bool {
-        let id = expr.id();
-        let e = self.p.skip_parens(id);
-        let e = self.p.node(e);
-        if let Some(ident) = e.as_ident() {
+        let e = self.p.skip_parens(expr);
+        if let ast::ExprKind::Ident(ident) = e.kind {
             let symbol = self.resolve_symbol_by_ident(ident);
             if self
                 .binder
@@ -1213,7 +1213,7 @@ impl<'cx> TyChecker<'cx> {
                 .flags
                 .intersects(SymbolFlags::VARIABLE)
             {
-                let child = id;
+                let child = ident.id;
                 while let Some(parent) = self.p.parent(child) {
                     let node = self.p.node(parent);
                     if node.as_for_in_stmt().is_some() {
@@ -1516,11 +1516,20 @@ impl<'cx> TyChecker<'cx> {
         let used_span = used.span;
         let decl_span = self.p.node(decl).span();
         let decl_pos = decl_span.lo;
-        if decl_pos < used_span.lo {
-            return true;
-        }
-
         let decl_container = self.p.get_enclosing_blockscope_container(decl);
+
+        if decl_pos < used_span.lo {
+            let n = self.p.node(decl);
+            if let Some(decl) = n.as_var_decl() {
+                return !self.p.is_immediately_used_in_init_or_block_scoped_var(
+                    decl,
+                    used.id,
+                    decl_container,
+                );
+            } else {
+                return true;
+            }
+        }
 
         if self.is_used_in_fn_or_instance_prop(used, decl) {
             return true;
@@ -1530,14 +1539,15 @@ impl<'cx> TyChecker<'cx> {
     }
 
     fn check_resolved_block_scoped_var(&mut self, ident: &'cx ast::Ident, id: SymbolID) {
-        let symbol = self.binder.symbol(id).expect_class();
-        let decl = symbol.decl;
+        let Some(decl) = self.binder.symbol(id).opt_decl() else {
+            return;
+        };
         if !self.is_block_scoped_name_declared_before_use(decl, ident) {
-            let decl_span = match self.p.node(decl) {
-                ast::Node::ClassDecl(class) => class.name.span,
+            let (decl_span, kind) = match self.p.node(decl) {
+                ast::Node::ClassDecl(class) => (class.name.span, errors::DeclKind::Class),
+                ast::Node::VarDecl(decl) => (decl.span, errors::DeclKind::BlockScopedVariable),
                 _ => unreachable!(),
             };
-            let kind = errors::DeclKind::Class;
             let name = self.atoms.get(ident.name).to_string();
             let error = errors::CannotUsedBeforeItsDeclaration {
                 span: ident.span,
@@ -1570,7 +1580,12 @@ impl<'cx> TyChecker<'cx> {
             return self.get_type_of_symbol(symbol);
         }
 
-        if self.symbol(symbol).flags() == SymbolFlags::CLASS {
+        // TODO: move into name resolution.
+        if self
+            .symbol(symbol)
+            .flags()
+            .intersects(SymbolFlags::CLASS | SymbolFlags::BLOCK_SCOPED_VARIABLE | SymbolFlags::ENUM)
+        {
             self.check_resolved_block_scoped_var(ident, symbol);
         }
 
@@ -1857,13 +1872,14 @@ impl<'cx> TyChecker<'cx> {
     ) -> Option<Vec<&'cx ty::Ty<'cx>>> {
         let flags = self.p.node(f).fn_flags();
         let mut has_ret_with_no_expr = false;
-        let has_ret_of_ty_never = false;
+        let mut has_ret_of_ty_never = false;
 
         fn for_each_ret_stmt<'cx, T>(
             id: ast::NodeID,
             checker: &mut TyChecker<'cx>,
             f: impl Fn(&mut TyChecker<'cx>, &'cx ast::RetStmt<'cx>) -> T + Copy,
             has_ret_with_no_expr: &mut bool,
+            has_ret_of_ty_never: &mut bool,
         ) -> Vec<T> {
             fn t<'cx, T>(
                 id: ast::NodeID,
@@ -1871,23 +1887,46 @@ impl<'cx> TyChecker<'cx> {
                 f: impl Fn(&mut TyChecker<'cx>, &'cx ast::RetStmt<'cx>) -> T + Copy,
                 v: &mut Vec<T>,
                 has_ret_with_no_expr: &mut bool,
+                has_ret_of_ty_never: &mut bool,
             ) {
                 let node = checker.p.node(id);
                 if let Some(ret) = node.as_ret_stmt() {
                     if let Some(ret_expr) = ret.expr {
-                        // todo: handle return of type never
+                        // TODO: async function and await call;
+                        // TODO: const reference
                     } else {
                         *has_ret_with_no_expr = true;
                     }
                     v.push(f(checker, ret))
                 } else if let Some(b) = node.as_block_stmt() {
                     for stmt in b.stmts {
-                        t(stmt.id(), checker, f, v, has_ret_with_no_expr);
+                        t(
+                            stmt.id(),
+                            checker,
+                            f,
+                            v,
+                            has_ret_with_no_expr,
+                            has_ret_of_ty_never,
+                        );
                     }
                 } else if let Some(node) = node.as_if_stmt() {
-                    t(node.then.id(), checker, f, v, has_ret_with_no_expr);
+                    t(
+                        node.then.id(),
+                        checker,
+                        f,
+                        v,
+                        has_ret_with_no_expr,
+                        has_ret_of_ty_never,
+                    );
                     if let Some(else_then) = node.else_then {
-                        t(else_then.id(), checker, f, v, has_ret_with_no_expr);
+                        t(
+                            else_then.id(),
+                            checker,
+                            f,
+                            v,
+                            has_ret_with_no_expr,
+                            has_ret_of_ty_never,
+                        );
                     }
                 } else {
                     return;
@@ -1895,7 +1934,14 @@ impl<'cx> TyChecker<'cx> {
             }
 
             let mut v = Vec::with_capacity(8);
-            t(id, checker, f, &mut v, has_ret_with_no_expr);
+            t(
+                id,
+                checker,
+                f,
+                &mut v,
+                has_ret_with_no_expr,
+                has_ret_of_ty_never,
+            );
             v
         }
 
@@ -1906,6 +1952,7 @@ impl<'cx> TyChecker<'cx> {
                 let Some(expr) = ret.expr else {
                     return this.undefined_ty;
                 };
+                let expr = this.p.skip_parens(expr);
                 let old = if let Some(check_mode) = this.check_mode {
                     let old = this.check_mode;
                     this.check_mode = Some(check_mode & !CheckMode::SKIP_GENERIC_FUNCTIONS);
@@ -1918,6 +1965,7 @@ impl<'cx> TyChecker<'cx> {
                 ty
             },
             &mut has_ret_with_no_expr,
+            &mut has_ret_of_ty_never,
         );
 
         if tys.is_empty() && !has_ret_with_no_expr && has_ret_of_ty_never {
@@ -1961,9 +2009,10 @@ impl<'cx> TyChecker<'cx> {
     }
 
     fn is_object_ty_with_inferable_index(&mut self, ty: &'cx ty::Ty<'cx>) -> bool {
-        if ty.kind.is_intersection() {
-            // TODO:
-            false
+        if let Some(i) = ty.kind.as_intersection() {
+            i.tys
+                .iter()
+                .all(|t| self.is_object_ty_with_inferable_index(t))
         } else if let Some(symbol) = ty.symbol() {
             let flags = self.binder.symbol(symbol).flags;
             flags.intersects(
@@ -1974,6 +2023,7 @@ impl<'cx> TyChecker<'cx> {
             ) && !flags.intersects(SymbolFlags::CLASS)
                 && !self.ty_has_call_or_ctor_sigs(ty)
         } else {
+            // TODO: rest type
             false
         }
     }

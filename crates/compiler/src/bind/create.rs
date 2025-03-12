@@ -41,14 +41,18 @@ impl<'cx> BinderState<'cx, '_> {
         if name.as_atom().is_some() {
             if let Some(id) = self.res.get(&key).copied() {
                 let prev = self.symbols.get_mut(id);
-                if flags.intersects(SymbolFlags::ALIAS)
+                if flags.intersects(SymbolFlags::TYPE_PARAMETER)
+                    && kind.opt_decl().is_some_and(|p| {
+                        self.p
+                            .parent(p)
+                            .is_some_and(|n| self.p.node(n).is_infer_ty())
+                    })
+                {
+                    let id = self.symbols.insert(Symbol::new(name, flags, kind));
+                    // dont insert into resolution because infer type param had been stored into locals.
+                    return id;
+                } else if flags.intersects(SymbolFlags::ALIAS)
                     || prev.flags.intersects(SymbolFlags::ALIAS)
-                    || (flags.intersects(SymbolFlags::TYPE_PARAMETER)
-                        && kind.opt_decl().is_some_and(|p| {
-                            self.p
-                                .parent(p)
-                                .is_some_and(|n| self.p.node(n).is_infer_ty())
-                        }))
                 {
                     let id = self.symbols.insert(Symbol::new(name, flags, kind));
                     let _prev = self.res.insert(key, id);

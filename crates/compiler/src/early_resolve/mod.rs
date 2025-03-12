@@ -657,7 +657,7 @@ pub(super) fn resolve_symbol_by_ident<'a, 'cx>(
             if let Some(symbol) = locals.get(&SymbolName::Normal(ident.name)).copied() {
                 let mut use_result = true;
                 if let Some(cond) = resolver.p.node(id).as_cond_ty() {
-                    use_result = last_location.is_some_and(|last| last == cond.true_ty.id())
+                    use_result = last_location.is_some_and(|last| last == cond.true_ty.id());
                 }
                 if use_result {
                     return ResolvedResult {

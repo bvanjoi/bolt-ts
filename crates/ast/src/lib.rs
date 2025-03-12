@@ -17,7 +17,7 @@ pub use ty::*;
 pub use visitor::Visitor;
 
 use bolt_ts_span::Span;
-pub use node::{Node, NodeID};
+pub use node::{FnFlags, Node, NodeID};
 pub use node_flags::NodeFlags;
 
 #[derive(Debug, Clone, Copy)]

@@ -6,4 +6,4 @@ interface I<S> {
 
 var x: I<{s: string}>
 x.f({s: 1})
-//~^ ERROR: Argument of type '{ s: number; }' is not assignable to parameter of type '{ s: string; }'.
+//~^ ERROR: Type 'number' is not assignable to type 'string'.
