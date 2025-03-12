@@ -467,7 +467,9 @@ impl<'cx> Node<'cx> {
         if self.is_fn_decl() || self.is_fn_expr() || self.is_class_method_ele() {
             // todo: check aster token
         } else if self.as_arrow_fn_expr().is_some() {
-            // todo: check async modifiers
+            if self.has_syntactic_modifier(self::ModifierKind::Async.into()) {
+                flags |= FnFlags::GENERATOR;
+            }
         }
 
         if self.fn_body().is_none() {

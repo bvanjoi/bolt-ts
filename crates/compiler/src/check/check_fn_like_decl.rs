@@ -1,5 +1,5 @@
 use super::TyChecker;
-use crate::ir;
+use crate::{ir, ty};
 use bolt_ts_ast as ast;
 
 impl<'cx> TyChecker<'cx> {
@@ -22,5 +22,16 @@ impl<'cx> TyChecker<'cx> {
         if let Some(body) = ir::FnDeclLike::body(decl) {
             self.check_block(body)
         }
+
+        let ret_ty = self.get_ret_ty_from_anno(id);
+        self.check_all_code_paths_in_non_void_fn_ret_or_throw(decl, ret_ty);
+    }
+
+    fn check_all_code_paths_in_non_void_fn_ret_or_throw(
+        &mut self,
+        decl: &impl ir::FnDeclLike<'cx>,
+        ret_ty: Option<&'cx ty::Ty<'cx>>,
+    ) {
+        // let fn_flags = self.p.node(decl.id()).fn_flags();
     }
 }

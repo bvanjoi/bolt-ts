@@ -1563,7 +1563,7 @@ impl<'cx> TyChecker<'cx> {
         self.get_sig_of_ty_tag(id).map(|_| unreachable!())
     }
 
-    pub fn get_ret_ty_from_anno(&mut self, id: ast::NodeID) -> Option<&'cx ty::Ty<'cx>> {
+    pub(super) fn get_ret_ty_from_anno(&mut self, id: ast::NodeID) -> Option<&'cx ty::Ty<'cx>> {
         let n = self.p.node(id);
         if n.as_class_ctor().is_some() {
             let class = self.p.parent(id).unwrap();

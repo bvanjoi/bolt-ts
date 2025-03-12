@@ -6,6 +6,7 @@ bitflags::bitflags! {
     const NESTED_NAMESPACE                    = 1 << 3;
     const OPTIONAL_CHAIN                      = 1 << 6;
     const EXPORT_CONTEXT                      = 1 << 7;
+    const HAS_EXPLICIT_RETURN                 = 1 << 10;
     const DISALLOW_IN_CONTEXT                 = 1 << 13;
     const HAS_ASYNC_FUNCTIONS                 = 1 << 12;
     const DECORATOR_CONTEXT                   = 1 << 15;
