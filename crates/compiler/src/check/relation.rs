@@ -1,7 +1,7 @@
 use bolt_ts_atom::AtomId;
 use bolt_ts_span::Span;
 
-use bolt_ts_utils::fx_hashset_with_capacity;
+use bolt_ts_utils::{fx_hashmap_with_capacity, fx_hashset_with_capacity};
 
 use super::create_ty::IntersectionFlags;
 use super::{SymbolLinks, errors};
@@ -35,15 +35,23 @@ bitflags::bitflags! {
 }
 
 impl<'cx> TyChecker<'cx> {
-    pub(super) fn is_excess_property_check_target(&self, target: &'cx Ty<'cx>) -> bool {
-        if target.kind.as_object().is_some() {
-            // TODO: exclude literal computed name
+    pub(super) fn is_excess_property_check_target(&self, ty: &'cx Ty<'cx>) -> bool {
+        if ty.kind.is_object() {
+            let flags = ty.get_object_flags();
+            !flags.intersects(ObjectFlags::OBJECT_LITERAL_PATTERN_WITH_COMPUTED_PROPERTIES)
+        } else if ty.flags.intersects(TypeFlags::NON_PRIMITIVE) {
             true
-        } else if let Some(union) = target.kind.as_union() {
+        } else if let Some(s) = ty.kind.as_substitution_ty() {
+            self.is_excess_property_check_target(s.base_ty)
+        } else if let Some(union) = ty.kind.as_union() {
             union
                 .tys
                 .iter()
-                .any(|ty| self.is_excess_property_check_target(ty))
+                .any(|t| self.is_excess_property_check_target(t))
+        } else if let Some(i) = ty.kind.as_intersection() {
+            i.tys
+                .iter()
+                .all(|t| self.is_excess_property_check_target(t))
         } else {
             false
         }
@@ -232,16 +240,46 @@ impl<'cx> TyChecker<'cx> {
             self.resolve_structured_type_members(ty);
             self.properties_of_object_type(ty)
         } else {
-            &[]
+            self.empty_array()
         }
     }
 
     pub(super) fn get_props_of_ty(&mut self, ty: &'cx Ty<'cx>) -> &'cx [SymbolID] {
-        if ty.kind.is_object() {
-            self.get_props_of_object_ty(ty)
+        let ty = self.get_reduced_apparent_ty(ty);
+        if ty.kind.is_union_or_intersection() {
+            self.get_props_of_union_or_intersection(ty)
         } else {
-            &[]
+            self.get_props_of_object_ty(ty)
         }
+    }
+
+    pub(super) fn get_props_of_union_or_intersection(
+        &mut self,
+        ty: &'cx ty::Ty<'cx>,
+    ) -> &'cx [SymbolID] {
+        if let Some(props) = self.get_ty_links(ty.id).get_resolved_properties() {
+            return props;
+        }
+        let Some(tys) = ty.kind.tys_of_union_or_intersection() else {
+            unreachable!()
+        };
+        let mut members = fx_hashmap_with_capacity(64);
+        for current in tys {
+            for prop in self.get_props_of_ty(current) {
+                let name = self.symbol(*prop).name();
+                if !members.contains_key(&name) {
+                    if let Some(combined_prop) = self.get_prop_of_union_or_intersection_ty(ty, name)
+                    {
+                        let prev = members.insert(name, combined_prop);
+                        assert!(prev.is_none());
+                    }
+                }
+            }
+        }
+        let props = members.into_values().collect::<Vec<_>>();
+        let props = self.alloc(props);
+        self.get_mut_ty_links(ty.id).set_resolved_properties(props);
+        &props
     }
 
     pub(super) fn get_prop_of_ty(
@@ -353,6 +391,8 @@ impl<'cx> TyChecker<'cx> {
             unreachable!("containing_ty: {containing_ty:#?}")
         };
 
+        let mut optional_flag = None;
+
         let mut single_prop = None;
         let mut prop_set = fx_hashset_with_capacity(tys.len());
 
@@ -366,6 +406,27 @@ impl<'cx> TyChecker<'cx> {
             let ty = self.get_apparent_ty(current);
             if ty != self.error_ty && ty != self.never_ty {
                 if let Some(prop) = self.get_prop_of_ty(ty, name) {
+                    if self
+                        .symbol(prop)
+                        .flags()
+                        .intersects(SymbolFlags::CLASS_MEMBER)
+                    {
+                        if optional_flag.is_none() {
+                            optional_flag = Some(if is_union {
+                                SymbolFlags::empty()
+                            } else {
+                                SymbolFlags::OPTIONAL
+                            });
+                        }
+                        if is_union {
+                            let flags = optional_flag.as_mut().unwrap();
+                            *flags |= self.symbol(prop).flags() & SymbolFlags::OPTIONAL;
+                        } else {
+                            let flags = optional_flag.as_mut().unwrap();
+                            *flags &= self.symbol(prop).flags();
+                        }
+                    }
+
                     if let Some(single_prop) = single_prop {
                         if single_prop != prop {
                             if prop_set.is_empty() {
@@ -416,7 +477,7 @@ impl<'cx> TyChecker<'cx> {
             prop_tys.push(ty);
         }
 
-        let symbol_flags = SymbolFlags::PROPERTY;
+        let symbol_flags = SymbolFlags::PROPERTY | optional_flag.unwrap_or(SymbolFlags::empty());
         let links = SymbolLinks::default()
             .with_containing_ty(containing_ty)
             .with_check_flags(CheckFlags::empty());
@@ -493,7 +554,9 @@ impl<'cx> TyChecker<'cx> {
             {
                 let target_prop_name = s.name();
                 let Some(source_prop) = self.get_prop_of_ty(source, target_prop_name) else {
-                    unmatched.push(target_prop_name.expect_atom());
+                    if let Some(target_prop_name) = target_prop_name.as_atom() {
+                        unmatched.push(target_prop_name);
+                    }
                     continue;
                 };
             }
@@ -506,7 +569,7 @@ impl<'cx> TyChecker<'cx> {
                 match ty.kind {
                     ObjectTyKind::Reference(ty) => recur(ty.target.kind.expect_object()),
                     ObjectTyKind::Interface(ty) => ty.symbol,
-                    ObjectTyKind::Anonymous(ty) => ty.symbol,
+                    ObjectTyKind::Anonymous(ty) => ty.symbol.unwrap(),
                     ObjectTyKind::Mapped(ty) => ty.symbol,
                     ObjectTyKind::Tuple(ty) => Symbol::ERR,
                     _ => unreachable!("{ty:#?}"),

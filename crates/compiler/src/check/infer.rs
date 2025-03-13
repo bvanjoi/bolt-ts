@@ -1,10 +1,14 @@
 use std::borrow::Cow;
 
+use crate::bind::SymbolFlags;
 use crate::ir;
-use crate::ty::{self, SigFlags, SigKind, TypeFlags};
+use crate::ty::{self, SigFlags, SigKind, TyID, TypeFlags};
 use crate::ty::{ObjectFlags, Sig};
 use bolt_ts_ast::{self as ast, keyword};
+use bolt_ts_utils::fx_hashmap_with_capacity;
+use rustc_hash::FxHashMap;
 
+use super::check_type_related_to::RecursionFlags;
 use super::create_ty::IntersectionFlags;
 use super::get_contextual::ContextFlags;
 use super::utils::append_if_unique;
@@ -50,8 +54,8 @@ impl<'cx> InferenceInfo<'cx> {
 }
 
 bitflags::bitflags! {
-  #[derive(Clone, Copy, Debug, PartialEq, PartialOrd)]
-  pub struct InferencePriority: u16 {
+    #[derive(Clone, Copy, Debug, PartialEq, PartialOrd)]
+    pub struct InferencePriority: u16 {
         const NAKED_TYPE_VARIABLE               = 1 << 0;
         const SPECULATIVE_TUPLE                 = 1 << 1;
         const SUBSTITUTE_SOURCE                 = 1 << 2;
@@ -68,15 +72,12 @@ bitflags::bitflags! {
         const PRIORITY_IMPLIES_COMBINATION  = Self::RETURN_TYPE.bits() | Self::MAPPED_TYPE_CONSTRAINT.bits() | Self::LITERAL_KEYOF.bits();
         const CIRCULARITY                   = !0;
     }
-}
-
-bitflags::bitflags! {
-  #[derive(Clone, Copy, Debug)]
-  pub struct InferenceFlags: u8 {
-    const NO_DEFAULT                = 1 << 0;
-    const ANY_DEFAULT               = 1 << 1;
-    const SKIPPED_GENERIC_FUNCTION  = 1 << 2;
-  }
+    #[derive(Clone, Copy, Debug)]
+    pub struct InferenceFlags: u8 {
+        const NO_DEFAULT                = 1 << 0;
+        const ANY_DEFAULT               = 1 << 1;
+        const SKIPPED_GENERIC_FUNCTION  = 1 << 2;
+    }
 }
 
 pub(super) struct InferenceContext<'cx> {
@@ -479,16 +480,38 @@ impl<'cx> TyChecker<'cx> {
             } else {
                 let ty_param = self.inference_info(inference, idx).ty_param;
                 if let Some(default_ty) = self.get_default_ty_from_ty_param(ty_param) {
-                    todo!("back reference mapper")
-                    // let back_reference_mapper =
-                    // inferred_ty =
+                    let forward_inferences = &self.inference(inference).inferences[idx..];
+                    let sources = forward_inferences
+                        .iter()
+                        .map(|i| i.ty_param)
+                        .collect::<Vec<_>>();
+                    let sources = self.alloc(sources);
+                    let targets = forward_inferences
+                        .iter()
+                        .map(|_| self.unknown_ty)
+                        .collect::<Vec<_>>();
+                    let targets = self.alloc(targets);
+                    let mapper = self.create_ty_mapper(sources, targets);
+                    let mapper = self.merge_ty_mappers(
+                        Some(mapper),
+                        self.inference(inference).non_fixing_mapper,
+                    );
+                    inferred_ty = Some(self.instantiate_ty(default_ty, Some(mapper)));
                 }
             }
         } else {
-            inferred_ty = self.get_ty_from_inference(inference, idx)
+            inferred_ty = self.get_ty_from_inference(inference, idx);
         };
 
-        self.set_inferred_ty_of_inference_info(inference, idx, inferred_ty.unwrap_or(self.any_ty));
+        let is_in_javascript_file = self
+            .inference(inference)
+            .flags
+            .intersects(InferenceFlags::ANY_DEFAULT);
+        self.set_inferred_ty_of_inference_info(
+            inference,
+            idx,
+            inferred_ty.unwrap_or(self.get_default_ty_argument_ty(is_in_javascript_file)),
+        );
 
         let i = self.inference_info(inference, idx);
         if let Some(constraint) = self.get_constraint_of_ty_param(i.ty_param) {
@@ -683,6 +706,10 @@ impl<'cx> TyChecker<'cx> {
             contravariant,
             bivariant: false,
             propagation_ty: None,
+            expanding_flags: RecursionFlags::empty(),
+            source_stack: Vec::with_capacity(32),
+            target_stack: Vec::with_capacity(32),
+            visited: fx_hashmap_with_capacity(32),
         }
     }
 
@@ -934,6 +961,10 @@ impl<'cx> TyChecker<'cx> {
 pub(super) struct InferenceState<'cx, 'checker> {
     priority: InferencePriority,
     inference_priority: InferencePriority,
+    expanding_flags: RecursionFlags,
+    source_stack: Vec<&'cx ty::Ty<'cx>>,
+    target_stack: Vec<&'cx ty::Ty<'cx>>,
+    visited: FxHashMap<(TyID, TyID), InferencePriority>,
     c: &'checker mut TyChecker<'cx>,
     inference: InferenceContextId,
     contravariant: bool,
@@ -1179,10 +1210,8 @@ impl<'cx> InferenceState<'cx, '_> {
     ) -> Option<&'cx ty::Ty<'cx>> {
         let mut type_variable = None;
         for ty in tys {
-            let Some(ty) = ty.kind.as_intersection() else {
-                return None;
-            };
-            let t = ty
+            let i = ty.kind.as_intersection()?;
+            let t = i
                 .tys
                 .iter()
                 .find(|t| self.get_inference_info_for_ty(t).is_some())
@@ -1287,9 +1316,37 @@ impl<'cx> InferenceState<'cx, '_> {
         target: &'cx ty::Ty<'cx>,
         action: impl FnOnce(&mut Self, &'cx ty::Ty<'cx>, &'cx ty::Ty<'cx>),
     ) {
+        let key = (source.id, target.id);
+        if let Some(status) = self.visited.get(&key) {
+            self.inference_priority = if self.inference_priority < *status {
+                self.inference_priority
+            } else {
+                *status
+            };
+            return;
+        }
         let saved_inference_priority = self.inference_priority;
         self.inference_priority = InferencePriority::MAX_VALUE;
-        action(self, source, target);
+        let saved_expanding_flags = self.expanding_flags;
+        self.source_stack.push(source);
+        self.target_stack.push(target);
+
+        if self.c.is_deeply_nested_type(source, &self.source_stack, 2) {
+            self.expanding_flags |= RecursionFlags::SOURCE;
+        }
+        if self.c.is_deeply_nested_type(target, &self.target_stack, 2) {
+            self.expanding_flags |= RecursionFlags::TARGET;
+        }
+        if self.expanding_flags != RecursionFlags::BOTH {
+            action(self, source, target);
+        } else {
+            self.inference_priority = InferencePriority::CIRCULARITY;
+        }
+
+        self.target_stack.pop();
+        self.source_stack.pop();
+        self.expanding_flags = saved_expanding_flags;
+        self.visited.insert(key, self.inference_priority);
         self.inference_priority = if self.inference_priority < saved_inference_priority {
             self.inference_priority
         } else {
@@ -1695,12 +1752,59 @@ impl<'cx> InferenceState<'cx, '_> {
             self.infer_from_props(source, target);
             self.infer_from_sigs(source, target, SigKind::Call);
             self.infer_from_sigs(source, target, SigKind::Constructor);
+            self.infer_from_index_tys(source, target);
         }
     }
 
     fn infer_from_index_tys(&mut self, source: &'cx ty::Ty<'cx>, target: &'cx ty::Ty<'cx>) {
-        let new_priority = InferencePriority::empty();
+        let new_priority =
+            if !(source.get_object_flags() & target.get_object_flags() & ObjectFlags::MAPPED)
+                .is_empty()
+            {
+                InferencePriority::HOMOMORPHIC_MAPPED_TYPE
+            } else {
+                InferencePriority::empty()
+            };
         let target_index_infos = self.c.get_index_infos_of_ty(target);
+        if self.c.is_object_ty_with_inferable_index(source) {
+            for target_info in target_index_infos {
+                let source_props = self.c.get_props_of_ty(source);
+                let mut props_tys = Vec::with_capacity(source_props.len());
+                for prop in source_props {
+                    let lit = self.c.get_lit_ty_from_prop(*prop);
+                    if self.c.is_applicable_index_ty(lit, target_info.key_ty) {
+                        let prop_ty = self.c.get_type_of_symbol(*prop);
+                        props_tys.push(
+                            if self
+                                .c
+                                .symbol(*prop)
+                                .flags()
+                                .intersects(SymbolFlags::OPTIONAL)
+                            {
+                                // TODO: remove missing
+                                prop_ty
+                            } else {
+                                prop_ty
+                            },
+                        );
+                    }
+                }
+
+                for info in self.c.get_index_infos_of_ty(source) {
+                    if self
+                        .c
+                        .is_applicable_index_ty(info.key_ty, target_info.key_ty)
+                    {
+                        props_tys.push(info.key_ty);
+                    }
+                }
+
+                if !props_tys.is_empty() {
+                    let u = self.c.get_union_ty(&props_tys, ty::UnionReduction::Lit);
+                    self.infer_with_priority(u, target_info.val_ty, new_priority);
+                }
+            }
+        }
         for target_index_info in target_index_infos {
             if let Some(source_info) = self
                 .c
@@ -1861,7 +1965,17 @@ impl<'cx> InferenceState<'cx, '_> {
                 .c
                 .get_prop_of_ty(source, self.c.symbol(*target_prop).name())
             {
-                // TODO:
+                let s = {
+                    let s = self.c.get_type_of_symbol(source_prop);
+                    // TODO: remove_missing
+                    s
+                };
+                let t = {
+                    let t = self.c.get_type_of_symbol(*target_prop);
+                    // TODO: remove_missing
+                    t
+                };
+                self.infer_from_tys(s, t);
             }
         }
     }

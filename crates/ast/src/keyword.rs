@@ -66,6 +66,7 @@ gen_atoms!(
     (KW_KEYOF, "keyof"),
     (KW_INFER, "infer"),
     (KW_INTRINSIC, "intrinsic"),
+    (KW_UNIQUE, "unique"),
     (KW_TYPE, "type"),
 );
 
@@ -96,6 +97,8 @@ gen_atoms!(
     (IDENT_CALLABLE_FUNCTION_CLASS, "CallableFunction"),
     (IDENT_NEWABLE_FUNCTION_CLASS, "NewableFunction"),
     (IDENT_GLOBAL, "global"),
+    (IDENT_ARGUMENTS, "arguments"),
+    (IDENT_IARGUMENTS_CLASS, "IArguments"),
     (INTRINSIC_TYPE_UPPERCASE, "Uppercase"),
     (INTRINSIC_TYPE_LOWERCASE, "Lowercase"),
     (INTRINSIC_TYPE_CAPITALIZE, "Capitalize"),

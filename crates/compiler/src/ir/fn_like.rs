@@ -168,6 +168,12 @@ impl<'cx> FnDeclLike<'cx> for ast::MethodSignature<'cx> {
     }
 }
 
+impl<'cx> FnDeclLike<'cx> for ast::ObjectMethodMember<'cx> {
+    fn body(&self) -> Option<&'cx ast::BlockStmt<'cx>> {
+        Some(self.body)
+    }
+}
+
 impl<'cx> FnDeclLike<'cx> for ast::CallSigDecl<'cx> {
     fn body(&self) -> Option<&'cx ast::BlockStmt<'cx>> {
         None

@@ -7,6 +7,7 @@ mod graph;
 mod ir;
 mod late_resolve;
 pub mod parser;
+mod path;
 mod ty;
 mod wf;
 
@@ -18,6 +19,7 @@ use self::bind::GlobalSymbols;
 use self::bind::bind_parallel;
 use self::early_resolve::early_resolve_parallel;
 use self::wf::well_formed_check_parallel;
+use bind::BinderResult;
 use bolt_ts_ast::TokenKind;
 use bolt_ts_ast::keyword_idx_to_token;
 
@@ -28,6 +30,7 @@ use bolt_ts_fs::CachedFileSystem;
 use bolt_ts_span::{ModuleArena, ModuleID, ModulePath};
 
 use normalize_path::NormalizePath;
+use parser::{ParseResult, Parser};
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
 use rustc_hash::FxHashMap;
 
@@ -56,10 +59,7 @@ pub fn output_files(
     module_arena: &ModuleArena,
     output: &[(ModuleID, String)],
 ) -> FxHashMap<PathBuf, String> {
-    let p = |m: ModuleID| match module_arena.get_path(m) {
-        bolt_ts_span::ModulePath::Real(p) => p,
-        bolt_ts_span::ModulePath::Virtual => todo!(),
-    };
+    let p = |m: ModuleID| module_arena.get_path(m);
     match tsconfig.compiler_options().out_dir() {
         bolt_ts_config::OutDir::OwnRoot => output
             .iter()
@@ -104,16 +104,28 @@ pub fn eval_from(root: PathBuf, tsconfig: NormalizedTsConfig) -> Output {
     let mut atoms = init_atom();
 
     // ==== fs init ====
-    let mut fs = bolt_ts_fs::LocalFS::new(&mut atoms);
+    let fs = bolt_ts_fs::LocalFS::new(&mut atoms);
+    let dir = current_exe_dir();
+    let libs = bolt_ts_lib::LIB_ENTIRES
+        .iter()
+        .map(|(_, file)| dir.join(file))
+        .collect::<Vec<_>>();
+    eval_from_with_fs(root, tsconfig, libs, fs, atoms)
+}
 
+pub fn eval_from_with_fs(
+    root: PathBuf,
+    tsconfig: NormalizedTsConfig,
+    libs: Vec<ModulePath>,
+    mut fs: impl CachedFileSystem,
+    mut atoms: bolt_ts_atom::AtomMap<'_>,
+) -> Output {
     let mut entries = Vec::with_capacity(1024);
     let mut module_arena = ModuleArena::new();
 
     // ==== collect entires ====
-    let dir = current_exe_dir();
-    for (_, file) in bolt_ts_lib::LIB_ENTIRES {
-        let module_id =
-            module_arena.new_module(ModulePath::Real(dir.join(file)), true, &mut fs, &mut atoms);
+    for p in libs {
+        let module_id = module_arena.new_module(p, true, &mut fs, &mut atoms);
         entries.push(module_id);
     }
 
@@ -130,20 +142,16 @@ pub fn eval_from(root: PathBuf, tsconfig: NormalizedTsConfig) -> Output {
                 }
             } else {
                 let p = root.join(entry);
+                let p = p.normalize();
                 let pattern = p.to_string_lossy();
-                glob::glob(&pattern)
-                    .unwrap()
-                    .filter_map(Result::ok)
-                    .map(|entry| entry.to_path_buf())
-                    .collect::<Vec<_>>()
+                fs.glob(&pattern, &atoms)
             }
         })
         .collect::<Vec<_>>();
 
     entries.extend(include.into_iter().map(|item| {
         let p = item.normalize();
-        let entry = ModulePath::Real(p);
-        module_arena.new_module(entry, false, &mut fs, &mut atoms)
+        module_arena.new_module(p, false, &mut fs, &mut atoms)
     }));
 
     // ==== build graph ====
@@ -169,7 +177,14 @@ pub fn eval_from(root: PathBuf, tsconfig: NormalizedTsConfig) -> Output {
     let atoms = Arc::try_unwrap(atoms).unwrap();
     let mut atoms = atoms.into_inner().unwrap();
 
-    let mut bind_list = bind_parallel(module_arena.modules(), &atoms, &p);
+    let (mut bind_list, p) = {
+        let (bind_list, p_map): (Vec<BinderResult>, Vec<ParseResult>) =
+            bind_parallel(module_arena.modules(), &atoms, p, &tsconfig)
+                .into_iter()
+                .unzip();
+        let p = Parser::new_with_maps(p_map);
+        (bind_list, p)
+    };
 
     let flow_nodes = bind_list
         .iter_mut()
@@ -185,7 +200,7 @@ pub fn eval_from(root: PathBuf, tsconfig: NormalizedTsConfig) -> Output {
         .filter_map(|(state, m)| m.global.then_some(state))
     {
         for ((scope_id, name), symbol) in state.res.iter() {
-            if !scope_id.is_root() {
+            if !scope_id.is_root() || !matches!(name, bind::SymbolName::Normal(_)) {
                 continue;
             }
             global_symbols.insert(*name, *symbol);
@@ -282,16 +297,13 @@ pub fn eval_from(root: PathBuf, tsconfig: NormalizedTsConfig) -> Output {
             .modules()
             .iter()
             .map(|m| {
-                if let ModulePath::Real(p) = module_arena.get_path(m.id) {
-                    assert!(
-                        p.is_normalized(),
-                        "path should be normalized, but got: {:?}",
-                        p
-                    );
+                let p = module_arena.get_path(m.id);
+                assert!(
+                    p.is_normalized(),
+                    "path should be normalized, but got: {:?}",
                     p
-                } else {
-                    todo!()
-                }
+                );
+                p
             })
             .collect::<Vec<_>>();
         let set = paths.iter().collect::<std::collections::HashSet<_>>();

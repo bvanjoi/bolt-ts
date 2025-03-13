@@ -161,3 +161,17 @@ pub(super) struct ModifierCannotAppearOnAParameter {
     pub span: Span,
     pub kind: ModifierKind,
 }
+
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
+#[error("An implementation cannot be declared in ambient contexts.")]
+pub(super) struct AnImplementationCannotBeDeclaredInAmbientContexts {
+    #[label(primary)]
+    pub span: Span,
+}
+
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
+#[error("Initializers are not allowed in ambient contexts.")]
+pub(super) struct InitializersAreNotAllowedInAmbientContexts {
+    #[label(primary)]
+    pub span: Span,
+}

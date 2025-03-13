@@ -22,7 +22,7 @@ impl<'cx> TyChecker<'cx> {
         let mut last_seen_non_ambient_decl = None;
         for decl in &f.decls {
             let node = self.p.node(*decl);
-            let is_ambient_context = node.node_flags().intersects(ast::NodeFlags::AMBIENT);
+            let is_ambient_context = self.p.node_flags(*decl).intersects(ast::NodeFlags::AMBIENT);
             let is_ambient_context_or_interface = self.p.parent(*decl).is_some_and(|parent| {
                 let p = self.p.node(parent);
                 p.is_interface_decl() || p.is_object_lit_ty()

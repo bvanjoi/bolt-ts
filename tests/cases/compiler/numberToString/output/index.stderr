@@ -1,0 +1,11 @@
+  × Type 'number' is not assignable to type 'string'.
+   ╭─[../../tests/cases/compiler/numberToString/index.ts:4:10]
+ 4 │ n
+   · ─
+   ╰────
+
+  × Argument of type 'number' is not assignable to parameter of type 'string'.
+    ╭─[../../tests/cases/compiler/numberToString/index.ts:12:4]
+ 12 │ 3
+    · ─
+    ╰────

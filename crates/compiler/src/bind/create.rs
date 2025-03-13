@@ -13,7 +13,7 @@ use crate::ir;
 use bolt_ts_ast as ast;
 use bolt_ts_utils::fx_hashmap_with_capacity;
 
-impl<'cx> BinderState<'cx, '_> {
+impl<'cx> BinderState<'cx, '_, '_> {
     pub(super) fn create_final_res(&mut self, id: ast::NodeID, symbol: SymbolID) {
         let prev = self.final_res.insert(id, symbol);
         assert!(prev.is_none(), "prev: {:#?}", prev.unwrap());
@@ -41,7 +41,18 @@ impl<'cx> BinderState<'cx, '_> {
         if name.as_atom().is_some() {
             if let Some(id) = self.res.get(&key).copied() {
                 let prev = self.symbols.get_mut(id);
-                if flags.intersects(SymbolFlags::ALIAS) || prev.flags.intersects(SymbolFlags::ALIAS)
+                if flags.intersects(SymbolFlags::TYPE_PARAMETER)
+                    && kind.opt_decl().is_some_and(|p| {
+                        self.p
+                            .parent(p)
+                            .is_some_and(|n| self.p.node(n).is_infer_ty())
+                    })
+                {
+                    let id = self.symbols.insert(Symbol::new(name, flags, kind));
+                    // dont insert into resolution because infer type param had been stored into locals.
+                    return id;
+                } else if flags.intersects(SymbolFlags::ALIAS)
+                    || prev.flags.intersects(SymbolFlags::ALIAS)
                 {
                     let id = self.symbols.insert(Symbol::new(name, flags, kind));
                     let _prev = self.res.insert(key, id);
@@ -82,7 +93,7 @@ impl<'cx> BinderState<'cx, '_> {
 
                     if flags.intersects(SymbolFlags::PROPERTY) {
                         let id = self.symbols.insert(Symbol::new(name, flags, kind));
-                        let prev = self.res.insert(key, id);
+                        self.res.insert(key, id);
                         return id;
                     }
                 }
@@ -90,7 +101,7 @@ impl<'cx> BinderState<'cx, '_> {
             }
         }
         let id = self.symbols.insert(Symbol::new(name, flags, kind));
-        let prev = self.res.insert(key, id);
+        self.res.insert(key, id);
         id
     }
 
@@ -123,7 +134,7 @@ impl<'cx> BinderState<'cx, '_> {
             }
         }
         let id = self.symbols.insert(Symbol::new_interface(name, flags, i));
-        let prev = self.res.insert(key, id);
+        self.res.insert(key, id);
         id
     }
 
@@ -188,9 +199,13 @@ impl<'cx> BinderState<'cx, '_> {
         symbol
     }
 
-    pub(super) fn create_fn_symbol(&mut self, container: ast::NodeID, decl: &'cx ast::FnDecl<'cx>) {
+    pub(super) fn create_fn_symbol(
+        &mut self,
+        container: ast::NodeID,
+        decl: &'cx ast::FnDecl<'cx>,
+    ) -> SymbolID {
         let ele_name = SymbolName::Normal(decl.name.name);
-        self.create_fn_decl_like_symbol(container, decl, ele_name, SymbolFnKind::FnDecl, false);
+        self.create_fn_decl_like_symbol(container, decl, ele_name, SymbolFnKind::FnDecl, false)
     }
 
     pub(super) fn create_fn_ty_symbol(&mut self, id: ast::NodeID, symbol_name: SymbolName) {

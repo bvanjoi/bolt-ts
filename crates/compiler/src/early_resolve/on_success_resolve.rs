@@ -20,7 +20,12 @@ impl<'cx> Resolver<'cx, '_, '_> {
                 .p
                 .node(associated_declaration_for_containing_initializer_or_binding_name);
             if let Some(param_decl) = node.as_param_decl() {
-                if symbol == self.states[self.module_id.as_usize()].final_res[&param_decl.id] {
+                let id = match param_decl.name.kind {
+                    bolt_ts_ast::BindingKind::Ident(ident) => ident.id,
+                    bolt_ts_ast::BindingKind::ObjectPat(_) => todo!(),
+                    bolt_ts_ast::BindingKind::ArrayPat(_) => todo!(),
+                };
+                if symbol == self.states[self.module_id.as_usize()].final_res[&id] {
                     let error = errors::ParameterXCannotReferenceItself {
                         span: ident.span,
                         name: self.atoms.get(ident.name).to_string(),
@@ -54,8 +59,6 @@ impl<'cx> Resolver<'cx, '_, '_> {
                 )
                 .is_some()
         {
-            let prev = self.final_res.insert(ident.id, Symbol::ERR);
-            assert!(prev.is_some());
             let error =
                 errors::StaticMembersCannotReferenceClassTypeParameters { span: ident.span };
             Some(error)
@@ -82,10 +85,12 @@ impl<'cx> Resolver<'cx, '_, '_> {
     pub(super) fn on_success_resolved_type_symbol(
         &mut self,
         ident: &'cx ast::Ident,
-        symbol: SymbolID,
+        symbol: &mut SymbolID,
     ) {
-        if let Some(error) = self.check_ty_param_used_in_static_but_declared_at_class(ident, symbol)
+        if let Some(error) =
+            self.check_ty_param_used_in_static_but_declared_at_class(ident, *symbol)
         {
+            *symbol = Symbol::ERR;
             self.push_error(Box::new(error));
         }
     }

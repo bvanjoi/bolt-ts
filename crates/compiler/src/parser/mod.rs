@@ -19,9 +19,12 @@ use std::sync::{Arc, Mutex};
 use bolt_ts_atom::{AtomId, AtomMap};
 use bolt_ts_span::{ModuleArena, ModuleID, Span};
 use bolt_ts_utils::fx_hashmap_with_capacity;
+use bolt_ts_utils::no_hashmap_with_capacity;
+pub(crate) use utils::is_left_hand_side_expr_kind;
 
 use rayon::prelude::*;
 use rustc_hash::FxHashMap;
+use utils::is_declaration_filename;
 
 pub use self::query::AccessKind;
 pub use self::query::AssignmentKind;
@@ -65,11 +68,11 @@ impl<'cx> Nodes<'cx> {
 }
 
 #[derive(Debug)]
-pub struct ParentMap(FxHashMap<u32, u32>);
+pub struct ParentMap(nohash_hasher::IntMap<u32, u32>);
 
 impl ParentMap {
     fn new() -> Self {
-        Self(fx_hashmap_with_capacity(2048))
+        Self(no_hashmap_with_capacity(2048))
     }
     pub fn parent(&self, node_id: NodeID) -> Option<NodeID> {
         let id = node_id.index_as_u32();
@@ -78,7 +81,7 @@ impl ParentMap {
             .map(|parent| NodeID::new(node_id.module(), *parent))
     }
 
-    pub(super) fn insert(&mut self, id: NodeID, parent: NodeID) {
+    fn insert(&mut self, id: NodeID, parent: NodeID) {
         assert!(id.index_as_u32() > parent.index_as_u32());
         let prev = self.0.insert(id.index_as_u32(), parent.index_as_u32());
         assert!(prev.is_none())
@@ -98,6 +101,7 @@ pub struct ParseResult<'cx> {
     pub diags: Vec<bolt_ts_errors::Diag>,
     nodes: Nodes<'cx>,
     parent_map: ParentMap,
+    pub node_flags_map: NodeFlagsMap,
 }
 
 impl<'cx> ParseResult<'cx> {
@@ -105,10 +109,22 @@ impl<'cx> ParseResult<'cx> {
         let id = NodeID::root(ModuleID::root());
         self.nodes.get(id).expect_program()
     }
+
+    pub fn node(&self, id: NodeID) -> Node<'cx> {
+        self.nodes.get(id)
+    }
+
+    pub fn parent(&self, id: NodeID) -> Option<NodeID> {
+        self.parent_map.parent(id)
+    }
+
+    pub fn node_flags(&self, id: NodeID) -> NodeFlags {
+        self.node_flags_map.get(id)
+    }
 }
 
 pub struct Parser<'cx> {
-    map: Vec<ParseResult<'cx>>,
+    pub(crate) map: Vec<ParseResult<'cx>>,
 }
 
 impl Default for Parser<'_> {
@@ -122,6 +138,10 @@ impl<'cx> Parser<'cx> {
         Self {
             map: Vec::with_capacity(2048),
         }
+    }
+
+    pub fn new_with_maps(map: Vec<ParseResult<'cx>>) -> Self {
+        Self { map }
     }
 
     #[inline(always)]
@@ -145,6 +165,10 @@ impl<'cx> Parser<'cx> {
     #[inline(always)]
     pub fn module_count(&self) -> usize {
         self.map.len()
+    }
+
+    pub fn node_flags(&self, node: ast::NodeID) -> NodeFlags {
+        self.map[node.module().as_usize()].node_flags(node)
     }
 }
 
@@ -182,7 +206,13 @@ pub fn parse_parallel<'cx, 'p>(
         || herd.get(),
         move |bump, module_id| {
             let input = module_arena.get_content(*module_id);
-            let result = parse(atoms.clone(), bump, input.as_bytes(), *module_id);
+            let result = parse(
+                atoms.clone(),
+                bump,
+                input.as_bytes(),
+                *module_id,
+                module_arena,
+            );
             assert!(!module_arena.get_module(*module_id).global || result.diags.is_empty());
             (*module_id, result)
         },
@@ -194,15 +224,18 @@ fn parse<'cx, 'p>(
     arena: &'p bumpalo_herd::Member<'cx>,
     input: &'p [u8],
     module_id: ModuleID,
+    module_arena: &'p ModuleArena,
 ) -> ParseResult<'cx> {
     let nodes = Nodes::new();
     let parent_map = ParentMap::new();
     let mut s = ParserState::new(atoms, arena, nodes, parent_map, input, module_id);
-    s.parse();
+    let file_path = module_arena.get_path(module_id);
+    s.parse(file_path);
     ParseResult {
         diags: s.diags,
         nodes: s.nodes,
         parent_map: s.parent_map,
+        node_flags_map: s.node_flags_map,
     }
 }
 
@@ -221,9 +254,40 @@ struct ParserState<'cx, 'p> {
     diags: Vec<bolt_ts_errors::Diag>,
     nodes: Nodes<'cx>,
     parent_map: ParentMap,
+    node_flags_map: NodeFlagsMap,
     arena: &'p bumpalo_herd::Member<'cx>,
     next_node_id: NodeID,
     context_flags: NodeFlags,
+}
+
+#[derive(Debug)]
+pub struct NodeFlagsMap(nohash_hasher::IntMap<u32, bolt_ts_ast::NodeFlags>);
+impl NodeFlagsMap {
+    fn new() -> Self {
+        Self(no_hashmap_with_capacity(2048))
+    }
+
+    pub fn get(&self, node_id: NodeID) -> bolt_ts_ast::NodeFlags {
+        let key = node_id.index_as_u32();
+        self.0.get(&key).copied().unwrap_or_default()
+    }
+
+    pub fn update(&mut self, node_id: NodeID, f: impl FnOnce(&mut bolt_ts_ast::NodeFlags)) {
+        let key = node_id.index_as_u32();
+        if let Some(flags) = self.0.get_mut(&key) {
+            f(flags);
+        } else {
+            let mut new_flags = bolt_ts_ast::NodeFlags::empty();
+            f(&mut new_flags);
+            self.0.insert(key, new_flags);
+        }
+    }
+
+    fn insert(&mut self, node_id: NodeID, flags: bolt_ts_ast::NodeFlags) {
+        let key = node_id.index_as_u32();
+        let prev = self.0.insert(key, flags);
+        assert!(prev.is_none())
+    }
 }
 
 impl<'cx, 'p> ParserState<'cx, 'p> {
@@ -257,6 +321,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
             parent_map,
             next_node_id: NodeID::root(module_id),
             context_flags: NodeFlags::empty(),
+            node_flags_map: NodeFlagsMap::new(),
         }
     }
 
@@ -353,7 +418,6 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
                 if self.is_list_terminator(ctx) {
                     break;
                 }
-
                 self.expect(TokenKind::Comma);
                 continue;
             }
@@ -435,7 +499,8 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
     }
 
     fn parse_binding_ident(&mut self) -> &'cx ast::Ident {
-        self.create_ident(true, None)
+        let is_ident = self.token.kind.is_binding_ident();
+        self.create_ident(is_ident, None)
     }
 
     fn parse_optional_binding_ident(&mut self) -> PResult<Option<&'cx ast::Ident>> {
@@ -485,7 +550,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         self.parent_map.insert(id, self.parent);
     }
 
-    pub fn parse(&mut self) -> &'cx ast::Program<'cx> {
+    pub fn parse(&mut self, file_path: &std::path::Path) -> &'cx ast::Program<'cx> {
         let start = self.pos;
         let id = self.next_node_id();
         self.with_parent(id, |this| {
@@ -500,6 +565,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
                 id,
                 stmts,
                 span: this.new_span(start as u32),
+                is_declaration: is_declaration_filename(file_path.to_str().unwrap_or_default().as_bytes()),
             });
             this.nodes.insert(id, Node::Program(program));
             program
@@ -575,4 +641,12 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
     fn in_disallow_conditional_tys_context(&self) -> bool {
         self.in_context(NodeFlags::DISALLOW_CONDITIONAL_TYPES_CONTEXT)
     }
+}
+
+fn has_export_decls(stmts: &bolt_ts_ast::Stmts<'_>) -> bool {
+    stmts.iter().any(|stmt| match stmt.kind {
+        bolt_ts_ast::StmtKind::Export(_) => true,
+        // TODO: export assignment
+        _ => false,
+    })
 }

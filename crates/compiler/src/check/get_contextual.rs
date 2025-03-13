@@ -1,4 +1,5 @@
 use crate::bind::SymbolName;
+use crate::check::Ternary;
 use crate::ty::MappedTyNameTyKind;
 use crate::ty::ObjectFlags;
 use crate::ty::TypeFlags;
@@ -76,15 +77,28 @@ impl<'cx> TyChecker<'cx> {
             self.p.node(p).expect_object_lit()
         };
         let ty = self.get_apparent_ty_of_contextual_ty(object_literal.id, context_flags)?;
-        // TODO: has_bindable_name
-        if let Some(member) = self.p.node(id).as_object_prop_member() {
-            let symbol = self.get_symbol_of_decl(member.id);
-            let name = self.symbol(symbol).name();
-            let name_ty = self.get_symbol_links(symbol).get_name_ty();
-            self.get_ty_of_prop_of_contextual_ty(ty, name, name_ty)
+        let id = if let Some(m) = self.p.node(id).as_object_prop_member() {
+            Some(m.id)
+        } else if let Some(m) = self.p.node(id).as_object_method_member() {
+            Some(m.id)
         } else {
             None
-        }
+        }?;
+        // TODO: has_bindable_name
+        let symbol = self.get_symbol_of_decl(id);
+        let name = self.symbol(symbol).name();
+        let name_ty = self.get_symbol_links(symbol).get_name_ty();
+        self.get_ty_of_prop_of_contextual_ty(ty, name, name_ty)
+    }
+
+    fn get_contextual_ty_for_object_literal_method(
+        &mut self,
+        id: ast::NodeID,
+        context_flags: Option<ContextFlags>,
+    ) -> Option<&'cx ty::Ty<'cx>> {
+        assert!(self.p.node(id).is_object_method_member());
+        // TODO: NodeFlags.InWithStatement
+        self.get_contextual_ty_for_object_literal_ele(id, context_flags)
     }
 
     pub(super) fn get_contextual_ret_ty(
@@ -126,7 +140,7 @@ impl<'cx> TyChecker<'cx> {
         use bolt_ts_ast::Node::*;
         match node {
             VarDecl(decl) => {
-                if let Some(init) = decl.init {
+                if decl.init.is_some() {
                     if let Some(decl_ty) = decl.ty {
                         return Some(self.get_ty_from_type_node(decl_ty));
                     }
@@ -150,7 +164,8 @@ impl<'cx> TyChecker<'cx> {
             ty?,
             |this, t| {
                 if let Some(tup) = t.as_tuple() {
-                    if first_spread_index.is_none_or(|first_spread_index| index < first_spread_index)
+                    if first_spread_index
+                        .is_none_or(|first_spread_index| index < first_spread_index)
                         && index < tup.fixed_length
                     {
                         let t = this.get_ty_arguments(t)[index];
@@ -174,8 +189,7 @@ impl<'cx> TyChecker<'cx> {
                         return this.get_ty_arguments(t).get(idx).copied();
                     }
                 }
-                if first_spread_index.is_none_or(|first_spread_index| index < first_spread_index)
-                {
+                if first_spread_index.is_none_or(|first_spread_index| index < first_spread_index) {
                     if let Some(t) = this.get_ty_of_prop_of_contextual_ty(
                         t,
                         SymbolName::EleNum(index.into()),
@@ -252,14 +266,10 @@ impl<'cx> TyChecker<'cx> {
                 } else if this.is_generic_mapped_ty(t)
                     && this.get_mapped_ty_name_ty_kind(t) != MappedTyNameTyKind::Remapping
                 {
-                    this.get_indexed_mapped_type_substituted_ty_of_contextual_ty(
-                        t, name, name_ty,
-                    )
+                    this.get_indexed_mapped_type_substituted_ty_of_contextual_ty(t, name, name_ty)
                 } else {
                     this.get_ty_of_concrete_prop_of_contextual_ty(t, name)
-                        .or_else(|| {
-                            this.get_ty_from_index_infos_of_contextual_ty(t, name, name_ty)
-                        })
+                        .or_else(|| this.get_ty_from_index_infos_of_contextual_ty(t, name, name_ty))
                 }
             },
             true,
@@ -349,7 +359,6 @@ impl<'cx> TyChecker<'cx> {
         name: SymbolName,
         name_ty: Option<&'cx ty::Ty<'cx>>,
     ) -> Option<&'cx ty::Ty<'cx>> {
-        let mapped_ty = ty.kind.expect_object_mapped();
         let property_name_ty = name_ty.unwrap_or_else(|| {
             if let Some(atom) = name.as_atom() {
                 self.get_string_literal_type(atom)
@@ -359,10 +368,10 @@ impl<'cx> TyChecker<'cx> {
                 unreachable!()
             }
         });
-        let constraint = mapped_ty.constraint_ty;
+        let constraint = self.get_constraint_ty_from_mapped_ty(ty);
         if self
             .get_ty_links(ty.id)
-            .get_named_ty()
+            .get_mapped_named_ty()
             .is_some_and(|name_ty| self.is_excluded_mapped_property_name(name_ty, property_name_ty))
             || self.is_excluded_mapped_property_name(constraint, property_name_ty)
         {
@@ -382,8 +391,11 @@ impl<'cx> TyChecker<'cx> {
         node: ast::NodeID,
         flags: Option<ContextFlags>,
     ) -> Option<&'cx ty::Ty<'cx>> {
-        // TODO: `is_object_literal_method`
-        let contextual_ty = self.get_contextual_ty(node, flags);
+        let contextual_ty = if self.p.node(node).is_object_method_member() {
+            self.get_contextual_ty_for_object_literal_method(node, flags)
+        } else {
+            self.get_contextual_ty(node, flags)
+        };
         let Some(instantiated_ty) = self.instantiate_contextual_ty(contextual_ty, node, flags)
         else {
             return None;
@@ -437,9 +449,41 @@ impl<'cx> TyChecker<'cx> {
 
     pub(super) fn get_contextual_sig(&mut self, id: ast::NodeID) -> Option<&'cx ty::Sig<'cx>> {
         assert!(!self.p.node(id).is_class_method_ele());
+        if let Some(ty_tag_sig) = self.get_sig_of_ty_tag(id) {
+            return Some(ty_tag_sig);
+        }
         let ty = self.get_apparent_ty_of_contextual_ty(id, Some(ContextFlags::SIGNATURE))?;
 
-        if !ty.kind.is_union() {
+        if let Some(u) = ty.kind.as_union() {
+            let mut sigs = Vec::with_capacity(u.tys.len());
+            for current in u.tys {
+                if let Some(sig) = self.get_contextual_call_sig(current, id) {
+                    if sigs.is_empty() {
+                        sigs.push(sig);
+                    } else if self.compare_sigs_identical(
+                        sigs[0],
+                        sig,
+                        false,
+                        true,
+                        true,
+                        |this, s, t| this.compare_types_identical(s, t),
+                    ) == Ternary::FALSE
+                    {
+                        return None;
+                    } else {
+                        sigs.push(sig);
+                    }
+                }
+            }
+            if !sigs.is_empty() {
+                if sigs.len() == 1 {
+                    return Some(sigs[0]);
+                } else {
+                    // todo: self.create_union_sigs
+                    todo!()
+                }
+            }
+        } else {
             return self.get_contextual_call_sig(ty, id);
         }
         None

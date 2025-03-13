@@ -6,7 +6,7 @@ use bolt_ts_ast as ast;
 use rustc_hash::FxHashMap;
 use thin_vec::thin_vec;
 
-impl<'cx> BinderState<'cx, '_> {
+impl<'cx> BinderState<'cx, '_, '_> {
     pub(super) fn members(
         &mut self,
         container: ast::NodeID,

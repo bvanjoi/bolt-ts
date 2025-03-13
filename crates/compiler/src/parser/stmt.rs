@@ -3,7 +3,6 @@ use bolt_ts_atom::AtomId;
 use bolt_ts_ast::TokenKind;
 use bolt_ts_ast::{NodeFlags, VarDecls};
 
-use super::ast;
 use super::errors;
 use super::list_ctx;
 use super::parse_class_like::ParseClassDecl;
@@ -11,6 +10,7 @@ use super::parse_fn_like::ParseFnDecl;
 use super::parse_import_export_spec::ParseNamedExports;
 use super::parse_import_export_spec::ParseNamedImports;
 use super::{PResult, ParserState};
+use super::{ast, has_export_decls};
 use crate::keyword::{self, IDENT_GLOBAL};
 use crate::parser::parse_break_or_continue::{ParseBreak, ParseContinue};
 
@@ -186,7 +186,7 @@ impl<'cx> ParserState<'cx, '_> {
         if (await_token.is_some() && self.expect(Of)) || self.parse_optional(Of).is_some() {
             let init = init.unwrap();
             let expr = self.with_parent(id, |this| {
-                this.allow_in_and(|this| this.parse_assign_expr(true))
+                this.allow_in_and(|this| this.parse_assign_expr_or_higher(true))
             })?;
             self.expect(RParen);
             let body = self.parse_stmt()?;
@@ -273,7 +273,7 @@ impl<'cx> ParserState<'cx, '_> {
     fn parse_enum_member(&mut self) -> PResult<&'cx ast::EnumMember<'cx>> {
         let id = self.next_node_id();
         let start = self.token.start();
-        let name = self.with_parent(id, Self::parse_prop_name)?;
+        let name = self.with_parent(id, |this| this.parse_prop_name(false))?;
         let init = self.with_parent(id, Self::parse_init)?;
         let span = self.new_span(start);
         let member = self.alloc(ast::EnumMember {
@@ -333,23 +333,28 @@ impl<'cx> ParserState<'cx, '_> {
         let name = self.parse_ident_name()?;
         let block = self.parse_module_block()?;
         let span = self.new_span(start);
-        let decl = self.alloc(ast::NsDecl {
-            id,
-            span,
-            modifiers: mods,
-            name: ast::ModuleName::Ident(name),
-            block: Some(block),
-        });
-        self.insert_map(id, ast::Node::NamespaceDecl(decl));
-        Ok(decl)
+        Ok(self.create_ns_decl(id, span, mods, ast::ModuleName::Ident(name), Some(block)))
     }
 
     pub(super) fn is_ident_name(&self, name: AtomId) -> bool {
         self.token.kind.is_ident_or_keyword() && self.ident_token() == name
     }
 
-    fn parse_module_block(&mut self) -> PResult<&'cx ast::BlockStmt<'cx>> {
-        self.parse_block()
+    fn parse_module_block(&mut self) -> PResult<&'cx ast::ModuleBlock<'cx>> {
+        let id = self.next_node_id();
+        let start = self.token.start();
+        self.expect(TokenKind::LBrace);
+        let stmts = self.with_parent(id, |this| {
+            this.parse_list(list_ctx::BlockStmts, Self::parse_stmt)
+        });
+        self.expect(TokenKind::RBrace);
+        let block = self.alloc(ast::ModuleBlock {
+            id,
+            span: self.new_span(start),
+            stmts,
+        });
+        self.insert_map(id, ast::Node::ModuleBlock(block));
+        Ok(block)
     }
 
     fn parse_ambient_external_module_decl(
@@ -371,15 +376,34 @@ impl<'cx> ParserState<'cx, '_> {
             None
         };
         let span = self.new_span(start);
+        Ok(self.create_ns_decl(id, span, mods, name, block))
+    }
+
+    fn create_ns_decl(
+        &mut self,
+        id: ast::NodeID,
+        span: bolt_ts_span::Span,
+        modifiers: Option<&'cx bolt_ts_ast::Modifiers<'cx>>,
+        name: bolt_ts_ast::ModuleName<'cx>,
+        block: Option<&'cx bolt_ts_ast::ModuleBlock<'cx>>,
+    ) -> &'cx ast::NsDecl<'cx> {
+        let flags = if self.context_flags.intersects(ast::NodeFlags::AMBIENT)
+            && block.is_some_and(|body| !has_export_decls(&body.stmts))
+        {
+            NodeFlags::EXPORT_CONTEXT | self.context_flags
+        } else {
+            self.context_flags
+        };
         let decl = self.alloc(ast::NsDecl {
             id,
             span,
-            modifiers: mods,
+            modifiers,
             name,
             block,
         });
+        self.node_flags_map.insert(id, flags);
         self.insert_map(id, ast::Node::NamespaceDecl(decl));
-        Ok(decl)
+        decl
     }
 
     fn parse_type_decl(&mut self) -> PResult<&'cx ast::TypeDecl<'cx>> {
@@ -390,9 +414,12 @@ impl<'cx> ParserState<'cx, '_> {
         let ty_params = self.with_parent(id, Self::parse_ty_params).unwrap();
         self.expect(TokenKind::Eq);
         let ty = if self.token.kind == TokenKind::Intrinsic {
+            let id = self.next_node_id();
             let t = self.alloc(ast::IntrinsicTy {
+                id,
                 span: self.token.span,
             });
+            self.insert_map(id, ast::Node::IntrinsicTy(t));
             let t = self.alloc(ast::Ty {
                 kind: ast::TyKind::Intrinsic(t),
             });
@@ -757,6 +784,11 @@ impl<'cx> ParserState<'cx, '_> {
         let id = self.next_node_id();
         let start = self.token.start();
         let kind = self.token.kind.try_into().unwrap();
+        let flags = if kind == ast::VarKind::Const {
+            ast::NodeFlags::CONST
+        } else {
+            ast::NodeFlags::empty()
+        };
         let list = self.with_parent(id, |this| this.parse_var_decl_list(false));
         if list.is_empty() {
             let span = self.new_span(start);
@@ -772,24 +804,41 @@ impl<'cx> ParserState<'cx, '_> {
             modifiers,
             list,
         });
+        self.node_flags_map.insert(id, flags);
         self.insert_map(id, ast::Node::VarStmt(node));
         self.parse_semi();
         node
     }
 
-    fn parse_name_of_param(&mut self) -> PResult<&'cx ast::Ident> {
-        todo!()
-        // let name = self.parse_ident_or_pat();
-        // Ok(name)
+    pub(super) fn parse_name_of_param(&mut self) -> PResult<&'cx ast::Binding<'cx>> {
+        let binding = self.parse_ident_or_pat()?;
+        // if (getFullWidth(name) === 0 && !some(modifiers) && isModifierKind(token())) {
+        //     // in cases like
+        //     // 'use strict'
+        //     // function foo(static)
+        //     // isParameter('static') === true, because of isModifier('static')
+        //     // however 'static' is not a legal identifier in a strict mode.
+        //     // so result of this function will be ParameterDeclaration (flags = 0, name = missing, type = undefined, initializer = undefined)
+        //     // and current token will not change => parsing of the enclosing parameter list will last till the end of time (or OOM)
+        //     // to avoid this we'll advance cursor to the next token.
+        //     nextToken();
+        // }
+        Ok(binding)
     }
 
     fn parse_ident_or_pat(&mut self) -> PResult<&'cx ast::Binding<'cx>> {
         use bolt_ts_ast::TokenKind::*;
-        let binding = match self.token.kind {
-            LBrace => ast::Binding::ObjectPat(self.parse_object_binding_pat()?),
-            _ => ast::Binding::Ident(self.parse_binding_ident()),
+        let id = self.next_node_id();
+        let span = self.token.start();
+        let kind = match self.token.kind {
+            LBracket => ast::BindingKind::ArrayPat(self.parse_array_binding_pat()?),
+            LBrace => ast::BindingKind::ObjectPat(self.parse_object_binding_pat()?),
+            _ => ast::BindingKind::Ident(self.parse_binding_ident()),
         };
-        Ok(self.alloc(binding))
+        let span = self.new_span(span);
+        let binding = self.alloc(ast::Binding { id, span, kind });
+        self.insert_map(id, ast::Node::Binding(binding));
+        Ok(binding)
     }
 
     fn parse_object_binding_ele(&mut self) -> PResult<&'cx ast::ObjectBindingElem<'cx>> {
@@ -810,7 +859,7 @@ impl<'cx> ParserState<'cx, '_> {
                 self.alloc(ast::ObjectBindingName::Prop { prop_name, name })
             }
         } else {
-            let prop_name = self.with_parent(id, Self::parse_prop_name)?;
+            let prop_name = self.with_parent(id, |this| this.parse_prop_name(false))?;
             if self.token.kind != TokenKind::Colon {
                 todo!("error")
             } else {
@@ -848,12 +897,33 @@ impl<'cx> ParserState<'cx, '_> {
         Ok(pat)
     }
 
+    fn parse_array_binding_pat(&mut self) -> PResult<&'cx ast::ArrayPat> {
+        let id = self.next_node_id();
+        let start = self.token.start();
+        self.expect(TokenKind::LBracket);
+        // TODO: elements
+        self.expect(TokenKind::RBracket);
+        let pat = self.alloc(ast::ArrayPat {
+            id,
+            span: self.new_span(start),
+        });
+        self.insert_map(id, ast::Node::ArrayPat(pat));
+        Ok(pat)
+    }
+
     fn parse_var_decl(&mut self) -> PResult<&'cx ast::VarDecl<'cx>> {
         let id = self.next_node_id();
         let start = self.token.start();
         let binding = self.with_parent(id, Self::parse_ident_or_pat)?;
         let ty = self.with_parent(id, Self::parse_ty_anno)?;
         let init = self.with_parent(id, Self::parse_init)?;
+        if self.context_flags.intersects(NodeFlags::AMBIENT) {
+            if let Some(init) = init {
+                let error =
+                    errors::InitializersAreNotAllowedInAmbientContexts { span: init.span() };
+                self.push_error(Box::new(error));
+            }
+        }
         let span = self.new_span(start);
         let node = self.alloc(ast::VarDecl {
             id,

@@ -83,8 +83,8 @@ impl<'cx> TyChecker<'cx> {
     ) {
         for ty_param in ty_params {
             let symbol = self.get_symbol_of_decl(ty_param.id);
-            let value = self.get_declared_ty_of_symbol(symbol);
-            assert!(value.kind.is_param());
+            let value = self.get_declared_ty_of_ty_param(symbol);
+            assert!(value.kind.is_param(), "value: {:#?}", value);
             append_if_unique(res, value);
         }
     }
@@ -150,7 +150,14 @@ impl<'cx> TyChecker<'cx> {
     ) -> &'cx [SymbolID] {
         let props = members
             .values()
-            .filter_map(|m| self.symbol(*m).name().as_atom().map(|_| *m))
+            .filter_map(|m| {
+                let name = self.symbol(*m).name();
+                if name.is_numeric() || name.as_atom().is_some() {
+                    Some(*m)
+                } else {
+                    None
+                }
+            })
             .collect::<Vec<_>>();
         self.alloc(props)
     }

@@ -287,7 +287,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         start: usize,
         modifiers: Option<&'cx ast::Modifiers<'cx>>,
     ) -> PResult<&'cx ast::ClassElem<'cx>> {
-        let name = self.with_parent(id, Self::parse_prop_name)?;
+        let name = self.with_parent(id, |this| this.parse_prop_name(false))?;
         let ele = if matches!(self.token.kind, TokenKind::LParen | TokenKind::Less) {
             // method
             let ty_params = self.with_parent(id, Self::parse_ty_params)?;
@@ -303,14 +303,19 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
                 params,
                 ty,
                 body,
-                flags: self.context_flags,
             });
+            self.node_flags_map.insert(id, self.context_flags);
             self.insert_map(id, ast::Node::ClassMethodElem(method));
             self.alloc(ast::ClassElem {
                 kind: ast::ClassEleKind::Method(method),
             })
         } else {
             // prop
+            let excl = if !self.has_preceding_line_break() {
+                self.parse_optional(TokenKind::Excl)
+            } else {
+                None
+            };
             let ty = self.with_parent(id, Self::parse_ty_anno)?;
             let init = self.with_parent(id, Self::parse_init)?;
             let prop = self.alloc(ast::ClassPropElem {
@@ -320,6 +325,8 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
                 name,
                 ty,
                 init,
+                question: None,
+                excl: excl.map(|e| e.span),
             });
             self.insert_map(id, ast::Node::ClassPropElem(prop));
             self.parse_semi_after_prop_name();
@@ -390,32 +397,11 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
     ) -> PResult<&'cx ast::ClassElem<'cx>> {
         let is_getter = t == TokenKind::Get;
         assert!(is_getter || t == TokenKind::Set);
-        let name = self.with_parent(id, Self::parse_prop_name)?;
-        let ty_params = self.with_parent(id, Self::parse_ty_params)?;
-        let params = self.with_parent(id, Self::parse_params)?;
-        let ty = self.with_parent(id, |this| this.parse_ret_ty(true))?;
-        let body = self.with_parent(id, Self::parse_fn_block)?;
         let kind = if is_getter {
-            let decl = self.alloc(ast::GetterDecl {
-                id,
-                modifiers,
-                span: self.new_span(start as u32),
-                name,
-                ty,
-                body,
-            });
-            self.insert_map(id, ast::Node::GetterDecl(decl));
+            let decl = self.parse_getter_accessor_decl(id, start, modifiers, false)?;
             ast::ClassEleKind::Getter(decl)
         } else {
-            let decl = self.alloc(ast::SetterDecl {
-                id,
-                span: self.new_span(start as u32),
-                modifiers,
-                name,
-                params,
-                body,
-            });
-            self.insert_map(id, ast::Node::SetterDecl(decl));
+            let decl = self.parse_setter_accessor_decl(id, start, modifiers, false)?;
             ast::ClassEleKind::Setter(decl)
         };
         let ele = self.alloc(ast::ClassElem { kind });

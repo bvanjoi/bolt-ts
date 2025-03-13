@@ -48,6 +48,7 @@ pub enum Node<'cx> {
     InterfaceExtendsClause(&'cx super::InterfaceExtendsClause<'cx>),
     ClassImplementsClause(&'cx super::ClassImplementsClause<'cx>),
     BlockStmt(&'cx super::BlockStmt<'cx>),
+    ModuleBlock(&'cx super::ModuleBlock<'cx>),
     ThrowStmt(&'cx super::ThrowStmt<'cx>),
     EnumDecl(&'cx super::EnumDecl<'cx>),
     Modifier(&'cx super::Modifier),
@@ -72,6 +73,7 @@ pub enum Node<'cx> {
     CatchClause(&'cx super::CatchClause<'cx>),
     ObjectBindingElem(&'cx super::ObjectBindingElem<'cx>),
     ObjectPat(&'cx super::ObjectPat<'cx>),
+    ArrayPat(&'cx super::ArrayPat),
     DebuggerStmt(&'cx super::DebuggerStmt),
 
     // expr
@@ -84,6 +86,7 @@ pub enum Node<'cx> {
     StringLit(&'cx super::StringLit),
     ArrayLit(&'cx super::ArrayLit<'cx>),
     Ident(&'cx super::Ident),
+    Binding(&'cx super::Binding<'cx>),
     OmitExpr(&'cx super::OmitExpr),
     ParenExpr(&'cx super::ParenExpr<'cx>),
     CondExpr(&'cx super::CondExpr<'cx>),
@@ -91,6 +94,7 @@ pub enum Node<'cx> {
     ObjectShorthandMember(&'cx super::ObjectShorthandMember<'cx>),
     ObjectPropMember(&'cx super::ObjectPropMember<'cx>),
     ObjectMethodMember(&'cx super::ObjectMethodMember<'cx>),
+    SpreadAssignment(&'cx super::SpreadAssignment<'cx>),
     ObjectLit(&'cx super::ObjectLit<'cx>),
     CallExpr(&'cx super::CallExpr<'cx>),
     FnExpr(&'cx super::FnExpr<'cx>),
@@ -113,6 +117,7 @@ pub enum Node<'cx> {
     TemplateExpr(&'cx super::TemplateExpr<'cx>),
     TemplateHead(&'cx super::TemplateHead),
     TemplateSpan(&'cx super::TemplateSpan<'cx>),
+    ComputedPropName(&'cx super::ComputedPropName<'cx>),
 
     // ty
     LitTy(&'cx super::LitTy),
@@ -143,6 +148,7 @@ pub enum Node<'cx> {
     NullableTy(&'cx super::NullableTy<'cx>),
     TemplateLitTy(&'cx super::TemplateLitTy<'cx>),
     TemplateSpanTy(&'cx super::TemplateSpanTy<'cx>),
+    IntrinsicTy(&'cx super::IntrinsicTy),
 }
 
 impl<'cx> Node<'cx> {
@@ -168,6 +174,11 @@ impl<'cx> Node<'cx> {
     pub fn is_fn_like(&self) -> bool {
         use Node::*;
         matches!(self, IndexSigDecl(_)) | self.is_fn_decl_like()
+    }
+
+    pub fn is_fn_like_and_has_asterisk(&self) -> bool {
+        // TODO: handle asterisk
+        false
     }
 
     pub fn is_class_static_block_decl(&self) -> bool {
@@ -235,7 +246,11 @@ impl<'cx> Node<'cx> {
             FnDecl(n) => Some(n.name),
             ClassDecl(n) => Some(n.name),
             ClassExpr(n) => n.name,
-            ParamDecl(n) => Some(n.name),
+            ParamDecl(n) => match n.name.kind {
+                super::BindingKind::Ident(n) => Some(n),
+                super::BindingKind::ObjectPat(_) => None,
+                super::BindingKind::ArrayPat(_) => None,
+            },
             InterfaceDecl(n) => Some(n.name),
             ClassPropElem(n) => match n.name.kind {
                 super::PropNameKind::Ident(ident) => Some(ident),
@@ -317,9 +332,11 @@ impl<'cx> Node<'cx> {
             CtorSigDecl,
             ClassMethodElem,
             MethodSignature,
+            ObjectMethodMember,
             CallSigDecl,
             FnTy,
             CtorTy,
+            SetterDecl,
         )
     }
 
@@ -363,6 +380,7 @@ impl<'cx> Node<'cx> {
             // TypeOp,
             // Mapped,
             // AssertionExpr
+            GetterDecl,
         )
     }
 
@@ -393,6 +411,9 @@ impl<'cx> Node<'cx> {
                 | ParamDecl(_)
                 | TyParam(_)
                 | ShorthandSpec(_)
+                | GetterDecl(_)
+                | SetterDecl(_)
+                | ObjectLit(_)
         )
     }
 
@@ -429,7 +450,7 @@ impl<'cx> Node<'cx> {
             };
         }
 
-        if let Some(body) = fn_body!(FnExpr) {
+        if let Some(body) = fn_body!(FnExpr, ObjectMethodMember) {
             return Some(body);
         }
 
@@ -441,7 +462,7 @@ impl<'cx> Node<'cx> {
                 }
             };
         }
-        fn_body_with_option!(FnDecl, ClassMethodElem, ClassCtor)
+        fn_body_with_option!(FnDecl, ClassMethodElem, ClassCtor,)
     }
 
     pub fn fn_flags(&self) -> FnFlags {
@@ -451,8 +472,8 @@ impl<'cx> Node<'cx> {
         let mut flags = FnFlags::NORMAL;
         if self.is_fn_decl() || self.is_fn_expr() || self.is_class_method_ele() {
             // todo: check aster token
-        } else if self.as_arrow_fn_expr().is_some() {
-            // todo: check async modifiers
+        } else if self.as_arrow_fn_expr().is_some() && self.has_syntactic_modifier(self::ModifierKind::Async.into()) {
+            flags |= FnFlags::GENERATOR;
         }
 
         if self.fn_body().is_none() {
@@ -515,7 +536,10 @@ impl<'cx> Node<'cx> {
             ClassPropElem,
             GetterDecl,
             SetterDecl,
-            PropSignature
+            PropSignature,
+            FnDecl,
+            VarStmt,
+            ClassDecl
         )
     }
 
@@ -545,18 +569,6 @@ impl<'cx> Node<'cx> {
         } else {
             false
         }
-    }
-
-    pub fn node_flags(&self) -> super::NodeFlags {
-        macro_rules! node_flags {
-            ($( $node_kind:ident),* $(,)?) => {
-                match self {
-                    $(Node::$node_kind(n) => n.flags,)*
-                    _ => Default::default(),
-                }
-            };
-        }
-        node_flags!(FnDecl, ClassMethodElem)
     }
 
     pub fn is_super_call(&self) -> bool {
@@ -594,7 +606,7 @@ impl<'cx> Node<'cx> {
 
     pub fn has_locals(&self) -> bool {
         use Node::*;
-        matches!(self, CondTy(_))
+        matches!(self, BlockStmt(_) | CondTy(_))
     }
 
     pub fn is_readonly_ty_op(&self) -> bool {
@@ -663,12 +675,18 @@ as_node!(
     (EnumDecl, super::EnumDecl<'cx>, enum_decl),
     (NamespaceDecl, super::NsDecl<'cx>, namespace_decl),
     (BlockStmt, super::BlockStmt<'cx>, block_stmt),
+    (ModuleBlock, super::ModuleBlock<'cx>, module_block),
     (VarDecl, super::VarDecl<'cx>, var_decl),
     (BinExpr, super::BinExpr<'cx>, bin_expr),
     (NonNullExpr, super::NonNullExpr<'cx>, non_null_expr),
     (TemplateExpr, super::TemplateExpr<'cx>, template_expr),
     (TemplateHead, super::TemplateHead, template_head),
     (TemplateSpan, super::TemplateSpan<'cx>, template_span),
+    (
+        ComputedPropName,
+        super::ComputedPropName<'cx>,
+        computed_prop_name
+    ),
     (NumLit, super::NumLit, num_lit),
     (BigIntLit, super::BigIntLit, big_int_lit),
     (BoolLit, super::BoolLit, bool_lit),
@@ -676,6 +694,7 @@ as_node!(
     (StringLit, super::StringLit, string_lit),
     (ArrayLit, super::ArrayLit<'cx>, array_lit),
     (Ident, super::Ident, ident),
+    (Binding, super::Binding, binding),
     (OmitExpr, super::OmitExpr, omit_expr),
     (ParenExpr, super::ParenExpr<'cx>, paren_expr),
     (CondExpr, super::CondExpr<'cx>, cond_expr),
@@ -694,6 +713,11 @@ as_node!(
         ObjectMethodMember,
         super::ObjectMethodMember<'cx>,
         object_method_member
+    ),
+    (
+        SpreadAssignment,
+        super::SpreadAssignment<'cx>,
+        spread_assignment
     ),
     (ObjectLit, super::ObjectLit<'cx>, object_lit),
     (CallExpr, super::CallExpr<'cx>, call_expr),
@@ -808,6 +832,7 @@ as_node!(
     (WhileStmt, super::WhileStmt<'cx>, while_stmt),
     (QualifiedName, super::QualifiedName<'cx>, qualified_name),
     (ObjectPat, super::ObjectPat<'cx>, object_pat),
+    (ArrayPat, super::ArrayPat, array_pat),
     (
         ObjectBindingElem,
         super::ObjectBindingElem<'cx>,
@@ -819,4 +844,5 @@ as_node!(
     (NullableTy, super::NullableTy<'cx>, nullable_ty),
     (TemplateLitTy, super::TemplateLitTy<'cx>, template_lit_ty),
     (TemplateSpanTy, super::TemplateSpanTy<'cx>, template_span_ty),
+    (IntrinsicTy, super::IntrinsicTy, intrinsic_ty),
 );

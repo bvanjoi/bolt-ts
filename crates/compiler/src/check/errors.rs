@@ -176,6 +176,7 @@ pub(crate) enum DeclKind {
     Interface,
     Enum,
     Property,
+    BlockScopedVariable,
 }
 
 impl DeclKind {
@@ -185,6 +186,7 @@ impl DeclKind {
             DeclKind::Enum => "Enum",
             DeclKind::Property => "Property",
             DeclKind::Interface => "Interface",
+            DeclKind::BlockScopedVariable => "Block-scoped variable",
         }
     }
 }
@@ -355,7 +357,6 @@ pub(super) struct AnIndexSignatureParameterTypeMustBeStringNumberSymbolOrATempla
 #[error(
     "A class can only implement an object type or intersection of object types with statically known members."
 )]
-
 pub(super) struct AClassCanOnlyImplementAnObjectTypeOrIntersectionOfObjectTypesWithStaticallyKnownMembers
 {
     #[label(primary)]
@@ -419,4 +420,27 @@ pub(super) struct TheRightHandSideOfAForInStatementMustBeOfTypeAnyAnObjectTypeOr
     #[label(primary)]
     pub span: Span,
     pub ty: String,
+}
+
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
+#[error("Type produces a tuple type that is too large to represent.")]
+pub(super) struct TypeProducesATupleTypeThatIsTooLargeToRepresent {
+    #[label(primary)]
+    pub span: Span,
+}
+
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
+#[error("Interface '{derived}' incorrectly extends interface '{base}'.")]
+pub(super) struct Interface0IncorrectlyExtendsInterface1 {
+    #[label(primary)]
+    pub span: Span,
+    pub base: String,
+    pub derived: String,
+}
+
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
+#[error("Ambient module declaration cannot specify relative module name.")]
+pub(super) struct AmbientModuleDeclarationCannotSpecifyRelativeModuleName {
+    #[label(primary)]
+    pub span: Span,
 }

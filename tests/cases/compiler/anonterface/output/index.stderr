@@ -1,0 +1,12 @@
+  × Argument of type '(n: any) => void' is not assignable to parameter of type
+  │ '(n: number) => string'.
+    ╭─[../../tests/cases/compiler/anonterface/index.ts:13:5]
+ 13 │ function(n) { return 42; }
+    · ──────────────────────────
+    ╰────
+
+  × Argument of type 'string' is not assignable to parameter of type 'number'.
+    ╭─[../../tests/cases/compiler/anonterface/index.ts:15:42]
+ 15 │ '42'
+    · ────
+    ╰────

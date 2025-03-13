@@ -1,0 +1,5 @@
+  × Interface 'Bar' incorrectly extends interface 'Foo'.
+   ╭─[../../tests/cases/compiler/addMoreOverloadsToBaseSignature/index.ts:7:11]
+ 7 │ Bar
+   · ───
+   ╰────

@@ -19,25 +19,29 @@ impl<'cx> TyChecker<'cx> {
         symbol: SymbolID,
     ) -> ty::IndexInfos<'cx> {
         let index_symbol = self.binder.symbol(symbol).expect_index();
-        let decl = self.p.node(index_symbol.decl).expect_index_sig_decl();
-        let val_ty = self.get_ty_from_type_node(decl.ty);
-        let index_infos = decl
-            .params
-            .iter()
-            .map(|param| {
-                let Some(ty) = param.ty else { unreachable!() };
-                let key_ty = self.get_ty_from_type_node(ty);
-                let is_readonly = param
-                    .modifiers
-                    .is_some_and(|mods| mods.flags.contains(ast::ModifierKind::Readonly));
-                self.alloc(ty::IndexInfo {
-                    key_ty,
-                    val_ty,
-                    symbol,
-                    is_readonly,
-                })
-            })
-            .collect::<Vec<_>>();
+        let mut index_infos = Vec::with_capacity(index_symbol.decls.len() * 2);
+        for decl in &index_symbol.decls {
+            let n = self.p.node(*decl);
+            if n.is_index_sig_decl() {
+                let decl = n.expect_index_sig_decl();
+                let val_ty = self.get_ty_from_type_node(decl.ty);
+                index_infos.extend(decl.params.iter().map(|param| {
+                    let Some(ty) = param.ty else { unreachable!() };
+                    let key_ty = self.get_ty_from_type_node(ty);
+                    let is_readonly = param
+                        .modifiers
+                        .is_some_and(|mods| mods.flags.contains(ast::ModifierKind::Readonly));
+                    self.alloc(ty::IndexInfo {
+                        key_ty,
+                        val_ty,
+                        symbol,
+                        is_readonly,
+                    })
+                }));
+            } else {
+                todo!()
+            }
+        }
         self.alloc(index_infos)
     }
 
@@ -129,7 +133,13 @@ impl<'cx> TyChecker<'cx> {
         name: SymbolName,
     ) -> Option<&'cx ty::IndexInfo<'cx>> {
         // TODO: is late name
-        let key_ty = self.get_string_literal_type(name.expect_atom());
+        let key_ty = if let Some(name) = name.as_atom() {
+            self.get_string_literal_type(name)
+        } else if let Some(v) = name.as_numeric() {
+            self.get_number_literal_type(v)
+        } else {
+            unreachable!()
+        };
         self.get_applicable_index_info(ty, key_ty)
     }
 }

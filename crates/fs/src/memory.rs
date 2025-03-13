@@ -3,7 +3,7 @@ use bolt_ts_atom::AtomMap;
 use indexmap::IndexMap;
 
 use crate::errors::FsResult;
-use crate::tree::FSTree;
+use crate::tree::{FSNodeId, FSTree};
 
 pub struct MemoryFS {
     tree: FSTree,
@@ -20,6 +20,27 @@ impl MemoryFS {
         }
 
         Ok(Self { tree })
+    }
+
+    fn glob_visitor(
+        &self,
+        result: &mut Vec<std::path::PathBuf>,
+        node: FSNodeId,
+        pattern: &glob::Pattern,
+        atoms: &AtomMap<'_>,
+    ) {
+        let n = self.tree.node(node);
+        if let Some(dir) = n.kind().as_dir_node() {
+            for n in dir.children() {
+                self.glob_visitor(result, *n, pattern, atoms);
+            }
+        } else {
+            let path = n.kind().path();
+            let path = atoms.get(path.into());
+            if pattern.matches(path) {
+                result.push(std::path::PathBuf::from(path));
+            }
+        }
     }
 }
 
@@ -53,6 +74,13 @@ impl CachedFileSystem for MemoryFS {
             },
         )
     }
+
+    fn glob(&self, pattern: &str, atoms: &AtomMap<'_>) -> Vec<std::path::PathBuf> {
+        let pattern = glob::Pattern::new(pattern).unwrap();
+        let mut results = Vec::new();
+        self.glob_visitor(&mut results, FSTree::ROOT, &pattern, atoms);
+        results
+    }
 }
 
 #[test]
@@ -65,9 +93,22 @@ fn test_mem_fs() {
 
     let atoms = &mut AtomMap::new(0);
     let mut fs = MemoryFS::new(serde_json::from_value(json).unwrap(), atoms).unwrap();
+
     let read_file = |fs: &mut MemoryFS, path: &str, atoms: &mut AtomMap| {
         fs.read_file(std::path::Path::new(path), atoms)
     };
+
+    assert_eq!(fs.glob("a", atoms).len(), 0);
+    assert_eq!(fs.glob("/a", atoms).len(), 1);
+    assert_eq!(fs.glob("/b", atoms).len(), 0);
+    assert_eq!(fs.glob("/b/c", atoms).len(), 1);
+    assert_eq!(fs.glob("/*/c", atoms).len(), 1);
+    // TODO: should `*/c` match `/b/c`?
+    // assert_eq!(fs.glob("*/c", atoms).len(), 0);
+    assert_eq!(fs.glob("**/*", atoms).len(), 2);
+    assert_eq!(fs.glob("**/a", atoms).len(), 1);
+    assert_eq!(fs.glob("**/b", atoms).len(), 0);
+    assert_eq!(fs.glob("**/c", atoms).len(), 1);
 
     let res = read_file(&mut fs, "/a", atoms);
     assert!(res.is_ok_and(|id| atoms.eq_str(id, "/a")));

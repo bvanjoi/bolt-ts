@@ -27,7 +27,8 @@ impl<'cx> TyChecker<'cx> {
     }
 
     pub(super) fn get_effective_check_node(&self, id: ast::NodeID) -> ast::NodeID {
-        self.p.skip_outer_expr(id)
+        // self.p.skip_outer_expr(id)
+        id
     }
 
     pub(super) fn get_effective_constraint_of_ty_param(

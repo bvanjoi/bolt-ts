@@ -1,9 +1,11 @@
+use crate::ir;
 use crate::ty::TypeFlags;
 
 use super::TyChecker;
 use super::ast;
 use super::errors;
 use super::ty;
+use crate::path::is_external_module_relative;
 
 impl<'cx> TyChecker<'cx> {
     pub(super) fn check_stmt(&mut self, stmt: &'cx ast::Stmt) {
@@ -53,14 +55,14 @@ impl<'cx> TyChecker<'cx> {
 
         if right_ty == self.never_ty
             || !self.is_type_assignable_to_kind(
-                &right_ty,
+                right_ty,
                 TypeFlags::NON_PRIMITIVE | TypeFlags::INSTANTIABLE,
                 false,
             )
         {
             let error = errors::TheRightHandSideOfAForInStatementMustBeOfTypeAnyAnObjectTypeOrATypeParameterButHereHasType0 {
                 span: node.expr.span(),
-                ty: self.print_ty(&right_ty).to_string(),
+                ty: self.print_ty(right_ty).to_string(),
             };
             self.push_error(Box::new(error));
         }
@@ -120,7 +122,26 @@ impl<'cx> TyChecker<'cx> {
 
     fn check_ns_decl(&mut self, ns: &'cx ast::NsDecl<'cx>) {
         if let Some(block) = ns.block {
-            self.check_block(block);
+            for item in block.stmts {
+                self.check_stmt(item);
+            }
+        }
+
+        let is_ambient_external_module = matches!(ns.name, ast::ModuleName::StringLit(_));
+        if is_ambient_external_module {
+            let p = self.p.parent(ns.id).unwrap();
+            if self.p.node(p).is_program() {
+                if let ast::ModuleName::StringLit(lit) = ns.name {
+                    let module_name = self.atoms.get(lit.val);
+                    if is_external_module_relative(module_name) {
+                        let error =
+                            errors::AmbientModuleDeclarationCannotSpecifyRelativeModuleName {
+                                span: lit.span,
+                            };
+                        self.push_error(Box::new(error));
+                    }
+                }
+            }
         }
     }
 
@@ -176,5 +197,11 @@ impl<'cx> TyChecker<'cx> {
             self.check_ty_params(ty_params);
         }
         self.check_ty(ty.ty);
+    }
+
+    pub(super) fn check_accessor_decl(&mut self, decl: &impl ir::AccessorLike<'cx>) {
+        if let Some(body) = decl.body() {
+            self.check_block(body);
+        }
     }
 }

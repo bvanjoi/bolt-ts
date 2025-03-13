@@ -53,7 +53,8 @@ pub(super) struct ObjectLitMembers;
 impl ListContext for ObjectLitMembers {
     fn is_ele(&self, s: &mut ParserState, _: bool) -> bool {
         use bolt_ts_ast::TokenKind::*;
-        matches!(s.token.kind, LBrace) || s.token.kind.is_lit_prop_name()
+        matches!(s.token.kind, LBrace | Asterisk | Dot | DotDotDot)
+            || s.token.kind.is_lit_prop_name()
     }
 
     fn is_closing(&self, s: &mut ParserState) -> bool {
@@ -102,7 +103,7 @@ impl ListContext for TyMembers {
 pub(super) struct Params;
 impl ListContext for Params {
     fn is_ele(&self, s: &mut ParserState, _: bool) -> bool {
-        s.token.kind.is_start_of_param()
+        s.is_start_of_param()
     }
 
     fn is_closing(&self, s: &mut ParserState) -> bool {

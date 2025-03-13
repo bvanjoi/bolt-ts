@@ -188,7 +188,14 @@ pub struct NsDecl<'cx> {
     pub span: Span,
     pub modifiers: Option<&'cx Modifiers<'cx>>,
     pub name: ModuleName<'cx>,
-    pub block: Option<&'cx BlockStmt<'cx>>,
+    pub block: Option<&'cx ModuleBlock<'cx>>,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct ModuleBlock<'cx> {
+    pub id: NodeID,
+    pub span: Span,
+    pub stmts: self::Stmts<'cx>,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -256,6 +263,8 @@ pub enum ObjectTyMemberKind<'cx> {
     Method(&'cx MethodSignature<'cx>),
     CallSig(&'cx CallSigDecl<'cx>),
     CtorSig(&'cx CtorSigDecl<'cx>),
+    Setter(&'cx SetterDecl<'cx>),
+    Getter(&'cx GetterDecl<'cx>),
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -366,6 +375,26 @@ pub struct SetterDecl<'cx> {
     pub body: Option<&'cx BlockStmt<'cx>>,
 }
 
+impl<'cx> SetterDecl<'cx> {
+    pub fn get_effective_ty_annotation_node(&self) -> Option<&'cx self::Ty<'cx>> {
+        self.get_value_param().and_then(|p| p.ty)
+    }
+
+    pub fn get_value_param(&self) -> Option<&'cx self::ParamDecl<'cx>> {
+        (!self.params.is_empty()).then(|| {
+            let len = self.params.len();
+            if len == 2 {
+                if let self::BindingKind::Ident(i) = self.params[0].name.kind {
+                    if i.name == keyword::KW_THIS {
+                        return self.params[1];
+                    }
+                }
+            }
+            self.params[0]
+        })
+    }
+}
+
 #[derive(Debug, Clone, Copy)]
 pub struct ClassCtor<'cx> {
     pub id: NodeID,
@@ -379,7 +408,6 @@ pub struct ClassCtor<'cx> {
 #[derive(Debug, Clone, Copy)]
 pub struct ClassMethodElem<'cx> {
     pub id: NodeID,
-    pub flags: NodeFlags,
     pub span: Span,
     pub modifiers: Option<&'cx Modifiers<'cx>>,
     pub name: &'cx PropName<'cx>,
@@ -395,6 +423,8 @@ pub struct ClassPropElem<'cx> {
     pub span: Span,
     pub modifiers: Option<&'cx Modifiers<'cx>>,
     pub name: &'cx PropName<'cx>,
+    pub question: Option<Span>,
+    pub excl: Option<Span>,
     pub ty: Option<&'cx self::Ty<'cx>>,
     pub init: Option<&'cx Expr<'cx>>,
 }
@@ -565,7 +595,6 @@ pub struct Modifier {
 pub struct FnDecl<'cx> {
     pub id: NodeID,
     pub span: Span,
-    pub flags: NodeFlags,
     pub modifiers: Option<&'cx Modifiers<'cx>>,
     pub name: &'cx Ident,
     pub ty_params: Option<TyParams<'cx>>,
@@ -580,7 +609,7 @@ pub struct ParamDecl<'cx> {
     pub span: Span,
     pub modifiers: Option<&'cx Modifiers<'cx>>,
     pub dotdotdot: Option<Span>,
-    pub name: &'cx Ident,
+    pub name: &'cx Binding<'cx>,
     pub question: Option<Span>,
     pub ty: Option<&'cx self::Ty<'cx>>,
     pub init: Option<&'cx Expr<'cx>>,
@@ -721,10 +750,17 @@ pub struct ExportNamedSpec<'cx> {
 }
 
 #[derive(Debug, Clone, Copy)]
-pub enum Binding<'cx> {
+pub struct Binding<'cx> {
+    pub id: NodeID,
+    pub span: Span,
+    pub kind: BindingKind<'cx>,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub enum BindingKind<'cx> {
     Ident(&'cx Ident),
     ObjectPat(&'cx ObjectPat<'cx>),
-    // ArrayPat()
+    ArrayPat(&'cx ArrayPat),
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -732,6 +768,12 @@ pub struct ObjectPat<'cx> {
     pub id: NodeID,
     pub span: Span,
     pub elems: ObjectBindingElems<'cx>,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct ArrayPat {
+    pub id: NodeID,
+    pub span: Span,
 }
 
 pub type ObjectBindingElems<'cx> = &'cx [&'cx ObjectBindingElem<'cx>];

@@ -302,6 +302,12 @@ interface NewableFunction extends Function {
   // bind<A extends any[], B extends any[], R>(this: new (...args: [...A, ...B]) => R, thisArg: any, ...args: A): new (...args: B) => R;
 }
 
+interface IArguments {
+  [index: number]: any;
+  length: number;
+  callee: Function;
+}
+
 interface String {
   /** Returns a string representation of a string. */
   toString(): string;

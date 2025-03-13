@@ -323,7 +323,7 @@ impl<'cx> ParserState<'cx, '_> {
 
     fn parse_ty_op_or_higher(&mut self) -> PResult<&'cx ast::Ty<'cx>> {
         match self.token.kind {
-            TokenKind::Keyof | TokenKind::Readonly => {
+            TokenKind::Keyof | TokenKind::Readonly | TokenKind::Unique => {
                 let op = self.token.kind.try_into().unwrap();
                 self.parse_ty_op(op)
             }
@@ -336,7 +336,7 @@ impl<'cx> ParserState<'cx, '_> {
         let start = self.token.start();
         let id = self.next_node_id();
         self.next_token();
-        let ty = self.with_parent(id, Self::parse_ty)?;
+        let ty = self.with_parent(id, Self::parse_ty_op_or_higher)?;
         let ty = self.alloc(ast::TyOp {
             id,
             span: self.new_span(start),
@@ -799,7 +799,7 @@ impl<'cx> ParserState<'cx, '_> {
             let question = self.parse_optional(TokenKind::Question);
             self.expect(TokenKind::Colon);
             let ty = self.parse_tuple_ele_ty()?;
-            let n = self.alloc(ast::NamedTupleTy {
+            let ty = self.alloc(ast::NamedTupleTy {
                 id,
                 span: self.new_span(start),
                 dotdotdot: dotdotdot.map(|t| t.span),
@@ -807,7 +807,10 @@ impl<'cx> ParserState<'cx, '_> {
                 question: question.map(|t| t.span),
                 ty,
             });
-            self.insert_map(id, ast::Node::NamedTupleTy(n));
+            self.insert_map(id, ast::Node::NamedTupleTy(ty));
+            let ty = self.alloc(ast::Ty {
+                kind: ast::TyKind::NamedTuple(ty),
+            });
             Ok(ty)
         } else {
             self.parse_tuple_ele_ty()
@@ -874,7 +877,7 @@ impl<'cx> ParserState<'cx, '_> {
         start: u32,
         modifiers: Option<&'cx ast::Modifiers<'cx>>,
     ) -> PResult<&'cx ast::ObjectTyMember<'cx>> {
-        let name = self.with_parent(id, Self::parse_prop_name)?;
+        let name = self.with_parent(id, |this| this.parse_prop_name(true))?;
         let question = self.parse_optional(TokenKind::Question).map(|t| t.span);
         let kind = if matches!(self.token.kind, TokenKind::LParen | TokenKind::Less) {
             let ty_params = self.with_parent(id, Self::parse_ty_params)?;
@@ -957,7 +960,17 @@ impl<'cx> ParserState<'cx, '_> {
         let id = self.next_node_id();
         let modifiers = self.parse_modifiers(false)?;
 
-        if self.is_index_sig() {
+        if self.parse_contextual_modifier(TokenKind::Get) {
+            let decl = self.parse_getter_accessor_decl(id, start, modifiers, true)?;
+            Ok(self.alloc(ast::ObjectTyMember {
+                kind: ast::ObjectTyMemberKind::Getter(decl),
+            }))
+        } else if self.parse_contextual_modifier(TokenKind::Set) {
+            let decl = self.parse_setter_accessor_decl(id, start, modifiers, true)?;
+            Ok(self.alloc(ast::ObjectTyMember {
+                kind: ast::ObjectTyMemberKind::Setter(decl),
+            }))
+        } else if self.is_index_sig() {
             let decl = self.parse_index_sig_decl(id, start, modifiers)?;
             Ok(self.alloc(ast::ObjectTyMember {
                 kind: ast::ObjectTyMemberKind::IndexSig(decl),

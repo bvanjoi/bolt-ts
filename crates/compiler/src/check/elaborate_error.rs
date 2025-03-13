@@ -43,8 +43,9 @@ impl<'cx> TyChecker<'cx> {
         target: &'cx ty::Ty<'cx>,
         relation: RelationKind,
     ) -> bool {
-        if target.flags.intersects(TypeFlags::PRIMITIVE)
-            || target.flags.intersects(TypeFlags::NEVER)
+        if target
+            .flags
+            .intersects(TypeFlags::PRIMITIVE | TypeFlags::NEVER)
         {
             return false;
         }
@@ -52,26 +53,30 @@ impl<'cx> TyChecker<'cx> {
         let node = node
             .members
             .iter()
-            .map(|member| {
+            .filter_map(|member| {
+                if matches!(member.kind, ast::ObjectMemberKind::SpreadAssignment(_)) {
+                    return None;
+                }
                 let s = self.get_symbol_of_decl(member.id());
                 let ty = self.get_lit_ty_from_prop(s);
                 use bolt_ts_ast::ObjectMemberKind::*;
                 match member.kind {
-                    Shorthand(n) => Elaboration {
+                    Shorthand(n) => Some(Elaboration {
                         error_node: n.name.id,
                         inner_expr: None,
                         name_ty: ty,
-                    },
-                    Prop(n) => Elaboration {
+                    }),
+                    Prop(n) => Some(Elaboration {
                         error_node: n.name.id(),
                         inner_expr: Some(n.value.id()),
                         name_ty: ty,
-                    },
-                    Method(n) => Elaboration {
+                    }),
+                    Method(n) => Some(Elaboration {
                         error_node: n.name.id(),
                         inner_expr: None,
                         name_ty: ty,
-                    },
+                    }),
+                    SpreadAssignment(n) => unreachable!(),
                 }
             })
             .collect::<Vec<_>>();

@@ -24,7 +24,7 @@ impl<T, E> ParseSuccess for Result<Option<T>, E> {
     }
 }
 
-pub(super) fn is_left_hand_side_expr_kind(expr: &ast::Expr) -> bool {
+pub(crate) fn is_left_hand_side_expr_kind(expr: &ast::Expr) -> bool {
     use bolt_ts_ast::ExprKind::*;
     matches!(
         expr.kind,
@@ -34,6 +34,7 @@ pub(super) fn is_left_hand_side_expr_kind(expr: &ast::Expr) -> bool {
             | Call(_)
             | ArrayLit(_)
             | Paren(_)
+            | ObjectLit(_)
             | Class(_)
             | Fn(_)
             | Ident(_)
@@ -41,7 +42,9 @@ pub(super) fn is_left_hand_side_expr_kind(expr: &ast::Expr) -> bool {
             | NumLit(_)
             | StringLit(_)
             | BoolLit(_)
+            | Template(_)
             | Super(_)
+            | NonNull(_)
     )
 }
 
@@ -125,23 +128,44 @@ impl<'cx> ParserState<'cx, '_> {
         }
     }
 
+    pub(super) fn is_start_of_param(&mut self) -> bool {
+        let t = self.token.kind;
+        matches!(t, TokenKind::DotDotDot)
+            || t.is_binding_ident_or_private_ident_or_pat()
+            || t.is_modifier_kind()
+            || t == TokenKind::At
+            || self.is_start_of_ty(true)
+    }
+
     pub(super) fn is_start_of_ty(&mut self, in_start_of_param: bool) -> bool {
         use bolt_ts_ast::TokenKind::*;
         if matches!(
             self.token.kind,
-            LBrace
-                | LBracket
-                | DotDotDot
+            Readonly
+                | Unique
+                | Void
+                | Undefined
+                | Null
                 | Typeof
+                | LBrace
+                | LBracket
+                | Pipe
+                | Amp
+                | This
+                | Type
+                | Less
+                | New
                 | String
                 | Number
                 | BigInt
-                | Null
-                | Undefined
-                | Void
                 | True
                 | False
-                | Readonly
+                | Asterisk
+                | Question
+                | Excl
+                | DotDotDot
+                | Infer
+                | Import
                 | NoSubstitutionTemplate
                 | TemplateHead
         ) {
@@ -152,7 +176,7 @@ impl<'cx> ParserState<'cx, '_> {
             self.lookahead(|this| {
                 this.next_token();
                 let t = this.token.kind;
-                t == TokenKind::RParen || t.is_start_of_param() || this.is_start_of_ty(false)
+                t == TokenKind::RParen || this.is_start_of_param() || this.is_start_of_ty(false)
             })
         } else if self.token.kind == TokenKind::Minus {
             !in_start_of_param
@@ -209,6 +233,7 @@ impl<'cx> ParserState<'cx, '_> {
                 | If
                 | Return
                 | Class
+                | Enum
                 | For
                 | Continue
                 | Break
@@ -261,24 +286,53 @@ impl<'cx> ParserState<'cx, '_> {
         expr
     }
 
-    pub(super) fn parse_prop_name(&mut self) -> PResult<&'cx ast::PropName<'cx>> {
+    pub(super) fn parse_prop_name(
+        &mut self,
+        allow_computed_prop_names: bool,
+    ) -> PResult<&'cx ast::PropName<'cx>> {
         let kind = match self.token.kind {
             TokenKind::String => {
                 let raw = self.parse_string_lit();
                 let key = self.string_key_value.unwrap();
-                ast::PropNameKind::StringLit { raw, key }
+                Some(ast::PropNameKind::StringLit { raw, key })
             }
             TokenKind::Number => {
                 let lit = self.parse_num_lit(self.number_token(), false);
-                ast::PropNameKind::NumLit(lit)
+                Some(ast::PropNameKind::NumLit(lit))
             }
-            _ => {
-                let ident = self.parse_ident_name()?;
-                ast::PropNameKind::Ident(ident)
+            TokenKind::BigInt => {
+                todo!()
+                // let lit = self.parse_big_int_lit();
+                // ast::PropNameKind::BigIntLit(lit)
             }
+            _ => None,
         };
-        let prop_name = self.alloc(ast::PropName { kind });
-        Ok(prop_name)
+        if let Some(kind) = kind {
+            let prop_name = self.alloc(ast::PropName { kind });
+            Ok(prop_name)
+        } else if allow_computed_prop_names && self.token.kind == TokenKind::LBracket {
+            let id = self.next_node_id();
+            let start = self.token.start();
+            self.expect(TokenKind::LBracket);
+            let expr = self.with_parent(id, |this| this.allow_in_and(Self::parse_expr))?;
+            self.expect(TokenKind::RBracket);
+            let kind = self.alloc(ast::ComputedPropName {
+                id,
+                span: self.new_span(start),
+                expr,
+            });
+            self.insert_map(id, ast::Node::ComputedPropName(kind));
+            let prop_name = self.alloc(ast::PropName {
+                kind: ast::PropNameKind::Computed(kind),
+            });
+            Ok(prop_name)
+        } else {
+            // TODO: Private
+            let ident = self.parse_ident_name()?;
+            let kind = ast::PropNameKind::Ident(ident);
+            let prop_name = self.alloc(ast::PropName { kind });
+            Ok(prop_name)
+        }
     }
 
     #[inline(always)]
@@ -453,6 +507,25 @@ impl<'cx> ParserState<'cx, '_> {
         Ok(params)
     }
 
+    pub(super) fn parse_binding_with_ident(
+        &mut self,
+        ident: Option<&'cx ast::Ident>,
+    ) -> &'cx ast::Binding<'cx> {
+        let start = self.token.start();
+        let id = self.next_node_id();
+        let ident = if let Some(ident) = ident {
+            self.parent_map.r#override(ident.id, id);
+            ident
+        } else {
+            self.with_parent(id, |this| this.create_ident(true, None))
+        };
+        let kind = ast::BindingKind::Ident(ident);
+        let span = self.new_span(start);
+        let name = self.alloc(ast::Binding { id, span, kind });
+        self.insert_map(id, ast::Node::Binding(name));
+        name
+    }
+
     pub(super) fn parse_param(&mut self) -> PResult<&'cx ast::ParamDecl<'cx>> {
         let start = self.token.start();
         let id = self.next_node_id();
@@ -479,8 +552,25 @@ impl<'cx> ParserState<'cx, '_> {
             }
         }
 
+        if self.token.kind == TokenKind::This {
+            let name = self.with_parent(id, |this| this.parse_binding_with_ident(None));
+            let ty = self.with_parent(id, Self::parse_ty_anno)?;
+            let decl = self.alloc(ast::ParamDecl {
+                id,
+                span: self.new_span(start),
+                modifiers,
+                dotdotdot: None,
+                name,
+                question: None,
+                ty,
+                init: None,
+            });
+            self.insert_map(id, ast::Node::ParamDecl(decl));
+            return Ok(decl);
+        }
+
         let dotdotdot = self.parse_optional(TokenKind::DotDotDot).map(|t| t.span);
-        let name = self.with_parent(id, Self::parse_ident_name)?;
+        let name = self.with_parent(id, Self::parse_name_of_param)?;
         if dotdotdot.is_some() {
             if let Some(ms) = modifiers {
                 if ms.flags.intersects(ModifierKind::PARAMETER_PROPERTY) {
@@ -522,7 +612,7 @@ impl<'cx> ParserState<'cx, '_> {
     }
 
     pub(super) fn parse_ty_member_semi(&mut self) {
-        if self.parse_optional(TokenKind::Semi).is_some() {
+        if self.parse_optional(TokenKind::Comma).is_some() {
             return;
         }
         self.parse_semi();
@@ -652,4 +742,74 @@ impl<'cx> ParserState<'cx, '_> {
         self.insert_map(id, ast::Node::IndexSigDecl(sig));
         Ok(sig)
     }
+
+    pub(super) fn parse_getter_accessor_decl(
+        &mut self,
+        id: ast::NodeID,
+        start: usize,
+        modifiers: Option<&'cx ast::Modifiers<'cx>>,
+        ambient: bool,
+    ) -> PResult<&'cx ast::GetterDecl<'cx>> {
+        let name = self.with_parent(id, |this| this.parse_prop_name(false))?;
+        let ty_params = self.with_parent(id, Self::parse_ty_params)?;
+        let params = self.with_parent(id, Self::parse_params)?;
+        // TODO: assert params.is_none
+        let ty = self.with_parent(id, |this| this.parse_ret_ty(true))?;
+        let mut body = self.with_parent(id, Self::parse_fn_block)?;
+        if ambient {
+            if let Some(body) = body {
+                let error =
+                    errors::AnImplementationCannotBeDeclaredInAmbientContexts { span: body.span };
+                self.push_error(Box::new(error));
+            }
+            body = None;
+        }
+        let decl = self.alloc(ast::GetterDecl {
+            id,
+            modifiers,
+            span: self.new_span(start as u32),
+            name,
+            ty,
+            body,
+        });
+        self.insert_map(id, ast::Node::GetterDecl(decl));
+        Ok(decl)
+    }
+
+    pub(super) fn parse_setter_accessor_decl(
+        &mut self,
+        id: ast::NodeID,
+        start: usize,
+        modifiers: Option<&'cx ast::Modifiers<'cx>>,
+        ambient: bool,
+    ) -> PResult<&'cx ast::SetterDecl<'cx>> {
+        let name = self.with_parent(id, |this| this.parse_prop_name(false))?;
+        let ty_params = self.with_parent(id, Self::parse_ty_params)?;
+        let params = self.with_parent(id, Self::parse_params)?;
+        let ty = self.with_parent(id, |this| this.parse_ret_ty(true))?;
+        let mut body = self.with_parent(id, Self::parse_fn_block)?;
+        if ambient {
+            if let Some(body) = body {
+                let error =
+                    errors::AnImplementationCannotBeDeclaredInAmbientContexts { span: body.span };
+                self.push_error(Box::new(error));
+            }
+            body = None;
+        }
+        let decl = self.alloc(ast::SetterDecl {
+            id,
+            span: self.new_span(start as u32),
+            modifiers,
+            name,
+            params,
+            body,
+        });
+        self.insert_map(id, ast::Node::SetterDecl(decl));
+        Ok(decl)
+    }
+}
+
+pub(super) fn is_declaration_filename(filename: &[u8]) -> bool {
+    const SUFFIX: &[u8] = b".d.ts";
+    filename.ends_with(SUFFIX)
 }

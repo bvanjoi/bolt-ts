@@ -1,6 +1,6 @@
 use crate::bind::{SymbolFlags, SymbolID, SymbolName};
 use crate::check::TyChecker;
-use bolt_ts_ast as ast;
+use bolt_ts_ast::{self as ast, pprint_binding};
 
 use super::flags::ObjectFlags;
 use super::pprint::pprint_reference_ty;
@@ -208,7 +208,7 @@ impl<'cx> ObjectTyKind<'cx> {
     pub(super) fn to_string(&self, self_ty: &'cx Ty<'cx>, checker: &mut TyChecker<'cx>) -> String {
         match self {
             ObjectTyKind::Anonymous(a) => {
-                let symbol = a.symbol;
+                let symbol = a.symbol.unwrap();
                 let symbol = checker.binder.symbol(symbol);
                 let print_fn_like_str = |checker: &mut TyChecker, sig: &super::Sig| -> String {
                     let params = sig.params;
@@ -277,13 +277,17 @@ impl<'cx> ObjectTyKind<'cx> {
                     .index_infos
                     .first()
                 {
-                    let decl = checker.binder.symbol(index_info.symbol).expect_index().decl;
+                    let decl = checker
+                        .binder
+                        .symbol(index_info.symbol)
+                        .expect_index()
+                        .decls[0];
                     let key_name = checker.p.node(decl).expect_index_sig_decl().params[0].name;
                     format!(
                         "{{ [{key_name}: {key_ty}]: {val_ty} }}",
                         key_ty = index_info.key_ty.to_string(checker),
                         val_ty = index_info.val_ty.to_string(checker),
-                        key_name = checker.atoms.get(key_name.name)
+                        key_name = pprint_binding(key_name, checker.atoms),
                     )
                 } else {
                     let members = checker
@@ -337,7 +341,7 @@ impl<'cx> ObjectTyKind<'cx> {
 
 #[derive(Debug, Clone, Copy)]
 pub struct AnonymousTy<'cx> {
-    pub symbol: SymbolID,
+    pub symbol: Option<SymbolID>,
     pub target: Option<&'cx Ty<'cx>>,
     pub mapper: Option<&'cx dyn TyMap<'cx>>,
 }
@@ -356,8 +360,6 @@ pub struct MappedTy<'cx> {
     pub decl: &'cx ast::MappedTy<'cx>,
     pub alias_symbol: Option<SymbolID>,
     pub alias_ty_arguments: Option<super::Tys<'cx>>,
-    pub ty_param: &'cx Ty<'cx>,
-    pub constraint_ty: &'cx Ty<'cx>,
     pub target: Option<&'cx Ty<'cx>>,
     pub mapper: Option<&'cx dyn TyMap<'cx>>,
 }

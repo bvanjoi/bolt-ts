@@ -1,4 +1,4 @@
-use bolt_ts_span::{ModuleArena, ModuleID, ModulePath};
+use bolt_ts_span::{ModuleArena, ModuleID};
 use miette::MietteSpanContents;
 
 #[derive(Debug)]
@@ -10,14 +10,11 @@ pub(crate) struct SourceCode {
 impl SourceCode {
     pub fn new(module_arena: &ModuleArena, module_id: ModuleID) -> Self {
         let source = module_arena.get_content(module_id);
-        let filename = if let ModulePath::Real(filename) = module_arena.get_path(module_id) {
-            let cwd = std::env::current_dir().unwrap();
-            let relative =
-                relative_path::PathExt::relative_to(filename.as_path(), cwd.as_path()).unwrap();
-            Some(relative.to_string())
-        } else {
-            None
-        };
+        let filename = module_arena.get_path(module_id);
+        let cwd = std::env::current_dir().unwrap();
+        let relative =
+            relative_path::PathExt::relative_to(filename.as_path(), cwd.as_path()).unwrap();
+        let filename = Some(relative.to_string());
         Self {
             filename,
             source: source.clone(),

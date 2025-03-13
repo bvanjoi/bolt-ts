@@ -15,7 +15,11 @@ impl TyChecker<'_> {
 
             if !node.is_arrow_fn_expr() {
                 let param = node.params().and_then(|params| params.first());
-                if param.is_none() || param.unwrap().name.name != keyword::KW_THIS {
+                if param.is_none_or(|param| match param.name.kind {
+                    bolt_ts_ast::BindingKind::Ident(ident) => ident.name == keyword::KW_THIS,
+                    bolt_ts_ast::BindingKind::ObjectPat(_) => false,
+                    bolt_ts_ast::BindingKind::ArrayPat(_) => todo!(),
+                }) {
                     return true;
                 }
             }
@@ -45,6 +49,7 @@ impl TyChecker<'_> {
             || node.is_arrow_fn_expr()
             || node.is_method_signature()
             || node.is_fn_decl()
+            || node.is_object_method_member()
         {
             self.is_context_sensitive_fn_like(id)
         } else if let Some(o) = node.as_object_lit() {

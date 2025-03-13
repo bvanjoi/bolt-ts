@@ -1,4 +1,5 @@
 use super::links;
+use crate::bind::SymbolID;
 use crate::ty;
 
 // TODO: split them into type def.
@@ -8,8 +9,9 @@ links!(
     (resolved_base_tys, ty::Tys<'cx>),
     (resolved_base_ctor_ty, &'cx ty::Ty<'cx>),
     (resolved_base_constraint, &'cx ty::Ty<'cx>),
-    (resolved_string_index_ty, &'cx ty::Ty<'cx>),
+    (resolved_properties, &'cx [SymbolID]),
     (resolved_index_ty, &'cx ty::Ty<'cx>),
+    (resolved_string_index_ty, &'cx ty::Ty<'cx>),
     (resolved_ty_args, ty::Tys<'cx>),
     (immediate_base_constraint, &'cx ty::Ty<'cx>),
     // fresh type
@@ -29,11 +31,13 @@ links!(
     (resolved_false_ty, &'cx ty::Ty<'cx>),
     (resolved_constraint_of_distribute, Option<&'cx ty::Ty<'cx>>),
     // mapped type
-    (named_ty, &'cx ty::Ty<'cx>),
-    (key_ty, &'cx ty::Ty<'cx>),
-    (template_ty, &'cx ty::Ty<'cx>),
-    (modifiers_ty, &'cx ty::Ty<'cx>),
-    (contain_error, bool),
+    (mapped_ty_param, &'cx ty::Ty<'cx>),
+    (mapped_constraint_ty, &'cx ty::Ty<'cx>),
+    (mapped_named_ty, &'cx ty::Ty<'cx>),
+    (mapped_key_ty, &'cx ty::Ty<'cx>),
+    (mapped_template_ty, &'cx ty::Ty<'cx>),
+    (mapped_modifiers_ty, &'cx ty::Ty<'cx>),
+    (mapped_contains_error, bool),
     //
     (permissive_instantiation, &'cx ty::Ty<'cx>),
     (restrictive_instantiation, &'cx ty::Ty<'cx>)

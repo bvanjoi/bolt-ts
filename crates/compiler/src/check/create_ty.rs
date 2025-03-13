@@ -1,5 +1,5 @@
 use bolt_ts_ast as ast;
-use bolt_ts_utils::fx_hashset_with_capacity;
+use bolt_ts_utils::fx_hashmap_with_capacity;
 use rustc_hash::{FxHashMap, FxHashSet};
 use std::hash::Hasher;
 
@@ -13,10 +13,10 @@ use crate::ty::{
     CheckFlags, ElementFlags, IndexFlags, ObjectFlags, TyID, TypeFlags, UnionReduction,
 };
 
-use super::TyChecker;
 use super::relation::RelationKind;
 use super::utils::insert_ty;
 use super::{InstantiationTyMap, UnionOrIntersectionMap};
+use super::{TyChecker, errors};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum IntersectionFlags {
@@ -135,40 +135,49 @@ impl<'cx> TyChecker<'cx> {
         let mut first_rest_index = usize::MAX;
         let mut last_optional_or_rest_index = usize::MAX;
 
-        let mut add_ele = |ty: &'cx ty::Ty<'cx>, flags: ElementFlags| {
-            if flags.intersects(ElementFlags::REQUIRED) {
-                last_required_index = expanded_tys.len();
-            }
-            if flags.intersects(ElementFlags::REST) && first_rest_index == usize::MAX {
-                first_rest_index = expanded_tys.len()
-            }
-            if flags.intersects(ElementFlags::OPTIONAL | ElementFlags::REST) {
-                last_optional_or_rest_index = expanded_tys.len();
-            }
-            if flags.intersects(ElementFlags::OPTIONAL) {
-                // TODO: self.add_optionality
-                expanded_tys.push(ty);
-            } else {
-                expanded_tys.push(ty);
-            }
-            expanded_flags.push(flags);
-        };
+        let mut add_ele =
+            |ty: &'cx ty::Ty<'cx>, flags: ElementFlags, expanded_tys: &mut Vec<&ty::Ty<'cx>>| {
+                if flags.intersects(ElementFlags::REQUIRED) {
+                    last_required_index = expanded_tys.len();
+                }
+                if flags.intersects(ElementFlags::REST) && first_rest_index == usize::MAX {
+                    first_rest_index = expanded_tys.len()
+                }
+                if flags.intersects(ElementFlags::OPTIONAL | ElementFlags::REST) {
+                    last_optional_or_rest_index = expanded_tys.len();
+                }
+                if flags.intersects(ElementFlags::OPTIONAL) {
+                    // TODO: self.add_optionality
+                    expanded_tys.push(ty);
+                } else {
+                    expanded_tys.push(ty);
+                }
+                expanded_flags.push(flags);
+            };
 
         for (i, ty) in element_types.iter().enumerate() {
             let flag = target.element_flags[i];
             if flag.intersects(ElementFlags::VARIADIC) {
                 if ty.flags.intersects(TypeFlags::ANY) {
-                    add_ele(ty, ElementFlags::REST);
-                } else if ty.kind.is_instantiable_non_primitive() {
-                    add_ele(ty, ElementFlags::VARIADIC);
+                    add_ele(ty, ElementFlags::REST, &mut expanded_tys);
+                } else if ty.kind.is_instantiable_non_primitive() || self.is_generic_mapped_ty(ty) {
+                    add_ele(ty, ElementFlags::VARIADIC, &mut expanded_tys);
                 } else if let Some(tuple) = ty.as_tuple() {
                     let elements = self.get_element_tys(ty);
-                    for (n, t) in elements.iter().enumerate() {
-                        add_ele(t, tuple.element_flags[n]);
+                    if elements.len() + expanded_tys.len() >= 20_000 {
+                        if let Some(current_node) = self.current_node {
+                            let error = errors::TypeProducesATupleTypeThatIsTooLargeToRepresent {
+                                span: self.p.node(current_node).span(),
+                            };
+                            self.push_error(Box::new(error));
+                        } else {
+                            todo!()
+                        }
+
+                        return self.error_ty;
                     }
-                } else if let Some(tuple) = ty.kind.as_object_tuple() {
-                    for i in 0..tuple.resolved_ty_args.len() {
-                        add_ele(tuple.resolved_ty_args[i], tuple.element_flags[i]);
+                    for (n, t) in elements.iter().enumerate() {
+                        add_ele(t, tuple.element_flags[n], &mut expanded_tys);
                     }
                 } else {
                     let t = if self.is_array_like_ty(ty) {
@@ -177,10 +186,10 @@ impl<'cx> TyChecker<'cx> {
                     } else {
                         self.error_ty
                     };
-                    add_ele(t, ElementFlags::REST);
+                    add_ele(t, ElementFlags::REST, &mut expanded_tys);
                 }
             } else {
-                add_ele(ty, flag)
+                add_ele(ty, flag, &mut expanded_tys);
             }
         }
 
@@ -266,7 +275,7 @@ impl<'cx> TyChecker<'cx> {
 
     pub(super) fn create_anonymous_ty(
         &mut self,
-        symbol: SymbolID,
+        symbol: Option<SymbolID>,
         object_flags: ObjectFlags,
     ) -> &'cx ty::Ty<'cx> {
         let ty = self.alloc(ty::AnonymousTy {
@@ -290,7 +299,6 @@ impl<'cx> TyChecker<'cx> {
         ctor_sigs: ty::Sigs<'cx>,
         index_infos: ty::IndexInfos<'cx>,
     ) -> &'cx ty::Ty<'cx> {
-        let symbol = symbol.unwrap_or(Symbol::ERR);
         let ty = self.create_anonymous_ty(symbol, object_flags);
         let props = self.get_props_from_members(members);
         let prev = self.ty_links.insert(
@@ -318,7 +326,7 @@ impl<'cx> TyChecker<'cx> {
     ) -> &'cx ty::Ty<'cx> {
         assert!(target.kind.is_object_anonymous());
         let ty = self.alloc(ty::AnonymousTy {
-            symbol,
+            symbol: Some(symbol),
             target: Some(target),
             mapper: Some(mapper),
         });
@@ -475,17 +483,11 @@ impl<'cx> TyChecker<'cx> {
             return tys[0];
         }
 
-        let mut set = fx_hashset_with_capacity(tys.len());
+        let mut set = FxHashSet::with_capacity_and_hasher(tys.len(), Default::default());
         let includes = self.add_tys_to_union(&mut set, TypeFlags::empty(), tys);
 
-        let mut set = {
-            let mut set = set
-                .into_iter()
-                .map(|ty| self.tys[ty.as_usize()])
-                .collect::<Vec<_>>();
-            set.sort_by(|a, b| a.id.as_u32().cmp(&b.id.as_u32()));
-            set
-        };
+        let mut set: Vec<_> = set.into_iter().map(|ty| self.tys[ty.as_usize()]).collect();
+        set.sort_unstable_by_key(|ty| ty.id.as_u32());
 
         if reduction != UnionReduction::None {
             if includes.intersects(TypeFlags::ANY_OR_UNKNOWN) {
@@ -1040,10 +1042,9 @@ impl<'cx> TyChecker<'cx> {
                             && self.every_type(constraint, |this, c| {
                                 this.is_ty_strict_sub_type_of(c, primitive_ty)
                             }))
+                            && !self.is_ty_strict_sub_type_of(primitive_ty, constraint)
                         {
-                            if !self.is_ty_strict_sub_type_of(primitive_ty, constraint) {
-                                return self.never_ty;
-                            }
+                            return self.never_ty;
                         }
 
                         object_flags |= ObjectFlags::IS_CONSTRAINED_TYPE_VARIABLE;
@@ -1074,7 +1075,10 @@ impl<'cx> TyChecker<'cx> {
             }) {
                 todo!()
             } else if ty_set.len() >= 3 && tys.len() > 2 {
-                todo!()
+                let middle = ty_set.len() / 2;
+                let l = self.get_intersection_ty(&ty_set[..middle], flags, None, None);
+                let r = self.get_intersection_ty(&ty_set[middle..], flags, None, None);
+                self.get_intersection_ty(&[l, r], flags, alias_symbol, alias_symbol_ty_args)
             } else {
                 let constituents = self.get_cross_product_intersections(tys, flags);
                 // TODO: origin
@@ -1098,6 +1102,16 @@ impl<'cx> TyChecker<'cx> {
                 prev
             }
         })
+    }
+
+    fn check_cross_product_union(tys: &[&'cx ty::Ty<'cx>]) -> bool {
+        let size = Self::get_cross_product_union_size(tys);
+        if size >= 100_000 {
+            // TODO: error
+            false
+        } else {
+            true
+        }
     }
 
     fn get_cross_product_intersections(
@@ -1206,16 +1220,12 @@ impl<'cx> TyChecker<'cx> {
         decl: &'cx ast::MappedTy<'cx>,
         alias_symbol: Option<SymbolID>,
         alias_ty_arguments: Option<ty::Tys<'cx>>,
-        ty_param: &'cx ty::Ty<'cx>,
-        constraint_ty: &'cx ty::Ty<'cx>,
     ) -> &'cx ty::Ty<'cx> {
         let ty = self.alloc(ty::MappedTy {
             symbol,
             decl,
             alias_symbol,
             alias_ty_arguments,
-            ty_param,
-            constraint_ty,
             target: None,
             mapper: None,
         });
@@ -1356,5 +1366,145 @@ impl<'cx> TyChecker<'cx> {
     ) -> &'cx ty::Ty<'cx> {
         let t = self.alloc(ty::TemplateLitTy { texts, tys });
         self.new_ty(ty::TyKind::TemplateLit(t), TypeFlags::TEMPLATE_LITERAL)
+    }
+
+    pub(super) fn get_spread_ty(
+        &mut self,
+        mut left: &'cx ty::Ty<'cx>,
+        mut right: &'cx ty::Ty<'cx>,
+        symbol: Option<SymbolID>,
+        object_flags: ObjectFlags,
+        is_readonly: bool,
+    ) -> &'cx ty::Ty<'cx> {
+        if left.flags.intersects(TypeFlags::ANY) || right.flags.intersects(TypeFlags::ANY) {
+            return self.any_ty;
+        } else if left.flags.intersects(TypeFlags::UNKNOWN)
+            || right.flags.intersects(TypeFlags::UNKNOWN)
+        {
+            return self.unknown_ty;
+        } else if left.flags.intersects(TypeFlags::NEVER) {
+            return right;
+        } else if right.flags.intersects(TypeFlags::NEVER) {
+            return left;
+        }
+
+        left = self.try_merge_union_of_object_ty_and_empty_object(left, is_readonly);
+        if left.flags.intersects(TypeFlags::UNION) {
+            return if Self::check_cross_product_union(&[left, right]) {
+                self.map_ty(
+                    left,
+                    |this, ty| {
+                        Some(this.get_spread_ty(ty, right, symbol, object_flags, is_readonly))
+                    },
+                    false,
+                )
+                .unwrap()
+            } else {
+                self.error_ty
+            };
+        }
+
+        right = self.try_merge_union_of_object_ty_and_empty_object(right, is_readonly);
+        if right.flags.intersects(TypeFlags::UNION) {
+            return if Self::check_cross_product_union(&[left, right]) {
+                self.map_ty(
+                    right,
+                    |this, ty| {
+                        Some(this.get_spread_ty(left, ty, symbol, object_flags, is_readonly))
+                    },
+                    false,
+                )
+                .unwrap()
+            } else {
+                self.error_ty
+            };
+        }
+
+        if right.flags.intersects(
+            TypeFlags::BOOLEAN_LIKE
+                | TypeFlags::NUMBER_LIKE
+                | TypeFlags::BIG_INT_LIKE
+                | TypeFlags::STRING_LIKE
+                | TypeFlags::ENUM_LIKE
+                | TypeFlags::NON_PRIMITIVE
+                | TypeFlags::INDEX,
+        ) {
+            return left;
+        }
+
+        if self.is_generic_object(left) || self.is_generic_object(right) {
+            if self.is_empty_object_ty(left) {
+                return right;
+            } else if let Some(i) = left.kind.as_intersection() {
+                let last_ty = i.tys[i.tys.len() - 1];
+                if self.is_non_generic_object_ty(last_ty) && self.is_non_generic_object_ty(right) {
+                    let a = &i.tys[0..i.tys.len() - 1];
+                    let b = self.get_spread_ty(last_ty, right, symbol, object_flags, is_readonly);
+                    let tys = {
+                        let mut a = a.to_vec();
+                        a.push(b);
+                        self.alloc(a)
+                    };
+                    return self.get_intersection_ty(tys, IntersectionFlags::None, None, None);
+                }
+                return self.get_intersection_ty(
+                    &[left, right],
+                    IntersectionFlags::None,
+                    None,
+                    None,
+                );
+            }
+        }
+
+        let left_props = self.get_props_of_ty(left);
+        let right_props = self.get_props_of_ty(right);
+        let mut members = fx_hashmap_with_capacity(left_props.len() + right_props.len());
+        let index_infos = if left == self.empty_object_ty() {
+            self.get_index_infos_of_ty(right)
+        } else {
+            self.get_union_index_infos(&[left, right])
+        };
+
+        for right_prop in right_props {
+            let name = self.symbol(*right_prop).name();
+            // TODO: skip private and project
+            let symbol = self.get_spread_symbol(*right_prop, is_readonly);
+            members.insert(name, symbol);
+        }
+
+        for left_prop in left_props {
+            let name = self.symbol(*left_prop).name();
+            if members.contains_key(&name) {
+                todo!()
+            } else {
+                let symbol = self.get_spread_symbol(*left_prop, is_readonly);
+                members.insert(name, symbol);
+            }
+        }
+
+        let index_infos = self
+            .same_map_index_infos(Some(index_infos), |this, index_info, _| {
+                if index_info.is_readonly != is_readonly {
+                    this.alloc(ty::IndexInfo {
+                        is_readonly,
+                        ..*index_info
+                    })
+                } else {
+                    index_info
+                }
+            })
+            .unwrap();
+        let spread = self.create_anonymous_ty_with_resolved(
+            symbol,
+            ObjectFlags::OBJECT_LITERAL
+                | ObjectFlags::CONTAINS_OBJECT_OR_ARRAY_LITERAL
+                | ObjectFlags::CONTAINS_SPREAD
+                | object_flags,
+            self.alloc(members),
+            self.empty_array(),
+            self.empty_array(),
+            index_infos,
+        );
+        spread
     }
 }

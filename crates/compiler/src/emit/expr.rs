@@ -53,7 +53,12 @@ impl<'cx> Emit<'cx> {
             }
             Class(class) => self.emit_class_like(class),
             PropAccess(prop) => {
-                self.emit_expr(prop.expr);
+                if let bolt_ts_ast::ExprKind::NumLit(lit) = prop.expr.kind {
+                    self.emit_num_lit(lit);
+                    self.content.p(".");
+                } else {
+                    self.emit_expr(prop.expr);
+                }
                 self.content.p_dot();
                 self.emit_ident(prop.name);
             }
@@ -204,6 +209,10 @@ impl<'cx> Emit<'cx> {
             Prop(n) => self.emit_object_prop_member(n),
             Shorthand(n) => self.emit_object_shorthand_member(n),
             Method(n) => self.emit_object_method_member(n),
+            SpreadAssignment(n) => {
+                self.content.p("...");
+                self.emit_expr(n.expr);
+            }
         }
     }
 

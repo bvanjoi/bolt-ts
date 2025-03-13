@@ -1,0 +1,18 @@
+  × Block-scoped variable 'a' used before its declaration.
+    ╭─[../../tests/cases/compiler/contextualTyping13/index.ts:12:19]
+ 12 │ a
+    · ─
+    ╰────
+
+Advice: 
+  ☞ Block-scoped variable 'a' is defined here
+    ╭─[../../tests/cases/compiler/contextualTyping13/index.ts:12:7]
+ 12 │ a: string = a
+    · ─────────────
+    ╰────
+
+  × Type 'number' is not assignable to type 'string'.
+   ╭─[../../tests/cases/compiler/contextualTyping13/index.ts:6:7]
+ 6 │ a
+   · ─
+   ╰────

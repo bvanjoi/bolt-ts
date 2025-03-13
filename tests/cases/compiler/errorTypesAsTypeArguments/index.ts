@@ -1,4 +1,4 @@
-// From `github.com/microsoft/TypeScript/blob/v5.7.3/tests/cases/compiler/errorTypesAsTypeArguments.ts`, Apache-2.0 License
+// From `github.com/microsoft/TypeScript/blob/v5.8.2/tests/cases/compiler/errorTypesAsTypeArguments.ts`, Apache-2.0 License
 
 interface Foo<A> {
   bar(baz: Foo<B>): Foo<C>;

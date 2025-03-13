@@ -125,11 +125,11 @@ impl<'cx> Emit<'cx> {
 
                         this.content.p("this");
                         this.content.p_dot();
-                        this.emit_ident(param.name);
+                        this.emit_binding(param.name);
                         this.content.p_whitespace();
                         this.content.p_eq();
                         this.content.p_whitespace();
-                        this.emit_ident(param.name);
+                        this.emit_binding(param.name);
                     }
                 },
                 |this, param| {

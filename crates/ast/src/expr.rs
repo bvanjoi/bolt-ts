@@ -81,6 +81,25 @@ impl Expr<'_> {
             Template(n) => n.id,
         }
     }
+
+    pub fn is_string_lit_like(&self) -> bool {
+        // TODO: NoSubstitutionTemplateLit
+        matches!(self.kind, ExprKind::StringLit(_))
+    }
+    pub fn is_string_or_number_lit_like(&self) -> bool {
+        self.is_string_lit_like() || matches!(self.kind, ExprKind::NumLit(_))
+    }
+    pub fn is_entity_name_expr(&self) -> bool {
+        matches!(self.kind, ExprKind::Ident(_)) || self.is_prop_access_entity_name_expr()
+    }
+    pub fn is_prop_access_entity_name_expr(&self) -> bool {
+        if let ExprKind::PropAccess(p) = &self.kind {
+            // TODO: matches!(p.name.kind, ExprKind::Ident(_))
+            p.expr.is_entity_name_expr()
+        } else {
+            false
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -556,14 +575,7 @@ pub struct OmitExpr {
 pub struct CallExpr<'cx> {
     pub id: NodeID,
     pub span: Span,
-    pub flags: NodeFlags,
     pub expr: &'cx Expr<'cx>,
     pub ty_args: Option<&'cx self::Tys<'cx>>,
     pub args: Exprs<'cx>,
-}
-
-impl CallExpr<'_> {
-    pub fn is_call_chain(&self) -> bool {
-        self.flags.intersects(NodeFlags::OPTIONAL_CHAIN)
-    }
 }

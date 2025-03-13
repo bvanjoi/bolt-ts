@@ -9,7 +9,8 @@ impl TyChecker<'_> {
             if p.node(node).is_decl() {
                 true
             } else if p.node(node).is_ident() {
-                p.node(p.parent(node).unwrap()).is_var_decl()
+                let n = p.node(p.parent(node).unwrap());
+                n.is_var_decl() || n.is_param_decl()
             } else {
                 false
             }

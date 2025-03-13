@@ -1,7 +1,7 @@
 use crate::bind::{Symbol, SymbolFlags, SymbolID};
 use crate::ty::CheckFlags;
 use crate::{keyword, ty};
-use bolt_ts_ast as ast;
+use bolt_ts_ast::{self as ast};
 
 use super::{TyChecker, errors};
 

@@ -22,12 +22,12 @@ impl<'cx> ParserState<'cx, '_> {
     }
 
     pub(super) fn parse_expr(&mut self) -> PResult<&'cx ast::Expr<'cx>> {
-        self.parse_assign_expr(false)
+        self.parse_assign_expr_or_higher(false)
     }
 
     pub(super) fn parse_init(&mut self) -> PResult<Option<&'cx ast::Expr<'cx>>> {
         if self.parse_optional(TokenKind::Eq).is_some() {
-            self.parse_assign_expr(false).map(Some)
+            self.parse_assign_expr_or_higher(false).map(Some)
         } else {
             Ok(None)
         }
@@ -102,7 +102,7 @@ impl<'cx> ParserState<'cx, '_> {
             self.parse_fn_block()
                 .map(|block| ast::ArrowFnExprBody::Block(block.unwrap()))
         } else {
-            self.parse_assign_expr(false)
+            self.parse_assign_expr_or_higher(false)
                 .map(ast::ArrowFnExprBody::Expr)
         }
     }
@@ -114,12 +114,13 @@ impl<'cx> ParserState<'cx, '_> {
         assert!(self.token.kind == TokenKind::EqGreat);
         let expr_id = self.next_node_id();
         let param_id = self.next_node_id();
+        let name = self.with_parent(param_id, |this| this.parse_binding_with_ident(Some(param)));
         let param = self.alloc(ast::ParamDecl {
             id: param_id,
             span: param.span,
             modifiers: None,
             dotdotdot: None,
-            name: param,
+            name,
             question: None,
             ty: None,
             init: None,
@@ -146,7 +147,7 @@ impl<'cx> ParserState<'cx, '_> {
         Ok(expr)
     }
 
-    pub(super) fn parse_assign_expr(
+    pub(super) fn parse_assign_expr_or_higher(
         &mut self,
         allow_ret_ty_in_arrow_fn: bool,
     ) -> PResult<&'cx ast::Expr<'cx>> {
@@ -166,7 +167,7 @@ impl<'cx> ParserState<'cx, '_> {
             self.parent_map.r#override(expr.id(), id);
             let op = self.token.kind.into();
             self.parse_token_node();
-            let right = self.with_parent(id, |this| this.parse_assign_expr(false))?;
+            let right = self.with_parent(id, |this| this.parse_assign_expr_or_higher(false))?;
             let expr = self.alloc(ast::AssignExpr {
                 id,
                 left: expr,
@@ -431,7 +432,6 @@ impl<'cx> ParserState<'cx, '_> {
                     let call = this.alloc(ast::CallExpr {
                         id,
                         span: this.new_span(start as u32),
-                        flags: NodeFlags::empty(),
                         ty_args,
                         expr,
                         args,
@@ -482,7 +482,7 @@ impl<'cx> ParserState<'cx, '_> {
     }
 
     fn parse_arg_or_array_lit_elem(&mut self) -> PResult<&'cx ast::Expr<'cx>> {
-        self.parse_assign_expr(false)
+        self.parse_assign_expr_or_higher(false)
     }
 
     fn parse_object_method_decl(
@@ -522,7 +522,17 @@ impl<'cx> ParserState<'cx, '_> {
         let start = self.token.start();
 
         if self.parse_optional(TokenKind::DotDotDot).is_some() {
-            todo!()
+            let expr = self.with_parent(id, |this| this.parse_assign_expr_or_higher(true))?;
+            let n = self.alloc(ast::SpreadAssignment {
+                id,
+                span: self.new_span(start),
+                expr,
+            });
+            self.insert_map(id, ast::Node::SpreadAssignment(n));
+            let m = self.alloc(ast::ObjectMember {
+                kind: ast::ObjectMemberKind::SpreadAssignment(n),
+            });
+            return Ok(m);
         }
 
         let mods = self.with_parent(id, |this| this.parse_modifiers(false))?;
@@ -535,7 +545,7 @@ impl<'cx> ParserState<'cx, '_> {
 
         let asterisk_token = self.parse_optional(TokenKind::Asterisk);
 
-        let name = self.with_parent(id, Self::parse_prop_name)?;
+        let name = self.with_parent(id, |this| this.parse_prop_name(false))?;
         let question_token = self.parse_optional(TokenKind::Question);
         let excl_token = self.parse_optional(TokenKind::Excl);
 
@@ -558,7 +568,7 @@ impl<'cx> ParserState<'cx, '_> {
             }
         }
         self.expect(TokenKind::Colon);
-        let value = self.with_parent(id, |this| this.parse_assign_expr(false))?;
+        let value = self.with_parent(id, |this| this.parse_assign_expr_or_higher(false))?;
         let kind = self.alloc(ast::ObjectPropMember {
             id,
             span: self.new_span(start),
@@ -630,7 +640,7 @@ impl<'cx> ParserState<'cx, '_> {
                 });
                 Ok(expr)
             } else {
-                this.parse_assign_expr(false)
+                this.parse_assign_expr_or_higher(false)
             }
         })
     }
@@ -664,6 +674,7 @@ impl<'cx> ParserState<'cx, '_> {
                 ast::ExprKind::NullLit(lit)
             }
             String | NoSubstitutionTemplate => {
+                // TODO: NoSubstitutionTemplateLit
                 let lit = self.parse_string_lit();
                 ast::ExprKind::StringLit(lit)
             }

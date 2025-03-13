@@ -1,4 +1,4 @@
-// From `github.com/microsoft/TypeScript/blob/v5.7.3/tests/cases/compiler/recursiveInference1.ts`, Apache-2.0 License
+// From `github.com/microsoft/TypeScript/blob/v5.8.2/tests/cases/compiler/recursiveInference1.ts`, Apache-2.0 License
 
 function fib(x:number) { return x <= 1 ? x : fib(x - 1) + fib(x - 2); }
 var result = fib(5);

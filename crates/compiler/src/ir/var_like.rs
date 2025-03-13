@@ -16,6 +16,7 @@ impl<'cx> From<&ast::PropName<'cx>> for VarLikeName<'cx> {
             ast::PropNameKind::Ident(ident) => VarLikeName::Ident(ident),
             ast::PropNameKind::NumLit(num) => VarLikeName::NumLit(num),
             ast::PropNameKind::StringLit { raw, key } => VarLikeName::StringLit { raw, key },
+            ast::PropNameKind::Computed(n) => todo!(),
         }
     }
 }
@@ -25,6 +26,9 @@ pub trait VarLike<'cx>: Copy + std::fmt::Debug {
     fn name(&self) -> VarLikeName<'cx>;
     fn decl_ty(&self) -> Option<&'cx ast::Ty<'cx>>;
     fn init(&self) -> Option<&'cx ast::Expr<'cx>>;
+    fn is_param(&self) -> bool {
+        false
+    }
 }
 
 impl<'cx> VarLike<'cx> for ast::VarDecl<'cx> {
@@ -32,9 +36,10 @@ impl<'cx> VarLike<'cx> for ast::VarDecl<'cx> {
         self.id
     }
     fn name(&self) -> VarLikeName<'cx> {
-        match self.binding {
-            ast::Binding::Ident(n) => VarLikeName::Ident(n),
-            ast::Binding::ObjectPat(n) => VarLikeName::ObjectPat(n),
+        match self.binding.kind {
+            ast::BindingKind::Ident(n) => VarLikeName::Ident(n),
+            ast::BindingKind::ObjectPat(n) => VarLikeName::ObjectPat(n),
+            bolt_ts_ast::BindingKind::ArrayPat(array_pat) => todo!(),
         }
     }
     fn decl_ty(&self) -> Option<&'cx ast::Ty<'cx>> {
@@ -50,13 +55,20 @@ impl<'cx> VarLike<'cx> for ast::ParamDecl<'cx> {
         self.id
     }
     fn name(&self) -> VarLikeName<'cx> {
-        VarLikeName::Ident(self.name)
+        match self.name.kind {
+            bolt_ts_ast::BindingKind::Ident(n) => VarLikeName::Ident(n),
+            bolt_ts_ast::BindingKind::ObjectPat(n) => VarLikeName::ObjectPat(n),
+            bolt_ts_ast::BindingKind::ArrayPat(n) => todo!(),
+        }
     }
     fn decl_ty(&self) -> Option<&'cx ast::Ty<'cx>> {
         self.ty
     }
     fn init(&self) -> Option<&'cx ast::Expr<'cx>> {
         self.init
+    }
+    fn is_param(&self) -> bool {
+        true
     }
 }
 

@@ -4,7 +4,6 @@ use bolt_ts_utils::fx_hashmap_with_capacity;
 use rustc_hash::FxHashMap;
 
 use crate::check::F64Represent;
-use crate::keyword;
 use bolt_ts_ast::NodeID;
 
 #[derive(Debug, Clone, Copy, Hash, PartialEq, Eq)]
@@ -135,7 +134,9 @@ pub struct Symbol {
 }
 
 impl Symbol {
-    pub const ERR: SymbolID = SymbolID::root(ModuleID::root());
+    pub const ERR: SymbolID = SymbolID::ERR;
+    pub const ARGUMENTS: SymbolID = SymbolID::ARGUMENTS;
+
     pub(super) fn new(name: SymbolName, flags: SymbolFlags, kind: SymbolKind) -> Self {
         Self {
             name,
@@ -196,6 +197,26 @@ pub(crate) enum SymbolKind {
     TyMapped {
         decl: NodeID,
     },
+}
+
+impl SymbolKind {
+    pub fn opt_decl(&self) -> Option<NodeID> {
+        match &self {
+            SymbolKind::FunctionScopedVar(f) => Some(f.decl),
+            SymbolKind::BlockScopedVar { decl } => Some(*decl),
+            SymbolKind::Class(c) => Some(c.decl),
+            SymbolKind::Prop(prop) => Some(prop.decl),
+            SymbolKind::Object(object) => Some(object.decl),
+            SymbolKind::Index(index) => Some(index.decls[0]),
+            SymbolKind::TyAlias(alias) => Some(alias.decl),
+            SymbolKind::TyParam(param) => Some(param.decl),
+            SymbolKind::TyLit(ty_lit) => Some(ty_lit.decl),
+            SymbolKind::Alias(alias) => Some(alias.decl),
+            SymbolKind::Fn(f) => Some(f.decls[0]),
+            SymbolKind::TyMapped { decl } => Some(*decl),
+            _ => None,
+        }
+    }
 }
 
 macro_rules! as_symbol_kind {
@@ -284,7 +305,7 @@ pub struct GetterSetterSymbol {
 
 #[derive(Debug)]
 pub struct IndexSymbol {
-    pub decl: NodeID,
+    pub decls: thin_vec::ThinVec<NodeID>,
 }
 
 #[derive(Debug)]
@@ -375,21 +396,7 @@ impl Symbol {
     }
 
     pub fn opt_decl(&self) -> Option<NodeID> {
-        let id = match &self.kind.0 {
-            SymbolKind::FunctionScopedVar(f) => Some(f.decl),
-            SymbolKind::BlockScopedVar { decl } => Some(*decl),
-            SymbolKind::Class(c) => Some(c.decl),
-            SymbolKind::Prop(prop) => Some(prop.decl),
-            SymbolKind::Object(object) => Some(object.decl),
-            SymbolKind::Index(index) => Some(index.decl),
-            SymbolKind::TyAlias(alias) => Some(alias.decl),
-            SymbolKind::TyParam(param) => Some(param.decl),
-            SymbolKind::TyLit(ty_lit) => Some(ty_lit.decl),
-            SymbolKind::Alias(alias) => Some(alias.decl),
-            SymbolKind::Fn(f) => Some(f.decls[0]),
-            SymbolKind::TyMapped { decl } => Some(*decl),
-            _ => None,
-        };
+        let id = self.kind.0.opt_decl();
         id.or_else(|| self.kind.1.as_ref().and_then(|i| i.decls.first()).copied())
     }
 }
@@ -397,22 +404,22 @@ impl Symbol {
 bolt_ts_utils::module_index!(SymbolID);
 
 impl SymbolID {
+    pub(super) const ERR: Self = SymbolID {
+        module: ModuleID::TRANSIENT,
+        index: 0,
+    };
+    pub(super) const ARGUMENTS: Self = SymbolID {
+        module: ModuleID::TRANSIENT,
+        index: 1,
+    };
+
+    pub const fn container(module: ModuleID) -> Self {
+        Self { module, index: 0 }
+    }
+
     pub fn opt_decl(&self, binder: &super::Binder) -> Option<NodeID> {
         let s = binder.symbol(*self);
-        let id = match &s.kind.0 {
-            SymbolKind::FunctionScopedVar(f) => Some(f.decl),
-            SymbolKind::BlockScopedVar { decl } => Some(*decl),
-            SymbolKind::Class(c) => Some(c.decl),
-            SymbolKind::Prop(prop) => Some(prop.decl),
-            SymbolKind::Object(object) => Some(object.decl),
-            SymbolKind::Index(index) => Some(index.decl),
-            SymbolKind::TyAlias(alias) => Some(alias.decl),
-            SymbolKind::TyParam(param) => Some(param.decl),
-            SymbolKind::TyLit(ty_lit) => Some(ty_lit.decl),
-            SymbolKind::Alias(alias) => Some(alias.decl),
-            SymbolKind::Fn(f) => Some(f.decls[0]),
-            _ => None,
-        };
+        let id = s.kind.0.opt_decl();
         id.or_else(|| s.kind.1.as_ref().and_then(|i| i.decls.first()).copied())
             .or_else(|| s.kind.2.as_ref().and_then(|i| i.decls.first()).copied())
     }
@@ -447,17 +454,12 @@ impl Default for Symbols {
 
 impl Symbols {
     pub fn new(module_id: ModuleID) -> Self {
-        let mut this = Self {
+        assert_ne!(module_id, ModuleID::TRANSIENT);
+        assert_ne!(module_id, ModuleID::DEFAULT);
+        Self {
             module_id,
             data: Vec::with_capacity(512),
-        };
-        let err = this.insert(Symbol::new(
-            SymbolName::Normal(keyword::IDENT_EMPTY),
-            SymbolFlags::empty(),
-            SymbolKind::Err,
-        ));
-        assert_eq!(err.index_as_usize(), 0);
-        this
+        }
     }
 
     pub fn insert(&mut self, symbol: Symbol) -> SymbolID {
@@ -474,7 +476,7 @@ impl Symbols {
     }
 
     pub fn get_container(&self, module: ModuleID) -> &Symbol {
-        let id = SymbolID { module, index: 1 };
+        let id = SymbolID::container(module);
         self.get(id)
     }
 
@@ -501,6 +503,7 @@ impl GlobalSymbols {
     }
 
     pub fn insert(&mut self, name: SymbolName, symbol_id: SymbolID) {
+        assert!(matches!(name, SymbolName::Normal(_)));
         let prev = self.0.insert(name, symbol_id);
         assert!(prev.is_none(), "prev symbol: {prev:#?}")
     }

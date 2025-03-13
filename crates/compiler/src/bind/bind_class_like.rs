@@ -6,7 +6,7 @@ use bolt_ts_ast as ast;
 use bolt_ts_ast::ModifierKind;
 use bolt_ts_utils::fx_hashmap_with_capacity;
 
-impl<'cx> BinderState<'cx, '_> {
+impl<'cx> BinderState<'cx, '_, '_> {
     fn create_class_symbol(&mut self, c: &impl ir::ClassLike<'cx>) -> SymbolID {
         let name = c
             .name()
@@ -62,6 +62,8 @@ impl<'cx> BinderState<'cx, '_> {
             super::SymbolFnKind::Ctor,
             false,
         );
+        let old = self.scope_id;
+        self.scope_id = self.new_scope();
         for param in ctor.params {
             self.bind_param(param);
 
@@ -70,17 +72,22 @@ impl<'cx> BinderState<'cx, '_> {
                     .modifiers
                     .is_some_and(|ms| ms.flags.contains(ModifierKind::Public))
             {
-                self.create_class_prop_ele(
-                    container,
-                    SymbolName::Ele(param.name.name),
-                    param.id,
-                    param.modifiers,
-                );
+                match param.name.kind {
+                    bolt_ts_ast::BindingKind::Ident(ident) => self.create_class_prop_ele(
+                        container,
+                        SymbolName::Ele(ident.name),
+                        param.id,
+                        param.modifiers,
+                    ),
+                    bolt_ts_ast::BindingKind::ObjectPat(_) => todo!(),
+                    bolt_ts_ast::BindingKind::ArrayPat(_) => todo!(),
+                };
             }
         }
         if let Some(body) = ctor.body {
             self.bind_block_stmt(body);
         }
+        self.scope_id = old;
     }
 
     fn bind_class_method_ele(
@@ -140,9 +147,14 @@ impl<'cx> BinderState<'cx, '_> {
             let is_export = class
                 .modifiers()
                 .is_some_and(|ms| ms.flags.contains(ModifierKind::Export));
-            let members = self.members(container, is_export);
             let name = SymbolName::Normal(class.name().unwrap().name);
-            members.insert(name, class_symbol);
+            self.declare_symbol_and_add_to_symbol_table(
+                container,
+                name,
+                class_symbol,
+                class.id(),
+                is_export,
+            );
         }
 
         let old = self.scope_id;
@@ -184,6 +196,9 @@ impl<'cx> BinderState<'cx, '_> {
                     if let Some(ty) = n.ty {
                         self.bind_ty(ty);
                     }
+                    if let Some(body) = n.body {
+                        self.bind_block_stmt(body);
+                    }
                 }
                 ast::ClassEleKind::Setter(n) => {
                     let is_static = n
@@ -193,6 +208,9 @@ impl<'cx> BinderState<'cx, '_> {
 
                     assert!(n.params.len() == 1);
                     self.bind_params(n.params);
+                    if let Some(body) = n.body {
+                        self.bind_block_stmt(body);
+                    }
                 }
             }
         }

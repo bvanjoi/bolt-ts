@@ -1,9 +1,6 @@
-use crate::{
-    bind::SymbolID,
-    ty::{self, ObjectFlags},
-};
-
+use super::SymbolID;
 use super::TyChecker;
+use super::ty;
 
 pub fn append_if_unique<'a, T>(array: &mut Vec<&'a T>, value: &'a T) {
     if array.iter().all(|item| !std::ptr::eq(item, &value)) {
@@ -47,7 +44,7 @@ impl<'cx> TyChecker<'cx> {
             self.get_union_ty_from_sorted_list(
                 filtered,
                 ty.get_object_flags()
-                    & (ObjectFlags::PRIMITIVE_UNION | ObjectFlags::CONTAINS_INTERSECTIONS),
+                    & (ty::ObjectFlags::PRIMITIVE_UNION | ty::ObjectFlags::CONTAINS_INTERSECTIONS),
             )
         } else if ty.flags.intersects(ty::TypeFlags::NEVER) {
             self.never_ty
@@ -113,12 +110,23 @@ impl<'cx> TyChecker<'cx> {
         SameMapperResult::Old
     }
 
-    pub fn same_map_tys(
+    pub(super) fn same_map_tys(
         &mut self,
         input: Option<ty::Tys<'cx>>,
         f: impl Fn(&mut Self, &'cx ty::Ty<'cx>, usize) -> &'cx ty::Ty<'cx>,
     ) -> Option<ty::Tys<'cx>> {
         match self.same_map(input, |this, ty, i| f(this, ty, i)) {
+            SameMapperResult::Old => input,
+            SameMapperResult::New(tys) => Some(tys),
+        }
+    }
+
+    pub(super) fn same_map_index_infos(
+        &mut self,
+        input: Option<ty::IndexInfos<'cx>>,
+        f: impl Fn(&mut Self, &'cx ty::IndexInfo<'cx>, usize) -> &'cx ty::IndexInfo<'cx>,
+    ) -> Option<ty::IndexInfos<'cx>> {
+        match self.same_map(input, |this, t, i| f(this, t, i)) {
             SameMapperResult::Old => input,
             SameMapperResult::New(tys) => Some(tys),
         }

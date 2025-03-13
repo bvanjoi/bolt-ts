@@ -195,9 +195,9 @@ impl<'cx> Ty<'cx> {
         match self.kind {
             TyKind::Object(object) => object.kind.to_string(self, checker),
             TyKind::NumberLit(lit) => {
-                if lit.val == std::f64::INFINITY {
+                if lit.val == f64::INFINITY {
                     "Infinity".to_string()
-                } else if lit.val == std::f64::NEG_INFINITY {
+                } else if lit.val == f64::NEG_INFINITY {
                     "-Infinity".to_string()
                 } else {
                     format!("{}", lit.val)
@@ -226,7 +226,14 @@ impl<'cx> Ty<'cx> {
                 }
             }
             TyKind::IndexedAccess(_) => "indexedAccess".to_string(),
-            TyKind::Cond(_) => "cond".to_string(),
+            TyKind::Cond(n) => {
+                if let Some(symbol) = n.root.alias_symbol {
+                    let name = checker.binder.symbol(symbol).name;
+                    checker.atoms.get(name.expect_atom()).to_string()
+                } else {
+                    "cond".to_string()
+                }
+            }
             TyKind::Index(n) => n.ty.to_string(checker),
             TyKind::Intrinsic(i) => checker.atoms.get(i.name).to_string(),
             TyKind::Substitution(_) => "substitution".to_string(),
@@ -235,15 +242,16 @@ impl<'cx> Ty<'cx> {
                 checker.atoms.get(name.expect_atom()).to_string()
             }
             TyKind::TemplateLit(n) => {
-                let mut s = String::new();
+                let mut s = String::with_capacity(32);
+                s.push('`');
                 for i in 0..n.texts.len() {
                     let text = n.texts[i];
-
                     s.push_str(checker.atoms.get(text));
                     if let Some(ty) = n.tys.get(i) {
-                        s.push_str(&ty.to_string(checker));
+                        s.push_str(&format!("${{{}}}", ty.to_string(checker)));
                     }
                 }
+                s.push('`');
                 s
             }
         }
@@ -254,7 +262,7 @@ impl<'cx> Ty<'cx> {
             TyKind::Object(ty) => match ty.kind {
                 ObjectTyKind::Interface(ty) => Some(ty.symbol),
                 ObjectTyKind::Reference(ty) => ty.target.symbol(),
-                ObjectTyKind::Anonymous(ty) => Some(ty.symbol),
+                ObjectTyKind::Anonymous(ty) => ty.symbol,
                 ObjectTyKind::Mapped(ty) => Some(ty.symbol),
                 _ => None,
             },
@@ -420,9 +428,11 @@ pub struct CondTyRoot<'cx> {
     pub node: &'cx ast::CondTy<'cx>,
     pub check_ty: &'cx Ty<'cx>,
     pub extends_ty: &'cx Ty<'cx>,
-    pub outer_ty_params: Option<Tys<'cx>>,
     pub is_distributive: bool,
     pub infer_ty_params: Option<Tys<'cx>>,
+    pub outer_ty_params: Option<Tys<'cx>>,
+    pub alias_symbol: Option<SymbolID>,
+    pub alias_ty_args: Option<Tys<'cx>>,
 }
 
 #[derive(Debug, Clone, Copy)]

@@ -65,7 +65,7 @@ impl<'cx> Ty<'cx> {
             TyKind::Nullable(n) => n.id,
             TyKind::NamedTuple(n) => n.id,
             TyKind::TemplateLit(n) => n.id,
-            TyKind::Intrinsic(_) => unreachable!(),
+            TyKind::Intrinsic(n) => n.id,
         }
     }
 
@@ -150,6 +150,7 @@ pub struct NullableTy<'cx> {
 
 #[derive(Debug, Clone, Copy)]
 pub struct IntrinsicTy {
+    pub id: NodeID,
     pub span: Span,
 }
 
@@ -321,6 +322,7 @@ impl PropName<'_> {
             PropNameKind::Ident(ident) => ident.span,
             PropNameKind::NumLit(num) => num.span,
             PropNameKind::StringLit { raw, .. } => raw.span,
+            PropNameKind::Computed(n) => n.span,
         }
     }
 
@@ -329,6 +331,7 @@ impl PropName<'_> {
             PropNameKind::Ident(ident) => ident.id,
             PropNameKind::NumLit(num) => num.id,
             PropNameKind::StringLit { raw, .. } => raw.id,
+            PropNameKind::Computed(n) => n.id,
         }
     }
 }
@@ -338,6 +341,7 @@ pub enum PropNameKind<'cx> {
     Ident(&'cx Ident),
     StringLit { raw: &'cx StringLit, key: AtomId },
     NumLit(&'cx NumLit),
+    Computed(&'cx ComputedPropName<'cx>),
 }
 
 impl PropNameKind<'_> {
@@ -347,6 +351,13 @@ impl PropNameKind<'_> {
             _ => None,
         }
     }
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct ComputedPropName<'cx> {
+    pub id: NodeID,
+    pub span: Span,
+    pub expr: &'cx Expr<'cx>,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -360,6 +371,7 @@ impl ObjectMember<'_> {
             ObjectMemberKind::Shorthand(n) => n.span,
             ObjectMemberKind::Prop(n) => n.span,
             ObjectMemberKind::Method(n) => n.span,
+            ObjectMemberKind::SpreadAssignment(n) => n.span,
         }
     }
 
@@ -368,6 +380,7 @@ impl ObjectMember<'_> {
             ObjectMemberKind::Shorthand(n) => n.id,
             ObjectMemberKind::Prop(n) => n.id,
             ObjectMemberKind::Method(n) => n.id,
+            ObjectMemberKind::SpreadAssignment(n) => n.id,
         }
     }
 }
@@ -377,6 +390,14 @@ pub enum ObjectMemberKind<'cx> {
     Shorthand(&'cx ObjectShorthandMember<'cx>),
     Prop(&'cx ObjectPropMember<'cx>),
     Method(&'cx ObjectMethodMember<'cx>),
+    SpreadAssignment(&'cx SpreadAssignment<'cx>),
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct SpreadAssignment<'cx> {
+    pub id: NodeID,
+    pub span: Span,
+    pub expr: &'cx Expr<'cx>,
 }
 
 #[derive(Debug, Clone, Copy)]

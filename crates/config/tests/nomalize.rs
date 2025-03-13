@@ -12,10 +12,36 @@ fn test_default_include() {
 
     let c = normalize(
         r#"
-      {
-        "include": []
-      }
+{
+  "include": []
+}
     "#,
     );
     assert!(c.include().is_empty());
+}
+
+#[test]
+fn strict_should_effect() {
+    let c = normalize(
+        r#"
+{
+  "compilerOptions": {
+    "strict": true
+  }
+}"#,
+    );
+    assert!(c.compiler_options().strict());
+    assert!(c.compiler_options().always_strict());
+
+    let c = normalize(
+        r#"
+{
+  "compilerOptions": {
+    "strict": true,
+    "alwaysStrict": false 
+  }
+}"#,
+    );
+    assert!(c.compiler_options().strict());
+    assert!(!c.compiler_options().always_strict());
 }

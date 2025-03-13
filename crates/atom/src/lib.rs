@@ -54,6 +54,7 @@ impl<'a> AtomMap<'a> {
         self.0.contains_key(&atom)
     }
 
+    #[track_caller]
     pub fn get(&self, atom: AtomId) -> &str {
         self.0.get(&atom).unwrap()
     }

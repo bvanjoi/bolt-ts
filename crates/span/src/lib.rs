@@ -48,10 +48,7 @@ pub struct Module {
     pub global: bool,
 }
 
-pub enum ModulePath {
-    Real(std::path::PathBuf),
-    Virtual,
-}
+pub type ModulePath = std::path::PathBuf;
 
 pub struct ModuleArena {
     path_map: Vec<ModulePath>,
@@ -80,12 +77,10 @@ impl ModuleArena {
         let id = ModuleID(self.modules.len() as u32);
         let m = Module { id, global };
         self.modules.push(m);
-        if let ModulePath::Real(p) = &p {
-            assert!(id.as_usize() == self.content_map.len());
-            let atom = fs.read_file(p.as_ref(), atoms).unwrap();
-            let data = atoms.get(atom).to_string();
-            self.content_map.push(Arc::new(data));
-        };
+        assert!(id.as_usize() == self.content_map.len());
+        let atom = fs.read_file(p.as_ref(), atoms).unwrap();
+        let data = atoms.get(atom).to_string();
+        self.content_map.push(Arc::new(data));
         assert!(id.as_usize() == self.path_map.len());
         self.path_map.push(p);
         id
@@ -101,11 +96,9 @@ impl ModuleArena {
         let id = ModuleID(self.modules.len() as u32);
         let m = Module { id, global };
         self.modules.push(m);
-        if let ModulePath::Real(_) = &p {
-            assert!(id.as_usize() == self.content_map.len());
-            let data = atoms.get(content).to_string();
-            self.content_map.push(Arc::new(data));
-        };
+        assert!(id.as_usize() == self.content_map.len());
+        let data = atoms.get(content).to_string();
+        self.content_map.push(Arc::new(data));
         assert!(id.as_usize() == self.path_map.len());
         self.path_map.push(p);
         id

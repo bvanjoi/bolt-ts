@@ -1,6 +1,8 @@
 use super::BinderState;
 use super::FlowNodes;
 use super::ScopeID;
+use super::container_flags::ContainerFlags;
+use super::container_flags::GetContainerFlags;
 use super::flow::FlowFlags;
 use super::flow::FlowID;
 use super::flow::FlowNodeKind;
@@ -11,7 +13,10 @@ use super::symbol::IndexSymbol;
 use super::symbol::{SymbolFlags, SymbolFnKind, SymbolKind};
 use super::symbol::{SymbolID, SymbolName, Symbols};
 
+use bolt_ts_ast::ModifierKind;
+use bolt_ts_ast::NodeFlags;
 use bolt_ts_atom::AtomMap;
+use bolt_ts_config::NormalizedTsConfig;
 use bolt_ts_span::ModuleID;
 use bolt_ts_utils::fx_hashmap_with_capacity;
 use thin_vec::thin_vec;
@@ -19,15 +24,24 @@ use thin_vec::thin_vec;
 use crate::bind::Symbol;
 use crate::bind::prop_name;
 use crate::bind::symbol::AliasSymbol;
-use crate::parser::Parser;
+use crate::parser::ParseResult;
+use crate::parser::is_left_hand_side_expr_kind;
 use bolt_ts_ast as ast;
 
-impl<'cx, 'atoms> BinderState<'cx, 'atoms> {
-    pub fn new(atoms: &'atoms AtomMap<'cx>, parser: &'cx Parser<'cx>, module_id: ModuleID) -> Self {
+impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
+    pub fn new(
+        atoms: &'atoms AtomMap<'cx>,
+        parser: &'parser mut ParseResult<'cx>,
+        root: &'cx ast::Program<'cx>,
+        module_id: ModuleID,
+        options: &NormalizedTsConfig,
+    ) -> Self {
         let symbols = Symbols::new(module_id);
         let mut flow_nodes = FlowNodes::new(module_id);
         let unreachable_flow_node = flow_nodes.create_flow_unreachable();
         let report_unreachable_flow_node = flow_nodes.create_flow_unreachable();
+
+        let in_strict_mode = !root.is_declaration || *options.compiler_options().always_strict();
 
         BinderState {
             atoms,
@@ -37,19 +51,32 @@ impl<'cx, 'atoms> BinderState<'cx, 'atoms> {
             res: fx_hashmap_with_capacity(512),
             final_res: fx_hashmap_with_capacity(512),
             node_id_to_scope_id: fx_hashmap_with_capacity(512),
+            container_chain: fx_hashmap_with_capacity(128),
+            locals: fx_hashmap_with_capacity(128),
             symbols,
             diags: Vec::new(),
 
             flow_nodes,
+            in_strict_mode,
+            seen_this_keyword: false,
+            emit_flags: bolt_ts_ast::NodeFlags::empty(),
             current_flow: None,
+            current_break_target: None,
+            current_continue_target: None,
+            current_return_target: None,
+            current_exception_target: None,
             current_true_target: None,
             current_false_target: None,
-            current_exception_target: None,
             unreachable_flow_node,
             report_unreachable_flow_node,
             has_flow_effects: false,
             in_return_position: false,
-            locals: fx_hashmap_with_capacity(128),
+            has_explicit_return: false,
+
+            container: None,
+            this_parent_container: None,
+            block_scope_container: None,
+            last_container: None,
         }
     }
 
@@ -79,7 +106,7 @@ impl<'cx, 'atoms> BinderState<'cx, 'atoms> {
         self.connect(root.id);
         self.current_flow = Some(self.flow_nodes.create_start(None));
         let id = self.create_block_container_symbol(root.id);
-        assert_eq!(id.index_as_u32(), 1);
+        assert_eq!(id, SymbolID::container(id.module()));
         for stmt in root.stmts {
             self.bind_stmt(root.id, stmt)
         }
@@ -130,8 +157,8 @@ impl<'cx, 'atoms> BinderState<'cx, 'atoms> {
             Try(n) => {
                 self.bind_try_stmt(container, n);
             }
-            While(n) => {}
-            Do(n) => {}
+            While(_) => {}
+            Do(_) => {}
             Debugger(_) => {}
         }
     }
@@ -169,7 +196,7 @@ impl<'cx, 'atoms> BinderState<'cx, 'atoms> {
         self.has_flow_effects = true;
     }
 
-    fn bind_try_stmt(&mut self, container: ast::NodeID, stmt: &'cx ast::TryStmt<'cx>) {
+    fn bind_try_stmt(&mut self, _container: ast::NodeID, stmt: &'cx ast::TryStmt<'cx>) {
         self.bind_block_stmt(stmt.try_block);
         if let Some(catch) = stmt.catch_clause {
             let old = self.scope_id;
@@ -270,7 +297,13 @@ impl<'cx, 'atoms> BinderState<'cx, 'atoms> {
             ast::ModuleName::Ident(ident) => ident.name,
             ast::ModuleName::StringLit(_) => {
                 if let Some(block) = ns.block {
-                    self.bind_block_stmt(block);
+                    let container_flags = block.get_container_flags(self.p);
+                    self.bind_container(block.id, container_flags, |this| {
+                        this.create_block_container_symbol(block.id);
+                        for stmt in block.stmts {
+                            this.bind_stmt(block.id, stmt)
+                        }
+                    });
                 }
                 return;
             }
@@ -370,12 +403,12 @@ impl<'cx, 'atoms> BinderState<'cx, 'atoms> {
             });
             if let Some(container) = container {
                 let name = SymbolName::Normal(ty_param.name.name);
-                self.inset_into_locals(container, name, symbol);
+                self.insert_into_locals(container, name, symbol);
             }
         }
     }
 
-    fn inset_into_locals(&mut self, container: ast::NodeID, name: SymbolName, symbol: SymbolID) {
+    fn insert_into_locals(&mut self, container: ast::NodeID, name: SymbolName, symbol: SymbolID) {
         assert!(self.p.node(container).has_locals());
         let locals = self
             .locals
@@ -389,36 +422,68 @@ impl<'cx, 'atoms> BinderState<'cx, 'atoms> {
         container: ast::NodeID,
         index: &'cx ast::IndexSigDecl<'cx>,
         is_export: bool,
-    ) -> SymbolID {
+    ) {
         let name = SymbolName::Index;
-        let symbol = self.declare_symbol(
-            name,
-            SymbolFlags::SIGNATURE,
-            SymbolKind::Index(IndexSymbol { decl: index.id }),
-            SymbolFlags::empty(),
-        );
-        self.create_final_res(index.id, symbol);
+        let insert = |this: &mut Self, id: SymbolID, decl: ast::NodeID| {
+            let s = this.symbols.get_mut(id);
+            let SymbolKind::Index(index) = &mut s.kind.0 else {
+                unreachable!()
+            };
+            index.decls.push(decl);
+        };
+        let add = |this: &mut Self, decl: ast::NodeID| -> SymbolID {
+            let symbol = this.declare_symbol(
+                name,
+                SymbolFlags::SIGNATURE,
+                SymbolKind::Index(IndexSymbol {
+                    decls: thin_vec::thin_vec![decl],
+                }),
+                SymbolFlags::empty(),
+            );
+            this.create_final_res(index.id, symbol);
+            symbol
+        };
         let container = self.final_res[&container];
-        let s = self.symbols.get_mut(container);
-        if let Some(i) = &mut s.kind.1 {
-            let prev = i.members.insert(name, symbol);
-            // FIXME: multiple index sig
-            assert!(prev.is_none());
-        } else if let SymbolKind::Class(c) = &mut s.kind.0 {
-            if is_export {
-                let prev = c.exports.insert(name, symbol);
-                // FIXME: multiple index sig
-                assert!(prev.is_none());
+        let s = self.symbols.get(container);
+        if let Some(i) = &s.kind.1 {
+            if let Some(id) = i.members.get(&name).copied() {
+                insert(self, id, index.id);
             } else {
-                let prev = c.members.insert(name, symbol);
-                // FIXME: multiple index sig
-                assert!(prev.is_none());
+                let id = add(self, index.id);
+                let i = self.symbols.get_mut(container).kind.1.as_mut().unwrap();
+                i.members.insert(name, id);
             }
-        } else if let SymbolKind::TyLit(o) = &mut s.kind.0 {
-            let prev = o.members.insert(name, symbol);
-            // FIXME: multiple index sig
-            assert!(prev.is_none());
-        } else if let SymbolKind::Object(_) = &mut s.kind.0 {
+        } else if let SymbolKind::Class(c) = &s.kind.0 {
+            if is_export {
+                if let Some(id) = c.exports.get(&name).copied() {
+                    insert(self, id, index.id);
+                } else {
+                    let id = add(self, index.id);
+                    let SymbolKind::Class(c) = &mut self.symbols.get_mut(container).kind.0 else {
+                        unreachable!()
+                    };
+                    c.exports.insert(name, id);
+                }
+            } else if let Some(id) = c.members.get(&name).copied() {
+                insert(self, id, index.id);
+            } else {
+                let id = add(self, index.id);
+                let SymbolKind::Class(c) = &mut self.symbols.get_mut(container).kind.0 else {
+                    unreachable!()
+                };
+                c.members.insert(name, id);
+            }
+        } else if let SymbolKind::TyLit(o) = &s.kind.0 {
+            if let Some(id) = o.members.get(&name).copied() {
+                insert(self, id, index.id);
+            } else {
+                let id = add(self, index.id);
+                let SymbolKind::TyLit(o) = &mut self.symbols.get_mut(container).kind.0 else {
+                    unreachable!()
+                };
+                o.members.insert(name, id);
+            }
+        } else if let SymbolKind::Object(_) = s.kind.0 {
             unreachable!("object lit should not have index sig");
         } else {
             todo!()
@@ -426,8 +491,6 @@ impl<'cx, 'atoms> BinderState<'cx, 'atoms> {
 
         self.bind_params(index.params);
         self.bind_ty(index.ty);
-
-        symbol
     }
 
     fn insert_getter_setter_symbol(
@@ -455,6 +518,7 @@ impl<'cx, 'atoms> BinderState<'cx, 'atoms> {
             } else {
                 unreachable!()
             }
+            self.create_final_res(decl, name);
         } else {
             let symbol = if flags.intersects(SymbolFlags::GET_ACCESSOR) {
                 self.declare_symbol(
@@ -593,6 +657,19 @@ impl<'cx, 'atoms> BinderState<'cx, 'atoms> {
                 );
                 self.scope_id = old;
             }
+            Setter(n) => {
+                let old = self.scope_id;
+                self.scope_id = self.new_scope();
+                self.bind_params(n.params);
+                self.bind_set_access(container, n, false);
+                self.scope_id = old;
+            }
+            Getter(n) => {
+                let old = self.scope_id;
+                self.scope_id = self.new_scope();
+                self.bind_get_access(container, n, false);
+                self.scope_id = old;
+            }
         }
     }
 
@@ -624,22 +701,138 @@ impl<'cx, 'atoms> BinderState<'cx, 'atoms> {
         self.scope_id = old;
     }
 
-    fn bind_container(&mut self, _node: ast::NodeID, f: impl FnOnce(&mut Self)) {
+    fn create_locals_for_container(&mut self, container: ast::NodeID) {
+        assert!(self.p.node(container).has_locals());
+        let prev = self.locals.insert(container, fx_hashmap_with_capacity(64));
+        assert!(prev.is_none());
+    }
+
+    fn delete_locals_for_container(&mut self, container: ast::NodeID) {
+        assert!(self.p.node(container).has_locals());
+        self.locals.remove(&container);
+    }
+
+    fn add_to_container_chain(&mut self, next: ast::NodeID) {
+        assert!(self.p.node(next).has_locals());
+        if let Some(last_container) = self.last_container {
+            // same as `last_container.next_container = next`
+            let prev = self.container_chain.insert(last_container, next);
+            assert!(prev.is_none());
+        }
+        self.last_container = Some(next);
+    }
+
+    fn bind_container(
+        &mut self,
+        node: ast::NodeID,
+        container_flags: ContainerFlags,
+        bind_children: impl FnOnce(&mut Self),
+    ) {
         let old = self.scope_id;
+        let save_container = self.container;
+        let save_this_parent_container = self.this_parent_container;
+        let save_block_scope_container = self.block_scope_container;
+        let save_in_return_position = self.in_return_position;
+
         self.scope_id = self.new_scope();
 
-        // TODO: container flags;
-        let saved_current_flow = self.current_flow;
+        let n = self.p.node(node);
+        if n.as_arrow_fn_expr()
+            .is_some_and(|n| !matches!(n.body, ast::ArrowFnExprBody::Block(_)))
+        {
+            self.in_return_position = true;
+        }
 
-        f(self);
+        if container_flags.intersects(ContainerFlags::IS_CONTAINER) {
+            if !n.is_arrow_fn_expr() {
+                self.this_parent_container = self.container;
+            }
+            self.block_scope_container = Some(node);
+            self.container = self.block_scope_container;
+            if container_flags.intersects(ContainerFlags::HAS_LOCALS) {
+                self.create_locals_for_container(node);
+                self.add_to_container_chain(node);
+            }
+        } else if container_flags.intersects(ContainerFlags::IS_BLOCK_SCOPED_CONTAINER) {
+            self.block_scope_container = Some(node);
+            if container_flags.intersects(ContainerFlags::HAS_LOCALS) {
+                self.delete_locals_for_container(node);
+            }
+        }
 
-        self.current_flow = saved_current_flow;
+        if container_flags.intersects(ContainerFlags::IS_CONTROL_FLOW_CONTAINER) {
+            let save_current_flow = self.current_flow;
+            let save_break_target = self.current_break_target;
+            let save_continue_target = self.current_continue_target;
+            let save_return_target = self.current_return_target;
+            let save_exception_target = self.current_exception_target;
+            // TODO: active_label_list
+            let save_has_explicit_return = self.has_explicit_return;
+            let is_immediately_invoked = (container_flags
+                .intersects(ContainerFlags::IS_FUNCTION_EXPRESSION)
+                && !n.has_syntactic_modifier(ModifierKind::Async.into())
+                && !n.is_fn_like_and_has_asterisk()
+                && self.p.get_immediately_invoked_fn_expr(node).is_some())
+                || self.p.node(node).is_class_static_block_decl();
 
+            if !is_immediately_invoked {
+                let flow_node = container_flags.intersects(ContainerFlags::IS_FUNCTION_EXPRESSION | ContainerFlags::IS_OBJECT_LITERAL_OR_CLASS_EXPRESSION_METHOD_OR_ACCESSOR).then_some(node);
+                self.current_flow = Some(self.flow_nodes.create_start(flow_node));
+            }
+            self.current_return_target = if is_immediately_invoked || n.is_class_ctor() {
+                Some(self.flow_nodes.create_branch_label())
+            } else {
+                None
+            };
+            self.current_exception_target = None;
+            self.current_break_target = None;
+            self.current_continue_target = None;
+            self.has_explicit_return = false;
+            self.p.node_flags_map.update(node, |flags| {
+                *flags &= !NodeFlags::REACHABILITY_AND_EMIT_FLAGS
+            });
+            // TODO: unreachable case
+
+            bind_children(self);
+
+            if let Some(current_return_target) = self.current_return_target {
+                self.flow_nodes
+                    .add_antecedent(current_return_target, self.current_flow.unwrap());
+                self.current_flow = Some(self.finish_flow_label(current_return_target));
+            }
+
+            if !is_immediately_invoked {
+                self.current_flow = save_current_flow;
+            }
+            self.current_break_target = save_break_target;
+            self.current_continue_target = save_continue_target;
+            self.current_return_target = save_return_target;
+            self.current_exception_target = save_exception_target;
+            // TODO: active_label_list
+            self.has_explicit_return = save_has_explicit_return;
+        } else if container_flags.intersects(ContainerFlags::IS_INTERFACE) {
+            self.seen_this_keyword = false;
+            bind_children(self);
+            assert!(n.is_ident());
+            // TODO: node flags
+        } else {
+            // TODO: delete `saved_current_flow`
+            let saved_current_flow = self.current_flow;
+            bind_children(self);
+            // TODO: delete `saved_current_flow`
+            self.current_flow = saved_current_flow;
+        }
+
+        self.in_return_position = save_in_return_position;
+        self.container = save_container;
+        self.this_parent_container = save_this_parent_container;
+        self.block_scope_container = save_block_scope_container;
         self.scope_id = old;
     }
 
     pub(super) fn bind_block_stmt(&mut self, block: &'cx ast::BlockStmt<'cx>) {
-        self.bind_container(block.id, |this| {
+        let container_flags = block.get_container_flags(self.p);
+        self.bind_container(block.id, container_flags, |this| {
             this.create_block_container_symbol(block.id);
             for stmt in block.stmts {
                 this.bind_stmt(block.id, stmt)
@@ -650,7 +843,7 @@ impl<'cx, 'atoms> BinderState<'cx, 'atoms> {
     pub(super) fn bind_block_stmt_with_container(
         &mut self,
         container: ast::NodeID,
-        block: &'cx ast::BlockStmt<'cx>,
+        block: &'cx ast::ModuleBlock<'cx>,
     ) {
         let old = self.scope_id;
         self.scope_id = self.new_scope();
@@ -741,10 +934,10 @@ impl<'cx, 'atoms> BinderState<'cx, 'atoms> {
         if let Some(ty_params) = f.ty_params {
             self.bind_ty_params(ty_params);
         }
+        self.bind_params(f.params);
         if let Some(ty) = f.ty {
             self.bind_ty(ty);
         }
-        self.bind_params(f.params);
         use bolt_ts_ast::ArrowFnExprBody::*;
         match f.body {
             Block(block) => self.bind_block_stmt(block),
@@ -838,9 +1031,8 @@ impl<'cx, 'atoms> BinderState<'cx, 'atoms> {
             true_target,
             false_target,
         );
-        let should_add_antecedent = node.is_none_or(|node| {
-            !node.kind.is_logical_assignment() && !node.kind.is_logical_expr()
-        });
+        let should_add_antecedent = node
+            .is_none_or(|node| !node.kind.is_logical_assignment() && !node.kind.is_logical_expr());
         if should_add_antecedent {
             let t = self.create_flow_condition(
                 FlowFlags::TRUE_CONDITION,
@@ -864,49 +1056,46 @@ impl<'cx, 'atoms> BinderState<'cx, 'atoms> {
     }
 
     fn bind_object_lit(&mut self, lit: &'cx ast::ObjectLit<'cx>) {
+        self.create_object_lit_symbol(lit.id, fx_hashmap_with_capacity(lit.members.len()));
         let old = self.scope_id;
         self.scope_id = self.new_scope();
-        let members = lit
-            .members
-            .iter()
-            .map(|member| {
-                use bolt_ts_ast::ObjectMemberKind::*;
-                match member.kind {
-                    Shorthand(n) => {
-                        self.bind_ident(n.name);
-                        let name = SymbolName::Ele(n.name.name);
-                        let symbol = self.create_object_member_symbol(name, n.id, false);
-                        (name, symbol)
-                    }
-                    Prop(n) => {
-                        let name = prop_name(n.name);
-                        let symbol = self.create_object_member_symbol(name, n.id, false);
-                        self.bind_expr(n.value);
-                        (name, symbol)
-                    }
-                    Method(n) => {
-                        let name = prop_name(n.name);
-                        let symbol = self.create_object_member_symbol(name, n.id, false);
 
-                        let old = self.scope_id;
-                        self.scope_id = self.new_scope();
-                        if let Some(ty_params) = n.ty_params {
-                            self.bind_ty_params(ty_params);
-                        }
-                        self.bind_params(n.params);
-                        if let Some(ty) = n.ty {
-                            self.bind_ty(ty);
-                        }
-                        self.bind_block_stmt(n.body);
-                        self.scope_id = old;
-
-                        (name, symbol)
-                    }
+        for member in lit.members {
+            use bolt_ts_ast::ObjectMemberKind::*;
+            match member.kind {
+                Shorthand(n) => {
+                    self.bind_ident(n.name);
+                    let name = SymbolName::Ele(n.name.name);
+                    let symbol = self.create_object_member_symbol(name, n.id, false);
+                    self.members(lit.id, false).insert(name, symbol);
                 }
-            })
-            .collect();
+                Prop(n) => {
+                    let name = prop_name(n.name);
+                    let symbol = self.create_object_member_symbol(name, n.id, false);
+                    self.members(lit.id, false).insert(name, symbol);
+                    self.bind_expr(n.value);
+                }
+                Method(n) => {
+                    let name = prop_name(n.name);
+                    self.create_fn_decl_like_symbol(lit.id, n, name, SymbolFnKind::Method, false);
+                    let old = self.scope_id;
+                    self.scope_id = self.new_scope();
+                    if let Some(ty_params) = n.ty_params {
+                        self.bind_ty_params(ty_params);
+                    }
+                    self.bind_params(n.params);
+                    if let Some(ty) = n.ty {
+                        self.bind_ty(ty);
+                    }
+                    self.bind_block_stmt(n.body);
+                    self.scope_id = old;
+                }
+                SpreadAssignment(n) => {
+                    self.bind_expr(n.expr);
+                }
+            }
+        }
         self.scope_id = old;
-        self.create_object_lit_symbol(lit.id, members);
     }
 
     fn bind_var_stmt(&mut self, container: ast::NodeID, var: &'cx ast::VarStmt) {
@@ -954,7 +1143,7 @@ impl<'cx, 'atoms> BinderState<'cx, 'atoms> {
             ObjectLit(lit) => {
                 let old = self.scope_id;
                 self.scope_id = self.new_scope();
-                let symbol = self.create_object_lit_ty_symbol(lit.id, Default::default());
+                self.create_object_lit_ty_symbol(lit.id, Default::default());
                 for m in lit.members {
                     self.bind_object_ty_member(lit.id, m);
                 }
@@ -984,11 +1173,14 @@ impl<'cx, 'atoms> BinderState<'cx, 'atoms> {
             }
             Ctor(n) => {
                 self.create_fn_ty_symbol(n.id, SymbolName::New);
+                let old = self.scope_id;
+                self.scope_id = self.new_scope();
                 if let Some(ty_params) = n.ty_params {
                     self.bind_ty_params(ty_params);
                 }
                 self.bind_params(n.params);
                 self.bind_ty(n.ty);
+                self.scope_id = old;
             }
             Lit(_) => {}
             Union(u) => {
@@ -1014,6 +1206,9 @@ impl<'cx, 'atoms> BinderState<'cx, 'atoms> {
                 assert!(n.ty_param.default.is_none());
                 assert!(n.ty_param.constraint.is_some());
                 self.bind_ty_param(n.ty_param);
+                if let Some(named_ty) = n.name_ty {
+                    self.bind_ty(named_ty);
+                }
                 if let Some(ty) = n.ty {
                     self.bind_ty(ty);
                 }
@@ -1080,16 +1275,18 @@ impl<'cx, 'atoms> BinderState<'cx, 'atoms> {
                 SymbolKind::FunctionScopedVar(FunctionScopedVarSymbol { decl: var_decl })
             }
         };
-        use bolt_ts_ast::Binding::*;
-        match binding {
+        use bolt_ts_ast::BindingKind::*;
+        match binding.kind {
             Ident(ident) => {
                 self.connect(ident.id);
                 let symbol =
                     self.create_var_symbol(ident.name, include_flags, symbol_kind(), exclude_flags);
                 self.create_final_res(ident.id, symbol);
                 if let Some(container) = container {
-                    let members = self.members(container, is_export);
-                    members.insert(SymbolName::Normal(ident.name), symbol);
+                    let name = SymbolName::Normal(ident.name);
+                    self.declare_symbol_and_add_to_symbol_table(
+                        container, name, symbol, binding.id, is_export,
+                    );
                 }
             }
             ObjectPat(object) => {
@@ -1120,6 +1317,7 @@ impl<'cx, 'atoms> BinderState<'cx, 'atoms> {
                     }
                 }
             }
+            ArrayPat(_) => todo!(),
         }
     }
 
@@ -1171,13 +1369,15 @@ impl<'cx, 'atoms> BinderState<'cx, 'atoms> {
     }
 
     pub(super) fn bind_param(&mut self, param: &'cx ast::ParamDecl) {
-        let symbol = self.create_var_symbol(
-            param.name.name,
+        self.bind_var_binding(
+            None,
+            false,
+            param.name,
+            ast::VarKind::Var,
+            param.id,
             SymbolFlags::FUNCTION_SCOPED_VARIABLE,
-            SymbolKind::FunctionScopedVar(FunctionScopedVarSymbol { decl: param.id }),
             SymbolFlags::empty(),
         );
-        self.create_final_res(param.id, symbol);
         if let Some(ty) = param.ty {
             self.bind_ty(ty);
         }
@@ -1188,21 +1388,186 @@ impl<'cx, 'atoms> BinderState<'cx, 'atoms> {
 
     fn bind_fn_decl(&mut self, container: ast::NodeID, f: &'cx ast::FnDecl<'cx>) {
         self.connect(f.id);
-        self.create_fn_symbol(container, f);
+        let symbol = self.create_fn_symbol(container, f);
+        let name = SymbolName::Normal(f.name.name);
+        let is_export = f
+            .modifiers
+            .is_some_and(|ms| ms.flags.contains(ModifierKind::Export));
+        self.declare_symbol_and_add_to_symbol_table(container, name, symbol, f.id, is_export);
+
+        let old_old = self.scope_id;
+        self.scope_id = self.new_scope();
 
         if let Some(ty_params) = f.ty_params {
             self.bind_ty_params(ty_params);
         }
 
-        let old = self.scope_id;
         self.scope_id = self.new_scope();
+
         self.bind_params(f.params);
-        if let Some(body) = f.body {
-            self.bind_block_stmt(body);
-        }
         if let Some(ty) = f.ty {
             self.bind_ty(ty);
         }
-        self.scope_id = old;
+        if let Some(body) = f.body {
+            self.bind_block_stmt(body);
+        }
+        self.scope_id = old_old;
+    }
+
+    pub(super) fn declare_symbol_and_add_to_symbol_table(
+        &mut self,
+        container: ast::NodeID,
+        name: SymbolName,
+        symbol: SymbolID,
+        current: ast::NodeID,
+        // TODO: delete `is_export`
+        is_export: bool,
+    ) {
+        let c = self.p.node(container);
+        use ast::Node::*;
+        match c {
+            NamespaceDecl(_) => self.declare_module_member(container, name, symbol, current),
+            _ => {
+                // TODO: handle more case:
+                if is_export {
+                    let members = self.members(container, true);
+                    members.insert(name, symbol);
+                } else {
+                    let members = self.members(container, false);
+                    members.insert(name, symbol);
+                }
+            }
+        }
+    }
+
+    fn declare_module_member(
+        &mut self,
+        container: ast::NodeID,
+        name: SymbolName,
+        symbol: SymbolID,
+        current: ast::NodeID,
+    ) {
+        assert!(self.p.node(container).is_namespace_decl());
+        let has_export_modifier = self
+            .p
+            .get_combined_modifier_flags(current)
+            .intersects(ModifierKind::Export);
+        if has_export_modifier
+            || self
+                .p
+                .node_flags_map
+                .get(container)
+                .intersects(bolt_ts_ast::NodeFlags::EXPORT_CONTEXT)
+        {
+            let members = self.members(container, true);
+            members.insert(name, symbol);
+        } else {
+            let members = self.members(container, false);
+            members.insert(name, symbol);
+        }
+    }
+
+    fn check_contextual_ident(&mut self, ident: ast::NodeID) {
+        // TODO:
+    }
+
+    fn bind(&mut self, node: ast::NodeID) {
+        let save_in_strict_mode = self.in_strict_mode;
+        self._bind(node);
+        self.in_strict_mode = save_in_strict_mode;
+    }
+
+    fn _bind(&mut self, node: ast::NodeID) {
+        let n = self.p.node(node);
+        use ast::Node::*;
+        match n {
+            Ident(_) => {
+                // TODO: identifier with NodeFlags.IdentifierIsInJSDocNamespace
+                if let Some(flow) = self.current_flow {
+                    self.flow_nodes.insert_container_map(node, flow);
+                }
+                self.check_contextual_ident(node);
+            }
+            ThisExpr(_) => {
+                if let Some(flow) = self.current_flow {
+                    self.flow_nodes.insert_container_map(node, flow);
+                }
+                self.check_contextual_ident(node);
+            }
+            QualifiedName(_) => {
+                if let Some(flow) = self.current_flow {
+                    if self.p.is_part_of_ty_query(node) {
+                        self.flow_nodes.insert_container_map(node, flow);
+                    }
+                }
+            }
+            // TODO: meta
+            SuperExpr(_) => {
+                if let Some(flow) = self.current_flow {
+                    self.flow_nodes.insert_container_map(node, flow);
+                } else {
+                    self.flow_nodes.reset_container_map(node);
+                }
+            }
+            // TODO: private
+            PropAccessExpr(p) => {
+                if let Some(flow) = self.current_flow {
+                    if self.is_narrowable_reference(p.expr) {
+                        self.flow_nodes.insert_container_map(node, flow);
+                    }
+                }
+                // TODO: is_special_prop_decl
+                // TODO: js
+            }
+            EleAccessExpr(e) => {
+                if let Some(flow) = self.current_flow {
+                    if self.ele_access_is_narrowable_reference(e) {
+                        self.flow_nodes.insert_container_map(node, flow);
+                    }
+                }
+                // TODO: is_special_prop_decl
+                // TODO: js
+            }
+            BinExpr(_) => {
+                // TODO: special_kind
+            }
+            CatchClause(_) => {
+                // TODO: self.check_strict_mode_catch_clause()
+            }
+            // TODO: delete expr
+            PostfixUnaryExpr(_) => {
+                // TODO: check
+            }
+            PrefixUnaryExpr(_) => {
+                // TODO: check
+            }
+            // TODO: with stmt
+            // TODO: label
+            // TODO: this type
+            _ => {}
+        }
+    }
+
+    fn ele_access_is_narrowable_reference(&self, n: &ast::EleAccessExpr) -> bool {
+        (n.arg.is_string_or_number_lit_like() || n.arg.is_prop_access_entity_name_expr())
+            && self.is_narrowable_reference(n.expr)
+    }
+
+    fn is_narrowable_reference(&self, expr: &ast::Expr<'_>) -> bool {
+        use ast::ExprKind::*;
+        match expr.kind {
+            // TODO: metaProperty
+            Ident(_) | This(_) | Super(_) => true,
+            PropAccess(n) => self.is_narrowable_reference(n.expr),
+            Paren(n) => self.is_narrowable_reference(n.expr),
+            NonNull(n) => self.is_narrowable_reference(n.expr),
+            EleAccess(n) => self.ele_access_is_narrowable_reference(n),
+            Bin(_) => {
+                // TODO: n.op.kind == Comma
+                false
+            }
+            Assign(n) => is_left_hand_side_expr_kind(n.left),
+            _ => false,
+        }
     }
 }

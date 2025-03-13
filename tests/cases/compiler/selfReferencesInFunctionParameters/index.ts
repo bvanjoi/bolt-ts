@@ -1,4 +1,4 @@
-// From `github.com/microsoft/TypeScript/blob/v5.7.3/tests/cases/compiler/selfReferencesInFunctionParameters.ts`, Apache-2.0 License
+// From `github.com/microsoft/TypeScript/blob/v5.8.2/tests/cases/compiler/selfReferencesInFunctionParameters.ts`, Apache-2.0 License
 
 function foo(x: number = x) {
   //~^ ERROR: Parameter 'x' cannot reference itself.

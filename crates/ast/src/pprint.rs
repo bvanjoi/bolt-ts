@@ -5,6 +5,14 @@ pub fn pprint_ident(ident: &super::Ident, atoms: &AtomMap) -> String {
     atoms.get(ident.name).to_string()
 }
 
+pub fn pprint_binding(binding: &super::Binding<'_>, atoms: &AtomMap) -> String {
+    match binding.kind {
+        super::BindingKind::Ident(ident) => pprint_ident(ident, atoms),
+        super::BindingKind::ObjectPat(pat) => todo!(),
+        crate::BindingKind::ArrayPat(pat) => todo!(),
+    }
+}
+
 #[cfg(debug_assertions)]
 pub fn pprint_entity_name(name: &super::EntityName, atoms: &AtomMap) -> String {
     match name.kind {

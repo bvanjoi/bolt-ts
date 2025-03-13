@@ -326,6 +326,7 @@ impl<'cx> Emit<'cx> {
                     ast::PropNameKind::Ident(ident) => this.emit_as_string(ident.name),
                     ast::PropNameKind::StringLit { raw, .. } => this.emit_as_string(raw.val),
                     ast::PropNameKind::NumLit(_) => todo!(),
+                    ast::PropNameKind::Computed(_) => todo!(),
                 }
                 this.content.p_r_bracket();
                 this.content.p_whitespace();
@@ -346,6 +347,7 @@ impl<'cx> Emit<'cx> {
                     ast::PropNameKind::Ident(ident) => this.emit_as_string(ident.name),
                     ast::PropNameKind::StringLit { raw, .. } => this.emit_as_string(raw.val),
                     ast::PropNameKind::NumLit(_) => todo!(),
+                    ast::PropNameKind::Computed(_) => todo!(),
                 }
             }
         })
@@ -424,10 +426,10 @@ impl<'cx> Emit<'cx> {
         }
     }
 
-    fn emit_binding(&mut self, binding: &'cx ast::Binding<'cx>) {
-        match binding {
-            ast::Binding::Ident(n) => self.emit_ident(n),
-            ast::Binding::ObjectPat(n) => {
+    pub(super) fn emit_binding(&mut self, binding: &'cx ast::Binding<'cx>) {
+        match binding.kind {
+            ast::BindingKind::Ident(n) => self.emit_ident(n),
+            ast::BindingKind::ObjectPat(n) => {
                 self.content.p_l_brace();
                 self.emit_list(
                     n.elems,
@@ -439,6 +441,7 @@ impl<'cx> Emit<'cx> {
                 );
                 self.content.p_r_brace();
             }
+            bolt_ts_ast::BindingKind::ArrayPat(_) => todo!(),
         };
     }
 
@@ -456,8 +459,8 @@ impl<'cx> Emit<'cx> {
 
         // var name
         fn sub_names_of_binding<'cx>(binding: &'cx ast::Binding<'cx>) -> Vec<bolt_ts_atom::AtomId> {
-            use bolt_ts_ast::Binding::*;
-            match binding {
+            use bolt_ts_ast::BindingKind::*;
+            match binding.kind {
                 Ident(n) => vec![n.name],
                 ObjectPat(n) => n
                     .elems
@@ -470,6 +473,7 @@ impl<'cx> Emit<'cx> {
                         }
                     })
                     .collect(),
+                ArrayPat(_) => todo!(),
             }
         }
 

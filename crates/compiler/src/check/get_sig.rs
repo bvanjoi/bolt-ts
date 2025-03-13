@@ -23,7 +23,7 @@ impl<'cx> TyChecker<'cx> {
         }
         let node = self.p.node(id);
         let ty_params = if let Some(ty_params) = node.ty_params() {
-            let mut res = vec![];
+            let mut res = Vec::with_capacity(ty_params.len());
             self.append_ty_params(&mut res, ty_params);
             let ty_params: ty::Tys<'cx> = self.alloc(res);
             Some(ty_params)
@@ -126,15 +126,16 @@ impl<'cx> TyChecker<'cx> {
         if let Some(ty_params) = sig.ty_params {
             // TODO: cache
             let ty_eraser = self.create_ty_eraser(ty_params);
-            let targets = self.alloc(
-                ty_params
+            let targets = {
+                let tys = ty_params
                     .iter()
-                    .map(|_| {
-                        // todo: get_constraint
-                        self.any_ty
+                    .map(|tp| {
+                        self.get_constraint_of_ty_param(tp)
+                            .unwrap_or(self.unknown_ty)
                     })
-                    .collect::<Vec<_>>(),
-            );
+                    .collect::<Vec<_>>();
+                self.alloc(tys)
+            };
             let base_constraint_mapper = self.create_ty_mapper(ty_params, targets);
             let base_constraints = ty_params
                 .iter()
@@ -292,12 +293,19 @@ fn get_sig_from_decl<'cx>(
             || node.is_ctor_sig_decl()
             || node.is_class_method_ele()
             || node.is_method_signature()
+            || node.is_object_method_member()
             || node.is_call_sig_decl()
             || node.is_fn_ty()
-            || node.is_ctor_ty(),
+            || node.is_ctor_ty()
+            || node.is_getter_decl()
+            || node.is_setter_decl(),
         "node: {node:#?}",
     );
-    let params_of_node = node.params().unwrap();
+    let params_of_node = if node.is_getter_decl() {
+        Default::default()
+    } else {
+        node.params().unwrap()
+    };
     let has_rest_param = params_of_node
         .last()
         .map(|param| param.dotdotdot.is_some())
@@ -307,7 +315,11 @@ fn get_sig_from_decl<'cx>(
     let mut min_args_count = 0;
     let mut params = Vec::with_capacity(params_of_node.len());
     for param in params_of_node {
-        let symbol = checker.final_res(param.id);
+        let symbol = match param.name.kind {
+            ast::BindingKind::Ident(ident) => checker.final_res(ident.id),
+            ast::BindingKind::ObjectPat(_) => todo!(),
+            bolt_ts_ast::BindingKind::ArrayPat(array_pat) => todo!(),
+        };
         params.push(symbol);
         let is_opt = param.question.is_some() || param.dotdotdot.is_some() || param.init.is_some();
         if !is_opt {
@@ -337,6 +349,9 @@ fn get_sig_from_decl<'cx>(
         ast::Node::CallSigDecl(f) => f.ty.map(|ty| ty.id()),
         ast::Node::FnTy(f) => Some(f.ty.id()),
         ast::Node::CtorTy(f) => Some(f.ty.id()),
+        ast::Node::GetterDecl(f) => f.ty.map(|ty| ty.id()),
+        ast::Node::ObjectMethodMember(f) => f.ty.map(|ty| ty.id()),
+        ast::Node::SetterDecl(_) => None,
         _ => unreachable!(),
     };
     Sig {

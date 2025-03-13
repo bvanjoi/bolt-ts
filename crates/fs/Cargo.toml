@@ -11,3 +11,4 @@ bolt_ts_atom = { path = "../atom" }
 bolt_ts_utils = { path = "../utils" }
 rustc-hash = { workspace = true }
 indexmap = { workspace = true, features = ["serde"] }
+glob = "0.3.1"

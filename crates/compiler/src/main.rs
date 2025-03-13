@@ -40,10 +40,8 @@ fn main() {
 fn main_test() {
     compile_test::ensure_node_exist();
     let project_root: PathBuf = project_root::get_project_root().unwrap();
-    let case_root = project_root.join("tests/cases/compiler/fest/");
-    if !case_root.is_dir() {
-        panic!("'{:#?}' not found", case_root.display());
-    }
+    let case_root = project_root.join("tests/cases/compiler/partialTypeNarrowedToByTypeGuard/");
+    assert!(case_root.is_dir(), "'{case_root:#?}' not found.",);
     let tsconfig_file = case_root.join(bolt_ts_compiler::DEFAULT_TSCONFIG);
     let tsconfig = if tsconfig_file.is_file() {
         let s = std::fs::read_to_string(tsconfig_file).unwrap();
@@ -57,12 +55,7 @@ fn main_test() {
         let mut file_paths = vec![];
         for (m, contents) in &output.output {
             let p = output.module_arena.get_path(*m);
-            let file_path = match p {
-                bolt_ts_span::ModulePath::Real(p) => {
-                    compile_test::temp_node_file(p.file_stem().unwrap().to_str().unwrap())
-                }
-                bolt_ts_span::ModulePath::Virtual => todo!(),
-            };
+            let file_path = compile_test::temp_node_file(p.file_stem().unwrap().to_str().unwrap());
             std::fs::write(file_path.as_path(), contents).unwrap();
             file_paths.push(file_path);
         }

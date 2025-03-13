@@ -21,7 +21,7 @@ impl<'cx> Emit<'cx> {
         if param.dotdotdot.is_some() {
             self.content.p_dot_dot_dot();
         }
-        self.emit_ident(param.name);
+        self.emit_binding(param.name);
         if let Some(init) = param.init {
             self.content.p_whitespace();
             self.content.p_eq();
@@ -40,6 +40,7 @@ impl<'cx> Emit<'cx> {
             Ident(ident) => self.emit_ident(ident),
             NumLit(num) => self.emit_num_lit(num),
             StringLit { raw, .. } => self.emit_string_lit(raw),
+            Computed(_) => todo!(),
         }
     }
 

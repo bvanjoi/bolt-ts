@@ -1,6 +1,6 @@
   × Object literal may only specify known properties, and 'name' does not
   │ exist.
-   ╭─[../../tests/cases/compiler/contextualTyping17/index.ts:1:47]
- 1 │ name:"foo"
+   ╭─[../../tests/cases/compiler/contextualTyping17/index.ts:3:47]
+ 3 │ name:"foo"
    · ──────────
    ╰────

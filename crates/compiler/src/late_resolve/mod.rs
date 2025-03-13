@@ -1,7 +1,7 @@
 mod errors;
 
 use crate::bind::{
-    BinderState, BlockContainerSymbol, GlobalSymbols, SymbolFlags, SymbolID, SymbolName, Symbols,
+    BinderResult, BlockContainerSymbol, GlobalSymbols, SymbolFlags, SymbolID, SymbolName, Symbols,
 };
 use crate::graph::{ModuleGraph, ModuleRes};
 use crate::parser;
@@ -24,7 +24,7 @@ pub struct ResolveResult {
 }
 
 pub fn late_resolve<'cx>(
-    mut states: Vec<BinderState<'cx, '_>>,
+    mut states: Vec<BinderResult<'cx>>,
     modules: &[Module],
     mg: &'cx ModuleGraph,
     p: &'cx parser::Parser<'cx>,
@@ -76,12 +76,12 @@ pub fn late_resolve<'cx>(
 struct Resolver<'cx, 'r, 'atoms> {
     mg: &'cx ModuleGraph,
     module_id: ModuleID,
-    states: &'r mut Vec<BinderState<'cx, 'atoms>>,
+    states: &'r mut Vec<BinderResult<'cx>>,
     p: &'cx parser::Parser<'cx>,
     pub diags: Vec<bolt_ts_errors::Diag>,
     global: &'cx GlobalSymbols,
     deep_res: FxHashMap<ast::NodeID, SymbolID>,
-    atoms: &'cx AtomMap<'cx>,
+    atoms: &'atoms AtomMap<'cx>,
 }
 
 impl Resolver<'_, '_, '_> {
@@ -129,7 +129,7 @@ impl<'cx> ast::Visitor<'cx> for Resolver<'cx, '_, '_> {
         if let Some(clause) = node.clause.kind {
             use bolt_ts_ast::ImportClauseKind::*;
             match clause {
-                Ns(n) => {}
+                Ns(_) => {}
                 Specs(specs) => {
                     for spec in specs {
                         use bolt_ts_ast::ImportSpecKind::*;

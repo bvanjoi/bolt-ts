@@ -15,7 +15,8 @@ impl<'cx> TyChecker<'cx> {
             }
         }
 
-        let symbol = if self.p.node(decl_id).is_var_decl() {
+        let d = self.p.node(decl_id);
+        let symbol = if d.is_var_decl() || d.is_param_decl() {
             self.get_symbol_of_decl(name_id)
         } else {
             self.get_symbol_of_decl(decl_id)

@@ -12,7 +12,6 @@ use std::sync::{Arc, Mutex};
 use bolt_ts_atom::{AtomId, AtomMap};
 use bolt_ts_fs::PathId;
 use bolt_ts_resolve::RResult;
-use bolt_ts_span::ModulePath;
 use bolt_ts_utils::{fx_hashmap_with_capacity, fx_hashset_with_capacity};
 use rayon::prelude::*;
 use rustc_hash::{FxHashMap, FxHashSet};
@@ -78,9 +77,7 @@ pub(super) fn build_graph<'cx>(
         let modules = parse_parallel(atoms.clone(), herd, resolving.as_slice(), module_arena)
             .map(|(module_id, parse_result)| {
                 let deps = collect_deps(parse_result.root());
-                let ModulePath::Real(file_path) = module_arena.get_path(module_id) else {
-                    todo!()
-                };
+                let file_path = module_arena.get_path(module_id);
                 let base_dir = file_path.parent().unwrap();
                 let base_dir = PathId::get(base_dir);
                 let deps = deps
@@ -96,9 +93,7 @@ pub(super) fn build_graph<'cx>(
             .collect::<Vec<_>>();
 
         for item in resolving {
-            let ModulePath::Real(p) = module_arena.get_path(item) else {
-                todo!()
-            };
+            let p = module_arena.get_path(item);
             let path_id = PathId::get(p);
             resolved.insert(path_id, item);
         }
@@ -135,13 +130,7 @@ pub(super) fn build_graph<'cx>(
                         } else {
                             let p = std::path::PathBuf::from(atoms.get(dep.into()));
                             let content = fs.read_file(p.as_path(), atoms).unwrap();
-                            let module_path = ModulePath::Real(p);
-                            let to = module_arena.new_module_with_content(
-                                module_path,
-                                false,
-                                content,
-                                atoms,
-                            );
+                            let to = module_arena.new_module_with_content(p, false, content, atoms);
                             next.insert(dep, to);
                             to
                         }
