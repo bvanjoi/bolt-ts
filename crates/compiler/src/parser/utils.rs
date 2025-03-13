@@ -808,3 +808,8 @@ impl<'cx> ParserState<'cx, '_> {
         Ok(decl)
     }
 }
+
+pub(super) fn is_declaration_filename(filename: &[u8]) -> bool {
+    const SUFFIX: &[u8] = b".d.ts";
+    filename.ends_with(SUFFIX)
+}

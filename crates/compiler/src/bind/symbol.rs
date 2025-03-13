@@ -4,7 +4,7 @@ use bolt_ts_utils::fx_hashmap_with_capacity;
 use rustc_hash::FxHashMap;
 
 use crate::check::F64Represent;
-use bolt_ts_ast::{NodeID, keyword};
+use bolt_ts_ast::NodeID;
 
 #[derive(Debug, Clone, Copy, Hash, PartialEq, Eq)]
 pub enum SymbolName {

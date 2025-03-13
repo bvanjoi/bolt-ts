@@ -23,8 +23,9 @@ pub use node_flags::NodeFlags;
 #[derive(Debug, Clone, Copy)]
 pub struct Program<'cx> {
     pub id: NodeID,
-    pub stmts: Stmts<'cx>,
     pub span: Span,
+    pub is_declaration: bool,
+    pub stmts: Stmts<'cx>,
 }
 
 #[derive(Debug, Clone, Copy)]

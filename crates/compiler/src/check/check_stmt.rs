@@ -5,7 +5,7 @@ use super::TyChecker;
 use super::ast;
 use super::errors;
 use super::ty;
-use super::utils::is_external_module_relative;
+use crate::path::is_external_module_relative;
 
 impl<'cx> TyChecker<'cx> {
     pub(super) fn check_stmt(&mut self, stmt: &'cx ast::Stmt) {

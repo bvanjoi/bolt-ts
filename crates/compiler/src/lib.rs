@@ -7,6 +7,7 @@ mod graph;
 mod ir;
 mod late_resolve;
 pub mod parser;
+mod path;
 mod ty;
 mod wf;
 
@@ -174,7 +175,7 @@ pub fn eval_from_with_fs(
     let atoms = Arc::try_unwrap(atoms).unwrap();
     let mut atoms = atoms.into_inner().unwrap();
 
-    let mut bind_list = bind_parallel(module_arena.modules(), &atoms, &p);
+    let mut bind_list = bind_parallel(module_arena.modules(), &atoms, &p, &tsconfig);
 
     let flow_nodes = bind_list
         .iter_mut()

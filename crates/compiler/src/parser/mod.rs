@@ -22,6 +22,7 @@ use bolt_ts_utils::fx_hashmap_with_capacity;
 
 use rayon::prelude::*;
 use rustc_hash::FxHashMap;
+use utils::is_declaration_filename;
 
 pub use self::query::AccessKind;
 pub use self::query::AssignmentKind;
@@ -182,7 +183,13 @@ pub fn parse_parallel<'cx, 'p>(
         || herd.get(),
         move |bump, module_id| {
             let input = module_arena.get_content(*module_id);
-            let result = parse(atoms.clone(), bump, input.as_bytes(), *module_id);
+            let result = parse(
+                atoms.clone(),
+                bump,
+                input.as_bytes(),
+                *module_id,
+                module_arena,
+            );
             // assert!(!module_arena.get_module(*module_id).global || result.diags.is_empty());
             (*module_id, result)
         },
@@ -194,11 +201,13 @@ fn parse<'cx, 'p>(
     arena: &'p bumpalo_herd::Member<'cx>,
     input: &'p [u8],
     module_id: ModuleID,
+    module_arena: &'p ModuleArena,
 ) -> ParseResult<'cx> {
     let nodes = Nodes::new();
     let parent_map = ParentMap::new();
     let mut s = ParserState::new(atoms, arena, nodes, parent_map, input, module_id);
-    s.parse();
+    let file_path = module_arena.get_path(module_id);
+    s.parse(file_path);
     ParseResult {
         diags: s.diags,
         nodes: s.nodes,
@@ -485,7 +494,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         self.parent_map.insert(id, self.parent);
     }
 
-    pub fn parse(&mut self) -> &'cx ast::Program<'cx> {
+    pub fn parse(&mut self, file_path: &std::path::Path) -> &'cx ast::Program<'cx> {
         let start = self.pos;
         let id = self.next_node_id();
         self.with_parent(id, |this| {
@@ -496,10 +505,12 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
                     stmts.push(stmt);
                 }
             }
+            use std::os::unix::ffi::OsStrExt;
             let program = this.alloc(ast::Program {
                 id,
                 stmts,
                 span: this.new_span(start as u32),
+                is_declaration: is_declaration_filename(file_path.as_os_str().as_bytes()),
             });
             this.nodes.insert(id, Node::Program(program));
             program

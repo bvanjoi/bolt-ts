@@ -52,7 +52,7 @@ mod resolve_structured_member;
 mod transient_symbol;
 mod type_assignable;
 mod type_predicate;
-mod utils;
+pub mod utils;
 
 use bolt_ts_atom::{AtomId, AtomMap};
 

@@ -44,7 +44,8 @@ with_option!(
     (strict_null_checks, bool),
     (no_implicit_any, bool),
     (no_unchecked_indexed_access, bool),
-    (target, RawTarget)
+    (target, RawTarget),
+    (always_strict, bool),
 );
 
 impl RawCompilerOptions {
@@ -57,6 +58,7 @@ impl RawCompilerOptions {
         let strict_null_checks = get_strict_option_value(self.strict_null_checks);
         let no_implicit_any = get_strict_option_value(self.no_implicit_any);
         let no_unchecked_indexed_access = self.no_unchecked_indexed_access.unwrap_or_default();
+        let always_strict = get_strict_option_value(self.always_strict);
         let target = self.target.unwrap_or_default().into();
         super::NormalizedCompilerOptions {
             out_dir,
@@ -67,6 +69,7 @@ impl RawCompilerOptions {
             strict_null_checks,
             no_implicit_any,
             no_unchecked_indexed_access,
+            always_strict,
         }
     }
 }

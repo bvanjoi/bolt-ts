@@ -13,6 +13,7 @@ use super::symbol::{SymbolID, SymbolName, Symbols};
 
 use bolt_ts_ast::ModifierKind;
 use bolt_ts_atom::AtomMap;
+use bolt_ts_config::NormalizedTsConfig;
 use bolt_ts_span::ModuleID;
 use bolt_ts_utils::fx_hashmap_with_capacity;
 use thin_vec::thin_vec;
@@ -24,11 +25,19 @@ use crate::parser::Parser;
 use bolt_ts_ast as ast;
 
 impl<'cx, 'atoms> BinderState<'cx, 'atoms> {
-    pub fn new(atoms: &'atoms AtomMap<'cx>, parser: &'cx Parser<'cx>, module_id: ModuleID) -> Self {
+    pub fn new(
+        atoms: &'atoms AtomMap<'cx>,
+        parser: &'cx Parser<'cx>,
+        root: &'cx ast::Program<'cx>,
+        module_id: ModuleID,
+        options: &NormalizedTsConfig,
+    ) -> Self {
         let symbols = Symbols::new(module_id);
         let mut flow_nodes = FlowNodes::new(module_id);
         let unreachable_flow_node = flow_nodes.create_flow_unreachable();
         let report_unreachable_flow_node = flow_nodes.create_flow_unreachable();
+
+        let in_strict_mode = !root.is_declaration || *options.compiler_options().always_strict();
 
         BinderState {
             atoms,
@@ -42,6 +51,7 @@ impl<'cx, 'atoms> BinderState<'cx, 'atoms> {
             diags: Vec::new(),
 
             flow_nodes,
+            in_strict_mode,
             current_flow: None,
             current_true_target: None,
             current_false_target: None,

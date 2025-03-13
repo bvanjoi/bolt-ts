@@ -10,6 +10,7 @@ mod pprint;
 mod symbol;
 
 use bolt_ts_atom::AtomMap;
+use bolt_ts_config::NormalizedTsConfig;
 use bolt_ts_span::Module;
 use bolt_ts_span::ModuleID;
 
@@ -92,6 +93,7 @@ pub struct BinderState<'cx, 'atoms> {
 
     pub(crate) flow_nodes: FlowNodes<'cx>,
     current_flow: Option<FlowID>,
+    in_strict_mode: bool,
     has_flow_effects: bool,
     in_return_position: bool,
     current_true_target: Option<FlowID>,
@@ -109,6 +111,7 @@ pub fn bind_parallel<'cx, 'atoms>(
     modules: &[Module],
     atoms: &'atoms AtomMap<'cx>,
     parser: &'cx Parser<'cx>,
+    options: &NormalizedTsConfig,
 ) -> Vec<BinderState<'cx, 'atoms>> {
     modules
         .into_par_iter()
@@ -116,7 +119,7 @@ pub fn bind_parallel<'cx, 'atoms>(
             let module_id = m.id;
             let is_global = m.global;
             let root = parser.root(module_id);
-            let bind_result = bind(atoms, parser, root, module_id);
+            let bind_result = bind(atoms, parser, root, module_id, options);
             assert!(!is_global || bind_result.diags.is_empty());
             bind_result
         })
@@ -128,8 +131,9 @@ fn bind<'cx, 'atoms>(
     parser: &'cx Parser<'cx>,
     root: &'cx ast::Program,
     module_id: ModuleID,
+    options: &NormalizedTsConfig,
 ) -> BinderState<'cx, 'atoms> {
-    let mut state = BinderState::new(atoms, parser, module_id);
+    let mut state = BinderState::new(atoms, parser, root, module_id, options);
     state.bind_program(root);
     state
 }
