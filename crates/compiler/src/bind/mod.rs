@@ -30,6 +30,13 @@ use crate::parser::ParseResult;
 use crate::parser::Parser;
 use bolt_ts_ast as ast;
 
+#[derive(Clone, Copy, PartialEq)]
+pub(crate) enum ModuleInstanceState {
+    NonInstantiated = 0,
+    Instantiated = 1,
+    ConstEnumOnly = 2,
+}
+
 bolt_ts_utils::module_index!(ScopeID);
 
 impl ScopeID {

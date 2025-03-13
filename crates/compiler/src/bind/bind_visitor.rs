@@ -1,5 +1,6 @@
 use super::BinderState;
 use super::FlowNodes;
+use super::ModuleInstanceState;
 use super::ScopeID;
 use super::container_flags::ContainerFlags;
 use super::container_flags::GetContainerFlags;
@@ -308,13 +309,22 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
                 return;
             }
         };
-        let flags = if ns.block.is_some_and(|block| block.stmts.is_empty()) {
-            SymbolFlags::NAMESPACE_MODULE
-        } else {
+
+        if ns.is_ambient() {
+            todo!()
+        }
+
+        let state = self.p.get_module_instance_state(ns, None);
+        let instantiated = state != ModuleInstanceState::NonInstantiated;
+        let flags = if instantiated {
             SymbolFlags::VALUE_MODULE
+        } else {
+            SymbolFlags::NAMESPACE_MODULE
         };
+
+        let name = SymbolName::Normal(name);
         let symbol = self.declare_symbol_with_ns(
-            SymbolName::Normal(name),
+            name,
             flags,
             super::symbol::NsSymbol {
                 decls: thin_vec::thin_vec![ns.id],
@@ -327,13 +337,8 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
         let is_export = ns
             .modifiers
             .is_some_and(|mods| mods.flags.contains(ast::ModifierKind::Export));
-        let name = SymbolName::Normal(name);
         self.members(container, is_export).insert(name, symbol);
-
-        let container = self.final_res[&container];
-        if let SymbolKind::BlockContainer(c) = &mut self.symbols.get_mut(container).kind.0 {
-            c.locals.insert(name, symbol);
-        }
+        self.declare_symbol_and_add_to_symbol_table(container, name, symbol, ns.id, is_export);
         if let Some(block) = ns.block {
             self.bind_block_stmt_with_container(ns.id, block);
         }

@@ -186,9 +186,20 @@ pub struct ThrowStmt<'cx> {
 pub struct NsDecl<'cx> {
     pub id: NodeID,
     pub span: Span,
+    pub is_global_argument: bool,
     pub modifiers: Option<&'cx Modifiers<'cx>>,
     pub name: ModuleName<'cx>,
     pub block: Option<&'cx ModuleBlock<'cx>>,
+}
+
+impl NsDecl<'_> {
+    pub fn is_ambient(&self) -> bool {
+        matches!(self.name, ModuleName::StringLit(_)) || self.is_global_scope_argument()
+    }
+
+    pub fn is_global_scope_argument(&self) -> bool {
+        self.is_global_argument
+    }
 }
 
 #[derive(Debug, Clone, Copy)]

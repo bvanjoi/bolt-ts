@@ -4,6 +4,8 @@ use bolt_ts_span::ModuleID;
 
 use bolt_ts_ast::CallExpr;
 
+use crate::bind::ModuleInstanceState;
+
 use super::ParseResult;
 use super::Parser;
 use super::ast;
@@ -156,6 +158,89 @@ impl<'cx> ParseResult<'cx> {
             }
         }
         None
+    }
+
+    fn is_enum_const(&self, e: &ast::EnumDecl) -> bool {
+        self.get_combined_modifier_flags(e.id)
+            .intersects(ast::ModifierKind::Const)
+    }
+
+    pub(crate) fn get_module_instance_state(
+        &self,
+        m: &'cx ast::NsDecl<'cx>,
+        visited: Option<&mut nohash_hasher::IntMap<u32, Option<ModuleInstanceState>>>,
+    ) -> ModuleInstanceState {
+        fn cache(
+            this: &ParseResult,
+            node: ast::NodeID,
+            visited: &mut nohash_hasher::IntMap<u32, Option<ModuleInstanceState>>,
+        ) -> ModuleInstanceState {
+            let key = node.index_as_u32();
+            if let Some(v) = visited.get(&key).copied() {
+                v.unwrap_or(ModuleInstanceState::Instantiated)
+            } else {
+                visited.insert(key, None);
+                let state = _get_module_instance_state(this, node, visited);
+                visited.insert(key, Some(state));
+                state
+            }
+        }
+
+        fn _get_module_instance_state(
+            this: &ParseResult,
+            node: ast::NodeID,
+            visited: &mut nohash_hasher::IntMap<u32, Option<ModuleInstanceState>>,
+        ) -> ModuleInstanceState {
+            let n = this.node(node);
+            use ast::Node::*;
+            match n {
+                InterfaceDecl(_) | TypeDecl(_) => ModuleInstanceState::Instantiated,
+                EnumDecl(e) if this.is_enum_const(e) => ModuleInstanceState::ConstEnumOnly,
+                // TODO: import eq
+                ImportDecl(_) if !n.has_syntactic_modifier(ast::ModifierKind::Export.into()) => {
+                    ModuleInstanceState::NonInstantiated
+                }
+                ExportDecl(_) => {
+                    todo!()
+                }
+                ModuleBlock(m) => {
+                    let mut state = ModuleInstanceState::NonInstantiated;
+                    for item in m.stmts {
+                        let child_state = cache(this, item.id(), visited);
+                        match child_state {
+                            ModuleInstanceState::NonInstantiated => (),
+                            ModuleInstanceState::Instantiated => {
+                                state = ModuleInstanceState::Instantiated
+                            }
+                            ModuleInstanceState::ConstEnumOnly => {
+                                state = ModuleInstanceState::ConstEnumOnly
+                            }
+                        }
+                    }
+                    state
+                }
+                NamespaceDecl(ns) => this.get_module_instance_state(ns, Some(visited)),
+                Ident(_)
+                    if this
+                        .node_flags(node)
+                        .intersects(ast::NodeFlags::IDENTIFIER_IS_IN_JS_DOC_NAMESPACE) =>
+                {
+                    ModuleInstanceState::NonInstantiated
+                }
+                _ => ModuleInstanceState::Instantiated,
+            }
+        }
+
+        if let Some(block) = m.block {
+            if let Some(visited) = visited {
+                cache(self, block.id, visited)
+            } else {
+                let mut default_map = nohash_hasher::IntMap::default();
+                cache(self, block.id, &mut default_map)
+            }
+        } else {
+            ModuleInstanceState::Instantiated
+        }
     }
 }
 

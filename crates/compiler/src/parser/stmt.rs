@@ -333,7 +333,14 @@ impl<'cx> ParserState<'cx, '_> {
         let name = self.parse_ident_name()?;
         let block = self.parse_module_block()?;
         let span = self.new_span(start);
-        Ok(self.create_ns_decl(id, span, mods, ast::ModuleName::Ident(name), Some(block)))
+        Ok(self.create_ns_decl(
+            id,
+            span,
+            mods,
+            ast::ModuleName::Ident(name),
+            Some(block),
+            false,
+        ))
     }
 
     pub(super) fn is_ident_name(&self, name: AtomId) -> bool {
@@ -364,8 +371,12 @@ impl<'cx> ParserState<'cx, '_> {
         mods: Option<&'cx ast::Modifiers<'cx>>,
     ) -> PResult<&'cx ast::NsDecl<'cx>> {
         let name;
+        let mut flags = NodeFlags::default();
+        let mut is_global_argument = false;
         if self.is_ident_name(IDENT_GLOBAL) {
-            todo!()
+            name = ast::ModuleName::Ident(self.create_ident(true, None));
+            flags |= NodeFlags::GLOBAL_AUGMENTATION;
+            is_global_argument = true;
         } else {
             name = ast::ModuleName::StringLit(self.parse_string_lit());
         }
@@ -376,7 +387,7 @@ impl<'cx> ParserState<'cx, '_> {
             None
         };
         let span = self.new_span(start);
-        Ok(self.create_ns_decl(id, span, mods, name, block))
+        Ok(self.create_ns_decl(id, span, mods, name, block, is_global_argument))
     }
 
     fn create_ns_decl(
@@ -386,6 +397,7 @@ impl<'cx> ParserState<'cx, '_> {
         modifiers: Option<&'cx bolt_ts_ast::Modifiers<'cx>>,
         name: bolt_ts_ast::ModuleName<'cx>,
         block: Option<&'cx bolt_ts_ast::ModuleBlock<'cx>>,
+        is_global_argument: bool,
     ) -> &'cx ast::NsDecl<'cx> {
         let flags = if self.context_flags.intersects(ast::NodeFlags::AMBIENT)
             && block.is_some_and(|body| !has_export_decls(&body.stmts))
@@ -400,6 +412,7 @@ impl<'cx> ParserState<'cx, '_> {
             modifiers,
             name,
             block,
+            is_global_argument,
         });
         self.node_flags_map.insert(id, flags);
         self.insert_map(id, ast::Node::NamespaceDecl(decl));
