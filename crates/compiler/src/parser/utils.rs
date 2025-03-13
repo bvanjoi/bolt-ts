@@ -24,7 +24,7 @@ impl<T, E> ParseSuccess for Result<Option<T>, E> {
     }
 }
 
-pub(super) fn is_left_hand_side_expr_kind(expr: &ast::Expr) -> bool {
+pub(crate) fn is_left_hand_side_expr_kind(expr: &ast::Expr) -> bool {
     use bolt_ts_ast::ExprKind::*;
     matches!(
         expr.kind,

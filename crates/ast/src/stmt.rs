@@ -186,10 +186,16 @@ pub struct ThrowStmt<'cx> {
 pub struct NsDecl<'cx> {
     pub id: NodeID,
     pub span: Span,
-    pub flags: NodeFlags,
     pub modifiers: Option<&'cx Modifiers<'cx>>,
     pub name: ModuleName<'cx>,
-    pub block: Option<&'cx BlockStmt<'cx>>,
+    pub block: Option<&'cx ModuleBlock<'cx>>,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct ModuleBlock<'cx> {
+    pub id: NodeID,
+    pub span: Span,
+    pub stmts: self::Stmts<'cx>,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -402,7 +408,6 @@ pub struct ClassCtor<'cx> {
 #[derive(Debug, Clone, Copy)]
 pub struct ClassMethodElem<'cx> {
     pub id: NodeID,
-    pub flags: NodeFlags,
     pub span: Span,
     pub modifiers: Option<&'cx Modifiers<'cx>>,
     pub name: &'cx PropName<'cx>,
@@ -491,7 +496,6 @@ pub type VarDecls<'cx> = &'cx [&'cx VarDecl<'cx>];
 #[derive(Debug, Clone, Copy)]
 pub struct VarStmt<'cx> {
     pub id: NodeID,
-    pub flags: NodeFlags,
     pub kind: VarKind,
     pub span: Span,
     pub modifiers: Option<&'cx Modifiers<'cx>>,
@@ -591,7 +595,6 @@ pub struct Modifier {
 pub struct FnDecl<'cx> {
     pub id: NodeID,
     pub span: Span,
-    pub flags: NodeFlags,
     pub modifiers: Option<&'cx Modifiers<'cx>>,
     pub name: &'cx Ident,
     pub ty_params: Option<TyParams<'cx>>,

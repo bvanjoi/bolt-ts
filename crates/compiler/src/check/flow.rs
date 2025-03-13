@@ -231,7 +231,12 @@ impl<'cx> TyChecker<'cx> {
         assume_true: bool,
     ) -> &'cx ty::Ty<'cx> {
         if self.has_matching_arg(expr, refer) {
-            let sig = if assume_true || !call_expr.is_call_chain() {
+            let sig = if assume_true
+                || !self
+                    .p
+                    .node_flags(call_expr.id)
+                    .intersects(ast::NodeFlags::OPTIONAL_CHAIN)
+            {
                 self.get_effects_sig(call_expr.id)
             } else {
                 None

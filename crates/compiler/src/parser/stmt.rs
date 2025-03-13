@@ -340,8 +340,21 @@ impl<'cx> ParserState<'cx, '_> {
         self.token.kind.is_ident_or_keyword() && self.ident_token() == name
     }
 
-    fn parse_module_block(&mut self) -> PResult<&'cx ast::BlockStmt<'cx>> {
-        self.parse_block()
+    fn parse_module_block(&mut self) -> PResult<&'cx ast::ModuleBlock<'cx>> {
+        let id = self.next_node_id();
+        let start = self.token.start();
+        self.expect(TokenKind::LBrace);
+        let stmts = self.with_parent(id, |this| {
+            this.parse_list(list_ctx::BlockStmts, Self::parse_stmt)
+        });
+        self.expect(TokenKind::RBrace);
+        let block = self.alloc(ast::ModuleBlock {
+            id,
+            span: self.new_span(start),
+            stmts,
+        });
+        self.insert_map(id, ast::Node::ModuleBlock(block));
+        Ok(block)
     }
 
     fn parse_ambient_external_module_decl(
@@ -372,7 +385,7 @@ impl<'cx> ParserState<'cx, '_> {
         span: bolt_ts_span::Span,
         modifiers: Option<&'cx bolt_ts_ast::Modifiers<'cx>>,
         name: bolt_ts_ast::ModuleName<'cx>,
-        block: Option<&'cx bolt_ts_ast::BlockStmt<'cx>>,
+        block: Option<&'cx bolt_ts_ast::ModuleBlock<'cx>>,
     ) -> &'cx ast::NsDecl<'cx> {
         let flags = if self.context_flags.intersects(ast::NodeFlags::AMBIENT)
             && block.is_some_and(|body| !has_export_decls(&body.stmts))
@@ -387,8 +400,8 @@ impl<'cx> ParserState<'cx, '_> {
             modifiers,
             name,
             block,
-            flags,
         });
+        self.node_flags_map.insert(id, flags);
         self.insert_map(id, ast::Node::NamespaceDecl(decl));
         decl
     }
@@ -786,12 +799,12 @@ impl<'cx> ParserState<'cx, '_> {
         let span = self.new_span(start);
         let node = self.alloc(ast::VarStmt {
             id,
-            flags,
             kind,
             span,
             modifiers,
             list,
         });
+        self.node_flags_map.insert(id, flags);
         self.insert_map(id, ast::Node::VarStmt(node));
         self.parse_semi();
         node

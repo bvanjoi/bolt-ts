@@ -1633,11 +1633,7 @@ impl<'cx> TyChecker<'cx> {
         let assume_initialized = is_param
             || is_alias
             || (is_outer_variable && !is_never_initialized)
-            || self
-                .p
-                .node(decl)
-                .node_flags()
-                .intersects(ast::NodeFlags::AMBIENT);
+            || self.p.node_flags(decl).intersects(ast::NodeFlags::AMBIENT);
         let init_ty = if is_automatic_ty_is_non_null {
             self.undefined_ty
         } else if assume_initialized {

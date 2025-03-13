@@ -432,7 +432,6 @@ impl<'cx> ParserState<'cx, '_> {
                     let call = this.alloc(ast::CallExpr {
                         id,
                         span: this.new_span(start as u32),
-                        flags: NodeFlags::empty(),
                         ty_args,
                         expr,
                         args,
@@ -675,6 +674,7 @@ impl<'cx> ParserState<'cx, '_> {
                 ast::ExprKind::NullLit(lit)
             }
             String | NoSubstitutionTemplate => {
+                // TODO: NoSubstitutionTemplateLit
                 let lit = self.parse_string_lit();
                 ast::ExprKind::StringLit(lit)
             }

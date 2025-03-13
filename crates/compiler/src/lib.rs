@@ -19,6 +19,7 @@ use self::bind::GlobalSymbols;
 use self::bind::bind_parallel;
 use self::early_resolve::early_resolve_parallel;
 use self::wf::well_formed_check_parallel;
+use bind::BinderResult;
 use bolt_ts_ast::TokenKind;
 use bolt_ts_ast::keyword_idx_to_token;
 
@@ -29,6 +30,7 @@ use bolt_ts_fs::CachedFileSystem;
 use bolt_ts_span::{ModuleArena, ModuleID, ModulePath};
 
 use normalize_path::NormalizePath;
+use parser::{ParseResult, Parser};
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
 use rustc_hash::FxHashMap;
 
@@ -175,7 +177,14 @@ pub fn eval_from_with_fs(
     let atoms = Arc::try_unwrap(atoms).unwrap();
     let mut atoms = atoms.into_inner().unwrap();
 
-    let mut bind_list = bind_parallel(module_arena.modules(), &atoms, &p, &tsconfig);
+    let (mut bind_list, p) = {
+        let (bind_list, p_map): (Vec<BinderResult>, Vec<ParseResult>) =
+            bind_parallel(module_arena.modules(), &atoms, p, &tsconfig)
+                .into_iter()
+                .unzip();
+        let p = Parser::new_with_maps(p_map);
+        (bind_list, p)
+    };
 
     let flow_nodes = bind_list
         .iter_mut()

@@ -122,7 +122,9 @@ impl<'cx> TyChecker<'cx> {
 
     fn check_ns_decl(&mut self, ns: &'cx ast::NsDecl<'cx>) {
         if let Some(block) = ns.block {
-            self.check_block(block);
+            for item in block.stmts {
+                self.check_stmt(item);
+            }
         }
 
         let is_ambient_external_module = matches!(ns.name, ast::ModuleName::StringLit(_));

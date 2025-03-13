@@ -1,6 +1,8 @@
 use super::BinderState;
 use super::FlowNodes;
 use super::ScopeID;
+use super::container_flags::ContainerFlags;
+use super::container_flags::GetContainerFlags;
 use super::flow::FlowFlags;
 use super::flow::FlowID;
 use super::flow::FlowNodeKind;
@@ -12,6 +14,7 @@ use super::symbol::{SymbolFlags, SymbolFnKind, SymbolKind};
 use super::symbol::{SymbolID, SymbolName, Symbols};
 
 use bolt_ts_ast::ModifierKind;
+use bolt_ts_ast::NodeFlags;
 use bolt_ts_atom::AtomMap;
 use bolt_ts_config::NormalizedTsConfig;
 use bolt_ts_span::ModuleID;
@@ -21,13 +24,14 @@ use thin_vec::thin_vec;
 use crate::bind::Symbol;
 use crate::bind::prop_name;
 use crate::bind::symbol::AliasSymbol;
-use crate::parser::Parser;
+use crate::parser::ParseResult;
+use crate::parser::is_left_hand_side_expr_kind;
 use bolt_ts_ast as ast;
 
-impl<'cx, 'atoms> BinderState<'cx, 'atoms> {
+impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
     pub fn new(
         atoms: &'atoms AtomMap<'cx>,
-        parser: &'cx Parser<'cx>,
+        parser: &'parser mut ParseResult<'cx>,
         root: &'cx ast::Program<'cx>,
         module_id: ModuleID,
         options: &NormalizedTsConfig,
@@ -47,20 +51,32 @@ impl<'cx, 'atoms> BinderState<'cx, 'atoms> {
             res: fx_hashmap_with_capacity(512),
             final_res: fx_hashmap_with_capacity(512),
             node_id_to_scope_id: fx_hashmap_with_capacity(512),
+            container_chain: fx_hashmap_with_capacity(128),
+            locals: fx_hashmap_with_capacity(128),
             symbols,
             diags: Vec::new(),
 
             flow_nodes,
             in_strict_mode,
+            seen_this_keyword: false,
+            emit_flags: bolt_ts_ast::NodeFlags::empty(),
             current_flow: None,
+            current_break_target: None,
+            current_continue_target: None,
+            current_return_target: None,
+            current_exception_target: None,
             current_true_target: None,
             current_false_target: None,
-            current_exception_target: None,
             unreachable_flow_node,
             report_unreachable_flow_node,
             has_flow_effects: false,
             in_return_position: false,
-            locals: fx_hashmap_with_capacity(128),
+            has_explicit_return: false,
+
+            container: None,
+            this_parent_container: None,
+            block_scope_container: None,
+            last_container: None,
         }
     }
 
@@ -281,7 +297,13 @@ impl<'cx, 'atoms> BinderState<'cx, 'atoms> {
             ast::ModuleName::Ident(ident) => ident.name,
             ast::ModuleName::StringLit(_) => {
                 if let Some(block) = ns.block {
-                    self.bind_block_stmt(block);
+                    let container_flags = block.get_container_flags(self.p);
+                    self.bind_container(block.id, container_flags, |this| {
+                        this.create_block_container_symbol(block.id);
+                        for stmt in block.stmts {
+                            this.bind_stmt(block.id, stmt)
+                        }
+                    });
                 }
                 return;
             }
@@ -381,12 +403,12 @@ impl<'cx, 'atoms> BinderState<'cx, 'atoms> {
             });
             if let Some(container) = container {
                 let name = SymbolName::Normal(ty_param.name.name);
-                self.inset_into_locals(container, name, symbol);
+                self.insert_into_locals(container, name, symbol);
             }
         }
     }
 
-    fn inset_into_locals(&mut self, container: ast::NodeID, name: SymbolName, symbol: SymbolID) {
+    fn insert_into_locals(&mut self, container: ast::NodeID, name: SymbolName, symbol: SymbolID) {
         assert!(self.p.node(container).has_locals());
         let locals = self
             .locals
@@ -679,22 +701,138 @@ impl<'cx, 'atoms> BinderState<'cx, 'atoms> {
         self.scope_id = old;
     }
 
-    fn bind_container(&mut self, _node: ast::NodeID, f: impl FnOnce(&mut Self)) {
+    fn create_locals_for_container(&mut self, container: ast::NodeID) {
+        assert!(self.p.node(container).has_locals());
+        let prev = self.locals.insert(container, fx_hashmap_with_capacity(64));
+        assert!(prev.is_none());
+    }
+
+    fn delete_locals_for_container(&mut self, container: ast::NodeID) {
+        assert!(self.p.node(container).has_locals());
+        self.locals.remove(&container);
+    }
+
+    fn add_to_container_chain(&mut self, next: ast::NodeID) {
+        assert!(self.p.node(next).has_locals());
+        if let Some(last_container) = self.last_container {
+            // same as `last_container.next_container = next`
+            let prev = self.container_chain.insert(last_container, next);
+            assert!(prev.is_none());
+        }
+        self.last_container = Some(next);
+    }
+
+    fn bind_container(
+        &mut self,
+        node: ast::NodeID,
+        container_flags: ContainerFlags,
+        bind_children: impl FnOnce(&mut Self),
+    ) {
         let old = self.scope_id;
+        let save_container = self.container;
+        let save_this_parent_container = self.this_parent_container;
+        let save_block_scope_container = self.block_scope_container;
+        let save_in_return_position = self.in_return_position;
+
         self.scope_id = self.new_scope();
 
-        // TODO: container flags;
-        let saved_current_flow = self.current_flow;
+        let n = self.p.node(node);
+        if n.as_arrow_fn_expr()
+            .is_some_and(|n| !matches!(n.body, ast::ArrowFnExprBody::Block(_)))
+        {
+            self.in_return_position = true;
+        }
 
-        f(self);
+        if container_flags.intersects(ContainerFlags::IS_CONTAINER) {
+            if !n.is_arrow_fn_expr() {
+                self.this_parent_container = self.container;
+            }
+            self.block_scope_container = Some(node);
+            self.container = self.block_scope_container;
+            if container_flags.intersects(ContainerFlags::HAS_LOCALS) {
+                self.create_locals_for_container(node);
+                self.add_to_container_chain(node);
+            }
+        } else if container_flags.intersects(ContainerFlags::IS_BLOCK_SCOPED_CONTAINER) {
+            self.block_scope_container = Some(node);
+            if container_flags.intersects(ContainerFlags::HAS_LOCALS) {
+                self.delete_locals_for_container(node);
+            }
+        }
 
-        self.current_flow = saved_current_flow;
+        if container_flags.intersects(ContainerFlags::IS_CONTROL_FLOW_CONTAINER) {
+            let save_current_flow = self.current_flow;
+            let save_break_target = self.current_break_target;
+            let save_continue_target = self.current_continue_target;
+            let save_return_target = self.current_return_target;
+            let save_exception_target = self.current_exception_target;
+            // TODO: active_label_list
+            let save_has_explicit_return = self.has_explicit_return;
+            let is_immediately_invoked = (container_flags
+                .intersects(ContainerFlags::IS_FUNCTION_EXPRESSION)
+                && !n.has_syntactic_modifier(ModifierKind::Async.into())
+                && !n.is_fn_like_and_has_asterisk()
+                && self.p.get_immediately_invoked_fn_expr(node).is_some())
+                || self.p.node(node).is_class_static_block_decl();
 
+            if !is_immediately_invoked {
+                let flow_node = container_flags.intersects(ContainerFlags::IS_FUNCTION_EXPRESSION | ContainerFlags::IS_OBJECT_LITERAL_OR_CLASS_EXPRESSION_METHOD_OR_ACCESSOR).then_some(node);
+                self.current_flow = Some(self.flow_nodes.create_start(flow_node));
+            }
+            self.current_return_target = if is_immediately_invoked || n.is_class_ctor() {
+                Some(self.flow_nodes.create_branch_label())
+            } else {
+                None
+            };
+            self.current_exception_target = None;
+            self.current_break_target = None;
+            self.current_continue_target = None;
+            self.has_explicit_return = false;
+            self.p.node_flags_map.update(node, |flags| {
+                *flags &= !NodeFlags::REACHABILITY_AND_EMIT_FLAGS
+            });
+            // TODO: unreachable case
+
+            bind_children(self);
+
+            if let Some(current_return_target) = self.current_return_target {
+                self.flow_nodes
+                    .add_antecedent(current_return_target, self.current_flow.unwrap());
+                self.current_flow = Some(self.finish_flow_label(current_return_target));
+            }
+
+            if !is_immediately_invoked {
+                self.current_flow = save_current_flow;
+            }
+            self.current_break_target = save_break_target;
+            self.current_continue_target = save_continue_target;
+            self.current_return_target = save_return_target;
+            self.current_exception_target = save_exception_target;
+            // TODO: active_label_list
+            self.has_explicit_return = save_has_explicit_return;
+        } else if container_flags.intersects(ContainerFlags::IS_INTERFACE) {
+            self.seen_this_keyword = false;
+            bind_children(self);
+            assert!(n.is_ident());
+            // TODO: node flags
+        } else {
+            // TODO: delete `saved_current_flow`
+            let saved_current_flow = self.current_flow;
+            bind_children(self);
+            // TODO: delete `saved_current_flow`
+            self.current_flow = saved_current_flow;
+        }
+
+        self.in_return_position = save_in_return_position;
+        self.container = save_container;
+        self.this_parent_container = save_this_parent_container;
+        self.block_scope_container = save_block_scope_container;
         self.scope_id = old;
     }
 
     pub(super) fn bind_block_stmt(&mut self, block: &'cx ast::BlockStmt<'cx>) {
-        self.bind_container(block.id, |this| {
+        let container_flags = block.get_container_flags(self.p);
+        self.bind_container(block.id, container_flags, |this| {
             this.create_block_container_symbol(block.id);
             for stmt in block.stmts {
                 this.bind_stmt(block.id, stmt)
@@ -705,7 +843,7 @@ impl<'cx, 'atoms> BinderState<'cx, 'atoms> {
     pub(super) fn bind_block_stmt_with_container(
         &mut self,
         container: ast::NodeID,
-        block: &'cx ast::BlockStmt<'cx>,
+        block: &'cx ast::ModuleBlock<'cx>,
     ) {
         let old = self.scope_id;
         self.scope_id = self.new_scope();
@@ -1309,17 +1447,127 @@ impl<'cx, 'atoms> BinderState<'cx, 'atoms> {
         symbol: SymbolID,
         current: ast::NodeID,
     ) {
-        let c = self.p.node(container).expect_namespace_decl();
+        assert!(self.p.node(container).is_namespace_decl());
         let has_export_modifier = self
             .p
             .get_combined_modifier_flags(current)
             .intersects(ModifierKind::Export);
-        if has_export_modifier || c.flags.intersects(bolt_ts_ast::NodeFlags::EXPORT_CONTEXT) {
+        if has_export_modifier
+            || self
+                .p
+                .node_flags_map
+                .get(container)
+                .intersects(bolt_ts_ast::NodeFlags::EXPORT_CONTEXT)
+        {
             let members = self.members(container, true);
             members.insert(name, symbol);
         } else {
             let members = self.members(container, false);
             members.insert(name, symbol);
+        }
+    }
+
+    fn check_contextual_ident(&mut self, ident: ast::NodeID) {
+        // TODO:
+    }
+
+    fn bind(&mut self, node: ast::NodeID) {
+        let save_in_strict_mode = self.in_strict_mode;
+        self._bind(node);
+        self.in_strict_mode = save_in_strict_mode;
+    }
+
+    fn _bind(&mut self, node: ast::NodeID) {
+        let n = self.p.node(node);
+        use ast::Node::*;
+        match n {
+            Ident(_) => {
+                // TODO: identifier with NodeFlags.IdentifierIsInJSDocNamespace
+                if let Some(flow) = self.current_flow {
+                    self.flow_nodes.insert_container_map(node, flow);
+                }
+                self.check_contextual_ident(node);
+            }
+            ThisExpr(_) => {
+                if let Some(flow) = self.current_flow {
+                    self.flow_nodes.insert_container_map(node, flow);
+                }
+                self.check_contextual_ident(node);
+            }
+            QualifiedName(_) => {
+                if let Some(flow) = self.current_flow {
+                    if self.p.is_part_of_ty_query(node) {
+                        self.flow_nodes.insert_container_map(node, flow);
+                    }
+                }
+            }
+            // TODO: meta
+            SuperExpr(_) => {
+                if let Some(flow) = self.current_flow {
+                    self.flow_nodes.insert_container_map(node, flow);
+                } else {
+                    self.flow_nodes.reset_container_map(node);
+                }
+            }
+            // TODO: private
+            PropAccessExpr(p) => {
+                if let Some(flow) = self.current_flow {
+                    if self.is_narrowable_reference(p.expr) {
+                        self.flow_nodes.insert_container_map(node, flow);
+                    }
+                }
+                // TODO: is_special_prop_decl
+                // TODO: js
+            }
+            EleAccessExpr(e) => {
+                if let Some(flow) = self.current_flow {
+                    if self.ele_access_is_narrowable_reference(e) {
+                        self.flow_nodes.insert_container_map(node, flow);
+                    }
+                }
+                // TODO: is_special_prop_decl
+                // TODO: js
+            }
+            BinExpr(_) => {
+                // TODO: special_kind
+            }
+            CatchClause(_) => {
+                // TODO: self.check_strict_mode_catch_clause()
+            }
+            // TODO: delete expr
+            PostfixUnaryExpr(_) => {
+                // TODO: check
+            }
+            PrefixUnaryExpr(_) => {
+                // TODO: check
+            }
+            // TODO: with stmt
+            // TODO: label
+            // TODO: this type
+            _ => {}
+        }
+    }
+
+    fn ele_access_is_narrowable_reference(&self, n: &ast::EleAccessExpr) -> bool {
+        (n.arg.is_string_or_number_lit_like() || n.arg.is_prop_access_entity_name_expr())
+            && self.is_narrowable_reference(n.expr)
+    }
+
+    fn is_narrowable_reference(&self, expr: &ast::Expr<'_>) -> bool {
+        use ast::ExprKind::*;
+        match expr.kind {
+            // TODO: metaProperty
+            Ident(_) | This(_) | Super(_) => true,
+            PropAccess(n) => self.is_narrowable_reference(n.expr),
+            Paren(n) => self.is_narrowable_reference(n.expr),
+            NonNull(n) => self.is_narrowable_reference(n.expr),
+            EleAccess(n) => self.ele_access_is_narrowable_reference(n),
+            Bin(_) => {
+                // TODO: n.op.kind == Comma
+                false
+            }
+            Assign(n) => is_left_hand_side_expr_kind(n.left),
+            _ => false,
         }
     }
 }

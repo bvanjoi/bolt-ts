@@ -6,7 +6,7 @@ use bolt_ts_ast as ast;
 use bolt_ts_ast::ModifierKind;
 use bolt_ts_utils::fx_hashmap_with_capacity;
 
-impl<'cx> BinderState<'cx, '_> {
+impl<'cx> BinderState<'cx, '_, '_> {
     fn create_class_symbol(&mut self, c: &impl ir::ClassLike<'cx>) -> SymbolID {
         let name = c
             .name()

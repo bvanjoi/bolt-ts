@@ -26,6 +26,7 @@ pub use self::symbol::{GlobalSymbols, Symbol, SymbolID, SymbolName, Symbols};
 pub use self::symbol::{SymbolFlags, SymbolFnKind};
 
 use crate::late_resolve::ResolveResult;
+use crate::parser::ParseResult;
 use crate::parser::Parser;
 use bolt_ts_ast as ast;
 
@@ -79,60 +80,109 @@ impl Binder {
     }
 }
 
-pub struct BinderState<'cx, 'atoms> {
+struct BinderState<'cx, 'atoms, 'parser> {
     scope_id: ScopeID,
-    p: &'cx Parser<'cx>,
+    p: &'parser mut ParseResult<'cx>,
+    atoms: &'atoms AtomMap<'cx>,
+    diags: Vec<bolt_ts_errors::Diag>,
+    scope_id_parent_map: Vec<Option<ScopeID>>,
+    // TODO: use `NodeId::index` is enough
+    node_id_to_scope_id: FxHashMap<ast::NodeID, ScopeID>,
+    symbols: Symbols,
+    // TODO: use `NodeId::index` is enough
+    locals: FxHashMap<ast::NodeID, FxHashMap<SymbolName, SymbolID>>,
+
+    container: Option<ast::NodeID>,
+    this_parent_container: Option<ast::NodeID>,
+    block_scope_container: Option<ast::NodeID>,
+    last_container: Option<ast::NodeID>,
+    seen_this_keyword: bool,
+
+    current_flow: Option<FlowID>,
+    in_strict_mode: bool,
+    emit_flags: bolt_ts_ast::NodeFlags,
+    has_explicit_return: bool,
+    in_return_position: bool,
+    has_flow_effects: bool,
+    current_true_target: Option<FlowID>,
+    current_false_target: Option<FlowID>,
+    current_exception_target: Option<FlowID>,
+    current_break_target: Option<FlowID>,
+    current_continue_target: Option<FlowID>,
+    current_return_target: Option<FlowID>,
+    unreachable_flow_node: FlowID,
+    report_unreachable_flow_node: FlowID,
+
+    // TODO: use `NodeId::index` is enough
+    container_chain: FxHashMap<ast::NodeID, ast::NodeID>,
+    res: FxHashMap<(ScopeID, SymbolName), SymbolID>,
+    // TODO: use `NodeId::index` is enough
+    final_res: FxHashMap<ast::NodeID, SymbolID>,
+    flow_nodes: FlowNodes<'cx>,
+}
+
+pub struct BinderResult<'cx> {
     pub(crate) diags: Vec<bolt_ts_errors::Diag>,
-    pub(crate) atoms: &'atoms AtomMap<'cx>,
     pub(crate) scope_id_parent_map: Vec<Option<ScopeID>>,
     // TODO: use `NodeId::index` is enough
     pub(crate) node_id_to_scope_id: FxHashMap<ast::NodeID, ScopeID>,
     pub(crate) symbols: Symbols,
     // TODO: use `NodeId::index` is enough
     pub(crate) locals: FxHashMap<ast::NodeID, FxHashMap<SymbolName, SymbolID>>,
-
-    pub(crate) flow_nodes: FlowNodes<'cx>,
-    current_flow: Option<FlowID>,
-    in_strict_mode: bool,
-    has_flow_effects: bool,
-    in_return_position: bool,
-    current_true_target: Option<FlowID>,
-    current_false_target: Option<FlowID>,
-    current_exception_target: Option<FlowID>,
-    unreachable_flow_node: FlowID,
-    report_unreachable_flow_node: FlowID,
-
+    // TODO: use `NodeId::index` is enough
+    pub(crate) container_chain: FxHashMap<ast::NodeID, ast::NodeID>,
     pub(super) res: FxHashMap<(ScopeID, SymbolName), SymbolID>,
     // TODO: use `NodeId::index` is enough
     pub(crate) final_res: FxHashMap<ast::NodeID, SymbolID>,
+    pub(crate) flow_nodes: FlowNodes<'cx>,
 }
 
-pub fn bind_parallel<'cx, 'atoms>(
+impl<'cx> BinderResult<'cx> {
+    fn new(state: BinderState<'cx, '_, '_>) -> Self {
+        Self {
+            diags: state.diags,
+            scope_id_parent_map: state.scope_id_parent_map,
+            node_id_to_scope_id: state.node_id_to_scope_id,
+            symbols: state.symbols,
+            locals: state.locals,
+            container_chain: state.container_chain,
+            res: state.res,
+            final_res: state.final_res,
+            flow_nodes: state.flow_nodes,
+        }
+    }
+}
+
+pub fn bind_parallel<'cx, 'atoms, 'parser>(
     modules: &[Module],
     atoms: &'atoms AtomMap<'cx>,
-    parser: &'cx Parser<'cx>,
+    parser: Parser<'cx>,
     options: &NormalizedTsConfig,
-) -> Vec<BinderState<'cx, 'atoms>> {
-    modules
+) -> Vec<(BinderResult<'cx>, ParseResult<'cx>)> {
+    assert_eq!(parser.module_count(), modules.len());
+    parser
+        .map
         .into_par_iter()
-        .map(|m| {
+        .zip(modules)
+        .map(|(mut p, m)| {
             let module_id = m.id;
             let is_global = m.global;
-            let root = parser.root(module_id);
-            let bind_result = bind(atoms, parser, root, module_id, options);
+            let root = p.root();
+            let bind_state = bind(atoms, &mut p, root, module_id, options);
+            let bind_result = BinderResult::new(bind_state);
             assert!(!is_global || bind_result.diags.is_empty());
-            bind_result
+            (bind_result, p)
         })
         .collect()
 }
 
-fn bind<'cx, 'atoms>(
+fn bind<'cx, 'atoms, 'parser>(
     atoms: &'atoms AtomMap<'cx>,
-    parser: &'cx Parser<'cx>,
+    parser: &'parser mut ParseResult<'cx>,
     root: &'cx ast::Program,
     module_id: ModuleID,
     options: &NormalizedTsConfig,
-) -> BinderState<'cx, 'atoms> {
+) -> BinderState<'cx, 'atoms, 'parser> {
     let mut state = BinderState::new(atoms, parser, root, module_id, options);
     state.bind_program(root);
     state

@@ -11,7 +11,7 @@ use bolt_ts_utils::fx_hashmap_with_capacity;
 use rayon::prelude::*;
 use rustc_hash::FxHashMap;
 
-use crate::bind::{BinderState, GlobalSymbols, Symbol, SymbolFlags, SymbolID, SymbolName};
+use crate::bind::{BinderResult, GlobalSymbols, Symbol, SymbolFlags, SymbolID, SymbolName};
 use crate::keyword;
 use crate::keyword::{is_prim_ty_name, is_prim_value_name};
 use crate::parser::Parser;
@@ -24,7 +24,7 @@ pub struct EarlyResolveResult {
 
 pub(super) fn early_resolve_parallel<'cx>(
     modules: &[Module],
-    states: &[BinderState<'cx, '_>],
+    states: &[BinderResult<'cx>],
     p: &'cx Parser<'cx>,
     global: &'cx GlobalSymbols,
     atoms: &'cx bolt_ts_atom::AtomMap<'cx>,
@@ -40,7 +40,7 @@ pub(super) fn early_resolve_parallel<'cx>(
 }
 
 fn early_resolve<'cx>(
-    states: &[BinderState<'cx, '_>],
+    states: &[BinderResult<'cx>],
     module_id: bolt_ts_span::ModuleID,
     root: &'cx ast::Program<'cx>,
     p: &'cx Parser<'cx>,
@@ -67,13 +67,13 @@ fn early_resolve<'cx>(
 }
 
 pub(super) struct Resolver<'cx, 'r, 'atoms> {
-    states: &'r [BinderState<'cx, 'atoms>],
+    states: &'r [BinderResult<'cx>],
     module_id: bolt_ts_span::ModuleID,
     p: &'cx Parser<'cx>,
     pub diags: Vec<bolt_ts_errors::Diag>,
     final_res: FxHashMap<ast::NodeID, SymbolID>,
     global: &'cx GlobalSymbols,
-    atoms: &'cx bolt_ts_atom::AtomMap<'cx>,
+    atoms: &'atoms bolt_ts_atom::AtomMap<'cx>,
     resolved_exports: FxHashMap<SymbolID, FxHashMap<SymbolName, SymbolID>>,
 }
 
@@ -154,7 +154,13 @@ impl<'cx> Resolver<'cx, '_, '_> {
 
     fn resolve_ns_decl(&mut self, ns: &'cx ast::NsDecl<'cx>) {
         if let Some(block) = ns.block {
-            self.resolve_block_stmt(block);
+            self.resolve_module_block(block);
+        }
+    }
+
+    fn resolve_module_block(&mut self, block: &'cx ast::ModuleBlock<'cx>) {
+        for stmt in block.stmts {
+            self.resolve_stmt(stmt);
         }
     }
 

@@ -303,8 +303,8 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
                 params,
                 ty,
                 body,
-                flags: self.context_flags,
             });
+            self.node_flags_map.insert(id, self.context_flags);
             self.insert_map(id, ast::Node::ClassMethodElem(method));
             self.alloc(ast::ClassElem {
                 kind: ast::ClassEleKind::Method(method),

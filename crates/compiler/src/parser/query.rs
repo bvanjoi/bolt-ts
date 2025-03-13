@@ -4,6 +4,7 @@ use bolt_ts_span::ModuleID;
 
 use bolt_ts_ast::CallExpr;
 
+use super::ParseResult;
 use super::Parser;
 use super::ast;
 
@@ -14,27 +15,7 @@ pub enum AssignmentKind {
     Compound,
 }
 
-impl<'cx> Parser<'cx> {
-    #[inline(always)]
-    pub fn root(&self, id: ModuleID) -> &ast::Program<'cx> {
-        self.get(id).root()
-    }
-
-    #[inline(always)]
-    pub fn node(&self, id: ast::NodeID) -> ast::Node<'cx> {
-        self.get(id.module()).nodes.get(id)
-    }
-
-    #[inline(always)]
-    pub fn parent(&self, id: ast::NodeID) -> Option<ast::NodeID> {
-        self.get(id.module()).parent_map.parent(id)
-    }
-
-    pub fn is_descendant_of(&self, node: ast::NodeID, ancestor: ast::NodeID) -> bool {
-        self.find_ancestor(node, |node| (node.id() == ancestor).then_some(true))
-            .is_some()
-    }
-
+impl<'cx> ParseResult<'cx> {
     pub fn find_ancestor(
         &self,
         mut id: ast::NodeID,
@@ -55,6 +36,156 @@ impl<'cx> Parser<'cx> {
                 return None;
             }
         }
+    }
+
+    fn walkup_binding_elements_and_patterns(&self, binding: ast::NodeID) -> ast::NodeID {
+        let mut n = self.parent(binding).unwrap();
+        loop {
+            let p = self.parent(n).unwrap();
+            if self.node(p).is_binding() {
+                n = self.parent(p).unwrap()
+            } else {
+                break self.parent(n).unwrap();
+            }
+        }
+    }
+
+    pub fn get_combined_flags<T: std::ops::BitOrAssign>(
+        &self,
+        mut id: ast::NodeID,
+        get_flag: impl Fn(&Self, ast::NodeID) -> T,
+    ) -> T {
+        let mut n = self.node(id);
+        if n.is_binding() {
+            id = self.walkup_binding_elements_and_patterns(id);
+            n = self.node(id);
+        }
+        let mut flags = get_flag(self, id);
+
+        if n.is_var_decl() {
+            id = self.parent(id).unwrap();
+            n = self.node(id);
+        }
+        // TODO: variable list
+        if let Some(s) = n.as_var_stmt() {
+            flags |= get_flag(self, s.id);
+        }
+        flags
+    }
+
+    pub fn get_combined_modifier_flags(
+        &self,
+        id: ast::NodeID,
+    ) -> enumflags2::BitFlags<ast::ModifierKind> {
+        self.get_combined_flags(id, |p, id| p.get_effective_modifier_flags(id))
+    }
+
+    fn get_effective_modifier_flags(
+        &self,
+        id: ast::NodeID,
+    ) -> enumflags2::BitFlags<ast::ModifierKind> {
+        self.get_modifier_flags(id, true, false)
+    }
+
+    fn get_modifier_flags(
+        &self,
+        id: ast::NodeID,
+        include_js_doc: bool,
+        always_include_js_doc: bool,
+    ) -> enumflags2::BitFlags<ast::ModifierKind> {
+        let m = self.get_syntactic_modifier_flags_no_cache(id);
+        ast::ModifierKind::get_syntactic_modifier_flags(m)
+    }
+
+    fn get_syntactic_modifier_flags_no_cache(
+        &self,
+        id: ast::NodeID,
+    ) -> enumflags2::BitFlags<ast::ModifierKind> {
+        let n = self.node(id);
+        let flags = n.modifiers().map_or(Default::default(), |m| m.flags);
+        let node_flags = self.node_flags(id);
+        if node_flags.intersects(ast::NodeFlags::NESTED_NAMESPACE)
+            || n.is_ident()
+                && node_flags.intersects(ast::NodeFlags::IDENTIFIER_IS_IN_JS_DOC_NAMESPACE)
+        {
+            flags | ast::ModifierKind::Export
+        } else {
+            flags
+        }
+    }
+
+    pub fn is_part_of_ty_query(&self, mut n: ast::NodeID) -> bool {
+        let mut node = self.nodes.get(n);
+        while matches!(node, ast::Node::QualifiedName(_) | ast::Node::Ident(_)) {
+            let p = self.parent(n).unwrap();
+            n = p;
+            node = self.nodes.get(p);
+        }
+        matches!(node, ast::Node::TypeofTy(_))
+    }
+
+    pub fn is_object_lit_or_class_expr_method_or_accessor(&self, node: ast::NodeID) -> bool {
+        let n = self.nodes.get(node);
+        use ast::Node::*;
+        if n.is_object_method_member() {
+            return true;
+        } else if matches!(n, ClassMethodElem(_) | GetterDecl(_) | SetterDecl(_)) {
+            let p = self.parent_map.parent(node).unwrap();
+            let p = self.nodes.get(p);
+            matches!(p, ObjectLit(_) | ClassExpr(_))
+        } else {
+            false
+        }
+    }
+
+    pub fn get_immediately_invoked_fn_expr(&self, id: ast::NodeID) -> Option<&'cx CallExpr<'cx>> {
+        let n = self.node(id);
+        if n.is_fn_expr() || n.is_arrow_fn_expr() {
+            let mut prev = id;
+            let mut parent_id = self.parent(id)?;
+            let mut parent = self.node(parent_id);
+            while parent.is_paren_expr() {
+                prev = parent_id;
+                parent_id = self.parent(parent_id)?;
+                parent = self.node(parent_id);
+            }
+            if let Some(call) = parent.as_call_expr() {
+                if call.expr.id() == prev {
+                    return Some(call);
+                }
+            }
+        }
+        None
+    }
+}
+
+impl<'cx> Parser<'cx> {
+    #[inline(always)]
+    pub fn root(&self, id: ModuleID) -> &ast::Program<'cx> {
+        self.get(id).root()
+    }
+
+    #[inline(always)]
+    pub fn node(&self, id: ast::NodeID) -> ast::Node<'cx> {
+        self.get(id.module()).node(id)
+    }
+
+    #[inline(always)]
+    pub fn parent(&self, id: ast::NodeID) -> Option<ast::NodeID> {
+        self.get(id.module()).parent(id)
+    }
+
+    pub fn is_descendant_of(&self, node: ast::NodeID, ancestor: ast::NodeID) -> bool {
+        self.find_ancestor(node, |node| (node.id() == ancestor).then_some(true))
+            .is_some()
+    }
+
+    pub fn find_ancestor(
+        &self,
+        id: ast::NodeID,
+        cb: impl Fn(ast::Node<'cx>) -> Option<bool>,
+    ) -> Option<ast::NodeID> {
+        self.get(id.module()).find_ancestor(id, cb)
     }
 
     pub fn get_iife(&self, node: ast::NodeID) -> Option<&'cx ast::CallExpr<'cx>> {
@@ -282,24 +413,17 @@ impl<'cx> Parser<'cx> {
         n.is_import_named_spec() || n.is_export_named_spec()
     }
 
+    pub fn is_part_of_ty_query(&self, n: ast::NodeID) -> bool {
+        self.get(n.module()).is_part_of_ty_query(n)
+    }
+
+    pub fn is_object_lit_or_class_expr_method_or_accessor(&self, node: ast::NodeID) -> bool {
+        self.get(node.module())
+            .is_object_lit_or_class_expr_method_or_accessor(node)
+    }
+
     pub fn get_immediately_invoked_fn_expr(&self, id: ast::NodeID) -> Option<&'cx CallExpr<'cx>> {
-        let n = self.node(id);
-        if n.is_fn_expr() || n.is_arrow_fn_expr() {
-            let mut prev = id;
-            let mut parent_id = self.parent(id)?;
-            let mut parent = self.node(parent_id);
-            while parent.is_paren_expr() {
-                prev = parent_id;
-                parent_id = self.parent(parent_id)?;
-                parent = self.node(parent_id);
-            }
-            if let Some(call) = parent.as_call_expr() {
-                if call.expr.id() == prev {
-                    return Some(call);
-                }
-            }
-        }
-        None
+        self.get(id.module()).get_immediately_invoked_fn_expr(id)
     }
 
     pub fn get_root_decl(&self, mut id: ast::NodeID) -> ast::NodeID {
@@ -369,46 +493,17 @@ impl<'cx> Parser<'cx> {
             .unwrap()
     }
 
-    fn walkup_binding_elements_and_patterns(&self, binding: ast::NodeID) -> ast::NodeID {
-        let mut n = self.parent(binding).unwrap();
-        loop {
-            let p = self.parent(n).unwrap();
-            if self.node(p).is_binding() {
-                n = self.parent(p).unwrap()
-            } else {
-                break self.parent(n).unwrap();
-            }
-        }
-    }
-
     pub fn get_combined_flags<T: std::ops::BitOrAssign>(
         &self,
-        mut id: ast::NodeID,
+        id: ast::NodeID,
         get_flag: impl Fn(&Self, ast::NodeID) -> T,
     ) -> T {
-        let mut n = self.node(id);
-        if n.is_binding() {
-            id = self.walkup_binding_elements_and_patterns(id);
-            n = self.node(id);
-        }
-        let mut flags = get_flag(self, id);
-
-        if n.is_var_decl() {
-            id = self.parent(id).unwrap();
-            n = self.node(id);
-        }
-        // TODO: variable list
-        if let Some(s) = n.as_var_stmt() {
-            flags |= get_flag(self, s.id);
-        }
-        flags
+        self.get(id.module())
+            .get_combined_flags(id, |_, id| get_flag(self, id))
     }
 
     pub fn get_combined_node_flags(&self, id: ast::NodeID) -> ast::NodeFlags {
-        self.get_combined_flags(id, |p, id| {
-            let n = p.node(id);
-            n.node_flags()
-        })
+        self.get_combined_flags(id, |p, id| p.node_flags(id))
     }
 
     pub fn get_combined_modifier_flags(
@@ -439,17 +534,8 @@ impl<'cx> Parser<'cx> {
         &self,
         id: ast::NodeID,
     ) -> enumflags2::BitFlags<ast::ModifierKind> {
-        let n = self.node(id);
-        let flags = n.modifiers().map_or(Default::default(), |m| m.flags);
-        let node_flags = n.node_flags();
-        if node_flags.intersects(ast::NodeFlags::NESTED_NAMESPACE)
-            || n.is_ident()
-                && node_flags.intersects(ast::NodeFlags::IDENTIFIER_IS_IN_JS_DOC_NAMESPACE)
-        {
-            flags | ast::ModifierKind::Export
-        } else {
-            flags
-        }
+        self.get(id.module())
+            .get_syntactic_modifier_flags_no_cache(id)
     }
 
     pub fn walk_up_paren_tys_and_get_parent_and_child(

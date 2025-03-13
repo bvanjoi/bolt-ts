@@ -23,9 +23,9 @@ pub enum Target {
     ES2015,
 }
 
-impl Into<Target> for RawTarget {
-    fn into(self) -> Target {
-        match self {
+impl From<RawTarget> for Target {
+    fn from(val: RawTarget) -> Self {
+        match val {
             RawTarget::ES5 => Target::ES5,
             RawTarget::ES2015 | RawTarget::ES6 => Target::ES2015,
         }

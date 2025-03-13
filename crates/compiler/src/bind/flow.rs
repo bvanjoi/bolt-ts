@@ -167,10 +167,12 @@ impl<'cx> FlowNodes<'cx> {
     }
 
     pub(super) fn insert_container_map(&mut self, node: ast::NodeID, flow: FlowID) {
-        let prev = self
-            .container_map
-            .insert(node.index_as_u32(), flow.index);
+        let prev = self.container_map.insert(node.index_as_u32(), flow.index);
         assert!(prev.is_none());
+    }
+
+    pub(super) fn reset_container_map(&mut self, node: ast::NodeID) {
+        self.container_map.remove(&node.index_as_u32());
     }
 
     pub(crate) fn get_flow_node_of_node(&self, node: ast::NodeID) -> Option<FlowID> {
@@ -191,7 +193,7 @@ impl<'cx> FlowNodes<'cx> {
     }
 }
 
-impl<'cx> super::BinderState<'cx, '_> {
+impl<'cx> super::BinderState<'cx, '_, '_> {
     pub fn create_flow_condition(
         &mut self,
         flags: FlowFlags,

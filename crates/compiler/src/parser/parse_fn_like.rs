@@ -43,7 +43,6 @@ impl<'cx, 'p> FnLike<'cx, 'p> for ParseFnDecl {
         let decl = state.alloc(ast::FnDecl {
             id,
             span,
-            flags: state.context_flags,
             modifiers,
             name,
             ty_params,
@@ -51,6 +50,7 @@ impl<'cx, 'p> FnLike<'cx, 'p> for ParseFnDecl {
             ty,
             body,
         });
+        state.node_flags_map.insert(id, state.context_flags);
         state.insert_map(decl.id, ast::Node::FnDecl(decl));
         decl
     }

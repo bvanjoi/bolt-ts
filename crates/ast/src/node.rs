@@ -48,6 +48,7 @@ pub enum Node<'cx> {
     InterfaceExtendsClause(&'cx super::InterfaceExtendsClause<'cx>),
     ClassImplementsClause(&'cx super::ClassImplementsClause<'cx>),
     BlockStmt(&'cx super::BlockStmt<'cx>),
+    ModuleBlock(&'cx super::ModuleBlock<'cx>),
     ThrowStmt(&'cx super::ThrowStmt<'cx>),
     EnumDecl(&'cx super::EnumDecl<'cx>),
     Modifier(&'cx super::Modifier),
@@ -173,6 +174,11 @@ impl<'cx> Node<'cx> {
     pub fn is_fn_like(&self) -> bool {
         use Node::*;
         matches!(self, IndexSigDecl(_)) | self.is_fn_decl_like()
+    }
+
+    pub fn is_fn_like_and_has_asterisk(&self) -> bool {
+        // TODO: handle asterisk
+        false
     }
 
     pub fn is_class_static_block_decl(&self) -> bool {
@@ -466,10 +472,8 @@ impl<'cx> Node<'cx> {
         let mut flags = FnFlags::NORMAL;
         if self.is_fn_decl() || self.is_fn_expr() || self.is_class_method_ele() {
             // todo: check aster token
-        } else if self.as_arrow_fn_expr().is_some() {
-            if self.has_syntactic_modifier(self::ModifierKind::Async.into()) {
-                flags |= FnFlags::GENERATOR;
-            }
+        } else if self.as_arrow_fn_expr().is_some() && self.has_syntactic_modifier(self::ModifierKind::Async.into()) {
+            flags |= FnFlags::GENERATOR;
         }
 
         if self.fn_body().is_none() {
@@ -567,18 +571,6 @@ impl<'cx> Node<'cx> {
         }
     }
 
-    pub fn node_flags(&self) -> super::NodeFlags {
-        macro_rules! node_flags {
-            ($( $node_kind:ident),* $(,)?) => {
-                match self {
-                    $(Node::$node_kind(n) => n.flags,)*
-                    _ => Default::default(),
-                }
-            };
-        }
-        node_flags!(VarStmt, FnDecl, ClassMethodElem)
-    }
-
     pub fn is_super_call(&self) -> bool {
         self.as_call_expr()
             .is_some_and(|expr| matches!(expr.expr.kind, ExprKind::Super(_)))
@@ -614,7 +606,7 @@ impl<'cx> Node<'cx> {
 
     pub fn has_locals(&self) -> bool {
         use Node::*;
-        matches!(self, CondTy(_))
+        matches!(self, BlockStmt(_) | CondTy(_))
     }
 
     pub fn is_readonly_ty_op(&self) -> bool {
@@ -683,6 +675,7 @@ as_node!(
     (EnumDecl, super::EnumDecl<'cx>, enum_decl),
     (NamespaceDecl, super::NsDecl<'cx>, namespace_decl),
     (BlockStmt, super::BlockStmt<'cx>, block_stmt),
+    (ModuleBlock, super::ModuleBlock<'cx>, module_block),
     (VarDecl, super::VarDecl<'cx>, var_decl),
     (BinExpr, super::BinExpr<'cx>, bin_expr),
     (NonNullExpr, super::NonNullExpr<'cx>, non_null_expr),
