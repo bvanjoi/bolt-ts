@@ -561,12 +561,11 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
                     stmts.push(stmt);
                 }
             }
-            use std::os::unix::ffi::OsStrExt;
             let program = this.alloc(ast::Program {
                 id,
                 stmts,
                 span: this.new_span(start as u32),
-                is_declaration: is_declaration_filename(file_path.as_os_str().as_bytes()),
+                is_declaration: is_declaration_filename(file_path.to_str().unwrap_or_default().as_bytes()),
             });
             this.nodes.insert(id, Node::Program(program));
             program
