@@ -56,7 +56,9 @@ impl<'a> AtomMap<'a> {
 
     #[track_caller]
     pub fn get(&self, atom: AtomId) -> &str {
-        self.0.get(&atom).unwrap()
+        self.0
+            .get(&atom)
+            .unwrap_or_else(|| panic!("atom not found: {:?}", atom))
     }
 
     pub fn eq_str(&self, atom: AtomId, s: &str) -> bool {

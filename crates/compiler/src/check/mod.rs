@@ -45,7 +45,7 @@ mod is_context_sensitive;
 mod is_deeply_nested_type;
 mod is_valid;
 mod links;
-mod node_flags;
+mod node_check_flags;
 mod relation;
 mod resolve;
 mod resolve_structured_member;
@@ -77,7 +77,7 @@ use self::instantiation_ty_map::InstantiationTyMap;
 use self::links::NodeLinks;
 pub use self::links::SymbolLinks;
 use self::links::{SigLinks, TyLinks};
-use self::node_flags::NodeFlags;
+use self::node_check_flags::NodeCheckFlags;
 pub use self::resolve::ExpectedArgsCount;
 
 use crate::bind::{

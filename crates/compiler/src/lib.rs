@@ -82,7 +82,7 @@ pub fn output_files(
     }
 }
 
-fn init_atom<'atoms>() -> AtomMap<'atoms> {
+pub fn init_atom<'atoms>() -> AtomMap<'atoms> {
     if cfg!(test) {
         for idx in 0..keyword::KEYWORDS.len() {
             let t = keyword_idx_to_token(idx);

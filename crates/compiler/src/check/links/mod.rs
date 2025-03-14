@@ -60,7 +60,7 @@ pub use sig_links::SigLinks;
 pub use symbol_links::SymbolLinks;
 pub use ty_links::TyLinks;
 
-use super::NodeFlags;
+use super::NodeCheckFlags;
 use crate::bind::SymbolID;
 use crate::ty::{SigID, TyID};
 
@@ -86,7 +86,7 @@ impl<'cx> super::TyChecker<'cx> {
     pub fn get_node_links(&mut self, node: NodeID) -> &NodeLinks<'cx> {
         self.node_links
             .entry(node)
-            .or_insert_with(|| NodeLinks::default().with_flags(NodeFlags::empty()))
+            .or_insert_with(|| NodeLinks::default().with_flags(NodeCheckFlags::empty()))
     }
 
     pub fn get_mut_node_links(&mut self, node: NodeID) -> &mut NodeLinks<'cx> {

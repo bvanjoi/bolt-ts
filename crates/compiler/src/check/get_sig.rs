@@ -21,8 +21,20 @@ impl<'cx> TyChecker<'cx> {
         if let Some(sig) = self.get_node_links(id).get_resolved_sig() {
             return sig;
         }
-        let node = self.p.node(id);
-        let ty_params = if let Some(ty_params) = node.ty_params() {
+        let decl = self.p.node(id);
+        let host_decl = decl; // TODO: sig in js doc
+        let class_ty = if host_decl.is_class_ctor() {
+            let class_decl = self.p.parent(id).unwrap();
+            let class_symbol = self.get_symbol_of_decl(class_decl);
+            Some(self.get_declared_ty_of_symbol(class_symbol))
+        } else {
+            None
+        };
+        let ty_params = if let Some(class_ty) = class_ty {
+            let r = class_ty.kind.expect_object_reference();
+            let i = r.target.kind.expect_object_interface();
+            i.local_ty_params
+        } else if let Some(ty_params) = decl.ty_params() {
             let mut res = Vec::with_capacity(ty_params.len());
             self.append_ty_params(&mut res, ty_params);
             let ty_params: ty::Tys<'cx> = self.alloc(res);
@@ -30,7 +42,7 @@ impl<'cx> TyChecker<'cx> {
         } else {
             None
         };
-        let sig = get_sig_from_decl(self, node, ty_params);
+        let sig = get_sig_from_decl(self, decl, ty_params);
         let sig = self.new_sig(sig);
         self.get_mut_node_links(id).set_resolved_sig(sig);
         sig

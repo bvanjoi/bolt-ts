@@ -1,4 +1,4 @@
-use super::NodeFlags;
+use super::NodeCheckFlags;
 use super::{CheckMode, TyChecker};
 use crate::{ir, ty};
 use bolt_ts_ast as ast;
@@ -7,12 +7,12 @@ impl<'cx> TyChecker<'cx> {
     fn contextually_check_fn_expr_or_object_method_member(&mut self, id: ast::NodeID) {
         let flags = |this: &mut Self| this.get_node_links(id).flags();
 
-        if !flags(self).intersects(NodeFlags::CONTEXT_CHECKED) {
+        if !flags(self).intersects(NodeCheckFlags::CONTEXT_CHECKED) {
             let contextual_sig = self.get_contextual_sig(id);
 
-            if !flags(self).intersects(NodeFlags::CONTEXT_CHECKED) {
+            if !flags(self).intersects(NodeCheckFlags::CONTEXT_CHECKED) {
                 self.get_mut_node_links(id)
-                    .config_flags(|flags| flags | NodeFlags::CONTEXT_CHECKED);
+                    .config_flags(|flags| flags | NodeCheckFlags::CONTEXT_CHECKED);
                 let symbol = self.get_symbol_of_decl(id);
                 let ty = self.get_type_of_symbol(symbol);
                 let sigs = self.get_signatures_of_type(ty, ty::SigKind::Call);
