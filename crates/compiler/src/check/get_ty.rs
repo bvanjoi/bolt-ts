@@ -932,17 +932,17 @@ impl<'cx> TyChecker<'cx> {
         let decl = if s.flags == SymbolFlags::TYPE_ALIAS {
             let alias = s.expect_ty_alias();
             alias.decl
-        } else if s.flags.intersects(SymbolFlags::INTERFACE) {
-            let i = s.expect_interface();
+        } else if s
+            .flags
+            .intersects(SymbolFlags::INTERFACE | SymbolFlags::CLASS)
+        {
+            let i = s.kind.1.as_ref().unwrap();
             i.decls[0]
-        } else if s.flags.intersects(SymbolFlags::CLASS) {
-            let c = s.expect_class();
-            c.decl
         } else {
             return None;
         };
-        let mut res = vec![];
         let ty_params = self.get_effective_ty_param_decls(decl);
+        let mut res = Vec::with_capacity(ty_params.len());
         self.append_ty_params(&mut res, ty_params);
         if res.is_empty() {
             None

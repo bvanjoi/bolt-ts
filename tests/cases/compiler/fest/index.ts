@@ -398,7 +398,7 @@ type ConditionalSimplifyDeep<Type, ExcludeType = never, IncludeType = unknown> =
 
   function f0(movableNodeSimplifiedFail: MovableNodeSimplifiedFail) {
     let a0: MovableCollection = movableNodeSimplifiedFail;
-    //~^ ERROR: Type 'mapped type' is not assignable to type '{ position: MovablePosition; left: { position: MovablePosition; size: { width: number; height: number; }; }; top: { position: MovablePosition; size: { width: number; height: number; }; }; }'.
+    //~^ ERROR: Type 'mapped type' is not assignable to type '{ position: MovablePosition; top: { position: MovablePosition; size: { width: number; height: number; }; }; left: { position: MovablePosition; size: { width: number; height: number; }; }; }'.
   }
   function f1(movableNodeSimplifiedPass: MovableNodeSimplifiedPass) {
     let a0: MovableCollection = movableNodeSimplifiedPass;

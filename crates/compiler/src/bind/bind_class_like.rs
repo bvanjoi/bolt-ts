@@ -1,56 +1,57 @@
-use super::symbol::{PropSymbol, SymbolFlags, SymbolKind};
-use super::{BinderState, ClassSymbol, SymbolID, SymbolName, prop_name};
+use super::symbol::SymbolFlags;
+use super::{BinderState, SymbolID, SymbolName, prop_name};
 use crate::ir;
 
 use bolt_ts_ast as ast;
 use bolt_ts_ast::ModifierKind;
-use bolt_ts_utils::fx_hashmap_with_capacity;
 
 impl<'cx> BinderState<'cx, '_, '_> {
-    fn create_class_symbol(&mut self, c: &impl ir::ClassLike<'cx>) -> SymbolID {
+    fn create_class_symbol(
+        &mut self,
+        c: &impl ir::ClassLike<'cx>,
+        container: Option<ast::NodeID>,
+    ) -> SymbolID {
         let name = c
             .name()
             .map_or(SymbolName::ClassExpr, |name| SymbolName::Normal(name.name));
         let id = c.id();
-        let cap = c.elems().elems.len();
-        let symbol = self.declare_symbol(
-            name,
-            SymbolFlags::CLASS,
-            SymbolKind::Class(ClassSymbol {
-                decl: id,
-                members: fx_hashmap_with_capacity(cap),
-                exports: fx_hashmap_with_capacity(cap),
-            }),
-            SymbolFlags::CLASS_EXCLUDES,
-        );
+        let symbol = if let Some(container) = container {
+            self.declare_symbol_and_add_to_symbol_table(
+                container,
+                name,
+                None,
+                id,
+                false,
+                Some(SymbolFlags::CLASS),
+                Some(SymbolFlags::CLASS_EXCLUDES),
+            )
+        } else {
+            self.bind_anonymous_decl(id, SymbolFlags::CLASS, name)
+        };
+        let key = (self.scope_id, name);
+        self.res.insert(key, symbol);
         self.create_final_res(id, symbol);
         symbol
     }
 
     fn create_class_prop_ele(
         &mut self,
-        decl_id: ast::NodeID,
+        container: ast::NodeID,
         ele_name: SymbolName,
         ele_id: ast::NodeID,
         ele_modifiers: Option<&ast::Modifiers>,
     ) -> SymbolID {
-        let symbol = self.declare_symbol(
+        let is_export = ele_modifiers.is_some_and(|mods| mods.flags.contains(ModifierKind::Static));
+
+        let symbol = self.declare_symbol_and_add_to_symbol_table(
+            container,
             ele_name,
-            SymbolFlags::PROPERTY,
-            SymbolKind::Prop(PropSymbol { decl: ele_id }),
-            SymbolFlags::PROPERTY_EXCLUDES,
+            None,
+            ele_id,
+            is_export,
+            Some(SymbolFlags::PROPERTY | SymbolFlags::ASSIGNMENT),
+            Some(SymbolFlags::empty()),
         );
-        let SymbolKind::Class(ClassSymbol {
-            members, exports, ..
-        }) = &mut self.symbols.get_mut(self.final_res[&decl_id]).kind.0
-        else {
-            unreachable!()
-        };
-        if ele_modifiers.is_some_and(|mods| mods.flags.contains(ModifierKind::Static)) {
-            exports.insert(ele_name, symbol);
-        } else {
-            members.insert(ele_name, symbol);
-        }
         symbol
     }
 
@@ -106,7 +107,7 @@ impl<'cx> BinderState<'cx, '_, '_> {
             is_static,
         );
         if let Some(ty_params) = ele.ty_params {
-            self.bind_ty_params(ty_params);
+            self.bind_ty_params(ele.id, ty_params);
         }
         self.bind_params(ele.params);
         if let Some(body) = ele.body {
@@ -141,27 +142,13 @@ impl<'cx> BinderState<'cx, '_, '_> {
             self.scope_id = self.new_scope();
         }
 
-        let class_symbol = self.create_class_symbol(class);
-
-        if let Some(container) = container {
-            let is_export = class
-                .modifiers()
-                .is_some_and(|ms| ms.flags.contains(ModifierKind::Export));
-            let name = SymbolName::Normal(class.name().unwrap().name);
-            self.declare_symbol_and_add_to_symbol_table(
-                container,
-                name,
-                class_symbol,
-                class.id(),
-                is_export,
-            );
-        }
+        self.create_class_symbol(class, container);
 
         let old = self.scope_id;
         self.scope_id = self.new_scope();
 
         if let Some(ty_params) = class.ty_params() {
-            self.bind_ty_params(ty_params);
+            self.bind_ty_params(class.id(), ty_params);
         }
 
         if let Some(extends) = class.extends() {

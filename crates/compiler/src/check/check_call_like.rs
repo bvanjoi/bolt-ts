@@ -931,7 +931,7 @@ impl<'cx> TyChecker<'cx> {
             (min, max)
         };
 
-        let mut params = vec![];
+        let mut params = Vec::with_capacity(16);
         for i in 0..max_non_rest_param_count {
             let symbols = candidates
                 .iter()

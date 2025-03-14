@@ -432,7 +432,7 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
                 let target_span = if symbol.flags.intersects(SymbolFlags::CLASS) {
                     self.c
                         .p
-                        .node(symbol.expect_class().decl)
+                        .node(symbol.expect_ns().decls[0])
                         .as_class_decl()
                         .unwrap()
                         .name
@@ -440,7 +440,10 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
                 } else if symbol.flags.intersects(SymbolFlags::INTERFACE) {
                     self.c
                         .p
-                        .node(symbol.expect_interface().decls[0])
+                        .node({
+                            let i = symbol.kind.1.as_ref().unwrap();
+                            i.decls[0]
+                        })
                         .as_interface_decl()
                         .unwrap()
                         .name
@@ -1388,7 +1391,7 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
         );
         if res == Ternary::FALSE {
             if source.key_ty == target.key_ty {
-                let decl = self.c.binder.symbol(source.symbol).expect_index().decls[0];
+                let decl = self.c.binder.symbol(source.symbol).opt_decl().unwrap();
                 let span = self.c.p.node(decl).expect_index_sig_decl().ty.span();
                 let error = errors::IndexSignaturesAreIncompatible {
                     span,

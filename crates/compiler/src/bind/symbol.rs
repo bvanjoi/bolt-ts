@@ -27,6 +27,7 @@ pub enum SymbolName {
     Interface,
     Index,
     Type,
+    Missing,
 }
 
 impl SymbolName {
@@ -130,7 +131,28 @@ bitflags::bitflags! {
 pub struct Symbol {
     pub name: SymbolName,
     pub flags: SymbolFlags,
-    pub(crate) kind: (SymbolKind, Option<InterfaceSymbol>, Option<NsSymbol>),
+    pub(crate) kind: (SymbolKind, Option<MergedSymbol>),
+}
+
+#[derive(Debug)]
+pub struct SymbolTable(pub FxHashMap<SymbolName, SymbolID>);
+
+impl Default for SymbolTable {
+    fn default() -> Self {
+        Self(fx_hashmap_with_capacity(64))
+    }
+}
+
+#[derive(Debug)]
+pub struct MergedSymbol {
+    pub decls: thin_vec::ThinVec<NodeID>,
+    pub value_decl: Option<NodeID>,
+    // TODO: use Option<SymbolTable>
+    pub members: SymbolTable,
+    // TODO: use Option<SymbolTable>
+    pub exports: SymbolTable,
+    pub parent: Option<SymbolID>,
+    pub const_enum_only_module: Option<bool>,
 }
 
 impl Symbol {
@@ -141,21 +163,15 @@ impl Symbol {
         Self {
             name,
             flags,
-            kind: (kind, None, None),
+            kind: (kind, None),
         }
     }
-    pub(super) fn new_interface(name: SymbolName, flags: SymbolFlags, i: InterfaceSymbol) -> Self {
+
+    pub(super) fn new_symbol(name: SymbolName, flags: SymbolFlags, i: MergedSymbol) -> Self {
         Self {
             name,
             flags,
-            kind: (SymbolKind::Err, Some(i), None),
-        }
-    }
-    pub(super) fn new_ns(name: SymbolName, flags: SymbolFlags, i: NsSymbol) -> Self {
-        Self {
-            name,
-            flags,
-            kind: (SymbolKind::Err, None, Some(i)),
+            kind: (SymbolKind::Err, Some(i)),
         }
     }
 
@@ -185,18 +201,11 @@ pub(crate) enum SymbolKind {
         decl: NodeID,
     },
     Fn(FnSymbol),
-    Class(ClassSymbol),
-    Prop(PropSymbol),
     Object(ObjectSymbol),
-    Index(IndexSymbol),
     TyAlias(TyAliasSymbol),
-    TyParam(TyParamSymbol),
     TyLit(TyLitSymbol),
     Alias(AliasSymbol),
     GetterSetter(GetterSetterSymbol),
-    TyMapped {
-        decl: NodeID,
-    },
 }
 
 impl SymbolKind {
@@ -204,16 +213,11 @@ impl SymbolKind {
         match &self {
             SymbolKind::FunctionScopedVar(f) => Some(f.decl),
             SymbolKind::BlockScopedVar { decl } => Some(*decl),
-            SymbolKind::Class(c) => Some(c.decl),
-            SymbolKind::Prop(prop) => Some(prop.decl),
             SymbolKind::Object(object) => Some(object.decl),
-            SymbolKind::Index(index) => Some(index.decls[0]),
             SymbolKind::TyAlias(alias) => Some(alias.decl),
-            SymbolKind::TyParam(param) => Some(param.decl),
             SymbolKind::TyLit(ty_lit) => Some(ty_lit.decl),
             SymbolKind::Alias(alias) => Some(alias.decl),
             SymbolKind::Fn(f) => Some(f.decls[0]),
-            SymbolKind::TyMapped { decl } => Some(*decl),
             _ => None,
         }
     }
@@ -239,19 +243,11 @@ macro_rules! as_symbol_kind {
 
 impl Symbol {
     #[inline(always)]
-    pub(super) fn as_interface(&self) -> Option<&InterfaceSymbol> {
+    pub(super) fn as_ns(&self) -> Option<&MergedSymbol> {
         self.kind.1.as_ref()
     }
     #[inline(always)]
-    pub fn expect_interface(&self) -> &InterfaceSymbol {
-        self.as_interface().unwrap()
-    }
-    #[inline(always)]
-    pub(super) fn as_ns(&self) -> Option<&NsSymbol> {
-        self.kind.2.as_ref()
-    }
-    #[inline(always)]
-    pub fn expect_ns(&self) -> &NsSymbol {
+    pub fn expect_ns(&self) -> &MergedSymbol {
         self.as_ns().unwrap()
     }
 }
@@ -262,13 +258,9 @@ as_symbol_kind!(
     as_block_container,
     expect_block_container
 );
-as_symbol_kind!(Index, &IndexSymbol, as_index, expect_index);
 as_symbol_kind!(Object, &ObjectSymbol, as_object, expect_object);
-as_symbol_kind!(Prop, &PropSymbol, as_prop, expect_prop);
 as_symbol_kind!(Fn, &FnSymbol, as_fn, expect_fn);
-as_symbol_kind!(Class, &ClassSymbol, as_class, expect_class);
 as_symbol_kind!(TyAlias, &TyAliasSymbol, as_ty_alias, expect_ty_alias);
-as_symbol_kind!(TyParam, &TyParamSymbol, as_ty_param, expect_ty_param);
 as_symbol_kind!(TyLit, &TyLitSymbol, as_ty_lit, expect_ty_lit);
 as_symbol_kind!(Alias, &AliasSymbol, as_alias, expect_alias);
 as_symbol_kind!(
@@ -304,48 +296,14 @@ pub struct GetterSetterSymbol {
 }
 
 #[derive(Debug)]
-pub struct IndexSymbol {
-    pub decls: thin_vec::ThinVec<NodeID>,
-}
-
-#[derive(Debug)]
-pub struct InterfaceSymbol {
-    pub decls: thin_vec::ThinVec<NodeID>,
-    pub members: FxHashMap<SymbolName, SymbolID>,
-}
-
-#[derive(Debug)]
-pub struct TyParamSymbol {
-    pub decl: NodeID,
-}
-#[derive(Debug)]
 pub struct TyAliasSymbol {
     pub decl: NodeID,
-}
-
-#[derive(Debug)]
-pub struct NsSymbol {
-    pub decls: thin_vec::ThinVec<NodeID>,
-    pub exports: FxHashMap<SymbolName, SymbolID>,
-    pub members: FxHashMap<SymbolName, SymbolID>,
 }
 
 #[derive(Debug)]
 pub struct FnSymbol {
     pub kind: SymbolFnKind,
     pub decls: thin_vec::ThinVec<NodeID>,
-}
-
-#[derive(Debug)]
-pub struct ClassSymbol {
-    pub decl: NodeID,
-    pub members: FxHashMap<SymbolName, SymbolID>,
-    pub exports: FxHashMap<SymbolName, SymbolID>,
-}
-
-#[derive(Debug)]
-pub struct PropSymbol {
-    pub decl: NodeID,
 }
 
 #[derive(Debug)]
@@ -381,23 +339,18 @@ impl Symbol {
             SymbolKind::FunctionScopedVar { .. } => todo!(),
             SymbolKind::BlockScopedVar { .. } => todo!(),
             SymbolKind::Fn { .. } => "function",
-            SymbolKind::Class { .. } => "class",
-            SymbolKind::Prop { .. } => todo!(),
             SymbolKind::Object { .. } => todo!(),
             SymbolKind::BlockContainer { .. } => todo!(),
-            SymbolKind::Index { .. } => todo!(),
             SymbolKind::TyAlias { .. } => todo!(),
-            SymbolKind::TyParam { .. } => todo!(),
             SymbolKind::TyLit(_) => todo!(),
             SymbolKind::Alias(_) => todo!(),
             SymbolKind::GetterSetter(_) => todo!(),
-            SymbolKind::TyMapped { .. } => todo!(),
         }
     }
 
     pub fn opt_decl(&self) -> Option<NodeID> {
         let id = self.kind.0.opt_decl();
-        id.or_else(|| self.kind.1.as_ref().and_then(|i| i.decls.first()).copied())
+        id.or_else(|| self.as_ns().and_then(|i| i.decls.first()).copied())
     }
 }
 
@@ -421,7 +374,6 @@ impl SymbolID {
         let s = binder.symbol(*self);
         let id = s.kind.0.opt_decl();
         id.or_else(|| s.kind.1.as_ref().and_then(|i| i.decls.first()).copied())
-            .or_else(|| s.kind.2.as_ref().and_then(|i| i.decls.first()).copied())
     }
 
     pub fn decl(&self, binder: &super::Binder) -> NodeID {
@@ -511,4 +463,16 @@ impl GlobalSymbols {
     pub fn get(&self, name: SymbolName) -> Option<SymbolID> {
         self.0.get(&name).copied()
     }
+}
+
+#[derive(Debug, Clone, Copy)]
+pub(super) enum SymbolTableLocation {
+    Symbol {
+        symbol: SymbolID,
+        is_export: bool,
+    },
+    Local {
+        container: bolt_ts_ast::NodeID,
+        is_export: bool,
+    },
 }

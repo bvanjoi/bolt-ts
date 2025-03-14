@@ -10,14 +10,14 @@ pub fn visit_stmt<'cx>(v: &mut impl Visitor<'cx>, stmt: &'cx super::Stmt) {
         Class(node) => v.visit_class_decl(node),
         Import(node) => v.visit_import_decl(node),
         Interface(node) => v.visit_interface_decl(node),
+        Expr(node) => v.visit_expr(node),
+        Var(node) => v.visit_var_stmt(node),
         Export(_) => {}
         Empty(_) => (),
-        Var(_) => (),
         If(_) => (),
         Return(_) => (),
         Block(_) => (),
         Fn(_) => (),
-        Expr(_) => (),
         Type(_) => (),
         Namespace(_) => (),
         Throw(_) => (),
@@ -31,6 +31,21 @@ pub fn visit_stmt<'cx>(v: &mut impl Visitor<'cx>, stmt: &'cx super::Stmt) {
         While(_) => {}
         Do(_) => {}
         Debugger(_) => {}
+    }
+}
+
+fn visit_var_stmt<'cx>(v: &mut impl Visitor<'cx>, stmt: &'cx super::VarStmt<'cx>) {
+    for item in stmt.list {
+        v.visit_var_decl(item);
+    }
+}
+
+fn visit_var_decl<'cx>(v: &mut impl Visitor<'cx>, decl: &'cx super::VarDecl<'cx>) {
+    if let Some(ty) = decl.ty {
+        v.visit_ty(ty);
+    }
+    if let Some(init) = decl.init {
+        v.visit_expr(init);
     }
 }
 
@@ -199,6 +214,14 @@ pub fn visit_template_lit_ty<'cx>(v: &mut impl Visitor<'cx>, n: &'cx super::Temp
     }
 }
 pub fn visit_ident<'cx>(_: &mut impl Visitor<'cx>, _: &'cx super::Ident) {}
+pub fn visit_expr<'cx>(v: &mut impl Visitor<'cx>, n: &'cx super::Expr<'cx>) {
+    use super::ExprKind::*;
+    match n.kind {
+        ObjectLit(n) => v.visit_object_lit(n),
+        _ => {}
+    }
+}
+pub fn visit_object_lit<'cx>(v: &mut impl Visitor<'cx>, n: &'cx super::ObjectLit<'cx>) {}
 
 macro_rules! make_visitor {
     ( $( ($visit_node: ident, $ty: ty) ),* $(,)? ) => {
@@ -244,6 +267,10 @@ make_visitor!(
     (visit_intrinsic_ty, super::IntrinsicTy),
     (visit_nullable_ty, super::NullableTy<'cx>),
     (visit_template_lit_ty, super::TemplateLitTy<'cx>),
+    (visit_var_stmt, super::VarStmt<'cx>),
+    (visit_var_decl, super::VarDecl<'cx>),
+    (visit_expr, super::Expr<'cx>),
+    (visit_object_lit, super::ObjectLit<'cx>)
 );
 
 pub fn visit_node<'cx>(v: &mut impl Visitor<'cx>, node: &super::Node<'cx>) {

@@ -3,6 +3,7 @@ use crate::ir;
 use super::symbol::{FnSymbol, SymbolKind};
 use super::{BinderState, SymbolFlags};
 use bolt_ts_ast as ast;
+use bolt_ts_utils::fx_hashmap_with_capacity;
 use rustc_hash::FxHashMap;
 use thin_vec::thin_vec;
 
@@ -12,36 +13,47 @@ impl<'cx> BinderState<'cx, '_, '_> {
         container: ast::NodeID,
         is_export: bool,
     ) -> &mut FxHashMap<super::SymbolName, super::SymbolID> {
-        let container = self.final_res[&container];
+        self.opt_members(container, is_export).unwrap()
+    }
+
+    pub(super) fn opt_members(
+        &mut self,
+        container: ast::NodeID,
+        is_export: bool,
+    ) -> Option<&mut FxHashMap<super::SymbolName, super::SymbolID>> {
+        if self.p.node(container).has_locals() {
+            // TODO: remove this condition
+            if !self.p.node(container).is_block_stmt() {
+                return Some(
+                    self.locals
+                        .entry(container)
+                        .or_insert_with(|| fx_hashmap_with_capacity(64)),
+                );
+            }
+        }
+        let container = self.final_res.get(&container).copied()?;
+
         let container = self.symbols.get_mut(container);
         if let Some(i) = &mut container.kind.1 {
-            return &mut i.members;
+            return Some(if is_export {
+                &mut i.exports.0
+            } else {
+                &mut i.members.0
+            });
         }
         let s = &mut container.kind.0;
-        if let SymbolKind::Class(c) = s {
-            if is_export {
-                &mut c.exports
-            } else {
-                &mut c.members
-            }
-        } else if let SymbolKind::BlockContainer(c) = s {
-            if is_export {
+        if let SymbolKind::BlockContainer(c) = s {
+            Some(if is_export {
                 &mut c.exports
             } else {
                 &mut c.locals
-            }
+            })
         } else if let SymbolKind::Object(obj) = s {
-            &mut obj.members
+            Some(&mut obj.members)
         } else if let SymbolKind::TyLit(obj) = s {
-            &mut obj.members
-        } else if let Some(ns) = container.kind.2.as_mut() {
-            if is_export {
-                &mut ns.exports
-            } else {
-                &mut ns.members
-            }
+            Some(&mut obj.members)
         } else {
-            unreachable!("{:#?}", s)
+            None
         }
     }
 

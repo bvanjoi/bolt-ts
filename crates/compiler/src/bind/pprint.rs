@@ -21,6 +21,7 @@ impl<'cx> SymbolName {
             super::SymbolName::Interface => "Inner(Interface)".to_string(),
             super::SymbolName::Index => "Inner(Index)".to_string(),
             super::SymbolName::Type => "Inner(Type)".to_string(),
+            super::SymbolName::Missing => todo!(),
         }
     }
     pub(crate) fn to_string(self, atoms: &'cx AtomMap<'cx>) -> String {

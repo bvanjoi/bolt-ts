@@ -717,7 +717,7 @@ pub(super) fn resolve_symbol_by_ident<'a, 'cx>(
         if let Some(id) = binder.res.get(&(scope_id, key)).copied() {
             let symbol = binder.symbols.get(id);
             use crate::bind::SymbolKind::*;
-            if symbol.kind.2.is_some()
+            if symbol.kind.1.is_some()
                 && resolver
                     .p
                     .parent(ident.id)

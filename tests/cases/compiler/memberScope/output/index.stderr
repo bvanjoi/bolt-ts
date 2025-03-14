@@ -1,0 +1,12 @@
+  × Cannot find name 'Basil'.
+   ╭─[../../tests/cases/compiler/memberScope/index.ts:6:11]
+ 6 │ Basil
+   · ─────
+   ╰────
+
+Advice: 
+  ☞ Cannot use namespace as a value.
+   ╭─[../../tests/cases/compiler/memberScope/index.ts:5:17]
+ 5 │ Basil
+   · ─────
+   ╰────

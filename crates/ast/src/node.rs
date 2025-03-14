@@ -472,7 +472,9 @@ impl<'cx> Node<'cx> {
         let mut flags = FnFlags::NORMAL;
         if self.is_fn_decl() || self.is_fn_expr() || self.is_class_method_ele() {
             // todo: check aster token
-        } else if self.as_arrow_fn_expr().is_some() && self.has_syntactic_modifier(self::ModifierKind::Async.into()) {
+        } else if self.as_arrow_fn_expr().is_some()
+            && self.has_syntactic_modifier(self::ModifierKind::Async.into())
+        {
             flags |= FnFlags::GENERATOR;
         }
 
@@ -539,7 +541,8 @@ impl<'cx> Node<'cx> {
             PropSignature,
             FnDecl,
             VarStmt,
-            ClassDecl
+            ClassDecl,
+            NamespaceDecl,
         )
     }
 
@@ -616,6 +619,14 @@ impl<'cx> Node<'cx> {
 
     pub fn is_access_expr(&self) -> bool {
         self.is_prop_access_expr() || self.is_ele_access_expr()
+    }
+
+    pub fn is_same_kind(&self, other: &Self) -> bool {
+        std::mem::discriminant(self) == std::mem::discriminant(other)
+    }
+
+    pub fn is_effective_module_decl(&self) -> bool {
+        self.is_ident() || self.is_namespace_decl()
     }
 }
 

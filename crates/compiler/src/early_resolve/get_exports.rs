@@ -10,10 +10,7 @@ impl Resolver<'_, '_, '_> {
         symbol: SymbolID,
     ) -> Option<&FxHashMap<SymbolName, SymbolID>> {
         let flags = self.symbol(symbol).flags;
-        if flags.intersects(SymbolFlags::CLASS) {
-            let c = self.symbol(symbol).expect_class();
-            Some(&c.exports)
-        } else if flags.intersects(SymbolFlags::MODULE) {
+        if flags.intersects(SymbolFlags::MODULE | SymbolFlags::CLASS) {
             self.get_exports_of_module(symbol)
         } else {
             None
@@ -29,6 +26,6 @@ impl Resolver<'_, '_, '_> {
         // }
         let s = self.symbol(symbol);
         let ns = s.expect_ns();
-        Some(&ns.exports)
+        Some(&ns.exports.0)
     }
 }

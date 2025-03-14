@@ -1024,8 +1024,7 @@ impl<'cx> TyChecker<'cx> {
 
     pub(super) fn ty_param_node(&self, ty_param: &'cx ty::ParamTy<'cx>) -> &'cx ast::TyParam<'cx> {
         let symbol = self.binder.symbol(ty_param.symbol);
-        let symbol = symbol.expect_ty_param();
-        let node = self.p.node(symbol.decl);
+        let node = self.p.node(symbol.opt_decl().unwrap());
         let Some(param) = node.as_ty_param() else {
             unreachable!()
         };

@@ -124,7 +124,7 @@ impl<'cx> TyChecker<'cx> {
             if symbol == Symbol::ERR {
                 None
             } else {
-                let decl = self.binder.symbol(symbol).expect_ty_param().decl;
+                let decl = self.binder.symbol(symbol).opt_decl().unwrap();
                 let decl = self.p.node(decl).expect_ty_param();
                 self.get_effective_constraint_of_ty_param(decl)
             }
@@ -138,7 +138,7 @@ impl<'cx> TyChecker<'cx> {
         ty_param: &'cx ty::Ty<'cx>,
         omit_ty_references: bool,
     ) -> Option<&'cx ty::Ty<'cx>> {
-        let mut inferences = vec![];
+        let mut inferences = Vec::with_capacity(16);
         let decl = ty_param.symbol().and_then(|s| self.symbol_opt_decl(s))?;
         let parent = self.p.parent(decl)?;
         let parent_parent = self.p.parent(parent)?;
@@ -377,7 +377,7 @@ impl<'cx> TyChecker<'cx> {
             }
         }
 
-        let mut stack = vec![];
+        let mut stack = Vec::with_capacity(8);
         let res = get_immediate_base_constraint(self, ty, &mut stack);
         self.get_mut_ty_links(ty.id)
             .set_resolved_base_constraint(res);

@@ -564,6 +564,7 @@ impl<'cx> TyChecker<'cx> {
         if unmatched.is_empty() {
             None
         } else {
+            let target = self.get_reduced_apparent_ty(target);
             let ty = target.kind.expect_object();
             fn recur(ty: &ObjectTy) -> SymbolID {
                 match ty.kind {
@@ -571,7 +572,7 @@ impl<'cx> TyChecker<'cx> {
                     ObjectTyKind::Interface(ty) => ty.symbol,
                     ObjectTyKind::Anonymous(ty) => ty.symbol.unwrap(),
                     ObjectTyKind::Mapped(ty) => ty.symbol,
-                    ObjectTyKind::Tuple(ty) => Symbol::ERR,
+                    ObjectTyKind::Tuple(_) => Symbol::ERR,
                     _ => unreachable!("{ty:#?}"),
                 }
             }

@@ -12,12 +12,11 @@ use crate::ty::{self, CheckFlags, ObjectFlags, SigID, SigKind, TypeFlags};
 impl<'cx> TyChecker<'cx> {
     pub(super) fn members(&self, symbol: SymbolID) -> &FxHashMap<SymbolName, SymbolID> {
         let s = self.binder.symbol(symbol);
-        if s.flags.intersects(SymbolFlags::CLASS) {
-            let c = s.expect_class();
-            &c.members
-        } else if s.flags.intersects(SymbolFlags::INTERFACE) {
-            let i = s.expect_interface();
-            &i.members
+        if s.flags
+            .intersects(SymbolFlags::INTERFACE | SymbolFlags::CLASS)
+        {
+            let i = s.kind.1.as_ref().unwrap();
+            &i.members.0
         } else if s.flags.intersects(SymbolFlags::TYPE_LITERAL) {
             let t = s.expect_ty_lit();
             &t.members
@@ -260,7 +259,7 @@ impl<'cx> TyChecker<'cx> {
     ) -> &'cx [&'cx ty::Ty<'cx>] {
         let symbol = ty.symbol().unwrap();
         let s = self.binder.symbol(symbol);
-        let i = s.expect_interface();
+        let i = s.kind.1.as_ref().unwrap();
         let decl = i.decls[0];
         assert!(self.p.node(decl).is_interface_decl());
         let Some(ty_nodes) = self.get_interface_base_ty_nodes(decl) else {
@@ -286,7 +285,7 @@ impl<'cx> TyChecker<'cx> {
         i: &'cx ty::Ty<'cx>,
     ) -> Option<&'cx ast::ClassExtendsClause<'cx>> {
         let symbol = i.symbol().unwrap();
-        let decl = self.binder.symbol(symbol).expect_class().decl;
+        let decl = self.binder.symbol(symbol).expect_ns().decls[0];
         self.get_effective_base_type_node(decl)
     }
 
@@ -607,7 +606,7 @@ impl<'cx> TyChecker<'cx> {
         let i = r.target.kind.expect_object_interface();
         let symbol = i.symbol;
         let mut flags = ty::SigFlags::empty();
-        let class_node_id = self.binder.symbol(symbol).expect_class().decl;
+        let class_node_id = self.binder.symbol(symbol).expect_ns().decls[0];
         if let Some(c) = self.p.node(class_node_id).as_class_decl() {
             if let Some(mods) = c.modifiers {
                 if mods.flags.contains(ast::ModifierKind::Abstract) {
@@ -639,12 +638,9 @@ impl<'cx> TyChecker<'cx> {
         symbol: SymbolID,
     ) -> Option<&FxHashMap<SymbolName, SymbolID>> {
         let flags = self.binder.symbol(symbol).flags;
-        if flags.intersects(SymbolFlags::CLASS) {
-            let c = self.binder.symbol(symbol).expect_class();
-            Some(&c.exports)
-        } else if flags.intersects(SymbolFlags::MODULE) {
+        if flags.intersects(SymbolFlags::MODULE | SymbolFlags::CLASS) {
             let ns = self.binder.symbol(symbol).expect_ns();
-            Some(&ns.exports)
+            Some(&ns.exports.0)
         } else {
             None
         }
@@ -725,7 +721,7 @@ impl<'cx> TyChecker<'cx> {
             // TODO: `constructor_sigs`, `index_infos`
         } else if symbol_flags.intersects(SymbolFlags::CLASS) {
             call_sigs = &[];
-            if let Some(symbol) = symbol.expect_class().members.get(&SymbolName::Constructor) {
+            if let Some(symbol) = symbol.expect_ns().members.0.get(&SymbolName::Constructor) {
                 ctor_sigs = self.get_sigs_of_symbol(*symbol)
             } else {
                 ctor_sigs = &[];

@@ -4,7 +4,7 @@ mod bind_fn_like;
 mod bind_visitor;
 mod container_flags;
 mod create;
-mod errors;
+pub(crate) mod errors;
 mod flow;
 mod pprint;
 mod symbol;
@@ -19,7 +19,6 @@ use rustc_hash::FxHashMap;
 
 pub use self::flow::{FlowFlags, FlowID, FlowNode, FlowNodeKind, FlowNodes};
 pub use self::symbol::BlockContainerSymbol;
-use self::symbol::ClassSymbol;
 pub(crate) use self::symbol::SymbolKind;
 use self::symbol::TyLitSymbol;
 pub use self::symbol::{GlobalSymbols, Symbol, SymbolID, SymbolName, Symbols};

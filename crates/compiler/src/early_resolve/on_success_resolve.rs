@@ -47,7 +47,7 @@ impl<'cx> Resolver<'cx, '_, '_> {
             None
         } else if self
             .p
-            .node(self.p.parent(symbol.expect_ty_param().decl).unwrap())
+            .node(self.p.parent(symbol.opt_decl().unwrap()).unwrap())
             .is_class_like()
             && self
                 .p

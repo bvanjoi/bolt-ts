@@ -83,7 +83,7 @@ impl<'cx> TyChecker<'cx> {
         let ty = self.get_declared_ty_of_symbol(symbol);
         let ty_with_this = self.get_ty_with_this_arg(ty, None);
         let static_ty = self.get_type_of_symbol(symbol);
-        self.check_index_constraints(ty, symbol);
+        self.check_index_constraints(ty, false);
 
         if let Some(impls) = class.implements() {
             for ty_ref_node in impls.list {

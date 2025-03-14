@@ -83,7 +83,6 @@ pub use self::resolve::ExpectedArgsCount;
 use crate::bind::{
     self, FlowID, FlowNodes, GlobalSymbols, Symbol, SymbolFlags, SymbolID, SymbolName,
 };
-use crate::ir::VarLike;
 use crate::parser::{AccessKind, AssignmentKind, Parser};
 use crate::ty::{CheckFlags, TYPEOF_NE_FACTS};
 use crate::ty::{ElementFlags, ObjectFlags, Sig, SigFlags, SigID, TyID, TypeFacts, TypeFlags};
@@ -927,12 +926,19 @@ impl<'cx> TyChecker<'cx> {
         self.get_lit_ty_from_prop_name(name)
     }
 
-    fn check_index_constraints(&mut self, ty: &'cx ty::Ty<'cx>, symbol: SymbolID) {
+    fn check_index_constraints(&mut self, ty: &'cx ty::Ty<'cx>, is_static_index: bool) {
         self.resolve_structured_type_members(ty);
         for prop in self.properties_of_object_type(ty) {
-            let prop_ty = self.get_type_of_symbol(*prop);
-            let prop_name_ty = self.get_lit_ty_from_prop(*prop);
-            self.check_index_constraint_for_prop(ty, *prop, prop_name_ty, prop_ty);
+            if !(is_static_index
+                && self
+                    .symbol(*prop)
+                    .flags()
+                    .intersects(SymbolFlags::PROTOTYPE))
+            {
+                let prop_ty = self.get_type_of_symbol(*prop);
+                let prop_name_ty = self.get_lit_ty_from_prop(*prop);
+                self.check_index_constraint_for_prop(ty, *prop, prop_name_ty, prop_ty);
+            }
         }
     }
 
@@ -1594,10 +1600,19 @@ impl<'cx> TyChecker<'cx> {
         if assignment_kind != AssignmentKind::None && symbol != Symbol::ERR {
             let symbol = self.binder.symbol(symbol);
             if !symbol.is_variable() {
+                let ty = if symbol.flags.intersects(SymbolFlags::CLASS) {
+                    "class"
+                } else if symbol.flags.intersects(SymbolFlags::FUNCTION) {
+                    "function"
+                } else if symbol.flags.intersects(SymbolFlags::ENUM) {
+                    "enum"
+                } else {
+                    todo!()
+                };
                 let error = errors::CannotAssignToNameBecauseItIsATy {
                     span: ident.span,
                     name: self.atoms.get(ident.name).to_string(),
-                    ty: symbol.as_str().to_string(),
+                    ty: ty.to_string(),
                 };
                 self.push_error(Box::new(error));
                 return self.error_ty;

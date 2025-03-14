@@ -43,7 +43,7 @@ impl<'cx> TyChecker<'cx> {
         if let Some(ty) = self.get_symbol_links(symbol).get_declared_ty() {
             return ty;
         }
-        let ty_param_id = self.binder.symbol(symbol).expect_ty_param().decl;
+        let ty_param_id = self.binder.symbol(symbol).opt_decl().unwrap();
         let container = self.p.node(self.p.parent(ty_param_id).unwrap());
         let ty_params = container.ty_params();
         let offset =
@@ -114,7 +114,7 @@ impl<'cx> TyChecker<'cx> {
             return resolved_base_ctor_ty;
         }
         let symbol = ty.symbol().unwrap();
-        let decl = self.binder.symbol(symbol).expect_class().decl;
+        let decl = self.binder.symbol(symbol).expect_ns().decls[0];
         let Some(extends) = self.get_effective_base_type_node(decl) else {
             return self.undefined_ty;
         };
@@ -152,7 +152,9 @@ impl<'cx> TyChecker<'cx> {
             .values()
             .filter_map(|m| {
                 let name = self.symbol(*m).name();
-                if name.is_numeric() || name.as_atom().is_some() {
+                if self.symbol_is_value(*m, false)
+                    && (name.is_numeric() || name.as_atom().is_some())
+                {
                     Some(*m)
                 } else {
                     None
@@ -160,6 +162,11 @@ impl<'cx> TyChecker<'cx> {
             })
             .collect::<Vec<_>>();
         self.alloc(props)
+    }
+
+    fn symbol_is_value(&self, symbol: SymbolID, include_ty_only_members: bool) -> bool {
+        let s = self.symbol(symbol).flags();
+        s.intersects(SymbolFlags::VALUE) // TODO: get_symbol_flags
     }
 
     fn get_resolved_member_or_exports_of_symbol(
@@ -282,9 +289,10 @@ impl<'cx> TyChecker<'cx> {
     fn get_outer_ty_params_of_class_or_interface(&mut self, id: SymbolID) -> Option<ty::Tys<'cx>> {
         let s = self.binder.symbol(id);
         let decl = if s.flags.intersects(SymbolFlags::CLASS) {
-            s.expect_class().decl
+            s.expect_ns().decls[0]
         } else if s.flags.intersects(SymbolFlags::INTERFACE) {
-            s.expect_interface().decls[0]
+            let i = s.kind.1.as_ref().unwrap();
+            i.decls[0]
         } else {
             unreachable!()
         };

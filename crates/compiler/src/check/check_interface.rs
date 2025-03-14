@@ -1,6 +1,7 @@
 use bolt_ts_ast as ast;
+use bolt_ts_utils::fx_hashmap_with_capacity;
 
-use crate::ty;
+use crate::{bind, ty};
 
 use super::{Ternary, TyChecker, errors};
 
@@ -8,7 +9,7 @@ impl<'cx> TyChecker<'cx> {
     pub(super) fn check_interface_decl(&mut self, interface: &'cx ast::InterfaceDecl<'cx>) {
         let symbol = self.get_symbol_of_decl(interface.id);
 
-        let i = self.binder.symbol(symbol).expect_interface();
+        let i = self.binder.symbol(symbol).expect_ns();
         let decl_id = i.decls[0];
         if decl_id == interface.id {
             let ty = self.get_declared_ty_of_symbol(symbol);
@@ -34,7 +35,40 @@ impl<'cx> TyChecker<'cx> {
                         self.push_error(Box::new(error));
                     }
                 }
-                self.check_index_constraints(ty, symbol);
+                self.check_index_constraints(ty, false);
+            }
+        }
+
+        self.check_object_ty_for_duplicate_decls(interface.members);
+    }
+
+    pub(super) fn check_object_ty_for_duplicate_decls(
+        &mut self,
+        members: ast::ObjectTyMembers<'cx>,
+    ) {
+        let mut names = fx_hashmap_with_capacity(members.len());
+        for member in members {
+            match member.kind {
+                ast::ObjectTyMemberKind::Prop(p) => {
+                    let member_name;
+                    let name = p.name;
+                    match name.kind {
+                        ast::PropNameKind::Ident(ident) => member_name = ident.name,
+                        ast::PropNameKind::StringLit { key, .. } => member_name = key,
+                        _ => continue,
+                    }
+                    if let Some(old) = names.get(&member_name).copied() {
+                        let error = bind::errors::DuplicateIdentifier {
+                            span: p.span,
+                            name: self.atoms.get(member_name).to_string(),
+                            original_span: old,
+                        };
+                        self.push_error(Box::new(error));
+                    } else {
+                        names.insert(member_name, p.span);
+                    }
+                }
+                _ => {}
             }
         }
     }
