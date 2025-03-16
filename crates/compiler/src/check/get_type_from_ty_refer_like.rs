@@ -62,8 +62,8 @@ impl<'cx> TyChecker<'cx> {
     fn is_local_ty_alias(&self, symbol: SymbolID) -> bool {
         let s = &self.binder.symbol(symbol);
         if s.flags == SymbolFlags::TYPE_ALIAS {
-            let s = s.expect_ty_alias();
-            self.p.get_containing_fn(s.decl).is_some()
+            let decl = s.expect_ns().decls[0];
+            self.p.get_containing_fn(decl).is_some()
         } else {
             false
         }

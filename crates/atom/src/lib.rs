@@ -1,4 +1,4 @@
-use bolt_ts_utils::fx_hashmap_with_capacity;
+use bolt_ts_utils::no_hashmap_with_capacity;
 pub use paste;
 use std::borrow::Cow;
 
@@ -19,11 +19,11 @@ impl AtomId {
 impl nohash_hasher::IsEnabled for AtomId {}
 
 #[derive(Debug)]
-pub struct AtomMap<'a>(rustc_hash::FxHashMap<AtomId, Cow<'a, str>>);
+pub struct AtomMap<'a>(nohash_hasher::IntMap<AtomId, Cow<'a, str>>);
 
 impl<'a> AtomMap<'a> {
     pub fn new(capacity: usize) -> Self {
-        let map = fx_hashmap_with_capacity(capacity);
+        let map = no_hashmap_with_capacity(capacity);
         Self(map)
     }
 

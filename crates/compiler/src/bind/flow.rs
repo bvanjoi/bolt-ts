@@ -1,5 +1,4 @@
-use bolt_ts_utils::fx_hashmap_with_capacity;
-use rustc_hash::FxHashMap;
+use bolt_ts_utils::no_hashmap_with_capacity;
 
 use bolt_ts_ast as ast;
 
@@ -66,8 +65,8 @@ pub struct FlowStart {
 pub struct FlowNodes<'cx> {
     module_id: bolt_ts_span::ModuleID,
     data: Vec<FlowNode<'cx>>,
-    container_map: FxHashMap<u32, u32>,
-    cond_expr_map: FxHashMap<u32, (FlowID, FlowID)>,
+    container_map: nohash_hasher::IntMap<u32, u32>,
+    cond_expr_map: nohash_hasher::IntMap<u32, (FlowID, FlowID)>,
 }
 
 impl<'cx> FlowNodes<'cx> {
@@ -75,8 +74,8 @@ impl<'cx> FlowNodes<'cx> {
         Self {
             module_id,
             data: Vec::with_capacity(512),
-            container_map: fx_hashmap_with_capacity(512),
-            cond_expr_map: fx_hashmap_with_capacity(256),
+            container_map: no_hashmap_with_capacity(512),
+            cond_expr_map: no_hashmap_with_capacity(256),
         }
     }
 

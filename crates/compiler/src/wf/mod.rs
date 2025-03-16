@@ -103,6 +103,7 @@ impl<'cx> CheckState<'cx> {
             }
         }
     }
+
     fn check_grammar_object_lit_expr(&mut self, node: &'cx ast::ObjectLit<'cx>) {
         let mut seen = fx_hashmap_with_capacity(node.members.len());
         for member in node.members {
@@ -119,6 +120,20 @@ impl<'cx> CheckState<'cx> {
                     }
                 }
                 _ => {}
+            }
+        }
+    }
+
+    fn check_grammar_try_stmt(&mut self, node: &'cx ast::TryStmt<'cx>) {
+        if let Some(c) = node.catch_clause {
+            if let Some(v) = c.var {
+                if let Some(init) = v.init {
+                    let error =
+                        errors::CatchClauseVariableTypeAnnotationMustBeAnyOrUnknownIfSpecified {
+                            span: init.span(),
+                        };
+                    self.push_error(Box::new(error));
+                }
             }
         }
     }
@@ -142,5 +157,9 @@ impl<'cx> ast::Visitor<'cx> for CheckState<'cx> {
     fn visit_object_lit(&mut self, node: &'cx bolt_ts_ast::ObjectLit<'cx>) {
         self.check_grammar_object_lit_expr(node);
         visitor::visit_object_lit(self, node);
+    }
+    fn visit_try_stmt(&mut self, node: &'cx bolt_ts_ast::TryStmt<'cx>) {
+        self.check_grammar_try_stmt(node);
+        visitor::visit_try_stmt(self, node);
     }
 }

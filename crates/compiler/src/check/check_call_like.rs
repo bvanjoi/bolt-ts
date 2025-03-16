@@ -13,6 +13,7 @@ use crate::ty::TypeFlags;
 
 use bolt_ts_ast as ast;
 use bolt_ts_span::Span;
+use bolt_ts_utils::no_hashset_with_capacity;
 
 pub(super) trait CallLikeExpr<'cx>: ir::CallLike<'cx> {
     fn resolve_sig(&self, checker: &mut TyChecker<'cx>) -> &'cx Sig<'cx>;
@@ -228,16 +229,24 @@ impl<'cx> TyChecker<'cx> {
         apparent_ty: &'cx ty::Ty<'cx>,
         kind: ty::SigKind,
     ) {
-        let error = errors::ThisExpressionIsNotConstructable { span: expr.span() };
+        let error = errors::ThisExpressionIsNotConstructable {
+            span: expr.span(),
+            is_call: kind == ty::SigKind::Call,
+        };
         self.push_error(Box::new(error));
     }
 
     fn resolve_call_expr(&mut self, expr: &impl CallLikeExpr<'cx>) -> &'cx Sig<'cx> {
         let ty = self.check_expr(expr.callee());
-        let call_sigs = self.get_signatures_of_type(ty, ty::SigKind::Call);
-        let ctor_sigs = self.get_signatures_of_type(ty, ty::SigKind::Constructor);
+        let apparent_ty = self.get_apparent_ty(ty);
+        if self.is_error(apparent_ty) {
+            return self.unknown_sig();
+        }
+
+        let call_sigs = self.get_signatures_of_type(apparent_ty, ty::SigKind::Call);
 
         if call_sigs.is_empty() {
+            let ctor_sigs = self.get_signatures_of_type(apparent_ty, ty::SigKind::Constructor);
             if let Some(sig) = ctor_sigs.first() {
                 assert_eq!(ctor_sigs.len(), 1);
                 let ast::Node::ClassDecl(decl) = self.p.node(sig.class_decl.unwrap()) else {
@@ -249,7 +258,6 @@ impl<'cx> TyChecker<'cx> {
                 };
                 self.push_error(Box::new(error));
             }
-            // TODO: use unreachable
             return self.unknown_sig();
         }
 
@@ -480,7 +488,7 @@ impl<'cx> TyChecker<'cx> {
         relation: RelationKind,
         is_single_non_generic_candidate: bool,
         mut argument_check_mode: CheckMode,
-        candidates_for_arg_error: &mut Vec<&'cx ty::Sig<'cx>>,
+        candidates_for_arg_error: &mut nohash_hasher::IntSet<ty::SigID>,
     ) -> Option<&'cx Sig<'cx>> {
         let ty_args = if !expr.is_super_call() {
             expr.ty_args()
@@ -560,11 +568,7 @@ impl<'cx> TyChecker<'cx> {
                     false,
                     infer_ctx,
                 ) {
-                    if let Some(node_id) = check_candidate.node_id {
-                        if self.p.node(node_id).fn_body().is_none() {
-                            candidates_for_arg_error.push(check_candidate);
-                        }
-                    }
+                    candidates_for_arg_error.insert(check_candidate.id);
                     continue;
                 }
 
@@ -606,7 +610,7 @@ impl<'cx> TyChecker<'cx> {
         let mut min_required_params = usize::MAX;
         let mut max_required_params = usize::MIN;
 
-        let mut candidates_for_arg_error = Vec::with_capacity(candidates.len());
+        let mut candidates_for_arg_error = no_hashset_with_capacity(candidates.len());
 
         let args = expr.args();
 
@@ -625,17 +629,17 @@ impl<'cx> TyChecker<'cx> {
         let mut res = None;
 
         if candidates.len() > 1 {
-            if let Some(sig) = self.choose_overload(
+            res = self.choose_overload(
                 expr,
                 candidates,
                 RelationKind::Subtype,
                 is_single_non_generic_candidate,
                 argument_check_mode,
                 &mut candidates_for_arg_error,
-            ) {
-                return sig;
-            }
-        } else {
+            );
+        }
+
+        if res.is_none() {
             res = self.choose_overload(
                 expr,
                 candidates,
@@ -671,7 +675,7 @@ impl<'cx> TyChecker<'cx> {
         } else if min_required_params == max_required_params {
             let x = min_required_params;
             let y = args.len();
-            let span = if x < y {
+            let span = if x < y && y - x < args.len() {
                 let lo = args[y - x].span().lo;
                 let hi = args.last().unwrap().span().hi;
                 Span::new(lo, hi, expr.span().module)
@@ -724,7 +728,8 @@ impl<'cx> TyChecker<'cx> {
 
         if !candidates_for_arg_error.is_empty() {
             if candidates_for_arg_error.len() == 1 {
-                let last = candidates_for_arg_error.last().unwrap();
+                let last = candidates_for_arg_error.drain().last().unwrap();
+                let last = self.sigs[last.as_usize()];
                 self.get_signature_applicability_error(
                     expr,
                     last,
@@ -738,7 +743,10 @@ impl<'cx> TyChecker<'cx> {
                     span: expr.span(),
                     unmatched_calls: candidates_for_arg_error
                         .iter()
-                        .flat_map(|c| self.p.node(c.def_id()).ident_name().map(|i| i.span))
+                        .flat_map(|c| {
+                            let c = self.sigs[c.as_usize()];
+                            self.p.node(c.def_id()).ident_name().map(|i| i.span)
+                        })
                         .collect(),
                 };
                 self.push_error(Box::new(error));

@@ -1,0 +1,5 @@
+  × A rest parameter must be of an array type.
+   ╭─[../../tests/cases/compiler/nonArrayRestArgs/index.ts:3:14]
+ 3 │ ...rest: number
+   · ───────────────
+   ╰────

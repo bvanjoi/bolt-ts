@@ -1,5 +1,6 @@
 use bolt_ts_span::ModuleID;
 
+
 use super::{ExprKind, ModifierKind};
 
 bolt_ts_utils::module_index!(NodeID);
@@ -274,6 +275,10 @@ impl<'cx> Node<'cx> {
             },
             ObjectShorthandMember(n) => Some(n.name),
             TyParam(n) => Some(n.name),
+            NamespaceDecl(n) => match n.name {
+                crate::ModuleName::Ident(ident) => Some(ident),
+                crate::ModuleName::StringLit(_) => None,
+            },
             _ => None,
         }
     }
@@ -385,7 +390,11 @@ impl<'cx> Node<'cx> {
     }
 
     pub fn ty_anno(&self) -> Option<&'cx super::Ty<'cx>> {
-        if self.is_fn_decl() || self.is_ty_alias() {
+        // TODO !self.is_in_js_file
+        if self.is_fn_decl() {
+            return None;
+        }
+        if self.is_ty_alias() {
             return None;
         }
         self.ret_ty()
@@ -609,7 +618,7 @@ impl<'cx> Node<'cx> {
 
     pub fn has_locals(&self) -> bool {
         use Node::*;
-        matches!(self, BlockStmt(_) | CondTy(_))
+        matches!(self, BlockStmt(_) | CondTy(_) | NamespaceDecl(_))
     }
 
     pub fn is_readonly_ty_op(&self) -> bool {

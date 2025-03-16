@@ -389,10 +389,15 @@ pub(super) struct ThisOverloadSignatureIsNotCompatibleWithItsImplementationSigna
 }
 
 #[derive(Error, Diagnostic, DiagnosticExt, Debug)]
-#[error("This expression is not constructable.")]
+#[error("This expression is not {}.", if *is_call {
+    "callable"
+} else {
+    "constructable"
+})]
 pub(super) struct ThisExpressionIsNotConstructable {
     #[label(primary)]
     pub span: Span,
+    pub is_call: bool,
 }
 
 #[derive(Error, Diagnostic, DiagnosticExt, Debug)]
@@ -441,6 +446,13 @@ pub(super) struct Interface0IncorrectlyExtendsInterface1 {
 #[derive(Error, Diagnostic, DiagnosticExt, Debug)]
 #[error("Ambient module declaration cannot specify relative module name.")]
 pub(super) struct AmbientModuleDeclarationCannotSpecifyRelativeModuleName {
+    #[label(primary)]
+    pub span: Span,
+}
+
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
+#[error("A rest parameter must be of an array type.")]
+pub(super) struct ARestParameterMustBeOfAnArrayType {
     #[label(primary)]
     pub span: Span,
 }

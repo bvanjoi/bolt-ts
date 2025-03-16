@@ -1,11 +1,9 @@
 use crate::ir;
 
-use super::symbol::{FnSymbol, SymbolKind};
+use super::symbol::SymbolKind;
 use super::{BinderState, SymbolFlags};
 use bolt_ts_ast as ast;
-use bolt_ts_utils::fx_hashmap_with_capacity;
 use rustc_hash::FxHashMap;
-use thin_vec::thin_vec;
 
 impl<'cx> BinderState<'cx, '_, '_> {
     pub(super) fn members(
@@ -21,16 +19,6 @@ impl<'cx> BinderState<'cx, '_, '_> {
         container: ast::NodeID,
         is_export: bool,
     ) -> Option<&mut FxHashMap<super::SymbolName, super::SymbolID>> {
-        if self.p.node(container).has_locals() {
-            // TODO: remove this condition
-            if !self.p.node(container).is_block_stmt() {
-                return Some(
-                    self.locals
-                        .entry(container)
-                        .or_insert_with(|| fx_hashmap_with_capacity(64)),
-                );
-            }
-        }
         let container = self.final_res.get(&container).copied()?;
 
         let container = self.symbols.get_mut(container);
@@ -48,10 +36,6 @@ impl<'cx> BinderState<'cx, '_, '_> {
             } else {
                 &mut c.locals
             })
-        } else if let SymbolKind::Object(obj) = s {
-            Some(&mut obj.members)
-        } else if let SymbolKind::TyLit(obj) = s {
-            Some(&mut obj.members)
         } else {
             None
         }
@@ -62,35 +46,22 @@ impl<'cx> BinderState<'cx, '_, '_> {
         container: ast::NodeID,
         decl: &impl ir::FnDeclLike<'cx>,
         ele_name: super::SymbolName,
-        ele_fn_kind: super::SymbolFnKind,
+        includes: SymbolFlags,
+        excludes: SymbolFlags,
         is_export: bool,
     ) -> super::SymbolID {
-        if let Some(s) = self.members(container, is_export).get(&ele_name).copied() {
-            let symbol = self.symbols.get_mut(s);
-            match &mut symbol.kind.0 {
-                SymbolKind::Fn(FnSymbol { decls, kind }) => {
-                    assert!(*kind == ele_fn_kind);
-                    assert!(!decls.is_empty());
-                    decls.push(decl.id());
-                }
-                _ => unreachable!("symbol: {:#?}", symbol),
-            }
-            self.create_final_res(decl.id(), s);
-            s
-        } else {
-            let symbol = self.declare_symbol(
-                ele_name,
-                SymbolFlags::FUNCTION,
-                SymbolKind::Fn(FnSymbol {
-                    kind: ele_fn_kind,
-                    decls: thin_vec![decl.id()],
-                }),
-                SymbolFlags::empty(),
-            );
-            self.create_final_res(decl.id(), symbol);
-            let prev = self.members(container, is_export).insert(ele_name, symbol);
-            assert!(prev.is_none());
-            symbol
-        }
+        let loc = self.temp_local(container, is_export);
+        let symbol = self.declare_symbol_and_add_to_symbol_table(
+            container,
+            ele_name,
+            decl.id(),
+            loc,
+            includes,
+            excludes,
+        );
+        let key = (self.scope_id, ele_name);
+        self.res.insert(key, symbol);
+        self.create_final_res(decl.id(), symbol);
+        symbol
     }
 }

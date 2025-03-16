@@ -1,0 +1,5 @@
+  × Property 'x' does not exist on type '{ y: any; }'.
+    ╭─[../../tests/cases/compiler/nonExportedElementsOfMergedModules/index.ts:15:5]
+ 15 │ x
+    · ─
+    ╰────

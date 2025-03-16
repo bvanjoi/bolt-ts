@@ -276,7 +276,10 @@ impl<'cx> TyChecker<'cx> {
     }
 
     pub(super) fn check_expr_with_cache(&mut self, expr: &'cx ast::Expr) -> &'cx ty::Ty<'cx> {
-        if self.check_mode.is_some() {
+        if self
+            .check_mode
+            .is_some_and(|check_mode| check_mode != CheckMode::empty())
+        {
             self.check_expr(expr)
         } else if let Some(ty) = self.get_node_links(expr.id()).get_resolved_ty() {
             ty
@@ -284,6 +287,21 @@ impl<'cx> TyChecker<'cx> {
             let ty = self.check_expr(expr);
             self.get_mut_node_links(expr.id()).set_resolved_ty(ty);
             ty
+        }
+    }
+
+    pub(super) fn check_ident_for_mutable_loc(
+        &mut self,
+        ident: &'cx ast::Ident,
+    ) -> &'cx ty::Ty<'cx> {
+        let id = ident.id;
+        let ty = self.check_ident(ident);
+        if self.p.is_const_context(id) {
+            self.get_regular_ty_of_literal_ty(ty)
+        } else {
+            let contextual_ty = self.get_contextual_ty(id, None);
+            let contextual_ty = self.instantiate_contextual_ty(contextual_ty, id, None);
+            self.get_widened_lit_like_ty_for_contextual_ty(ty, contextual_ty)
         }
     }
 
@@ -316,9 +334,13 @@ impl<'cx> TyChecker<'cx> {
 
         let mut object_flags = ObjectFlags::FRESH_LITERAL;
         let mut properties_table = fx_hashmap_with_capacity(node.members.len());
+        let mut properties_array = Vec::with_capacity(node.members.len());
         let mut spread = self.empty_object_ty();
         // let mut properties_array = Vec::with_capacity(node.members.len());
         let is_const_context = self.p.is_const_context(node.id);
+        let mut has_computed_string_property = false;
+        let mut has_computed_number_property = false;
+        let mut has_computed_symbol_property = false;
 
         let symbol = std::cell::OnceCell::new();
         for member in node.members {
@@ -347,7 +369,19 @@ impl<'cx> TyChecker<'cx> {
                         .with_ty(ty),
                 );
                 properties_table.insert(name, prop);
+                properties_array.push(member_symbol);
             } else if let SpreadAssignment(s) = member.kind {
+                if !properties_array.is_empty() {
+                    let props = self.alloc(std::mem::take(&mut properties_table));
+                    let right = create_object_lit_ty(self, node, object_flags, props);
+                    let s = *symbol.get_or_init(|| self.get_symbol_of_decl(node.id));
+                    spread =
+                        self.get_spread_ty(spread, right, Some(s), object_flags, is_const_context);
+                    properties_array.clear();
+                    has_computed_string_property = false;
+                    has_computed_number_property = false;
+                    has_computed_symbol_property = false;
+                }
                 let ty = {
                     let old = self.check_mode;
                     self.check_mode = self
@@ -380,15 +414,28 @@ impl<'cx> TyChecker<'cx> {
             return self.error_ty;
         }
 
-        let properties_table = self.alloc(properties_table);
-
         if spread != self.empty_object_ty() {
+            if !properties_array.is_empty() {
+                let props = self.alloc(std::mem::take(&mut properties_table));
+                let right = create_object_lit_ty(self, node, object_flags, props);
+                let s = *symbol.get_or_init(|| self.get_symbol_of_decl(node.id));
+                spread = self.get_spread_ty(spread, right, Some(s), object_flags, is_const_context);
+                properties_array.clear();
+                has_computed_string_property = false;
+                has_computed_number_property = false;
+            }
+            let properties_table = self.alloc(properties_table);
             return self
                 .map_ty(
                     spread,
                     |this, t| {
                         if t == this.empty_object_ty() {
-                            Some(create_object_ty(this, node, object_flags, properties_table))
+                            Some(create_object_lit_ty(
+                                this,
+                                node,
+                                object_flags,
+                                properties_table,
+                            ))
                         } else {
                             Some(t)
                         }
@@ -398,7 +445,7 @@ impl<'cx> TyChecker<'cx> {
                 .unwrap();
         }
 
-        fn create_object_ty<'cx>(
+        fn create_object_lit_ty<'cx>(
             this: &mut TyChecker<'cx>,
             node: &'cx ast::ObjectLit<'cx>,
             object_flags: ObjectFlags,
@@ -427,7 +474,8 @@ impl<'cx> TyChecker<'cx> {
             ty
         }
 
-        create_object_ty(self, node, object_flags, properties_table)
+        let properties_table = self.alloc(properties_table);
+        create_object_lit_ty(self, node, object_flags, properties_table)
     }
 
     fn is_empty_object_ty_or_spreads_into_empty_object(&mut self, ty: &'cx ty::Ty<'cx>) -> bool {

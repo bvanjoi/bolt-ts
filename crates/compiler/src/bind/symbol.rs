@@ -153,6 +153,7 @@ pub struct MergedSymbol {
     pub exports: SymbolTable,
     pub parent: Option<SymbolID>,
     pub const_enum_only_module: Option<bool>,
+    pub is_replaceable_by_method: Option<bool>,
 }
 
 impl Symbol {
@@ -181,43 +182,15 @@ impl Symbol {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum SymbolFnKind {
-    FnDecl,
-    FnExpr,
-    Ctor,
-    Call,
-    Method,
-}
-
 #[derive(Debug)]
 pub(crate) enum SymbolKind {
     Err,
     BlockContainer(BlockContainerSymbol),
-    /// `var` or parameter
-    FunctionScopedVar(FunctionScopedVarSymbol),
-    /// `let` or `const`
-    BlockScopedVar {
-        decl: NodeID,
-    },
-    Fn(FnSymbol),
-    Object(ObjectSymbol),
-    TyAlias(TyAliasSymbol),
-    TyLit(TyLitSymbol),
-    Alias(AliasSymbol),
-    GetterSetter(GetterSetterSymbol),
 }
 
 impl SymbolKind {
     pub fn opt_decl(&self) -> Option<NodeID> {
         match &self {
-            SymbolKind::FunctionScopedVar(f) => Some(f.decl),
-            SymbolKind::BlockScopedVar { decl } => Some(*decl),
-            SymbolKind::Object(object) => Some(object.decl),
-            SymbolKind::TyAlias(alias) => Some(alias.decl),
-            SymbolKind::TyLit(ty_lit) => Some(ty_lit.decl),
-            SymbolKind::Alias(alias) => Some(alias.decl),
-            SymbolKind::Fn(f) => Some(f.decls[0]),
             _ => None,
         }
     }
@@ -250,6 +223,14 @@ impl Symbol {
     pub fn expect_ns(&self) -> &MergedSymbol {
         self.as_ns().unwrap()
     }
+
+    pub fn get_declaration_of_kind(
+        &self,
+        f: impl Fn(bolt_ts_ast::NodeID) -> bool,
+    ) -> Option<bolt_ts_ast::NodeID> {
+        let decls = &self.kind.1.as_ref().unwrap().decls;
+        decls.into_iter().find(|decl| f(**decl)).copied()
+    }
 }
 
 as_symbol_kind!(
@@ -258,30 +239,6 @@ as_symbol_kind!(
     as_block_container,
     expect_block_container
 );
-as_symbol_kind!(Object, &ObjectSymbol, as_object, expect_object);
-as_symbol_kind!(Fn, &FnSymbol, as_fn, expect_fn);
-as_symbol_kind!(TyAlias, &TyAliasSymbol, as_ty_alias, expect_ty_alias);
-as_symbol_kind!(TyLit, &TyLitSymbol, as_ty_lit, expect_ty_lit);
-as_symbol_kind!(Alias, &AliasSymbol, as_alias, expect_alias);
-as_symbol_kind!(
-    GetterSetter,
-    &GetterSetterSymbol,
-    as_getter_setter,
-    expect_getter_setter
-);
-
-#[derive(Debug)]
-pub struct AliasSymbol {
-    pub decl: NodeID,
-    pub source: SymbolName,
-    pub target: SymbolName,
-}
-
-#[derive(Debug)]
-pub struct TyLitSymbol {
-    pub decl: NodeID,
-    pub members: FxHashMap<SymbolName, SymbolID>,
-}
 
 #[derive(Debug)]
 pub struct BlockContainerSymbol {
@@ -289,68 +246,9 @@ pub struct BlockContainerSymbol {
     pub exports: FxHashMap<SymbolName, SymbolID>,
 }
 
-#[derive(Debug)]
-pub struct GetterSetterSymbol {
-    pub getter_decl: Option<NodeID>,
-    pub setter_decl: Option<NodeID>,
-}
-
-#[derive(Debug)]
-pub struct TyAliasSymbol {
-    pub decl: NodeID,
-}
-
-#[derive(Debug)]
-pub struct FnSymbol {
-    pub kind: SymbolFnKind,
-    pub decls: thin_vec::ThinVec<NodeID>,
-}
-
-#[derive(Debug)]
-pub struct ObjectSymbol {
-    pub decl: NodeID,
-    pub members: FxHashMap<SymbolName, SymbolID>,
-}
-
-#[derive(Debug)]
-pub struct FunctionScopedVarSymbol {
-    pub decl: NodeID,
-}
-
 impl Symbol {
-    #[inline(always)]
-    pub fn is_variable(&self) -> bool {
-        self.flags.intersects(SymbolFlags::VARIABLE)
-    }
-
-    #[inline(always)]
-    pub fn is_value(&self) -> bool {
-        self.flags.intersects(SymbolFlags::VALUE)
-    }
-
-    #[inline(always)]
-    pub fn is_type(&self) -> bool {
-        self.flags.intersects(SymbolFlags::TYPE)
-    }
-
-    pub fn as_str(&self) -> &'static str {
-        match self.kind.0 {
-            SymbolKind::Err => "err",
-            SymbolKind::FunctionScopedVar { .. } => todo!(),
-            SymbolKind::BlockScopedVar { .. } => todo!(),
-            SymbolKind::Fn { .. } => "function",
-            SymbolKind::Object { .. } => todo!(),
-            SymbolKind::BlockContainer { .. } => todo!(),
-            SymbolKind::TyAlias { .. } => todo!(),
-            SymbolKind::TyLit(_) => todo!(),
-            SymbolKind::Alias(_) => todo!(),
-            SymbolKind::GetterSetter(_) => todo!(),
-        }
-    }
-
     pub fn opt_decl(&self) -> Option<NodeID> {
-        let id = self.kind.0.opt_decl();
-        id.or_else(|| self.as_ns().and_then(|i| i.decls.first()).copied())
+        self.as_ns().and_then(|i| i.decls.first()).copied()
     }
 }
 
@@ -382,9 +280,10 @@ impl SymbolID {
     }
 
     pub(crate) fn new(module: ModuleID, index: u32) -> Self {
-        debug_assert!(
-            module == ModuleID::TRANSIENT,
-            "only use for transient during check"
+        assert_eq!(
+            module,
+            ModuleID::TRANSIENT,
+            "transient is only used during check"
         );
         Self { module, index }
     }
@@ -466,13 +365,35 @@ impl GlobalSymbols {
 }
 
 #[derive(Debug, Clone, Copy)]
-pub(super) enum SymbolTableLocation {
-    Symbol {
-        symbol: SymbolID,
-        is_export: bool,
-    },
-    Local {
-        container: bolt_ts_ast::NodeID,
-        is_export: bool,
-    },
+pub(super) struct SymbolTableLocation {
+    pub(super) container: bolt_ts_ast::NodeID,
+    pub(super) kind: SymbolTableLocationKind,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub(super) enum SymbolTableLocationKind {
+    SymbolMember,
+    SymbolExports,
+    ContainerLocals,
+}
+
+impl SymbolTableLocation {
+    pub(super) fn locals(container: bolt_ts_ast::NodeID) -> Self {
+        Self {
+            container,
+            kind: SymbolTableLocationKind::ContainerLocals,
+        }
+    }
+    pub(super) fn members(container: bolt_ts_ast::NodeID) -> Self {
+        Self {
+            container,
+            kind: SymbolTableLocationKind::SymbolMember,
+        }
+    }
+    pub(super) fn exports(container: bolt_ts_ast::NodeID) -> Self {
+        Self {
+            container,
+            kind: SymbolTableLocationKind::SymbolExports,
+        }
+    }
 }

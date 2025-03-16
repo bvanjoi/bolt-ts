@@ -68,6 +68,5 @@ pub fn _compile(
         .map(|(_, file)| root.join(file))
         .collect::<Vec<_>>();
     let tsconfig = tsconfig.normalize();
-    let output = bolt_ts_compiler::eval_from_with_fs(root, tsconfig, libs, fs, atoms);
-    output
+    bolt_ts_compiler::eval_from_with_fs(root, tsconfig, libs, fs, atoms)
 }

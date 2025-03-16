@@ -1,6 +1,6 @@
 use bolt_ts_ast as ast;
-use bolt_ts_utils::fx_hashmap_with_capacity;
-use rustc_hash::{FxHashMap, FxHashSet};
+use bolt_ts_utils::{fx_hashmap_with_capacity, no_hashset_with_capacity};
+use rustc_hash::FxHashMap;
 use std::hash::Hasher;
 
 use crate::bind::{Symbol, SymbolFlags, SymbolID, SymbolName};
@@ -372,7 +372,7 @@ impl<'cx> TyChecker<'cx> {
 
     fn add_ty_to_union(
         &self,
-        set: &mut FxHashSet<TyID>,
+        set: &mut nohash_hasher::IntSet<TyID>,
         mut includes: TypeFlags,
         ty: &'cx ty::Ty<'cx>,
     ) -> TypeFlags {
@@ -402,7 +402,7 @@ impl<'cx> TyChecker<'cx> {
 
     fn add_tys_to_union(
         &self,
-        set: &mut FxHashSet<TyID>,
+        set: &mut nohash_hasher::IntSet<TyID>,
         mut includes: TypeFlags,
         tys: &[&'cx ty::Ty<'cx>],
     ) -> TypeFlags {
@@ -483,7 +483,7 @@ impl<'cx> TyChecker<'cx> {
             return tys[0];
         }
 
-        let mut set = FxHashSet::with_capacity_and_hasher(tys.len(), Default::default());
+        let mut set = no_hashset_with_capacity(tys.len());
         let includes = self.add_tys_to_union(&mut set, TypeFlags::empty(), tys);
 
         let mut set: Vec<_> = set.into_iter().map(|ty| self.tys[ty.as_usize()]).collect();

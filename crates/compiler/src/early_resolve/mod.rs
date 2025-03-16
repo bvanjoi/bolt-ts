@@ -33,8 +33,11 @@ pub(super) fn early_resolve_parallel<'cx>(
         .into_par_iter()
         .map(|m| {
             let module_id = m.id;
+            let is_global = m.global;
             let root = p.root(module_id);
-            early_resolve(states, module_id, root, p, global, atoms)
+            let result = early_resolve(states, module_id, root, p, global, atoms);
+            assert!(!is_global || result.diags.is_empty());
+            result
         })
         .collect()
 }
@@ -465,6 +468,9 @@ impl<'cx> Resolver<'cx, '_, '_> {
             Paren(paren) => self.resolve_expr(paren.expr),
             Fn(f) => {
                 self.resolve_params(f.params);
+                if let Some(ty) = f.ty {
+                    self.resolve_ty(ty);
+                }
                 self.resolve_block_stmt(f.body);
             }
             Class(class) => self.resolve_class_like(class),
@@ -493,6 +499,9 @@ impl<'cx> Resolver<'cx, '_, '_> {
                 for item in n.spans {
                     self.resolve_expr(item.expr);
                 }
+            }
+            NonNull(n) => {
+                self.resolve_expr(n.expr);
             }
             _ => {}
         }
@@ -716,7 +725,6 @@ pub(super) fn resolve_symbol_by_ident<'a, 'cx>(
 
         if let Some(id) = binder.res.get(&(scope_id, key)).copied() {
             let symbol = binder.symbols.get(id);
-            use crate::bind::SymbolKind::*;
             if symbol.kind.1.is_some()
                 && resolver
                     .p
@@ -728,9 +736,13 @@ pub(super) fn resolve_symbol_by_ident<'a, 'cx>(
                     associated_declaration_for_containing_initializer_or_binding_name,
                 };
             }
-            let decl = match &symbol.kind.0 {
-                FunctionScopedVar(var) => Some(var.decl),
-                _ => None,
+            let decl = if symbol
+                .flags
+                .intersects(SymbolFlags::FUNCTION_SCOPED_VARIABLE)
+            {
+                Some(symbol.kind.1.as_ref().unwrap().decls[0])
+            } else {
+                None
             };
             if let Some(decl) = decl {
                 if resolver.p.node(decl).is_param_decl()

@@ -272,7 +272,6 @@ impl<'cx> TyChecker<'cx> {
         config: &'cx NormalizedCompilerOptions,
         flow_nodes: Vec<FlowNodes<'cx>>,
     ) -> Self {
-        assert_eq!(ty_arena.allocated_bytes(), 0);
         let empty_array = ty_arena.alloc([]);
 
         let mut tys = Vec::with_capacity(p.module_count() * 1024);
@@ -317,7 +316,7 @@ impl<'cx> TyChecker<'cx> {
         });
 
         let mut symbol_links = fx_hashmap_with_capacity(p.module_count() * 1024);
-        let mut transient_symbols = Vec::with_capacity(p.module_count() * 1024);
+        let mut transient_symbols = Vec::with_capacity(p.module_count() * 1024 * 64);
         let error_symbol = {
             let links = SymbolLinks::default().with_ty(error_ty);
             let symbol = TransientSymbol {
@@ -780,14 +779,21 @@ impl<'cx> TyChecker<'cx> {
         } else {
             ty
         };
-        if ty.flags.intersects(TypeFlags::NUMBER_LIKE) {
+        let flags = ty.flags;
+        if flags.intersects(TypeFlags::NUMBER_LIKE) {
             self.global_number_ty()
-        } else if ty.flags.intersects(TypeFlags::STRING_LIKE) {
+        } else if flags.intersects(TypeFlags::STRING_LIKE) {
             self.global_string_ty()
-        } else if ty.flags.intersects(TypeFlags::BOOLEAN_LIKE) {
+        } else if flags.intersects(TypeFlags::BOOLEAN_LIKE) {
             self.global_boolean_ty()
-        } else if ty.flags.intersects(TypeFlags::ES_SYMBOL_LIKE) {
+        } else if flags.intersects(TypeFlags::ES_SYMBOL_LIKE) {
             self.global_symbol_ty()
+        } else if flags.intersects(TypeFlags::NON_PRIMITIVE) {
+            self.empty_object_ty()
+        } else if flags.intersects(TypeFlags::INDEX) {
+            self.string_number_symbol_ty()
+        } else if flags.intersects(TypeFlags::UNKNOWN) && !*self.config.strict_null_checks() {
+            self.empty_object_ty()
         } else {
             ty
         }
@@ -927,7 +933,10 @@ impl<'cx> TyChecker<'cx> {
     }
 
     fn check_index_constraints(&mut self, ty: &'cx ty::Ty<'cx>, is_static_index: bool) {
-        self.resolve_structured_type_members(ty);
+        let index_infos = self.get_index_infos_of_ty(ty);
+        if index_infos.is_empty() {
+            return;
+        }
         for prop in self.properties_of_object_type(ty) {
             if !(is_static_index
                 && self
@@ -1385,6 +1394,7 @@ impl<'cx> TyChecker<'cx> {
         &mut self,
         member: &'cx ast::ObjectPropMember<'cx>,
     ) -> &'cx ty::Ty<'cx> {
+        // TODO: computed member
         let ty = self.check_expr_for_mutable_location(member.value);
         ty
     }
@@ -1599,7 +1609,7 @@ impl<'cx> TyChecker<'cx> {
         let assignment_kind = self.p.get_assignment_kind(ident.id);
         if assignment_kind != AssignmentKind::None && symbol != Symbol::ERR {
             let symbol = self.binder.symbol(symbol);
-            if !symbol.is_variable() {
+            if !symbol.flags.intersects(SymbolFlags::VARIABLE) {
                 let ty = if symbol.flags.intersects(SymbolFlags::CLASS) {
                     "class"
                 } else if symbol.flags.intersects(SymbolFlags::FUNCTION) {
@@ -1779,7 +1789,7 @@ impl<'cx> TyChecker<'cx> {
             Less => self.boolean_ty(),
             LessEq => self.boolean_ty(),
             Shl => todo!(),
-            Great => todo!(),
+            Great => self.boolean_ty(),
             GreatEq => todo!(),
             Shr => todo!(),
             UShr => todo!(),
@@ -2043,8 +2053,7 @@ impl<'cx> TyChecker<'cx> {
         ty.kind.as_object_anonymous().is_some_and(|a| {
             if let Some(symbol) = ty.symbol() {
                 let s = self.binder.symbol(symbol);
-                s.flags.intersects(SymbolFlags::TYPE_LITERAL)
-                    && s.expect_ty_lit().members.is_empty()
+                s.flags.intersects(SymbolFlags::TYPE_LITERAL) && s.expect_ns().members.0.is_empty()
             } else if let Some(ty_link) = self.ty_links.get(&ty.id) {
                 if let Some(t) = ty_link.get_structured_members() {
                     ty != self.any_fn_ty()

@@ -7,16 +7,17 @@ pub fn visit_program<'cx>(v: &mut impl Visitor<'cx>, program: &'cx super::Progra
 pub fn visit_stmt<'cx>(v: &mut impl Visitor<'cx>, stmt: &'cx super::Stmt) {
     use super::StmtKind::*;
     match stmt.kind {
+        Block(node) => v.visit_block_stmt(node),
         Class(node) => v.visit_class_decl(node),
         Import(node) => v.visit_import_decl(node),
         Interface(node) => v.visit_interface_decl(node),
         Expr(node) => v.visit_expr(node),
         Var(node) => v.visit_var_stmt(node),
+        Try(node) => v.visit_try_stmt(node),
         Export(_) => {}
         Empty(_) => (),
         If(_) => (),
         Return(_) => (),
-        Block(_) => (),
         Fn(_) => (),
         Type(_) => (),
         Namespace(_) => (),
@@ -27,7 +28,6 @@ pub fn visit_stmt<'cx>(v: &mut impl Visitor<'cx>, stmt: &'cx super::Stmt) {
         ForIn(_) => (),
         Break(_) => (),
         Continue(_) => {}
-        Try(_) => {}
         While(_) => {}
         Do(_) => {}
         Debugger(_) => {}
@@ -75,6 +75,9 @@ pub fn visit_class_method_elem<'cx>(
     v: &mut impl Visitor<'cx>,
     method: &'cx super::ClassMethodElem<'cx>,
 ) {
+    if let Some(body) = method.body {
+        v.visit_block_stmt(body);
+    }
 }
 
 pub fn visit_ty<'cx>(v: &mut impl Visitor<'cx>, ty: &'cx super::Ty<'cx>) {
@@ -216,12 +219,28 @@ pub fn visit_template_lit_ty<'cx>(v: &mut impl Visitor<'cx>, n: &'cx super::Temp
 pub fn visit_ident<'cx>(_: &mut impl Visitor<'cx>, _: &'cx super::Ident) {}
 pub fn visit_expr<'cx>(v: &mut impl Visitor<'cx>, n: &'cx super::Expr<'cx>) {
     use super::ExprKind::*;
-    match n.kind {
-        ObjectLit(n) => v.visit_object_lit(n),
-        _ => {}
+    if let ObjectLit(n) = n.kind {
+        v.visit_object_lit(n)
     }
 }
-pub fn visit_object_lit<'cx>(v: &mut impl Visitor<'cx>, n: &'cx super::ObjectLit<'cx>) {}
+pub fn visit_object_lit<'cx>(_: &mut impl Visitor<'cx>, n: &'cx super::ObjectLit<'cx>) {}
+pub fn visit_try_stmt<'cx>(v: &mut impl Visitor<'cx>, n: &'cx super::TryStmt<'cx>) {
+    v.visit_block_stmt(n.try_block);
+    if let Some(catch) = n.catch_clause {
+        if let Some(var) = catch.var {
+            v.visit_var_decl(var);
+        }
+        v.visit_block_stmt(catch.block);
+    }
+    if let Some(finally) = n.finally_block {
+        v.visit_block_stmt(finally);
+    }
+}
+pub fn visit_block_stmt<'cx>(v: &mut impl Visitor<'cx>, n: &'cx super::BlockStmt<'cx>) {
+    for stmt in n.stmts {
+        v.visit_stmt(stmt);
+    }
+}
 
 macro_rules! make_visitor {
     ( $( ($visit_node: ident, $ty: ty) ),* $(,)? ) => {
@@ -270,7 +289,9 @@ make_visitor!(
     (visit_var_stmt, super::VarStmt<'cx>),
     (visit_var_decl, super::VarDecl<'cx>),
     (visit_expr, super::Expr<'cx>),
-    (visit_object_lit, super::ObjectLit<'cx>)
+    (visit_object_lit, super::ObjectLit<'cx>),
+    (visit_try_stmt, super::TryStmt<'cx>),
+    (visit_block_stmt, super::BlockStmt<'cx>)
 );
 
 pub fn visit_node<'cx>(v: &mut impl Visitor<'cx>, node: &super::Node<'cx>) {

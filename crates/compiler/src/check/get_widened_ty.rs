@@ -5,6 +5,7 @@ use crate::ty::ObjectFlags;
 use crate::ty::TypeFlags;
 use bolt_ts_ast as ast;
 
+use super::CheckMode;
 use super::ContextFlags;
 use super::TyChecker;
 use super::ty;
@@ -217,5 +218,16 @@ impl<'cx> TyChecker<'cx> {
             }
         }
         contextual_ty
+    }
+
+    pub(super) fn get_widened_ty_for_var_like_decl(
+        &mut self,
+        decl: &impl ir::VarLike<'cx>,
+    ) -> &'cx ty::Ty<'cx> {
+        let save_check_mode = self.check_mode;
+        self.check_mode = Some(CheckMode::empty());
+        let ty = self.get_ty_for_var_like_decl(decl, true);
+        self.check_mode = save_check_mode;
+        self.widen_ty_for_var_like_decl(ty, decl)
     }
 }

@@ -305,6 +305,7 @@ impl ParserState<'_, '_> {
                 // keyword
                 let kind = keyword_idx_to_token(idx);
                 let span = Span::new(start as u32, self.pos as u32, self.module_id);
+                debug_assert!(self.atoms.lock().unwrap().contains(id));
                 self.token_value = Some(TokenValue::Ident { value: id });
                 return Ok(Token::new(kind, span));
             }

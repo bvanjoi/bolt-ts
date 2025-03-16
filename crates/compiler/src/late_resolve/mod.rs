@@ -86,16 +86,11 @@ struct Resolver<'cx, 'r, 'atoms> {
 
 impl Resolver<'_, '_, '_> {
     fn symbol_decl(&self, symbol_id: SymbolID) -> ast::NodeID {
-        use crate::bind::SymbolKind::*;
         let s = self.symbol(symbol_id);
         if let Some(s) = &s.kind.1 {
             s.decls[0]
         } else {
-            match &s.kind.0 {
-                Fn(f) => f.decls[0],
-                Alias(a) => a.decl,
-                _ => todo!(),
-            }
+            unreachable!()
         }
     }
 
@@ -139,19 +134,20 @@ impl<'cx> ast::Visitor<'cx> for Resolver<'cx, '_, '_> {
                                 if !self.container(dep).exports.contains_key(&name) {
                                     let module_name = self.atoms.get(node.module.val).to_string();
                                     let symbol_name = self.atoms.get(n.name.name);
-
-                                    if let Some(export) =
-                                        self.container(dep).exports.values().find(|alias| {
-                                            let s = self.symbol(**alias);
-                                            if s.flags.intersects(SymbolFlags::ALIAS) {
-                                                let alias = s.expect_alias();
-                                                alias.source.expect_atom() == n.name.name
-                                            } else {
-                                                false
+                                    let decl = self.container(dep).exports.values().find_map(|export| {
+                                        let s = self.symbol(*export);
+                                        if s.flags == SymbolFlags::ALIAS {
+                                            let decl = s.kind.1.as_ref().unwrap().decls[0];
+                                            if let Some(spec) = self.p.node(decl).as_export_named_spec() {
+                                                match spec.prop_name.kind {
+                                                    bolt_ts_ast::ModuleExportNameKind::Ident(ident) if ident.name == n.name.name => return Some(decl),
+                                                    _ => (),
+                                                }
                                             }
-                                        })
-                                    {
-                                        let alias_symbol = self.symbol(*export).expect_alias();
+                                        } 
+                                        None
+                                    });
+                                    if let Some(decl) = decl {
                                         let mut helper = vec![];
                                         if let Some(local) = self.container(dep).locals.get(&name) {
                                             let symbol_span = self
@@ -168,11 +164,22 @@ impl<'cx> ast::Visitor<'cx> for Resolver<'cx, '_, '_> {
                                                     }
                                                 ));
                                         }
+                                        let name = match self.p.node(decl) {
+                                            ast::Node::ExportNamedSpec(n) => match n.name.kind {
+                                                bolt_ts_ast::ModuleExportNameKind::Ident(ident) => {
+                                                    ident.name
+                                                }
+                                                bolt_ts_ast::ModuleExportNameKind::StringLit(
+                                                    lit,
+                                                ) => lit.val,
+                                            },
+                                            _ => unreachable!(),
+                                        };
                                         helper.push(
                                             errors::ModuleADeclaresBLocallyButItIsExportedAsCHelperKind::ExportedAliasHere(
                                                 errors::ExportedAliasHere {
-                                                    span: self.p.node(self.symbol_decl(*export)).span(),
-                                                    name: self.atoms.get(alias_symbol.target.expect_atom()).to_string()
+                                                    span: self.p.node(decl).span(),
+                                                    name: self.atoms.get(name).to_string()
                                                 }
                                             )
                                         );
@@ -182,10 +189,7 @@ impl<'cx> ast::Visitor<'cx> for Resolver<'cx, '_, '_> {
                                                 span: n.span,
                                                 module_name,
                                                 symbol_name: symbol_name.to_string(),
-                                                target_name: self
-                                                    .atoms
-                                                    .get(alias_symbol.target.expect_atom())
-                                                    .to_string(),
+                                                target_name: self.atoms.get(name).to_string(),
                                                 related: helper,
                                             };
                                         self.push_error(Box::new(error));

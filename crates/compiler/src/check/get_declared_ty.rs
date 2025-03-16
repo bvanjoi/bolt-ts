@@ -60,8 +60,8 @@ impl<'cx> TyChecker<'cx> {
         if !self.push_ty_resolution(ResolutionKey::DeclaredType(symbol)) {
             return self.error_ty;
         }
-        let alias = self.binder.symbol(symbol).expect_ty_alias();
-        let decl = self.p.node(alias.decl).expect_type_decl();
+        let decl = self.binder.symbol(symbol).expect_ns().decls[0];
+        let decl = self.p.node(decl).expect_type_decl();
         let mut ty = self.get_ty_from_type_node(decl.ty);
         if !self.pop_ty_resolution().has_cycle() {
             if let Some(ty_params) =
@@ -233,10 +233,20 @@ impl<'cx> TyChecker<'cx> {
         let outer_ty_params = self.get_outer_ty_params_of_class_or_interface(symbol);
         let local_ty_params = self.get_local_ty_params_of_class_or_interface_or_type_alias(symbol);
         let declared_members = self.resolve_declared_members(symbol);
+        let kind = if self
+            .binder
+            .symbol(symbol)
+            .flags
+            .intersects(SymbolFlags::CLASS)
+        {
+            SymbolFlags::CLASS
+        } else {
+            SymbolFlags::INTERFACE
+        };
 
         let ty = if outer_ty_params.is_some()
             || local_ty_params.is_some()
-            || self.binder.symbol(symbol).flags == SymbolFlags::CLASS
+            || kind == SymbolFlags::CLASS
         {
             let outer_ty_params = outer_ty_params.unwrap_or_default();
             let local_ty_params = local_ty_params.unwrap_or_default();
@@ -288,13 +298,28 @@ impl<'cx> TyChecker<'cx> {
 
     fn get_outer_ty_params_of_class_or_interface(&mut self, id: SymbolID) -> Option<ty::Tys<'cx>> {
         let s = self.binder.symbol(id);
-        let decl = if s.flags.intersects(SymbolFlags::CLASS) {
-            s.expect_ns().decls[0]
-        } else if s.flags.intersects(SymbolFlags::INTERFACE) {
-            let i = s.kind.1.as_ref().unwrap();
-            i.decls[0]
+        let decl = if s
+            .flags
+            .intersects(SymbolFlags::CLASS | SymbolFlags::FUNCTION)
+        {
+            s.expect_ns().value_decl.unwrap()
         } else {
-            unreachable!()
+            s.expect_ns()
+                .decls
+                .iter()
+                .find(|decl| {
+                    let n = self.p.node(**decl);
+                    if n.is_interface_decl() {
+                        true
+                    } else if let Some(v) = n.as_var_decl() {
+                        v.init
+                            .is_some_and(|init| matches!(init.kind, ast::ExprKind::Fn(_)))
+                    } else {
+                        false
+                    }
+                })
+                .copied()
+                .unwrap()
         };
         let ty_params = self.get_outer_ty_params(decl, false);
         if let Some(ty_params) = ty_params {
@@ -375,6 +400,24 @@ impl<'cx> TyChecker<'cx> {
                 }
                 _ => (),
             };
+        }
+    }
+
+    pub(super) fn get_declared_ty_of_enum_member(&mut self, symbol: SymbolID) -> &'cx ty::Ty<'cx> {
+        if let Some(ty) = self.get_symbol_links(symbol).get_declared_ty() {
+            return ty;
+        }
+        // let parent = self.symbol(symbol)
+        // let decl = self.binder.symbol(symbol).expect_ns().decls[0];
+        // let decl = self.p.node(decl).expect_enum_member_decl();
+        // let ty = self.get_ty_from_type_node(decl.ty);
+        // TODO:
+        let ty = self.any_ty;
+        if let Some(old) = self.get_symbol_links(symbol).get_declared_ty() {
+            old
+        } else {
+            self.get_mut_symbol_links(symbol).set_declared_ty(ty);
+            ty
         }
     }
 }

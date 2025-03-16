@@ -1,4 +1,4 @@
-use super::symbol::SymbolFlags;
+use super::symbol::{SymbolFlags, SymbolTableLocation};
 use super::{BinderState, SymbolID, SymbolName, prop_name};
 use crate::ir;
 
@@ -19,11 +19,10 @@ impl<'cx> BinderState<'cx, '_, '_> {
             self.declare_symbol_and_add_to_symbol_table(
                 container,
                 name,
-                None,
                 id,
-                false,
-                Some(SymbolFlags::CLASS),
-                Some(SymbolFlags::CLASS_EXCLUDES),
+                SymbolTableLocation::members(container),
+                SymbolFlags::CLASS,
+                SymbolFlags::CLASS_EXCLUDES,
             )
         } else {
             self.bind_anonymous_decl(id, SymbolFlags::CLASS, name)
@@ -42,15 +41,18 @@ impl<'cx> BinderState<'cx, '_, '_> {
         ele_modifiers: Option<&ast::Modifiers>,
     ) -> SymbolID {
         let is_export = ele_modifiers.is_some_and(|mods| mods.flags.contains(ModifierKind::Static));
-
+        let loc = if is_export {
+            SymbolTableLocation::exports(container)
+        } else {
+            SymbolTableLocation::members(container)
+        };
         let symbol = self.declare_symbol_and_add_to_symbol_table(
             container,
             ele_name,
-            None,
             ele_id,
-            is_export,
-            Some(SymbolFlags::PROPERTY | SymbolFlags::ASSIGNMENT),
-            Some(SymbolFlags::empty()),
+            loc,
+            SymbolFlags::PROPERTY | SymbolFlags::ASSIGNMENT,
+            SymbolFlags::empty(),
         );
         symbol
     }
@@ -60,7 +62,8 @@ impl<'cx> BinderState<'cx, '_, '_> {
             container,
             ctor,
             SymbolName::Constructor,
-            super::SymbolFnKind::Ctor,
+            SymbolFlags::CONSTRUCTOR,
+            SymbolFlags::empty(),
             false,
         );
         let old = self.scope_id;
@@ -103,7 +106,8 @@ impl<'cx> BinderState<'cx, '_, '_> {
             container,
             ele,
             prop_name(ele.name),
-            super::SymbolFnKind::Method,
+            SymbolFlags::METHOD,
+            SymbolFlags::METHOD_EXCLUDES,
             is_static,
         );
         if let Some(ty_params) = ele.ty_params {
@@ -128,6 +132,26 @@ impl<'cx> BinderState<'cx, '_, '_> {
         if let Some(init) = ele.init {
             self.bind_expr(init);
         }
+    }
+
+    pub(super) fn bind_prop_or_method_or_access(
+        &mut self,
+        container: ast::NodeID,
+        decl_id: ast::NodeID,
+        name: SymbolName,
+        is_export: bool,
+        includes: SymbolFlags,
+        excludes: SymbolFlags,
+    ) -> SymbolID {
+        let loc = if is_export {
+            SymbolTableLocation::exports(container)
+        } else {
+            SymbolTableLocation::members(container)
+        };
+        // TODO: has dynamic name
+        self.declare_symbol_and_add_to_symbol_table(
+            container, name, decl_id, loc, includes, excludes,
+        )
     }
 
     pub(super) fn bind_class_like(
@@ -179,7 +203,15 @@ impl<'cx> BinderState<'cx, '_, '_> {
                     let is_static = n
                         .modifiers
                         .is_some_and(|ms| ms.flags.contains(ModifierKind::Static));
-                    self.bind_get_access(class.id(), n, is_static);
+                    let symbol = self.bind_prop_or_method_or_access(
+                        class.id(),
+                        n.id,
+                        prop_name(n.name),
+                        is_static,
+                        SymbolFlags::GET_ACCESSOR,
+                        SymbolFlags::GET_ACCESSOR_EXCLUDES,
+                    );
+                    self.create_final_res(n.id, symbol);
                     if let Some(ty) = n.ty {
                         self.bind_ty(ty);
                     }
@@ -191,7 +223,15 @@ impl<'cx> BinderState<'cx, '_, '_> {
                     let is_static = n
                         .modifiers
                         .is_some_and(|ms| ms.flags.contains(ModifierKind::Static));
-                    self.bind_set_access(class.id(), n, is_static);
+                    let symbol = self.bind_prop_or_method_or_access(
+                        class.id(),
+                        n.id,
+                        prop_name(n.name),
+                        is_static,
+                        SymbolFlags::SET_ACCESSOR,
+                        SymbolFlags::SET_ACCESSOR_EXCLUDES,
+                    );
+                    self.create_final_res(n.id, symbol);
 
                     assert!(n.params.len() == 1);
                     self.bind_params(n.params);

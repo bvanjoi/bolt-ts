@@ -1,0 +1,5 @@
+  × Property 'tar' does not exist on type 'IC<number>'.
+    ╭─[../../tests/cases/compiler/genericTypeWithMultipleBases3/index.ts:23:3]
+ 23 │ tar
+    · ───
+    ╰────

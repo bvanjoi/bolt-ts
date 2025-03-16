@@ -422,7 +422,8 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
         ) && !source.is_object_literal()
             && !self.c.is_empty_array_lit_ty(source)
             && !source.is_tuple();
-        if let Some((unmatched, target_symbol)) =
+
+        if let Some((mut unmatched, target_symbol)) =
             self.c
                 .get_unmatched_prop(source, target, require_optional_properties)
         {
@@ -448,16 +449,13 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
                         .unwrap()
                         .name
                         .span
-                } else if symbol.flags.intersects(SymbolFlags::OBJECT_LITERAL) {
-                    self.c.p.node(symbol.expect_object().decl).span()
                 } else {
-                    self.c.p.node(symbol.expect_ty_lit().decl).span()
+                    self.c.p.node(symbol.expect_ns().decls[0]).span()
                 };
                 let Some(source_symbol) = source.symbol() else {
                     // TODO: unreachable!()
                     return Ternary::TRUE;
                 };
-                let mut unmatched = unmatched;
                 unmatched.sort();
                 if unmatched.len() < 3 {
                     for name in unmatched {

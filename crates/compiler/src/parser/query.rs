@@ -194,7 +194,7 @@ impl<'cx> ParseResult<'cx> {
             let n = this.node(node);
             use ast::Node::*;
             match n {
-                InterfaceDecl(_) | TypeDecl(_) => ModuleInstanceState::Instantiated,
+                InterfaceDecl(_) | TypeDecl(_) => ModuleInstanceState::NonInstantiated,
                 EnumDecl(e) if this.is_enum_const(e) => ModuleInstanceState::ConstEnumOnly,
                 // TODO: import eq
                 ImportDecl(_) if !n.has_syntactic_modifier(ast::ModifierKind::Export.into()) => {

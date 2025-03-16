@@ -26,10 +26,5 @@ pub fn pprint_entity_name(name: &super::EntityName, atoms: &AtomMap) -> String {
 }
 
 pub fn debug_ident(ident: &super::Ident, atoms: &AtomMap) -> String {
-    format!(
-        "{}({}:{})",
-        pprint_ident(ident, atoms),
-        ident.id.module().as_usize(),
-        ident.id.index_as_usize()
-    )
+    format!("{}({})", pprint_ident(ident, atoms), ident.span)
 }

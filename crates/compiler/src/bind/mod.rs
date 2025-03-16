@@ -19,10 +19,9 @@ use rustc_hash::FxHashMap;
 
 pub use self::flow::{FlowFlags, FlowID, FlowNode, FlowNodeKind, FlowNodes};
 pub use self::symbol::BlockContainerSymbol;
+pub use self::symbol::SymbolFlags;
 pub(crate) use self::symbol::SymbolKind;
-use self::symbol::TyLitSymbol;
 pub use self::symbol::{GlobalSymbols, Symbol, SymbolID, SymbolName, Symbols};
-pub use self::symbol::{SymbolFlags, SymbolFnKind};
 
 use crate::late_resolve::ResolveResult;
 use crate::parser::ParseResult;

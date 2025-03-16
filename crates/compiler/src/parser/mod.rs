@@ -18,12 +18,10 @@ use std::sync::{Arc, Mutex};
 
 use bolt_ts_atom::{AtomId, AtomMap};
 use bolt_ts_span::{ModuleArena, ModuleID, Span};
-use bolt_ts_utils::fx_hashmap_with_capacity;
 use bolt_ts_utils::no_hashmap_with_capacity;
 pub(crate) use utils::is_left_hand_side_expr_kind;
 
 use rayon::prelude::*;
-use rustc_hash::FxHashMap;
 use utils::is_declaration_filename;
 
 pub use self::query::AccessKind;
@@ -43,7 +41,7 @@ enum Tristate {
 }
 
 #[derive(Debug)]
-pub struct Nodes<'cx>(FxHashMap<u32, Node<'cx>>);
+pub struct Nodes<'cx>(nohash_hasher::IntMap<u32, Node<'cx>>);
 
 impl Default for Nodes<'_> {
     fn default() -> Self {
@@ -53,7 +51,7 @@ impl Default for Nodes<'_> {
 
 impl<'cx> Nodes<'cx> {
     pub fn new() -> Self {
-        Self(fx_hashmap_with_capacity(2048))
+        Self(no_hashmap_with_capacity(2048))
     }
 
     pub fn get(&self, id: NodeID) -> Node<'cx> {
@@ -565,7 +563,9 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
                 id,
                 stmts,
                 span: this.new_span(start as u32),
-                is_declaration: is_declaration_filename(file_path.to_str().unwrap_or_default().as_bytes()),
+                is_declaration: is_declaration_filename(
+                    file_path.to_str().unwrap_or_default().as_bytes(),
+                ),
             });
             this.nodes.insert(id, Node::Program(program));
             program

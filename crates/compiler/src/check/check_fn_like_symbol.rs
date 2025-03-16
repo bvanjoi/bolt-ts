@@ -2,7 +2,7 @@ use bolt_ts_ast as ast;
 use bolt_ts_ast::ArrowFnExprBody;
 use bolt_ts_span::Span;
 
-use crate::bind::{SymbolFnKind, SymbolID};
+use crate::bind::{SymbolFlags, SymbolID};
 use crate::{keyword, ty};
 
 use super::TyChecker;
@@ -12,9 +12,9 @@ use super::{Ternary, errors};
 
 impl<'cx> TyChecker<'cx> {
     pub(super) fn check_fn_like_symbol(&mut self, symbol: SymbolID) {
-        let f = &self.binder.symbol(symbol).expect_fn();
+        let s = self.binder.symbol(symbol);
+        let f = s.expect_ns();
         assert!(!f.decls.is_empty());
-        assert_ne!(f.kind, SymbolFnKind::FnExpr);
 
         let mut has_overloads = false;
         let mut body_declaration = None;
@@ -53,7 +53,7 @@ impl<'cx> TyChecker<'cx> {
             if n.fn_body().is_none()
                 && !n.has_syntactic_modifier(ast::ModifierKind::Abstract.into())
             {
-                if f.kind == SymbolFnKind::Ctor {
+                if s.flags.intersects(SymbolFlags::CONSTRUCTOR) {
                     let node = self.p.node(f.decls[0]).expect_class_ctor();
                     let lo = node.span.lo;
                     let hi = lo + keyword::KW_CONSTRUCTOR_STR.len() as u32;

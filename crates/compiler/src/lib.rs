@@ -257,7 +257,7 @@ pub fn eval_from_with_fs(
         .collect();
 
     // ==== type check ====
-    let ty_arena = bumpalo::Bump::new();
+    let ty_arena = bumpalo::Bump::with_capacity(1024 * 1024);
     let mut checker = check::TyChecker::new(
         &ty_arena,
         &p,
@@ -267,7 +267,7 @@ pub fn eval_from_with_fs(
         tsconfig.compiler_options(),
         flow_nodes,
     );
-    for item in &entries {
+    for (index, item) in entries.iter().enumerate() {
         checker.check_program(p.root(*item));
         checker.check_deferred_nodes(*item);
     }

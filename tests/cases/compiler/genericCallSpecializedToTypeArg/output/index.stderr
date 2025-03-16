@@ -1,0 +1,5 @@
+  × Property 'getDist' does not exist on type 'U'.
+   ╭─[../../tests/cases/compiler/genericCallSpecializedToTypeArg/index.ts:8:5]
+ 8 │ getDist
+   · ───────
+   ╰────

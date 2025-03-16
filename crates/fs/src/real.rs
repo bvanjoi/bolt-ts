@@ -38,7 +38,7 @@ impl CachedFileSystem for LocalFS {
                     std::io::ErrorKind::InvalidData => Err(crate::errors::FsError::NotAFile(
                         crate::path::PathId::new(path.as_path(), atoms),
                     )),
-                    _ => todo!(),
+                    _ => todo!("{path:#?}"),
                 },
             }
         }

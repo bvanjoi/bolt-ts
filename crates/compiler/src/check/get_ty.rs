@@ -40,7 +40,9 @@ impl<'cx> TyChecker<'cx> {
 
         let flags = self.symbol(id).flags();
 
-        let ty = if flags.intersects(
+        let ty = if flags.intersects(SymbolFlags::VARIABLE | SymbolFlags::PROPERTY) {
+            self.get_ty_of_var_or_param_or_prop(id)
+        } else if flags.intersects(
             SymbolFlags::FUNCTION
                 | SymbolFlags::METHOD
                 | SymbolFlags::CLASS
@@ -48,8 +50,6 @@ impl<'cx> TyChecker<'cx> {
                 | SymbolFlags::VALUE_MODULE,
         ) {
             self.get_ty_of_func_class_enum_module(id)
-        } else if flags.intersects(SymbolFlags::PROPERTY | SymbolFlags::VARIABLE) {
-            self.get_type_for_var_like(id)
         } else if flags.intersects(SymbolFlags::ACCESSOR) {
             self.get_ty_of_accessor(id)
         } else if flags == SymbolFlags::OBJECT_LITERAL {
@@ -59,6 +59,123 @@ impl<'cx> TyChecker<'cx> {
         };
 
         ty
+    }
+
+    fn _get_ty_of_var_or_param_or_prop(&mut self, symbol: SymbolID) -> &'cx ty::Ty<'cx> {
+        let s = self.binder.symbol(symbol);
+        let flags = s.flags;
+        if flags.intersects(SymbolFlags::PROTOTYPE) {
+            // TODO: prototype type
+            return self.any_ty;
+        }
+        let decl = s.kind.1.as_ref().unwrap().value_decl.unwrap();
+        let node = self.p.node(decl);
+
+        if node.is_getter_decl() || node.is_setter_decl() {
+            return self.get_type_of_symbol(symbol);
+        }
+
+        if !self.push_ty_resolution(ResolutionKey::Type(symbol)) {
+            // TODO: error handle
+            return self.any_ty;
+        }
+
+        let ty = if node.is_prop_access_expr()
+            || node.is_ele_access_expr()
+            || node.is_ident()
+            || node.is_string_lit()
+            || node.is_num_lit()
+            || node.is_class_decl()
+            || node.is_fn_decl()
+            || node.is_class_method_ele()
+            || node.is_method_signature()
+            || node.is_program()
+        {
+            if flags.intersects(
+                SymbolFlags::FUNCTION
+                    | SymbolFlags::METHOD
+                    | SymbolFlags::CLASS
+                    | SymbolFlags::ENUM
+                    | SymbolFlags::VALUE_MODULE,
+            ) {
+                return self.get_ty_of_func_class_enum_module(symbol);
+            }
+            let p = self.p.parent(decl).unwrap();
+            let p = self.p.node(p);
+            if p.is_bin_expr() {
+                todo!()
+            } else if let Some(ty) = node.ty_anno() {
+                self.get_ty_from_type_node(ty)
+            } else {
+                self.any_ty
+            }
+        } else if let Some(n) = node.as_object_prop_member() {
+            if let Some(ty) = node.ty_anno() {
+                self.get_ty_from_type_node(ty)
+            } else {
+                self.check_object_prop_member(n)
+            }
+            // TODO: jsx
+        } else if let Some(n) = node.as_shorthand_spec() {
+            if let Some(ty) = node.ty_anno() {
+                self.get_ty_from_type_node(ty)
+            } else {
+                let save_mode = self.check_mode;
+                self.check_mode = Some(CheckMode::empty());
+                let t = self.check_ident_for_mutable_loc(n.name);
+                self.check_mode = save_mode;
+                t
+            }
+        } else if let Some(n) = node.as_object_method_member() {
+            if let Some(ty) = node.ty_anno() {
+                self.get_ty_from_type_node(ty)
+            } else {
+                self.check_object_method_member(n)
+            }
+        } else if let Some(n) = node.as_param_decl() {
+            self.get_widened_ty_for_var_like_decl(n)
+        } else if let Some(n) = node.as_class_prop_ele() {
+            self.get_widened_ty_for_var_like_decl(n)
+        } else if let Some(n) = node.as_prop_signature() {
+            self.get_widened_ty_for_var_like_decl(n)
+        } else if let Some(n) = node.as_var_decl() {
+            self.get_widened_ty_for_var_like_decl(n)
+        } else if let Some(n) = node.as_binding() {
+            todo!()
+            // self.get_widened_ty_for_var_like_decl(n)
+        } else if node.is_enum_decl() {
+            self.get_ty_of_func_class_enum_module(symbol)
+        } else if node.is_enum_member() {
+            self.get_ty_enum_member(symbol)
+        } else {
+            unreachable!()
+        };
+
+        if self.pop_ty_resolution().has_cycle() {
+            // TODO: error handle
+            return self.any_ty;
+        }
+
+        ty
+    }
+
+    fn get_ty_of_var_or_param_or_prop(&mut self, symbol: SymbolID) -> &'cx Ty<'cx> {
+        if let Some(ty) = self.get_symbol_links(symbol).get_ty() {
+            return ty;
+        }
+        let ty = self._get_ty_of_var_or_param_or_prop(symbol);
+        // TODO: && !self.is_param_of_context_sensitive_sig
+        if self.get_symbol_links(symbol).get_ty().is_none() {
+            self.get_mut_symbol_links(symbol).set_ty(ty);
+        }
+        ty
+    }
+
+    fn get_ty_enum_member(&mut self, symbol: SymbolID) -> &'cx ty::Ty<'cx> {
+        if let Some(ty) = self.get_symbol_links(symbol).get_ty() {
+            return ty;
+        };
+        self.get_declared_ty_of_symbol(symbol)
     }
 
     fn get_ty_of_func_class_enum_module(&mut self, symbol: SymbolID) -> &'cx Ty<'cx> {
@@ -93,9 +210,9 @@ impl<'cx> TyChecker<'cx> {
         if !self.push_ty_resolution(ResolutionKey::Type(symbol)) {
             return self.error_ty;
         }
-        let s = self.binder.symbol(symbol).expect_getter_setter();
-        let getter = s.getter_decl;
-        let setter = s.setter_decl;
+        let s = self.binder.symbol(symbol);
+        let getter = s.get_declaration_of_kind(|id| self.p.node(id).is_getter_decl());
+        let setter = s.get_declaration_of_kind(|id| self.p.node(id).is_setter_decl());
         let ty = if let Some(getter_ty) = getter
             .and_then(|getter| {
                 let getter = self.p.node(getter).expect_getter_decl();
@@ -929,26 +1046,31 @@ impl<'cx> TyChecker<'cx> {
         symbol: SymbolID,
     ) -> Option<ty::Tys<'cx>> {
         let s = self.binder.symbol(symbol);
-        let decl = if s.flags == SymbolFlags::TYPE_ALIAS {
-            let alias = s.expect_ty_alias();
-            alias.decl
-        } else if s
-            .flags
-            .intersects(SymbolFlags::INTERFACE | SymbolFlags::CLASS)
-        {
-            let i = s.kind.1.as_ref().unwrap();
-            i.decls[0]
-        } else {
+        // TODO: symbol.declarations
+        let m = s.kind.1.as_ref().unwrap();
+        if m.decls.is_empty() {
             return None;
-        };
-        let ty_params = self.get_effective_ty_param_decls(decl);
-        let mut res = Vec::with_capacity(ty_params.len());
-        self.append_ty_params(&mut res, ty_params);
-        if res.is_empty() {
-            None
-        } else {
-            Some(self.alloc(res))
         }
+        let mut res: Option<Vec<&'cx Ty<'cx>>> = None;
+        for node in &m.decls {
+            let n = self.p.node(*node);
+            use ast::Node::*;
+            if matches!(
+                n,
+                InterfaceDecl(_) | ClassDecl(_) | ClassExpr(_) | TypeDecl(_)
+            ) {
+                let ty_params = self.get_effective_ty_param_decls(*node);
+                if res.is_none() {
+                    res = Some(Vec::with_capacity(m.decls.len() * 4));
+                }
+                self.append_ty_params(res.as_mut().unwrap(), ty_params);
+            }
+        }
+
+        res.map(|res| {
+            let ty_params: ty::Tys<'cx> = self.alloc(res);
+            ty_params
+        })
     }
 
     pub(super) fn get_ty_reference_arity(ty: &'cx ty::Ty<'cx>) -> usize {
@@ -1577,8 +1699,7 @@ impl<'cx> TyChecker<'cx> {
             let setter = self
                 .binder
                 .symbol(symbol)
-                .expect_getter_setter()
-                .setter_decl;
+                .get_declaration_of_kind(|id| self.p.node(id).is_setter_decl());
             if let Some(setter) = setter {
                 if let Some(ty) = self.get_annotated_accessor_ty(setter) {
                     return Some(ty);
