@@ -224,7 +224,7 @@ impl<'cx> TyChecker<'cx> {
     }
 
     fn is_ty_param_at_top_level(
-        &mut self,
+        &self,
         ty: &'cx ty::Ty<'cx>,
         ty_param: &'cx ty::Ty<'cx>,
         depth: u8,
@@ -851,8 +851,8 @@ impl<'cx> TyChecker<'cx> {
             *pos = p;
         };
 
-        for i in 1..last_target_index {
-            let delim = self.atoms.get(target_texts[i]);
+        for atom in target_texts.iter().take(last_target_index).skip(1) {
+            let delim = self.atoms.get(*atom);
             if !delim.is_empty() {
                 let mut s = seg;
                 let mut p = pos;
@@ -1932,14 +1932,14 @@ impl<'cx> InferenceState<'cx, '_> {
         if source_len > 0 {
             let target_sigs = self.c.get_signatures_of_type(target, kind);
             let target_len = target_sigs.len();
-            for i in 0..target_len {
+            for (i, sig) in target_sigs.iter().enumerate().take(target_len) {
                 let source_index = if source_len + i > target_len {
                     source_len + i - target_len
                 } else {
                     0
                 };
                 let source = self.c.get_base_sig(source_sigs[source_index]);
-                let target = self.c.get_erased_sig(target_sigs[i]);
+                let target = self.c.get_erased_sig(sig);
                 self.infer_from_sig(source, target);
             }
         }

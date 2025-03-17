@@ -79,8 +79,7 @@ impl<'cx> TyChecker<'cx> {
             let id = self.get_recursion_id(ty);
             let mut count = 0;
             let mut last_type_id = 0;
-            for i in 0..depth {
-                let t = stack[i];
+            for t in stack.iter().take(depth) {
                 if self.has_matching_recursion_ident(t, id) {
                     if t.id.as_u32() >= last_type_id {
                         count += 1;

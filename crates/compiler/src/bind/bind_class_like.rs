@@ -46,15 +46,14 @@ impl<'cx> BinderState<'cx, '_, '_> {
         } else {
             SymbolTableLocation::members(container)
         };
-        let symbol = self.declare_symbol_and_add_to_symbol_table(
+        self.declare_symbol_and_add_to_symbol_table(
             container,
             ele_name,
             ele_id,
             loc,
             SymbolFlags::PROPERTY | SymbolFlags::ASSIGNMENT,
             SymbolFlags::empty(),
-        );
-        symbol
+        )
     }
 
     fn bind_class_ctor(&mut self, container: ast::NodeID, ctor: &'cx ast::ClassCtor<'cx>) {
@@ -110,16 +109,19 @@ impl<'cx> BinderState<'cx, '_, '_> {
             SymbolFlags::METHOD_EXCLUDES,
             is_static,
         );
+        let old = self.scope_id;
+        self.scope_id = self.new_scope();
         if let Some(ty_params) = ele.ty_params {
             self.bind_ty_params(ele.id, ty_params);
         }
         self.bind_params(ele.params);
-        if let Some(body) = ele.body {
-            self.bind_block_stmt(body);
-        }
         if let Some(ty) = ele.ty {
             self.bind_ty(ty);
         }
+        if let Some(body) = ele.body {
+            self.bind_block_stmt(body);
+        }
+        self.scope_id = old;
     }
 
     fn bind_class_prop_ele(&mut self, decl_id: ast::NodeID, ele: &'cx ast::ClassPropElem<'cx>) {

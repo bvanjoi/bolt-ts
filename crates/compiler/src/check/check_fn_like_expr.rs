@@ -1,5 +1,6 @@
 use super::NodeCheckFlags;
 use super::{CheckMode, TyChecker};
+use crate::ty::TypeFlags;
 use crate::{ir, ty};
 use bolt_ts_ast as ast;
 
@@ -25,22 +26,34 @@ impl<'cx> TyChecker<'cx> {
                             if check_mode.intersects(CheckMode::INFERENTIAL) {
                                 let inference = inference.unwrap().inference.unwrap();
                                 self.infer_from_annotated_params(sig, contextual_sig, inference);
-                                // TODO: handle rest
-                            }
-                        }
-                        if instantiated_contextual_sig.is_none() {
-                            if let Some(inference) = inference {
-                                if inference.inference.is_none() {
-                                    return;
+                                let rest_ty = contextual_sig.get_rest_ty(self);
+                                if let Some(rest_ty) = rest_ty {
+                                    if rest_ty.flags.intersects(TypeFlags::TYPE_PARAMETER) {
+                                        let mapper = self.inference(inference).non_fixing_mapper;
+                                        instantiated_contextual_sig = Some(self.instantiate_sig(
+                                            contextual_sig,
+                                            mapper,
+                                            false,
+                                        ));
+                                    }
                                 }
-                                let mapper = self.inference(inference.inference.unwrap()).mapper;
-                                instantiated_contextual_sig =
-                                    Some(self.instantiate_sig(contextual_sig, mapper, false));
-                            } else {
-                                instantiated_contextual_sig = Some(contextual_sig);
                             }
                         }
-                        let instantiated_contextual_sig = instantiated_contextual_sig.unwrap();
+                        let instantiated_contextual_sig =
+                            if let Some(sig) = instantiated_contextual_sig {
+                                sig
+                            } else {
+                                if let Some(inference) = inference {
+                                    if let Some(i) = inference.inference {
+                                        let mapper = self.inference(i).mapper;
+                                        self.instantiate_sig(contextual_sig, mapper, false)
+                                    } else {
+                                        contextual_sig
+                                    }
+                                } else {
+                                    contextual_sig
+                                }
+                            };
                         self.assign_contextual_param_tys(sig, instantiated_contextual_sig);
                     }
                 }

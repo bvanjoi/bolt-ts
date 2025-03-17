@@ -244,7 +244,12 @@ impl<'cx> ObjectTyKind<'cx> {
                         .iter()
                         .map(|(name, symbol)| {
                             let name = if let Some(name) = name.as_atom() {
-                                checker.atoms.get(name).to_string()
+                                let name = checker.atoms.get(name).to_string();
+                                if name.is_empty() {
+                                    "''".to_string()
+                                } else {
+                                    name
+                                }
                             } else if let Some(num) = name.as_numeric() {
                                 num.to_string()
                             } else {
@@ -256,7 +261,10 @@ impl<'cx> ObjectTyKind<'cx> {
                         .collect::<Vec<_>>()
                         .join("");
                     format!("{{ {}}}", members)
-                } else if symbol.flags.intersects(SymbolFlags::CLASS) {
+                } else if symbol
+                    .flags
+                    .intersects(SymbolFlags::CLASS | SymbolFlags::VALUE_MODULE)
+                {
                     let name = symbol.name.expect_atom();
                     format!("typeof {}", checker.atoms.get(name))
                 } else if let Some(sig) = checker

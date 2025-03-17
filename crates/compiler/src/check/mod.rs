@@ -87,7 +87,7 @@ use crate::parser::{AccessKind, AssignmentKind, Parser};
 use crate::ty::{CheckFlags, TYPEOF_NE_FACTS};
 use crate::ty::{ElementFlags, ObjectFlags, Sig, SigFlags, SigID, TyID, TypeFacts, TypeFlags};
 use crate::ty::{TyMapper, has_type_facts};
-use crate::{ecma_rules, keyword, ty};
+use crate::{ecma_rules, ir, keyword, ty};
 use bolt_ts_ast as ast;
 use bolt_ts_ast::{BinOp, pprint_ident};
 
@@ -120,11 +120,11 @@ pub struct F64Represent {
 impl F64Represent {
     fn new(val: f64) -> Self {
         Self {
-            inner: unsafe { std::mem::transmute::<f64, u64>(val) },
+            inner: val.to_bits(),
         }
     }
     pub fn val(&self) -> f64 {
-        unsafe { std::mem::transmute::<u64, f64>(self.inner) }
+        f64::from_bits(self.inner)
     }
 }
 
@@ -1223,17 +1223,19 @@ impl<'cx> TyChecker<'cx> {
         if let ast::ExprKind::Ident(ident) = e.kind {
             let symbol = self.resolve_symbol_by_ident(ident);
             if self
-                .binder
                 .symbol(symbol)
-                .flags
+                .flags()
                 .intersects(SymbolFlags::VARIABLE)
             {
-                let child = ident.id;
-                while let Some(parent) = self.p.parent(child) {
-                    let node = self.p.node(parent);
-                    if node.as_for_in_stmt().is_some() {
+                let mut child = ident.id;
+                let mut node = self.p.parent(child);
+                while let Some(id) = node {
+                    let n = self.p.node(id);
+                    if let Some(f) = n.as_for_in_stmt() {
                         todo!()
                     }
+                    child = id;
+                    node = self.p.parent(child);
                 }
             }
         }
@@ -1465,12 +1467,17 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
-    fn is_used_in_fn_or_instance_prop(&self, used: &'cx ast::Ident, decl: ast::NodeID) -> bool {
+    fn is_used_in_fn_or_instance_prop(
+        &self,
+        used: &'cx ast::Ident,
+        decl: ast::NodeID,
+        decl_container: ast::NodeID,
+    ) -> bool {
         assert!(used.id.module() == decl.module());
         self.p
             .find_ancestor(used.id, |current| {
                 let current_id = current.id();
-                if current_id == decl {
+                if current_id == decl_container {
                     return Some(false);
                 } else if current.is_fn_like() {
                     return Some(true);
@@ -1478,13 +1485,9 @@ impl<'cx> TyChecker<'cx> {
                     return Some(self.p.node(decl).span().lo < used.span.lo);
                 }
 
-                let Some(parent_id) = self.p.parent(current_id) else {
-                    return None;
-                };
+                let parent_id = self.p.parent(current_id)?;
                 let parent_node = self.p.node(parent_id);
-                let Some(prop_decl) = parent_node.as_class_prop_ele() else {
-                    return None;
-                };
+                let prop_decl = parent_node.as_class_prop_ele()?;
 
                 let init_of_prop = prop_decl
                     .init
@@ -1547,7 +1550,7 @@ impl<'cx> TyChecker<'cx> {
             }
         }
 
-        if self.is_used_in_fn_or_instance_prop(used, decl) {
+        if self.is_used_in_fn_or_instance_prop(used, decl, decl_container) {
             return true;
         }
 
@@ -1558,7 +1561,13 @@ impl<'cx> TyChecker<'cx> {
         let Some(decl) = self.binder.symbol(id).opt_decl() else {
             return;
         };
-        if !self.is_block_scoped_name_declared_before_use(decl, ident) {
+
+        if !self
+            .p
+            .node_flags(decl)
+            .intersects(bolt_ts_ast::NodeFlags::AMBIENT)
+            && !self.is_block_scoped_name_declared_before_use(decl, ident)
+        {
             let (decl_span, kind) = match self.p.node(decl) {
                 ast::Node::ClassDecl(class) => (class.name.span, errors::DeclKind::Class),
                 ast::Node::VarDecl(decl) => (decl.span, errors::DeclKind::BlockScopedVariable),
@@ -3015,7 +3024,7 @@ impl<'cx> TyChecker<'cx> {
         let is_setonly_accessor = prop_flags.intersects(SymbolFlags::SET_ACCESSOR)
             && !prop_flags.intersects(SymbolFlags::GET_ACCESSOR);
         if !is_setonly_accessor && readonly == self.is_readonly_symbol(prop) {
-            return prop;
+            prop
         } else {
             // TODO: is_late_check_flags
             let check_flags = if readonly {
@@ -3041,6 +3050,23 @@ impl<'cx> TyChecker<'cx> {
             };
             self.create_transient_symbol(name, flags, None, links)
         }
+    }
+
+    fn check_decl_init(
+        &mut self,
+        decl: &impl ir::HasExprInit<'cx>,
+        contextual_ty: Option<&'cx ty::Ty<'cx>>,
+    ) -> &'cx ty::Ty<'cx> {
+        let init = decl.init().unwrap();
+        // TODO: get_quick_ty_of_expr
+        let ty = if let Some(contextual_ty) = contextual_ty {
+            let check_mode = self.check_mode.unwrap_or(CheckMode::empty());
+            let ty = self.check_expr_with_contextual_ty(init, contextual_ty, None, check_mode);
+            ty
+        } else {
+            self.check_expr_with_cache(init)
+        };
+        ty
     }
 }
 

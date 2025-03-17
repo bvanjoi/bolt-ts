@@ -201,8 +201,7 @@ impl<'cx> BinderState<'cx, '_, '_> {
             is_replaceable_by_method: None,
         };
         let s = Symbol::new_symbol(name, flags, s);
-        let id = self.symbols.insert(s);
-        id
+        self.symbols.insert(s)
     }
 
     fn get_symbol_table_by_location(

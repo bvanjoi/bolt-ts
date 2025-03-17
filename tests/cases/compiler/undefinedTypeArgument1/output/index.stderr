@@ -1,0 +1,5 @@
+  × Cannot find name 'WAWA'.
+   ╭─[../../tests/cases/compiler/undefinedTypeArgument1/index.ts:3:22]
+ 3 │ WAWA
+   · ────
+   ╰────

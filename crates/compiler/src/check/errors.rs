@@ -456,3 +456,10 @@ pub(super) struct ARestParameterMustBeOfAnArrayType {
     #[label(primary)]
     pub span: Span,
 }
+
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
+#[error("'this' cannot be referenced in a module or namespace body.")]
+pub(super) struct ThisCannotBeReferencedInAModuleOrNamespaceBody {
+    #[label(primary)]
+    pub span: Span,
+}

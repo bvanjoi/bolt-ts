@@ -1,0 +1,5 @@
+  × Property 'e' does not exist on type 'I'.
+    ╭─[../../tests/cases/compiler/thisBinding/index.ts:11:7]
+ 11 │ e
+    · ─
+    ╰────

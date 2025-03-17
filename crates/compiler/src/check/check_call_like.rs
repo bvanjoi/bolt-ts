@@ -459,8 +459,8 @@ impl<'cx> TyChecker<'cx> {
             )
         };
         let mapper = self.create_ty_mapper(ty_params, ty_arg_tys.unwrap_or_default());
-        for i in 0..ty_params.len() {
-            let Some(constraint) = self.get_constraint_of_ty_param(ty_params[i]) else {
+        for (i, ty_param) in ty_params.iter().enumerate() {
+            let Some(constraint) = self.get_constraint_of_ty_param(ty_param) else {
                 continue;
             };
             let ty_arg = ty_arg_tys.unwrap()[i];

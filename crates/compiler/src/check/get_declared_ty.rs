@@ -388,7 +388,7 @@ impl<'cx> TyChecker<'cx> {
                     {
                         let symbol = self.get_symbol_of_decl(id);
                         let declared_ty = self.get_declared_ty_of_symbol(symbol);
-                        if let Some(this_ty) = self.this_ty(declared_ty) {
+                        if let Some(this_ty) = Self::this_ty(declared_ty) {
                             outer_ty_params.push(this_ty);
                         }
                     }

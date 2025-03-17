@@ -128,6 +128,7 @@ impl<'cx> TyChecker<'cx> {
             This(n) => self.check_this_expr(n),
             Super(_) => self.undefined_ty,
             As(n) => self.check_assertion(n.expr, n.ty),
+            TyAssertion(n) => self.check_assertion(n.expr, n.ty),
             Satisfies(n) => self.check_expr(n.expr),
             NonNull(n) => self.check_expr(n.expr),
             Template(n) => self.check_template_expr(n),
@@ -203,6 +204,7 @@ impl<'cx> TyChecker<'cx> {
         assert_expr: &'cx ast::Expr<'cx>,
         assert_ty: &'cx ast::Ty<'cx>,
     ) -> &'cx ty::Ty<'cx> {
+        // TODO: check ty assertion.
         let expr_ty = self.check_expr(assert_expr);
         if assert_ty.is_const_ty_refer() {
             self.get_regular_ty_of_literal_ty(expr_ty)
@@ -238,6 +240,13 @@ impl<'cx> TyChecker<'cx> {
                 captured_by_arrow_fn = true;
             }
             break;
+        }
+
+        if this_in_computed_prop_name {
+            todo!()
+        } else if container.is_namespace_decl() {
+            let error = errors::ThisCannotBeReferencedInAModuleOrNamespaceBody { span: expr.span };
+            self.push_error(Box::new(error));
         }
 
         let ty = self.try_get_this_ty_at(expr, true, Some(container_id));

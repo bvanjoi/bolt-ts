@@ -317,9 +317,7 @@ impl<'cx> TyChecker<'cx> {
             let true_ty = self.get_narrowed_ty(ty, candidate, true, false);
             // TODO: self.recombine_unknown_ty()
             return self.filter_type(ty, |this, t| !this.is_ty_sub_type_of(t, true_ty));
-        } else if ty.flags.intersects(TypeFlags::ANY_OR_UNKNOWN) {
-            return candidate;
-        } else if ty == candidate {
+        } else if ty.flags.intersects(TypeFlags::ANY_OR_UNKNOWN) || ty == candidate {
             return candidate;
         };
 
@@ -420,13 +418,14 @@ impl<'cx> TyChecker<'cx> {
             ty = sub.base_ty;
         }
 
-        if check_mode.is_some_and(|check_mode| check_mode.intersects(super::CheckMode::INFERENTIAL))
-            && false
-        // TODO:
-        {
-            ty
-        } else {
-            ty
-        }
+        ty
+        // if check_mode.is_some_and(|check_mode| check_mode.intersects(super::CheckMode::INFERENTIAL))
+        //     && false
+        // // TODO:
+        // {
+        //     ty
+        // } else {
+        //     ty
+        // }
     }
 }

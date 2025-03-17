@@ -107,19 +107,16 @@ impl<'cx> CheckState<'cx> {
     fn check_grammar_object_lit_expr(&mut self, node: &'cx ast::ObjectLit<'cx>) {
         let mut seen = fx_hashmap_with_capacity(node.members.len());
         for member in node.members {
-            match member.kind {
-                ast::ObjectMemberKind::Prop(n) => {
-                    let name = crate::bind::prop_name(n.name);
-                    if let Some(prev) = seen.insert(name, n.span) {
-                        let error =
-                            errors::AnObjectLiteralCannotHaveMultiplePropertiesWithTheSameName {
-                                span: n.name.span(),
-                                old: prev,
-                            };
-                        self.push_error(Box::new(error));
-                    }
+            if let ast::ObjectMemberKind::Prop(n) = member.kind {
+                let name = crate::bind::prop_name(n.name);
+                if let Some(prev) = seen.insert(name, n.span) {
+                    let error =
+                        errors::AnObjectLiteralCannotHaveMultiplePropertiesWithTheSameName {
+                            span: n.name.span(),
+                            old: prev,
+                        };
+                    self.push_error(Box::new(error));
                 }
-                _ => {}
             }
         }
     }

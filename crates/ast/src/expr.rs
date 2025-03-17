@@ -43,6 +43,7 @@ impl Expr<'_> {
             Satisfies(n) => n.span,
             NonNull(n) => n.span,
             Template(n) => n.span,
+            TyAssertion(n) => n.span,
         }
     }
 
@@ -79,6 +80,7 @@ impl Expr<'_> {
             Satisfies(n) => n.id,
             NonNull(n) => n.id,
             Template(n) => n.id,
+            TyAssertion(n) => n.id,
         }
     }
 
@@ -134,6 +136,7 @@ pub enum ExprKind<'cx> {
     Satisfies(&'cx SatisfiesExpr<'cx>),
     NonNull(&'cx NonNullExpr<'cx>),
     Template(&'cx TemplateExpr<'cx>),
+    TyAssertion(&'cx TyAssertion<'cx>),
 }
 
 impl<'cx> ExprKind<'cx> {
@@ -517,7 +520,7 @@ impl BinOpKind {
 
     pub fn is_logical_or_coalescing_op(self) -> bool {
         // TODO: QuestionQuestion
-        self.is_logical_op() || false
+        self.is_logical_op()
     }
 }
 
@@ -578,4 +581,12 @@ pub struct CallExpr<'cx> {
     pub expr: &'cx Expr<'cx>,
     pub ty_args: Option<&'cx self::Tys<'cx>>,
     pub args: Exprs<'cx>,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct TyAssertion<'cx> {
+    pub id: NodeID,
+    pub span: Span,
+    pub ty: &'cx self::Ty<'cx>,
+    pub expr: &'cx Expr<'cx>,
 }

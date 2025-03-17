@@ -55,14 +55,9 @@ pub fn visit_class_decl<'cx>(v: &mut impl Visitor<'cx>, class: &'cx super::Class
     }
 }
 
-pub fn visit_interface_decl<'cx>(v: &mut impl Visitor<'cx>, i: &'cx super::InterfaceDecl<'cx>) {
-    // for ele in i.members {
-    //     v.visit_class_elem(ele);
-    // }
-}
+pub fn visit_interface_decl<'cx>(_: &mut impl Visitor<'cx>, _: &'cx super::InterfaceDecl<'cx>) {}
 
-pub fn visit_import_decl<'cx>(v: &mut impl Visitor<'cx>, import_decl: &'cx super::ImportDecl<'cx>) {
-}
+pub fn visit_import_decl<'cx>(_: &mut impl Visitor<'cx>, _: &'cx super::ImportDecl<'cx>) {}
 
 pub fn visit_class_elem<'cx>(v: &mut impl Visitor<'cx>, elem: &'cx super::ClassElem<'cx>) {
     use super::ClassEleKind::*;
@@ -143,12 +138,12 @@ pub fn visit_ctor_ty<'cx>(v: &mut impl Visitor<'cx>, n: &'cx super::CtorTy<'cx>)
     // }
     v.visit_ty(n.ty);
 }
-pub fn visit_object_lit_ty<'cx>(v: &mut impl Visitor<'cx>, n: &'cx super::ObjectLitTy<'cx>) {
+pub fn visit_object_lit_ty<'cx>(_: &mut impl Visitor<'cx>, _: &'cx super::ObjectLitTy<'cx>) {
     // for prop in n.members {
     //     v.visit_ty_element(prop);
     // }
 }
-pub fn visit_lit_ty<'cx>(v: &mut impl Visitor<'cx>, n: &'cx super::LitTy) {
+pub fn visit_lit_ty<'cx>(_: &mut impl Visitor<'cx>, _: &'cx super::LitTy) {
     // Literal types have no child nodes to visit
 }
 pub fn visit_named_tuple_ty<'cx>(v: &mut impl Visitor<'cx>, n: &'cx super::NamedTupleTy<'cx>) {
@@ -223,7 +218,7 @@ pub fn visit_expr<'cx>(v: &mut impl Visitor<'cx>, n: &'cx super::Expr<'cx>) {
         v.visit_object_lit(n)
     }
 }
-pub fn visit_object_lit<'cx>(_: &mut impl Visitor<'cx>, n: &'cx super::ObjectLit<'cx>) {}
+pub fn visit_object_lit<'cx>(_: &mut impl Visitor<'cx>, _: &'cx super::ObjectLit<'cx>) {}
 pub fn visit_try_stmt<'cx>(v: &mut impl Visitor<'cx>, n: &'cx super::TryStmt<'cx>) {
     v.visit_block_stmt(n.try_block);
     if let Some(catch) = n.catch_clause {

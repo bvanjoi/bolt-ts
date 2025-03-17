@@ -13,6 +13,6 @@ module One {
       export var y;
   }
   B.x;
-  //~^ Error: Property 'x' does not exist on type '{ y: any; }'.
+  //~^ Error: Property 'x' does not exist on type 'typeof B'.
   B.y;
 }

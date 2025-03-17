@@ -218,30 +218,34 @@ impl<'cx> ParserState<'cx, '_> {
         let t = self.token.kind;
         if matches!(t, Export | Const) {
             self.is_start_of_decl()
+        } else if matches!(t, Import) {
+            self.is_start_of_decl() | self.lookahead(Self::next_token_is_lparen_or_less_or_dot)
         } else {
             matches!(
                 t,
-                Interface
-                | Module
-                | Namespace
-                | Type
-                // ==
-                | Semi
-                | Var
-                | Let
-                | Function
-                | If
-                | Return
-                | Class
-                | Enum
-                | For
-                | Continue
-                | Break
-                | Throw
-                | Try
-                | Catch
-                | Finally
-                | Debugger
+                Semi | LBrace
+                    | Var
+                    | Let
+                    | Function
+                    | Class
+                    | Enum
+                    | If
+                    | Do
+                    | While
+                    | For
+                    | Continue
+                    | Break
+                    | Return
+                    | Throw
+                    | Try
+                    | Debugger
+                    | Catch
+                    | Finally
+                    // ==
+                    | Interface
+                    | Module
+                    | Namespace
+                    | Type
             ) || self.is_start_of_expr()
         }
     }
@@ -345,6 +349,12 @@ impl<'cx> ParserState<'cx, '_> {
         t.is_contextual_keyword() || t.is_strict_mode_reserved_word()
     }
 
+    pub(super) fn next_token_is_lparen_or_less_or_dot(&mut self) -> bool {
+        self.next_token();
+        use bolt_ts_ast::TokenKind::*;
+        matches!(self.token.kind, LParen | Less | Dot)
+    }
+
     pub(super) fn next_token_is_ident(&mut self) -> PResult<bool> {
         self.next_token();
         Ok(self.is_ident())
@@ -393,6 +403,7 @@ impl<'cx> ParserState<'cx, '_> {
         let old_full_start_pos = self.full_start_pos;
         let old_token = self.token;
         let old_token_value = self.token_value;
+        let old_parse_diag_len = self.diags.len();
 
         let res = f(self);
 
@@ -401,6 +412,8 @@ impl<'cx> ParserState<'cx, '_> {
             self.token = old_token;
             self.full_start_pos = old_full_start_pos;
             self.pos = old_pos;
+            // TODO: speculate_kind != SpeculationKind::Repair
+            self.diags.truncate(old_parse_diag_len);
         }
 
         res

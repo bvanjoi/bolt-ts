@@ -14,8 +14,8 @@ impl<'cx> ParserState<'cx, '_> {
         match self.token.kind {
             Plus | Minus | Tilde | Excl | Delete | Typeof | Void | Await => false,
             Less => {
-                // TODO: is jsx
-                true
+                // TODO: return true when parsing jsx
+                false
             }
             _ => true,
         }
@@ -305,8 +305,32 @@ impl<'cx> ParserState<'cx, '_> {
             }
             Typeof => self.parse_typeof_expr(),
             Void => self.parse_void_expr(),
+            Less => {
+                // TODO: is jsx
+                self.parse_ty_assertion()
+            }
             _ => self.parse_update_expr(),
         }
+    }
+
+    fn parse_ty_assertion(&mut self) -> PResult<&'cx ast::Expr<'cx>> {
+        let start = self.token.start();
+        let id = self.next_node_id();
+        self.expect(TokenKind::Less);
+        let ty = self.with_parent(id, Self::parse_ty)?;
+        self.expect(TokenKind::Great);
+        let expr = self.parse_simple_unary_expr()?;
+        let expr = self.alloc(ast::TyAssertion {
+            id,
+            span: self.new_span(start),
+            ty,
+            expr,
+        });
+        self.insert_map(id, ast::Node::TyAssertionExpr(expr));
+        let expr = self.alloc(ast::Expr {
+            kind: ast::ExprKind::TyAssertion(expr),
+        });
+        Ok(expr)
     }
 
     fn parse_void_expr(&mut self) -> PResult<&'cx ast::Expr<'cx>> {
@@ -537,11 +561,11 @@ impl<'cx> ParserState<'cx, '_> {
 
         let mods = self.with_parent(id, |this| this.parse_modifiers(false))?;
 
-        if self.parse_contextual_modifier(TokenKind::Get) {
-            // TODO:
-        } else if self.parse_contextual_modifier(TokenKind::Set) {
-            // TODO:
-        }
+        // if self.parse_contextual_modifier(TokenKind::Get) {
+        //     // TODO:
+        // } else if self.parse_contextual_modifier(TokenKind::Set) {
+        //     // TODO:
+        // }
 
         let asterisk_token = self.parse_optional(TokenKind::Asterisk);
 
@@ -951,10 +975,18 @@ impl<'cx> ParserState<'cx, '_> {
         question_dot_token: bool,
     ) -> PResult<&'cx ast::EleAccessExpr<'cx>> {
         let id = self.next_node_id();
-        if self.token.kind == TokenKind::RBracket {
-            return Err(());
-        }
-        let arg = self.parse_expr()?;
+        let arg = if self.token.kind == TokenKind::RBracket {
+            let error = errors::AnElementAccessExpressionShouldTakeAnArgument {
+                span: self.token.span,
+            };
+            self.push_error(Box::new(error));
+            let ident = self.create_ident_by_atom(keyword::IDENT_EMPTY, self.token.span);
+            self.alloc(ast::Expr {
+                kind: ast::ExprKind::Ident(ident),
+            })
+        } else {
+            self.parse_expr()?
+        };
         self.expect(TokenKind::RBracket);
         let ele = if question_dot_token {
             todo!()

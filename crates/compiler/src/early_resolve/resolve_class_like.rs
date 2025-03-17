@@ -14,6 +14,9 @@ impl<'cx> Resolver<'cx, '_, '_> {
     }
 
     fn resolve_class_method_ele(&mut self, ele: &'cx ast::ClassMethodElem<'cx>) {
+        if let Some(ty_params) = ele.ty_params {
+            self.resolve_ty_params(ty_params);
+        }
         self.resolve_params(ele.params);
         if let Some(ty) = ele.ty {
             self.resolve_ty(ty);

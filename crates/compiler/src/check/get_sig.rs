@@ -330,7 +330,7 @@ fn get_sig_from_decl<'cx>(
         let symbol = match param.name.kind {
             ast::BindingKind::Ident(ident) => checker.final_res(ident.id),
             ast::BindingKind::ObjectPat(_) => todo!(),
-            bolt_ts_ast::BindingKind::ArrayPat(array_pat) => todo!(),
+            bolt_ts_ast::BindingKind::ArrayPat(_) => todo!(),
         };
         params.push(symbol);
         let is_opt = param.question.is_some() || param.dotdotdot.is_some() || param.init.is_some();

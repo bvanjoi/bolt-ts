@@ -1,6 +1,5 @@
 use bolt_ts_span::ModuleID;
 
-
 use super::{ExprKind, ModifierKind};
 
 bolt_ts_utils::module_index!(NodeID);
@@ -113,6 +112,7 @@ pub enum Node<'cx> {
     SuperExpr(&'cx super::SuperExpr),
     QualifiedName(&'cx super::QualifiedName<'cx>),
     AsExpr(&'cx super::AsExpr<'cx>),
+    TyAssertionExpr(&'cx super::TyAssertion<'cx>),
     SatisfiesExpr(&'cx super::SatisfiesExpr<'cx>),
     NonNullExpr(&'cx super::NonNullExpr<'cx>),
     TemplateExpr(&'cx super::TemplateExpr<'cx>),
@@ -569,6 +569,7 @@ impl<'cx> Node<'cx> {
             || self.is_class_method_ele()
             || self.is_fn_decl()
             || self.is_fn_expr()
+            || self.is_arrow_fn_expr()
             || self.is_class_prop_ele()
         {
             true
@@ -804,6 +805,7 @@ as_node!(
     ),
     (ThisExpr, super::ThisExpr, this_expr),
     (AsExpr, super::AsExpr<'cx>, as_expr),
+    (TyAssertionExpr, super::TyAssertion<'cx>, ty_assertion),
     (SatisfiesExpr, super::SatisfiesExpr<'cx>, satisfies_expr),
     (TypeDecl, super::TypeDecl<'cx>, type_decl),
     (RestTy, super::RestTy<'cx>, rest_ty),

@@ -404,8 +404,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
             let decl = self.parse_setter_accessor_decl(id, start, modifiers, false)?;
             ast::ClassEleKind::Setter(decl)
         };
-        let ele = self.alloc(ast::ClassElem { kind });
-        Ok(ele)
+        Ok(self.alloc(ast::ClassElem { kind }))
     }
 
     fn parse_class_ele(&mut self) -> PResult<&'cx ast::ClassElem<'cx>> {

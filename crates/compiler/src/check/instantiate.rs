@@ -38,8 +38,8 @@ impl<'cx> TyChecker<'cx> {
                 let mut result = Vec::with_capacity(list.len());
                 result.extend(list[0..i].iter());
                 result.push(mapped);
-                for j in i + 1..len {
-                    result.push(f(self, list[j], mapper));
+                for t in list.iter().take(len).skip(i + 1) {
+                    result.push(f(self, *t, mapper));
                 }
                 assert_eq!(result.len(), list.len());
                 let result = self.alloc(result);
@@ -306,7 +306,7 @@ impl<'cx> TyChecker<'cx> {
                     })
                     .collect::<Vec<_>>(),
             )
-        } else if modifiers.intersects(MappedTyModifiers::INCLUDE_OPTIONAL) {
+        } else if modifiers.intersects(MappedTyModifiers::EXCLUDE_OPTIONAL) {
             self.alloc(
                 element_flags
                     .iter()

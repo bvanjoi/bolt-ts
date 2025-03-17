@@ -158,9 +158,9 @@ impl<'cx> BinderResult<'cx> {
     }
 }
 
-pub fn bind_parallel<'cx, 'atoms, 'parser>(
+pub fn bind_parallel<'cx>(
     modules: &[Module],
-    atoms: &'atoms AtomMap<'cx>,
+    atoms: &AtomMap<'cx>,
     parser: Parser<'cx>,
     options: &NormalizedTsConfig,
 ) -> Vec<(BinderResult<'cx>, ParseResult<'cx>)> {

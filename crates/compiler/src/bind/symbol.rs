@@ -188,14 +188,6 @@ pub(crate) enum SymbolKind {
     BlockContainer(BlockContainerSymbol),
 }
 
-impl SymbolKind {
-    pub fn opt_decl(&self) -> Option<NodeID> {
-        match &self {
-            _ => None,
-        }
-    }
-}
-
 macro_rules! as_symbol_kind {
     ($kind: ident, $ty:ty, $as_kind: ident, $expect_kind: ident) => {
         impl Symbol {
@@ -270,8 +262,7 @@ impl SymbolID {
 
     pub fn opt_decl(&self, binder: &super::Binder) -> Option<NodeID> {
         let s = binder.symbol(*self);
-        let id = s.kind.0.opt_decl();
-        id.or_else(|| s.kind.1.as_ref().and_then(|i| i.decls.first()).copied())
+        s.kind.1.as_ref().and_then(|i| i.decls.first()).copied()
     }
 
     pub fn decl(&self, binder: &super::Binder) -> NodeID {

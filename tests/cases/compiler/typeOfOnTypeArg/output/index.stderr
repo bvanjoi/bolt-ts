@@ -1,0 +1,6 @@
+  × Argument of type 'number' is not assignable to parameter of type '{ '':
+  │ number; }'.
+   ╭─[../../tests/cases/compiler/typeOfOnTypeArg/index.ts:7:6]
+ 7 │ 32
+   · ──
+   ╰────

@@ -137,48 +137,30 @@ impl<'cx> TyChecker<'cx> {
             let constraint = self
                 .get_base_constraint_of_ty(contextual_ty)
                 .unwrap_or(self.unknown_ty);
-            return if constraint.maybe_type_of_kind(TypeFlags::STRING)
-                && candidate_ty.maybe_type_of_kind(TypeFlags::STRING_LITERAL)
-            {
-                true
-            } else if constraint.maybe_type_of_kind(TypeFlags::NUMBER)
-                && candidate_ty.maybe_type_of_kind(TypeFlags::NUMBER_LITERAL)
-            {
-                true
-            } else if constraint.maybe_type_of_kind(TypeFlags::BIG_INT)
-                && candidate_ty.maybe_type_of_kind(TypeFlags::BIG_INT_LITERAL)
-            {
-                true
-            } else if constraint.maybe_type_of_kind(TypeFlags::ES_SYMBOL)
-                && candidate_ty.maybe_type_of_kind(TypeFlags::UNIQUE_ES_SYMBOL)
-            {
-                true
-            } else {
-                self.is_literal_of_contextual_ty(candidate_ty, Some(constraint))
-            };
-        } else if contextual_ty.flags.intersects(
-            TypeFlags::STRING_LITERAL
-                | TypeFlags::INDEX
-                | TypeFlags::TEMPLATE_LITERAL
-                | TypeFlags::STRING_MAPPING,
-        ) && candidate_ty.maybe_type_of_kind(TypeFlags::STRING_LITERAL)
-        {
-            true
-        } else if contextual_ty.flags.intersects(TypeFlags::NUMBER_LITERAL)
-            && candidate_ty.maybe_type_of_kind(TypeFlags::NUMBER_LITERAL)
-        {
-            true
-        } else if contextual_ty.flags.intersects(TypeFlags::BIG_INT_LITERAL)
-            && candidate_ty.maybe_type_of_kind(TypeFlags::BIG_INT_LITERAL)
-        {
-            true
-        } else if contextual_ty.flags.intersects(TypeFlags::BOOLEAN_LITERAL)
-            && candidate_ty.maybe_type_of_kind(TypeFlags::BOOLEAN_LITERAL)
-        {
-            true
+            (constraint.maybe_type_of_kind(TypeFlags::STRING)
+                && candidate_ty.maybe_type_of_kind(TypeFlags::STRING_LITERAL))
+                || (constraint.maybe_type_of_kind(TypeFlags::NUMBER)
+                    && candidate_ty.maybe_type_of_kind(TypeFlags::NUMBER_LITERAL))
+                || (constraint.maybe_type_of_kind(TypeFlags::BIG_INT)
+                    && candidate_ty.maybe_type_of_kind(TypeFlags::BIG_INT_LITERAL))
+                || (constraint.maybe_type_of_kind(TypeFlags::ES_SYMBOL)
+                    && candidate_ty.maybe_type_of_kind(TypeFlags::UNIQUE_ES_SYMBOL))
+                || self.is_literal_of_contextual_ty(candidate_ty, Some(constraint))
         } else {
-            contextual_ty.flags.intersects(TypeFlags::UNIQUE_ES_SYMBOL)
-                && candidate_ty.maybe_type_of_kind(TypeFlags::UNIQUE_ES_SYMBOL)
+            (contextual_ty.flags.intersects(
+                TypeFlags::STRING_LITERAL
+                    | TypeFlags::INDEX
+                    | TypeFlags::TEMPLATE_LITERAL
+                    | TypeFlags::STRING_MAPPING,
+            ) && candidate_ty.maybe_type_of_kind(TypeFlags::STRING_LITERAL))
+                || (contextual_ty.flags.intersects(TypeFlags::NUMBER_LITERAL)
+                    && candidate_ty.maybe_type_of_kind(TypeFlags::NUMBER_LITERAL))
+                || (contextual_ty.flags.intersects(TypeFlags::BIG_INT_LITERAL)
+                    && candidate_ty.maybe_type_of_kind(TypeFlags::BIG_INT_LITERAL))
+                || (contextual_ty.flags.intersects(TypeFlags::BOOLEAN_LITERAL)
+                    && candidate_ty.maybe_type_of_kind(TypeFlags::BOOLEAN_LITERAL))
+                || (contextual_ty.flags.intersects(TypeFlags::UNIQUE_ES_SYMBOL)
+                    && candidate_ty.maybe_type_of_kind(TypeFlags::UNIQUE_ES_SYMBOL))
         }
     }
 

@@ -1,6 +1,6 @@
 use crate::ty::{self, TypeFlags};
 
-use super::TyChecker;
+use super::{TyChecker, create_ty::IntersectionFlags};
 
 impl<'cx> TyChecker<'cx> {
     pub(super) fn get_simplified_ty_or_constraint(
@@ -42,8 +42,9 @@ impl<'cx> TyChecker<'cx> {
                 self.is_type_assignable_to(source, target)
             } {
                 return self.get_simplified_ty(ty, writing);
+            } else if self.is_intersection_empty(cond_ty.check_ty, cond_ty.extends_ty) {
+                return self.never_ty;
             }
-            // TODO: else if `is_intersection_empty()`
         } else if true_ty.flags.intersects(TypeFlags::NEVER)
             && self.get_actual_ty_variable(false_ty)
                 == self.get_actual_ty_variable(cond_ty.check_ty)
@@ -54,13 +55,19 @@ impl<'cx> TyChecker<'cx> {
                 self.is_type_assignable_to(source, target)
             } {
                 return self.never_ty;
-            } else if cond_ty.check_ty.flags.intersects(TypeFlags::ANY) || false
-            /* TODO: `is_intersection_empty()` */
+            } else if cond_ty.check_ty.flags.intersects(TypeFlags::ANY)
+                || self.is_intersection_empty(cond_ty.check_ty, cond_ty.extends_ty)
             {
                 return self.get_simplified_ty(ty, writing);
             }
         }
         ty
+    }
+
+    fn is_intersection_empty(&mut self, ty1: &'cx ty::Ty<'cx>, ty2: &'cx ty::Ty<'cx>) -> bool {
+        let i = self.get_intersection_ty(&[ty1, ty2], IntersectionFlags::None, None, None);
+        let u = self.get_union_ty(&[i, self.never_ty], ty::UnionReduction::Lit);
+        u.flags.intersects(TypeFlags::NEVER)
     }
 
     fn get_simplified_index_access_ty(

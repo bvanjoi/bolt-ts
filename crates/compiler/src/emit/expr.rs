@@ -109,6 +109,9 @@ impl<'cx> Emit<'cx> {
                 self.content.p(self.atoms.get(lit.val.1));
                 self.content.p("n");
             }
+            TyAssertion(n) => {
+                self.emit_expr(n.expr);
+            }
         };
     }
 

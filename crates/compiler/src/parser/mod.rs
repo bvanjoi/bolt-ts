@@ -215,6 +215,20 @@ pub fn parse_parallel<'cx, 'p>(
             (*module_id, result)
         },
     )
+
+    // list.iter().map(move |module_id| {
+    //     let bump = herd.get();
+    //     let input = module_arena.get_content(*module_id);
+    //     let result = parse(
+    //         atoms.clone(),
+    //         &bump,
+    //         input.as_bytes(),
+    //         *module_id,
+    //         module_arena,
+    //     );
+    //     assert!(!module_arena.get_module(*module_id).global || result.diags.is_empty());
+    //     (*module_id, result)
+    // })
 }
 
 fn parse<'cx, 'p>(
@@ -419,9 +433,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
                 self.expect(TokenKind::Comma);
                 continue;
             }
-            if self.is_list_terminator(ctx) {
-                break;
-            } else if self.abort_parsing_list_or_move_to_next_token(ctx) {
+            if self.is_list_terminator(ctx) || self.abort_parsing_list_or_move_to_next_token(ctx) {
                 break;
             }
         }

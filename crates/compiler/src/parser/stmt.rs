@@ -330,8 +330,8 @@ impl<'cx> ParserState<'cx, '_> {
                 return self.parse_ambient_external_module_decl(id, start, mods);
             }
         }
-        let name = self.parse_ident_name()?;
-        let block = self.parse_module_block()?;
+        let name = self.with_parent(id, Self::parse_ident_name)?;
+        let block = self.with_parent(id, Self::parse_module_block)?;
         let span = self.new_span(start);
         Ok(self.create_ns_decl(
             id,
@@ -873,13 +873,9 @@ impl<'cx> ParserState<'cx, '_> {
             }
         } else {
             let prop_name = self.with_parent(id, |this| this.parse_prop_name(false))?;
-            if self.token.kind != TokenKind::Colon {
-                todo!("error")
-            } else {
-                self.expect(TokenKind::Colon);
-                let name = self.with_parent(id, Self::parse_ident_or_pat)?;
-                self.alloc(ast::ObjectBindingName::Prop { prop_name, name })
-            }
+            self.expect(TokenKind::Colon);
+            let name = self.with_parent(id, Self::parse_ident_or_pat)?;
+            self.alloc(ast::ObjectBindingName::Prop { prop_name, name })
         };
         let init = self.with_parent(id, Self::parse_init)?;
         let ele = self.alloc(ast::ObjectBindingElem {

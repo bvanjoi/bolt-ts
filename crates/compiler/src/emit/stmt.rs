@@ -488,6 +488,7 @@ impl<'cx> Emit<'cx> {
                         .collect::<Vec<_>>(),
                 ),
                 ast::StmtKind::Class(c) => Some(vec![c.name.name]),
+                ast::StmtKind::Fn(f) => Some(vec![f.name.name]),
                 _ => None,
             })
             .flatten()

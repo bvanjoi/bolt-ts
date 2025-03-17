@@ -130,7 +130,7 @@ impl<'cx> ParseResult<'cx> {
         let n = self.nodes.get(node);
         use ast::Node::*;
         if n.is_object_method_member() {
-            return true;
+            true
         } else if matches!(n, ClassMethodElem(_) | GetterDecl(_) | SetterDecl(_)) {
             let p = self.parent_map.parent(node).unwrap();
             let p = self.nodes.get(p);
@@ -292,17 +292,34 @@ impl<'cx> Parser<'cx> {
         None
     }
 
-    fn get_assignment_target(&self, id: ast::NodeID) -> Option<ast::NodeID> {
-        let parent = self.parent(id);
+    fn get_assignment_target(&self, mut id: ast::NodeID) -> Option<ast::NodeID> {
+        let mut parent = self.parent(id);
+        use ast::Node::*;
+        use ast::PostfixUnaryOp;
+        use ast::PrefixUnaryOp;
         while let Some(p) = parent {
             match self.node(p) {
-                ast::Node::AssignExpr(assign) => {
-                    return (assign.left.id() == id).then_some(assign.id);
+                AssignExpr(n) => {
+                    return (n.left.id() == id).then_some(n.id);
                 }
-                ast::Node::BinExpr(_) => return None,
+                PrefixUnaryExpr(n)
+                    if matches!(n.op, PrefixUnaryOp::PlusPlus | PrefixUnaryOp::MinusMinus) =>
+                {
+                    return Some(n.id);
+                }
+                PostfixUnaryExpr(n)
+                    if matches!(n.op, PostfixUnaryOp::PlusPlus | PostfixUnaryOp::MinusMinus) =>
+                {
+                    return Some(n.id);
+                }
+                // TODO: for_in and for_of
+                ParenExpr(_) | ArrayLit(_) | NonNullExpr(_) => id = self.parent(p).unwrap(),
+                SpreadAssignment(_) => {
+                    id = self.parent(self.parent(p).unwrap()).unwrap();
+                }
                 _ => return None,
             }
-            // parent = checker.node_parent_map.parent(p);
+            parent = self.parent(id);
         }
         None
     }
@@ -408,9 +425,9 @@ impl<'cx> Parser<'cx> {
             } else {
                 use ast::Node::*;
                 match node {
-                    FnDecl(_) | FnExpr(_) | ClassPropElem(_) | ClassMethodElem(_)
-                    | ClassCtor(_) | CtorSigDecl(_) | GetterDecl(_) | SetterDecl(_)
-                    | IndexSigDecl(_) | EnumDecl(_) | Program(_) => return id,
+                    FnDecl(_) | FnExpr(_) | NamespaceDecl(_) | ClassPropElem(_)
+                    | ClassMethodElem(_) | ClassCtor(_) | CtorSigDecl(_) | GetterDecl(_)
+                    | SetterDecl(_) | IndexSigDecl(_) | EnumDecl(_) | Program(_) => return id,
                     _ => {}
                 }
             }
@@ -662,11 +679,8 @@ impl<'cx> Parser<'cx> {
             let p = self.node(p);
             if p.as_qualified_name()
                 .is_some_and(|p| std::ptr::eq(p.right, ident))
-            {
-                node = p;
-            } else if p
-                .as_prop_access_expr()
-                .is_some_and(|p| std::ptr::eq(p.name, ident))
+                || p.as_prop_access_expr()
+                    .is_some_and(|p| std::ptr::eq(p.name, ident))
             {
                 node = p;
             }

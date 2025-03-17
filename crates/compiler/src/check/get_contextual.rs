@@ -79,10 +79,8 @@ impl<'cx> TyChecker<'cx> {
         let ty = self.get_apparent_ty_of_contextual_ty(object_literal.id, context_flags)?;
         let id = if let Some(m) = self.p.node(id).as_object_prop_member() {
             Some(m.id)
-        } else if let Some(m) = self.p.node(id).as_object_method_member() {
-            Some(m.id)
         } else {
-            None
+            self.p.node(id).as_object_method_member().map(|m| m.id)
         }?;
         // TODO: has_bindable_name
         let symbol = self.get_symbol_of_decl(id);
@@ -396,11 +394,7 @@ impl<'cx> TyChecker<'cx> {
         } else {
             self.get_contextual_ty(node, flags)
         };
-        let Some(instantiated_ty) = self.instantiate_contextual_ty(contextual_ty, node, flags)
-        else {
-            return None;
-        };
-
+        let instantiated_ty = self.instantiate_contextual_ty(contextual_ty, node, flags)?;
         if flags.is_none_or(|flags| {
             !(flags.intersects(ContextFlags::NO_CONSTRAINTS)
                 && instantiated_ty.kind.is_type_variable())
@@ -444,6 +438,7 @@ impl<'cx> TyChecker<'cx> {
             .iter()
             .filter(|sig| !self.is_arity_smaller(sig, id))
             .collect::<Vec<_>>();
+        // TODO: get_intersected_sigs
         if sigs.is_empty() { None } else { Some(sigs[0]) }
     }
 

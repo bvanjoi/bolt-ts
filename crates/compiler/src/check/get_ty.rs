@@ -1223,7 +1223,7 @@ impl<'cx> TyChecker<'cx> {
         if cond_ty.root.is_distributive
             && self.ty_links[&ty.id]
                 .get_restrictive_instantiation()
-                .map_or(true, |t| t != ty)
+                .is_some_and(|t| t != ty)
         {
             let simplified = self.get_simplified_ty(cond_ty.check_ty, false);
             let constraint = if simplified == cond_ty.check_ty {

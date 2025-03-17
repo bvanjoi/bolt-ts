@@ -8,8 +8,8 @@ pub fn pprint_ident(ident: &super::Ident, atoms: &AtomMap) -> String {
 pub fn pprint_binding(binding: &super::Binding<'_>, atoms: &AtomMap) -> String {
     match binding.kind {
         super::BindingKind::Ident(ident) => pprint_ident(ident, atoms),
-        super::BindingKind::ObjectPat(pat) => todo!(),
-        crate::BindingKind::ArrayPat(pat) => todo!(),
+        super::BindingKind::ObjectPat(_) => todo!(),
+        crate::BindingKind::ArrayPat(_) => todo!(),
     }
 }
 

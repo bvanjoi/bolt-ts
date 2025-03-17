@@ -495,6 +495,10 @@ impl<'cx> Resolver<'cx, '_, '_> {
                     self.resolve_ty(n.ty);
                 }
             }
+            TyAssertion(n) => {
+                self.resolve_ty(n.ty);
+                self.resolve_expr(n.expr);
+            }
             Template(n) => {
                 for item in n.spans {
                     self.resolve_expr(item.expr);

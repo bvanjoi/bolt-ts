@@ -50,13 +50,12 @@ impl<'cx> TyChecker<'cx> {
         for member in members {
             match member.kind {
                 ast::ObjectTyMemberKind::Prop(p) => {
-                    let member_name;
                     let name = p.name;
-                    match name.kind {
-                        ast::PropNameKind::Ident(ident) => member_name = ident.name,
-                        ast::PropNameKind::StringLit { key, .. } => member_name = key,
+                    let member_name = match name.kind {
+                        ast::PropNameKind::Ident(ident) => ident.name,
+                        ast::PropNameKind::StringLit { key, .. } => key,
                         _ => continue,
-                    }
+                    };
                     if let Some(old) = names.get(&member_name).copied() {
                         let error = bind::errors::DuplicateIdentifier {
                             span: p.span,

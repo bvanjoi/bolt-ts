@@ -6,8 +6,8 @@ use super::container_flags::GetContainerFlags;
 use super::flow::FlowFlags;
 use super::flow::FlowID;
 use super::flow::FlowNodeKind;
+use super::symbol::SymbolFlags;
 use super::symbol::SymbolTableLocation;
-use super::symbol::{SymbolFlags, SymbolKind};
 use super::symbol::{SymbolID, SymbolName, Symbols};
 
 use bolt_ts_ast as ast;
@@ -198,7 +198,6 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
                     None,
                     false,
                     var.binding,
-                    ast::VarKind::Var,
                     var.id,
                     SymbolFlags::FUNCTION_SCOPED_VARIABLE,
                     SymbolFlags::FUNCTION_SCOPED_VARIABLE_EXCLUDES,
@@ -395,9 +394,7 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
             assert!(ty_param.default.is_none());
             let extends_ty = self.p.find_ancestor(infer_ty.id, |n| {
                 let n_id = n.id();
-                let Some(p) = self.p.parent(n_id) else {
-                    return None;
-                };
+                let p = self.p.parent(n_id)?;
                 if let Some(cond) = self.p.node(p).as_cond_ty() {
                     if cond.extends_ty.id() == n_id {
                         return Some(true);
@@ -851,6 +848,10 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
                     self.bind_ty(node.ty);
                 }
             }
+            TyAssertion(node) => {
+                self.bind_ty(node.ty);
+                self.bind_expr(node.expr);
+            }
             Template(node) => {
                 for item in node.spans {
                     self.bind_expr(item.expr);
@@ -1222,7 +1223,6 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
         container: Option<ast::NodeID>,
         is_export: bool,
         binding: &'cx ast::Binding<'cx>,
-        kind: ast::VarKind,
         var_decl: ast::NodeID,
         include_flags: SymbolFlags,
         exclude_flags: SymbolFlags,
@@ -1277,7 +1277,6 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
                                 None,
                                 false,
                                 name,
-                                kind,
                                 var_decl,
                                 include_flags,
                                 exclude_flags,
@@ -1313,7 +1312,6 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
             container,
             is_export,
             decl.binding,
-            kind,
             decl.id,
             include_flags,
             exclude_flags,
@@ -1342,7 +1340,6 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
             None,
             false,
             param.name,
-            ast::VarKind::Var,
             param.id,
             SymbolFlags::FUNCTION_SCOPED_VARIABLE,
             SymbolFlags::PARAMETER_EXCLUDES,
@@ -1412,7 +1409,7 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
             }
             _ => {
                 // TODO: handle more case:
-                let symbol = self._declare_symbol(
+                self._declare_symbol(
                     Some(name),
                     loc,
                     None,
@@ -1421,8 +1418,7 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
                     symbol_excludes,
                     false,
                     false,
-                );
-                symbol
+                )
             }
         }
     }

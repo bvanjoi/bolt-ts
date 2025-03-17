@@ -1,0 +1,5 @@
+  × Property 'I' does not exist on type 'typeof M'.
+   ╭─[../../tests/cases/compiler/undeclaredBase/index.ts:3:37]
+ 3 │ I
+   · ─
+   ╰────

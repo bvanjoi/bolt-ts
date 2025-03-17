@@ -189,13 +189,12 @@ impl ParserState<'_, '_> {
         } else {
             self.scan_number_fragment()
         };
-        let decimal_frag;
-        if self.ch() == Some(b'.') {
+        let decimal_frag = if self.ch() == Some(b'.') {
             self.pos += 1;
-            decimal_frag = Some(self.scan_number_fragment());
+            Some(self.scan_number_fragment())
         } else {
-            decimal_frag = None;
-        }
+            None
+        };
         let mut scientific_frag = None;
         let mut end = self.pos;
         if self.ch().is_some_and(|c| matches!(c, b'e' | b'E')) {
