@@ -96,6 +96,23 @@ impl Extension {
             Extension::Dcts => "d.cts",
         }
     }
+
+    pub const fn as_str_with_dot(&self) -> &'static str {
+        match self {
+            Extension::Ts => ".ts",
+            Extension::Tsx => ".tsx",
+            Extension::DTs => ".d.ts",
+            Extension::Js => ".js",
+            Extension::Jsx => ".jsx",
+            Extension::Json => ".json",
+            Extension::Mjs => ".mjs",
+            Extension::Mts => ".mts",
+            Extension::Dmts => ".d.mts",
+            Extension::Cjs => ".cjs",
+            Extension::Cts => ".cts",
+            Extension::Dcts => ".d.cts",
+        }
+    }
 }
 
 pub const SUPPORTED_TS_EXTENSIONS: &[&[Extension]] = &[

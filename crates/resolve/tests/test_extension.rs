@@ -25,4 +25,27 @@ fn test_resolve_with_extension() {
         "./folder/test",
         "/folder/test.ts",
     );
+
+    should_eq(
+        serde_json::json!(
+          {
+            "/b.d.ts": "",
+          }
+        ),
+        "/",
+        "./b",
+        "/b.d.ts",
+    );
+
+    should_eq(
+        serde_json::json!(
+          {
+            "/b.ts": "",
+            "/b.d.ts": "",
+          }
+        ),
+        "/",
+        "./b",
+        "/b.ts",
+    );
 }

@@ -299,6 +299,7 @@ impl<'cx> Emit<'cx> {
         self.emit_import_clause(n.clause);
         self.content.p_whitespace();
         self.content.p("from");
+        self.content.p_whitespace();
         self.emit_as_string(n.module.val);
     }
 

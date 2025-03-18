@@ -4,6 +4,7 @@ use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 
 use bolt_ts_atom::{AtomId, AtomMap};
+use bolt_ts_config::FLATTENED_ALL_SUPPORTED_EXTENSIONS;
 use bolt_ts_fs::{CachedFileSystem, PathId};
 pub use errors::ResolveError;
 use normalize_path::NormalizePath;
@@ -44,10 +45,10 @@ impl<'atoms, FS: CachedFileSystem> Resolver<'atoms, FS> {
     }
 
     fn try_resolve_extension(&self, base_dir: PathId, target: AtomId) -> RResult<PathId> {
-        const EXTENSIONS: &[&str] = &[".ts", ".js"];
         let mut p = self.join_path(base_dir, target);
         let v = unsafe { &mut *(&mut p as *mut PathBuf as *mut Vec<u8>) };
-        for ext in EXTENSIONS {
+        for ext in FLATTENED_ALL_SUPPORTED_EXTENSIONS {
+            let ext = ext.as_str_with_dot();
             v.extend_from_slice(ext.as_bytes());
             if self.is_file(p.as_path()) {
                 return Ok(PathId::get(p.as_path()));

@@ -87,7 +87,7 @@ fn main_test() {
                 .map(|m| m.as_path().display())
                 .collect::<Vec<_>>()
         );
-        if file_paths.len() == 1 {
+        if output.output.len() == 1 {
             let file_path = file_paths.pop().unwrap();
             compile_test::run_node(&file_path).unwrap();
         }
