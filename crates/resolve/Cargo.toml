@@ -6,6 +6,7 @@ edition = "2024"
 [dependencies]
 rustc-hash = { workspace = true }
 serde_json = { workspace = true, features = ["preserve_order"] }
-bolt_ts_fs = { path = "../fs" }
 bolt_ts_atom = { path = "../atom" }
+bolt_ts_config = { path = "../config" }
+bolt_ts_fs = { path = "../fs" }
 normalize-path = { workspace = true }

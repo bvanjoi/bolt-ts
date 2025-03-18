@@ -1,3 +1,4 @@
+use bolt_ts_atom::AtomId;
 use normalize_path::NormalizePath;
 
 use crate::CachedFileSystem;
@@ -12,6 +13,32 @@ impl LocalFS {
     pub fn new(atoms: &mut bolt_ts_atom::AtomMap<'_>) -> Self {
         let tree = FSTree::new(atoms);
         Self { tree }
+    }
+
+    fn glob_visitor(
+        &mut self,
+        result: &mut Vec<std::path::PathBuf>,
+        dir: &std::path::Path,
+        includes: &[glob::Pattern],
+        excludes: &[glob::Pattern],
+        atoms: &mut bolt_ts_atom::AtomMap<'_>,
+    ) {
+        // TODO: parallel?
+        let matched = self
+            .read_dir(dir, atoms)
+            .unwrap()
+            .filter(|item| {
+                includes.iter().any(|p| p.matches_path(&item))
+                    && excludes.iter().all(|p| !p.matches_path(&item))
+            })
+            .collect::<Vec<_>>();
+        for item in matched {
+            if item.is_dir() {
+                self.glob_visitor(result, &item, includes, excludes, atoms);
+            } else {
+                result.push(item);
+            }
+        }
     }
 }
 
@@ -38,7 +65,7 @@ impl CachedFileSystem for LocalFS {
                     std::io::ErrorKind::InvalidData => Err(crate::errors::FsError::NotAFile(
                         crate::path::PathId::new(path.as_path(), atoms),
                     )),
-                    _ => todo!("{path:#?}"),
+                    _ => unreachable!("failed read '{path:#?}': {err}"),
                 },
             }
         }
@@ -54,16 +81,39 @@ impl CachedFileSystem for LocalFS {
         Ok(entry.map(|entry| entry.unwrap().path()))
     }
 
-    fn glob(&self, pattern: &str, _: &bolt_ts_atom::AtomMap<'_>) -> Vec<std::path::PathBuf> {
-        glob::glob(pattern)
-            .unwrap()
-            .filter_map(Result::ok)
-            .map(|entry| entry.to_path_buf())
-            .collect::<Vec<_>>()
+    fn glob(
+        &mut self,
+        base_dir: &std::path::Path,
+        include: &[&str],
+        exclude: &[&str],
+        atoms: &mut bolt_ts_atom::AtomMap<'_>,
+    ) -> Vec<std::path::PathBuf> {
+        let includes = include
+            .iter()
+            .map(|i| glob::Pattern::new(&i).unwrap())
+            .collect::<Vec<_>>();
+        let excludes = exclude
+            .iter()
+            .map(|e| glob::Pattern::new(&e).unwrap())
+            .collect::<Vec<_>>();
+        let mut result = Vec::with_capacity(4096);
+        self.glob_visitor(&mut result, base_dir, &includes, &excludes, atoms);
+        result
+    }
+
+    fn add_file(
+        &mut self,
+        p: &std::path::Path,
+        content: String,
+        atoms: &mut bolt_ts_atom::AtomMap<'_>,
+    ) -> AtomId {
+        let atom = atoms.insert_by_str(std::borrow::Cow::Owned(content));
+        self.tree.add_file(atoms, p, atom).unwrap();
+        atom
     }
 }
 
-fn read_file_with_encoding(file: &std::path::Path) -> std::io::Result<String> {
+pub fn read_file_with_encoding(file: &std::path::Path) -> std::io::Result<String> {
     let file = std::fs::File::open(file)?;
     let size = file.metadata().map(|m| m.len() as usize).ok();
     read_content_with_encoding(file, size)

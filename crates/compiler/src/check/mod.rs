@@ -807,9 +807,9 @@ impl<'cx> TyChecker<'cx> {
         }) {
             // TODO:
         } else if let Some(intersection) = ty.kind.as_intersection() {
-            intersection
-                .object_flags
-                .intersects(ObjectFlags::IS_NEVER_INTERSECTION_COMPUTED);
+            // intersection
+            //     .object_flags
+            //     .intersects(ObjectFlags::IS_NEVER_INTERSECTION_COMPUTED);
 
             if intersection
                 .object_flags

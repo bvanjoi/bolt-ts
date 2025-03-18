@@ -1,4 +1,5 @@
-// const DIRECTORY_SEPARATOR: char = '/';
+const SLASH: u8 = b'/';
+const BACKSLASH: u8 = b'\\';
 
 // pub(super) fn normalize_slashes(path: &str) -> String {
 //     path.replace('\\', "/")
@@ -109,16 +110,16 @@ fn get_file_url_volume_separator_end(path: &str, start: usize) -> isize {
     -1
 }
 
-// pub(crate) fn get_root_length(path: &str) -> usize {
-//     let root_length = get_encoded_root_length(path);
-//     let len = if root_length < 0 {
-//         -root_length + 1
-//     } else {
-//         root_length
-//     };
-//     assert!(len >= 0);
-//     len as usize
-// }
+pub(crate) fn get_root_length(path: &str) -> usize {
+    let root_length = get_encoded_root_length(path);
+    let len = if root_length < 0 {
+        -root_length + 1
+    } else {
+        root_length
+    };
+    assert!(len >= 0);
+    len as usize
+}
 
 fn get_encoded_root_length(path: &str) -> isize {
     if path.is_empty() {
@@ -126,9 +127,6 @@ fn get_encoded_root_length(path: &str) -> isize {
     }
     let bytes = path.as_bytes();
     let ch0 = bytes[0];
-
-    const SLASH: u8 = b'/';
-    const BACKSLASH: u8 = b'\\';
 
     // POSIX or UNC
     if ch0 == SLASH || ch0 == BACKSLASH {
@@ -190,4 +188,53 @@ fn get_encoded_root_length(path: &str) -> isize {
         }
     }
     -((authority_end + 1) as isize + 1)
+}
+
+pub fn has_trailing_directory_separator(path: &[u8]) -> bool {
+    path.last().is_some_and(|&b| b == SLASH || b == BACKSLASH)
+}
+
+pub fn ensure_trailing_directory_separator(mut path: Vec<u8>) -> Vec<u8> {
+    if has_trailing_directory_separator(&path) {
+        path
+    } else {
+        path.push(SLASH);
+        path
+    }
+}
+
+pub fn combine_paths(path: &str, paths: &[&str]) -> String {
+    let mut valid_path_index = None;
+    for (i, relative_path) in paths.iter().enumerate() {
+        if get_root_length(relative_path) != 0 {
+            valid_path_index = Some(i);
+        }
+    }
+    let p = if let Some(valid_path_index) = valid_path_index {
+        paths[valid_path_index]
+    } else {
+        path
+    };
+    let mut res = String::with_capacity(p.len() * 2);
+    res.push_str(p);
+    let mut res = res.into_bytes();
+    let start = valid_path_index.map(|i| i + 1).unwrap_or(0);
+    for relative_path in paths.iter().skip(start) {
+        res = ensure_trailing_directory_separator(res);
+        res.extend_from_slice(relative_path.as_bytes());
+    }
+    unsafe { String::from_utf8_unchecked(res) }
+}
+
+#[test]
+fn test_combine_paths() {
+    assert_eq!(
+        combine_paths("path", &["to", "file.ext"]),
+        "path/to/file.ext"
+    );
+    assert_eq!(
+        combine_paths("/path", &["dir", "..", "to", "file.ext"]),
+        "/path/dir/../to/file.ext"
+    );
+    assert_eq!(combine_paths("/path", &["/to", "file.ext"]), "/to/file.ext");
 }

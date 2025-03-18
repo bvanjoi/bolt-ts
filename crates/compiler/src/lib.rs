@@ -1,5 +1,6 @@
 mod bind;
 pub mod check;
+mod cli;
 mod early_resolve;
 mod ecma_rules;
 mod emit;
@@ -26,12 +27,13 @@ use bolt_ts_ast::keyword_idx_to_token;
 use bolt_ts_ast::keyword;
 use bolt_ts_atom::AtomMap;
 use bolt_ts_config::NormalizedTsConfig;
-use bolt_ts_fs::CachedFileSystem;
+use bolt_ts_fs::{CachedFileSystem, read_file_with_encoding};
 use bolt_ts_span::{ModuleArena, ModuleID, ModulePath};
 
+use cli::get_filenames;
 use normalize_path::NormalizePath;
 use parser::{ParseResult, Parser};
-use rayon::iter::{IntoParallelIterator, ParallelIterator};
+use rayon::prelude::*;
 use rustc_hash::FxHashMap;
 
 type Diag = Box<dyn bolt_ts_errors::diag_ext::DiagnosticExt + Send + Sync + 'static>;
@@ -39,13 +41,12 @@ pub const DEFAULT_TSCONFIG: &str = "tsconfig.json";
 
 pub struct Output {
     pub root: PathBuf,
-    pub tsconfig: NormalizedTsConfig,
     pub module_arena: ModuleArena,
     pub output: Vec<(ModuleID, String)>,
     pub diags: Vec<bolt_ts_errors::Diag>,
 }
 
-fn current_exe_dir() -> std::path::PathBuf {
+pub fn current_exe_dir() -> std::path::PathBuf {
     std::env::current_exe()
         .unwrap()
         .parent()
@@ -99,7 +100,7 @@ pub fn init_atom<'atoms>() -> AtomMap<'atoms> {
     atoms
 }
 
-pub fn eval_from(root: PathBuf, tsconfig: NormalizedTsConfig) -> Output {
+pub fn eval_from(root: PathBuf, tsconfig: &NormalizedTsConfig) -> Output {
     // ==== atom init ====
     let mut atoms = init_atom();
 
@@ -110,49 +111,52 @@ pub fn eval_from(root: PathBuf, tsconfig: NormalizedTsConfig) -> Output {
         .iter()
         .map(|(_, file)| dir.join(file))
         .collect::<Vec<_>>();
-    eval_from_with_fs(root, tsconfig, libs, fs, atoms)
+    eval_from_with_fs(root, &tsconfig, libs, fs, atoms)
 }
 
-pub fn eval_from_with_fs(
+pub fn eval_from_with_fs<'cx>(
     root: PathBuf,
-    tsconfig: NormalizedTsConfig,
+    tsconfig: &'cx NormalizedTsConfig,
     libs: Vec<ModulePath>,
     mut fs: impl CachedFileSystem,
-    mut atoms: bolt_ts_atom::AtomMap<'_>,
+    mut atoms: bolt_ts_atom::AtomMap<'cx>,
 ) -> Output {
-    let mut entries = Vec::with_capacity(1024);
-    let mut module_arena = ModuleArena::new();
-
     // ==== collect entires ====
-    for p in libs {
-        let module_id = module_arena.new_module(p, true, &mut fs, &mut atoms);
-        entries.push(module_id);
-    }
+    let config_file_specs = cli::ConfigFileSpecs::get_config_file_specs(tsconfig);
+    let mut include = get_filenames(&config_file_specs, &root, &mut fs, &mut atoms);
+    include.sort();
+    include.dedup();
 
-    let include = tsconfig
-        .include()
-        .iter()
-        .flat_map(|entry| {
-            let p = std::path::Path::new(entry);
-            if p.is_absolute() {
-                if p.is_dir() {
-                    fs.read_dir(p, &mut atoms).unwrap().collect::<Vec<_>>()
-                } else {
-                    vec![p.to_path_buf()]
-                }
+    let cap = libs.len() + include.len();
+    let mut module_arena = ModuleArena::new(cap * 8);
+
+    let entries_with_read_file = libs
+        .into_iter()
+        .map(|lib| (lib, true))
+        .chain(include.into_iter().map(|inc| (inc, false)))
+        .collect::<Vec<_>>()
+        .into_par_iter()
+        .map(|(p, is_global)| {
+            debug_assert!(p.is_normalized());
+            if cfg!(target_arch = "wasm32") {
+                (String::new(), p, is_global)
             } else {
-                let p = root.join(entry);
-                let p = p.normalize();
-                let pattern = p.to_string_lossy();
-                fs.glob(&pattern, &atoms)
+                (read_file_with_encoding(&p).unwrap(), p, is_global)
             }
         })
         .collect::<Vec<_>>();
 
-    entries.extend(include.into_iter().map(|item| {
-        let p = item.normalize();
-        module_arena.new_module(p, false, &mut fs, &mut atoms)
-    }));
+    let entries = entries_with_read_file
+        .into_iter()
+        .map(|(content, p, is_global)| {
+            if cfg!(target_arch = "wasm32") {
+                module_arena.new_module(p, is_global, &mut fs, &mut atoms)
+            } else {
+                let atom = fs.add_file(&p, content, &mut atoms);
+                module_arena.new_module_with_content(p, is_global, atom, &mut atoms)
+            }
+        })
+        .collect::<Vec<_>>();
 
     // ==== build graph ====
     let mut p = parser::Parser::new();
@@ -267,7 +271,7 @@ pub fn eval_from_with_fs(
         tsconfig.compiler_options(),
         flow_nodes,
     );
-    for (index, item) in entries.iter().enumerate() {
+    for item in &entries {
         checker.check_program(p.root(*item));
         checker.check_deferred_nodes(*item);
     }
@@ -289,7 +293,7 @@ pub fn eval_from_with_fs(
     let diags = diags
         .into_iter()
         .chain(std::mem::take(&mut checker.diags))
-        .collect();
+        .collect::<Vec<_>>();
 
     if cfg!(test) {
         // each module should be created once
@@ -298,7 +302,7 @@ pub fn eval_from_with_fs(
             .iter()
             .map(|m| {
                 let p = module_arena.get_path(m.id);
-                assert!(
+                debug_assert!(
                     p.is_normalized(),
                     "path should be normalized, but got: {:?}",
                     p
@@ -314,7 +318,6 @@ pub fn eval_from_with_fs(
 
     Output {
         root,
-        tsconfig,
         module_arena,
         diags,
         output,

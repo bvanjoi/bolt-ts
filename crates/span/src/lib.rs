@@ -57,9 +57,7 @@ pub struct ModuleArena {
 }
 
 impl ModuleArena {
-    #[allow(clippy::new_without_default)]
-    pub fn new() -> Self {
-        let cap = 1024 * 8;
+    pub fn new(cap: usize) -> Self {
         Self {
             path_map: Vec::with_capacity(cap),
             content_map: Vec::with_capacity(cap),

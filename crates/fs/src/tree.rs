@@ -74,7 +74,7 @@ impl<'atoms> FSTree {
                 Ok(self.insert_node(parent, FSNodeKind::dir_node(path)))
             }
         } else {
-            assert!(path == PathId::ROOT);
+            assert_eq!(path, PathId::ROOT);
             if self.nodes.is_empty() {
                 let kind = FSNodeKind::dir_node(PathId::ROOT);
                 let node = FSNode {
@@ -125,11 +125,11 @@ impl<'atoms> FSTree {
     ) -> FsResult<FSNodeId> {
         let mut id = FSTree::ROOT;
         let mut parent = None;
-        let mut current_path = PathBuf::new();
+        let mut current_path = PathBuf::with_capacity(path.as_os_str().len() + 8);
         for component in path.components() {
             use std::path::Component::*;
             match component {
-                Prefix(_) => todo!("should handle prefix path"),
+                Prefix(_) => todo!("handle prefix path"),
                 RootDir => {
                     current_path.push("/");
                     parent = Some(self.insert_dir_node(parent, PathId::ROOT)?);
@@ -157,7 +157,7 @@ impl<'atoms> FSTree {
         let target = PathId::get(path);
 
         let mut parent = FSTree::ROOT;
-        let mut current_path = PathBuf::new();
+        let mut current_path = PathBuf::with_capacity(path.as_os_str().len() + 8);
         let mut path_id;
         let mut peek = path.components().peekable();
 
@@ -296,7 +296,7 @@ impl FSNodeKind {
     fn dir_node(path: PathId) -> Self {
         let node = DirNode {
             path,
-            children: Vec::with_capacity(16),
+            children: Vec::with_capacity(32),
         };
         FSNodeKind::Dir(node)
     }

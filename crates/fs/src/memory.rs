@@ -1,5 +1,5 @@
 use super::CachedFileSystem;
-use bolt_ts_atom::AtomMap;
+use bolt_ts_atom::{AtomId, AtomMap};
 use indexmap::IndexMap;
 
 use crate::errors::FsResult;
@@ -26,7 +26,7 @@ impl MemoryFS {
         &self,
         result: &mut Vec<std::path::PathBuf>,
         node: FSNodeId,
-        pattern: &glob::Pattern,
+        pattern: &[glob::Pattern],
         atoms: &AtomMap<'_>,
     ) {
         let n = self.tree.node(node);
@@ -37,7 +37,7 @@ impl MemoryFS {
         } else {
             let path = n.kind().path();
             let path = atoms.get(path.into());
-            if pattern.matches(path) {
+            if pattern.iter().any(|p| p.matches(path)) {
                 result.push(std::path::PathBuf::from(path));
             }
         }
@@ -75,11 +75,27 @@ impl CachedFileSystem for MemoryFS {
         )
     }
 
-    fn glob(&self, pattern: &str, atoms: &AtomMap<'_>) -> Vec<std::path::PathBuf> {
-        let pattern = glob::Pattern::new(pattern).unwrap();
+    fn glob(
+        &mut self,
+        base_dir: &std::path::Path,
+        include: &[&str],
+        _exclude: &[&str],
+        atoms: &mut AtomMap<'_>,
+    ) -> Vec<std::path::PathBuf> {
+        let includes = include
+            .iter()
+            .map(|i| glob::Pattern::new(&i).unwrap())
+            .collect::<Vec<_>>();
+        let Ok(node) = self.tree.find_path(base_dir, true) else {
+            return vec![];
+        };
         let mut results = Vec::new();
-        self.glob_visitor(&mut results, FSTree::ROOT, &pattern, atoms);
+        self.glob_visitor(&mut results, node, includes.as_ref(), atoms);
         results
+    }
+
+    fn add_file(&mut self, _: &std::path::Path, _: String, _: &mut AtomMap<'_>) -> AtomId {
+        unreachable!("Cannot add file to memory fs")
     }
 }
 
@@ -94,21 +110,26 @@ fn test_mem_fs() {
     let atoms = &mut AtomMap::new(0);
     let mut fs = MemoryFS::new(serde_json::from_value(json).unwrap(), atoms).unwrap();
 
-    let read_file = |fs: &mut MemoryFS, path: &str, atoms: &mut AtomMap| {
-        fs.read_file(std::path::Path::new(path), atoms)
-    };
+    use std::path::Path;
 
-    assert_eq!(fs.glob("a", atoms).len(), 0);
-    assert_eq!(fs.glob("/a", atoms).len(), 1);
-    assert_eq!(fs.glob("/b", atoms).len(), 0);
-    assert_eq!(fs.glob("/b/c", atoms).len(), 1);
-    assert_eq!(fs.glob("/*/c", atoms).len(), 1);
+    let read_file =
+        |fs: &mut MemoryFS, path: &str, atoms: &mut AtomMap| fs.read_file(Path::new(path), atoms);
+
+    assert_eq!(fs.glob(Path::new("/"), &["a"], &[], atoms).len(), 0);
+    assert_eq!(fs.glob(Path::new("/"), &["/a"], &[], atoms).len(), 1);
+    assert_eq!(fs.glob(Path::new("/"), &["/b"], &[], atoms).len(), 0);
+    assert_eq!(fs.glob(Path::new("/"), &["/b/c"], &[], atoms).len(), 1);
+    assert_eq!(fs.glob(Path::new("/"), &["/*/c"], &[], atoms).len(), 1);
     // TODO: should `*/c` match `/b/c`?
-    // assert_eq!(fs.glob("*/c", atoms).len(), 0);
-    assert_eq!(fs.glob("**/*", atoms).len(), 2);
-    assert_eq!(fs.glob("**/a", atoms).len(), 1);
-    assert_eq!(fs.glob("**/b", atoms).len(), 0);
-    assert_eq!(fs.glob("**/c", atoms).len(), 1);
+    // assert_eq!(fs.glob(Path::new("/"), &["*/c"], &[],atoms).len(), 0);
+    assert_eq!(fs.glob(Path::new("/"), &["**/*"], &[], atoms).len(), 2);
+    assert_eq!(fs.glob(Path::new("/"), &["**/a"], &[], atoms).len(), 1);
+    assert_eq!(fs.glob(Path::new("/"), &["**/b"], &[], atoms).len(), 0);
+    assert_eq!(fs.glob(Path::new("/"), &["**/c"], &[], atoms).len(), 1);
+    assert_eq!(fs.glob(Path::new("/b"), &["**/c"], &[], atoms).len(), 1);
+    assert_eq!(fs.glob(Path::new("/b"), &["**/a"], &[], atoms).len(), 0);
+    assert_eq!(fs.glob(Path::new("/a"), &["**/a"], &[], atoms).len(), 0);
+    assert_eq!(fs.glob(Path::new("/c"), &["**/a"], &[], atoms).len(), 0);
 
     let res = read_file(&mut fs, "/a", atoms);
     assert!(res.is_ok_and(|id| atoms.eq_str(id, "/a")));
@@ -131,9 +152,8 @@ fn test_mem_fs() {
     let res = read_file(&mut fs, "/a/", atoms);
     assert!(res.is_err_and(|err| matches!(err, errors::FsError::NotAFile(_))));
 
-    let is_file = |fs: &mut MemoryFS, path: &str, atoms: &mut AtomMap| {
-        fs.is_file(std::path::Path::new(path), atoms)
-    };
+    let is_file =
+        |fs: &mut MemoryFS, path: &str, atoms: &mut AtomMap| fs.is_file(Path::new(path), atoms);
 
     assert!(is_file(&mut fs, "/a", atoms));
     assert!(is_file(&mut fs, "/b/c", atoms));

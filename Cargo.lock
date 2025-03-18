@@ -104,6 +104,7 @@ dependencies = [
  "nohash-hasher",
  "normalize-path",
  "paste",
+ "pretty-duration",
  "project-root",
  "rayon",
  "regex",
@@ -169,6 +170,7 @@ name = "bolt_ts_resolve"
 version = "0.1.0"
 dependencies = [
  "bolt_ts_atom",
+ "bolt_ts_config",
  "bolt_ts_fs",
  "normalize-path",
  "rustc-hash",
@@ -554,6 +556,12 @@ name = "paste"
 version = "1.0.15"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "57c0d7b74b563b49d38dae00a0c37d4d6de9b432382b2892f0574ddcae73fd0a"
+
+[[package]]
+name = "pretty-duration"
+version = "0.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d8868e7264af614b3634ff0abbe37b178e61000611b8a75221aea40221924aba"
 
 [[package]]
 name = "proc-macro2"

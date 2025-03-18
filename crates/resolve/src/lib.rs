@@ -9,6 +9,9 @@ pub use errors::ResolveError;
 use normalize_path::NormalizePath;
 
 pub type RResult<T> = Result<T, ResolveError>;
+pub const NODE_MODULES_FOLDER: &str = "node_modules";
+pub const COMMON_PACKAGE_FOLDERS: &[&str] =
+    &[NODE_MODULES_FOLDER, "bower_components", "jspm_packages"];
 
 pub struct Resolver<'atoms, FS: CachedFileSystem> {
     fs: Arc<Mutex<FS>>,

@@ -1,5 +1,6 @@
-use bolt_ts_compiler::eval_from;
+use bolt_ts_compiler::{current_exe_dir, eval_from_with_fs, init_atom};
 use bolt_ts_config::RawTsConfig;
+use bolt_ts_fs::CachedFileSystem;
 use std::env;
 use std::path::{Path, PathBuf};
 
@@ -25,15 +26,33 @@ fn main() {
     let input_path = &args[1];
     let start = std::time::Instant::now();
     let p = get_absolute_path(input_path);
-    let tsconfig = RawTsConfig::default().with_include(vec![p.to_str().unwrap().to_string()]);
+    let mut atoms = init_atom();
+    let mut fs = bolt_ts_fs::LocalFS::new(&mut atoms);
+    let dir = current_exe_dir();
+    let libs = bolt_ts_lib::LIB_ENTIRES
+        .iter()
+        .map(|(_, file)| dir.join(file))
+        .collect::<Vec<_>>();
+    let tsconfig = if p.ends_with("tsconfig.json") {
+        let content = fs.read_file(&p, &mut atoms).unwrap();
+        let s = atoms.get(content);
+        serde_json::from_str(s).unwrap()
+    } else {
+        RawTsConfig::default().with_include(vec![p.to_str().unwrap().to_string()])
+    };
     let cwd = env::current_dir().unwrap();
-    let output = eval_from(cwd, tsconfig.normalize());
+    let tsconfig = tsconfig.normalize();
+    let output = eval_from_with_fs(cwd, &tsconfig, libs, fs, atoms);
     let duration = start.elapsed();
     output
         .diags
         .into_iter()
         .for_each(|diag| diag.emit(&output.module_arena));
-    dbg!(duration);
+    println!("Files: {}", output.module_arena.modules().len());
+    println!(
+        "Time cost: {}",
+        pretty_duration::pretty_duration(&duration, None)
+    );
 }
 
 #[test]
@@ -50,7 +69,8 @@ fn main_test() {
         RawTsConfig::default()
     };
     let tsconfig = tsconfig.with_include_if_none(vec!["index.ts".to_string()]);
-    let output = eval_from(case_root, tsconfig.normalize());
+    let tsconfig = tsconfig.normalize();
+    let output = bolt_ts_compiler::eval_from(case_root, &tsconfig);
     if output.diags.is_empty() {
         let mut file_paths = vec![];
         for (m, contents) in &output.output {

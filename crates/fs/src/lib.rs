@@ -8,6 +8,7 @@ pub use self::errors::{FsError, FsResult};
 pub use self::memory::MemoryFS;
 pub use self::path::PathId;
 pub use self::real::LocalFS;
+pub use self::real::read_file_with_encoding;
 
 use bolt_ts_atom::{AtomId, AtomMap};
 
@@ -24,7 +25,17 @@ pub trait CachedFileSystem: Send + Sync {
         atoms: &mut AtomMap<'_>,
     ) -> FsResult<impl Iterator<Item = std::path::PathBuf>>;
 
-    fn glob(&self, pattern: &str, atoms: &AtomMap<'_>) -> Vec<std::path::PathBuf>;
+    // TODO: maybe use regexp?
+    fn glob(
+        &mut self,
+        base_dir: &std::path::Path,
+        includes: &[&str],
+        excludes: &[&str],
+        atoms: &mut AtomMap<'_>,
+    ) -> Vec<std::path::PathBuf>;
+
+    fn add_file(&mut self, p: &std::path::Path, content: String, atoms: &mut AtomMap<'_>)
+    -> AtomId;
 }
 
 pub fn has_slash_suffix_and_not_root(p: &std::path::Path) -> bool {
