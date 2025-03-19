@@ -77,6 +77,7 @@ impl ModuleArena {
         self.modules.push(m);
         assert!(id.as_usize() == self.content_map.len());
         let atom = fs.read_file(p.as_ref(), atoms).unwrap();
+        // TODO: remove this clone
         let data = atoms.get(atom).to_string();
         self.content_map.push(Arc::new(data));
         assert!(id.as_usize() == self.path_map.len());
@@ -95,6 +96,7 @@ impl ModuleArena {
         let m = Module { id, global };
         self.modules.push(m);
         assert!(id.as_usize() == self.content_map.len());
+        // TODO: remove this clone
         let data = atoms.get(content).to_string();
         self.content_map.push(Arc::new(data));
         assert!(id.as_usize() == self.path_map.len());

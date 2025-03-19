@@ -18,8 +18,7 @@ impl<'cx> TyChecker<'cx> {
                 | SymbolFlags::TYPE_LITERAL
                 | SymbolFlags::OBJECT_LITERAL,
         ) {
-            let i = s.kind.1.as_ref().unwrap();
-            &i.members.0
+            &s.members.0
         } else {
             unreachable!("s: {s:#?}")
         }
@@ -256,8 +255,7 @@ impl<'cx> TyChecker<'cx> {
         }
         let symbol = ty.symbol().unwrap();
         let s = self.binder.symbol(symbol);
-        let i = s.kind.1.as_ref().unwrap();
-        let decl = i.decls[0];
+        let decl = s.decls[0];
         assert!(self.p.node(decl).is_interface_decl());
         let Some(ty_nodes) = self.get_interface_base_ty_nodes(decl) else {
             return;
@@ -292,7 +290,7 @@ impl<'cx> TyChecker<'cx> {
         i: &'cx ty::Ty<'cx>,
     ) -> Option<&'cx ast::ClassExtendsClause<'cx>> {
         let symbol = i.symbol().unwrap();
-        let decl = self.binder.symbol(symbol).expect_ns().decls[0];
+        let decl = self.binder.symbol(symbol).decls[0];
         self.get_effective_base_type_node(decl)
     }
 
@@ -438,7 +436,10 @@ impl<'cx> TyChecker<'cx> {
             mapper = None;
             members = ty
                 .symbol()
-                .map(|symbol| self.members(symbol).clone())
+                .map(|symbol| {
+                    // TODO: remove clone
+                    self.members(symbol).clone()
+                })
                 .unwrap_or_default();
             if base_tys.is_empty() {
                 let m = self.alloc(ty::StructuredMembers {
@@ -615,7 +616,7 @@ impl<'cx> TyChecker<'cx> {
         let i = r.target.kind.expect_object_interface();
         let symbol = i.symbol;
         let mut flags = ty::SigFlags::empty();
-        let class_node_id = self.binder.symbol(symbol).expect_ns().decls[0];
+        let class_node_id = self.binder.symbol(symbol).decls[0];
         if let Some(c) = self.p.node(class_node_id).as_class_decl() {
             if let Some(mods) = c.modifiers {
                 if mods.flags.contains(ast::ModifierKind::Abstract) {
@@ -648,8 +649,7 @@ impl<'cx> TyChecker<'cx> {
     ) -> Option<&FxHashMap<SymbolName, SymbolID>> {
         let flags = self.binder.symbol(symbol).flags;
         if flags.intersects(SymbolFlags::MODULE | SymbolFlags::CLASS) {
-            let ns = self.binder.symbol(symbol).expect_ns();
-            Some(&ns.exports.0)
+            Some(&self.binder.symbol(symbol).exports.0)
         } else {
             None
         }
@@ -688,7 +688,8 @@ impl<'cx> TyChecker<'cx> {
             self.get_mut_ty_links(ty.id).set_structured_members(m);
             return;
         } else if symbol.flags.intersects(SymbolFlags::TYPE_LITERAL) {
-            let members = symbol.expect_ns().members.0.clone();
+            // TODO: remove clone
+            let members = symbol.members.0.clone();
             let call_sigs = members
                 .get(&SymbolName::Call)
                 .map(|s| self.get_sigs_of_symbol(*s))
@@ -730,7 +731,7 @@ impl<'cx> TyChecker<'cx> {
             // TODO: `constructor_sigs`, `index_infos`
         } else if symbol_flags.intersects(SymbolFlags::CLASS) {
             call_sigs = &[];
-            if let Some(symbol) = symbol.expect_ns().members.0.get(&SymbolName::Constructor) {
+            if let Some(symbol) = symbol.members.0.get(&SymbolName::Constructor) {
                 ctor_sigs = self.get_sigs_of_symbol(*symbol)
             } else {
                 ctor_sigs = &[];

@@ -1,7 +1,7 @@
 use rustc_hash::FxHashMap;
 
-use super::symbol::{BlockContainerSymbol, MergedSymbol, SymbolFlags, SymbolTableLocation};
-use super::{BinderState, ModuleInstanceState, Symbol, SymbolID, SymbolKind, SymbolName, errors};
+use super::symbol::{SymbolFlags, SymbolTableLocation};
+use super::{BinderState, ModuleInstanceState, Symbol, SymbolID, SymbolName, errors};
 use crate::ir;
 
 use bolt_ts_ast as ast;
@@ -11,15 +11,6 @@ impl<'cx> BinderState<'cx, '_, '_> {
     pub(super) fn create_final_res(&mut self, id: ast::NodeID, symbol: SymbolID) {
         let prev = self.final_res.insert(id, symbol);
         assert!(prev.is_none(), "prev: {:#?}", prev.unwrap());
-    }
-
-    pub(super) fn declare_symbol(
-        &mut self,
-        name: SymbolName,
-        flags: SymbolFlags,
-        kind: SymbolKind,
-    ) -> SymbolID {
-        self.symbols.insert(Symbol::new(name, flags, kind))
     }
 
     pub(super) fn declare_symbol_with_ns(
@@ -50,7 +41,7 @@ impl<'cx> BinderState<'cx, '_, '_> {
         id
     }
 
-    pub(super) fn _declare_symbol(
+    pub(super) fn declare_symbol(
         &mut self,
         name: Option<SymbolName>,
         table: SymbolTableLocation,
@@ -75,10 +66,6 @@ impl<'cx> BinderState<'cx, '_, '_> {
                     && self
                         .symbols
                         .get(old)
-                        .kind
-                        .1
-                        .as_ref()
-                        .unwrap()
                         .is_replaceable_by_method
                         .is_none_or(|r| !r)
                 {
@@ -88,14 +75,7 @@ impl<'cx> BinderState<'cx, '_, '_> {
                 symbol = old;
                 let old_symbol = self.symbols.get(old);
                 if old_symbol.flags.intersects(excludes) {
-                    if old_symbol
-                        .kind
-                        .1
-                        .as_ref()
-                        .unwrap()
-                        .is_replaceable_by_method
-                        .is_some_and(|r| r)
-                    {
+                    if old_symbol.is_replaceable_by_method.is_some_and(|r| r) {
                         todo!()
                     } else if !(includes.intersects(SymbolFlags::VARIABLE)
                         && old_symbol.flags.intersects(SymbolFlags::ASSIGNMENT))
@@ -121,13 +101,7 @@ impl<'cx> BinderState<'cx, '_, '_> {
                 }
 
                 if is_replaceable_by_method {
-                    self.symbols
-                        .get_mut(symbol)
-                        .kind
-                        .1
-                        .as_mut()
-                        .unwrap()
-                        .is_replaceable_by_method = Some(true);
+                    self.symbols.get_mut(symbol).is_replaceable_by_method = Some(true);
                 }
             }
         } else {
@@ -147,8 +121,7 @@ impl<'cx> BinderState<'cx, '_, '_> {
     ) {
         let s = self.symbols.get_mut(symbol);
         s.flags |= flags;
-        let m = s.kind.1.as_mut().unwrap();
-        m.decls.push(node);
+        s.decls.push(node);
 
         // if flags.intersects(
         //     SymbolFlags::CLASS | SymbolFlags::ENUM | SymbolFlags::MODULE | SymbolFlags::VARIABLE,
@@ -166,11 +139,11 @@ impl<'cx> BinderState<'cx, '_, '_> {
         //     m.members = Some(Default::default());
         // }
 
-        if m.const_enum_only_module.is_some_and(|y| y)
+        if s.const_enum_only_module.is_some_and(|y| y)
             && s.flags
                 .intersects(SymbolFlags::FUNCTION | SymbolFlags::CLASS | SymbolFlags::REGULAR_ENUM)
         {
-            m.const_enum_only_module = Some(false);
+            s.const_enum_only_module = Some(false);
         }
 
         if flags.intersects(SymbolFlags::VALUE) {
@@ -180,18 +153,19 @@ impl<'cx> BinderState<'cx, '_, '_> {
 
     fn set_value_declaration(&mut self, symbol: SymbolID, node: ast::NodeID) {
         let s = self.symbols.get_mut(symbol);
-        let m = s.kind.1.as_mut().unwrap();
         // TODO: ambient declaration
-        if m.value_decl.is_none_or(|value_decl| {
+        if s.value_decl.is_none_or(|value_decl| {
             let v = self.p.node(value_decl);
             !v.is_same_kind(&self.p.node(node)) && v.is_effective_module_decl()
         }) {
-            m.value_decl = Some(node);
+            s.value_decl = Some(node);
         }
     }
 
     pub(super) fn create_symbol(&mut self, name: SymbolName, flags: SymbolFlags) -> SymbolID {
-        let s = MergedSymbol {
+        let s = Symbol {
+            name,
+            flags,
             decls: Default::default(),
             value_decl: None,
             members: Default::default(),
@@ -200,8 +174,22 @@ impl<'cx> BinderState<'cx, '_, '_> {
             const_enum_only_module: None,
             is_replaceable_by_method: None,
         };
-        let s = Symbol::new_symbol(name, flags, s);
         self.symbols.insert(s)
+    }
+
+    fn opt_members(
+        &mut self,
+        container: ast::NodeID,
+        is_export: bool,
+    ) -> Option<&mut FxHashMap<super::SymbolName, super::SymbolID>> {
+        let container = self.final_res.get(&container).copied()?;
+        let container = self.symbols.get_mut(container);
+        let map = if is_export {
+            &mut container.exports.0
+        } else {
+            &mut container.members.0
+        };
+        Some(map)
     }
 
     fn get_symbol_table_by_location(
@@ -214,33 +202,14 @@ impl<'cx> BinderState<'cx, '_, '_> {
             SymbolTableLocationKind::SymbolExports => self.opt_members(location.container, true),
             SymbolTableLocationKind::ContainerLocals => {
                 assert!(self.p.node(location.container).has_locals());
-                // TODO: remove this condition test
-                if !self.p.node(location.container).is_block_stmt() {
-                    Some(
-                        self.locals
-                            .entry(location.container)
-                            .or_insert_with(|| fx_hashmap_with_capacity(64)),
-                    )
-                } else {
-                    // TODO: remove this branch
-                    let container = self.final_res.get(&location.container).copied()?;
-                    let container = self.symbols.get_mut(container);
-                    if let SymbolKind::BlockContainer(c) = &mut container.kind.0 {
-                        Some(&mut c.locals)
-                    } else {
-                        None
-                    }
-                }
+                Some(
+                    self.locals
+                        .entry(location.container)
+                        .or_insert_with(|| fx_hashmap_with_capacity(64)),
+                )
             }
         }
     }
-
-    // fn get_mut_symbol_table_by_location(
-    //     &mut self,
-    //     location: SymbolTableLocation,
-    // ) -> &mut FxHashMap<SymbolName, SymbolID> {
-    //     &mut Default::default()
-    // }
 
     pub(super) fn create_fn_expr_symbol(
         &mut self,
@@ -262,10 +231,6 @@ impl<'cx> BinderState<'cx, '_, '_> {
         self.add_declaration_to_symbol(ty_lit_symbol, id, SymbolFlags::TYPE_LITERAL);
         self.symbols
             .get_mut(ty_lit_symbol)
-            .kind
-            .1
-            .as_mut()
-            .unwrap()
             .members
             .0
             .insert(symbol_name, symbol);
@@ -296,19 +261,6 @@ impl<'cx> BinderState<'cx, '_, '_> {
             SymbolFlags::PROPERTY_EXCLUDES,
         );
         self.create_final_res(member, symbol);
-        symbol
-    }
-
-    pub(super) fn create_block_container_symbol(&mut self, node_id: ast::NodeID) -> SymbolID {
-        let symbol = self.declare_symbol(
-            SymbolName::Container,
-            SymbolFlags::VALUE_MODULE,
-            SymbolKind::BlockContainer(BlockContainerSymbol {
-                locals: fx_hashmap_with_capacity(32),
-                exports: fx_hashmap_with_capacity(32),
-            }),
-        );
-        self.create_final_res(node_id, symbol);
         symbol
     }
 }

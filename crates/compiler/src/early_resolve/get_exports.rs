@@ -21,11 +21,7 @@ impl Resolver<'_, '_, '_> {
         &mut self,
         symbol: SymbolID,
     ) -> Option<&FxHashMap<SymbolName, SymbolID>> {
-        // if let Some(exports) = self.resolved_exports.get(&symbol) {
-        //     return Some(exports);
-        // }
         let s = self.symbol(symbol);
-        let ns = s.expect_ns();
-        Some(&ns.exports.0)
+        Some(&s.exports.0)
     }
 }

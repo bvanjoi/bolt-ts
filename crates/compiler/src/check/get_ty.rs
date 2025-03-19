@@ -52,7 +52,7 @@ impl<'cx> TyChecker<'cx> {
             self.get_ty_of_func_class_enum_module(id)
         } else if flags.intersects(SymbolFlags::ACCESSOR) {
             self.get_ty_of_accessor(id)
-        } else if flags == SymbolFlags::OBJECT_LITERAL {
+        } else if flags.intersects(SymbolFlags::OBJECT_LITERAL) {
             unreachable!("type literal")
         } else {
             self.error_ty
@@ -68,7 +68,7 @@ impl<'cx> TyChecker<'cx> {
             // TODO: prototype type
             return self.any_ty;
         }
-        let decl = s.kind.1.as_ref().unwrap().value_decl.unwrap();
+        let decl = s.value_decl.unwrap();
         let node = self.p.node(decl);
 
         if node.is_getter_decl() || node.is_setter_decl() {
@@ -188,8 +188,7 @@ impl<'cx> TyChecker<'cx> {
 
         if s.flags.intersects(SymbolFlags::CLASS) {
             if let Some(base) = self.get_base_type_variable_of_class(symbol) {
-                // TODO: get_intersection_ty(&[ty, base, ty])
-                ty
+                self.get_intersection_ty(&[ty, base], IntersectionFlags::None, None, None)
             } else {
                 ty
             };
@@ -1046,13 +1045,11 @@ impl<'cx> TyChecker<'cx> {
         symbol: SymbolID,
     ) -> Option<ty::Tys<'cx>> {
         let s = self.binder.symbol(symbol);
-        // TODO: symbol.declarations
-        let m = s.kind.1.as_ref().unwrap();
-        if m.decls.is_empty() {
+        if s.decls.is_empty() {
             return None;
         }
         let mut res: Option<Vec<&'cx Ty<'cx>>> = None;
-        for node in &m.decls {
+        for node in &s.decls {
             let n = self.p.node(*node);
             use ast::Node::*;
             if matches!(
@@ -1061,7 +1058,7 @@ impl<'cx> TyChecker<'cx> {
             ) {
                 let ty_params = self.get_effective_ty_param_decls(*node);
                 if res.is_none() {
-                    res = Some(Vec::with_capacity(m.decls.len() * 4));
+                    res = Some(Vec::with_capacity(s.decls.len() * 4));
                 }
                 self.append_ty_params(res.as_mut().unwrap(), ty_params);
             }

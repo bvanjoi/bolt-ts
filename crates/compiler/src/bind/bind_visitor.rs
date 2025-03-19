@@ -97,8 +97,14 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
         self.scope_id_parent_map.push(None);
         self.connect(root.id);
         self.current_flow = Some(self.flow_nodes.create_start(None));
-        let id = self.create_block_container_symbol(root.id);
-        assert_eq!(id, SymbolID::container(id.module()));
+        // TODO: if is_external_module
+        let s = self.bind_anonymous_decl(
+            root.id,
+            SymbolFlags::VALUE_MODULE,
+            SymbolName::Normal(root.filepath),
+        );
+        assert_eq!(s, SymbolID::container(root.id.module()));
+        self.final_res.insert(root.id, s);
         for stmt in root.stmts {
             self.bind_stmt(root.id, stmt)
         }
@@ -106,7 +112,6 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
 
     fn bind_stmt(&mut self, container: ast::NodeID, stmt: &'cx ast::Stmt) {
         use bolt_ts_ast::StmtKind::*;
-
         match stmt.kind {
             Empty(_) => (),
             Var(var) => self.bind_var_stmt(container, var),
@@ -121,7 +126,7 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
             Type(t) => self.bind_type_decl(container, t),
             Namespace(ns) => self.bind_ns_decl(container, ns),
             Enum(_) => {}
-            Import(_) => {}
+            Import(decl) => self.bind_import_decl(container, decl),
             Export(decl) => self.bind_export_decl(container, decl),
             For(n) => {
                 if let Some(init) = &n.init {
@@ -219,9 +224,9 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
         }
     }
 
-    fn bind_spec_export(&mut self, container: ast::NodeID, spec: &'cx ast::ExportSpec<'cx>) {
-        use bolt_ts_ast::ExportSpecKind::*;
-        let (name, symbol) = match spec.kind {
+    fn bind_spec_import(&mut self, container: ast::NodeID, spec: &'cx ast::ImportSpec<'cx>) {
+        use bolt_ts_ast::ImportSpecKind::*;
+        match spec.kind {
             Shorthand(spec) => {
                 let name = spec.name.name;
                 let name = SymbolName::Normal(name);
@@ -236,7 +241,46 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
                 );
                 self.res.insert((self.scope_id, name), symbol);
                 self.create_final_res(spec.id, symbol);
-                (name, symbol)
+            }
+            Named(_) => {
+                // use bolt_ts_ast::ModuleExportNameKind::*;
+                // let n = |name: &ast::ModuleExportName| match name.kind {
+                //     Ident(ident) => SymbolName::Normal(ident.name),
+                //     StringLit(lit) => SymbolName::Normal(lit.val),
+                // };
+                // let loc = self.temp_local(container, true);
+                // let name = n(named.name);
+                // let symbol = self.declare_symbol_and_add_to_symbol_table(
+                //     container,
+                //     name,
+                //     named.id,
+                //     loc,
+                //     SymbolFlags::ALIAS,
+                //     SymbolFlags::ALIAS_EXCLUDES,
+                // );
+                // // TODO: delete
+                // self.res.insert((self.scope_id, name), symbol);
+                // self.create_final_res(named.id, symbol);
+            }
+        }
+    }
+
+    fn bind_spec_export(&mut self, container: ast::NodeID, spec: &'cx ast::ExportSpec<'cx>) {
+        use bolt_ts_ast::ExportSpecKind::*;
+        match spec.kind {
+            Shorthand(spec) => {
+                let name = spec.name.name;
+                let name = SymbolName::Normal(name);
+                let loc = self.temp_local(container, true);
+                let symbol = self.declare_symbol_and_add_to_symbol_table(
+                    container,
+                    name,
+                    spec.id,
+                    loc,
+                    SymbolFlags::ALIAS,
+                    SymbolFlags::ALIAS_EXCLUDES,
+                );
+                self.create_final_res(spec.id, symbol);
             }
             Named(named) => {
                 use bolt_ts_ast::ModuleExportNameKind::*;
@@ -254,11 +298,23 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
                     SymbolFlags::ALIAS,
                     SymbolFlags::ALIAS_EXCLUDES,
                 );
-                self.res.insert((self.scope_id, name), symbol);
                 self.create_final_res(named.id, symbol);
-                (name, symbol)
             }
         };
+    }
+
+    fn bind_import_decl(&mut self, container: ast::NodeID, decl: &'cx ast::ImportDecl<'cx>) {
+        if let Some(clause) = decl.clause.kind {
+            use bolt_ts_ast::ImportClauseKind::*;
+            match clause {
+                Ns(_) => todo!(),
+                Specs(specs) => {
+                    for spec in specs {
+                        self.bind_spec_import(container, spec);
+                    }
+                }
+            }
+        }
     }
 
     fn bind_export_decl(&mut self, container: ast::NodeID, decl: &'cx ast::ExportDecl<'cx>) {
@@ -323,7 +379,7 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
             }
             _ => {
                 let loc = self.temp_local(block_container, is_export);
-                self._declare_symbol(
+                self.declare_symbol(
                     Some(name),
                     loc,
                     None,
@@ -359,7 +415,7 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
         let name = SymbolName::Normal(t.name.name);
         let key = (self.scope_id, name);
         let location = self.temp_local(container, is_export);
-        let symbol = self._declare_symbol(
+        let symbol = self.declare_symbol(
             Some(name),
             location,
             None,
@@ -410,7 +466,7 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
             });
             if let Some(cond_container) = cond_container {
                 let loc = SymbolTableLocation::locals(cond_container);
-                self._declare_symbol(
+                self.declare_symbol(
                     Some(name),
                     loc,
                     None,
@@ -459,7 +515,7 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
         } else {
             SymbolTableLocation::members(container)
         };
-        let symbol = self._declare_symbol(
+        let symbol = self.declare_symbol(
             Some(SymbolName::Index),
             table,
             None,
@@ -777,7 +833,7 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
     pub(super) fn bind_block_stmt(&mut self, block: &'cx ast::BlockStmt<'cx>) {
         let container_flags = block.get_container_flags(self.p);
         self.bind_container(block.id, container_flags, |this| {
-            this.create_block_container_symbol(block.id);
+            // this.create_block_container_symbol(block.id);
             for stmt in block.stmts {
                 this.bind_stmt(block.id, stmt)
             }
@@ -1407,9 +1463,16 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
             NamespaceDecl(_) => {
                 self.declare_module_member(container, name, current, symbol_flags, symbol_excludes)
             }
+            Program(_) => self.declare_source_file_member(
+                container,
+                name,
+                current,
+                symbol_flags,
+                symbol_excludes,
+            ),
             _ => {
                 // TODO: handle more case:
-                self._declare_symbol(
+                self.declare_symbol(
                     Some(name),
                     loc,
                     None,
@@ -1423,6 +1486,19 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
         }
     }
 
+    fn declare_source_file_member(
+        &mut self,
+        container: ast::NodeID,
+        name: SymbolName,
+        current: ast::NodeID,
+        symbol_flags: SymbolFlags,
+        symbol_excludes: SymbolFlags,
+    ) -> SymbolID {
+        assert!(self.p.node(container).is_program());
+        // TODO: if is_external_module
+        self.declare_module_member(container, name, current, symbol_flags, symbol_excludes)
+    }
+
     fn declare_module_member(
         &mut self,
         container: ast::NodeID,
@@ -1431,11 +1507,27 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
         symbol_flags: SymbolFlags,
         symbol_excludes: SymbolFlags,
     ) -> SymbolID {
-        assert!(self.p.node(container).is_namespace_decl());
         let has_export_modifier = self
             .p
             .get_combined_modifier_flags(current)
             .intersects(ast::ModifierKind::Export);
+        if symbol_flags.intersects(SymbolFlags::ALIAS) {
+            let n = self.p.node(current);
+            if n.is_export_named_spec() || n.is_shorthand_spec() {
+                let table = SymbolTableLocation::exports(container);
+                return self.declare_symbol(
+                    Some(name),
+                    table,
+                    None,
+                    current,
+                    symbol_flags,
+                    symbol_excludes,
+                    false,
+                    false,
+                );
+            }
+        }
+
         let is_export = has_export_modifier
             || self
                 .p
@@ -1447,7 +1539,7 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
         } else {
             SymbolTableLocation::locals(container)
         };
-        let symbol = self._declare_symbol(
+        let symbol = self.declare_symbol(
             Some(name),
             loc,
             None,
@@ -1457,13 +1549,6 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
             false,
             false,
         );
-        if is_export {
-            let members = self.members(container, true);
-            members.insert(name, symbol);
-        } else {
-            let members = self.members(container, false);
-            members.insert(name, symbol);
-        };
         symbol
     }
 

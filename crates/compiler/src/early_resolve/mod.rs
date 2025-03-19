@@ -18,6 +18,7 @@ use crate::parser::Parser;
 use bolt_ts_ast::{self as ast};
 
 pub struct EarlyResolveResult {
+    // TODO: use `NodeId::index` is enough
     pub final_res: FxHashMap<ast::NodeID, SymbolID>,
     pub diags: Vec<bolt_ts_errors::Diag>,
 }
@@ -59,7 +60,6 @@ fn early_resolve<'cx>(
         p,
         global,
         atoms,
-        resolved_exports: fx_hashmap_with_capacity(1024),
     };
     resolver.resolve_program(root);
     let diags = std::mem::take(&mut resolver.diags);
@@ -77,7 +77,6 @@ pub(super) struct Resolver<'cx, 'r, 'atoms> {
     final_res: FxHashMap<ast::NodeID, SymbolID>,
     global: &'cx GlobalSymbols,
     atoms: &'atoms bolt_ts_atom::AtomMap<'cx>,
-    resolved_exports: FxHashMap<SymbolID, FxHashMap<SymbolName, SymbolID>>,
 }
 
 impl<'cx> Resolver<'cx, '_, '_> {
@@ -668,27 +667,34 @@ pub(super) fn resolve_symbol_by_ident<'a, 'cx>(
     meaning: SymbolFlags,
 ) -> ResolvedResult {
     use ast::Node::*;
+    let key = SymbolName::Normal(ident.name);
     let mut associated_declaration_for_containing_initializer_or_binding_name = None;
     let mut last_location = None;
     let mut location = resolver.p.parent(ident.id);
     while let Some(id) = location {
         if let Some(locals) = resolver.locals(id) {
-            if let Some(symbol) = locals.get(&SymbolName::Normal(ident.name)).copied() {
-                let mut use_result = true;
-                if let Some(cond) = resolver.p.node(id).as_cond_ty() {
-                    use_result = last_location.is_some_and(|last| last == cond.true_ty.id());
-                }
-                if use_result {
-                    return ResolvedResult {
-                        symbol,
-                        associated_declaration_for_containing_initializer_or_binding_name,
-                    };
+            if !resolver.p.is_global_source_file(id) {
+                if let Some(symbol) = locals.get(&SymbolName::Normal(ident.name)).copied() {
+                    if resolver.symbol(symbol).flags.intersects(meaning) {
+                        let mut use_result = true;
+                        if let Some(cond) = resolver.p.node(id).as_cond_ty() {
+                            use_result =
+                                last_location.is_some_and(|last| last == cond.true_ty.id());
+                        }
+                        if use_result {
+                            return ResolvedResult {
+                                symbol,
+                                associated_declaration_for_containing_initializer_or_binding_name,
+                            };
+                        }
+                    }
                 }
             }
         }
         last_location = location;
 
         match resolver.p.node(id) {
+            Program(_) => {}
             ArrowFnExpr(_) | ClassMethodElem(_) | ClassCtor(_) | GetterDecl(_) | SetterDecl(_)
             | FnDecl(_) => {
                 if meaning.intersects(SymbolFlags::VARIABLE)
@@ -705,35 +711,18 @@ pub(super) fn resolve_symbol_by_ident<'a, 'cx>(
         location = resolver.p.parent(id);
     }
     let binder = &resolver.states[resolver.module_id.as_usize()];
-    let key = SymbolName::Normal(ident.name);
     // TODO: use locals rather than scope.
     let Some(mut scope_id) = binder.node_id_to_scope_id.get(&ident.id).copied() else {
         let name = ast::debug_ident(ident, resolver.atoms);
         unreachable!("the scope of {name:?} is not stored");
     };
     loop {
-        if !scope_id.is_root() {
-            if let Some(id) = binder.res.get(&(scope_id, SymbolName::Container)).copied() {
-                let symbol = binder.symbols.get(id);
-                if symbol.flags.intersects(meaning) {
-                    let container = symbol.expect_block_container();
-                    if let Some(id) = container.locals.get(&key) {
-                        return ResolvedResult {
-                            symbol: *id,
-                            associated_declaration_for_containing_initializer_or_binding_name,
-                        };
-                    }
-                }
-            }
-        }
-
         if let Some(id) = binder.res.get(&(scope_id, key)).copied() {
             let symbol = binder.symbols.get(id);
-            if symbol.kind.1.is_some()
-                && resolver
-                    .p
-                    .parent(ident.id)
-                    .is_some_and(|n| resolver.p.node(n).is_qualified_name())
+            if resolver
+                .p
+                .parent(ident.id)
+                .is_some_and(|n| resolver.p.node(n).is_qualified_name())
             {
                 return ResolvedResult {
                     symbol: id,
@@ -744,7 +733,7 @@ pub(super) fn resolve_symbol_by_ident<'a, 'cx>(
                 .flags
                 .intersects(SymbolFlags::FUNCTION_SCOPED_VARIABLE)
             {
-                Some(symbol.kind.1.as_ref().unwrap().decls[0])
+                Some(symbol.decls[0])
             } else {
                 None
             };

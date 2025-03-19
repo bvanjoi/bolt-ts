@@ -5,4 +5,4 @@ import { Foo } from './a';
 
 import { Bar } from './a';
 
-import type { Bar } from './a'
+import type { Fnn } from './a'

@@ -3,7 +3,7 @@ use bolt_ts_span::ModuleID;
 use bolt_ts_utils::fx_hashmap_with_capacity;
 use rustc_hash::FxHashMap;
 
-use crate::check::F64Represent;
+use crate::{check::F64Represent, parser::Parser};
 use bolt_ts_ast::NodeID;
 
 #[derive(Debug, Clone, Copy, Hash, PartialEq, Eq)]
@@ -28,6 +28,7 @@ pub enum SymbolName {
     Index,
     Type,
     Missing,
+    Resolving,
 }
 
 impl SymbolName {
@@ -131,20 +132,6 @@ bitflags::bitflags! {
 pub struct Symbol {
     pub name: SymbolName,
     pub flags: SymbolFlags,
-    pub(crate) kind: (SymbolKind, Option<MergedSymbol>),
-}
-
-#[derive(Debug)]
-pub struct SymbolTable(pub FxHashMap<SymbolName, SymbolID>);
-
-impl Default for SymbolTable {
-    fn default() -> Self {
-        Self(fx_hashmap_with_capacity(64))
-    }
-}
-
-#[derive(Debug)]
-pub struct MergedSymbol {
     pub decls: thin_vec::ThinVec<NodeID>,
     pub value_decl: Option<NodeID>,
     // TODO: use Option<SymbolTable>
@@ -156,91 +143,44 @@ pub struct MergedSymbol {
     pub is_replaceable_by_method: Option<bool>,
 }
 
+#[derive(Debug)]
+pub struct SymbolTable(pub FxHashMap<SymbolName, SymbolID>);
+
+impl Default for SymbolTable {
+    fn default() -> Self {
+        Self(fx_hashmap_with_capacity(64))
+    }
+}
+
 impl Symbol {
     pub const ERR: SymbolID = SymbolID::ERR;
     pub const ARGUMENTS: SymbolID = SymbolID::ARGUMENTS;
-
-    pub(super) fn new(name: SymbolName, flags: SymbolFlags, kind: SymbolKind) -> Self {
-        Self {
-            name,
-            flags,
-            kind: (kind, None),
-        }
-    }
-
-    pub(super) fn new_symbol(name: SymbolName, flags: SymbolFlags, i: MergedSymbol) -> Self {
-        Self {
-            name,
-            flags,
-            kind: (SymbolKind::Err, Some(i)),
-        }
-    }
+    pub const RESOLVING: SymbolID = SymbolID::RESOLVING;
+    pub const EMPTY_TYPE_LITERAL: SymbolID = SymbolID::EMPTY_TYPE_LITERAL;
 
     pub fn can_have_symbol(node: bolt_ts_ast::Node<'_>) -> bool {
         use bolt_ts_ast::Node::*;
         node.is_decl() || matches!(node, FnTy(_))
     }
-}
 
-#[derive(Debug)]
-pub(crate) enum SymbolKind {
-    Err,
-    BlockContainer(BlockContainerSymbol),
-}
-
-macro_rules! as_symbol_kind {
-    ($kind: ident, $ty:ty, $as_kind: ident, $expect_kind: ident) => {
-        impl Symbol {
-            #[inline(always)]
-            pub(super) fn $as_kind(&self) -> Option<$ty> {
-                match &self.kind.0 {
-                    SymbolKind::$kind(ty) => Some(ty),
-                    _ => None,
-                }
-            }
-            #[inline(always)]
-            pub fn $expect_kind(&self) -> $ty {
-                self.$as_kind().unwrap()
-            }
-        }
-    };
+    pub fn get_decl_of_alias_symbol(&self, p: &Parser) -> Option<NodeID> {
+        self.decls
+            .iter()
+            .rev()
+            .find(|decl| p.is_alias_symbol_decl(**decl))
+            .copied()
+    }
 }
 
 impl Symbol {
-    #[inline(always)]
-    pub(super) fn as_ns(&self) -> Option<&MergedSymbol> {
-        self.kind.1.as_ref()
-    }
-    #[inline(always)]
-    pub fn expect_ns(&self) -> &MergedSymbol {
-        self.as_ns().unwrap()
-    }
-
     pub fn get_declaration_of_kind(
         &self,
         f: impl Fn(bolt_ts_ast::NodeID) -> bool,
     ) -> Option<bolt_ts_ast::NodeID> {
-        let decls = &self.kind.1.as_ref().unwrap().decls;
-        decls.into_iter().find(|decl| f(**decl)).copied()
+        self.decls.iter().find(|decl| f(**decl)).copied()
     }
-}
-
-as_symbol_kind!(
-    BlockContainer,
-    &BlockContainerSymbol,
-    as_block_container,
-    expect_block_container
-);
-
-#[derive(Debug)]
-pub struct BlockContainerSymbol {
-    pub locals: FxHashMap<SymbolName, SymbolID>,
-    pub exports: FxHashMap<SymbolName, SymbolID>,
-}
-
-impl Symbol {
     pub fn opt_decl(&self) -> Option<NodeID> {
-        self.as_ns().and_then(|i| i.decls.first()).copied()
+        self.decls.first().copied()
     }
 }
 
@@ -255,6 +195,14 @@ impl SymbolID {
         module: ModuleID::TRANSIENT,
         index: 1,
     };
+    pub(super) const RESOLVING: Self = SymbolID {
+        module: ModuleID::TRANSIENT,
+        index: 2,
+    };
+    pub(super) const EMPTY_TYPE_LITERAL: Self = SymbolID {
+        module: ModuleID::TRANSIENT,
+        index: 3,
+    };
 
     pub const fn container(module: ModuleID) -> Self {
         Self { module, index: 0 }
@@ -262,7 +210,7 @@ impl SymbolID {
 
     pub fn opt_decl(&self, binder: &super::Binder) -> Option<NodeID> {
         let s = binder.symbol(*self);
-        s.kind.1.as_ref().and_then(|i| i.decls.first()).copied()
+        s.opt_decl()
     }
 
     pub fn decl(&self, binder: &super::Binder) -> NodeID {
@@ -315,11 +263,6 @@ impl Symbols {
 
     pub fn get(&self, id: SymbolID) -> &Symbol {
         &self.data[id.index_as_usize()]
-    }
-
-    pub fn get_container(&self, module: ModuleID) -> &Symbol {
-        let id = SymbolID::container(module);
-        self.get(id)
     }
 
     pub fn get_mut(&mut self, id: SymbolID) -> &mut Symbol {

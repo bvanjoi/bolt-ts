@@ -242,6 +242,12 @@ impl<'cx> ParseResult<'cx> {
             ModuleInstanceState::Instantiated
         }
     }
+
+    fn is_alias_symbol_decl(&self, id: ast::NodeID) -> bool {
+        let node = self.node(id);
+        use ast::Node::*;
+        matches!(node, ImportNamedSpec(_) | ShorthandSpec(_))
+    }
 }
 
 impl<'cx> Parser<'cx> {
@@ -770,6 +776,16 @@ impl<'cx> Parser<'cx> {
             }
         })
         .is_some()
+    }
+
+    pub fn is_global_source_file(&self, id: ast::NodeID) -> bool {
+        let n = self.node(id);
+        // TODO: !is_external_or_common_js_module
+        n.is_program()
+    }
+
+    pub fn is_alias_symbol_decl(&self, id: ast::NodeID) -> bool {
+        self.get(id.module()).is_alias_symbol_decl(id)
     }
 }
 

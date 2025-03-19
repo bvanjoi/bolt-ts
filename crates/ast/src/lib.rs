@@ -26,6 +26,7 @@ pub struct Program<'cx> {
     pub span: Span,
     pub is_declaration: bool,
     pub stmts: Stmts<'cx>,
+    pub filepath: bolt_ts_atom::AtomId,
 }
 
 #[derive(Debug, Clone, Copy)]

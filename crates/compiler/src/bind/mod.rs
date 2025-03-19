@@ -18,9 +18,7 @@ use rayon::prelude::*;
 use rustc_hash::FxHashMap;
 
 pub use self::flow::{FlowFlags, FlowID, FlowNode, FlowNodeKind, FlowNodes};
-pub use self::symbol::BlockContainerSymbol;
 pub use self::symbol::SymbolFlags;
-pub(crate) use self::symbol::SymbolKind;
 pub use self::symbol::{GlobalSymbols, Symbol, SymbolID, SymbolName, Symbols};
 
 use crate::late_resolve::ResolveResult;
@@ -36,12 +34,6 @@ pub(crate) enum ModuleInstanceState {
 }
 
 bolt_ts_utils::module_index!(ScopeID);
-
-impl ScopeID {
-    pub const fn is_root(&self) -> bool {
-        self.index == 0
-    }
-}
 
 pub struct Binder {
     binder_result: Vec<ResolveResult>,
@@ -134,8 +126,6 @@ pub struct BinderResult<'cx> {
     pub(crate) symbols: Symbols,
     // TODO: use `NodeId::index` is enough
     pub(crate) locals: FxHashMap<ast::NodeID, FxHashMap<SymbolName, SymbolID>>,
-    // TODO: use `NodeId::index` is enough
-    pub(crate) container_chain: FxHashMap<ast::NodeID, ast::NodeID>,
     pub(super) res: FxHashMap<(ScopeID, SymbolName), SymbolID>,
     // TODO: use `NodeId::index` is enough
     pub(crate) final_res: FxHashMap<ast::NodeID, SymbolID>,
@@ -150,7 +140,6 @@ impl<'cx> BinderResult<'cx> {
             node_id_to_scope_id: state.node_id_to_scope_id,
             symbols: state.symbols,
             locals: state.locals,
-            container_chain: state.container_chain,
             res: state.res,
             final_res: state.final_res,
             flow_nodes: state.flow_nodes,

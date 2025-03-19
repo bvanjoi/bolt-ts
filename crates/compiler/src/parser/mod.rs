@@ -19,6 +19,7 @@ use std::sync::{Arc, Mutex};
 use bolt_ts_atom::{AtomId, AtomMap};
 use bolt_ts_span::{ModuleArena, ModuleID, Span};
 use bolt_ts_utils::no_hashmap_with_capacity;
+use normalize_path::NormalizePath;
 pub(crate) use utils::is_left_hand_side_expr_kind;
 
 use rayon::prelude::*;
@@ -561,6 +562,12 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
     }
 
     pub fn parse(&mut self, file_path: &std::path::Path) -> &'cx ast::Program<'cx> {
+        let p = file_path.to_string_lossy();
+        let p = p.as_bytes();
+        let atom = AtomId::from_bytes(p);
+        debug_assert!(file_path.is_normalized());
+        debug_assert!(self.atoms.lock().unwrap().contains(atom));
+
         let start = self.pos;
         let id = self.next_node_id();
         self.with_parent(id, |this| {
@@ -575,9 +582,8 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
                 id,
                 stmts,
                 span: this.new_span(start as u32),
-                is_declaration: is_declaration_filename(
-                    file_path.to_str().unwrap_or_default().as_bytes(),
-                ),
+                is_declaration: is_declaration_filename(p),
+                filepath: atom,
             });
             this.nodes.insert(id, Node::Program(program));
             program

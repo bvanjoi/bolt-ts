@@ -198,16 +198,15 @@ pub fn eval_from_with_fs<'cx>(
     let bind_list = bind_list;
 
     let mut global_symbols = GlobalSymbols::new();
-    for state in bind_list
+    for (state, m) in bind_list
         .iter()
         .zip(module_arena.modules())
-        .filter_map(|(state, m)| m.global.then_some(state))
+        .filter_map(|(state, m)| m.global.then_some((state, m.id)))
     {
-        for ((scope_id, name), symbol) in state.res.iter() {
-            if !scope_id.is_root() || !matches!(name, bind::SymbolName::Normal(_)) {
-                continue;
+        if let Some(root) = state.locals.get(&bolt_ts_ast::NodeID::root(m)) {
+            for (name, symbol) in root {
+                global_symbols.insert(*name, *symbol);
             }
-            global_symbols.insert(*name, *symbol);
         }
     }
 

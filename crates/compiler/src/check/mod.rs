@@ -211,8 +211,11 @@ pub struct TyChecker<'cx> {
     permissive_mapper: &'cx PermissiveMapper,
     restrictive_mapper: &'cx RestrictiveMapper,
     // =======================
+    error_symbol: SymbolID,
     arguments_symbol: SymbolID,
+    resolving_symbol: SymbolID,
     empty_ty_literal_symbol: SymbolID,
+
     boolean_ty: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
     string_or_number_ty: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
     string_number_symbol_ty: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
@@ -317,39 +320,32 @@ impl<'cx> TyChecker<'cx> {
 
         let mut symbol_links = fx_hashmap_with_capacity(p.module_count() * 1024);
         let mut transient_symbols = Vec::with_capacity(p.module_count() * 1024 * 64);
-        let error_symbol = {
-            let links = SymbolLinks::default().with_ty(error_ty);
-            let symbol = TransientSymbol {
-                name: SymbolName::Normal(keyword::IDENT_EMPTY),
-                flags: SymbolFlags::empty(),
-                links,
-                origin: None,
+        macro_rules! make_builtin_symbol {
+            ( { $( ($symbol_name: ident, $name: expr, $flags: expr, $links: expr, $builtin_id: ident) ),* $(,)? } ) => {
+                $(
+                    let $symbol_name = {
+                        let symbol = TransientSymbol {
+                            name: $name,
+                            flags: $flags,
+                            links: $links.unwrap_or_default(),
+                            origin: None
+                        };
+                        let s = create_transient_symbol(&mut transient_symbols, symbol);
+                        assert_eq!(s, Symbol::$builtin_id);
+                        if let Some(l) = $links {
+                            symbol_links.insert(s, l);
+                        }
+                        s
+                    };
+                )*
             };
-            let s = create_transient_symbol(&mut transient_symbols, symbol);
-            assert_eq!(s, Symbol::ERR);
-            symbol_links.insert(s, links);
-            s
-        };
-        let arguments_symbol = {
-            let symbol = TransientSymbol {
-                name: SymbolName::Normal(keyword::IDENT_ARGUMENTS),
-                flags: SymbolFlags::PROPERTY,
-                links: Default::default(),
-                origin: None,
-            };
-            let s = create_transient_symbol(&mut transient_symbols, symbol);
-            assert_eq!(s, Symbol::ARGUMENTS);
-            s
-        };
-        let empty_ty_literal_symbol = {
-            let symbol = TransientSymbol {
-                name: SymbolName::Type,
-                flags: SymbolFlags::TYPE_LITERAL,
-                links: Default::default(),
-                origin: None,
-            };
-            create_transient_symbol(&mut transient_symbols, symbol)
-        };
+        }
+        make_builtin_symbol!({
+            (error_symbol,              SymbolName::Normal(keyword::IDENT_EMPTY),       SymbolFlags::empty(),       Some(SymbolLinks::default().with_ty(error_ty)), ERR),
+            (arguments_symbol,          SymbolName::Normal(keyword::IDENT_ARGUMENTS),   SymbolFlags::PROPERTY,      None,                                           ARGUMENTS),
+            (resolving_symbol,          SymbolName::Resolving,                          SymbolFlags::empty(),       None,                                           RESOLVING),
+            (empty_ty_literal_symbol,   SymbolName::Type,                               SymbolFlags::TYPE_LITERAL,  None,                                           EMPTY_TYPE_LITERAL),
+        });
 
         let restrictive_mapper = ty_arena.alloc(RestrictiveMapper);
         let permissive_mapper = ty_arena.alloc(PermissiveMapper);
@@ -377,8 +373,11 @@ impl<'cx> TyChecker<'cx> {
             shared_flow_info: Vec::with_capacity(1024),
             flow_nodes,
 
-            empty_ty_literal_symbol,
+            error_symbol,
             arguments_symbol,
+            resolving_symbol,
+            empty_ty_literal_symbol,
+
             empty_array,
             any_ty,
             auto_ty,
@@ -464,166 +463,72 @@ impl<'cx> TyChecker<'cx> {
             ],
             current_node: None,
         };
-        let prev = this.ty_links.insert(
-            true_ty.id,
-            TyLinks::default()
-                .with_regular_ty(regular_true_ty)
-                .with_fresh_ty(true_ty),
-        );
-        assert!(prev.is_none());
-        let prev = this.ty_links.insert(
-            regular_true_ty.id,
-            TyLinks::default()
-                .with_regular_ty(regular_true_ty)
-                .with_fresh_ty(true_ty),
-        );
-        assert!(prev.is_none());
-        let prev = this.ty_links.insert(
-            false_ty.id,
-            TyLinks::default()
-                .with_regular_ty(regular_false_ty)
-                .with_fresh_ty(false_ty),
-        );
-        assert!(prev.is_none());
-        let prev = this.ty_links.insert(
-            regular_false_ty.id,
-            TyLinks::default()
-                .with_regular_ty(regular_false_ty)
-                .with_fresh_ty(false_ty),
-        );
-        assert!(prev.is_none());
 
-        let boolean_ty = this.get_union_ty(
-            &[regular_false_ty, regular_true_ty],
-            ty::UnionReduction::Lit,
-        );
+        macro_rules! regular_and_fresh_for_true_and_false {
+            ( { $( ($ty: ident, $regular_ty: ident, $fresh_ty: ident) ),* $(,)? } ) => {
+                $(
+                    let prev = this.ty_links.insert($ty.id, TyLinks::default().with_regular_ty($regular_ty).with_fresh_ty($fresh_ty));
+                    assert!(prev.is_none());
+                )*
+            };
+        }
+        regular_and_fresh_for_true_and_false!({
+            // ty               regular_ty          fresh_ty
+            (true_ty,           regular_true_ty,    true_ty),
+            (regular_true_ty,   regular_true_ty,    true_ty),
+            (false_ty,          regular_false_ty,   false_ty),
+            (regular_false_ty,  regular_false_ty,   false_ty),
+        });
+
+        macro_rules! make_global {
+            ( { $( ($name: ident, $make_ty: expr) ),* $(,)? } ) => {
+                $(
+                    let $name = $make_ty;
+                    this.$name.set($name).unwrap();
+                )*
+            };
+        }
+        make_global!({
+            (boolean_ty,                this.get_union_ty(&[regular_false_ty, regular_true_ty], ty::UnionReduction::Lit)),
+            (string_or_number_ty,       this.get_union_ty(&[this.string_ty, this.number_ty], ty::UnionReduction::Lit)),
+            (string_number_symbol_ty,   this.get_union_ty(&[this.string_ty, this.number_ty, this.symbol_ty], ty::UnionReduction::Lit)),
+            (global_number_ty,          this.get_global_type(SymbolName::Normal(keyword::IDENT_NUMBER_CLASS))),
+            (global_boolean_ty,         this.get_global_type(SymbolName::Normal(keyword::IDENT_BOOLEAN_CLASS))),
+            (global_symbol_ty,          this.get_global_type(SymbolName::Normal(keyword::IDENT_SYMBOL_CLASS))),
+            (global_string_ty,          this.get_global_type(SymbolName::Normal(keyword::IDENT_STRING_CLASS))),
+            (global_array_ty,           this.get_global_type(SymbolName::Normal(keyword::IDENT_ARRAY_CLASS))),
+            (any_array_ty,              this.create_array_ty(this.any_ty, false)),
+            (global_readonly_array_ty,  this.get_global_type(SymbolName::Normal(keyword::IDENT_READONLY_ARRAY_CLASS))),
+            (any_readonly_array_ty,     this.any_array_ty()),
+            (typeof_ty,                 {
+                                            let tys = TYPEOF_NE_FACTS.iter().map(|(key, _)| this.get_string_literal_type(*key)).collect::<Vec<_>>();
+                                            this.get_union_ty(&tys, ty::UnionReduction::Lit)
+                                        }),
+            (any_fn_ty,                 this.create_anonymous_ty_with_resolved(None, ObjectFlags::NON_INFERRABLE_TYPE, this.alloc(Default::default()), Default::default(), Default::default(), Default::default())),
+            (no_constraint_ty,          this.create_anonymous_ty_with_resolved(None, Default::default(), this.alloc(Default::default()), Default::default(), Default::default(), Default::default())),
+            (circular_constraint_ty,    this.create_anonymous_ty_with_resolved(None, Default::default(), this.alloc(Default::default()), Default::default(), Default::default(), Default::default())),
+            (resolving_default_type,    this.create_anonymous_ty_with_resolved(None, Default::default(), this.alloc(Default::default()), Default::default(), Default::default(), Default::default())),
+            (empty_generic_ty,          this.create_anonymous_ty_with_resolved(None, Default::default(), this.alloc(Default::default()), Default::default(), Default::default(), Default::default())),
+            (empty_object_ty,           this.create_anonymous_ty_with_resolved(None, Default::default(), this.alloc(Default::default()), Default::default(), Default::default(), Default::default())),
+            (empty_ty_literal_ty,       this.create_anonymous_ty_with_resolved(Some(empty_ty_literal_symbol), Default::default(), this.alloc(Default::default()), Default::default(), Default::default(), Default::default())),
+            (global_object_ty,          this.get_global_type(SymbolName::Normal(keyword::IDENT_OBJECT_CLASS))),
+            (global_fn_ty,              this.get_global_type(SymbolName::Normal(keyword::IDENT_FUNCTION_CLASS))),
+            (global_callable_fn_ty,     this.get_global_type(SymbolName::Normal(keyword::IDENT_CALLABLE_FUNCTION_CLASS))),
+            (global_newable_fn_ty,      this.get_global_type(SymbolName::Normal(keyword::IDENT_NEWABLE_FUNCTION_CLASS))),
+            (mark_sub_ty,               this.create_param_ty(Symbol::ERR, None, false)),
+            (mark_other_ty,             this.create_param_ty(Symbol::ERR, None, false)),
+            (mark_super_ty,             this.create_param_ty(Symbol::ERR, None, false)),
+            (template_constraint_ty,    this.get_union_ty(&[string_ty, number_ty, boolean_ty, bigint_ty, null_ty, undefined_ty], ty::UnionReduction::Lit)),
+            (unknown_sig,               this.new_sig(Sig { flags: SigFlags::empty(), ty_params: None, params: &[], min_args_count: 0, ret: None, node_id: None, target: None, mapper: None, id: SigID::dummy(), class_decl: None })),
+            (array_variances,           this.alloc([VarianceFlags::COVARIANT])),
+            (no_ty_pred,                this.create_ident_ty_pred(keyword::IDENT_EMPTY, 0, Some(any_ty)))
+        });
+
         this.type_name.insert(boolean_ty.id, "boolean".to_string());
-        this.boolean_ty.set(boolean_ty).unwrap();
-
-        let string_or_number_ty =
-            this.get_union_ty(&[this.string_ty, this.number_ty], ty::UnionReduction::Lit);
-        this.string_or_number_ty.set(string_or_number_ty).unwrap();
-
-        let string_number_symbol_ty = this.get_union_ty(
-            &[this.string_ty, this.number_ty, this.symbol_ty],
-            ty::UnionReduction::Lit,
-        );
-        this.string_number_symbol_ty
-            .set(string_number_symbol_ty)
-            .unwrap();
-
-        let global_number_ty =
-            this.get_global_type(SymbolName::Normal(keyword::IDENT_NUMBER_CLASS));
-        this.global_number_ty.set(global_number_ty).unwrap();
-
-        let global_boolean_ty =
-            this.get_global_type(SymbolName::Normal(keyword::IDENT_BOOLEAN_CLASS));
-        this.global_boolean_ty.set(global_boolean_ty).unwrap();
-
-        let global_symbol_ty =
-            this.get_global_type(SymbolName::Normal(keyword::IDENT_SYMBOL_CLASS));
-        this.global_symbol_ty.set(global_symbol_ty).unwrap();
-
-        let global_array_ty = this.get_global_type(SymbolName::Normal(keyword::IDENT_ARRAY_CLASS));
-        this.global_array_ty.set(global_array_ty).unwrap();
-
-        let any_array_ty = this.create_array_ty(this.any_ty, false);
-        this.any_array_ty.set(any_array_ty).unwrap();
-
-        let global_readonly_array_ty =
-            this.get_global_type(SymbolName::Normal(keyword::IDENT_READONLY_ARRAY_CLASS));
-        this.global_readonly_array_ty
-            .set(global_readonly_array_ty)
-            .unwrap();
-
-        let any_readonly_array_ty = this.any_array_ty();
-        this.any_readonly_array_ty
-            .set(any_readonly_array_ty)
-            .unwrap();
-
-        let global_string_ty =
-            this.get_global_type(SymbolName::Normal(keyword::IDENT_STRING_CLASS));
-        this.global_string_ty.set(global_string_ty).unwrap();
 
         let iarguments = this.get_global_type(SymbolName::Normal(keyword::IDENT_IARGUMENTS_CLASS));
         this.get_mut_symbol_links(arguments_symbol)
             .set_ty(iarguments);
-
-        let typeof_ty = {
-            let tys = TYPEOF_NE_FACTS
-                .iter()
-                .map(|(key, _)| this.get_string_literal_type(*key))
-                .collect::<Vec<_>>();
-            this.get_union_ty(&tys, ty::UnionReduction::Lit)
-        };
-        this.typeof_ty.set(typeof_ty).unwrap();
-
-        let any_fn_ty = this.create_anonymous_ty_with_resolved(
-            None,
-            ObjectFlags::NON_INFERRABLE_TYPE,
-            this.alloc(Default::default()),
-            Default::default(),
-            Default::default(),
-            Default::default(),
-        );
-        this.any_fn_ty.set(any_fn_ty).unwrap();
-
-        let no_constraint_ty = this.create_anonymous_ty_with_resolved(
-            None,
-            Default::default(),
-            this.alloc(Default::default()),
-            Default::default(),
-            Default::default(),
-            Default::default(),
-        );
-
-        this.no_constraint_ty.set(no_constraint_ty).unwrap();
-
-        let circular_constraint_ty = this.create_anonymous_ty_with_resolved(
-            None,
-            Default::default(),
-            this.alloc(Default::default()),
-            Default::default(),
-            Default::default(),
-            Default::default(),
-        );
-        this.circular_constraint_ty
-            .set(circular_constraint_ty)
-            .unwrap();
-
-        let resolving_default_type = this.create_anonymous_ty_with_resolved(
-            None,
-            Default::default(),
-            this.alloc(Default::default()),
-            Default::default(),
-            Default::default(),
-            Default::default(),
-        );
-        this.resolving_default_type
-            .set(resolving_default_type)
-            .unwrap();
-
-        let empty_generic_ty = this.create_anonymous_ty_with_resolved(
-            None,
-            Default::default(),
-            this.alloc(Default::default()),
-            Default::default(),
-            Default::default(),
-            Default::default(),
-        );
-
-        this.empty_generic_ty.set(empty_generic_ty).unwrap();
-
-        let empty_object_ty = this.create_anonymous_ty_with_resolved(
-            None,
-            Default::default(),
-            this.alloc(Default::default()),
-            Default::default(),
-            Default::default(),
-            Default::default(),
-        );
-
-        this.empty_object_ty.set(empty_object_ty).unwrap();
 
         let mut auto_array_ty = this.create_array_ty(this.auto_ty, false);
         if auto_array_ty == empty_object_ty {
@@ -637,77 +542,6 @@ impl<'cx> TyChecker<'cx> {
             );
         }
         this.auto_array_ty.set(auto_array_ty).unwrap();
-
-        let empty_ty_literal_ty = this.create_anonymous_ty_with_resolved(
-            Some(empty_ty_literal_symbol),
-            Default::default(),
-            this.alloc(Default::default()),
-            Default::default(),
-            Default::default(),
-            Default::default(),
-        );
-        this.empty_ty_literal_ty.set(empty_ty_literal_ty).unwrap();
-
-        let global_object_ty =
-            this.get_global_type(SymbolName::Normal(keyword::IDENT_OBJECT_CLASS));
-        this.global_object_ty.set(global_object_ty).unwrap();
-
-        let global_fn_ty = this.get_global_type(SymbolName::Normal(keyword::IDENT_FUNCTION_CLASS));
-        this.global_fn_ty.set(global_fn_ty).unwrap();
-
-        let global_callable_fn_ty =
-            this.get_global_type(SymbolName::Normal(keyword::IDENT_CALLABLE_FUNCTION_CLASS));
-        this.global_callable_fn_ty
-            .set(global_callable_fn_ty)
-            .unwrap();
-
-        let global_newable_fn_ty =
-            this.get_global_type(SymbolName::Normal(keyword::IDENT_NEWABLE_FUNCTION_CLASS));
-        this.global_newable_fn_ty.set(global_newable_fn_ty).unwrap();
-
-        let mark_sub_ty = this.create_param_ty(Symbol::ERR, None, false);
-        this.mark_sub_ty.set(mark_sub_ty).unwrap();
-
-        let mark_other_ty = this.create_param_ty(Symbol::ERR, None, false);
-        this.mark_other_ty.set(mark_other_ty).unwrap();
-
-        let mark_super_ty = this.create_param_ty(Symbol::ERR, None, false);
-        this.mark_super_ty.set(mark_super_ty).unwrap();
-
-        let unknown_sig = this.new_sig(Sig {
-            flags: SigFlags::empty(),
-            ty_params: None,
-            params: &[],
-            min_args_count: 0,
-            ret: None,
-            node_id: None,
-            target: None,
-            mapper: None,
-            id: SigID::dummy(),
-            class_decl: None,
-        });
-        this.unknown_sig.set(unknown_sig).unwrap();
-
-        let array_variances = this.alloc([VarianceFlags::COVARIANT]);
-        this.array_variances.set(array_variances).unwrap();
-
-        let no_ty_pred = this.create_ident_ty_pred(keyword::IDENT_EMPTY, 0, Some(any_ty));
-        this.no_ty_pred.set(no_ty_pred).unwrap();
-
-        let template_constraint_ty = this.get_union_ty(
-            &[
-                string_ty,
-                number_ty,
-                boolean_ty,
-                bigint_ty,
-                null_ty,
-                undefined_ty,
-            ],
-            ty::UnionReduction::Lit,
-        );
-        this.template_constraint_ty
-            .set(template_constraint_ty)
-            .unwrap();
 
         this
     }
@@ -1625,8 +1459,10 @@ impl<'cx> TyChecker<'cx> {
                     "function"
                 } else if symbol.flags.intersects(SymbolFlags::ENUM) {
                     "enum"
+                } else if symbol.flags.intersects(SymbolFlags::NAMESPACE) {
+                    "namespace"
                 } else {
-                    todo!()
+                    unreachable!()
                 };
                 let error = errors::CannotAssignToNameBecauseItIsATy {
                     span: ident.span,
@@ -2062,7 +1898,7 @@ impl<'cx> TyChecker<'cx> {
         ty.kind.as_object_anonymous().is_some_and(|a| {
             if let Some(symbol) = ty.symbol() {
                 let s = self.binder.symbol(symbol);
-                s.flags.intersects(SymbolFlags::TYPE_LITERAL) && s.expect_ns().members.0.is_empty()
+                s.flags.intersects(SymbolFlags::TYPE_LITERAL) && s.members.0.is_empty()
             } else if let Some(ty_link) = self.ty_links.get(&ty.id) {
                 if let Some(t) = ty_link.get_structured_members() {
                     ty != self.any_fn_ty()

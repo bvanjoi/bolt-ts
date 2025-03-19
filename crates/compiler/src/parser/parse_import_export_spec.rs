@@ -197,7 +197,9 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         let mut is_type_only = false;
         let mut can_parse_as_keyword: bool = true;
         let mut prop_name = None;
-        let mut name = self.parse_module_export_name(|this| this.create_ident(true, None));
+        let mut name = self.with_parent(id, |this| {
+            this.parse_module_export_name(|this| this.create_ident(true, None))
+        });
 
         if let ast::ModuleExportNameKind::Ident(ident) = name.kind {
             if ident.name == keyword::KW_TYPE {

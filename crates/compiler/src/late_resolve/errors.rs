@@ -52,6 +52,7 @@ pub enum ModuleADeclaresBLocallyButItIsExportedAsCHelperKind {
 
 #[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
 #[error("'{name}' has been alias here.")]
+#[diagnostic(severity(Advice))]
 pub(super) struct ExportedAliasHere {
     #[label(primary)]
     pub span: Span,

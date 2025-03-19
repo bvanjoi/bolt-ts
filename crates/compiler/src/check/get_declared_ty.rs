@@ -60,7 +60,7 @@ impl<'cx> TyChecker<'cx> {
         if !self.push_ty_resolution(ResolutionKey::DeclaredType(symbol)) {
             return self.error_ty;
         }
-        let decl = self.binder.symbol(symbol).expect_ns().decls[0];
+        let decl = self.binder.symbol(symbol).decls[0];
         let decl = self.p.node(decl).expect_type_decl();
         let mut ty = self.get_ty_from_type_node(decl.ty);
         if !self.pop_ty_resolution().has_cycle() {
@@ -114,7 +114,7 @@ impl<'cx> TyChecker<'cx> {
             return resolved_base_ctor_ty;
         }
         let symbol = ty.symbol().unwrap();
-        let decl = self.binder.symbol(symbol).expect_ns().decls[0];
+        let decl = self.binder.symbol(symbol).decls[0];
         let Some(extends) = self.get_effective_base_type_node(decl) else {
             return self.undefined_ty;
         };
@@ -175,6 +175,7 @@ impl<'cx> TyChecker<'cx> {
         is_resolve_export: bool,
     ) -> &'cx FxHashMap<SymbolName, SymbolID> {
         let is_static = is_resolve_export;
+        // TODO: remove clone
         self.alloc(self.members(symbol).clone())
     }
 
@@ -302,10 +303,9 @@ impl<'cx> TyChecker<'cx> {
             .flags
             .intersects(SymbolFlags::CLASS | SymbolFlags::FUNCTION)
         {
-            s.expect_ns().value_decl.unwrap()
+            s.value_decl.unwrap()
         } else {
-            s.expect_ns()
-                .decls
+            s.decls
                 .iter()
                 .find(|decl| {
                     let n = self.p.node(**decl);

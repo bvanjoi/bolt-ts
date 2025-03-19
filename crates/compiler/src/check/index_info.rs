@@ -18,7 +18,7 @@ impl<'cx> TyChecker<'cx> {
         &mut self,
         symbol: SymbolID,
     ) -> ty::IndexInfos<'cx> {
-        let decls = &self.binder.symbol(symbol).kind.1.as_ref().unwrap().decls;
+        let decls = &self.binder.symbol(symbol).decls;
         let mut index_infos = Vec::with_capacity(decls.len() * 2);
         for decl in decls {
             let n = self.p.node(*decl);

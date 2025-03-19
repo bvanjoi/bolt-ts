@@ -604,8 +604,9 @@ impl<'cx> ParserState<'cx, '_> {
             todo!("import_eq_decl")
         }
 
-        let clause =
-            self.try_parse_import_clause(ident, after_import_pos as usize, is_type_only)?;
+        let clause = self.with_parent(id, |this| {
+            this.try_parse_import_clause(ident, after_import_pos as usize, is_type_only)
+        })?;
         let module = self.parse_module_spec()?;
 
         self.parse_semi();

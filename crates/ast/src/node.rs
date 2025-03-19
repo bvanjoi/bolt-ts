@@ -253,6 +253,7 @@ impl<'cx> Node<'cx> {
                 super::BindingKind::ArrayPat(_) => None,
             },
             InterfaceDecl(n) => Some(n.name),
+            TypeDecl(n) => Some(n.name),
             ClassPropElem(n) => match n.name.kind {
                 super::PropNameKind::Ident(ident) => Some(ident),
                 _ => None,
@@ -619,7 +620,10 @@ impl<'cx> Node<'cx> {
 
     pub fn has_locals(&self) -> bool {
         use Node::*;
-        matches!(self, BlockStmt(_) | CondTy(_) | NamespaceDecl(_))
+        matches!(
+            self,
+            Program(_) | BlockStmt(_) | CondTy(_) | NamespaceDecl(_)
+        )
     }
 
     pub fn is_readonly_ty_op(&self) -> bool {

@@ -433,7 +433,7 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
                 let target_span = if symbol.flags.intersects(SymbolFlags::CLASS) {
                     self.c
                         .p
-                        .node(symbol.expect_ns().decls[0])
+                        .node(symbol.decls[0])
                         .as_class_decl()
                         .unwrap()
                         .name
@@ -441,16 +441,13 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
                 } else if symbol.flags.intersects(SymbolFlags::INTERFACE) {
                     self.c
                         .p
-                        .node({
-                            let i = symbol.kind.1.as_ref().unwrap();
-                            i.decls[0]
-                        })
+                        .node(symbol.decls[0])
                         .as_interface_decl()
                         .unwrap()
                         .name
                         .span
                 } else {
-                    self.c.p.node(symbol.expect_ns().decls[0]).span()
+                    self.c.p.node(symbol.decls[0]).span()
                 };
                 let Some(source_symbol) = source.symbol() else {
                     // TODO: unreachable!()

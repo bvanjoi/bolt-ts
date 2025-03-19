@@ -9,8 +9,7 @@ impl<'cx> TyChecker<'cx> {
     pub(super) fn check_interface_decl(&mut self, interface: &'cx ast::InterfaceDecl<'cx>) {
         let symbol = self.get_symbol_of_decl(interface.id);
 
-        let i = self.binder.symbol(symbol).expect_ns();
-        let decl_id = i.decls[0];
+        let decl_id = self.binder.symbol(symbol).decls[0];
         if decl_id == interface.id {
             let ty = self.get_declared_ty_of_symbol(symbol);
             self.resolve_structured_type_members(ty);
