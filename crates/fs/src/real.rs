@@ -28,8 +28,8 @@ impl LocalFS {
             .read_dir(dir, atoms)
             .unwrap()
             .filter(|item| {
-                includes.iter().any(|p| p.matches_path(&item))
-                    && excludes.iter().all(|p| !p.matches_path(&item))
+                includes.iter().any(|p| p.matches_path(item))
+                    && excludes.iter().all(|p| !p.matches_path(item))
             })
             .collect::<Vec<_>>();
         for item in matched {
@@ -90,11 +90,11 @@ impl CachedFileSystem for LocalFS {
     ) -> Vec<std::path::PathBuf> {
         let includes = include
             .iter()
-            .map(|i| glob::Pattern::new(&i).unwrap())
+            .map(|i| glob::Pattern::new(i).unwrap())
             .collect::<Vec<_>>();
         let excludes = exclude
             .iter()
-            .map(|e| glob::Pattern::new(&e).unwrap())
+            .map(|e| glob::Pattern::new(e).unwrap())
             .collect::<Vec<_>>();
         let mut result = Vec::with_capacity(4096);
         self.glob_visitor(&mut result, base_dir, &includes, &excludes, atoms);

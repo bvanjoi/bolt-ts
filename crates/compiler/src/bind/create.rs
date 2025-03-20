@@ -1,11 +1,29 @@
 use rustc_hash::FxHashMap;
 
 use super::symbol::{SymbolFlags, SymbolTableLocation};
-use super::{BinderState, ModuleInstanceState, Symbol, SymbolID, SymbolName, errors};
+use super::{BinderState, ModuleInstanceState, Symbol, SymbolID, SymbolName, Symbols, errors};
+use crate::bind::SymbolTable;
 use crate::ir;
+use crate::parser::ParseResult;
 
 use bolt_ts_ast as ast;
 use bolt_ts_utils::fx_hashmap_with_capacity;
+
+pub(super) fn set_value_declaration(
+    symbol: SymbolID,
+    symbols: &mut Symbols,
+    node: ast::NodeID,
+    p: &ParseResult,
+) {
+    let s = symbols.get_mut(symbol);
+    // TODO: ambient declaration
+    if s.value_decl.is_none_or(|value_decl| {
+        let v = p.node(value_decl);
+        !v.is_same_kind(&p.node(node)) && v.is_effective_module_decl()
+    }) {
+        s.value_decl = Some(node);
+    }
+}
 
 impl<'cx> BinderState<'cx, '_, '_> {
     pub(super) fn create_final_res(&mut self, id: ast::NodeID, symbol: SymbolID) {
@@ -37,7 +55,6 @@ impl<'cx> BinderState<'cx, '_, '_> {
         let id = self.declare_symbol_and_add_to_symbol_table(
             container, name, ns.id, loc, includes, excludes,
         );
-        self.res.insert(key, id);
         id
     }
 
@@ -152,14 +169,7 @@ impl<'cx> BinderState<'cx, '_, '_> {
     }
 
     fn set_value_declaration(&mut self, symbol: SymbolID, node: ast::NodeID) {
-        let s = self.symbols.get_mut(symbol);
-        // TODO: ambient declaration
-        if s.value_decl.is_none_or(|value_decl| {
-            let v = self.p.node(value_decl);
-            !v.is_same_kind(&self.p.node(node)) && v.is_effective_module_decl()
-        }) {
-            s.value_decl = Some(node);
-        }
+        set_value_declaration(symbol, &mut self.symbols, node, &self.p);
     }
 
     pub(super) fn create_symbol(&mut self, name: SymbolName, flags: SymbolFlags) -> SymbolID {
@@ -173,6 +183,8 @@ impl<'cx> BinderState<'cx, '_, '_> {
             parent: None,
             const_enum_only_module: None,
             is_replaceable_by_method: None,
+            merged_id: None,
+            export_symbol: None,
         };
         self.symbols.insert(s)
     }
@@ -203,9 +215,11 @@ impl<'cx> BinderState<'cx, '_, '_> {
             SymbolTableLocationKind::ContainerLocals => {
                 assert!(self.p.node(location.container).has_locals());
                 Some(
-                    self.locals
+                    &mut self
+                        .locals
                         .entry(location.container)
-                        .or_insert_with(|| fx_hashmap_with_capacity(64)),
+                        .or_insert_with(|| SymbolTable(fx_hashmap_with_capacity(64)))
+                        .0,
                 )
             }
         }
@@ -218,8 +232,6 @@ impl<'cx> BinderState<'cx, '_, '_> {
     ) {
         let name = f.name().map(SymbolName::Normal).unwrap_or(SymbolName::Fn);
         let symbol = self.bind_anonymous_decl(f.id(), SymbolFlags::FUNCTION, name);
-        let key = (self.scope_id, name);
-        self.res.insert(key, symbol);
         self.create_final_res(decl, symbol);
     }
 
@@ -234,7 +246,7 @@ impl<'cx> BinderState<'cx, '_, '_> {
             .members
             .0
             .insert(symbol_name, symbol);
-        self.final_res.insert(id, ty_lit_symbol);
+        self.create_final_res(id, ty_lit_symbol);
     }
 
     pub(super) fn create_object_member_symbol(

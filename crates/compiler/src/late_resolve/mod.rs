@@ -1,6 +1,8 @@
 mod errors;
 
-use crate::bind::{BinderResult, GlobalSymbols, SymbolFlags, SymbolID, SymbolName, Symbols};
+use crate::bind::{
+    BinderResult, GlobalSymbols, SymbolFlags, SymbolID, SymbolName, SymbolTable, Symbols,
+};
 use crate::graph::{ModuleGraph, ModuleRes};
 use crate::parser;
 use bolt_ts_ast as ast;
@@ -18,7 +20,7 @@ pub struct ResolveResult {
     // TODO: use `NodeId::index` is enough
     pub alias_target: FxHashMap<ast::NodeID, SymbolID>,
     // TODO: use `NodeId::index` is enough
-    pub locals: FxHashMap<ast::NodeID, FxHashMap<SymbolName, SymbolID>>,
+    pub locals: FxHashMap<ast::NodeID, SymbolTable>,
 }
 
 pub fn late_resolve<'cx>(
@@ -32,7 +34,7 @@ pub fn late_resolve<'cx>(
     let mut temp = Vec::with_capacity(modules.len());
     for module in modules {
         let module_id = module.id;
-        let alias_target = fx_hashmap_with_capacity(states[module.id.as_usize()].res.len());
+        let alias_target = fx_hashmap_with_capacity(states[module.id.as_usize()].final_res.len());
         let root = p.root(module.id);
         let mut resolver = Resolver {
             mg,
@@ -161,6 +163,7 @@ impl Resolver<'_, '_, '_> {
                 .locals
                 .get(&value_decl)
                 .unwrap()
+                .0
                 .get(&SymbolName::Normal(decl_name))
                 .copied()
         } else {

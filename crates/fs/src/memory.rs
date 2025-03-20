@@ -84,7 +84,7 @@ impl CachedFileSystem for MemoryFS {
     ) -> Vec<std::path::PathBuf> {
         let includes = include
             .iter()
-            .map(|i| glob::Pattern::new(&i).unwrap())
+            .map(|i| glob::Pattern::new(i).unwrap())
             .collect::<Vec<_>>();
         let Ok(node) = self.tree.find_path(base_dir, true) else {
             return vec![];

@@ -128,6 +128,61 @@ bitflags::bitflags! {
     }
 }
 
+impl SymbolFlags {
+    pub const fn get_excluded(&self) -> Self {
+        let mut result = SymbolFlags::empty();
+        if self.intersects(SymbolFlags::BLOCK_SCOPED_VARIABLE) {
+            result = result.union(SymbolFlags::BLOCK_SCOPED_VARIABLE_EXCLUDES);
+        };
+        if self.intersects(SymbolFlags::FUNCTION_SCOPED_VARIABLE) {
+            result = result.union(SymbolFlags::FUNCTION_SCOPED_VARIABLE_EXCLUDES);
+        };
+        if self.intersects(SymbolFlags::PROPERTY) {
+            result = result.union(SymbolFlags::PROPERTY_EXCLUDES);
+        };
+        if self.intersects(SymbolFlags::ENUM_MEMBER) {
+            result = result.union(SymbolFlags::ENUM_MEMBER_EXCLUDES);
+        };
+        if self.intersects(SymbolFlags::FUNCTION) {
+            result = result.union(SymbolFlags::FUNCTION_EXCLUDES);
+        };
+        if self.intersects(SymbolFlags::CLASS) {
+            result = result.union(SymbolFlags::CLASS_EXCLUDES);
+        };
+        if self.intersects(SymbolFlags::INTERFACE) {
+            result = result.union(SymbolFlags::INTERFACE_EXCLUDES);
+        };
+        if self.intersects(SymbolFlags::REGULAR_ENUM) {
+            result = result.union(SymbolFlags::REGULAR_ENUM_EXCLUDES);
+        };
+        if self.intersects(SymbolFlags::CONST_ENUM) {
+            result = result.union(SymbolFlags::CONST_ENUM_EXCLUDES);
+        };
+        if self.intersects(SymbolFlags::VALUE_MODULE) {
+            result = result.union(SymbolFlags::VALUE_MODULE_EXCLUDES);
+        };
+        if self.intersects(SymbolFlags::METHOD) {
+            result = result.union(SymbolFlags::METHOD_EXCLUDES);
+        };
+        if self.intersects(SymbolFlags::GET_ACCESSOR) {
+            result = result.union(SymbolFlags::GET_ACCESSOR_EXCLUDES);
+        };
+        if self.intersects(SymbolFlags::SET_ACCESSOR) {
+            result = result.union(SymbolFlags::SET_ACCESSOR_EXCLUDES);
+        };
+        if self.intersects(SymbolFlags::TYPE_PARAMETER) {
+            result = result.union(SymbolFlags::TYPE_PARAMETER_EXCLUDES);
+        };
+        if self.intersects(SymbolFlags::TYPE_ALIAS) {
+            result = result.union(SymbolFlags::TYPE_ALIAS_EXCLUDES);
+        };
+        if self.intersects(SymbolFlags::ALIAS) {
+            result = result.union(SymbolFlags::ALIAS_EXCLUDES);
+        };
+        result
+    }
+}
+
 #[derive(Debug)]
 pub struct Symbol {
     pub name: SymbolName,
@@ -138,7 +193,9 @@ pub struct Symbol {
     pub members: SymbolTable,
     // TODO: use Option<SymbolTable>
     pub exports: SymbolTable,
+    pub merged_id: Option<usize>,
     pub parent: Option<SymbolID>,
+    pub export_symbol: Option<SymbolID>,
     pub const_enum_only_module: Option<bool>,
     pub is_replaceable_by_method: Option<bool>,
 }
@@ -149,6 +206,12 @@ pub struct SymbolTable(pub FxHashMap<SymbolName, SymbolID>);
 impl Default for SymbolTable {
     fn default() -> Self {
         Self(fx_hashmap_with_capacity(64))
+    }
+}
+
+impl SymbolTable {
+    pub fn new(cap: usize) -> Self {
+        Self(fx_hashmap_with_capacity(cap))
     }
 }
 
@@ -274,29 +337,7 @@ impl Symbols {
     }
 }
 
-pub struct GlobalSymbols(FxHashMap<SymbolName, SymbolID>);
-
-impl Default for GlobalSymbols {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
-impl GlobalSymbols {
-    pub fn new() -> Self {
-        Self(fx_hashmap_with_capacity(1024 * 128))
-    }
-
-    pub fn insert(&mut self, name: SymbolName, symbol_id: SymbolID) {
-        assert!(matches!(name, SymbolName::Normal(_)));
-        let prev = self.0.insert(name, symbol_id);
-        assert!(prev.is_none(), "prev symbol: {prev:#?}")
-    }
-
-    pub fn get(&self, name: SymbolName) -> Option<SymbolID> {
-        self.0.get(&name).copied()
-    }
-}
+pub type GlobalSymbols = SymbolTable;
 
 #[derive(Debug, Clone, Copy)]
 pub(super) struct SymbolTableLocation {

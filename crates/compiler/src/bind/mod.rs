@@ -6,20 +6,21 @@ mod container_flags;
 mod create;
 pub(crate) mod errors;
 mod flow;
+mod merge;
 mod pprint;
 mod symbol;
-
-use bolt_ts_atom::AtomMap;
-use bolt_ts_config::NormalizedTsConfig;
-use bolt_ts_span::Module;
-use bolt_ts_span::ModuleID;
 
 use rayon::prelude::*;
 use rustc_hash::FxHashMap;
 
+use bolt_ts_atom::AtomMap;
+use bolt_ts_config::NormalizedTsConfig;
+use bolt_ts_span::{Module, ModuleID};
+
 pub use self::flow::{FlowFlags, FlowID, FlowNode, FlowNodeKind, FlowNodes};
-pub use self::symbol::SymbolFlags;
+pub(crate) use self::merge::{MergeGlobalSymbolResult, merge_global_symbol};
 pub use self::symbol::{GlobalSymbols, Symbol, SymbolID, SymbolName, Symbols};
+pub use self::symbol::{SymbolFlags, SymbolTable};
 
 use crate::late_resolve::ResolveResult;
 use crate::parser::ParseResult;
@@ -72,7 +73,7 @@ impl Binder {
             .collect()
     }
 
-    pub fn locals(&self, id: ast::NodeID) -> Option<&FxHashMap<SymbolName, SymbolID>> {
+    pub fn locals(&self, id: ast::NodeID) -> Option<&SymbolTable> {
         self.get(id.module()).locals.get(&id)
     }
 }
@@ -87,7 +88,7 @@ struct BinderState<'cx, 'atoms, 'parser> {
     node_id_to_scope_id: FxHashMap<ast::NodeID, ScopeID>,
     symbols: Symbols,
     // TODO: use `NodeId::index` is enough
-    locals: FxHashMap<ast::NodeID, FxHashMap<SymbolName, SymbolID>>,
+    locals: FxHashMap<ast::NodeID, SymbolTable>,
 
     container: Option<ast::NodeID>,
     this_parent_container: Option<ast::NodeID>,
@@ -125,7 +126,7 @@ pub struct BinderResult<'cx> {
     pub(crate) node_id_to_scope_id: FxHashMap<ast::NodeID, ScopeID>,
     pub(crate) symbols: Symbols,
     // TODO: use `NodeId::index` is enough
-    pub(crate) locals: FxHashMap<ast::NodeID, FxHashMap<SymbolName, SymbolID>>,
+    pub(crate) locals: FxHashMap<ast::NodeID, SymbolTable>,
     pub(super) res: FxHashMap<(ScopeID, SymbolName), SymbolID>,
     // TODO: use `NodeId::index` is enough
     pub(crate) final_res: FxHashMap<ast::NodeID, SymbolID>,

@@ -248,6 +248,14 @@ impl<'cx> ParseResult<'cx> {
         use ast::Node::*;
         matches!(node, ImportNamedSpec(_) | ShorthandSpec(_))
     }
+
+    pub fn is_external_or_commonjs_module(&self) -> bool {
+        self.external_module_indicator.is_some() || self.commonjs_module_indicator.is_some()
+    }
+
+    pub fn is_global_source_file(&self, id: ast::NodeID) -> bool {
+        !self.is_external_or_commonjs_module() && self.node(id).is_program()
+    }
 }
 
 impl<'cx> Parser<'cx> {
@@ -778,10 +786,12 @@ impl<'cx> Parser<'cx> {
         .is_some()
     }
 
+    pub fn is_external_or_commonjs_module(&self, id: ast::NodeID) -> bool {
+        self.get(id.module()).is_external_or_commonjs_module()
+    }
+
     pub fn is_global_source_file(&self, id: ast::NodeID) -> bool {
-        let n = self.node(id);
-        // TODO: !is_external_or_common_js_module
-        n.is_program()
+        self.get(id.module()).is_global_source_file(id)
     }
 
     pub fn is_alias_symbol_decl(&self, id: ast::NodeID) -> bool {

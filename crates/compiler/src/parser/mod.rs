@@ -101,12 +101,13 @@ pub struct ParseResult<'cx> {
     nodes: Nodes<'cx>,
     parent_map: ParentMap,
     pub node_flags_map: NodeFlagsMap,
+    pub external_module_indicator: Option<ast::NodeID>,
+    pub commonjs_module_indicator: Option<ast::NodeID>,
 }
 
 impl<'cx> ParseResult<'cx> {
     pub fn root(&self) -> &'cx ast::Program<'cx> {
-        let id = NodeID::root(ModuleID::root());
-        self.nodes.get(id).expect_program()
+        self.nodes.0[&0].expect_program()
     }
 
     pub fn node(&self, id: NodeID) -> Node<'cx> {
@@ -249,6 +250,8 @@ fn parse<'cx, 'p>(
         nodes: s.nodes,
         parent_map: s.parent_map,
         node_flags_map: s.node_flags_map,
+        external_module_indicator: s.external_module_indicator,
+        commonjs_module_indicator: s.commonjs_module_indicator,
     }
 }
 
@@ -271,6 +274,9 @@ struct ParserState<'cx, 'p> {
     arena: &'p bumpalo_herd::Member<'cx>,
     next_node_id: NodeID,
     context_flags: NodeFlags,
+    external_module_indicator: Option<ast::NodeID>,
+    commonjs_module_indicator: Option<ast::NodeID>,
+    has_export_decl: bool,
 }
 
 #[derive(Debug)]
@@ -335,6 +341,9 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
             next_node_id: NodeID::root(module_id),
             context_flags: NodeFlags::empty(),
             node_flags_map: NodeFlagsMap::new(),
+            external_module_indicator: None,
+            commonjs_module_indicator: None,
+            has_export_decl: false,
         }
     }
 
@@ -558,6 +567,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
     fn insert_map(&mut self, id: NodeID, node: Node<'cx>) {
         assert!(id.index_as_u32() > self.parent.index_as_u32());
         self.nodes.insert(id, node);
+        // TODO: move parent_map.insert into binding and use Vec instead of Map
         self.parent_map.insert(id, self.parent);
     }
 
@@ -570,6 +580,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
 
         let start = self.pos;
         let id = self.next_node_id();
+        assert_eq!(id.index_as_u32(), 0);
         self.with_parent(id, |this| {
             this.next_token();
             let stmts = this.arena.alloc(Vec::with_capacity(512));
@@ -659,12 +670,4 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
     fn in_disallow_conditional_tys_context(&self) -> bool {
         self.in_context(NodeFlags::DISALLOW_CONDITIONAL_TYPES_CONTEXT)
     }
-}
-
-fn has_export_decls(stmts: &bolt_ts_ast::Stmts<'_>) -> bool {
-    stmts.iter().any(|stmt| match stmt.kind {
-        bolt_ts_ast::StmtKind::Export(_) => true,
-        // TODO: export assignment
-        _ => false,
-    })
 }

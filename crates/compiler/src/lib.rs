@@ -16,11 +16,10 @@ use std::borrow::Cow;
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 
-use self::bind::GlobalSymbols;
 use self::bind::bind_parallel;
 use self::early_resolve::early_resolve_parallel;
 use self::wf::well_formed_check_parallel;
-use bind::BinderResult;
+use bind::{BinderResult, MergeGlobalSymbolResult};
 use bolt_ts_ast::TokenKind;
 use bolt_ts_ast::keyword_idx_to_token;
 
@@ -181,7 +180,7 @@ pub fn eval_from_with_fs<'cx>(
     let atoms = Arc::try_unwrap(atoms).unwrap();
     let mut atoms = atoms.into_inner().unwrap();
 
-    let (mut bind_list, p) = {
+    let (bind_list, p) = {
         let (bind_list, p_map): (Vec<BinderResult>, Vec<ParseResult>) =
             bind_parallel(module_arena.modules(), &atoms, p, &tsconfig)
                 .into_iter()
@@ -190,25 +189,16 @@ pub fn eval_from_with_fs<'cx>(
         (bind_list, p)
     };
 
+    let MergeGlobalSymbolResult {
+        mut bind_list,
+        merged_symbols,
+        global_symbols,
+    } = bind::merge_global_symbol(&p, bind_list, &module_arena);
+
     let flow_nodes = bind_list
         .iter_mut()
         .map(|x| std::mem::take(&mut x.flow_nodes))
         .collect::<Vec<_>>();
-
-    let bind_list = bind_list;
-
-    let mut global_symbols = GlobalSymbols::new();
-    for (state, m) in bind_list
-        .iter()
-        .zip(module_arena.modules())
-        .filter_map(|(state, m)| m.global.then_some((state, m.id)))
-    {
-        if let Some(root) = state.locals.get(&bolt_ts_ast::NodeID::root(m)) {
-            for (name, symbol) in root {
-                global_symbols.insert(*name, *symbol);
-            }
-        }
-    }
 
     // ==== name resolution ====
     let early_resolve_result = early_resolve_parallel(

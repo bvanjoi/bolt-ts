@@ -9,6 +9,7 @@ impl<'cx> BinderState<'cx, '_, '_> {
     fn create_class_symbol(
         &mut self,
         c: &impl ir::ClassLike<'cx>,
+        is_expr: bool,
         container: Option<ast::NodeID>,
     ) -> SymbolID {
         let name = c
@@ -16,19 +17,21 @@ impl<'cx> BinderState<'cx, '_, '_> {
             .map_or(SymbolName::ClassExpr, |name| SymbolName::Normal(name.name));
         let id = c.id();
         let symbol = if let Some(container) = container {
-            self.declare_symbol_and_add_to_symbol_table(
-                container,
-                name,
+            assert!(!is_expr);
+            let is_export = c
+                .modifiers()
+                .is_some_and(|mods| mods.flags.contains(ModifierKind::Export));
+            self.bind_block_scoped_decl(
                 id,
-                SymbolTableLocation::members(container),
+                name,
+                is_export,
+                container,
                 SymbolFlags::CLASS,
                 SymbolFlags::CLASS_EXCLUDES,
             )
         } else {
             self.bind_anonymous_decl(id, SymbolFlags::CLASS, name)
         };
-        let key = (self.scope_id, name);
-        self.res.insert(key, symbol);
         self.create_final_res(id, symbol);
         symbol
     }
@@ -168,7 +171,7 @@ impl<'cx> BinderState<'cx, '_, '_> {
             self.scope_id = self.new_scope();
         }
 
-        self.create_class_symbol(class, container);
+        self.create_class_symbol(class, is_expr, container);
 
         let old = self.scope_id;
         self.scope_id = self.new_scope();

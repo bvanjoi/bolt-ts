@@ -11,11 +11,13 @@ use bolt_ts_utils::fx_hashmap_with_capacity;
 use rayon::prelude::*;
 use rustc_hash::FxHashMap;
 
-use crate::bind::{BinderResult, GlobalSymbols, Symbol, SymbolFlags, SymbolID, SymbolName};
+use crate::bind::{
+    BinderResult, GlobalSymbols, Symbol, SymbolFlags, SymbolID, SymbolName, SymbolTable,
+};
 use crate::keyword;
 use crate::keyword::{is_prim_ty_name, is_prim_value_name};
 use crate::parser::Parser;
-use bolt_ts_ast::{self as ast};
+use bolt_ts_ast::{self as ast, NodeFlags};
 
 pub struct EarlyResolveResult {
     // TODO: use `NodeId::index` is enough
@@ -51,7 +53,7 @@ fn early_resolve<'cx>(
     global: &'cx GlobalSymbols,
     atoms: &'cx bolt_ts_atom::AtomMap<'cx>,
 ) -> EarlyResolveResult {
-    let final_res = fx_hashmap_with_capacity(states[module_id.as_usize()].res.len());
+    let final_res = fx_hashmap_with_capacity(states[module_id.as_usize()].final_res.len());
     let mut resolver = Resolver {
         diags: vec![],
         states,
@@ -80,7 +82,7 @@ pub(super) struct Resolver<'cx, 'r, 'atoms> {
 }
 
 impl<'cx> Resolver<'cx, '_, '_> {
-    fn locals(&self, id: ast::NodeID) -> Option<&FxHashMap<SymbolName, SymbolID>> {
+    fn locals(&self, id: ast::NodeID) -> Option<&SymbolTable> {
         self.states[id.module().as_usize()].locals.get(&id)
     }
 
@@ -88,6 +90,10 @@ impl<'cx> Resolver<'cx, '_, '_> {
         self.states[symbol_id.module().as_usize()]
             .symbols
             .get(symbol_id)
+    }
+
+    fn symbol_of_decl(&self, decl: ast::NodeID) -> SymbolID {
+        self.states[decl.module().as_usize()].final_res[&decl]
     }
 
     fn push_error(&mut self, error: crate::Diag) {
@@ -147,9 +153,9 @@ impl<'cx> Resolver<'cx, '_, '_> {
                     self.resolve_symbol_by_ident(ident, SymbolFlags::VALUE);
                 }
             }
-            Try(n) => {}
-            While(n) => {}
-            Do(n) => {}
+            Try(_) => {}
+            While(_) => {}
+            Do(_) => {}
             Debugger(_) => {}
         };
     }
@@ -654,6 +660,28 @@ impl<'cx> Resolver<'cx, '_, '_> {
         );
         res
     }
+
+    fn is_type_param_symbol_declared_in_container(
+        &self,
+        symbol: SymbolID,
+        container: ast::NodeID,
+    ) -> bool {
+        let decls = &self.symbol(symbol).decls;
+        for decl in decls {
+            let decl = *decl;
+            if self.p.node(decl).is_ty_param() {
+                // TODO: js doc template tag
+                let parent = self.p.parent(decl);
+                if let Some(parent) = parent {
+                    if parent == container {
+                        // TODO: js doc template tag
+                        return false;
+                    }
+                }
+            }
+        }
+        false
+    }
 }
 
 pub(super) struct ResolvedResult {
@@ -674,7 +702,7 @@ pub(super) fn resolve_symbol_by_ident<'a, 'cx>(
     while let Some(id) = location {
         if let Some(locals) = resolver.locals(id) {
             if !resolver.p.is_global_source_file(id) {
-                if let Some(symbol) = locals.get(&SymbolName::Normal(ident.name)).copied() {
+                if let Some(symbol) = locals.0.get(&SymbolName::Normal(ident.name)).copied() {
                     if resolver.symbol(symbol).flags.intersects(meaning) {
                         let mut use_result = true;
                         if let Some(cond) = resolver.p.node(id).as_cond_ty() {
@@ -693,8 +721,71 @@ pub(super) fn resolve_symbol_by_ident<'a, 'cx>(
         }
         last_location = location;
 
-        match resolver.p.node(id) {
-            Program(_) => {}
+        let n = resolver.p.node(id);
+        match n {
+            Program(_) if resolver.p.is_external_or_commonjs_module(id) => (),
+            Program(_) | NamespaceDecl(_) => {
+                let module_exports = &resolver.symbol(resolver.symbol_of_decl(id)).exports;
+                if n.is_program()
+                    || (n
+                        .as_namespace_decl()
+                        .is_some_and(|n| !n.is_global_scope_argument())
+                        && resolver.p.node_flags(id).intersects(NodeFlags::AMBIENT))
+                {
+                    // TODO: default
+                    if let Some(module_export) = module_exports.0.get(&key).copied() {
+                        if resolver
+                            .symbol(module_export)
+                            .flags
+                            .intersects(SymbolFlags::ALIAS)
+                        {
+                            // TODO:
+                        }
+                    }
+                }
+
+                if let Some(module_export) = module_exports.0.get(&key).copied() {
+                    if resolver
+                        .symbol(module_export)
+                        .flags
+                        .intersects(meaning & SymbolFlags::MODULE_MEMBER)
+                    {
+                        return ResolvedResult {
+                            symbol: module_export,
+                            associated_declaration_for_containing_initializer_or_binding_name,
+                        };
+                    }
+                }
+            }
+            ClassDecl(_) | ClassExpr(_) | InterfaceDecl(_) => {
+                let members = &resolver.symbol(resolver.symbol_of_decl(id)).members;
+                if let Some(res) = members.0.get(&key).copied() {
+                    if resolver
+                        .symbol(res)
+                        .flags
+                        .intersects(meaning & SymbolFlags::TYPE)
+                    {
+                        if !resolver.is_type_param_symbol_declared_in_container(res, id) {
+                            break;
+                        }
+                        // TODO: last location
+                        return ResolvedResult {
+                            symbol: res,
+                            associated_declaration_for_containing_initializer_or_binding_name,
+                        };
+                    }
+                }
+                if let Some(c) = n.as_class_expr() {
+                    if meaning.intersects(SymbolFlags::CLASS)
+                        && c.name.is_some_and(|n| n.name == ident.name)
+                    {
+                        return ResolvedResult {
+                            symbol: resolver.symbol_of_decl(id),
+                            associated_declaration_for_containing_initializer_or_binding_name,
+                        };
+                    }
+                }
+            }
             ArrowFnExpr(_) | ClassMethodElem(_) | ClassCtor(_) | GetterDecl(_) | SetterDecl(_)
             | FnDecl(_) => {
                 if meaning.intersects(SymbolFlags::VARIABLE)
@@ -702,6 +793,24 @@ pub(super) fn resolve_symbol_by_ident<'a, 'cx>(
                 {
                     return ResolvedResult {
                         symbol: Symbol::ARGUMENTS,
+                        associated_declaration_for_containing_initializer_or_binding_name,
+                    };
+                }
+            }
+            FnExpr(f) => {
+                if meaning.intersects(SymbolFlags::VARIABLE)
+                    && ident.name == keyword::IDENT_ARGUMENTS
+                {
+                    return ResolvedResult {
+                        symbol: Symbol::ARGUMENTS,
+                        associated_declaration_for_containing_initializer_or_binding_name,
+                    };
+                }
+                if meaning.intersects(SymbolFlags::FUNCTION)
+                    && f.name.is_some_and(|n| n.name == ident.name)
+                {
+                    return ResolvedResult {
+                        symbol: resolver.symbol_of_decl(id),
                         associated_declaration_for_containing_initializer_or_binding_name,
                     };
                 }
@@ -754,11 +863,15 @@ pub(super) fn resolve_symbol_by_ident<'a, 'cx>(
 
         if let Some(parent) = binder.scope_id_parent_map[scope_id.index_as_usize()] {
             scope_id = parent;
-        } else if let Some(symbol) = resolver.global.get(key) {
-            return ResolvedResult {
-                symbol,
-                associated_declaration_for_containing_initializer_or_binding_name,
-            };
+        } else if let Some(symbol) = resolver.global.0.get(&key).copied() {
+            if resolver.symbol(symbol).flags.intersects(meaning) {
+                return ResolvedResult {
+                    symbol,
+                    associated_declaration_for_containing_initializer_or_binding_name,
+                };
+            } else {
+                break;
+            }
         } else {
             break;
         }

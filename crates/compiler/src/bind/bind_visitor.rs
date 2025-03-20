@@ -11,11 +11,13 @@ use super::symbol::SymbolTableLocation;
 use super::symbol::{SymbolID, SymbolName, Symbols};
 
 use bolt_ts_ast as ast;
+use bolt_ts_ast::NodeFlags;
 use bolt_ts_atom::AtomMap;
 use bolt_ts_config::NormalizedTsConfig;
 use bolt_ts_span::ModuleID;
 use bolt_ts_utils::fx_hashmap_with_capacity;
 
+use crate::bind::SymbolTable;
 use crate::bind::prop_name;
 use crate::parser::ParseResult;
 use crate::parser::is_left_hand_side_expr_kind;
@@ -98,6 +100,9 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
         self.connect(root.id);
         self.current_flow = Some(self.flow_nodes.create_start(None));
         // TODO: if is_external_module
+        // if self.p.is_external_or_commonjs_module() {
+
+        // }
         let s = self.bind_anonymous_decl(
             root.id,
             SymbolFlags::VALUE_MODULE,
@@ -105,9 +110,13 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
         );
         assert_eq!(s, SymbolID::container(root.id.module()));
         self.final_res.insert(root.id, s);
-        for stmt in root.stmts {
-            self.bind_stmt(root.id, stmt)
-        }
+
+        let container_flags = root.get_container_flags(self.p);
+        self.bind_container(root.id, container_flags, |this| {
+            for stmt in root.stmts {
+                this.bind_stmt(root.id, stmt)
+            }
+        });
     }
 
     fn bind_stmt(&mut self, container: ast::NodeID, stmt: &'cx ast::Stmt) {
@@ -122,7 +131,7 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
             Return(ret) => self.bind_ret_or_throw(ret.expr, true),
             Throw(t) => self.bind_ret_or_throw(Some(t.expr), false),
             Class(class) => self.bind_class_like(Some(container), class, false),
-            Interface(interface) => self.bind_interface_decl(container, interface),
+            Interface(n) => self.bind_interface_decl(container, n),
             Type(t) => self.bind_type_decl(container, t),
             Namespace(ns) => self.bind_ns_decl(container, ns),
             Enum(_) => {}
@@ -239,7 +248,6 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
                     SymbolFlags::ALIAS,
                     SymbolFlags::ALIAS_EXCLUDES,
                 );
-                self.res.insert((self.scope_id, name), symbol);
                 self.create_final_res(spec.id, symbol);
             }
             Named(_) => {
@@ -259,7 +267,6 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
                 //     SymbolFlags::ALIAS_EXCLUDES,
                 // );
                 // // TODO: delete
-                // self.res.insert((self.scope_id, name), symbol);
                 // self.create_final_res(named.id, symbol);
             }
         }
@@ -350,8 +357,6 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
                 SymbolFlags::VALUE_MODULE,
                 SymbolFlags::VALUE_MODULE_EXCLUDES,
             );
-            let key = (self.scope_id, name);
-            self.res.insert(key, symbol);
             self.create_final_res(ns.id, symbol);
         } else {
             let symbol = self.declare_symbol_with_ns(name, container, is_export, ns);
@@ -363,7 +368,7 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
         }
     }
 
-    fn bind_block_scoped_decl(
+    pub(super) fn bind_block_scoped_decl(
         &mut self,
         node: ast::NodeID,
         name: SymbolName,
@@ -384,8 +389,8 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
                     loc,
                     None,
                     node,
-                    SymbolFlags::INTERFACE,
-                    SymbolFlags::INTERFACE_EXCLUDES,
+                    includes,
+                    exclude_flags,
                     false,
                     false,
                 )
@@ -413,7 +418,6 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
         //     .is_some_and(|mods| mods.flags.contains(ast::ModifierKind::Export));
         let is_export = false;
         let name = SymbolName::Normal(t.name.name);
-        let key = (self.scope_id, name);
         let location = self.temp_local(container, is_export);
         let symbol = self.declare_symbol(
             Some(name),
@@ -425,7 +429,6 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
             false,
             false,
         );
-        self.res.insert(key, symbol);
         self.create_final_res(t.id, symbol);
         let old = self.scope_id;
         self.scope_id = self.new_scope();
@@ -565,35 +568,20 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
             CallSig(call) => {
                 let old_old = self.scope_id;
                 self.scope_id = self.new_scope();
-
                 let name = SymbolName::Call;
-                // let symbol = self.declare_symbol_and_add_to_symbol_table(
-                //     container,
-                //     name,
-                //     None,
-                //     call.id,
-                //     false,
-                //     Some(SymbolFlags::SIGNATURE),
-                //     Some(SymbolFlags::empty()),
-                // );
-                // let key = (self.scope_id, name);
-                // self.res.insert(key, symbol);
-                // self.create_final_res(call.id, symbol);
-
-                // TODO: use `declare_symbol_and_add_to_symbol_table`
-                self.create_fn_decl_like_symbol(
+                let loc = self.temp_local(container, false);
+                let symbol = self.declare_symbol_and_add_to_symbol_table(
                     container,
-                    call,
                     name,
+                    call.id,
+                    loc,
                     SymbolFlags::SIGNATURE,
                     SymbolFlags::empty(),
-                    false,
                 );
-
+                self.create_final_res(call.id, symbol);
                 if let Some(ty_params) = call.ty_params {
                     self.bind_ty_params(call.id, ty_params);
                 }
-
                 self.bind_params(call.params);
                 if let Some(ty) = call.ty {
                     self.bind_ty(ty);
@@ -679,8 +667,6 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
             SymbolFlags::INTERFACE,
             SymbolFlags::INTERFACE_EXCLUDES,
         );
-        let key = (self.scope_id, name);
-        self.res.insert(key, symbol);
         self.create_final_res(i.id, symbol);
 
         let old = self.scope_id;
@@ -703,7 +689,7 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
 
     fn create_locals_for_container(&mut self, container: ast::NodeID) {
         assert!(self.p.node(container).has_locals());
-        let prev = self.locals.insert(container, fx_hashmap_with_capacity(64));
+        let prev = self.locals.insert(container, SymbolTable::default());
         assert!(prev.is_none());
     }
 
@@ -833,14 +819,13 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
     pub(super) fn bind_block_stmt(&mut self, block: &'cx ast::BlockStmt<'cx>) {
         let container_flags = block.get_container_flags(self.p);
         self.bind_container(block.id, container_flags, |this| {
-            // this.create_block_container_symbol(block.id);
             for stmt in block.stmts {
                 this.bind_stmt(block.id, stmt)
             }
         });
     }
 
-    pub(super) fn bind_block_stmt_with_container(
+    fn bind_block_stmt_with_container(
         &mut self,
         container: ast::NodeID,
         block: &'cx ast::ModuleBlock<'cx>,
@@ -1321,7 +1306,6 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
                                     include_flags,
                                     exclude_flags,
                                 );
-                                self.res.insert((self.scope_id, name), symbol);
                                 symbol
                             } else {
                                 self.bind_anonymous_decl(var_decl, include_flags, name)
@@ -1424,8 +1408,6 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
             SymbolFlags::FUNCTION,
             SymbolFlags::FUNCTION_EXCLUDES,
         );
-        let key = (self.scope_id, ele_name);
-        self.res.insert(key, symbol);
         self.create_final_res(f.id, symbol);
         // }
 
@@ -1470,6 +1452,39 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
                 symbol_flags,
                 symbol_excludes,
             ),
+            FnTy(_)
+            | ClassCtor(_)
+            | CallSigDecl(_)
+            | CtorSigDecl(_)
+            | IndexSigDecl(_)
+            | ClassMethodElem(_)
+            | ObjectMethodMember(_)
+            | MethodSignature(_)
+            | CtorTy(_)
+            | GetterDecl(_)
+            | SetterDecl(_)
+            | FnDecl(_)
+            | FnExpr(_)
+            | ArrowFnExpr(_)
+            | TypeDecl(_)
+            | MappedTy(_) => {
+                assert!(
+                    c.has_locals(),
+                    "container({:?}) should have locals, but it doesn't",
+                    c.span()
+                );
+                let table = SymbolTableLocation::locals(container);
+                self.declare_symbol(
+                    Some(name),
+                    table,
+                    None,
+                    current,
+                    symbol_flags,
+                    symbol_excludes,
+                    false,
+                    false,
+                )
+            }
             _ => {
                 // TODO: handle more case:
                 self.declare_symbol(
@@ -1528,28 +1543,67 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
             }
         }
 
-        let is_export = has_export_modifier
-            || self
-                .p
-                .node_flags_map
-                .get(container)
-                .intersects(bolt_ts_ast::NodeFlags::EXPORT_CONTEXT);
-        let loc = if is_export {
-            SymbolTableLocation::exports(container)
+        if !self.p.node(current).is_ambient_module()
+            && (has_export_modifier
+                || self
+                    .p
+                    .node_flags(container)
+                    .intersects(NodeFlags::EXPORT_CONTEXT))
+        {
+            let export_kind = if symbol_flags.intersects(SymbolFlags::VALUE) {
+                SymbolFlags::EXPORT_VALUE
+            } else {
+                SymbolFlags::empty()
+            };
+            let table = SymbolTableLocation::locals(container);
+            let local = self.declare_symbol(
+                Some(name),
+                table,
+                None,
+                current,
+                export_kind,
+                symbol_excludes,
+                false,
+                false,
+            );
+            let table = SymbolTableLocation::exports(container);
+            let export_symbol = self.declare_symbol(
+                Some(name),
+                table,
+                None,
+                current,
+                symbol_flags,
+                symbol_excludes,
+                false,
+                false,
+            );
+            self.symbols.get_mut(local).export_symbol = Some(export_symbol);
+            // TODO: node.local_symbol = local;
+            // TODO: return local
+            export_symbol
         } else {
-            SymbolTableLocation::locals(container)
-        };
-        let symbol = self.declare_symbol(
-            Some(name),
-            loc,
-            None,
-            current,
-            symbol_flags,
-            symbol_excludes,
-            false,
-            false,
-        );
-        symbol
+            let is_export = has_export_modifier
+                || self
+                    .p
+                    .node_flags_map
+                    .get(container)
+                    .intersects(bolt_ts_ast::NodeFlags::EXPORT_CONTEXT);
+            let loc = if is_export {
+                SymbolTableLocation::exports(container)
+            } else {
+                SymbolTableLocation::locals(container)
+            };
+            self.declare_symbol(
+                Some(name),
+                loc,
+                None,
+                current,
+                symbol_flags,
+                symbol_excludes,
+                false,
+                false,
+            )
+        }
     }
 
     fn check_contextual_ident(&mut self, ident: ast::NodeID) {
@@ -1664,7 +1718,7 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
     ) -> SymbolID {
         let symbol = self.create_symbol(name, flags);
         if flags.intersects(SymbolFlags::ENUM_MEMBER | SymbolFlags::CLASS_MEMBER) {
-            // TODO: parent
+            // self.symbols.get_mut(symbol).parent = container.symbol
         }
         self.add_declaration_to_symbol(symbol, node, flags);
         symbol

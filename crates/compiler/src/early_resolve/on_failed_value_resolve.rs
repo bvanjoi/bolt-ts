@@ -139,6 +139,7 @@ impl<'cx> Resolver<'cx, '_, '_> {
                     ),
                 );
             }
+            return None;
         }
 
         let res = resolve_symbol_by_ident(self, ident, SymbolFlags::TYPE).symbol;

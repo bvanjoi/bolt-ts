@@ -620,9 +620,33 @@ impl<'cx> Node<'cx> {
 
     pub fn has_locals(&self) -> bool {
         use Node::*;
+
         matches!(
             self,
-            Program(_) | BlockStmt(_) | CondTy(_) | NamespaceDecl(_)
+            ArrowFnExpr(_)
+                | BlockStmt(_)
+                | CallSigDecl(_)
+                | CatchClause(_)
+                | ClassCtor(_)
+                | CondTy(_)
+                | CtorTy(_)
+                | CtorSigDecl(_)
+                | ClassMethodElem(_)
+                | ForStmt(_)
+                | ForInStmt(_)
+                | ForOfStmt(_)
+                | FnDecl(_)
+                | FnExpr(_)
+                | FnTy(_)
+                | GetterDecl(_)
+                | IndexSigDecl(_)
+                | MappedTy(_)
+                | MethodSignature(_)
+                | NamespaceDecl(_)
+                | ObjectMethodMember(_)
+                | Program(_)
+                | SetterDecl(_)
+                | TypeDecl(_)
         )
     }
 
@@ -641,6 +665,10 @@ impl<'cx> Node<'cx> {
 
     pub fn is_effective_module_decl(&self) -> bool {
         self.is_ident() || self.is_namespace_decl()
+    }
+
+    pub fn is_ambient_module(&self) -> bool {
+        self.as_namespace_decl().is_some_and(|n| n.is_ambient())
     }
 }
 

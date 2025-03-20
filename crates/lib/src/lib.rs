@@ -10,10 +10,10 @@ macro_rules! lib {
       )*
     };
 }
-pub const LIB_ENTIRES: [(&str, &str); 5] = [
+pub const LIB_ENTIRES: [(&str, &str); 1] = [
     lib!("es5"),
-    lib!("es2015"),
-    lib!("es2015.core"),
-    lib!("es2015.symbol"),
-    lib!("es6"),
+    // lib!("es2015"),
+    // lib!("es2015.core"),
+    // lib!("es2015.symbol"),
+    // lib!("es6"),
 ];

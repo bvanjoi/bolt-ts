@@ -3,6 +3,7 @@ use bolt_ts_atom::AtomId;
 use bolt_ts_ast::TokenKind;
 use bolt_ts_ast::{NodeFlags, VarDecls};
 
+use super::ast;
 use super::errors;
 use super::list_ctx;
 use super::parse_class_like::ParseClassDecl;
@@ -10,7 +11,6 @@ use super::parse_fn_like::ParseFnDecl;
 use super::parse_import_export_spec::ParseNamedExports;
 use super::parse_import_export_spec::ParseNamedImports;
 use super::{PResult, ParserState};
-use super::{ast, has_export_decls};
 use crate::keyword::{self, IDENT_GLOBAL};
 use crate::parser::parse_break_or_continue::{ParseBreak, ParseContinue};
 
@@ -331,16 +331,20 @@ impl<'cx> ParserState<'cx, '_> {
             }
         }
         let name = self.with_parent(id, Self::parse_ident_name)?;
+        let save_has_export_decl = self.has_export_decl;
+        self.has_export_decl = false;
         let block = self.with_parent(id, Self::parse_module_block)?;
         let span = self.new_span(start);
-        Ok(self.create_ns_decl(
+        let decl = self.create_ns_decl(
             id,
             span,
             mods,
             ast::ModuleName::Ident(name),
             Some(block),
             false,
-        ))
+        );
+        self.has_export_decl = save_has_export_decl;
+        Ok(decl)
     }
 
     pub(super) fn is_ident_name(&self, name: AtomId) -> bool {
@@ -390,6 +394,17 @@ impl<'cx> ParserState<'cx, '_> {
         Ok(self.create_ns_decl(id, span, mods, name, block, is_global_argument))
     }
 
+    fn set_export_context_flags(&self, block_exist: bool) -> NodeFlags {
+        if self.context_flags.intersects(ast::NodeFlags::AMBIENT)
+            && block_exist
+            && !self.has_export_decl
+        {
+            self.context_flags | NodeFlags::EXPORT_CONTEXT
+        } else {
+            self.context_flags & !NodeFlags::EXPORT_CONTEXT
+        }
+    }
+
     fn create_ns_decl(
         &mut self,
         id: ast::NodeID,
@@ -399,13 +414,7 @@ impl<'cx> ParserState<'cx, '_> {
         block: Option<&'cx bolt_ts_ast::ModuleBlock<'cx>>,
         is_global_argument: bool,
     ) -> &'cx ast::NsDecl<'cx> {
-        let flags = if self.context_flags.intersects(ast::NodeFlags::AMBIENT)
-            && block.is_some_and(|body| !has_export_decls(&body.stmts))
-        {
-            NodeFlags::EXPORT_CONTEXT | self.context_flags
-        } else {
-            self.context_flags
-        };
+        let flags = self.set_export_context_flags(block.is_some());
         let decl = self.alloc(ast::NsDecl {
             id,
             span,
@@ -491,6 +500,7 @@ impl<'cx> ParserState<'cx, '_> {
     }
 
     fn parse_export_decl(&mut self, start: u32) -> PResult<&'cx ast::ExportDecl<'cx>> {
+        self.has_export_decl = true;
         let id = self.next_node_id();
 
         let is_type_only = self.parse_optional(TokenKind::Type).is_some();

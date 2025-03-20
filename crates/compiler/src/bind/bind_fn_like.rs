@@ -2,7 +2,6 @@ use crate::ir;
 
 use super::{BinderState, SymbolFlags};
 use bolt_ts_ast as ast;
-use rustc_hash::FxHashMap;
 
 impl<'cx> BinderState<'cx, '_, '_> {
     pub(super) fn create_fn_decl_like_symbol(
@@ -23,8 +22,6 @@ impl<'cx> BinderState<'cx, '_, '_> {
             includes,
             excludes,
         );
-        let key = (self.scope_id, ele_name);
-        self.res.insert(key, symbol);
         self.create_final_res(decl.id(), symbol);
         symbol
     }

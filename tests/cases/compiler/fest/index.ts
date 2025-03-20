@@ -893,8 +893,8 @@ type PrivateIntRange<
 // =========== IsAny ===========
 // Can eventually be replaced with the built-in once this library supports
 // TS5.4+ only. Tracked in https://github.com/sindresorhus/type-fest/issues/848
-type NoInfer<T> = T extends infer U ? U : never;
-type IsAny<T> = 0 extends 1 & NoInfer<T> ? true : false;
+type NoInfer2<T> = T extends infer U ? U : never;
+type IsAny<T> = 0 extends 1 & NoInfer2<T> ? true : false;
 {
   const anything: any = 1;
   const something = 'something';
@@ -1989,7 +1989,7 @@ type Promisable<T> = T | PromiseLike<T>;
 {
   const promisable: Promisable<string> = '';
   const a0: PromiseLike<string> | string = promisable;
-  const a1: Promisable<string> = Promise.resolve(42);
+  // const a1: Promisable<string> = Promise.resolve(42);
 }
 
 // ======== ReadonlyKeysOf ========

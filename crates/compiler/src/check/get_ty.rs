@@ -1431,7 +1431,7 @@ impl<'cx> TyChecker<'cx> {
         node: &'cx ast::CondTy<'cx>,
     ) -> Option<ty::Tys<'cx>> {
         let id = node.id;
-        let locals = self.binder.locals(id)?;
+        let locals = &self.binder.locals(id)?.0;
         let ty_params = locals
             .iter()
             .flat_map(|(_, symbol)| {
@@ -1672,7 +1672,7 @@ impl<'cx> TyChecker<'cx> {
     }
 
     pub(super) fn get_global_type(&mut self, name: SymbolName) -> &'cx Ty<'cx> {
-        let Some(s) = self.global_symbols.get(name) else {
+        let Some(s) = self.global_symbols.0.get(&name).copied() else {
             unreachable!()
         };
         self.get_declared_ty_of_symbol(s)

@@ -1262,7 +1262,7 @@ impl<'cx> TyChecker<'cx> {
         } else if ty.kind.is_intersection() {
             self.resolve_intersection_type_members(ty);
         } else {
-            unreachable!()
+            unreachable!("{:#?}", ty)
         };
         assert!(self.get_ty_links(ty.id).get_structured_members().is_some());
     }
