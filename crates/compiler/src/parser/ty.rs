@@ -895,7 +895,7 @@ impl<'cx> ParserState<'cx, '_> {
             self.insert_map(id, ast::Node::MethodSignature(sig));
             ast::ObjectTyMemberKind::Method(sig)
         } else {
-            let ty = self.parse_ty_anno()?;
+            let ty = self.with_parent(id, Self::parse_ty_anno)?;
             let sig = self.alloc(ast::PropSignature {
                 id,
                 span: self.new_span(start),
@@ -921,8 +921,8 @@ impl<'cx> ParserState<'cx, '_> {
         }
 
         let ty_params = self.with_parent(id, Self::parse_ty_params)?;
-        let params = self.parse_params()?;
-        let ty = self.parse_ret_ty(true)?;
+        let params = self.with_parent(id, Self::parse_params)?;
+        let ty = self.with_parent(id, |this| this.parse_ret_ty(true))?;
         self.parse_ty_member_semi();
         let span = self.new_span(start);
         let kind = if is_call {

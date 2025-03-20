@@ -1,6 +1,5 @@
 use super::BinderState;
 use super::FlowNodes;
-use super::ScopeID;
 use super::container_flags::ContainerFlags;
 use super::container_flags::GetContainerFlags;
 use super::flow::FlowFlags;
@@ -40,11 +39,7 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
         BinderState {
             atoms,
             p: parser,
-            scope_id: ScopeID::root(module_id),
-            scope_id_parent_map: Vec::with_capacity(512),
-            res: fx_hashmap_with_capacity(512),
             final_res: fx_hashmap_with_capacity(512),
-            node_id_to_scope_id: fx_hashmap_with_capacity(512),
             container_chain: fx_hashmap_with_capacity(128),
             locals: fx_hashmap_with_capacity(128),
             symbols,
@@ -79,25 +74,7 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
         self.diags.push(diag);
     }
 
-    pub(super) fn connect(&mut self, node_id: ast::NodeID) {
-        let prev = self.node_id_to_scope_id.insert(node_id, self.scope_id);
-        assert!(prev.is_none());
-    }
-
-    pub(super) fn new_scope(&mut self) -> ScopeID {
-        let next = ScopeID {
-            module: self.scope_id.module,
-            index: self.scope_id_parent_map.len() as u32,
-        };
-        self.scope_id_parent_map.push(Some(self.scope_id));
-        next
-    }
-
     pub fn bind_program(&mut self, root: &'cx ast::Program) {
-        assert_eq!(self.scope_id.index_as_u32(), 0);
-        assert!(self.scope_id_parent_map.is_empty());
-        self.scope_id_parent_map.push(None);
-        self.connect(root.id);
         self.current_flow = Some(self.flow_nodes.create_start(None));
         // TODO: if is_external_module
         // if self.p.is_external_or_commonjs_module() {
@@ -139,7 +116,7 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
             Export(decl) => self.bind_export_decl(container, decl),
             For(n) => {
                 if let Some(init) = &n.init {
-                    self.bind_for_init(init);
+                    self.bind_for_init(n.id, init);
                 }
                 if let Some(cond) = n.cond {
                     self.bind_expr(cond);
@@ -150,12 +127,12 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
                 self.bind_stmt(container, n.body);
             }
             ForOf(n) => {
-                self.bind_for_init(&n.init);
+                self.bind_for_init(n.id, &n.init);
                 self.bind_expr(n.expr);
                 self.bind_stmt(container, n.body);
             }
             ForIn(n) => {
-                self.bind_for_init(&n.init);
+                self.bind_for_init(n.id, &n.init);
                 self.bind_expr(n.expr);
                 self.bind_stmt(container, n.body);
             }
@@ -205,8 +182,6 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
     fn bind_try_stmt(&mut self, _container: ast::NodeID, stmt: &'cx ast::TryStmt<'cx>) {
         self.bind_block_stmt(stmt.try_block);
         if let Some(catch) = stmt.catch_clause {
-            let old = self.scope_id;
-            self.scope_id = self.new_scope();
             if let Some(var) = catch.var {
                 self.bind_var_binding(
                     None,
@@ -218,17 +193,16 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
                 );
             }
             self.bind_block_stmt(catch.block);
-            self.scope_id = old;
         }
         if let Some(finally) = stmt.finally_block {
             self.bind_block_stmt(finally);
         }
     }
 
-    fn bind_for_init(&mut self, init: &ast::ForInitKind<'cx>) {
+    fn bind_for_init(&mut self, block_container: ast::NodeID, init: &ast::ForInitKind<'cx>) {
         use bolt_ts_ast::ForInitKind::*;
         match init {
-            Var((kind, var)) => self.bind_var_decls(None, var, *kind, false),
+            Var((kind, var)) => self.bind_var_decls(block_container, var, *kind, false),
             Expr(expr) => self.bind_expr(expr),
         }
     }
@@ -347,21 +321,20 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
             .modifiers
             .is_some_and(|mods| mods.flags.contains(ast::ModifierKind::Export));
 
-        if ns.is_ambient() {
+        let s = if ns.is_ambient() {
             let loc = self.temp_local(container, is_export);
-            let symbol = self.declare_symbol_and_add_to_symbol_table(
+            self.declare_symbol_and_add_to_symbol_table(
                 container,
                 name,
                 ns.id,
                 loc,
                 SymbolFlags::VALUE_MODULE,
                 SymbolFlags::VALUE_MODULE_EXCLUDES,
-            );
-            self.create_final_res(ns.id, symbol);
+            )
         } else {
-            let symbol = self.declare_symbol_with_ns(name, container, is_export, ns);
-            self.create_final_res(ns.id, symbol);
-        }
+            self.declare_symbol_with_ns(name, container, is_export, ns)
+        };
+        self.create_final_res(ns.id, s);
 
         if let Some(block) = ns.block {
             self.bind_block_stmt_with_container(ns.id, block);
@@ -430,13 +403,10 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
             false,
         );
         self.create_final_res(t.id, symbol);
-        let old = self.scope_id;
-        self.scope_id = self.new_scope();
         if let Some(ty_params) = t.ty_params {
             self.bind_ty_params(t.id, ty_params);
         }
         self.bind_ty(t.ty);
-        self.scope_id = old;
     }
 
     pub(super) fn bind_ty_params(&mut self, container: ast::NodeID, ty_params: ast::TyParams<'cx>) {
@@ -493,8 +463,6 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
                 SymbolFlags::TYPE_PARAMETER,
                 SymbolFlags::TYPE_PARAMETER_EXCLUDES,
             );
-            let key = (self.scope_id, name);
-            self.res.insert(key, s);
             s
         };
         self.create_final_res(ty_param.id, s);
@@ -529,7 +497,7 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
             false,
         );
         self.create_final_res(index.id, symbol);
-        self.bind_params(index.params);
+        self.bind_params(index.id, index.params);
         self.bind_ty(index.ty);
     }
 
@@ -544,8 +512,6 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
                 self.create_object_member_symbol(container, name, m.id, m.question.is_some());
             }
             Method(m) => {
-                let old = self.scope_id;
-                self.scope_id = self.new_scope();
                 let name = prop_name(m.name);
                 self.create_fn_decl_like_symbol(
                     container,
@@ -558,16 +524,12 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
                 if let Some(ty_params) = m.ty_params {
                     self.bind_ty_params(m.id, ty_params);
                 }
-                self.bind_params(m.params);
+                self.bind_params(m.id, m.params);
                 if let Some(ty) = m.ty {
                     self.bind_ty(ty);
                 }
-
-                self.scope_id = old;
             }
             CallSig(call) => {
-                let old_old = self.scope_id;
-                self.scope_id = self.new_scope();
                 let name = SymbolName::Call;
                 let loc = self.temp_local(container, false);
                 let symbol = self.declare_symbol_and_add_to_symbol_table(
@@ -582,23 +544,19 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
                 if let Some(ty_params) = call.ty_params {
                     self.bind_ty_params(call.id, ty_params);
                 }
-                self.bind_params(call.params);
+                self.bind_params(call.id, call.params);
                 if let Some(ty) = call.ty {
                     self.bind_ty(ty);
                 }
-
-                self.scope_id = old_old;
             }
             IndexSig(index) => {
                 self.bind_index_sig(container, index, false);
             }
             CtorSig(decl) => {
-                let old = self.scope_id;
-                self.scope_id = self.new_scope();
                 if let Some(ty_params) = decl.ty_params {
                     self.bind_ty_params(decl.id, ty_params);
                 }
-                self.bind_params(decl.params);
+                self.bind_params(decl.id, decl.params);
                 if let Some(ty) = decl.ty {
                     self.bind_ty(ty);
                 }
@@ -611,7 +569,6 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
                     SymbolFlags::empty(),
                     false,
                 );
-                self.scope_id = old;
             }
             Setter(n) => {
                 let symbol = self.bind_prop_or_method_or_access(
@@ -623,13 +580,10 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
                     SymbolFlags::SET_ACCESSOR_EXCLUDES,
                 );
                 self.create_final_res(n.id, symbol);
-                let old = self.scope_id;
-                self.scope_id = self.new_scope();
-                self.bind_params(n.params);
+                self.bind_params(n.id, n.params);
                 if let Some(body) = n.body {
                     self.bind_block_stmt(body);
                 }
-                self.scope_id = old;
             }
             Getter(n) => {
                 let symbol = self.bind_prop_or_method_or_access(
@@ -641,15 +595,12 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
                     SymbolFlags::GET_ACCESSOR_EXCLUDES,
                 );
                 self.create_final_res(n.id, symbol);
-                let old = self.scope_id;
-                self.scope_id = self.new_scope();
                 if let Some(ty) = n.ty {
                     self.bind_ty(ty);
                 }
                 if let Some(body) = n.body {
                     self.bind_block_stmt(body);
                 }
-                self.scope_id = old;
             }
         }
     }
@@ -669,9 +620,6 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
         );
         self.create_final_res(i.id, symbol);
 
-        let old = self.scope_id;
-        self.scope_id = self.new_scope();
-
         if let Some(ty_params) = i.ty_params {
             self.bind_ty_params(i.id, ty_params);
         }
@@ -684,7 +632,6 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
         for m in i.members {
             self.bind_object_ty_member(i.id, m)
         }
-        self.scope_id = old;
     }
 
     fn create_locals_for_container(&mut self, container: ast::NodeID) {
@@ -714,13 +661,10 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
         container_flags: ContainerFlags,
         bind_children: impl FnOnce(&mut Self),
     ) {
-        let old = self.scope_id;
         let save_container = self.container;
         let save_this_parent_container = self.this_parent_container;
         let save_block_scope_container = self.block_scope_container;
         let save_in_return_position = self.in_return_position;
-
-        self.scope_id = self.new_scope();
 
         let n = self.p.node(node);
         if n.as_arrow_fn_expr()
@@ -813,7 +757,6 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
         self.container = save_container;
         self.this_parent_container = save_this_parent_container;
         self.block_scope_container = save_block_scope_container;
-        self.scope_id = old;
     }
 
     pub(super) fn bind_block_stmt(&mut self, block: &'cx ast::BlockStmt<'cx>) {
@@ -830,21 +773,15 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
         container: ast::NodeID,
         block: &'cx ast::ModuleBlock<'cx>,
     ) {
-        let old = self.scope_id;
-        self.scope_id = self.new_scope();
-
         for stmt in block.stmts {
             self.bind_stmt(container, stmt)
         }
-
-        self.scope_id = old;
     }
 
     fn bind_ident(&mut self, ident: &'cx ast::Ident) {
         if let Some(flow) = self.current_flow {
             self.flow_nodes.insert_container_map(ident.id, flow);
         }
-        self.connect(ident.id)
     }
 
     pub(super) fn bind_expr(&mut self, expr: &ast::Expr<'cx>) {
@@ -906,28 +843,22 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
     }
 
     fn bind_fn_expr(&mut self, f: &'cx ast::FnExpr<'cx>) {
-        let old = self.scope_id;
-        self.scope_id = self.new_scope();
-
         self.create_fn_expr_symbol(f, f.id);
 
-        self.bind_params(f.params);
+        self.bind_params(f.id, f.params);
         if let Some(ty) = f.ty {
             self.bind_ty(ty);
         }
         self.bind_block_stmt(f.body);
-        self.scope_id = old;
     }
 
     fn bind_arrow_fn_expr(&mut self, f: &'cx ast::ArrowFnExpr<'cx>) {
         self.create_fn_expr_symbol(f, f.id);
 
-        let old = self.scope_id;
-        self.scope_id = self.new_scope();
         if let Some(ty_params) = f.ty_params {
             self.bind_ty_params(f.id, ty_params);
         }
-        self.bind_params(f.params);
+        self.bind_params(f.id, f.params);
         if let Some(ty) = f.ty {
             self.bind_ty(ty);
         }
@@ -936,7 +867,6 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
             Block(block) => self.bind_block_stmt(block),
             Expr(expr) => self.bind_expr(expr),
         }
-        self.scope_id = old;
     }
 
     pub(super) fn finish_flow_label(&mut self, id: FlowID) -> FlowID {
@@ -1053,9 +983,6 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
             self.bind_anonymous_decl(lit.id, SymbolFlags::OBJECT_LITERAL, SymbolName::Object);
         self.create_final_res(lit.id, symbol);
 
-        let old = self.scope_id;
-        self.scope_id = self.new_scope();
-
         for member in lit.members {
             use bolt_ts_ast::ObjectMemberKind::*;
             match member.kind {
@@ -1079,32 +1006,27 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
                         SymbolFlags::PROPERTY_EXCLUDES,
                         false,
                     );
-                    let old = self.scope_id;
-                    self.scope_id = self.new_scope();
                     if let Some(ty_params) = n.ty_params {
                         self.bind_ty_params(n.id, ty_params);
                     }
-                    self.bind_params(n.params);
+                    self.bind_params(n.id, n.params);
                     if let Some(ty) = n.ty {
                         self.bind_ty(ty);
                     }
                     self.bind_block_stmt(n.body);
-                    self.scope_id = old;
                 }
                 SpreadAssignment(n) => {
                     self.bind_expr(n.expr);
                 }
             }
         }
-        self.scope_id = old;
     }
 
     fn bind_var_stmt(&mut self, container: ast::NodeID, var: &'cx ast::VarStmt) {
-        self.connect(var.id);
         let is_export = var
             .modifiers
             .is_some_and(|mods| mods.flags.contains(ast::ModifierKind::Export));
-        self.bind_var_decls(Some(container), var.list, var.kind, is_export);
+        self.bind_var_decls(container, var.list, var.kind, is_export);
     }
 
     pub(super) fn bind_entity_name(&mut self, name: &'cx ast::EntityName) {
@@ -1142,15 +1064,12 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
                 }
             }
             ObjectLit(lit) => {
-                let old = self.scope_id;
-                self.scope_id = self.new_scope();
                 let symbol =
                     self.bind_anonymous_decl(lit.id, SymbolFlags::TYPE_LITERAL, SymbolName::Type);
                 self.create_final_res(lit.id, symbol);
                 for m in lit.members {
                     self.bind_object_ty_member(lit.id, m);
                 }
-                self.scope_id = old;
             }
             Refer(refer) => self.bind_refer_ty(refer),
             Cond(cond) => {
@@ -1171,19 +1090,16 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
                 if let Some(ty_params) = f.ty_params {
                     self.bind_ty_params(f.id, ty_params);
                 }
-                self.bind_params(f.params);
+                self.bind_params(f.id, f.params);
                 self.bind_ty(f.ty);
             }
             Ctor(n) => {
                 self.create_fn_ty_symbol(n.id, SymbolName::New);
-                let old = self.scope_id;
-                self.scope_id = self.new_scope();
                 if let Some(ty_params) = n.ty_params {
                     self.bind_ty_params(n.id, ty_params);
                 }
-                self.bind_params(n.params);
+                self.bind_params(n.id, n.params);
                 self.bind_ty(n.ty);
-                self.scope_id = old;
             }
             Lit(_) => {}
             Union(u) => {
@@ -1249,13 +1165,13 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
 
     fn bind_var_decls(
         &mut self,
-        container: Option<ast::NodeID>,
+        container: ast::NodeID,
         decls: ast::VarDecls<'cx>,
         kind: ast::VarKind,
         is_export: bool,
     ) {
         for decl in decls {
-            self.bind_var_decl(container, decl, kind, is_export);
+            self.bind_var_decl(Some(container), decl, kind, is_export);
         }
     }
 
@@ -1271,7 +1187,6 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
         use bolt_ts_ast::BindingKind::*;
         match binding.kind {
             Ident(ident) => {
-                self.connect(ident.id);
                 let name = SymbolName::Normal(ident.name);
                 let symbol = if let Some(container) = container {
                     let loc = self.temp_local(container, is_export);
@@ -1286,7 +1201,6 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
                 } else {
                     self.bind_anonymous_decl(var_decl, include_flags, name)
                 };
-                self.res.insert((self.scope_id, name), symbol);
                 self.create_final_res(ident.id, symbol);
             }
             ObjectPat(object) => {
@@ -1294,7 +1208,6 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
                     use bolt_ts_ast::ObjectBindingName::*;
                     match elem.name {
                         Shorthand(ident) => {
-                            self.connect(ident.id);
                             let name = SymbolName::Normal(ident.name);
                             let symbol = if let Some(container) = container {
                                 let loc = self.temp_local(container, is_export);
@@ -1369,15 +1282,16 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
         self.current_flow = Some(self.create_flow_assign(self.current_flow.unwrap(), id))
     }
 
-    pub(super) fn bind_params(&mut self, params: ast::ParamsDecl<'cx>) {
+    // TODO: remove Option
+    pub(super) fn bind_params(&mut self, container: ast::NodeID, params: ast::ParamsDecl<'cx>) {
         for param in params {
-            self.bind_param(param);
+            self.bind_param(container, param);
         }
     }
 
-    pub(super) fn bind_param(&mut self, param: &'cx ast::ParamDecl) {
+    pub(super) fn bind_param(&mut self, container: ast::NodeID, param: &'cx ast::ParamDecl) {
         self.bind_var_binding(
-            None,
+            Some(container),
             false,
             param.name,
             param.id,
@@ -1393,8 +1307,6 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
     }
 
     fn bind_fn_decl(&mut self, container: ast::NodeID, f: &'cx ast::FnDecl<'cx>) {
-        self.connect(f.id);
-
         // if self.in_strict_mode {
         // } else {
         let ele_name = SymbolName::Normal(f.name.name);
@@ -1411,23 +1323,17 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
         self.create_final_res(f.id, symbol);
         // }
 
-        let old_old = self.scope_id;
-        self.scope_id = self.new_scope();
-
         if let Some(ty_params) = f.ty_params {
             self.bind_ty_params(f.id, ty_params);
         }
 
-        self.scope_id = self.new_scope();
-
-        self.bind_params(f.params);
+        self.bind_params(f.id, f.params);
         if let Some(ty) = f.ty {
             self.bind_ty(ty);
         }
         if let Some(body) = f.body {
             self.bind_block_stmt(body);
         }
-        self.scope_id = old_old;
     }
 
     pub(super) fn declare_symbol_and_add_to_symbol_table(
@@ -1451,6 +1357,16 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
                 current,
                 symbol_flags,
                 symbol_excludes,
+            ),
+            ObjectLitTy(_) | ObjectLit(_) | InterfaceDecl(_) => self.declare_symbol(
+                Some(name),
+                SymbolTableLocation::members(container),
+                None,
+                current,
+                symbol_flags,
+                symbol_excludes,
+                false,
+                false,
             ),
             FnTy(_)
             | ClassCtor(_)
@@ -1486,7 +1402,7 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
                 )
             }
             _ => {
-                // TODO: handle more case:
+                // TODO: remove
                 self.declare_symbol(
                     Some(name),
                     loc,
@@ -1582,17 +1498,7 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
             // TODO: return local
             export_symbol
         } else {
-            let is_export = has_export_modifier
-                || self
-                    .p
-                    .node_flags_map
-                    .get(container)
-                    .intersects(bolt_ts_ast::NodeFlags::EXPORT_CONTEXT);
-            let loc = if is_export {
-                SymbolTableLocation::exports(container)
-            } else {
-                SymbolTableLocation::locals(container)
-            };
+            let loc = SymbolTableLocation::locals(container);
             self.declare_symbol(
                 Some(name),
                 loc,

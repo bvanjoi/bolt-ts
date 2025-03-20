@@ -131,7 +131,7 @@ impl<'cx> ParserState<'cx, '_> {
         });
         let params = self.alloc([param]);
         self.expect(TokenKind::EqGreat);
-        let body = self.parse_arrow_fn_expr_body()?;
+        let body = self.with_parent(expr_id, Self::parse_arrow_fn_expr_body)?;
         let f = self.alloc(ast::ArrowFnExpr {
             id: expr_id,
             span: self.new_span(param.span.lo),
@@ -452,7 +452,7 @@ impl<'cx> ParserState<'cx, '_> {
             expr = self.parse_member_expr_rest(start, expr)?;
             let parse_rest =
                 |this: &mut Self, id: ast::NodeID, ty_args: Option<&'cx ast::Tys<'cx>>| {
-                    let args = this.parse_args()?;
+                    let args = this.with_parent(id, Self::parse_args)?;
                     let call = this.alloc(ast::CallExpr {
                         id,
                         span: this.new_span(start as u32),

@@ -189,7 +189,7 @@ impl<'cx> ParserState<'cx, '_> {
                 this.allow_in_and(|this| this.parse_assign_expr_or_higher(true))
             })?;
             self.expect(RParen);
-            let body = self.parse_stmt()?;
+            let body = self.with_parent(id, Self::parse_stmt)?;
             let kind = self.alloc(ast::ForOfStmt {
                 id,
                 span: self.new_span(start),
@@ -204,7 +204,7 @@ impl<'cx> ParserState<'cx, '_> {
             let init = init.unwrap();
             let expr = self.with_parent(id, |this| this.allow_in_and(Self::parse_expr))?;
             self.expect(RParen);
-            let body = self.parse_stmt()?;
+            let body = self.with_parent(id, Self::parse_stmt)?;
             let kind = self.alloc(ast::ForInStmt {
                 id,
                 span: self.new_span(start),
@@ -229,7 +229,7 @@ impl<'cx> ParserState<'cx, '_> {
             };
             self.expect(RParen);
 
-            let body = self.parse_stmt()?;
+            let body = self.with_parent(id, Self::parse_stmt)?;
             let kind = self.alloc(ast::ForStmt {
                 id,
                 span: self.new_span(start),
@@ -385,7 +385,7 @@ impl<'cx> ParserState<'cx, '_> {
             name = ast::ModuleName::StringLit(self.parse_string_lit());
         }
         let block = if self.token.kind == TokenKind::LBrace {
-            Some(self.parse_module_block()?)
+            Some(self.with_parent(id, Self::parse_module_block)?)
         } else {
             self.parse_semi();
             None

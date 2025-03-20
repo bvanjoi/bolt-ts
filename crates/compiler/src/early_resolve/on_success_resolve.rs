@@ -25,7 +25,7 @@ impl<'cx> Resolver<'cx, '_, '_> {
                     bolt_ts_ast::BindingKind::ObjectPat(_) => todo!(),
                     bolt_ts_ast::BindingKind::ArrayPat(_) => todo!(),
                 };
-                if symbol == self.states[self.module_id.as_usize()].final_res[&id] {
+                if symbol == self.symbol_of_decl(id) {
                     let error = errors::ParameterXCannotReferenceItself {
                         span: ident.span,
                         name: self.atoms.get(ident.name).to_string(),

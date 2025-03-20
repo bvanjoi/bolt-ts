@@ -38,7 +38,6 @@ impl<'cx> BinderState<'cx, '_, '_> {
         is_export: bool,
         ns: &ast::NsDecl<'cx>,
     ) -> SymbolID {
-        let key = (self.scope_id, name);
         let state = self.p.get_module_instance_state(ns, None);
         let instantiated = state != ModuleInstanceState::NonInstantiated;
         let includes = if instantiated {

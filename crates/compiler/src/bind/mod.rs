@@ -34,8 +34,6 @@ pub(crate) enum ModuleInstanceState {
     ConstEnumOnly = 2,
 }
 
-bolt_ts_utils::module_index!(ScopeID);
-
 pub struct Binder {
     binder_result: Vec<ResolveResult>,
 }
@@ -79,13 +77,9 @@ impl Binder {
 }
 
 struct BinderState<'cx, 'atoms, 'parser> {
-    scope_id: ScopeID,
     p: &'parser mut ParseResult<'cx>,
     atoms: &'atoms AtomMap<'cx>,
     diags: Vec<bolt_ts_errors::Diag>,
-    scope_id_parent_map: Vec<Option<ScopeID>>,
-    // TODO: use `NodeId::index` is enough
-    node_id_to_scope_id: FxHashMap<ast::NodeID, ScopeID>,
     symbols: Symbols,
     // TODO: use `NodeId::index` is enough
     locals: FxHashMap<ast::NodeID, SymbolTable>,
@@ -113,7 +107,6 @@ struct BinderState<'cx, 'atoms, 'parser> {
 
     // TODO: use `NodeId::index` is enough
     container_chain: FxHashMap<ast::NodeID, ast::NodeID>,
-    res: FxHashMap<(ScopeID, SymbolName), SymbolID>,
     // TODO: use `NodeId::index` is enough
     final_res: FxHashMap<ast::NodeID, SymbolID>,
     flow_nodes: FlowNodes<'cx>,
@@ -121,13 +114,9 @@ struct BinderState<'cx, 'atoms, 'parser> {
 
 pub struct BinderResult<'cx> {
     pub(crate) diags: Vec<bolt_ts_errors::Diag>,
-    pub(crate) scope_id_parent_map: Vec<Option<ScopeID>>,
-    // TODO: use `NodeId::index` is enough
-    pub(crate) node_id_to_scope_id: FxHashMap<ast::NodeID, ScopeID>,
     pub(crate) symbols: Symbols,
     // TODO: use `NodeId::index` is enough
     pub(crate) locals: FxHashMap<ast::NodeID, SymbolTable>,
-    pub(super) res: FxHashMap<(ScopeID, SymbolName), SymbolID>,
     // TODO: use `NodeId::index` is enough
     pub(crate) final_res: FxHashMap<ast::NodeID, SymbolID>,
     pub(crate) flow_nodes: FlowNodes<'cx>,
@@ -137,11 +126,8 @@ impl<'cx> BinderResult<'cx> {
     fn new(state: BinderState<'cx, '_, '_>) -> Self {
         Self {
             diags: state.diags,
-            scope_id_parent_map: state.scope_id_parent_map,
-            node_id_to_scope_id: state.node_id_to_scope_id,
             symbols: state.symbols,
             locals: state.locals,
-            res: state.res,
             final_res: state.final_res,
             flow_nodes: state.flow_nodes,
         }

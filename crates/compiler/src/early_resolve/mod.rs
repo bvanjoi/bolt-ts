@@ -675,7 +675,7 @@ impl<'cx> Resolver<'cx, '_, '_> {
                 if let Some(parent) = parent {
                     if parent == container {
                         // TODO: js doc template tag
-                        return false;
+                        return true;
                     }
                 }
             }
@@ -697,12 +697,12 @@ pub(super) fn resolve_symbol_by_ident<'a, 'cx>(
     use ast::Node::*;
     let key = SymbolName::Normal(ident.name);
     let mut associated_declaration_for_containing_initializer_or_binding_name = None;
-    let mut last_location = None;
+    let mut last_location = Some(ident.id);
     let mut location = resolver.p.parent(ident.id);
     while let Some(id) = location {
         if let Some(locals) = resolver.locals(id) {
             if !resolver.p.is_global_source_file(id) {
-                if let Some(symbol) = locals.0.get(&SymbolName::Normal(ident.name)).copied() {
+                if let Some(symbol) = locals.0.get(&key).copied() {
                     if resolver.symbol(symbol).flags.intersects(meaning) {
                         let mut use_result = true;
                         if let Some(cond) = resolver.p.node(id).as_cond_ty() {
@@ -719,7 +719,6 @@ pub(super) fn resolve_symbol_by_ident<'a, 'cx>(
                 }
             }
         }
-        last_location = location;
 
         let n = resolver.p.node(id);
         match n {
@@ -758,8 +757,13 @@ pub(super) fn resolve_symbol_by_ident<'a, 'cx>(
                 }
             }
             ClassDecl(_) | ClassExpr(_) | InterfaceDecl(_) => {
-                let members = &resolver.symbol(resolver.symbol_of_decl(id)).members;
-                if let Some(res) = members.0.get(&key).copied() {
+                if let Some(res) = resolver
+                    .symbol(resolver.symbol_of_decl(id))
+                    .members
+                    .0
+                    .get(&key)
+                    .copied()
+                {
                     if resolver
                         .symbol(res)
                         .flags
@@ -815,65 +819,30 @@ pub(super) fn resolve_symbol_by_ident<'a, 'cx>(
                     };
                 }
             }
-            _ => {}
-        }
-        location = resolver.p.parent(id);
-    }
-    let binder = &resolver.states[resolver.module_id.as_usize()];
-    // TODO: use locals rather than scope.
-    let Some(mut scope_id) = binder.node_id_to_scope_id.get(&ident.id).copied() else {
-        let name = ast::debug_ident(ident, resolver.atoms);
-        unreachable!("the scope of {name:?} is not stored");
-    };
-    loop {
-        if let Some(id) = binder.res.get(&(scope_id, key)).copied() {
-            let symbol = binder.symbols.get(id);
-            if resolver
-                .p
-                .parent(ident.id)
-                .is_some_and(|n| resolver.p.node(n).is_qualified_name())
-            {
-                return ResolvedResult {
-                    symbol: id,
-                    associated_declaration_for_containing_initializer_or_binding_name,
-                };
-            }
-            let decl = if symbol
-                .flags
-                .intersects(SymbolFlags::FUNCTION_SCOPED_VARIABLE)
-            {
-                Some(symbol.decls[0])
-            } else {
-                None
-            };
-            if let Some(decl) = decl {
-                if resolver.p.node(decl).is_param_decl()
-                    && resolver.p.is_descendant_of(ident.id, decl)
-                {
-                    associated_declaration_for_containing_initializer_or_binding_name = Some(decl);
+            ParamDecl(p) => {
+                if let Some(last_location) = last_location {
+                    if p.init.is_some_and(|init| init.id() == last_location) {
+                        if associated_declaration_for_containing_initializer_or_binding_name
+                            .is_none()
+                        {
+                            associated_declaration_for_containing_initializer_or_binding_name =
+                                Some(id);
+                        }
+                    }
                 }
             }
-            if symbol.flags.intersects(meaning) {
-                return ResolvedResult {
-                    symbol: id,
-                    associated_declaration_for_containing_initializer_or_binding_name,
-                };
-            }
+            _ => {}
         }
+        last_location = location;
+        location = resolver.p.parent(id);
+    }
 
-        if let Some(parent) = binder.scope_id_parent_map[scope_id.index_as_usize()] {
-            scope_id = parent;
-        } else if let Some(symbol) = resolver.global.0.get(&key).copied() {
-            if resolver.symbol(symbol).flags.intersects(meaning) {
-                return ResolvedResult {
-                    symbol,
-                    associated_declaration_for_containing_initializer_or_binding_name,
-                };
-            } else {
-                break;
-            }
-        } else {
-            break;
+    if let Some(symbol) = resolver.global.0.get(&key).copied() {
+        if resolver.symbol(symbol).flags.intersects(meaning) {
+            return ResolvedResult {
+                symbol,
+                associated_declaration_for_containing_initializer_or_binding_name,
+            };
         }
     }
 
