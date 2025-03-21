@@ -9,7 +9,7 @@ impl<'cx> Emit<'cx> {
         match stmt.kind {
             Var(var) => self.emit_var_stmt(var),
             Expr(expr) => {
-                self.emit_expr(expr);
+                self.emit_expr(expr.expr);
                 self.content.p_semi();
             }
             Fn(f) => self.emit_fn_decl(f),

@@ -22,7 +22,7 @@ pub enum StmtKind<'cx> {
     Block(&'cx BlockStmt<'cx>),
     Fn(&'cx FnDecl<'cx>),
     Class(&'cx ClassDecl<'cx>),
-    Expr(&'cx super::Expr<'cx>),
+    Expr(&'cx ExprStmt<'cx>),
     Interface(&'cx InterfaceDecl<'cx>),
     Type(&'cx TypeDecl<'cx>),
     Namespace(&'cx NsDecl<'cx>),
@@ -47,7 +47,7 @@ impl Stmt<'_> {
             Block(block) => block.id,
             Fn(f) => f.id,
             Class(c) => c.id,
-            Expr(expr) => expr.id(),
+            Expr(expr) => expr.id,
             Interface(i) => i.id,
             Type(t) => t.id,
             Namespace(n) => n.id,
@@ -66,6 +66,13 @@ impl Stmt<'_> {
             Debugger(n) => n.id,
         }
     }
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct ExprStmt<'cx> {
+    pub id: NodeID,
+    pub span: Span,
+    pub expr: &'cx super::Expr<'cx>,
 }
 
 #[derive(Debug, Clone, Copy)]

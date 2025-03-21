@@ -48,20 +48,4 @@ impl<'cx> TyChecker<'cx> {
             Qualified(n) => self.final_res(n.id),
         }
     }
-
-    // fn resolve_qualified_name(
-    //     &mut self,
-    //     left: &'cx ast::EntityName<'cx>,
-    //     right: &'cx ast::Ident,
-    // ) -> SymbolID {
-    //     let left_symbol = self.resolve_entity_name(left);
-    //     let left_s = self.binder.symbol(left_symbol);
-    //     let ns = if left_s.flags.intersects(SymbolFlags::NAMESPACE) {
-    //         left_s.expect_ns()
-    //     } else {
-    //         return Symbol::ERR;
-    //     };
-    //     let name = SymbolName::Normal(right.name);
-    //     ns.exports.get(&name)
-    // }
 }

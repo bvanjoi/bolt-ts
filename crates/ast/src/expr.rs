@@ -9,7 +9,7 @@ pub struct Expr<'cx> {
     pub kind: ExprKind<'cx>,
 }
 
-impl Expr<'_> {
+impl<'cx> Expr<'cx> {
     pub fn span(&self) -> Span {
         use ExprKind::*;
         match self.kind {
@@ -101,6 +101,27 @@ impl Expr<'_> {
         } else {
             false
         }
+    }
+
+    fn is_outer_expr(&self) -> bool {
+        match self.kind {
+            ExprKind::Paren(_) => true,
+            // TODO: handle more case
+            _ => false,
+        }
+    }
+
+    pub fn skip_outer_expr(mut expr: &'cx Expr<'cx>) -> &'cx Expr<'cx> {
+        while expr.is_outer_expr() {
+            if let ExprKind::Paren(child) = expr.kind {
+                expr = child.expr;
+            }
+        }
+        expr
+    }
+
+    pub fn skip_parens(expr: &'cx Expr<'cx>) -> &'cx Expr<'cx> {
+        Self::skip_outer_expr(expr)
     }
 }
 

@@ -703,7 +703,7 @@ impl<'cx> TyChecker<'cx> {
             } else {
                 unreachable!()
             };
-            let n = self.p.skip_parens(expr);
+            let n = bolt_ts_ast::Expr::skip_parens(expr);
             if let ast::ExprKind::Ident(n) = n.kind {
                 let symbol = self.node_links[&n.id].expect_resolved_symbol();
                 let flags = self.symbol(symbol).flags();

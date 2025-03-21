@@ -66,6 +66,7 @@ pub enum Node<'cx> {
     ForInStmt(&'cx super::ForInStmt<'cx>),
     ForOfStmt(&'cx super::ForOfStmt<'cx>),
     WhileStmt(&'cx super::WhileStmt<'cx>),
+    ExprStmt(&'cx super::ExprStmt<'cx>),
     DoStmt(&'cx super::DoStmt<'cx>),
     BreakStmt(&'cx super::BreakStmt<'cx>),
     ContinueStmt(&'cx super::ContinueStmt<'cx>),
@@ -618,6 +619,31 @@ impl<'cx> Node<'cx> {
         self.is_block_stmt() || self.is_decl() || self.is_stmt_but_not_decl()
     }
 
+    pub fn ge_first_stmt_and_le_last_stmt(&self) -> bool {
+        use self::Node::*;
+        // same as `n >= FirstStatement && n <= LastStatement`
+        matches!(
+            self,
+            VarStmt(_)
+                | IfStmt(_)
+                | DoStmt(_)
+                | WhileStmt(_)
+                | ExprStmt(_)
+                | ForStmt(_)
+                | ForInStmt(_)
+                | ForOfStmt(_)
+                | ContinueStmt(_)
+                | BreakStmt(_)
+                | RetStmt(_)
+                // | WithStmt(_)
+                // | SwitchStmt(_)
+                // | LabeledStmt(_)
+                | ThrowStmt(_)
+                | TryStmt(_)
+                | DebuggerStmt(_)
+        )
+    }
+
     pub fn has_locals(&self) -> bool {
         use Node::*;
 
@@ -884,6 +910,7 @@ as_node!(
     (CatchClause, super::CatchClause<'cx>, catch_clause),
     (DoStmt, super::DoStmt<'cx>, do_stmt),
     (WhileStmt, super::WhileStmt<'cx>, while_stmt),
+    (ExprStmt, super::ExprStmt<'cx>, expr_stmt),
     (QualifiedName, super::QualifiedName<'cx>, qualified_name),
     (ObjectPat, super::ObjectPat<'cx>, object_pat),
     (ArrayPat, super::ArrayPat, array_pat),

@@ -1,6 +1,8 @@
-mod bind_call_like;
+mod bind_break_or_continue;
 mod bind_class_like;
-mod bind_fn_like;
+mod bind_for_in_for_of;
+mod bind_prop_or_ele_access;
+mod bind_ret_or_throw;
 mod bind_visitor;
 mod container_flags;
 mod create;
@@ -92,10 +94,13 @@ struct BinderState<'cx, 'atoms, 'parser> {
 
     current_flow: Option<FlowID>,
     in_strict_mode: bool,
+    in_assignment_pattern: bool,
+    parent: Option<ast::NodeID>,
     emit_flags: bolt_ts_ast::NodeFlags,
     has_explicit_return: bool,
     in_return_position: bool,
     has_flow_effects: bool,
+    has_explicit_ret: bool,
     current_true_target: Option<FlowID>,
     current_false_target: Option<FlowID>,
     current_exception_target: Option<FlowID>,
@@ -143,7 +148,7 @@ pub fn bind_parallel<'cx>(
     assert_eq!(parser.module_count(), modules.len());
     parser
         .map
-        .into_par_iter()
+        .into_iter()
         .zip(modules)
         .map(|(mut p, m)| {
             let module_id = m.id;
@@ -165,7 +170,7 @@ fn bind<'cx, 'atoms, 'parser>(
     options: &NormalizedTsConfig,
 ) -> BinderState<'cx, 'atoms, 'parser> {
     let mut state = BinderState::new(atoms, parser, root, module_id, options);
-    state.bind_program(root);
+    state.bind(root.id);
     state
 }
 

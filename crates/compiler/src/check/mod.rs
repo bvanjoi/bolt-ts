@@ -1053,7 +1053,7 @@ impl<'cx> TyChecker<'cx> {
     }
 
     fn is_for_in_variable_for_numeric_prop_names(&self, expr: &'cx ast::Expr<'cx>) -> bool {
-        let e = self.p.skip_parens(expr);
+        let e = bolt_ts_ast::Expr::skip_parens(expr);
         if let ast::ExprKind::Ident(ident) = e.kind {
             let symbol = self.resolve_symbol_by_ident(ident);
             if self
@@ -1818,7 +1818,7 @@ impl<'cx> TyChecker<'cx> {
                 let Some(expr) = ret.expr else {
                     return this.undefined_ty;
                 };
-                let expr = this.p.skip_parens(expr);
+                let expr = bolt_ts_ast::Expr::skip_parens(expr);
                 let old = if let Some(check_mode) = this.check_mode {
                     let old = this.check_mode;
                     this.check_mode = Some(check_mode & !CheckMode::SKIP_GENERIC_FUNCTIONS);

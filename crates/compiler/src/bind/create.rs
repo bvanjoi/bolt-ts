@@ -3,7 +3,6 @@ use rustc_hash::FxHashMap;
 use super::symbol::{SymbolFlags, SymbolTableLocation};
 use super::{BinderState, ModuleInstanceState, Symbol, SymbolID, SymbolName, Symbols, errors};
 use crate::bind::SymbolTable;
-use crate::ir;
 use crate::parser::ParseResult;
 
 use bolt_ts_ast as ast;
@@ -34,8 +33,6 @@ impl<'cx> BinderState<'cx, '_, '_> {
     pub(super) fn declare_symbol_with_ns(
         &mut self,
         name: SymbolName,
-        container: ast::NodeID,
-        is_export: bool,
         ns: &ast::NsDecl<'cx>,
     ) -> SymbolID {
         let state = self.p.get_module_instance_state(ns, None);
@@ -50,11 +47,7 @@ impl<'cx> BinderState<'cx, '_, '_> {
         } else {
             SymbolFlags::NAMESPACE_MODULE_EXCLUDES
         };
-        let loc = self.temp_local(container, is_export);
-        let id = self.declare_symbol_and_add_to_symbol_table(
-            container, name, ns.id, loc, includes, excludes,
-        );
-        id
+        self.declare_symbol_and_add_to_symbol_table(name, ns.id, None, includes, excludes)
     }
 
     pub(super) fn declare_symbol(
@@ -222,56 +215,5 @@ impl<'cx> BinderState<'cx, '_, '_> {
                 )
             }
         }
-    }
-
-    pub(super) fn create_fn_expr_symbol(
-        &mut self,
-        f: &impl ir::FnExprLike<'cx>,
-        decl: ast::NodeID,
-    ) {
-        let name = f.name().map(SymbolName::Normal).unwrap_or(SymbolName::Fn);
-        let symbol = self.bind_anonymous_decl(f.id(), SymbolFlags::FUNCTION, name);
-        self.create_final_res(decl, symbol);
-    }
-
-    pub(super) fn create_fn_ty_symbol(&mut self, id: ast::NodeID, symbol_name: SymbolName) {
-        let symbol = self.create_symbol(symbol_name, SymbolFlags::SIGNATURE);
-        self.add_declaration_to_symbol(symbol, id, SymbolFlags::SIGNATURE);
-
-        let ty_lit_symbol = self.create_symbol(symbol_name, SymbolFlags::TYPE_LITERAL);
-        self.add_declaration_to_symbol(ty_lit_symbol, id, SymbolFlags::TYPE_LITERAL);
-        self.symbols
-            .get_mut(ty_lit_symbol)
-            .members
-            .0
-            .insert(symbol_name, symbol);
-        self.create_final_res(id, ty_lit_symbol);
-    }
-
-    pub(super) fn create_object_member_symbol(
-        &mut self,
-        container: ast::NodeID,
-        name: SymbolName,
-        member: ast::NodeID,
-        is_optional: bool,
-    ) -> SymbolID {
-        let flags = SymbolFlags::PROPERTY
-            | if is_optional {
-                SymbolFlags::OPTIONAL
-            } else {
-                SymbolFlags::empty()
-            };
-
-        let loc = SymbolTableLocation::members(container);
-        let symbol = self.declare_symbol_and_add_to_symbol_table(
-            container,
-            name,
-            member,
-            loc,
-            flags,
-            SymbolFlags::PROPERTY_EXCLUDES,
-        );
-        self.create_final_res(member, symbol);
-        symbol
     }
 }

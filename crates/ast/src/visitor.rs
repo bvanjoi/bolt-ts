@@ -11,7 +11,7 @@ pub fn visit_stmt<'cx>(v: &mut impl Visitor<'cx>, stmt: &'cx super::Stmt) {
         Class(node) => v.visit_class_decl(node),
         Import(node) => v.visit_import_decl(node),
         Interface(node) => v.visit_interface_decl(node),
-        Expr(node) => v.visit_expr(node),
+        Expr(node) => v.visit_expr_stmt(node),
         Var(node) => v.visit_var_stmt(node),
         Try(node) => v.visit_try_stmt(node),
         Export(_) => {}
@@ -237,6 +237,10 @@ pub fn visit_block_stmt<'cx>(v: &mut impl Visitor<'cx>, n: &'cx super::BlockStmt
     }
 }
 
+pub fn visit_expr_stmt<'cx>(v: &mut impl Visitor<'cx>, n: &'cx super::ExprStmt<'cx>) {
+    v.visit_expr(n.expr);
+}
+
 macro_rules! make_visitor {
     ( $( ($visit_node: ident, $ty: ty) ),* $(,)? ) => {
       pub trait Visitor<'cx>: Sized {
@@ -286,7 +290,8 @@ make_visitor!(
     (visit_expr, super::Expr<'cx>),
     (visit_object_lit, super::ObjectLit<'cx>),
     (visit_try_stmt, super::TryStmt<'cx>),
-    (visit_block_stmt, super::BlockStmt<'cx>)
+    (visit_block_stmt, super::BlockStmt<'cx>),
+    (visit_expr_stmt, super::ExprStmt<'cx>),
 );
 
 pub fn visit_node<'cx>(v: &mut impl Visitor<'cx>, node: &super::Node<'cx>) {

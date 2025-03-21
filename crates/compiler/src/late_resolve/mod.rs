@@ -91,6 +91,10 @@ impl Resolver<'_, '_, '_> {
         s.decls[0]
     }
 
+    fn symbol_of_decl(&self, id: ast::NodeID) -> SymbolID {
+        self.states[id.module().as_usize()].final_res[&id]
+    }
+
     fn symbol(&self, symbol_id: SymbolID) -> &crate::bind::Symbol {
         self.states[symbol_id.module().as_usize()]
             .symbols
@@ -311,7 +315,7 @@ impl Resolver<'_, '_, '_> {
     }
 
     fn check_alias_symbol(&mut self, node: ast::NodeID) {
-        let symbol = self.states[node.module().as_usize()].final_res[&node];
+        let symbol = self.symbol_of_decl(node);
         self.resolve_alias(symbol);
     }
 

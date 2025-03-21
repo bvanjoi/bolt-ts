@@ -810,6 +810,8 @@ impl<'cx> ParserState<'cx, '_> {
         let kind = self.token.kind.try_into().unwrap();
         let flags = if kind == ast::VarKind::Const {
             ast::NodeFlags::CONST
+        } else if kind == ast::VarKind::Let {
+            ast::NodeFlags::LET
         } else {
             ast::NodeFlags::empty()
         };
@@ -896,7 +898,7 @@ impl<'cx> ParserState<'cx, '_> {
             name,
             init,
         });
-
+        self.insert_map(id, ast::Node::ObjectBindingElem(ele));
         Ok(ele)
     }
 
@@ -1011,9 +1013,17 @@ impl<'cx> ParserState<'cx, '_> {
         Ok(stmt)
     }
 
-    fn parse_expr_or_labeled_stmt(&mut self) -> PResult<&'cx ast::Expr<'cx>> {
-        let expr = self.allow_in_and(Self::parse_expr);
+    fn parse_expr_or_labeled_stmt(&mut self) -> PResult<&'cx ast::ExprStmt<'cx>> {
+        let id = self.next_node_id();
+        let start = self.token.start();
+        let expr = self.with_parent(id, |this| this.allow_in_and(Self::parse_expr))?;
         self.parse_semi();
-        expr
+        let stmt = self.alloc(ast::ExprStmt {
+            id,
+            span: self.new_span(start),
+            expr,
+        });
+        self.insert_map(id, ast::Node::ExprStmt(stmt));
+        Ok(stmt)
     }
 }

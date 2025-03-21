@@ -110,7 +110,7 @@ impl<'cx> Resolver<'cx, '_, '_> {
         use bolt_ts_ast::StmtKind::*;
         match stmt.kind {
             Var(var) => self.resolve_var_stmt(var),
-            Expr(expr) => self.resolve_expr(expr),
+            Expr(expr) => self.resolve_expr(expr.expr),
             Fn(f) => self.resolve_fn_decl(f),
             If(i) => self.resolve_if_stmt(i),
             Block(block) => self.resolve_block_stmt(block),
@@ -703,9 +703,25 @@ pub(super) fn resolve_symbol_by_ident<'a, 'cx>(
         if let Some(locals) = resolver.locals(id) {
             if !resolver.p.is_global_source_file(id) {
                 if let Some(symbol) = locals.0.get(&key).copied() {
-                    if resolver.symbol(symbol).flags.intersects(meaning) {
+                    let res_flags = resolver.symbol(symbol).flags;
+                    if res_flags.intersects(meaning) {
                         let mut use_result = true;
-                        if let Some(cond) = resolver.p.node(id).as_cond_ty() {
+                        let n = resolver.p.node(id);
+                        if n.is_fn_like()
+                            && last_location.is_some_and(|last_location| match n {
+                                FnDecl(f) => f.body.is_none_or(|body| last_location != body.id),
+                                _ => false, //TODO: other function decl,
+                            })
+                        {
+                            let flags = meaning.intersection(res_flags);
+                            if flags.intersects(SymbolFlags::TYPE) {}
+                            if flags.intersects(SymbolFlags::VARIABLE) {
+                                if res_flags.intersects(SymbolFlags::FUNCTION_SCOPED_VARIABLE) {
+                                    let last = resolver.p.node(last_location.unwrap());
+                                    use_result = last.is_param_decl();
+                                }
+                            };
+                        } else if let Some(cond) = n.as_cond_ty() {
                             use_result =
                                 last_location.is_some_and(|last| last == cond.true_ty.id());
                         }

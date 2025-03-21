@@ -14,7 +14,7 @@ bitflags::bitflags! {
   }
 }
 
-pub(super) trait GetContainerFlags {
+trait GetContainerFlags {
     fn get_container_flags(&self, p: &parser::ParseResult) -> ContainerFlags;
 }
 
@@ -141,5 +141,47 @@ impl GetContainerFlags for bolt_ts_ast::BlockStmt<'_> {
         } else {
             BS_AND_L
         }
+    }
+}
+
+pub(super) fn container_flags_for_node(
+    p: &parser::ParseResult,
+    node: bolt_ts_ast::NodeID,
+) -> ContainerFlags {
+    let n = p.node(node);
+    use bolt_ts_ast::Node::*;
+    match n {
+        ClassExpr(n) => n.get_container_flags(p),
+        ClassDecl(n) => n.get_container_flags(p),
+        EnumDecl(n) => n.get_container_flags(p),
+        ObjectLit(n) => n.get_container_flags(p),
+        ObjectLitTy(n) => n.get_container_flags(p),
+        InterfaceDecl(n) => n.get_container_flags(p),
+        NamespaceDecl(n) => n.get_container_flags(p),
+        TypeDecl(n) => n.get_container_flags(p),
+        MappedTy(n) => n.get_container_flags(p),
+        IndexSigDecl(n) => n.get_container_flags(p),
+        Program(n) => n.get_container_flags(p),
+        ObjectMethodMember(n) => n.get_container_flags(p),
+        ClassCtor(n) => n.get_container_flags(p),
+        FnDecl(n) => n.get_container_flags(p),
+        MethodSignature(n) => n.get_container_flags(p),
+        CallSigDecl(n) => n.get_container_flags(p),
+        FnTy(n) => n.get_container_flags(p),
+        CtorSigDecl(n) => n.get_container_flags(p),
+        CtorTy(n) => n.get_container_flags(p),
+        FnExpr(n) => n.get_container_flags(p),
+        ArrowFnExpr(n) => n.get_container_flags(p),
+        ModuleBlock(n) => n.get_container_flags(p),
+        CatchClause(n) => n.get_container_flags(p),
+        ForStmt(n) => n.get_container_flags(p),
+        ForInStmt(n) => n.get_container_flags(p),
+        ForOfStmt(n) => n.get_container_flags(p),
+        GetterDecl(n) => n.get_container_flags(p),
+        SetterDecl(n) => n.get_container_flags(p),
+        ClassMethodElem(n) => n.get_container_flags(p),
+        ClassPropElem(n) => n.get_container_flags(p),
+        BlockStmt(n) => n.get_container_flags(p),
+        _ => ContainerFlags::empty(),
     }
 }

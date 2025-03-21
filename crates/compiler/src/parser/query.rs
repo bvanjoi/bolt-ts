@@ -75,6 +75,10 @@ impl<'cx> ParseResult<'cx> {
         flags
     }
 
+    pub fn get_combined_node_flags(&self, id: ast::NodeID) -> ast::NodeFlags {
+        self.get_combined_flags(id, |p, id| p.node_flags(id))
+    }
+
     pub fn get_combined_modifier_flags(
         &self,
         id: ast::NodeID,
@@ -124,6 +128,11 @@ impl<'cx> ParseResult<'cx> {
             node = self.nodes.get(p);
         }
         matches!(node, ast::Node::TypeofTy(_))
+    }
+
+    pub fn is_part_of_param_decl(&self, id: ast::NodeID) -> bool {
+        let root = self.get_root_decl(id);
+        self.node(root).is_param_decl()
     }
 
     pub fn is_object_lit_or_class_expr_method_or_accessor(&self, node: ast::NodeID) -> bool {
@@ -256,6 +265,28 @@ impl<'cx> ParseResult<'cx> {
     pub fn is_global_source_file(&self, id: ast::NodeID) -> bool {
         !self.is_external_or_commonjs_module() && self.node(id).is_program()
     }
+
+    pub fn is_block_or_catch_scoped(&self, id: ast::NodeID) -> bool {
+        self.get_combined_node_flags(id)
+            .intersects(ast::NodeFlags::BLOCK_SCOPED)
+            || self.is_catch_clause_var_decl_or_binding_ele(id)
+    }
+
+    pub fn is_catch_clause_var_decl_or_binding_ele(&self, id: ast::NodeID) -> bool {
+        let n = self.get_root_decl(id);
+        self.node(n).is_var_decl() && self.node(self.parent(n).unwrap()).is_catch_clause()
+    }
+
+    pub fn get_root_decl(&self, mut id: ast::NodeID) -> ast::NodeID {
+        let mut n = self.node(id);
+        while n.is_object_binding_elem() {
+            let p = self.parent(id).unwrap();
+            // id = self.parent(p).unwrap();
+            id = p;
+            n = self.node(id);
+        }
+        id
+    }
 }
 
 impl<'cx> Parser<'cx> {
@@ -384,27 +415,6 @@ impl<'cx> Parser<'cx> {
         } else {
             false
         }
-    }
-
-    fn is_outer_expr(&self, expr: &'cx ast::Expr<'cx>) -> bool {
-        match expr.kind {
-            ast::ExprKind::Paren(_) => true,
-            // TODO: handle more case
-            _ => false,
-        }
-    }
-
-    pub fn skip_outer_expr(&self, mut expr: &'cx ast::Expr<'cx>) -> &'cx ast::Expr<'cx> {
-        while self.is_outer_expr(expr) {
-            if let ast::ExprKind::Paren(child) = expr.kind {
-                expr = child.expr;
-            }
-        }
-        expr
-    }
-
-    pub fn skip_parens(&self, expr: &'cx ast::Expr<'cx>) -> &'cx ast::Expr<'cx> {
-        self.skip_outer_expr(expr)
     }
 
     pub fn is_in_type_query(&self, id: ast::NodeID) -> bool {
@@ -542,13 +552,8 @@ impl<'cx> Parser<'cx> {
         self.get(id.module()).get_immediately_invoked_fn_expr(id)
     }
 
-    pub fn get_root_decl(&self, mut id: ast::NodeID) -> ast::NodeID {
-        let n = self.node(id);
-        while n.is_object_binding_elem() {
-            let p = self.parent(id).unwrap();
-            id = self.parent(p).unwrap();
-        }
-        id
+    pub fn get_root_decl(&self, id: ast::NodeID) -> ast::NodeID {
+        self.get(id.module()).get_root_decl(id)
     }
 
     pub fn get_control_flow_container(&self, node: ast::NodeID) -> ast::NodeID {
@@ -619,7 +624,7 @@ impl<'cx> Parser<'cx> {
     }
 
     pub fn get_combined_node_flags(&self, id: ast::NodeID) -> ast::NodeFlags {
-        self.get_combined_flags(id, |p, id| p.node_flags(id))
+        self.get(id.module()).get_combined_node_flags(id)
     }
 
     pub fn get_combined_modifier_flags(

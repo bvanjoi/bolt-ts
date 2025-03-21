@@ -13,7 +13,7 @@ impl<'cx> TyChecker<'cx> {
         match stmt.kind {
             Var(var) => self.check_var_stmt(var),
             Expr(expr) => {
-                self.check_expr(expr);
+                self.check_expr(expr.expr);
             }
             Fn(f) => self.check_fn_decl(f),
             If(i) => self.check_if_stmt(i),

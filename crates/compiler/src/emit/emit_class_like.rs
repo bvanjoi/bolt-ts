@@ -89,7 +89,7 @@ impl<'cx> Emit<'cx> {
 
             let last_super_call = block.stmts.iter().rev().position(|stmt| {
                 if let ast::StmtKind::Expr(expr) = stmt.kind {
-                    if let ast::ExprKind::Call(call) = expr.kind {
+                    if let ast::ExprKind::Call(call) = expr.expr.kind {
                         if let ast::ExprKind::Super(_) = call.expr.kind {
                             return true;
                         }
