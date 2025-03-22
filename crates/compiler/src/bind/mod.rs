@@ -1,9 +1,11 @@
 mod bind_break_or_continue;
+mod bind_children;
 mod bind_class_like;
+mod bind_container;
 mod bind_for_in_for_of;
 mod bind_prop_or_ele_access;
 mod bind_ret_or_throw;
-mod bind_visitor;
+mod bind_worker;
 mod container_flags;
 mod create;
 pub(crate) mod errors;
@@ -17,7 +19,9 @@ use rustc_hash::FxHashMap;
 
 use bolt_ts_atom::AtomMap;
 use bolt_ts_config::NormalizedTsConfig;
-use bolt_ts_span::{Module, ModuleID};
+use bolt_ts_span::Module;
+use bolt_ts_span::ModuleID;
+use bolt_ts_utils::fx_hashmap_with_capacity;
 
 pub use self::flow::{FlowFlags, FlowID, FlowNode, FlowNodeKind, FlowNodes};
 pub(crate) use self::merge::{MergeGlobalSymbolResult, merge_global_symbol};
@@ -117,6 +121,63 @@ struct BinderState<'cx, 'atoms, 'parser> {
     flow_nodes: FlowNodes<'cx>,
 }
 
+impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
+    fn new(
+        atoms: &'atoms AtomMap<'cx>,
+        parser: &'parser mut ParseResult<'cx>,
+        root: &'cx ast::Program<'cx>,
+        module_id: ModuleID,
+        options: &NormalizedTsConfig,
+    ) -> Self {
+        let symbols = Symbols::new(module_id);
+        let mut flow_nodes = FlowNodes::new(module_id);
+        let unreachable_flow_node = flow_nodes.create_flow_unreachable();
+        let report_unreachable_flow_node = flow_nodes.create_flow_unreachable();
+
+        let in_strict_mode = !root.is_declaration || *options.compiler_options().always_strict();
+
+        BinderState {
+            atoms,
+            p: parser,
+            final_res: fx_hashmap_with_capacity(512),
+            container_chain: fx_hashmap_with_capacity(128),
+            locals: fx_hashmap_with_capacity(128),
+            symbols,
+            diags: Vec::new(),
+
+            flow_nodes,
+            in_strict_mode,
+            in_assignment_pattern: false,
+            seen_this_keyword: false,
+            emit_flags: bolt_ts_ast::NodeFlags::empty(),
+            parent: None,
+            current_flow: None,
+            current_break_target: None,
+            current_continue_target: None,
+            current_return_target: None,
+            current_exception_target: None,
+            current_true_target: None,
+            current_false_target: None,
+            unreachable_flow_node,
+            report_unreachable_flow_node,
+            has_flow_effects: false,
+            has_explicit_ret: false,
+            in_return_position: false,
+            has_explicit_return: false,
+
+            container: None,
+            this_parent_container: None,
+            block_scope_container: None,
+            last_container: None,
+        }
+    }
+
+    fn push_error(&mut self, error: crate::Diag) {
+        let diag = bolt_ts_errors::Diag { inner: error };
+        self.diags.push(diag);
+    }
+}
+
 pub struct BinderResult<'cx> {
     pub(crate) diags: Vec<bolt_ts_errors::Diag>,
     pub(crate) symbols: Symbols,
@@ -148,7 +209,7 @@ pub fn bind_parallel<'cx>(
     assert_eq!(parser.module_count(), modules.len());
     parser
         .map
-        .into_iter()
+        .into_par_iter()
         .zip(modules)
         .map(|(mut p, m)| {
             let module_id = m.id;

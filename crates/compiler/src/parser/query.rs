@@ -287,6 +287,13 @@ impl<'cx> ParseResult<'cx> {
         }
         id
     }
+
+    pub fn is_param_prop_decl(&self, id: ast::NodeID, parent: ast::NodeID) -> bool {
+        let n = self.node(id);
+        n.is_param_decl()
+            && n.has_syntactic_modifier(ast::ModifierKind::PARAMETER_PROPERTY)
+            && self.node(parent).is_class_ctor()
+    }
 }
 
 impl<'cx> Parser<'cx> {

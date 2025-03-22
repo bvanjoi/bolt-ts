@@ -717,6 +717,7 @@ impl<'cx> ParserState<'cx, '_> {
             name,
             ty_args: None,
         });
+        self.insert_map(id, ast::Node::ReferTy(ty));
         self.alloc(ast::Ty {
             kind: ast::TyKind::Refer(ty),
         })

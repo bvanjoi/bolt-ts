@@ -554,6 +554,9 @@ impl<'cx> Node<'cx> {
             VarStmt,
             ClassDecl,
             NamespaceDecl,
+            InterfaceDecl,
+            ParamDecl,
+            IndexSigDecl,
         )
     }
 
