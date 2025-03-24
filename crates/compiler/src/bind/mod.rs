@@ -11,7 +11,7 @@ mod create;
 pub(crate) mod errors;
 mod flow;
 mod merge;
-pub mod node_query;
+mod node_query;
 mod parent_map;
 mod pprint;
 mod symbol;
@@ -27,6 +27,7 @@ use bolt_ts_utils::fx_hashmap_with_capacity;
 
 pub use self::flow::{FlowFlags, FlowID, FlowNode, FlowNodeKind, FlowNodes};
 pub(crate) use self::merge::{MergeGlobalSymbolResult, merge_global_symbol};
+pub use self::node_query::NodeQuery;
 pub use self::parent_map::ParentMap;
 pub use self::symbol::{GlobalSymbols, Symbol, SymbolID, SymbolName, Symbols};
 pub use self::symbol::{SymbolFlags, SymbolTable};
@@ -44,26 +45,31 @@ pub(crate) enum ModuleInstanceState {
 }
 
 pub struct Binder {
-    binder_result: Vec<ResolveResult>,
+    bind_results: Vec<ResolveResult>,
+    alias_target: FxHashMap<SymbolID, SymbolID>,
 }
 
 impl Binder {
-    pub fn new(p: &Parser) -> Self {
+    pub fn new(
+        bind_results: Vec<ResolveResult>,
+        alias_target: FxHashMap<SymbolID, SymbolID>,
+    ) -> Self {
         Self {
-            binder_result: Vec::with_capacity(p.module_count() + 1),
+            bind_results,
+            alias_target,
         }
     }
 
-    pub fn insert(&mut self, id: ModuleID, result: ResolveResult) {
-        assert_eq!(self.binder_result.len(), id.as_usize());
-        self.binder_result.push(result);
+    pub(crate) fn get_alias_target(&self, id: SymbolID) -> SymbolID {
+        assert!(self.symbol(id).flags.intersects(SymbolFlags::ALIAS));
+        self.alias_target.get(&id).copied().unwrap()
     }
 
     #[inline(always)]
     #[track_caller]
     pub(crate) fn get(&self, id: ModuleID) -> &ResolveResult {
         let index = id.as_usize();
-        &self.binder_result[index]
+        &self.bind_results[index]
     }
 
     #[inline(always)]
@@ -74,7 +80,7 @@ impl Binder {
     }
 
     pub fn steal_errors(&mut self) -> Vec<bolt_ts_errors::Diag> {
-        self.binder_result
+        self.bind_results
             .iter_mut()
             .flat_map(|result| std::mem::take(&mut result.diags))
             .collect()
@@ -123,6 +129,39 @@ struct BinderState<'cx, 'atoms, 'parser> {
     final_res: FxHashMap<ast::NodeID, SymbolID>,
     flow_nodes: FlowNodes<'cx>,
     parent_map: self::parent_map::ParentMap,
+}
+
+struct BinderNodeQuery<'cx, 'p> {
+    parent_map: &'p ParentMap,
+    parse_result: &'p ParseResult<'cx>,
+}
+
+impl<'cx, 'p> BinderNodeQuery<'cx, 'p> {
+    fn new(parent_map: &'p ParentMap, parse_result: &'p ParseResult<'cx>) -> Self {
+        Self {
+            parent_map,
+            parse_result,
+        }
+    }
+}
+
+impl<'cx> NodeQuery<'cx> for BinderNodeQuery<'cx, '_> {
+    fn node(&self, id: bolt_ts_ast::NodeID) -> bolt_ts_ast::Node<'cx> {
+        self.parse_result.node(id)
+    }
+
+    fn parent(&self, id: bolt_ts_ast::NodeID) -> Option<bolt_ts_ast::NodeID> {
+        self.parent_map.parent_unfinished(id)
+    }
+
+    fn node_flags(&self, id: bolt_ts_ast::NodeID) -> bolt_ts_ast::NodeFlags {
+        self.parse_result.node_flags(id)
+    }
+
+    fn is_external_or_commonjs_module(&self) -> bool {
+        self.parse_result.external_module_indicator.is_some()
+            || self.parse_result.commonjs_module_indicator.is_some()
+    }
 }
 
 impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
@@ -183,8 +222,8 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
         self.diags.push(diag);
     }
 
-    fn node_query(&self) -> self::node_query::NodeQuery<'cx, '_> {
-        self::node_query::NodeQuery::new(&self.parent_map, self.p)
+    fn node_query(&self) -> impl node_query::NodeQuery<'cx> {
+        BinderNodeQuery::new(&self.parent_map, self.p)
     }
 }
 

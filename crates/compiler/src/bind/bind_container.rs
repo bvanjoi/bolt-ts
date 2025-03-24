@@ -1,4 +1,5 @@
 use super::BinderState;
+use super::NodeQuery;
 use super::container_flags::ContainerFlags;
 
 use bolt_ts_ast as ast;

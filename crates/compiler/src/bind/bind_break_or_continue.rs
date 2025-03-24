@@ -1,6 +1,6 @@
 use super::BinderState;
 
-trait BreakOrContinue {}
+pub(super) trait BreakOrContinue {}
 impl<'cx> BreakOrContinue for bolt_ts_ast::BreakStmt<'cx> {}
 impl<'cx> BreakOrContinue for bolt_ts_ast::ContinueStmt<'cx> {}
 

@@ -2,6 +2,7 @@ mod errors;
 
 use bolt_ts_ast as ast;
 use bolt_ts_ast::Visitor;
+use normalize_path::NormalizePath;
 
 use super::parser;
 use super::parser::parse_parallel;
@@ -69,6 +70,7 @@ pub(super) fn build_graph<'cx>(
         diags: vec![],
     };
     while !resolving.is_empty() {
+        debug_assert!(resolving.is_sorted_by_key(|m| m.as_u32()));
         struct ResolvedModule<'cx> {
             id: ModuleID,
             parse_result: parser::ParseResult<'cx>,
@@ -94,6 +96,7 @@ pub(super) fn build_graph<'cx>(
 
         for item in resolving {
             let p = module_arena.get_path(item);
+            debug_assert!(p.is_normalized());
             let path_id = PathId::get(p);
             resolved.insert(path_id, item);
         }
@@ -101,7 +104,7 @@ pub(super) fn build_graph<'cx>(
         let atoms = &mut atoms.lock().unwrap();
         let fs = &mut fs.lock().unwrap();
 
-        let mut next = fx_hashmap_with_capacity(modules.len() * 32);
+        let mut next = indexmap::IndexMap::with_capacity(modules.len() * 32);
         for ResolvedModule {
             id,
             parse_result,

@@ -1,31 +1,14 @@
-use super::ParseResult;
 use super::ast;
 
 use crate::bind::ModuleInstanceState;
 
-// TODO: delete this
-pub struct NodeQuery<'cx, 'p> {
-    parent_map: &'p super::ParentMap,
-    parse_result: &'p ParseResult<'cx>,
-}
+pub trait NodeQuery<'cx>: Sized {
+    fn node(&self, id: ast::NodeID) -> ast::Node<'cx>;
+    fn parent(&self, id: ast::NodeID) -> Option<ast::NodeID>;
+    fn node_flags(&self, id: ast::NodeID) -> ast::NodeFlags;
+    fn is_external_or_commonjs_module(&self) -> bool;
 
-impl<'cx, 'p> NodeQuery<'cx, 'p> {
-    pub fn new(parent_map: &'p super::ParentMap, parse_result: &'p ParseResult<'cx>) -> Self {
-        Self {
-            parent_map,
-            parse_result,
-        }
-    }
-
-    fn node(&self, id: ast::NodeID) -> ast::Node<'cx> {
-        self.parse_result.node(id)
-    }
-
-    fn parent(&self, id: ast::NodeID) -> Option<ast::NodeID> {
-        self.parent_map.parent_unfinished(id)
-    }
-
-    pub fn find_ancestor(
+    fn find_ancestor(
         &self,
         mut id: ast::NodeID,
         cb: impl Fn(ast::Node<'cx>) -> Option<bool>,
@@ -59,7 +42,7 @@ impl<'cx, 'p> NodeQuery<'cx, 'p> {
         }
     }
 
-    pub fn get_combined_flags<T: std::ops::BitOrAssign>(
+    fn get_combined_flags<T: std::ops::BitOrAssign>(
         &self,
         mut id: ast::NodeID,
         get_flag: impl Fn(&Self, ast::NodeID) -> T,
@@ -82,11 +65,11 @@ impl<'cx, 'p> NodeQuery<'cx, 'p> {
         flags
     }
 
-    pub fn get_combined_node_flags(&self, id: ast::NodeID) -> ast::NodeFlags {
-        self.get_combined_flags(id, |p, id| p.parse_result.node_flags(id))
+    fn get_combined_node_flags(&self, id: ast::NodeID) -> ast::NodeFlags {
+        self.get_combined_flags(id, |p, id| p.node_flags(id))
     }
 
-    pub fn get_combined_modifier_flags(
+    fn get_combined_modifier_flags(
         &self,
         id: ast::NodeID,
     ) -> enumflags2::BitFlags<ast::ModifierKind> {
@@ -116,7 +99,7 @@ impl<'cx, 'p> NodeQuery<'cx, 'p> {
     ) -> enumflags2::BitFlags<ast::ModifierKind> {
         let n = self.node(id);
         let flags = n.modifiers().map_or(Default::default(), |m| m.flags);
-        let node_flags = self.parse_result.node_flags(id);
+        let node_flags = self.node_flags(id);
         if node_flags.intersects(ast::NodeFlags::NESTED_NAMESPACE)
             || n.is_ident()
                 && node_flags.intersects(ast::NodeFlags::IDENTIFIER_IS_IN_JS_DOC_NAMESPACE)
@@ -127,7 +110,7 @@ impl<'cx, 'p> NodeQuery<'cx, 'p> {
         }
     }
 
-    pub fn is_part_of_ty_query(&self, mut n: ast::NodeID) -> bool {
+    fn is_part_of_ty_query(&self, mut n: ast::NodeID) -> bool {
         let mut node = self.node(n);
         while matches!(node, ast::Node::QualifiedName(_) | ast::Node::Ident(_)) {
             let p = self.parent(n).unwrap();
@@ -137,12 +120,12 @@ impl<'cx, 'p> NodeQuery<'cx, 'p> {
         matches!(node, ast::Node::TypeofTy(_))
     }
 
-    pub fn is_part_of_param_decl(&self, id: ast::NodeID) -> bool {
+    fn is_part_of_param_decl(&self, id: ast::NodeID) -> bool {
         let root = self.get_root_decl(id);
         self.node(root).is_param_decl()
     }
 
-    pub fn is_object_lit_or_class_expr_method_or_accessor(&self, node: ast::NodeID) -> bool {
+    fn is_object_lit_or_class_expr_method_or_accessor(&self, node: ast::NodeID) -> bool {
         let n = self.node(node);
         use ast::Node::*;
         if n.is_object_method_member() {
@@ -156,10 +139,7 @@ impl<'cx, 'p> NodeQuery<'cx, 'p> {
         }
     }
 
-    pub fn get_immediately_invoked_fn_expr(
-        &self,
-        id: ast::NodeID,
-    ) -> Option<&'cx ast::CallExpr<'cx>> {
+    fn get_immediately_invoked_fn_expr(&self, id: ast::NodeID) -> Option<&'cx ast::CallExpr<'cx>> {
         let n = self.node(id);
         if n.is_fn_expr() || n.is_arrow_fn_expr() {
             let mut prev = id;
@@ -184,13 +164,13 @@ impl<'cx, 'p> NodeQuery<'cx, 'p> {
             .intersects(ast::ModifierKind::Const)
     }
 
-    pub(crate) fn get_module_instance_state(
+    fn get_module_instance_state(
         &self,
         m: &'cx ast::NsDecl<'cx>,
         visited: Option<&mut nohash_hasher::IntMap<u32, Option<ModuleInstanceState>>>,
     ) -> ModuleInstanceState {
-        fn cache(
-            this: &NodeQuery,
+        fn cache<'cx>(
+            this: &impl NodeQuery<'cx>,
             node: ast::NodeID,
             visited: &mut nohash_hasher::IntMap<u32, Option<ModuleInstanceState>>,
         ) -> ModuleInstanceState {
@@ -205,8 +185,8 @@ impl<'cx, 'p> NodeQuery<'cx, 'p> {
             }
         }
 
-        fn _get_module_instance_state(
-            this: &NodeQuery,
+        fn _get_module_instance_state<'cx>(
+            this: &impl NodeQuery<'cx>,
             node: ast::NodeID,
             visited: &mut nohash_hasher::IntMap<u32, Option<ModuleInstanceState>>,
         ) -> ModuleInstanceState {
@@ -241,7 +221,6 @@ impl<'cx, 'p> NodeQuery<'cx, 'p> {
                 NamespaceDecl(ns) => this.get_module_instance_state(ns, Some(visited)),
                 Ident(_)
                     if this
-                        .parse_result
                         .node_flags(node)
                         .intersects(ast::NodeFlags::IDENTIFIER_IS_IN_JS_DOC_NAMESPACE) =>
                 {
@@ -266,30 +245,25 @@ impl<'cx, 'p> NodeQuery<'cx, 'p> {
     fn is_alias_symbol_decl(&self, id: ast::NodeID) -> bool {
         let node = self.node(id);
         use ast::Node::*;
-        matches!(node, ImportNamedSpec(_) | ShorthandSpec(_))
+        matches!(node, ImportNamedSpec(_) | ShorthandSpec(_) | NsImport(_))
     }
 
-    pub fn is_external_or_commonjs_module(&self) -> bool {
-        self.parse_result.external_module_indicator.is_some()
-            || self.parse_result.commonjs_module_indicator.is_some()
-    }
-
-    pub fn is_global_source_file(&self, id: ast::NodeID) -> bool {
+    fn is_global_source_file(&self, id: ast::NodeID) -> bool {
         !self.is_external_or_commonjs_module() && self.node(id).is_program()
     }
 
-    pub fn is_block_or_catch_scoped(&self, id: ast::NodeID) -> bool {
+    fn is_block_or_catch_scoped(&self, id: ast::NodeID) -> bool {
         self.get_combined_node_flags(id)
             .intersects(ast::NodeFlags::BLOCK_SCOPED)
             || self.is_catch_clause_var_decl_or_binding_ele(id)
     }
 
-    pub fn is_catch_clause_var_decl_or_binding_ele(&self, id: ast::NodeID) -> bool {
+    fn is_catch_clause_var_decl_or_binding_ele(&self, id: ast::NodeID) -> bool {
         let n = self.get_root_decl(id);
         self.node(n).is_var_decl() && self.node(self.parent(n).unwrap()).is_catch_clause()
     }
 
-    pub fn get_root_decl(&self, mut id: ast::NodeID) -> ast::NodeID {
+    fn get_root_decl(&self, mut id: ast::NodeID) -> ast::NodeID {
         let mut n = self.node(id);
         while n.is_object_binding_elem() {
             let p = self.parent(id).unwrap();
@@ -300,7 +274,7 @@ impl<'cx, 'p> NodeQuery<'cx, 'p> {
         id
     }
 
-    pub fn is_param_prop_decl(&self, id: ast::NodeID, parent: ast::NodeID) -> bool {
+    fn is_param_prop_decl(&self, id: ast::NodeID, parent: ast::NodeID) -> bool {
         let n = self.node(id);
         n.is_param_decl()
             && n.has_syntactic_modifier(ast::ModifierKind::PARAMETER_PROPERTY)

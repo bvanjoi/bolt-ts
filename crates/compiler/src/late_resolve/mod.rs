@@ -1,7 +1,7 @@
 mod errors;
 
 use crate::bind::{
-    BinderResult, GlobalSymbols, SymbolFlags, SymbolID, SymbolName, SymbolTable, Symbols,
+    BinderResult, GlobalSymbols, Symbol, SymbolFlags, SymbolID, SymbolName, SymbolTable, Symbols,
 };
 use crate::graph::{ModuleGraph, ModuleRes};
 use crate::parser;
@@ -18,74 +18,78 @@ pub struct ResolveResult {
     pub final_res: FxHashMap<ast::NodeID, SymbolID>,
     pub diags: Vec<bolt_ts_errors::Diag>,
     // TODO: use `NodeId::index` is enough
-    pub alias_target: FxHashMap<ast::NodeID, SymbolID>,
-    // TODO: use `NodeId::index` is enough
     pub locals: FxHashMap<ast::NodeID, SymbolTable>,
 }
 
 pub fn late_resolve<'cx>(
-    mut states: Vec<BinderResult<'cx>>,
+    states: Vec<BinderResult<'cx>>,
     modules: &[Module],
     mg: &'cx ModuleGraph,
     p: &'cx parser::Parser<'cx>,
     global: &'cx GlobalSymbols,
     atoms: &'cx AtomMap<'cx>,
-) -> Vec<(ModuleID, ResolveResult)> {
-    let mut temp = Vec::with_capacity(modules.len());
-    for module in modules {
-        let module_id = module.id;
-        let alias_target = fx_hashmap_with_capacity(states[module.id.as_usize()].final_res.len());
-        let root = p.root(module.id);
-        let mut resolver = Resolver {
-            mg,
-            p,
-            module_id,
-            global,
-            alias_target,
-            states: &mut states,
-            diags: vec![],
-            atoms,
-        };
-        resolver.visit_program(root);
-        let alias_target = std::mem::take(&mut resolver.alias_target);
-        let resolver_diags = std::mem::take(&mut resolver.diags);
-        temp.push((alias_target, resolver_diags));
-    }
-
-    modules
+) -> (
+    Vec<(ModuleID, ResolveResult)>,
+    FxHashMap<SymbolID, SymbolID>,
+) {
+    let mut alias_target = fx_hashmap_with_capacity(modules.len() * 128);
+    let temp = modules
         .iter()
-        .zip(states)
-        .zip(temp)
-        .map(|((module, mut state), (alias_target, diags))| {
-            let symbols = state.symbols;
-            let final_res = state.final_res;
-            state.diags.extend(diags);
-            let diags = state.diags;
-            let result = ResolveResult {
-                symbols,
-                final_res,
-                diags,
-                alias_target,
-                locals: state.locals,
+        .map(|m| {
+            let module_id = m.id;
+            let root = p.root(m.id);
+            let mut resolver = Resolver {
+                mg,
+                p,
+                module_id,
+                global,
+                alias_target: &mut alias_target,
+                states: &states,
+                diags: vec![],
+                atoms,
             };
-            (module.id, result)
+            resolver.visit_program(root);
+            let resolver_diags = std::mem::take(&mut resolver.diags);
+            resolver_diags
         })
-        .collect::<Vec<_>>()
+        .collect::<Vec<_>>();
+
+    (
+        modules
+            .iter()
+            .zip(states)
+            .zip(temp)
+            .map(|((x, y), z)| (x, y, z))
+            .map(|(module, mut state, diags)| {
+                let symbols = state.symbols;
+                let final_res = state.final_res;
+                state.diags.extend(diags);
+                let diags = state.diags;
+                let result = ResolveResult {
+                    symbols,
+                    final_res,
+                    diags,
+                    locals: state.locals,
+                };
+                (module.id, result)
+            })
+            .collect::<Vec<_>>(),
+        alias_target,
+    )
 }
 
 struct Resolver<'cx, 'r, 'atoms> {
     mg: &'cx ModuleGraph,
     module_id: ModuleID,
-    states: &'r mut Vec<BinderResult<'cx>>,
+    states: &'r Vec<BinderResult<'cx>>,
+    alias_target: &'r mut FxHashMap<SymbolID, SymbolID>,
     p: &'cx parser::Parser<'cx>,
     pub diags: Vec<bolt_ts_errors::Diag>,
     global: &'cx GlobalSymbols,
-    // TODO: use `NodeId::index` is enough
-    alias_target: FxHashMap<ast::NodeID, SymbolID>,
     atoms: &'atoms AtomMap<'cx>,
 }
 
-impl Resolver<'_, '_, '_> {
+impl<'cx> Resolver<'cx, '_, '_> {
     fn symbol_decl(&self, symbol_id: SymbolID) -> ast::NodeID {
         let s = self.symbol(symbol_id);
         s.decls[0]
@@ -112,11 +116,86 @@ impl Resolver<'_, '_, '_> {
     ) -> Option<SymbolID> {
         use ast::Node::*;
         match self.p.node(node) {
-            ImportNamedSpec(_) | ShorthandSpec(_) => {
+            ImportNamedSpec(_) => self.get_target_of_import_named_spec(node, dont_recur_resolve),
+            ShorthandSpec(_) if self.p.node(self.p.parent(node).unwrap()).is_import_clause() => {
                 self.get_target_of_import_named_spec(node, dont_recur_resolve)
             }
+            ShorthandSpec(_) => {
+                assert!(self.p.node(self.p.parent(node).unwrap()).is_specs_export());
+                const MEANING: SymbolFlags = SymbolFlags::VALUE
+                    .union(SymbolFlags::TYPE)
+                    .union(SymbolFlags::NAMESPACE);
+                self.get_target_of_export_spec(node, MEANING, dont_recur_resolve)
+            }
+            NsImport(n) => self.get_target_of_ns_import(n, dont_recur_resolve),
             _ => todo!(),
         }
+    }
+
+    fn get_target_of_ns_import(
+        &mut self,
+        n: &'cx ast::NsImport<'cx>,
+        dont_resolve_alias: bool,
+    ) -> Option<SymbolID> {
+        let p = self.p.parent(n.id).unwrap();
+        let p = self.p.parent(p).unwrap();
+        let import_decl = self.p.node(p).expect_import_decl();
+        let immediate = self.resolve_external_module_name(p, import_decl.module.val);
+        // TODO: resolve_es_module;
+        let resolved = immediate;
+        resolved
+    }
+
+    fn get_target_of_export_spec(
+        &mut self,
+        node: ast::NodeID,
+        meaning: SymbolFlags,
+        dont_recur_resolve: bool,
+    ) -> Option<SymbolID> {
+        let n = self.p.node(node);
+        let name = match n {
+            ast::Node::ShorthandSpec(n) => n.name.name,
+            ast::Node::ExportNamedSpec(n) => match n.prop_name.kind {
+                ast::ModuleExportNameKind::Ident(n) => n.name,
+                ast::ModuleExportNameKind::StringLit(_) => todo!(),
+            },
+            _ => unreachable!(),
+        };
+
+        // TODO: default
+        let resolved = match n {
+            ast::Node::ShorthandSpec(n) => {
+                let p = self.p.parent(node).unwrap();
+                let p = self.p.node(p).expect_specs_export();
+                if let Some(_) = p.module {
+                    todo!()
+                } else {
+                    self.states[n.id.module().as_usize()]
+                        .final_res
+                        // COMMENT: pay attention to `n.name.id`, `n.id` refers to itself, but `n.name.id` refers to the result in early_resolve.
+                        .get(&n.name.id)
+                        .copied()
+                }
+            }
+            ast::Node::ExportNamedSpec(n) => match n.prop_name.kind {
+                ast::ModuleExportNameKind::Ident(ident) => {
+                    let p = self.p.parent(node).unwrap();
+                    let p = self.p.node(p).expect_specs_export();
+                    if let Some(_) = p.module {
+                        todo!()
+                    } else {
+                        self.states[n.id.module().as_usize()]
+                            .final_res
+                            .get(&n.id)
+                            .copied()
+                    }
+                }
+                ast::ModuleExportNameKind::StringLit(_) => todo!(),
+            },
+            _ => unreachable!(),
+        };
+
+        resolved
     }
 
     fn resolve_external_module_name(
@@ -256,11 +335,12 @@ impl Resolver<'_, '_, '_> {
     ) -> Option<SymbolID> {
         let module_spec = match self.p.node(node) {
             ast::Node::ImportDecl(n) => n.module.val,
-            ast::Node::ShorthandSpec(n) => n.name.name,
             _ => todo!("node: {:#?}", self.p.node(node)),
         };
         let module_symbol = self.resolve_external_module_name(node, module_spec);
-        if let Some(module_symbol) = module_symbol {
+        // TODO: target_symbol
+        let target_symbol = module_symbol;
+        if let Some(target_symbol) = target_symbol {
             let name = match self.p.node(spec) {
                 ast::Node::ImportNamedSpec(n) => match n.prop_name.kind {
                     bolt_ts_ast::ModuleExportNameKind::Ident(ident) => ident.name,
@@ -270,24 +350,55 @@ impl Resolver<'_, '_, '_> {
                 _ => todo!(),
             };
             let symbol_name = SymbolName::Normal(name);
-            let symbol = self
-                .symbol(module_symbol)
-                .exports
-                .0
-                .get(&symbol_name)
-                .copied();
-            if symbol.is_none() {
+            let symbol_from_module =
+                self.get_export_of_module(target_symbol, symbol_name, dont_recur_resolve);
+            if symbol_from_module.is_none() {
                 self.error_no_module_member_symbol(
-                    module_symbol,
+                    module_symbol.unwrap(),
                     module_spec,
-                    module_symbol,
+                    target_symbol,
                     node,
                     spec,
                 );
             }
-            symbol
+            symbol_from_module
         } else {
             None
+        }
+    }
+
+    fn get_export_of_module(
+        &mut self,
+        symbol: SymbolID,
+        name: SymbolName,
+        dont_resolve_alias: bool,
+    ) -> Option<SymbolID> {
+        let s = self.symbol(symbol);
+        if s.flags.intersects(SymbolFlags::MODULE) {
+            let export_symbol = s.exports.0.get(&name).copied();
+            let resolved = export_symbol
+                .map(|export_symbol| self.resolve_symbol(export_symbol, dont_resolve_alias));
+            resolved
+        } else {
+            None
+        }
+    }
+
+    fn is_non_local_alias(&self, symbol: SymbolID, excludes: Option<SymbolFlags>) -> bool {
+        const DEFAULT: SymbolFlags = SymbolFlags::VALUE
+            .union(SymbolFlags::TYPE)
+            .union(SymbolFlags::NAMESPACE);
+        let excludes = excludes.unwrap_or(DEFAULT);
+        let flags = self.symbol(symbol).flags;
+        (flags.intersection(SymbolFlags::ALIAS | excludes) == SymbolFlags::ALIAS)
+            || (flags.intersects(SymbolFlags::ALIAS.union(SymbolFlags::ASSIGNMENT)))
+    }
+
+    fn resolve_symbol(&mut self, symbol: SymbolID, dont_resolve_alias: bool) -> SymbolID {
+        if !dont_resolve_alias && self.is_non_local_alias(symbol, None) {
+            self.resolve_alias(symbol)
+        } else {
+            symbol
         }
     }
 
@@ -307,11 +418,33 @@ impl Resolver<'_, '_, '_> {
         resolved
     }
 
-    fn resolve_alias(&mut self, symbol: SymbolID) {
+    fn resolve_alias(&mut self, symbol: SymbolID) -> SymbolID {
+        if let Some(alias_target) = self.alias_target.get(&symbol) {
+            return if *alias_target == Symbol::RESOLVING {
+                self.alias_target.insert(symbol, Symbol::ERR);
+                Symbol::ERR
+            } else {
+                *alias_target
+            };
+        };
+        let prev = self.alias_target.insert(symbol, Symbol::RESOLVING);
+        assert!(prev.is_none());
         let s = self.symbol(symbol);
-        assert!(s.flags.intersects(SymbolFlags::ALIAS));
+        assert!(s.flags.intersects(SymbolFlags::ALIAS), "symbol: {:#?}", s);
         let node = s.get_decl_of_alias_symbol(self.p).unwrap();
-        self.get_target_of_alias_decl(node, false);
+        let target = self.get_target_of_alias_decl(node, false);
+        if self
+            .alias_target
+            .get(&symbol)
+            .is_none_or(|alias_target| *alias_target == Symbol::RESOLVING)
+        {
+            let v = target.unwrap_or(Symbol::ERR);
+            let prev = self.alias_target.insert(symbol, v);
+            assert!(prev.is_some());
+        } else {
+            // TODO: report circle error
+        }
+        self.alias_target[&symbol]
     }
 
     fn check_alias_symbol(&mut self, node: ast::NodeID) {
@@ -329,8 +462,9 @@ impl<'cx> ast::Visitor<'cx> for Resolver<'cx, '_, '_> {
         if let Some(clause) = node.clause.kind {
             use bolt_ts_ast::ImportClauseKind::*;
             match clause {
-                Ns(_) => {
+                Ns(n) => {
                     // import * as ns from 'xxxx'
+                    self.check_import_binding(n.id);
                 }
                 Specs(specs) => {
                     // import { a, b as c } from 'xxxx'

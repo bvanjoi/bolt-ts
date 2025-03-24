@@ -1440,11 +1440,11 @@ impl<'cx> TyChecker<'cx> {
         }
 
         // TODO: move into name resolution.
-        if self
-            .symbol(symbol)
-            .flags()
-            .intersects(SymbolFlags::CLASS | SymbolFlags::BLOCK_SCOPED_VARIABLE | SymbolFlags::ENUM)
-        {
+        if self.symbol(symbol).flags().intersects(
+            SymbolFlags::CLASS
+                .union(SymbolFlags::BLOCK_SCOPED_VARIABLE)
+                .union(SymbolFlags::ENUM),
+        ) {
             self.check_resolved_block_scoped_var(ident, symbol);
         }
 

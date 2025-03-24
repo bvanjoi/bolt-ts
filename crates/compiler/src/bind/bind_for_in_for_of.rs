@@ -1,6 +1,6 @@
 use super::BinderState;
 
-trait ForInForOf<'cx> {
+pub(super) trait ForInForOf<'cx> {
     fn expr(&self) -> &'cx bolt_ts_ast::Expr<'cx>;
     fn init(&self) -> bolt_ts_ast::ForInitKind<'cx>;
     fn stmt(&self) -> &'cx bolt_ts_ast::Stmt<'cx>;
@@ -35,7 +35,7 @@ impl<'cx> BinderState<'cx, '_, '_> {
         self.bind(node.expr().id());
         use bolt_ts_ast::ForInitKind::*;
         match node.init() {
-            Var((_, list)) => {
+            Var(list) => {
                 for item in list {
                     self.bind(item.id);
                 }

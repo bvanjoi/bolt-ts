@@ -1,4 +1,5 @@
 use super::BinderState;
+use super::NodeQuery;
 use super::symbol::SymbolFlags;
 use super::symbol::SymbolTableLocation;
 use super::symbol::{SymbolID, SymbolName};
@@ -21,7 +22,6 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
             self.declare_symbol_and_add_to_symbol_table(
                 name,
                 ns.id,
-                None,
                 SymbolFlags::VALUE_MODULE,
                 SymbolFlags::VALUE_MODULE_EXCLUDES,
             )
@@ -84,7 +84,6 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
             self.declare_symbol_and_add_to_symbol_table(
                 name,
                 ty_param.id,
-                None,
                 SymbolFlags::TYPE_PARAMETER,
                 SymbolFlags::TYPE_PARAMETER_EXCLUDES,
             )
@@ -110,7 +109,6 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
         let symbol = self.declare_symbol_and_add_to_symbol_table(
             ele_name,
             f.id,
-            None,
             SymbolFlags::FUNCTION,
             SymbolFlags::FUNCTION_EXCLUDES,
         );
@@ -196,7 +194,6 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
             self.declare_symbol_and_add_to_symbol_table(
                 name,
                 id,
-                None,
                 SymbolFlags::FUNCTION_SCOPED_VARIABLE,
                 SymbolFlags::PARAMETER_EXCLUDES,
             )
@@ -204,7 +201,6 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
             self.declare_symbol_and_add_to_symbol_table(
                 name,
                 id,
-                None,
                 SymbolFlags::FUNCTION_SCOPED_VARIABLE,
                 SymbolFlags::FUNCTION_SCOPED_VARIABLE_EXCLUDES,
             )
@@ -222,7 +218,6 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
                 let symbol = self.declare_symbol_and_add_to_symbol_table(
                     name,
                     n.id,
-                    None,
                     SymbolFlags::FUNCTION_SCOPED_VARIABLE,
                     SymbolFlags::PARAMETER_EXCLUDES,
                 );
@@ -409,7 +404,6 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
                 let symbol = self.declare_symbol_and_add_to_symbol_table(
                     name,
                     node,
-                    None,
                     SymbolFlags::SIGNATURE,
                     SymbolFlags::empty(),
                 );
@@ -459,7 +453,6 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
                 let symbol = self.declare_symbol_and_add_to_symbol_table(
                     SymbolName::Constructor,
                     node.id,
-                    None,
                     SymbolFlags::CONSTRUCTOR,
                     SymbolFlags::empty(),
                 );
@@ -516,17 +509,19 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
             TypeDecl(node) => self.bind_type_decl(node),
             EnumDecl(node) => self.bind_enum_decl(node),
             NamespaceDecl(node) => self.bind_ns_decl(node),
-            // import/export shorthand spec
-            ShorthandSpec(node) => {
-                let name = SymbolName::Normal(node.name.name);
+            ShorthandSpec(ast::ShorthandSpec { id, name, .. })
+            | NsImport(ast::NsImport { id, name, .. }) => {
+                // import { name } from 'xxx'
+                // import * as name from 'xxx'
+                // export { name } from 'xxx'
+                let name = SymbolName::Normal(name.name);
                 let symbol = self.declare_symbol_and_add_to_symbol_table(
                     name,
-                    node.id,
-                    None,
+                    *id,
                     SymbolFlags::ALIAS,
                     SymbolFlags::ALIAS_EXCLUDES,
                 );
-                self.create_final_res(node.id, symbol);
+                self.create_final_res(*id, symbol);
             }
             ExportNamedSpec(node) => {
                 let n = |name: &ast::ModuleExportName| {
@@ -540,7 +535,6 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
                 let symbol = self.declare_symbol_and_add_to_symbol_table(
                     name,
                     node.id,
-                    None,
                     SymbolFlags::ALIAS,
                     SymbolFlags::ALIAS_EXCLUDES,
                 );
@@ -576,17 +570,50 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
         self.final_res.insert(node.id, symbol);
     }
 
-    fn bind_import_clause(&mut self, node: &'cx ast::ImportClause<'cx>) {}
+    fn bind_import_clause(&mut self, node: &'cx ast::ImportClause<'cx>) {
+        if let Some(name) = node.name {
+            // import name from 'xxxx'
+            let symbol = self.declare_symbol_and_add_to_symbol_table(
+                SymbolName::Normal(name.name),
+                node.id,
+                SymbolFlags::ALIAS,
+                SymbolFlags::ALIAS_EXCLUDES,
+            );
+            self.create_final_res(node.id, symbol);
+        }
+    }
 
     fn bind_export_decl(&mut self, node: &'cx ast::ExportDecl<'cx>) {
         let container = self.container.unwrap();
-        // match node.clause {
-        //     ast
-        // }
+        match node.clause.kind {
+            ast::ExportClauseKind::Glob(_) => {
+                let name = SymbolName::ExportStar;
+                let loc = SymbolTableLocation::exports(container);
+                let symbol = self.declare_symbol(
+                    Some(name),
+                    loc,
+                    None,
+                    node.id,
+                    SymbolFlags::EXPORT_STAR,
+                    SymbolFlags::empty(),
+                    false,
+                    false,
+                );
+                self.create_final_res(node.id, symbol);
+            }
+            ast::ExportClauseKind::Ns(_) => {}
+            ast::ExportClauseKind::Specs(_) => {}
+        }
     }
 
     fn bind_source_file_if_external_module(&mut self, node: &'cx ast::Program<'cx>) {
-        // TODO: if is_external_module
+        if self.p.is_external_or_commonjs_module() {
+            self.bind_source_file_as_external_module(node);
+        }
+        // TODO: json source file
+    }
+
+    fn bind_source_file_as_external_module(&mut self, node: &'cx ast::Program<'cx>) {
         let s = self.bind_anonymous_decl(
             node.id,
             SymbolFlags::VALUE_MODULE,

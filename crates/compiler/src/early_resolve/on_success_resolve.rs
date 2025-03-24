@@ -34,6 +34,7 @@ impl<'cx> Resolver<'cx, '_, '_> {
         None
     }
 
+    // TODO: mv this check into on_failed_check
     fn check_ty_param_used_in_static_but_declared_at_class(
         &mut self,
         ident: &'cx ast::Ident,

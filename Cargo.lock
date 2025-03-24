@@ -185,7 +185,6 @@ dependencies = [
  "bolt_ts_fs",
  "bolt_ts_utils",
  "miette",
- "rustc-hash",
 ]
 
 [[package]]

@@ -1,5 +1,6 @@
 use bolt_ts_span::ModuleArena;
 
+use super::NodeQuery;
 use super::create::set_value_declaration;
 use super::symbol::SymbolTable;
 use super::{BinderResult, SymbolFlags, SymbolID};

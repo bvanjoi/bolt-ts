@@ -89,7 +89,7 @@ impl<'cx> Ty<'cx> {
 
     pub fn is_object_or_array_literal(&self) -> bool {
         self.get_object_flags()
-            .intersects(ObjectFlags::OBJECT_LITERAL | ObjectFlags::ARRAY_LITERAL)
+            .intersects(ObjectFlags::OBJECT_LITERAL.union(ObjectFlags::ARRAY_LITERAL))
     }
 
     pub fn get_propagating_flags_of_tys(
@@ -110,7 +110,7 @@ impl<'cx> Ty<'cx> {
 
     pub fn is_generic_string_like(&self) -> bool {
         self.flags
-            .intersects(TypeFlags::TEMPLATE_LITERAL | TypeFlags::STRING_MAPPING)
+            .intersects(TypeFlags::TEMPLATE_LITERAL.union(TypeFlags::STRING_MAPPING))
             && !self.is_pattern_lit_ty()
     }
 
@@ -310,7 +310,8 @@ impl<'cx> Ty<'cx> {
         if let Some(i) = self.kind.as_intersection() {
             let mut seen_placeholder = false;
             for t in i.tys {
-                if t.flags.intersects(TypeFlags::LITERAL | TypeFlags::NULLABLE)
+                if t.flags
+                    .intersects(TypeFlags::LITERAL.union(TypeFlags::NULLABLE))
                     || t.is_pattern_lit_placeholder_ty()
                 {
                     seen_placeholder = true;
@@ -320,9 +321,11 @@ impl<'cx> Ty<'cx> {
             }
             seen_placeholder
         } else {
-            self.flags.intersects(
-                TypeFlags::ANY | TypeFlags::STRING | TypeFlags::NUMBER | TypeFlags::BIG_INT,
-            ) || self.is_pattern_lit_ty()
+            const PLACEHOLDER: TypeFlags = TypeFlags::ANY
+                .union(TypeFlags::STRING)
+                .union(TypeFlags::NUMBER)
+                .union(TypeFlags::BIG_INT);
+            self.flags.intersects(PLACEHOLDER) || self.is_pattern_lit_ty()
         }
     }
 

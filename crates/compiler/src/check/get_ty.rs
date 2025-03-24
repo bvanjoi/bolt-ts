@@ -39,25 +39,49 @@ impl<'cx> TyChecker<'cx> {
         }
 
         let flags = self.symbol(id).flags();
+        assert!(!flags.intersects(SymbolFlags::OBJECT_LITERAL));
 
-        let ty = if flags.intersects(SymbolFlags::VARIABLE | SymbolFlags::PROPERTY) {
+        let ty = if flags.intersects(SymbolFlags::VARIABLE.union(SymbolFlags::PROPERTY)) {
             self.get_ty_of_var_or_param_or_prop(id)
         } else if flags.intersects(
             SymbolFlags::FUNCTION
-                | SymbolFlags::METHOD
-                | SymbolFlags::CLASS
-                | SymbolFlags::ENUM
-                | SymbolFlags::VALUE_MODULE,
+                .union(SymbolFlags::METHOD)
+                .union(SymbolFlags::CLASS)
+                .union(SymbolFlags::ENUM)
+                .union(SymbolFlags::VALUE_MODULE),
         ) {
             self.get_ty_of_func_class_enum_module(id)
         } else if flags.intersects(SymbolFlags::ACCESSOR) {
             self.get_ty_of_accessor(id)
-        } else if flags.intersects(SymbolFlags::OBJECT_LITERAL) {
-            unreachable!("type literal")
+        } else if flags.intersects(SymbolFlags::ALIAS) {
+            self.get_ty_of_alias(id)
         } else {
             self.error_ty
         };
 
+        ty
+    }
+
+    fn get_ty_of_alias(&mut self, symbol: SymbolID) -> &'cx ty::Ty<'cx> {
+        if let Some(ty) = self.get_symbol_links(symbol).get_ty() {
+            return ty;
+        }
+        if !self.push_ty_resolution(ResolutionKey::Type(symbol)) {
+            return self.error_ty;
+        }
+        let target_symbol = self.binder.get_alias_target(symbol);
+        let flags = self.symbol(target_symbol).flags(); // TODO: get_symbol_flags;
+        let ty = if flags.intersects(SymbolFlags::VALUE) {
+            self.get_type_of_symbol(target_symbol)
+        } else {
+            self.error_ty
+        };
+        self.get_mut_symbol_links(symbol).set_ty(ty);
+        if self.pop_ty_resolution().has_cycle() {
+            // TODO: report cycle_error
+            // self.get_mut_symbol_links(ty).set_ty(ty);
+            return self.error_ty;
+        }
         ty
     }
 

@@ -92,7 +92,9 @@ impl<'cx> ParserState<'cx, '_> {
         use bolt_ts_ast::TokenKind::*;
         let open = LBrace;
         let open_brace_parsed = self.expect(LBrace);
+        let saved_external_module_indicator = self.external_module_indicator;
         let stmts = self.parse_list(list_ctx::BlockStmts, Self::parse_stmt);
+        self.external_module_indicator = saved_external_module_indicator;
         self.parse_expected_matching_brackets(open, RBrace, open_brace_parsed, start as usize)?;
         let stmt = self.alloc(ast::BlockStmt {
             id,

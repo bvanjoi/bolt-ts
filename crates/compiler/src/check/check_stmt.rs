@@ -71,7 +71,7 @@ impl<'cx> TyChecker<'cx> {
     fn check_for_stmt(&mut self, node: &'cx ast::ForStmt<'cx>) {
         if let Some(init) = node.init {
             match init {
-                ast::ForInitKind::Var((kind, list)) => self.check_var_decl_list(list),
+                ast::ForInitKind::Var(list) => self.check_var_decl_list(list),
                 ast::ForInitKind::Expr(expr) => {
                     self.check_expr(expr);
                 }

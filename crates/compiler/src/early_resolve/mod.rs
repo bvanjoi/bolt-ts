@@ -125,7 +125,7 @@ impl<'cx> Resolver<'cx, '_, '_> {
             }
             Enum(_) => {}
             Import(_) => {}
-            Export(_) => {}
+            Export(n) => self.resolve_export(n),
             For(n) => {
                 if let Some(cond) = n.cond {
                     self.resolve_expr(cond);
@@ -158,6 +158,29 @@ impl<'cx> Resolver<'cx, '_, '_> {
             Do(_) => {}
             Debugger(_) => {}
         };
+    }
+
+    fn resolve_export(&mut self, export: &'cx ast::ExportDecl<'cx>) {
+        match export.clause.kind {
+            ast::ExportClauseKind::Glob(_) => {}
+            ast::ExportClauseKind::Ns(_) => {}
+            ast::ExportClauseKind::Specs(specs) => {
+                for spec in specs.list {
+                    use ast::ExportSpecKind::*;
+                    match spec.kind {
+                        Shorthand(n) => {
+                            const MEANING: SymbolFlags = SymbolFlags::VALUE
+                                .union(SymbolFlags::TYPE)
+                                .union(SymbolFlags::NAMESPACE);
+                            self.resolve_symbol_by_ident(n.name, MEANING);
+                        }
+                        Named(_) => {
+                            // TODO
+                        }
+                    }
+                }
+            }
+        }
     }
 
     fn resolve_ns_decl(&mut self, ns: &'cx ast::NsDecl<'cx>) {
@@ -234,13 +257,12 @@ impl<'cx> Resolver<'cx, '_, '_> {
             Qualified(qualified) => {
                 self.resolve_entity_name(
                     qualified.left,
-                    SymbolFlags::NAMESPACE | SymbolFlags::TYPE,
+                    SymbolFlags::NAMESPACE.union(SymbolFlags::TYPE),
                 );
                 let left = self.final_res[&qualified.left.id()];
                 let exports = self.get_exports_of_symbol(left);
-                let name = SymbolName::Normal(qualified.right.name);
                 let v = exports
-                    .and_then(|exports| exports.get(&name))
+                    .and_then(|exports| exports.get(&SymbolName::Normal(qualified.right.name)))
                     .copied()
                     .unwrap_or(Symbol::ERR);
                 let prev = self.final_res.insert(qualified.id, v);
@@ -699,38 +721,65 @@ pub(super) fn resolve_symbol_by_ident<'a, 'cx>(
     let mut associated_declaration_for_containing_initializer_or_binding_name = None;
     let mut last_location = Some(ident.id);
     let mut location = resolver.p.parent(ident.id);
+
+    fn get_symbol(
+        resolver: &Resolver,
+        symbols: &SymbolTable,
+        name: SymbolName,
+        meaning: SymbolFlags,
+    ) -> Option<SymbolID> {
+        if !meaning.is_empty() {
+            // TODO: get_merged_symbol;
+            if let Some(symbol) = symbols.0.get(&name) {
+                let flags = resolver.symbol(*symbol).flags;
+                if flags.intersects(meaning) {
+                    return Some(*symbol);
+                } else if flags.intersects(SymbolFlags::ALIAS) {
+                    // bound of parallel, handle this case in late_resolve
+                    return Some(*symbol);
+                }
+            }
+        }
+        None
+    }
+
     while let Some(id) = location {
         if let Some(locals) = resolver.locals(id) {
             if !resolver.p.is_global_source_file(id) {
-                if let Some(symbol) = locals.0.get(&key).copied() {
+                if let Some(symbol) = get_symbol(resolver, locals, key, meaning) {
                     let res_flags = resolver.symbol(symbol).flags;
-                    if res_flags.intersects(meaning) {
-                        let mut use_result = true;
-                        let n = resolver.p.node(id);
-                        if n.is_fn_like()
-                            && last_location.is_some_and(|last_location| match n {
-                                FnDecl(f) => f.body.is_none_or(|body| last_location != body.id),
-                                _ => false, //TODO: other function decl,
-                            })
-                        {
-                            let flags = meaning.intersection(res_flags);
-                            if flags.intersects(SymbolFlags::TYPE) {}
-                            if flags.intersects(SymbolFlags::VARIABLE) {
-                                if res_flags.intersects(SymbolFlags::FUNCTION_SCOPED_VARIABLE) {
-                                    let last = resolver.p.node(last_location.unwrap());
-                                    use_result = last.is_param_decl();
-                                }
-                            };
-                        } else if let Some(cond) = n.as_cond_ty() {
-                            use_result =
-                                last_location.is_some_and(|last| last == cond.true_ty.id());
-                        }
-                        if use_result {
-                            return ResolvedResult {
-                                symbol,
-                                associated_declaration_for_containing_initializer_or_binding_name,
-                            };
-                        }
+                    if res_flags.intersects(SymbolFlags::ALIAS) {
+                        // handle this case in late_resolve
+                        return ResolvedResult {
+                            symbol,
+                            associated_declaration_for_containing_initializer_or_binding_name,
+                        };
+                    }
+
+                    let mut use_result = true;
+                    let n = resolver.p.node(id);
+                    if n.is_fn_like()
+                        && last_location.is_some_and(|last_location| match n {
+                            FnDecl(f) => f.body.is_none_or(|body| last_location != body.id),
+                            _ => false, //TODO: other function decl,
+                        })
+                    {
+                        let flags = meaning.intersection(res_flags);
+                        if flags.intersects(SymbolFlags::TYPE) {}
+                        if flags.intersects(SymbolFlags::VARIABLE) {
+                            if res_flags.intersects(SymbolFlags::FUNCTION_SCOPED_VARIABLE) {
+                                let last = resolver.p.node(last_location.unwrap());
+                                use_result = last.is_param_decl();
+                            }
+                        };
+                    } else if let Some(cond) = n.as_cond_ty() {
+                        use_result = last_location.is_some_and(|last| last == cond.true_ty.id());
+                    }
+                    if use_result {
+                        return ResolvedResult {
+                            symbol,
+                            associated_declaration_for_containing_initializer_or_binding_name,
+                        };
                     }
                 }
             }
@@ -738,7 +787,7 @@ pub(super) fn resolve_symbol_by_ident<'a, 'cx>(
 
         let n = resolver.p.node(id);
         match n {
-            Program(_) if resolver.p.is_external_or_commonjs_module(id) => (),
+            Program(_) if !resolver.p.is_external_or_commonjs_module(id) => (),
             Program(_) | NamespaceDecl(_) => {
                 let module_exports = &resolver.symbol(resolver.symbol_of_decl(id)).exports;
                 if n.is_program()

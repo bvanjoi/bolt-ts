@@ -29,7 +29,7 @@ impl<'cx> BinderState<'cx, '_, '_> {
         excludes: SymbolFlags,
     ) -> SymbolID {
         // TODO: has dynamic name
-        self.declare_symbol_and_add_to_symbol_table(name, decl_id, None, includes, excludes)
+        self.declare_symbol_and_add_to_symbol_table(name, decl_id, includes, excludes)
     }
 
     pub(super) fn bind_class_like_decl(

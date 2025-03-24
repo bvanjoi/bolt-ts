@@ -105,6 +105,7 @@ impl<'cx, 'p> ClassLike<'cx, 'p> for ParseClassDecl {
             implements,
             elems,
         });
+        state.set_external_module_indicator_if_has_export_mod(modifiers, id);
         state.insert_map(decl.id, ast::Node::ClassDecl(decl));
         decl
     }

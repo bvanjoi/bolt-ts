@@ -170,10 +170,7 @@ impl<'cx> ParserState<'cx, '_> {
         let t = self.token.kind;
         let init = if t != Semi {
             if matches!(t, Var | Let | Const) {
-                Some(ast::ForInitKind::Var((
-                    t.try_into().unwrap(),
-                    self.parse_var_decl_list(true),
-                )))
+                Some(ast::ForInitKind::Var(self.parse_var_decl_list(true)))
             } else {
                 Some(ast::ForInitKind::Expr(
                     self.disallow_in_and(Self::parse_expr)?,
@@ -264,6 +261,7 @@ impl<'cx> ParserState<'cx, '_> {
             name,
             members,
         });
+        self.set_external_module_indicator(id);
         self.insert_map(id, ast::Node::EnumDecl(decl));
         Ok(decl)
     }
@@ -329,8 +327,6 @@ impl<'cx> ParserState<'cx, '_> {
             }
         }
         let name = self.parse_ident_name()?;
-        let save_has_export_decl = self.has_export_decl;
-        self.has_export_decl = false;
         let block = self.parse_module_block()?;
         let span = self.new_span(start);
         let decl = self.create_ns_decl(
@@ -341,7 +337,6 @@ impl<'cx> ParserState<'cx, '_> {
             Some(block),
             false,
         );
-        self.has_export_decl = save_has_export_decl;
         Ok(decl)
     }
 
@@ -353,7 +348,16 @@ impl<'cx> ParserState<'cx, '_> {
         let id = self.next_node_id();
         let start = self.token.start();
         self.expect(TokenKind::LBrace);
+
+        let save_external_module_indicator = self.external_module_indicator;
+        let save_has_export_decl = self.has_export_decl;
+        self.has_export_decl = false;
+
         let stmts = self.parse_list(list_ctx::BlockStmts, Self::parse_stmt);
+
+        self.has_export_decl = save_has_export_decl;
+        self.external_module_indicator = save_external_module_indicator;
+
         self.expect(TokenKind::RBrace);
         let block = self.alloc(ast::ModuleBlock {
             id,
@@ -420,6 +424,7 @@ impl<'cx> ParserState<'cx, '_> {
             is_global_argument,
         });
         self.node_flags_map.insert(id, flags);
+        self.set_external_module_indicator_if_has_export_mod(modifiers, id);
         self.insert_map(id, ast::Node::NamespaceDecl(decl));
         decl
     }
@@ -525,6 +530,7 @@ impl<'cx> ParserState<'cx, '_> {
             clause,
         });
         self.insert_map(id, ast::Node::ExportDecl(decl));
+        self.set_external_module_indicator(id);
         self.parse_semi();
         Ok(decl)
     }
@@ -582,12 +588,12 @@ impl<'cx> ParserState<'cx, '_> {
         self.expect(TokenKind::Import);
         let after_import_pos = self.token.start();
         let mut is_type_only = false;
-        let mut ident = self
+        let mut name = self
             .token
             .kind
             .is_ident()
             .then(|| self.create_ident(true, None));
-        if let Some(i) = ident {
+        if let Some(i) = name {
             let t = self.token.kind;
             if (i.name == keyword::KW_TYPE)
                 && (!matches!(t, TokenKind::From)
@@ -596,7 +602,7 @@ impl<'cx> ParserState<'cx, '_> {
                 && (self.is_ident() || matches!(t, TokenKind::Asterisk | TokenKind::LBrace))
             {
                 is_type_only = true;
-                ident = if self.is_ident() {
+                name = if self.is_ident() {
                     Some(self.create_ident(true, None))
                 } else {
                     None
@@ -604,12 +610,11 @@ impl<'cx> ParserState<'cx, '_> {
             }
         }
 
-        if ident.is_some() && !matches!(self.token.kind, TokenKind::Comma | TokenKind::From) {
+        if name.is_some() && !matches!(self.token.kind, TokenKind::Comma | TokenKind::From) {
             todo!("import_eq_decl")
         }
 
-        let clause =
-            self.try_parse_import_clause(ident, after_import_pos as usize, is_type_only)?;
+        let clause = self.try_parse_import_clause(name, after_import_pos as usize, is_type_only)?;
         let module = self.parse_module_spec()?;
 
         self.parse_semi();
@@ -620,18 +625,19 @@ impl<'cx> ParserState<'cx, '_> {
             clause: clause.unwrap(),
             module,
         });
+        self.set_external_module_indicator(import.id);
         self.insert_map(id, ast::Node::ImportDecl(import));
         Ok(import)
     }
 
     fn try_parse_import_clause(
         &mut self,
-        ident: Option<&'cx ast::Ident>,
+        name: Option<&'cx ast::Ident>,
         pos: usize,
         is_type_only: bool,
     ) -> PResult<Option<&'cx ast::ImportClause<'cx>>> {
-        if ident.is_some() || matches!(self.token.kind, TokenKind::Asterisk | TokenKind::LBrace) {
-            let clause = self.parse_import_clause(ident, is_type_only)?;
+        if name.is_some() || matches!(self.token.kind, TokenKind::Asterisk | TokenKind::LBrace) {
+            let clause = self.parse_import_clause(name, is_type_only)?;
             self.expect(TokenKind::From);
             Ok(Some(clause))
         } else {
@@ -641,12 +647,12 @@ impl<'cx> ParserState<'cx, '_> {
 
     fn parse_import_clause(
         &mut self,
-        ident: Option<&'cx ast::Ident>,
+        name: Option<&'cx ast::Ident>,
         is_type_only: bool,
     ) -> PResult<&'cx ast::ImportClause<'cx>> {
         let id = self.next_node_id();
         let start = self.token.start();
-        let kind = if ident.is_none() || self.parse_optional(TokenKind::Comma).is_some() {
+        let kind = if name.is_none_or(|_| self.parse_optional(TokenKind::Comma).is_some()) {
             Some(if self.token.kind == TokenKind::Asterisk {
                 let ns = self.parse_ns_import()?;
                 ast::ImportClauseKind::Ns(ns)
@@ -661,7 +667,7 @@ impl<'cx> ParserState<'cx, '_> {
             id,
             span: self.new_span(start),
             is_type_only,
-            ident,
+            name,
             kind,
         });
 
@@ -745,6 +751,7 @@ impl<'cx> ParserState<'cx, '_> {
             extends,
             members,
         });
+        self.set_external_module_indicator_if_has_export_mod(modifiers, id);
         self.insert_map(id, ast::Node::InterfaceDecl(decl));
         Ok(decl)
     }
@@ -794,13 +801,11 @@ impl<'cx> ParserState<'cx, '_> {
     ) -> &'cx ast::VarStmt<'cx> {
         let id = self.next_node_id();
         let start = self.token.start();
-        let kind = self.token.kind.try_into().unwrap();
-        let flags = if kind == ast::VarKind::Const {
-            ast::NodeFlags::CONST
-        } else if kind == ast::VarKind::Let {
-            ast::NodeFlags::LET
-        } else {
-            ast::NodeFlags::empty()
+        let flags = match self.token.kind {
+            TokenKind::Const => ast::NodeFlags::CONST,
+            TokenKind::Let => ast::NodeFlags::LET,
+            TokenKind::Var => ast::NodeFlags::empty(),
+            _ => unreachable!(),
         };
         let list = self.parse_var_decl_list(false);
         if list.is_empty() {
@@ -812,15 +817,31 @@ impl<'cx> ParserState<'cx, '_> {
         let span = self.new_span(start);
         let node = self.alloc(ast::VarStmt {
             id,
-            kind,
             span,
             modifiers,
             list,
         });
         self.node_flags_map.insert(id, flags);
+        self.set_external_module_indicator_if_has_export_mod(modifiers, node.id);
         self.insert_map(id, ast::Node::VarStmt(node));
         self.parse_semi();
         node
+    }
+
+    pub(super) fn set_external_module_indicator_if_has_export_mod(
+        &mut self,
+        mods: Option<&'cx ast::Modifiers<'cx>>,
+        node: ast::NodeID,
+    ) {
+        if mods.is_some_and(|ms| ms.flags.contains(ast::ModifierKind::Export)) {
+            self.set_external_module_indicator(node);
+        }
+    }
+
+    fn set_external_module_indicator(&mut self, node: ast::NodeID) {
+        if self.external_module_indicator.is_none() {
+            self.external_module_indicator = Some(node);
+        }
     }
 
     pub(super) fn parse_name_of_param(&mut self) -> PResult<&'cx ast::Binding<'cx>> {

@@ -22,6 +22,7 @@ impl<'cx> SymbolName {
             SymbolName::Type => "Inner(Type)".to_string(),
             SymbolName::Missing => todo!(),
             SymbolName::Resolving => todo!(),
+            SymbolName::ExportStar => todo!(),
         }
     }
     pub(crate) fn to_string(self, atoms: &'cx AtomMap<'cx>) -> String {

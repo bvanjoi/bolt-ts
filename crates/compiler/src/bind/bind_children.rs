@@ -1,4 +1,5 @@
 use super::BinderState;
+use super::NodeQuery;
 use super::container_flags::container_flags_for_node;
 use super::flow::FlowFlags;
 use super::flow::FlowID;
@@ -43,13 +44,9 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
     fn bind_export_clause(&mut self, clause: &'cx ast::ExportClause<'cx>) {
         use bolt_ts_ast::ExportClauseKind::*;
         match clause.kind {
-            Glob(_) => todo!(),
+            Glob(n) => self.bind(n.module.id),
             Ns(_) => todo!(),
-            Specs(n) => {
-                for spec in n.list {
-                    self.bind_export_spec(spec);
-                }
-            }
+            Specs(n) => self.bind(n.id),
         }
     }
 
@@ -66,8 +63,7 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
             ast::Node::NamespaceDecl(_) => {
                 self.declare_module_member(name, node, includes, exclude_flags)
             }
-            // ast::Node::Program(_) if self.p.is_external_or_commonjs_module() => {
-            ast::Node::Program(_) => {
+            ast::Node::Program(_) if self.p.is_external_or_commonjs_module() => {
                 self.declare_module_member(name, node, includes, exclude_flags)
             }
             _ => {
@@ -232,7 +228,6 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
         &mut self,
         name: SymbolName,
         current: ast::NodeID,
-        loc: Option<SymbolTableLocation>,
         symbol_flags: SymbolFlags,
         symbol_excludes: SymbolFlags,
     ) -> SymbolID {
@@ -243,13 +238,9 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
             NamespaceDecl(_) => {
                 self.declare_module_member(name, current, symbol_flags, symbol_excludes)
             }
-            Program(_) => self.declare_source_file_member(
-                container,
-                name,
-                current,
-                symbol_flags,
-                symbol_excludes,
-            ),
+            Program(_) => {
+                self.declare_source_file_member(name, current, symbol_flags, symbol_excludes)
+            }
             ClassExpr(_) | ClassDecl(_) => {
                 self.declare_class_member(name, current, symbol_flags, symbol_excludes)
             }
@@ -309,23 +300,7 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
                     false,
                 )
             }
-            _ => {
-                // TODO: remove
-                if let Some(loc) = loc {
-                    self.declare_symbol(
-                        Some(name),
-                        loc,
-                        None,
-                        current,
-                        symbol_flags,
-                        symbol_excludes,
-                        false,
-                        false,
-                    )
-                } else {
-                    unreachable!()
-                }
-            }
+            _ => unreachable!(),
         }
     }
 
@@ -347,15 +322,28 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
 
     fn declare_source_file_member(
         &mut self,
-        container: ast::NodeID,
         name: SymbolName,
         current: ast::NodeID,
         symbol_flags: SymbolFlags,
         symbol_excludes: SymbolFlags,
     ) -> SymbolID {
+        let container = self.container.unwrap();
         assert!(self.p.node(container).is_program());
-        // TODO: if is_external_module
-        self.declare_module_member(name, current, symbol_flags, symbol_excludes)
+        if self.p.is_external_or_commonjs_module() {
+            self.declare_module_member(name, current, symbol_flags, symbol_excludes)
+        } else {
+            let table = SymbolTableLocation::locals(container);
+            self.declare_symbol(
+                Some(name),
+                table,
+                None,
+                current,
+                symbol_flags,
+                symbol_excludes,
+                false,
+                false,
+            )
+        }
     }
 
     fn declare_module_member(
@@ -372,19 +360,31 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
             .intersects(ast::ModifierKind::Export);
         if symbol_flags.intersects(SymbolFlags::ALIAS) {
             let n = self.p.node(current);
-            if n.is_export_named_spec() || n.is_shorthand_spec() {
+            let (loc, parent) = if n.is_export_named_spec()
+                || n.as_shorthand_spec().is_some_and(|_| {
+                    let parent = self.parent_map.parent_unfinished(current).unwrap();
+                    self.p.node(parent).is_specs_export()
+                }) {
+                // TODO: is_import_eq_decl && has_export_modifier
                 let table = SymbolTableLocation::exports(container);
-                return self.declare_symbol(
-                    Some(name),
-                    table,
-                    None,
-                    current,
-                    symbol_flags,
-                    symbol_excludes,
-                    false,
-                    false,
-                );
-            }
+                // let parent = self.final_res[&container];
+                let parent = None;
+                (table, parent)
+            } else {
+                assert!(self.p.node(container).has_locals());
+                let table = SymbolTableLocation::locals(container);
+                (table, None)
+            };
+            return self.declare_symbol(
+                Some(name),
+                loc,
+                parent,
+                current,
+                symbol_flags,
+                symbol_excludes,
+                false,
+                false,
+            );
         }
 
         if !self.p.node(current).is_ambient_module()
@@ -741,8 +741,8 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
                 self.bind(n.name.id);
             }
             ImportClause(n) => {
-                if let Some(ident) = n.ident {
-                    self.bind(ident.id);
+                if let Some(name) = n.name {
+                    self.bind(name.id);
                 }
                 if let Some(kind) = n.kind {
                     use bolt_ts_ast::ImportClauseKind::*;
@@ -1206,7 +1206,7 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
         if let Some(init) = &n.init {
             use ast::ForInitKind::*;
             match init {
-                Var((_, list)) => {
+                Var(list) => {
                     for item in *list {
                         self.bind(item.id);
                     }

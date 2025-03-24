@@ -1,5 +1,6 @@
 use rustc_hash::FxHashMap;
 
+use super::NodeQuery;
 use super::symbol::{SymbolFlags, SymbolTableLocation};
 use super::{BinderState, ModuleInstanceState, Symbol, SymbolID, SymbolName, Symbols, errors};
 use crate::bind::SymbolTable;
@@ -33,7 +34,7 @@ impl<'cx> BinderState<'cx, '_, '_> {
     pub(super) fn declare_symbol_with_ns(
         &mut self,
         name: SymbolName,
-        ns: &ast::NsDecl<'cx>,
+        ns: &'cx ast::NsDecl<'cx>,
     ) -> SymbolID {
         let state = self.node_query().get_module_instance_state(ns, None);
         let instantiated = state != ModuleInstanceState::NonInstantiated;
@@ -47,7 +48,7 @@ impl<'cx> BinderState<'cx, '_, '_> {
         } else {
             SymbolFlags::NAMESPACE_MODULE_EXCLUDES
         };
-        self.declare_symbol_and_add_to_symbol_table(name, ns.id, None, includes, excludes)
+        self.declare_symbol_and_add_to_symbol_table(name, ns.id, includes, excludes)
     }
 
     pub(super) fn declare_symbol(

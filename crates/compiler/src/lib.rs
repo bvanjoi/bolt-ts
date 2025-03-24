@@ -23,6 +23,7 @@ use self::diag::Diag;
 use self::early_resolve::early_resolve_parallel;
 use self::wf::well_formed_check_parallel;
 
+use bind::Binder;
 use bolt_ts_ast::TokenKind;
 use bolt_ts_ast::keyword_idx_to_token;
 
@@ -229,17 +230,19 @@ pub fn eval_from_with_fs<'cx>(
         })
         .collect::<Vec<_>>();
 
-    let mut binder = bind::Binder::new(&p);
-    for (m, res) in late_resolve::late_resolve(
+    let (bind_results, alias_target) = late_resolve::late_resolve(
         states,
         module_arena.modules(),
         &mg,
         &p,
         &global_symbols,
         &atoms,
-    ) {
-        binder.insert(m, res);
-    }
+    );
+    debug_assert!(bind_results.is_sorted_by_key(|x| x.0.as_usize()));
+    let mut binder = Binder::new(
+        bind_results.into_iter().map(|x| x.1).collect(),
+        alias_target,
+    );
 
     let diags: Vec<_> = diags
         .into_iter()

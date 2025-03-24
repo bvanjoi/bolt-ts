@@ -263,7 +263,7 @@ impl<'cx> ObjectTyKind<'cx> {
                     format!("{{ {}}}", members)
                 } else if symbol
                     .flags
-                    .intersects(SymbolFlags::CLASS | SymbolFlags::VALUE_MODULE)
+                    .intersects(SymbolFlags::CLASS.union(SymbolFlags::VALUE_MODULE))
                 {
                     let name = symbol.name.expect_atom();
                     format!("typeof {}", checker.atoms.get(name))

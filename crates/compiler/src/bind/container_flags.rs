@@ -1,3 +1,4 @@
+use super::NodeQuery;
 use crate::parser;
 
 bitflags::bitflags! {
@@ -102,7 +103,7 @@ impl GetContainerFlags for bolt_ts_ast::GetterDecl<'_> {
         p: &parser::ParseResult,
         parent_map: &super::ParentMap,
     ) -> ContainerFlags {
-        let nq = super::node_query::NodeQuery::new(parent_map, p);
+        let nq = super::BinderNodeQuery::new(parent_map, p);
         if nq.is_object_lit_or_class_expr_method_or_accessor(self.id) {
             C_AND_L_AND_CF_AND_F_AND_O
         } else {
@@ -117,7 +118,7 @@ impl GetContainerFlags for bolt_ts_ast::SetterDecl<'_> {
         p: &parser::ParseResult,
         parent_map: &super::ParentMap,
     ) -> ContainerFlags {
-        let nq = super::node_query::NodeQuery::new(parent_map, p);
+        let nq = super::BinderNodeQuery::new(parent_map, p);
         if nq.is_object_lit_or_class_expr_method_or_accessor(self.id) {
             C_AND_L_AND_CF_AND_F_AND_O
         } else {
@@ -132,7 +133,7 @@ impl GetContainerFlags for bolt_ts_ast::ClassMethodElem<'_> {
         p: &parser::ParseResult,
         parent_map: &super::ParentMap,
     ) -> ContainerFlags {
-        let nq = super::node_query::NodeQuery::new(parent_map, p);
+        let nq = super::BinderNodeQuery::new(parent_map, p);
         if nq.is_object_lit_or_class_expr_method_or_accessor(self.id) {
             C_AND_L_AND_CF_AND_F_AND_O
         } else {

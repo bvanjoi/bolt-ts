@@ -109,7 +109,7 @@ impl<'cx> Emit<'cx> {
     fn emit_for_init(&mut self, n: &'cx ast::ForInitKind<'cx>) {
         use bolt_ts_ast::ForInitKind::*;
         match n {
-            Var((kind, decls)) => {
+            Var(decls) => {
                 self.content.p("var");
                 self.content.p_whitespace();
                 self.emit_var_decls(decls)
@@ -273,8 +273,8 @@ impl<'cx> Emit<'cx> {
     }
 
     fn emit_import_clause(&mut self, clause: &'cx ast::ImportClause<'cx>) {
-        if let Some(ident) = clause.ident {
-            self.emit_ident(ident);
+        if let Some(name) = clause.name {
+            self.emit_ident(name);
             self.content.p_whitespace();
         } else if let Some(kind) = clause.kind {
             match kind {

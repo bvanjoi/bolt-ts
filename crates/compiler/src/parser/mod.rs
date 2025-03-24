@@ -139,7 +139,7 @@ impl<'cx> Parser<'cx> {
         let map = map
             .into_iter()
             .map(|(p, parent_map)| ParseResult { parent_map, ..p })
-            .collect();
+            .collect::<Vec<_>>();
         Self { map }
     }
 

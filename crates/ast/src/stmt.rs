@@ -140,7 +140,7 @@ pub struct ForStmt<'cx> {
 
 #[derive(Debug, Clone, Copy)]
 pub enum ForInitKind<'cx> {
-    Var((VarKind, VarDecls<'cx>)),
+    Var(VarDecls<'cx>),
     Expr(&'cx Expr<'cx>),
 }
 
@@ -502,19 +502,11 @@ pub struct IfStmt<'cx> {
     pub else_then: Option<&'cx Stmt<'cx>>,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq)]
-pub enum VarKind {
-    Var,
-    Let,
-    Const,
-}
-
 pub type VarDecls<'cx> = &'cx [&'cx VarDecl<'cx>];
 
 #[derive(Debug, Clone, Copy)]
 pub struct VarStmt<'cx> {
     pub id: NodeID,
-    pub kind: VarKind,
     pub span: Span,
     pub modifiers: Option<&'cx Modifiers<'cx>>,
     pub list: VarDecls<'cx>,
@@ -640,7 +632,7 @@ pub struct ImportClause<'cx> {
     pub id: NodeID,
     pub span: Span,
     pub is_type_only: bool,
-    pub ident: Option<&'cx Ident>,
+    pub name: Option<&'cx Ident>,
     pub kind: Option<ImportClauseKind<'cx>>,
 }
 

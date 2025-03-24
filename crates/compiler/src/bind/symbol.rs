@@ -29,6 +29,7 @@ pub enum SymbolName {
     Type,
     Missing,
     Resolving,
+    ExportStar,
 }
 
 impl SymbolName {

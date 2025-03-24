@@ -10,7 +10,7 @@ impl Resolver<'_, '_, '_> {
         symbol: SymbolID,
     ) -> Option<&FxHashMap<SymbolName, SymbolID>> {
         let flags = self.symbol(symbol).flags;
-        if flags.intersects(SymbolFlags::MODULE | SymbolFlags::CLASS) {
+        if flags.intersects(SymbolFlags::MODULE.union(SymbolFlags::CLASS)) {
             self.get_exports_of_module(symbol)
         } else {
             None

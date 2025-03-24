@@ -446,21 +446,6 @@ impl From<TokenKind> for super::AssignOp {
     }
 }
 
-impl TryFrom<TokenKind> for super::VarKind {
-    type Error = ();
-    fn try_from(value: TokenKind) -> Result<Self, Self::Error> {
-        use TokenKind::*;
-        match value {
-            Var | Let | Const => unsafe {
-                Ok(std::mem::transmute::<u8, super::VarKind>(
-                    value as u8 - Var as u8,
-                ))
-            },
-            _ => Err(()),
-        }
-    }
-}
-
 impl TryFrom<TokenKind> for super::TyOpKind {
     type Error = ();
     fn try_from(value: TokenKind) -> Result<Self, Self::Error> {
