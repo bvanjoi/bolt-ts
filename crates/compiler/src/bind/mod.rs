@@ -11,6 +11,8 @@ mod create;
 pub(crate) mod errors;
 mod flow;
 mod merge;
+pub mod node_query;
+mod parent_map;
 mod pprint;
 mod symbol;
 
@@ -25,6 +27,7 @@ use bolt_ts_utils::fx_hashmap_with_capacity;
 
 pub use self::flow::{FlowFlags, FlowID, FlowNode, FlowNodeKind, FlowNodes};
 pub(crate) use self::merge::{MergeGlobalSymbolResult, merge_global_symbol};
+pub use self::parent_map::ParentMap;
 pub use self::symbol::{GlobalSymbols, Symbol, SymbolID, SymbolName, Symbols};
 pub use self::symbol::{SymbolFlags, SymbolTable};
 
@@ -119,6 +122,7 @@ struct BinderState<'cx, 'atoms, 'parser> {
     // TODO: use `NodeId::index` is enough
     final_res: FxHashMap<ast::NodeID, SymbolID>,
     flow_nodes: FlowNodes<'cx>,
+    parent_map: self::parent_map::ParentMap,
 }
 
 impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
@@ -135,6 +139,7 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
         let report_unreachable_flow_node = flow_nodes.create_flow_unreachable();
 
         let in_strict_mode = !root.is_declaration || *options.compiler_options().always_strict();
+        let parent_map = ParentMap::new(parser.node_len());
 
         BinderState {
             atoms,
@@ -169,12 +174,17 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
             this_parent_container: None,
             block_scope_container: None,
             last_container: None,
+            parent_map,
         }
     }
 
     fn push_error(&mut self, error: crate::Diag) {
         let diag = bolt_ts_errors::Diag { inner: error };
         self.diags.push(diag);
+    }
+
+    fn node_query(&self) -> self::node_query::NodeQuery<'cx, '_> {
+        self::node_query::NodeQuery::new(&self.parent_map, self.p)
     }
 }
 
@@ -205,7 +215,7 @@ pub fn bind_parallel<'cx>(
     atoms: &AtomMap<'cx>,
     parser: Parser<'cx>,
     options: &NormalizedTsConfig,
-) -> Vec<(BinderResult<'cx>, ParseResult<'cx>)> {
+) -> Vec<(BinderResult<'cx>, (ParseResult<'cx>, self::ParentMap))> {
     assert_eq!(parser.module_count(), modules.len());
     parser
         .map
@@ -215,10 +225,11 @@ pub fn bind_parallel<'cx>(
             let module_id = m.id;
             let is_global = m.global;
             let root = p.root();
-            let bind_state = bind(atoms, &mut p, root, module_id, options);
+            let mut bind_state = bind(atoms, &mut p, root, module_id, options);
+            let parent_map = std::mem::take(&mut bind_state.parent_map);
             let bind_result = BinderResult::new(bind_state);
             assert!(!is_global || bind_result.diags.is_empty());
-            (bind_result, p)
+            (bind_result, (p, parent_map))
         })
         .collect()
 }
@@ -232,6 +243,8 @@ fn bind<'cx, 'atoms, 'parser>(
 ) -> BinderState<'cx, 'atoms, 'parser> {
     let mut state = BinderState::new(atoms, parser, root, module_id, options);
     state.bind(root.id);
+    // debug_assert!(self.parent_map.inner.iter().skip(1).all(|&p| p != Self::PLACEHOLDER));
+    state.parent_map.finish();
     state
 }
 

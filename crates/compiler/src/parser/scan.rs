@@ -3,10 +3,10 @@ use std::{borrow::Cow, str};
 use bolt_ts_atom::AtomId;
 use bolt_ts_span::Span;
 
-use super::{PResult, ParserState, TokenValue};
+use super::{CommentDirectiveKind, PResult, ParserState, TokenValue};
 use bolt_ts_ast::{Token, TokenFlags, TokenKind, keyword_idx_to_token};
 
-use crate::keyword::KEYWORDS;
+use crate::{keyword::KEYWORDS, parser::CommentDirective};
 
 #[inline(always)]
 fn is_ascii_letter(ch: u8) -> bool {
@@ -322,6 +322,60 @@ impl ParserState<'_, '_> {
         ))
     }
 
+    fn scan_comment_directive_kind(&mut self) {
+        assert_eq!(self.ch_unchecked(), b'@');
+        const COMMON_PREFIX: &[u8] = b"@ts-";
+        /// @ts-expect-error
+        const TS_EXPECT_ERROR: &[u8] = b"@ts-expect-error";
+        /// @ts-ignore
+        const TS_IGNORE: &[u8] = b"@ts-ignore";
+        let mut index = 0;
+        #[derive(Debug, PartialEq)]
+        enum Maybe {
+            Unknown,
+            TsExpectError,
+            TsIgnore,
+        }
+        let mut maybe = Maybe::Unknown;
+        let start = self.pos as u32;
+        while self.pos < self.end() && !is_line_break(self.ch_unchecked()) {
+            let ch = self.ch_unchecked();
+            if index < COMMON_PREFIX.len() && ch == COMMON_PREFIX[index] {
+                self.pos += 1;
+                index += 1;
+                assert_eq!(maybe, Maybe::Unknown);
+            } else if matches!(maybe, Maybe::TsExpectError | Maybe::Unknown)
+                && ch == TS_EXPECT_ERROR[index]
+            {
+                maybe = Maybe::TsExpectError;
+                index += 1;
+                self.pos += 1;
+                if index == TS_EXPECT_ERROR.len() {
+                    self.comment_directives.push(CommentDirective {
+                        line: self.line as u32,
+                        range: Span::new(start, self.pos as u32, self.module_id),
+                        kind: CommentDirectiveKind::ExpectError,
+                    });
+                    break;
+                }
+            } else if matches!(maybe, Maybe::TsIgnore | Maybe::Unknown) && ch == TS_IGNORE[index] {
+                maybe = Maybe::TsIgnore;
+                index += 1;
+                self.pos += 1;
+                if index == TS_IGNORE.len() {
+                    self.comment_directives.push(CommentDirective {
+                        line: self.line as u32,
+                        range: Span::new(start, self.pos as u32, self.module_id),
+                        kind: CommentDirectiveKind::Ignore,
+                    });
+                    break;
+                }
+            } else {
+                break;
+            }
+        }
+    }
+
     pub(super) fn next_token(&mut self) {
         self.full_start_pos = self.pos;
         self.token_flags = TokenFlags::empty();
@@ -345,7 +399,11 @@ impl ParserState<'_, '_> {
                         // `//`
                         self.pos += 2;
                         while self.pos < self.end() && !is_line_break(self.ch_unchecked()) {
-                            self.pos += 1;
+                            if self.ch_unchecked() == b'@' {
+                                self.scan_comment_directive_kind();
+                            } else {
+                                self.pos += 1;
+                            }
                         }
                         // TODO: add comment
                         continue;
@@ -695,16 +753,33 @@ impl ParserState<'_, '_> {
                 }
                 b'0'..=b'9' => self.scan_number(),
                 _ if ch.is_ascii_whitespace() => {
+                    self.pos += 1;
+                    // TODO: \r\n
                     if ch == b'\n' {
                         self.token_flags.insert(TokenFlags::PRECEDING_LINE_BREAK);
+                        self.line += 1;
+                        self.record_new_line_offset();
                     }
-                    self.pos += 1;
                     continue;
                 }
                 _ => self.scan_identifier(ch).unwrap(),
             };
             self.token = token;
             break;
+        }
+    }
+
+    pub(super) fn record_new_line_offset(&mut self) {
+        // it means there has useless scan when this condition not true,
+        // how can we use `self.line_map.push(xxx)` directly?
+        if self
+            .line_map
+            .last()
+            .copied()
+            .is_none_or(|pos| pos < self.line_start as u32)
+        {
+            self.line_map.push(self.line_start as u32);
+            self.line_start = self.pos;
         }
     }
 

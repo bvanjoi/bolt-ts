@@ -17,3 +17,9 @@ Advice:
  3 │ bar as baz
    · ──────────
    ╰────
+
+  × Expected 0 arguments, but got 1.
+   ╭─[../../tests/cases/compiler/importNonExportedMember/index.ts:6:1]
+ 6 │ foo
+   · ───
+   ╰────

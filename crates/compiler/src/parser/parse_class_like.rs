@@ -156,11 +156,10 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         let start = self.token.start();
         self.expect(Class);
         let id = self.next_node_id();
-        let name = self.with_parent(id, |this| mode.parse_name(this))?;
-        let ty_params = self.with_parent(id, Self::parse_ty_params)?;
-
-        let mut extends = self.with_parent(id, Self::parse_class_extends_clause)?;
-        let mut implements = self.with_parent(id, Self::parse_implements_clause)?;
+        let name = mode.parse_name(self)?;
+        let ty_params = self.parse_ty_params()?;
+        let mut extends = self.parse_class_extends_clause()?;
+        let mut implements = self.parse_implements_clause()?;
         loop {
             if !matches!(self.token.kind, TokenKind::Implements | TokenKind::Extends) {
                 break;
@@ -205,7 +204,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
             }
         }
 
-        let elems = self.with_parent(id, Self::parse_class_members)?;
+        let elems = self.parse_class_members()?;
         let span = self.new_span(start);
         Ok(mode.finish(
             self, id, span, modifiers, name, ty_params, extends, implements, elems,
@@ -287,13 +286,13 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         start: usize,
         modifiers: Option<&'cx ast::Modifiers<'cx>>,
     ) -> PResult<&'cx ast::ClassElem<'cx>> {
-        let name = self.with_parent(id, |this| this.parse_prop_name(false))?;
+        let name = self.parse_prop_name(false)?;
         let ele = if matches!(self.token.kind, TokenKind::LParen | TokenKind::Less) {
             // method
-            let ty_params = self.with_parent(id, Self::parse_ty_params)?;
-            let params = self.with_parent(id, Self::parse_params)?;
-            let ty = self.with_parent(id, |this| this.parse_ret_ty(true))?;
-            let body = self.with_parent(id, Self::parse_fn_block)?;
+            let ty_params = self.parse_ty_params()?;
+            let params = self.parse_params()?;
+            let ty = self.parse_ret_ty(true)?;
+            let body = self.parse_fn_block()?;
             let method = self.alloc(ast::ClassMethodElem {
                 id,
                 span: self.new_span(start as u32),
@@ -316,8 +315,8 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
             } else {
                 None
             };
-            let ty = self.with_parent(id, Self::parse_ty_anno)?;
-            let init = self.with_parent(id, Self::parse_init)?;
+            let ty = self.parse_ty_anno()?;
+            let init = self.parse_init()?;
             let prop = self.alloc(ast::ClassPropElem {
                 id,
                 span: self.new_span(start as u32),
@@ -365,10 +364,10 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
     ) -> PResult<Option<&'cx ast::ClassElem<'cx>>> {
         self.try_parse(|this| {
             if this.parse_ctor_name() {
-                let ty_params = this.with_parent(id, Self::parse_ty_params)?;
-                let params = this.with_parent(id, Self::parse_params)?;
-                let ret = this.with_parent(id, |this| this.parse_ret_ty(true))?;
-                let body = this.with_parent(id, Self::parse_fn_block)?;
+                let ty_params = this.parse_ty_params()?;
+                let params = this.parse_params()?;
+                let ret = this.parse_ret_ty(true)?;
+                let body = this.parse_fn_block()?;
                 let ctor = this.alloc(ast::ClassCtor {
                     id,
                     span: this.new_span(start as u32),
@@ -410,7 +409,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
     fn parse_class_ele(&mut self) -> PResult<&'cx ast::ClassElem<'cx>> {
         let id = self.next_node_id();
         let start = self.token.start() as usize;
-        let modifiers = self.with_parent(id, |this| this.parse_modifiers(true))?;
+        let modifiers = self.parse_modifiers(true)?;
         if self.parse_contextual_modifier(TokenKind::Get) {
             return self.parse_accessor_decl(id, start, modifiers, TokenKind::Get);
         } else if self.parse_contextual_modifier(TokenKind::Set) {

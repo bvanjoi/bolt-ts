@@ -1,6 +1,6 @@
 use super::BinderState;
 
-trait PropOrEleAccessExpr<'cx> {
+pub(super) trait PropOrEleAccessExpr<'cx> {
     fn is_optional_chain(&self) -> bool;
     fn bind_expr(&self, b: &mut BinderState<'cx, '_, '_>);
     fn bind_name(&self, b: &mut BinderState<'cx, '_, '_>);

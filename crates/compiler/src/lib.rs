@@ -1,6 +1,7 @@
 mod bind;
 pub mod check;
 mod cli;
+mod diag;
 mod early_resolve;
 mod ecma_rules;
 mod emit;
@@ -17,9 +18,11 @@ use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 
 use self::bind::bind_parallel;
+use self::bind::{BinderResult, MergeGlobalSymbolResult};
+use self::diag::Diag;
 use self::early_resolve::early_resolve_parallel;
 use self::wf::well_formed_check_parallel;
-use bind::{BinderResult, MergeGlobalSymbolResult};
+
 use bolt_ts_ast::TokenKind;
 use bolt_ts_ast::keyword_idx_to_token;
 
@@ -35,7 +38,6 @@ use parser::{ParseResult, Parser};
 use rayon::prelude::*;
 use rustc_hash::FxHashMap;
 
-type Diag = Box<dyn bolt_ts_errors::diag_ext::DiagnosticExt + Send + Sync + 'static>;
 pub const DEFAULT_TSCONFIG: &str = "tsconfig.json";
 
 pub struct Output {
@@ -181,7 +183,7 @@ pub fn eval_from_with_fs<'cx>(
     let mut atoms = atoms.into_inner().unwrap();
 
     let (bind_list, p) = {
-        let (bind_list, p_map): (Vec<BinderResult>, Vec<ParseResult>) =
+        let (bind_list, p_map): (Vec<BinderResult>, Vec<(ParseResult, bind::ParentMap)>) =
             bind_parallel(module_arena.modules(), &atoms, p, &tsconfig)
                 .into_iter()
                 .unzip();
@@ -283,6 +285,7 @@ pub fn eval_from_with_fs<'cx>(
         .into_iter()
         .chain(std::mem::take(&mut checker.diags))
         .collect::<Vec<_>>();
+    let diags = diag::get_merged_diags(diags, &p, &module_arena);
 
     if cfg!(test) {
         // each module should be created once

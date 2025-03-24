@@ -35,7 +35,7 @@ impl<'cx> BinderState<'cx, '_, '_> {
         name: SymbolName,
         ns: &ast::NsDecl<'cx>,
     ) -> SymbolID {
-        let state = self.p.get_module_instance_state(ns, None);
+        let state = self.node_query().get_module_instance_state(ns, None);
         let instantiated = state != ModuleInstanceState::NonInstantiated;
         let includes = if instantiated {
             SymbolFlags::VALUE_MODULE

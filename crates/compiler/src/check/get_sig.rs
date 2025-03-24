@@ -2,6 +2,7 @@ use super::TyChecker;
 use super::ast;
 use super::type_predicate::TyPred;
 use crate::bind::SymbolID;
+use crate::ir::node_id_of_binding;
 use crate::ty;
 use crate::ty::SigID;
 use crate::ty::SigKind;
@@ -326,11 +327,8 @@ fn get_sig_from_decl<'cx>(
     let mut min_args_count = 0;
     let mut params = Vec::with_capacity(params_of_node.len());
     for param in params_of_node {
-        let symbol = match param.name.kind {
-            ast::BindingKind::Ident(ident) => checker.final_res(ident.id),
-            ast::BindingKind::ObjectPat(_) => todo!(),
-            bolt_ts_ast::BindingKind::ArrayPat(_) => todo!(),
-        };
+        let id = node_id_of_binding(*param);
+        let symbol = checker.final_res(id);
         params.push(symbol);
         let is_opt = param.question.is_some() || param.dotdotdot.is_some() || param.init.is_some();
         if !is_opt {

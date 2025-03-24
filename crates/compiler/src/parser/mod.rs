@@ -27,6 +27,7 @@ use utils::is_declaration_filename;
 
 pub use self::query::AccessKind;
 pub use self::query::AssignmentKind;
+use crate::bind;
 use crate::keyword;
 pub use bolt_ts_ast::KEYWORD_TOKEN_START;
 use bolt_ts_ast::{self as ast, Node, NodeFlags, NodeID};
@@ -42,7 +43,9 @@ enum Tristate {
 }
 
 #[derive(Debug)]
-pub struct Nodes<'cx>(nohash_hasher::IntMap<u32, Node<'cx>>);
+// TODO: remove public
+// TODO: use vector
+pub struct Nodes<'cx>(pub(crate) nohash_hasher::IntMap<u32, Node<'cx>>);
 
 impl Default for Nodes<'_> {
     fn default() -> Self {
@@ -66,43 +69,31 @@ impl<'cx> Nodes<'cx> {
     }
 }
 
-#[derive(Debug)]
-pub struct ParentMap(nohash_hasher::IntMap<u32, u32>);
+#[derive(Debug, Clone, Copy)]
+pub struct CommentDirective {
+    pub line: u32,
+    pub range: bolt_ts_span::Span,
+    pub kind: CommentDirectiveKind,
+}
 
-impl ParentMap {
-    fn new() -> Self {
-        Self(no_hashmap_with_capacity(2048))
-    }
-    pub fn parent(&self, node_id: NodeID) -> Option<NodeID> {
-        let id = node_id.index_as_u32();
-        self.0
-            .get(&id)
-            .map(|parent| NodeID::new(node_id.module(), *parent))
-    }
-
-    fn insert(&mut self, id: NodeID, parent: NodeID) {
-        assert!(id.index_as_u32() > parent.index_as_u32());
-        let prev = self.0.insert(id.index_as_u32(), parent.index_as_u32());
-        assert!(prev.is_none())
-    }
-
-    pub(super) fn r#override(&mut self, id: NodeID, parent: NodeID) {
-        assert!(
-            id.index_as_u32() < parent.index_as_u32(),
-            "id: {id:#?} and parent: {parent:#?}"
-        );
-        let prev = self.0.insert(id.index_as_u32(), parent.index_as_u32());
-        assert!(prev.unwrap() != id.index_as_u32())
-    }
+#[derive(Debug, Clone, Copy)]
+pub enum CommentDirectiveKind {
+    /// @ts-expect-error
+    ExpectError,
+    /// @ts-ignore
+    Ignore,
 }
 
 pub struct ParseResult<'cx> {
     pub diags: Vec<bolt_ts_errors::Diag>,
-    nodes: Nodes<'cx>,
-    parent_map: ParentMap,
+    // TODO: remove pub
+    pub nodes: Nodes<'cx>,
+    parent_map: crate::bind::ParentMap,
     pub node_flags_map: NodeFlagsMap,
     pub external_module_indicator: Option<ast::NodeID>,
     pub commonjs_module_indicator: Option<ast::NodeID>,
+    pub comment_directives: Vec<CommentDirective>,
+    pub line_map: Vec<u32>,
 }
 
 impl<'cx> ParseResult<'cx> {
@@ -120,6 +111,10 @@ impl<'cx> ParseResult<'cx> {
 
     pub fn node_flags(&self, id: NodeID) -> NodeFlags {
         self.node_flags_map.get(id)
+    }
+
+    pub fn node_len(&self) -> usize {
+        self.nodes.0.len()
     }
 }
 
@@ -140,7 +135,11 @@ impl<'cx> Parser<'cx> {
         }
     }
 
-    pub fn new_with_maps(map: Vec<ParseResult<'cx>>) -> Self {
+    pub fn new_with_maps(map: Vec<(ParseResult<'cx>, crate::bind::ParentMap)>) -> Self {
+        let map = map
+            .into_iter()
+            .map(|(p, parent_map)| ParseResult { parent_map, ..p })
+            .collect();
         Self { map }
     }
 
@@ -151,7 +150,7 @@ impl<'cx> Parser<'cx> {
     }
 
     #[inline(always)]
-    fn get(&self, id: ModuleID) -> &ParseResult<'cx> {
+    pub fn get(&self, id: ModuleID) -> &ParseResult<'cx> {
         &self.map[id.as_usize()]
     }
 
@@ -241,10 +240,16 @@ fn parse<'cx, 'p>(
     module_arena: &'p ModuleArena,
 ) -> ParseResult<'cx> {
     let nodes = Nodes::new();
-    let parent_map = ParentMap::new();
+    let parent_map = bind::ParentMap::default();
     let mut s = ParserState::new(atoms, arena, nodes, parent_map, input, module_id);
     let file_path = module_arena.get_path(module_id);
+
     s.parse(file_path);
+
+    s.record_new_line_offset();
+    assert_eq!(s.line_map[0], 0);
+    debug_assert!(s.line_map.is_sorted(), "line_map: {:#?}", s.line_map);
+
     ParseResult {
         diags: s.diags,
         nodes: s.nodes,
@@ -252,6 +257,8 @@ fn parse<'cx, 'p>(
         node_flags_map: s.node_flags_map,
         external_module_indicator: s.external_module_indicator,
         commonjs_module_indicator: s.commonjs_module_indicator,
+        comment_directives: s.comment_directives,
+        line_map: s.line_map,
     }
 }
 
@@ -264,12 +271,11 @@ struct ParserState<'cx, 'p> {
     token_flags: TokenFlags,
     full_start_pos: usize,
     pos: usize,
-    parent: NodeID,
     module_id: ModuleID,
     ident_count: usize,
     diags: Vec<bolt_ts_errors::Diag>,
     nodes: Nodes<'cx>,
-    parent_map: ParentMap,
+    parent_map: crate::bind::ParentMap,
     node_flags_map: NodeFlagsMap,
     arena: &'p bumpalo_herd::Member<'cx>,
     next_node_id: NodeID,
@@ -277,9 +283,14 @@ struct ParserState<'cx, 'p> {
     external_module_indicator: Option<ast::NodeID>,
     commonjs_module_indicator: Option<ast::NodeID>,
     has_export_decl: bool,
+    comment_directives: Vec<CommentDirective>,
+    line: usize,
+    line_start: usize, // offset
+    line_map: Vec<u32>,
 }
 
 #[derive(Debug)]
+// TODO: use vector
 pub struct NodeFlagsMap(nohash_hasher::IntMap<u32, bolt_ts_ast::NodeFlags>);
 impl NodeFlagsMap {
     fn new() -> Self {
@@ -314,7 +325,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         atoms: Arc<Mutex<AtomMap<'cx>>>,
         arena: &'p bumpalo_herd::Member<'cx>,
         nodes: Nodes<'cx>,
-        parent_map: ParentMap,
+        parent_map: crate::bind::ParentMap,
         input: &'p [u8],
         module_id: ModuleID,
     ) -> Self {
@@ -330,7 +341,6 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
             pos: 0,
             full_start_pos: 0,
             atoms,
-            parent: NodeID::root(module_id),
             module_id,
             ident_count: 0,
             diags: vec![],
@@ -344,6 +354,10 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
             external_module_indicator: None,
             commonjs_module_indicator: None,
             has_export_decl: false,
+            comment_directives: Vec::with_capacity(32),
+            line_start: 0,
+            line_map: Vec::with_capacity(input.len() / 12),
+            line: 0,
         }
     }
 
@@ -555,20 +569,8 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         self.alloc(ast::LitTy { id, kind, span })
     }
 
-    #[inline]
-    fn with_parent<T>(&mut self, parent: NodeID, f: impl FnOnce(&mut Self) -> T) -> T {
-        let old = self.parent;
-        self.parent = parent;
-        let ret = f(self);
-        self.parent = old;
-        ret
-    }
-
     fn insert_map(&mut self, id: NodeID, node: Node<'cx>) {
-        assert!(id.index_as_u32() > self.parent.index_as_u32());
         self.nodes.insert(id, node);
-        // TODO: move parent_map.insert into binding and use Vec instead of Map
-        self.parent_map.insert(id, self.parent);
     }
 
     pub fn parse(&mut self, file_path: &std::path::Path) -> &'cx ast::Program<'cx> {
@@ -581,24 +583,22 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         let start = self.pos;
         let id = self.next_node_id();
         assert_eq!(id.index_as_u32(), 0);
-        self.with_parent(id, |this| {
-            this.next_token();
-            let stmts = this.arena.alloc(Vec::with_capacity(512));
-            while this.token.kind != TokenKind::EOF {
-                if let Ok(stmt) = this.parse_stmt() {
-                    stmts.push(stmt);
-                }
+        self.next_token();
+        let stmts = self.arena.alloc(Vec::with_capacity(512));
+        while self.token.kind != TokenKind::EOF {
+            if let Ok(stmt) = self.parse_stmt() {
+                stmts.push(stmt);
             }
-            let program = this.alloc(ast::Program {
-                id,
-                stmts,
-                span: this.new_span(start as u32),
-                is_declaration: is_declaration_filename(p),
-                filepath: atom,
-            });
-            this.nodes.insert(id, Node::Program(program));
-            program
-        })
+        }
+        let program = self.alloc(ast::Program {
+            id,
+            stmts,
+            span: self.new_span(start as u32),
+            is_declaration: is_declaration_filename(p),
+            filepath: atom,
+        });
+        self.nodes.insert(id, Node::Program(program));
+        program
     }
 
     fn push_error(&mut self, error: crate::Diag) {

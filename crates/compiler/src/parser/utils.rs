@@ -92,9 +92,7 @@ impl<'cx> ParserState<'cx, '_> {
         use bolt_ts_ast::TokenKind::*;
         let open = LBrace;
         let open_brace_parsed = self.expect(LBrace);
-        let stmts = self.with_parent(id, |this| {
-            this.parse_list(list_ctx::BlockStmts, Self::parse_stmt)
-        });
+        let stmts = self.parse_list(list_ctx::BlockStmts, Self::parse_stmt);
         self.parse_expected_matching_brackets(open, RBrace, open_brace_parsed, start as usize)?;
         let stmt = self.alloc(ast::BlockStmt {
             id,
@@ -253,7 +251,7 @@ impl<'cx> ParserState<'cx, '_> {
     fn parse_ty_param(&mut self) -> PResult<&'cx ast::TyParam<'cx>> {
         let id = self.next_node_id();
         let start = self.token.start();
-        let name = self.with_parent(id, Self::parse_binding_ident);
+        let name = self.parse_binding_ident();
         let constraint = if self.parse_optional(TokenKind::Extends).is_some() {
             if self.is_start_of_ty(false) || !self.is_start_of_expr() {
                 Some(self.parse_ty()?)
@@ -318,7 +316,7 @@ impl<'cx> ParserState<'cx, '_> {
             let id = self.next_node_id();
             let start = self.token.start();
             self.expect(TokenKind::LBracket);
-            let expr = self.with_parent(id, |this| this.allow_in_and(Self::parse_expr))?;
+            let expr = self.allow_in_and(Self::parse_expr)?;
             self.expect(TokenKind::RBracket);
             let kind = self.alloc(ast::ComputedPropName {
                 id,
@@ -527,10 +525,10 @@ impl<'cx> ParserState<'cx, '_> {
         let start = self.token.start();
         let id = self.next_node_id();
         let ident = if let Some(ident) = ident {
-            self.parent_map.r#override(ident.id, id);
+            // self.parent_map.r#override(ident.id, id);
             ident
         } else {
-            self.with_parent(id, |this| this.create_ident(true, None))
+            self.create_ident(true, None)
         };
         let kind = ast::BindingKind::Ident(ident);
         let span = self.new_span(start);
@@ -566,8 +564,8 @@ impl<'cx> ParserState<'cx, '_> {
         }
 
         if self.token.kind == TokenKind::This {
-            let name = self.with_parent(id, |this| this.parse_binding_with_ident(None));
-            let ty = self.with_parent(id, Self::parse_ty_anno)?;
+            let name = self.parse_binding_with_ident(None);
+            let ty = self.parse_ty_anno()?;
             let decl = self.alloc(ast::ParamDecl {
                 id,
                 span: self.new_span(start),
@@ -583,7 +581,7 @@ impl<'cx> ParserState<'cx, '_> {
         }
 
         let dotdotdot = self.parse_optional(TokenKind::DotDotDot).map(|t| t.span);
-        let name = self.with_parent(id, Self::parse_name_of_param)?;
+        let name = self.parse_name_of_param()?;
         if dotdotdot.is_some() {
             if let Some(ms) = modifiers {
                 if ms.flags.intersects(ModifierKind::PARAMETER_PROPERTY) {
@@ -608,8 +606,8 @@ impl<'cx> ParserState<'cx, '_> {
             }
         };
         let question = self.parse_optional(TokenKind::Question).map(|t| t.span);
-        let ty = self.with_parent(id, Self::parse_ty_anno)?;
-        let init = self.with_parent(id, Self::parse_init)?;
+        let ty = self.parse_ty_anno()?;
+        let init = self.parse_init()?;
         let decl = self.alloc(ast::ParamDecl {
             id,
             span: self.new_span(start),
@@ -764,12 +762,12 @@ impl<'cx> ParserState<'cx, '_> {
         modifiers: Option<&'cx ast::Modifiers<'cx>>,
         ambient: bool,
     ) -> PResult<&'cx ast::GetterDecl<'cx>> {
-        let name = self.with_parent(id, |this| this.parse_prop_name(false))?;
-        let ty_params = self.with_parent(id, Self::parse_ty_params)?;
-        let params = self.with_parent(id, Self::parse_params)?;
+        let name = self.parse_prop_name(false)?;
+        let ty_params = self.parse_ty_params()?;
+        let params = self.parse_params()?;
         // TODO: assert params.is_none
-        let ty = self.with_parent(id, |this| this.parse_ret_ty(true))?;
-        let mut body = self.with_parent(id, Self::parse_fn_block)?;
+        let ty = self.parse_ret_ty(true)?;
+        let mut body = self.parse_fn_block()?;
         if ambient {
             if let Some(body) = body {
                 let error =
@@ -797,11 +795,11 @@ impl<'cx> ParserState<'cx, '_> {
         modifiers: Option<&'cx ast::Modifiers<'cx>>,
         ambient: bool,
     ) -> PResult<&'cx ast::SetterDecl<'cx>> {
-        let name = self.with_parent(id, |this| this.parse_prop_name(false))?;
-        let ty_params = self.with_parent(id, Self::parse_ty_params)?;
-        let params = self.with_parent(id, Self::parse_params)?;
-        let ty = self.with_parent(id, |this| this.parse_ret_ty(true))?;
-        let mut body = self.with_parent(id, Self::parse_fn_block)?;
+        let name = self.parse_prop_name(false)?;
+        let ty_params = self.parse_ty_params()?;
+        let params = self.parse_params()?;
+        let ty = self.parse_ret_ty(true)?;
+        let mut body = self.parse_fn_block()?;
         if ambient {
             if let Some(body) = body {
                 let error =

@@ -1,5 +1,4 @@
 use super::BinderState;
-use super::container_flags::ContainerFlags;
 use super::container_flags::container_flags_for_node;
 use super::flow::FlowFlags;
 use super::flow::FlowID;
@@ -10,8 +9,6 @@ use super::symbol::{SymbolID, SymbolName};
 
 use bolt_ts_ast as ast;
 use bolt_ts_ast::NodeFlags;
-
-use crate::bind::SymbolTable;
 
 impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
     fn bind_if_stmt(&mut self, n: &'cx ast::IfStmt<'cx>) {
@@ -109,9 +106,7 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
     }
 
     pub(super) fn bind_block_stmt(&mut self, block: &'cx ast::BlockStmt<'cx>) {
-        for stmt in block.stmts {
-            self.bind(stmt.id())
-        }
+        self.bind(block.id);
     }
 
     pub(super) fn finish_flow_label(&mut self, id: FlowID) -> FlowID {
@@ -222,8 +217,7 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
         match name.kind {
             Ident(n) => self.bind(n.id),
             Qualified(q) => {
-                self.bind(q.left.id());
-                self.bind(q.right.id);
+                self.bind(q.id);
             }
         }
     }
@@ -373,7 +367,7 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
     ) -> SymbolID {
         let container = self.container.unwrap();
         let has_export_modifier = self
-            .p
+            .node_query()
             .get_combined_modifier_flags(current)
             .intersects(ast::ModifierKind::Export);
         if symbol_flags.intersects(SymbolFlags::ALIAS) {
@@ -568,11 +562,18 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
                 }
             }
             VarStmt(n) => {
+                if let Some(mods) = n.modifiers {
+                    self.bind_modifiers(mods);
+                }
                 for item in n.list {
                     self.bind(item.id);
                 }
             }
             FnDecl(n) => {
+                if let Some(mods) = n.modifiers {
+                    self.bind_modifiers(mods);
+                }
+                self.bind(n.name.id);
                 if let Some(ty_params) = n.ty_params {
                     self.bind_ty_params(ty_params);
                 }
@@ -586,6 +587,9 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
             }
             EmptyStmt(_) => {}
             ClassDecl(n) => {
+                if let Some(mods) = n.modifiers {
+                    self.bind_modifiers(mods);
+                }
                 self.bind(n.name.id);
                 if let Some(ty_params) = n.ty_params {
                     self.bind_ty_params(ty_params);
@@ -1167,7 +1171,8 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
         use bolt_ts_ast::Node::*;
         if n.init.is_some()
             || matches!(
-                self.p.node(self.p.parent(n.id).unwrap()),
+                self.p
+                    .node(self.parent_map.parent_unfinished(n.id).unwrap()),
                 ForInStmt(_) | ForOfStmt(_)
             )
         {
@@ -1227,13 +1232,15 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
 
     pub(super) fn bind(&mut self, node: ast::NodeID) {
         let save_in_strict_mode = self.in_strict_mode;
-        // TODO: set parent
+        if let Some(parent) = self.parent {
+            self.parent_map.insert(node, parent);
+        }
 
         self._bind(node);
 
         let save_parent = self.parent;
         self.parent = Some(node);
-        let container_flags = container_flags_for_node(self.p, node);
+        let container_flags = container_flags_for_node(self.p, &self.parent_map, node);
         if container_flags.is_empty() {
             self.bind_children(node);
         } else {

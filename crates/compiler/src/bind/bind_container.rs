@@ -69,7 +69,10 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
                 .intersects(ContainerFlags::IS_FUNCTION_EXPRESSION)
                 && !n.has_syntactic_modifier(ast::ModifierKind::Async.into())
                 && !n.is_fn_like_and_has_asterisk()
-                && self.p.get_immediately_invoked_fn_expr(node).is_some())
+                && self
+                    .node_query()
+                    .get_immediately_invoked_fn_expr(node)
+                    .is_some())
                 || self.p.node(node).is_class_static_block_decl();
 
             if !is_immediately_invoked {

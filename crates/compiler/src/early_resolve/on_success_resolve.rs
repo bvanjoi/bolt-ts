@@ -1,6 +1,7 @@
 use crate::bind::Symbol;
 use crate::bind::SymbolFlags;
 use crate::bind::SymbolID;
+use crate::ir::node_id_of_binding;
 use bolt_ts_ast as ast;
 
 use super::Resolver;
@@ -20,11 +21,7 @@ impl<'cx> Resolver<'cx, '_, '_> {
                 .p
                 .node(associated_declaration_for_containing_initializer_or_binding_name);
             if let Some(param_decl) = node.as_param_decl() {
-                let id = match param_decl.name.kind {
-                    bolt_ts_ast::BindingKind::Ident(ident) => ident.id,
-                    bolt_ts_ast::BindingKind::ObjectPat(_) => todo!(),
-                    bolt_ts_ast::BindingKind::ArrayPat(_) => todo!(),
-                };
+                let id = node_id_of_binding(param_decl);
                 if symbol == self.symbol_of_decl(id) {
                     let error = errors::ParameterXCannotReferenceItself {
                         span: ident.span,

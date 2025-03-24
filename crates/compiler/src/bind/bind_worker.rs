@@ -1,25 +1,13 @@
 use super::BinderState;
-use super::FlowNodes;
-use super::container_flags::ContainerFlags;
-use super::container_flags::container_flags_for_node;
-use super::flow::FlowFlags;
-use super::flow::FlowID;
-use super::flow::FlowNodeKind;
 use super::symbol::SymbolFlags;
 use super::symbol::SymbolTableLocation;
-use super::symbol::{SymbolID, SymbolName, Symbols};
+use super::symbol::{SymbolID, SymbolName};
 
 use bolt_ts_ast as ast;
 use bolt_ts_ast::NodeFlags;
-use bolt_ts_atom::AtomMap;
-use bolt_ts_config::NormalizedTsConfig;
-use bolt_ts_span::ModuleID;
-use bolt_ts_utils::fx_hashmap_with_capacity;
 
-use crate::bind::SymbolTable;
 use crate::bind::prop_name;
 use crate::ir;
-use crate::parser::ParseResult;
 use crate::parser::is_left_hand_side_expr_kind;
 
 impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
@@ -56,13 +44,13 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
 
     fn bind_ty_param(&mut self, ty_param: &'cx ast::TyParam<'cx>) {
         let name = SymbolName::Normal(ty_param.name.name);
-        let parent = self.p.parent(ty_param.id).unwrap();
+        let parent = self.parent_map.parent_unfinished(ty_param.id).unwrap();
         // TODO: is_js_doc_template_tag
         let s = if let Some(infer_ty) = self.p.node(parent).as_infer_ty() {
             assert!(ty_param.default.is_none());
-            let extends_ty = self.p.find_ancestor(infer_ty.id, |n| {
+            let extends_ty = self.node_query().find_ancestor(infer_ty.id, |n| {
                 let n_id = n.id();
-                let p = self.p.parent(n_id)?;
+                let p = self.parent_map.parent_unfinished(n_id)?;
                 if let Some(cond) = self.p.node(p).as_cond_ty() {
                     if cond.extends_ty.id() == n_id {
                         return Some(true);
@@ -71,7 +59,7 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
                 None
             });
             let cond_container = extends_ty.map(|extends_ty| {
-                let p = self.p.parent(extends_ty).unwrap();
+                let p = self.parent_map.parent_unfinished(extends_ty).unwrap();
                 let n = self.p.node(p);
                 assert!(n.is_cond_ty());
                 p
@@ -174,11 +162,10 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
 
         let name = match n.binding.kind {
             bolt_ts_ast::BindingKind::Ident(name) => name,
-            _ => return,
+            _ => return, // TODO: handle more case
         };
         let symbol = self.bind_var(n.id, name.name);
-        // TODO: use var.id
-        self.create_final_res(name.id, symbol);
+        self.create_final_res(n.id, symbol);
     }
 
     fn bind_object_binding_ele(&mut self, n: &ast::ObjectBindingElem<'cx>) {
@@ -198,14 +185,14 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
 
     fn bind_var(&mut self, id: ast::NodeID, name: bolt_ts_atom::AtomId) -> SymbolID {
         let name = SymbolName::Normal(name);
-        let symbol = if self.p.is_block_or_catch_scoped(id) {
+        let symbol = if self.node_query().is_block_or_catch_scoped(id) {
             self.bind_block_scoped_decl(
                 id,
                 name,
                 SymbolFlags::BLOCK_SCOPED_VARIABLE,
                 SymbolFlags::BLOCK_SCOPED_VARIABLE_EXCLUDES,
             )
-        } else if self.p.is_part_of_param_decl(id) {
+        } else if self.node_query().is_part_of_param_decl(id) {
             self.declare_symbol_and_add_to_symbol_table(
                 name,
                 id,
@@ -239,8 +226,7 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
                     SymbolFlags::FUNCTION_SCOPED_VARIABLE,
                     SymbolFlags::PARAMETER_EXCLUDES,
                 );
-                // TODO: use `n.id`
-                self.create_final_res(ident.id, symbol);
+                self.create_final_res(n.id, symbol);
             }
             bolt_ts_ast::BindingKind::ObjectPat(_) => {
                 // self.bind_anonymous_decl(n.id, flags, name)
@@ -249,13 +235,13 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
             bolt_ts_ast::BindingKind::ArrayPat(_) => todo!(),
         }
 
-        let p = self.p.parent(n.id).unwrap();
+        let p = self.parent_map.parent_unfinished(n.id).unwrap();
 
         if n.modifiers
             .is_some_and(|mods| mods.flags.intersects(ast::ModifierKind::PARAMETER_PROPERTY))
             && self.p.node(p).is_class_ctor()
         {
-            let class_decl = self.p.parent(p).unwrap();
+            let class_decl = self.parent_map.parent_unfinished(p).unwrap();
             let loc = SymbolTableLocation::members(class_decl);
             let includes = SymbolFlags::PROPERTY
                 | if n.question.is_some() {
@@ -302,7 +288,7 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
             }
             QualifiedName(_) => {
                 if let Some(flow) = self.current_flow {
-                    if self.p.is_part_of_ty_query(node) {
+                    if self.node_query().is_part_of_ty_query(node) {
                         self.flow_nodes.insert_container_map(node, flow);
                     }
                 }
@@ -569,7 +555,7 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
             BlockStmt(_)
                 if self
                     .p
-                    .node(self.p.parent(node).unwrap())
+                    .node(self.parent_map.parent_unfinished(node).unwrap())
                     .is_fn_like_or_class_static_block_decl() => {}
             BlockStmt(_) | ModuleBlock(_) => {
                 // TODO: `update_strict_module_statement_list`

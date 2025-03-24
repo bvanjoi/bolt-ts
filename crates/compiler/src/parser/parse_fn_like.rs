@@ -102,11 +102,11 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         let id = self.next_node_id();
         let start = self.token.start();
         self.expect(Function);
-        let name = self.with_parent(id, |this| mode.parse_name(this))?;
-        let ty_params = self.with_parent(id, Self::parse_ty_params)?;
-        let params = self.with_parent(id, Self::parse_params)?;
-        let ret_ty = self.with_parent(id, Self::parse_fn_decl_ret_type)?;
-        let body = self.with_parent(id, Self::parse_fn_block)?;
+        let name = mode.parse_name(self)?;
+        let ty_params = self.parse_ty_params()?;
+        let params = self.parse_params()?;
+        let ret_ty = self.parse_fn_decl_ret_type()?;
+        let body = self.parse_fn_block()?;
         let span = self.new_span(start);
         Ok(mode.finish(
             self, id, span, modifiers, name, ty_params, params, ret_ty, body,

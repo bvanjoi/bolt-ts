@@ -1342,16 +1342,16 @@ impl<'cx> TyChecker<'cx> {
                                 }
                             }
                         }
-                    }
-                } else {
-                    let n = self.p.node(decl);
-                    let is_decl_instance_prop = n.is_class_prop_ele() && !n.is_static();
-                    if !is_decl_instance_prop {
-                        return Some(true);
-                    } else if let Some(usage_class) = self.p.get_containing_class(used.id) {
-                        if let Some(decl_class) = self.p.get_containing_class(decl) {
-                            if usage_class == decl_class {
-                                return Some(true);
+                    } else {
+                        let n = self.p.node(decl);
+                        let is_decl_instance_prop = n.is_class_prop_ele() && !n.is_static();
+                        if !is_decl_instance_prop {
+                            return Some(true);
+                        } else if let Some(usage_class) = self.p.get_containing_class(used.id) {
+                            if let Some(decl_class) = self.p.get_containing_class(decl) {
+                                if usage_class == decl_class {
+                                    return Some(true);
+                                }
                             }
                         }
                     }
@@ -2078,11 +2078,10 @@ impl<'cx> TyChecker<'cx> {
                     t.is_this_expr()
                 } else if let Some(t_ident) = t.as_ident() {
                     self.resolve_symbol_by_ident(s_ident) == self.resolve_symbol_by_ident(t_ident)
-                } else if let Some(v) = t.as_var_decl() {
-                    match v.binding.kind {
-                        bolt_ts_ast::BindingKind::Ident(ident) => {
-                            self.resolve_symbol_by_ident(s_ident)
-                                == self.resolve_symbol_by_ident(ident)
+                } else if let Some(t_v) = t.as_var_decl() {
+                    match t_v.binding.kind {
+                        bolt_ts_ast::BindingKind::Ident(_) => {
+                            self.resolve_symbol_by_ident(s_ident) == self.get_symbol_of_decl(t_v.id)
                         }
                         bolt_ts_ast::BindingKind::ObjectPat(_) => todo!(),
                         bolt_ts_ast::BindingKind::ArrayPat(_) => todo!(),

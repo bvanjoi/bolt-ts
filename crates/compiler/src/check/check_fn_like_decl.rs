@@ -6,8 +6,8 @@ impl<'cx> TyChecker<'cx> {
     fn check_param_decl(&mut self, param: &'cx ast::ParamDecl<'cx>) {
         self.check_var_like_decl(param);
         if param.dotdotdot.is_some() {
-            if let ast::BindingKind::Ident(ident) = param.name.kind {
-                let symbol = self.get_symbol_of_decl(ident.id);
+            if let ast::BindingKind::Ident(_) = param.name.kind {
+                let symbol = self.get_symbol_of_decl(param.id);
                 let ty = self.get_type_of_symbol(symbol);
                 let ty = self.get_reduced_ty(ty);
                 if !self.is_type_assignable_to(ty, self.any_readonly_array_ty()) {
