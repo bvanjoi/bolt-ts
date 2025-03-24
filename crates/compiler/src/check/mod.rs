@@ -83,6 +83,7 @@ pub use self::resolve::ExpectedArgsCount;
 use crate::bind::{
     self, FlowID, FlowNodes, GlobalSymbols, Symbol, SymbolFlags, SymbolID, SymbolName,
 };
+use crate::graph::ModuleGraph;
 use crate::parser::{AccessKind, AssignmentKind, Parser};
 use crate::ty::{CheckFlags, TYPEOF_NE_FACTS};
 use crate::ty::{ElementFlags, ObjectFlags, Sig, SigFlags, SigID, TyID, TypeFacts, TypeFlags};
@@ -183,6 +184,7 @@ pub struct TyChecker<'cx> {
     shared_flow_info: Vec<(FlowID, FlowTy<'cx>)>,
     // === ast ===
     pub p: &'cx Parser<'cx>,
+    pub mg: &'cx ModuleGraph,
     // === global ===
     // === intrinsic types ===
     pub any_ty: &'cx ty::Ty<'cx>,
@@ -269,6 +271,7 @@ impl<'cx> TyChecker<'cx> {
     pub fn new(
         ty_arena: &'cx bumpalo::Bump,
         p: &'cx Parser<'cx>,
+        mg: &'cx ModuleGraph,
         atoms: &'cx mut AtomMap<'cx>,
         binder: &'cx bind::Binder,
         global_symbols: &'cx GlobalSymbols,
@@ -353,6 +356,7 @@ impl<'cx> TyChecker<'cx> {
         let mut this = Self {
             atoms,
             p,
+            mg,
             config,
 
             tys,

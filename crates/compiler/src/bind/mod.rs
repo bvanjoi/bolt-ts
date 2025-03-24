@@ -32,7 +32,6 @@ pub use self::parent_map::ParentMap;
 pub use self::symbol::{GlobalSymbols, Symbol, SymbolID, SymbolName, Symbols};
 pub use self::symbol::{SymbolFlags, SymbolTable};
 
-use crate::late_resolve::ResolveResult;
 use crate::parser::ParseResult;
 use crate::parser::Parser;
 use bolt_ts_ast as ast;
@@ -44,25 +43,22 @@ pub(crate) enum ModuleInstanceState {
     ConstEnumOnly = 2,
 }
 
+pub struct ResolveResult {
+    pub symbols: Symbols,
+    // TODO: use `NodeId::index` is enough
+    pub final_res: FxHashMap<ast::NodeID, SymbolID>,
+    pub diags: Vec<bolt_ts_errors::Diag>,
+    // TODO: use `NodeId::index` is enough
+    pub locals: FxHashMap<ast::NodeID, SymbolTable>,
+}
+
 pub struct Binder {
     bind_results: Vec<ResolveResult>,
-    alias_target: FxHashMap<SymbolID, SymbolID>,
 }
 
 impl Binder {
-    pub fn new(
-        bind_results: Vec<ResolveResult>,
-        alias_target: FxHashMap<SymbolID, SymbolID>,
-    ) -> Self {
-        Self {
-            bind_results,
-            alias_target,
-        }
-    }
-
-    pub(crate) fn get_alias_target(&self, id: SymbolID) -> SymbolID {
-        assert!(self.symbol(id).flags.intersects(SymbolFlags::ALIAS));
-        self.alias_target.get(&id).copied().unwrap()
+    pub fn new(bind_results: Vec<ResolveResult>) -> Self {
+        Self { bind_results }
     }
 
     #[inline(always)]

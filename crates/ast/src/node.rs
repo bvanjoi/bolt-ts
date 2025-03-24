@@ -421,6 +421,7 @@ impl<'cx> Node<'cx> {
                 | InterfaceDecl(_)
                 | ParamDecl(_)
                 | TyParam(_)
+                | NsImport(_)
                 | ShorthandSpec(_)
                 | GetterDecl(_)
                 | SetterDecl(_)

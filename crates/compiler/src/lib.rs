@@ -7,7 +7,6 @@ mod ecma_rules;
 mod emit;
 mod graph;
 mod ir;
-mod late_resolve;
 pub mod parser;
 mod path;
 mod ty;
@@ -23,7 +22,7 @@ use self::diag::Diag;
 use self::early_resolve::early_resolve_parallel;
 use self::wf::well_formed_check_parallel;
 
-use bind::Binder;
+use bind::{Binder, ResolveResult};
 use bolt_ts_ast::TokenKind;
 use bolt_ts_ast::keyword_idx_to_token;
 
@@ -219,30 +218,24 @@ pub fn eval_from_with_fs<'cx>(
         .zip(bind_list)
         .map(|((x, y), z)| (x, y, z))
         .map(|(_, early_resolve_result, mut state)| {
+            debug_assert!(
+                state
+                    .final_res
+                    .keys()
+                    .all(|node_id| !early_resolve_result.final_res.contains_key(node_id))
+            );
             state.diags.extend(early_resolve_result.diags);
-            if cfg!(test) {
-                for node_id in state.final_res.keys() {
-                    assert!(!early_resolve_result.final_res.contains_key(node_id));
-                }
-            }
             state.final_res.extend(early_resolve_result.final_res);
-            state
+            ResolveResult {
+                symbols: state.symbols,
+                final_res: state.final_res,
+                diags: state.diags,
+                locals: state.locals,
+            }
         })
         .collect::<Vec<_>>();
 
-    let (bind_results, alias_target) = late_resolve::late_resolve(
-        states,
-        module_arena.modules(),
-        &mg,
-        &p,
-        &global_symbols,
-        &atoms,
-    );
-    debug_assert!(bind_results.is_sorted_by_key(|x| x.0.as_usize()));
-    let mut binder = Binder::new(
-        bind_results.into_iter().map(|x| x.1).collect(),
-        alias_target,
-    );
+    let mut binder = Binder::new(states);
 
     let diags: Vec<_> = diags
         .into_iter()
@@ -259,6 +252,7 @@ pub fn eval_from_with_fs<'cx>(
     let mut checker = check::TyChecker::new(
         &ty_arena,
         &p,
+        &mg,
         &mut atoms,
         &binder,
         &global_symbols,

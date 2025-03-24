@@ -69,7 +69,7 @@ impl<'cx> TyChecker<'cx> {
         if !self.push_ty_resolution(ResolutionKey::Type(symbol)) {
             return self.error_ty;
         }
-        let target_symbol = self.binder.get_alias_target(symbol);
+        let target_symbol = self.resolve_alias(symbol);
         let flags = self.symbol(target_symbol).flags(); // TODO: get_symbol_flags;
         let ty = if flags.intersects(SymbolFlags::VALUE) {
             self.get_type_of_symbol(target_symbol)

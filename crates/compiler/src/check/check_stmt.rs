@@ -25,10 +25,10 @@ impl<'cx> TyChecker<'cx> {
             Type(ty) => self.check_type_decl(ty),
             For(node) => self.check_for_stmt(node),
             ForIn(node) => self.check_for_in_stmt(node),
+            Import(node) => self.check_import_decl(node),
             Empty(_) => {}
             Throw(_) => {}
             Enum(_) => {}
-            Import(_) => {}
             Export(_) => {}
             ForOf(_) => {}
             Break(_) => {}
@@ -38,6 +38,33 @@ impl<'cx> TyChecker<'cx> {
             Do(_) => {}
             Debugger(_) => {}
         };
+    }
+
+    fn check_import_decl(&mut self, node: &'cx ast::ImportDecl<'cx>) {
+        if let Some(clause) = node.clause.kind {
+            use bolt_ts_ast::ImportClauseKind::*;
+            match clause {
+                Ns(n) => {
+                    // import * as ns from 'xxxx'
+                    self.check_import_binding(n.id);
+                }
+                Specs(specs) => {
+                    // import { a, b as c } from 'xxxx'
+                    for spec in specs {
+                        use bolt_ts_ast::ImportSpecKind::*;
+                        match spec.kind {
+                            Shorthand(n) => {
+                                // import { a } from 'xxxx'
+                                self.check_import_binding(n.id);
+                            }
+                            Named(_) => {
+                                // import { a as b } from 'xxxx'
+                            }
+                        }
+                    }
+                }
+            }
+        }
     }
 
     fn check_for_in_stmt(&mut self, node: &'cx ast::ForInStmt<'cx>) {

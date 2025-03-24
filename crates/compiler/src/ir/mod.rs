@@ -10,7 +10,7 @@ mod var_like;
 
 pub use accessor_like::AccessorLike;
 pub use binary_like::{BinaryLike, BinaryLikeOp};
-pub use binding_name::{HasBindingName, node_id_of_binding};
+pub use binding_name::node_id_of_binding;
 pub use call_like::CallLike;
 pub use class_like::ClassLike;
 pub use fn_like::{FnDeclLike, FnExprLike};
