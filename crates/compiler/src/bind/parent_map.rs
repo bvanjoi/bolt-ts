@@ -18,7 +18,7 @@ impl ParentMap {
         let id = node_id.index_as_usize();
         let p = self.inner[id];
         if p == Self::PLACEHOLDER {
-            assert_eq!(id, 0);
+            assert_eq!(id, self.inner.len() - 1);
             None
         } else {
             Some(bolt_ts_ast::NodeID::new(node_id.module(), p))
@@ -45,8 +45,8 @@ impl ParentMap {
 
     pub(super) fn finish(&mut self) {
         assert!(!self.finished);
-        assert_eq!(self.inner[0], Self::PLACEHOLDER);
-        // TODO: enable this when parser::Nodes use vector
+        assert_eq!(self.inner[self.inner.len() - 1], Self::PLACEHOLDER);
+        // TODO: enable this? How can we eliminate these invalid nodes?
         // debug_assert!(self.inner.iter().skip(1).all(|&p| p != Self::PLACEHOLDER));
         self.finished = true;
     }

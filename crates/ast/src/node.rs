@@ -426,6 +426,7 @@ impl<'cx> Node<'cx> {
                 | GetterDecl(_)
                 | SetterDecl(_)
                 | ObjectLit(_)
+                | Program(_)
         )
     }
 

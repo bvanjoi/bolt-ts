@@ -26,8 +26,7 @@ impl<'cx> TyChecker<'cx> {
         id: SymbolID,
     ) -> Option<&'cx ty::Ty<'cx>> {
         let flags = self.binder.symbol(id).flags;
-        const CLASS_OR_INTERFACE: SymbolFlags = SymbolFlags::CLASS.union(SymbolFlags::INTERFACE);
-        if flags.intersects(CLASS_OR_INTERFACE) {
+        if flags.intersects(SymbolFlags::CLASS_OR_INTERFACE) {
             Some(self.get_declared_ty_of_class_or_interface(id))
         } else if flags.intersects(SymbolFlags::TYPE_ALIAS) {
             let ty = self.get_declared_ty_of_type_alias(id);
@@ -183,42 +182,8 @@ impl<'cx> TyChecker<'cx> {
         s.intersects(SymbolFlags::VALUE) // TODO: get_symbol_flags
     }
 
-    fn get_resolved_member_or_exports_of_symbol(
-        &mut self,
-        symbol: SymbolID,
-        is_resolve_export: bool,
-    ) -> &'cx FxHashMap<SymbolName, SymbolID> {
-        let is_static = is_resolve_export;
-        // TODO: remove clone
-        self.alloc(self.members(symbol).clone())
-    }
-
-    fn get_resolved_member_of_symbol(
-        &mut self,
-        symbol: SymbolID,
-    ) -> &'cx FxHashMap<SymbolName, SymbolID> {
-        if let Some(resolved_members) = self.get_symbol_links(symbol).get_resolved_members() {
-            return resolved_members;
-        }
-        let resolved_members = self.get_resolved_member_or_exports_of_symbol(symbol, false);
-        self.get_mut_symbol_links(symbol)
-            .set_resolved_members(resolved_members);
-        resolved_members
-    }
-
-    fn get_members_of_late_binding_symbol(
-        &mut self,
-        symbol: SymbolID,
-    ) -> Option<&'cx FxHashMap<SymbolName, SymbolID>> {
-        self.binder
-            .symbol(symbol)
-            .flags
-            .intersects(SymbolFlags::LATE_BINDING_CONTAINER)
-            .then(|| self.get_resolved_member_of_symbol(symbol))
-    }
-
     fn resolve_declared_members(&mut self, symbol: SymbolID) -> &'cx ty::DeclaredMembers<'cx> {
-        let members = self.get_members_of_late_binding_symbol(symbol).unwrap();
+        let members = &self.get_members_of_symbol(symbol).0;
         let props = self.get_props_from_members(members);
         let call_sigs = members
             .get(&SymbolName::Call)

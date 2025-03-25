@@ -1,4 +1,5 @@
 use super::BinderState;
+use super::ModuleInstanceState;
 use super::NodeQuery;
 use super::symbol::SymbolFlags;
 use super::symbol::SymbolTableLocation;
@@ -19,16 +20,37 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
         };
 
         let s = if ns.is_ambient() {
-            self.declare_symbol_and_add_to_symbol_table(
-                name,
-                ns.id,
+            if self.node_query().is_module_augmentation_external(ns) {
+                self.declare_module_symbol(name, ns)
+            } else {
+                self.declare_symbol_and_add_to_symbol_table(
+                    name,
+                    ns.id,
+                    SymbolFlags::VALUE_MODULE,
+                    SymbolFlags::VALUE_MODULE_EXCLUDES,
+                )
+            }
+        } else {
+            self.declare_module_symbol(name, ns)
+        };
+        self.create_final_res(ns.id, s);
+    }
+
+    fn declare_module_symbol(&mut self, name: SymbolName, ns: &'cx ast::NsDecl<'cx>) -> SymbolID {
+        let state = self.node_query().get_module_instance_state(ns, None);
+        let instantiated = state != ModuleInstanceState::NonInstantiated;
+        let (includes, excludes) = if instantiated {
+            (
                 SymbolFlags::VALUE_MODULE,
                 SymbolFlags::VALUE_MODULE_EXCLUDES,
             )
         } else {
-            self.declare_symbol_with_ns(name, ns)
+            (
+                SymbolFlags::NAMESPACE_MODULE,
+                SymbolFlags::NAMESPACE_MODULE_EXCLUDES,
+            )
         };
-        self.create_final_res(ns.id, s);
+        self.declare_symbol_and_add_to_symbol_table(name, ns.id, includes, excludes)
     }
 
     fn bind_type_decl(&mut self, t: &'cx ast::TypeDecl<'cx>) {

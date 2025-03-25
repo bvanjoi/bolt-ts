@@ -26,7 +26,7 @@ use bolt_ts_span::ModuleID;
 use bolt_ts_utils::fx_hashmap_with_capacity;
 
 pub use self::flow::{FlowFlags, FlowID, FlowNode, FlowNodeKind, FlowNodes};
-pub(crate) use self::merge::{MergeGlobalSymbolResult, merge_global_symbol};
+pub(crate) use self::merge::{MergeGlobalSymbolResult, MergedSymbols, merge_global_symbol};
 pub use self::node_query::NodeQuery;
 pub use self::parent_map::ParentMap;
 pub use self::symbol::{GlobalSymbols, Symbol, SymbolID, SymbolName, Symbols};
@@ -157,6 +157,10 @@ impl<'cx> NodeQuery<'cx> for BinderNodeQuery<'cx, '_> {
     fn is_external_or_commonjs_module(&self) -> bool {
         self.parse_result.external_module_indicator.is_some()
             || self.parse_result.commonjs_module_indicator.is_some()
+    }
+
+    fn is_external_module(&self) -> bool {
+        self.parse_result.external_module_indicator.is_some()
     }
 }
 

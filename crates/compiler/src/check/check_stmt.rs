@@ -157,7 +157,7 @@ impl<'cx> TyChecker<'cx> {
         let is_ambient_external_module = matches!(ns.name, ast::ModuleName::StringLit(_));
         if is_ambient_external_module {
             let p = self.p.parent(ns.id).unwrap();
-            if self.p.node(p).is_program() {
+            if self.p.is_global_source_file(p) {
                 if let ast::ModuleName::StringLit(lit) = ns.name {
                     let module_name = self.atoms.get(lit.val);
                     if is_external_module_relative(module_name) {

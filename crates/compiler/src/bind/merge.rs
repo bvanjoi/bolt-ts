@@ -226,11 +226,11 @@ pub(crate) fn merge_global_symbol<'cx>(
 
     for (m, p) in module_arena.modules().iter().zip(parser.map.iter()) {
         assert!(std::ptr::addr_eq(&parser.map[m.id.as_usize()], p));
+
         if !p.is_external_or_commonjs_module() {
             let target = SymbolTableLocation::Global;
-            let source = SymbolTableLocation::Locals {
-                container: bolt_ts_ast::NodeID::root(m.id),
-            };
+            let container = parser.get(m.id).root().id;
+            let source = SymbolTableLocation::Locals { container };
             c.merge_symbol_table(target, source, false);
         }
     }

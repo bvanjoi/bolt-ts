@@ -115,13 +115,13 @@ impl<'cx> TyChecker<'cx> {
             || node.is_method_signature()
             || node.is_program()
         {
-            if flags.intersects(
+            const FU_OR_METHOD_OR_CLASS_OR_ENUM_OR_VALUE_MODULE: SymbolFlags =
                 SymbolFlags::FUNCTION
-                    | SymbolFlags::METHOD
-                    | SymbolFlags::CLASS
-                    | SymbolFlags::ENUM
-                    | SymbolFlags::VALUE_MODULE,
-            ) {
+                    .union(SymbolFlags::METHOD)
+                    .union(SymbolFlags::CLASS)
+                    .union(SymbolFlags::ENUM)
+                    .union(SymbolFlags::VALUE_MODULE);
+            if flags.intersects(FU_OR_METHOD_OR_CLASS_OR_ENUM_OR_VALUE_MODULE) {
                 return self.get_ty_of_func_class_enum_module(symbol);
             }
             let p = self.p.parent(decl).unwrap();
@@ -1302,7 +1302,7 @@ impl<'cx> TyChecker<'cx> {
                     new_check_ty == new_root.check_ty
                         || !new_check_ty
                             .flags
-                            .intersects(TypeFlags::UNION | TypeFlags::NEVER)
+                            .intersects(TypeFlags::UNION.union(TypeFlags::NEVER))
                 });
                 use_new.then_some((new_root, new_root_mapper))
             };
@@ -1925,7 +1925,7 @@ impl<'cx> TyChecker<'cx> {
             self.wildcard_ty
         } else if ty.flags.intersects(TypeFlags::UNKNOWN) {
             self.never_ty
-        } else if ty.flags.intersects(TypeFlags::ANY | TypeFlags::NEVER) {
+        } else if ty.flags.intersects(TypeFlags::ANY.union(TypeFlags::NEVER)) {
             self.string_number_symbol_ty()
         } else {
             let include = if index_flags.intersects(IndexFlags::NO_INDEX_SIGNATURES) {
@@ -1935,7 +1935,7 @@ impl<'cx> TyChecker<'cx> {
             } | if index_flags.intersects(IndexFlags::STRINGS_ONLY) {
                 TypeFlags::empty()
             } else {
-                TypeFlags::NUMBER_LIKE | TypeFlags::ES_SYMBOL_LIKE
+                TypeFlags::NUMBER_LIKE.union(TypeFlags::ES_SYMBOL_LIKE)
             };
             self.get_literal_ty_from_props(ty, include, index_flags == IndexFlags::empty())
         }

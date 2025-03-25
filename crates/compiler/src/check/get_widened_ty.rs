@@ -83,8 +83,8 @@ impl<'cx> TyChecker<'cx> {
             })
             .collect();
 
-        let object_flags =
-            ty.get_object_flags() & (ObjectFlags::JS_LITERAL | ObjectFlags::NON_INFERRABLE_TYPE);
+        let object_flags = ty.get_object_flags()
+            & (ObjectFlags::JS_LITERAL.union(ObjectFlags::NON_INFERRABLE_TYPE));
 
         self.create_anonymous_ty_with_resolved(
             ty.symbol(),

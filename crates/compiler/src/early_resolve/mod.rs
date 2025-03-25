@@ -259,14 +259,7 @@ impl<'cx> Resolver<'cx, '_, '_> {
                     qualified.left,
                     SymbolFlags::NAMESPACE.union(SymbolFlags::TYPE),
                 );
-                let left = self.final_res[&qualified.left.id()];
-                let exports = self.get_exports_of_symbol(left);
-                let v = exports
-                    .and_then(|exports| exports.get(&SymbolName::Normal(qualified.right.name)))
-                    .copied()
-                    .unwrap_or(Symbol::ERR);
-                let prev = self.final_res.insert(qualified.id, v);
-                assert!(prev.is_none());
+                // resolve the value of right in checker.
             }
         }
     }
@@ -789,7 +782,7 @@ pub(super) fn resolve_symbol_by_ident<'a, 'cx>(
         match n {
             Program(_) if !resolver.p.is_external_or_commonjs_module(id) => (),
             Program(_) | NamespaceDecl(_) => {
-                let module_exports = &resolver.symbol(resolver.symbol_of_decl(id)).exports;
+                let module_exports = &resolver.symbol(resolver.symbol_of_decl(id)).exports();
                 if n.is_program()
                     || (n
                         .as_namespace_decl()
@@ -824,7 +817,7 @@ pub(super) fn resolve_symbol_by_ident<'a, 'cx>(
             ClassDecl(_) | ClassExpr(_) | InterfaceDecl(_) => {
                 if let Some(res) = resolver
                     .symbol(resolver.symbol_of_decl(id))
-                    .members
+                    .members()
                     .0
                     .get(&key)
                     .copied()

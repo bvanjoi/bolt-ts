@@ -1,7 +1,6 @@
 mod errors;
 
 use bolt_ts_ast as ast;
-use bolt_ts_ast::Visitor;
 use normalize_path::NormalizePath;
 
 use super::parser;
@@ -10,12 +9,12 @@ use super::{ModuleArena, ModuleID};
 
 use std::sync::{Arc, Mutex};
 
-use bolt_ts_atom::{AtomId, AtomMap};
+use bolt_ts_atom::AtomMap;
 use bolt_ts_fs::PathId;
 use bolt_ts_resolve::RResult;
-use bolt_ts_utils::{fx_hashmap_with_capacity, fx_hashset_with_capacity};
+use bolt_ts_utils::fx_hashmap_with_capacity;
 use rayon::prelude::*;
-use rustc_hash::{FxHashMap, FxHashSet};
+use rustc_hash::FxHashMap;
 
 #[derive(Debug, Clone, Copy)]
 pub enum ModuleRes {
@@ -32,7 +31,6 @@ impl ModuleGraph {
     fn add_dep(&mut self, from: ast::NodeID, to: ModuleRes) {
         let by = from;
         let from = by.module();
-        assert_eq!(from, by.module());
         if let Some(from) = self.deps.get_mut(&from) {
             let prev = from.insert(by, to);
             assert!(prev.is_none());
@@ -82,14 +80,13 @@ pub(super) fn build_graph<'cx>(
             deps: Vec<(ast::NodeID, RResult<PathId>)>,
         }
         let modules = parse_parallel(atoms.clone(), herd, resolving.as_slice(), module_arena)
-            .map(|(module_id, parse_result)| {
-                let deps = collect_deps(parse_result.root());
+            .map(|(module_id, mut parse_result)| {
                 let file_path = module_arena.get_path(module_id);
                 let base_dir = file_path.parent().unwrap();
                 let base_dir = PathId::get(base_dir);
-                let deps = deps
+                let deps = std::mem::take(&mut parse_result.imports)
                     .into_par_iter()
-                    .map(|(node_id, dep)| (node_id, resolver.resolve(base_dir, dep)))
+                    .map(|s| (s.id, resolver.resolve(base_dir, s.val)))
                     .collect::<Vec<_>>();
                 ResolvedModule {
                     id: module_id,
@@ -152,39 +149,4 @@ pub(super) fn build_graph<'cx>(
     }
 
     mg
-}
-
-fn collect_deps(root: &ast::Program) -> FxHashSet<(ast::NodeID, AtomId)> {
-    let mut visitor = CollectDepsVisitor {
-        deps: fx_hashset_with_capacity(32),
-    };
-    visitor.visit_program(root);
-    visitor.deps
-}
-
-struct CollectDepsVisitor {
-    deps: FxHashSet<(ast::NodeID, AtomId)>,
-}
-
-impl<'cx> ast::Visitor<'cx> for CollectDepsVisitor {
-    fn visit_stmt(&mut self, node: &'cx ast::Stmt<'cx>) {
-        match node.kind {
-            ast::StmtKind::Import(n) => {
-                let prev = self.deps.insert((n.module.id, n.module.val));
-                assert!(prev);
-            }
-            ast::StmtKind::Export(n) => {
-                let m = match n.clause.kind {
-                    bolt_ts_ast::ExportClauseKind::Glob(n) => Some(n.module),
-                    bolt_ts_ast::ExportClauseKind::Ns(n) => Some(n.module),
-                    bolt_ts_ast::ExportClauseKind::Specs(n) => n.module.map(|n| n),
-                };
-                if let Some(m) = m {
-                    let prev = self.deps.insert((m.id, m.val));
-                    assert!(prev);
-                }
-            }
-            _ => {}
-        }
-    }
 }

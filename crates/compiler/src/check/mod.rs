@@ -81,7 +81,8 @@ use self::node_check_flags::NodeCheckFlags;
 pub use self::resolve::ExpectedArgsCount;
 
 use crate::bind::{
-    self, FlowID, FlowNodes, GlobalSymbols, Symbol, SymbolFlags, SymbolID, SymbolName,
+    self, FlowID, FlowNodes, GlobalSymbols, MergedSymbols, Symbol, SymbolFlags, SymbolID,
+    SymbolName, SymbolTable,
 };
 use crate::graph::ModuleGraph;
 use crate::parser::{AccessKind, AssignmentKind, Parser};
@@ -217,6 +218,7 @@ pub struct TyChecker<'cx> {
     arguments_symbol: SymbolID,
     resolving_symbol: SymbolID,
     empty_ty_literal_symbol: SymbolID,
+    empty_symbols: &'cx SymbolTable,
 
     boolean_ty: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
     string_or_number_ty: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
@@ -253,6 +255,7 @@ pub struct TyChecker<'cx> {
     // === resolver ===
     pub binder: &'cx bind::Binder,
     global_symbols: &'cx GlobalSymbols,
+    merged_symbols: &'cx MergedSymbols,
 
     // === cycle check ===
     resolution_start: i32,
@@ -274,6 +277,7 @@ impl<'cx> TyChecker<'cx> {
         mg: &'cx ModuleGraph,
         atoms: &'cx mut AtomMap<'cx>,
         binder: &'cx bind::Binder,
+        merged_symbols: &'cx MergedSymbols,
         global_symbols: &'cx GlobalSymbols,
         config: &'cx NormalizedCompilerOptions,
         flow_nodes: Vec<FlowNodes<'cx>>,
@@ -352,6 +356,7 @@ impl<'cx> TyChecker<'cx> {
 
         let restrictive_mapper = ty_arena.alloc(RestrictiveMapper);
         let permissive_mapper = ty_arena.alloc(PermissiveMapper);
+        let empty_symbols = ty_arena.alloc(SymbolTable::new(0));
 
         let mut this = Self {
             atoms,
@@ -381,6 +386,7 @@ impl<'cx> TyChecker<'cx> {
             arguments_symbol,
             resolving_symbol,
             empty_ty_literal_symbol,
+            empty_symbols,
 
             empty_array,
             any_ty,
@@ -456,6 +462,7 @@ impl<'cx> TyChecker<'cx> {
             resolution_start: 0,
 
             binder,
+            merged_symbols,
             global_symbols,
             inferences: Vec::with_capacity(p.module_count() * 1024),
             inference_contextual: Vec::with_capacity(256),
@@ -1899,10 +1906,10 @@ impl<'cx> TyChecker<'cx> {
     }
 
     pub(crate) fn is_empty_anonymous_object_ty(&self, ty: &'cx ty::Ty<'cx>) -> bool {
-        ty.kind.as_object_anonymous().is_some_and(|a| {
+        ty.kind.as_object_anonymous().is_some_and(|_| {
             if let Some(symbol) = ty.symbol() {
                 let s = self.binder.symbol(symbol);
-                s.flags.intersects(SymbolFlags::TYPE_LITERAL) && s.members.0.is_empty()
+                s.flags.intersects(SymbolFlags::TYPE_LITERAL) && s.members().0.is_empty() // TODO: change `s.members()` to `self.get_members_of_symbol`
             } else if let Some(ty_link) = self.ty_links.get(&ty.id) {
                 if let Some(t) = ty_link.get_structured_members() {
                     ty != self.any_fn_ty()
@@ -2906,6 +2913,19 @@ impl<'cx> TyChecker<'cx> {
             self.check_expr_with_cache(init)
         };
         ty
+    }
+
+    pub(super) fn check_external_module_exports(&mut self, node: &'cx ast::Program<'cx>) {
+        let module_symbol = self.get_symbol_of_decl(node.id);
+        if let Some(checked) = self.get_symbol_links(module_symbol).get_exports_checked() {
+            if checked {
+                return;
+            }
+        }
+        // if let Some(exports) = self.get_exports_of_symbol(module_symbol) {}
+
+        self.get_mut_symbol_links(module_symbol)
+            .set_exports_checked(true);
     }
 }
 

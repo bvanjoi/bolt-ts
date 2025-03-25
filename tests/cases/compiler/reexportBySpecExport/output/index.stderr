@@ -1,29 +1,35 @@
   × Type 'number' is not assignable to type 'string'.
-   ╭─[../../tests/cases/compiler/reexportBySpecExport/index.ts:3:7]
- 3 │ a
+   ╭─[../../tests/cases/compiler/reexportBySpecExport/index.ts:2:7]
+ 2 │ a
    · ─
    ╰────
 
   × Module './b' has no exported member 'NOT_EXIST_1'.
-   ╭─[../../tests/cases/compiler/reexportBySpecExport/index.ts:6:10]
- 6 │ NOT_EXIST_1
+   ╭─[../../tests/cases/compiler/reexportBySpecExport/index.ts:5:10]
+ 5 │ NOT_EXIST_1
    · ───────────
    ╰────
 
   × Module './c' has no exported member 'NOT_EXIST_2'.
-   ╭─[../../tests/cases/compiler/reexportBySpecExport/index.ts:8:10]
- 8 │ NOT_EXIST_2
+   ╭─[../../tests/cases/compiler/reexportBySpecExport/index.ts:7:10]
+ 7 │ NOT_EXIST_2
    · ───────────
    ╰────
 
   × Type 'string' is not assignable to type 'number'.
-    ╭─[../../tests/cases/compiler/reexportBySpecExport/index.ts:13:7]
- 13 │ typeA
+    ╭─[../../tests/cases/compiler/reexportBySpecExport/index.ts:11:7]
+ 11 │ typeA
     · ─────
     ╰────
 
   × Type 'string' is not assignable to type 'number'.
-    ╭─[../../tests/cases/compiler/reexportBySpecExport/index.ts:18:7]
- 18 │ typeB
+    ╭─[../../tests/cases/compiler/reexportBySpecExport/index.ts:15:7]
+ 15 │ typeB
     · ─────
+    ╰────
+
+  × Type 'string' is not assignable to type 'number'.
+    ╭─[../../tests/cases/compiler/reexportBySpecExport/index.ts:19:7]
+ 19 │ typeC0
+    · ──────
     ╰────

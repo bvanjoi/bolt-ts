@@ -48,7 +48,6 @@ pub(super) trait ParseNamedImportsExports<'cx, 'p>: Copy {
     fn finish_spec(
         &self,
         state: &mut ParserState<'cx, 'p>,
-        id: ast::NodeID,
         span: Span,
         prop_name: Option<&'cx ast::ModuleExportName<'cx>>,
         name: &'cx ast::ModuleExportName<'cx>,
@@ -76,7 +75,6 @@ impl<'cx, 'p> ParseNamedImportsExports<'cx, 'p> for ParseNamedImports {
     fn finish_spec(
         &self,
         state: &mut ParserState<'cx, 'p>,
-        id: ast::NodeID,
         span: Span,
         prop_name: Option<&'cx ast::ModuleExportName<'cx>>,
         name: &'cx ast::ModuleExportName<'cx>,
@@ -85,6 +83,7 @@ impl<'cx, 'p> ParseNamedImportsExports<'cx, 'p> for ParseNamedImports {
             let ast::ModuleExportNameKind::Ident(ident) = name.kind else {
                 unreachable!()
             };
+            let id = state.next_node_id();
             let spec = state.alloc(ast::ImportNamedSpec {
                 id,
                 span,
@@ -97,6 +96,7 @@ impl<'cx, 'p> ParseNamedImportsExports<'cx, 'p> for ParseNamedImports {
             let ast::ModuleExportNameKind::Ident(ident) = name.kind else {
                 unreachable!()
             };
+            let id = state.next_node_id();
             let spec = state.alloc(ast::ShorthandSpec {
                 id,
                 span,
@@ -128,12 +128,12 @@ impl<'cx, 'p> ParseNamedImportsExports<'cx, 'p> for ParseNamedExports {
     fn finish_spec(
         &self,
         state: &mut ParserState<'cx, 'p>,
-        id: ast::NodeID,
         span: Span,
         prop_name: Option<&'cx ast::ModuleExportName<'cx>>,
         name: &'cx ast::ModuleExportName<'cx>,
     ) -> Self::Spec {
         let kind = if let Some(prop_name) = prop_name {
+            let id = state.next_node_id();
             let spec = state.alloc(ast::ExportNamedSpec {
                 id,
                 span,
@@ -146,6 +146,7 @@ impl<'cx, 'p> ParseNamedImportsExports<'cx, 'p> for ParseNamedExports {
             let ast::ModuleExportNameKind::Ident(ident) = name.kind else {
                 unreachable!()
             };
+            let id = state.next_node_id();
             let spec = state.alloc(ast::ShorthandSpec {
                 id,
                 span,
@@ -188,7 +189,6 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         &mut self,
         kind: impl ParseNamedImportsExports<'cx, 'p, Spec = Spec>,
     ) -> PResult<Spec> {
-        let id = self.next_node_id();
         let start = self.token.start();
         let mut check_ident_is_keyword =
             self.token.kind.is_keyword() && !self.token.kind.is_ident();
@@ -268,7 +268,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
             );
         }
         let span = self.new_span(start);
-        Ok(kind.finish_spec(self, id, span, prop_name, name))
+        Ok(kind.finish_spec(self, span, prop_name, name))
     }
 
     pub(super) fn parse_named_imports_or_exports<Spec>(

@@ -32,6 +32,10 @@ impl<'cx> NodeQuery<'cx> for ParseResult<'cx> {
     fn is_external_or_commonjs_module(&self) -> bool {
         self.external_module_indicator.is_some() || self.commonjs_module_indicator.is_some()
     }
+
+    fn is_external_module(&self) -> bool {
+        self.external_module_indicator.is_some()
+    }
 }
 
 impl<'cx> Parser<'cx> {

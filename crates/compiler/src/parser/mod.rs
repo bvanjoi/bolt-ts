@@ -43,9 +43,7 @@ enum Tristate {
 }
 
 #[derive(Debug)]
-// TODO: remove public
-// TODO: use vector
-pub struct Nodes<'cx>(pub(crate) nohash_hasher::IntMap<u32, Node<'cx>>);
+pub struct Nodes<'cx>(Vec<Node<'cx>>);
 
 impl Default for Nodes<'_> {
     fn default() -> Self {
@@ -55,17 +53,17 @@ impl Default for Nodes<'_> {
 
 impl<'cx> Nodes<'cx> {
     pub fn new() -> Self {
-        Self(no_hashmap_with_capacity(2048))
+        Self(Vec::with_capacity(1024 * 8))
     }
 
     pub fn get(&self, id: NodeID) -> Node<'cx> {
-        let idx = id.index_as_u32();
-        self.0[&idx]
+        let idx = id.index_as_usize();
+        *unsafe { self.0.get_unchecked(idx) }
     }
 
     pub fn insert(&mut self, id: NodeID, node: Node<'cx>) {
-        let prev = self.0.insert(id.index_as_u32(), node);
-        assert!(prev.is_none())
+        assert_eq!(id.index_as_usize(), self.0.len());
+        self.0.push(node);
     }
 }
 
@@ -86,19 +84,19 @@ pub enum CommentDirectiveKind {
 
 pub struct ParseResult<'cx> {
     pub diags: Vec<bolt_ts_errors::Diag>,
-    // TODO: remove pub
-    pub nodes: Nodes<'cx>,
+    nodes: Nodes<'cx>,
     parent_map: crate::bind::ParentMap,
     pub node_flags_map: NodeFlagsMap,
     pub external_module_indicator: Option<ast::NodeID>,
     pub commonjs_module_indicator: Option<ast::NodeID>,
     pub comment_directives: Vec<CommentDirective>,
     pub line_map: Vec<u32>,
+    pub imports: Vec<&'cx ast::StringLit>,
 }
 
 impl<'cx> ParseResult<'cx> {
     pub fn root(&self) -> &'cx ast::Program<'cx> {
-        self.nodes.0[&0].expect_program()
+        self.nodes.0[self.nodes.0.len() - 1].expect_program()
     }
 
     pub fn node(&self, id: NodeID) -> Node<'cx> {
@@ -259,6 +257,7 @@ fn parse<'cx, 'p>(
         commonjs_module_indicator: s.commonjs_module_indicator,
         comment_directives: s.comment_directives,
         line_map: s.line_map,
+        imports: s.imports,
     }
 }
 
@@ -278,12 +277,12 @@ struct ParserState<'cx, 'p> {
     parent_map: crate::bind::ParentMap,
     node_flags_map: NodeFlagsMap,
     arena: &'p bumpalo_herd::Member<'cx>,
-    next_node_id: NodeID,
     context_flags: NodeFlags,
     external_module_indicator: Option<ast::NodeID>,
     commonjs_module_indicator: Option<ast::NodeID>,
     has_export_decl: bool,
     comment_directives: Vec<CommentDirective>,
+    imports: Vec<&'cx ast::StringLit>,
     line: usize,
     line_start: usize, // offset
     line_map: Vec<u32>,
@@ -348,7 +347,6 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
             arena,
             nodes,
             parent_map,
-            next_node_id: NodeID::root(module_id),
             context_flags: NodeFlags::empty(),
             node_flags_map: NodeFlagsMap::new(),
             external_module_indicator: None,
@@ -358,6 +356,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
             line_start: 0,
             line_map: Vec::with_capacity(input.len() / 12),
             line: 0,
+            imports: Vec::with_capacity(32),
         }
     }
 
@@ -366,9 +365,8 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
     }
 
     fn next_node_id(&mut self) -> NodeID {
-        let old = self.next_node_id;
-        self.next_node_id = self.next_node_id.next();
-        old
+        let idx = self.nodes.0.len();
+        NodeID::new(self.module_id, idx as u32)
     }
 
     #[inline]
@@ -581,8 +579,6 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         debug_assert!(self.atoms.lock().unwrap().contains(atom));
 
         let start = self.pos;
-        let id = self.next_node_id();
-        assert_eq!(id.index_as_u32(), 0);
         self.next_token();
         let stmts = self.arena.alloc(Vec::with_capacity(512));
         while self.token.kind != TokenKind::EOF {
@@ -590,6 +586,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
                 stmts.push(stmt);
             }
         }
+        let id = self.next_node_id();
         let program = self.alloc(ast::Program {
             id,
             stmts,

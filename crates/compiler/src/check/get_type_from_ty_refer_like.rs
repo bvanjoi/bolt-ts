@@ -43,8 +43,12 @@ impl<'cx> GetTypeFromTyReferLike<'cx> for ast::ClassExtendsClause<'cx> {
 }
 
 impl<'cx> TyChecker<'cx> {
-    pub(super) fn resolve_ty_refer_name(&mut self, name: &'cx ast::EntityName<'cx>) -> SymbolID {
-        self.resolve_entity_name(name)
+    pub(super) fn resolve_ty_refer_name(
+        &mut self,
+        name: &'cx ast::EntityName<'cx>,
+        meaning: SymbolFlags,
+    ) -> SymbolID {
+        self.resolve_entity_name(name, meaning, false)
     }
 
     pub(super) fn ty_args_from_ty_refer_node(
@@ -119,7 +123,7 @@ impl<'cx> TyChecker<'cx> {
             if new_alias_symbol.is_some() {
                 alias_ty_args = self.get_ty_args_for_alias_symbol(new_alias_symbol)
             } else if self.p.node(node.id()).is_ty_refer_ty() {
-                let alias_symbol = self.resolve_ty_refer_name(node.name());
+                let alias_symbol = self.resolve_ty_refer_name(node.name(), SymbolFlags::ALIAS);
                 // if alias_symbol != Symbol::ERR {
 
                 // }
@@ -219,9 +223,9 @@ impl<'cx> TyChecker<'cx> {
             return self.error_ty;
         }
         let flags = self.binder.symbol(symbol).flags;
-        if flags.intersects(SymbolFlags::CLASS | SymbolFlags::INTERFACE) {
+        if flags.intersects(SymbolFlags::CLASS_OR_INTERFACE) {
             return self.get_ty_from_class_or_interface_refer(node, symbol);
-        } else if flags == SymbolFlags::TYPE_ALIAS {
+        } else if flags.intersects(SymbolFlags::TYPE_ALIAS) {
             return self.get_ty_from_ty_alias_refer(node, symbol);
         }
 
@@ -261,7 +265,7 @@ impl<'cx> TyChecker<'cx> {
                 _ => {}
             }
         }
-        let symbol = self.resolve_ty_refer_name(name);
+        let symbol = self.resolve_ty_refer_name(name, SymbolFlags::TYPE);
         self.get_mut_node_links(node.id())
             .set_resolved_symbol(symbol);
         let ty = self.get_ty_refer_type(node, symbol);

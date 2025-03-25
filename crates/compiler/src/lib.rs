@@ -22,7 +22,7 @@ use self::diag::Diag;
 use self::early_resolve::early_resolve_parallel;
 use self::wf::well_formed_check_parallel;
 
-use bind::{Binder, ResolveResult};
+use bind::{Binder, NodeQuery, ResolveResult};
 use bolt_ts_ast::TokenKind;
 use bolt_ts_ast::keyword_idx_to_token;
 
@@ -255,13 +255,18 @@ pub fn eval_from_with_fs<'cx>(
         &mg,
         &mut atoms,
         &binder,
+        &merged_symbols,
         &global_symbols,
         tsconfig.compiler_options(),
         flow_nodes,
     );
     for item in &entries {
-        checker.check_program(p.root(*item));
+        let root = p.root(*item);
+        checker.check_program(root);
         checker.check_deferred_nodes(*item);
+        if p.get(*item).is_external_or_commonjs_module() {
+            checker.check_external_module_exports(root);
+        }
     }
 
     // ==== codegen ====

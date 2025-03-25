@@ -89,6 +89,7 @@ bitflags::bitflags! {
         const ASSIGNMENT = 1 << 26;
         const MODULE_EXPORTS = 1 << 27;
 
+        const CLASS_OR_INTERFACE = Self::CLASS.bits() | Self::INTERFACE.bits();
         const ENUM = Self::REGULAR_ENUM.bits() | Self::CONST_ENUM.bits();
         const VARIABLE = Self::FUNCTION_SCOPED_VARIABLE.bits() | Self::BLOCK_SCOPED_VARIABLE.bits();
         const VALUE = Self::VARIABLE.bits() | Self::PROPERTY.bits() | Self::ENUM_MEMBER.bits() | Self::OBJECT_LITERAL.bits() | Self::FUNCTION.bits() | Self::CLASS.bits() | Self::ENUM.bits() | Self::VALUE_MODULE.bits() | Self::METHOD.bits() | Self::GET_ACCESSOR.bits() | Self::SET_ACCESSOR.bits();
@@ -191,9 +192,9 @@ pub struct Symbol {
     pub decls: thin_vec::ThinVec<NodeID>,
     pub value_decl: Option<NodeID>,
     // TODO: use Option<SymbolTable>
-    pub members: SymbolTable,
+    pub(super) members: SymbolTable,
     // TODO: use Option<SymbolTable>
-    pub exports: SymbolTable,
+    pub(super) exports: SymbolTable,
     pub merged_id: Option<usize>,
     pub parent: Option<SymbolID>,
     pub export_symbol: Option<SymbolID>,
@@ -201,7 +202,7 @@ pub struct Symbol {
     pub is_replaceable_by_method: Option<bool>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct SymbolTable(pub FxHashMap<SymbolName, SymbolID>);
 
 impl Default for SymbolTable {
@@ -233,6 +234,13 @@ impl Symbol {
             .rev()
             .find(|decl| p.is_alias_symbol_decl(**decl))
             .copied()
+    }
+
+    pub fn members(&self) -> &SymbolTable {
+        &self.members
+    }
+    pub fn exports(&self) -> &SymbolTable {
+        &self.exports
     }
 }
 

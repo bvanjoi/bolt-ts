@@ -6,6 +6,8 @@ pub trait NodeQuery<'cx>: Sized {
     fn node(&self, id: ast::NodeID) -> ast::Node<'cx>;
     fn parent(&self, id: ast::NodeID) -> Option<ast::NodeID>;
     fn node_flags(&self, id: ast::NodeID) -> ast::NodeFlags;
+    fn is_external_module(&self) -> bool;
+
     fn is_external_or_commonjs_module(&self) -> bool;
 
     fn find_ancestor(
@@ -279,5 +281,26 @@ pub trait NodeQuery<'cx>: Sized {
         n.is_param_decl()
             && n.has_syntactic_modifier(ast::ModifierKind::PARAMETER_PROPERTY)
             && self.node(parent).is_class_ctor()
+    }
+
+    fn is_external_module_augmentation(&self, id: ast::NodeID) -> bool {
+        let n = self.node(id);
+        n.as_namespace_decl()
+            .is_some_and(|ns| ns.is_ambient() && self.is_module_augmentation_external(ns))
+    }
+
+    fn is_module_augmentation_external(&self, ns: &ast::NsDecl<'_>) -> bool {
+        let p = self.parent(ns.id).unwrap();
+        match self.node(p) {
+            ast::Node::Program(_) => self.is_external_module(),
+            ast::Node::ModuleBlock(n) => {
+                let p_id = self.parent(n.id).unwrap();
+                let p = self.node(p_id).expect_namespace_decl();
+                p.is_ambient()
+                    && self.node(self.parent(p_id).unwrap()).is_program()
+                    && !self.is_external_module()
+            }
+            _ => false,
+        }
     }
 }

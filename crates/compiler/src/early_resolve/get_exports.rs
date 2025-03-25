@@ -22,6 +22,6 @@ impl Resolver<'_, '_, '_> {
         symbol: SymbolID,
     ) -> Option<&FxHashMap<SymbolName, SymbolID>> {
         let s = self.symbol(symbol);
-        Some(&s.exports.0)
+        Some(&s.exports().0)
     }
 }

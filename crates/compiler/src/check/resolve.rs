@@ -1,9 +1,10 @@
 use super::{TyChecker, errors};
-use crate::bind::SymbolID;
 use crate::bind::{Symbol, SymbolFlags, SymbolName};
+use crate::bind::{SymbolID, SymbolTable};
 use crate::graph::ModuleRes;
 use bolt_ts_ast as ast;
 use bolt_ts_atom::AtomId;
+use bolt_ts_utils::fx_hashset_with_capacity;
 
 #[derive(Debug, Clone, Copy)]
 pub enum ExpectedArgsCount {
@@ -45,11 +46,101 @@ impl<'cx> TyChecker<'cx> {
             })
     }
 
-    pub(super) fn resolve_entity_name(&mut self, name: &'cx ast::EntityName<'cx>) -> SymbolID {
+    pub(super) fn resolve_entity_name(
+        &mut self,
+        name: &'cx ast::EntityName<'cx>,
+        meaning: SymbolFlags,
+        dont_resolve_alias: bool,
+    ) -> SymbolID {
         use bolt_ts_ast::EntityNameKind::*;
+        let symbol;
         match name.kind {
-            Ident(n) => self.resolve_symbol_by_ident(n),
-            Qualified(n) => self.final_res(n.id),
+            Ident(n) => {
+                symbol = self.resolve_symbol_by_ident(n);
+                if symbol == Symbol::ERR || dont_resolve_alias {
+                    return symbol;
+                }
+            }
+            Qualified(n) => {
+                let ns = self.resolve_entity_name(n.left, SymbolFlags::NAMESPACE, false);
+                if ns == Symbol::ERR {
+                    return Symbol::ERR;
+                }
+                let exports = self.get_exports_of_symbol(ns);
+                symbol = self
+                    .get_symbol(exports, SymbolName::Normal(n.right.name), meaning)
+                    .unwrap_or(Symbol::ERR);
+            }
+        }
+        let flags = self.symbol(symbol).flags();
+        if flags.intersects(meaning) {
+            symbol
+        } else if flags.intersects(SymbolFlags::ALIAS) {
+            self.resolve_alias(symbol)
+        } else {
+            Symbol::ERR
+        }
+    }
+
+    fn get_symbol(
+        &mut self,
+        symbols: &'cx SymbolTable,
+        name: SymbolName,
+        meaning: SymbolFlags,
+    ) -> Option<SymbolID> {
+        if !meaning.is_empty() {
+            // TODO: get_merged_symbol;
+            if let Some(symbol) = symbols.0.get(&name) {
+                let flags = self.binder.symbol(*symbol).flags;
+                if flags.intersects(meaning) {
+                    return Some(*symbol);
+                } else if flags.intersects(SymbolFlags::ALIAS) {
+                    let target_flags = self.get_symbol_flags(*symbol, false);
+                    if target_flags.intersects(meaning) {
+                        return Some(*symbol);
+                    }
+                }
+            }
+        }
+        None
+    }
+
+    fn get_symbol_flags(
+        &mut self,
+        mut symbol: SymbolID,
+        exclude_ty_only_meaning: bool,
+    ) -> SymbolFlags {
+        let mut seen_symbols = fx_hashset_with_capacity(32);
+        let mut symbol_flags = self.symbol(symbol).flags();
+        let mut flags = symbol_flags;
+        while symbol_flags.intersects(SymbolFlags::ALIAS) {
+            let target = self.resolve_alias(symbol);
+            let target = self.get_export_symbol_of_value_symbol_if_exported(target);
+            if target == Symbol::ERR {
+                return SymbolFlags::all();
+            } else if target == symbol || seen_symbols.contains(&target) {
+                break;
+            }
+            let t = self.symbol(target);
+            let t_flags = t.flags();
+            if t_flags.intersects(SymbolFlags::ALIAS) {
+                seen_symbols.insert(target);
+            }
+
+            flags |= t_flags;
+            symbol = target;
+            symbol_flags = t_flags;
+        }
+        flags
+    }
+
+    fn get_export_symbol_of_value_symbol_if_exported(&mut self, symbol: SymbolID) -> SymbolID {
+        // TODO: get merged symbol
+        let s = self.binder.symbol(symbol);
+        if s.flags.intersects(SymbolFlags::VALUE) {
+            s.export_symbol.unwrap_or(symbol)
+        } else {
+            symbol
         }
     }
 
@@ -141,7 +232,7 @@ impl<'cx> TyChecker<'cx> {
         resolved
     }
 
-    fn resolve_external_module_name(
+    pub(super) fn resolve_external_module_name(
         &mut self,
         module_spec_id: ast::NodeID,
         _module_spec: bolt_ts_atom::AtomId,
@@ -198,7 +289,7 @@ impl<'cx> TyChecker<'cx> {
             None
         };
         if let Some(local_symbol) = local_symbol {
-            let decl = s.exports.0.values().find_map(|export| {
+            let decl = s.exports().0.values().find_map(|export| {
                 // TODO: use `get_symbol_if_same_reference`
                 let s = self.binder.symbol(*export);
                 if s.flags == SymbolFlags::ALIAS {
@@ -330,7 +421,7 @@ impl<'cx> TyChecker<'cx> {
     ) -> Option<SymbolID> {
         let s = self.binder.symbol(symbol);
         if s.flags.intersects(SymbolFlags::MODULE) {
-            let export_symbol = s.exports.0.get(&name).copied();
+            let export_symbol = s.exports().0.get(&name).copied();
             let resolved = export_symbol
                 .map(|export_symbol| self.resolve_symbol(export_symbol, dont_resolve_alias));
             resolved
@@ -349,7 +440,11 @@ impl<'cx> TyChecker<'cx> {
             || (flags.intersects(SymbolFlags::ALIAS.union(SymbolFlags::ASSIGNMENT)))
     }
 
-    fn resolve_symbol(&mut self, symbol: SymbolID, dont_resolve_alias: bool) -> SymbolID {
+    pub(super) fn resolve_symbol(
+        &mut self,
+        symbol: SymbolID,
+        dont_resolve_alias: bool,
+    ) -> SymbolID {
         if !dont_resolve_alias && self.is_non_local_alias(symbol, None) {
             self.resolve_alias(symbol)
         } else {
@@ -383,10 +478,10 @@ impl<'cx> TyChecker<'cx> {
                 alias_target
             };
         };
-        self.get_mut_symbol_links(symbol)
-            .set_alias_target(Symbol::RESOLVING);
         let s = self.binder.symbol(symbol);
         assert!(s.flags.intersects(SymbolFlags::ALIAS), "symbol: {:#?}", s);
+        self.get_mut_symbol_links(symbol)
+            .set_alias_target(Symbol::RESOLVING);
         let node = s.get_decl_of_alias_symbol(self.p).unwrap();
         let target = self.get_target_of_alias_decl(node, false);
         if self
