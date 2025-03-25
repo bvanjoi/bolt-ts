@@ -121,7 +121,7 @@ pub(super) fn build_graph<'cx>(
             for (ast_id, dep) in deps {
                 let Ok(dep) = dep else {
                     mg.add_dep(ast_id, ModuleRes::Err);
-                    let module_name = parser.node(ast_id).module_name().unwrap();
+                    let module_name = parser.node(ast_id).expect_string_lit();
                     mg.push_error(Box::new(
                         errors::CannotFindModuleOrItsCorrespondingTypeDeclarations {
                             span: module_name.span,
@@ -170,17 +170,17 @@ impl<'cx> ast::Visitor<'cx> for CollectDepsVisitor {
     fn visit_stmt(&mut self, node: &'cx ast::Stmt<'cx>) {
         match node.kind {
             ast::StmtKind::Import(n) => {
-                let prev = self.deps.insert((n.id, n.module.val));
+                let prev = self.deps.insert((n.module.id, n.module.val));
                 assert!(prev);
             }
             ast::StmtKind::Export(n) => {
                 let m = match n.clause.kind {
-                    bolt_ts_ast::ExportClauseKind::Glob(n) => Some(n.module.val),
-                    bolt_ts_ast::ExportClauseKind::Ns(n) => Some(n.module.val),
-                    bolt_ts_ast::ExportClauseKind::Specs(n) => n.module.map(|n| n.val),
+                    bolt_ts_ast::ExportClauseKind::Glob(n) => Some(n.module),
+                    bolt_ts_ast::ExportClauseKind::Ns(n) => Some(n.module),
+                    bolt_ts_ast::ExportClauseKind::Specs(n) => n.module.map(|n| n),
                 };
                 if let Some(m) = m {
-                    let prev = self.deps.insert((n.id, m));
+                    let prev = self.deps.insert((m.id, m.val));
                     assert!(prev);
                 }
             }

@@ -26,17 +26,31 @@ impl<'cx> TyChecker<'cx> {
         id: SymbolID,
     ) -> Option<&'cx ty::Ty<'cx>> {
         let flags = self.binder.symbol(id).flags;
-        if flags.intersects(SymbolFlags::CLASS | SymbolFlags::INTERFACE) {
+        const CLASS_OR_INTERFACE: SymbolFlags = SymbolFlags::CLASS.union(SymbolFlags::INTERFACE);
+        if flags.intersects(CLASS_OR_INTERFACE) {
             Some(self.get_declared_ty_of_class_or_interface(id))
-        } else if flags == SymbolFlags::TYPE_ALIAS {
+        } else if flags.intersects(SymbolFlags::TYPE_ALIAS) {
             let ty = self.get_declared_ty_of_type_alias(id);
             Some(ty)
-        } else if flags == SymbolFlags::TYPE_PARAMETER {
+        } else if flags.intersects(SymbolFlags::TYPE_PARAMETER) {
             let ty = self.get_declared_ty_of_ty_param(id);
+            Some(ty)
+        } else if flags.intersects(SymbolFlags::ALIAS) {
+            let ty = self.get_declared_ty_of_alias(id);
             Some(ty)
         } else {
             None
         }
+    }
+
+    fn get_declared_ty_of_alias(&mut self, symbol: SymbolID) -> &'cx ty::Ty<'cx> {
+        if let Some(ty) = self.get_symbol_links(symbol).get_declared_ty() {
+            return ty;
+        }
+        let s = self.resolve_alias(symbol);
+        let ty = self.get_declared_ty_of_symbol(s);
+        self.get_mut_symbol_links(symbol).set_declared_ty(ty);
+        ty
     }
 
     pub(super) fn get_declared_ty_of_ty_param(&mut self, symbol: SymbolID) -> &'cx ty::Ty<'cx> {

@@ -84,7 +84,8 @@ impl<'cx> TyChecker<'cx> {
         let p = self.p.parent(n.id).unwrap();
         let p = self.p.parent(p).unwrap();
         let import_decl = self.p.node(p).expect_import_decl();
-        let immediate = self.resolve_external_module_name(p, import_decl.module.val);
+        let immediate =
+            self.resolve_external_module_name(import_decl.module.id, import_decl.module.val);
         // TODO: resolve_es_module;
         let resolved = immediate;
         resolved
@@ -142,12 +143,11 @@ impl<'cx> TyChecker<'cx> {
 
     fn resolve_external_module_name(
         &mut self,
-        node: ast::NodeID,
+        module_spec_id: ast::NodeID,
         _module_spec: bolt_ts_atom::AtomId,
     ) -> Option<SymbolID> {
-        let Some(dep) = self.mg.get_dep(node) else {
-            dbg!(node.module());
-            dbg!(self.p.node(node).span());
+        assert!(self.p.node(module_spec_id).is_string_lit());
+        let Some(dep) = self.mg.get_dep(module_spec_id) else {
             unreachable!()
         };
 
@@ -268,7 +268,12 @@ impl<'cx> TyChecker<'cx> {
             };
             self.push_error(error);
         } else {
-            todo!("error: module x has no exported member y")
+            let error = errors::ModuleXHasNoExportedMemberY {
+                span: self.p.node(name).span(),
+                module: self.atoms.get(module_name).to_string(),
+                member: self.atoms.get(decl_name).to_string(),
+            };
+            self.push_error(Box::new(error));
         }
     }
 
@@ -279,11 +284,11 @@ impl<'cx> TyChecker<'cx> {
         dont_recur_resolve: bool,
     ) -> Option<SymbolID> {
         let module_spec = match self.p.node(node) {
-            ast::Node::ImportDecl(n) => n.module.val,
-            ast::Node::SpecsExport(n) => n.module.unwrap().val,
+            ast::Node::ImportDecl(n) => n.module,
+            ast::Node::SpecsExport(n) => n.module.unwrap(),
             _ => todo!("node: {:#?}", self.p.node(node)),
         };
-        let module_symbol = self.resolve_external_module_name(node, module_spec);
+        let module_symbol = self.resolve_external_module_name(module_spec.id, module_spec.val);
         // TODO: target_symbol
         let target_symbol = module_symbol;
         if let Some(target_symbol) = target_symbol {
@@ -305,7 +310,7 @@ impl<'cx> TyChecker<'cx> {
             if symbol_from_module.is_none() {
                 self.error_no_module_member_symbol(
                     module_symbol.unwrap(),
-                    module_spec,
+                    module_spec.val,
                     target_symbol,
                     node,
                     spec,

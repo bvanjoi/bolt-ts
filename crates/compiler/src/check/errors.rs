@@ -499,7 +499,7 @@ pub(super) struct ModuleADeclaresBLocallyButItIsExportedAsC {
 }
 
 #[derive(Error, Diagnostic, Debug, DiagnosticExt)]
-pub enum ModuleADeclaresBLocallyButItIsExportedAsCHelperKind {
+pub(super) enum ModuleADeclaresBLocallyButItIsExportedAsCHelperKind {
     #[error(transparent)]
     #[diagnostic(transparent)]
     NameIsDeclaredHere(NameIsDeclaredHere),
@@ -515,4 +515,13 @@ pub(super) struct ExportedAliasHere {
     #[label(primary)]
     pub span: Span,
     pub name: String,
+}
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
+#[error("Module '{module}' has no exported member '{member}'.")]
+pub(super) struct ModuleXHasNoExportedMemberY {
+    #[label(primary)]
+    pub span: Span,
+    pub module: String,
+    pub member: String,
 }

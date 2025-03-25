@@ -31,7 +31,7 @@ impl<'cx> ParserState<'cx, '_> {
             Return => ast::StmtKind::Return(self.parse_ret_stmt()?),
             Class => ast::StmtKind::Class(self.parse_class_decl(None)?),
             Interface => ast::StmtKind::Interface(self.parse_interface_decl(None)?),
-            Type => ast::StmtKind::Type(self.parse_type_decl()?),
+            Type => ast::StmtKind::Type(self.parse_type_decl(None)?),
             Module | Namespace => ast::StmtKind::Namespace(self.parse_ns_decl(None)?),
             Enum => ast::StmtKind::Enum(self.parse_enum_decl(None)?),
             Throw => ast::StmtKind::Throw(self.parse_throw_stmt()?),
@@ -429,7 +429,10 @@ impl<'cx> ParserState<'cx, '_> {
         decl
     }
 
-    fn parse_type_decl(&mut self) -> PResult<&'cx ast::TypeDecl<'cx>> {
+    fn parse_type_decl(
+        &mut self,
+        modifiers: Option<&'cx ast::Modifiers<'cx>>,
+    ) -> PResult<&'cx ast::TypeDecl<'cx>> {
         let id = self.next_node_id();
         let start = self.token.start();
         self.expect(TokenKind::Type);
@@ -455,10 +458,12 @@ impl<'cx> ParserState<'cx, '_> {
         let decl = self.alloc(ast::TypeDecl {
             id,
             span: self.new_span(start),
+            modifiers,
             name,
             ty_params,
             ty,
         });
+        self.set_external_module_indicator_if_has_export_mod(modifiers, id);
         self.insert_map(id, ast::Node::TypeDecl(decl));
         Ok(decl)
     }
@@ -489,11 +494,11 @@ impl<'cx> ParserState<'cx, '_> {
                     _ => ast::StmtKind::Export(self.parse_export_decl(start)?),
                 }
             }
+            Type => ast::StmtKind::Type(self.parse_type_decl(mods)?),
             Ident => {
                 let id = self.ident_token();
                 unreachable!("{:#?}", self.atoms.lock().unwrap().get(id));
             }
-            Type => ast::StmtKind::Type(self.parse_type_decl()?),
             _ => unreachable!("{:#?}", self.token.kind),
         };
         let stmt = self.alloc(ast::Stmt { kind });

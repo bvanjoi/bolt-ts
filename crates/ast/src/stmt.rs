@@ -242,6 +242,7 @@ impl ModuleName<'_> {
 pub struct TypeDecl<'cx> {
     pub id: NodeID,
     pub span: Span,
+    pub modifiers: Option<&'cx Modifiers<'cx>>,
     pub name: &'cx Ident,
     pub ty_params: Option<TyParams<'cx>>,
     pub ty: &'cx self::Ty<'cx>,
