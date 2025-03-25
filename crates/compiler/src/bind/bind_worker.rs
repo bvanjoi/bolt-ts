@@ -639,7 +639,7 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
         let s = self.bind_anonymous_decl(
             node.id,
             SymbolFlags::VALUE_MODULE,
-            SymbolName::Normal(node.filepath),
+            SymbolName::Normal(self.p.filepath),
         );
         assert_eq!(s, SymbolID::container(node.id.module()));
         self.final_res.insert(node.id, s);

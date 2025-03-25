@@ -1,6 +1,6 @@
 use super::BinderState;
 
-trait RetOrThrow<'cx> {
+pub(super) trait RetOrThrow<'cx> {
     fn expr(&self) -> Option<&'cx bolt_ts_ast::Expr<'cx>>;
     fn is_ret(&self) -> bool;
 }

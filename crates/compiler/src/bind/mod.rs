@@ -168,7 +168,6 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
     fn new(
         atoms: &'atoms AtomMap<'cx>,
         parser: &'parser mut ParseResult<'cx>,
-        root: &'cx ast::Program<'cx>,
         module_id: ModuleID,
         options: &NormalizedTsConfig,
     ) -> Self {
@@ -177,7 +176,7 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
         let unreachable_flow_node = flow_nodes.create_flow_unreachable();
         let report_unreachable_flow_node = flow_nodes.create_flow_unreachable();
 
-        let in_strict_mode = !root.is_declaration || *options.compiler_options().always_strict();
+        let in_strict_mode = !parser.is_declaration || *options.compiler_options().always_strict();
         let parent_map = ParentMap::new(parser.node_len());
 
         BinderState {
@@ -280,7 +279,7 @@ fn bind<'cx, 'atoms, 'parser>(
     module_id: ModuleID,
     options: &NormalizedTsConfig,
 ) -> BinderState<'cx, 'atoms, 'parser> {
-    let mut state = BinderState::new(atoms, parser, root, module_id, options);
+    let mut state = BinderState::new(atoms, parser, module_id, options);
     state.bind(root.id);
     // debug_assert!(self.parent_map.inner.iter().skip(1).all(|&p| p != Self::PLACEHOLDER));
     state.parent_map.finish();

@@ -2,6 +2,7 @@ use bolt_ts_ast::ModifierKind;
 use bolt_ts_ast::{TokenFlags, TokenKind};
 use bolt_ts_span::Span;
 
+use crate::path::is_external_module_relative;
 use crate::{ecma_rules, keyword};
 
 use super::list_ctx;

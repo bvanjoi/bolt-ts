@@ -548,9 +548,6 @@ impl<'cx> ParserState<'cx, '_> {
         } else {
             None
         };
-        if let Some(module) = module {
-            self.imports.push(module);
-        }
         let id = self.next_node_id();
         let specs = self.alloc(ast::SpecsExport {
             id,
@@ -565,7 +562,6 @@ impl<'cx> ParserState<'cx, '_> {
     fn parse_glob_export(&mut self, start: u32) -> PResult<&'cx ast::GlobExport<'cx>> {
         self.expect(TokenKind::From);
         let module = self.parse_module_spec()?;
-        self.imports.push(module);
         let id = self.next_node_id();
         let n = self.alloc(ast::GlobExport {
             id,
@@ -580,7 +576,6 @@ impl<'cx> ParserState<'cx, '_> {
         let name = self.parse_module_export_name(|this| this.create_ident(true, None));
         self.expect(TokenKind::From);
         let module = self.parse_module_spec()?;
-        self.imports.push(module);
         let id = self.next_node_id();
         let ns = self.alloc(ast::NsExport {
             id,
@@ -626,7 +621,6 @@ impl<'cx> ParserState<'cx, '_> {
 
         let clause = self.try_parse_import_clause(name, after_import_pos as usize, is_type_only)?;
         let module = self.parse_module_spec()?;
-        self.imports.push(module);
 
         self.parse_semi();
 

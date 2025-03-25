@@ -16,6 +16,7 @@ mod utils;
 
 use std::sync::{Arc, Mutex};
 
+use bolt_ts_ast::Visitor;
 use bolt_ts_atom::{AtomId, AtomMap};
 use bolt_ts_span::{ModuleArena, ModuleID, Span};
 use bolt_ts_utils::no_hashmap_with_capacity;
@@ -28,7 +29,9 @@ use utils::is_declaration_filename;
 pub use self::query::AccessKind;
 pub use self::query::AssignmentKind;
 use crate::bind;
+use crate::bind::NodeQuery;
 use crate::keyword;
+use crate::path::is_external_module_relative;
 pub use bolt_ts_ast::KEYWORD_TOKEN_START;
 use bolt_ts_ast::{self as ast, Node, NodeFlags, NodeID};
 use bolt_ts_ast::{Token, TokenFlags, TokenKind};
@@ -91,7 +94,8 @@ pub struct ParseResult<'cx> {
     pub commonjs_module_indicator: Option<ast::NodeID>,
     pub comment_directives: Vec<CommentDirective>,
     pub line_map: Vec<u32>,
-    pub imports: Vec<&'cx ast::StringLit>,
+    pub filepath: AtomId,
+    pub is_declaration: bool,
 }
 
 impl<'cx> ParseResult<'cx> {
@@ -198,20 +202,21 @@ pub fn parse_parallel<'cx, 'p>(
     herd: &'cx bumpalo_herd::Herd,
     list: &'p [ModuleID],
     module_arena: &'p ModuleArena,
-) -> impl ParallelIterator<Item = (ModuleID, ParseResult<'cx>)> + use<'cx, 'p> {
+) -> impl ParallelIterator<Item = (ModuleID, ParseResult<'cx>, CollectDepsResult<'cx>)> + use<'cx, 'p>
+{
     list.into_par_iter().map_init(
         || herd.get(),
         move |bump, module_id| {
             let input = module_arena.get_content(*module_id);
-            let result = parse(
+            let (p, c) = parse(
                 atoms.clone(),
                 bump,
                 input.as_bytes(),
                 *module_id,
                 module_arena,
             );
-            assert!(!module_arena.get_module(*module_id).global || result.diags.is_empty());
-            (*module_id, result)
+            assert!(!module_arena.get_module(*module_id).global || p.diags.is_empty());
+            (*module_id, p, c)
         },
     )
 
@@ -236,19 +241,19 @@ fn parse<'cx, 'p>(
     input: &'p [u8],
     module_id: ModuleID,
     module_arena: &'p ModuleArena,
-) -> ParseResult<'cx> {
+) -> (ParseResult<'cx>, CollectDepsResult<'cx>) {
     let nodes = Nodes::new();
     let parent_map = bind::ParentMap::default();
-    let mut s = ParserState::new(atoms, arena, nodes, parent_map, input, module_id);
     let file_path = module_arena.get_path(module_id);
+    let mut s = ParserState::new(atoms, arena, nodes, parent_map, input, module_id, file_path);
 
-    s.parse(file_path);
+    s.parse();
 
     s.record_new_line_offset();
     assert_eq!(s.line_map[0], 0);
     debug_assert!(s.line_map.is_sorted(), "line_map: {:#?}", s.line_map);
 
-    ParseResult {
+    let p = ParseResult {
         diags: s.diags,
         nodes: s.nodes,
         parent_map: s.parent_map,
@@ -257,7 +262,111 @@ fn parse<'cx, 'p>(
         commonjs_module_indicator: s.commonjs_module_indicator,
         comment_directives: s.comment_directives,
         line_map: s.line_map,
-        imports: s.imports,
+        filepath: s.filepath,
+        is_declaration: s.is_declaration,
+    };
+    let c = collect_deps(&p, p.root(), s.atoms);
+    (p, c)
+}
+
+fn collect_deps<'cx, 'p>(
+    p: &'p ParseResult<'cx>,
+    root: &'cx ast::Program<'cx>,
+    atoms: Arc<Mutex<AtomMap<'cx>>>,
+) -> CollectDepsResult<'cx> {
+    let mut visitor = CollectDepsVisitor {
+        in_ambient_module: false,
+        p,
+        is_external_module_file: p.is_external_module(),
+        atoms,
+
+        imports: Vec::with_capacity(32),
+        ambient_modules: Vec::with_capacity(8),
+        module_augmentations: Vec::with_capacity(8),
+    };
+    visitor.visit_program(root);
+    CollectDepsResult {
+        imports: visitor.imports,
+        module_augmentations: visitor.module_augmentations,
+        ambient_modules: visitor.ambient_modules,
+    }
+}
+
+struct CollectDepsVisitor<'cx, 'p> {
+    p: &'p ParseResult<'cx>,
+    in_ambient_module: bool,
+    is_external_module_file: bool,
+    atoms: Arc<Mutex<AtomMap<'cx>>>,
+
+    imports: Vec<&'cx ast::StringLit>,
+    module_augmentations: Vec<AtomId>,
+    ambient_modules: Vec<AtomId>,
+}
+
+pub struct CollectDepsResult<'cx> {
+    pub imports: Vec<&'cx ast::StringLit>,
+    pub module_augmentations: Vec<AtomId>,
+    pub ambient_modules: Vec<AtomId>,
+}
+
+impl<'cx, 'p> ast::Visitor<'cx> for CollectDepsVisitor<'cx, 'p> {
+    fn visit_stmt(&mut self, node: &'cx ast::Stmt<'cx>) {
+        let module_name = match node.kind {
+            ast::StmtKind::Import(n) => Some(n.module),
+            ast::StmtKind::Export(n) => match n.clause.kind {
+                bolt_ts_ast::ExportClauseKind::Glob(n) => Some(n.module),
+                bolt_ts_ast::ExportClauseKind::Ns(n) => Some(n.module),
+                bolt_ts_ast::ExportClauseKind::Specs(n) => n.module.map(|n| n),
+            },
+            // TODO: import equal
+            ast::StmtKind::Namespace(n) => {
+                if n.is_ambient()
+                    && (self.in_ambient_module
+                        || n.modifiers
+                            .is_some_and(|ms| ms.flags.intersects(ast::ModifierKind::Ambient))
+                        || self.p.is_declaration)
+                {
+                    let name = match n.name {
+                        bolt_ts_ast::ModuleName::Ident(_) => {
+                            assert!(n.is_global_argument);
+                            keyword::IDENT_GLOBAL
+                        }
+                        bolt_ts_ast::ModuleName::StringLit(lit) => lit.val,
+                    };
+                    if self.is_external_module_file
+                        || (self.in_ambient_module
+                            && !is_external_module_relative(self.atoms.lock().unwrap().get(name)))
+                    {
+                        self.module_augmentations.push(name);
+                    } else if !self.in_ambient_module {
+                        if self.p.is_declaration {
+                            self.ambient_modules.push(name);
+                        }
+
+                        if let Some(block) = n.block {
+                            self.in_ambient_module = true;
+                            for stmt in block.stmts {
+                                self.visit_stmt(&stmt);
+                            }
+                            self.in_ambient_module = false;
+                        }
+                    }
+                }
+                return;
+            }
+            _ => return,
+        };
+        if let Some(module_name) = module_name {
+            if module_name.val != keyword::IDENT_EMPTY
+                && (!self.in_ambient_module
+                    || !is_external_module_relative(
+                        self.atoms.lock().unwrap().get(module_name.val),
+                    ))
+            {
+                self.imports.push(module_name);
+            }
+            // TODO: use_uri_style_node_core_modules
+        }
     }
 }
 
@@ -282,10 +391,12 @@ struct ParserState<'cx, 'p> {
     commonjs_module_indicator: Option<ast::NodeID>,
     has_export_decl: bool,
     comment_directives: Vec<CommentDirective>,
-    imports: Vec<&'cx ast::StringLit>,
     line: usize,
     line_start: usize, // offset
     line_map: Vec<u32>,
+    is_declaration: bool,
+    filepath: AtomId,
+    in_ambient_module: bool,
 }
 
 #[derive(Debug)]
@@ -327,11 +438,17 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         parent_map: crate::bind::ParentMap,
         input: &'p [u8],
         module_id: ModuleID,
+        file_path: &std::path::Path,
     ) -> Self {
         let token = Token::new(
             TokenKind::EOF,
             Span::new(u32::MAX, u32::MAX, ModuleID::root()),
         );
+        let p = file_path.to_string_lossy();
+        let p = p.as_bytes();
+        let atom = AtomId::from_bytes(p);
+        debug_assert!(file_path.is_normalized());
+        debug_assert!(atoms.lock().unwrap().contains(atom));
         Self {
             input,
             token,
@@ -356,7 +473,9 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
             line_start: 0,
             line_map: Vec::with_capacity(input.len() / 12),
             line: 0,
-            imports: Vec::with_capacity(32),
+            filepath: atom,
+            is_declaration: is_declaration_filename(p),
+            in_ambient_module: false,
         }
     }
 
@@ -571,13 +690,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         self.nodes.insert(id, node);
     }
 
-    pub fn parse(&mut self, file_path: &std::path::Path) -> &'cx ast::Program<'cx> {
-        let p = file_path.to_string_lossy();
-        let p = p.as_bytes();
-        let atom = AtomId::from_bytes(p);
-        debug_assert!(file_path.is_normalized());
-        debug_assert!(self.atoms.lock().unwrap().contains(atom));
-
+    pub fn parse(&mut self) -> &'cx ast::Program<'cx> {
         let start = self.pos;
         self.next_token();
         let stmts = self.arena.alloc(Vec::with_capacity(512));
@@ -591,8 +704,6 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
             id,
             stmts,
             span: self.new_span(start as u32),
-            is_declaration: is_declaration_filename(p),
-            filepath: atom,
         });
         self.nodes.insert(id, Node::Program(program));
         program
