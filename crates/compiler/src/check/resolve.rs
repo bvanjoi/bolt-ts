@@ -57,7 +57,8 @@ impl<'cx> TyChecker<'cx> {
         let symbol;
         match name.kind {
             Ident(n) => {
-                symbol = self.resolve_symbol_by_ident(n);
+                let id = self.resolve_symbol_by_ident(n);
+                symbol = self.get_merged_symbol(id);
                 if symbol == Symbol::ERR || dont_resolve_alias {
                     return symbol;
                 }

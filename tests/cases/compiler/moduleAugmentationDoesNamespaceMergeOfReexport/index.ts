@@ -16,11 +16,20 @@ declare module "./reexport" {
 declare const f: ns.Root.Foo;
 
 f.x;
+f.y;
+f.y.x;
+f.y.self;
+f.y.self.self.self.y;
 f.self;
-// f.self.x;
+f.self.x;
 f.self.self;
 f.self.self.self;
-// f.self.self.self;
+f.self.self.self;
+
+f.self.k;
+//~^ ERROR: Property 'k' does not exist on type 'Foo'.
+f.k;
+//~^ ERROR: Property 'k' does not exist on type 'Foo'.
 
 import * as file from './file';
 let a1: string = file.A;

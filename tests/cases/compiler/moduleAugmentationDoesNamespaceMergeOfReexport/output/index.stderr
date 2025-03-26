@@ -4,8 +4,20 @@
    · ──
    ╰────
 
+  × Property 'k' does not exist on type 'Foo'.
+    ╭─[../../tests/cases/compiler/moduleAugmentationDoesNamespaceMergeOfReexport/index.ts:29:8]
+ 29 │ k
+    · ─
+    ╰────
+
+  × Property 'k' does not exist on type 'Foo'.
+    ╭─[../../tests/cases/compiler/moduleAugmentationDoesNamespaceMergeOfReexport/index.ts:31:3]
+ 31 │ k
+    · ─
+    ╰────
+
   × Type 'number' is not assignable to type 'string'.
-    ╭─[../../tests/cases/compiler/moduleAugmentationDoesNamespaceMergeOfReexport/index.ts:26:5]
- 26 │ a1
+    ╭─[../../tests/cases/compiler/moduleAugmentationDoesNamespaceMergeOfReexport/index.ts:35:5]
+ 35 │ a1
     · ──
     ╰────

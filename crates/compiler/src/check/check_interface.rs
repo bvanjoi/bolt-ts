@@ -10,8 +10,12 @@ impl<'cx> TyChecker<'cx> {
     pub(super) fn check_interface_decl(&mut self, interface: &'cx ast::InterfaceDecl<'cx>) {
         let symbol = self.get_symbol_of_decl(interface.id);
 
-        let decl_id = self.binder.symbol(symbol).decls[0];
-        if decl_id == interface.id {
+        let first_interface_decl = self
+            .binder
+            .symbol(symbol)
+            .get_declaration_of_kind(|n| self.p.node(n).is_interface_decl())
+            .unwrap();
+        if first_interface_decl == interface.id {
             let ty = self.get_declared_ty_of_symbol(symbol);
             self.resolve_structured_type_members(ty);
             let ty_with_this = self.get_ty_with_this_arg(ty, None);
@@ -25,7 +29,11 @@ impl<'cx> TyChecker<'cx> {
                         };
                         self.get_ty_with_this_arg(base_ty, this_ty)
                     };
-                    let res = self.check_type_assignable_to(ty_with_this, target, Some(decl_id));
+                    let res = self.check_type_assignable_to(
+                        ty_with_this,
+                        target,
+                        Some(first_interface_decl),
+                    );
                     if res == Ternary::FALSE {
                         let error = errors::Interface0IncorrectlyExtendsInterface1 {
                             span: interface.name.span,

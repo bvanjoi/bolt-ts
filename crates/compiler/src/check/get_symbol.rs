@@ -1,5 +1,7 @@
 use super::TyChecker;
+use super::symbol_info::SymbolInfo;
 use crate::bind::{Symbol, SymbolID, SymbolName};
+
 use bolt_ts_ast as ast;
 
 impl TyChecker<'_> {
@@ -10,7 +12,8 @@ impl TyChecker<'_> {
             "expected a decl node, but got {:#?}",
             self.p.node(id)
         );
-        self.final_res(id)
+        let id = self.final_res(id);
+        self.get_merged_symbol(id)
     }
 
     #[inline]

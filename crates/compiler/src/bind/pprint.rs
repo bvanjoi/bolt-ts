@@ -30,7 +30,7 @@ impl<'cx> SymbolName {
             SymbolName::Normal(atom_id) => atoms.get(atom_id).to_string(),
             SymbolName::Ele(atom_id) => atoms.get(atom_id).to_string(),
             SymbolName::EleNum(val) => val.val().to_string(),
-            _ => todo!(),
+            _ => todo!("{:?}", self),
         }
     }
 }

@@ -312,4 +312,7 @@ impl<'cx> super::symbol_info::SymbolInfo<'cx> for MergeModuleAugmentationForNonG
     fn get_resolve_results(&self) -> &Vec<ResolveResult> {
         &self.bind_list
     }
+    fn get_merged_symbols(&self) -> &MergedSymbols {
+        &self.merged_symbols
+    }
 }

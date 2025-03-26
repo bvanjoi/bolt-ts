@@ -264,32 +264,34 @@ impl<'cx> TyChecker<'cx> {
         }
         let symbol = ty.symbol().unwrap();
         let s = self.binder.symbol(symbol);
-        let decl = s.decls[0];
-        assert!(self.p.node(decl).is_interface_decl());
-        let Some(ty_nodes) = self.get_interface_base_ty_nodes(decl) else {
-            return;
-        };
-        let mut tys = Vec::with_capacity(ty_nodes.len());
-        for node in ty_nodes {
-            let base_ty = self.get_ty_from_ty_reference(*node);
-            if !self.is_error(base_ty) {
-                if self.is_valid_base_ty(base_ty) {
-                    if ty != base_ty && !self.has_base_ty(base_ty, ty) {
-                        tys.push(base_ty);
-                    } else {
-                        *cycle_reported = true;
-                        self.report_circular_base_ty(decl, ty, Some(node.name.span()));
+
+        let mut tys = Vec::with_capacity(s.decls.len() * 4);
+        for decl in s.decls.clone() {
+            if self.p.node(decl).is_interface_decl() {
+                let Some(ty_nodes) = self.get_interface_base_ty_nodes(decl) else {
+                    continue;
+                };
+                for node in ty_nodes {
+                    let base_ty = self.get_ty_from_ty_reference(*node);
+                    if !self.is_error(base_ty) {
+                        if self.is_valid_base_ty(base_ty) {
+                            if ty != base_ty && !self.has_base_ty(base_ty, ty) {
+                                tys.push(base_ty);
+                            } else {
+                                *cycle_reported = true;
+                                self.report_circular_base_ty(decl, ty, Some(node.name.span()));
+                            }
+                        } else {
+                            // TODO: ERROR: An interface can only extend an object...
+                        }
                     }
-                } else {
-                    // TODO: ERROR: An interface can only extend an object...
                 }
             }
         }
+
         let now = self.get_ty_links(ty.id).expect_resolved_base_tys();
-        let mut resolved_tys = Vec::with_capacity(now.len() + tys.len());
-        resolved_tys.extend_from_slice(now);
-        resolved_tys.extend_from_slice(&tys);
-        let resolved_tys = self.alloc(resolved_tys);
+        assert!(std::ptr::addr_eq(now, self.empty_array::<ty::Tys<'cx>>()));
+        let resolved_tys = self.alloc(tys);
         self.get_mut_ty_links(ty.id)
             .override_resolved_base_tys(resolved_tys);
     }

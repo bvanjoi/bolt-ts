@@ -507,16 +507,16 @@ impl<'cx> TyChecker<'cx> {
             if includes.intersects(TypeFlags::UNDEFINED)
                 && set.len() >= 2
                 && set[0] == self.undefined_ty
-                && set[0] == self.missing_ty
+                && set[1] == self.missing_ty
             {
                 set.remove(1);
             }
             if includes.intersects(
                 TypeFlags::ENUM
-                    | TypeFlags::LITERAL
-                    | TypeFlags::UNIQUE_ES_SYMBOL
-                    | TypeFlags::TEMPLATE_LITERAL
-                    | TypeFlags::STRING_MAPPING,
+                    .union(TypeFlags::LITERAL)
+                    .union(TypeFlags::UNIQUE_ES_SYMBOL)
+                    .union(TypeFlags::TEMPLATE_LITERAL)
+                    .union(TypeFlags::STRING_MAPPING),
             ) || includes.intersects(TypeFlags::VOID)
                 && includes.intersects(TypeFlags::UNDEFINED)
             {

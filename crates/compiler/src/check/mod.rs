@@ -1113,13 +1113,13 @@ impl<'cx> TyChecker<'cx> {
         containing_ty: &'cx ty::Ty<'cx>,
     ) {
         if self
-            .get_ty_links(containing_ty.id)
+            .get_node_links(prop_node.id)
             .get_non_existent_prop_checked()
             .unwrap_or_default()
         {
             return;
         }
-        self.get_mut_ty_links(containing_ty.id)
+        self.get_mut_node_links(prop_node.id)
             .set_non_existent_prop_checked(true);
 
         let missing_prop = pprint_ident(prop_node, self.atoms);

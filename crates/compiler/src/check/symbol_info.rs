@@ -4,7 +4,9 @@ use rustc_hash::{FxHashMap, FxHashSet};
 use super::resolve_structured_member::MemberOrExportsResolutionKind;
 use super::transient_symbol::CheckSymbol;
 use super::{SymbolLinks, TransientSymbols, errors};
-use crate::bind::{ResolveResult, Symbol, SymbolFlags, SymbolID, SymbolName, SymbolTable};
+use crate::bind::{
+    MergedSymbols, ResolveResult, Symbol, SymbolFlags, SymbolID, SymbolName, SymbolTable,
+};
 
 fn symbol_of_resolve_results(
     resolve_results: &Vec<ResolveResult>,
@@ -35,6 +37,16 @@ pub trait SymbolInfo<'cx>: Sized {
     fn get_transient_symbols(&self) -> &TransientSymbols<'cx>;
     fn get_mut_transient_symbols(&mut self) -> &mut TransientSymbols<'cx>;
     fn get_resolve_results(&self) -> &Vec<ResolveResult>;
+    fn get_merged_symbols(&self) -> &MergedSymbols;
+
+    fn get_merged_symbol(&self, id: SymbolID) -> SymbolID {
+        if id == Symbol::ERR {
+            return Symbol::ERR;
+        }
+        let s = self.get_merged_symbols();
+        let symbols = &self.get_resolve_results()[id.module().as_usize()].symbols;
+        s.get_merged_symbol(id, symbols)
+    }
 
     fn locals(
         &self,
@@ -626,5 +638,8 @@ impl<'cx> SymbolInfo<'cx> for super::TyChecker<'cx> {
     }
     fn get_resolve_results(&self) -> &Vec<ResolveResult> {
         &self.binder.bind_results
+    }
+    fn get_merged_symbols(&self) -> &MergedSymbols {
+        self.merged_symbols
     }
 }

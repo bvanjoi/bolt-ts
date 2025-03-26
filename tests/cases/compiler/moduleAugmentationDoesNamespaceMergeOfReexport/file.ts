@@ -1,6 +1,7 @@
 export namespace Root {
   export interface Foo {
       x: number;
+      y: Foo;
   }
 }
 
