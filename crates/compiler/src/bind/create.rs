@@ -8,7 +8,7 @@ use crate::parser::ParseResult;
 use bolt_ts_ast as ast;
 use bolt_ts_utils::fx_hashmap_with_capacity;
 
-pub(super) fn set_value_declaration(
+pub(crate) fn set_value_declaration(
     symbol: SymbolID,
     symbols: &mut Symbols,
     node: ast::NodeID,

@@ -4,36 +4,34 @@ use bolt_ts_ast::{self as ast};
 use normalize_path::NormalizePath;
 
 use super::parser;
-use super::parser::parse_parallel;
 use super::{ModuleArena, ModuleID};
 
 use std::sync::{Arc, Mutex};
 
-use bolt_ts_atom::AtomMap;
+use bolt_ts_atom::{AtomId, AtomMap};
 use bolt_ts_fs::PathId;
 use bolt_ts_resolve::RResult;
 use bolt_ts_utils::fx_hashmap_with_capacity;
 use rayon::prelude::*;
 use rustc_hash::FxHashMap;
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub enum ModuleRes {
     Err,
     Res(ModuleID),
 }
 
 pub struct ModuleGraph {
-    deps: FxHashMap<ModuleID, FxHashMap<ast::NodeID, ModuleRes>>,
+    deps: FxHashMap<ModuleID, FxHashMap<AtomId, ModuleRes>>,
     diags: Vec<bolt_ts_errors::Diag>,
 }
 
 impl ModuleGraph {
-    fn add_dep(&mut self, from: ast::NodeID, to: ModuleRes) {
-        let by = from;
-        let from = by.module();
+    fn add_dep(&mut self, from: bolt_ts_span::ModuleID, by: AtomId, to: ModuleRes) {
         if let Some(from) = self.deps.get_mut(&from) {
-            let prev = from.insert(by, to);
-            assert!(prev.is_none());
+            if let Some(prev) = from.insert(by, to) {
+                assert_eq!(prev, to);
+            }
         } else {
             let mut map = fx_hashmap_with_capacity(32);
             map.insert(by, to);
@@ -41,9 +39,7 @@ impl ModuleGraph {
         }
     }
 
-    pub fn get_dep(&self, from: ast::NodeID) -> Option<ModuleRes> {
-        let by = from;
-        let from = by.module();
+    pub fn get_dep(&self, from: bolt_ts_span::ModuleID, by: AtomId) -> Option<ModuleRes> {
         self.deps.get(&from).and_then(|map| map.get(&by).copied())
     }
 
@@ -79,23 +75,23 @@ pub(super) fn build_graph<'cx>(
             parse_result: parser::ParseResult<'cx>,
             deps: Vec<(ast::NodeID, RResult<PathId>)>,
         }
-        let modules = parse_parallel(atoms.clone(), herd, resolving.as_slice(), module_arena)
-            .map(|(module_id, parse_result, collect_deps_result)| {
-                let file_path = module_arena.get_path(module_id);
-                let base_dir = file_path.parent().unwrap();
-                let base_dir = PathId::get(base_dir);
-                let deps = collect_deps_result
-                    .imports
-                    .into_par_iter()
-                    .map(|s| (s.id, resolver.resolve(base_dir, s.val)))
-                    .collect::<Vec<_>>();
-                ResolvedModule {
-                    id: module_id,
-                    parse_result,
-                    deps,
-                }
-            })
-            .collect::<Vec<_>>();
+        let modules =
+            parser::parse_parallel(atoms.clone(), herd, resolving.as_slice(), module_arena)
+                .map(|(module_id, mut parse_result)| {
+                    let file_path = module_arena.get_path(module_id);
+                    let base_dir = file_path.parent().unwrap();
+                    let base_dir = PathId::get(base_dir);
+                    let deps = std::mem::take(&mut parse_result.imports)
+                        .into_par_iter()
+                        .map(|s| (s.id, resolver.resolve(base_dir, s.val)))
+                        .collect::<Vec<_>>();
+                    ResolvedModule {
+                        id: module_id,
+                        parse_result,
+                        deps,
+                    }
+                })
+                .collect::<Vec<_>>();
 
         for item in resolving {
             let p = module_arena.get_path(item);
@@ -117,13 +113,19 @@ pub(super) fn build_graph<'cx>(
             parser.insert(id, parse_result);
 
             for (ast_id, dep) in deps {
+                let module_name_node = parser.node(ast_id);
+                let module_name = match module_name_node {
+                    ast::Node::StringLit(lit) => lit.val,
+                    // TODO: NoSubstitutionTemplateLiteral
+                    _ => unreachable!(),
+                };
+                let m = ast_id.module();
                 let Ok(dep) = dep else {
-                    mg.add_dep(ast_id, ModuleRes::Err);
-                    let module_name = parser.node(ast_id).expect_string_lit();
+                    mg.add_dep(m, module_name, ModuleRes::Err);
                     mg.push_error(Box::new(
                         errors::CannotFindModuleOrItsCorrespondingTypeDeclarations {
-                            span: module_name.span,
-                            module_name: atoms.get(module_name.val).to_string(),
+                            span: module_name_node.span(),
+                            module_name: atoms.get(module_name).to_string(),
                         },
                     ));
                     continue;
@@ -142,12 +144,32 @@ pub(super) fn build_graph<'cx>(
                         }
                     }
                 };
-                mg.add_dep(ast_id, ModuleRes::Res(to));
+                mg.add_dep(m, module_name, ModuleRes::Res(to));
             }
         }
 
         resolving = next.into_values().collect();
     }
-
     mg
+}
+
+pub fn resolve_external_module_name(
+    mg: &ModuleGraph,
+    module_spec: ast::NodeID,
+    p: &parser::Parser<'_>,
+) -> Option<super::bind::SymbolID> {
+    let from = module_spec.module();
+    let name = match p.node(module_spec) {
+        ast::Node::StringLit(lit) => lit.val,
+        // TODO: NoSubstitutionTemplateLiteral
+        _ => unreachable!(),
+    };
+    let Some(dep) = mg.get_dep(from, name) else {
+        unreachable!()
+    };
+
+    match dep {
+        ModuleRes::Err => None,
+        ModuleRes::Res(module_id) => Some(super::bind::SymbolID::container(module_id)),
+    }
 }

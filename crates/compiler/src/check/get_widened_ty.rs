@@ -1,14 +1,15 @@
+use super::CheckMode;
+use super::ContextFlags;
+use super::TyChecker;
+use super::symbol_info::SymbolInfo;
+use super::ty;
 use crate::bind::SymbolFlags;
 use crate::bind::SymbolID;
 use crate::ir;
 use crate::ty::ObjectFlags;
 use crate::ty::TypeFlags;
-use bolt_ts_ast as ast;
 
-use super::CheckMode;
-use super::ContextFlags;
-use super::TyChecker;
-use super::ty;
+use bolt_ts_ast as ast;
 
 impl<'cx> TyChecker<'cx> {
     pub(super) fn get_widened_ty(&mut self, ty: &'cx ty::Ty<'cx>) -> &'cx ty::Ty<'cx> {

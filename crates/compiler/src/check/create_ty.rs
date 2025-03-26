@@ -14,6 +14,7 @@ use crate::ty::{
 };
 
 use super::relation::RelationKind;
+use super::symbol_info::SymbolInfo;
 use super::utils::insert_ty;
 use super::{InstantiationTyMap, UnionOrIntersectionMap};
 use super::{TyChecker, errors};

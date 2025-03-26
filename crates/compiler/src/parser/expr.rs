@@ -90,7 +90,7 @@ impl<'cx> ParserState<'cx, '_> {
             ty,
             body,
         });
-        self.insert_map(id, ast::Node::ArrowFnExpr(kind));
+        self.nodes.insert(id, ast::Node::ArrowFnExpr(kind));
         let expr = self.alloc(ast::Expr {
             kind: ast::ExprKind::ArrowFn(kind),
         });
@@ -124,7 +124,7 @@ impl<'cx> ParserState<'cx, '_> {
             ty: None,
             init: None,
         });
-        self.insert_map(param_id, ast::Node::ParamDecl(param));
+        self.nodes.insert(param_id, ast::Node::ParamDecl(param));
         let params = self.alloc([param]);
         self.expect(TokenKind::EqGreat);
         let body = self.parse_arrow_fn_expr_body()?;
@@ -137,7 +137,7 @@ impl<'cx> ParserState<'cx, '_> {
             ty: None,
             body,
         });
-        self.insert_map(expr_id, ast::Node::ArrowFnExpr(f));
+        self.nodes.insert(expr_id, ast::Node::ArrowFnExpr(f));
         let expr = self.alloc(ast::Expr {
             kind: ast::ExprKind::ArrowFn(f),
         });
@@ -172,7 +172,7 @@ impl<'cx> ParserState<'cx, '_> {
                 right,
                 span: self.new_span(start),
             });
-            self.insert_map(id, ast::Node::AssignExpr(expr));
+            self.nodes.insert(id, ast::Node::AssignExpr(expr));
             let expr = self.alloc(ast::Expr {
                 kind: ast::ExprKind::Assign(expr),
             });
@@ -230,7 +230,8 @@ impl<'cx> ParserState<'cx, '_> {
                         expr: left,
                         ty,
                     });
-                    self.insert_map(next_expr_id, ast::Node::SatisfiesExpr(expr));
+                    self.nodes
+                        .insert(next_expr_id, ast::Node::SatisfiesExpr(expr));
                     ast::ExprKind::Satisfies(expr)
                 } else {
                     let next_expr_id = self.next_node_id();
@@ -240,7 +241,7 @@ impl<'cx> ParserState<'cx, '_> {
                         expr: left,
                         ty,
                     });
-                    self.insert_map(next_expr_id, ast::Node::AsExpr(expr));
+                    self.nodes.insert(next_expr_id, ast::Node::AsExpr(expr));
                     ast::ExprKind::As(expr)
                 }
             } else {
@@ -257,7 +258,7 @@ impl<'cx> ParserState<'cx, '_> {
                     right,
                     span: self.new_span(start as u32),
                 });
-                self.insert_map(next_expr_id, ast::Node::BinExpr(expr));
+                self.nodes.insert(next_expr_id, ast::Node::BinExpr(expr));
                 ast::ExprKind::Bin(expr)
             };
             left = self.alloc(ast::Expr { kind });
@@ -288,7 +289,7 @@ impl<'cx> ParserState<'cx, '_> {
             op,
             expr,
         });
-        self.insert_map(id, ast::Node::PrefixUnaryExpr(unary));
+        self.nodes.insert(id, ast::Node::PrefixUnaryExpr(unary));
         let expr = self.alloc(ast::Expr {
             kind: ast::ExprKind::PrefixUnary(unary),
         });
@@ -324,7 +325,7 @@ impl<'cx> ParserState<'cx, '_> {
             ty,
             expr,
         });
-        self.insert_map(id, ast::Node::TyAssertionExpr(expr));
+        self.nodes.insert(id, ast::Node::TyAssertionExpr(expr));
         let expr = self.alloc(ast::Expr {
             kind: ast::ExprKind::TyAssertion(expr),
         });
@@ -341,7 +342,7 @@ impl<'cx> ParserState<'cx, '_> {
             span: self.new_span(start),
             expr,
         });
-        self.insert_map(id, ast::Node::VoidExpr(expr));
+        self.nodes.insert(id, ast::Node::VoidExpr(expr));
         let expr = self.alloc(ast::Expr {
             kind: ast::ExprKind::Void(expr),
         });
@@ -358,7 +359,7 @@ impl<'cx> ParserState<'cx, '_> {
             span: self.new_span(start),
             expr,
         });
-        self.insert_map(id, ast::Node::TypeofExpr(kind));
+        self.nodes.insert(id, ast::Node::TypeofExpr(kind));
         let expr = self.alloc(ast::Expr {
             kind: ast::ExprKind::Typeof(kind),
         });
@@ -384,7 +385,7 @@ impl<'cx> ParserState<'cx, '_> {
                     op,
                     expr,
                 });
-                self.insert_map(id, ast::Node::PostfixUnaryExpr(unary));
+                self.nodes.insert(id, ast::Node::PostfixUnaryExpr(unary));
                 let expr = self.alloc(ast::Expr {
                     kind: ast::ExprKind::PostfixUnary(unary),
                 });
@@ -433,7 +434,7 @@ impl<'cx> ParserState<'cx, '_> {
                 expr,
                 name,
             });
-            self.insert_map(id, ast::Node::PropAccessExpr(expr));
+            self.nodes.insert(id, ast::Node::PropAccessExpr(expr));
             let expr = self.alloc(ast::Expr {
                 kind: ast::ExprKind::PropAccess(expr),
             });
@@ -458,7 +459,7 @@ impl<'cx> ParserState<'cx, '_> {
                     expr,
                     args,
                 });
-                this.insert_map(id, ast::Node::CallExpr(call));
+                this.nodes.insert(id, ast::Node::CallExpr(call));
                 Ok(this.alloc(ast::Expr {
                     kind: ast::ExprKind::Call(call),
                 }))
@@ -528,7 +529,7 @@ impl<'cx> ParserState<'cx, '_> {
             ty,
             body: body.unwrap(),
         });
-        self.insert_map(id, ast::Node::ObjectMethodMember(node));
+        self.nodes.insert(id, ast::Node::ObjectMethodMember(node));
         let member = self.alloc(ast::ObjectMember {
             kind: ast::ObjectMemberKind::Method(node),
         });
@@ -546,7 +547,7 @@ impl<'cx> ParserState<'cx, '_> {
                 span: self.new_span(start),
                 expr,
             });
-            self.insert_map(id, ast::Node::SpreadAssignment(n));
+            self.nodes.insert(id, ast::Node::SpreadAssignment(n));
             let m = self.alloc(ast::ObjectMember {
                 kind: ast::ObjectMemberKind::SpreadAssignment(n),
             });
@@ -579,7 +580,8 @@ impl<'cx> ParserState<'cx, '_> {
                     span: self.new_span(start),
                     name,
                 });
-                self.insert_map(id, ast::Node::ObjectShorthandMember(kind));
+                self.nodes
+                    .insert(id, ast::Node::ObjectShorthandMember(kind));
                 let member = self.alloc(ast::ObjectMember {
                     kind: ast::ObjectMemberKind::Shorthand(kind),
                 });
@@ -595,7 +597,7 @@ impl<'cx> ParserState<'cx, '_> {
             name,
             value,
         });
-        self.insert_map(id, ast::Node::ObjectPropMember(kind));
+        self.nodes.insert(id, ast::Node::ObjectPropMember(kind));
         let member = self.alloc(ast::ObjectMember {
             kind: ast::ObjectMemberKind::Prop(kind),
         });
@@ -613,7 +615,7 @@ impl<'cx> ParserState<'cx, '_> {
             span: self.new_span(start),
             expr,
         });
-        self.insert_map(id, ast::Node::ParenExpr(expr));
+        self.nodes.insert(id, ast::Node::ParenExpr(expr));
         let expr = self.alloc(ast::Expr {
             kind: ast::ExprKind::Paren(expr),
         });
@@ -638,7 +640,7 @@ impl<'cx> ParserState<'cx, '_> {
             span: self.new_span(start),
             elems,
         });
-        self.insert_map(id, ast::Node::ArrayLit(lit));
+        self.nodes.insert(id, ast::Node::ArrayLit(lit));
         let expr = self.alloc(ast::Expr {
             // id: expr_id,
             kind: ast::ExprKind::ArrayLit(lit),
@@ -654,7 +656,7 @@ impl<'cx> ParserState<'cx, '_> {
                     id,
                     span: this.token.span,
                 });
-                this.insert_map(id, ast::Node::OmitExpr(expr));
+                this.nodes.insert(id, ast::Node::OmitExpr(expr));
                 let expr = this.alloc(ast::Expr {
                     kind: ast::ExprKind::Omit(expr),
                 });
@@ -676,20 +678,20 @@ impl<'cx> ParserState<'cx, '_> {
             BigInt => {
                 let val = self.ident_token();
                 let lit = self.create_lit((false, val), self.token.span);
-                self.insert_map(lit.id, ast::Node::BigIntLit(lit));
+                self.nodes.insert(lit.id, ast::Node::BigIntLit(lit));
                 self.next_token();
                 ast::ExprKind::BigIntLit(lit)
             }
             False | True => {
                 let v = self.token.kind == True;
                 let lit = self.create_lit(v, self.token.span);
-                self.insert_map(lit.id, ast::Node::BoolLit(lit));
+                self.nodes.insert(lit.id, ast::Node::BoolLit(lit));
                 self.next_token();
                 ast::ExprKind::BoolLit(lit)
             }
             Null => {
                 let lit = self.create_lit((), self.token.span);
-                self.insert_map(lit.id, ast::Node::NullLit(lit));
+                self.nodes.insert(lit.id, ast::Node::NullLit(lit));
                 self.next_token();
                 ast::ExprKind::NullLit(lit)
             }
@@ -705,7 +707,7 @@ impl<'cx> ParserState<'cx, '_> {
                     span: self.token.span,
                 });
                 self.next_token();
-                self.insert_map(this.id, ast::Node::ThisExpr(this));
+                self.nodes.insert(this.id, ast::Node::ThisExpr(this));
                 ast::ExprKind::This(this)
             }
             _ => unreachable!(),
@@ -718,7 +720,7 @@ impl<'cx> ParserState<'cx, '_> {
         self.expect(TokenKind::Super);
         let id = self.next_node_id();
         let node = self.alloc(ast::SuperExpr { id, span });
-        self.insert_map(node.id, ast::Node::SuperExpr(node));
+        self.nodes.insert(node.id, ast::Node::SuperExpr(node));
         let expr = self.alloc(ast::Expr {
             kind: ast::ExprKind::Super(node),
         });
@@ -757,7 +759,7 @@ impl<'cx> ParserState<'cx, '_> {
             head,
             spans,
         });
-        self.insert_map(n.id, ast::Node::TemplateExpr(n));
+        self.nodes.insert(n.id, ast::Node::TemplateExpr(n));
         let expr = self.alloc(ast::Expr {
             kind: ast::ExprKind::Template(n),
         });
@@ -777,7 +779,7 @@ impl<'cx> ParserState<'cx, '_> {
             span: self.token.span,
             text: self.token_value.unwrap().ident(),
         });
-        self.insert_map(node.id, ast::Node::TemplateHead(node));
+        self.nodes.insert(node.id, ast::Node::TemplateHead(node));
         self.next_token();
         Ok(node)
     }
@@ -828,7 +830,7 @@ impl<'cx> ParserState<'cx, '_> {
             text,
             is_tail,
         });
-        self.insert_map(node.id, ast::Node::TemplateSpan(node));
+        self.nodes.insert(node.id, ast::Node::TemplateSpan(node));
         Ok(node)
     }
 
@@ -865,7 +867,7 @@ impl<'cx> ParserState<'cx, '_> {
             ty_args: ty_args.unwrap_or_default(),
             args,
         });
-        self.insert_map(id, ast::Node::NewExpr(new));
+        self.nodes.insert(id, ast::Node::NewExpr(new));
         let expr = self.alloc(ast::Expr {
             kind: ast::ExprKind::New(new),
         });
@@ -895,7 +897,7 @@ impl<'cx> ParserState<'cx, '_> {
             span: self.new_span(start),
             members: props,
         });
-        self.insert_map(id, ast::Node::ObjectLit(lit));
+        self.nodes.insert(id, ast::Node::ObjectLit(lit));
         let expr = self.alloc(ast::Expr {
             kind: ast::ExprKind::ObjectLit(lit),
         });
@@ -917,7 +919,7 @@ impl<'cx> ParserState<'cx, '_> {
                 when_false,
                 when_true,
             });
-            self.insert_map(id, ast::Node::CondExpr(expr));
+            self.nodes.insert(id, ast::Node::CondExpr(expr));
             let expr = self.alloc(ast::Expr {
                 kind: ast::ExprKind::Cond(expr),
             });
@@ -957,7 +959,7 @@ impl<'cx> ParserState<'cx, '_> {
                 name,
             })
         };
-        self.insert_map(prop.id, ast::Node::PropAccessExpr(prop));
+        self.nodes.insert(prop.id, ast::Node::PropAccessExpr(prop));
         Ok(prop)
     }
 
@@ -992,7 +994,7 @@ impl<'cx> ParserState<'cx, '_> {
                 arg,
             })
         };
-        self.insert_map(ele.id, ast::Node::EleAccessExpr(ele));
+        self.nodes.insert(ele.id, ast::Node::EleAccessExpr(ele));
         Ok(ele)
     }
 
@@ -1028,7 +1030,7 @@ impl<'cx> ParserState<'cx, '_> {
                     span: self.new_span(start as u32),
                     expr,
                 });
-                self.insert_map(id, ast::Node::NonNullExpr(ele));
+                self.nodes.insert(id, ast::Node::NonNullExpr(ele));
                 expr = self.alloc(ast::Expr {
                     kind: ast::ExprKind::NonNull(ele),
                 });

@@ -1,5 +1,5 @@
 mod bind;
-pub mod check;
+mod check;
 mod cli;
 mod diag;
 mod early_resolve;
@@ -7,7 +7,7 @@ mod ecma_rules;
 mod emit;
 mod graph;
 mod ir;
-pub mod parser;
+mod parser;
 mod path;
 mod ty;
 mod wf;
@@ -32,6 +32,7 @@ use bolt_ts_config::NormalizedTsConfig;
 use bolt_ts_fs::{CachedFileSystem, read_file_with_encoding};
 use bolt_ts_span::{ModuleArena, ModuleID, ModulePath};
 
+use bolt_ts_utils::fx_hashmap_with_capacity;
 use cli::get_filenames;
 use normalize_path::NormalizePath;
 use parser::{ParseResult, Parser};
@@ -193,8 +194,8 @@ pub fn eval_from_with_fs<'cx>(
 
     let MergeGlobalSymbolResult {
         mut bind_list,
-        merged_symbols,
-        global_symbols,
+        mut merged_symbols,
+        mut global_symbols,
     } = bind::merge_global_symbol(&p, bind_list, &module_arena);
 
     let flow_nodes = bind_list
@@ -249,16 +250,44 @@ pub fn eval_from_with_fs<'cx>(
 
     // ==== type check ====
     let ty_arena = bumpalo::Bump::with_capacity(1024 * 1024);
+    let merged_res = check::merge_module_augmentation_list_for_global(
+        &p,
+        binder.bind_results,
+        &module_arena,
+        global_symbols,
+        merged_symbols,
+    );
+    let empty_symbols = ty_arena.alloc(bind::SymbolTable::new(0));
+    let checker_diags = Vec::with_capacity(p.module_count() * 32);
+    let symbol_links = fx_hashmap_with_capacity(p.module_count() * 1024);
+    let transient_symbols = check::TransientSymbols::new(p.module_count() * 1024 * 64);
+    let c = check::MergeModuleAugmentationForNonGlobal {
+        p: &p,
+        ty_arena: &ty_arena,
+        bind_list: merged_res.bind_list,
+        merged_symbols: merged_res.merged_symbols,
+        global_symbols: merged_res.global_symbols,
+        mg: &mg,
+        empty_symbols,
+        diags: checker_diags,
+        atoms,
+        symbol_links,
+        transient_symbols,
+    };
+    let mut merged_res = check::merge_module_augmentation_list_for_non_global(c, &module_arena);
+    let mut atoms = std::mem::take(&mut merged_res.atoms);
     let mut checker = check::TyChecker::new(
         &ty_arena,
         &p,
         &mg,
         &mut atoms,
-        &binder,
-        &merged_symbols,
-        &global_symbols,
+        empty_symbols,
         tsconfig.compiler_options(),
         flow_nodes,
+        std::mem::take(&mut merged_res.diags),
+        std::mem::take(&mut merged_res.symbol_links),
+        std::mem::take(&mut merged_res.transient_symbols),
+        &merged_res,
     );
     for item in &entries {
         let root = p.root(*item);

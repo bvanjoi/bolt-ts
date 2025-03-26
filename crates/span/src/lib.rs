@@ -75,12 +75,12 @@ impl ModuleArena {
         let id = ModuleID(self.modules.len() as u32);
         let m = Module { id, global };
         self.modules.push(m);
-        assert!(id.as_usize() == self.content_map.len());
+        assert_eq!(id.as_usize(), self.content_map.len());
         let atom = fs.read_file(p.as_ref(), atoms).unwrap();
         // TODO: remove this clone
         let data = atoms.get(atom).to_string();
         self.content_map.push(Arc::new(data));
-        assert!(id.as_usize() == self.path_map.len());
+        assert_eq!(id.as_usize(), self.path_map.len());
         self.path_map.push(p);
         id
     }
@@ -95,23 +95,29 @@ impl ModuleArena {
         let id = ModuleID(self.modules.len() as u32);
         let m = Module { id, global };
         self.modules.push(m);
-        assert!(id.as_usize() == self.content_map.len());
+        assert_eq!(id.as_usize(), self.content_map.len());
         // TODO: remove this clone
         let data = atoms.get(content).to_string();
         self.content_map.push(Arc::new(data));
-        assert!(id.as_usize() == self.path_map.len());
+        assert_eq!(id.as_usize(), self.path_map.len());
         self.path_map.push(p);
         id
     }
 
     pub fn get_path(&self, id: ModuleID) -> &ModulePath {
-        &self.path_map[id.as_usize()]
+        let idx = id.as_usize();
+        debug_assert!(idx < self.path_map.len());
+        unsafe { self.path_map.get_unchecked(idx) }
     }
     pub fn get_content(&self, id: ModuleID) -> &Arc<String> {
-        &self.content_map[id.as_usize()]
+        let idx = id.as_usize();
+        debug_assert!(id.as_usize() < self.content_map.len());
+        unsafe { self.content_map.get_unchecked(idx) }
     }
     pub fn get_module(&self, id: ModuleID) -> &Module {
-        &self.modules[id.as_usize()]
+        let idx = id.as_usize();
+        debug_assert!(idx < self.modules.len());
+        unsafe { self.modules.get_unchecked(idx) }
     }
     pub fn modules(&self) -> &[Module] {
         &self.modules

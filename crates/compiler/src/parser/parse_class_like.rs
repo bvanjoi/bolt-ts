@@ -105,7 +105,7 @@ impl<'cx, 'p> ClassLike<'cx, 'p> for ParseClassDecl {
             elems,
         });
         state.set_external_module_indicator_if_has_export_mod(modifiers, id);
-        state.insert_map(decl.id, ast::Node::ClassDecl(decl));
+        state.nodes.insert(decl.id, ast::Node::ClassDecl(decl));
         decl
     }
 }
@@ -141,7 +141,7 @@ impl<'cx, 'p> ClassLike<'cx, 'p> for ParseClassExpr {
             implements,
             elems,
         });
-        state.insert_map(expr.id, ast::Node::ClassExpr(expr));
+        state.nodes.insert(expr.id, ast::Node::ClassExpr(expr));
         expr
     }
 }
@@ -273,7 +273,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
                 name: ele,
                 ty_args,
             });
-            self.insert_map(id, ast::Node::ClassExtendsClause(clause));
+            self.nodes.insert(id, ast::Node::ClassExtendsClause(clause));
             return Ok(Some(clause));
         }
         Ok(None)
@@ -303,7 +303,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
                 body,
             });
             self.node_flags_map.insert(id, self.context_flags);
-            self.insert_map(id, ast::Node::ClassMethodElem(method));
+            self.nodes.insert(id, ast::Node::ClassMethodElem(method));
             self.alloc(ast::ClassElem {
                 kind: ast::ClassEleKind::Method(method),
             })
@@ -327,7 +327,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
                 question: None,
                 excl: excl.map(|e| e.span),
             });
-            self.insert_map(id, ast::Node::ClassPropElem(prop));
+            self.nodes.insert(id, ast::Node::ClassPropElem(prop));
             self.parse_semi_after_prop_name();
             self.alloc(ast::ClassElem {
                 kind: ast::ClassEleKind::Prop(prop),
@@ -376,7 +376,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
                     ret,
                     body,
                 });
-                this.insert_map(id, ast::Node::ClassCtor(ctor));
+                this.nodes.insert(id, ast::Node::ClassCtor(ctor));
                 let ele = this.alloc(ast::ClassElem {
                     kind: ast::ClassEleKind::Ctor(ctor),
                 });

@@ -1,4 +1,5 @@
 use super::TyChecker;
+use super::symbol_info::SymbolInfo;
 use crate::bind::SymbolID;
 use crate::ty;
 
@@ -13,7 +14,7 @@ impl<'cx> TyChecker<'cx> {
             }
             return;
         }
-        let decl = param.decl(self.binder);
+        let decl = param.decl(&self.binder);
         let ty = if let Some(ctx) = ctx {
             ctx
         } else {
@@ -41,7 +42,7 @@ impl<'cx> TyChecker<'cx> {
         let len = sig.params.len() - (if sig.has_rest_param() { 1 } else { 0 });
         for i in 0..len {
             let param = sig.params[i];
-            let decl = param.decl(self.binder);
+            let decl = param.decl(&self.binder);
             let decl = self.p.node(decl).expect_param_decl();
             if decl.ty.is_none() {
                 let mut ty = self.try_get_ty_at_pos(context, i);

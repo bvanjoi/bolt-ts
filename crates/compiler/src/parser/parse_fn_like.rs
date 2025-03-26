@@ -51,7 +51,7 @@ impl<'cx, 'p> FnLike<'cx, 'p> for ParseFnDecl {
         });
         state.node_flags_map.insert(id, state.context_flags);
         state.set_external_module_indicator_if_has_export_mod(modifiers, id);
-        state.insert_map(decl.id, ast::Node::FnDecl(decl));
+        state.nodes.insert(decl.id, ast::Node::FnDecl(decl));
         decl
     }
 }
@@ -87,7 +87,7 @@ impl<'cx, 'p> FnLike<'cx, 'p> for ParseFnExpr {
             ty,
             body: body.unwrap(),
         });
-        state.insert_map(expr.id, ast::Node::FnExpr(expr));
+        state.nodes.insert(expr.id, ast::Node::FnExpr(expr));
         expr
     }
 }

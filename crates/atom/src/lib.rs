@@ -18,7 +18,7 @@ impl AtomId {
 
 impl nohash_hasher::IsEnabled for AtomId {}
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct AtomMap<'a>(nohash_hasher::IntMap<AtomId, Cow<'a, str>>);
 
 impl<'a> AtomMap<'a> {

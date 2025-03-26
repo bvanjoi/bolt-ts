@@ -533,7 +533,6 @@ pub enum ModifierKind {
     In = 1 << 13,
     Out = 1 << 14,
     Decorator = 1 << 15,
-    Declare = 1 << 16,
 }
 
 impl std::fmt::Display for ModifierKind {
@@ -547,8 +546,7 @@ impl std::fmt::Display for ModifierKind {
             ModifierKind::Export => keyword::KW_EXPORT_STR,
             ModifierKind::Abstract => keyword::KW_ABSTRACT_STR,
             ModifierKind::Static => keyword::KW_STATIC_STR,
-            ModifierKind::Declare => keyword::KW_DECLARE_STR,
-            ModifierKind::Ambient => todo!(),
+            ModifierKind::Ambient => keyword::KW_DECLARE_STR,
             ModifierKind::Decorator => todo!(),
             ModifierKind::Accessor => todo!(),
             ModifierKind::Async => todo!(),

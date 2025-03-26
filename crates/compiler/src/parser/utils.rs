@@ -102,7 +102,7 @@ impl<'cx> ParserState<'cx, '_> {
             span: self.new_span(start),
             stmts,
         });
-        self.insert_map(id, ast::Node::BlockStmt(stmt));
+        self.nodes.insert(id, ast::Node::BlockStmt(stmt));
         Ok(stmt)
     }
 
@@ -276,7 +276,7 @@ impl<'cx> ParserState<'cx, '_> {
             constraint,
             default,
         });
-        self.insert_map(id, ast::Node::TyParam(ty_param));
+        self.nodes.insert(id, ast::Node::TyParam(ty_param));
         Ok(ty_param)
     }
 
@@ -326,7 +326,7 @@ impl<'cx> ParserState<'cx, '_> {
                 span: self.new_span(start),
                 expr,
             });
-            self.insert_map(id, ast::Node::ComputedPropName(kind));
+            self.nodes.insert(id, ast::Node::ComputedPropName(kind));
             let prop_name = self.alloc(ast::PropName {
                 kind: ast::PropNameKind::Computed(kind),
             });
@@ -536,7 +536,7 @@ impl<'cx> ParserState<'cx, '_> {
         let span = self.new_span(start);
         let id = self.next_node_id();
         let name = self.alloc(ast::Binding { id, span, kind });
-        self.insert_map(id, ast::Node::Binding(name));
+        self.nodes.insert(id, ast::Node::Binding(name));
         name
     }
 
@@ -579,7 +579,7 @@ impl<'cx> ParserState<'cx, '_> {
                 ty,
                 init: None,
             });
-            self.insert_map(id, ast::Node::ParamDecl(decl));
+            self.nodes.insert(id, ast::Node::ParamDecl(decl));
             return Ok(decl);
         }
 
@@ -622,7 +622,7 @@ impl<'cx> ParserState<'cx, '_> {
             ty,
             init,
         });
-        self.insert_map(id, ast::Node::ParamDecl(decl));
+        self.nodes.insert(id, ast::Node::ParamDecl(decl));
         Ok(decl)
     }
 
@@ -688,7 +688,7 @@ impl<'cx> ParserState<'cx, '_> {
     pub(super) fn parse_num_lit(&mut self, val: f64, neg: bool) -> &'cx ast::NumLit {
         let val = if neg { -val } else { val };
         let lit = self.create_lit(val, self.token.span);
-        self.insert_map(lit.id, ast::Node::NumLit(lit));
+        self.nodes.insert(lit.id, ast::Node::NumLit(lit));
         self.next_token();
         lit
     }
@@ -696,7 +696,7 @@ impl<'cx> ParserState<'cx, '_> {
     pub(super) fn parse_string_lit(&mut self) -> &'cx ast::StringLit {
         let val = self.string_token();
         let lit = self.create_lit(val, self.token.span);
-        self.insert_map(lit.id, ast::Node::StringLit(lit));
+        self.nodes.insert(lit.id, ast::Node::StringLit(lit));
         self.next_token();
         lit
     }
@@ -719,7 +719,7 @@ impl<'cx> ParserState<'cx, '_> {
             name,
             ty_args: None,
         });
-        self.insert_map(id, ast::Node::ReferTy(ty));
+        self.nodes.insert(id, ast::Node::ReferTy(ty));
         self.alloc(ast::Ty {
             kind: ast::TyKind::Refer(ty),
         })
@@ -755,7 +755,7 @@ impl<'cx> ParserState<'cx, '_> {
             params,
             ty,
         });
-        self.insert_map(id, ast::Node::IndexSigDecl(sig));
+        self.nodes.insert(id, ast::Node::IndexSigDecl(sig));
         Ok(sig)
     }
 
@@ -788,7 +788,7 @@ impl<'cx> ParserState<'cx, '_> {
             ty,
             body,
         });
-        self.insert_map(id, ast::Node::GetterDecl(decl));
+        self.nodes.insert(id, ast::Node::GetterDecl(decl));
         Ok(decl)
     }
 
@@ -820,7 +820,7 @@ impl<'cx> ParserState<'cx, '_> {
             params,
             body,
         });
-        self.insert_map(id, ast::Node::SetterDecl(decl));
+        self.nodes.insert(id, ast::Node::SetterDecl(decl));
         Ok(decl)
     }
 }

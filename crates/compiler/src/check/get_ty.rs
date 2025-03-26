@@ -3,6 +3,7 @@ use bolt_ts_atom::AtomId;
 
 use super::create_ty::IntersectionFlags;
 use super::infer::{InferenceFlags, InferencePriority};
+use super::symbol_info::SymbolInfo;
 use super::ty::{self, Ty, TyKind};
 use super::{CheckMode, F64Represent, InferenceContextId, PropName, TyChecker};
 use super::{IndexedAccessTyMap, ResolutionKey, TyCacheTrait, errors};
@@ -206,10 +207,9 @@ impl<'cx> TyChecker<'cx> {
         if let Some(ty) = self.get_symbol_links(symbol).get_ty() {
             return ty;
         };
-        let s = self.binder.symbol(symbol);
-        let decl = symbol.decl(self.binder);
         let ty = self.create_anonymous_ty(Some(symbol), ObjectFlags::empty());
 
+        let s = self.binder.symbol(symbol);
         if s.flags.intersects(SymbolFlags::CLASS) {
             if let Some(base) = self.get_base_type_variable_of_class(symbol) {
                 self.get_intersection_ty(&[ty, base], IntersectionFlags::None, None, None)
@@ -1072,17 +1072,18 @@ impl<'cx> TyChecker<'cx> {
         if s.decls.is_empty() {
             return None;
         }
+        let cap = s.decls.len() * 4;
         let mut res: Option<Vec<&'cx Ty<'cx>>> = None;
-        for node in &s.decls {
-            let n = self.p.node(*node);
+        for node in s.decls.clone() {
+            let n = self.p.node(node);
             use ast::Node::*;
             if matches!(
                 n,
                 InterfaceDecl(_) | ClassDecl(_) | ClassExpr(_) | TypeDecl(_)
             ) {
-                let ty_params = self.get_effective_ty_param_decls(*node);
+                let ty_params = self.get_effective_ty_param_decls(node);
                 if res.is_none() {
-                    res = Some(Vec::with_capacity(s.decls.len() * 4));
+                    res = Some(Vec::with_capacity(cap));
                 }
                 self.append_ty_params(res.as_mut().unwrap(), ty_params);
             }
@@ -1180,7 +1181,7 @@ impl<'cx> TyChecker<'cx> {
             let mapper = TyMapper::make_unary(sources[0], self.any_ty);
             self.alloc(mapper)
         } else {
-            let mapper = ty::ArrayTyMapper::new(sources, None, self);
+            let mapper = self.create_array_ty_mapper(sources, None);
             self.alloc(TyMapper::Array(mapper))
         }
     }
@@ -1455,13 +1456,20 @@ impl<'cx> TyChecker<'cx> {
         node: &'cx ast::CondTy<'cx>,
     ) -> Option<ty::Tys<'cx>> {
         let id = node.id;
-        let locals = &self.binder.locals(id)?.0;
+        let locals = self
+            .binder
+            .locals(id)?
+            .0
+            .values()
+            .copied()
+            .collect::<Vec<_>>();
+
         let ty_params = locals
-            .iter()
-            .flat_map(|(_, symbol)| {
-                let s = self.binder.symbol(*symbol);
+            .into_iter()
+            .flat_map(|symbol| {
+                let s = self.binder.symbol(symbol);
                 if s.flags.intersects(SymbolFlags::TYPE_PARAMETER) {
-                    Some(self.get_declared_ty_of_symbol(*symbol))
+                    Some(self.get_declared_ty_of_symbol(symbol))
                 } else {
                     None
                 }

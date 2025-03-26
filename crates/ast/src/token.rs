@@ -419,7 +419,7 @@ impl TryFrom<TokenKind> for super::ModifierKind {
             // TODO: override
             TokenKind::Abstract => Ok(Abstract),
             TokenKind::Static => Ok(Static),
-            TokenKind::Declare => Ok(Declare),
+            TokenKind::Declare => Ok(Ambient),
             _ => Err(()),
         }
     }

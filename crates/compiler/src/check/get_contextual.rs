@@ -7,6 +7,7 @@ use crate::ty::TypeFlags;
 use super::TyChecker;
 use super::ast;
 use super::create_ty::IntersectionFlags;
+use super::symbol_info::SymbolInfo;
 use super::ty;
 
 bitflags::bitflags! {

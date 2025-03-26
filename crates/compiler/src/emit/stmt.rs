@@ -311,7 +311,7 @@ impl<'cx> Emit<'cx> {
 
     fn emit_enum_decl(&mut self, e: &'cx ast::EnumDecl) {
         if e.modifiers
-            .map(|ms| ms.flags.contains(ast::ModifierKind::Declare))
+            .map(|ms| ms.flags.contains(ast::ModifierKind::Ambient))
             .unwrap_or_default()
         {
             return;
@@ -449,7 +449,7 @@ impl<'cx> Emit<'cx> {
     fn emit_ns_decl(&mut self, ns: &'cx ast::NsDecl) {
         if ns
             .modifiers
-            .map(|ms| ms.flags.contains(ast::ModifierKind::Declare))
+            .map(|ms| ms.flags.contains(ast::ModifierKind::Ambient))
             .unwrap_or_default()
         {
             return;

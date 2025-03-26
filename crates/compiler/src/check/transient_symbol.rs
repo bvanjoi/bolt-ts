@@ -4,10 +4,11 @@ use bolt_ts_span::ModuleID;
 use crate::bind::{Symbol, SymbolFlags, SymbolID, SymbolName};
 use crate::ty;
 
-use super::TyChecker;
+use super::symbol_info::SymbolInfo;
+use super::{TyChecker, merge};
 
 #[derive(Debug, Clone, Copy)]
-pub(super) struct TransientSymbol<'cx> {
+pub(crate) struct TransientSymbol<'cx> {
     pub(super) name: SymbolName,
     pub(super) flags: SymbolFlags,
     pub(super) links: crate::check::SymbolLinks<'cx>,
@@ -15,14 +16,40 @@ pub(super) struct TransientSymbol<'cx> {
     pub(super) origin: Option<SymbolID>,
 }
 
-pub(super) fn create_transient_symbol<'cx>(
-    symbols: &mut Vec<TransientSymbol<'cx>>,
-    symbol: TransientSymbol<'cx>,
-) -> SymbolID {
-    let len = symbols.len();
-    symbols.push(symbol);
-    let s = SymbolID::new(ModuleID::TRANSIENT, len as u32);
-    s
+#[derive(Debug, Default)]
+pub(crate) struct TransientSymbols<'cx>(Vec<TransientSymbol<'cx>>);
+
+impl<'cx> TransientSymbols<'cx> {
+    pub(crate) fn new(cap: usize) -> Self {
+        Self(Vec::with_capacity(cap))
+    }
+
+    pub(super) fn create_transient_symbol(&mut self, symbol: TransientSymbol<'cx>) -> SymbolID {
+        let len = self.0.len();
+        self.0.push(symbol);
+        let s = SymbolID::new(ModuleID::TRANSIENT, len as u32);
+        s
+    }
+
+    pub(super) fn get(&self, symbol: SymbolID) -> Option<&TransientSymbol<'cx>> {
+        if symbol.module() == ModuleID::TRANSIENT {
+            let idx = symbol.index_as_usize();
+            debug_assert!(idx < self.0.len());
+            Some(unsafe { self.0.get_unchecked(idx) })
+        } else {
+            None
+        }
+    }
+
+    pub(super) fn get_mut(&mut self, symbol: SymbolID) -> Option<&mut TransientSymbol<'cx>> {
+        if symbol.module() == ModuleID::TRANSIENT {
+            let idx = symbol.index_as_usize();
+            debug_assert!(idx < self.0.len());
+            Some(unsafe { self.0.get_unchecked_mut(idx) })
+        } else {
+            None
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -61,7 +88,7 @@ impl<'cx> TyChecker<'cx> {
             links,
             origin,
         };
-        create_transient_symbol(&mut self.transient_symbols, symbol)
+        self.transient_symbols.create_transient_symbol(symbol)
     }
 
     pub(super) fn create_transient_symbol_with_ty(
@@ -81,22 +108,7 @@ impl<'cx> TyChecker<'cx> {
     }
 
     pub(super) fn get_transient(&self, symbol: SymbolID) -> Option<&TransientSymbol<'cx>> {
-        if symbol.module() == ModuleID::TRANSIENT {
-            Some(&self.transient_symbols[symbol.index_as_usize()])
-        } else {
-            None
-        }
-    }
-
-    pub(super) fn get_mut_transient(
-        &mut self,
-        symbol: SymbolID,
-    ) -> Option<&mut TransientSymbol<'cx>> {
-        if symbol.module() == ModuleID::TRANSIENT {
-            Some(&mut self.transient_symbols[symbol.index_as_usize()])
-        } else {
-            None
-        }
+        self.transient_symbols.get(symbol)
     }
 
     pub(super) fn get_check_flags(&self, symbol: SymbolID) -> crate::ty::CheckFlags {
@@ -107,22 +119,12 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
-    pub(super) fn symbol(&self, symbol: SymbolID) -> CheckSymbol<'cx, '_> {
-        if symbol.module() == ModuleID::TRANSIENT {
-            let symbol = self.get_transient(symbol).unwrap();
-            CheckSymbol::Transient(symbol)
-        } else {
-            let symbol = self.binder.symbol(symbol);
-            CheckSymbol::Normal(symbol)
-        }
-    }
-
     pub(crate) fn symbol_opt_decl(&self, symbol: SymbolID) -> Option<ast::NodeID> {
         if symbol.module() == ModuleID::TRANSIENT {
             let symbol = self.get_transient(symbol).unwrap();
             symbol.origin.and_then(|s| self.symbol_opt_decl(s))
         } else {
-            symbol.opt_decl(self.binder)
+            symbol.opt_decl(&self.binder)
         }
     }
 
@@ -134,7 +136,7 @@ impl<'cx> TyChecker<'cx> {
                 None
             }
         } else {
-            symbol.opt_decl(self.binder)
+            symbol.opt_decl(&self.binder)
         }
     }
 

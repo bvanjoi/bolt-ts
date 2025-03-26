@@ -29,7 +29,6 @@ use utils::is_declaration_filename;
 pub use self::query::AccessKind;
 pub use self::query::AssignmentKind;
 use crate::bind;
-use crate::bind::NodeQuery;
 use crate::keyword;
 use crate::path::is_external_module_relative;
 pub use bolt_ts_ast::KEYWORD_TOKEN_START;
@@ -61,12 +60,19 @@ impl<'cx> Nodes<'cx> {
 
     pub fn get(&self, id: NodeID) -> Node<'cx> {
         let idx = id.index_as_usize();
+        debug_assert!(idx < self.0.len());
         *unsafe { self.0.get_unchecked(idx) }
     }
 
     pub fn insert(&mut self, id: NodeID, node: Node<'cx>) {
         assert_eq!(id.index_as_usize(), self.0.len());
         self.0.push(node);
+    }
+
+    fn root(&self) -> &'cx ast::Program<'cx> {
+        let idx = self.0.len() - 1;
+        let node = unsafe { self.0.get_unchecked(idx) };
+        node.expect_program()
     }
 }
 
@@ -96,11 +102,14 @@ pub struct ParseResult<'cx> {
     pub line_map: Vec<u32>,
     pub filepath: AtomId,
     pub is_declaration: bool,
+    pub imports: Vec<&'cx ast::StringLit>,
+    pub module_augmentations: Vec<ast::NodeID>,
+    pub ambient_modules: Vec<AtomId>,
 }
 
 impl<'cx> ParseResult<'cx> {
     pub fn root(&self) -> &'cx ast::Program<'cx> {
-        self.nodes.0[self.nodes.0.len() - 1].expect_program()
+        self.nodes.root()
     }
 
     pub fn node(&self, id: NodeID) -> Node<'cx> {
@@ -153,7 +162,9 @@ impl<'cx> Parser<'cx> {
 
     #[inline(always)]
     pub fn get(&self, id: ModuleID) -> &ParseResult<'cx> {
-        &self.map[id.as_usize()]
+        let idx = id.as_usize();
+        debug_assert!(idx < self.map.len());
+        unsafe { self.map.get_unchecked(idx) }
     }
 
     pub fn steal_errors(&mut self) -> Vec<bolt_ts_errors::Diag> {
@@ -169,7 +180,9 @@ impl<'cx> Parser<'cx> {
     }
 
     pub fn node_flags(&self, node: ast::NodeID) -> NodeFlags {
-        self.map[node.module().as_usize()].node_flags(node)
+        let idx = node.module().as_usize();
+        debug_assert!(idx < self.map.len());
+        unsafe { self.map.get_unchecked(idx).node_flags(node) }
     }
 }
 
@@ -202,13 +215,12 @@ pub fn parse_parallel<'cx, 'p>(
     herd: &'cx bumpalo_herd::Herd,
     list: &'p [ModuleID],
     module_arena: &'p ModuleArena,
-) -> impl ParallelIterator<Item = (ModuleID, ParseResult<'cx>, CollectDepsResult<'cx>)> + use<'cx, 'p>
-{
+) -> impl ParallelIterator<Item = (ModuleID, ParseResult<'cx>)> + use<'cx, 'p> {
     list.into_par_iter().map_init(
         || herd.get(),
         move |bump, module_id| {
             let input = module_arena.get_content(*module_id);
-            let (p, c) = parse(
+            let p = parse(
                 atoms.clone(),
                 bump,
                 input.as_bytes(),
@@ -216,7 +228,7 @@ pub fn parse_parallel<'cx, 'p>(
                 module_arena,
             );
             assert!(!module_arena.get_module(*module_id).global || p.diags.is_empty());
-            (*module_id, p, c)
+            (*module_id, p)
         },
     )
 
@@ -241,7 +253,7 @@ fn parse<'cx, 'p>(
     input: &'p [u8],
     module_id: ModuleID,
     module_arena: &'p ModuleArena,
-) -> (ParseResult<'cx>, CollectDepsResult<'cx>) {
+) -> ParseResult<'cx> {
     let nodes = Nodes::new();
     let parent_map = bind::ParentMap::default();
     let file_path = module_arena.get_path(module_id);
@@ -253,7 +265,13 @@ fn parse<'cx, 'p>(
     assert_eq!(s.line_map[0], 0);
     debug_assert!(s.line_map.is_sorted(), "line_map: {:#?}", s.line_map);
 
-    let p = ParseResult {
+    let c = collect_deps(
+        s.is_declaration,
+        s.external_module_indicator.is_some(),
+        s.nodes.root(),
+        s.atoms,
+    );
+    ParseResult {
         diags: s.diags,
         nodes: s.nodes,
         parent_map: s.parent_map,
@@ -264,22 +282,23 @@ fn parse<'cx, 'p>(
         line_map: s.line_map,
         filepath: s.filepath,
         is_declaration: s.is_declaration,
-    };
-    let c = collect_deps(&p, p.root(), s.atoms);
-    (p, c)
+        imports: c.imports,
+        module_augmentations: c.module_augmentations,
+        ambient_modules: c.ambient_modules,
+    }
 }
 
-fn collect_deps<'cx, 'p>(
-    p: &'p ParseResult<'cx>,
+fn collect_deps<'cx>(
+    is_declaration: bool,
+    is_external_module_file: bool,
     root: &'cx ast::Program<'cx>,
     atoms: Arc<Mutex<AtomMap<'cx>>>,
 ) -> CollectDepsResult<'cx> {
     let mut visitor = CollectDepsVisitor {
         in_ambient_module: false,
-        p,
-        is_external_module_file: p.is_external_module(),
+        is_declaration,
+        is_external_module_file,
         atoms,
-
         imports: Vec::with_capacity(32),
         ambient_modules: Vec::with_capacity(8),
         module_augmentations: Vec::with_capacity(8),
@@ -292,24 +311,24 @@ fn collect_deps<'cx, 'p>(
     }
 }
 
-struct CollectDepsVisitor<'cx, 'p> {
-    p: &'p ParseResult<'cx>,
+struct CollectDepsVisitor<'cx> {
+    is_declaration: bool,
     in_ambient_module: bool,
     is_external_module_file: bool,
     atoms: Arc<Mutex<AtomMap<'cx>>>,
 
     imports: Vec<&'cx ast::StringLit>,
-    module_augmentations: Vec<AtomId>,
+    module_augmentations: Vec<ast::NodeID>,
     ambient_modules: Vec<AtomId>,
 }
 
-pub struct CollectDepsResult<'cx> {
-    pub imports: Vec<&'cx ast::StringLit>,
-    pub module_augmentations: Vec<AtomId>,
-    pub ambient_modules: Vec<AtomId>,
+struct CollectDepsResult<'cx> {
+    imports: Vec<&'cx ast::StringLit>,
+    module_augmentations: Vec<ast::NodeID>,
+    ambient_modules: Vec<AtomId>,
 }
 
-impl<'cx, 'p> ast::Visitor<'cx> for CollectDepsVisitor<'cx, 'p> {
+impl<'cx> ast::Visitor<'cx> for CollectDepsVisitor<'cx> {
     fn visit_stmt(&mut self, node: &'cx ast::Stmt<'cx>) {
         let module_name = match node.kind {
             ast::StmtKind::Import(n) => Some(n.module),
@@ -324,7 +343,7 @@ impl<'cx, 'p> ast::Visitor<'cx> for CollectDepsVisitor<'cx, 'p> {
                     && (self.in_ambient_module
                         || n.modifiers
                             .is_some_and(|ms| ms.flags.intersects(ast::ModifierKind::Ambient))
-                        || self.p.is_declaration)
+                        || self.is_declaration)
                 {
                     let name = match n.name {
                         bolt_ts_ast::ModuleName::Ident(_) => {
@@ -335,11 +354,12 @@ impl<'cx, 'p> ast::Visitor<'cx> for CollectDepsVisitor<'cx, 'p> {
                     };
                     if self.is_external_module_file
                         || (self.in_ambient_module
+                            && name != keyword::IDENT_GLOBAL
                             && !is_external_module_relative(self.atoms.lock().unwrap().get(name)))
                     {
-                        self.module_augmentations.push(name);
+                        self.module_augmentations.push(n.name.id());
                     } else if !self.in_ambient_module {
-                        if self.p.is_declaration {
+                        if self.is_declaration {
                             self.ambient_modules.push(name);
                         }
 
@@ -619,7 +639,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         self.ident_count += 1;
         let id = self.next_node_id();
         let ident = self.alloc(ast::Ident { id, name, span });
-        self.insert_map(id, Node::Ident(ident));
+        self.nodes.insert(id, Node::Ident(ident));
         ident
     }
 
@@ -684,10 +704,6 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
     fn create_lit_ty(&mut self, kind: ast::LitTyKind, span: Span) -> &'cx ast::LitTy {
         let id = self.next_node_id();
         self.alloc(ast::LitTy { id, kind, span })
-    }
-
-    fn insert_map(&mut self, id: NodeID, node: Node<'cx>) {
-        self.nodes.insert(id, node);
     }
 
     pub fn parse(&mut self) -> &'cx ast::Program<'cx> {

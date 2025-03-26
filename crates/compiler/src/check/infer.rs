@@ -1,18 +1,19 @@
 use std::borrow::Cow;
 
+use super::check_type_related_to::RecursionFlags;
+use super::create_ty::IntersectionFlags;
+use super::get_contextual::ContextFlags;
+use super::symbol_info::SymbolInfo;
+use super::utils::append_if_unique;
+use super::{CheckMode, InferenceContextId, TyChecker, fn_mapper};
 use crate::bind::SymbolFlags;
 use crate::ir;
 use crate::ty::{self, SigFlags, SigKind, TyID, TypeFlags};
 use crate::ty::{ObjectFlags, Sig};
+
 use bolt_ts_ast::{self as ast, keyword};
 use bolt_ts_utils::fx_hashmap_with_capacity;
 use rustc_hash::FxHashMap;
-
-use super::check_type_related_to::RecursionFlags;
-use super::create_ty::IntersectionFlags;
-use super::get_contextual::ContextFlags;
-use super::utils::append_if_unique;
-use super::{CheckMode, InferenceContextId, TyChecker, fn_mapper};
 
 use thin_vec::{ThinVec, thin_vec};
 
@@ -682,7 +683,7 @@ impl<'cx> TyChecker<'cx> {
     ) {
         let len = sig.params.len() - (if sig.has_rest_param() { 1 } else { 0 });
         for i in 0..len {
-            let decl = sig.params[i].decl(self.binder);
+            let decl = sig.params[i].decl(&self.binder);
             if let Some(ty_node) = self.p.node(decl).as_param_decl().and_then(|decl| decl.ty) {
                 let source = self.get_ty_from_type_node(ty_node);
                 let target = self.get_ty_at_pos(contextual_sig, i);

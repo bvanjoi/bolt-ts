@@ -16,9 +16,11 @@ declare module "./reexport" {
 declare const f: ns.Root.Foo;
 
 f.x;
-// f.self;
+f.self;
 // f.self.x;
-// f.self.self;
+f.self.self;
+f.self.self.self;
+// f.self.self.self;
 
 import * as file from './file';
 let a1: string = file.A;

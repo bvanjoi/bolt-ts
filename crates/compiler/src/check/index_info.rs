@@ -1,6 +1,8 @@
 use super::TyChecker;
+use super::symbol_info::SymbolInfo;
 use crate::bind::{SymbolID, SymbolName};
 use crate::ty;
+
 use bolt_ts_ast as ast;
 
 impl<'cx> TyChecker<'cx> {

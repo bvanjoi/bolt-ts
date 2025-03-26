@@ -25,8 +25,10 @@ use bolt_ts_span::Module;
 use bolt_ts_span::ModuleID;
 use bolt_ts_utils::fx_hashmap_with_capacity;
 
+pub(crate) use self::create::set_value_declaration;
 pub use self::flow::{FlowFlags, FlowID, FlowNode, FlowNodeKind, FlowNodes};
-pub(crate) use self::merge::{MergeGlobalSymbolResult, MergedSymbols, merge_global_symbol};
+pub(crate) use self::merge::merge_global_symbol;
+pub(crate) use self::merge::{MergeGlobalSymbolResult, MergeSymbol, MergedSymbols};
 pub use self::node_query::NodeQuery;
 pub use self::parent_map::ParentMap;
 pub use self::symbol::{GlobalSymbols, Symbol, SymbolID, SymbolName, Symbols};
@@ -53,7 +55,7 @@ pub struct ResolveResult {
 }
 
 pub struct Binder {
-    bind_results: Vec<ResolveResult>,
+    pub(crate) bind_results: Vec<ResolveResult>,
 }
 
 impl Binder {

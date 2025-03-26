@@ -1,6 +1,5 @@
-use crate::check::TyChecker;
-
 use super::{Ty, Tys};
+use crate::check::TyChecker;
 
 #[derive(Debug)]
 pub enum TyMapper<'cx> {
@@ -25,31 +24,6 @@ pub struct SimpleTyMapper<'cx> {
 #[derive(Clone, Copy, Debug)]
 pub struct ArrayTyMapper<'cx> {
     pub mapper: &'cx [(&'cx Ty<'cx>, &'cx Ty<'cx>)],
-}
-
-impl<'cx> ArrayTyMapper<'cx> {
-    pub fn new(
-        sources: Tys<'cx>,
-        targets: Option<Tys<'cx>>,
-        checker: &TyChecker<'cx>,
-    ) -> ArrayTyMapper<'cx> {
-        assert!(sources.len() >= targets.map(|t| t.len()).unwrap_or_default());
-        let mut mapper = sources
-            .iter()
-            .enumerate()
-            .map(|(idx, &source)| {
-                assert!(source.kind.is_param());
-                let target = targets
-                    .and_then(|tys| tys.get(idx))
-                    .copied()
-                    .unwrap_or(checker.any_ty);
-                (source, target)
-            })
-            .collect::<Vec<_>>();
-        mapper.sort_unstable_by_key(|(source, _)| source.id.as_u32());
-        let mapper = checker.alloc(mapper);
-        ArrayTyMapper { mapper }
-    }
 }
 
 #[derive(Debug, Clone, Copy)]

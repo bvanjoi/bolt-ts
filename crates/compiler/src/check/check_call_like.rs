@@ -1,6 +1,7 @@
 use super::cycle_check::ResolutionKey;
 use super::infer::InferenceFlags;
 use super::relation::RelationKind;
+use super::symbol_info::SymbolInfo;
 use super::ty::ElementFlags;
 use super::ty::{Sig, SigFlags, Sigs};
 use super::{CheckMode, errors};

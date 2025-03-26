@@ -1,14 +1,14 @@
+use bolt_ts_ast as ast;
 use bolt_ts_atom::AtomId;
 use bolt_ts_span::Span;
-
 use bolt_ts_utils::{fx_hashmap_with_capacity, fx_hashset_with_capacity};
 
 use super::create_ty::IntersectionFlags;
+use super::symbol_info::SymbolInfo;
 use super::{SymbolLinks, errors};
 use crate::bind::{Symbol, SymbolFlags, SymbolID, SymbolName};
 use crate::ty::{self, CheckFlags, ObjectFlags, TypeFlags};
 use crate::ty::{ObjectShape, ObjectTy, ObjectTyKind, Ty, TyKind};
-use bolt_ts_ast as ast;
 
 use super::{Ternary, TyChecker};
 

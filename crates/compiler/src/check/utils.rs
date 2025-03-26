@@ -1,5 +1,6 @@
 use super::SymbolID;
 use super::TyChecker;
+use super::symbol_info::SymbolInfo;
 use super::ty;
 
 pub fn append_if_unique<'a, T>(array: &mut Vec<&'a T>, value: &'a T) {

@@ -5,7 +5,7 @@
    ╰────
 
   × Type 'number' is not assignable to type 'string'.
-    ╭─[../../tests/cases/compiler/moduleAugmentationDoesNamespaceMergeOfReexport/index.ts:24:5]
- 24 │ a1
+    ╭─[../../tests/cases/compiler/moduleAugmentationDoesNamespaceMergeOfReexport/index.ts:26:5]
+ 26 │ a1
     · ──
     ╰────

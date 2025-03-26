@@ -1,5 +1,6 @@
 use super::ResolutionKey;
 use super::TyChecker;
+use super::symbol_info::SymbolInfo;
 use super::ty;
 use crate::bind::{SymbolFlags, SymbolID};
 use crate::ty::CheckFlags;

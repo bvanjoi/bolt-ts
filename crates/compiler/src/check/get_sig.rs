@@ -1,5 +1,6 @@
 use super::TyChecker;
 use super::ast;
+use super::symbol_info::SymbolInfo;
 use super::type_predicate::TyPred;
 use crate::bind::SymbolID;
 use crate::ir::node_id_of_binding;

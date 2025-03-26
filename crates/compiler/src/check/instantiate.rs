@@ -2,6 +2,7 @@ use std::borrow::Cow;
 
 use super::create_ty::IntersectionFlags;
 use super::instantiation_ty_map::{ConditionalTyInstantiationTyMap, TyCacheTrait};
+use super::symbol_info::SymbolInfo;
 use super::{InstantiationTyMap, TyChecker};
 use crate::bind::SymbolID;
 use crate::keyword::{self, is_intrinsic_type_name};

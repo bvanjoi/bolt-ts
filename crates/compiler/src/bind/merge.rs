@@ -19,7 +19,7 @@ impl MergedSymbols {
         id
     }
 
-    fn record_merged_symbol(
+    pub fn record_merged_symbol(
         &mut self,
         target: SymbolID,
         source: SymbolID,
@@ -36,71 +36,120 @@ impl MergedSymbols {
     }
 }
 
-struct MergeSymbolContainer<'p, 'cx> {
-    p: &'p Parser<'cx>,
-    bind_list: Vec<BinderResult<'cx>>,
-    merged_symbols: MergedSymbols,
-    global_symbols: SymbolTable,
+struct MergeGlobalSymbol<'p, 'cx> {
+    pub p: &'p Parser<'cx>,
+    pub bind_list: Vec<BinderResult<'cx>>,
+    pub merged_symbols: MergedSymbols,
+    pub global_symbols: SymbolTable,
+}
+
+impl<'p, 'cx> MergeSymbol<'cx> for MergeGlobalSymbol<'p, 'cx> {
+    fn get_parse_result(&self, module: bolt_ts_span::ModuleID) -> &super::ParseResult {
+        self.p.get(module)
+    }
+    fn get_symbols(&self, module: bolt_ts_span::ModuleID) -> &super::Symbols {
+        &self.bind_list[module.as_usize()].symbols
+    }
+    fn get_mut_symbols(&mut self, module: bolt_ts_span::ModuleID) -> &mut super::Symbols {
+        &mut self.bind_list[module.as_usize()].symbols
+    }
+    fn get_merged_symbols(&self) -> &MergedSymbols {
+        &self.merged_symbols
+    }
+    fn get_mut_merged_symbols(&mut self) -> &mut MergedSymbols {
+        &mut self.merged_symbols
+    }
+    fn get_global_symbols(&self) -> &SymbolTable {
+        &self.global_symbols
+    }
+    fn get_mut_global_symbols(&mut self) -> &mut SymbolTable {
+        &mut self.global_symbols
+    }
+    fn get_locals(&self, container: bolt_ts_ast::NodeID) -> &SymbolTable {
+        self.bind_list[container.module().as_usize()]
+            .locals
+            .get(&container)
+            .unwrap()
+    }
+    fn get_mut_locals(&mut self, container: bolt_ts_ast::NodeID) -> &mut SymbolTable {
+        self.bind_list[container.module().as_usize()]
+            .locals
+            .get_mut(&container)
+            .unwrap()
+    }
+    fn set_value_declaration(&mut self, symbol: SymbolID, node: bolt_ts_ast::NodeID) {
+        let symbols = &mut self.bind_list[symbol.module().as_usize()].symbols;
+        let p = &self.p.map[symbol.module().as_usize()];
+        set_value_declaration(symbol, symbols, node, p);
+    }
+    fn record_merged_symbol(&mut self, target: SymbolID, source: SymbolID) {
+        let symbols = &mut self.bind_list[source.module().as_usize()].symbols;
+        self.merged_symbols
+            .record_merged_symbol(target, source, symbols);
+    }
 }
 
 #[derive(Clone, Copy)]
-enum SymbolTableLocation {
+pub(crate) enum SymbolTableLocation {
     Global,
     Members { symbol: SymbolID },
     Exports { symbol: SymbolID },
     Locals { container: bolt_ts_ast::NodeID },
 }
 
-impl<'p, 'cx> MergeSymbolContainer<'p, 'cx> {
-    fn get_mut_symbol_table_by_location(&mut self, loc: SymbolTableLocation) -> &mut SymbolTable {
-        match loc {
-            SymbolTableLocation::Global => &mut self.global_symbols,
-            SymbolTableLocation::Members { symbol } => {
-                &mut self.bind_list[symbol.module().as_usize()]
-                    .symbols
-                    .get_mut(symbol)
-                    .members
-            }
-            SymbolTableLocation::Exports { symbol } => {
-                &mut self.bind_list[symbol.module().as_usize()]
-                    .symbols
-                    .get_mut(symbol)
-                    .exports
-            }
-            SymbolTableLocation::Locals { container } => self.bind_list
-                [container.module().as_usize()]
-            .locals
-            .get_mut(&container)
-            .unwrap(),
-        }
+pub trait MergeSymbol<'cx> {
+    fn global_loc() -> SymbolTableLocation {
+        SymbolTableLocation::Global
+    }
+    fn members_loc(symbol: SymbolID) -> SymbolTableLocation {
+        SymbolTableLocation::Members { symbol }
+    }
+    fn exports_loc(symbol: SymbolID) -> SymbolTableLocation {
+        SymbolTableLocation::Exports { symbol }
+    }
+    fn locals_loc(container: bolt_ts_ast::NodeID) -> SymbolTableLocation {
+        SymbolTableLocation::Locals { container }
+    }
+
+    fn get_parse_result(&self, module: bolt_ts_span::ModuleID) -> &super::ParseResult;
+
+    fn get_symbols(&self, module: bolt_ts_span::ModuleID) -> &super::Symbols;
+    fn get_mut_symbols(&mut self, module: bolt_ts_span::ModuleID) -> &mut super::Symbols;
+
+    fn get_merged_symbols(&self) -> &MergedSymbols;
+    fn get_mut_merged_symbols(&mut self) -> &mut MergedSymbols;
+
+    fn get_global_symbols(&self) -> &SymbolTable;
+    fn get_mut_global_symbols(&mut self) -> &mut SymbolTable;
+
+    fn get_locals(&self, container: bolt_ts_ast::NodeID) -> &SymbolTable;
+    fn get_mut_locals(&mut self, container: bolt_ts_ast::NodeID) -> &mut SymbolTable;
+
+    fn set_value_declaration(&mut self, symbol: SymbolID, node: bolt_ts_ast::NodeID);
+    fn record_merged_symbol(&mut self, target: SymbolID, source: SymbolID);
+
+    fn get_symbol(&self, symbol: SymbolID) -> &super::Symbol {
+        self.get_symbols(symbol.module()).get(symbol)
+    }
+    fn get_mut_symbol(&mut self, symbol: SymbolID) -> &mut super::Symbol {
+        self.get_mut_symbols(symbol.module()).get_mut(symbol)
     }
 
     fn get_symbol_table_by_location(&self, loc: SymbolTableLocation) -> &SymbolTable {
         match loc {
-            SymbolTableLocation::Global => &self.global_symbols,
-            SymbolTableLocation::Members { symbol } => {
-                &self.bind_list[symbol.module().as_usize()]
-                    .symbols
-                    .get(symbol)
-                    .members
-            }
-            SymbolTableLocation::Exports { symbol } => {
-                &self.bind_list[symbol.module().as_usize()]
-                    .symbols
-                    .get(symbol)
-                    .exports
-            }
-            SymbolTableLocation::Locals { container } => &self.bind_list
-                [container.module().as_usize()]
-            .locals
-            .get(&container)
-            .as_ref()
-            .unwrap_or_else(|| {
-                panic!(
-                    "local symbol table of {} not found",
-                    self.p.node(container).span()
-                )
-            }),
+            SymbolTableLocation::Global => self.get_global_symbols(),
+            SymbolTableLocation::Members { symbol } => self.get_symbol(symbol).members(),
+            SymbolTableLocation::Exports { symbol } => self.get_symbol(symbol).exports(),
+            SymbolTableLocation::Locals { container } => self.get_locals(container),
+        }
+    }
+
+    fn get_mut_symbol_table_by_location(&mut self, loc: SymbolTableLocation) -> &mut SymbolTable {
+        match loc {
+            SymbolTableLocation::Global => self.get_mut_global_symbols(),
+            SymbolTableLocation::Members { symbol } => &mut self.get_mut_symbol(symbol).members,
+            SymbolTableLocation::Exports { symbol } => &mut self.get_mut_symbol(symbol).exports,
+            SymbolTableLocation::Locals { container } => self.get_mut_locals(container),
         }
     }
 
@@ -120,8 +169,8 @@ impl<'p, 'cx> MergeSymbolContainer<'p, 'cx> {
             let merged = if let Some(target_symbol) = target_symbol {
                 self.merge_symbol(target_symbol, source_symbol, unidirectional)
             } else {
-                let symbols = &self.bind_list[source_symbol.module().as_usize()].symbols;
-                self.merged_symbols
+                let symbols = &self.get_symbols(source_symbol.module());
+                self.get_merged_symbols()
                     .get_merged_symbol(source_symbol, symbols)
             };
             // TODO: parent
@@ -131,26 +180,14 @@ impl<'p, 'cx> MergeSymbolContainer<'p, 'cx> {
         }
     }
 
-    fn symbol(&self, symbol_id: SymbolID) -> &super::Symbol {
-        self.bind_list[symbol_id.module().as_usize()]
-            .symbols
-            .get(symbol_id)
-    }
-
-    fn symbol_mut(&mut self, symbol_id: SymbolID) -> &mut super::Symbol {
-        self.bind_list[symbol_id.module().as_usize()]
-            .symbols
-            .get_mut(symbol_id)
-    }
-
     fn merge_symbol(
         &mut self,
         target: SymbolID,
         source: SymbolID,
         unidirectional: bool,
     ) -> SymbolID {
-        let s = self.symbol(source);
-        let t = self.symbol(target);
+        let s = self.get_symbol(source);
+        let t = self.get_symbol(target);
         let t_flags = t.flags;
         let s_flags = s.flags;
         let s_value_decl = s.value_decl;
@@ -172,13 +209,11 @@ impl<'p, 'cx> MergeSymbolContainer<'p, 'cx> {
                 && t.const_enum_only_module.is_some_and(|t| t)
                 && s.const_enum_only_module.is_none_or(|t| !t)
             {
-                self.symbol_mut(target).const_enum_only_module = Some(false);
+                self.get_mut_symbol(target).const_enum_only_module = Some(false);
             }
-            self.symbol_mut(target).flags |= s_flags;
+            self.get_mut_symbol(target).flags |= s_flags;
             if let Some(s_value_decl) = s_value_decl {
-                let symbols = &mut self.bind_list[target.module().as_usize()].symbols;
-                let p = &self.p.map[target.module().as_usize()];
-                set_value_declaration(target, symbols, s_value_decl, p);
+                self.set_value_declaration(target, s_value_decl);
             }
             let t = SymbolTableLocation::Members { symbol: target };
             let s = SymbolTableLocation::Members { symbol: source };
@@ -190,9 +225,7 @@ impl<'p, 'cx> MergeSymbolContainer<'p, 'cx> {
             self.merge_symbol_table(t, s, unidirectional);
 
             if !unidirectional {
-                let symbols = &mut self.bind_list[source.module().as_usize()].symbols;
-                self.merged_symbols
-                    .record_merged_symbol(target, source, symbols);
+                self.record_merged_symbol(target, source);
             }
         } else if t.flags.intersects(SymbolFlags::NAMESPACE_MODULE) {
             // todo: if target != global_this_symbol_module
@@ -217,7 +250,8 @@ pub(crate) fn merge_global_symbol<'cx>(
 ) -> MergeGlobalSymbolResult<'cx> {
     let global_symbols = SymbolTable::new(bind_list.len() * 32);
     let merged_symbols = MergedSymbols(Vec::with_capacity(bind_list.len() * 64));
-    let mut c = MergeSymbolContainer {
+
+    let mut c = MergeGlobalSymbol {
         p: parser,
         bind_list,
         merged_symbols,
@@ -225,7 +259,7 @@ pub(crate) fn merge_global_symbol<'cx>(
     };
 
     for (m, p) in module_arena.modules().iter().zip(parser.map.iter()) {
-        assert!(std::ptr::addr_eq(&parser.map[m.id.as_usize()], p));
+        assert!(std::ptr::addr_eq(parser.get(m.id), p));
 
         if !p.is_external_or_commonjs_module() {
             let target = SymbolTableLocation::Global;

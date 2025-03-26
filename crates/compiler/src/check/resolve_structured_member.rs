@@ -7,6 +7,7 @@ use rustc_hash::{FxHashMap, FxHashSet};
 use super::create_ty::IntersectionFlags;
 use super::cycle_check::{Cycle, ResolutionKey};
 use super::links::SigLinks;
+use super::symbol_info::SymbolInfo;
 use super::{SymbolLinks, Ternary, TyChecker, errors};
 use crate::bind::{Symbol, SymbolFlags, SymbolID, SymbolName, SymbolTable};
 use crate::ty::{self, CheckFlags, ObjectFlags, SigID, SigKind, TypeFlags};
@@ -396,7 +397,7 @@ impl<'cx> TyChecker<'cx> {
             };
             if !cycle_reported {
                 if let Cycle::Some(_) = self.pop_ty_resolution() {
-                    if let Some(decl) = id.opt_decl(self.binder) {
+                    if let Some(decl) = id.opt_decl(&self.binder) {
                         let p = self.p.node(decl);
                         if p.is_class_decl() || p.is_interface_decl() {
                             self.report_circular_base_ty(decl, ty, None);
@@ -654,7 +655,7 @@ impl<'cx> TyChecker<'cx> {
     pub(super) fn get_exports_of_symbol(&mut self, symbol: SymbolID) -> &'cx SymbolTable {
         let flags = self.binder.symbol(symbol).flags;
         if flags.intersects(SymbolFlags::LATE_BINDING_CONTAINER) {
-            self.get_resolved_member_or_exports_of_symbol(
+            self.get_resolved_members_or_exports_of_symbol(
                 symbol,
                 MemberOrExportsResolutionKind::ResolvedExports,
             )
@@ -673,7 +674,7 @@ impl<'cx> TyChecker<'cx> {
     pub(super) fn get_members_of_symbol(&mut self, symbol: SymbolID) -> &'cx SymbolTable {
         let flags = self.binder.symbol(symbol).flags;
         if flags.intersects(SymbolFlags::LATE_BINDING_CONTAINER) {
-            self.get_resolved_member_or_exports_of_symbol(
+            self.get_resolved_members_or_exports_of_symbol(
                 symbol,
                 MemberOrExportsResolutionKind::ResolvedMembers,
             )
@@ -687,28 +688,6 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
-    pub(super) fn exports_of_symbol(&mut self, symbol: SymbolID) -> &'cx SymbolTable {
-        if let Some(e) = self.get_symbol_links(symbol).get_exports() {
-            e
-        } else {
-            let exports = self.binder.symbol(symbol).exports().clone();
-            let exports = self.alloc(exports);
-            self.get_mut_symbol_links(symbol).set_exports(exports);
-            exports
-        }
-    }
-
-    pub(super) fn members_of_symbol(&mut self, symbol: SymbolID) -> &'cx SymbolTable {
-        if let Some(m) = self.get_symbol_links(symbol).get_members() {
-            m
-        } else {
-            let members = self.binder.symbol(symbol).members().clone();
-            let members = self.alloc(members);
-            self.get_mut_symbol_links(symbol).set_members(members);
-            members
-        }
-    }
-
     pub(super) fn get_exports_of_module(&mut self, module_symbol: SymbolID) -> &'cx SymbolTable {
         if let Some(exports) = self.get_symbol_links(module_symbol).get_resolved_exports() {
             return exports;
@@ -717,151 +696,6 @@ impl<'cx> TyChecker<'cx> {
         self.get_mut_symbol_links(module_symbol)
             .set_resolved_exports(exports);
         exports
-    }
-
-    fn get_exports_of_module_worker(&mut self, module_symbol: SymbolID) -> &'cx SymbolTable {
-        struct ExportCollisionTracker<'cx> {
-            spec: AtomId,
-            exports_with_duplicated: thin_vec::ThinVec<&'cx ast::ExportDecl<'cx>>,
-        }
-        struct ExportCollisionTrackerTable<'cx>(FxHashMap<SymbolName, ExportCollisionTracker<'cx>>);
-
-        fn extend_export_symbols<'cx>(
-            this: &mut TyChecker<'cx>,
-            target: &mut SymbolTable,
-            source: Option<SymbolTable>,
-            mut lookup_table: Option<&mut ExportCollisionTrackerTable<'cx>>,
-            export_node: Option<&'cx ast::ExportDecl>,
-        ) {
-            let Some(source) = source else { return };
-            for (id, source_symbol) in source.0 {
-                // TODO: id == SymbolName::DefaultExport
-                match target.0.get(&id).copied() {
-                    Some(target_symbol) => {
-                        if let Some(lookup_table) = lookup_table.as_mut() {
-                            if let Some(export_node) = export_node {
-                                if this.resolve_symbol(target_symbol, false)
-                                    != this.resolve_symbol(source_symbol, false)
-                                {
-                                    let collision_tracker = lookup_table.0.get_mut(&id).unwrap();
-                                    collision_tracker.exports_with_duplicated.push(export_node);
-                                }
-                            }
-                        }
-                    }
-                    None => {
-                        target.0.insert(id, source_symbol);
-                        if let Some(lookup_table) = lookup_table.as_mut() {
-                            if let Some(export_node) = export_node {
-                                let module_spec = match export_node.clause.kind {
-                                    ast::ExportClauseKind::Glob(node) => node.module.val,
-                                    _ => unreachable!(),
-                                };
-                                lookup_table.0.insert(
-                                    id,
-                                    ExportCollisionTracker {
-                                        spec: module_spec,
-                                        exports_with_duplicated: Default::default(),
-                                    },
-                                );
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        fn visit<'cx>(
-            this: &mut TyChecker<'cx>,
-            symbol: Option<SymbolID>,
-            visited: &mut FxHashSet<SymbolID>,
-        ) -> Option<SymbolTable> {
-            let symbol = symbol?;
-            let exports = this.exports_of_symbol(symbol);
-            if exports.0.is_empty() || !visited.insert(symbol) {
-                return None;
-            };
-            let mut symbols = exports.clone();
-            let Some(export_starts) = exports.0.get(&SymbolName::ExportStar).copied() else {
-                return Some(symbols);
-            };
-
-            let mut nested_symbols = SymbolTable::new(128);
-            let mut lookup_table = ExportCollisionTrackerTable(fx_hashmap_with_capacity(32));
-            for decl in &this.binder.symbol(export_starts).decls {
-                let node = this.p.node(*decl).expect_export_decl();
-                let ast::ExportClauseKind::Glob(n) = node.clause.kind else {
-                    unreachable!()
-                };
-                let resolved_module = this.resolve_external_module_name(n.module.id, n.module.val);
-                let exported_symbols = visit(this, resolved_module, visited);
-                extend_export_symbols(
-                    this,
-                    &mut nested_symbols,
-                    exported_symbols,
-                    Some(&mut lookup_table),
-                    Some(node),
-                );
-            }
-
-            extend_export_symbols(this, &mut symbols, Some(nested_symbols), None, None);
-            Some(symbols)
-        }
-
-        let mut visited = fx_hashset_with_capacity(32);
-        let symbols = visit(self, Some(module_symbol), &mut visited);
-        // TODO: type_only_export_start_map
-
-        if let Some(symbols) = symbols {
-            self.alloc(symbols)
-        } else {
-            self.empty_symbols
-        }
-    }
-
-    fn get_resolved_member_or_exports_of_symbol(
-        &mut self,
-        symbol: SymbolID,
-        kind: MemberOrExportsResolutionKind,
-    ) -> &'cx SymbolTable {
-        let get_kind = |this: &mut Self| {
-            let links = this.get_symbol_links(symbol);
-            match kind {
-                MemberOrExportsResolutionKind::ResolvedExports => links.get_resolved_exports(),
-                MemberOrExportsResolutionKind::ResolvedMembers => links.get_resolved_members(),
-            }
-        };
-        if let Some(resolved) = get_kind(self) {
-            return resolved;
-        }
-        let set_links = |this: &mut Self, symbols: &'cx SymbolTable| {
-            let links = this.get_mut_symbol_links(symbol);
-            match kind {
-                MemberOrExportsResolutionKind::ResolvedExports => {
-                    links.set_resolved_exports(symbols)
-                }
-                MemberOrExportsResolutionKind::ResolvedMembers => {
-                    links.set_resolved_members(symbols)
-                }
-            }
-        };
-        let is_static = matches!(kind, MemberOrExportsResolutionKind::ResolvedExports);
-        let flags = self.symbol(symbol).flags();
-        let early_symbols = if !is_static {
-            self.members_of_symbol(symbol)
-        } else if flags.intersects(SymbolFlags::MODULE) {
-            self.get_exports_of_module_worker(symbol)
-        } else {
-            let exports = self.exports_of_symbol(symbol);
-            if exports.0.is_empty() {
-                self.empty_symbols
-            } else {
-                exports
-            }
-        };
-        set_links(self, early_symbols);
-        // TODO: late symbols;
-        early_symbols
     }
 
     fn resolve_anonymous_type_members(&mut self, ty: &'cx ty::Ty<'cx>) {

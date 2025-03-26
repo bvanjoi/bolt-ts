@@ -6,6 +6,7 @@ use crate::ty;
 use crate::ty::TypeFlags;
 use bolt_ts_ast as ast;
 
+use super::symbol_info::SymbolInfo;
 use super::{Ternary, TyChecker, errors};
 
 pub(super) trait TyReferTyOrImport<'cx> {

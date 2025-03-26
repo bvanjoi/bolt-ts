@@ -2,6 +2,7 @@ use super::Ternary;
 use super::TyChecker;
 use super::errors;
 use super::relation::RelationKind;
+use super::symbol_info::SymbolInfo;
 
 use crate::bind::SymbolName;
 use crate::ty;

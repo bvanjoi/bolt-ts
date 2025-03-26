@@ -4,6 +4,7 @@ use crate::ty::ObjectFlags;
 use crate::ty::TyMapper;
 
 use super::TyChecker;
+use super::symbol_info::SymbolInfo;
 use super::ty;
 
 bitflags::bitflags! {

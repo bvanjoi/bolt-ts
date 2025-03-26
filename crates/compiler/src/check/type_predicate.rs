@@ -1,6 +1,7 @@
 use bolt_ts_ast as ast;
 use bolt_ts_atom::AtomId;
 
+use super::symbol_info::SymbolInfo;
 use crate::{keyword, ty};
 
 #[derive(Debug, Clone, Copy)]

@@ -1,7 +1,8 @@
-use crate::{ir, ty};
-use bolt_ts_ast as ast;
-
 use super::TyChecker;
+use super::symbol_info::SymbolInfo;
+use crate::{ir, ty};
+
+use bolt_ts_ast as ast;
 
 impl<'cx> TyChecker<'cx> {
     pub(super) fn get_effective_base_type_node(

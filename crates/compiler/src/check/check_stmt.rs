@@ -1,11 +1,12 @@
 use crate::ir;
+use crate::path::is_external_module_relative;
 use crate::ty::TypeFlags;
 
 use super::TyChecker;
 use super::ast;
 use super::errors;
+use super::symbol_info::SymbolInfo;
 use super::ty;
-use crate::path::is_external_module_relative;
 
 impl<'cx> TyChecker<'cx> {
     pub(super) fn check_stmt(&mut self, stmt: &'cx ast::Stmt) {

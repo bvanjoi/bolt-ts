@@ -1,18 +1,19 @@
-use bolt_ts_utils::fx_hashset_with_capacity;
 use rustc_hash::FxHashSet;
+
+use bolt_ts_ast as ast;
+use bolt_ts_utils::fx_hashset_with_capacity;
 
 use super::errors;
 use super::get_variances::VarianceFlags;
+use super::symbol_info::SymbolInfo;
 use super::relation::{RelationKind, SigCheckMode};
 use super::transient_symbol::CheckSymbol;
 use super::utils::contains_ty;
+use super::{Ternary, TyChecker};
 use crate::bind::{SymbolFlags, SymbolID};
 use crate::keyword::IDENT_LENGTH;
 use crate::ty::{self, ElementFlags, ObjectFlags, Sig, SigFlags, SigKind, TypeFlags};
 use crate::ty::{Ty, TyKind};
-use bolt_ts_ast as ast;
-
-use super::{Ternary, TyChecker};
 
 bitflags::bitflags! {
     #[derive(Clone, Copy, Debug, PartialEq)]

@@ -8,6 +8,7 @@ use crate::{keyword, ty};
 use super::TyChecker;
 use super::check_type_related_to::TypeRelatedChecker;
 use super::relation::{RelationKind, SigCheckMode};
+use super::symbol_info::SymbolInfo;
 use super::{Ternary, errors};
 
 impl<'cx> TyChecker<'cx> {

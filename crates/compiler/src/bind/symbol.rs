@@ -334,11 +334,15 @@ impl Symbols {
     }
 
     pub fn get(&self, id: SymbolID) -> &Symbol {
-        &self.data[id.index_as_usize()]
+        let idx = id.index_as_usize();
+        debug_assert!(idx < self.data.len());
+        unsafe { self.data.get_unchecked(idx) }
     }
 
     pub fn get_mut(&mut self, id: SymbolID) -> &mut Symbol {
-        self.data.get_mut(id.index_as_usize()).unwrap()
+        let idx = id.index_as_usize();
+        debug_assert!(idx < self.data.len());
+        unsafe { self.data.get_unchecked_mut(idx) }
     }
 
     pub fn len(&self) -> u32 {

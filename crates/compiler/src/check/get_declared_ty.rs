@@ -4,6 +4,7 @@ use super::TyChecker;
 use super::cycle_check::Cycle;
 use super::cycle_check::ResolutionKey;
 use super::errors;
+use super::symbol_info::SymbolInfo;
 use super::ty;
 use super::utils::append_if_unique;
 use crate::bind::{SymbolFlags, SymbolID, SymbolName};

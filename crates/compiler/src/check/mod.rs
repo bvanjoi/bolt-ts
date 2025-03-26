@@ -45,10 +45,12 @@ mod is_context_sensitive;
 mod is_deeply_nested_type;
 mod is_valid;
 mod links;
+mod merge;
 mod node_check_flags;
 mod relation;
 mod resolve;
 mod resolve_structured_member;
+mod symbol_info;
 mod transient_symbol;
 mod type_assignable;
 mod type_predicate;
@@ -63,8 +65,10 @@ use flow::FlowTy;
 use fn_mapper::{PermissiveMapper, RestrictiveMapper};
 use get_variances::VarianceFlags;
 use instantiation_ty_map::{IndexedAccessTyMap, TyCacheTrait, UnionOrIntersectionMap};
+use merge::MergeModuleAugmentationForNonGlobalResult;
 use rustc_hash::{FxBuildHasher, FxHashMap};
-use transient_symbol::{TransientSymbol, create_transient_symbol};
+use symbol_info::SymbolInfo;
+use transient_symbol::TransientSymbol;
 use type_predicate::TyPred;
 use utils::contains_ty;
 
@@ -77,8 +81,12 @@ use self::instantiation_ty_map::InstantiationTyMap;
 use self::links::NodeLinks;
 pub use self::links::SymbolLinks;
 use self::links::{SigLinks, TyLinks};
+pub(crate) use self::merge::MergeModuleAugmentationForNonGlobal;
+pub(crate) use self::merge::merge_module_augmentation_list_for_global;
+pub(crate) use self::merge::merge_module_augmentation_list_for_non_global;
 use self::node_check_flags::NodeCheckFlags;
 pub use self::resolve::ExpectedArgsCount;
+pub(crate) use self::transient_symbol::TransientSymbols;
 
 use crate::bind::{
     self, FlowID, FlowNodes, GlobalSymbols, MergedSymbols, Symbol, SymbolFlags, SymbolID,
@@ -168,7 +176,7 @@ pub struct TyChecker<'cx> {
     indexed_access_tys: IndexedAccessTyMap<'cx>,
     type_name: nohash_hasher::IntMap<TyID, String>,
     tuple_tys: nohash_hasher::IntMap<u64, &'cx ty::Ty<'cx>>,
-    transient_symbols: Vec<TransientSymbol<'cx>>,
+    transient_symbols: TransientSymbols<'cx>,
 
     check_mode: Option<CheckMode>,
     inferences: Vec<InferenceContext<'cx>>,
@@ -271,16 +279,18 @@ enum PropName {
 }
 
 impl<'cx> TyChecker<'cx> {
-    pub fn new(
+    pub(crate) fn new(
         ty_arena: &'cx bumpalo::Bump,
         p: &'cx Parser<'cx>,
         mg: &'cx ModuleGraph,
         atoms: &'cx mut AtomMap<'cx>,
-        binder: &'cx bind::Binder,
-        merged_symbols: &'cx MergedSymbols,
-        global_symbols: &'cx GlobalSymbols,
+        empty_symbols: &'cx SymbolTable,
         config: &'cx NormalizedCompilerOptions,
         flow_nodes: Vec<FlowNodes<'cx>>,
+        diags: Vec<bolt_ts_errors::Diag>,
+        mut symbol_links: FxHashMap<SymbolID, SymbolLinks<'cx>>,
+        mut transient_symbols: TransientSymbols<'cx>,
+        c: &'cx MergeModuleAugmentationForNonGlobalResult<'cx>,
     ) -> Self {
         let empty_array = ty_arena.alloc([]);
 
@@ -325,8 +335,6 @@ impl<'cx> TyChecker<'cx> {
             (silent_never_ty,       keyword::IDENT_NEVER,   TypeFlags::NEVER,           ObjectFlags::NON_INFERRABLE_TYPE),
         });
 
-        let mut symbol_links = fx_hashmap_with_capacity(p.module_count() * 1024);
-        let mut transient_symbols = Vec::with_capacity(p.module_count() * 1024 * 64);
         macro_rules! make_builtin_symbol {
             ( { $( ($symbol_name: ident, $name: expr, $flags: expr, $links: expr, $builtin_id: ident) ),* $(,)? } ) => {
                 $(
@@ -337,7 +345,7 @@ impl<'cx> TyChecker<'cx> {
                             links: $links.unwrap_or_default(),
                             origin: None
                         };
-                        let s = create_transient_symbol(&mut transient_symbols, symbol);
+                        let s = transient_symbols.create_transient_symbol(symbol);
                         assert_eq!(s, Symbol::$builtin_id);
                         if let Some(l) = $links {
                             symbol_links.insert(s, l);
@@ -356,7 +364,6 @@ impl<'cx> TyChecker<'cx> {
 
         let restrictive_mapper = ty_arena.alloc(RestrictiveMapper);
         let permissive_mapper = ty_arena.alloc(PermissiveMapper);
-        let empty_symbols = ty_arena.alloc(SymbolTable::new(0));
 
         let mut this = Self {
             atoms,
@@ -367,7 +374,7 @@ impl<'cx> TyChecker<'cx> {
             tys,
             sigs: Vec::with_capacity(p.module_count() * 256),
             arena: ty_arena,
-            diags: Vec::with_capacity(p.module_count() * 32),
+            diags,
 
             num_lit_tys: no_hashmap_with_capacity(1024 * 8),
             string_lit_tys: no_hashmap_with_capacity(1024 * 8),
@@ -461,9 +468,9 @@ impl<'cx> TyChecker<'cx> {
             resolution_res: thin_vec::ThinVec::with_capacity(128),
             resolution_start: 0,
 
-            binder,
-            merged_symbols,
-            global_symbols,
+            binder: &c.binder,
+            merged_symbols: &c.merged_symbols,
+            global_symbols: &c.global_symbols,
             inferences: Vec::with_capacity(p.module_count() * 1024),
             inference_contextual: Vec::with_capacity(256),
             type_contextual: Vec::with_capacity(256),
@@ -570,10 +577,6 @@ impl<'cx> TyChecker<'cx> {
 
     pub fn array_variances(&self) -> &'cx [VarianceFlags] {
         self.array_variances.get().unwrap()
-    }
-
-    pub(crate) fn alloc<T>(&self, t: T) -> &'cx T {
-        self.arena.alloc(t)
     }
 
     pub fn check_program(&mut self, program: &'cx ast::Program<'cx>) {
@@ -751,7 +754,7 @@ impl<'cx> TyChecker<'cx> {
                 self.get_regular_ty_of_literal_ty(ty)
             }
             ast::PropNameKind::StringLit { key, .. } => self.get_string_literal_type(key),
-            bolt_ts_ast::PropNameKind::Computed(n) => todo!(),
+            bolt_ts_ast::PropNameKind::Computed(_) => todo!(),
         }
     }
 
@@ -1100,7 +1103,7 @@ impl<'cx> TyChecker<'cx> {
         let Some(prop) = self.get_prop_of_ty(ty, name) else {
             return false;
         };
-        let decl = prop.decl(self.binder);
+        let decl = prop.decl(&self.binder);
         self.p.node(decl).is_static()
     }
 
@@ -1485,7 +1488,7 @@ impl<'cx> TyChecker<'cx> {
             }
         }
 
-        let Some(decl) = symbol.opt_decl(self.binder) else {
+        let Some(decl) = symbol.opt_decl(&self.binder) else {
             return ty;
         };
 
@@ -1677,10 +1680,6 @@ impl<'cx> TyChecker<'cx> {
             self.push_error(Box::new(error));
         }
         self.boolean_ty()
-    }
-
-    fn push_error(&mut self, error: crate::Diag) {
-        self.diags.push(bolt_ts_errors::Diag { inner: error })
     }
 
     fn check_ty_param(&mut self, ty_param: &'cx ast::TyParam<'cx>) {
@@ -1995,10 +1994,33 @@ impl<'cx> TyChecker<'cx> {
             let target = targets.first().copied().unwrap_or(self.any_ty);
             ty::TyMapper::make_unary(sources[0], target)
         } else {
-            let mapper = ty::ArrayTyMapper::new(sources, Some(targets), self);
+            let mapper = self.create_array_ty_mapper(sources, Some(targets));
             ty::TyMapper::Array(mapper)
         };
         self.alloc(mapper)
+    }
+
+    fn create_array_ty_mapper(
+        &self,
+        sources: ty::Tys<'cx>,
+        targets: Option<ty::Tys<'cx>>,
+    ) -> ty::ArrayTyMapper<'cx> {
+        assert!(sources.len() >= targets.map(|t| t.len()).unwrap_or_default());
+        let mut mapper = sources
+            .iter()
+            .enumerate()
+            .map(|(idx, &source)| {
+                assert!(source.kind.is_param());
+                let target = targets
+                    .and_then(|tys| tys.get(idx))
+                    .copied()
+                    .unwrap_or(self.any_ty);
+                (source, target)
+            })
+            .collect::<Vec<_>>();
+        mapper.sort_unstable_by_key(|(source, _)| source.id.as_u32());
+        let mapper = self.alloc(mapper);
+        ty::ArrayTyMapper { mapper }
     }
 
     pub(super) fn is_type_any(&self, ty: Option<&'cx ty::Ty<'cx>>) -> bool {
@@ -2794,7 +2816,7 @@ impl<'cx> TyChecker<'cx> {
         }
 
         let tp = ty.kind.expect_param();
-        if let Some(container) = tp.symbol.opt_decl(self.binder) {
+        if let Some(container) = tp.symbol.opt_decl(&self.binder) {
             let mut n = node;
             while n != container {
                 let node = self.p.node(n);

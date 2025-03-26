@@ -90,7 +90,7 @@ impl<'cx, 'p> ParseNamedImportsExports<'cx, 'p> for ParseNamedImports {
                 prop_name,
                 name: ident,
             });
-            state.insert_map(id, ast::Node::ImportNamedSpec(spec));
+            state.nodes.insert(id, ast::Node::ImportNamedSpec(spec));
             ast::ImportSpecKind::Named(spec)
         } else {
             let ast::ModuleExportNameKind::Ident(ident) = name.kind else {
@@ -102,7 +102,7 @@ impl<'cx, 'p> ParseNamedImportsExports<'cx, 'p> for ParseNamedImports {
                 span,
                 name: ident,
             });
-            state.insert_map(id, ast::Node::ShorthandSpec(spec));
+            state.nodes.insert(id, ast::Node::ShorthandSpec(spec));
             ast::ImportSpecKind::Shorthand(spec)
         };
         state.alloc(ast::ImportSpec { kind })
@@ -140,7 +140,7 @@ impl<'cx, 'p> ParseNamedImportsExports<'cx, 'p> for ParseNamedExports {
                 prop_name,
                 name,
             });
-            state.insert_map(id, ast::Node::ExportNamedSpec(spec));
+            state.nodes.insert(id, ast::Node::ExportNamedSpec(spec));
             ast::ExportSpecKind::Named(spec)
         } else {
             let ast::ModuleExportNameKind::Ident(ident) = name.kind else {
@@ -152,7 +152,7 @@ impl<'cx, 'p> ParseNamedImportsExports<'cx, 'p> for ParseNamedExports {
                 span,
                 name: ident,
             });
-            state.insert_map(id, ast::Node::ShorthandSpec(spec));
+            state.nodes.insert(id, ast::Node::ShorthandSpec(spec));
             ast::ExportSpecKind::Shorthand(spec)
         };
         state.alloc(ast::ExportSpec { kind })

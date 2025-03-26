@@ -57,7 +57,7 @@ impl<'cx> ParserState<'cx, '_> {
             id,
             span: self.new_span(start),
         });
-        self.insert_map(id, ast::Node::DebuggerStmt(stmt));
+        self.nodes.insert(id, ast::Node::DebuggerStmt(stmt));
         Ok(stmt)
     }
 
@@ -83,7 +83,7 @@ impl<'cx> ParserState<'cx, '_> {
             stmt,
             expr,
         });
-        self.insert_map(id, ast::Node::DoStmt(stmt));
+        self.nodes.insert(id, ast::Node::DoStmt(stmt));
         Ok(stmt)
     }
 
@@ -106,7 +106,7 @@ impl<'cx> ParserState<'cx, '_> {
             expr,
             stmt,
         });
-        self.insert_map(id, ast::Node::WhileStmt(stmt));
+        self.nodes.insert(id, ast::Node::WhileStmt(stmt));
         Ok(stmt)
     }
 
@@ -129,7 +129,7 @@ impl<'cx> ParserState<'cx, '_> {
             var,
             block,
         });
-        self.insert_map(id, ast::Node::CatchClause(clause));
+        self.nodes.insert(id, ast::Node::CatchClause(clause));
         Ok(clause)
     }
 
@@ -156,7 +156,7 @@ impl<'cx> ParserState<'cx, '_> {
             catch_clause,
             finally_block,
         });
-        self.insert_map(id, ast::Node::TryStmt(stmt));
+        self.nodes.insert(id, ast::Node::TryStmt(stmt));
         Ok(stmt)
     }
 
@@ -193,7 +193,7 @@ impl<'cx> ParserState<'cx, '_> {
                 expr,
                 body,
             });
-            self.insert_map(id, ast::Node::ForOfStmt(kind));
+            self.nodes.insert(id, ast::Node::ForOfStmt(kind));
             Ok(ast::StmtKind::ForOf(kind))
         } else if self.parse_optional(In).is_some() {
             let init = init.unwrap();
@@ -208,7 +208,7 @@ impl<'cx> ParserState<'cx, '_> {
                 expr,
                 body,
             });
-            self.insert_map(id, ast::Node::ForInStmt(kind));
+            self.nodes.insert(id, ast::Node::ForInStmt(kind));
             Ok(ast::StmtKind::ForIn(kind))
         } else {
             self.expect(Semi);
@@ -235,7 +235,7 @@ impl<'cx> ParserState<'cx, '_> {
                 incr,
                 body,
             });
-            self.insert_map(id, ast::Node::ForStmt(kind));
+            self.nodes.insert(id, ast::Node::ForStmt(kind));
             Ok(ast::StmtKind::For(kind))
         }
     }
@@ -264,7 +264,7 @@ impl<'cx> ParserState<'cx, '_> {
             members,
         });
         self.set_external_module_indicator(id);
-        self.insert_map(id, ast::Node::EnumDecl(decl));
+        self.nodes.insert(id, ast::Node::EnumDecl(decl));
         Ok(decl)
     }
 
@@ -279,7 +279,7 @@ impl<'cx> ParserState<'cx, '_> {
             name,
             init,
         });
-        self.insert_map(id, ast::Node::EnumMember(member));
+        self.nodes.insert(id, ast::Node::EnumMember(member));
         Ok(member)
     }
 
@@ -307,7 +307,7 @@ impl<'cx> ParserState<'cx, '_> {
                 span: self.new_span(start),
                 expr,
             });
-            self.insert_map(id, ast::Node::ThrowStmt(t));
+            self.nodes.insert(id, ast::Node::ThrowStmt(t));
             if !self.try_parse_semi()? {
                 todo!()
             }
@@ -365,7 +365,7 @@ impl<'cx> ParserState<'cx, '_> {
             span: self.new_span(start),
             stmts,
         });
-        self.insert_map(id, ast::Node::ModuleBlock(block));
+        self.nodes.insert(id, ast::Node::ModuleBlock(block));
         Ok(block)
     }
 
@@ -426,7 +426,7 @@ impl<'cx> ParserState<'cx, '_> {
         });
         self.node_flags_map.insert(id, flags);
         self.set_external_module_indicator_if_has_export_mod(modifiers, id);
-        self.insert_map(id, ast::Node::NamespaceDecl(decl));
+        self.nodes.insert(id, ast::Node::NamespaceDecl(decl));
         decl
     }
 
@@ -445,7 +445,7 @@ impl<'cx> ParserState<'cx, '_> {
                 id,
                 span: self.token.span,
             });
-            self.insert_map(id, ast::Node::IntrinsicTy(t));
+            self.nodes.insert(id, ast::Node::IntrinsicTy(t));
             let t = self.alloc(ast::Ty {
                 kind: ast::TyKind::Intrinsic(t),
             });
@@ -465,12 +465,12 @@ impl<'cx> ParserState<'cx, '_> {
             ty,
         });
         self.set_external_module_indicator_if_has_export_mod(modifiers, id);
-        self.insert_map(id, ast::Node::TypeDecl(decl));
+        self.nodes.insert(id, ast::Node::TypeDecl(decl));
         Ok(decl)
     }
 
     fn contain_declare_mod(mods: &ast::Modifiers<'cx>) -> bool {
-        mods.flags.contains(ast::ModifierKind::Declare)
+        mods.flags.contains(ast::ModifierKind::Ambient)
     }
 
     fn _parse_decl(
@@ -535,7 +535,7 @@ impl<'cx> ParserState<'cx, '_> {
             span: self.new_span(start),
             clause,
         });
-        self.insert_map(id, ast::Node::ExportDecl(decl));
+        self.nodes.insert(id, ast::Node::ExportDecl(decl));
         self.set_external_module_indicator(id);
         self.parse_semi();
         Ok(decl)
@@ -555,7 +555,7 @@ impl<'cx> ParserState<'cx, '_> {
             list,
             module,
         });
-        self.insert_map(id, ast::Node::SpecsExport(specs));
+        self.nodes.insert(id, ast::Node::SpecsExport(specs));
         Ok(specs)
     }
 
@@ -568,7 +568,7 @@ impl<'cx> ParserState<'cx, '_> {
             span: self.new_span(start),
             module,
         });
-        self.insert_map(id, ast::Node::GlobExport(n));
+        self.nodes.insert(id, ast::Node::GlobExport(n));
         Ok(n)
     }
 
@@ -583,7 +583,7 @@ impl<'cx> ParserState<'cx, '_> {
             name,
             module,
         });
-        self.insert_map(id, ast::Node::NsExport(ns));
+        self.nodes.insert(id, ast::Node::NsExport(ns));
         Ok(ns)
     }
 
@@ -632,7 +632,7 @@ impl<'cx> ParserState<'cx, '_> {
             module,
         });
         self.set_external_module_indicator(import.id);
-        self.insert_map(id, ast::Node::ImportDecl(import));
+        self.nodes.insert(id, ast::Node::ImportDecl(import));
         Ok(import)
     }
 
@@ -677,7 +677,7 @@ impl<'cx> ParserState<'cx, '_> {
             kind,
         });
 
-        self.insert_map(id, ast::Node::ImportClause(clause));
+        self.nodes.insert(id, ast::Node::ImportClause(clause));
 
         Ok(clause)
     }
@@ -694,7 +694,7 @@ impl<'cx> ParserState<'cx, '_> {
             span: self.new_span(start),
             name,
         });
-        self.insert_map(id, ast::Node::NsImport(ns));
+        self.nodes.insert(id, ast::Node::NsImport(ns));
         Ok(ns)
     }
 
@@ -729,7 +729,8 @@ impl<'cx> ParserState<'cx, '_> {
             let span = self.new_span(start);
             let id = self.next_node_id();
             let clause = self.alloc(ast::InterfaceExtendsClause { id, span, list });
-            self.insert_map(id, ast::Node::InterfaceExtendsClause(clause));
+            self.nodes
+                .insert(id, ast::Node::InterfaceExtendsClause(clause));
             Ok(Some(clause))
         } else {
             Ok(None)
@@ -758,7 +759,7 @@ impl<'cx> ParserState<'cx, '_> {
             members,
         });
         self.set_external_module_indicator_if_has_export_mod(modifiers, id);
-        self.insert_map(id, ast::Node::InterfaceDecl(decl));
+        self.nodes.insert(id, ast::Node::InterfaceDecl(decl));
         Ok(decl)
     }
 
@@ -782,7 +783,8 @@ impl<'cx> ParserState<'cx, '_> {
             let span = self.new_span(start);
             let id = self.next_node_id();
             let clause = self.alloc(ast::ClassImplementsClause { id, span, list });
-            self.insert_map(id, ast::Node::ClassImplementsClause(clause));
+            self.nodes
+                .insert(id, ast::Node::ClassImplementsClause(clause));
             Ok(Some(clause))
         } else {
             Ok(None)
@@ -797,7 +799,7 @@ impl<'cx> ParserState<'cx, '_> {
             id,
             span: self.new_span(start),
         });
-        self.insert_map(id, ast::Node::EmptyStmt(stmt));
+        self.nodes.insert(id, ast::Node::EmptyStmt(stmt));
         Ok(stmt)
     }
 
@@ -829,7 +831,7 @@ impl<'cx> ParserState<'cx, '_> {
         });
         self.node_flags_map.insert(id, flags);
         self.set_external_module_indicator_if_has_export_mod(modifiers, node.id);
-        self.insert_map(id, ast::Node::VarStmt(node));
+        self.nodes.insert(id, ast::Node::VarStmt(node));
         self.parse_semi();
         node
     }
@@ -877,7 +879,7 @@ impl<'cx> ParserState<'cx, '_> {
         let span = self.new_span(span);
         let id = self.next_node_id();
         let binding = self.alloc(ast::Binding { id, span, kind });
-        self.insert_map(id, ast::Node::Binding(binding));
+        self.nodes.insert(id, ast::Node::Binding(binding));
         Ok(binding)
     }
 
@@ -912,7 +914,7 @@ impl<'cx> ParserState<'cx, '_> {
             name,
             init,
         });
-        self.insert_map(id, ast::Node::ObjectBindingElem(ele));
+        self.nodes.insert(id, ast::Node::ObjectBindingElem(ele));
         Ok(ele)
     }
 
@@ -929,7 +931,7 @@ impl<'cx> ParserState<'cx, '_> {
             span: self.new_span(start),
             elems,
         });
-        self.insert_map(id, ast::Node::ObjectPat(pat));
+        self.nodes.insert(id, ast::Node::ObjectPat(pat));
         Ok(pat)
     }
 
@@ -943,7 +945,7 @@ impl<'cx> ParserState<'cx, '_> {
             id,
             span: self.new_span(start),
         });
-        self.insert_map(id, ast::Node::ArrayPat(pat));
+        self.nodes.insert(id, ast::Node::ArrayPat(pat));
         Ok(pat)
     }
 
@@ -968,7 +970,7 @@ impl<'cx> ParserState<'cx, '_> {
             ty,
             init,
         });
-        self.insert_map(id, ast::Node::VarDecl(node));
+        self.nodes.insert(id, ast::Node::VarDecl(node));
         Ok(node)
     }
 
@@ -1004,7 +1006,7 @@ impl<'cx> ParserState<'cx, '_> {
             then,
             else_then,
         });
-        self.insert_map(id, ast::Node::IfStmt(stmt));
+        self.nodes.insert(id, ast::Node::IfStmt(stmt));
         Ok(stmt)
     }
 
@@ -1023,7 +1025,7 @@ impl<'cx> ParserState<'cx, '_> {
             span: self.new_span(start),
             expr,
         });
-        self.insert_map(id, ast::Node::RetStmt(stmt));
+        self.nodes.insert(id, ast::Node::RetStmt(stmt));
         Ok(stmt)
     }
 
@@ -1037,7 +1039,7 @@ impl<'cx> ParserState<'cx, '_> {
             span: self.new_span(start),
             expr,
         });
-        self.insert_map(id, ast::Node::ExprStmt(stmt));
+        self.nodes.insert(id, ast::Node::ExprStmt(stmt));
         Ok(stmt)
     }
 }

@@ -1,9 +1,10 @@
+use super::symbol_info::SymbolInfo;
+use super::{TyChecker, errors};
 use crate::bind::{Symbol, SymbolFlags, SymbolID};
 use crate::ty::CheckFlags;
 use crate::{keyword, ty};
-use bolt_ts_ast::{self as ast};
 
-use super::{TyChecker, errors};
+use bolt_ts_ast::{self as ast};
 
 pub(super) trait GetTypeFromTyReferLike<'cx> {
     fn id(&self) -> ast::NodeID;

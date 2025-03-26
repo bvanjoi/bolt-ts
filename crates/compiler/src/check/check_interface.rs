@@ -3,6 +3,7 @@ use bolt_ts_utils::fx_hashmap_with_capacity;
 
 use crate::{bind, ty};
 
+use super::symbol_info::SymbolInfo;
 use super::{Ternary, TyChecker, errors};
 
 impl<'cx> TyChecker<'cx> {

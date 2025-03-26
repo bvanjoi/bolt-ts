@@ -82,7 +82,7 @@ impl<'cx> ParserState<'cx, '_> {
         let id = self.next_node_id();
         let kind = t.try_into().unwrap();
         let m = self.alloc(ast::Modifier { id, span, kind });
-        self.insert_map(id, ast::Node::Modifier(m));
+        self.nodes.insert(id, ast::Node::Modifier(m));
         Ok(Some(m))
     }
 }

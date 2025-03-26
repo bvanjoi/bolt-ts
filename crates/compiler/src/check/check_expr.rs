@@ -13,6 +13,7 @@ use super::TyChecker;
 use super::ast;
 use super::bind::{SymbolFlags, SymbolName};
 use super::errors;
+use super::symbol_info::SymbolInfo;
 use super::ty;
 use super::ty::AccessFlags;
 use super::{CheckMode, InferenceContextId, SymbolLinks, TyLinks};

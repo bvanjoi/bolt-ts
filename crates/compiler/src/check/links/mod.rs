@@ -53,7 +53,6 @@ macro_rules! _links {
 
 use _links as links;
 use bolt_ts_ast::NodeID;
-use bolt_ts_span::ModuleID;
 
 pub use node_links::NodeLinks;
 pub use sig_links::SigLinks;
@@ -61,28 +60,9 @@ pub use symbol_links::SymbolLinks;
 pub use ty_links::TyLinks;
 
 use super::NodeCheckFlags;
-use crate::bind::SymbolID;
 use crate::ty::{SigID, TyID};
 
 impl<'cx> super::TyChecker<'cx> {
-    pub fn get_symbol_links(&mut self, symbol: SymbolID) -> &SymbolLinks<'cx> {
-        if symbol.module() == ModuleID::TRANSIENT {
-            let t = self.get_transient(symbol).unwrap();
-            &t.links
-        } else {
-            self.symbol_links.entry(symbol).or_default()
-        }
-    }
-
-    pub fn get_mut_symbol_links(&mut self, symbol: SymbolID) -> &mut SymbolLinks<'cx> {
-        if symbol.module() == ModuleID::TRANSIENT {
-            let t = self.get_mut_transient(symbol).unwrap();
-            &mut t.links
-        } else {
-            self.symbol_links.get_mut(&symbol).unwrap()
-        }
-    }
-
     pub fn get_node_links(&mut self, node: NodeID) -> &NodeLinks<'cx> {
         self.node_links
             .entry(node)
