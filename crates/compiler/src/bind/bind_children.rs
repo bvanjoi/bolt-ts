@@ -387,13 +387,31 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
             );
         }
 
-        if !self.p.node(current).is_ambient_module()
+        let current_node = self.p.node(current);
+        if !current_node.is_ambient_module()
             && (has_export_modifier
                 || self
                     .p
                     .node_flags(container)
                     .intersects(NodeFlags::EXPORT_CONTEXT))
         {
+            if !self.p.node(container).has_locals()
+                || !self.locals.contains_key(&container)
+                || (current_node.has_syntactic_modifier(ast::ModifierKind::Default.into())
+                    && current_node.ident_name().is_none())
+            {
+                let table = SymbolTableLocation::exports(container);
+                return self.declare_symbol(
+                    Some(name),
+                    table,
+                    None,
+                    current,
+                    symbol_flags,
+                    symbol_excludes,
+                    false,
+                    false,
+                );
+            }
             let export_kind = if symbol_flags.intersects(SymbolFlags::VALUE) {
                 SymbolFlags::EXPORT_VALUE
             } else {
@@ -590,7 +608,9 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
                 if let Some(mods) = n.modifiers {
                     self.bind_modifiers(mods);
                 }
-                self.bind(n.name.id);
+                if let Some(name) = n.name {
+                    self.bind(name.id);
+                }
                 if let Some(ty_params) = n.ty_params {
                     self.bind_ty_params(ty_params);
                 }
@@ -893,7 +913,7 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
             VoidExpr(n) => {
                 self.bind(n.expr.id());
             }
-            SuperExpr(n) => {}
+            SuperExpr(_) => {}
             QualifiedName(n) => {
                 self.bind(n.left.id());
                 self.bind(n.right.id);
@@ -1200,8 +1220,12 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
         // TODO: maybe_bind_expr_flow_if_call
     }
 
-    fn bind_while_stmt(&mut self, n: &ast::WhileStmt<'cx>) {}
-    fn bind_do_stmt(&mut self, n: &ast::DoStmt<'cx>) {}
+    fn bind_while_stmt(&mut self, n: &ast::WhileStmt<'cx>) {
+        // TODO:
+    }
+    fn bind_do_stmt(&mut self, n: &ast::DoStmt<'cx>) {
+        // TODO:
+    }
     fn bind_for_stmt(&mut self, n: &ast::ForStmt<'cx>) {
         if let Some(init) = &n.init {
             use ast::ForInitKind::*;

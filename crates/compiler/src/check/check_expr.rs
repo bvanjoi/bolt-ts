@@ -364,7 +364,7 @@ impl<'cx> TyChecker<'cx> {
                     SpreadAssignment(_) => unreachable!(),
                 };
                 let name = match member.kind {
-                    Shorthand(n) => SymbolName::Ele(n.name.name),
+                    Shorthand(n) => SymbolName::Atom(n.name.name),
                     Prop(n) => crate::bind::prop_name(n.name),
                     Method(n) => crate::bind::prop_name(n.name),
                     SpreadAssignment(_) => unreachable!(),

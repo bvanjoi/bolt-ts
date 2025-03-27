@@ -161,12 +161,18 @@ pub(super) struct CannotCreateAnInstanceOfAnAbstractClass {
 }
 
 #[derive(Error, Diagnostic, DiagnosticExt, Debug)]
-#[error("Class '{name}' has `abstract` modifier.")]
+#[error("{} has `abstract` modifier.", {
+    if let Some(name) = name {
+        format!("Class '{}'", name)
+    } else {
+        "Class".to_string()
+    }
+})]
 #[diagnostic(severity(Warning))]
 pub(super) struct ClassNameHasAbstractModifier {
     #[label(primary)]
     pub span: Span,
-    pub name: String,
+    pub name: Option<String>,
 }
 
 #[derive(Clone, Copy, Debug, Default)]

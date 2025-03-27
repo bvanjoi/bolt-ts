@@ -42,6 +42,20 @@ impl<'cx> BinderState<'cx, '_, '_> {
         is_computed_name: bool,
     ) -> SymbolID {
         let symbol;
+        let is_default_export = {
+            let n = self.p.node(node);
+            n.has_syntactic_modifier(ast::ModifierKind::Default.into())
+                || n.as_export_named_spec()
+                    .is_some_and(|spec| spec.name.is_default())
+        };
+        let name = if is_computed_name {
+            Some(SymbolName::Computed)
+        } else if is_default_export {
+            Some(SymbolName::ExportDefault)
+        } else {
+            // TODO: get_decl_name
+            name
+        };
         if let Some(name) = name {
             let old = self
                 .get_symbol_table_by_location(table)

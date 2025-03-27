@@ -31,7 +31,6 @@ pub use self::query::AssignmentKind;
 use crate::bind;
 use crate::keyword;
 use crate::path::is_external_module_relative;
-pub use bolt_ts_ast::KEYWORD_TOKEN_START;
 use bolt_ts_ast::{self as ast, Node, NodeFlags, NodeID};
 use bolt_ts_ast::{Token, TokenFlags, TokenKind};
 
@@ -332,11 +331,7 @@ impl<'cx> ast::Visitor<'cx> for CollectDepsVisitor<'cx> {
     fn visit_stmt(&mut self, node: &'cx ast::Stmt<'cx>) {
         let module_name = match node.kind {
             ast::StmtKind::Import(n) => Some(n.module),
-            ast::StmtKind::Export(n) => match n.clause.kind {
-                bolt_ts_ast::ExportClauseKind::Glob(n) => Some(n.module),
-                bolt_ts_ast::ExportClauseKind::Ns(n) => Some(n.module),
-                bolt_ts_ast::ExportClauseKind::Specs(n) => n.module.map(|n| n),
-            },
+            ast::StmtKind::Export(n) => n.module_spec(),
             // TODO: import equal
             ast::StmtKind::Namespace(n) => {
                 if n.is_ambient()
@@ -469,6 +464,11 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         let atom = AtomId::from_bytes(p);
         debug_assert!(file_path.is_normalized());
         debug_assert!(atoms.lock().unwrap().contains(atom));
+        let mut context_flags = NodeFlags::default();
+        let is_declaration = is_declaration_filename(p);
+        if is_declaration {
+            context_flags |= NodeFlags::AMBIENT;
+        }
         Self {
             input,
             token,
@@ -484,7 +484,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
             arena,
             nodes,
             parent_map,
-            context_flags: NodeFlags::empty(),
+            context_flags,
             node_flags_map: NodeFlagsMap::new(),
             external_module_indicator: None,
             commonjs_module_indicator: None,
@@ -494,7 +494,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
             line_map: Vec::with_capacity(input.len() / 12),
             line: 0,
             filepath: atom,
-            is_declaration: is_declaration_filename(p),
+            is_declaration,
             in_ambient_module: false,
         }
     }
@@ -709,12 +709,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
     pub fn parse(&mut self) -> &'cx ast::Program<'cx> {
         let start = self.pos;
         self.next_token();
-        let stmts = self.arena.alloc(Vec::with_capacity(512));
-        while self.token.kind != TokenKind::EOF {
-            if let Ok(stmt) = self.parse_stmt() {
-                stmts.push(stmt);
-            }
-        }
+        let stmts = self.parse_list(list_ctx::SourceElems, Self::parse_stmt);
         let id = self.next_node_id();
         let program = self.alloc(ast::Program {
             id,

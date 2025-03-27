@@ -8,4 +8,6 @@ fn test_resolve_with_not_found() {
     should_not_found(map(), "/", "a");
     should_not_found(map(), "/", "./a");
     should_not_found(map(), "/", "./a.ts");
+    should_not_found(map(), "/", "./a/index");
+    should_not_found(map(), "/", "./a/index.ts");
 }

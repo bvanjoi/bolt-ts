@@ -26,7 +26,7 @@ impl TyChecker<'_> {
         } else if let Some(p) = node.as_prop_access_expr() {
             let lhs_ty = self.get_ty_of_expr(p.expr);
             // TODO: is_private
-            self.get_prop_of_ty(lhs_ty, SymbolName::Ele(p.name.name))
+            self.get_prop_of_ty(lhs_ty, SymbolName::Atom(p.name.name))
         } else {
             None
         }

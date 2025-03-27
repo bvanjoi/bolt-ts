@@ -27,10 +27,10 @@ impl<'cx> TyChecker<'cx> {
             For(node) => self.check_for_stmt(node),
             ForIn(node) => self.check_for_in_stmt(node),
             Import(node) => self.check_import_decl(node),
+            Export(node) => self.check_export_decl(node),
             Empty(_) => {}
             Throw(_) => {}
             Enum(_) => {}
-            Export(_) => {}
             ForOf(_) => {}
             Break(_) => {}
             Continue(_) => {}
@@ -39,6 +39,31 @@ impl<'cx> TyChecker<'cx> {
             Do(_) => {}
             Debugger(_) => {}
         };
+    }
+
+    fn check_export_decl(&mut self, node: &'cx ast::ExportDecl<'cx>) {
+        if node.module_spec().is_none() || self.check_external_module_name(node.id) {
+            if let ast::ExportClauseKind::Specs(specs) = node.clause.kind {
+                // export { a, b as c } from 'xxxx'
+                // export { a, b as c }
+                for spec in specs.list {
+                    self.check_export_spec(spec);
+                }
+            }
+        }
+    }
+
+    fn check_export_spec(&mut self, spec: &'cx ast::ExportSpec<'cx>) {
+        let id = spec.id();
+        self.check_alias_symbol(id);
+    }
+
+    fn check_external_module_name(&mut self, node: ast::NodeID) -> bool {
+        let Some(module_name) = self.p.node(node).get_external_module_name() else {
+            return false;
+        };
+        // TODO: more checks
+        true
     }
 
     fn check_import_decl(&mut self, node: &'cx ast::ImportDecl<'cx>) {

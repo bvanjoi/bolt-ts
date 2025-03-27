@@ -27,7 +27,7 @@ use bolt_ts_ast::TokenKind;
 use bolt_ts_ast::keyword_idx_to_token;
 
 use bolt_ts_ast::keyword;
-use bolt_ts_atom::AtomMap;
+use bolt_ts_atom::{AtomId, AtomMap};
 use bolt_ts_config::NormalizedTsConfig;
 use bolt_ts_fs::{CachedFileSystem, read_file_with_encoding};
 use bolt_ts_span::{ModuleArena, ModuleID, ModulePath};
@@ -141,21 +141,28 @@ pub fn eval_from_with_fs<'cx>(
         .map(|(p, is_global)| {
             debug_assert!(p.is_normalized());
             if cfg!(target_arch = "wasm32") {
-                (String::new(), p, is_global)
+                (None, None, p, is_global)
             } else {
-                (read_file_with_encoding(&p).unwrap(), p, is_global)
+                let content = read_file_with_encoding(&p).unwrap();
+                let atom = AtomId::from_bytes(content.as_bytes());
+                (Some(content), Some(atom), p, is_global)
             }
         })
         .collect::<Vec<_>>();
 
     let entries = entries_with_read_file
         .into_iter()
-        .map(|(content, p, is_global)| {
+        .map(|(content, atom, p, is_global)| {
             if cfg!(target_arch = "wasm32") {
+                assert!(content.is_none());
+                assert!(atom.is_none());
                 module_arena.new_module(p, is_global, &mut fs, &mut atoms)
             } else {
-                let atom = fs.add_file(&p, content, &mut atoms);
-                module_arena.new_module_with_content(p, is_global, atom, &mut atoms)
+                let content = content.unwrap();
+                let computed_atom = atom.unwrap();
+                let atom = fs.add_file(&p, content, Some(computed_atom), &mut atoms);
+                assert_eq!(computed_atom, atom);
+                module_arena.new_module_with_content(p, is_global, atom, &atoms)
             }
         })
         .collect::<Vec<_>>();
@@ -185,7 +192,7 @@ pub fn eval_from_with_fs<'cx>(
 
     let (bind_list, p) = {
         let (bind_list, p_map): (Vec<BinderResult>, Vec<(ParseResult, bind::ParentMap)>) =
-            bind_parallel(module_arena.modules(), &atoms, p, &tsconfig)
+            bind_parallel(module_arena.modules(), &atoms, p, tsconfig)
                 .into_iter()
                 .unzip();
         let p = Parser::new_with_maps(p_map);

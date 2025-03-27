@@ -551,6 +551,14 @@ impl<'cx> Parser<'cx> {
     pub fn is_alias_symbol_decl(&self, id: ast::NodeID) -> bool {
         self.get(id.module()).is_alias_symbol_decl(id)
     }
+
+    pub fn get_module_spec_for_import_or_export(
+        &self,
+        id: ast::NodeID,
+    ) -> Option<&'cx ast::StringLit> {
+        self.get(id.module())
+            .get_module_spec_for_import_or_export(id)
+    }
 }
 
 #[derive(Clone, Copy, PartialEq)]

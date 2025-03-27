@@ -488,7 +488,7 @@ impl<'cx> Emit<'cx> {
                         .flat_map(|item| sub_names_of_binding(item.binding))
                         .collect::<Vec<_>>(),
                 ),
-                ast::StmtKind::Class(c) => Some(vec![c.name.name]),
+                ast::StmtKind::Class(c) => Some(vec![c.name.unwrap().name]),
                 ast::StmtKind::Fn(f) => Some(vec![f.name.name]),
                 _ => None,
             })
@@ -543,7 +543,7 @@ impl<'cx> Emit<'cx> {
                         continue;
                     }
                     Fn(f) => f.modifiers.map(|ms| (ms, f.name)),
-                    Class(c) => c.modifiers.map(|ms| (ms, c.name)),
+                    Class(c) => c.modifiers.map(|ms| (ms, c.name.unwrap())),
                     Interface(_) | Type(_) => None,
                     Namespace(n) => n.modifiers.map(|ms| {
                         let ident = match n.name {

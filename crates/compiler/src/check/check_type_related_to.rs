@@ -5,8 +5,8 @@ use bolt_ts_utils::fx_hashset_with_capacity;
 
 use super::errors;
 use super::get_variances::VarianceFlags;
-use super::symbol_info::SymbolInfo;
 use super::relation::{RelationKind, SigCheckMode};
+use super::symbol_info::SymbolInfo;
 use super::transient_symbol::CheckSymbol;
 use super::utils::contains_ty;
 use super::{Ternary, TyChecker};
@@ -438,6 +438,7 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
                         .as_class_decl()
                         .unwrap()
                         .name
+                        .unwrap()
                         .span
                 } else if symbol.flags.intersects(SymbolFlags::INTERFACE) {
                     self.c

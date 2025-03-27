@@ -1,3 +1,4 @@
+use bolt_ts_ast::keyword;
 use bolt_ts_utils::{fx_hashmap_with_capacity, fx_hashset_with_capacity};
 use rustc_hash::{FxHashMap, FxHashSet};
 
@@ -7,6 +8,7 @@ use super::{SymbolLinks, TransientSymbols, errors};
 use crate::bind::{
     MergedSymbols, ResolveResult, Symbol, SymbolFlags, SymbolID, SymbolName, SymbolTable,
 };
+use crate::graph::resolve_external_module_name;
 
 fn symbol_of_resolve_results(
     resolve_results: &Vec<ResolveResult>,
@@ -23,6 +25,10 @@ fn decls_of_symbol<'cx>(
 ) -> &thin_vec::ThinVec<bolt_ts_ast::NodeID> {
     let s = symbol_of_resolve_results(this.get_resolve_results(), symbol);
     &s.decls
+}
+
+fn binder_symbol<'cx>(this: &impl SymbolInfo<'cx>, symbol: SymbolID) -> &crate::bind::Symbol {
+    symbol_of_resolve_results(this.get_resolve_results(), symbol)
 }
 
 pub trait SymbolInfo<'cx>: Sized {
@@ -150,7 +156,14 @@ pub trait SymbolInfo<'cx>: Sized {
             .set_alias_target(Symbol::RESOLVING);
         let s = symbol_of_resolve_results(self.get_resolve_results(), symbol);
         assert!(s.flags.intersects(SymbolFlags::ALIAS), "symbol: {:#?}", s);
-        let node = s.get_decl_of_alias_symbol(self.p()).unwrap();
+        let node = s.get_decl_of_alias_symbol(self.p()).unwrap_or_else(|| {
+            let decls = s
+                .decls
+                .iter()
+                .map(|d| self.p().node(*d))
+                .collect::<Vec<_>>();
+            panic!("spans of decls: {:#?}", decls);
+        });
         let target = self.get_target_of_alias_decl(node, false);
         if self
             .get_symbol_links(symbol)
@@ -172,6 +185,9 @@ pub trait SymbolInfo<'cx>: Sized {
     ) -> Option<SymbolID> {
         let p = self.p();
         use bolt_ts_ast::Node::*;
+        const EXPORT_SPEC_MEANING: SymbolFlags = SymbolFlags::VALUE
+            .union(SymbolFlags::TYPE)
+            .union(SymbolFlags::NAMESPACE);
         match p.node(node) {
             ImportNamedSpec(_) => get_target_of_import_named_spec(self, node, dont_recur_resolve),
             ShorthandSpec(_) if p.node(p.parent(node).unwrap()).is_import_clause() => {
@@ -179,12 +195,13 @@ pub trait SymbolInfo<'cx>: Sized {
             }
             ShorthandSpec(_) => {
                 assert!(p.node(p.parent(node).unwrap()).is_specs_export());
-                const MEANING: SymbolFlags = SymbolFlags::VALUE
-                    .union(SymbolFlags::TYPE)
-                    .union(SymbolFlags::NAMESPACE);
-                get_target_of_export_spec(self, node, MEANING, dont_recur_resolve)
+                get_target_of_export_spec(self, node, EXPORT_SPEC_MEANING, dont_recur_resolve)
+            }
+            ExportNamedSpec(_) => {
+                get_target_of_export_spec(self, node, EXPORT_SPEC_MEANING, dont_recur_resolve)
             }
             NsImport(n) => get_target_of_ns_import(self, n, dont_recur_resolve),
+            ImportClause(n) => get_target_of_import_clause(self, n, dont_recur_resolve),
             _ => todo!(),
         }
     }
@@ -419,18 +436,11 @@ fn get_external_module_member<'cx>(
             },
             _ => todo!(),
         };
-        let symbol_name = SymbolName::Normal(name);
+        let symbol_name = SymbolName::Atom(name);
         let symbol_from_module =
             this.get_export_of_module(target_symbol, symbol_name, dont_recur_resolve);
         if symbol_from_module.is_none() {
-            error_no_module_member_symbol(
-                this,
-                module_symbol.unwrap(),
-                module_spec.val,
-                target_symbol,
-                node,
-                spec,
-            );
+            error_no_module_member_symbol(this, module_symbol.unwrap(), module_spec.val, spec);
         }
         symbol_from_module
     } else {
@@ -442,26 +452,20 @@ fn error_no_module_member_symbol<'cx>(
     this: &mut impl SymbolInfo<'cx>,
     module_symbol: SymbolID,
     module_name: bolt_ts_atom::AtomId,
-    target_symbol: SymbolID,
-    node: bolt_ts_ast::NodeID,
-    name: bolt_ts_ast::NodeID,
+    spec_name_id: bolt_ts_ast::NodeID,
 ) {
-    let decl_name = match this.p().node(name) {
-        bolt_ts_ast::Node::ImportNamedSpec(n) => match n.prop_name.kind {
-            bolt_ts_ast::ModuleExportNameKind::Ident(ident) => ident.name,
-            bolt_ts_ast::ModuleExportNameKind::StringLit(lit) => lit.val,
-        },
-        bolt_ts_ast::Node::ShorthandSpec(n) => n.name.name,
-        _ => unreachable!(),
-    };
-    report_non_exported_member(this, node, name, decl_name, module_symbol, module_name);
+    let spec_name = this
+        .p()
+        .node(spec_name_id)
+        .import_export_spec_name()
+        .unwrap();
+    report_non_exported_member(this, spec_name_id, spec_name, module_symbol, module_name);
 }
 
 fn report_non_exported_member<'cx>(
     this: &mut impl SymbolInfo<'cx>,
-    node: bolt_ts_ast::NodeID,
-    name: bolt_ts_ast::NodeID,
-    decl_name: bolt_ts_atom::AtomId,
+    spec_name_id: bolt_ts_ast::NodeID,
+    spec_name: bolt_ts_atom::AtomId,
     module_symbol: SymbolID,
     module_name: bolt_ts_atom::AtomId,
 ) {
@@ -471,7 +475,7 @@ fn report_non_exported_member<'cx>(
             .get(&value_decl)
             .unwrap()
             .0
-            .get(&SymbolName::Normal(decl_name))
+            .get(&SymbolName::Atom(spec_name))
             .copied()
     } else {
         None
@@ -485,7 +489,7 @@ fn report_non_exported_member<'cx>(
                 if let Some(spec) = this.p().node(decl).as_export_named_spec() {
                     match spec.prop_name.kind {
                         bolt_ts_ast::ModuleExportNameKind::Ident(ident)
-                            if ident.name == decl_name =>
+                            if ident.name == spec_name =>
                         {
                             return Some(decl);
                         }
@@ -507,7 +511,7 @@ fn report_non_exported_member<'cx>(
                 errors::ModuleADeclaresBLocallyButItIsExportedAsCHelperKind::NameIsDeclaredHere(
                     errors::NameIsDeclaredHere {
                         span: symbol_span,
-                        name: this.atoms().get(decl_name).to_string(),
+                        name: this.atoms().get(spec_name).to_string(),
                     },
                 ),
             );
@@ -522,35 +526,41 @@ fn report_non_exported_member<'cx>(
                 errors::ModuleADeclaresBLocallyButItIsExportedAsCHelperKind::ExportedAliasHere(
                     errors::ExportedAliasHere {
                         span: this.p().node(decl).span(),
-                        name: this.atoms().get(decl_name).to_string(),
+                        name: this.atoms().get(spec_name).to_string(),
                     },
                 ),
             );
             let error = errors::ModuleADeclaresBLocallyButItIsExportedAsC {
-                span: this.p().node(name).span(),
+                span: this.p().node(spec_name_id).span(),
                 module_name: this.atoms().get(module_name).to_string(),
-                symbol_name: this.atoms().get(decl_name).to_string(),
+                symbol_name: this.atoms().get(spec_name).to_string(),
                 target_name: this.atoms().get(target_name).to_string(),
                 related: helper,
             };
             Box::new(error)
         } else {
             Box::new(errors::ModuleADeclaresBLocallyButItIsNotExported {
-                span: this.p().node(name).span(),
+                span: this.p().node(spec_name_id).span(),
                 module_name: this.atoms().get(module_name).to_string(),
-                symbol_name: this.atoms().get(decl_name).to_string(),
+                symbol_name: this.atoms().get(spec_name).to_string(),
                 related: [errors::NameIsDeclaredHere {
                     span: symbol_span,
-                    name: this.atoms().get(decl_name).to_string(),
+                    name: this.atoms().get(spec_name).to_string(),
                 }],
             })
         };
         this.push_error(error);
     } else {
+        use bolt_ts_ast::Node::*;
+        let span = match this.p().node(spec_name_id) {
+            ShorthandSpec(n) => n.span,
+            ExportNamedSpec(n) => n.prop_name.span(),
+            _ => unreachable!(),
+        };
         let error = errors::ModuleXHasNoExportedMemberY {
-            span: this.p().node(name).span(),
+            span,
             module: this.atoms().get(module_name).to_string(),
-            member: this.atoms().get(decl_name).to_string(),
+            member: this.atoms().get(spec_name).to_string(),
         };
         this.push_error(Box::new(error));
     }
@@ -560,25 +570,25 @@ fn get_target_of_export_spec<'cx>(
     this: &mut impl SymbolInfo<'cx>,
     node: bolt_ts_ast::NodeID,
     meaning: SymbolFlags,
-    dont_recur_resolve: bool,
+    dont_resolve_alias: bool,
 ) -> Option<SymbolID> {
     let n = this.p().node(node);
-    let name = match n {
-        bolt_ts_ast::Node::ShorthandSpec(n) => n.name.name,
-        bolt_ts_ast::Node::ExportNamedSpec(n) => match n.prop_name.kind {
-            bolt_ts_ast::ModuleExportNameKind::Ident(n) => n.name,
-            bolt_ts_ast::ModuleExportNameKind::StringLit(_) => todo!(),
-        },
-        _ => unreachable!(),
-    };
+    let spec_name = n.import_export_spec_name().unwrap();
+    if spec_name == keyword::KW_DEFAULT {
+        let spec = this.p().get_module_spec_for_import_or_export(node);
+        let module_symbol =
+            spec.and_then(|spec| this.resolve_external_module_name(spec.id, spec.val));
+        if let Some(module_symbol) = module_symbol {
+            return get_target_of_module_default(this, module_symbol, node, dont_resolve_alias);
+        }
+    }
 
-    // TODO: default
     let resolved = match n {
         bolt_ts_ast::Node::ShorthandSpec(n) => {
             let p_id = this.p().parent(node).unwrap();
             let p = this.p().node(p_id).expect_specs_export();
             if let Some(_) = p.module {
-                get_external_module_member(this, p_id, node, dont_recur_resolve)
+                get_external_module_member(this, p_id, node, dont_resolve_alias)
             } else {
                 this.get_resolve_results()[n.id.module().as_usize()]
                     .final_res
@@ -605,6 +615,62 @@ fn get_target_of_export_spec<'cx>(
         _ => unreachable!(),
     };
 
+    resolved
+}
+
+fn get_target_of_import_clause<'cx>(
+    this: &mut impl SymbolInfo<'cx>,
+    node: &'cx bolt_ts_ast::ImportClause<'cx>,
+    dont_recur_alias: bool,
+) -> Option<SymbolID> {
+    let parent = this.p().parent(node.id).unwrap();
+    let parent = this.p().node(parent).expect_import_decl();
+    let module_symbol = resolve_external_module_name(this.mg(), parent.module.id, this.p());
+    module_symbol.and_then(|module_symbol| {
+        get_target_of_module_default(this, module_symbol, node.id, dont_recur_alias)
+    })
+}
+
+fn get_target_of_module_default<'cx>(
+    this: &mut impl SymbolInfo<'cx>,
+    module_symbol: SymbolID,
+    node: bolt_ts_ast::NodeID,
+    dont_resolve_alias: bool,
+) -> Option<SymbolID> {
+    let export_default_symbol;
+    let ms = binder_symbol(this, module_symbol);
+    if ms.is_shorthand_ambient_module(this.p()) {
+        export_default_symbol = Some(module_symbol);
+    } else {
+        export_default_symbol = resolve_export_by_name(
+            this,
+            module_symbol,
+            SymbolName::ExportDefault,
+            node,
+            dont_resolve_alias,
+        );
+    }
+    if export_default_symbol.is_none() {
+        let module_spec = this.p().get_module_spec_for_import_or_export(node).unwrap();
+        error_no_module_member_symbol(this, module_symbol, module_spec.val, node);
+    }
+    // TODO: mark_symbol_of_alias_decl_if_ty_only
+    export_default_symbol
+}
+
+fn resolve_export_by_name<'cx>(
+    this: &mut impl SymbolInfo<'cx>,
+    module_symbol: SymbolID,
+    name: SymbolName,
+    node: bolt_ts_ast::NodeID,
+    dont_resolve_alias: bool,
+) -> Option<SymbolID> {
+    let ms = binder_symbol(this, module_symbol);
+    // TODO: export=
+    let export_symbol = ms.exports().0.get(&name).copied();
+    let resolved =
+        export_symbol.map(|export_symbol| this.resolve_symbol(export_symbol, dont_resolve_alias));
+    // TODO: mark_symbol_of_alias_decl_if_ty_only
     resolved
 }
 

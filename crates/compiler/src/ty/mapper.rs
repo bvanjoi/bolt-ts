@@ -1,4 +1,4 @@
-use super::{Ty, Tys};
+use super::Ty;
 use crate::check::TyChecker;
 
 #[derive(Debug)]

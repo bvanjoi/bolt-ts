@@ -34,8 +34,13 @@ pub trait CachedFileSystem: Send + Sync {
         atoms: &mut AtomMap<'_>,
     ) -> Vec<std::path::PathBuf>;
 
-    fn add_file(&mut self, p: &std::path::Path, content: String, atoms: &mut AtomMap<'_>)
-    -> AtomId;
+    fn add_file(
+        &mut self,
+        p: &std::path::Path,
+        content: String,
+        atom: Option<AtomId>,
+        atoms: &mut AtomMap<'_>,
+    ) -> AtomId;
 }
 
 pub fn has_slash_suffix_and_not_root(p: &std::path::Path) -> bool {

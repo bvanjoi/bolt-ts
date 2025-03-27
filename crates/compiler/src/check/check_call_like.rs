@@ -194,9 +194,32 @@ impl<'cx> TyChecker<'cx> {
                     .iter()
                     .map(|sig| {
                         let node = self.p.node(sig.class_decl.unwrap()).expect_class_decl();
-                        let name = self.atoms.get(node.name.name).to_string();
-                        let span = node.name.span;
-                        errors::ClassNameHasAbstractModifier { span, name }
+                        if let Some(name) = node.name {
+                            let span = name.span;
+                            let name = self.atoms.get(name.name).to_string();
+                            errors::ClassNameHasAbstractModifier {
+                                span,
+                                name: Some(name),
+                            }
+                        } else {
+                            let abstract_modifier_span = node
+                                .modifiers
+                                .unwrap()
+                                .list
+                                .iter()
+                                .find_map(|m| {
+                                    if m.kind == ast::ModifierKind::Abstract {
+                                        Some(m.span)
+                                    } else {
+                                        None
+                                    }
+                                })
+                                .unwrap();
+                            errors::ClassNameHasAbstractModifier {
+                                span: abstract_modifier_span,
+                                name: None,
+                            }
+                        }
                     })
                     .collect::<Vec<_>>();
                 assert!(!abstract_class_list.is_empty());
@@ -255,7 +278,7 @@ impl<'cx> TyChecker<'cx> {
                 };
                 let error = errors::ValueOfType0IsNotCallable {
                     span: expr.callee().span(),
-                    ty: format!("typeof {}", self.atoms.get(decl.name.name)),
+                    ty: format!("typeof {}", self.atoms.get(decl.name.unwrap().name)),
                 };
                 self.push_error(Box::new(error));
             }

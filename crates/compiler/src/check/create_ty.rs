@@ -717,7 +717,7 @@ impl<'cx> TyChecker<'cx> {
             }
 
             let fixed_length = props.len();
-            let length_symbol_name = SymbolName::Ele(keyword::IDENT_LENGTH);
+            let length_symbol_name = SymbolName::Atom(keyword::IDENT_LENGTH);
             let ty = if combined_flags.intersects(ElementFlags::VARIABLE) {
                 this.number_ty
             } else {

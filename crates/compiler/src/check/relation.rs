@@ -8,7 +8,7 @@ use super::symbol_info::SymbolInfo;
 use super::{SymbolLinks, errors};
 use crate::bind::{Symbol, SymbolFlags, SymbolID, SymbolName};
 use crate::ty::{self, CheckFlags, ObjectFlags, TypeFlags};
-use crate::ty::{ObjectShape, ObjectTy, ObjectTyKind, Ty, TyKind};
+use crate::ty::{ObjectTy, ObjectTyKind, Ty, TyKind};
 
 use super::{Ternary, TyChecker};
 
@@ -63,52 +63,43 @@ impl<'cx> TyChecker<'cx> {
         target: &'cx Ty<'cx>,
         relation: RelationKind,
     ) -> bool {
+        use RelationKind::*;
         let s = source.flags;
         let t = target.flags;
         let strict_null_checks = *self.config.strict_null_checks();
-        if t.intersects(TypeFlags::ANY) || s.intersects(TypeFlags::NEVER) {
-            true
-        } else if t.intersects(TypeFlags::UNKNOWN)
-            && !(relation != RelationKind::StrictSubtype && s.intersects(TypeFlags::ANY))
+        if t.intersects(TypeFlags::ANY)
+            || s.intersects(TypeFlags::NEVER)
+            || source == self.wildcard_ty
+            || (t.intersects(TypeFlags::UNKNOWN)
+                && !(relation != StrictSubtype && s.intersects(TypeFlags::ANY)))
         {
             true
         } else if t.intersects(TypeFlags::NEVER) {
             false
-        } else if s.intersects(TypeFlags::NUMBER_LIKE) && t.intersects(TypeFlags::NUMBER) {
-            true
-        } else if s.intersects(TypeFlags::STRING_LIKE) && t.intersects(TypeFlags::STRING) {
-            true
-        } else if s.intersects(TypeFlags::BIG_INT_LIKE) && t.intersects(TypeFlags::BIG_INT) {
-            true
-        } else if s.intersects(TypeFlags::BOOLEAN_LIKE) && t.intersects(TypeFlags::BOOLEAN) {
-            true
-        } else if s.intersects(TypeFlags::UNDEFINED)
-            && ((!strict_null_checks && !target.kind.is_union_or_intersection())
-                || t.intersects(TypeFlags::UNDEFINED | TypeFlags::VOID))
+        } else if (s.intersects(TypeFlags::NUMBER_LIKE) && t.intersects(TypeFlags::NUMBER))
+            || (s.intersects(TypeFlags::STRING_LIKE) && t.intersects(TypeFlags::STRING))
+            || (s.intersects(TypeFlags::BIG_INT_LIKE) && t.intersects(TypeFlags::BIG_INT))
+            || (s.intersects(TypeFlags::BOOLEAN_LIKE) && t.intersects(TypeFlags::BOOLEAN))
+            || (s.intersects(TypeFlags::UNDEFINED)
+                && (!strict_null_checks && !t.intersects(TypeFlags::UNION_OR_INTERSECTION)
+                    || t.intersects(TypeFlags::UNDEFINED.union(TypeFlags::VOID))))
+            || (s.intersects(TypeFlags::NULL)
+                && (t.intersects(TypeFlags::NULL)
+                    || (!strict_null_checks && !t.intersects(TypeFlags::UNION_OR_INTERSECTION))))
+            || (s.intersects(TypeFlags::OBJECT)
+                && t.intersects(TypeFlags::NON_PRIMITIVE)
+                && !(relation == StrictSubtype
+                    && self.is_empty_anonymous_object_ty(source)
+                    && !source
+                        .get_object_flags()
+                        .intersects(ObjectFlags::FRESH_LITERAL)))
         {
             true
-        } else if s.intersects(TypeFlags::NULL)
-            && (t.intersects(TypeFlags::NULL)
-                || (!strict_null_checks && !target.kind.is_union_or_intersection()))
-        {
-            true
-        } else if source.kind.is_object()
-            && t.intersects(TypeFlags::NON_PRIMITIVE)
-            && !(relation == RelationKind::StrictSubtype
-                && self.is_empty_anonymous_object_ty(source)
-                && !(source
-                    .get_object_flags()
-                    .intersects(ObjectFlags::FRESH_LITERAL)))
-        {
-            true
-        } else if matches!(
-            relation,
-            RelationKind::Assignable | RelationKind::Comparable
-        ) {
+        } else if matches!(relation, Assignable | Comparable) {
             if s.intersects(TypeFlags::ANY) {
                 true
             } else {
-                // TODO:
+                // TODO: more case
                 false
             }
         } else {
@@ -141,9 +132,9 @@ impl<'cx> TyChecker<'cx> {
             }
         } else if !(source.flags | target.flags).intersects(
             TypeFlags::UNION_OR_INTERSECTION
-                | TypeFlags::INDEXED_ACCESS
-                | TypeFlags::CONDITIONAL
-                | TypeFlags::SUBSTITUTION,
+                .union(TypeFlags::INDEXED_ACCESS)
+                .union(TypeFlags::CONDITIONAL)
+                .union(TypeFlags::SUBSTITUTION),
         ) {
             if source.flags != target.flags {
                 return false;
@@ -293,7 +284,7 @@ impl<'cx> TyChecker<'cx> {
 
             let symbol = if object_ty.kind.is_interface()
                 || object_ty.kind.is_anonymous()
-                || object_ty.kind.is_reference()
+                || object_ty.flags.intersects(ObjectFlags::REFERENCE)
                 || object_ty.kind.is_mapped()
             {
                 self.expect_ty_links(ty.id)
@@ -301,8 +292,6 @@ impl<'cx> TyChecker<'cx> {
                     .members
                     .get(&name)
                     .copied()
-            } else if let Some(ty) = object_ty.kind.as_tuple() {
-                ObjectShape::get_member(ty, &name)
             } else {
                 unreachable!("ty: {ty:#?}")
             };

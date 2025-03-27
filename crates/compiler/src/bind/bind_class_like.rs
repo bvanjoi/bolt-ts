@@ -8,13 +8,12 @@ impl<'cx> BinderState<'cx, '_, '_> {
     fn create_class_symbol(&mut self, c: &impl ir::ClassLike<'cx>, is_expr: bool) -> SymbolID {
         let name = c
             .name()
-            .map_or(SymbolName::ClassExpr, |name| SymbolName::Normal(name.name));
+            .map_or(SymbolName::ClassExpr, |name| SymbolName::Atom(name.name));
         let id = c.id();
         let symbol = if !is_expr {
             self.bind_block_scoped_decl(id, name, SymbolFlags::CLASS, SymbolFlags::CLASS_EXCLUDES)
         } else {
             self.bind_anonymous_decl(id, SymbolFlags::CLASS, name)
-            // TODO: if node.name then xxxx
         };
         self.create_final_res(id, symbol);
         // TODO: prototype field

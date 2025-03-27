@@ -658,7 +658,7 @@ impl<'cx> TyChecker<'cx> {
 
     pub(super) fn get_symbol_name_from_prop_name(&self, prop_name: PropName) -> SymbolName {
         match prop_name {
-            PropName::String(atom_id) => SymbolName::Ele(atom_id),
+            PropName::String(atom_id) => SymbolName::Atom(atom_id),
             PropName::Num(num) => SymbolName::EleNum(num.into()),
         }
     }
@@ -753,23 +753,7 @@ impl<'cx> TyChecker<'cx> {
         let prop_name = self.get_prop_name_from_index(index_ty);
         let symbol_name = if let Some(prop_name) = prop_name {
             match prop_name {
-                PropName::String(atom_id) => {
-                    let name = if object_ty
-                        .symbol()
-                        .map(|symbol| {
-                            self.binder
-                                .symbol(symbol)
-                                .flags
-                                .intersects(SymbolFlags::MODULE)
-                        })
-                        .unwrap_or_default()
-                    {
-                        SymbolName::Normal(atom_id)
-                    } else {
-                        SymbolName::Ele(atom_id)
-                    };
-                    Some(name)
-                }
+                PropName::String(atom_id) => Some(SymbolName::Atom(atom_id)),
                 PropName::Num(num) => Some(SymbolName::EleNum(num.into())),
             }
         } else {

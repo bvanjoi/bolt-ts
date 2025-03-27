@@ -617,8 +617,8 @@ impl<'cx> TyChecker<'cx> {
                 return instantiated;
             }
             let mut object_flags = ty.get_object_flags()
-                    & !(ObjectFlags::COULD_CONTAIN_TYPE_VARIABLES_COMPUTED
-                        | ObjectFlags::COULD_CONTAIN_TYPE_VARIABLES)
+                    & ObjectFlags::COULD_CONTAIN_TYPE_VARIABLES_COMPUTED
+                        .union(ObjectFlags::COULD_CONTAIN_TYPE_VARIABLES).complement()
                     | ObjectFlags::INSTANTIATED /* TODO: propagating for alias_ty_args */;
             if ty.flags.intersects(TypeFlags::OBJECT_FLAGS_TYPE)
                 && !object_flags.intersects(ObjectFlags::COULD_CONTAIN_TYPE_VARIABLES_COMPUTED)
@@ -627,7 +627,9 @@ impl<'cx> TyChecker<'cx> {
                     .iter()
                     .any(|ty_arg| self.could_contain_ty_var(ty_arg));
                 if object_flags.intersects(
-                    ObjectFlags::MAPPED | ObjectFlags::ANONYMOUS | ObjectFlags::REFERENCE,
+                    ObjectFlags::MAPPED
+                        .union(ObjectFlags::ANONYMOUS)
+                        .union(ObjectFlags::REFERENCE),
                 ) {
                     object_flags |= ObjectFlags::COULD_CONTAIN_TYPE_VARIABLES_COMPUTED
                         | if result_could_contain_ty_vars {
@@ -694,7 +696,7 @@ impl<'cx> TyChecker<'cx> {
             !check_ty.eq(distribution_ty)
                 && distribution_ty
                     .flags
-                    .intersects(TypeFlags::UNION | TypeFlags::NEVER)
+                    .intersects(TypeFlags::UNION.union(TypeFlags::NEVER))
         }) {
             self.map_ty_with_alias(
                 distribution_ty,

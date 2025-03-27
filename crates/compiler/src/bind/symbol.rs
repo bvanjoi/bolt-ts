@@ -9,9 +9,7 @@ use bolt_ts_ast::NodeID;
 #[derive(Debug, Clone, Copy, Hash, PartialEq, Eq)]
 pub enum SymbolName {
     Container,
-    // TODO: merge `Normal` and `Ele`
-    Normal(AtomId),
-    Ele(AtomId),
+    Atom(AtomId),
     EleNum(F64Represent),
     ClassExpr,
     Array,
@@ -30,6 +28,8 @@ pub enum SymbolName {
     Missing,
     Resolving,
     ExportStar,
+    ExportDefault,
+    Computed,
 }
 
 impl SymbolName {
@@ -39,8 +39,7 @@ impl SymbolName {
 
     pub fn as_atom(&self) -> Option<AtomId> {
         match self {
-            SymbolName::Normal(atom) => Some(*atom),
-            SymbolName::Ele(atom) => Some(*atom),
+            SymbolName::Atom(atom) => Some(*atom),
             _ => None,
         }
     }
@@ -242,9 +241,6 @@ impl Symbol {
     pub fn exports(&self) -> &SymbolTable {
         &self.exports
     }
-}
-
-impl Symbol {
     pub fn get_declaration_of_kind(
         &self,
         f: impl Fn(bolt_ts_ast::NodeID) -> bool,
@@ -253,6 +249,13 @@ impl Symbol {
     }
     pub fn opt_decl(&self) -> Option<NodeID> {
         self.decls.first().copied()
+    }
+    pub fn is_shorthand_ambient_module(&self, p: &Parser) -> bool {
+        self.value_decl.is_some_and(|value_decl| {
+            p.node(value_decl)
+                .as_namespace_decl()
+                .is_some_and(|ns| ns.block.is_none())
+        })
     }
 }
 

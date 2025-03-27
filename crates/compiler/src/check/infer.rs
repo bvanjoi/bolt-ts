@@ -683,7 +683,7 @@ impl<'cx> TyChecker<'cx> {
     ) {
         let len = sig.params.len() - (if sig.has_rest_param() { 1 } else { 0 });
         for i in 0..len {
-            let decl = sig.params[i].decl(&self.binder);
+            let decl = sig.params[i].decl(self.binder);
             if let Some(ty_node) = self.p.node(decl).as_param_decl().and_then(|decl| decl.ty) {
                 let source = self.get_ty_from_type_node(ty_node);
                 let target = self.get_ty_at_pos(contextual_sig, i);

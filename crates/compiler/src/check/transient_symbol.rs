@@ -4,8 +4,8 @@ use bolt_ts_span::ModuleID;
 use crate::bind::{Symbol, SymbolFlags, SymbolID, SymbolName};
 use crate::ty;
 
+use super::TyChecker;
 use super::symbol_info::SymbolInfo;
-use super::{TyChecker, merge};
 
 #[derive(Debug, Clone, Copy)]
 pub(crate) struct TransientSymbol<'cx> {
@@ -27,8 +27,7 @@ impl<'cx> TransientSymbols<'cx> {
     pub(super) fn create_transient_symbol(&mut self, symbol: TransientSymbol<'cx>) -> SymbolID {
         let len = self.0.len();
         self.0.push(symbol);
-        let s = SymbolID::new(ModuleID::TRANSIENT, len as u32);
-        s
+        SymbolID::new(ModuleID::TRANSIENT, len as u32)
     }
 
     pub(super) fn get(&self, symbol: SymbolID) -> Option<&TransientSymbol<'cx>> {
@@ -124,7 +123,7 @@ impl<'cx> TyChecker<'cx> {
             let symbol = self.get_transient(symbol).unwrap();
             symbol.origin.and_then(|s| self.symbol_opt_decl(s))
         } else {
-            symbol.opt_decl(&self.binder)
+            symbol.opt_decl(self.binder)
         }
     }
 
@@ -136,7 +135,7 @@ impl<'cx> TyChecker<'cx> {
                 None
             }
         } else {
-            symbol.opt_decl(&self.binder)
+            symbol.opt_decl(self.binder)
         }
     }
 

@@ -398,7 +398,7 @@ type ConditionalSimplifyDeep<Type, ExcludeType = never, IncludeType = unknown> =
 
   function f0(movableNodeSimplifiedFail: MovableNodeSimplifiedFail) {
     let a0: MovableCollection = movableNodeSimplifiedFail;
-    //~^ ERROR: Type 'mapped type' is not assignable to type '{ left: { position: MovablePosition; size: { height: number; width: number; }; }; top: { position: MovablePosition; size: { height: number; width: number; }; }; position: MovablePosition; }'.
+    //~^ ERROR: Type 'mapped type' is not assignable to type '{ left: { position: MovablePosition; size: { width: number; height: number; }; }; top: { position: MovablePosition; size: { width: number; height: number; }; }; position: MovablePosition; }'.
   }
   function f1(movableNodeSimplifiedPass: MovableNodeSimplifiedPass) {
     let a0: MovableCollection = movableNodeSimplifiedPass;
@@ -459,7 +459,7 @@ type Except<ObjectType, KeysType extends keyof ObjectType, Options extends Excep
   }
 
   const strictAssignment: typeof strictExcept = nonStrict;
-  //~^ ERROR: Type '{ a: number; b: string; }' is not assignable to type 'mapped type & Partial'.
+  //~^ ERROR: Type '{ b: string; a: number; }' is not assignable to type 'mapped type & Partial'.
 
   // Generic properties
   type Example = {

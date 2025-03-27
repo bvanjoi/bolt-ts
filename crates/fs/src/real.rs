@@ -105,9 +105,19 @@ impl CachedFileSystem for LocalFS {
         &mut self,
         p: &std::path::Path,
         content: String,
+        atom: Option<AtomId>,
         atoms: &mut bolt_ts_atom::AtomMap<'_>,
     ) -> AtomId {
-        let atom = atoms.insert_by_str(std::borrow::Cow::Owned(content));
+        let v = std::borrow::Cow::<str>::Owned(content);
+        let atom = if let Some(atom) = atom {
+            debug_assert_eq!(AtomId::from_bytes(v.as_bytes()), atom);
+            // we can't ensure the atom is unique because there maybe has
+            // same content but different path.
+            atoms.insert_if_not_exist(atom, || v);
+            atom
+        } else {
+            atoms.insert_by_str(v)
+        };
         self.tree.add_file(atoms, p, atom).unwrap();
         atom
     }

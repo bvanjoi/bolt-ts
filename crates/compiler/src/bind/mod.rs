@@ -290,14 +290,14 @@ fn bind<'cx, 'atoms, 'parser>(
 
 pub fn prop_name(name: &ast::PropName) -> SymbolName {
     match name.kind {
-        ast::PropNameKind::Ident(ident) => SymbolName::Ele(ident.name),
+        ast::PropNameKind::Ident(ident) => SymbolName::Atom(ident.name),
         ast::PropNameKind::NumLit(num) => SymbolName::EleNum(num.val.into()),
-        ast::PropNameKind::StringLit { key, .. } => SymbolName::Ele(key),
+        ast::PropNameKind::StringLit { key, .. } => SymbolName::Atom(key),
         ast::PropNameKind::Computed(c) => {
             use bolt_ts_ast::ExprKind::*;
             match c.expr.kind {
-                Ident(n) => SymbolName::Ele(n.name),
-                StringLit(n) => SymbolName::Ele(n.val),
+                Ident(n) => SymbolName::Atom(n.name),
+                StringLit(n) => SymbolName::Atom(n.val),
                 _ => unreachable!(),
             }
         }

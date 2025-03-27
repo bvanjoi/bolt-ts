@@ -8,6 +8,19 @@ pub(super) trait ListContext: Copy {
 }
 
 #[derive(Copy, Clone)]
+pub(super) struct SourceElems;
+impl ListContext for SourceElems {
+    fn is_ele(&self, s: &mut ParserState, in_error_recovery: bool) -> bool {
+        !(s.token.kind == TokenKind::Semi && in_error_recovery) && s.is_start_of_stmt()
+    }
+
+    fn is_closing(&self, _: &mut ParserState) -> bool {
+        // ensure terminal by `is_list_terminator`
+        false
+    }
+}
+
+#[derive(Copy, Clone)]
 pub(super) struct EnumMembers;
 impl ListContext for EnumMembers {
     fn is_ele(&self, s: &mut ParserState, _: bool) -> bool {

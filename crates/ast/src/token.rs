@@ -22,8 +22,8 @@ impl Token {
     }
 }
 
-pub const KEYWORD_TOKEN_START: u8 = TokenKind::Null as u8;
-pub const KEYWORD_TOKEN_END: u8 = TokenKind::Type as u8;
+const KEYWORD_TOKEN_START: u8 = TokenKind::Null as u8;
+const KEYWORD_TOKEN_END: u8 = TokenKind::Type as u8;
 
 pub const fn keyword_idx_to_token(idx: usize) -> TokenKind {
     unsafe { std::mem::transmute::<u8, TokenKind>(idx as u8 + KEYWORD_TOKEN_START) }
@@ -420,6 +420,7 @@ impl TryFrom<TokenKind> for super::ModifierKind {
             TokenKind::Abstract => Ok(Abstract),
             TokenKind::Static => Ok(Static),
             TokenKind::Declare => Ok(Ambient),
+            TokenKind::Default => Ok(Default),
             _ => Err(()),
         }
     }
@@ -497,6 +498,7 @@ impl TokenKind {
                 | False
                 | Number
                 | String
+                | NoSubstitutionTemplate
                 | LBrace
                 | LBracket
                 | LParen

@@ -1,3 +1,5 @@
+// From `github.com/microsoft/TypeScript/blob/v5.8.2/tests/cases/compiler/requiredInitializedParameter1.ts`, Apache-2.0 License
+
 function f1(a, b = 0, c) { }
 function f2(a, b = 0, c = 0) { }
 function f3(a, b = 0, c?) { }

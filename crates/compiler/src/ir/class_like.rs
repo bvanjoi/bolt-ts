@@ -18,7 +18,7 @@ impl<'cx> ClassLike<'cx> for ast::ClassDecl<'cx> {
         self.modifiers
     }
     fn name(&self) -> Option<&'cx ast::Ident> {
-        Some(self.name)
+        self.name
     }
     fn ty_params(&self) -> Option<ast::TyParams<'cx>> {
         self.ty_params

@@ -94,7 +94,13 @@ impl CachedFileSystem for MemoryFS {
         results
     }
 
-    fn add_file(&mut self, _: &std::path::Path, _: String, _: &mut AtomMap<'_>) -> AtomId {
+    fn add_file(
+        &mut self,
+        _: &std::path::Path,
+        _: String,
+        _: Option<AtomId>,
+        _: &mut AtomMap<'_>,
+    ) -> AtomId {
         unreachable!("Cannot add file to memory fs")
     }
 }

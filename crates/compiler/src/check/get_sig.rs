@@ -54,10 +54,9 @@ impl<'cx> TyChecker<'cx> {
         let s = self.binder.symbol(id);
         let sigs = s
             .decls
-            .clone()
-            .into_iter()
+            .iter()
             .enumerate()
-            .flat_map(|(i, decl)| {
+            .flat_map(|(i, &decl)| {
                 if i > 0 && self.p.node(decl).fn_body().is_some() {
                     None
                 } else {

@@ -6,8 +6,14 @@ use crate::ty;
 use bolt_ts_ast as ast;
 
 impl<'cx> TyChecker<'cx> {
-    pub(super) fn get_index_symbol(&self, symbol: SymbolID) -> Option<SymbolID> {
-        self.members(symbol).get(&SymbolName::Index).copied()
+    pub(super) fn get_index_symbol(&mut self, symbol: SymbolID) -> Option<SymbolID> {
+        let s = self.binder.symbol(symbol);
+        if s.members().0.is_empty() {
+            None
+        } else {
+            let members = self.get_members_of_symbol(symbol);
+            members.0.get(&SymbolName::Index).copied()
+        }
     }
 
     pub(super) fn get_index_infos_of_symbol(&mut self, symbol: SymbolID) -> ty::IndexInfos<'cx> {

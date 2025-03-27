@@ -139,7 +139,7 @@ impl<'cx> TyChecker<'cx> {
         if let Cycle::Some(_) = self.pop_ty_resolution() {
             let decl = self.p.node(decl);
             let name = if let ast::Node::ClassDecl(c) = decl {
-                self.atoms.get(c.name.name).to_string()
+                self.atoms.get(c.name.unwrap().name).to_string()
             } else {
                 unreachable!()
             };

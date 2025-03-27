@@ -1,10 +1,9 @@
+use super::TyChecker;
 use super::symbol_info::SymbolInfo;
-use super::{TyChecker, errors};
 use crate::bind::{Symbol, SymbolFlags, SymbolName};
 use crate::bind::{SymbolID, SymbolTable};
 
 use bolt_ts_ast as ast;
-use bolt_ts_atom::AtomId;
 use bolt_ts_utils::fx_hashset_with_capacity;
 
 #[derive(Debug, Clone, Copy)]
@@ -70,7 +69,7 @@ impl<'cx> TyChecker<'cx> {
                 }
                 let exports = self.get_exports_of_symbol(ns);
                 symbol = self
-                    .get_symbol(exports, SymbolName::Normal(n.right.name), meaning)
+                    .get_symbol(exports, SymbolName::Atom(n.right.name), meaning)
                     .unwrap_or(Symbol::ERR);
             }
         }
@@ -146,7 +145,7 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
-    fn check_alias_symbol(&mut self, node: ast::NodeID) {
+    pub(super) fn check_alias_symbol(&mut self, node: ast::NodeID) {
         let symbol = self.get_symbol_of_decl(node);
         self.resolve_alias(symbol);
     }

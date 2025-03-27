@@ -490,7 +490,7 @@ impl<'cx> ParserState<'cx, '_> {
                 let start = self.token.start();
                 self.next_token();
                 match self.token.kind {
-                    Default | Eq => todo!(),
+                    Default | Eq => todo!("export assignment"),
                     As => todo!(),
                     _ => ast::StmtKind::Export(self.parse_export_decl(start)?),
                 }
@@ -643,7 +643,7 @@ impl<'cx> ParserState<'cx, '_> {
         is_type_only: bool,
     ) -> PResult<Option<&'cx ast::ImportClause<'cx>>> {
         if name.is_some() || matches!(self.token.kind, TokenKind::Asterisk | TokenKind::LBrace) {
-            let clause = self.parse_import_clause(name, is_type_only)?;
+            let clause = self.parse_import_clause(name, pos, is_type_only)?;
             self.expect(TokenKind::From);
             Ok(Some(clause))
         } else {
@@ -654,9 +654,9 @@ impl<'cx> ParserState<'cx, '_> {
     fn parse_import_clause(
         &mut self,
         name: Option<&'cx ast::Ident>,
+        start: usize,
         is_type_only: bool,
     ) -> PResult<&'cx ast::ImportClause<'cx>> {
-        let start = self.token.start();
         let kind = if name.is_none_or(|_| self.parse_optional(TokenKind::Comma).is_some()) {
             Some(if self.token.kind == TokenKind::Asterisk {
                 let ns = self.parse_ns_import()?;
@@ -671,7 +671,7 @@ impl<'cx> ParserState<'cx, '_> {
         let id = self.next_node_id();
         let clause = self.alloc(ast::ImportClause {
             id,
-            span: self.new_span(start),
+            span: self.new_span(start as u32),
             is_type_only,
             name,
             kind,

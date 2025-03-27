@@ -710,7 +710,7 @@ pub(super) fn resolve_symbol_by_ident<'a, 'cx>(
     meaning: SymbolFlags,
 ) -> ResolvedResult {
     use ast::Node::*;
-    let key = SymbolName::Normal(ident.name);
+    let key = SymbolName::Atom(ident.name);
     let mut associated_declaration_for_containing_initializer_or_binding_name = None;
     let mut last_location = Some(ident.id);
     let mut location = resolver.p.parent(ident.id);

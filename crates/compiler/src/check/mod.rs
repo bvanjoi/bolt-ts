@@ -356,8 +356,8 @@ impl<'cx> TyChecker<'cx> {
             };
         }
         make_builtin_symbol!({
-            (error_symbol,              SymbolName::Normal(keyword::IDENT_EMPTY),       SymbolFlags::empty(),       Some(SymbolLinks::default().with_ty(error_ty)), ERR),
-            (arguments_symbol,          SymbolName::Normal(keyword::IDENT_ARGUMENTS),   SymbolFlags::PROPERTY,      None,                                           ARGUMENTS),
+            (error_symbol,              SymbolName::Atom(keyword::IDENT_EMPTY),       SymbolFlags::empty(),       Some(SymbolLinks::default().with_ty(error_ty)), ERR),
+            (arguments_symbol,          SymbolName::Atom(keyword::IDENT_ARGUMENTS),   SymbolFlags::PROPERTY,      None,                                           ARGUMENTS),
             (resolving_symbol,          SymbolName::Resolving,                          SymbolFlags::empty(),       None,                                           RESOLVING),
             (empty_ty_literal_symbol,   SymbolName::Type,                               SymbolFlags::TYPE_LITERAL,  None,                                           EMPTY_TYPE_LITERAL),
         });
@@ -510,13 +510,13 @@ impl<'cx> TyChecker<'cx> {
             (boolean_ty,                this.get_union_ty(&[regular_false_ty, regular_true_ty], ty::UnionReduction::Lit)),
             (string_or_number_ty,       this.get_union_ty(&[this.string_ty, this.number_ty], ty::UnionReduction::Lit)),
             (string_number_symbol_ty,   this.get_union_ty(&[this.string_ty, this.number_ty, this.symbol_ty], ty::UnionReduction::Lit)),
-            (global_number_ty,          this.get_global_type(SymbolName::Normal(keyword::IDENT_NUMBER_CLASS))),
-            (global_boolean_ty,         this.get_global_type(SymbolName::Normal(keyword::IDENT_BOOLEAN_CLASS))),
-            (global_symbol_ty,          this.get_global_type(SymbolName::Normal(keyword::IDENT_SYMBOL_CLASS))),
-            (global_string_ty,          this.get_global_type(SymbolName::Normal(keyword::IDENT_STRING_CLASS))),
-            (global_array_ty,           this.get_global_type(SymbolName::Normal(keyword::IDENT_ARRAY_CLASS))),
+            (global_number_ty,          this.get_global_type(SymbolName::Atom(keyword::IDENT_NUMBER_CLASS))),
+            (global_boolean_ty,         this.get_global_type(SymbolName::Atom(keyword::IDENT_BOOLEAN_CLASS))),
+            (global_symbol_ty,          this.get_global_type(SymbolName::Atom(keyword::IDENT_SYMBOL_CLASS))),
+            (global_string_ty,          this.get_global_type(SymbolName::Atom(keyword::IDENT_STRING_CLASS))),
+            (global_array_ty,           this.get_global_type(SymbolName::Atom(keyword::IDENT_ARRAY_CLASS))),
             (any_array_ty,              this.create_array_ty(this.any_ty, false)),
-            (global_readonly_array_ty,  this.get_global_type(SymbolName::Normal(keyword::IDENT_READONLY_ARRAY_CLASS))),
+            (global_readonly_array_ty,  this.get_global_type(SymbolName::Atom(keyword::IDENT_READONLY_ARRAY_CLASS))),
             (any_readonly_array_ty,     this.any_array_ty()),
             (typeof_ty,                 {
                                             let tys = TYPEOF_NE_FACTS.iter().map(|(key, _)| this.get_string_literal_type(*key)).collect::<Vec<_>>();
@@ -529,10 +529,10 @@ impl<'cx> TyChecker<'cx> {
             (empty_generic_ty,          this.create_anonymous_ty_with_resolved(None, Default::default(), this.alloc(Default::default()), Default::default(), Default::default(), Default::default())),
             (empty_object_ty,           this.create_anonymous_ty_with_resolved(None, Default::default(), this.alloc(Default::default()), Default::default(), Default::default(), Default::default())),
             (empty_ty_literal_ty,       this.create_anonymous_ty_with_resolved(Some(empty_ty_literal_symbol), Default::default(), this.alloc(Default::default()), Default::default(), Default::default(), Default::default())),
-            (global_object_ty,          this.get_global_type(SymbolName::Normal(keyword::IDENT_OBJECT_CLASS))),
-            (global_fn_ty,              this.get_global_type(SymbolName::Normal(keyword::IDENT_FUNCTION_CLASS))),
-            (global_callable_fn_ty,     this.get_global_type(SymbolName::Normal(keyword::IDENT_CALLABLE_FUNCTION_CLASS))),
-            (global_newable_fn_ty,      this.get_global_type(SymbolName::Normal(keyword::IDENT_NEWABLE_FUNCTION_CLASS))),
+            (global_object_ty,          this.get_global_type(SymbolName::Atom(keyword::IDENT_OBJECT_CLASS))),
+            (global_fn_ty,              this.get_global_type(SymbolName::Atom(keyword::IDENT_FUNCTION_CLASS))),
+            (global_callable_fn_ty,     this.get_global_type(SymbolName::Atom(keyword::IDENT_CALLABLE_FUNCTION_CLASS))),
+            (global_newable_fn_ty,      this.get_global_type(SymbolName::Atom(keyword::IDENT_NEWABLE_FUNCTION_CLASS))),
             (mark_sub_ty,               this.create_param_ty(Symbol::ERR, None, false)),
             (mark_other_ty,             this.create_param_ty(Symbol::ERR, None, false)),
             (mark_super_ty,             this.create_param_ty(Symbol::ERR, None, false)),
@@ -544,7 +544,7 @@ impl<'cx> TyChecker<'cx> {
 
         this.type_name.insert(boolean_ty.id, "boolean".to_string());
 
-        let iarguments = this.get_global_type(SymbolName::Normal(keyword::IDENT_IARGUMENTS_CLASS));
+        let iarguments = this.get_global_type(SymbolName::Atom(keyword::IDENT_IARGUMENTS_CLASS));
         this.get_mut_symbol_links(arguments_symbol)
             .set_ty(iarguments);
 
@@ -1099,7 +1099,7 @@ impl<'cx> TyChecker<'cx> {
             return false;
         };
         let ty = self.get_type_of_symbol(symbol);
-        let name = SymbolName::Ele(prop_node.name);
+        let name = SymbolName::Atom(prop_node.name);
         let Some(prop) = self.get_prop_of_ty(ty, name) else {
             return false;
         };
@@ -1164,20 +1164,7 @@ impl<'cx> TyChecker<'cx> {
             return self.error_ty;
         }
 
-        let name = if original_left_ty
-            .symbol()
-            .map(|symbol| {
-                self.binder
-                    .symbol(symbol)
-                    .flags
-                    .intersects(SymbolFlags::MODULE)
-            })
-            .unwrap_or_default()
-        {
-            SymbolName::Normal(prop.name)
-        } else {
-            SymbolName::Ele(prop.name)
-        };
+        let name = SymbolName::Atom(prop.name);
 
         let Some(prop) = self.get_prop_of_ty(apparent_left_ty, name) else {
             if name
@@ -1417,7 +1404,7 @@ impl<'cx> TyChecker<'cx> {
             && !self.is_block_scoped_name_declared_before_use(decl, ident)
         {
             let (decl_span, kind) = match self.p.node(decl) {
-                ast::Node::ClassDecl(class) => (class.name.span, errors::DeclKind::Class),
+                ast::Node::ClassDecl(class) => (class.name.unwrap().span, errors::DeclKind::Class),
                 ast::Node::VarDecl(decl) => (decl.span, errors::DeclKind::BlockScopedVariable),
                 _ => unreachable!(),
             };
@@ -1488,7 +1475,7 @@ impl<'cx> TyChecker<'cx> {
             }
         }
 
-        let Some(decl) = symbol.opt_decl(&self.binder) else {
+        let Some(decl) = symbol.opt_decl(self.binder) else {
             return ty;
         };
 
@@ -2290,7 +2277,7 @@ impl<'cx> TyChecker<'cx> {
         ty.is_tuple()
             || (ty.kind.is_array(self)
                 && self
-                    .get_ty_of_prop_of_ty(ty, SymbolName::Ele(keyword::IDENT_LENGTH))
+                    .get_ty_of_prop_of_ty(ty, SymbolName::Atom(keyword::IDENT_LENGTH))
                     .is_some_and(|length_ty| {
                         self.every_type(length_ty, |_, t| {
                             t.flags.intersects(TypeFlags::NUMBER_LITERAL)
@@ -2816,7 +2803,7 @@ impl<'cx> TyChecker<'cx> {
         }
 
         let tp = ty.kind.expect_param();
-        if let Some(container) = tp.symbol.opt_decl(&self.binder) {
+        if let Some(container) = tp.symbol.opt_decl(self.binder) {
             let mut n = node;
             while n != container {
                 let node = self.p.node(n);

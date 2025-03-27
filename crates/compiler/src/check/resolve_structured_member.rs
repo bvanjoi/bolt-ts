@@ -1,8 +1,6 @@
 use bolt_ts_ast::{self as ast, MappedTyModifiers};
-use bolt_ts_atom::AtomId;
 use bolt_ts_span::Span;
-use bolt_ts_utils::{fx_hashmap_with_capacity, fx_hashset_with_capacity};
-use rustc_hash::{FxHashMap, FxHashSet};
+use rustc_hash::FxHashMap;
 
 use super::create_ty::IntersectionFlags;
 use super::cycle_check::{Cycle, ResolutionKey};
@@ -399,7 +397,7 @@ impl<'cx> TyChecker<'cx> {
             };
             if !cycle_reported {
                 if let Cycle::Some(_) = self.pop_ty_resolution() {
-                    if let Some(decl) = id.opt_decl(&self.binder) {
+                    if let Some(decl) = id.opt_decl(self.binder) {
                         let p = self.p.node(decl);
                         if p.is_class_decl() || p.is_interface_decl() {
                             self.report_circular_base_ty(decl, ty, None);

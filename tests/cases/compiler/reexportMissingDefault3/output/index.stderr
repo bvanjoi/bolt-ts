@@ -1,0 +1,5 @@
+  × Module './b' has no exported member 'default'.
+   ╭─[../../tests/cases/compiler/reexportMissingDefault3/index.ts:4:10]
+ 4 │ default
+   · ───────
+   ╰────

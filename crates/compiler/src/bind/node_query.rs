@@ -247,7 +247,15 @@ pub trait NodeQuery<'cx>: Sized {
     fn is_alias_symbol_decl(&self, id: ast::NodeID) -> bool {
         let node = self.node(id);
         use ast::Node::*;
-        matches!(node, ImportNamedSpec(_) | ShorthandSpec(_) | NsImport(_))
+        match node {
+            ImportNamedSpec(_) |  // `import { a as b } from 'xxx'`
+            ShorthandSpec(_) |    // `export { spec }` or `import { spec } from 'xxx'`
+            ExportNamedSpec(_) |  // `export { a as b }`
+            NsImport(_)           // `import * as ns from 'xxx'`
+            => true,
+            ImportClause(n) => n.name.is_some(), // `import a from 'xxx'`
+            _ => false
+        }
     }
 
     fn is_global_source_file(&self, id: ast::NodeID) -> bool {
@@ -301,6 +309,42 @@ pub trait NodeQuery<'cx>: Sized {
                     && !self.is_external_module()
             }
             _ => false,
+        }
+    }
+
+    fn get_module_spec_for_import_or_export(&self, id: ast::NodeID) -> Option<&'cx ast::StringLit> {
+        let node = self.node(id);
+        use ast::Node::*;
+        match node {
+            ImportClause(_) => {
+                let p = self.parent(id).unwrap();
+                let p = self.node(p).expect_import_decl();
+                Some(p.module)
+            }
+            NsImport(_) | ImportNamedSpec(_) => {
+                let p = self.parent(id).unwrap();
+                let p = self.parent(p).unwrap();
+                let p = self.node(p).expect_import_decl();
+                Some(p.module)
+            }
+            ShorthandSpec(_) => {
+                // export {a}
+                // export {a} from 'xxx'
+                let p = self.parent(id).unwrap();
+                if let Some(n) = self.node(p).as_specs_export() {
+                    return n.module;
+                }
+                // import {a} from 'xxx'
+                let p = self.parent(p).unwrap();
+                let p = self.node(p).expect_import_decl();
+                Some(p.module)
+            }
+            ExportNamedSpec(_) => {
+                let p = self.parent(id).unwrap();
+                let n = self.node(p).expect_specs_export();
+                n.module
+            }
+            _ => unreachable!(),
         }
     }
 }

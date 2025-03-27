@@ -4,8 +4,7 @@ use bolt_ts_atom::AtomMap;
 impl<'cx> SymbolName {
     pub(crate) fn debug_print(&self, atoms: &AtomMap<'_>) -> String {
         match &self {
-            SymbolName::Normal(atom_id) => format!("Normal({})", atoms.get(*atom_id)),
-            SymbolName::Ele(atom_id) => format!("Ele({})", atoms.get(*atom_id)),
+            SymbolName::Atom(atom_id) => format!("Atom({})", atoms.get(*atom_id)),
             SymbolName::EleNum(f64_represent) => {
                 format!("EleNum({:#?})", Into::<f64>::into(*f64_represent))
             }
@@ -23,12 +22,13 @@ impl<'cx> SymbolName {
             SymbolName::Missing => todo!(),
             SymbolName::Resolving => todo!(),
             SymbolName::ExportStar => todo!(),
+            SymbolName::ExportDefault => todo!(),
+            SymbolName::Computed => todo!(),
         }
     }
     pub(crate) fn to_string(self, atoms: &'cx AtomMap<'cx>) -> String {
         match self {
-            SymbolName::Normal(atom_id) => atoms.get(atom_id).to_string(),
-            SymbolName::Ele(atom_id) => atoms.get(atom_id).to_string(),
+            SymbolName::Atom(atom_id) => atoms.get(atom_id).to_string(),
             SymbolName::EleNum(val) => val.val().to_string(),
             _ => todo!("{:?}", self),
         }

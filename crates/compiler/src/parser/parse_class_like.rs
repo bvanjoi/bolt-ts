@@ -61,7 +61,6 @@ impl ListContext for ClassElementsCtx {
 
 pub(super) trait ClassLike<'cx, 'p> {
     type Node;
-    fn parse_name(&self, state: &mut ParserState<'cx, 'p>) -> PResult<Option<&'cx ast::Ident>>;
     fn finish(
         self,
         state: &mut ParserState<'cx, 'p>,
@@ -78,9 +77,6 @@ pub(super) trait ClassLike<'cx, 'p> {
 pub(super) struct ParseClassDecl;
 impl<'cx, 'p> ClassLike<'cx, 'p> for ParseClassDecl {
     type Node = &'cx ast::ClassDecl<'cx>;
-    fn parse_name(&self, state: &mut ParserState<'cx, 'p>) -> PResult<Option<&'cx ast::Ident>> {
-        state.parse_ident_name().map(Some)
-    }
     fn finish(
         self,
         state: &mut ParserState<'cx, 'p>,
@@ -92,7 +88,6 @@ impl<'cx, 'p> ClassLike<'cx, 'p> for ParseClassDecl {
         implements: Option<&'cx ast::ClassImplementsClause<'cx>>,
         elems: &'cx ast::ClassElems<'cx>,
     ) -> Self::Node {
-        let name = name.unwrap();
         let id = state.next_node_id();
         let decl = state.alloc(ast::ClassDecl {
             id,
@@ -113,12 +108,6 @@ impl<'cx, 'p> ClassLike<'cx, 'p> for ParseClassDecl {
 pub(super) struct ParseClassExpr;
 impl<'cx, 'p> ClassLike<'cx, 'p> for ParseClassExpr {
     type Node = &'cx ast::ClassExpr<'cx>;
-    fn parse_name(&self, state: &mut ParserState<'cx, 'p>) -> PResult<Option<&'cx ast::Ident>> {
-        Ok(
-            (state.token.kind.is_binding_ident() && !state.is_implements_clause())
-                .then(|| state.parse_binding_ident()),
-        )
-    }
     fn finish(
         self,
         state: &mut ParserState<'cx, 'p>,
@@ -147,6 +136,10 @@ impl<'cx, 'p> ClassLike<'cx, 'p> for ParseClassExpr {
 }
 
 impl<'cx, 'p> ParserState<'cx, 'p> {
+    fn parse_name_of_class_decl_or_expr(&mut self) -> Option<&'cx ast::Ident> {
+        (self.token.kind.is_binding_ident() && !self.is_implements_clause())
+            .then(|| self.parse_binding_ident())
+    }
     pub(super) fn parse_class_decl_or_expr<Node>(
         &mut self,
         mode: impl ClassLike<'cx, 'p, Node = Node>,
@@ -155,7 +148,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         use bolt_ts_ast::TokenKind::*;
         let start = self.token.start();
         self.expect(Class);
-        let name = mode.parse_name(self)?;
+        let name = self.parse_name_of_class_decl_or_expr();
         let ty_params = self.parse_ty_params()?;
         let mut extends = self.parse_class_extends_clause()?;
         let mut implements = self.parse_implements_clause()?;

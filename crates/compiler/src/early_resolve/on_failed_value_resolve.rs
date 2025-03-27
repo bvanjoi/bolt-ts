@@ -62,7 +62,7 @@ impl<'cx> Resolver<'cx, '_, '_> {
                     };
                     let error = errors::DidYouMeanTheStaticMember {
                         span: prop.name.span(),
-                        class_name: self.atoms.get(class.name.name).to_string(),
+                        class_name: self.atoms.get(class.name.unwrap().name).to_string(),
                         prop_name: self.atoms.get(prop_name.name).to_string(),
                     };
                     return Some(error);

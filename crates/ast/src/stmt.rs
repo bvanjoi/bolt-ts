@@ -319,7 +319,8 @@ pub struct ClassDecl<'cx> {
     pub id: NodeID,
     pub span: Span,
     pub modifiers: Option<&'cx Modifiers<'cx>>,
-    pub name: &'cx Ident,
+    /// `None` for export decl, eg: `export default class {}`
+    pub name: Option<&'cx Ident>,
     pub ty_params: Option<TyParams<'cx>>,
     pub extends: Option<&'cx ClassExtendsClause<'cx>>,
     pub implements: Option<&'cx ClassImplementsClause<'cx>>,
@@ -547,10 +548,10 @@ impl std::fmt::Display for ModifierKind {
             ModifierKind::Abstract => keyword::KW_ABSTRACT_STR,
             ModifierKind::Static => keyword::KW_STATIC_STR,
             ModifierKind::Ambient => keyword::KW_DECLARE_STR,
+            ModifierKind::Default => keyword::KW_DEFAULT_STR,
             ModifierKind::Decorator => todo!(),
             ModifierKind::Accessor => todo!(),
             ModifierKind::Async => todo!(),
-            ModifierKind::Default => todo!(),
             ModifierKind::Const => todo!(),
             ModifierKind::In => todo!(),
             ModifierKind::Out => todo!(),
@@ -673,6 +674,24 @@ pub struct ModuleExportName<'cx> {
     pub kind: ModuleExportNameKind<'cx>,
 }
 
+impl ModuleExportName<'_> {
+    pub fn is_default(&self) -> bool {
+        let v = match self.kind {
+            ModuleExportNameKind::Ident(ident) => ident.name,
+            ModuleExportNameKind::StringLit(lit) => lit.val,
+        };
+        v == keyword::KW_DEFAULT
+    }
+
+    pub fn span(&self) -> Span {
+        use ModuleExportNameKind::*;
+        match self.kind {
+            Ident(ident) => ident.span,
+            StringLit(lit) => lit.span,
+        }
+    }
+}
+
 #[derive(Debug, Clone, Copy)]
 pub enum ModuleExportNameKind<'cx> {
     Ident(&'cx Ident),
@@ -700,6 +719,16 @@ pub struct ExportDecl<'cx> {
     pub id: NodeID,
     pub span: Span,
     pub clause: &'cx ExportClause<'cx>,
+}
+
+impl<'cx> ExportDecl<'cx> {
+    pub fn module_spec(&self) -> Option<&'cx StringLit> {
+        match self.clause.kind {
+            ExportClauseKind::Glob(g) => Some(g.module),
+            ExportClauseKind::Ns(n) => Some(n.module),
+            ExportClauseKind::Specs(s) => s.module,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -744,12 +773,26 @@ pub struct ExportSpec<'cx> {
     pub kind: ExportSpecKind<'cx>,
 }
 
+impl ExportSpec<'_> {
+    pub fn id(&self) -> NodeID {
+        use ExportSpecKind::*;
+        match self.kind {
+            Shorthand(shorthand) => shorthand.id,
+            Named(named) => named.id,
+        }
+    }
+}
+
 #[derive(Debug, Clone, Copy)]
 pub enum ExportSpecKind<'cx> {
     Shorthand(&'cx ShorthandSpec<'cx>),
     Named(&'cx ExportNamedSpec<'cx>),
 }
 
+/// ```txt
+/// export { prop_name as name } from 'xxx'
+///          ^^^^^^^^^^^^^^^^^
+/// ```
 #[derive(Debug, Clone, Copy)]
 pub struct ExportNamedSpec<'cx> {
     pub id: NodeID,

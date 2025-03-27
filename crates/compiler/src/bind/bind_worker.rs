@@ -15,8 +15,8 @@ use crate::parser::is_left_hand_side_expr_kind;
 impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
     fn bind_ns_decl(&mut self, ns: &'cx ast::NsDecl<'cx>) {
         let name = match ns.name {
-            ast::ModuleName::Ident(ident) => SymbolName::Normal(ident.name),
-            ast::ModuleName::StringLit(lit) => SymbolName::Normal(lit.val),
+            ast::ModuleName::Ident(ident) => SymbolName::Atom(ident.name),
+            ast::ModuleName::StringLit(lit) => SymbolName::Atom(lit.val),
         };
 
         let s = if ns.is_ambient() {
@@ -54,7 +54,7 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
     }
 
     fn bind_type_decl(&mut self, t: &'cx ast::TypeDecl<'cx>) {
-        let name = SymbolName::Normal(t.name.name);
+        let name = SymbolName::Atom(t.name.name);
         let symbol = self.bind_block_scoped_decl(
             t.id,
             name,
@@ -65,7 +65,7 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
     }
 
     fn bind_ty_param(&mut self, ty_param: &'cx ast::TyParam<'cx>) {
-        let name = SymbolName::Normal(ty_param.name.name);
+        let name = SymbolName::Atom(ty_param.name.name);
         let parent = self.parent_map.parent_unfinished(ty_param.id).unwrap();
         // TODO: is_js_doc_template_tag
         let s = if let Some(infer_ty) = self.p.node(parent).as_infer_ty() {
@@ -114,7 +114,7 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
     }
 
     fn bind_interface_decl(&mut self, i: &'cx ast::InterfaceDecl<'cx>) {
-        let name = SymbolName::Normal(i.name.name);
+        let name = SymbolName::Atom(i.name.name);
         let symbol = self.bind_block_scoped_decl(
             i.id,
             name,
@@ -127,7 +127,7 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
     fn bind_fn_decl(&mut self, f: &'cx ast::FnDecl<'cx>) {
         // if self.in_strict_mode {
         // } else {
-        let ele_name = SymbolName::Normal(f.name.name);
+        let ele_name = SymbolName::Atom(f.name.name);
         let symbol = self.declare_symbol_and_add_to_symbol_table(
             ele_name,
             f.id,
@@ -143,7 +143,7 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
     }
 
     fn bind_fn_expr(&mut self, f: &impl ir::FnExprLike<'cx>) {
-        let name = f.name().map(SymbolName::Normal).unwrap_or(SymbolName::Fn);
+        let name = f.name().map(SymbolName::Atom).unwrap_or(SymbolName::Fn);
         let id = f.id();
         let symbol = self.bind_anonymous_decl(id, SymbolFlags::FUNCTION, name);
         self.create_final_res(id, symbol);
@@ -204,7 +204,7 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
     }
 
     fn bind_var(&mut self, id: ast::NodeID, name: bolt_ts_atom::AtomId) -> SymbolID {
-        let name = SymbolName::Normal(name);
+        let name = SymbolName::Atom(name);
         let symbol = if self.node_query().is_block_or_catch_scoped(id) {
             self.bind_block_scoped_decl(
                 id,
@@ -236,7 +236,7 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
         }
         match n.name.kind {
             bolt_ts_ast::BindingKind::Ident(ident) => {
-                let name = SymbolName::Normal(ident.name);
+                let name = SymbolName::Atom(ident.name);
                 let symbol = self.declare_symbol_and_add_to_symbol_table(
                     name,
                     n.id,
@@ -267,7 +267,7 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
                     SymbolFlags::empty()
                 };
             let name = match n.name.kind {
-                bolt_ts_ast::BindingKind::Ident(ident) => SymbolName::Ele(ident.name),
+                bolt_ts_ast::BindingKind::Ident(ident) => SymbolName::Atom(ident.name),
                 bolt_ts_ast::BindingKind::ObjectPat(_) => {
                     todo!()
                 }
@@ -394,7 +394,7 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
                 self.create_final_res(node, symbol);
             }
             ObjectShorthandMember(n) => {
-                let name = SymbolName::Ele(n.name.name);
+                let name = SymbolName::Atom(n.name.name);
                 let symbol = self.bind_prop_or_method_or_access(
                     node,
                     name,
@@ -536,7 +536,7 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
                 // import { name } from 'xxx'
                 // import * as name from 'xxx'
                 // export { name } from 'xxx'
-                let name = SymbolName::Normal(name.name);
+                let name = SymbolName::Atom(name.name);
                 let symbol = self.declare_symbol_and_add_to_symbol_table(
                     name,
                     *id,
@@ -549,8 +549,8 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
                 let n = |name: &ast::ModuleExportName| {
                     use bolt_ts_ast::ModuleExportNameKind::*;
                     match name.kind {
-                        Ident(ident) => SymbolName::Normal(ident.name),
-                        StringLit(lit) => SymbolName::Normal(lit.val),
+                        Ident(ident) => SymbolName::Atom(ident.name),
+                        StringLit(lit) => SymbolName::Atom(lit.val),
                     }
                 };
                 let name = n(node.name);
@@ -582,7 +582,7 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
 
     fn bind_enum_decl(&mut self, node: &'cx ast::EnumDecl<'cx>) {
         // TODO: is const
-        let name = SymbolName::Normal(node.name.name);
+        let name = SymbolName::Atom(node.name.name);
         let symbol = self.bind_block_scoped_decl(
             node.id,
             name,
@@ -596,7 +596,7 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
         if let Some(name) = node.name {
             // import name from 'xxxx'
             let symbol = self.declare_symbol_and_add_to_symbol_table(
-                SymbolName::Normal(name.name),
+                SymbolName::Atom(name.name),
                 node.id,
                 SymbolFlags::ALIAS,
                 SymbolFlags::ALIAS_EXCLUDES,
@@ -639,7 +639,7 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
         let s = self.bind_anonymous_decl(
             node.id,
             SymbolFlags::VALUE_MODULE,
-            SymbolName::Normal(self.p.filepath),
+            SymbolName::Atom(self.p.filepath),
         );
         assert_eq!(s, SymbolID::container(node.id.module()));
         self.final_res.insert(node.id, s);

@@ -246,7 +246,7 @@ impl<'cx> Node<'cx> {
         match self {
             Ident(n) => Some(n),
             FnDecl(n) => Some(n.name),
-            ClassDecl(n) => Some(n.name),
+            ClassDecl(n) => n.name,
             ClassExpr(n) => n.name,
             ParamDecl(n) => match n.name.kind {
                 super::BindingKind::Ident(n) => Some(n),
@@ -423,6 +423,7 @@ impl<'cx> Node<'cx> {
                 | TyParam(_)
                 | NsImport(_)
                 | ShorthandSpec(_)
+                | ExportNamedSpec(_)
                 | GetterDecl(_)
                 | SetterDecl(_)
                 | ObjectLit(_)
@@ -529,7 +530,7 @@ impl<'cx> Node<'cx> {
     }
 
     pub fn has_static_modifier(&self) -> bool {
-        self.has_syntactic_modifier(enumflags2::BitFlags::from(ModifierKind::Static))
+        self.has_syntactic_modifier(ModifierKind::Static.into())
     }
 
     pub fn has_syntactic_modifier(&self, flags: enumflags2::BitFlags<ModifierKind>) -> bool {
@@ -701,6 +702,35 @@ impl<'cx> Node<'cx> {
 
     pub fn is_ambient_module(&self) -> bool {
         self.as_namespace_decl().is_some_and(|n| n.is_ambient())
+    }
+
+    pub fn get_external_module_name(&self) -> Option<&'cx super::StringLit> {
+        use Node::*;
+        match self {
+            ImportDecl(n) => Some(n.module),
+            ExportDecl(n) => n.module_spec(),
+            NamespaceDecl(n) => match n.name {
+                crate::ModuleName::StringLit(n) => Some(n),
+                _ => None,
+            },
+            _ => unreachable!(),
+        }
+    }
+
+    pub fn import_export_spec_name(&self) -> Option<bolt_ts_atom::AtomId> {
+        use Node::*;
+        match self {
+            ShorthandSpec(n) => Some(n.name.name),
+            ImportNamedSpec(n) => match n.prop_name.kind {
+                crate::ModuleExportNameKind::Ident(ident) => Some(ident.name),
+                crate::ModuleExportNameKind::StringLit(lit) => Some(lit.val),
+            },
+            ExportNamedSpec(n) => match n.prop_name.kind {
+                crate::ModuleExportNameKind::Ident(ident) => Some(ident.name),
+                crate::ModuleExportNameKind::StringLit(lit) => Some(lit.val),
+            },
+            _ => None,
+        }
     }
 }
 
