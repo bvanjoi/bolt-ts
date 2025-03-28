@@ -205,7 +205,8 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
 
     fn bind_var(&mut self, id: ast::NodeID, name: bolt_ts_atom::AtomId) -> SymbolID {
         let name = SymbolName::Atom(name);
-        let symbol = if self.node_query().is_block_or_catch_scoped(id) {
+        
+        if self.node_query().is_block_or_catch_scoped(id) {
             self.bind_block_scoped_decl(
                 id,
                 name,
@@ -226,8 +227,7 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
                 SymbolFlags::FUNCTION_SCOPED_VARIABLE,
                 SymbolFlags::FUNCTION_SCOPED_VARIABLE_EXCLUDES,
             )
-        };
-        symbol
+        }
     }
 
     fn bind_param_decl(&mut self, n: &ast::ParamDecl<'cx>) {

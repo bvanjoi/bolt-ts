@@ -56,26 +56,23 @@ impl<'cx> TyChecker<'cx> {
     ) {
         let mut names = fx_hashmap_with_capacity(members.len());
         for member in members {
-            match member.kind {
-                ast::ObjectTyMemberKind::Prop(p) => {
-                    let name = p.name;
-                    let member_name = match name.kind {
-                        ast::PropNameKind::Ident(ident) => ident.name,
-                        ast::PropNameKind::StringLit { key, .. } => key,
-                        _ => continue,
+            if let ast::ObjectTyMemberKind::Prop(p) = member.kind {
+                let name = p.name;
+                let member_name = match name.kind {
+                    ast::PropNameKind::Ident(ident) => ident.name,
+                    ast::PropNameKind::StringLit { key, .. } => key,
+                    _ => continue,
+                };
+                if let Some(old) = names.get(&member_name).copied() {
+                    let error = bind::errors::DuplicateIdentifier {
+                        span: p.span,
+                        name: self.atoms.get(member_name).to_string(),
+                        original_span: old,
                     };
-                    if let Some(old) = names.get(&member_name).copied() {
-                        let error = bind::errors::DuplicateIdentifier {
-                            span: p.span,
-                            name: self.atoms.get(member_name).to_string(),
-                            original_span: old,
-                        };
-                        self.push_error(Box::new(error));
-                    } else {
-                        names.insert(member_name, p.span);
-                    }
+                    self.push_error(Box::new(error));
+                } else {
+                    names.insert(member_name, p.span);
                 }
-                _ => {}
             }
         }
     }

@@ -439,7 +439,7 @@ impl<'cx> ParserState<'cx, '_> {
                 break;
             }
             let right = self.parse_right_side_of_dot(allow_reserved_word)?;
-            let mut id = self.next_node_id();
+            let id = self.next_node_id();
             let qualified = self.alloc(ast::QualifiedName {
                 id,
                 span: self.new_span(start),

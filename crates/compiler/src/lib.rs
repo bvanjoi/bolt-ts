@@ -8,7 +8,6 @@ mod emit;
 mod graph;
 mod ir;
 mod parser;
-mod path;
 mod ty;
 mod wf;
 
@@ -30,11 +29,11 @@ use bolt_ts_ast::keyword;
 use bolt_ts_atom::{AtomId, AtomMap};
 use bolt_ts_config::NormalizedTsConfig;
 use bolt_ts_fs::{CachedFileSystem, read_file_with_encoding};
+use bolt_ts_path::NormalizePath;
 use bolt_ts_span::{ModuleArena, ModuleID, ModulePath};
 
 use bolt_ts_utils::fx_hashmap_with_capacity;
 use cli::get_filenames;
-use normalize_path::NormalizePath;
 use parser::{ParseResult, Parser};
 use rayon::prelude::*;
 use rustc_hash::FxHashMap;
@@ -113,7 +112,7 @@ pub fn eval_from(root: PathBuf, tsconfig: &NormalizedTsConfig) -> Output {
         .iter()
         .map(|(_, file)| dir.join(file))
         .collect::<Vec<_>>();
-    eval_from_with_fs(root, &tsconfig, libs, fs, atoms)
+    eval_from_with_fs(root, tsconfig, libs, fs, atoms)
 }
 
 pub fn eval_from_with_fs<'cx>(
@@ -188,7 +187,7 @@ pub fn eval_from_with_fs<'cx>(
 
     // ==== bind ====
     let atoms = Arc::try_unwrap(atoms).unwrap();
-    let mut atoms = atoms.into_inner().unwrap();
+    let atoms = atoms.into_inner().unwrap();
 
     let (bind_list, p) = {
         let (bind_list, p_map): (Vec<BinderResult>, Vec<(ParseResult, bind::ParentMap)>) =
@@ -201,8 +200,8 @@ pub fn eval_from_with_fs<'cx>(
 
     let MergeGlobalSymbolResult {
         mut bind_list,
-        mut merged_symbols,
-        mut global_symbols,
+        merged_symbols,
+        global_symbols,
     } = bind::merge_global_symbol(&p, bind_list, &module_arena);
 
     let flow_nodes = bind_list
@@ -291,10 +290,7 @@ pub fn eval_from_with_fs<'cx>(
         empty_symbols,
         tsconfig.compiler_options(),
         flow_nodes,
-        std::mem::take(&mut merged_res.diags),
-        std::mem::take(&mut merged_res.symbol_links),
-        std::mem::take(&mut merged_res.transient_symbols),
-        &merged_res,
+        &mut merged_res,
     );
     for item in &entries {
         let root = p.root(*item);

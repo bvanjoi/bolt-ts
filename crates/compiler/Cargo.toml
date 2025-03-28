@@ -19,6 +19,7 @@ bolt_ts_config = { path = "../config" }
 bolt_ts_utils = { path = "../utils" }
 bolt_ts_fs = { path = "../fs" }
 bolt_ts_resolve = { path = "../resolve" }
+bolt_ts_path = { path = "../path" }
 project-root = "0.2.2"
 thin-vec = { workspace = true }
 stacker = "0.1"
@@ -26,9 +27,7 @@ include_dir = "0.7.3"
 bumpalo-herd = "0.1.2"
 paste = { workspace = true }
 serde_json = { workspace = true }
-normalize-path = { workspace = true }
 indexmap = { workspace = true }
-regex = "1.11.1"
 pretty-duration = "0.1.1"
 
 [dev-dependencies]

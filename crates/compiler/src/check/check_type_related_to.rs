@@ -1831,7 +1831,7 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
         target_ty: &'cx Ty<'cx>,
         report_error: bool,
     ) -> bool {
-        if !self.c.is_excess_property_check_target(target_ty) {
+        if !TyChecker::is_excess_property_check_target(target_ty) {
             return false;
         }
         for prop in self.c.get_props_of_ty(source) {

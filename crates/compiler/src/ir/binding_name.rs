@@ -17,7 +17,7 @@ impl<'cx> HasBindingName<'cx> for bolt_ts_ast::ParamDecl<'cx> {
         self.id
     }
     fn name(&self) -> &'cx bolt_ts_ast::Binding<'cx> {
-        &self.name
+        self.name
     }
 }
 

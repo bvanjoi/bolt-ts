@@ -90,6 +90,7 @@ dependencies = [
  "bolt_ts_errors",
  "bolt_ts_fs",
  "bolt_ts_lib",
+ "bolt_ts_path",
  "bolt_ts_resolve",
  "bolt_ts_span",
  "bolt_ts_utils",
@@ -102,12 +103,10 @@ dependencies = [
  "include_dir",
  "indexmap",
  "nohash-hasher",
- "normalize-path",
  "paste",
  "pretty-duration",
  "project-root",
  "rayon",
- "regex",
  "rustc-hash",
  "serde_json",
  "stacker",
@@ -149,10 +148,10 @@ name = "bolt_ts_fs"
 version = "0.1.0"
 dependencies = [
  "bolt_ts_atom",
+ "bolt_ts_path",
  "bolt_ts_utils",
  "glob",
  "indexmap",
- "normalize-path",
  "rustc-hash",
  "serde",
  "serde_json",
@@ -166,13 +165,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "bolt_ts_path"
+version = "0.1.0"
+
+[[package]]
 name = "bolt_ts_resolve"
 version = "0.1.0"
 dependencies = [
  "bolt_ts_atom",
  "bolt_ts_config",
  "bolt_ts_fs",
- "normalize-path",
+ "bolt_ts_path",
+ "bolt_ts_utils",
  "rustc-hash",
  "serde_json",
 ]
@@ -522,12 +526,6 @@ name = "nohash-hasher"
 version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2bf50223579dc7cdcfb3bfcacf7069ff68243f8c363f62ffa99cf000a6b9c451"
-
-[[package]]
-name = "normalize-path"
-version = "0.2.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f5438dd2b2ff4c6df6e1ce22d825ed2fa93ee2922235cc45186991717f0a892d"
 
 [[package]]
 name = "object"

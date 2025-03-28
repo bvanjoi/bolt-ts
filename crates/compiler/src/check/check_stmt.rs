@@ -1,5 +1,4 @@
 use crate::ir;
-use crate::path::is_external_module_relative;
 use crate::ty::TypeFlags;
 
 use super::TyChecker;
@@ -186,7 +185,7 @@ impl<'cx> TyChecker<'cx> {
             if self.p.is_global_source_file(p) {
                 if let ast::ModuleName::StringLit(lit) = ns.name {
                     let module_name = self.atoms.get(lit.val);
-                    if is_external_module_relative(module_name) {
+                    if bolt_ts_path::is_external_module_relative(module_name) {
                         let error =
                             errors::AmbientModuleDeclarationCannotSpecifyRelativeModuleName {
                                 span: lit.span,

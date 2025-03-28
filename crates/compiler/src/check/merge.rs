@@ -22,7 +22,7 @@ impl MergeModuleAugmentation<'_, '_> {
     }
 }
 
-impl<'p, 'cx> MergeSymbol<'cx> for MergeModuleAugmentation<'p, 'cx> {
+impl<'cx> MergeSymbol<'cx> for MergeModuleAugmentation<'_, 'cx> {
     fn get_parse_result(&self, module: bolt_ts_span::ModuleID) -> &crate::parser::ParseResult<'cx> {
         self.p.get(module)
     }
@@ -74,8 +74,8 @@ pub(crate) struct MergeModuleAugmentationResult {
     pub global_symbols: SymbolTable,
 }
 
-pub(crate) fn merge_module_augmentation_list_for_global<'cx>(
-    parser: &Parser<'cx>,
+pub(crate) fn merge_module_augmentation_list_for_global(
+    parser: &Parser,
     bind_list: Vec<ResolveResult>,
     module_arena: &ModuleArena,
     global_symbols: SymbolTable,
@@ -272,7 +272,7 @@ fn merge_module_augmentation_for_non_global<'cx>(
 
 impl<'cx> super::symbol_info::SymbolInfo<'cx> for MergeModuleAugmentationForNonGlobal<'cx> {
     fn arena(&self) -> &'cx bumpalo::Bump {
-        &self.ty_arena
+        self.ty_arena
     }
 
     fn empty_symbols(&self) -> &'cx SymbolTable {

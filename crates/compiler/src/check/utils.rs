@@ -80,13 +80,14 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
-    fn same_map<T: PartialEq<U> + Copy, U: PartialEq<T> + Copy>(
+    fn same_map<T, U>(
         &mut self,
         array: Option<&'cx [T]>,
         f: impl Fn(&mut Self, T, usize) -> U,
     ) -> SameMapperResult<'cx, U>
     where
-        T: Into<U>,
+        T: Into<U> + PartialEq<U> + Copy,
+        U: PartialEq<T> + Copy,
     {
         let Some(array) = array else {
             return SameMapperResult::Old;
@@ -99,8 +100,8 @@ impl<'cx> TyChecker<'cx> {
                 result.extend(array[0..i].iter().map(|item| (*item).into()));
                 result.push(mapped);
                 let start = i + 1;
-                for j in start..array.len() {
-                    let item = f(self, array[j], j);
+                for (j, item) in array.iter().enumerate().skip(start) {
+                    let item = f(self, *item, j);
                     result.push(item);
                 }
                 assert_eq!(result.len(), array.len());

@@ -287,11 +287,11 @@ impl<'cx> TyChecker<'cx> {
         empty_symbols: &'cx SymbolTable,
         config: &'cx NormalizedCompilerOptions,
         flow_nodes: Vec<FlowNodes<'cx>>,
-        diags: Vec<bolt_ts_errors::Diag>,
-        mut symbol_links: FxHashMap<SymbolID, SymbolLinks<'cx>>,
-        mut transient_symbols: TransientSymbols<'cx>,
-        c: &'cx MergeModuleAugmentationForNonGlobalResult<'cx>,
+        c: &'cx mut MergeModuleAugmentationForNonGlobalResult<'cx>,
     ) -> Self {
+        let diags = std::mem::take(&mut c.diags);
+        let mut symbol_links = std::mem::take(&mut c.symbol_links);
+        let mut transient_symbols = std::mem::take(&mut c.transient_symbols);
         let empty_array = ty_arena.alloc([]);
 
         let mut tys = Vec::with_capacity(p.module_count() * 1024);
@@ -1103,7 +1103,7 @@ impl<'cx> TyChecker<'cx> {
         let Some(prop) = self.get_prop_of_ty(ty, name) else {
             return false;
         };
-        let decl = prop.decl(&self.binder);
+        let decl = prop.decl(self.binder);
         self.p.node(decl).is_static()
     }
 
@@ -1850,7 +1850,7 @@ impl<'cx> TyChecker<'cx> {
                 return true;
             }
         } else if target.kind.is_union_or_intersection()
-            && self.is_excess_property_check_target(target)
+            && Self::is_excess_property_check_target(target)
         {
             let tys = target.kind.tys_of_union_or_intersection().unwrap();
             for t in tys {
@@ -2374,8 +2374,7 @@ impl<'cx> TyChecker<'cx> {
         if index < length {
             let ty_args = self.get_ty_arguments(ty);
             let mut element_tys = Vec::with_capacity(length);
-            for i in index..length {
-                let t = ty_args[i];
+            for (i, t) in ty_args.iter().enumerate().take(length).skip(index) {
                 let t = if tup.element_flags[i].intersects(ElementFlags::VARIADIC) {
                     self.get_indexed_access_ty(t, self.number_ty, None, None)
                 } else {

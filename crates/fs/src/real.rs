@@ -1,5 +1,5 @@
 use bolt_ts_atom::AtomId;
-use normalize_path::NormalizePath;
+use bolt_ts_path::NormalizePath;
 
 use crate::CachedFileSystem;
 use crate::errors::FsResult;

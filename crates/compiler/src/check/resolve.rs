@@ -24,8 +24,7 @@ impl std::fmt::Display for ExpectedArgsCount {
 impl<'cx> TyChecker<'cx> {
     #[inline]
     pub(super) fn resolve_symbol_by_ident(&self, ident: &'cx ast::Ident) -> SymbolID {
-        let symbol = self.final_res(ident.id);
-        symbol
+        self.final_res(ident.id)
     }
 
     #[inline]

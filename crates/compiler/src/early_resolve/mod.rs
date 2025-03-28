@@ -758,12 +758,12 @@ pub(super) fn resolve_symbol_by_ident<'a, 'cx>(
                         })
                     {
                         let flags = meaning.intersection(res_flags);
-                        if flags.intersects(SymbolFlags::TYPE) {}
-                        if flags.intersects(SymbolFlags::VARIABLE) {
-                            if res_flags.intersects(SymbolFlags::FUNCTION_SCOPED_VARIABLE) {
-                                let last = resolver.p.node(last_location.unwrap());
-                                use_result = last.is_param_decl();
-                            }
+                        if flags.intersects(SymbolFlags::TYPE) {
+                            // TODO:
+                        }
+                        if flags.intersects(SymbolFlags::VARIABLE) && res_flags.intersects(SymbolFlags::FUNCTION_SCOPED_VARIABLE) {
+                            let last = resolver.p.node(last_location.unwrap());
+                            use_result = last.is_param_decl();
                         };
                     } else if let Some(cond) = n.as_cond_ty() {
                         use_result = last_location.is_some_and(|last| last == cond.true_ty.id());
@@ -879,13 +879,10 @@ pub(super) fn resolve_symbol_by_ident<'a, 'cx>(
             }
             ParamDecl(p) => {
                 if let Some(last_location) = last_location {
-                    if p.init.is_some_and(|init| init.id() == last_location) {
-                        if associated_declaration_for_containing_initializer_or_binding_name
-                            .is_none()
-                        {
-                            associated_declaration_for_containing_initializer_or_binding_name =
-                                Some(id);
-                        }
+                    if p.init.is_some_and(|init| init.id() == last_location) && associated_declaration_for_containing_initializer_or_binding_name
+                            .is_none() {
+                        associated_declaration_for_containing_initializer_or_binding_name =
+                            Some(id);
                     }
                 }
             }

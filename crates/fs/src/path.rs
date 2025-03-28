@@ -1,7 +1,7 @@
 use std::path::Path;
 
 use bolt_ts_atom::{AtomId, AtomMap};
-use normalize_path::NormalizePath;
+use bolt_ts_path::NormalizePath;
 
 #[derive(Debug, PartialEq, Eq, Hash, Clone, Copy)]
 pub struct PathId(AtomId);
@@ -41,10 +41,6 @@ impl<'a> PathId {
             });
             Self::_new(atom, atoms)
         };
-        let insert = |p: &std::ffi::OsStr, atoms: &mut AtomMap| {
-            let slice = p.as_encoded_bytes();
-            insert_by_slice(slice, atoms)
-        };
         if cfg!(target_arch = "wasm32") {
             assert!(p.has_root());
         } else {
@@ -61,7 +57,9 @@ impl<'a> PathId {
                 insert_by_slice(slice, atoms)
             }
         } else {
-            insert(p.normalize().as_os_str(), atoms)
+            let p = p.normalize();
+            let slice = p.as_os_str().as_encoded_bytes();
+            insert_by_slice(slice, atoms)
         }
     }
 

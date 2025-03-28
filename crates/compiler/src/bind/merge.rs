@@ -43,7 +43,7 @@ struct MergeGlobalSymbol<'p, 'cx> {
     pub global_symbols: SymbolTable,
 }
 
-impl<'p, 'cx> MergeSymbol<'cx> for MergeGlobalSymbol<'p, 'cx> {
+impl<'cx> MergeSymbol<'cx> for MergeGlobalSymbol<'_, 'cx> {
     fn get_parse_result(&self, module: bolt_ts_span::ModuleID) -> &super::ParseResult {
         self.p.get(module)
     }

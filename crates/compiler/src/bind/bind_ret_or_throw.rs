@@ -16,7 +16,7 @@ impl<'cx> RetOrThrow<'cx> for bolt_ts_ast::RetStmt<'cx> {
 
 impl<'cx> RetOrThrow<'cx> for bolt_ts_ast::ThrowStmt<'cx> {
     fn expr(&self) -> Option<&'cx bolt_ts_ast::Expr<'cx>> {
-        Some(&self.expr)
+        Some(self.expr)
     }
     fn is_ret(&self) -> bool {
         false

@@ -1,7 +1,7 @@
 mod errors;
 
 use bolt_ts_ast::{self as ast};
-use normalize_path::NormalizePath;
+use bolt_ts_path::NormalizePath;
 
 use super::parser;
 use super::{ModuleArena, ModuleID};
@@ -79,9 +79,13 @@ pub(super) fn build_graph<'cx>(
             parser::parse_parallel(atoms.clone(), herd, resolving.as_slice(), module_arena)
                 .map(|(module_id, mut parse_result)| {
                     let file_path = module_arena.get_path(module_id);
+                    debug_assert!(file_path.is_normalized());
                     let base_dir = file_path.parent().unwrap();
+                    debug_assert!(base_dir.is_normalized());
                     let base_dir = PathId::get(base_dir);
-                    let deps = std::mem::take(&mut parse_result.imports)
+                    let imports = std::mem::take(&mut parse_result.imports);
+                    // TODO: filter imports
+                    let deps = imports
                         .into_par_iter()
                         .map(|s| (s.id, resolver.resolve(base_dir, s.val)))
                         .collect::<Vec<_>>();

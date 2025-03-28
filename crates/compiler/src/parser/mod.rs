@@ -18,9 +18,9 @@ use std::sync::{Arc, Mutex};
 
 use bolt_ts_ast::Visitor;
 use bolt_ts_atom::{AtomId, AtomMap};
+use bolt_ts_path::NormalizePath;
 use bolt_ts_span::{ModuleArena, ModuleID, Span};
 use bolt_ts_utils::no_hashmap_with_capacity;
-use normalize_path::NormalizePath;
 pub(crate) use utils::is_left_hand_side_expr_kind;
 
 use rayon::prelude::*;
@@ -30,7 +30,6 @@ pub use self::query::AccessKind;
 pub use self::query::AssignmentKind;
 use crate::bind;
 use crate::keyword;
-use crate::path::is_external_module_relative;
 use bolt_ts_ast::{self as ast, Node, NodeFlags, NodeID};
 use bolt_ts_ast::{Token, TokenFlags, TokenKind};
 
@@ -350,7 +349,9 @@ impl<'cx> ast::Visitor<'cx> for CollectDepsVisitor<'cx> {
                     if self.is_external_module_file
                         || (self.in_ambient_module
                             && name != keyword::IDENT_GLOBAL
-                            && !is_external_module_relative(self.atoms.lock().unwrap().get(name)))
+                            && !bolt_ts_path::is_external_module_relative(
+                                self.atoms.lock().unwrap().get(name),
+                            ))
                     {
                         self.module_augmentations.push(n.name.id());
                     } else if !self.in_ambient_module {
@@ -361,7 +362,7 @@ impl<'cx> ast::Visitor<'cx> for CollectDepsVisitor<'cx> {
                         if let Some(block) = n.block {
                             self.in_ambient_module = true;
                             for stmt in block.stmts {
-                                self.visit_stmt(&stmt);
+                                self.visit_stmt(stmt);
                             }
                             self.in_ambient_module = false;
                         }
@@ -374,7 +375,7 @@ impl<'cx> ast::Visitor<'cx> for CollectDepsVisitor<'cx> {
         if let Some(module_name) = module_name {
             if module_name.val != keyword::IDENT_EMPTY
                 && (!self.in_ambient_module
-                    || !is_external_module_relative(
+                    || !bolt_ts_path::is_external_module_relative(
                         self.atoms.lock().unwrap().get(module_name.val),
                     ))
             {

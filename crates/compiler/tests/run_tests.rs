@@ -1,9 +1,9 @@
 use bolt_ts_compiler::{eval_from, output_files};
 use bolt_ts_config::RawTsConfig;
 use bolt_ts_errors::miette::Severity;
+use bolt_ts_path::NormalizePath;
 use compile_test::run_tests::run;
 use compile_test::{ensure_node_exist, run_node};
-use normalize_path::NormalizePath;
 
 #[test]
 fn ensure_node_exist_in_current_env() {

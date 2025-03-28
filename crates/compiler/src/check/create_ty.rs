@@ -1475,11 +1475,13 @@ impl<'cx> TyChecker<'cx> {
 
         for left_prop in left_props {
             let name = self.symbol(*left_prop).name();
-            if members.contains_key(&name) {
-                todo!()
-            } else {
-                let symbol = self.get_spread_symbol(*left_prop, is_readonly);
-                members.insert(name, symbol);
+            use std::collections::hash_map::Entry;
+            match members.entry(name) {
+                Entry::Occupied(_) => todo!(),
+                Entry::Vacant(vac) => {
+                    let symbol = self.get_spread_symbol(*left_prop, is_readonly);
+                    vac.insert(symbol);
+                }
             }
         }
 

@@ -6,7 +6,7 @@ use bolt_ts_ast as ast;
 
 use crate::bind::SymbolTable;
 
-impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
+impl BinderState<'_, '_, '_> {
     fn create_locals_for_container(&mut self, container: ast::NodeID) {
         assert!(self.p.node(container).has_locals());
         let prev = self.locals.insert(container, SymbolTable::default());

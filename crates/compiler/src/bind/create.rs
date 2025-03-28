@@ -24,7 +24,7 @@ pub(crate) fn set_value_declaration(
     }
 }
 
-impl<'cx> BinderState<'cx, '_, '_> {
+impl BinderState<'_, '_, '_> {
     pub(super) fn create_final_res(&mut self, id: ast::NodeID, symbol: SymbolID) {
         let prev = self.final_res.insert(id, symbol);
         assert!(prev.is_none(), "prev: {:#?}", prev.unwrap());
@@ -155,7 +155,7 @@ impl<'cx> BinderState<'cx, '_, '_> {
     }
 
     fn set_value_declaration(&mut self, symbol: SymbolID, node: ast::NodeID) {
-        set_value_declaration(symbol, &mut self.symbols, node, &self.p);
+        set_value_declaration(symbol, &mut self.symbols, node, self.p);
     }
 
     pub(super) fn create_symbol(&mut self, name: SymbolName, flags: SymbolFlags) -> SymbolID {

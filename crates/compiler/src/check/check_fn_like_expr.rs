@@ -42,17 +42,15 @@ impl<'cx> TyChecker<'cx> {
                         let instantiated_contextual_sig =
                             if let Some(sig) = instantiated_contextual_sig {
                                 sig
-                            } else {
-                                if let Some(inference) = inference {
-                                    if let Some(i) = inference.inference {
-                                        let mapper = self.inference(i).mapper;
-                                        self.instantiate_sig(contextual_sig, mapper, false)
-                                    } else {
-                                        contextual_sig
-                                    }
+                            } else if let Some(inference) = inference {
+                                if let Some(i) = inference.inference {
+                                    let mapper = self.inference(i).mapper;
+                                    self.instantiate_sig(contextual_sig, mapper, false)
                                 } else {
                                     contextual_sig
                                 }
+                            } else {
+                                contextual_sig
                             };
                         self.assign_contextual_param_tys(sig, instantiated_contextual_sig);
                     }

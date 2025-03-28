@@ -1,31 +1,26 @@
 use bolt_ts_config::NormalizedTsConfig;
 use bolt_ts_fs::CachedFileSystem;
+use bolt_ts_path::NormalizePath;
 use bolt_ts_resolve::COMMON_PACKAGE_FOLDERS;
-use normalize_path::NormalizePath;
 
 pub(super) struct ConfigFileSpecs {
     include_specs: Vec<String>,
 }
 
 impl ConfigFileSpecs {
-    pub(super) fn get_config_file_specs<'cx>(tsconfig: &NormalizedTsConfig) -> ConfigFileSpecs {
-        let include_specs = tsconfig
-            .include()
-            .iter()
-            .map(|s| s.clone())
-            .collect::<Vec<_>>();
-        let specs = ConfigFileSpecs { include_specs };
-        specs
+    pub(super) fn get_config_file_specs(tsconfig: &NormalizedTsConfig) -> ConfigFileSpecs {
+        let include_specs = tsconfig.include().to_vec();
+        ConfigFileSpecs { include_specs }
     }
 }
 
-fn match_files<'cx>(
+fn match_files(
     path: &std::path::Path,
     extensions: &[bolt_ts_config::Extension],
     exclude: Option<&[String]>,
     include: Option<&[String]>,
     fs: &mut impl CachedFileSystem,
-    atoms: &mut bolt_ts_atom::AtomMap<'cx>,
+    atoms: &mut bolt_ts_atom::AtomMap<'_>,
 ) -> Vec<std::path::PathBuf> {
     debug_assert!(path.is_normalized(), "{:?}", path);
     let include = include
@@ -69,11 +64,11 @@ fn match_files<'cx>(
         .collect()
 }
 
-fn get_filenames_from_config_specs<'cx>(
+fn get_filenames_from_config_specs(
     config_file_specs: &ConfigFileSpecs,
     base_path: &std::path::Path,
     fs: &mut impl CachedFileSystem,
-    atoms: &mut bolt_ts_atom::AtomMap<'cx>,
+    atoms: &mut bolt_ts_atom::AtomMap,
 ) -> Vec<std::path::PathBuf> {
     let supported_extensions = &bolt_ts_config::FLATTENED_ALL_SUPPORTED_EXTENSIONS;
     let exclude = COMMON_PACKAGE_FOLDERS
@@ -91,11 +86,11 @@ fn get_filenames_from_config_specs<'cx>(
     )
 }
 
-pub(super) fn get_filenames<'cx>(
+pub(super) fn get_filenames(
     config_file_specs: &ConfigFileSpecs,
     base_path: &std::path::Path,
     fs: &mut impl CachedFileSystem,
-    atoms: &mut bolt_ts_atom::AtomMap<'cx>,
+    atoms: &mut bolt_ts_atom::AtomMap,
 ) -> Vec<std::path::PathBuf> {
     get_filenames_from_config_specs(config_file_specs, base_path, fs, atoms)
 }

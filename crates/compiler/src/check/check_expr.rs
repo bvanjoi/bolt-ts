@@ -468,7 +468,7 @@ impl<'cx> TyChecker<'cx> {
                     | ObjectFlags::CONTAINS_OBJECT_OR_ARRAY_LITERAL,
             );
 
-            let props = this.get_props_from_members(&properties_table);
+            let props = this.get_props_from_members(properties_table);
             this.ty_links.insert(
                 ty.id,
                 TyLinks::default().with_structured_members(this.alloc(ty::StructuredMembers {

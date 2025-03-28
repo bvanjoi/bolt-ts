@@ -1,5 +1,3 @@
-use std::usize;
-
 use bolt_ts_errors::DiagnosticExt;
 use bolt_ts_errors::diag_ext;
 use bolt_ts_errors::miette;
@@ -60,9 +58,9 @@ pub(super) fn get_merged_diags(
     result
 }
 
-fn mark_preceding_comment_directive_line<'p, 'cx>(
+fn mark_preceding_comment_directive_line<'cx>(
     diag_start: usize,
-    directives: &mut CommentDirectivesMap<'p, 'cx>,
+    directives: &mut CommentDirectivesMap<'_, 'cx>,
     file: &super::ParseResult<'cx>,
     input: &[u8],
     module_id: bolt_ts_span::ModuleID,
@@ -127,24 +125,21 @@ impl<'p, 'cx> CommentDirectivesMap<'p, 'cx> {
         self.all
             .iter()
             .enumerate()
-            .map(|(idx, all)| {
+            .flat_map(|(idx, all)| {
                 let used = &self.used[idx];
-                all.iter()
-                    .filter_map(|(line, directive)| {
-                        if matches!(
-                            directive.kind,
-                            super::parser::CommentDirectiveKind::ExpectError
-                        ) && !used.contains(line)
-                        {
-                            Some(*directive)
-                        } else {
-                            None
-                        }
-                    })
-                    .collect::<Vec<_>>()
+                all.iter().filter_map(|(line, directive)| {
+                    if matches!(
+                        directive.kind,
+                        super::parser::CommentDirectiveKind::ExpectError
+                    ) && !used.contains(line)
+                    {
+                        Some(*directive)
+                    } else {
+                        None
+                    }
+                })
             })
-            .flatten()
-            .collect()
+            .collect::<Vec<_>>()
     }
 }
 
@@ -159,11 +154,10 @@ fn compute_line_and_char_of_pos(line_starts: &[u32], position: usize) -> bolt_ts
 fn compute_line_of_pos(line_starts: &[u32], position: usize) -> usize {
     debug_assert!(line_starts.is_sorted());
     let position = position as u32;
-    let line = match line_starts.binary_search(&position) {
+    match line_starts.binary_search(&position) {
         Ok(line) => line,
         Err(line) => line - 1,
-    };
-    line
+    }
 }
 
 #[derive(Error, Diagnostic, DiagnosticExt, Debug)]

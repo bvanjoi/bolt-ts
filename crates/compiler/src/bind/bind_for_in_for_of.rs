@@ -8,25 +8,25 @@ pub(super) trait ForInForOf<'cx> {
 
 impl<'cx> ForInForOf<'cx> for bolt_ts_ast::ForInStmt<'cx> {
     fn expr(&self) -> &'cx bolt_ts_ast::Expr<'cx> {
-        &self.expr
+        self.expr
     }
     fn init(&self) -> bolt_ts_ast::ForInitKind<'cx> {
         self.init
     }
     fn stmt(&self) -> &'cx bolt_ts_ast::Stmt<'cx> {
-        &self.body
+        self.body
     }
 }
 
 impl<'cx> ForInForOf<'cx> for bolt_ts_ast::ForOfStmt<'cx> {
     fn expr(&self) -> &'cx bolt_ts_ast::Expr<'cx> {
-        &self.expr
+        self.expr
     }
     fn init(&self) -> bolt_ts_ast::ForInitKind<'cx> {
         self.init
     }
     fn stmt(&self) -> &'cx bolt_ts_ast::Stmt<'cx> {
-        &self.body
+        self.body
     }
 }
 

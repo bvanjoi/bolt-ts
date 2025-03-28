@@ -35,23 +35,23 @@ bitflags::bitflags! {
 }
 
 impl<'cx> TyChecker<'cx> {
-    pub(super) fn is_excess_property_check_target(&self, ty: &'cx Ty<'cx>) -> bool {
+    pub(super) fn is_excess_property_check_target(ty: &'cx Ty<'cx>) -> bool {
         if ty.kind.is_object() {
             let flags = ty.get_object_flags();
             !flags.intersects(ObjectFlags::OBJECT_LITERAL_PATTERN_WITH_COMPUTED_PROPERTIES)
         } else if ty.flags.intersects(TypeFlags::NON_PRIMITIVE) {
             true
         } else if let Some(s) = ty.kind.as_substitution_ty() {
-            self.is_excess_property_check_target(s.base_ty)
+            Self::is_excess_property_check_target(s.base_ty)
         } else if let Some(union) = ty.kind.as_union() {
             union
                 .tys
                 .iter()
-                .any(|t| self.is_excess_property_check_target(t))
+                .any(|t| Self::is_excess_property_check_target(t))
         } else if let Some(i) = ty.kind.as_intersection() {
             i.tys
                 .iter()
-                .all(|t| self.is_excess_property_check_target(t))
+                .all(|t| Self::is_excess_property_check_target(t))
         } else {
             false
         }
@@ -67,6 +67,16 @@ impl<'cx> TyChecker<'cx> {
         let s = source.flags;
         let t = target.flags;
         let strict_null_checks = *self.config.strict_null_checks();
+        let is_unknown_like_union_ty = || {
+            strict_null_checks
+                && target.kind.as_union().is_some_and(|u| {
+                    // TODO: cache
+                    u.tys.len() >= 3
+                        && u.tys[0].flags.intersects(TypeFlags::UNDEFINED)
+                        && u.tys[1].flags.intersects(TypeFlags::NULL)
+                        && u.tys.iter().any(|ty| self.is_empty_anonymous_object_ty(ty))
+                })
+        };
         if t.intersects(TypeFlags::ANY)
             || s.intersects(TypeFlags::NEVER)
             || source == self.wildcard_ty
@@ -96,12 +106,18 @@ impl<'cx> TyChecker<'cx> {
         {
             true
         } else if matches!(relation, Assignable | Comparable) {
-            if s.intersects(TypeFlags::ANY) {
-                true
-            } else {
-                // TODO: more case
-                false
-            }
+            s.intersects(TypeFlags::ANY)
+                || (s.intersects(TypeFlags::NUMBER)
+                    && (t.intersects(TypeFlags::ENUM)
+                        || t.contains(TypeFlags::NUMBER_LITERAL.union(TypeFlags::ENUM_LITERAL))))
+                || (s.intersection(TypeFlags::NUMBER_LITERAL.union(TypeFlags::ENUM_LITERAL))
+                    == TypeFlags::NUMBER_LITERAL
+                    && (t.intersects(TypeFlags::ENUM)
+                        || t.contains(TypeFlags::NUMBER_LITERAL.union(TypeFlags::ENUM_LITERAL))
+                            && source.kind.as_number_lit().is_some_and(|s| {
+                                target.kind.as_number_lit().is_some_and(|t| s.val == t.val)
+                            })))
+                || is_unknown_like_union_ty()
         } else {
             false
         }
@@ -258,10 +274,10 @@ impl<'cx> TyChecker<'cx> {
         for current in tys {
             for prop in self.get_props_of_ty(current) {
                 let name = self.symbol(*prop).name();
-                if !members.contains_key(&name) {
+                if let std::collections::hash_map::Entry::Vacant(e) = members.entry(name) {
                     if let Some(combined_prop) = self.get_prop_of_union_or_intersection_ty(ty, name)
                     {
-                        let prev = members.insert(name, combined_prop);
+                        let prev: Option<SymbolID> = { e.insert(combined_prop); None };
                         assert!(prev.is_none());
                     }
                 }
@@ -270,7 +286,7 @@ impl<'cx> TyChecker<'cx> {
         let props = members.into_values().collect::<Vec<_>>();
         let props = self.alloc(props);
         self.get_mut_ty_links(ty.id).set_resolved_properties(props);
-        &props
+        props
     }
 
     pub(super) fn get_prop_of_ty(
