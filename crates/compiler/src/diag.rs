@@ -66,6 +66,9 @@ fn mark_preceding_comment_directive_line<'cx>(
     module_id: bolt_ts_span::ModuleID,
 ) -> bool {
     let diag_pos = compute_line_and_char_of_pos(&file.line_map, diag_start);
+    if diag_pos.line == 0 {
+        return false;
+    }
     let mut directive_line = diag_pos.line - 1;
     loop {
         if directives.mark_used(module_id, directive_line) {

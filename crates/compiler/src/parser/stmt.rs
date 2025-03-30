@@ -490,7 +490,9 @@ impl<'cx> ParserState<'cx, '_> {
                 let start = self.token.start();
                 self.next_token();
                 match self.token.kind {
-                    Default | Eq => todo!("export assignment"),
+                    Default | Eq => {
+                        ast::StmtKind::ExportAssign(self.parse_export_assignment(start, mods)?)
+                    }
                     As => todo!(),
                     _ => ast::StmtKind::Export(self.parse_export_decl(start)?),
                 }
@@ -504,6 +506,30 @@ impl<'cx> ParserState<'cx, '_> {
         };
         let stmt = self.alloc(ast::Stmt { kind });
         Ok(stmt)
+    }
+
+    fn parse_export_assignment(
+        &mut self,
+        start: u32,
+        modifiers: Option<&'cx ast::Modifiers<'cx>>,
+    ) -> PResult<&'cx ast::ExportAssign<'cx>> {
+        self.has_export_decl = true;
+        let is_export_equals = self.parse_optional(TokenKind::Eq).is_some();
+        if !is_export_equals {
+            self.expect(TokenKind::Default);
+        }
+        let expr = self.parse_assign_expr_or_higher(true)?;
+        self.parse_semi();
+        let id = self.next_node_id();
+        let node = self.alloc(ast::ExportAssign {
+            id,
+            span: self.new_span(start),
+            expr,
+            modifiers,
+            is_export_equals,
+        });
+        self.nodes.insert(id, ast::Node::ExportAssign(node));
+        Ok(node)
     }
 
     fn parse_export_decl(&mut self, start: u32) -> PResult<&'cx ast::ExportDecl<'cx>> {

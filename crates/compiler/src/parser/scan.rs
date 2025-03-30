@@ -398,8 +398,13 @@ impl ParserState<'_, '_> {
                     if self.next_ch() == Some(b'/') {
                         // `//`
                         self.pos += 2;
+                        let mut only_has_ascii_whitespace = true;
                         while self.pos < self.end() && !is_line_break(self.ch_unchecked()) {
-                            if self.ch_unchecked() == b'@' {
+                            let ch = self.ch_unchecked();
+                            if ch != b'@' && !ch.is_ascii_whitespace() {
+                                only_has_ascii_whitespace = false;
+                                self.pos += 1;
+                            } else if only_has_ascii_whitespace && ch == b'@' {
                                 self.scan_comment_directive_kind();
                             } else {
                                 self.pos += 1;

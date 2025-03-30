@@ -225,17 +225,16 @@ fn merge_module_augmentation_for_non_global<'cx>(
     assert!(!module_augmentation.is_global_argument);
     let ns_id = module_augmentation.id;
     let ns_symbol = c.symbol_of_decl(ns_id);
-    let ns_s = c.get_symbol(ns_symbol);
+    let ns_s = MergeSymbol::get_symbol(c, ns_symbol);
     if ns_s.decls.first().is_none_or(|decl| !ns_id.eq(decl)) {
         assert!(ns_s.decls.len() > 1);
         return;
     }
-    let ns_s = c.get_symbol(ns_symbol);
     let Some(main_module) = resolve_external_module_name(c.mg, module_name, c.p) else {
         return;
     };
     // TODO: resolve_external_module_symbol
-    let main_module_s = c.get_symbol(main_module);
+    let main_module_s = MergeSymbol::get_symbol(c, main_module);
     if main_module_s.flags.intersects(SymbolFlags::NAMESPACE) {
         if main_module_s
             .exports()
@@ -247,14 +246,16 @@ fn merge_module_augmentation_for_non_global<'cx>(
                 main_module,
                 super::resolve_structured_member::MemberOrExportsResolutionKind::ResolvedExports,
             );
-            let filtered = c
-                .get_symbol(ns_symbol)
+            let filtered = MergeSymbol::get_symbol(c, ns_symbol)
                 .exports()
                 .0
                 .iter()
                 .filter_map(|(k, v)| {
                     if resolved_exports.0.contains_key(k)
-                        && !c.get_symbol(main_module).exports().0.contains_key(k)
+                        && !MergeSymbol::get_symbol(c, main_module)
+                            .exports()
+                            .0
+                            .contains_key(k)
                     {
                         Some((*k, *v))
                     } else {

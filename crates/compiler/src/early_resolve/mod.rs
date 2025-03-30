@@ -1,5 +1,4 @@
 mod errors;
-mod get_exports;
 mod on_failed_value_resolve;
 mod on_success_resolve;
 mod resolve_call_like;
@@ -157,6 +156,9 @@ impl<'cx> Resolver<'cx, '_, '_> {
             While(_) => {}
             Do(_) => {}
             Debugger(_) => {}
+            ExportAssign(n) => {
+                self.resolve_expr(n.expr);
+            }
         };
     }
 
@@ -761,7 +763,9 @@ pub(super) fn resolve_symbol_by_ident<'a, 'cx>(
                         if flags.intersects(SymbolFlags::TYPE) {
                             // TODO:
                         }
-                        if flags.intersects(SymbolFlags::VARIABLE) && res_flags.intersects(SymbolFlags::FUNCTION_SCOPED_VARIABLE) {
+                        if flags.intersects(SymbolFlags::VARIABLE)
+                            && res_flags.intersects(SymbolFlags::FUNCTION_SCOPED_VARIABLE)
+                        {
                             let last = resolver.p.node(last_location.unwrap());
                             use_result = last.is_param_decl();
                         };
@@ -879,8 +883,10 @@ pub(super) fn resolve_symbol_by_ident<'a, 'cx>(
             }
             ParamDecl(p) => {
                 if let Some(last_location) = last_location {
-                    if p.init.is_some_and(|init| init.id() == last_location) && associated_declaration_for_containing_initializer_or_binding_name
-                            .is_none() {
+                    if p.init.is_some_and(|init| init.id() == last_location)
+                        && associated_declaration_for_containing_initializer_or_binding_name
+                            .is_none()
+                    {
                         associated_declaration_for_containing_initializer_or_binding_name =
                             Some(id);
                     }

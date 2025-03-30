@@ -154,7 +154,7 @@ impl BinderState<'_, '_, '_> {
         }
     }
 
-    fn set_value_declaration(&mut self, symbol: SymbolID, node: ast::NodeID) {
+    pub(super) fn set_value_declaration(&mut self, symbol: SymbolID, node: ast::NodeID) {
         set_value_declaration(symbol, &mut self.symbols, node, self.p);
     }
 

@@ -1115,6 +1115,9 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
                 self.bind_module_export_name(n.name);
             }
             DebuggerStmt(_) => {}
+            ExportAssign(n) => {
+                self.bind(n.expr.id());
+            }
         }
         // TODO: bind_js_doc
         self.in_assignment_pattern = save_in_assignment_pattern;

@@ -23,11 +23,6 @@ impl std::fmt::Display for ExpectedArgsCount {
 
 impl<'cx> TyChecker<'cx> {
     #[inline]
-    pub(super) fn resolve_symbol_by_ident(&self, ident: &'cx ast::Ident) -> SymbolID {
-        self.final_res(ident.id)
-    }
-
-    #[inline]
     pub(super) fn final_res(&self, id: ast::NodeID) -> SymbolID {
         self.binder
             .get(id.module())
@@ -43,105 +38,6 @@ impl<'cx> TyChecker<'cx> {
                 let span = self.p.node(id).span();
                 panic!("The resolution of `{name}({span})` is not found.");
             })
-    }
-
-    pub(super) fn resolve_entity_name(
-        &mut self,
-        name: &'cx ast::EntityName<'cx>,
-        meaning: SymbolFlags,
-        dont_resolve_alias: bool,
-    ) -> SymbolID {
-        use bolt_ts_ast::EntityNameKind::*;
-        let symbol;
-        match name.kind {
-            Ident(n) => {
-                let id = self.resolve_symbol_by_ident(n);
-                symbol = self.get_merged_symbol(id);
-                if symbol == Symbol::ERR || dont_resolve_alias {
-                    return symbol;
-                }
-            }
-            Qualified(n) => {
-                let ns = self.resolve_entity_name(n.left, SymbolFlags::NAMESPACE, false);
-                if ns == Symbol::ERR {
-                    return Symbol::ERR;
-                }
-                let exports = self.get_exports_of_symbol(ns);
-                symbol = self
-                    .get_symbol(exports, SymbolName::Atom(n.right.name), meaning)
-                    .unwrap_or(Symbol::ERR);
-            }
-        }
-        let flags = self.symbol(symbol).flags();
-        if flags.intersects(meaning) {
-            symbol
-        } else if flags.intersects(SymbolFlags::ALIAS) {
-            self.resolve_alias(symbol)
-        } else {
-            Symbol::ERR
-        }
-    }
-
-    fn get_symbol(
-        &mut self,
-        symbols: &'cx SymbolTable,
-        name: SymbolName,
-        meaning: SymbolFlags,
-    ) -> Option<SymbolID> {
-        if !meaning.is_empty() {
-            // TODO: get_merged_symbol;
-            if let Some(symbol) = symbols.0.get(&name) {
-                let flags = self.binder.symbol(*symbol).flags;
-                if flags.intersects(meaning) {
-                    return Some(*symbol);
-                } else if flags.intersects(SymbolFlags::ALIAS) {
-                    let target_flags = self.get_symbol_flags(*symbol, false);
-                    if target_flags.intersects(meaning) {
-                        return Some(*symbol);
-                    }
-                }
-            }
-        }
-        None
-    }
-
-    fn get_symbol_flags(
-        &mut self,
-        mut symbol: SymbolID,
-        exclude_ty_only_meaning: bool,
-    ) -> SymbolFlags {
-        let mut seen_symbols = fx_hashset_with_capacity(32);
-        let mut symbol_flags = self.symbol(symbol).flags();
-        let mut flags = symbol_flags;
-        while symbol_flags.intersects(SymbolFlags::ALIAS) {
-            let target = self.resolve_alias(symbol);
-            let target = self.get_export_symbol_of_value_symbol_if_exported(target);
-            if target == Symbol::ERR {
-                return SymbolFlags::all();
-            } else if target == symbol || seen_symbols.contains(&target) {
-                break;
-            }
-            let t = self.symbol(target);
-            let t_flags = t.flags();
-            if t_flags.intersects(SymbolFlags::ALIAS) {
-                seen_symbols.insert(target);
-            }
-
-            flags |= t_flags;
-            symbol = target;
-            symbol_flags = t_flags;
-        }
-        flags
-    }
-
-    fn get_export_symbol_of_value_symbol_if_exported(&mut self, symbol: SymbolID) -> SymbolID {
-        // TODO: get merged symbol
-        let s = self.binder.symbol(symbol);
-        if s.flags.intersects(SymbolFlags::VALUE) {
-            s.export_symbol.unwrap_or(symbol)
-        } else {
-            symbol
-        }
     }
 
     pub(super) fn check_alias_symbol(&mut self, node: ast::NodeID) {

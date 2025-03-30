@@ -28,6 +28,7 @@ pub enum SymbolName {
     Missing,
     Resolving,
     ExportStar,
+    ExportEquals,
     ExportDefault,
     Computed,
 }

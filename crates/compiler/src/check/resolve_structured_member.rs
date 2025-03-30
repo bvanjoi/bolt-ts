@@ -652,25 +652,6 @@ impl<'cx> TyChecker<'cx> {
         self.alloc([sig])
     }
 
-    pub(super) fn get_exports_of_symbol(&mut self, symbol: SymbolID) -> &'cx SymbolTable {
-        let flags = self.binder.symbol(symbol).flags;
-        if flags.intersects(SymbolFlags::LATE_BINDING_CONTAINER) {
-            self.get_resolved_members_or_exports_of_symbol(
-                symbol,
-                MemberOrExportsResolutionKind::ResolvedExports,
-            )
-        } else if flags.intersects(SymbolFlags::MODULE) {
-            self.get_exports_of_module(symbol)
-        } else {
-            let exports = self.exports_of_symbol(symbol);
-            if exports.0.is_empty() {
-                self.empty_symbols
-            } else {
-                exports
-            }
-        }
-    }
-
     pub(super) fn get_members_of_symbol(&mut self, symbol: SymbolID) -> &'cx SymbolTable {
         let flags = self.binder.symbol(symbol).flags;
         if flags.intersects(SymbolFlags::LATE_BINDING_CONTAINER) {
@@ -686,16 +667,6 @@ impl<'cx> TyChecker<'cx> {
                 members
             }
         }
-    }
-
-    pub(super) fn get_exports_of_module(&mut self, module_symbol: SymbolID) -> &'cx SymbolTable {
-        if let Some(exports) = self.get_symbol_links(module_symbol).get_resolved_exports() {
-            return exports;
-        }
-        let exports = self.get_exports_of_module_worker(module_symbol);
-        self.get_mut_symbol_links(module_symbol)
-            .set_resolved_exports(exports);
-        exports
     }
 
     fn resolve_anonymous_type_members(&mut self, ty: &'cx ty::Ty<'cx>) {

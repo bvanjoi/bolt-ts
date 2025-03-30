@@ -41,10 +41,7 @@ impl NormalizePath for std::path::Path {
     }
 
     fn is_normalized(&self) -> bool {
-        let a = self.as_os_str().as_encoded_bytes();
-        let b = self.normalize();
-        let b = b.as_os_str().as_encoded_bytes();
-        a == b
+        self.as_os_str().as_encoded_bytes() == self.normalize().as_os_str().as_encoded_bytes()
     }
 
     fn need_trailing_slash(&self) -> bool {
@@ -88,6 +85,7 @@ fn test_is_normalized() {
 
     normalized("/a/b/c");
     normalized("/a/b/c/");
+    normalized("/");
     not_normalized("/a/b/c/./");
     not_normalized("/a/b/c/.");
     not_normalized("/a/b/c/..");

@@ -6,3 +6,5 @@ export namespace Root {
 }
 
 export const A = 1;
+
+export declare const declaredF: () => number;

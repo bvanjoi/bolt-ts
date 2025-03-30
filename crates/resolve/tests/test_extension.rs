@@ -26,16 +26,18 @@ fn test_resolve_with_extension() {
         "/folder/test.ts",
     );
 
-    should_eq(
-        serde_json::json!(
-          {
-            "/b.d.ts": "",
-          }
-        ),
-        "/",
-        "./b",
-        "/b.d.ts",
-    );
+    for target in ["./b", "./b.d"] {
+        should_eq(
+            serde_json::json!(
+              {
+                "/b.d.ts": "",
+              }
+            ),
+            "/",
+            target,
+            "/b.d.ts",
+        );
+    }
 
     should_eq(
         serde_json::json!(

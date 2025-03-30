@@ -27,6 +27,7 @@ impl<'cx> TyChecker<'cx> {
             ForIn(node) => self.check_for_in_stmt(node),
             Import(node) => self.check_import_decl(node),
             Export(node) => self.check_export_decl(node),
+            ExportAssign(_) => {}
             Empty(_) => {}
             Throw(_) => {}
             Enum(_) => {}

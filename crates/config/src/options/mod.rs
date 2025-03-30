@@ -77,6 +77,7 @@ pub enum Extension {
     Cjs,
     Cts,
     Dcts,
+    Empty,
 }
 
 impl Extension {
@@ -94,6 +95,7 @@ impl Extension {
             Extension::Cjs => "cjs",
             Extension::Cts => "cts",
             Extension::Dcts => "d.cts",
+            Extension::Empty => "",
         }
     }
 
@@ -111,6 +113,7 @@ impl Extension {
             Extension::Cjs => ".cjs",
             Extension::Cts => ".cts",
             Extension::Dcts => ".d.cts",
+            Extension::Empty => "",
         }
     }
 }
@@ -120,6 +123,16 @@ pub const SUPPORTED_TS_EXTENSIONS: &[&[Extension]] = &[
     &[Extension::Cts, Extension::Dcts],
     &[Extension::Mts, Extension::Dmts],
 ];
+
+pub const SUPPORTED_TS_IMPLEMENTATION_EXTENSIONS: &[Extension] = &[
+    Extension::Ts,
+    Extension::Cts,
+    Extension::Mts,
+    Extension::Tsx,
+];
+
+pub const SUPPORTED_DECLARATION_EXTENSIONS: &[Extension] =
+    &[Extension::DTs, Extension::Dcts, Extension::Dmts];
 
 pub const FLATTENED_SUPPORTED_TS_EXTENSIONS: &[Extension] = &[
     Extension::Ts,

@@ -5,10 +5,17 @@ use bolt_ts_path::NormalizePath;
 
 #[derive(Debug, PartialEq, Eq, Hash, Clone, Copy)]
 pub struct PathId(AtomId);
+impl nohash_hasher::IsEnabled for PathId {}
 
 impl From<PathId> for AtomId {
     fn from(val: PathId) -> Self {
         val.0
+    }
+}
+
+impl Into<PathId> for AtomId {
+    fn into(self) -> PathId {
+        PathId(self)
     }
 }
 

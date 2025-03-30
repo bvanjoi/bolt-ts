@@ -254,6 +254,7 @@ pub trait NodeQuery<'cx>: Sized {
             NsImport(_)           // `import * as ns from 'xxx'`
             => true,
             ImportClause(n) => n.name.is_some(), // `import a from 'xxx'`
+            ExportAssign(n) => n.is_aliasable(),
             _ => false
         }
     }

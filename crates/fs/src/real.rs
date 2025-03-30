@@ -1,5 +1,6 @@
 use bolt_ts_atom::AtomId;
 use bolt_ts_path::NormalizePath;
+use bolt_ts_utils::no_hashmap_with_capacity;
 
 use crate::CachedFileSystem;
 use crate::errors::FsResult;
@@ -7,12 +8,20 @@ use crate::tree::FSTree;
 
 pub struct LocalFS {
     tree: FSTree,
+    file_exists_cache: nohash_hasher::IntMap<AtomId, bool>,
+    dir_exists_cache: nohash_hasher::IntMap<AtomId, bool>,
+    metadata_cache: nohash_hasher::IntMap<AtomId, Result<std::fs::Metadata, ()>>,
 }
 
 impl LocalFS {
     pub fn new(atoms: &mut bolt_ts_atom::AtomMap<'_>) -> Self {
         let tree = FSTree::new(atoms);
-        Self { tree }
+        Self {
+            tree,
+            file_exists_cache: no_hashmap_with_capacity(1024),
+            dir_exists_cache: no_hashmap_with_capacity(1024),
+            metadata_cache: no_hashmap_with_capacity(1024),
+        }
     }
 
     fn glob_visitor(
@@ -39,6 +48,25 @@ impl LocalFS {
                 result.push(item);
             }
         }
+    }
+
+    fn metadata(
+        &mut self,
+        p: &std::path::Path,
+        atom: Option<AtomId>,
+    ) -> Result<std::fs::Metadata, ()> {
+        let atom = if let Some(atom) = atom {
+            debug_assert!(AtomId::from_bytes(p.as_os_str().as_encoded_bytes()) == atom);
+            atom
+        } else {
+            AtomId::from_bytes(p.as_os_str().as_encoded_bytes())
+        };
+        if let Some(metadata) = self.metadata_cache.get(&atom).cloned() {
+            return metadata;
+        }
+        let metadata = std::fs::metadata(p).map_err(|_| ());
+        self.metadata_cache.insert(atom, metadata.clone());
+        metadata
     }
 }
 
@@ -71,14 +99,45 @@ impl CachedFileSystem for LocalFS {
         }
     }
 
+    fn file_exists(&mut self, p: &std::path::Path) -> bool {
+        if self.tree.file_exists(p) {
+            return true;
+        }
+        let id = AtomId::from_bytes(p.as_os_str().as_encoded_bytes());
+        if let Some(exists) = self.file_exists_cache.get(&id).copied() {
+            return exists;
+        }
+        let exists = self.metadata(p, Some(id)).is_ok_and(|m| m.is_file());
+        self.file_exists_cache.insert(id, exists);
+        exists
+    }
+
     fn read_dir(
         &mut self,
         p: &std::path::Path,
         atoms: &mut bolt_ts_atom::AtomMap<'_>,
     ) -> FsResult<impl Iterator<Item = std::path::PathBuf>> {
-        self.tree.add_dir(atoms, p)?;
+        debug_assert!(p.is_dir());
+        self.tree.add_dir(atoms, p).map(|_| ())?;
         let entry = std::fs::read_dir(p).unwrap();
         Ok(entry.map(|entry| entry.unwrap().path()))
+    }
+
+    fn dir_exists(&mut self, p: &std::path::Path) -> bool {
+        if self
+            .tree
+            .find_path(p, false)
+            .is_ok_and(|id| self.tree.node(id).kind().as_dir_node().is_some())
+        {
+            return true;
+        }
+        let id = AtomId::from_bytes(p.as_os_str().as_encoded_bytes());
+        if let Some(exists) = self.dir_exists_cache.get(&id).copied() {
+            return exists;
+        }
+        let exists = self.metadata(p, Some(id)).is_ok_and(|m| m.is_dir());
+        self.dir_exists_cache.insert(id, exists);
+        exists
     }
 
     fn glob(

@@ -202,6 +202,7 @@ pub trait SymbolInfo<'cx>: Sized {
             }
             NsImport(n) => get_target_of_ns_import(self, n, dont_recur_resolve),
             ImportClause(n) => get_target_of_import_clause(self, n, dont_recur_resolve),
+            ExportAssign(n) => get_target_of_export_assignment(self, n, dont_recur_resolve),
             _ => todo!(),
         }
     }
@@ -214,6 +215,35 @@ pub trait SymbolInfo<'cx>: Sized {
         }
     }
 
+    fn get_exports_of_symbol(&mut self, symbol: SymbolID) -> &'cx SymbolTable {
+        let flags = symbol_of_resolve_results(self.get_resolve_results(), symbol).flags;
+        if flags.intersects(SymbolFlags::LATE_BINDING_CONTAINER) {
+            self.get_resolved_members_or_exports_of_symbol(
+                symbol,
+                MemberOrExportsResolutionKind::ResolvedExports,
+            )
+        } else if flags.intersects(SymbolFlags::MODULE) {
+            self.get_exports_of_module(symbol)
+        } else {
+            let exports = self.exports_of_symbol(symbol);
+            if exports.0.is_empty() {
+                self.empty_symbols()
+            } else {
+                exports
+            }
+        }
+    }
+
+    fn get_exports_of_module(&mut self, module_symbol: SymbolID) -> &'cx SymbolTable {
+        if let Some(exports) = self.get_symbol_links(module_symbol).get_resolved_exports() {
+            return exports;
+        }
+        let exports = self.get_exports_of_module_worker(module_symbol);
+        self.get_mut_symbol_links(module_symbol)
+            .set_resolved_exports(exports);
+        exports
+    }
+
     fn get_export_of_module(
         &mut self,
         symbol: SymbolID,
@@ -222,10 +252,11 @@ pub trait SymbolInfo<'cx>: Sized {
     ) -> Option<SymbolID> {
         let s = symbol_of_resolve_results(self.get_resolve_results(), symbol);
         if s.flags.intersects(SymbolFlags::MODULE) {
-            let export_symbol = s.exports().0.get(&name).copied();
-            
-            export_symbol
-                .map(|export_symbol| self.resolve_symbol(export_symbol, dont_resolve_alias))
+            let export_symbol = self.get_exports_of_module(symbol).0.get(&name).copied();
+            let resolved = export_symbol
+                .map(|export_symbol| self.resolve_symbol(export_symbol, dont_resolve_alias));
+            // TODO: mark symbol of alias declaration if type only
+            resolved
         } else {
             None
         }
@@ -375,6 +406,122 @@ pub trait SymbolInfo<'cx>: Sized {
         // TODO: late symbols;
         early_symbols
     }
+
+    fn resolve_symbol_by_ident(&self, ident: &'cx bolt_ts_ast::Ident) -> SymbolID {
+        let id = ident.id;
+        self.get_resolve_results()[id.module().as_usize()]
+            .final_res
+            .get(&id)
+            .copied()
+            .unwrap_or_else(|| {
+                let n = self.p().node(id);
+                let Some(node) = n.as_ident() else {
+                    unreachable!("final_res not found for {:#?}", n);
+                };
+                let name = self.atoms().get(node.name);
+                let span = self.p().node(id).span();
+                panic!("The resolution of `{name}({span})` is not found.");
+            })
+    }
+
+    fn resolve_entity_name(
+        &mut self,
+        name: &'cx bolt_ts_ast::EntityName<'cx>,
+        meaning: SymbolFlags,
+        dont_resolve_alias: bool,
+    ) -> SymbolID {
+        use bolt_ts_ast::EntityNameKind::*;
+        let symbol;
+        match name.kind {
+            Ident(n) => {
+                let id = self.resolve_symbol_by_ident(n);
+                symbol = self.get_merged_symbol(id);
+                if symbol == Symbol::ERR || dont_resolve_alias {
+                    return symbol;
+                }
+            }
+            Qualified(n) => {
+                let ns = self.resolve_entity_name(n.left, SymbolFlags::NAMESPACE, false);
+                if ns == Symbol::ERR {
+                    return Symbol::ERR;
+                }
+                let exports = self.get_exports_of_symbol(ns);
+                symbol = self
+                    .get_symbol(exports, SymbolName::Atom(n.right.name), meaning)
+                    .unwrap_or(Symbol::ERR);
+            }
+        }
+        let flags = self.symbol(symbol).flags();
+        if flags.intersects(meaning) {
+            symbol
+        } else if flags.intersects(SymbolFlags::ALIAS) {
+            self.resolve_alias(symbol)
+        } else {
+            Symbol::ERR
+        }
+    }
+
+    fn get_symbol(
+        &mut self,
+        symbols: &'cx SymbolTable,
+        name: SymbolName,
+        meaning: SymbolFlags,
+    ) -> Option<SymbolID> {
+        if !meaning.is_empty() {
+            // TODO: get_merged_symbol;
+            if let Some(symbol) = symbols.0.get(&name) {
+                let flags = symbol_of_resolve_results(self.get_resolve_results(), *symbol).flags;
+                if flags.intersects(meaning) {
+                    return Some(*symbol);
+                } else if flags.intersects(SymbolFlags::ALIAS) {
+                    let target_flags = self.get_symbol_flags(*symbol, false);
+                    if target_flags.intersects(meaning) {
+                        return Some(*symbol);
+                    }
+                }
+            }
+        }
+        None
+    }
+
+    fn get_symbol_flags(
+        &mut self,
+        mut symbol: SymbolID,
+        exclude_ty_only_meaning: bool,
+    ) -> SymbolFlags {
+        let mut seen_symbols = fx_hashset_with_capacity(32);
+        let mut symbol_flags = self.symbol(symbol).flags();
+        let mut flags = symbol_flags;
+        while symbol_flags.intersects(SymbolFlags::ALIAS) {
+            let target = self.resolve_alias(symbol);
+            let target = self.get_export_symbol_of_value_symbol_if_exported(target);
+            if target == Symbol::ERR {
+                return SymbolFlags::all();
+            } else if target == symbol || seen_symbols.contains(&target) {
+                break;
+            }
+            let t = self.symbol(target);
+            let t_flags = t.flags();
+            if t_flags.intersects(SymbolFlags::ALIAS) {
+                seen_symbols.insert(target);
+            }
+
+            flags |= t_flags;
+            symbol = target;
+            symbol_flags = t_flags;
+        }
+        flags
+    }
+
+    fn get_export_symbol_of_value_symbol_if_exported(&mut self, symbol: SymbolID) -> SymbolID {
+        // TODO: get merged symbol
+        let s = symbol_of_resolve_results(self.get_resolve_results(), symbol);
+        if s.flags.intersects(SymbolFlags::VALUE) {
+            s.export_symbol.unwrap_or(symbol)
+        } else {
+            symbol
+        }
+    }
 }
 
 fn get_target_of_ns_import<'cx>(
@@ -386,9 +533,9 @@ fn get_target_of_ns_import<'cx>(
     let p_id = p.parent(n.id).unwrap();
     let p_id = p.parent(p_id).unwrap();
     let import_decl = p.node(p_id).expect_import_decl();
-    
+
     // TODO: resolve_es_module;
-    
+
     this.resolve_external_module_name(import_decl.module.id, import_decl.module.val)
 }
 fn get_target_of_import_named_spec<'cx>(
@@ -401,10 +548,10 @@ fn get_target_of_import_named_spec<'cx>(
         p.get_root_decl(node)
     } else {
         let p_id = p.parent(node).unwrap();
-        
+
         p.parent(p_id).unwrap()
     };
-    
+
     get_external_module_member(this, root, node, dont_recur_resolve)
 }
 
@@ -617,6 +764,55 @@ fn get_target_of_export_spec<'cx>(
     resolved
 }
 
+fn get_target_of_export_assignment<'cx>(
+    this: &mut impl SymbolInfo<'cx>,
+    node: &'cx bolt_ts_ast::ExportAssign<'cx>, // TODO: binary expr
+    dont_resolve_alias: bool,
+) -> Option<SymbolID> {
+    let expr = node.expr;
+    let resolved = get_target_of_alias_like_expr(this, expr, dont_resolve_alias);
+    // mark_symbol_of_alias_decl_if_ty_only
+    resolved
+}
+
+fn get_target_of_alias_like_expr<'cx>(
+    this: &mut impl SymbolInfo<'cx>,
+    expr: &'cx bolt_ts_ast::Expr<'cx>,
+    dont_resolve_alias: bool,
+) -> Option<SymbolID> {
+    use bolt_ts_ast::ExprKind;
+    if let ExprKind::Class(n) = expr.kind {
+        // TODO: check_expression?
+        return Some(this.get_resolve_results()[n.id.module().as_usize()].final_res[&n.id]);
+    }
+    if !matches!(expr.kind, ExprKind::Ident(_)) && !expr.is_entity_name_expr() {
+        return None;
+    };
+    let symbol;
+    match expr.kind {
+        bolt_ts_ast::ExprKind::Ident(n) => {
+            let id = this.resolve_symbol_by_ident(n);
+            symbol = this.get_merged_symbol(id);
+            if symbol == Symbol::ERR || dont_resolve_alias {
+                return Some(symbol);
+            }
+        }
+        _ => todo!(),
+    }
+    let flags = this.symbol(symbol).flags();
+    const MEANING: SymbolFlags = SymbolFlags::VALUE
+        .union(SymbolFlags::TYPE)
+        .union(SymbolFlags::NAMESPACE);
+    if flags.intersects(MEANING) {
+        Some(symbol)
+    } else if flags.intersects(SymbolFlags::ALIAS) {
+        Some(this.resolve_alias(symbol))
+    } else {
+        None
+    }
+    // TODO: resolved_symbol
+}
+
 fn get_target_of_import_clause<'cx>(
     this: &mut impl SymbolInfo<'cx>,
     node: &'cx bolt_ts_ast::ImportClause<'cx>,
@@ -666,7 +862,7 @@ fn resolve_export_by_name<'cx>(
     let ms = binder_symbol(this, module_symbol);
     // TODO: export=
     let export_symbol = ms.exports().0.get(&name).copied();
-    
+
     // TODO: mark_symbol_of_alias_decl_if_ty_only
     export_symbol.map(|export_symbol| this.resolve_symbol(export_symbol, dont_resolve_alias))
 }

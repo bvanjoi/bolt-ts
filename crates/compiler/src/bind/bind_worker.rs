@@ -205,7 +205,7 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
 
     fn bind_var(&mut self, id: ast::NodeID, name: bolt_ts_atom::AtomId) -> SymbolID {
         let name = SymbolName::Atom(name);
-        
+
         if self.node_query().is_block_or_catch_scoped(id) {
             self.bind_block_scoped_decl(
                 id,
@@ -564,6 +564,7 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
             }
             ImportClause(node) => self.bind_import_clause(node),
             ExportDecl(node) => self.bind_export_decl(node),
+            ExportAssign(node) => self.bind_export_assign(node),
             Program(node) => {
                 // TODO: `update_strict_module_statement_list`
                 self.bind_source_file_if_external_module(node);
@@ -577,6 +578,34 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
                 // TODO: `update_strict_module_statement_list`
             }
             _ => {}
+        }
+    }
+
+    fn bind_export_assign(&mut self, node: &'cx ast::ExportAssign<'cx>) {
+        let container = self.container.unwrap();
+        let flags = if node.is_aliasable() {
+            SymbolFlags::ALIAS
+        } else {
+            SymbolFlags::PROPERTY
+        };
+        let loc = SymbolTableLocation::exports(container);
+        let symbol = self.declare_symbol(
+            Some(if node.is_export_equals {
+                SymbolName::ExportEquals
+            } else {
+                SymbolName::ExportDefault
+            }),
+            loc,
+            None,
+            node.id,
+            flags,
+            SymbolFlags::all(),
+            false,
+            false,
+        );
+        self.create_final_res(node.id, symbol);
+        if node.is_export_equals {
+            self.set_value_declaration(symbol, node.id);
         }
     }
 

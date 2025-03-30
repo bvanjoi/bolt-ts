@@ -15,6 +15,7 @@ pub fn visit_stmt<'cx>(v: &mut impl Visitor<'cx>, stmt: &'cx super::Stmt) {
         Var(node) => v.visit_var_stmt(node),
         Try(node) => v.visit_try_stmt(node),
         Export(_) => {}
+        ExportAssign(_) => {}
         Empty(_) => (),
         If(_) => (),
         Return(_) => (),

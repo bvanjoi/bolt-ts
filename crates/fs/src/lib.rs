@@ -15,15 +15,15 @@ use bolt_ts_atom::{AtomId, AtomMap};
 pub trait CachedFileSystem: Send + Sync {
     fn read_file(&mut self, p: &std::path::Path, atoms: &mut AtomMap<'_>) -> FsResult<AtomId>;
 
-    fn is_file(&mut self, p: &std::path::Path, atoms: &mut AtomMap<'_>) -> bool {
-        self.read_file(p, atoms).is_ok()
-    }
+    fn file_exists(&mut self, p: &std::path::Path) -> bool;
 
     fn read_dir(
         &mut self,
         p: &std::path::Path,
         atoms: &mut AtomMap<'_>,
     ) -> FsResult<impl Iterator<Item = std::path::PathBuf>>;
+
+    fn dir_exists(&mut self, p: &std::path::Path) -> bool;
 
     // TODO: maybe use regexp?
     fn glob(

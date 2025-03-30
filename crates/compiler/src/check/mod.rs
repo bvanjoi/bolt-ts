@@ -56,6 +56,8 @@ mod type_assignable;
 mod type_predicate;
 pub mod utils;
 
+use std::borrow::Cow;
+
 use bolt_ts_atom::{AtomId, AtomMap};
 
 use bolt_ts_config::NormalizedCompilerOptions;
@@ -94,7 +96,7 @@ use crate::bind::{
 };
 use crate::graph::ModuleGraph;
 use crate::parser::{AccessKind, AssignmentKind, Parser};
-use crate::ty::{CheckFlags, TYPEOF_NE_FACTS};
+use crate::ty::{CheckFlags, IndexFlags, TYPEOF_NE_FACTS};
 use crate::ty::{ElementFlags, ObjectFlags, Sig, SigFlags, SigID, TyID, TypeFacts, TypeFlags};
 use crate::ty::{TyMapper, has_type_facts};
 use crate::{ecma_rules, ir, keyword, ty};
@@ -1703,7 +1705,7 @@ impl<'cx> TyChecker<'cx> {
             .is_some();
         if self.every_type(indexed_access_ty.index_ty, |this, t| {
             this.is_type_assignable_to(t, object_index_ty)
-                || (has_number_index_info && this.is_applicable_index_ty(t, this.number_ty))
+                || has_number_index_info && this.is_applicable_index_ty(t, this.number_ty)
         }) {
             return ty;
         }
@@ -2312,6 +2314,23 @@ impl<'cx> TyChecker<'cx> {
                 }
             }
         }
+    }
+
+    fn get_known_keys_of_tuple_ty(&mut self, ty: &'cx ty::TupleTy<'cx>) -> &'cx ty::Ty<'cx> {
+        let mut v = Vec::with_capacity(ty.element_flags.len() + 1);
+        v.extend((0..ty.fixed_length).map(|i| {
+            let val = i.to_string();
+            let atom = self.atoms.insert_by_str(Cow::Owned(val));
+            self.get_string_literal_type(atom)
+        }));
+        let t = if ty.readonly {
+            self.global_readonly_array_ty()
+        } else {
+            self.global_array_ty()
+        };
+        let t = self.get_index_ty(t, IndexFlags::empty());
+        v.push(t);
+        self.get_union_ty(&v, ty::UnionReduction::Lit)
     }
 
     fn get_lower_bound_of_key_ty(&mut self, ty: &'cx ty::Ty<'cx>) -> &'cx ty::Ty<'cx> {

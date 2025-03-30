@@ -62,6 +62,7 @@ pub enum Node<'cx> {
     ImportClause(&'cx super::ImportClause<'cx>),
     ImportDecl(&'cx super::ImportDecl<'cx>),
     ExportDecl(&'cx super::ExportDecl<'cx>),
+    ExportAssign(&'cx super::ExportAssign<'cx>),
     ForStmt(&'cx super::ForStmt<'cx>),
     ForInStmt(&'cx super::ForInStmt<'cx>),
     ForOfStmt(&'cx super::ForOfStmt<'cx>),
@@ -932,6 +933,7 @@ as_node!(
         export_named_spec
     ),
     (ExportDecl, super::ExportDecl<'cx>, export_decl),
+    (ExportAssign, super::ExportAssign<'cx>, export_assign),
     (GlobExport, super::GlobExport<'cx>, glob_export),
     (SpecsExport, super::SpecsExport<'cx>, specs_export),
     (ForStmt, super::ForStmt<'cx>, for_stmt),

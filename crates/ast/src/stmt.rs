@@ -30,6 +30,7 @@ pub enum StmtKind<'cx> {
     Enum(&'cx EnumDecl<'cx>),
     Import(&'cx ImportDecl<'cx>),
     Export(&'cx ExportDecl<'cx>),
+    ExportAssign(&'cx ExportAssign<'cx>),
     Try(&'cx TryStmt<'cx>),
     While(&'cx WhileStmt<'cx>),
     Do(&'cx DoStmt<'cx>),
@@ -55,6 +56,7 @@ impl Stmt<'_> {
             Enum(e) => e.id,
             Import(n) => n.id,
             Export(n) => n.id,
+            ExportAssign(n) => n.id,
             For(n) => n.id,
             ForOf(n) => n.id,
             ForIn(n) => n.id,
@@ -728,6 +730,21 @@ impl<'cx> ExportDecl<'cx> {
             ExportClauseKind::Ns(n) => Some(n.module),
             ExportClauseKind::Specs(s) => s.module,
         }
+    }
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct ExportAssign<'cx> {
+    pub id: NodeID,
+    pub span: Span,
+    pub modifiers: Option<&'cx Modifiers<'cx>>,
+    pub expr: &'cx Expr<'cx>,
+    pub is_export_equals: bool,
+}
+
+impl ExportAssign<'_> {
+    pub fn is_aliasable(&self) -> bool {
+        self.expr.is_entity_name_expr() || matches!(self.expr.kind, ExprKind::Class(_))
     }
 }
 

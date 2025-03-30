@@ -994,11 +994,11 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
         }
 
         if target_flags.intersects(TypeFlags::INDEX) {
+            let target_ty = target.kind.expect_index_ty();
             if source_flags.intersects(TypeFlags::INDEX) {
                 let source_ty = source.kind.expect_index_ty().ty;
-                let target_ty = target.kind.expect_index_ty().ty;
                 result = self.is_related_to(
-                    target_ty,
+                    target_ty.ty,
                     source_ty,
                     RecursionFlags::BOTH,
                     false,
@@ -1007,10 +1007,19 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
                 if result != Ternary::FALSE {
                     return result;
                 }
-            } else if target.is_tuple() {
-                todo!()
+            } else if let Some(t) = target_ty.ty.as_tuple() {
+                let target = self.c.get_known_keys_of_tuple_ty(t);
+                result = self.is_related_to(
+                    source,
+                    target,
+                    RecursionFlags::TARGET,
+                    report_error,
+                    IntersectionState::empty(),
+                );
+                if result != Ternary::FALSE {
+                    return result;
+                }
             } else {
-                let target_ty = target.kind.expect_index_ty();
                 if let Some(constraint) = self.c.get_simplified_ty_or_constraint(target_ty.ty) {
                     let index_flags = target_ty.index_flags | ty::IndexFlags::NO_REDUCIBLE_CHECK;
                     let index_ty = self.c.get_index_ty(constraint, index_flags);

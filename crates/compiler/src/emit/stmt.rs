@@ -34,6 +34,11 @@ impl<'cx> Emit<'cx> {
             Type(_) => {}
             Empty(_) => {}
             Debugger(_) => self.content.p("debugger"),
+            ExportAssign(n) => {
+                self.content.p("export default");
+                self.emit_expr(n.expr);
+                self.content.p_semi();
+            }
         }
     }
 

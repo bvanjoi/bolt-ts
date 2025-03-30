@@ -34,3 +34,7 @@ f.k;
 import * as file from './file';
 let a1: string = file.A;
 //~^ ERROR: Type 'number' is not assignable to type 'string'.
+
+import { declaredF } from './reexport';
+let declaredF0: string = declaredF();
+//~^ ERROR: Type 'number' is not assignable to type 'string'.
