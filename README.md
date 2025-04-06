@@ -4,9 +4,9 @@ bolt-ts is a TypeScript compiler implemented in Rust. The current implementation
 
 ## Performance
 
-When testing a subset of type-fest functionality, bolt-ts demonstrates:
+When testing a subset of `type-fest` functionality, bolt-ts demonstrates:
 
-- 2.5× faster compilation than ts-go
+- 2.5× faster than ts-go
 - 5× faster than tsc
 (Benchmarked on Apple M3 Max with 36GB RAM. See [typescript-compiler-bench](https://github.com/bvanjoi/typescript-compiler-bench) for details)
 
@@ -16,7 +16,7 @@ Core functionalities are operational but require refinement. Key pending improve
 
 - Parser: async function handling, regular expression parsing.
 - Module Resolution: cache, `exports`/`imports` field support, `node_modules/@types` type definition resolution.
-- Type Checking: enum implementation, Late-bound symbol check, Various edge-case bugs.
-- Output Generation: Sourcemap generation, different module systems.
-- And others: JavaScript file processing, Language Service..
+- Type Checking: enum implementation, late-bound symbol check, various edge-case bugs.
+- Output Generation: sourcemap generation, different module systems.
+- And others: js file processing, language Service..
 
