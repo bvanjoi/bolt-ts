@@ -66,16 +66,12 @@ impl<'cx> ParserState<'cx, '_> {
             let ty = self.parse_union_ty_or_higher()?;
             if !self.has_preceding_line_break() && self.parse_optional(TokenKind::Extends).is_some()
             {
-                let id = self.next_node_id();
-                self.parent_map.r#override(ty.id(), id);
-                let extends_ty =
-                    self.disallow_conditional_tys_and(|this| this.with_parent(id, Self::parse_ty))?;
+                let extends_ty = self.disallow_conditional_tys_and(|this| this.parse_ty())?;
                 self.expect(TokenKind::Question);
-                let true_ty =
-                    self.allow_conditional_tys_and(|this| this.with_parent(id, Self::parse_ty))?;
+                let true_ty = self.allow_conditional_tys_and(|this| this.parse_ty())?;
                 self.expect(TokenKind::Colon);
-                let false_ty =
-                    self.allow_conditional_tys_and(|this| this.with_parent(id, Self::parse_ty))?;
+                let false_ty = self.allow_conditional_tys_and(|this| this.parse_ty())?;
+                let id = self.next_node_id();
                 let ty = self.alloc(ast::CondTy {
                     id,
                     span: self.new_span(start),
@@ -84,7 +80,7 @@ impl<'cx> ParserState<'cx, '_> {
                     true_ty,
                     false_ty,
                 });
-                self.insert_map(id, ast::Node::CondTy(ty));
+                self.nodes.insert(id, ast::Node::CondTy(ty));
                 let ty = self.alloc(ast::Ty {
                     kind: ast::TyKind::Cond(ty),
                 });
@@ -114,39 +110,38 @@ impl<'cx> ParserState<'cx, '_> {
 
         if self.token.kind == expect {
             let mut tys = vec![ty];
-            let parent = self.next_node_id();
-            self.parent_map.r#override(ty.id(), parent);
+            // self.parent_map.r#override(ty.id(), parent);
             while self.parse_optional(expect).is_some() {
-                if let Some(ty) = self.with_parent(parent, |this| {
-                    this.parse_fn_or_ctor_ty_to_error(is_union_ty)
-                })? {
+                if let Some(ty) = self.parse_fn_or_ctor_ty_to_error(is_union_ty)? {
                     tys.push(ty);
                 } else {
-                    let ty = self.with_parent(parent, parse_constituent_type)?;
+                    let ty = parse_constituent_type(self)?;
                     tys.push(ty);
                 }
             }
 
             let tys = self.alloc(tys);
             let ty = if expect == TokenKind::Amp {
+                let parent = self.next_node_id();
                 let ty = self.alloc(ast::IntersectionTy {
                     id: parent,
                     span: self.new_span(ty.span().lo),
                     tys,
                 });
-                self.insert_map(parent, ast::Node::IntersectionTy(ty));
+                self.nodes.insert(parent, ast::Node::IntersectionTy(ty));
                 self.alloc(ast::Ty {
                     kind: ast::TyKind::Intersection(ty),
                 })
             } else {
                 // union
                 assert_eq!(expect, TokenKind::Pipe);
+                let parent = self.next_node_id();
                 let ty = self.alloc(ast::UnionTy {
                     id: parent,
                     span: self.new_span(ty.span().lo),
                     tys,
                 });
-                self.insert_map(parent, ast::Node::UnionTy(ty));
+                self.nodes.insert(parent, ast::Node::UnionTy(ty));
                 self.alloc(ast::Ty {
                     kind: ast::TyKind::Union(ty),
                 })
@@ -175,19 +170,41 @@ impl<'cx> ParserState<'cx, '_> {
         }
     }
 
+    fn parse_this_ty_pred(&mut self, this_ty: &'cx ast::ThisTy) -> PResult<&'cx ast::Ty<'cx>> {
+        let start = this_ty.span.lo;
+        self.next_token();
+        let ty = self.parse_ty()?;
+        let name = ast::PredTyName::This(this_ty);
+        let id = self.next_node_id();
+        let ty = self.alloc(ast::PredTy {
+            id,
+            span: self.new_span(start),
+            asserts: None,
+            name,
+            ty: Some(ty),
+        });
+        self.nodes.insert(id, ast::Node::PredTy(ty));
+        let ty = self.alloc(ast::Ty {
+            kind: ast::TyKind::Pred(ty),
+        });
+        Ok(ty)
+    }
+
     pub(super) fn parse_ty_or_ty_pred(&mut self) -> PResult<&'cx ast::Ty<'cx>> {
         if self.token.kind.is_ident() {
             let start = self.token.start();
             if let Ok(Some(name)) = self.try_parse(Self::parse_ty_pred_prefix) {
+                let ty = self.parse_ty()?;
                 let id = self.next_node_id();
-                let ty = self.with_parent(id, Self::parse_ty)?;
+                let name = ast::PredTyName::Ident(name);
                 let ty = self.alloc(ast::PredTy {
                     id,
                     span: self.new_span(start),
+                    asserts: None,
                     name,
-                    ty,
+                    ty: Some(ty),
                 });
-                self.insert_map(id, ast::Node::PredTy(ty));
+                self.nodes.insert(id, ast::Node::PredTy(ty));
                 let ty = self.alloc(ast::Ty {
                     kind: ast::TyKind::Pred(ty),
                 });
@@ -226,17 +243,15 @@ impl<'cx> ParserState<'cx, '_> {
     }
 
     fn parse_fn_or_ctor_ty(&mut self) -> PResult<&'cx ast::Ty<'cx>> {
-        let id = self.next_node_id();
         let start = self.token.start();
         let modifiers = self.parse_modifiers_for_ctor_ty()?;
         let is_ctor_ty = self.parse_optional(TokenKind::New).is_some();
         assert!(modifiers.is_none() || is_ctor_ty);
-        let ty_params = self.with_parent(id, Self::parse_ty_params)?;
-        let params = self.with_parent(id, Self::parse_params)?;
-        let ty = self
-            .with_parent(id, |this| this.parse_ret_ty(false))?
-            .unwrap();
+        let ty_params = self.parse_ty_params()?;
+        let params = self.parse_params()?;
+        let ty = self.parse_ret_ty(false)?.unwrap();
         let ty = if is_ctor_ty {
+            let id = self.next_node_id();
             let ctor_ty = self.alloc(ast::CtorTy {
                 id,
                 span: self.new_span(start),
@@ -245,11 +260,12 @@ impl<'cx> ParserState<'cx, '_> {
                 params,
                 ty,
             });
-            self.insert_map(id, ast::Node::CtorTy(ctor_ty));
+            self.nodes.insert(id, ast::Node::CtorTy(ctor_ty));
             self.alloc(ast::Ty {
                 kind: ast::TyKind::Ctor(ctor_ty),
             })
         } else {
+            let id = self.next_node_id();
             let fn_ty = self.alloc(ast::FnTy {
                 id,
                 span: self.new_span(start),
@@ -257,7 +273,7 @@ impl<'cx> ParserState<'cx, '_> {
                 params,
                 ty,
             });
-            self.insert_map(id, ast::Node::FnTy(fn_ty));
+            self.nodes.insert(id, ast::Node::FnTy(fn_ty));
             self.alloc(ast::Ty {
                 kind: ast::TyKind::Fn(fn_ty),
             })
@@ -276,15 +292,15 @@ impl<'cx> ParserState<'cx, '_> {
 
     fn parse_infer_ty(&mut self) -> PResult<&'cx ast::Ty<'cx>> {
         let start = self.token.start();
-        let id = self.next_node_id();
         self.expect(TokenKind::Infer);
-        let ty_param = self.with_parent(id, Self::parse_ty_param_of_infer_ty)?;
+        let ty_param = self.parse_ty_param_of_infer_ty()?;
+        let id = self.next_node_id();
         let ty = self.alloc(ast::InferTy {
             id,
             span: self.new_span(start),
             ty_param,
         });
-        self.insert_map(id, ast::Node::InferTy(ty));
+        self.nodes.insert(id, ast::Node::InferTy(ty));
         let ty = self.alloc(ast::Ty {
             kind: ast::TyKind::Infer(ty),
         });
@@ -293,9 +309,9 @@ impl<'cx> ParserState<'cx, '_> {
 
     fn parse_ty_param_of_infer_ty(&mut self) -> PResult<&'cx ast::TyParam<'cx>> {
         let start = self.token.start();
-        let id = self.next_node_id();
         let name = self.create_ident(true, None);
         let constraint = self.try_parse(Self::try_parse_constraint_of_infer_ty)?;
+        let id = self.next_node_id();
         let ty = self.alloc(ast::TyParam {
             id,
             span: self.new_span(start),
@@ -303,7 +319,7 @@ impl<'cx> ParserState<'cx, '_> {
             constraint,
             default: None,
         });
-        self.insert_map(id, ast::Node::TyParam(ty));
+        self.nodes.insert(id, ast::Node::TyParam(ty));
         Ok(ty)
     }
 
@@ -334,16 +350,16 @@ impl<'cx> ParserState<'cx, '_> {
 
     fn parse_ty_op(&mut self, op: ast::TyOpKind) -> PResult<&'cx ast::Ty<'cx>> {
         let start = self.token.start();
-        let id = self.next_node_id();
         self.next_token();
-        let ty = self.with_parent(id, Self::parse_ty_op_or_higher)?;
+        let ty = self.parse_ty_op_or_higher()?;
+        let id = self.next_node_id();
         let ty = self.alloc(ast::TyOp {
             id,
             span: self.new_span(start),
             op,
             ty,
         });
-        self.insert_map(id, ast::Node::TyOp(ty));
+        self.nodes.insert(id, ast::Node::TyOp(ty));
         let ty = self.alloc(ast::Ty {
             kind: ast::TyKind::TyOp(ty),
         });
@@ -364,44 +380,42 @@ impl<'cx> ParserState<'cx, '_> {
                     } else {
                         self.next_token();
                         let id = self.next_node_id();
-                        self.parent_map.r#override(ty.id(), id);
                         let n = self.alloc(ast::NullableTy {
                             id,
                             span: self.new_span(start),
                             ty,
                         });
-                        self.insert_map(id, ast::Node::NullableTy(n));
+                        self.nodes.insert(id, ast::Node::NullableTy(n));
                         ty = self.alloc(ast::Ty {
                             kind: ast::TyKind::Nullable(n),
                         })
                     }
                 }
                 TokenKind::LBracket => {
-                    let id = self.next_node_id();
                     self.expect(TokenKind::LBracket);
-                    self.parent_map.r#override(ty.id(), id);
                     if self.is_start_of_ty(false) {
-                        let index_ty = self.with_parent(id, Self::parse_ty)?;
+                        let index_ty = self.parse_ty()?;
                         self.expect(TokenKind::RBracket);
-                        self.parent_map.r#override(ty.id(), id);
+                        let id = self.next_node_id();
                         let kind = self.alloc(ast::IndexedAccessTy {
                             id,
                             span: self.new_span(start),
                             ty,
                             index_ty,
                         });
-                        self.insert_map(id, ast::Node::IndexedAccessTy(kind));
+                        self.nodes.insert(id, ast::Node::IndexedAccessTy(kind));
                         ty = self.alloc(ast::Ty {
                             kind: ast::TyKind::IndexedAccess(kind),
                         });
                     } else {
                         self.expect(TokenKind::RBracket);
+                        let id = self.next_node_id();
                         let kind = self.alloc(ast::ArrayTy {
                             id,
                             span: self.new_span(ty.span().lo),
                             ele: ty,
                         });
-                        self.insert_map(id, ast::Node::ArrayTy(kind));
+                        self.nodes.insert(id, ast::Node::ArrayTy(kind));
                         ty = self.alloc(ast::Ty {
                             kind: ast::TyKind::Array(kind),
                         });
@@ -441,27 +455,23 @@ impl<'cx> ParserState<'cx, '_> {
         if self.token.kind != TokenKind::Dot {
             return Ok(entity);
         }
-        let mut id = self.next_node_id();
-        self.parent_map.r#override(name.id, id);
+        // self.parent_map.r#override(name.id, id);
         while self.parse_optional(TokenKind::Dot).is_some() {
             if self.token.kind == TokenKind::Less {
                 break;
             }
-            let right =
-                self.with_parent(id, |this| this.parse_right_side_of_dot(allow_reserved_word))?;
+            let right = self.parse_right_side_of_dot(allow_reserved_word)?;
+            let id = self.next_node_id();
             let qualified = self.alloc(ast::QualifiedName {
                 id,
                 span: self.new_span(start),
                 left: entity,
                 right,
             });
-            self.insert_map(id, ast::Node::QualifiedName(qualified));
+            self.nodes.insert(id, ast::Node::QualifiedName(qualified));
             entity = self.alloc(ast::EntityName {
                 kind: ast::EntityNameKind::Qualified(qualified),
             });
-            if self.token.kind == TokenKind::Dot {
-                id = self.next_node_id();
-            }
         }
         Ok(entity)
     }
@@ -488,17 +498,17 @@ impl<'cx> ParserState<'cx, '_> {
     }
 
     pub(super) fn parse_entity_name_of_ty_reference(&mut self) -> PResult<&'cx ast::ReferTy<'cx>> {
-        let id = self.next_node_id();
         let start = self.token.start();
-        let name = self.with_parent(id, |this| this.parse_entity_name(true))?;
-        let ty_args = self.with_parent(id, Self::parse_ty_args_of_ty_reference)?;
+        let name = self.parse_entity_name(true)?;
+        let ty_args = self.parse_ty_args_of_ty_reference()?;
+        let id = self.next_node_id();
         let ty = self.alloc(ast::ReferTy {
             id,
             span: self.new_span(start),
             name,
             ty_args,
         });
-        self.insert_map(id, ast::Node::ReferTy(ty));
+        self.nodes.insert(id, ast::Node::ReferTy(ty));
         Ok(ty)
     }
 
@@ -535,31 +545,47 @@ impl<'cx> ParserState<'cx, '_> {
     }
 
     fn parse_ty_query(&mut self) -> PResult<&'cx ast::Ty<'cx>> {
-        let id = self.next_node_id();
         let start = self.token.start();
         self.expect(TokenKind::Typeof);
-        let name = self.with_parent(id, |this| this.parse_entity_name(true))?;
+        let name = self.parse_entity_name(true)?;
         let ty_args = if self.has_preceding_line_break() {
-            self.with_parent(id, Self::try_parse_ty_args)?
+            self.try_parse_ty_args()?
         } else {
             None
         };
+        let id = self.next_node_id();
         let kind = self.alloc(ast::TypeofTy {
             id,
             span: self.new_span(start),
             name,
             ty_args,
         });
-        self.insert_map(id, ast::Node::TypeofTy(kind));
+        self.nodes.insert(id, ast::Node::TypeofTy(kind));
         let ty = self.alloc(ast::Ty {
             kind: ast::TyKind::Typeof(kind),
         });
         Ok(ty)
     }
 
+    fn parse_this_ty(&mut self) -> PResult<&'cx ast::Ty<'cx>> {
+        let start = self.token.start();
+        self.expect(TokenKind::This);
+        let id = self.next_node_id();
+        let kind = self.alloc(ast::ThisTy {
+            id,
+            span: self.new_span(start),
+        });
+        self.nodes.insert(id, ast::Node::ThisTy(kind));
+        let ty = self.alloc(ast::Ty {
+            kind: ast::TyKind::This(kind),
+        });
+        Ok(ty)
+    }
+
     fn parse_non_array_ty(&mut self) -> PResult<&'cx ast::Ty<'cx>> {
         use bolt_ts_ast::TokenKind::*;
-        match self.token.kind {
+        let t = self.token.kind;
+        match t {
             True | False | Null | Void | Undefined => {
                 let kind = match self.token.kind {
                     True => ast::LitTyKind::True,
@@ -570,7 +596,7 @@ impl<'cx> ParserState<'cx, '_> {
                     _ => unreachable!(),
                 };
                 let lit = self.create_lit_ty(kind, self.token.span);
-                self.insert_map(lit.id, ast::Node::LitTy(lit));
+                self.nodes.insert(lit.id, ast::Node::LitTy(lit));
                 self.next_token();
                 let ty = self.alloc(ast::Ty {
                     kind: ast::TyKind::Lit(lit),
@@ -605,8 +631,61 @@ impl<'cx> ParserState<'cx, '_> {
                 }
             }
             TemplateHead => self.parse_template_ty(),
+            This => {
+                let this_ty = self.parse_this_ty()?;
+                if self.token.kind == TokenKind::Is && !self.has_preceding_line_break() {
+                    if let ast::TyKind::This(this_ty) = this_ty.kind {
+                        self.parse_this_ty_pred(this_ty)
+                    } else {
+                        unreachable!()
+                    }
+                } else {
+                    Ok(this_ty)
+                }
+            }
+            Asserts
+                if self
+                    .lookahead(Self::next_token_is_ident_or_keyword_on_same_line)
+                    .unwrap_or_default() =>
+            {
+                self.parse_asserts_ty_pred()
+            }
             _ => self.parse_ty_reference(),
         }
+    }
+
+    fn parse_asserts_ty_pred(&mut self) -> PResult<&'cx ast::Ty<'cx>> {
+        let pos = self.token.start();
+        let assert_modifier = self.token.span;
+        self.expect(TokenKind::Asserts);
+        let name = if self.token.kind == TokenKind::This {
+            if let ast::TyKind::This(this_ty) = self.parse_this_ty()?.kind {
+                ast::PredTyName::This(this_ty)
+            } else {
+                unreachable!()
+            }
+        } else {
+            let is_ident = self.token.kind == TokenKind::Ident;
+            ast::PredTyName::Ident(self.create_ident(is_ident, None))
+        };
+        let ty = if self.parse_optional(TokenKind::Is).is_some() {
+            Some(self.parse_ty()?)
+        } else {
+            None
+        };
+        let id = self.next_node_id();
+        let ty = self.alloc(ast::PredTy {
+            id,
+            span: self.new_span(pos),
+            name,
+            ty,
+            asserts: Some(assert_modifier),
+        });
+        self.nodes.insert(id, ast::Node::PredTy(ty));
+        let ty = self.alloc(ast::Ty {
+            kind: ast::TyKind::Pred(ty),
+        });
+        Ok(ty)
     }
 
     fn parse_literal_ty(&mut self, neg: bool) -> PResult<&'cx ast::Ty<'cx>> {
@@ -622,7 +701,7 @@ impl<'cx> ParserState<'cx, '_> {
                     let val = if neg { -val } else { val };
                     let kind = ast::LitTyKind::Num(val);
                     let lit = self.create_lit_ty(kind, self.token.span);
-                    self.insert_map(lit.id, ast::Node::LitTy(lit));
+                    self.nodes.insert(lit.id, ast::Node::LitTy(lit));
                     self.alloc(ast::Ty {
                         kind: ast::TyKind::Lit(lit),
                     })
@@ -631,7 +710,7 @@ impl<'cx> ParserState<'cx, '_> {
                     let val = token_val.ident();
                     let kind = ast::LitTyKind::BigInt { val, neg };
                     let lit = self.create_lit_ty(kind, self.token.span);
-                    self.insert_map(lit.id, ast::Node::LitTy(lit));
+                    self.nodes.insert(lit.id, ast::Node::LitTy(lit));
                     self.alloc(ast::Ty {
                         kind: ast::TyKind::Lit(lit),
                     })
@@ -640,7 +719,7 @@ impl<'cx> ParserState<'cx, '_> {
                     let val = token_val.ident();
                     let kind = ast::LitTyKind::String(val);
                     let lit = self.create_lit_ty(kind, self.token.span);
-                    self.insert_map(lit.id, ast::Node::LitTy(lit));
+                    self.nodes.insert(lit.id, ast::Node::LitTy(lit));
                     self.alloc(ast::Ty {
                         kind: ast::TyKind::Lit(lit),
                     })
@@ -656,18 +735,17 @@ impl<'cx> ParserState<'cx, '_> {
 
     fn parse_template_ty(&mut self) -> PResult<&'cx ast::Ty<'cx>> {
         let start = self.token.start();
+        let head = self.parse_template_head(false)?;
+        let spans = self
+            .parse_template_spans(|this| this.parse_template_ty_span().map(|n| (n, !n.is_tail)))?;
         let id = self.next_node_id();
-        let head = self.with_parent(id, |this| this.parse_template_head(false))?;
-        let spans = self.with_parent(id, |this| {
-            this.parse_template_spans(|this| this.parse_template_ty_span().map(|n| (n, !n.is_tail)))
-        })?;
         let kind = self.alloc(ast::TemplateLitTy {
             id,
             span: self.new_span(start),
             head,
             spans,
         });
-        self.insert_map(id, ast::Node::TemplateLitTy(kind));
+        self.nodes.insert(id, ast::Node::TemplateLitTy(kind));
         let ty = self.alloc(ast::Ty {
             kind: ast::TyKind::TemplateLit(kind),
         });
@@ -675,10 +753,10 @@ impl<'cx> ParserState<'cx, '_> {
     }
 
     fn parse_template_ty_span(&mut self) -> PResult<&'cx ast::TemplateSpanTy<'cx>> {
-        let id = self.next_node_id();
         let start = self.token.start();
-        let ty = self.with_parent(id, Self::parse_ty)?;
+        let ty = self.parse_ty()?;
         let (text, is_tail) = self.parse_template_span_text(false);
+        let id = self.next_node_id();
         let node = self.alloc(ast::TemplateSpanTy {
             id,
             span: self.new_span(start),
@@ -686,13 +764,12 @@ impl<'cx> ParserState<'cx, '_> {
             text,
             is_tail,
         });
-        self.insert_map(node.id, ast::Node::TemplateSpanTy(node));
+        self.nodes.insert(node.id, ast::Node::TemplateSpanTy(node));
         Ok(node)
     }
 
     fn parse_mapped_ty(&mut self) -> PResult<&'cx ast::Ty<'cx>> {
         let start = self.token.start();
-        let id = self.next_node_id();
         self.expect(TokenKind::LBrace);
         let mut readonly_token = None;
         if matches!(
@@ -707,9 +784,9 @@ impl<'cx> ParserState<'cx, '_> {
             }
         }
         self.expect(TokenKind::LBracket);
-        let ty_param = self.with_parent(id, Self::parse_mapped_ty_param)?;
+        let ty_param = self.parse_mapped_ty_param()?;
         let name_ty = if self.parse_optional(TokenKind::As).is_some() {
-            let ty = self.with_parent(id, Self::parse_ty)?;
+            let ty = self.parse_ty()?;
             Some(ty)
         } else {
             None
@@ -727,12 +804,11 @@ impl<'cx> ParserState<'cx, '_> {
             };
         }
 
-        let ty = self.with_parent(id, Self::parse_ty_anno)?;
+        let ty = self.parse_ty_anno()?;
         self.parse_semi();
-        let members = self.with_parent(id, |this| {
-            this.parse_list(list_ctx::TyMembers, Self::parse_ty_member)
-        });
+        let members = self.parse_list(list_ctx::TyMembers, Self::parse_ty_member);
         self.expect(TokenKind::RBrace);
+        let id = self.next_node_id();
         let kind = self.alloc(ast::MappedTy {
             id,
             span: self.new_span(start),
@@ -743,7 +819,7 @@ impl<'cx> ParserState<'cx, '_> {
             ty,
             members,
         });
-        self.insert_map(id, ast::Node::MappedTy(kind));
+        self.nodes.insert(id, ast::Node::MappedTy(kind));
         let ty = self.alloc(ast::Ty {
             kind: ast::TyKind::Mapped(kind),
         });
@@ -752,10 +828,10 @@ impl<'cx> ParserState<'cx, '_> {
 
     fn parse_mapped_ty_param(&mut self) -> PResult<&'cx ast::TyParam<'cx>> {
         let start = self.token.start();
-        let id = self.next_node_id();
         let name = self.create_ident(true, None);
         self.expect(TokenKind::In);
         let constraint = self.parse_ty()?;
+        let id = self.next_node_id();
         let ty = self.alloc(ast::TyParam {
             id,
             span: self.new_span(start),
@@ -763,27 +839,25 @@ impl<'cx> ParserState<'cx, '_> {
             constraint: Some(constraint),
             default: None,
         });
-        self.insert_map(id, ast::Node::TyParam(ty));
+        self.nodes.insert(id, ast::Node::TyParam(ty));
         Ok(ty)
     }
 
     fn parse_tuple_ty(&mut self) -> PResult<&'cx ast::Ty<'cx>> {
-        let id = self.next_node_id();
         let start = self.token.start();
-        let tys = self.with_parent(id, |this| {
-            this.parse_bracketed_list(
-                TupleElementTypes,
-                TokenKind::LBracket,
-                Self::parse_tuple_ele_name_or_tuple_ele_ty,
-                TokenKind::RBracket,
-            )
-        })?;
+        let tys = self.parse_bracketed_list(
+            TupleElementTypes,
+            TokenKind::LBracket,
+            Self::parse_tuple_ele_name_or_tuple_ele_ty,
+            TokenKind::RBracket,
+        )?;
+        let id = self.next_node_id();
         let ty = self.alloc(ast::TupleTy {
             id,
             span: self.new_span(start),
             tys,
         });
-        self.insert_map(id, ast::Node::TupleTy(ty));
+        self.nodes.insert(id, ast::Node::TupleTy(ty));
         let ty = self.alloc(ast::Ty {
             kind: ast::TyKind::Tuple(ty),
         });
@@ -793,12 +867,12 @@ impl<'cx> ParserState<'cx, '_> {
     fn parse_tuple_ele_name_or_tuple_ele_ty(&mut self) -> PResult<&'cx ast::Ty<'cx>> {
         if self.lookahead(Self::is_tuple_ele_name) {
             let start = self.token.start();
-            let id = self.next_node_id();
             let dotdotdot = self.parse_optional(TokenKind::DotDotDot);
             let name = self.parse_ident_name()?;
             let question = self.parse_optional(TokenKind::Question);
             self.expect(TokenKind::Colon);
             let ty = self.parse_tuple_ele_ty()?;
+            let id = self.next_node_id();
             let ty = self.alloc(ast::NamedTupleTy {
                 id,
                 span: self.new_span(start),
@@ -807,7 +881,7 @@ impl<'cx> ParserState<'cx, '_> {
                 question: question.map(|t| t.span),
                 ty,
             });
-            self.insert_map(id, ast::Node::NamedTupleTy(ty));
+            self.nodes.insert(id, ast::Node::NamedTupleTy(ty));
             let ty = self.alloc(ast::Ty {
                 kind: ast::TyKind::NamedTuple(ty),
             });
@@ -820,14 +894,14 @@ impl<'cx> ParserState<'cx, '_> {
     fn parse_tuple_ele_ty(&mut self) -> PResult<&'cx ast::Ty<'cx>> {
         if self.parse_optional(TokenKind::DotDotDot).is_some() {
             let pos = self.token.start();
+            let ty = self.parse_ty()?;
             let id = self.next_node_id();
-            let ty = self.with_parent(id, Self::parse_ty)?;
             let ty = self.alloc(ast::RestTy {
                 id,
                 span: self.new_span(pos),
                 ty,
             });
-            self.insert_map(id, ast::Node::RestTy(ty));
+            self.nodes.insert(id, ast::Node::RestTy(ty));
             let ty = self.alloc(ast::Ty {
                 kind: ast::TyKind::Rest(ty),
             });
@@ -839,8 +913,8 @@ impl<'cx> ParserState<'cx, '_> {
 
     fn parse_ty_lit(&mut self) -> PResult<&'cx ast::Ty<'cx>> {
         let start = self.token.start();
+        let members = self.parse_object_ty_members()?;
         let id = self.next_node_id();
-        let members = self.with_parent(id, Self::parse_object_ty_members)?;
         let kind = self.alloc(ast::ObjectLitTy {
             id,
             span: self.new_span(start),
@@ -849,22 +923,22 @@ impl<'cx> ParserState<'cx, '_> {
         let ty = self.alloc(ast::Ty {
             kind: ast::TyKind::ObjectLit(kind),
         });
-        self.insert_map(id, ast::Node::ObjectLitTy(kind));
+        self.nodes.insert(id, ast::Node::ObjectLitTy(kind));
         Ok(ty)
     }
 
     fn parse_paren_ty(&mut self) -> PResult<&'cx ast::Ty<'cx>> {
         let start = self.token.start();
-        let id = self.next_node_id();
         self.expect(TokenKind::LParen);
-        let ty = self.with_parent(id, Self::parse_ty)?;
+        let ty = self.parse_ty()?;
         self.expect(TokenKind::RParen);
+        let id = self.next_node_id();
         let kind = self.alloc(ast::ParenTy {
             id,
             span: self.new_span(start),
             ty,
         });
-        self.insert_map(id, ast::Node::ParenTy(kind));
+        self.nodes.insert(id, ast::Node::ParenTy(kind));
         let ty = self.alloc(ast::Ty {
             kind: ast::TyKind::Paren(kind),
         });
@@ -873,16 +947,16 @@ impl<'cx> ParserState<'cx, '_> {
 
     fn parse_prop_or_method_sig(
         &mut self,
-        id: ast::NodeID,
         start: u32,
         modifiers: Option<&'cx ast::Modifiers<'cx>>,
     ) -> PResult<&'cx ast::ObjectTyMember<'cx>> {
-        let name = self.with_parent(id, |this| this.parse_prop_name(true))?;
+        let name = self.parse_prop_name(true)?;
         let question = self.parse_optional(TokenKind::Question).map(|t| t.span);
         let kind = if matches!(self.token.kind, TokenKind::LParen | TokenKind::Less) {
-            let ty_params = self.with_parent(id, Self::parse_ty_params)?;
-            let params = self.with_parent(id, Self::parse_params)?;
-            let ty = self.with_parent(id, |this| this.parse_ret_ty(true))?;
+            let ty_params = self.parse_ty_params()?;
+            let params = self.parse_params()?;
+            let ty = self.parse_ret_ty(true)?;
+            let id = self.next_node_id();
             let sig = self.alloc(ast::MethodSignature {
                 id,
                 span: self.new_span(start),
@@ -892,10 +966,11 @@ impl<'cx> ParserState<'cx, '_> {
                 params,
                 ty,
             });
-            self.insert_map(id, ast::Node::MethodSignature(sig));
+            self.nodes.insert(id, ast::Node::MethodSignature(sig));
             ast::ObjectTyMemberKind::Method(sig)
         } else {
             let ty = self.parse_ty_anno()?;
+            let id = self.next_node_id();
             let sig = self.alloc(ast::PropSignature {
                 id,
                 span: self.new_span(start),
@@ -904,7 +979,7 @@ impl<'cx> ParserState<'cx, '_> {
                 question,
                 ty,
             });
-            self.insert_map(id, ast::Node::PropSignature(sig));
+            self.nodes.insert(id, ast::Node::PropSignature(sig));
             ast::ObjectTyMemberKind::Prop(sig)
         };
         let node = self.alloc(ast::ObjectTyMember { kind });
@@ -913,19 +988,19 @@ impl<'cx> ParserState<'cx, '_> {
     }
 
     fn parse_sig_member(&mut self, is_call: bool) -> PResult<&'cx ast::ObjectTyMember<'cx>> {
-        let id = self.next_node_id();
         let start = self.token.start();
 
         if !is_call {
             self.expect(TokenKind::New);
         }
 
-        let ty_params = self.with_parent(id, Self::parse_ty_params)?;
+        let ty_params = self.parse_ty_params()?;
         let params = self.parse_params()?;
         let ty = self.parse_ret_ty(true)?;
         self.parse_ty_member_semi();
         let span = self.new_span(start);
         let kind = if is_call {
+            let id = self.next_node_id();
             let decl = self.alloc(ast::CallSigDecl {
                 id,
                 span,
@@ -933,9 +1008,10 @@ impl<'cx> ParserState<'cx, '_> {
                 params,
                 ty,
             });
-            self.insert_map(id, ast::Node::CallSigDecl(decl));
+            self.nodes.insert(id, ast::Node::CallSigDecl(decl));
             ast::ObjectTyMemberKind::CallSig(decl)
         } else {
+            let id = self.next_node_id();
             let decl = self.alloc(ast::CtorSigDecl {
                 id,
                 span,
@@ -943,7 +1019,7 @@ impl<'cx> ParserState<'cx, '_> {
                 params,
                 ty,
             });
-            self.insert_map(id, ast::Node::CtorSigDecl(decl));
+            self.nodes.insert(id, ast::Node::CtorSigDecl(decl));
             ast::ObjectTyMemberKind::CtorSig(decl)
         };
         Ok(self.alloc(ast::ObjectTyMember { kind }))
@@ -957,26 +1033,25 @@ impl<'cx> ParserState<'cx, '_> {
         }
 
         let start = self.token.start() as usize;
-        let id = self.next_node_id();
         let modifiers = self.parse_modifiers(false)?;
 
         if self.parse_contextual_modifier(TokenKind::Get) {
-            let decl = self.parse_getter_accessor_decl(id, start, modifiers, true)?;
+            let decl = self.parse_getter_accessor_decl(start, modifiers, true)?;
             Ok(self.alloc(ast::ObjectTyMember {
                 kind: ast::ObjectTyMemberKind::Getter(decl),
             }))
         } else if self.parse_contextual_modifier(TokenKind::Set) {
-            let decl = self.parse_setter_accessor_decl(id, start, modifiers, true)?;
+            let decl = self.parse_setter_accessor_decl(start, modifiers, true)?;
             Ok(self.alloc(ast::ObjectTyMember {
                 kind: ast::ObjectTyMemberKind::Setter(decl),
             }))
         } else if self.is_index_sig() {
-            let decl = self.parse_index_sig_decl(id, start, modifiers)?;
+            let decl = self.parse_index_sig_decl(start, modifiers)?;
             Ok(self.alloc(ast::ObjectTyMember {
                 kind: ast::ObjectTyMemberKind::IndexSig(decl),
             }))
         } else {
-            self.parse_prop_or_method_sig(id, start as u32, modifiers)
+            self.parse_prop_or_method_sig(start as u32, modifiers)
         }
     }
 

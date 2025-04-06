@@ -1,18 +1,19 @@
 use std::borrow::Cow;
 
+use super::check_type_related_to::RecursionFlags;
+use super::create_ty::IntersectionFlags;
+use super::get_contextual::ContextFlags;
+use super::symbol_info::SymbolInfo;
+use super::utils::append_if_unique;
+use super::{CheckMode, InferenceContextId, TyChecker, fn_mapper};
 use crate::bind::SymbolFlags;
 use crate::ir;
 use crate::ty::{self, SigFlags, SigKind, TyID, TypeFlags};
 use crate::ty::{ObjectFlags, Sig};
+
 use bolt_ts_ast::{self as ast, keyword};
 use bolt_ts_utils::fx_hashmap_with_capacity;
 use rustc_hash::FxHashMap;
-
-use super::check_type_related_to::RecursionFlags;
-use super::create_ty::IntersectionFlags;
-use super::get_contextual::ContextFlags;
-use super::utils::append_if_unique;
-use super::{CheckMode, InferenceContextId, TyChecker, fn_mapper};
 
 use thin_vec::{ThinVec, thin_vec};
 
@@ -224,7 +225,7 @@ impl<'cx> TyChecker<'cx> {
     }
 
     fn is_ty_param_at_top_level(
-        &mut self,
+        &self,
         ty: &'cx ty::Ty<'cx>,
         ty_param: &'cx ty::Ty<'cx>,
         depth: u8,
@@ -663,11 +664,17 @@ impl<'cx> TyChecker<'cx> {
         }
 
         for (idx, arg) in args.iter().enumerate() {
-            let param_ty = self.get_ty_at_pos(sig, idx);
-            if self.could_contain_ty_var(param_ty) {
-                let arg_ty =
-                    self.check_expr_with_contextual_ty(arg, param_ty, Some(inference), check_mode);
-                self.infer_tys(inference, arg_ty, param_ty, None, false);
+            if !matches!(arg.kind, ast::ExprKind::Omit(_)) {
+                let param_ty = self.get_ty_at_pos(sig, idx);
+                if self.could_contain_ty_var(param_ty) {
+                    let arg_ty = self.check_expr_with_contextual_ty(
+                        arg,
+                        param_ty,
+                        Some(inference),
+                        check_mode,
+                    );
+                    self.infer_tys(inference, arg_ty, param_ty, None, false);
+                }
             }
         }
 
@@ -851,8 +858,8 @@ impl<'cx> TyChecker<'cx> {
             *pos = p;
         };
 
-        for i in 1..last_target_index {
-            let delim = self.atoms.get(target_texts[i]);
+        for atom in target_texts.iter().take(last_target_index).skip(1) {
+            let delim = self.atoms.get(*atom);
             if !delim.is_empty() {
                 let mut s = seg;
                 let mut p = pos;
@@ -1041,10 +1048,40 @@ impl<'cx> InferenceState<'cx, '_> {
         if let Some(source_cond) = source.kind.as_cond_ty() {
             self.infer_from_tys(source_cond.check_ty, target_cond.check_ty);
             self.infer_from_tys(source_cond.extends_ty, target_cond.extends_ty);
-            // TODO:
+            let source_t = self.c.get_true_ty_from_cond_ty(source, source_cond);
+            let target_t = self.c.get_true_ty_from_cond_ty(target, target_cond);
+            self.infer_from_tys(source_t, target_t);
+            let source_f = self.c.get_false_ty_from_cond_ty(source, source_cond);
+            let target_f = self.c.get_false_ty_from_cond_ty(target, target_cond);
+            self.infer_from_tys(source_f, target_f);
         } else {
-            // TODO:
+            let t = self.c.get_true_ty_from_cond_ty(target, target_cond);
+            let f = self.c.get_false_ty_from_cond_ty(target, target_cond);
+            let target_tys = self.c.alloc([t, f]);
+            self.infer_to_multiple_tys_with_priority(
+                source,
+                target_tys,
+                target.flags,
+                if self.contravariant {
+                    InferencePriority::CONTRAVARIANT_CONDITIONAL
+                } else {
+                    InferencePriority::empty()
+                },
+            );
         }
+    }
+
+    fn infer_to_multiple_tys_with_priority(
+        &mut self,
+        source: &'cx ty::Ty<'cx>,
+        targets: ty::Tys<'cx>,
+        target_flags: TypeFlags,
+        new_priority: InferencePriority,
+    ) {
+        let save_priority = self.priority;
+        self.priority |= new_priority;
+        self.infer_to_multiple_tys(source, targets, target_flags);
+        self.priority = save_priority;
     }
 
     pub(super) fn infer_from_tys(
@@ -1184,13 +1221,13 @@ impl<'cx> InferenceState<'cx, '_> {
             if !(self.priority.intersects(InferencePriority::NO_CONSTRAINTS)
                 && source
                     .flags
-                    .intersects(TypeFlags::INTERSECTION | TypeFlags::INSTANTIABLE))
+                    .intersects(TypeFlags::INTERSECTION.union(TypeFlags::INSTANTIABLE)))
             {
                 let apparent_source = self.c.get_apparent_ty(source);
                 if apparent_source != source
                     && !(apparent_source
                         .flags
-                        .intersects(TypeFlags::OBJECT | TypeFlags::INTERSECTION))
+                        .intersects(TypeFlags::OBJECT.union(TypeFlags::INTERSECTION)))
                 {
                     return self.infer_from_tys(apparent_source, target);
                 }
@@ -1771,7 +1808,11 @@ impl<'cx> InferenceState<'cx, '_> {
                 let source_props = self.c.get_props_of_ty(source);
                 let mut props_tys = Vec::with_capacity(source_props.len());
                 for prop in source_props {
-                    let lit = self.c.get_lit_ty_from_prop(*prop);
+                    let lit = self.c.get_lit_ty_from_prop(
+                        *prop,
+                        TypeFlags::STRING_OR_NUMBER_LITERAL_OR_UNIQUE,
+                        false,
+                    );
                     if self.c.is_applicable_index_ty(lit, target_info.key_ty) {
                         let prop_ty = self.c.get_type_of_symbol(*prop);
                         props_tys.push(
@@ -1932,14 +1973,14 @@ impl<'cx> InferenceState<'cx, '_> {
         if source_len > 0 {
             let target_sigs = self.c.get_signatures_of_type(target, kind);
             let target_len = target_sigs.len();
-            for i in 0..target_len {
+            for (i, sig) in target_sigs.iter().enumerate().take(target_len) {
                 let source_index = if source_len + i > target_len {
                     source_len + i - target_len
                 } else {
                     0
                 };
                 let source = self.c.get_base_sig(source_sigs[source_index]);
-                let target = self.c.get_erased_sig(target_sigs[i]);
+                let target = self.c.get_erased_sig(sig);
                 self.infer_from_sig(source, target);
             }
         }

@@ -1,0 +1,5 @@
+  × Expected 1 type arguments, but got 2.
+   ╭─[../../tests/cases/compiler/thisExpressionInCallExpressionWithTypeArguments/index.ts:4:29]
+ 4 │ <any,any>
+   · ─────────
+   ╰────

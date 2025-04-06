@@ -5,24 +5,52 @@ use crate::bind::{Symbol, SymbolFlags, SymbolID, SymbolName};
 use crate::ty;
 
 use super::TyChecker;
+use super::symbol_info::SymbolInfo;
 
 #[derive(Debug, Clone, Copy)]
-pub(super) struct TransientSymbol<'cx> {
+pub(crate) struct TransientSymbol<'cx> {
     pub(super) name: SymbolName,
     pub(super) flags: SymbolFlags,
     pub(super) links: crate::check::SymbolLinks<'cx>,
+    pub(super) declarations: Option<&'cx [ast::NodeID]>,
+    pub(super) value_declaration: Option<ast::NodeID>,
     // TODO: flatten
     pub(super) origin: Option<SymbolID>,
 }
 
-pub(super) fn create_transient_symbol<'cx>(
-    symbols: &mut Vec<TransientSymbol<'cx>>,
-    symbol: TransientSymbol<'cx>,
-) -> SymbolID {
-    let len = symbols.len();
-    symbols.push(symbol);
-    let s = SymbolID::new(ModuleID::TRANSIENT, len as u32);
-    s
+#[derive(Debug, Default)]
+pub(crate) struct TransientSymbols<'cx>(Vec<TransientSymbol<'cx>>);
+
+impl<'cx> TransientSymbols<'cx> {
+    pub(crate) fn new(cap: usize) -> Self {
+        Self(Vec::with_capacity(cap))
+    }
+
+    pub(super) fn create_transient_symbol(&mut self, symbol: TransientSymbol<'cx>) -> SymbolID {
+        let len = self.0.len();
+        self.0.push(symbol);
+        SymbolID::new(ModuleID::TRANSIENT, len as u32)
+    }
+
+    pub(super) fn get(&self, symbol: SymbolID) -> Option<&TransientSymbol<'cx>> {
+        if symbol.module() == ModuleID::TRANSIENT {
+            let idx = symbol.index_as_usize();
+            debug_assert!(idx < self.0.len());
+            Some(unsafe { self.0.get_unchecked(idx) })
+        } else {
+            None
+        }
+    }
+
+    pub(super) fn get_mut(&mut self, symbol: SymbolID) -> Option<&mut TransientSymbol<'cx>> {
+        if symbol.module() == ModuleID::TRANSIENT {
+            let idx = symbol.index_as_usize();
+            debug_assert!(idx < self.0.len());
+            Some(unsafe { self.0.get_unchecked_mut(idx) })
+        } else {
+            None
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -31,7 +59,13 @@ pub(super) enum CheckSymbol<'cx, 'checker> {
     Normal(&'checker Symbol),
 }
 
-impl CheckSymbol<'_, '_> {
+#[derive(Debug, Clone, Copy)]
+pub enum BorrowedDeclarations<'cx, 'checker> {
+    FromTransient(Option<&'cx [ast::NodeID]>),
+    FromNormal(&'checker [ast::NodeID]),
+}
+
+impl<'cx, 'checker> CheckSymbol<'cx, 'checker> {
     pub(crate) fn flags(&self) -> SymbolFlags {
         match self {
             CheckSymbol::Transient(symbol) => symbol.flags,
@@ -44,6 +78,18 @@ impl CheckSymbol<'_, '_> {
             CheckSymbol::Normal(symbol) => symbol.name,
         }
     }
+    pub(crate) fn declarations(&self) -> BorrowedDeclarations<'cx, 'checker> {
+        match self {
+            CheckSymbol::Transient(s) => BorrowedDeclarations::FromTransient(s.declarations),
+            CheckSymbol::Normal(s) => BorrowedDeclarations::FromNormal(&s.decls),
+        }
+    }
+    pub(crate) fn value_declaration(&self) -> Option<ast::NodeID> {
+        match self {
+            CheckSymbol::Transient(s) => s.value_declaration,
+            CheckSymbol::Normal(s) => s.value_decl,
+        }
+    }
 }
 
 impl<'cx> TyChecker<'cx> {
@@ -53,6 +99,8 @@ impl<'cx> TyChecker<'cx> {
         symbol_flags: SymbolFlags,
         origin: Option<SymbolID>,
         links: crate::check::SymbolLinks<'cx>,
+        declarations: Option<&'cx [ast::NodeID]>,
+        value_declaration: Option<ast::NodeID>,
     ) -> SymbolID {
         let symbol_flags = symbol_flags | SymbolFlags::TRANSIENT;
         let symbol = TransientSymbol {
@@ -60,8 +108,10 @@ impl<'cx> TyChecker<'cx> {
             flags: symbol_flags,
             links,
             origin,
+            declarations,
+            value_declaration,
         };
-        create_transient_symbol(&mut self.transient_symbols, symbol)
+        self.transient_symbols.create_transient_symbol(symbol)
     }
 
     pub(super) fn create_transient_symbol_with_ty(
@@ -77,26 +127,20 @@ impl<'cx> TyChecker<'cx> {
             .with_check_flags(check_flags)
             .with_ty(ty)
             .with_target(source);
-        self.create_transient_symbol(name, symbol_flags, Some(source), links)
+        let value_declaration = s.value_declaration();
+        let s = self.create_transient_symbol(
+            name,
+            symbol_flags,
+            Some(source),
+            links,
+            None,
+            value_declaration,
+        );
+        s
     }
 
     pub(super) fn get_transient(&self, symbol: SymbolID) -> Option<&TransientSymbol<'cx>> {
-        if symbol.module() == ModuleID::TRANSIENT {
-            Some(&self.transient_symbols[symbol.index_as_usize()])
-        } else {
-            None
-        }
-    }
-
-    pub(super) fn get_mut_transient(
-        &mut self,
-        symbol: SymbolID,
-    ) -> Option<&mut TransientSymbol<'cx>> {
-        if symbol.module() == ModuleID::TRANSIENT {
-            Some(&mut self.transient_symbols[symbol.index_as_usize()])
-        } else {
-            None
-        }
+        self.transient_symbols.get(symbol)
     }
 
     pub(super) fn get_check_flags(&self, symbol: SymbolID) -> crate::ty::CheckFlags {
@@ -107,32 +151,10 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
-    pub(super) fn symbol(&self, symbol: SymbolID) -> CheckSymbol<'cx, '_> {
-        if symbol.module() == ModuleID::TRANSIENT {
-            let symbol = self.get_transient(symbol).unwrap();
-            CheckSymbol::Transient(symbol)
-        } else {
-            let symbol = self.binder.symbol(symbol);
-            CheckSymbol::Normal(symbol)
-        }
-    }
-
-    pub(crate) fn symbol_opt_decl(&self, symbol: SymbolID) -> Option<ast::NodeID> {
-        if symbol.module() == ModuleID::TRANSIENT {
-            let symbol = self.get_transient(symbol).unwrap();
-            symbol.origin.and_then(|s| self.symbol_opt_decl(s))
-        } else {
-            symbol.opt_decl(self.binder)
-        }
-    }
-
     pub(crate) fn get_symbol_decl(&self, symbol: SymbolID) -> Option<NodeID> {
-        if let Some(s) = self.get_transient(symbol) {
-            if let Some(origin) = s.origin {
-                self.get_symbol_decl(origin)
-            } else {
-                None
-            }
+        if symbol.module() == ModuleID::TRANSIENT {
+            let symbol = self.get_transient(symbol).unwrap();
+            symbol.declarations.and_then(|d| d.first().copied())
         } else {
             symbol.opt_decl(self.binder)
         }

@@ -1,9 +1,10 @@
+use super::symbol_info::SymbolInfo;
+use super::{TyChecker, errors};
 use crate::bind::{Symbol, SymbolFlags, SymbolID};
 use crate::ty::CheckFlags;
 use crate::{keyword, ty};
-use bolt_ts_ast::{self as ast};
 
-use super::{TyChecker, errors};
+use bolt_ts_ast::{self as ast};
 
 pub(super) trait GetTypeFromTyReferLike<'cx> {
     fn id(&self) -> ast::NodeID;
@@ -27,24 +28,13 @@ impl<'cx> GetTypeFromTyReferLike<'cx> for ast::ReferTy<'cx> {
     }
 }
 
-impl<'cx> GetTypeFromTyReferLike<'cx> for ast::ClassExtendsClause<'cx> {
-    fn id(&self) -> ast::NodeID {
-        self.id
-    }
-    fn span(&self) -> bolt_ts_span::Span {
-        self.span
-    }
-    fn name(&self) -> &'cx ast::EntityName<'cx> {
-        self.name
-    }
-    fn ty_args(&self) -> Option<&'cx ast::Tys<'cx>> {
-        self.ty_args
-    }
-}
-
 impl<'cx> TyChecker<'cx> {
-    pub(super) fn resolve_ty_refer_name(&mut self, name: &'cx ast::EntityName<'cx>) -> SymbolID {
-        self.resolve_entity_name(name)
+    pub(super) fn resolve_ty_refer_name(
+        &mut self,
+        name: &'cx ast::EntityName<'cx>,
+        meaning: SymbolFlags,
+    ) -> SymbolID {
+        self.resolve_entity_name(name, meaning, false)
     }
 
     pub(super) fn ty_args_from_ty_refer_node(
@@ -60,10 +50,9 @@ impl<'cx> TyChecker<'cx> {
     }
 
     fn is_local_ty_alias(&self, symbol: SymbolID) -> bool {
-        let s = &self.binder.symbol(symbol);
+        let s = self.binder.symbol(symbol);
         if s.flags == SymbolFlags::TYPE_ALIAS {
-            let s = s.expect_ty_alias();
-            self.p.get_containing_fn(s.decl).is_some()
+            self.p.get_containing_fn(s.decls[0]).is_some()
         } else {
             false
         }
@@ -120,7 +109,7 @@ impl<'cx> TyChecker<'cx> {
             if new_alias_symbol.is_some() {
                 alias_ty_args = self.get_ty_args_for_alias_symbol(new_alias_symbol)
             } else if self.p.node(node.id()).is_ty_refer_ty() {
-                let alias_symbol = self.resolve_ty_refer_name(node.name());
+                let alias_symbol = self.resolve_ty_refer_name(node.name(), SymbolFlags::ALIAS);
                 // if alias_symbol != Symbol::ERR {
 
                 // }
@@ -163,7 +152,8 @@ impl<'cx> TyChecker<'cx> {
 
     pub(super) fn get_ty_from_class_or_interface_refer(
         &mut self,
-        node: &impl GetTypeFromTyReferLike<'cx>,
+        node_span: bolt_ts_span::Span,
+        ty_args: Option<&'cx ast::Tys<'cx>>,
         symbol: SymbolID,
     ) -> &'cx ty::Ty<'cx> {
         let ty = self.get_declared_ty_of_symbol(symbol);
@@ -175,21 +165,18 @@ impl<'cx> TyChecker<'cx> {
             unreachable!()
         };
         if let Some(ty_params) = i.local_ty_params {
-            let num_ty_args = node
-                .ty_args()
-                .map(|args| args.list.len())
-                .unwrap_or_default();
+            let num_ty_args = ty_args.map(|args| args.list.len()).unwrap_or_default();
             let min_ty_arg_count = self.get_min_ty_arg_count(Some(ty_params));
             if num_ty_args < min_ty_arg_count || num_ty_args > ty_params.len() {
                 let error: crate::Diag = if min_ty_arg_count == ty_params.len() {
                     Box::new(errors::GenericTypeXRequiresNTypeArguments {
-                        span: node.span(),
+                        span: node_span,
                         ty: self.print_ty(ty).to_string(),
                         n: ty_params.len(),
                     })
                 } else {
                     Box::new(errors::GenericTypeXRequiresBetweenXAndYTypeArguments {
-                        span: node.span(),
+                        span: node_span,
                         ty: self.print_ty(ty).to_string(),
                         x: min_ty_arg_count,
                         y: ty_params.len(),
@@ -200,7 +187,7 @@ impl<'cx> TyChecker<'cx> {
             }
 
             let resolved_ty_args = {
-                let self_ty_args = self.ty_args_from_ty_refer_node(node.ty_args());
+                let self_ty_args = self.ty_args_from_ty_refer_node(ty_args);
                 let self_ty_args =
                     self.fill_missing_ty_args(self_ty_args, i.local_ty_params, min_ty_arg_count);
                 self.concatenate(i.outer_ty_params, self_ty_args)
@@ -220,9 +207,9 @@ impl<'cx> TyChecker<'cx> {
             return self.error_ty;
         }
         let flags = self.binder.symbol(symbol).flags;
-        if flags.intersects(SymbolFlags::CLASS | SymbolFlags::INTERFACE) {
-            return self.get_ty_from_class_or_interface_refer(node, symbol);
-        } else if flags == SymbolFlags::TYPE_ALIAS {
+        if flags.intersects(SymbolFlags::CLASS_OR_INTERFACE) {
+            return self.get_ty_from_class_or_interface_refer(node.span(), node.ty_args(), symbol);
+        } else if flags.intersects(SymbolFlags::TYPE_ALIAS) {
             return self.get_ty_from_ty_alias_refer(node, symbol);
         }
 
@@ -262,7 +249,7 @@ impl<'cx> TyChecker<'cx> {
                 _ => {}
             }
         }
-        let symbol = self.resolve_ty_refer_name(name);
+        let symbol = self.resolve_ty_refer_name(name, SymbolFlags::TYPE);
         self.get_mut_node_links(node.id())
             .set_resolved_symbol(symbol);
         let ty = self.get_ty_refer_type(node, symbol);

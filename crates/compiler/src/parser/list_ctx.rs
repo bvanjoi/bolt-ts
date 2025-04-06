@@ -8,6 +8,19 @@ pub(super) trait ListContext: Copy {
 }
 
 #[derive(Copy, Clone)]
+pub(super) struct SourceElems;
+impl ListContext for SourceElems {
+    fn is_ele(&self, s: &mut ParserState, in_error_recovery: bool) -> bool {
+        !(s.token.kind == TokenKind::Semi && in_error_recovery) && s.is_start_of_stmt()
+    }
+
+    fn is_closing(&self, _: &mut ParserState) -> bool {
+        // ensure terminal by `is_list_terminator`
+        false
+    }
+}
+
+#[derive(Copy, Clone)]
 pub(super) struct EnumMembers;
 impl ListContext for EnumMembers {
     fn is_ele(&self, s: &mut ParserState, _: bool) -> bool {
@@ -130,9 +143,16 @@ impl ListContext for TyParams {
 #[derive(Copy, Clone)]
 pub(super) struct HeritageClause;
 impl ListContext for HeritageClause {
-    fn is_ele(&self, s: &mut ParserState, _: bool) -> bool {
-        // TODO: fixme
-        s.token.kind.is_binding_ident()
+    fn is_ele(&self, s: &mut ParserState, is_error_recovery: bool) -> bool {
+        if s.token.kind == TokenKind::LBrace {
+            return s.lookahead(ParserState::is_invalid_heritage_clause_object);
+        }
+        if !is_error_recovery {
+            s.is_start_of_left_hand_side_expr()
+                && !s.is_heritage_clause_extends_or_implements_keyword()
+        } else {
+            s.is_ident() && !s.is_heritage_clause_extends_or_implements_keyword()
+        }
     }
 
     fn is_closing(&self, s: &mut ParserState) -> bool {
@@ -159,7 +179,9 @@ impl ListContext for VarDecls {
 pub(super) struct ArrayLiteralMembers;
 impl ListContext for ArrayLiteralMembers {
     fn is_ele(&self, s: &mut ParserState, _: bool) -> bool {
-        matches!(s.token.kind, TokenKind::Comma) || s.is_start_of_expr()
+        use TokenKind::*;
+        // TokenKind::{Comma, Dot} is not an array literal, just for close the array.
+        matches!(s.token.kind, Comma | Dot | DotDotDot) || s.is_start_of_expr()
     }
 
     fn is_closing(&self, s: &mut ParserState) -> bool {
@@ -189,5 +211,19 @@ impl ListContext for ObjectBindingElems {
 
     fn is_closing(&self, s: &mut ParserState) -> bool {
         matches!(s.token.kind, TokenKind::RBrace)
+    }
+}
+
+#[derive(Copy, Clone)]
+pub(super) struct ArrayBindingElems;
+impl ListContext for ArrayBindingElems {
+    fn is_ele(&self, s: &mut ParserState, _: bool) -> bool {
+        let t = s.token.kind;
+        matches!(t, TokenKind::Comma | TokenKind::DotDotDot)
+            || t.is_binding_ident_or_private_ident_or_pat()
+    }
+
+    fn is_closing(&self, s: &mut ParserState) -> bool {
+        matches!(s.token.kind, TokenKind::RBracket)
     }
 }

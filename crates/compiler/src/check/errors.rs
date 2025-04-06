@@ -161,12 +161,18 @@ pub(super) struct CannotCreateAnInstanceOfAnAbstractClass {
 }
 
 #[derive(Error, Diagnostic, DiagnosticExt, Debug)]
-#[error("Class '{name}' has `abstract` modifier.")]
+#[error("{} has `abstract` modifier.", {
+    if let Some(name) = name {
+        format!("Class '{}'", name)
+    } else {
+        "Class".to_string()
+    }
+})]
 #[diagnostic(severity(Warning))]
 pub(super) struct ClassNameHasAbstractModifier {
     #[label(primary)]
     pub span: Span,
-    pub name: String,
+    pub name: Option<String>,
 }
 
 #[derive(Clone, Copy, Debug, Default)]
@@ -389,10 +395,15 @@ pub(super) struct ThisOverloadSignatureIsNotCompatibleWithItsImplementationSigna
 }
 
 #[derive(Error, Diagnostic, DiagnosticExt, Debug)]
-#[error("This expression is not constructable.")]
+#[error("This expression is not {}.", if *is_call {
+    "callable"
+} else {
+    "constructable"
+})]
 pub(super) struct ThisExpressionIsNotConstructable {
     #[label(primary)]
     pub span: Span,
+    pub is_call: bool,
 }
 
 #[derive(Error, Diagnostic, DiagnosticExt, Debug)]
@@ -443,4 +454,80 @@ pub(super) struct Interface0IncorrectlyExtendsInterface1 {
 pub(super) struct AmbientModuleDeclarationCannotSpecifyRelativeModuleName {
     #[label(primary)]
     pub span: Span,
+}
+
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
+#[error("A rest parameter must be of an array type.")]
+pub(super) struct ARestParameterMustBeOfAnArrayType {
+    #[label(primary)]
+    pub span: Span,
+}
+
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
+#[error("'this' cannot be referenced in a module or namespace body.")]
+pub(super) struct ThisCannotBeReferencedInAModuleOrNamespaceBody {
+    #[label(primary)]
+    pub span: Span,
+}
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt)]
+#[error("Module '\"{module_name}\"' declares '{symbol_name}' locally, but it is not exported.")]
+pub(super) struct ModuleADeclaresBLocallyButItIsNotExported {
+    #[label(primary)]
+    pub span: Span,
+    pub module_name: String,
+    pub symbol_name: String,
+    #[related]
+    pub related: [NameIsDeclaredHere; 1],
+}
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
+#[error("'{name}' is defined here")]
+#[diagnostic(severity(Advice))]
+pub(super) struct NameIsDeclaredHere {
+    #[label(primary)]
+    pub span: Span,
+    pub name: String,
+}
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt)]
+#[error(
+    "Module '\"{module_name}\"' declares '{symbol_name}' locally, but it is exported as '{target_name}'."
+)]
+pub(super) struct ModuleADeclaresBLocallyButItIsExportedAsC {
+    #[label(primary)]
+    pub span: Span,
+    pub module_name: String,
+    pub symbol_name: String,
+    pub target_name: String,
+    #[related]
+    pub related: Vec<ModuleADeclaresBLocallyButItIsExportedAsCHelperKind>,
+}
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt)]
+pub(super) enum ModuleADeclaresBLocallyButItIsExportedAsCHelperKind {
+    #[error(transparent)]
+    #[diagnostic(transparent)]
+    NameIsDeclaredHere(NameIsDeclaredHere),
+    #[error(transparent)]
+    #[diagnostic(transparent)]
+    ExportedAliasHere(ExportedAliasHere),
+}
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
+#[error("'{name}' has been alias here.")]
+#[diagnostic(severity(Advice))]
+pub(super) struct ExportedAliasHere {
+    #[label(primary)]
+    pub span: Span,
+    pub name: String,
+}
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
+#[error("Module '{module}' has no exported member '{member}'.")]
+pub(super) struct ModuleXHasNoExportedMemberY {
+    #[label(primary)]
+    pub span: Span,
+    pub module: String,
+    pub member: String,
 }

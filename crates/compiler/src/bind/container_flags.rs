@@ -1,3 +1,4 @@
+use super::NodeQuery;
 use crate::parser;
 
 bitflags::bitflags! {
@@ -14,15 +15,19 @@ bitflags::bitflags! {
   }
 }
 
-pub(super) trait GetContainerFlags {
-    fn get_container_flags(&self, p: &parser::ParseResult) -> ContainerFlags;
+trait GetContainerFlags {
+    fn get_container_flags(
+        &self,
+        p: &parser::ParseResult,
+        parent_map: &super::ParentMap,
+    ) -> ContainerFlags;
 }
 
 macro_rules! container_flags_for_node {
   ($(($node_kind:ident, $flags: expr)),* $(,)?) => {
       $(
           impl GetContainerFlags for bolt_ts_ast::$node_kind<'_> {
-              fn get_container_flags(&self, _: &parser::ParseResult) -> ContainerFlags {
+              fn get_container_flags(&self, _: &parser::ParseResult, _: &super::ParentMap) -> ContainerFlags {
                   $flags
               }
           }
@@ -93,8 +98,13 @@ container_flags_for_node!(
 );
 
 impl GetContainerFlags for bolt_ts_ast::GetterDecl<'_> {
-    fn get_container_flags(&self, p: &parser::ParseResult) -> ContainerFlags {
-        if p.is_object_lit_or_class_expr_method_or_accessor(self.id) {
+    fn get_container_flags(
+        &self,
+        p: &parser::ParseResult,
+        parent_map: &super::ParentMap,
+    ) -> ContainerFlags {
+        let nq = super::BinderNodeQuery::new(parent_map, p);
+        if nq.is_object_lit_or_class_expr_method_or_accessor(self.id) {
             C_AND_L_AND_CF_AND_F_AND_O
         } else {
             C_AND_L_AND_CF_AND_F
@@ -103,8 +113,13 @@ impl GetContainerFlags for bolt_ts_ast::GetterDecl<'_> {
 }
 
 impl GetContainerFlags for bolt_ts_ast::SetterDecl<'_> {
-    fn get_container_flags(&self, p: &parser::ParseResult) -> ContainerFlags {
-        if p.is_object_lit_or_class_expr_method_or_accessor(self.id) {
+    fn get_container_flags(
+        &self,
+        p: &parser::ParseResult,
+        parent_map: &super::ParentMap,
+    ) -> ContainerFlags {
+        let nq = super::BinderNodeQuery::new(parent_map, p);
+        if nq.is_object_lit_or_class_expr_method_or_accessor(self.id) {
             C_AND_L_AND_CF_AND_F_AND_O
         } else {
             C_AND_L_AND_CF_AND_F
@@ -113,8 +128,13 @@ impl GetContainerFlags for bolt_ts_ast::SetterDecl<'_> {
 }
 
 impl GetContainerFlags for bolt_ts_ast::ClassMethodElem<'_> {
-    fn get_container_flags(&self, p: &parser::ParseResult) -> ContainerFlags {
-        if p.is_object_lit_or_class_expr_method_or_accessor(self.id) {
+    fn get_container_flags(
+        &self,
+        p: &parser::ParseResult,
+        parent_map: &super::ParentMap,
+    ) -> ContainerFlags {
+        let nq = super::BinderNodeQuery::new(parent_map, p);
+        if nq.is_object_lit_or_class_expr_method_or_accessor(self.id) {
             C_AND_L_AND_CF_AND_F_AND_O
         } else {
             C_AND_L_AND_CF_AND_F
@@ -123,7 +143,7 @@ impl GetContainerFlags for bolt_ts_ast::ClassMethodElem<'_> {
 }
 
 impl GetContainerFlags for bolt_ts_ast::ClassPropElem<'_> {
-    fn get_container_flags(&self, _: &parser::ParseResult) -> ContainerFlags {
+    fn get_container_flags(&self, _: &parser::ParseResult, _: &super::ParentMap) -> ContainerFlags {
         if self.init.is_some() {
             ContainerFlags::IS_CONTROL_FLOW_CONTAINER
         } else {
@@ -133,13 +153,60 @@ impl GetContainerFlags for bolt_ts_ast::ClassPropElem<'_> {
 }
 
 impl GetContainerFlags for bolt_ts_ast::BlockStmt<'_> {
-    fn get_container_flags(&self, p: &parser::ParseResult) -> ContainerFlags {
-        let parent = p.parent(self.id).unwrap();
+    fn get_container_flags(
+        &self,
+        p: &parser::ParseResult,
+        parent_map: &super::ParentMap,
+    ) -> ContainerFlags {
+        let parent = parent_map.parent_unfinished(self.id).unwrap();
         let parent = p.node(parent);
         if parent.is_fn_like() || parent.is_class_static_block_decl() {
             ContainerFlags::empty()
         } else {
             BS_AND_L
         }
+    }
+}
+
+pub(super) fn container_flags_for_node(
+    p: &parser::ParseResult,
+    parent_map: &super::ParentMap,
+    node: bolt_ts_ast::NodeID,
+) -> ContainerFlags {
+    let n = p.node(node);
+    use bolt_ts_ast::Node::*;
+    match n {
+        ClassExpr(n) => n.get_container_flags(p, parent_map),
+        ClassDecl(n) => n.get_container_flags(p, parent_map),
+        EnumDecl(n) => n.get_container_flags(p, parent_map),
+        ObjectLit(n) => n.get_container_flags(p, parent_map),
+        ObjectLitTy(n) => n.get_container_flags(p, parent_map),
+        InterfaceDecl(n) => n.get_container_flags(p, parent_map),
+        NamespaceDecl(n) => n.get_container_flags(p, parent_map),
+        TypeDecl(n) => n.get_container_flags(p, parent_map),
+        MappedTy(n) => n.get_container_flags(p, parent_map),
+        IndexSigDecl(n) => n.get_container_flags(p, parent_map),
+        Program(n) => n.get_container_flags(p, parent_map),
+        ObjectMethodMember(n) => n.get_container_flags(p, parent_map),
+        ClassCtor(n) => n.get_container_flags(p, parent_map),
+        FnDecl(n) => n.get_container_flags(p, parent_map),
+        MethodSignature(n) => n.get_container_flags(p, parent_map),
+        CallSigDecl(n) => n.get_container_flags(p, parent_map),
+        FnTy(n) => n.get_container_flags(p, parent_map),
+        CtorSigDecl(n) => n.get_container_flags(p, parent_map),
+        CtorTy(n) => n.get_container_flags(p, parent_map),
+        FnExpr(n) => n.get_container_flags(p, parent_map),
+        ArrowFnExpr(n) => n.get_container_flags(p, parent_map),
+        ModuleBlock(n) => n.get_container_flags(p, parent_map),
+        CatchClause(n) => n.get_container_flags(p, parent_map),
+        ForStmt(n) => n.get_container_flags(p, parent_map),
+        ForInStmt(n) => n.get_container_flags(p, parent_map),
+        ForOfStmt(n) => n.get_container_flags(p, parent_map),
+        GetterDecl(n) => n.get_container_flags(p, parent_map),
+        SetterDecl(n) => n.get_container_flags(p, parent_map),
+        ClassMethodElem(n) => n.get_container_flags(p, parent_map),
+        ClassPropElem(n) => n.get_container_flags(p, parent_map),
+        BlockStmt(n) => n.get_container_flags(p, parent_map),
+        _ => ContainerFlags::empty(),
     }
 }

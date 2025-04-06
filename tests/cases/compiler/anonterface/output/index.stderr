@@ -1,5 +1,5 @@
-  × Argument of type '(n: any) => void' is not assignable to parameter of type
-  │ '(n: number) => string'.
+  × Argument of type '(n: number) => void' is not assignable to parameter of
+  │ type '(n: number) => string'.
     ╭─[../../tests/cases/compiler/anonterface/index.ts:13:5]
  13 │ function(n) { return 42; }
     · ──────────────────────────

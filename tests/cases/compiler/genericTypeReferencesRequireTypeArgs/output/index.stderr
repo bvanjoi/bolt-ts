@@ -1,0 +1,23 @@
+  × Generic type 'C<T>' requires 1 type argument.
+   ╭─[../../tests/cases/compiler/genericTypeReferencesRequireTypeArgs/index.ts:9:9]
+ 9 │ C
+   · ─
+   ╰────
+
+  × Generic type 'I<T>' requires 1 type argument.
+    ╭─[../../tests/cases/compiler/genericTypeReferencesRequireTypeArgs/index.ts:11:9]
+ 11 │ I
+    · ─
+    ╰────
+
+  × Generic type 'I<T>' requires 1 type argument.
+    ╭─[../../tests/cases/compiler/genericTypeReferencesRequireTypeArgs/index.ts:13:11]
+ 13 │ I
+    · ─
+    ╰────
+
+  × Generic type 'C<T>' requires 1 type argument.
+    ╭─[../../tests/cases/compiler/genericTypeReferencesRequireTypeArgs/index.ts:15:11]
+ 15 │ C
+    · ─
+    ╰────

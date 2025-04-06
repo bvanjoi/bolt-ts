@@ -3,10 +3,10 @@ use std::{borrow::Cow, str};
 use bolt_ts_atom::AtomId;
 use bolt_ts_span::Span;
 
-use super::{PResult, ParserState, TokenValue};
+use super::{CommentDirectiveKind, PResult, ParserState, TokenValue};
 use bolt_ts_ast::{Token, TokenFlags, TokenKind, keyword_idx_to_token};
 
-use crate::keyword::KEYWORDS;
+use crate::{keyword::KEYWORDS, parser::CommentDirective};
 
 #[inline(always)]
 fn is_ascii_letter(ch: u8) -> bool {
@@ -29,7 +29,7 @@ fn is_identifier_part(ch: u8) -> bool {
 }
 
 #[inline(always)]
-fn is_line_break(ch: u8) -> bool {
+pub(super) fn is_line_break(ch: u8) -> bool {
     ch == b'\n' || ch == b'\r'
 }
 
@@ -55,20 +55,20 @@ bitflags::bitflags! {
 }
 
 impl ParserState<'_, '_> {
-    fn ch(&self) -> Option<u8> {
+    pub(super) fn ch(&self) -> Option<u8> {
         self.input.get(self.pos).copied()
     }
 
-    fn ch_unchecked(&self) -> u8 {
+    pub(super) fn ch_unchecked(&self) -> u8 {
         debug_assert!(self.pos < self.end());
         unsafe { *self.input.get_unchecked(self.pos) }
     }
 
-    fn next_ch(&self) -> Option<u8> {
+    pub(super) fn next_ch(&self) -> Option<u8> {
         self.input.get(self.pos + 1).copied()
     }
 
-    fn next_next_ch(&self) -> Option<u8> {
+    pub(super) fn next_next_ch(&self) -> Option<u8> {
         self.input.get(self.pos + 2).copied()
     }
 
@@ -189,13 +189,12 @@ impl ParserState<'_, '_> {
         } else {
             self.scan_number_fragment()
         };
-        let decimal_frag;
-        if self.ch() == Some(b'.') {
+        let decimal_frag = if self.ch() == Some(b'.') {
             self.pos += 1;
-            decimal_frag = Some(self.scan_number_fragment());
+            Some(self.scan_number_fragment())
         } else {
-            decimal_frag = None;
-        }
+            None
+        };
         let mut scientific_frag = None;
         let mut end = self.pos;
         if self.ch().is_some_and(|c| matches!(c, b'e' | b'E')) {
@@ -305,6 +304,7 @@ impl ParserState<'_, '_> {
                 // keyword
                 let kind = keyword_idx_to_token(idx);
                 let span = Span::new(start as u32, self.pos as u32, self.module_id);
+                debug_assert!(self.atoms.lock().unwrap().contains(id));
                 self.token_value = Some(TokenValue::Ident { value: id });
                 return Ok(Token::new(kind, span));
             }
@@ -320,6 +320,39 @@ impl ParserState<'_, '_> {
             TokenKind::Ident,
             Span::new(start as u32, self.pos as u32, self.module_id),
         ))
+    }
+
+    fn scan_comment_directive_kind(&mut self) {
+        assert_eq!(self.ch_unchecked(), b'@');
+        let start = self.pos as u32;
+        if self.next_content_is(b"@ts-expect-error") {
+            self.comment_directives.push(CommentDirective {
+                line: self.line as u32,
+                range: Span::new(start, self.pos as u32, self.module_id),
+                kind: CommentDirectiveKind::ExpectError,
+            });
+        } else if self.next_content_is(b"@ts-ignore") {
+            self.comment_directives.push(CommentDirective {
+                line: self.line as u32,
+                range: Span::new(start, self.pos as u32, self.module_id),
+                kind: CommentDirectiveKind::Ignore,
+            });
+        } else {
+            self.pos += 1;
+        }
+    }
+
+    pub(super) fn next_content_is(&mut self, s: &[u8]) -> bool {
+        if self.pos + s.len() > self.end() {
+            return false;
+        }
+        for i in 0..s.len() {
+            if !s[i].eq(unsafe { self.input.get_unchecked(self.pos + i) }) {
+                return false;
+            }
+        }
+        self.pos += s.len();
+        true
     }
 
     pub(super) fn next_token(&mut self) {
@@ -341,13 +374,33 @@ impl ParserState<'_, '_> {
             }
             let token = match ch {
                 b'/' => {
-                    if self.next_ch() == Some(b'/') {
+                    if self.next_ch() == Some(b'/') && self.next_next_ch() == Some(b'/') {
+                        // `///`
+                        self.pos += 3;
+                        while self.pos < self.end() && !is_line_break(self.ch_unchecked()) {
+                            let ch = self.ch_unchecked();
+                            if ch == b'<' {
+                                self.scan_triple_slash_xml_pragma();
+                            } else {
+                                self.pos += 1;
+                            }
+                        }
+                        continue;
+                    } else if self.next_ch() == Some(b'/') {
                         // `//`
                         self.pos += 2;
+                        let mut only_has_ascii_whitespace = true;
                         while self.pos < self.end() && !is_line_break(self.ch_unchecked()) {
-                            self.pos += 1;
+                            let ch = self.ch_unchecked();
+                            if ch != b'@' && !ch.is_ascii_whitespace() {
+                                only_has_ascii_whitespace = false;
+                                self.pos += 1;
+                            } else if only_has_ascii_whitespace && ch == b'@' {
+                                self.scan_comment_directive_kind();
+                            } else {
+                                self.pos += 1;
+                            }
                         }
-                        // TODO: add comment
                         continue;
                     } else if self.next_ch() == Some(b'*') {
                         // `/*`
@@ -511,9 +564,17 @@ impl ParserState<'_, '_> {
                     }
                 }
                 b'?' => {
-                    self.pos += 1;
+                    let kind = if self.next_ch() == Some(b'.')
+                        && self.next_next_ch().is_none_or(|c| !c.is_ascii_digit())
+                    {
+                        self.pos += 2;
+                        TokenKind::QuestionDot
+                    } else {
+                        self.pos += 1;
+                        TokenKind::Question
+                    };
                     Token::new(
-                        TokenKind::Question,
+                        kind,
                         Span::new(start as u32, self.pos as u32, self.module_id),
                     )
                 }
@@ -695,16 +756,33 @@ impl ParserState<'_, '_> {
                 }
                 b'0'..=b'9' => self.scan_number(),
                 _ if ch.is_ascii_whitespace() => {
+                    self.pos += 1;
+                    // TODO: \r\n
                     if ch == b'\n' {
                         self.token_flags.insert(TokenFlags::PRECEDING_LINE_BREAK);
+                        self.line += 1;
+                        self.record_new_line_offset();
                     }
-                    self.pos += 1;
                     continue;
                 }
                 _ => self.scan_identifier(ch).unwrap(),
             };
             self.token = token;
             break;
+        }
+    }
+
+    pub(super) fn record_new_line_offset(&mut self) {
+        // it means there has useless scan when this condition not true,
+        // how can we use `self.line_map.push(xxx)` directly?
+        if self
+            .line_map
+            .last()
+            .copied()
+            .is_none_or(|pos| pos < self.line_start as u32)
+        {
+            self.line_map.push(self.line_start as u32);
+            self.line_start = self.pos;
         }
     }
 
@@ -937,7 +1015,12 @@ impl ParserState<'_, '_> {
         value_chars
     }
 
-    fn scan_string(&mut self, quote: u8, jsx_attribute_string: bool) -> (Vec<u8>, Vec<u8>) {
+    pub(super) fn scan_string(
+        &mut self,
+        quote: u8,
+        jsx_attribute_string: bool,
+    ) -> (Vec<u8>, Vec<u8>) {
+        assert_eq!(self.ch_unchecked(), quote);
         self.pos += 1;
         let mut v = Vec::with_capacity(32);
         let mut prev = 0;
@@ -953,7 +1036,7 @@ impl ParserState<'_, '_> {
             } else if ch == b'\\' && !jsx_attribute_string {
                 let t = self.scan_escape_sequence(
                     EscapeSequenceScanningFlags::STRING
-                        | EscapeSequenceScanningFlags::REPORT_ERRORS,
+                        .union(EscapeSequenceScanningFlags::REPORT_ERRORS),
                 );
                 v.extend(t.iter());
                 key.extend(t.iter());
@@ -1027,6 +1110,14 @@ impl ParserState<'_, '_> {
     }
 
     pub(super) fn re_scan_less(&mut self) -> TokenKind {
+        if self.token.kind == TokenKind::LessLess {
+            let token_start = self.token.start();
+            self.pos = token_start as usize + 1;
+            self.token = Token::new(
+                TokenKind::Less,
+                Span::new(token_start, self.pos as u32, self.module_id),
+            );
+        }
         self.token.kind
     }
 

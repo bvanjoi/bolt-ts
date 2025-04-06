@@ -4,8 +4,8 @@ use crate::ty::TypeFlags;
 use super::TyChecker;
 use super::ast;
 use super::errors;
+use super::symbol_info::SymbolInfo;
 use super::ty;
-use crate::path::is_external_module_relative;
 
 impl<'cx> TyChecker<'cx> {
     pub(super) fn check_stmt(&mut self, stmt: &'cx ast::Stmt) {
@@ -13,7 +13,7 @@ impl<'cx> TyChecker<'cx> {
         match stmt.kind {
             Var(var) => self.check_var_stmt(var),
             Expr(expr) => {
-                self.check_expr(expr);
+                self.check_expr(expr.expr);
             }
             Fn(f) => self.check_fn_decl(f),
             If(i) => self.check_if_stmt(i),
@@ -25,11 +25,12 @@ impl<'cx> TyChecker<'cx> {
             Type(ty) => self.check_type_decl(ty),
             For(node) => self.check_for_stmt(node),
             ForIn(node) => self.check_for_in_stmt(node),
+            Import(node) => self.check_import_decl(node),
+            Export(node) => self.check_export_decl(node),
+            ExportAssign(_) => {}
             Empty(_) => {}
             Throw(_) => {}
             Enum(_) => {}
-            Import(_) => {}
-            Export(_) => {}
             ForOf(_) => {}
             Break(_) => {}
             Continue(_) => {}
@@ -38,6 +39,58 @@ impl<'cx> TyChecker<'cx> {
             Do(_) => {}
             Debugger(_) => {}
         };
+    }
+
+    fn check_export_decl(&mut self, node: &'cx ast::ExportDecl<'cx>) {
+        if node.module_spec().is_none() || self.check_external_module_name(node.id) {
+            if let ast::ExportClauseKind::Specs(specs) = node.clause.kind {
+                // export { a, b as c } from 'xxxx'
+                // export { a, b as c }
+                for spec in specs.list {
+                    self.check_export_spec(spec);
+                }
+            }
+        }
+    }
+
+    fn check_export_spec(&mut self, spec: &'cx ast::ExportSpec<'cx>) {
+        let id = spec.id();
+        self.check_alias_symbol(id);
+    }
+
+    fn check_external_module_name(&mut self, node: ast::NodeID) -> bool {
+        let Some(module_name) = self.p.node(node).get_external_module_name() else {
+            return false;
+        };
+        // TODO: more checks
+        true
+    }
+
+    fn check_import_decl(&mut self, node: &'cx ast::ImportDecl<'cx>) {
+        if let Some(clause) = node.clause.kind {
+            use bolt_ts_ast::ImportClauseKind::*;
+            match clause {
+                Ns(n) => {
+                    // import * as ns from 'xxxx'
+                    self.check_import_binding(n.id);
+                }
+                Specs(specs) => {
+                    // import { a, b as c } from 'xxxx'
+                    for spec in specs {
+                        use bolt_ts_ast::ImportSpecKind::*;
+                        match spec.kind {
+                            Shorthand(n) => {
+                                // import { a } from 'xxxx'
+                                self.check_import_binding(n.id);
+                            }
+                            Named(_) => {
+                                // import { a as b } from 'xxxx'
+                            }
+                        }
+                    }
+                }
+            }
+        }
     }
 
     fn check_for_in_stmt(&mut self, node: &'cx ast::ForInStmt<'cx>) {
@@ -71,7 +124,7 @@ impl<'cx> TyChecker<'cx> {
     fn check_for_stmt(&mut self, node: &'cx ast::ForStmt<'cx>) {
         if let Some(init) = node.init {
             match init {
-                ast::ForInitKind::Var((kind, list)) => self.check_var_decl_list(list),
+                ast::ForInitKind::Var(list) => self.check_var_decl_list(list),
                 ast::ForInitKind::Expr(expr) => {
                     self.check_expr(expr);
                 }
@@ -130,10 +183,10 @@ impl<'cx> TyChecker<'cx> {
         let is_ambient_external_module = matches!(ns.name, ast::ModuleName::StringLit(_));
         if is_ambient_external_module {
             let p = self.p.parent(ns.id).unwrap();
-            if self.p.node(p).is_program() {
+            if self.p.is_global_source_file(p) {
                 if let ast::ModuleName::StringLit(lit) = ns.name {
                     let module_name = self.atoms.get(lit.val);
-                    if is_external_module_relative(module_name) {
+                    if bolt_ts_path::is_external_module_relative(module_name) {
                         let error =
                             errors::AmbientModuleDeclarationCannotSpecifyRelativeModuleName {
                                 span: lit.span,

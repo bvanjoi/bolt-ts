@@ -4,3 +4,9 @@
 
 var arr: string[] | number[];
 arr.splice(1, 1);
+let b: string[] | number[] = arr.splice(1, 1);
+
+{
+  let b: string[] = [];
+  let a: [...string[]] = [...b];
+}

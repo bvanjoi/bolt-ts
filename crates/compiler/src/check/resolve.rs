@@ -1,5 +1,7 @@
 use super::TyChecker;
+use super::symbol_info::SymbolInfo;
 use crate::bind::SymbolID;
+
 use bolt_ts_ast as ast;
 
 #[derive(Debug, Clone, Copy)]
@@ -17,12 +19,7 @@ impl std::fmt::Display for ExpectedArgsCount {
     }
 }
 
-impl<'cx> TyChecker<'cx> {
-    #[inline]
-    pub(super) fn resolve_symbol_by_ident(&self, ident: &'cx ast::Ident) -> SymbolID {
-        self.final_res(ident.id)
-    }
-
+impl TyChecker<'_> {
     #[inline]
     pub(super) fn final_res(&self, id: ast::NodeID) -> SymbolID {
         self.binder
@@ -41,27 +38,12 @@ impl<'cx> TyChecker<'cx> {
             })
     }
 
-    pub(super) fn resolve_entity_name(&mut self, name: &'cx ast::EntityName<'cx>) -> SymbolID {
-        use bolt_ts_ast::EntityNameKind::*;
-        match name.kind {
-            Ident(n) => self.resolve_symbol_by_ident(n),
-            Qualified(n) => self.final_res(n.id),
-        }
+    pub(super) fn check_alias_symbol(&mut self, node: ast::NodeID) {
+        let symbol = self.get_symbol_of_decl(node);
+        self.resolve_alias(symbol);
     }
 
-    // fn resolve_qualified_name(
-    //     &mut self,
-    //     left: &'cx ast::EntityName<'cx>,
-    //     right: &'cx ast::Ident,
-    // ) -> SymbolID {
-    //     let left_symbol = self.resolve_entity_name(left);
-    //     let left_s = self.binder.symbol(left_symbol);
-    //     let ns = if left_s.flags.intersects(SymbolFlags::NAMESPACE) {
-    //         left_s.expect_ns()
-    //     } else {
-    //         return Symbol::ERR;
-    //     };
-    //     let name = SymbolName::Normal(right.name);
-    //     ns.exports.get(&name)
-    // }
+    pub(super) fn check_import_binding(&mut self, node: ast::NodeID) {
+        self.check_alias_symbol(node);
+    }
 }

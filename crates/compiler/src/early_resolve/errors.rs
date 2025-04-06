@@ -87,7 +87,7 @@ pub(super) struct AnInterfaceCannotExtendAPrimTy {
 }
 
 #[derive(Error, Diagnostic, DiagnosticExt, Debug)]
-#[error("Cannot use namespace as a {}", if *is_ty { "type" } else { "value" })]
+#[error("Cannot use namespace as a {}.", if *is_ty { "type" } else { "value" })]
 #[diagnostic(severity(Advice))]
 pub(super) struct CannotUseNamespaceAsTyOrValue {
     #[label(primary)]

@@ -15,7 +15,7 @@ impl<'cx> Emit<'cx> {
         if let Some(extends) = class.extends() {
             self.content.p("extends");
             self.content.p_whitespace();
-            self.emit_entity_name(extends.name);
+            self.emit_expr(extends.expr_with_ty_args.expr);
             self.content.p_whitespace();
         }
         self.emit_block_like(class.elems());
@@ -89,7 +89,7 @@ impl<'cx> Emit<'cx> {
 
             let last_super_call = block.stmts.iter().rev().position(|stmt| {
                 if let ast::StmtKind::Expr(expr) = stmt.kind {
-                    if let ast::ExprKind::Call(call) = expr.kind {
+                    if let ast::ExprKind::Call(call) = expr.expr.kind {
                         if let ast::ExprKind::Super(_) = call.expr.kind {
                             return true;
                         }

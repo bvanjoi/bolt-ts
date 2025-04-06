@@ -10,7 +10,6 @@ pub(super) trait FnLike<'cx, 'p> {
     fn finish(
         self,
         state: &mut ParserState<'cx, 'p>,
-        id: ast::NodeID,
         span: Span,
         modifiers: Option<&'cx ast::Modifiers<'cx>>,
         name: Option<&'cx ast::Ident>,
@@ -30,7 +29,6 @@ impl<'cx, 'p> FnLike<'cx, 'p> for ParseFnDecl {
     fn finish(
         self,
         state: &mut ParserState<'cx, 'p>,
-        id: ast::NodeID,
         span: Span,
         modifiers: Option<&'cx ast::Modifiers<'cx>>,
         name: Option<&'cx ast::Ident>,
@@ -40,6 +38,7 @@ impl<'cx, 'p> FnLike<'cx, 'p> for ParseFnDecl {
         body: Option<&'cx ast::BlockStmt<'cx>>,
     ) -> Self::Node {
         let name = name.unwrap();
+        let id = state.next_node_id();
         let decl = state.alloc(ast::FnDecl {
             id,
             span,
@@ -51,7 +50,8 @@ impl<'cx, 'p> FnLike<'cx, 'p> for ParseFnDecl {
             body,
         });
         state.node_flags_map.insert(id, state.context_flags);
-        state.insert_map(decl.id, ast::Node::FnDecl(decl));
+        state.set_external_module_indicator_if_has_export_mod(modifiers, id);
+        state.nodes.insert(decl.id, ast::Node::FnDecl(decl));
         decl
     }
 }
@@ -68,7 +68,6 @@ impl<'cx, 'p> FnLike<'cx, 'p> for ParseFnExpr {
     fn finish(
         self,
         state: &mut ParserState<'cx, 'p>,
-        id: ast::NodeID,
         span: Span,
         modifiers: Option<&'cx ast::Modifiers<'cx>>,
         name: Option<&'cx ast::Ident>,
@@ -78,6 +77,7 @@ impl<'cx, 'p> FnLike<'cx, 'p> for ParseFnExpr {
         body: Option<&'cx ast::BlockStmt<'cx>>,
     ) -> Self::Node {
         assert!(modifiers.is_none());
+        let id = state.next_node_id();
         let expr = state.alloc(ast::FnExpr {
             id,
             span,
@@ -87,7 +87,7 @@ impl<'cx, 'p> FnLike<'cx, 'p> for ParseFnExpr {
             ty,
             body: body.unwrap(),
         });
-        state.insert_map(expr.id, ast::Node::FnExpr(expr));
+        state.nodes.insert(expr.id, ast::Node::FnExpr(expr));
         expr
     }
 }
@@ -99,18 +99,15 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         modifiers: Option<&'cx ast::Modifiers<'cx>>,
     ) -> PResult<Node> {
         use bolt_ts_ast::TokenKind::*;
-        let id = self.next_node_id();
         let start = self.token.start();
         self.expect(Function);
-        let name = self.with_parent(id, |this| mode.parse_name(this))?;
-        let ty_params = self.with_parent(id, Self::parse_ty_params)?;
-        let params = self.with_parent(id, Self::parse_params)?;
-        let ret_ty = self.with_parent(id, Self::parse_fn_decl_ret_type)?;
-        let body = self.with_parent(id, Self::parse_fn_block)?;
+        let name = mode.parse_name(self)?;
+        let ty_params = self.parse_ty_params()?;
+        let params = self.parse_params()?;
+        let ret_ty = self.parse_fn_decl_ret_type()?;
+        let body = self.parse_fn_block()?;
         let span = self.new_span(start);
-        Ok(mode.finish(
-            self, id, span, modifiers, name, ty_params, params, ret_ty, body,
-        ))
+        Ok(mode.finish(self, span, modifiers, name, ty_params, params, ret_ty, body))
     }
 
     fn parse_fn_decl_ret_type(&mut self) -> PResult<Option<&'cx ast::Ty<'cx>>> {

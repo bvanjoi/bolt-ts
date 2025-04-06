@@ -1,0 +1,5 @@
+  × Cannot find name 'foo'.
+   ╭─[../../tests/cases/compiler/logicalNotExpression1/index.ts:3:2]
+ 3 │ foo
+   · ───
+   ╰────

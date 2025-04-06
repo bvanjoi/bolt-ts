@@ -1,0 +1,5 @@
+  × Generic type 'Foo<T>' requires 1 type argument.
+   ╭─[../../tests/cases/compiler/genericTypeUsedWithoutTypeArguments3/index.ts:4:26]
+ 4 │ Foo
+   · ───
+   ╰────

@@ -15,7 +15,6 @@ pub(super) trait ParseBreakOrContinue<'cx, 'p> {
     fn finish(
         &self,
         state: &mut ParserState<'cx, 'p>,
-        id: ast::NodeID,
         span: Span,
         label: Option<&'cx ast::Ident>,
     ) -> Self::Node;
@@ -29,12 +28,12 @@ impl<'cx, 'p> ParseBreakOrContinue<'cx, 'p> for ParseBreak {
     fn finish(
         &self,
         state: &mut ParserState<'cx, 'p>,
-        id: ast::NodeID,
         span: Span,
         label: Option<&'cx ast::Ident>,
     ) -> Self::Node {
+        let id = state.next_node_id();
         let stmt = state.alloc(ast::BreakStmt { id, span, label });
-        state.insert_map(stmt.id, ast::Node::BreakStmt(stmt));
+        state.nodes.insert(stmt.id, ast::Node::BreakStmt(stmt));
         stmt
     }
 }
@@ -47,12 +46,12 @@ impl<'cx, 'p> ParseBreakOrContinue<'cx, 'p> for ParseContinue {
     fn finish(
         &self,
         state: &mut ParserState<'cx, 'p>,
-        id: ast::NodeID,
         span: Span,
         label: Option<&'cx ast::Ident>,
     ) -> Self::Node {
+        let id = state.next_node_id();
         let stmt = state.alloc(ast::ContinueStmt { id, span, label });
-        state.insert_map(stmt.id, ast::Node::ContinueStmt(stmt));
+        state.nodes.insert(stmt.id, ast::Node::ContinueStmt(stmt));
         stmt
     }
 }
@@ -62,7 +61,6 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         &mut self,
         kind: &impl ParseBreakOrContinue<'cx, 'p, Node = Node>,
     ) -> PResult<Node> {
-        let id = self.next_node_id();
         let start = self.token.start();
 
         self.expect(kind.expect_token());
@@ -74,6 +72,6 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         };
         self.parse_semi();
         let span = self.new_span(start);
-        Ok(kind.finish(self, id, span, label))
+        Ok(kind.finish(self, span, label))
     }
 }

@@ -5,7 +5,6 @@ edition = "2024"
 
 [dependencies]
 miette = { workspace = true }
-rustc-hash = { workspace = true }
 bolt_ts_fs = { path = "../fs" }
 bolt_ts_utils = { path = "../utils" }
 bolt_ts_atom = { path = "../atom" }

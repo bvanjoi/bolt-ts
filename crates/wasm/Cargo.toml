@@ -12,7 +12,7 @@ bolt_ts_config = { path = "../config" }
 bolt_ts_compiler = { path = "../compiler" }
 bolt_ts_errors = { path = "../errors" }
 bolt_ts_fs = { path = "../fs" }
-bolt_ts_lib = { path = "../lib" }
+bolt_ts_libs = { path = "../libs" }
 bolt_ts_span = { path = "../span" }
 wasm-bindgen = "0.2"
 serde = { workspace = true }
@@ -20,3 +20,6 @@ serde_json = { workspace = true, features = ["preserve_order"] }
 serde-wasm-bindgen = "0.6.5"
 indexmap = { workspace = true, features = ["serde"] }
 console_error_panic_hook = "0.1.7"
+
+[dev-dependencies]
+wasm-bindgen-test = "0.3.50"

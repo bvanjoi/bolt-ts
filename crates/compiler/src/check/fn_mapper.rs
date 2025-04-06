@@ -38,7 +38,7 @@ impl<'cx> ty::TyMap<'cx> for RestrictiveMapper {
         if use_self {
             ty
         } else if let Some(restrictive_instantiation) =
-            checker.get_ty_links(ty.id).get_restrictive_instantiation()
+            checker.common_ty_links_arena[ty.links].get_restrictive_instantiation()
         {
             restrictive_instantiation
         } else {
@@ -49,8 +49,7 @@ impl<'cx> ty::TyMap<'cx> for RestrictiveMapper {
                 restrictive_instantiation.id,
                 links::TyLinks::default().with_param_ty_constraint(no_constraint_ty),
             );
-            checker
-                .get_mut_ty_links(ty.id)
+            checker.common_ty_links_arena[ty.links]
                 .set_restrictive_instantiation(restrictive_instantiation);
             restrictive_instantiation
         }

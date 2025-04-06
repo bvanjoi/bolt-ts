@@ -11,3 +11,8 @@ type Z<G extends string> = ['a'][G];
 type F<T> = 0 extends 0 ? T['123'] : T['456'];
 //~^ ERROR: Type '"123"' cannot be used to index type 'T'.
 //~| ERROR: Type '"456"' cannot be used to index type 'T'.
+
+{
+  type Tu<L extends number> = L extends 42 ? [] : [];
+  type Fu<A extends number> = [...Tu<A>]['length'];
+}

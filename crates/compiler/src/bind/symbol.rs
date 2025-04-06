@@ -3,15 +3,13 @@ use bolt_ts_span::ModuleID;
 use bolt_ts_utils::fx_hashmap_with_capacity;
 use rustc_hash::FxHashMap;
 
-use crate::check::F64Represent;
+use crate::{check::F64Represent, parser::Parser};
 use bolt_ts_ast::NodeID;
 
 #[derive(Debug, Clone, Copy, Hash, PartialEq, Eq)]
 pub enum SymbolName {
     Container,
-    // TODO: merge `Normal` and `Ele`
-    Normal(AtomId),
-    Ele(AtomId),
+    Atom(AtomId),
     EleNum(F64Represent),
     ClassExpr,
     Array,
@@ -27,6 +25,13 @@ pub enum SymbolName {
     Interface,
     Index,
     Type,
+    Missing,
+    Resolving,
+    ExportStar,
+    ExportEquals,
+    ExportDefault,
+    Computed,
+    ParamIdx(u32),
 }
 
 impl SymbolName {
@@ -36,8 +41,7 @@ impl SymbolName {
 
     pub fn as_atom(&self) -> Option<AtomId> {
         match self {
-            SymbolName::Normal(atom) => Some(*atom),
-            SymbolName::Ele(atom) => Some(*atom),
+            SymbolName::Atom(atom) => Some(*atom),
             _ => None,
         }
     }
@@ -86,6 +90,7 @@ bitflags::bitflags! {
         const ASSIGNMENT = 1 << 26;
         const MODULE_EXPORTS = 1 << 27;
 
+        const CLASS_OR_INTERFACE = Self::CLASS.bits() | Self::INTERFACE.bits();
         const ENUM = Self::REGULAR_ENUM.bits() | Self::CONST_ENUM.bits();
         const VARIABLE = Self::FUNCTION_SCOPED_VARIABLE.bits() | Self::BLOCK_SCOPED_VARIABLE.bits();
         const VALUE = Self::VARIABLE.bits() | Self::PROPERTY.bits() | Self::ENUM_MEMBER.bits() | Self::OBJECT_LITERAL.bits() | Self::FUNCTION.bits() | Self::CLASS.bits() | Self::ENUM.bits() | Self::VALUE_MODULE.bits() | Self::METHOD.bits() | Self::GET_ACCESSOR.bits() | Self::SET_ACCESSOR.bits();
@@ -126,278 +131,135 @@ bitflags::bitflags! {
     }
 }
 
+impl SymbolFlags {
+    pub const fn get_excluded(&self) -> Self {
+        let mut result = SymbolFlags::empty();
+        if self.intersects(SymbolFlags::BLOCK_SCOPED_VARIABLE) {
+            result = result.union(SymbolFlags::BLOCK_SCOPED_VARIABLE_EXCLUDES);
+        };
+        if self.intersects(SymbolFlags::FUNCTION_SCOPED_VARIABLE) {
+            result = result.union(SymbolFlags::FUNCTION_SCOPED_VARIABLE_EXCLUDES);
+        };
+        if self.intersects(SymbolFlags::PROPERTY) {
+            result = result.union(SymbolFlags::PROPERTY_EXCLUDES);
+        };
+        if self.intersects(SymbolFlags::ENUM_MEMBER) {
+            result = result.union(SymbolFlags::ENUM_MEMBER_EXCLUDES);
+        };
+        if self.intersects(SymbolFlags::FUNCTION) {
+            result = result.union(SymbolFlags::FUNCTION_EXCLUDES);
+        };
+        if self.intersects(SymbolFlags::CLASS) {
+            result = result.union(SymbolFlags::CLASS_EXCLUDES);
+        };
+        if self.intersects(SymbolFlags::INTERFACE) {
+            result = result.union(SymbolFlags::INTERFACE_EXCLUDES);
+        };
+        if self.intersects(SymbolFlags::REGULAR_ENUM) {
+            result = result.union(SymbolFlags::REGULAR_ENUM_EXCLUDES);
+        };
+        if self.intersects(SymbolFlags::CONST_ENUM) {
+            result = result.union(SymbolFlags::CONST_ENUM_EXCLUDES);
+        };
+        if self.intersects(SymbolFlags::VALUE_MODULE) {
+            result = result.union(SymbolFlags::VALUE_MODULE_EXCLUDES);
+        };
+        if self.intersects(SymbolFlags::METHOD) {
+            result = result.union(SymbolFlags::METHOD_EXCLUDES);
+        };
+        if self.intersects(SymbolFlags::GET_ACCESSOR) {
+            result = result.union(SymbolFlags::GET_ACCESSOR_EXCLUDES);
+        };
+        if self.intersects(SymbolFlags::SET_ACCESSOR) {
+            result = result.union(SymbolFlags::SET_ACCESSOR_EXCLUDES);
+        };
+        if self.intersects(SymbolFlags::TYPE_PARAMETER) {
+            result = result.union(SymbolFlags::TYPE_PARAMETER_EXCLUDES);
+        };
+        if self.intersects(SymbolFlags::TYPE_ALIAS) {
+            result = result.union(SymbolFlags::TYPE_ALIAS_EXCLUDES);
+        };
+        if self.intersects(SymbolFlags::ALIAS) {
+            result = result.union(SymbolFlags::ALIAS_EXCLUDES);
+        };
+        result
+    }
+}
+
 #[derive(Debug)]
 pub struct Symbol {
     pub name: SymbolName,
     pub flags: SymbolFlags,
-    pub(crate) kind: (SymbolKind, Option<InterfaceSymbol>, Option<NsSymbol>),
+    // TODO: use `Option<thin_vec::ThinVec<NodeID>`
+    pub decls: thin_vec::ThinVec<NodeID>,
+    pub value_decl: Option<NodeID>,
+    // TODO: use `Option<SymbolTable>`
+    pub(super) members: SymbolTable,
+    // TODO: use `Option<SymbolTable>`
+    pub(super) exports: SymbolTable,
+    pub merged_id: Option<usize>,
+    pub parent: Option<SymbolID>,
+    pub export_symbol: Option<SymbolID>,
+    pub const_enum_only_module: Option<bool>,
+    pub is_replaceable_by_method: Option<bool>,
+}
+
+#[derive(Debug, Clone)]
+pub struct SymbolTable(pub FxHashMap<SymbolName, SymbolID>);
+
+impl Default for SymbolTable {
+    fn default() -> Self {
+        Self(fx_hashmap_with_capacity(64))
+    }
+}
+
+impl SymbolTable {
+    pub fn new(cap: usize) -> Self {
+        Self(fx_hashmap_with_capacity(cap))
+    }
 }
 
 impl Symbol {
     pub const ERR: SymbolID = SymbolID::ERR;
+    pub const GLOBAL_THIS: SymbolID = SymbolID::GLOBAL_THIS;
     pub const ARGUMENTS: SymbolID = SymbolID::ARGUMENTS;
-
-    pub(super) fn new(name: SymbolName, flags: SymbolFlags, kind: SymbolKind) -> Self {
-        Self {
-            name,
-            flags,
-            kind: (kind, None, None),
-        }
-    }
-    pub(super) fn new_interface(name: SymbolName, flags: SymbolFlags, i: InterfaceSymbol) -> Self {
-        Self {
-            name,
-            flags,
-            kind: (SymbolKind::Err, Some(i), None),
-        }
-    }
-    pub(super) fn new_ns(name: SymbolName, flags: SymbolFlags, i: NsSymbol) -> Self {
-        Self {
-            name,
-            flags,
-            kind: (SymbolKind::Err, None, Some(i)),
-        }
-    }
+    pub const RESOLVING: SymbolID = SymbolID::RESOLVING;
+    pub const EMPTY_TYPE_LITERAL: SymbolID = SymbolID::EMPTY_TYPE_LITERAL;
 
     pub fn can_have_symbol(node: bolt_ts_ast::Node<'_>) -> bool {
         use bolt_ts_ast::Node::*;
         node.is_decl() || matches!(node, FnTy(_))
     }
-}
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum SymbolFnKind {
-    FnDecl,
-    FnExpr,
-    Ctor,
-    Call,
-    Method,
-}
+    pub fn get_decl_of_alias_symbol(&self, p: &Parser) -> Option<NodeID> {
+        self.decls
+            .iter()
+            .rev()
+            .find(|decl| p.is_alias_symbol_decl(**decl))
+            .copied()
+    }
 
-#[derive(Debug)]
-pub(crate) enum SymbolKind {
-    Err,
-    BlockContainer(BlockContainerSymbol),
-    /// `var` or parameter
-    FunctionScopedVar(FunctionScopedVarSymbol),
-    /// `let` or `const`
-    BlockScopedVar {
-        decl: NodeID,
-    },
-    Fn(FnSymbol),
-    Class(ClassSymbol),
-    Prop(PropSymbol),
-    Object(ObjectSymbol),
-    Index(IndexSymbol),
-    TyAlias(TyAliasSymbol),
-    TyParam(TyParamSymbol),
-    TyLit(TyLitSymbol),
-    Alias(AliasSymbol),
-    GetterSetter(GetterSetterSymbol),
-    TyMapped {
-        decl: NodeID,
-    },
-}
-
-impl SymbolKind {
+    pub fn members(&self) -> &SymbolTable {
+        &self.members
+    }
+    pub fn exports(&self) -> &SymbolTable {
+        &self.exports
+    }
+    pub fn get_declaration_of_kind(
+        &self,
+        f: impl Fn(bolt_ts_ast::NodeID) -> bool,
+    ) -> Option<bolt_ts_ast::NodeID> {
+        self.decls.iter().find(|decl| f(**decl)).copied()
+    }
     pub fn opt_decl(&self) -> Option<NodeID> {
-        match &self {
-            SymbolKind::FunctionScopedVar(f) => Some(f.decl),
-            SymbolKind::BlockScopedVar { decl } => Some(*decl),
-            SymbolKind::Class(c) => Some(c.decl),
-            SymbolKind::Prop(prop) => Some(prop.decl),
-            SymbolKind::Object(object) => Some(object.decl),
-            SymbolKind::Index(index) => Some(index.decls[0]),
-            SymbolKind::TyAlias(alias) => Some(alias.decl),
-            SymbolKind::TyParam(param) => Some(param.decl),
-            SymbolKind::TyLit(ty_lit) => Some(ty_lit.decl),
-            SymbolKind::Alias(alias) => Some(alias.decl),
-            SymbolKind::Fn(f) => Some(f.decls[0]),
-            SymbolKind::TyMapped { decl } => Some(*decl),
-            _ => None,
-        }
+        self.decls.first().copied()
     }
-}
-
-macro_rules! as_symbol_kind {
-    ($kind: ident, $ty:ty, $as_kind: ident, $expect_kind: ident) => {
-        impl Symbol {
-            #[inline(always)]
-            pub(super) fn $as_kind(&self) -> Option<$ty> {
-                match &self.kind.0 {
-                    SymbolKind::$kind(ty) => Some(ty),
-                    _ => None,
-                }
-            }
-            #[inline(always)]
-            pub fn $expect_kind(&self) -> $ty {
-                self.$as_kind().unwrap()
-            }
-        }
-    };
-}
-
-impl Symbol {
-    #[inline(always)]
-    pub(super) fn as_interface(&self) -> Option<&InterfaceSymbol> {
-        self.kind.1.as_ref()
-    }
-    #[inline(always)]
-    pub fn expect_interface(&self) -> &InterfaceSymbol {
-        self.as_interface().unwrap()
-    }
-    #[inline(always)]
-    pub(super) fn as_ns(&self) -> Option<&NsSymbol> {
-        self.kind.2.as_ref()
-    }
-    #[inline(always)]
-    pub fn expect_ns(&self) -> &NsSymbol {
-        self.as_ns().unwrap()
-    }
-}
-
-as_symbol_kind!(
-    BlockContainer,
-    &BlockContainerSymbol,
-    as_block_container,
-    expect_block_container
-);
-as_symbol_kind!(Index, &IndexSymbol, as_index, expect_index);
-as_symbol_kind!(Object, &ObjectSymbol, as_object, expect_object);
-as_symbol_kind!(Prop, &PropSymbol, as_prop, expect_prop);
-as_symbol_kind!(Fn, &FnSymbol, as_fn, expect_fn);
-as_symbol_kind!(Class, &ClassSymbol, as_class, expect_class);
-as_symbol_kind!(TyAlias, &TyAliasSymbol, as_ty_alias, expect_ty_alias);
-as_symbol_kind!(TyParam, &TyParamSymbol, as_ty_param, expect_ty_param);
-as_symbol_kind!(TyLit, &TyLitSymbol, as_ty_lit, expect_ty_lit);
-as_symbol_kind!(Alias, &AliasSymbol, as_alias, expect_alias);
-as_symbol_kind!(
-    GetterSetter,
-    &GetterSetterSymbol,
-    as_getter_setter,
-    expect_getter_setter
-);
-
-#[derive(Debug)]
-pub struct AliasSymbol {
-    pub decl: NodeID,
-    pub source: SymbolName,
-    pub target: SymbolName,
-}
-
-#[derive(Debug)]
-pub struct TyLitSymbol {
-    pub decl: NodeID,
-    pub members: FxHashMap<SymbolName, SymbolID>,
-}
-
-#[derive(Debug)]
-pub struct BlockContainerSymbol {
-    pub locals: FxHashMap<SymbolName, SymbolID>,
-    pub exports: FxHashMap<SymbolName, SymbolID>,
-}
-
-#[derive(Debug)]
-pub struct GetterSetterSymbol {
-    pub getter_decl: Option<NodeID>,
-    pub setter_decl: Option<NodeID>,
-}
-
-#[derive(Debug)]
-pub struct IndexSymbol {
-    pub decls: thin_vec::ThinVec<NodeID>,
-}
-
-#[derive(Debug)]
-pub struct InterfaceSymbol {
-    pub decls: thin_vec::ThinVec<NodeID>,
-    pub members: FxHashMap<SymbolName, SymbolID>,
-}
-
-#[derive(Debug)]
-pub struct TyParamSymbol {
-    pub decl: NodeID,
-}
-#[derive(Debug)]
-pub struct TyAliasSymbol {
-    pub decl: NodeID,
-}
-
-#[derive(Debug)]
-pub struct NsSymbol {
-    pub decls: thin_vec::ThinVec<NodeID>,
-    pub exports: FxHashMap<SymbolName, SymbolID>,
-    pub members: FxHashMap<SymbolName, SymbolID>,
-}
-
-#[derive(Debug)]
-pub struct FnSymbol {
-    pub kind: SymbolFnKind,
-    pub decls: thin_vec::ThinVec<NodeID>,
-}
-
-#[derive(Debug)]
-pub struct ClassSymbol {
-    pub decl: NodeID,
-    pub members: FxHashMap<SymbolName, SymbolID>,
-    pub exports: FxHashMap<SymbolName, SymbolID>,
-}
-
-#[derive(Debug)]
-pub struct PropSymbol {
-    pub decl: NodeID,
-}
-
-#[derive(Debug)]
-pub struct ObjectSymbol {
-    pub decl: NodeID,
-    pub members: FxHashMap<SymbolName, SymbolID>,
-}
-
-#[derive(Debug)]
-pub struct FunctionScopedVarSymbol {
-    pub decl: NodeID,
-}
-
-impl Symbol {
-    #[inline(always)]
-    pub fn is_variable(&self) -> bool {
-        self.flags.intersects(SymbolFlags::VARIABLE)
-    }
-
-    #[inline(always)]
-    pub fn is_value(&self) -> bool {
-        self.flags.intersects(SymbolFlags::VALUE)
-    }
-
-    #[inline(always)]
-    pub fn is_type(&self) -> bool {
-        self.flags.intersects(SymbolFlags::TYPE)
-    }
-
-    pub fn as_str(&self) -> &'static str {
-        match self.kind.0 {
-            SymbolKind::Err => "err",
-            SymbolKind::FunctionScopedVar { .. } => todo!(),
-            SymbolKind::BlockScopedVar { .. } => todo!(),
-            SymbolKind::Fn { .. } => "function",
-            SymbolKind::Class { .. } => "class",
-            SymbolKind::Prop { .. } => todo!(),
-            SymbolKind::Object { .. } => todo!(),
-            SymbolKind::BlockContainer { .. } => todo!(),
-            SymbolKind::Index { .. } => todo!(),
-            SymbolKind::TyAlias { .. } => todo!(),
-            SymbolKind::TyParam { .. } => todo!(),
-            SymbolKind::TyLit(_) => todo!(),
-            SymbolKind::Alias(_) => todo!(),
-            SymbolKind::GetterSetter(_) => todo!(),
-            SymbolKind::TyMapped { .. } => todo!(),
-        }
-    }
-
-    pub fn opt_decl(&self) -> Option<NodeID> {
-        let id = self.kind.0.opt_decl();
-        id.or_else(|| self.kind.1.as_ref().and_then(|i| i.decls.first()).copied())
+    pub fn is_shorthand_ambient_module(&self, p: &Parser) -> bool {
+        self.value_decl.is_some_and(|value_decl| {
+            p.node(value_decl)
+                .as_namespace_decl()
+                .is_some_and(|ns| ns.block.is_none())
+        })
     }
 }
 
@@ -408,20 +270,31 @@ impl SymbolID {
         module: ModuleID::TRANSIENT,
         index: 0,
     };
-    pub(super) const ARGUMENTS: Self = SymbolID {
+    pub(super) const GLOBAL_THIS: Self = SymbolID {
         module: ModuleID::TRANSIENT,
         index: 1,
     };
+    pub(super) const ARGUMENTS: Self = SymbolID {
+        module: ModuleID::TRANSIENT,
+        index: 2,
+    };
+    pub(super) const RESOLVING: Self = SymbolID {
+        module: ModuleID::TRANSIENT,
+        index: 3,
+    };
+    pub(super) const EMPTY_TYPE_LITERAL: Self = SymbolID {
+        module: ModuleID::TRANSIENT,
+        index: 4,
+    };
 
-    pub const fn container(module: ModuleID) -> Self {
+    pub fn container(module: ModuleID) -> Self {
+        assert_ne!(module.as_u32(), ModuleID::TRANSIENT.as_u32());
         Self { module, index: 0 }
     }
 
     pub fn opt_decl(&self, binder: &super::Binder) -> Option<NodeID> {
         let s = binder.symbol(*self);
-        let id = s.kind.0.opt_decl();
-        id.or_else(|| s.kind.1.as_ref().and_then(|i| i.decls.first()).copied())
-            .or_else(|| s.kind.2.as_ref().and_then(|i| i.decls.first()).copied())
+        s.opt_decl()
     }
 
     pub fn decl(&self, binder: &super::Binder) -> NodeID {
@@ -430,9 +303,10 @@ impl SymbolID {
     }
 
     pub(crate) fn new(module: ModuleID, index: u32) -> Self {
-        debug_assert!(
-            module == ModuleID::TRANSIENT,
-            "only use for transient during check"
+        assert_eq!(
+            module,
+            ModuleID::TRANSIENT,
+            "transient is only used during check"
         );
         Self { module, index }
     }
@@ -472,16 +346,15 @@ impl Symbols {
     }
 
     pub fn get(&self, id: SymbolID) -> &Symbol {
-        &self.data[id.index_as_usize()]
-    }
-
-    pub fn get_container(&self, module: ModuleID) -> &Symbol {
-        let id = SymbolID::container(module);
-        self.get(id)
+        let idx = id.index_as_usize();
+        debug_assert!(idx < self.data.len());
+        unsafe { self.data.get_unchecked(idx) }
     }
 
     pub fn get_mut(&mut self, id: SymbolID) -> &mut Symbol {
-        self.data.get_mut(id.index_as_usize()).unwrap()
+        let idx = id.index_as_usize();
+        debug_assert!(idx < self.data.len());
+        unsafe { self.data.get_unchecked_mut(idx) }
     }
 
     pub fn len(&self) -> u32 {
@@ -489,26 +362,38 @@ impl Symbols {
     }
 }
 
-pub struct GlobalSymbols(FxHashMap<SymbolName, SymbolID>);
+pub type GlobalSymbols = SymbolTable;
 
-impl Default for GlobalSymbols {
-    fn default() -> Self {
-        Self::new()
-    }
+#[derive(Debug, Clone, Copy)]
+pub(super) struct SymbolTableLocation {
+    pub(super) container: bolt_ts_ast::NodeID,
+    pub(super) kind: SymbolTableLocationKind,
 }
 
-impl GlobalSymbols {
-    pub fn new() -> Self {
-        Self(fx_hashmap_with_capacity(1024 * 128))
-    }
+#[derive(Debug, Clone, Copy)]
+pub(super) enum SymbolTableLocationKind {
+    SymbolMember,
+    SymbolExports,
+    ContainerLocals,
+}
 
-    pub fn insert(&mut self, name: SymbolName, symbol_id: SymbolID) {
-        assert!(matches!(name, SymbolName::Normal(_)));
-        let prev = self.0.insert(name, symbol_id);
-        assert!(prev.is_none(), "prev symbol: {prev:#?}")
+impl SymbolTableLocation {
+    pub(super) fn locals(container: bolt_ts_ast::NodeID) -> Self {
+        Self {
+            container,
+            kind: SymbolTableLocationKind::ContainerLocals,
+        }
     }
-
-    pub fn get(&self, name: SymbolName) -> Option<SymbolID> {
-        self.0.get(&name).copied()
+    pub(super) fn members(container: bolt_ts_ast::NodeID) -> Self {
+        Self {
+            container,
+            kind: SymbolTableLocationKind::SymbolMember,
+        }
+    }
+    pub(super) fn exports(container: bolt_ts_ast::NodeID) -> Self {
+        Self {
+            container,
+            kind: SymbolTableLocationKind::SymbolExports,
+        }
     }
 }

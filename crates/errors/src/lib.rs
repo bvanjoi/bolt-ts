@@ -53,6 +53,7 @@ pub fn offset_to_position(offset: usize, rope: &ropey::Rope) -> Option<Position>
     Some(Position { line, column })
 }
 
+// TODO: use parser.line_map instead of ropey::Rope
 pub fn miette_label_span_to_line_position(
     label: miette::LabeledSpan,
     source: &str,

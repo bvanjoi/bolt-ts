@@ -1,8 +1,10 @@
 use bolt_ts_atom::AtomId;
+use bolt_ts_config::Target;
 use bolt_ts_span::Span;
 use bolt_ts_utils::fx_hashmap_with_capacity;
 
 use crate::bind::SymbolID;
+use crate::check::transient_symbol::BorrowedDeclarations;
 use crate::ensure_sufficient_stack;
 use crate::parser::AssignmentKind;
 use crate::ty::CheckFlags;
@@ -13,6 +15,7 @@ use super::TyChecker;
 use super::ast;
 use super::bind::{SymbolFlags, SymbolName};
 use super::errors;
+use super::symbol_info::SymbolInfo;
 use super::ty;
 use super::ty::AccessFlags;
 use super::{CheckMode, InferenceContextId, SymbolLinks, TyLinks};
@@ -26,36 +29,118 @@ fn get_suggestion_boolean_op(op: &str) -> Option<&str> {
     }
 }
 
+bitflags::bitflags! {
+    #[derive(Clone, Copy, Debug)]
+    pub struct IterationUse: u8 {
+        const ALLOWS_SYNC_ITERABLES_FLAG  = 1 << 0;
+        const ALLOWS_ASYNC_ITERABLES_FLAG = 1 << 1;
+        const ALLOWS_STRING_INPUT_FLAG     = 1 << 2;
+        const FOR_OF_FLAG                  = 1 << 3;
+        const YIELD_STAR_FLAG              = 1 << 4;
+        const SPREAD_FLAG                  = 1 << 5;
+        const DESTRUCTURING_FLAG           = 1 << 6;
+        const POSSIBLY_OUT_OF_BOUNDS       = 1 << 7;
+
+        const ELEMENT = Self::ALLOWS_SYNC_ITERABLES_FLAG.bits();
+        const SPREAD = Self::ALLOWS_SYNC_ITERABLES_FLAG.bits()
+            | Self::SPREAD_FLAG.bits();
+        const DESTRUCTURING = Self::ALLOWS_SYNC_ITERABLES_FLAG.bits()
+            | Self::DESTRUCTURING_FLAG.bits();
+        const FOR_OF = Self::ALLOWS_SYNC_ITERABLES_FLAG.bits()
+            | Self::ALLOWS_STRING_INPUT_FLAG.bits()
+            | Self::FOR_OF_FLAG.bits();
+        const FOR_AWAIT_OF = Self::ALLOWS_SYNC_ITERABLES_FLAG.bits()
+            | Self::ALLOWS_ASYNC_ITERABLES_FLAG.bits()
+            | Self::ALLOWS_STRING_INPUT_FLAG.bits()
+            | Self::FOR_OF_FLAG.bits();
+        const YIELD_STAR = Self::ALLOWS_SYNC_ITERABLES_FLAG.bits()
+            | Self::YIELD_STAR_FLAG.bits();
+        const ASYNC_YIELD_STAR = Self::ALLOWS_SYNC_ITERABLES_FLAG.bits()
+            | Self::ALLOWS_ASYNC_ITERABLES_FLAG.bits()
+            | Self::YIELD_STAR_FLAG.bits();
+        const GENERATOR_RETURN_TYPE = Self::ALLOWS_SYNC_ITERABLES_FLAG.bits();
+        const ASYNC_GENERATOR_RETURN_TYPE = Self::ALLOWS_ASYNC_ITERABLES_FLAG.bits();
+    }
+}
+
 impl<'cx> TyChecker<'cx> {
+    pub(super) fn get_fresh_ty(&self, ty: &'cx ty::Ty<'cx>) -> Option<&'cx ty::Ty<'cx>> {
+        if ty.flags.intersects(TypeFlags::BOOLEAN_LITERAL) {
+            if ty == self.true_ty || ty == self.regular_true_ty {
+                Some(self.true_ty)
+            } else if ty == self.false_ty || ty == self.regular_false_ty {
+                Some(self.false_ty)
+            } else {
+                unreachable!()
+            }
+        } else if let Some(links) = ty.fresh_ty_links_id() {
+            self.fresh_ty_links_arena[links].get_fresh_ty()
+        } else {
+            unreachable!()
+        }
+    }
+
+    fn set_fresh_ty(&mut self, ty: &'cx ty::Ty<'cx>, fresh_ty: &'cx ty::Ty<'cx>) {
+        let links = ty.fresh_ty_links_id().unwrap();
+        self.fresh_ty_links_arena[links].set_fresh_ty(fresh_ty);
+    }
+
+    pub(super) fn get_regular_ty(&self, ty: &'cx ty::Ty<'cx>) -> Option<&'cx ty::Ty<'cx>> {
+        if ty.flags.intersects(TypeFlags::BOOLEAN_LITERAL) {
+            if ty == self.true_ty || ty == self.regular_true_ty {
+                Some(self.regular_true_ty)
+            } else if ty == self.false_ty || ty == self.regular_false_ty {
+                Some(self.regular_false_ty)
+            } else {
+                unreachable!()
+            }
+        } else if let Some(links) = ty.fresh_ty_links_id() {
+            self.fresh_ty_links_arena[links].get_regular_ty()
+        } else {
+            unreachable!()
+        }
+    }
+
+    fn set_regular_ty(&mut self, ty: &'cx ty::Ty<'cx>, regular_ty: &'cx ty::Ty<'cx>) {
+        let links = ty.fresh_ty_links_id().unwrap();
+        self.fresh_ty_links_arena[links].set_regular_ty(regular_ty);
+    }
+
     pub(super) fn get_fresh_ty_of_literal_ty(&mut self, ty: &'cx ty::Ty<'cx>) -> &'cx ty::Ty<'cx> {
         if ty.flags.intersects(TypeFlags::FRESHABLE) {
-            if let Some(fresh_ty) = self.get_ty_links(ty.id).get_fresh_ty() {
+            if let Some(fresh_ty) = self.get_fresh_ty(ty) {
                 fresh_ty
             } else {
+                let links = self.fresh_ty_links_arena.alloc(Default::default());
                 let fresh_ty = match ty.kind {
                     ty::TyKind::NumberLit(lit) => {
-                        let t = self.alloc(ty::NumberLitTy { val: lit.val });
+                        let t = self.alloc(ty::NumberLitTy {
+                            val: lit.val,
+                            links,
+                        });
                         self.new_ty(ty::TyKind::NumberLit(t), ty.flags)
                     }
                     ty::TyKind::StringLit(lit) => {
-                        let t = self.alloc(ty::StringLitTy { val: lit.val });
+                        let t = self.alloc(ty::StringLitTy {
+                            val: lit.val,
+                            links,
+                        });
                         self.new_ty(ty::TyKind::StringLit(t), ty.flags)
                     }
                     ty::TyKind::BigIntLit(lit) => {
-                        let t = self.alloc(ty::BigIntLitTy { ..*lit });
+                        let t = self.alloc(ty::BigIntLitTy {
+                            val: lit.val,
+                            neg: lit.neg,
+                            links,
+                        });
                         self.new_ty(ty::TyKind::BigIntLit(t), ty.flags)
                     }
                     _ => unreachable!(),
                 };
-                let prev = self.ty_links.insert(
-                    fresh_ty.id,
-                    TyLinks::default()
-                        .with_fresh_ty(fresh_ty)
-                        .with_regular_ty(ty),
-                );
-                assert!(prev.is_none());
-                self.get_mut_ty_links(ty.id).set_fresh_ty(fresh_ty);
-                assert!(self.get_ty_links(ty.id).get_regular_ty().is_some());
+                self.fresh_ty_links_arena[links].set_fresh_ty(fresh_ty);
+                self.fresh_ty_links_arena[links].set_regular_ty(ty);
+                self.set_fresh_ty(ty, fresh_ty);
+                assert!(self.get_regular_ty(ty).is_some_and(|t| t == ty));
                 fresh_ty
             }
         } else {
@@ -126,15 +211,98 @@ impl<'cx> TyChecker<'cx> {
             }
             EleAccess(node) => self.check_ele_access(node),
             This(n) => self.check_this_expr(n),
-            Super(_) => self.undefined_ty,
+            Super(_) => {
+                // TODO: support super
+                self.undefined_ty
+            }
             As(n) => self.check_assertion(n.expr, n.ty),
+            TyAssertion(n) => self.check_assertion(n.expr, n.ty),
             Satisfies(n) => self.check_expr(n.expr),
             NonNull(n) => self.check_expr(n.expr),
             Template(n) => self.check_template_expr(n),
+            ExprWithTyArgs(n) => self.check_expr_with_ty_args(n),
+            SpreadElement(n) => self.check_spread_element(n),
         };
         let ty = self.instantiate_ty_with_single_generic_call_sig(expr.id(), ty);
         self.current_node = saved_current_node;
         ty
+    }
+
+    fn check_spread_element(&mut self, node: &'cx ast::SpreadElement<'cx>) -> &'cx ty::Ty<'cx> {
+        let array_or_iterable_ty = self.check_expr(node.expr);
+        self.check_iterated_ty_or_element_ty(
+            IterationUse::SPREAD,
+            array_or_iterable_ty,
+            self.undefined_ty,
+            Some(node.expr.id()),
+        )
+    }
+
+    pub(super) fn check_iterated_ty_or_element_ty(
+        &mut self,
+        mode: IterationUse,
+        input_ty: &'cx ty::Ty<'cx>,
+        send_ty: &'cx ty::Ty<'cx>,
+        error_node: Option<ast::NodeID>,
+    ) -> &'cx ty::Ty<'cx> {
+        if self.is_type_any(Some(input_ty)) {
+            return input_ty;
+        }
+        self.get_iterated_ty_or_elem_ty(mode, input_ty, send_ty, error_node, true)
+            .unwrap_or(self.any_ty)
+    }
+
+    fn get_iteration_tys_of_iter(
+        &mut self,
+        ty: &'cx ty::Ty<'cx>,
+        mode: IterationUse,
+        error_node: Option<ast::NodeID>,
+    ) -> ty::IterationTys<'cx> {
+        if self.is_type_any(Some(ty)) {
+            return self.any_iteration_tys();
+        }
+
+        // TODO: more case:
+
+        // if !ty.flags.intersects(TypeFlags::UNION) {}
+
+        // let cache_key = if mode.intersects(IterationUse::ALLOWS_ASYNC_ITERABLES_FLAG) {
+        // } else {
+        // };
+        self.any_iteration_tys()
+    }
+
+    fn get_iterated_ty_or_elem_ty(
+        &mut self,
+        mode: IterationUse,
+        input_ty: &'cx ty::Ty<'cx>,
+        send_ty: &'cx ty::Ty<'cx>,
+        error_node: Option<ast::NodeID>,
+        check_assignability: bool,
+    ) -> Option<&'cx ty::Ty<'cx>> {
+        let allow_async_iterables = mode.intersects(IterationUse::ALLOWS_ASYNC_ITERABLES_FLAG);
+        if input_ty == self.never_ty {
+            if let Some(error_node) = error_node {
+                // TODO: report
+            }
+            return None;
+        }
+        let uplevel_iteration = *self.config.target() >= Target::ES2015;
+        let downlevel_iteration = !uplevel_iteration && false;
+        let possible_out_of_bounds = *self.config.no_unchecked_indexed_access()
+            && mode.intersects(IterationUse::POSSIBLY_OUT_OF_BOUNDS);
+        if uplevel_iteration || downlevel_iteration || allow_async_iterables {
+            let iteration_tys = self.get_iteration_tys_of_iter(
+                input_ty,
+                mode,
+                if uplevel_iteration { error_node } else { None },
+            );
+            // if check_assignability {}
+            // if iteration_tys || uplevel_iteration {
+            //     return if possible_out_of_bounds {};
+            // }
+        }
+        None
     }
 
     fn is_template_literal_contextual_ty(&mut self, ty: &'cx ty::Ty<'cx>) -> bool {
@@ -178,9 +346,9 @@ impl<'cx> TyChecker<'cx> {
         ty: &'cx ty::Ty<'cx>,
     ) -> &'cx ty::Ty<'cx> {
         if ty.flags.intersects(TypeFlags::FRESHABLE) {
-            self.ty_links[&ty.id].expect_regular_ty()
+            self.get_regular_ty(ty).unwrap()
         } else if ty.kind.is_union() {
-            if let Some(t) = self.get_ty_links(ty.id).get_regular_ty() {
+            if let Some(t) = self.get_regular_ty(ty) {
                 t
             } else {
                 let regular_ty = self
@@ -190,7 +358,7 @@ impl<'cx> TyChecker<'cx> {
                         false,
                     )
                     .unwrap();
-                self.get_mut_ty_links(ty.id).set_regular_ty(regular_ty);
+                self.set_regular_ty(ty, regular_ty);
                 regular_ty
             }
         } else {
@@ -203,6 +371,7 @@ impl<'cx> TyChecker<'cx> {
         assert_expr: &'cx ast::Expr<'cx>,
         assert_ty: &'cx ast::Ty<'cx>,
     ) -> &'cx ty::Ty<'cx> {
+        // TODO: check ty assertion.
         let expr_ty = self.check_expr(assert_expr);
         if assert_ty.is_const_ty_refer() {
             self.get_regular_ty_of_literal_ty(expr_ty)
@@ -238,6 +407,13 @@ impl<'cx> TyChecker<'cx> {
                 captured_by_arrow_fn = true;
             }
             break;
+        }
+
+        if this_in_computed_prop_name {
+            todo!()
+        } else if container.is_namespace_decl() {
+            let error = errors::ThisCannotBeReferencedInAModuleOrNamespaceBody { span: expr.span };
+            self.push_error(Box::new(error));
         }
 
         let ty = self.try_get_this_ty_at(expr, true, Some(container_id));
@@ -276,7 +452,10 @@ impl<'cx> TyChecker<'cx> {
     }
 
     pub(super) fn check_expr_with_cache(&mut self, expr: &'cx ast::Expr) -> &'cx ty::Ty<'cx> {
-        if self.check_mode.is_some() {
+        if self
+            .check_mode
+            .is_some_and(|check_mode| check_mode != CheckMode::empty())
+        {
             self.check_expr(expr)
         } else if let Some(ty) = self.get_node_links(expr.id()).get_resolved_ty() {
             ty
@@ -284,6 +463,21 @@ impl<'cx> TyChecker<'cx> {
             let ty = self.check_expr(expr);
             self.get_mut_node_links(expr.id()).set_resolved_ty(ty);
             ty
+        }
+    }
+
+    pub(super) fn check_ident_for_mutable_loc(
+        &mut self,
+        ident: &'cx ast::Ident,
+    ) -> &'cx ty::Ty<'cx> {
+        let id = ident.id;
+        let ty = self.check_ident(ident);
+        if self.p.is_const_context(id) {
+            self.get_regular_ty_of_literal_ty(ty)
+        } else {
+            let contextual_ty = self.get_contextual_ty(id, None);
+            let contextual_ty = self.instantiate_contextual_ty(contextual_ty, id, None);
+            self.get_widened_lit_like_ty_for_contextual_ty(ty, contextual_ty)
         }
     }
 
@@ -316,9 +510,13 @@ impl<'cx> TyChecker<'cx> {
 
         let mut object_flags = ObjectFlags::FRESH_LITERAL;
         let mut properties_table = fx_hashmap_with_capacity(node.members.len());
+        let mut properties_array = Vec::with_capacity(node.members.len());
         let mut spread = self.empty_object_ty();
         // let mut properties_array = Vec::with_capacity(node.members.len());
         let is_const_context = self.p.is_const_context(node.id);
+        let mut has_computed_string_property = false;
+        let mut has_computed_number_property = false;
+        let mut has_computed_symbol_property = false;
 
         let symbol = std::cell::OnceCell::new();
         for member in node.members {
@@ -332,12 +530,15 @@ impl<'cx> TyChecker<'cx> {
                     SpreadAssignment(_) => unreachable!(),
                 };
                 let name = match member.kind {
-                    Shorthand(n) => SymbolName::Ele(n.name.name),
+                    Shorthand(n) => SymbolName::Atom(n.name.name),
                     Prop(n) => crate::bind::prop_name(n.name),
                     Method(n) => crate::bind::prop_name(n.name),
                     SpreadAssignment(_) => unreachable!(),
                 };
                 object_flags |= ty.get_object_flags() & ObjectFlags::PROPAGATING_FLAGS;
+                let member_s = self.binder.symbol(member_symbol);
+                let declarations = self.alloc(member_s.decls.clone());
+                let value_declaration = member_s.value_decl;
                 let prop = self.create_transient_symbol(
                     name,
                     SymbolFlags::PROPERTY | self.binder.symbol(member_symbol).flags,
@@ -345,9 +546,23 @@ impl<'cx> TyChecker<'cx> {
                     SymbolLinks::default()
                         .with_target(member_symbol)
                         .with_ty(ty),
+                    Some(declarations),
+                    value_declaration,
                 );
                 properties_table.insert(name, prop);
+                properties_array.push(member_symbol);
             } else if let SpreadAssignment(s) = member.kind {
+                if !properties_array.is_empty() {
+                    let props = self.alloc(std::mem::take(&mut properties_table));
+                    let right = create_object_lit_ty(self, node, object_flags, props);
+                    let s = *symbol.get_or_init(|| self.get_symbol_of_decl(node.id));
+                    spread =
+                        self.get_spread_ty(spread, right, Some(s), object_flags, is_const_context);
+                    properties_array.clear();
+                    has_computed_string_property = false;
+                    has_computed_number_property = false;
+                    has_computed_symbol_property = false;
+                }
                 let ty = {
                     let old = self.check_mode;
                     self.check_mode = self
@@ -380,15 +595,28 @@ impl<'cx> TyChecker<'cx> {
             return self.error_ty;
         }
 
-        let properties_table = self.alloc(properties_table);
-
         if spread != self.empty_object_ty() {
+            if !properties_array.is_empty() {
+                let props = self.alloc(std::mem::take(&mut properties_table));
+                let right = create_object_lit_ty(self, node, object_flags, props);
+                let s = *symbol.get_or_init(|| self.get_symbol_of_decl(node.id));
+                spread = self.get_spread_ty(spread, right, Some(s), object_flags, is_const_context);
+                properties_array.clear();
+                has_computed_string_property = false;
+                has_computed_number_property = false;
+            }
+            let properties_table = self.alloc(properties_table);
             return self
                 .map_ty(
                     spread,
                     |this, t| {
                         if t == this.empty_object_ty() {
-                            Some(create_object_ty(this, node, object_flags, properties_table))
+                            Some(create_object_lit_ty(
+                                this,
+                                node,
+                                object_flags,
+                                properties_table,
+                            ))
                         } else {
                             Some(t)
                         }
@@ -398,7 +626,7 @@ impl<'cx> TyChecker<'cx> {
                 .unwrap();
         }
 
-        fn create_object_ty<'cx>(
+        fn create_object_lit_ty<'cx>(
             this: &mut TyChecker<'cx>,
             node: &'cx ast::ObjectLit<'cx>,
             object_flags: ObjectFlags,
@@ -407,11 +635,11 @@ impl<'cx> TyChecker<'cx> {
             let ty = this.create_anonymous_ty(
                 Some(this.final_res(node.id)),
                 object_flags
-                    | ObjectFlags::OBJECT_LITERAL
-                    | ObjectFlags::CONTAINS_OBJECT_OR_ARRAY_LITERAL,
+                    | (ObjectFlags::OBJECT_LITERAL
+                        .union(ObjectFlags::CONTAINS_OBJECT_OR_ARRAY_LITERAL)),
             );
 
-            let props = this.get_props_from_members(&properties_table);
+            let props = this.get_props_from_members(properties_table);
             this.ty_links.insert(
                 ty.id,
                 TyLinks::default().with_structured_members(this.alloc(ty::StructuredMembers {
@@ -427,7 +655,8 @@ impl<'cx> TyChecker<'cx> {
             ty
         }
 
-        create_object_ty(self, node, object_flags, properties_table)
+        let properties_table = self.alloc(properties_table);
+        create_object_lit_ty(self, node, object_flags, properties_table)
     }
 
     fn is_empty_object_ty_or_spreads_into_empty_object(&mut self, ty: &'cx ty::Ty<'cx>) -> bool {
@@ -487,11 +716,19 @@ impl<'cx> TyChecker<'cx> {
         let mut members = fx_hashmap_with_capacity(props.len());
         for prop in props {
             // TODO: exclude private and projected
-            let prop_flags = self.symbol(*prop).flags();
+            let s = self.symbol(*prop);
+            let prop_flags = s.flags();
+            let name = s.name();
+            let declarations: Option<&'cx [ast::NodeID]> = match s.declarations() {
+                BorrowedDeclarations::FromTransient(decls) => decls,
+                BorrowedDeclarations::FromNormal(decls) if !decls.is_empty() => {
+                    Some(self.alloc(decls.into_iter().map(|decl| *decl).collect::<Vec<_>>()))
+                }
+                _ => None,
+            };
             let is_setonly_accessor = prop_flags.intersects(SymbolFlags::SET_ACCESSOR)
                 && !prop_flags.intersects(SymbolFlags::GET_ACCESSOR);
-            let flags = SymbolFlags::PROPERTY | SymbolFlags::OPTIONAL;
-            let name = self.symbol(*prop).name();
+            const FLAGS: SymbolFlags = SymbolFlags::PROPERTY.union(SymbolFlags::OPTIONAL);
             let ty = if is_setonly_accessor {
                 self.undefined_ty
             } else {
@@ -513,7 +750,7 @@ impl<'cx> TyChecker<'cx> {
             } else {
                 links
             };
-            let result = self.create_transient_symbol(name, flags, None, links);
+            let result = self.create_transient_symbol(name, FLAGS, None, links, declarations, None);
             let prev = members.insert(name, result);
             assert!(prev.is_none());
         }
@@ -731,7 +968,7 @@ impl<'cx> TyChecker<'cx> {
             AccessFlags::EXPRESSION_POSITION
         } else {
             AccessFlags::WRITING
-                | if self.is_generic_object(object_ty) && object_ty.kind.is_this_ty_param() {
+                | if self.is_generic_object_ty(object_ty) && object_ty.kind.is_this_ty_param() {
                     AccessFlags::NO_INDEX_SIGNATURES
                 } else {
                     AccessFlags::empty()

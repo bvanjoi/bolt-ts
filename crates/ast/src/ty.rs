@@ -39,6 +39,7 @@ impl<'cx> Ty<'cx> {
             TyKind::Nullable(n) => n.span,
             TyKind::NamedTuple(n) => n.span,
             TyKind::TemplateLit(n) => n.span,
+            TyKind::This(n) => n.span,
         }
     }
 
@@ -66,6 +67,7 @@ impl<'cx> Ty<'cx> {
             TyKind::NamedTuple(n) => n.id,
             TyKind::TemplateLit(n) => n.id,
             TyKind::Intrinsic(n) => n.id,
+            TyKind::This(n) => n.id,
         }
     }
 
@@ -96,6 +98,36 @@ impl<'cx> Ty<'cx> {
         };
         (tuple.tys.len() == 1).then(|| tuple.tys[0])
     }
+
+    pub fn is_this_less(&self) -> bool {
+        use TyKind::*;
+        match self.kind {
+            Lit(_) => true,
+            Array(arr) => arr.ele.is_this_less(),
+            Refer(refer) => {
+                if let ty::EntityNameKind::Ident(n) = refer.name.kind {
+                    if matches!(
+                        n.name,
+                        keyword::IDENT_ANY
+                            | keyword::IDENT_UNKNOWN
+                            | keyword::IDENT_STRING
+                            | keyword::IDENT_NUMBER
+                            | keyword::IDENT_BIGINT
+                            | keyword::IDENT_BOOLEAN
+                            | keyword::IDENT_SYMBOL
+                            | keyword::IDENT_OBJECT
+                            | keyword::IDENT_NEVER
+                    ) {
+                        return true;
+                    }
+                }
+                refer
+                    .ty_args
+                    .is_none_or(|ty_args| !ty_args.list.iter().all(|ty| ty.is_this_less()))
+            }
+            _ => false,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -122,6 +154,13 @@ pub enum TyKind<'cx> {
     Intrinsic(&'cx IntrinsicTy),
     Nullable(&'cx NullableTy<'cx>),
     TemplateLit(&'cx TemplateLitTy<'cx>),
+    This(&'cx ThisTy),
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct ThisTy {
+    pub id: NodeID,
+    pub span: Span,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -162,11 +201,17 @@ pub struct ParenTy<'cx> {
 }
 
 #[derive(Debug, Clone, Copy)]
+pub enum PredTyName<'cx> {
+    Ident(&'cx Ident),
+    This(&'cx ThisTy),
+}
+#[derive(Debug, Clone, Copy)]
 pub struct PredTy<'cx> {
     pub id: NodeID,
     pub span: Span,
-    pub name: &'cx Ident,
-    pub ty: &'cx self::Ty<'cx>,
+    pub asserts: Option<Span>,
+    pub name: PredTyName<'cx>,
+    pub ty: Option<&'cx self::Ty<'cx>>,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -423,7 +468,7 @@ pub struct ObjectPropMember<'cx> {
     pub id: NodeID,
     pub span: Span,
     pub name: &'cx PropName<'cx>,
-    pub value: &'cx Expr<'cx>,
+    pub init: &'cx Expr<'cx>,
 }
 
 #[derive(Debug, Clone, Copy)]

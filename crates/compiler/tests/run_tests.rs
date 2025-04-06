@@ -1,6 +1,7 @@
 use bolt_ts_compiler::{eval_from, output_files};
 use bolt_ts_config::RawTsConfig;
 use bolt_ts_errors::miette::Severity;
+use bolt_ts_path::NormalizePath;
 use compile_test::run_tests::run;
 use compile_test::{ensure_node_exist, run_node};
 
@@ -47,15 +48,16 @@ fn run_test(arg: dir_test::Fixture<&str>) {
                     .with_out_dir(DEFAULT_OUTPUT.to_string())
             });
 
-        let cwd = dir.to_path_buf();
-        let output = eval_from(cwd, tsconfig.normalize());
+        let cwd = dir.normalize();
+        let tsconfig = tsconfig.normalize();
+        let output = eval_from(cwd, &tsconfig);
         let output_dir = dir.join(DEFAULT_OUTPUT);
         if !output_dir.exists() {
             std::fs::create_dir_all(&output_dir).unwrap();
         }
         let output_files = output_files(
             &output.root,
-            &output.tsconfig,
+            &tsconfig,
             &output.module_arena,
             &output.output,
         );

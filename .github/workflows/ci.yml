@@ -62,3 +62,10 @@ jobs:
 
     - name: Run cargo test 
       run: cargo test
+
+    - name: Install wasm-pack
+      run: cargo install wasm-pack
+    
+    - name: Run wasm tests
+      working-directory: crates/wasm
+      run: wasm-pack test --node

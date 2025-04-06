@@ -1,6 +1,7 @@
 use crate::bind::Symbol;
 use crate::bind::SymbolFlags;
 use crate::bind::SymbolID;
+use crate::ir::node_id_of_binding;
 use bolt_ts_ast as ast;
 
 use super::Resolver;
@@ -20,12 +21,8 @@ impl<'cx> Resolver<'cx, '_, '_> {
                 .p
                 .node(associated_declaration_for_containing_initializer_or_binding_name);
             if let Some(param_decl) = node.as_param_decl() {
-                let id = match param_decl.name.kind {
-                    bolt_ts_ast::BindingKind::Ident(ident) => ident.id,
-                    bolt_ts_ast::BindingKind::ObjectPat(_) => todo!(),
-                    bolt_ts_ast::BindingKind::ArrayPat(_) => todo!(),
-                };
-                if symbol == self.states[self.module_id.as_usize()].final_res[&id] {
+                let id = node_id_of_binding(param_decl);
+                if symbol == self.symbol_of_decl(id) {
                     let error = errors::ParameterXCannotReferenceItself {
                         span: ident.span,
                         name: self.atoms.get(ident.name).to_string(),
@@ -37,6 +34,7 @@ impl<'cx> Resolver<'cx, '_, '_> {
         None
     }
 
+    // TODO: mv this check into on_failed_check
     fn check_ty_param_used_in_static_but_declared_at_class(
         &mut self,
         ident: &'cx ast::Ident,
@@ -47,7 +45,7 @@ impl<'cx> Resolver<'cx, '_, '_> {
             None
         } else if self
             .p
-            .node(self.p.parent(symbol.expect_ty_param().decl).unwrap())
+            .node(self.p.parent(symbol.opt_decl().unwrap()).unwrap())
             .is_class_like()
             && self
                 .p

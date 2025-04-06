@@ -109,6 +109,16 @@ impl<'cx> Emit<'cx> {
                 self.content.p(self.atoms.get(lit.val.1));
                 self.content.p("n");
             }
+            TyAssertion(n) => {
+                self.emit_expr(n.expr);
+            }
+            ExprWithTyArgs(n) => {
+                self.emit_expr(n.expr);
+            }
+            SpreadElement(n) => {
+                self.content.p("...");
+                self.emit_expr(n.expr);
+            }
         };
     }
 
@@ -227,7 +237,7 @@ impl<'cx> Emit<'cx> {
         self.emit_prop_name(prop.name);
         self.content.p_colon();
         self.content.p_whitespace();
-        self.emit_expr(prop.value);
+        self.emit_expr(prop.init);
     }
 
     fn emit_object_shorthand_member(&mut self, shorthand: &'cx ast::ObjectShorthandMember<'cx>) {

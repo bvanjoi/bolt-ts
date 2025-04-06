@@ -1,15 +1,19 @@
 use std::{hash::Hash, path::PathBuf};
 
 use bolt_ts_atom::{AtomId, AtomMap};
+use bolt_ts_path::NormalizePath;
+use bolt_ts_utils::no_hashmap_with_capacity;
 
+use super::errors::{self, FsResult};
 use super::has_slash_suffix_and_not_root;
 use super::path::PathId;
-use crate::errors::{self, FsResult};
+use crate::FsError;
 
 bolt_ts_utils::index!(FSNodeId);
 
 pub(super) struct FSTree {
     nodes: Vec<FSNode>,
+    path_to_node: nohash_hasher::IntMap<PathId, FSNodeId>,
 }
 
 impl<'atoms> FSTree {
@@ -17,7 +21,10 @@ impl<'atoms> FSTree {
     pub(super) fn new(atoms: &mut AtomMap<'atoms>) -> Self {
         const CAP: usize = 1024;
         let nodes = Vec::with_capacity(CAP);
-        let mut this = Self { nodes };
+        let mut this = Self {
+            nodes,
+            path_to_node: no_hashmap_with_capacity(CAP),
+        };
         let root = std::path::Path::new("/");
         let ret = this.add_dir(atoms, root).unwrap();
         assert_eq!(ret, FSTree::ROOT);
@@ -45,7 +52,7 @@ impl<'atoms> FSTree {
     ) -> FsResult<FSNodeId> {
         let parent_node = self.node(parent);
         let FSNodeKind::Dir(dir) = &parent_node.kind else {
-            panic!("parent should not be a directory")
+            return Err(errors::FsError::FileExists(parent_node.kind.path()));
         };
         if let Some(old) = dir.find_child(path, &self.nodes) {
             if self.node(old).kind.as_dir_node().is_some() {
@@ -62,7 +69,7 @@ impl<'atoms> FSTree {
         if let Some(parent) = parent {
             let parent_node = self.node(parent);
             let FSNodeKind::Dir(dir) = &parent_node.kind else {
-                panic!("parent should not be a directory")
+                panic!("parent should must be a directory")
             };
             if let Some(old) = dir.find_child(path, &self.nodes) {
                 if self.node(old).kind.as_file_node().is_some() {
@@ -74,13 +81,15 @@ impl<'atoms> FSTree {
                 Ok(self.insert_node(parent, FSNodeKind::dir_node(path)))
             }
         } else {
-            assert!(path == PathId::ROOT);
+            assert_eq!(path, PathId::ROOT);
             if self.nodes.is_empty() {
                 let kind = FSNodeKind::dir_node(PathId::ROOT);
                 let node = FSNode {
                     id: FSNodeId::root(),
                     kind,
                 };
+                let prev = self.path_to_node.insert(path, node.id);
+                assert!(prev.is_none());
                 self.nodes.push(node);
             }
             Ok(FSTree::ROOT)
@@ -90,6 +99,11 @@ impl<'atoms> FSTree {
     fn insert_node(&mut self, parent: FSNodeId, node: FSNodeKind) -> FSNodeId {
         let id = FSNodeId(self.nodes.len() as u32);
         let node = FSNode { id, kind: node };
+        let prev = match &node.kind {
+            FSNodeKind::File(n) => self.path_to_node.insert(n.path, id),
+            FSNodeKind::Dir(n) => self.path_to_node.insert(n.path, id),
+        };
+        assert!(prev.is_none());
         self.nodes.push(node);
         let FSNodeKind::Dir(dir) = &mut self.mut_node(parent).kind else {
             unreachable!("parent should not be a directory")
@@ -123,13 +137,18 @@ impl<'atoms> FSTree {
         atoms: &mut AtomMap<'atoms>,
         path: &std::path::Path,
     ) -> FsResult<FSNodeId> {
+        debug_assert!(path.is_normalized());
+        if let Some(cache) = self.path_to_node.get(&PathId::get(path)) {
+            return Ok(*cache);
+        };
+
         let mut id = FSTree::ROOT;
         let mut parent = None;
-        let mut current_path = PathBuf::new();
+        let mut current_path = PathBuf::with_capacity(path.as_os_str().len() + 8);
         for component in path.components() {
             use std::path::Component::*;
             match component {
-                Prefix(_) => todo!("should handle prefix path"),
+                Prefix(_) => todo!("handle prefix path"),
                 RootDir => {
                     current_path.push("/");
                     parent = Some(self.insert_dir_node(parent, PathId::ROOT)?);
@@ -151,73 +170,48 @@ impl<'atoms> FSTree {
         path: &std::path::Path,
         is_dir: bool,
     ) -> errors::FsResult<FSNodeId> {
-        if path == std::path::Path::new("/") && is_dir {
-            return Ok(FSTree::ROOT);
+        if path.as_os_str().as_encoded_bytes() == b"/" {
+            return if is_dir {
+                Ok(FSTree::ROOT)
+            } else {
+                Err(FsError::NotAFile(PathId::ROOT))
+            };
         }
         let target = PathId::get(path);
-
-        let mut parent = FSTree::ROOT;
-        let mut current_path = PathBuf::new();
-        let mut path_id;
-        let mut peek = path.components().peekable();
-
-        while let Some(component) = peek.next() {
-            use std::path::Component::*;
-            match component {
-                Prefix(_) => todo!("should handle prefix path"),
-                RootDir => {
-                    current_path.push("/");
-                    continue;
-                }
-                Normal(_) => {
-                    current_path.push(component);
-                }
-                CurDir | ParentDir => unreachable!(),
-            }
-            path_id = PathId::get(&current_path);
-            let Some(dir) = self.node(parent).kind.as_dir_node() else {
-                unreachable!()
-            };
-            if peek.peek().is_none() {
-                // last component
-
-                let res = dir.find_child_by_path(path_id, &self.nodes);
-                if res.is_empty() {
-                    return Err(errors::FsError::NotFound(target));
-                } else if res.len() > 1 {
-                    return Ok(res
-                        .iter()
-                        .find(|id| self.target_error(**id, path_id, is_dir).is_none())
-                        .copied()
-                        .unwrap());
+        let Some(parent) = path.parent() else {
+            unreachable!()
+        };
+        let Some(dir) = self.path_to_node.get(&PathId::get(parent)) else {
+            return Err(errors::FsError::NotFound(target));
+        };
+        let dir = self.node(*dir).kind.as_dir_node().unwrap();
+        match dir.find_child(target, &self.nodes) {
+            Some(res) => {
+                if let Some(err) = self.target_error(res, target, is_dir) {
+                    Err(err)
                 } else {
-                    let res = res[0];
-                    if let Some(err) = self.target_error(res, path_id, is_dir) {
-                        return Err(err);
-                    } else {
-                        return Ok(res);
-                    }
+                    Ok(res)
                 }
-            } else if let Some(next) = dir.find_child(path_id, &self.nodes) {
-                parent = next;
-            } else {
-                return Err(errors::FsError::NotFound(target));
             }
+            None => Err(errors::FsError::NotFound(target)),
         }
-
-        Err(self.target_error(parent, target, is_dir).unwrap())
     }
 
     pub(super) fn read_file(&self, path: &std::path::Path) -> FsResult<AtomId> {
-        let id = self.find_path(path, false)?;
         if has_slash_suffix_and_not_root(path) {
-            Err(errors::FsError::NotAFile(self.node(id).kind.path()))
+            Err(errors::FsError::NotAFile(PathId::get(path)))
         } else {
+            let id = self.find_path(path, false)?;
             let Some(file) = self.node(id).kind.as_file_node() else {
                 unreachable!("handled been handled by `find_path`");
             };
             Ok(file.content)
         }
+    }
+
+    pub(super) fn file_exists(&self, p: &std::path::Path) -> bool {
+        self.find_path(p, super::has_slash_suffix_and_not_root(p))
+            .is_ok_and(|id| self.node(id).kind.as_file_node().is_some())
     }
 }
 
@@ -238,6 +232,7 @@ impl FSNode {
     }
 }
 
+#[derive(Debug)]
 pub(super) enum FSNodeKind {
     File(FileNode),
     Dir(DirNode),
@@ -249,6 +244,7 @@ pub(super) struct FileNode {
     content: AtomId,
 }
 
+#[derive(Debug)]
 pub(super) struct DirNode {
     path: PathId,
     children: Vec<FSNodeId>,
@@ -268,23 +264,6 @@ impl DirNode {
             })
             .copied()
     }
-
-    fn find_child_by_path(&self, path: PathId, nodes: &[FSNode]) -> Vec<FSNodeId> {
-        let array = self
-            .children
-            .iter()
-            .filter(|child| {
-                let child = &nodes[child.as_usize()];
-                match child.kind {
-                    FSNodeKind::Dir(ref dir) => dir.path == path,
-                    FSNodeKind::File(ref file) => file.path == path,
-                }
-            })
-            .copied()
-            .collect::<Vec<_>>();
-        assert!(array.len() <= 2);
-        array
-    }
 }
 
 impl FSNodeKind {
@@ -296,7 +275,7 @@ impl FSNodeKind {
     fn dir_node(path: PathId) -> Self {
         let node = DirNode {
             path,
-            children: Vec::with_capacity(16),
+            children: Vec::with_capacity(32),
         };
         FSNodeKind::Dir(node)
     }

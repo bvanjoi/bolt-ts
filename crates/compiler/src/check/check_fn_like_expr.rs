@@ -1,5 +1,6 @@
-use super::NodeFlags;
+use super::NodeCheckFlags;
 use super::{CheckMode, TyChecker};
+use crate::ty::TypeFlags;
 use crate::{ir, ty};
 use bolt_ts_ast as ast;
 
@@ -7,12 +8,12 @@ impl<'cx> TyChecker<'cx> {
     fn contextually_check_fn_expr_or_object_method_member(&mut self, id: ast::NodeID) {
         let flags = |this: &mut Self| this.get_node_links(id).flags();
 
-        if !flags(self).intersects(NodeFlags::CONTEXT_CHECKED) {
+        if !flags(self).intersects(NodeCheckFlags::CONTEXT_CHECKED) {
             let contextual_sig = self.get_contextual_sig(id);
 
-            if !flags(self).intersects(NodeFlags::CONTEXT_CHECKED) {
+            if !flags(self).intersects(NodeCheckFlags::CONTEXT_CHECKED) {
                 self.get_mut_node_links(id)
-                    .config_flags(|flags| flags | NodeFlags::CONTEXT_CHECKED);
+                    .config_flags(|flags| flags | NodeCheckFlags::CONTEXT_CHECKED);
                 let symbol = self.get_symbol_of_decl(id);
                 let ty = self.get_type_of_symbol(symbol);
                 let sigs = self.get_signatures_of_type(ty, ty::SigKind::Call);
@@ -25,22 +26,32 @@ impl<'cx> TyChecker<'cx> {
                             if check_mode.intersects(CheckMode::INFERENTIAL) {
                                 let inference = inference.unwrap().inference.unwrap();
                                 self.infer_from_annotated_params(sig, contextual_sig, inference);
-                                // TODO: handle rest
-                            }
-                        }
-                        if instantiated_contextual_sig.is_none() {
-                            if let Some(inference) = inference {
-                                if inference.inference.is_none() {
-                                    return;
+                                let rest_ty = contextual_sig.get_rest_ty(self);
+                                if let Some(rest_ty) = rest_ty {
+                                    if rest_ty.flags.intersects(TypeFlags::TYPE_PARAMETER) {
+                                        let mapper = self.inference(inference).non_fixing_mapper;
+                                        instantiated_contextual_sig = Some(self.instantiate_sig(
+                                            contextual_sig,
+                                            mapper,
+                                            false,
+                                        ));
+                                    }
                                 }
-                                let mapper = self.inference(inference.inference.unwrap()).mapper;
-                                instantiated_contextual_sig =
-                                    Some(self.instantiate_sig(contextual_sig, mapper, false));
-                            } else {
-                                instantiated_contextual_sig = Some(contextual_sig);
                             }
                         }
-                        let instantiated_contextual_sig = instantiated_contextual_sig.unwrap();
+                        let instantiated_contextual_sig =
+                            if let Some(sig) = instantiated_contextual_sig {
+                                sig
+                            } else if let Some(inference) = inference {
+                                if let Some(i) = inference.inference {
+                                    let mapper = self.inference(i).mapper;
+                                    self.instantiate_sig(contextual_sig, mapper, false)
+                                } else {
+                                    contextual_sig
+                                }
+                            } else {
+                                contextual_sig
+                            };
                         self.assign_contextual_param_tys(sig, instantiated_contextual_sig);
                     }
                 }

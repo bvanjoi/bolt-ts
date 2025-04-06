@@ -1,23 +1,26 @@
 mod errors;
-mod get_exports;
 mod on_failed_value_resolve;
 mod on_success_resolve;
 mod resolve_call_like;
 mod resolve_class_like;
 
-use bolt_ts_span::Module;
-use bolt_ts_utils::fx_hashmap_with_capacity;
-
 use rayon::prelude::*;
 use rustc_hash::FxHashMap;
 
-use crate::bind::{BinderResult, GlobalSymbols, Symbol, SymbolFlags, SymbolID, SymbolName};
+use bolt_ts_ast::{self as ast, NodeFlags};
+use bolt_ts_span::Module;
+use bolt_ts_utils::fx_hashmap_with_capacity;
+
+use crate::bind::{
+    BinderResult, GlobalSymbols, MergedSymbols, Symbol, SymbolFlags, SymbolID, SymbolName,
+    SymbolTable,
+};
 use crate::keyword;
 use crate::keyword::{is_prim_ty_name, is_prim_value_name};
 use crate::parser::Parser;
-use bolt_ts_ast::{self as ast};
 
 pub struct EarlyResolveResult {
+    // TODO: use `NodeId::index` is enough
     pub final_res: FxHashMap<ast::NodeID, SymbolID>,
     pub diags: Vec<bolt_ts_errors::Diag>,
 }
@@ -26,15 +29,19 @@ pub(super) fn early_resolve_parallel<'cx>(
     modules: &[Module],
     states: &[BinderResult<'cx>],
     p: &'cx Parser<'cx>,
-    global: &'cx GlobalSymbols,
+    globals: &'cx GlobalSymbols,
+    merged: &'cx MergedSymbols,
     atoms: &'cx bolt_ts_atom::AtomMap<'cx>,
 ) -> Vec<EarlyResolveResult> {
     modules
         .into_par_iter()
         .map(|m| {
             let module_id = m.id;
+            let is_default_lib = m.is_default_lib;
             let root = p.root(module_id);
-            early_resolve(states, module_id, root, p, global, atoms)
+            let result = early_resolve(states, module_id, root, p, globals, merged, atoms);
+            assert!(!is_default_lib || result.diags.is_empty());
+            result
         })
         .collect()
 }
@@ -44,19 +51,20 @@ fn early_resolve<'cx>(
     module_id: bolt_ts_span::ModuleID,
     root: &'cx ast::Program<'cx>,
     p: &'cx Parser<'cx>,
-    global: &'cx GlobalSymbols,
+    globals: &'cx GlobalSymbols,
+    merged: &'cx MergedSymbols,
     atoms: &'cx bolt_ts_atom::AtomMap<'cx>,
 ) -> EarlyResolveResult {
-    let final_res = fx_hashmap_with_capacity(states[module_id.as_usize()].res.len());
+    let final_res = fx_hashmap_with_capacity(states[module_id.as_usize()].final_res.len());
     let mut resolver = Resolver {
         diags: vec![],
         states,
         module_id,
         final_res,
         p,
-        global,
+        globals,
+        merged,
         atoms,
-        resolved_exports: fx_hashmap_with_capacity(1024),
     };
     resolver.resolve_program(root);
     let diags = std::mem::take(&mut resolver.diags);
@@ -72,13 +80,13 @@ pub(super) struct Resolver<'cx, 'r, 'atoms> {
     p: &'cx Parser<'cx>,
     pub diags: Vec<bolt_ts_errors::Diag>,
     final_res: FxHashMap<ast::NodeID, SymbolID>,
-    global: &'cx GlobalSymbols,
+    globals: &'cx GlobalSymbols,
+    merged: &'cx MergedSymbols,
     atoms: &'atoms bolt_ts_atom::AtomMap<'cx>,
-    resolved_exports: FxHashMap<SymbolID, FxHashMap<SymbolName, SymbolID>>,
 }
 
 impl<'cx> Resolver<'cx, '_, '_> {
-    fn locals(&self, id: ast::NodeID) -> Option<&FxHashMap<SymbolName, SymbolID>> {
+    fn locals(&self, id: ast::NodeID) -> Option<&SymbolTable> {
         self.states[id.module().as_usize()].locals.get(&id)
     }
 
@@ -86,6 +94,10 @@ impl<'cx> Resolver<'cx, '_, '_> {
         self.states[symbol_id.module().as_usize()]
             .symbols
             .get(symbol_id)
+    }
+
+    fn symbol_of_decl(&self, decl: ast::NodeID) -> SymbolID {
+        self.states[decl.module().as_usize()].final_res[&decl]
     }
 
     fn push_error(&mut self, error: crate::Diag) {
@@ -102,7 +114,7 @@ impl<'cx> Resolver<'cx, '_, '_> {
         use bolt_ts_ast::StmtKind::*;
         match stmt.kind {
             Var(var) => self.resolve_var_stmt(var),
-            Expr(expr) => self.resolve_expr(expr),
+            Expr(expr) => self.resolve_expr(expr.expr),
             Fn(f) => self.resolve_fn_decl(f),
             If(i) => self.resolve_if_stmt(i),
             Block(block) => self.resolve_block_stmt(block),
@@ -117,7 +129,7 @@ impl<'cx> Resolver<'cx, '_, '_> {
             }
             Enum(_) => {}
             Import(_) => {}
-            Export(_) => {}
+            Export(n) => self.resolve_export(n),
             For(n) => {
                 if let Some(cond) = n.cond {
                     self.resolve_expr(cond);
@@ -145,11 +157,37 @@ impl<'cx> Resolver<'cx, '_, '_> {
                     self.resolve_symbol_by_ident(ident, SymbolFlags::VALUE);
                 }
             }
-            Try(n) => {}
-            While(n) => {}
-            Do(n) => {}
+            Try(_) => {}
+            While(_) => {}
+            Do(_) => {}
             Debugger(_) => {}
+            ExportAssign(n) => {
+                self.resolve_expr(n.expr);
+            }
         };
+    }
+
+    fn resolve_export(&mut self, export: &'cx ast::ExportDecl<'cx>) {
+        match export.clause.kind {
+            ast::ExportClauseKind::Glob(_) => {}
+            ast::ExportClauseKind::Ns(_) => {}
+            ast::ExportClauseKind::Specs(specs) => {
+                for spec in specs.list {
+                    use ast::ExportSpecKind::*;
+                    match spec.kind {
+                        Shorthand(n) => {
+                            const MEANING: SymbolFlags = SymbolFlags::VALUE
+                                .union(SymbolFlags::TYPE)
+                                .union(SymbolFlags::NAMESPACE);
+                            self.resolve_symbol_by_ident(n.name, MEANING);
+                        }
+                        Named(_) => {
+                            // TODO
+                        }
+                    }
+                }
+            }
+        }
     }
 
     fn resolve_ns_decl(&mut self, ns: &'cx ast::NsDecl<'cx>) {
@@ -226,17 +264,9 @@ impl<'cx> Resolver<'cx, '_, '_> {
             Qualified(qualified) => {
                 self.resolve_entity_name(
                     qualified.left,
-                    SymbolFlags::NAMESPACE | SymbolFlags::TYPE,
+                    SymbolFlags::NAMESPACE.union(SymbolFlags::TYPE),
                 );
-                let left = self.final_res[&qualified.left.id()];
-                let exports = self.get_exports_of_symbol(left);
-                let name = SymbolName::Normal(qualified.right.name);
-                let v = exports
-                    .and_then(|exports| exports.get(&name))
-                    .copied()
-                    .unwrap_or(Symbol::ERR);
-                let prev = self.final_res.insert(qualified.id, v);
-                assert!(prev.is_none());
+                // resolve the value of right in checker.
             }
         }
     }
@@ -325,8 +355,10 @@ impl<'cx> Resolver<'cx, '_, '_> {
                 self.resolve_ty(n.ty);
             }
             Pred(n) => {
-                self.resolve_value_by_ident(n.name);
-                self.resolve_ty(n.ty);
+                // self.resolve_value_by_ident(n.name);
+                if let Some(ty) = n.ty {
+                    self.resolve_ty(ty);
+                }
             }
             Paren(n) => {
                 self.resolve_ty(n.ty);
@@ -337,7 +369,7 @@ impl<'cx> Resolver<'cx, '_, '_> {
             Nullable(n) => {
                 self.resolve_ty(n.ty);
             }
-            Intrinsic(_) => {}
+            Intrinsic(_) | This(_) => {}
             NamedTuple(n) => {
                 self.resolve_ty(n.ty);
             }
@@ -382,6 +414,9 @@ impl<'cx> Resolver<'cx, '_, '_> {
             }
             IndexSig(index) => self.resolve_index_sig(index),
             CtorSig(decl) => {
+                if let Some(ty_params) = decl.ty_params {
+                    self.resolve_ty_params(ty_params);
+                }
                 self.resolve_params(decl.params);
                 if let Some(ty) = decl.ty {
                     self.resolve_ty(ty);
@@ -465,6 +500,9 @@ impl<'cx> Resolver<'cx, '_, '_> {
             Paren(paren) => self.resolve_expr(paren.expr),
             Fn(f) => {
                 self.resolve_params(f.params);
+                if let Some(ty) = f.ty {
+                    self.resolve_ty(ty);
+                }
                 self.resolve_block_stmt(f.body);
             }
             Class(class) => self.resolve_class_like(class),
@@ -489,12 +527,33 @@ impl<'cx> Resolver<'cx, '_, '_> {
                     self.resolve_ty(n.ty);
                 }
             }
+            TyAssertion(n) => {
+                self.resolve_ty(n.ty);
+                self.resolve_expr(n.expr);
+            }
             Template(n) => {
                 for item in n.spans {
                     self.resolve_expr(item.expr);
                 }
             }
-            _ => {}
+            NonNull(n) => {
+                self.resolve_expr(n.expr);
+            }
+            ExprWithTyArgs(n) => {
+                self.resolve_expr(n.expr);
+                if let Some(ty_args) = n.ty_args {
+                    self.resolve_tys(ty_args.list);
+                }
+            }
+            SpreadElement(n) => {
+                self.resolve_expr(n.expr);
+            }
+            Satisfies(n) => {
+                self.resolve_expr(n.expr);
+                self.resolve_ty(n.ty);
+            }
+            This(_) | BoolLit(_) | NumLit(_) | BigIntLit(_) | StringLit(_) | NullLit(_)
+            | Omit(_) | Super(_) => {}
         }
     }
 
@@ -511,7 +570,7 @@ impl<'cx> Resolver<'cx, '_, '_> {
                 self.resolve_value_by_ident(n.name);
             }
             Prop(n) => {
-                self.resolve_expr(n.value);
+                self.resolve_expr(n.init);
             }
             Method(n) => {
                 if let Some(ty_params) = n.ty_params {
@@ -585,9 +644,10 @@ impl<'cx> Resolver<'cx, '_, '_> {
         }
         let res = self.resolve_symbol_by_ident(ident, SymbolFlags::VALUE);
         if res.symbol == Symbol::ERR {
+            let name = self.atoms.get(ident.name).to_string();
             let error = errors::CannotFindName {
                 span: ident.span,
-                name: self.atoms.get(ident.name).to_string(),
+                name,
                 errors: vec![],
             };
             let error = self.on_failed_to_resolve_value_symbol(ident, error);
@@ -615,9 +675,10 @@ impl<'cx> Resolver<'cx, '_, '_> {
         let mut res = resolve_symbol_by_ident(self, ident, SymbolFlags::TYPE).symbol;
 
         if res == Symbol::ERR && report {
+            let name = self.atoms.get(ident.name).to_string();
             let error = errors::CannotFindName {
                 span: ident.span,
-                name: self.atoms.get(ident.name).to_string(),
+                name,
                 errors: vec![],
             };
             self.push_error(Box::new(error));
@@ -642,6 +703,28 @@ impl<'cx> Resolver<'cx, '_, '_> {
         );
         res
     }
+
+    fn is_type_param_symbol_declared_in_container(
+        &self,
+        symbol: SymbolID,
+        container: ast::NodeID,
+    ) -> bool {
+        let decls = &self.symbol(symbol).decls;
+        for decl in decls {
+            let decl = *decl;
+            if self.p.node(decl).is_ty_param() {
+                // TODO: js doc template tag
+                let parent = self.p.parent(decl);
+                if let Some(parent) = parent {
+                    if parent == container {
+                        // TODO: js doc template tag
+                        return true;
+                    }
+                }
+            }
+        }
+        false
+    }
 }
 
 pub(super) struct ResolvedResult {
@@ -655,27 +738,151 @@ pub(super) fn resolve_symbol_by_ident<'a, 'cx>(
     meaning: SymbolFlags,
 ) -> ResolvedResult {
     use ast::Node::*;
+    let key = SymbolName::Atom(ident.name);
     let mut associated_declaration_for_containing_initializer_or_binding_name = None;
-    let mut last_location = None;
+    let mut last_location = Some(ident.id);
     let mut location = resolver.p.parent(ident.id);
-    while let Some(id) = location {
-        if let Some(locals) = resolver.locals(id) {
-            if let Some(symbol) = locals.get(&SymbolName::Normal(ident.name)).copied() {
-                let mut use_result = true;
-                if let Some(cond) = resolver.p.node(id).as_cond_ty() {
-                    use_result = last_location.is_some_and(|last| last == cond.true_ty.id());
-                }
-                if use_result {
-                    return ResolvedResult {
-                        symbol,
-                        associated_declaration_for_containing_initializer_or_binding_name,
-                    };
+
+    fn get_symbol(
+        resolver: &Resolver,
+        symbols: &SymbolTable,
+        name: SymbolName,
+        meaning: SymbolFlags,
+    ) -> Option<SymbolID> {
+        if !meaning.is_empty() {
+            if let Some(symbol) = symbols.0.get(&name) {
+                let symbols = &resolver.states[symbol.module().as_usize()].symbols;
+                let symbol = resolver.merged.get_merged_symbol(*symbol, symbols);
+                let flags = resolver.symbol(symbol).flags;
+                if flags.intersects(meaning) {
+                    return Some(symbol);
+                } else if flags.intersects(SymbolFlags::ALIAS) {
+                    // bound of parallel, handle this case in late_resolve
+                    return Some(symbol);
                 }
             }
         }
-        last_location = location;
+        None
+    }
 
-        match resolver.p.node(id) {
+    while let Some(id) = location {
+        if let Some(locals) = resolver.locals(id) {
+            if !resolver.p.is_global_source_file(id) {
+                if let Some(symbol) = get_symbol(resolver, locals, key, meaning) {
+                    let res_flags = resolver.symbol(symbol).flags;
+                    if res_flags.intersects(SymbolFlags::ALIAS) {
+                        // handle this case in late_resolve
+                        return ResolvedResult {
+                            symbol,
+                            associated_declaration_for_containing_initializer_or_binding_name,
+                        };
+                    }
+
+                    let mut use_result = true;
+                    let n = resolver.p.node(id);
+                    if n.is_fn_like()
+                        && last_location.is_some_and(|last_location| match n {
+                            FnDecl(f) => f.body.is_none_or(|body| last_location != body.id),
+                            _ => false, //TODO: other function decl,
+                        })
+                    {
+                        let flags = meaning.intersection(res_flags);
+                        if flags.intersects(SymbolFlags::TYPE) {
+                            // TODO:
+                        }
+                        if flags.intersects(SymbolFlags::VARIABLE)
+                            && res_flags.intersects(SymbolFlags::FUNCTION_SCOPED_VARIABLE)
+                        {
+                            let last = resolver.p.node(last_location.unwrap());
+                            use_result = last.is_param_decl();
+                        };
+                    } else if let Some(cond) = n.as_cond_ty() {
+                        use_result = last_location.is_some_and(|last| last == cond.true_ty.id());
+                    }
+                    if use_result {
+                        return ResolvedResult {
+                            symbol,
+                            associated_declaration_for_containing_initializer_or_binding_name,
+                        };
+                    }
+                }
+            }
+        }
+
+        let n = resolver.p.node(id);
+        match n {
+            Program(_) if !resolver.p.is_external_or_commonjs_module(id) => (),
+            Program(_) | NamespaceDecl(_) => {
+                let symbol_id = resolver.merged.get_merged_symbol(
+                    resolver.symbol_of_decl(id),
+                    &resolver.states[id.module().as_usize()].symbols,
+                );
+                let module_exports = &resolver.symbol(symbol_id).exports();
+                if n.is_program()
+                    || (n
+                        .as_namespace_decl()
+                        .is_some_and(|n| !n.is_global_scope_argument())
+                        && resolver.p.node_flags(id).intersects(NodeFlags::AMBIENT))
+                {
+                    // TODO: default
+                    if let Some(module_export) = module_exports.0.get(&key).copied() {
+                        if resolver
+                            .symbol(module_export)
+                            .flags
+                            .intersects(SymbolFlags::ALIAS)
+                        {
+                            // TODO:
+                        }
+                    }
+                }
+
+                if let Some(module_export) = module_exports.0.get(&key).copied() {
+                    if resolver
+                        .symbol(module_export)
+                        .flags
+                        .intersects(meaning & SymbolFlags::MODULE_MEMBER)
+                    {
+                        return ResolvedResult {
+                            symbol: module_export,
+                            associated_declaration_for_containing_initializer_or_binding_name,
+                        };
+                    }
+                }
+            }
+            ClassDecl(_) | ClassExpr(_) | InterfaceDecl(_) => {
+                if let Some(res) = resolver
+                    .symbol(resolver.symbol_of_decl(id))
+                    .members()
+                    .0
+                    .get(&key)
+                    .copied()
+                {
+                    if resolver
+                        .symbol(res)
+                        .flags
+                        .intersects(meaning & SymbolFlags::TYPE)
+                    {
+                        if !resolver.is_type_param_symbol_declared_in_container(res, id) {
+                            break;
+                        }
+                        // TODO: last location
+                        return ResolvedResult {
+                            symbol: res,
+                            associated_declaration_for_containing_initializer_or_binding_name,
+                        };
+                    }
+                }
+                if let Some(c) = n.as_class_expr() {
+                    if meaning.intersects(SymbolFlags::CLASS)
+                        && c.name.is_some_and(|n| n.name == ident.name)
+                    {
+                        return ResolvedResult {
+                            symbol: resolver.symbol_of_decl(id),
+                            associated_declaration_for_containing_initializer_or_binding_name,
+                        };
+                    }
+                }
+            }
             ArrowFnExpr(_) | ClassMethodElem(_) | ClassCtor(_) | GetterDecl(_) | SetterDecl(_)
             | FnDecl(_) => {
                 if meaning.intersects(SymbolFlags::VARIABLE)
@@ -687,76 +894,53 @@ pub(super) fn resolve_symbol_by_ident<'a, 'cx>(
                     };
                 }
             }
-            _ => {}
-        }
-        location = resolver.p.parent(id);
-    }
-    let binder = &resolver.states[resolver.module_id.as_usize()];
-    let key = SymbolName::Normal(ident.name);
-    // TODO: use locals rather than scope.
-    let Some(mut scope_id) = binder.node_id_to_scope_id.get(&ident.id).copied() else {
-        let name = ast::debug_ident(ident, resolver.atoms);
-        unreachable!("the scope of {name:?} is not stored");
-    };
-    loop {
-        if !scope_id.is_root() {
-            if let Some(id) = binder.res.get(&(scope_id, SymbolName::Container)).copied() {
-                let symbol = binder.symbols.get(id);
-                if symbol.flags.intersects(meaning) {
-                    let container = symbol.expect_block_container();
-                    if let Some(id) = container.locals.get(&key) {
-                        return ResolvedResult {
-                            symbol: *id,
-                            associated_declaration_for_containing_initializer_or_binding_name,
-                        };
+            FnExpr(f) => {
+                if meaning.intersects(SymbolFlags::VARIABLE)
+                    && ident.name == keyword::IDENT_ARGUMENTS
+                {
+                    return ResolvedResult {
+                        symbol: Symbol::ARGUMENTS,
+                        associated_declaration_for_containing_initializer_or_binding_name,
+                    };
+                }
+                if meaning.intersects(SymbolFlags::FUNCTION)
+                    && f.name.is_some_and(|n| n.name == ident.name)
+                {
+                    return ResolvedResult {
+                        symbol: resolver.symbol_of_decl(id),
+                        associated_declaration_for_containing_initializer_or_binding_name,
+                    };
+                }
+            }
+            ParamDecl(p) => {
+                if let Some(last_location) = last_location {
+                    if p.init.is_some_and(|init| init.id() == last_location)
+                        && associated_declaration_for_containing_initializer_or_binding_name
+                            .is_none()
+                    {
+                        associated_declaration_for_containing_initializer_or_binding_name =
+                            Some(id);
                     }
                 }
             }
+            _ => {}
         }
+        last_location = location;
+        location = resolver.p.parent(id);
+    }
 
-        if let Some(id) = binder.res.get(&(scope_id, key)).copied() {
-            let symbol = binder.symbols.get(id);
-            use crate::bind::SymbolKind::*;
-            if symbol.kind.2.is_some()
-                && resolver
-                    .p
-                    .parent(ident.id)
-                    .is_some_and(|n| resolver.p.node(n).is_qualified_name())
-            {
-                return ResolvedResult {
-                    symbol: id,
-                    associated_declaration_for_containing_initializer_or_binding_name,
-                };
-            }
-            let decl = match &symbol.kind.0 {
-                FunctionScopedVar(var) => Some(var.decl),
-                _ => None,
-            };
-            if let Some(decl) = decl {
-                if resolver.p.node(decl).is_param_decl()
-                    && resolver.p.is_descendant_of(ident.id, decl)
-                {
-                    associated_declaration_for_containing_initializer_or_binding_name = Some(decl);
-                }
-            }
-            if symbol.flags.intersects(meaning) {
-                return ResolvedResult {
-                    symbol: id,
-                    associated_declaration_for_containing_initializer_or_binding_name,
-                };
-            }
-        }
-
-        if let Some(parent) = binder.scope_id_parent_map[scope_id.index_as_usize()] {
-            scope_id = parent;
-        } else if let Some(symbol) = resolver.global.get(key) {
+    if let Some(symbol) = resolver.globals.0.get(&key).copied() {
+        if resolver.symbol(symbol).flags.intersects(meaning) {
             return ResolvedResult {
                 symbol,
                 associated_declaration_for_containing_initializer_or_binding_name,
             };
-        } else {
-            break;
         }
+    } else if ident.name == keyword::IDENT_GLOBAL_THIS && meaning.intersects(SymbolFlags::MODULE) {
+        return ResolvedResult {
+            symbol: Symbol::GLOBAL_THIS,
+            associated_declaration_for_containing_initializer_or_binding_name,
+        };
     }
 
     ResolvedResult {

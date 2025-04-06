@@ -8,7 +8,7 @@ use bolt_ts_span::Span;
 
 #[derive(Error, Diagnostic, DiagnosticExt, Debug)]
 #[error("Duplicate identifier '{name}'.")]
-pub(super) struct DuplicateIdentifier {
+pub(crate) struct DuplicateIdentifier {
     #[label(primary)]
     pub span: Span,
     pub name: String,

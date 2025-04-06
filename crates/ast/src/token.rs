@@ -22,8 +22,8 @@ impl Token {
     }
 }
 
-pub const KEYWORD_TOKEN_START: u8 = TokenKind::Null as u8;
-pub const KEYWORD_TOKEN_END: u8 = TokenKind::Type as u8;
+const KEYWORD_TOKEN_START: u8 = TokenKind::Null as u8;
+const KEYWORD_TOKEN_END: u8 = TokenKind::Type as u8;
 
 pub const fn keyword_idx_to_token(idx: usize) -> TokenKind {
     unsafe { std::mem::transmute::<u8, TokenKind>(idx as u8 + KEYWORD_TOKEN_START) }
@@ -209,6 +209,7 @@ pub enum TokenKind {
     Infer,
     Intrinsic,
     Unique,
+    Asserts,
     Type,
     // =====
     EOF,
@@ -419,7 +420,8 @@ impl TryFrom<TokenKind> for super::ModifierKind {
             // TODO: override
             TokenKind::Abstract => Ok(Abstract),
             TokenKind::Static => Ok(Static),
-            TokenKind::Declare => Ok(Declare),
+            TokenKind::Declare => Ok(Ambient),
+            TokenKind::Default => Ok(Default),
             _ => Err(()),
         }
     }
@@ -442,21 +444,6 @@ impl From<TokenKind> for super::AssignOp {
             TokenKind::GreatGreatGreatEq => UShrEq,
             TokenKind::CaretEq => BitXorEq,
             _ => unreachable!(),
-        }
-    }
-}
-
-impl TryFrom<TokenKind> for super::VarKind {
-    type Error = ();
-    fn try_from(value: TokenKind) -> Result<Self, Self::Error> {
-        use TokenKind::*;
-        match value {
-            Var | Let | Const => unsafe {
-                Ok(std::mem::transmute::<u8, super::VarKind>(
-                    value as u8 - Var as u8,
-                ))
-            },
-            _ => Err(()),
         }
     }
 }
@@ -500,29 +487,6 @@ impl TokenKind {
         // TODO: handle yield keyword and await keyword
 
         self.is_contextual_keyword() || self.is_strict_mode_reserved_word()
-    }
-
-    pub const fn is_start_of_left_hand_side_expr(self) -> bool {
-        use TokenKind::*;
-        matches!(
-            self,
-            This | Super
-                | Null
-                | True
-                | False
-                | Number
-                | String
-                | LBrace
-                | LBracket
-                | LParen
-                | Function
-                | Class
-                | New
-                | Slash
-                | SlashEq
-                | Ident
-                | TemplateHead
-        ) || self.is_ident()
     }
 
     pub fn is_binding_ident(self) -> bool {
@@ -681,6 +645,7 @@ pub enum BinPrec {
 }
 
 bitflags::bitflags! {
+    #[derive(Debug, Clone, Copy)]
     pub struct TokenFlags: u16 {
         const PRECEDING_LINE_BREAK      = 1 << 0;
         const EXTENDED_UNICODE_ESCAPE   = 1 << 3;

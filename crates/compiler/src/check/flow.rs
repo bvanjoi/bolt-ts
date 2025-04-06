@@ -1,5 +1,5 @@
 use super::TyChecker;
-use super::type_predicate::{IdentTyPred, TyPred};
+use super::type_predicate::TyPred;
 use crate::bind::{FlowFlags, FlowID, FlowNode, FlowNodeKind};
 use crate::check::create_ty::IntersectionFlags;
 use crate::check::type_predicate::TyPredKind;
@@ -243,17 +243,8 @@ impl<'cx> TyChecker<'cx> {
             };
             let pred = sig.and_then(|sig| self.get_ty_predicate_of_sig(sig));
             if let Some(pred) = pred {
-                match &pred.kind {
-                    TyPredKind::Ident(i) => {
-                        return self.narrow_ty_by_ty_pred(
-                            ty,
-                            refer,
-                            pred,
-                            i,
-                            call_expr,
-                            assume_true,
-                        );
-                    }
+                if matches!(pred.kind, TyPredKind::Ident(_) | TyPredKind::This(_)) {
+                    return self.narrow_ty_by_ty_pred(ty, refer, pred, call_expr, assume_true);
                 }
             }
         }
@@ -265,9 +256,18 @@ impl<'cx> TyChecker<'cx> {
         &mut self,
         pred: &'cx TyPred<'cx>,
         expr: &'cx ast::CallExpr<'cx>,
-    ) -> &'cx ast::Expr<'cx> {
-        match pred.kind {
-            TyPredKind::Ident(i) => expr.args[i.param_index as usize],
+    ) -> Option<&'cx ast::Expr<'cx>> {
+        if let TyPredKind::Ident(i) = pred.kind {
+            return Some(expr.args[i.param_index as usize]);
+        }
+        let invoked_expr = bolt_ts_ast::Expr::skip_parens(expr.expr);
+        use bolt_ts_ast::ExprKind::*;
+        if let PropAccess(n) = invoked_expr.kind {
+            Some(bolt_ts_ast::Expr::skip_parens(n.expr))
+        } else if let EleAccess(n) = invoked_expr.kind {
+            Some(bolt_ts_ast::Expr::skip_parens(n.expr))
+        } else {
+            None
         }
     }
 
@@ -276,19 +276,25 @@ impl<'cx> TyChecker<'cx> {
         ty: &'cx ty::Ty<'cx>,
         refer: ast::NodeID,
         pred: &'cx TyPred<'cx>,
-        ident_pred: &'cx IdentTyPred<'cx>,
         expr: &'cx ast::CallExpr<'cx>,
         assume_true: bool,
     ) -> &'cx ty::Ty<'cx> {
-        if let Some(pred_ty) = ident_pred.ty {
+        let pred_ty = match pred.kind {
+            TyPredKind::Ident(n) => Some(n.ty),
+            TyPredKind::This(n) => Some(n.ty),
+            TyPredKind::AssertsThis(n) => n.ty,
+            TyPredKind::AssertsIdent(n) => n.ty,
+        };
+        if let Some(pred_ty) = pred_ty {
             if ty.flags.intersects(TypeFlags::ANY)
                 && (pred_ty == self.global_object_ty() || pred_ty == self.global_fn_ty())
             {
                 return ty;
             }
-            let pred_arg = self.get_ty_pred_arg(pred, expr);
-            if self.is_matching_reference(refer, pred_arg.id()) {
-                return self.get_narrowed_ty(ty, pred_ty, assume_true, false);
+            if let Some(pred_arg) = self.get_ty_pred_arg(pred, expr) {
+                if self.is_matching_reference(refer, pred_arg.id()) {
+                    return self.get_narrowed_ty(ty, pred_ty, assume_true, false);
+                }
             }
         }
 
@@ -317,9 +323,7 @@ impl<'cx> TyChecker<'cx> {
             let true_ty = self.get_narrowed_ty(ty, candidate, true, false);
             // TODO: self.recombine_unknown_ty()
             return self.filter_type(ty, |this, t| !this.is_ty_sub_type_of(t, true_ty));
-        } else if ty.flags.intersects(TypeFlags::ANY_OR_UNKNOWN) {
-            return candidate;
-        } else if ty == candidate {
+        } else if ty.flags.intersects(TypeFlags::ANY_OR_UNKNOWN) || ty == candidate {
             return candidate;
         };
 
@@ -420,13 +424,14 @@ impl<'cx> TyChecker<'cx> {
             ty = sub.base_ty;
         }
 
-        if check_mode.is_some_and(|check_mode| check_mode.intersects(super::CheckMode::INFERENTIAL))
-            && false
-        // TODO:
-        {
-            ty
-        } else {
-            ty
-        }
+        ty
+        // if check_mode.is_some_and(|check_mode| check_mode.intersects(super::CheckMode::INFERENTIAL))
+        //     && false
+        // // TODO:
+        // {
+        //     ty
+        // } else {
+        //     ty
+        // }
     }
 }

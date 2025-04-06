@@ -1,8 +1,8 @@
   × Duplicate identifier 'x'.
    ╭─[../../tests/cases/compiler/duplicateInterfaceMembers1/index.ts:5:4]
  4 │ x: number;
-   · ┬
-   · ╰── Previous definition here
- 5 │    x
-   ·    ─
+   · ────┬────
+   ·     ╰── Previous definition here
+ 5 │    x: number
+   ·    ─────────
    ╰────

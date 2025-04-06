@@ -1,11 +1,11 @@
   × Expected 3 arguments, but got 2.
-    ╭─[../../tests/cases/compiler/requiredInitializedParameter1/index.ts:11:1]
- 11 │ f1
+    ╭─[../../tests/cases/compiler/requiredInitializedParameter1/index.ts:13:1]
+ 13 │ f1
     · ──
     ╰────
 
   × Expected 3 arguments, but got 1.
-    ╭─[../../tests/cases/compiler/requiredInitializedParameter1/index.ts:17:1]
- 17 │ f1
+    ╭─[../../tests/cases/compiler/requiredInitializedParameter1/index.ts:19:1]
+ 19 │ f1
     · ──
     ╰────

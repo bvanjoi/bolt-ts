@@ -8,3 +8,11 @@ declare module "punycode" {
 
   export let ucs2: ucs2;
 }
+
+declare module "a" {
+  export let ucs2: ucs2;
+  interface ucs2 {
+      decode(string: string): string;
+      encode(codePoints: number[]): string;
+  }
+}

@@ -9,7 +9,7 @@ impl<'cx> Emit<'cx> {
         match stmt.kind {
             Var(var) => self.emit_var_stmt(var),
             Expr(expr) => {
-                self.emit_expr(expr);
+                self.emit_expr(expr.expr);
                 self.content.p_semi();
             }
             Fn(f) => self.emit_fn_decl(f),
@@ -34,6 +34,11 @@ impl<'cx> Emit<'cx> {
             Type(_) => {}
             Empty(_) => {}
             Debugger(_) => self.content.p("debugger"),
+            ExportAssign(n) => {
+                self.content.p("export default");
+                self.emit_expr(n.expr);
+                self.content.p_semi();
+            }
         }
     }
 
@@ -109,7 +114,7 @@ impl<'cx> Emit<'cx> {
     fn emit_for_init(&mut self, n: &'cx ast::ForInitKind<'cx>) {
         use bolt_ts_ast::ForInitKind::*;
         match n {
-            Var((kind, decls)) => {
+            Var(decls) => {
                 self.content.p("var");
                 self.content.p_whitespace();
                 self.emit_var_decls(decls)
@@ -273,8 +278,8 @@ impl<'cx> Emit<'cx> {
     }
 
     fn emit_import_clause(&mut self, clause: &'cx ast::ImportClause<'cx>) {
-        if let Some(ident) = clause.ident {
-            self.emit_ident(ident);
+        if let Some(name) = clause.name {
+            self.emit_ident(name);
             self.content.p_whitespace();
         } else if let Some(kind) = clause.kind {
             match kind {
@@ -299,6 +304,7 @@ impl<'cx> Emit<'cx> {
         self.emit_import_clause(n.clause);
         self.content.p_whitespace();
         self.content.p("from");
+        self.content.p_whitespace();
         self.emit_as_string(n.module.val);
     }
 
@@ -310,7 +316,7 @@ impl<'cx> Emit<'cx> {
 
     fn emit_enum_decl(&mut self, e: &'cx ast::EnumDecl) {
         if e.modifiers
-            .map(|ms| ms.flags.contains(ast::ModifierKind::Declare))
+            .map(|ms| ms.flags.contains(ast::ModifierKind::Ambient))
             .unwrap_or_default()
         {
             return;
@@ -426,6 +432,29 @@ impl<'cx> Emit<'cx> {
         }
     }
 
+    fn emit_array_binding_elem(&mut self, elem: &'cx ast::ArrayBindingElem<'cx>) {
+        use bolt_ts_ast::ArrayBindingElemKind::*;
+        match elem.kind {
+            Omit(_) => {}
+            Binding {
+                dotdotdot,
+                name,
+                init,
+            } => {
+                if dotdotdot.is_some() {
+                    self.content.p_dot_dot_dot();
+                }
+                self.emit_binding(name);
+                if let Some(init) = init {
+                    self.content.p_whitespace();
+                    self.content.p_eq();
+                    self.content.p_whitespace();
+                    self.emit_expr(init);
+                }
+            }
+        }
+    }
+
     pub(super) fn emit_binding(&mut self, binding: &'cx ast::Binding<'cx>) {
         match binding.kind {
             ast::BindingKind::Ident(n) => self.emit_ident(n),
@@ -441,14 +470,27 @@ impl<'cx> Emit<'cx> {
                 );
                 self.content.p_r_brace();
             }
-            bolt_ts_ast::BindingKind::ArrayPat(_) => todo!(),
+            bolt_ts_ast::BindingKind::ArrayPat(n) => {
+                self.content.p_l_bracket();
+                self.emit_list(
+                    n.elems,
+                    |this, item| {
+                        this.emit_array_binding_elem(item);
+                    },
+                    |this, _| {
+                        this.content.p_comma();
+                        this.content.p_whitespace();
+                    },
+                );
+                self.content.p_r_bracket();
+            }
         };
     }
 
     fn emit_ns_decl(&mut self, ns: &'cx ast::NsDecl) {
         if ns
             .modifiers
-            .map(|ms| ms.flags.contains(ast::ModifierKind::Declare))
+            .map(|ms| ms.flags.contains(ast::ModifierKind::Ambient))
             .unwrap_or_default()
         {
             return;
@@ -487,7 +529,8 @@ impl<'cx> Emit<'cx> {
                         .flat_map(|item| sub_names_of_binding(item.binding))
                         .collect::<Vec<_>>(),
                 ),
-                ast::StmtKind::Class(c) => Some(vec![c.name.name]),
+                ast::StmtKind::Class(c) => Some(vec![c.name.unwrap().name]),
+                ast::StmtKind::Fn(f) => Some(vec![f.name.name]),
                 _ => None,
             })
             .flatten()
@@ -541,7 +584,7 @@ impl<'cx> Emit<'cx> {
                         continue;
                     }
                     Fn(f) => f.modifiers.map(|ms| (ms, f.name)),
-                    Class(c) => c.modifiers.map(|ms| (ms, c.name)),
+                    Class(c) => c.modifiers.map(|ms| (ms, c.name.unwrap())),
                     Interface(_) | Type(_) => None,
                     Namespace(n) => n.modifiers.map(|ms| {
                         let ident = match n.name {

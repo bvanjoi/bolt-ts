@@ -24,3 +24,19 @@ pub(super) struct AbstractMethodsCanOnlyAppearWithinAnAbstractClass {
     #[label(primary)]
     pub span: Span,
 }
+
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
+#[error("An object literal cannot have multiple properties with the same name.")]
+pub(super) struct AnObjectLiteralCannotHaveMultiplePropertiesWithTheSameName {
+    #[label(primary)]
+    pub span: Span,
+    #[label("Previous definition here")]
+    pub old: Span,
+}
+
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
+#[error("Catch clause variable cannot have an initializer.")]
+pub(super) struct CatchClauseVariableTypeAnnotationMustBeAnyOrUnknownIfSpecified {
+    #[label(primary)]
+    pub span: Span,
+}

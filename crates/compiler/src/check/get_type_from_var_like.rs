@@ -1,68 +1,25 @@
 use super::TyChecker;
-use super::cycle_check::ResolutionKey;
-use crate::bind::SymbolID;
 use crate::ty::Ty;
 use crate::{ir, ty};
 
 impl<'cx> TyChecker<'cx> {
-    pub fn get_type_for_var_like(&mut self, id: SymbolID) -> &'cx Ty<'cx> {
-        if let Some(ty) = self.get_symbol_links(id).get_ty() {
-            return ty;
-        }
-
-        let node_id = id.decl(self.binder);
-        let node = self.p.node(node_id);
-
-        if !self.push_ty_resolution(ResolutionKey::Type(id)) {
-            // TO: error handle
-            return self.any_ty;
-        }
-
-        let ty = if let Some(decl) = node.as_var_decl() {
-            self.get_widened_ty_for_var_like_decl(decl)
-        } else if let Some(decl) = node.as_param_decl() {
-            self.get_widened_ty_for_var_like_decl(decl)
-        } else if let Some(decl) = node.as_prop_signature() {
-            self.get_widened_ty_for_var_like_decl(decl)
-        } else if let Some(decl) = node.as_class_prop_ele() {
-            self.get_widened_ty_for_var_like_decl(decl)
-        } else if let Some(decl) = node.as_object_prop_member() {
-            self.get_widened_ty_for_var_like_decl(decl)
-        } else if let Some(decl) = node.as_object_shorthand_member() {
-            self.get_widened_ty_for_var_like_decl(decl)
-        } else if let Some(decl) = node.as_object_method_member() {
-            decl.ty
-                .map(|ty| self.get_ty_from_type_node(ty))
-                .unwrap_or_else(|| self.check_object_method_member(decl))
-        } else {
-            unreachable!("node: {node:#?}")
-        };
-        self.get_mut_symbol_links(id).set_ty(ty);
-
-        if self.pop_ty_resolution().has_cycle() {
-            // TODO: error handle
-            return self.any_ty;
-        }
-        ty
-    }
-
-    pub(super) fn get_widened_ty_for_var_like_decl(
-        &mut self,
-        decl: &impl ir::VarLike<'cx>,
-    ) -> &'cx Ty<'cx> {
-        let ty = self.get_ty_for_var_like_decl(decl, true);
-        self.widen_ty_for_var_like_decl(ty, decl)
-    }
-
     pub(super) fn get_optional_ty(&mut self, ty: &'cx Ty<'cx>, is_property: bool) -> &'cx Ty<'cx> {
         assert!(*self.config.strict_null_checks());
         let missing_or_undefined = if is_property {
-            // self.missing_or_undefined_ty()
-            self.undefined_ty
+            self.undefined_or_missing_ty
         } else {
             self.undefined_ty
         };
-        self.get_union_ty(&[ty, missing_or_undefined], ty::UnionReduction::Lit)
+        if ty == missing_or_undefined
+            || ty
+                .kind
+                .as_union()
+                .is_some_and(|u| u.tys[0] == missing_or_undefined)
+        {
+            ty
+        } else {
+            self.get_union_ty(&[ty, missing_or_undefined], ty::UnionReduction::Lit)
+        }
     }
 
     pub(super) fn add_optionality(
@@ -78,11 +35,13 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
-    fn get_ty_for_var_like_decl(
+    pub(super) fn get_ty_for_var_like_decl(
         &mut self,
         decl: &impl ir::VarLike<'cx>,
         include_optionality: bool,
     ) -> Option<&'cx Ty<'cx>> {
+        // TODO: for in stmt
+        // TODO: for of stmt
         if let Some(decl_ty) = decl.decl_ty() {
             let is_property = self.p.node(decl.id()).is_prop_signature();
             let is_optional = include_optionality && self.p.node(decl.id()).is_optional_decl();
@@ -94,12 +53,12 @@ impl<'cx> TyChecker<'cx> {
             let parent = self.p.parent(decl.id()).unwrap();
             let func = self.p.node(parent);
             if let Some(setter) = func.as_setter_decl() {
+                // TODO: has bindable name
                 let symbol = self.get_symbol_of_decl(setter.id);
                 let getter = self
                     .binder
                     .symbol(symbol)
-                    .expect_getter_setter()
-                    .getter_decl;
+                    .get_declaration_of_kind(|id| self.p.node(id).is_getter_decl());
                 if let Some(getter) = getter {
                     let getter_sig = self.get_sig_from_decl(getter);
                     // TODO: this_param
@@ -116,7 +75,7 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
-    fn widen_ty_for_var_like_decl(
+    pub(super) fn widen_ty_for_var_like_decl(
         &mut self,
         ty: Option<&'cx Ty<'cx>>,
         decl: &impl ir::VarLike<'cx>,

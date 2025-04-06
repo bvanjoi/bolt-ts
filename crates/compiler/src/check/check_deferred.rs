@@ -1,13 +1,13 @@
 use bolt_ts_ast as ast;
 
-use super::NodeFlags;
+use super::NodeCheckFlags;
 use super::TyChecker;
 
 impl TyChecker<'_> {
     pub(super) fn check_node_deferred(&mut self, node: ast::NodeID) {
         let root = node.into_root();
         let flags = self.get_node_links(root).flags();
-        if !flags.intersects(NodeFlags::TYPE_CHECKED) {
+        if !flags.intersects(NodeCheckFlags::TYPE_CHECKED) {
             self.deferred_nodes[node.module().as_usize()].insert(node);
         }
     }

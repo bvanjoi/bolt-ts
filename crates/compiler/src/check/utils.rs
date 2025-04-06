@@ -1,5 +1,6 @@
 use super::SymbolID;
 use super::TyChecker;
+use super::symbol_info::SymbolInfo;
 use super::ty;
 
 pub fn append_if_unique<'a, T>(array: &mut Vec<&'a T>, value: &'a T) {
@@ -44,7 +45,8 @@ impl<'cx> TyChecker<'cx> {
             self.get_union_ty_from_sorted_list(
                 filtered,
                 ty.get_object_flags()
-                    & (ty::ObjectFlags::PRIMITIVE_UNION | ty::ObjectFlags::CONTAINS_INTERSECTIONS),
+                    & (ty::ObjectFlags::PRIMITIVE_UNION
+                        .union(ty::ObjectFlags::CONTAINS_INTERSECTIONS)),
             )
         } else if ty.flags.intersects(ty::TypeFlags::NEVER) {
             self.never_ty
@@ -79,13 +81,14 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
-    fn same_map<T: PartialEq<U> + Copy, U: PartialEq<T> + Copy>(
+    fn same_map<T, U>(
         &mut self,
         array: Option<&'cx [T]>,
         f: impl Fn(&mut Self, T, usize) -> U,
     ) -> SameMapperResult<'cx, U>
     where
-        T: Into<U>,
+        T: Into<U> + PartialEq<U> + Copy,
+        U: PartialEq<T> + Copy,
     {
         let Some(array) = array else {
             return SameMapperResult::Old;
@@ -98,8 +101,8 @@ impl<'cx> TyChecker<'cx> {
                 result.extend(array[0..i].iter().map(|item| (*item).into()));
                 result.push(mapped);
                 let start = i + 1;
-                for j in start..array.len() {
-                    let item = f(self, array[j], j);
+                for (j, item) in array.iter().enumerate().skip(start) {
+                    let item = f(self, *item, j);
                     result.push(item);
                 }
                 assert_eq!(result.len(), array.len());
@@ -241,4 +244,22 @@ impl<'cx> TyChecker<'cx> {
 enum SameMapperResult<'cx, T> {
     Old,
     New(&'cx [T]),
+}
+
+pub fn uncapitalize(s: &str) -> String {
+    let mut chars = s.chars();
+
+    match chars.next() {
+        Some(first) => first.to_lowercase().chain(chars).collect(),
+        None => String::new(),
+    }
+}
+
+pub fn capitalize(s: &str) -> String {
+    let mut chars = s.chars();
+
+    match chars.next() {
+        Some(first) => first.to_uppercase().chain(chars).collect(),
+        None => String::new(),
+    }
 }

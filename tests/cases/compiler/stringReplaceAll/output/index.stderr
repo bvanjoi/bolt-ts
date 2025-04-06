@@ -1,0 +1,5 @@
+  × Expected 2 arguments, but got 1.
+   ╭─[../../tests/cases/compiler/stringReplaceAll/index.ts:1:9]
+ 1 │ "abcde".replaceAll
+   · ──────────────────
+   ╰────

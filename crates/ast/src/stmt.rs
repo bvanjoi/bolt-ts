@@ -22,7 +22,7 @@ pub enum StmtKind<'cx> {
     Block(&'cx BlockStmt<'cx>),
     Fn(&'cx FnDecl<'cx>),
     Class(&'cx ClassDecl<'cx>),
-    Expr(&'cx super::Expr<'cx>),
+    Expr(&'cx ExprStmt<'cx>),
     Interface(&'cx InterfaceDecl<'cx>),
     Type(&'cx TypeDecl<'cx>),
     Namespace(&'cx NsDecl<'cx>),
@@ -30,6 +30,7 @@ pub enum StmtKind<'cx> {
     Enum(&'cx EnumDecl<'cx>),
     Import(&'cx ImportDecl<'cx>),
     Export(&'cx ExportDecl<'cx>),
+    ExportAssign(&'cx ExportAssign<'cx>),
     Try(&'cx TryStmt<'cx>),
     While(&'cx WhileStmt<'cx>),
     Do(&'cx DoStmt<'cx>),
@@ -47,7 +48,7 @@ impl Stmt<'_> {
             Block(block) => block.id,
             Fn(f) => f.id,
             Class(c) => c.id,
-            Expr(expr) => expr.id(),
+            Expr(expr) => expr.id,
             Interface(i) => i.id,
             Type(t) => t.id,
             Namespace(n) => n.id,
@@ -55,6 +56,7 @@ impl Stmt<'_> {
             Enum(e) => e.id,
             Import(n) => n.id,
             Export(n) => n.id,
+            ExportAssign(n) => n.id,
             For(n) => n.id,
             ForOf(n) => n.id,
             ForIn(n) => n.id,
@@ -66,6 +68,13 @@ impl Stmt<'_> {
             Debugger(n) => n.id,
         }
     }
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct ExprStmt<'cx> {
+    pub id: NodeID,
+    pub span: Span,
+    pub expr: &'cx super::Expr<'cx>,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -133,7 +142,7 @@ pub struct ForStmt<'cx> {
 
 #[derive(Debug, Clone, Copy)]
 pub enum ForInitKind<'cx> {
-    Var((VarKind, VarDecls<'cx>)),
+    Var(VarDecls<'cx>),
     Expr(&'cx Expr<'cx>),
 }
 
@@ -186,9 +195,20 @@ pub struct ThrowStmt<'cx> {
 pub struct NsDecl<'cx> {
     pub id: NodeID,
     pub span: Span,
+    pub is_global_argument: bool,
     pub modifiers: Option<&'cx Modifiers<'cx>>,
     pub name: ModuleName<'cx>,
     pub block: Option<&'cx ModuleBlock<'cx>>,
+}
+
+impl NsDecl<'_> {
+    pub fn is_ambient(&self) -> bool {
+        matches!(self.name, ModuleName::StringLit(_)) || self.is_global_scope_argument()
+    }
+
+    pub fn is_global_scope_argument(&self) -> bool {
+        self.is_global_argument
+    }
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -224,6 +244,7 @@ impl ModuleName<'_> {
 pub struct TypeDecl<'cx> {
     pub id: NodeID,
     pub span: Span,
+    pub modifiers: Option<&'cx Modifiers<'cx>>,
     pub name: &'cx Ident,
     pub ty_params: Option<TyParams<'cx>>,
     pub ty: &'cx self::Ty<'cx>,
@@ -254,6 +275,20 @@ pub struct IndexSigDecl<'cx> {
 #[derive(Debug, Clone, Copy)]
 pub struct ObjectTyMember<'cx> {
     pub kind: ObjectTyMemberKind<'cx>,
+}
+impl ObjectTyMember<'_> {
+    pub fn id(&self) -> NodeID {
+        use ObjectTyMemberKind::*;
+        match self.kind {
+            IndexSig(n) => n.id,
+            Prop(n) => n.id,
+            Method(n) => n.id,
+            CallSig(n) => n.id,
+            CtorSig(n) => n.id,
+            Setter(n) => n.id,
+            Getter(n) => n.id,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -300,7 +335,8 @@ pub struct ClassDecl<'cx> {
     pub id: NodeID,
     pub span: Span,
     pub modifiers: Option<&'cx Modifiers<'cx>>,
-    pub name: &'cx Ident,
+    /// `None` for export decl, eg: `export default class {}`
+    pub name: Option<&'cx Ident>,
     pub ty_params: Option<TyParams<'cx>>,
     pub extends: Option<&'cx ClassExtendsClause<'cx>>,
     pub implements: Option<&'cx ClassImplementsClause<'cx>>,
@@ -316,6 +352,19 @@ pub struct ClassElems<'cx> {
 #[derive(Debug, Clone, Copy)]
 pub struct ClassElem<'cx> {
     pub kind: ClassEleKind<'cx>,
+}
+impl ClassElem<'_> {
+    pub fn id(&self) -> NodeID {
+        use ClassEleKind::*;
+        match self.kind {
+            Ctor(n) => n.id,
+            Prop(n) => n.id,
+            Method(n) => n.id,
+            IndexSig(n) => n.id,
+            Getter(n) => n.id,
+            Setter(n) => n.id,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -451,8 +500,7 @@ pub struct InterfaceExtendsClause<'cx> {
 pub struct ClassExtendsClause<'cx> {
     pub id: NodeID,
     pub span: Span,
-    pub name: &'cx EntityName<'cx>,
-    pub ty_args: Option<&'cx self::Tys<'cx>>,
+    pub expr_with_ty_args: &'cx ExprWithTyArgs<'cx>,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -484,19 +532,11 @@ pub struct IfStmt<'cx> {
     pub else_then: Option<&'cx Stmt<'cx>>,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq)]
-pub enum VarKind {
-    Var,
-    Let,
-    Const,
-}
-
 pub type VarDecls<'cx> = &'cx [&'cx VarDecl<'cx>];
 
 #[derive(Debug, Clone, Copy)]
 pub struct VarStmt<'cx> {
     pub id: NodeID,
-    pub kind: VarKind,
     pub span: Span,
     pub modifiers: Option<&'cx Modifiers<'cx>>,
     pub list: VarDecls<'cx>,
@@ -522,7 +562,6 @@ pub enum ModifierKind {
     In = 1 << 13,
     Out = 1 << 14,
     Decorator = 1 << 15,
-    Declare = 1 << 16,
 }
 
 impl std::fmt::Display for ModifierKind {
@@ -536,12 +575,11 @@ impl std::fmt::Display for ModifierKind {
             ModifierKind::Export => keyword::KW_EXPORT_STR,
             ModifierKind::Abstract => keyword::KW_ABSTRACT_STR,
             ModifierKind::Static => keyword::KW_STATIC_STR,
-            ModifierKind::Declare => keyword::KW_DECLARE_STR,
-            ModifierKind::Ambient => todo!(),
+            ModifierKind::Ambient => keyword::KW_DECLARE_STR,
+            ModifierKind::Default => keyword::KW_DEFAULT_STR,
             ModifierKind::Decorator => todo!(),
             ModifierKind::Accessor => todo!(),
             ModifierKind::Async => todo!(),
-            ModifierKind::Default => todo!(),
             ModifierKind::Const => todo!(),
             ModifierKind::In => todo!(),
             ModifierKind::Out => todo!(),
@@ -622,7 +660,7 @@ pub struct ImportClause<'cx> {
     pub id: NodeID,
     pub span: Span,
     pub is_type_only: bool,
-    pub ident: Option<&'cx Ident>,
+    pub name: Option<&'cx Ident>,
     pub kind: Option<ImportClauseKind<'cx>>,
 }
 
@@ -664,6 +702,24 @@ pub struct ModuleExportName<'cx> {
     pub kind: ModuleExportNameKind<'cx>,
 }
 
+impl ModuleExportName<'_> {
+    pub fn is_default(&self) -> bool {
+        let v = match self.kind {
+            ModuleExportNameKind::Ident(ident) => ident.name,
+            ModuleExportNameKind::StringLit(lit) => lit.val,
+        };
+        v == keyword::KW_DEFAULT
+    }
+
+    pub fn span(&self) -> Span {
+        use ModuleExportNameKind::*;
+        match self.kind {
+            Ident(ident) => ident.span,
+            StringLit(lit) => lit.span,
+        }
+    }
+}
+
 #[derive(Debug, Clone, Copy)]
 pub enum ModuleExportNameKind<'cx> {
     Ident(&'cx Ident),
@@ -691,6 +747,31 @@ pub struct ExportDecl<'cx> {
     pub id: NodeID,
     pub span: Span,
     pub clause: &'cx ExportClause<'cx>,
+}
+
+impl<'cx> ExportDecl<'cx> {
+    pub fn module_spec(&self) -> Option<&'cx StringLit> {
+        match self.clause.kind {
+            ExportClauseKind::Glob(g) => Some(g.module),
+            ExportClauseKind::Ns(n) => Some(n.module),
+            ExportClauseKind::Specs(s) => s.module,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct ExportAssign<'cx> {
+    pub id: NodeID,
+    pub span: Span,
+    pub modifiers: Option<&'cx Modifiers<'cx>>,
+    pub expr: &'cx Expr<'cx>,
+    pub is_export_equals: bool,
+}
+
+impl ExportAssign<'_> {
+    pub fn is_aliasable(&self) -> bool {
+        self.expr.is_entity_name_expr() || matches!(self.expr.kind, ExprKind::Class(_))
+    }
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -735,12 +816,26 @@ pub struct ExportSpec<'cx> {
     pub kind: ExportSpecKind<'cx>,
 }
 
+impl ExportSpec<'_> {
+    pub fn id(&self) -> NodeID {
+        use ExportSpecKind::*;
+        match self.kind {
+            Shorthand(shorthand) => shorthand.id,
+            Named(named) => named.id,
+        }
+    }
+}
+
 #[derive(Debug, Clone, Copy)]
 pub enum ExportSpecKind<'cx> {
     Shorthand(&'cx ShorthandSpec<'cx>),
     Named(&'cx ExportNamedSpec<'cx>),
 }
 
+/// ```txt
+/// export { prop_name as name } from 'xxx'
+///          ^^^^^^^^^^^^^^^^^
+/// ```
 #[derive(Debug, Clone, Copy)]
 pub struct ExportNamedSpec<'cx> {
     pub id: NodeID,
@@ -760,7 +855,7 @@ pub struct Binding<'cx> {
 pub enum BindingKind<'cx> {
     Ident(&'cx Ident),
     ObjectPat(&'cx ObjectPat<'cx>),
-    ArrayPat(&'cx ArrayPat),
+    ArrayPat(&'cx ArrayPat<'cx>),
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -768,12 +863,6 @@ pub struct ObjectPat<'cx> {
     pub id: NodeID,
     pub span: Span,
     pub elems: ObjectBindingElems<'cx>,
-}
-
-#[derive(Debug, Clone, Copy)]
-pub struct ArrayPat {
-    pub id: NodeID,
-    pub span: Span,
 }
 
 pub type ObjectBindingElems<'cx> = &'cx [&'cx ObjectBindingElem<'cx>];
@@ -793,5 +882,31 @@ pub enum ObjectBindingName<'cx> {
     Prop {
         prop_name: &'cx PropName<'cx>,
         name: &'cx Binding<'cx>,
+    },
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct ArrayPat<'cx> {
+    pub id: NodeID,
+    pub span: Span,
+    pub elems: ArrayBindingElems<'cx>,
+}
+
+pub type ArrayBindingElems<'cx> = &'cx [&'cx ArrayBindingElem<'cx>];
+
+#[derive(Debug, Clone, Copy)]
+pub struct ArrayBindingElem<'cx> {
+    pub id: NodeID,
+    pub span: Span,
+    pub kind: ArrayBindingElemKind<'cx>,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub enum ArrayBindingElemKind<'cx> {
+    Omit(&'cx OmitExpr),
+    Binding {
+        dotdotdot: Option<Span>,
+        name: &'cx Binding<'cx>,
+        init: Option<&'cx Expr<'cx>>,
     },
 }

@@ -1,5 +1,6 @@
 use super::ResolutionKey;
 use super::TyChecker;
+use super::symbol_info::SymbolInfo;
 use super::ty;
 use crate::bind::{SymbolFlags, SymbolID};
 use crate::ty::CheckFlags;
@@ -31,8 +32,10 @@ impl<'cx> TyChecker<'cx> {
             return self.any_ty;
         }
 
-        let s = self.binder.symbol(symbol).expect_getter_setter();
-        let setter = s.setter_decl;
+        let setter = self
+            .binder
+            .symbol(symbol)
+            .get_declaration_of_kind(|id| self.p.node(id).is_setter_decl());
         let write_ty = setter
             .and_then(|setter| {
                 let setter = self.p.node(setter).expect_setter_decl();

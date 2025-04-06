@@ -1,8 +1,8 @@
 mod check_flags;
 mod facts;
 mod flags;
+mod links;
 mod mapper;
-mod object_shape;
 mod object_ty;
 mod pprint;
 mod sig;
@@ -17,9 +17,11 @@ use crate::keyword;
 pub use self::check_flags::CheckFlags;
 pub use self::facts::{TYPEOF_NE_FACTS, TypeFacts, has_type_facts};
 pub use self::flags::{ObjectFlags, TypeFlags};
+pub use self::links::{CommonTyLinks, CommonTyLinksArena, CommonTyLinksID};
+pub use self::links::{FreshTyLinksArena, FreshTyLinksID};
+pub use self::links::{InterfaceTyLinks, InterfaceTyLinksArena, InterfaceTyLinksID};
 pub use self::mapper::{ArrayTyMapper, TyMap, TyMapper};
 pub use self::mapper::{CompositeTyMapper, MergedTyMapper};
-pub use self::object_shape::ObjectShape;
 pub use self::object_ty::ElementFlags;
 pub use self::object_ty::SingleSigTy;
 pub use self::object_ty::{AnonymousTy, InterfaceTy, ObjectTyKind};
@@ -29,7 +31,6 @@ pub use self::object_ty::{MappedTy, MappedTyNameTyKind};
 pub use self::sig::{Sig, SigFlags, SigID, SigKind, Sigs};
 
 bolt_ts_utils::index!(TyID);
-
 impl nohash_hasher::IsEnabled for TyID {}
 
 impl TyID {
@@ -43,6 +44,7 @@ pub struct Ty<'cx> {
     pub id: TyID,
     pub kind: TyKind<'cx>,
     pub flags: TypeFlags,
+    pub links: CommonTyLinksID<'cx>,
 }
 
 impl From<&Ty<'_>> for TypeFlags {
@@ -68,8 +70,18 @@ impl PartialEq for Ty<'_> {
 }
 
 impl<'cx> Ty<'cx> {
-    pub fn new(id: TyID, kind: TyKind<'cx>, flags: TypeFlags) -> Self {
-        Self { kind, id, flags }
+    pub fn new(
+        id: TyID,
+        kind: TyKind<'cx>,
+        flags: TypeFlags,
+        links: links::CommonTyLinksID<'cx>,
+    ) -> Self {
+        Self {
+            kind,
+            id,
+            flags,
+            links,
+        }
     }
 
     pub fn get_object_flags(&self) -> ObjectFlags {
@@ -89,7 +101,7 @@ impl<'cx> Ty<'cx> {
 
     pub fn is_object_or_array_literal(&self) -> bool {
         self.get_object_flags()
-            .intersects(ObjectFlags::OBJECT_LITERAL | ObjectFlags::ARRAY_LITERAL)
+            .intersects(ObjectFlags::OBJECT_LITERAL.union(ObjectFlags::ARRAY_LITERAL))
     }
 
     pub fn get_propagating_flags_of_tys(
@@ -110,12 +122,13 @@ impl<'cx> Ty<'cx> {
 
     pub fn is_generic_string_like(&self) -> bool {
         self.flags
-            .intersects(TypeFlags::TEMPLATE_LITERAL | TypeFlags::STRING_MAPPING)
+            .intersects(TypeFlags::TEMPLATE_LITERAL.union(TypeFlags::STRING_MAPPING))
             && !self.is_pattern_lit_ty()
     }
 
-    pub fn intrinsic_name(&self) -> Option<AtomId> {
-        self.kind.as_intrinsic().map(|i| i.name)
+    pub fn intrinsic_name(&'cx self) -> Option<AtomId> {
+        let i = self.kind.as_intrinsic();
+        i.map(|i| i.name)
     }
 }
 
@@ -129,9 +142,9 @@ pub enum UnionReduction {
 #[derive(Debug, Clone, Copy)]
 pub enum TyKind<'cx> {
     Intrinsic(&'cx IntrinsicTy),
-    StringLit(&'cx StringLitTy),
-    NumberLit(&'cx NumberLitTy),
-    BigIntLit(&'cx BigIntLitTy),
+    StringLit(&'cx StringLitTy<'cx>),
+    NumberLit(&'cx NumberLitTy<'cx>),
+    BigIntLit(&'cx BigIntLitTy<'cx>),
     Union(&'cx UnionTy<'cx>),
     Intersection(&'cx IntersectionTy<'cx>),
     Object(&'cx ObjectTy<'cx>),
@@ -169,9 +182,9 @@ macro_rules! as_ty_kind {
 }
 
 as_ty_kind!(Intrinsic, &'cx IntrinsicTy, intrinsic);
-as_ty_kind!(StringLit, &'cx StringLitTy, string_lit);
-as_ty_kind!(NumberLit, &'cx NumberLitTy, number_lit);
-as_ty_kind!(BigIntLit, &'cx BigIntLitTy, bigint_lit);
+as_ty_kind!(StringLit, &'cx StringLitTy<'cx>, string_lit);
+as_ty_kind!(NumberLit, &'cx NumberLitTy<'cx>, number_lit);
+as_ty_kind!(BigIntLit, &'cx BigIntLitTy<'cx>, bigint_lit);
 as_ty_kind!(IndexedAccess, &'cx IndexedAccessTy<'cx>, indexed_access);
 as_ty_kind!(Union, &'cx UnionTy<'cx>, union);
 as_ty_kind!(Intersection, &'cx IntersectionTy<'cx>, intersection);
@@ -219,7 +232,7 @@ impl<'cx> Ty<'cx> {
                 .join(" & "),
             TyKind::Param(param) => {
                 if param.symbol == Symbol::ERR {
-                    "error".to_string()
+                    "error_param".to_string()
                 } else {
                     let name = checker.binder.symbol(param.symbol).name;
                     checker.atoms.get(name.expect_atom()).to_string()
@@ -269,7 +282,7 @@ impl<'cx> Ty<'cx> {
             TyKind::Param(ty) => Some(ty.symbol),
             TyKind::Union(_) => None,
             TyKind::IndexedAccess(_) => todo!(),
-            TyKind::Cond(_) => todo!(),
+            TyKind::Cond(_) => None,
             TyKind::TemplateLit(_) => todo!(),
             _ => None,
         }
@@ -310,7 +323,8 @@ impl<'cx> Ty<'cx> {
         if let Some(i) = self.kind.as_intersection() {
             let mut seen_placeholder = false;
             for t in i.tys {
-                if t.flags.intersects(TypeFlags::LITERAL | TypeFlags::NULLABLE)
+                if t.flags
+                    .intersects(TypeFlags::LITERAL.union(TypeFlags::NULLABLE))
                     || t.is_pattern_lit_placeholder_ty()
                 {
                     seen_placeholder = true;
@@ -320,9 +334,11 @@ impl<'cx> Ty<'cx> {
             }
             seen_placeholder
         } else {
-            self.flags.intersects(
-                TypeFlags::ANY | TypeFlags::STRING | TypeFlags::NUMBER | TypeFlags::BIG_INT,
-            ) || self.is_pattern_lit_ty()
+            const PLACEHOLDER: TypeFlags = TypeFlags::ANY
+                .union(TypeFlags::STRING)
+                .union(TypeFlags::NUMBER)
+                .union(TypeFlags::BIG_INT);
+            self.flags.intersects(PLACEHOLDER) || self.is_pattern_lit_ty()
         }
     }
 
@@ -332,6 +348,17 @@ impl<'cx> Ty<'cx> {
             TyKind::StringMapping(n) => n.ty.is_pattern_lit_placeholder_ty(),
             _ => false,
         }
+    }
+
+    pub fn fresh_ty_links_id(&self) -> Option<FreshTyLinksID<'cx>> {
+        let links = match self.kind {
+            TyKind::StringLit(n) => n.links,
+            TyKind::NumberLit(n) => n.links,
+            TyKind::BigIntLit(n) => n.links,
+            TyKind::Union(n) => n.fresh_ty_links,
+            _ => return None,
+        };
+        Some(links)
     }
 }
 
@@ -477,6 +504,7 @@ pub struct IndexedAccessTy<'cx> {
 pub struct UnionTy<'cx> {
     pub tys: Tys<'cx>,
     pub object_flags: ObjectFlags,
+    pub fresh_ty_links: FreshTyLinksID<'cx>,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -488,19 +516,22 @@ pub struct IntersectionTy<'cx> {
 }
 
 #[derive(Debug, Clone, Copy)]
-pub struct NumberLitTy {
+pub struct NumberLitTy<'cx> {
     pub val: f64,
+    pub links: FreshTyLinksID<'cx>,
 }
 
 #[derive(Debug, Clone, Copy)]
-pub struct StringLitTy {
+pub struct StringLitTy<'cx> {
     pub val: AtomId,
+    pub links: FreshTyLinksID<'cx>,
 }
 
 #[derive(Debug, Clone, Copy)]
-pub struct BigIntLitTy {
+pub struct BigIntLitTy<'cx> {
     pub neg: bool,
     pub val: AtomId,
+    pub links: FreshTyLinksID<'cx>,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -537,4 +568,11 @@ pub struct SubstitutionTy<'cx> {
     pub object_flags: ObjectFlags,
     pub base_ty: &'cx self::Ty<'cx>,
     pub constraint: &'cx self::Ty<'cx>,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct IterationTys<'cx> {
+    pub yield_ty: &'cx Ty<'cx>,
+    pub return_ty: &'cx Ty<'cx>,
+    pub next_ty: &'cx Ty<'cx>,
 }

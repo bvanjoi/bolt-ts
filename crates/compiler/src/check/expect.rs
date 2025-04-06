@@ -81,11 +81,11 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
-    pub(super) fn this_ty(&self, ty: &'cx ty::Ty<'cx>) -> Option<&'cx ty::Ty<'cx>> {
+    pub(super) fn this_ty(ty: &'cx ty::Ty<'cx>) -> Option<&'cx ty::Ty<'cx>> {
         if let Some(i) = ty.kind.as_object_interface() {
             i.this_ty
         } else if let Some(refer) = ty.kind.as_object_reference() {
-            self.this_ty(refer.target)
+            Self::this_ty(refer.target)
         } else {
             None
         }

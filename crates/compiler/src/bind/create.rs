@@ -1,296 +1,234 @@
-use bolt_ts_atom::AtomId;
-
 use rustc_hash::FxHashMap;
-use thin_vec::thin_vec;
 
-use super::symbol::{
-    BlockContainerSymbol, FnSymbol, InterfaceSymbol, NsSymbol, ObjectSymbol, PropSymbol,
-    SymbolFlags,
-};
-use super::{BinderState, Symbol, SymbolFnKind, SymbolID, SymbolKind, SymbolName, errors};
-use crate::ir;
+use super::symbol::{SymbolFlags, SymbolTableLocation};
+use super::{BinderState, Symbol, SymbolID, SymbolName, Symbols, errors};
+use crate::bind::SymbolTable;
+use crate::parser::ParseResult;
 
 use bolt_ts_ast as ast;
 use bolt_ts_utils::fx_hashmap_with_capacity;
 
-impl<'cx> BinderState<'cx, '_, '_> {
+pub(crate) fn set_value_declaration(
+    symbol: SymbolID,
+    symbols: &mut Symbols,
+    node: ast::NodeID,
+    p: &Vec<ParseResult>,
+) {
+    let s = symbols.get_mut(symbol);
+    // TODO: ambient declaration
+    if s.value_decl.is_none_or(|value_decl| {
+        let v = p[value_decl.module().as_usize()].node(value_decl);
+        let other = p[node.module().as_usize()].node(node);
+        !v.is_same_kind(&other) && v.is_effective_module_decl()
+    }) {
+        s.value_decl = Some(node);
+    }
+}
+
+pub(crate) fn set_value_declaration_in_same_module(
+    symbol: SymbolID,
+    symbols: &mut Symbols,
+    node: ast::NodeID,
+    p: &ParseResult,
+) {
+    assert_eq!(node.module(), symbol.module());
+    let s = symbols.get_mut(symbol);
+    // TODO: ambient declaration
+    if s.value_decl.is_none_or(|value_decl| {
+        let v = p.node(value_decl);
+        !v.is_same_kind(&p.node(node)) && v.is_effective_module_decl()
+    }) {
+        s.value_decl = Some(node);
+    }
+}
+
+impl BinderState<'_, '_, '_> {
     pub(super) fn create_final_res(&mut self, id: ast::NodeID, symbol: SymbolID) {
         let prev = self.final_res.insert(id, symbol);
         assert!(prev.is_none(), "prev: {:#?}", prev.unwrap());
     }
 
-    pub(super) fn create_var_symbol(
-        &mut self,
-        name: AtomId,
-        flags: SymbolFlags,
-        kind: SymbolKind,
-        exclude: SymbolFlags,
-    ) -> SymbolID {
-        let name = SymbolName::Normal(name);
-        self.declare_symbol(name, flags, kind, exclude)
-    }
-
     pub(super) fn declare_symbol(
         &mut self,
-        name: SymbolName,
-        flags: SymbolFlags,
-        kind: SymbolKind,
-        exclude: SymbolFlags,
+        name: Option<SymbolName>,
+        table: SymbolTableLocation,
+        parent: Option<SymbolID>,
+        node: ast::NodeID,
+        includes: SymbolFlags,
+        excludes: SymbolFlags,
+        is_replaceable_by_method: bool,
+        is_computed_name: bool,
     ) -> SymbolID {
-        let key = (self.scope_id, name);
-        if name.as_atom().is_some() {
-            if let Some(id) = self.res.get(&key).copied() {
-                let prev = self.symbols.get_mut(id);
-                if flags.intersects(SymbolFlags::TYPE_PARAMETER)
-                    && kind.opt_decl().is_some_and(|p| {
-                        self.p
-                            .parent(p)
-                            .is_some_and(|n| self.p.node(n).is_infer_ty())
-                    })
+        let symbol;
+        let is_default_export = {
+            let n = self.p.node(node);
+            n.has_syntactic_modifier(ast::ModifierKind::Default.into())
+                || n.as_export_named_spec()
+                    .is_some_and(|spec| spec.name.is_default())
+        };
+        let name = if is_computed_name {
+            Some(SymbolName::Computed)
+        } else if is_default_export {
+            Some(SymbolName::ExportDefault)
+        } else {
+            // TODO: get_decl_name
+            name
+        };
+        if let Some(name) = name {
+            let old = self
+                .get_symbol_table_by_location(table)
+                .and_then(|t| t.get(&name))
+                .copied();
+            if includes.intersects(SymbolFlags::CLASSIFIABLE) {
+                // todo!()
+            }
+            if let Some(old) = old {
+                if is_replaceable_by_method
+                    && self
+                        .symbols
+                        .get(old)
+                        .is_replaceable_by_method
+                        .is_none_or(|r| !r)
                 {
-                    let id = self.symbols.insert(Symbol::new(name, flags, kind));
-                    // dont insert into resolution because infer type param had been stored into locals.
-                    return id;
-                } else if flags.intersects(SymbolFlags::ALIAS)
-                    || prev.flags.intersects(SymbolFlags::ALIAS)
-                {
-                    let id = self.symbols.insert(Symbol::new(name, flags, kind));
-                    let _prev = self.res.insert(key, id);
-                    return id;
+                    return old;
                 }
-                if flags == SymbolFlags::FUNCTION_SCOPED_VARIABLE {
-                    prev.flags |= flags;
-                    let prev = &mut prev.kind;
-                    prev.0 = kind;
-                } else if matches!(prev.kind.0, SymbolKind::Err) {
-                    prev.flags |= flags;
-                    let prev = &mut prev.kind;
-                    assert!(prev.1.is_some() || prev.2.is_some());
-                    prev.0 = kind;
-                } else if prev.flags.intersects(exclude) || prev.flags == SymbolFlags::PROPERTY {
-                    let n = self.atoms.get(name.expect_atom());
-                    let span = |kind: &SymbolKind| {
-                        let id = match kind {
-                            SymbolKind::Class(c) => c.decl,
-                            SymbolKind::Prop(p) => p.decl,
-                            SymbolKind::Err
-                            | SymbolKind::BlockContainer { .. }
-                            | SymbolKind::FunctionScopedVar { .. } => unreachable!(),
-                            SymbolKind::BlockScopedVar { .. } => todo!(),
-                            _ => todo!("name: {n:#?}, kind: {kind:#?}"),
+
+                symbol = old;
+                let old_symbol = self.symbols.get(old);
+                if old_symbol.flags.intersects(excludes) {
+                    if old_symbol.is_replaceable_by_method.is_some_and(|r| r) {
+                        todo!()
+                    } else if !(includes.intersects(SymbolFlags::VARIABLE)
+                        && old_symbol.flags.intersects(SymbolFlags::ASSIGNMENT))
+                    {
+                        let old_decl_id = self.symbols.get(old).opt_decl().unwrap();
+                        let old_decl = self.p.node(old_decl_id);
+                        let error = errors::DuplicateIdentifier {
+                            span: self.p.node(node).ident_name().unwrap().span,
+                            name: self.atoms.get(name.expect_atom()).to_string(),
+                            original_span: old_decl
+                                .ident_name()
+                                .map(|name| name.span)
+                                .unwrap_or(old_decl.span()),
                         };
-                        self.p.node(id).ident_name().unwrap().span
-                    };
-
-                    let error_span = span(&kind);
-
-                    let error = errors::DuplicateIdentifier {
-                        span: error_span,
-                        name: n.to_string(),
-                        original_span: span(&prev.kind.0),
-                    };
-                    self.push_error(Box::new(error));
-
-                    if flags.intersects(SymbolFlags::PROPERTY) {
-                        let id = self.symbols.insert(Symbol::new(name, flags, kind));
-                        self.res.insert(key, id);
-                        return id;
+                        self.push_error(Box::new(error));
                     }
                 }
-                return id;
+            } else {
+                symbol = self.create_symbol(name, includes);
+                if let Some(table) = self.get_symbol_table_by_location(table) {
+                    let prev = table.insert(name, symbol);
+                    assert!(prev.is_none());
+                }
+
+                if is_replaceable_by_method {
+                    self.symbols.get_mut(symbol).is_replaceable_by_method = Some(true);
+                }
             }
+        } else {
+            todo!("missing symbol")
         }
-        let id = self.symbols.insert(Symbol::new(name, flags, kind));
-        self.res.insert(key, id);
-        id
-    }
 
-    pub(super) fn declare_symbol_with_interface(
-        &mut self,
-        name: SymbolName,
-        flags: SymbolFlags,
-        i: InterfaceSymbol,
-    ) -> SymbolID {
-        let key = (self.scope_id, name);
-        // if name.as_atom().is_some() {
-        //     if let Some(id) = self.res.get(&key) {
-        //         let prev = self.symbols.get_mut(*id);
-        //         prev.flags |= flags;
-        //         let prev = &mut prev.kind;
-        //         if !matches!(prev.0, SymbolKind::Err) {
-        //             // todo: symbol merge
-        //         }
-        //         assert!(prev.1.is_none());
-        //         prev.1 = Some(i);
-        //         return *id;
-        //     }
-        // }
-        if let Some(old_id) = self.res.get(&key) {
-            let old = self.symbols.get_mut(*old_id);
-            if let SymbolKind::FunctionScopedVar(_) = &old.kind.0 {
-                old.flags |= flags;
-                old.kind.1 = Some(i);
-                return *old_id;
-            }
-        }
-        let id = self.symbols.insert(Symbol::new_interface(name, flags, i));
-        self.res.insert(key, id);
-        id
-    }
-
-    pub(super) fn declare_symbol_with_ns(
-        &mut self,
-        name: SymbolName,
-        flags: SymbolFlags,
-        i: NsSymbol,
-    ) -> SymbolID {
-        let key = (self.scope_id, name);
-        // if name.as_atom().is_some() {
-        //     if let Some(id) = self.res.get(&key) {
-        //         let prev = self.symbols.get_mut(*id);
-        //         prev.flags |= flags;
-        //         let prev = &mut prev.kind;
-        //         if !matches!(prev.0, SymbolKind::Err) {
-        //             todo!("error handler")
-        //         }
-        //         // assert!(prev.2.is_none());
-        //         prev.2 = Some(i);
-        //         return *id;
-        //     }
-        // }
-        let id = self.symbols.insert(Symbol::new_ns(name, flags, i));
-        let prev = self.res.insert(key, id);
-        id
-    }
-
-    pub(super) fn create_fn_expr_symbol(
-        &mut self,
-        f: &impl ir::FnExprLike<'cx>,
-        decl: ast::NodeID,
-    ) {
-        let name = f.name().map(SymbolName::Normal).unwrap_or(SymbolName::Fn);
-        let symbol = self.declare_symbol(
-            name,
-            SymbolFlags::FUNCTION,
-            SymbolKind::Fn(FnSymbol {
-                kind: SymbolFnKind::FnExpr,
-                decls: thin_vec::thin_vec![decl],
-            }),
-            SymbolFlags::empty(),
-        );
-        self.create_final_res(decl, symbol);
-    }
-
-    pub(super) fn create_interface_symbol(
-        &mut self,
-        id: ast::NodeID,
-        name: AtomId,
-        members: FxHashMap<SymbolName, SymbolID>,
-    ) -> SymbolID {
-        let symbol = self.declare_symbol_with_interface(
-            SymbolName::Normal(name),
-            SymbolFlags::INTERFACE,
-            InterfaceSymbol {
-                decls: thin_vec::thin_vec![id],
-                members,
-            },
-        );
-        self.create_final_res(id, symbol);
+        self.add_declaration_to_symbol(symbol, node, includes);
+        // TODO: parent
         symbol
     }
 
-    pub(super) fn create_fn_symbol(
+    pub(super) fn add_declaration_to_symbol(
         &mut self,
-        container: ast::NodeID,
-        decl: &'cx ast::FnDecl<'cx>,
-    ) -> SymbolID {
-        let ele_name = SymbolName::Normal(decl.name.name);
-        self.create_fn_decl_like_symbol(container, decl, ele_name, SymbolFnKind::FnDecl, false)
+        symbol: SymbolID,
+        node: ast::NodeID,
+        flags: SymbolFlags,
+    ) {
+        let s = self.symbols.get_mut(symbol);
+        s.flags |= flags;
+        s.decls.push(node);
+
+        // if flags.intersects(
+        //     SymbolFlags::CLASS | SymbolFlags::ENUM | SymbolFlags::MODULE | SymbolFlags::VARIABLE,
+        // ) && m.exports.is_none()
+        // {
+        //     m.exports = Some(Default::default());
+        // }
+        // if flags.intersects(
+        //     SymbolFlags::CLASS
+        //         | SymbolFlags::INTERFACE
+        //         | SymbolFlags::TYPE_LITERAL
+        //         | SymbolFlags::OBJECT_LITERAL,
+        // ) && m.members.is_none()
+        // {
+        //     m.members = Some(Default::default());
+        // }
+
+        if s.const_enum_only_module.is_some_and(|y| y)
+            && s.flags.intersects(
+                SymbolFlags::FUNCTION
+                    .union(SymbolFlags::CLASS)
+                    .union(SymbolFlags::REGULAR_ENUM),
+            )
+        {
+            s.const_enum_only_module = Some(false);
+        }
+
+        if flags.intersects(SymbolFlags::VALUE) {
+            self.set_value_declaration(symbol, node);
+        }
     }
 
-    pub(super) fn create_fn_ty_symbol(&mut self, id: ast::NodeID, symbol_name: SymbolName) {
-        let symbol = self.declare_symbol(
-            symbol_name,
-            SymbolFlags::SIGNATURE,
-            SymbolKind::Fn(FnSymbol {
-                kind: SymbolFnKind::Call,
-                decls: thin_vec::thin_vec![id],
-            }),
-            SymbolFlags::empty(),
-        );
-
-        let members = FxHashMap::from_iter([(symbol_name, symbol)]);
-        self.create_object_lit_ty_symbol(id, members);
+    pub(super) fn set_value_declaration(&mut self, symbol: SymbolID, node: ast::NodeID) {
+        set_value_declaration_in_same_module(symbol, &mut self.symbols, node, self.p);
     }
 
-    pub(super) fn create_object_member_symbol(
-        &mut self,
-        name: SymbolName,
-        member: ast::NodeID,
-        is_optional: bool,
-    ) -> SymbolID {
-        let flags = SymbolFlags::PROPERTY
-            | if is_optional {
-                SymbolFlags::OPTIONAL
-            } else {
-                SymbolFlags::empty()
-            };
-
-        let symbol = self.declare_symbol(
+    pub(super) fn create_symbol(&mut self, name: SymbolName, flags: SymbolFlags) -> SymbolID {
+        let s = Symbol {
             name,
             flags,
-            SymbolKind::Prop(PropSymbol { decl: member }),
-            SymbolFlags::empty(),
-        );
-        self.create_final_res(member, symbol);
-        symbol
+            decls: Default::default(),
+            value_decl: None,
+            members: Default::default(),
+            exports: Default::default(),
+            parent: None,
+            const_enum_only_module: None,
+            is_replaceable_by_method: None,
+            merged_id: None,
+            export_symbol: None,
+        };
+        self.symbols.insert(s)
     }
 
-    pub(super) fn create_object_lit_ty_symbol(
+    fn opt_members(
         &mut self,
-        node_id: ast::NodeID,
-        members: FxHashMap<SymbolName, SymbolID>,
-    ) -> SymbolID {
-        let id = self.symbols.insert(Symbol::new(
-            SymbolName::Type,
-            SymbolFlags::TYPE_LITERAL,
-            SymbolKind::TyLit(super::TyLitSymbol {
-                decl: node_id,
-                members,
-            }),
-        ));
-        self.create_final_res(node_id, id);
-        id
+        container: ast::NodeID,
+        is_export: bool,
+    ) -> Option<&mut FxHashMap<super::SymbolName, super::SymbolID>> {
+        let container = self.final_res.get(&container).copied()?;
+        let container = self.symbols.get_mut(container);
+        let map = if is_export {
+            &mut container.exports.0
+        } else {
+            &mut container.members.0
+        };
+        Some(map)
     }
 
-    pub(super) fn create_object_lit_symbol(
+    fn get_symbol_table_by_location(
         &mut self,
-        node_id: ast::NodeID,
-        members: FxHashMap<SymbolName, SymbolID>,
-    ) -> SymbolID {
-        let id = self.symbols.insert(Symbol::new(
-            SymbolName::Object,
-            SymbolFlags::OBJECT_LITERAL,
-            SymbolKind::Object(ObjectSymbol {
-                decl: node_id,
-                members,
-            }),
-        ));
-        self.create_final_res(node_id, id);
-        id
-    }
-
-    pub(super) fn create_block_container_symbol(&mut self, node_id: ast::NodeID) -> SymbolID {
-        let symbol = self.declare_symbol(
-            SymbolName::Container,
-            SymbolFlags::VALUE_MODULE,
-            SymbolKind::BlockContainer(BlockContainerSymbol {
-                locals: fx_hashmap_with_capacity(32),
-                exports: fx_hashmap_with_capacity(32),
-            }),
-            SymbolFlags::empty(),
-        );
-        self.create_final_res(node_id, symbol);
-        symbol
+        location: SymbolTableLocation,
+    ) -> Option<&mut FxHashMap<SymbolName, SymbolID>> {
+        use super::symbol::SymbolTableLocationKind;
+        match location.kind {
+            SymbolTableLocationKind::SymbolMember => self.opt_members(location.container, false),
+            SymbolTableLocationKind::SymbolExports => self.opt_members(location.container, true),
+            SymbolTableLocationKind::ContainerLocals => {
+                assert!(self.p.node(location.container).has_locals());
+                Some(
+                    &mut self
+                        .locals
+                        .entry(location.container)
+                        .or_insert_with(|| SymbolTable(fx_hashmap_with_capacity(64)))
+                        .0,
+                )
+            }
+        }
     }
 }

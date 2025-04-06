@@ -1,4 +1,5 @@
 use super::TyChecker;
+use super::symbol_info::SymbolInfo;
 use crate::bind::SymbolID;
 use crate::ty;
 
@@ -22,13 +23,14 @@ impl<'cx> TyChecker<'cx> {
         self.get_mut_symbol_links(param).set_ty(ty);
     }
 
-    pub fn assign_contextual_param_tys(
+    pub(super) fn assign_contextual_param_tys(
         &mut self,
         sig: &'cx ty::Sig<'cx>,
         context: &'cx ty::Sig<'cx>,
     ) {
-        let resolved_sig_ty_params = if context.ty_params.is_some() {
+        let ty_params = if context.ty_params.is_some() {
             if sig.ty_params.is_none() {
+                // TODO: store context ty_params into sig.
                 context.ty_params
             } else {
                 return;
@@ -43,10 +45,16 @@ impl<'cx> TyChecker<'cx> {
             let decl = param.decl(self.binder);
             let decl = self.p.node(decl).expect_param_decl();
             if decl.ty.is_none() {
-                let ty = self.try_get_ty_at_pos(context, i);
-                if let Some(ty) = ty {
+                let mut ty = self.try_get_ty_at_pos(context, i);
+                if let Some(t) = ty {
                     if decl.init.is_some() {
-                        todo!()
+                        let init_ty = self.check_decl_init(decl, None);
+                        if !self.is_type_assignable_to(init_ty, t) && {
+                            let target = self.widened_ty_from_init(decl, init_ty);
+                            self.is_type_assignable_to(t, target)
+                        } {
+                            ty = Some(init_ty);
+                        }
                     }
                 }
                 self.assign_param_ty(param, ty);

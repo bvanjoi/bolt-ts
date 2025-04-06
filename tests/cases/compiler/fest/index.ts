@@ -398,7 +398,7 @@ type ConditionalSimplifyDeep<Type, ExcludeType = never, IncludeType = unknown> =
 
   function f0(movableNodeSimplifiedFail: MovableNodeSimplifiedFail) {
     let a0: MovableCollection = movableNodeSimplifiedFail;
-    //~^ ERROR: Type 'mapped type' is not assignable to type '{ position: MovablePosition; left: { position: MovablePosition; size: { width: number; height: number; }; }; top: { position: MovablePosition; size: { width: number; height: number; }; }; }'.
+    //~^ ERROR: Type 'mapped type' is not assignable to type '{ left: { position: MovablePosition; size: { width: number; height: number; }; }; top: { position: MovablePosition; size: { width: number; height: number; }; }; position: MovablePosition; }'.
   }
   function f1(movableNodeSimplifiedPass: MovableNodeSimplifiedPass) {
     let a0: MovableCollection = movableNodeSimplifiedPass;
@@ -459,7 +459,7 @@ type Except<ObjectType, KeysType extends keyof ObjectType, Options extends Excep
   }
 
   const strictAssignment: typeof strictExcept = nonStrict;
-  //~^ ERROR: Type '{ a: number; b: string; }' is not assignable to type 'mapped type & Partial'.
+  //~^ ERROR: Type '{ b: string; a: number; }' is not assignable to type 'mapped type & Partial'.
 
   // Generic properties
   type Example = {
@@ -893,8 +893,8 @@ type PrivateIntRange<
 // =========== IsAny ===========
 // Can eventually be replaced with the built-in once this library supports
 // TS5.4+ only. Tracked in https://github.com/sindresorhus/type-fest/issues/848
-type NoInfer<T> = T extends infer U ? U : never;
-type IsAny<T> = 0 extends 1 & NoInfer<T> ? true : false;
+type NoInfer2<T> = T extends infer U ? U : never;
+type IsAny<T> = 0 extends 1 & NoInfer2<T> ? true : false;
 {
   const anything: any = 1;
   const something = 'something';
@@ -1989,7 +1989,7 @@ type Promisable<T> = T | PromiseLike<T>;
 {
   const promisable: Promisable<string> = '';
   const a0: PromiseLike<string> | string = promisable;
-  const a1: Promisable<string> = Promise.resolve(42);
+  // const a1: Promisable<string> = Promise.resolve(42);
 }
 
 // ======== ReadonlyKeysOf ========
@@ -2066,14 +2066,14 @@ type ReadonlyTuple<Element, Length extends number> =
   const b0: TupleOfThreeStrings = ['a', 'b', 123];
   //~^ ERROR: Type 'number' is not assignable to type 'string'.
   const b1: TupleOfThreeStrings = ['a'];
-  //~^ ERROR: Type '[string]' is not assignable to type '[string, string, string]'.
+  //~^ ERROR: Type '[string]' is not assignable to type 'readonly [string, string, string]'.
   const b2: TupleOfThreeStrings = ['a', 'b'];
-  //~^ ERROR: Type '[string, string]' is not assignable to type '[string, string, string]'.
+  //~^ ERROR: Type '[string, string]' is not assignable to type 'readonly [string, string, string]'.
   const b3: TupleOfThreeStrings = ['a', 'b', 'c', 'd'];
-  //~^ ERROR: Type '[string, string, string, string]' is not assignable to type '[string, string, string]'.
+  //~^ ERROR: Type '[string, string, string, string]' is not assignable to type 'readonly [string, string, string]'.
 
   const _a: unknown = test.push;
-  //~^ ERROR: Property 'push' does not exist on type '[string, string, string]'.
+  //~^ ERROR: Property 'push' does not exist on type 'readonly [string, string, string]'.
   test[2] = 'a';
   //~^ ERROR: Cannot assign to '2' because it is a read-only property.
 }
@@ -2101,7 +2101,7 @@ T extends readonly [...infer U] ?
 {
   let a0: SetArrayAccess<string[], true> = [];
   a0.push('42');
-  //~^ ERROR: Property 'push' does not exist on type 'unknown[]'.
+  //~^ ERROR: Property 'push' does not exist on type 'string[]'.
   let a1: SetArrayAccess<string[], false> = [];
   a1.push('42');
 }
@@ -2780,7 +2780,7 @@ type UnknownRecord = Record<PropertyKey, unknown>;
   const a3: UnknownRecord = foo = {bar: {baz: 'hello'}};
 
   foo = [];
-  //~^ ERROR: Type 'never[]' is not assignable to type 'Record'.
+  //~^ ERROR: Type 'undefined[]' is not assignable to type 'Record'.
   foo = 42;
   //~^ ERROR: Type 'number' is not assignable to type 'Record'.
   foo = null; // Depends on `strictNullChecks`

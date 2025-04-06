@@ -1,11 +1,12 @@
 use crate::ty;
 
 use super::TyChecker;
-use bolt_ts_ast as ast;
+use bolt_ts_ast::{self as ast, keyword};
 
 pub(super) trait ExprWithTyArgs<'cx> {
     fn id(&self) -> ast::NodeID;
-    fn expr_name(&self) -> &'cx ast::EntityName<'cx>;
+    fn expr_name(&self) -> Option<&'cx ast::EntityName<'cx>>;
+    fn expr(&self) -> Option<&'cx ast::Expr<'cx>>;
     fn ty_args(&self) -> Option<&'cx ast::Tys<'cx>>;
 }
 
@@ -13,8 +14,26 @@ impl<'cx> ExprWithTyArgs<'cx> for ast::TypeofTy<'cx> {
     fn id(&self) -> ast::NodeID {
         self.id
     }
-    fn expr_name(&self) -> &'cx ast::EntityName<'cx> {
-        self.name
+    fn expr_name(&self) -> Option<&'cx ast::EntityName<'cx>> {
+        Some(self.name)
+    }
+    fn expr(&self) -> Option<&'cx ast::Expr<'cx>> {
+        None
+    }
+    fn ty_args(&self) -> Option<&'cx ast::Tys<'cx>> {
+        self.ty_args
+    }
+}
+
+impl<'cx> ExprWithTyArgs<'cx> for ast::ExprWithTyArgs<'cx> {
+    fn id(&self) -> ast::NodeID {
+        self.id
+    }
+    fn expr_name(&self) -> Option<&'cx ast::EntityName<'cx>> {
+        None
+    }
+    fn expr(&self) -> Option<&'cx ast::Expr<'cx>> {
+        Some(self.expr)
     }
     fn ty_args(&self) -> Option<&'cx ast::Tys<'cx>> {
         self.ty_args
@@ -31,7 +50,18 @@ impl<'cx> TyChecker<'cx> {
                 self.check_ty(ty_arg);
             }
         }
-        let expr_ty = self.check_entity_name(node.expr_name());
+        let expr_ty = if let Some(expr_name) = node.expr_name() {
+            // typeof node
+            if let ast::EntityNameKind::Ident(ident) = expr_name.kind {
+                if ident.name == keyword::KW_THIS {
+                    // TODO: check this expr
+                }
+            }
+            self.check_entity_name(expr_name)
+        } else {
+            // exprWithTyArgs node
+            self.check_expr(node.expr().unwrap())
+        };
         self.get_instantiation_expr_ty(expr_ty, node)
     }
 

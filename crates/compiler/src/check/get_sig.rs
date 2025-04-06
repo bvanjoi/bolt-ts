@@ -1,7 +1,9 @@
 use super::TyChecker;
 use super::ast;
+use super::symbol_info::SymbolInfo;
 use super::type_predicate::TyPred;
 use crate::bind::SymbolID;
+use crate::ir::node_id_of_binding;
 use crate::ty;
 use crate::ty::SigID;
 use crate::ty::SigKind;
@@ -21,8 +23,20 @@ impl<'cx> TyChecker<'cx> {
         if let Some(sig) = self.get_node_links(id).get_resolved_sig() {
             return sig;
         }
-        let node = self.p.node(id);
-        let ty_params = if let Some(ty_params) = node.ty_params() {
+        let decl = self.p.node(id);
+        let host_decl = decl; // TODO: sig in js doc
+        let class_ty = if host_decl.is_class_ctor() {
+            let class_decl = self.p.parent(id).unwrap();
+            let class_symbol = self.get_symbol_of_decl(class_decl);
+            Some(self.get_declared_ty_of_symbol(class_symbol))
+        } else {
+            None
+        };
+        let ty_params = if let Some(class_ty) = class_ty {
+            let r = class_ty.kind.expect_object_reference();
+            let i = r.target.kind.expect_object_interface();
+            i.local_ty_params
+        } else if let Some(ty_params) = decl.ty_params() {
             let mut res = Vec::with_capacity(ty_params.len());
             self.append_ty_params(&mut res, ty_params);
             let ty_params: ty::Tys<'cx> = self.alloc(res);
@@ -30,7 +44,7 @@ impl<'cx> TyChecker<'cx> {
         } else {
             None
         };
-        let sig = get_sig_from_decl(self, node, ty_params);
+        let sig = get_sig_from_decl(self, decl, ty_params);
         let sig = self.new_sig(sig);
         self.get_mut_node_links(id).set_resolved_sig(sig);
         sig
@@ -39,12 +53,10 @@ impl<'cx> TyChecker<'cx> {
     pub(super) fn get_sigs_of_symbol(&mut self, id: SymbolID) -> ty::Sigs<'cx> {
         let s = self.binder.symbol(id);
         let sigs = s
-            .expect_fn()
             .decls
-            .clone()
-            .into_iter()
+            .iter()
             .enumerate()
-            .flat_map(|(i, decl)| {
+            .flat_map(|(i, &decl)| {
                 if i > 0 && self.p.node(decl).fn_body().is_some() {
                     None
                 } else {
@@ -230,8 +242,23 @@ impl<'cx> TyChecker<'cx> {
         use super::type_predicate::TyPredKind::*;
         match pred.kind {
             Ident(p) => {
-                let ty = p.ty.map(|ty| self.instantiate_ty(ty, mapper));
+                let ty = self.instantiate_ty(p.ty, mapper);
                 self.create_ident_ty_pred(p.param_name, p.param_index, ty)
+            }
+            AssertsThis(p) => {
+                let ty = p.ty.map(|ty| self.instantiate_ty(ty, mapper));
+                let kind = AssertsThis(super::type_predicate::AssertsThisTyPred { ty });
+                self.alloc(TyPred { kind })
+            }
+            This(p) => {
+                let ty = self.instantiate_ty(p.ty, mapper);
+                let kind = This(super::type_predicate::ThisTyPred { ty });
+                self.alloc(TyPred { kind })
+            }
+            AssertsIdent(n) => {
+                let ty = n.ty.map(|ty| self.instantiate_ty(ty, mapper));
+                let kind = AssertsIdent(super::type_predicate::AssertsIdentTyPred { ty, ..n });
+                self.alloc(TyPred { kind })
             }
         }
     }
@@ -259,7 +286,7 @@ impl<'cx> TyChecker<'cx> {
                 .and_then(|node_id| self.get_effective_ret_type_node(node_id));
             let pred = if let Some(ty) = ty {
                 if let ast::TyKind::Pred(p) = ty.kind {
-                    self.create_ty_pred_from_node(p, sig)
+                    self.create_ty_pred_from_ty_pred_node(p, sig)
                 } else {
                     self.no_ty_pred()
                 }
@@ -315,11 +342,8 @@ fn get_sig_from_decl<'cx>(
     let mut min_args_count = 0;
     let mut params = Vec::with_capacity(params_of_node.len());
     for param in params_of_node {
-        let symbol = match param.name.kind {
-            ast::BindingKind::Ident(ident) => checker.final_res(ident.id),
-            ast::BindingKind::ObjectPat(_) => todo!(),
-            bolt_ts_ast::BindingKind::ArrayPat(array_pat) => todo!(),
-        };
+        let id = node_id_of_binding(*param);
+        let symbol = checker.final_res(id);
         params.push(symbol);
         let is_opt = param.question.is_some() || param.dotdotdot.is_some() || param.init.is_some();
         if !is_opt {

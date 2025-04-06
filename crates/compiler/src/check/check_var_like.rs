@@ -15,12 +15,7 @@ impl<'cx> TyChecker<'cx> {
             }
         }
 
-        let d = self.p.node(decl_id);
-        let symbol = if d.is_var_decl() || d.is_param_decl() {
-            self.get_symbol_of_decl(name_id)
-        } else {
-            self.get_symbol_of_decl(decl_id)
-        };
+        let symbol = self.get_symbol_of_decl(decl_id);
         let decl_ty = self.get_type_of_symbol(symbol);
         if let Some(init) = decl.init() {
             let init_ty = self.check_expr_with_cache(init);
@@ -43,7 +38,7 @@ impl<'cx> TyChecker<'cx> {
             Ident(name) => self.check_non_pat_var_like_decl(name.id, decl.id(), decl),
             StringLit { raw, .. } => self.check_non_pat_var_like_decl(raw.id, decl.id(), decl),
             NumLit(num) => self.check_non_pat_var_like_decl(num.id, decl.id(), decl),
-            ObjectPat(_) => {
+            ArrayPat(_) | ObjectPat(_) => {
                 // todo
             }
         }

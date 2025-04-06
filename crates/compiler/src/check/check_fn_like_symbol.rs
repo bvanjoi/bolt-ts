@@ -2,25 +2,25 @@ use bolt_ts_ast as ast;
 use bolt_ts_ast::ArrowFnExprBody;
 use bolt_ts_span::Span;
 
-use crate::bind::{SymbolFnKind, SymbolID};
+use crate::bind::{SymbolFlags, SymbolID};
 use crate::{keyword, ty};
 
 use super::TyChecker;
 use super::check_type_related_to::TypeRelatedChecker;
 use super::relation::{RelationKind, SigCheckMode};
+use super::symbol_info::SymbolInfo;
 use super::{Ternary, errors};
 
 impl<'cx> TyChecker<'cx> {
     pub(super) fn check_fn_like_symbol(&mut self, symbol: SymbolID) {
-        let f = &self.binder.symbol(symbol).expect_fn();
-        assert!(!f.decls.is_empty());
-        assert_ne!(f.kind, SymbolFnKind::FnExpr);
+        let s = self.binder.symbol(symbol);
+        assert!(!s.decls.is_empty());
 
         let mut has_overloads = false;
         let mut body_declaration = None;
 
         let mut last_seen_non_ambient_decl = None;
-        for decl in &f.decls {
+        for decl in &s.decls {
             let node = self.p.node(*decl);
             let is_ambient_context = self.p.node_flags(*decl).intersects(ast::NodeFlags::AMBIENT);
             let is_ambient_context_or_interface = self.p.parent(*decl).is_some_and(|parent| {
@@ -53,15 +53,15 @@ impl<'cx> TyChecker<'cx> {
             if n.fn_body().is_none()
                 && !n.has_syntactic_modifier(ast::ModifierKind::Abstract.into())
             {
-                if f.kind == SymbolFnKind::Ctor {
-                    let node = self.p.node(f.decls[0]).expect_class_ctor();
+                if s.flags.intersects(SymbolFlags::CONSTRUCTOR) {
+                    let node = self.p.node(s.decls[0]).expect_class_ctor();
                     let lo = node.span.lo;
                     let hi = lo + keyword::KW_CONSTRUCTOR_STR.len() as u32;
                     let span = Span::new(lo, hi, node.span.module);
                     let error = errors::ConstructorImplementationIsMissing { span };
                     self.push_error(Box::new(error));
                 } else {
-                    let span = self.p.node(f.decls[0]).ident_name().unwrap().span;
+                    let span = self.p.node(s.decls[0]).ident_name().unwrap().span;
                     let error = errors::FunctionImplementationIsMissingOrNotImmediatelyFollowingTheDeclaration { span };
                     self.push_error(Box::new(error));
                 }

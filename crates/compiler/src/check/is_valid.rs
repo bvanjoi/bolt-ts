@@ -24,7 +24,7 @@ impl<'cx> TyChecker<'cx> {
         if ty.kind.is_object()
             || ty
                 .flags
-                .intersects(TypeFlags::NON_PRIMITIVE | TypeFlags::ANY)
+                .intersects(TypeFlags::NON_PRIMITIVE.union(TypeFlags::ANY))
         {
             true
             // TODO: !is_generic_mapped_ty
@@ -63,7 +63,7 @@ impl<'cx> TyChecker<'cx> {
                 || (target.flags.intersects(TypeFlags::BIG_INT) && false/* TODO: handle bigint */)
                 || (target
                     .flags
-                    .intersects(TypeFlags::BOOLEAN_LITERAL | TypeFlags::NULLABLE)
+                    .intersects(TypeFlags::BOOLEAN_LITERAL.union(TypeFlags::NULLABLE))
                     && v == target.intrinsic_name().unwrap())
                 || (target.flags.intersects(TypeFlags::STRING_MAPPING) && false/* TODO: handle string mapping */)
                 || (target.flags.intersects(TypeFlags::TEMPLATE_LITERAL)
@@ -72,7 +72,7 @@ impl<'cx> TyChecker<'cx> {
             let texts = s.texts;
             texts.len() == 2
                 && texts[0] == keyword::IDENT_EMPTY
-                && texts[0] == keyword::IDENT_EMPTY
+                && texts[1] == keyword::IDENT_EMPTY
                 && self.is_type_assignable_to(s.tys[0], target)
         } else {
             false
@@ -85,9 +85,9 @@ impl<'cx> TyChecker<'cx> {
             .unwrap();
         t.flags.intersects(
             TypeFlags::ANY
-                | TypeFlags::NON_PRIMITIVE
-                | TypeFlags::OBJECT
-                | TypeFlags::INSTANTIABLE_NON_PRIMITIVE,
+                .union(TypeFlags::NON_PRIMITIVE)
+                .union(TypeFlags::OBJECT)
+                .union(TypeFlags::INSTANTIABLE_NON_PRIMITIVE),
         ) || t
             .kind
             .tys_of_union_or_intersection()

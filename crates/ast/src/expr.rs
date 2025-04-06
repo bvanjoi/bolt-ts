@@ -9,7 +9,7 @@ pub struct Expr<'cx> {
     pub kind: ExprKind<'cx>,
 }
 
-impl Expr<'_> {
+impl<'cx> Expr<'cx> {
     pub fn span(&self) -> Span {
         use ExprKind::*;
         match self.kind {
@@ -43,6 +43,9 @@ impl Expr<'_> {
             Satisfies(n) => n.span,
             NonNull(n) => n.span,
             Template(n) => n.span,
+            TyAssertion(n) => n.span,
+            ExprWithTyArgs(n) => n.span,
+            SpreadElement(n) => n.span,
         }
     }
 
@@ -79,6 +82,9 @@ impl Expr<'_> {
             Satisfies(n) => n.id,
             NonNull(n) => n.id,
             Template(n) => n.id,
+            TyAssertion(n) => n.id,
+            ExprWithTyArgs(n) => n.id,
+            SpreadElement(n) => n.id,
         }
     }
 
@@ -100,6 +106,27 @@ impl Expr<'_> {
             false
         }
     }
+
+    fn is_outer_expr(&self) -> bool {
+        match self.kind {
+            ExprKind::Paren(_) => true,
+            // TODO: handle more case
+            _ => false,
+        }
+    }
+
+    pub fn skip_outer_expr(mut expr: &'cx Expr<'cx>) -> &'cx Expr<'cx> {
+        while expr.is_outer_expr() {
+            if let ExprKind::Paren(child) = expr.kind {
+                expr = child.expr;
+            }
+        }
+        expr
+    }
+
+    pub fn skip_parens(expr: &'cx Expr<'cx>) -> &'cx Expr<'cx> {
+        Self::skip_outer_expr(expr)
+    }
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -118,6 +145,7 @@ pub enum ExprKind<'cx> {
     Paren(&'cx ParenExpr<'cx>),
     Cond(&'cx CondExpr<'cx>),
     ObjectLit(&'cx ObjectLit<'cx>),
+    ExprWithTyArgs(&'cx ExprWithTyArgs<'cx>),
     Call(&'cx CallExpr<'cx>),
     Fn(&'cx FnExpr<'cx>),
     Class(&'cx ClassExpr<'cx>),
@@ -134,6 +162,8 @@ pub enum ExprKind<'cx> {
     Satisfies(&'cx SatisfiesExpr<'cx>),
     NonNull(&'cx NonNullExpr<'cx>),
     Template(&'cx TemplateExpr<'cx>),
+    TyAssertion(&'cx TyAssertion<'cx>),
+    SpreadElement(&'cx SpreadElement<'cx>),
 }
 
 impl<'cx> ExprKind<'cx> {
@@ -182,6 +212,21 @@ impl<'cx> ExprKind<'cx> {
             _ => false,
         }
     }
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct SpreadElement<'cx> {
+    pub id: NodeID,
+    pub span: Span,
+    pub expr: &'cx Expr<'cx>,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct ExprWithTyArgs<'cx> {
+    pub id: NodeID,
+    pub span: Span,
+    pub expr: &'cx Expr<'cx>,
+    pub ty_args: Option<&'cx self::Tys<'cx>>,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -270,6 +315,7 @@ pub struct PropAccessExpr<'cx> {
     pub id: NodeID,
     pub span: Span,
     pub expr: &'cx Expr<'cx>,
+    pub question_dot: Option<Span>,
     pub name: &'cx Ident,
 }
 
@@ -517,7 +563,7 @@ impl BinOpKind {
 
     pub fn is_logical_or_coalescing_op(self) -> bool {
         // TODO: QuestionQuestion
-        self.is_logical_op() || false
+        self.is_logical_op()
     }
 }
 
@@ -578,4 +624,12 @@ pub struct CallExpr<'cx> {
     pub expr: &'cx Expr<'cx>,
     pub ty_args: Option<&'cx self::Tys<'cx>>,
     pub args: Exprs<'cx>,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct TyAssertion<'cx> {
+    pub id: NodeID,
+    pub span: Span,
+    pub ty: &'cx self::Ty<'cx>,
+    pub expr: &'cx Expr<'cx>,
 }

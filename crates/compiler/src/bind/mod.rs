@@ -1,64 +1,73 @@
-mod bind_call_like;
+mod bind_break_or_continue;
+mod bind_children;
 mod bind_class_like;
-mod bind_fn_like;
-mod bind_visitor;
+mod bind_container;
+mod bind_for_in_for_of;
+mod bind_prop_or_ele_access;
+mod bind_ret_or_throw;
+mod bind_worker;
 mod container_flags;
 mod create;
-mod errors;
+pub(crate) mod errors;
 mod flow;
+mod merge;
+mod node_query;
+mod parent_map;
 mod pprint;
 mod symbol;
+
+use rayon::prelude::*;
+use rustc_hash::FxHashMap;
 
 use bolt_ts_atom::AtomMap;
 use bolt_ts_config::NormalizedTsConfig;
 use bolt_ts_span::Module;
 use bolt_ts_span::ModuleID;
+use bolt_ts_utils::fx_hashmap_with_capacity;
 
-use rayon::prelude::*;
-use rustc_hash::FxHashMap;
-
+pub(crate) use self::create::set_value_declaration;
 pub use self::flow::{FlowFlags, FlowID, FlowNode, FlowNodeKind, FlowNodes};
-pub use self::symbol::BlockContainerSymbol;
-use self::symbol::ClassSymbol;
-pub(crate) use self::symbol::SymbolKind;
-use self::symbol::TyLitSymbol;
+pub(crate) use self::merge::merge_global_symbol;
+pub(crate) use self::merge::{MergeGlobalSymbolResult, MergeSymbol, MergedSymbols};
+pub use self::node_query::NodeQuery;
+pub use self::parent_map::ParentMap;
 pub use self::symbol::{GlobalSymbols, Symbol, SymbolID, SymbolName, Symbols};
-pub use self::symbol::{SymbolFlags, SymbolFnKind};
+pub use self::symbol::{SymbolFlags, SymbolTable};
 
-use crate::late_resolve::ResolveResult;
 use crate::parser::ParseResult;
 use crate::parser::Parser;
 use bolt_ts_ast as ast;
 
-bolt_ts_utils::module_index!(ScopeID);
+#[derive(Clone, Copy, PartialEq)]
+pub(crate) enum ModuleInstanceState {
+    NonInstantiated = 0,
+    Instantiated = 1,
+    ConstEnumOnly = 2,
+}
 
-impl ScopeID {
-    pub const fn is_root(&self) -> bool {
-        self.index == 0
-    }
+pub struct ResolveResult {
+    pub symbols: Symbols,
+    // TODO: use `NodeId::index` is enough
+    pub final_res: FxHashMap<ast::NodeID, SymbolID>,
+    pub diags: Vec<bolt_ts_errors::Diag>,
+    // TODO: use `NodeId::index` is enough
+    pub locals: FxHashMap<ast::NodeID, SymbolTable>,
 }
 
 pub struct Binder {
-    binder_result: Vec<ResolveResult>,
+    pub(crate) bind_results: Vec<ResolveResult>,
 }
 
 impl Binder {
-    pub fn new(p: &Parser) -> Self {
-        Self {
-            binder_result: Vec::with_capacity(p.module_count() + 1),
-        }
-    }
-
-    pub fn insert(&mut self, id: ModuleID, result: ResolveResult) {
-        assert_eq!(self.binder_result.len(), id.as_usize());
-        self.binder_result.push(result);
+    pub fn new(bind_results: Vec<ResolveResult>) -> Self {
+        Self { bind_results }
     }
 
     #[inline(always)]
     #[track_caller]
     pub(crate) fn get(&self, id: ModuleID) -> &ResolveResult {
         let index = id.as_usize();
-        &self.binder_result[index]
+        &self.bind_results[index]
     }
 
     #[inline(always)]
@@ -69,28 +78,24 @@ impl Binder {
     }
 
     pub fn steal_errors(&mut self) -> Vec<bolt_ts_errors::Diag> {
-        self.binder_result
+        self.bind_results
             .iter_mut()
             .flat_map(|result| std::mem::take(&mut result.diags))
             .collect()
     }
 
-    pub fn locals(&self, id: ast::NodeID) -> Option<&FxHashMap<SymbolName, SymbolID>> {
+    pub fn locals(&self, id: ast::NodeID) -> Option<&SymbolTable> {
         self.get(id.module()).locals.get(&id)
     }
 }
 
 struct BinderState<'cx, 'atoms, 'parser> {
-    scope_id: ScopeID,
     p: &'parser mut ParseResult<'cx>,
     atoms: &'atoms AtomMap<'cx>,
     diags: Vec<bolt_ts_errors::Diag>,
-    scope_id_parent_map: Vec<Option<ScopeID>>,
-    // TODO: use `NodeId::index` is enough
-    node_id_to_scope_id: FxHashMap<ast::NodeID, ScopeID>,
     symbols: Symbols,
     // TODO: use `NodeId::index` is enough
-    locals: FxHashMap<ast::NodeID, FxHashMap<SymbolName, SymbolID>>,
+    locals: FxHashMap<ast::NodeID, SymbolTable>,
 
     container: Option<ast::NodeID>,
     this_parent_container: Option<ast::NodeID>,
@@ -100,10 +105,13 @@ struct BinderState<'cx, 'atoms, 'parser> {
 
     current_flow: Option<FlowID>,
     in_strict_mode: bool,
+    in_assignment_pattern: bool,
+    parent: Option<ast::NodeID>,
     emit_flags: bolt_ts_ast::NodeFlags,
     has_explicit_return: bool,
     in_return_position: bool,
     has_flow_effects: bool,
+    has_explicit_ret: bool,
     current_true_target: Option<FlowID>,
     current_false_target: Option<FlowID>,
     current_exception_target: Option<FlowID>,
@@ -115,23 +123,116 @@ struct BinderState<'cx, 'atoms, 'parser> {
 
     // TODO: use `NodeId::index` is enough
     container_chain: FxHashMap<ast::NodeID, ast::NodeID>,
-    res: FxHashMap<(ScopeID, SymbolName), SymbolID>,
     // TODO: use `NodeId::index` is enough
     final_res: FxHashMap<ast::NodeID, SymbolID>,
     flow_nodes: FlowNodes<'cx>,
+    parent_map: self::parent_map::ParentMap,
+}
+
+struct BinderNodeQuery<'cx, 'p> {
+    parent_map: &'p ParentMap,
+    parse_result: &'p ParseResult<'cx>,
+}
+
+impl<'cx, 'p> BinderNodeQuery<'cx, 'p> {
+    fn new(parent_map: &'p ParentMap, parse_result: &'p ParseResult<'cx>) -> Self {
+        Self {
+            parent_map,
+            parse_result,
+        }
+    }
+}
+
+impl<'cx> NodeQuery<'cx> for BinderNodeQuery<'cx, '_> {
+    fn node(&self, id: bolt_ts_ast::NodeID) -> bolt_ts_ast::Node<'cx> {
+        self.parse_result.node(id)
+    }
+
+    fn parent(&self, id: bolt_ts_ast::NodeID) -> Option<bolt_ts_ast::NodeID> {
+        self.parent_map.parent_unfinished(id)
+    }
+
+    fn node_flags(&self, id: bolt_ts_ast::NodeID) -> bolt_ts_ast::NodeFlags {
+        self.parse_result.node_flags(id)
+    }
+
+    fn is_external_or_commonjs_module(&self) -> bool {
+        self.parse_result.external_module_indicator.is_some()
+            || self.parse_result.commonjs_module_indicator.is_some()
+    }
+
+    fn is_external_module(&self) -> bool {
+        self.parse_result.external_module_indicator.is_some()
+    }
+}
+
+impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
+    fn new(
+        atoms: &'atoms AtomMap<'cx>,
+        parser: &'parser mut ParseResult<'cx>,
+        module_id: ModuleID,
+        options: &NormalizedTsConfig,
+    ) -> Self {
+        let symbols = Symbols::new(module_id);
+        let mut flow_nodes = FlowNodes::new(module_id);
+        let unreachable_flow_node = flow_nodes.create_flow_unreachable();
+        let report_unreachable_flow_node = flow_nodes.create_flow_unreachable();
+
+        let in_strict_mode = !parser.is_declaration || *options.compiler_options().always_strict();
+        let parent_map = ParentMap::new(parser.node_len());
+
+        BinderState {
+            atoms,
+            p: parser,
+            final_res: fx_hashmap_with_capacity(512),
+            container_chain: fx_hashmap_with_capacity(128),
+            locals: fx_hashmap_with_capacity(128),
+            symbols,
+            diags: Vec::new(),
+
+            flow_nodes,
+            in_strict_mode,
+            in_assignment_pattern: false,
+            seen_this_keyword: false,
+            emit_flags: bolt_ts_ast::NodeFlags::empty(),
+            parent: None,
+            current_flow: None,
+            current_break_target: None,
+            current_continue_target: None,
+            current_return_target: None,
+            current_exception_target: None,
+            current_true_target: None,
+            current_false_target: None,
+            unreachable_flow_node,
+            report_unreachable_flow_node,
+            has_flow_effects: false,
+            has_explicit_ret: false,
+            in_return_position: false,
+            has_explicit_return: false,
+
+            container: None,
+            this_parent_container: None,
+            block_scope_container: None,
+            last_container: None,
+            parent_map,
+        }
+    }
+
+    fn push_error(&mut self, error: crate::Diag) {
+        let diag = bolt_ts_errors::Diag { inner: error };
+        self.diags.push(diag);
+    }
+
+    fn node_query(&self) -> impl node_query::NodeQuery<'cx> {
+        BinderNodeQuery::new(&self.parent_map, self.p)
+    }
 }
 
 pub struct BinderResult<'cx> {
     pub(crate) diags: Vec<bolt_ts_errors::Diag>,
-    pub(crate) scope_id_parent_map: Vec<Option<ScopeID>>,
-    // TODO: use `NodeId::index` is enough
-    pub(crate) node_id_to_scope_id: FxHashMap<ast::NodeID, ScopeID>,
     pub(crate) symbols: Symbols,
     // TODO: use `NodeId::index` is enough
-    pub(crate) locals: FxHashMap<ast::NodeID, FxHashMap<SymbolName, SymbolID>>,
-    // TODO: use `NodeId::index` is enough
-    pub(crate) container_chain: FxHashMap<ast::NodeID, ast::NodeID>,
-    pub(super) res: FxHashMap<(ScopeID, SymbolName), SymbolID>,
+    pub(crate) locals: FxHashMap<ast::NodeID, SymbolTable>,
     // TODO: use `NodeId::index` is enough
     pub(crate) final_res: FxHashMap<ast::NodeID, SymbolID>,
     pub(crate) flow_nodes: FlowNodes<'cx>,
@@ -141,24 +242,20 @@ impl<'cx> BinderResult<'cx> {
     fn new(state: BinderState<'cx, '_, '_>) -> Self {
         Self {
             diags: state.diags,
-            scope_id_parent_map: state.scope_id_parent_map,
-            node_id_to_scope_id: state.node_id_to_scope_id,
             symbols: state.symbols,
             locals: state.locals,
-            container_chain: state.container_chain,
-            res: state.res,
             final_res: state.final_res,
             flow_nodes: state.flow_nodes,
         }
     }
 }
 
-pub fn bind_parallel<'cx, 'atoms, 'parser>(
+pub fn bind_parallel<'cx>(
     modules: &[Module],
-    atoms: &'atoms AtomMap<'cx>,
+    atoms: &AtomMap<'cx>,
     parser: Parser<'cx>,
     options: &NormalizedTsConfig,
-) -> Vec<(BinderResult<'cx>, ParseResult<'cx>)> {
+) -> Vec<(BinderResult<'cx>, (ParseResult<'cx>, self::ParentMap))> {
     assert_eq!(parser.module_count(), modules.len());
     parser
         .map
@@ -166,12 +263,13 @@ pub fn bind_parallel<'cx, 'atoms, 'parser>(
         .zip(modules)
         .map(|(mut p, m)| {
             let module_id = m.id;
-            let is_global = m.global;
+            let is_default_lib = m.is_default_lib;
             let root = p.root();
-            let bind_state = bind(atoms, &mut p, root, module_id, options);
+            let mut bind_state = bind(atoms, &mut p, root, module_id, options);
+            let parent_map = std::mem::take(&mut bind_state.parent_map);
             let bind_result = BinderResult::new(bind_state);
-            assert!(!is_global || bind_result.diags.is_empty());
-            (bind_result, p)
+            assert!(!is_default_lib || bind_result.diags.is_empty());
+            (bind_result, (p, parent_map))
         })
         .collect()
 }
@@ -183,22 +281,23 @@ fn bind<'cx, 'atoms, 'parser>(
     module_id: ModuleID,
     options: &NormalizedTsConfig,
 ) -> BinderState<'cx, 'atoms, 'parser> {
-    let mut state = BinderState::new(atoms, parser, root, module_id, options);
-    state.bind_program(root);
+    let mut state = BinderState::new(atoms, parser, module_id, options);
+    state.bind(root.id);
+    state.parent_map.finish();
     state
 }
 
 pub fn prop_name(name: &ast::PropName) -> SymbolName {
     match name.kind {
-        ast::PropNameKind::Ident(ident) => SymbolName::Ele(ident.name),
+        ast::PropNameKind::Ident(ident) => SymbolName::Atom(ident.name),
         ast::PropNameKind::NumLit(num) => SymbolName::EleNum(num.val.into()),
-        ast::PropNameKind::StringLit { key, .. } => SymbolName::Ele(key),
+        ast::PropNameKind::StringLit { key, .. } => SymbolName::Atom(key),
         ast::PropNameKind::Computed(c) => {
             use bolt_ts_ast::ExprKind::*;
             match c.expr.kind {
-                Ident(n) => SymbolName::Ele(n.name),
-                StringLit(n) => SymbolName::Ele(n.val),
-                _ => unreachable!(),
+                Ident(n) => SymbolName::Atom(n.name),
+                StringLit(n) => SymbolName::Atom(n.val),
+                _ => unreachable!("name: {name:#?}"),
             }
         }
     }

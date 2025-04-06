@@ -1,13 +1,15 @@
+use super::CheckMode;
+use super::ContextFlags;
+use super::TyChecker;
+use super::symbol_info::SymbolInfo;
+use super::ty;
 use crate::bind::SymbolFlags;
 use crate::bind::SymbolID;
 use crate::ir;
 use crate::ty::ObjectFlags;
 use crate::ty::TypeFlags;
-use bolt_ts_ast as ast;
 
-use super::ContextFlags;
-use super::TyChecker;
-use super::ty;
+use bolt_ts_ast as ast;
 
 impl<'cx> TyChecker<'cx> {
     pub(super) fn get_widened_ty(&mut self, ty: &'cx ty::Ty<'cx>) -> &'cx ty::Ty<'cx> {
@@ -39,10 +41,7 @@ impl<'cx> TyChecker<'cx> {
 
     pub(super) fn is_fresh_literal_ty(&mut self, ty: &'cx ty::Ty<'cx>) -> bool {
         ty.flags.intersects(TypeFlags::FRESHABLE)
-            && self
-                .get_ty_links(ty.id)
-                .get_fresh_ty()
-                .is_some_and(|fresh_ty| fresh_ty == ty)
+            && self.get_fresh_ty(ty).is_some_and(|fresh_ty| fresh_ty == ty)
     }
 
     pub(super) fn get_widened_literal_ty(&mut self, ty: &'cx ty::Ty<'cx>) -> &'cx ty::Ty<'cx> {
@@ -82,8 +81,8 @@ impl<'cx> TyChecker<'cx> {
             })
             .collect();
 
-        let object_flags =
-            ty.get_object_flags() & (ObjectFlags::JS_LITERAL | ObjectFlags::NON_INFERRABLE_TYPE);
+        let object_flags = ty.get_object_flags()
+            & (ObjectFlags::JS_LITERAL.union(ObjectFlags::NON_INFERRABLE_TYPE));
 
         self.create_anonymous_ty_with_resolved(
             ty.symbol(),
@@ -136,48 +135,30 @@ impl<'cx> TyChecker<'cx> {
             let constraint = self
                 .get_base_constraint_of_ty(contextual_ty)
                 .unwrap_or(self.unknown_ty);
-            return if constraint.maybe_type_of_kind(TypeFlags::STRING)
-                && candidate_ty.maybe_type_of_kind(TypeFlags::STRING_LITERAL)
-            {
-                true
-            } else if constraint.maybe_type_of_kind(TypeFlags::NUMBER)
-                && candidate_ty.maybe_type_of_kind(TypeFlags::NUMBER_LITERAL)
-            {
-                true
-            } else if constraint.maybe_type_of_kind(TypeFlags::BIG_INT)
-                && candidate_ty.maybe_type_of_kind(TypeFlags::BIG_INT_LITERAL)
-            {
-                true
-            } else if constraint.maybe_type_of_kind(TypeFlags::ES_SYMBOL)
-                && candidate_ty.maybe_type_of_kind(TypeFlags::UNIQUE_ES_SYMBOL)
-            {
-                true
-            } else {
-                self.is_literal_of_contextual_ty(candidate_ty, Some(constraint))
-            };
-        } else if contextual_ty.flags.intersects(
-            TypeFlags::STRING_LITERAL
-                | TypeFlags::INDEX
-                | TypeFlags::TEMPLATE_LITERAL
-                | TypeFlags::STRING_MAPPING,
-        ) && candidate_ty.maybe_type_of_kind(TypeFlags::STRING_LITERAL)
-        {
-            true
-        } else if contextual_ty.flags.intersects(TypeFlags::NUMBER_LITERAL)
-            && candidate_ty.maybe_type_of_kind(TypeFlags::NUMBER_LITERAL)
-        {
-            true
-        } else if contextual_ty.flags.intersects(TypeFlags::BIG_INT_LITERAL)
-            && candidate_ty.maybe_type_of_kind(TypeFlags::BIG_INT_LITERAL)
-        {
-            true
-        } else if contextual_ty.flags.intersects(TypeFlags::BOOLEAN_LITERAL)
-            && candidate_ty.maybe_type_of_kind(TypeFlags::BOOLEAN_LITERAL)
-        {
-            true
+            (constraint.maybe_type_of_kind(TypeFlags::STRING)
+                && candidate_ty.maybe_type_of_kind(TypeFlags::STRING_LITERAL))
+                || (constraint.maybe_type_of_kind(TypeFlags::NUMBER)
+                    && candidate_ty.maybe_type_of_kind(TypeFlags::NUMBER_LITERAL))
+                || (constraint.maybe_type_of_kind(TypeFlags::BIG_INT)
+                    && candidate_ty.maybe_type_of_kind(TypeFlags::BIG_INT_LITERAL))
+                || (constraint.maybe_type_of_kind(TypeFlags::ES_SYMBOL)
+                    && candidate_ty.maybe_type_of_kind(TypeFlags::UNIQUE_ES_SYMBOL))
+                || self.is_literal_of_contextual_ty(candidate_ty, Some(constraint))
         } else {
-            contextual_ty.flags.intersects(TypeFlags::UNIQUE_ES_SYMBOL)
-                && candidate_ty.maybe_type_of_kind(TypeFlags::UNIQUE_ES_SYMBOL)
+            (contextual_ty.flags.intersects(
+                TypeFlags::STRING_LITERAL
+                    | TypeFlags::INDEX
+                    | TypeFlags::TEMPLATE_LITERAL
+                    | TypeFlags::STRING_MAPPING,
+            ) && candidate_ty.maybe_type_of_kind(TypeFlags::STRING_LITERAL))
+                || (contextual_ty.flags.intersects(TypeFlags::NUMBER_LITERAL)
+                    && candidate_ty.maybe_type_of_kind(TypeFlags::NUMBER_LITERAL))
+                || (contextual_ty.flags.intersects(TypeFlags::BIG_INT_LITERAL)
+                    && candidate_ty.maybe_type_of_kind(TypeFlags::BIG_INT_LITERAL))
+                || (contextual_ty.flags.intersects(TypeFlags::BOOLEAN_LITERAL)
+                    && candidate_ty.maybe_type_of_kind(TypeFlags::BOOLEAN_LITERAL))
+                || (contextual_ty.flags.intersects(TypeFlags::UNIQUE_ES_SYMBOL)
+                    && candidate_ty.maybe_type_of_kind(TypeFlags::UNIQUE_ES_SYMBOL))
         }
     }
 
@@ -217,5 +198,16 @@ impl<'cx> TyChecker<'cx> {
             }
         }
         contextual_ty
+    }
+
+    pub(super) fn get_widened_ty_for_var_like_decl(
+        &mut self,
+        decl: &impl ir::VarLike<'cx>,
+    ) -> &'cx ty::Ty<'cx> {
+        let save_check_mode = self.check_mode;
+        self.check_mode = Some(CheckMode::empty());
+        let ty = self.get_ty_for_var_like_decl(decl, true);
+        self.check_mode = save_check_mode;
+        self.widen_ty_for_var_like_decl(ty, decl)
     }
 }

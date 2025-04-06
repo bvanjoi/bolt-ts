@@ -45,7 +45,7 @@ impl std::fmt::Display for Span {
 #[derive(Clone, Debug)]
 pub struct Module {
     pub id: ModuleID,
-    pub global: bool,
+    pub is_default_lib: bool,
 }
 
 pub type ModulePath = std::path::PathBuf;
@@ -57,9 +57,7 @@ pub struct ModuleArena {
 }
 
 impl ModuleArena {
-    #[allow(clippy::new_without_default)]
-    pub fn new() -> Self {
-        let cap = 1024 * 8;
+    pub fn new(cap: usize) -> Self {
         Self {
             path_map: Vec::with_capacity(cap),
             content_map: Vec::with_capacity(cap),
@@ -70,18 +68,21 @@ impl ModuleArena {
     pub fn new_module(
         &mut self,
         p: ModulePath,
-        global: bool,
+        is_default_lib: bool,
         fs: &mut impl CachedFileSystem,
         atoms: &mut bolt_ts_atom::AtomMap<'_>,
     ) -> ModuleID {
         let id = ModuleID(self.modules.len() as u32);
-        let m = Module { id, global };
+        let m = Module { id, is_default_lib };
         self.modules.push(m);
-        assert!(id.as_usize() == self.content_map.len());
-        let atom = fs.read_file(p.as_ref(), atoms).unwrap();
+        assert_eq!(id.as_usize(), self.content_map.len());
+        let Ok(atom) = fs.read_file(p.as_ref(), atoms) else {
+            panic!("File not found: {:?}", p);
+        };
+        // TODO: remove this clone
         let data = atoms.get(atom).to_string();
         self.content_map.push(Arc::new(data));
-        assert!(id.as_usize() == self.path_map.len());
+        assert_eq!(id.as_usize(), self.path_map.len());
         self.path_map.push(p);
         id
     }
@@ -89,29 +90,36 @@ impl ModuleArena {
     pub fn new_module_with_content(
         &mut self,
         p: ModulePath,
-        global: bool,
+        is_default_lib: bool,
         content: AtomId,
         atoms: &bolt_ts_atom::AtomMap<'_>,
     ) -> ModuleID {
         let id = ModuleID(self.modules.len() as u32);
-        let m = Module { id, global };
+        let m = Module { id, is_default_lib };
         self.modules.push(m);
-        assert!(id.as_usize() == self.content_map.len());
+        assert_eq!(id.as_usize(), self.content_map.len());
+        // TODO: remove this clone
         let data = atoms.get(content).to_string();
         self.content_map.push(Arc::new(data));
-        assert!(id.as_usize() == self.path_map.len());
+        assert_eq!(id.as_usize(), self.path_map.len());
         self.path_map.push(p);
         id
     }
 
     pub fn get_path(&self, id: ModuleID) -> &ModulePath {
-        &self.path_map[id.as_usize()]
+        let idx = id.as_usize();
+        assert!(idx < self.path_map.len());
+        unsafe { self.path_map.get_unchecked(idx) }
     }
     pub fn get_content(&self, id: ModuleID) -> &Arc<String> {
-        &self.content_map[id.as_usize()]
+        let idx = id.as_usize();
+        assert!(id.as_usize() < self.content_map.len());
+        unsafe { self.content_map.get_unchecked(idx) }
     }
     pub fn get_module(&self, id: ModuleID) -> &Module {
-        &self.modules[id.as_usize()]
+        let idx = id.as_usize();
+        assert!(idx < self.modules.len());
+        unsafe { self.modules.get_unchecked(idx) }
     }
     pub fn modules(&self) -> &[Module] {
         &self.modules

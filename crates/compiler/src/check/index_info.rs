@@ -1,11 +1,19 @@
 use super::TyChecker;
+use super::symbol_info::SymbolInfo;
 use crate::bind::{SymbolID, SymbolName};
 use crate::ty;
+
 use bolt_ts_ast as ast;
 
 impl<'cx> TyChecker<'cx> {
-    pub(super) fn get_index_symbol(&self, symbol: SymbolID) -> Option<SymbolID> {
-        self.members(symbol).get(&SymbolName::Index).copied()
+    pub(super) fn get_index_symbol(&mut self, symbol: SymbolID) -> Option<SymbolID> {
+        let s = self.binder.symbol(symbol);
+        if s.members().0.is_empty() {
+            None
+        } else {
+            let members = self.get_members_of_symbol(symbol);
+            members.0.get(&SymbolName::Index).copied()
+        }
     }
 
     pub(super) fn get_index_infos_of_symbol(&mut self, symbol: SymbolID) -> ty::IndexInfos<'cx> {
@@ -18,9 +26,9 @@ impl<'cx> TyChecker<'cx> {
         &mut self,
         symbol: SymbolID,
     ) -> ty::IndexInfos<'cx> {
-        let index_symbol = self.binder.symbol(symbol).expect_index();
-        let mut index_infos = Vec::with_capacity(index_symbol.decls.len() * 2);
-        for decl in &index_symbol.decls {
+        let decls = &self.binder.symbol(symbol).decls;
+        let mut index_infos = Vec::with_capacity(decls.len() * 2);
+        for decl in decls {
             let n = self.p.node(*decl);
             if n.is_index_sig_decl() {
                 let decl = n.expect_index_sig_decl();
