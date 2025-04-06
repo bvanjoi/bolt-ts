@@ -234,8 +234,9 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
         if self.in_strict_mode && !self.p.node_flags(n.id).intersects(NodeFlags::AMBIENT) {
             // TODO: check
         }
+        use bolt_ts_ast::BindingKind::*;
         match n.name.kind {
-            bolt_ts_ast::BindingKind::Ident(ident) => {
+            Ident(ident) => {
                 let name = SymbolName::Atom(ident.name);
                 let symbol = self.declare_symbol_and_add_to_symbol_table(
                     name,
@@ -245,11 +246,17 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
                 );
                 self.create_final_res(n.id, symbol);
             }
-            bolt_ts_ast::BindingKind::ObjectPat(_) => {
-                // self.bind_anonymous_decl(n.id, flags, name)
-                todo!()
+            ArrayPat(_) | ObjectPat(_) => {
+                let idx = {
+                    let p = self.node_query().parent(n.id).unwrap();
+                    let params = self.p.node(p).params().unwrap();
+                    params.iter().position(|p| p.id == n.id).unwrap()
+                };
+                let name = SymbolName::ParamIdx(idx as u32);
+                let symbol =
+                    self.bind_anonymous_decl(n.id, SymbolFlags::FUNCTION_SCOPED_VARIABLE, name);
+                self.create_final_res(n.id, symbol);
             }
-            bolt_ts_ast::BindingKind::ArrayPat(_) => todo!(),
         }
 
         let p = self.parent_map.parent_unfinished(n.id).unwrap();
@@ -368,7 +375,6 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
             PropSignature(ast::PropSignature { name, question, .. })
             | ClassPropElem(ast::ClassPropElem { name, question, .. }) => {
                 // TODO: is_auto_accessor
-                let name = prop_name(name);
                 let includes = SymbolFlags::PROPERTY
                     | if question.is_some() {
                         SymbolFlags::OPTIONAL
@@ -384,10 +390,9 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
                 self.create_final_res(node, symbol);
             }
             ObjectPropMember(n) => {
-                let name = prop_name(n.name);
                 let symbol = self.bind_prop_or_method_or_access(
                     node,
-                    name,
+                    n.name,
                     SymbolFlags::PROPERTY,
                     SymbolFlags::PROPERTY_EXCLUDES,
                 );
@@ -395,19 +400,18 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
             }
             ObjectShorthandMember(n) => {
                 let name = SymbolName::Atom(n.name.name);
-                let symbol = self.bind_prop_or_method_or_access(
-                    node,
+                let symbol = self.declare_symbol_and_add_to_symbol_table(
                     name,
+                    node,
                     SymbolFlags::PROPERTY,
                     SymbolFlags::PROPERTY_EXCLUDES,
                 );
                 self.create_final_res(node, symbol);
             }
             EnumMember(m) => {
-                let name = prop_name(m.name);
                 let symbol = self.bind_prop_or_method_or_access(
                     node,
-                    name,
+                    m.name,
                     SymbolFlags::ENUM_MEMBER,
                     SymbolFlags::ENUM_MEMBER_EXCLUDES,
                 );
@@ -440,7 +444,7 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
                     };
                 let symbol = self.bind_prop_or_method_or_access(
                     node.id,
-                    prop_name(node.name),
+                    node.name,
                     includes,
                     SymbolFlags::METHOD_EXCLUDES,
                 );
@@ -451,7 +455,7 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
                 let includes = SymbolFlags::METHOD;
                 let symbol = self.bind_prop_or_method_or_access(
                     node.id,
-                    prop_name(node.name),
+                    node.name,
                     includes,
                     SymbolFlags::METHOD_EXCLUDES,
                 );
@@ -462,7 +466,7 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
                 let includes = SymbolFlags::METHOD;
                 let symbol = self.bind_prop_or_method_or_access(
                     node.id,
-                    prop_name(node.name),
+                    node.name,
                     includes,
                     SymbolFlags::PROPERTY_EXCLUDES,
                 );
@@ -481,20 +485,18 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
                 self.create_final_res(node.id, symbol);
             }
             GetterDecl(node) => {
-                let name = prop_name(node.name);
                 let symbol = self.bind_prop_or_method_or_access(
                     node.id,
-                    name,
+                    node.name,
                     SymbolFlags::GET_ACCESSOR,
                     SymbolFlags::GET_ACCESSOR_EXCLUDES,
                 );
                 self.create_final_res(node.id, symbol);
             }
             SetterDecl(node) => {
-                let name = prop_name(node.name);
                 let symbol = self.bind_prop_or_method_or_access(
                     node.id,
-                    name,
+                    node.name,
                     SymbolFlags::SET_ACCESSOR,
                     SymbolFlags::SET_ACCESSOR_EXCLUDES,
                 );

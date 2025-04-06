@@ -559,6 +559,14 @@ impl<'cx> Parser<'cx> {
         self.get(id.module())
             .get_module_spec_for_import_or_export(id)
     }
+
+    pub fn get_name_of_decl(&self, id: ast::NodeID) -> Option<ast::DeclarationName<'cx>> {
+        self.get(id.module()).get_name_of_decl(id)
+    }
+
+    pub fn has_dynamic_name(&self, id: ast::NodeID) -> bool {
+        self.get(id.module()).has_dynamic_name(id)
+    }
 }
 
 #[derive(Clone, Copy, PartialEq)]

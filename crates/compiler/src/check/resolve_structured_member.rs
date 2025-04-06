@@ -6,6 +6,7 @@ use super::create_ty::IntersectionFlags;
 use super::cycle_check::{Cycle, ResolutionKey};
 use super::links::SigLinks;
 use super::symbol_info::SymbolInfo;
+use super::transient_symbol::BorrowedDeclarations;
 use super::{SymbolLinks, Ternary, TyChecker, errors};
 use crate::bind::{Symbol, SymbolFlags, SymbolID, SymbolName, SymbolTable};
 use crate::ty::{self, CheckFlags, ObjectFlags, SigID, SigKind, TypeFlags};
@@ -55,20 +56,61 @@ impl<'cx> TyChecker<'cx> {
         true
     }
 
-    fn in_this_less(&self, symbol: SymbolID) -> bool {
-        let flags = self.symbol(symbol).flags();
-        if flags.intersects(SymbolFlags::PROPERTY) {
-            // let p = s.expect_prop();
-            // c.this_ty.is_none()
-            false
-        } else if flags == SymbolFlags::INTERFACE {
-            // let i = s.expect_interface();
-            // i.this_ty.is_none()
-            false
+    fn is_this_less_ty_param(&self, ty_param: &ast::TyParam<'cx>) -> bool {
+        let constraint = self.get_effective_constraint_of_ty_param(ty_param);
+        constraint.is_none_or(|c| c.is_this_less())
+    }
+
+    fn is_this_less_fn_like_decl(&self, node: ast::NodeID) -> bool {
+        let n = self.p.node(node);
+        if n.is_class_ctor() || n.is_ctor_sig_decl() {
+            true
+        } else if let Some(ret_ty) = self.get_effective_ret_type_node(node) {
+            ret_ty.is_this_less()
+                && n.params()
+                    .unwrap_or_default()
+                    .iter()
+                    .all(|param| ast::Node::ParamDecl(param).is_this_less_var_like_decl())
+                && self
+                    .get_effective_ty_param_decls(node)
+                    .iter()
+                    .all(|ty_param| self.is_this_less_ty_param(ty_param))
         } else {
             false
+        }
+    }
+
+    fn is_this_less(&self, symbol: SymbolID) -> bool {
+        let decls = match self.symbol(symbol).declarations() {
+            BorrowedDeclarations::FromTransient(decls) => {
+                if let Some(decls) = decls {
+                    decls
+                } else {
+                    return false;
+                }
+            }
+            BorrowedDeclarations::FromNormal(decls) => decls,
+            _ => return false,
         };
-        false
+        if decls.len() != 1 {
+            return false;
+        }
+        let decl = decls[0];
+        let decl = self.p.node(decl);
+        use ast::Node::*;
+        match decl {
+            PropSignature(_) | ObjectPropMember(_) | ClassPropElem(_) => {
+                decl.is_this_less_var_like_decl()
+            }
+            MethodSignature(_)
+            | ObjectMethodMember(_)
+            | ClassMethodElem(_)
+            | CtorSigDecl(_)
+            | ClassCtor(_)
+            | GetterDecl(_)
+            | SetterDecl(_) => self.is_this_less_fn_like_decl(decls[0]),
+            _ => false,
+        }
     }
 
     fn create_instantiated_symbol_table(
@@ -81,7 +123,7 @@ impl<'cx> TyChecker<'cx> {
             .iter()
             .map(|symbol| {
                 let name = self.symbol(*symbol).name();
-                if mapping_only_this && self.in_this_less(*symbol) {
+                if mapping_only_this && self.is_this_less(*symbol) {
                     (name, *symbol)
                 } else {
                     (name, self.instantiate_symbol(*symbol, mapper))
@@ -92,42 +134,67 @@ impl<'cx> TyChecker<'cx> {
 
     fn instantiate_symbol(
         &mut self,
-        mut symbol: SymbolID,
-        mut mapper: &'cx dyn ty::TyMap<'cx>,
+        symbol: SymbolID,
+        mapper: &'cx dyn ty::TyMap<'cx>,
     ) -> SymbolID {
         if let Some(ty) = self.get_symbol_links(symbol).get_ty() {
             if !self.could_contain_ty_var(ty) {
-                // TODO: handle write_ty and setAccessor
-                return symbol;
+                if !self
+                    .symbol(symbol)
+                    .flags()
+                    .intersects(SymbolFlags::SET_ACCESSOR)
+                {
+                    return symbol;
+                }
+                if let Some(write_ty) = self.get_symbol_links(symbol).get_write_ty() {
+                    if !self.could_contain_ty_var(write_ty) {
+                        return symbol;
+                    }
+                }
             }
         }
 
-        if self
-            .get_check_flags(symbol)
-            .intersects(CheckFlags::INSTANTIATED)
-        {
+        let check_flags = self.get_check_flags(symbol);
+        let (symbol, mapper, check_flags) = if check_flags.intersects(CheckFlags::INSTANTIATED) {
             let links = self.get_symbol_links(symbol);
-            symbol = links.get_target().unwrap();
             let ty_mapper = links.get_ty_mapper();
-            mapper = self.combine_ty_mappers(ty_mapper, mapper);
-        }
+            let symbol = links.get_target().unwrap();
+            let mapper = self.combine_ty_mappers(ty_mapper, mapper);
+            let check_flags = self.get_check_flags(symbol);
+            (symbol, mapper, check_flags)
+        } else {
+            (symbol, mapper, check_flags)
+        };
 
         let check_flags = CheckFlags::INSTANTIATED
-            | (self.get_check_flags(symbol)
-                & (CheckFlags::READONLY
-                    | CheckFlags::LATE
-                    | CheckFlags::OPTIONAL_PARAMETER
-                    | CheckFlags::REST_PARAMETER));
+            | (check_flags
+                & CheckFlags::READONLY
+                    .union(CheckFlags::LATE)
+                    .union(CheckFlags::OPTIONAL_PARAMETER)
+                    .union(CheckFlags::REST_PARAMETER));
         let links = SymbolLinks::default()
             .with_check_flags(check_flags)
             .with_ty_mapper(mapper)
             .with_target(symbol);
-
         let s = self.symbol(symbol);
         let name = s.name();
-        let symbol_flags = s.flags();
-
-        self.create_transient_symbol(name, symbol_flags, Some(symbol), links)
+        let flags = s.flags();
+        let declarations: Option<&'cx [ast::NodeID]> = match s.declarations() {
+            BorrowedDeclarations::FromTransient(decls) => decls,
+            BorrowedDeclarations::FromNormal(decls) if !decls.is_empty() => {
+                Some(self.alloc(decls.into_iter().map(|decl| *decl).collect::<Vec<_>>()))
+            }
+            _ => None,
+        };
+        let value_declaration = s.value_declaration();
+        self.create_transient_symbol(
+            name,
+            flags,
+            Some(symbol),
+            links,
+            declarations,
+            value_declaration,
+        )
     }
 
     fn instantiate_sigs(
@@ -340,7 +407,10 @@ impl<'cx> TyChecker<'cx> {
             && self.are_all_outer_parameters_applied(original_base_ty.unwrap())
         {
             let symbol = base_ctor_ty.symbol().unwrap();
-            base_ty = self.get_ty_from_class_or_interface_refer(base_ty_node.unwrap(), symbol);
+            let base_ty_node = base_ty_node.unwrap();
+            let span = base_ty_node.span;
+            let ty_args = base_ty_node.expr_with_ty_args.ty_args;
+            base_ty = self.get_ty_from_class_or_interface_refer(span, ty_args, symbol);
         } else if base_ctor_ty.flags.intersects(TypeFlags::ANY) {
             base_ty = base_ctor_ty;
         } else {
@@ -419,10 +489,6 @@ impl<'cx> TyChecker<'cx> {
         ty_params: ty::Tys<'cx>,
         ty_args: ty::Tys<'cx>,
     ) {
-        if self.get_ty_links(ty.id).get_structured_members().is_some() {
-            return;
-        }
-
         let mapper: Option<&'cx dyn ty::TyMap<'cx>>;
         let base_tys = self.get_base_tys(source);
 
@@ -469,6 +535,7 @@ impl<'cx> TyChecker<'cx> {
         } else {
             let m = self.create_ty_mapper(ty_params, ty_args);
             mapper = Some(m);
+            // TODO: parallel?
             members =
                 self.create_instantiated_symbol_table(declared.props, m, ty_params.len() == 1);
             call_sigs = self.instantiate_sigs(declared.call_sigs, m).to_vec();
@@ -522,8 +589,39 @@ impl<'cx> TyChecker<'cx> {
         self.get_mut_ty_links(ty.id).set_structured_members(m);
     }
 
+    fn resolve_declared_members(
+        &mut self,
+        i: &'cx ty::InterfaceTy<'cx>,
+    ) -> &'cx ty::DeclaredMembers<'cx> {
+        if let Some(c) = self.interface_ty_links_arena[i.links].get_declared_members() {
+            return c;
+        }
+        let members = &self.get_members_of_symbol(i.symbol).0;
+        let props = self.get_props_from_members(members);
+        let call_sigs = members
+            .get(&SymbolName::Call)
+            .copied()
+            .map(|s| self.get_sigs_of_symbol(s))
+            .unwrap_or_default();
+        let ctor_sigs = members
+            .get(&SymbolName::New)
+            .copied()
+            .map(|s| self.get_sigs_of_symbol(s))
+            .unwrap_or_default();
+        let index_infos = self.get_index_infos_of_symbol(i.symbol);
+        let declared_members = self.alloc(ty::DeclaredMembers {
+            props,
+            index_infos,
+            ctor_sigs,
+            call_sigs,
+        });
+        self.interface_ty_links_arena[i.links].set_declared_members(declared_members);
+        declared_members
+    }
+
     fn resolve_interface_members(&mut self, ty: &'cx ty::Ty<'cx>) {
-        let declared_members = ty.kind.expect_object_interface().declared_members;
+        let interface_ty = ty.kind.expect_object_interface();
+        let declared_members = self.resolve_declared_members(interface_ty);
         self.resolve_object_type_members(ty, ty, declared_members, &[], &[]);
     }
 
@@ -550,9 +648,10 @@ impl<'cx> TyChecker<'cx> {
             self.alloc(padded_type_arguments)
         };
         let declared_members = if let Some(i) = target.kind.as_object_interface() {
-            i.declared_members
+            self.resolve_declared_members(i)
         } else if let Some(t) = target.kind.as_object_tuple() {
-            t.ty.kind.expect_object_interface().declared_members
+            let i = t.ty.kind.expect_object_interface();
+            self.resolve_declared_members(i)
         } else {
             unreachable!()
         };
@@ -688,8 +787,11 @@ impl<'cx> TyChecker<'cx> {
             let call_sigs = self.instantiate_sigs(sigs, mapper);
             let sigs = self.get_signatures_of_type(target, SigKind::Constructor);
             let ctor_sigs = self.instantiate_sigs(sigs, mapper);
-            let index_infos = &[];
-            // TODO:  `index_infos`, `members` and instantiate them.
+            let index_infos = {
+                let index_infos = self.get_index_infos_of_ty(target);
+                self.instantiate_index_infos(index_infos, mapper)
+            };
+            // TODO: instantiate `members`.
             let props = self.get_props_from_members(&members);
             let m = self.alloc(ty::StructuredMembers {
                 members: self.alloc(members),
@@ -1170,8 +1272,31 @@ impl<'cx> TyChecker<'cx> {
                                         CheckFlags::empty()
                                     },
                             );
-                        let symbol =
-                            this.create_transient_symbol(symbol_name, symbol_flags, None, links);
+                        let declarations = modifiers_prop.and_then(|p| {
+                            if should_link_prop_decls {
+                                match this.symbol(p).declarations() {
+                                    BorrowedDeclarations::FromTransient(decls) => decls,
+                                    BorrowedDeclarations::FromNormal(decls)
+                                        if !decls.is_empty() =>
+                                    {
+                                        Some(this.alloc(
+                                            decls.into_iter().map(|decl| *decl).collect::<Vec<_>>(),
+                                        ))
+                                    }
+                                    _ => None,
+                                }
+                            } else {
+                                None
+                            }
+                        });
+                        let symbol = this.create_transient_symbol(
+                            symbol_name,
+                            symbol_flags,
+                            None,
+                            links,
+                            declarations,
+                            None,
+                        );
                         let prev = members.insert(symbol_name, symbol);
                         assert!(prev.is_none());
                         let prev = this.symbol_links.insert(symbol, links);

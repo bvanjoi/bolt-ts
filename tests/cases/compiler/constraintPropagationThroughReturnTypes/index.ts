@@ -8,3 +8,19 @@ function f<S extends { foo: string }>(x: S) {
   var y = g(x);
   y;
 }
+
+{
+  // TODO: late symbol should check pass
+  // const a: string = ''
+  // type S<T> = T extends {[a]: never} ? never : T;
+  // const test = <T>(_: S<T>): void => {};
+  // test({key: 'value'});
+}
+
+{
+  // TODO: late symbol should check pass
+  // const a: string = ''
+  // type S<T> = T extends {[a]?: never} ? never : T;
+  // const test = <T>(_: S<T>): void => {};
+  // test({key: 'value'});
+}

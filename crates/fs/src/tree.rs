@@ -1,6 +1,7 @@
 use std::{hash::Hash, path::PathBuf};
 
 use bolt_ts_atom::{AtomId, AtomMap};
+use bolt_ts_path::NormalizePath;
 use bolt_ts_utils::no_hashmap_with_capacity;
 
 use super::errors::{self, FsResult};
@@ -51,7 +52,7 @@ impl<'atoms> FSTree {
     ) -> FsResult<FSNodeId> {
         let parent_node = self.node(parent);
         let FSNodeKind::Dir(dir) = &parent_node.kind else {
-            panic!("parent should not be a directory")
+            return Err(errors::FsError::FileExists(parent_node.kind.path()));
         };
         if let Some(old) = dir.find_child(path, &self.nodes) {
             if self.node(old).kind.as_dir_node().is_some() {
@@ -136,6 +137,11 @@ impl<'atoms> FSTree {
         atoms: &mut AtomMap<'atoms>,
         path: &std::path::Path,
     ) -> FsResult<FSNodeId> {
+        debug_assert!(path.is_normalized());
+        if let Some(cache) = self.path_to_node.get(&PathId::get(path)) {
+            return Ok(*cache);
+        };
+
         let mut id = FSTree::ROOT;
         let mut parent = None;
         let mut current_path = PathBuf::with_capacity(path.as_os_str().len() + 8);
@@ -226,6 +232,7 @@ impl FSNode {
     }
 }
 
+#[derive(Debug)]
 pub(super) enum FSNodeKind {
     File(FileNode),
     Dir(DirNode),
@@ -237,6 +244,7 @@ pub(super) struct FileNode {
     content: AtomId,
 }
 
+#[derive(Debug)]
 pub(super) struct DirNode {
     path: PathId,
     children: Vec<FSNodeId>,

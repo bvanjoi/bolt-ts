@@ -25,6 +25,7 @@ normalized_option!(
     (no_unchecked_indexed_access, bool),
     (target, Target),
     (always_strict, bool),
+    (exact_optional_property_types, bool)
 );
 
 normalized_option!(

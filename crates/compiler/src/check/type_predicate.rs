@@ -2,7 +2,7 @@ use bolt_ts_ast as ast;
 use bolt_ts_atom::AtomId;
 
 use super::symbol_info::SymbolInfo;
-use crate::{keyword, ty};
+use crate::ty;
 
 #[derive(Debug, Clone, Copy)]
 pub struct TyPred<'cx> {
@@ -12,13 +12,33 @@ pub struct TyPred<'cx> {
 #[derive(Debug, Clone, Copy)]
 pub enum TyPredKind<'cx> {
     Ident(IdentTyPred<'cx>),
+    This(ThisTyPred<'cx>),
+    AssertsThis(AssertsThisTyPred<'cx>),
+    AssertsIdent(AssertsIdentTyPred<'cx>),
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct AssertsThisTyPred<'cx> {
+    pub ty: Option<&'cx ty::Ty<'cx>>,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct ThisTyPred<'cx> {
+    pub ty: &'cx ty::Ty<'cx>,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct AssertsIdentTyPred<'cx> {
+    pub param_name: AtomId,
+    pub param_index: u32,
+    pub ty: Option<&'cx ty::Ty<'cx>>,
 }
 
 #[derive(Debug, Clone, Copy)]
 pub struct IdentTyPred<'cx> {
     pub param_name: AtomId,
     pub param_index: u32,
-    pub ty: Option<&'cx ty::Ty<'cx>>,
+    pub ty: &'cx ty::Ty<'cx>,
 }
 
 impl<'cx> super::TyChecker<'cx> {
@@ -26,33 +46,51 @@ impl<'cx> super::TyChecker<'cx> {
         &self,
         param_name: AtomId,
         param_index: u32,
-        ty: Option<&'cx ty::Ty<'cx>>,
+        ty: &'cx ty::Ty<'cx>,
     ) -> &'cx TyPred<'cx> {
-        self.alloc(TyPred {
-            kind: TyPredKind::Ident(IdentTyPred {
-                param_name,
-                param_index,
-                ty,
-            }),
-        })
+        let kind = TyPredKind::Ident(IdentTyPred {
+            param_name,
+            param_index,
+            ty,
+        });
+        self.alloc(TyPred { kind })
     }
 
-    pub fn create_ty_pred_from_node(
+    pub fn create_ty_pred_from_ty_pred_node(
         &mut self,
         node: &'cx ast::PredTy<'cx>,
         sig: &'cx ty::Sig<'cx>,
     ) -> &'cx TyPred<'cx> {
-        let name = node.name.name;
-        let ty = self.get_ty_from_type_node(node.ty);
-        if name == keyword::KW_THIS {
-            todo!()
-        } else {
-            let index = sig
-                .params
-                .iter()
-                .position(|&param| self.binder.symbol(param).name.expect_atom() == name)
-                .unwrap();
-            self.create_ident_ty_pred(name, index as u32, Some(ty))
+        use bolt_ts_ast::PredTyName;
+        // TODO: asserts_modifier
+        let ty = node.ty.map(|ty| self.get_ty_from_type_node(ty));
+        match node.name {
+            PredTyName::Ident(ident) => {
+                let name = ident.name;
+                let index = sig
+                    .params
+                    .iter()
+                    .position(|&param| self.binder.symbol(param).name.expect_atom() == name)
+                    .unwrap();
+                if node.asserts.is_some() {
+                    let kind = TyPredKind::AssertsIdent(AssertsIdentTyPred {
+                        param_name: name,
+                        param_index: index as u32,
+                        ty,
+                    });
+                    self.alloc(TyPred { kind })
+                } else {
+                    self.create_ident_ty_pred(name, index as u32, ty.unwrap())
+                }
+            }
+            PredTyName::This(_) => {
+                let kind = if node.asserts.is_some() {
+                    TyPredKind::This(ThisTyPred { ty: ty.unwrap() })
+                } else {
+                    TyPredKind::AssertsThis(AssertsThisTyPred { ty })
+                };
+                self.alloc(TyPred { kind })
+            }
         }
     }
 }

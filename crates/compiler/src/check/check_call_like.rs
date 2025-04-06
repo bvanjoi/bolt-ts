@@ -160,6 +160,7 @@ impl<'cx> TyChecker<'cx> {
             sig.params.len()
         };
         if pos < param_count {
+            // TODO: use `get_type_of_param`
             Some(self.get_type_of_symbol(sig.params[pos]))
         } else if sig.has_rest_param() {
             let rest_ty = self.get_type_of_symbol(sig.params[param_count]);
@@ -175,6 +176,20 @@ impl<'cx> TyChecker<'cx> {
             })
         } else {
             None
+        }
+    }
+
+    pub(super) fn get_rest_or_any_ty_at_pos(
+        &mut self,
+        source: &'cx ty::Sig<'cx>,
+        pos: usize,
+    ) -> &'cx ty::Ty<'cx> {
+        let rest_ty = self.get_rest_ty_at_pos(source, pos, false);
+        let element_ty = self.get_element_ty_of_array_ty(rest_ty);
+        if self.is_type_any(element_ty) {
+            self.any_ty
+        } else {
+            rest_ty
         }
     }
 
@@ -293,13 +308,7 @@ impl<'cx> TyChecker<'cx> {
         let mut min_arg_count = None;
         if sig.has_rest_param() {
             let rest_ty = self.get_type_of_symbol(sig.params[sig.params.len() - 1]);
-            if rest_ty.is_tuple() {
-                let tuple = rest_ty
-                    .kind
-                    .expect_object_reference()
-                    .target
-                    .kind
-                    .expect_object_tuple();
+            if let Some(tuple) = rest_ty.as_tuple() {
                 let required_count = if let Some(first_optional_index) = tuple
                     .element_flags
                     .iter()
@@ -341,15 +350,9 @@ impl<'cx> TyChecker<'cx> {
     pub(super) fn has_effective_rest_param(&mut self, sig: &'cx Sig<'cx>) -> bool {
         if sig.has_rest_param() {
             let rest_ty = self.get_type_of_symbol(sig.params[sig.params.len() - 1]);
-            if !rest_ty.is_tuple() {
+            let Some(tuple) = rest_ty.as_tuple() else {
                 return true;
-            }
-            let tuple = rest_ty
-                .kind
-                .expect_object_reference()
-                .target
-                .kind
-                .expect_object_tuple();
+            };
             tuple.combined_flags.intersects(ElementFlags::VARIABLE)
         } else {
             false

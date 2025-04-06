@@ -130,10 +130,10 @@ impl<'cx> TyChecker<'cx> {
         relation: RelationKind,
     ) -> bool {
         if self.is_fresh_literal_ty(source) {
-            source = self.ty_links[&source.id].get_regular_ty().unwrap();
+            source = self.get_regular_ty(source).unwrap();
         }
         if self.is_fresh_literal_ty(target) {
-            target = self.ty_links[&target.id].get_regular_ty().unwrap();
+            target = self.get_regular_ty(target).unwrap();
         }
         if source == target {
             return true;
@@ -277,7 +277,10 @@ impl<'cx> TyChecker<'cx> {
                 if let std::collections::hash_map::Entry::Vacant(e) = members.entry(name) {
                     if let Some(combined_prop) = self.get_prop_of_union_or_intersection_ty(ty, name)
                     {
-                        let prev: Option<SymbolID> = { e.insert(combined_prop); None };
+                        let prev: Option<SymbolID> = {
+                            e.insert(combined_prop);
+                            None
+                        };
                         assert!(prev.is_none());
                     }
                 }
@@ -295,23 +298,14 @@ impl<'cx> TyChecker<'cx> {
         name: SymbolName,
     ) -> Option<SymbolID> {
         let ty = self.get_reduced_apparent_ty(ty);
-        if let TyKind::Object(object_ty) = ty.kind {
+        if let TyKind::Object(_) = ty.kind {
             self.resolve_structured_type_members(ty);
-
-            let symbol = if object_ty.kind.is_interface()
-                || object_ty.kind.is_anonymous()
-                || object_ty.flags.intersects(ObjectFlags::REFERENCE)
-                || object_ty.kind.is_mapped()
-            {
-                self.expect_ty_links(ty.id)
-                    .expect_structured_members()
-                    .members
-                    .get(&name)
-                    .copied()
-            } else {
-                unreachable!("ty: {ty:#?}")
-            };
-
+            let symbol = self
+                .expect_ty_links(ty.id)
+                .expect_structured_members()
+                .members
+                .get(&name)
+                .copied();
             if symbol.is_some() {
                 return symbol;
             }
@@ -511,7 +505,8 @@ impl<'cx> TyChecker<'cx> {
             links.with_ty(ty)
         };
 
-        let result = self.create_transient_symbol(name, symbol_flags, None, links);
+        // TODO: declarations
+        let result = self.create_transient_symbol(name, symbol_flags, None, links, None, None);
 
         Some(result)
     }

@@ -348,4 +348,52 @@ pub trait NodeQuery<'cx>: Sized {
             _ => unreachable!(),
         }
     }
+
+    fn get_non_assigned_name_of_decl(&self, id: ast::NodeID) -> Option<ast::DeclarationName<'cx>> {
+        use ast::Node::*;
+        let n = self.node(id);
+        match n {
+            Ident(n) => Some(ast::DeclarationName::Ident(n)),
+            CallExpr(_) | BinExpr(_) => {
+                // TODO:
+                None
+            }
+            ExportAssign(_) => {
+                // TODO:
+                None
+            }
+            _ => n.name(),
+        }
+    }
+
+    fn get_assigned_name(&self, id: ast::NodeID) -> Option<ast::DeclarationName<'cx>> {
+        let Some(parent) = self.parent(id) else {
+            return None;
+        };
+        let p = self.node(parent);
+        use ast::Node::*;
+        match p {
+            ObjectBindingElem(n) => ast::DeclarationName::from_object_binding_name(n.name),
+            VarDecl(n) => ast::DeclarationName::from_binding(n.binding),
+            Ident(n) => Some(ast::DeclarationName::Ident(n)),
+            _ => None,
+        }
+    }
+
+    fn get_name_of_decl(&self, id: ast::NodeID) -> Option<ast::DeclarationName<'cx>> {
+        self.get_non_assigned_name_of_decl(id).or_else(|| {
+            let n = self.node(id);
+            use ast::Node::*;
+            matches!(n, FnExpr(_) | ArrowFnExpr(_) | ClassExpr(_))
+                .then(|| self.get_assigned_name(id))
+                .flatten()
+        })
+    }
+
+    fn has_dynamic_name(&self, id: ast::NodeID) -> bool {
+        let Some(name) = self.get_name_of_decl(id) else {
+            return false;
+        };
+        name.is_dynamic_name()
+    }
 }

@@ -9,7 +9,7 @@ members = [
   "crates/diag-derive",
   "crates/errors",
   "crates/fs",
-  "crates/lib",
+  "crates/libs",
   "crates/resolve",
   "crates/path",
   "crates/span",
@@ -31,3 +31,4 @@ bitflags = "2.6.0"
 paste = "1.0.15"
 indexmap = "2.7.0"
 xxhash-rust = { version = "0.8.12", features = ["xxh3"] }
+id-arena = "2.2.1"

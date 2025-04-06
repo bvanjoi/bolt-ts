@@ -12,6 +12,8 @@ pub(crate) struct TransientSymbol<'cx> {
     pub(super) name: SymbolName,
     pub(super) flags: SymbolFlags,
     pub(super) links: crate::check::SymbolLinks<'cx>,
+    pub(super) declarations: Option<&'cx [ast::NodeID]>,
+    pub(super) value_declaration: Option<ast::NodeID>,
     // TODO: flatten
     pub(super) origin: Option<SymbolID>,
 }
@@ -57,7 +59,13 @@ pub(super) enum CheckSymbol<'cx, 'checker> {
     Normal(&'checker Symbol),
 }
 
-impl CheckSymbol<'_, '_> {
+#[derive(Debug, Clone, Copy)]
+pub enum BorrowedDeclarations<'cx, 'checker> {
+    FromTransient(Option<&'cx [ast::NodeID]>),
+    FromNormal(&'checker [ast::NodeID]),
+}
+
+impl<'cx, 'checker> CheckSymbol<'cx, 'checker> {
     pub(crate) fn flags(&self) -> SymbolFlags {
         match self {
             CheckSymbol::Transient(symbol) => symbol.flags,
@@ -70,6 +78,18 @@ impl CheckSymbol<'_, '_> {
             CheckSymbol::Normal(symbol) => symbol.name,
         }
     }
+    pub(crate) fn declarations(&self) -> BorrowedDeclarations<'cx, 'checker> {
+        match self {
+            CheckSymbol::Transient(s) => BorrowedDeclarations::FromTransient(s.declarations),
+            CheckSymbol::Normal(s) => BorrowedDeclarations::FromNormal(&s.decls),
+        }
+    }
+    pub(crate) fn value_declaration(&self) -> Option<ast::NodeID> {
+        match self {
+            CheckSymbol::Transient(s) => s.value_declaration,
+            CheckSymbol::Normal(s) => s.value_decl,
+        }
+    }
 }
 
 impl<'cx> TyChecker<'cx> {
@@ -79,6 +99,8 @@ impl<'cx> TyChecker<'cx> {
         symbol_flags: SymbolFlags,
         origin: Option<SymbolID>,
         links: crate::check::SymbolLinks<'cx>,
+        declarations: Option<&'cx [ast::NodeID]>,
+        value_declaration: Option<ast::NodeID>,
     ) -> SymbolID {
         let symbol_flags = symbol_flags | SymbolFlags::TRANSIENT;
         let symbol = TransientSymbol {
@@ -86,6 +108,8 @@ impl<'cx> TyChecker<'cx> {
             flags: symbol_flags,
             links,
             origin,
+            declarations,
+            value_declaration,
         };
         self.transient_symbols.create_transient_symbol(symbol)
     }
@@ -103,7 +127,16 @@ impl<'cx> TyChecker<'cx> {
             .with_check_flags(check_flags)
             .with_ty(ty)
             .with_target(source);
-        self.create_transient_symbol(name, symbol_flags, Some(source), links)
+        let value_declaration = s.value_declaration();
+        let s = self.create_transient_symbol(
+            name,
+            symbol_flags,
+            Some(source),
+            links,
+            None,
+            value_declaration,
+        );
+        s
     }
 
     pub(super) fn get_transient(&self, symbol: SymbolID) -> Option<&TransientSymbol<'cx>> {
@@ -118,22 +151,10 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
-    pub(crate) fn symbol_opt_decl(&self, symbol: SymbolID) -> Option<ast::NodeID> {
+    pub(crate) fn get_symbol_decl(&self, symbol: SymbolID) -> Option<NodeID> {
         if symbol.module() == ModuleID::TRANSIENT {
             let symbol = self.get_transient(symbol).unwrap();
-            symbol.origin.and_then(|s| self.symbol_opt_decl(s))
-        } else {
-            symbol.opt_decl(self.binder)
-        }
-    }
-
-    pub(crate) fn get_symbol_decl(&self, symbol: SymbolID) -> Option<NodeID> {
-        if let Some(s) = self.get_transient(symbol) {
-            if let Some(origin) = s.origin {
-                self.get_symbol_decl(origin)
-            } else {
-                None
-            }
+            symbol.declarations.and_then(|d| d.first().copied())
         } else {
             symbol.opt_decl(self.binder)
         }

@@ -31,6 +31,7 @@ pub enum SymbolName {
     ExportEquals,
     ExportDefault,
     Computed,
+    ParamIdx(u32),
 }
 
 impl SymbolName {
@@ -189,11 +190,12 @@ impl SymbolFlags {
 pub struct Symbol {
     pub name: SymbolName,
     pub flags: SymbolFlags,
+    // TODO: use `Option<thin_vec::ThinVec<NodeID>`
     pub decls: thin_vec::ThinVec<NodeID>,
     pub value_decl: Option<NodeID>,
-    // TODO: use Option<SymbolTable>
+    // TODO: use `Option<SymbolTable>`
     pub(super) members: SymbolTable,
-    // TODO: use Option<SymbolTable>
+    // TODO: use `Option<SymbolTable>`
     pub(super) exports: SymbolTable,
     pub merged_id: Option<usize>,
     pub parent: Option<SymbolID>,
@@ -219,6 +221,7 @@ impl SymbolTable {
 
 impl Symbol {
     pub const ERR: SymbolID = SymbolID::ERR;
+    pub const GLOBAL_THIS: SymbolID = SymbolID::GLOBAL_THIS;
     pub const ARGUMENTS: SymbolID = SymbolID::ARGUMENTS;
     pub const RESOLVING: SymbolID = SymbolID::RESOLVING;
     pub const EMPTY_TYPE_LITERAL: SymbolID = SymbolID::EMPTY_TYPE_LITERAL;
@@ -267,20 +270,25 @@ impl SymbolID {
         module: ModuleID::TRANSIENT,
         index: 0,
     };
-    pub(super) const ARGUMENTS: Self = SymbolID {
+    pub(super) const GLOBAL_THIS: Self = SymbolID {
         module: ModuleID::TRANSIENT,
         index: 1,
     };
-    pub(super) const RESOLVING: Self = SymbolID {
+    pub(super) const ARGUMENTS: Self = SymbolID {
         module: ModuleID::TRANSIENT,
         index: 2,
     };
-    pub(super) const EMPTY_TYPE_LITERAL: Self = SymbolID {
+    pub(super) const RESOLVING: Self = SymbolID {
         module: ModuleID::TRANSIENT,
         index: 3,
     };
+    pub(super) const EMPTY_TYPE_LITERAL: Self = SymbolID {
+        module: ModuleID::TRANSIENT,
+        index: 4,
+    };
 
-    pub const fn container(module: ModuleID) -> Self {
+    pub fn container(module: ModuleID) -> Self {
+        assert_ne!(module.as_u32(), ModuleID::TRANSIENT.as_u32());
         Self { module, index: 0 }
     }
 

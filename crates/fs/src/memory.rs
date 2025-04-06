@@ -26,20 +26,24 @@ impl MemoryFS {
         &self,
         result: &mut Vec<std::path::PathBuf>,
         node: FSNodeId,
-        pattern: &[glob::Pattern],
         atoms: &AtomMap<'_>,
+        includes: &[glob::Pattern],
+        excludes: &[glob::Pattern],
     ) {
         let n = self.tree.node(node);
         if let Some(dir) = n.kind().as_dir_node() {
             for n in dir.children() {
-                self.glob_visitor(result, *n, pattern, atoms);
+                self.glob_visitor(result, *n, atoms, includes, excludes);
             }
         } else {
             let path = n.kind().path();
             let path = atoms.get(path.into());
-            if pattern.iter().any(|p| p.matches(path)) {
-                result.push(std::path::PathBuf::from(path));
+            if !(includes.iter().any(|p| p.matches_path(path.as_ref()))
+                && excludes.iter().all(|p| !p.matches_path(path.as_ref())))
+            {
+                return;
             }
+            result.push(std::path::PathBuf::from(path));
         }
     }
 }
@@ -82,19 +86,29 @@ impl CachedFileSystem for MemoryFS {
     fn glob(
         &mut self,
         base_dir: &std::path::Path,
-        include: &[&str],
-        _exclude: &[&str],
+        includes: &[&str],
+        excludes: &[&str],
         atoms: &mut AtomMap<'_>,
     ) -> Vec<std::path::PathBuf> {
-        let includes = include
+        let includes = includes
             .iter()
             .map(|i| glob::Pattern::new(i).unwrap())
+            .collect::<Vec<_>>();
+        let excludes = excludes
+            .iter()
+            .map(|e| glob::Pattern::new(e).unwrap())
             .collect::<Vec<_>>();
         let Ok(node) = self.tree.find_path(base_dir, true) else {
             return vec![];
         };
         let mut results = Vec::new();
-        self.glob_visitor(&mut results, node, includes.as_ref(), atoms);
+        self.glob_visitor(
+            &mut results,
+            node,
+            atoms,
+            includes.as_ref(),
+            excludes.as_ref(),
+        );
         results
     }
 

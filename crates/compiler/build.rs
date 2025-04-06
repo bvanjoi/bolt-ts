@@ -1,4 +1,4 @@
-const LIB_RESOURCE_RELATIVE_PATH: &str = "crates/lib/src/declared_file";
+const LIB_RESOURCE_RELATIVE_PATH: &str = "crates/libs/src/declared_file";
 
 fn main() {
     let out_dir = std::env::var("OUT_DIR").expect("OUT_DIR not set");

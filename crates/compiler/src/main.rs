@@ -28,10 +28,10 @@ fn main() {
     let p = get_absolute_path(input_path);
     let mut atoms = init_atom();
     let mut fs = bolt_ts_fs::LocalFS::new(&mut atoms);
-    let dir = current_exe_dir();
-    let libs = bolt_ts_lib::LIB_ENTIRES
+    let exe_dir = current_exe_dir();
+    let libs = bolt_ts_libs::DEFAULT_LIBS
         .iter()
-        .map(|(_, file)| dir.join(file))
+        .map(|filename| exe_dir.join(filename))
         .collect::<Vec<_>>();
     let tsconfig = if p.ends_with("tsconfig.json") {
         let content = fs.read_file(&p, &mut atoms).unwrap();
@@ -42,13 +42,14 @@ fn main() {
     };
     let cwd = env::current_dir().unwrap();
     let tsconfig = tsconfig.normalize();
-    let output = eval_from_with_fs(cwd, &tsconfig, libs, fs, atoms);
+    let output = eval_from_with_fs(cwd, &tsconfig, exe_dir, libs, fs, atoms);
     let duration = start.elapsed();
     output
         .diags
         .into_iter()
         .for_each(|diag| diag.emit(&output.module_arena));
     println!("Files: {}", output.module_arena.modules().len());
+    println!("Types: {}", output.types_len);
     println!(
         "Time cost: {}",
         pretty_duration::pretty_duration(&duration, None)
@@ -59,8 +60,7 @@ fn main() {
 fn main_test() {
     compile_test::ensure_node_exist();
     let project_root: PathBuf = project_root::get_project_root().unwrap();
-    let case_root =
-        project_root.join("tests/cases/compiler/moduleAugmentationDoesNamespaceMergeOfReexport/");
+    let case_root = project_root.join("tests/cases/compiler/stringReplaceAll/");
     assert!(case_root.is_dir(), "'{case_root:#?}' not found.",);
     let tsconfig_file = case_root.join(bolt_ts_compiler::DEFAULT_TSCONFIG);
     let tsconfig = if tsconfig_file.is_file() {

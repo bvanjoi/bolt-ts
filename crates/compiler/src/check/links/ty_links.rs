@@ -13,10 +13,6 @@ links!(
     (resolved_index_ty, &'cx ty::Ty<'cx>),
     (resolved_string_index_ty, &'cx ty::Ty<'cx>),
     (resolved_ty_args, ty::Tys<'cx>),
-    (immediate_base_constraint, &'cx ty::Ty<'cx>),
-    // fresh type
-    (fresh_ty, &'cx ty::Ty<'cx>),
-    (regular_ty, &'cx ty::Ty<'cx>),
     // parameter type
     (param_ty_mapper, &'cx dyn ty::TyMap<'cx>),
     (param_ty_constraint, &'cx ty::Ty<'cx>),
@@ -37,7 +33,9 @@ links!(
     (mapped_template_ty, &'cx ty::Ty<'cx>),
     (mapped_modifiers_ty, &'cx ty::Ty<'cx>),
     (mapped_contains_error, bool),
-    //
-    (permissive_instantiation, &'cx ty::Ty<'cx>),
-    (restrictive_instantiation, &'cx ty::Ty<'cx>)
+    // indexed access type
+    (reading_simplified_ty, &'cx ty::Ty<'cx>),
+    (writing_simplified_ty, &'cx ty::Ty<'cx>),
+    // object flags
+    (could_contain_ty_variables, bool),
 );

@@ -432,6 +432,29 @@ impl<'cx> Emit<'cx> {
         }
     }
 
+    fn emit_array_binding_elem(&mut self, elem: &'cx ast::ArrayBindingElem<'cx>) {
+        use bolt_ts_ast::ArrayBindingElemKind::*;
+        match elem.kind {
+            Omit(_) => {}
+            Binding {
+                dotdotdot,
+                name,
+                init,
+            } => {
+                if dotdotdot.is_some() {
+                    self.content.p_dot_dot_dot();
+                }
+                self.emit_binding(name);
+                if let Some(init) = init {
+                    self.content.p_whitespace();
+                    self.content.p_eq();
+                    self.content.p_whitespace();
+                    self.emit_expr(init);
+                }
+            }
+        }
+    }
+
     pub(super) fn emit_binding(&mut self, binding: &'cx ast::Binding<'cx>) {
         match binding.kind {
             ast::BindingKind::Ident(n) => self.emit_ident(n),
@@ -447,7 +470,20 @@ impl<'cx> Emit<'cx> {
                 );
                 self.content.p_r_brace();
             }
-            bolt_ts_ast::BindingKind::ArrayPat(_) => todo!(),
+            bolt_ts_ast::BindingKind::ArrayPat(n) => {
+                self.content.p_l_bracket();
+                self.emit_list(
+                    n.elems,
+                    |this, item| {
+                        this.emit_array_binding_elem(item);
+                    },
+                    |this, _| {
+                        this.content.p_comma();
+                        this.content.p_whitespace();
+                    },
+                );
+                self.content.p_r_bracket();
+            }
         };
     }
 

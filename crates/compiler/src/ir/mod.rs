@@ -5,6 +5,7 @@ mod call_like;
 mod class_like;
 mod fn_like;
 mod has_expr_init;
+mod members_of_decl;
 mod rest_ty_like;
 mod var_like;
 
@@ -15,5 +16,6 @@ pub use call_like::CallLike;
 pub use class_like::ClassLike;
 pub use fn_like::{FnDeclLike, FnExprLike};
 pub use has_expr_init::HasExprInit;
+pub use members_of_decl::MembersOfDecl;
 pub use rest_ty_like::RestTyLike;
 pub use var_like::{VarLike, VarLikeName};

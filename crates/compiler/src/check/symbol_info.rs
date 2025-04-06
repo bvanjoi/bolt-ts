@@ -9,6 +9,7 @@ use crate::bind::{
     MergedSymbols, ResolveResult, Symbol, SymbolFlags, SymbolID, SymbolName, SymbolTable,
 };
 use crate::graph::resolve_external_module_name;
+use crate::ir;
 
 fn symbol_of_resolve_results(
     resolve_results: &Vec<ResolveResult>,
@@ -37,6 +38,7 @@ pub trait SymbolInfo<'cx>: Sized {
     fn mg(&self) -> &crate::graph::ModuleGraph;
     fn p(&self) -> &crate::parser::Parser<'cx>;
     fn atoms(&self) -> &bolt_ts_atom::AtomMap<'cx>;
+    fn module_arena(&self) -> &bolt_ts_span::ModuleArena;
     fn push_error(&mut self, error: crate::Diag);
 
     fn get_mut_symbol_links_map(&mut self) -> &mut FxHashMap<SymbolID, SymbolLinks<'cx>>;
@@ -253,10 +255,10 @@ pub trait SymbolInfo<'cx>: Sized {
         let s = symbol_of_resolve_results(self.get_resolve_results(), symbol);
         if s.flags.intersects(SymbolFlags::MODULE) {
             let export_symbol = self.get_exports_of_module(symbol).0.get(&name).copied();
-            let resolved = export_symbol
-                .map(|export_symbol| self.resolve_symbol(export_symbol, dont_resolve_alias));
+
             // TODO: mark symbol of alias declaration if type only
-            resolved
+            export_symbol
+                .map(|export_symbol| self.resolve_symbol(export_symbol, dont_resolve_alias))
         } else {
             None
         }
@@ -377,17 +379,6 @@ pub trait SymbolInfo<'cx>: Sized {
         if let Some(resolved) = get_kind(self) {
             return resolved;
         }
-        let set_links = |this: &mut Self, symbols: &'cx SymbolTable| {
-            let links = this.get_mut_symbol_links(symbol);
-            match kind {
-                MemberOrExportsResolutionKind::ResolvedExports => {
-                    links.set_resolved_exports(symbols)
-                }
-                MemberOrExportsResolutionKind::ResolvedMembers => {
-                    links.set_resolved_members(symbols)
-                }
-            }
-        };
         let is_static = matches!(kind, MemberOrExportsResolutionKind::ResolvedExports);
         let flags = self.symbol(symbol).flags();
         let early_symbols = if !is_static {
@@ -402,9 +393,53 @@ pub trait SymbolInfo<'cx>: Sized {
                 exports
             }
         };
-        set_links(self, early_symbols);
-        // TODO: late symbols;
-        early_symbols
+        let links = self.get_mut_symbol_links(symbol);
+        match kind {
+            MemberOrExportsResolutionKind::ResolvedExports => {
+                links.set_resolved_exports(early_symbols)
+            }
+            MemberOrExportsResolutionKind::ResolvedMembers => {
+                links.set_resolved_members(early_symbols)
+            }
+        }
+        use super::transient_symbol::BorrowedDeclarations;
+        let decls = match self.symbol(symbol).declarations() {
+            BorrowedDeclarations::FromTransient(node_ids) => {
+                if let Some(node_ids) = node_ids {
+                    node_ids.to_vec()
+                } else {
+                    vec![]
+                }
+            }
+            BorrowedDeclarations::FromNormal(node_ids) => node_ids.to_vec(),
+        };
+        let mut late_symbols = SymbolTable::new(decls.len());
+        for decl in decls {
+            let n = self.p().node(decl);
+            use bolt_ts_ast::Node::*;
+            match n {
+                InterfaceDecl(n) => {
+                    handle_members_for_label_symbol(self, &mut late_symbols, n.members, is_static)
+                }
+                ClassDecl(n) => handle_members_for_label_symbol(
+                    self,
+                    &mut late_symbols,
+                    n.elems.elems,
+                    is_static,
+                ),
+                ClassExpr(n) => handle_members_for_label_symbol(
+                    self,
+                    &mut late_symbols,
+                    n.elems.elems,
+                    is_static,
+                ),
+                ObjectLitTy(n) => {
+                    handle_members_for_label_symbol(self, &mut late_symbols, n.members, is_static)
+                }
+                _ => (),
+            };
+        }
+        get_kind(self).unwrap()
     }
 
     fn resolve_symbol_by_ident(&self, ident: &'cx bolt_ts_ast::Ident) -> SymbolID {
@@ -420,7 +455,11 @@ pub trait SymbolInfo<'cx>: Sized {
                 };
                 let name = self.atoms().get(node.name);
                 let span = self.p().node(id).span();
-                panic!("The resolution of `{name}({span})` is not found.");
+                let module = self.module_arena().get_path(span.module).display();
+                panic!(
+                    "The resolution of `{name}({module}:{}:{})` is not found.",
+                    span.lo, span.hi
+                );
             })
     }
 
@@ -524,6 +563,19 @@ pub trait SymbolInfo<'cx>: Sized {
     }
 }
 
+fn handle_members_for_label_symbol<'cx>(
+    this: &mut impl SymbolInfo<'cx>,
+    late_symbol: &mut SymbolTable,
+    members: &[&'cx impl ir::MembersOfDecl],
+    is_static: bool,
+) {
+    for member in members {
+        if is_static == member.has_static_modifier() {
+            let id = member.id();
+        }
+    }
+}
+
 fn get_target_of_ns_import<'cx>(
     this: &mut impl SymbolInfo<'cx>,
     n: &'cx bolt_ts_ast::NsImport<'cx>,
@@ -535,9 +587,9 @@ fn get_target_of_ns_import<'cx>(
     let import_decl = p.node(p_id).expect_import_decl();
 
     // TODO: resolve_es_module;
-
     this.resolve_external_module_name(import_decl.module.id, import_decl.module.val)
 }
+
 fn get_target_of_import_named_spec<'cx>(
     this: &mut impl SymbolInfo<'cx>,
     node: bolt_ts_ast::NodeID,
@@ -770,9 +822,9 @@ fn get_target_of_export_assignment<'cx>(
     dont_resolve_alias: bool,
 ) -> Option<SymbolID> {
     let expr = node.expr;
-    let resolved = get_target_of_alias_like_expr(this, expr, dont_resolve_alias);
+
     // mark_symbol_of_alias_decl_if_ty_only
-    resolved
+    get_target_of_alias_like_expr(this, expr, dont_resolve_alias)
 }
 
 fn get_target_of_alias_like_expr<'cx>(
@@ -873,6 +925,9 @@ impl<'cx> SymbolInfo<'cx> for super::TyChecker<'cx> {
     }
     fn empty_symbols(&self) -> &'cx SymbolTable {
         self.empty_symbols
+    }
+    fn module_arena(&self) -> &bolt_ts_span::ModuleArena {
+        self.module_arena
     }
     fn mg(&self) -> &crate::graph::ModuleGraph {
         self.mg

@@ -15,7 +15,7 @@ struct Loader {
     package_json: Option<PackageJsonInfoId>,
 }
 
-impl<'atoms, FS: bolt_ts_fs::CachedFileSystem> ResolutionKindSpecLoader<'atoms, FS> for Loader {
+impl<FS: bolt_ts_fs::CachedFileSystem> ResolutionKindSpecLoader<'_, FS> for Loader {
     fn loader(
         &self,
         resolver: &super::Resolver<FS>,
@@ -32,7 +32,7 @@ impl<'atoms, FS: bolt_ts_fs::CachedFileSystem> ResolutionKindSpecLoader<'atoms, 
     }
 }
 
-impl<'atoms, FS: CachedFileSystem> super::Resolver<'atoms, FS> {
+impl<FS: CachedFileSystem> super::Resolver<'_, FS> {
     fn load_filename_from_package_json_field(
         &self,
         ext: Extensions,
@@ -53,7 +53,7 @@ impl<'atoms, FS: CachedFileSystem> super::Resolver<'atoms, FS> {
                         .any(|t| t.as_str().as_bytes() == e.as_encoded_bytes())
                 }))
         {
-            if let Ok(result) = self.try_file(&candidate, only_record_failures) {
+            if let Ok(result) = self.try_file(candidate, only_record_failures) {
                 return Ok(result);
             }
         }

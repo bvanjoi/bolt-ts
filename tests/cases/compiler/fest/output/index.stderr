@@ -365,27 +365,29 @@
       · ───
       ╰────
 
-  × Type '[string]' is not assignable to type '[string, string, string]'.
+  × Type '[string]' is not assignable to type 'readonly [string, string,
+  │ string]'.
       ╭─[../../tests/cases/compiler/fest/index.ts:2068:9]
  2068 │ b1
       · ──
       ╰────
 
-  × Type '[string, string]' is not assignable to type '[string, string,
-  │ string]'.
+  × Type '[string, string]' is not assignable to type 'readonly [string,
+  │ string, string]'.
       ╭─[../../tests/cases/compiler/fest/index.ts:2070:9]
  2070 │ b2
       · ──
       ╰────
 
   × Type '[string, string, string, string]' is not assignable to type
-  │ '[string, string, string]'.
+  │ 'readonly [string, string, string]'.
       ╭─[../../tests/cases/compiler/fest/index.ts:2072:9]
  2072 │ b3
       · ──
       ╰────
 
-  × Property 'push' does not exist on type '[string, string, string]'.
+  × Property 'push' does not exist on type 'readonly [string, string,
+  │ string]'.
       ╭─[../../tests/cases/compiler/fest/index.ts:2075:28]
  2075 │ push
       · ────
@@ -397,7 +399,7 @@
       · ───────
       ╰────
 
-  × Property 'push' does not exist on type 'unknown[]'.
+  × Property 'push' does not exist on type 'string[]'.
       ╭─[../../tests/cases/compiler/fest/index.ts:2103:6]
  2103 │ push
       · ────
@@ -694,7 +696,7 @@
       · ──
       ╰────
 
-  × Type 'never[]' is not assignable to type 'Record'.
+  × Type 'undefined[]' is not assignable to type 'Record'.
       ╭─[../../tests/cases/compiler/fest/index.ts:2782:9]
  2782 │ []
       · ──

@@ -12,8 +12,26 @@ pub(crate) fn set_value_declaration(
     symbol: SymbolID,
     symbols: &mut Symbols,
     node: ast::NodeID,
+    p: &Vec<ParseResult>,
+) {
+    let s = symbols.get_mut(symbol);
+    // TODO: ambient declaration
+    if s.value_decl.is_none_or(|value_decl| {
+        let v = p[value_decl.module().as_usize()].node(value_decl);
+        let other = p[node.module().as_usize()].node(node);
+        !v.is_same_kind(&other) && v.is_effective_module_decl()
+    }) {
+        s.value_decl = Some(node);
+    }
+}
+
+pub(crate) fn set_value_declaration_in_same_module(
+    symbol: SymbolID,
+    symbols: &mut Symbols,
+    node: ast::NodeID,
     p: &ParseResult,
 ) {
+    assert_eq!(node.module(), symbol.module());
     let s = symbols.get_mut(symbol);
     // TODO: ambient declaration
     if s.value_decl.is_none_or(|value_decl| {
@@ -143,8 +161,11 @@ impl BinderState<'_, '_, '_> {
         // }
 
         if s.const_enum_only_module.is_some_and(|y| y)
-            && s.flags
-                .intersects(SymbolFlags::FUNCTION | SymbolFlags::CLASS | SymbolFlags::REGULAR_ENUM)
+            && s.flags.intersects(
+                SymbolFlags::FUNCTION
+                    .union(SymbolFlags::CLASS)
+                    .union(SymbolFlags::REGULAR_ENUM),
+            )
         {
             s.const_enum_only_module = Some(false);
         }
@@ -155,7 +176,7 @@ impl BinderState<'_, '_, '_> {
     }
 
     pub(super) fn set_value_declaration(&mut self, symbol: SymbolID, node: ast::NodeID) {
-        set_value_declaration(symbol, &mut self.symbols, node, self.p);
+        set_value_declaration_in_same_module(symbol, &mut self.symbols, node, self.p);
     }
 
     pub(super) fn create_symbol(&mut self, name: SymbolName, flags: SymbolFlags) -> SymbolID {

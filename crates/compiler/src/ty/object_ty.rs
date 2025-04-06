@@ -3,6 +3,7 @@ use crate::check::TyChecker;
 use bolt_ts_ast::{self as ast, pprint_binding};
 
 use super::flags::ObjectFlags;
+use super::links::InterfaceTyLinksID;
 use super::pprint::pprint_reference_ty;
 use super::{Ty, TyMap};
 
@@ -201,7 +202,7 @@ pub struct InterfaceTy<'cx> {
     pub outer_ty_params: Option<super::Tys<'cx>>,
     pub local_ty_params: Option<super::Tys<'cx>>,
     pub this_ty: Option<&'cx Ty<'cx>>,
-    pub declared_members: &'cx DeclaredMembers<'cx>,
+    pub links: InterfaceTyLinksID<'cx>,
 }
 
 impl<'cx> ObjectTyKind<'cx> {
@@ -313,15 +314,9 @@ impl<'cx> ObjectTyKind<'cx> {
                     format!("{{ {}}}", members)
                 }
             }
-            ObjectTyKind::Tuple(t) => {
-                format!(
-                    "[{}]",
-                    t.resolved_ty_args
-                        .iter()
-                        .map(|ty| ty.to_string(checker))
-                        .collect::<Vec<_>>()
-                        .join(",")
-                )
+            ObjectTyKind::Tuple(ty) => {
+                assert!(ty.element_flags.is_empty());
+                "[]".to_string()
             }
             ObjectTyKind::Interface(i) => checker
                 .atoms

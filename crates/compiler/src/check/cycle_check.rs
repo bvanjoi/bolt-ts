@@ -57,10 +57,12 @@ impl TyChecker<'_> {
                 .sig_links
                 .get(&sig_id)
                 .is_some_and(|s| s.get_resolved_ret_ty().is_some()),
-            ResolutionKey::ImmediateBaseConstraint(ty) => self
-                .ty_links
-                .get(&ty)
-                .is_some_and(|t| t.get_immediate_base_constraint().is_some()),
+            ResolutionKey::ImmediateBaseConstraint(ty) => {
+                let ty = self.tys[ty.as_usize()];
+                self.common_ty_links_arena[ty.links]
+                    .get_immediate_base_constraint()
+                    .is_some()
+            }
         }
     }
 

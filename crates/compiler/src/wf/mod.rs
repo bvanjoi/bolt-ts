@@ -21,7 +21,7 @@ pub fn well_formed_check_parallel(
         .into_par_iter()
         .flat_map(|m| {
             let diags = well_formed_check(p, atoms, m.id);
-            assert!(!m.global || diags.is_empty());
+            assert!(!m.is_default_lib || diags.is_empty());
             diags
         })
         .collect::<Vec<_>>()

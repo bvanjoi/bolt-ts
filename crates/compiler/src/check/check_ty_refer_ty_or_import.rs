@@ -1,6 +1,7 @@
 use crate::bind::{Symbol, SymbolFlags, SymbolID};
 use crate::check::create_ty::IntersectionFlags;
 use crate::check::cycle_check::ResolutionKey;
+use crate::check::get_simplified_ty::SimplifiedKind;
 use crate::check::is_deeply_nested_type::RecursionId;
 use crate::ty;
 use crate::ty::TypeFlags;
@@ -140,7 +141,7 @@ impl<'cx> TyChecker<'cx> {
         omit_ty_references: bool,
     ) -> Option<&'cx ty::Ty<'cx>> {
         let mut inferences = Vec::with_capacity(16);
-        let decl = ty_param.symbol().and_then(|s| self.symbol_opt_decl(s))?;
+        let decl = ty_param.symbol().and_then(|s| self.get_symbol_decl(s))?;
         let parent = self.p.parent(decl)?;
         let parent_parent = self.p.parent(parent)?;
         let (chid_ty_param, grand_parent) = self
@@ -230,7 +231,9 @@ impl<'cx> TyChecker<'cx> {
             ty: &'cx ty::Ty<'cx>,
             stack: &mut Vec<RecursionId>,
         ) -> &'cx ty::Ty<'cx> {
-            if let Some(ty) = checker.get_ty_links(ty.id).get_immediate_base_constraint() {
+            if let Some(ty) =
+                checker.common_ty_links_arena[ty.links].get_immediate_base_constraint()
+            {
                 return ty;
             }
             if !checker.push_ty_resolution(ResolutionKey::ImmediateBaseConstraint(ty.id)) {
@@ -241,7 +244,7 @@ impl<'cx> TyChecker<'cx> {
             let mut result = None;
             if stack.len() < 10 || (stack.len() < 50 && !stack.contains(&id)) {
                 stack.push(id);
-                let ty = checker.get_simplified_ty(ty, false);
+                let ty = checker.get_simplified_ty(ty, SimplifiedKind::Reading);
                 result = compute_base_constraint(checker, ty, stack);
                 stack.pop();
             };
@@ -260,9 +263,7 @@ impl<'cx> TyChecker<'cx> {
             }
 
             let result = result.unwrap_or(checker.no_constraint_ty());
-            checker
-                .get_mut_ty_links(ty.id)
-                .set_immediate_base_constraint(result);
+            checker.common_ty_links_arena[ty.links].set_immediate_base_constraint(result);
             result
         }
 
@@ -396,6 +397,7 @@ impl<'cx> TyChecker<'cx> {
     ) -> bool {
         let mut result = true;
         let ty_args = self.get_effective_ty_args(node.id(), ty_params).unwrap();
+        assert_eq!(ty_params.len(), ty_args.len());
         let mapper = self.create_ty_mapper(ty_params, ty_args);
         for (idx, (ty_arg, ty_param)) in ty_args.iter().zip(ty_params.iter()).enumerate() {
             if let Some(constraint) = self.get_constraint_of_ty_param(ty_param) {

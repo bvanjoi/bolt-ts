@@ -1,5 +1,5 @@
 use super::symbol::SymbolFlags;
-use super::{BinderState, SymbolID, SymbolName};
+use super::{BinderState, NodeQuery, SymbolID, SymbolName, prop_name};
 use crate::ir;
 
 use bolt_ts_ast as ast;
@@ -23,12 +23,16 @@ impl<'cx> BinderState<'cx, '_, '_> {
     pub(super) fn bind_prop_or_method_or_access(
         &mut self,
         decl_id: ast::NodeID,
-        name: SymbolName,
+        name: &'cx ast::PropName<'cx>,
         includes: SymbolFlags,
         excludes: SymbolFlags,
     ) -> SymbolID {
-        // TODO: has dynamic name
-        self.declare_symbol_and_add_to_symbol_table(name, decl_id, includes, excludes)
+        if self.p.has_dynamic_name(decl_id) {
+            self.bind_anonymous_decl(decl_id, includes, SymbolName::Computed)
+        } else {
+            let name = prop_name(&name);
+            self.declare_symbol_and_add_to_symbol_table(name, decl_id, includes, excludes)
+        }
     }
 
     pub(super) fn bind_class_like_decl(

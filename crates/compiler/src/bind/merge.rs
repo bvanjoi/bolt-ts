@@ -79,8 +79,7 @@ impl<'cx> MergeSymbol<'cx> for MergeGlobalSymbol<'_, 'cx> {
     }
     fn set_value_declaration(&mut self, symbol: SymbolID, node: bolt_ts_ast::NodeID) {
         let symbols = &mut self.bind_list[symbol.module().as_usize()].symbols;
-        let p = &self.p.map[symbol.module().as_usize()];
-        set_value_declaration(symbol, symbols, node, p);
+        set_value_declaration(symbol, symbols, node, &self.p.map);
     }
     fn record_merged_symbol(&mut self, target: SymbolID, source: SymbolID) {
         let symbols = &mut self.bind_list[source.module().as_usize()].symbols;

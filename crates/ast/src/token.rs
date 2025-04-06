@@ -209,6 +209,7 @@ pub enum TokenKind {
     Infer,
     Intrinsic,
     Unique,
+    Asserts,
     Type,
     // =====
     EOF,
@@ -488,30 +489,6 @@ impl TokenKind {
         self.is_contextual_keyword() || self.is_strict_mode_reserved_word()
     }
 
-    pub const fn is_start_of_left_hand_side_expr(self) -> bool {
-        use TokenKind::*;
-        matches!(
-            self,
-            This | Super
-                | Null
-                | True
-                | False
-                | Number
-                | String
-                | NoSubstitutionTemplate
-                | LBrace
-                | LBracket
-                | LParen
-                | Function
-                | Class
-                | New
-                | Slash
-                | SlashEq
-                | Ident
-                | TemplateHead
-        ) || self.is_ident()
-    }
-
     pub fn is_binding_ident(self) -> bool {
         matches!(self, TokenKind::Ident)
             || self.is_strict_mode_reserved_word()
@@ -668,6 +645,7 @@ pub enum BinPrec {
 }
 
 bitflags::bitflags! {
+    #[derive(Debug, Clone, Copy)]
     pub struct TokenFlags: u16 {
         const PRECEDING_LINE_BREAK      = 1 << 0;
         const EXTENDED_UNICODE_ESCAPE   = 1 << 3;

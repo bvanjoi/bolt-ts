@@ -203,4 +203,15 @@ impl ParserState<'_, '_> {
         self.next_token();
         self.is_start_of_expr()
     }
+
+    pub(super) fn is_invalid_heritage_clause_object(&mut self) -> bool {
+        use bolt_ts_ast::TokenKind::*;
+        assert!(self.token.kind == LBrace);
+        self.next_token();
+        if self.token.kind == RBrace {
+            self.next_token();
+            return matches!(self.token.kind, Comma | LBrace | Extends | Implements);
+        }
+        true
+    }
 }

@@ -104,13 +104,7 @@ impl<'cx> Sig<'cx> {
         let len = self.params.len();
         if self.has_rest_param() {
             let rest_ty = checker.get_type_of_symbol(self.params[len - 1]);
-            if rest_ty.is_tuple() {
-                let tuple = rest_ty
-                    .kind
-                    .expect_object_reference()
-                    .target
-                    .kind
-                    .expect_object_tuple();
+            if let Some(tuple) = rest_ty.as_tuple() {
                 let var = if tuple.combined_flags.intersects(ElementFlags::VARIABLE) {
                     0
                 } else {

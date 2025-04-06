@@ -46,6 +46,7 @@ with_option!(
     (no_unchecked_indexed_access, bool),
     (target, RawTarget),
     (always_strict, bool),
+    (exact_optional_property_types, bool)
 );
 
 impl RawCompilerOptions {
@@ -60,6 +61,7 @@ impl RawCompilerOptions {
         let no_unchecked_indexed_access = self.no_unchecked_indexed_access.unwrap_or_default();
         let always_strict = get_strict_option_value(self.always_strict);
         let target = self.target.unwrap_or_default().into();
+        let exact_optional_property_types = self.exact_optional_property_types.unwrap_or_default();
         super::NormalizedCompilerOptions {
             out_dir,
             target,
@@ -70,6 +72,7 @@ impl RawCompilerOptions {
             no_implicit_any,
             no_unchecked_indexed_access,
             always_strict,
+            exact_optional_property_types,
         }
     }
 }

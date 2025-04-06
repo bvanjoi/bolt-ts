@@ -34,7 +34,7 @@ impl NormalizePath for std::path::Path {
             }
         }
 
-        if self.need_trailing_slash() {
+        if self.need_trailing_slash() && ret.as_os_str().as_encoded_bytes() != b"/" {
             ret.as_mut_os_string().push("/");
         }
         ret
@@ -61,6 +61,8 @@ fn test_normalize_path() {
         assert_eq!(actual, expected);
     };
     should_eq("/", "/");
+    should_eq("//", "/");
+    should_eq("///", "/");
     should_eq("/a/b/c", "/a/b/c");
     should_eq("/a/b/c/", "/a/b/c/");
     should_eq("/a/b/c/./", "/a/b/c/");

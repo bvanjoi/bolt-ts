@@ -2,7 +2,8 @@ use std::hash::Hasher;
 
 use bolt_ts_utils::no_hashmap_with_capacity;
 
-use crate::{bind::SymbolID, ty};
+use super::bind::SymbolID;
+use crate::ty;
 
 fn _hash_ty_args(hasher: &mut rustc_hash::FxHasher, ty_args: &[&ty::Ty]) {
     ty_args
@@ -64,11 +65,38 @@ pub(super) trait TyCacheTrait<'cx> {
     }
 }
 
-pub(super) struct UnionOrIntersectionMap<'cx> {
+pub struct IntersectionMap<'cx> {
+    inner: TyCache<'cx>,
+}
+impl<'cx> TyCacheTrait<'cx> for IntersectionMap<'cx> {
+    type Input = (Vec<&'cx ty::Ty<'cx>>, bool);
+    fn new(capacity: usize) -> Self {
+        Self {
+            inner: TyCache::new(capacity),
+        }
+    }
+    fn create_ty_key(input: &Self::Input) -> TyKey {
+        let mut hasher = rustc_hash::FxHasher::default();
+        _hash_ty_args(&mut hasher, input.0.as_ref());
+        if input.1 {
+            hasher.write_u8(1);
+        }
+        let id = hasher.finish();
+        TyKey(id)
+    }
+    fn inner(&self) -> &TyCache<'cx> {
+        &self.inner
+    }
+    fn inner_mut(&mut self) -> &mut TyCache<'cx> {
+        &mut self.inner
+    }
+}
+
+pub(super) struct UnionMap<'cx> {
     inner: TyCache<'cx>,
 }
 
-impl<'cx> TyCacheTrait<'cx> for UnionOrIntersectionMap<'cx> {
+impl<'cx> TyCacheTrait<'cx> for UnionMap<'cx> {
     type Input = [&'cx ty::Ty<'cx>];
     fn new(capacity: usize) -> Self {
         Self {
@@ -162,6 +190,84 @@ impl<'cx> TyCacheTrait<'cx> for IndexedAccessTyMap<'cx> {
         hasher.write_u16(input.0.bits());
         hasher.write_u32(input.1.id.as_u32());
         hasher.write_u32(input.2.id.as_u32());
+        let id = hasher.finish();
+        TyKey(id)
+    }
+    fn inner(&self) -> &TyCache<'cx> {
+        &self.inner
+    }
+    fn inner_mut(&mut self) -> &mut TyCache<'cx> {
+        &mut self.inner
+    }
+}
+
+pub(super) struct StringMappingTyMap<'cx> {
+    inner: TyCache<'cx>,
+}
+impl<'cx> TyCacheTrait<'cx> for StringMappingTyMap<'cx> {
+    type Input = (SymbolID, &'cx ty::Ty<'cx>);
+    fn new(capacity: usize) -> Self {
+        Self {
+            inner: TyCache::new(capacity),
+        }
+    }
+    fn create_ty_key(input: &Self::Input) -> TyKey {
+        let mut hasher = rustc_hash::FxHasher::default();
+        hasher.write_u32(input.0.module().as_u32());
+        hasher.write_u32(input.0.index_as_u32());
+        hasher.write_u32(input.1.id.as_u32());
+        let id = hasher.finish();
+        TyKey(id)
+    }
+    fn inner(&self) -> &TyCache<'cx> {
+        &self.inner
+    }
+    fn inner_mut(&mut self) -> &mut TyCache<'cx> {
+        &mut self.inner
+    }
+}
+
+pub(super) fn create_iteration_tys_key<'cx>(
+    yield_ty: &'cx ty::Ty<'cx>,
+    return_ty: &'cx ty::Ty<'cx>,
+    next_ty: &'cx ty::Ty<'cx>,
+) -> TyKey {
+    let mut hasher = rustc_hash::FxHasher::default();
+    hasher.write_u32(yield_ty.id.as_u32());
+    hasher.write_u32(return_ty.id.as_u32());
+    hasher.write_u32(next_ty.id.as_u32());
+    let id = hasher.finish();
+    TyKey(id)
+}
+
+pub(super) struct TyAliasInstantiationMap<'cx> {
+    inner: TyCache<'cx>,
+}
+
+impl<'cx> TyCacheTrait<'cx> for TyAliasInstantiationMap<'cx> {
+    type Input = (
+        SymbolID,
+        ty::Tys<'cx>,
+        Option<SymbolID>,
+        Option<ty::Tys<'cx>>,
+    );
+    fn new(capacity: usize) -> Self {
+        Self {
+            inner: TyCache::new(capacity),
+        }
+    }
+    fn create_ty_key(input: &Self::Input) -> TyKey {
+        let mut hasher = rustc_hash::FxHasher::default();
+        hasher.write_u32(input.0.module().as_u32());
+        hasher.write_u32(input.0.index_as_u32());
+        _hash_ty_args(&mut hasher, input.1);
+        if let Some(alias_symbol) = input.2 {
+            hasher.write_u32(alias_symbol.module().as_u32());
+            hasher.write_u32(alias_symbol.index_as_u32());
+        }
+        if let Some(alias_ty_arguments) = input.3 {
+            _hash_ty_args(&mut hasher, alias_ty_arguments);
+        }
         let id = hasher.finish();
         TyKey(id)
     }

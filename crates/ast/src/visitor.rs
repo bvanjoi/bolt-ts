@@ -101,6 +101,7 @@ pub fn visit_ty<'cx>(v: &mut impl Visitor<'cx>, ty: &'cx super::Ty<'cx>) {
         Intrinsic(n) => visit_intrinsic_ty(v, n),
         Nullable(n) => visit_nullable_ty(v, n),
         TemplateLit(n) => visit_template_lit_ty(v, n),
+        This(_) => {}
     }
 }
 
@@ -193,7 +194,14 @@ pub fn visit_ty_op_ty<'cx>(v: &mut impl Visitor<'cx>, n: &'cx super::TyOp<'cx>) 
     v.visit_ty(n.ty);
 }
 pub fn visit_pred_ty<'cx>(v: &mut impl Visitor<'cx>, n: &'cx super::PredTy<'cx>) {
-    v.visit_ty(n.ty);
+    use super::PredTyName::*;
+    match n.name {
+        Ident(ident) => visit_ident(v, ident),
+        This(_) => {}
+    }
+    if let Some(ty) = n.ty {
+        v.visit_ty(ty);
+    }
 }
 pub fn visit_paren_ty<'cx>(v: &mut impl Visitor<'cx>, n: &'cx super::ParenTy<'cx>) {
     v.visit_ty(n.ty);

@@ -63,3 +63,52 @@ pub struct QualifiedName<'cx> {
     pub left: &'cx EntityName<'cx>,
     pub right: &'cx Ident,
 }
+
+#[derive(Debug, Clone, Copy)]
+pub enum DeclarationName<'cx> {
+    Ident(&'cx Ident),
+    NumLit(&'cx NumLit),
+    StringLit {
+        raw: &'cx StringLit,
+        key: bolt_ts_atom::AtomId,
+    },
+    Computed(&'cx ComputedPropName<'cx>),
+}
+
+impl<'cx> DeclarationName<'cx> {
+    pub fn from_prop_name(n: &'cx PropName<'cx>) -> Self {
+        use PropNameKind::*;
+        match n.kind {
+            Ident(n) => DeclarationName::Ident(n),
+            StringLit { raw, key } => DeclarationName::StringLit { raw, key },
+            NumLit(n) => DeclarationName::NumLit(n),
+            Computed(n) => DeclarationName::Computed(n),
+        }
+    }
+
+    pub fn from_object_binding_name(n: &'cx ObjectBindingName<'cx>) -> Option<Self> {
+        use ObjectBindingName::*;
+        match n {
+            Shorthand(n) => Some(DeclarationName::Ident(n)),
+            Prop { name, .. } => DeclarationName::from_binding(name),
+        }
+    }
+
+    pub fn from_binding(n: &'cx Binding<'cx>) -> Option<Self> {
+        use BindingKind::*;
+        match n.kind {
+            Ident(n) => Some(DeclarationName::Ident(n)),
+            ObjectPat(_) => None,
+            ArrayPat(_) => None,
+        }
+    }
+
+    pub fn is_dynamic_name(&self) -> bool {
+        use DeclarationName::*;
+        match self {
+            Computed(_) => true,
+            _ => false,
+        }
+        // TODO: element access
+    }
+}

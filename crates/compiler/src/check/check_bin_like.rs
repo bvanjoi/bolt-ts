@@ -1,8 +1,8 @@
+use super::TyChecker;
 use crate::ir::{BinaryLike, BinaryLikeOp};
 use crate::ty;
-use bolt_ts_ast as ast;
 
-use super::TyChecker;
+use bolt_ts_ast as ast;
 
 impl<'cx> TyChecker<'cx> {
     fn check_assign_op(

@@ -58,8 +58,7 @@ impl<'cx> MergeSymbol<'cx> for MergeModuleAugmentation<'_, 'cx> {
     }
     fn set_value_declaration(&mut self, symbol: SymbolID, node: bolt_ts_ast::NodeID) {
         let symbols = &mut self.bind_list[symbol.module().as_usize()].symbols;
-        let p = &self.p.map[symbol.module().as_usize()];
-        set_value_declaration(symbol, symbols, node, p);
+        set_value_declaration(symbol, symbols, node, &self.p.map);
     }
     fn record_merged_symbol(&mut self, target: SymbolID, source: SymbolID) {
         let symbols = &mut self.bind_list[source.module().as_usize()].symbols;
@@ -156,8 +155,7 @@ impl<'cx> MergeSymbol<'cx> for MergeModuleAugmentationForNonGlobal<'cx> {
     }
     fn set_value_declaration(&mut self, symbol: SymbolID, node: bolt_ts_ast::NodeID) {
         let symbols = &mut self.bind_list[symbol.module().as_usize()].symbols;
-        let p = &self.p.map[symbol.module().as_usize()];
-        set_value_declaration(symbol, symbols, node, p);
+        set_value_declaration(symbol, symbols, node, &self.p.map);
     }
     fn record_merged_symbol(&mut self, target: SymbolID, source: SymbolID) {
         let symbols = &mut self.bind_list[source.module().as_usize()].symbols;
@@ -188,13 +186,13 @@ pub(crate) struct MergeModuleAugmentationForNonGlobal<'cx> {
     pub diags: Vec<bolt_ts_errors::Diag>,
     pub symbol_links: FxHashMap<SymbolID, super::SymbolLinks<'cx>>,
     pub transient_symbols: super::TransientSymbols<'cx>,
+    pub module_arena: &'cx ModuleArena,
 }
 
 pub(crate) fn merge_module_augmentation_list_for_non_global<'cx>(
     mut c: MergeModuleAugmentationForNonGlobal<'cx>,
-    module_arena: &ModuleArena,
 ) -> MergeModuleAugmentationForNonGlobalResult<'cx> {
-    for (m, p) in module_arena.modules().iter().zip(c.p.map.iter()) {
+    for (m, p) in c.module_arena.modules().iter().zip(c.p.map.iter()) {
         assert!(std::ptr::addr_eq(c.p.get(m.id), p));
         for augmentation in p.module_augmentations.iter() {
             let ns_id = p.parent(*augmentation).unwrap();
@@ -275,41 +273,35 @@ impl<'cx> super::symbol_info::SymbolInfo<'cx> for MergeModuleAugmentationForNonG
     fn arena(&self) -> &'cx bumpalo::Bump {
         self.ty_arena
     }
-
+    fn module_arena(&self) -> &bolt_ts_span::ModuleArena {
+        self.module_arena
+    }
     fn empty_symbols(&self) -> &'cx SymbolTable {
         self.empty_symbols
     }
-
     fn mg(&self) -> &crate::graph::ModuleGraph {
         self.mg
     }
-
     fn p(&self) -> &crate::parser::Parser<'cx> {
         self.p
     }
-
     fn atoms(&self) -> &bolt_ts_atom::AtomMap<'cx> {
         &self.atoms
     }
-
     fn push_error(&mut self, error: crate::Diag) {
         self.diags.push(bolt_ts_errors::Diag { inner: error });
     }
-
     fn get_mut_symbol_links_map(
         &mut self,
     ) -> &mut rustc_hash::FxHashMap<SymbolID, super::SymbolLinks<'cx>> {
         &mut self.symbol_links
     }
-
     fn get_transient_symbols(&self) -> &super::TransientSymbols<'cx> {
         &self.transient_symbols
     }
-
     fn get_mut_transient_symbols(&mut self) -> &mut super::TransientSymbols<'cx> {
         &mut self.transient_symbols
     }
-
     fn get_resolve_results(&self) -> &Vec<ResolveResult> {
         &self.bind_list
     }

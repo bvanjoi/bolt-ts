@@ -29,7 +29,7 @@ fn is_identifier_part(ch: u8) -> bool {
 }
 
 #[inline(always)]
-fn is_line_break(ch: u8) -> bool {
+pub(super) fn is_line_break(ch: u8) -> bool {
     ch == b'\n' || ch == b'\r'
 }
 
@@ -55,20 +55,20 @@ bitflags::bitflags! {
 }
 
 impl ParserState<'_, '_> {
-    fn ch(&self) -> Option<u8> {
+    pub(super) fn ch(&self) -> Option<u8> {
         self.input.get(self.pos).copied()
     }
 
-    fn ch_unchecked(&self) -> u8 {
+    pub(super) fn ch_unchecked(&self) -> u8 {
         debug_assert!(self.pos < self.end());
         unsafe { *self.input.get_unchecked(self.pos) }
     }
 
-    fn next_ch(&self) -> Option<u8> {
+    pub(super) fn next_ch(&self) -> Option<u8> {
         self.input.get(self.pos + 1).copied()
     }
 
-    fn next_next_ch(&self) -> Option<u8> {
+    pub(super) fn next_next_ch(&self) -> Option<u8> {
         self.input.get(self.pos + 2).copied()
     }
 
@@ -324,56 +324,35 @@ impl ParserState<'_, '_> {
 
     fn scan_comment_directive_kind(&mut self) {
         assert_eq!(self.ch_unchecked(), b'@');
-        const COMMON_PREFIX: &[u8] = b"@ts-";
-        /// @ts-expect-error
-        const TS_EXPECT_ERROR: &[u8] = b"@ts-expect-error";
-        /// @ts-ignore
-        const TS_IGNORE: &[u8] = b"@ts-ignore";
-        let mut index = 0;
-        #[derive(Debug, PartialEq)]
-        enum Maybe {
-            Unknown,
-            TsExpectError,
-            TsIgnore,
-        }
-        let mut maybe = Maybe::Unknown;
         let start = self.pos as u32;
-        while self.pos < self.end() && !is_line_break(self.ch_unchecked()) {
-            let ch = self.ch_unchecked();
-            if index < COMMON_PREFIX.len() && ch == COMMON_PREFIX[index] {
-                self.pos += 1;
-                index += 1;
-                assert_eq!(maybe, Maybe::Unknown);
-            } else if matches!(maybe, Maybe::TsExpectError | Maybe::Unknown)
-                && ch == TS_EXPECT_ERROR[index]
-            {
-                maybe = Maybe::TsExpectError;
-                index += 1;
-                self.pos += 1;
-                if index == TS_EXPECT_ERROR.len() {
-                    self.comment_directives.push(CommentDirective {
-                        line: self.line as u32,
-                        range: Span::new(start, self.pos as u32, self.module_id),
-                        kind: CommentDirectiveKind::ExpectError,
-                    });
-                    break;
-                }
-            } else if matches!(maybe, Maybe::TsIgnore | Maybe::Unknown) && ch == TS_IGNORE[index] {
-                maybe = Maybe::TsIgnore;
-                index += 1;
-                self.pos += 1;
-                if index == TS_IGNORE.len() {
-                    self.comment_directives.push(CommentDirective {
-                        line: self.line as u32,
-                        range: Span::new(start, self.pos as u32, self.module_id),
-                        kind: CommentDirectiveKind::Ignore,
-                    });
-                    break;
-                }
-            } else {
-                break;
+        if self.next_content_is(b"@ts-expect-error") {
+            self.comment_directives.push(CommentDirective {
+                line: self.line as u32,
+                range: Span::new(start, self.pos as u32, self.module_id),
+                kind: CommentDirectiveKind::ExpectError,
+            });
+        } else if self.next_content_is(b"@ts-ignore") {
+            self.comment_directives.push(CommentDirective {
+                line: self.line as u32,
+                range: Span::new(start, self.pos as u32, self.module_id),
+                kind: CommentDirectiveKind::Ignore,
+            });
+        } else {
+            self.pos += 1;
+        }
+    }
+
+    pub(super) fn next_content_is(&mut self, s: &[u8]) -> bool {
+        if self.pos + s.len() > self.end() {
+            return false;
+        }
+        for i in 0..s.len() {
+            if !s[i].eq(unsafe { self.input.get_unchecked(self.pos + i) }) {
+                return false;
             }
         }
+        self.pos += s.len();
+        true
     }
 
     pub(super) fn next_token(&mut self) {
@@ -395,7 +374,19 @@ impl ParserState<'_, '_> {
             }
             let token = match ch {
                 b'/' => {
-                    if self.next_ch() == Some(b'/') {
+                    if self.next_ch() == Some(b'/') && self.next_next_ch() == Some(b'/') {
+                        // `///`
+                        self.pos += 3;
+                        while self.pos < self.end() && !is_line_break(self.ch_unchecked()) {
+                            let ch = self.ch_unchecked();
+                            if ch == b'<' {
+                                self.scan_triple_slash_xml_pragma();
+                            } else {
+                                self.pos += 1;
+                            }
+                        }
+                        continue;
+                    } else if self.next_ch() == Some(b'/') {
                         // `//`
                         self.pos += 2;
                         let mut only_has_ascii_whitespace = true;
@@ -410,7 +401,6 @@ impl ParserState<'_, '_> {
                                 self.pos += 1;
                             }
                         }
-                        // TODO: add comment
                         continue;
                     } else if self.next_ch() == Some(b'*') {
                         // `/*`
@@ -574,9 +564,17 @@ impl ParserState<'_, '_> {
                     }
                 }
                 b'?' => {
-                    self.pos += 1;
+                    let kind = if self.next_ch() == Some(b'.')
+                        && self.next_next_ch().is_none_or(|c| !c.is_ascii_digit())
+                    {
+                        self.pos += 2;
+                        TokenKind::QuestionDot
+                    } else {
+                        self.pos += 1;
+                        TokenKind::Question
+                    };
                     Token::new(
-                        TokenKind::Question,
+                        kind,
                         Span::new(start as u32, self.pos as u32, self.module_id),
                     )
                 }
@@ -1017,7 +1015,12 @@ impl ParserState<'_, '_> {
         value_chars
     }
 
-    fn scan_string(&mut self, quote: u8, jsx_attribute_string: bool) -> (Vec<u8>, Vec<u8>) {
+    pub(super) fn scan_string(
+        &mut self,
+        quote: u8,
+        jsx_attribute_string: bool,
+    ) -> (Vec<u8>, Vec<u8>) {
+        assert_eq!(self.ch_unchecked(), quote);
         self.pos += 1;
         let mut v = Vec::with_capacity(32);
         let mut prev = 0;
@@ -1033,7 +1036,7 @@ impl ParserState<'_, '_> {
             } else if ch == b'\\' && !jsx_attribute_string {
                 let t = self.scan_escape_sequence(
                     EscapeSequenceScanningFlags::STRING
-                        | EscapeSequenceScanningFlags::REPORT_ERRORS,
+                        .union(EscapeSequenceScanningFlags::REPORT_ERRORS),
                 );
                 v.extend(t.iter());
                 key.extend(t.iter());
@@ -1107,6 +1110,14 @@ impl ParserState<'_, '_> {
     }
 
     pub(super) fn re_scan_less(&mut self) -> TokenKind {
+        if self.token.kind == TokenKind::LessLess {
+            let token_start = self.token.start();
+            self.pos = token_start as usize + 1;
+            self.token = Token::new(
+                TokenKind::Less,
+                Span::new(token_start, self.pos as u32, self.module_id),
+            );
+        }
         self.token.kind
     }
 

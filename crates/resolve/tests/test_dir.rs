@@ -52,4 +52,20 @@ fn test_dir() {
         "./a.ts",
         "/a.ts",
     );
+
+    for target in ["..", "../", "../index", "../index.ts"] {
+        for base_dir in ["/a", "/a/"] {
+            should_eq(
+                serde_json::json!(
+                  {
+                    "/a/index.ts": "",
+                    "/index.ts": "",
+                  }
+                ),
+                base_dir,
+                target,
+                "/index.ts",
+            );
+        }
+    }
 }

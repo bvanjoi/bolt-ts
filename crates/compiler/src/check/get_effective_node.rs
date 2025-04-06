@@ -1,6 +1,10 @@
-use super::TyChecker;
+use super::get_simplified_ty::SimplifiedKind;
 use super::symbol_info::SymbolInfo;
-use crate::{ir, ty};
+use super::{TyChecker, create_ty::IntersectionFlags};
+use crate::{
+    ir,
+    ty::{self, TypeFlags},
+};
 
 use bolt_ts_ast as ast;
 
@@ -32,9 +36,67 @@ impl<'cx> TyChecker<'cx> {
         id
     }
 
+    pub(super) fn get_effective_constraint_of_intersection(
+        &mut self,
+        tys: &[&'cx ty::Ty<'cx>],
+        target_is_union: bool,
+    ) -> Option<&'cx ty::Ty<'cx>> {
+        let mut constraints = Vec::with_capacity(16);
+        let mut has_disjoint_domain_ty = false;
+        for t in tys {
+            if t.flags.intersects(TypeFlags::INSTANTIABLE) {
+                let mut constraint = self.get_constraint_of_ty(t);
+                while let Some(c) = constraint {
+                    if c.flags.intersects(
+                        TypeFlags::TYPE_PARAMETER
+                            .union(TypeFlags::INDEX)
+                            .union(TypeFlags::CONDITIONAL),
+                    ) {
+                        constraint = self.get_constraint_of_ty(c)
+                    } else {
+                        break;
+                    }
+                }
+                if let Some(c) = constraint {
+                    constraints.push(c);
+                    if target_is_union {
+                        constraints.push(t);
+                    }
+                }
+            } else if t.flags.intersects(TypeFlags::DISJOINT_DOMAINS)
+                || self.is_empty_anonymous_object_ty(t)
+            {
+                has_disjoint_domain_ty = true;
+            }
+        }
+
+        if !constraints.is_empty() {
+            if has_disjoint_domain_ty {
+                for t in tys {
+                    if t.flags.intersects(TypeFlags::DISJOINT_DOMAINS)
+                        || self.is_empty_anonymous_object_ty(t)
+                    {
+                        constraints.push(t);
+                    }
+                }
+            }
+            if target_is_union || has_disjoint_domain_ty {
+                let i = self.get_intersection_ty(
+                    &constraints,
+                    IntersectionFlags::NoConstraintReduction,
+                    None,
+                    None,
+                );
+                return Some(self.get_normalized_ty(i, SimplifiedKind::Reading));
+            }
+        }
+
+        None
+    }
+
     pub(super) fn get_effective_constraint_of_ty_param(
         &self,
-        node: &'cx ast::TyParam<'cx>,
+        node: &ast::TyParam<'cx>,
     ) -> Option<&'cx ast::Ty<'cx>> {
         node.constraint
     }

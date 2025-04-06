@@ -1,10 +1,8 @@
 use super::TyChecker;
 use super::symbol_info::SymbolInfo;
-use crate::bind::{Symbol, SymbolFlags, SymbolName};
-use crate::bind::{SymbolID, SymbolTable};
+use crate::bind::SymbolID;
 
 use bolt_ts_ast as ast;
-use bolt_ts_utils::fx_hashset_with_capacity;
 
 #[derive(Debug, Clone, Copy)]
 pub enum ExpectedArgsCount {
@@ -21,7 +19,7 @@ impl std::fmt::Display for ExpectedArgsCount {
     }
 }
 
-impl<'cx> TyChecker<'cx> {
+impl TyChecker<'_> {
     #[inline]
     pub(super) fn final_res(&self, id: ast::NodeID) -> SymbolID {
         self.binder

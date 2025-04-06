@@ -6,12 +6,20 @@ impl<'cx> TyChecker<'cx> {
     pub(super) fn get_optional_ty(&mut self, ty: &'cx Ty<'cx>, is_property: bool) -> &'cx Ty<'cx> {
         assert!(*self.config.strict_null_checks());
         let missing_or_undefined = if is_property {
-            // self.missing_or_undefined_ty()
-            self.undefined_ty
+            self.undefined_or_missing_ty
         } else {
             self.undefined_ty
         };
-        self.get_union_ty(&[ty, missing_or_undefined], ty::UnionReduction::Lit)
+        if ty == missing_or_undefined
+            || ty
+                .kind
+                .as_union()
+                .is_some_and(|u| u.tys[0] == missing_or_undefined)
+        {
+            ty
+        } else {
+            self.get_union_ty(&[ty, missing_or_undefined], ty::UnionReduction::Lit)
+        }
     }
 
     pub(super) fn add_optionality(

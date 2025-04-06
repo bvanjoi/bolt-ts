@@ -21,13 +21,13 @@ pub fn normalize_join(base: &Path, target: impl AsRef<Path>) -> PathBuf {
                 }
             }
         }
-        if target.as_ref().need_trailing_slash() {
+        if target.as_ref().need_trailing_slash() && result.as_os_str().as_encoded_bytes() != b"/" {
             result.as_mut_os_string().push("/");
         }
         result
     };
 
-    debug_assert!(t.is_normalized());
+    debug_assert!(t.is_normalized(), "t: {t:#?}");
     t
 }
 

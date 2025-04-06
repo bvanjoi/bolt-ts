@@ -22,9 +22,5 @@ impl<'cx> HasBindingName<'cx> for bolt_ts_ast::ParamDecl<'cx> {
 }
 
 pub fn node_id_of_binding<'cx>(has_binding_name: &impl HasBindingName<'cx>) -> bolt_ts_ast::NodeID {
-    match has_binding_name.name().kind {
-        bolt_ts_ast::BindingKind::Ident(_) => has_binding_name.id(),
-        bolt_ts_ast::BindingKind::ObjectPat(_) => todo!(),
-        bolt_ts_ast::BindingKind::ArrayPat(_) => todo!(),
-    }
+    has_binding_name.id()
 }

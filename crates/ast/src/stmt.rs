@@ -276,6 +276,20 @@ pub struct IndexSigDecl<'cx> {
 pub struct ObjectTyMember<'cx> {
     pub kind: ObjectTyMemberKind<'cx>,
 }
+impl ObjectTyMember<'_> {
+    pub fn id(&self) -> NodeID {
+        use ObjectTyMemberKind::*;
+        match self.kind {
+            IndexSig(n) => n.id,
+            Prop(n) => n.id,
+            Method(n) => n.id,
+            CallSig(n) => n.id,
+            CtorSig(n) => n.id,
+            Setter(n) => n.id,
+            Getter(n) => n.id,
+        }
+    }
+}
 
 #[derive(Debug, Clone, Copy)]
 pub enum ObjectTyMemberKind<'cx> {
@@ -338,6 +352,19 @@ pub struct ClassElems<'cx> {
 #[derive(Debug, Clone, Copy)]
 pub struct ClassElem<'cx> {
     pub kind: ClassEleKind<'cx>,
+}
+impl ClassElem<'_> {
+    pub fn id(&self) -> NodeID {
+        use ClassEleKind::*;
+        match self.kind {
+            Ctor(n) => n.id,
+            Prop(n) => n.id,
+            Method(n) => n.id,
+            IndexSig(n) => n.id,
+            Getter(n) => n.id,
+            Setter(n) => n.id,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -473,8 +500,7 @@ pub struct InterfaceExtendsClause<'cx> {
 pub struct ClassExtendsClause<'cx> {
     pub id: NodeID,
     pub span: Span,
-    pub name: &'cx EntityName<'cx>,
-    pub ty_args: Option<&'cx self::Tys<'cx>>,
+    pub expr_with_ty_args: &'cx ExprWithTyArgs<'cx>,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -829,7 +855,7 @@ pub struct Binding<'cx> {
 pub enum BindingKind<'cx> {
     Ident(&'cx Ident),
     ObjectPat(&'cx ObjectPat<'cx>),
-    ArrayPat(&'cx ArrayPat),
+    ArrayPat(&'cx ArrayPat<'cx>),
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -837,12 +863,6 @@ pub struct ObjectPat<'cx> {
     pub id: NodeID,
     pub span: Span,
     pub elems: ObjectBindingElems<'cx>,
-}
-
-#[derive(Debug, Clone, Copy)]
-pub struct ArrayPat {
-    pub id: NodeID,
-    pub span: Span,
 }
 
 pub type ObjectBindingElems<'cx> = &'cx [&'cx ObjectBindingElem<'cx>];
@@ -862,5 +882,31 @@ pub enum ObjectBindingName<'cx> {
     Prop {
         prop_name: &'cx PropName<'cx>,
         name: &'cx Binding<'cx>,
+    },
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct ArrayPat<'cx> {
+    pub id: NodeID,
+    pub span: Span,
+    pub elems: ArrayBindingElems<'cx>,
+}
+
+pub type ArrayBindingElems<'cx> = &'cx [&'cx ArrayBindingElem<'cx>];
+
+#[derive(Debug, Clone, Copy)]
+pub struct ArrayBindingElem<'cx> {
+    pub id: NodeID,
+    pub span: Span,
+    pub kind: ArrayBindingElemKind<'cx>,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub enum ArrayBindingElemKind<'cx> {
+    Omit(&'cx OmitExpr),
+    Binding {
+        dotdotdot: Option<Span>,
+        name: &'cx Binding<'cx>,
+        init: Option<&'cx Expr<'cx>>,
     },
 }

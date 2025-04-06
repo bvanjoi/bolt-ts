@@ -18,3 +18,7 @@ type Bar<T> =
 
 let b: Bar<{foo: string}> = 42
 //~^ ERROR: Type 'number' is not assignable to type 'string'.
+
+{
+  type TIndex<A extends unknown[], Result extends A[number][]> = 0 extends 0 ? Result : TIndex<A, [A[0]]>;
+}

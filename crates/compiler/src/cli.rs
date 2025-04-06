@@ -40,7 +40,6 @@ fn match_files(
         .iter()
         .map(|s| {
             // TODO: join means we need to compare more the prefix part
-
             path.join(s)
         })
         .collect::<Vec<_>>();

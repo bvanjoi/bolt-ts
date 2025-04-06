@@ -2066,14 +2066,14 @@ type ReadonlyTuple<Element, Length extends number> =
   const b0: TupleOfThreeStrings = ['a', 'b', 123];
   //~^ ERROR: Type 'number' is not assignable to type 'string'.
   const b1: TupleOfThreeStrings = ['a'];
-  //~^ ERROR: Type '[string]' is not assignable to type '[string, string, string]'.
+  //~^ ERROR: Type '[string]' is not assignable to type 'readonly [string, string, string]'.
   const b2: TupleOfThreeStrings = ['a', 'b'];
-  //~^ ERROR: Type '[string, string]' is not assignable to type '[string, string, string]'.
+  //~^ ERROR: Type '[string, string]' is not assignable to type 'readonly [string, string, string]'.
   const b3: TupleOfThreeStrings = ['a', 'b', 'c', 'd'];
-  //~^ ERROR: Type '[string, string, string, string]' is not assignable to type '[string, string, string]'.
+  //~^ ERROR: Type '[string, string, string, string]' is not assignable to type 'readonly [string, string, string]'.
 
   const _a: unknown = test.push;
-  //~^ ERROR: Property 'push' does not exist on type '[string, string, string]'.
+  //~^ ERROR: Property 'push' does not exist on type 'readonly [string, string, string]'.
   test[2] = 'a';
   //~^ ERROR: Cannot assign to '2' because it is a read-only property.
 }
@@ -2101,7 +2101,7 @@ T extends readonly [...infer U] ?
 {
   let a0: SetArrayAccess<string[], true> = [];
   a0.push('42');
-  //~^ ERROR: Property 'push' does not exist on type 'unknown[]'.
+  //~^ ERROR: Property 'push' does not exist on type 'string[]'.
   let a1: SetArrayAccess<string[], false> = [];
   a1.push('42');
 }
@@ -2780,7 +2780,7 @@ type UnknownRecord = Record<PropertyKey, unknown>;
   const a3: UnknownRecord = foo = {bar: {baz: 'hello'}};
 
   foo = [];
-  //~^ ERROR: Type 'never[]' is not assignable to type 'Record'.
+  //~^ ERROR: Type 'undefined[]' is not assignable to type 'Record'.
   foo = 42;
   //~^ ERROR: Type 'number' is not assignable to type 'Record'.
   foo = null; // Depends on `strictNullChecks`

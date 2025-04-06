@@ -1,0 +1,8 @@
+[package]
+name = "bolt_ts_libs"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+bolt_ts_config = { path = "../config" }
+rustc-hash = { workspace = true }

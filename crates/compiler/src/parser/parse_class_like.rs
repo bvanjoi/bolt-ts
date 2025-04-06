@@ -209,18 +209,30 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
             self.next_token();
             let mut is_first = true;
             let mut extra_comma_span = None;
-            let mut ele = None;
-            let mut ty_args = None;
-            let mut last_ele_span = None;
+            let mut e = None;
+            let mut last_expr_span = None;
             loop {
                 if list_ctx::HeritageClause.is_ele(self, false) {
-                    let e = self.parse_entity_name(true)?;
-                    let args = self.try_parse_ty_args()?;
-                    if is_first {
-                        ele = Some(e);
-                        ty_args = Some(args);
+                    let start = self.token.start();
+                    let expr = self.parse_left_hand_side_expr_or_higher()?;
+                    let expr = if let ast::ExprKind::ExprWithTyArgs(expr) = expr.kind {
+                        expr
                     } else {
-                        last_ele_span = Some(e.span())
+                        let ty_arguments = self.try_parse_ty_args()?;
+                        let id = self.next_node_id();
+                        let expr = self.alloc(ast::ExprWithTyArgs {
+                            id,
+                            span: self.new_span(start),
+                            expr,
+                            ty_args: ty_arguments,
+                        });
+                        self.nodes.insert(id, ast::Node::ExprWithTyArgs(expr));
+                        expr
+                    };
+                    if is_first {
+                        e = Some(expr);
+                    } else {
+                        last_expr_span = Some(expr.span);
                     }
                     if list_ctx::HeritageClause.is_closing(self) {
                         break;
@@ -239,18 +251,17 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
                     break;
                 }
             }
-            let ele = ele.unwrap();
-            let ty_args = ty_args.unwrap();
+            let expr = e.unwrap();
             if let Some(extra_comma_span) = extra_comma_span {
-                let lo = ele.span().hi;
+                let lo = expr.span.hi;
                 assert_eq!(
                     self.input[lo as usize], b',',
                     "`parse_delimited_list` ensure it must be comma."
                 );
-                let hi = last_ele_span
+                let hi = last_expr_span
                     .map(|span| span.hi)
                     .unwrap_or_else(|| extra_comma_span.hi);
-                let extra_extends = last_ele_span
+                let extra_extends = last_expr_span
                     .is_some()
                     .then(|| Span::new(lo, hi, self.module_id));
                 let error = errors::ClassesCanOnlyExtendASingleClass {
@@ -263,8 +274,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
             let clause = self.alloc(ast::ClassExtendsClause {
                 id,
                 span: self.new_span(start),
-                name: ele,
-                ty_args,
+                expr_with_ty_args: expr,
             });
             self.nodes.insert(id, ast::Node::ClassExtendsClause(clause));
             return Ok(Some(clause));

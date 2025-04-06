@@ -5,3 +5,5 @@ function f(x) {
   var y = g(x);
   y;
 }
+{}
+{}

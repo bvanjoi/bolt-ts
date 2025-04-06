@@ -61,6 +61,15 @@ impl<'cx> ParserState<'cx, '_> {
         }
     }
 
+    pub(super) fn next_token_is_ident_or_keyword_or_open_bracket_or_template(
+        &mut self,
+    ) -> PResult<bool> {
+        self.next_token();
+        Ok(self.token.kind.is_ident_or_keyword()
+            || self.token.kind == TokenKind::LBracket
+            || self.is_template_start_of_tagged_template())
+    }
+
     fn parse_any_contextual_modifier(&mut self) -> bool {
         self.token.kind.is_modifier_kind() && self.try_parse(Self::next_token_can_follow_modifier)
     }

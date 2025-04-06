@@ -3,6 +3,7 @@ use bolt_ts_ast as ast;
 pub enum VarLikeName<'cx> {
     Ident(&'cx ast::Ident),
     ObjectPat(&'cx ast::ObjectPat<'cx>),
+    ArrayPat(&'cx ast::ArrayPat<'cx>),
     NumLit(&'cx ast::NumLit),
     StringLit {
         raw: &'cx ast::StringLit,
@@ -39,7 +40,7 @@ impl<'cx> VarLike<'cx> for ast::VarDecl<'cx> {
         match self.binding.kind {
             ast::BindingKind::Ident(n) => VarLikeName::Ident(n),
             ast::BindingKind::ObjectPat(n) => VarLikeName::ObjectPat(n),
-            bolt_ts_ast::BindingKind::ArrayPat(array_pat) => todo!(),
+            bolt_ts_ast::BindingKind::ArrayPat(n) => VarLikeName::ArrayPat(n),
         }
     }
     fn decl_ty(&self) -> Option<&'cx ast::Ty<'cx>> {
@@ -58,7 +59,7 @@ impl<'cx> VarLike<'cx> for ast::ParamDecl<'cx> {
         match self.name.kind {
             bolt_ts_ast::BindingKind::Ident(n) => VarLikeName::Ident(n),
             bolt_ts_ast::BindingKind::ObjectPat(n) => VarLikeName::ObjectPat(n),
-            bolt_ts_ast::BindingKind::ArrayPat(n) => todo!(),
+            bolt_ts_ast::BindingKind::ArrayPat(n) => VarLikeName::ArrayPat(n),
         }
     }
     fn decl_ty(&self) -> Option<&'cx ast::Ty<'cx>> {
@@ -113,7 +114,7 @@ impl<'cx> VarLike<'cx> for ast::ObjectPropMember<'cx> {
         None
     }
     fn init(&self) -> Option<&'cx ast::Expr<'cx>> {
-        Some(self.value)
+        Some(self.init)
     }
 }
 

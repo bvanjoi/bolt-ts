@@ -664,11 +664,17 @@ impl<'cx> TyChecker<'cx> {
         }
 
         for (idx, arg) in args.iter().enumerate() {
-            let param_ty = self.get_ty_at_pos(sig, idx);
-            if self.could_contain_ty_var(param_ty) {
-                let arg_ty =
-                    self.check_expr_with_contextual_ty(arg, param_ty, Some(inference), check_mode);
-                self.infer_tys(inference, arg_ty, param_ty, None, false);
+            if !matches!(arg.kind, ast::ExprKind::Omit(_)) {
+                let param_ty = self.get_ty_at_pos(sig, idx);
+                if self.could_contain_ty_var(param_ty) {
+                    let arg_ty = self.check_expr_with_contextual_ty(
+                        arg,
+                        param_ty,
+                        Some(inference),
+                        check_mode,
+                    );
+                    self.infer_tys(inference, arg_ty, param_ty, None, false);
+                }
             }
         }
 
@@ -1042,10 +1048,40 @@ impl<'cx> InferenceState<'cx, '_> {
         if let Some(source_cond) = source.kind.as_cond_ty() {
             self.infer_from_tys(source_cond.check_ty, target_cond.check_ty);
             self.infer_from_tys(source_cond.extends_ty, target_cond.extends_ty);
-            // TODO:
+            let source_t = self.c.get_true_ty_from_cond_ty(source, source_cond);
+            let target_t = self.c.get_true_ty_from_cond_ty(target, target_cond);
+            self.infer_from_tys(source_t, target_t);
+            let source_f = self.c.get_false_ty_from_cond_ty(source, source_cond);
+            let target_f = self.c.get_false_ty_from_cond_ty(target, target_cond);
+            self.infer_from_tys(source_f, target_f);
         } else {
-            // TODO:
+            let t = self.c.get_true_ty_from_cond_ty(target, target_cond);
+            let f = self.c.get_false_ty_from_cond_ty(target, target_cond);
+            let target_tys = self.c.alloc([t, f]);
+            self.infer_to_multiple_tys_with_priority(
+                source,
+                target_tys,
+                target.flags,
+                if self.contravariant {
+                    InferencePriority::CONTRAVARIANT_CONDITIONAL
+                } else {
+                    InferencePriority::empty()
+                },
+            );
         }
+    }
+
+    fn infer_to_multiple_tys_with_priority(
+        &mut self,
+        source: &'cx ty::Ty<'cx>,
+        targets: ty::Tys<'cx>,
+        target_flags: TypeFlags,
+        new_priority: InferencePriority,
+    ) {
+        let save_priority = self.priority;
+        self.priority |= new_priority;
+        self.infer_to_multiple_tys(source, targets, target_flags);
+        self.priority = save_priority;
     }
 
     pub(super) fn infer_from_tys(
@@ -1185,13 +1221,13 @@ impl<'cx> InferenceState<'cx, '_> {
             if !(self.priority.intersects(InferencePriority::NO_CONSTRAINTS)
                 && source
                     .flags
-                    .intersects(TypeFlags::INTERSECTION | TypeFlags::INSTANTIABLE))
+                    .intersects(TypeFlags::INTERSECTION.union(TypeFlags::INSTANTIABLE)))
             {
                 let apparent_source = self.c.get_apparent_ty(source);
                 if apparent_source != source
                     && !(apparent_source
                         .flags
-                        .intersects(TypeFlags::OBJECT | TypeFlags::INTERSECTION))
+                        .intersects(TypeFlags::OBJECT.union(TypeFlags::INTERSECTION)))
                 {
                     return self.infer_from_tys(apparent_source, target);
                 }
@@ -1772,7 +1808,11 @@ impl<'cx> InferenceState<'cx, '_> {
                 let source_props = self.c.get_props_of_ty(source);
                 let mut props_tys = Vec::with_capacity(source_props.len());
                 for prop in source_props {
-                    let lit = self.c.get_lit_ty_from_prop(*prop);
+                    let lit = self.c.get_lit_ty_from_prop(
+                        *prop,
+                        TypeFlags::STRING_OR_NUMBER_LITERAL_OR_UNIQUE,
+                        false,
+                    );
                     if self.c.is_applicable_index_ty(lit, target_info.key_ty) {
                         let prop_ty = self.c.get_type_of_symbol(*prop);
                         props_tys.push(

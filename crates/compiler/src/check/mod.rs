@@ -62,15 +62,21 @@ use bolt_ts_atom::{AtomId, AtomMap};
 
 use bolt_ts_config::NormalizedCompilerOptions;
 use bolt_ts_utils::{fx_hashmap_with_capacity, no_hashmap_with_capacity, no_hashset_with_capacity};
+use check_expr::IterationUse;
 use create_ty::IntersectionFlags;
+use enumflags2::BitFlag;
 use flow::FlowTy;
 use fn_mapper::{PermissiveMapper, RestrictiveMapper};
+use get_simplified_ty::SimplifiedKind;
 use get_variances::VarianceFlags;
-use instantiation_ty_map::{IndexedAccessTyMap, TyCacheTrait, UnionOrIntersectionMap};
+use instantiation_ty_map::{
+    IndexedAccessTyMap, IntersectionMap, StringMappingTyMap, TyAliasInstantiationMap, TyCacheTrait,
+    TyKey, UnionMap,
+};
 use merge::MergeModuleAugmentationForNonGlobalResult;
 use rustc_hash::{FxBuildHasher, FxHashMap};
 use symbol_info::SymbolInfo;
-use transient_symbol::TransientSymbol;
+use transient_symbol::{BorrowedDeclarations, TransientSymbol};
 use type_predicate::TyPred;
 use utils::contains_ty;
 
@@ -96,11 +102,11 @@ use crate::bind::{
 };
 use crate::graph::ModuleGraph;
 use crate::parser::{AccessKind, AssignmentKind, Parser};
-use crate::ty::{CheckFlags, IndexFlags, TYPEOF_NE_FACTS};
+use crate::ty::{CheckFlags, IndexFlags, IterationTys, TYPEOF_NE_FACTS};
 use crate::ty::{ElementFlags, ObjectFlags, Sig, SigFlags, SigID, TyID, TypeFacts, TypeFlags};
 use crate::ty::{TyMapper, has_type_facts};
 use crate::{ecma_rules, ir, keyword, ty};
-use bolt_ts_ast as ast;
+use bolt_ts_ast::{self as ast};
 use bolt_ts_ast::{BinOp, pprint_ident};
 
 bitflags::bitflags! {
@@ -165,17 +171,19 @@ bolt_ts_utils::index!(InferenceContextId);
 pub struct TyChecker<'cx> {
     pub atoms: &'cx mut AtomMap<'cx>,
     pub diags: Vec<bolt_ts_errors::Diag>,
+    module_arena: &'cx bolt_ts_span::ModuleArena,
     config: &'cx NormalizedCompilerOptions,
     arena: &'cx bumpalo::Bump,
-    tys: Vec<&'cx ty::Ty<'cx>>,
+    pub(super) tys: Vec<&'cx ty::Ty<'cx>>,
     sigs: Vec<&'cx Sig<'cx>>,
     flow_nodes: Vec<FlowNodes<'cx>>,
     num_lit_tys: nohash_hasher::IntMap<F64Represent, &'cx ty::Ty<'cx>>,
     string_lit_tys: nohash_hasher::IntMap<AtomId, &'cx ty::Ty<'cx>>,
     bigint_lit_tys: FxHashMap<(bool, AtomId), &'cx ty::Ty<'cx>>,
-    union_tys: UnionOrIntersectionMap<'cx>,
-    intersection_tys: UnionOrIntersectionMap<'cx>,
+    union_tys: UnionMap<'cx>,
+    intersection_tys: IntersectionMap<'cx>,
     indexed_access_tys: IndexedAccessTyMap<'cx>,
+    string_mapping_tys: StringMappingTyMap<'cx>,
     type_name: nohash_hasher::IntMap<TyID, String>,
     tuple_tys: nohash_hasher::IntMap<u64, &'cx ty::Ty<'cx>>,
     transient_symbols: TransientSymbols<'cx>,
@@ -191,8 +199,13 @@ pub struct TyChecker<'cx> {
     sig_links: nohash_hasher::IntMap<SigID, SigLinks<'cx>>,
     ty_links: nohash_hasher::IntMap<TyID, TyLinks<'cx>>,
     instantiation_ty_map: InstantiationTyMap<'cx>,
+    ty_alias_instantiation_map: TyAliasInstantiationMap<'cx>,
+    iteration_tys_map: nohash_hasher::IntMap<TyKey, ty::IterationTys<'cx>>,
     mark_tys: nohash_hasher::IntSet<TyID>,
     shared_flow_info: Vec<(FlowID, FlowTy<'cx>)>,
+    common_ty_links_arena: ty::CommonTyLinksArena<'cx>,
+    fresh_ty_links_arena: ty::FreshTyLinksArena<'cx>,
+    interface_ty_links_arena: ty::InterfaceTyLinksArena<'cx>,
     // === ast ===
     pub p: &'cx Parser<'cx>,
     pub mg: &'cx ModuleGraph,
@@ -205,8 +218,11 @@ pub struct TyChecker<'cx> {
     pub unknown_ty: &'cx ty::Ty<'cx>,
     pub undefined_ty: &'cx ty::Ty<'cx>,
     pub missing_ty: &'cx ty::Ty<'cx>,
+    pub undefined_or_missing_ty: &'cx ty::Ty<'cx>,
+    pub undefined_widening_ty: &'cx ty::Ty<'cx>,
     pub never_ty: &'cx ty::Ty<'cx>,
     pub silent_never_ty: &'cx ty::Ty<'cx>,
+    pub implicit_never_ty: &'cx ty::Ty<'cx>,
     pub void_ty: &'cx ty::Ty<'cx>,
     pub null_ty: &'cx ty::Ty<'cx>,
     pub false_ty: &'cx ty::Ty<'cx>,
@@ -225,6 +241,7 @@ pub struct TyChecker<'cx> {
     restrictive_mapper: &'cx RestrictiveMapper,
     // =======================
     error_symbol: SymbolID,
+    global_this_symbol: SymbolID,
     arguments_symbol: SymbolID,
     resolving_symbol: SymbolID,
     empty_ty_literal_symbol: SymbolID,
@@ -261,6 +278,7 @@ pub struct TyChecker<'cx> {
     array_variances: std::cell::OnceCell<&'cx [VarianceFlags]>,
     no_ty_pred: std::cell::OnceCell<&'cx TyPred<'cx>>,
     template_constraint_ty: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
+    any_iteration_tys: std::cell::OnceCell<IterationTys<'cx>>,
     empty_array: &'cx [u8; 0],
     // === resolver ===
     pub binder: &'cx bind::Binder,
@@ -280,6 +298,10 @@ enum PropName {
     Num(f64),
 }
 
+fn cast_empty_array<'cx, T>(empty_array: &[u8; 0]) -> &'cx [T] {
+    unsafe { &*(empty_array as *const [u8] as *const [T]) }
+}
+
 impl<'cx> TyChecker<'cx> {
     pub(crate) fn new(
         ty_arena: &'cx bumpalo::Bump,
@@ -290,13 +312,16 @@ impl<'cx> TyChecker<'cx> {
         config: &'cx NormalizedCompilerOptions,
         flow_nodes: Vec<FlowNodes<'cx>>,
         c: &'cx mut MergeModuleAugmentationForNonGlobalResult<'cx>,
+        module_arena: &'cx bolt_ts_span::ModuleArena,
     ) -> Self {
         let diags = std::mem::take(&mut c.diags);
         let mut symbol_links = std::mem::take(&mut c.symbol_links);
         let mut transient_symbols = std::mem::take(&mut c.transient_symbols);
-        let empty_array = ty_arena.alloc([]);
+        let empty_array: &'cx [u8; 0] = ty_arena.alloc([]);
 
-        let mut tys = Vec::with_capacity(p.module_count() * 1024);
+        let cap = p.module_count() * 1024 * 64;
+        let mut tys = Vec::with_capacity(cap);
+        let mut common_ty_links_arena = ty::CommonTyLinksArena::with_capacity(cap);
 
         macro_rules! make_intrinsic_type {
             ( { $( ($name: ident, $atom_id: expr, $ty_flags: expr, $object_flags: expr) ),* $(,)? } ) => {
@@ -307,7 +332,7 @@ impl<'cx> TyChecker<'cx> {
                             name: $atom_id,
                         };
                         let kind = ty::TyKind::Intrinsic(ty_arena.alloc(ty));
-                        TyChecker::make_ty(kind, $ty_flags, &mut tys, ty_arena)
+                        TyChecker::make_ty(kind, $ty_flags, &mut tys, &mut common_ty_links_arena, ty_arena)
                     };
                 )*
             };
@@ -335,17 +360,42 @@ impl<'cx> TyChecker<'cx> {
             (bigint_ty,             keyword::IDENT_BIGINT,  TypeFlags::BIG_INT,         ObjectFlags::empty()),
             (non_primitive_ty,      keyword::IDENT_OBJECT,  TypeFlags::NON_PRIMITIVE,   ObjectFlags::empty()),
             (silent_never_ty,       keyword::IDENT_NEVER,   TypeFlags::NEVER,           ObjectFlags::NON_INFERRABLE_TYPE),
+            (implicit_never_ty,     keyword::IDENT_NEVER,   TypeFlags::NEVER,           ObjectFlags::empty()),
         });
 
+        let undefined_or_missing_ty = if *config.exact_optional_property_types() {
+            missing_ty
+        } else {
+            undefined_ty
+        };
+        let undefined_widening_ty = if *config.strict_null_checks() {
+            undefined_ty
+        } else {
+            let ty = ty::IntrinsicTy {
+                object_flags: ObjectFlags::CONTAINS_WIDENING_TYPE,
+                name: keyword::KW_UNDEFINED,
+            };
+            let kind = ty::TyKind::Intrinsic(ty_arena.alloc(ty));
+            TyChecker::make_ty(
+                kind,
+                TypeFlags::UNDEFINED,
+                &mut tys,
+                &mut common_ty_links_arena,
+                ty_arena,
+            )
+        };
+
         macro_rules! make_builtin_symbol {
-            ( { $( ($symbol_name: ident, $name: expr, $flags: expr, $links: expr, $builtin_id: ident) ),* $(,)? } ) => {
+            ( { $( ($symbol_name: ident, $name: expr, $flags: expr, $links: expr, $builtin_id: ident, $declarations: expr) ),* $(,)? } ) => {
                 $(
                     let $symbol_name = {
                         let symbol = TransientSymbol {
                             name: $name,
                             flags: $flags,
                             links: $links.unwrap_or_default(),
-                            origin: None
+                            origin: None,
+                            declarations: $declarations,
+                            value_declaration: None,
                         };
                         let s = transient_symbols.create_transient_symbol(symbol);
                         assert_eq!(s, Symbol::$builtin_id);
@@ -357,12 +407,21 @@ impl<'cx> TyChecker<'cx> {
                 )*
             };
         }
+        let global_this_symbol_name = SymbolName::Atom(keyword::IDENT_GLOBAL_THIS);
         make_builtin_symbol!({
-            (error_symbol,              SymbolName::Atom(keyword::IDENT_EMPTY),       SymbolFlags::empty(),       Some(SymbolLinks::default().with_ty(error_ty)), ERR),
-            (arguments_symbol,          SymbolName::Atom(keyword::IDENT_ARGUMENTS),   SymbolFlags::PROPERTY,      None,                                           ARGUMENTS),
-            (resolving_symbol,          SymbolName::Resolving,                          SymbolFlags::empty(),       None,                                           RESOLVING),
-            (empty_ty_literal_symbol,   SymbolName::Type,                               SymbolFlags::TYPE_LITERAL,  None,                                           EMPTY_TYPE_LITERAL),
+            (error_symbol,              SymbolName::Atom(keyword::IDENT_EMPTY),         SymbolFlags::empty(),       Some(SymbolLinks::default().with_ty(error_ty)),     ERR,                None),
+            (global_this_symbol,        global_this_symbol_name,                        SymbolFlags::empty(),       Some(SymbolLinks::default()
+                                                                                                                            .with_check_flags(CheckFlags::READONLY)),   GLOBAL_THIS,        Some(cast_empty_array(empty_array))),
+            (arguments_symbol,          SymbolName::Atom(keyword::IDENT_ARGUMENTS),     SymbolFlags::PROPERTY,      None,                                               ARGUMENTS,          None),
+            (resolving_symbol,          SymbolName::Resolving,                          SymbolFlags::empty(),       None,                                               RESOLVING,          None),
+            (empty_ty_literal_symbol,   SymbolName::Type,                               SymbolFlags::TYPE_LITERAL,  None,                                               EMPTY_TYPE_LITERAL, None),
         });
+
+        let prev = c
+            .global_symbols
+            .0
+            .insert(global_this_symbol_name, global_this_symbol);
+        assert!(prev.is_none());
 
         let restrictive_mapper = ty_arena.alloc(RestrictiveMapper);
         let permissive_mapper = ty_arena.alloc(PermissiveMapper);
@@ -377,14 +436,18 @@ impl<'cx> TyChecker<'cx> {
             sigs: Vec::with_capacity(p.module_count() * 256),
             arena: ty_arena,
             diags,
+            module_arena,
 
             num_lit_tys: no_hashmap_with_capacity(1024 * 8),
             string_lit_tys: no_hashmap_with_capacity(1024 * 8),
             bigint_lit_tys: fx_hashmap_with_capacity(512),
-            union_tys: UnionOrIntersectionMap::new(1024 * 8),
-            intersection_tys: UnionOrIntersectionMap::new(1024 * 8),
+            union_tys: UnionMap::new(1024 * 8),
+            intersection_tys: IntersectionMap::new(1024 * 8),
             indexed_access_tys: IndexedAccessTyMap::new(1024 * 8),
+            string_mapping_tys: StringMappingTyMap::new(1024 * 8),
             instantiation_ty_map: InstantiationTyMap::new(1024 * 16),
+            ty_alias_instantiation_map: TyAliasInstantiationMap::new(1024 * 16),
+            iteration_tys_map: no_hashmap_with_capacity(1024 * 4),
             mark_tys: no_hashset_with_capacity(1024 * 4),
             transient_symbols,
 
@@ -392,6 +455,7 @@ impl<'cx> TyChecker<'cx> {
             flow_nodes,
 
             error_symbol,
+            global_this_symbol,
             arguments_symbol,
             resolving_symbol,
             empty_ty_literal_symbol,
@@ -405,8 +469,11 @@ impl<'cx> TyChecker<'cx> {
             unknown_ty,
             undefined_ty,
             missing_ty,
+            undefined_or_missing_ty,
+            undefined_widening_ty,
             never_ty,
             silent_never_ty,
+            implicit_never_ty,
             void_ty,
             null_ty,
             false_ty,
@@ -453,6 +520,7 @@ impl<'cx> TyChecker<'cx> {
             mark_sub_ty: Default::default(),
             mark_other_ty: Default::default(),
             template_constraint_ty: Default::default(),
+            any_iteration_tys: Default::default(),
 
             no_ty_pred: Default::default(),
 
@@ -461,10 +529,13 @@ impl<'cx> TyChecker<'cx> {
             type_name: no_hashmap_with_capacity(1024 * 8),
 
             symbol_links,
-            node_links: fx_hashmap_with_capacity(p.module_count() * 1024),
-            sig_links: no_hashmap_with_capacity(p.module_count() * 1024),
-            ty_links: no_hashmap_with_capacity(p.module_count() * 1024),
-            tuple_tys: no_hashmap_with_capacity(p.module_count() * 1024),
+            node_links: fx_hashmap_with_capacity(cap),
+            sig_links: no_hashmap_with_capacity(cap),
+            ty_links: no_hashmap_with_capacity(cap),
+            tuple_tys: no_hashmap_with_capacity(cap),
+            common_ty_links_arena,
+            fresh_ty_links_arena: ty::FreshTyLinksArena::with_capacity(cap),
+            interface_ty_links_arena: ty::InterfaceTyLinksArena::with_capacity(cap),
 
             resolution_tys: thin_vec::ThinVec::with_capacity(128),
             resolution_res: thin_vec::ThinVec::with_capacity(128),
@@ -473,7 +544,7 @@ impl<'cx> TyChecker<'cx> {
             binder: &c.binder,
             merged_symbols: &c.merged_symbols,
             global_symbols: &c.global_symbols,
-            inferences: Vec::with_capacity(p.module_count() * 1024),
+            inferences: Vec::with_capacity(cap),
             inference_contextual: Vec::with_capacity(256),
             type_contextual: Vec::with_capacity(256),
             check_mode: None,
@@ -483,22 +554,6 @@ impl<'cx> TyChecker<'cx> {
             ],
             current_node: None,
         };
-
-        macro_rules! regular_and_fresh_for_true_and_false {
-            ( { $( ($ty: ident, $regular_ty: ident, $fresh_ty: ident) ),* $(,)? } ) => {
-                $(
-                    let prev = this.ty_links.insert($ty.id, TyLinks::default().with_regular_ty($regular_ty).with_fresh_ty($fresh_ty));
-                    assert!(prev.is_none());
-                )*
-            };
-        }
-        regular_and_fresh_for_true_and_false!({
-            // ty               regular_ty          fresh_ty
-            (true_ty,           regular_true_ty,    true_ty),
-            (regular_true_ty,   regular_true_ty,    true_ty),
-            (false_ty,          regular_false_ty,   false_ty),
-            (regular_false_ty,  regular_false_ty,   false_ty),
-        });
 
         macro_rules! make_global {
             ( { $( ($name: ident, $make_ty: expr) ),* $(,)? } ) => {
@@ -539,9 +594,10 @@ impl<'cx> TyChecker<'cx> {
             (mark_other_ty,             this.create_param_ty(Symbol::ERR, None, false)),
             (mark_super_ty,             this.create_param_ty(Symbol::ERR, None, false)),
             (template_constraint_ty,    this.get_union_ty(&[string_ty, number_ty, boolean_ty, bigint_ty, null_ty, undefined_ty], ty::UnionReduction::Lit)),
+            (any_iteration_tys,         this.create_iteration_tys(any_ty, any_ty, any_ty)),
             (unknown_sig,               this.new_sig(Sig { flags: SigFlags::empty(), ty_params: None, params: &[], min_args_count: 0, ret: None, node_id: None, target: None, mapper: None, id: SigID::dummy(), class_decl: None })),
             (array_variances,           this.alloc([VarianceFlags::COVARIANT])),
-            (no_ty_pred,                this.create_ident_ty_pred(keyword::IDENT_EMPTY, 0, Some(any_ty)))
+            (no_ty_pred,                this.create_ident_ty_pred(keyword::IDENT_EMPTY, 0, any_ty))
         });
 
         this.type_name.insert(boolean_ty.id, "boolean".to_string());
@@ -577,6 +633,10 @@ impl<'cx> TyChecker<'cx> {
         self.unknown_sig.get().unwrap()
     }
 
+    pub fn any_iteration_tys(&self) -> ty::IterationTys<'cx> {
+        self.any_iteration_tys.get().copied().unwrap()
+    }
+
     pub fn array_variances(&self) -> &'cx [VarianceFlags] {
         self.array_variances.get().unwrap()
     }
@@ -603,9 +663,9 @@ impl<'cx> TyChecker<'cx> {
     fn get_base_constraint_of_ty(&mut self, ty: &'cx ty::Ty<'cx>) -> Option<&'cx ty::Ty<'cx>> {
         if ty.flags.intersects(
             TypeFlags::INSTANTIABLE_NON_PRIMITIVE
-                | TypeFlags::UNION_OR_INTERSECTION
-                | TypeFlags::TEMPLATE_LITERAL
-                | TypeFlags::STRING_MAPPING,
+                .union(TypeFlags::UNION_OR_INTERSECTION)
+                .union(TypeFlags::TEMPLATE_LITERAL)
+                .union(TypeFlags::STRING_MAPPING),
         ) || ty.kind.is_generic_tuple_type()
         {
             let constraint = self.get_resolved_base_constraint(ty);
@@ -745,10 +805,7 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
-    fn get_lit_ty_from_prop_name(
-        &mut self,
-        prop_name: &'cx ast::PropName<'cx>,
-    ) -> &'cx ty::Ty<'cx> {
+    fn get_lit_ty_from_prop_name(&mut self, prop_name: &ast::PropName<'cx>) -> &'cx ty::Ty<'cx> {
         match prop_name.kind {
             ast::PropNameKind::Ident(ident) => self.get_string_literal_type(ident.name),
             ast::PropNameKind::NumLit(num) => {
@@ -760,26 +817,130 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
-    fn get_lit_ty_from_prop(&mut self, prop: SymbolID) -> &'cx ty::Ty<'cx> {
-        let Some(prop) = self.get_symbol_decl(prop) else {
-            let name = self.symbol(prop).name();
-            return if let Some(name) = name.as_atom() {
-                self.get_string_literal_type(name)
+    fn get_declaration_modifier_flags_from_symbol(
+        &self,
+        symbol: SymbolID,
+        is_write: Option<bool>,
+    ) -> enumflags2::BitFlags<bolt_ts_ast::ModifierKind> {
+        let is_write = is_write.unwrap_or(true);
+        let s = self.symbol(symbol);
+        fn find_decls<'cx>(
+            this: &TyChecker<'cx>,
+            s: transient_symbol::CheckSymbol,
+            f: impl Fn(ast::Node<'cx>) -> bool,
+        ) -> Option<ast::NodeID> {
+            match s.declarations() {
+                BorrowedDeclarations::FromTransient(node_ids) => node_ids
+                    .and_then(|node_ids| node_ids.iter().find(|id| f(this.p.node(**id))))
+                    .copied(),
+                BorrowedDeclarations::FromNormal(node_ids) => {
+                    node_ids.iter().find(|id| f(this.p.node(**id))).copied()
+                }
+            }
+        }
+        if let Some(value_declaration) = s.value_declaration() {
+            let decl = is_write
+                .then(|| find_decls(self, s, |n| n.is_setter_decl()))
+                .flatten()
+                .or_else(|| {
+                    if s.flags().intersects(SymbolFlags::GET_ACCESSOR) {
+                        find_decls(self, s, |n| n.is_getter_decl())
+                    } else {
+                        None
+                    }
+                })
+                .unwrap_or(value_declaration);
+            let flags = self.p.get_combined_modifier_flags(decl);
+            // TODO: if s.parent.flags & Class
+            return flags & ast::ModifierKind::ACCESSIBILITY;
+        }
+        let check_flags = self.get_check_flags(symbol);
+        if check_flags.intersects(CheckFlags::SYNTHETIC) {
+            let access_modifier: enumflags2::BitFlags<_> =
+                if check_flags.intersects(CheckFlags::CONTAINS_PRIVATE) {
+                    ast::ModifierKind::Private
+                } else if check_flags.intersects(CheckFlags::CONTAINS_PUBLIC) {
+                    ast::ModifierKind::Public
+                } else {
+                    ast::ModifierKind::Protected
+                }
+                .into();
+            let static_modifier = if check_flags.intersects(CheckFlags::CONTAINS_STATIC) {
+                ast::ModifierKind::Static.into()
             } else {
-                self.never_ty
+                ast::ModifierKind::empty()
             };
-        };
-        let name = match self.p.node(prop) {
-            ast::Node::ClassPropElem(prop) => prop.name,
-            ast::Node::ObjectPropMember(prop) => prop.name,
-            ast::Node::PropSignature(prop) => prop.name,
-            ast::Node::ClassMethodElem(prop) => prop.name,
-            ast::Node::MethodSignature(prop) => prop.name,
-            ast::Node::ObjectMethodMember(prop) => prop.name,
-            ast::Node::ParamDecl(_) => return self.string_ty,
-            _ => unreachable!("prop: {:#?}", self.p.node(prop)),
-        };
-        self.get_lit_ty_from_prop_name(name)
+            static_modifier | access_modifier
+        } else if s.flags().intersects(SymbolFlags::PROPERTY) {
+            use ast::ModifierKind;
+            enumflags2::make_bitflags!(ModifierKind::{Public | Static})
+        } else {
+            Default::default()
+        }
+    }
+
+    fn get_lit_ty_from_prop(
+        &mut self,
+        prop: SymbolID,
+        include: TypeFlags,
+        include_non_public: bool,
+    ) -> &'cx ty::Ty<'cx> {
+        if include_non_public
+            || !self
+                .get_declaration_modifier_flags_from_symbol(prop, None)
+                .intersects(ast::ModifierKind::NON_PUBLIC_ACCESSIBILITY_MODIFIER)
+        {
+            // TODO: late bound
+            let ty = match self.get_symbol_links(prop).get_name_ty() {
+                Some(named_ty) => Some(named_ty),
+                None => {
+                    let symbol_name = self.symbol(prop).name();
+                    if symbol_name == SymbolName::ExportDefault {
+                        Some(self.get_string_literal_type(keyword::KW_DEFAULT))
+                    } else {
+                        self.symbol(prop)
+                            .value_declaration()
+                            .and_then(|v_decl| {
+                                self.p.get_name_of_decl(v_decl).map(|name| {
+                                    let kind = match name {
+                                        ast::DeclarationName::Ident(ident) => {
+                                            ast::PropNameKind::Ident(ident)
+                                        }
+                                        ast::DeclarationName::NumLit(lit) => {
+                                            ast::PropNameKind::NumLit(lit)
+                                        }
+                                        ast::DeclarationName::StringLit { raw, key } => {
+                                            ast::PropNameKind::StringLit { raw, key }
+                                        }
+                                        ast::DeclarationName::Computed(n) => {
+                                            ast::PropNameKind::Computed(n)
+                                        }
+                                    };
+                                    ast::PropName { kind }
+                                })
+                            })
+                            .map(|name| self.get_lit_ty_from_prop_name(&name))
+                            .or_else(|| {
+                                if let Some(num) = symbol_name.as_numeric() {
+                                    let val = num.to_string();
+                                    let atom = self.atoms.insert_by_str(Cow::Owned(val));
+                                    Some(self.get_string_literal_type(atom))
+                                } else if let Some(atom) = symbol_name.as_atom() {
+                                    Some(self.get_string_literal_type(atom))
+                                } else {
+                                    None
+                                }
+                            })
+                    }
+                }
+            };
+            if let Some(ty) = ty {
+                if ty.flags.intersects(include) {
+                    return ty;
+                }
+            }
+        }
+        self.never_ty
     }
 
     fn check_index_constraints(&mut self, ty: &'cx ty::Ty<'cx>, is_static_index: bool) {
@@ -795,7 +956,11 @@ impl<'cx> TyChecker<'cx> {
                     .intersects(SymbolFlags::PROTOTYPE))
             {
                 let prop_ty = self.get_type_of_symbol(*prop);
-                let prop_name_ty = self.get_lit_ty_from_prop(*prop);
+                let prop_name_ty = self.get_lit_ty_from_prop(
+                    *prop,
+                    TypeFlags::STRING_OR_NUMBER_LITERAL_OR_UNIQUE,
+                    true,
+                );
                 self.check_index_constraint_for_prop(ty, *prop, prop_name_ty, prop_ty);
             }
         }
@@ -803,11 +968,7 @@ impl<'cx> TyChecker<'cx> {
 
     fn get_containing_fn_or_class_static_block(&self, node: ast::NodeID) -> Option<ast::NodeID> {
         self.p.find_ancestor(node, |node| {
-            if node.is_fn_like_or_class_static_block_decl() {
-                Some(true)
-            } else {
-                None
-            }
+            node.is_fn_like_or_class_static_block_decl().then_some(true)
         })
     }
 
@@ -890,7 +1051,7 @@ impl<'cx> TyChecker<'cx> {
         sig: &'cx ty::Sig<'cx>,
         outer_ty_params: Option<ty::Tys<'cx>>,
     ) -> &'cx ty::Ty<'cx> {
-        //TODO:cache
+        //TODO: cache `isolated_sig_ty`
         let is_constructor = sig.node_id.is_none_or(|node_id| {
             use bolt_ts_ast::Node::*;
             matches!(self.p.node(node_id), ClassCtor(_) | CtorSigDecl(_))
@@ -903,6 +1064,8 @@ impl<'cx> TyChecker<'cx> {
             SymbolFlags::FUNCTION,
             None,
             SymbolLinks::default(),
+            None, // TODO: use sig.decls
+            None, // TODO: use sig.value_decl
         );
         let outer_ty_params: Option<ty::Tys<'cx>> = if let Some(outer_ty_params) = outer_ty_params {
             Some(outer_ty_params)
@@ -1192,7 +1355,7 @@ impl<'cx> TyChecker<'cx> {
     }
 
     /// `param.constraint`
-    fn param_ty_constraint(&self, ty: &'cx ty::Ty<'cx>) -> Option<&'cx ty::Ty<'cx>> {
+    fn param_ty_constraint(&mut self, ty: &'cx ty::Ty<'cx>) -> Option<&'cx ty::Ty<'cx>> {
         let param = ty.kind.expect_param();
         if param.is_this_ty {
             // assert!(param.constraint.is_none());
@@ -1200,9 +1363,7 @@ impl<'cx> TyChecker<'cx> {
         } else if ty == self.mark_sub_ty() {
             Some(self.mark_super_ty())
         } else {
-            self.ty_links
-                .get(&ty.id)
-                .and_then(|ty_links| ty_links.get_param_ty_constraint())
+            self.get_ty_links(ty.id).get_param_ty_constraint()
         }
     }
 
@@ -1234,7 +1395,7 @@ impl<'cx> TyChecker<'cx> {
         member: &'cx ast::ObjectPropMember<'cx>,
     ) -> &'cx ty::Ty<'cx> {
         // TODO: computed member
-        let ty = self.check_expr_for_mutable_location(member.value);
+        let ty = self.check_expr_for_mutable_location(member.init);
         ty
     }
 
@@ -1258,11 +1419,33 @@ impl<'cx> TyChecker<'cx> {
             false
         };
 
-        let has_omitted_expr = false;
+        let mut has_omitted_expr = false;
         for elem in lit.elems.iter() {
-            let ty = self.check_expr_for_mutable_location(elem);
-            element_types.push(self.add_optionality(ty, true, has_omitted_expr));
-            element_flags.push(ElementFlags::REQUIRED);
+            if let ast::ExprKind::SpreadElement(e) = elem.kind {
+                let spread_ty = self.check_expr(e.expr);
+                if self.is_array_like_ty(spread_ty) {
+                    element_types.push(spread_ty);
+                    element_flags.push(ElementFlags::VARIADIC);
+                } else {
+                    // TODO: in_destructuring_pattern;
+                    let t = self.check_iterated_ty_or_element_ty(
+                        IterationUse::SPREAD,
+                        spread_ty,
+                        self.undefined_ty,
+                        Some(e.expr.id()),
+                    );
+                    element_types.push(t);
+                    element_flags.push(ElementFlags::REST);
+                }
+            } else if let ast::ExprKind::Omit(_) = elem.kind {
+                has_omitted_expr = true;
+                element_types.push(self.undefined_or_missing_ty);
+                element_flags.push(ElementFlags::OPTIONAL);
+            } else {
+                let ty = self.check_expr_for_mutable_location(elem);
+                element_types.push(self.add_optionality(ty, true, has_omitted_expr));
+                element_flags.push(ElementFlags::REQUIRED);
+            }
         }
 
         self.pop_type_context();
@@ -1274,9 +1457,24 @@ impl<'cx> TyChecker<'cx> {
             self.create_array_literal_ty(tuple_ty)
         } else {
             let ty = if element_types.is_empty() {
-                self.never_ty
+                if *self.config.strict_null_checks() {
+                    self.implicit_never_ty
+                } else {
+                    self.undefined_widening_ty
+                }
             } else {
-                self.get_union_ty(&element_types, ty::UnionReduction::Subtype)
+                let tys = self.alloc(element_types);
+                let tys = self
+                    .same_map_tys(Some(tys), |this, t, i| {
+                        if element_flags[i].intersects(ElementFlags::VARIADIC) {
+                            this.get_indexed_access_ty_or_undefined(t, this.number_ty, None, None)
+                                .unwrap_or(this.any_ty)
+                        } else {
+                            t
+                        }
+                    })
+                    .unwrap();
+                self.get_union_ty(tys, ty::UnionReduction::Subtype)
             };
             let array_ty = self.create_array_ty(ty, false);
             self.create_array_literal_ty(array_ty)
@@ -1290,8 +1488,7 @@ impl<'cx> TyChecker<'cx> {
             literal_ty
         } else {
             let object_flags = ty.get_object_flags()
-                | ObjectFlags::ARRAY_LITERAL
-                | ObjectFlags::CONTAINS_OBJECT_OR_ARRAY_LITERAL;
+                | (ObjectFlags::ARRAY_LITERAL.union(ObjectFlags::CONTAINS_OBJECT_OR_ARRAY_LITERAL));
             let (target, resolved_ty_args) = if let Some(tuple) = ty.kind.as_object_tuple() {
                 (ty, Some(tuple.resolved_ty_args))
             } else {
@@ -1477,7 +1674,11 @@ impl<'cx> TyChecker<'cx> {
             }
         }
 
-        let Some(decl) = symbol.opt_decl(self.binder) else {
+        let decl = if symbol == self.global_this_symbol {
+            return ty;
+        } else if let Some(decl) = symbol.opt_decl(self.binder) {
+            decl
+        } else {
             return ty;
         };
 
@@ -1612,7 +1813,7 @@ impl<'cx> TyChecker<'cx> {
             }
             Sub => self.number_ty,
             Mul => self.undefined_ty,
-            Div => todo!(),
+            Div => self.number_ty,
             Pipe => {
                 let left = self.check_non_null_type(left_ty, left);
                 let right = self.check_non_null_type(right_ty, right);
@@ -1710,7 +1911,7 @@ impl<'cx> TyChecker<'cx> {
             return ty;
         }
 
-        if self.is_generic_object(indexed_access_ty.object_ty) {
+        if self.is_generic_object_ty(indexed_access_ty.object_ty) {
             // TODO:
         }
 
@@ -1882,14 +2083,15 @@ impl<'cx> TyChecker<'cx> {
             let flags = self.binder.symbol(symbol).flags;
             flags.intersects(
                 SymbolFlags::OBJECT_LITERAL
-                    | SymbolFlags::TYPE_LITERAL
-                    | SymbolFlags::ENUM
-                    | SymbolFlags::VALUE_MODULE,
+                    .union(SymbolFlags::TYPE_LITERAL)
+                    .union(SymbolFlags::ENUM)
+                    .union(SymbolFlags::VALUE_MODULE),
             ) && !flags.intersects(SymbolFlags::CLASS)
                 && !self.ty_has_call_or_ctor_sigs(ty)
         } else {
-            // TODO: rest type
-            false
+            let object_flags = ty.get_object_flags();
+            // TODO: reversed type
+            object_flags.intersects(ObjectFlags::OBJECT_REST_TYPE)
         }
     }
 
@@ -1971,7 +2173,7 @@ impl<'cx> TyChecker<'cx> {
     }
 
     fn empty_array<T>(&self) -> &'cx [T] {
-        unsafe { &*(self.empty_array as *const [u8] as *const [T]) }
+        cast_empty_array(self.empty_array)
     }
 
     fn create_ty_mapper(
@@ -2296,7 +2498,7 @@ impl<'cx> TyChecker<'cx> {
     ) {
         let props = self.get_props_of_ty(ty);
         for prop in props {
-            let prop = self.get_lit_ty_from_prop(*prop);
+            let prop = self.get_lit_ty_from_prop(*prop, include, false);
             cb(self, prop)
         }
         if ty.flags.intersects(TypeFlags::ANY) {
@@ -2419,8 +2621,11 @@ impl<'cx> TyChecker<'cx> {
     }
 
     fn is_empty_literal_ty(&self, ty: &'cx ty::Ty<'cx>) -> bool {
-        // TODO: use `implicit_never_ty`
-        ty == self.never_ty
+        if *self.config.strict_null_checks() {
+            ty == self.implicit_never_ty
+        } else {
+            ty == self.undefined_widening_ty
+        }
     }
 
     fn is_empty_array_lit_ty(&mut self, ty: &'cx ty::Ty<'cx>) -> bool {
@@ -2451,7 +2656,7 @@ impl<'cx> TyChecker<'cx> {
         })
     }
 
-    fn is_generic_object(&mut self, ty: &'cx ty::Ty<'cx>) -> bool {
+    fn is_generic_object_ty(&mut self, ty: &'cx ty::Ty<'cx>) -> bool {
         self.get_generic_object_flags(ty)
             .intersects(ObjectFlags::IS_GENERIC_OBJECT_TYPE)
     }
@@ -2502,18 +2707,22 @@ impl<'cx> TyChecker<'cx> {
         !self.get_generic_object_flags(ty).is_empty()
     }
 
-    fn get_normalized_ty(&mut self, mut ty: &'cx ty::Ty<'cx>, writing: bool) -> &'cx ty::Ty<'cx> {
+    fn get_normalized_ty(
+        &mut self,
+        mut ty: &'cx ty::Ty<'cx>,
+        kind: SimplifiedKind,
+    ) -> &'cx ty::Ty<'cx> {
         loop {
             let t = if self.is_fresh_literal_ty(ty) {
-                self.ty_links[&ty.id].get_regular_ty().unwrap()
+                self.get_regular_ty(ty).unwrap()
             } else if let Some(s) = ty.kind.as_substitution_ty() {
-                if writing {
+                if kind == SimplifiedKind::Writing {
                     s.base_ty
                 } else {
                     self.get_substitution_intersection(ty)
                 }
             } else if ty.flags.intersects(TypeFlags::SIMPLIFIABLE) {
-                self.get_simplified_ty(ty, writing)
+                self.get_simplified_ty(ty, kind)
             } else {
                 ty
             };
@@ -2678,7 +2887,7 @@ impl<'cx> TyChecker<'cx> {
         &self,
         symbol: SymbolID,
     ) -> enumflags2::BitFlags<ast::ModifierKind> {
-        if let Some(decl) = self.symbol_opt_decl(symbol) {
+        if let Some(decl) = self.get_symbol_decl(symbol) {
             let flags = self.p.get_combined_modifier_flags(decl);
             // TODO: handle symbol parent
             return flags & !ast::ModifierKind::ACCESSIBILITY;
@@ -2821,7 +3030,24 @@ impl<'cx> TyChecker<'cx> {
         }
 
         let tp = ty.kind.expect_param();
-        if let Some(container) = tp.symbol.opt_decl(self.binder) {
+        let decls = self.symbol(tp.symbol).declarations();
+        let decl = {
+            let decls = match decls {
+                BorrowedDeclarations::FromTransient(node_ids) => {
+                    let Some(node_ids) = node_ids else {
+                        return true;
+                    };
+                    node_ids
+                }
+                BorrowedDeclarations::FromNormal(node_ids) => node_ids,
+            };
+            if decls.len() != 1 {
+                return true;
+            }
+            decls[0]
+        };
+        let container = self.p.parent(decl);
+        if let Some(container) = container {
             let mut n = node;
             while n != container {
                 let node = self.p.node(n);
@@ -2921,7 +3147,14 @@ impl<'cx> TyChecker<'cx> {
             } else {
                 links
             };
-            self.create_transient_symbol(name, flags, None, links)
+            let declarations: Option<&'cx [ast::NodeID]> = match self.symbol(prop).declarations() {
+                BorrowedDeclarations::FromTransient(decls) => decls,
+                BorrowedDeclarations::FromNormal(decls) if !decls.is_empty() => {
+                    Some(self.alloc(decls.into_iter().map(|decl| *decl).collect::<Vec<_>>()))
+                }
+                _ => None,
+            };
+            self.create_transient_symbol(name, flags, None, links, declarations, None)
         }
     }
 
@@ -2953,6 +3186,46 @@ impl<'cx> TyChecker<'cx> {
 
         self.get_mut_symbol_links(module_symbol)
             .set_exports_checked(true);
+    }
+
+    pub(super) fn is_member_of_string_mapping(
+        &mut self,
+        source: &'cx ty::Ty<'cx>,
+        target: &'cx ty::Ty<'cx>,
+    ) -> bool {
+        if target.flags.intersects(TypeFlags::ANY) {
+            true
+        } else if target
+            .flags
+            .intersects(TypeFlags::STRING.union(TypeFlags::TEMPLATE_LITERAL))
+        {
+            self.is_type_assignable_to(source, target)
+        } else if target.flags.intersects(TypeFlags::STRING_MAPPING) {
+            let mut target = target;
+            let mut mapping_stack = Vec::with_capacity(8);
+            while let Some(t_string_mapping_ty) = target.kind.as_string_mapping_ty() {
+                mapping_stack.push(t_string_mapping_ty.symbol);
+                target = t_string_mapping_ty.ty;
+            }
+            let mapped_source = mapping_stack.into_iter().fold(source, |memo, value| {
+                self.get_string_mapping_ty(value, memo)
+            });
+            mapped_source == source && self.is_member_of_string_mapping(source, target)
+        } else {
+            false
+        }
+    }
+
+    fn get_ty_with_facts(&mut self, ty: &'cx ty::Ty<'cx>, include: TypeFacts) -> &'cx ty::Ty<'cx> {
+        self.filter_type(ty, |_, t| has_type_facts(t, include))
+    }
+
+    fn remove_missing_or_undefined_ty(&mut self, ty: &'cx ty::Ty<'cx>) -> &'cx ty::Ty<'cx> {
+        if *self.config.exact_optional_property_types() {
+            self.filter_type(ty, |this, t| t != this.missing_ty)
+        } else {
+            self.get_ty_with_facts(ty, TypeFacts::NE_UNDEFINED)
+        }
     }
 }
 

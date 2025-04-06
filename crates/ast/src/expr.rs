@@ -44,6 +44,8 @@ impl<'cx> Expr<'cx> {
             NonNull(n) => n.span,
             Template(n) => n.span,
             TyAssertion(n) => n.span,
+            ExprWithTyArgs(n) => n.span,
+            SpreadElement(n) => n.span,
         }
     }
 
@@ -81,6 +83,8 @@ impl<'cx> Expr<'cx> {
             NonNull(n) => n.id,
             Template(n) => n.id,
             TyAssertion(n) => n.id,
+            ExprWithTyArgs(n) => n.id,
+            SpreadElement(n) => n.id,
         }
     }
 
@@ -141,6 +145,7 @@ pub enum ExprKind<'cx> {
     Paren(&'cx ParenExpr<'cx>),
     Cond(&'cx CondExpr<'cx>),
     ObjectLit(&'cx ObjectLit<'cx>),
+    ExprWithTyArgs(&'cx ExprWithTyArgs<'cx>),
     Call(&'cx CallExpr<'cx>),
     Fn(&'cx FnExpr<'cx>),
     Class(&'cx ClassExpr<'cx>),
@@ -158,6 +163,7 @@ pub enum ExprKind<'cx> {
     NonNull(&'cx NonNullExpr<'cx>),
     Template(&'cx TemplateExpr<'cx>),
     TyAssertion(&'cx TyAssertion<'cx>),
+    SpreadElement(&'cx SpreadElement<'cx>),
 }
 
 impl<'cx> ExprKind<'cx> {
@@ -206,6 +212,21 @@ impl<'cx> ExprKind<'cx> {
             _ => false,
         }
     }
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct SpreadElement<'cx> {
+    pub id: NodeID,
+    pub span: Span,
+    pub expr: &'cx Expr<'cx>,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct ExprWithTyArgs<'cx> {
+    pub id: NodeID,
+    pub span: Span,
+    pub expr: &'cx Expr<'cx>,
+    pub ty_args: Option<&'cx self::Tys<'cx>>,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -294,6 +315,7 @@ pub struct PropAccessExpr<'cx> {
     pub id: NodeID,
     pub span: Span,
     pub expr: &'cx Expr<'cx>,
+    pub question_dot: Option<Span>,
     pub name: &'cx Ident,
 }
 

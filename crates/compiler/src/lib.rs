@@ -45,6 +45,7 @@ pub struct Output {
     pub module_arena: ModuleArena,
     pub output: Vec<(ModuleID, String)>,
     pub diags: Vec<bolt_ts_errors::Diag>,
+    pub types_len: usize,
 }
 
 pub fn current_exe_dir() -> std::path::PathBuf {
@@ -107,18 +108,19 @@ pub fn eval_from(root: PathBuf, tsconfig: &NormalizedTsConfig) -> Output {
 
     // ==== fs init ====
     let fs = bolt_ts_fs::LocalFS::new(&mut atoms);
-    let dir = current_exe_dir();
-    let libs = bolt_ts_lib::LIB_ENTIRES
-        .iter()
-        .map(|(_, file)| dir.join(file))
+    let exe_dir = current_exe_dir();
+    let default_libs = bolt_ts_libs::DEFAULT_LIBS
+        .into_iter()
+        .map(|filename| exe_dir.join(filename))
         .collect::<Vec<_>>();
-    eval_from_with_fs(root, tsconfig, libs, fs, atoms)
+    eval_from_with_fs(root, tsconfig, exe_dir, default_libs, fs, atoms)
 }
 
 pub fn eval_from_with_fs<'cx>(
     root: PathBuf,
     tsconfig: &'cx NormalizedTsConfig,
-    libs: Vec<ModulePath>,
+    default_lib_dir: PathBuf,
+    default_libs: Vec<PathBuf>,
     mut fs: impl CachedFileSystem,
     mut atoms: bolt_ts_atom::AtomMap<'cx>,
 ) -> Output {
@@ -128,41 +130,49 @@ pub fn eval_from_with_fs<'cx>(
     include.sort();
     include.dedup();
 
-    let cap = libs.len() + include.len();
+    let cap = (default_libs.len() + include.len()) * 2;
     let mut module_arena = ModuleArena::new(cap * 8);
 
-    let entries_with_read_file = libs
+    let entries_with_read_file = default_libs
         .into_iter()
         .map(|lib| (lib, true))
         .chain(include.into_iter().map(|inc| (inc, false)))
         .collect::<Vec<_>>()
         .into_par_iter()
-        .map(|(p, is_global)| {
+        .map(|(p, is_default_lib)| {
             debug_assert!(p.is_normalized());
             if cfg!(target_arch = "wasm32") {
-                (None, None, p, is_global)
+                (None, None, p, is_default_lib)
             } else {
-                let content = read_file_with_encoding(&p).unwrap();
+                let Ok(content) = read_file_with_encoding(&p) else {
+                    panic!("failed to read file: {:?}", p);
+                };
                 let atom = AtomId::from_bytes(content.as_bytes());
-                (Some(content), Some(atom), p, is_global)
+                (Some(content), Some(atom), p, is_default_lib)
             }
         })
         .collect::<Vec<_>>();
 
+    let default_lib_filename = bolt_ts_libs::get_default_lib_filename(&tsconfig.compiler_options());
+
     let entries = entries_with_read_file
         .into_iter()
-        .map(|(content, atom, p, is_global)| {
-            if cfg!(target_arch = "wasm32") {
+        .filter_map(|(content, atom, p, is_default_lib)| {
+            if is_default_lib && p.file_name().unwrap() != default_lib_filename {
+                return None;
+            }
+            let m = if cfg!(target_arch = "wasm32") {
                 assert!(content.is_none());
                 assert!(atom.is_none());
-                module_arena.new_module(p, is_global, &mut fs, &mut atoms)
+                module_arena.new_module(p, is_default_lib, &mut fs, &mut atoms)
             } else {
                 let content = content.unwrap();
                 let computed_atom = atom.unwrap();
                 let atom = fs.add_file(&p, content, Some(computed_atom), &mut atoms);
                 assert_eq!(computed_atom, atom);
-                module_arena.new_module_with_content(p, is_global, atom, &atoms)
-            }
+                module_arena.new_module_with_content(p, is_default_lib, atom, &atoms)
+            };
+            Some(m)
         })
         .collect::<Vec<_>>();
 
@@ -174,6 +184,7 @@ pub fn eval_from_with_fs<'cx>(
         &mut module_arena,
         &entries,
         atoms.clone(),
+        &default_lib_dir,
         &herd,
         &mut p,
         fs,
@@ -215,6 +226,7 @@ pub fn eval_from_with_fs<'cx>(
         &bind_list,
         &p,
         &global_symbols,
+        &merged_symbols,
         &atoms,
     );
 
@@ -279,8 +291,9 @@ pub fn eval_from_with_fs<'cx>(
         atoms,
         symbol_links,
         transient_symbols,
+        module_arena: &module_arena,
     };
-    let mut merged_res = check::merge_module_augmentation_list_for_non_global(c, &module_arena);
+    let mut merged_res = check::merge_module_augmentation_list_for_non_global(c);
     let mut atoms = std::mem::take(&mut merged_res.atoms);
     let mut checker = check::TyChecker::new(
         &ty_arena,
@@ -291,21 +304,25 @@ pub fn eval_from_with_fs<'cx>(
         tsconfig.compiler_options(),
         flow_nodes,
         &mut merged_res,
+        &module_arena,
     );
     for item in &entries {
+        let is_default_lib = module_arena.get_module(*item).is_default_lib;
+        let prev = checker.diags.len();
         let root = p.root(*item);
         checker.check_program(root);
         checker.check_deferred_nodes(*item);
         if p.get(*item).is_external_or_commonjs_module() {
             checker.check_external_module_exports(root);
         }
+        assert!(!is_default_lib || prev == checker.diags.len());
     }
 
     // ==== codegen ====
     let output = entries
         .into_par_iter()
         .filter_map(|item| {
-            if module_arena.get_module(item).global {
+            if module_arena.get_module(item).is_default_lib {
                 None
             } else {
                 let input_len = module_arena.get_content(item).len();
@@ -340,6 +357,7 @@ pub fn eval_from_with_fs<'cx>(
         assert_eq!(paths.len(), set.len());
     }
 
+    let types_len = checker.tys.len();
     drop(checker);
 
     Output {
@@ -347,6 +365,7 @@ pub fn eval_from_with_fs<'cx>(
         module_arena,
         diags,
         output,
+        types_len,
     }
 }
 

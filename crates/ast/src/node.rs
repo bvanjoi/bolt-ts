@@ -15,7 +15,7 @@ impl NodeID {
 
 bitflags::bitflags! {
   #[derive(Clone, Copy, Debug)]
-  pub struct FnFlags: u32 {
+  pub struct FnFlags: u8 {
         const NORMAL          = 0;
         const GENERATOR       = 1 << 0;
         const ASYNC           = 1 << 1;
@@ -73,9 +73,10 @@ pub enum Node<'cx> {
     ContinueStmt(&'cx super::ContinueStmt<'cx>),
     TryStmt(&'cx super::TryStmt<'cx>),
     CatchClause(&'cx super::CatchClause<'cx>),
-    ObjectBindingElem(&'cx super::ObjectBindingElem<'cx>),
     ObjectPat(&'cx super::ObjectPat<'cx>),
-    ArrayPat(&'cx super::ArrayPat),
+    ObjectBindingElem(&'cx super::ObjectBindingElem<'cx>),
+    ArrayPat(&'cx super::ArrayPat<'cx>),
+    ArrayBindingElem(&'cx super::ArrayBindingElem<'cx>),
     DebuggerStmt(&'cx super::DebuggerStmt),
 
     // expr
@@ -121,6 +122,8 @@ pub enum Node<'cx> {
     TemplateHead(&'cx super::TemplateHead),
     TemplateSpan(&'cx super::TemplateSpan<'cx>),
     ComputedPropName(&'cx super::ComputedPropName<'cx>),
+    ExprWithTyArgs(&'cx super::ExprWithTyArgs<'cx>),
+    SpreadElement(&'cx super::SpreadElement<'cx>),
 
     // ty
     LitTy(&'cx super::LitTy),
@@ -152,6 +155,7 @@ pub enum Node<'cx> {
     TemplateLitTy(&'cx super::TemplateLitTy<'cx>),
     TemplateSpanTy(&'cx super::TemplateSpanTy<'cx>),
     IntrinsicTy(&'cx super::IntrinsicTy),
+    ThisTy(&'cx super::ThisTy),
 }
 
 impl<'cx> Node<'cx> {
@@ -240,6 +244,23 @@ impl<'cx> Node<'cx> {
             Mapped,
             Infer,
         )
+    }
+
+    pub fn name(&self) -> Option<super::DeclarationName<'cx>> {
+        use Node::*;
+
+        match self {
+            PropSignature(n) => Some(super::DeclarationName::from_prop_name(n.name)),
+            ClassPropElem(prop) => Some(super::DeclarationName::from_prop_name(prop.name)),
+            SetterDecl(n) => Some(super::DeclarationName::from_prop_name(n.name)),
+            GetterDecl(n) => Some(super::DeclarationName::from_prop_name(n.name)),
+            MethodSignature(n) => Some(super::DeclarationName::from_prop_name(n.name)),
+            ObjectPropMember(prop) => Some(super::DeclarationName::from_prop_name(prop.name)),
+            ClassMethodElem(prop) => Some(super::DeclarationName::from_prop_name(prop.name)),
+            ObjectMethodMember(prop) => Some(super::DeclarationName::from_prop_name(prop.name)),
+            ObjectShorthandMember(prop) => Some(super::DeclarationName::Ident(prop.name)),
+            _ => None,
+        }
     }
 
     pub fn ident_name(&self) -> Option<&'cx super::Ident> {
@@ -338,12 +359,12 @@ impl<'cx> Node<'cx> {
             ArrowFnExpr,
             ClassCtor,
             CtorSigDecl,
+            CtorTy,
             ClassMethodElem,
             MethodSignature,
             ObjectMethodMember,
             CallSigDecl,
             FnTy,
-            CtorTy,
             SetterDecl,
         )
     }
@@ -733,6 +754,41 @@ impl<'cx> Node<'cx> {
             _ => None,
         }
     }
+
+    pub fn initializer(&self) -> Option<&'cx super::Expr<'cx>> {
+        macro_rules! initializer  {
+            ($( $node_kind:ident ),* $(,)?) => {
+                match self {
+                    $(Node::$node_kind(n) => Some(n.init),)*
+                    _ => None,
+                }
+            };
+        }
+
+        if let Some(init) = initializer!(ObjectPropMember) {
+            return Some(init);
+        }
+
+        macro_rules! opt_initializer  {
+            ($( $node_kind:ident ),* $(,)?) => {
+                match self {
+                    $(Node::$node_kind(n) => n.init,)*
+                    _ => None,
+                }
+            };
+        }
+
+        opt_initializer!(VarDecl, ClassPropElem, ParamDecl)
+    }
+
+    pub fn is_this_less_var_like_decl(&self) -> bool {
+        let ty_node = self.ty_anno();
+        if let Some(ty_node) = ty_node {
+            ty_node.is_this_less()
+        } else {
+            self.initializer().is_none()
+        }
+    }
 }
 
 macro_rules! as_node {
@@ -835,6 +891,7 @@ as_node!(
         super::SpreadAssignment<'cx>,
         spread_assignment
     ),
+    (SpreadElement, super::SpreadElement<'cx>, spread_element),
     (ObjectLit, super::ObjectLit<'cx>, object_lit),
     (CallExpr, super::CallExpr<'cx>, call_expr),
     (FnExpr, super::FnExpr<'cx>, fn_expr),
@@ -879,6 +936,11 @@ as_node!(
         InterfaceExtendsClause,
         super::InterfaceExtendsClause<'cx>,
         interface_extends_clause
+    ),
+    (
+        ExprWithTyArgs,
+        super::ExprWithTyArgs<'cx>,
+        expr_with_ty_args
     ),
     (IndexSigDecl, super::IndexSigDecl<'cx>, index_sig_decl),
     (PropAccessExpr, super::PropAccessExpr<'cx>, prop_access_expr),
@@ -951,11 +1013,16 @@ as_node!(
     (ExprStmt, super::ExprStmt<'cx>, expr_stmt),
     (QualifiedName, super::QualifiedName<'cx>, qualified_name),
     (ObjectPat, super::ObjectPat<'cx>, object_pat),
-    (ArrayPat, super::ArrayPat, array_pat),
     (
         ObjectBindingElem,
         super::ObjectBindingElem<'cx>,
         object_binding_elem
+    ),
+    (ArrayPat, super::ArrayPat, array_pat),
+    (
+        ArrayBindingElem,
+        super::ArrayBindingElem<'cx>,
+        array_binding_elem
     ),
     (PredTy, super::PredTy<'cx>, pred_ty),
     (ParenTy, super::ParenTy<'cx>, paren_ty),
@@ -964,4 +1031,5 @@ as_node!(
     (TemplateLitTy, super::TemplateLitTy<'cx>, template_lit_ty),
     (TemplateSpanTy, super::TemplateSpanTy<'cx>, template_span_ty),
     (IntrinsicTy, super::IntrinsicTy, intrinsic_ty),
+    (ThisTy, super::ThisTy, this_ty)
 );

@@ -28,21 +28,6 @@ impl<'cx> GetTypeFromTyReferLike<'cx> for ast::ReferTy<'cx> {
     }
 }
 
-impl<'cx> GetTypeFromTyReferLike<'cx> for ast::ClassExtendsClause<'cx> {
-    fn id(&self) -> ast::NodeID {
-        self.id
-    }
-    fn span(&self) -> bolt_ts_span::Span {
-        self.span
-    }
-    fn name(&self) -> &'cx ast::EntityName<'cx> {
-        self.name
-    }
-    fn ty_args(&self) -> Option<&'cx ast::Tys<'cx>> {
-        self.ty_args
-    }
-}
-
 impl<'cx> TyChecker<'cx> {
     pub(super) fn resolve_ty_refer_name(
         &mut self,
@@ -167,7 +152,8 @@ impl<'cx> TyChecker<'cx> {
 
     pub(super) fn get_ty_from_class_or_interface_refer(
         &mut self,
-        node: &impl GetTypeFromTyReferLike<'cx>,
+        node_span: bolt_ts_span::Span,
+        ty_args: Option<&'cx ast::Tys<'cx>>,
         symbol: SymbolID,
     ) -> &'cx ty::Ty<'cx> {
         let ty = self.get_declared_ty_of_symbol(symbol);
@@ -179,21 +165,18 @@ impl<'cx> TyChecker<'cx> {
             unreachable!()
         };
         if let Some(ty_params) = i.local_ty_params {
-            let num_ty_args = node
-                .ty_args()
-                .map(|args| args.list.len())
-                .unwrap_or_default();
+            let num_ty_args = ty_args.map(|args| args.list.len()).unwrap_or_default();
             let min_ty_arg_count = self.get_min_ty_arg_count(Some(ty_params));
             if num_ty_args < min_ty_arg_count || num_ty_args > ty_params.len() {
                 let error: crate::Diag = if min_ty_arg_count == ty_params.len() {
                     Box::new(errors::GenericTypeXRequiresNTypeArguments {
-                        span: node.span(),
+                        span: node_span,
                         ty: self.print_ty(ty).to_string(),
                         n: ty_params.len(),
                     })
                 } else {
                     Box::new(errors::GenericTypeXRequiresBetweenXAndYTypeArguments {
-                        span: node.span(),
+                        span: node_span,
                         ty: self.print_ty(ty).to_string(),
                         x: min_ty_arg_count,
                         y: ty_params.len(),
@@ -204,7 +187,7 @@ impl<'cx> TyChecker<'cx> {
             }
 
             let resolved_ty_args = {
-                let self_ty_args = self.ty_args_from_ty_refer_node(node.ty_args());
+                let self_ty_args = self.ty_args_from_ty_refer_node(ty_args);
                 let self_ty_args =
                     self.fill_missing_ty_args(self_ty_args, i.local_ty_params, min_ty_arg_count);
                 self.concatenate(i.outer_ty_params, self_ty_args)
@@ -225,7 +208,7 @@ impl<'cx> TyChecker<'cx> {
         }
         let flags = self.binder.symbol(symbol).flags;
         if flags.intersects(SymbolFlags::CLASS_OR_INTERFACE) {
-            return self.get_ty_from_class_or_interface_refer(node, symbol);
+            return self.get_ty_from_class_or_interface_refer(node.span(), node.ty_args(), symbol);
         } else if flags.intersects(SymbolFlags::TYPE_ALIAS) {
             return self.get_ty_from_ty_alias_refer(node, symbol);
         }

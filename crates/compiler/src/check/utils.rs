@@ -45,7 +45,8 @@ impl<'cx> TyChecker<'cx> {
             self.get_union_ty_from_sorted_list(
                 filtered,
                 ty.get_object_flags()
-                    & (ty::ObjectFlags::PRIMITIVE_UNION | ty::ObjectFlags::CONTAINS_INTERSECTIONS),
+                    & (ty::ObjectFlags::PRIMITIVE_UNION
+                        .union(ty::ObjectFlags::CONTAINS_INTERSECTIONS)),
             )
         } else if ty.flags.intersects(ty::TypeFlags::NEVER) {
             self.never_ty
@@ -243,4 +244,22 @@ impl<'cx> TyChecker<'cx> {
 enum SameMapperResult<'cx, T> {
     Old,
     New(&'cx [T]),
+}
+
+pub fn uncapitalize(s: &str) -> String {
+    let mut chars = s.chars();
+
+    match chars.next() {
+        Some(first) => first.to_lowercase().chain(chars).collect(),
+        None => String::new(),
+    }
+}
+
+pub fn capitalize(s: &str) -> String {
+    let mut chars = s.chars();
+
+    match chars.next() {
+        Some(first) => first.to_uppercase().chain(chars).collect(),
+        None => String::new(),
+    }
 }

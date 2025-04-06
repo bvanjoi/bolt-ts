@@ -564,6 +564,9 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
             ObjectBindingElem(n) => {
                 self.bind_object_binding_elem_flow(n);
             }
+            ArrayBindingElem(n) => {
+                self.bind_array_binding_elem_flow(n);
+            }
             ParamDecl(n) => {
                 self.bind_param_flow(n);
             }
@@ -726,12 +729,7 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
                 }
             }
             ClassExtendsClause(n) => {
-                self.bind_entity_name(n.name);
-                if let Some(ty_args) = n.ty_args {
-                    for ty in ty_args.list {
-                        self.bind(ty.id());
-                    }
-                }
+                self.bind(n.expr_with_ty_args.id);
             }
             ClassImplementsClause(n) => {
                 for ty in n.list {
@@ -828,7 +826,7 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
             }
             ObjectPropMember(n) => {
                 self.bind_prop_name(n.name);
-                self.bind(n.value.id());
+                self.bind(n.init.id());
             }
             ObjectMethodMember(n) => {
                 self.bind_prop_name(n.name);
@@ -1086,8 +1084,13 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
                 self.bind(n.ty.id());
             }
             PredTy(n) => {
-                self.bind(n.name.id);
-                self.bind(n.ty.id());
+                match n.name {
+                    bolt_ts_ast::PredTyName::Ident(n) => self.bind(n.id),
+                    bolt_ts_ast::PredTyName::This(n) => self.bind(n.id),
+                }
+                if let Some(ty) = n.ty {
+                    self.bind(ty.id());
+                }
             }
             ParenTy(n) => {
                 self.bind(n.ty.id());
@@ -1095,7 +1098,6 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
             InferTy(n) => {
                 self.bind(n.ty_param.id);
             }
-            IntrinsicTy(_) => {}
             NullableTy(n) => {
                 self.bind(n.ty.id());
             }
@@ -1108,16 +1110,26 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
             TemplateSpanTy(n) => {
                 self.bind(n.ty.id());
             }
-            Modifier(_) => {}
             ShorthandSpec(n) => self.bind(n.name.id),
             ExportNamedSpec(n) => {
                 self.bind_module_export_name(n.prop_name);
                 self.bind_module_export_name(n.name);
             }
-            DebuggerStmt(_) => {}
             ExportAssign(n) => {
                 self.bind(n.expr.id());
             }
+            ExprWithTyArgs(n) => {
+                self.bind(n.expr.id());
+                if let Some(ty_args) = n.ty_args {
+                    for ty in ty_args.list {
+                        self.bind(ty.id());
+                    }
+                }
+            }
+            SpreadElement(n) => {
+                self.bind(n.expr.id());
+            }
+            IntrinsicTy(_) | Modifier(_) | DebuggerStmt(_) | ThisTy(_) => {}
         }
         // TODO: bind_js_doc
         self.in_assignment_pattern = save_in_assignment_pattern;
@@ -1145,6 +1157,20 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
         }
         if let Some(init) = n.init {
             self.bind(init.id());
+        }
+    }
+
+    fn bind_array_binding_elem_flow(&mut self, n: &ast::ArrayBindingElem<'cx>) {
+        match n.kind {
+            ast::ArrayBindingElemKind::Omit(e) => {
+                self.bind(e.id);
+            }
+            ast::ArrayBindingElemKind::Binding { name, init, .. } => {
+                self.bind(name.id);
+                if let Some(init) = init {
+                    self.bind(init.id());
+                }
+            }
         }
     }
 

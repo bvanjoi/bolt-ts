@@ -28,7 +28,8 @@ impl<'cx> TyChecker<'cx> {
     ) -> Option<&'cx ty::Ty<'cx>> {
         let flags = self.binder.symbol(id).flags;
         if flags.intersects(SymbolFlags::CLASS_OR_INTERFACE) {
-            Some(self.get_declared_ty_of_class_or_interface(id))
+            let ty = self.get_declared_ty_of_class_or_interface(id);
+            Some(ty)
         } else if flags.intersects(SymbolFlags::TYPE_ALIAS) {
             let ty = self.get_declared_ty_of_type_alias(id);
             Some(ty)
@@ -135,7 +136,7 @@ impl<'cx> TyChecker<'cx> {
         if !self.push_ty_resolution(ResolutionKey::ResolvedBaseConstructorType(ty.id)) {
             return self.error_ty;
         }
-        let base_ctor_ty = self.check_entity_name(extends.name);
+        let base_ctor_ty = self.check_expr(extends.expr_with_ty_args.expr);
         if let Cycle::Some(_) = self.pop_ty_resolution() {
             let decl = self.p.node(decl);
             let name = if let ast::Node::ClassDecl(c) = decl {
@@ -159,7 +160,7 @@ impl<'cx> TyChecker<'cx> {
     }
 
     pub(super) fn get_props_from_members(
-        &self,
+        &mut self,
         members: &FxHashMap<SymbolName, SymbolID>,
     ) -> &'cx [SymbolID] {
         let props = members
@@ -178,32 +179,13 @@ impl<'cx> TyChecker<'cx> {
         self.alloc(props)
     }
 
-    fn symbol_is_value(&self, symbol: SymbolID, include_ty_only_members: bool) -> bool {
+    fn symbol_is_value(&mut self, symbol: SymbolID, include_ty_only_members: bool) -> bool {
         let s = self.symbol(symbol).flags();
-        s.intersects(SymbolFlags::VALUE) // TODO: get_symbol_flags
-    }
-
-    fn resolve_declared_members(&mut self, symbol: SymbolID) -> &'cx ty::DeclaredMembers<'cx> {
-        let members = &self.get_members_of_symbol(symbol).0;
-        let props = self.get_props_from_members(members);
-        let call_sigs = members
-            .get(&SymbolName::Call)
-            .copied()
-            .map(|s| self.get_sigs_of_symbol(s))
-            .unwrap_or_default();
-        let ctor_sigs = members
-            .get(&SymbolName::New)
-            .copied()
-            .map(|s| self.get_sigs_of_symbol(s))
-            .unwrap_or_default();
-        let index_infos = self.get_index_infos_of_symbol(symbol);
-        let declared_members = self.alloc(ty::DeclaredMembers {
-            props,
-            index_infos,
-            ctor_sigs,
-            call_sigs,
-        });
-        declared_members
+        s.intersects(SymbolFlags::VALUE)
+            || (s.intersects(SymbolFlags::ALIAS)
+                && self
+                    .get_symbol_flags(symbol, !include_ty_only_members)
+                    .intersects(SymbolFlags::VALUE))
     }
 
     fn get_declared_ty_of_class_or_interface(&mut self, symbol: SymbolID) -> &'cx ty::Ty<'cx> {
@@ -213,7 +195,6 @@ impl<'cx> TyChecker<'cx> {
 
         let outer_ty_params = self.get_outer_ty_params_of_class_or_interface(symbol);
         let local_ty_params = self.get_local_ty_params_of_class_or_interface_or_type_alias(symbol);
-        let declared_members = self.resolve_declared_members(symbol);
         let kind = if self
             .binder
             .symbol(symbol)
@@ -237,14 +218,13 @@ impl<'cx> TyChecker<'cx> {
                 self.alloc(v)
             };
             let this_ty = self.create_param_ty(symbol, None, true);
-            let target = self.crate_interface_ty(ty::InterfaceTy {
+            let target = self.create_interface_ty(
                 symbol,
-                ty_params: Some(ty_params),
-                outer_ty_params: (!outer_ty_params.is_empty()).then_some(outer_ty_params),
-                local_ty_params: (!local_ty_params.is_empty()).then_some(local_ty_params),
-                this_ty: Some(this_ty),
-                declared_members,
-            });
+                Some(ty_params),
+                (!outer_ty_params.is_empty()).then_some(outer_ty_params),
+                (!local_ty_params.is_empty()).then_some(local_ty_params),
+                Some(this_ty),
+            );
             let ty = self.alloc(ty::ReferenceTy {
                 target,
                 mapper: None,
@@ -259,20 +239,9 @@ impl<'cx> TyChecker<'cx> {
             ty
         } else {
             assert!(outer_ty_params.is_none() && local_ty_params.is_none());
-            self.crate_interface_ty(ty::InterfaceTy {
-                symbol,
-                ty_params: None,
-                outer_ty_params: None,
-                local_ty_params: None,
-                this_ty: None,
-                declared_members,
-            })
+            self.create_interface_ty(symbol, None, None, None, None)
         };
 
-        // TODO: delete this
-        if let Some(ty) = self.get_symbol_links(symbol).get_declared_ty() {
-            return ty;
-        }
         self.get_mut_symbol_links(symbol).set_declared_ty(ty);
         ty
     }

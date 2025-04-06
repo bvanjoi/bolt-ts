@@ -5,6 +5,16 @@ pub fn pprint_ident(ident: &super::Ident, atoms: &AtomMap) -> String {
     atoms.get(ident.name).to_string()
 }
 
+pub fn print_declaration_name(node: &super::DeclarationName, atoms: &AtomMap) -> String {
+    use super::DeclarationName::*;
+    match node {
+        Ident(ident) => pprint_ident(ident, atoms),
+        NumLit(lit) => lit.val.to_string(),
+        StringLit { raw, .. } => atoms.get(raw.val).to_string(),
+        Computed(_) => "todo: computed name".to_string(),
+    }
+}
+
 pub fn pprint_binding(binding: &super::Binding<'_>, atoms: &AtomMap) -> String {
     match binding.kind {
         super::BindingKind::Ident(ident) => pprint_ident(ident, atoms),

@@ -46,7 +46,7 @@ impl<'cx> TyChecker<'cx> {
     ) -> bool {
         if target
             .flags
-            .intersects(TypeFlags::PRIMITIVE | TypeFlags::NEVER)
+            .intersects(TypeFlags::PRIMITIVE.union(TypeFlags::NEVER))
         {
             return false;
         }
@@ -59,7 +59,11 @@ impl<'cx> TyChecker<'cx> {
                     return None;
                 }
                 let s = self.get_symbol_of_decl(member.id());
-                let ty = self.get_lit_ty_from_prop(s);
+                let ty = self.get_lit_ty_from_prop(
+                    s,
+                    TypeFlags::STRING_OR_NUMBER_LITERAL_OR_UNIQUE,
+                    false,
+                );
                 use bolt_ts_ast::ObjectMemberKind::*;
                 match member.kind {
                     Shorthand(n) => Some(Elaboration {
@@ -69,7 +73,7 @@ impl<'cx> TyChecker<'cx> {
                     }),
                     Prop(n) => Some(Elaboration {
                         error_node: n.name.id(),
-                        inner_expr: Some(n.value.id()),
+                        inner_expr: Some(n.init.id()),
                         name_ty: ty,
                     }),
                     Method(n) => Some(Elaboration {

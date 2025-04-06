@@ -3,6 +3,8 @@ mod errors;
 use bolt_ts_ast::{self as ast};
 use bolt_ts_path::NormalizePath;
 
+use crate::parser::FileReference;
+
 use super::parser;
 use super::{ModuleArena, ModuleID};
 
@@ -56,6 +58,7 @@ pub(super) fn build_graph<'cx>(
     module_arena: &mut ModuleArena,
     list: &[ModuleID],
     atoms: Arc<Mutex<AtomMap<'cx>>>,
+    default_lib_dir: &std::path::Path,
     herd: &'cx bumpalo_herd::Herd,
     parser: &mut parser::Parser<'cx>,
     fs: impl bolt_ts_fs::CachedFileSystem,
@@ -75,27 +78,32 @@ pub(super) fn build_graph<'cx>(
             parse_result: parser::ParseResult<'cx>,
             deps: Vec<(ast::NodeID, RResult<PathId>)>,
         }
-        let modules =
-            parser::parse_parallel(atoms.clone(), herd, resolving.as_slice(), module_arena)
-                .map(|(module_id, mut parse_result)| {
-                    let file_path = module_arena.get_path(module_id);
-                    debug_assert!(file_path.is_normalized());
-                    let base_dir = file_path.parent().unwrap();
-                    debug_assert!(base_dir.is_normalized());
-                    let base_dir = PathId::get(base_dir);
-                    let imports = std::mem::take(&mut parse_result.imports);
-                    // TODO: filter imports
-                    let deps = imports
-                        .into_par_iter()
-                        .map(|s| (s.id, resolver.resolve(base_dir, s.val)))
-                        .collect::<Vec<_>>();
-                    ResolvedModule {
-                        id: module_id,
-                        parse_result,
-                        deps,
-                    }
-                })
+        let modules = parser::parse_parallel(
+            atoms.clone(),
+            herd,
+            resolving.as_slice(),
+            module_arena,
+            &default_lib_dir,
+        )
+        .map(|(module_id, mut parse_result)| {
+            let file_path = module_arena.get_path(module_id);
+            debug_assert!(file_path.is_normalized());
+            let base_dir = file_path.parent().unwrap();
+            debug_assert!(base_dir.is_normalized());
+            let base_dir = PathId::get(base_dir);
+            let imports = std::mem::take(&mut parse_result.imports);
+            // TODO: filter imports
+            let deps = imports
+                .into_par_iter()
+                .map(|s| (s.id, resolver.resolve(base_dir, s.val)))
                 .collect::<Vec<_>>();
+            ResolvedModule {
+                id: module_id,
+                parse_result,
+                deps,
+            }
+        })
+        .collect::<Vec<_>>();
 
         for item in resolving {
             let p = module_arena.get_path(item);
@@ -114,6 +122,21 @@ pub(super) fn build_graph<'cx>(
             deps,
         } in modules
         {
+            for lib_reference in &parse_result.lib_references {
+                match resolved.get(lib_reference) {
+                    Some(_) => {}
+                    None => {
+                        if next.contains_key(lib_reference) {
+                            continue;
+                        }
+                        let p = std::path::PathBuf::from(atoms.get((*lib_reference).into()));
+                        let content = fs.read_file(p.as_path(), atoms).unwrap();
+                        let to = module_arena.new_module_with_content(p, true, content, atoms);
+                        next.insert(*lib_reference, to);
+                    }
+                }
+            }
+
             parser.insert(id, parse_result);
 
             for (ast_id, dep) in deps {

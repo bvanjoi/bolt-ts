@@ -242,8 +242,23 @@ impl<'cx> TyChecker<'cx> {
         use super::type_predicate::TyPredKind::*;
         match pred.kind {
             Ident(p) => {
-                let ty = p.ty.map(|ty| self.instantiate_ty(ty, mapper));
+                let ty = self.instantiate_ty(p.ty, mapper);
                 self.create_ident_ty_pred(p.param_name, p.param_index, ty)
+            }
+            AssertsThis(p) => {
+                let ty = p.ty.map(|ty| self.instantiate_ty(ty, mapper));
+                let kind = AssertsThis(super::type_predicate::AssertsThisTyPred { ty });
+                self.alloc(TyPred { kind })
+            }
+            This(p) => {
+                let ty = self.instantiate_ty(p.ty, mapper);
+                let kind = This(super::type_predicate::ThisTyPred { ty });
+                self.alloc(TyPred { kind })
+            }
+            AssertsIdent(n) => {
+                let ty = n.ty.map(|ty| self.instantiate_ty(ty, mapper));
+                let kind = AssertsIdent(super::type_predicate::AssertsIdentTyPred { ty, ..n });
+                self.alloc(TyPred { kind })
             }
         }
     }
@@ -271,7 +286,7 @@ impl<'cx> TyChecker<'cx> {
                 .and_then(|node_id| self.get_effective_ret_type_node(node_id));
             let pred = if let Some(ty) = ty {
                 if let ast::TyKind::Pred(p) = ty.kind {
-                    self.create_ty_pred_from_node(p, sig)
+                    self.create_ty_pred_from_ty_pred_node(p, sig)
                 } else {
                     self.no_ty_pred()
                 }

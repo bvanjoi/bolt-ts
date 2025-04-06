@@ -263,12 +263,12 @@ pub fn bind_parallel<'cx>(
         .zip(modules)
         .map(|(mut p, m)| {
             let module_id = m.id;
-            let is_global = m.global;
+            let is_default_lib = m.is_default_lib;
             let root = p.root();
             let mut bind_state = bind(atoms, &mut p, root, module_id, options);
             let parent_map = std::mem::take(&mut bind_state.parent_map);
             let bind_result = BinderResult::new(bind_state);
-            assert!(!is_global || bind_result.diags.is_empty());
+            assert!(!is_default_lib || bind_result.diags.is_empty());
             (bind_result, (p, parent_map))
         })
         .collect()
@@ -283,7 +283,6 @@ fn bind<'cx, 'atoms, 'parser>(
 ) -> BinderState<'cx, 'atoms, 'parser> {
     let mut state = BinderState::new(atoms, parser, module_id, options);
     state.bind(root.id);
-    // debug_assert!(self.parent_map.inner.iter().skip(1).all(|&p| p != Self::PLACEHOLDER));
     state.parent_map.finish();
     state
 }
@@ -298,7 +297,7 @@ pub fn prop_name(name: &ast::PropName) -> SymbolName {
             match c.expr.kind {
                 Ident(n) => SymbolName::Atom(n.name),
                 StringLit(n) => SymbolName::Atom(n.val),
-                _ => unreachable!(),
+                _ => unreachable!("name: {name:#?}"),
             }
         }
     }

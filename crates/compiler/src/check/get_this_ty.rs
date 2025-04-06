@@ -1,7 +1,6 @@
-use crate::ty;
-use bolt_ts_ast as ast;
+use super::{TyChecker, ty};
 
-use super::TyChecker;
+use bolt_ts_ast as ast;
 
 impl<'cx> TyChecker<'cx> {
     pub(super) fn get_this_ty_of_decl(&mut self, decl: ast::NodeID) -> Option<&'cx ty::Ty<'cx>> {
@@ -31,5 +30,10 @@ impl<'cx> TyChecker<'cx> {
         }
 
         None
+    }
+
+    pub(super) fn get_this_ty(&mut self, node: &'cx ast::ThisTy) -> &'cx ty::Ty<'cx> {
+        // TODO:
+        self.undefined_ty
     }
 }

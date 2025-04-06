@@ -38,7 +38,7 @@ impl<'cx> TyChecker<'cx> {
             Ident(name) => self.check_non_pat_var_like_decl(name.id, decl.id(), decl),
             StringLit { raw, .. } => self.check_non_pat_var_like_decl(raw.id, decl.id(), decl),
             NumLit(num) => self.check_non_pat_var_like_decl(num.id, decl.id(), decl),
-            ObjectPat(_) => {
+            ArrayPat(_) | ObjectPat(_) => {
                 // todo
             }
         }

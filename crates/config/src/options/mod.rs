@@ -36,7 +36,7 @@ pub enum RawTarget {
     ESNext,
 }
 
-#[derive(Debug, Clone, Default, PartialEq)]
+#[derive(Debug, Clone, Default, PartialEq, PartialOrd)]
 pub enum Target {
     #[default]
     ES5,

@@ -2,36 +2,43 @@ mod errors;
 mod expr;
 mod list_ctx;
 mod lookahead;
+mod nodes;
 mod paren_rule;
 mod parse_break_or_continue;
 mod parse_class_like;
 mod parse_fn_like;
 mod parse_import_export_spec;
 mod parse_modifiers;
+mod pragmas;
 mod query;
 mod scan;
+mod scan_pragma;
+mod state;
 mod stmt;
 mod ty;
 mod utils;
 
+use bolt_ts_ast::Visitor;
+use bolt_ts_ast::{self as ast, Node, NodeFlags, NodeID};
+use bolt_ts_atom::{AtomId, AtomMap};
+use bolt_ts_fs::PathId;
+use bolt_ts_path::NormalizePath;
+use bolt_ts_span::{ModuleArena, ModuleID};
+use bolt_ts_utils::no_hashmap_with_capacity;
+
 use std::sync::{Arc, Mutex};
 
-use bolt_ts_ast::Visitor;
-use bolt_ts_atom::{AtomId, AtomMap};
-use bolt_ts_path::NormalizePath;
-use bolt_ts_span::{ModuleArena, ModuleID, Span};
-use bolt_ts_utils::no_hashmap_with_capacity;
-pub(crate) use utils::is_left_hand_side_expr_kind;
-
-use rayon::prelude::*;
-use utils::is_declaration_filename;
-
+pub use self::nodes::Nodes;
+pub use self::pragmas::PragmaMap;
 pub use self::query::AccessKind;
 pub use self::query::AssignmentKind;
+use self::state::ParserState;
+pub(crate) use self::utils::is_left_hand_side_expr_kind;
+
+use rayon::prelude::*;
+
 use crate::bind;
 use crate::keyword;
-use bolt_ts_ast::{self as ast, Node, NodeFlags, NodeID};
-use bolt_ts_ast::{Token, TokenFlags, TokenKind};
 
 type PResult<T> = Result<T, ()>;
 
@@ -40,38 +47,6 @@ enum Tristate {
     False,
     True,
     Unknown,
-}
-
-#[derive(Debug)]
-pub struct Nodes<'cx>(Vec<Node<'cx>>);
-
-impl Default for Nodes<'_> {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
-impl<'cx> Nodes<'cx> {
-    pub fn new() -> Self {
-        Self(Vec::with_capacity(1024 * 8))
-    }
-
-    pub fn get(&self, id: NodeID) -> Node<'cx> {
-        let idx = id.index_as_usize();
-        debug_assert!(idx < self.0.len());
-        *unsafe { self.0.get_unchecked(idx) }
-    }
-
-    pub fn insert(&mut self, id: NodeID, node: Node<'cx>) {
-        assert_eq!(id.index_as_usize(), self.0.len());
-        self.0.push(node);
-    }
-
-    fn root(&self) -> &'cx ast::Program<'cx> {
-        let idx = self.0.len() - 1;
-        let node = unsafe { self.0.get_unchecked(idx) };
-        node.expect_program()
-    }
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -89,6 +64,11 @@ pub enum CommentDirectiveKind {
     Ignore,
 }
 
+#[derive(Debug, Clone, Copy)]
+pub struct FileReference {
+    pub filename: AtomId,
+}
+
 pub struct ParseResult<'cx> {
     pub diags: Vec<bolt_ts_errors::Diag>,
     nodes: Nodes<'cx>,
@@ -97,6 +77,7 @@ pub struct ParseResult<'cx> {
     pub external_module_indicator: Option<ast::NodeID>,
     pub commonjs_module_indicator: Option<ast::NodeID>,
     pub comment_directives: Vec<CommentDirective>,
+    pub lib_references: Vec<PathId>,
     pub line_map: Vec<u32>,
     pub filepath: AtomId,
     pub is_declaration: bool,
@@ -213,6 +194,7 @@ pub fn parse_parallel<'cx, 'p>(
     herd: &'cx bumpalo_herd::Herd,
     list: &'p [ModuleID],
     module_arena: &'p ModuleArena,
+    default_lib_dir: &'p std::path::Path,
 ) -> impl ParallelIterator<Item = (ModuleID, ParseResult<'cx>)> + use<'cx, 'p> {
     list.into_par_iter().map_init(
         || herd.get(),
@@ -224,8 +206,9 @@ pub fn parse_parallel<'cx, 'p>(
                 input.as_bytes(),
                 *module_id,
                 module_arena,
+                default_lib_dir,
             );
-            assert!(!module_arena.get_module(*module_id).global || p.diags.is_empty());
+            assert!(!module_arena.get_module(*module_id).is_default_lib || p.diags.is_empty());
             (*module_id, p)
         },
     )
@@ -251,8 +234,9 @@ fn parse<'cx, 'p>(
     input: &'p [u8],
     module_id: ModuleID,
     module_arena: &'p ModuleArena,
+    default_lib_dir: &std::path::Path,
 ) -> ParseResult<'cx> {
-    let nodes = Nodes::new();
+    let nodes = Nodes(Vec::with_capacity(1024 * 8));
     let parent_map = bind::ParentMap::default();
     let file_path = module_arena.get_path(module_id);
     let mut s = ParserState::new(atoms, arena, nodes, parent_map, input, module_id, file_path);
@@ -263,12 +247,26 @@ fn parse<'cx, 'p>(
     assert_eq!(s.line_map[0], 0);
     debug_assert!(s.line_map.is_sorted(), "line_map: {:#?}", s.line_map);
 
+    let atoms = s.atoms;
     let c = collect_deps(
         s.is_declaration,
         s.external_module_indicator.is_some(),
         s.nodes.root(),
-        s.atoms,
+        atoms.clone(),
     );
+    let is_default_lib = module_arena.get_module(module_id).is_default_lib;
+
+    let lib_references = process_lib_reference_directives(
+        &s.lib_reference_directives,
+        is_default_lib,
+        &atoms,
+        default_lib_dir,
+    )
+    .into_iter()
+    .map(|p| PathId::new(&p, &mut atoms.lock().unwrap()))
+    .collect();
+    drop(atoms);
+
     ParseResult {
         diags: s.diags,
         nodes: s.nodes,
@@ -283,6 +281,7 @@ fn parse<'cx, 'p>(
         imports: c.imports,
         module_augmentations: c.module_augmentations,
         ambient_modules: c.ambient_modules,
+        lib_references,
     }
 }
 
@@ -386,35 +385,6 @@ impl<'cx> ast::Visitor<'cx> for CollectDepsVisitor<'cx> {
     }
 }
 
-struct ParserState<'cx, 'p> {
-    atoms: Arc<Mutex<AtomMap<'cx>>>,
-    input: &'p [u8],
-    token: Token,
-    token_value: Option<TokenValue>,
-    string_key_value: Option<AtomId>,
-    token_flags: TokenFlags,
-    full_start_pos: usize,
-    pos: usize,
-    module_id: ModuleID,
-    ident_count: usize,
-    diags: Vec<bolt_ts_errors::Diag>,
-    nodes: Nodes<'cx>,
-    parent_map: crate::bind::ParentMap,
-    node_flags_map: NodeFlagsMap,
-    arena: &'p bumpalo_herd::Member<'cx>,
-    context_flags: NodeFlags,
-    external_module_indicator: Option<ast::NodeID>,
-    commonjs_module_indicator: Option<ast::NodeID>,
-    has_export_decl: bool,
-    comment_directives: Vec<CommentDirective>,
-    line: usize,
-    line_start: usize, // offset
-    line_map: Vec<u32>,
-    is_declaration: bool,
-    filepath: AtomId,
-    in_ambient_module: bool,
-}
-
 #[derive(Debug)]
 // TODO: use vector
 pub struct NodeFlagsMap(nohash_hasher::IntMap<u32, bolt_ts_ast::NodeFlags>);
@@ -446,348 +416,32 @@ impl NodeFlagsMap {
     }
 }
 
-impl<'cx, 'p> ParserState<'cx, 'p> {
-    fn new(
-        atoms: Arc<Mutex<AtomMap<'cx>>>,
-        arena: &'p bumpalo_herd::Member<'cx>,
-        nodes: Nodes<'cx>,
-        parent_map: crate::bind::ParentMap,
-        input: &'p [u8],
-        module_id: ModuleID,
-        file_path: &std::path::Path,
-    ) -> Self {
-        let token = Token::new(
-            TokenKind::EOF,
-            Span::new(u32::MAX, u32::MAX, ModuleID::root()),
-        );
-        let p = file_path.to_string_lossy();
-        let p = p.as_bytes();
-        let atom = AtomId::from_bytes(p);
-        debug_assert!(file_path.is_normalized());
-        debug_assert!(atoms.lock().unwrap().contains(atom));
-        let mut context_flags = NodeFlags::default();
-        let is_declaration = is_declaration_filename(p);
-        if is_declaration {
-            context_flags |= NodeFlags::AMBIENT;
-        }
-        Self {
-            input,
-            token,
-            token_value: None,
-            string_key_value: None,
-            pos: 0,
-            full_start_pos: 0,
-            atoms,
-            module_id,
-            ident_count: 0,
-            diags: vec![],
-            token_flags: TokenFlags::empty(),
-            arena,
-            nodes,
-            parent_map,
-            context_flags,
-            node_flags_map: NodeFlagsMap::new(),
-            external_module_indicator: None,
-            commonjs_module_indicator: None,
-            has_export_decl: false,
-            comment_directives: Vec::with_capacity(32),
-            line_start: 0,
-            line_map: Vec::with_capacity(input.len() / 12),
-            line: 0,
-            filepath: atom,
-            is_declaration,
-            in_ambient_module: false,
-        }
-    }
+fn get_lib_filename_from_lib_reference<'cx>(
+    reference_name: AtomId,
+    atoms: &Arc<Mutex<AtomMap<'cx>>>,
+) -> Option<&'static str> {
+    let reference_name = atoms.lock().unwrap().get(reference_name).to_lowercase();
+    let key = reference_name.as_str();
+    bolt_ts_libs::DEFAULT_LIB_MAP.get(key).copied()
+}
 
-    fn alloc<T>(&self, t: T) -> &'cx T {
-        self.arena.alloc(t)
+fn process_lib_reference_directives<'cx>(
+    lib_reference_directives: &[FileReference],
+    is_default_lib: bool,
+    atoms: &Arc<Mutex<AtomMap<'cx>>>,
+    default_lib_dir: &std::path::Path,
+) -> Vec<std::path::PathBuf> {
+    if is_default_lib {
+        return lib_reference_directives
+            .iter()
+            .filter_map(|r| {
+                let lib_filename = get_lib_filename_from_lib_reference(r.filename, atoms)?;
+                let lib_filepath = default_lib_dir.join(lib_filename);
+                debug_assert!(lib_filepath.is_normalized());
+                Some(lib_filepath)
+            })
+            .collect();
     }
-
-    fn next_node_id(&mut self) -> NodeID {
-        let idx = self.nodes.0.len();
-        NodeID::new(self.module_id, idx as u32)
-    }
-
-    #[inline]
-    fn end(&self) -> usize {
-        self.input.len()
-    }
-
-    fn can_parse_semi(&self) -> bool {
-        if self.token.kind == TokenKind::Semi {
-            true
-        } else {
-            matches!(self.token.kind, TokenKind::RBrace | TokenKind::EOF)
-                || self
-                    .token_flags
-                    .intersects(TokenFlags::PRECEDING_LINE_BREAK)
-        }
-    }
-
-    fn parse_bracketed_list<T>(
-        &mut self,
-        ctx: impl list_ctx::ListContext,
-        open: TokenKind,
-        ele: impl Fn(&mut Self) -> PResult<T>,
-        close: TokenKind,
-    ) -> PResult<&'cx [T]> {
-        if self.expect(open) {
-            let elems = self.parse_delimited_list(ctx, ele);
-            self.expect(close);
-            Ok(elems)
-        } else {
-            Ok(&[])
-        }
-    }
-
-    fn is_list_terminator(&mut self, ctx: impl list_ctx::ListContext) -> bool {
-        if self.token.kind == TokenKind::EOF {
-            return true;
-        }
-        ctx.is_closing(self)
-    }
-
-    fn parse_list<T>(
-        &mut self,
-        ctx: impl list_ctx::ListContext,
-        ele: impl Fn(&mut Self) -> PResult<T>,
-    ) -> &'cx [T] {
-        let mut list = vec![];
-        while !self.is_list_terminator(ctx) {
-            if ctx.is_ele(self, false) {
-                if let Ok(ele) = ele(self) {
-                    list.push(ele);
-                }
-            }
-        }
-        self.alloc(list)
-    }
-
-    fn abort_parsing_list_or_move_to_next_token(
-        &mut self,
-        ctx: impl list_ctx::ListContext,
-    ) -> bool {
-        ctx.parsing_context_errors(self);
-        // TODO: is_in_some_parsing_context
-        self.next_token();
-        false
-    }
-
-    fn parse_delimited_list<T>(
-        &mut self,
-        ctx: impl list_ctx::ListContext,
-        ele: impl Fn(&mut Self) -> PResult<T>,
-    ) -> &'cx [T] {
-        let mut list = Vec::with_capacity(8);
-        loop {
-            if ctx.is_ele(self, false) {
-                let Ok(ele) = ele(self) else {
-                    break;
-                };
-                list.push(ele);
-                if self.parse_optional(TokenKind::Comma).is_some() {
-                    continue;
-                }
-                if self.is_list_terminator(ctx) {
-                    break;
-                }
-                self.expect(TokenKind::Comma);
-                continue;
-            }
-            if self.is_list_terminator(ctx) || self.abort_parsing_list_or_move_to_next_token(ctx) {
-                break;
-            }
-        }
-        self.alloc(list)
-    }
-
-    fn parse_token_node(&mut self) -> Token {
-        let t = self.token;
-        self.next_token();
-        t
-    }
-
-    fn parse_optional(&mut self, t: TokenKind) -> Option<Token> {
-        (self.token.kind == t).then(|| self.parse_token_node())
-    }
-
-    fn ident_token(&self) -> AtomId {
-        assert!(
-            self.token.kind.is_ident_or_keyword() || self.token.kind == TokenKind::BigInt,
-            "{:#?}",
-            self.token
-        );
-        self.token_value.unwrap().ident()
-    }
-
-    fn string_token(&self) -> AtomId {
-        use bolt_ts_ast::TokenKind::*;
-        assert!(
-            matches!(self.token.kind, String | NoSubstitutionTemplate),
-            "{:#?}",
-            self.token
-        );
-        self.token_value.unwrap().ident()
-    }
-
-    fn number_token(&self) -> f64 {
-        assert!(matches!(self.token.kind, TokenKind::Number));
-        self.token_value.unwrap().number()
-    }
-
-    fn create_ident_by_atom(&mut self, name: AtomId, span: Span) -> &'cx ast::Ident {
-        self.ident_count += 1;
-        let id = self.next_node_id();
-        let ident = self.alloc(ast::Ident { id, name, span });
-        self.nodes.insert(id, Node::Ident(ident));
-        ident
-    }
-
-    fn create_ident(
-        &mut self,
-        is_ident: bool,
-        missing_ident_kind: Option<errors::MissingIdentKind>,
-    ) -> &'cx ast::Ident {
-        if is_ident {
-            let res = self.create_ident_by_atom(self.ident_token(), self.token.span);
-            self.next_token();
-            res
-        } else if self.token.kind == TokenKind::Private {
-            todo!()
-        } else {
-            let span = self.token.span;
-            let kind = missing_ident_kind.unwrap_or(errors::MissingIdentKind::IdentifierExpected);
-            let error = errors::MissingIdent { span, kind };
-            self.push_error(Box::new(error));
-            self.create_ident_by_atom(keyword::IDENT_EMPTY, self.token.span)
-        }
-    }
-
-    fn parse_semi(&mut self) {
-        if self.token.kind == TokenKind::Semi {
-            self.next_token();
-        }
-    }
-
-    fn parse_binding_ident(&mut self) -> &'cx ast::Ident {
-        let is_ident = self.token.kind.is_binding_ident();
-        self.create_ident(is_ident, None)
-    }
-
-    fn parse_optional_binding_ident(&mut self) -> PResult<Option<&'cx ast::Ident>> {
-        if self.token.kind.is_binding_ident() {
-            Ok(Some(self.parse_binding_ident()))
-        } else {
-            Ok(None)
-        }
-    }
-
-    fn expect(&mut self, t: TokenKind) -> bool {
-        if self.token.kind == t {
-            self.next_token();
-            true
-        } else {
-            let error = errors::ExpectX {
-                span: self.token.span,
-                x: t.as_str().to_string(),
-            };
-            self.push_error(Box::new(error));
-            false
-        }
-    }
-
-    fn create_lit<T>(&mut self, val: T, span: Span) -> &'cx ast::Lit<T> {
-        let id = self.next_node_id();
-        self.alloc(ast::Lit { id, val, span })
-    }
-
-    fn create_lit_ty(&mut self, kind: ast::LitTyKind, span: Span) -> &'cx ast::LitTy {
-        let id = self.next_node_id();
-        self.alloc(ast::LitTy { id, kind, span })
-    }
-
-    pub fn parse(&mut self) -> &'cx ast::Program<'cx> {
-        let start = self.pos;
-        self.next_token();
-        let stmts = self.parse_list(list_ctx::SourceElems, Self::parse_stmt);
-        let id = self.next_node_id();
-        let program = self.alloc(ast::Program {
-            id,
-            stmts,
-            span: self.new_span(start as u32),
-        });
-        self.nodes.insert(id, Node::Program(program));
-        program
-    }
-
-    fn push_error(&mut self, error: crate::Diag) {
-        self.diags.push(bolt_ts_errors::Diag { inner: error });
-    }
-
-    fn set_context_flags(&mut self, val: bool, flag: NodeFlags) {
-        if val {
-            self.context_flags |= flag
-        } else {
-            self.context_flags &= !flag;
-        }
-    }
-
-    fn disallow_in_and<T>(&mut self, f: impl FnOnce(&mut Self) -> T) -> T {
-        self.do_inside_of_context(NodeFlags::DISALLOW_IN_CONTEXT, f)
-    }
-
-    fn allow_in_and<T>(&mut self, f: impl FnOnce(&mut Self) -> T) -> T {
-        self.do_outside_of_context(NodeFlags::DISALLOW_IN_CONTEXT, f)
-    }
-
-    fn do_outside_of_context<T>(
-        &mut self,
-        context: NodeFlags,
-        f: impl FnOnce(&mut Self) -> T,
-    ) -> T {
-        let set = context & self.context_flags;
-        if !set.is_empty() {
-            self.set_context_flags(false, set);
-            let res = f(self);
-            self.set_context_flags(true, set);
-            res
-        } else {
-            f(self)
-        }
-    }
-
-    fn do_inside_of_context<T>(&mut self, context: NodeFlags, f: impl FnOnce(&mut Self) -> T) -> T {
-        let set = context & !self.context_flags;
-        if !set.is_empty() {
-            self.set_context_flags(true, set);
-            let res = f(self);
-            self.set_context_flags(false, set);
-            res
-        } else {
-            f(self)
-        }
-    }
-
-    #[inline]
-    fn in_context(&self, flags: NodeFlags) -> bool {
-        self.context_flags.intersects(flags)
-    }
-
-    #[inline]
-    fn in_disallow_in_context(&self) -> bool {
-        self.in_context(NodeFlags::DISALLOW_IN_CONTEXT)
-    }
-
-    fn allow_conditional_tys_and<T>(&mut self, f: impl FnOnce(&mut Self) -> T) -> T {
-        self.do_outside_of_context(NodeFlags::DISALLOW_CONDITIONAL_TYPES_CONTEXT, f)
-    }
-
-    fn disallow_conditional_tys_and<T>(&mut self, f: impl FnOnce(&mut Self) -> T) -> T {
-        self.do_inside_of_context(NodeFlags::DISALLOW_CONDITIONAL_TYPES_CONTEXT, f)
-    }
-
-    fn in_disallow_conditional_tys_context(&self) -> bool {
-        self.in_context(NodeFlags::DISALLOW_CONDITIONAL_TYPES_CONTEXT)
-    }
+    // TODO: reference in user file.
+    vec![]
 }

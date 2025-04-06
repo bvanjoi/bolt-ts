@@ -89,7 +89,7 @@ dependencies = [
  "bolt_ts_config",
  "bolt_ts_errors",
  "bolt_ts_fs",
- "bolt_ts_lib",
+ "bolt_ts_libs",
  "bolt_ts_path",
  "bolt_ts_resolve",
  "bolt_ts_span",
@@ -100,6 +100,7 @@ dependencies = [
  "dir-test",
  "enumflags2",
  "expect-test",
+ "id-arena",
  "include_dir",
  "indexmap",
  "nohash-hasher",
@@ -159,9 +160,10 @@ dependencies = [
 ]
 
 [[package]]
-name = "bolt_ts_lib"
+name = "bolt_ts_libs"
 version = "0.1.0"
 dependencies = [
+ "bolt_ts_config",
  "rustc-hash",
 ]
 
@@ -212,7 +214,7 @@ dependencies = [
  "bolt_ts_config",
  "bolt_ts_errors",
  "bolt_ts_fs",
- "bolt_ts_lib",
+ "bolt_ts_libs",
  "bolt_ts_span",
  "console_error_panic_hook",
  "indexmap",
@@ -398,6 +400,12 @@ name = "hashbrown"
 version = "0.15.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "bf151400ff0baff5465007dd2f3e717f3fe502074ca563069ce3a6629d07b289"
+
+[[package]]
+name = "id-arena"
+version = "2.2.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "25a2bc672d1148e28034f176e01fffebb08b35768468cc954630da77a1449005"
 
 [[package]]
 name = "include_dir"

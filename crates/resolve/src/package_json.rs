@@ -25,7 +25,7 @@ enum Field {
 
 bolt_ts_utils::index!(PackageJsonInfoId);
 
-impl<'atoms, FS: super::CachedFileSystem> super::Resolver<'atoms, FS> {
+impl<FS: super::CachedFileSystem> super::Resolver<'_, FS> {
     pub fn new_pkg_json(
         &self,
         dir: PathId,

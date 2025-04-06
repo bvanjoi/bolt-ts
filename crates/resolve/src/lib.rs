@@ -186,7 +186,7 @@ impl<'atoms, FS: CachedFileSystem> Resolver<'atoms, FS> {
         let dir = Path::new(atoms.get(dir_id.into()));
         let node_modules_folder = dir.join(NODE_MODULES_FOLDER);
         debug_assert!(node_modules_folder.is_normalized());
-        let node_modules_folder_id = PathId::get(&node_modules_folder.as_path());
+        let node_modules_folder_id = PathId::get(node_modules_folder.as_path());
         atoms.insert_if_not_exist(node_modules_folder_id.into(), || {
             let bytes = node_modules_folder.as_os_str().as_encoded_bytes();
             let s = unsafe { String::from_utf8_unchecked(bytes.to_vec()) };
@@ -211,7 +211,7 @@ impl<'atoms, FS: CachedFileSystem> Resolver<'atoms, FS> {
 
         if ext.intersects(Extensions::Declaration) {
             let node_modules_at_types = node_modules_folder.join("@types");
-            let node_modules_at_types_id = PathId::get(&node_modules_at_types.as_path());
+            let node_modules_at_types_id = PathId::get(node_modules_at_types.as_path());
             self.atoms
                 .lock()
                 .unwrap()
@@ -235,7 +235,7 @@ impl<'atoms, FS: CachedFileSystem> Resolver<'atoms, FS> {
             // )
         }
 
-        return Err(ResolveError::NotFound(module_name.into()));
+        Err(ResolveError::NotFound(module_name.into()))
     }
 
     fn get_pkg_json_info(
@@ -263,9 +263,9 @@ impl<'atoms, FS: CachedFileSystem> Resolver<'atoms, FS> {
         }
 
         let mut fs = self.fs.lock().unwrap();
-        let dir_exists = fs.dir_exists(&pkg_dir);
+        let dir_exists = fs.dir_exists(pkg_dir);
         if dir_exists && fs.file_exists(&pkg_json_path) {
-            let package_dir = PathId::get(&pkg_dir);
+            let package_dir = PathId::get(pkg_dir);
             let package_json_content = fs.read_file(&pkg_json_path, &mut atoms).unwrap();
             let c = atoms.get(package_json_content);
             let contents: PackageJsonInfoContents = serde_json::from_str(c).unwrap();

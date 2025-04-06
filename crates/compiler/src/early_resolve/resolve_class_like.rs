@@ -1,5 +1,4 @@
 use super::Resolver;
-use crate::bind::SymbolFlags;
 use crate::ir;
 use bolt_ts_ast as ast;
 
@@ -32,8 +31,8 @@ impl<'cx> Resolver<'cx, '_, '_> {
         }
 
         if let Some(extends) = class.extends() {
-            self.resolve_entity_name(extends.name, SymbolFlags::VALUE);
-            if let Some(ty_args) = extends.ty_args {
+            self.resolve_expr(extends.expr_with_ty_args.expr);
+            if let Some(ty_args) = extends.expr_with_ty_args.ty_args {
                 self.resolve_tys(ty_args.list);
             }
         }

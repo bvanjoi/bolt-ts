@@ -41,10 +41,7 @@ impl<'cx> TyChecker<'cx> {
 
     pub(super) fn is_fresh_literal_ty(&mut self, ty: &'cx ty::Ty<'cx>) -> bool {
         ty.flags.intersects(TypeFlags::FRESHABLE)
-            && self
-                .get_ty_links(ty.id)
-                .get_fresh_ty()
-                .is_some_and(|fresh_ty| fresh_ty == ty)
+            && self.get_fresh_ty(ty).is_some_and(|fresh_ty| fresh_ty == ty)
     }
 
     pub(super) fn get_widened_literal_ty(&mut self, ty: &'cx ty::Ty<'cx>) -> &'cx ty::Ty<'cx> {

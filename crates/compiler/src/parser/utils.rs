@@ -20,7 +20,7 @@ impl ParseSuccess for bool {
 
 impl<T, E> ParseSuccess for Result<Option<T>, E> {
     fn is_success(&self) -> bool {
-        !self.is_err()
+        self.as_ref().is_ok_and(|x| x.is_some())
     }
 }
 
@@ -186,12 +186,39 @@ impl<'cx> ParserState<'cx, '_> {
         }
     }
 
-    pub(super) fn is_start_of_expr(&self) -> bool {
+    pub(super) fn is_start_of_left_hand_side_expr(&mut self) -> bool {
+        use TokenKind::*;
+        if self.token.kind == TokenKind::Import {
+            self.lookahead(Self::next_token_is_lparen_or_less_or_dot)
+        } else {
+            matches!(
+                self.token.kind,
+                This | Super
+                    | Null
+                    | True
+                    | False
+                    | Number
+                    | String
+                    | NoSubstitutionTemplate
+                    | LBrace
+                    | LBracket
+                    | LParen
+                    | Function
+                    | Class
+                    | New
+                    | Slash
+                    | SlashEq
+                    | Ident
+                    | TemplateHead
+            ) || self.is_ident()
+        }
+    }
+
+    pub(super) fn is_start_of_expr(&mut self) -> bool {
         use bolt_ts_ast::TokenKind::*;
-        let t = self.token.kind;
-        if t.is_start_of_left_hand_side_expr()
+        self.is_start_of_left_hand_side_expr()
             || matches!(
-                t,
+                self.token.kind,
                 Plus | Minus
                     | Tilde
                     | Excl
@@ -206,11 +233,6 @@ impl<'cx> ParserState<'cx, '_> {
                     | Private
                     | At
             )
-        {
-            true
-        } else {
-            self.is_ident()
-        }
     }
 
     pub(super) fn is_start_of_stmt(&mut self) -> bool {
@@ -398,16 +420,28 @@ impl<'cx> ParserState<'cx, '_> {
         }
     }
 
-    pub(super) fn try_parse<T: ParseSuccess>(&mut self, f: impl FnOnce(&mut Self) -> T) -> T {
+    fn in_try_context<T>(
+        &mut self,
+        f: impl FnOnce(&mut Self) -> T,
+        need_revert: impl FnOnce(&T) -> bool,
+    ) -> T {
         let old_pos = self.pos;
         let old_full_start_pos = self.full_start_pos;
         let old_token = self.token;
         let old_token_value = self.token_value;
+        let old_line = self.line;
+        let old_token_flags = self.token_flags;
+        let old_line_start = self.line_start;
+        let old_line_map_len = self.line_map.len();
         let old_parse_diag_len = self.diags.len();
 
-        let res = f(self);
+        let r = f(self);
 
-        if !res.is_success() {
+        if need_revert(&r) {
+            self.line_map.truncate(old_line_map_len);
+            self.line_start = old_line_start;
+            self.token_flags = old_token_flags;
+            self.line = old_line;
             self.token_value = old_token_value;
             self.token = old_token;
             self.full_start_pos = old_full_start_pos;
@@ -416,23 +450,15 @@ impl<'cx> ParserState<'cx, '_> {
             self.diags.truncate(old_parse_diag_len);
         }
 
-        res
+        r
+    }
+
+    pub(super) fn try_parse<T: ParseSuccess>(&mut self, f: impl FnOnce(&mut Self) -> T) -> T {
+        self.in_try_context(f, |r| !r.is_success())
     }
 
     pub(super) fn lookahead<T>(&mut self, f: impl FnOnce(&mut Self) -> T) -> T {
-        let old_pos = self.pos;
-        let old_full_start_pos = self.full_start_pos;
-        let old_token = self.token;
-        let old_token_value = self.token_value;
-
-        let r = f(self);
-
-        self.token_value = old_token_value;
-        self.token = old_token;
-        self.full_start_pos = old_full_start_pos;
-        self.pos = old_pos;
-
-        r
+        self.in_try_context(f, |_| true)
     }
 
     pub(super) fn parse_ident_name(&mut self) -> PResult<&'cx ast::Ident> {
@@ -821,6 +847,13 @@ impl<'cx> ParserState<'cx, '_> {
         });
         self.nodes.insert(id, ast::Node::SetterDecl(decl));
         Ok(decl)
+    }
+
+    pub(super) fn is_heritage_clause_extends_or_implements_keyword(&mut self) -> bool {
+        if matches!(self.token.kind, TokenKind::Extends | TokenKind::Implements) {
+            return self.lookahead(Self::next_token_is_start_of_expr);
+        }
+        false
     }
 }
 
