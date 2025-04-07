@@ -8,7 +8,7 @@ use super::symbol_info::SymbolInfo;
 use super::utils::{capitalize, uncapitalize};
 use super::{InstantiationTyMap, StringMappingTyMap, TyChecker};
 use crate::bind::SymbolID;
-use crate::keyword::{self, is_intrinsic_type_name};
+use crate::keyword::{self};
 use crate::ty::{self};
 use crate::ty::{ObjectFlags, TyMapper, TypeFlags};
 

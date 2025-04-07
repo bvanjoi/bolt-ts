@@ -19,7 +19,7 @@ pub use self::facts::{TYPEOF_NE_FACTS, TypeFacts, has_type_facts};
 pub use self::flags::{ObjectFlags, TypeFlags};
 pub use self::links::{CommonTyLinks, CommonTyLinksArena, CommonTyLinksID};
 pub use self::links::{FreshTyLinksArena, FreshTyLinksID};
-pub use self::links::{InterfaceTyLinks, InterfaceTyLinksArena, InterfaceTyLinksID};
+pub use self::links::InterfaceTyLinksArena;
 pub use self::mapper::{ArrayTyMapper, TyMap, TyMapper};
 pub use self::mapper::{CompositeTyMapper, MergedTyMapper};
 pub use self::object_ty::ElementFlags;

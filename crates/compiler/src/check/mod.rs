@@ -271,6 +271,7 @@ pub struct TyChecker<'cx> {
     global_number_ty: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
     global_string_ty: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
     global_boolean_ty: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
+    global_regexp_ty: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
     global_symbol_ty: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
     mark_super_ty: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
     mark_sub_ty: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
@@ -510,6 +511,7 @@ impl<'cx> TyChecker<'cx> {
             global_boolean_ty: Default::default(),
             global_array_ty: Default::default(),
             global_readonly_array_ty: Default::default(),
+            global_regexp_ty: Default::default(),
             any_readonly_array_ty: Default::default(),
             global_fn_ty: Default::default(),
             global_callable_fn_ty: Default::default(),
@@ -572,6 +574,7 @@ impl<'cx> TyChecker<'cx> {
             (global_symbol_ty,          this.get_global_type(SymbolName::Atom(keyword::IDENT_SYMBOL_CLASS))),
             (global_string_ty,          this.get_global_type(SymbolName::Atom(keyword::IDENT_STRING_CLASS))),
             (global_array_ty,           this.get_global_type(SymbolName::Atom(keyword::IDENT_ARRAY_CLASS))),
+            (global_regexp_ty,          this.get_global_type(SymbolName::Atom(keyword::IDENT_REGEXP_CLASS))),
             (any_array_ty,              this.create_array_ty(this.any_ty, false)),
             (global_readonly_array_ty,  this.get_global_type(SymbolName::Atom(keyword::IDENT_READONLY_ARRAY_CLASS))),
             (any_readonly_array_ty,     this.any_array_ty()),
@@ -3150,7 +3153,7 @@ impl<'cx> TyChecker<'cx> {
             let declarations: Option<&'cx [ast::NodeID]> = match self.symbol(prop).declarations() {
                 BorrowedDeclarations::FromTransient(decls) => decls,
                 BorrowedDeclarations::FromNormal(decls) if !decls.is_empty() => {
-                    Some(self.alloc(decls.into_iter().map(|decl| *decl).collect::<Vec<_>>()))
+                    Some(self.alloc(decls.to_vec()))
                 }
                 _ => None,
             };
@@ -3267,6 +3270,7 @@ global_ty!(
     global_callable_fn_ty,
     global_newable_fn_ty,
     global_object_ty,
+    global_regexp_ty,
     template_constraint_ty,
     mark_super_ty,
     mark_sub_ty,

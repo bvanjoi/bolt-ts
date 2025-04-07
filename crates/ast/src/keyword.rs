@@ -101,6 +101,7 @@ gen_atoms!(
     (IDENT_GLOBAL_THIS, "globalThis"),
     (IDENT_ARGUMENTS, "arguments"),
     (IDENT_IARGUMENTS_CLASS, "IArguments"),
+    (IDENT_REGEXP_CLASS, "RegExp"),
     (INTRINSIC_TYPE_UPPERCASE, "Uppercase"),
     (INTRINSIC_TYPE_LOWERCASE, "Lowercase"),
     (INTRINSIC_TYPE_CAPITALIZE, "Capitalize"),

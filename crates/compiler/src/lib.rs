@@ -30,7 +30,7 @@ use bolt_ts_atom::{AtomId, AtomMap};
 use bolt_ts_config::NormalizedTsConfig;
 use bolt_ts_fs::{CachedFileSystem, read_file_with_encoding};
 use bolt_ts_path::NormalizePath;
-use bolt_ts_span::{ModuleArena, ModuleID, ModulePath};
+use bolt_ts_span::{ModuleArena, ModuleID};
 
 use bolt_ts_utils::fx_hashmap_with_capacity;
 use cli::get_filenames;
@@ -110,7 +110,7 @@ pub fn eval_from(root: PathBuf, tsconfig: &NormalizedTsConfig) -> Output {
     let fs = bolt_ts_fs::LocalFS::new(&mut atoms);
     let exe_dir = current_exe_dir();
     let default_libs = bolt_ts_libs::DEFAULT_LIBS
-        .into_iter()
+        .iter()
         .map(|filename| exe_dir.join(filename))
         .collect::<Vec<_>>();
     eval_from_with_fs(root, tsconfig, exe_dir, default_libs, fs, atoms)
@@ -153,7 +153,7 @@ pub fn eval_from_with_fs<'cx>(
         })
         .collect::<Vec<_>>();
 
-    let default_lib_filename = bolt_ts_libs::get_default_lib_filename(&tsconfig.compiler_options());
+    let default_lib_filename = bolt_ts_libs::get_default_lib_filename(tsconfig.compiler_options());
 
     let entries = entries_with_read_file
         .into_iter()

@@ -189,9 +189,9 @@ pub(crate) struct MergeModuleAugmentationForNonGlobal<'cx> {
     pub module_arena: &'cx ModuleArena,
 }
 
-pub(crate) fn merge_module_augmentation_list_for_non_global<'cx>(
-    mut c: MergeModuleAugmentationForNonGlobal<'cx>,
-) -> MergeModuleAugmentationForNonGlobalResult<'cx> {
+pub(crate) fn merge_module_augmentation_list_for_non_global(
+    mut c: MergeModuleAugmentationForNonGlobal<'_>,
+) -> MergeModuleAugmentationForNonGlobalResult<'_> {
     for (m, p) in c.module_arena.modules().iter().zip(c.p.map.iter()) {
         assert!(std::ptr::addr_eq(c.p.get(m.id), p));
         for augmentation in p.module_augmentations.iter() {

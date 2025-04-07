@@ -4,7 +4,7 @@ use bolt_ts_atom::AtomId;
 use bolt_ts_span::Span;
 
 use super::{CommentDirectiveKind, PResult, ParserState, TokenValue};
-use bolt_ts_ast::{Token, TokenFlags, TokenKind, keyword_idx_to_token};
+use bolt_ts_ast::{RegularExpressionFlags, Token, TokenFlags, TokenKind, keyword_idx_to_token};
 
 use crate::{keyword::KEYWORDS, parser::CommentDirective};
 
@@ -1126,6 +1126,151 @@ impl ParserState<'_, '_> {
         self.token = self.scan_template_and_set_token_value(!is_tagged_template);
         self.token
     }
+
+    pub(super) fn re_scan_slash_token(&mut self, report_error: bool) {
+        use TokenKind::*;
+        if !matches!(self.token.kind, Slash | SlashEq) {
+            return;
+        }
+
+        let start = self.token.start();
+        let start_of_regexp_body = start + 1;
+        self.pos = start_of_regexp_body as usize;
+        let mut in_escape = false;
+        let mut named_capture_groups = false;
+        let mut in_character_class = false;
+        loop {
+            let Some(ch) = self.ch() else {
+                self.token_flags |= TokenFlags::UNTERMINATED;
+                break;
+            };
+            if is_line_break(ch) {
+                self.token_flags |= TokenFlags::UNTERMINATED;
+                break;
+            };
+            if in_escape {
+                in_escape = false;
+            } else if ch == b'/' && !in_character_class {
+                break;
+            } else if ch == b'[' {
+                in_character_class = true;
+            } else if ch == b'\\' {
+                in_escape = true;
+            } else if ch == b']' {
+                in_character_class = false;
+            } else if !in_character_class
+                && ch == b'('
+                && self.input.get(self.pos + 1).is_some_and(|c| b'?'.eq(c))
+                && self.input.get(self.pos + 2).is_some_and(|c| b'<'.eq(c))
+                && self
+                    .input
+                    .get(self.pos + 3)
+                    .is_some_and(|c| !matches!(c, b'=' | b'!'))
+            {
+                named_capture_groups = true;
+            }
+            self.pos += 1;
+        }
+        let end_of_regexp_body = self.pos;
+        if self.token_flags.intersects(TokenFlags::UNTERMINATED) {
+            self.pos = start_of_regexp_body as usize;
+            in_escape = false;
+            let mut character_class_depth = 0;
+            let mut in_decimal_quantifier = false;
+            let mut group_depth = 0;
+            while self.pos < end_of_regexp_body {
+                let ch = self.ch_unchecked();
+                if in_escape {
+                    in_escape = false;
+                } else if ch == b'\\' {
+                    in_escape = true;
+                } else if ch == b'[' {
+                    character_class_depth += 1;
+                } else if ch == b']' && character_class_depth > 0 {
+                    character_class_depth -= 1;
+                } else if character_class_depth == 0 {
+                    if ch == b'{' {
+                        in_decimal_quantifier = true;
+                    } else if ch == b'}' && in_decimal_quantifier {
+                        in_decimal_quantifier = false;
+                    } else if !in_decimal_quantifier {
+                        if ch == b'(' {
+                            group_depth += 1;
+                        } else if ch == b')' && group_depth > 0 {
+                            group_depth -= 1;
+                        } else if matches!(ch, b')' | b']' | b'}') {
+                            break;
+                        }
+                    }
+                }
+                self.pos += 1;
+            }
+            while let Some(prev) = self.input.get(self.pos - 1).copied() {
+                if prev == b';' || prev.is_ascii_whitespace() {
+                    self.pos -= 1;
+                } else if !prev.is_ascii() {
+                    todo!("unicode in regexp")
+                } else {
+                    break;
+                }
+            }
+            // TODO: unterminated_regexp_expr;
+        } else {
+            self.pos += 1;
+            let mut regexp_flags = RegularExpressionFlags::empty();
+            while let Some(ch) = self.ch() {
+                if !is_identifier_part(ch) {
+                    break;
+                }
+                if !ch.is_ascii() {
+                    todo!("unicode in regexp")
+                }
+                if report_error {
+                    let flags = ch_to_regexp_flags(ch);
+                    if let Some(flags) = flags {
+                        if regexp_flags.intersects(flags) {
+                            todo!("duplicate regexp flags")
+                        } else if (regexp_flags | flags)
+                            .contains(RegularExpressionFlags::ANY_UNICODE_MODE)
+                        {
+                            todo!("u and v flags are mutually exclusive")
+                        } else {
+                            regexp_flags |= flags;
+                            todo!("check language version");
+                        }
+                    } else {
+                        todo!("invalid regexp flags")
+                    }
+                }
+                self.pos += 1;
+            }
+        }
+        let atom = self
+            .atoms
+            .lock()
+            .unwrap()
+            .insert_by_vec(self.input[start as usize..self.pos].to_vec());
+        self.token_value = Some(TokenValue::Ident { value: atom });
+        self.token = Token::new(
+            TokenKind::Regexp,
+            Span::new(start, end_of_regexp_body as u32, self.module_id),
+        );
+    }
+}
+
+fn ch_to_regexp_flags(ch: u8) -> Option<RegularExpressionFlags> {
+    let flags = match ch {
+        b'd' => RegularExpressionFlags::HAS_INDICES,
+        b'g' => RegularExpressionFlags::GLOBAL,
+        b'i' => RegularExpressionFlags::IGNORE_CASE,
+        b'm' => RegularExpressionFlags::MULTILINE,
+        b's' => RegularExpressionFlags::DOT_ALL,
+        b'u' => RegularExpressionFlags::UNICODE,
+        b'v' => RegularExpressionFlags::UNICODE_SETS,
+        b'y' => RegularExpressionFlags::STICKY,
+        _ => return None,
+    };
+    Some(flags)
 }
 
 fn utf16_encode_as_bytes(code_point: u32) -> Vec<u8> {

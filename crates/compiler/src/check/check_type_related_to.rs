@@ -851,30 +851,26 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
     ) -> Ternary {
         let mut result =
             self.structured_ty_related_to_worker(source, target, report_error, intersection_state);
-        if self.relation != RelationKind::Identity {
-            if result == Ternary::FALSE
-                && (source.flags.intersects(TypeFlags::INTERSECTION)
+        if self.relation != RelationKind::Identity && result == Ternary::FALSE && (source.flags.intersects(TypeFlags::INTERSECTION)
                     || source.flags.intersects(TypeFlags::TYPE_PARAMETER)
-                        && target.flags.intersects(TypeFlags::UNION))
-            {
-                let tys = if let Some(i) = source.kind.as_intersection() {
-                    i.tys
-                } else {
-                    &[source]
-                };
-                if let Some(constraint) = self.c.get_effective_constraint_of_intersection(
-                    tys,
-                    target.flags.intersects(TypeFlags::UNION),
-                ) {
-                    if self.c.every_type(constraint, |_, c| c != source) {
-                        result = self.is_related_to(
-                            constraint,
-                            target,
-                            RecursionFlags::SOURCE,
-                            false,
-                            intersection_state,
-                        )
-                    }
+                        && target.flags.intersects(TypeFlags::UNION)) {
+            let tys = if let Some(i) = source.kind.as_intersection() {
+                i.tys
+            } else {
+                &[source]
+            };
+            if let Some(constraint) = self.c.get_effective_constraint_of_intersection(
+                tys,
+                target.flags.intersects(TypeFlags::UNION),
+            ) {
+                if self.c.every_type(constraint, |_, c| c != source) {
+                    result = self.is_related_to(
+                        constraint,
+                        target,
+                        RecursionFlags::SOURCE,
+                        false,
+                        intersection_state,
+                    )
                 }
             }
         }

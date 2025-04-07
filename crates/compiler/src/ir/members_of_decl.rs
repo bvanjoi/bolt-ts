@@ -3,7 +3,7 @@ pub trait MembersOfDecl {
     fn has_static_modifier(&self) -> bool;
 }
 
-impl<'cx> MembersOfDecl for bolt_ts_ast::ObjectTyMember<'cx> {
+impl MembersOfDecl for bolt_ts_ast::ObjectTyMember<'_> {
     fn id(&self) -> bolt_ts_ast::NodeID {
         self.id()
     }
@@ -20,7 +20,7 @@ impl<'cx> MembersOfDecl for bolt_ts_ast::ObjectTyMember<'cx> {
     }
 }
 
-impl<'cx> MembersOfDecl for bolt_ts_ast::ClassElem<'cx> {
+impl MembersOfDecl for bolt_ts_ast::ClassElem<'_> {
     fn id(&self) -> bolt_ts_ast::NodeID {
         self.id()
     }
@@ -38,7 +38,7 @@ impl<'cx> MembersOfDecl for bolt_ts_ast::ClassElem<'cx> {
     }
 }
 
-impl<'cx> MembersOfDecl for bolt_ts_ast::ObjectMember<'cx> {
+impl MembersOfDecl for bolt_ts_ast::ObjectMember<'_> {
     fn id(&self) -> bolt_ts_ast::NodeID {
         self.id()
     }

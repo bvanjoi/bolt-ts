@@ -553,7 +553,7 @@ impl<'cx> Resolver<'cx, '_, '_> {
                 self.resolve_ty(n.ty);
             }
             This(_) | BoolLit(_) | NumLit(_) | BigIntLit(_) | StringLit(_) | NullLit(_)
-            | Omit(_) | Super(_) => {}
+            | Omit(_) | Super(_) | RegExpLit(_) => {}
         }
     }
 

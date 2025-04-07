@@ -796,6 +796,18 @@ impl<'cx> ParserState<'cx, '_> {
                 self.nodes.insert(this.id, ast::Node::ThisExpr(this));
                 ast::ExprKind::This(this)
             }
+            Regexp => {
+                let id = self.next_node_id();
+                let val = self.ident_token();
+                let lit = self.alloc(ast::RegExpLit {
+                    id,
+                    span: self.token.span,
+                    val,
+                });
+                self.next_token();
+                self.nodes.insert(lit.id, ast::Node::RegExpLit(lit));
+                ast::ExprKind::RegExpLit(lit)
+            }
             _ => unreachable!(),
         };
         self.alloc(ast::Expr { kind })
@@ -827,6 +839,14 @@ impl<'cx> ParserState<'cx, '_> {
             Class => self.parse_class_expr(),
             Super => Ok(self.make_super_expr()),
             TemplateHead => self.prase_template_expr(false),
+            Slash | SlashEq => {
+                self.re_scan_slash_token(false);
+                if self.token.kind == TokenKind::Regexp {
+                    Ok(self.parse_lit_expr())
+                } else {
+                    Ok(self.parse_ident(Some(errors::MissingIdentKind::ExpressionExpected)))
+                }
+            }
             _ => Ok(self.parse_ident(Some(errors::MissingIdentKind::ExpressionExpected))),
         }
     }

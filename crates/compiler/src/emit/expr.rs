@@ -119,6 +119,9 @@ impl<'cx> Emit<'cx> {
                 self.content.p("...");
                 self.emit_expr(n.expr);
             }
+            RegExpLit(n) => {
+                self.content.p(self.atoms.get(n.val));
+            }
         };
     }
 

@@ -46,6 +46,7 @@ impl<'cx> Expr<'cx> {
             TyAssertion(n) => n.span,
             ExprWithTyArgs(n) => n.span,
             SpreadElement(n) => n.span,
+            RegExpLit(n) => n.span,
         }
     }
 
@@ -85,6 +86,7 @@ impl<'cx> Expr<'cx> {
             TyAssertion(n) => n.id,
             ExprWithTyArgs(n) => n.id,
             SpreadElement(n) => n.id,
+            RegExpLit(n) => n.id,
         }
     }
 
@@ -139,6 +141,7 @@ pub enum ExprKind<'cx> {
     BigIntLit(&'cx BigIntLit),
     StringLit(&'cx StringLit),
     NullLit(&'cx NullLit),
+    RegExpLit(&'cx RegExpLit),
     ArrayLit(&'cx ArrayLit<'cx>),
     Ident(&'cx Ident),
     Omit(&'cx OmitExpr),
@@ -594,6 +597,7 @@ pub type BigIntLit = Lit<(bool, AtomId)>;
 pub type BoolLit = Lit<bool>;
 pub type NullLit = Lit<()>;
 pub type StringLit = Lit<AtomId>;
+pub type RegExpLit = Lit<AtomId>;
 
 #[derive(Debug, Clone, Copy)]
 pub struct VarDecl<'cx> {
@@ -632,4 +636,28 @@ pub struct TyAssertion<'cx> {
     pub span: Span,
     pub ty: &'cx self::Ty<'cx>,
     pub expr: &'cx Expr<'cx>,
+}
+
+bitflags::bitflags! {
+    #[derive(Debug, Clone, Copy)]
+    pub struct RegularExpressionFlags: u8 {
+        /// `d`
+        const HAS_INDICES   = 1 << 0;
+        /// `g`
+        const GLOBAL        = 1 << 1;
+        /// `i`
+        const IGNORE_CASE   = 1 << 2;
+        /// `m`
+        const MULTILINE     = 1 << 3;
+        /// `s`
+        const DOT_ALL       = 1 << 4;
+        /// `u`
+        const UNICODE       = 1 << 5;
+        /// `v`
+        const UNICODE_SETS  = 1 << 6;
+        /// `y`
+        const STICKY        = 1 << 7;
+        const ANY_UNICODE_MODE = Self::UNICODE.bits() | Self::UNICODE_SETS.bits();
+        const MODIFIERS = Self::IGNORE_CASE.bits() | Self::MULTILINE.bits() | Self::DOT_ALL.bits();
+    }
 }

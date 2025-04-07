@@ -219,6 +219,7 @@ pub enum TokenKind {
     String,
     /// bigint literal
     BigInt,
+    Regexp,
     Ident,
     NoSubstitutionTemplate,
     TemplateHead,
@@ -648,6 +649,7 @@ bitflags::bitflags! {
     #[derive(Debug, Clone, Copy)]
     pub struct TokenFlags: u16 {
         const PRECEDING_LINE_BREAK      = 1 << 0;
+        const UNTERMINATED              = 1 << 2;
         const EXTENDED_UNICODE_ESCAPE   = 1 << 3;
         const SCIENTIFIC                = 1 << 4;
         const HEX_SPECIFIER             = 1 << 6;
