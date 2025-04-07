@@ -6,7 +6,6 @@ use super::create_ty::IntersectionFlags;
 use super::cycle_check::{Cycle, ResolutionKey};
 use super::links::SigLinks;
 use super::symbol_info::SymbolInfo;
-use super::transient_symbol::BorrowedDeclarations;
 use super::{SymbolLinks, Ternary, TyChecker, errors};
 use crate::bind::{Symbol, SymbolFlags, SymbolID, SymbolName, SymbolTable};
 use crate::ty::{self, CheckFlags, ObjectFlags, SigID, SigKind, TypeFlags};
@@ -81,17 +80,8 @@ impl<'cx> TyChecker<'cx> {
     }
 
     fn is_this_less(&self, symbol: SymbolID) -> bool {
-        let decls = match self.symbol(symbol).declarations() {
-            BorrowedDeclarations::FromTransient(decls) => {
-                if let Some(decls) = decls {
-                    decls
-                } else {
-                    return false;
-                }
-            }
-            BorrowedDeclarations::FromNormal(decls) => decls,
-            _ => return false,
-        };
+        let s = self.symbol(symbol);
+        let decls = s.declarations();
         if decls.len() != 1 {
             return false;
         }
@@ -179,22 +169,9 @@ impl<'cx> TyChecker<'cx> {
         let s = self.symbol(symbol);
         let name = s.name();
         let flags = s.flags();
-        let declarations: Option<&'cx [ast::NodeID]> = match s.declarations() {
-            BorrowedDeclarations::FromTransient(decls) => decls,
-            BorrowedDeclarations::FromNormal(decls) if !decls.is_empty() => {
-                Some(self.alloc(decls.to_vec()))
-            }
-            _ => None,
-        };
+        let decls = s.declarations().into();
         let value_declaration = s.value_declaration();
-        self.create_transient_symbol(
-            name,
-            flags,
-            Some(symbol),
-            links,
-            declarations,
-            value_declaration,
-        )
+        self.create_transient_symbol(name, flags, Some(symbol), links, decls, value_declaration)
     }
 
     fn instantiate_sigs(
@@ -1270,21 +1247,15 @@ impl<'cx> TyChecker<'cx> {
                                         CheckFlags::empty()
                                     },
                             );
-                        let declarations = modifiers_prop.and_then(|p| {
-                            if should_link_prop_decls {
-                                match this.symbol(p).declarations() {
-                                    BorrowedDeclarations::FromTransient(decls) => decls,
-                                    BorrowedDeclarations::FromNormal(decls)
-                                        if !decls.is_empty() =>
-                                    {
-                                        Some(this.alloc(decls.to_vec()))
-                                    }
-                                    _ => None,
+                        let declarations = modifiers_prop
+                            .and_then(|p| {
+                                if should_link_prop_decls {
+                                    Some(this.symbol(p).declarations().into())
+                                } else {
+                                    None
                                 }
-                            } else {
-                                None
-                            }
-                        });
+                            })
+                            .unwrap_or_default();
                         let symbol = this.create_transient_symbol(
                             symbol_name,
                             symbol_flags,

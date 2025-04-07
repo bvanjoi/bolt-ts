@@ -7,12 +7,12 @@ use crate::ty;
 use super::TyChecker;
 use super::symbol_info::SymbolInfo;
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub(crate) struct TransientSymbol<'cx> {
     pub(super) name: SymbolName,
     pub(super) flags: SymbolFlags,
     pub(super) links: crate::check::SymbolLinks<'cx>,
-    pub(super) declarations: Option<&'cx [ast::NodeID]>,
+    pub(super) decls: thin_vec::ThinVec<NodeID>,
     pub(super) value_declaration: Option<ast::NodeID>,
     // TODO: flatten
     pub(super) origin: Option<SymbolID>,
@@ -60,12 +60,6 @@ pub(super) enum CheckSymbol<'cx, 'checker> {
     Normal(&'checker Symbol),
 }
 
-#[derive(Debug, Clone, Copy)]
-pub enum BorrowedDeclarations<'cx, 'checker> {
-    FromTransient(Option<&'cx [ast::NodeID]>),
-    FromNormal(&'checker [ast::NodeID]),
-}
-
 impl<'cx, 'checker> CheckSymbol<'cx, 'checker> {
     pub(crate) fn flags(&self) -> SymbolFlags {
         match self {
@@ -79,10 +73,10 @@ impl<'cx, 'checker> CheckSymbol<'cx, 'checker> {
             CheckSymbol::Normal(symbol) => symbol.name,
         }
     }
-    pub(crate) fn declarations(&self) -> BorrowedDeclarations<'cx, 'checker> {
+    pub(crate) fn declarations(&self) -> &[ast::NodeID] {
         match self {
-            CheckSymbol::Transient(s) => BorrowedDeclarations::FromTransient(s.declarations),
-            CheckSymbol::Normal(s) => BorrowedDeclarations::FromNormal(&s.decls),
+            CheckSymbol::Transient(s) => &s.decls,
+            CheckSymbol::Normal(s) => &s.decls,
         }
     }
     pub(crate) fn value_declaration(&self) -> Option<ast::NodeID> {
@@ -100,7 +94,7 @@ impl<'cx> TyChecker<'cx> {
         symbol_flags: SymbolFlags,
         origin: Option<SymbolID>,
         links: crate::check::SymbolLinks<'cx>,
-        declarations: Option<&'cx [ast::NodeID]>,
+        decls: thin_vec::ThinVec<ast::NodeID>,
         value_declaration: Option<ast::NodeID>,
     ) -> SymbolID {
         let symbol_flags = symbol_flags | SymbolFlags::TRANSIENT;
@@ -109,7 +103,7 @@ impl<'cx> TyChecker<'cx> {
             flags: symbol_flags,
             links,
             origin,
-            declarations,
+            decls,
             value_declaration,
             merged_id: None,
         };
@@ -136,7 +130,7 @@ impl<'cx> TyChecker<'cx> {
             symbol_flags,
             Some(source),
             links,
-            None,
+            thin_vec::thin_vec![],
             value_declaration,
         )
     }
@@ -156,7 +150,7 @@ impl<'cx> TyChecker<'cx> {
     pub(crate) fn get_symbol_decl(&self, symbol: SymbolID) -> Option<NodeID> {
         if symbol.module() == ModuleID::TRANSIENT {
             let symbol = self.get_transient(symbol).unwrap();
-            symbol.declarations.and_then(|d| d.first().copied())
+            symbol.decls.first().copied()
         } else {
             symbol.opt_decl(self.binder)
         }

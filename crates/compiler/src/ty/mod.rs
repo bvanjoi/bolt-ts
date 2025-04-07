@@ -444,6 +444,7 @@ impl<'cx> TyKind<'cx> {
 #[derive(Debug, Clone, Copy)]
 pub struct UniqueESSymbolTy {
     pub symbol: SymbolID,
+    // TODO: use `SymbolName::EsSymbolName`
     pub escape_name: AtomId,
 }
 

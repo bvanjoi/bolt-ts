@@ -14,6 +14,7 @@ links!(
     (name_ty, &'cx ty::Ty<'cx>),
     (containing_ty, &'cx ty::Ty<'cx>),
     (variances, &'cx [VarianceFlags]),
+    (late_symbol, SymbolID),
     // transient symbol
     (check_flags, ty::CheckFlags),
     // mapped symbol

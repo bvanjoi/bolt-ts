@@ -432,7 +432,9 @@ impl<'cx> Node<'cx> {
             VarDecl(_)
                 | ObjectShorthandMember(_)
                 | ObjectPropMember(_)
+                | PropSignature(_)
                 | ObjectMethodMember(_)
+                | MethodSignature(_)
                 | ComputedPropName(_)
                 | ClassDecl(_)
                 | ClassExpr(_)
@@ -556,6 +558,10 @@ impl<'cx> Node<'cx> {
 
     pub fn has_static_modifier(&self) -> bool {
         self.has_syntactic_modifier(ModifierKind::Static.into())
+    }
+
+    pub fn has_effective_readonly_modifier(&self) -> bool {
+        self.has_syntactic_modifier(ModifierKind::Readonly.into())
     }
 
     pub fn has_syntactic_modifier(&self, flags: enumflags2::BitFlags<ModifierKind>) -> bool {

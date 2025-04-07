@@ -738,7 +738,7 @@ impl<'cx> TyChecker<'cx> {
                             SymbolLinks::default()
                                 .with_ty(ty_param)
                                 .with_check_flags(check_flags),
-                            None,
+                            thin_vec::thin_vec![],
                             None,
                         );
                         props.push(property);
@@ -764,7 +764,7 @@ impl<'cx> TyChecker<'cx> {
                 SymbolLinks::default()
                     .with_ty(ty)
                     .with_check_flags(check_flags),
-                None,
+                thin_vec::thin_vec![],
                 None,
             );
             props.push(length_symbol);
@@ -1595,8 +1595,14 @@ impl<'cx> TyChecker<'cx> {
                             links = links.with_name_ty(name_ty);
                         }
                         // TODO: left_spread, right_spread, declarations
-                        let result =
-                            self.create_transient_symbol(name, flags, None, links, None, None);
+                        let result = self.create_transient_symbol(
+                            name,
+                            flags,
+                            None,
+                            links,
+                            thin_vec::thin_vec![],
+                            None,
+                        );
                         occ.insert(result);
                     }
                 }

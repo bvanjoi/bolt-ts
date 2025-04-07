@@ -59,39 +59,38 @@ pub mod utils;
 use std::borrow::Cow;
 
 use bolt_ts_atom::{AtomId, AtomMap};
-
 use bolt_ts_config::NormalizedCompilerOptions;
 use bolt_ts_utils::{fx_hashmap_with_capacity, no_hashmap_with_capacity, no_hashset_with_capacity};
-use check_expr::IterationUse;
-use create_ty::IntersectionFlags;
 use enumflags2::BitFlag;
-use flow::FlowTy;
-use fn_mapper::{PermissiveMapper, RestrictiveMapper};
-use get_simplified_ty::SimplifiedKind;
-use get_variances::VarianceFlags;
-use instantiation_ty_map::{
-    IndexedAccessTyMap, IntersectionMap, StringMappingTyMap, TyAliasInstantiationMap, TyCacheTrait,
-    TyKey, UnionMap,
-};
 use rustc_hash::{FxBuildHasher, FxHashMap};
-use symbol_info::SymbolInfo;
-use transient_symbol::{BorrowedDeclarations, TransientSymbol};
-use type_predicate::TyPred;
-use utils::contains_ty;
 
+use self::check_expr::IterationUse;
+use self::create_ty::IntersectionFlags;
 use self::cycle_check::ResolutionKey;
+use self::flow::FlowTy;
+use self::fn_mapper::{PermissiveMapper, RestrictiveMapper};
 use self::get_context::{InferenceContextual, TyContextual};
 use self::get_contextual::ContextFlags;
+use self::get_simplified_ty::SimplifiedKind;
+use self::get_variances::VarianceFlags;
 use self::infer::InferenceContext;
 use self::infer::{InferenceFlags, InferencePriority};
 use self::instantiation_ty_map::InstantiationTyMap;
+use self::instantiation_ty_map::{
+    IndexedAccessTyMap, IntersectionMap, StringMappingTyMap, TyAliasInstantiationMap, TyCacheTrait,
+    TyKey, UnionMap,
+};
 use self::links::NodeLinks;
 pub use self::links::SymbolLinks;
 use self::links::{SigLinks, TyLinks};
 pub(crate) use self::merge::merge_module_augmentation_list_for_global;
 use self::node_check_flags::NodeCheckFlags;
 pub use self::resolve::ExpectedArgsCount;
+use self::symbol_info::SymbolInfo;
+use self::transient_symbol::TransientSymbol;
 pub(crate) use self::transient_symbol::TransientSymbols;
+use self::type_predicate::TyPred;
+use self::utils::contains_ty;
 
 use crate::bind::{
     self, FlowID, FlowNodes, GlobalSymbols, MergedSymbols, Symbol, SymbolFlags, SymbolID,
@@ -230,7 +229,7 @@ pub struct TyChecker<'cx> {
     pub string_ty: &'cx ty::Ty<'cx>,
     pub bigint_ty: &'cx ty::Ty<'cx>,
     pub non_primitive_ty: &'cx ty::Ty<'cx>,
-    pub symbol_ty: &'cx ty::Ty<'cx>,
+    pub es_symbol_ty: &'cx ty::Ty<'cx>,
     pub non_inferrable_any_ty: &'cx ty::Ty<'cx>,
     pub intrinsic_marker_ty: &'cx ty::Ty<'cx>,
 
@@ -347,7 +346,7 @@ impl<'cx> TyChecker<'cx> {
             (unknown_ty,            keyword::IDENT_UNKNOWN, TypeFlags::UNKNOWN,         ObjectFlags::empty()),
             (undefined_ty,          keyword::KW_UNDEFINED,  TypeFlags::UNDEFINED,       ObjectFlags::empty()),
             (missing_ty,            keyword::KW_UNDEFINED,  TypeFlags::UNDEFINED,       ObjectFlags::empty()),
-            (symbol_ty,             keyword::IDENT_SYMBOL,  TypeFlags::ES_SYMBOL,       ObjectFlags::empty()),
+            (es_symbol_ty,          keyword::IDENT_SYMBOL,  TypeFlags::ES_SYMBOL,       ObjectFlags::empty()),
             (void_ty,               keyword::KW_VOID,       TypeFlags::VOID,            ObjectFlags::empty()),
             (never_ty,              keyword::IDENT_NEVER,   TypeFlags::NEVER,           ObjectFlags::empty()),
             (null_ty,               keyword::KW_NULL,       TypeFlags::NULL,            ObjectFlags::empty()),
@@ -394,7 +393,7 @@ impl<'cx> TyChecker<'cx> {
                             flags: $flags,
                             links: $links.unwrap_or_default(),
                             origin: None,
-                            declarations: $declarations,
+                            decls: $declarations,
                             value_declaration: None,
                             merged_id: None,
                         };
@@ -410,12 +409,12 @@ impl<'cx> TyChecker<'cx> {
         }
         let global_this_symbol_name = SymbolName::Atom(keyword::IDENT_GLOBAL_THIS);
         make_builtin_symbol!({
-            (error_symbol,              SymbolName::Atom(keyword::IDENT_EMPTY),         SymbolFlags::empty(),       Some(SymbolLinks::default().with_ty(error_ty)),     ERR,                None),
+            (error_symbol,              SymbolName::Atom(keyword::IDENT_EMPTY),         SymbolFlags::empty(),       Some(SymbolLinks::default().with_ty(error_ty)),     ERR,                Default::default()),
             (global_this_symbol,        global_this_symbol_name,                        SymbolFlags::empty(),       Some(SymbolLinks::default()
-                                                                                                                            .with_check_flags(CheckFlags::READONLY)),   GLOBAL_THIS,        Some(cast_empty_array(empty_array))),
-            (arguments_symbol,          SymbolName::Atom(keyword::IDENT_ARGUMENTS),     SymbolFlags::PROPERTY,      None,                                               ARGUMENTS,          None),
-            (resolving_symbol,          SymbolName::Resolving,                          SymbolFlags::empty(),       None,                                               RESOLVING,          None),
-            (empty_ty_literal_symbol,   SymbolName::Type,                               SymbolFlags::TYPE_LITERAL,  None,                                               EMPTY_TYPE_LITERAL, None),
+                                                                                                                            .with_check_flags(CheckFlags::READONLY)),   GLOBAL_THIS,        Default::default()),
+            (arguments_symbol,          SymbolName::Atom(keyword::IDENT_ARGUMENTS),     SymbolFlags::PROPERTY,      None,                                               ARGUMENTS,          Default::default()),
+            (resolving_symbol,          SymbolName::Resolving,                          SymbolFlags::empty(),       None,                                               RESOLVING,          Default::default()),
+            (empty_ty_literal_symbol,   SymbolName::Type,                               SymbolFlags::TYPE_LITERAL,  None,                                               EMPTY_TYPE_LITERAL, Default::default()),
         });
 
         let prev = global_symbols
@@ -484,7 +483,7 @@ impl<'cx> TyChecker<'cx> {
             string_ty,
             bigint_ty,
             non_primitive_ty,
-            symbol_ty,
+            es_symbol_ty,
             non_inferrable_any_ty,
             intrinsic_marker_ty,
 
@@ -567,7 +566,7 @@ impl<'cx> TyChecker<'cx> {
         make_global!({
             (boolean_ty,                this.get_union_ty(&[regular_false_ty, regular_true_ty], ty::UnionReduction::Lit)),
             (string_or_number_ty,       this.get_union_ty(&[this.string_ty, this.number_ty], ty::UnionReduction::Lit)),
-            (string_number_symbol_ty,   this.get_union_ty(&[this.string_ty, this.number_ty, this.symbol_ty], ty::UnionReduction::Lit)),
+            (string_number_symbol_ty,   this.get_union_ty(&[this.string_ty, this.number_ty, this.es_symbol_ty], ty::UnionReduction::Lit)),
             (global_number_ty,          this.get_global_type(SymbolName::Atom(keyword::IDENT_NUMBER_CLASS))),
             (global_boolean_ty,         this.get_global_type(SymbolName::Atom(keyword::IDENT_BOOLEAN_CLASS))),
             (global_symbol_ty,          this.get_global_type(SymbolName::Atom(keyword::IDENT_SYMBOL_CLASS))),
@@ -833,14 +832,10 @@ impl<'cx> TyChecker<'cx> {
             s: transient_symbol::CheckSymbol,
             f: impl Fn(ast::Node<'cx>) -> bool,
         ) -> Option<ast::NodeID> {
-            match s.declarations() {
-                BorrowedDeclarations::FromTransient(node_ids) => node_ids
-                    .and_then(|node_ids| node_ids.iter().find(|id| f(this.p.node(**id))))
-                    .copied(),
-                BorrowedDeclarations::FromNormal(node_ids) => {
-                    node_ids.iter().find(|id| f(this.p.node(**id))).copied()
-                }
-            }
+            s.declarations()
+                .iter()
+                .find(|id| f(this.p.node(**id)))
+                .copied()
         }
         if let Some(value_declaration) = s.value_declaration() {
             let decl = is_write
@@ -1068,8 +1063,8 @@ impl<'cx> TyChecker<'cx> {
             SymbolFlags::FUNCTION,
             None,
             SymbolLinks::default(),
-            None, // TODO: use sig.decls
-            None, // TODO: use sig.value_decl
+            Default::default(), // TODO: use sig.decls
+            None,               // TODO: use sig.value_decl
         );
         let outer_ty_params: Option<ty::Tys<'cx>> = if let Some(outer_ty_params) = outer_ty_params {
             Some(outer_ty_params)
@@ -3034,17 +3029,9 @@ impl<'cx> TyChecker<'cx> {
         }
 
         let tp = ty.kind.expect_param();
-        let decls = self.symbol(tp.symbol).declarations();
         let decl = {
-            let decls = match decls {
-                BorrowedDeclarations::FromTransient(node_ids) => {
-                    let Some(node_ids) = node_ids else {
-                        return true;
-                    };
-                    node_ids
-                }
-                BorrowedDeclarations::FromNormal(node_ids) => node_ids,
-            };
+            let s = self.symbol(tp.symbol);
+            let decls = s.declarations();
             if decls.len() != 1 {
                 return true;
             }
@@ -3151,14 +3138,8 @@ impl<'cx> TyChecker<'cx> {
             } else {
                 links
             };
-            let declarations: Option<&'cx [ast::NodeID]> = match self.symbol(prop).declarations() {
-                BorrowedDeclarations::FromTransient(decls) => decls,
-                BorrowedDeclarations::FromNormal(decls) if !decls.is_empty() => {
-                    Some(self.alloc(decls.to_vec()))
-                }
-                _ => None,
-            };
-            self.create_transient_symbol(name, flags, None, links, declarations, None)
+            let decls = self.symbol(prop).declarations().into();
+            self.create_transient_symbol(name, flags, None, links, decls, None)
         }
     }
 

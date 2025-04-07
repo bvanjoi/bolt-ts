@@ -1,10 +1,9 @@
 use bolt_ts_ast::keyword;
-use bolt_ts_resolve::NODE_MODULES_FOLDER;
 use bolt_ts_utils::{fx_hashmap_with_capacity, fx_hashset_with_capacity};
 use rustc_hash::{FxHashMap, FxHashSet};
 
 use super::resolve_structured_member::MemberOrExportsResolutionKind;
-use super::transient_symbol::{CheckSymbol, TransientSymbol};
+use super::transient_symbol::CheckSymbol;
 use super::{SymbolLinks, TransientSymbols, errors};
 use crate::bind::{
     MergeSymbol, MergedSymbols, ResolveResult, Symbol, SymbolFlags, SymbolID, SymbolName,
@@ -419,17 +418,8 @@ impl<'cx> super::TyChecker<'cx> {
                 links.set_resolved_members(early_symbols)
             }
         }
-        use super::transient_symbol::BorrowedDeclarations;
-        let decls = match self.symbol(symbol).declarations() {
-            BorrowedDeclarations::FromTransient(node_ids) => {
-                if let Some(node_ids) = node_ids {
-                    node_ids.to_vec()
-                } else {
-                    vec![]
-                }
-            }
-            BorrowedDeclarations::FromNormal(node_ids) => node_ids.to_vec(),
-        };
+        let s = self.symbol(symbol);
+        let decls: thin_vec::ThinVec<_> = s.declarations().into();
         let mut late_symbols = SymbolTable::new(decls.len());
         for decl in decls {
             let n = self.p().node(decl);
@@ -471,7 +461,6 @@ impl<'cx> super::TyChecker<'cx> {
             };
         }
 
-        dbg!(late_symbols.0.len());
         let combined = if early_symbols.0.is_empty() {
             self.alloc(late_symbols)
         } else if late_symbols.0.is_empty() {
@@ -635,7 +624,7 @@ impl<'cx> super::TyChecker<'cx> {
         }
     }
 
-    fn has_late_bindable_index_signature(&mut self, id: bolt_ts_ast::NodeID) -> bool {
+    pub(super) fn has_late_bindable_index_signature(&mut self, id: bolt_ts_ast::NodeID) -> bool {
         let Some(name) = self.p().get_name_of_decl(id) else {
             return false;
         };
@@ -658,6 +647,30 @@ impl<'cx> super::TyChecker<'cx> {
 
     fn is_ty_usable_as_index_signature(&mut self, ty: &'cx ty::Ty<'cx>) -> bool {
         self.is_type_assignable_to(ty, self.string_number_symbol_ty())
+    }
+
+    fn add_decl_to_late_bound_symbol(
+        &mut self,
+        symbol: SymbolID,
+        decl: bolt_ts_ast::NodeID,
+        flags: SymbolFlags,
+    ) {
+        assert!(self.get_check_flags(symbol).intersects(CheckFlags::LATE));
+        let decl_s = self.get_symbol_of_decl(decl);
+        let s = self.transient_symbols.get_mut(symbol).unwrap();
+        s.flags |= flags;
+        if s.decls.is_empty() {
+            s.decls.push(decl);
+        }
+        // TODO: is_replace_by_method
+        if flags.intersects(SymbolFlags::VALUE) {
+            if s.value_declaration
+                .is_none_or(|d| self.p.node(d).is_same_kind(&self.p.node(decl)))
+            {
+                s.value_declaration = Some(decl);
+            }
+        }
+        self.get_mut_symbol_links(decl_s).set_late_symbol(symbol);
     }
 
     fn late_bind_member(
@@ -694,7 +707,7 @@ impl<'cx> super::TyChecker<'cx> {
                         SymbolFlags::empty(),
                         None,
                         links,
-                        None,
+                        thin_vec::thin_vec![],
                         None,
                     );
                     vac.insert(s);
@@ -702,6 +715,7 @@ impl<'cx> super::TyChecker<'cx> {
                 }
             };
             // TODO: !self.symbol(parent).flags().intersection(SymbolFlags::Class)
+            self.add_decl_to_late_bound_symbol(late_symbol, decl, symbol_flags);
             self.get_mut_node_links(decl)
                 .override_resolved_symbol(late_symbol);
             late_symbol
@@ -710,36 +724,47 @@ impl<'cx> super::TyChecker<'cx> {
         }
     }
 
-    fn clone_transient_symbol(
+    fn clone_symbol(
         &mut self,
         symbol: SymbolID,
-        get_links: impl FnOnce(&TransientSymbol) -> SymbolLinks<'cx>,
+        get_links: impl FnOnce(CheckSymbol) -> SymbolLinks<'cx>,
     ) -> SymbolID {
-        let s = self.get_transient(symbol).unwrap();
+        let s = self.symbol(symbol);
         let links = get_links(s);
-        let s = self.create_transient_symbol(
-            s.name,
-            s.flags,
-            s.origin,
+        let target = self.create_transient_symbol(
+            s.name(),
+            s.flags(),
+            None,
             links,
-            s.declarations.clone(),
-            s.value_declaration,
+            s.declarations().into(),
+            s.value_declaration(),
         );
-        self.merged_symbols
-            .record_merged_transient_symbol(s, symbol, &mut self.transient_symbols);
-        s
+        match self.symbol(symbol) {
+            CheckSymbol::Transient(_) => self.merged_symbols.record_merged_transient_symbol(
+                target,
+                symbol,
+                &mut self.transient_symbols,
+            ),
+            CheckSymbol::Normal(_) => {
+                let symbols = &mut self.binder.bind_results[symbol.module().as_usize()].symbols;
+                self.merged_symbols
+                    .record_merged_symbol(target, symbol, symbols)
+            }
+        }
+        target
     }
 
     fn late_bind_index_signature(
         &mut self,
         early_symbols: &'cx SymbolTable,
         late_symbols: &mut SymbolTable,
+        decl: bolt_ts_ast::NodeID,
     ) {
-        match late_symbols.0.get(&SymbolName::Index).copied() {
+        let late_symbol = match late_symbols.0.get(&SymbolName::Index).copied() {
             Some(index_symbol) => index_symbol,
             None => {
                 let late_symbol = match early_symbols.0.get(&SymbolName::Index).copied() {
-                    Some(s) => self.clone_transient_symbol(s, |_| {
+                    Some(s) => self.clone_symbol(s, |_| {
                         SymbolLinks::default().with_check_flags(CheckFlags::LATE)
                     }),
                     None => self.create_transient_symbol(
@@ -747,7 +772,7 @@ impl<'cx> super::TyChecker<'cx> {
                         SymbolFlags::empty(),
                         None,
                         SymbolLinks::default().with_check_flags(CheckFlags::LATE),
-                        None,
+                        thin_vec::thin_vec![],
                         None,
                     ),
                 };
@@ -755,7 +780,11 @@ impl<'cx> super::TyChecker<'cx> {
                 late_symbol
             }
         };
-        // TODO: add declarations and value_declaration
+        let s = self.transient_symbols.get_mut(late_symbol).unwrap();
+        if s.decls.is_empty() {
+            s.decls.push(decl);
+        }
+        // TODO: is_replace_by_method
     }
 }
 
@@ -773,7 +802,7 @@ fn handle_members_for_label_symbol<'cx>(
             if this.has_late_bindable_name(id) {
                 this.late_bind_member(symbol, early_symbols, late_symbols, id);
             } else if this.has_late_bindable_index_signature(id) {
-                this.late_bind_index_signature(early_symbols, late_symbols);
+                this.late_bind_index_signature(early_symbols, late_symbols, id);
             }
         }
     }

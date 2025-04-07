@@ -32,6 +32,10 @@ pub enum SymbolName {
     ExportDefault,
     Computed,
     ParamIdx(u32),
+    ESSymbol {
+        escaped_name: AtomId,
+        symbol_id: SymbolID,
+    },
 }
 
 impl SymbolName {

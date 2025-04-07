@@ -4,7 +4,6 @@ use bolt_ts_span::Span;
 use bolt_ts_utils::fx_hashmap_with_capacity;
 
 use crate::bind::SymbolID;
-use crate::check::transient_symbol::BorrowedDeclarations;
 use crate::ensure_sufficient_stack;
 use crate::parser::AssignmentKind;
 use crate::ty::CheckFlags;
@@ -538,7 +537,7 @@ impl<'cx> TyChecker<'cx> {
                 };
                 object_flags |= ty.get_object_flags() & ObjectFlags::PROPAGATING_FLAGS;
                 let member_s = self.binder.symbol(member_symbol);
-                let declarations = self.alloc(member_s.decls.clone());
+                let declarations = member_s.decls.clone();
                 let value_declaration = member_s.value_decl;
                 let prop = self.create_transient_symbol(
                     name,
@@ -547,7 +546,7 @@ impl<'cx> TyChecker<'cx> {
                     SymbolLinks::default()
                         .with_target(member_symbol)
                         .with_ty(ty),
-                    Some(declarations),
+                    declarations,
                     value_declaration,
                 );
                 properties_table.insert(name, prop);
@@ -720,16 +719,10 @@ impl<'cx> TyChecker<'cx> {
             let s = self.symbol(*prop);
             let prop_flags = s.flags();
             let name = s.name();
-            let declarations: Option<&'cx [ast::NodeID]> = match s.declarations() {
-                BorrowedDeclarations::FromTransient(decls) => decls,
-                BorrowedDeclarations::FromNormal(decls) if !decls.is_empty() => {
-                    Some(self.alloc(decls.to_vec()))
-                }
-                _ => None,
-            };
             let is_setonly_accessor = prop_flags.intersects(SymbolFlags::SET_ACCESSOR)
                 && !prop_flags.intersects(SymbolFlags::GET_ACCESSOR);
             const FLAGS: SymbolFlags = SymbolFlags::PROPERTY.union(SymbolFlags::OPTIONAL);
+            let decls = s.declarations().into();
             let ty = if is_setonly_accessor {
                 self.undefined_ty
             } else {
@@ -751,7 +744,7 @@ impl<'cx> TyChecker<'cx> {
             } else {
                 links
             };
-            let result = self.create_transient_symbol(name, FLAGS, None, links, declarations, None);
+            let result = self.create_transient_symbol(name, FLAGS, None, links, decls, None);
             let prev = members.insert(name, result);
             assert!(prev.is_none());
         }
