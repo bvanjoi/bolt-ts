@@ -416,19 +416,19 @@ impl NodeFlagsMap {
     }
 }
 
-fn get_lib_filename_from_lib_reference<'cx>(
+fn get_lib_filename_from_lib_reference(
     reference_name: AtomId,
-    atoms: &Arc<Mutex<AtomMap<'cx>>>,
+    atoms: &Arc<Mutex<AtomMap<'_>>>,
 ) -> Option<&'static str> {
     let reference_name = atoms.lock().unwrap().get(reference_name).to_lowercase();
     let key = reference_name.as_str();
     bolt_ts_libs::DEFAULT_LIB_MAP.get(key).copied()
 }
 
-fn process_lib_reference_directives<'cx>(
+fn process_lib_reference_directives(
     lib_reference_directives: &[FileReference],
     is_default_lib: bool,
-    atoms: &Arc<Mutex<AtomMap<'cx>>>,
+    atoms: &Arc<Mutex<AtomMap<'_>>>,
     default_lib_dir: &std::path::Path,
 ) -> Vec<std::path::PathBuf> {
     if is_default_lib {

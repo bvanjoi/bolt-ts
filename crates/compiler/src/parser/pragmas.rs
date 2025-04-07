@@ -1,5 +1,4 @@
 use bolt_ts_atom::AtomId;
-use bolt_ts_span::Span;
 
 #[derive(Clone, Copy, Debug)]
 pub enum PragmaCommentKind {

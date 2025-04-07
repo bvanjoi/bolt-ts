@@ -182,7 +182,7 @@ impl<'cx> TyChecker<'cx> {
         let declarations: Option<&'cx [ast::NodeID]> = match s.declarations() {
             BorrowedDeclarations::FromTransient(decls) => decls,
             BorrowedDeclarations::FromNormal(decls) if !decls.is_empty() => {
-                Some(self.alloc(decls.into_iter().map(|decl| *decl).collect::<Vec<_>>()))
+                Some(self.alloc(decls.to_vec()))
             }
             _ => None,
         };
@@ -1280,7 +1280,7 @@ impl<'cx> TyChecker<'cx> {
                                         if !decls.is_empty() =>
                                     {
                                         Some(this.alloc(
-                                            decls.into_iter().map(|decl| *decl).collect::<Vec<_>>(),
+                                            decls.to_vec(),
                                         ))
                                     }
                                     _ => None,

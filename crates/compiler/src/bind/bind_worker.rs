@@ -8,7 +8,6 @@ use super::symbol::{SymbolID, SymbolName};
 use bolt_ts_ast as ast;
 use bolt_ts_ast::NodeFlags;
 
-use crate::bind::prop_name;
 use crate::ir;
 use crate::parser::is_left_hand_side_expr_kind;
 

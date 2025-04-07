@@ -128,15 +128,15 @@ impl<'cx> TyChecker<'cx> {
             .with_ty(ty)
             .with_target(source);
         let value_declaration = s.value_declaration();
-        let s = self.create_transient_symbol(
+        
+        self.create_transient_symbol(
             name,
             symbol_flags,
             Some(source),
             links,
             None,
             value_declaration,
-        );
-        s
+        )
     }
 
     pub(super) fn get_transient(&self, symbol: SymbolID) -> Option<&TransientSymbol<'cx>> {

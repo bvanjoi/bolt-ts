@@ -799,8 +799,7 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
             ArrayPat(_) => {
                 // TODO:
             }
-            NullLit(_) | StringLit(_) | NumLit(_) | Ident(_) | ThisExpr(_) | BigIntLit(_)
-            | BoolLit(_) => {}
+
             Binding(n) => self.bind_binding(n),
             OmitExpr(_) => {}
             ParenExpr(n) => {
@@ -1129,7 +1128,9 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
             SpreadElement(n) => {
                 self.bind(n.expr.id());
             }
-            IntrinsicTy(_) | Modifier(_) | DebuggerStmt(_) | ThisTy(_) => {}
+            NullLit(_) | StringLit(_) | NumLit(_) | Ident(_) | ThisExpr(_) | BigIntLit(_)
+            | BoolLit(_) | RegExpLit(_) | IntrinsicTy(_) | Modifier(_) | DebuggerStmt(_)
+            | ThisTy(_) => {}
         }
         // TODO: bind_js_doc
         self.in_assignment_pattern = save_in_assignment_pattern;

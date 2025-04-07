@@ -166,7 +166,7 @@ impl<'cx> TyChecker<'cx> {
             self.get_widened_ty_for_var_like_decl(n)
         } else if let Some(n) = node.as_var_decl() {
             self.get_widened_ty_for_var_like_decl(n)
-        } else if let Some(_) = node.as_binding() {
+        } else if node.as_binding().is_some() {
             todo!()
             // self.get_widened_ty_for_var_like_decl(n)
         } else if node.is_enum_decl() {

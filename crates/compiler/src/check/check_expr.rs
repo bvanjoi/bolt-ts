@@ -222,6 +222,7 @@ impl<'cx> TyChecker<'cx> {
             Template(n) => self.check_template_expr(n),
             ExprWithTyArgs(n) => self.check_expr_with_ty_args(n),
             SpreadElement(n) => self.check_spread_element(n),
+            RegExpLit(_) => self.global_regexp_ty(),
         };
         let ty = self.instantiate_ty_with_single_generic_call_sig(expr.id(), ty);
         self.current_node = saved_current_node;
@@ -722,7 +723,7 @@ impl<'cx> TyChecker<'cx> {
             let declarations: Option<&'cx [ast::NodeID]> = match s.declarations() {
                 BorrowedDeclarations::FromTransient(decls) => decls,
                 BorrowedDeclarations::FromNormal(decls) if !decls.is_empty() => {
-                    Some(self.alloc(decls.into_iter().map(|decl| *decl).collect::<Vec<_>>()))
+                    Some(self.alloc(decls.to_vec()))
                 }
                 _ => None,
             };

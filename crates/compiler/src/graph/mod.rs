@@ -3,7 +3,6 @@ mod errors;
 use bolt_ts_ast::{self as ast};
 use bolt_ts_path::NormalizePath;
 
-use crate::parser::FileReference;
 
 use super::parser;
 use super::{ModuleArena, ModuleID};
@@ -83,7 +82,7 @@ pub(super) fn build_graph<'cx>(
             herd,
             resolving.as_slice(),
             module_arena,
-            &default_lib_dir,
+            default_lib_dir,
         )
         .map(|(module_id, mut parse_result)| {
             let file_path = module_arena.get_path(module_id);
