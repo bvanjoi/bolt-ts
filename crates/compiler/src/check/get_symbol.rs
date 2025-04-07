@@ -10,7 +10,7 @@ impl TyChecker<'_> {
         debug_assert!(
             self.p.node(id).is_decl(),
             "expected a decl node, but got {:#?}",
-            self.p.node(id)
+            self.p.node(id).span()
         );
         let id = self.final_res(id);
         self.get_merged_symbol(id)

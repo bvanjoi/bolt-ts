@@ -805,7 +805,7 @@ impl<'cx> TyChecker<'cx> {
             self.get_mut_ty_links(ty.id).set_structured_members(m);
             return;
         } else if symbol.flags.intersects(SymbolFlags::TYPE_LITERAL) {
-            let members = self.members_of_symbol(symbol_id);
+            let members = self.get_members_of_symbol(symbol_id);
             let call_sigs = members
                 .0
                 .get(&SymbolName::Call)
@@ -831,16 +831,16 @@ impl<'cx> TyChecker<'cx> {
             return;
         }
 
-        let symbol = self.binder.symbol(a.symbol.unwrap());
-        let symbol_flags = symbol.flags;
-
         // TODO: remove this clone.
         let mut members = self.get_exports_of_symbol(a.symbol.unwrap()).0.clone();
         let call_sigs;
         let mut ctor_sigs: ty::Sigs<'cx>;
         let index_infos: ty::IndexInfos<'cx>;
 
-        if symbol_flags.intersects(SymbolFlags::FUNCTION | SymbolFlags::METHOD) {
+        let symbol = self.binder.symbol(a.symbol.unwrap());
+        let symbol_flags = symbol.flags;
+
+        if symbol_flags.intersects(SymbolFlags::FUNCTION.union(SymbolFlags::METHOD)) {
             call_sigs = self.get_sigs_of_symbol(a.symbol.unwrap());
             ctor_sigs = &[];
             index_infos = &[];
@@ -1207,8 +1207,7 @@ impl<'cx> TyChecker<'cx> {
         let mut add_member_for_key_ty_worker =
             |this: &mut Self, key_ty: &'cx ty::Ty<'cx>, prop_name_ty: &'cx ty::Ty<'cx>| {
                 if prop_name_ty.useable_as_prop_name() {
-                    let prop_name = this.get_prop_name_from_ty(prop_name_ty).unwrap();
-                    let symbol_name = this.get_symbol_name_from_prop_name(prop_name);
+                    let symbol_name = this.get_prop_name_from_ty(prop_name_ty).unwrap();
                     if let Some(existing_prop) = members.get(&symbol_name) {
                         let named_ty = {
                             let old = this.get_symbol_links(*existing_prop).expect_named_ty();
@@ -1225,8 +1224,7 @@ impl<'cx> TyChecker<'cx> {
                             .override_key_ty(key_ty);
                     } else {
                         let modifiers_prop = if key_ty.useable_as_prop_name() {
-                            let prop_name = this.get_prop_name_from_ty(key_ty).unwrap();
-                            let symbol_name = this.get_symbol_name_from_prop_name(prop_name);
+                            let symbol_name = this.get_prop_name_from_ty(key_ty).unwrap();
                             this.get_prop_of_ty(modifiers_ty, symbol_name)
                         } else {
                             None
@@ -1279,9 +1277,7 @@ impl<'cx> TyChecker<'cx> {
                                     BorrowedDeclarations::FromNormal(decls)
                                         if !decls.is_empty() =>
                                     {
-                                        Some(this.alloc(
-                                            decls.to_vec(),
-                                        ))
+                                        Some(this.alloc(decls.to_vec()))
                                     }
                                     _ => None,
                                 }

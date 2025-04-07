@@ -52,17 +52,21 @@ impl<'cx> TyChecker<'cx> {
 
     pub(super) fn get_sigs_of_symbol(&mut self, id: SymbolID) -> ty::Sigs<'cx> {
         let s = self.binder.symbol(id);
-        let sigs = s
+        let decls = s
             .decls
             .iter()
             .enumerate()
-            .flat_map(|(i, &decl)| {
+            .filter_map(|(i, &decl)| {
                 if i > 0 && self.p.node(decl).fn_body().is_some() {
                     None
                 } else {
-                    Some(self.get_sig_from_decl(decl))
+                    Some(decl)
                 }
             })
+            .collect::<Vec<_>>();
+        let sigs = decls
+            .into_iter()
+            .map(|decl| self.get_sig_from_decl(decl))
             .collect::<Vec<_>>();
         self.alloc(sigs)
     }

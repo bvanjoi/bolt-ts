@@ -654,22 +654,20 @@ impl<'cx> TyChecker<'cx> {
         self.get_ty_from_type_node(ty_node)
     }
 
-    pub(super) fn get_prop_name_from_ty(&self, ty: &'cx Ty<'cx>) -> Option<PropName> {
-        if let Some(lit) = ty.kind.as_string_lit() {
-            Some(PropName::String(lit.val))
-        } else {
-            ty.kind.as_number_lit().map(|lit| PropName::Num(lit.val))
+    pub(super) fn get_prop_name_from_ty(&self, ty: &'cx Ty<'cx>) -> Option<SymbolName> {
+        match ty.kind {
+            ty::TyKind::UniqueESSymbol(lit) => Some(SymbolName::Atom(lit.escape_name)),
+            ty::TyKind::StringLit(lit) => Some(SymbolName::Atom(lit.val)),
+            ty::TyKind::NumberLit(lit) => Some(SymbolName::EleNum(lit.val.into())),
+            _ => None, // TODO: unreachable
         }
     }
 
-    fn get_prop_name_from_index(&self, index_ty: &'cx Ty<'cx>) -> Option<PropName> {
-        self.get_prop_name_from_ty(index_ty)
-    }
-
-    pub(super) fn get_symbol_name_from_prop_name(&self, prop_name: PropName) -> SymbolName {
-        match prop_name {
-            PropName::String(atom_id) => SymbolName::Atom(atom_id),
-            PropName::Num(num) => SymbolName::EleNum(num.into()),
+    fn get_prop_name_from_index(&self, index_ty: &'cx Ty<'cx>) -> Option<SymbolName> {
+        if index_ty.useable_as_prop_name() {
+            self.get_prop_name_from_ty(index_ty)
+        } else {
+            None
         }
     }
 
@@ -760,15 +758,7 @@ impl<'cx> TyChecker<'cx> {
         access_flags: AccessFlags,
     ) -> Option<&'cx Ty<'cx>> {
         let access_expr = access_node.filter(|n| self.p.node(*n).is_ele_access_expr());
-        let prop_name = self.get_prop_name_from_index(index_ty);
-        let symbol_name = if let Some(prop_name) = prop_name {
-            match prop_name {
-                PropName::String(atom_id) => Some(SymbolName::Atom(atom_id)),
-                PropName::Num(num) => Some(SymbolName::EleNum(num.into())),
-            }
-        } else {
-            None
-        };
+        let symbol_name = self.get_prop_name_from_index(index_ty);
         let prop: Option<SymbolID> =
             symbol_name.and_then(|symbol_name| self.get_prop_of_ty(object_ty, symbol_name));
         if let Some(prop) = prop {
@@ -793,7 +783,8 @@ impl<'cx> TyChecker<'cx> {
         }
 
         if self.every_type(object_ty, |_, t| t.is_tuple()) {
-            if let Some(PropName::Num(num)) = prop_name {
+            if let Some(SymbolName::EleNum(num)) = symbol_name {
+                let num = num.val();
                 if num >= 0. {
                     // TODO: num is not integer
                     return Some(

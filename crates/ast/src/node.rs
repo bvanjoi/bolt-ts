@@ -433,6 +433,7 @@ impl<'cx> Node<'cx> {
                 | ObjectShorthandMember(_)
                 | ObjectPropMember(_)
                 | ObjectMethodMember(_)
+                | ComputedPropName(_)
                 | ClassDecl(_)
                 | ClassExpr(_)
                 | ClassPropElem(_)
@@ -451,6 +452,7 @@ impl<'cx> Node<'cx> {
                 | SetterDecl(_)
                 | ObjectLit(_)
                 | Program(_)
+                | NamespaceDecl(_)
         )
     }
 

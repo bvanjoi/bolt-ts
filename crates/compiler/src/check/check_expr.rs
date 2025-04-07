@@ -983,4 +983,16 @@ impl<'cx> TyChecker<'cx> {
 
         self.get_indexed_access_ty(object_ty, index_ty, Some(access_flags), Some(node.id))
     }
+
+    pub fn check_computed_prop_name(
+        &mut self,
+        node: &'cx ast::ComputedPropName<'cx>,
+    ) -> &'cx ty::Ty<'cx> {
+        if let Some(ty) = self.get_node_links(node.id).get_resolved_ty() {
+            return ty;
+        };
+        let ty = self.check_expr(node.expr);
+        self.get_mut_node_links(node.id).set_resolved_ty(ty);
+        ty
+    }
 }

@@ -73,7 +73,6 @@ use instantiation_ty_map::{
     IndexedAccessTyMap, IntersectionMap, StringMappingTyMap, TyAliasInstantiationMap, TyCacheTrait,
     TyKey, UnionMap,
 };
-use merge::MergeModuleAugmentationForNonGlobalResult;
 use rustc_hash::{FxBuildHasher, FxHashMap};
 use symbol_info::SymbolInfo;
 use transient_symbol::{BorrowedDeclarations, TransientSymbol};
@@ -89,9 +88,7 @@ use self::instantiation_ty_map::InstantiationTyMap;
 use self::links::NodeLinks;
 pub use self::links::SymbolLinks;
 use self::links::{SigLinks, TyLinks};
-pub(crate) use self::merge::MergeModuleAugmentationForNonGlobal;
 pub(crate) use self::merge::merge_module_augmentation_list_for_global;
-pub(crate) use self::merge::merge_module_augmentation_list_for_non_global;
 use self::node_check_flags::NodeCheckFlags;
 pub use self::resolve::ExpectedArgsCount;
 pub(crate) use self::transient_symbol::TransientSymbols;
@@ -282,9 +279,9 @@ pub struct TyChecker<'cx> {
     any_iteration_tys: std::cell::OnceCell<IterationTys<'cx>>,
     empty_array: &'cx [u8; 0],
     // === resolver ===
-    pub binder: &'cx bind::Binder,
-    global_symbols: &'cx GlobalSymbols,
-    merged_symbols: &'cx MergedSymbols,
+    pub binder: &'cx mut bind::Binder,
+    global_symbols: &'cx mut GlobalSymbols,
+    merged_symbols: &'cx mut MergedSymbols,
 
     // === cycle check ===
     resolution_start: i32,
@@ -309,16 +306,18 @@ impl<'cx> TyChecker<'cx> {
         p: &'cx Parser<'cx>,
         mg: &'cx ModuleGraph,
         atoms: &'cx mut AtomMap<'cx>,
-        empty_symbols: &'cx SymbolTable,
         config: &'cx NormalizedCompilerOptions,
         flow_nodes: Vec<FlowNodes<'cx>>,
-        c: &'cx mut MergeModuleAugmentationForNonGlobalResult<'cx>,
         module_arena: &'cx bolt_ts_span::ModuleArena,
+        binder: &'cx mut bind::Binder,
+        merged_symbols: &'cx mut MergedSymbols,
+        global_symbols: &'cx mut GlobalSymbols,
     ) -> Self {
-        let diags = std::mem::take(&mut c.diags);
-        let mut symbol_links = std::mem::take(&mut c.symbol_links);
-        let mut transient_symbols = std::mem::take(&mut c.transient_symbols);
+        let mut symbol_links = fx_hashmap_with_capacity(p.module_count() * 1024);
+        let mut transient_symbols = TransientSymbols::new(p.module_count() * 1024 * 64);
+        let diags = Vec::with_capacity(p.module_count() * 32);
         let empty_array: &'cx [u8; 0] = ty_arena.alloc([]);
+        let empty_symbols = ty_arena.alloc(bind::SymbolTable::new(0));
 
         let cap = p.module_count() * 1024 * 64;
         let mut tys = Vec::with_capacity(cap);
@@ -397,6 +396,7 @@ impl<'cx> TyChecker<'cx> {
                             origin: None,
                             declarations: $declarations,
                             value_declaration: None,
+                            merged_id: None,
                         };
                         let s = transient_symbols.create_transient_symbol(symbol);
                         assert_eq!(s, Symbol::$builtin_id);
@@ -418,8 +418,7 @@ impl<'cx> TyChecker<'cx> {
             (empty_ty_literal_symbol,   SymbolName::Type,                               SymbolFlags::TYPE_LITERAL,  None,                                               EMPTY_TYPE_LITERAL, None),
         });
 
-        let prev = c
-            .global_symbols
+        let prev = global_symbols
             .0
             .insert(global_this_symbol_name, global_this_symbol);
         assert!(prev.is_none());
@@ -543,9 +542,9 @@ impl<'cx> TyChecker<'cx> {
             resolution_res: thin_vec::ThinVec::with_capacity(128),
             resolution_start: 0,
 
-            binder: &c.binder,
-            merged_symbols: &c.merged_symbols,
-            global_symbols: &c.global_symbols,
+            binder,
+            merged_symbols,
+            global_symbols,
             inferences: Vec::with_capacity(cap),
             inference_contextual: Vec::with_capacity(256),
             type_contextual: Vec::with_capacity(256),
@@ -621,6 +620,8 @@ impl<'cx> TyChecker<'cx> {
             );
         }
         this.auto_array_ty.set(auto_array_ty).unwrap();
+
+        this.merge_module_augmentation_list_for_non_global();
 
         this
     }

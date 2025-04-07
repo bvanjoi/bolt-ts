@@ -16,6 +16,7 @@ pub(crate) struct TransientSymbol<'cx> {
     pub(super) value_declaration: Option<ast::NodeID>,
     // TODO: flatten
     pub(super) origin: Option<SymbolID>,
+    pub(crate) merged_id: Option<usize>,
 }
 
 #[derive(Debug, Default)]
@@ -42,7 +43,7 @@ impl<'cx> TransientSymbols<'cx> {
         }
     }
 
-    pub(super) fn get_mut(&mut self, symbol: SymbolID) -> Option<&mut TransientSymbol<'cx>> {
+    pub(crate) fn get_mut(&mut self, symbol: SymbolID) -> Option<&mut TransientSymbol<'cx>> {
         if symbol.module() == ModuleID::TRANSIENT {
             let idx = symbol.index_as_usize();
             debug_assert!(idx < self.0.len());
@@ -110,6 +111,7 @@ impl<'cx> TyChecker<'cx> {
             origin,
             declarations,
             value_declaration,
+            merged_id: None,
         };
         self.transient_symbols.create_transient_symbol(symbol)
     }
@@ -128,7 +130,7 @@ impl<'cx> TyChecker<'cx> {
             .with_ty(ty)
             .with_target(source);
         let value_declaration = s.value_declaration();
-        
+
         self.create_transient_symbol(
             name,
             symbol_flags,

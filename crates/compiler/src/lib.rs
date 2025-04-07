@@ -32,7 +32,6 @@ use bolt_ts_fs::{CachedFileSystem, read_file_with_encoding};
 use bolt_ts_path::NormalizePath;
 use bolt_ts_span::{ModuleArena, ModuleID};
 
-use bolt_ts_utils::fx_hashmap_with_capacity;
 use cli::get_filenames;
 use parser::{ParseResult, Parser};
 use rayon::prelude::*;
@@ -198,7 +197,7 @@ pub fn eval_from_with_fs<'cx>(
 
     // ==== bind ====
     let atoms = Arc::try_unwrap(atoms).unwrap();
-    let atoms = atoms.into_inner().unwrap();
+    let mut atoms = atoms.into_inner().unwrap();
 
     let (bind_list, p) = {
         let (bind_list, p_map): (Vec<BinderResult>, Vec<(ParseResult, bind::ParentMap)>) =
@@ -275,36 +274,20 @@ pub fn eval_from_with_fs<'cx>(
         global_symbols,
         merged_symbols,
     );
-    let empty_symbols = ty_arena.alloc(bind::SymbolTable::new(0));
-    let checker_diags = Vec::with_capacity(p.module_count() * 32);
-    let symbol_links = fx_hashmap_with_capacity(p.module_count() * 1024);
-    let transient_symbols = check::TransientSymbols::new(p.module_count() * 1024 * 64);
-    let c = check::MergeModuleAugmentationForNonGlobal {
-        p: &p,
-        ty_arena: &ty_arena,
-        bind_list: merged_res.bind_list,
-        merged_symbols: merged_res.merged_symbols,
-        global_symbols: merged_res.global_symbols,
-        mg: &mg,
-        empty_symbols,
-        diags: checker_diags,
-        atoms,
-        symbol_links,
-        transient_symbols,
-        module_arena: &module_arena,
-    };
-    let mut merged_res = check::merge_module_augmentation_list_for_non_global(c);
-    let mut atoms = std::mem::take(&mut merged_res.atoms);
+    let mut binder = crate::bind::Binder::new(merged_res.bind_list);
+    let mut merged_symbols = merged_res.merged_symbols;
+    let mut global_symbols = merged_res.global_symbols;
     let mut checker = check::TyChecker::new(
         &ty_arena,
         &p,
         &mg,
         &mut atoms,
-        empty_symbols,
         tsconfig.compiler_options(),
         flow_nodes,
-        &mut merged_res,
         &module_arena,
+        &mut binder,
+        &mut merged_symbols,
+        &mut global_symbols,
     );
     for item in &entries {
         let is_default_lib = module_arena.get_module(*item).is_default_lib;

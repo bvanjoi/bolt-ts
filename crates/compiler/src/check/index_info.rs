@@ -8,6 +8,7 @@ use bolt_ts_ast as ast;
 impl<'cx> TyChecker<'cx> {
     pub(super) fn get_index_symbol(&mut self, symbol: SymbolID) -> Option<SymbolID> {
         let s = self.binder.symbol(symbol);
+        // TODO: s.members.is_none() {}
         if s.members().0.is_empty() {
             None
         } else {
@@ -26,7 +27,8 @@ impl<'cx> TyChecker<'cx> {
         &mut self,
         symbol: SymbolID,
     ) -> ty::IndexInfos<'cx> {
-        let decls = &self.binder.symbol(symbol).decls;
+        // TODO: remove clone
+        let decls = &self.binder.symbol(symbol).decls.clone();
         let mut index_infos = Vec::with_capacity(decls.len() * 2);
         for decl in decls {
             let n = self.p.node(*decl);

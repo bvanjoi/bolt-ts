@@ -1,15 +1,19 @@
 use bolt_ts_ast::keyword;
+use bolt_ts_resolve::NODE_MODULES_FOLDER;
 use bolt_ts_utils::{fx_hashmap_with_capacity, fx_hashset_with_capacity};
 use rustc_hash::{FxHashMap, FxHashSet};
 
 use super::resolve_structured_member::MemberOrExportsResolutionKind;
-use super::transient_symbol::CheckSymbol;
+use super::transient_symbol::{CheckSymbol, TransientSymbol};
 use super::{SymbolLinks, TransientSymbols, errors};
 use crate::bind::{
-    MergedSymbols, ResolveResult, Symbol, SymbolFlags, SymbolID, SymbolName, SymbolTable,
+    MergeSymbol, MergedSymbols, ResolveResult, Symbol, SymbolFlags, SymbolID, SymbolName,
+    SymbolTable,
 };
+use crate::check::TyChecker;
 use crate::graph::resolve_external_module_name;
-use crate::ir;
+use crate::ty::CheckFlags;
+use crate::{ir, ty};
 
 fn symbol_of_resolve_results(
     resolve_results: &Vec<ResolveResult>,
@@ -20,15 +24,15 @@ fn symbol_of_resolve_results(
     unsafe { resolve_results.get_unchecked(idx).symbols.get(symbol) }
 }
 
-fn decls_of_symbol<'cx>(
+fn decls_of_symbol<'a>(
     symbol: SymbolID,
-    this: &impl SymbolInfo<'cx>,
-) -> &thin_vec::ThinVec<bolt_ts_ast::NodeID> {
+    this: &'a TyChecker<'_>,
+) -> &'a thin_vec::ThinVec<bolt_ts_ast::NodeID> {
     let s = symbol_of_resolve_results(this.get_resolve_results(), symbol);
     &s.decls
 }
 
-fn binder_symbol<'cx>(this: &impl SymbolInfo<'cx>, symbol: SymbolID) -> &crate::bind::Symbol {
+fn binder_symbol<'a>(this: &'a TyChecker<'_>, symbol: SymbolID) -> &'a crate::bind::Symbol {
     symbol_of_resolve_results(this.get_resolve_results(), symbol)
 }
 
@@ -99,8 +103,10 @@ pub trait SymbolInfo<'cx>: Sized {
             CheckSymbol::Normal(symbol)
         }
     }
+}
 
-    fn members_of_symbol(&mut self, symbol: SymbolID) -> &'cx SymbolTable {
+impl<'cx> super::TyChecker<'cx> {
+    pub(super) fn members_of_symbol(&mut self, symbol: SymbolID) -> &'cx SymbolTable {
         if let Some(m) = self.get_symbol_links(symbol).get_members() {
             m
         } else {
@@ -113,7 +119,7 @@ pub trait SymbolInfo<'cx>: Sized {
         }
     }
 
-    fn exports_of_symbol(&mut self, symbol: SymbolID) -> &'cx SymbolTable {
+    pub(super) fn exports_of_symbol(&mut self, symbol: SymbolID) -> &'cx SymbolTable {
         if let Some(e) = self.get_symbol_links(symbol).get_exports() {
             e
         } else {
@@ -126,7 +132,7 @@ pub trait SymbolInfo<'cx>: Sized {
         }
     }
 
-    fn resolve_external_module_name(
+    pub(super) fn resolve_external_module_name(
         &mut self,
         module_spec_id: bolt_ts_ast::NodeID,
         _module_spec: bolt_ts_atom::AtomId,
@@ -134,7 +140,11 @@ pub trait SymbolInfo<'cx>: Sized {
         crate::graph::resolve_external_module_name(self.mg(), module_spec_id, self.p())
     }
 
-    fn is_non_local_alias(&self, symbol: SymbolID, excludes: Option<SymbolFlags>) -> bool {
+    pub(super) fn is_non_local_alias(
+        &self,
+        symbol: SymbolID,
+        excludes: Option<SymbolFlags>,
+    ) -> bool {
         const DEFAULT: SymbolFlags = SymbolFlags::VALUE
             .union(SymbolFlags::TYPE)
             .union(SymbolFlags::NAMESPACE);
@@ -144,7 +154,7 @@ pub trait SymbolInfo<'cx>: Sized {
             || (flags.intersects(SymbolFlags::ALIAS.union(SymbolFlags::ASSIGNMENT)))
     }
 
-    fn resolve_alias(&mut self, symbol: SymbolID) -> SymbolID {
+    pub(super) fn resolve_alias(&mut self, symbol: SymbolID) -> SymbolID {
         if let Some(alias_target) = self.get_symbol_links(symbol).get_alias_target() {
             return if alias_target == Symbol::RESOLVING {
                 self.get_mut_symbol_links(symbol)
@@ -180,7 +190,7 @@ pub trait SymbolInfo<'cx>: Sized {
         self.get_symbol_links(symbol).expect_alias_target()
     }
 
-    fn get_target_of_alias_decl(
+    pub(super) fn get_target_of_alias_decl(
         &mut self,
         node: bolt_ts_ast::NodeID,
         dont_recur_resolve: bool,
@@ -209,7 +219,11 @@ pub trait SymbolInfo<'cx>: Sized {
         }
     }
 
-    fn resolve_symbol(&mut self, symbol: SymbolID, dont_resolve_alias: bool) -> SymbolID {
+    pub(super) fn resolve_symbol(
+        &mut self,
+        symbol: SymbolID,
+        dont_resolve_alias: bool,
+    ) -> SymbolID {
         if !dont_resolve_alias && self.is_non_local_alias(symbol, None) {
             self.resolve_alias(symbol)
         } else {
@@ -217,7 +231,7 @@ pub trait SymbolInfo<'cx>: Sized {
         }
     }
 
-    fn get_exports_of_symbol(&mut self, symbol: SymbolID) -> &'cx SymbolTable {
+    pub(super) fn get_exports_of_symbol(&mut self, symbol: SymbolID) -> &'cx SymbolTable {
         let flags = symbol_of_resolve_results(self.get_resolve_results(), symbol).flags;
         if flags.intersects(SymbolFlags::LATE_BINDING_CONTAINER) {
             self.get_resolved_members_or_exports_of_symbol(
@@ -236,7 +250,7 @@ pub trait SymbolInfo<'cx>: Sized {
         }
     }
 
-    fn get_exports_of_module(&mut self, module_symbol: SymbolID) -> &'cx SymbolTable {
+    pub(super) fn get_exports_of_module(&mut self, module_symbol: SymbolID) -> &'cx SymbolTable {
         if let Some(exports) = self.get_symbol_links(module_symbol).get_resolved_exports() {
             return exports;
         }
@@ -246,7 +260,7 @@ pub trait SymbolInfo<'cx>: Sized {
         exports
     }
 
-    fn get_export_of_module(
+    pub(super) fn get_export_of_module(
         &mut self,
         symbol: SymbolID,
         name: SymbolName,
@@ -264,7 +278,10 @@ pub trait SymbolInfo<'cx>: Sized {
         }
     }
 
-    fn get_exports_of_module_worker(&mut self, module_symbol: SymbolID) -> &'cx SymbolTable {
+    pub(super) fn get_exports_of_module_worker(
+        &mut self,
+        module_symbol: SymbolID,
+    ) -> &'cx SymbolTable {
         struct ExportCollisionTracker<'cx> {
             spec: bolt_ts_atom::AtomId,
             exports_with_duplicated: thin_vec::ThinVec<&'cx bolt_ts_ast::ExportDecl<'cx>>,
@@ -272,7 +289,7 @@ pub trait SymbolInfo<'cx>: Sized {
         struct ExportCollisionTrackerTable<'cx>(FxHashMap<SymbolName, ExportCollisionTracker<'cx>>);
 
         fn extend_export_symbols<'cx>(
-            this: &mut impl SymbolInfo<'cx>,
+            this: &mut TyChecker<'cx>,
             target: &mut SymbolTable,
             source: Option<SymbolTable>,
             mut lookup_table: Option<&mut ExportCollisionTrackerTable<'cx>>,
@@ -316,8 +333,8 @@ pub trait SymbolInfo<'cx>: Sized {
             }
         }
 
-        fn visit<'cx>(
-            this: &mut impl SymbolInfo<'cx>,
+        fn visit(
+            this: &mut TyChecker<'_>,
             symbol: Option<SymbolID>,
             visited: &mut FxHashSet<SymbolID>,
         ) -> Option<SymbolTable> {
@@ -364,7 +381,7 @@ pub trait SymbolInfo<'cx>: Sized {
         }
     }
 
-    fn get_resolved_members_or_exports_of_symbol(
+    pub(super) fn get_resolved_members_or_exports_of_symbol(
         &mut self,
         symbol: SymbolID,
         kind: MemberOrExportsResolutionKind,
@@ -418,31 +435,66 @@ pub trait SymbolInfo<'cx>: Sized {
             let n = self.p().node(decl);
             use bolt_ts_ast::Node::*;
             match n {
-                InterfaceDecl(n) => {
-                    handle_members_for_label_symbol(self, &mut late_symbols, n.members, is_static)
-                }
+                InterfaceDecl(n) => handle_members_for_label_symbol(
+                    self,
+                    symbol,
+                    early_symbols,
+                    &mut late_symbols,
+                    n.members,
+                    is_static,
+                ),
                 ClassDecl(n) => handle_members_for_label_symbol(
                     self,
+                    symbol,
+                    early_symbols,
                     &mut late_symbols,
                     n.elems.elems,
                     is_static,
                 ),
                 ClassExpr(n) => handle_members_for_label_symbol(
                     self,
+                    symbol,
+                    early_symbols,
                     &mut late_symbols,
                     n.elems.elems,
                     is_static,
                 ),
-                ObjectLitTy(n) => {
-                    handle_members_for_label_symbol(self, &mut late_symbols, n.members, is_static)
-                }
+                ObjectLitTy(n) => handle_members_for_label_symbol(
+                    self,
+                    symbol,
+                    early_symbols,
+                    &mut late_symbols,
+                    n.members,
+                    is_static,
+                ),
                 _ => (),
             };
         }
-        get_kind(self).unwrap()
+
+        dbg!(late_symbols.0.len());
+        let combined = if early_symbols.0.is_empty() {
+            self.alloc(late_symbols)
+        } else if late_symbols.0.is_empty() {
+            early_symbols
+        } else {
+            let mut combined = SymbolTable::new(late_symbols.0.len() + early_symbols.0.len());
+            self.merge_symbol_table_owner(&mut combined, &early_symbols, false);
+            self.merge_symbol_table_owner(&mut combined, &late_symbols, false);
+            self.alloc(combined)
+        };
+        let links = self.get_mut_symbol_links(symbol);
+        match kind {
+            MemberOrExportsResolutionKind::ResolvedExports => {
+                links.override_resolved_exports(combined)
+            }
+            MemberOrExportsResolutionKind::ResolvedMembers => {
+                links.override_resolved_members(combined)
+            }
+        }
+        combined
     }
 
-    fn resolve_symbol_by_ident(&self, ident: &'cx bolt_ts_ast::Ident) -> SymbolID {
+    pub(super) fn resolve_symbol_by_ident(&self, ident: &'cx bolt_ts_ast::Ident) -> SymbolID {
         let id = ident.id;
         self.get_resolve_results()[id.module().as_usize()]
             .final_res
@@ -463,7 +515,7 @@ pub trait SymbolInfo<'cx>: Sized {
             })
     }
 
-    fn resolve_entity_name(
+    pub(super) fn resolve_entity_name(
         &mut self,
         name: &'cx bolt_ts_ast::EntityName<'cx>,
         meaning: SymbolFlags,
@@ -500,7 +552,7 @@ pub trait SymbolInfo<'cx>: Sized {
         }
     }
 
-    fn get_symbol(
+    pub(super) fn get_symbol(
         &mut self,
         symbols: &'cx SymbolTable,
         name: SymbolName,
@@ -523,7 +575,7 @@ pub trait SymbolInfo<'cx>: Sized {
         None
     }
 
-    fn get_symbol_flags(
+    pub(super) fn get_symbol_flags(
         &mut self,
         mut symbol: SymbolID,
         exclude_ty_only_meaning: bool,
@@ -552,7 +604,10 @@ pub trait SymbolInfo<'cx>: Sized {
         flags
     }
 
-    fn get_export_symbol_of_value_symbol_if_exported(&mut self, symbol: SymbolID) -> SymbolID {
+    pub(super) fn get_export_symbol_of_value_symbol_if_exported(
+        &mut self,
+        symbol: SymbolID,
+    ) -> SymbolID {
         // TODO: get merged symbol
         let s = symbol_of_resolve_results(self.get_resolve_results(), symbol);
         if s.flags.intersects(SymbolFlags::VALUE) {
@@ -561,23 +616,171 @@ pub trait SymbolInfo<'cx>: Sized {
             symbol
         }
     }
+
+    fn has_late_bindable_name(&mut self, id: bolt_ts_ast::NodeID) -> bool {
+        let Some(name) = self.p().get_name_of_decl(id) else {
+            return false;
+        };
+        self.is_late_bindable_name(&name)
+    }
+
+    fn is_late_bindable_name(&mut self, name: &bolt_ts_ast::DeclarationName<'cx>) -> bool {
+        name.is_late_bindable_ast() && {
+            let ty = if let bolt_ts_ast::DeclarationName::Computed(n) = name {
+                self.check_computed_prop_name(n)
+            } else {
+                todo!("element access")
+            };
+            ty.useable_as_prop_name()
+        }
+    }
+
+    fn has_late_bindable_index_signature(&mut self, id: bolt_ts_ast::NodeID) -> bool {
+        let Some(name) = self.p().get_name_of_decl(id) else {
+            return false;
+        };
+        self.is_late_bindable_index_signature(&name)
+    }
+
+    fn is_late_bindable_index_signature(
+        &mut self,
+        name: &bolt_ts_ast::DeclarationName<'cx>,
+    ) -> bool {
+        name.is_late_bindable_ast() && {
+            let ty = if let bolt_ts_ast::DeclarationName::Computed(n) = name {
+                self.check_computed_prop_name(n)
+            } else {
+                todo!("element access")
+            };
+            self.is_ty_usable_as_index_signature(ty)
+        }
+    }
+
+    fn is_ty_usable_as_index_signature(&mut self, ty: &'cx ty::Ty<'cx>) -> bool {
+        self.is_type_assignable_to(ty, self.string_number_symbol_ty())
+    }
+
+    fn late_bind_member(
+        &mut self,
+        parent: SymbolID,
+        early_symbols: &'cx SymbolTable,
+        late_symbols: &mut SymbolTable,
+        decl: bolt_ts_ast::NodeID,
+    ) -> SymbolID {
+        if let Some(s) = self.get_node_links(decl).get_resolved_symbol() {
+            return s;
+        }
+        let s = self.get_symbol_of_decl(decl);
+        self.get_mut_node_links(decl).set_resolved_symbol(s);
+
+        let ty = match self.p().node(decl) {
+            bolt_ts_ast::Node::ComputedPropName(n) => self.check_computed_prop_name(n),
+            // TODO: element access
+            _ => unreachable!(),
+        };
+        if ty.useable_as_prop_name() {
+            let member_name = self.get_prop_name_from_ty(ty).unwrap();
+            let symbol_flags = self.binder.symbol(s).flags;
+            use std::collections::hash_map::Entry;
+            let late_symbol = match late_symbols.0.entry(member_name) {
+                Entry::Occupied(occ) => *occ.get(),
+                Entry::Vacant(vac) => {
+                    // TODO: decls and value_declaration
+                    let links = SymbolLinks::default()
+                        .with_check_flags(CheckFlags::LATE)
+                        .with_name_ty(ty);
+                    let s = self.create_transient_symbol(
+                        member_name,
+                        SymbolFlags::empty(),
+                        None,
+                        links,
+                        None,
+                        None,
+                    );
+                    vac.insert(s);
+                    s
+                }
+            };
+            // TODO: !self.symbol(parent).flags().intersection(SymbolFlags::Class)
+            self.get_mut_node_links(decl)
+                .override_resolved_symbol(late_symbol);
+            late_symbol
+        } else {
+            s
+        }
+    }
+
+    fn clone_transient_symbol(
+        &mut self,
+        symbol: SymbolID,
+        get_links: impl FnOnce(&TransientSymbol) -> SymbolLinks<'cx>,
+    ) -> SymbolID {
+        let s = self.get_transient(symbol).unwrap();
+        let links = get_links(s);
+        let s = self.create_transient_symbol(
+            s.name,
+            s.flags,
+            s.origin,
+            links,
+            s.declarations.clone(),
+            s.value_declaration,
+        );
+        self.merged_symbols
+            .record_merged_transient_symbol(s, symbol, &mut self.transient_symbols);
+        s
+    }
+
+    fn late_bind_index_signature(
+        &mut self,
+        early_symbols: &'cx SymbolTable,
+        late_symbols: &mut SymbolTable,
+    ) {
+        match late_symbols.0.get(&SymbolName::Index).copied() {
+            Some(index_symbol) => index_symbol,
+            None => {
+                let late_symbol = match early_symbols.0.get(&SymbolName::Index).copied() {
+                    Some(s) => self.clone_transient_symbol(s, |_| {
+                        SymbolLinks::default().with_check_flags(CheckFlags::LATE)
+                    }),
+                    None => self.create_transient_symbol(
+                        SymbolName::Index,
+                        SymbolFlags::empty(),
+                        None,
+                        SymbolLinks::default().with_check_flags(CheckFlags::LATE),
+                        None,
+                        None,
+                    ),
+                };
+                late_symbols.0.insert(SymbolName::Index, late_symbol);
+                late_symbol
+            }
+        };
+        // TODO: add declarations and value_declaration
+    }
 }
 
 fn handle_members_for_label_symbol<'cx>(
-    this: &mut impl SymbolInfo<'cx>,
-    late_symbol: &mut SymbolTable,
+    this: &mut TyChecker<'cx>,
+    symbol: SymbolID,
+    early_symbols: &'cx SymbolTable,
+    late_symbols: &mut SymbolTable,
     members: &[&'cx impl ir::MembersOfDecl],
     is_static: bool,
 ) {
     for member in members {
         if is_static == member.has_static_modifier() {
             let id = member.id();
+            if this.has_late_bindable_name(id) {
+                this.late_bind_member(symbol, early_symbols, late_symbols, id);
+            } else if this.has_late_bindable_index_signature(id) {
+                this.late_bind_index_signature(early_symbols, late_symbols);
+            }
         }
     }
 }
 
 fn get_target_of_ns_import<'cx>(
-    this: &mut impl SymbolInfo<'cx>,
+    this: &mut TyChecker<'cx>,
     n: &'cx bolt_ts_ast::NsImport<'cx>,
     dont_resolve_alias: bool,
 ) -> Option<SymbolID> {
@@ -590,8 +793,8 @@ fn get_target_of_ns_import<'cx>(
     this.resolve_external_module_name(import_decl.module.id, import_decl.module.val)
 }
 
-fn get_target_of_import_named_spec<'cx>(
-    this: &mut impl SymbolInfo<'cx>,
+fn get_target_of_import_named_spec(
+    this: &mut TyChecker<'_>,
     node: bolt_ts_ast::NodeID,
     dont_recur_resolve: bool,
 ) -> Option<SymbolID> {
@@ -607,8 +810,8 @@ fn get_target_of_import_named_spec<'cx>(
     get_external_module_member(this, root, node, dont_recur_resolve)
 }
 
-fn get_external_module_member<'cx>(
-    this: &mut impl SymbolInfo<'cx>,
+fn get_external_module_member(
+    this: &mut TyChecker<'_>,
     node: bolt_ts_ast::NodeID,
     spec: bolt_ts_ast::NodeID,
     dont_recur_resolve: bool,
@@ -646,8 +849,8 @@ fn get_external_module_member<'cx>(
     }
 }
 
-fn error_no_module_member_symbol<'cx>(
-    this: &mut impl SymbolInfo<'cx>,
+fn error_no_module_member_symbol(
+    this: &mut TyChecker<'_>,
     module_symbol: SymbolID,
     module_name: bolt_ts_atom::AtomId,
     spec_name_id: bolt_ts_ast::NodeID,
@@ -660,8 +863,8 @@ fn error_no_module_member_symbol<'cx>(
     report_non_exported_member(this, spec_name_id, spec_name, module_symbol, module_name);
 }
 
-fn report_non_exported_member<'cx>(
-    this: &mut impl SymbolInfo<'cx>,
+fn report_non_exported_member(
+    this: &mut TyChecker<'_>,
     spec_name_id: bolt_ts_ast::NodeID,
     spec_name: bolt_ts_atom::AtomId,
     module_symbol: SymbolID,
@@ -764,8 +967,8 @@ fn report_non_exported_member<'cx>(
     }
 }
 
-fn get_target_of_export_spec<'cx>(
-    this: &mut impl SymbolInfo<'cx>,
+fn get_target_of_export_spec(
+    this: &mut TyChecker<'_>,
     node: bolt_ts_ast::NodeID,
     meaning: SymbolFlags,
     dont_resolve_alias: bool,
@@ -817,7 +1020,7 @@ fn get_target_of_export_spec<'cx>(
 }
 
 fn get_target_of_export_assignment<'cx>(
-    this: &mut impl SymbolInfo<'cx>,
+    this: &mut TyChecker<'cx>,
     node: &'cx bolt_ts_ast::ExportAssign<'cx>, // TODO: binary expr
     dont_resolve_alias: bool,
 ) -> Option<SymbolID> {
@@ -828,7 +1031,7 @@ fn get_target_of_export_assignment<'cx>(
 }
 
 fn get_target_of_alias_like_expr<'cx>(
-    this: &mut impl SymbolInfo<'cx>,
+    this: &mut TyChecker<'cx>,
     expr: &'cx bolt_ts_ast::Expr<'cx>,
     dont_resolve_alias: bool,
 ) -> Option<SymbolID> {
@@ -866,7 +1069,7 @@ fn get_target_of_alias_like_expr<'cx>(
 }
 
 fn get_target_of_import_clause<'cx>(
-    this: &mut impl SymbolInfo<'cx>,
+    this: &mut TyChecker<'cx>,
     node: &'cx bolt_ts_ast::ImportClause<'cx>,
     dont_recur_alias: bool,
 ) -> Option<SymbolID> {
@@ -878,8 +1081,8 @@ fn get_target_of_import_clause<'cx>(
     })
 }
 
-fn get_target_of_module_default<'cx>(
-    this: &mut impl SymbolInfo<'cx>,
+fn get_target_of_module_default(
+    this: &mut TyChecker<'_>,
     module_symbol: SymbolID,
     node: bolt_ts_ast::NodeID,
     dont_resolve_alias: bool,
@@ -904,8 +1107,8 @@ fn get_target_of_module_default<'cx>(
     export_default_symbol
 }
 
-fn resolve_export_by_name<'cx>(
-    this: &mut impl SymbolInfo<'cx>,
+fn resolve_export_by_name(
+    this: &mut TyChecker<'_>,
     module_symbol: SymbolID,
     name: SymbolName,
     node: bolt_ts_ast::NodeID,
