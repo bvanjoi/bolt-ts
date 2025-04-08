@@ -137,8 +137,8 @@ pub trait MergeSymbol<'cx> {
     fn get_symbol_table_by_location(&self, loc: SymbolTableLocation) -> &SymbolTable {
         match loc {
             SymbolTableLocation::Global => self.get_global_symbols(),
-            SymbolTableLocation::Members { symbol } => self.get_symbol(symbol).members(),
-            SymbolTableLocation::Exports { symbol } => self.get_symbol(symbol).exports(),
+            SymbolTableLocation::Members { symbol } => self.get_symbol(symbol).members().unwrap(),
+            SymbolTableLocation::Exports { symbol } => self.get_symbol(symbol).exports().unwrap(),
             SymbolTableLocation::Locals { container } => self.get_locals(container),
         }
     }
@@ -146,8 +146,12 @@ pub trait MergeSymbol<'cx> {
     fn get_mut_symbol_table_by_location(&mut self, loc: SymbolTableLocation) -> &mut SymbolTable {
         match loc {
             SymbolTableLocation::Global => self.get_mut_global_symbols(),
-            SymbolTableLocation::Members { symbol } => &mut self.get_mut_symbol(symbol).members,
-            SymbolTableLocation::Exports { symbol } => &mut self.get_mut_symbol(symbol).exports,
+            SymbolTableLocation::Members { symbol } => {
+                self.get_mut_symbol(symbol).members.as_mut().unwrap()
+            }
+            SymbolTableLocation::Exports { symbol } => {
+                self.get_mut_symbol(symbol).exports.as_mut().unwrap()
+            }
             SymbolTableLocation::Locals { container } => self.get_mut_locals(container),
         }
     }
@@ -190,6 +194,10 @@ pub trait MergeSymbol<'cx> {
         let t_flags = t.flags;
         let s_flags = s.flags;
         let s_value_decl = s.value_decl;
+        let s_members_is_some = s.members.is_some();
+        let t_members_is_none = t.members.is_none();
+        let s_exports_is_some = s.exports.is_some();
+        let t_exports_is_none = t.exports.is_none();
 
         if !t_flags.intersects(s_flags.get_excluded())
             || s_flags.union(t_flags).intersects(SymbolFlags::ASSIGNMENT)
@@ -211,14 +219,25 @@ pub trait MergeSymbol<'cx> {
             if let Some(s_value_decl) = s_value_decl {
                 self.set_value_declaration(target, s_value_decl);
             }
-            let t = SymbolTableLocation::Members { symbol: target };
-            let s = SymbolTableLocation::Members { symbol: source };
-            self.merge_symbol_table(t, s, unidirectional);
+            // TODO: add range declarations
 
-            let t = SymbolTableLocation::Exports { symbol: target };
-            let s = SymbolTableLocation::Exports { symbol: source };
-            // TODO: parent
-            self.merge_symbol_table(t, s, unidirectional);
+            if s_members_is_some {
+                let s = SymbolTableLocation::Members { symbol: source };
+                let t = SymbolTableLocation::Members { symbol: target };
+                if t_members_is_none {
+                    self.get_mut_symbol(target).members = Some(SymbolTable::new(32));
+                }
+                self.merge_symbol_table(t, s, unidirectional);
+            }
+
+            if s_exports_is_some {
+                let s = SymbolTableLocation::Exports { symbol: source };
+                let t = SymbolTableLocation::Exports { symbol: target };
+                if t_exports_is_none {
+                    self.get_mut_symbol(target).exports = Some(SymbolTable::new(32));
+                }
+                self.merge_symbol_table(t, s, unidirectional);
+            }
 
             if !unidirectional {
                 self.record_merged_symbol(target, source);

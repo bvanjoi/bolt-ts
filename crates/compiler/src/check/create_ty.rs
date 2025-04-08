@@ -737,7 +737,7 @@ impl<'cx> TyChecker<'cx> {
                             SymbolLinks::default()
                                 .with_ty(ty_param)
                                 .with_check_flags(check_flags),
-                            thin_vec::thin_vec![],
+                            None,
                             None,
                         );
                         props.push(property);
@@ -762,7 +762,7 @@ impl<'cx> TyChecker<'cx> {
                 SymbolLinks::default()
                     .with_ty(ty)
                     .with_check_flags(check_flags),
-                thin_vec::thin_vec![],
+                None,
                 None,
             );
             props.push(length_symbol);
@@ -804,7 +804,7 @@ impl<'cx> TyChecker<'cx> {
     }
 
     fn add_ty_to_intersection(
-        &self,
+        &mut self,
         set: &mut indexmap::IndexSet<TyID>,
         mut includes: TypeFlags,
         ty: &'cx ty::Ty<'cx>,
@@ -840,7 +840,7 @@ impl<'cx> TyChecker<'cx> {
     }
 
     fn add_tys_to_intersection(
-        &self,
+        &mut self,
         set: &mut indexmap::IndexSet<TyID>,
         mut includes: TypeFlags,
         tys: &[&'cx ty::Ty<'cx>],
@@ -923,7 +923,7 @@ impl<'cx> TyChecker<'cx> {
         true
     }
 
-    fn remove_redundant_super_tys(&self, tys: &mut Vec<&'cx ty::Ty<'cx>>, includes: TypeFlags) {
+    fn remove_redundant_super_tys(&mut self, tys: &mut Vec<&'cx ty::Ty<'cx>>, includes: TypeFlags) {
         let mut i = tys.len();
         while i > 0 {
             i -= 1;
@@ -1280,7 +1280,7 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
-    pub(super) fn is_no_infer_target_ty(&self, ty: &'cx ty::Ty<'cx>) -> bool {
+    pub(super) fn is_no_infer_target_ty(&mut self, ty: &'cx ty::Ty<'cx>) -> bool {
         if let Some(tys) = ty.kind.tys_of_union_or_intersection() {
             tys.iter().any(|ty| self.is_no_infer_target_ty(ty))
         } else if let Some(sub) = ty.kind.as_substitution_ty() {
@@ -1593,13 +1593,7 @@ impl<'cx> TyChecker<'cx> {
                             links = links.with_name_ty(name_ty);
                         }
                         // TODO: left_spread, right_spread, declarations
-                        let result = self.create_transient_symbol(
-                            name,
-                            flags,
-                            links,
-                            thin_vec::thin_vec![],
-                            None,
-                        );
+                        let result = self.create_transient_symbol(name, flags, links, None, None);
                         occ.insert(result);
                     }
                 }

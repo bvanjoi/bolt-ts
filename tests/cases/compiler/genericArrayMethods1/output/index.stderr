@@ -18,10 +18,10 @@
     ╰────
 
   × Type 'string' is not assignable to type 'number | "join" | "sort" |
-  │ "shift" | "splice" | "filter" | "map" | "pop" | "push" | "length" | "some"
-  │ | "toLocaleString" | "slice" | "reduceRight" | "indexOf" | "lastIndexOf" |
-  │ "reverse" | "concat" | "forEach" | "reduce" | "every" | "unshift" |
-  │ "toString" | "1" | "2" | "0"'.
+  │ "unshift" | "splice" | "filter" | "map" | "pop" | "push" | "length" |
+  │ "toLocaleString" | "slice" | "some" | "reduceRight" | "indexOf" |
+  │ "lastIndexOf" | "reverse" | "concat" | "forEach" | "reduce" | "every" |
+  │ "shift" | "toString" | "1" | "2" | "0"'.
     ╭─[../../tests/cases/compiler/genericArrayMethods1/index.ts:33:6]
  33 │ c0
     · ──

@@ -1,6 +1,7 @@
 use super::BinderState;
 use super::ModuleInstanceState;
 use super::NodeQuery;
+use super::SymbolTable;
 use super::symbol::SymbolFlags;
 use super::symbol::SymbolTableLocation;
 use super::symbol::{SymbolID, SymbolName};
@@ -166,11 +167,11 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
 
         let ty_lit_symbol = self.create_symbol(symbol_name, SymbolFlags::TYPE_LITERAL);
         self.add_declaration_to_symbol(ty_lit_symbol, id, SymbolFlags::TYPE_LITERAL);
-        self.symbols
-            .get_mut(ty_lit_symbol)
-            .members
-            .0
-            .insert(symbol_name, symbol);
+        let Some(members) = &mut self.symbols.get_mut(ty_lit_symbol).members else {
+            unreachable!()
+        };
+        assert!(members.0.is_empty());
+        members.0.insert(symbol_name, symbol);
         self.create_final_res(id, ty_lit_symbol);
     }
 

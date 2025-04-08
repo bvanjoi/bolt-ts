@@ -83,8 +83,8 @@
      · ──
      ╰────
 
-  × Type 'mapped type' is not assignable to type '{ left: { position:
-  │ MovablePosition; size: { width: number; height: number; }; }; top:
+  × Type 'mapped type' is not assignable to type '{ top: { position:
+  │ MovablePosition; size: { width: number; height: number; }; }; left:
   │ { position: MovablePosition; size: { width: number; height: number; }; };
   │ position: MovablePosition; }'.
      ╭─[../../tests/cases/compiler/fest/index.ts:400:9]
@@ -566,14 +566,14 @@
       ╰────
 
   × Type '{ tag: "num"; b: string; }' is not assignable to type 'mapped type &
-  │ { a: string; } | mapped type & { b: number; }'.
+  │ { b: number; } | mapped type & { a: string; }'.
       ╭─[../../tests/cases/compiler/fest/index.ts:2532:9]
  2532 │ b0
       · ──
       ╰────
 
   × Type '{ tag: "str"; b: number; }' is not assignable to type 'mapped type &
-  │ { a: string; } | mapped type & { b: number; }'.
+  │ { b: number; } | mapped type & { a: string; }'.
       ╭─[../../tests/cases/compiler/fest/index.ts:2534:9]
  2534 │ b1
       · ──

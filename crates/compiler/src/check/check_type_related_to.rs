@@ -433,25 +433,20 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
             assert!(!unmatched.is_empty());
             if report_error {
                 let symbol = self.c.binder.symbol(target_symbol);
+                let decl = symbol.decls.as_ref().unwrap()[0];
                 let target_span = if symbol.flags.intersects(SymbolFlags::CLASS) {
                     self.c
                         .p
-                        .node(symbol.decls[0])
+                        .node(decl)
                         .as_class_decl()
                         .unwrap()
                         .name
                         .unwrap()
                         .span
                 } else if symbol.flags.intersects(SymbolFlags::INTERFACE) {
-                    self.c
-                        .p
-                        .node(symbol.decls[0])
-                        .as_interface_decl()
-                        .unwrap()
-                        .name
-                        .span
+                    self.c.p.node(decl).as_interface_decl().unwrap().name.span
                 } else {
-                    self.c.p.node(symbol.decls[0]).span()
+                    self.c.p.node(decl).span()
                 };
                 let Some(source_symbol) = source.symbol() else {
                     // TODO: unreachable!()

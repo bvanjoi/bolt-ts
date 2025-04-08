@@ -95,8 +95,9 @@ pub(crate) fn merge_module_augmentation_list_for_global(
             let ns_id = ns.id;
             let ns_symbol = c.symbol_of_decl(ns_id);
             let ns_s = c.get_symbol(ns_symbol);
-            if ns_s.decls.first().is_none_or(|decl| !ns_id.eq(decl)) {
-                assert!(ns_s.decls.len() > 1);
+            let decls = ns_s.decls.as_ref().unwrap();
+            if decls.first().is_none_or(|decl| !ns_id.eq(decl)) {
+                assert!(decls.len() > 1);
                 continue;
             }
             let target = MergeModuleAugmentation::global_loc();
@@ -189,8 +190,9 @@ impl<'cx> super::TyChecker<'cx> {
         let ns_id = module_augmentation.id;
         let ns_symbol = self.get_symbol_of_decl(ns_id);
         let ns_s = MergeSymbol::get_symbol(self, ns_symbol);
-        if ns_s.decls.first().is_none_or(|decl| !ns_id.eq(decl)) {
-            assert!(ns_s.decls.len() > 1);
+        let decls = ns_s.decls.as_ref().unwrap();
+        if decls.first().is_none_or(|decl| !ns_id.eq(decl)) {
+            assert!(decls.len() > 1);
             return;
         }
         let Some(main_module) = resolve_external_module_name(self.mg, module_name, self.p) else {
@@ -201,9 +203,8 @@ impl<'cx> super::TyChecker<'cx> {
         if main_module_s.flags.intersects(SymbolFlags::NAMESPACE) {
             if main_module_s
                 .exports()
-                .0
-                .contains_key(&SymbolName::ExportStar)
-                && !ns_s.exports().0.is_empty()
+                .is_some_and(|table| table.0.contains_key(&SymbolName::ExportStar))
+                && ns_s.exports().is_some_and(|t| !t.0.is_empty())
             {
                 let resolved_exports = self.get_resolved_members_or_exports_of_symbol(
                 main_module,
@@ -211,12 +212,14 @@ impl<'cx> super::TyChecker<'cx> {
             );
                 let filtered = MergeSymbol::get_symbol(self, ns_symbol)
                     .exports()
+                    .unwrap()
                     .0
                     .iter()
                     .filter_map(|(k, v)| {
                         if resolved_exports.0.contains_key(k)
                             && !MergeSymbol::get_symbol(self, main_module)
                                 .exports()
+                                .unwrap()
                                 .0
                                 .contains_key(k)
                         {

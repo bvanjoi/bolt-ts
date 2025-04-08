@@ -1112,12 +1112,10 @@ impl<'cx> TyChecker<'cx> {
         symbol: SymbolID,
     ) -> Option<ty::Tys<'cx>> {
         let s = self.binder.symbol(symbol);
-        if s.decls.is_empty() {
-            return None;
-        }
-        let cap = s.decls.len() * 4;
+        let decls = s.decls.as_ref()?;
+        let cap = decls.len() * 4;
         let mut res: Option<Vec<&'cx Ty<'cx>>> = None;
-        for node in s.decls.clone() {
+        for node in decls.clone() {
             let n = self.p.node(node);
             use ast::Node::*;
             if matches!(

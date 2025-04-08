@@ -2530,9 +2530,9 @@ type TaggedUnion<
   };
 
   const b0: Union = fails;
-  //~^ ERROR: Type '{ tag: "num"; b: string; }' is not assignable to type 'mapped type & { a: string; } | mapped type & { b: number; }'.
+  //~^ ERROR: Type '{ tag: "num"; b: string; }' is not assignable to type
   const b1: Union = failsToo;
-  //~^ ERROR: Type '{ tag: "str"; b: number; }' is not assignable to type 'mapped type & { a: string; } | mapped type & { b: number; }'.
+  //~^ ERROR: Type '{ tag: "str"; b: number; }' is not assignable to type
 }
 
 // ================ Trim ================

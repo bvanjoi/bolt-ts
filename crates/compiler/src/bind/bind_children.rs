@@ -1312,7 +1312,7 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
         name: SymbolName,
     ) -> SymbolID {
         let symbol = self.create_symbol(name, flags);
-        if flags.intersects(SymbolFlags::ENUM_MEMBER | SymbolFlags::CLASS_MEMBER) {
+        if flags.intersects(SymbolFlags::ENUM_MEMBER.union(SymbolFlags::CLASS_MEMBER)) {
             // self.symbols.get_mut(symbol).parent = container.symbol
         }
         self.add_declaration_to_symbol(symbol, node, flags);

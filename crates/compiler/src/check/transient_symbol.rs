@@ -1,8 +1,7 @@
 use bolt_ts_ast::{self as ast, NodeID};
 use bolt_ts_span::ModuleID;
-use rustc_hash::FxHashMap;
 
-use crate::bind::{Symbol, SymbolFlags, SymbolID, SymbolName, SymbolTable, Symbols};
+use crate::bind::{Symbol, SymbolFlags, SymbolID, SymbolName, Symbols};
 use crate::ty;
 
 use super::TyChecker;
@@ -22,7 +21,7 @@ impl<'cx> TyChecker<'cx> {
         name: SymbolName,
         symbol_flags: SymbolFlags,
         links: crate::check::SymbolLinks<'cx>,
-        decls: thin_vec::ThinVec<ast::NodeID>,
+        decls: Option<thin_vec::ThinVec<ast::NodeID>>,
         value_declaration: Option<ast::NodeID>,
     ) -> SymbolID {
         let symbol_flags = symbol_flags | SymbolFlags::TRANSIENT;
@@ -31,8 +30,8 @@ impl<'cx> TyChecker<'cx> {
             flags: symbol_flags,
             decls,
             value_decl: value_declaration,
-            members: SymbolTable(FxHashMap::default()),
-            exports: SymbolTable(FxHashMap::default()),
+            members: None,
+            exports: None,
             parent: None,
             merged_id: None,
             export_symbol: None,
@@ -60,13 +59,7 @@ impl<'cx> TyChecker<'cx> {
             .with_ty(ty)
             .with_target(source);
         let value_declaration = s.value_decl;
-        self.create_transient_symbol(
-            name,
-            symbol_flags,
-            links,
-            thin_vec::thin_vec![],
-            value_declaration,
-        )
+        self.create_transient_symbol(name, symbol_flags, links, None, value_declaration)
     }
 
     pub(super) fn get_transient(&self, symbol: SymbolID) -> Option<&Symbol> {
@@ -89,7 +82,10 @@ impl<'cx> TyChecker<'cx> {
     pub(crate) fn get_symbol_decl(&self, symbol: SymbolID) -> Option<NodeID> {
         if symbol.module() == ModuleID::TRANSIENT {
             let symbol = self.get_transient(symbol).unwrap();
-            symbol.decls.first().copied()
+            symbol
+                .decls
+                .as_ref()
+                .and_then(|decls| decls.first().copied())
         } else {
             symbol.opt_decl(self.binder)
         }

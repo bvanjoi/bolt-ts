@@ -17,20 +17,6 @@ pub(super) enum MemberOrExportsResolutionKind {
 }
 
 impl<'cx> TyChecker<'cx> {
-    pub(super) fn members(&self, symbol: SymbolID) -> &FxHashMap<SymbolName, SymbolID> {
-        let s = self.binder.symbol(symbol);
-        if s.flags.intersects(
-            SymbolFlags::INTERFACE
-                | SymbolFlags::CLASS
-                | SymbolFlags::TYPE_LITERAL
-                | SymbolFlags::OBJECT_LITERAL,
-        ) {
-            &s.members().0
-        } else {
-            unreachable!("s: {s:#?}")
-        }
-    }
-
     fn add_inherited_members(
         &self,
         members: &mut FxHashMap<SymbolName, SymbolID>,
@@ -80,7 +66,9 @@ impl<'cx> TyChecker<'cx> {
     }
 
     fn is_this_less(&self, symbol: SymbolID) -> bool {
-        let decls = &self.symbol(symbol).decls;
+        let Some(decls) = &self.symbol(symbol).decls else {
+            return false;
+        };
         if decls.len() != 1 {
             return false;
         }
@@ -306,9 +294,12 @@ impl<'cx> TyChecker<'cx> {
         }
         let symbol = ty.symbol().unwrap();
         let s = self.binder.symbol(symbol);
+        let Some(decls) = s.decls.as_ref() else {
+            return;
+        };
 
-        let mut tys = Vec::with_capacity(s.decls.len() * 4);
-        for decl in s.decls.clone() {
+        let mut tys = Vec::with_capacity(decls.len() * 4);
+        for decl in decls.clone() {
             if self.p.node(decl).is_interface_decl() {
                 let Some(ty_nodes) = self.get_interface_base_ty_nodes(decl) else {
                     continue;
@@ -343,7 +334,7 @@ impl<'cx> TyChecker<'cx> {
         i: &'cx ty::Ty<'cx>,
     ) -> Option<&'cx ast::ClassExtendsClause<'cx>> {
         let symbol = i.symbol().unwrap();
-        let decl = self.binder.symbol(symbol).decls[0];
+        let decl = self.binder.symbol(symbol).decls.as_ref().unwrap()[0];
         self.get_effective_base_type_node(decl)
     }
 
@@ -491,7 +482,7 @@ impl<'cx> TyChecker<'cx> {
                 .symbol()
                 .map(|symbol| {
                     // TODO: remove clone
-                    self.members(symbol).clone()
+                    self.get_members_of_symbol(symbol).clone().0
                 })
                 .unwrap_or_default();
             if base_tys.is_empty() {
@@ -702,7 +693,7 @@ impl<'cx> TyChecker<'cx> {
         let i = r.target.kind.expect_object_interface();
         let symbol = i.symbol;
         let mut flags = ty::SigFlags::empty();
-        let class_node_id = self.binder.symbol(symbol).decls[0];
+        let class_node_id = self.binder.symbol(symbol).decls.as_ref().unwrap()[0];
         if let Some(c) = self.p.node(class_node_id).as_class_decl() {
             if let Some(mods) = c.modifiers {
                 if mods.flags.contains(ast::ModifierKind::Abstract) {
@@ -829,7 +820,10 @@ impl<'cx> TyChecker<'cx> {
             // TODO: `constructor_sigs`, `index_infos`
         } else if symbol_flags.intersects(SymbolFlags::CLASS) {
             call_sigs = &[];
-            if let Some(symbol) = symbol.members().0.get(&SymbolName::Constructor) {
+            if let Some(symbol) = symbol
+                .members()
+                .and_then(|m| m.0.get(&SymbolName::Constructor))
+            {
                 ctor_sigs = self.get_sigs_of_symbol(*symbol)
             } else {
                 ctor_sigs = &[];
