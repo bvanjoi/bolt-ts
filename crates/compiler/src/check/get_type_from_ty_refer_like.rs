@@ -243,7 +243,7 @@ impl<'cx> TyChecker<'cx> {
                 keyword::IDENT_NEVER => return self.never_ty,
                 keyword::KW_UNDEFINED => return self.undefined_ty,
                 keyword::KW_NULL => return self.null_ty,
-                keyword::IDENT_SYMBOL => return self.symbol_ty,
+                keyword::IDENT_SYMBOL => return self.es_symbol_ty,
                 keyword::IDENT_OBJECT => return self.non_primitive_ty,
                 keyword::IDENT_BIGINT => return self.bigint_ty,
                 _ => {}

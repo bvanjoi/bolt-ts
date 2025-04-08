@@ -58,47 +58,44 @@ pub mod utils;
 
 use std::borrow::Cow;
 
+use bolt_ts_ast::{self as ast};
+use bolt_ts_ast::{BinOp, pprint_ident};
 use bolt_ts_atom::{AtomId, AtomMap};
-
 use bolt_ts_config::NormalizedCompilerOptions;
 use bolt_ts_utils::{fx_hashmap_with_capacity, no_hashmap_with_capacity, no_hashset_with_capacity};
-use check_expr::IterationUse;
-use create_ty::IntersectionFlags;
 use enumflags2::BitFlag;
-use flow::FlowTy;
-use fn_mapper::{PermissiveMapper, RestrictiveMapper};
-use get_simplified_ty::SimplifiedKind;
-use get_variances::VarianceFlags;
-use instantiation_ty_map::{
-    IndexedAccessTyMap, IntersectionMap, StringMappingTyMap, TyAliasInstantiationMap, TyCacheTrait,
-    TyKey, UnionMap,
-};
-use merge::MergeModuleAugmentationForNonGlobalResult;
 use rustc_hash::{FxBuildHasher, FxHashMap};
-use symbol_info::SymbolInfo;
-use transient_symbol::{BorrowedDeclarations, TransientSymbol};
-use type_predicate::TyPred;
-use utils::contains_ty;
 
+use self::check_expr::IterationUse;
+use self::create_ty::IntersectionFlags;
 use self::cycle_check::ResolutionKey;
+use self::flow::FlowTy;
+use self::fn_mapper::{PermissiveMapper, RestrictiveMapper};
 use self::get_context::{InferenceContextual, TyContextual};
 use self::get_contextual::ContextFlags;
+use self::get_simplified_ty::SimplifiedKind;
+use self::get_variances::VarianceFlags;
 use self::infer::InferenceContext;
 use self::infer::{InferenceFlags, InferencePriority};
 use self::instantiation_ty_map::InstantiationTyMap;
+use self::instantiation_ty_map::{
+    IndexedAccessTyMap, IntersectionMap, StringMappingTyMap, TyAliasInstantiationMap, TyCacheTrait,
+    TyKey, UnionMap,
+};
 use self::links::NodeLinks;
 pub use self::links::SymbolLinks;
 use self::links::{SigLinks, TyLinks};
-pub(crate) use self::merge::MergeModuleAugmentationForNonGlobal;
 pub(crate) use self::merge::merge_module_augmentation_list_for_global;
-pub(crate) use self::merge::merge_module_augmentation_list_for_non_global;
 use self::node_check_flags::NodeCheckFlags;
 pub use self::resolve::ExpectedArgsCount;
-pub(crate) use self::transient_symbol::TransientSymbols;
+use self::symbol_info::SymbolInfo;
+use self::transient_symbol::create_transient_symbol;
+use self::type_predicate::TyPred;
+use self::utils::contains_ty;
 
 use crate::bind::{
-    self, FlowID, FlowNodes, GlobalSymbols, MergedSymbols, Symbol, SymbolFlags, SymbolID,
-    SymbolName, SymbolTable,
+    self, FlowID, FlowNodes, GlobalSymbols, MergedSymbols, ResolveResult, Symbol, SymbolFlags,
+    SymbolID, SymbolName, SymbolTable, Symbols,
 };
 use crate::graph::ModuleGraph;
 use crate::parser::{AccessKind, AssignmentKind, Parser};
@@ -106,8 +103,6 @@ use crate::ty::{CheckFlags, IndexFlags, IterationTys, TYPEOF_NE_FACTS};
 use crate::ty::{ElementFlags, ObjectFlags, Sig, SigFlags, SigID, TyID, TypeFacts, TypeFlags};
 use crate::ty::{TyMapper, has_type_facts};
 use crate::{ecma_rules, ir, keyword, ty};
-use bolt_ts_ast::{self as ast};
-use bolt_ts_ast::{BinOp, pprint_ident};
 
 bitflags::bitflags! {
     #[derive(Clone, Copy, Debug, PartialEq)]
@@ -186,7 +181,6 @@ pub struct TyChecker<'cx> {
     string_mapping_tys: StringMappingTyMap<'cx>,
     type_name: nohash_hasher::IntMap<TyID, String>,
     tuple_tys: nohash_hasher::IntMap<u64, &'cx ty::Ty<'cx>>,
-    transient_symbols: TransientSymbols<'cx>,
 
     check_mode: Option<CheckMode>,
     inferences: Vec<InferenceContext<'cx>>,
@@ -195,6 +189,7 @@ pub struct TyChecker<'cx> {
     deferred_nodes: Vec<indexmap::IndexSet<ast::NodeID, FxBuildHasher>>,
     // === links ===
     symbol_links: FxHashMap<SymbolID, SymbolLinks<'cx>>,
+    transient_symbol_links: Vec<SymbolLinks<'cx>>,
     node_links: FxHashMap<ast::NodeID, NodeLinks<'cx>>,
     sig_links: nohash_hasher::IntMap<SigID, SigLinks<'cx>>,
     ty_links: nohash_hasher::IntMap<TyID, TyLinks<'cx>>,
@@ -233,7 +228,7 @@ pub struct TyChecker<'cx> {
     pub string_ty: &'cx ty::Ty<'cx>,
     pub bigint_ty: &'cx ty::Ty<'cx>,
     pub non_primitive_ty: &'cx ty::Ty<'cx>,
-    pub symbol_ty: &'cx ty::Ty<'cx>,
+    pub es_symbol_ty: &'cx ty::Ty<'cx>,
     pub non_inferrable_any_ty: &'cx ty::Ty<'cx>,
     pub intrinsic_marker_ty: &'cx ty::Ty<'cx>,
 
@@ -282,9 +277,9 @@ pub struct TyChecker<'cx> {
     any_iteration_tys: std::cell::OnceCell<IterationTys<'cx>>,
     empty_array: &'cx [u8; 0],
     // === resolver ===
-    pub binder: &'cx bind::Binder,
-    global_symbols: &'cx GlobalSymbols,
-    merged_symbols: &'cx MergedSymbols,
+    pub binder: &'cx mut bind::Binder,
+    global_symbols: &'cx mut GlobalSymbols,
+    merged_symbols: &'cx mut MergedSymbols,
 
     // === cycle check ===
     resolution_start: i32,
@@ -309,16 +304,19 @@ impl<'cx> TyChecker<'cx> {
         p: &'cx Parser<'cx>,
         mg: &'cx ModuleGraph,
         atoms: &'cx mut AtomMap<'cx>,
-        empty_symbols: &'cx SymbolTable,
         config: &'cx NormalizedCompilerOptions,
         flow_nodes: Vec<FlowNodes<'cx>>,
-        c: &'cx mut MergeModuleAugmentationForNonGlobalResult<'cx>,
         module_arena: &'cx bolt_ts_span::ModuleArena,
+        binder: &'cx mut bind::Binder,
+        merged_symbols: &'cx mut MergedSymbols,
+        global_symbols: &'cx mut GlobalSymbols,
     ) -> Self {
-        let diags = std::mem::take(&mut c.diags);
-        let mut symbol_links = std::mem::take(&mut c.symbol_links);
-        let mut transient_symbols = std::mem::take(&mut c.transient_symbols);
+        let mut symbol_links = fx_hashmap_with_capacity(p.module_count() * 1024);
+        let mut transient_symbols = Symbols::new_transient(p.module_count());
+        let mut transient_symbol_links = Vec::with_capacity(p.module_count() * 1024 * 64);
+        let diags = Vec::with_capacity(p.module_count() * 32);
         let empty_array: &'cx [u8; 0] = ty_arena.alloc([]);
+        let empty_symbols = ty_arena.alloc(bind::SymbolTable::new(0));
 
         let cap = p.module_count() * 1024 * 64;
         let mut tys = Vec::with_capacity(cap);
@@ -348,7 +346,7 @@ impl<'cx> TyChecker<'cx> {
             (unknown_ty,            keyword::IDENT_UNKNOWN, TypeFlags::UNKNOWN,         ObjectFlags::empty()),
             (undefined_ty,          keyword::KW_UNDEFINED,  TypeFlags::UNDEFINED,       ObjectFlags::empty()),
             (missing_ty,            keyword::KW_UNDEFINED,  TypeFlags::UNDEFINED,       ObjectFlags::empty()),
-            (symbol_ty,             keyword::IDENT_SYMBOL,  TypeFlags::ES_SYMBOL,       ObjectFlags::empty()),
+            (es_symbol_ty,          keyword::IDENT_SYMBOL,  TypeFlags::ES_SYMBOL,       ObjectFlags::empty()),
             (void_ty,               keyword::KW_VOID,       TypeFlags::VOID,            ObjectFlags::empty()),
             (never_ty,              keyword::IDENT_NEVER,   TypeFlags::NEVER,           ObjectFlags::empty()),
             (null_ty,               keyword::KW_NULL,       TypeFlags::NULL,            ObjectFlags::empty()),
@@ -387,22 +385,14 @@ impl<'cx> TyChecker<'cx> {
         };
 
         macro_rules! make_builtin_symbol {
-            ( { $( ($symbol_name: ident, $name: expr, $flags: expr, $links: expr, $builtin_id: ident, $declarations: expr) ),* $(,)? } ) => {
+            ( { $( ($symbol_name: ident, $name: expr, $flags: expr, $links: expr, $builtin_id: ident) ),* $(,)? } ) => {
                 $(
                     let $symbol_name = {
-                        let symbol = TransientSymbol {
-                            name: $name,
-                            flags: $flags,
-                            links: $links.unwrap_or_default(),
-                            origin: None,
-                            declarations: $declarations,
-                            value_declaration: None,
-                        };
-                        let s = transient_symbols.create_transient_symbol(symbol);
+                        let mut symbol = Symbol::new($name, $flags.union(SymbolFlags::TRANSIENT), 0);
+                        let s = create_transient_symbol(&mut transient_symbols, symbol);
+                        assert_eq!(s.index_as_usize(), transient_symbol_links.len());
+                        transient_symbol_links.push($links.unwrap_or_default());
                         assert_eq!(s, Symbol::$builtin_id);
-                        if let Some(l) = $links {
-                            symbol_links.insert(s, l);
-                        }
                         s
                     };
                 )*
@@ -410,22 +400,29 @@ impl<'cx> TyChecker<'cx> {
         }
         let global_this_symbol_name = SymbolName::Atom(keyword::IDENT_GLOBAL_THIS);
         make_builtin_symbol!({
-            (error_symbol,              SymbolName::Atom(keyword::IDENT_EMPTY),         SymbolFlags::empty(),       Some(SymbolLinks::default().with_ty(error_ty)),     ERR,                None),
-            (global_this_symbol,        global_this_symbol_name,                        SymbolFlags::empty(),       Some(SymbolLinks::default()
-                                                                                                                            .with_check_flags(CheckFlags::READONLY)),   GLOBAL_THIS,        Some(cast_empty_array(empty_array))),
-            (arguments_symbol,          SymbolName::Atom(keyword::IDENT_ARGUMENTS),     SymbolFlags::PROPERTY,      None,                                               ARGUMENTS,          None),
-            (resolving_symbol,          SymbolName::Resolving,                          SymbolFlags::empty(),       None,                                               RESOLVING,          None),
-            (empty_ty_literal_symbol,   SymbolName::Type,                               SymbolFlags::TYPE_LITERAL,  None,                                               EMPTY_TYPE_LITERAL, None),
+            (error_symbol,              SymbolName::Atom(keyword::IDENT_EMPTY),         SymbolFlags::empty(),       Some(SymbolLinks::default().with_ty(error_ty)),     ERR               ),
+            (global_this_symbol,        global_this_symbol_name,                        SymbolFlags::MODULE,        Some(SymbolLinks::default()
+                                                                                                                            .with_check_flags(CheckFlags::READONLY)),   GLOBAL_THIS       ),
+            (arguments_symbol,          SymbolName::Atom(keyword::IDENT_ARGUMENTS),     SymbolFlags::PROPERTY,      Some(SymbolLinks::default()),                       ARGUMENTS         ),
+            (resolving_symbol,          SymbolName::Resolving,                          SymbolFlags::empty(),       None,                                               RESOLVING         ),
+            (empty_ty_literal_symbol,   SymbolName::Type,                               SymbolFlags::TYPE_LITERAL,  None,                                               EMPTY_TYPE_LITERAL),
         });
 
-        let prev = c
-            .global_symbols
+        let prev = global_symbols
             .0
             .insert(global_this_symbol_name, global_this_symbol);
         assert!(prev.is_none());
 
         let restrictive_mapper = ty_arena.alloc(RestrictiveMapper);
         let permissive_mapper = ty_arena.alloc(PermissiveMapper);
+
+        assert_eq!(binder.bind_results.len(), module_arena.modules().len());
+        binder.bind_results.push(ResolveResult {
+            symbols: transient_symbols,
+            final_res: Default::default(),
+            diags: Default::default(),
+            locals: Default::default(),
+        });
 
         let mut this = Self {
             atoms,
@@ -450,7 +447,6 @@ impl<'cx> TyChecker<'cx> {
             ty_alias_instantiation_map: TyAliasInstantiationMap::new(1024 * 16),
             iteration_tys_map: no_hashmap_with_capacity(1024 * 4),
             mark_tys: no_hashset_with_capacity(1024 * 4),
-            transient_symbols,
 
             shared_flow_info: Vec::with_capacity(1024),
             flow_nodes,
@@ -485,7 +481,7 @@ impl<'cx> TyChecker<'cx> {
             string_ty,
             bigint_ty,
             non_primitive_ty,
-            symbol_ty,
+            es_symbol_ty,
             non_inferrable_any_ty,
             intrinsic_marker_ty,
 
@@ -543,9 +539,9 @@ impl<'cx> TyChecker<'cx> {
             resolution_res: thin_vec::ThinVec::with_capacity(128),
             resolution_start: 0,
 
-            binder: &c.binder,
-            merged_symbols: &c.merged_symbols,
-            global_symbols: &c.global_symbols,
+            binder,
+            merged_symbols,
+            global_symbols,
             inferences: Vec::with_capacity(cap),
             inference_contextual: Vec::with_capacity(256),
             type_contextual: Vec::with_capacity(256),
@@ -555,6 +551,7 @@ impl<'cx> TyChecker<'cx> {
                 p.module_count()
             ],
             current_node: None,
+            transient_symbol_links,
         };
 
         macro_rules! make_global {
@@ -568,7 +565,7 @@ impl<'cx> TyChecker<'cx> {
         make_global!({
             (boolean_ty,                this.get_union_ty(&[regular_false_ty, regular_true_ty], ty::UnionReduction::Lit)),
             (string_or_number_ty,       this.get_union_ty(&[this.string_ty, this.number_ty], ty::UnionReduction::Lit)),
-            (string_number_symbol_ty,   this.get_union_ty(&[this.string_ty, this.number_ty, this.symbol_ty], ty::UnionReduction::Lit)),
+            (string_number_symbol_ty,   this.get_union_ty(&[this.string_ty, this.number_ty, this.es_symbol_ty], ty::UnionReduction::Lit)),
             (global_number_ty,          this.get_global_type(SymbolName::Atom(keyword::IDENT_NUMBER_CLASS))),
             (global_boolean_ty,         this.get_global_type(SymbolName::Atom(keyword::IDENT_BOOLEAN_CLASS))),
             (global_symbol_ty,          this.get_global_type(SymbolName::Atom(keyword::IDENT_SYMBOL_CLASS))),
@@ -621,6 +618,8 @@ impl<'cx> TyChecker<'cx> {
             );
         }
         this.auto_array_ty.set(auto_array_ty).unwrap();
+
+        this.merge_module_augmentation_list_for_non_global();
 
         this
     }
@@ -829,24 +828,17 @@ impl<'cx> TyChecker<'cx> {
         let s = self.symbol(symbol);
         fn find_decls<'cx>(
             this: &TyChecker<'cx>,
-            s: transient_symbol::CheckSymbol,
+            s: &Symbol,
             f: impl Fn(ast::Node<'cx>) -> bool,
         ) -> Option<ast::NodeID> {
-            match s.declarations() {
-                BorrowedDeclarations::FromTransient(node_ids) => node_ids
-                    .and_then(|node_ids| node_ids.iter().find(|id| f(this.p.node(**id))))
-                    .copied(),
-                BorrowedDeclarations::FromNormal(node_ids) => {
-                    node_ids.iter().find(|id| f(this.p.node(**id))).copied()
-                }
-            }
+            s.decls.iter().find(|id| f(this.p.node(**id))).copied()
         }
-        if let Some(value_declaration) = s.value_declaration() {
+        if let Some(value_declaration) = s.value_decl {
             let decl = is_write
                 .then(|| find_decls(self, s, |n| n.is_setter_decl()))
                 .flatten()
                 .or_else(|| {
-                    if s.flags().intersects(SymbolFlags::GET_ACCESSOR) {
+                    if s.flags.intersects(SymbolFlags::GET_ACCESSOR) {
                         find_decls(self, s, |n| n.is_getter_decl())
                     } else {
                         None
@@ -874,7 +866,7 @@ impl<'cx> TyChecker<'cx> {
                 ast::ModifierKind::empty()
             };
             static_modifier | access_modifier
-        } else if s.flags().intersects(SymbolFlags::PROPERTY) {
+        } else if s.flags.intersects(SymbolFlags::PROPERTY) {
             use ast::ModifierKind;
             enumflags2::make_bitflags!(ModifierKind::{Public | Static})
         } else {
@@ -897,12 +889,12 @@ impl<'cx> TyChecker<'cx> {
             let ty = match self.get_symbol_links(prop).get_name_ty() {
                 Some(named_ty) => Some(named_ty),
                 None => {
-                    let symbol_name = self.symbol(prop).name();
+                    let symbol_name = self.symbol(prop).name;
                     if symbol_name == SymbolName::ExportDefault {
                         Some(self.get_string_literal_type(keyword::KW_DEFAULT))
                     } else {
                         self.symbol(prop)
-                            .value_declaration()
+                            .value_decl
                             .and_then(|v_decl| {
                                 self.p.get_name_of_decl(v_decl).map(|name| {
                                     let kind = match name {
@@ -952,12 +944,7 @@ impl<'cx> TyChecker<'cx> {
             return;
         }
         for prop in self.properties_of_object_type(ty) {
-            if !(is_static_index
-                && self
-                    .symbol(*prop)
-                    .flags()
-                    .intersects(SymbolFlags::PROTOTYPE))
-            {
+            if !(is_static_index && self.symbol(*prop).flags.intersects(SymbolFlags::PROTOTYPE)) {
                 let prop_ty = self.get_type_of_symbol(*prop);
                 let prop_name_ty = self.get_lit_ty_from_prop(
                     *prop,
@@ -1065,10 +1052,9 @@ impl<'cx> TyChecker<'cx> {
         let symbol = self.create_transient_symbol(
             SymbolName::Fn,
             SymbolFlags::FUNCTION,
-            None,
             SymbolLinks::default(),
-            None, // TODO: use sig.decls
-            None, // TODO: use sig.value_decl
+            Default::default(), // TODO: use sig.decls
+            None,               // TODO: use sig.value_decl
         );
         let outer_ty_params: Option<ty::Tys<'cx>> = if let Some(outer_ty_params) = outer_ty_params {
             Some(outer_ty_params)
@@ -1238,11 +1224,7 @@ impl<'cx> TyChecker<'cx> {
         let e = bolt_ts_ast::Expr::skip_parens(expr);
         if let ast::ExprKind::Ident(ident) = e.kind {
             let symbol = self.resolve_symbol_by_ident(ident);
-            if self
-                .symbol(symbol)
-                .flags()
-                .intersects(SymbolFlags::VARIABLE)
-            {
+            if self.symbol(symbol).flags.intersects(SymbolFlags::VARIABLE) {
                 let mut child = ident.id;
                 let mut node = self.p.parent(child);
                 while let Some(id) = node {
@@ -1510,7 +1492,7 @@ impl<'cx> TyChecker<'cx> {
         decl: ast::NodeID,
         decl_container: ast::NodeID,
     ) -> bool {
-        assert!(used.id.module() == decl.module());
+        assert_eq!(used.id.module(), decl.module());
         self.p
             .find_ancestor(used.id, |current| {
                 let current_id = current.id();
@@ -1643,7 +1625,7 @@ impl<'cx> TyChecker<'cx> {
         }
 
         // TODO: move into name resolution.
-        if self.symbol(symbol).flags().intersects(
+        if self.symbol(symbol).flags.intersects(
             SymbolFlags::CLASS
                 .union(SymbolFlags::BLOCK_SCOPED_VARIABLE)
                 .union(SymbolFlags::ENUM),
@@ -2101,7 +2083,7 @@ impl<'cx> TyChecker<'cx> {
     pub(crate) fn is_empty_anonymous_object_ty(&self, ty: &'cx ty::Ty<'cx>) -> bool {
         ty.kind.as_object_anonymous().is_some_and(|_| {
             if let Some(symbol) = ty.symbol() {
-                let s = self.binder.symbol(symbol);
+                let s = self.symbol(symbol);
                 s.flags.intersects(SymbolFlags::TYPE_LITERAL) && s.members().0.is_empty() // TODO: change `s.members()` to `self.get_members_of_symbol`
             } else if let Some(ty_link) = self.ty_links.get(&ty.id) {
                 if let Some(t) = ty_link.get_structured_members() {
@@ -2879,11 +2861,17 @@ impl<'cx> TyChecker<'cx> {
     }
 
     fn is_circular_mapped_prop(&self, symbol: SymbolID) -> bool {
-        self.get_check_flags(symbol).intersects(CheckFlags::MAPPED)
-            && self.symbol_links[&symbol].get_ty().is_none()
-            && self
-                .find_resolution_cycle_start_index(ResolutionKey::Type(symbol))
-                .is_some()
+        if !self.get_check_flags(symbol).intersects(CheckFlags::MAPPED) {
+            false
+        } else {
+            assert_eq!(symbol.module(), bolt_ts_span::ModuleID::TRANSIENT);
+            self.transient_symbol_links[symbol.index_as_usize()]
+                .get_ty()
+                .is_none()
+                && self
+                    .find_resolution_cycle_start_index(ResolutionKey::Type(symbol))
+                    .is_some()
+        }
     }
 
     pub fn decl_modifier_flags_from_symbol(
@@ -2896,11 +2884,7 @@ impl<'cx> TyChecker<'cx> {
             return flags & !ast::ModifierKind::ACCESSIBILITY;
         };
 
-        if self
-            .symbol(symbol)
-            .flags()
-            .intersects(SymbolFlags::PROPERTY)
-        {
+        if self.symbol(symbol).flags.intersects(SymbolFlags::PROPERTY) {
             return ast::ModifierKind::Public | ast::ModifierKind::Static;
         }
         enumflags2::BitFlags::empty()
@@ -3033,17 +3017,8 @@ impl<'cx> TyChecker<'cx> {
         }
 
         let tp = ty.kind.expect_param();
-        let decls = self.symbol(tp.symbol).declarations();
         let decl = {
-            let decls = match decls {
-                BorrowedDeclarations::FromTransient(node_ids) => {
-                    let Some(node_ids) = node_ids else {
-                        return true;
-                    };
-                    node_ids
-                }
-                BorrowedDeclarations::FromNormal(node_ids) => node_ids,
-            };
+            let decls = &self.symbol(tp.symbol).decls;
             if decls.len() != 1 {
                 return true;
             }
@@ -3122,7 +3097,7 @@ impl<'cx> TyChecker<'cx> {
     }
 
     pub(super) fn get_spread_symbol(&mut self, prop: SymbolID, readonly: bool) -> SymbolID {
-        let prop_flags = self.symbol(prop).flags();
+        let prop_flags = self.symbol(prop).flags;
         let is_setonly_accessor = prop_flags.intersects(SymbolFlags::SET_ACCESSOR)
             && !prop_flags.intersects(SymbolFlags::GET_ACCESSOR);
         if !is_setonly_accessor && readonly == self.is_readonly_symbol(prop) {
@@ -3135,7 +3110,7 @@ impl<'cx> TyChecker<'cx> {
                 CheckFlags::empty()
             };
             let flags = SymbolFlags::PROPERTY | prop_flags.intersection(SymbolFlags::OPTIONAL);
-            let name = self.symbol(prop).name();
+            let name = self.symbol(prop).name;
             let name_ty = self.get_symbol_links(prop).get_name_ty();
             let ty = if is_setonly_accessor {
                 self.undefined_ty
@@ -3150,14 +3125,8 @@ impl<'cx> TyChecker<'cx> {
             } else {
                 links
             };
-            let declarations: Option<&'cx [ast::NodeID]> = match self.symbol(prop).declarations() {
-                BorrowedDeclarations::FromTransient(decls) => decls,
-                BorrowedDeclarations::FromNormal(decls) if !decls.is_empty() => {
-                    Some(self.alloc(decls.to_vec()))
-                }
-                _ => None,
-            };
-            self.create_transient_symbol(name, flags, None, links, declarations, None)
+            let decls = self.symbol(prop).decls.clone();
+            self.create_transient_symbol(name, flags, links, decls, None)
         }
     }
 

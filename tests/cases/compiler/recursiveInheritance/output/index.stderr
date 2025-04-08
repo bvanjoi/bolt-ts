@@ -11,10 +11,3 @@
    · ──         ─┬
    ·  │          ╰── Base type is defined here.
    ╰────
-
-  × Type 'i9' recursively references itself as a base type.
-    ╭─[../../tests/cases/compiler/recursiveInheritance/index.ts:10:11]
- 10 │ i9 extends i8
-    · ──         ─┬
-    ·  │          ╰── Base type is defined here.
-    ╰────

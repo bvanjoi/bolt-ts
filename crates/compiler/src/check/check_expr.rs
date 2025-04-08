@@ -4,7 +4,6 @@ use bolt_ts_span::Span;
 use bolt_ts_utils::fx_hashmap_with_capacity;
 
 use crate::bind::SymbolID;
-use crate::check::transient_symbol::BorrowedDeclarations;
 use crate::ensure_sufficient_stack;
 use crate::parser::AssignmentKind;
 use crate::ty::CheckFlags;
@@ -538,16 +537,15 @@ impl<'cx> TyChecker<'cx> {
                 };
                 object_flags |= ty.get_object_flags() & ObjectFlags::PROPAGATING_FLAGS;
                 let member_s = self.binder.symbol(member_symbol);
-                let declarations = self.alloc(member_s.decls.clone());
+                let declarations = member_s.decls.clone();
                 let value_declaration = member_s.value_decl;
                 let prop = self.create_transient_symbol(
                     name,
                     SymbolFlags::PROPERTY | self.binder.symbol(member_symbol).flags,
-                    Some(member_symbol),
                     SymbolLinks::default()
                         .with_target(member_symbol)
                         .with_ty(ty),
-                    Some(declarations),
+                    declarations,
                     value_declaration,
                 );
                 properties_table.insert(name, prop);
@@ -718,18 +716,12 @@ impl<'cx> TyChecker<'cx> {
         for prop in props {
             // TODO: exclude private and projected
             let s = self.symbol(*prop);
-            let prop_flags = s.flags();
-            let name = s.name();
-            let declarations: Option<&'cx [ast::NodeID]> = match s.declarations() {
-                BorrowedDeclarations::FromTransient(decls) => decls,
-                BorrowedDeclarations::FromNormal(decls) if !decls.is_empty() => {
-                    Some(self.alloc(decls.to_vec()))
-                }
-                _ => None,
-            };
+            let prop_flags = s.flags;
+            let name = s.name;
             let is_setonly_accessor = prop_flags.intersects(SymbolFlags::SET_ACCESSOR)
                 && !prop_flags.intersects(SymbolFlags::GET_ACCESSOR);
             const FLAGS: SymbolFlags = SymbolFlags::PROPERTY.union(SymbolFlags::OPTIONAL);
+            let decls = s.decls.clone();
             let ty = if is_setonly_accessor {
                 self.undefined_ty
             } else {
@@ -751,7 +743,7 @@ impl<'cx> TyChecker<'cx> {
             } else {
                 links
             };
-            let result = self.create_transient_symbol(name, FLAGS, None, links, declarations, None);
+            let result = self.create_transient_symbol(name, FLAGS, links, decls, None);
             let prev = members.insert(name, result);
             assert!(prev.is_none());
         }
@@ -982,5 +974,17 @@ impl<'cx> TyChecker<'cx> {
         };
 
         self.get_indexed_access_ty(object_ty, index_ty, Some(access_flags), Some(node.id))
+    }
+
+    pub fn check_computed_prop_name(
+        &mut self,
+        node: &'cx ast::ComputedPropName<'cx>,
+    ) -> &'cx ty::Ty<'cx> {
+        if let Some(ty) = self.get_node_links(node.id).get_resolved_ty() {
+            return ty;
+        };
+        let ty = self.check_expr(node.expr);
+        self.get_mut_node_links(node.id).set_resolved_ty(ty);
+        ty
     }
 }

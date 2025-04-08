@@ -6,7 +6,6 @@ use super::create_ty::IntersectionFlags;
 use super::cycle_check::{Cycle, ResolutionKey};
 use super::links::SigLinks;
 use super::symbol_info::SymbolInfo;
-use super::transient_symbol::BorrowedDeclarations;
 use super::{SymbolLinks, Ternary, TyChecker, errors};
 use crate::bind::{Symbol, SymbolFlags, SymbolID, SymbolName, SymbolTable};
 use crate::ty::{self, CheckFlags, ObjectFlags, SigID, SigKind, TypeFlags};
@@ -39,7 +38,7 @@ impl<'cx> TyChecker<'cx> {
     ) {
         for base_id in base_symbols {
             let base_id = *base_id;
-            let base_name = self.symbol(base_id).name();
+            let base_name = self.symbol(base_id).name;
             members.entry(base_name).or_insert(base_id);
         }
     }
@@ -81,17 +80,7 @@ impl<'cx> TyChecker<'cx> {
     }
 
     fn is_this_less(&self, symbol: SymbolID) -> bool {
-        let decls = match self.symbol(symbol).declarations() {
-            BorrowedDeclarations::FromTransient(decls) => {
-                if let Some(decls) = decls {
-                    decls
-                } else {
-                    return false;
-                }
-            }
-            BorrowedDeclarations::FromNormal(decls) => decls,
-            _ => return false,
-        };
+        let decls = &self.symbol(symbol).decls;
         if decls.len() != 1 {
             return false;
         }
@@ -122,7 +111,7 @@ impl<'cx> TyChecker<'cx> {
         declared_props
             .iter()
             .map(|symbol| {
-                let name = self.symbol(*symbol).name();
+                let name = self.symbol(*symbol).name;
                 if mapping_only_this && self.is_this_less(*symbol) {
                     (name, *symbol)
                 } else {
@@ -141,7 +130,7 @@ impl<'cx> TyChecker<'cx> {
             if !self.could_contain_ty_var(ty) {
                 if !self
                     .symbol(symbol)
-                    .flags()
+                    .flags
                     .intersects(SymbolFlags::SET_ACCESSOR)
                 {
                     return symbol;
@@ -177,24 +166,12 @@ impl<'cx> TyChecker<'cx> {
             .with_ty_mapper(mapper)
             .with_target(symbol);
         let s = self.symbol(symbol);
-        let name = s.name();
-        let flags = s.flags();
-        let declarations: Option<&'cx [ast::NodeID]> = match s.declarations() {
-            BorrowedDeclarations::FromTransient(decls) => decls,
-            BorrowedDeclarations::FromNormal(decls) if !decls.is_empty() => {
-                Some(self.alloc(decls.to_vec()))
-            }
-            _ => None,
-        };
-        let value_declaration = s.value_declaration();
-        self.create_transient_symbol(
-            name,
-            flags,
-            Some(symbol),
-            links,
-            declarations,
-            value_declaration,
-        )
+        let name = s.name;
+        let flags = s.flags;
+        let decls = s.decls.clone();
+        let value_declaration = s.value_decl;
+        let id = self.create_transient_symbol(name, flags, links, decls, value_declaration);
+        id
     }
 
     fn instantiate_sigs(
@@ -447,6 +424,9 @@ impl<'cx> TyChecker<'cx> {
         }
         if self.push_ty_resolution(ResolutionKey::ResolvedBaseTypes(ty.id)) {
             if let Some(t) = ty.as_tuple() {
+                if let Some(old) = self.get_ty_links(ty.id).get_resolved_base_tys() {
+                    return old;
+                }
                 let base_ty = self.get_tuple_base_ty(t);
                 let tys = self.alloc(vec![base_ty]);
                 self.get_mut_ty_links(ty.id).set_resolved_base_tys(tys);
@@ -455,13 +435,11 @@ impl<'cx> TyChecker<'cx> {
             let id = ty.symbol().unwrap();
             let symbol = self.binder.symbol(id);
             let mut cycle_reported = false;
-            let tys = if symbol.flags.intersects(SymbolFlags::CLASS) {
+            if symbol.flags.intersects(SymbolFlags::CLASS) {
                 let tys = self.resolve_base_tys_of_class(ty);
                 self.get_mut_ty_links(ty.id).set_resolved_base_tys(tys);
-                tys
             } else if symbol.flags.intersects(SymbolFlags::INTERFACE) {
                 self.resolve_base_tys_of_interface(ty, &mut cycle_reported);
-                self.get_ty_links(ty.id).expect_resolved_base_tys()
             } else {
                 unreachable!()
             };
@@ -475,10 +453,10 @@ impl<'cx> TyChecker<'cx> {
                     }
                 }
             }
-            tys
-        } else {
-            &[]
+            self.get_mut_ty_links(ty.id).set_base_tys_resolved(true);
         }
+
+        self.get_ty_links(ty.id).expect_resolved_base_tys()
     }
 
     fn resolve_object_type_members(
@@ -771,7 +749,7 @@ impl<'cx> TyChecker<'cx> {
     fn resolve_anonymous_type_members(&mut self, ty: &'cx ty::Ty<'cx>) {
         let a = ty.kind.expect_object_anonymous();
         let symbol_id = a.symbol.unwrap();
-        let symbol = self.binder.symbol(symbol_id);
+        let symbol = self.symbol(symbol_id);
         assert!(
             !symbol.flags.intersects(SymbolFlags::OBJECT_LITERAL),
             "Object literal should be resolved during check"
@@ -805,7 +783,7 @@ impl<'cx> TyChecker<'cx> {
             self.get_mut_ty_links(ty.id).set_structured_members(m);
             return;
         } else if symbol.flags.intersects(SymbolFlags::TYPE_LITERAL) {
-            let members = self.members_of_symbol(symbol_id);
+            let members = self.get_members_of_symbol(symbol_id);
             let call_sigs = members
                 .0
                 .get(&SymbolName::Call)
@@ -831,16 +809,20 @@ impl<'cx> TyChecker<'cx> {
             return;
         }
 
-        let symbol = self.binder.symbol(a.symbol.unwrap());
-        let symbol_flags = symbol.flags;
-
         // TODO: remove this clone.
         let mut members = self.get_exports_of_symbol(a.symbol.unwrap()).0.clone();
+        let index_infos: ty::IndexInfos<'cx>;
+        if symbol_id == self.global_this_symbol {
+            // TODO:
+        }
+
         let call_sigs;
         let mut ctor_sigs: ty::Sigs<'cx>;
-        let index_infos: ty::IndexInfos<'cx>;
 
-        if symbol_flags.intersects(SymbolFlags::FUNCTION | SymbolFlags::METHOD) {
+        let symbol = self.symbol(a.symbol.unwrap());
+        let symbol_flags = symbol.flags;
+
+        if symbol_flags.intersects(SymbolFlags::FUNCTION.union(SymbolFlags::METHOD)) {
             call_sigs = self.get_sigs_of_symbol(a.symbol.unwrap());
             ctor_sigs = &[];
             index_infos = &[];
@@ -1207,8 +1189,7 @@ impl<'cx> TyChecker<'cx> {
         let mut add_member_for_key_ty_worker =
             |this: &mut Self, key_ty: &'cx ty::Ty<'cx>, prop_name_ty: &'cx ty::Ty<'cx>| {
                 if prop_name_ty.useable_as_prop_name() {
-                    let prop_name = this.get_prop_name_from_ty(prop_name_ty).unwrap();
-                    let symbol_name = this.get_symbol_name_from_prop_name(prop_name);
+                    let symbol_name = this.get_prop_name_from_ty(prop_name_ty).unwrap();
                     if let Some(existing_prop) = members.get(&symbol_name) {
                         let named_ty = {
                             let old = this.get_symbol_links(*existing_prop).expect_named_ty();
@@ -1225,8 +1206,7 @@ impl<'cx> TyChecker<'cx> {
                             .override_key_ty(key_ty);
                     } else {
                         let modifiers_prop = if key_ty.useable_as_prop_name() {
-                            let prop_name = this.get_prop_name_from_ty(key_ty).unwrap();
-                            let symbol_name = this.get_symbol_name_from_prop_name(prop_name);
+                            let symbol_name = this.get_prop_name_from_ty(key_ty).unwrap();
                             this.get_prop_of_ty(modifiers_ty, symbol_name)
                         } else {
                             None
@@ -1235,7 +1215,7 @@ impl<'cx> TyChecker<'cx> {
                             .intersects(MappedTyModifiers::INCLUDE_OPTIONAL)
                             || !template_modifier.intersects(MappedTyModifiers::EXCLUDE_OPTIONAL)
                                 && modifiers_prop.is_some_and(|m| {
-                                    this.symbol(m).flags().intersects(SymbolFlags::OPTIONAL)
+                                    this.symbol(m).flags.intersects(SymbolFlags::OPTIONAL)
                                 });
                         let is_readonly = template_modifier
                             .intersects(MappedTyModifiers::INCLUDE_READONLY)
@@ -1244,7 +1224,7 @@ impl<'cx> TyChecker<'cx> {
                         let strip_optional = *self.config.strict_null_checks()
                             && !is_optional
                             && modifiers_prop.is_some_and(|m| {
-                                this.symbol(m).flags().intersects(SymbolFlags::OPTIONAL)
+                                this.symbol(m).flags.intersects(SymbolFlags::OPTIONAL)
                             });
                         let late_flag = modifiers_prop
                             .map_or(ty::CheckFlags::default(), |m| this.get_late_flag(m));
@@ -1272,34 +1252,23 @@ impl<'cx> TyChecker<'cx> {
                                         CheckFlags::empty()
                                     },
                             );
-                        let declarations = modifiers_prop.and_then(|p| {
-                            if should_link_prop_decls {
-                                match this.symbol(p).declarations() {
-                                    BorrowedDeclarations::FromTransient(decls) => decls,
-                                    BorrowedDeclarations::FromNormal(decls)
-                                        if !decls.is_empty() =>
-                                    {
-                                        Some(this.alloc(
-                                            decls.to_vec(),
-                                        ))
-                                    }
-                                    _ => None,
+                        let declarations = modifiers_prop
+                            .and_then(|p| {
+                                if should_link_prop_decls {
+                                    Some(this.symbol(p).decls.clone())
+                                } else {
+                                    None
                                 }
-                            } else {
-                                None
-                            }
-                        });
+                            })
+                            .unwrap_or_default();
                         let symbol = this.create_transient_symbol(
                             symbol_name,
                             symbol_flags,
-                            None,
                             links,
                             declarations,
                             None,
                         );
                         let prev = members.insert(symbol_name, symbol);
-                        assert!(prev.is_none());
-                        let prev = this.symbol_links.insert(symbol, links);
                         assert!(prev.is_none());
                     }
                 } else if this.is_valid_index_key_ty(prop_name_ty)

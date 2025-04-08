@@ -57,7 +57,7 @@ impl<'cx> TyChecker<'cx> {
     }
 
     fn get_widened_prop(&mut self, prop: SymbolID) -> SymbolID {
-        if !self.symbol(prop).flags().intersects(SymbolFlags::PROPERTY) {
+        if !self.symbol(prop).flags.intersects(SymbolFlags::PROPERTY) {
             prop
         } else {
             let original = self.get_type_of_symbol(prop);
@@ -75,7 +75,7 @@ impl<'cx> TyChecker<'cx> {
             .get_props_of_object_ty(ty)
             .iter()
             .map(|prop| {
-                let name = self.symbol(*prop).name();
+                let name = self.symbol(*prop).name;
                 let ty = self.get_widened_prop(*prop);
                 (name, ty)
             })

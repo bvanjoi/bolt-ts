@@ -12,12 +12,12 @@ impl Token {
     }
 
     pub fn start(&self) -> u32 {
-        assert!(self.span.lo != u32::MAX);
+        debug_assert_ne!(self.span.lo, u32::MAX);
         self.span.lo
     }
 
     pub fn end(&self) -> u32 {
-        assert!(self.span.lo != u32::MAX);
+        debug_assert_ne!(self.span.lo, u32::MAX);
         self.span.hi
     }
 }

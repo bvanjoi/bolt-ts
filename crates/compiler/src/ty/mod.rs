@@ -10,16 +10,16 @@ mod sig;
 use bolt_ts_ast::{self as ast};
 use bolt_ts_atom::AtomId;
 
-use crate::bind::{Symbol, SymbolID};
+use crate::bind::{Symbol, SymbolID, SymbolName};
 use crate::check::TyChecker;
 use crate::keyword;
 
 pub use self::check_flags::CheckFlags;
 pub use self::facts::{TYPEOF_NE_FACTS, TypeFacts, has_type_facts};
 pub use self::flags::{ObjectFlags, TypeFlags};
+pub use self::links::InterfaceTyLinksArena;
 pub use self::links::{CommonTyLinks, CommonTyLinksArena, CommonTyLinksID};
 pub use self::links::{FreshTyLinksArena, FreshTyLinksID};
-pub use self::links::InterfaceTyLinksArena;
 pub use self::mapper::{ArrayTyMapper, TyMap, TyMapper};
 pub use self::mapper::{CompositeTyMapper, MergedTyMapper};
 pub use self::object_ty::ElementFlags;
@@ -145,6 +145,7 @@ pub enum TyKind<'cx> {
     StringLit(&'cx StringLitTy<'cx>),
     NumberLit(&'cx NumberLitTy<'cx>),
     BigIntLit(&'cx BigIntLitTy<'cx>),
+    UniqueESSymbol(&'cx UniqueESSymbolTy),
     Union(&'cx UnionTy<'cx>),
     Intersection(&'cx IntersectionTy<'cx>),
     Object(&'cx ObjectTy<'cx>),
@@ -185,6 +186,7 @@ as_ty_kind!(Intrinsic, &'cx IntrinsicTy, intrinsic);
 as_ty_kind!(StringLit, &'cx StringLitTy<'cx>, string_lit);
 as_ty_kind!(NumberLit, &'cx NumberLitTy<'cx>, number_lit);
 as_ty_kind!(BigIntLit, &'cx BigIntLitTy<'cx>, bigint_lit);
+as_ty_kind!(UniqueESSymbol, &'cx UniqueESSymbolTy, unique_ess_symbol);
 as_ty_kind!(IndexedAccess, &'cx IndexedAccessTy<'cx>, indexed_access);
 as_ty_kind!(Union, &'cx UnionTy<'cx>, union);
 as_ty_kind!(Intersection, &'cx IntersectionTy<'cx>, intersection);
@@ -267,6 +269,7 @@ impl<'cx> Ty<'cx> {
                 s.push('`');
                 s
             }
+            TyKind::UniqueESSymbol(_) => todo!(),
         }
     }
 
@@ -436,6 +439,12 @@ impl<'cx> TyKind<'cx> {
         self.as_object_reference()
             .is_some_and(|ty| ty.target == checker.global_readonly_array_ty())
     }
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct UniqueESSymbolTy {
+    pub symbol: SymbolID,
+    pub escape_name: SymbolName,
 }
 
 #[derive(Debug, Clone, Copy)]

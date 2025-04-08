@@ -1816,12 +1816,7 @@ impl<'cx> InferenceState<'cx, '_> {
                     if self.c.is_applicable_index_ty(lit, target_info.key_ty) {
                         let prop_ty = self.c.get_type_of_symbol(*prop);
                         props_tys.push(
-                            if self
-                                .c
-                                .symbol(*prop)
-                                .flags()
-                                .intersects(SymbolFlags::OPTIONAL)
-                            {
+                            if self.c.symbol(*prop).flags.intersects(SymbolFlags::OPTIONAL) {
                                 // TODO: remove missing
                                 prop_ty
                             } else {
@@ -2004,7 +1999,7 @@ impl<'cx> InferenceState<'cx, '_> {
         for target_prop in self.c.get_props_of_ty(target) {
             if let Some(source_prop) = self
                 .c
-                .get_prop_of_ty(source, self.c.symbol(*target_prop).name())
+                .get_prop_of_ty(source, self.c.symbol(*target_prop).name)
             {
                 let s = {
                     let s = self.c.get_type_of_symbol(source_prop);

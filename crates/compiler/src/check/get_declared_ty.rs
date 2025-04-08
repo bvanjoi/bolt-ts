@@ -166,7 +166,7 @@ impl<'cx> TyChecker<'cx> {
         let props = members
             .values()
             .filter_map(|m| {
-                let name = self.symbol(*m).name();
+                let name = self.symbol(*m).name;
                 if self.symbol_is_value(*m, false)
                     && (name.is_numeric() || name.as_atom().is_some())
                 {
@@ -180,7 +180,7 @@ impl<'cx> TyChecker<'cx> {
     }
 
     fn symbol_is_value(&mut self, symbol: SymbolID, include_ty_only_members: bool) -> bool {
-        let s = self.symbol(symbol).flags();
+        let s = self.symbol(symbol).flags;
         s.intersects(SymbolFlags::VALUE)
             || (s.intersects(SymbolFlags::ALIAS)
                 && self
@@ -209,6 +209,7 @@ impl<'cx> TyChecker<'cx> {
         let ty = if outer_ty_params.is_some()
             || local_ty_params.is_some()
             || kind == SymbolFlags::CLASS
+        // TODO: || !in_this_less_interface
         {
             let outer_ty_params = outer_ty_params.unwrap_or_default();
             let local_ty_params = local_ty_params.unwrap_or_default();
@@ -217,6 +218,7 @@ impl<'cx> TyChecker<'cx> {
                 v.extend(local_ty_params);
                 self.alloc(v)
             };
+            assert!(kind == SymbolFlags::CLASS || !ty_params.is_empty());
             let this_ty = self.create_param_ty(symbol, None, true);
             let target = self.create_interface_ty(
                 symbol,
@@ -250,7 +252,7 @@ impl<'cx> TyChecker<'cx> {
         let s = self.binder.symbol(id);
         let decl = if s
             .flags
-            .intersects(SymbolFlags::CLASS | SymbolFlags::FUNCTION)
+            .intersects(SymbolFlags::CLASS.union(SymbolFlags::FUNCTION))
         {
             s.value_decl.unwrap()
         } else {
@@ -295,10 +297,7 @@ impl<'cx> TyChecker<'cx> {
                 ClassDecl(_) | ClassExpr(_) | InterfaceDecl(_) | CallSigDecl(_)
                 | MethodSignature(_) | FnTy(_) | CtorSigDecl(_) | FnDecl(_)
                 | ClassMethodElem(_) | ArrowFnExpr(_) | TypeDecl(_) | MappedTy(_) | CondTy(_) => {
-                    let mut outer_ty_params = self
-                        .get_outer_ty_params(id, include_this)
-                        .unwrap_or_default();
-
+                    let outer_ty_params = self.get_outer_ty_params(id, include_this);
                     if (node.is_fn_expr()
                         || node.is_arrow_fn_expr()
                         || self.p.is_object_lit_method(id))
@@ -309,8 +308,12 @@ impl<'cx> TyChecker<'cx> {
                         let sigs = self.get_signatures_of_type(ty, ty::SigKind::Call);
                         if let Some(sigs) = sigs.first() {
                             if let Some(ty_params) = sigs.ty_params {
-                                outer_ty_params.extend(ty_params);
-                                return Some(outer_ty_params);
+                                return if let Some(mut outer_ty_params) = outer_ty_params {
+                                    outer_ty_params.extend(ty_params);
+                                    Some(outer_ty_params)
+                                } else {
+                                    Some(ty_params.to_vec())
+                                };
                             }
                         }
                     }
@@ -318,14 +321,33 @@ impl<'cx> TyChecker<'cx> {
                     if let Some(mapped) = node.as_mapped_ty() {
                         let symbol = self.get_symbol_of_decl(mapped.ty_param.id);
                         let ty = self.get_declared_ty_of_ty_param(symbol);
-                        outer_ty_params.push(ty);
-                        return Some(outer_ty_params);
+                        return if let Some(mut outer_ty_params) = outer_ty_params {
+                            outer_ty_params.push(ty);
+                            Some(outer_ty_params)
+                        } else {
+                            Some(vec![ty])
+                        };
                     } else if let Some(cond) = node.as_cond_ty() {
+                        let mut outer_ty_params = outer_ty_params.unwrap_or_default();
                         if let Some(infer_ty_params) = self.get_infer_ty_params(cond) {
                             outer_ty_params.extend(infer_ty_params);
-                        }
+                        };
                         return Some(outer_ty_params);
+                        // return if let Some(infer_ty_params) = self.get_infer_ty_params(cond) {
+                        //     if infer_ty_params.is_empty() {
+                        //         outer_ty_params
+                        //     } else if let Some(mut outer_ty_params) = outer_ty_params {
+                        //         outer_ty_params.extend(infer_ty_params);
+                        //         Some(outer_ty_params)
+                        //     } else {
+                        //         Some(infer_ty_params.to_vec())
+                        //     }
+                        // } else {
+                        //     outer_ty_params
+                        // };
                     }
+
+                    let mut outer_ty_params = outer_ty_params.unwrap_or_default();
                     self.append_ty_params(
                         &mut outer_ty_params,
                         self.get_effective_ty_param_decls(id),

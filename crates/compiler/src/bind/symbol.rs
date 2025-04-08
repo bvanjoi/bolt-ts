@@ -32,6 +32,10 @@ pub enum SymbolName {
     ExportDefault,
     Computed,
     ParamIdx(u32),
+    ESSymbol {
+        escaped_name: AtomId,
+        symbol_id: SymbolID,
+    },
 }
 
 impl SymbolName {
@@ -194,14 +198,32 @@ pub struct Symbol {
     pub decls: thin_vec::ThinVec<NodeID>,
     pub value_decl: Option<NodeID>,
     // TODO: use `Option<SymbolTable>`
-    pub(super) members: SymbolTable,
+    pub members: SymbolTable,
     // TODO: use `Option<SymbolTable>`
-    pub(super) exports: SymbolTable,
-    pub merged_id: Option<usize>,
+    pub exports: SymbolTable,
+    pub merged_id: Option<u32>,
     pub parent: Option<SymbolID>,
     pub export_symbol: Option<SymbolID>,
     pub const_enum_only_module: Option<bool>,
     pub is_replaceable_by_method: Option<bool>,
+}
+
+impl Symbol {
+    pub fn new(name: SymbolName, flags: SymbolFlags, cap: usize) -> Self {
+        Self {
+            name,
+            flags,
+            decls: Default::default(),
+            value_decl: None,
+            members: SymbolTable(fx_hashmap_with_capacity(cap)),
+            exports: SymbolTable(fx_hashmap_with_capacity(cap)),
+            parent: None,
+            merged_id: None,
+            export_symbol: None,
+            const_enum_only_module: None,
+            is_replaceable_by_method: None,
+        }
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -336,6 +358,13 @@ impl Symbols {
         }
     }
 
+    pub fn new_transient(modules: usize) -> Self {
+        Self {
+            module_id: ModuleID::TRANSIENT,
+            data: Vec::with_capacity(modules * 1024 * 64),
+        }
+    }
+
     pub fn insert(&mut self, symbol: Symbol) -> SymbolID {
         let index = self.data.len() as u32;
         self.data.push(symbol);
@@ -359,6 +388,10 @@ impl Symbols {
 
     pub fn len(&self) -> u32 {
         self.data.len() as u32
+    }
+
+    pub fn module(&self) -> ModuleID {
+        self.module_id
     }
 }
 

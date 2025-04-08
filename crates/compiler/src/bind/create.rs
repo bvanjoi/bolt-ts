@@ -180,19 +180,7 @@ impl BinderState<'_, '_, '_> {
     }
 
     pub(super) fn create_symbol(&mut self, name: SymbolName, flags: SymbolFlags) -> SymbolID {
-        let s = Symbol {
-            name,
-            flags,
-            decls: Default::default(),
-            value_decl: None,
-            members: Default::default(),
-            exports: Default::default(),
-            parent: None,
-            const_enum_only_module: None,
-            is_replaceable_by_method: None,
-            merged_id: None,
-            export_symbol: None,
-        };
+        let s = Symbol::new(name, flags, 64);
         self.symbols.insert(s)
     }
 

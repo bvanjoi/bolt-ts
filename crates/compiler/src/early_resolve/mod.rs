@@ -386,10 +386,18 @@ impl<'cx> Resolver<'cx, '_, '_> {
         self.resolve_ty(sig.ty);
     }
 
+    fn resolve_prop_name(&mut self, name: &'cx ast::PropName<'cx>) {
+        use bolt_ts_ast::PropNameKind::*;
+        if let Computed(n) = name.kind {
+            self.resolve_expr(n.expr);
+        }
+    }
+
     fn resolve_object_ty_member(&mut self, m: &'cx ast::ObjectTyMember<'cx>) {
         use bolt_ts_ast::ObjectTyMemberKind::*;
         match m.kind {
             Prop(m) => {
+                self.resolve_prop_name(m.name);
                 if let Some(ty) = m.ty {
                     self.resolve_ty(ty);
                 }
@@ -398,6 +406,7 @@ impl<'cx> Resolver<'cx, '_, '_> {
                 if let Some(ty_params) = m.ty_params {
                     self.resolve_ty_params(ty_params);
                 }
+                self.resolve_prop_name(m.name);
                 self.resolve_params(m.params);
                 if let Some(ty) = m.ty {
                     self.resolve_ty(ty);

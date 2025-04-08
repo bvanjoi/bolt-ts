@@ -13,10 +13,12 @@ impl<'cx> TyChecker<'cx> {
             return true;
         }
         if strict
-            && (source.flags.intersects(TypeFlags::ANY_OR_UNKNOWN)
-                || source.flags.intersects(TypeFlags::VOID)
-                || source.flags.intersects(TypeFlags::UNDEFINED)
-                || source.flags.intersects(TypeFlags::NULL))
+            && source.flags.intersects(
+                TypeFlags::ANY_OR_UNKNOWN
+                    .union(TypeFlags::VOID)
+                    .union(TypeFlags::UNDEFINED)
+                    .union(TypeFlags::NULL),
+            )
         {
             return false;
         }
@@ -41,7 +43,7 @@ impl<'cx> TyChecker<'cx> {
             NEVER => self.never_ty,
             NULL => self.null_ty,
             UNDEFINED => self.undefined_ty,
-            ES_SYMBOL_LIKE => self.symbol_ty,
+            ES_SYMBOL_LIKE => self.es_symbol_ty,
             NON_PRIMITIVE => self.non_primitive_ty
         });
 

@@ -1,5 +1,5 @@
 bitflags::bitflags! {
-    #[derive(Clone, Copy, Debug, Default)]
+    #[derive(Clone, Copy, Debug, Default, PartialEq)]
     pub struct NodeFlags: u32 {
         const NONE                                        = 0;
         const LET                                         = 1 << 0;

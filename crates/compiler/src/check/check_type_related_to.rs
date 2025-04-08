@@ -8,7 +8,6 @@ use super::get_simplified_ty::SimplifiedKind;
 use super::get_variances::VarianceFlags;
 use super::relation::{RelationKind, SigCheckMode};
 use super::symbol_info::SymbolInfo;
-use super::transient_symbol::CheckSymbol;
 use super::utils::contains_ty;
 use super::{Ternary, TyChecker};
 use crate::bind::{SymbolFlags, SymbolID};
@@ -264,10 +263,10 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
             && self
                 .c
                 .symbol(source_prop)
-                .flags()
+                .flags
                 .intersects(SymbolFlags::OPTIONAL)
             && {
-                let target_prop_flags = self.c.symbol(target_prop).flags();
+                let target_prop_flags = self.c.symbol(target_prop).flags;
 
                 target_prop_flags.intersects(SymbolFlags::CLASS_MEMBER)
                     && !target_prop_flags.intersects(SymbolFlags::OPTIONAL)
@@ -293,7 +292,7 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
         }
         let mut result = Ternary::TRUE;
         for source_prop in source_props {
-            let name = self.c.symbol(*source_prop).name();
+            let name = self.c.symbol(*source_prop).name;
             let Some(target_prop) = self.c.get_prop_of_object_ty(target, name) else {
                 return Ternary::FALSE;
             };
@@ -502,8 +501,8 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
         let numeric_names_only = source.is_tuple() && target.is_tuple();
         for target_prop in props {
             let s = self.c.symbol(*target_prop);
-            let name = s.name();
-            if !s.flags().intersects(SymbolFlags::PROTOTYPE)
+            let name = s.name;
+            if !s.flags.intersects(SymbolFlags::PROTOTYPE)
                 && (!numeric_names_only || name.is_numeric() || name.expect_atom() == IDENT_LENGTH)
             {
                 if let Some(source_prop) = self.c.get_prop_of_ty(source, name) {
@@ -851,9 +850,12 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
     ) -> Ternary {
         let mut result =
             self.structured_ty_related_to_worker(source, target, report_error, intersection_state);
-        if self.relation != RelationKind::Identity && result == Ternary::FALSE && (source.flags.intersects(TypeFlags::INTERSECTION)
-                    || source.flags.intersects(TypeFlags::TYPE_PARAMETER)
-                        && target.flags.intersects(TypeFlags::UNION)) {
+        if self.relation != RelationKind::Identity
+            && result == Ternary::FALSE
+            && (source.flags.intersects(TypeFlags::INTERSECTION)
+                || source.flags.intersects(TypeFlags::TYPE_PARAMETER)
+                    && target.flags.intersects(TypeFlags::UNION))
+        {
             let tys = if let Some(i) = source.kind.as_intersection() {
                 i.tys
             } else {
@@ -1501,7 +1503,7 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
         );
         if res == Ternary::FALSE {
             if source.key_ty == target.key_ty {
-                let decl = self.c.binder.symbol(source.symbol).opt_decl().unwrap();
+                let decl = self.c.symbol(source.symbol).opt_decl().unwrap();
                 let span = self.c.p.node(decl).expect_index_sig_decl().ty.span();
                 let error = errors::IndexSignaturesAreIncompatible {
                     span,
@@ -1910,32 +1912,12 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
     }
 
     fn should_check_as_excess_prop(&self, prop: SymbolID, container: SymbolID) -> bool {
-        let p = self.c.symbol(prop);
-        let c = self.c.symbol(container);
-        match (p, c) {
-            (CheckSymbol::Normal(sub), CheckSymbol::Normal(container)) => {
-                let Some(sub) = sub.opt_decl() else {
-                    return false;
-                };
-                let Some(container) = container.opt_decl() else {
-                    return false;
-                };
-                self.c.p.parent(sub).is_some_and(|p| p == container)
-            }
-            (CheckSymbol::Transient(p), CheckSymbol::Transient(c)) => {
-                let Some(p) = p.origin else { return false };
-                let Some(c) = c.origin else { return false };
-                self.should_check_as_excess_prop(p, c)
-            }
-            (CheckSymbol::Transient(p), CheckSymbol::Normal(_)) => {
-                let Some(p) = p.origin else { return false };
-                self.should_check_as_excess_prop(p, container)
-            }
-            (CheckSymbol::Normal(_), CheckSymbol::Transient(c)) => {
-                let Some(c) = c.origin else { return false };
-                self.should_check_as_excess_prop(prop, c)
+        if let Some(p) = self.c.symbol(prop).value_decl {
+            if let Some(c) = self.c.symbol(container).value_decl {
+                return self.c.p.parent(p).is_some_and(|p| p == c);
             }
         }
+        false
     }
 
     fn has_excess_properties(
@@ -1949,7 +1931,7 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
         }
         for prop in self.c.get_props_of_ty(source) {
             if self.should_check_as_excess_prop(*prop, source.symbol().unwrap()) {
-                let name = self.c.symbol(*prop).name();
+                let name = self.c.symbol(*prop).name;
                 if !self.c.is_known_prop(target_ty, name) {
                     if report_error {
                         if let Some(name) = name.as_atom() {

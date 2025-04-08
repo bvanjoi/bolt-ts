@@ -1,19 +1,15 @@
 use super::TyChecker;
 use super::symbol_info::SymbolInfo;
-use crate::bind::{SymbolID, SymbolName};
-use crate::ty;
+use crate::bind::{Symbol, SymbolID, SymbolName};
+use crate::ty::{self, TypeFlags};
 
 use bolt_ts_ast as ast;
 
 impl<'cx> TyChecker<'cx> {
     pub(super) fn get_index_symbol(&mut self, symbol: SymbolID) -> Option<SymbolID> {
-        let s = self.binder.symbol(symbol);
-        if s.members().0.is_empty() {
-            None
-        } else {
-            let members = self.get_members_of_symbol(symbol);
-            members.0.get(&SymbolName::Index).copied()
-        }
+        // TODO: self.binder.symbol(symbol).members.is_none() {}
+        let members = self.get_members_of_symbol(symbol);
+        members.0.get(&SymbolName::Index).copied()
     }
 
     pub(super) fn get_index_infos_of_symbol(&mut self, symbol: SymbolID) -> ty::IndexInfos<'cx> {
@@ -26,10 +22,22 @@ impl<'cx> TyChecker<'cx> {
         &mut self,
         symbol: SymbolID,
     ) -> ty::IndexInfos<'cx> {
-        let decls = &self.binder.symbol(symbol).decls;
+        let s = self.symbol(symbol);
+        if s.decls.is_empty() {
+            return self.empty_array();
+        }
+        let decls: thin_vec::ThinVec<_> = s.decls.clone();
+        // TODO: sibling_symbols;
         let mut index_infos = Vec::with_capacity(decls.len() * 2);
+        let mut has_computed_number_property = false;
+        let mut readonly_computed_number_property = true;
+        let mut has_computed_symbol_property = false;
+        let mut readonly_computed_symbol_property = true;
+        let mut has_computed_string_property = false;
+        let mut readonly_computed_string_property = true;
+        let mut computed_property_symbols = Vec::with_capacity(decls.len());
         for decl in decls {
-            let n = self.p.node(*decl);
+            let n = self.p.node(decl);
             if n.is_index_sig_decl() {
                 let decl = n.expect_index_sig_decl();
                 let val_ty = self.get_ty_from_type_node(decl.ty);
@@ -46,11 +54,163 @@ impl<'cx> TyChecker<'cx> {
                         is_readonly,
                     })
                 }));
+            } else if self.has_late_bindable_index_signature(decl) {
+                // TODO: is_binary_expression
+                let name = self.p().get_name_of_decl(decl).unwrap();
+                use bolt_ts_ast::DeclarationName;
+                let key_ty = match name {
+                    DeclarationName::Computed(n) => self.check_computed_prop_name(n),
+                    // TODO: element_ty
+                    _ => unreachable!(),
+                };
+                if self.find_index_info(&index_infos, key_ty).is_some() {
+                    continue;
+                }
+                let n = self.p.node(decl);
+                if self.is_type_assignable_to(key_ty, self.string_number_symbol_ty()) {
+                    if self.is_type_assignable_to(key_ty, self.number_ty) {
+                        has_computed_number_property = true;
+                        if !n.has_effective_readonly_modifier() {
+                            readonly_computed_number_property = false;
+                        }
+                    } else if self.is_type_assignable_to(key_ty, self.es_symbol_ty) {
+                        has_computed_symbol_property = true;
+                        if !n.has_effective_readonly_modifier() {
+                            readonly_computed_symbol_property = false;
+                        }
+                    } else if self.is_type_assignable_to(key_ty, self.string_ty) {
+                        has_computed_string_property = true;
+                        if !n.has_effective_readonly_modifier() {
+                            readonly_computed_string_property = false;
+                        }
+                    } else {
+                        unreachable!()
+                    }
+                    let decl_s = self.get_symbol_of_decl(decl);
+                    computed_property_symbols.push(decl_s);
+                }
             } else {
-                todo!()
+                unreachable!()
             }
         }
+
+        let all_property_symbols = computed_property_symbols;
+        if has_computed_string_property
+            && self.find_index_info(&index_infos, self.string_ty).is_none()
+        {
+            let info = self.get_object_lit_index_info(
+                readonly_computed_string_property,
+                0,
+                &all_property_symbols,
+                self.string_ty,
+            );
+            index_infos.push(info);
+        }
+        if has_computed_number_property
+            && self.find_index_info(&index_infos, self.number_ty).is_none()
+        {
+            let info = self.get_object_lit_index_info(
+                readonly_computed_number_property,
+                0,
+                &all_property_symbols,
+                self.number_ty,
+            );
+            index_infos.push(info);
+        }
+        if has_computed_symbol_property
+            && self
+                .find_index_info(&index_infos, self.es_symbol_ty)
+                .is_none()
+        {
+            let info = self.get_object_lit_index_info(
+                readonly_computed_symbol_property,
+                0,
+                &all_property_symbols,
+                self.es_symbol_ty,
+            );
+            index_infos.push(info);
+        }
         self.alloc(index_infos)
+    }
+
+    fn get_object_lit_index_info(
+        &mut self,
+        is_readonly: bool,
+        offset: usize,
+        props: &[SymbolID],
+        key_ty: &'cx ty::Ty<'cx>,
+    ) -> &'cx ty::IndexInfo<'cx> {
+        assert!(offset < props.len());
+        let mut prop_tys = Vec::with_capacity(props.len());
+        let mut components = Vec::with_capacity(props.len());
+        for i in offset..prop_tys.len() {
+            let p = props[i];
+            if (key_ty == self.string_ty && !self.is_symbol_with_symbol_name(p))
+                || (key_ty == self.number_ty && self.is_symbol_with_numeric_name(p))
+                || (key_ty == self.es_symbol_ty && self.is_symbol_with_symbol_name(p))
+            {
+                let ty = self.get_type_of_symbol(p);
+                prop_tys.push(ty);
+                if self.is_symbol_with_computed_name(p) {
+                    let decl = self.symbol(p).decls.first().copied().unwrap();
+                    components.push(decl);
+                }
+            }
+        }
+        let union_ty = if prop_tys.is_empty() {
+            self.undefined_ty
+        } else {
+            self.get_union_ty(&prop_tys, ty::UnionReduction::Subtype)
+        };
+        self.alloc(ty::IndexInfo {
+            key_ty,
+            val_ty: union_ty,
+            symbol: Symbol::ERR,
+            is_readonly,
+        })
+    }
+
+    fn is_symbol_with_computed_name(&mut self, symbol: SymbolID) -> bool {
+        let Some(first_decl) = self.symbol(symbol).decls.first().copied() else {
+            return false;
+        };
+        self.p
+            .node(first_decl)
+            .name()
+            .is_some_and(|name| matches!(name, ast::DeclarationName::Computed(_)))
+    }
+
+    fn is_symbol_with_numeric_name(&mut self, symbol: SymbolID) -> bool {
+        let s = self.symbol(symbol);
+        if matches!(s.name, SymbolName::EleNum(_)) {
+            return true;
+        }
+        let Some(first_decl) = s.decls.first().copied() else {
+            return false;
+        };
+        self.p
+            .node(first_decl)
+            .name()
+            .is_some_and(|name| matches!(name, ast::DeclarationName::NumLit(_)))
+    }
+
+    fn is_symbol_with_symbol_name(&mut self, symbol: SymbolID) -> bool {
+        let s = self.symbol(symbol);
+        if matches!(s.name, SymbolName::ESSymbol { .. }) {
+            return true;
+        }
+        let Some(first_decl) = s.decls.first().copied() else {
+            return false;
+        };
+        self.p.node(first_decl).name().is_some_and(|name| {
+            if let ast::DeclarationName::Computed(n) = name {
+                let ty = self.check_computed_prop_name(n);
+                if self.is_type_assignable_to_kind(ty, TypeFlags::ES_SYMBOL, false) {
+                    return true;
+                }
+            }
+            false
+        })
     }
 
     pub(super) fn get_index_infos_of_structured_ty(
@@ -61,12 +221,12 @@ impl<'cx> TyChecker<'cx> {
             self.resolve_structured_type_members(ty);
             self.index_infos_of_ty(ty)
         } else {
-            &[]
+            self.empty_array()
         }
     }
 
     pub(super) fn find_index_info(
-        &mut self,
+        &self,
         index_infos: &[&'cx ty::IndexInfo<'cx>],
         key_ty: &'cx ty::Ty<'cx>,
     ) -> Option<&ty::IndexInfo<'cx>> {

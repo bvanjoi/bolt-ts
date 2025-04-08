@@ -107,8 +107,28 @@ impl<'cx> DeclarationName<'cx> {
         use DeclarationName::*;
         match self {
             Computed(_) => true,
+            // TODO: element access
             _ => false,
         }
-        // TODO: element access
+    }
+
+    pub fn is_late_bindable_ast(&self) -> bool {
+        use DeclarationName::*;
+        let expr = match self {
+            Computed(n) => n.expr,
+            // TODO: element access
+            _ => return false,
+        };
+        expr.is_entity_name_expr()
+    }
+
+    pub fn span(&self) -> Span {
+        use DeclarationName::*;
+        match self {
+            Ident(n) => n.span,
+            NumLit(n) => n.span,
+            StringLit { raw, .. } => raw.span,
+            Computed(n) => n.span,
+        }
     }
 }
