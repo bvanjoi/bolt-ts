@@ -5,6 +5,9 @@ use crate::bind::{Symbol, SymbolID, SymbolName};
 use bolt_ts_ast as ast;
 
 impl TyChecker<'_> {
+    pub fn get_symbol_of_node(&self, id: ast::NodeID) -> Option<SymbolID> {
+        Symbol::can_have_symbol(self.p.node(id)).then(|| self.get_symbol_of_decl(id))
+    }
     #[inline]
     pub(super) fn get_symbol_of_decl(&self, id: ast::NodeID) -> SymbolID {
         debug_assert!(

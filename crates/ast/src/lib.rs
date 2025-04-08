@@ -121,4 +121,14 @@ impl<'cx> DeclarationName<'cx> {
         };
         expr.is_entity_name_expr()
     }
+
+    pub fn span(&self) -> Span {
+        use DeclarationName::*;
+        match self {
+            Ident(n) => n.span,
+            NumLit(n) => n.span,
+            StringLit { raw, .. } => raw.span,
+            Computed(n) => n.span,
+        }
+    }
 }

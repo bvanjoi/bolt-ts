@@ -7,12 +7,8 @@ use crate::ty::CheckFlags;
 
 impl<'cx> TyChecker<'cx> {
     pub(super) fn get_write_type_of_symbol(&mut self, symbol: SymbolID) -> &'cx ty::Ty<'cx> {
-        let check_flags = self.get_check_flags(symbol);
-        if self
-            .symbol(symbol)
-            .flags()
-            .intersects(SymbolFlags::ACCESSOR)
-        {
+        if self.symbol(symbol).flags.intersects(SymbolFlags::ACCESSOR) {
+            let check_flags = self.get_check_flags(symbol);
             if check_flags.intersects(CheckFlags::INSTANTIATED) {
                 // TODO:
                 todo!()

@@ -85,7 +85,7 @@ impl<'cx> TyChecker<'cx> {
         }?;
         // TODO: has_bindable_name
         let symbol = self.get_symbol_of_decl(id);
-        let name = self.symbol(symbol).name();
+        let name = self.symbol(symbol).name;
         let name_ty = self.get_symbol_links(symbol).get_name_ty();
         self.get_ty_of_prop_of_contextual_ty(ty, name, name_ty)
     }

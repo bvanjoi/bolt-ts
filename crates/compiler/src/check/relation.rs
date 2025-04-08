@@ -273,7 +273,7 @@ impl<'cx> TyChecker<'cx> {
         let mut members = fx_hashmap_with_capacity(64);
         for current in tys {
             for prop in self.get_props_of_ty(current) {
-                let name = self.symbol(*prop).name();
+                let name = self.symbol(*prop).name;
                 if let std::collections::hash_map::Entry::Vacant(e) = members.entry(name) {
                     if let Some(combined_prop) = self.get_prop_of_union_or_intersection_ty(ty, name)
                     {
@@ -405,11 +405,8 @@ impl<'cx> TyChecker<'cx> {
             let ty = self.get_apparent_ty(current);
             if ty != self.error_ty && ty != self.never_ty {
                 if let Some(prop) = self.get_prop_of_ty(ty, name) {
-                    if self
-                        .symbol(prop)
-                        .flags()
-                        .intersects(SymbolFlags::CLASS_MEMBER)
-                    {
+                    let symbol_flags = self.symbol(prop).flags;
+                    if symbol_flags.intersects(SymbolFlags::CLASS_MEMBER) {
                         if optional_flag.is_none() {
                             optional_flag = Some(if is_union {
                                 SymbolFlags::empty()
@@ -419,10 +416,10 @@ impl<'cx> TyChecker<'cx> {
                         }
                         if is_union {
                             let flags = optional_flag.as_mut().unwrap();
-                            *flags |= self.symbol(prop).flags() & SymbolFlags::OPTIONAL;
+                            *flags |= symbol_flags & SymbolFlags::OPTIONAL;
                         } else {
                             let flags = optional_flag.as_mut().unwrap();
-                            *flags &= self.symbol(prop).flags();
+                            *flags &= symbol_flags;
                         }
                     }
 
@@ -548,12 +545,12 @@ impl<'cx> TyChecker<'cx> {
         for target_prop in properties {
             let s = self.symbol(*target_prop);
             if require_optional_properties
-                || !(s.flags().intersects(SymbolFlags::OPTIONAL)
+                || !(s.flags.intersects(SymbolFlags::OPTIONAL)
                     || self
                         .get_check_flags(*target_prop)
                         .intersects(CheckFlags::PARTIAL))
             {
-                let target_prop_name = s.name();
+                let target_prop_name = s.name;
                 let Some(source_prop) = self.get_prop_of_ty(source, target_prop_name) else {
                     if let Some(target_prop_name) = target_prop_name.as_atom() {
                         unmatched.push(target_prop_name);

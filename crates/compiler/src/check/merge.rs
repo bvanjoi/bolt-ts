@@ -117,10 +117,18 @@ impl<'cx> MergeSymbol<'cx> for super::TyChecker<'cx> {
         self.p.get(module)
     }
     fn get_symbols(&self, module: bolt_ts_span::ModuleID) -> &crate::bind::Symbols {
-        &self.binder.bind_results[module.as_usize()].symbols
+        if module == bolt_ts_span::ModuleID::TRANSIENT {
+            &self.binder.bind_results.last().unwrap().symbols
+        } else {
+            &self.binder.bind_results[module.as_usize()].symbols
+        }
     }
     fn get_mut_symbols(&mut self, module: bolt_ts_span::ModuleID) -> &mut crate::bind::Symbols {
-        &mut self.binder.bind_results[module.as_usize()].symbols
+        if module == bolt_ts_span::ModuleID::TRANSIENT {
+            &mut self.binder.bind_results.last_mut().unwrap().symbols
+        } else {
+            &mut self.binder.bind_results[module.as_usize()].symbols
+        }
     }
     fn get_merged_symbols(&self) -> &MergedSymbols {
         self.merged_symbols

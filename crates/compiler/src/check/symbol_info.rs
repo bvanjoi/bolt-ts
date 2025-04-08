@@ -3,11 +3,10 @@ use bolt_ts_utils::{fx_hashmap_with_capacity, fx_hashset_with_capacity};
 use rustc_hash::{FxHashMap, FxHashSet};
 
 use super::resolve_structured_member::MemberOrExportsResolutionKind;
-use super::transient_symbol::CheckSymbol;
-use super::{SymbolLinks, TransientSymbols, errors};
+use super::{SymbolLinks, errors};
 use crate::bind::{
     MergeSymbol, MergedSymbols, ResolveResult, Symbol, SymbolFlags, SymbolID, SymbolName,
-    SymbolTable,
+    SymbolTable, Symbols,
 };
 use crate::check::TyChecker;
 use crate::graph::resolve_external_module_name;
@@ -44,9 +43,12 @@ pub trait SymbolInfo<'cx>: Sized {
     fn module_arena(&self) -> &bolt_ts_span::ModuleArena;
     fn push_error(&mut self, error: crate::Diag);
 
+    fn get_symbol_links_map(&mut self) -> &FxHashMap<SymbolID, SymbolLinks<'cx>>;
     fn get_mut_symbol_links_map(&mut self) -> &mut FxHashMap<SymbolID, SymbolLinks<'cx>>;
-    fn get_transient_symbols(&self) -> &TransientSymbols<'cx>;
-    fn get_mut_transient_symbols(&mut self) -> &mut TransientSymbols<'cx>;
+    fn get_transient_symbol_links_map(&self) -> &Vec<SymbolLinks<'cx>>;
+    fn get_mut_transient_symbol_links_map(&mut self) -> &mut Vec<SymbolLinks<'cx>>;
+    fn get_transient_symbols(&self) -> &Symbols;
+    fn get_mut_transient_symbols(&mut self) -> &mut Symbols;
     fn get_resolve_results(&self) -> &Vec<ResolveResult>;
     fn get_merged_symbols(&self) -> &MergedSymbols;
 
@@ -75,12 +77,11 @@ pub trait SymbolInfo<'cx>: Sized {
 
     fn get_symbol_links(&mut self, symbol: SymbolID) -> &SymbolLinks<'cx> {
         if symbol.module() == bolt_ts_span::ModuleID::TRANSIENT {
-            self.get_transient_symbols()
-                .get(symbol)
-                .unwrap()
-                .links
-                .as_ref()
-                .unwrap()
+            debug_assert!(symbol.index_as_usize() < self.get_transient_symbol_links_map().len());
+            unsafe {
+                self.get_transient_symbol_links_map()
+                    .get_unchecked(symbol.index_as_usize())
+            }
         } else {
             self.get_mut_symbol_links_map().entry(symbol).or_default()
         }
@@ -88,24 +89,21 @@ pub trait SymbolInfo<'cx>: Sized {
 
     fn get_mut_symbol_links(&mut self, symbol: SymbolID) -> &mut SymbolLinks<'cx> {
         if symbol.module() == bolt_ts_span::ModuleID::TRANSIENT {
-            self.get_mut_transient_symbols()
-                .get_mut(symbol)
-                .unwrap()
-                .links
-                .as_mut()
-                .unwrap()
+            debug_assert!(symbol.index_as_usize() < self.get_transient_symbol_links_map().len());
+            unsafe {
+                self.get_mut_transient_symbol_links_map()
+                    .get_unchecked_mut(symbol.index_as_usize())
+            }
         } else {
             self.get_mut_symbol_links_map().get_mut(&symbol).unwrap()
         }
     }
 
-    fn symbol(&self, symbol: SymbolID) -> CheckSymbol<'cx, '_> {
+    fn symbol(&self, symbol: SymbolID) -> &Symbol {
         if symbol.module() == bolt_ts_span::ModuleID::TRANSIENT {
-            let symbol = self.get_transient_symbols().get(symbol).unwrap();
-            CheckSymbol::Transient(symbol)
+            self.get_transient_symbols().get(symbol)
         } else {
-            let symbol = symbol_of_resolve_results(self.get_resolve_results(), symbol);
-            CheckSymbol::Normal(symbol)
+            symbol_of_resolve_results(self.get_resolve_results(), symbol)
         }
     }
 }
@@ -115,9 +113,7 @@ impl<'cx> super::TyChecker<'cx> {
         if let Some(m) = self.get_symbol_links(symbol).get_members() {
             m
         } else {
-            let members = symbol_of_resolve_results(self.get_resolve_results(), symbol)
-                .members()
-                .clone();
+            let members = self.symbol(symbol).members().clone();
             let members = self.alloc(members);
             self.get_mut_symbol_links(symbol).set_members(members);
             members
@@ -128,9 +124,7 @@ impl<'cx> super::TyChecker<'cx> {
         if let Some(e) = self.get_symbol_links(symbol).get_exports() {
             e
         } else {
-            let exports = symbol_of_resolve_results(self.get_resolve_results(), symbol)
-                .exports()
-                .clone();
+            let exports = self.symbol(symbol).exports().clone();
             let exports = self.alloc(exports);
             self.get_mut_symbol_links(symbol).set_exports(exports);
             exports
@@ -154,7 +148,7 @@ impl<'cx> super::TyChecker<'cx> {
             .union(SymbolFlags::TYPE)
             .union(SymbolFlags::NAMESPACE);
         let excludes = excludes.unwrap_or(DEFAULT);
-        let flags = self.symbol(symbol).flags();
+        let flags = self.symbol(symbol).flags;
         (flags.intersection(SymbolFlags::ALIAS | excludes) == SymbolFlags::ALIAS)
             || (flags.intersects(SymbolFlags::ALIAS.union(SymbolFlags::ASSIGNMENT)))
     }
@@ -237,7 +231,7 @@ impl<'cx> super::TyChecker<'cx> {
     }
 
     pub(super) fn get_exports_of_symbol(&mut self, symbol: SymbolID) -> &'cx SymbolTable {
-        let flags = symbol_of_resolve_results(self.get_resolve_results(), symbol).flags;
+        let flags = self.symbol(symbol).flags;
         if flags.intersects(SymbolFlags::LATE_BINDING_CONTAINER) {
             self.get_resolved_members_or_exports_of_symbol(
                 symbol,
@@ -402,7 +396,7 @@ impl<'cx> super::TyChecker<'cx> {
             return resolved;
         }
         let is_static = matches!(kind, MemberOrExportsResolutionKind::ResolvedExports);
-        let flags = self.symbol(symbol).flags();
+        let flags = self.symbol(symbol).flags;
         let early_symbols = if !is_static {
             self.members_of_symbol(symbol)
         } else if flags.intersects(SymbolFlags::MODULE) {
@@ -425,7 +419,7 @@ impl<'cx> super::TyChecker<'cx> {
             }
         }
         let s = self.symbol(symbol);
-        let decls: thin_vec::ThinVec<_> = s.declarations().into();
+        let decls: thin_vec::ThinVec<_> = s.decls.clone();
         let mut late_symbols = SymbolTable::new(decls.len());
         for decl in decls {
             let n = self.p().node(decl);
@@ -473,7 +467,7 @@ impl<'cx> super::TyChecker<'cx> {
             early_symbols
         } else {
             let mut combined = SymbolTable::new(late_symbols.0.len() + early_symbols.0.len());
-            self.merge_symbol_table_owner(&mut combined, &early_symbols, false);
+            self.merge_symbol_table_owner(&mut combined, early_symbols, false);
             self.merge_symbol_table_owner(&mut combined, &late_symbols, false);
             self.alloc(combined)
         };
@@ -487,6 +481,26 @@ impl<'cx> super::TyChecker<'cx> {
             }
         }
         combined
+    }
+
+    fn merge_symbol_table_owner(
+        &mut self,
+        target: &mut SymbolTable,
+        source: &SymbolTable,
+        unidirectional: bool,
+    ) {
+        for (id, source_symbol) in &source.0 {
+            let target_symbol = target.0.get(id).copied();
+            let merged = if let Some(target_symbol) = target_symbol {
+                self.merge_symbol(target_symbol, *source_symbol, unidirectional)
+            } else {
+                let symbols = &self.get_symbols(source_symbol.module());
+                self.merged_symbols
+                    .get_merged_symbol(*source_symbol, symbols)
+            };
+            // TODO: parent
+            target.0.insert(*id, merged);
+        }
     }
 
     pub(super) fn resolve_symbol_by_ident(&self, ident: &'cx bolt_ts_ast::Ident) -> SymbolID {
@@ -537,7 +551,7 @@ impl<'cx> super::TyChecker<'cx> {
                     .unwrap_or(Symbol::ERR);
             }
         }
-        let flags = self.symbol(symbol).flags();
+        let flags = self.symbol(symbol).flags;
         if flags.intersects(meaning) {
             symbol
         } else if flags.intersects(SymbolFlags::ALIAS) {
@@ -576,7 +590,7 @@ impl<'cx> super::TyChecker<'cx> {
         exclude_ty_only_meaning: bool,
     ) -> SymbolFlags {
         let mut seen_symbols = fx_hashset_with_capacity(32);
-        let mut symbol_flags = self.symbol(symbol).flags();
+        let mut symbol_flags = self.symbol(symbol).flags;
         let mut flags = symbol_flags;
         while symbol_flags.intersects(SymbolFlags::ALIAS) {
             let target = self.resolve_alias(symbol);
@@ -587,7 +601,7 @@ impl<'cx> super::TyChecker<'cx> {
                 break;
             }
             let t = self.symbol(target);
-            let t_flags = t.flags();
+            let t_flags = t.flags;
             if t_flags.intersects(SymbolFlags::ALIAS) {
                 seen_symbols.insert(target);
             }
@@ -663,20 +677,29 @@ impl<'cx> super::TyChecker<'cx> {
     ) {
         assert!(self.get_check_flags(symbol).intersects(CheckFlags::LATE));
         let decl_s = self.get_symbol_of_decl(decl);
-        let s = self.transient_symbols.get_mut(symbol).unwrap();
+        let s = self
+            .binder
+            .bind_results
+            .last_mut()
+            .unwrap()
+            .symbols
+            .get_mut(symbol);
         s.flags |= flags;
         if s.decls.is_empty() {
             s.decls.push(decl);
         }
         // TODO: is_replace_by_method
-        if flags.intersects(SymbolFlags::VALUE) {
-            if s.value_declaration
+        if flags.intersects(SymbolFlags::VALUE)
+            && s.value_decl
                 .is_none_or(|d| self.p.node(d).is_same_kind(&self.p.node(decl)))
-            {
-                s.value_declaration = Some(decl);
-            }
+        {
+            s.value_decl = Some(decl);
         }
-        self.get_mut_symbol_links(decl_s).set_late_symbol(symbol);
+        assert_ne!(decl_s.module(), bolt_ts_span::ModuleID::TRANSIENT);
+        self.symbol_links
+            .entry(decl_s)
+            .or_default()
+            .set_late_symbol(symbol);
     }
 
     fn late_bind_member(
@@ -691,11 +714,12 @@ impl<'cx> super::TyChecker<'cx> {
         }
         let s = self.get_symbol_of_decl(decl);
         self.get_mut_node_links(decl).set_resolved_symbol(s);
-
-        let ty = match self.p().node(decl) {
-            bolt_ts_ast::Node::ComputedPropName(n) => self.check_computed_prop_name(n),
+        // TODO: binary expression
+        let decl_name = self.p.node(decl).name().unwrap();
+        let ty = match decl_name {
+            bolt_ts_ast::DeclarationName::Computed(n) => self.check_computed_prop_name(n),
             // TODO: element access
-            _ => unreachable!(),
+            _ => unreachable!("decl_name: {:#?}", decl_name),
         };
         if ty.useable_as_prop_name() {
             let member_name = self.get_prop_name_from_ty(ty).unwrap();
@@ -732,29 +756,19 @@ impl<'cx> super::TyChecker<'cx> {
     fn clone_symbol(
         &mut self,
         symbol: SymbolID,
-        get_links: impl FnOnce(CheckSymbol) -> SymbolLinks<'cx>,
+        get_links: impl FnOnce(&Symbol) -> SymbolLinks<'cx>,
     ) -> SymbolID {
         let s = self.symbol(symbol);
         let links = get_links(s);
-        let target = self.create_transient_symbol(
-            s.name(),
-            s.flags(),
-            links,
-            s.declarations().into(),
-            s.value_declaration(),
-        );
-        match self.symbol(symbol) {
-            CheckSymbol::Transient(_) => self.merged_symbols.record_merged_transient_symbol(
-                target,
-                symbol,
-                &mut self.transient_symbols,
-            ),
-            CheckSymbol::Normal(_) => {
-                let symbols = &mut self.binder.bind_results[symbol.module().as_usize()].symbols;
-                self.merged_symbols
-                    .record_merged_symbol(target, symbol, symbols)
-            }
-        }
+        let target =
+            self.create_transient_symbol(s.name, s.flags, links, s.decls.clone(), s.value_decl);
+        let symbols = if symbol.module() == bolt_ts_span::ModuleID::TRANSIENT {
+            &mut self.binder.bind_results.last_mut().unwrap().symbols
+        } else {
+            &mut self.binder.bind_results[symbol.module().as_usize()].symbols
+        };
+        self.merged_symbols
+            .record_merged_symbol(target, symbol, symbols);
         target
     }
 
@@ -783,7 +797,7 @@ impl<'cx> super::TyChecker<'cx> {
                 late_symbol
             }
         };
-        let s = self.transient_symbols.get_mut(late_symbol).unwrap();
+        let s = self.get_mut_transient_symbols().get_mut(late_symbol);
         if s.decls.is_empty() {
             s.decls.push(decl);
         }
@@ -1086,7 +1100,7 @@ fn get_target_of_alias_like_expr<'cx>(
         }
         _ => todo!(),
     }
-    let flags = this.symbol(symbol).flags();
+    let flags = this.symbol(symbol).flags;
     const MEANING: SymbolFlags = SymbolFlags::VALUE
         .union(SymbolFlags::TYPE)
         .union(SymbolFlags::NAMESPACE);
@@ -1176,19 +1190,28 @@ impl<'cx> SymbolInfo<'cx> for super::TyChecker<'cx> {
     fn push_error(&mut self, error: crate::Diag) {
         self.diags.push(bolt_ts_errors::Diag { inner: error })
     }
+    fn get_symbol_links_map(&mut self) -> &FxHashMap<SymbolID, SymbolLinks<'cx>> {
+        &self.symbol_links
+    }
     fn get_mut_symbol_links_map(&mut self) -> &mut FxHashMap<SymbolID, SymbolLinks<'cx>> {
         &mut self.symbol_links
     }
-    fn get_transient_symbols(&self) -> &TransientSymbols<'cx> {
-        &self.transient_symbols
+    fn get_transient_symbols(&self) -> &Symbols {
+        &self.binder.bind_results.last().unwrap().symbols
     }
-    fn get_mut_transient_symbols(&mut self) -> &mut TransientSymbols<'cx> {
-        &mut self.transient_symbols
+    fn get_mut_transient_symbols(&mut self) -> &mut Symbols {
+        &mut self.binder.bind_results.last_mut().unwrap().symbols
     }
     fn get_resolve_results(&self) -> &Vec<ResolveResult> {
         &self.binder.bind_results
     }
     fn get_merged_symbols(&self) -> &MergedSymbols {
         self.merged_symbols
+    }
+    fn get_transient_symbol_links_map(&self) -> &Vec<SymbolLinks<'cx>> {
+        &self.transient_symbol_links
+    }
+    fn get_mut_transient_symbol_links_map(&mut self) -> &mut Vec<SymbolLinks<'cx>> {
+        &mut self.transient_symbol_links
     }
 }

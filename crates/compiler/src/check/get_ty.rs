@@ -1,4 +1,4 @@
-use bolt_ts_ast::{self as ast, EntityNameKind};
+use bolt_ts_ast::{self as ast, EntityNameKind, keyword};
 use bolt_ts_atom::AtomId;
 
 use super::create_ty::IntersectionFlags;
@@ -6,7 +6,7 @@ use super::get_simplified_ty::SimplifiedKind;
 use super::infer::{InferenceFlags, InferencePriority};
 use super::symbol_info::SymbolInfo;
 use super::ty::{self, Ty, TyKind};
-use super::{CheckMode, F64Represent, InferenceContextId, PropName, TyChecker};
+use super::{CheckMode, F64Represent, InferenceContextId, TyChecker};
 use super::{IndexedAccessTyMap, ResolutionKey, TyCacheTrait, errors};
 
 use crate::bind::{SymbolFlags, SymbolID, SymbolName};
@@ -25,8 +25,8 @@ impl<'cx> TyChecker<'cx> {
     }
 
     pub(crate) fn get_type_of_symbol(&mut self, id: SymbolID) -> &'cx Ty<'cx> {
-        if let Some(t) = self.get_transient(id) {
-            if let Some(ty) = t.links.unwrap().get_ty() {
+        if self.get_transient(id).is_some() {
+            if let Some(ty) = self.transient_symbol_links[id.index_as_usize()].get_ty() {
                 return ty;
             }
         };
@@ -40,7 +40,7 @@ impl<'cx> TyChecker<'cx> {
             return self.get_type_of_mapped_symbol(id);
         }
 
-        let flags = self.symbol(id).flags();
+        let flags = self.symbol(id).flags;
         assert!(!flags.intersects(SymbolFlags::OBJECT_LITERAL));
 
         let ty = if flags.intersects(SymbolFlags::VARIABLE.union(SymbolFlags::PROPERTY)) {
@@ -72,7 +72,7 @@ impl<'cx> TyChecker<'cx> {
             return self.error_ty;
         }
         let target_symbol = self.resolve_alias(symbol);
-        let flags = self.symbol(target_symbol).flags(); // TODO: get_symbol_flags;
+        let flags = self.symbol(target_symbol).flags; // TODO: get_symbol_flags;
         let ty = if flags.intersects(SymbolFlags::VALUE) {
             self.get_type_of_symbol(target_symbol)
         } else {
@@ -210,7 +210,7 @@ impl<'cx> TyChecker<'cx> {
         };
         let ty = self.create_anonymous_ty(Some(symbol), ObjectFlags::empty());
 
-        let s = self.binder.symbol(symbol);
+        let s = self.symbol(symbol);
         if s.flags.intersects(SymbolFlags::CLASS) {
             if let Some(base) = self.get_base_type_variable_of_class(symbol) {
                 self.get_intersection_ty(&[ty, base], IntersectionFlags::None, None, None)
@@ -320,10 +320,7 @@ impl<'cx> TyChecker<'cx> {
         };
         let prop_ty = self.instantiate_ty(template_ty, Some(mapper));
         let ty = if *self.config.strict_null_checks()
-            && self
-                .symbol(symbol)
-                .flags()
-                .intersects(SymbolFlags::OPTIONAL)
+            && self.symbol(symbol).flags.intersects(SymbolFlags::OPTIONAL)
             && !prop_ty.maybe_type_of_kind(TypeFlags::UNDEFINED.union(TypeFlags::VOID))
         {
             self.get_optional_ty(prop_ty, true)
@@ -566,13 +563,71 @@ impl<'cx> TyChecker<'cx> {
                 self.get_index_ty(t, ty::IndexFlags::empty())
             }
             ast::TyOpKind::Unique => {
-                // TODO: symbol kind;
-                self.error_ty
+                let is_symbol = if let ast::TyKind::Refer(ast::ReferTy { name, .. }) = node.ty.kind
+                {
+                    match name.kind {
+                        EntityNameKind::Ident(ident) => ident.name == keyword::IDENT_SYMBOL,
+                        EntityNameKind::Qualified(_) => false,
+                    }
+                } else {
+                    false
+                };
+                if is_symbol {
+                    self.get_es_symbol_like_ty_for_node(self.p.parent(node.id).unwrap())
+                } else {
+                    self.error_ty
+                }
             }
             ast::TyOpKind::Readonly => self.get_ty_from_type_node(node.ty),
         };
         self.get_mut_node_links(node.id).set_resolved_ty(ty);
         ty
+    }
+
+    fn is_var_const(&self, node: ast::NodeID) -> bool {
+        self.p
+            .get_combined_node_flags(node)
+            .intersection(ast::NodeFlags::BLOCK_SCOPED)
+            == ast::NodeFlags::CONST
+    }
+
+    fn is_valid_es_symbol_decl(&self, node: ast::NodeID) -> bool {
+        let n = self.p.node(node);
+        if let Some(n) = n.as_var_decl() {
+            matches!(n.binding.kind, ast::BindingKind::Ident(_))
+                && self.is_var_const(node)
+                && self.p.node(self.p.parent(node).unwrap()).is_var_stmt()
+        } else if n.is_class_prop_ele() || n.is_object_prop_member() {
+            n.has_effective_readonly_modifier() && n.has_static_modifier()
+        } else if n.is_prop_signature() {
+            n.has_effective_readonly_modifier() // TODO: || is_commonjs_export_property_assignment
+        } else {
+            false
+        }
+    }
+
+    fn get_es_symbol_like_ty_for_node(&mut self, p: ast::NodeID) -> &'cx Ty<'cx> {
+        if self.is_valid_es_symbol_decl(p) {
+            // TODO: commonjs
+            if let Some(symbol) = self.get_symbol_of_node(p) {
+                if let Some(ty) = self.get_symbol_links(symbol).get_unique_es_symbol_ty() {
+                    return ty;
+                }
+                let name = self.symbol(symbol).name.expect_atom();
+                let ty = self.alloc(ty::UniqueESSymbolTy {
+                    symbol,
+                    escape_name: SymbolName::ESSymbol {
+                        escaped_name: name,
+                        symbol_id: symbol,
+                    },
+                });
+                let ty = self.new_ty(ty::TyKind::UniqueESSymbol(ty), TypeFlags::UNIQUE_ES_SYMBOL);
+                self.get_mut_symbol_links(symbol)
+                    .set_unique_es_symbol_ty(ty);
+                return ty;
+            }
+        }
+        self.es_symbol_ty
     }
 
     fn get_ty_from_intersection_ty_node(
@@ -656,7 +711,7 @@ impl<'cx> TyChecker<'cx> {
 
     pub(super) fn get_prop_name_from_ty(&self, ty: &'cx Ty<'cx>) -> Option<SymbolName> {
         match ty.kind {
-            ty::TyKind::UniqueESSymbol(lit) => Some(SymbolName::Atom(lit.escape_name)),
+            ty::TyKind::UniqueESSymbol(lit) => Some(lit.escape_name),
             ty::TyKind::StringLit(lit) => Some(SymbolName::Atom(lit.val)),
             ty::TyKind::NumberLit(lit) => Some(SymbolName::EleNum(lit.val.into())),
             _ => None, // TODO: unreachable
@@ -738,7 +793,7 @@ impl<'cx> TyChecker<'cx> {
             let n = bolt_ts_ast::Expr::skip_parens(expr);
             if let ast::ExprKind::Ident(n) = n.kind {
                 let symbol = self.node_links[&n.id].expect_resolved_symbol();
-                let flags = self.symbol(symbol).flags();
+                let flags = self.symbol(symbol).flags;
                 if flags.intersects(SymbolFlags::ALIAS) {
                     return self
                         .get_symbol_decl(symbol)
@@ -768,7 +823,7 @@ impl<'cx> TyChecker<'cx> {
                 {
                     let error = errors::CannotAssignTo0BecauseItIsAReadOnlyProperty {
                         span: self.p.node(access_expr).span(),
-                        prop: self.symbol(prop).name().to_string(self.atoms),
+                        prop: self.symbol(prop).name.to_string(self.atoms),
                     };
                     self.push_error(Box::new(error));
                     return None;
@@ -972,7 +1027,7 @@ impl<'cx> TyChecker<'cx> {
                 }
                 let id = n.name.id();
                 let s = self.final_res(id);
-                self.symbol(s).flags().intersects(SymbolFlags::TYPE_ALIAS)
+                self.symbol(s).flags.intersects(SymbolFlags::TYPE_ALIAS)
             }
             TyOp(n) => n.op != ast::TyOpKind::Unique && self.may_resolve_ty_alias(n.ty.id()),
             RestTy(n) => {
@@ -1070,6 +1125,9 @@ impl<'cx> TyChecker<'cx> {
                 InterfaceDecl(_) | ClassDecl(_) | ClassExpr(_) | TypeDecl(_)
             ) {
                 let ty_params = self.get_effective_ty_param_decls(node);
+                if ty_params.is_empty() {
+                    continue;
+                }
                 if res.is_none() {
                     res = Some(Vec::with_capacity(cap));
                 }

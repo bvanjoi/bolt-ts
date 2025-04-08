@@ -7,6 +7,7 @@ links!(
     TyLinks,
     (structured_members, &'cx ty::StructuredMembers<'cx>),
     (resolved_base_tys, ty::Tys<'cx>),
+    (base_tys_resolved, bool),
     (resolved_base_ctor_ty, &'cx ty::Ty<'cx>),
     (resolved_base_constraint, &'cx ty::Ty<'cx>),
     (resolved_properties, &'cx [SymbolID]),

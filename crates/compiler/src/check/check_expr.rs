@@ -716,12 +716,12 @@ impl<'cx> TyChecker<'cx> {
         for prop in props {
             // TODO: exclude private and projected
             let s = self.symbol(*prop);
-            let prop_flags = s.flags();
-            let name = s.name();
+            let prop_flags = s.flags;
+            let name = s.name;
             let is_setonly_accessor = prop_flags.intersects(SymbolFlags::SET_ACCESSOR)
                 && !prop_flags.intersects(SymbolFlags::GET_ACCESSOR);
             const FLAGS: SymbolFlags = SymbolFlags::PROPERTY.union(SymbolFlags::OPTIONAL);
-            let decls = s.declarations().into();
+            let decls = s.decls.clone();
             let ty = if is_setonly_accessor {
                 self.undefined_ty
             } else {

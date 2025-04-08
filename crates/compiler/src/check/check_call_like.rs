@@ -434,32 +434,34 @@ impl<'cx> TyChecker<'cx> {
         };
         let mut has_error = false;
         for (i, arg) in args.iter().enumerate().take(arg_count) {
-            let param_ty = self.get_ty_at_pos(sig, i);
-            let arg_ty = self.check_expr_with_contextual_ty(arg, param_ty, None, check_mode);
-            let error_node = report_error.then(|| arg.id());
-            let check_arg_ty = if let Some(infer) = inference_context {
-                let mapper = self.inference(infer).non_fixing_mapper;
-                self.instantiate_ty(arg_ty, Some(mapper))
-            } else {
-                arg_ty
-            };
-            if self.check_type_related_to_and_optionally_elaborate(
-                check_arg_ty,
-                param_ty,
-                relation,
-                error_node,
-                Some(arg.id()),
-                |this, span, source, target| {
-                    let source = this.get_base_ty_of_literal_ty(source);
-                    Box::new(errors::ArgumentOfTyIsNotAssignableToParameterOfTy {
-                        span,
-                        arg_ty: this.print_ty(source).to_string(),
-                        param_ty: this.print_ty(target).to_string(),
-                    })
-                },
-            ) == Ternary::FALSE
-            {
-                has_error = true
+            if !matches!(arg.kind, ast::ExprKind::Omit(_)) {
+                let param_ty = self.get_ty_at_pos(sig, i);
+                let arg_ty = self.check_expr_with_contextual_ty(arg, param_ty, None, check_mode);
+                let error_node = report_error.then(|| arg.id());
+                let check_arg_ty = if let Some(infer) = inference_context {
+                    let mapper = self.inference(infer).non_fixing_mapper;
+                    self.instantiate_ty(arg_ty, Some(mapper))
+                } else {
+                    arg_ty
+                };
+                if self.check_type_related_to_and_optionally_elaborate(
+                    check_arg_ty,
+                    param_ty,
+                    relation,
+                    error_node,
+                    Some(arg.id()),
+                    |this, span, source, target| {
+                        let source = this.get_base_ty_of_literal_ty(source);
+                        Box::new(errors::ArgumentOfTyIsNotAssignableToParameterOfTy {
+                            span,
+                            arg_ty: this.print_ty(source).to_string(),
+                            param_ty: this.print_ty(target).to_string(),
+                        })
+                    },
+                ) == Ternary::FALSE
+                {
+                    has_error = true
+                }
             }
         }
         has_error

@@ -23,10 +23,10 @@ impl<'cx> TyChecker<'cx> {
         symbol: SymbolID,
     ) -> ty::IndexInfos<'cx> {
         let s = self.symbol(symbol);
-        let decls: thin_vec::ThinVec<_> = s.declarations().into();
-        if decls.is_empty() {
+        if s.decls.is_empty() {
             return self.empty_array();
         }
+        let decls: thin_vec::ThinVec<_> = s.decls.clone();
         // TODO: sibling_symbols;
         let mut index_infos = Vec::with_capacity(decls.len() * 2);
         let mut has_computed_number_property = false;
@@ -152,7 +152,7 @@ impl<'cx> TyChecker<'cx> {
                 let ty = self.get_type_of_symbol(p);
                 prop_tys.push(ty);
                 if self.is_symbol_with_computed_name(p) {
-                    let decl = self.symbol(p).declarations().first().copied().unwrap();
+                    let decl = self.symbol(p).decls.first().copied().unwrap();
                     components.push(decl);
                 }
             }
@@ -171,7 +171,7 @@ impl<'cx> TyChecker<'cx> {
     }
 
     fn is_symbol_with_computed_name(&mut self, symbol: SymbolID) -> bool {
-        let Some(first_decl) = self.symbol(symbol).declarations().first().copied() else {
+        let Some(first_decl) = self.symbol(symbol).decls.first().copied() else {
             return false;
         };
         self.p
@@ -182,10 +182,10 @@ impl<'cx> TyChecker<'cx> {
 
     fn is_symbol_with_numeric_name(&mut self, symbol: SymbolID) -> bool {
         let s = self.symbol(symbol);
-        if matches!(s.name(), SymbolName::EleNum(_)) {
+        if matches!(s.name, SymbolName::EleNum(_)) {
             return true;
         }
-        let Some(first_decl) = s.declarations().first().copied() else {
+        let Some(first_decl) = s.decls.first().copied() else {
             return false;
         };
         self.p
@@ -196,10 +196,10 @@ impl<'cx> TyChecker<'cx> {
 
     fn is_symbol_with_symbol_name(&mut self, symbol: SymbolID) -> bool {
         let s = self.symbol(symbol);
-        if matches!(s.name(), SymbolName::ESSymbol { .. }) {
+        if matches!(s.name, SymbolName::ESSymbol { .. }) {
             return true;
         }
-        let Some(first_decl) = s.declarations().first().copied() else {
+        let Some(first_decl) = s.decls.first().copied() else {
             return false;
         };
         self.p.node(first_decl).name().is_some_and(|name| {

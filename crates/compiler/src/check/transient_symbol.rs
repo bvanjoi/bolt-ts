@@ -1,88 +1,19 @@
 use bolt_ts_ast::{self as ast, NodeID};
 use bolt_ts_span::ModuleID;
+use rustc_hash::FxHashMap;
 
-use crate::bind::{Symbol, SymbolFlags, SymbolID, SymbolName};
+use crate::bind::{Symbol, SymbolFlags, SymbolID, SymbolName, SymbolTable, Symbols};
 use crate::ty;
 
 use super::TyChecker;
 use super::symbol_info::SymbolInfo;
 
-#[derive(Debug, Clone)]
-pub(crate) struct TransientSymbol<'cx> {
-    pub(super) name: SymbolName,
-    pub(super) flags: SymbolFlags,
-    pub(super) links: Option<crate::check::SymbolLinks<'cx>>,
-    pub(super) decls: thin_vec::ThinVec<NodeID>,
-    pub(super) value_declaration: Option<ast::NodeID>,
-    pub(crate) merged_id: Option<u32>,
-}
-
-#[derive(Debug, Default)]
-pub(crate) struct TransientSymbols<'cx>(Vec<TransientSymbol<'cx>>);
-
-impl<'cx> TransientSymbols<'cx> {
-    pub(crate) fn new(cap: usize) -> Self {
-        Self(Vec::with_capacity(cap))
-    }
-
-    pub(super) fn create_transient_symbol(&mut self, symbol: TransientSymbol<'cx>) -> SymbolID {
-        let len = self.0.len();
-        self.0.push(symbol);
-        SymbolID::new(ModuleID::TRANSIENT, len as u32)
-    }
-
-    pub(super) fn get(&self, symbol: SymbolID) -> Option<&TransientSymbol<'cx>> {
-        if symbol.module() == ModuleID::TRANSIENT {
-            let idx = symbol.index_as_usize();
-            debug_assert!(idx < self.0.len());
-            Some(unsafe { self.0.get_unchecked(idx) })
-        } else {
-            None
-        }
-    }
-
-    pub(crate) fn get_mut(&mut self, symbol: SymbolID) -> Option<&mut TransientSymbol<'cx>> {
-        if symbol.module() == ModuleID::TRANSIENT {
-            let idx = symbol.index_as_usize();
-            debug_assert!(idx < self.0.len());
-            Some(unsafe { self.0.get_unchecked_mut(idx) })
-        } else {
-            None
-        }
-    }
-}
-
-#[derive(Debug, Clone, Copy)]
-pub(super) enum CheckSymbol<'cx, 'checker> {
-    Transient(&'checker TransientSymbol<'cx>),
-    Normal(&'checker Symbol),
-}
-
-impl<'cx, 'checker> CheckSymbol<'cx, 'checker> {
-    pub(crate) fn flags(&self) -> SymbolFlags {
-        match self {
-            CheckSymbol::Transient(symbol) => symbol.flags,
-            CheckSymbol::Normal(symbol) => symbol.flags,
-        }
-    }
-    pub(crate) fn name(&self) -> SymbolName {
-        match self {
-            CheckSymbol::Transient(symbol) => symbol.name,
-            CheckSymbol::Normal(symbol) => symbol.name,
-        }
-    }
-    pub(crate) fn declarations(&self) -> &[ast::NodeID] {
-        match self {
-            CheckSymbol::Transient(s) => &s.decls,
-            CheckSymbol::Normal(s) => &s.decls,
-        }
-    }
-    pub(crate) fn value_declaration(&self) -> Option<ast::NodeID> {
-        match self {
-            CheckSymbol::Transient(s) => s.value_declaration,
-            CheckSymbol::Normal(s) => s.value_decl,
-        }
-    }
+pub(super) fn create_transient_symbol(symbols: &mut Symbols, symbol: Symbol) -> SymbolID {
+    debug_assert!(symbol.flags.intersects(SymbolFlags::TRANSIENT));
+    debug_assert_eq!(symbols.module(), ModuleID::TRANSIENT);
+    let id = symbols.insert(symbol);
+    debug_assert_eq!(id.module(), ModuleID::TRANSIENT);
+    id
 }
 
 impl<'cx> TyChecker<'cx> {
@@ -95,15 +26,24 @@ impl<'cx> TyChecker<'cx> {
         value_declaration: Option<ast::NodeID>,
     ) -> SymbolID {
         let symbol_flags = symbol_flags | SymbolFlags::TRANSIENT;
-        let symbol = TransientSymbol {
+        let symbol = Symbol {
             name,
             flags: symbol_flags,
-            links: Some(links),
             decls,
-            value_declaration,
+            value_decl: value_declaration,
+            members: SymbolTable(FxHashMap::default()),
+            exports: SymbolTable(FxHashMap::default()),
+            parent: None,
             merged_id: None,
+            export_symbol: None,
+            const_enum_only_module: None,
+            is_replaceable_by_method: None,
         };
-        self.transient_symbols.create_transient_symbol(symbol)
+        let symbols = self.get_mut_transient_symbols();
+        let id = create_transient_symbol(symbols, symbol);
+        debug_assert_eq!(id.index_as_usize(), self.transient_symbol_links.len());
+        self.transient_symbol_links.push(links);
+        id
     }
 
     pub(super) fn create_transient_symbol_with_ty(
@@ -112,14 +52,14 @@ impl<'cx> TyChecker<'cx> {
         ty: &'cx crate::ty::Ty<'cx>,
     ) -> SymbolID {
         let s = self.symbol(source);
-        let symbol_flags = s.flags();
-        let name = s.name();
+        let symbol_flags = s.flags;
+        let name = s.name;
         let check_flags = self.get_check_flags(source) & crate::ty::CheckFlags::READONLY;
         let links = crate::check::SymbolLinks::default()
             .with_check_flags(check_flags)
             .with_ty(ty)
             .with_target(source);
-        let value_declaration = s.value_declaration();
+        let value_declaration = s.value_decl;
         self.create_transient_symbol(
             name,
             symbol_flags,
@@ -129,13 +69,18 @@ impl<'cx> TyChecker<'cx> {
         )
     }
 
-    pub(super) fn get_transient(&self, symbol: SymbolID) -> Option<&TransientSymbol<'cx>> {
-        self.transient_symbols.get(symbol)
+    pub(super) fn get_transient(&self, symbol: SymbolID) -> Option<&Symbol> {
+        if symbol.module() != ModuleID::TRANSIENT {
+            return None;
+        }
+        Some(self.get_transient_symbols().get(symbol))
     }
 
     pub(super) fn get_check_flags(&self, symbol: SymbolID) -> crate::ty::CheckFlags {
-        if let Some(t) = self.get_transient(symbol) {
-            t.links.unwrap().get_check_flags().unwrap_or_default()
+        if self.get_transient(symbol).is_some() {
+            self.transient_symbol_links[symbol.index_as_usize()]
+                .get_check_flags()
+                .unwrap_or_default()
         } else {
             bitflags::Flags::empty()
         }
@@ -157,7 +102,7 @@ impl<'cx> TyChecker<'cx> {
         {
             return true;
         }
-        let symbol_flags = self.symbol(symbol).flags();
+        let symbol_flags = self.symbol(symbol).flags;
         symbol_flags.intersects(SymbolFlags::PROPERTY)
             && self
                 .decl_modifier_flags_from_symbol(symbol)

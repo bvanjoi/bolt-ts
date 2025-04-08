@@ -34,22 +34,6 @@ impl MergedSymbols {
             self.0.push(target);
         }
     }
-
-    pub fn record_merged_transient_symbol<'cx>(
-        &mut self,
-        target: SymbolID,
-        source: SymbolID,
-        symbols: &mut crate::check::TransientSymbols<'cx>,
-    ) {
-        let s = symbols.get_mut(source).unwrap();
-        if let Some(merged_id) = s.merged_id {
-            self.0[merged_id as usize] = target;
-        } else {
-            let next_merged_id = self.0.len();
-            s.merged_id = Some(next_merged_id as u32);
-            self.0.push(target);
-        }
-    }
 }
 
 struct MergeGlobalSymbol<'p, 'cx> {
@@ -195,26 +179,6 @@ pub trait MergeSymbol<'cx> {
         }
     }
 
-    fn merge_symbol_table_owner(
-        &mut self,
-        target: &mut SymbolTable,
-        source: &SymbolTable,
-        unidirectional: bool,
-    ) {
-        for (id, source_symbol) in &source.0 {
-            let target_symbol = target.0.get(&id).copied();
-            let merged = if let Some(target_symbol) = target_symbol {
-                self.merge_symbol(target_symbol, *source_symbol, unidirectional)
-            } else {
-                let symbols = &self.get_symbols(source_symbol.module());
-                self.get_merged_symbols()
-                    .get_merged_symbol(*source_symbol, symbols)
-            };
-            // TODO: parent
-            target.0.insert(*id, merged);
-        }
-    }
-
     fn merge_symbol(
         &mut self,
         target: SymbolID,
@@ -233,12 +197,9 @@ pub trait MergeSymbol<'cx> {
             if source == target {
                 return target;
             }
-            if t_flags.intersects(SymbolFlags::TRANSIENT) {
-                todo!()
+            if !t_flags.intersects(SymbolFlags::TRANSIENT) {
+                // TODO:
             }
-            // if !t.flags.intersects(SymbolFlags::TRANSIENT) {
-
-            // }
             if s_flags.intersects(SymbolFlags::VALUE_MODULE)
                 && t_flags.intersects(SymbolFlags::VALUE_MODULE)
                 && t.const_enum_only_module.is_some_and(|t| t)

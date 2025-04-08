@@ -1553,7 +1553,7 @@ impl<'cx> TyChecker<'cx> {
         };
 
         for right_prop in right_props {
-            let name = self.symbol(*right_prop).name();
+            let name = self.symbol(*right_prop).name;
             // TODO: skip private and project
             let symbol = self.get_spread_symbol(*right_prop, is_readonly);
             members.insert(name, symbol);
@@ -1561,17 +1561,17 @@ impl<'cx> TyChecker<'cx> {
 
         for left_prop in left_props {
             let left_prop_symbol = self.symbol(*left_prop);
-            let left_prop_symbol_name = left_prop_symbol.name();
-            let left_prop_symbol_flags = left_prop_symbol.flags();
+            let left_prop_symbol_name = left_prop_symbol.name;
+            let left_prop_symbol_flags = left_prop_symbol.flags;
             use std::collections::hash_map::Entry;
             match members.entry(left_prop_symbol_name) {
                 Entry::Occupied(mut occ) => {
                     let right_prop = *occ.get();
                     let s = self.symbol(right_prop);
-                    if s.flags().intersects(SymbolFlags::OPTIONAL) {
+                    if s.flags.intersects(SymbolFlags::OPTIONAL) {
                         let flags = SymbolFlags::PROPERTY
                             | left_prop_symbol_flags.intersection(SymbolFlags::OPTIONAL);
-                        let name = s.name();
+                        let name = s.name;
                         let links_ty = {
                             let left_ty = self.get_type_of_symbol(*left_prop);
                             let right_ty = self.get_type_of_symbol(right_prop);

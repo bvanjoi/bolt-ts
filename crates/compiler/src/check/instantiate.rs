@@ -886,7 +886,7 @@ impl<'cx> TyChecker<'cx> {
             let atom = self.apply_string_mapping(symbol, s.val);
             self.get_string_literal_type(atom)
         } else if let Some(t) = ty.kind.as_template_lit_ty() {
-            let symbol_name = self.symbol(symbol).name().expect_atom();
+            let symbol_name = self.symbol(symbol).name.expect_atom();
             match symbol_name {
                 keyword::INTRINSIC_TYPE_UPPERCASE => {
                     let texts = t
@@ -1007,7 +1007,7 @@ impl<'cx> TyChecker<'cx> {
         atom: bolt_ts_atom::AtomId,
     ) -> bolt_ts_atom::AtomId {
         let str = self.atoms.get(atom);
-        let ty = self.symbol(symbol).name().expect_atom();
+        let ty = self.symbol(symbol).name.expect_atom();
         let str = match ty {
             keyword::INTRINSIC_TYPE_UPPERCASE => Cow::Owned(str.to_uppercase()),
             keyword::INTRINSIC_TYPE_LOWERCASE => Cow::Owned(str.to_lowercase()),
@@ -1027,7 +1027,7 @@ impl<'cx> TyChecker<'cx> {
     ) -> &'cx ty::Ty<'cx> {
         let ty = self.get_declared_ty_of_symbol(symbol);
         if ty == self.intrinsic_marker_ty {
-            let name = self.symbol(symbol).name().expect_atom();
+            let name = self.symbol(symbol).name.expect_atom();
             if ty_args.len() == 1
                 && (name == keyword::INTRINSIC_TYPE_NOINFER
                     || name == keyword::INTRINSIC_TYPE_UPPERCASE

@@ -10,7 +10,7 @@ mod sig;
 use bolt_ts_ast::{self as ast};
 use bolt_ts_atom::AtomId;
 
-use crate::bind::{Symbol, SymbolID};
+use crate::bind::{Symbol, SymbolID, SymbolName};
 use crate::check::TyChecker;
 use crate::keyword;
 
@@ -269,7 +269,7 @@ impl<'cx> Ty<'cx> {
                 s.push('`');
                 s
             }
-            TyKind::UniqueESSymbol(n) => checker.atoms.get(n.escape_name).to_string(),
+            TyKind::UniqueESSymbol(_) => todo!(),
         }
     }
 
@@ -444,8 +444,7 @@ impl<'cx> TyKind<'cx> {
 #[derive(Debug, Clone, Copy)]
 pub struct UniqueESSymbolTy {
     pub symbol: SymbolID,
-    // TODO: use `SymbolName::EsSymbolName`
-    pub escape_name: AtomId,
+    pub escape_name: SymbolName,
 }
 
 #[derive(Debug, Clone, Copy)]
