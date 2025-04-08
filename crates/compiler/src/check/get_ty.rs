@@ -26,7 +26,7 @@ impl<'cx> TyChecker<'cx> {
 
     pub(crate) fn get_type_of_symbol(&mut self, id: SymbolID) -> &'cx Ty<'cx> {
         if let Some(t) = self.get_transient(id) {
-            if let Some(ty) = t.links.get_ty() {
+            if let Some(ty) = t.links.unwrap().get_ty() {
                 return ty;
             }
         };

@@ -11,12 +11,10 @@ use super::symbol_info::SymbolInfo;
 pub(crate) struct TransientSymbol<'cx> {
     pub(super) name: SymbolName,
     pub(super) flags: SymbolFlags,
-    pub(super) links: crate::check::SymbolLinks<'cx>,
+    pub(super) links: Option<crate::check::SymbolLinks<'cx>>,
     pub(super) decls: thin_vec::ThinVec<NodeID>,
     pub(super) value_declaration: Option<ast::NodeID>,
-    // TODO: flatten
-    pub(super) origin: Option<SymbolID>,
-    pub(crate) merged_id: Option<usize>,
+    pub(crate) merged_id: Option<u32>,
 }
 
 #[derive(Debug, Default)]
@@ -92,7 +90,6 @@ impl<'cx> TyChecker<'cx> {
         &mut self,
         name: SymbolName,
         symbol_flags: SymbolFlags,
-        origin: Option<SymbolID>,
         links: crate::check::SymbolLinks<'cx>,
         decls: thin_vec::ThinVec<ast::NodeID>,
         value_declaration: Option<ast::NodeID>,
@@ -101,8 +98,7 @@ impl<'cx> TyChecker<'cx> {
         let symbol = TransientSymbol {
             name,
             flags: symbol_flags,
-            links,
-            origin,
+            links: Some(links),
             decls,
             value_declaration,
             merged_id: None,
@@ -124,11 +120,9 @@ impl<'cx> TyChecker<'cx> {
             .with_ty(ty)
             .with_target(source);
         let value_declaration = s.value_declaration();
-
         self.create_transient_symbol(
             name,
             symbol_flags,
-            Some(source),
             links,
             thin_vec::thin_vec![],
             value_declaration,
@@ -141,7 +135,7 @@ impl<'cx> TyChecker<'cx> {
 
     pub(super) fn get_check_flags(&self, symbol: SymbolID) -> crate::ty::CheckFlags {
         if let Some(t) = self.get_transient(symbol) {
-            t.links.get_check_flags().unwrap_or_default()
+            t.links.unwrap().get_check_flags().unwrap_or_default()
         } else {
             bitflags::Flags::empty()
         }

@@ -734,7 +734,6 @@ impl<'cx> TyChecker<'cx> {
                         let property = this.create_transient_symbol(
                             name,
                             symbol_flags,
-                            None,
                             SymbolLinks::default()
                                 .with_ty(ty_param)
                                 .with_check_flags(check_flags),
@@ -760,7 +759,6 @@ impl<'cx> TyChecker<'cx> {
             let length_symbol = this.create_transient_symbol(
                 length_symbol_name,
                 SymbolFlags::PROPERTY,
-                None,
                 SymbolLinks::default()
                     .with_ty(ty)
                     .with_check_flags(check_flags),
@@ -1598,7 +1596,6 @@ impl<'cx> TyChecker<'cx> {
                         let result = self.create_transient_symbol(
                             name,
                             flags,
-                            None,
                             links,
                             thin_vec::thin_vec![],
                             None,

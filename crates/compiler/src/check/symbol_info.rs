@@ -75,7 +75,12 @@ pub trait SymbolInfo<'cx>: Sized {
 
     fn get_symbol_links(&mut self, symbol: SymbolID) -> &SymbolLinks<'cx> {
         if symbol.module() == bolt_ts_span::ModuleID::TRANSIENT {
-            &self.get_transient_symbols().get(symbol).unwrap().links
+            self.get_transient_symbols()
+                .get(symbol)
+                .unwrap()
+                .links
+                .as_ref()
+                .unwrap()
         } else {
             self.get_mut_symbol_links_map().entry(symbol).or_default()
         }
@@ -83,11 +88,12 @@ pub trait SymbolInfo<'cx>: Sized {
 
     fn get_mut_symbol_links(&mut self, symbol: SymbolID) -> &mut SymbolLinks<'cx> {
         if symbol.module() == bolt_ts_span::ModuleID::TRANSIENT {
-            &mut self
-                .get_mut_transient_symbols()
+            self.get_mut_transient_symbols()
                 .get_mut(symbol)
                 .unwrap()
                 .links
+                .as_mut()
+                .unwrap()
         } else {
             self.get_mut_symbol_links_map().get_mut(&symbol).unwrap()
         }
@@ -705,7 +711,6 @@ impl<'cx> super::TyChecker<'cx> {
                     let s = self.create_transient_symbol(
                         member_name,
                         SymbolFlags::empty(),
-                        None,
                         links,
                         thin_vec::thin_vec![],
                         None,
@@ -734,7 +739,6 @@ impl<'cx> super::TyChecker<'cx> {
         let target = self.create_transient_symbol(
             s.name(),
             s.flags(),
-            None,
             links,
             s.declarations().into(),
             s.value_declaration(),
@@ -770,7 +774,6 @@ impl<'cx> super::TyChecker<'cx> {
                     None => self.create_transient_symbol(
                         SymbolName::Index,
                         SymbolFlags::empty(),
-                        None,
                         SymbolLinks::default().with_check_flags(CheckFlags::LATE),
                         thin_vec::thin_vec![],
                         None,

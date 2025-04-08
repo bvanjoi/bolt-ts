@@ -201,7 +201,7 @@ pub struct Symbol {
     pub(super) members: SymbolTable,
     // TODO: use `Option<SymbolTable>`
     pub(super) exports: SymbolTable,
-    pub merged_id: Option<usize>,
+    pub merged_id: Option<u32>,
     pub parent: Option<SymbolID>,
     pub export_symbol: Option<SymbolID>,
     pub const_enum_only_module: Option<bool>,

@@ -391,17 +391,14 @@ impl<'cx> TyChecker<'cx> {
                         let symbol = TransientSymbol {
                             name: $name,
                             flags: $flags,
-                            links: $links.unwrap_or_default(),
-                            origin: None,
+                            links: Some($links),
                             decls: $declarations,
                             value_declaration: None,
                             merged_id: None,
                         };
                         let s = transient_symbols.create_transient_symbol(symbol);
                         assert_eq!(s, Symbol::$builtin_id);
-                        if let Some(l) = $links {
-                            symbol_links.insert(s, l);
-                        }
+                        symbol_links.insert(s, $links);
                         s
                     };
                 )*
@@ -409,12 +406,12 @@ impl<'cx> TyChecker<'cx> {
         }
         let global_this_symbol_name = SymbolName::Atom(keyword::IDENT_GLOBAL_THIS);
         make_builtin_symbol!({
-            (error_symbol,              SymbolName::Atom(keyword::IDENT_EMPTY),         SymbolFlags::empty(),       Some(SymbolLinks::default().with_ty(error_ty)),     ERR,                Default::default()),
-            (global_this_symbol,        global_this_symbol_name,                        SymbolFlags::empty(),       Some(SymbolLinks::default()
-                                                                                                                            .with_check_flags(CheckFlags::READONLY)),   GLOBAL_THIS,        Default::default()),
-            (arguments_symbol,          SymbolName::Atom(keyword::IDENT_ARGUMENTS),     SymbolFlags::PROPERTY,      None,                                               ARGUMENTS,          Default::default()),
-            (resolving_symbol,          SymbolName::Resolving,                          SymbolFlags::empty(),       None,                                               RESOLVING,          Default::default()),
-            (empty_ty_literal_symbol,   SymbolName::Type,                               SymbolFlags::TYPE_LITERAL,  None,                                               EMPTY_TYPE_LITERAL, Default::default()),
+            (error_symbol,              SymbolName::Atom(keyword::IDENT_EMPTY),         SymbolFlags::empty(),       SymbolLinks::default().with_ty(error_ty),           ERR,                Default::default()),
+            (global_this_symbol,        global_this_symbol_name,                        SymbolFlags::empty(),       SymbolLinks::default()
+                                                                                                                            .with_check_flags(CheckFlags::READONLY),    GLOBAL_THIS,        Default::default()),
+            (arguments_symbol,          SymbolName::Atom(keyword::IDENT_ARGUMENTS),     SymbolFlags::PROPERTY,      SymbolLinks::default(),                             ARGUMENTS,          Default::default()),
+            (resolving_symbol,          SymbolName::Resolving,                          SymbolFlags::empty(),       SymbolLinks::default(),                             RESOLVING,          Default::default()),
+            (empty_ty_literal_symbol,   SymbolName::Type,                               SymbolFlags::TYPE_LITERAL,  SymbolLinks::default(),                             EMPTY_TYPE_LITERAL, Default::default()),
         });
 
         let prev = global_symbols
@@ -1061,7 +1058,6 @@ impl<'cx> TyChecker<'cx> {
         let symbol = self.create_transient_symbol(
             SymbolName::Fn,
             SymbolFlags::FUNCTION,
-            None,
             SymbolLinks::default(),
             Default::default(), // TODO: use sig.decls
             None,               // TODO: use sig.value_decl
@@ -3139,7 +3135,7 @@ impl<'cx> TyChecker<'cx> {
                 links
             };
             let decls = self.symbol(prop).declarations().into();
-            self.create_transient_symbol(name, flags, None, links, decls, None)
+            self.create_transient_symbol(name, flags, links, decls, None)
         }
     }
 

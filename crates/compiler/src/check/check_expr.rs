@@ -542,7 +542,6 @@ impl<'cx> TyChecker<'cx> {
                 let prop = self.create_transient_symbol(
                     name,
                     SymbolFlags::PROPERTY | self.binder.symbol(member_symbol).flags,
-                    Some(member_symbol),
                     SymbolLinks::default()
                         .with_target(member_symbol)
                         .with_ty(ty),
@@ -744,7 +743,7 @@ impl<'cx> TyChecker<'cx> {
             } else {
                 links
             };
-            let result = self.create_transient_symbol(name, FLAGS, None, links, decls, None);
+            let result = self.create_transient_symbol(name, FLAGS, links, decls, None);
             let prev = members.insert(name, result);
             assert!(prev.is_none());
         }

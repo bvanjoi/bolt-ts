@@ -12,7 +12,7 @@ impl MergedSymbols {
     pub fn get_merged_symbol(&self, id: SymbolID, symbols: &super::Symbols) -> SymbolID {
         let s = symbols.get(id);
         if let Some(merged_id) = s.merged_id {
-            if let Some(merged) = self.0.get(merged_id).copied() {
+            if let Some(merged) = self.0.get(merged_id as usize).copied() {
                 return merged;
             }
         }
@@ -27,10 +27,10 @@ impl MergedSymbols {
     ) {
         let s = symbols.get_mut(source);
         if let Some(merged_id) = s.merged_id {
-            self.0[merged_id] = target;
+            self.0[merged_id as usize] = target;
         } else {
             let next_merged_id = self.0.len();
-            s.merged_id = Some(next_merged_id);
+            s.merged_id = Some(next_merged_id as u32);
             self.0.push(target);
         }
     }
@@ -43,10 +43,10 @@ impl MergedSymbols {
     ) {
         let s = symbols.get_mut(source).unwrap();
         if let Some(merged_id) = s.merged_id {
-            self.0[merged_id] = target;
+            self.0[merged_id as usize] = target;
         } else {
             let next_merged_id = self.0.len();
-            s.merged_id = Some(next_merged_id);
+            s.merged_id = Some(next_merged_id as u32);
             self.0.push(target);
         }
     }

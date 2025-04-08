@@ -171,7 +171,7 @@ impl<'cx> TyChecker<'cx> {
         let flags = s.flags();
         let decls = s.declarations().into();
         let value_declaration = s.value_declaration();
-        self.create_transient_symbol(name, flags, Some(symbol), links, decls, value_declaration)
+        self.create_transient_symbol(name, flags, links, decls, value_declaration)
     }
 
     fn instantiate_sigs(
@@ -1259,7 +1259,6 @@ impl<'cx> TyChecker<'cx> {
                         let symbol = this.create_transient_symbol(
                             symbol_name,
                             symbol_flags,
-                            None,
                             links,
                             declarations,
                             None,

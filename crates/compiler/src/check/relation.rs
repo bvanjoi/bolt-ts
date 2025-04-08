@@ -507,7 +507,7 @@ impl<'cx> TyChecker<'cx> {
 
         // TODO: declarations
         let result =
-            self.create_transient_symbol(name, symbol_flags, None, links, Default::default(), None);
+            self.create_transient_symbol(name, symbol_flags, links, Default::default(), None);
 
         Some(result)
     }
