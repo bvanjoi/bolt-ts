@@ -19,15 +19,14 @@ impl<'cx> TyChecker<'cx> {
     pub(super) fn create_transient_symbol(
         &mut self,
         name: SymbolName,
-        symbol_flags: SymbolFlags,
+        flags: SymbolFlags,
         links: crate::check::SymbolLinks<'cx>,
         decls: Option<thin_vec::ThinVec<ast::NodeID>>,
         value_declaration: Option<ast::NodeID>,
     ) -> SymbolID {
-        let symbol_flags = symbol_flags | SymbolFlags::TRANSIENT;
         let symbol = Symbol {
             name,
-            flags: symbol_flags,
+            flags,
             decls,
             value_decl: value_declaration,
             members: None,
@@ -51,15 +50,18 @@ impl<'cx> TyChecker<'cx> {
         ty: &'cx crate::ty::Ty<'cx>,
     ) -> SymbolID {
         let s = self.symbol(source);
-        let symbol_flags = s.flags;
-        let name = s.name;
         let check_flags = self.get_check_flags(source) & crate::ty::CheckFlags::READONLY;
         let links = crate::check::SymbolLinks::default()
             .with_check_flags(check_flags)
             .with_ty(ty)
             .with_target(source);
-        let value_declaration = s.value_decl;
-        self.create_transient_symbol(name, symbol_flags, links, None, value_declaration)
+        self.create_transient_symbol(
+            s.name,
+            s.flags | SymbolFlags::TRANSIENT,
+            links,
+            None,
+            s.value_decl,
+        )
     }
 
     pub(super) fn get_transient(&self, symbol: SymbolID) -> Option<&Symbol> {

@@ -115,32 +115,41 @@ impl ParserState<'_, '_> {
     }
 
     fn scan_number_fragment(&mut self) -> Vec<u8> {
-        let start = self.pos;
+        let mut start = self.pos;
         let mut allow_separator = false;
-        // let mut is_previous_token_separator = false;
+        let mut is_previous_token_separator = false;
+        let mut result = Vec::with_capacity(32);
         while let Some(ch) = self.ch() {
             if ch == b'_' {
+                self.token_flags |= TokenFlags::CONTAINS_SEPARATOR;
                 if allow_separator {
                     allow_separator = false;
-                    // is_previous_token_separator = true;
+                    is_previous_token_separator = true;
+                    result.extend_from_slice(&self.input[start..self.pos]);
                 } else {
-                    todo!()
+                    self.token_flags |= TokenFlags::CONTAINS_INVALID_ESCAPE;
+                    if is_previous_token_separator {
+                        todo!("error");
+                    } else {
+                        todo!("error");
+                    }
                 }
-                todo!()
-            }
-
-            if ch.is_ascii_digit() {
-                allow_separator = true;
-                // is_previous_token_separator = false;
                 self.pos += 1;
-                continue;
+                start = self.pos;
+            } else if ch.is_ascii_digit() {
+                allow_separator = true;
+                is_previous_token_separator = false;
+                self.pos += 1;
+            } else {
+                break;
             }
-            break;
         }
         if self.input[self.pos - 1] == b'_' {
-            todo!()
+            self.token_flags |= TokenFlags::CONTAINS_INVALID_ESCAPE;
+            todo!("error")
         }
-        self.input[start..self.pos].to_vec()
+        result.extend_from_slice(&self.input[start..self.pos]);
+        result
     }
 
     fn scan_digits(&mut self) -> (Vec<u8>, bool) {
@@ -217,7 +226,15 @@ impl ParserState<'_, '_> {
         }
 
         let result = if self.token_flags.intersects(TokenFlags::CONTAINS_SEPARATOR) {
-            todo!()
+            let mut result = main_frag;
+            if let Some(d) = decimal_frag {
+                result.push(b'.');
+                result.extend(d);
+            }
+            if let Some(s) = scientific_frag {
+                result.extend(s);
+            }
+            result
         } else {
             self.input[start..end].to_vec()
         };
@@ -969,6 +986,7 @@ impl ParserState<'_, '_> {
         }
     }
 
+    #[inline]
     fn scan_minimum_number_of_hex_digits(&mut self, count: usize, can_have_sep: bool) -> Vec<u8> {
         self.scan_hex_digits(count, true, can_have_sep)
     }
@@ -983,7 +1001,9 @@ impl ParserState<'_, '_> {
         let mut allow_sep = false;
         let mut is_prev_token_sep = false;
         while value_chars.len() < min_count || scan_as_many_as_possible {
-            let mut ch = self.ch_unchecked();
+            let Some(mut ch) = self.ch() else {
+                break;
+            };
             if can_have_sep && ch == b'_' {
                 if allow_sep {
                     allow_sep = false;

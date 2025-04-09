@@ -88,7 +88,7 @@ impl<'cx> TyChecker<'cx> {
     }
 
     fn _get_ty_of_var_or_param_or_prop(&mut self, symbol: SymbolID) -> &'cx ty::Ty<'cx> {
-        let s = self.binder.symbol(symbol);
+        let s = self.symbol(symbol);
         let flags = s.flags;
         if flags.intersects(SymbolFlags::PROTOTYPE) {
             // TODO: prototype type

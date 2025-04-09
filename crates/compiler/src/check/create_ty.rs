@@ -725,7 +725,7 @@ impl<'cx> TyChecker<'cx> {
                     combined_flags |= flag;
                     if !combined_flags.intersects(ElementFlags::VARIABLE) {
                         let name = SymbolName::EleNum(i.into());
-                        let symbol_flags = SymbolFlags::PROPERTY
+                        let symbol_flags = SymbolFlags::PROPERTY.union(SymbolFlags::TRANSIENT)
                             | if flag.intersects(ElementFlags::OPTIONAL) {
                                 SymbolFlags::OPTIONAL
                             } else {
@@ -758,7 +758,7 @@ impl<'cx> TyChecker<'cx> {
             };
             let length_symbol = this.create_transient_symbol(
                 length_symbol_name,
-                SymbolFlags::PROPERTY,
+                SymbolFlags::PROPERTY.union(SymbolFlags::TRANSIENT),
                 SymbolLinks::default()
                     .with_ty(ty)
                     .with_check_flags(check_flags),
@@ -1569,7 +1569,7 @@ impl<'cx> TyChecker<'cx> {
                     let right_prop = *occ.get();
                     let s = self.symbol(right_prop);
                     if s.flags.intersects(SymbolFlags::OPTIONAL) {
-                        let flags = SymbolFlags::PROPERTY
+                        let flags = SymbolFlags::PROPERTY.union(SymbolFlags::TRANSIENT)
                             | left_prop_symbol_flags.intersection(SymbolFlags::OPTIONAL);
                         let name = s.name;
                         let links_ty = {

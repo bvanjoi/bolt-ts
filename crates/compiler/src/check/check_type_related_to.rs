@@ -432,7 +432,7 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
         {
             assert!(!unmatched.is_empty());
             if report_error {
-                let symbol = self.c.binder.symbol(target_symbol);
+                let symbol = self.c.symbol(target_symbol);
                 let decl = symbol.decls.as_ref().unwrap()[0];
                 let target_span = if symbol.flags.intersects(SymbolFlags::CLASS) {
                     self.c

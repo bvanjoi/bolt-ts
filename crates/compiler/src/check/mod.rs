@@ -1053,7 +1053,7 @@ impl<'cx> TyChecker<'cx> {
         }
         let symbol = self.create_transient_symbol(
             SymbolName::Fn,
-            SymbolFlags::FUNCTION,
+            SymbolFlags::FUNCTION.union(SymbolFlags::TRANSIENT),
             SymbolLinks::default(),
             Default::default(), // TODO: use sig.decls
             None,               // TODO: use sig.value_decl
@@ -2067,7 +2067,7 @@ impl<'cx> TyChecker<'cx> {
                 .iter()
                 .all(|t| self.is_object_ty_with_inferable_index(t))
         } else if let Some(symbol) = ty.symbol() {
-            let flags = self.binder.symbol(symbol).flags;
+            let flags = self.symbol(symbol).flags;
             flags.intersects(
                 SymbolFlags::OBJECT_LITERAL
                     .union(SymbolFlags::TYPE_LITERAL)
@@ -3114,7 +3114,8 @@ impl<'cx> TyChecker<'cx> {
             } else {
                 CheckFlags::empty()
             };
-            let flags = SymbolFlags::PROPERTY | prop_flags.intersection(SymbolFlags::OPTIONAL);
+            let flags = SymbolFlags::PROPERTY.union(SymbolFlags::TRANSIENT)
+                | prop_flags.intersection(SymbolFlags::OPTIONAL);
             let name = self.symbol(prop).name;
             let name_ty = self.get_symbol_links(prop).get_name_ty();
             let ty = if is_setonly_accessor {

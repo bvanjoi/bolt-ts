@@ -158,7 +158,13 @@ impl<'cx> TyChecker<'cx> {
         let flags = s.flags;
         let decls = s.decls.clone();
         let value_declaration = s.value_decl;
-        let id = self.create_transient_symbol(name, flags, links, decls, value_declaration);
+        let id = self.create_transient_symbol(
+            name,
+            flags | SymbolFlags::TRANSIENT,
+            links,
+            decls,
+            value_declaration,
+        );
         id
     }
 
@@ -461,16 +467,15 @@ impl<'cx> TyChecker<'cx> {
         let mapper: Option<&'cx dyn ty::TyMap<'cx>>;
         let base_tys = self.get_base_tys(source);
 
-        let base_ctor_ty = if ty.symbol().is_some_and(|symbol| {
-            self.binder
-                .symbol(symbol)
-                .flags
-                .intersects(SymbolFlags::CLASS)
-        }) {
-            Some(self.get_base_constructor_type_of_class(ty))
-        } else {
-            None
-        };
+        let base_ctor_ty = ty
+            .symbol()
+            .is_some_and(|symbol| {
+                self.binder
+                    .symbol(symbol)
+                    .flags
+                    .intersects(SymbolFlags::CLASS)
+            })
+            .then(|| self.get_base_constructor_type_of_class(ty));
 
         let mut members;
         let mut call_sigs;
@@ -539,10 +544,6 @@ impl<'cx> TyChecker<'cx> {
                 .filter(|info| self.find_index_info(&index_infos, info.key_ty).is_none())
                 .collect::<Vec<_>>();
             index_infos.extend(inherited_index_infos);
-        }
-
-        if self.get_ty_links(ty.id).get_structured_members().is_some() {
-            return;
         }
 
         let props = self.get_props_from_members(&members);
@@ -1222,7 +1223,7 @@ impl<'cx> TyChecker<'cx> {
                             });
                         let late_flag = modifiers_prop
                             .map_or(ty::CheckFlags::default(), |m| this.get_late_flag(m));
-                        let symbol_flags = SymbolFlags::PROPERTY
+                        let symbol_flags = SymbolFlags::PROPERTY.union(SymbolFlags::TRANSIENT)
                             | if is_optional {
                                 SymbolFlags::OPTIONAL
                             } else {

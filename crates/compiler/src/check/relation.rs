@@ -473,7 +473,8 @@ impl<'cx> TyChecker<'cx> {
             prop_tys.push(ty);
         }
 
-        let symbol_flags = SymbolFlags::PROPERTY | optional_flag.unwrap_or(SymbolFlags::empty());
+        let symbol_flags = SymbolFlags::PROPERTY.union(SymbolFlags::TRANSIENT)
+            | optional_flag.unwrap_or(SymbolFlags::empty());
         let links = SymbolLinks::default()
             .with_containing_ty(containing_ty)
             .with_check_flags(CheckFlags::empty());

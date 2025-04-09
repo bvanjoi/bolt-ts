@@ -749,7 +749,7 @@ impl<'cx> super::TyChecker<'cx> {
                         .with_name_ty(ty);
                     let s = self.create_transient_symbol(
                         member_name,
-                        SymbolFlags::empty(),
+                        SymbolFlags::TRANSIENT,
                         links,
                         None,
                         None,
@@ -775,8 +775,13 @@ impl<'cx> super::TyChecker<'cx> {
     ) -> SymbolID {
         let s = self.symbol(symbol);
         let links = get_links(s);
-        let target =
-            self.create_transient_symbol(s.name, s.flags, links, s.decls.clone(), s.value_decl);
+        let target = self.create_transient_symbol(
+            s.name,
+            s.flags | SymbolFlags::TRANSIENT,
+            links,
+            s.decls.clone(),
+            s.value_decl,
+        );
         let symbols = if symbol.module() == bolt_ts_span::ModuleID::TRANSIENT {
             &mut self.binder.bind_results.last_mut().unwrap().symbols
         } else {
@@ -802,7 +807,7 @@ impl<'cx> super::TyChecker<'cx> {
                     }),
                     None => self.create_transient_symbol(
                         SymbolName::Index,
-                        SymbolFlags::empty(),
+                        SymbolFlags::TRANSIENT,
                         SymbolLinks::default().with_check_flags(CheckFlags::LATE),
                         None,
                         None,

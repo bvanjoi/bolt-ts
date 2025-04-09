@@ -324,15 +324,6 @@ impl SymbolID {
         self.opt_decl(binder)
             .unwrap_or_else(|| panic!("{:#?}", binder.symbol(*self).flags))
     }
-
-    pub(crate) fn new(module: ModuleID, index: u32) -> Self {
-        assert_eq!(
-            module,
-            ModuleID::TRANSIENT,
-            "transient is only used during check"
-        );
-        Self { module, index }
-    }
 }
 
 pub struct Symbols {
