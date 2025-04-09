@@ -75,7 +75,7 @@ impl<'cx> TyChecker<'cx> {
         if !self.push_ty_resolution(ResolutionKey::DeclaredType(symbol)) {
             return self.error_ty;
         }
-        let decl = self.binder.symbol(symbol).decls[0];
+        let decl = self.binder.symbol(symbol).decls.as_ref().unwrap()[0];
         let decl = self.p.node(decl).expect_type_decl();
         let mut ty = self.get_ty_from_type_node(decl.ty);
         if !self.pop_ty_resolution().has_cycle() {
@@ -129,7 +129,7 @@ impl<'cx> TyChecker<'cx> {
             return resolved_base_ctor_ty;
         }
         let symbol = ty.symbol().unwrap();
-        let decl = self.binder.symbol(symbol).decls[0];
+        let decl = self.binder.symbol(symbol).decls.as_ref().unwrap()[0];
         let Some(extends) = self.get_effective_base_type_node(decl) else {
             return self.undefined_ty;
         };
@@ -257,19 +257,23 @@ impl<'cx> TyChecker<'cx> {
             s.value_decl.unwrap()
         } else {
             s.decls
-                .iter()
-                .find(|decl| {
-                    let n = self.p.node(**decl);
-                    if n.is_interface_decl() {
-                        true
-                    } else if let Some(v) = n.as_var_decl() {
-                        v.init
-                            .is_some_and(|init| matches!(init.kind, ast::ExprKind::Fn(_)))
-                    } else {
-                        false
-                    }
+                .as_ref()
+                .and_then(|decls| {
+                    decls
+                        .iter()
+                        .find(|decl| {
+                            let n = self.p.node(**decl);
+                            if n.is_interface_decl() {
+                                true
+                            } else if let Some(v) = n.as_var_decl() {
+                                v.init
+                                    .is_some_and(|init| matches!(init.kind, ast::ExprKind::Fn(_)))
+                            } else {
+                                false
+                            }
+                        })
+                        .copied()
                 })
-                .copied()
                 .unwrap()
         };
         let ty_params = self.get_outer_ty_params(decl, false);

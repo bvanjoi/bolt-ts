@@ -58,7 +58,7 @@ impl<'cx> TyChecker<'cx> {
     }
 
     pub(super) fn is_simple_type_related_to(
-        &self,
+        &mut self,
         source: &'cx Ty<'cx>,
         target: &'cx Ty<'cx>,
         relation: RelationKind,
@@ -67,14 +67,14 @@ impl<'cx> TyChecker<'cx> {
         let s = source.flags;
         let t = target.flags;
         let strict_null_checks = *self.config.strict_null_checks();
-        let is_unknown_like_union_ty = || {
+        let is_unknown_like_union_ty = |this: &mut Self| {
             strict_null_checks
                 && target.kind.as_union().is_some_and(|u| {
                     // TODO: cache
                     u.tys.len() >= 3
                         && u.tys[0].flags.intersects(TypeFlags::UNDEFINED)
                         && u.tys[1].flags.intersects(TypeFlags::NULL)
-                        && u.tys.iter().any(|ty| self.is_empty_anonymous_object_ty(ty))
+                        && u.tys.iter().any(|ty| this.is_empty_anonymous_object_ty(ty))
                 })
         };
         if t.intersects(TypeFlags::ANY)
@@ -117,7 +117,7 @@ impl<'cx> TyChecker<'cx> {
                             && source.kind.as_number_lit().is_some_and(|s| {
                                 target.kind.as_number_lit().is_some_and(|t| s.val == t.val)
                             })))
-                || is_unknown_like_union_ty()
+                || is_unknown_like_union_ty(self)
         } else {
             false
         }
@@ -473,7 +473,8 @@ impl<'cx> TyChecker<'cx> {
             prop_tys.push(ty);
         }
 
-        let symbol_flags = SymbolFlags::PROPERTY | optional_flag.unwrap_or(SymbolFlags::empty());
+        let symbol_flags = SymbolFlags::PROPERTY.union(SymbolFlags::TRANSIENT)
+            | optional_flag.unwrap_or(SymbolFlags::empty());
         let links = SymbolLinks::default()
             .with_containing_ty(containing_ty)
             .with_check_flags(CheckFlags::empty());

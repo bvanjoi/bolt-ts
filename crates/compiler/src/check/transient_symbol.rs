@@ -1,8 +1,7 @@
 use bolt_ts_ast::{self as ast, NodeID};
 use bolt_ts_span::ModuleID;
-use rustc_hash::FxHashMap;
 
-use crate::bind::{Symbol, SymbolFlags, SymbolID, SymbolName, SymbolTable, Symbols};
+use crate::bind::{Symbol, SymbolFlags, SymbolID, SymbolName, Symbols};
 use crate::ty;
 
 use super::TyChecker;
@@ -20,19 +19,18 @@ impl<'cx> TyChecker<'cx> {
     pub(super) fn create_transient_symbol(
         &mut self,
         name: SymbolName,
-        symbol_flags: SymbolFlags,
+        flags: SymbolFlags,
         links: crate::check::SymbolLinks<'cx>,
-        decls: thin_vec::ThinVec<ast::NodeID>,
+        decls: Option<thin_vec::ThinVec<ast::NodeID>>,
         value_declaration: Option<ast::NodeID>,
     ) -> SymbolID {
-        let symbol_flags = symbol_flags | SymbolFlags::TRANSIENT;
         let symbol = Symbol {
             name,
-            flags: symbol_flags,
+            flags,
             decls,
             value_decl: value_declaration,
-            members: SymbolTable(FxHashMap::default()),
-            exports: SymbolTable(FxHashMap::default()),
+            members: None,
+            exports: None,
             parent: None,
             merged_id: None,
             export_symbol: None,
@@ -52,20 +50,17 @@ impl<'cx> TyChecker<'cx> {
         ty: &'cx crate::ty::Ty<'cx>,
     ) -> SymbolID {
         let s = self.symbol(source);
-        let symbol_flags = s.flags;
-        let name = s.name;
         let check_flags = self.get_check_flags(source) & crate::ty::CheckFlags::READONLY;
         let links = crate::check::SymbolLinks::default()
             .with_check_flags(check_flags)
             .with_ty(ty)
             .with_target(source);
-        let value_declaration = s.value_decl;
         self.create_transient_symbol(
-            name,
-            symbol_flags,
+            s.name,
+            s.flags | SymbolFlags::TRANSIENT,
             links,
-            thin_vec::thin_vec![],
-            value_declaration,
+            None,
+            s.value_decl,
         )
     }
 
@@ -89,7 +84,10 @@ impl<'cx> TyChecker<'cx> {
     pub(crate) fn get_symbol_decl(&self, symbol: SymbolID) -> Option<NodeID> {
         if symbol.module() == ModuleID::TRANSIENT {
             let symbol = self.get_transient(symbol).unwrap();
-            symbol.decls.first().copied()
+            symbol
+                .decls
+                .as_ref()
+                .and_then(|decls| decls.first().copied())
         } else {
             symbol.opt_decl(self.binder)
         }

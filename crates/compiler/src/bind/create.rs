@@ -1,12 +1,9 @@
-use rustc_hash::FxHashMap;
-
 use super::symbol::{SymbolFlags, SymbolTableLocation};
 use super::{BinderState, Symbol, SymbolID, SymbolName, Symbols, errors};
 use crate::bind::SymbolTable;
 use crate::parser::ParseResult;
 
 use bolt_ts_ast as ast;
-use bolt_ts_utils::fx_hashmap_with_capacity;
 
 pub(crate) fn set_value_declaration(
     symbol: SymbolID,
@@ -51,7 +48,7 @@ impl BinderState<'_, '_, '_> {
     pub(super) fn declare_symbol(
         &mut self,
         name: Option<SymbolName>,
-        table: SymbolTableLocation,
+        location: SymbolTableLocation,
         parent: Option<SymbolID>,
         node: ast::NodeID,
         includes: SymbolFlags,
@@ -76,8 +73,8 @@ impl BinderState<'_, '_, '_> {
         };
         if let Some(name) = name {
             let old = self
-                .get_symbol_table_by_location(table)
-                .and_then(|t| t.get(&name))
+                .get_symbol_table_by_location(location)
+                .and_then(|t| t.0.get(&name))
                 .copied();
             if includes.intersects(SymbolFlags::CLASSIFIABLE) {
                 // todo!()
@@ -116,9 +113,13 @@ impl BinderState<'_, '_, '_> {
                 }
             } else {
                 symbol = self.create_symbol(name, includes);
-                if let Some(table) = self.get_symbol_table_by_location(table) {
-                    let prev = table.insert(name, symbol);
+                if let Some(table) = self.get_symbol_table_by_location(location) {
+                    let prev = table.0.insert(name, symbol);
                     assert!(prev.is_none());
+                } else {
+                    let mut table = SymbolTable::new(32);
+                    table.0.insert(name, symbol);
+                    self.init_symbol_table_by_location(location, table);
                 }
 
                 if is_replaceable_by_method {
@@ -141,24 +142,16 @@ impl BinderState<'_, '_, '_> {
         flags: SymbolFlags,
     ) {
         let s = self.symbols.get_mut(symbol);
+        let has_exports = s.exports.is_some();
+        let has_members = s.members.is_some();
         s.flags |= flags;
-        s.decls.push(node);
-
-        // if flags.intersects(
-        //     SymbolFlags::CLASS | SymbolFlags::ENUM | SymbolFlags::MODULE | SymbolFlags::VARIABLE,
-        // ) && m.exports.is_none()
-        // {
-        //     m.exports = Some(Default::default());
-        // }
-        // if flags.intersects(
-        //     SymbolFlags::CLASS
-        //         | SymbolFlags::INTERFACE
-        //         | SymbolFlags::TYPE_LITERAL
-        //         | SymbolFlags::OBJECT_LITERAL,
-        // ) && m.members.is_none()
-        // {
-        //     m.members = Some(Default::default());
-        // }
+        if let Some(decls) = s.decls.as_mut() {
+            decls.push(node);
+        } else {
+            let mut decls = thin_vec::ThinVec::with_capacity(4);
+            decls.push(node);
+            s.decls = Some(decls);
+        }
 
         if s.const_enum_only_module.is_some_and(|y| y)
             && s.flags.intersects(
@@ -168,6 +161,27 @@ impl BinderState<'_, '_, '_> {
             )
         {
             s.const_enum_only_module = Some(false);
+        }
+
+        if !has_exports
+            && flags.intersects(
+                SymbolFlags::CLASS
+                    .union(SymbolFlags::ENUM)
+                    .union(SymbolFlags::MODULE)
+                    .union(SymbolFlags::VARIABLE),
+            )
+        {
+            self.symbols.get_mut(symbol).exports = Some(SymbolTable::new(32));
+        }
+        if !has_members
+            && flags.intersects(
+                SymbolFlags::CLASS
+                    .union(SymbolFlags::INTERFACE)
+                    .union(SymbolFlags::TYPE_LITERAL)
+                    .union(SymbolFlags::OBJECT_LITERAL),
+            )
+        {
+            self.symbols.get_mut(symbol).members = Some(SymbolTable::new(32));
         }
 
         if flags.intersects(SymbolFlags::VALUE) {
@@ -180,42 +194,64 @@ impl BinderState<'_, '_, '_> {
     }
 
     pub(super) fn create_symbol(&mut self, name: SymbolName, flags: SymbolFlags) -> SymbolID {
-        let s = Symbol::new(name, flags, 64);
+        let s = Symbol::new(name, flags);
         self.symbols.insert(s)
-    }
-
-    fn opt_members(
-        &mut self,
-        container: ast::NodeID,
-        is_export: bool,
-    ) -> Option<&mut FxHashMap<super::SymbolName, super::SymbolID>> {
-        let container = self.final_res.get(&container).copied()?;
-        let container = self.symbols.get_mut(container);
-        let map = if is_export {
-            &mut container.exports.0
-        } else {
-            &mut container.members.0
-        };
-        Some(map)
     }
 
     fn get_symbol_table_by_location(
         &mut self,
         location: SymbolTableLocation,
-    ) -> Option<&mut FxHashMap<SymbolName, SymbolID>> {
+    ) -> Option<&mut SymbolTable> {
+        fn inner<'a>(
+            this: &'a mut BinderState,
+            container: ast::NodeID,
+            is_export: bool,
+        ) -> Option<&'a mut SymbolTable> {
+            let container = this.final_res.get(&container).copied()?;
+            let container = this.symbols.get_mut(container);
+            if is_export {
+                container.exports.as_mut()
+            } else {
+                container.members.as_mut()
+            }
+        }
         use super::symbol::SymbolTableLocationKind;
         match location.kind {
-            SymbolTableLocationKind::SymbolMember => self.opt_members(location.container, false),
-            SymbolTableLocationKind::SymbolExports => self.opt_members(location.container, true),
+            SymbolTableLocationKind::SymbolMember => inner(self, location.container, false),
+            SymbolTableLocationKind::SymbolExports => inner(self, location.container, true),
             SymbolTableLocationKind::ContainerLocals => {
                 assert!(self.p.node(location.container).has_locals());
-                Some(
-                    &mut self
-                        .locals
-                        .entry(location.container)
-                        .or_insert_with(|| SymbolTable(fx_hashmap_with_capacity(64)))
-                        .0,
-                )
+                self.locals.get_mut(&location.container)
+            }
+        }
+    }
+
+    fn init_symbol_table_by_location(&mut self, location: SymbolTableLocation, table: SymbolTable) {
+        fn inner(
+            this: &mut BinderState,
+            container: ast::NodeID,
+            is_export: bool,
+            table: SymbolTable,
+        ) {
+            let Some(container) = this.final_res.get(&container).copied() else {
+                return;
+            };
+            let container = this.symbols.get_mut(container);
+            let prev = if is_export {
+                container.exports.replace(table)
+            } else {
+                container.members.replace(table)
+            };
+            assert!(prev.is_none());
+        }
+        use super::symbol::SymbolTableLocationKind;
+        match location.kind {
+            SymbolTableLocationKind::SymbolMember => inner(self, location.container, false, table),
+            SymbolTableLocationKind::SymbolExports => inner(self, location.container, true, table),
+            SymbolTableLocationKind::ContainerLocals => {
+                assert!(self.p.node(location.container).has_locals());
+                let prev = self.locals.insert(location.container, table);
+                assert!(prev.is_none());
             }
         }
     }

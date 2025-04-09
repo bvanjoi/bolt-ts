@@ -7,9 +7,12 @@ use bolt_ts_ast as ast;
 
 impl<'cx> TyChecker<'cx> {
     pub(super) fn get_index_symbol(&mut self, symbol: SymbolID) -> Option<SymbolID> {
-        // TODO: self.binder.symbol(symbol).members.is_none() {}
-        let members = self.get_members_of_symbol(symbol);
-        members.0.get(&SymbolName::Index).copied()
+        if self.binder.symbol(symbol).members.is_some() {
+            let members = self.get_members_of_symbol(symbol);
+            members.0.get(&SymbolName::Index).copied()
+        } else {
+            None
+        }
     }
 
     pub(super) fn get_index_infos_of_symbol(&mut self, symbol: SymbolID) -> ty::IndexInfos<'cx> {
@@ -23,10 +26,9 @@ impl<'cx> TyChecker<'cx> {
         symbol: SymbolID,
     ) -> ty::IndexInfos<'cx> {
         let s = self.symbol(symbol);
-        if s.decls.is_empty() {
+        let Some(decls) = s.decls.clone() else {
             return self.empty_array();
-        }
-        let decls: thin_vec::ThinVec<_> = s.decls.clone();
+        };
         // TODO: sibling_symbols;
         let mut index_infos = Vec::with_capacity(decls.len() * 2);
         let mut has_computed_number_property = false;
@@ -152,7 +154,14 @@ impl<'cx> TyChecker<'cx> {
                 let ty = self.get_type_of_symbol(p);
                 prop_tys.push(ty);
                 if self.is_symbol_with_computed_name(p) {
-                    let decl = self.symbol(p).decls.first().copied().unwrap();
+                    let decl = self
+                        .symbol(p)
+                        .decls
+                        .as_ref()
+                        .unwrap()
+                        .first()
+                        .copied()
+                        .unwrap();
                     components.push(decl);
                 }
             }
@@ -171,7 +180,13 @@ impl<'cx> TyChecker<'cx> {
     }
 
     fn is_symbol_with_computed_name(&mut self, symbol: SymbolID) -> bool {
-        let Some(first_decl) = self.symbol(symbol).decls.first().copied() else {
+        let Some(first_decl) = self
+            .symbol(symbol)
+            .decls
+            .as_ref()
+            .and_then(|decls| decls.first())
+            .copied()
+        else {
             return false;
         };
         self.p
@@ -185,7 +200,7 @@ impl<'cx> TyChecker<'cx> {
         if matches!(s.name, SymbolName::EleNum(_)) {
             return true;
         }
-        let Some(first_decl) = s.decls.first().copied() else {
+        let Some(first_decl) = s.decls.as_ref().and_then(|decls| decls.first()).copied() else {
             return false;
         };
         self.p
@@ -199,7 +214,7 @@ impl<'cx> TyChecker<'cx> {
         if matches!(s.name, SymbolName::ESSymbol { .. }) {
             return true;
         }
-        let Some(first_decl) = s.decls.first().copied() else {
+        let Some(first_decl) = s.decls.as_ref().and_then(|decls| decls.first()).copied() else {
             return false;
         };
         self.p.node(first_decl).name().is_some_and(|name| {

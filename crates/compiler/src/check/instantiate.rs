@@ -548,7 +548,7 @@ impl<'cx> TyChecker<'cx> {
         let decl = if let Some(refer) = ty.kind.as_object_reference() {
             refer.node.unwrap()
         } else if let Some(s) = ty.symbol() {
-            if let Some(decl) = self.binder.symbol(s).opt_decl() {
+            if let Some(decl) = self.symbol(s).opt_decl() {
                 decl
             } else {
                 // TODO: delete return

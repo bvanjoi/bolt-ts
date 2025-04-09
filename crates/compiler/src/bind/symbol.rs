@@ -194,13 +194,10 @@ impl SymbolFlags {
 pub struct Symbol {
     pub name: SymbolName,
     pub flags: SymbolFlags,
-    // TODO: use `Option<thin_vec::ThinVec<NodeID>`
-    pub decls: thin_vec::ThinVec<NodeID>,
+    pub decls: Option<thin_vec::ThinVec<NodeID>>,
     pub value_decl: Option<NodeID>,
-    // TODO: use `Option<SymbolTable>`
-    pub members: SymbolTable,
-    // TODO: use `Option<SymbolTable>`
-    pub exports: SymbolTable,
+    pub members: Option<SymbolTable>,
+    pub exports: Option<SymbolTable>,
     pub merged_id: Option<u32>,
     pub parent: Option<SymbolID>,
     pub export_symbol: Option<SymbolID>,
@@ -209,14 +206,14 @@ pub struct Symbol {
 }
 
 impl Symbol {
-    pub fn new(name: SymbolName, flags: SymbolFlags, cap: usize) -> Self {
+    pub fn new(name: SymbolName, flags: SymbolFlags) -> Self {
         Self {
             name,
             flags,
-            decls: Default::default(),
+            decls: None,
             value_decl: None,
-            members: SymbolTable(fx_hashmap_with_capacity(cap)),
-            exports: SymbolTable(fx_hashmap_with_capacity(cap)),
+            members: None,
+            exports: None,
             parent: None,
             merged_id: None,
             export_symbol: None,
@@ -254,27 +251,31 @@ impl Symbol {
     }
 
     pub fn get_decl_of_alias_symbol(&self, p: &Parser) -> Option<NodeID> {
-        self.decls
-            .iter()
-            .rev()
-            .find(|decl| p.is_alias_symbol_decl(**decl))
-            .copied()
+        self.decls.as_ref().and_then(|decls| {
+            decls
+                .iter()
+                .rev()
+                .find(|decl| p.is_alias_symbol_decl(**decl))
+                .copied()
+        })
     }
 
-    pub fn members(&self) -> &SymbolTable {
-        &self.members
+    pub fn members(&self) -> Option<&SymbolTable> {
+        self.members.as_ref()
     }
-    pub fn exports(&self) -> &SymbolTable {
-        &self.exports
+    pub fn exports(&self) -> Option<&SymbolTable> {
+        self.exports.as_ref()
     }
     pub fn get_declaration_of_kind(
         &self,
         f: impl Fn(bolt_ts_ast::NodeID) -> bool,
     ) -> Option<bolt_ts_ast::NodeID> {
-        self.decls.iter().find(|decl| f(**decl)).copied()
+        self.decls
+            .as_ref()
+            .and_then(|decls| decls.iter().find(|decl| f(**decl)).copied())
     }
     pub fn opt_decl(&self) -> Option<NodeID> {
-        self.decls.first().copied()
+        self.decls.as_ref().and_then(|decls| decls.first()).copied()
     }
     pub fn is_shorthand_ambient_module(&self, p: &Parser) -> bool {
         self.value_decl.is_some_and(|value_decl| {
@@ -322,15 +323,6 @@ impl SymbolID {
     pub fn decl(&self, binder: &super::Binder) -> NodeID {
         self.opt_decl(binder)
             .unwrap_or_else(|| panic!("{:#?}", binder.symbol(*self).flags))
-    }
-
-    pub(crate) fn new(module: ModuleID, index: u32) -> Self {
-        assert_eq!(
-            module,
-            ModuleID::TRANSIENT,
-            "transient is only used during check"
-        );
-        Self { module, index }
     }
 }
 

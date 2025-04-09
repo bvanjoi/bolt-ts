@@ -718,7 +718,9 @@ impl<'cx> Resolver<'cx, '_, '_> {
         symbol: SymbolID,
         container: ast::NodeID,
     ) -> bool {
-        let decls = &self.symbol(symbol).decls;
+        let Some(decls) = &self.symbol(symbol).decls else {
+            return false;
+        };
         for decl in decls {
             let decl = *decl;
             if self.p.node(decl).is_ty_param() {
@@ -834,7 +836,8 @@ pub(super) fn resolve_symbol_by_ident<'a, 'cx>(
                         && resolver.p.node_flags(id).intersects(NodeFlags::AMBIENT))
                 {
                     // TODO: default
-                    if let Some(module_export) = module_exports.0.get(&key).copied() {
+                    if let Some(module_export) = module_exports.and_then(|e| e.0.get(&key).copied())
+                    {
                         if resolver
                             .symbol(module_export)
                             .flags
@@ -845,7 +848,7 @@ pub(super) fn resolve_symbol_by_ident<'a, 'cx>(
                     }
                 }
 
-                if let Some(module_export) = module_exports.0.get(&key).copied() {
+                if let Some(module_export) = module_exports.and_then(|e| e.0.get(&key).copied()) {
                     if resolver
                         .symbol(module_export)
                         .flags
@@ -862,8 +865,7 @@ pub(super) fn resolve_symbol_by_ident<'a, 'cx>(
                 if let Some(res) = resolver
                     .symbol(resolver.symbol_of_decl(id))
                     .members()
-                    .0
-                    .get(&key)
+                    .and_then(|m| m.0.get(&key))
                     .copied()
                 {
                     if resolver

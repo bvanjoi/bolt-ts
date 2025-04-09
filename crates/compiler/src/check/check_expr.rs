@@ -541,7 +541,8 @@ impl<'cx> TyChecker<'cx> {
                 let value_declaration = member_s.value_decl;
                 let prop = self.create_transient_symbol(
                     name,
-                    SymbolFlags::PROPERTY | self.binder.symbol(member_symbol).flags,
+                    SymbolFlags::PROPERTY.union(SymbolFlags::TRANSIENT)
+                        | self.binder.symbol(member_symbol).flags,
                     SymbolLinks::default()
                         .with_target(member_symbol)
                         .with_ty(ty),
@@ -720,7 +721,9 @@ impl<'cx> TyChecker<'cx> {
             let name = s.name;
             let is_setonly_accessor = prop_flags.intersects(SymbolFlags::SET_ACCESSOR)
                 && !prop_flags.intersects(SymbolFlags::GET_ACCESSOR);
-            const FLAGS: SymbolFlags = SymbolFlags::PROPERTY.union(SymbolFlags::OPTIONAL);
+            const FLAGS: SymbolFlags = SymbolFlags::PROPERTY
+                .union(SymbolFlags::OPTIONAL)
+                .union(SymbolFlags::TRANSIENT);
             let decls = s.decls.clone();
             let ty = if is_setonly_accessor {
                 self.undefined_ty

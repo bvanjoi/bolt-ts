@@ -388,7 +388,7 @@ impl<'cx> TyChecker<'cx> {
             ( { $( ($symbol_name: ident, $name: expr, $flags: expr, $links: expr, $builtin_id: ident) ),* $(,)? } ) => {
                 $(
                     let $symbol_name = {
-                        let mut symbol = Symbol::new($name, $flags.union(SymbolFlags::TRANSIENT), 0);
+                        let symbol = Symbol::new($name, $flags.union(SymbolFlags::TRANSIENT));
                         let s = create_transient_symbol(&mut transient_symbols, symbol);
                         assert_eq!(s.index_as_usize(), transient_symbol_links.len());
                         transient_symbol_links.push($links.unwrap_or_default());
@@ -831,7 +831,9 @@ impl<'cx> TyChecker<'cx> {
             s: &Symbol,
             f: impl Fn(ast::Node<'cx>) -> bool,
         ) -> Option<ast::NodeID> {
-            s.decls.iter().find(|id| f(this.p.node(**id))).copied()
+            s.decls
+                .as_ref()
+                .and_then(|decls| decls.iter().find(|id| f(this.p.node(**id))).copied())
         }
         if let Some(value_declaration) = s.value_decl {
             let decl = is_write
@@ -1051,7 +1053,7 @@ impl<'cx> TyChecker<'cx> {
         }
         let symbol = self.create_transient_symbol(
             SymbolName::Fn,
-            SymbolFlags::FUNCTION,
+            SymbolFlags::FUNCTION.union(SymbolFlags::TRANSIENT),
             SymbolLinks::default(),
             Default::default(), // TODO: use sig.decls
             None,               // TODO: use sig.value_decl
@@ -2065,7 +2067,7 @@ impl<'cx> TyChecker<'cx> {
                 .iter()
                 .all(|t| self.is_object_ty_with_inferable_index(t))
         } else if let Some(symbol) = ty.symbol() {
-            let flags = self.binder.symbol(symbol).flags;
+            let flags = self.symbol(symbol).flags;
             flags.intersects(
                 SymbolFlags::OBJECT_LITERAL
                     .union(SymbolFlags::TYPE_LITERAL)
@@ -2080,11 +2082,12 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
-    pub(crate) fn is_empty_anonymous_object_ty(&self, ty: &'cx ty::Ty<'cx>) -> bool {
+    pub(crate) fn is_empty_anonymous_object_ty(&mut self, ty: &'cx ty::Ty<'cx>) -> bool {
         ty.kind.as_object_anonymous().is_some_and(|_| {
             if let Some(symbol) = ty.symbol() {
                 let s = self.symbol(symbol);
-                s.flags.intersects(SymbolFlags::TYPE_LITERAL) && s.members().0.is_empty() // TODO: change `s.members()` to `self.get_members_of_symbol`
+                s.flags.intersects(SymbolFlags::TYPE_LITERAL)
+                    && self.get_members_of_symbol(symbol).0.is_empty()
             } else if let Some(ty_link) = self.ty_links.get(&ty.id) {
                 if let Some(t) = ty_link.get_structured_members() {
                     ty != self.any_fn_ty()
@@ -3018,7 +3021,9 @@ impl<'cx> TyChecker<'cx> {
 
         let tp = ty.kind.expect_param();
         let decl = {
-            let decls = &self.symbol(tp.symbol).decls;
+            let Some(decls) = &self.symbol(tp.symbol).decls else {
+                return true;
+            };
             if decls.len() != 1 {
                 return true;
             }
@@ -3109,7 +3114,8 @@ impl<'cx> TyChecker<'cx> {
             } else {
                 CheckFlags::empty()
             };
-            let flags = SymbolFlags::PROPERTY | prop_flags.intersection(SymbolFlags::OPTIONAL);
+            let flags = SymbolFlags::PROPERTY.union(SymbolFlags::TRANSIENT)
+                | prop_flags.intersection(SymbolFlags::OPTIONAL);
             let name = self.symbol(prop).name;
             let name_ty = self.get_symbol_links(prop).get_name_ty();
             let ty = if is_setonly_accessor {
