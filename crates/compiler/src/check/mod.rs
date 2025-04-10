@@ -43,6 +43,7 @@ mod instantiate;
 mod instantiation_ty_map;
 mod is_context_sensitive;
 mod is_deeply_nested_type;
+mod is_this_less;
 mod is_valid;
 mod links;
 mod merge;
@@ -3227,6 +3228,16 @@ impl<'cx> TyChecker<'cx> {
                     .iter()
                     .any(|decl| self.has_skip_direct_inference_flags(decl))
             })
+    }
+
+    fn infer_ty_for_homomorphic_map_ty(
+        &mut self,
+        source: &'cx ty::Ty<'cx>,
+        target: &'cx ty::Ty<'cx>,
+        constraint_ty: &'cx ty::Ty<'cx>,
+    ) -> Option<&'cx ty::Ty<'cx>> {
+        // TODO: cache
+        self.create_reverse_mapped_ty(source, target, constraint_ty)
     }
 }
 

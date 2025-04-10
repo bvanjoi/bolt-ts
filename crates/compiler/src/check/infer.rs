@@ -1573,17 +1573,6 @@ impl<'cx> InferenceState<'cx, '_> {
         }
     }
 
-    fn infer_ty_for_homomorphic_map_ty(
-        &mut self,
-        source: &'cx ty::Ty<'cx>,
-        target: &'cx ty::Ty<'cx>,
-        constraint_ty: &'cx ty::Ty<'cx>,
-    ) -> Option<&'cx ty::Ty<'cx>> {
-        // TODO: cache
-        self.c
-            .create_reverse_mapped_ty(source, target, constraint_ty)
-    }
-
     fn infer_to_mapped_ty(
         &mut self,
         source: &'cx ty::Ty<'cx>,
@@ -1608,7 +1597,8 @@ impl<'cx> InferenceState<'cx, '_> {
                 if !info.is_fixed && !self.c.is_from_inference_block_source(source) {
                     let infer_target = info.ty_param;
                     if let Some(inferred_ty) =
-                        self.infer_ty_for_homomorphic_map_ty(source, target, constraint_ty)
+                        self.c
+                            .infer_ty_for_homomorphic_map_ty(source, target, constraint_ty)
                     {
                         let priority = if source
                             .get_object_flags()

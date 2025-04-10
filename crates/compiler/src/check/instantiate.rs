@@ -526,11 +526,37 @@ impl<'cx> TyChecker<'cx> {
         ty
     }
 
+    fn instantiate_reverse_mapped_ty(
+        &mut self,
+        ty: &'cx ty::Ty<'cx>,
+        mapper: &'cx dyn ty::TyMap<'cx>,
+    ) -> &'cx ty::Ty<'cx> {
+        let r = ty.kind.expect_object_reverse_mapped();
+        let inner_mapped_ty = self.instantiate_ty(r.mapped_ty, Some(mapper));
+        if !inner_mapped_ty.kind.is_object_mapped() {
+            return ty;
+        };
+        let inner_index_ty = self.instantiate_ty(r.constraint_ty, Some(mapper));
+        if !inner_index_ty.kind.is_index_ty() {
+            return ty;
+        };
+        let s = self.instantiate_ty(r.source, Some(mapper));
+        self.infer_ty_for_homomorphic_map_ty(s, inner_mapped_ty, inner_index_ty)
+            .unwrap_or(ty)
+    }
+
     fn get_object_ty_instantiation(
         &mut self,
         ty: &'cx ty::Ty<'cx>,
         mapper: &'cx dyn ty::TyMap<'cx>,
     ) -> &'cx ty::Ty<'cx> {
+        if !ty.get_object_flags().intersects(
+            ObjectFlags::REFERENCE
+                .union(ObjectFlags::ANONYMOUS)
+                .union(ObjectFlags::MAPPED),
+        ) {
+            return ty;
+        }
         if let Some(refer) = ty.kind.as_object_reference() {
             if refer.node.is_none() {
                 let Some(resolved_ty_args) = self.ty_links[&ty.id].get_resolved_ty_args() else {
@@ -543,6 +569,8 @@ impl<'cx> TyChecker<'cx> {
                     self.create_normalized_ty_reference(refer.target, new_ty_args)
                 };
             }
+        } else if ty.kind.is_object_reverse_mapped() {
+            return self.instantiate_reverse_mapped_ty(ty, mapper);
         }
 
         let decl = if let Some(refer) = ty.kind.as_object_reference() {

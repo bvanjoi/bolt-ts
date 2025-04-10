@@ -848,9 +848,10 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
             self.structured_ty_related_to_worker(source, target, report_error, intersection_state);
         if self.relation != RelationKind::Identity
             && result == Ternary::FALSE
-            && (source.flags.intersects(TypeFlags::INTERSECTION)
-                || source.flags.intersects(TypeFlags::TYPE_PARAMETER)
-                    && target.flags.intersects(TypeFlags::UNION))
+            && (source
+                .flags
+                .intersects(TypeFlags::INTERSECTION.union(TypeFlags::TYPE_PARAMETER))
+                && target.flags.intersects(TypeFlags::UNION))
         {
             let tys = if let Some(i) = source.kind.as_intersection() {
                 i.tys

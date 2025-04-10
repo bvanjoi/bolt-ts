@@ -5,10 +5,10 @@ use rustc_hash::FxHashMap;
 use super::check_type_related_to::RecursionFlags;
 use super::create_ty::IntersectionFlags;
 use super::cycle_check::{Cycle, ResolutionKey};
-use super::infer::{InferenceFlags, InferenceInfo, InferencePriority};
+use super::infer::InferenceFlags;
 use super::links::SigLinks;
 use super::symbol_info::SymbolInfo;
-use super::{InferenceContext, SymbolLinks, Ternary, TyChecker, errors};
+use super::{SymbolLinks, Ternary, TyChecker, errors};
 use crate::bind::{Symbol, SymbolFlags, SymbolID, SymbolName, SymbolTable};
 use crate::ty::{self, CheckFlags, ObjectFlags, SigID, SigKind, TypeFlags};
 
@@ -41,55 +41,6 @@ impl<'cx> TyChecker<'cx> {
             return false;
         }
         true
-    }
-
-    fn is_this_less_ty_param(&self, ty_param: &ast::TyParam<'cx>) -> bool {
-        let constraint = self.get_effective_constraint_of_ty_param(ty_param);
-        constraint.is_none_or(|c| c.is_this_less())
-    }
-
-    fn is_this_less_fn_like_decl(&self, node: ast::NodeID) -> bool {
-        let n = self.p.node(node);
-        if n.is_class_ctor() || n.is_ctor_sig_decl() {
-            true
-        } else if let Some(ret_ty) = self.get_effective_ret_type_node(node) {
-            ret_ty.is_this_less()
-                && n.params()
-                    .unwrap_or_default()
-                    .iter()
-                    .all(|param| ast::Node::ParamDecl(param).is_this_less_var_like_decl())
-                && self
-                    .get_effective_ty_param_decls(node)
-                    .iter()
-                    .all(|ty_param| self.is_this_less_ty_param(ty_param))
-        } else {
-            false
-        }
-    }
-
-    fn is_this_less(&self, symbol: SymbolID) -> bool {
-        let Some(decls) = &self.symbol(symbol).decls else {
-            return false;
-        };
-        if decls.len() != 1 {
-            return false;
-        }
-        let decl = decls[0];
-        let decl = self.p.node(decl);
-        use ast::Node::*;
-        match decl {
-            PropSignature(_) | ObjectPropMember(_) | ClassPropElem(_) => {
-                decl.is_this_less_var_like_decl()
-            }
-            MethodSignature(_)
-            | ObjectMethodMember(_)
-            | ClassMethodElem(_)
-            | CtorSigDecl(_)
-            | ClassCtor(_)
-            | GetterDecl(_)
-            | SetterDecl(_) => self.is_this_less_fn_like_decl(decls[0]),
-            _ => false,
-        }
     }
 
     fn create_instantiated_symbol_table(
@@ -258,7 +209,7 @@ impl<'cx> TyChecker<'cx> {
         self.push_error(Box::new(error));
     }
 
-    fn get_interface_base_ty_nodes(
+    pub(super) fn get_interface_base_ty_nodes(
         &self,
         decl: ast::NodeID,
     ) -> Option<&'cx [&'cx ast::ReferTy<'cx>]> {
@@ -1301,7 +1252,6 @@ impl<'cx> TyChecker<'cx> {
         let constraint_ty = self.get_constraint_ty_from_mapped_ty(ty);
         let (name_ty, should_link_prop_decls, template_ty) = {
             let target = mapped_ty.target.unwrap_or(ty);
-            assert!(target.kind.is_object_mapped());
             let name_ty = self.get_name_ty_from_mapped_ty(target);
             let should_link_prop_decls =
                 self.get_mapped_ty_name_ty_kind(target) != ty::MappedTyNameTyKind::Remapping;
