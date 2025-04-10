@@ -1,7 +1,6 @@
 use super::BinderState;
 use super::ModuleInstanceState;
 use super::NodeQuery;
-use super::SymbolTable;
 use super::symbol::SymbolFlags;
 use super::symbol::SymbolTableLocation;
 use super::symbol::{SymbolID, SymbolName};

@@ -1665,4 +1665,49 @@ impl<'cx> TyChecker<'cx> {
             }
         }
     }
+
+    fn is_partially_inferable_ty(&mut self, ty: &'cx ty::Ty<'cx>) -> bool {
+        !ty.get_object_flags()
+            .intersects(ObjectFlags::NON_INFERRABLE_TYPE)
+            || ty.is_object_literal()
+                && self.get_props_of_ty(ty).iter().any(|&prop| {
+                    let t = self.get_type_of_symbol(prop);
+                    self.is_partially_inferable_ty(t)
+                })
+            || ty.as_tuple().is_some_and(|_| {
+                self.get_element_tys(ty)
+                    .iter()
+                    .any(|t| self.is_partially_inferable_ty(t))
+            })
+    }
+
+    pub fn create_reverse_mapped_ty(
+        &mut self,
+        source: &'cx ty::Ty<'cx>,
+        target: &'cx ty::Ty<'cx>,
+        constraint_ty: &'cx ty::Ty<'cx>,
+    ) -> Option<&'cx ty::Ty<'cx>> {
+        assert!(target.kind.is_object_mapped());
+        assert!(constraint_ty.kind.is_index_ty());
+        if !(self.get_index_info_of_ty(source, self.string_ty).is_some()
+            || !self.get_props_of_ty(source).is_empty() && self.is_partially_inferable_ty(source))
+        {
+            return None;
+        };
+        if source.kind.is_array(self) {
+            todo!()
+            // let first_ty_arg = self.get_ty_arguments(source).first();
+        } else if source.is_tuple() {
+            todo!()
+        }
+        let reversed = self.alloc(ty::ReverseMappedTy {
+            source,
+            mapped_ty: target,
+            constraint_ty,
+        });
+        Some(self.create_object_ty(
+            ty::ObjectTyKind::ReversedMapped(reversed),
+            ObjectFlags::REVERSE_MAPPED.union(ObjectFlags::ANONYMOUS),
+        ))
+    }
 }

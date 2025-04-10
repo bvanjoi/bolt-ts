@@ -493,12 +493,13 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
         }
 
         let props = self.c.properties_of_ty(target);
-        let numeric_names_only = source.is_tuple() && target.is_tuple();
         for target_prop in props {
             let s = self.c.symbol(*target_prop);
             let name = s.name;
             if !s.flags.intersects(SymbolFlags::PROTOTYPE)
-                && (!numeric_names_only || name.is_numeric() || name.expect_atom() == IDENT_LENGTH)
+                && (!(source.is_tuple() && target.is_tuple())
+                    || name.is_numeric()
+                    || name.expect_atom() == IDENT_LENGTH)
             {
                 if let Some(source_prop) = self.c.get_prop_of_ty(source, name) {
                     if !source_prop.eq(target_prop) {

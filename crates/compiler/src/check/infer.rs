@@ -94,7 +94,7 @@ impl<'cx> InferenceContext<'cx> {
     fn create(
         checker: &TyChecker<'cx>,
         id: InferenceContextId,
-        ty_params: ty::Tys<'cx>,
+        ty_params: &[&'cx ty::Ty<'cx>],
         sig: Option<&'cx ty::Sig<'cx>>,
         flags: InferenceFlags,
     ) -> Self {
@@ -118,7 +118,7 @@ impl<'cx> InferenceContext<'cx> {
 impl<'cx> TyChecker<'cx> {
     pub fn create_inference_context(
         &mut self,
-        ty_params: ty::Tys<'cx>,
+        ty_params: &[&'cx ty::Ty<'cx>],
         sig: Option<&'cx ty::Sig<'cx>>,
         flags: InferenceFlags,
     ) -> InferenceContextId {
@@ -1573,7 +1573,74 @@ impl<'cx> InferenceState<'cx, '_> {
         }
     }
 
+    fn infer_ty_for_homomorphic_map_ty(
+        &mut self,
+        source: &'cx ty::Ty<'cx>,
+        target: &'cx ty::Ty<'cx>,
+        constraint_ty: &'cx ty::Ty<'cx>,
+    ) -> Option<&'cx ty::Ty<'cx>> {
+        // TODO: cache
+        self.c
+            .create_reverse_mapped_ty(source, target, constraint_ty)
+    }
+
+    fn infer_to_mapped_ty(
+        &mut self,
+        source: &'cx ty::Ty<'cx>,
+        target: &'cx ty::Ty<'cx>,
+        target_mapped_ty: &'cx ty::MappedTy<'cx>,
+        constraint_ty: &'cx ty::Ty<'cx>,
+    ) -> bool {
+        assert!(std::ptr::eq(
+            target.kind.expect_object_mapped(),
+            target_mapped_ty
+        ));
+        if let Some(tys) = constraint_ty.kind.tys_of_union_or_intersection() {
+            let mut result = false;
+            for ty in tys {
+                result = self.infer_to_mapped_ty(source, target, target_mapped_ty, ty);
+            }
+            result
+        } else if let Some(index_ty) = constraint_ty.kind.as_index_ty() {
+            let inference_info = self.get_inference_info_for_ty(index_ty.ty);
+            if let Some(inference_info) = inference_info {
+                let info = self.c.inference_info(self.inference, inference_info);
+                if !info.is_fixed && !self.c.is_from_inference_block_source(source) {
+                    let infer_target = info.ty_param;
+                    if let Some(inferred_ty) =
+                        self.infer_ty_for_homomorphic_map_ty(source, target, constraint_ty)
+                    {
+                        let priority = if source
+                            .get_object_flags()
+                            .intersects(ObjectFlags::NON_INFERRABLE_TYPE)
+                        {
+                            InferencePriority::PARTIAL_HOMOMORPHIC_MAPPED_TYPE
+                        } else {
+                            InferencePriority::HOMOMORPHIC_MAPPED_TYPE
+                        };
+                        self.infer_with_priority(inferred_ty, infer_target, priority);
+                    }
+                }
+            }
+            true
+        } else if let Some(param) = constraint_ty.kind.as_param() {
+            // TODO:
+            false
+        } else {
+            false
+        }
+    }
+
     fn infer_from_object_tys(&mut self, source: &'cx ty::Ty<'cx>, target: &'cx ty::Ty<'cx>) {
+        if let Some(target_mapped_ty) = target.kind.as_object_mapped() {
+            if target_mapped_ty.decl.name_ty.is_none() {
+                let constraint_ty = self.c.get_constraint_ty_from_mapped_ty(target);
+                if self.infer_to_mapped_ty(source, target, target_mapped_ty, constraint_ty) {
+                    return;
+                }
+            }
+        }
+
         if !self.c.tys_definitely_unrelated(source, target) {
             if source.is_tuple() || source.kind.is_array(self.c) {
                 if let Some(target_tuple) = target.as_tuple() {

@@ -2,11 +2,13 @@ use bolt_ts_ast::{self as ast, MappedTyModifiers};
 use bolt_ts_span::Span;
 use rustc_hash::FxHashMap;
 
+use super::check_type_related_to::RecursionFlags;
 use super::create_ty::IntersectionFlags;
 use super::cycle_check::{Cycle, ResolutionKey};
+use super::infer::{InferenceFlags, InferenceInfo, InferencePriority};
 use super::links::SigLinks;
 use super::symbol_info::SymbolInfo;
-use super::{SymbolLinks, Ternary, TyChecker, errors};
+use super::{InferenceContext, SymbolLinks, Ternary, TyChecker, errors};
 use crate::bind::{Symbol, SymbolFlags, SymbolID, SymbolName, SymbolTable};
 use crate::ty::{self, CheckFlags, ObjectFlags, SigID, SigKind, TypeFlags};
 
@@ -738,6 +740,141 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
+    fn infer_reverse_mapped_ty(
+        &mut self,
+        source: &'cx ty::Ty<'cx>,
+        target: &'cx ty::Ty<'cx>,
+        constraint: &'cx ty::Ty<'cx>,
+    ) -> Option<&'cx ty::Ty<'cx>> {
+        let constraint_index_ty = constraint.kind.expect_index_ty();
+        // TODO: cache
+        self.reverse_mapped_source_stack.push(source);
+        self.reverse_mapped_target_stack.push(target);
+        let save_expanding_flags = self.reverse_expanding_flags;
+        if self.is_deeply_nested_type(source, self.reverse_mapped_source_stack.as_ref(), 2) {
+            self.reverse_expanding_flags |= RecursionFlags::SOURCE;
+        }
+
+        if self.is_deeply_nested_type(source, self.reverse_mapped_target_stack.as_ref(), 2) {
+            self.reverse_expanding_flags |= RecursionFlags::TARGET;
+        }
+        let ty = if self.reverse_expanding_flags != RecursionFlags::BOTH {
+            let index_ty = self.get_ty_param_from_mapped_ty(target);
+            let ty_param = self.get_indexed_access_ty(constraint_index_ty.ty, index_ty, None, None);
+            let template_ty = self.get_template_ty_from_mapped_ty(target);
+            let inference =
+                self.create_inference_context(&[ty_param], None, InferenceFlags::empty());
+            self.infer_tys(inference, source, template_ty, None, false);
+            assert!(self.inference(inference).inferences.len() == 1);
+            Some(
+                self.get_ty_from_inference(inference, 0)
+                    .unwrap_or(self.unknown_ty),
+            )
+        } else {
+            None
+        };
+
+        self.reverse_mapped_target_stack.push(target);
+        self.reverse_mapped_source_stack.push(source);
+        self.reverse_expanding_flags = save_expanding_flags;
+        // TODO: cache
+        ty
+    }
+
+    fn get_limited_constraint(
+        &mut self,
+        ty: &'cx ty::ReverseMappedTy<'cx>,
+    ) -> Option<&'cx ty::Ty<'cx>> {
+        let c = self.get_constraint_ty_from_mapped_ty(ty.mapped_ty);
+        if !c
+            .flags
+            .intersects(TypeFlags::UNION.union(TypeFlags::INTERSECTION))
+        {
+            return None;
+        }
+        None
+        // TODO: origin;
+    }
+
+    fn resolve_reverse_mapped_ty_members(&mut self, ty: &'cx ty::Ty<'cx>) {
+        let r = ty.kind.expect_object_reverse_mapped();
+        let modifiers = r.mapped_ty.kind.expect_object_mapped().decl.get_modifiers();
+        let readonly_mask = modifiers.intersects(MappedTyModifiers::INCLUDE_READONLY);
+        let optional_mask = if modifiers.intersects(MappedTyModifiers::INCLUDE_OPTIONAL) {
+            SymbolFlags::empty()
+        } else {
+            SymbolFlags::OPTIONAL
+        };
+        let index_infos =
+            if let Some(index_info) = self.get_index_info_of_ty(r.source, self.string_ty) {
+                let val_ty = self
+                    .infer_reverse_mapped_ty(index_info.val_ty, r.mapped_ty, r.constraint_ty)
+                    .unwrap_or(self.unknown_ty);
+                let index_info = self.alloc(ty::IndexInfo {
+                    symbol: Symbol::ERR,
+                    key_ty: self.string_ty,
+                    val_ty,
+                    is_readonly: readonly_mask && index_info.is_readonly,
+                });
+                self.alloc(vec![index_info])
+            } else {
+                self.empty_array()
+            };
+
+        let props = self.get_props_of_ty(r.source);
+        let mut members = SymbolTable::new(props.len());
+        let limited_constraint = self.get_limited_constraint(r);
+
+        for prop in props {
+            if let Some(limited_constraint) = limited_constraint {
+                todo!()
+            };
+            let prop = *prop;
+            let check_flags = CheckFlags::REVERSE_MAPPED
+                | if readonly_mask && self.is_readonly_symbol(prop) {
+                    CheckFlags::READONLY
+                } else {
+                    CheckFlags::empty()
+                };
+            let p = self.symbol(prop);
+            let name = p.name;
+            let flags = (SymbolFlags::PROPERTY & optional_mask) | SymbolFlags::TRANSIENT;
+            let decls = p.decls.clone();
+            let value_decl = p.value_decl;
+            let prop_ty = self.get_type_of_symbol(prop);
+            let links = SymbolLinks::default()
+                .with_prop_ty(prop_ty)
+                .with_check_flags(check_flags);
+            let links = if let Some(named_ty) = self.get_symbol_links(prop).get_name_ty() {
+                links.with_name_ty(named_ty)
+            } else {
+                links
+            };
+            let inferred_prop = self.create_transient_symbol(name, flags, links, decls, value_decl);
+            if r.constraint_ty.kind.as_indexed_access().is_some_and(|t| {
+                t.object_ty.flags.intersects(TypeFlags::TYPE_PARAMETER)
+                    && t.index_ty.flags.intersects(TypeFlags::TYPE_PARAMETER)
+            }) {
+                let new_ty_param = r.constraint_ty.kind.expect_indexed_access().object_ty;
+                // TODO:
+            } else {
+                // TODO:
+            }
+            members.0.insert(name, inferred_prop);
+        }
+
+        let m = self.alloc(ty::StructuredMembers {
+            members: self.alloc(members.0),
+            base_tys: &[],
+            base_ctor_ty: None,
+            call_sigs: self.empty_array(),
+            ctor_sigs: self.empty_array(),
+            index_infos,
+            props: self.empty_array(),
+        });
+        self.get_mut_ty_links(ty.id).set_structured_members(m);
+    }
+
     fn resolve_anonymous_type_members(&mut self, ty: &'cx ty::Ty<'cx>) {
         let a = ty.kind.expect_object_anonymous();
         let symbol_id = a.symbol.unwrap();
@@ -786,7 +923,7 @@ impl<'cx> TyChecker<'cx> {
                 .get(&SymbolName::New)
                 .map(|s| self.get_sigs_of_symbol(*s))
                 .unwrap_or_default();
-            let index_infos = self.get_index_infos_of_symbol(a.symbol.unwrap());
+            let index_infos = self.get_index_infos_of_symbol(symbol_id);
             let props = self.get_props_from_members(&members.0);
             let m = self.alloc(ty::StructuredMembers {
                 members: &members.0,
@@ -802,7 +939,7 @@ impl<'cx> TyChecker<'cx> {
         }
 
         // TODO: remove this clone.
-        let mut members = self.get_exports_of_symbol(a.symbol.unwrap()).0.clone();
+        let mut members = self.get_exports_of_symbol(symbol_id).0.clone();
         let index_infos: ty::IndexInfos<'cx>;
         if symbol_id == self.global_this_symbol {
             // TODO:
@@ -811,11 +948,11 @@ impl<'cx> TyChecker<'cx> {
         let call_sigs;
         let mut ctor_sigs: ty::Sigs<'cx>;
 
-        let symbol = self.symbol(a.symbol.unwrap());
+        let symbol = self.symbol(symbol_id);
         let symbol_flags = symbol.flags;
 
         if symbol_flags.intersects(SymbolFlags::FUNCTION.union(SymbolFlags::METHOD)) {
-            call_sigs = self.get_sigs_of_symbol(a.symbol.unwrap());
+            call_sigs = self.get_sigs_of_symbol(symbol_id);
             ctor_sigs = &[];
             index_infos = &[];
             // TODO: `constructor_sigs`, `index_infos`
@@ -830,7 +967,7 @@ impl<'cx> TyChecker<'cx> {
                 ctor_sigs = &[];
             }
             // let mut base_ctor_index_info = None;
-            let class_ty = self.get_declared_ty_of_symbol(a.symbol.unwrap());
+            let class_ty = self.get_declared_ty_of_symbol(symbol_id);
             let base_ctor_ty = self.get_base_constructor_type_of_class(class_ty);
             if base_ctor_ty.kind.is_object() || base_ctor_ty.kind.is_type_variable() {
                 let props = self.get_props_of_ty(base_ctor_ty);
@@ -1349,10 +1486,13 @@ impl<'cx> TyChecker<'cx> {
             return;
         }
         if ty.kind.is_object() {
-            if ty.get_object_flags().intersects(ObjectFlags::REFERENCE) {
+            let object_flags = ty.get_object_flags();
+            if object_flags.intersects(ObjectFlags::REFERENCE) {
                 self.resolve_reference_members(ty);
             } else if ty.kind.is_object_interface() {
                 self.resolve_interface_members(ty);
+            } else if ty.kind.is_object_reverse_mapped() {
+                self.resolve_reverse_mapped_ty_members(ty)
             } else if ty.kind.is_object_anonymous() {
                 self.resolve_anonymous_type_members(ty);
             } else if ty.kind.is_object_mapped() {

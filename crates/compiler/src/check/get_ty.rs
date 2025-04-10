@@ -1163,6 +1163,7 @@ impl<'cx> TyChecker<'cx> {
         if !ty.is_tuple() {
             return Default::default();
         };
+        // TODO: remove
         if !ty.kind.is_object_reference() {
             return Default::default();
         };

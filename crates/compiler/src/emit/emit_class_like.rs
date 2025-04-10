@@ -24,9 +24,7 @@ impl<'cx> Emit<'cx> {
     pub(super) fn emit_class_ele(&mut self, ele: &ast::ClassElem<'cx>) {
         use bolt_ts_ast::ClassEleKind::*;
         match ele.kind {
-            Prop(prop) => {
-                self.emit_class_prop(prop);
-            }
+            Prop(prop) => self.emit_class_prop(prop),
             Method(method) => self.emit_class_method(method),
             IndexSig(_) => {}
             Ctor(ctor) => self.emit_class_ctor(ctor),
@@ -176,6 +174,9 @@ impl<'cx> Emit<'cx> {
 
     fn emit_class_prop(&mut self, prop: &'cx ast::ClassPropElem<'cx>) {
         if let Some(mods) = prop.modifiers {
+            if mods.flags.contains(ast::ModifierKind::Abstract) {
+                return;
+            }
             if mods.flags.contains(ast::ModifierKind::Static) {
                 self.content.p("static");
                 self.content.p_whitespace();

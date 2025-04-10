@@ -580,8 +580,6 @@ impl<'cx> TyChecker<'cx> {
                             .intersects(InferenceFlags::SKIPPED_GENERIC_FUNCTION)
                         {
                             argument_check_mode |= CheckMode::SKIP_GENERIC_FUNCTIONS;
-                        } else {
-                            argument_check_mode |= CheckMode::empty();
                         }
                     }
 
