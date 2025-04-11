@@ -519,11 +519,26 @@ impl<'cx> TyChecker<'cx> {
             return None;
         };
         self.resolve_structured_type_members(ty);
-        self.expect_ty_links(ty.id)
+        let symbol = self
+            .expect_ty_links(ty.id)
             .expect_structured_members()
             .members
             .get(&name)
-            .copied()
+            .copied()?;
+        self.symbol_is_value(symbol, false).then_some(symbol)
+    }
+
+    pub(super) fn symbol_is_value(
+        &mut self,
+        symbol: SymbolID,
+        include_ty_only_members: bool,
+    ) -> bool {
+        let s = self.symbol(symbol).flags;
+        s.intersects(SymbolFlags::VALUE)
+            || (s.intersects(SymbolFlags::ALIAS)
+                && self
+                    .get_symbol_flags(symbol, !include_ty_only_members)
+                    .intersects(SymbolFlags::VALUE))
     }
 
     pub fn get_unmatched_prop(
