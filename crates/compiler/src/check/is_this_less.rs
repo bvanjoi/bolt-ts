@@ -62,6 +62,12 @@ impl<'cx> TyChecker<'cx> {
         for decl in decls {
             if !self.p.node(decl).is_interface_decl() {
                 continue;
+            } else if self
+                .p
+                .node_flags(decl)
+                .intersects(ast::NodeFlags::CONTAINS_THIS)
+            {
+                return false;
             }
             let Some(base_ty_nodes) = self.get_interface_base_ty_nodes(decl) else {
                 continue;

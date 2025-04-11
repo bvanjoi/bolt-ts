@@ -1,5 +1,6 @@
 use bolt_ts_ast::{self as ast, MappedTyModifiers};
 use bolt_ts_span::Span;
+use bolt_ts_utils::fx_hashmap_with_capacity;
 use rustc_hash::FxHashMap;
 
 use super::check_type_related_to::RecursionFlags;
@@ -789,7 +790,7 @@ impl<'cx> TyChecker<'cx> {
                 };
             let p = self.symbol(prop);
             let name = p.name;
-            let flags = (SymbolFlags::PROPERTY & optional_mask) | SymbolFlags::TRANSIENT;
+            let flags = (SymbolFlags::PROPERTY | p.flags & optional_mask) | SymbolFlags::TRANSIENT;
             let decls = p.decls.clone();
             let value_decl = p.value_decl;
             let prop_ty = self.get_type_of_symbol(prop);
@@ -814,6 +815,7 @@ impl<'cx> TyChecker<'cx> {
             members.0.insert(name, inferred_prop);
         }
 
+        let props = self.get_props_from_members(&members.0);
         let m = self.alloc(ty::StructuredMembers {
             members: self.alloc(members.0),
             base_tys: &[],
@@ -821,7 +823,7 @@ impl<'cx> TyChecker<'cx> {
             call_sigs: self.empty_array(),
             ctor_sigs: self.empty_array(),
             index_infos,
-            props: self.empty_array(),
+            props,
         });
         self.get_mut_ty_links(ty.id).set_structured_members(m);
     }
@@ -1264,7 +1266,7 @@ impl<'cx> TyChecker<'cx> {
         };
         let template_modifier = mapped_ty.decl.get_modifiers();
 
-        let mut members: FxHashMap<SymbolName, SymbolID> = FxHashMap::default();
+        let mut members: FxHashMap<SymbolName, SymbolID> = fx_hashmap_with_capacity(16);
         let mut index_infos = Vec::with_capacity(4);
 
         let include = TypeFlags::STRING_OR_NUMBER_LITERAL_OR_UNIQUE;

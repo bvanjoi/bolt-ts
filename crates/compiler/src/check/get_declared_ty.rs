@@ -165,27 +165,15 @@ impl<'cx> TyChecker<'cx> {
     ) -> &'cx [SymbolID] {
         let props = members
             .values()
-            .filter_map(|m| {
-                let name = self.symbol(*m).name;
-                if self.symbol_is_value(*m, false)
-                    && (name.is_numeric() || name.as_atom().is_some())
-                {
-                    Some(*m)
-                } else {
-                    None
-                }
-            })
+            .filter(|&&m| self.is_named_member(m))
+            .copied()
             .collect::<Vec<_>>();
         self.alloc(props)
     }
 
-    fn symbol_is_value(&mut self, symbol: SymbolID, include_ty_only_members: bool) -> bool {
-        let s = self.symbol(symbol).flags;
-        s.intersects(SymbolFlags::VALUE)
-            || (s.intersects(SymbolFlags::ALIAS)
-                && self
-                    .get_symbol_flags(symbol, !include_ty_only_members)
-                    .intersects(SymbolFlags::VALUE))
+    fn is_named_member(&mut self, member: SymbolID) -> bool {
+        let name = self.symbol(member).name;
+        (name.as_atom().is_some() || name.is_numeric()) && self.symbol_is_value(member, false)
     }
 
     pub(super) fn get_declared_ty_of_class_or_interface(

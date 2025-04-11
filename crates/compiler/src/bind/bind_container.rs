@@ -115,13 +115,15 @@ impl BinderState<'_, '_, '_> {
             self.seen_this_keyword = false;
             self.bind_children(node);
             assert!(!n.is_ident());
-            // TODO: node flags
+            self.p.node_flags_map.update(node, |flags| {
+                if self.seen_this_keyword {
+                    *flags |= ast::NodeFlags::CONTAINS_THIS;
+                } else {
+                    *flags &= !ast::NodeFlags::CONTAINS_THIS;
+                }
+            });
         } else {
-            // TODO: delete `saved_current_flow`
-            // let saved_current_flow = self.current_flow;
             self.bind_children(node);
-            // TODO: delete `saved_current_flow`
-            // self.current_flow = saved_current_flow;
         }
 
         self.in_return_position = save_in_return_position;

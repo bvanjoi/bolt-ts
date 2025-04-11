@@ -578,6 +578,9 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
             BlockStmt(_) | ModuleBlock(_) => {
                 // TODO: `update_strict_module_statement_list`
             }
+            ThisTy(_) => {
+                self.seen_this_keyword = true;
+            }
             _ => {}
         }
     }

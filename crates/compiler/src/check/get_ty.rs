@@ -1163,10 +1163,6 @@ impl<'cx> TyChecker<'cx> {
         if !ty.is_tuple() {
             return Default::default();
         };
-        // TODO: remove
-        if !ty.kind.is_object_reference() {
-            return Default::default();
-        };
         let ty_args = self.get_ty_arguments(ty);
         let arity = Self::get_ty_reference_arity(ty);
         if ty_args.len() == arity {

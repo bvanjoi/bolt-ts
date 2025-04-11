@@ -39,8 +39,14 @@ let a9: NonNullableOld<undefined> = false;
 
 {
   type W<T> = (keyof {[P in keyof T as P ]: never}) & keyof T
-
   // `W<T>` should be assignable to `PropertyKey`
-  type A<_T, _K extends PropertyKey> = unknown;
+  type A<T, K extends PropertyKey> = unknown;
   type Test<T extends object> = A<T, W<T>>;
+}
+
+
+{
+  type A<AT> = keyof (AT extends unknown ? Record<keyof AT, never> : never);
+  type B<BT, K extends A<BT>> = unknown;
+  type C<CT> = B<CT, keyof CT>;
 }
