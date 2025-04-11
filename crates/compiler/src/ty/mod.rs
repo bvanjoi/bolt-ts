@@ -24,7 +24,7 @@ pub use self::mapper::{ArrayTyMapper, TyMap, TyMapper};
 pub use self::mapper::{CompositeTyMapper, MergedTyMapper};
 pub use self::object_ty::ElementFlags;
 pub use self::object_ty::SingleSigTy;
-pub use self::object_ty::{AnonymousTy, InterfaceTy, ObjectTyKind};
+pub use self::object_ty::{AnonymousTy, InterfaceTy, ObjectTyKind, ReverseMappedTy};
 pub use self::object_ty::{DeclaredMembers, ReferenceTy, StructuredMembers};
 pub use self::object_ty::{IndexInfo, IndexInfos, ObjectTy, TupleTy};
 pub use self::object_ty::{MappedTy, MappedTyNameTyKind};

@@ -22,6 +22,7 @@ links!(
     (mapped_ty, &'cx ty::Ty<'cx>),
     (named_ty, &'cx ty::Ty<'cx>),
     (key_ty, &'cx ty::Ty<'cx>),
+    (prop_ty, &'cx ty::Ty<'cx>),
     // deferral
     (deferral_parent, &'cx ty::Ty<'cx>),
     (deferral_constituents, ty::Tys<'cx>),

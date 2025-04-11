@@ -493,12 +493,13 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
         }
 
         let props = self.c.properties_of_ty(target);
-        let numeric_names_only = source.is_tuple() && target.is_tuple();
         for target_prop in props {
             let s = self.c.symbol(*target_prop);
             let name = s.name;
             if !s.flags.intersects(SymbolFlags::PROTOTYPE)
-                && (!numeric_names_only || name.is_numeric() || name.expect_atom() == IDENT_LENGTH)
+                && (!(source.is_tuple() && target.is_tuple())
+                    || name.is_numeric()
+                    || name.expect_atom() == IDENT_LENGTH)
             {
                 if let Some(source_prop) = self.c.get_prop_of_ty(source, name) {
                     if !source_prop.eq(target_prop) {
@@ -847,9 +848,10 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
             self.structured_ty_related_to_worker(source, target, report_error, intersection_state);
         if self.relation != RelationKind::Identity
             && result == Ternary::FALSE
-            && (source.flags.intersects(TypeFlags::INTERSECTION)
-                || source.flags.intersects(TypeFlags::TYPE_PARAMETER)
-                    && target.flags.intersects(TypeFlags::UNION))
+            && (source
+                .flags
+                .intersects(TypeFlags::INTERSECTION.union(TypeFlags::TYPE_PARAMETER))
+                && target.flags.intersects(TypeFlags::UNION))
         {
             let tys = if let Some(i) = source.kind.as_intersection() {
                 i.tys

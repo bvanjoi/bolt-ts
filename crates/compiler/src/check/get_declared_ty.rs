@@ -165,33 +165,27 @@ impl<'cx> TyChecker<'cx> {
     ) -> &'cx [SymbolID] {
         let props = members
             .values()
-            .filter_map(|m| {
-                let name = self.symbol(*m).name;
-                if self.symbol_is_value(*m, false)
-                    && (name.is_numeric() || name.as_atom().is_some())
-                {
-                    Some(*m)
-                } else {
-                    None
-                }
-            })
+            .filter(|&&m| self.is_named_member(m))
+            .copied()
             .collect::<Vec<_>>();
         self.alloc(props)
     }
 
-    fn symbol_is_value(&mut self, symbol: SymbolID, include_ty_only_members: bool) -> bool {
-        let s = self.symbol(symbol).flags;
-        s.intersects(SymbolFlags::VALUE)
-            || (s.intersects(SymbolFlags::ALIAS)
-                && self
-                    .get_symbol_flags(symbol, !include_ty_only_members)
-                    .intersects(SymbolFlags::VALUE))
+    fn is_named_member(&mut self, member: SymbolID) -> bool {
+        let name = self.symbol(member).name;
+        (name.as_atom().is_some() || name.is_numeric()) && self.symbol_is_value(member, false)
     }
 
-    fn get_declared_ty_of_class_or_interface(&mut self, symbol: SymbolID) -> &'cx ty::Ty<'cx> {
+    pub(super) fn get_declared_ty_of_class_or_interface(
+        &mut self,
+        symbol: SymbolID,
+    ) -> &'cx ty::Ty<'cx> {
         if let Some(ty) = self.get_symbol_links(symbol).get_declared_ty() {
             return ty;
         }
+
+        let resolving = self.error_ty;
+        self.get_mut_symbol_links(symbol).set_declared_ty(resolving);
 
         let outer_ty_params = self.get_outer_ty_params_of_class_or_interface(symbol);
         let local_ty_params = self.get_local_ty_params_of_class_or_interface_or_type_alias(symbol);
@@ -206,11 +200,14 @@ impl<'cx> TyChecker<'cx> {
             SymbolFlags::INTERFACE
         };
 
+        let mut is_this_less_interface = true;
         let ty = if outer_ty_params.is_some()
             || local_ty_params.is_some()
             || kind == SymbolFlags::CLASS
-        // TODO: || !in_this_less_interface
-        {
+            || {
+                is_this_less_interface = self.is_this_less_interface(symbol);
+                !is_this_less_interface
+            } {
             let outer_ty_params = outer_ty_params.unwrap_or_default();
             let local_ty_params = local_ty_params.unwrap_or_default();
             let ty_params: ty::Tys<'cx> = {
@@ -218,7 +215,7 @@ impl<'cx> TyChecker<'cx> {
                 v.extend(local_ty_params);
                 self.alloc(v)
             };
-            assert!(kind == SymbolFlags::CLASS || !ty_params.is_empty());
+            assert!(kind == SymbolFlags::CLASS || !is_this_less_interface || !ty_params.is_empty());
             let this_ty = self.create_param_ty(symbol, None, true);
             let target = self.create_interface_ty(
                 symbol,
@@ -240,11 +237,10 @@ impl<'cx> TyChecker<'cx> {
             self.instantiation_ty_map.insert(id, ty);
             ty
         } else {
-            assert!(outer_ty_params.is_none() && local_ty_params.is_none());
             self.create_interface_ty(symbol, None, None, None, None)
         };
 
-        self.get_mut_symbol_links(symbol).set_declared_ty(ty);
+        self.get_mut_symbol_links(symbol).override_declared_ty(ty);
         ty
     }
 

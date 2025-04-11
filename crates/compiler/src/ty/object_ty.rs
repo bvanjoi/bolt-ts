@@ -21,6 +21,7 @@ pub enum ObjectTyKind<'cx> {
     Interface(&'cx InterfaceTy<'cx>),
     Reference(&'cx ReferenceTy<'cx>),
     Mapped(&'cx MappedTy<'cx>),
+    ReversedMapped(&'cx ReverseMappedTy<'cx>),
 }
 
 macro_rules! ty_kind_as_object_ty_kind {
@@ -49,6 +50,7 @@ ty_kind_as_object_ty_kind!(&'cx TupleTy<'cx>, tuple);
 ty_kind_as_object_ty_kind!(&'cx InterfaceTy<'cx>, interface);
 ty_kind_as_object_ty_kind!(&'cx ReferenceTy<'cx>, reference);
 ty_kind_as_object_ty_kind!(&'cx MappedTy<'cx>, mapped);
+ty_kind_as_object_ty_kind!(&'cx ReverseMappedTy<'cx>, reverse_mapped);
 
 macro_rules! as_object_ty_kind {
     ($kind: ident, $ty:ty, $name: ident) => {
@@ -75,6 +77,7 @@ as_object_ty_kind!(Tuple, &'cx TupleTy<'cx>, tuple);
 as_object_ty_kind!(Interface, &'cx InterfaceTy<'cx>, interface);
 as_object_ty_kind!(Reference, &'cx ReferenceTy<'cx>, reference);
 as_object_ty_kind!(Mapped, &'cx MappedTy<'cx>, mapped);
+as_object_ty_kind!(ReversedMapped, &'cx ReverseMappedTy<'cx>, reverse_mapped);
 
 bitflags::bitflags! {
     #[derive(Debug, Clone, Copy, PartialEq)]
@@ -334,6 +337,7 @@ impl<'cx> ObjectTyKind<'cx> {
                     "mapped type".to_string()
                 }
             }
+            ObjectTyKind::ReversedMapped(_) => todo!(),
         }
     }
 }
@@ -368,4 +372,11 @@ pub enum MappedTyNameTyKind {
     None,
     Filtering,
     Remapping,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct ReverseMappedTy<'cx> {
+    pub source: &'cx Ty<'cx>,
+    pub mapped_ty: &'cx Ty<'cx>,
+    pub constraint_ty: &'cx Ty<'cx>,
 }

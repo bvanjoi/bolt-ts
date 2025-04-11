@@ -43,6 +43,7 @@ mod instantiate;
 mod instantiation_ty_map;
 mod is_context_sensitive;
 mod is_deeply_nested_type;
+mod is_this_less;
 mod is_valid;
 mod links;
 mod merge;
@@ -63,6 +64,7 @@ use bolt_ts_ast::{BinOp, pprint_ident};
 use bolt_ts_atom::{AtomId, AtomMap};
 use bolt_ts_config::NormalizedCompilerOptions;
 use bolt_ts_utils::{fx_hashmap_with_capacity, no_hashmap_with_capacity, no_hashset_with_capacity};
+use check_type_related_to::RecursionFlags;
 use enumflags2::BitFlag;
 use rustc_hash::{FxBuildHasher, FxHashMap};
 
@@ -286,6 +288,9 @@ pub struct TyChecker<'cx> {
     resolution_tys: thin_vec::ThinVec<ResolutionKey>,
     resolution_res: thin_vec::ThinVec<bool>,
     current_node: Option<ast::NodeID>,
+    reverse_mapped_source_stack: Vec<&'cx ty::Ty<'cx>>,
+    reverse_mapped_target_stack: Vec<&'cx ty::Ty<'cx>>,
+    reverse_expanding_flags: RecursionFlags,
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -552,6 +557,9 @@ impl<'cx> TyChecker<'cx> {
             ],
             current_node: None,
             transient_symbol_links,
+            reverse_mapped_source_stack: Vec::with_capacity(8),
+            reverse_mapped_target_stack: Vec::with_capacity(8),
+            reverse_expanding_flags: RecursionFlags::empty(),
         };
 
         macro_rules! make_global {
@@ -3204,6 +3212,32 @@ impl<'cx> TyChecker<'cx> {
         } else {
             self.get_ty_with_facts(ty, TypeFacts::NE_UNDEFINED)
         }
+    }
+
+    fn has_skip_direct_inference_flags(&self, node: &ast::NodeID) -> bool {
+        self.node_links
+            .get(node)
+            .is_some_and(|links| links.get_skip_direct_inference().unwrap_or_default())
+    }
+
+    fn is_from_inference_block_source(&self, ty: &'cx ty::Ty<'cx>) -> bool {
+        ty.symbol()
+            .and_then(|s| self.symbol(s).decls.as_ref())
+            .is_some_and(|decls| {
+                decls
+                    .iter()
+                    .any(|decl| self.has_skip_direct_inference_flags(decl))
+            })
+    }
+
+    fn infer_ty_for_homomorphic_map_ty(
+        &mut self,
+        source: &'cx ty::Ty<'cx>,
+        target: &'cx ty::Ty<'cx>,
+        constraint_ty: &'cx ty::Ty<'cx>,
+    ) -> Option<&'cx ty::Ty<'cx>> {
+        // TODO: cache
+        self.create_reverse_mapped_ty(source, target, constraint_ty)
     }
 }
 
