@@ -1,0 +1,14 @@
+  × No overload matches this call.
+    ╭─[../../tests/cases/compiler/circularContextualMappedType/index.ts:13:1]
+  9 │ reproduce(options: number): void;
+    · ────┬────
+    ·     ╰── Unmatched call.
+ 10 │ declare function reproduce<T>(options: Mapped<T>): T
+    ·                  ────┬────┬
+    ·                      ╰── Unmatched call.
+    ·                      ╰── Unmatched call.
+ 11 │ 
+ 12 │ reproduce(42);
+ 13 │ reproduce('42')
+    · ───────────────
+    ╰────

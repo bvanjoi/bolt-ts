@@ -10,6 +10,7 @@ links!(
     (flags, NodeCheckFlags),
     (outer_ty_params, ty::Tys<'cx>),
     (effects_sig, &'cx ty::Sig<'cx>),
+    (skip_direct_inference, bool),
     (non_existent_prop_checked, bool),
 );
 

@@ -1,0 +1,2 @@
+
+var xx = new Object();

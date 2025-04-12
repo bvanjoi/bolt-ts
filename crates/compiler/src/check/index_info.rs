@@ -244,7 +244,7 @@ impl<'cx> TyChecker<'cx> {
         &self,
         index_infos: &[&'cx ty::IndexInfo<'cx>],
         key_ty: &'cx ty::Ty<'cx>,
-    ) -> Option<&ty::IndexInfo<'cx>> {
+    ) -> Option<&'cx ty::IndexInfo<'cx>> {
         index_infos
             .iter()
             .find(|info| info.key_ty == key_ty)
@@ -255,7 +255,7 @@ impl<'cx> TyChecker<'cx> {
         &mut self,
         ty: &'cx ty::Ty<'cx>,
         key_ty: &'cx ty::Ty<'cx>,
-    ) -> Option<&ty::IndexInfo<'cx>> {
+    ) -> Option<&'cx ty::IndexInfo<'cx>> {
         let index_infos = self.get_index_infos_of_ty(ty);
         self.find_index_info(index_infos, key_ty)
     }

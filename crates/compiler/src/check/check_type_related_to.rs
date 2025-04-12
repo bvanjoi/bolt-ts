@@ -12,8 +12,8 @@ use super::utils::contains_ty;
 use super::{Ternary, TyChecker};
 use crate::bind::{SymbolFlags, SymbolID};
 use crate::keyword::IDENT_LENGTH;
-use crate::ty::{self, AccessFlags, ElementFlags, ObjectFlags, Sig, SigFlags, SigKind, TypeFlags};
-use crate::ty::{Ty, TyKind};
+use crate::ty::{self, Ty, TyKind, TypeFlags};
+use crate::ty::{AccessFlags, ElementFlags, IndexFlags, ObjectFlags, Sig, SigFlags, SigKind};
 
 bitflags::bitflags! {
     #[derive(Clone, Copy, Debug, PartialEq)]
@@ -493,12 +493,13 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
         }
 
         let props = self.c.properties_of_ty(target);
-        let numeric_names_only = source.is_tuple() && target.is_tuple();
         for target_prop in props {
             let s = self.c.symbol(*target_prop);
             let name = s.name;
             if !s.flags.intersects(SymbolFlags::PROTOTYPE)
-                && (!numeric_names_only || name.is_numeric() || name.expect_atom() == IDENT_LENGTH)
+                && (!(source.is_tuple() && target.is_tuple())
+                    || name.is_numeric()
+                    || name.expect_atom() == IDENT_LENGTH)
             {
                 if let Some(source_prop) = self.c.get_prop_of_ty(source, name) {
                     if !source_prop.eq(target_prop) {
@@ -847,9 +848,10 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
             self.structured_ty_related_to_worker(source, target, report_error, intersection_state);
         if self.relation != RelationKind::Identity
             && result == Ternary::FALSE
-            && (source.flags.intersects(TypeFlags::INTERSECTION)
-                || source.flags.intersects(TypeFlags::TYPE_PARAMETER)
-                    && target.flags.intersects(TypeFlags::UNION))
+            && (source
+                .flags
+                .intersects(TypeFlags::INTERSECTION.union(TypeFlags::TYPE_PARAMETER))
+                && target.flags.intersects(TypeFlags::UNION))
         {
             let tys = if let Some(i) = source.kind.as_intersection() {
                 i.tys
@@ -1029,7 +1031,46 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
             return result;
         }
 
-        if target_flags.intersects(TypeFlags::INDEX) {
+        if target_flags.intersects(TypeFlags::TYPE_PARAMETER) {
+            if let Some(source_mapped_ty) = source.kind.as_object_mapped() {
+                if source_mapped_ty.decl.name_ty.is_none() {
+                    let index_ty = self.c.get_index_ty(target, IndexFlags::empty());
+                    let c = self.c.get_constraint_ty_from_mapped_ty(source);
+                    if self.is_related_to(
+                        index_ty,
+                        c,
+                        RecursionFlags::BOTH,
+                        false,
+                        IntersectionState::empty(),
+                    ) != Ternary::FALSE
+                        && !source_mapped_ty
+                            .decl
+                            .get_modifiers()
+                            .intersects(ast::MappedTyModifiers::INCLUDE_OPTIONAL)
+                    {
+                        let template_ty = self.c.get_template_ty_from_mapped_ty(source);
+                        let index_ty = self.c.get_ty_param_from_mapped_ty(source);
+                        let indexed_access_ty =
+                            self.c.get_indexed_access_ty(target, index_ty, None, None);
+                        result = self.is_related_to(
+                            template_ty,
+                            indexed_access_ty,
+                            RecursionFlags::BOTH,
+                            report_error,
+                            IntersectionState::empty(),
+                        );
+                        if result != Ternary::FALSE {
+                            return result;
+                        }
+                    }
+                }
+            }
+            if self.relation == RelationKind::Comparable
+                && source_flags.intersects(TypeFlags::TYPE_PARAMETER)
+            {
+                // TODO:
+            }
+        } else if target_flags.intersects(TypeFlags::INDEX) {
             let target_ty = target.kind.expect_index_ty();
             if source_flags.intersects(TypeFlags::INDEX) {
                 let source_ty = source.kind.expect_index_ty().ty;

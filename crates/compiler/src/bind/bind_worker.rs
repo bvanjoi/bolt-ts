@@ -1,7 +1,6 @@
 use super::BinderState;
 use super::ModuleInstanceState;
 use super::NodeQuery;
-use super::SymbolTable;
 use super::symbol::SymbolFlags;
 use super::symbol::SymbolTableLocation;
 use super::symbol::{SymbolID, SymbolName};
@@ -578,6 +577,9 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
                     .is_fn_like_or_class_static_block_decl() => {}
             BlockStmt(_) | ModuleBlock(_) => {
                 // TODO: `update_strict_module_statement_list`
+            }
+            ThisTy(_) => {
+                self.seen_this_keyword = true;
             }
             _ => {}
         }
