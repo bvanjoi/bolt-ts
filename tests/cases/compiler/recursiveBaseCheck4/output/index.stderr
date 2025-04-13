@@ -4,7 +4,7 @@
    · ────────────────────────────────
    ╰────
 
-  × Property 'blah' does not exist on type 'M<undefined>'.
+  × Property 'blah' does not exist on type 'M<unknown>'.
    ╭─[../../tests/cases/compiler/recursiveBaseCheck4/index.ts:5:9]
  5 │ blah
    · ────

@@ -341,6 +341,56 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
+    pub(super) fn get_regular_ty_of_object_literal(
+        &mut self,
+        ty: &'cx ty::Ty<'cx>,
+    ) -> &'cx ty::Ty<'cx> {
+        if !ty.is_fresh_object_literal() {
+            return ty;
+        }
+        let Some(a) = ty.kind.as_object_anonymous() else {
+            unreachable!()
+        };
+        let fresh_ty_links = a.fresh_ty_links;
+        if let Some(ty) = self.fresh_ty_links_arena[fresh_ty_links].get_regular_ty() {
+            return ty;
+        }
+
+        let members = self
+            .get_props_of_object_ty(ty)
+            .iter()
+            .map(|&prop| {
+                let original = self.get_type_of_symbol(prop);
+                let updated = self.get_regular_ty_of_object_literal(original);
+                let name = self.symbol(prop).name;
+                let prop = if updated == original {
+                    prop
+                } else {
+                    self.create_transient_symbol_with_ty(prop, updated)
+                };
+                (name, prop)
+            })
+            .collect();
+
+        let object_flags = ty.get_object_flags() & !ObjectFlags::FRESH_LITERAL;
+        let resolved = self.get_ty_links(ty.id).get_structured_members().unwrap();
+        assert!(resolved.base_tys.is_empty());
+        assert!(resolved.base_ctor_ty.is_none());
+        assert!(resolved.call_sigs.is_empty());
+        assert!(resolved.ctor_sigs.is_empty());
+        assert!(resolved.index_infos.is_empty());
+        let regular = self.create_anonymous_ty_with_resolved(
+            a.symbol,
+            object_flags,
+            self.alloc(members),
+            resolved.call_sigs,
+            resolved.ctor_sigs,
+            resolved.index_infos,
+        );
+        self.fresh_ty_links_arena[fresh_ty_links].set_regular_ty(regular);
+        regular
+    }
+
     pub(super) fn get_regular_ty_of_literal_ty(
         &mut self,
         ty: &'cx ty::Ty<'cx>,

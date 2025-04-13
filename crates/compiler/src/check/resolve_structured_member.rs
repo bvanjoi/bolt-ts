@@ -11,7 +11,7 @@ use super::links::SigLinks;
 use super::symbol_info::SymbolInfo;
 use super::{SymbolLinks, Ternary, TyChecker, errors};
 use crate::bind::{Symbol, SymbolFlags, SymbolID, SymbolName, SymbolTable};
-use crate::ty::{self, CheckFlags, ObjectFlags, SigID, SigKind, TypeFlags};
+use crate::ty::{self, CheckFlags, IndexFlags, ObjectFlags, SigID, SigKind, TypeFlags};
 
 #[derive(Debug, Clone, Copy)]
 pub(super) enum MemberOrExportsResolutionKind {
@@ -692,7 +692,7 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
-    fn infer_reverse_mapped_ty(
+    pub(super) fn infer_reverse_mapped_ty(
         &mut self,
         source: &'cx ty::Ty<'cx>,
         target: &'cx ty::Ty<'cx>,
@@ -748,6 +748,24 @@ impl<'cx> TyChecker<'cx> {
         // TODO: origin;
     }
 
+    fn replace_indexed_access(
+        &mut self,
+        instantiable: &'cx ty::Ty<'cx>,
+        object_ty: &'cx ty::Ty<'cx>,
+        index_ty: &'cx ty::Ty<'cx>,
+        replacement: &'cx ty::Ty<'cx>,
+    ) -> &'cx ty::Ty<'cx> {
+        let sources = self.alloc([index_ty, object_ty]);
+        let targets = {
+            let a = self.get_number_literal_type(0.);
+            let tys = self.alloc([replacement]);
+            let b = self.create_tuple_ty(tys, None, false);
+            self.alloc([a, b])
+        };
+        let mapper = self.create_ty_mapper(sources, targets);
+        self.instantiate_ty(instantiable, Some(mapper))
+    }
+
     fn resolve_reverse_mapped_ty_members(&mut self, ty: &'cx ty::Ty<'cx>) {
         let r = ty.kind.expect_object_reverse_mapped();
         let modifiers = r.mapped_ty.kind.expect_object_mapped().decl.get_modifiers();
@@ -794,24 +812,38 @@ impl<'cx> TyChecker<'cx> {
             let decls = p.decls.clone();
             let value_decl = p.value_decl;
             let prop_ty = self.get_type_of_symbol(prop);
+
+            let mut mapped_ty = r.mapped_ty;
+            let mut constraint_ty = r.constraint_ty;
+
+            let c_index_ty = r.constraint_ty.kind.expect_index_ty();
+            if let Some(t) = c_index_ty.ty.kind.as_indexed_access() {
+                if t.object_ty.flags.intersects(TypeFlags::TYPE_PARAMETER)
+                    && t.index_ty.flags.intersects(TypeFlags::TYPE_PARAMETER)
+                {
+                    let new_ty_param = t.object_ty;
+                    let new_mapped_ty = self.replace_indexed_access(
+                        r.mapped_ty,
+                        t.object_ty,
+                        t.index_ty,
+                        new_ty_param,
+                    );
+                    mapped_ty = new_mapped_ty;
+                    constraint_ty = self.get_index_ty(new_ty_param, IndexFlags::empty());
+                }
+            }
+
             let links = SymbolLinks::default()
                 .with_prop_ty(prop_ty)
-                .with_check_flags(check_flags);
+                .with_check_flags(check_flags)
+                .with_mapped_ty(mapped_ty)
+                .with_constraint_ty(constraint_ty);
             let links = if let Some(named_ty) = self.get_symbol_links(prop).get_name_ty() {
                 links.with_name_ty(named_ty)
             } else {
                 links
             };
             let inferred_prop = self.create_transient_symbol(name, flags, links, decls, value_decl);
-            if r.constraint_ty.kind.as_indexed_access().is_some_and(|t| {
-                t.object_ty.flags.intersects(TypeFlags::TYPE_PARAMETER)
-                    && t.index_ty.flags.intersects(TypeFlags::TYPE_PARAMETER)
-            }) {
-                let new_ty_param = r.constraint_ty.kind.expect_indexed_access().object_ty;
-                // TODO:
-            } else {
-                // TODO:
-            }
             members.0.insert(name, inferred_prop);
         }
 

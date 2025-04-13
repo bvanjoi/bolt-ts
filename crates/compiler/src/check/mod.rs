@@ -58,6 +58,7 @@ mod type_predicate;
 pub mod utils;
 
 use std::borrow::Cow;
+use std::fmt::Debug;
 
 use bolt_ts_ast::{self as ast};
 use bolt_ts_ast::{BinOp, pprint_ident};
@@ -980,7 +981,7 @@ impl<'cx> TyChecker<'cx> {
         let Some(check_mode) = self.check_mode else {
             return ty;
         };
-        if !check_mode.intersects(CheckMode::INFERENTIAL | CheckMode::SKIP_GENERIC_FUNCTIONS) {
+        if !check_mode.intersects(CheckMode::INFERENTIAL.union(CheckMode::SKIP_GENERIC_FUNCTIONS)) {
             return ty;
         }
         let Some((sig, kind)) = self
@@ -1398,6 +1399,7 @@ impl<'cx> TyChecker<'cx> {
         &mut self,
         member: &'cx ast::ObjectMethodMember<'cx>,
     ) -> &'cx ty::Ty<'cx> {
+        // TODO: computed member
         let ty = self.check_fn_like_expr_or_object_method_member(member.id);
         self.instantiate_ty_with_single_generic_call_sig(member.id, ty)
     }
@@ -1935,14 +1937,14 @@ impl<'cx> TyChecker<'cx> {
         let mut has_ret_with_no_expr = false;
         let mut has_ret_of_ty_never = false;
 
-        fn for_each_ret_stmt<'cx, T>(
+        fn for_each_ret_stmt<'cx, T: Copy + Debug>(
             id: ast::NodeID,
             checker: &mut TyChecker<'cx>,
             f: impl Fn(&mut TyChecker<'cx>, &'cx ast::RetStmt<'cx>) -> T + Copy,
             has_ret_with_no_expr: &mut bool,
             has_ret_of_ty_never: &mut bool,
         ) -> Vec<T> {
-            fn t<'cx, T>(
+            fn t<'cx, T: Copy + Debug>(
                 id: ast::NodeID,
                 checker: &mut TyChecker<'cx>,
                 f: impl Fn(&mut TyChecker<'cx>, &'cx ast::RetStmt<'cx>) -> T + Copy,
@@ -1953,12 +1955,14 @@ impl<'cx> TyChecker<'cx> {
                 let node = checker.p.node(id);
                 if let Some(ret) = node.as_ret_stmt() {
                     if let Some(ret_expr) = ret.expr {
+                        let expr = ast::Expr::skip_parens(ret_expr);
                         // TODO: async function and await call;
                         // TODO: const reference
                     } else {
                         *has_ret_with_no_expr = true;
                     }
-                    v.push(f(checker, ret))
+                    let ty = f(checker, ret);
+                    v.push(ty)
                 } else if let Some(b) = node.as_block_stmt() {
                     for stmt in b.stmts {
                         t(
@@ -2988,7 +2992,7 @@ impl<'cx> TyChecker<'cx> {
         if is_in_javascript_file {
             self.any_ty
         } else {
-            self.undefined_ty
+            self.unknown_ty
         }
     }
 

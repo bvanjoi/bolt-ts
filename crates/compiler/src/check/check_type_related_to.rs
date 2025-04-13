@@ -179,9 +179,7 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
         {
             let is_performing_excess_property_check = !intersection_state
                 .intersects(IntersectionState::TARGET)
-                && source
-                    .get_object_flags()
-                    .contains(ObjectFlags::OBJECT_LITERAL.union(ObjectFlags::FRESH_LITERAL));
+                && source.is_fresh_object_literal();
             if is_performing_excess_property_check
                 && self.has_excess_properties(source, target, report_error)
             {

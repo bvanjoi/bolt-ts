@@ -162,6 +162,22 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
+    pub(super) fn get_widened_lit_like_ty_for_contextual_ty_if_needed(
+        &mut self,
+        mut ty: Option<&'cx ty::Ty<'cx>>,
+        contextual_sig_ret_ty: Option<&'cx ty::Ty<'cx>>,
+        is_async: bool,
+    ) -> Option<&'cx ty::Ty<'cx>> {
+        if let Some(t) = ty {
+            if t.is_unit() {
+                let contextual_ty =
+                    contextual_sig_ret_ty.map(|c| if is_async { todo!() } else { c });
+                ty = Some(self.get_widened_lit_like_ty_for_contextual_ty(t, contextual_ty));
+            }
+        }
+        ty
+    }
+
     pub(super) fn get_widened_lit_like_ty_for_contextual_ty(
         &mut self,
         mut ty: &'cx ty::Ty<'cx>,

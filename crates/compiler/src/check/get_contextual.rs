@@ -443,6 +443,18 @@ impl<'cx> TyChecker<'cx> {
         if sigs.is_empty() { None } else { Some(sigs[0]) }
     }
 
+    pub(super) fn get_contextual_sig_for_fn_like_decl(
+        &mut self,
+        id: ast::NodeID,
+    ) -> Option<&'cx ty::Sig<'cx>> {
+        let n = self.p.node(id);
+        if n.is_fn_expr() || n.is_arrow_fn_expr() || n.is_object_method_member() {
+            self.get_contextual_sig(id)
+        } else {
+            None
+        }
+    }
+
     pub(super) fn get_contextual_sig(&mut self, id: ast::NodeID) -> Option<&'cx ty::Sig<'cx>> {
         assert!(!self.p.node(id).is_class_method_ele());
         if let Some(ty_tag_sig) = self.get_sig_of_ty_tag(id) {

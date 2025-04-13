@@ -304,10 +304,12 @@ impl<'cx> TyChecker<'cx> {
         symbol: Option<SymbolID>,
         object_flags: ObjectFlags,
     ) -> &'cx ty::Ty<'cx> {
+        let links = self.fresh_ty_links_arena.alloc(Default::default());
         let ty = self.alloc(ty::AnonymousTy {
             symbol,
             target: None,
             mapper: None,
+            fresh_ty_links: links,
         });
         let ty = self.create_object_ty(
             ty::ObjectTyKind::Anonymous(ty),
@@ -351,10 +353,12 @@ impl<'cx> TyChecker<'cx> {
         object_flags: ObjectFlags,
     ) -> &'cx ty::Ty<'cx> {
         assert!(target.kind.is_object_anonymous());
+        let links = self.fresh_ty_links_arena.alloc(Default::default());
         let ty = self.alloc(ty::AnonymousTy {
             symbol: Some(symbol),
             target: Some(target),
             mapper: Some(mapper),
+            fresh_ty_links: links,
         });
         let ty = self.create_object_ty(
             ty::ObjectTyKind::Anonymous(ty),
