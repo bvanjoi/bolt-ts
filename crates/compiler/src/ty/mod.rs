@@ -84,6 +84,11 @@ impl<'cx> Ty<'cx> {
         }
     }
 
+    pub fn is_fresh_object_literal(&self) -> bool {
+        self.get_object_flags()
+            .contains(ObjectFlags::FRESH_LITERAL.union(ObjectFlags::OBJECT_LITERAL))
+    }
+
     pub fn get_object_flags(&self) -> ObjectFlags {
         match self.kind {
             TyKind::Object(object) => object.flags,
@@ -359,9 +364,14 @@ impl<'cx> Ty<'cx> {
             TyKind::NumberLit(n) => n.links,
             TyKind::BigIntLit(n) => n.links,
             TyKind::Union(n) => n.fresh_ty_links,
+            TyKind::Object(n) => return n.kind.as_anonymous().map(|a| a.fresh_ty_links),
             _ => return None,
         };
         Some(links)
+    }
+
+    pub const fn is_unit(&self) -> bool {
+        self.flags.intersects(TypeFlags::UNIT)
     }
 }
 

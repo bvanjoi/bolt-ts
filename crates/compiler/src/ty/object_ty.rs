@@ -347,6 +347,8 @@ pub struct AnonymousTy<'cx> {
     pub symbol: Option<SymbolID>,
     pub target: Option<&'cx Ty<'cx>>,
     pub mapper: Option<&'cx dyn TyMap<'cx>>,
+    // TODO: use `Option` for this links because only fresh object literal contain this.
+    pub fresh_ty_links: super::FreshTyLinksID<'cx>,
 }
 
 #[derive(Debug, Clone, Copy)]

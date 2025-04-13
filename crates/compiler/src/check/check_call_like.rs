@@ -438,11 +438,16 @@ impl<'cx> TyChecker<'cx> {
                 let param_ty = self.get_ty_at_pos(sig, i);
                 let arg_ty = self.check_expr_with_contextual_ty(arg, param_ty, None, check_mode);
                 let error_node = report_error.then(|| arg.id());
-                let check_arg_ty = if let Some(infer) = inference_context {
-                    let mapper = self.inference(infer).non_fixing_mapper;
-                    self.instantiate_ty(arg_ty, Some(mapper))
+                let regular_arg_ty = if check_mode.intersects(CheckMode::SKIP_CONTEXT_SENSITIVE) {
+                    self.get_regular_ty_of_object_literal(arg_ty)
                 } else {
                     arg_ty
+                };
+                let check_arg_ty = if let Some(infer) = inference_context {
+                    let mapper = self.inference(infer).non_fixing_mapper;
+                    self.instantiate_ty(regular_arg_ty, Some(mapper))
+                } else {
+                    regular_arg_ty
                 };
                 if self.check_type_related_to_and_optionally_elaborate(
                     check_arg_ty,
@@ -648,7 +653,7 @@ impl<'cx> TyChecker<'cx> {
         if !is_single_non_generic_candidate
             && args.iter().any(|arg| self.is_context_sensitive(arg.id()))
         {
-            argument_check_mode |= CheckMode::SKIP_CONTEXT_SENSITIVE;
+            argument_check_mode = CheckMode::SKIP_CONTEXT_SENSITIVE;
         }
 
         let args = self.get_effective_call_args(expr);

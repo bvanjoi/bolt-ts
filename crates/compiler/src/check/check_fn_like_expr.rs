@@ -73,7 +73,7 @@ impl<'cx> TyChecker<'cx> {
     ) -> &'cx ty::Ty<'cx> {
         self.check_node_deferred(id);
         if let Some(mode) = self.check_mode {
-            if mode.intersects(CheckMode::SKIP_CONTEXT_SENSITIVE) {
+            if mode.intersects(CheckMode::SKIP_CONTEXT_SENSITIVE) && self.is_context_sensitive(id) {
                 return self.any_fn_ty();
             }
         }

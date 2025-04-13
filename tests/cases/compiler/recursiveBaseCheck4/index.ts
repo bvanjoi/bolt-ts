@@ -3,4 +3,4 @@
 class M<T> extends M<string> { }
 //~^ ERROR: 'M' is referenced directly or indirectly in its own base expression.
 (new M).blah;
-//~^ ERROR: Property 'blah' does not exist on type
+//~^ ERROR: Property 'blah' does not exist on type 'M<unknown>'.

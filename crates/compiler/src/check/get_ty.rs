@@ -38,6 +38,8 @@ impl<'cx> TyChecker<'cx> {
             return self.get_type_of_instantiated_symbol(id);
         } else if check_flags.intersects(CheckFlags::MAPPED) {
             return self.get_type_of_mapped_symbol(id);
+        } else if check_flags.intersects(CheckFlags::REVERSE_MAPPED) {
+            return self.get_type_of_reverse_mapped_symbol(id);
         }
 
         let flags = self.symbol(id).flags;
@@ -333,6 +335,21 @@ impl<'cx> TyChecker<'cx> {
             // TODO: error report
             return self.error_ty;
         }
+        self.get_mut_symbol_links(symbol).set_ty(ty);
+        ty
+    }
+
+    fn get_type_of_reverse_mapped_symbol(&mut self, symbol: SymbolID) -> &'cx ty::Ty<'cx> {
+        let links = self.get_symbol_links(symbol);
+        if let Some(ty) = links.get_ty() {
+            return ty;
+        };
+        let prop_ty = links.expect_prop_ty();
+        let mapped_ty = links.expect_mapped_ty();
+        let c = links.expect_constraint_ty();
+        let ty = self
+            .infer_reverse_mapped_ty(prop_ty, mapped_ty, c)
+            .unwrap_or(self.unknown_ty);
         self.get_mut_symbol_links(symbol).set_ty(ty);
         ty
     }
@@ -1782,7 +1799,8 @@ impl<'cx> TyChecker<'cx> {
             return self.error_ty;
         };
 
-        let ret_ty;
+        let mut ret_ty = None;
+        let fallback_ret_ty = self.void_ty;
         if let ast::ArrowFnExprBody::Expr(expr) = body {
             let old = if let Some(check_mode) = self.check_mode {
                 let old = self.check_mode;
@@ -1791,7 +1809,7 @@ impl<'cx> TyChecker<'cx> {
             } else {
                 None
             };
-            ret_ty = self.check_expr_with_cache(expr);
+            ret_ty = Some(self.check_expr_with_cache(expr));
             self.check_mode = old;
         } else if let ast::ArrowFnExprBody::Block(body) = body {
             let Some(tys) = self.check_and_aggregate_ret_expr_tys(id, body) else {
@@ -1799,17 +1817,40 @@ impl<'cx> TyChecker<'cx> {
             };
             if tys.is_empty() {
                 if let Some(contextual_ret_ty) = self.get_contextual_ret_ty(id, None) {
-                    ret_ty = contextual_ret_ty;
-                } else {
-                    ret_ty = self.void_ty;
+                    ret_ty = Some(contextual_ret_ty);
                 }
             } else {
-                ret_ty = self.get_union_ty(&tys, ty::UnionReduction::Subtype)
+                ret_ty = Some(self.get_union_ty(&tys, ty::UnionReduction::Subtype))
             }
         } else {
-            unreachable!()
+            todo!("is_generator")
         };
-        ret_ty
+
+        if let Some(ret_t) = ret_ty {
+            if ret_t.is_unit() {
+                let contextual_sig = self.get_contextual_sig_for_fn_like_decl(id);
+                let contextual_ty = contextual_sig.and_then(|sig| {
+                    if sig == self.get_sig_from_decl(id) {
+                        // TODO: is_generator
+                        Some(ret_t)
+                    } else {
+                        let ret_t = self.get_ret_ty_of_sig(sig);
+                        self.instantiate_contextual_ty(Some(ret_t), id, None)
+                    }
+                });
+                ret_ty = self.get_widened_lit_like_ty_for_contextual_ty_if_needed(
+                    Some(ret_t),
+                    contextual_ty,
+                    false,
+                );
+            }
+
+            if let Some(ret_t) = ret_ty {
+                ret_ty = Some(self.get_widened_ty(ret_t));
+            }
+        }
+
+        ret_ty.unwrap_or(fallback_ret_ty)
     }
 
     pub(super) fn get_ty_params_for_mapper(&mut self, sig: &'cx ty::Sig<'cx>) -> ty::Tys<'cx> {
