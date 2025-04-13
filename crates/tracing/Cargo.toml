@@ -1,0 +1,15 @@
+[package]
+name = "bolt_ts_tracing"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+tracing = { workspace = true }
+tracing-subscriber = { version = "0.3.19", default-features = false, features = [
+  "fmt",
+  "env-filter",
+  "smallvec",
+  "parking_lot",
+  "ansi",
+] }
+tracing-tree = "0.4.0"
