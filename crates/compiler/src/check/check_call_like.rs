@@ -682,6 +682,11 @@ impl<'cx> TyChecker<'cx> {
             );
         }
 
+        if let Some(cached) = self.get_node_links(expr.id()).get_resolved_sig() {
+            if cached != self.resolving_sig() {
+                return cached;
+            }
+        }
         if let Some(result) = res {
             return result;
         }

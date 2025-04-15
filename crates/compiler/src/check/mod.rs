@@ -102,7 +102,7 @@ use crate::bind::{
 };
 use crate::graph::ModuleGraph;
 use crate::parser::{AccessKind, AssignmentKind, Parser};
-use crate::ty::{CheckFlags, IndexFlags, IterationTys, TYPEOF_NE_FACTS};
+use crate::ty::{CheckFlags, IndexFlags, IterationTys, TYPEOF_NE_FACTS, get_type_facts};
 use crate::ty::{ElementFlags, ObjectFlags, Sig, SigFlags, SigID, TyID, TypeFacts, TypeFlags};
 use crate::ty::{TyMapper, has_type_facts};
 use crate::{ecma_rules, ir, keyword, ty};
@@ -252,6 +252,7 @@ pub struct TyChecker<'cx> {
     auto_array_ty: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
     typeof_ty: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
     unknown_sig: std::cell::OnceCell<&'cx Sig<'cx>>,
+    resolving_sig: std::cell::OnceCell<&'cx Sig<'cx>>,
     any_fn_ty: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
     circular_constraint_ty: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
     resolving_default_type: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
@@ -529,6 +530,7 @@ impl<'cx> TyChecker<'cx> {
             no_ty_pred: Default::default(),
 
             unknown_sig: Default::default(),
+            resolving_sig: Default::default(),
 
             type_name: no_hashmap_with_capacity(1024 * 8),
 
@@ -605,6 +607,7 @@ impl<'cx> TyChecker<'cx> {
             (template_constraint_ty,    this.get_union_ty(&[string_ty, number_ty, boolean_ty, bigint_ty, null_ty, undefined_ty], ty::UnionReduction::Lit)),
             (any_iteration_tys,         this.create_iteration_tys(any_ty, any_ty, any_ty)),
             (unknown_sig,               this.new_sig(Sig { flags: SigFlags::empty(), ty_params: None, params: &[], min_args_count: 0, ret: None, node_id: None, target: None, mapper: None, id: SigID::dummy(), class_decl: None })),
+            (resolving_sig,             this.new_sig(Sig { flags: SigFlags::empty(), ty_params: None, params: &[], min_args_count: 0, ret: None, node_id: None, target: None, mapper: None, id: SigID::dummy(), class_decl: None })),
             (array_variances,           this.alloc([VarianceFlags::COVARIANT])),
             (no_ty_pred,                this.create_ident_ty_pred(keyword::IDENT_EMPTY, 0, any_ty))
         });
@@ -642,6 +645,10 @@ impl<'cx> TyChecker<'cx> {
 
     pub fn unknown_sig(&self) -> &'cx Sig<'cx> {
         self.unknown_sig.get().unwrap()
+    }
+
+    pub fn resolving_sig(&self) -> &'cx Sig<'cx> {
+        self.resolving_sig.get().unwrap()
     }
 
     pub fn any_iteration_tys(&self) -> ty::IterationTys<'cx> {
@@ -1750,6 +1757,7 @@ impl<'cx> TyChecker<'cx> {
                 value: "null".to_string(),
             };
             self.push_error(Box::new(error));
+            return self.error_ty;
         } else if matches!(expr.kind, ast::ExprKind::Ident(ast::Ident { name, .. }) if *name == keyword::KW_UNDEFINED)
         {
             let error = errors::TheValueCannotBeUsedHere {
@@ -1757,8 +1765,50 @@ impl<'cx> TyChecker<'cx> {
                 value: "undefined".to_string(),
             };
             self.push_error(Box::new(error));
+            return self.error_ty;
+        }
+
+        let facts = get_type_facts(ty, TypeFacts::IS_UNDEFINED_OR_NULL);
+        if facts.intersects(TypeFacts::IS_UNDEFINED_OR_NULL) {
+            self.report_object_possibly_null_or_undefined_error(expr, facts);
+            let t = self.get_non_nullable_ty(ty);
+            return if t
+                .flags
+                .intersects(TypeFlags::NULLABLE.union(TypeFlags::UNDEFINED))
+            {
+                self.error_ty
+            } else {
+                t
+            };
         }
         ty
+    }
+
+    fn report_object_possibly_null_or_undefined_error(
+        &mut self,
+        expr: &'cx ast::Expr,
+        facts: TypeFacts,
+    ) {
+        let name = match expr.kind {
+            ast::ExprKind::Ident(ident) => self.atoms.get(ident.name).to_string(),
+            _ => {
+                // TODO:
+                return;
+            }
+        };
+        let kind = if facts.contains(TypeFacts::IS_UNDEFINED.union(TypeFacts::IS_NULL)) {
+            errors::UndefinedOrNull::Both
+        } else if facts.intersects(TypeFacts::IS_NULL) {
+            errors::UndefinedOrNull::Null
+        } else {
+            errors::UndefinedOrNull::Undefined
+        };
+        let error = errors::XIsPossiblyNullOrUndefined {
+            span: expr.span(),
+            name,
+            kind,
+        };
+        self.push_error(Box::new(error));
     }
 
     fn check_binary_like_expr_for_add(

@@ -3,6 +3,7 @@ use super::ast;
 use super::symbol_info::SymbolInfo;
 use super::type_predicate::TyPred;
 use crate::bind::SymbolID;
+use crate::check::check_call_like::CallLikeExpr;
 use crate::ir::node_id_of_binding;
 use crate::ty;
 use crate::ty::SigID;
@@ -185,6 +186,26 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
+    fn get_resolved_sig(&mut self, node: ast::NodeID) -> &'cx ty::Sig<'cx> {
+        let resolving_sig = self.resolving_sig();
+        if let Some(cached) = self.get_node_links(node).get_resolved_sig() {
+            if cached != resolving_sig {
+                return cached;
+            }
+        }
+
+        self.get_mut_node_links(node)
+            .set_resolved_sig(resolving_sig);
+
+        let sig = match self.p.node(node) {
+            ast::Node::CallExpr(call) => call.resolve_sig(self),
+            _ => unreachable!(),
+        };
+
+        self.get_mut_node_links(node).set_resolved_sig(sig);
+        sig
+    }
+
     pub(super) fn get_effects_sig(&mut self, node: ast::NodeID) -> Option<&'cx Sig<'cx>> {
         let sig = if let Some(sig) = self.get_node_links(node).get_effects_sig() {
             sig
@@ -213,7 +234,7 @@ impl<'cx> TyChecker<'cx> {
                 Some(sigs[0])
             } else if sigs.iter().any(|sig| self.has_ty_pred_or_never_ret_ty(sig)) {
                 // TODO: get_resolved_sig(node)
-                None
+                Some(self.get_resolved_sig(node))
             } else {
                 None
             };
