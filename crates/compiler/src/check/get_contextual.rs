@@ -358,6 +358,7 @@ impl<'cx> TyChecker<'cx> {
         name: SymbolName,
         name_ty: Option<&'cx ty::Ty<'cx>>,
     ) -> Option<&'cx ty::Ty<'cx>> {
+        let m = ty.kind.expect_object_mapped();
         let property_name_ty = name_ty.unwrap_or_else(|| {
             if let Some(atom) = name.as_atom() {
                 self.get_string_literal_type(atom)
@@ -368,9 +369,9 @@ impl<'cx> TyChecker<'cx> {
             }
         });
         let constraint = self.get_constraint_ty_from_mapped_ty(ty);
-        if self
-            .get_ty_links(ty.id)
-            .get_mapped_named_ty()
+
+        if self.object_mapped_ty_links_arena[m.links]
+            .get_named_ty()
             .is_some_and(|name_ty| self.is_excluded_mapped_property_name(name_ty, property_name_ty))
             || self.is_excluded_mapped_property_name(constraint, property_name_ty)
         {

@@ -306,15 +306,16 @@ impl<'cx> TyChecker<'cx> {
             return ty;
         };
         let ty = links.get_mapped_ty().unwrap();
+        let mapped_ty = ty.kind.expect_object_mapped();
+
         let check_flags = links.expect_check_flags();
         let key_ty = links.expect_key_ty();
 
         if !self.push_ty_resolution(ResolutionKey::Type(symbol)) {
-            self.get_mut_ty_links(ty.id).set_mapped_contains_error(true);
+            self.object_mapped_ty_links_arena[mapped_ty.links].set_contains_error(true);
             return self.error_ty;
         }
 
-        let mapped_ty = ty.kind.expect_object_mapped();
         let template_ty = self.get_template_ty_from_mapped_ty(mapped_ty.target.unwrap_or(ty));
         let mapper = {
             let source = self.get_ty_param_from_mapped_ty(ty);

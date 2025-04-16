@@ -194,11 +194,12 @@ impl<'cx> TyChecker<'cx> {
         } else {
             let constraint = if let Some(constraint_decl) = self.get_constraint_decl(ty_param) {
                 let mut ty = self.get_ty_from_type_node(constraint_decl);
-                if ty.flags.intersects(TypeFlags::ANY) {
+                if ty.flags.intersects(TypeFlags::ANY) && !self.is_error(ty) {
                     ty = self.error_ty;
                 }
                 ty
             } else {
+                // TODO: get_inferred_tu_param_constraint
                 self.get_inferred_ty_param_constraint(ty_param, false)
                     .unwrap_or(self.no_constraint_ty())
             };

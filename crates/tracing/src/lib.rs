@@ -1,6 +1,6 @@
 use std::env::{self, VarError};
 
-use tracing_subscriber::filter::{EnvFilter, LevelFilter};
+use tracing_subscriber::filter::EnvFilter;
 use tracing_subscriber::layer::SubscriberExt;
 
 struct LoggerConfig {

@@ -9,7 +9,7 @@ use super::utils::{capitalize, uncapitalize};
 use super::{InstantiationTyMap, StringMappingTyMap, TyChecker};
 use crate::bind::SymbolID;
 use crate::keyword::{self};
-use crate::ty::{self};
+use crate::ty::{self, ObjectMappedTyLinks};
 use crate::ty::{ObjectFlags, TyMapper, TypeFlags};
 
 use bolt_ts_ast as ast;
@@ -509,6 +509,8 @@ impl<'cx> TyChecker<'cx> {
             object_flags
         };
 
+        let links = ObjectMappedTyLinks::default().with_ty_param(fresh_ty_param);
+        let links = self.object_mapped_ty_links_arena.alloc(links);
         let ty = self.alloc(ty::MappedTy {
             symbol: map.symbol,
             decl: map.decl,
@@ -516,16 +518,12 @@ impl<'cx> TyChecker<'cx> {
             alias_ty_arguments,
             target: Some(ty),
             mapper: Some(mapper),
+            links,
         });
         let ty = self.create_object_ty(
             ty::ObjectTyKind::Mapped(ty),
             object_flags | ObjectFlags::MAPPED,
         );
-        let prev = self.ty_links.insert(
-            ty.id,
-            super::TyLinks::default().with_mapped_ty_param(fresh_ty_param),
-        );
-        assert!(prev.is_none());
         ty
     }
 

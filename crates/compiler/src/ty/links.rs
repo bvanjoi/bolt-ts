@@ -70,3 +70,15 @@ links!(
     InterfaceTyLinks,
     (declared_members, &'cx super::DeclaredMembers<'cx>),
 );
+
+links!(
+    ObjectMappedTyLinks,
+    (ty_param, &'cx super::Ty<'cx>),
+    (constraint_ty, &'cx super::Ty<'cx>),
+    (named_ty, &'cx super::Ty<'cx>),
+    (key_ty, &'cx super::Ty<'cx>),
+    (template_ty, &'cx super::Ty<'cx>),
+    (modifiers_ty, &'cx super::Ty<'cx>),
+    (resolved_apparent_ty, &'cx super::Ty<'cx>),
+    (contains_error, bool),
+);

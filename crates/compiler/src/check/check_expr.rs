@@ -375,7 +375,6 @@ impl<'cx> TyChecker<'cx> {
         let object_flags = ty.get_object_flags() & !ObjectFlags::FRESH_LITERAL;
         let resolved = self.get_ty_links(ty.id).get_structured_members().unwrap();
         assert!(resolved.base_tys.is_empty());
-        assert!(resolved.base_ctor_ty.is_none());
         assert!(resolved.call_sigs.is_empty());
         assert!(resolved.ctor_sigs.is_empty());
         assert!(resolved.index_infos.is_empty());
@@ -695,7 +694,6 @@ impl<'cx> TyChecker<'cx> {
                 TyLinks::default().with_structured_members(this.alloc(ty::StructuredMembers {
                     members: properties_table,
                     base_tys: Default::default(),
-                    base_ctor_ty: Default::default(),
                     call_sigs: Default::default(),
                     ctor_sigs: Default::default(),
                     index_infos: Default::default(),

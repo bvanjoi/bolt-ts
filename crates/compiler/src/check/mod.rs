@@ -204,6 +204,7 @@ pub struct TyChecker<'cx> {
     common_ty_links_arena: ty::CommonTyLinksArena<'cx>,
     fresh_ty_links_arena: ty::FreshTyLinksArena<'cx>,
     interface_ty_links_arena: ty::InterfaceTyLinksArena<'cx>,
+    object_mapped_ty_links_arena: ty::ObjectMappedTyLinksArena<'cx>,
     // === ast ===
     pub p: &'cx Parser<'cx>,
     pub mg: &'cx ModuleGraph,
@@ -538,6 +539,7 @@ impl<'cx> TyChecker<'cx> {
             common_ty_links_arena,
             fresh_ty_links_arena: ty::FreshTyLinksArena::with_capacity(cap),
             interface_ty_links_arena: ty::InterfaceTyLinksArena::with_capacity(cap),
+            object_mapped_ty_links_arena: ty::ObjectMappedTyLinksArena::with_capacity(cap),
 
             resolution_tys: thin_vec::ThinVec::with_capacity(128),
             resolution_res: thin_vec::ThinVec::with_capacity(128),
@@ -699,7 +701,7 @@ impl<'cx> TyChecker<'cx> {
     fn get_apparent_ty(&mut self, ty: &'cx ty::Ty<'cx>) -> &'cx ty::Ty<'cx> {
         let t = if ty.kind.is_instantiable() {
             self.get_base_constraint_of_ty(ty)
-                .unwrap_or(self.undefined_ty)
+                .unwrap_or(self.unknown_ty)
         } else {
             ty
         };
@@ -726,13 +728,20 @@ impl<'cx> TyChecker<'cx> {
         } else if flags.intersects(TypeFlags::UNKNOWN) && !*self.config.strict_null_checks() {
             self.empty_object_ty()
         } else {
-            ty
+            t
         }
     }
 
     fn get_apparent_ty_of_mapped_ty(&mut self, ty: &'cx ty::Ty<'cx>) -> &'cx ty::Ty<'cx> {
-        // TODO: cache
-        self.get_resolved_apparent_ty_of_mapped_ty(ty)
+        let m = ty.kind.expect_object_mapped();
+        if let Some(resolved) =
+            self.object_mapped_ty_links_arena[m.links].get_resolved_apparent_ty()
+        {
+            return resolved;
+        }
+        let t = self.get_resolved_apparent_ty_of_mapped_ty(ty);
+        self.object_mapped_ty_links_arena[m.links].set_resolved_apparent_ty(t);
+        t
     }
 
     fn get_resolved_apparent_ty_of_mapped_ty(&mut self, ty: &'cx ty::Ty<'cx>) -> &'cx ty::Ty<'cx> {
@@ -1168,7 +1177,6 @@ impl<'cx> TyChecker<'cx> {
             TyLinks::default().with_structured_members(self.alloc(ty::StructuredMembers {
                 members: self.alloc(Default::default()),
                 base_tys: &[],
-                base_ctor_ty: None,
                 call_sigs: if !is_constructor {
                     self.alloc([sig])
                 } else {

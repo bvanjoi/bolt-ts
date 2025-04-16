@@ -197,7 +197,6 @@ impl<'cx> TyChecker<'cx> {
         let mut ty = self.check_expr(expr.callee());
 
         ty = self.get_apparent_ty(ty);
-
         let ctor_sigs = self.get_signatures_of_type(ty, ty::SigKind::Constructor);
         if !ctor_sigs.is_empty() {
             let abstract_sigs = ctor_sigs
@@ -256,10 +255,8 @@ impl<'cx> TyChecker<'cx> {
 
         if ty != self.error_ty {
             self.invocation_error(expr, ty, ty::SigKind::Constructor);
-            self.unknown_sig()
-        } else {
-            self.unknown_sig()
         }
+        self.unknown_sig()
     }
 
     fn invocation_error(

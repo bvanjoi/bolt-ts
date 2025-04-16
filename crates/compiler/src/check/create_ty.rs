@@ -338,7 +338,6 @@ impl<'cx> TyChecker<'cx> {
                 ctor_sigs,
                 index_infos,
                 base_tys: &[],
-                base_ctor_ty: None,
             })),
         );
         assert!(prev.is_none());
@@ -1309,6 +1308,7 @@ impl<'cx> TyChecker<'cx> {
         alias_symbol: Option<SymbolID>,
         alias_ty_arguments: Option<ty::Tys<'cx>>,
     ) -> &'cx ty::Ty<'cx> {
+        let links = self.object_mapped_ty_links_arena.alloc(Default::default());
         let ty = self.alloc(ty::MappedTy {
             symbol,
             decl,
@@ -1316,6 +1316,7 @@ impl<'cx> TyChecker<'cx> {
             alias_ty_arguments,
             target: None,
             mapper: None,
+            links,
         });
         self.create_object_ty(ty::ObjectTyKind::Mapped(ty), ObjectFlags::MAPPED)
     }
