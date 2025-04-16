@@ -1,7 +1,8 @@
-use bolt_ts_ast as ast;
+use bolt_ts_ast::{self as ast, ModifierKind};
 use bolt_ts_atom::AtomId;
 use bolt_ts_span::Span;
 use bolt_ts_utils::{fx_hashmap_with_capacity, fx_hashset_with_capacity};
+use rustc_hash::FxHashSet;
 
 use super::create_ty::IntersectionFlags;
 use super::symbol_info::SymbolInfo;
@@ -337,14 +338,14 @@ impl<'cx> TyChecker<'cx> {
             }
 
             self.get_prop_of_object_ty(self.global_object_ty(), name)
-        } else if ty.kind.as_union().is_some() {
-            self.get_prop_of_union_or_intersection_ty(ty, name)
         } else if ty.kind.as_intersection().is_some() {
             if let Some(prop) = self.get_prop_of_union_or_intersection_ty(ty, name) {
                 return Some(prop);
             } else {
                 None
             }
+        } else if ty.kind.as_union().is_some() {
+            self.get_prop_of_union_or_intersection_ty(ty, name)
         } else {
             None
         }
@@ -382,20 +383,16 @@ impl<'cx> TyChecker<'cx> {
         containing_ty: &'cx Ty<'cx>,
         name: SymbolName,
     ) -> Option<SymbolID> {
-        let (is_union, tys) = if let Some(union) = containing_ty.kind.as_union() {
-            (true, union.tys)
-        } else if let Some(i) = containing_ty.kind.as_intersection() {
-            (false, i.tys)
-        } else {
-            unreachable!("containing_ty: {containing_ty:#?}")
-        };
+        let tys = containing_ty.kind.tys_of_union_or_intersection().unwrap();
+        let is_union = containing_ty.kind.is_union();
 
         let mut optional_flag = None;
 
         let mut single_prop = None;
-        let mut prop_set = fx_hashset_with_capacity(tys.len());
+        let mut prop_set: Option<FxHashSet<_>> = None;
+        let mut index_tys: Option<Vec<Ty<'cx>>> = None;
 
-        let check_flags = if is_union {
+        let mut check_flags = if is_union {
             CheckFlags::empty()
         } else {
             CheckFlags::READONLY
@@ -403,49 +400,83 @@ impl<'cx> TyChecker<'cx> {
 
         for current in tys {
             let ty = self.get_apparent_ty(current);
-            if ty != self.error_ty && ty != self.never_ty {
-                if let Some(prop) = self.get_prop_of_ty(ty, name) {
-                    let symbol_flags = self.symbol(prop).flags;
-                    if symbol_flags.intersects(SymbolFlags::CLASS_MEMBER) {
-                        if optional_flag.is_none() {
-                            optional_flag = Some(if is_union {
-                                SymbolFlags::empty()
-                            } else {
-                                SymbolFlags::OPTIONAL
-                            });
-                        }
-                        if is_union {
-                            let flags = optional_flag.as_mut().unwrap();
-                            *flags |= symbol_flags & SymbolFlags::OPTIONAL;
+            if self.is_error(ty) || ty.flags.intersects(TypeFlags::NEVER) {
+                continue;
+            }
+            if let Some(prop) = self.get_prop_of_ty(ty, name) {
+                let modifiers = self.get_declaration_modifier_flags_from_symbol(prop, None);
+                let symbol_flags = self.symbol(prop).flags;
+                if symbol_flags.intersects(SymbolFlags::CLASS_MEMBER) {
+                    if optional_flag.is_none() {
+                        optional_flag = Some(if is_union {
+                            SymbolFlags::empty()
                         } else {
-                            let flags = optional_flag.as_mut().unwrap();
-                            *flags &= symbol_flags;
-                        }
+                            SymbolFlags::OPTIONAL
+                        });
                     }
-
-                    if let Some(single_prop) = single_prop {
-                        if single_prop != prop {
-                            if prop_set.is_empty() {
-                                prop_set.insert(single_prop);
-                            }
-                            prop_set.insert(prop);
-                        }
+                    if is_union {
+                        let flags = optional_flag.as_mut().unwrap();
+                        *flags |= symbol_flags & SymbolFlags::OPTIONAL;
                     } else {
-                        single_prop = Some(prop);
+                        let flags = optional_flag.as_mut().unwrap();
+                        *flags &= symbol_flags;
                     }
                 }
+                if let Some(single_prop) = single_prop {
+                    if single_prop != prop {
+                        if let Some(prop_set) = &mut prop_set {
+                            prop_set.insert(prop);
+                        } else {
+                            let mut t = fx_hashset_with_capacity(tys.len());
+                            t.insert(single_prop);
+                            t.insert(prop);
+                            prop_set = Some(t);
+                        }
+                    }
+                } else {
+                    single_prop = Some(prop);
+                }
+
+                match (is_union, self.is_readonly_symbol(prop)) {
+                    (true, true) => check_flags |= CheckFlags::READONLY,
+                    (false, false) => check_flags &= !CheckFlags::READONLY,
+                    _ => (),
+                };
+                check_flags |=
+                    if !modifiers.intersects(ModifierKind::NON_PUBLIC_ACCESSIBILITY_MODIFIER) {
+                        CheckFlags::CONTAINS_PUBLIC
+                    } else {
+                        CheckFlags::empty()
+                    } | if modifiers.intersects(ModifierKind::Protected) {
+                        CheckFlags::CONTAINS_PROTECTED
+                    } else {
+                        CheckFlags::empty()
+                    } | if modifiers.intersects(ModifierKind::Private) {
+                        CheckFlags::CONTAINS_PRIVATE
+                    } else {
+                        CheckFlags::empty()
+                    } | if modifiers.intersects(ModifierKind::Static) {
+                        CheckFlags::CONTAINS_STATIC
+                    } else {
+                        CheckFlags::empty()
+                    };
+                // TODO: !is_prototype_prop
+            } else if is_union {
+                // TODO:
             }
         }
+        let single_prop = single_prop?;
 
-        let props = if prop_set.is_empty() {
-            if let Some(single_prop) = single_prop {
-                vec![single_prop]
-            } else {
-                vec![]
-            }
-        } else {
-            prop_set.into_iter().collect::<Vec<_>>()
-        };
+        if prop_set.is_none()
+            && !check_flags.intersects(CheckFlags::READ_PARTIAL)
+            && index_tys.is_none()
+        {
+            return Some(single_prop);
+        }
+
+        let props = prop_set
+            .map(|set| set.into_iter().collect())
+            .unwrap_or_else(|| vec![single_prop]);
 
         let mut first_ty = None;
         let mut name_ty = None;

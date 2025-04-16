@@ -243,7 +243,10 @@ impl<'cx> TyChecker<'cx> {
         self.create_instantiating_anonymous_ty(target.symbol.unwrap(), ty, mapper, object_flags)
     }
 
-    fn get_homomorphic_ty_var(&mut self, ty: &'cx ty::Ty<'cx>) -> Option<&'cx ty::Ty<'cx>> {
+    pub(crate) fn get_homomorphic_ty_var(
+        &mut self,
+        ty: &'cx ty::Ty<'cx>,
+    ) -> Option<&'cx ty::Ty<'cx>> {
         let constraint_ty = self.get_constraint_ty_from_mapped_ty(ty);
         constraint_ty.kind.as_index_ty().and_then(|index_ty| {
             let ty_var = self.get_actual_ty_variable(index_ty.ty);

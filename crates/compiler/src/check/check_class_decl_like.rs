@@ -82,7 +82,7 @@ impl<'cx> TyChecker<'cx> {
         }
 
         let ty = self.get_declared_ty_of_symbol(symbol);
-        let ty_with_this = self.get_ty_with_this_arg(ty, None);
+        let ty_with_this = self.get_ty_with_this_arg(ty, None, false);
         let static_ty = self.get_type_of_symbol(symbol);
         self.check_index_constraints(ty, false);
 
@@ -109,7 +109,7 @@ impl<'cx> TyChecker<'cx> {
                         .kind
                         .expect_object_interface()
                         .this_ty;
-                    let base_with_this = self.get_ty_with_this_arg(t, this_arg);
+                    let base_with_this = self.get_ty_with_this_arg(t, this_arg, false);
                     if self.check_type_assignable_to(ty_with_this, base_with_this, None)
                         == Ternary::FALSE
                     {

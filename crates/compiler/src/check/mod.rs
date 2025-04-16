@@ -280,6 +280,7 @@ pub struct TyChecker<'cx> {
     template_constraint_ty: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
     any_iteration_tys: std::cell::OnceCell<IterationTys<'cx>>,
     empty_array: &'cx [u8; 0],
+    never_intersection_tys: nohash_hasher::IntMap<ty::TyID, bool>,
     // === resolver ===
     pub binder: &'cx mut bind::Binder,
     global_symbols: &'cx mut GlobalSymbols,
@@ -293,12 +294,6 @@ pub struct TyChecker<'cx> {
     reverse_mapped_source_stack: Vec<&'cx ty::Ty<'cx>>,
     reverse_mapped_target_stack: Vec<&'cx ty::Ty<'cx>>,
     reverse_expanding_flags: RecursionFlags,
-}
-
-#[derive(Clone, Copy, Debug)]
-enum PropName {
-    String(AtomId),
-    Num(f64),
 }
 
 fn cast_empty_array<'cx, T>(empty_array: &[u8; 0]) -> &'cx [T] {
@@ -531,6 +526,7 @@ impl<'cx> TyChecker<'cx> {
 
             unknown_sig: Default::default(),
             resolving_sig: Default::default(),
+            never_intersection_tys: no_hashmap_with_capacity(1024),
 
             type_name: no_hashmap_with_capacity(1024 * 8),
 
@@ -701,14 +697,21 @@ impl<'cx> TyChecker<'cx> {
     }
 
     fn get_apparent_ty(&mut self, ty: &'cx ty::Ty<'cx>) -> &'cx ty::Ty<'cx> {
-        let ty = if ty.kind.is_instantiable() {
+        let t = if ty.kind.is_instantiable() {
             self.get_base_constraint_of_ty(ty)
                 .unwrap_or(self.undefined_ty)
         } else {
             ty
         };
-        let flags = ty.flags;
-        if flags.intersects(TypeFlags::NUMBER_LIKE) {
+        let flags = t.flags;
+        let object_flags = t.get_object_flags();
+        if object_flags.intersects(ObjectFlags::MAPPED) {
+            self.get_apparent_ty_of_mapped_ty(t)
+        } else if object_flags.intersects(ObjectFlags::REFERENCE) && t != ty {
+            self.get_ty_with_this_arg(t, Some(ty), false)
+        } else if flags.intersects(TypeFlags::INTERSECTION) {
+            self.get_apparent_ty_of_intersection_ty(t, ty)
+        } else if flags.intersects(TypeFlags::NUMBER_LIKE) {
             self.global_number_ty()
         } else if flags.intersects(TypeFlags::STRING_LIKE) {
             self.global_string_ty()
@@ -727,6 +730,51 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
+    fn get_apparent_ty_of_mapped_ty(&mut self, ty: &'cx ty::Ty<'cx>) -> &'cx ty::Ty<'cx> {
+        // TODO: cache
+        self.get_resolved_apparent_ty_of_mapped_ty(ty)
+    }
+
+    fn get_resolved_apparent_ty_of_mapped_ty(&mut self, ty: &'cx ty::Ty<'cx>) -> &'cx ty::Ty<'cx> {
+        let m = ty.kind.expect_object_mapped();
+        let target = m.target.unwrap_or(ty);
+        let ty_var = self.get_homomorphic_ty_var(target);
+        if let Some(ty_var) = ty_var {
+            let target_m = target.kind.expect_object_mapped();
+            if target_m.decl.name_ty.is_none() {
+                let modifier_ty = self.get_modifiers_ty_from_mapped_ty(ty);
+                let base_constraint = if self.is_generic_mapped_ty(modifier_ty) {
+                    Some(self.get_apparent_ty_of_mapped_ty(modifier_ty))
+                } else {
+                    self.get_base_constraint_of_ty(modifier_ty)
+                };
+                if let Some(base_constraint) = base_constraint {
+                    if self.every_type(base_constraint, |this, t| {
+                        this.is_array_or_tuple(t) || this.is_array_or_tuple_intersection(ty)
+                    }) {
+                        let mapper = self.prepend_ty_mapping(ty_var, base_constraint, m.mapper);
+                        return self.instantiate_ty(target, Some(mapper));
+                    }
+                }
+            }
+        }
+        ty
+    }
+
+    fn get_apparent_ty_of_intersection_ty(
+        &mut self,
+        ty: &'cx ty::Ty<'cx>,
+        this_arg: &'cx ty::Ty<'cx>,
+    ) -> &'cx ty::Ty<'cx> {
+        if ty == this_arg {
+            // TODO: `resolved_apparent_ty` cache
+            self.get_ty_with_this_arg(ty, Some(this_arg), true)
+        } else {
+            // TODO: cache
+            self.get_ty_with_this_arg(ty, Some(this_arg), true)
+        }
+    }
+
     fn get_reduced_ty(&mut self, ty: &'cx ty::Ty<'cx>) -> &'cx ty::Ty<'cx> {
         if ty.kind.as_union().is_some_and(|union| {
             union
@@ -734,21 +782,45 @@ impl<'cx> TyChecker<'cx> {
                 .intersects(ObjectFlags::CONTAINS_INTERSECTIONS)
         }) {
             // TODO:
-        } else if let Some(intersection) = ty.kind.as_intersection() {
-            // intersection
-            //     .object_flags
-            //     .intersects(ObjectFlags::IS_NEVER_INTERSECTION_COMPUTED);
-
-            if intersection
-                .object_flags
-                .intersects(ObjectFlags::IS_NEVER_INTERSECTION)
+        } else if ty.flags.intersects(TypeFlags::INTERSECTION) {
+            if let Some(is_never_intersection_ty) = self.never_intersection_tys.get(&ty.id).copied()
             {
-                return self.never_ty;
-            } else {
-                return ty;
+                return if is_never_intersection_ty {
+                    self.never_ty
+                } else {
+                    ty
+                };
             }
+            let props = self.get_props_of_union_or_intersection(ty);
+            let is_never_intersection_ty = props.iter().any(|p| self.is_never_reduced_prop(*p));
+            let prev = self
+                .never_intersection_tys
+                .insert(ty.id, is_never_intersection_ty);
+            assert!(prev.is_none());
+            return if is_never_intersection_ty {
+                self.never_ty
+            } else {
+                ty
+            };
         }
         ty
+    }
+
+    fn is_never_reduced_prop(&mut self, symbol: SymbolID) -> bool {
+        // TODO: || is_conflicting_private_prop
+        self.is_discriminant_with_never_ty(symbol)
+    }
+
+    fn is_discriminant_with_never_ty(&mut self, symbol: SymbolID) -> bool {
+        self.symbol(symbol).flags.intersects(SymbolFlags::OPTIONAL)
+            && self
+                .get_check_flags(symbol)
+                .intersection(CheckFlags::DISCRIMINANT.union(CheckFlags::HAS_NEVER_TYPE))
+                == CheckFlags::DISCRIMINANT
+            && self
+                .get_type_of_symbol(symbol)
+                .flags
+                .intersects(TypeFlags::NEVER)
     }
 
     fn get_reduced_apparent_ty(&mut self, ty: &'cx ty::Ty<'cx>) -> &'cx ty::Ty<'cx> {
@@ -1231,6 +1303,7 @@ impl<'cx> TyChecker<'cx> {
                         .expect_object_reference();
                     let ty = ty.target.kind.expect_object_interface();
                     ty.this_ty.unwrap()
+                    // TODO: get_flow_type_reference
                 };
                 return Some(this_ty);
             }
@@ -1307,8 +1380,7 @@ impl<'cx> TyChecker<'cx> {
                 }),
             );
             self.push_error(Box::new(error));
-        } else if containing_ty != self.undefined_ty {
-            // FIXME: remove `containing_ty != self.undefined_ty`
+        } else {
             let error = errors::PropertyXDoesNotExistOnTypeY {
                 span: prop_node.span,
                 prop: missing_prop,
@@ -2092,6 +2164,13 @@ impl<'cx> TyChecker<'cx> {
 
     fn is_array_or_tuple(&self, ty: &'cx ty::Ty<'cx>) -> bool {
         ty.kind.is_array(self) || ty.is_tuple()
+    }
+
+    fn is_array_or_tuple_intersection(&self, ty: &'cx ty::Ty<'cx>) -> bool {
+        ty.kind
+            .as_intersection()
+            .map(|i| i.tys.iter().all(|t| self.is_array_or_tuple(t)))
+            .unwrap_or_default()
     }
 
     fn is_known_prop(&mut self, target: &'cx ty::Ty<'cx>, name: SymbolName) -> bool {

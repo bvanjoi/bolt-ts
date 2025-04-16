@@ -500,7 +500,7 @@ impl<'cx> TyChecker<'cx> {
             let ty_arg = ty_arg_tys.unwrap()[i];
             let target = {
                 let ty = self.instantiate_ty(constraint, Some(mapper));
-                self.get_ty_with_this_arg(ty, Some(ty_arg))
+                self.get_ty_with_this_arg(ty, Some(ty_arg), false)
             };
             if self.check_type_assignable_to(
                 ty_arg,
