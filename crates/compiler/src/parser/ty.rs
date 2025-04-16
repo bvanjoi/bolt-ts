@@ -249,6 +249,7 @@ impl<'cx> ParserState<'cx, '_> {
         assert!(modifiers.is_none() || is_ctor_ty);
         let ty_params = self.parse_ty_params()?;
         let params = self.parse_params()?;
+        self.check_params(params, false);
         let ty = self.parse_ret_ty(false)?.unwrap();
         let ty = if is_ctor_ty {
             let id = self.next_node_id();
@@ -955,6 +956,7 @@ impl<'cx> ParserState<'cx, '_> {
         let kind = if matches!(self.token.kind, TokenKind::LParen | TokenKind::Less) {
             let ty_params = self.parse_ty_params()?;
             let params = self.parse_params()?;
+            self.check_params(params, false);
             let ty = self.parse_ret_ty(true)?;
             let id = self.next_node_id();
             let sig = self.alloc(ast::MethodSignature {
@@ -996,6 +998,7 @@ impl<'cx> ParserState<'cx, '_> {
 
         let ty_params = self.parse_ty_params()?;
         let params = self.parse_params()?;
+        self.check_params(params, false);
         let ty = self.parse_ret_ty(true)?;
         self.parse_ty_member_semi();
         let span = self.new_span(start);

@@ -46,6 +46,25 @@ impl<'cx> ParserState<'cx, '_> {
         self.parse_paren_arrow_fn_expr(false)
     }
 
+    pub(super) fn check_params(
+        &mut self,
+        params: &'cx [&'cx ast::ParamDecl<'cx>],
+        container_is_ctor_impl: bool,
+    ) {
+        for param in params {
+            if let Some(mods) = param.modifiers {
+                if !container_is_ctor_impl {
+                    let error = Box::new(
+                        errors::AParamPropIsOnlyAllowedInAConstructorImplementation {
+                            span: mods.span,
+                        },
+                    );
+                    self.push_error(error);
+                }
+            }
+        }
+    }
+
     fn parse_paren_arrow_fn_expr(
         &mut self,
         allow_ambiguity: bool,
@@ -58,14 +77,7 @@ impl<'cx> ParserState<'cx, '_> {
             return Ok(None);
         }
         let params = self.parse_params()?;
-        for param in params {
-            if let Some(mods) = param.modifiers {
-                let error = Box::new(
-                    errors::AParamPropIsOnlyAllowedInAConstructorImplementation { span: mods.span },
-                );
-                self.push_error(error);
-            }
-        }
+        self.check_params(params, false);
         let has_ret_colon = self.token.kind == TokenKind::Colon;
         let ty = self.parse_ret_ty(true)?;
         if !allow_ambiguity
@@ -584,6 +596,7 @@ impl<'cx> ParserState<'cx, '_> {
         // };
         let ty_params = self.parse_ty_params()?;
         let params = self.parse_params()?;
+        self.check_params(params, false);
         let ty = self.parse_ty_anno()?;
         let body = self.parse_fn_block()?;
         let id = self.next_node_id();

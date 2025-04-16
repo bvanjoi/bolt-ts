@@ -104,6 +104,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         let name = mode.parse_name(self)?;
         let ty_params = self.parse_ty_params()?;
         let params = self.parse_params()?;
+        self.check_params(params, false);
         let ret_ty = self.parse_fn_decl_ret_type()?;
         let body = self.parse_fn_block()?;
         let span = self.new_span(start);
