@@ -1,7 +1,7 @@
 use bitflags::bitflags;
 
 bitflags! {
-    #[derive(Debug, Default, Clone, Copy)]
+    #[derive(Debug, Default, Clone, Copy, PartialEq)]
     pub struct CheckFlags: u32 {
         /// Instantiated symbol
         const INSTANTIATED          = 1 << 0;

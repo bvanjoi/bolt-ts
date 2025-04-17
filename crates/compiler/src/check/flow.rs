@@ -218,6 +218,9 @@ impl<'cx> TyChecker<'cx> {
         use bolt_ts_ast::ExprKind::*;
         match expr.kind {
             Call(node) => self.narrow_ty_by_call_expr(ty, refer, expr, node, assume_true),
+            PrefixUnary(node) if node.op == ast::PrefixUnaryOp::Excl => {
+                self.narrow_ty(ty, refer, node.expr, !assume_true)
+            }
             _ => ty,
         }
     }

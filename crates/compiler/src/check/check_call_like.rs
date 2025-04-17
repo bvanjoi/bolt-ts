@@ -197,7 +197,6 @@ impl<'cx> TyChecker<'cx> {
         let mut ty = self.check_expr(expr.callee());
 
         ty = self.get_apparent_ty(ty);
-
         let ctor_sigs = self.get_signatures_of_type(ty, ty::SigKind::Constructor);
         if !ctor_sigs.is_empty() {
             let abstract_sigs = ctor_sigs
@@ -256,10 +255,8 @@ impl<'cx> TyChecker<'cx> {
 
         if ty != self.error_ty {
             self.invocation_error(expr, ty, ty::SigKind::Constructor);
-            self.unknown_sig()
-        } else {
-            self.unknown_sig()
         }
+        self.unknown_sig()
     }
 
     fn invocation_error(
@@ -500,7 +497,7 @@ impl<'cx> TyChecker<'cx> {
             let ty_arg = ty_arg_tys.unwrap()[i];
             let target = {
                 let ty = self.instantiate_ty(constraint, Some(mapper));
-                self.get_ty_with_this_arg(ty, Some(ty_arg))
+                self.get_ty_with_this_arg(ty, Some(ty_arg), false)
             };
             if self.check_type_assignable_to(
                 ty_arg,
@@ -682,6 +679,11 @@ impl<'cx> TyChecker<'cx> {
             );
         }
 
+        if let Some(cached) = self.get_node_links(expr.id()).get_resolved_sig() {
+            if cached != self.resolving_sig() {
+                return cached;
+            }
+        }
         if let Some(result) = res {
             return result;
         }

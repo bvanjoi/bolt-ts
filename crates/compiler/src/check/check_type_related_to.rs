@@ -83,26 +83,43 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
         }
     }
 
+    #[tracing::instrument(
+        level = tracing::Level::TRACE,
+        skip_all,
+        fields(
+            source = original_source.id.as_u32(),
+            target = original_target.id.as_u32(),
+            kind = ?self.relation,
+            recursion_flags = ?recursion_flags,
+            intersection_state = ?intersection_state,
+            report_error = ?report_error
+        ),
+        ret
+    )]
     fn is_related_to(
         &mut self,
         original_source: &'cx Ty<'cx>,
-        target: &'cx Ty<'cx>,
+        original_target: &'cx Ty<'cx>,
         recursion_flags: RecursionFlags,
         report_error: bool,
         intersection_state: IntersectionState,
     ) -> Ternary {
-        if original_source == target {
+        if original_source == original_target {
             return Ternary::TRUE;
-        } else if original_source.kind.is_object() && target.flags.intersects(TypeFlags::PRIMITIVE)
+        } else if original_source.kind.is_object()
+            && original_target.flags.intersects(TypeFlags::PRIMITIVE)
         {
             if self.relation == RelationKind::Comparable
-                && !target.flags.intersects(TypeFlags::NEVER)
-                && (self
-                    .c
-                    .is_simple_type_related_to(target, original_source, self.relation)
-                    || self
-                        .c
-                        .is_simple_type_related_to(original_source, target, self.relation))
+                && !original_target.flags.intersects(TypeFlags::NEVER)
+                && (self.c.is_simple_type_related_to(
+                    original_target,
+                    original_source,
+                    self.relation,
+                ) || self.c.is_simple_type_related_to(
+                    original_source,
+                    original_target,
+                    self.relation,
+                ))
             {
                 return Ternary::TRUE;
             } else {
@@ -113,7 +130,9 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
         let source = self
             .c
             .get_normalized_ty(original_source, SimplifiedKind::Reading);
-        let target = self.c.get_normalized_ty(target, SimplifiedKind::Writing);
+        let target = self
+            .c
+            .get_normalized_ty(original_target, SimplifiedKind::Writing);
 
         if source == target {
             return Ternary::TRUE;

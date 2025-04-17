@@ -18,16 +18,16 @@ impl<'cx> TyChecker<'cx> {
         if first_interface_decl == interface.id {
             let ty = self.get_declared_ty_of_symbol(symbol);
             self.resolve_structured_type_members(ty);
-            let ty_with_this = self.get_ty_with_this_arg(ty, None);
+            let ty_with_this = self.get_ty_with_this_arg(ty, None, false);
             if self.check_inherited_props_are_identical(ty) {
-                for base_ty in self.base_types(ty) {
+                for base_ty in self.get_base_tys(ty) {
                     let target = {
                         let this_ty = if let Some(r) = ty.kind.as_object_reference() {
                             r.target.kind.expect_object_interface().this_ty
                         } else {
                             ty.kind.expect_object_interface().this_ty
                         };
-                        self.get_ty_with_this_arg(base_ty, this_ty)
+                        self.get_ty_with_this_arg(base_ty, this_ty, false)
                     };
                     let res = self.check_type_assignable_to(
                         ty_with_this,
@@ -78,7 +78,7 @@ impl<'cx> TyChecker<'cx> {
     }
 
     fn check_inherited_props_are_identical(&mut self, ty: &'cx ty::Ty<'cx>) -> bool {
-        let base_tys = self.base_types(ty);
+        let base_tys = self.get_base_tys(ty);
         if base_tys.len() < 2 {
             return true;
         }

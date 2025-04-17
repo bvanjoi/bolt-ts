@@ -200,7 +200,8 @@ impl<'cx> Parser<'cx> {
                 match node {
                     FnDecl(_) | FnExpr(_) | NamespaceDecl(_) | ClassPropElem(_)
                     | ClassMethodElem(_) | ClassCtor(_) | CtorSigDecl(_) | GetterDecl(_)
-                    | SetterDecl(_) | IndexSigDecl(_) | EnumDecl(_) | Program(_) => return id,
+                    | SetterDecl(_) | IndexSigDecl(_) | EnumDecl(_) | Program(_)
+                    | PropSignature(_) => return id,
                     _ => {}
                 }
             }

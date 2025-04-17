@@ -3,7 +3,7 @@ use crate::check::TyChecker;
 use bolt_ts_ast::{self as ast, pprint_binding};
 
 use super::flags::ObjectFlags;
-use super::links::InterfaceTyLinksID;
+use super::links::{InterfaceTyLinksID, ObjectMappedTyLinksID};
 use super::pprint::pprint_reference_ty;
 use super::{Ty, TyMap};
 
@@ -190,8 +190,6 @@ pub struct DeclaredMembers<'cx> {
 #[derive(Debug, Clone, Copy)]
 pub struct StructuredMembers<'cx> {
     pub members: &'cx rustc_hash::FxHashMap<SymbolName, SymbolID>,
-    pub base_tys: super::Tys<'cx>,
-    pub base_ctor_ty: Option<&'cx super::Ty<'cx>>,
     pub call_sigs: super::Sigs<'cx>,
     pub ctor_sigs: super::Sigs<'cx>,
     pub index_infos: self::IndexInfos<'cx>,
@@ -367,6 +365,7 @@ pub struct MappedTy<'cx> {
     pub alias_ty_arguments: Option<super::Tys<'cx>>,
     pub target: Option<&'cx Ty<'cx>>,
     pub mapper: Option<&'cx dyn TyMap<'cx>>,
+    pub links: ObjectMappedTyLinksID<'cx>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]

@@ -531,3 +531,26 @@ pub(super) struct ModuleXHasNoExportedMemberY {
     pub module: String,
     pub member: String,
 }
+
+#[derive(Debug, Default)]
+pub(super) enum UndefinedOrNull {
+    Undefined,
+    Null,
+    #[default]
+    Both,
+}
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
+#[error("'{name}' is possibly {}.", {
+    match kind {
+        UndefinedOrNull::Both => "undefined or null",
+        UndefinedOrNull::Undefined => "undefined",
+        UndefinedOrNull::Null => "null",
+    }
+})]
+pub(super) struct XIsPossiblyNullOrUndefined {
+    #[label(primary)]
+    pub span: Span,
+    pub name: String,
+    pub kind: UndefinedOrNull,
+}

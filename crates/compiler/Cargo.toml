@@ -20,6 +20,7 @@ bolt_ts_utils = { path = "../utils" }
 bolt_ts_fs = { path = "../fs" }
 bolt_ts_resolve = { path = "../resolve" }
 bolt_ts_path = { path = "../path" }
+bolt_ts_tracing = { path = "../tracing" }
 project-root = "0.2.2"
 thin-vec = { workspace = true }
 stacker = "0.1"
@@ -30,6 +31,7 @@ serde_json = { workspace = true }
 indexmap = { workspace = true }
 pretty-duration = "0.1.1"
 id-arena = { workspace = true }
+tracing = { workspace = true }
 
 [dev-dependencies]
 expect-test = "1.2.2"

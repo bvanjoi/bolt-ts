@@ -1,7 +1,7 @@
 use crate::keyword;
 use bolt_ts_atom::AtomId;
 
-use super::{Ty, TyKind};
+use super::{Ty, TyKind, TypeFlags};
 
 bitflags::bitflags! {
   #[derive(Debug, Clone, Copy)]
@@ -310,10 +310,14 @@ bitflags::bitflags! {
 }
 
 pub fn has_type_facts(ty: &Ty, mark: TypeFacts) -> bool {
-    get_type_facts(ty).intersects(mark)
+    !get_type_facts(ty, mark).is_empty()
 }
 
-fn get_type_facts(ty: &Ty) -> TypeFacts {
+pub fn get_type_facts(ty: &Ty, mark: TypeFacts) -> TypeFacts {
+    _get_type_facts(ty, mark) & mark
+}
+
+fn _get_type_facts(ty: &Ty, caller_only_needs: TypeFacts) -> TypeFacts {
     if let TyKind::NumberLit(lit) = ty.kind {
         let is_zero = lit.val == 0.;
         if is_zero {
@@ -321,6 +325,8 @@ fn get_type_facts(ty: &Ty) -> TypeFacts {
         } else {
             TypeFacts::NON_ZERO_NUMBER_FACTS
         }
+    } else if ty.flags.intersects(TypeFlags::UNDEFINED) {
+        TypeFacts::UNDEFINED_FACTS
     } else {
         TypeFacts::empty()
     }

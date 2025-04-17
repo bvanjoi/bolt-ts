@@ -22,7 +22,6 @@ pub(super) struct ParserState<'cx, 'p> {
     pub(super) full_start_pos: usize,
     pub(super) pos: usize,
     pub(super) module_id: ModuleID,
-    pub(super) ident_count: usize,
     pub(super) diags: Vec<bolt_ts_errors::Diag>,
     pub(super) nodes: Nodes<'cx>,
     pub(super) parent_map: crate::bind::ParentMap,
@@ -77,7 +76,6 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
             full_start_pos: 0,
             atoms,
             module_id,
-            ident_count: 0,
             diags: vec![],
             token_flags: TokenFlags::empty(),
             arena,
@@ -239,7 +237,6 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
     }
 
     pub(super) fn create_ident_by_atom(&mut self, name: AtomId, span: Span) -> &'cx ast::Ident {
-        self.ident_count += 1;
         let id = self.next_node_id();
         let ident = self.alloc(ast::Ident { id, name, span });
         self.nodes.insert(id, Node::Ident(ident));

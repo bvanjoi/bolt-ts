@@ -9,7 +9,7 @@ use super::utils::{capitalize, uncapitalize};
 use super::{InstantiationTyMap, StringMappingTyMap, TyChecker};
 use crate::bind::SymbolID;
 use crate::keyword::{self};
-use crate::ty::{self};
+use crate::ty::{self, ObjectMappedTyLinks};
 use crate::ty::{ObjectFlags, TyMapper, TypeFlags};
 
 use bolt_ts_ast as ast;
@@ -243,7 +243,10 @@ impl<'cx> TyChecker<'cx> {
         self.create_instantiating_anonymous_ty(target.symbol.unwrap(), ty, mapper, object_flags)
     }
 
-    fn get_homomorphic_ty_var(&mut self, ty: &'cx ty::Ty<'cx>) -> Option<&'cx ty::Ty<'cx>> {
+    pub(crate) fn get_homomorphic_ty_var(
+        &mut self,
+        ty: &'cx ty::Ty<'cx>,
+    ) -> Option<&'cx ty::Ty<'cx>> {
         let constraint_ty = self.get_constraint_ty_from_mapped_ty(ty);
         constraint_ty.kind.as_index_ty().and_then(|index_ty| {
             let ty_var = self.get_actual_ty_variable(index_ty.ty);
@@ -506,6 +509,8 @@ impl<'cx> TyChecker<'cx> {
             object_flags
         };
 
+        let links = ObjectMappedTyLinks::default().with_ty_param(fresh_ty_param);
+        let links = self.object_mapped_ty_links_arena.alloc(links);
         let ty = self.alloc(ty::MappedTy {
             symbol: map.symbol,
             decl: map.decl,
@@ -513,16 +518,12 @@ impl<'cx> TyChecker<'cx> {
             alias_ty_arguments,
             target: Some(ty),
             mapper: Some(mapper),
+            links,
         });
         let ty = self.create_object_ty(
             ty::ObjectTyKind::Mapped(ty),
             object_flags | ObjectFlags::MAPPED,
         );
-        let prev = self.ty_links.insert(
-            ty.id,
-            super::TyLinks::default().with_mapped_ty_param(fresh_ty_param),
-        );
-        assert!(prev.is_none());
         ty
     }
 
@@ -738,7 +739,12 @@ impl<'cx> TyChecker<'cx> {
             } else {
                 self.instantiate_anonymous_ty(target, new_mapper, object_flags)
             };
-            self.instantiation_ty_map.insert(id, ty);
+            if !self.instantiation_ty_map.contain(id) {
+                self.instantiation_ty_map.insert(id, ty);
+            } else {
+                // cycle
+                self.instantiation_ty_map.r#override(id, ty);
+            }
             ty
         } else {
             ty
@@ -795,7 +801,12 @@ impl<'cx> TyChecker<'cx> {
         } else {
             self.get_cond_ty(cond_ty.root, Some(new_mapper), alias_symbol, alias_ty_args)
         };
-        self.instantiation_ty_map.insert(key, ty);
+        if !self.instantiation_ty_map.contain(key) {
+            self.instantiation_ty_map.insert(key, ty);
+        } else {
+            // cycle
+            self.instantiation_ty_map.r#override(key, ty);
+        }
         ty
     }
 

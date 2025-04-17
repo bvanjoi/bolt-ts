@@ -368,6 +368,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
             if this.parse_ctor_name() {
                 let ty_params = this.parse_ty_params()?;
                 let params = this.parse_params()?;
+                this.check_params(params, true);
                 let ret = this.parse_ret_ty(true)?;
                 let body = this.parse_fn_block()?;
                 let id = this.next_node_id();

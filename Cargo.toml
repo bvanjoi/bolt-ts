@@ -15,6 +15,7 @@ members = [
   "crates/span",
   "crates/utils",
   "crates/wasm",
+  "crates/tracing",
 ]
 
 [workspace.dependencies]
@@ -32,3 +33,4 @@ paste = "1.0.15"
 indexmap = "2.7.0"
 xxhash-rust = { version = "0.8.12", features = ["xxh3"] }
 id-arena = "2.2.1"
+tracing = "0.1.41"

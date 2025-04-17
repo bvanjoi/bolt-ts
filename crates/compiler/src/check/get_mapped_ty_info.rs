@@ -82,12 +82,12 @@ impl<'cx> TyChecker<'cx> {
 
     pub(super) fn get_ty_param_from_mapped_ty(&mut self, ty: &'cx ty::Ty<'cx>) -> &'cx ty::Ty<'cx> {
         let mapped_ty = ty.kind.expect_object_mapped();
-        if let Some(t) = self.get_ty_links(ty.id).get_mapped_ty_param() {
+        if let Some(t) = self.object_mapped_ty_links_arena[mapped_ty.links].get_ty_param() {
             return t;
         }
         let param_ty = self.get_symbol_of_decl(mapped_ty.decl.ty_param.id);
         let t = self.get_declared_ty_of_ty_param(param_ty);
-        self.get_mut_ty_links(ty.id).set_mapped_ty_param(t);
+        self.object_mapped_ty_links_arena[mapped_ty.links].set_ty_param(t);
         t
     }
 
@@ -95,15 +95,15 @@ impl<'cx> TyChecker<'cx> {
         &mut self,
         ty: &'cx ty::Ty<'cx>,
     ) -> &'cx ty::Ty<'cx> {
-        assert!(ty.kind.is_object_mapped());
-        if let Some(t) = self.get_ty_links(ty.id).get_mapped_constraint_ty() {
+        let m = ty.kind.expect_object_mapped();
+        if let Some(t) = self.object_mapped_ty_links_arena[m.links].get_constraint_ty() {
             return t;
         }
         let ty_param = self.get_ty_param_from_mapped_ty(ty);
         let t = self
             .get_constraint_of_ty_param(ty_param)
             .unwrap_or(self.error_ty);
-        self.get_mut_ty_links(ty.id).set_mapped_constraint_ty(t);
+        self.object_mapped_ty_links_arena[m.links].set_constraint_ty(t);
         t
     }
 
@@ -113,12 +113,18 @@ impl<'cx> TyChecker<'cx> {
     ) -> Option<&'cx ty::Ty<'cx>> {
         let mapped_ty = ty.kind.expect_object_mapped();
         mapped_ty.decl.name_ty.map(|name_ty| {
-            if let Some(t) = self.get_ty_links(ty.id).get_mapped_named_ty() {
+            if let Some(t) = self.object_mapped_ty_links_arena[mapped_ty.links].get_named_ty() {
                 return t;
             }
             let name_ty = self.get_ty_from_type_node(name_ty);
             let name_ty = self.instantiate_ty(name_ty, mapped_ty.mapper);
-            self.get_mut_ty_links(ty.id).set_mapped_named_ty(name_ty);
+            let links = &mut self.object_mapped_ty_links_arena[mapped_ty.links];
+            if links.get_named_ty().is_some() {
+                // cycle
+                links.override_named_ty(name_ty);
+            } else {
+                links.set_named_ty(name_ty);
+            }
             name_ty
         })
     }
@@ -128,7 +134,9 @@ impl<'cx> TyChecker<'cx> {
         ty: &'cx ty::Ty<'cx>,
     ) -> &'cx ty::Ty<'cx> {
         let mapped_ty = ty.kind.expect_object_mapped();
-        if let Some(template_ty) = self.get_ty_links(ty.id).get_mapped_template_ty() {
+        if let Some(template_ty) =
+            self.object_mapped_ty_links_arena[mapped_ty.links].get_template_ty()
+        {
             return template_ty;
         }
         let template_ty = if let Some(decl_ty) = mapped_ty.decl.ty {
@@ -142,8 +150,7 @@ impl<'cx> TyChecker<'cx> {
         } else {
             self.error_ty
         };
-        self.get_mut_ty_links(ty.id)
-            .set_mapped_template_ty(template_ty);
+        self.object_mapped_ty_links_arena[mapped_ty.links].set_template_ty(template_ty);
         template_ty
     }
 }

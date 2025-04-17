@@ -346,6 +346,7 @@ impl<'cx> TyChecker<'cx> {
         &mut self,
         ty: &'cx ty::Ty<'cx>,
         this_arg: Option<&'cx ty::Ty<'cx>>,
+        need_apparent_ty: bool,
     ) -> &'cx ty::Ty<'cx> {
         if ty.get_object_flags().intersects(ObjectFlags::REFERENCE) {
             let ty_args = self.get_ty_arguments(ty);
@@ -387,10 +388,12 @@ impl<'cx> TyChecker<'cx> {
         } else if let Some(i) = ty.kind.as_intersection() {
             let tys = self
                 .same_map_tys(Some(i.tys), |this, ty, _| {
-                    this.get_ty_with_this_arg(ty, this_arg)
+                    this.get_ty_with_this_arg(ty, this_arg, need_apparent_ty)
                 })
                 .unwrap();
             self.get_intersection_ty(tys, IntersectionFlags::None, None, None)
+        } else if need_apparent_ty {
+            self.get_apparent_ty(ty)
         } else {
             ty
         }
@@ -521,7 +524,8 @@ impl<'cx> TyChecker<'cx> {
                 Some(self.inference(inference).non_fixing_mapper),
             );
             if inferred_ty.is_none_or(|inferred_ty| {
-                let ty = self.get_ty_with_this_arg(instantiated_constraint, Some(inferred_ty));
+                let ty =
+                    self.get_ty_with_this_arg(instantiated_constraint, Some(inferred_ty), false);
                 // TODO: more flexible compare types
                 !self.is_type_related_to(inferred_ty, ty, super::relation::RelationKind::Assignable)
             }) {
