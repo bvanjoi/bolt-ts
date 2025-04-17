@@ -4,16 +4,6 @@ use crate::bind::SymbolID;
 use crate::ty::TypeFlags;
 
 impl<'cx> TyChecker<'cx> {
-    pub(super) fn base_types(&self, ty: &'cx ty::Ty<'cx>) -> ty::Tys<'cx> {
-        if ty.kind.is_object_interface() || ty.kind.is_object_reference() {
-            self.expect_ty_links(ty.id)
-                .expect_structured_members()
-                .base_tys
-        } else {
-            &[]
-        }
-    }
-
     pub(super) fn index_infos_of_ty(&self, ty: &'cx ty::Ty<'cx>) -> ty::IndexInfos<'cx> {
         if ty.flags.intersects(TypeFlags::STRUCTURED_TYPE) {
             self.expect_ty_links(ty.id)

@@ -337,7 +337,6 @@ impl<'cx> TyChecker<'cx> {
                 call_sigs,
                 ctor_sigs,
                 index_infos,
-                base_tys: &[],
             })),
         );
         assert!(prev.is_none());

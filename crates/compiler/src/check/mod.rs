@@ -890,17 +890,17 @@ impl<'cx> TyChecker<'cx> {
             }
         }
 
-        if ty.kind.as_object_interface().is_some() {
-            let base_tys = self
-                .get_ty_links(ty.id)
-                .expect_structured_members()
-                .base_tys;
-            for base_ty in base_tys {
-                self.check_index_constraint_for_prop(base_ty, prop, prop_name_ty, prop_ty);
-            }
-        } else {
-            // unreachable!("{:#?}", ty)
-        }
+        // if ty.kind.as_object_interface().is_some() {
+        //     let base_tys = self
+        //         .get_ty_links(ty.id)
+        //         .expect_structured_members()
+        //         .base_tys;
+        //     for base_ty in base_tys {
+        //         self.check_index_constraint_for_prop(base_ty, prop, prop_name_ty, prop_ty);
+        //     }
+        // } else {
+        //     // unreachable!("{:#?}", ty)
+        // }
     }
 
     fn get_lit_ty_from_prop_name(&mut self, prop_name: &ast::PropName<'cx>) -> &'cx ty::Ty<'cx> {
@@ -1175,7 +1175,6 @@ impl<'cx> TyChecker<'cx> {
             ty.id,
             TyLinks::default().with_structured_members(self.alloc(ty::StructuredMembers {
                 members: self.alloc(Default::default()),
-                base_tys: &[],
                 call_sigs: if !is_constructor {
                     self.alloc([sig])
                 } else {

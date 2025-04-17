@@ -190,7 +190,6 @@ pub struct DeclaredMembers<'cx> {
 #[derive(Debug, Clone, Copy)]
 pub struct StructuredMembers<'cx> {
     pub members: &'cx rustc_hash::FxHashMap<SymbolName, SymbolID>,
-    pub base_tys: super::Tys<'cx>,
     pub call_sigs: super::Sigs<'cx>,
     pub ctor_sigs: super::Sigs<'cx>,
     pub index_infos: self::IndexInfos<'cx>,

@@ -369,7 +369,7 @@ impl<'cx> TyChecker<'cx> {
         self.create_array_ty(ty, readonly)
     }
 
-    fn get_base_tys(&mut self, ty: &'cx ty::Ty<'cx>) -> ty::Tys<'cx> {
+    pub(super) fn get_base_tys(&mut self, ty: &'cx ty::Ty<'cx>) -> ty::Tys<'cx> {
         if let Some(tys) = self.get_ty_links(ty.id).get_resolved_base_tys() {
             return tys;
         }
@@ -437,7 +437,6 @@ impl<'cx> TyChecker<'cx> {
             if base_tys.is_empty() {
                 let m = self.alloc(ty::StructuredMembers {
                     members: self.alloc(members),
-                    base_tys: &[],
                     call_sigs: declared.call_sigs,
                     ctor_sigs: declared.ctor_sigs,
                     index_infos: declared.index_infos,
@@ -492,7 +491,6 @@ impl<'cx> TyChecker<'cx> {
         let props = self.get_props_from_members(&members);
         let m = self.alloc(ty::StructuredMembers {
             members: self.alloc(members),
-            base_tys,
             call_sigs: self.alloc(call_sigs),
             ctor_sigs: self.alloc(ctor_sigs),
             index_infos: self.alloc(index_infos),
@@ -838,7 +836,6 @@ impl<'cx> TyChecker<'cx> {
         let props = self.get_props_from_members(&members.0);
         let m = self.alloc(ty::StructuredMembers {
             members: self.alloc(members.0),
-            base_tys: &[],
             call_sigs: self.empty_array(),
             ctor_sigs: self.empty_array(),
             index_infos,
@@ -874,7 +871,6 @@ impl<'cx> TyChecker<'cx> {
             let props = self.get_props_from_members(&members);
             let m = self.alloc(ty::StructuredMembers {
                 members: self.alloc(members),
-                base_tys: &[],
                 call_sigs,
                 ctor_sigs,
                 index_infos,
@@ -898,7 +894,6 @@ impl<'cx> TyChecker<'cx> {
             let props = self.get_props_from_members(&members.0);
             let m = self.alloc(ty::StructuredMembers {
                 members: &members.0,
-                base_tys: &[],
                 call_sigs,
                 ctor_sigs,
                 index_infos,
@@ -963,7 +958,6 @@ impl<'cx> TyChecker<'cx> {
         let props = self.get_props_from_members(&members);
         let m = self.alloc(ty::StructuredMembers {
             members: self.alloc(members),
-            base_tys: &[],
             call_sigs,
             ctor_sigs,
             index_infos,
@@ -988,7 +982,6 @@ impl<'cx> TyChecker<'cx> {
             .collect::<Vec<_>>();
         let m = self.alloc(ty::StructuredMembers {
             members: self.alloc(FxHashMap::default()),
-            base_tys: &[],
             call_sigs: self.alloc(call_sigs),
             ctor_sigs: self.alloc(ctor_sigs),
             index_infos: Default::default(),
@@ -1016,7 +1009,6 @@ impl<'cx> TyChecker<'cx> {
 
         let m = self.alloc(ty::StructuredMembers {
             members: self.alloc(FxHashMap::default()),
-            base_tys: &[],
             call_sigs: if call_sigs.is_empty() {
                 self.empty_array()
             } else {
@@ -1264,7 +1256,6 @@ impl<'cx> TyChecker<'cx> {
     fn resolve_mapped_ty_members(&mut self, ty: &'cx ty::Ty<'cx>) {
         let m = self.alloc(ty::StructuredMembers {
             members: self.alloc(Default::default()),
-            base_tys: &[],
             call_sigs: self.empty_array(),
             ctor_sigs: self.empty_array(),
             index_infos: self.empty_array(),
@@ -1442,7 +1433,6 @@ impl<'cx> TyChecker<'cx> {
         let props = self.get_props_from_members(&members);
         let m = self.alloc(ty::StructuredMembers {
             members: self.alloc(members),
-            base_tys: &[],
             call_sigs: self.empty_array(),
             ctor_sigs: self.empty_array(),
             index_infos: if index_infos.is_empty() {
