@@ -739,7 +739,12 @@ impl<'cx> TyChecker<'cx> {
             } else {
                 self.instantiate_anonymous_ty(target, new_mapper, object_flags)
             };
-            self.instantiation_ty_map.insert(id, ty);
+            if !self.instantiation_ty_map.contain(id) {
+                self.instantiation_ty_map.insert(id, ty);
+            } else {
+                // cycle
+                self.instantiation_ty_map.r#override(id, ty);
+            }
             ty
         } else {
             ty
@@ -796,7 +801,12 @@ impl<'cx> TyChecker<'cx> {
         } else {
             self.get_cond_ty(cond_ty.root, Some(new_mapper), alias_symbol, alias_ty_args)
         };
-        self.instantiation_ty_map.insert(key, ty);
+        if !self.instantiation_ty_map.contain(key) {
+            self.instantiation_ty_map.insert(key, ty);
+        } else {
+            // cycle
+            self.instantiation_ty_map.r#override(key, ty);
+        }
         ty
     }
 

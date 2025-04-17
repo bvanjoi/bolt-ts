@@ -42,6 +42,7 @@ impl<'cx> TyCache<'cx> {
         self.inner.contains_key(&key)
     }
 
+    #[track_caller]
     pub fn insert(&mut self, key: TyKey, ty: &'cx ty::Ty<'cx>) {
         let prev = self.inner.insert(key, ty);
         assert!(prev.is_none());
@@ -60,8 +61,13 @@ pub(super) trait TyCacheTrait<'cx> {
     fn contain(&self, key: TyKey) -> bool {
         self.inner().contain(key)
     }
+    #[track_caller]
     fn insert(&mut self, key: TyKey, ty: &'cx ty::Ty<'cx>) {
         self.inner_mut().insert(key, ty);
+    }
+    fn r#override(&mut self, key: TyKey, ty: &'cx ty::Ty<'cx>) {
+        let prev = self.inner_mut().inner.insert(key, ty);
+        assert!(prev.is_some());
     }
 }
 

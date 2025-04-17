@@ -802,10 +802,9 @@ impl<'cx> TyChecker<'cx> {
             }
             let props = self.get_props_of_union_or_intersection(ty);
             let is_never_intersection_ty = props.iter().any(|p| self.is_never_reduced_prop(*p));
-            let prev = self
-                .never_intersection_tys
+            self.never_intersection_tys
                 .insert(ty.id, is_never_intersection_ty);
-            assert!(prev.is_none());
+            // TODO: assert(prev.is_none());
             return if is_never_intersection_ty {
                 self.never_ty
             } else {

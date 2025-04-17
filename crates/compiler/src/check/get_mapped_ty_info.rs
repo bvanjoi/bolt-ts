@@ -118,7 +118,13 @@ impl<'cx> TyChecker<'cx> {
             }
             let name_ty = self.get_ty_from_type_node(name_ty);
             let name_ty = self.instantiate_ty(name_ty, mapped_ty.mapper);
-            self.object_mapped_ty_links_arena[mapped_ty.links].set_named_ty(name_ty);
+            let links = &mut self.object_mapped_ty_links_arena[mapped_ty.links];
+            if links.get_named_ty().is_some() {
+                // cycle
+                links.override_named_ty(name_ty);
+            } else {
+                links.set_named_ty(name_ty);
+            }
             name_ty
         })
     }

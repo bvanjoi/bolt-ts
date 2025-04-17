@@ -1262,6 +1262,16 @@ impl<'cx> TyChecker<'cx> {
     }
 
     fn resolve_mapped_ty_members(&mut self, ty: &'cx ty::Ty<'cx>) {
+        let m = self.alloc(ty::StructuredMembers {
+            members: self.alloc(Default::default()),
+            base_tys: &[],
+            call_sigs: self.empty_array(),
+            ctor_sigs: self.empty_array(),
+            index_infos: self.empty_array(),
+            props: self.empty_array(),
+        });
+        self.get_mut_ty_links(ty.id).set_structured_members(m);
+
         let mapped_ty = ty.kind.expect_object_mapped();
         let ty_param = self.get_ty_param_from_mapped_ty(ty);
         let constraint_ty = self.get_constraint_ty_from_mapped_ty(ty);
@@ -1433,8 +1443,8 @@ impl<'cx> TyChecker<'cx> {
         let m = self.alloc(ty::StructuredMembers {
             members: self.alloc(members),
             base_tys: &[],
-            call_sigs: self.alloc(vec![]),
-            ctor_sigs: self.alloc(vec![]),
+            call_sigs: self.empty_array(),
+            ctor_sigs: self.empty_array(),
             index_infos: if index_infos.is_empty() {
                 self.empty_array()
             } else {
@@ -1442,7 +1452,7 @@ impl<'cx> TyChecker<'cx> {
             },
             props,
         });
-        self.get_mut_ty_links(ty.id).set_structured_members(m);
+        self.get_mut_ty_links(ty.id).override_structured_members(m);
     }
 
     pub(super) fn resolve_structured_type_members(&mut self, ty: &'cx ty::Ty<'cx>) {

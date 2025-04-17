@@ -275,13 +275,10 @@ impl<'cx> TyChecker<'cx> {
         for current in tys {
             for prop in self.get_props_of_ty(current) {
                 let name = self.symbol(*prop).name;
-                if let std::collections::hash_map::Entry::Vacant(e) = members.entry(name) {
+                if !members.contains_key(&name) {
                     if let Some(combined_prop) = self.get_prop_of_union_or_intersection_ty(ty, name)
                     {
-                        let prev: Option<SymbolID> = {
-                            e.insert(combined_prop);
-                            None
-                        };
+                        let prev = members.insert(name, combined_prop);
                         assert!(prev.is_none());
                     }
                 }
@@ -289,7 +286,13 @@ impl<'cx> TyChecker<'cx> {
         }
         let props = members.into_values().collect::<Vec<_>>();
         let props = self.alloc(props);
-        self.get_mut_ty_links(ty.id).set_resolved_properties(props);
+        if self.get_ty_links(ty.id).get_resolved_properties().is_none() {
+            self.get_mut_ty_links(ty.id).set_resolved_properties(props);
+        } else {
+            // cycle
+            self.get_mut_ty_links(ty.id)
+                .override_resolved_properties(props);
+        }
         props
     }
 
