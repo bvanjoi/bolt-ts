@@ -394,6 +394,10 @@ pub struct ArrowFnExpr<'cx> {
     pub body: ArrowFnExprBody<'cx>,
 }
 
+pub fn has_rest_param(params: ParamsDecl) -> bool {
+    params.last().is_some_and(|param| param.is_rest())
+}
+
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum AssignOp {
     Eq,

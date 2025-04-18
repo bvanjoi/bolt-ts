@@ -223,8 +223,10 @@ pub fn visit_template_lit_ty<'cx>(v: &mut impl Visitor<'cx>, n: &'cx super::Temp
 pub fn visit_ident<'cx>(_: &mut impl Visitor<'cx>, _: &'cx super::Ident) {}
 pub fn visit_expr<'cx>(v: &mut impl Visitor<'cx>, n: &'cx super::Expr<'cx>) {
     use super::ExprKind::*;
-    if let ObjectLit(n) = n.kind {
-        v.visit_object_lit(n)
+    match n.kind {
+        ObjectLit(n) => v.visit_object_lit(n),
+        ArrowFn(n) => v.visit_arrow_fn_expr(n),
+        _ => {}
     }
 }
 pub fn visit_object_lit<'cx>(_: &mut impl Visitor<'cx>, _: &'cx super::ObjectLit<'cx>) {}
@@ -249,6 +251,8 @@ pub fn visit_block_stmt<'cx>(v: &mut impl Visitor<'cx>, n: &'cx super::BlockStmt
 pub fn visit_expr_stmt<'cx>(v: &mut impl Visitor<'cx>, n: &'cx super::ExprStmt<'cx>) {
     v.visit_expr(n.expr);
 }
+
+pub fn visit_arrow_fn_expr<'cx>(_: &mut impl Visitor<'cx>, _: &'cx super::ArrowFnExpr<'cx>) {}
 
 macro_rules! make_visitor {
     ( $( ($visit_node: ident, $ty: ty) ),* $(,)? ) => {
@@ -301,6 +305,7 @@ make_visitor!(
     (visit_try_stmt, super::TryStmt<'cx>),
     (visit_block_stmt, super::BlockStmt<'cx>),
     (visit_expr_stmt, super::ExprStmt<'cx>),
+    (visit_arrow_fn_expr, super::ArrowFnExpr<'cx>)
 );
 
 pub fn visit_node<'cx>(v: &mut impl Visitor<'cx>, node: &super::Node<'cx>) {

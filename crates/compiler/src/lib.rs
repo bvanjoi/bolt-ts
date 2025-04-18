@@ -263,6 +263,7 @@ pub fn eval_from_with_fs<'cx>(
             &p,
             &atoms,
             module_arena.modules(),
+            tsconfig.compiler_options(),
         ))
         .collect();
 

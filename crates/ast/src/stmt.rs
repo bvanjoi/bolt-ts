@@ -653,6 +653,12 @@ pub struct ParamDecl<'cx> {
     pub init: Option<&'cx Expr<'cx>>,
 }
 
+impl ParamDecl<'_> {
+    pub fn is_rest(&self) -> bool {
+        self.dotdotdot.is_some()
+    }
+}
+
 pub type ParamsDecl<'cx> = &'cx [&'cx ParamDecl<'cx>];
 
 #[derive(Debug, Clone, Copy)]
