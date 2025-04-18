@@ -360,11 +360,7 @@ fn get_sig_from_decl<'cx>(
     } else {
         node.params().unwrap()
     };
-    let has_rest_param = params_of_node
-        .last()
-        .map(|param| param.dotdotdot.is_some())
-        .unwrap_or_default();
-
+    let has_rest_param = ast::has_rest_param(params_of_node);
     let mut flags = SigFlags::empty();
     let mut min_args_count = 0;
     let mut params = Vec::with_capacity(params_of_node.len());
