@@ -186,7 +186,7 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
-    fn get_resolved_sig(&mut self, node: ast::NodeID) -> &'cx ty::Sig<'cx> {
+    pub(super) fn get_resolved_sig(&mut self, node: ast::NodeID) -> &'cx ty::Sig<'cx> {
         let resolving_sig = self.resolving_sig();
         if let Some(cached) = self.get_node_links(node).get_resolved_sig() {
             if cached != resolving_sig {
@@ -199,10 +199,11 @@ impl<'cx> TyChecker<'cx> {
 
         let sig = match self.p.node(node) {
             ast::Node::CallExpr(call) => call.resolve_sig(self),
+            ast::Node::TaggedTemplateExpr(expr) => expr.resolve_sig(self),
             _ => unreachable!(),
         };
 
-        self.get_mut_node_links(node).set_resolved_sig(sig);
+        self.get_mut_node_links(node).override_resolved_sig(sig);
         sig
     }
 

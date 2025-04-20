@@ -541,9 +541,7 @@ impl<'cx> Resolver<'cx, '_, '_> {
                 self.resolve_expr(n.expr);
             }
             Template(n) => {
-                for item in n.spans {
-                    self.resolve_expr(item.expr);
-                }
+                self.resolve_template_expr(n);
             }
             NonNull(n) => {
                 self.resolve_expr(n.expr);
@@ -561,8 +559,29 @@ impl<'cx> Resolver<'cx, '_, '_> {
                 self.resolve_expr(n.expr);
                 self.resolve_ty(n.ty);
             }
-            This(_) | BoolLit(_) | NumLit(_) | BigIntLit(_) | StringLit(_) | NullLit(_)
-            | Omit(_) | Super(_) | RegExpLit(_) => {}
+            TaggedTemplate(n) => {
+                self.resolve_expr(n.tag);
+                if let Some(ty_args) = n.ty_args {
+                    self.resolve_tys(ty_args.list);
+                }
+                self.resolve_expr(n.tpl);
+            }
+            This(_)
+            | BoolLit(_)
+            | NumLit(_)
+            | BigIntLit(_)
+            | StringLit(_)
+            | NullLit(_)
+            | Omit(_)
+            | Super(_)
+            | RegExpLit(_)
+            | NoSubstitutionTemplateLit(_) => {}
+        }
+    }
+
+    fn resolve_template_expr(&mut self, n: &'cx ast::TemplateExpr<'cx>) {
+        for item in n.spans {
+            self.resolve_expr(item.expr);
         }
     }
 

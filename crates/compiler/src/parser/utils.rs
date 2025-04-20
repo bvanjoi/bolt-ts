@@ -726,6 +726,17 @@ impl<'cx> ParserState<'cx, '_> {
         lit
     }
 
+    pub(super) fn parse_no_substitution_template_lit(
+        &mut self,
+    ) -> &'cx ast::NoSubstitutionTemplateLit {
+        let val = self.string_token();
+        let lit = self.create_lit(val, self.token.span);
+        self.nodes
+            .insert(lit.id, ast::Node::NoSubstitutionTemplateLit(lit));
+        self.next_token();
+        lit
+    }
+
     pub(super) fn has_preceding_line_break(&self) -> bool {
         self.token_flags
             .intersects(TokenFlags::PRECEDING_LINE_BREAK)

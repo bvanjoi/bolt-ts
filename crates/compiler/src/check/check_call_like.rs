@@ -39,6 +39,15 @@ impl<'cx> CallLikeExpr<'cx> for ast::NewExpr<'cx> {
     }
 }
 
+impl<'cx> CallLikeExpr<'cx> for ast::TaggedTemplateExpr<'cx> {
+    fn resolve_sig(&self, checker: &mut TyChecker<'cx>) -> &'cx Sig<'cx> {
+        checker.resolve_call_expr(self)
+    }
+    fn is_super_call(&self) -> bool {
+        matches!(self.tag.kind, ast::ExprKind::Super(..))
+    }
+}
+
 impl<'cx> TyChecker<'cx> {
     pub(super) fn check_call_like_expr(
         &mut self,
@@ -433,7 +442,12 @@ impl<'cx> TyChecker<'cx> {
         for (i, arg) in args.iter().enumerate().take(arg_count) {
             if !matches!(arg.kind, ast::ExprKind::Omit(_)) {
                 let param_ty = self.get_ty_at_pos(sig, i);
-                let arg_ty = self.check_expr_with_contextual_ty(arg, param_ty, None, check_mode);
+                let arg_ty = if self.p.node(expr.id()).is_tagged_template_expr() {
+                    // TODO: wrap by `check_expr_with_contextual_ty`
+                    self.global_tpl_strings_array_ty()
+                } else {
+                    self.check_expr_with_contextual_ty(arg, param_ty, None, check_mode)
+                };
                 let error_node = report_error.then(|| arg.id());
                 let regular_arg_ty = if check_mode.intersects(CheckMode::SKIP_CONTEXT_SENSITIVE) {
                     self.get_regular_ty_of_object_literal(arg_ty)
@@ -653,7 +667,7 @@ impl<'cx> TyChecker<'cx> {
             argument_check_mode = CheckMode::SKIP_CONTEXT_SENSITIVE;
         }
 
-        let args = self.get_effective_call_args(expr);
+        let args = expr.args();
 
         let mut res = None;
 

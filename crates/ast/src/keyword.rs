@@ -83,6 +83,7 @@ gen_atoms!(
     (IDENT_ARRAY, "array"),
     (IDENT_ARRAY_CLASS, "Array"),
     (IDENT_READONLY_ARRAY_CLASS, "ReadonlyArray"),
+    (IDENT_TEMPLATE_STRINGS_ARRAY_CLASS, "TemplateStringsArray"),
     (IDENT_STRING, "string"),
     (IDENT_STRING_CLASS, "String"),
     (IDENT_BOOLEAN, "boolean"),

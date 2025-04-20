@@ -3,7 +3,6 @@ mod errors;
 use bolt_ts_ast::{self as ast};
 use bolt_ts_path::NormalizePath;
 
-
 use super::parser;
 use super::{ModuleArena, ModuleID};
 
@@ -142,7 +141,7 @@ pub(super) fn build_graph<'cx>(
                 let module_name_node = parser.node(ast_id);
                 let module_name = match module_name_node {
                     ast::Node::StringLit(lit) => lit.val,
-                    // TODO: NoSubstitutionTemplateLiteral
+                    ast::Node::NoSubstitutionTemplateLit(lit) => lit.val,
                     _ => unreachable!(),
                 };
                 let m = ast_id.module();
@@ -187,7 +186,7 @@ pub fn resolve_external_module_name(
     let from = module_spec.module();
     let name = match p.node(module_spec) {
         ast::Node::StringLit(lit) => lit.val,
-        // TODO: NoSubstitutionTemplateLiteral
+        ast::Node::NoSubstitutionTemplateLit(lit) => lit.val,
         _ => unreachable!(),
     };
     let Some(dep) = mg.get_dep(from, name) else {

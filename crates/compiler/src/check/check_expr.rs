@@ -173,6 +173,7 @@ impl<'cx> TyChecker<'cx> {
             Bin(bin) => ensure_sufficient_stack(|| self.check_bin_expr(bin)),
             NumLit(lit) => self.check_num_lit(lit.val),
             StringLit(lit) => self.check_string_lit(lit.val),
+            NoSubstitutionTemplateLit(lit) => self.check_string_lit(lit.val),
             BigIntLit(lit) => self.check_bigint_lit(lit.val.0, lit.val.1),
             BoolLit(lit) => {
                 if lit.val {
@@ -222,10 +223,19 @@ impl<'cx> TyChecker<'cx> {
             ExprWithTyArgs(n) => self.check_expr_with_ty_args(n),
             SpreadElement(n) => self.check_spread_element(n),
             RegExpLit(_) => self.global_regexp_ty(),
+            TaggedTemplate(n) => self.check_tagged_template_expr(n),
         };
         let ty = self.instantiate_ty_with_single_generic_call_sig(expr.id(), ty);
         self.current_node = saved_current_node;
         ty
+    }
+
+    fn check_tagged_template_expr(
+        &mut self,
+        node: &'cx ast::TaggedTemplateExpr<'cx>,
+    ) -> &'cx ty::Ty<'cx> {
+        let sig = self.get_resolved_sig(node.id);
+        self.get_ret_ty_of_sig(sig)
     }
 
     fn check_spread_element(&mut self, node: &'cx ast::SpreadElement<'cx>) -> &'cx ty::Ty<'cx> {

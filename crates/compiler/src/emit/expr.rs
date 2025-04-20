@@ -14,6 +14,11 @@ impl<'cx> Emit<'cx> {
                 self.content.p(self.atoms.get(s.val));
                 self.content.p("\"");
             }
+            NoSubstitutionTemplateLit(n) => {
+                self.content.p("`");
+                self.content.p(self.atoms.get(n.val));
+                self.content.p("`");
+            }
             NullLit(_) => self.content.p("null"),
             Ident(ident) => self.emit_ident(ident),
             ArrayLit(lit) => self.emit_array_lit(lit),
@@ -92,15 +97,7 @@ impl<'cx> Emit<'cx> {
                 self.emit_expr(n.expr);
             }
             Template(n) => {
-                self.content.p("`");
-                self.content.p(self.atoms.get(n.head.text));
-                for span in n.spans {
-                    self.content.p("${");
-                    self.emit_expr(span.expr);
-                    self.content.p("}");
-                    self.content.p(self.atoms.get(span.text));
-                }
-                self.content.p("`");
+                self.emit_template_expr(n);
             }
             BigIntLit(lit) => {
                 if lit.val.0 {
@@ -122,7 +119,23 @@ impl<'cx> Emit<'cx> {
             RegExpLit(n) => {
                 self.content.p(self.atoms.get(n.val));
             }
+            TaggedTemplate(n) => {
+                self.emit_expr(n.tag);
+                self.emit_expr(n.tpl);
+            }
         };
+    }
+
+    fn emit_template_expr(&mut self, n: &'cx ast::TemplateExpr<'cx>) {
+        self.content.p("`");
+        self.content.p(self.atoms.get(n.head.text));
+        for span in n.spans {
+            self.content.p("${");
+            self.emit_expr(span.expr);
+            self.content.p("}");
+            self.content.p(self.atoms.get(span.text));
+        }
+        self.content.p("`");
     }
 
     fn emit_arrow_fn(&mut self, f: &'cx ast::ArrowFnExpr<'cx>) {

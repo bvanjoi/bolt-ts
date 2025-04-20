@@ -19,6 +19,7 @@ impl<'cx> Expr<'cx> {
             NullLit(lit) => lit.span,
             BigIntLit(lit) => lit.span,
             StringLit(lit) => lit.span,
+            NoSubstitutionTemplateLit(n) => n.span,
             Ident(ident) => ident.span,
             ArrayLit(lit) => lit.span,
             Omit(expr) => expr.span,
@@ -47,6 +48,7 @@ impl<'cx> Expr<'cx> {
             ExprWithTyArgs(n) => n.span,
             SpreadElement(n) => n.span,
             RegExpLit(n) => n.span,
+            TaggedTemplate(n) => n.span,
         }
     }
 
@@ -59,6 +61,7 @@ impl<'cx> Expr<'cx> {
             BigIntLit(lit) => lit.id,
             NullLit(lit) => lit.id,
             StringLit(lit) => lit.id,
+            NoSubstitutionTemplateLit(lit) => lit.id,
             Ident(ident) => ident.id,
             ArrayLit(lit) => lit.id,
             Omit(expr) => expr.id,
@@ -87,12 +90,15 @@ impl<'cx> Expr<'cx> {
             ExprWithTyArgs(n) => n.id,
             SpreadElement(n) => n.id,
             RegExpLit(n) => n.id,
+            TaggedTemplate(n) => n.id,
         }
     }
 
     pub fn is_string_lit_like(&self) -> bool {
-        // TODO: NoSubstitutionTemplateLit
-        matches!(self.kind, ExprKind::StringLit(_))
+        matches!(
+            self.kind,
+            ExprKind::StringLit(_) | ExprKind::NoSubstitutionTemplateLit(_)
+        )
     }
     pub fn is_string_or_number_lit_like(&self) -> bool {
         self.is_string_lit_like() || matches!(self.kind, ExprKind::NumLit(_))
@@ -140,6 +146,7 @@ pub enum ExprKind<'cx> {
     NumLit(&'cx NumLit),
     BigIntLit(&'cx BigIntLit),
     StringLit(&'cx StringLit),
+    NoSubstitutionTemplateLit(&'cx NoSubstitutionTemplateLit),
     NullLit(&'cx NullLit),
     RegExpLit(&'cx RegExpLit),
     ArrayLit(&'cx ArrayLit<'cx>),
@@ -165,6 +172,7 @@ pub enum ExprKind<'cx> {
     Satisfies(&'cx SatisfiesExpr<'cx>),
     NonNull(&'cx NonNullExpr<'cx>),
     Template(&'cx TemplateExpr<'cx>),
+    TaggedTemplate(&'cx TaggedTemplateExpr<'cx>),
     TyAssertion(&'cx TyAssertion<'cx>),
     SpreadElement(&'cx SpreadElement<'cx>),
 }
@@ -602,6 +610,7 @@ pub type BoolLit = Lit<bool>;
 pub type NullLit = Lit<()>;
 pub type StringLit = Lit<AtomId>;
 pub type RegExpLit = Lit<AtomId>;
+pub type NoSubstitutionTemplateLit = Lit<AtomId>;
 
 #[derive(Debug, Clone, Copy)]
 pub struct VarDecl<'cx> {
@@ -664,4 +673,13 @@ bitflags::bitflags! {
         const ANY_UNICODE_MODE = Self::UNICODE.bits() | Self::UNICODE_SETS.bits();
         const MODIFIERS = Self::IGNORE_CASE.bits() | Self::MULTILINE.bits() | Self::DOT_ALL.bits();
     }
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct TaggedTemplateExpr<'cx> {
+    pub id: NodeID,
+    pub span: Span,
+    pub tag: &'cx Expr<'cx>,
+    pub ty_args: Option<&'cx self::Tys<'cx>>,
+    pub tpl: &'cx Expr<'cx>,
 }
