@@ -224,6 +224,7 @@ pub struct TyChecker<'cx> {
     pub implicit_never_ty: &'cx ty::Ty<'cx>,
     pub void_ty: &'cx ty::Ty<'cx>,
     pub null_ty: &'cx ty::Ty<'cx>,
+    pub null_widening_ty: &'cx ty::Ty<'cx>,
     pub false_ty: &'cx ty::Ty<'cx>,
     pub regular_false_ty: &'cx ty::Ty<'cx>,
     pub true_ty: &'cx ty::Ty<'cx>,
@@ -388,6 +389,23 @@ impl<'cx> TyChecker<'cx> {
             )
         };
 
+        let null_widening_ty = if *config.strict_null_checks() {
+            null_ty
+        } else {
+            let ty = ty::IntrinsicTy {
+                object_flags: ObjectFlags::CONTAINS_WIDENING_TYPE,
+                name: keyword::KW_NULL,
+            };
+            let kind = ty::TyKind::Intrinsic(ty_arena.alloc(ty));
+            TyChecker::make_ty(
+                kind,
+                TypeFlags::NULL,
+                &mut tys,
+                &mut common_ty_links_arena,
+                ty_arena,
+            )
+        };
+
         macro_rules! make_builtin_symbol {
             ( { $( ($symbol_name: ident, $name: expr, $flags: expr, $links: expr, $builtin_id: ident) ),* $(,)? } ) => {
                 $(
@@ -477,6 +495,7 @@ impl<'cx> TyChecker<'cx> {
             implicit_never_ty,
             void_ty,
             null_ty,
+            null_widening_ty,
             false_ty,
             regular_false_ty,
             true_ty,

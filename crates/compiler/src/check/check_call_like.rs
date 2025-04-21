@@ -169,8 +169,7 @@ impl<'cx> TyChecker<'cx> {
             sig.params.len()
         };
         if pos < param_count {
-            // TODO: use `get_type_of_param`
-            Some(self.get_type_of_symbol(sig.params[pos]))
+            Some(self.get_type_of_param(sig.params[pos]))
         } else if sig.has_rest_param() {
             let rest_ty = self.get_type_of_symbol(sig.params[param_count]);
             let index = pos - param_count;

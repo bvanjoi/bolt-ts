@@ -554,3 +554,11 @@ pub(super) struct XIsPossiblyNullOrUndefined {
     pub name: String,
     pub kind: UndefinedOrNull,
 }
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
+#[error("Type '{ty}' is not a constructor function type.")]
+pub(super) struct TypeXIsNotAConstructorFunctionType {
+    #[label(primary)]
+    pub span: Span,
+    pub ty: String,
+}
