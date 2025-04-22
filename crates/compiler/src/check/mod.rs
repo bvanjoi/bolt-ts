@@ -250,6 +250,7 @@ pub struct TyChecker<'cx> {
     boolean_ty: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
     string_or_number_ty: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
     string_number_symbol_ty: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
+    number_or_bigint_ty: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
     any_array_ty: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
     auto_array_ty: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
     typeof_ty: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
@@ -284,6 +285,7 @@ pub struct TyChecker<'cx> {
     any_iteration_tys: std::cell::OnceCell<IterationTys<'cx>>,
     empty_array: &'cx [u8; 0],
     never_intersection_tys: nohash_hasher::IntMap<ty::TyID, bool>,
+
     // === resolver ===
     pub binder: &'cx mut bind::Binder,
     global_symbols: &'cx mut GlobalSymbols,
@@ -511,6 +513,7 @@ impl<'cx> TyChecker<'cx> {
             restrictive_mapper,
             permissive_mapper,
 
+            number_or_bigint_ty: Default::default(),
             any_fn_ty: Default::default(),
             circular_constraint_ty: Default::default(),
             no_constraint_ty: Default::default(),
@@ -593,9 +596,10 @@ impl<'cx> TyChecker<'cx> {
             };
         }
         make_global!({
-            (boolean_ty,                    this.get_union_ty(&[regular_false_ty, regular_true_ty], ty::UnionReduction::Lit)),
-            (string_or_number_ty,           this.get_union_ty(&[this.string_ty, this.number_ty], ty::UnionReduction::Lit)),
+            (boolean_ty,                    this.get_union_ty(&[regular_false_ty, regular_true_ty],                 ty::UnionReduction::Lit)),
+            (string_or_number_ty,           this.get_union_ty(&[this.string_ty, this.number_ty],                    ty::UnionReduction::Lit)),
             (string_number_symbol_ty,       this.get_union_ty(&[this.string_ty, this.number_ty, this.es_symbol_ty], ty::UnionReduction::Lit)),
+            (number_or_bigint_ty,           this.get_union_ty(&[this.number_ty, this.bigint_ty],                    ty::UnionReduction::Lit)),
             (global_number_ty,              this.get_global_type(SymbolName::Atom(keyword::IDENT_NUMBER_CLASS))),
             (global_boolean_ty,             this.get_global_type(SymbolName::Atom(keyword::IDENT_BOOLEAN_CLASS))),
             (global_symbol_ty,              this.get_global_type(SymbolName::Atom(keyword::IDENT_SYMBOL_CLASS))),
@@ -3419,6 +3423,7 @@ global_ty!(
     boolean_ty,
     string_or_number_ty,
     string_number_symbol_ty,
+    number_or_bigint_ty,
     any_array_ty,
     auto_array_ty,
     any_fn_ty,

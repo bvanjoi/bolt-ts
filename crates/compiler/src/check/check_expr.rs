@@ -911,22 +911,90 @@ impl<'cx> TyChecker<'cx> {
                     self.number_ty
                 }
             }
-            ast::PrefixUnaryOp::PlusPlus => {
-                if let ty::TyKind::NumberLit(n) = op_ty.kind {
-                    self.get_number_literal_type(n.val + 1.)
-                } else {
-                    self.number_ty
+            ast::PrefixUnaryOp::PlusPlus | ast::PrefixUnaryOp::MinusMinus => {
+                let ok = self.check_arithmetic_op_ty(op_ty, false, |_| {});
+                if ok {
+                    self.check_reference_expr(
+                        expr.expr,
+                        |this| {
+                            let error =
+                                errors::TheOperandOfAnIncrementOrDecrementOperatorMustBeAVariableOrAPropertyAccess {
+                                    span: expr.span,
+                                    is_incr: expr.op == ast::PrefixUnaryOp::PlusPlus,
+                                };
+                            this.push_error(Box::new(error));
+                        },
+                        |this| {
+                            let error =
+                            errors::TheOperandOfAnIncrementOrDecrementOperatorMayNotBeAnOptionalPropertyAccess {
+                                span: expr.span,
+                                is_incr: expr.op == ast::PrefixUnaryOp::PlusPlus,
+                            };
+                        this.push_error(Box::new(error));
+                        },
+                    );
                 }
-            }
-            ast::PrefixUnaryOp::MinusMinus => {
-                if let ty::TyKind::NumberLit(n) = op_ty.kind {
-                    self.get_number_literal_type(n.val - 1.)
-                } else {
-                    self.number_ty
+
+                match expr.op {
+                    ast::PrefixUnaryOp::PlusPlus => {
+                        if let ty::TyKind::NumberLit(n) = op_ty.kind {
+                            self.get_number_literal_type(n.val + 1.)
+                        } else {
+                            self.number_ty
+                        }
+                    }
+                    ast::PrefixUnaryOp::MinusMinus => {
+                        if let ty::TyKind::NumberLit(n) = op_ty.kind {
+                            self.get_number_literal_type(n.val - 1.)
+                        } else {
+                            self.number_ty
+                        }
+                    }
+                    _ => unreachable!(),
                 }
             }
             ast::PrefixUnaryOp::Tilde => self.number_ty,
             ast::PrefixUnaryOp::Excl => self.boolean_ty(),
+        }
+    }
+
+    fn check_reference_expr(
+        &mut self,
+        op: &'cx ast::Expr<'cx>,
+        push_invalid_reference_error: impl FnOnce(&mut Self),
+        push_invalid_optional_chain_error: impl FnOnce(&mut Self),
+    ) -> bool {
+        let n = ast::Expr::skip_outer_expr(op);
+        if !matches!(
+            n.kind,
+            ast::ExprKind::Ident(_) | ast::ExprKind::PropAccess(_) | ast::ExprKind::EleAccess(_)
+        ) {
+            push_invalid_reference_error(self);
+            false
+        } else if self
+            .p
+            .node_flags(n.id())
+            .intersects(ast::NodeFlags::OPTIONAL_CHAIN)
+        {
+            push_invalid_optional_chain_error(self);
+            false
+        } else {
+            true
+        }
+    }
+
+    fn check_arithmetic_op_ty(
+        &mut self,
+        ty: &'cx ty::Ty<'cx>,
+        is_await_valid: bool,
+        push_error: impl FnOnce(&mut Self),
+    ) -> bool {
+        if !self.is_type_assignable_to(ty, self.number_or_bigint_ty()) {
+            // let awaited_ty = is_await_valid.then(|| self)
+            push_error(self);
+            false
+        } else {
+            true
         }
     }
 
@@ -935,19 +1003,26 @@ impl<'cx> TyChecker<'cx> {
         expr: &'cx ast::PostfixUnaryExpr<'cx>,
     ) -> &'cx ty::Ty<'cx> {
         let op_ty = self.check_expr(expr.expr);
-        // self.check_arithmetic_op_ty(op_ty, push_error);
-        op_ty
-    }
-
-    fn check_arithmetic_op_ty(
-        &mut self,
-        t: &'cx ty::Ty<'cx>,
-        push_error: impl FnOnce(&mut Self),
-    ) -> &'cx ty::Ty<'cx> {
-        if !self.is_type_assignable_to(t, self.number_ty) {
-            push_error(self)
+        let ok = self.check_arithmetic_op_ty(op_ty, false, |_| {});
+        if ok {
+            self.check_reference_expr(expr.expr, |this| {
+                let error =
+                    errors::TheOperandOfAnIncrementOrDecrementOperatorMustBeAVariableOrAPropertyAccess {
+                        span: expr.span,
+                        is_incr: expr.op == ast::PostfixUnaryOp::PlusPlus,
+                    };
+                this.push_error(Box::new(error));
+            },
+            |this| {
+                let error =
+                errors::TheOperandOfAnIncrementOrDecrementOperatorMayNotBeAnOptionalPropertyAccess {
+                    span: expr.span,
+                    is_incr: expr.op == ast::PostfixUnaryOp::PlusPlus,
+                };
+                this.push_error(Box::new(error));
+            });
         }
-        t
+        op_ty
     }
 
     fn check_bin_expr_for_normal(
@@ -974,7 +1049,7 @@ impl<'cx> TyChecker<'cx> {
             }
         }
 
-        let left = self.check_arithmetic_op_ty(left_ty, |this| {
+        let left = self.check_arithmetic_op_ty(left_ty, false, |this| {
             let error =
                 errors::TheSideOfAnArithmeticOperationMustBeOfTypeAnyNumberBigintOrAnEnumType {
                     span: left_span,
@@ -982,7 +1057,7 @@ impl<'cx> TyChecker<'cx> {
                 };
             this.push_error(Box::new(error));
         });
-        let right = self.check_arithmetic_op_ty(right_ty, |this| {
+        let right = self.check_arithmetic_op_ty(right_ty, false, |this| {
             let error =
                 errors::TheSideOfAnArithmeticOperationMustBeOfTypeAnyNumberBigintOrAnEnumType {
                     span: right_span,

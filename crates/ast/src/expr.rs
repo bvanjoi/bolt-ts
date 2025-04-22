@@ -362,7 +362,7 @@ pub struct PrefixUnaryExpr<'cx> {
     pub expr: &'cx Expr<'cx>,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub enum PostfixUnaryOp {
     PlusPlus,
     MinusMinus,
