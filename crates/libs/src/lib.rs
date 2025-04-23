@@ -1,5 +1,4 @@
 use rustc_hash::FxHashMap;
-use std::cell::LazyCell;
 
 pub const DEFAULT_LIBS: &[&str] = &[
     "lib.d.ts",
@@ -218,12 +217,13 @@ const DEFAULT_LIB_ENTIRES: &[(&str, &str)] = &[
     ("decorators.legacy", "lib.decorators.legacy.d.ts"),
 ];
 
-pub const DEFAULT_LIB_MAP: LazyCell<FxHashMap<&'static str, &'static str>> = LazyCell::new(|| {
-    DEFAULT_LIB_ENTIRES
-        .iter()
-        .copied()
-        .collect::<FxHashMap<&str, &str>>()
-});
+pub static DEFAULT_LIB_MAP: std::sync::LazyLock<FxHashMap<&'static str, &'static str>> =
+    std::sync::LazyLock::new(|| {
+        DEFAULT_LIB_ENTIRES
+            .iter()
+            .copied()
+            .collect::<FxHashMap<&str, &str>>()
+    });
 
 pub fn get_default_lib_filename(
     options: &bolt_ts_config::NormalizedCompilerOptions,

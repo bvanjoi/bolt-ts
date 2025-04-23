@@ -367,9 +367,7 @@ pub trait NodeQuery<'cx>: Sized {
     }
 
     fn get_assigned_name(&self, id: ast::NodeID) -> Option<ast::DeclarationName<'cx>> {
-        let Some(parent) = self.parent(id) else {
-            return None;
-        };
+        let parent = self.parent(id)?;
         let p = self.node(parent);
         use ast::Node::*;
         match p {

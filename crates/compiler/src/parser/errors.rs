@@ -182,3 +182,10 @@ pub(super) struct AnElementAccessExpressionShouldTakeAnArgument {
     #[label(primary)]
     pub span: Span,
 }
+
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
+#[error("Declaration or statement expected.")]
+pub(super) struct DeclarationOrStatementExpected {
+    #[label(primary)]
+    pub(super) span: Span,
+}

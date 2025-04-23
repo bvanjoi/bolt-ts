@@ -158,6 +158,9 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
                 if let Ok(ele) = ele(self) {
                     list.push(ele);
                 }
+                continue;
+            } else if self.abort_parsing_list_or_move_to_next_token(ctx) {
+                break;
             }
         }
         self.alloc(list)

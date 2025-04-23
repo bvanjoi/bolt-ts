@@ -20,7 +20,7 @@ pub use self::flags::{ObjectFlags, TypeFlags};
 pub use self::links::InterfaceTyLinksArena;
 pub use self::links::{CommonTyLinks, CommonTyLinksArena, CommonTyLinksID};
 pub use self::links::{FreshTyLinksArena, FreshTyLinksID};
-pub use self::links::{ObjectMappedTyLinks, ObjectMappedTyLinksArena, ObjectMappedTyLinksID};
+pub use self::links::{ObjectMappedTyLinks, ObjectMappedTyLinksArena};
 pub use self::mapper::{ArrayTyMapper, TyMap, TyMapper};
 pub use self::mapper::{CompositeTyMapper, MergedTyMapper};
 pub use self::object_ty::ElementFlags;

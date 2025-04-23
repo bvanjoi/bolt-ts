@@ -112,14 +112,13 @@ impl<'cx> TyChecker<'cx> {
         let flags = s.flags;
         let decls = s.decls.clone();
         let value_declaration = s.value_decl;
-        let id = self.create_transient_symbol(
+        self.create_transient_symbol(
             name,
             flags | SymbolFlags::TRANSIENT,
             links,
             decls,
             value_declaration,
-        );
-        id
+        )
     }
 
     fn instantiate_sigs(

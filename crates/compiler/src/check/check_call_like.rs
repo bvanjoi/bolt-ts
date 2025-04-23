@@ -138,16 +138,18 @@ impl<'cx> TyChecker<'cx> {
         let mut flags = Vec::with_capacity(param_count);
         // let mut names = Vec::with_capacity(param_count);
         for i in pos..param_count {
-            if rest_ty.is_none() || i < param_count - 1 {
+            if i < param_count - 1 || rest_ty.is_none() {
                 tys.push(self.get_ty_at_pos(source, i));
                 flags.push(if i < min_arg_count {
                     ElementFlags::REQUIRED
                 } else {
                     ElementFlags::OPTIONAL
                 });
-            } else {
-                tys.push(rest_ty.unwrap());
+            } else if let Some(rest_ty) = rest_ty {
+                tys.push(rest_ty);
                 flags.push(ElementFlags::VARIADIC);
+            } else {
+                unreachable!()
             }
             // names.push(self.getnam);
         }

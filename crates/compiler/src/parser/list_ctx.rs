@@ -18,6 +18,19 @@ impl ListContext for SourceElems {
         // ensure terminal by `is_list_terminator`
         false
     }
+
+    fn parsing_context_errors(&self, s: &mut ParserState) {
+        if matches!(s.token.kind, TokenKind::Default) {
+            let error = errors::ExpectX {
+                x: "export".to_string(),
+                span: s.token.span,
+            };
+            s.push_error(Box::new(error));
+        } else {
+            let error = errors::DeclarationOrStatementExpected { span: s.token.span };
+            s.push_error(Box::new(error));
+        }
+    }
 }
 
 #[derive(Copy, Clone)]

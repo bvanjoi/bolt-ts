@@ -66,8 +66,7 @@ impl<'cx> CallLike<'cx> for ast::TaggedTemplateExpr<'cx> {
     }
     fn args(&self) -> ast::Exprs<'cx> {
         let addr = std::ptr::addr_of!(self.tpl);
-        let ptr = addr as *const &'cx ast::Expr<'cx>;
-        unsafe { std::slice::from_raw_parts(ptr, 1) }
+        unsafe { std::slice::from_raw_parts(addr, 1) }
     }
     fn effective_call_args(&self, checker: &mut TyChecker<'cx>) -> bolt_ts_ast::Exprs<'cx> {
         // self.args
