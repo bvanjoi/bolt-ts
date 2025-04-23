@@ -30,6 +30,7 @@ pub const fn keyword_idx_to_token(idx: usize) -> TokenKind {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[repr(u8)]
 pub enum TokenKind {
     /// `=>`
     EqGreat,
