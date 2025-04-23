@@ -107,7 +107,27 @@ impl<'cx> Emit<'cx> {
                 self.content.p("n");
             }
             TyAssertion(n) => {
-                self.emit_expr(n.expr);
+                if matches!(n.expr.kind, ast::ExprKind::ObjectLit(_)) && {
+                    let mut p = n.id;
+                    loop {
+                        let n = self.p.parent(p).unwrap();
+                        let p_n = self.p.node(p);
+                        if p_n.is_ty_assertion() {
+                            p = n;
+                            continue;
+                        } else if p_n.is_expr_stmt() || p_n.is_arrow_fn_expr() {
+                            break true;
+                        } else {
+                            break false;
+                        }
+                    }
+                } {
+                    self.content.p_l_paren();
+                    self.emit_expr(n.expr);
+                    self.content.p_r_paren();
+                } else {
+                    self.emit_expr(n.expr);
+                }
             }
             ExprWithTyArgs(n) => {
                 self.emit_expr(n.expr);
@@ -145,7 +165,9 @@ impl<'cx> Emit<'cx> {
         self.content.p_whitespace();
         match f.body {
             ast::ArrowFnExprBody::Block(block) => self.emit_block_stmt(block),
-            ast::ArrowFnExprBody::Expr(expr) => self.emit_expr(expr),
+            ast::ArrowFnExprBody::Expr(expr) => {
+                self.emit_expr(expr);
+            }
         };
     }
 

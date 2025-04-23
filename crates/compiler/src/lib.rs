@@ -314,7 +314,7 @@ pub fn eval_from_with_fs<'cx>(
                 None
             } else {
                 let input_len = module_arena.get_content(item).len();
-                let mut emitter = emit::Emit::new(checker.atoms, input_len, compiler_options);
+                let mut emitter = emit::Emit::new(checker.atoms, input_len, compiler_options, &p);
                 Some((item, emitter.emit(p.root(item))))
             }
         })
