@@ -422,15 +422,38 @@ impl<'cx> TyChecker<'cx> {
         true
     }
 
+    fn get_this_arg_ty(&mut self, this_arg_node: Option<&'cx ast::Expr<'cx>>) -> &'cx ty::Ty<'cx> {
+        let Some(this_arg_node) = this_arg_node else {
+            return self.void_ty;
+        };
+        let this_arg_ty = self.check_expr(this_arg_node);
+        this_arg_ty
+    }
+
     fn get_signature_applicability_error(
         &mut self,
         expr: &impl CallLikeExpr<'cx>,
-        sig: &ty::Sig<'cx>,
+        sig: &'cx ty::Sig<'cx>,
         relation: RelationKind,
         check_mode: CheckMode,
         report_error: bool,
         inference_context: Option<InferenceContextId>,
     ) -> bool {
+        if let Some(this_ty) = self.get_this_ty_of_sig(sig) {
+            if this_ty != self.void_ty {
+                let n = self.p.node(expr.id());
+                if !(n.is_new_expr() || n.as_call_expr().is_some_and(|e| e.expr.is_super_prop())) {
+                    let n = n.expect_call_expr();
+                    // TODO: get_this_argument_of_call;
+                    let this_arg_ty = self.get_this_arg_ty(Some(n.expr));
+                    let error_node = report_error.then(|| n.expr.id());
+                    if !self.check_type_related_to(this_arg_ty, this_ty, relation, error_node) {
+                        return true;
+                    }
+                }
+            }
+        }
+
         let args = expr.args();
         let rest_type = sig.get_non_array_rest_ty(self);
         let arg_count = args.len();
@@ -514,12 +537,11 @@ impl<'cx> TyChecker<'cx> {
                 let ty = self.instantiate_ty(constraint, Some(mapper));
                 self.get_ty_with_this_arg(ty, Some(ty_arg), false)
             };
-            if self.check_type_assignable_to(
+            if !self.check_type_assignable_to(
                 ty_arg,
                 target,
                 report_error.then_some(ty_args.list[i].id()),
-            ) == Ternary::FALSE
-            {
+            ) {
                 return None;
             }
         }
@@ -972,6 +994,17 @@ impl<'cx> TyChecker<'cx> {
         &mut self,
         candidates: Sigs<'cx>,
     ) -> &'cx ty::Sig<'cx> {
+        let this_params = candidates
+            .iter()
+            .filter_map(|c| c.this_param)
+            .collect::<Vec<_>>();
+        let this_param = (!this_params.is_empty()).then(|| {
+            let tys = this_params
+                .iter()
+                .map(|this_param| self.get_type_of_param(*this_param))
+                .collect::<Vec<_>>();
+            self.create_combined_symbol_from_tys(this_params, &tys)
+        });
         assert!(!candidates.is_empty());
         let (min_args_count, max_non_rest_param_count) = {
             let mut min = usize::MAX;
@@ -1043,11 +1076,12 @@ impl<'cx> TyChecker<'cx> {
         }
 
         self.new_sig(ty::Sig {
-            ty_params: None,
             flags,
             id: ty::SigID::dummy(),
             node_id: candidates[0].node_id,
+            ty_params: None,
             params: self.alloc(params),
+            this_param,
             min_args_count,
             ret: None, // TODO:
             target: None,

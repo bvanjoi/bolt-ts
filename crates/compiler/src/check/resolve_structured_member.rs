@@ -11,7 +11,7 @@ use super::links::SigLinks;
 use super::symbol_info::SymbolInfo;
 use super::{SymbolLinks, Ternary, TyChecker, errors};
 use crate::bind::{Symbol, SymbolFlags, SymbolID, SymbolName, SymbolTable};
-use crate::ty::{self, CheckFlags, IndexFlags, ObjectFlags, SigID, SigKind, TypeFlags};
+use crate::ty::{self, CheckFlags, IndexFlags, ObjectFlags, SigFlags, SigID, SigKind, TypeFlags};
 
 #[derive(Debug, Clone, Copy)]
 pub(super) enum MemberOrExportsResolutionKind {
@@ -293,8 +293,8 @@ impl<'cx> TyChecker<'cx> {
         i: &'cx ty::Ty<'cx>,
     ) -> Option<&'cx ast::ClassExtendsClause<'cx>> {
         let symbol = i.symbol().unwrap();
-        let decl = self.binder.symbol(symbol).decls.as_ref().unwrap()[0];
-        self.get_effective_base_type_node(decl)
+        self.get_class_like_decl_of_symbol(symbol)
+            .and_then(|decl| self.get_effective_base_type_node(decl))
     }
 
     fn are_all_outer_parameters_applied(&mut self, ty: &'cx ty::Ty<'cx>) -> bool {
@@ -628,36 +628,122 @@ impl<'cx> TyChecker<'cx> {
         res
     }
 
+    fn get_class_like_decl_of_symbol(&self, symbol: SymbolID) -> Option<ast::NodeID> {
+        let decls = self.binder.symbol(symbol).decls.as_ref()?;
+        decls
+            .iter()
+            .find(|decl| self.p.node(**decl).is_class_like())
+            .copied()
+    }
+
+    fn clone_sig(&mut self, sig: &'cx ty::Sig<'cx>) -> &'cx ty::Sig<'cx> {
+        let next = ty::Sig {
+            id: SigID::dummy(),
+            flags: sig.flags & SigFlags::PROPAGATING_FLAGS,
+            ty_params: sig.ty_params,
+            params: sig.params,
+            this_param: sig.this_param,
+            min_args_count: sig.min_args_count,
+            ret: sig.ret,
+            node_id: sig.node_id,
+            target: sig.target,
+            mapper: sig.mapper,
+            class_decl: sig.class_decl,
+        };
+        let next = self.new_sig(next);
+        // TODO: composite_kind and composite_signatures
+        next
+    }
+
     fn get_default_construct_sigs(&mut self, ty: &'cx ty::Ty<'cx>) -> &'cx [&'cx ty::Sig<'cx>] {
+        let base_ctor_ty = self.get_base_constructor_type_of_class(ty);
+        let base_sigs = self.get_signatures_of_type(base_ctor_ty, SigKind::Constructor);
         let r = ty.kind.expect_object_reference();
         let i = r.target.kind.expect_object_interface();
-        let symbol = i.symbol;
-        let mut flags = ty::SigFlags::empty();
-        let class_node_id = self.binder.symbol(symbol).decls.as_ref().unwrap()[0];
-        if let Some(c) = self.p.node(class_node_id).as_class_decl() {
-            if let Some(mods) = c.modifiers {
-                if mods.flags.contains(ast::ModifierKind::Abstract) {
-                    flags.insert(ty::SigFlags::ABSTRACT);
-                }
-            }
-        }
+        let decl = self.get_class_like_decl_of_symbol(i.symbol);
+        let is_abstract = decl.is_some_and(|decl| {
+            self.p
+                .node(decl)
+                .has_syntactic_modifier(ast::ModifierKind::Abstract.into())
+        });
+        // if base_sigs.is_empty() {
+        let flags = if is_abstract {
+            SigFlags::ABSTRACT
+        } else {
+            SigFlags::empty()
+        };
         let sig = self.new_sig(ty::Sig {
             flags,
             ty_params: i.local_ty_params,
-            params: &[],
+            this_param: None,
+            params: self.empty_array(),
             min_args_count: 0,
             ret: None,
             node_id: None,
             target: None,
             mapper: None,
             id: SigID::dummy(),
-            class_decl: Some(class_node_id),
+            class_decl: decl,
         });
         let prev = self
             .sig_links
             .insert(sig.id, SigLinks::default().with_resolved_ret_ty(ty));
         assert!(prev.is_none());
         self.alloc([sig])
+        // } else if let Some(base_ty_node) = self.get_base_type_node_of_class(ty) {
+        //     let is_js = false;
+        //     let ty_args = self.ty_args_from_ty_refer_node(base_ty_node.expr_with_ty_args.ty_args);
+        //     let ty_arg_count = ty_args.map(|t| t.len()).unwrap_or_default();
+        //     let mut res = Vec::with_capacity(base_sigs.len());
+        //     for base_sig in base_sigs {
+        //         let min_ty_argument_count = self.get_min_ty_arg_count(base_sig.ty_params);
+        //         let ty_param_count = base_sig.ty_params.map(|t| t.len()).unwrap_or_default();
+        //         if is_js || ty_arg_count >= min_ty_argument_count && ty_arg_count <= ty_param_count
+        //         {
+        //             let sig = if ty_param_count > 0 {
+        //                 let ty_args = self.fill_missing_ty_args(
+        //                     ty_args,
+        //                     base_sig.ty_params,
+        //                     min_ty_argument_count,
+        //                 );
+        //                 self.create_sig_instantiation(base_sig, ty_args)
+        //             } else {
+        //                 self.clone_sig(base_sig)
+        //             };
+        //             let links = if let Some(old) = self.sig_links.get(&sig.id) {
+        //                 assert!(old.get_resolved_ret_ty().is_none());
+        //                 old.with_resolved_ret_ty(ty)
+        //             } else {
+        //                 SigLinks::default().with_resolved_ret_ty(ty)
+        //             };
+        //             let sig = ty::Sig {
+        //                 id: ty::SigID::dummy(),
+        //                 flags: if is_abstract {
+        //                     sig.flags | SigFlags::ABSTRACT
+        //                 } else {
+        //                     sig.flags
+        //                 },
+        //                 ty_params: i.local_ty_params,
+        //                 params: sig.params,
+        //                 this_param: sig.this_param,
+        //                 min_args_count: sig.min_args_count,
+        //                 ret: sig.ret,
+        //                 node_id: sig.node_id,
+        //                 target: sig.target,
+        //                 mapper: sig.mapper,
+        //                 class_decl: sig.class_decl,
+        //             };
+
+        //             let sig = self.new_sig(sig);
+        //             let prev = self.sig_links.insert(sig.id, links);
+        //             assert!(prev.is_none());
+        //             res.push(sig);
+        //         }
+        //     }
+        //     self.alloc(res)
+        // } else {
+        //     unreachable!()
+        // }
     }
 
     pub(super) fn get_members_of_symbol(&mut self, symbol: SymbolID) -> &'cx SymbolTable {

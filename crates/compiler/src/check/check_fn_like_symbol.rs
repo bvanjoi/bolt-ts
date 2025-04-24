@@ -124,7 +124,11 @@ impl<'cx> TyChecker<'cx> {
             check_mode,
             false,
             |this, source, target, report_error| {
-                this.c.check_type_assignable_to(source, target, None)
+                if this.c.check_type_assignable_to(source, target, None) {
+                    Ternary::TRUE
+                } else {
+                    Ternary::FALSE
+                }
             },
         ) != Ternary::FALSE
     }

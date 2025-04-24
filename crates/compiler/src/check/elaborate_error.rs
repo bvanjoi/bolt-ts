@@ -177,9 +177,7 @@ impl<'cx> TyChecker<'cx> {
             else {
                 continue;
             };
-            if self.check_type_related_to(source_prop_ty, target_prop_ty, relation, None)
-                == Ternary::FALSE
-            {
+            if !self.check_type_related_to(source_prop_ty, target_prop_ty, relation, None) {
                 let elaborated = self.elaborate_error(
                     e.inner_expr,
                     source_prop_ty,
@@ -195,7 +193,7 @@ impl<'cx> TyChecker<'cx> {
                         relation,
                         Some(error_node),
                     );
-                    if res == Ternary::FALSE {
+                    if !res {
                         let span = self.p.node(error_node).span();
                         let error = errors::TypeIsNotAssignableToType {
                             span,

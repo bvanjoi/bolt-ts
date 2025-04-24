@@ -1,3 +1,5 @@
+use bolt_ts_ast::keyword;
+
 use super::TyChecker;
 use super::ast;
 use super::symbol_info::SymbolInfo;
@@ -361,14 +363,25 @@ fn get_sig_from_decl<'cx>(
     } else {
         node.params().unwrap()
     };
+    let mut this_param = None;
     let has_rest_param = ast::has_rest_param(params_of_node);
     let mut flags = SigFlags::empty();
     let mut min_args_count = 0;
     let mut params = Vec::with_capacity(params_of_node.len());
-    for param in params_of_node {
+    for (idx, param) in params_of_node.iter().enumerate() {
         let id = node_id_of_binding(*param);
         let symbol = checker.final_res(id);
-        params.push(symbol);
+        if idx == 0
+            && checker
+                .symbol(symbol)
+                .name
+                .as_atom()
+                .is_some_and(|atom| atom == keyword::KW_THIS)
+        {
+            this_param = Some(symbol);
+        } else {
+            params.push(symbol);
+        }
         let is_opt = param.question.is_some() || param.dotdotdot.is_some() || param.init.is_some();
         if !is_opt {
             min_args_count = params.len();
@@ -405,6 +418,7 @@ fn get_sig_from_decl<'cx>(
     Sig {
         flags,
         ty_params,
+        this_param,
         params,
         min_args_count,
         ret,

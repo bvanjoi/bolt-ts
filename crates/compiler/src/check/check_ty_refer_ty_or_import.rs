@@ -405,9 +405,7 @@ impl<'cx> TyChecker<'cx> {
                 if result {
                     let target = self.instantiate_ty(constraint, Some(mapper));
                     let error_node = node.ty_args().and_then(|ty_args| ty_args.list.get(idx));
-                    if self.check_type_assignable_to(ty_arg, target, error_node.map(|n| n.id()))
-                        == Ternary::FALSE
-                    {
+                    if !self.check_type_assignable_to(ty_arg, target, error_node.map(|n| n.id())) {
                         if let Some(error_node) = error_node {
                             let error = errors::TypeIsNotAssignableToType {
                                 ty1: self.print_ty(ty_arg).to_string(),

@@ -630,8 +630,8 @@ impl<'cx> TyChecker<'cx> {
             (mark_super_ty,                 this.create_param_ty(Symbol::ERR, None, false)),
             (template_constraint_ty,        this.get_union_ty(&[string_ty, number_ty, boolean_ty, bigint_ty, null_ty, undefined_ty], ty::UnionReduction::Lit)),
             (any_iteration_tys,             this.create_iteration_tys(any_ty, any_ty, any_ty)),
-            (unknown_sig,                   this.new_sig(Sig { flags: SigFlags::empty(), ty_params: None, params: &[], min_args_count: 0, ret: None, node_id: None, target: None, mapper: None, id: SigID::dummy(), class_decl: None })),
-            (resolving_sig,                 this.new_sig(Sig { flags: SigFlags::empty(), ty_params: None, params: &[], min_args_count: 0, ret: None, node_id: None, target: None, mapper: None, id: SigID::dummy(), class_decl: None })),
+            (unknown_sig,                   this.new_sig(Sig { flags: SigFlags::empty(), ty_params: None, this_param: None, params: cast_empty_array(empty_array), min_args_count: 0, ret: None, node_id: None, target: None, mapper: None, id: SigID::dummy(), class_decl: None })),
+            (resolving_sig,                 this.new_sig(Sig { flags: SigFlags::empty(), ty_params: None, this_param: None, params: cast_empty_array(empty_array), min_args_count: 0, ret: None, node_id: None, target: None, mapper: None, id: SigID::dummy(), class_decl: None })),
             (array_variances,               this.alloc([VarianceFlags::COVARIANT])),
             (no_ty_pred,                    this.create_ident_ty_pred(keyword::IDENT_EMPTY, 0, any_ty))
         });
@@ -2011,9 +2011,7 @@ impl<'cx> TyChecker<'cx> {
         right_ty: &'cx ty::Ty<'cx>,
     ) -> &'cx ty::Ty<'cx> {
         self.check_type_assignable_to(left_ty, self.string_number_symbol_ty(), Some(left.id()));
-        if self.check_type_assignable_to(right_ty, self.non_primitive_ty, Some(right.id()))
-            == Ternary::FALSE
-        {
+        if !self.check_type_assignable_to(right_ty, self.non_primitive_ty, Some(right.id())) {
             let right_ty = self.get_widened_literal_ty(right_ty);
             let error = ecma_rules::TheRightValueOfTheInOperatorMustBeAnObjectButGotTy {
                 span: right.span(),

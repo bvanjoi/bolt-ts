@@ -52,9 +52,7 @@ impl<'cx> TyChecker<'cx> {
                     if let Some(base_prop) = base_prop {
                         let prop_ty = self.get_type_of_symbol(prop);
                         let base_prop_ty = self.get_type_of_symbol(base_prop);
-                        if self.check_type_assignable_to(prop_ty, base_prop_ty, member_name)
-                            == Ternary::FALSE
-                        {
+                        if !self.check_type_assignable_to(prop_ty, base_prop_ty, member_name) {
                             let span = self.p.node(member_name.unwrap()).span();
                             let error = errors::TypeIsNotAssignableToType {
                                 span,
@@ -110,9 +108,7 @@ impl<'cx> TyChecker<'cx> {
                         .expect_object_interface()
                         .this_ty;
                     let base_with_this = self.get_ty_with_this_arg(t, this_arg, false);
-                    if self.check_type_assignable_to(ty_with_this, base_with_this, None)
-                        == Ternary::FALSE
-                    {
+                    if !self.check_type_assignable_to(ty_with_this, base_with_this, None) {
                         self.issue_member_spec_error(class, ty_with_this, base_with_this);
                     }
                 } else {

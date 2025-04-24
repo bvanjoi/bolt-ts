@@ -135,6 +135,14 @@ impl<'cx> Expr<'cx> {
     pub fn skip_parens(expr: &'cx Expr<'cx>) -> &'cx Expr<'cx> {
         Self::skip_outer_expr(expr)
     }
+
+    pub fn is_super_prop(&self) -> bool {
+        match self.kind {
+            ExprKind::PropAccess(p) => matches!(p.expr.kind, ExprKind::Super(_)),
+            ExprKind::EleAccess(e) => matches!(e.expr.kind, ExprKind::Super(_)),
+            _ => false,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy)]

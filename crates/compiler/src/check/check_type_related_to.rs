@@ -37,15 +37,16 @@ impl<'cx> TyChecker<'cx> {
         target: &'cx Ty<'cx>,
         relation: RelationKind,
         error_node: Option<ast::NodeID>,
-    ) -> Ternary {
+    ) -> bool {
         let mut c = TypeRelatedChecker::new(self, relation, error_node);
-        c.is_related_to(
+        let result = c.is_related_to(
             source,
             target,
             RecursionFlags::BOTH,
             error_node.is_some(),
             IntersectionState::empty(),
-        )
+        );
+        result != Ternary::FALSE
     }
 }
 
