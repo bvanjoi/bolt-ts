@@ -1965,6 +1965,7 @@ impl<'cx> TyChecker<'cx> {
             Sub => self.number_ty,
             Mul => self.undefined_ty,
             Div => self.number_ty,
+            Mod => self.number_ty,
             Pipe => {
                 let left = self.check_non_null_type(left_ty, left);
                 let right = self.check_non_null_type(right_ty, right);
