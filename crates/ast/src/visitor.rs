@@ -14,13 +14,13 @@ pub fn visit_stmt<'cx>(v: &mut impl Visitor<'cx>, stmt: &'cx super::Stmt) {
         Expr(node) => v.visit_expr_stmt(node),
         Var(node) => v.visit_var_stmt(node),
         Try(node) => v.visit_try_stmt(node),
+        Type(node) => v.visit_type_decl(node),
         Export(_) => {}
         ExportAssign(_) => {}
         Empty(_) => (),
         If(_) => (),
         Return(_) => (),
         Fn(_) => (),
-        Type(_) => (),
         Namespace(_) => (),
         Throw(_) => (),
         Enum(_) => (),
@@ -39,6 +39,11 @@ fn visit_var_stmt<'cx>(v: &mut impl Visitor<'cx>, stmt: &'cx super::VarStmt<'cx>
     for item in stmt.list {
         v.visit_var_decl(item);
     }
+}
+
+pub fn visit_type_decl<'cx>(v: &mut impl Visitor<'cx>, decl: &'cx super::TypeDecl<'cx>) {
+    v.visit_ident(decl.name);
+    v.visit_ty(decl.ty);
 }
 
 fn visit_var_decl<'cx>(v: &mut impl Visitor<'cx>, decl: &'cx super::VarDecl<'cx>) {
@@ -305,7 +310,8 @@ make_visitor!(
     (visit_try_stmt, super::TryStmt<'cx>),
     (visit_block_stmt, super::BlockStmt<'cx>),
     (visit_expr_stmt, super::ExprStmt<'cx>),
-    (visit_arrow_fn_expr, super::ArrowFnExpr<'cx>)
+    (visit_arrow_fn_expr, super::ArrowFnExpr<'cx>),
+    (visit_type_decl, super::TypeDecl<'cx>),
 );
 
 pub fn visit_node<'cx>(v: &mut impl Visitor<'cx>, node: &super::Node<'cx>) {

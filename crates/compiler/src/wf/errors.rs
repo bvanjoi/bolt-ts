@@ -49,3 +49,11 @@ pub(super) struct DuplicateIdentifierArgumentsCompilerUsesArgumentsToInitializeR
     #[label(primary)]
     pub span: Span,
 }
+
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
+#[error("Type alias name cannot be '{name}'.")]
+pub(super) struct TypeAliasNameCannotBeX {
+    #[label(primary)]
+    pub span: Span,
+    pub name: String,
+}

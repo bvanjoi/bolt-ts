@@ -29,7 +29,7 @@ fn main() {
     let mut atoms = init_atom();
     let mut fs = bolt_ts_fs::LocalFS::new(&mut atoms);
     let exe_dir = current_exe_dir();
-    let libs = Vec::<PathBuf>::new() // bolt_ts_libs::DEFAULT_LIBS
+    let libs = bolt_ts_libs::DEFAULT_LIBS
         .iter()
         .map(|filename| exe_dir.join(filename))
         .collect::<Vec<_>>();
@@ -60,7 +60,7 @@ fn main() {
 fn main_test() {
     compile_test::ensure_node_exist();
     let project_root: PathBuf = project_root::get_project_root().unwrap();
-    let case_root = project_root.join("tests/cases/compiler/cloduleGenericOnSelfMember/");
+    let case_root = project_root.join("tests/cases/compiler/undefinedTypeAssignment1/");
     assert!(case_root.is_dir(), "'{case_root:#?}' not found.",);
     let tsconfig_file = case_root.join(bolt_ts_compiler::DEFAULT_TSCONFIG);
     let tsconfig = if tsconfig_file.is_file() {

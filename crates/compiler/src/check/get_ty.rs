@@ -1004,11 +1004,11 @@ impl<'cx> TyChecker<'cx> {
                 }
             }
 
-            return if access_flags.intersects(AccessFlags::WRITING) {
-                todo!()
+            return Some(if access_flags.intersects(AccessFlags::WRITING) {
+                self.get_intersection_ty(&prop_tys, IntersectionFlags::None, None, None)
             } else {
-                Some(self.get_union_ty(&prop_tys, ty::UnionReduction::Lit))
-            };
+                self.get_union_ty(&prop_tys, ty::UnionReduction::Lit)
+            });
         }
 
         self.get_prop_ty_for_index_ty(

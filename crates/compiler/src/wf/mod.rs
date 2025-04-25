@@ -160,6 +160,27 @@ impl<'cx> CheckState<'cx> {
             }
         }
     }
+    fn check_type_name_is_reserved(
+        &mut self,
+        name: &'cx ast::Ident,
+        push_error: impl FnOnce(&mut Self),
+    ) {
+        if matches!(
+            name.name,
+            keyword::IDENT_ANY
+                | keyword::IDENT_UNKNOWN
+                | keyword::IDENT_NEVER
+                | keyword::IDENT_NUMBER
+                | keyword::IDENT_BIGINT
+                | keyword::IDENT_STRING
+                | keyword::IDENT_SYMBOL
+                | keyword::KW_VOID
+                | keyword::IDENT_OBJECT
+                | keyword::KW_UNDEFINED
+        ) {
+            push_error(self);
+        }
+    }
 }
 
 impl<'cx> ast::Visitor<'cx> for CheckState<'cx> {
@@ -185,5 +206,15 @@ impl<'cx> ast::Visitor<'cx> for CheckState<'cx> {
     }
     fn visit_arrow_fn_expr(&mut self, node: &'cx bolt_ts_ast::ArrowFnExpr<'cx>) {
         self.check_sig_decl(node);
+    }
+    fn visit_type_decl(&mut self, node: &'cx bolt_ts_ast::TypeDecl<'cx>) {
+        self.check_type_name_is_reserved(node.name, |this| {
+            let error = errors::TypeAliasNameCannotBeX {
+                span: node.name.span,
+                name: pprint_ident(node.name, this.atoms),
+            };
+            this.push_error(Box::new(error));
+        });
+        visitor::visit_type_decl(self, node);
     }
 }
