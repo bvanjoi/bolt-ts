@@ -525,16 +525,22 @@ impl<'cx> ParserState<'cx, '_> {
                 })
             };
             let mut ty_args = None;
-            let question_dot_token = self.parse_optional(TokenKind::QuestionDot);
-            if question_dot_token.is_some() {
+            let question_dot = self.parse_optional(TokenKind::QuestionDot);
+            if question_dot.is_some() {
                 ty_args = self.try_parse(Self::parse_ty_args_in_expr)?;
                 if self.is_template_start_of_tagged_template() {
-                    // TODO: parse tagged template
+                    expr = self.parse_tagged_template_rest(
+                        start,
+                        expr,
+                        question_dot.map(|t| t.span),
+                        ty_args,
+                    )?;
+                    continue;
                 }
             }
 
             if ty_args.is_some() || self.token.kind == TokenKind::LParen {
-                if question_dot_token.is_none() {
+                if question_dot.is_none() {
                     if let ast::ExprKind::ExprWithTyArgs(expr_with_ty_args) = expr.kind {
                         ty_args = expr_with_ty_args.ty_args;
                         expr = expr_with_ty_args.expr;
@@ -547,7 +553,7 @@ impl<'cx> ParserState<'cx, '_> {
                     }
                 }
                 let args = self.parse_args()?;
-                if question_dot_token.is_some() || self.try_reparse_optional_chain(expr) {
+                if question_dot.is_some() || self.try_reparse_optional_chain(expr) {
                     todo!("call chain")
                 } else {
                     expr = create_call_expr(self, expr, ty_args, args);
@@ -555,7 +561,7 @@ impl<'cx> ParserState<'cx, '_> {
                 continue;
             }
 
-            if question_dot_token.is_some() {
+            if question_dot.is_some() {
                 // TODO:
             }
 
@@ -794,10 +800,13 @@ impl<'cx> ParserState<'cx, '_> {
                 self.next_token();
                 ast::ExprKind::NullLit(lit)
             }
-            String | NoSubstitutionTemplate => {
-                // TODO: NoSubstitutionTemplateLit
+            String => {
                 let lit = self.parse_string_lit();
                 ast::ExprKind::StringLit(lit)
+            }
+            NoSubstitutionTemplate => {
+                let lit = self.parse_no_substitution_template_lit();
+                ast::ExprKind::NoSubstitutionTemplateLit(lit)
             }
             This => {
                 let id = self.next_node_id();
@@ -1146,6 +1155,38 @@ impl<'cx> ParserState<'cx, '_> {
                 .unwrap_or_default()
     }
 
+    fn parse_tagged_template_rest(
+        &mut self,
+        start: usize,
+        tag: &'cx ast::Expr<'cx>,
+        question_dot: Option<bolt_ts_span::Span>,
+        ty_args: Option<&'cx ast::Tys<'cx>>,
+    ) -> PResult<&'cx ast::Expr<'cx>> {
+        let tpl = if self.token.kind == TokenKind::NoSubstitutionTemplate {
+            self.re_scan_template_token(true);
+            let lit = self.parse_no_substitution_template_lit();
+            self.alloc(ast::Expr {
+                kind: ast::ExprKind::NoSubstitutionTemplateLit(lit),
+            })
+        } else {
+            self.prase_template_expr(true)?
+        };
+        let id = self.next_node_id();
+        let tagged_template = self.alloc(ast::TaggedTemplateExpr {
+            id,
+            span: self.new_span(start as u32),
+            tag,
+            tpl,
+            ty_args,
+        });
+        self.nodes
+            .insert(id, ast::Node::TaggedTemplateExpr(tagged_template));
+        let expr = self.alloc(ast::Expr {
+            kind: ast::ExprKind::TaggedTemplate(tagged_template),
+        });
+        Ok(expr)
+    }
+
     fn parse_member_expr_rest(
         &mut self,
         start: usize,
@@ -1184,7 +1225,19 @@ impl<'cx> ParserState<'cx, '_> {
             // TODO: decorator
 
             if self.is_template_start_of_tagged_template() {
-                // TODO: abort
+                if question_dot_token.is_none() {
+                    if let ast::ExprKind::ExprWithTyArgs(e) = expr.kind {
+                        expr = self.parse_tagged_template_rest(
+                            start,
+                            e.expr,
+                            question_dot_token,
+                            e.ty_args,
+                        )?;
+                        continue;
+                    }
+                }
+                expr = self.parse_tagged_template_rest(start, expr, question_dot_token, None)?;
+                continue;
             }
 
             if question_dot_token.is_none() {

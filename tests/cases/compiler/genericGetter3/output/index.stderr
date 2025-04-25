@@ -1,0 +1,5 @@
+  × Type 'A<number>' is not assignable to type 'string'.
+    ╭─[../../tests/cases/compiler/genericGetter3/index.ts:13:5]
+ 13 │ r
+    · ─
+    ╰────

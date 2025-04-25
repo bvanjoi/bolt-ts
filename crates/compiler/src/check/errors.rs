@@ -554,3 +554,43 @@ pub(super) struct XIsPossiblyNullOrUndefined {
     pub name: String,
     pub kind: UndefinedOrNull,
 }
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
+#[error("Type '{ty}' is not a constructor function type.")]
+pub(super) struct TypeXIsNotAConstructorFunctionType {
+    #[label(primary)]
+    pub span: Span,
+    pub ty: String,
+}
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
+#[error(
+    "The operand of an {} operator must be a variable or a property access.", {
+        if *is_incr {
+            "increment"
+        } else {
+            "decrement"
+        }
+    }
+)]
+pub(super) struct TheOperandOfAnIncrementOrDecrementOperatorMustBeAVariableOrAPropertyAccess {
+    #[label(primary)]
+    pub span: Span,
+    pub is_incr: bool,
+}
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
+#[error(
+    "The operand of an {} operator may not be an optional property access.", {
+        if *is_incr {
+            "increment"
+        } else {
+            "decrement"
+        }
+    }
+)]
+pub(super) struct TheOperandOfAnIncrementOrDecrementOperatorMayNotBeAnOptionalPropertyAccess {
+    #[label(primary)]
+    pub span: Span,
+    pub is_incr: bool,
+}

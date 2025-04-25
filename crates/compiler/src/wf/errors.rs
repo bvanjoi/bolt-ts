@@ -40,3 +40,20 @@ pub(super) struct CatchClauseVariableTypeAnnotationMustBeAnyOrUnknownIfSpecified
     #[label(primary)]
     pub span: Span,
 }
+
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
+#[error(
+    "Duplicate identifier 'arguments'. Compiler uses 'arguments' to initialize rest parameters."
+)]
+pub(super) struct DuplicateIdentifierArgumentsCompilerUsesArgumentsToInitializeRestParameters {
+    #[label(primary)]
+    pub span: Span,
+}
+
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
+#[error("Type alias name cannot be '{name}'.")]
+pub(super) struct TypeAliasNameCannotBeX {
+    #[label(primary)]
+    pub span: Span,
+    pub name: String,
+}

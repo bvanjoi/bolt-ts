@@ -12,7 +12,8 @@ impl<'cx> TyChecker<'cx> {
         &mut self,
         sig: &'cx ty::Sig<'cx>,
     ) -> Option<&'cx ty::Ty<'cx>> {
-        None
+        sig.this_param
+            .map(|this_param| self.get_type_of_symbol(this_param))
     }
 
     pub(super) fn get_contextual_this_param_ty(

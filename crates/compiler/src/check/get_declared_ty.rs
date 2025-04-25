@@ -12,6 +12,7 @@ use crate::check::InstantiationTyMap;
 use crate::check::TyCacheTrait;
 use crate::check::links::TyLinks;
 use crate::ty::ObjectFlags;
+use crate::ty::TypeFlags;
 use bolt_ts_ast as ast;
 
 impl<'cx> TyChecker<'cx> {
@@ -121,6 +122,48 @@ impl<'cx> TyChecker<'cx> {
         self._get_prop_of_ty(node.id, apparent_ty, left, node.right)
     }
 
+    pub(super) fn get_type_of_param(&mut self, symbol: SymbolID) -> &'cx ty::Ty<'cx> {
+        let decl = self.symbol(symbol).value_decl;
+        let ty = self.get_type_of_symbol(symbol);
+        self.add_optionality(
+            ty,
+            false,
+            decl.is_some_and(|decl| {
+                let n = self.p.node(decl);
+                n.initializer().is_some() || n.is_optional_decl()
+            }),
+        )
+    }
+
+    fn is_mixin_constructor_ty(&mut self, ty: &'cx ty::Ty<'cx>) -> bool {
+        let sigs = self.get_signatures_of_type(ty, ty::SigKind::Constructor);
+        if sigs.len() == 1 {
+            let sig = sigs[0];
+            if sig.ty_params.is_none() && sig.params.len() == 1 && sig.has_rest_param() {
+                let param_ty = self.get_type_of_param(sig.params[0]);
+                return self.is_type_any(Some(param_ty))
+                    || self
+                        .get_element_ty_of_array_ty(param_ty)
+                        .is_some_and(|t| t == self.any_ty);
+            }
+        }
+        false
+    }
+
+    fn is_constructor_ty(&mut self, ty: &'cx ty::Ty<'cx>) -> bool {
+        if !self
+            .get_signatures_of_type(ty, ty::SigKind::Constructor)
+            .is_empty()
+        {
+            true
+        } else if ty.flags.intersects(TypeFlags::TYPE_VARIABLE) {
+            self.get_base_constraint_of_ty(ty)
+                .is_some_and(|c| self.is_mixin_constructor_ty(c))
+        } else {
+            false
+        }
+    }
+
     pub(super) fn get_base_constructor_type_of_class(
         &mut self,
         ty: &'cx ty::Ty<'cx>,
@@ -154,9 +197,23 @@ impl<'cx> TyChecker<'cx> {
                 .set_resolved_base_ctor_ty(error_ty);
             return self.error_ty;
         }
-        self.get_mut_ty_links(ty.id)
-            .set_resolved_base_ctor_ty(base_ctor_ty);
-        base_ctor_ty
+        if !base_ctor_ty.flags.intersects(TypeFlags::ANY)
+            && base_ctor_ty != self.null_widening_ty
+            && !self.is_constructor_ty(base_ctor_ty)
+        {
+            let error = errors::TypeXIsNotAConstructorFunctionType {
+                span: extends.expr_with_ty_args.expr.span(),
+                ty: base_ctor_ty.to_string(self),
+            };
+            self.push_error(Box::new(error));
+            let e = self.error_ty;
+            self.get_mut_ty_links(ty.id).set_resolved_base_ctor_ty(e);
+            e
+        } else {
+            self.get_mut_ty_links(ty.id)
+                .set_resolved_base_ctor_ty(base_ctor_ty);
+            base_ctor_ty
+        }
     }
 
     pub(super) fn get_props_from_members(

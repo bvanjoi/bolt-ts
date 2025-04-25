@@ -799,7 +799,6 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
             ArrayPat(_) => {
                 // TODO:
             }
-
             Binding(n) => self.bind_binding(n),
             OmitExpr(_) => {}
             ParenExpr(n) => {
@@ -1128,8 +1127,27 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
             SpreadElement(n) => {
                 self.bind(n.expr.id());
             }
-            NullLit(_) | StringLit(_) | NumLit(_) | Ident(_) | ThisExpr(_) | BigIntLit(_)
-            | BoolLit(_) | RegExpLit(_) | IntrinsicTy(_) | Modifier(_) | DebuggerStmt(_)
+            TaggedTemplateExpr(n) => {
+                self.bind(n.tag.id());
+                if let Some(ty_args) = n.ty_args {
+                    for ty in ty_args.list {
+                        self.bind(ty.id());
+                    }
+                }
+                self.bind(n.tpl.id());
+            }
+            NullLit(_)
+            | StringLit(_)
+            | NoSubstitutionTemplateLit(_)
+            | NumLit(_)
+            | Ident(_)
+            | ThisExpr(_)
+            | BigIntLit(_)
+            | BoolLit(_)
+            | RegExpLit(_)
+            | IntrinsicTy(_)
+            | Modifier(_)
+            | DebuggerStmt(_)
             | ThisTy(_) => {}
         }
         // TODO: bind_js_doc

@@ -12,3 +12,8 @@ const d = `${b} 3` as const;
 fn(`${b} 3`);
 let s: number = fn(`${b} 3`);
 //~^ ERROR: Type 'string' is not assignable to type 'number'.
+
+function f0() {
+  do return `
+`; while (false);
+}

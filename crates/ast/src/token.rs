@@ -30,6 +30,7 @@ pub const fn keyword_idx_to_token(idx: usize) -> TokenKind {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[repr(u8)]
 pub enum TokenKind {
     /// `=>`
     EqGreat,
@@ -357,6 +358,7 @@ impl From<TokenKind> for super::BinOpKind {
             TokenKind::AsteriskEq => Mul,
             TokenKind::Slash => Div,
             TokenKind::SlashEq => Div,
+            TokenKind::Percent => Mod,
             TokenKind::Amp => BitAnd,
             TokenKind::AmpAmp => LogicalAnd,
             TokenKind::Less => Less,

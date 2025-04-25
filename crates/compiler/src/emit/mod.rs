@@ -1,6 +1,7 @@
 mod emit_block_like;
 mod emit_class_like;
 mod expr;
+mod helper;
 mod stmt;
 mod utils;
 
@@ -8,6 +9,8 @@ use bolt_ts_ast as ast;
 use bolt_ts_atom::AtomMap;
 use bolt_ts_utils::fx_hashset_with_capacity;
 use rustc_hash::FxHashSet;
+
+use crate::parser::Parser;
 
 struct PPrint {
     content: String,
@@ -101,6 +104,9 @@ pub struct Emit<'cx> {
     ns_names: FxHashSet<(ScopeID, bolt_ts_atom::AtomId)>,
     scope: ScopeID,
     max_scope: ScopeID,
+    config: &'cx bolt_ts_config::NormalizedCompilerOptions,
+    helper_flags: helper::EmitHelperFlags,
+    p: &'cx Parser<'cx>,
 }
 
 impl<'cx> Emit<'cx> {
@@ -110,7 +116,12 @@ impl<'cx> Emit<'cx> {
         scope
     }
 
-    pub fn new(atoms: &'cx AtomMap, input_len: usize) -> Self {
+    pub fn new(
+        atoms: &'cx AtomMap,
+        input_len: usize,
+        config: &'cx bolt_ts_config::NormalizedCompilerOptions,
+        parser: &'cx Parser<'cx>,
+    ) -> Self {
         Self {
             atoms,
             content: PPrint::new(input_len),
@@ -118,6 +129,9 @@ impl<'cx> Emit<'cx> {
             ns_names: fx_hashset_with_capacity(256),
             scope: ScopeID::root(),
             max_scope: ScopeID::root(),
+            config,
+            helper_flags: helper::EmitHelperFlags::empty(),
+            p: parser,
         }
     }
 

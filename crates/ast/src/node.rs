@@ -88,6 +88,7 @@ pub enum Node<'cx> {
     NullLit(&'cx super::NullLit),
     RegExpLit(&'cx super::RegExpLit),
     StringLit(&'cx super::StringLit),
+    NoSubstitutionTemplateLit(&'cx super::NoSubstitutionTemplateLit),
     ArrayLit(&'cx super::ArrayLit<'cx>),
     Ident(&'cx super::Ident),
     Binding(&'cx super::Binding<'cx>),
@@ -120,6 +121,7 @@ pub enum Node<'cx> {
     SatisfiesExpr(&'cx super::SatisfiesExpr<'cx>),
     NonNullExpr(&'cx super::NonNullExpr<'cx>),
     TemplateExpr(&'cx super::TemplateExpr<'cx>),
+    TaggedTemplateExpr(&'cx super::TaggedTemplateExpr<'cx>),
     TemplateHead(&'cx super::TemplateHead),
     TemplateSpan(&'cx super::TemplateSpan<'cx>),
     ComputedPropName(&'cx super::ComputedPropName<'cx>),
@@ -861,6 +863,11 @@ as_node!(
     (BinExpr, super::BinExpr<'cx>, bin_expr),
     (NonNullExpr, super::NonNullExpr<'cx>, non_null_expr),
     (TemplateExpr, super::TemplateExpr<'cx>, template_expr),
+    (
+        TaggedTemplateExpr,
+        super::TaggedTemplateExpr<'cx>,
+        tagged_template_expr
+    ),
     (TemplateHead, super::TemplateHead, template_head),
     (TemplateSpan, super::TemplateSpan<'cx>, template_span),
     (
@@ -874,6 +881,11 @@ as_node!(
     (NullLit, super::NullLit, null_lit),
     (RegExpLit, super::RegExpLit, reg_exp_lit),
     (StringLit, super::StringLit, string_lit),
+    (
+        NoSubstitutionTemplateLit,
+        super::NoSubstitutionTemplateLit,
+        no_substitution_template_lit
+    ),
     (ArrayLit, super::ArrayLit<'cx>, array_lit),
     (Ident, super::Ident, ident),
     (Binding, super::Binding, binding),

@@ -2,25 +2,27 @@ mod errors;
 use crate::check::errors::DeclKind;
 
 use bolt_ts_atom::AtomMap;
+use bolt_ts_config::{NormalizedCompilerOptions, Target};
 use bolt_ts_span::ModuleID;
 use bolt_ts_utils::fx_hashmap_with_capacity;
 
 use crate::ir;
 use crate::keyword::is_reserved_type_name;
 use crate::parser::Parser;
-use bolt_ts_ast::{self as ast, pprint_ident, visitor};
+use bolt_ts_ast::{self as ast, keyword, pprint_ident, visitor};
 
 pub fn well_formed_check_parallel(
     p: &Parser,
     atoms: &AtomMap,
     modules: &[bolt_ts_span::Module],
+    compiler_options: &NormalizedCompilerOptions,
 ) -> Vec<bolt_ts_errors::Diag> {
     use rayon::prelude::*;
 
     modules
         .into_par_iter()
         .flat_map(|m| {
-            let diags = well_formed_check(p, atoms, m.id);
+            let diags = well_formed_check(p, atoms, m.id, compiler_options);
             assert!(!m.is_default_lib || diags.is_empty());
             diags
         })
@@ -31,10 +33,12 @@ fn well_formed_check(
     p: &Parser,
     atoms: &AtomMap,
     module_id: ModuleID,
+    compiler_options: &NormalizedCompilerOptions,
 ) -> Vec<bolt_ts_errors::Diag> {
     let mut s = CheckState {
         p,
         atoms,
+        compiler_options,
         diags: vec![],
     };
     let program = p.root(module_id);
@@ -46,6 +50,7 @@ struct CheckState<'cx> {
     p: &'cx Parser<'cx>,
     atoms: &'cx AtomMap<'cx>,
     diags: Vec<bolt_ts_errors::Diag>,
+    compiler_options: &'cx NormalizedCompilerOptions,
 }
 
 impl<'cx> CheckState<'cx> {
@@ -103,7 +108,6 @@ impl<'cx> CheckState<'cx> {
             }
         }
     }
-
     fn check_grammar_object_lit_expr(&mut self, node: &'cx ast::ObjectLit<'cx>) {
         let mut seen = fx_hashmap_with_capacity(node.members.len());
         for member in node.members {
@@ -120,7 +124,6 @@ impl<'cx> CheckState<'cx> {
             }
         }
     }
-
     fn check_grammar_try_stmt(&mut self, node: &'cx ast::TryStmt<'cx>) {
         if let Some(c) = node.catch_clause {
             if let Some(v) = c.var {
@@ -134,6 +137,50 @@ impl<'cx> CheckState<'cx> {
             }
         }
     }
+    fn check_sig_decl(&mut self, node: &impl ir::SigDeclLike) {
+        if !(*self.compiler_options.target() >= Target::ES2015
+            || !node.has_rest_param()
+            || self
+                .p
+                .node_flags(node.id())
+                .intersects(ast::NodeFlags::AMBIENT)
+            || node.body().is_none())
+        {
+            // check_collision_with_arguments_in_generated_code
+            for param in node.params() {
+                if let ast::BindingKind::Ident(name) = param.name.kind {
+                    if name.name == keyword::IDENT_ARGUMENTS {
+                        // TODO: skip on
+                        let error = errors::DuplicateIdentifierArgumentsCompilerUsesArgumentsToInitializeRestParameters {
+                            span: name.span
+                        };
+                        self.push_error(Box::new(error));
+                    }
+                }
+            }
+        }
+    }
+    fn check_type_name_is_reserved(
+        &mut self,
+        name: &'cx ast::Ident,
+        push_error: impl FnOnce(&mut Self),
+    ) {
+        if matches!(
+            name.name,
+            keyword::IDENT_ANY
+                | keyword::IDENT_UNKNOWN
+                | keyword::IDENT_NEVER
+                | keyword::IDENT_NUMBER
+                | keyword::IDENT_BIGINT
+                | keyword::IDENT_STRING
+                | keyword::IDENT_SYMBOL
+                | keyword::KW_VOID
+                | keyword::IDENT_OBJECT
+                | keyword::KW_UNDEFINED
+        ) {
+            push_error(self);
+        }
+    }
 }
 
 impl<'cx> ast::Visitor<'cx> for CheckState<'cx> {
@@ -141,12 +188,10 @@ impl<'cx> ast::Visitor<'cx> for CheckState<'cx> {
         self.check_class_like(class);
         visitor::visit_class_decl(self, class);
     }
-
     fn visit_class_method_elem(&mut self, node: &'cx ast::ClassMethodElem<'cx>) {
         self.check_grammar_modifiers(node.id);
         visitor::visit_class_method_elem(self, node);
     }
-
     fn visit_interface_decl(&mut self, node: &'cx ast::InterfaceDecl<'cx>) {
         self.check_collisions_for_decl_name(node.id, node.name);
         visitor::visit_interface_decl(self, node);
@@ -158,5 +203,18 @@ impl<'cx> ast::Visitor<'cx> for CheckState<'cx> {
     fn visit_try_stmt(&mut self, node: &'cx bolt_ts_ast::TryStmt<'cx>) {
         self.check_grammar_try_stmt(node);
         visitor::visit_try_stmt(self, node);
+    }
+    fn visit_arrow_fn_expr(&mut self, node: &'cx bolt_ts_ast::ArrowFnExpr<'cx>) {
+        self.check_sig_decl(node);
+    }
+    fn visit_type_decl(&mut self, node: &'cx bolt_ts_ast::TypeDecl<'cx>) {
+        self.check_type_name_is_reserved(node.name, |this| {
+            let error = errors::TypeAliasNameCannotBeX {
+                span: node.name.span,
+                name: pprint_ident(node.name, this.atoms),
+            };
+            this.push_error(Box::new(error));
+        });
+        visitor::visit_type_decl(self, node);
     }
 }

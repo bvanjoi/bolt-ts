@@ -47,6 +47,7 @@ pub struct Sig<'cx> {
     pub flags: SigFlags,
     pub ty_params: Option<super::Tys<'cx>>,
     pub params: &'cx [SymbolID],
+    pub this_param: Option<SymbolID>,
     pub min_args_count: usize,
     pub ret: Option<ast::NodeID>,
     pub node_id: Option<ast::NodeID>,

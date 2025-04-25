@@ -201,10 +201,12 @@ pub fn eval_from_with_fs<'cx>(
     let mut atoms = atoms.into_inner().unwrap();
 
     let (bind_list, p) = {
-        let (bind_list, p_map): (Vec<BinderResult>, Vec<(ParseResult, bind::ParentMap)>) =
-            bind_parallel(module_arena.modules(), &atoms, p, tsconfig)
-                .into_iter()
-                .unzip();
+        let (bind_list, p_map): (
+            Vec<BinderResult<'_>>,
+            Vec<(ParseResult<'_>, bind::ParentMap)>,
+        ) = bind_parallel(module_arena.modules(), &atoms, p, tsconfig)
+            .into_iter()
+            .unzip();
         let p = Parser::new_with_maps(p_map);
         (bind_list, p)
     };
@@ -263,6 +265,7 @@ pub fn eval_from_with_fs<'cx>(
             &p,
             &atoms,
             module_arena.modules(),
+            tsconfig.compiler_options(),
         ))
         .collect();
 
@@ -303,6 +306,7 @@ pub fn eval_from_with_fs<'cx>(
     }
 
     // ==== codegen ====
+    let compiler_options = tsconfig.compiler_options();
     let output = entries
         .into_par_iter()
         .filter_map(|item| {
@@ -310,7 +314,7 @@ pub fn eval_from_with_fs<'cx>(
                 None
             } else {
                 let input_len = module_arena.get_content(item).len();
-                let mut emitter = emit::Emit::new(checker.atoms, input_len);
+                let mut emitter = emit::Emit::new(checker.atoms, input_len, compiler_options, &p);
                 Some((item, emitter.emit(p.root(item))))
             }
         })

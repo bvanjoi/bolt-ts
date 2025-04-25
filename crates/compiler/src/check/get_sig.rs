@@ -1,3 +1,5 @@
+use bolt_ts_ast::keyword;
+
 use super::TyChecker;
 use super::ast;
 use super::symbol_info::SymbolInfo;
@@ -186,7 +188,7 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
-    fn get_resolved_sig(&mut self, node: ast::NodeID) -> &'cx ty::Sig<'cx> {
+    pub(super) fn get_resolved_sig(&mut self, node: ast::NodeID) -> &'cx ty::Sig<'cx> {
         let resolving_sig = self.resolving_sig();
         if let Some(cached) = self.get_node_links(node).get_resolved_sig() {
             if cached != resolving_sig {
@@ -199,10 +201,11 @@ impl<'cx> TyChecker<'cx> {
 
         let sig = match self.p.node(node) {
             ast::Node::CallExpr(call) => call.resolve_sig(self),
+            ast::Node::TaggedTemplateExpr(expr) => expr.resolve_sig(self),
             _ => unreachable!(),
         };
 
-        self.get_mut_node_links(node).set_resolved_sig(sig);
+        self.get_mut_node_links(node).override_resolved_sig(sig);
         sig
     }
 
@@ -360,18 +363,25 @@ fn get_sig_from_decl<'cx>(
     } else {
         node.params().unwrap()
     };
-    let has_rest_param = params_of_node
-        .last()
-        .map(|param| param.dotdotdot.is_some())
-        .unwrap_or_default();
-
+    let mut this_param = None;
+    let has_rest_param = ast::has_rest_param(params_of_node);
     let mut flags = SigFlags::empty();
     let mut min_args_count = 0;
     let mut params = Vec::with_capacity(params_of_node.len());
-    for param in params_of_node {
+    for (idx, param) in params_of_node.iter().enumerate() {
         let id = node_id_of_binding(*param);
         let symbol = checker.final_res(id);
-        params.push(symbol);
+        if idx == 0
+            && checker
+                .symbol(symbol)
+                .name
+                .as_atom()
+                .is_some_and(|atom| atom == keyword::KW_THIS)
+        {
+            this_param = Some(symbol);
+        } else {
+            params.push(symbol);
+        }
         let is_opt = param.question.is_some() || param.dotdotdot.is_some() || param.init.is_some();
         if !is_opt {
             min_args_count = params.len();
@@ -408,6 +418,7 @@ fn get_sig_from_decl<'cx>(
     Sig {
         flags,
         ty_params,
+        this_param,
         params,
         min_args_count,
         ret,

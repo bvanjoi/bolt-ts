@@ -168,7 +168,7 @@ impl<'cx> TyChecker<'cx> {
         if source.kind.is_structured_or_instantiable()
             || target.kind.is_structured_or_instantiable()
         {
-            self.check_type_related_to(source, target, relation, None) != Ternary::FALSE
+            self.check_type_related_to(source, target, relation, None)
         } else {
             false
         }
@@ -218,7 +218,7 @@ impl<'cx> TyChecker<'cx> {
         }
         if error_node.is_none() || !self.elaborate_error(expr, source, target, relation, error_node)
         {
-            if self.check_type_related_to(source, target, relation, error_node) == Ternary::FALSE {
+            if !self.check_type_related_to(source, target, relation, error_node) {
                 if error_node.is_none() {
                     return Ternary::FALSE;
                 }
@@ -239,7 +239,7 @@ impl<'cx> TyChecker<'cx> {
         source: &'cx Ty<'cx>,
         target: &'cx Ty<'cx>,
         error_node: Option<ast::NodeID>,
-    ) -> Ternary {
+    ) -> bool {
         self.check_type_related_to(source, target, RelationKind::Assignable, error_node)
     }
 
