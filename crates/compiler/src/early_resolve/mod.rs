@@ -122,7 +122,7 @@ impl<'cx> Resolver<'cx, '_, '_> {
             Empty(_) => {}
             Class(class) => self.resolve_class_decl(class),
             Interface(interface) => self.resolve_interface_decl(interface),
-            Type(node) => self.resolve_type_decl(node),
+            TypeAlias(node) => self.resolve_type_alias_decl(node),
             Namespace(ns) => self.resolve_ns_decl(ns),
             Throw(t) => {
                 self.resolve_expr(t.expr);
@@ -202,7 +202,7 @@ impl<'cx> Resolver<'cx, '_, '_> {
         }
     }
 
-    fn resolve_type_decl(&mut self, ty: &'cx ast::TypeDecl<'cx>) {
+    fn resolve_type_alias_decl(&mut self, ty: &'cx ast::TypeAliasDecl<'cx>) {
         if let Some(ty_params) = ty.ty_params {
             self.resolve_ty_params(ty_params);
         }

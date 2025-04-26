@@ -31,7 +31,7 @@ impl<'cx> ParserState<'cx, '_> {
             Return => ast::StmtKind::Return(self.parse_ret_stmt()?),
             Class => ast::StmtKind::Class(self.parse_class_decl(None)?),
             Interface => ast::StmtKind::Interface(self.parse_interface_decl(None)?),
-            Type => ast::StmtKind::Type(self.parse_type_decl(None)?),
+            Type => ast::StmtKind::TypeAlias(self.parse_type_alias_decl(None)?),
             Module | Namespace => ast::StmtKind::Namespace(self.parse_ns_decl(None)?),
             Enum => ast::StmtKind::Enum(self.parse_enum_decl(None)?),
             Throw => ast::StmtKind::Throw(self.parse_throw_stmt()?),
@@ -433,10 +433,10 @@ impl<'cx> ParserState<'cx, '_> {
         decl
     }
 
-    fn parse_type_decl(
+    fn parse_type_alias_decl(
         &mut self,
         modifiers: Option<&'cx ast::Modifiers<'cx>>,
-    ) -> PResult<&'cx ast::TypeDecl<'cx>> {
+    ) -> PResult<&'cx ast::TypeAliasDecl<'cx>> {
         let start = self.token.start();
         self.expect(TokenKind::Type);
         let name = self.parse_ident_name()?;
@@ -459,7 +459,7 @@ impl<'cx> ParserState<'cx, '_> {
         };
         self.parse_semi();
         let id = self.next_node_id();
-        let decl = self.alloc(ast::TypeDecl {
+        let decl = self.alloc(ast::TypeAliasDecl {
             id,
             span: self.new_span(start),
             modifiers,
@@ -468,7 +468,7 @@ impl<'cx> ParserState<'cx, '_> {
             ty,
         });
         self.set_external_module_indicator_if_has_export_mod(modifiers, id);
-        self.nodes.insert(id, ast::Node::TypeDecl(decl));
+        self.nodes.insert(id, ast::Node::TypeAliasDecl(decl));
         Ok(decl)
     }
 
@@ -500,7 +500,7 @@ impl<'cx> ParserState<'cx, '_> {
                     _ => ast::StmtKind::Export(self.parse_export_decl(start)?),
                 }
             }
-            Type => ast::StmtKind::Type(self.parse_type_decl(mods)?),
+            Type => ast::StmtKind::TypeAlias(self.parse_type_alias_decl(mods)?),
             Ident => {
                 let id = self.ident_token();
                 unreachable!("{:#?}", self.atoms.lock().unwrap().get(id));

@@ -52,7 +52,7 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
         self.declare_symbol_and_add_to_symbol_table(name, ns.id, includes, excludes)
     }
 
-    fn bind_type_decl(&mut self, t: &'cx ast::TypeDecl<'cx>) {
+    fn bind_type_alias_decl(&mut self, t: &'cx ast::TypeAliasDecl<'cx>) {
         let name = SymbolName::Atom(t.name.name);
         let symbol = self.bind_block_scoped_decl(
             t.id,
@@ -529,7 +529,7 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
                 self.bind_class_like_decl(node, false);
             }
             InterfaceDecl(node) => self.bind_interface_decl(node),
-            TypeDecl(node) => self.bind_type_decl(node),
+            TypeAliasDecl(node) => self.bind_type_alias_decl(node),
             EnumDecl(node) => self.bind_enum_decl(node),
             NamespaceDecl(node) => self.bind_ns_decl(node),
             ShorthandSpec(ast::ShorthandSpec { id, name, .. })

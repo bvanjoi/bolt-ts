@@ -594,3 +594,18 @@ pub(super) struct TheOperandOfAnIncrementOrDecrementOperatorMayNotBeAnOptionalPr
     pub span: Span,
     pub is_incr: bool,
 }
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
+#[error("Declaration name conflicts with built-in global identifier '{name}'.")]
+pub(super) struct DeclarationNameConflictsWithBuiltInGlobalIdentifier {
+    #[label(primary)]
+    pub(super) span: Span,
+    pub(super) name: String,
+}
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
+#[error("Setters cannot return a value.")]
+pub(super) struct SettersCannotReturnAValue {
+    #[label(primary)]
+    pub(super) span: Span,
+}

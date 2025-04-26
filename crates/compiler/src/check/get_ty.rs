@@ -1109,7 +1109,7 @@ impl<'cx> TyChecker<'cx> {
                 break;
             }
         }
-        host.and_then(|node_id| self.p.node(node_id).is_type_decl().then_some(node_id))
+        host.and_then(|node_id| self.p.node(node_id).is_type_alias_decl().then_some(node_id))
             .map(|node_id| {
                 let symbol = self.final_res(node_id);
                 assert!(self.binder.symbol(symbol).flags == SymbolFlags::TYPE_ALIAS);
@@ -1138,7 +1138,7 @@ impl<'cx> TyChecker<'cx> {
             use ast::Node::*;
             if matches!(
                 n,
-                InterfaceDecl(_) | ClassDecl(_) | ClassExpr(_) | TypeDecl(_)
+                InterfaceDecl(_) | ClassDecl(_) | ClassExpr(_) | TypeAliasDecl(_)
             ) {
                 let ty_params = self.get_effective_ty_param_decls(node);
                 if ty_params.is_empty() {

@@ -267,7 +267,7 @@ impl<'cx> Parser<'cx> {
             break;
         }
 
-        n.is_type_decl()
+        n.is_type_alias_decl()
     }
 
     pub fn is_decl_name(&self, id: ast::NodeID) -> bool {
@@ -329,7 +329,7 @@ impl<'cx> Parser<'cx> {
         self.find_ancestor(p, |n| {
             use bolt_ts_ast::Node::*;
             match n {
-                TypeDecl(_) => Some(true),
+                TypeAliasDecl(_) => Some(true),
                 // TODO: ParenTy
                 ReferTy(_) | UnionTy(_) | IntersectionTy(_) | IndexedAccessTy(_) | CondTy(_)
                 | TyOp(_) | ArrayTy(_) | TupleTy(_) => None,
@@ -567,6 +567,10 @@ impl<'cx> Parser<'cx> {
 
     pub fn has_dynamic_name(&self, id: ast::NodeID) -> bool {
         self.get(id.module()).has_dynamic_name(id)
+    }
+
+    pub fn is_type_decl(&self, id: ast::NodeID) -> bool {
+        self.get(id.module()).is_type_decl(id)
     }
 }
 

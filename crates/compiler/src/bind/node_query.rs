@@ -195,7 +195,7 @@ pub trait NodeQuery<'cx>: Sized {
             let n = this.node(node);
             use ast::Node::*;
             match n {
-                InterfaceDecl(_) | TypeDecl(_) => ModuleInstanceState::NonInstantiated,
+                InterfaceDecl(_) | TypeAliasDecl(_) => ModuleInstanceState::NonInstantiated,
                 EnumDecl(e) if this.is_enum_const(e) => ModuleInstanceState::ConstEnumOnly,
                 // TODO: import eq
                 ImportDecl(_) if !n.has_syntactic_modifier(ast::ModifierKind::Export.into()) => {
@@ -393,5 +393,23 @@ pub trait NodeQuery<'cx>: Sized {
             return false;
         };
         name.is_dynamic_name()
+    }
+
+    fn is_type_decl(&self, id: ast::NodeID) -> bool {
+        let n = self.node(id);
+        use ast::Node::*;
+        matches!(
+            n,
+            ParamDecl(_) | ClassDecl(_) | InterfaceDecl(_) | TypeAliasDecl(_) | EnumDecl(_)
+        ) || n.as_import_clause().is_some_and(|i| i.is_type_only)
+            || (n.is_import_named_spec() && {
+                let p = self.parent(id).unwrap();
+                self.node(p).expect_import_clause().is_type_only
+            })
+            || (n.is_export_named_spec()) && {
+                let p = self.parent(id).unwrap();
+                let p = self.parent(id).unwrap();
+                self.node(p).expect_export_decl().clause.is_type_only
+            }
     }
 }

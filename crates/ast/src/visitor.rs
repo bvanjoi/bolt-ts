@@ -14,7 +14,7 @@ pub fn visit_stmt<'cx>(v: &mut impl Visitor<'cx>, stmt: &'cx super::Stmt) {
         Expr(node) => v.visit_expr_stmt(node),
         Var(node) => v.visit_var_stmt(node),
         Try(node) => v.visit_try_stmt(node),
-        Type(node) => v.visit_type_decl(node),
+        TypeAlias(node) => v.visit_type_alias_decl(node),
         Export(_) => {}
         ExportAssign(_) => {}
         Empty(_) => (),
@@ -41,7 +41,7 @@ fn visit_var_stmt<'cx>(v: &mut impl Visitor<'cx>, stmt: &'cx super::VarStmt<'cx>
     }
 }
 
-pub fn visit_type_decl<'cx>(v: &mut impl Visitor<'cx>, decl: &'cx super::TypeDecl<'cx>) {
+pub fn visit_type_alias_decl<'cx>(v: &mut impl Visitor<'cx>, decl: &'cx super::TypeAliasDecl<'cx>) {
     v.visit_ident(decl.name);
     v.visit_ty(decl.ty);
 }
@@ -311,7 +311,7 @@ make_visitor!(
     (visit_block_stmt, super::BlockStmt<'cx>),
     (visit_expr_stmt, super::ExprStmt<'cx>),
     (visit_arrow_fn_expr, super::ArrowFnExpr<'cx>),
-    (visit_type_decl, super::TypeDecl<'cx>),
+    (visit_type_alias_decl, super::TypeAliasDecl<'cx>),
 );
 
 pub fn visit_node<'cx>(v: &mut impl Visitor<'cx>, node: &super::Node<'cx>) {

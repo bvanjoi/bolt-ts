@@ -207,7 +207,7 @@ impl<'cx> ast::Visitor<'cx> for CheckState<'cx> {
     fn visit_arrow_fn_expr(&mut self, node: &'cx bolt_ts_ast::ArrowFnExpr<'cx>) {
         self.check_sig_decl(node);
     }
-    fn visit_type_decl(&mut self, node: &'cx bolt_ts_ast::TypeDecl<'cx>) {
+    fn visit_type_alias_decl(&mut self, node: &'cx bolt_ts_ast::TypeAliasDecl<'cx>) {
         self.check_type_name_is_reserved(node.name, |this| {
             let error = errors::TypeAliasNameCannotBeX {
                 span: node.name.span,
@@ -215,6 +215,6 @@ impl<'cx> ast::Visitor<'cx> for CheckState<'cx> {
             };
             this.push_error(Box::new(error));
         });
-        visitor::visit_type_decl(self, node);
+        visitor::visit_type_alias_decl(self, node);
     }
 }

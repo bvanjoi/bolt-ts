@@ -77,7 +77,7 @@ impl<'cx> TyChecker<'cx> {
             return self.error_ty;
         }
         let decl = self.binder.symbol(symbol).decls.as_ref().unwrap()[0];
-        let decl = self.p.node(decl).expect_type_decl();
+        let decl = self.p.node(decl).expect_type_alias_decl();
         let mut ty = self.get_ty_from_type_node(decl.ty);
         if !self.pop_ty_resolution().has_cycle() {
             if let Some(ty_params) =
@@ -353,7 +353,8 @@ impl<'cx> TyChecker<'cx> {
             match node {
                 ClassDecl(_) | ClassExpr(_) | InterfaceDecl(_) | CallSigDecl(_)
                 | MethodSignature(_) | FnTy(_) | CtorSigDecl(_) | FnDecl(_)
-                | ClassMethodElem(_) | ArrowFnExpr(_) | TypeDecl(_) | MappedTy(_) | CondTy(_) => {
+                | ClassMethodElem(_) | ArrowFnExpr(_) | TypeAliasDecl(_) | MappedTy(_)
+                | CondTy(_) => {
                     let outer_ty_params = self.get_outer_ty_params(id, include_this);
                     if (node.is_fn_expr()
                         || node.is_arrow_fn_expr()

@@ -22,7 +22,7 @@ impl<'cx> TyChecker<'cx> {
             Class(class) => self.check_class_decl(class),
             Interface(interface) => self.check_interface_decl(interface),
             Namespace(ns) => self.check_ns_decl(ns),
-            Type(ty) => self.check_type_decl(ty),
+            TypeAlias(ty) => self.check_type_alias_decl(ty),
             For(node) => self.check_for_stmt(node),
             ForIn(node) => self.check_for_in_stmt(node),
             Import(node) => self.check_import_decl(node),
@@ -198,29 +198,40 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
-    fn check_ret_stmt(&mut self, ret_stmt: &ast::RetStmt<'cx>) {
-        let Some(container) = self.get_containing_fn_or_class_static_block(ret_stmt.id) else {
+    fn check_ret_stmt(&mut self, node: &ast::RetStmt<'cx>) {
+        let Some(container) = self.get_containing_fn_or_class_static_block(node.id) else {
             // delay bug
             return;
         };
         let sig = self.get_sig_from_decl(container);
         let ret_ty = self.get_ret_ty_of_sig(sig);
 
-        let expr_ty = ret_stmt
-            .expr
-            .map(|expr| self.check_expr_with_cache(expr))
-            .unwrap_or(self.undefined_ty);
-        if matches!(self.p.node(container), ast::Node::ClassCtor(_)) {
-            if let Some(expr) = ret_stmt.expr {
-                self.check_type_assignable_to_and_optionally_elaborate(
-                    expr_ty,
-                    ret_ty,
-                    Some(expr.id()),
-                    Some(expr.id()),
-                );
+        if *self.config.strict_null_checks()
+            || node.expr.is_some()
+            || ret_ty.flags.intersects(TypeFlags::NEVER)
+        {
+            let expr_ty = node
+                .expr
+                .map(|expr| self.check_expr_with_cache(expr))
+                .unwrap_or(self.undefined_ty);
+            let c = self.p.node(container);
+            if c.is_setter_decl() {
+                if node.expr.is_some() {
+                    let error = errors::SettersCannotReturnAValue { span: node.span };
+                    self.push_error(Box::new(error));
+                }
+            } else if matches!(c, ast::Node::ClassCtor(_)) {
+                if let Some(expr) = node.expr {
+                    self.check_type_assignable_to_and_optionally_elaborate(
+                        expr_ty,
+                        ret_ty,
+                        Some(expr.id()),
+                        Some(expr.id()),
+                    );
+                }
+            } else if self.get_ret_ty_from_anno(container).is_some() {
+                self.check_ret_expr(container, ret_ty, node.expr, expr_ty);
             }
-        } else if self.get_ret_ty_from_anno(container).is_some() {
-            self.check_ret_expr(container, ret_ty, ret_stmt.expr, expr_ty);
         }
     }
 
@@ -245,7 +256,7 @@ impl<'cx> TyChecker<'cx> {
         self.check_class_decl_like(class)
     }
 
-    fn check_type_decl(&mut self, ty: &'cx ast::TypeDecl<'cx>) {
+    fn check_type_alias_decl(&mut self, ty: &'cx ast::TypeAliasDecl<'cx>) {
         if let Some(ty_params) = ty.ty_params {
             self.check_ty_params(ty_params);
         }

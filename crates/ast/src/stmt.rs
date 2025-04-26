@@ -24,7 +24,7 @@ pub enum StmtKind<'cx> {
     Class(&'cx ClassDecl<'cx>),
     Expr(&'cx ExprStmt<'cx>),
     Interface(&'cx InterfaceDecl<'cx>),
-    Type(&'cx TypeDecl<'cx>),
+    TypeAlias(&'cx TypeAliasDecl<'cx>),
     Namespace(&'cx NsDecl<'cx>),
     Throw(&'cx ThrowStmt<'cx>),
     Enum(&'cx EnumDecl<'cx>),
@@ -50,7 +50,7 @@ impl Stmt<'_> {
             Class(c) => c.id,
             Expr(expr) => expr.id,
             Interface(i) => i.id,
-            Type(t) => t.id,
+            TypeAlias(t) => t.id,
             Namespace(n) => n.id,
             Throw(t) => t.id,
             Enum(e) => e.id,
@@ -241,7 +241,7 @@ impl ModuleName<'_> {
 }
 
 #[derive(Debug, Clone, Copy)]
-pub struct TypeDecl<'cx> {
+pub struct TypeAliasDecl<'cx> {
     pub id: NodeID,
     pub span: Span,
     pub modifiers: Option<&'cx Modifiers<'cx>>,

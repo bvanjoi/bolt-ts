@@ -244,6 +244,7 @@ impl Symbol {
     pub const ARGUMENTS: SymbolID = SymbolID::ARGUMENTS;
     pub const RESOLVING: SymbolID = SymbolID::RESOLVING;
     pub const EMPTY_TYPE_LITERAL: SymbolID = SymbolID::EMPTY_TYPE_LITERAL;
+    pub const UNDEFINED: SymbolID = SymbolID::UNDEFINED;
 
     pub fn can_have_symbol(node: bolt_ts_ast::Node<'_>) -> bool {
         use bolt_ts_ast::Node::*;
@@ -308,6 +309,10 @@ impl SymbolID {
     pub(super) const EMPTY_TYPE_LITERAL: Self = SymbolID {
         module: ModuleID::TRANSIENT,
         index: 4,
+    };
+    pub(super) const UNDEFINED: Self = SymbolID {
+        module: ModuleID::TRANSIENT,
+        index: 5,
     };
 
     pub fn container(module: ModuleID) -> Self {
