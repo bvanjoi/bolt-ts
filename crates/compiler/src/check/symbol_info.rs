@@ -583,15 +583,15 @@ impl<'cx> super::TyChecker<'cx> {
         meaning: SymbolFlags,
     ) -> Option<SymbolID> {
         if !meaning.is_empty() {
-            // TODO: get_merged_symbol;
-            if let Some(symbol) = symbols.0.get(&name) {
-                let flags = symbol_of_resolve_results(self.get_resolve_results(), *symbol).flags;
+            if let Some(symbol) = symbols.0.get(&name).copied() {
+                let symbol = self.get_merged_symbol(symbol);
+                let flags = symbol_of_resolve_results(self.get_resolve_results(), symbol).flags;
                 if flags.intersects(meaning) {
-                    return Some(*symbol);
+                    return Some(symbol);
                 } else if flags.intersects(SymbolFlags::ALIAS) {
-                    let target_flags = self.get_symbol_flags(*symbol, false);
+                    let target_flags = self.get_symbol_flags(symbol, false);
                     if target_flags.intersects(meaning) {
-                        return Some(*symbol);
+                        return Some(symbol);
                     }
                 }
             }

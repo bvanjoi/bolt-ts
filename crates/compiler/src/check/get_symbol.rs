@@ -16,6 +16,7 @@ impl TyChecker<'_> {
             self.p.node(id).span()
         );
         let id = self.final_res(id);
+        // TODO: get_late_bound_symbol
         self.get_merged_symbol(id)
     }
 
