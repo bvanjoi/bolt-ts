@@ -393,7 +393,7 @@ impl<'cx> TyChecker<'cx> {
 
         let mut single_prop = None;
         let mut prop_set: Option<FxHashSet<_>> = None;
-        let mut index_tys: Option<Vec<Ty<'cx>>> = None;
+        let index_tys: Option<Vec<Ty<'cx>>> = None;
 
         let mut check_flags = if is_union {
             CheckFlags::empty()

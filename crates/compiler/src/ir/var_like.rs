@@ -1,4 +1,6 @@
-use bolt_ts_ast as ast;
+use bolt_ts_ast::{self as ast, NodeFlags};
+
+use crate::parser;
 
 pub enum VarLikeName<'cx> {
     Ident(&'cx ast::Ident),
@@ -17,7 +19,7 @@ impl<'cx> From<&ast::PropName<'cx>> for VarLikeName<'cx> {
             ast::PropNameKind::Ident(ident) => VarLikeName::Ident(ident),
             ast::PropNameKind::NumLit(num) => VarLikeName::NumLit(num),
             ast::PropNameKind::StringLit { raw, key } => VarLikeName::StringLit { raw, key },
-            ast::PropNameKind::Computed(n) => todo!(),
+            ast::PropNameKind::Computed(_) => todo!(),
         }
     }
 }
@@ -28,6 +30,9 @@ pub trait VarLike<'cx>: Copy + std::fmt::Debug {
     fn decl_ty(&self) -> Option<&'cx ast::Ty<'cx>>;
     fn init(&self) -> Option<&'cx ast::Expr<'cx>>;
     fn is_param(&self) -> bool {
+        false
+    }
+    fn is_var_const(&self, _: &'cx parser::Parser<'cx>) -> bool {
         false
     }
 }
@@ -48,6 +53,16 @@ impl<'cx> VarLike<'cx> for ast::VarDecl<'cx> {
     }
     fn init(&self) -> Option<&'cx ast::Expr<'cx>> {
         self.init
+    }
+    fn is_var_const(&self, p: &'cx parser::Parser<'cx>) -> bool {
+        let block_scope_kind = p
+            .get_combined_node_flags(self.id)
+            .intersection(NodeFlags::BLOCK_SCOPED);
+        block_scope_kind.intersects(
+            NodeFlags::CONST
+                .union(NodeFlags::USING)
+                .union(NodeFlags::AWAIT_USING),
+        )
     }
 }
 

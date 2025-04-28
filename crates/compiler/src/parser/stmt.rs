@@ -107,6 +107,7 @@ impl<'cx> ParserState<'cx, '_> {
             stmt,
         });
         self.nodes.insert(id, ast::Node::WhileStmt(stmt));
+        self.node_flags_map.insert(id, self.context_flags);
         Ok(stmt)
     }
 
@@ -115,7 +116,7 @@ impl<'cx> ParserState<'cx, '_> {
         self.expect(TokenKind::Catch);
 
         let var = if self.parse_optional(TokenKind::LParen).is_some() {
-            let v = self.parse_var_decl(false)?;
+            let v = self.parse_var_decl()?;
             self.expect(TokenKind::RParen);
             Some(v)
         } else {
@@ -169,10 +170,7 @@ impl<'cx> ParserState<'cx, '_> {
         let t = self.token.kind;
         let init = if t != Semi {
             if matches!(t, Var | Let | Const) {
-                let is_const = matches!(t, TokenKind::Const);
-                Some(ast::ForInitKind::Var(
-                    self.parse_var_decl_list(true, is_const),
-                ))
+                Some(ast::ForInitKind::Var(self.parse_var_decl_list(true)))
             } else {
                 Some(ast::ForInitKind::Expr(
                     self.disallow_in_and(Self::parse_expr)?,
@@ -843,7 +841,7 @@ impl<'cx> ParserState<'cx, '_> {
             TokenKind::Var => ast::NodeFlags::empty(),
             _ => unreachable!(),
         };
-        let list = self.parse_var_decl_list(false, flags.intersects(ast::NodeFlags::CONST));
+        let list = self.parse_var_decl_list(false);
         if list.is_empty() {
             let span = self.new_span(start);
             self.push_error(Box::new(errors::VariableDeclarationListCannotBeEmpty {
@@ -1018,33 +1016,11 @@ impl<'cx> ParserState<'cx, '_> {
         Ok(elem)
     }
 
-    fn parse_var_decl(&mut self, is_const: bool) -> PResult<&'cx ast::VarDecl<'cx>> {
+    fn parse_var_decl(&mut self) -> PResult<&'cx ast::VarDecl<'cx>> {
         let start = self.token.start();
         let binding = self.parse_ident_or_pat()?;
         let ty = self.parse_ty_anno()?;
         let init = self.parse_init()?;
-        if self.context_flags.intersects(NodeFlags::AMBIENT) {
-            if let Some(init) = init {
-                if is_const && ty.is_none() {
-                    let is_invalid_init = !(
-                        init.is_string_or_number_lit_like()
-                    // TODO: simple literal enum reference
-                        || matches!(init.kind, ast::ExprKind::BoolLit(_))
-                        // TODO: is bigint literal
-                    );
-                    if is_invalid_init {
-                        let error = errors::InitializersAreNotAllowedInAmbientContexts {
-                            span: init.span(),
-                        };
-                        self.push_error(Box::new(error));
-                    }
-                } else {
-                    let error =
-                        errors::InitializersAreNotAllowedInAmbientContexts { span: init.span() };
-                    self.push_error(Box::new(error));
-                }
-            }
-        }
         let span = self.new_span(start);
         let id = self.next_node_id();
         let node = self.alloc(ast::VarDecl {
@@ -1055,16 +1031,13 @@ impl<'cx> ParserState<'cx, '_> {
             init,
         });
         self.nodes.insert(id, ast::Node::VarDecl(node));
+        self.node_flags_map.insert(id, self.context_flags);
         Ok(node)
     }
 
-    fn parse_var_decl_list(
-        &mut self,
-        in_for_stmt_initializer: bool,
-        is_const: bool,
-    ) -> VarDecls<'cx> {
+    fn parse_var_decl_list(&mut self, in_for_stmt_initializer: bool) -> VarDecls<'cx> {
         self.next_token();
-        self.parse_delimited_list(list_ctx::VarDecls, |this| this.parse_var_decl(is_const))
+        self.parse_delimited_list(list_ctx::VarDecls, |this| this.parse_var_decl())
     }
 
     fn parse_fn_decl(

@@ -170,13 +170,6 @@ pub(super) struct AnImplementationCannotBeDeclaredInAmbientContexts {
 }
 
 #[derive(Error, Diagnostic, DiagnosticExt, Debug)]
-#[error("Initializers are not allowed in ambient contexts.")]
-pub(super) struct InitializersAreNotAllowedInAmbientContexts {
-    #[label(primary)]
-    pub span: Span,
-}
-
-#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
 #[error("An element access expression should take an argument.")]
 pub(super) struct AnElementAccessExpressionShouldTakeAnArgument {
     #[label(primary)]
