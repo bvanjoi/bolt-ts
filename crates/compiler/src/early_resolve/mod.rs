@@ -913,6 +913,31 @@ pub(super) fn resolve_symbol_by_ident<'a, 'cx>(
                     }
                 }
             }
+            ExprWithTyArgs(expr) => {
+                if last_location.is_some_and(|l| l == expr.expr.id())
+                    && resolver
+                        .p
+                        .node(resolver.p.parent(id).unwrap())
+                        .is_class_extends_clause()
+                {
+                    let container = resolver.p.parent(resolver.p.parent(id).unwrap()).unwrap();
+                    let c = resolver.p.node(container);
+                    if c.is_class_like() {
+                        if let Some(res) = resolver
+                            .symbol(resolver.symbol_of_decl(container))
+                            .members()
+                            .and_then(|m| get_symbol(resolver, m, key, meaning & SymbolFlags::TYPE))
+                        {
+                            assert!(!resolver.symbol(res).flags.intersects(SymbolFlags::ALIAS));
+                            // TODO: throw ERROR
+                            return ResolvedResult {
+                                symbol: Symbol::ERR,
+                                associated_declaration_for_containing_initializer_or_binding_name,
+                            };
+                        }
+                    }
+                }
+            }
             ArrowFnExpr(_) | ClassMethodElem(_) | ClassCtor(_) | GetterDecl(_) | SetterDecl(_)
             | FnDecl(_) => {
                 if meaning.intersects(SymbolFlags::VARIABLE)

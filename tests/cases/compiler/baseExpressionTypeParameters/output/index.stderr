@@ -1,0 +1,5 @@
+  × Cannot find name 'T'.
+    ╭─[../../tests/cases/compiler/baseExpressionTypeParameters/index.ts:12:27]
+ 12 │ T
+    · ─
+    ╰────

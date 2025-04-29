@@ -57,6 +57,14 @@ impl CannotFindNameHelperKind {
 }
 
 #[derive(Error, Diagnostic, DiagnosticExt, Debug)]
+#[error("Base class expressions cannot reference class type parameters.")]
+#[diagnostic(severity(Advice))]
+pub(super) struct BaseClassExpressionsCannotReferenceClassTypeParameters {
+    #[label(primary)]
+    pub span: Span,
+}
+
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
 #[error("'{name}' only refers to a type, but is being used as a value here.")]
 #[diagnostic(severity(Advice))]
 pub(super) struct OnlyReferToATypeButIsBeingUsedAsValueHere {
