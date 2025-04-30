@@ -286,6 +286,7 @@ pub struct TyChecker<'cx> {
     any_iteration_tys: std::cell::OnceCell<IterationTys<'cx>>,
     empty_array: &'cx [u8; 0],
     never_intersection_tys: nohash_hasher::IntMap<ty::TyID, bool>,
+    structure_members_placeholder: &'cx ty::StructuredMembers<'cx>,
 
     // === resolver ===
     pub binder: &'cx mut bind::Binder,
@@ -449,6 +450,14 @@ impl<'cx> TyChecker<'cx> {
             locals: Default::default(),
         });
 
+        let structure_members_placeholder = ty_arena.alloc(ty::StructuredMembers {
+            members: &empty_symbols.0,
+            call_sigs: cast_empty_array(empty_array),
+            ctor_sigs: cast_empty_array(empty_array),
+            index_infos: cast_empty_array(empty_array),
+            props: cast_empty_array(empty_array),
+        });
+
         let mut this = Self {
             atoms,
             p,
@@ -484,6 +493,7 @@ impl<'cx> TyChecker<'cx> {
             undefined_symbol,
 
             empty_symbols,
+            structure_members_placeholder,
 
             empty_array,
             any_ty,

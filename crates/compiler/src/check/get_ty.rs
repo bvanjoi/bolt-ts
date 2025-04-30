@@ -698,10 +698,13 @@ impl<'cx> TyChecker<'cx> {
         if let Some(ty) = self.get_node_links(node.id).get_resolved_ty() {
             return ty;
         }
+        let p = self.error_ty;
+        self.get_mut_node_links(node.id).set_resolved_ty(p);
+
         let ty = self.check_expr_with_ty_args(node);
         let ty = self.get_widened_ty(ty);
         let ty = self.get_regular_ty_of_literal_ty(ty);
-        self.get_mut_node_links(node.id).set_resolved_ty(ty);
+        self.get_mut_node_links(node.id).override_resolved_ty(ty);
         ty
     }
 

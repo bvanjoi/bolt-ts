@@ -666,84 +666,83 @@ impl<'cx> TyChecker<'cx> {
                 .node(decl)
                 .has_syntactic_modifier(ast::ModifierKind::Abstract.into())
         });
-        // if base_sigs.is_empty() {
-        let flags = if is_abstract {
-            SigFlags::ABSTRACT
-        } else {
-            SigFlags::empty()
-        };
-        let sig = self.new_sig(ty::Sig {
-            flags,
-            ty_params: i.local_ty_params,
-            this_param: None,
-            params: self.empty_array(),
-            min_args_count: 0,
-            ret: None,
-            node_id: None,
-            target: None,
-            mapper: None,
-            id: SigID::dummy(),
-            class_decl: decl,
-        });
-        let prev = self
-            .sig_links
-            .insert(sig.id, SigLinks::default().with_resolved_ret_ty(ty));
-        assert!(prev.is_none());
-        self.alloc([sig])
-        // } else if let Some(base_ty_node) = self.get_base_type_node_of_class(ty) {
-        //     let is_js = false;
-        //     let ty_args = self.ty_args_from_ty_refer_node(base_ty_node.expr_with_ty_args.ty_args);
-        //     let ty_arg_count = ty_args.map(|t| t.len()).unwrap_or_default();
-        //     let mut res = Vec::with_capacity(base_sigs.len());
-        //     for base_sig in base_sigs {
-        //         let min_ty_argument_count = self.get_min_ty_arg_count(base_sig.ty_params);
-        //         let ty_param_count = base_sig.ty_params.map(|t| t.len()).unwrap_or_default();
-        //         if is_js || ty_arg_count >= min_ty_argument_count && ty_arg_count <= ty_param_count
-        //         {
-        //             let sig = if ty_param_count > 0 {
-        //                 let ty_args = self.fill_missing_ty_args(
-        //                     ty_args,
-        //                     base_sig.ty_params,
-        //                     min_ty_argument_count,
-        //                 );
-        //                 self.create_sig_instantiation(base_sig, ty_args)
-        //             } else {
-        //                 self.clone_sig(base_sig)
-        //             };
-        //             let links = if let Some(old) = self.sig_links.get(&sig.id) {
-        //                 assert!(old.get_resolved_ret_ty().is_none());
-        //                 old.with_resolved_ret_ty(ty)
-        //             } else {
-        //                 SigLinks::default().with_resolved_ret_ty(ty)
-        //             };
-        //             let sig = ty::Sig {
-        //                 id: ty::SigID::dummy(),
-        //                 flags: if is_abstract {
-        //                     sig.flags | SigFlags::ABSTRACT
-        //                 } else {
-        //                     sig.flags
-        //                 },
-        //                 ty_params: i.local_ty_params,
-        //                 params: sig.params,
-        //                 this_param: sig.this_param,
-        //                 min_args_count: sig.min_args_count,
-        //                 ret: sig.ret,
-        //                 node_id: sig.node_id,
-        //                 target: sig.target,
-        //                 mapper: sig.mapper,
-        //                 class_decl: sig.class_decl,
-        //             };
+        if base_sigs.is_empty() {
+            let sig = self.new_sig(ty::Sig {
+                flags: if is_abstract {
+                    SigFlags::ABSTRACT
+                } else {
+                    SigFlags::empty()
+                },
+                ty_params: i.local_ty_params,
+                this_param: None,
+                params: self.empty_array(),
+                min_args_count: 0,
+                ret: None,
+                node_id: None,
+                target: None,
+                mapper: None,
+                id: SigID::dummy(),
+                class_decl: decl,
+            });
+            let prev = self
+                .sig_links
+                .insert(sig.id, SigLinks::default().with_resolved_ret_ty(ty));
+            assert!(prev.is_none());
+            self.alloc([sig])
+        } else if let Some(base_ty_node) = self.get_base_type_node_of_class(ty) {
+            let is_js = false;
+            let ty_args = self.ty_args_from_ty_refer_node(base_ty_node.expr_with_ty_args.ty_args);
+            let ty_arg_count = ty_args.map(|t| t.len()).unwrap_or_default();
+            let mut res = Vec::with_capacity(base_sigs.len());
+            for base_sig in base_sigs {
+                let min_ty_argument_count = self.get_min_ty_arg_count(base_sig.ty_params);
+                let ty_param_count = base_sig.ty_params.map(|t| t.len()).unwrap_or_default();
+                if is_js || ty_arg_count >= min_ty_argument_count && ty_arg_count <= ty_param_count
+                {
+                    let sig = if ty_param_count > 0 {
+                        let ty_args = self.fill_missing_ty_args(
+                            ty_args,
+                            base_sig.ty_params,
+                            min_ty_argument_count,
+                        );
+                        self.create_sig_instantiation(base_sig, ty_args)
+                    } else {
+                        self.clone_sig(base_sig)
+                    };
+                    let links = if let Some(old) = self.sig_links.get(&sig.id) {
+                        assert!(old.get_resolved_ret_ty().is_none());
+                        old.with_resolved_ret_ty(ty)
+                    } else {
+                        SigLinks::default().with_resolved_ret_ty(ty)
+                    };
+                    let sig = ty::Sig {
+                        id: ty::SigID::dummy(),
+                        flags: if is_abstract {
+                            sig.flags | SigFlags::ABSTRACT
+                        } else {
+                            sig.flags & !SigFlags::ABSTRACT
+                        },
+                        ty_params: i.local_ty_params,
+                        params: sig.params,
+                        this_param: sig.this_param,
+                        min_args_count: sig.min_args_count,
+                        ret: sig.ret,
+                        node_id: sig.node_id,
+                        target: sig.target,
+                        mapper: sig.mapper,
+                        class_decl: sig.class_decl,
+                    };
 
-        //             let sig = self.new_sig(sig);
-        //             let prev = self.sig_links.insert(sig.id, links);
-        //             assert!(prev.is_none());
-        //             res.push(sig);
-        //         }
-        //     }
-        //     self.alloc(res)
-        // } else {
-        //     unreachable!()
-        // }
+                    let sig = self.new_sig(sig);
+                    let prev = self.sig_links.insert(sig.id, links);
+                    assert!(prev.is_none());
+                    res.push(sig);
+                }
+            }
+            self.alloc(res)
+        } else {
+            unreachable!()
+        }
     }
 
     pub(super) fn get_members_of_symbol(&mut self, symbol: SymbolID) -> &'cx SymbolTable {
@@ -963,7 +962,13 @@ impl<'cx> TyChecker<'cx> {
             });
             self.get_mut_ty_links(ty.id).set_structured_members(m);
             return;
-        } else if symbol.flags.intersects(SymbolFlags::TYPE_LITERAL) {
+        }
+        // TODO: get_merged_symbol
+        // let symbol_id = self.get_merged_symbol(symbol_id);
+        // let symbol = self.symbol(symbol_id);
+        if symbol.flags.intersects(SymbolFlags::TYPE_LITERAL) {
+            let placeholder = self.structure_members_placeholder;
+            self.get_mut_ty_links(ty.id).set_structured_members(placeholder);
             let members = self.get_members_of_symbol(symbol_id);
             let call_sigs = members
                 .0
@@ -984,7 +989,7 @@ impl<'cx> TyChecker<'cx> {
                 index_infos,
                 props,
             });
-            self.get_mut_ty_links(ty.id).set_structured_members(m);
+            self.get_mut_ty_links(ty.id).override_structured_members(m);
             return;
         }
 
@@ -994,6 +999,9 @@ impl<'cx> TyChecker<'cx> {
         if symbol_id == self.global_this_symbol {
             // TODO:
         }
+
+        let placeholder = self.structure_members_placeholder;
+        self.get_mut_ty_links(ty.id).set_structured_members(placeholder);
 
         let call_sigs;
         let mut ctor_sigs: ty::Sigs<'cx>;
@@ -1052,7 +1060,7 @@ impl<'cx> TyChecker<'cx> {
             index_infos,
             props,
         });
-        self.get_mut_ty_links(ty.id).set_structured_members(m);
+        self.get_mut_ty_links(ty.id).override_structured_members(m);
     }
 
     fn resolve_union_type_members(&mut self, ty: &'cx ty::Ty<'cx>) {
@@ -1343,14 +1351,8 @@ impl<'cx> TyChecker<'cx> {
     }
 
     fn resolve_mapped_ty_members(&mut self, ty: &'cx ty::Ty<'cx>) {
-        let m = self.alloc(ty::StructuredMembers {
-            members: self.alloc(Default::default()),
-            call_sigs: self.empty_array(),
-            ctor_sigs: self.empty_array(),
-            index_infos: self.empty_array(),
-            props: self.empty_array(),
-        });
-        self.get_mut_ty_links(ty.id).set_structured_members(m);
+        let placeholder = self.structure_members_placeholder;
+        self.get_mut_ty_links(ty.id).set_structured_members(placeholder);
 
         let mapped_ty = ty.kind.expect_object_mapped();
         let ty_param = self.get_ty_param_from_mapped_ty(ty);
