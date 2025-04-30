@@ -1019,7 +1019,11 @@ impl<'cx> TyChecker<'cx> {
             // let mut base_ctor_index_info = None;
             let class_ty = self.get_declared_ty_of_symbol(symbol_id);
             let base_ctor_ty = self.get_base_constructor_type_of_class(class_ty);
-            if base_ctor_ty.kind.is_object() || base_ctor_ty.kind.is_type_variable() {
+            if base_ctor_ty.flags.intersects(
+                TypeFlags::OBJECT
+                    .union(TypeFlags::INTERSECTION)
+                    .union(TypeFlags::TYPE_VARIABLE),
+            ) {
                 let props = self.get_props_of_ty(base_ctor_ty);
                 self.add_inherited_members(&mut members, props);
             } else if base_ctor_ty == self.any_ty {
