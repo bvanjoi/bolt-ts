@@ -5,3 +5,6 @@ type TypeStructure =
   | ["string"]
   | ["number"] 
   | ["list", TypeStructure] // with just this it is ok
+
+type A = true extends true ? | number | string : false;
+  
