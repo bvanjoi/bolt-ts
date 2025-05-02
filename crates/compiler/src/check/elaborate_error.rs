@@ -1,4 +1,3 @@
-use super::Ternary;
 use super::TyChecker;
 use super::errors;
 use super::relation::RelationKind;

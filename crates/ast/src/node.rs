@@ -44,7 +44,7 @@ pub enum Node<'cx> {
     SetterDecl(&'cx super::SetterDecl<'cx>),
     ClassExtendsClause(&'cx super::ClassExtendsClause<'cx>),
     InterfaceDecl(&'cx super::InterfaceDecl<'cx>),
-    TypeDecl(&'cx super::TypeDecl<'cx>),
+    TypeAliasDecl(&'cx super::TypeAliasDecl<'cx>),
     InterfaceExtendsClause(&'cx super::InterfaceExtendsClause<'cx>),
     ClassImplementsClause(&'cx super::ClassImplementsClause<'cx>),
     BlockStmt(&'cx super::BlockStmt<'cx>),
@@ -206,10 +206,6 @@ impl<'cx> Node<'cx> {
         false
     }
 
-    pub fn is_ty_alias(&self) -> bool {
-        self.is_type_decl()
-    }
-
     pub fn is_ty_refer_ty(&self) -> bool {
         // TODO: is_expr_with_ty_args
         self.is_refer_ty()
@@ -279,7 +275,7 @@ impl<'cx> Node<'cx> {
                 super::BindingKind::ArrayPat(_) => None,
             },
             InterfaceDecl(n) => Some(n.name),
-            TypeDecl(n) => Some(n.name),
+            TypeAliasDecl(n) => Some(n.name),
             ClassPropElem(n) => match n.name.kind {
                 super::PropNameKind::Ident(ident) => Some(ident),
                 _ => None,
@@ -339,7 +335,7 @@ impl<'cx> Node<'cx> {
             ClassCtor,
             CtorSigDecl,
             ClassMethodElem,
-            TypeDecl,
+            TypeAliasDecl,
             MethodSignature,
             CallSigDecl,
             InterfaceDecl,
@@ -421,7 +417,7 @@ impl<'cx> Node<'cx> {
         if self.is_fn_decl() {
             return None;
         }
-        if self.is_ty_alias() {
+        if self.is_type_alias_decl() {
             return None;
         }
         self.ret_ty()
@@ -590,7 +586,7 @@ impl<'cx> Node<'cx> {
             VarStmt,
             ClassDecl,
             NamespaceDecl,
-            TypeDecl,
+            TypeAliasDecl,
             InterfaceDecl,
             ParamDecl,
             IndexSigDecl,
@@ -712,7 +708,7 @@ impl<'cx> Node<'cx> {
                 | ObjectMethodMember(_)
                 | Program(_)
                 | SetterDecl(_)
-                | TypeDecl(_)
+                | TypeAliasDecl(_)
         )
     }
 
@@ -798,6 +794,14 @@ impl<'cx> Node<'cx> {
             ty_node.is_this_less()
         } else {
             self.initializer().is_none()
+        }
+    }
+
+    pub fn error_span(&self) -> bolt_ts_span::Span {
+        match self {
+            Node::VarDecl(n) => n.binding.span,
+            Node::NamespaceDecl(n) => n.name.span(),
+            _ => self.span(),
         }
     }
 }
@@ -986,7 +990,7 @@ as_node!(
     (AsExpr, super::AsExpr<'cx>, as_expr),
     (TyAssertionExpr, super::TyAssertion<'cx>, ty_assertion),
     (SatisfiesExpr, super::SatisfiesExpr<'cx>, satisfies_expr),
-    (TypeDecl, super::TypeDecl<'cx>, type_decl),
+    (TypeAliasDecl, super::TypeAliasDecl<'cx>, type_alias_decl),
     (RestTy, super::RestTy<'cx>, rest_ty),
     (NamedTupleTy, super::NamedTupleTy<'cx>, named_tuple_ty),
     (TupleTy, super::TupleTy<'cx>, tuple_ty),

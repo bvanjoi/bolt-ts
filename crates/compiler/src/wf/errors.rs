@@ -57,3 +57,27 @@ pub(super) struct TypeAliasNameCannotBeX {
     pub span: Span,
     pub name: String,
 }
+
+#[derive(Debug)]
+pub(super) enum AmbientContextKind {
+    Initializers,
+    Statements,
+}
+
+impl std::fmt::Display for AmbientContextKind {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let s = match self {
+            AmbientContextKind::Initializers => "Initializers",
+            AmbientContextKind::Statements => "Statements",
+        };
+        write!(f, "{}", s)
+    }
+}
+
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
+#[error("{kind} are not allowed in ambient contexts.")]
+pub(super) struct XAreNotAllowedInAmbientContexts {
+    #[label(primary)]
+    pub span: Span,
+    pub kind: AmbientContextKind,
+}

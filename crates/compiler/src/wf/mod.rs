@@ -181,6 +181,51 @@ impl<'cx> CheckState<'cx> {
             push_error(self);
         }
     }
+    fn check_stmt_in_ambient(&mut self, node: ast::NodeID) -> bool {
+        let flags = self.p.node_flags(node);
+        if flags.intersects(ast::NodeFlags::AMBIENT) {
+            let parent = self.p.parent(node).unwrap();
+            let parent_node = self.p.node(parent);
+            if parent_node.is_block_stmt()
+                || parent_node.is_module_block()
+                || parent_node.is_program()
+            {
+                let error = errors::XAreNotAllowedInAmbientContexts {
+                    span: self.p.node(node).span(),
+                    kind: errors::AmbientContextKind::Statements,
+                };
+                self.push_error(Box::new(error));
+                return true;
+            }
+        }
+        false
+    }
+    fn check_ambient_initializer(&mut self, node: &impl ir::VarLike<'cx>) {
+        let Some(init) = node.init() else {
+            return;
+        };
+        if node.decl_ty().is_none() && node.is_var_const(self.p) {
+            let is_invalid_init = !(
+                init.is_string_or_number_lit_like()
+            // TODO: simple literal enum reference
+                || matches!(init.kind, ast::ExprKind::BoolLit(_))
+                // TODO: is bigint literal
+            );
+            if is_invalid_init {
+                let error = errors::XAreNotAllowedInAmbientContexts {
+                    kind: errors::AmbientContextKind::Initializers,
+                    span: init.span(),
+                };
+                self.push_error(Box::new(error));
+            }
+        } else {
+            let error = errors::XAreNotAllowedInAmbientContexts {
+                kind: errors::AmbientContextKind::Initializers,
+                span: init.span(),
+            };
+            self.push_error(Box::new(error));
+        }
+    }
 }
 
 impl<'cx> ast::Visitor<'cx> for CheckState<'cx> {
@@ -207,7 +252,7 @@ impl<'cx> ast::Visitor<'cx> for CheckState<'cx> {
     fn visit_arrow_fn_expr(&mut self, node: &'cx bolt_ts_ast::ArrowFnExpr<'cx>) {
         self.check_sig_decl(node);
     }
-    fn visit_type_decl(&mut self, node: &'cx bolt_ts_ast::TypeDecl<'cx>) {
+    fn visit_type_alias_decl(&mut self, node: &'cx bolt_ts_ast::TypeAliasDecl<'cx>) {
         self.check_type_name_is_reserved(node.name, |this| {
             let error = errors::TypeAliasNameCannotBeX {
                 span: node.name.span,
@@ -215,6 +260,18 @@ impl<'cx> ast::Visitor<'cx> for CheckState<'cx> {
             };
             this.push_error(Box::new(error));
         });
-        visitor::visit_type_decl(self, node);
+        visitor::visit_type_alias_decl(self, node);
+    }
+    fn visit_while_stmt(&mut self, node: &'cx bolt_ts_ast::WhileStmt<'cx>) {
+        self.check_stmt_in_ambient(node.id);
+        visitor::visit_while_stmt(self, node);
+    }
+    fn visit_var_decl(&mut self, node: &'cx bolt_ts_ast::VarDecl<'cx>) {
+        let node_flags = self.p.node_flags(node.id);
+        if node_flags.intersects(ast::NodeFlags::AMBIENT) {
+            self.check_ambient_initializer(node);
+        }
+
+        visitor::visit_var_decl(self, node);
     }
 }

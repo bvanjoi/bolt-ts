@@ -66,11 +66,14 @@ impl<'cx> ParserState<'cx, '_> {
             let ty = self.parse_union_ty_or_higher()?;
             if !self.has_preceding_line_break() && self.parse_optional(TokenKind::Extends).is_some()
             {
-                let extends_ty = self.disallow_conditional_tys_and(|this| this.parse_ty())?;
+                if self.module_id.as_u32() == 1 {
+                    dbg!(123);
+                }
+                let extends_ty = self.disallow_conditional_tys_and(Self::parse_ty)?;
                 self.expect(TokenKind::Question);
-                let true_ty = self.allow_conditional_tys_and(|this| this.parse_ty())?;
+                let true_ty = self.allow_conditional_tys_and(Self::parse_ty)?;
                 self.expect(TokenKind::Colon);
-                let false_ty = self.allow_conditional_tys_and(|this| this.parse_ty())?;
+                let false_ty = self.allow_conditional_tys_and(Self::parse_ty)?;
                 let id = self.next_node_id();
                 let ty = self.alloc(ast::CondTy {
                     id,
@@ -91,15 +94,14 @@ impl<'cx> ParserState<'cx, '_> {
         }
     }
 
-    fn parse_union_or_intersection_ty(
+    fn parse_union_or_intersection_ty<const IS_UNION_TY: bool>(
         &mut self,
         expect: TokenKind,
         parse_constituent_type: impl FnOnce(&mut Self) -> PResult<&'cx ast::Ty<'cx>> + Copy,
     ) -> PResult<&'cx ast::Ty<'cx>> {
-        let is_union_ty = expect == TokenKind::Pipe;
         let has_leading_operator = self.parse_optional(expect).is_some();
         let ty = if has_leading_operator {
-            if let Some(ty) = self.parse_fn_or_ctor_ty_to_error(is_union_ty)? {
+            if let Some(ty) = self.parse_fn_or_ctor_ty_to_error(IS_UNION_TY)? {
                 ty
             } else {
                 parse_constituent_type(self)?
@@ -112,7 +114,7 @@ impl<'cx> ParserState<'cx, '_> {
             let mut tys = vec![ty];
             // self.parent_map.r#override(ty.id(), parent);
             while self.parse_optional(expect).is_some() {
-                if let Some(ty) = self.parse_fn_or_ctor_ty_to_error(is_union_ty)? {
+                if let Some(ty) = self.parse_fn_or_ctor_ty_to_error(IS_UNION_TY)? {
                     tys.push(ty);
                 } else {
                     let ty = parse_constituent_type(self)?;
@@ -153,11 +155,11 @@ impl<'cx> ParserState<'cx, '_> {
     }
 
     fn parse_intersection_ty(&mut self) -> PResult<&'cx ast::Ty<'cx>> {
-        self.parse_union_or_intersection_ty(TokenKind::Amp, Self::parse_ty_op_or_higher)
+        self.parse_union_or_intersection_ty::<false>(TokenKind::Amp, Self::parse_ty_op_or_higher)
     }
 
     fn parse_union_ty_or_higher(&mut self) -> PResult<&'cx ast::Ty<'cx>> {
-        self.parse_union_or_intersection_ty(TokenKind::Pipe, Self::parse_intersection_ty)
+        self.parse_union_or_intersection_ty::<true>(TokenKind::Pipe, Self::parse_intersection_ty)
     }
 
     fn parse_ty_pred_prefix(&mut self) -> PResult<Option<&'cx ast::Ident>> {
@@ -375,6 +377,9 @@ impl<'cx> ParserState<'cx, '_> {
                 return Ok(ty);
             }
             match self.token.kind {
+                TokenKind::Excl => {
+                    todo!()
+                }
                 TokenKind::Question => {
                     if self.lookahead(Self::next_token_is_start_of_expr) {
                         return Ok(ty);

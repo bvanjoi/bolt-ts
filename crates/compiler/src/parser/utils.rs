@@ -232,6 +232,7 @@ impl<'cx> ParserState<'cx, '_> {
                     | Yield
                     | Private
                     | At
+                    | Pipe
             )
     }
 

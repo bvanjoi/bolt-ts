@@ -281,7 +281,7 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
             | FnDecl(_)
             | FnExpr(_)
             | ArrowFnExpr(_)
-            | TypeDecl(_)
+            | TypeAliasDecl(_)
             | MappedTy(_) => {
                 assert!(
                     c.has_locals(),
@@ -716,7 +716,7 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
                     self.bind_object_ty_member(m);
                 }
             }
-            TypeDecl(n) => {
+            TypeAliasDecl(n) => {
                 self.bind(n.name.id);
                 if let Some(ty_params) = n.ty_params {
                     self.bind_ty_params(ty_params);

@@ -42,12 +42,12 @@ impl<'cx> Resolver<'cx, '_, '_> {
     ) -> Option<errors::StaticMembersCannotReferenceClassTypeParameters> {
         let symbol = self.symbol(symbol);
         if symbol.flags != SymbolFlags::TYPE_PARAMETER {
-            None
-        } else if self
-            .p
-            .node(self.p.parent(symbol.opt_decl().unwrap()).unwrap())
-            .is_class_like()
-            && self
+            return None;
+        }
+        let p = self.p.parent(symbol.opt_decl().unwrap()).unwrap();
+        let p_node = self.p.node(p);
+        if p_node.is_class_like() {
+            if self
                 .p
                 .find_ancestor(
                     ident.id,
@@ -56,10 +56,22 @@ impl<'cx> Resolver<'cx, '_, '_> {
                     },
                 )
                 .is_some()
-        {
-            let error =
-                errors::StaticMembersCannotReferenceClassTypeParameters { span: ident.span };
-            Some(error)
+            {
+                // ```txt
+                // class A<T> {
+                //     static x: T;
+                //         //    ~ ERROR
+                //     static y(a:T) {}
+                //        //      ~ ERROR
+                // }
+                // ```
+                //
+                let error =
+                    errors::StaticMembersCannotReferenceClassTypeParameters { span: ident.span };
+                Some(error)
+            } else {
+                None
+            }
         } else {
             None
         }

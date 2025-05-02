@@ -31,7 +31,7 @@ impl<'cx> ParserState<'cx, '_> {
             Return => ast::StmtKind::Return(self.parse_ret_stmt()?),
             Class => ast::StmtKind::Class(self.parse_class_decl(None)?),
             Interface => ast::StmtKind::Interface(self.parse_interface_decl(None)?),
-            Type => ast::StmtKind::Type(self.parse_type_decl(None)?),
+            Type => ast::StmtKind::TypeAlias(self.parse_type_alias_decl(None)?),
             Module | Namespace => ast::StmtKind::Namespace(self.parse_ns_decl(None)?),
             Enum => ast::StmtKind::Enum(self.parse_enum_decl(None)?),
             Throw => ast::StmtKind::Throw(self.parse_throw_stmt()?),
@@ -107,6 +107,7 @@ impl<'cx> ParserState<'cx, '_> {
             stmt,
         });
         self.nodes.insert(id, ast::Node::WhileStmt(stmt));
+        self.node_flags_map.insert(id, self.context_flags);
         Ok(stmt)
     }
 
@@ -115,7 +116,7 @@ impl<'cx> ParserState<'cx, '_> {
         self.expect(TokenKind::Catch);
 
         let var = if self.parse_optional(TokenKind::LParen).is_some() {
-            let v = self.parse_var_decl(false)?;
+            let v = self.parse_var_decl()?;
             self.expect(TokenKind::RParen);
             Some(v)
         } else {
@@ -169,10 +170,7 @@ impl<'cx> ParserState<'cx, '_> {
         let t = self.token.kind;
         let init = if t != Semi {
             if matches!(t, Var | Let | Const) {
-                let is_const = matches!(t, TokenKind::Const);
-                Some(ast::ForInitKind::Var(
-                    self.parse_var_decl_list(true, is_const),
-                ))
+                Some(ast::ForInitKind::Var(self.parse_var_decl_list(true)))
             } else {
                 Some(ast::ForInitKind::Expr(
                     self.disallow_in_and(Self::parse_expr)?,
@@ -433,10 +431,10 @@ impl<'cx> ParserState<'cx, '_> {
         decl
     }
 
-    fn parse_type_decl(
+    fn parse_type_alias_decl(
         &mut self,
         modifiers: Option<&'cx ast::Modifiers<'cx>>,
-    ) -> PResult<&'cx ast::TypeDecl<'cx>> {
+    ) -> PResult<&'cx ast::TypeAliasDecl<'cx>> {
         let start = self.token.start();
         self.expect(TokenKind::Type);
         let name = self.parse_ident_name()?;
@@ -459,7 +457,7 @@ impl<'cx> ParserState<'cx, '_> {
         };
         self.parse_semi();
         let id = self.next_node_id();
-        let decl = self.alloc(ast::TypeDecl {
+        let decl = self.alloc(ast::TypeAliasDecl {
             id,
             span: self.new_span(start),
             modifiers,
@@ -468,7 +466,7 @@ impl<'cx> ParserState<'cx, '_> {
             ty,
         });
         self.set_external_module_indicator_if_has_export_mod(modifiers, id);
-        self.nodes.insert(id, ast::Node::TypeDecl(decl));
+        self.nodes.insert(id, ast::Node::TypeAliasDecl(decl));
         Ok(decl)
     }
 
@@ -500,7 +498,7 @@ impl<'cx> ParserState<'cx, '_> {
                     _ => ast::StmtKind::Export(self.parse_export_decl(start)?),
                 }
             }
-            Type => ast::StmtKind::Type(self.parse_type_decl(mods)?),
+            Type => ast::StmtKind::TypeAlias(self.parse_type_alias_decl(mods)?),
             Ident => {
                 let id = self.ident_token();
                 unreachable!("{:#?}", self.atoms.lock().unwrap().get(id));
@@ -843,7 +841,7 @@ impl<'cx> ParserState<'cx, '_> {
             TokenKind::Var => ast::NodeFlags::empty(),
             _ => unreachable!(),
         };
-        let list = self.parse_var_decl_list(false, flags.intersects(ast::NodeFlags::CONST));
+        let list = self.parse_var_decl_list(false);
         if list.is_empty() {
             let span = self.new_span(start);
             self.push_error(Box::new(errors::VariableDeclarationListCannotBeEmpty {
@@ -1018,33 +1016,11 @@ impl<'cx> ParserState<'cx, '_> {
         Ok(elem)
     }
 
-    fn parse_var_decl(&mut self, is_const: bool) -> PResult<&'cx ast::VarDecl<'cx>> {
+    fn parse_var_decl(&mut self) -> PResult<&'cx ast::VarDecl<'cx>> {
         let start = self.token.start();
         let binding = self.parse_ident_or_pat()?;
         let ty = self.parse_ty_anno()?;
         let init = self.parse_init()?;
-        if self.context_flags.intersects(NodeFlags::AMBIENT) {
-            if let Some(init) = init {
-                if is_const && ty.is_none() {
-                    let is_invalid_init = !(
-                        init.is_string_or_number_lit_like()
-                    // TODO: simple literal enum reference
-                        || matches!(init.kind, ast::ExprKind::BoolLit(_))
-                        // TODO: is bigint literal
-                    );
-                    if is_invalid_init {
-                        let error = errors::InitializersAreNotAllowedInAmbientContexts {
-                            span: init.span(),
-                        };
-                        self.push_error(Box::new(error));
-                    }
-                } else {
-                    let error =
-                        errors::InitializersAreNotAllowedInAmbientContexts { span: init.span() };
-                    self.push_error(Box::new(error));
-                }
-            }
-        }
         let span = self.new_span(start);
         let id = self.next_node_id();
         let node = self.alloc(ast::VarDecl {
@@ -1055,16 +1031,13 @@ impl<'cx> ParserState<'cx, '_> {
             init,
         });
         self.nodes.insert(id, ast::Node::VarDecl(node));
+        self.node_flags_map.insert(id, self.context_flags);
         Ok(node)
     }
 
-    fn parse_var_decl_list(
-        &mut self,
-        in_for_stmt_initializer: bool,
-        is_const: bool,
-    ) -> VarDecls<'cx> {
+    fn parse_var_decl_list(&mut self, in_for_stmt_initializer: bool) -> VarDecls<'cx> {
         self.next_token();
-        self.parse_delimited_list(list_ctx::VarDecls, |this| this.parse_var_decl(is_const))
+        self.parse_delimited_list(list_ctx::VarDecls, |this| this.parse_var_decl())
     }
 
     fn parse_fn_decl(

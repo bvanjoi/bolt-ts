@@ -1720,8 +1720,33 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
                 return Ternary::FALSE;
             }
         }
-
-        if source_sigs.len() == 1 && target_sigs.len() == 1 {
+        let source_object_flags = source.get_object_flags();
+        let target_object_flags = target.get_object_flags();
+        if source_object_flags.intersects(ObjectFlags::INSTANTIATED)
+            && target_object_flags.intersects(ObjectFlags::INSTANTIATED)
+            && source.symbol() == target.symbol()
+            || source.kind.as_object_reference().is_some_and(|s| {
+                target
+                    .kind
+                    .as_object_reference()
+                    .is_some_and(|t| s.target == t.target)
+            })
+        {
+            assert_eq!(source_sigs.len(), target_sigs.len());
+            for i in 0..source_sigs.len() {
+                let related = self.sig_related_to(
+                    source_sigs[i],
+                    target_sigs[i],
+                    true,
+                    report_error,
+                    intersection_state,
+                );
+                if related == Ternary::FALSE {
+                    return Ternary::FALSE;
+                }
+                result &= related;
+            }
+        } else if source_sigs.len() == 1 && target_sigs.len() == 1 {
             let erase_generics = self.relation == RelationKind::Comparable;
             let source_sig = source_sigs[0];
             let target_sig = target_sigs[0];
@@ -1802,6 +1827,43 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
         if source == target {
             return Ternary::TRUE;
         }
+        let is_top_sig = |this: &mut Self, sig: &'cx Sig<'cx>| {
+            if sig.ty_params.is_none()
+                && sig.params.len() == 1
+                && sig.has_rest_param()
+                && (sig.this_param.is_none_or(|this_param| {
+                    let t = this.c.get_type_of_param(this_param);
+                    this.c.is_type_any(Some(t))
+                }))
+            {
+                let param_ty = this.c.get_type_of_param(sig.params[0]);
+                let rest_ty = if param_ty.kind.is_array(this.c) {
+                    this.c.get_ty_arguments(param_ty)[0]
+                } else {
+                    param_ty
+                };
+                return rest_ty
+                    .flags
+                    .intersects(TypeFlags::ANY.union(TypeFlags::NEVER))
+                    && this
+                        .c
+                        .get_ret_ty_of_sig(sig)
+                        .flags
+                        .intersects(TypeFlags::ANY_OR_UNKNOWN);
+            }
+            false
+        };
+
+        if !(check_mode.intersects(SigCheckMode::STRICT_TOP_SIGNATURE) && is_top_sig(self, source))
+            && is_top_sig(self, target)
+        {
+            return Ternary::TRUE;
+        } else if check_mode.intersects(SigCheckMode::STRICT_TOP_SIGNATURE)
+            && is_top_sig(self, source)
+            && !is_top_sig(self, target)
+        {
+            return Ternary::FALSE;
+        }
 
         let mut result = Ternary::TRUE;
         let target_count = target.get_param_count(self.c);
@@ -1830,6 +1892,21 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
         let source_count = source.get_param_count(self.c);
         let source_rest_ty = source.get_non_array_rest_ty(self.c);
         let target_rest_ty = target.get_non_array_rest_ty(self.c);
+
+        // if let Some(source_this_ty) = self.c.get_this_ty_of_sig(source) {
+        //     if source_this_ty != self.c.void_ty {
+        //         if let Some(target_this_ty) = self.c.get_this_ty_of_sig(target) {
+        //             let related = compare(self, target_this_ty, source_this_ty, report_error);
+        //             if related == Ternary::FALSE {
+        //                 if report_error {
+        //                     // TODO:
+        //                 }
+        //                 return Ternary::FALSE;
+        //             }
+        //             result &= related;
+        //         }
+        //     }
+        // }
 
         let (param_count, rest_index) = if source_rest_ty.is_some() || target_rest_ty.is_some() {
             let param_count = usize::min(source_count, target_count);

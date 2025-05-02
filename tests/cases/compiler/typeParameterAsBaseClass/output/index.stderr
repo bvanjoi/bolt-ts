@@ -4,14 +4,6 @@
    · ─
    ╰────
 
-Advice: 
-  ☞ 'T' only refers to a type, but is being used as a value here.
-   ╭─[../../tests/cases/compiler/typeParameterAsBaseClass/index.ts:3:20]
- 3 │ T> extends T
-   · ┬          ─
-   · ╰── 'T' is defined here.
-   ╰────
-
   × A class can only implement an object type or intersection of object types
   │ with statically known members.
    ╭─[../../tests/cases/compiler/typeParameterAsBaseClass/index.ts:5:24]

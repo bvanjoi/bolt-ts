@@ -245,6 +245,7 @@ pub struct TyChecker<'cx> {
     arguments_symbol: SymbolID,
     resolving_symbol: SymbolID,
     empty_ty_literal_symbol: SymbolID,
+    undefined_symbol: SymbolID,
     empty_symbols: &'cx SymbolTable,
 
     boolean_ty: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
@@ -285,6 +286,7 @@ pub struct TyChecker<'cx> {
     any_iteration_tys: std::cell::OnceCell<IterationTys<'cx>>,
     empty_array: &'cx [u8; 0],
     never_intersection_tys: nohash_hasher::IntMap<ty::TyID, bool>,
+    structure_members_placeholder: &'cx ty::StructuredMembers<'cx>,
 
     // === resolver ===
     pub binder: &'cx mut bind::Binder,
@@ -318,14 +320,13 @@ impl<'cx> TyChecker<'cx> {
         merged_symbols: &'cx mut MergedSymbols,
         global_symbols: &'cx mut GlobalSymbols,
     ) -> Self {
-        let mut symbol_links = fx_hashmap_with_capacity(p.module_count() * 1024);
+        let cap = p.module_count() * 1024 * 64;
         let mut transient_symbols = Symbols::new_transient(p.module_count());
-        let mut transient_symbol_links = Vec::with_capacity(p.module_count() * 1024 * 64);
+        let mut transient_symbol_links = Vec::with_capacity(cap);
         let diags = Vec::with_capacity(p.module_count() * 32);
         let empty_array: &'cx [u8; 0] = ty_arena.alloc([]);
         let empty_symbols = ty_arena.alloc(bind::SymbolTable::new(0));
 
-        let cap = p.module_count() * 1024 * 64;
         let mut tys = Vec::with_capacity(cap);
         let mut common_ty_links_arena = ty::CommonTyLinksArena::with_capacity(cap);
 
@@ -430,6 +431,7 @@ impl<'cx> TyChecker<'cx> {
             (arguments_symbol,          SymbolName::Atom(keyword::IDENT_ARGUMENTS),     SymbolFlags::PROPERTY,      Some(SymbolLinks::default()),                       ARGUMENTS         ),
             (resolving_symbol,          SymbolName::Resolving,                          SymbolFlags::empty(),       None,                                               RESOLVING         ),
             (empty_ty_literal_symbol,   SymbolName::Type,                               SymbolFlags::TYPE_LITERAL,  None,                                               EMPTY_TYPE_LITERAL),
+            (undefined_symbol,          SymbolName::Atom(keyword::KW_UNDEFINED),        SymbolFlags::PROPERTY,      None,                                               UNDEFINED),
         });
 
         let prev = global_symbols
@@ -446,6 +448,14 @@ impl<'cx> TyChecker<'cx> {
             final_res: Default::default(),
             diags: Default::default(),
             locals: Default::default(),
+        });
+
+        let structure_members_placeholder = ty_arena.alloc(ty::StructuredMembers {
+            members: &empty_symbols.0,
+            call_sigs: cast_empty_array(empty_array),
+            ctor_sigs: cast_empty_array(empty_array),
+            index_infos: cast_empty_array(empty_array),
+            props: cast_empty_array(empty_array),
         });
 
         let mut this = Self {
@@ -480,7 +490,10 @@ impl<'cx> TyChecker<'cx> {
             arguments_symbol,
             resolving_symbol,
             empty_ty_literal_symbol,
+            undefined_symbol,
+
             empty_symbols,
+            structure_members_placeholder,
 
             empty_array,
             any_ty,
@@ -555,7 +568,7 @@ impl<'cx> TyChecker<'cx> {
 
             type_name: no_hashmap_with_capacity(1024 * 8),
 
-            symbol_links,
+            symbol_links: fx_hashmap_with_capacity(cap),
             node_links: fx_hashmap_with_capacity(cap),
             sig_links: no_hashmap_with_capacity(cap),
             ty_links: no_hashmap_with_capacity(cap),
@@ -654,6 +667,35 @@ impl<'cx> TyChecker<'cx> {
             );
         }
         this.auto_array_ty.set(auto_array_ty).unwrap();
+
+        // add_undefined_to_globals_or_error_on_redeclaration
+
+        use std::collections::hash_map::Entry;
+        match this
+            .global_symbols
+            .0
+            .entry(SymbolName::Atom(keyword::KW_UNDEFINED))
+        {
+            Entry::Occupied(occ) => {
+                let symbol = *occ.get();
+                if let Some(decls) = this.symbol(symbol).decls.clone() {
+                    for decl in decls {
+                        let n = this.p.node(decl);
+                        if !this.p.is_type_decl(decl) {
+                            let error =
+                                errors::DeclarationNameConflictsWithBuiltInGlobalIdentifier {
+                                    name: this.atoms().get(keyword::KW_UNDEFINED).to_string(),
+                                    span: n.error_span(),
+                                };
+                            this.push_error(Box::new(error));
+                        }
+                    }
+                }
+            }
+            Entry::Vacant(vac) => {
+                vac.insert(undefined_symbol);
+            }
+        }
 
         this.merge_module_augmentation_list_for_non_global();
 

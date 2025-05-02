@@ -122,7 +122,7 @@ impl<'cx> Resolver<'cx, '_, '_> {
             Empty(_) => {}
             Class(class) => self.resolve_class_decl(class),
             Interface(interface) => self.resolve_interface_decl(interface),
-            Type(node) => self.resolve_type_decl(node),
+            TypeAlias(node) => self.resolve_type_alias_decl(node),
             Namespace(ns) => self.resolve_ns_decl(ns),
             Throw(t) => {
                 self.resolve_expr(t.expr);
@@ -202,7 +202,7 @@ impl<'cx> Resolver<'cx, '_, '_> {
         }
     }
 
-    fn resolve_type_decl(&mut self, ty: &'cx ast::TypeDecl<'cx>) {
+    fn resolve_type_alias_decl(&mut self, ty: &'cx ast::TypeAliasDecl<'cx>) {
         if let Some(ty_params) = ty.ty_params {
             self.resolve_ty_params(ty_params);
         }
@@ -910,6 +910,31 @@ pub(super) fn resolve_symbol_by_ident<'a, 'cx>(
                             symbol: resolver.symbol_of_decl(id),
                             associated_declaration_for_containing_initializer_or_binding_name,
                         };
+                    }
+                }
+            }
+            ExprWithTyArgs(expr) => {
+                if last_location.is_some_and(|l| l == expr.expr.id())
+                    && resolver
+                        .p
+                        .node(resolver.p.parent(id).unwrap())
+                        .is_class_extends_clause()
+                {
+                    let container = resolver.p.parent(resolver.p.parent(id).unwrap()).unwrap();
+                    let c = resolver.p.node(container);
+                    if c.is_class_like() {
+                        if let Some(res) = resolver
+                            .symbol(resolver.symbol_of_decl(container))
+                            .members()
+                            .and_then(|m| get_symbol(resolver, m, key, meaning & SymbolFlags::TYPE))
+                        {
+                            assert!(!resolver.symbol(res).flags.intersects(SymbolFlags::ALIAS));
+                            // TODO: throw ERROR
+                            return ResolvedResult {
+                                symbol: Symbol::ERR,
+                                associated_declaration_for_containing_initializer_or_binding_name,
+                            };
+                        }
                     }
                 }
             }

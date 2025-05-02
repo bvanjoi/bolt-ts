@@ -1,5 +1,5 @@
 use super::symbol_info::SymbolInfo;
-use super::{Ternary, TyChecker, errors};
+use super::{TyChecker, errors};
 use crate::ir::ClassLike;
 use crate::ty;
 use crate::ty::TypeFlags;

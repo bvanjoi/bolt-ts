@@ -1,5 +1,5 @@
   × Type alias name cannot be 'undefined'.
-   ╭─[../../tests/cases/compiler/undefinedTypeAssignment1/index.ts:1:6]
- 1 │ undefined
+   ╭─[../../tests/cases/compiler/undefinedTypeAssignment1/index.ts:3:6]
+ 3 │ undefined
    · ─────────
    ╰────

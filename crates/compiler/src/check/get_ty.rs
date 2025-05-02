@@ -698,10 +698,13 @@ impl<'cx> TyChecker<'cx> {
         if let Some(ty) = self.get_node_links(node.id).get_resolved_ty() {
             return ty;
         }
+        let p = self.error_ty;
+        self.get_mut_node_links(node.id).set_resolved_ty(p);
+
         let ty = self.check_expr_with_ty_args(node);
         let ty = self.get_widened_ty(ty);
         let ty = self.get_regular_ty_of_literal_ty(ty);
-        self.get_mut_node_links(node.id).set_resolved_ty(ty);
+        self.get_mut_node_links(node.id).override_resolved_ty(ty);
         ty
     }
 
@@ -1109,7 +1112,7 @@ impl<'cx> TyChecker<'cx> {
                 break;
             }
         }
-        host.and_then(|node_id| self.p.node(node_id).is_type_decl().then_some(node_id))
+        host.and_then(|node_id| self.p.node(node_id).is_type_alias_decl().then_some(node_id))
             .map(|node_id| {
                 let symbol = self.final_res(node_id);
                 assert!(self.binder.symbol(symbol).flags == SymbolFlags::TYPE_ALIAS);
@@ -1138,7 +1141,7 @@ impl<'cx> TyChecker<'cx> {
             use ast::Node::*;
             if matches!(
                 n,
-                InterfaceDecl(_) | ClassDecl(_) | ClassExpr(_) | TypeDecl(_)
+                InterfaceDecl(_) | ClassDecl(_) | ClassExpr(_) | TypeAliasDecl(_)
             ) {
                 let ty_params = self.get_effective_ty_param_decls(node);
                 if ty_params.is_empty() {

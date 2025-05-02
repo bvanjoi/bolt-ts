@@ -31,7 +31,7 @@ impl<'cx> Emit<'cx> {
             While(n) => self.emit_while_stmt(n),
             Do(n) => self.emit_do_stmt(n),
             Interface(_) => {}
-            Type(_) => {}
+            TypeAlias(_) => {}
             Empty(_) => {}
             Debugger(_) => self.content.p("debugger"),
             ExportAssign(n) => {
@@ -585,7 +585,7 @@ impl<'cx> Emit<'cx> {
                     }
                     Fn(f) => f.modifiers.map(|ms| (ms, f.name)),
                     Class(c) => c.modifiers.map(|ms| (ms, c.name.unwrap())),
-                    Interface(_) | Type(_) => None,
+                    Interface(_) | TypeAlias(_) => None,
                     Namespace(n) => n.modifiers.map(|ms| {
                         let ident = match n.name {
                             ast::ModuleName::Ident(ident) => ident,
