@@ -66,9 +66,6 @@ impl<'cx> ParserState<'cx, '_> {
             let ty = self.parse_union_ty_or_higher()?;
             if !self.has_preceding_line_break() && self.parse_optional(TokenKind::Extends).is_some()
             {
-                if self.module_id.as_u32() == 1 {
-                    dbg!(123);
-                }
                 let extends_ty = self.disallow_conditional_tys_and(Self::parse_ty)?;
                 self.expect(TokenKind::Question);
                 let true_ty = self.allow_conditional_tys_and(Self::parse_ty)?;

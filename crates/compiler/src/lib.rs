@@ -215,7 +215,7 @@ pub fn eval_from_with_fs<'cx>(
         mut bind_list,
         merged_symbols,
         global_symbols,
-    } = bind::merge_global_symbol(&p, bind_list, &module_arena);
+    } = bind::merge_global_symbol(&p, &atoms, bind_list, &module_arena);
 
     let flow_nodes = bind_list
         .iter_mut()
@@ -273,6 +273,7 @@ pub fn eval_from_with_fs<'cx>(
     let ty_arena = bumpalo::Bump::with_capacity(1024 * 1024);
     let merged_res = check::merge_module_augmentation_list_for_global(
         &p,
+        &atoms,
         binder.bind_results,
         &module_arena,
         global_symbols,

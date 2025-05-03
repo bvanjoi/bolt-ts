@@ -9,6 +9,7 @@ use crate::parser::Parser;
 
 struct MergeModuleAugmentation<'p, 'cx> {
     pub p: &'p Parser<'cx>,
+    pub atoms: &'p bolt_ts_atom::AtomMap<'cx>,
     pub bind_list: Vec<ResolveResult>,
     pub merged_symbols: MergedSymbols,
     pub global_symbols: SymbolTable,
@@ -63,6 +64,10 @@ impl<'cx> MergeSymbol<'cx> for MergeModuleAugmentation<'_, 'cx> {
         self.merged_symbols
             .record_merged_symbol(target, source, symbols);
     }
+
+    fn atom(&self, atom: bolt_ts_atom::AtomId) -> &str {
+        self.atoms.get(atom)
+    }
 }
 
 pub(crate) struct MergeModuleAugmentationResult {
@@ -73,6 +78,7 @@ pub(crate) struct MergeModuleAugmentationResult {
 
 pub(crate) fn merge_module_augmentation_list_for_global(
     parser: &Parser,
+    atoms: &bolt_ts_atom::AtomMap,
     bind_list: Vec<ResolveResult>,
     module_arena: &ModuleArena,
     global_symbols: SymbolTable,
@@ -83,6 +89,7 @@ pub(crate) fn merge_module_augmentation_list_for_global(
         bind_list,
         merged_symbols,
         global_symbols,
+        atoms,
     };
     for (m, p) in module_arena.modules().iter().zip(parser.map.iter()) {
         assert!(std::ptr::addr_eq(parser.get(m.id), p));
@@ -163,6 +170,10 @@ impl<'cx> MergeSymbol<'cx> for super::TyChecker<'cx> {
         let symbols = &mut self.binder.bind_results[source.module().as_usize()].symbols;
         self.merged_symbols
             .record_merged_symbol(target, source, symbols);
+    }
+
+    fn atom(&self, atom: bolt_ts_atom::AtomId) -> &str {
+        self.atoms.get(atom)
     }
 }
 

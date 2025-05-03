@@ -38,6 +38,7 @@ impl MergedSymbols {
 
 struct MergeGlobalSymbol<'p, 'cx> {
     pub p: &'p Parser<'cx>,
+    pub atom: &'p bolt_ts_atom::AtomMap<'cx>,
     pub bind_list: Vec<BinderResult<'cx>>,
     pub merged_symbols: MergedSymbols,
     pub global_symbols: SymbolTable,
@@ -86,6 +87,10 @@ impl<'cx> MergeSymbol<'cx> for MergeGlobalSymbol<'_, 'cx> {
         self.merged_symbols
             .record_merged_symbol(target, source, symbols);
     }
+
+    fn atom(&self, atom: bolt_ts_atom::AtomId) -> &str {
+        self.atom.get(atom)
+    }
 }
 
 #[derive(Clone, Copy)]
@@ -97,6 +102,8 @@ pub(crate) enum SymbolTableLocation {
 }
 
 pub trait MergeSymbol<'cx> {
+    fn atom(&self, atom: bolt_ts_atom::AtomId) -> &str;
+
     fn global_loc() -> SymbolTableLocation {
         SymbolTableLocation::Global
     }
@@ -198,6 +205,8 @@ pub trait MergeSymbol<'cx> {
         let t_members_is_none = t.members.is_none();
         let s_exports_is_some = s.exports.is_some();
         let t_exports_is_none = t.exports.is_none();
+        let t_const_enum_only_module = t.const_enum_only_module;
+        let s_const_enum_only_module = s.const_enum_only_module;
 
         if !t_flags.intersects(s_flags.get_excluded())
             || s_flags.union(t_flags).intersects(SymbolFlags::ASSIGNMENT)
@@ -208,10 +217,20 @@ pub trait MergeSymbol<'cx> {
             if !t_flags.intersects(SymbolFlags::TRANSIENT) {
                 // TODO:
             }
+            if let Some(old_decls) = s.decls.clone() {
+                match self.get_mut_symbol(target).decls.as_mut() {
+                    Some(decls) => {
+                        decls.extend(old_decls);
+                    }
+                    None => {
+                        self.get_mut_symbol(target).decls = Some(old_decls);
+                    }
+                }
+            }
             if s_flags.intersects(SymbolFlags::VALUE_MODULE)
                 && t_flags.intersects(SymbolFlags::VALUE_MODULE)
-                && t.const_enum_only_module.is_some_and(|t| t)
-                && s.const_enum_only_module.is_none_or(|t| !t)
+                && t_const_enum_only_module.is_some_and(|t| t)
+                && s_const_enum_only_module.is_none_or(|t| !t)
             {
                 self.get_mut_symbol(target).const_enum_only_module = Some(false);
             }
@@ -219,7 +238,6 @@ pub trait MergeSymbol<'cx> {
             if let Some(s_value_decl) = s_value_decl {
                 self.set_value_declaration(target, s_value_decl);
             }
-            // TODO: add range declarations
 
             if s_members_is_some {
                 let s = SymbolTableLocation::Members { symbol: source };
@@ -260,6 +278,7 @@ pub(crate) struct MergeGlobalSymbolResult<'cx> {
 
 pub(crate) fn merge_global_symbol<'cx>(
     parser: &Parser<'cx>,
+    atom: &bolt_ts_atom::AtomMap<'cx>,
     bind_list: Vec<BinderResult<'cx>>,
     module_arena: &ModuleArena,
 ) -> MergeGlobalSymbolResult<'cx> {
@@ -271,6 +290,7 @@ pub(crate) fn merge_global_symbol<'cx>(
         bind_list,
         merged_symbols,
         global_symbols,
+        atom,
     };
 
     for (m, p) in module_arena.modules().iter().zip(parser.map.iter()) {

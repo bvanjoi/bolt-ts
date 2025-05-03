@@ -984,13 +984,12 @@ pub(super) fn resolve_symbol_by_ident<'a, 'cx>(
         location = resolver.p.parent(id);
     }
 
-    if let Some(symbol) = resolver.globals.0.get(&key).copied() {
-        if resolver.symbol(symbol).flags.intersects(meaning) {
-            return ResolvedResult {
-                symbol,
-                associated_declaration_for_containing_initializer_or_binding_name,
-            };
-        }
+    if let Some(symbol) = get_symbol(resolver, resolver.globals, key, meaning) {
+        assert!(!resolver.symbol(symbol).flags.intersects(SymbolFlags::ALIAS));
+        return ResolvedResult {
+            symbol,
+            associated_declaration_for_containing_initializer_or_binding_name,
+        };
     } else if ident.name == keyword::IDENT_GLOBAL_THIS && meaning.intersects(SymbolFlags::MODULE) {
         return ResolvedResult {
             symbol: Symbol::GLOBAL_THIS,

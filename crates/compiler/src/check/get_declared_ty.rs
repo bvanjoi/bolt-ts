@@ -265,20 +265,14 @@ impl<'cx> TyChecker<'cx> {
                 is_this_less_interface = self.is_this_less_interface(symbol);
                 !is_this_less_interface
             } {
-            let outer_ty_params = outer_ty_params.unwrap_or_default();
-            let local_ty_params = local_ty_params.unwrap_or_default();
-            let ty_params: ty::Tys<'cx> = {
-                let mut v = outer_ty_params.to_vec();
-                v.extend(local_ty_params);
-                self.alloc(v)
-            };
+            let ty_params = self.concatenate(outer_ty_params, local_ty_params);
             assert!(kind == SymbolFlags::CLASS || !is_this_less_interface || !ty_params.is_empty());
             let this_ty = self.create_param_ty(symbol, None, true);
             let target = self.create_interface_ty(
                 symbol,
                 Some(ty_params),
-                (!outer_ty_params.is_empty()).then_some(outer_ty_params),
-                (!local_ty_params.is_empty()).then_some(local_ty_params),
+                outer_ty_params,
+                local_ty_params,
                 Some(this_ty),
             );
             let ty = self.alloc(ty::ReferenceTy {
