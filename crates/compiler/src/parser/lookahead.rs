@@ -1,5 +1,5 @@
 use super::{PResult, ParserState, Tristate};
-use bolt_ts_ast::TokenKind;
+use bolt_ts_ast::{TokenKind, keyword};
 
 impl ParserState<'_, '_> {
     pub(super) fn is_tuple_ele_name(&mut self) -> bool {
@@ -65,7 +65,7 @@ impl ParserState<'_, '_> {
         loop {
             match self.token.kind {
                 Var | Let | Const | Function | Class | Enum => return true,
-                Abstract | Declare | Public | Private | Protected => {
+                Abstract | Async | Declare | Public | Private | Protected /* TODO: Accessor */=> {
                     let prev = self.token.kind;
                     self.next_token();
                     if self.has_preceding_line_break() {
@@ -98,7 +98,11 @@ impl ParserState<'_, '_> {
                         return true;
                     }
                 }
-                _ => break false,
+                Ident if self.ident_token() == keyword::IDENT_GLOBAL => {
+                    self.next_token();
+                    return matches!(self.token.kind, LBrace | Ident | Export);
+                }
+                _ => return false,
             }
         }
     }

@@ -321,7 +321,10 @@ impl<'cx> ParserState<'cx, '_> {
         mods: Option<&'cx ast::Modifiers<'cx>>,
     ) -> PResult<&'cx ast::NsDecl<'cx>> {
         let start = self.token.start();
-        if self.parse_optional(TokenKind::Namespace).is_none() {
+        if matches!(self.token.kind, TokenKind::Ident if self.ident_token() == keyword::IDENT_GLOBAL)
+        {
+            return self.parse_ambient_external_module_decl(start, mods);
+        } else if self.parse_optional(TokenKind::Namespace).is_none() {
             self.expect(TokenKind::Module);
             if self.token.kind == TokenKind::String {
                 return self.parse_ambient_external_module_decl(start, mods);
@@ -484,6 +487,14 @@ impl<'cx> ParserState<'cx, '_> {
             Function => ast::StmtKind::Fn(self.parse_fn_decl(mods)?),
             Class => ast::StmtKind::Class(self.parse_class_decl(mods)?),
             Module | Namespace => ast::StmtKind::Namespace(self.parse_ns_decl(mods)?),
+            Ident => {
+                let id = self.ident_token();
+                if id == keyword::IDENT_GLOBAL {
+                    ast::StmtKind::Namespace(self.parse_ns_decl(mods)?)
+                } else {
+                    unreachable!("{:#?}", self.atoms.lock().unwrap().get(id));
+                }
+            }
             Interface => ast::StmtKind::Interface(self.parse_interface_decl(mods)?),
             Enum => ast::StmtKind::Enum(self.parse_enum_decl(mods)?),
             Import => ast::StmtKind::Import(self.parse_import_decl()?),
@@ -499,10 +510,7 @@ impl<'cx> ParserState<'cx, '_> {
                 }
             }
             Type => ast::StmtKind::TypeAlias(self.parse_type_alias_decl(mods)?),
-            Ident => {
-                let id = self.ident_token();
-                unreachable!("{:#?}", self.atoms.lock().unwrap().get(id));
-            }
+
             _ => unreachable!("{:#?}", self.token.kind),
         };
         let stmt = self.alloc(ast::Stmt { kind });
