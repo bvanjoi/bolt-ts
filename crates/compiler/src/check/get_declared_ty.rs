@@ -230,7 +230,10 @@ impl<'cx> TyChecker<'cx> {
 
     fn is_named_member(&mut self, member: SymbolID) -> bool {
         let name = self.symbol(member).name;
-        (name.as_atom().is_some() || name.is_numeric()) && self.symbol_is_value(member, false)
+        (name.as_atom().is_some()
+            || name.is_numeric()
+            || matches!(name, SymbolName::ESSymbol { .. }))
+            && self.symbol_is_value(member, false)
     }
 
     pub(super) fn get_declared_ty_of_class_or_interface(

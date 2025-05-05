@@ -997,9 +997,6 @@ pub(super) fn resolve_symbol_by_ident<'a, 'cx>(
         };
     }
 
-    if key.to_string(resolver.atoms) == "declare" {
-        dbg!(123);
-    }
     ResolvedResult {
         symbol: Symbol::ERR,
         associated_declaration_for_containing_initializer_or_binding_name,

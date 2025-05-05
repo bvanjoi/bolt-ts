@@ -54,7 +54,7 @@ impl<'cx> TyChecker<'cx> {
     }
 
     pub(super) fn get_sigs_of_symbol(&mut self, id: SymbolID) -> ty::Sigs<'cx> {
-        let s = self.binder.symbol(id);
+        let s = self.symbol(id);
         let Some(decls) = &s.decls else {
             return self.empty_array();
         };

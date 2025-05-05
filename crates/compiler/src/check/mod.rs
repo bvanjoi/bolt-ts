@@ -979,7 +979,10 @@ impl<'cx> TyChecker<'cx> {
                 self.get_regular_ty_of_literal_ty(ty)
             }
             ast::PropNameKind::StringLit { key, .. } => self.get_string_literal_type(key),
-            bolt_ts_ast::PropNameKind::Computed(_) => todo!(),
+            ast::PropNameKind::Computed(name) => {
+                let ty = self.check_computed_prop_name(name);
+                self.get_regular_ty_of_literal_ty(ty)
+            }
         }
     }
 

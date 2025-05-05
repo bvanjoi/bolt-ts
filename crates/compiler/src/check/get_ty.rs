@@ -897,7 +897,6 @@ impl<'cx> TyChecker<'cx> {
             if let Some(index_info) = index_info {
                 return Some(index_info.val_ty);
             }
-
             if access_expr.is_some() {
                 return None;
             }
