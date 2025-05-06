@@ -619,3 +619,11 @@ pub(super) struct AugmentationsForTheGlobalScopeCanOnlyBeDirectlyNestedInExterna
     #[label(primary)]
     pub(super) span: Span,
 }
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
+#[error("Property '{prop}' is private and only accessible within class.")]
+pub(super) struct PropertyIsPrivateAndOnlyAccessibleWithinClass {
+    #[label(primary)]
+    pub(super) span: Span,
+    pub(super) prop: String,
+}

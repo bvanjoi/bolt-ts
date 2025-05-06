@@ -119,7 +119,7 @@ impl<'cx> TyChecker<'cx> {
     fn check_qualified_name(&mut self, node: &'cx ast::QualifiedName<'cx>) -> &'cx ty::Ty<'cx> {
         let left = self.check_entity_name(node.left);
         let apparent_ty = self.get_apparent_ty(left);
-        self._get_prop_of_ty(node.id, apparent_ty, left, node.right)
+        self.check_prop_access_expr_or_qualified_name(node.id, apparent_ty, left, node.right)
     }
 
     pub(super) fn get_type_of_param(&mut self, symbol: SymbolID) -> &'cx ty::Ty<'cx> {

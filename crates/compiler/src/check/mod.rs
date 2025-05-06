@@ -1468,7 +1468,7 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
-    pub(super) fn _get_prop_of_ty(
+    pub(super) fn check_prop_access_expr_or_qualified_name(
         &mut self,
         node: ast::NodeID,
         apparent_left_ty: &'cx ty::Ty<'cx>,
@@ -1493,6 +1493,8 @@ impl<'cx> TyChecker<'cx> {
             return self.error_ty;
         };
 
+        self.check_prop_accessibility(node, false, false, apparent_left_ty, prop, true);
+
         if self.p.access_kind(node) == AccessKind::Write {
             self.get_write_type_of_symbol(prop)
         } else {
@@ -1500,10 +1502,61 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
+    fn check_prop_accessibility(
+        &mut self,
+        node: ast::NodeID,
+        is_super: bool,
+        writing: bool,
+        ty: &'cx ty::Ty<'cx>,
+        prop: SymbolID,
+        report_error: bool,
+    ) {
+        let error_node = report_error.then(|| node);
+        self.check_prop_accessibility_at_loc(node, is_super, writing, ty, prop, error_node);
+    }
+
+    fn check_prop_accessibility_at_loc(
+        &mut self,
+        loc: ast::NodeID,
+        is_super: bool,
+        writing: bool,
+        containing_ty: &'cx ty::Ty<'cx>,
+        prop: SymbolID,
+        error_node: Option<ast::NodeID>,
+    ) -> bool {
+        let flags = self.get_declaration_modifier_flags_from_symbol(prop, Some(writing));
+        if is_super {
+            todo!()
+        }
+
+        if flags.intersects(ast::ModifierKind::Private) {
+            // TODO: use parent symbol to find the class
+            if self
+                .p
+                .find_ancestor(self.p.parent(loc).unwrap(), |n| {
+                    n.is_class_like().then_some(true)
+                })
+                .is_none()
+            {
+                if let Some(error_node) = error_node {
+                    let prop = self.symbol(prop).name.to_string(self.atoms);
+                    let error = errors::PropertyIsPrivateAndOnlyAccessibleWithinClass {
+                        span: self.p.node(error_node).span(),
+                        prop,
+                    };
+                    self.push_error(Box::new(error));
+                }
+                return false;
+            }
+        }
+
+        true
+    }
+
     fn check_prop_access_expr(&mut self, node: &'cx ast::PropAccessExpr<'cx>) -> &'cx ty::Ty<'cx> {
         let left = self.check_non_null_expr(node.expr);
         let apparent_ty = self.get_apparent_ty(left);
-        self._get_prop_of_ty(node.id, apparent_ty, left, node.name)
+        self.check_prop_access_expr_or_qualified_name(node.id, apparent_ty, left, node.name)
     }
 
     /// `param.constraint`
