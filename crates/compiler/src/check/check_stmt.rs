@@ -21,7 +21,7 @@ impl<'cx> TyChecker<'cx> {
             Return(ret) => self.check_ret_stmt(ret),
             Class(class) => self.check_class_decl(class),
             Interface(interface) => self.check_interface_decl(interface),
-            Namespace(ns) => self.check_ns_decl(ns),
+            Module(m) => self.check_module_decl(m),
             TypeAlias(ty) => self.check_type_alias_decl(ty),
             For(node) => self.check_for_stmt(node),
             ForIn(node) => self.check_for_in_stmt(node),
@@ -173,7 +173,7 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
-    fn check_ns_decl(&mut self, ns: &'cx ast::NsDecl<'cx>) {
+    fn check_module_decl(&mut self, ns: &'cx ast::ModuleDecl<'cx>) {
         if let Some(block) = ns.block {
             for item in block.stmts {
                 self.check_stmt(item);

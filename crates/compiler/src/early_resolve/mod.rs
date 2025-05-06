@@ -123,7 +123,7 @@ impl<'cx> Resolver<'cx, '_, '_> {
             Class(class) => self.resolve_class_decl(class),
             Interface(interface) => self.resolve_interface_decl(interface),
             TypeAlias(node) => self.resolve_type_alias_decl(node),
-            Namespace(ns) => self.resolve_ns_decl(ns),
+            Module(ns) => self.resolve_module_decl(ns),
             Throw(t) => {
                 self.resolve_expr(t.expr);
             }
@@ -190,7 +190,7 @@ impl<'cx> Resolver<'cx, '_, '_> {
         }
     }
 
-    fn resolve_ns_decl(&mut self, ns: &'cx ast::NsDecl<'cx>) {
+    fn resolve_module_decl(&mut self, ns: &'cx ast::ModuleDecl<'cx>) {
         if let Some(block) = ns.block {
             self.resolve_module_block(block);
         }
@@ -842,7 +842,7 @@ pub(super) fn resolve_symbol_by_ident<'a, 'cx>(
         let n = resolver.p.node(id);
         match n {
             Program(_) if !resolver.p.is_external_or_commonjs_module(id) => (),
-            Program(_) | NamespaceDecl(_) => {
+            Program(_) | ModuleDecl(_) => {
                 let symbol_id = resolver.merged.get_merged_symbol(
                     resolver.symbol_of_decl(id),
                     &resolver.states[id.module().as_usize()].symbols,
@@ -850,7 +850,7 @@ pub(super) fn resolve_symbol_by_ident<'a, 'cx>(
                 let module_exports = &resolver.symbol(symbol_id).exports();
                 if n.is_program()
                     || (n
-                        .as_namespace_decl()
+                        .as_module_decl()
                         .is_some_and(|n| !n.is_global_scope_argument())
                         && resolver.p.node_flags(id).intersects(NodeFlags::AMBIENT))
                 {

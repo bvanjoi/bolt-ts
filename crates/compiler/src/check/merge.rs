@@ -95,7 +95,7 @@ pub(crate) fn merge_module_augmentation_list_for_global(
         assert!(std::ptr::addr_eq(parser.get(m.id), p));
         for augmentation in p.module_augmentations.iter() {
             let ns_id = p.parent(*augmentation).unwrap();
-            let ns = p.node(ns_id).expect_namespace_decl();
+            let ns = p.node(ns_id).expect_module_decl();
             if !ns.is_global_argument {
                 continue;
             }
@@ -183,7 +183,7 @@ impl<'cx> super::TyChecker<'cx> {
             assert!(std::ptr::addr_eq(self.p.get(m.id), p));
             for augmentation in p.module_augmentations.iter() {
                 let ns_id = p.parent(*augmentation).unwrap();
-                let ns = p.node(ns_id).expect_namespace_decl();
+                let ns = p.node(ns_id).expect_module_decl();
                 if ns.is_global_argument {
                     continue;
                 }
@@ -195,7 +195,7 @@ impl<'cx> super::TyChecker<'cx> {
     fn merge_module_augmentation_for_non_global(
         &mut self,
         module_name: bolt_ts_ast::NodeID,
-        module_augmentation: &'cx bolt_ts_ast::NsDecl<'cx>,
+        module_augmentation: &'cx bolt_ts_ast::ModuleDecl<'cx>,
     ) {
         assert!(!module_augmentation.is_global_argument);
         let ns_id = module_augmentation.id;
