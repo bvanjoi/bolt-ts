@@ -25,7 +25,7 @@ pub enum StmtKind<'cx> {
     Expr(&'cx ExprStmt<'cx>),
     Interface(&'cx InterfaceDecl<'cx>),
     TypeAlias(&'cx TypeAliasDecl<'cx>),
-    Namespace(&'cx NsDecl<'cx>),
+    Module(&'cx ModuleDecl<'cx>),
     Throw(&'cx ThrowStmt<'cx>),
     Enum(&'cx EnumDecl<'cx>),
     Import(&'cx ImportDecl<'cx>),
@@ -51,7 +51,7 @@ impl Stmt<'_> {
             Expr(expr) => expr.id,
             Interface(i) => i.id,
             TypeAlias(t) => t.id,
-            Namespace(n) => n.id,
+            Module(n) => n.id,
             Throw(t) => t.id,
             Enum(e) => e.id,
             Import(n) => n.id,
@@ -192,7 +192,7 @@ pub struct ThrowStmt<'cx> {
 }
 
 #[derive(Debug, Clone, Copy)]
-pub struct NsDecl<'cx> {
+pub struct ModuleDecl<'cx> {
     pub id: NodeID,
     pub span: Span,
     pub is_global_argument: bool,
@@ -201,7 +201,7 @@ pub struct NsDecl<'cx> {
     pub block: Option<&'cx ModuleBlock<'cx>>,
 }
 
-impl NsDecl<'_> {
+impl ModuleDecl<'_> {
     pub fn is_ambient(&self) -> bool {
         matches!(self.name, ModuleName::StringLit(_)) || self.is_global_scope_argument()
     }

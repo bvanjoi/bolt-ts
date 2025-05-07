@@ -640,7 +640,7 @@ impl<'cx> ParserState<'cx, '_> {
             return Ok(m);
         }
 
-        let mods = self.parse_modifiers(false)?;
+        let mods = self.parse_modifiers(false, None)?;
 
         // if self.parse_contextual_modifier(TokenKind::Get) {
         //     // TODO:

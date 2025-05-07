@@ -281,7 +281,7 @@ impl Symbol {
     pub fn is_shorthand_ambient_module(&self, p: &Parser) -> bool {
         self.value_decl.is_some_and(|value_decl| {
             p.node(value_decl)
-                .as_namespace_decl()
+                .as_module_decl()
                 .is_some_and(|ns| ns.block.is_none())
         })
     }

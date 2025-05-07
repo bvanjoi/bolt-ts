@@ -897,7 +897,6 @@ impl<'cx> TyChecker<'cx> {
             if let Some(index_info) = index_info {
                 return Some(index_info.val_ty);
             }
-
             if access_expr.is_some() {
                 return None;
             }
@@ -1133,10 +1132,10 @@ impl<'cx> TyChecker<'cx> {
         symbol: SymbolID,
     ) -> Option<ty::Tys<'cx>> {
         let s = self.binder.symbol(symbol);
-        let decls = s.decls.as_ref()?;
-        let cap = decls.len() * 4;
+        let decls = s.decls.clone()?;
         let mut res: Option<Vec<&'cx Ty<'cx>>> = None;
-        for node in decls.clone() {
+        let cap = decls.len() * 4;
+        for node in decls {
             let n = self.p.node(node);
             use ast::Node::*;
             if matches!(

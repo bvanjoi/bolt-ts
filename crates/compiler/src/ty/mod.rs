@@ -275,7 +275,7 @@ impl<'cx> Ty<'cx> {
                 s.push('`');
                 s
             }
-            TyKind::UniqueESSymbol(_) => todo!(),
+            TyKind::UniqueESSymbol(_) => "unique es symbol".to_string(),
         }
     }
 

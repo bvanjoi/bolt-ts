@@ -66,9 +66,6 @@ impl<'cx> ParserState<'cx, '_> {
             let ty = self.parse_union_ty_or_higher()?;
             if !self.has_preceding_line_break() && self.parse_optional(TokenKind::Extends).is_some()
             {
-                if self.module_id.as_u32() == 1 {
-                    dbg!(123);
-                }
                 let extends_ty = self.disallow_conditional_tys_and(Self::parse_ty)?;
                 self.expect(TokenKind::Question);
                 let true_ty = self.allow_conditional_tys_and(Self::parse_ty)?;
@@ -232,7 +229,7 @@ impl<'cx> ParserState<'cx, '_> {
     fn parse_modifiers_for_ctor_ty(&mut self) -> PResult<Option<&'cx ast::Modifiers<'cx>>> {
         if self.token.kind == TokenKind::Abstract {
             let pos = self.token.start();
-            let m = self.parse_modifier(false)?.unwrap();
+            let m = self.parse_modifier(false, None)?.unwrap();
             let m = self.alloc(ast::Modifiers {
                 span: self.new_span(pos),
                 flags: ast::ModifierKind::Abstract.into(),
@@ -1041,7 +1038,7 @@ impl<'cx> ParserState<'cx, '_> {
         }
 
         let start = self.token.start() as usize;
-        let modifiers = self.parse_modifiers(false)?;
+        let modifiers = self.parse_modifiers(false, None)?;
 
         if self.parse_contextual_modifier(TokenKind::Get) {
             let decl = self.parse_getter_accessor_decl(start, modifiers, true)?;

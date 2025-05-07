@@ -96,7 +96,7 @@ impl<'cx> Resolver<'cx, '_, '_> {
             None
         } else {
             let ns = self.symbol(symbol).decls.as_ref().unwrap()[0];
-            let span = self.p.node(ns).expect_namespace_decl().name.span();
+            let span = self.p.node(ns).expect_module_decl().name.span();
             let error = errors::CannotFindNameHelperKind::CannotUseNamespaceAsTyOrValue(
                 errors::CannotUseNamespaceAsTyOrValue { span, is_ty: false },
             );

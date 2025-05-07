@@ -940,7 +940,7 @@ impl<'cx> TyChecker<'cx> {
         if let Some(target) = a.target {
             let mapper = a.mapper.unwrap();
             let members = {
-                let props = self.get_props_of_ty(target);
+                let props = self.get_props_of_object_ty(target);
                 self.create_instantiated_symbol_table(props, mapper, false)
             };
             let sigs = self.get_signatures_of_type(target, SigKind::Call);
@@ -968,7 +968,8 @@ impl<'cx> TyChecker<'cx> {
         // let symbol = self.symbol(symbol_id);
         if symbol.flags.intersects(SymbolFlags::TYPE_LITERAL) {
             let placeholder = self.structure_members_placeholder;
-            self.get_mut_ty_links(ty.id).set_structured_members(placeholder);
+            self.get_mut_ty_links(ty.id)
+                .set_structured_members(placeholder);
             let members = self.get_members_of_symbol(symbol_id);
             let call_sigs = members
                 .0
@@ -1001,7 +1002,8 @@ impl<'cx> TyChecker<'cx> {
         }
 
         let placeholder = self.structure_members_placeholder;
-        self.get_mut_ty_links(ty.id).set_structured_members(placeholder);
+        self.get_mut_ty_links(ty.id)
+            .set_structured_members(placeholder);
 
         let call_sigs;
         let mut ctor_sigs: ty::Sigs<'cx>;
@@ -1352,7 +1354,8 @@ impl<'cx> TyChecker<'cx> {
 
     fn resolve_mapped_ty_members(&mut self, ty: &'cx ty::Ty<'cx>) {
         let placeholder = self.structure_members_placeholder;
-        self.get_mut_ty_links(ty.id).set_structured_members(placeholder);
+        self.get_mut_ty_links(ty.id)
+            .set_structured_members(placeholder);
 
         let mapped_ty = ty.kind.expect_object_mapped();
         let ty_param = self.get_ty_param_from_mapped_ty(ty);

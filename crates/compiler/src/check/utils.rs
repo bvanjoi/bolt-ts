@@ -3,8 +3,8 @@ use super::TyChecker;
 use super::symbol_info::SymbolInfo;
 use super::ty;
 
-pub fn append_if_unique<'a, T>(array: &mut Vec<&'a T>, value: &'a T) {
-    if array.iter().all(|item| !std::ptr::eq(item, &value)) {
+pub fn append_if_unique<'a, T: PartialEq>(array: &mut Vec<&'a T>, value: &'a T) {
+    if array.iter().all(|item| !value.eq(item)) {
         array.push(value);
     }
 }
@@ -220,8 +220,10 @@ impl<'cx> TyChecker<'cx> {
     }
 
     pub(super) fn has_ty_param_default(&self, ty_param: &'cx ty::ParamTy<'cx>) -> bool {
-        let param = self.ty_param_node(ty_param);
-        param.default.is_some()
+        self.ty_param_nodes(ty_param).iter().any(|decl| {
+            let ty_param_node = self.p.node(*decl).expect_ty_param();
+            ty_param_node.default.is_some()
+        })
     }
 
     pub(super) fn array_is_equal<T: PartialEq>(&self, a1: Option<&[T]>, a2: Option<&[T]>) -> bool {

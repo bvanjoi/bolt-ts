@@ -18,7 +18,7 @@ impl<'cx> Emit<'cx> {
             Return(ret) => self.emit_ret_stmt(ret),
             Class(class) => self.emit_class_decl(class),
             Throw(t) => self.emit_throw_stmt(t),
-            Namespace(ns) => self.emit_ns_decl(ns),
+            Module(ns) => self.emit_module_decl(ns),
             Enum(e) => self.emit_enum_decl(e),
             Import(n) => self.emit_import_decl(n),
             Export(n) => self.emit_export_decl(n),
@@ -487,7 +487,7 @@ impl<'cx> Emit<'cx> {
         };
     }
 
-    fn emit_ns_decl(&mut self, ns: &'cx ast::NsDecl) {
+    fn emit_module_decl(&mut self, ns: &'cx ast::ModuleDecl) {
         if ns
             .modifiers
             .map(|ms| ms.flags.contains(ast::ModifierKind::Ambient))
@@ -586,7 +586,7 @@ impl<'cx> Emit<'cx> {
                     Fn(f) => f.modifiers.map(|ms| (ms, f.name)),
                     Class(c) => c.modifiers.map(|ms| (ms, c.name.unwrap())),
                     Interface(_) | TypeAlias(_) => None,
-                    Namespace(n) => n.modifiers.map(|ms| {
+                    Module(n) => n.modifiers.map(|ms| {
                         let ident = match n.name {
                             ast::ModuleName::Ident(ident) => ident,
                             ast::ModuleName::StringLit(_) => unreachable!(),

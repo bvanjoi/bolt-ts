@@ -395,12 +395,18 @@ impl<'cx> ParserState<'cx, '_> {
 
     pub(super) fn parse_modifiers(
         &mut self,
-        permit_const_as_modifier: bool,
+        allow_decorators: bool,
+        permit_const_as_modifier: Option<bool>,
     ) -> PResult<Option<&'cx ast::Modifiers<'cx>>> {
         let start = self.token.start();
         let mut list = Vec::with_capacity(4);
+        let mut has_seen_static_modifier = false;
+        let mut has_leading_modifier = false;
+        let mut has_trailing_decorator = false;
         loop {
-            let Ok(Some(m)) = self.parse_modifier(permit_const_as_modifier) else {
+            let Ok(Some(m)) =
+                self.parse_modifier(has_seen_static_modifier, permit_const_as_modifier)
+            else {
                 break;
             };
             list.push(m);
@@ -568,7 +574,7 @@ impl<'cx> ParserState<'cx, '_> {
 
     pub(super) fn parse_param(&mut self) -> PResult<&'cx ast::ParamDecl<'cx>> {
         let start = self.token.start();
-        let modifiers = self.parse_modifiers(false)?;
+        let modifiers = self.parse_modifiers(false, None)?;
         const INVALID_MODIFIERS: enumflags2::BitFlags<ModifierKind, u32> =
             enumflags2::make_bitflags!(ModifierKind::{Static | Export});
         if modifiers
@@ -662,7 +668,7 @@ impl<'cx> ParserState<'cx, '_> {
     pub(super) fn is_start_of_fn_or_ctor_ty(&mut self) -> bool {
         let skip_param_start = |this: &mut Self| -> PResult<bool> {
             if this.token.kind.is_modifier_kind() {
-                this.parse_modifiers(false)?;
+                this.parse_modifiers(false, None)?;
             }
             if this.token.kind.is_ident() || this.token.kind == TokenKind::This {
                 this.next_token();

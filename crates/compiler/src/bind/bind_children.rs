@@ -60,7 +60,7 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
         let block_container = self.block_scope_container.unwrap();
         let c = self.p.node(block_container);
         match c {
-            ast::Node::NamespaceDecl(_) => {
+            ast::Node::ModuleDecl(_) => {
                 self.declare_module_member(name, node, includes, exclude_flags)
             }
             ast::Node::Program(_) if self.p.is_external_or_commonjs_module() => {
@@ -235,7 +235,7 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
         let c = self.p.node(container);
         use ast::Node::*;
         match c {
-            NamespaceDecl(_) => {
+            ModuleDecl(_) => {
                 self.declare_module_member(name, current, symbol_flags, symbol_excludes)
             }
             Program(_) => {
@@ -629,7 +629,7 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
                     self.bind_class_elem(elem);
                 }
             }
-            NamespaceDecl(n) => {
+            ModuleDecl(n) => {
                 use ast::ModuleName::*;
                 match n.name {
                     Ident(n) => self.bind(n.id),

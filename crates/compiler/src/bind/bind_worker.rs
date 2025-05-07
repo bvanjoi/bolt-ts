@@ -12,7 +12,7 @@ use crate::ir;
 use crate::parser::is_left_hand_side_expr_kind;
 
 impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
-    fn bind_ns_decl(&mut self, ns: &'cx ast::NsDecl<'cx>) {
+    fn bind_ns_decl(&mut self, ns: &'cx ast::ModuleDecl<'cx>) {
         let name = match ns.name {
             ast::ModuleName::Ident(ident) => SymbolName::Atom(ident.name),
             ast::ModuleName::StringLit(lit) => SymbolName::Atom(lit.val),
@@ -35,7 +35,11 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
         self.create_final_res(ns.id, s);
     }
 
-    fn declare_module_symbol(&mut self, name: SymbolName, ns: &'cx ast::NsDecl<'cx>) -> SymbolID {
+    fn declare_module_symbol(
+        &mut self,
+        name: SymbolName,
+        ns: &'cx ast::ModuleDecl<'cx>,
+    ) -> SymbolID {
         let state = self.node_query().get_module_instance_state(ns, None);
         let instantiated = state != ModuleInstanceState::NonInstantiated;
         let (includes, excludes) = if instantiated {
@@ -531,7 +535,7 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
             InterfaceDecl(node) => self.bind_interface_decl(node),
             TypeAliasDecl(node) => self.bind_type_alias_decl(node),
             EnumDecl(node) => self.bind_enum_decl(node),
-            NamespaceDecl(node) => self.bind_ns_decl(node),
+            ModuleDecl(node) => self.bind_ns_decl(node),
             ShorthandSpec(ast::ShorthandSpec { id, name, .. })
             | NsImport(ast::NsImport { id, name, .. }) => {
                 // import { name } from 'xxx'

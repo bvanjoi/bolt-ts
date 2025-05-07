@@ -21,7 +21,7 @@ impl<'cx> TyChecker<'cx> {
             Return(ret) => self.check_ret_stmt(ret),
             Class(class) => self.check_class_decl(class),
             Interface(interface) => self.check_interface_decl(interface),
-            Namespace(ns) => self.check_ns_decl(ns),
+            Module(m) => self.check_module_decl(m),
             TypeAlias(ty) => self.check_type_alias_decl(ty),
             For(node) => self.check_for_stmt(node),
             ForIn(node) => self.check_for_in_stmt(node),
@@ -173,18 +173,24 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
-    fn check_ns_decl(&mut self, ns: &'cx ast::NsDecl<'cx>) {
+    fn check_module_decl(&mut self, ns: &'cx ast::ModuleDecl<'cx>) {
         if let Some(block) = ns.block {
             for item in block.stmts {
                 self.check_stmt(item);
             }
         }
 
-        let is_ambient_external_module = matches!(ns.name, ast::ModuleName::StringLit(_));
+        let is_global_augmentation = ns.is_global_scope_argument();
+        let is_ambient_external_module = ns.is_ambient();
         if is_ambient_external_module {
             let p = self.p.parent(ns.id).unwrap();
             if self.p.is_global_source_file(p) {
-                if let ast::ModuleName::StringLit(lit) = ns.name {
+                if is_global_augmentation {
+                    let error = errors::AugmentationsForTheGlobalScopeCanOnlyBeDirectlyNestedInExternalModulesOrAmbientModuleDeclarations {
+                        span: ns.name.span()
+                    };
+                    self.push_error(Box::new(error));
+                } else if let ast::ModuleName::StringLit(lit) = ns.name {
                     let module_name = self.atoms.get(lit.val);
                     if bolt_ts_path::is_external_module_relative(module_name) {
                         let error =

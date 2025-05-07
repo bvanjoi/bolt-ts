@@ -15,7 +15,7 @@ pub fn visit_stmt<'cx>(v: &mut impl Visitor<'cx>, stmt: &'cx super::Stmt) {
         Var(node) => v.visit_var_stmt(node),
         Try(node) => v.visit_try_stmt(node),
         TypeAlias(node) => v.visit_type_alias_decl(node),
-        Namespace(node) => v.visit_ns_decl(node),
+        Module(node) => v.visit_module_decl(node),
         While(node) => v.visit_while_stmt(node),
         Export(_) => {}
         ExportAssign(_) => {}
@@ -46,7 +46,7 @@ pub fn visit_type_alias_decl<'cx>(v: &mut impl Visitor<'cx>, decl: &'cx super::T
     v.visit_ty(decl.ty);
 }
 
-pub fn visit_ns_decl<'cx>(v: &mut impl Visitor<'cx>, decl: &'cx super::NsDecl<'cx>) {
+pub fn visit_module_decl<'cx>(v: &mut impl Visitor<'cx>, decl: &'cx super::ModuleDecl<'cx>) {
     visit_module_name(v, decl.name);
     if let Some(block) = decl.block {
         for stmt in block.stmts {
@@ -332,7 +332,7 @@ make_visitor!(
     (visit_expr_stmt, super::ExprStmt<'cx>),
     (visit_arrow_fn_expr, super::ArrowFnExpr<'cx>),
     (visit_type_alias_decl, super::TypeAliasDecl<'cx>),
-    (visit_ns_decl, super::NsDecl<'cx>),
+    (visit_module_decl, super::ModuleDecl<'cx>),
     (visit_string_lit, super::StringLit),
     (visit_while_stmt, super::WhileStmt<'cx>),
 );

@@ -16,3 +16,9 @@ type F<T> = 0 extends 0 ? T['123'] : T['456'];
   type Tu<L extends number> = L extends 42 ? [] : [];
   type Fu<A extends number> = [...Tu<A>]['length'];
 }
+
+declare const tag: unique symbol;
+type TagContainer<T> = {
+    [tag]: T;
+};
+type A = TagContainer<{[K in string]: unknown}>[typeof tag];

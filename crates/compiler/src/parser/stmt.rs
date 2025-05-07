@@ -17,8 +17,10 @@ use crate::parser::parse_break_or_continue::{ParseBreak, ParseContinue};
 impl<'cx> ParserState<'cx, '_> {
     pub fn parse_stmt(&mut self) -> PResult<&'cx ast::Stmt<'cx>> {
         use bolt_ts_ast::TokenKind::*;
-        if matches!(self.token.kind, Abstract | Declare | Export | Import)
-            && self.is_start_of_decl()
+        if matches!(
+            self.token.kind,
+            Const | Enum | Abstract | Declare | Export | Import
+        ) && self.is_start_of_decl()
         {
             return self.parse_decl();
         }
@@ -32,8 +34,7 @@ impl<'cx> ParserState<'cx, '_> {
             Class => ast::StmtKind::Class(self.parse_class_decl(None)?),
             Interface => ast::StmtKind::Interface(self.parse_interface_decl(None)?),
             Type => ast::StmtKind::TypeAlias(self.parse_type_alias_decl(None)?),
-            Module | Namespace => ast::StmtKind::Namespace(self.parse_ns_decl(None)?),
-            Enum => ast::StmtKind::Enum(self.parse_enum_decl(None)?),
+            Module | Namespace => ast::StmtKind::Module(self.parse_module_decl(None)?),
             Throw => ast::StmtKind::Throw(self.parse_throw_stmt()?),
             For => self.parse_for_stmt()?,
             Break => ast::StmtKind::Break(self.parse_break_or_continue(&ParseBreak)?),
@@ -316,12 +317,15 @@ impl<'cx> ParserState<'cx, '_> {
         }
     }
 
-    fn parse_ns_decl(
+    fn parse_module_decl(
         &mut self,
         mods: Option<&'cx ast::Modifiers<'cx>>,
-    ) -> PResult<&'cx ast::NsDecl<'cx>> {
+    ) -> PResult<&'cx ast::ModuleDecl<'cx>> {
         let start = self.token.start();
-        if self.parse_optional(TokenKind::Namespace).is_none() {
+        if matches!(self.token.kind, TokenKind::Ident if self.ident_token() == keyword::IDENT_GLOBAL)
+        {
+            return self.parse_ambient_external_module_decl(start, mods);
+        } else if self.parse_optional(TokenKind::Namespace).is_none() {
             self.expect(TokenKind::Module);
             if self.token.kind == TokenKind::String {
                 return self.parse_ambient_external_module_decl(start, mods);
@@ -374,7 +378,7 @@ impl<'cx> ParserState<'cx, '_> {
         &mut self,
         start: u32,
         mods: Option<&'cx ast::Modifiers<'cx>>,
-    ) -> PResult<&'cx ast::NsDecl<'cx>> {
+    ) -> PResult<&'cx ast::ModuleDecl<'cx>> {
         let name;
         let mut flags = NodeFlags::default();
         let mut is_global_argument = false;
@@ -415,9 +419,9 @@ impl<'cx> ParserState<'cx, '_> {
         name: bolt_ts_ast::ModuleName<'cx>,
         block: Option<&'cx bolt_ts_ast::ModuleBlock<'cx>>,
         is_global_argument: bool,
-    ) -> &'cx ast::NsDecl<'cx> {
+    ) -> &'cx ast::ModuleDecl<'cx> {
         let flags = self.set_export_context_flags(block.is_some());
-        let decl = self.alloc(ast::NsDecl {
+        let decl = self.alloc(ast::ModuleDecl {
             id,
             span,
             modifiers,
@@ -427,7 +431,7 @@ impl<'cx> ParserState<'cx, '_> {
         });
         self.node_flags_map.insert(id, flags);
         self.set_external_module_indicator_if_has_export_mod(modifiers, id);
-        self.nodes.insert(id, ast::Node::NamespaceDecl(decl));
+        self.nodes.insert(id, ast::Node::ModuleDecl(decl));
         decl
     }
 
@@ -483,7 +487,15 @@ impl<'cx> ParserState<'cx, '_> {
             Var | Let | Const => ast::StmtKind::Var(self.parse_var_stmt(mods)),
             Function => ast::StmtKind::Fn(self.parse_fn_decl(mods)?),
             Class => ast::StmtKind::Class(self.parse_class_decl(mods)?),
-            Module | Namespace => ast::StmtKind::Namespace(self.parse_ns_decl(mods)?),
+            Module | Namespace => ast::StmtKind::Module(self.parse_module_decl(mods)?),
+            Ident => {
+                let id = self.ident_token();
+                if id == keyword::IDENT_GLOBAL {
+                    ast::StmtKind::Module(self.parse_module_decl(mods)?)
+                } else {
+                    unreachable!("{:#?}", self.atoms.lock().unwrap().get(id));
+                }
+            }
             Interface => ast::StmtKind::Interface(self.parse_interface_decl(mods)?),
             Enum => ast::StmtKind::Enum(self.parse_enum_decl(mods)?),
             Import => ast::StmtKind::Import(self.parse_import_decl()?),
@@ -499,10 +511,7 @@ impl<'cx> ParserState<'cx, '_> {
                 }
             }
             Type => ast::StmtKind::TypeAlias(self.parse_type_alias_decl(mods)?),
-            Ident => {
-                let id = self.ident_token();
-                unreachable!("{:#?}", self.atoms.lock().unwrap().get(id));
-            }
+
             _ => unreachable!("{:#?}", self.token.kind),
         };
         let stmt = self.alloc(ast::Stmt { kind });
@@ -734,7 +743,7 @@ impl<'cx> ParserState<'cx, '_> {
     }
 
     fn parse_decl(&mut self) -> PResult<&'cx ast::Stmt<'cx>> {
-        let mods = self.parse_modifiers(false)?;
+        let mods = self.parse_modifiers(false, None)?;
         let is_ambient = mods.is_some_and(Self::contain_declare_mod);
         if is_ambient {
             self.do_inside_of_context(NodeFlags::AMBIENT, |this| this._parse_decl(mods))
