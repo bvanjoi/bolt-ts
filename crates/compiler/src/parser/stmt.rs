@@ -17,8 +17,10 @@ use crate::parser::parse_break_or_continue::{ParseBreak, ParseContinue};
 impl<'cx> ParserState<'cx, '_> {
     pub fn parse_stmt(&mut self) -> PResult<&'cx ast::Stmt<'cx>> {
         use bolt_ts_ast::TokenKind::*;
-        if matches!(self.token.kind, Abstract | Declare | Export | Import)
-            && self.is_start_of_decl()
+        if matches!(
+            self.token.kind,
+            Const | Enum | Abstract | Declare | Export | Import
+        ) && self.is_start_of_decl()
         {
             return self.parse_decl();
         }
@@ -33,7 +35,6 @@ impl<'cx> ParserState<'cx, '_> {
             Interface => ast::StmtKind::Interface(self.parse_interface_decl(None)?),
             Type => ast::StmtKind::TypeAlias(self.parse_type_alias_decl(None)?),
             Module | Namespace => ast::StmtKind::Module(self.parse_module_decl(None)?),
-            Enum => ast::StmtKind::Enum(self.parse_enum_decl(None)?),
             Throw => ast::StmtKind::Throw(self.parse_throw_stmt()?),
             For => self.parse_for_stmt()?,
             Break => ast::StmtKind::Break(self.parse_break_or_continue(&ParseBreak)?),
@@ -742,7 +743,7 @@ impl<'cx> ParserState<'cx, '_> {
     }
 
     fn parse_decl(&mut self) -> PResult<&'cx ast::Stmt<'cx>> {
-        let mods = self.parse_modifiers(false)?;
+        let mods = self.parse_modifiers(false, None)?;
         let is_ambient = mods.is_some_and(Self::contain_declare_mod);
         if is_ambient {
             self.do_inside_of_context(NodeFlags::AMBIENT, |this| this._parse_decl(mods))
