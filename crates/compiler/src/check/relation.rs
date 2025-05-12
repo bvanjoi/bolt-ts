@@ -124,6 +124,46 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
+    pub(super) fn compare_props(
+        &mut self,
+        source: SymbolID,
+        target: SymbolID,
+        compare: impl Fn(&mut Self, &'cx ty::Ty<'cx>, &'cx ty::Ty<'cx>, bool) -> Ternary + Copy,
+    ) -> Ternary {
+        if source == target {
+            return Ternary::TRUE;
+        }
+        let source_prop_access = self.decl_modifier_flags_from_symbol(source)
+            & ast::ModifierKind::NON_PUBLIC_ACCESSIBILITY_MODIFIER;
+        let target_prop_access = self.decl_modifier_flags_from_symbol(target)
+            & ast::ModifierKind::NON_PUBLIC_ACCESSIBILITY_MODIFIER;
+
+        if source_prop_access != target_prop_access {
+            return Ternary::FALSE;
+        }
+
+        if self.is_readonly_symbol(source) != self.is_readonly_symbol(target) {
+            return Ternary::FALSE;
+        }
+        let s = self.get_type_of_symbol(source);
+        let t = self.get_type_of_symbol(target);
+        compare(self, s, t, false)
+    }
+
+    pub(super) fn is_prop_identical_to(
+        &mut self,
+        source_prop: SymbolID,
+        target_prop: SymbolID,
+    ) -> bool {
+        self.compare_props(source_prop, target_prop, |this, s, t, _| {
+            if this.is_type_related_to(s, t, RelationKind::Identity) {
+                Ternary::TRUE
+            } else {
+                Ternary::FALSE
+            }
+        }) != Ternary::FALSE
+    }
+
     pub(super) fn is_type_related_to(
         &mut self,
         mut source: &'cx Ty<'cx>,

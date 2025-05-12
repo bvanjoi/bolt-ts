@@ -1,5 +1,6 @@
 use bolt_ts_ast as ast;
 use bolt_ts_utils::fx_hashmap_with_capacity;
+use rustc_hash::FxHashMap;
 
 use crate::{bind, ty};
 
@@ -19,7 +20,7 @@ impl<'cx> TyChecker<'cx> {
             let ty = self.get_declared_ty_of_symbol(symbol);
             self.resolve_structured_type_members(ty);
             let ty_with_this = self.get_ty_with_this_arg(ty, None, false);
-            if self.check_inherited_props_are_identical(ty) {
+            if self.check_inherited_props_are_identical(ty, interface.name) {
                 for base_ty in self.get_base_tys(ty) {
                     let target = {
                         let this_ty = if let Some(r) = ty.kind.as_object_reference() {
@@ -77,12 +78,57 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
-    fn check_inherited_props_are_identical(&mut self, ty: &'cx ty::Ty<'cx>) -> bool {
+    fn check_inherited_props_are_identical(
+        &mut self,
+        ty: &'cx ty::Ty<'cx>,
+        ty_node: &'cx ast::Ident,
+    ) -> bool {
         let base_tys = self.get_base_tys(ty);
         if base_tys.len() < 2 {
             return true;
         }
-        // TODO:
-        true
+
+        self.resolve_structured_type_members(ty);
+        let i = if let Some(r) = ty.kind.as_object_reference() {
+            r.target.kind.expect_object_interface()
+        } else {
+            ty.kind.expect_object_interface()
+        };
+        let mut seen: FxHashMap<_, _> = self.interface_ty_links_arena[i.links]
+            .expect_declared_members()
+            .props
+            .iter()
+            .map(|&symbol| {
+                let p = self.symbol(symbol);
+                (p.name, (symbol, ty))
+            })
+            .collect();
+        let mut ok = true;
+        for base in base_tys {
+            let props = {
+                let ty = self.get_ty_with_this_arg(base, i.this_ty, false);
+                self.get_props_of_ty(ty)
+            };
+            for prop in props {
+                let s = self.symbol(*prop);
+                let name = s.name;
+                if let Some(existing) = seen.get(&name) {
+                    let is_inherited_prop = existing.1 != ty;
+                    if is_inherited_prop && !self.is_prop_identical_to(existing.0, *prop) {
+                        ok = false;
+                        let error = errors::Interface0CannotSimultaneouslyExtendTypes1And2 {
+                            span: ty_node.span,
+                            interface: ty.to_string(self),
+                            ty1: existing.1.to_string(self),
+                            ty2: base.to_string(self),
+                        };
+                        self.push_error(Box::new(error));
+                    }
+                } else {
+                    seen.insert(name, (*prop, base));
+                }
+            }
+        }
+        ok
     }
 }

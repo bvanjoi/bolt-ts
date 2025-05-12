@@ -1,4 +1,4 @@
-// From `github.com/microsoft/TypeScript/blob/v5.8.2/tests/cases/compiler/conditionalTypeGenericInSignatureTypeParameterConstraint.ts`, Apache-2.0 License
+// From `github.com/microsoft/TypeScript/blob/v5.8.3/tests/cases/compiler/conditionalTypeGenericInSignatureTypeParameterConstraint.ts`, Apache-2.0 License
 
 // should be x
 type H_inline1<x> = (<o extends x>() => o) extends (() => infer o) ? o : never;

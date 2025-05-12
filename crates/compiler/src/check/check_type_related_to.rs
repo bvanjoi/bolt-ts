@@ -2016,7 +2016,7 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
         result
     }
 
-    pub(super) fn compare_props(
+    fn compare_props(
         &mut self,
         source: SymbolID,
         target: SymbolID,
