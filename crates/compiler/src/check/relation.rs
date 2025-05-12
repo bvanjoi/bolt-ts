@@ -275,11 +275,10 @@ impl<'cx> TyChecker<'cx> {
         for current in tys {
             for prop in self.get_props_of_ty(current) {
                 let name = self.symbol(*prop).name;
-                if !members.contains_key(&name) {
+                if let std::collections::hash_map::Entry::Vacant(vac) = members.entry(name) {
                     if let Some(combined_prop) = self.get_prop_of_union_or_intersection_ty(ty, name)
                     {
-                        let prev = members.insert(name, combined_prop);
-                        assert!(prev.is_none());
+                        vac.insert(combined_prop);
                     }
                 }
             }

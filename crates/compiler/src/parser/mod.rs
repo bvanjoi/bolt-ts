@@ -331,7 +331,7 @@ impl<'cx> ast::Visitor<'cx> for CollectDepsVisitor<'cx> {
             ast::StmtKind::Import(n) => Some(n.module),
             ast::StmtKind::Export(n) => n.module_spec(),
             // TODO: import equal
-            ast::StmtKind::Namespace(n) => {
+            ast::StmtKind::Module(n) => {
                 if n.is_ambient()
                     && (self.in_ambient_module
                         || n.modifiers

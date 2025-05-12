@@ -65,7 +65,7 @@ container_flags_for_node!(
         ContainerFlags::IS_CONTAINER | ContainerFlags::IS_INTERFACE
     ),
     // ------
-    (NsDecl, C_AND_L),
+    (ModuleDecl, C_AND_L),
     (TypeAliasDecl, C_AND_L),
     (MappedTy, C_AND_L),
     (IndexSigDecl, C_AND_L),
@@ -182,7 +182,7 @@ pub(super) fn container_flags_for_node(
         ObjectLit(n) => n.get_container_flags(p, parent_map),
         ObjectLitTy(n) => n.get_container_flags(p, parent_map),
         InterfaceDecl(n) => n.get_container_flags(p, parent_map),
-        NamespaceDecl(n) => n.get_container_flags(p, parent_map),
+        ModuleDecl(n) => n.get_container_flags(p, parent_map),
         TypeAliasDecl(n) => n.get_container_flags(p, parent_map),
         MappedTy(n) => n.get_container_flags(p, parent_map),
         IndexSigDecl(n) => n.get_container_flags(p, parent_map),

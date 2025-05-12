@@ -1,4 +1,7 @@
-use super::bind::{SymbolFlags, SymbolID};
+use super::{
+    bind::{SymbolFlags, SymbolID},
+    symbol_info::SymbolInfo,
+};
 use crate::ty::{self, ObjectFlags};
 
 use super::TyChecker;
@@ -15,11 +18,7 @@ impl<'cx> TyChecker<'cx> {
             // if ty.kind.is_object_reference()
             if let Some(symbol) = ty.symbol() {
                 if !(ty.kind.is_object_anonymous()
-                    && self
-                        .binder
-                        .symbol(symbol)
-                        .flags
-                        .intersects(SymbolFlags::CLASS))
+                    && self.symbol(symbol).flags.intersects(SymbolFlags::CLASS))
                 {
                     return RecursionId::Symbol(symbol);
                 }

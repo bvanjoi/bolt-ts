@@ -198,7 +198,7 @@ impl<'cx> Parser<'cx> {
             } else {
                 use ast::Node::*;
                 match node {
-                    FnDecl(_) | FnExpr(_) | NamespaceDecl(_) | ClassPropElem(_)
+                    FnDecl(_) | FnExpr(_) | ModuleDecl(_) | ClassPropElem(_)
                     | ClassMethodElem(_) | ClassCtor(_) | CtorSigDecl(_) | GetterDecl(_)
                     | SetterDecl(_) | IndexSigDecl(_) | EnumDecl(_) | Program(_)
                     | PropSignature(_) => return id,

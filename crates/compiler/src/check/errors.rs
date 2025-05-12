@@ -609,3 +609,21 @@ pub(super) struct SettersCannotReturnAValue {
     #[label(primary)]
     pub(super) span: Span,
 }
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
+#[error(
+    "Augmentations for the global scope can only be directly nested in external modules or ambient module declarations."
+)]
+pub(super) struct AugmentationsForTheGlobalScopeCanOnlyBeDirectlyNestedInExternalModulesOrAmbientModuleDeclarations
+{
+    #[label(primary)]
+    pub(super) span: Span,
+}
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
+#[error("Property '{prop}' is private and only accessible within class.")]
+pub(super) struct PropertyIsPrivateAndOnlyAccessibleWithinClass {
+    #[label(primary)]
+    pub(super) span: Span,
+    pub(super) prop: String,
+}

@@ -411,7 +411,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
 
     fn parse_class_ele(&mut self) -> PResult<&'cx ast::ClassElem<'cx>> {
         let start = self.token.start() as usize;
-        let modifiers = self.parse_modifiers(true)?;
+        let modifiers = self.parse_modifiers(true, None)?;
         if self.parse_contextual_modifier(TokenKind::Get) {
             return self.parse_accessor_decl(start, modifiers, TokenKind::Get);
         } else if self.parse_contextual_modifier(TokenKind::Set) {

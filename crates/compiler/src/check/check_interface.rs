@@ -4,7 +4,7 @@ use bolt_ts_utils::fx_hashmap_with_capacity;
 use crate::{bind, ty};
 
 use super::symbol_info::SymbolInfo;
-use super::{Ternary, TyChecker, errors};
+use super::{TyChecker, errors};
 
 impl<'cx> TyChecker<'cx> {
     pub(super) fn check_interface_decl(&mut self, interface: &'cx ast::InterfaceDecl<'cx>) {

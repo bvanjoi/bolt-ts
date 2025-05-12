@@ -168,7 +168,7 @@ pub trait NodeQuery<'cx>: Sized {
 
     fn get_module_instance_state(
         &self,
-        m: &'cx ast::NsDecl<'cx>,
+        m: &'cx ast::ModuleDecl<'cx>,
         visited: Option<&mut nohash_hasher::IntMap<u32, Option<ModuleInstanceState>>>,
     ) -> ModuleInstanceState {
         fn cache<'cx>(
@@ -220,7 +220,7 @@ pub trait NodeQuery<'cx>: Sized {
                     }
                     state
                 }
-                NamespaceDecl(ns) => this.get_module_instance_state(ns, Some(visited)),
+                ModuleDecl(ns) => this.get_module_instance_state(ns, Some(visited)),
                 Ident(_)
                     if this
                         .node_flags(node)
@@ -294,17 +294,17 @@ pub trait NodeQuery<'cx>: Sized {
 
     fn is_external_module_augmentation(&self, id: ast::NodeID) -> bool {
         let n = self.node(id);
-        n.as_namespace_decl()
+        n.as_module_decl()
             .is_some_and(|ns| ns.is_ambient() && self.is_module_augmentation_external(ns))
     }
 
-    fn is_module_augmentation_external(&self, ns: &ast::NsDecl<'_>) -> bool {
+    fn is_module_augmentation_external(&self, ns: &ast::ModuleDecl<'_>) -> bool {
         let p = self.parent(ns.id).unwrap();
         match self.node(p) {
             ast::Node::Program(_) => self.is_external_module(),
             ast::Node::ModuleBlock(n) => {
                 let p_id = self.parent(n.id).unwrap();
-                let p = self.node(p_id).expect_namespace_decl();
+                let p = self.node(p_id).expect_module_decl();
                 p.is_ambient()
                     && self.node(self.parent(p_id).unwrap()).is_program()
                     && !self.is_external_module()

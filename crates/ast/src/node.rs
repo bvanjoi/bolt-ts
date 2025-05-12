@@ -36,7 +36,7 @@ pub enum Node<'cx> {
     RetStmt(&'cx super::RetStmt<'cx>),
     EmptyStmt(&'cx super::EmptyStmt),
     ClassDecl(&'cx super::ClassDecl<'cx>),
-    NamespaceDecl(&'cx super::NsDecl<'cx>),
+    ModuleDecl(&'cx super::ModuleDecl<'cx>),
     ClassCtor(&'cx super::ClassCtor<'cx>),
     ClassPropElem(&'cx super::ClassPropElem<'cx>),
     ClassMethodElem(&'cx super::ClassMethodElem<'cx>),
@@ -298,7 +298,7 @@ impl<'cx> Node<'cx> {
             },
             ObjectShorthandMember(n) => Some(n.name),
             TyParam(n) => Some(n.name),
-            NamespaceDecl(n) => match n.name {
+            ModuleDecl(n) => match n.name {
                 crate::ModuleName::Ident(ident) => Some(ident),
                 crate::ModuleName::StringLit(_) => None,
             },
@@ -452,7 +452,7 @@ impl<'cx> Node<'cx> {
                 | SetterDecl(_)
                 | ObjectLit(_)
                 | Program(_)
-                | NamespaceDecl(_)
+                | ModuleDecl(_)
         )
     }
 
@@ -585,7 +585,7 @@ impl<'cx> Node<'cx> {
             FnDecl,
             VarStmt,
             ClassDecl,
-            NamespaceDecl,
+            ModuleDecl,
             TypeAliasDecl,
             InterfaceDecl,
             ParamDecl,
@@ -599,7 +599,7 @@ impl<'cx> Node<'cx> {
 
     pub fn is_block_scope(&self, parent: Option<&Self>) -> bool {
         if self.is_program()
-            || self.is_namespace_decl()
+            || self.is_module_decl()
             || self.is_for_stmt()
             || self.is_for_in_stmt()
             || self.is_for_of_stmt()
@@ -704,7 +704,7 @@ impl<'cx> Node<'cx> {
                 | IndexSigDecl(_)
                 | MappedTy(_)
                 | MethodSignature(_)
-                | NamespaceDecl(_)
+                | ModuleDecl(_)
                 | ObjectMethodMember(_)
                 | Program(_)
                 | SetterDecl(_)
@@ -726,11 +726,11 @@ impl<'cx> Node<'cx> {
     }
 
     pub fn is_effective_module_decl(&self) -> bool {
-        self.is_ident() || self.is_namespace_decl()
+        self.is_ident() || self.is_module_decl()
     }
 
     pub fn is_ambient_module(&self) -> bool {
-        self.as_namespace_decl().is_some_and(|n| n.is_ambient())
+        self.as_module_decl().is_some_and(|n| n.is_ambient())
     }
 
     pub fn get_external_module_name(&self) -> Option<&'cx super::StringLit> {
@@ -738,7 +738,7 @@ impl<'cx> Node<'cx> {
         match self {
             ImportDecl(n) => Some(n.module),
             ExportDecl(n) => n.module_spec(),
-            NamespaceDecl(n) => match n.name {
+            ModuleDecl(n) => match n.name {
                 crate::ModuleName::StringLit(n) => Some(n),
                 _ => None,
             },
@@ -800,7 +800,7 @@ impl<'cx> Node<'cx> {
     pub fn error_span(&self) -> bolt_ts_span::Span {
         match self {
             Node::VarDecl(n) => n.binding.span,
-            Node::NamespaceDecl(n) => n.name.span(),
+            Node::ModuleDecl(n) => n.name.span(),
             _ => self.span(),
         }
     }
@@ -860,7 +860,7 @@ as_node!(
     (EmptyStmt, super::EmptyStmt, empty_stmt),
     (ClassDecl, super::ClassDecl<'cx>, class_decl),
     (EnumDecl, super::EnumDecl<'cx>, enum_decl),
-    (NamespaceDecl, super::NsDecl<'cx>, namespace_decl),
+    (ModuleDecl, super::ModuleDecl<'cx>, module_decl),
     (BlockStmt, super::BlockStmt<'cx>, block_stmt),
     (ModuleBlock, super::ModuleBlock<'cx>, module_block),
     (VarDecl, super::VarDecl<'cx>, var_decl),

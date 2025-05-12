@@ -119,7 +119,7 @@ impl<'cx> TyChecker<'cx> {
     fn check_qualified_name(&mut self, node: &'cx ast::QualifiedName<'cx>) -> &'cx ty::Ty<'cx> {
         let left = self.check_entity_name(node.left);
         let apparent_ty = self.get_apparent_ty(left);
-        self._get_prop_of_ty(node.id, apparent_ty, left, node.right)
+        self.check_prop_access_expr_or_qualified_name(node.id, apparent_ty, left, node.right)
     }
 
     pub(super) fn get_type_of_param(&mut self, symbol: SymbolID) -> &'cx ty::Ty<'cx> {
@@ -230,7 +230,10 @@ impl<'cx> TyChecker<'cx> {
 
     fn is_named_member(&mut self, member: SymbolID) -> bool {
         let name = self.symbol(member).name;
-        (name.as_atom().is_some() || name.is_numeric()) && self.symbol_is_value(member, false)
+        (name.as_atom().is_some()
+            || name.is_numeric()
+            || matches!(name, SymbolName::ESSymbol { .. }))
+            && self.symbol_is_value(member, false)
     }
 
     pub(super) fn get_declared_ty_of_class_or_interface(
@@ -265,20 +268,14 @@ impl<'cx> TyChecker<'cx> {
                 is_this_less_interface = self.is_this_less_interface(symbol);
                 !is_this_less_interface
             } {
-            let outer_ty_params = outer_ty_params.unwrap_or_default();
-            let local_ty_params = local_ty_params.unwrap_or_default();
-            let ty_params: ty::Tys<'cx> = {
-                let mut v = outer_ty_params.to_vec();
-                v.extend(local_ty_params);
-                self.alloc(v)
-            };
+            let ty_params = self.concatenate(outer_ty_params, local_ty_params);
             assert!(kind == SymbolFlags::CLASS || !is_this_less_interface || !ty_params.is_empty());
             let this_ty = self.create_param_ty(symbol, None, true);
             let target = self.create_interface_ty(
                 symbol,
                 Some(ty_params),
-                (!outer_ty_params.is_empty()).then_some(outer_ty_params),
-                (!local_ty_params.is_empty()).then_some(local_ty_params),
+                outer_ty_params,
+                local_ty_params,
                 Some(this_ty),
             );
             let ty = self.alloc(ty::ReferenceTy {

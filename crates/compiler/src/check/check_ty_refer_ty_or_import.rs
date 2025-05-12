@@ -8,7 +8,7 @@ use crate::ty::TypeFlags;
 use bolt_ts_ast as ast;
 
 use super::symbol_info::SymbolInfo;
-use super::{Ternary, TyChecker, errors};
+use super::{TyChecker, errors};
 
 pub(super) trait TyReferTyOrImport<'cx> {
     fn id(&self) -> ast::NodeID;
