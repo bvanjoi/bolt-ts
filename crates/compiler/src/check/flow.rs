@@ -25,7 +25,7 @@ impl FlowTy<'_> {
 }
 
 impl<'cx> TyChecker<'cx> {
-    fn get_flow_node_of_node(&self, node: ast::NodeID) -> Option<FlowID> {
+    pub(super) fn get_flow_node_of_node(&self, node: ast::NodeID) -> Option<FlowID> {
         self.flow_nodes[node.module().as_usize()].get_flow_node_of_node(node)
     }
 

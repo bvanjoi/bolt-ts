@@ -1,4 +1,4 @@
-use bolt_ts_ast::{self as ast, EntityNameKind, keyword};
+use bolt_ts_ast::{self as ast, EntityNameKind, FnFlags, keyword};
 use bolt_ts_atom::AtomId;
 
 use super::create_ty::IntersectionFlags;
@@ -1801,6 +1801,7 @@ impl<'cx> TyChecker<'cx> {
         let Some(body) = n.fn_body() else {
             return self.error_ty;
         };
+        let fn_flags = n.fn_flags();
 
         let mut ret_ty = None;
         let fallback_ret_ty = self.void_ty;
@@ -1816,7 +1817,11 @@ impl<'cx> TyChecker<'cx> {
             self.check_mode = old;
         } else if let ast::ArrowFnExprBody::Block(body) = body {
             let Some(tys) = self.check_and_aggregate_ret_expr_tys(id, body) else {
-                return self.undefined_ty;
+                return if fn_flags.intersects(FnFlags::ASYNC) {
+                    todo!()
+                } else {
+                    self.never_ty
+                };
             };
             if tys.is_empty() {
                 if let Some(contextual_ret_ty) = self.get_contextual_ret_ty(id, None) {

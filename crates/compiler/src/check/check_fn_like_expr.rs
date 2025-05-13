@@ -53,6 +53,8 @@ impl<'cx> TyChecker<'cx> {
                                 contextual_sig
                             };
                         self.assign_contextual_param_tys(sig, instantiated_contextual_sig);
+                    } else {
+                        self.assign_non_contextual_param_tys(sig);
                     }
                 }
 

@@ -2179,13 +2179,24 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
-    pub fn check_and_aggregate_ret_expr_tys(
+    fn fn_has_implicit_return(&self, f: ast::NodeID) -> bool {
+        use ast::Node::*;
+        match self.p.node(f) {
+            FnDecl(_) => false,
+            FnExpr(_) => false,
+            ArrowFnExpr(_) => false,
+            ObjectMethodMember(_) => false,
+            ClassMethodElem(_) => false,
+            _ => unreachable!(),
+        }
+    }
+
+    pub(super) fn check_and_aggregate_ret_expr_tys(
         &mut self,
         f: ast::NodeID,
         body: &'cx ast::BlockStmt<'cx>,
     ) -> Option<Vec<&'cx ty::Ty<'cx>>> {
-        let flags = self.p.node(f).fn_flags();
-        let mut has_ret_with_no_expr = false;
+        let mut has_ret_with_no_expr = self.fn_has_implicit_return(f);
         let mut has_ret_of_ty_never = false;
 
         fn for_each_ret_stmt<'cx, T: Copy + Debug>(
@@ -2284,7 +2295,12 @@ impl<'cx> TyChecker<'cx> {
             &mut has_ret_of_ty_never,
         );
 
-        if tys.is_empty() && !has_ret_with_no_expr && has_ret_of_ty_never {
+        let may_return_never = || {
+            let func = self.p.node(f);
+            func.is_fn_expr() || func.is_arrow_fn_expr() || func.is_object_method_member()
+        };
+
+        if tys.is_empty() && !has_ret_with_no_expr && (has_ret_of_ty_never || may_return_never()) {
             None
         } else {
             Some(tys)
