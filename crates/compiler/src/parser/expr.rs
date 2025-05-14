@@ -1,3 +1,4 @@
+use super::lookahead::Lookahead;
 use super::paren_rule::{NoParenRule, ParenRuleTrait};
 use super::parse_fn_like::ParseFnExpr;
 use super::ty::TypeArguments;
@@ -37,7 +38,7 @@ impl<'cx> ParserState<'cx, '_> {
         match self.is_paren_arrow_fn_expr() {
             Tristate::True => self.parse_paren_arrow_fn_expr(false),
             Tristate::False => Ok(None),
-            Tristate::Unknown => self.try_parse(|this| this.parse_possible_paren_arrow_fn_expr()),
+            Tristate::Unknown => self.try_parse(|this| this.p.parse_possible_paren_arrow_fn_expr()),
         }
     }
 
@@ -426,7 +427,7 @@ impl<'cx> ParserState<'cx, '_> {
 
         if self.token.kind == TokenKind::Less {
             let start_pos = self.token.start();
-            if let Ok(Some(ty_args)) = self.try_parse(Self::parse_ty_args_in_expr) {
+            if let Ok(Some(ty_args)) = self.try_parse(|l| l.p.parse_ty_args_in_expr()) {
                 todo!("error handler")
             }
         }
@@ -527,7 +528,7 @@ impl<'cx> ParserState<'cx, '_> {
             let mut ty_args = None;
             let question_dot = self.parse_optional(TokenKind::QuestionDot);
             if question_dot.is_some() {
-                ty_args = self.try_parse(Self::parse_ty_args_in_expr)?;
+                ty_args = self.try_parse(|l| l.p.parse_ty_args_in_expr())?;
                 if self.is_template_start_of_tagged_template() {
                     expr = self.parse_tagged_template_rest(
                         start,
@@ -1151,7 +1152,7 @@ impl<'cx> ParserState<'cx, '_> {
     fn is_start_of_optional_prop_or_element_access_chain(&mut self) -> bool {
         self.token.kind == TokenKind::QuestionDot
             && self
-                .lookahead(Self::next_token_is_ident_or_keyword_or_open_bracket_or_template)
+                .lookahead(Lookahead::next_token_is_ident_or_keyword_or_open_bracket_or_template)
                 .unwrap_or_default()
     }
 
@@ -1255,7 +1256,7 @@ impl<'cx> ParserState<'cx, '_> {
                     });
                     continue;
                 }
-                if let Some(ty_args) = self.try_parse(Self::parse_ty_args_in_expr)? {
+                if let Some(ty_args) = self.try_parse(|l| l.p.parse_ty_args_in_expr())? {
                     let id = self.next_node_id();
                     let ele = self.alloc(ast::ExprWithTyArgs {
                         id,

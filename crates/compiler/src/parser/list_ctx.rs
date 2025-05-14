@@ -1,4 +1,4 @@
-use super::{ParserState, errors};
+use super::{ParserState, errors, lookahead::Lookahead};
 use bolt_ts_ast::TokenKind;
 
 pub(super) trait ListContext: Copy {
@@ -117,7 +117,7 @@ fn is_ty_member_start(s: &mut ParserState) -> bool {
 pub(super) struct TyMembers;
 impl ListContext for TyMembers {
     fn is_ele(&self, s: &mut ParserState, _: bool) -> bool {
-        s.lookahead(is_ty_member_start)
+        s.lookahead(|l| is_ty_member_start(l.p))
     }
 
     fn is_closing(&self, s: &mut ParserState) -> bool {
@@ -158,7 +158,7 @@ pub(super) struct HeritageClause;
 impl ListContext for HeritageClause {
     fn is_ele(&self, s: &mut ParserState, is_error_recovery: bool) -> bool {
         if s.token.kind == TokenKind::LBrace {
-            return s.lookahead(ParserState::is_invalid_heritage_clause_object);
+            return (Lookahead { p: s }).lookahead(Lookahead::is_invalid_heritage_clause_object);
         }
         if !is_error_recovery {
             s.is_start_of_left_hand_side_expr()

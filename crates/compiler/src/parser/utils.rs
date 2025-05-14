@@ -2,6 +2,7 @@ use bolt_ts_ast::ModifierKind;
 use bolt_ts_ast::{TokenFlags, TokenKind};
 use bolt_ts_span::Span;
 
+use crate::parser::lookahead::Lookahead;
 use crate::{ecma_rules, keyword};
 
 use super::list_ctx;
@@ -174,13 +175,13 @@ impl<'cx> ParserState<'cx, '_> {
             !in_start_of_param
         } else if self.token.kind == TokenKind::LParen && !in_start_of_param {
             self.lookahead(|this| {
-                this.next_token();
-                let t = this.token.kind;
-                t == TokenKind::RParen || this.is_start_of_param() || this.is_start_of_ty(false)
+                this.p.next_token();
+                let t = this.p.token.kind;
+                t == TokenKind::RParen || this.p.is_start_of_param() || this.p.is_start_of_ty(false)
             })
         } else if self.token.kind == TokenKind::Minus {
             !in_start_of_param
-                && self.lookahead(|this| this.next_token_is_numeric_or_big_int_literal())
+                && self.lookahead(Lookahead::next_token_is_numeric_or_big_int_literal)
         } else {
             self.is_ident()
         }
@@ -189,7 +190,7 @@ impl<'cx> ParserState<'cx, '_> {
     pub(super) fn is_start_of_left_hand_side_expr(&mut self) -> bool {
         use TokenKind::*;
         if self.token.kind == TokenKind::Import {
-            self.lookahead(Self::next_token_is_lparen_or_less_or_dot)
+            self.lookahead(Lookahead::next_token_is_lparen_or_less_or_dot)
         } else {
             matches!(
                 self.token.kind,
@@ -242,7 +243,7 @@ impl<'cx> ParserState<'cx, '_> {
         if matches!(t, Export | Const) {
             self.is_start_of_decl()
         } else if matches!(t, Import) {
-            self.is_start_of_decl() | self.lookahead(Self::next_token_is_lparen_or_less_or_dot)
+            self.is_start_of_decl() | self.lookahead(Lookahead::next_token_is_lparen_or_less_or_dot)
         } else {
             matches!(
                 t,
@@ -372,27 +373,6 @@ impl<'cx> ParserState<'cx, '_> {
         t.is_contextual_keyword() || t.is_strict_mode_reserved_word()
     }
 
-    pub(super) fn next_token_is_lparen_or_less_or_dot(&mut self) -> bool {
-        self.next_token();
-        use bolt_ts_ast::TokenKind::*;
-        matches!(self.token.kind, LParen | Less | Dot)
-    }
-
-    pub(super) fn next_token_is_ident(&mut self) -> PResult<bool> {
-        self.next_token();
-        Ok(self.is_ident())
-    }
-
-    pub(super) fn next_token_is_ident_or_keyword(&mut self) -> PResult<bool> {
-        self.next_token();
-        Ok(self.token.kind.is_ident_or_keyword())
-    }
-
-    pub(super) fn next_token_is_ident_or_keyword_on_same_line(&mut self) -> PResult<bool> {
-        self.next_token();
-        Ok(self.token.kind.is_ident_or_keyword() && !self.has_preceding_line_break())
-    }
-
     pub(super) fn parse_modifiers(
         &mut self,
         allow_decorators: bool,
@@ -427,47 +407,6 @@ impl<'cx> ParserState<'cx, '_> {
         }
     }
 
-    fn in_try_context<T>(
-        &mut self,
-        f: impl FnOnce(&mut Self) -> T,
-        need_revert: impl FnOnce(&T) -> bool,
-    ) -> T {
-        let old_pos = self.pos;
-        let old_full_start_pos = self.full_start_pos;
-        let old_token = self.token;
-        let old_token_value = self.token_value;
-        let old_line = self.line;
-        let old_token_flags = self.token_flags;
-        let old_line_start = self.line_start;
-        let old_line_map_len = self.line_map.len();
-        let old_parse_diag_len = self.diags.len();
-
-        let r = f(self);
-
-        if need_revert(&r) {
-            self.line_map.truncate(old_line_map_len);
-            self.line_start = old_line_start;
-            self.token_flags = old_token_flags;
-            self.line = old_line;
-            self.token_value = old_token_value;
-            self.token = old_token;
-            self.full_start_pos = old_full_start_pos;
-            self.pos = old_pos;
-            // TODO: speculate_kind != SpeculationKind::Repair
-            self.diags.truncate(old_parse_diag_len);
-        }
-
-        r
-    }
-
-    pub(super) fn try_parse<T: ParseSuccess>(&mut self, f: impl FnOnce(&mut Self) -> T) -> T {
-        self.in_try_context(f, |r| !r.is_success())
-    }
-
-    pub(super) fn lookahead<T>(&mut self, f: impl FnOnce(&mut Self) -> T) -> T {
-        self.in_try_context(f, |_| true)
-    }
-
     pub(super) fn parse_ident_name(&mut self) -> PResult<&'cx ast::Ident> {
         let is_ident = self.token.kind.is_ident_or_keyword();
         Ok(self.create_ident(is_ident, None))
@@ -480,43 +419,45 @@ impl<'cx> ParserState<'cx, '_> {
     pub(super) fn is_implements_clause(&mut self) -> bool {
         self.token.kind == TokenKind::Implements
             && self
-                .lookahead(Self::next_token_is_ident)
+                .lookahead(Lookahead::next_token_is_ident)
                 .unwrap_or_default()
-    }
-
-    fn is_unambiguously_index_sig(&mut self) -> PResult<bool> {
-        self.next_token();
-
-        if self.token.kind == TokenKind::DotDotDot || self.token.kind == TokenKind::RBracket {
-            return Ok(true);
-        } else if self.token.kind.is_modifier_kind() {
-            self.next_token();
-            if self.is_ident() {
-                return Ok(true);
-            }
-        } else if !self.is_ident() {
-            return Ok(false);
-        } else {
-            self.next_token();
-        }
-
-        if self.token.kind == TokenKind::Colon || self.token.kind == TokenKind::Comma {
-            return Ok(true);
-        } else if self.token.kind != TokenKind::Question {
-            return Ok(false);
-        }
-
-        self.next_token();
-
-        Ok(self.token.kind == TokenKind::Colon
-            || self.token.kind == TokenKind::Comma
-            || self.token.kind == TokenKind::RBracket)
     }
 
     pub(super) fn is_index_sig(&mut self) -> bool {
         self.token.kind == TokenKind::LBracket
             && self
-                .lookahead(Self::is_unambiguously_index_sig)
+                .lookahead(|this| -> PResult<bool> {
+                    this.p.next_token();
+
+                    if this.p.token.kind == TokenKind::DotDotDot
+                        || this.p.token.kind == TokenKind::RBracket
+                    {
+                        return Ok(true);
+                    } else if this.p.token.kind.is_modifier_kind() {
+                        this.p.next_token();
+                        if this.p.is_ident() {
+                            return Ok(true);
+                        }
+                    } else if !this.p.is_ident() {
+                        return Ok(false);
+                    } else {
+                        this.p.next_token();
+                    }
+
+                    if this.p.token.kind == TokenKind::Colon
+                        || this.p.token.kind == TokenKind::Comma
+                    {
+                        return Ok(true);
+                    } else if this.p.token.kind != TokenKind::Question {
+                        return Ok(false);
+                    }
+
+                    this.p.next_token();
+
+                    Ok(this.p.token.kind == TokenKind::Colon
+                        || this.p.token.kind == TokenKind::Comma
+                        || this.p.token.kind == TokenKind::RBracket)
+                })
                 .unwrap_or_default()
     }
 
@@ -683,38 +624,38 @@ impl<'cx> ParserState<'cx, '_> {
                 Ok(false)
             }
         };
-        let is_unambiguously_start_of_fn_ty = |this: &mut Self| {
-            this.next_token();
-            let t = this.token.kind;
-            use bolt_ts_ast::TokenKind::*;
-            if matches!(t, TokenKind::RParen | TokenKind::DotDotDot) {
-                return true;
-            } else if skip_param_start(this).unwrap_or_default() {
-                if matches!(this.token.kind, Colon | Comma | Question | Eq) {
-                    return true;
-                } else if this.token.kind == RParen {
-                    this.next_token();
-                    if this.token.kind == EqGreat {
-                        return true;
-                    }
-                }
-            }
-            false
-        };
 
         let t = self.token.kind;
         (t == TokenKind::Less)
-            || (t == TokenKind::LParen && self.lookahead(is_unambiguously_start_of_fn_ty))
+            || (t == TokenKind::LParen
+                && self.lookahead(|this| {
+                    this.p.next_token();
+                    let t = this.p.token.kind;
+                    use bolt_ts_ast::TokenKind::*;
+                    if matches!(t, TokenKind::RParen | TokenKind::DotDotDot) {
+                        return true;
+                    } else if skip_param_start(this.p).unwrap_or_default() {
+                        if matches!(this.p.token.kind, Colon | Comma | Question | Eq) {
+                            return true;
+                        } else if this.p.token.kind == RParen {
+                            this.p.next_token();
+                            if this.p.token.kind == EqGreat {
+                                return true;
+                            }
+                        }
+                    }
+                    false
+                }))
             || (t == TokenKind::New
                 || t == TokenKind::Abstract
                     && self.lookahead(|this| {
-                        this.next_token();
-                        this.token.kind == TokenKind::New
+                        this.p.next_token();
+                        this.p.token.kind == TokenKind::New
                     }))
     }
 
     pub(super) fn parse_contextual_modifier(&mut self, t: TokenKind) -> bool {
-        self.token.kind == t && self.try_parse(Self::next_token_can_follow_modifier)
+        self.token.kind == t && self.try_parse(Lookahead::next_token_can_follow_modifier)
     }
 
     pub(super) fn parse_num_lit(&mut self, val: f64, neg: bool) -> &'cx ast::NumLit {
@@ -869,7 +810,7 @@ impl<'cx> ParserState<'cx, '_> {
 
     pub(super) fn is_heritage_clause_extends_or_implements_keyword(&mut self) -> bool {
         if matches!(self.token.kind, TokenKind::Extends | TokenKind::Implements) {
-            return self.lookahead(Self::next_token_is_start_of_expr);
+            return (Lookahead { p: self }).lookahead(Lookahead::next_token_is_start_of_expr);
         }
         false
     }

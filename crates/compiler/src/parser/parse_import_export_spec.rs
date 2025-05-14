@@ -13,8 +13,8 @@ impl list_ctx::ListContext for ImportOrExportSpecs {
         use bolt_ts_ast::TokenKind::*;
         if s.token.kind == From
             && s.lookahead(|this| {
-                this.next_token();
-                matches!(this.token.kind, String)
+                this.p.next_token();
+                matches!(this.p.token.kind, String)
             })
         {
             false
