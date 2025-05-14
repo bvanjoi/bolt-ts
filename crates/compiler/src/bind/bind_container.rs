@@ -1,4 +1,5 @@
 use super::BinderState;
+use super::FlowFlags;
 use super::NodeQuery;
 use super::container_flags::ContainerFlags;
 
@@ -89,12 +90,30 @@ impl BinderState<'_, '_, '_> {
             self.current_break_target = None;
             self.current_continue_target = None;
             self.has_explicit_return = false;
-            self.p.node_flags_map.update(node, |flags| {
-                *flags &= !ast::NodeFlags::REACHABILITY_AND_EMIT_FLAGS
-            });
-            // TODO: unreachable case
 
             self.bind_children(node);
+
+            self.p.node_flags_map.update(node, |flags| {
+                *flags &= ast::NodeFlags::REACHABILITY_AND_EMIT_FLAGS.complement();
+            });
+
+            if !self
+                .flow_nodes
+                .get_flow_node(self.current_flow.unwrap())
+                .flags
+                .contains(FlowFlags::UNREACHABLE)
+                && container_flags.contains(ContainerFlags::IS_FUNCTION_LIKE)
+                && n.fn_body().is_some()
+            {
+                self.p.node_flags_map.update(node, |flags| {
+                    *flags |= ast::NodeFlags::HAS_IMPLICIT_RETURN;
+                    if self.has_explicit_return {
+                        *flags |= ast::NodeFlags::HAS_EXPLICIT_RETURN;
+                    }
+                });
+                self.flow_in_nodes
+                    .insert_end_flow_node(node, self.current_flow.unwrap());
+            }
 
             if let Some(current_return_target) = self.current_return_target {
                 self.flow_nodes

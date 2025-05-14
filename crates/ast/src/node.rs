@@ -178,6 +178,7 @@ impl<'cx> Node<'cx> {
                 | SetterDecl(_)
                 | FnExpr(_)
                 | ArrowFnExpr(_)
+                | ObjectMethodMember(_)
         )
     }
 

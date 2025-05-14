@@ -97,8 +97,8 @@ use self::type_predicate::TyPred;
 use self::utils::contains_ty;
 
 use crate::bind::{
-    self, FlowID, FlowNodes, GlobalSymbols, MergedSymbols, ResolveResult, Symbol, SymbolFlags,
-    SymbolID, SymbolName, SymbolTable, Symbols,
+    self, FlowID, FlowInNodes, FlowNodes, GlobalSymbols, MergedSymbols, ResolveResult, Symbol,
+    SymbolFlags, SymbolID, SymbolName, SymbolTable, Symbols,
 };
 use crate::graph::ModuleGraph;
 use crate::parser::{AccessKind, AssignmentKind, Parser};
@@ -174,7 +174,14 @@ pub struct TyChecker<'cx> {
     arena: &'cx bumpalo::Bump,
     pub(super) tys: Vec<&'cx ty::Ty<'cx>>,
     sigs: Vec<&'cx Sig<'cx>>,
+
     flow_nodes: Vec<FlowNodes<'cx>>,
+    flow_in_nodes: Vec<FlowInNodes>,
+    last_flow_node: Option<FlowID>,
+    last_flow_reachable: bool,
+    // TODO: use `Vec<Vec<bool>>`
+    flow_node_reachable: FxHashMap<FlowID, bool>,
+
     num_lit_tys: nohash_hasher::IntMap<F64Represent, &'cx ty::Ty<'cx>>,
     string_lit_tys: nohash_hasher::IntMap<AtomId, &'cx ty::Ty<'cx>>,
     bigint_lit_tys: FxHashMap<(bool, AtomId), &'cx ty::Ty<'cx>>,
@@ -315,6 +322,7 @@ impl<'cx> TyChecker<'cx> {
         atoms: &'cx mut AtomMap<'cx>,
         config: &'cx NormalizedCompilerOptions,
         flow_nodes: Vec<FlowNodes<'cx>>,
+        flow_in_nodes: Vec<FlowInNodes>,
         module_arena: &'cx bolt_ts_span::ModuleArena,
         binder: &'cx mut bind::Binder,
         merged_symbols: &'cx mut MergedSymbols,
@@ -483,7 +491,11 @@ impl<'cx> TyChecker<'cx> {
             mark_tys: no_hashset_with_capacity(1024 * 4),
 
             shared_flow_info: Vec::with_capacity(1024),
+            flow_node_reachable: fx_hashmap_with_capacity(flow_nodes.len() * 128),
             flow_nodes,
+            flow_in_nodes,
+            last_flow_node: None,
+            last_flow_reachable: false,
 
             error_symbol,
             global_this_symbol,
@@ -2179,15 +2191,19 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
-    fn fn_has_implicit_return(&self, f: ast::NodeID) -> bool {
-        use ast::Node::*;
-        match self.p.node(f) {
-            FnDecl(_) => false,
-            FnExpr(_) => false,
-            ArrowFnExpr(_) => false,
-            ObjectMethodMember(_) => false,
-            ClassMethodElem(_) => false,
-            _ => unreachable!(),
+    fn fn_has_implicit_return(&mut self, f: ast::NodeID) -> bool {
+        debug_assert!(
+            self.p.node(f).is_fn_like(),
+            "fn_has_implicit_return: {:#?}",
+            self.p.node(f)
+        );
+        let n = self.get_flow_in_node_of_node(f);
+        use bind::FlowInNode::*;
+        match n {
+            Noop => false,
+            FnLike(f) => f
+                .end_flow_node
+                .is_some_and(|n| self.is_reachable_flow_node(n)),
         }
     }
 
