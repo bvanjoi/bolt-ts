@@ -1,3 +1,4 @@
+// asdf
 function f() {
-  {}
+  /*asdf*/{}
 }

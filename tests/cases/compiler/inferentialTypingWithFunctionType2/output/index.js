@@ -1,3 +1,4 @@
+// From `github.com/microsoft/TypeScript/blob/v5.8.2/tests/cases/compiler/inferentialTypingWithFunctionType2.ts`, Apache-2.0 License
 function identity(a) {
   return a
 }

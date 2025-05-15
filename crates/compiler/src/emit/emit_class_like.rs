@@ -57,9 +57,10 @@ impl<'cx> Emit<'cx> {
             Method(method) => self.emit_class_method(method),
             IndexSig(_) => {}
             Ctor(ctor) => self.emit_class_ctor(ctor),
-            Getter(p) => {
-                if let Some(body) = p.body {
-                    if let Some(mods) = p.modifiers {
+            Getter(g) => {
+                self.emit_leading_comments(g.span);
+                if let Some(body) = g.body {
+                    if let Some(mods) = g.modifiers {
                         if mods.flags.contains(ast::ModifierKind::Static) {
                             self.content.p("static");
                             self.content.p_whitespace();
@@ -67,15 +68,16 @@ impl<'cx> Emit<'cx> {
                     }
                     self.content.p("get");
                     self.content.p_whitespace();
-                    self.emit_prop_name(p.name);
+                    self.emit_prop_name(g.name);
                     self.emit_params(&[]);
                     self.content.p_whitespace();
                     self.emit_block_stmt(body);
                 }
             }
-            Setter(p) => {
-                if let Some(body) = p.body {
-                    if let Some(mods) = p.modifiers {
+            Setter(g) => {
+                self.emit_leading_comments(g.span);
+                if let Some(body) = g.body {
+                    if let Some(mods) = g.modifiers {
                         if mods.flags.contains(ast::ModifierKind::Static) {
                             self.content.p("static");
                             self.content.p_whitespace();
@@ -83,8 +85,8 @@ impl<'cx> Emit<'cx> {
                     }
                     self.content.p("set");
                     self.content.p_whitespace();
-                    self.emit_prop_name(p.name);
-                    self.emit_params(p.params);
+                    self.emit_prop_name(g.name);
+                    self.emit_params(g.params);
                     self.content.p_whitespace();
                     self.emit_block_stmt(body);
                 }
@@ -93,6 +95,8 @@ impl<'cx> Emit<'cx> {
     }
 
     fn emit_class_ctor(&mut self, ctor: &'cx ast::ClassCtor<'cx>) {
+        self.emit_leading_comments(ctor.span);
+
         if let Some(body) = ctor.body {
             self.content.p("constructor");
             self.emit_params(ctor.params);
@@ -187,6 +191,7 @@ impl<'cx> Emit<'cx> {
     }
 
     fn emit_class_method(&mut self, method: &'cx ast::ClassMethodElem<'cx>) {
+        self.emit_leading_comments(method.span);
         if let Some(mods) = method.modifiers {
             if mods.flags.contains(ast::ModifierKind::Static) {
                 self.content.p("static");
@@ -202,6 +207,7 @@ impl<'cx> Emit<'cx> {
     }
 
     fn emit_class_prop(&mut self, prop: &'cx ast::ClassPropElem<'cx>) {
+        self.emit_leading_comments(prop.span);
         if let Some(mods) = prop.modifiers {
             if mods.flags.contains(ast::ModifierKind::Abstract) {
                 return;

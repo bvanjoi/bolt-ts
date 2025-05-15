@@ -1,5 +1,5 @@
 class A {
   foo() {}
 }
-var a = new A();
+/*WScript.Echo("Here!");*/var a = new A();
 a.foo();

@@ -320,8 +320,8 @@ pub fn eval_from_with_fs<'cx>(
             if module_arena.get_module(item).is_default_lib {
                 None
             } else {
-                let input_len = module_arena.get_content(item).len();
-                let mut emitter = emit::Emit::new(checker.atoms, input_len, compiler_options, &p);
+                let input = module_arena.get_content(item);
+                let mut emitter = emit::Emit::new(item, checker.atoms, input, compiler_options, &p);
                 Some((item, emitter.emit(p.root(item))))
             }
         })

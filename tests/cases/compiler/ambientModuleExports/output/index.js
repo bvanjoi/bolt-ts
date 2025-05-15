@@ -1,3 +1,4 @@
+//@ run-fail
 
 Foo.a();
 Foo.b;

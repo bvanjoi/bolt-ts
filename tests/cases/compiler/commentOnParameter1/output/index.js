@@ -1,1 +1,1 @@
-function commentedParameters(a, b) {}
+function commentedParameters(a, b) /* Parameter a *//* End of parameter a *//* Parameter b *//* End of parameter b */{}

@@ -1,3 +1,4 @@
 var a = "some" + "text";
+// comment
 var b = "some" + "text";
-var c = "some" + "text";
+/* comment */var c = "some" + "text";

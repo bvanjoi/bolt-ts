@@ -7,6 +7,7 @@ mod utils;
 
 use bolt_ts_ast as ast;
 use bolt_ts_atom::AtomMap;
+use bolt_ts_span::ModuleID;
 use bolt_ts_utils::fx_hashset_with_capacity;
 use rustc_hash::FxHashSet;
 
@@ -98,7 +99,8 @@ bolt_ts_utils::index! {
 }
 
 pub struct Emit<'cx> {
-    pub atoms: &'cx AtomMap<'cx>,
+    module_id: ModuleID,
+    atoms: &'cx AtomMap<'cx>,
     content: PPrint,
     options: EmitterOptions,
     ns_names: FxHashSet<(ScopeID, bolt_ts_atom::AtomId)>,
@@ -106,6 +108,8 @@ pub struct Emit<'cx> {
     max_scope: ScopeID,
     config: &'cx bolt_ts_config::NormalizedCompilerOptions,
     helper_flags: helper::EmitHelperFlags,
+    comment_index: usize,
+    input: &'cx str,
     p: &'cx Parser<'cx>,
 }
 
@@ -117,14 +121,16 @@ impl<'cx> Emit<'cx> {
     }
 
     pub fn new(
+        module_id: ModuleID,
         atoms: &'cx AtomMap,
-        input_len: usize,
+        input: &'cx str,
         config: &'cx bolt_ts_config::NormalizedCompilerOptions,
         parser: &'cx Parser<'cx>,
     ) -> Self {
         Self {
             atoms,
-            content: PPrint::new(input_len),
+            module_id,
+            content: PPrint::new(input.len() * 2),
             options: EmitterOptions { indent: 2 },
             ns_names: fx_hashset_with_capacity(256),
             scope: ScopeID::root(),
@@ -132,6 +138,8 @@ impl<'cx> Emit<'cx> {
             config,
             helper_flags: helper::EmitHelperFlags::empty(),
             p: parser,
+            input,
+            comment_index: 0,
         }
     }
 
@@ -172,5 +180,25 @@ impl<'cx> Emit<'cx> {
                 self.emit_ident(n.right);
             }
         };
+    }
+
+    fn emit_leading_comments(&mut self, node_span: bolt_ts_span::Span) {
+        debug_assert_eq!(self.module_id, node_span.module);
+        let comments = &self.p.get(self.module_id).comments;
+        while let Some(comment) = comments.get(self.comment_index) {
+            let comment_span = comment.span();
+            if comment_span.hi <= node_span.lo {
+                use bolt_ts_ast::Comment::*;
+                let content = &self.input[comment_span.lo as usize..comment_span.hi as usize];
+                self.content.p(content);
+                if let SingleLine(_) = comment {
+                    self.content.p_newline();
+                }
+                self.comment_index += 1;
+                continue;
+            } else {
+                break;
+            }
+        }
     }
 }

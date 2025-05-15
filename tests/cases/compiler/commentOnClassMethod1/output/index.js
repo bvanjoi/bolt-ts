@@ -1,3 +1,6 @@
+// @removeComments: false
 class WebControls {
-  createControl() {}
+  /**
+     * Render a control
+     */createControl() {}
 }
