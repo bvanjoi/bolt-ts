@@ -184,6 +184,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         let mut list = Vec::with_capacity(8);
         loop {
             if ctx.is_ele(self, false) {
+                let start_pos = self.token.start();
                 let Ok(ele) = ele(self) else {
                     break;
                 };
@@ -194,7 +195,12 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
                 if self.is_list_terminator(ctx) {
                     break;
                 }
+
                 self.expect(TokenKind::Comma);
+
+                if start_pos == self.token.start() {
+                    self.next_token();
+                }
                 continue;
             }
             if self.is_list_terminator(ctx) || self.abort_parsing_list_or_move_to_next_token(ctx) {
