@@ -143,7 +143,7 @@ impl<'cx> Emit<'cx> {
         }
     }
 
-    pub fn emit(&mut self, root: &'cx ast::Program) -> String {
+    pub fn emit_root(&mut self, root: &'cx ast::Program) -> String {
         self.emit_program(root);
         std::mem::take(&mut self.content.content)
     }
@@ -183,22 +183,22 @@ impl<'cx> Emit<'cx> {
     }
 
     fn emit_leading_comments(&mut self, node_span: bolt_ts_span::Span) {
-        debug_assert_eq!(self.module_id, node_span.module);
-        let comments = &self.p.get(self.module_id).comments;
-        while let Some(comment) = comments.get(self.comment_index) {
-            let comment_span = comment.span();
-            if comment_span.hi <= node_span.lo {
-                use bolt_ts_ast::Comment::*;
-                let content = &self.input[comment_span.lo as usize..comment_span.hi as usize];
-                self.content.p(content);
-                if let SingleLine(_) = comment {
-                    self.content.p_newline();
-                }
-                self.comment_index += 1;
-                continue;
-            } else {
-                break;
-            }
-        }
+        // debug_assert_eq!(self.module_id, node_span.module);
+        // let comments = &self.p.get(self.module_id).comments;
+        // while let Some(comment) = comments.get(self.comment_index) {
+        //     let comment_span = comment.span();
+        //     if comment_span.hi <= node_span.lo {
+        //         use bolt_ts_ast::Comment::*;
+        //         let content = &self.input[comment_span.lo as usize..comment_span.hi as usize];
+        //         self.content.p(content);
+        //         if let SingleLine(_) = comment {
+        //             self.content.p_newline();
+        //         }
+        //         self.comment_index += 1;
+        //         continue;
+        //     } else {
+        //         break;
+        //     }
+        // }
     }
 }

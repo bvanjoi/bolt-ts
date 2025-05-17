@@ -1,4 +1,3 @@
-// From `github.com/microsoft/TypeScript/blob/v5.8.2/tests/cases/compiler/functionCall5.ts`, Apache-2.0 License
 var m1 = {};
 (function (m1) {
 

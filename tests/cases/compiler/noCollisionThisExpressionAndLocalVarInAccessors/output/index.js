@@ -1,4 +1,3 @@
-// From `github.com/microsoft/TypeScript/blob/v5.8.2/tests/cases/compiler/noCollisionThisExpressionAndLocalVarInAccessors.ts`, Apache-2.0 License
 class class1 {
   get a() {
     var x2 = {doStuff: (callback) => () => {

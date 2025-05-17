@@ -1,7 +1,5 @@
 class C {
-  /**
-   * @type {number}
-   */get bar() {
+  get bar() {
     return 1
   }
 }

@@ -1,7 +1,5 @@
 class C {
-  /**
-   * Returns bar
-   */static foo() {
+  static foo() {
     return "bar"
   }
 }

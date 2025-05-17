@@ -1,4 +1,3 @@
-// From `github.com/microsoft/TypeScript/blob/v5.8.2/tests/cases/compiler/thisInPropertyBoundDeclarations.ts`, Apache-2.0 License
 class Bug {
   name
   static func = [(that, name) => {
@@ -8,7 +7,6 @@ class Bug {
     this.name = name;
   }
 }
-// Valid use of this in a property bound decl
 class A {
   prop1 = function () {
     this;

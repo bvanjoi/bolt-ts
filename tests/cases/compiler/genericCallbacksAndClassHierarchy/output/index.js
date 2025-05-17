@@ -1,4 +1,3 @@
-// From `github.com/microsoft/TypeScript/blob/v5.8.2/tests/cases/compiler/genericCallbacksAndClassHierarchy.ts`, Apache-2.0 License
 var M = {};
 (function (M) {
 
@@ -21,7 +20,6 @@ var M = {};
     _subscribe(viewModel) {
       var f = (newValue) => {};
       var v = viewModel.value;
-      // both of these should work
       v.subscribe(f);
       v.subscribe((newValue) => {});
     }

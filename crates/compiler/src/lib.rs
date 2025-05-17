@@ -322,7 +322,7 @@ pub fn eval_from_with_fs<'cx>(
             } else {
                 let input = module_arena.get_content(item);
                 let mut emitter = emit::Emit::new(item, checker.atoms, input, compiler_options, &p);
-                Some((item, emitter.emit(p.root(item))))
+                Some((item, emitter.emit_root(p.root(item))))
             }
         })
         .collect::<Vec<_>>();

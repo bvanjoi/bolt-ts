@@ -1,4 +1,3 @@
-// From `github.com/microsoft/TypeScript/blob/v5.8.3/tests/cases/compiler/badThisBinding.ts`, Apache-2.0 License
 
 
 class Greeter {

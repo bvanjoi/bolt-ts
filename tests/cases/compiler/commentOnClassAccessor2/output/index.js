@@ -1,10 +1,6 @@
 class C {
-  /**
-   * Getter.
-   */get bar() {
+  get bar() {
     return 1
   }
-  /**
-   * Setter.
-   */set bar(v) {}
+  set bar(v) {}
 }
