@@ -239,9 +239,8 @@ fn parse<'cx, 'p>(
     default_lib_dir: &std::path::Path,
 ) -> ParseResult<'cx> {
     let nodes = Nodes(Vec::with_capacity(1024 * 8));
-    let parent_map = bind::ParentMap::default();
     let file_path = module_arena.get_path(module_id);
-    let mut s = ParserState::new(atoms, arena, nodes, parent_map, input, module_id, file_path);
+    let mut s = ParserState::new(atoms, arena, nodes, input, module_id, file_path);
 
     s.parse();
 
@@ -272,7 +271,7 @@ fn parse<'cx, 'p>(
     ParseResult {
         diags: s.diags,
         nodes: s.nodes,
-        parent_map: s.parent_map,
+        parent_map: Default::default(),
         node_flags_map: s.node_flags_map,
         external_module_indicator: s.external_module_indicator,
         commonjs_module_indicator: s.commonjs_module_indicator,
