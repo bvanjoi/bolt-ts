@@ -64,11 +64,11 @@ impl ParserState<'_, '_> {
         unsafe { *self.input.get_unchecked(self.pos) }
     }
 
-    pub(super) fn next_ch(&self) -> Option<u8> {
+    fn next_ch(&self) -> Option<u8> {
         self.input.get(self.pos + 1).copied()
     }
 
-    pub(super) fn next_next_ch(&self) -> Option<u8> {
+    fn next_next_ch(&self) -> Option<u8> {
         self.input.get(self.pos + 2).copied()
     }
 
@@ -418,6 +418,10 @@ impl ParserState<'_, '_> {
                                 self.pos += 1;
                             }
                         }
+                        let c = bolt_ts_ast::SingleLineComment {
+                            span: Span::new(start as u32, self.pos as u32, self.module_id),
+                        };
+                        self.comments.push(bolt_ts_ast::Comment::SingleLine(c));
                         continue;
                     } else if self.next_ch() == Some(b'*') {
                         // `/*`
@@ -430,6 +434,10 @@ impl ParserState<'_, '_> {
                                 self.pos += 1;
                             }
                         }
+                        let c = bolt_ts_ast::MultiLineComment {
+                            span: Span::new(start as u32, self.pos as u32, self.module_id),
+                        };
+                        self.comments.push(bolt_ts_ast::Comment::MultiLine(c));
                         continue;
                     } else if self.next_ch() == Some(b'=') {
                         self.pos += 2;

@@ -37,6 +37,7 @@ macro_rules! ty_kind_as_object_ty_kind {
                     self.[<as_object_ $name>]().is_some()
                 }
                 #[inline(always)]
+                #[track_caller]
                 pub fn [<expect_object_ $name>](&self) -> $ty {
                     self.[<as_object_ $name>]().unwrap()
                 }

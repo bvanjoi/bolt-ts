@@ -34,9 +34,8 @@ impl<'cx> BinderState<'cx, '_, '_> {
         if node.is_ret() {
             self.has_explicit_ret = true;
             if let Some(current_return_target) = self.current_return_target {
-                // TODO:
-                // self.flow_nodes
-                //     .add_antecedent(current_return_target, self.current_flow.unwrap());
+                self.flow_nodes
+                    .add_antecedent(current_return_target, self.current_flow.unwrap());
             }
         }
         self.current_flow = Some(self.unreachable_flow_node);

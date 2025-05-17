@@ -1,5 +1,6 @@
 mod errors;
 mod expr;
+mod factory;
 mod list_ctx;
 mod lookahead;
 mod nodes;
@@ -77,6 +78,7 @@ pub struct ParseResult<'cx> {
     pub external_module_indicator: Option<ast::NodeID>,
     pub commonjs_module_indicator: Option<ast::NodeID>,
     pub comment_directives: Vec<CommentDirective>,
+    pub comments: Vec<ast::Comment>,
     pub lib_references: Vec<PathId>,
     pub line_map: Vec<u32>,
     pub filepath: AtomId,
@@ -237,9 +239,8 @@ fn parse<'cx, 'p>(
     default_lib_dir: &std::path::Path,
 ) -> ParseResult<'cx> {
     let nodes = Nodes(Vec::with_capacity(1024 * 8));
-    let parent_map = bind::ParentMap::default();
     let file_path = module_arena.get_path(module_id);
-    let mut s = ParserState::new(atoms, arena, nodes, parent_map, input, module_id, file_path);
+    let mut s = ParserState::new(atoms, arena, nodes, input, module_id, file_path);
 
     s.parse();
 
@@ -270,11 +271,12 @@ fn parse<'cx, 'p>(
     ParseResult {
         diags: s.diags,
         nodes: s.nodes,
-        parent_map: s.parent_map,
+        parent_map: Default::default(),
         node_flags_map: s.node_flags_map,
         external_module_indicator: s.external_module_indicator,
         commonjs_module_indicator: s.commonjs_module_indicator,
         comment_directives: s.comment_directives,
+        comments: s.comments,
         line_map: s.line_map,
         filepath: s.filepath,
         is_declaration: s.is_declaration,

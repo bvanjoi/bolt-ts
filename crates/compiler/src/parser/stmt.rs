@@ -6,6 +6,7 @@ use bolt_ts_ast::{NodeFlags, VarDecls};
 use super::ast;
 use super::errors;
 use super::list_ctx;
+use super::lookahead::Lookahead;
 use super::parse_class_like::ParseClassDecl;
 use super::parse_fn_like::ParseFnDecl;
 use super::parse_import_export_spec::ParseNamedExports;
@@ -639,7 +640,8 @@ impl<'cx> ParserState<'cx, '_> {
             if (i.name == keyword::KW_TYPE)
                 && (!matches!(t, TokenKind::From)
                     || (self.is_ident()
-                        && self.lookahead(Self::next_token_is_from_keyword_or_eq_token)))
+                        && (Lookahead { p: self })
+                            .lookahead(Lookahead::next_token_is_from_keyword_or_eq_token)))
                 && (self.is_ident() || matches!(t, TokenKind::Asterisk | TokenKind::LBrace))
             {
                 is_type_only = true;

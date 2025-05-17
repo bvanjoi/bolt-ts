@@ -10,6 +10,7 @@ mod container_flags;
 mod create;
 pub(crate) mod errors;
 mod flow;
+mod flow_in_node;
 mod merge;
 mod node_query;
 mod parent_map;
@@ -27,6 +28,7 @@ use bolt_ts_utils::fx_hashmap_with_capacity;
 
 pub(crate) use self::create::set_value_declaration;
 pub use self::flow::{FlowFlags, FlowID, FlowNode, FlowNodeKind, FlowNodes};
+pub use self::flow_in_node::{FlowInNode, FlowInNodes};
 pub(crate) use self::merge::merge_global_symbol;
 pub(crate) use self::merge::{MergeGlobalSymbolResult, MergeSymbol, MergedSymbols};
 pub use self::node_query::NodeQuery;
@@ -126,6 +128,7 @@ struct BinderState<'cx, 'atoms, 'parser> {
     // TODO: use `NodeId::index` is enough
     final_res: FxHashMap<ast::NodeID, SymbolID>,
     flow_nodes: FlowNodes<'cx>,
+    flow_in_nodes: FlowInNodes,
     parent_map: self::parent_map::ParentMap,
 }
 
@@ -180,6 +183,7 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
 
         let in_strict_mode = !parser.is_declaration || *options.compiler_options().always_strict();
         let parent_map = ParentMap::new(parser.node_len());
+        let flow_in_nodes = FlowInNodes::new(parser.node_len());
 
         BinderState {
             atoms,
@@ -191,6 +195,8 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
             diags: Vec::new(),
 
             flow_nodes,
+            flow_in_nodes,
+
             in_strict_mode,
             in_assignment_pattern: false,
             seen_this_keyword: false,
@@ -236,6 +242,7 @@ pub struct BinderResult<'cx> {
     // TODO: use `NodeId::index` is enough
     pub(crate) final_res: FxHashMap<ast::NodeID, SymbolID>,
     pub(crate) flow_nodes: FlowNodes<'cx>,
+    pub(crate) flow_in_nodes: FlowInNodes,
 }
 
 impl<'cx> BinderResult<'cx> {
@@ -246,6 +253,7 @@ impl<'cx> BinderResult<'cx> {
             locals: state.locals,
             final_res: state.final_res,
             flow_nodes: state.flow_nodes,
+            flow_in_nodes: state.flow_in_nodes,
         }
     }
 }

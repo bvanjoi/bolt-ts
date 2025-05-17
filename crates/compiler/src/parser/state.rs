@@ -24,7 +24,6 @@ pub(super) struct ParserState<'cx, 'p> {
     pub(super) module_id: ModuleID,
     pub(super) diags: Vec<bolt_ts_errors::Diag>,
     pub(super) nodes: Nodes<'cx>,
-    pub(super) parent_map: crate::bind::ParentMap,
     pub(super) node_flags_map: NodeFlagsMap,
     pub(super) arena: &'p bumpalo_herd::Member<'cx>,
     pub(super) context_flags: NodeFlags,
@@ -34,6 +33,7 @@ pub(super) struct ParserState<'cx, 'p> {
     pub(super) pragmas: PragmaMap,
     pub(super) has_export_decl: bool,
     pub(super) comment_directives: Vec<CommentDirective>,
+    pub(super) comments: Vec<ast::Comment>,
     pub(super) line: usize,
     pub(super) line_start: usize, // offset
     pub(super) line_map: Vec<u32>,
@@ -48,7 +48,6 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         atoms: Arc<Mutex<AtomMap<'cx>>>,
         arena: &'p bumpalo_herd::Member<'cx>,
         nodes: Nodes<'cx>,
-        parent_map: crate::bind::ParentMap,
         input: &'p [u8],
         module_id: ModuleID,
         file_path: &std::path::Path,
@@ -80,13 +79,15 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
             token_flags: TokenFlags::empty(),
             arena,
             nodes,
-            parent_map,
             context_flags,
             node_flags_map: NodeFlagsMap::new(),
             external_module_indicator: None,
             commonjs_module_indicator: None,
             has_export_decl: false,
+
             comment_directives: Vec::with_capacity(16),
+            comments: Vec::with_capacity(256),
+
             line_start: 0,
             line_map: Vec::with_capacity(input.len() / 12),
             line: 0,
@@ -184,6 +185,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         let mut list = Vec::with_capacity(8);
         loop {
             if ctx.is_ele(self, false) {
+                let start_pos = self.token.start();
                 let Ok(ele) = ele(self) else {
                     break;
                 };
@@ -194,7 +196,12 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
                 if self.is_list_terminator(ctx) {
                     break;
                 }
+
                 self.expect(TokenKind::Comma);
+
+                if start_pos == self.token.start() {
+                    self.next_token();
+                }
                 continue;
             }
             if self.is_list_terminator(ctx) || self.abort_parsing_list_or_move_to_next_token(ctx) {

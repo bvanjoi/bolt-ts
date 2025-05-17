@@ -132,3 +132,28 @@ impl<'cx> DeclarationName<'cx> {
         }
     }
 }
+
+#[derive(Debug, Clone, Copy)]
+pub struct SingleLineComment {
+    pub span: Span,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct MultiLineComment {
+    pub span: Span,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub enum Comment {
+    SingleLine(SingleLineComment),
+    MultiLine(MultiLineComment),
+}
+
+impl Comment {
+    pub fn span(&self) -> Span {
+        match self {
+            Comment::SingleLine(c) => c.span,
+            Comment::MultiLine(c) => c.span,
+        }
+    }
+}

@@ -182,3 +182,10 @@ pub(super) struct DeclarationOrStatementExpected {
     #[label(primary)]
     pub(super) span: Span,
 }
+
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
+#[error("An object member cannot be declared optional.")]
+pub(super) struct AnObjectMemberCannotBeDeclaredOptional {
+    #[label(primary)]
+    pub(super) span: Span,
+}

@@ -97,8 +97,8 @@ use self::type_predicate::TyPred;
 use self::utils::contains_ty;
 
 use crate::bind::{
-    self, FlowID, FlowNodes, GlobalSymbols, MergedSymbols, ResolveResult, Symbol, SymbolFlags,
-    SymbolID, SymbolName, SymbolTable, Symbols,
+    self, FlowID, FlowInNodes, FlowNodes, GlobalSymbols, MergedSymbols, ResolveResult, Symbol,
+    SymbolFlags, SymbolID, SymbolName, SymbolTable, Symbols,
 };
 use crate::graph::ModuleGraph;
 use crate::parser::{AccessKind, AssignmentKind, Parser};
@@ -174,7 +174,14 @@ pub struct TyChecker<'cx> {
     arena: &'cx bumpalo::Bump,
     pub(super) tys: Vec<&'cx ty::Ty<'cx>>,
     sigs: Vec<&'cx Sig<'cx>>,
+
     flow_nodes: Vec<FlowNodes<'cx>>,
+    flow_in_nodes: Vec<FlowInNodes>,
+    last_flow_node: Option<FlowID>,
+    last_flow_reachable: bool,
+    // TODO: use `Vec<Vec<bool>>`
+    flow_node_reachable: FxHashMap<FlowID, bool>,
+
     num_lit_tys: nohash_hasher::IntMap<F64Represent, &'cx ty::Ty<'cx>>,
     string_lit_tys: nohash_hasher::IntMap<AtomId, &'cx ty::Ty<'cx>>,
     bigint_lit_tys: FxHashMap<(bool, AtomId), &'cx ty::Ty<'cx>>,
@@ -315,6 +322,7 @@ impl<'cx> TyChecker<'cx> {
         atoms: &'cx mut AtomMap<'cx>,
         config: &'cx NormalizedCompilerOptions,
         flow_nodes: Vec<FlowNodes<'cx>>,
+        flow_in_nodes: Vec<FlowInNodes>,
         module_arena: &'cx bolt_ts_span::ModuleArena,
         binder: &'cx mut bind::Binder,
         merged_symbols: &'cx mut MergedSymbols,
@@ -483,7 +491,11 @@ impl<'cx> TyChecker<'cx> {
             mark_tys: no_hashset_with_capacity(1024 * 4),
 
             shared_flow_info: Vec::with_capacity(1024),
+            flow_node_reachable: fx_hashmap_with_capacity(flow_nodes.len() * 128),
             flow_nodes,
+            flow_in_nodes,
+            last_flow_node: None,
+            last_flow_reachable: false,
 
             error_symbol,
             global_this_symbol,
@@ -2087,12 +2099,12 @@ impl<'cx> TyChecker<'cx> {
             EqEqEq => self.boolean_ty(),
             Less => self.boolean_ty(),
             LessEq => self.boolean_ty(),
-            Shl => todo!(),
+            Shl => self.number_ty,
             Great => self.boolean_ty(),
-            GreatEq => todo!(),
-            Shr => todo!(),
-            UShr => todo!(),
-            BitAnd => todo!(),
+            GreatEq => self.boolean_ty(),
+            Shr => self.number_ty,
+            UShr => self.number_ty,
+            BitAnd => self.number_ty,
             Instanceof => self.boolean_ty(),
             In => self.check_in_expr(left, left_ty, right, right_ty),
             Satisfies => todo!(),
@@ -2179,13 +2191,28 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
-    pub fn check_and_aggregate_ret_expr_tys(
+    fn fn_has_implicit_return(&mut self, f: ast::NodeID) -> bool {
+        debug_assert!(
+            self.p.node(f).is_fn_like(),
+            "fn_has_implicit_return: {:#?}",
+            self.p.node(f)
+        );
+        let n = self.get_flow_in_node_of_node(f);
+        use bind::FlowInNode::*;
+        match n {
+            Noop => false,
+            FnLike(f) => f
+                .end_flow_node
+                .is_some_and(|n| self.is_reachable_flow_node(n)),
+        }
+    }
+
+    pub(super) fn check_and_aggregate_ret_expr_tys(
         &mut self,
         f: ast::NodeID,
         body: &'cx ast::BlockStmt<'cx>,
     ) -> Option<Vec<&'cx ty::Ty<'cx>>> {
-        let flags = self.p.node(f).fn_flags();
-        let mut has_ret_with_no_expr = false;
+        let mut has_ret_with_no_expr = self.fn_has_implicit_return(f);
         let mut has_ret_of_ty_never = false;
 
         fn for_each_ret_stmt<'cx, T: Copy + Debug>(
@@ -2284,7 +2311,12 @@ impl<'cx> TyChecker<'cx> {
             &mut has_ret_of_ty_never,
         );
 
-        if tys.is_empty() && !has_ret_with_no_expr && has_ret_of_ty_never {
+        let may_return_never = || {
+            let func = self.p.node(f);
+            func.is_fn_expr() || func.is_arrow_fn_expr() || func.is_object_method_member()
+        };
+
+        if tys.is_empty() && !has_ret_with_no_expr && (has_ret_of_ty_never || may_return_never()) {
             None
         } else {
             Some(tys)

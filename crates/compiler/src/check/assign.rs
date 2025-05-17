@@ -65,4 +65,14 @@ impl<'cx> TyChecker<'cx> {
             todo!()
         }
     }
+
+    pub(super) fn assign_non_contextual_param_tys(&mut self, sig: &'cx ty::Sig<'cx>) {
+        if let Some(this_param) = sig.this_param {
+            // TODO:
+        }
+
+        for param in sig.params {
+            // TODO:
+        }
+    }
 }

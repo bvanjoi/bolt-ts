@@ -627,3 +627,13 @@ pub(super) struct PropertyIsPrivateAndOnlyAccessibleWithinClass {
     pub(super) span: Span,
     pub(super) prop: String,
 }
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
+#[error("Interface '{interface}' cannot simultaneously extend types '{ty1}' and '{ty2}'.")]
+pub(super) struct Interface0CannotSimultaneouslyExtendTypes1And2 {
+    #[label(primary)]
+    pub(super) span: Span,
+    pub(super) interface: String,
+    pub(super) ty1: String,
+    pub(super) ty2: String,
+}

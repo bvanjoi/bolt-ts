@@ -9,6 +9,7 @@ impl<'cx> Emit<'cx> {
         match stmt.kind {
             Var(var) => self.emit_var_stmt(var),
             Expr(expr) => {
+                self.emit_leading_comments(expr.span);
                 self.emit_expr(expr.expr);
                 self.content.p_semi();
             }
@@ -35,6 +36,8 @@ impl<'cx> Emit<'cx> {
             Empty(_) => {}
             Debugger(_) => self.content.p("debugger"),
             ExportAssign(n) => {
+                self.emit_leading_comments(n.span);
+
                 self.content.p("export default");
                 self.emit_expr(n.expr);
                 self.content.p_semi();
@@ -43,6 +46,8 @@ impl<'cx> Emit<'cx> {
     }
 
     fn emit_while_stmt(&mut self, n: &'cx ast::WhileStmt<'cx>) {
+        self.emit_leading_comments(n.span);
+
         self.content.p("while");
         self.content.p_whitespace();
 
@@ -55,6 +60,8 @@ impl<'cx> Emit<'cx> {
     }
 
     fn emit_do_stmt(&mut self, n: &'cx ast::DoStmt<'cx>) {
+        self.emit_leading_comments(n.span);
+
         self.content.p("do");
         self.content.p_whitespace();
         self.emit_stmt(n.stmt);
@@ -67,6 +74,8 @@ impl<'cx> Emit<'cx> {
     }
 
     fn emit_try_stmt(&mut self, n: &'cx ast::TryStmt<'cx>) {
+        self.emit_leading_comments(n.span);
+
         self.content.p("try");
         self.content.p_whitespace();
         self.emit_block_stmt(n.try_block);
@@ -94,6 +103,8 @@ impl<'cx> Emit<'cx> {
     }
 
     fn emit_break_stmt(&mut self, n: &'cx ast::BreakStmt<'cx>) {
+        self.emit_leading_comments(n.span);
+
         self.content.p("break");
         if let Some(label) = n.label {
             self.content.p_whitespace();
@@ -103,6 +114,8 @@ impl<'cx> Emit<'cx> {
     }
 
     fn emit_continue_stmt(&mut self, n: &'cx ast::ContinueStmt<'cx>) {
+        self.emit_leading_comments(n.span);
+
         self.content.p("continue");
         if let Some(label) = n.label {
             self.content.p_whitespace();
@@ -124,6 +137,8 @@ impl<'cx> Emit<'cx> {
     }
 
     fn emit_for_stmt(&mut self, n: &'cx ast::ForStmt<'cx>) {
+        self.emit_leading_comments(n.span);
+
         self.content.p("for");
         self.content.p_whitespace();
         self.content.p("(");
@@ -147,6 +162,8 @@ impl<'cx> Emit<'cx> {
     }
 
     fn emit_for_in_stmt(&mut self, n: &'cx ast::ForInStmt<'cx>) {
+        self.emit_leading_comments(n.span);
+
         self.content.p("for");
         self.content.p_whitespace();
         self.content.p("(");
@@ -162,6 +179,8 @@ impl<'cx> Emit<'cx> {
     }
 
     fn emit_for_of_stmt(&mut self, n: &'cx ast::ForOfStmt<'cx>) {
+        self.emit_leading_comments(n.span);
+
         self.content.p("for");
         self.content.p_whitespace();
         if n.r#await.is_some() {
@@ -197,6 +216,8 @@ impl<'cx> Emit<'cx> {
     }
 
     fn emit_export_decl(&mut self, n: &'cx ast::ExportDecl<'cx>) {
+        self.emit_leading_comments(n.span);
+
         self.content.p("export");
         self.content.p_whitespace();
         match n.clause.kind {
@@ -299,6 +320,8 @@ impl<'cx> Emit<'cx> {
     }
 
     fn emit_import_decl(&mut self, n: &'cx ast::ImportDecl<'cx>) {
+        self.emit_leading_comments(n.span);
+
         self.content.p("import");
         self.content.p_whitespace();
         self.emit_import_clause(n.clause);
@@ -309,12 +332,15 @@ impl<'cx> Emit<'cx> {
     }
 
     fn emit_throw_stmt(&mut self, t: &'cx ast::ThrowStmt<'cx>) {
+        self.emit_leading_comments(t.span);
         self.content.p("throw");
         self.content.p_whitespace();
         self.emit_expr(t.expr);
     }
 
     fn emit_enum_decl(&mut self, e: &'cx ast::EnumDecl) {
+        self.emit_leading_comments(e.span);
+
         if e.modifiers
             .map(|ms| ms.flags.contains(ast::ModifierKind::Ambient))
             .unwrap_or_default()
@@ -488,6 +514,8 @@ impl<'cx> Emit<'cx> {
     }
 
     fn emit_module_decl(&mut self, ns: &'cx ast::ModuleDecl) {
+        self.emit_leading_comments(ns.span);
+
         if ns
             .modifiers
             .map(|ms| ms.flags.contains(ast::ModifierKind::Ambient))
@@ -614,10 +642,12 @@ impl<'cx> Emit<'cx> {
     }
 
     fn emit_class_decl(&mut self, class: &'cx ast::ClassDecl<'cx>) {
+        self.emit_leading_comments(class.span);
         self.emit_class_like(class);
     }
 
     fn emit_ret_stmt(&mut self, ret: &'cx ast::RetStmt<'cx>) {
+        self.emit_leading_comments(ret.span);
         self.content.p("return");
         self.content.p_whitespace();
         if let Some(expr) = ret.expr {
@@ -626,6 +656,7 @@ impl<'cx> Emit<'cx> {
     }
 
     fn emit_if_stmt(&mut self, stmt: &'cx ast::IfStmt<'cx>) {
+        self.emit_leading_comments(stmt.span);
         self.content.p("if");
         self.content.p_whitespace();
         // test
@@ -656,6 +687,7 @@ impl<'cx> Emit<'cx> {
     }
 
     fn emit_fn_decl(&mut self, f: &'cx ast::FnDecl) {
+        self.emit_leading_comments(f.span);
         if let Some(body) = f.body {
             self.content.p("function");
             self.content.p_whitespace();
@@ -667,6 +699,7 @@ impl<'cx> Emit<'cx> {
     }
 
     fn emit_var_stmt(&mut self, var: &'cx ast::VarStmt<'cx>) {
+        self.emit_leading_comments(var.span);
         self.content.p("var");
         self.content.p_whitespace();
         self.emit_var_decls(var.list);

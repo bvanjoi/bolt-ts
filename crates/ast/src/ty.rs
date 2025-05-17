@@ -1,6 +1,6 @@
+use super::*;
 use crate::keyword;
 
-use super::*;
 use bolt_ts_atom::AtomId;
 
 #[derive(Debug, Clone, Copy)]

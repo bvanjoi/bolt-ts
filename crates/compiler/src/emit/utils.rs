@@ -31,6 +31,7 @@ impl<'cx> Emit<'cx> {
     }
 
     pub(super) fn emit_block_stmt(&mut self, block: &'cx ast::BlockStmt<'cx>) {
+        self.emit_leading_comments(block.span);
         self.emit_block_like(block);
     }
 

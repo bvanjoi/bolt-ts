@@ -1,6 +1,6 @@
 use super::TyChecker;
 use super::type_predicate::TyPred;
-use crate::bind::{FlowFlags, FlowID, FlowNode, FlowNodeKind};
+use crate::bind::{FlowFlags, FlowID, FlowInNode, FlowNode, FlowNodeKind};
 use crate::check::create_ty::IntersectionFlags;
 use crate::check::type_predicate::TyPredKind;
 use crate::ty::{self, ObjectFlags, TypeFlags};
@@ -25,12 +25,16 @@ impl FlowTy<'_> {
 }
 
 impl<'cx> TyChecker<'cx> {
-    fn get_flow_node_of_node(&self, node: ast::NodeID) -> Option<FlowID> {
+    pub(super) fn get_flow_node_of_node(&self, node: ast::NodeID) -> Option<FlowID> {
         self.flow_nodes[node.module().as_usize()].get_flow_node_of_node(node)
     }
 
     fn flow_node(&self, id: FlowID) -> &FlowNode<'cx> {
         self.flow_nodes[id.module().as_usize()].get_flow_node(id)
+    }
+
+    pub(super) fn get_flow_in_node_of_node(&self, node: ast::NodeID) -> FlowInNode {
+        self.flow_in_nodes[node.module().as_usize()].get(node)
     }
 
     pub(super) fn get_flow_ty_of_reference(
@@ -436,5 +440,41 @@ impl<'cx> TyChecker<'cx> {
         // } else {
         //     ty
         // }
+    }
+
+    pub(super) fn is_reachable_flow_node(&mut self, id: FlowID) -> bool {
+        let result = self._is_reachable_flow_node(id, false);
+        self.last_flow_node = Some(id);
+        self.last_flow_reachable = result;
+        result
+    }
+
+    fn _is_reachable_flow_node(&mut self, mut flow: FlowID, mut no_cache_check: bool) -> bool {
+        loop {
+            if self.last_flow_node.is_some_and(|l| l == flow) {
+                return self.last_flow_reachable;
+            }
+            let f = self.flow_node(flow);
+            let flags = f.flags;
+            if flags.contains(FlowFlags::SHARED) {
+                if !no_cache_check {
+                    if let Some(reachable) = self.flow_node_reachable.get(&flow).copied() {
+                        return reachable;
+                    } else {
+                        let reachable = self._is_reachable_flow_node(flow, true);
+                        self.flow_node_reachable.insert(flow, reachable);
+                        return reachable;
+                    }
+                }
+                no_cache_check = true;
+            }
+
+            match f.kind {
+                FlowNodeKind::Assign(n) => flow = n.antecedent,
+                FlowNodeKind::Cond(n) => flow = n.antecedent,
+                // TODO: handle other kinds
+                _ => return !flags.contains(FlowFlags::UNREACHABLE),
+            }
+        }
     }
 }

@@ -217,10 +217,15 @@ pub fn eval_from_with_fs<'cx>(
         global_symbols,
     } = bind::merge_global_symbol(&p, &atoms, bind_list, &module_arena);
 
-    let flow_nodes = bind_list
+    let (flow_nodes, flow_in_nodes) = bind_list
         .iter_mut()
-        .map(|x| std::mem::take(&mut x.flow_nodes))
-        .collect::<Vec<_>>();
+        .map(|x| {
+            (
+                std::mem::take(&mut x.flow_nodes),
+                std::mem::take(&mut x.flow_in_nodes),
+            )
+        })
+        .collect::<(Vec<_>, Vec<_>)>();
 
     // ==== name resolution ====
     let early_resolve_result = early_resolve_parallel(
@@ -289,6 +294,7 @@ pub fn eval_from_with_fs<'cx>(
         &mut atoms,
         tsconfig.compiler_options(),
         flow_nodes,
+        flow_in_nodes,
         &module_arena,
         &mut binder,
         &mut merged_symbols,
@@ -314,9 +320,9 @@ pub fn eval_from_with_fs<'cx>(
             if module_arena.get_module(item).is_default_lib {
                 None
             } else {
-                let input_len = module_arena.get_content(item).len();
-                let mut emitter = emit::Emit::new(checker.atoms, input_len, compiler_options, &p);
-                Some((item, emitter.emit(p.root(item))))
+                let input = module_arena.get_content(item);
+                let mut emitter = emit::Emit::new(item, checker.atoms, input, compiler_options, &p);
+                Some((item, emitter.emit_root(p.root(item))))
             }
         })
         .collect::<Vec<_>>();
