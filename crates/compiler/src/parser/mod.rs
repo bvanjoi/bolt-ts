@@ -1,5 +1,6 @@
 mod errors;
 mod expr;
+mod factory;
 mod list_ctx;
 mod lookahead;
 mod nodes;

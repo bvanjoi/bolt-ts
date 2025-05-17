@@ -1624,8 +1624,27 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
                     .intersects(ObjectFlags::FRESH_LITERAL))
             && self.c.is_object_ty_with_inferable_index(source)
         {
-            self.members_related_to_index_info(source, target, report_error, intersection_state)
+            return self.members_related_to_index_info(
+                source,
+                target,
+                report_error,
+                intersection_state,
+            );
         } else {
+            // if report_error {
+            // let error = errors::IndexSignatureForType0IsMissingInType1 {
+            //     span: self
+            //         .c
+            //         .p
+            //         .node(self.c.symbol(source.symbol().unwrap()).opt_decl().unwrap())
+            //         .ident_name()
+            //         .unwrap()
+            //         .span,
+            //     index_sig_ty: target.key_ty.to_string(self.c),
+            //     ty: source.to_string(self.c),
+            // };
+            // self.c.push_error(Box::new(error));
+            // }
             Ternary::FALSE
         }
     }
@@ -1651,6 +1670,15 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
                 && target_info.val_ty.flags.intersects(TypeFlags::ANY)
             {
                 Ternary::TRUE
+            } else if target_has_string_index && self.c.is_generic_mapped_ty(source) {
+                let s = self.c.get_template_ty_from_mapped_ty(source);
+                self.is_related_to(
+                    s,
+                    target_info.val_ty,
+                    RecursionFlags::BOTH,
+                    report_error,
+                    IntersectionState::empty(),
+                )
             } else {
                 self.type_related_to_index_info(
                     source,

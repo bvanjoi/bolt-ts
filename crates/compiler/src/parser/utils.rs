@@ -660,8 +660,7 @@ impl<'cx> ParserState<'cx, '_> {
 
     pub(super) fn parse_num_lit(&mut self, val: f64, neg: bool) -> &'cx ast::NumLit {
         let val = if neg { -val } else { val };
-        let lit = self.create_lit(val, self.token.span);
-        self.nodes.insert(lit.id, ast::Node::NumLit(lit));
+        let lit = self.create_numeric_literal(val, self.token.span);
         self.next_token();
         lit
     }

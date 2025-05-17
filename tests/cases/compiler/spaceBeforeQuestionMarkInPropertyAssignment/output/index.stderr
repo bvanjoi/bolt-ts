@@ -1,0 +1,5 @@
+  × An object member cannot be declared optional.
+   ╭─[../../tests/cases/compiler/spaceBeforeQuestionMarkInPropertyAssignment/index.ts:3:12]
+ 3 │ ?
+   · ─
+   ╰────
