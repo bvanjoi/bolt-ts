@@ -908,13 +908,13 @@ impl<'cx> ParserState<'cx, '_> {
 
     fn parse_ident_or_pat(&mut self) -> PResult<&'cx ast::Binding<'cx>> {
         use bolt_ts_ast::TokenKind::*;
-        let span = self.token.start();
+        let start = self.token.start();
         let kind = match self.token.kind {
             LBracket => ast::BindingKind::ArrayPat(self.parse_array_binding_pat()?),
             LBrace => ast::BindingKind::ObjectPat(self.parse_object_binding_pat()?),
             _ => ast::BindingKind::Ident(self.parse_binding_ident()),
         };
-        let span = self.new_span(span);
+        let span = self.new_span(start);
         let id = self.next_node_id();
         let binding = self.alloc(ast::Binding { id, span, kind });
         self.nodes.insert(id, ast::Node::Binding(binding));

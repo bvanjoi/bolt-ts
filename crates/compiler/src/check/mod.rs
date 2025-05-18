@@ -1892,7 +1892,7 @@ impl<'cx> TyChecker<'cx> {
             }
         }
 
-        let decl = if symbol == self.global_this_symbol {
+        let mut decl = if symbol == self.global_this_symbol {
             return ty;
         } else if let Some(decl) = symbol.opt_decl(self.binder) {
             decl
@@ -1900,11 +1900,22 @@ impl<'cx> TyChecker<'cx> {
             return ty;
         };
 
-        let is_alias = self
-            .binder
-            .symbol(symbol)
-            .flags
-            .intersects(SymbolFlags::ALIAS);
+        let s = self.binder.symbol(symbol);
+        let is_alias = s.flags.contains(SymbolFlags::ALIAS);
+
+        if s.flags.intersects(SymbolFlags::VARIABLE) {
+            if assignment_kind == AssignmentKind::Definite {
+                // TODO: is_in_compound_like_assignment
+                return ty;
+            }
+        } else if is_alias {
+            let Some(d) = s.get_decl_of_alias_symbol(self.p) else {
+                return ty;
+            };
+            decl = d;
+        } else {
+            return ty;
+        }
 
         let immediate_decl = decl;
 
@@ -2581,8 +2592,13 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
-    fn is_matching_reference(&self, source: ast::NodeID, target: ast::NodeID) -> bool {
+    fn is_matching_reference(&mut self, source: ast::NodeID, target: ast::NodeID) -> bool {
         let t = self.p.node(target);
+        match t {
+            ParenExpr(t) => return self.is_matching_reference(source, t.expr.id()),
+            NonNullExpr(t) => return self.is_matching_reference(source, t.expr.id()),
+            _ => (),
+        }
         let s = self.p.node(source);
         use bolt_ts_ast::Node::*;
 
@@ -2597,7 +2613,11 @@ impl<'cx> TyChecker<'cx> {
                         bolt_ts_ast::BindingKind::Ident(_) => {
                             self.resolve_symbol_by_ident(s_ident) == self.get_symbol_of_decl(t_v.id)
                         }
-                        bolt_ts_ast::BindingKind::ObjectPat(_) => todo!(),
+                        bolt_ts_ast::BindingKind::ObjectPat(_) => {
+                            let s = self.resolve_symbol_by_ident(s_ident);
+                            self.get_export_symbol_of_value_symbol_if_exported(s)
+                                == self.get_symbol_of_decl(t_v.binding.id)
+                        }
                         bolt_ts_ast::BindingKind::ArrayPat(_) => todo!(),
                     }
                 } else if t.is_object_binding_elem() {
@@ -2611,7 +2631,7 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
-    fn is_or_contain_matching_refer(&self, source: ast::NodeID, target: ast::NodeID) -> bool {
+    fn is_or_contain_matching_refer(&mut self, source: ast::NodeID, target: ast::NodeID) -> bool {
         self.is_matching_reference(source, target)
     }
 
