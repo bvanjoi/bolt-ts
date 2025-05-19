@@ -495,14 +495,10 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
         match n.kind {
             Ident(n) => self.bind(n.id),
             ObjectPat(n) => {
-                for elem in n.elems {
-                    self.bind(elem.id);
-                }
+                self.bind(n.id);
             }
             ArrayPat(n) => {
-                for elem in n.elems {
-                    self.bind(elem.id);
-                }
+                self.bind(n.id);
             }
         }
     }
@@ -798,8 +794,10 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
                     self.bind(elem.id);
                 }
             }
-            ArrayPat(_) => {
-                // TODO:
+            ArrayPat(n) => {
+                for elem in n.elems {
+                    self.bind(elem.id);
+                }
             }
             Binding(n) => self.bind_binding(n),
             OmitExpr(_) => {}

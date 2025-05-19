@@ -454,6 +454,7 @@ impl<'cx> Node<'cx> {
                 | ObjectLit(_)
                 | Program(_)
                 | ModuleDecl(_)
+                | Binding(_)
         )
     }
 

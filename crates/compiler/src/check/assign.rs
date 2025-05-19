@@ -1,26 +1,183 @@
 use super::TyChecker;
 use super::symbol_info::SymbolInfo;
 use crate::bind::SymbolID;
-use crate::ty;
+use crate::check::SymbolLinks;
+use crate::check::check_expr::IterationUse;
+use crate::ty::{self, AccessFlags};
 
 impl<'cx> TyChecker<'cx> {
     fn assign_param_ty(&mut self, param: SymbolID, ctx: Option<&'cx ty::Ty<'cx>>) {
         if let Some(ty) = self.get_symbol_links(param).get_ty() {
             if let Some(ctx) = ctx {
-                assert_eq!(
-                    ctx, ty,
+                assert!(
+                    ctx == ty,
                     "Parameter symbol already has a cached type which differs from newly assigned type"
                 )
             }
             return;
         }
-        let decl = param.decl(self.binder);
+        let decl_id = param.decl(self.binder);
+        let decl = self.p.node(decl_id).expect_param_decl();
         let ty = if let Some(ctx) = ctx {
             ctx
         } else {
-            self.get_widened_ty_for_var_like_decl(self.p.node(decl).expect_param_decl())
+            self.get_widened_ty_for_var_like_decl(decl)
         };
         self.get_mut_symbol_links(param).set_ty(ty);
+
+        use bolt_ts_ast::BindingKind::*;
+        match decl.name.kind {
+            ObjectPat(pat) => self.assign_object_pat_ele_tys(decl.name, pat, ty),
+            ArrayPat(pat) => self.assign_array_pat_ele_tys(decl.name, pat, ty),
+            Ident(_) => {}
+        }
+    }
+
+    fn assign_binding_ele_tys(
+        &mut self,
+        binding: &'cx bolt_ts_ast::Binding<'cx>,
+        ty: &'cx ty::Ty<'cx>,
+    ) {
+        use bolt_ts_ast::BindingKind::*;
+        match binding.kind {
+            Ident(_) => {
+                let symbol = self.get_symbol_of_decl(binding.id);
+                let prev = self
+                    .symbol_links
+                    .insert(symbol, SymbolLinks::default().with_ty(ty));
+                assert!(prev.is_none());
+            }
+            ObjectPat(pat) => self.assign_object_pat_ele_tys(binding, pat, ty),
+            ArrayPat(pat) => self.assign_array_pat_ele_tys(binding, pat, ty),
+        }
+    }
+
+    fn assign_object_pat_ele_tys(
+        &mut self,
+        binding: &'cx bolt_ts_ast::Binding<'cx>,
+        pat: &'cx bolt_ts_ast::ObjectPat<'cx>,
+        parent_ty: &'cx ty::Ty<'cx>,
+    ) {
+        for ele in pat.elems {}
+    }
+
+    fn assign_array_pat_ele_tys(
+        &mut self,
+        binding: &'cx bolt_ts_ast::Binding<'cx>,
+        pat: &'cx bolt_ts_ast::ArrayPat<'cx>,
+        parent_ty: &'cx ty::Ty<'cx>,
+    ) {
+        use bolt_ts_ast::ArrayBindingElemKind::*;
+        for ele in pat.elems {
+            match ele.kind {
+                Binding { name, .. } => {
+                    let ty =
+                        self.get_binding_ele_ty_from_parent_ty(binding, ele.id, parent_ty, false);
+                    self.assign_binding_ele_tys(name, ty);
+                }
+                Omit(_) => {}
+            }
+        }
+    }
+
+    fn get_binding_ele_ty_from_parent_ty(
+        &mut self,
+        binding: &'cx bolt_ts_ast::Binding<'cx>,
+        ele: bolt_ts_ast::NodeID,
+        mut parent_ty: &'cx ty::Ty<'cx>,
+        no_tuple_bounds_check: bool,
+    ) -> &'cx ty::Ty<'cx> {
+        if self.is_type_any(Some(parent_ty)) {
+            return parent_ty;
+        }
+
+        let strict_null_check = *self.config.strict_null_checks();
+
+        if strict_null_check
+            && self
+                .p
+                .node_flags(binding.id)
+                .contains(bolt_ts_ast::NodeFlags::AMBIENT)
+            && self.p.is_part_of_param_decl(binding.id)
+        {
+            parent_ty = self.get_non_nullable_ty(parent_ty)
+        } else if strict_null_check
+            && self
+                .p
+                .node(self.p.parent(binding.id).unwrap())
+                .initializer()
+                .is_some_and(|init| {
+                    // let ty = self.get_ty_of_init(init);
+                    false
+                    // TODO: has_ty_facts
+                })
+        {
+            todo!()
+        }
+
+        use bolt_ts_ast::BindingKind::*;
+
+        let access_flags = AccessFlags::EXPRESSION_POSITION
+            | if no_tuple_bounds_check {
+                // TODO: add `has_default_value` in condition
+                AccessFlags::ALLOWING_MISSING
+            } else {
+                AccessFlags::empty()
+            };
+        let ty = match binding.kind {
+            ObjectPat(pat) => {
+                todo!()
+            }
+            ArrayPat(pat) => {
+                let idx = || pat.elems.iter().position(|e| e.id == ele).unwrap();
+                let ele = self.p.node(ele).expect_array_binding_elem();
+                use bolt_ts_ast::ArrayBindingElemKind::*;
+                debug_assert!(matches!(ele.kind, Binding { .. }));
+                let Binding {
+                    dotdotdot, name, ..
+                } = ele.kind
+                else {
+                    unreachable!()
+                };
+                let has_dotdotdot = dotdotdot.is_some();
+                if has_dotdotdot {
+                    todo!()
+                } else if self.is_array_like_ty(parent_ty) {
+                    let idx = idx();
+                    let index_ty = self.get_number_literal_type(idx as f64);
+                    let decl_ty = self
+                        .get_indexed_access_ty_or_undefined(
+                            parent_ty,
+                            index_ty,
+                            Some(access_flags),
+                            Some(name.id),
+                        )
+                        .unwrap_or(self.error_ty);
+                    decl_ty
+                } else {
+                    let ele_ty = self.check_iterated_ty_or_element_ty(
+                        IterationUse::DESTRUCTURING
+                            | if has_dotdotdot {
+                                IterationUse::empty()
+                            } else {
+                                IterationUse::POSSIBLY_OUT_OF_BOUNDS
+                            },
+                        parent_ty,
+                        self.undefined_ty,
+                        Some(ele.id),
+                    );
+                    ele_ty
+                }
+            }
+            _ => self.check_iterated_ty_or_element_ty(
+                IterationUse::DESTRUCTURING.union(IterationUse::POSSIBLY_OUT_OF_BOUNDS),
+                parent_ty,
+                self.undefined_ty,
+                Some(binding.id),
+            ),
+        };
+
+        ty
     }
 
     pub(super) fn assign_contextual_param_tys(

@@ -229,7 +229,7 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
         match binding.kind {
             Ident(ident) => {
                 let symbol = self.bind_var(n.id, ident.name);
-                self.create_final_res(ident.id, symbol);
+                self.create_final_res(binding.id, symbol);
             }
             ObjectPat(_) => {}
             ArrayPat(_) => {}
