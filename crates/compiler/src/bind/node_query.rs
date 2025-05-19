@@ -287,8 +287,15 @@ pub trait NodeQuery<'cx>: Sized {
 
     fn is_param_prop_decl(&self, id: ast::NodeID, parent: ast::NodeID) -> bool {
         let n = self.node(id);
-        n.is_param_decl()
-            && n.has_syntactic_modifier(ast::ModifierKind::PARAMETER_PROPERTY)
+        n.as_param_decl()
+            .is_some_and(|param| self.param_is_prop_decl(param, parent))
+    }
+
+    fn param_is_prop_decl(&self, param: &'cx ast::ParamDecl<'cx>, parent: ast::NodeID) -> bool {
+        // TODO: has_syntactic_modifier
+        param
+            .modifiers
+            .is_some_and(|mods| mods.flags.intersects(ast::ModifierKind::PARAMETER_PROPERTY))
             && self.node(parent).is_class_ctor()
     }
 

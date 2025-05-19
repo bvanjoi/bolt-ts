@@ -499,8 +499,10 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
                     self.bind(elem.id);
                 }
             }
-            ArrayPat(_) => {
-                // TODO:
+            ArrayPat(n) => {
+                for elem in n.elems {
+                    self.bind(elem.id);
+                }
             }
         }
     }

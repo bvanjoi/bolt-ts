@@ -184,9 +184,17 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
         }
 
         let name = match n.binding.kind {
-            bolt_ts_ast::BindingKind::Ident(name) => name,
-            _ => return, // TODO: handle more case
+            ast::BindingKind::Ident(name) => name,
+            ast::BindingKind::ObjectPat(_) => {
+                // TODO: handle this case
+                return;
+            }
+            ast::BindingKind::ArrayPat(_) => {
+                // TODO: handle this case
+                return;
+            }
         };
+
         let symbol = self.bind_var(n.id, name.name);
         self.create_final_res(n.id, symbol);
     }
@@ -204,6 +212,28 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
         let symbol = self.bind_var(n.id, name.name);
         // TODO: use binding.id
         self.create_final_res(name.id, symbol);
+    }
+
+    fn bind_array_binding_ele(&mut self, n: &ast::ArrayBindingElem<'cx>) {
+        if self.in_strict_mode {
+            // TODO:
+        }
+
+        use ast::ArrayBindingElemKind::*;
+
+        let binding = match n.kind {
+            Binding { name, .. } => name,
+            Omit(_) => return,
+        };
+        use bolt_ts_ast::BindingKind::*;
+        match binding.kind {
+            Ident(ident) => {
+                let symbol = self.bind_var(n.id, ident.name);
+                self.create_final_res(ident.id, symbol);
+            }
+            ObjectPat(_) => {}
+            ArrayPat(_) => {}
+        };
     }
 
     fn bind_var(&mut self, id: ast::NodeID, name: bolt_ts_atom::AtomId) -> SymbolID {
@@ -264,10 +294,7 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
 
         let p = self.parent_map.parent_unfinished(n.id).unwrap();
 
-        if n.modifiers
-            .is_some_and(|mods| mods.flags.intersects(ast::ModifierKind::PARAMETER_PROPERTY))
-            && self.p.node(p).is_class_ctor()
-        {
+        if self.p.param_is_prop_decl(n, p) {
             let class_decl = self.parent_map.parent_unfinished(p).unwrap();
             let loc = SymbolTableLocation::members(class_decl);
             let includes = SymbolFlags::PROPERTY
@@ -375,6 +402,7 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
                 //     .insert_container_map(node, self.current_flow.unwrap());
                 self.bind_object_binding_ele(n);
             }
+            ArrayBindingElem(n) => self.bind_array_binding_ele(n),
             PropSignature(ast::PropSignature { name, question, .. })
             | ClassPropElem(ast::ClassPropElem { name, question, .. }) => {
                 // TODO: is_auto_accessor
