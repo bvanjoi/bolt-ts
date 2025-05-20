@@ -1,5 +1,5 @@
   × Cannot find name 'something'.
-   ╭─[../../tests/cases/compiler/continueInIterationStatement4/index.ts:1:15]
- 1 │ something
+   ╭─[../../tests/cases/compiler/continueInIterationStatement4/index.ts:3:15]
+ 3 │ something
    · ─────────
    ╰────

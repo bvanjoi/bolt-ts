@@ -44,7 +44,7 @@ impl<'cx> ParserState<'cx, '_> {
             While => ast::StmtKind::While(self.parse_while_stmt()?),
             Do => ast::StmtKind::Do(self.parse_do_stmt()?),
             Debugger => ast::StmtKind::Debugger(self.parse_debugger_stmt()?),
-            _ => ast::StmtKind::Expr(self.parse_expr_or_labeled_stmt()?),
+            _ => self.parse_expr_or_labeled_stmt()?,
         };
         let stmt = self.alloc(ast::Stmt { kind });
         Ok(stmt)
@@ -1101,9 +1101,23 @@ impl<'cx> ParserState<'cx, '_> {
         Ok(stmt)
     }
 
-    fn parse_expr_or_labeled_stmt(&mut self) -> PResult<&'cx ast::ExprStmt<'cx>> {
+    fn parse_expr_or_labeled_stmt(&mut self) -> PResult<ast::StmtKind<'cx>> {
         let start = self.token.start();
         let expr = self.allow_in_and(Self::parse_expr)?;
+        if let ast::ExprKind::Ident(ident) = expr.kind {
+            if self.parse_optional(TokenKind::Colon).is_some() {
+                let stmt = self.parse_stmt()?;
+                let id = self.next_node_id();
+                let stmt = self.alloc(ast::LabeledStmt {
+                    id,
+                    span: self.new_span(start),
+                    label: ident,
+                    stmt,
+                });
+                self.nodes.insert(id, ast::Node::LabeledStmt(stmt));
+                return Ok(ast::StmtKind::Labeled(stmt));
+            }
+        }
         self.parse_semi();
         let id = self.next_node_id();
         let stmt = self.alloc(ast::ExprStmt {
@@ -1112,6 +1126,6 @@ impl<'cx> ParserState<'cx, '_> {
             expr,
         });
         self.nodes.insert(id, ast::Node::ExprStmt(stmt));
-        Ok(stmt)
+        Ok(ast::StmtKind::Expr(stmt))
     }
 }

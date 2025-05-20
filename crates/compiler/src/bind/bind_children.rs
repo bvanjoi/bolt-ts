@@ -1136,6 +1136,10 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
                 }
                 self.bind(n.tpl.id());
             }
+            LabeledStmt(n) => {
+                self.bind(n.label.id);
+                self.bind(n.stmt.id());
+            }
             NullLit(_)
             | StringLit(_)
             | NoSubstitutionTemplateLit(_)

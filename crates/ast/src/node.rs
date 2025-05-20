@@ -78,6 +78,7 @@ pub enum Node<'cx> {
     ArrayPat(&'cx super::ArrayPat<'cx>),
     ArrayBindingElem(&'cx super::ArrayBindingElem<'cx>),
     DebuggerStmt(&'cx super::DebuggerStmt),
+    LabeledStmt(&'cx super::LabeledStmt<'cx>),
 
     // expr
     VarDecl(&'cx super::VarDecl<'cx>),
@@ -1039,6 +1040,7 @@ as_node!(
     (DoStmt, super::DoStmt<'cx>, do_stmt),
     (WhileStmt, super::WhileStmt<'cx>, while_stmt),
     (ExprStmt, super::ExprStmt<'cx>, expr_stmt),
+    (LabeledStmt, super::LabeledStmt<'cx>, labeled_stmt),
     (QualifiedName, super::QualifiedName<'cx>, qualified_name),
     (ObjectPat, super::ObjectPat<'cx>, object_pat),
     (

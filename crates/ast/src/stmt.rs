@@ -35,6 +35,7 @@ pub enum StmtKind<'cx> {
     While(&'cx WhileStmt<'cx>),
     Do(&'cx DoStmt<'cx>),
     Debugger(&'cx DebuggerStmt),
+    Labeled(&'cx LabeledStmt<'cx>),
 }
 
 impl Stmt<'_> {
@@ -66,8 +67,17 @@ impl Stmt<'_> {
             While(n) => n.id,
             Do(n) => n.id,
             Debugger(n) => n.id,
+            Labeled(n) => n.id,
         }
     }
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct LabeledStmt<'cx> {
+    pub id: NodeID,
+    pub span: Span,
+    pub label: &'cx Ident,
+    pub stmt: &'cx Stmt<'cx>,
 }
 
 #[derive(Debug, Clone, Copy)]
