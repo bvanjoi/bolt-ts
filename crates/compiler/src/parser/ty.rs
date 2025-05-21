@@ -1,7 +1,7 @@
-use super::ast;
 use super::list_ctx::{self, ListContext};
 use super::lookahead::Lookahead;
 use super::{PResult, ParserState};
+use super::{ast, errors};
 use bolt_ts_ast::{Token, TokenKind};
 
 fn is_ele_for_tuple_ele_tys_and_ty_args(s: &mut ParserState) -> bool {
@@ -987,6 +987,11 @@ impl<'cx> ParserState<'cx, '_> {
                 ty,
             });
             self.nodes.insert(id, ast::Node::PropSignature(sig));
+            if let Some(init) = self.parse_init()? {
+                let error =
+                    errors::AnInterfacePropertyCannotHaveAnInitializer { span: init.span() };
+                self.push_error(Box::new(error));
+            }
             ast::ObjectTyMemberKind::Prop(sig)
         };
         let node = self.alloc(ast::ObjectTyMember { kind });
