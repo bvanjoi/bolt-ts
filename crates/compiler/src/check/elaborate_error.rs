@@ -1,3 +1,4 @@
+use super::Ternary;
 use super::TyChecker;
 use super::errors;
 use super::relation::RelationKind;
@@ -149,8 +150,33 @@ impl<'cx> TyChecker<'cx> {
         target: &'cx ty::Ty<'cx>,
         name_ty: &'cx ty::Ty<'cx>,
     ) -> Option<&'cx ty::Ty<'cx>> {
-        let idx = self.get_indexed_access_ty_or_undefined(target, name_ty, None, None);
-        idx
+        if let Some(idx) = self.get_indexed_access_ty_or_undefined(target, name_ty, None, None) {
+            return Some(idx);
+        }
+
+        if let Some(target_union) = target.kind.as_union() {
+            if let Some(best) = self.get_best_matching_ty(source, target_union, |this, s, t| {
+                if this.is_type_related_to(s, t, RelationKind::Assignable) {
+                    Ternary::TRUE
+                } else {
+                    Ternary::FALSE
+                }
+            }) {
+                return self.get_indexed_access_ty_or_undefined(best, name_ty, None, None);
+            }
+        }
+
+        None
+    }
+
+    fn get_best_matching_ty(
+        &mut self,
+        source: &'cx ty::Ty<'cx>,
+        target_union: &'cx ty::UnionTy<'cx>,
+        cmp: impl Fn(&mut Self, &'cx ty::Ty<'cx>, &'cx ty::Ty<'cx>) -> Ternary,
+    ) -> Option<&'cx ty::Ty<'cx>> {
+        // TODO:
+        None
     }
 
     fn elaborate_element_wise(

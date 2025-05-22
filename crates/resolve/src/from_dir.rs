@@ -36,7 +36,7 @@ impl<FS: CachedFileSystem> super::Resolver<'_, FS> {
     fn load_filename_from_package_json_field(
         &self,
         ext: Extensions,
-        candidate: &mut std::path::PathBuf,
+        candidate: &mut std::path::Path,
         package_json: Option<PackageJsonInfoId>,
         only_record_failures: bool,
     ) -> RResult<PathId> {
@@ -63,7 +63,7 @@ impl<FS: CachedFileSystem> super::Resolver<'_, FS> {
     pub(super) fn load_node_module_from_dir_worker(
         &self,
         ext: Extensions,
-        candidate: &mut std::path::PathBuf,
+        candidate: &mut std::path::Path,
         only_record_failures: bool,
         package_json: Option<PackageJsonInfoId>,
     ) -> RResult<PathId> {

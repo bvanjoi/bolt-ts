@@ -37,6 +37,13 @@ pub enum FlowNodeKind<'cx> {
     Label(FlowLabel),
     Unreachable(FlowUnreachable),
     Assign(FlowAssign),
+    Call(FlowCall<'cx>),
+}
+
+#[derive(Clone, Copy)]
+pub struct FlowCall<'cx> {
+    pub antecedent: FlowID,
+    pub node: &'cx ast::CallExpr<'cx>,
 }
 
 #[derive(Clone, Copy)]
@@ -250,5 +257,19 @@ impl<'cx> super::BinderState<'cx, '_, '_> {
             self.flow_nodes.add_antecedent(current_exception_target, id);
         }
         id
+    }
+
+    pub fn create_flow_call(
+        &mut self,
+        antecedent: FlowID,
+        node: &'cx ast::CallExpr<'cx>,
+    ) -> FlowID {
+        self.flow_nodes.set_flow_node_referenced(antecedent);
+        self.has_flow_effects = true;
+        let node = FlowNode {
+            flags: FlowFlags::CALL,
+            kind: FlowNodeKind::Call(FlowCall { node, antecedent }),
+        };
+        self.flow_nodes.insert_flow_node(node)
     }
 }

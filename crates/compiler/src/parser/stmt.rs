@@ -100,7 +100,7 @@ impl<'cx> ParserState<'cx, '_> {
             open_parsed,
             start as usize,
         )?;
-        let stmt = self.allow_continue_tys_and(Self::parse_stmt)?;
+        let stmt = self.allow_continue_and(Self::parse_stmt)?;
         let id = self.next_node_id();
         let stmt = self.alloc(ast::WhileStmt {
             id,
@@ -186,7 +186,7 @@ impl<'cx> ParserState<'cx, '_> {
             let init = init.unwrap();
             let expr = self.allow_in_and(|this| this.parse_assign_expr_or_higher(true))?;
             self.expect(RParen);
-            let body = self.allow_continue_tys_and(Self::parse_stmt)?;
+            let body = self.allow_continue_and(Self::parse_stmt)?;
             let id = self.next_node_id();
             let kind = self.alloc(ast::ForOfStmt {
                 id,
@@ -202,7 +202,7 @@ impl<'cx> ParserState<'cx, '_> {
             let init = init.unwrap();
             let expr = self.allow_in_and(Self::parse_expr)?;
             self.expect(RParen);
-            let body = self.allow_continue_tys_and(Self::parse_stmt)?;
+            let body = self.allow_continue_and(Self::parse_stmt)?;
             let id = self.next_node_id();
             let kind = self.alloc(ast::ForInStmt {
                 id,
@@ -228,7 +228,7 @@ impl<'cx> ParserState<'cx, '_> {
             };
             self.expect(RParen);
 
-            let body = self.allow_continue_tys_and(Self::parse_stmt)?;
+            let body = self.allow_continue_and(Self::parse_stmt)?;
             let id = self.next_node_id();
             let kind = self.alloc(ast::ForStmt {
                 id,

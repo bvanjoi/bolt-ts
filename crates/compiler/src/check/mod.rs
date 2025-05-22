@@ -229,6 +229,7 @@ pub struct TyChecker<'cx> {
     pub never_ty: &'cx ty::Ty<'cx>,
     pub silent_never_ty: &'cx ty::Ty<'cx>,
     pub implicit_never_ty: &'cx ty::Ty<'cx>,
+    pub unreachable_never_ty: &'cx ty::Ty<'cx>,
     pub void_ty: &'cx ty::Ty<'cx>,
     pub null_ty: &'cx ty::Ty<'cx>,
     pub null_widening_ty: &'cx ty::Ty<'cx>,
@@ -376,6 +377,7 @@ impl<'cx> TyChecker<'cx> {
             (non_primitive_ty,      keyword::IDENT_OBJECT,  TypeFlags::NON_PRIMITIVE,   ObjectFlags::empty()),
             (silent_never_ty,       keyword::IDENT_NEVER,   TypeFlags::NEVER,           ObjectFlags::NON_INFERRABLE_TYPE),
             (implicit_never_ty,     keyword::IDENT_NEVER,   TypeFlags::NEVER,           ObjectFlags::empty()),
+            (unreachable_never_ty,  keyword::IDENT_NEVER,   TypeFlags::NEVER,           ObjectFlags::NON_INFERRABLE_TYPE),
         });
 
         let undefined_or_missing_ty = if *config.exact_optional_property_types() {
@@ -517,6 +519,7 @@ impl<'cx> TyChecker<'cx> {
             missing_ty,
             undefined_or_missing_ty,
             undefined_widening_ty,
+            unreachable_never_ty,
             never_ty,
             silent_never_ty,
             implicit_never_ty,
@@ -1871,9 +1874,9 @@ impl<'cx> TyChecker<'cx> {
         if assignment_kind != AssignmentKind::None && symbol != Symbol::ERR {
             let symbol = self.binder.symbol(symbol);
             if !symbol.flags.intersects(SymbolFlags::VARIABLE) {
-                let ty = if symbol.flags.intersects(SymbolFlags::CLASS) {
+                let ty = if symbol.flags.contains(SymbolFlags::CLASS) {
                     "class"
-                } else if symbol.flags.intersects(SymbolFlags::FUNCTION) {
+                } else if symbol.flags.contains(SymbolFlags::FUNCTION) {
                     "function"
                 } else if symbol.flags.intersects(SymbolFlags::ENUM) {
                     "enum"
