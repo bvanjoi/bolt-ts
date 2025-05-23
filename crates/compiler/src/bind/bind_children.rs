@@ -495,12 +495,10 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
         match n.kind {
             Ident(n) => self.bind(n.id),
             ObjectPat(n) => {
-                for elem in n.elems {
-                    self.bind(elem.id);
-                }
+                self.bind(n.id);
             }
-            ArrayPat(_) => {
-                // TODO:
+            ArrayPat(n) => {
+                self.bind(n.id);
             }
         }
     }
@@ -796,8 +794,10 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
                     self.bind(elem.id);
                 }
             }
-            ArrayPat(_) => {
-                // TODO:
+            ArrayPat(n) => {
+                for elem in n.elems {
+                    self.bind(elem.id);
+                }
             }
             Binding(n) => self.bind_binding(n),
             OmitExpr(_) => {}
@@ -1136,6 +1136,10 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
                 }
                 self.bind(n.tpl.id());
             }
+            LabeledStmt(n) => {
+                self.bind(n.label.id);
+                self.bind(n.stmt.id());
+            }
             NullLit(_)
             | StringLit(_)
             | NoSubstitutionTemplateLit(_)
@@ -1198,7 +1202,7 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
         self.bind(n.expr.id());
     }
 
-    fn bind_call_expr_flow(&mut self, n: &ast::CallExpr<'cx>) {
+    fn bind_call_expr_flow(&mut self, n: &'cx ast::CallExpr<'cx>) {
         // TODO: is_optional_chain
         let expr = bolt_ts_ast::Expr::skip_parens(n.expr);
         if matches!(expr.kind, ast::ExprKind::Fn(_) | ast::ExprKind::ArrowFn(_)) {
@@ -1222,8 +1226,13 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
             }
             self.bind(n.expr.id());
             if matches!(n.expr.kind, ast::ExprKind::Super(_)) {
-                // self.current_flow = self.create_flow_call
+                let c = self.create_flow_call(self.current_flow.unwrap(), n);
+                self.current_flow = Some(c);
             }
+        }
+
+        if let ast::ExprKind::PropAccess(_) = n.expr.kind {
+            // TODO:
         }
     }
 
@@ -1265,7 +1274,16 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
 
     fn bind_expr_stmt(&mut self, n: &ast::ExprStmt<'cx>) {
         self.bind(n.expr.id());
-        // TODO: maybe_bind_expr_flow_if_call
+        self.maybe_bind_expr_flow_if_call(n.expr);
+    }
+
+    fn maybe_bind_expr_flow_if_call(&mut self, n: &ast::Expr<'cx>) {
+        if let ast::ExprKind::Call(call) = n.kind {
+            if !matches!(call.expr.kind, ast::ExprKind::Super(_)) && call.expr.is_dotted_name() {
+                let c = self.create_flow_call(self.current_flow.unwrap(), call);
+                self.current_flow = Some(c)
+            }
+        }
     }
 
     fn bind_while_stmt(&mut self, n: &ast::WhileStmt<'cx>) {

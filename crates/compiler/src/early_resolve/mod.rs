@@ -164,6 +164,9 @@ impl<'cx> Resolver<'cx, '_, '_> {
             ExportAssign(n) => {
                 self.resolve_expr(n.expr);
             }
+            Labeled(n) => {
+                self.resolve_stmt(n.stmt);
+            }
         };
     }
 

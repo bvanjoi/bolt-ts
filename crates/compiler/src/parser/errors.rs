@@ -189,3 +189,17 @@ pub(super) struct AnObjectMemberCannotBeDeclaredOptional {
     #[label(primary)]
     pub(super) span: Span,
 }
+
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
+#[error("A 'continue' statement can only be used within an enclosing iteration statement.")]
+pub(super) struct AContinueStatementCanOnlyBeUsedWithinAnEnclosingIterationStatement {
+    #[label(primary)]
+    pub(super) span: Span,
+}
+
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
+#[error("An interface property cannot have an initializer.")]
+pub(super) struct AnInterfacePropertyCannotHaveAnInitializer {
+    #[label(primary)]
+    pub(super) span: Span,
+}

@@ -572,6 +572,10 @@ impl<'cx> Parser<'cx> {
     pub fn is_type_decl(&self, id: ast::NodeID) -> bool {
         self.get(id.module()).is_type_decl(id)
     }
+
+    pub fn is_part_of_param_decl(&self, id: ast::NodeID) -> bool {
+        self.get(id.module()).is_part_of_param_decl(id)
+    }
 }
 
 #[derive(Clone, Copy, PartialEq)]

@@ -9,6 +9,17 @@ pub struct TyPred<'cx> {
     pub kind: TyPredKind<'cx>,
 }
 
+impl<'cx> TyPred<'cx> {
+    pub fn ty(&self) -> Option<&'cx ty::Ty<'cx>> {
+        match &self.kind {
+            TyPredKind::Ident(pred) => Some(pred.ty),
+            TyPredKind::This(pred) => Some(pred.ty),
+            TyPredKind::AssertsThis(pred) => pred.ty,
+            TyPredKind::AssertsIdent(pred) => pred.ty,
+        }
+    }
+}
+
 #[derive(Debug, Clone, Copy)]
 pub enum TyPredKind<'cx> {
     Ident(IdentTyPred<'cx>),

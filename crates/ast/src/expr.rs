@@ -100,12 +100,15 @@ impl<'cx> Expr<'cx> {
             ExprKind::StringLit(_) | ExprKind::NoSubstitutionTemplateLit(_)
         )
     }
+
     pub fn is_string_or_number_lit_like(&self) -> bool {
         self.is_string_lit_like() || matches!(self.kind, ExprKind::NumLit(_))
     }
+
     pub fn is_entity_name_expr(&self) -> bool {
         matches!(self.kind, ExprKind::Ident(_)) || self.is_prop_access_entity_name_expr()
     }
+
     pub fn is_prop_access_entity_name_expr(&self) -> bool {
         if let ExprKind::PropAccess(p) = &self.kind {
             // TODO: matches!(p.name.kind, ExprKind::Ident(_))
@@ -140,6 +143,16 @@ impl<'cx> Expr<'cx> {
         match self.kind {
             ExprKind::PropAccess(p) => matches!(p.expr.kind, ExprKind::Super(_)),
             ExprKind::EleAccess(e) => matches!(e.expr.kind, ExprKind::Super(_)),
+            _ => false,
+        }
+    }
+
+    pub fn is_dotted_name(&self) -> bool {
+        use self::ExprKind::*;
+        match self.kind {
+            Ident(_) | This(_) | Super(_) => true,
+            PropAccess(n) => n.expr.is_dotted_name(),
+            Paren(n) => n.expr.is_dotted_name(),
             _ => false,
         }
     }

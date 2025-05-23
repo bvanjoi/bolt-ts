@@ -1,8 +1,8 @@
-use bolt_ts_ast as ast;
 use bolt_ts_ast::TokenKind;
+use bolt_ts_ast::{self as ast, NodeFlags};
 use bolt_ts_span::Span;
 
-use super::{PResult, ParserState};
+use super::{PResult, ParserState, errors};
 
 #[derive(Copy, Clone)]
 pub(super) struct ParseBreak;
@@ -11,6 +11,7 @@ pub(super) struct ParseContinue;
 
 pub(super) trait ParseBreakOrContinue<'cx, 'p> {
     type Node;
+    const IS_CONTINUE: bool;
     fn expect_token(&self) -> TokenKind;
     fn finish(
         &self,
@@ -22,6 +23,7 @@ pub(super) trait ParseBreakOrContinue<'cx, 'p> {
 
 impl<'cx, 'p> ParseBreakOrContinue<'cx, 'p> for ParseBreak {
     type Node = &'cx ast::BreakStmt<'cx>;
+    const IS_CONTINUE: bool = false;
     fn expect_token(&self) -> TokenKind {
         TokenKind::Break
     }
@@ -40,6 +42,7 @@ impl<'cx, 'p> ParseBreakOrContinue<'cx, 'p> for ParseBreak {
 
 impl<'cx, 'p> ParseBreakOrContinue<'cx, 'p> for ParseContinue {
     type Node = &'cx ast::ContinueStmt<'cx>;
+    const IS_CONTINUE: bool = true;
     fn expect_token(&self) -> TokenKind {
         TokenKind::Continue
     }
@@ -57,9 +60,9 @@ impl<'cx, 'p> ParseBreakOrContinue<'cx, 'p> for ParseContinue {
 }
 
 impl<'cx, 'p> ParserState<'cx, 'p> {
-    pub(super) fn parse_break_or_continue<Node>(
+    pub(super) fn parse_break_or_continue<Node, P: ParseBreakOrContinue<'cx, 'p, Node = Node>>(
         &mut self,
-        kind: &impl ParseBreakOrContinue<'cx, 'p, Node = Node>,
+        kind: &P,
     ) -> PResult<Node> {
         let start = self.token.start();
 
@@ -72,6 +75,17 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         };
         self.parse_semi();
         let span = self.new_span(start);
+
+        if P::IS_CONTINUE
+            && !self
+                .context_flags
+                .contains(NodeFlags::ALLOW_CONTINUE_CONTEXT)
+        {
+            self.push_error(Box::new(
+                errors::AContinueStatementCanOnlyBeUsedWithinAnEnclosingIterationStatement { span },
+            ));
+        }
+
         Ok(kind.finish(self, span, label))
     }
 }

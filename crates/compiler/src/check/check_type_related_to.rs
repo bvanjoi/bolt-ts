@@ -566,7 +566,7 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
             if variance != VarianceFlags::INDEPENDENT {
                 let source = source_ty_args[i];
                 let target = target_ty_args[i];
-                let mut related = Ternary::TRUE;
+                let mut related;
                 if variance_flags.intersects(VarianceFlags::UNMEASURABLE) {
                     related = if self.relation == RelationKind::Identity {
                         self.is_related_to(
@@ -807,6 +807,7 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
         report_error: bool,
         intersection_state: IntersectionState,
     ) -> Ternary {
+        debug_assert!(target.kind.is_intersection());
         let mut result = Ternary::TRUE;
         for target_ty in target_tys {
             let related = self.is_related_to(

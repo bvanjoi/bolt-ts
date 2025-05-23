@@ -189,6 +189,12 @@
      · ────────────────
      ╰────
 
+  × Property 'push' does not exist on type 'string[]'.
+      ╭─[../../tests/cases/compiler/fest/index.ts:2103:6]
+ 2103 │ push
+      · ────
+      ╰────
+
   × Generic type 'Includes' requires 2 type arguments.
       ╭─[../../tests/cases/compiler/fest/index.ts:1033:13]
  1033 │ Includes
@@ -397,12 +403,6 @@
       ╭─[../../tests/cases/compiler/fest/index.ts:2077:3]
  2077 │ test[2]
       · ───────
-      ╰────
-
-  × Property 'push' does not exist on type 'string[]'.
-      ╭─[../../tests/cases/compiler/fest/index.ts:2103:6]
- 2103 │ push
-      · ────
       ╰────
 
   × Type 'number' is not assignable to type 'string'.

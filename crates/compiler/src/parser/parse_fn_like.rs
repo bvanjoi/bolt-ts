@@ -106,7 +106,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         let params = self.parse_params()?;
         self.check_params(params, false);
         let ret_ty = self.parse_fn_decl_ret_type()?;
-        let body = self.parse_fn_block()?;
+        let body = self.disallow_continue_and(Self::parse_fn_block)?;
         let span = self.new_span(start);
         Ok(mode.finish(self, span, modifiers, name, ty_params, params, ret_ty, body))
     }

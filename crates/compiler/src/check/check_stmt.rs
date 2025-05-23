@@ -38,6 +38,9 @@ impl<'cx> TyChecker<'cx> {
             While(_) => {}
             Do(_) => {}
             Debugger(_) => {}
+            Labeled(n) => {
+                self.check_stmt(n.stmt);
+            }
         };
     }
 

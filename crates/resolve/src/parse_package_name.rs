@@ -1,4 +1,5 @@
-pub fn parse_package_name(name: &str) -> (&str, Option<&str>) {
+#[cfg(test)]
+fn parse_package_name(name: &str) -> (&str, Option<&str>) {
     let slash_idx = split_slash_for_package_name(name);
     if let Some(slash_idx) = slash_idx {
         let (namespace, package_name) = name.split_at(slash_idx);

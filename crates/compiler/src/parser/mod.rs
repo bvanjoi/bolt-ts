@@ -20,6 +20,7 @@ mod ty;
 mod utils;
 
 use bolt_ts_ast::Visitor;
+use bolt_ts_ast::keyword;
 use bolt_ts_ast::{self as ast, Node, NodeFlags, NodeID};
 use bolt_ts_atom::{AtomId, AtomMap};
 use bolt_ts_fs::PathId;
@@ -39,7 +40,6 @@ pub(crate) use self::utils::is_left_hand_side_expr_kind;
 use rayon::prelude::*;
 
 use crate::bind;
-use crate::keyword;
 
 type PResult<T> = Result<T, ()>;
 

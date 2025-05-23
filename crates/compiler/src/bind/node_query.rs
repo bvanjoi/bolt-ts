@@ -276,19 +276,42 @@ pub trait NodeQuery<'cx>: Sized {
 
     fn get_root_decl(&self, mut id: ast::NodeID) -> ast::NodeID {
         let mut n = self.node(id);
-        while n.is_object_binding_elem() {
-            let p = self.parent(id).unwrap();
-            // id = self.parent(p).unwrap();
-            id = p;
-            n = self.node(id);
+        loop {
+            if n.is_object_binding_elem() {
+                let p = self.parent(id).unwrap();
+                debug_assert!(self.node(p).is_object_pat());
+                let p = self.parent(p).unwrap();
+                debug_assert!(self.node(p).is_binding());
+                id = self.parent(p).unwrap();
+                n = self.node(id);
+            } else if n.is_array_binding_elem() {
+                let p = self.parent(id).unwrap();
+                debug_assert!(self.node(p).is_array_pat(), "span: {:#?}", self.node(p));
+                let p = self.parent(p).unwrap();
+                debug_assert!(self.node(p).is_binding());
+                id = self.parent(p).unwrap();
+                n = self.node(id);
+            } else if n.is_binding() {
+                id = self.parent(id).unwrap();
+                n = self.node(id);
+            } else {
+                break;
+            }
         }
         id
     }
 
     fn is_param_prop_decl(&self, id: ast::NodeID, parent: ast::NodeID) -> bool {
         let n = self.node(id);
-        n.is_param_decl()
-            && n.has_syntactic_modifier(ast::ModifierKind::PARAMETER_PROPERTY)
+        n.as_param_decl()
+            .is_some_and(|param| self.param_is_prop_decl(param, parent))
+    }
+
+    fn param_is_prop_decl(&self, param: &'cx ast::ParamDecl<'cx>, parent: ast::NodeID) -> bool {
+        // TODO: has_syntactic_modifier
+        param
+            .modifiers
+            .is_some_and(|mods| mods.flags.intersects(ast::ModifierKind::PARAMETER_PROPERTY))
             && self.node(parent).is_class_ctor()
     }
 
