@@ -137,6 +137,7 @@ impl<'cx> CheckState<'cx> {
             }
         }
     }
+
     fn check_sig_decl(&mut self, node: &impl ir::SigDeclLike) {
         if !(*self.compiler_options.target() >= Target::ES2015
             || !node.has_rest_param()
@@ -160,6 +161,7 @@ impl<'cx> CheckState<'cx> {
             }
         }
     }
+
     fn check_type_name_is_reserved(
         &mut self,
         name: &'cx ast::Ident,

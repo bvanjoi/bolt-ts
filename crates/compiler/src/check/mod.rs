@@ -2199,9 +2199,26 @@ impl<'cx> TyChecker<'cx> {
     }
 
     fn check_ty_params(&mut self, ty_params: ast::TyParams<'cx>) {
-        // let mut seen_default = false;
-        for ty_param in ty_params {
-            self.check_ty_param(ty_param)
+        let mut seen_default = false;
+        for (i, ty_param) in ty_params.iter().enumerate() {
+            self.check_ty_param(ty_param);
+
+            if ty_param.default.is_some() {
+                seen_default = true;
+                // TODO: create_ty_from_ty_reference
+            } else if seen_default {
+                // TODO: Required_type_parameters_may_not_follow_optional_type_parameters
+            }
+
+            for j in 0..i {
+                if self.get_symbol_of_decl(ty_params[j].id) == self.get_symbol_of_decl(ty_param.id)
+                {
+                    self.push_error(Box::new(errors::DuplicateIdentifierX {
+                        span: ty_param.span,
+                        ident: pprint_ident(ty_param.name, self.atoms),
+                    }));
+                }
+            }
         }
     }
 
