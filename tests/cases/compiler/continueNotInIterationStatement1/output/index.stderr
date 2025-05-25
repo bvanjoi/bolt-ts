@@ -1,0 +1,6 @@
+  × A 'continue' statement can only be used within an enclosing iteration
+  │ statement.
+   ╭─[../../tests/cases/compiler/continueNotInIterationStatement1/index.ts:3:1]
+ 3 │ continue;
+   · ─────────
+   ╰────

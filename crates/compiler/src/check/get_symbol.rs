@@ -13,7 +13,7 @@ impl TyChecker<'_> {
         debug_assert!(
             self.p.node(id).is_decl(),
             "expected a decl node, but got {:#?}",
-            self.p.node(id).span()
+            self.p.node(id)
         );
         let id = self.final_res(id);
         // TODO: get_late_bound_symbol

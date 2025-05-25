@@ -229,6 +229,7 @@ pub struct TyChecker<'cx> {
     pub never_ty: &'cx ty::Ty<'cx>,
     pub silent_never_ty: &'cx ty::Ty<'cx>,
     pub implicit_never_ty: &'cx ty::Ty<'cx>,
+    pub unreachable_never_ty: &'cx ty::Ty<'cx>,
     pub void_ty: &'cx ty::Ty<'cx>,
     pub null_ty: &'cx ty::Ty<'cx>,
     pub null_widening_ty: &'cx ty::Ty<'cx>,
@@ -376,6 +377,7 @@ impl<'cx> TyChecker<'cx> {
             (non_primitive_ty,      keyword::IDENT_OBJECT,  TypeFlags::NON_PRIMITIVE,   ObjectFlags::empty()),
             (silent_never_ty,       keyword::IDENT_NEVER,   TypeFlags::NEVER,           ObjectFlags::NON_INFERRABLE_TYPE),
             (implicit_never_ty,     keyword::IDENT_NEVER,   TypeFlags::NEVER,           ObjectFlags::empty()),
+            (unreachable_never_ty,  keyword::IDENT_NEVER,   TypeFlags::NEVER,           ObjectFlags::NON_INFERRABLE_TYPE),
         });
 
         let undefined_or_missing_ty = if *config.exact_optional_property_types() {
@@ -517,6 +519,7 @@ impl<'cx> TyChecker<'cx> {
             missing_ty,
             undefined_or_missing_ty,
             undefined_widening_ty,
+            unreachable_never_ty,
             never_ty,
             silent_never_ty,
             implicit_never_ty,
@@ -1871,9 +1874,9 @@ impl<'cx> TyChecker<'cx> {
         if assignment_kind != AssignmentKind::None && symbol != Symbol::ERR {
             let symbol = self.binder.symbol(symbol);
             if !symbol.flags.intersects(SymbolFlags::VARIABLE) {
-                let ty = if symbol.flags.intersects(SymbolFlags::CLASS) {
+                let ty = if symbol.flags.contains(SymbolFlags::CLASS) {
                     "class"
-                } else if symbol.flags.intersects(SymbolFlags::FUNCTION) {
+                } else if symbol.flags.contains(SymbolFlags::FUNCTION) {
                     "function"
                 } else if symbol.flags.intersects(SymbolFlags::ENUM) {
                     "enum"
@@ -1892,7 +1895,7 @@ impl<'cx> TyChecker<'cx> {
             }
         }
 
-        let decl = if symbol == self.global_this_symbol {
+        let mut decl = if symbol == self.global_this_symbol {
             return ty;
         } else if let Some(decl) = symbol.opt_decl(self.binder) {
             decl
@@ -1900,11 +1903,22 @@ impl<'cx> TyChecker<'cx> {
             return ty;
         };
 
-        let is_alias = self
-            .binder
-            .symbol(symbol)
-            .flags
-            .intersects(SymbolFlags::ALIAS);
+        let s = self.binder.symbol(symbol);
+        let is_alias = s.flags.contains(SymbolFlags::ALIAS);
+
+        if s.flags.intersects(SymbolFlags::VARIABLE) {
+            if assignment_kind == AssignmentKind::Definite {
+                // TODO: is_in_compound_like_assignment
+                return ty;
+            }
+        } else if is_alias {
+            let Some(d) = s.get_decl_of_alias_symbol(self.p) else {
+                return ty;
+            };
+            decl = d;
+        } else {
+            return ty;
+        }
 
         let immediate_decl = decl;
 
@@ -2185,9 +2199,26 @@ impl<'cx> TyChecker<'cx> {
     }
 
     fn check_ty_params(&mut self, ty_params: ast::TyParams<'cx>) {
-        // let mut seen_default = false;
-        for ty_param in ty_params {
-            self.check_ty_param(ty_param)
+        let mut seen_default = false;
+        for (i, ty_param) in ty_params.iter().enumerate() {
+            self.check_ty_param(ty_param);
+
+            if ty_param.default.is_some() {
+                seen_default = true;
+                // TODO: create_ty_from_ty_reference
+            } else if seen_default {
+                // TODO: Required_type_parameters_may_not_follow_optional_type_parameters
+            }
+
+            for j in 0..i {
+                if self.get_symbol_of_decl(ty_params[j].id) == self.get_symbol_of_decl(ty_param.id)
+                {
+                    self.push_error(Box::new(errors::DuplicateIdentifierX {
+                        span: ty_param.span,
+                        ident: pprint_ident(ty_param.name, self.atoms),
+                    }));
+                }
+            }
         }
     }
 
@@ -2581,8 +2612,13 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
-    fn is_matching_reference(&self, source: ast::NodeID, target: ast::NodeID) -> bool {
+    fn is_matching_reference(&mut self, source: ast::NodeID, target: ast::NodeID) -> bool {
         let t = self.p.node(target);
+        match t {
+            ParenExpr(t) => return self.is_matching_reference(source, t.expr.id()),
+            NonNullExpr(t) => return self.is_matching_reference(source, t.expr.id()),
+            _ => (),
+        }
         let s = self.p.node(source);
         use bolt_ts_ast::Node::*;
 
@@ -2597,7 +2633,11 @@ impl<'cx> TyChecker<'cx> {
                         bolt_ts_ast::BindingKind::Ident(_) => {
                             self.resolve_symbol_by_ident(s_ident) == self.get_symbol_of_decl(t_v.id)
                         }
-                        bolt_ts_ast::BindingKind::ObjectPat(_) => todo!(),
+                        bolt_ts_ast::BindingKind::ObjectPat(_) => {
+                            let s = self.resolve_symbol_by_ident(s_ident);
+                            self.get_export_symbol_of_value_symbol_if_exported(s)
+                                == self.get_symbol_of_decl(t_v.binding.id)
+                        }
                         bolt_ts_ast::BindingKind::ArrayPat(_) => todo!(),
                     }
                 } else if t.is_object_binding_elem() {
@@ -2611,7 +2651,7 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
-    fn is_or_contain_matching_refer(&self, source: ast::NodeID, target: ast::NodeID) -> bool {
+    fn is_or_contain_matching_refer(&mut self, source: ast::NodeID, target: ast::NodeID) -> bool {
         self.is_matching_reference(source, target)
     }
 

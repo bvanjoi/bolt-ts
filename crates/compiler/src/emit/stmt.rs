@@ -42,6 +42,14 @@ impl<'cx> Emit<'cx> {
                 self.emit_expr(n.expr);
                 self.content.p_semi();
             }
+            Labeled(n) => {
+                self.emit_leading_comments(n.span);
+
+                self.emit_ident(n.label);
+                self.content.p_colon();
+                self.content.p_whitespace();
+                self.emit_stmt(n.stmt);
+            }
         }
     }
 

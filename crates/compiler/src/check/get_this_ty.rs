@@ -36,27 +36,25 @@ impl<'cx> TyChecker<'cx> {
     pub(super) fn get_this_ty(&mut self, node: &'cx ast::ThisTy) -> &'cx ty::Ty<'cx> {
         let container = self.p.get_this_container(node.id, false, false);
         let c = self.p.node(container);
-        let parent = self.p.parent(container);
-        if let Some(parent) = parent {
+        if let Some(parent) = self.p.parent(container) {
             let p = self.p.node(parent);
-            if p.is_class_like() || p.is_interface_decl() {
-                if !c.is_static() && {
-                    c.as_class_ctor().is_none_or(|c| match c.body {
-                        Some(body) => self.p.is_descendant_of(node.id, body.id),
-                        None => false,
-                    })
-                } {
-                    let s = self.get_symbol_of_decl(parent);
-                    let ty = self.get_declared_ty_of_class_or_interface(s);
-                    return if let Some(i) = ty.kind.as_object_interface() {
-                        i.this_ty.unwrap()
-                    } else if let Some(r) = ty.kind.as_object_reference() {
-                        let i = r.interface_target().unwrap().kind.expect_object_interface();
-                        i.this_ty.unwrap()
-                    } else {
-                        unreachable!()
-                    };
-                }
+            if (p.is_class_like() || p.is_interface_decl())
+                && !c.is_static()
+                && c.as_class_ctor().is_none_or(|c| match c.body {
+                    Some(body) => self.p.is_descendant_of(node.id, body.id),
+                    None => false,
+                })
+            {
+                let s = self.get_symbol_of_decl(parent);
+                let ty = self.get_declared_ty_of_class_or_interface(s);
+                return if let Some(i) = ty.kind.as_object_interface() {
+                    i.this_ty.unwrap()
+                } else if let Some(r) = ty.kind.as_object_reference() {
+                    let i = r.interface_target().unwrap().kind.expect_object_interface();
+                    i.this_ty.unwrap()
+                } else {
+                    unreachable!()
+                };
             }
         }
 

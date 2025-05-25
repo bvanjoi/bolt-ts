@@ -637,3 +637,11 @@ pub(super) struct Interface0CannotSimultaneouslyExtendTypes1And2 {
     pub(super) ty1: String,
     pub(super) ty2: String,
 }
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
+#[error("Duplicate identifier '{ident}'.")]
+pub(super) struct DuplicateIdentifierX {
+    #[label(primary)]
+    pub(super) span: Span,
+    pub(super) ident: String,
+}

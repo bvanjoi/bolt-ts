@@ -403,4 +403,12 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
     pub(super) fn in_disallow_conditional_tys_context(&self) -> bool {
         self.in_context(NodeFlags::DISALLOW_CONDITIONAL_TYPES_CONTEXT)
     }
+
+    pub(super) fn allow_continue_and<T>(&mut self, f: impl FnOnce(&mut Self) -> T) -> T {
+        self.do_inside_of_context(NodeFlags::ALLOW_CONTINUE_CONTEXT, f)
+    }
+
+    pub(super) fn disallow_continue_and<T>(&mut self, f: impl FnOnce(&mut Self) -> T) -> T {
+        self.do_outside_of_context(NodeFlags::ALLOW_CONTINUE_CONTEXT, f)
+    }
 }

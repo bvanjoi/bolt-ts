@@ -1,11 +1,9 @@
 bitflags::bitflags! {
     #[derive(Clone, Copy, Debug, Default, PartialEq)]
     pub struct NodeFlags: u32 {
-        const NONE                                        = 0;
         const LET                                         = 1 << 0;
         const CONST                                       = 1 << 1;
         const USING                                       = 1 << 2;
-        const AWAIT_USING                                 = Self::CONST.bits() | Self::USING.bits();
         const NESTED_NAMESPACE                            = 1 << 3;
         const SYNTHESIZED                                 = 1 << 4;
         const NAMESPACE                                   = 1 << 5;
@@ -33,7 +31,9 @@ bitflags::bitflags! {
         const JSON_FILE                                   = 1 << 27;
         const TYPE_CACHED                                 = 1 << 28;
         const DEPRECATED                                  = 1 << 29;
+        const ALLOW_CONTINUE_CONTEXT                      = 1 << 30;
 
+        const AWAIT_USING                                 = Self::CONST.bits() | Self::USING.bits();
         const CONSTANT                                    = Self::CONST.bits() | Self::USING.bits();
         const BLOCK_SCOPED                                = Self::LET.bits() | Self::CONST.bits() | Self::USING.bits();
         const TYPE_EXCLUDES_FLAGS                         = Self::YIELD_CONTEXT.bits() | Self::AWAIT_CONTEXT.bits();

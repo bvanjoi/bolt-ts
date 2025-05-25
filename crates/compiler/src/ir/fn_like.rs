@@ -4,6 +4,7 @@ use bolt_ts_ast as ast;
 
 pub trait FnLike<'cx>: Copy + std::fmt::Debug {
     fn id(&self) -> ast::NodeID;
+    fn ty_params(&self) -> Option<ast::TyParams<'cx>>;
     fn params(&self) -> ast::ParamsDecl<'cx>;
     fn body(&self) -> Option<ast::ArrowFnExprBody<'cx>>;
 }
@@ -18,11 +19,17 @@ impl<'cx> FnLike<'cx> for ast::FnDecl<'cx> {
     fn body(&self) -> Option<ast::ArrowFnExprBody<'cx>> {
         self.body.map(ast::ArrowFnExprBody::Block)
     }
+    fn ty_params(&self) -> Option<bolt_ts_ast::TyParams<'cx>> {
+        self.ty_params
+    }
 }
 
 impl<'cx> FnLike<'cx> for ast::ClassMethodElem<'cx> {
     fn id(&self) -> ast::NodeID {
         self.id
+    }
+    fn ty_params(&self) -> Option<bolt_ts_ast::TyParams<'cx>> {
+        self.ty_params
     }
     fn params(&self) -> ast::ParamsDecl<'cx> {
         self.params
@@ -36,6 +43,9 @@ impl<'cx> FnLike<'cx> for ast::ClassCtor<'cx> {
     fn id(&self) -> ast::NodeID {
         self.id
     }
+    fn ty_params(&self) -> Option<bolt_ts_ast::TyParams<'cx>> {
+        self.ty_params
+    }
     fn params(&self) -> ast::ParamsDecl<'cx> {
         self.params
     }
@@ -47,6 +57,9 @@ impl<'cx> FnLike<'cx> for ast::ClassCtor<'cx> {
 impl<'cx> FnLike<'cx> for ast::CtorSigDecl<'cx> {
     fn id(&self) -> ast::NodeID {
         self.id
+    }
+    fn ty_params(&self) -> Option<bolt_ts_ast::TyParams<'cx>> {
+        self.ty_params
     }
     fn params(&self) -> ast::ParamsDecl<'cx> {
         self.params
@@ -60,6 +73,9 @@ impl<'cx> FnLike<'cx> for ast::FnExpr<'cx> {
     fn id(&self) -> ast::NodeID {
         self.id
     }
+    fn ty_params(&self) -> Option<bolt_ts_ast::TyParams<'cx>> {
+        self.ty_params
+    }
     fn params(&self) -> ast::ParamsDecl<'cx> {
         self.params
     }
@@ -71,6 +87,9 @@ impl<'cx> FnLike<'cx> for ast::FnExpr<'cx> {
 impl<'cx> FnLike<'cx> for ast::ArrowFnExpr<'cx> {
     fn id(&self) -> ast::NodeID {
         self.id
+    }
+    fn ty_params(&self) -> Option<bolt_ts_ast::TyParams<'cx>> {
+        self.ty_params
     }
     fn params(&self) -> ast::ParamsDecl<'cx> {
         self.params
@@ -84,6 +103,9 @@ impl<'cx> FnLike<'cx> for ast::MethodSignature<'cx> {
     fn id(&self) -> ast::NodeID {
         self.id
     }
+    fn ty_params(&self) -> Option<bolt_ts_ast::TyParams<'cx>> {
+        self.ty_params
+    }
     fn params(&self) -> ast::ParamsDecl<'cx> {
         self.params
     }
@@ -95,6 +117,9 @@ impl<'cx> FnLike<'cx> for ast::MethodSignature<'cx> {
 impl<'cx> FnLike<'cx> for ast::ObjectMethodMember<'cx> {
     fn id(&self) -> ast::NodeID {
         self.id
+    }
+    fn ty_params(&self) -> Option<bolt_ts_ast::TyParams<'cx>> {
+        self.ty_params
     }
     fn params(&self) -> ast::ParamsDecl<'cx> {
         self.params
@@ -108,6 +133,9 @@ impl<'cx> FnLike<'cx> for ast::CallSigDecl<'cx> {
     fn id(&self) -> ast::NodeID {
         self.id
     }
+    fn ty_params(&self) -> Option<bolt_ts_ast::TyParams<'cx>> {
+        self.ty_params
+    }
     fn params(&self) -> ast::ParamsDecl<'cx> {
         self.params
     }
@@ -119,6 +147,9 @@ impl<'cx> FnLike<'cx> for ast::CallSigDecl<'cx> {
 impl<'cx> FnLike<'cx> for ast::CtorTy<'cx> {
     fn id(&self) -> ast::NodeID {
         self.id
+    }
+    fn ty_params(&self) -> Option<bolt_ts_ast::TyParams<'cx>> {
+        self.ty_params
     }
     fn params(&self) -> ast::ParamsDecl<'cx> {
         self.params

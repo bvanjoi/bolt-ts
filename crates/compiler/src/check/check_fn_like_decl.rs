@@ -33,6 +33,11 @@ impl<'cx> TyChecker<'cx> {
             self.check_fn_like_symbol(symbol);
         }
 
+        // TODO: use check_sig
+        if let Some(ty_params) = decl.ty_params() {
+            self.check_ty_params(ty_params);
+        }
+
         for param in decl.params() {
             self.check_param_decl(param)
         }
