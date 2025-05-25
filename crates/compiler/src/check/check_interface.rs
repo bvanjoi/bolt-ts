@@ -9,6 +9,10 @@ use super::{TyChecker, errors};
 
 impl<'cx> TyChecker<'cx> {
     pub(super) fn check_interface_decl(&mut self, interface: &'cx ast::InterfaceDecl<'cx>) {
+        if let Some(ty_params) = interface.ty_params {
+            self.check_ty_params(ty_params);
+        }
+
         let symbol = self.get_symbol_of_decl(interface.id);
 
         let first_interface_decl = self
