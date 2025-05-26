@@ -365,7 +365,7 @@ impl<'cx> Emit<'cx> {
                 match member.name.kind {
                     ast::PropNameKind::Ident(ident) => this.emit_as_string(ident.name),
                     ast::PropNameKind::StringLit { raw, .. } => this.emit_as_string(raw.val),
-                    ast::PropNameKind::NumLit(_) => todo!(),
+                    ast::PropNameKind::NumLit(node) => this.emit_num_lit(node),
                     ast::PropNameKind::Computed(_) => todo!(),
                 }
                 this.content.p_r_bracket();
@@ -386,7 +386,7 @@ impl<'cx> Emit<'cx> {
                 match member.name.kind {
                     ast::PropNameKind::Ident(ident) => this.emit_as_string(ident.name),
                     ast::PropNameKind::StringLit { raw, .. } => this.emit_as_string(raw.val),
-                    ast::PropNameKind::NumLit(_) => todo!(),
+                    ast::PropNameKind::NumLit(num) => this.emit_num_lit(num),
                     ast::PropNameKind::Computed(_) => todo!(),
                 }
             }

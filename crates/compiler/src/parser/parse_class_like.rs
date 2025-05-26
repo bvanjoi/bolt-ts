@@ -1,6 +1,7 @@
-use bolt_ts_ast as ast;
 use bolt_ts_ast::TokenKind;
+use bolt_ts_ast::{self as ast, ModifierKind};
 use bolt_ts_span::Span;
+use enumflags2::BitFlag;
 
 use super::errors;
 use super::list_ctx::{self, ListContext};
@@ -51,7 +52,7 @@ fn is_class_ele_start(s: &mut ParserState) -> bool {
 struct ClassElementsCtx;
 impl ListContext for ClassElementsCtx {
     fn is_ele(&self, s: &mut ParserState, _: bool) -> bool {
-        s.lookahead(|l| is_class_ele_start(l.p)) || s.token.kind == TokenKind::Semi
+        s.lookahead(|l| is_class_ele_start(l.p())) || s.token.kind == TokenKind::Semi
     }
 
     fn is_closing(&self, s: &mut ParserState) -> bool {
@@ -346,12 +347,12 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
             self.expect(Constructor)
         } else if t.kind == String
             && self.lookahead(|this| {
-                this.p.next_token();
-                this.p.token.kind == LParen
+                this.p().next_token();
+                this.p().token.kind == LParen
             })
         {
             self.try_parse(|this| {
-                let lit = this.p.parse_string_lit();
+                let lit = this.p().parse_string_lit();
                 lit.val == keyword::KW_CONSTRUCTOR
             })
         } else {
@@ -365,23 +366,24 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         mods: Option<&'cx ast::Modifiers<'cx>>,
     ) -> PResult<Option<&'cx ast::ClassElem<'cx>>> {
         self.try_parse(|this| {
-            if this.p.parse_ctor_name() {
-                let ty_params = this.p.parse_ty_params()?;
-                let params = this.p.parse_params()?;
-                this.p.check_params(params, true);
-                let ret = this.p.parse_ret_ty(true)?;
-                let body = this.p.parse_fn_block()?;
-                let id = this.p.next_node_id();
-                let ctor = this.p.alloc(ast::ClassCtor {
+            if this.p().parse_ctor_name() {
+                let ty_params = this.p().parse_ty_params()?;
+                let params = this.p().parse_params()?;
+                this.p().check_params(params, true);
+                let ret = this.p().parse_ret_ty(true)?;
+                let body = this.p().parse_fn_block()?;
+                let id = this.p().next_node_id();
+                let span = this.p().new_span(start as u32);
+                let ctor = this.p().alloc(ast::ClassCtor {
                     id,
-                    span: this.p.new_span(start as u32),
+                    span,
                     ty_params,
                     params,
                     ret,
                     body,
                 });
-                this.p.nodes.insert(id, ast::Node::ClassCtor(ctor));
-                let ele = this.p.alloc(ast::ClassElem {
+                this.p().nodes.insert(id, ast::Node::ClassCtor(ctor));
+                let ele = this.p().alloc(ast::ClassElem {
                     kind: ast::ClassEleKind::Ctor(ctor),
                 });
                 Ok(Some(ele))

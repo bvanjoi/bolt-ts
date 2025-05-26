@@ -6,8 +6,9 @@ use super::utils::is_left_hand_side_expr_kind;
 use super::{PResult, ParserState};
 use super::{Tristate, parse_class_like};
 use super::{errors, list_ctx};
-use bolt_ts_ast::{self as ast, NodeFlags, keyword};
+use bolt_ts_ast::{self as ast, ModifierKind, NodeFlags, keyword};
 use bolt_ts_ast::{BinPrec, Token, TokenKind};
+use enumflags2::BitFlag;
 
 impl<'cx> ParserState<'cx, '_> {
     fn is_update_expr(&self) -> bool {
@@ -38,7 +39,9 @@ impl<'cx> ParserState<'cx, '_> {
         match self.is_paren_arrow_fn_expr() {
             Tristate::True => self.parse_paren_arrow_fn_expr(false),
             Tristate::False => Ok(None),
-            Tristate::Unknown => self.try_parse(|this| this.p.parse_possible_paren_arrow_fn_expr()),
+            Tristate::Unknown => {
+                self.try_parse(|this| this.p().parse_possible_paren_arrow_fn_expr())
+            }
         }
     }
 
@@ -47,6 +50,7 @@ impl<'cx> ParserState<'cx, '_> {
         self.parse_paren_arrow_fn_expr(false)
     }
 
+    // TODO: put it into `parse_params`
     pub(super) fn check_params(
         &mut self,
         params: &'cx [&'cx ast::ParamDecl<'cx>],
@@ -54,6 +58,19 @@ impl<'cx> ParserState<'cx, '_> {
     ) {
         for param in params {
             if let Some(mods) = param.modifiers {
+                let mut flags = ModifierKind::empty();
+
+                for m in mods.list {
+                    if container_is_ctor_impl
+                        && ModifierKind::ACCESSIBILITY.contains(m.kind)
+                        && flags.intersects(ModifierKind::ACCESSIBILITY)
+                    {
+                        let error = errors::AccessibilityModifierAlreadySeen { span: m.span };
+                        self.push_error(Box::new(error));
+                    }
+                    flags.insert(m.kind);
+                }
+
                 if !container_is_ctor_impl {
                     let error = Box::new(
                         errors::AParamPropIsOnlyAllowedInAConstructorImplementation {
@@ -427,7 +444,7 @@ impl<'cx> ParserState<'cx, '_> {
 
         if self.token.kind == TokenKind::Less {
             let start_pos = self.token.start();
-            if let Ok(Some(ty_args)) = self.try_parse(|l| l.p.parse_ty_args_in_expr()) {
+            if let Ok(Some(ty_args)) = self.try_parse(|l| l.p().parse_ty_args_in_expr()) {
                 todo!("error handler")
             }
         }
@@ -528,7 +545,7 @@ impl<'cx> ParserState<'cx, '_> {
             let mut ty_args = None;
             let question_dot = self.parse_optional(TokenKind::QuestionDot);
             if question_dot.is_some() {
-                ty_args = self.try_parse(|l| l.p.parse_ty_args_in_expr())?;
+                ty_args = self.try_parse(|l| l.p().parse_ty_args_in_expr())?;
                 if self.is_template_start_of_tagged_template() {
                     expr = self.parse_tagged_template_rest(
                         start,
@@ -1261,7 +1278,7 @@ impl<'cx> ParserState<'cx, '_> {
                     });
                     continue;
                 }
-                if let Some(ty_args) = self.try_parse(|l| l.p.parse_ty_args_in_expr())? {
+                if let Some(ty_args) = self.try_parse(|l| l.p().parse_ty_args_in_expr())? {
                     let id = self.next_node_id();
                     let ele = self.alloc(ast::ExprWithTyArgs {
                         id,

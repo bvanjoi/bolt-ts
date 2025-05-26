@@ -193,7 +193,7 @@ impl<'cx> ParserState<'cx, '_> {
     pub(super) fn parse_ty_or_ty_pred(&mut self) -> PResult<&'cx ast::Ty<'cx>> {
         if self.token.kind.is_ident() {
             let start = self.token.start();
-            if let Ok(Some(name)) = self.try_parse(|l| l.p.parse_ty_pred_prefix()) {
+            if let Ok(Some(name)) = self.try_parse(|l| l.p().parse_ty_pred_prefix()) {
                 let ty = self.parse_ty()?;
                 let id = self.next_node_id();
                 let name = ast::PredTyName::Ident(name);
@@ -311,7 +311,7 @@ impl<'cx> ParserState<'cx, '_> {
     fn parse_ty_param_of_infer_ty(&mut self) -> PResult<&'cx ast::TyParam<'cx>> {
         let start = self.token.start();
         let name = self.create_ident(true, None);
-        let constraint = self.try_parse(|l| l.p.try_parse_constraint_of_infer_ty())?;
+        let constraint = self.try_parse(|l| l.p().try_parse_constraint_of_infer_ty())?;
         let id = self.next_node_id();
         let ty = self.alloc(ast::TyParam {
             id,
@@ -379,7 +379,7 @@ impl<'cx> ParserState<'cx, '_> {
                     todo!()
                 }
                 TokenKind::Question => {
-                    if (Lookahead { p: self }).lookahead(Lookahead::next_token_is_start_of_expr) {
+                    if self.lookahead(Lookahead::next_token_is_start_of_expr) {
                         return Ok(ty);
                     } else {
                         self.next_token();
@@ -609,7 +609,7 @@ impl<'cx> ParserState<'cx, '_> {
             }
             Number | String | BigInt | NoSubstitutionTemplate => self.parse_literal_ty(false),
             Typeof => {
-                if (Lookahead { p: self }).lookahead(Lookahead::is_start_of_ty_of_import_ty) {
+                if self.lookahead(Lookahead::is_start_of_ty_of_import_ty) {
                     todo!()
                 } else {
                     self.parse_ty_query()
@@ -617,7 +617,7 @@ impl<'cx> ParserState<'cx, '_> {
             }
             LParen => self.parse_paren_ty(),
             LBrace => {
-                if (Lookahead { p: self })
+                if self
                     .lookahead(Lookahead::is_start_of_mapped_ty)
                     .unwrap_or_default()
                 {
@@ -628,9 +628,7 @@ impl<'cx> ParserState<'cx, '_> {
             }
             LBracket => self.parse_tuple_ty(),
             Minus => {
-                if (Lookahead { p: self })
-                    .lookahead(Lookahead::next_token_is_numeric_or_big_int_literal)
-                {
+                if self.lookahead(Lookahead::next_token_is_numeric_or_big_int_literal) {
                     self.parse_literal_ty(true)
                 } else {
                     todo!()
@@ -700,7 +698,7 @@ impl<'cx> ParserState<'cx, '_> {
         }
         use bolt_ts_ast::TokenKind::*;
         let token_val = self.token_value.unwrap();
-        if let Some(node) = self.try_parse(|l| l.p.parse_keyword_and_not_dot())? {
+        if let Some(node) = self.try_parse(|l| l.p().parse_keyword_and_not_dot())? {
             let ty = match node.kind {
                 Number => {
                     let val = token_val.number();
@@ -871,7 +869,7 @@ impl<'cx> ParserState<'cx, '_> {
     }
 
     fn parse_tuple_ele_name_or_tuple_ele_ty(&mut self) -> PResult<&'cx ast::Ty<'cx>> {
-        if (Lookahead { p: self }).lookahead(Lookahead::is_tuple_ele_name) {
+        if self.lookahead(Lookahead::is_tuple_ele_name) {
             let start = self.token.start();
             let dotdotdot = self.parse_optional(TokenKind::DotDotDot);
             let name = self.parse_ident_name()?;
