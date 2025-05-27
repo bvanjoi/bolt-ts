@@ -4,7 +4,9 @@ use bolt_ts_atom::AtomId;
 use bolt_ts_span::Span;
 
 use super::{CommentDirectiveKind, PResult, ParserState, TokenValue};
-use bolt_ts_ast::{RegularExpressionFlags, Token, TokenFlags, TokenKind, keyword_idx_to_token};
+use bolt_ts_ast::{
+    RegularExpressionFlags, Token, TokenFlags, TokenKind, atom_to_token, keyword_idx_to_token,
+};
 
 use crate::{keyword::KEYWORDS, parser::CommentDirective};
 

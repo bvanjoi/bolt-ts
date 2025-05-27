@@ -734,6 +734,14 @@ impl ModuleExportName<'_> {
             StringLit(lit) => lit.span,
         }
     }
+
+    pub fn id(&self) -> NodeID {
+        use ModuleExportNameKind::*;
+        match self.kind {
+            Ident(ident) => ident.id,
+            StringLit(lit) => lit.id,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy)]

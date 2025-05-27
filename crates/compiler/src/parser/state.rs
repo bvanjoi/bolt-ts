@@ -250,6 +250,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         let id = self.next_node_id();
         let ident = self.alloc(ast::Ident { id, name, span });
         self.nodes.insert(id, Node::Ident(ident));
+        self.node_flags_map.insert(id, self.context_flags);
         ident
     }
 

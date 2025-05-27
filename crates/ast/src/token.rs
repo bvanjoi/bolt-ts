@@ -1,4 +1,7 @@
+use bolt_ts_atom::AtomId;
 use bolt_ts_span::Span;
+
+use crate::keyword;
 
 #[derive(Debug, Clone, Copy)]
 pub struct Token {
@@ -27,6 +30,63 @@ const KEYWORD_TOKEN_END: u8 = TokenKind::Type as u8;
 
 pub const fn keyword_idx_to_token(idx: usize) -> TokenKind {
     unsafe { std::mem::transmute::<u8, TokenKind>(idx as u8 + KEYWORD_TOKEN_START) }
+}
+
+pub fn atom_to_token(id: AtomId) -> Option<TokenKind> {
+    static KWS: std::sync::LazyLock<nohash_hasher::IntMap<AtomId, TokenKind>> =
+        std::sync::LazyLock::new(|| {
+            [
+                (keyword::KW_NULL, TokenKind::Null),
+                (keyword::KW_FALSE, TokenKind::False),
+                (keyword::KW_TRUE, TokenKind::True),
+                (keyword::KW_VAR, TokenKind::Var),
+                (keyword::KW_LET, TokenKind::Let),
+                (keyword::KW_CONST, TokenKind::Const),
+                (keyword::KW_FUNCTION, TokenKind::Function),
+                (keyword::KW_RETURN, TokenKind::Return),
+                (keyword::KW_IF, TokenKind::If),
+                (keyword::KW_ELSE, TokenKind::Else),
+                (keyword::KW_CLASS, TokenKind::Class),
+                (keyword::KW_EXTENDS, TokenKind::Extends),
+                (keyword::KW_NEW, TokenKind::New),
+                (keyword::KW_ASYNC, TokenKind::Async),
+                (keyword::KW_AWAIT, TokenKind::Await),
+                (keyword::KW_THIS, TokenKind::This),
+                (keyword::KW_STATIC, TokenKind::Static),
+                (keyword::KW_CONSTRUCTOR, TokenKind::Constructor),
+                (keyword::KW_SUPER, TokenKind::Super),
+                (keyword::KW_GET, TokenKind::Get),
+                (keyword::KW_SET, TokenKind::Set),
+                (keyword::KW_IMPORT, TokenKind::Import),
+                (keyword::KW_EXPORT, TokenKind::Export),
+                (keyword::KW_FROM, TokenKind::From),
+                (keyword::KW_DEFAULT, TokenKind::Default),
+                (keyword::KW_THROW, TokenKind::Throw),
+                (keyword::KW_TRY, TokenKind::Try),
+                (keyword::KW_CATCH, TokenKind::Catch),
+                (keyword::KW_FINALLY, TokenKind::Finally),
+                (keyword::KW_DEBUGGER, TokenKind::Debugger),
+                (keyword::KW_DELETE, TokenKind::Delete),
+                (keyword::KW_TYPEOF, TokenKind::Typeof),
+                (keyword::KW_PACKAGE, TokenKind::Package),
+                (keyword::KW_YIELD, TokenKind::Yield),
+                (keyword::KW_FOR, TokenKind::For),
+                (keyword::KW_OF, TokenKind::Of),
+                (keyword::KW_WHILE, TokenKind::While),
+                (keyword::KW_DO, TokenKind::Do),
+                (keyword::KW_SWITCH, TokenKind::Switch),
+                (keyword::KW_CASE, TokenKind::Case),
+                (keyword::KW_BREAK, TokenKind::Break),
+                (keyword::KW_CONTINUE, TokenKind::Continue),
+                (keyword::KW_INSTANCEOF, TokenKind::Instanceof),
+                (keyword::KW_VOID, TokenKind::Void),
+                (keyword::KW_UNDEFINED, TokenKind::Undefined),
+                (keyword::KW_IN, TokenKind::In),
+            ]
+            .into_iter()
+            .collect()
+        });
+    KWS.get(&id).copied()
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
