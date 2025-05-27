@@ -4,11 +4,9 @@ use bolt_ts_atom::AtomId;
 use bolt_ts_span::Span;
 
 use super::{CommentDirectiveKind, PResult, ParserState, TokenValue};
-use bolt_ts_ast::{
-    RegularExpressionFlags, Token, TokenFlags, TokenKind, atom_to_token, keyword_idx_to_token,
-};
+use bolt_ts_ast::{RegularExpressionFlags, Token, TokenFlags, TokenKind, atom_to_token};
 
-use crate::{keyword::KEYWORDS, parser::CommentDirective};
+use crate::parser::CommentDirective;
 
 #[inline(always)]
 fn is_ascii_letter(ch: u8) -> bool {
@@ -319,9 +317,8 @@ impl ParserState<'_, '_> {
         let raw = &self.input[start..self.pos];
         let id = AtomId::from_bytes(raw);
         if raw.len() >= 2 && raw.len() <= 12 {
-            if let Some(idx) = KEYWORDS.iter().position(|(_, kw)| (*kw == id)) {
+            if let Some(kind) = atom_to_token(id) {
                 // keyword
-                let kind = keyword_idx_to_token(idx);
                 let span = Span::new(start as u32, self.pos as u32, self.module_id);
                 debug_assert!(self.atoms.lock().unwrap().contains(id));
                 self.token_value = Some(TokenValue::Ident { value: id });
