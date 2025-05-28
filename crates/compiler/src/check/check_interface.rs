@@ -20,6 +20,7 @@ impl<'cx> TyChecker<'cx> {
             .symbol(symbol)
             .get_declaration_of_kind(|n| self.p.node(n).is_interface_decl())
             .unwrap();
+
         if first_interface_decl == interface.id {
             let ty = self.get_declared_ty_of_symbol(symbol);
             self.resolve_structured_type_members(ty);
@@ -53,6 +54,19 @@ impl<'cx> TyChecker<'cx> {
         }
 
         self.check_object_ty_for_duplicate_decls(interface.members);
+
+        for member in interface.members {
+            self.check_object_ty_member(member);
+        }
+    }
+
+    fn check_object_ty_member(&mut self, member: &'cx ast::ObjectTyMember<'cx>) {
+        match member.kind {
+            ast::ObjectTyMemberKind::Prop(n) => self.check_var_like_decl(n),
+            _ => {
+                // TODO:
+            }
+        }
     }
 
     pub(super) fn check_object_ty_for_duplicate_decls(
