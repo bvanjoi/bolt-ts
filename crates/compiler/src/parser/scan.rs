@@ -3,7 +3,7 @@ use std::{borrow::Cow, str};
 use bolt_ts_atom::AtomId;
 use bolt_ts_span::Span;
 
-use super::{CommentDirectiveKind, PResult, ParserState, TokenValue};
+use super::{CommentDirectiveKind, PResult, ParserState, TokenValue, state::LanguageVariant};
 use bolt_ts_ast::{RegularExpressionFlags, Token, TokenFlags, TokenKind, atom_to_token};
 
 use crate::parser::CommentDirective;
@@ -24,8 +24,14 @@ fn is_identifier_start(ch: u8) -> bool {
 }
 
 #[inline(always)]
-fn is_identifier_part(ch: u8) -> bool {
-    ch == b'$' || is_word_character(ch)
+fn is_identifier_part(ch: u8, is_jsx: bool) -> bool {
+    is_word_character(ch) || ch == b'$' || {
+        if is_jsx {
+            ch == b'-' || ch == b':'
+        } else {
+            false
+        }
+    }
 }
 
 #[inline(always)]
@@ -306,7 +312,10 @@ impl ParserState<'_, '_> {
                 first = false;
             } else if self.pos == self.end() {
                 break;
-            } else if is_identifier_part(self.ch_unchecked()) {
+            } else if is_identifier_part(
+                self.ch_unchecked(),
+                matches!(self.variant, LanguageVariant::Jsx),
+            ) {
                 self.pos += 1
             } else if self.ch_unchecked() < 128 {
                 break;
@@ -540,13 +549,6 @@ impl ParserState<'_, '_> {
                         )
                     }
                 }
-                b'~' => {
-                    self.pos += 1;
-                    Token::new(
-                        TokenKind::Tilde,
-                        Span::new(start as u32, self.pos as u32, self.module_id),
-                    )
-                }
                 b'*' => {
                     if self.next_ch() == Some(b'*') {
                         // **
@@ -657,28 +659,12 @@ impl ParserState<'_, '_> {
                         )
                     }
                 }
-                b'>' => {
-                    // `>>`, `>=`, `>>>`, `>>=`, `>>>=` will be handled in `re_scan_greater`
-                    self.pos += 1;
+                b'^' if self.next_ch() == Some(b'=') => {
+                    self.pos += 2;
                     Token::new(
-                        TokenKind::Great,
+                        TokenKind::CaretEq,
                         Span::new(start as u32, self.pos as u32, self.module_id),
                     )
-                }
-                b'^' => {
-                    if self.next_ch() == Some(b'=') {
-                        self.pos += 2;
-                        Token::new(
-                            TokenKind::CaretEq,
-                            Span::new(start as u32, self.pos as u32, self.module_id),
-                        )
-                    } else {
-                        self.pos += 1;
-                        Token::new(
-                            TokenKind::Caret,
-                            Span::new(start as u32, self.pos as u32, self.module_id),
-                        )
-                    }
                 }
                 b'.' if self.next_ch() == Some(b'.') && self.next_next_ch() == Some(b'.') => {
                     self.pos += 3;
@@ -699,7 +685,8 @@ impl ParserState<'_, '_> {
                     let span = Span::new(start as u32, self.pos as u32, self.module_id);
                     Token::new(kind, span)
                 }
-                b',' | b';' | b':' | b'[' | b']' | b'(' | b')' | b'{' | b'}' | b'!' | b'.' => {
+                b'>' | b'.' | b',' | b';' | b':' | b'[' | b']' | b'(' | b')' | b'{' | b'}'
+                | b'!' | b'~' | b'^' => {
                     self.pos += 1;
                     let kind = unsafe { std::mem::transmute::<u8, TokenKind>(ch) };
                     Token::new(
@@ -863,7 +850,7 @@ impl ParserState<'_, '_> {
         let end = self.end();
         if self.pos >= end {
             // TODO: error
-            return Vec::new();
+            return vec![];
         }
         let ch = self.ch_unchecked();
         self.pos += 1;
@@ -873,6 +860,7 @@ impl ParserState<'_, '_> {
         if matches!(ch, b'0'..=b'3') && self.pos < end && is_octal_digit(self.ch_unchecked()) {
             self.pos += 1;
         }
+
         if matches!(ch, b'0'..=b'7') {
             if self.pos < end && is_octal_digit(self.ch_unchecked()) {
                 self.pos += 1;
@@ -1246,7 +1234,7 @@ impl ParserState<'_, '_> {
             self.pos += 1;
             let mut regexp_flags = RegularExpressionFlags::empty();
             while let Some(ch) = self.ch() {
-                if !is_identifier_part(ch) {
+                if !is_identifier_part(ch, matches!(self.variant, LanguageVariant::Jsx)) {
                     break;
                 }
                 if !ch.is_ascii() {
@@ -1282,6 +1270,152 @@ impl ParserState<'_, '_> {
             TokenKind::Regexp,
             Span::new(start, end_of_regexp_body as u32, self.module_id),
         );
+    }
+
+    pub(super) fn scan_jsx_token(&mut self, allow_multiline_jsx_text: bool) {
+        self.full_start_pos = self.pos;
+        let token_start = self.pos;
+
+        if self.pos >= self.end() {
+            self.token = Token::new(
+                TokenKind::EOF,
+                Span::new(token_start as u32, token_start as u32, self.module_id),
+            );
+            return;
+        }
+
+        let ch = self.ch_unchecked();
+        if ch == b'<' {
+            if self.next_ch() == Some(b'/') {
+                self.pos += 2;
+                self.token = Token::new(
+                    TokenKind::LessSlash,
+                    Span::new(token_start as u32, self.pos as u32, self.module_id),
+                );
+            } else {
+                self.pos += 1;
+                self.token = Token::new(
+                    TokenKind::Less,
+                    Span::new(token_start as u32, self.pos as u32, self.module_id),
+                );
+            }
+            return;
+        } else if ch == b'{' {
+            self.pos += 1;
+            self.token = Token::new(
+                TokenKind::LBrace,
+                Span::new(token_start as u32, self.pos as u32, self.module_id),
+            );
+            return;
+        }
+
+        let mut first_non_whitespace = 0;
+
+        while let Some(ch) = self.ch() {
+            if ch == b'{' {
+                break;
+            } else if ch == b'<' {
+                // TODO: is_conflict_mark_trivia
+                break;
+            } else if ch == b'>' {
+                // TODO: error
+            } else if ch == b'}' {
+                // TODO: error
+            }
+
+            let is_line_break = is_line_break(ch);
+            if is_line_break && first_non_whitespace == 0 {
+                first_non_whitespace = -1;
+            } else if !allow_multiline_jsx_text && is_line_break && first_non_whitespace > 0 {
+                break;
+            } else if ch.is_ascii_whitespace() {
+                first_non_whitespace = self.pos as isize;
+            }
+
+            self.pos += 1;
+        }
+
+        let v = &self.input[token_start..self.pos];
+        let atom = AtomId::from_bytes(v);
+        self.atoms
+            .lock()
+            .unwrap()
+            .insert_if_not_exist(atom, || unsafe {
+                std::borrow::Cow::Owned(String::from_utf8_unchecked(v.to_vec()))
+            });
+        self.token_value = Some(TokenValue::Ident { value: atom });
+
+        let token_kind = if first_non_whitespace == -1 {
+            TokenKind::JSXTextAllWhiteSpaces
+        } else {
+            TokenKind::JSXText
+        };
+        self.token = Token::new(
+            token_kind,
+            Span::new(token_start as u32, self.pos as u32, self.module_id),
+        )
+    }
+
+    pub(super) fn scan_jsx_ident(&mut self) {
+        if !self.token.kind.is_ident_or_keyword() {
+            return;
+        }
+        let mut v = Vec::with_capacity(16);
+        while let Some(ch) = self.ch() {
+            if ch == b'-' {
+                v.push(ch);
+                self.pos += 1;
+                continue;
+            } else {
+                let old_pos = self.pos;
+                v.extend(self.scan_identifier_parts());
+                if self.pos == old_pos {
+                    break;
+                }
+            }
+        }
+        self.token_value = Some(TokenValue::Ident {
+            value: self.atoms.lock().unwrap().insert_by_vec(v),
+        });
+        self.token = Token::new(
+            TokenKind::Ident,
+            Span::new(self.token.start(), self.pos as u32, self.module_id),
+        );
+    }
+
+    fn scan_identifier_parts(&mut self) -> Vec<u8> {
+        let mut result = Vec::with_capacity(32);
+        let start = self.pos;
+        while let Some(ch) = self.ch() {
+            if is_identifier_part(ch, matches!(self.variant, LanguageVariant::Jsx)) {
+                self.pos += 1;
+            } else if ch == b'\\' {
+                todo!("unicode")
+            } else {
+                break;
+            }
+        }
+        result.extend_from_slice(&self.input[start..self.pos]);
+        return result;
+    }
+
+    pub(super) fn scan_jsx_attr_value(&mut self) {
+        self.full_start_pos = self.pos;
+        let start = self.pos;
+        let ch = self.ch();
+        match self.ch() {
+            Some(b'\'') | Some(b'"') => {
+                let (value, _) = self.scan_string(unsafe { ch.unwrap_unchecked() }, true);
+                self.token_value = Some(TokenValue::Ident {
+                    value: self.atoms.lock().unwrap().insert_by_vec(value),
+                });
+                self.token = Token::new(
+                    TokenKind::String,
+                    Span::new(start as u32, self.pos as u32, self.module_id),
+                );
+            }
+            _ => self.next_token(),
+        }
     }
 }
 

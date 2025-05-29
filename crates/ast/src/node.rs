@@ -160,6 +160,12 @@ pub enum Node<'cx> {
     TemplateSpanTy(&'cx super::TemplateSpanTy<'cx>),
     IntrinsicTy(&'cx super::IntrinsicTy),
     ThisTy(&'cx super::ThisTy),
+    JsxText(&'cx super::JsxText),
+    JsxClosingFrag(&'cx super::JsxClosingFrag),
+    JsxSpreadAttr(&'cx super::JsxSpreadAttr<'cx>),
+    JsxNsName(&'cx super::JsxNsName<'cx>),
+    JsxNamedAttr(&'cx super::JsxNamedAttr<'cx>),
+    JsxExpr(&'cx super::JsxExpr<'cx>),
 }
 
 impl<'cx> Node<'cx> {
@@ -1061,5 +1067,12 @@ as_node!(
     (TemplateLitTy, super::TemplateLitTy<'cx>, template_lit_ty),
     (TemplateSpanTy, super::TemplateSpanTy<'cx>, template_span_ty),
     (IntrinsicTy, super::IntrinsicTy, intrinsic_ty),
-    (ThisTy, super::ThisTy, this_ty)
+    (ThisTy, super::ThisTy, this_ty),
+    // jsx
+    (JsxText, super::JsxText, jsx_text),
+    (JsxClosingFrag, super::JsxClosingFrag, jsx_closing_frag),
+    (JsxSpreadAttr, super::JsxSpreadAttr<'cx>, jsx_spread_attr),
+    (JsxNsName, super::JsxNsName<'cx>, jsx_ns_name),
+    (JsxNamedAttr, super::JsxNamedAttr<'cx>, jsx_named_attr),
+    (JsxExpr, super::JsxExpr<'cx>, jsx_expr)
 );

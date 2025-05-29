@@ -1152,7 +1152,27 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
             | IntrinsicTy(_)
             | Modifier(_)
             | DebuggerStmt(_)
-            | ThisTy(_) => {}
+            | ThisTy(_)
+            | JsxText(_)
+            | JsxClosingFrag(_) => {}
+            JsxSpreadAttr(n) => {
+                self.bind(n.expr.id());
+            }
+            JsxNsName(n) => {
+                self.bind(n.ns.id);
+                self.bind(n.name.id);
+            }
+            JsxNamedAttr(n) => {
+                self.bind(n.name.id());
+                if let Some(attr_value) = n.init {
+                    self.bind(attr_value.id());
+                }
+            }
+            JsxExpr(n) => {
+                if let Some(e) = n.expr {
+                    self.bind(e.id());
+                }
+            }
         }
         // TODO: bind_js_doc
         self.in_assignment_pattern = save_in_assignment_pattern;

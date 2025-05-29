@@ -832,13 +832,8 @@ impl<'cx> ParserState<'cx, '_> {
                 ast::ExprKind::NoSubstitutionTemplateLit(lit)
             }
             This => {
-                let id = self.next_node_id();
-                let this = self.alloc(ast::ThisExpr {
-                    id,
-                    span: self.token.span,
-                });
+                let this = self.create_this_expr(self.token.span);
                 self.next_token();
-                self.nodes.insert(this.id, ast::Node::ThisExpr(this));
                 ast::ExprKind::This(this)
             }
             Regexp => {

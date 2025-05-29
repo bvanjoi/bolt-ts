@@ -168,6 +168,8 @@ pub enum TokenKind {
     CaretEq,
     /// `?.`
     QuestionDot,
+    /// `</`
+    LessSlash,
     // =====
     /// `!`
     Excl = 0x21,
@@ -300,6 +302,8 @@ pub enum TokenKind {
     String,
     /// bigint literal
     BigInt,
+    JSXText,
+    JSXTextAllWhiteSpaces,
     Regexp,
     Ident,
     NoSubstitutionTemplate,
@@ -740,6 +744,7 @@ bitflags::bitflags! {
         const OCTAL_SPECIFIER           = 1 << 8;
         /// `123_456`
         const CONTAINS_SEPARATOR        = 1 << 9;
+        const UNICODE_ESCAPE            = 1 << 10;
         const CONTAINS_INVALID_ESCAPE   = 1 << 11;
         const NUMERIC_LITERAL_FLAGS     = Self::CONTAINS_SEPARATOR.bits() | Self::PRECEDING_LINE_BREAK.bits();
     }

@@ -239,3 +239,16 @@ impl ListContext for ArrayBindingElems {
         matches!(s.token.kind, TokenKind::RBracket)
     }
 }
+
+#[derive(Copy, Clone)]
+pub(super) struct JsxAttrs;
+impl ListContext for JsxAttrs {
+    fn is_ele(&self, s: &mut ParserState, _: bool) -> bool {
+        let t = s.token.kind;
+        t.is_ident_or_keyword() || t == TokenKind::LBrace
+    }
+
+    fn is_closing(&self, s: &mut ParserState) -> bool {
+        matches!(s.token.kind, TokenKind::Great | TokenKind::Slash)
+    }
+}

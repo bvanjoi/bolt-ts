@@ -1,6 +1,7 @@
 mod errors;
 mod expr;
 mod factory;
+mod jsx;
 mod list_ctx;
 mod lookahead;
 mod nodes;
@@ -27,6 +28,7 @@ use bolt_ts_fs::PathId;
 use bolt_ts_path::NormalizePath;
 use bolt_ts_span::{ModuleArena, ModuleID};
 use bolt_ts_utils::no_hashmap_with_capacity;
+use state::LanguageVariant;
 
 use std::sync::{Arc, Mutex};
 
@@ -175,18 +177,16 @@ enum TokenValue {
 
 impl TokenValue {
     fn number(self) -> f64 {
-        if let TokenValue::Number { value } = self {
-            value
-        } else {
-            unreachable!()
+        match self {
+            TokenValue::Number { value } => value,
+            TokenValue::Ident { .. } => unreachable!(),
         }
     }
 
     fn ident(self) -> AtomId {
-        if let TokenValue::Ident { value } = self {
-            value
-        } else {
-            unreachable!()
+        match self {
+            TokenValue::Ident { value } => value,
+            TokenValue::Number { .. } => unreachable!(),
         }
     }
 }
@@ -240,7 +240,12 @@ fn parse<'cx, 'p>(
 ) -> ParseResult<'cx> {
     let nodes = Nodes(Vec::with_capacity(1024 * 8));
     let file_path = module_arena.get_path(module_id);
-    let mut s = ParserState::new(atoms, arena, nodes, input, module_id, file_path);
+    let variant = if file_path.ends_with("jsx") {
+        LanguageVariant::Jsx
+    } else {
+        LanguageVariant::Standard
+    };
+    let mut s = ParserState::new(atoms, arena, nodes, input, module_id, file_path, variant);
 
     s.parse();
 
