@@ -1272,6 +1272,11 @@ impl ParserState<'_, '_> {
         );
     }
 
+    pub(super) fn re_scan_jsx_token(&mut self, allow_multiline_jsx_text: bool) {
+        self.pos = self.full_start_pos;
+        self.scan_jsx_token(allow_multiline_jsx_text);
+    }
+
     pub(super) fn scan_jsx_token(&mut self, allow_multiline_jsx_text: bool) {
         self.full_start_pos = self.pos;
         let token_start = self.pos;

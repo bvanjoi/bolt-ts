@@ -1094,33 +1094,10 @@ impl<'cx> ParserState<'cx, '_> {
         let name = self.parse_right_side_of_dot(true)?;
         let is_optional_chain = question_dot.is_some() || self.try_reparse_optional_chain(expr);
         let prop = if is_optional_chain {
-            let expr = NoParenRule.paren_left_side_of_access(expr, true);
-            let id = self.next_node_id();
-            self.alloc(ast::PropAccessExpr {
-                id,
-                span: self.new_span(start as u32),
-                expr,
-                question_dot,
-                name,
-            })
+            self.create_prop_access_chain(start as u32, expr, question_dot, name)
         } else {
-            let expr = NoParenRule.paren_left_side_of_access(expr, false);
-            let id = self.next_node_id();
-            self.alloc(ast::PropAccessExpr {
-                id,
-                span: self.new_span(start as u32),
-                expr,
-                question_dot,
-                name,
-            })
+            self.create_prop_access_expr(start as u32, expr, name)
         };
-        self.nodes.insert(prop.id, ast::Node::PropAccessExpr(prop));
-        if is_optional_chain {
-            self.node_flags_map.0.insert(
-                prop.id.index_as_u32(),
-                ast::NodeFlags::OPTIONAL_CHAIN | self.context_flags,
-            );
-        }
         Ok(prop)
     }
 

@@ -2,7 +2,10 @@ use bolt_ts_ast::{self as ast, TokenKind};
 use bolt_ts_atom::AtomId;
 use bolt_ts_span::Span;
 
-use super::ParserState;
+use super::{
+    ParserState,
+    paren_rule::{NoParenRule, ParenRuleTrait},
+};
 
 impl<'cx> ParserState<'cx, '_> {
     pub fn create_numeric_literal(&mut self, val: f64, span: Span) -> &'cx ast::NumLit {
@@ -110,5 +113,148 @@ impl<'cx> ParserState<'cx, '_> {
 
     pub fn create_jsx_attrs(&mut self, attrs: &'cx [ast::JsxAttr<'cx>]) -> ast::JsxAttrs<'cx> {
         attrs
+    }
+
+    fn create_base_prop_access_expr(
+        &mut self,
+        span: Span,
+        expr: &'cx ast::Expr<'cx>,
+        question_dot: Option<Span>,
+        name: &'cx ast::Ident,
+    ) -> &'cx ast::PropAccessExpr<'cx> {
+        let id = self.next_node_id();
+        let node = self.alloc(ast::PropAccessExpr {
+            id,
+            span,
+            expr,
+            question_dot,
+            name,
+        });
+        self.nodes.insert(id, ast::Node::PropAccessExpr(node));
+        self.node_flags_map.insert(id, ast::NodeFlags::empty());
+        node
+    }
+
+    pub fn create_prop_access_expr(
+        &mut self,
+        start: u32,
+        expr: &'cx ast::Expr<'cx>,
+        name: &'cx ast::Ident,
+    ) -> &'cx ast::PropAccessExpr<'cx> {
+        let expr = NoParenRule.paren_left_side_of_access(expr, false);
+        let span = self.new_span(start);
+        self.create_base_prop_access_expr(span, expr, None, name)
+    }
+
+    pub fn create_prop_access_chain(
+        &mut self,
+        start: u32,
+        expr: &'cx ast::Expr<'cx>,
+        question_dot: Option<Span>,
+        name: &'cx ast::Ident,
+    ) -> &'cx ast::PropAccessExpr<'cx> {
+        let expr = NoParenRule.paren_left_side_of_access(expr, true);
+        let span = self.new_span(start);
+        self.create_base_prop_access_expr(span, expr, question_dot, name)
+    }
+
+    pub fn create_jsx_opening_frag(&mut self, span: Span) -> &'cx ast::JsxOpeningFrag {
+        let id = self.next_node_id();
+        let node = self.alloc(ast::JsxOpeningFrag { id, span });
+        self.nodes.insert(id, ast::Node::JsxOpeningFrag(node));
+        self.node_flags_map.insert(id, ast::NodeFlags::empty());
+        node
+    }
+
+    pub fn create_jsx_opening_ele(
+        &mut self,
+        span: Span,
+        tag_name: ast::JsxTagNameExpr<'cx>,
+        ty_args: Option<&'cx ast::Tys<'cx>>,
+        attrs: ast::JsxAttrs<'cx>,
+    ) -> &'cx ast::JsxOpeningEle<'cx> {
+        let id = self.next_node_id();
+        let node = self.alloc(ast::JsxOpeningEle {
+            id,
+            span,
+            tag_name,
+            ty_args,
+            attrs,
+        });
+        self.nodes.insert(id, ast::Node::JsxOpeningEle(node));
+        self.node_flags_map.insert(id, ast::NodeFlags::empty());
+        node
+    }
+
+    pub fn create_jsx_closing_ele(
+        &mut self,
+        span: Span,
+        tag_name: ast::JsxTagNameExpr<'cx>,
+    ) -> &'cx ast::JsxClosingEle<'cx> {
+        let id = self.next_node_id();
+        let node = self.alloc(ast::JsxClosingEle { id, span, tag_name });
+        self.nodes.insert(id, ast::Node::JsxClosingEle(node));
+        self.node_flags_map.insert(id, ast::NodeFlags::empty());
+        node
+    }
+
+    pub fn create_jsx_self_closing_ele(
+        &mut self,
+        span: Span,
+        tag_name: ast::JsxTagNameExpr<'cx>,
+        ty_args: Option<&'cx ast::Tys<'cx>>,
+        attrs: ast::JsxAttrs<'cx>,
+    ) -> &'cx ast::JsxSelfClosingEle<'cx> {
+        let id = self.next_node_id();
+        let node = self.alloc(ast::JsxSelfClosingEle {
+            id,
+            span,
+            tag_name,
+            ty_args,
+            attrs,
+        });
+        self.nodes.insert(id, ast::Node::JsxSelfClosingEle(node));
+        self.node_flags_map.insert(id, ast::NodeFlags::empty());
+        node
+    }
+
+    pub fn create_jsx_frag(
+        &mut self,
+        span: Span,
+        opening: &'cx ast::JsxOpeningFrag,
+        children: &'cx [ast::JsxChild<'cx>],
+        closing: &'cx ast::JsxClosingFrag,
+    ) -> &'cx ast::JsxFrag<'cx> {
+        let id = self.next_node_id();
+        let node = self.alloc(ast::JsxFrag {
+            id,
+            span,
+            opening_ele: opening,
+            children,
+            closing_ele: closing,
+        });
+        self.nodes.insert(id, ast::Node::JsxFrag(node));
+        self.node_flags_map.insert(id, ast::NodeFlags::empty());
+        node
+    }
+
+    pub fn create_jsx_ele(
+        &mut self,
+        span: Span,
+        opening: &'cx ast::JsxOpeningEle<'cx>,
+        children: &'cx [ast::JsxChild<'cx>],
+        closing: &'cx ast::JsxClosingEle<'cx>,
+    ) -> &'cx ast::JsxEle<'cx> {
+        let id = self.next_node_id();
+        let node = self.alloc(ast::JsxEle {
+            id,
+            span,
+            opening_ele: opening,
+            children,
+            closing_ele: closing,
+        });
+        self.nodes.insert(id, ast::Node::JsxEle(node));
+        self.node_flags_map.insert(id, ast::NodeFlags::empty());
+        node
     }
 }

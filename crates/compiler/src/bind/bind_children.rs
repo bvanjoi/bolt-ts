@@ -1154,6 +1154,7 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
             | DebuggerStmt(_)
             | ThisTy(_)
             | JsxText(_)
+            | JsxOpeningFrag(_)
             | JsxClosingFrag(_) => {}
             JsxSpreadAttr(n) => {
                 self.bind(n.expr.id());
@@ -1172,6 +1173,45 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
                 if let Some(e) = n.expr {
                     self.bind(e.id());
                 }
+            }
+            JsxOpeningEle(n) => {
+                self.bind(n.tag_name.id());
+                if let Some(ty_args) = n.ty_args {
+                    for ty in ty_args.list {
+                        self.bind(ty.id());
+                    }
+                }
+                for attr in n.attrs {
+                    self.bind(attr.id());
+                }
+            }
+            JsxClosingEle(n) => {
+                self.bind(n.tag_name.id());
+            }
+            JsxSelfClosingEle(n) => {
+                self.bind(n.tag_name.id());
+                if let Some(ty_args) = n.ty_args {
+                    for ty in ty_args.list {
+                        self.bind(ty.id());
+                    }
+                }
+                for attr in n.attrs {
+                    self.bind(attr.id());
+                }
+            }
+            JsxFrag(n) => {
+                self.bind(n.opening_ele.id);
+                for child in n.children {
+                    self.bind(child.id());
+                }
+                self.bind(n.closing_ele.id);
+            }
+            JsxEle(n) => {
+                self.bind(n.opening_ele.id);
+                for child in n.children {
+                    self.bind(child.id());
+                }
+                self.bind(n.closing_ele.id);
             }
         }
         // TODO: bind_js_doc
