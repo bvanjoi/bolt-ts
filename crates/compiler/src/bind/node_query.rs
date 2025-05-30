@@ -71,6 +71,11 @@ pub trait NodeQuery<'cx>: Sized {
         self.get_combined_flags(id, |p, id| p.node_flags(id))
     }
 
+    fn get_containing_class(&self, id: ast::NodeID) -> Option<ast::NodeID> {
+        let p = self.parent(id)?;
+        self.find_ancestor(p, |n| n.is_class_like().then_some(true))
+    }
+
     fn get_combined_modifier_flags(
         &self,
         id: ast::NodeID,

@@ -22,12 +22,7 @@ fn ensure_all_cases_are_dir() {
     }
 }
 
-#[dir_test::dir_test(
-    dir: "$CARGO_MANIFEST_DIR/../../tests/cases/compiler",
-    glob: "**/index.ts",
-)]
-fn run_test(arg: dir_test::Fixture<&str>) {
-    let entry = std::path::Path::new(arg.path());
+fn run_test(entry: &std::path::Path) {
     const DEFAULT_OUTPUT: &str = "output";
 
     let runner = |case: &std::path::Path| {
@@ -133,4 +128,22 @@ fn run_test(arg: dir_test::Fixture<&str>) {
     };
 
     run(entry, runner);
+}
+
+#[dir_test::dir_test(
+    dir: "$CARGO_MANIFEST_DIR/../../tests/cases/compiler",
+    glob: "**/index.ts",
+)]
+fn run_index_ts_test(arg: dir_test::Fixture<&str>) {
+    let entry = std::path::Path::new(arg.path());
+    run_test(entry);
+}
+
+#[dir_test::dir_test(
+    dir: "$CARGO_MANIFEST_DIR/../../tests/cases/compiler",
+    glob: "**/index.tsx",
+)]
+fn run_index_tsx_test(arg: dir_test::Fixture<&str>) {
+    let entry = std::path::Path::new(arg.path());
+    run_test(entry);
 }

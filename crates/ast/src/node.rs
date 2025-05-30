@@ -160,6 +160,18 @@ pub enum Node<'cx> {
     TemplateSpanTy(&'cx super::TemplateSpanTy<'cx>),
     IntrinsicTy(&'cx super::IntrinsicTy),
     ThisTy(&'cx super::ThisTy),
+    JsxText(&'cx super::JsxText),
+    JsxOpeningFrag(&'cx super::JsxOpeningFrag),
+    JsxClosingFrag(&'cx super::JsxClosingFrag),
+    JsxOpeningEle(&'cx super::JsxOpeningEle<'cx>),
+    JsxClosingEle(&'cx super::JsxClosingEle<'cx>),
+    JsxSelfClosingEle(&'cx super::JsxSelfClosingEle<'cx>),
+    JsxSpreadAttr(&'cx super::JsxSpreadAttr<'cx>),
+    JsxNsName(&'cx super::JsxNsName<'cx>),
+    JsxNamedAttr(&'cx super::JsxNamedAttr<'cx>),
+    JsxExpr(&'cx super::JsxExpr<'cx>),
+    JsxFrag(&'cx super::JsxFrag<'cx>),
+    JsxEle(&'cx super::JsxEle<'cx>),
 }
 
 impl<'cx> Node<'cx> {
@@ -1061,5 +1073,22 @@ as_node!(
     (TemplateLitTy, super::TemplateLitTy<'cx>, template_lit_ty),
     (TemplateSpanTy, super::TemplateSpanTy<'cx>, template_span_ty),
     (IntrinsicTy, super::IntrinsicTy, intrinsic_ty),
-    (ThisTy, super::ThisTy, this_ty)
+    (ThisTy, super::ThisTy, this_ty),
+    // jsx
+    (JsxText, super::JsxText, jsx_text),
+    (JsxOpeningFrag, super::JsxOpeningFrag, jsx_opening_frag),
+    (JsxClosingFrag, super::JsxClosingFrag, jsx_closing_frag),
+    (JsxOpeningEle, super::JsxOpeningEle<'cx>, jsx_opening_ele),
+    (JsxClosingEle, super::JsxClosingEle<'cx>, jsx_closing_ele),
+    (
+        JsxSelfClosingEle,
+        super::JsxSelfClosingEle<'cx>,
+        jsx_self_closing_ele
+    ),
+    (JsxSpreadAttr, super::JsxSpreadAttr<'cx>, jsx_spread_attr),
+    (JsxNsName, super::JsxNsName<'cx>, jsx_ns_name),
+    (JsxNamedAttr, super::JsxNamedAttr<'cx>, jsx_named_attr),
+    (JsxExpr, super::JsxExpr<'cx>, jsx_expr),
+    (JsxFrag, super::JsxFrag<'cx>, jsx_frag),
+    (JsxEle, super::JsxEle<'cx>, jsx_ele),
 );

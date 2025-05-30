@@ -1,0 +1,6 @@
+  × Identifier expected. 'static' is a reserved word in strict mode. Class
+  │ definitions are automatically in strict mode.
+   ╭─[../../tests/cases/compiler/constructorStaticParamName/index.ts:4:18]
+ 4 │ static
+   · ──────
+   ╰────

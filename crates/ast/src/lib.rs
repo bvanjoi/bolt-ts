@@ -1,4 +1,5 @@
 mod expr;
+mod jsx;
 pub mod keyword;
 mod node;
 mod node_flags;
@@ -9,16 +10,17 @@ mod ty;
 
 pub mod visitor;
 
-pub use expr::*;
-pub use pprint::*;
-pub use stmt::*;
-pub use token::*;
-pub use ty::*;
-pub use visitor::Visitor;
+pub use self::expr::*;
+pub use self::jsx::*;
+pub use self::node::{FnFlags, Node, NodeID};
+pub use self::node_flags::NodeFlags;
+pub use self::pprint::*;
+pub use self::stmt::*;
+pub use self::token::*;
+pub use self::ty::*;
+pub use self::visitor::Visitor;
 
 use bolt_ts_span::Span;
-pub use node::{FnFlags, Node, NodeID};
-pub use node_flags::NodeFlags;
 
 #[derive(Debug, Clone, Copy)]
 pub struct Program<'cx> {

@@ -1,4 +1,7 @@
+use bolt_ts_atom::AtomId;
 use bolt_ts_span::Span;
+
+use crate::keyword;
 
 #[derive(Debug, Clone, Copy)]
 pub struct Token {
@@ -27,6 +30,83 @@ const KEYWORD_TOKEN_END: u8 = TokenKind::Type as u8;
 
 pub const fn keyword_idx_to_token(idx: usize) -> TokenKind {
     unsafe { std::mem::transmute::<u8, TokenKind>(idx as u8 + KEYWORD_TOKEN_START) }
+}
+
+pub fn atom_to_token(id: AtomId) -> Option<TokenKind> {
+    static KWS: std::sync::LazyLock<nohash_hasher::IntMap<AtomId, TokenKind>> =
+        std::sync::LazyLock::new(|| {
+            [
+                (keyword::KW_NULL, TokenKind::Null),
+                (keyword::KW_FALSE, TokenKind::False),
+                (keyword::KW_TRUE, TokenKind::True),
+                (keyword::KW_VAR, TokenKind::Var),
+                (keyword::KW_LET, TokenKind::Let),
+                (keyword::KW_CONST, TokenKind::Const),
+                (keyword::KW_FUNCTION, TokenKind::Function),
+                (keyword::KW_RETURN, TokenKind::Return),
+                (keyword::KW_IF, TokenKind::If),
+                (keyword::KW_ELSE, TokenKind::Else),
+                (keyword::KW_CLASS, TokenKind::Class),
+                (keyword::KW_EXTENDS, TokenKind::Extends),
+                (keyword::KW_NEW, TokenKind::New),
+                (keyword::KW_ASYNC, TokenKind::Async),
+                (keyword::KW_AWAIT, TokenKind::Await),
+                (keyword::KW_THIS, TokenKind::This),
+                (keyword::KW_STATIC, TokenKind::Static),
+                (keyword::KW_CONSTRUCTOR, TokenKind::Constructor),
+                (keyword::KW_SUPER, TokenKind::Super),
+                (keyword::KW_GET, TokenKind::Get),
+                (keyword::KW_SET, TokenKind::Set),
+                (keyword::KW_IMPORT, TokenKind::Import),
+                (keyword::KW_EXPORT, TokenKind::Export),
+                (keyword::KW_FROM, TokenKind::From),
+                (keyword::KW_DEFAULT, TokenKind::Default),
+                (keyword::KW_THROW, TokenKind::Throw),
+                (keyword::KW_TRY, TokenKind::Try),
+                (keyword::KW_CATCH, TokenKind::Catch),
+                (keyword::KW_FINALLY, TokenKind::Finally),
+                (keyword::KW_DEBUGGER, TokenKind::Debugger),
+                (keyword::KW_DELETE, TokenKind::Delete),
+                (keyword::KW_TYPEOF, TokenKind::Typeof),
+                (keyword::KW_PACKAGE, TokenKind::Package),
+                (keyword::KW_YIELD, TokenKind::Yield),
+                (keyword::KW_FOR, TokenKind::For),
+                (keyword::KW_OF, TokenKind::Of),
+                (keyword::KW_WHILE, TokenKind::While),
+                (keyword::KW_DO, TokenKind::Do),
+                (keyword::KW_SWITCH, TokenKind::Switch),
+                (keyword::KW_CASE, TokenKind::Case),
+                (keyword::KW_BREAK, TokenKind::Break),
+                (keyword::KW_CONTINUE, TokenKind::Continue),
+                (keyword::KW_INSTANCEOF, TokenKind::Instanceof),
+                (keyword::KW_VOID, TokenKind::Void),
+                (keyword::KW_UNDEFINED, TokenKind::Undefined),
+                (keyword::KW_IN, TokenKind::In),
+                (keyword::KW_IMPLEMENTS, TokenKind::Implements),
+                (keyword::KW_INTERFACE, TokenKind::Interface),
+                (keyword::KW_ABSTRACT, TokenKind::Abstract),
+                (keyword::KW_PUBLIC, TokenKind::Public),
+                (keyword::KW_PROTECTED, TokenKind::Protected),
+                (keyword::KW_PRIVATE, TokenKind::Private),
+                (keyword::KW_AS, TokenKind::As),
+                (keyword::KW_IS, TokenKind::Is),
+                (keyword::KW_DECLARE, TokenKind::Declare),
+                (keyword::KW_MODULE, TokenKind::Module),
+                (keyword::KW_NAMESPACE, TokenKind::Namespace),
+                (keyword::KW_ENUM, TokenKind::Enum),
+                (keyword::KW_READONLY, TokenKind::Readonly),
+                (keyword::KW_SATISFIES, TokenKind::Satisfies),
+                (keyword::KW_KEYOF, TokenKind::Keyof),
+                (keyword::KW_INFER, TokenKind::Infer),
+                (keyword::KW_INTRINSIC, TokenKind::Intrinsic),
+                (keyword::KW_UNIQUE, TokenKind::Unique),
+                (keyword::KW_ASSERTS, TokenKind::Asserts),
+                (keyword::KW_TYPE, TokenKind::Type),
+            ]
+            .into_iter()
+            .collect()
+        });
+    KWS.get(&id).copied()
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -88,6 +168,8 @@ pub enum TokenKind {
     CaretEq,
     /// `?.`
     QuestionDot,
+    /// `</`
+    LessSlash,
     // =====
     /// `!`
     Excl = 0x21,
@@ -220,6 +302,8 @@ pub enum TokenKind {
     String,
     /// bigint literal
     BigInt,
+    JSXText,
+    JSXTextAllWhiteSpaces,
     Regexp,
     Ident,
     NoSubstitutionTemplate,
@@ -660,6 +744,7 @@ bitflags::bitflags! {
         const OCTAL_SPECIFIER           = 1 << 8;
         /// `123_456`
         const CONTAINS_SEPARATOR        = 1 << 9;
+        const UNICODE_ESCAPE            = 1 << 10;
         const CONTAINS_INVALID_ESCAPE   = 1 << 11;
         const NUMERIC_LITERAL_FLAGS     = Self::CONTAINS_SEPARATOR.bits() | Self::PRECEDING_LINE_BREAK.bits();
     }

@@ -10,3 +10,4 @@ bolt_ts_span = { path = "../span" }
 bolt_ts_utils = { path = "../utils" }
 enumflags2 = { workspace = true }
 paste = { workspace = true }
+nohash-hasher = "0.2.0"

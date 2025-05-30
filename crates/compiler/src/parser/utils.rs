@@ -175,9 +175,11 @@ impl<'cx> ParserState<'cx, '_> {
             !in_start_of_param
         } else if self.token.kind == TokenKind::LParen && !in_start_of_param {
             self.lookahead(|this| {
-                this.p.next_token();
-                let t = this.p.token.kind;
-                t == TokenKind::RParen || this.p.is_start_of_param() || this.p.is_start_of_ty(false)
+                this.p().next_token();
+                let t = this.p().token.kind;
+                t == TokenKind::RParen
+                    || this.p().is_start_of_param()
+                    || this.p().is_start_of_ty(false)
             })
         } else if self.token.kind == TokenKind::Minus {
             !in_start_of_param
@@ -427,36 +429,36 @@ impl<'cx> ParserState<'cx, '_> {
         self.token.kind == TokenKind::LBracket
             && self
                 .lookahead(|this| -> PResult<bool> {
-                    this.p.next_token();
+                    this.p().next_token();
 
-                    if this.p.token.kind == TokenKind::DotDotDot
-                        || this.p.token.kind == TokenKind::RBracket
+                    if this.p().token.kind == TokenKind::DotDotDot
+                        || this.p().token.kind == TokenKind::RBracket
                     {
                         return Ok(true);
-                    } else if this.p.token.kind.is_modifier_kind() {
-                        this.p.next_token();
-                        if this.p.is_ident() {
+                    } else if this.p().token.kind.is_modifier_kind() {
+                        this.p().next_token();
+                        if this.p().is_ident() {
                             return Ok(true);
                         }
-                    } else if !this.p.is_ident() {
+                    } else if !this.p().is_ident() {
                         return Ok(false);
                     } else {
-                        this.p.next_token();
+                        this.p().next_token();
                     }
 
-                    if this.p.token.kind == TokenKind::Colon
-                        || this.p.token.kind == TokenKind::Comma
+                    if this.p().token.kind == TokenKind::Colon
+                        || this.p().token.kind == TokenKind::Comma
                     {
                         return Ok(true);
-                    } else if this.p.token.kind != TokenKind::Question {
+                    } else if this.p().token.kind != TokenKind::Question {
                         return Ok(false);
                     }
 
-                    this.p.next_token();
+                    this.p().next_token();
 
-                    Ok(this.p.token.kind == TokenKind::Colon
-                        || this.p.token.kind == TokenKind::Comma
-                        || this.p.token.kind == TokenKind::RBracket)
+                    Ok(this.p().token.kind == TokenKind::Colon
+                        || this.p().token.kind == TokenKind::Comma
+                        || this.p().token.kind == TokenKind::RBracket)
                 })
                 .unwrap_or_default()
     }
@@ -629,17 +631,17 @@ impl<'cx> ParserState<'cx, '_> {
         (t == TokenKind::Less)
             || (t == TokenKind::LParen
                 && self.lookahead(|this| {
-                    this.p.next_token();
-                    let t = this.p.token.kind;
+                    this.p().next_token();
+                    let t = this.p().token.kind;
                     use bolt_ts_ast::TokenKind::*;
                     if matches!(t, TokenKind::RParen | TokenKind::DotDotDot) {
                         return true;
-                    } else if skip_param_start(this.p).unwrap_or_default() {
-                        if matches!(this.p.token.kind, Colon | Comma | Question | Eq) {
+                    } else if skip_param_start(this.p()).unwrap_or_default() {
+                        if matches!(this.p().token.kind, Colon | Comma | Question | Eq) {
                             return true;
-                        } else if this.p.token.kind == RParen {
-                            this.p.next_token();
-                            if this.p.token.kind == EqGreat {
+                        } else if this.p().token.kind == RParen {
+                            this.p().next_token();
+                            if this.p().token.kind == EqGreat {
                                 return true;
                             }
                         }
@@ -649,8 +651,8 @@ impl<'cx> ParserState<'cx, '_> {
             || (t == TokenKind::New
                 || t == TokenKind::Abstract
                     && self.lookahead(|this| {
-                        this.p.next_token();
-                        this.p.token.kind == TokenKind::New
+                        this.p().next_token();
+                        this.p().token.kind == TokenKind::New
                     }))
     }
 
@@ -809,9 +811,10 @@ impl<'cx> ParserState<'cx, '_> {
 
     pub(super) fn is_heritage_clause_extends_or_implements_keyword(&mut self) -> bool {
         if matches!(self.token.kind, TokenKind::Extends | TokenKind::Implements) {
-            return (Lookahead { p: self }).lookahead(Lookahead::next_token_is_start_of_expr);
+            self.lookahead(Lookahead::next_token_is_start_of_expr)
+        } else {
+            false
         }
-        false
     }
 }
 

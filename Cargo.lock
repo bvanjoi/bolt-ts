@@ -71,6 +71,7 @@ dependencies = [
  "bolt_ts_span",
  "bolt_ts_utils",
  "enumflags2",
+ "nohash-hasher",
  "paste",
 ]
 

@@ -27,10 +27,20 @@ impl<'a> AtomMap<'a> {
         Self(map)
     }
 
+    pub fn insert_by_slice(&mut self, value: &'a [u8]) -> AtomId {
+        let id = AtomId::from_bytes(value);
+        if !self.0.contains_key(&id) {
+            self.insert(id, unsafe {
+                Cow::Borrowed(str::from_utf8_unchecked(value))
+            });
+        }
+        id
+    }
+
     pub fn insert_by_str(&mut self, value: Cow<'a, str>) -> AtomId {
         let id = AtomId::from_bytes(value.as_bytes());
         if !self.0.contains_key(&id) {
-            self.insert(id, value)
+            self.insert(id, value);
         }
         id
     }

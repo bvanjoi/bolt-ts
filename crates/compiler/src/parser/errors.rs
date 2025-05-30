@@ -203,3 +203,17 @@ pub(super) struct AnInterfacePropertyCannotHaveAnInitializer {
     #[label(primary)]
     pub(super) span: Span,
 }
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
+#[error("An enum member cannot have a numeric name.")]
+pub(super) struct AnEnumMemberCannotHaveANumericName {
+    #[label(primary)]
+    pub(super) span: Span,
+}
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
+#[error("Accessibility modifier already seen.")]
+pub(super) struct AccessibilityModifierAlreadySeen {
+    #[label(primary)]
+    pub(super) span: Span,
+}

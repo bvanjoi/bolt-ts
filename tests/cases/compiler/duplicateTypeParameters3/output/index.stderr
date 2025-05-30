@@ -1,0 +1,5 @@
+  × Duplicate identifier 'A'.
+   ╭─[../../tests/cases/compiler/duplicateTypeParameters3/index.ts:4:14]
+ 4 │ A
+   · ─
+   ╰────
