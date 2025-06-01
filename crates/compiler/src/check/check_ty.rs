@@ -22,6 +22,13 @@ impl<'cx> TyChecker<'cx> {
             ObjectLit(n) => self.check_object_lit_ty(n),
             TyOp(n) => self.check_ty_op(n),
             Tuple(n) => self.check_tuple_ty(n),
+            Fn(n) => {
+                // TODO: check_signature_decl
+                if let Some(ty_params) = n.ty_params {
+                    self.check_ty_params(ty_params);
+                }
+                self.check_ty(n.ty);
+            }
             _ => (),
         };
         self.current_node = saved_current_node;

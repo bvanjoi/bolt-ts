@@ -2,10 +2,15 @@ use super::{PResult, ParserState, Tristate, utils::ParseSuccess};
 use bolt_ts_ast::{TokenKind, keyword};
 
 pub(super) struct Lookahead<'a, 'cx, 'p> {
-    pub(super) p: &'a mut ParserState<'cx, 'p>,
+    p: &'a mut ParserState<'cx, 'p>,
 }
 
 impl<'a, 'cx, 'p> Lookahead<'a, 'cx, 'p> {
+    #[inline(always)]
+    pub(super) fn p(&mut self) -> &mut ParserState<'cx, 'p> {
+        self.p
+    }
+
     pub(super) fn next_token_is_ident_or_keyword_or_open_bracket_or_template(
         &mut self,
     ) -> PResult<bool> {

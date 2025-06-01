@@ -1152,7 +1152,67 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
             | IntrinsicTy(_)
             | Modifier(_)
             | DebuggerStmt(_)
-            | ThisTy(_) => {}
+            | ThisTy(_)
+            | JsxText(_)
+            | JsxOpeningFrag(_)
+            | JsxClosingFrag(_) => {}
+            JsxSpreadAttr(n) => {
+                self.bind(n.expr.id());
+            }
+            JsxNsName(n) => {
+                self.bind(n.ns.id);
+                self.bind(n.name.id);
+            }
+            JsxNamedAttr(n) => {
+                self.bind(n.name.id());
+                if let Some(attr_value) = n.init {
+                    self.bind(attr_value.id());
+                }
+            }
+            JsxExpr(n) => {
+                if let Some(e) = n.expr {
+                    self.bind(e.id());
+                }
+            }
+            JsxOpeningEle(n) => {
+                self.bind(n.tag_name.id());
+                if let Some(ty_args) = n.ty_args {
+                    for ty in ty_args.list {
+                        self.bind(ty.id());
+                    }
+                }
+                for attr in n.attrs {
+                    self.bind(attr.id());
+                }
+            }
+            JsxClosingEle(n) => {
+                self.bind(n.tag_name.id());
+            }
+            JsxSelfClosingEle(n) => {
+                self.bind(n.tag_name.id());
+                if let Some(ty_args) = n.ty_args {
+                    for ty in ty_args.list {
+                        self.bind(ty.id());
+                    }
+                }
+                for attr in n.attrs {
+                    self.bind(attr.id());
+                }
+            }
+            JsxFrag(n) => {
+                self.bind(n.opening_ele.id);
+                for child in n.children {
+                    self.bind(child.id());
+                }
+                self.bind(n.closing_ele.id);
+            }
+            JsxEle(n) => {
+                self.bind(n.opening_ele.id);
+                for child in n.children {
+                    self.bind(child.id());
+                }
+                self.bind(n.closing_ele.id);
+            }
         }
         // TODO: bind_js_doc
         self.in_assignment_pattern = save_in_assignment_pattern;

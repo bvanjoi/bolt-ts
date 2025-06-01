@@ -190,17 +190,11 @@ pub fn eval_from_with_fs<'cx>(
         fs,
     );
 
-    let diags = p
-        .steal_errors()
-        .into_iter()
-        .chain(mg.steal_errors())
-        .collect::<Vec<_>>();
-
     // ==== bind ====
     let atoms = Arc::try_unwrap(atoms).unwrap();
     let mut atoms = atoms.into_inner().unwrap();
 
-    let (bind_list, p) = {
+    let (bind_list, mut p) = {
         let (bind_list, p_map): (
             Vec<BinderResult<'_>>,
             Vec<(ParseResult<'_>, bind::ParentMap)>,
@@ -210,6 +204,12 @@ pub fn eval_from_with_fs<'cx>(
         let p = Parser::new_with_maps(p_map);
         (bind_list, p)
     };
+
+    let diags = p
+        .steal_errors()
+        .into_iter()
+        .chain(mg.steal_errors())
+        .collect::<Vec<_>>();
 
     let MergeGlobalSymbolResult {
         mut bind_list,

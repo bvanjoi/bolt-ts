@@ -274,6 +274,10 @@ impl<'cx> ParserState<'cx, '_> {
     fn parse_enum_member(&mut self) -> PResult<&'cx ast::EnumMember<'cx>> {
         let start = self.token.start();
         let name = self.parse_prop_name(false)?;
+        if matches!(name.kind, ast::PropNameKind::NumLit(_)) {
+            let error = errors::AnEnumMemberCannotHaveANumericName { span: name.span() };
+            self.push_error(Box::new(error));
+        }
         let init = self.parse_init()?;
         let id = self.next_node_id();
         let member = self.alloc(ast::EnumMember {
@@ -640,8 +644,7 @@ impl<'cx> ParserState<'cx, '_> {
             if (i.name == keyword::KW_TYPE)
                 && (!matches!(t, TokenKind::From)
                     || (self.is_ident()
-                        && (Lookahead { p: self })
-                            .lookahead(Lookahead::next_token_is_from_keyword_or_eq_token)))
+                        && self.lookahead(Lookahead::next_token_is_from_keyword_or_eq_token)))
                 && (self.is_ident() || matches!(t, TokenKind::Asterisk | TokenKind::LBrace))
             {
                 is_type_only = true;

@@ -2214,7 +2214,7 @@ impl<'cx> TyChecker<'cx> {
                 if self.get_symbol_of_decl(ty_params[j].id) == self.get_symbol_of_decl(ty_param.id)
                 {
                     self.push_error(Box::new(errors::DuplicateIdentifierX {
-                        span: ty_param.span,
+                        span: ty_param.name.span,
                         ident: pprint_ident(ty_param.name, self.atoms),
                     }));
                 }

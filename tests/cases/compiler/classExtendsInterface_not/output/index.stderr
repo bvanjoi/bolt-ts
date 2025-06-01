@@ -1,0 +1,5 @@
+  × Property 'bogus' does not exist on type '""'.
+   ╭─[../../tests/cases/compiler/classExtendsInterface_not/index.ts:3:20]
+ 3 │ bogus
+   · ─────
+   ╰────

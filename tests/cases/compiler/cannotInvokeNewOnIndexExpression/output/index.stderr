@@ -1,0 +1,5 @@
+  × Cannot find name 'any'.
+   ╭─[../../tests/cases/compiler/cannotInvokeNewOnIndexExpression/index.ts:3:23]
+ 3 │ any
+   · ───
+   ╰────

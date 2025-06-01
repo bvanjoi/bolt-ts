@@ -15,3 +15,14 @@ pub(crate) struct DuplicateIdentifier {
     #[label("Previous definition here")]
     pub original_span: Span,
 }
+
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
+#[error(
+    "Identifier expected. '{ident}' is a reserved word in strict mode. Class definitions are automatically in strict mode."
+)]
+pub(crate) struct IdentifierExpected0IsAReservedWordInStrictModeClassDefinitionsAreAutomaticallyInStrictMode
+{
+    #[label(primary)]
+    pub span: Span,
+    pub ident: String,
+}

@@ -12,6 +12,11 @@ use super::{CommentDirective, FileReference, NodeFlagsMap, Nodes, TokenValue};
 use super::{PResult, list_ctx};
 use super::{PragmaMap, errors};
 
+pub enum LanguageVariant {
+    Standard,
+    Jsx,
+}
+
 pub(super) struct ParserState<'cx, 'p> {
     pub(super) atoms: Arc<Mutex<AtomMap<'cx>>>,
     pub(super) input: &'p [u8],
@@ -41,6 +46,7 @@ pub(super) struct ParserState<'cx, 'p> {
     pub(super) filepath: AtomId,
     pub(super) in_ambient_module: bool,
     pub(super) has_no_default_lib: bool,
+    pub(super) variant: LanguageVariant,
 }
 
 impl<'cx, 'p> ParserState<'cx, 'p> {
@@ -51,6 +57,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         input: &'p [u8],
         module_id: ModuleID,
         file_path: &std::path::Path,
+        variant: LanguageVariant,
     ) -> Self {
         let token = Token::new(
             TokenKind::EOF,
@@ -97,6 +104,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
             lib_reference_directives: Vec::with_capacity(8),
             pragmas: PragmaMap(no_hashmap_with_capacity(8)),
             has_no_default_lib: false,
+            variant,
         }
     }
 
@@ -234,7 +242,10 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
     pub(super) fn string_token(&self) -> AtomId {
         use bolt_ts_ast::TokenKind::*;
         assert!(
-            matches!(self.token.kind, String | NoSubstitutionTemplate),
+            matches!(
+                self.token.kind,
+                String | NoSubstitutionTemplate | JSXText | JSXTextAllWhiteSpaces
+            ),
             "{:#?}",
             self.token
         );
@@ -250,6 +261,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         let id = self.next_node_id();
         let ident = self.alloc(ast::Ident { id, name, span });
         self.nodes.insert(id, Node::Ident(ident));
+        self.node_flags_map.insert(id, self.context_flags);
         ident
     }
 
@@ -292,18 +304,33 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         }
     }
 
-    pub(super) fn expect(&mut self, t: TokenKind) -> bool {
+    pub(super) fn expect_with<const ADVANCE: bool>(
+        &mut self,
+        t: TokenKind,
+        f: Option<impl FnOnce(&mut Self) -> crate::Diag>,
+    ) -> bool {
         if self.token.kind == t {
-            self.next_token();
+            if ADVANCE {
+                self.next_token();
+            }
             true
         } else {
-            let error = errors::ExpectX {
-                span: self.token.span,
-                x: t.as_str().to_string(),
+            let error = if let Some(f) = f {
+                f(self)
+            } else {
+                Box::new(errors::ExpectX {
+                    span: self.token.span,
+                    x: t.as_str().to_string(),
+                })
             };
-            self.push_error(Box::new(error));
+            self.push_error(error);
             false
         }
+    }
+
+    pub(super) fn expect(&mut self, t: TokenKind) -> bool {
+        let f: Option<fn(&mut Self) -> crate::Diag> = None;
+        self.expect_with::<true>(t, f)
     }
 
     pub(super) fn create_lit<T>(&mut self, val: T, span: Span) -> &'cx ast::Lit<T> {
@@ -410,5 +437,17 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
 
     pub(super) fn disallow_continue_and<T>(&mut self, f: impl FnOnce(&mut Self) -> T) -> T {
         self.do_outside_of_context(NodeFlags::ALLOW_CONTINUE_CONTEXT, f)
+    }
+
+    pub(super) fn parse_identifier_name_error_or_unicode_escape_sequence(
+        &mut self,
+    ) -> PResult<&'cx bolt_ts_ast::Ident> {
+        if self
+            .token_flags
+            .intersects(TokenFlags::UNICODE_ESCAPE.union(TokenFlags::EXTENDED_UNICODE_ESCAPE))
+        {
+            todo!("error handle")
+        }
+        self.parse_ident_name()
     }
 }
