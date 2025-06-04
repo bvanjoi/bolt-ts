@@ -57,10 +57,11 @@ fn main() {
 }
 
 #[test]
+#[ignore = "just for test"]
 fn main_test() {
     compile_test::ensure_node_exist();
     let project_root: PathBuf = project_root::get_project_root().unwrap();
-    let case_root = project_root.join("tests/cases/compiler/badThisBinding/");
+    let case_root = project_root.join("tests/cases/compiler/jsxSyntax/");
     assert!(case_root.is_dir(), "'{case_root:#?}' not found.",);
     let tsconfig_file = case_root.join(bolt_ts_compiler::DEFAULT_TSCONFIG);
     let tsconfig = if tsconfig_file.is_file() {
@@ -69,7 +70,8 @@ fn main_test() {
     } else {
         RawTsConfig::default()
     };
-    let tsconfig = tsconfig.with_include_if_none(vec!["index.ts".to_string()]);
+    let tsconfig =
+        tsconfig.with_include_if_none(vec!["index.ts".to_string(), "index.tsx".to_string()]);
     let tsconfig = tsconfig.normalize();
     let output = bolt_ts_compiler::eval_from(case_root, &tsconfig);
     if output.diags.is_empty() {

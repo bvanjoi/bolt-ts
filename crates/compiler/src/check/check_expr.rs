@@ -224,6 +224,18 @@ impl<'cx> TyChecker<'cx> {
             SpreadElement(n) => self.check_spread_element(n),
             RegExpLit(_) => self.global_regexp_ty(),
             TaggedTemplate(n) => self.check_tagged_template_expr(n),
+            JsxEle(n) => {
+                // TODO:
+                self.undefined_ty
+            }
+            JsxSelfClosingEle(n) => {
+                // TODO:
+                self.undefined_ty
+            }
+            JsxFrag(n) => {
+                // TODO:
+                self.undefined_ty
+            }
         };
         let ty = self.instantiate_ty_with_single_generic_call_sig(expr.id(), ty);
         self.current_node = saved_current_node;

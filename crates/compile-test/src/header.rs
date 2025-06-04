@@ -163,7 +163,10 @@ const COMMENT: &str = "//@";
 
 fn iter_header(test_file: &Path, rdr: impl Read, iter: &mut dyn FnMut(HeaderLine<'_>)) {
     assert!(test_file.is_file());
-    if test_file.extension().is_some_and(|e| e == "ts") {
+    if test_file
+        .extension()
+        .is_some_and(|e| e == "ts" || e == "tsx")
+    {
         // skip
     } else {
         unreachable!()

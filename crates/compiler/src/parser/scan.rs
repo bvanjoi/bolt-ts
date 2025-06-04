@@ -1,10 +1,10 @@
-use std::{borrow::Cow, str};
+use std::{borrow::Cow, io::Read, str};
 
 use bolt_ts_atom::AtomId;
 use bolt_ts_span::Span;
 
 use super::{CommentDirectiveKind, PResult, ParserState, TokenValue, state::LanguageVariant};
-use bolt_ts_ast::{RegularExpressionFlags, Token, TokenFlags, TokenKind, atom_to_token};
+use bolt_ts_ast::{RegularExpressionFlags, Token, TokenFlags, TokenKind, atom_to_token, keyword};
 
 use crate::parser::CommentDirective;
 
@@ -323,28 +323,7 @@ impl ParserState<'_, '_> {
                 self.scan_unicode_from_utf8(UTF8_CHAR_LEN_MAX)?
             }
         }
-        let raw = &self.input[start..self.pos];
-        let id = AtomId::from_bytes(raw);
-        if raw.len() >= 2 && raw.len() <= 12 {
-            if let Some(kind) = atom_to_token(id) {
-                // keyword
-                let span = Span::new(start as u32, self.pos as u32, self.module_id);
-                debug_assert!(self.atoms.lock().unwrap().contains(id));
-                self.token_value = Some(TokenValue::Ident { value: id });
-                return Ok(Token::new(kind, span));
-            }
-        }
-        self.atoms
-            .lock()
-            .unwrap()
-            .insert_if_not_exist(id, || unsafe {
-                Cow::Owned(String::from_utf8_unchecked(raw.to_vec()))
-            });
-        self.token_value = Some(TokenValue::Ident { value: id });
-        Ok(Token::new(
-            TokenKind::Ident,
-            Span::new(start as u32, self.pos as u32, self.module_id),
-        ))
+        self.get_ident_token(Cow::Borrowed(&self.input[start..self.pos]), start as u32)
     }
 
     fn scan_comment_directive_kind(&mut self) {
@@ -1361,10 +1340,44 @@ impl ParserState<'_, '_> {
         )
     }
 
+    fn get_ident_token(&mut self, ident: Cow<[u8]>, start: u32) -> PResult<Token> {
+        let len = ident.len();
+        debug_assert_eq!(start as usize + len, self.pos);
+
+        let id = AtomId::from_bytes(ident.as_ref());
+        if len > 1 && len < 13 {
+            let first = *unsafe { ident.get_unchecked(0) };
+            if first >= b'a' && first <= b'z' {
+                if let Some(kind) = atom_to_token(id) {
+                    debug_assert!(self.atoms.lock().unwrap().contains(id));
+                    let span = Span::new(start, self.pos as u32, self.module_id);
+                    self.token_value = Some(TokenValue::Ident { value: id });
+                    return Ok(Token::new(kind, span));
+                }
+            }
+        }
+        self.atoms
+            .lock()
+            .unwrap()
+            .insert_if_not_exist(id, || unsafe {
+                let s = String::from_utf8_unchecked(match ident {
+                    Cow::Borrowed(bytes) => bytes.to_vec(),
+                    Cow::Owned(bytes) => bytes,
+                });
+                Cow::Owned(s)
+            });
+        self.token_value = Some(TokenValue::Ident { value: id });
+        Ok(Token::new(
+            TokenKind::Ident,
+            Span::new(start, self.pos as u32, self.module_id),
+        ))
+    }
+
     pub(super) fn scan_jsx_ident(&mut self) {
         if !self.token.kind.is_ident_or_keyword() {
             return;
         }
+
         let mut v = Vec::with_capacity(16);
         while let Some(ch) = self.ch() {
             if ch == b'-' {
@@ -1379,13 +1392,24 @@ impl ParserState<'_, '_> {
                 }
             }
         }
-        self.token_value = Some(TokenValue::Ident {
-            value: self.atoms.lock().unwrap().insert_by_vec(v),
-        });
-        self.token = Token::new(
-            TokenKind::Ident,
-            Span::new(self.token.start(), self.pos as u32, self.module_id),
-        );
+
+        if !v.is_empty() {
+            let token_value = self.ident_token();
+            debug_assert!(self.atoms.lock().unwrap().contains(token_value));
+            let mut token_value = self
+                .atoms
+                .lock()
+                .unwrap()
+                .get(token_value)
+                .as_bytes()
+                .to_vec();
+            token_value.extend(v);
+            self.token = self
+                .get_ident_token(Cow::Owned(token_value), self.token.start())
+                .unwrap();
+        } else {
+            debug_assert!(self.ident_token() != keyword::IDENT_EMPTY);
+        }
     }
 
     fn scan_identifier_parts(&mut self) -> Vec<u8> {

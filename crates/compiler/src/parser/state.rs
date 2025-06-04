@@ -12,6 +12,7 @@ use super::{CommentDirective, FileReference, NodeFlagsMap, Nodes, TokenValue};
 use super::{PResult, list_ctx};
 use super::{PragmaMap, errors};
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum LanguageVariant {
     Standard,
     Jsx,
