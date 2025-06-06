@@ -22,7 +22,7 @@ fn match_files(
     fs: &mut impl CachedFileSystem,
     atoms: &mut bolt_ts_atom::AtomMap<'_>,
 ) -> Vec<std::path::PathBuf> {
-    debug_assert!(path.is_normalized(), "{:?}", path);
+    debug_assert!(path.is_normalized(), "'{path:#?}' is not normalized");
     let include = include
         .unwrap_or_default()
         .iter()
@@ -47,7 +47,8 @@ fn match_files(
         .iter()
         .map(|p| p.to_str().unwrap())
         .collect::<Vec<_>>();
-    fs.glob(path, &include, &exclude, atoms)
+    let files = fs.glob(path, &include, &exclude, atoms);
+    files
         .into_iter()
         .filter(|p| {
             for ext in extensions {

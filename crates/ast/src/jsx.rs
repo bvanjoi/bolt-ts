@@ -20,8 +20,8 @@ pub struct JsxClosingFrag {
 #[derive(Debug, Clone, Copy)]
 pub struct JsxSpreadAttr<'cx> {
     pub id: NodeID,
-    pub expr: &'cx super::Expr<'cx>,
     pub span: Span,
+    pub expr: &'cx super::Expr<'cx>,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -96,24 +96,17 @@ pub enum JsxTagName<'cx> {
     Ident(&'cx super::Ident),
     This(&'cx super::ThisExpr),
     Ns(&'cx JsxNsName<'cx>),
-}
-
-#[derive(Debug, Clone, Copy)]
-pub enum JsxTagNameExpr<'cx> {
-    Ident(&'cx super::Ident),
-    This(&'cx super::ThisExpr),
-    Ns(&'cx JsxNsName<'cx>),
     /// only contains `Ident`/`This`/`Ns`/`PropAccess`
     PropAccess(&'cx super::PropAccessExpr<'cx>),
 }
 
-impl JsxTagNameExpr<'_> {
+impl JsxTagName<'_> {
     pub fn id(&self) -> NodeID {
         match self {
-            JsxTagNameExpr::Ident(n) => n.id,
-            JsxTagNameExpr::This(n) => n.id,
-            JsxTagNameExpr::Ns(n) => n.id,
-            JsxTagNameExpr::PropAccess(n) => n.id,
+            JsxTagName::Ident(n) => n.id,
+            JsxTagName::This(n) => n.id,
+            JsxTagName::Ns(n) => n.id,
+            JsxTagName::PropAccess(n) => n.id,
         }
     }
 }
@@ -132,7 +125,7 @@ pub type JsxAttrs<'cx> = &'cx [JsxAttr<'cx>];
 pub struct JsxOpeningEle<'cx> {
     pub id: NodeID,
     pub span: Span,
-    pub tag_name: JsxTagNameExpr<'cx>,
+    pub tag_name: JsxTagName<'cx>,
     pub ty_args: Option<&'cx super::Tys<'cx>>,
     pub attrs: JsxAttrs<'cx>,
 }
@@ -141,7 +134,7 @@ pub struct JsxOpeningEle<'cx> {
 pub struct JsxClosingEle<'cx> {
     pub id: NodeID,
     pub span: Span,
-    pub tag_name: JsxTagNameExpr<'cx>,
+    pub tag_name: JsxTagName<'cx>,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -203,7 +196,7 @@ pub struct JsxFrag<'cx> {
 pub struct JsxSelfClosingEle<'cx> {
     pub id: NodeID,
     pub span: Span,
-    pub tag_name: JsxTagNameExpr<'cx>,
+    pub tag_name: JsxTagName<'cx>,
     pub ty_args: Option<&'cx super::Tys<'cx>>,
     pub attrs: JsxAttrs<'cx>,
 }

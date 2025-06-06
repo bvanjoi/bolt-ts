@@ -20,6 +20,11 @@ impl<'a, 'cx, 'p> Lookahead<'a, 'cx, 'p> {
             || self.p.is_template_start_of_tagged_template())
     }
 
+    pub(super) fn next_token_is_ident_or_keyword_or_great(&mut self) -> PResult<bool> {
+        self.p.next_token();
+        Ok(self.p.token.kind.is_ident_or_keyword() || self.p.token.kind == TokenKind::Great)
+    }
+
     fn is_next_token_colon_or_question_colon(&mut self) -> bool {
         self.p.next_token();
         self.p.token.kind == TokenKind::Colon

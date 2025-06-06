@@ -22,12 +22,11 @@ fn ensure_all_cases_are_dir() {
     }
 }
 
-fn run_test(entry: &std::path::Path) {
+fn run_test(entry: &std::path::Path, try_run_node: bool) {
     const DEFAULT_OUTPUT: &str = "output";
 
     let runner = |case: &std::path::Path| {
         let file_name = case.file_name().unwrap().to_str().unwrap();
-        assert_eq!(file_name, "index.ts");
         let dir = case.parent().unwrap();
         let tsconfig_file = dir.join(bolt_ts_compiler::DEFAULT_TSCONFIG);
         let tsconfig = if tsconfig_file.is_file() {
@@ -36,12 +35,16 @@ fn run_test(entry: &std::path::Path) {
         } else {
             RawTsConfig::default()
         };
-        let tsconfig = tsconfig
-            .with_include_if_none(vec!["index.ts".to_string()])
-            .config_compiler_options(|c| {
-                c.with_no_emit(true)
-                    .with_out_dir(DEFAULT_OUTPUT.to_string())
-            });
+        let tsconfig = if file_name == "index.ts" {
+            tsconfig.with_include_if_none(vec!["index.ts".to_string()])
+        } else {
+            assert_eq!(file_name, "index.tsx");
+            tsconfig.with_include_if_none(vec!["index.tsx".to_string()])
+        }
+        .config_compiler_options(|c| {
+            c.with_no_emit(true)
+                .with_out_dir(DEFAULT_OUTPUT.to_string())
+        });
 
         let cwd = dir.normalize();
         let tsconfig = tsconfig.normalize();
@@ -76,9 +79,11 @@ fn run_test(entry: &std::path::Path) {
             }
 
             if let Some(index_file_path) = index_file_path {
-                match run_node(&index_file_path) {
-                    Ok(_) => {}
-                    Err(_) => return Err(vec![]),
+                if try_run_node {
+                    match run_node(&index_file_path) {
+                        Ok(_) => {}
+                        Err(_) => return Err(vec![]),
+                    }
                 }
             }
             Ok(())
@@ -136,7 +141,7 @@ fn run_test(entry: &std::path::Path) {
 )]
 fn run_index_ts_test(arg: dir_test::Fixture<&str>) {
     let entry = std::path::Path::new(arg.path());
-    run_test(entry);
+    run_test(entry, true);
 }
 
 #[dir_test::dir_test(
@@ -145,5 +150,5 @@ fn run_index_ts_test(arg: dir_test::Fixture<&str>) {
 )]
 fn run_index_tsx_test(arg: dir_test::Fixture<&str>) {
     let entry = std::path::Path::new(arg.path());
-    run_test(entry);
+    run_test(entry, false);
 }

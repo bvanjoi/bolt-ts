@@ -521,7 +521,7 @@ impl<'cx> Resolver<'cx, '_, '_> {
             PrefixUnary(unary) => self.resolve_expr(unary.expr),
             PostfixUnary(unary) => self.resolve_expr(unary.expr),
             PropAccess(node) => {
-                self.resolve_expr(node.expr);
+                self.resolve_prop_access_expr(node);
             }
             EleAccess(node) => {
                 self.resolve_expr(node.expr);
@@ -578,7 +578,109 @@ impl<'cx> Resolver<'cx, '_, '_> {
             | Omit(_)
             | Super(_)
             | RegExpLit(_)
-            | NoSubstitutionTemplateLit(_) => {}
+            | NoSubstitutionTemplateLit(_)
+            | JsxFrag(_) => {}
+            JsxEle(n) => {
+                self.resolve_jsx_ele(n);
+            }
+            JsxSelfClosingEle(n) => {
+                self.resolve_jsx_self_closing_ele(n);
+            }
+        }
+    }
+
+    fn resolve_prop_access_expr(&mut self, n: &'cx ast::PropAccessExpr<'cx>) {
+        self.resolve_expr(n.expr);
+        // don't try resolve `n.ident` because `n.expr` maybe a
+        // late symbol, for example, `const obj = { [${xxxx}abc]: 'xxxx' }`
+    }
+
+    fn resolve_jsx_tag_name(&mut self, n: ast::JsxTagName<'cx>) {
+        use bolt_ts_ast::JsxTagName::*;
+        match n {
+            Ident(ident) => {
+                // TODO:
+                // self.resolve_value_by_ident(ident)
+            }
+            Ns(ns) => {
+                // TODO:
+                // self.resolve_value_by_ident(ns.name)
+            }
+            PropAccess(n) => {
+                // TODO:
+                // self.resolve_prop_access_expr(n)
+            }
+            This(_) => {}
+        };
+    }
+
+    fn resolve_jsx_attr(&mut self, n: &'cx ast::JsxAttr<'cx>) {
+        use ast::JsxAttr::*;
+        match n {
+            Spread(n) => {
+                self.resolve_expr(n.expr);
+            }
+            Named(n) => {
+                if let Some(v) = n.init {
+                    use bolt_ts_ast::JsxAttrValue::*;
+                    match v {
+                        Expr(n) => {
+                            if let Some(expr) = n.expr {
+                                self.resolve_expr(expr)
+                            }
+                        }
+                        Ele(n) => self.resolve_jsx_ele(n),
+                        SelfClosingEle(n) => {
+                            self.resolve_jsx_self_closing_ele(n);
+                        }
+                        StringLit(_) | Frag(_) => {}
+                    }
+                }
+            }
+        }
+    }
+
+    fn resolve_jsx_self_closing_ele(&mut self, ele: &'cx ast::JsxSelfClosingEle<'cx>) {
+        self.resolve_jsx_tag_name(ele.tag_name);
+        if let Some(ty_args) = ele.ty_args {
+            self.resolve_tys(ty_args.list);
+        }
+        for attr in ele.attrs {
+            self.resolve_jsx_attr(attr);
+        }
+    }
+
+    fn resolve_jsx_ele(&mut self, ele: &'cx ast::JsxEle<'cx>) {
+        self.resolve_jsx_tag_name(ele.opening_ele.tag_name);
+        if let Some(ty_args) = ele.opening_ele.ty_args {
+            self.resolve_tys(ty_args.list);
+        }
+        for attr in ele.opening_ele.attrs {
+            self.resolve_jsx_attr(attr);
+        }
+
+        for child in ele.children {
+            self.resolve_jsx_child(child);
+        }
+
+        self.resolve_jsx_tag_name(ele.closing_ele.tag_name);
+    }
+
+    fn resolve_jsx_child(&mut self, child: &'cx ast::JsxChild<'cx>) {
+        use bolt_ts_ast::JsxChild::*;
+        match child {
+            Expr(n) => {
+                if let Some(expr) = n.expr {
+                    self.resolve_expr(expr);
+                }
+            }
+            Ele(n) => {
+                self.resolve_jsx_ele(n);
+            }
+            SelfClosingEle(n) => {
+                self.resolve_jsx_self_closing_ele(n);
+            }
+            Frag(_) | Text(_) => {}
         }
     }
 

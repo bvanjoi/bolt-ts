@@ -57,16 +57,7 @@ impl<'cx> Emit<'cx> {
                 self.content.p(unary.op.as_str());
             }
             Class(class) => self.emit_class_like(class),
-            PropAccess(prop) => {
-                if let bolt_ts_ast::ExprKind::NumLit(lit) = prop.expr.kind {
-                    self.emit_num_lit(lit);
-                    self.content.p(".");
-                } else {
-                    self.emit_expr(prop.expr);
-                }
-                self.content.p_dot();
-                self.emit_ident(prop.name);
-            }
+            PropAccess(n) => self.emit_prop_access_expr(n),
             EleAccess(prop) => {
                 self.emit_expr(prop.expr);
                 self.content.p_l_bracket();
@@ -143,7 +134,141 @@ impl<'cx> Emit<'cx> {
                 self.emit_expr(n.tag);
                 self.emit_expr(n.tpl);
             }
+            JsxEle(n) => {
+                self.emit_jsx_ele(n);
+            }
+            JsxSelfClosingEle(n) => {
+                self.emit_jsx_self_closing_ele(n);
+            }
+            JsxFrag(n) => {
+                self.emit_jsx_frag(n);
+            }
         };
+    }
+
+    fn emit_prop_access_expr(&mut self, n: &'cx ast::PropAccessExpr<'cx>) {
+        if let bolt_ts_ast::ExprKind::NumLit(lit) = n.expr.kind {
+            self.emit_num_lit(lit);
+            self.content.p(".");
+        } else {
+            self.emit_expr(n.expr);
+        }
+        self.content.p_dot();
+        self.emit_ident(n.name);
+    }
+
+    fn emit_jsx_frag(&mut self, n: &'cx ast::JsxFrag<'cx>) {
+        self.content.p("<>");
+        for child in n.children {
+            self.emit_jsx_child(child);
+        }
+        self.content.p("</>");
+    }
+
+    fn emit_jsx_expr(&mut self, n: &'cx ast::JsxExpr<'cx>) {
+        if n.dotdotdot_token.is_some() {
+            self.content.p_dot_dot_dot();
+        }
+        if let Some(expr) = n.expr {
+            self.emit_expr(expr);
+        }
+    }
+
+    fn emit_jsx_child(&mut self, child: &'cx ast::JsxChild<'cx>) {
+        use ast::JsxChild::*;
+        match child {
+            Text(n) => {
+                self.content.p(self.atoms.get(n.text));
+            }
+            Expr(n) => self.emit_jsx_expr(n),
+            Ele(n) => self.emit_jsx_ele(n),
+            SelfClosingEle(n) => {
+                self.emit_jsx_self_closing_ele(n);
+            }
+            Frag(n) => self.emit_jsx_frag(n),
+        }
+    }
+
+    fn emit_jsx_self_closing_ele(&mut self, n: &'cx ast::JsxSelfClosingEle<'cx>) {
+        self.content.p("<");
+        self.emit_jsx_tag_name(n.tag_name);
+        for attr in n.attrs {
+            self.emit_jsx_attr(attr);
+        }
+        self.content.p(" />");
+    }
+
+    fn emit_jsx_ns_name(&mut self, n: &'cx ast::JsxNsName<'cx>) {
+        self.emit_ident(n.ns);
+        self.content.p(".");
+        self.emit_ident(n.name);
+    }
+
+    fn emit_jsx_tag_name(&mut self, n: ast::JsxTagName<'cx>) {
+        use bolt_ts_ast::JsxTagName::*;
+        match n {
+            Ident(ident) => self.emit_ident(ident),
+            Ns(ns) => self.emit_jsx_ns_name(ns),
+            PropAccess(n) => self.emit_prop_access_expr(n),
+            This(_) => self.content.p("this"),
+        };
+    }
+
+    fn emit_jsx_attr_value(&mut self, n: ast::JsxAttrValue<'cx>) {
+        use bolt_ts_ast::JsxAttrValue::*;
+        match n {
+            StringLit(s) => {
+                self.content.p("\"");
+                self.content.p(self.atoms.get(s.val));
+                self.content.p("\"");
+            }
+            Expr(n) => self.emit_jsx_expr(n),
+            Ele(n) => self.emit_jsx_ele(n),
+            SelfClosingEle(n) => self.emit_jsx_self_closing_ele(n),
+            Frag(n) => self.emit_jsx_frag(n),
+        };
+    }
+
+    fn emit_jsx_attr(&mut self, n: &'cx ast::JsxAttr<'cx>) {
+        use bolt_ts_ast::JsxAttr::*;
+        match n {
+            Spread(n) => {
+                self.content.p("...");
+                self.emit_expr(n.expr);
+            }
+            Named(n) => {
+                match n.name {
+                    bolt_ts_ast::JsxAttrName::Ident(n) => self.emit_ident(n),
+                    bolt_ts_ast::JsxAttrName::Ns(ns) => self.emit_jsx_ns_name(ns),
+                };
+                if let Some(v) = n.init {
+                    self.emit_jsx_attr_value(v);
+                }
+            }
+        };
+    }
+
+    fn emit_jsx_opening_ele(&mut self, n: &'cx ast::JsxOpeningEle<'cx>) {
+        self.content.p("<");
+        self.emit_jsx_tag_name(n.tag_name);
+        for attr in n.attrs {
+            self.emit_jsx_attr(attr);
+        }
+        self.content.p(">");
+    }
+
+    fn emit_jsx_closing_ele(&mut self, n: &'cx ast::JsxClosingEle<'cx>) {
+        self.content.p("</");
+        self.emit_jsx_tag_name(n.tag_name);
+        self.content.p(">");
+    }
+
+    fn emit_jsx_ele(&mut self, n: &'cx ast::JsxEle<'cx>) {
+        self.emit_jsx_opening_ele(n.opening_ele);
+        for child in n.children {
+            self.emit_jsx_child(child);
+        }
+        self.emit_jsx_closing_ele(n.closing_ele)
     }
 
     fn emit_template_expr(&mut self, n: &'cx ast::TemplateExpr<'cx>) {

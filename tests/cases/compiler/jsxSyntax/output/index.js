@@ -1,0 +1,1 @@
+var e0 = <a>jsx is working</a>;

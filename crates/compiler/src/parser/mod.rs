@@ -240,7 +240,10 @@ fn parse<'cx, 'p>(
 ) -> ParseResult<'cx> {
     let nodes = Nodes(Vec::with_capacity(1024 * 8));
     let file_path = module_arena.get_path(module_id);
-    let variant = if file_path.ends_with("jsx") {
+    let variant = if file_path
+        .extension()
+        .is_some_and(|ext| ext.eq_ignore_ascii_case("jsx") || ext.eq_ignore_ascii_case("tsx"))
+    {
         LanguageVariant::Jsx
     } else {
         LanguageVariant::Standard

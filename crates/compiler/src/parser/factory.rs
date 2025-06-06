@@ -1,4 +1,4 @@
-use bolt_ts_ast::{self as ast, TokenKind};
+use bolt_ts_ast::{self as ast};
 use bolt_ts_atom::AtomId;
 use bolt_ts_span::Span;
 
@@ -169,7 +169,7 @@ impl<'cx> ParserState<'cx, '_> {
     pub fn create_jsx_opening_ele(
         &mut self,
         span: Span,
-        tag_name: ast::JsxTagNameExpr<'cx>,
+        tag_name: ast::JsxTagName<'cx>,
         ty_args: Option<&'cx ast::Tys<'cx>>,
         attrs: ast::JsxAttrs<'cx>,
     ) -> &'cx ast::JsxOpeningEle<'cx> {
@@ -189,7 +189,7 @@ impl<'cx> ParserState<'cx, '_> {
     pub fn create_jsx_closing_ele(
         &mut self,
         span: Span,
-        tag_name: ast::JsxTagNameExpr<'cx>,
+        tag_name: ast::JsxTagName<'cx>,
     ) -> &'cx ast::JsxClosingEle<'cx> {
         let id = self.next_node_id();
         let node = self.alloc(ast::JsxClosingEle { id, span, tag_name });
@@ -201,7 +201,7 @@ impl<'cx> ParserState<'cx, '_> {
     pub fn create_jsx_self_closing_ele(
         &mut self,
         span: Span,
-        tag_name: ast::JsxTagNameExpr<'cx>,
+        tag_name: ast::JsxTagName<'cx>,
         ty_args: Option<&'cx ast::Tys<'cx>>,
         attrs: ast::JsxAttrs<'cx>,
     ) -> &'cx ast::JsxSelfClosingEle<'cx> {
