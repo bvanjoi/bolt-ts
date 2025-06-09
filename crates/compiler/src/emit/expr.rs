@@ -189,12 +189,18 @@ impl<'cx> Emit<'cx> {
         }
     }
 
+    fn emit_jsx_attrs(&mut self, attrs: ast::JsxAttrs<'cx>) {
+        for attr in attrs {
+            self.content.p_whitespace();
+            self.emit_jsx_attr(attr);
+        }
+    }
+
     fn emit_jsx_self_closing_ele(&mut self, n: &'cx ast::JsxSelfClosingEle<'cx>) {
         self.content.p("<");
         self.emit_jsx_tag_name(n.tag_name);
-        for attr in n.attrs {
-            self.emit_jsx_attr(attr);
-        }
+        self.content.p_whitespace();
+        self.emit_jsx_attrs(n.attrs);
         self.content.p(" />");
     }
 
@@ -222,7 +228,11 @@ impl<'cx> Emit<'cx> {
                 self.content.p(self.atoms.get(s.val));
                 self.content.p("\"");
             }
-            Expr(n) => self.emit_jsx_expr(n),
+            Expr(n) => {
+                self.content.p_l_brace();
+                self.emit_jsx_expr(n);
+                self.content.p_r_brace();
+            }
             Ele(n) => self.emit_jsx_ele(n),
             SelfClosingEle(n) => self.emit_jsx_self_closing_ele(n),
             Frag(n) => self.emit_jsx_frag(n),
@@ -233,7 +243,7 @@ impl<'cx> Emit<'cx> {
         use bolt_ts_ast::JsxAttr::*;
         match n {
             Spread(n) => {
-                self.content.p("...");
+                self.content.p_dot_dot_dot();
                 self.emit_expr(n.expr);
             }
             Named(n) => {
@@ -241,6 +251,7 @@ impl<'cx> Emit<'cx> {
                     bolt_ts_ast::JsxAttrName::Ident(n) => self.emit_ident(n),
                     bolt_ts_ast::JsxAttrName::Ns(ns) => self.emit_jsx_ns_name(ns),
                 };
+                self.content.p_eq();
                 if let Some(v) = n.init {
                     self.emit_jsx_attr_value(v);
                 }
@@ -251,9 +262,8 @@ impl<'cx> Emit<'cx> {
     fn emit_jsx_opening_ele(&mut self, n: &'cx ast::JsxOpeningEle<'cx>) {
         self.content.p("<");
         self.emit_jsx_tag_name(n.tag_name);
-        for attr in n.attrs {
-            self.emit_jsx_attr(attr);
-        }
+        self.content.p_whitespace();
+        self.emit_jsx_attrs(n.attrs);
         self.content.p(">");
     }
 

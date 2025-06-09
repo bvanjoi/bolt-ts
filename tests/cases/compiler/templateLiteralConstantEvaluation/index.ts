@@ -17,3 +17,9 @@ function f0() {
   do return `
 `; while (false);
 }
+
+{
+  function f(_: {class: any}) {}
+  let fn;
+  `${f({class: fn})}`
+}

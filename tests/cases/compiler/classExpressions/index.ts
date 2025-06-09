@@ -8,3 +8,7 @@ let x = class B implements A {
     func = () => {
     }
 };
+
+
+
+(class implements A {})

@@ -4,3 +4,4 @@ var x = class B {
   onStart() {}
   func = () => {}
 };
+(class {});
