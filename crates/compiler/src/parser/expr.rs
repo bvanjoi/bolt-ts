@@ -1178,18 +1178,9 @@ impl<'cx> ParserState<'cx, '_> {
         } else {
             self.prase_template_expr(true)?
         };
-        let id = self.next_node_id();
-        let tagged_template = self.alloc(ast::TaggedTemplateExpr {
-            id,
-            span: self.new_span(start as u32),
-            tag,
-            tpl,
-            ty_args,
-        });
-        self.nodes
-            .insert(id, ast::Node::TaggedTemplateExpr(tagged_template));
+        let expr = self.create_tagged_template_expr(start as u32, tag, ty_args, tpl, question_dot);
         let expr = self.alloc(ast::Expr {
-            kind: ast::ExprKind::TaggedTemplate(tagged_template),
+            kind: ast::ExprKind::TaggedTemplate(expr),
         });
         Ok(expr)
     }

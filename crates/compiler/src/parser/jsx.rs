@@ -86,9 +86,9 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
                     closing_ele = Some(e);
                     if !tag_names_are_eq(&opening.tag_name, &e.tag_name) {
                         if opening_tag.is_some_and(|t| tag_names_are_eq(&e.tag_name, &t)) {
-                            todo!("error handle");
+                            // todo!("error handle");
                         } else {
-                            todo!("error handle");
+                            // todo!("error handle");
                         }
                     }
                 } else {
@@ -163,13 +163,12 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
     ) -> PResult<Option<bolt_ts_ast::JsxChild<'cx>>> {
         match token {
             TokenKind::EOF => {
-                todo!("error handle");
-                // if let Some(opening_tag_name) = opening_tag_name {
-                //     todo!("error handle")
-                // } else {
-                //     todo!("error handle")
-                // }
-                // Ok(None)
+                if let Some(opening_tag_name) = opening_tag_name {
+                    // todo!("error handle")
+                } else {
+                    // todo!("error handle")
+                }
+                Ok(None)
             }
             TokenKind::LessSlash => {
                 // TODO: conflict marker trivia

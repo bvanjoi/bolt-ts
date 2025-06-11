@@ -10,3 +10,4 @@ var e5 = <App >
             // 1
             /* 2 */
         </App>;
+var e6 = <App >/* no */123/* no */</App>;

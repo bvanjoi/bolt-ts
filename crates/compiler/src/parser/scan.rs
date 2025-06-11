@@ -3,7 +3,9 @@ use std::{borrow::Cow, io::Read, str};
 use bolt_ts_atom::AtomId;
 use bolt_ts_span::Span;
 
-use super::{CommentDirectiveKind, PResult, ParserState, TokenValue, state::LanguageVariant};
+use super::{
+    CommentDirectiveKind, PResult, ParserState, TokenValue, errors, state::LanguageVariant,
+};
 use bolt_ts_ast::{RegularExpressionFlags, Token, TokenFlags, TokenKind, atom_to_token, keyword};
 
 use crate::parser::CommentDirective;
@@ -1304,7 +1306,10 @@ impl ParserState<'_, '_> {
             } else if ch == b'>' {
                 // TODO: error
             } else if ch == b'}' {
-                // TODO: error
+                let error = errors::UnexpectedTokenDidYouMeanOrRBrace {
+                    span: Span::new(token_start as u32, self.pos as u32, self.module_id),
+                };
+                self.push_error(Box::new(error));
             }
 
             let is_line_break = is_line_break(ch);

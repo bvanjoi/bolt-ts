@@ -366,6 +366,7 @@ impl TokenKind {
             Pipe => "|",
             LBrace => "{",
             RBrace => "}",
+            LessSlash => "</",
             Null => "null",
             False => "false",
             True => "true",
@@ -423,6 +424,8 @@ impl TokenKind {
             Infer => "infer",
             Intrinsic => "intrinsic",
             Type => "type",
+            Unique => "unique",
+            Asserts => "asserts",
             _ => unreachable!("{:#?}", self),
         }
     }

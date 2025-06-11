@@ -9,3 +9,4 @@ const e5 = <App>
             // 1
             /* 2 */
         </App>
+const e6 = <App>/* no */{/* 1 */ 123 /* 2 */}/* no */</App>;

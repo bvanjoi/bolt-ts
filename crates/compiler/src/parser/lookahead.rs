@@ -1,5 +1,7 @@
+use crate::parser::state::LanguageVariant;
+
 use super::{PResult, ParserState, Tristate, utils::ParseSuccess};
-use bolt_ts_ast::{TokenKind, keyword};
+use bolt_ts_ast::{Token, TokenKind, keyword};
 
 pub(super) struct Lookahead<'a, 'cx, 'p> {
     p: &'a mut ParserState<'cx, 'p>,
@@ -266,6 +268,25 @@ impl<'a, 'cx, 'p> Lookahead<'a, 'cx, 'p> {
             assert_eq!(first, Less);
             if !self.p.is_ident() && self.p.token.kind != Const {
                 Tristate::False
+            } else if self.p.variant == LanguageVariant::Jsx {
+                let is_arrow_fn_in_jsx = self.lookahead(|this| {
+                    this.p.parse_optional(Const);
+                    this.p.next_token();
+                    match this.p.token.kind {
+                        Extends => {
+                            this.p.next_token();
+                            matches!(this.p.token.kind, Eq | Great | Slash)
+                        }
+                        Comma | Eq => true,
+                        _ => false,
+                    }
+                });
+
+                if is_arrow_fn_in_jsx {
+                    Tristate::True
+                } else {
+                    Tristate::False
+                }
             } else {
                 Tristate::Unknown
             }

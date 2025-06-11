@@ -3,7 +3,7 @@ use bolt_ts_atom::AtomId;
 use bolt_ts_span::Span;
 
 use super::{
-    ParserState,
+    ParserState, errors,
     paren_rule::{NoParenRule, ParenRuleTrait},
 };
 
@@ -131,7 +131,12 @@ impl<'cx> ParserState<'cx, '_> {
             name,
         });
         self.nodes.insert(id, ast::Node::PropAccessExpr(node));
-        self.node_flags_map.insert(id, ast::NodeFlags::empty());
+        let flags = if question_dot.is_some() {
+            ast::NodeFlags::OPTIONAL_CHAIN
+        } else {
+            ast::NodeFlags::empty()
+        };
+        self.node_flags_map.insert(id, flags);
         node
     }
 
@@ -256,5 +261,43 @@ impl<'cx> ParserState<'cx, '_> {
         self.nodes.insert(id, ast::Node::JsxEle(node));
         self.node_flags_map.insert(id, ast::NodeFlags::empty());
         node
+    }
+
+    pub fn create_tagged_template_expr(
+        &mut self,
+        start: u32,
+        tag: &'cx ast::Expr<'cx>,
+        ty_args: Option<&'cx ast::Tys<'cx>>,
+        tpl: &'cx ast::Expr<'cx>,
+        question_dot: Option<Span>,
+    ) -> &'cx ast::TaggedTemplateExpr<'cx> {
+        let id = self.next_node_id();
+        let tagged_template = self.alloc(ast::TaggedTemplateExpr {
+            id,
+            span: self.new_span(start),
+            tag,
+            tpl,
+            ty_args,
+        });
+        self.nodes
+            .insert(id, ast::Node::TaggedTemplateExpr(tagged_template));
+        let flags = if question_dot.is_some()
+            || self
+                .node_flags_map
+                .get(tag.id())
+                .contains(ast::NodeFlags::OPTIONAL_CHAIN)
+        {
+            self.push_error(Box::new(
+                errors::TaggedTemplateExpressionsAreNotPermittedInAnOptionalChain {
+                    span: tpl.span(),
+                },
+            ));
+
+            ast::NodeFlags::OPTIONAL_CHAIN
+        } else {
+            ast::NodeFlags::empty()
+        };
+        self.node_flags_map.insert(id, flags);
+        tagged_template
     }
 }
