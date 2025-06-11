@@ -1,6 +1,7 @@
 use super::lookahead::Lookahead;
 use super::paren_rule::{NoParenRule, ParenRuleTrait};
 use super::parse_fn_like::ParseFnExpr;
+use super::state::LanguageVariant;
 use super::ty::TypeArguments;
 use super::utils::is_left_hand_side_expr_kind;
 use super::{PResult, ParserState};
@@ -15,10 +16,7 @@ impl<'cx> ParserState<'cx, '_> {
         use bolt_ts_ast::TokenKind::*;
         match self.token.kind {
             Plus | Minus | Tilde | Excl | Delete | Typeof | Void | Await => false,
-            Less => {
-                // TODO: return true when parsing jsx
-                false
-            }
+            Less if !matches!(self.variant, LanguageVariant::Jsx) => false,
             _ => true,
         }
     }
@@ -297,7 +295,6 @@ impl<'cx> ParserState<'cx, '_> {
 
     fn parse_unary_expr(&mut self) -> PResult<&'cx ast::Expr<'cx>> {
         if self.is_update_expr() {
-            // let start = self.token.start();
             self.parse_update_expr()
         } else {
             self.parse_simple_unary_expr()
@@ -397,10 +394,25 @@ impl<'cx> ParserState<'cx, '_> {
     }
 
     fn parse_update_expr(&mut self) -> PResult<&'cx ast::Expr<'cx>> {
-        let start = self.token.start();
         if matches!(self.token.kind, TokenKind::PlusPlus | TokenKind::MinusMinus) {
             self.parse_prefix_unary_expr(Self::parse_left_hand_side_expr_or_higher)
+        } else if self.token.kind == TokenKind::Less
+            && matches!(self.variant, LanguageVariant::Jsx)
+            && self
+                .lookahead(Lookahead::next_token_is_ident_or_keyword_or_great)
+                .is_ok_and(|b| b)
+        {
+            let jsx = self.parse_jsx_ele_or_self_closing_ele_or_frag(true, None, None, false)?;
+            use super::jsx::JsxEleOrSelfClosingEleOrFrag::*;
+            let kind = match jsx {
+                Ele(n) => ast::ExprKind::JsxEle(n),
+                SelfClosingEle(n) => ast::ExprKind::JsxSelfClosingEle(n),
+                Frag(n) => ast::ExprKind::JsxFrag(n),
+            };
+            let expr = self.alloc(ast::Expr { kind });
+            Ok(expr)
         } else {
+            let start = self.token.start();
             let expr = self.parse_left_hand_side_expr_or_higher()?;
             // assert!(is_left_hand_side_expr_kind(expr));
             if matches!(self.token.kind, TokenKind::PlusPlus | TokenKind::MinusMinus)
@@ -1166,18 +1178,9 @@ impl<'cx> ParserState<'cx, '_> {
         } else {
             self.prase_template_expr(true)?
         };
-        let id = self.next_node_id();
-        let tagged_template = self.alloc(ast::TaggedTemplateExpr {
-            id,
-            span: self.new_span(start as u32),
-            tag,
-            tpl,
-            ty_args,
-        });
-        self.nodes
-            .insert(id, ast::Node::TaggedTemplateExpr(tagged_template));
+        let expr = self.create_tagged_template_expr(start as u32, tag, ty_args, tpl, question_dot);
         let expr = self.alloc(ast::Expr {
-            kind: ast::ExprKind::TaggedTemplate(tagged_template),
+            kind: ast::ExprKind::TaggedTemplate(expr),
         });
         Ok(expr)
     }

@@ -1,0 +1,17 @@
+  × Tagged template expressions are not permitted in an optional chain.
+   ╭─[../../tests/cases/compiler/optionalChainWithTagExpr/index.ts:3:5]
+ 3 │ ``
+   · ──
+   ╰────
+
+  × Tagged template expressions are not permitted in an optional chain.
+   ╭─[../../tests/cases/compiler/optionalChainWithTagExpr/index.ts:5:4]
+ 5 │ `b`
+   · ───
+   ╰────
+
+  × Tagged template expressions are not permitted in an optional chain.
+   ╭─[../../tests/cases/compiler/optionalChainWithTagExpr/index.ts:7:4]
+ 7 │ `b${1}c`
+   · ────────
+   ╰────

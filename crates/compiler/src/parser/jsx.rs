@@ -1,4 +1,4 @@
-use bolt_ts_ast::{JsxAttrValue, JsxTagNameExpr, NodeFlags, TokenKind, keyword};
+use bolt_ts_ast::{JsxTagName, NodeFlags, TokenKind, keyword};
 use bolt_ts_span::Span;
 
 use super::{PResult, ParserState, list_ctx};
@@ -20,11 +20,11 @@ impl JsxEleOrSelfClosingEleOrFrag<'_> {
 }
 
 impl<'cx, 'p> ParserState<'cx, 'p> {
-    fn parse_jsx_ele_or_self_closing_ele_or_frag(
+    pub(super) fn parse_jsx_ele_or_self_closing_ele_or_frag(
         &mut self,
         in_expr_context: bool,
         top_invalid_node_position: Option<u32>,
-        opening_tag: Option<bolt_ts_ast::JsxTagNameExpr<'cx>>,
+        opening_tag: Option<bolt_ts_ast::JsxTagName<'cx>>,
         must_be_unary: bool,
     ) -> PResult<JsxEleOrSelfClosingEleOrFrag<'cx>> {
         let start = self.token.start();
@@ -32,7 +32,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         let result: JsxEleOrSelfClosingEleOrFrag<'cx>;
         self.expect(TokenKind::Less);
         if self.token.kind == TokenKind::Great {
-            self.scan_jsx_ident();
+            self.scan_jsx_token(true);
             let opening = self.create_jsx_opening_frag(self.new_span(start));
             let children = self.parse_jsx_children(None);
             let closing = self.parse_jsx_closing_frag(in_expr_context);
@@ -68,7 +68,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
                             let ident = self.create_ident_by_atom(keyword::IDENT_EMPTY, span);
                             let closing = self.create_jsx_closing_ele(
                                 span,
-                                bolt_ts_ast::JsxTagNameExpr::Ident(ident),
+                                bolt_ts_ast::JsxTagName::Ident(ident),
                             );
                             let span = self.new_span(end.span().lo);
                             let last = self.create_jsx_ele(span, opening, children, closing);
@@ -80,14 +80,15 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
                             closing_ele = Some(end_ele.closing_ele);
                         }
                     }
-                } else if else_then {
+                }
+                if else_then {
                     let e = self.parse_jsx_closing_ele(opening, in_expr_context)?;
                     closing_ele = Some(e);
-                    if tag_names_are_eq(&opening.tag_name, &e.tag_name) {
+                    if !tag_names_are_eq(&opening.tag_name, &e.tag_name) {
                         if opening_tag.is_some_and(|t| tag_names_are_eq(&e.tag_name, &t)) {
-                            todo!("error handle");
+                            // todo!("error handle");
                         } else {
-                            todo!("error handle");
+                            // todo!("error handle");
                         }
                     }
                 } else {
@@ -157,18 +158,17 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
 
     fn parse_jsx_child(
         &mut self,
-        opening_tag_name: Option<bolt_ts_ast::JsxTagNameExpr<'cx>>,
+        opening_tag_name: Option<bolt_ts_ast::JsxTagName<'cx>>,
         token: TokenKind,
     ) -> PResult<Option<bolt_ts_ast::JsxChild<'cx>>> {
         match token {
             TokenKind::EOF => {
-                todo!("error handle");
-                // if let Some(opening_tag_name) = opening_tag_name {
-                //     todo!("error handle")
-                // } else {
-                //     todo!("error handle")
-                // }
-                // Ok(None)
+                if let Some(opening_tag_name) = opening_tag_name {
+                    // todo!("error handle")
+                } else {
+                    // todo!("error handle")
+                }
+                Ok(None)
             }
             TokenKind::LessSlash => {
                 // TODO: conflict marker trivia
@@ -200,7 +200,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
 
     fn parse_jsx_children(
         &mut self,
-        opening_tag_name: Option<bolt_ts_ast::JsxTagNameExpr<'cx>>,
+        opening_tag_name: Option<bolt_ts_ast::JsxTagName<'cx>>,
     ) -> &'cx [bolt_ts_ast::JsxChild<'cx>] {
         let mut list = Vec::with_capacity(16);
         // let start = self.token.start();
@@ -230,17 +230,17 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         self.create_jsx_attrs(attrs)
     }
 
-    fn parse_jsx_ele_name(&mut self) -> PResult<JsxTagNameExpr<'cx>> {
+    fn parse_jsx_ele_name(&mut self) -> PResult<JsxTagName<'cx>> {
         let start = self.token.start();
         let init_expr = self.parse_jsx_tag_name()?;
 
         use bolt_ts_ast::ExprKind;
-        use bolt_ts_ast::JsxTagName::*;
 
         let kind = match init_expr {
-            Ident(n) => ExprKind::Ident(n),
-            This(n) => ExprKind::This(n),
-            Ns(n) => return Ok(JsxTagNameExpr::Ns(n)),
+            JsxTagName::Ident(n) => ExprKind::Ident(n),
+            JsxTagName::This(n) => ExprKind::This(n),
+            JsxTagName::Ns(n) => return Ok(JsxTagName::Ns(n)),
+            JsxTagName::PropAccess(_) => unreachable!(),
         };
         let mut expr = self.alloc(bolt_ts_ast::Expr { kind });
         while self.parse_optional(TokenKind::Dot).is_some() {
@@ -251,14 +251,14 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
             });
         }
         match expr.kind {
-            ExprKind::Ident(n) => Ok(JsxTagNameExpr::Ident(n)),
-            ExprKind::This(n) => Ok(JsxTagNameExpr::This(n)),
-            ExprKind::PropAccess(n) => Ok(JsxTagNameExpr::PropAccess(n)),
+            ExprKind::Ident(n) => Ok(JsxTagName::Ident(n)),
+            ExprKind::This(n) => Ok(JsxTagName::This(n)),
+            ExprKind::PropAccess(n) => Ok(JsxTagName::PropAccess(n)),
             _ => unreachable!(),
         }
     }
 
-    fn parse_jsx_tag_name(&mut self) -> PResult<bolt_ts_ast::JsxTagName<'cx>> {
+    fn parse_jsx_tag_name(&mut self) -> PResult<JsxTagName<'cx>> {
         let start = self.token.start();
         self.scan_jsx_ident();
         let is_this = self.token.kind == TokenKind::This;
@@ -267,14 +267,14 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
             self.scan_jsx_ident();
             let name = self.parse_identifier_name_error_or_unicode_escape_sequence()?;
             let span = self.new_span(start);
-            bolt_ts_ast::JsxTagName::Ns(self.create_jsx_ns_name(tag_name, name, span))
+            JsxTagName::Ns(self.create_jsx_ns_name(tag_name, name, span))
         } else if is_this {
             let span = self.new_span(start);
             debug_assert!(span.lo + keyword::KW_THIS_STR.len() as u32 == span.hi);
             let this = self.create_this_expr(span);
-            bolt_ts_ast::JsxTagName::This(this)
+            JsxTagName::This(this)
         } else {
-            bolt_ts_ast::JsxTagName::Ident(tag_name)
+            JsxTagName::Ident(tag_name)
         })
     }
 
@@ -415,11 +415,8 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
     }
 }
 
-fn tag_names_are_eq(
-    a: &bolt_ts_ast::JsxTagNameExpr<'_>,
-    b: &bolt_ts_ast::JsxTagNameExpr<'_>,
-) -> bool {
-    use bolt_ts_ast::JsxTagNameExpr::*;
+fn tag_names_are_eq(a: &bolt_ts_ast::JsxTagName<'_>, b: &bolt_ts_ast::JsxTagName<'_>) -> bool {
+    use bolt_ts_ast::JsxTagName::*;
 
     fn expr_eq(a: &bolt_ts_ast::Expr, b: &bolt_ts_ast::Expr) -> bool {
         use bolt_ts_ast::ExprKind::*;

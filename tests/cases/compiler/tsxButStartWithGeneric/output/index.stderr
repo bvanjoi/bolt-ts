@@ -1,0 +1,23 @@
+  × Identifier expected.
+   ╭─[../../tests/cases/compiler/tsxButStartWithGeneric/index.tsx:1:26]
+ 1 │ ╭─▶ ";
+ 2 │ │   //~^ ERROR: Expected
+ 3 │ │   //~| ERROR: Expected
+ 4 │ ╰─▶ //~| ERROR: Identifier expected.
+   ╰────
+
+  × Expected '>'.
+   ╭─[../../tests/cases/compiler/tsxButStartWithGeneric/index.tsx:1:26]
+ 1 │ ╭─▶ ";
+ 2 │ │   //~^ ERROR: Expected
+ 3 │ │   //~| ERROR: Expected
+ 4 │ ╰─▶ //~| ERROR: Identifier expected.
+   ╰────
+
+  × Expected ','.
+   ╭─[../../tests/cases/compiler/tsxButStartWithGeneric/index.tsx:1:26]
+ 1 │ ╭─▶ ";
+ 2 │ │   //~^ ERROR: Expected
+ 3 │ │   //~| ERROR: Expected
+ 4 │ ╰─▶ //~| ERROR: Identifier expected.
+   ╰────

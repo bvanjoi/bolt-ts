@@ -1,7 +1,6 @@
 use bolt_ts_ast::TokenKind;
-use bolt_ts_ast::{self as ast, ModifierKind};
+use bolt_ts_ast::{self as ast};
 use bolt_ts_span::Span;
-use enumflags2::BitFlag;
 
 use super::errors;
 use super::list_ctx::{self, ListContext};
