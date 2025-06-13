@@ -243,8 +243,10 @@ impl<'cx> Emit<'cx> {
         use bolt_ts_ast::JsxAttr::*;
         match n {
             Spread(n) => {
+                self.content.p_l_brace();
                 self.content.p_dot_dot_dot();
                 self.emit_expr(n.expr);
+                self.content.p_r_brace();
             }
             Named(n) => {
                 match n.name {
