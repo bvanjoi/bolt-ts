@@ -238,3 +238,10 @@ pub(super) struct TaggedTemplateExpressionsAreNotPermittedInAnOptionalChain {
     #[label(primary)]
     pub(super) span: Span,
 }
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
+#[error("Expected corresponding closing tag for JSX fragment.")]
+pub(super) struct ExpectedCorrespondingClosingTagForJsxFragment {
+    #[label(primary)]
+    pub(super) span: Span,
+}

@@ -1,7 +1,7 @@
 use bolt_ts_ast::{JsxTagName, NodeFlags, TokenKind, keyword};
 use bolt_ts_span::Span;
 
-use crate::parser::state::LanguageVariant;
+use crate::parser::{errors, state::LanguageVariant};
 
 use super::{PResult, ParserState, list_ctx};
 
@@ -89,7 +89,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
                     closing_ele = Some(e);
                     if !tag_names_are_eq(&opening.tag_name, &e.tag_name) {
                         if opening_tag.is_some_and(|t| tag_names_are_eq(&e.tag_name, &t)) {
-                            // todo!("error handle");
+                            todo!("error handle");
                         } else {
                             // todo!("error handle");
                         }
@@ -415,11 +415,14 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         let start = self.token.start();
         self.expect(TokenKind::LessSlash);
 
-        if self.expect_with::<false>(TokenKind::Great, {
-            // TODO: custom error
-            let f: Option<fn(&mut Self) -> crate::Diag> = None;
-            f
-        }) {
+        if self.expect_with::<false>(
+            TokenKind::Great,
+            Some(|this: &mut ParserState<'cx, 'p>| {
+                Box::new(errors::ExpectedCorrespondingClosingTagForJsxFragment {
+                    span: this.token.span,
+                }) as _
+            }),
+        ) {
             if in_expr_context {
                 self.next_token();
             } else {
