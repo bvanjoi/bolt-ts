@@ -166,12 +166,14 @@ impl<'cx> Emit<'cx> {
     }
 
     fn emit_jsx_expr(&mut self, n: &'cx ast::JsxExpr<'cx>) {
+        self.content.p_l_brace();
         if n.dotdotdot_token.is_some() {
             self.content.p_dot_dot_dot();
         }
         if let Some(expr) = n.expr {
             self.emit_expr(expr);
         }
+        self.content.p_r_brace();
     }
 
     fn emit_jsx_child(&mut self, child: &'cx ast::JsxChild<'cx>) {
@@ -206,7 +208,7 @@ impl<'cx> Emit<'cx> {
 
     fn emit_jsx_ns_name(&mut self, n: &'cx ast::JsxNsName<'cx>) {
         self.emit_ident(n.ns);
-        self.content.p(".");
+        self.content.p(":");
         self.emit_ident(n.name);
     }
 
@@ -223,16 +225,8 @@ impl<'cx> Emit<'cx> {
     fn emit_jsx_attr_value(&mut self, n: ast::JsxAttrValue<'cx>) {
         use bolt_ts_ast::JsxAttrValue::*;
         match n {
-            StringLit(s) => {
-                self.content.p("\"");
-                self.content.p(self.atoms.get(s.val));
-                self.content.p("\"");
-            }
-            Expr(n) => {
-                self.content.p_l_brace();
-                self.emit_jsx_expr(n);
-                self.content.p_r_brace();
-            }
+            StringLit(s) => self.emit_string_lit(s),
+            Expr(n) => self.emit_jsx_expr(n),
             Ele(n) => self.emit_jsx_ele(n),
             SelfClosingEle(n) => self.emit_jsx_self_closing_ele(n),
             Frag(n) => self.emit_jsx_frag(n),
@@ -243,8 +237,10 @@ impl<'cx> Emit<'cx> {
         use bolt_ts_ast::JsxAttr::*;
         match n {
             Spread(n) => {
+                self.content.p_l_brace();
                 self.content.p_dot_dot_dot();
                 self.emit_expr(n.expr);
+                self.content.p_r_brace();
             }
             Named(n) => {
                 match n.name {

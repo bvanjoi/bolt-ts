@@ -400,7 +400,7 @@ impl<'cx> ParserState<'cx, '_> {
             && matches!(self.variant, LanguageVariant::Jsx)
             && self
                 .lookahead(Lookahead::next_token_is_ident_or_keyword_or_great)
-                .is_ok_and(|b| b)
+                .unwrap_or_default()
         {
             let jsx = self.parse_jsx_ele_or_self_closing_ele_or_frag(true, None, None, false)?;
             use super::jsx::JsxEleOrSelfClosingEleOrFrag::*;

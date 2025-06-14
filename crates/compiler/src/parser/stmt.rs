@@ -1051,7 +1051,7 @@ impl<'cx> ParserState<'cx, '_> {
 
     fn parse_var_decl_list(&mut self, in_for_stmt_initializer: bool) -> VarDecls<'cx> {
         self.next_token();
-        self.parse_delimited_list(list_ctx::VarDecls, |this| this.parse_var_decl())
+        self.parse_delimited_list(list_ctx::VarDecls, Self::parse_var_decl)
     }
 
     fn parse_fn_decl(
