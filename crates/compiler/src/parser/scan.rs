@@ -26,9 +26,9 @@ fn is_identifier_start(ch: u8) -> bool {
 }
 
 #[inline(always)]
-fn is_identifier_part(ch: u8, is_jsx: bool) -> bool {
+fn is_identifier_part(ch: u8, is_jsx: bool, ident_is_jsx: bool) -> bool {
     is_word_character(ch) || ch == b'$' || {
-        if is_jsx {
+        if ident_is_jsx {
             ch == b'-' || ch == b':'
         } else {
             false
@@ -317,6 +317,7 @@ impl ParserState<'_, '_> {
             } else if is_identifier_part(
                 self.ch_unchecked(),
                 matches!(self.variant, LanguageVariant::Jsx),
+                false,
             ) {
                 self.pos += 1
             } else if self.ch_unchecked() < 128 {
@@ -1215,7 +1216,7 @@ impl ParserState<'_, '_> {
             self.pos += 1;
             let mut regexp_flags = RegularExpressionFlags::empty();
             while let Some(ch) = self.ch() {
-                if !is_identifier_part(ch, matches!(self.variant, LanguageVariant::Jsx)) {
+                if !is_identifier_part(ch, matches!(self.variant, LanguageVariant::Jsx), false) {
                     break;
                 }
                 if !ch.is_ascii() {
@@ -1304,7 +1305,10 @@ impl ParserState<'_, '_> {
                 // TODO: is_conflict_mark_trivia
                 break;
             } else if ch == b'>' {
-                // TODO: error
+                let error = errors::UnexpectedTokenDidYouMeanOrGt {
+                    span: Span::new(self.pos as u32, (self.pos + 1) as u32, self.module_id),
+                };
+                self.push_error(Box::new(error));
             } else if ch == b'}' {
                 let error = errors::UnexpectedTokenDidYouMeanOrRBrace {
                     span: Span::new(token_start as u32, self.pos as u32, self.module_id),
@@ -1421,7 +1425,7 @@ impl ParserState<'_, '_> {
         let mut result = Vec::with_capacity(32);
         let start = self.pos;
         while let Some(ch) = self.ch() {
-            if is_identifier_part(ch, matches!(self.variant, LanguageVariant::Jsx)) {
+            if is_identifier_part(ch, matches!(self.variant, LanguageVariant::Jsx), false) {
                 self.pos += 1;
             } else if ch == b'\\' {
                 todo!("unicode")

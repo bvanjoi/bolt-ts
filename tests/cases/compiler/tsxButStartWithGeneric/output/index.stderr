@@ -1,9 +1,24 @@
+  × Unexpected token. Did you mean `{'>'}` or `&gt;`?
+   ╭─[../../tests/cases/compiler/tsxButStartWithGeneric/index.tsx:1:18]
+ 1 │ >
+   · ─
+   ╰────
+
+  × Unexpected token. Did you mean `{'>'}` or `&gt;`?
+   ╭─[../../tests/cases/compiler/tsxButStartWithGeneric/index.tsx:1:18]
+ 1 │ >
+   · ─
+   ╰────
+
   × Identifier expected.
    ╭─[../../tests/cases/compiler/tsxButStartWithGeneric/index.tsx:1:26]
  1 │ ╭─▶ ";
  2 │ │   //~^ ERROR: Expected
  3 │ │   //~| ERROR: Expected
- 4 │ ╰─▶ //~| ERROR: Identifier expected.
+ 4 │ │   //~| ERROR: Identifier expected.
+ 5 │ │   //~| ERROR: Unexpected token. Did you mean `{'>'}` or `&gt;`?
+ 6 │ │   //~| ERROR: Unexpected token. Did you mean `{'>'}` or `&gt;`?
+ 7 │ ╰─▶ 
    ╰────
 
   × Expected '>'.
@@ -11,7 +26,10 @@
  1 │ ╭─▶ ";
  2 │ │   //~^ ERROR: Expected
  3 │ │   //~| ERROR: Expected
- 4 │ ╰─▶ //~| ERROR: Identifier expected.
+ 4 │ │   //~| ERROR: Identifier expected.
+ 5 │ │   //~| ERROR: Unexpected token. Did you mean `{'>'}` or `&gt;`?
+ 6 │ │   //~| ERROR: Unexpected token. Did you mean `{'>'}` or `&gt;`?
+ 7 │ ╰─▶ 
    ╰────
 
   × Expected ','.
@@ -19,5 +37,8 @@
  1 │ ╭─▶ ";
  2 │ │   //~^ ERROR: Expected
  3 │ │   //~| ERROR: Expected
- 4 │ ╰─▶ //~| ERROR: Identifier expected.
+ 4 │ │   //~| ERROR: Identifier expected.
+ 5 │ │   //~| ERROR: Unexpected token. Did you mean `{'>'}` or `&gt;`?
+ 6 │ │   //~| ERROR: Unexpected token. Did you mean `{'>'}` or `&gt;`?
+ 7 │ ╰─▶ 
    ╰────

@@ -226,8 +226,22 @@ pub(super) struct UnexpectedTokenDidYouMeanOrRBrace {
 }
 
 #[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
+#[error("Unexpected token. Did you mean `{{'>'}}` or `&gt;`?")]
+pub(super) struct UnexpectedTokenDidYouMeanOrGt {
+    #[label(primary)]
+    pub(super) span: Span,
+}
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
 #[error("Tagged template expressions are not permitted in an optional chain.")]
 pub(super) struct TaggedTemplateExpressionsAreNotPermittedInAnOptionalChain {
+    #[label(primary)]
+    pub(super) span: Span,
+}
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
+#[error("Expected corresponding closing tag for JSX fragment.")]
+pub(super) struct ExpectedCorrespondingClosingTagForJsxFragment {
     #[label(primary)]
     pub(super) span: Span,
 }
