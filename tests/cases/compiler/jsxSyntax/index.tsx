@@ -17,6 +17,10 @@ function App2() {}
 
 namespace App3 {
   export function App4() {}
+
+  export namespace App5 {
+    export function App6() {}
+  }
 }
 
 // jsx syntax:
@@ -45,6 +49,7 @@ function e1() {
 <App><App2 />7x invalid-js-identifier</App>;
 
 <App3.App4></App3.App4>;
+<App3.App5.App6></App3.App5.App6>
 
 (<App />) < x;;
 

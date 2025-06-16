@@ -1,11 +1,9 @@
-use std::{borrow::Cow, io::Read, str};
+use std::{borrow::Cow, str};
 
 use bolt_ts_atom::AtomId;
 use bolt_ts_span::Span;
 
-use super::{
-    CommentDirectiveKind, PResult, ParserState, TokenValue, errors, state::LanguageVariant,
-};
+use super::{CommentDirectiveKind, PResult, ParserState, TokenValue, errors, unicode};
 use bolt_ts_ast::{RegularExpressionFlags, Token, TokenFlags, TokenKind, atom_to_token, keyword};
 
 use crate::parser::CommentDirective;
@@ -21,18 +19,33 @@ fn is_word_character(ch: u8) -> bool {
 }
 
 #[inline(always)]
-fn is_identifier_start(ch: u8) -> bool {
+fn is_ascii_identifier_start(ch: u8) -> bool {
     ch == b'$' || ch == b'_' || is_ascii_letter(ch)
 }
 
+fn is_identifier_start(ch: u32, is_es5_target: bool) -> bool {
+    if ch <= 255 {
+        is_ascii_identifier_start(ch as u8)
+    } else if is_es5_target {
+        unicode::is_unicode_es5_identifier_start(ch)
+    } else {
+        unicode::is_unicode_esnext_identifier_start(ch)
+    }
+}
+
 #[inline(always)]
-fn is_identifier_part(ch: u8, is_jsx: bool, ident_is_jsx: bool) -> bool {
-    is_word_character(ch) || ch == b'$' || {
-        if ident_is_jsx {
-            ch == b'-' || ch == b':'
-        } else {
-            false
-        }
+fn is_ascii_identifier_part(ch: u8) -> bool {
+    is_word_character(ch) || ch == b'$'
+}
+
+#[inline(always)]
+fn is_identifier_part(ch: u32, is_es5_target: bool) -> bool {
+    if ch <= 255 {
+        is_ascii_identifier_part(ch as u8)
+    } else if is_es5_target {
+        unicode::is_unicode_es5_identifier_part(ch)
+    } else {
+        unicode::is_unicode_esnext_identifier_part(ch)
     }
 }
 
@@ -305,20 +318,17 @@ impl ParserState<'_, '_> {
         let mut first = true;
         loop {
             if first {
-                if is_identifier_start(ch) {
+                if is_ascii_identifier_start(ch) {
                     self.pos += 1;
+                } else if ch < 128 {
+                    break;
                 } else {
-                    assert!(ch >= 128, "invalid char: {ch}");
                     self.scan_unicode_from_utf8(UTF8_CHAR_LEN_MAX)?;
                 }
                 first = false;
             } else if self.pos == self.end() {
                 break;
-            } else if is_identifier_part(
-                self.ch_unchecked(),
-                matches!(self.variant, LanguageVariant::Jsx),
-                false,
-            ) {
+            } else if is_ascii_identifier_part(self.ch_unchecked()) {
                 self.pos += 1
             } else if self.ch_unchecked() < 128 {
                 break;
@@ -360,6 +370,39 @@ impl ParserState<'_, '_> {
         }
         self.pos += s.len();
         true
+    }
+
+    fn scan_exact_number_of_hex_digits(&mut self, count: u8, can_have_sep: bool) -> Option<u32> {
+        let s = self.scan_hex_digits(count as usize, false, can_have_sep);
+        let s = unsafe { str::from_utf8_unchecked(&s) };
+        u32::from_str_radix(s, 16).ok()
+    }
+
+    fn peek_extend_unicode_escape(&mut self) -> Option<u32> {
+        if self.next_ch() == Some(b'u') && self.next_next_ch() == Some(b'{') {
+            let start = self.pos;
+            self.pos += 3;
+            let s = self.scan_minimum_number_of_hex_digits(1, false);
+            let s = unsafe { str::from_utf8_unchecked(&s) };
+            let v = u32::from_str_radix(s, 16).ok();
+            self.pos = start;
+            v
+        } else {
+            None
+        }
+    }
+
+    fn peek_unicode_escape(&mut self) -> Option<u32> {
+        debug_assert!(self.ch_unchecked() == b'\\');
+        if self.pos + 5 < self.end() && self.ch_unchecked() == b'u' {
+            let start = self.pos;
+            self.pos += 2;
+            let v = self.scan_exact_number_of_hex_digits(4, false);
+            self.pos = start;
+            v
+        } else {
+            None
+        }
     }
 
     pub(super) fn next_token(&mut self) {
@@ -748,6 +791,42 @@ impl ParserState<'_, '_> {
                     )
                 }
                 b'0'..=b'9' => self.scan_number(),
+                b'\\' => {
+                    let extended_cooked_char = self.peek_extend_unicode_escape();
+                    if let Some(extended_cooked_char) = extended_cooked_char {
+                        if is_identifier_start(extended_cooked_char, false) {
+                            let mut unicode = self.scan_extended_unicode_escape(true);
+                            let ident_parts = self.scan_identifier_parts();
+                            unicode.extend(ident_parts);
+                            self.token = self
+                                .get_ident_token(Cow::Owned(unicode), start as u32)
+                                .unwrap();
+                            return;
+                        }
+                    }
+
+                    let cooked_char = self.peek_unicode_escape();
+                    if let Some(cooked_char) = cooked_char {
+                        if is_identifier_start(cooked_char, false) {
+                            self.pos += 6;
+                            self.token_flags |= TokenFlags::UNICODE_ESCAPE;
+                            let mut s = cooked_char.to_be_bytes().to_vec();
+                            let ident_parts = self.scan_identifier_parts();
+                            s.extend(ident_parts);
+                            self.token = self.get_ident_token(Cow::Owned(s), start as u32).unwrap();
+                            return;
+                        }
+                    }
+
+                    self.push_error(Box::new(errors::InvalidCharacter {
+                        span: Span::new(start as u32, self.pos as u32, self.module_id),
+                    }));
+                    self.pos += 1;
+                    Token::new(
+                        TokenKind::Unknown,
+                        Span::new(start as u32, self.pos as u32, self.module_id),
+                    )
+                }
                 _ if ch.is_ascii_whitespace() => {
                     self.pos += 1;
                     // TODO: \r\n
@@ -901,7 +980,7 @@ impl ParserState<'_, '_> {
                 if flags.intersects(EscapeSequenceScanningFlags::ANY_UNICODE_MODE)
                     || flags.intersects(EscapeSequenceScanningFlags::REGULAR_EXPRESSION)
                         && !flags.intersects(EscapeSequenceScanningFlags::ANNEX_B)
-                        && is_identifier_start(ch)
+                        && is_ascii_identifier_start(ch)
                 {
                     todo!("error handle")
                 }
@@ -1024,6 +1103,10 @@ impl ParserState<'_, '_> {
         let mut key = Vec::with_capacity(32);
         loop {
             if self.pos >= self.end() {
+                self.token_flags |= TokenFlags::UNTERMINATED;
+                self.push_error(Box::new(errors::UnterminatedStringLiteral {
+                    span: Span::new(self.token.end(), self.pos as u32, self.module_id),
+                }));
                 break;
             }
             let ch = self.ch_unchecked();
@@ -1216,7 +1299,7 @@ impl ParserState<'_, '_> {
             self.pos += 1;
             let mut regexp_flags = RegularExpressionFlags::empty();
             while let Some(ch) = self.ch() {
-                if !is_identifier_part(ch, matches!(self.variant, LanguageVariant::Jsx), false) {
+                if !is_ascii_identifier_part(ch) {
                     break;
                 }
                 if !ch.is_ascii() {
@@ -1351,7 +1434,6 @@ impl ParserState<'_, '_> {
 
     fn get_ident_token(&mut self, ident: Cow<[u8]>, start: u32) -> PResult<Token> {
         let len = ident.len();
-        debug_assert_eq!(start as usize + len, self.pos);
 
         let id = AtomId::from_bytes(ident.as_ref());
         if len > 1 && len < 13 {
@@ -1423,13 +1505,30 @@ impl ParserState<'_, '_> {
 
     fn scan_identifier_parts(&mut self) -> Vec<u8> {
         let mut result = Vec::with_capacity(32);
-        let start = self.pos;
+        let mut start = self.pos;
         while let Some(ch) = self.ch() {
-            if is_identifier_part(ch, matches!(self.variant, LanguageVariant::Jsx), false) {
+            if is_ascii_identifier_part(ch) {
                 self.pos += 1;
             } else if ch == b'\\' {
-                todo!("unicode")
+                let ch = self.peek_extend_unicode_escape();
+                if let Some(ch) = ch {
+                    if is_identifier_part(ch, false) {
+                        result.extend(self.scan_extended_unicode_escape(true));
+                        start = self.pos;
+                        continue;
+                    }
+                }
+                let ch = self.peek_unicode_escape();
+                if !(ch.is_some_and(|ch| is_identifier_part(ch, false))) {
+                    break;
+                }
+                self.token_flags |= TokenFlags::UNICODE_ESCAPE;
+                result.extend(self.input[start..self.pos].iter());
+                result.extend(ch.unwrap().to_be_bytes());
+                self.pos += 6; // \u{xxxxxx}
+                start = self.pos;
             } else {
+                // TODO: unicode identifier part
                 break;
             }
         }

@@ -447,7 +447,9 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
             .token_flags
             .intersects(TokenFlags::UNICODE_ESCAPE.union(TokenFlags::EXTENDED_UNICODE_ESCAPE))
         {
-            todo!("error handle")
+            self.push_error(Box::new(errors::UnicodeEscapeSequenceCannotAppearHere {
+                span: self.token.span,
+            }));
         }
         self.parse_ident_name()
     }

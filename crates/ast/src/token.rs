@@ -296,6 +296,7 @@ pub enum TokenKind {
     Type,
     // =====
     EOF,
+    Unknown,
     /// number literal
     Number,
     /// string literal

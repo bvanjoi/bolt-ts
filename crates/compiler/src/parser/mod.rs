@@ -18,6 +18,7 @@ mod scan_pragma;
 mod state;
 mod stmt;
 mod ty;
+mod unicode;
 mod utils;
 
 use bolt_ts_ast::Visitor;

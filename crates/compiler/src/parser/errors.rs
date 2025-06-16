@@ -245,3 +245,39 @@ pub(super) struct ExpectedCorrespondingClosingTagForJsxFragment {
     #[label(primary)]
     pub(super) span: Span,
 }
+
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
+#[error("Unterminated string literal.")]
+pub(super) struct UnterminatedStringLiteral {
+    #[label(primary)]
+    pub span: Span,
+}
+
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
+#[error("'{{' or JSX element expected.")]
+pub(super) struct OrJsxElementExpected {
+    #[label(primary)]
+    pub(super) span: Span,
+}
+
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
+#[error("Expected corresponding JSX closing tag for '{opening_tag_name}'.")]
+pub(super) struct ExpectedCorrespondingJsxClosingTagForOpeningTagName {
+    #[label(primary)]
+    pub(super) span: Span,
+    pub(super) opening_tag_name: String,
+}
+
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
+#[error("Invalid character.")]
+pub(super) struct InvalidCharacter {
+    #[label(primary)]
+    pub(super) span: Span,
+}
+
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
+#[error("Unicode escape sequence cannot appear here.")]
+pub(super) struct UnicodeEscapeSequenceCannotAppearHere {
+    #[label(primary)]
+    pub(super) span: Span,
+}

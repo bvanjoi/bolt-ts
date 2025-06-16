@@ -109,6 +109,14 @@ impl JsxTagName<'_> {
             JsxTagName::PropAccess(n) => n.id,
         }
     }
+    pub fn span(&self) -> Span {
+        match self {
+            JsxTagName::Ident(n) => n.span,
+            JsxTagName::This(n) => n.span,
+            JsxTagName::Ns(n) => n.span,
+            JsxTagName::PropAccess(n) => n.span,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy)]

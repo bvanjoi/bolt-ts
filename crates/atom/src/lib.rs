@@ -57,7 +57,7 @@ impl<'a> AtomMap<'a> {
 
     pub fn insert(&mut self, atom: AtomId, value: Cow<'a, str>) {
         let prev = self.0.insert(atom, value);
-        assert!(prev.is_none());
+        debug_assert!(prev.is_none());
     }
 
     pub fn contains(&self, atom: AtomId) -> bool {
