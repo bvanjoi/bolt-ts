@@ -15,3 +15,9 @@ function bar() {
 
 foo();
 bar();
+
+
+{
+  function f<T>(a: any) {}
+  f<number>``;
+}

@@ -1297,7 +1297,10 @@ impl<'cx> ParserState<'cx, '_> {
 
     fn can_follow_ty_args_in_expr(&mut self) -> bool {
         use bolt_ts_ast::TokenKind::*;
-        if matches!(self.token.kind, LParen) {
+        if matches!(
+            self.token.kind,
+            LParen | TemplateHead | NoSubstitutionTemplate
+        ) {
             true
         } else if matches!(self.token.kind, Less | Great | Plus | Minus) {
             false

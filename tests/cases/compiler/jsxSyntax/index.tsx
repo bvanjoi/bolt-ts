@@ -11,7 +11,7 @@ declare namespace JSX {
   }
 }
 
-function App() {}
+function App<T = any>() {}
 
 function App2() {}
 
@@ -82,3 +82,10 @@ function e14() {
     </>
   </>
 </>;
+
+<App>
+  {true ? <App attr={ ( { theme } ): { [key: string]: any } => ( { color: theme.blue })} /> : null}
+</App>
+
+
+() => <App<any>></App>
