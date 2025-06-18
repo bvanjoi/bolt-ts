@@ -2124,6 +2124,7 @@ impl<'cx> TyChecker<'cx> {
             Satisfies => todo!(),
             NEq => self.boolean_ty(),
             NEqEq => self.boolean_ty(),
+            Comma => right_ty,
         }
     }
 

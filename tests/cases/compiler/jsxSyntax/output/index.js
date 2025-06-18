@@ -66,3 +66,6 @@ function e14() {
   {true ? <App  attr={({theme}) => ({color: theme.blue})} /> : null}
 </App>;
 () => <App ></App>;
+x ? <App >
+    {() => null}
+</App> : null;

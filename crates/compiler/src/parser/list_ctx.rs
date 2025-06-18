@@ -4,7 +4,10 @@ use bolt_ts_ast::TokenKind;
 pub(super) trait ListContext: Copy {
     fn is_ele(&self, s: &mut ParserState, is_error_recovery: bool) -> bool;
     fn is_closing(&self, s: &mut ParserState) -> bool;
-    fn parsing_context_errors(&self, s: &mut ParserState) {}
+    fn parsing_context_errors(&self, _: &mut ParserState) {}
+    fn is_in_some_parsing_context(&self, s: &mut ParserState) -> bool {
+        self.is_ele(s, true) || self.is_closing(s)
+    }
 }
 
 #[derive(Copy, Clone)]
@@ -54,6 +57,11 @@ impl ListContext for BlockStmts {
 
     fn is_closing(&self, s: &mut ParserState) -> bool {
         matches!(s.token.kind, TokenKind::RBrace)
+    }
+
+    fn parsing_context_errors(&self, s: &mut ParserState) {
+        let error = errors::DeclarationOrStatementExpected { span: s.token.span };
+        s.push_error(Box::new(error));
     }
 }
 

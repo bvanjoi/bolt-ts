@@ -162,7 +162,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         ctx: impl list_ctx::ListContext,
         ele: impl Fn(&mut Self) -> PResult<T>,
     ) -> &'cx [T] {
-        let mut list = vec![];
+        let mut list = Vec::with_capacity(8);
         while !self.is_list_terminator(ctx) {
             if ctx.is_ele(self, false) {
                 if let Ok(ele) = ele(self) {
@@ -181,9 +181,12 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         ctx: impl list_ctx::ListContext,
     ) -> bool {
         ctx.parsing_context_errors(self);
-        // TODO: is_in_some_parsing_context
-        self.next_token();
-        false
+        if ctx.is_in_some_parsing_context(self) {
+            true
+        } else {
+            self.next_token();
+            false
+        }
     }
 
     pub(super) fn parse_delimited_list<T>(

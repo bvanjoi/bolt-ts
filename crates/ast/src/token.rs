@@ -461,6 +461,7 @@ impl From<TokenKind> for super::BinOpKind {
             TokenKind::Satisfies => Satisfies,
             TokenKind::BangEq => NEq,
             TokenKind::BangEqEq => NEqEq,
+            TokenKind::Comma => Comma,
             _ => {
                 unreachable!("{:#?}", value)
             }

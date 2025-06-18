@@ -89,3 +89,7 @@ function e14() {
 
 
 () => <App<any>></App>
+
+x ? <App>
+    {(): unknown => null}
+</App> : null;

@@ -244,12 +244,11 @@ impl<'cx> ParserState<'cx, '_> {
         let t = self.token.kind;
         if matches!(t, Export | Const) {
             self.is_start_of_decl()
-        } else if matches!(t, Import) {
+        } else if t == Import {
             self.is_start_of_decl() | self.lookahead(Lookahead::next_token_is_lparen_or_less_or_dot)
-        } else {
-            matches!(
-                t,
-                Semi | LBrace
+        } else if matches!(
+            t,
+            Semi | LBrace
                     | Var
                     | Let
                     | Function
@@ -272,7 +271,16 @@ impl<'cx> ParserState<'cx, '_> {
                     | Module
                     | Namespace
                     | Type
-            ) || self.is_start_of_expr()
+        ) {
+            // TODO: global, defer
+            true
+        } else if matches!(t, Public | Private | Protected | Static | Readonly) {
+            self.is_start_of_decl()
+                || !self
+                    .lookahead(Lookahead::next_token_is_ident_or_keyword_on_same_line)
+                    .unwrap_or_default()
+        } else {
+            self.is_start_of_expr()
         }
     }
 

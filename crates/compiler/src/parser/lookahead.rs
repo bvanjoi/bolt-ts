@@ -1,7 +1,7 @@
 use crate::parser::state::LanguageVariant;
 
 use super::{PResult, ParserState, Tristate, utils::ParseSuccess};
-use bolt_ts_ast::{Token, TokenKind, keyword};
+use bolt_ts_ast::{TokenKind, keyword};
 
 pub(super) struct Lookahead<'a, 'cx, 'p> {
     p: &'a mut ParserState<'cx, 'p>,

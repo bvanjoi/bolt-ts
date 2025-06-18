@@ -18,3 +18,13 @@ function func2(foo: any, bar: any, baz: any) {
 
     let a: number = foo;
 }
+
+
+{
+    let a = 1;
+    let b = ''
+    let c0: number = (a, b);
+    //~^ ERROR: Type 'string' is not assignable to type 'number'.
+    let c1: number = (a, b);
+    //~^ ERROR: Type 'string' is not assignable to type 'number'.
+}

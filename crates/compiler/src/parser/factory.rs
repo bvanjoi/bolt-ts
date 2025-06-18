@@ -300,4 +300,25 @@ impl<'cx> ParserState<'cx, '_> {
         self.node_flags_map.insert(id, flags);
         tagged_template
     }
+
+    pub fn create_binary_expr(
+        &mut self,
+        start: u32,
+        left: &'cx ast::Expr<'cx>,
+        op: ast::BinOp,
+        right: &'cx ast::Expr<'cx>,
+    ) -> &'cx ast::BinExpr<'cx> {
+        let id = self.next_node_id();
+        let span = self.new_span(start);
+        let node = self.alloc(ast::BinExpr {
+            id,
+            span,
+            left,
+            op,
+            right,
+        });
+        self.nodes.insert(id, ast::Node::BinExpr(node));
+        self.node_flags_map.insert(id, ast::NodeFlags::empty());
+        node
+    }
 }
