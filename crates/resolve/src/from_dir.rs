@@ -2,7 +2,7 @@ use bolt_ts_config::SUPPORTED_DECLARATION_EXTENSIONS;
 use bolt_ts_config::SUPPORTED_TS_IMPLEMENTATION_EXTENSIONS;
 use bolt_ts_fs::CachedFileSystem;
 use bolt_ts_fs::PathId;
-use bolt_ts_path::NormalizePath;
+use bolt_ts_utils::path::NormalizePath;
 
 use crate::package_json::PackageJsonInfoId;
 

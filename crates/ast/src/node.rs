@@ -1,4 +1,5 @@
 use bolt_ts_span::ModuleID;
+use bolt_ts_utils::paste;
 
 use super::{ExprKind, ModifierKind};
 

@@ -1,8 +1,8 @@
 use std::{hash::Hash, path::PathBuf};
 
 use bolt_ts_atom::{AtomId, AtomMap};
-use bolt_ts_path::NormalizePath;
 use bolt_ts_utils::no_hashmap_with_capacity;
+use bolt_ts_utils::path::NormalizePath;
 
 use super::errors::{self, FsResult};
 use super::has_slash_suffix_and_not_root;

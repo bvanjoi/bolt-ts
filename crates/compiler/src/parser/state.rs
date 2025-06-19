@@ -1,9 +1,9 @@
 use bolt_ts_ast::{self as ast, Node, NodeFlags, NodeID, keyword};
 use bolt_ts_ast::{Token, TokenFlags, TokenKind};
 use bolt_ts_atom::{AtomId, AtomMap};
-use bolt_ts_path::NormalizePath;
 use bolt_ts_span::{ModuleID, Span};
 use bolt_ts_utils::no_hashmap_with_capacity;
+use bolt_ts_utils::path::NormalizePath;
 
 use std::sync::{Arc, Mutex};
 
@@ -31,7 +31,7 @@ pub(super) struct ParserState<'cx, 'p> {
     pub(super) diags: Vec<bolt_ts_errors::Diag>,
     pub(super) nodes: Nodes<'cx>,
     pub(super) node_flags_map: NodeFlagsMap,
-    pub(super) arena: &'p bumpalo_herd::Member<'cx>,
+    pub(super) arena: &'p bolt_ts_arena::bumpalo_herd::Member<'cx>,
     pub(super) context_flags: NodeFlags,
     pub(super) external_module_indicator: Option<ast::NodeID>,
     pub(super) commonjs_module_indicator: Option<ast::NodeID>,
@@ -53,7 +53,7 @@ pub(super) struct ParserState<'cx, 'p> {
 impl<'cx, 'p> ParserState<'cx, 'p> {
     pub(super) fn new(
         atoms: Arc<Mutex<AtomMap<'cx>>>,
-        arena: &'p bumpalo_herd::Member<'cx>,
+        arena: &'p bolt_ts_arena::bumpalo_herd::Member<'cx>,
         nodes: Nodes<'cx>,
         input: &'p [u8],
         module_id: ModuleID,

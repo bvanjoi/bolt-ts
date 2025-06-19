@@ -1,7 +1,7 @@
 use bolt_ts_config::NormalizedTsConfig;
 use bolt_ts_fs::CachedFileSystem;
-use bolt_ts_path::NormalizePath;
 use bolt_ts_resolve::COMMON_PACKAGE_FOLDERS;
+use bolt_ts_utils::path::NormalizePath;
 
 pub(super) struct ConfigFileSpecs {
     include_specs: Vec<String>,

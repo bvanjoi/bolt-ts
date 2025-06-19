@@ -1,4 +1,4 @@
-use bolt_ts_path::{NormalizePath, path_as_str};
+use bolt_ts_utils::path::{NormalizePath, path_as_str};
 use std::path::{Path, PathBuf};
 
 pub fn normalize_join(base: &Path, target: impl AsRef<Path>) -> PathBuf {

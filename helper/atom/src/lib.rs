@@ -1,5 +1,4 @@
 use bolt_ts_utils::no_hashmap_with_capacity;
-pub use paste;
 use std::borrow::Cow;
 
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Clone, Copy)]
@@ -79,7 +78,8 @@ impl<'a> AtomMap<'a> {
 /// Generate atoms and their corresponding AtomId.
 ///
 /// ```
-/// use bolt_ts_atom::{gen_atoms, paste, AtomId};
+/// use bolt_ts_atom::{gen_atoms, AtomId};
+/// use bolt_ts_utils::paste;
 ///
 /// gen_atoms!(
 ///     ATOMS,

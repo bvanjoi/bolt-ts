@@ -1,6 +1,6 @@
 use bolt_ts_atom::AtomId;
-use bolt_ts_path::NormalizePath;
 use bolt_ts_utils::no_hashmap_with_capacity;
+use bolt_ts_utils::path::NormalizePath;
 
 use crate::CachedFileSystem;
 use crate::errors::FsResult;

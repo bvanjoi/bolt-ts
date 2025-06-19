@@ -43,7 +43,7 @@ impl<'cx> TyChecker<'cx> {
         flags: TypeFlags,
         tys: &mut Vec<&'cx ty::Ty<'cx>>,
         common_ty_links_arena: &mut ty::CommonTyLinksArena<'cx>,
-        arena: &'cx bumpalo::Bump,
+        arena: &'cx bolt_ts_arena::bumpalo::Bump,
     ) -> &'cx ty::Ty<'cx> {
         let id = TyID::new(tys.len() as u32);
         let links = common_ty_links_arena.alloc(ty::CommonTyLinks::default());

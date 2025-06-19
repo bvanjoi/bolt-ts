@@ -1,5 +1,5 @@
 use bolt_ts_atom::{AtomId, AtomMap};
-use bolt_ts_path::NormalizePath;
+use bolt_ts_utils::path::NormalizePath;
 
 #[derive(Debug, PartialEq, Eq, Hash, Clone, Copy)]
 pub struct PathId(AtomId);

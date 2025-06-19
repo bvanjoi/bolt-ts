@@ -5,4 +5,4 @@ edition = "2024"
 
 [dependencies]
 regex = { workspace = true }
-tempdir = { workspace = true }
+tempdir = "0.3.7"

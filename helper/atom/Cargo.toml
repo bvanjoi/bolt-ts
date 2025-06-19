@@ -6,6 +6,5 @@ edition = "2024"
 [dependencies]
 rustc-hash = { workspace = true }
 xxhash-rust = { workspace = true, features = ["xxh3", "const_xxh3"] }
-paste = { workspace = true }
 bolt_ts_utils = { path = "../utils" }
 nohash-hasher = { workspace = true }

@@ -1,0 +1,10 @@
+[package]
+name = "bolt_ts_arena"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+id-arena = { version = "2.2.1" }
+typed-arena = { version = "2.0.2" }
+bumpalo = { version = "3.16.0" }
+bumpalo-herd = "0.1.2"

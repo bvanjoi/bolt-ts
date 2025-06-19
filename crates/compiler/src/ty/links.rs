@@ -45,8 +45,8 @@ macro_rules! links {
         }
 
         paste::paste! {
-            pub type [<$s Arena>]<'cx> = id_arena::Arena<$s<'cx>>;
-            pub type [<$s ID>]<'cx> = id_arena::Id<$s<'cx>>;
+            pub type [<$s Arena>]<'cx> = bolt_ts_arena::id_arena::Arena<$s<'cx>>;
+            pub type [<$s ID>]<'cx> = bolt_ts_arena::id_arena::Id<$s<'cx>>;
         }
     };
 }

@@ -26,9 +26,9 @@ use bolt_ts_ast::keyword;
 use bolt_ts_ast::{self as ast, Node, NodeFlags, NodeID};
 use bolt_ts_atom::{AtomId, AtomMap};
 use bolt_ts_fs::PathId;
-use bolt_ts_path::NormalizePath;
 use bolt_ts_span::{ModuleArena, ModuleID};
 use bolt_ts_utils::no_hashmap_with_capacity;
+use bolt_ts_utils::path::NormalizePath;
 use state::LanguageVariant;
 
 use std::sync::{Arc, Mutex};
@@ -194,7 +194,7 @@ impl TokenValue {
 
 pub fn parse_parallel<'cx, 'p>(
     atoms: Arc<Mutex<AtomMap<'cx>>>,
-    herd: &'cx bumpalo_herd::Herd,
+    herd: &'cx bolt_ts_arena::bumpalo_herd::Herd,
     list: &'p [ModuleID],
     module_arena: &'p ModuleArena,
     default_lib_dir: &'p std::path::Path,
@@ -233,7 +233,7 @@ pub fn parse_parallel<'cx, 'p>(
 
 fn parse<'cx, 'p>(
     atoms: Arc<Mutex<AtomMap<'cx>>>,
-    arena: &'p bumpalo_herd::Member<'cx>,
+    arena: &'p bolt_ts_arena::bumpalo_herd::Member<'cx>,
     input: &'p [u8],
     module_id: ModuleID,
     module_arena: &'p ModuleArena,

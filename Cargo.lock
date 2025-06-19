@@ -69,6 +69,16 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b048fb63fd8b5923fc5aa7b340d8e156aec7ec02f0c78fa8a6ddc2613f6f71de"
 
 [[package]]
+name = "bolt_ts_arena"
+version = "0.1.0"
+dependencies = [
+ "bumpalo",
+ "bumpalo-herd",
+ "id-arena",
+ "typed-arena",
+]
+
+[[package]]
 name = "bolt_ts_ast"
 version = "0.1.0"
 dependencies = [
@@ -78,7 +88,6 @@ dependencies = [
  "bolt_ts_utils",
  "enumflags2",
  "nohash-hasher",
- "paste",
 ]
 
 [[package]]
@@ -87,7 +96,6 @@ version = "0.1.0"
 dependencies = [
  "bolt_ts_utils",
  "nohash-hasher",
- "paste",
  "rustc-hash",
  "xxhash-rust",
 ]
@@ -97,6 +105,7 @@ name = "bolt_ts_compiler"
 version = "0.1.0"
 dependencies = [
  "bitflags",
+ "bolt_ts_arena",
  "bolt_ts_ast",
  "bolt_ts_atom",
  "bolt_ts_config",
@@ -108,15 +117,12 @@ dependencies = [
  "bolt_ts_span",
  "bolt_ts_tracing",
  "bolt_ts_utils",
- "bumpalo",
- "bumpalo-herd",
  "codspeed-divan-compat",
  "compile-test",
  "dir-test",
  "enumflags2",
  "expect-test",
  "git2",
- "id-arena",
  "include_dir",
  "indexmap",
  "nohash-hasher",
@@ -167,7 +173,6 @@ name = "bolt_ts_fs"
 version = "0.1.0"
 dependencies = [
  "bolt_ts_atom",
- "bolt_ts_path",
  "bolt_ts_utils",
  "glob",
  "indexmap",
@@ -188,6 +193,9 @@ dependencies = [
 [[package]]
 name = "bolt_ts_path"
 version = "0.1.0"
+dependencies = [
+ "bolt_ts_utils",
+]
 
 [[package]]
 name = "bolt_ts_resolve"
@@ -229,6 +237,7 @@ name = "bolt_ts_utils"
 version = "0.1.0"
 dependencies = [
  "nohash-hasher",
+ "paste",
  "rustc-hash",
 ]
 
@@ -1209,9 +1218,12 @@ checksum = "2b15c43186be67a4fd63bee50d0303afffcef381492ebe2c5d87f324e1b8815c"
 
 [[package]]
 name = "relative-path"
-version = "1.9.3"
+version = "2.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ba39f3699c378cd8970968dcbff9c43159ea4cfbd88d43c00b22f2ef10a435d2"
+checksum = "bca40a312222d8ba74837cb474edef44b37f561da5f773981007a10bbaa992b0"
+dependencies = [
+ "serde",
+]
 
 [[package]]
 name = "remove_dir_all"
@@ -1582,6 +1594,12 @@ dependencies = [
  "tracing-log",
  "tracing-subscriber",
 ]
+
+[[package]]
+name = "typed-arena"
+version = "2.0.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6af6ae20167a9ece4bcb41af5b80f8a1f1df981f6391189ce00fd257af04126a"
 
 [[package]]
 name = "unicode-id-start"

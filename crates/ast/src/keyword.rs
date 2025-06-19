@@ -1,4 +1,5 @@
-use bolt_ts_atom::{AtomId, gen_atoms, paste};
+use bolt_ts_atom::{AtomId, gen_atoms};
+use bolt_ts_utils::paste;
 
 gen_atoms!(
     KEYWORDS,

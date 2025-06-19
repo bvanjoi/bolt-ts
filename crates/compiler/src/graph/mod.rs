@@ -1,7 +1,7 @@
 mod errors;
 
 use bolt_ts_ast::{self as ast};
-use bolt_ts_path::NormalizePath;
+use bolt_ts_utils::path::NormalizePath;
 
 use super::parser;
 use super::{ModuleArena, ModuleID};
@@ -57,7 +57,7 @@ pub(super) fn build_graph<'cx>(
     list: &[ModuleID],
     atoms: Arc<Mutex<AtomMap<'cx>>>,
     default_lib_dir: &std::path::Path,
-    herd: &'cx bumpalo_herd::Herd,
+    herd: &'cx bolt_ts_arena::bumpalo_herd::Herd,
     parser: &mut parser::Parser<'cx>,
     fs: impl bolt_ts_fs::CachedFileSystem,
 ) -> ModuleGraph {

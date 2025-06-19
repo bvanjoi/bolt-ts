@@ -1,6 +1,12 @@
 use std::path::{Component, PathBuf};
 
-use crate::{BACKSLASH, SLASH};
+pub const SLASH: u8 = b'/';
+pub const BACKSLASH: u8 = b'\\';
+
+pub fn path_as_str(path: &impl AsRef<std::path::Path>) -> &str {
+    let bytes = path.as_ref().as_os_str().as_encoded_bytes();
+    unsafe { std::str::from_utf8_unchecked(bytes) }
+}
 
 pub trait NormalizePath {
     fn normalize(&self) -> PathBuf;
@@ -57,7 +63,7 @@ impl NormalizePath for std::path::Path {
 fn test_normalize_path() {
     let should_eq = |input: &str, expected: &str| {
         let actual = PathBuf::from(input).normalize();
-        let actual = super::path_as_str(&actual);
+        let actual = path_as_str(&actual);
         assert_eq!(actual, expected);
     };
     should_eq("/", "/");

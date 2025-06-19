@@ -8,7 +8,6 @@ serde = { workspace = true }
 serde_json = { workspace = true, features = ["preserve_order"] }
 bolt_ts_atom = { path = "../atom" }
 bolt_ts_utils = { path = "../utils" }
-bolt_ts_path = { path = "../path" }
 nohash-hasher = "0.2.0"
 rustc-hash = { workspace = true }
 indexmap = { workspace = true, features = ["serde"] }

@@ -2,20 +2,23 @@
 resolver = "2"
 members = [
   "crates/ast",
-  "crates/atom",
   "crates/compiler",
-  "crates/compile-test",
   "crates/config",
-  "crates/diag-derive",
-  "crates/errors",
-  "crates/fs",
   "crates/libs",
   "crates/resolve",
   "crates/path",
-  "crates/span",
-  "crates/utils",
   "crates/wasm",
   "crates/tracing",
+
+  "helper/arena",
+  "helper/atom",
+  "helper/diag-derive",
+  "helper/errors",
+  "helper/fs",
+  "helper/span",
+  "helper/utils",
+
+  "tools/compile-test",
 ]
 
 [workspace.dependencies]
@@ -26,7 +29,6 @@ thin-vec = "0.2.13"
 regex = { version = "1.10.2" }
 serde = { version = "1.0.210", features = ["derive"] }
 serde_json = "1.0.128"
-tempdir = "0.3.7"
 enumflags2 = { version = "0.7.10" }
 bitflags = "2.6.0"
 paste = "1.0.15"

@@ -9,7 +9,7 @@ mod resolution_kind_spec_loader;
 use bolt_ts_atom::{AtomId, AtomMap};
 use bolt_ts_config::Extension;
 use bolt_ts_fs::{CachedFileSystem, PathId};
-use bolt_ts_path::{NormalizePath, path_as_str};
+use bolt_ts_utils::path::{NormalizePath, path_as_str};
 use bolt_ts_utils::{fx_hashmap_with_capacity, no_hashmap_with_capacity};
 use package_json::PackageJsonInfoContents;
 use rustc_hash::FxHashMap;

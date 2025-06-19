@@ -29,8 +29,8 @@ use bolt_ts_ast::keyword;
 use bolt_ts_atom::{AtomId, AtomMap};
 use bolt_ts_config::NormalizedTsConfig;
 use bolt_ts_fs::{CachedFileSystem, read_file_with_encoding};
-use bolt_ts_path::NormalizePath;
 use bolt_ts_span::{ModuleArena, ModuleID};
+use bolt_ts_utils::path::NormalizePath;
 
 use cli::get_filenames;
 use parser::{ParseResult, Parser};
@@ -180,7 +180,7 @@ pub fn eval_from_with_fs<'cx>(
     // ==== build graph ====
     let mut p = parser::Parser::new();
     let atoms = Arc::new(Mutex::new(atoms));
-    let herd = bumpalo_herd::Herd::new();
+    let herd = bolt_ts_arena::bumpalo_herd::Herd::new();
     let mut mg = graph::build_graph(
         &mut module_arena,
         &entries,
@@ -276,7 +276,7 @@ pub fn eval_from_with_fs<'cx>(
         .collect();
 
     // ==== type check ====
-    let ty_arena = bumpalo::Bump::with_capacity(1024 * 1024);
+    let ty_arena = bolt_ts_arena::bumpalo::Bump::with_capacity(1024 * 1024);
     let merged_res = check::merge_module_augmentation_list_for_global(
         &p,
         &atoms,
