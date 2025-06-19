@@ -1338,6 +1338,10 @@ impl ParserState<'_, '_> {
     }
 
     pub(super) fn re_scan_jsx_token(&mut self, allow_multiline_jsx_text: bool) {
+        use TokenKind::*;
+        if matches!(self.token.kind, JSXText | JSXTextAllWhiteSpaces) {
+            return;
+        }
         self.pos = self.full_start_pos;
         self.scan_jsx_token(allow_multiline_jsx_text);
     }

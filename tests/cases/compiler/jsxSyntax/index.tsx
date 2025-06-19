@@ -93,3 +93,9 @@ function e14() {
 x ? <App>
     {(): unknown => null}
 </App> : null;
+
+
+<App className={x.foo}>=</App>;
+<App className={x.foo} >=</App>;
+<App>=</App>;
+<App >=</App>;

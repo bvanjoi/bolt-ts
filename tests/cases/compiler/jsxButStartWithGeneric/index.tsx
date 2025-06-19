@@ -5,4 +5,3 @@ const t = <T>() => {};"</";
 //~| ERROR: Expected corresponding JSX closing tag for 'T'.
 //~| ERROR: Identifier expected.
 //~| ERROR: Unexpected token. Did you mean `{'>'}` or `&gt;`?
-//~| ERROR: Unexpected token. Did you mean `{'>'}` or `&gt;`?
