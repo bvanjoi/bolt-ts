@@ -296,6 +296,7 @@ pub enum TokenKind {
     Type,
     // =====
     EOF,
+    Unknown,
     /// number literal
     Number,
     /// string literal
@@ -460,6 +461,7 @@ impl From<TokenKind> for super::BinOpKind {
             TokenKind::Satisfies => Satisfies,
             TokenKind::BangEq => NEq,
             TokenKind::BangEqEq => NEqEq,
+            TokenKind::Comma => Comma,
             _ => {
                 unreachable!("{:#?}", value)
             }

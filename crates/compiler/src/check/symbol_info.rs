@@ -35,7 +35,7 @@ fn binder_symbol<'a>(this: &'a TyChecker<'_>, symbol: SymbolID) -> &'a crate::bi
 }
 
 pub trait SymbolInfo<'cx>: Sized {
-    fn arena(&self) -> &'cx bumpalo::Bump;
+    fn arena(&self) -> &'cx bolt_ts_arena::bumpalo::Bump;
     fn empty_symbols(&self) -> &'cx SymbolTable;
     fn mg(&self) -> &crate::graph::ModuleGraph;
     fn p(&self) -> &crate::parser::Parser<'cx>;
@@ -1193,7 +1193,7 @@ fn resolve_export_by_name(
 }
 
 impl<'cx> SymbolInfo<'cx> for super::TyChecker<'cx> {
-    fn arena(&self) -> &'cx bumpalo::Bump {
+    fn arena(&self) -> &'cx bolt_ts_arena::bumpalo::Bump {
         self.arena
     }
     fn empty_symbols(&self) -> &'cx SymbolTable {

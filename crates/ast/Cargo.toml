@@ -5,9 +5,8 @@ edition = "2024"
 
 [dependencies]
 bitflags = { workspace = true }
-bolt_ts_atom = { path = "../atom" }
-bolt_ts_span = { path = "../span" }
-bolt_ts_utils = { path = "../utils" }
+bolt_ts_atom = { path = "../../helper/atom" }
+bolt_ts_span = { path = "../../helper/span" }
+bolt_ts_utils = { path = "../../helper/utils" }
 enumflags2 = { workspace = true }
-paste = { workspace = true }
-nohash-hasher = "0.2.0"
+nohash-hasher = { workspace = true }

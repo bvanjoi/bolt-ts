@@ -11,12 +11,16 @@ declare namespace JSX {
   }
 }
 
-function App() {}
+function App<T = any>() {}
 
 function App2() {}
 
 namespace App3 {
   export function App4() {}
+
+  export namespace App5 {
+    export function App6() {}
+  }
 }
 
 // jsx syntax:
@@ -45,6 +49,7 @@ function e1() {
 <App><App2 />7x invalid-js-identifier</App>;
 
 <App3.App4></App3.App4>;
+<App3.App5.App6></App3.App5.App6>
 
 (<App />) < x;;
 
@@ -77,3 +82,20 @@ function e14() {
     </>
   </>
 </>;
+
+<App>
+  {true ? <App attr={ ( { theme } ): { [key: string]: any } => ( { color: theme.blue })} /> : null}
+</App>
+
+
+() => <App<any>></App>
+
+x ? <App>
+    {(): unknown => null}
+</App> : null;
+
+
+<App className={x.foo}>=</App>;
+<App className={x.foo} >=</App>;
+<App>=</App>;
+<App >=</App>;

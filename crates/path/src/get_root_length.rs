@@ -1,4 +1,4 @@
-use crate::{BACKSLASH, SLASH};
+use bolt_ts_utils::path::{BACKSLASH, SLASH};
 
 fn is_volume_character(ch: u8) -> bool {
     ch.is_ascii_uppercase() || ch.is_ascii_lowercase()

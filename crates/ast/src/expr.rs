@@ -571,6 +571,7 @@ pub enum BinOpKind {
     Instanceof,
     In,
     Satisfies,
+    Comma,
 }
 
 impl BinOpKind {
@@ -600,6 +601,7 @@ impl BinOpKind {
             Satisfies => "satisfies",
             NEq => "!=",
             NEqEq => "!==",
+            Comma => ",",
         }
     }
 

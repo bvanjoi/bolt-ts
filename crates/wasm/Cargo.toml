@@ -7,13 +7,13 @@ edition = "2024"
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-bolt_ts_atom = { path = "../atom" }
+bolt_ts_atom = { path = "../../helper/atom" }
 bolt_ts_config = { path = "../config" }
 bolt_ts_compiler = { path = "../compiler" }
-bolt_ts_errors = { path = "../errors" }
-bolt_ts_fs = { path = "../fs" }
+bolt_ts_errors = { path = "../../helper/errors" }
+bolt_ts_fs = { path = "../../helper/fs" }
 bolt_ts_libs = { path = "../libs" }
-bolt_ts_span = { path = "../span" }
+bolt_ts_span = { path = "../../helper/span" }
 wasm-bindgen = "0.2"
 serde = { workspace = true }
 serde_json = { workspace = true, features = ["preserve_order"] }

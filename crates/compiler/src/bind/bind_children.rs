@@ -9,6 +9,7 @@ use super::symbol::SymbolTableLocation;
 use super::symbol::{SymbolID, SymbolName};
 
 use bolt_ts_ast as ast;
+use bolt_ts_ast::BinOpKind;
 use bolt_ts_ast::NodeFlags;
 
 impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
@@ -538,10 +539,7 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
             ExprStmt(n) => self.bind_expr_stmt(n),
             PrefixUnaryExpr(n) => self.bind_prefix_unary_expr_flow(n),
             PostfixUnaryExpr(n) => self.bind_postfix_unary_expr_flow(n),
-            BinExpr(n) => {
-                // TODO; is_destructing_assignment
-                self.bind_bin_expr_flow(n)
-            }
+            BinExpr(n) => self.bind_bin_expr_flow(n),
             CondExpr(n) => self.bind_cond_expr_flow(n),
             VarDecl(n) => self.bind_var_decl_flow(n),
             PropAccessExpr(n) => self.bind_access_expr_flow(n),
@@ -1319,9 +1317,22 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
     }
 
     fn bind_bin_expr_flow(&mut self, n: &ast::BinExpr<'cx>) {
-        // TODO: more case
-        self.bind(n.left.id());
-        self.bind(n.right.id());
+        let op_is_comma = n.op.kind == BinOpKind::Comma;
+        let maybe_bind = |this: &mut Self, node: &'cx ast::Expr<'cx>| {
+            // if node.is_bin_expr() && !node.is_destructing_assignment() {
+            //     return;
+            // } else {
+            this.bind(node.id());
+            // }
+        };
+        maybe_bind(self, n.left);
+        if op_is_comma {
+            self.maybe_bind_expr_flow_if_call(n.left);
+        }
+        maybe_bind(self, n.right);
+        if op_is_comma {
+            self.maybe_bind_expr_flow_if_call(n.right);
+        }
     }
 
     fn bind_postfix_unary_expr_flow(&mut self, n: &ast::PostfixUnaryExpr<'cx>) {

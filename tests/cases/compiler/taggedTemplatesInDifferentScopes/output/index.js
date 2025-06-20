@@ -11,3 +11,7 @@ function bar() {
 }
 foo();
 bar();
+{
+  function f(a) {}
+  f``;
+}

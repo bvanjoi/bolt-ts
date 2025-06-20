@@ -22,7 +22,20 @@ impl<'cx> ParserState<'cx, '_> {
     }
 
     pub(super) fn parse_expr(&mut self) -> PResult<&'cx ast::Expr<'cx>> {
-        self.parse_assign_expr_or_higher(false)
+        let start = self.token.start();
+        let mut expr = self.parse_assign_expr_or_higher(false)?;
+
+        while let Some(t) = self.parse_optional(TokenKind::Comma) {
+            debug_assert_eq!(t.kind, TokenKind::Comma);
+            let op = ast::BinOp {
+                kind: t.kind.into(),
+                span: t.span,
+            };
+            let right = self.parse_assign_expr_or_higher(false)?;
+            let kind = ast::ExprKind::Bin(self.create_binary_expr(start, expr, op, right));
+            expr = self.alloc(ast::Expr { kind });
+        }
+        Ok(expr)
     }
 
     pub(super) fn parse_init(&mut self) -> PResult<Option<&'cx ast::Expr<'cx>>> {
@@ -211,7 +224,7 @@ impl<'cx> ParserState<'cx, '_> {
     }
 
     fn parse_binary_expr(&mut self, prec: BinPrec) -> PResult<&'cx ast::Expr<'cx>> {
-        let start = self.token.start() as usize;
+        let start = self.token.start();
         let left = self.parse_unary_expr()?;
         self.parse_binary_expr_rest(prec, left, start)
     }
@@ -220,7 +233,7 @@ impl<'cx> ParserState<'cx, '_> {
         &mut self,
         prec: BinPrec,
         left: &'cx ast::Expr<'_>,
-        start: usize,
+        start: u32,
     ) -> PResult<&'cx ast::Expr<'cx>> {
         let mut left = left;
         loop {
@@ -254,7 +267,7 @@ impl<'cx> ParserState<'cx, '_> {
                     let next_expr_id = self.next_node_id();
                     let expr = self.alloc(ast::SatisfiesExpr {
                         id: next_expr_id,
-                        span: self.new_span(start as u32),
+                        span: self.new_span(start),
                         expr: left,
                         ty,
                     });
@@ -265,7 +278,7 @@ impl<'cx> ParserState<'cx, '_> {
                     let next_expr_id = self.next_node_id();
                     let expr = self.alloc(ast::AsExpr {
                         id: next_expr_id,
-                        span: self.new_span(start as u32),
+                        span: self.new_span(start),
                         expr: left,
                         ty,
                     });
@@ -278,15 +291,7 @@ impl<'cx> ParserState<'cx, '_> {
                     span: t.span,
                 };
                 let right = self.parse_binary_expr(next_prec)?;
-                let next_expr_id = self.next_node_id();
-                let expr = self.alloc(ast::BinExpr {
-                    id: next_expr_id,
-                    left,
-                    op,
-                    right,
-                    span: self.new_span(start as u32),
-                });
-                self.nodes.insert(next_expr_id, ast::Node::BinExpr(expr));
+                let expr = self.create_binary_expr(start, left, op, right);
                 ast::ExprKind::Bin(expr)
             };
             left = self.alloc(ast::Expr { kind });
@@ -1297,7 +1302,10 @@ impl<'cx> ParserState<'cx, '_> {
 
     fn can_follow_ty_args_in_expr(&mut self) -> bool {
         use bolt_ts_ast::TokenKind::*;
-        if matches!(self.token.kind, LParen) {
+        if matches!(
+            self.token.kind,
+            LParen | TemplateHead | NoSubstitutionTemplate
+        ) {
             true
         } else if matches!(self.token.kind, Less | Great | Plus | Minus) {
             false

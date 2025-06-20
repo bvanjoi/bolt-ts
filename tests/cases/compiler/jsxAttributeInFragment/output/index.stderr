@@ -1,0 +1,5 @@
+  × Expression expected.
+   ╭─[../../tests/cases/compiler/jsxAttributeInFragment/index.tsx:1:14]
+ 1 │ <
+   · ─
+   ╰────

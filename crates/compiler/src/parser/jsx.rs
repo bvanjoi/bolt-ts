@@ -85,15 +85,8 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
                     }
                 }
                 if else_then {
-                    let e = self.parse_jsx_closing_ele(opening, in_expr_context)?;
+                    let e = self.parse_jsx_closing_ele(opening, in_expr_context, opening_tag)?;
                     closing_ele = Some(e);
-                    if !tag_names_are_eq(&opening.tag_name, &e.tag_name) {
-                        if opening_tag.is_some_and(|t| tag_names_are_eq(&e.tag_name, &t)) {
-                            todo!("error handle");
-                        } else {
-                            // todo!("error handle");
-                        }
-                    }
                 } else {
                     unreachable!()
                 }
@@ -326,37 +319,45 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         } else {
             let start = self.token.start();
             let name = self.parse_jsx_attr_name()?;
-            let init = self.parse_jsx_attr_value()?;
+            let init = self.parse_jsx_attr_value();
             let span = self.new_span(start);
             bolt_ts_ast::JsxAttr::Named(self.create_jsx_named_attr(name, init, span))
         })
     }
 
-    fn parse_jsx_attr_value(&mut self) -> PResult<Option<bolt_ts_ast::JsxAttrValue<'cx>>> {
+    fn parse_jsx_attr_value(&mut self) -> Option<bolt_ts_ast::JsxAttrValue<'cx>> {
         debug_assert!(self.variant == LanguageVariant::Jsx);
         use bolt_ts_ast::JsxAttrValue::*;
         if self.token.kind == TokenKind::Eq {
             self.scan_jsx_attr_value();
             match self.token.kind {
-                TokenKind::String => Ok(Some(StringLit(self.parse_string_lit()))),
+                TokenKind::String => Some(StringLit(self.parse_string_lit())),
                 TokenKind::LBrace => {
-                    if let Some(e) = self.parse_jsx_expr(true)? {
-                        Ok(Some(Expr(e)))
+                    if let Ok(Some(e)) = self.parse_jsx_expr(true) {
+                        Some(Expr(e))
                     } else {
-                        Ok(None)
+                        None
                     }
                 }
-                TokenKind::Less => Ok(Some(
-                    match self.parse_jsx_ele_or_self_closing_ele_or_frag(true, None, None, false)? {
+                TokenKind::Less => Some(
+                    match self
+                        .parse_jsx_ele_or_self_closing_ele_or_frag(true, None, None, false)
+                        .ok()?
+                    {
                         JsxEleOrSelfClosingEleOrFrag::Ele(n) => Ele(n),
                         JsxEleOrSelfClosingEleOrFrag::SelfClosingEle(n) => SelfClosingEle(n),
                         JsxEleOrSelfClosingEleOrFrag::Frag(n) => Frag(n),
                     },
-                )),
-                _ => todo!("error handle"),
+                ),
+                _ => {
+                    self.push_error(Box::new(errors::OrJsxElementExpected {
+                        span: self.token.span,
+                    }));
+                    None
+                }
             }
         } else {
-            Ok(None)
+            None
         }
     }
 
@@ -389,21 +390,40 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         &mut self,
         opening: &'cx bolt_ts_ast::JsxOpeningEle<'cx>,
         in_expr_context: bool,
+        opening_tag: Option<bolt_ts_ast::JsxTagName<'cx>>,
     ) -> PResult<&'cx bolt_ts_ast::JsxClosingEle<'cx>> {
         debug_assert!(self.variant == LanguageVariant::Jsx);
         let start = self.token.start();
         self.expect(TokenKind::LessSlash);
         let tag_name = self.parse_jsx_ele_name()?;
+        let wf = tag_names_are_eq(&opening.tag_name, &tag_name);
         if self.expect_with::<false>(TokenKind::Great, {
             let f: Option<fn(&mut Self) -> crate::Diag> = None;
             f
         }) {
-            if in_expr_context || !tag_names_are_eq(&opening.tag_name, &tag_name) {
+            if in_expr_context || !wf {
                 self.next_token();
             } else {
                 self.scan_jsx_token(true);
             }
         }
+        if !wf {
+            if opening_tag.is_some_and(|t| tag_names_are_eq(&tag_name, &t)) {
+                todo!("error handle");
+            } else {
+                self.push_error(Box::new(
+                    errors::ExpectedCorrespondingJsxClosingTagForOpeningTagName {
+                        span: tag_name.span(),
+                        opening_tag_name: {
+                            let span = opening.tag_name.span();
+                            let s = &self.input[span.lo as usize..span.hi as usize];
+                            unsafe { String::from_utf8_unchecked(s.to_vec()) }
+                        },
+                    },
+                ));
+            }
+        }
+
         Ok(self.create_jsx_closing_ele(self.new_span(start), tag_name))
     }
 

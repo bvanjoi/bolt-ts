@@ -1,21 +1,12 @@
-const SLASH: u8 = b'/';
-const BACKSLASH: u8 = b'\\';
-
 mod combine_paths;
 mod get_root_length;
-mod normalize_path;
 mod path_is_relative;
 
 pub use self::combine_paths::combine_paths;
 use self::get_root_length::get_encoded_root_length;
 pub use self::get_root_length::get_root_length;
-pub use self::normalize_path::NormalizePath;
 pub use self::path_is_relative::path_is_relative;
-
-pub fn path_as_str(path: &impl AsRef<std::path::Path>) -> &str {
-    let bytes = path.as_ref().as_os_str().as_encoded_bytes();
-    unsafe { std::str::from_utf8_unchecked(bytes) }
-}
+use bolt_ts_utils::path::{BACKSLASH, SLASH};
 
 // pub(super) fn normalize_slashes(path: &str) -> String {
 //     path.replace('\\', "/")

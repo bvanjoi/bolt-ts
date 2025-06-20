@@ -11,6 +11,15 @@ var App3 = {};
   function App4() {}
   App3.App4 = App4;
   
+  var App5 = {};
+  (function (App5) {
+  
+    function App6() {}
+    App5.App6 = App6;
+    
+  })(App5);
+  App3.App5 = App5;
+  
 })(App3);
 <App >jsx is working</App>;
 function e1() {
@@ -29,6 +38,7 @@ function e1() {
 <App >{}</App>;
 <App ><App2  />7x invalid-js-identifier</App>;
 <App3.App4 ></App3.App4>;
+<App3.App5.App6 ></App3.App5.App6>;
 (<App  />) < x;
 
 <App  {...{}} />;
@@ -52,3 +62,14 @@ function e14() {
     </>
   </>
 </>;
+<App >
+  {true ? <App  attr={({theme}) => ({color: theme.blue})} /> : null}
+</App>;
+() => <App ></App>;
+x ? <App >
+    {() => null}
+</App> : null;
+<App  className={x.foo}>=</App>;
+<App  className={x.foo}>=</App>;
+<App >=</App>;
+<App >=</App>;

@@ -171,7 +171,7 @@ pub struct TyChecker<'cx> {
     pub diags: Vec<bolt_ts_errors::Diag>,
     module_arena: &'cx bolt_ts_span::ModuleArena,
     config: &'cx NormalizedCompilerOptions,
-    arena: &'cx bumpalo::Bump,
+    arena: &'cx bolt_ts_arena::bumpalo::Bump,
     pub(super) tys: Vec<&'cx ty::Ty<'cx>>,
     sigs: Vec<&'cx Sig<'cx>>,
 
@@ -317,7 +317,7 @@ fn cast_empty_array<'cx, T>(empty_array: &[u8; 0]) -> &'cx [T] {
 
 impl<'cx> TyChecker<'cx> {
     pub(crate) fn new(
-        ty_arena: &'cx bumpalo::Bump,
+        ty_arena: &'cx bolt_ts_arena::bumpalo::Bump,
         p: &'cx Parser<'cx>,
         mg: &'cx ModuleGraph,
         atoms: &'cx mut AtomMap<'cx>,
@@ -2124,6 +2124,7 @@ impl<'cx> TyChecker<'cx> {
             Satisfies => todo!(),
             NEq => self.boolean_ty(),
             NEqEq => self.boolean_ty(),
+            Comma => right_ty,
         }
     }
 

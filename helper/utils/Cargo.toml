@@ -1,0 +1,9 @@
+[package]
+name = "bolt_ts_utils"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+paste = "1.0.15"
+rustc-hash = "2.1.0"
+nohash-hasher = "0.2.0"
