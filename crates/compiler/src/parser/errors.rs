@@ -281,3 +281,10 @@ pub(super) struct UnicodeEscapeSequenceCannotAppearHere {
     #[label(primary)]
     pub(super) span: Span,
 }
+
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
+#[error("Digit expected.")]
+pub(super) struct DigitExpected {
+    #[label(primary)]
+    pub(super) span: Span,
+}
