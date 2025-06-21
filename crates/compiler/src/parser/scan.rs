@@ -6,7 +6,7 @@ use bolt_ts_span::Span;
 use super::{CommentDirectiveKind, PResult, ParserState, TokenValue, errors, unicode};
 use bolt_ts_ast::{RegularExpressionFlags, Token, TokenFlags, TokenKind, atom_to_token, keyword};
 
-use crate::parser::CommentDirective;
+use crate::parser::{CommentDirective, scan_integer::parse_integer};
 
 #[inline(always)]
 fn is_ascii_letter(ch: u8) -> bool {
@@ -219,7 +219,8 @@ impl ParserState<'_, '_> {
         } else {
             self.scan_number_fragment()
         };
-        let decimal_frag = if self.ch() == Some(b'.') {
+        let contain_dot = self.ch() == Some(b'.');
+        let decimal_frag = if contain_dot {
             self.pos += 1;
             Some(self.scan_number_fragment())
         } else {
@@ -227,7 +228,8 @@ impl ParserState<'_, '_> {
         };
         let mut scientific_frag = None;
         let mut end = self.pos;
-        if self.ch().is_some_and(|c| matches!(c, b'e' | b'E')) {
+        let contain_e = self.ch().is_some_and(|c| matches!(c, b'e' | b'E'));
+        if contain_e {
             self.pos += 1;
             self.token_flags |= TokenFlags::SCIENTIFIC;
             if self.ch().is_some_and(|c| matches!(c, b'+' | b'-')) {
@@ -236,7 +238,13 @@ impl ParserState<'_, '_> {
             let pre_numeric_part = self.pos;
             let final_frag = self.scan_number_fragment();
             if final_frag.is_empty() {
-                todo!("error");
+                self.push_error(Box::new(errors::DigitExpected {
+                    span: Span::new(
+                        (pre_numeric_part - 1) as u32,
+                        self.pos as u32,
+                        self.module_id,
+                    ),
+                }));
             } else {
                 let mut t = self.input[end..pre_numeric_part].to_vec();
                 t.extend(final_frag.iter());
@@ -255,20 +263,28 @@ impl ParserState<'_, '_> {
             if let Some(s) = scientific_frag {
                 result.extend(s);
             }
-            result
+            Cow::Owned(result)
         } else {
-            self.input[start..end].to_vec()
+            Cow::Borrowed(&self.input[start..end])
         };
 
         let kind = if self.ch() == Some(b'n') {
             self.pos += 1;
-            let value = self.atoms.lock().unwrap().insert_by_vec(result);
+            let value = self
+                .atoms
+                .lock()
+                .unwrap()
+                .insert_by_vec(result.into_owned());
             self.token_value = Some(TokenValue::Ident { value });
             TokenKind::BigInt
         } else {
-            let num = unsafe { String::from_utf8_unchecked(result) }
-                .parse::<f64>()
-                .unwrap();
+            let s = unsafe { std::str::from_utf8_unchecked(&result) };
+            let num = if contain_dot || contain_e {
+                // float
+                s.parse::<f64>().unwrap()
+            } else {
+                parse_integer::<10>(s)
+            };
             self.token_value = Some(TokenValue::Number { value: num });
             TokenKind::Number
         };
@@ -742,12 +758,12 @@ impl ParserState<'_, '_> {
                     self.pos += 2;
                     let v = self.scan_minimum_number_of_hex_digits(1, true);
                     if v.is_empty() {
-                        todo!()
+                        todo!("throw error")
                     }
                     self.token_flags = TokenFlags::HEX_SPECIFIER;
-                    let s = unsafe { str::from_boxed_utf8_unchecked(v.into()) };
-                    let v = u32::from_str_radix(&s, 16).unwrap();
+                    let s = unsafe { str::from_utf8_unchecked(&v) };
                     // TODO: check bigint suffix
+                    let v = parse_integer::<16>(s);
                     self.token_value = Some(TokenValue::Number { value: v as f64 });
                     Token::new(
                         TokenKind::Number,
@@ -763,8 +779,8 @@ impl ParserState<'_, '_> {
                         todo!()
                     }
                     self.token_flags = TokenFlags::BINARY_SPECIFIER;
-                    let s = unsafe { str::from_boxed_utf8_unchecked(v.into()) };
-                    let v = u32::from_str_radix(&s, 2).unwrap();
+                    let s = unsafe { str::from_utf8_unchecked(&v) };
+                    let v = parse_integer::<2>(s);
                     // TODO: check bigint suffix
                     self.token_value = Some(TokenValue::Number { value: v as f64 });
                     Token::new(
@@ -781,9 +797,9 @@ impl ParserState<'_, '_> {
                         todo!()
                     }
                     self.token_flags = TokenFlags::OCTAL_SPECIFIER;
-                    let s = unsafe { str::from_boxed_utf8_unchecked(v.into()) };
-                    let v = u32::from_str_radix(&s, 8).unwrap();
+                    let s = unsafe { str::from_utf8_unchecked(&v) };
                     // TODO: check bigint suffix
+                    let v = parse_integer::<8>(s);
                     self.token_value = Some(TokenValue::Number { value: v as f64 });
                     Token::new(
                         TokenKind::Number,
