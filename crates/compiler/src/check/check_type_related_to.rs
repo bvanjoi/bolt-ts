@@ -1922,6 +1922,18 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
         let source_rest_ty = source.get_non_array_rest_ty(self.c);
         let target_rest_ty = target.get_non_array_rest_ty(self.c);
 
+        use ast::Node::*;
+        let strict_variance = !check_mode.intersects(SigCheckMode::CALLBACK)
+            && *self.c.config.strict_function_types()
+            && !matches!(
+                self.c.p.node(target.def_id()),
+                ClassCtor(_)
+                    | CtorTy(_)
+                    | MethodSignature(_)
+                    | ClassMethodElem(_)
+                    | ObjectMethodMember(_)
+            );
+
         // if let Some(source_this_ty) = self.c.get_this_ty_of_sig(source) {
         //     if source_this_ty != self.c.void_ty {
         //         if let Some(target_this_ty) = self.c.get_this_ty_of_sig(target) {
@@ -1943,7 +1955,6 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
         } else {
             (usize::max(source_count, target_count), usize::MAX)
         };
-        let strict_variance = false;
 
         for i in 0..param_count {
             let source_ty = if i == rest_index {
@@ -1982,7 +1993,12 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
                             self.compare_sig_related(
                                 target_sig,
                                 source_sig,
-                                check_mode & SigCheckMode::STRICT_ARITY,
+                                (check_mode & SigCheckMode::STRICT_ARITY)
+                                    | if strict_variance {
+                                        SigCheckMode::STRICT_CALLBACK
+                                    } else {
+                                        SigCheckMode::BIVARIANT_CALLBACK
+                                    },
                                 report_error,
                                 compare,
                             )

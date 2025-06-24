@@ -73,3 +73,6 @@ x ? <App >
 <App  className={x.foo}>=</App>;
 <App >=</App>;
 <App >=</App>;
+<App  data-foo={x.foo} type='text' />;
+<App  />;
+<><App >x</App>=<App  /></>;

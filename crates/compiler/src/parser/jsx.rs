@@ -5,6 +5,7 @@ use crate::parser::{errors, state::LanguageVariant};
 
 use super::{PResult, ParserState, list_ctx};
 
+#[derive(Debug)]
 pub(super) enum JsxEleOrSelfClosingEleOrFrag<'cx> {
     Ele(&'cx bolt_ts_ast::JsxEle<'cx>),
     SelfClosingEle(&'cx bolt_ts_ast::JsxSelfClosingEle<'cx>),
@@ -137,7 +138,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
                     Err(())
                 }
             }) {
-                todo!("error handle")
+                todo!("error handle: {:#?}", invalid_ele);
             }
         }
 

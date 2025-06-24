@@ -973,7 +973,15 @@ impl<'cx> ParserState<'cx, '_> {
             self.next_token();
             (atom, is_tail)
         } else {
-            self.expect(TokenKind::TemplateTail);
+            self.expect_with::<true>(
+                TokenKind::TemplateTail,
+                Some(|this: &mut Self| {
+                    Box::new(errors::ExpectX {
+                        span: this.token.span,
+                        x: "}".to_string(),
+                    }) as _
+                }),
+            );
             (keyword::IDENT_EMPTY, true)
         }
     }
