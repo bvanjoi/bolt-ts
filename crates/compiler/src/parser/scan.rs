@@ -3,7 +3,7 @@ use std::{borrow::Cow, str};
 use bolt_ts_atom::AtomId;
 use bolt_ts_span::Span;
 
-use super::{CommentDirectiveKind, PResult, ParserState, TokenValue, errors, unicode};
+use super::{CommentDirectiveKind, ParserState, TokenValue, errors, unicode};
 use bolt_ts_ast::{RegularExpressionFlags, Token, TokenFlags, TokenKind, atom_to_token, keyword};
 
 use crate::parser::{CommentDirective, scan_integer::parse_integer};
@@ -23,13 +23,22 @@ fn is_ascii_identifier_start(ch: u8) -> bool {
     ch == b'$' || ch == b'_' || is_ascii_letter(ch)
 }
 
-fn is_identifier_start(ch: u32, is_es5_target: bool) -> bool {
-    if ch <= 255 {
-        is_ascii_identifier_start(ch as u8)
-    } else if is_es5_target {
+#[inline(always)]
+fn is_non_ascii_identifier_start(ch: u32, is_es5_target: bool) -> bool {
+    debug_assert!(ch > 255);
+    if is_es5_target {
         unicode::is_unicode_es5_identifier_start(ch)
     } else {
         unicode::is_unicode_esnext_identifier_start(ch)
+    }
+}
+
+#[inline(always)]
+fn is_identifier_start(ch: u32, is_es5_target: bool) -> bool {
+    if ch <= 255 {
+        is_ascii_identifier_start(ch as u8)
+    } else {
+        is_non_ascii_identifier_start(ch, is_es5_target)
     }
 }
 
@@ -294,7 +303,7 @@ impl ParserState<'_, '_> {
 
     // From `quickjs/cutils.c/unicode_from_utf8`
     #[cold]
-    fn scan_unicode_from_utf8(&mut self, max_len: u32) -> PResult<()> {
+    fn scan_unicode_from_utf8(&mut self, max_len: u32) -> Option<u32> {
         const UTF8_MIN_CODE: [u32; 5] = [0x80, 0x800, 0x10000, 0x00200000, 0x04000000];
         const UTF8_FIRST_CODE_MASK: [u32; 5] = [0x1f, 0xf, 0x7, 0x3, 0x1];
 
@@ -307,29 +316,29 @@ impl ParserState<'_, '_> {
             0xf0..=0xf7 => 3,
             0xf8..=0xfb => 4,
             0xfc | 0xfd => 5,
-            _ => return Err(()),
+            _ => return None,
         };
         if l > (max_len - 1) {
-            return Err(());
+            return None;
         }
         let idx = (l - 1) as usize;
         ch &= UTF8_FIRST_CODE_MASK[idx];
         for _ in 0..l {
             let b = self.input[self.pos + offset] as u32;
             if !(0x80..0xc0).contains(&b) {
-                return Err(());
+                return None;
             }
             offset += 1;
             ch = (ch << 6) | (b & 0x3f);
         }
         if ch < UTF8_MIN_CODE[idx] {
-            return Err(());
+            return None;
         }
         self.pos += offset;
-        Ok(())
+        Some(ch)
     }
 
-    fn scan_identifier(&mut self, ch: u8) -> PResult<Token> {
+    fn scan_identifier(&mut self, ch: u8) -> Option<Token> {
         let start = self.pos;
         let mut first = true;
         loop {
@@ -339,7 +348,10 @@ impl ParserState<'_, '_> {
                 } else if ch < 128 {
                     break;
                 } else {
-                    self.scan_unicode_from_utf8(UTF8_CHAR_LEN_MAX)?;
+                    let ch = self.scan_unicode_from_utf8(UTF8_CHAR_LEN_MAX)?;
+                    if !is_non_ascii_identifier_start(ch, false) {
+                        return None;
+                    }
                 }
                 first = false;
             } else if self.pos == self.end() {
@@ -349,10 +361,10 @@ impl ParserState<'_, '_> {
             } else if self.ch_unchecked() < 128 {
                 break;
             } else {
-                self.scan_unicode_from_utf8(UTF8_CHAR_LEN_MAX)?
+                self.scan_unicode_from_utf8(UTF8_CHAR_LEN_MAX)?;
             }
         }
-        self.get_ident_token(Cow::Borrowed(&self.input[start..self.pos]), start as u32)
+        Some(self.get_ident_token(Cow::Borrowed(&self.input[start..self.pos]), start as u32))
     }
 
     fn scan_comment_directive_kind(&mut self) {
@@ -814,9 +826,7 @@ impl ParserState<'_, '_> {
                             let mut unicode = self.scan_extended_unicode_escape(true);
                             let ident_parts = self.scan_identifier_parts();
                             unicode.extend(ident_parts);
-                            self.token = self
-                                .get_ident_token(Cow::Owned(unicode), start as u32)
-                                .unwrap();
+                            self.token = self.get_ident_token(Cow::Owned(unicode), start as u32);
                             return;
                         }
                     }
@@ -829,7 +839,7 @@ impl ParserState<'_, '_> {
                             let mut s = cooked_char.to_be_bytes().to_vec();
                             let ident_parts = self.scan_identifier_parts();
                             s.extend(ident_parts);
-                            self.token = self.get_ident_token(Cow::Owned(s), start as u32).unwrap();
+                            self.token = self.get_ident_token(Cow::Owned(s), start as u32);
                             return;
                         }
                     }
@@ -853,7 +863,14 @@ impl ParserState<'_, '_> {
                     }
                     continue;
                 }
-                _ => self.scan_identifier(ch).unwrap(),
+                _ => match self.scan_identifier(ch) {
+                    Some(token) => token,
+                    None => {
+                        let span = Span::new(start as u32, self.pos as u32, self.module_id);
+                        self.push_error(Box::new(errors::InvalidCharacter { span }));
+                        Token::new(TokenKind::Unknown, span)
+                    }
+                },
             };
             self.token = token;
             break;
@@ -1452,7 +1469,7 @@ impl ParserState<'_, '_> {
         )
     }
 
-    fn get_ident_token(&mut self, ident: Cow<[u8]>, start: u32) -> PResult<Token> {
+    fn get_ident_token(&mut self, ident: Cow<[u8]>, start: u32) -> Token {
         let len = ident.len();
 
         let id = AtomId::from_bytes(ident.as_ref());
@@ -1463,7 +1480,7 @@ impl ParserState<'_, '_> {
                     debug_assert!(self.atoms.lock().unwrap().contains(id));
                     let span = Span::new(start, self.pos as u32, self.module_id);
                     self.token_value = Some(TokenValue::Ident { value: id });
-                    return Ok(Token::new(kind, span));
+                    return Token::new(kind, span);
                 }
             }
         }
@@ -1478,10 +1495,10 @@ impl ParserState<'_, '_> {
                 Cow::Owned(s)
             });
         self.token_value = Some(TokenValue::Ident { value: id });
-        Ok(Token::new(
+        Token::new(
             TokenKind::Ident,
             Span::new(start, self.pos as u32, self.module_id),
-        ))
+        )
     }
 
     pub(super) fn scan_jsx_ident(&mut self) {
@@ -1515,9 +1532,7 @@ impl ParserState<'_, '_> {
                 .as_bytes()
                 .to_vec();
             token_value.extend(v);
-            self.token = self
-                .get_ident_token(Cow::Owned(token_value), self.token.start())
-                .unwrap();
+            self.token = self.get_ident_token(Cow::Owned(token_value), self.token.start());
         } else {
             debug_assert!(self.ident_token() != keyword::IDENT_EMPTY);
         }
