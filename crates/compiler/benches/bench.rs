@@ -57,7 +57,7 @@ fn setup() -> Vec<Case> {
     list_bench_case(&p)
 }
 
-const CASES: std::sync::LazyLock<Vec<Case>> = std::sync::LazyLock::new(|| setup());
+const CASES: std::sync::LazyLock<Vec<Case>> = std::sync::LazyLock::new(setup);
 
 fn compile(input_dir: std::path::PathBuf) {
     debug_assert!(input_dir.is_dir(), "'{input_dir:#?}' not found.",);

@@ -5,15 +5,15 @@ fn find_field_satisfy_attr(
     input: &DeriveInput,
     attr_f: impl Fn(&Attribute) -> bool,
 ) -> Option<syn::Ident> {
-    if let syn::Data::Struct(data_struct) = &input.data {
-        if let syn::Fields::Named(fields_named) = &data_struct.fields {
-            for field in fields_named.named.iter() {
-                for attr in &field.attrs {
-                    if attr_f(attr) {
-                        if let Some(ident) = &field.ident {
-                            return Some(ident.clone());
-                        }
-                    }
+    if let syn::Data::Struct(data_struct) = &input.data
+        && let syn::Fields::Named(fields_named) = &data_struct.fields
+    {
+        for field in fields_named.named.iter() {
+            for attr in &field.attrs {
+                if attr_f(attr)
+                    && let Some(ident) = &field.ident
+                {
+                    return Some(ident.clone());
                 }
             }
         }

@@ -1596,25 +1596,24 @@ impl<'cx> InferenceState<'cx, '_> {
             result
         } else if let Some(index_ty) = constraint_ty.kind.as_index_ty() {
             let inference_info = self.get_inference_info_for_ty(index_ty.ty);
-            if let Some(inference_info) = inference_info {
-                let info = self.c.inference_info(self.inference, inference_info);
-                if !info.is_fixed && !self.c.is_from_inference_block_source(source) {
-                    let infer_target = info.ty_param;
-                    if let Some(inferred_ty) =
-                        self.c
-                            .infer_ty_for_homomorphic_map_ty(source, target, constraint_ty)
-                    {
-                        let priority = if source
-                            .get_object_flags()
-                            .intersects(ObjectFlags::NON_INFERRABLE_TYPE)
-                        {
-                            InferencePriority::PARTIAL_HOMOMORPHIC_MAPPED_TYPE
-                        } else {
-                            InferencePriority::HOMOMORPHIC_MAPPED_TYPE
-                        };
-                        self.infer_with_priority(inferred_ty, infer_target, priority);
-                    }
-                }
+            if let Some(inference_info) = inference_info
+                && let info = self.c.inference_info(self.inference, inference_info)
+                && !info.is_fixed
+                && !self.c.is_from_inference_block_source(source)
+                && let info_target = info.ty_param
+                && let Some(inferred_ty) =
+                    self.c
+                        .infer_ty_for_homomorphic_map_ty(source, target, constraint_ty)
+            {
+                let priority = if source
+                    .get_object_flags()
+                    .intersects(ObjectFlags::NON_INFERRABLE_TYPE)
+                {
+                    InferencePriority::PARTIAL_HOMOMORPHIC_MAPPED_TYPE
+                } else {
+                    InferencePriority::HOMOMORPHIC_MAPPED_TYPE
+                };
+                self.infer_with_priority(inferred_ty, info_target, priority);
             }
             true
         } else if let Some(param) = constraint_ty.kind.as_param() {
@@ -2030,11 +2029,7 @@ impl<'cx> InferenceState<'cx, '_> {
             let target_sigs = self.c.get_signatures_of_type(target, kind);
             let target_len = target_sigs.len();
             for (i, sig) in target_sigs.iter().enumerate().take(target_len) {
-                let source_index = if source_len + i > target_len {
-                    source_len + i - target_len
-                } else {
-                    0
-                };
+                let source_index = (source_len + i).saturating_sub(target_len);
                 let source = self.c.get_base_sig(source_sigs[source_index]);
                 let target = self.c.get_erased_sig(sig);
                 self.infer_from_sig(source, target);
@@ -2063,14 +2058,12 @@ impl<'cx> InferenceState<'cx, '_> {
                 .get_prop_of_ty(source, self.c.symbol(*target_prop).name)
             {
                 let s = {
-                    let s = self.c.get_type_of_symbol(source_prop);
                     // TODO: remove_missing
-                    s
+                    self.c.get_type_of_symbol(source_prop)
                 };
                 let t = {
-                    let t = self.c.get_type_of_symbol(*target_prop);
                     // TODO: remove_missing
-                    t
+                    self.c.get_type_of_symbol(*target_prop)
                 };
                 self.infer_from_tys(s, t);
             }

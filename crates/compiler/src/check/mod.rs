@@ -831,24 +831,20 @@ impl<'cx> TyChecker<'cx> {
         let m = ty.kind.expect_object_mapped();
         let target = m.target.unwrap_or(ty);
         let ty_var = self.get_homomorphic_ty_var(target);
-        if let Some(ty_var) = ty_var {
-            let target_m = target.kind.expect_object_mapped();
-            if target_m.decl.name_ty.is_none() {
-                let modifier_ty = self.get_modifiers_ty_from_mapped_ty(ty);
-                let base_constraint = if self.is_generic_mapped_ty(modifier_ty) {
-                    Some(self.get_apparent_ty_of_mapped_ty(modifier_ty))
-                } else {
-                    self.get_base_constraint_of_ty(modifier_ty)
-                };
-                if let Some(base_constraint) = base_constraint {
-                    if self.every_type(base_constraint, |this, t| {
-                        this.is_array_or_tuple(t) || this.is_array_or_tuple_intersection(ty)
-                    }) {
-                        let mapper = self.prepend_ty_mapping(ty_var, base_constraint, m.mapper);
-                        return self.instantiate_ty(target, Some(mapper));
-                    }
-                }
+        if let Some(ty_var) = ty_var
+            && target.kind.expect_object_mapped().decl.name_ty.is_none()
+            && let modifier_ty = self.get_modifiers_ty_from_mapped_ty(ty)
+            && let Some(base_constraint) = if self.is_generic_mapped_ty(modifier_ty) {
+                Some(self.get_apparent_ty_of_mapped_ty(modifier_ty))
+            } else {
+                self.get_base_constraint_of_ty(modifier_ty)
             }
+            && self.every_type(base_constraint, |this, t| {
+                this.is_array_or_tuple(t) || this.is_array_or_tuple_intersection(ty)
+            })
+        {
+            let mapper = self.prepend_ty_mapping(ty_var, base_constraint, m.mapper);
+            return self.instantiate_ty(target, Some(mapper));
         }
         ty
     }
@@ -1242,12 +1238,10 @@ impl<'cx> TyChecker<'cx> {
         );
         let outer_ty_params: Option<ty::Tys<'cx>> = if let Some(outer_ty_params) = outer_ty_params {
             Some(outer_ty_params)
-        } else if let Some(id) = sig.node_id {
-            if let Some(ty_params) = self.get_outer_ty_params(id, true) {
-                Some(self.alloc(ty_params))
-            } else {
-                None
-            }
+        } else if let Some(id) = sig.node_id
+            && let Some(ty_params) = self.get_outer_ty_params(id, true)
+        {
+            Some(self.alloc(ty_params))
         } else {
             None
         };
@@ -1290,10 +1284,10 @@ impl<'cx> TyChecker<'cx> {
             .iter()
             .map(|ty| {
                 let tp = ty.kind.expect_param();
-                if let Some(target) = tp.target {
-                    if self.get_constraint_of_ty_param(target).is_none() {
-                        return target;
-                    }
+                if let Some(target) = tp.target
+                    && self.get_constraint_of_ty_param(target).is_none()
+                {
+                    return target;
                 }
                 ty
             })
@@ -1526,7 +1520,7 @@ impl<'cx> TyChecker<'cx> {
         prop: SymbolID,
         report_error: bool,
     ) {
-        let error_node = report_error.then(|| node);
+        let error_node = report_error.then_some(node);
         self.check_prop_accessibility_at_loc(node, is_super, writing, ty, prop, error_node);
     }
 
@@ -1615,8 +1609,8 @@ impl<'cx> TyChecker<'cx> {
         member: &'cx ast::ObjectPropMember<'cx>,
     ) -> &'cx ty::Ty<'cx> {
         // TODO: computed member
-        let ty = self.check_expr_for_mutable_location(member.init);
-        ty
+
+        (self.check_expr_for_mutable_location(member.init)) as _
     }
 
     fn check_object_method_member(
@@ -2071,7 +2065,7 @@ impl<'cx> TyChecker<'cx> {
         use bolt_ts_ast::BinOpKind::*;
         match op.kind {
             Add => {
-                let ty = match self.check_binary_like_expr_for_add(left_ty, right_ty) {
+                (match self.check_binary_like_expr_for_add(left_ty, right_ty) {
                     Some(ty) => ty,
                     None => {
                         let error = errors::OperatorCannotBeAppliedToTy1AndTy2 {
@@ -2083,8 +2077,7 @@ impl<'cx> TyChecker<'cx> {
                         self.push_error(Box::new(error));
                         self.any_ty
                     }
-                };
-                ty
+                }) as _
             }
             Sub => self.number_ty,
             Mul => self.undefined_ty,
@@ -3486,22 +3479,22 @@ impl<'cx> TyChecker<'cx> {
     ) -> &'cx ty::Ty<'cx> {
         let init = decl.init().unwrap();
         // TODO: get_quick_ty_of_expr
-        let ty = if let Some(contextual_ty) = contextual_ty {
+
+        (if let Some(contextual_ty) = contextual_ty {
             let check_mode = self.check_mode.unwrap_or(CheckMode::empty());
-            let ty = self.check_expr_with_contextual_ty(init, contextual_ty, None, check_mode);
-            ty
+
+            self.check_expr_with_contextual_ty(init, contextual_ty, None, check_mode)
         } else {
             self.check_expr_with_cache(init)
-        };
-        ty
+        }) as _
     }
 
     pub(super) fn check_external_module_exports(&mut self, node: &'cx ast::Program<'cx>) {
         let module_symbol = self.get_symbol_of_decl(node.id);
-        if let Some(checked) = self.get_symbol_links(module_symbol).get_exports_checked() {
-            if checked {
-                return;
-            }
+        if let Some(checked) = self.get_symbol_links(module_symbol).get_exports_checked()
+            && checked
+        {
+            return;
         }
         // if let Some(exports) = self.get_exports_of_symbol(module_symbol) {}
 

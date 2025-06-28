@@ -11,12 +11,13 @@ pub struct MergedSymbols(Vec<SymbolID>);
 impl MergedSymbols {
     pub fn get_merged_symbol(&self, id: SymbolID, symbols: &super::Symbols) -> SymbolID {
         let s = symbols.get(id);
-        if let Some(merged_id) = s.merged_id {
-            if let Some(merged) = self.0.get(merged_id as usize).copied() {
-                return merged;
-            }
+        if let Some(merged_id) = s.merged_id
+            && let Some(merged) = self.0.get(merged_id as usize).copied()
+        {
+            merged
+        } else {
+            id
         }
-        id
     }
 
     pub fn record_merged_symbol(

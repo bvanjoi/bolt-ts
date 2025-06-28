@@ -70,7 +70,7 @@ impl std::fmt::Display for AmbientContextKind {
             AmbientContextKind::Initializers => "Initializers",
             AmbientContextKind::Statements => "Statements",
         };
-        write!(f, "{}", s)
+        write!(f, "{s}")
     }
 }
 

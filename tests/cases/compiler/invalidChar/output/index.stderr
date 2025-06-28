@@ -1,0 +1,11 @@
+  × Invalid character.
+   ╭─[../../tests/cases/compiler/invalidChar/index.ts:1:5]
+ 1 │ 🀒
+   · ─
+   ╰────
+
+  × Variable declaration list cannot be empty.
+   ╭─[../../tests/cases/compiler/invalidChar/index.ts:1:1]
+ 1 │ var 🀒
+   · ─────
+   ╰────

@@ -86,23 +86,23 @@ impl<'cx> TyChecker<'cx> {
         index_ty: &'cx ty::Ty<'cx>,
         kind: SimplifiedKind,
     ) -> Option<&'cx ty::Ty<'cx>> {
-        if let Some(tys) = object_ty.kind.tys_of_union_or_intersection() {
-            if !self.should_defer_index_ty(object_ty, IndexFlags::empty()) {
-                let tys = tys
-                    .iter()
-                    .map(|t| {
-                        let a = self.get_indexed_access_ty(t, index_ty, None, None);
-                        self.get_simplified_ty(a, kind)
-                    })
-                    .collect::<Vec<_>>();
-                return if object_ty.flags.intersects(TypeFlags::INTERSECTION)
-                    || kind == SimplifiedKind::Writing
-                {
-                    Some(self.get_intersection_ty(&tys, IntersectionFlags::None, None, None))
-                } else {
-                    Some(self.get_union_ty(&tys, ty::UnionReduction::Lit))
-                };
-            }
+        if let Some(tys) = object_ty.kind.tys_of_union_or_intersection()
+            && !self.should_defer_index_ty(object_ty, IndexFlags::empty())
+        {
+            let tys = tys
+                .iter()
+                .map(|t| {
+                    let a = self.get_indexed_access_ty(t, index_ty, None, None);
+                    self.get_simplified_ty(a, kind)
+                })
+                .collect::<Vec<_>>();
+            return if object_ty.flags.intersects(TypeFlags::INTERSECTION)
+                || kind == SimplifiedKind::Writing
+            {
+                Some(self.get_intersection_ty(&tys, IntersectionFlags::None, None, None))
+            } else {
+                Some(self.get_union_ty(&tys, ty::UnionReduction::Lit))
+            };
         }
         None
     }

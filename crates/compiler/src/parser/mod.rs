@@ -14,6 +14,7 @@ mod parse_modifiers;
 mod pragmas;
 mod query;
 mod scan;
+mod scan_integer;
 mod scan_pragma;
 mod state;
 mod stmt;

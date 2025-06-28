@@ -149,7 +149,9 @@ impl<'cx> Emit<'cx> {
     fn emit_prop_access_expr(&mut self, n: &'cx ast::PropAccessExpr<'cx>) {
         if let bolt_ts_ast::ExprKind::NumLit(lit) = n.expr.kind {
             self.emit_num_lit(lit);
-            self.content.p(".");
+            if lit.val.fract() == 0. {
+                self.content.p(".");
+            }
         } else {
             self.emit_expr(n.expr);
         }

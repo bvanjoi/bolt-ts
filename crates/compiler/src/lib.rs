@@ -146,7 +146,7 @@ pub fn eval_from_with_fs<'cx>(
                 (None, None, p, is_default_lib)
             } else {
                 let Ok(content) = read_file_with_encoding(&p) else {
-                    panic!("failed to read file: {:?}", p);
+                    panic!("failed to read file: {p:?}");
                 };
                 let atom = AtomId::from_bytes(content.as_bytes());
                 (Some(content), Some(atom), p, is_default_lib)
@@ -343,8 +343,7 @@ pub fn eval_from_with_fs<'cx>(
                 let p = module_arena.get_path(m.id);
                 debug_assert!(
                     p.is_normalized(),
-                    "path should be normalized, but got: {:?}",
-                    p
+                    "path should be normalized, but got: {p:?}"
                 );
                 p
             })

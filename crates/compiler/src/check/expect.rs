@@ -19,14 +19,12 @@ impl<'cx> TyChecker<'cx> {
     }
 
     pub(super) fn properties_of_object_type(&self, ty: &'cx ty::Ty<'cx>) -> &'cx [SymbolID] {
-        ty.kind
-            .is_object()
-            .then(|| {
+        if ty.kind
+            .is_object() { {
                 self.expect_ty_links(ty.id)
                     .expect_structured_members()
                     .props
-            })
-            .unwrap_or_default()
+            } } else { Default::default() }
     }
 
     pub(super) fn signatures_of_structured_type(
@@ -34,9 +32,8 @@ impl<'cx> TyChecker<'cx> {
         ty: &'cx ty::Ty<'cx>,
         kind: ty::SigKind,
     ) -> ty::Sigs<'cx> {
-        ty.kind
-            .is_structured()
-            .then(|| {
+        if ty.kind
+            .is_structured() { {
                 // TODO: remove this
                 let Some(ty_links) = self.ty_links.get(&ty.id) else {
                     return Default::default();
@@ -50,8 +47,7 @@ impl<'cx> TyChecker<'cx> {
                 } else {
                     resolved.ctor_sigs
                 }
-            })
-            .unwrap_or_default()
+            } } else { Default::default() }
     }
 
     pub(super) fn signatures_of_type(

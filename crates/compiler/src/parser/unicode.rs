@@ -135,7 +135,7 @@ const fn lookup_in_unicode_map(code: u32, map: &[u32]) -> bool {
         }
     }
 
-    return false;
+    false
 }
 
 pub fn is_unicode_es5_identifier_start(ch: u32) -> bool {

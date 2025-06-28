@@ -63,12 +63,11 @@ impl<'cx> TyChecker<'cx> {
             self.get_union_ty(&key_tys, ty::UnionReduction::Lit)
         };
 
-        if let Some(result) = result.kind.as_union() {
-            if let Some(c) = constraint_ty.kind.as_union() {
-                if hash_ty_args(result.tys) == hash_ty_args(c.tys) {
-                    return constraint_ty;
-                }
-            }
+        if let Some(result) = result.kind.as_union()
+            && let Some(c) = constraint_ty.kind.as_union()
+            && hash_ty_args(result.tys) == hash_ty_args(c.tys)
+        {
+            return constraint_ty;
         }
         result
     }

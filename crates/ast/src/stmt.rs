@@ -441,15 +441,14 @@ impl<'cx> SetterDecl<'cx> {
 
     pub fn get_value_param(&self) -> Option<&'cx self::ParamDecl<'cx>> {
         (!self.params.is_empty()).then(|| {
-            let len = self.params.len();
-            if len == 2 {
-                if let self::BindingKind::Ident(i) = self.params[0].name.kind {
-                    if i.name == keyword::KW_THIS {
-                        return self.params[1];
-                    }
-                }
+            if self.params.len() == 2
+                && let self::BindingKind::Ident(i) = self.params[0].name.kind
+                && i.name == keyword::KW_THIS
+            {
+                self.params[1]
+            } else {
+                self.params[0]
             }
-            self.params[0]
         })
     }
 }
@@ -594,7 +593,7 @@ impl std::fmt::Display for ModifierKind {
             ModifierKind::In => todo!(),
             ModifierKind::Out => todo!(),
         };
-        write!(f, "{}", s)
+        write!(f, "{s}")
     }
 }
 

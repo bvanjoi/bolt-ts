@@ -13,10 +13,10 @@ pub fn ensure_node_exist() {
         .expect("Failed to execute command");
     if output.status.success() {
         let stdout = std::str::from_utf8(&output.stdout).expect("Failed to parse output");
-        println!("Node version: {}", stdout);
+        println!("Node version: {stdout}");
     } else {
         let stderr = std::str::from_utf8(&output.stderr).expect("Failed to parse output");
-        panic!("Error:\n{}", stderr);
+        panic!("Error:\n{stderr}");
     }
 }
 
@@ -37,5 +37,5 @@ pub fn run_node(p: &std::path::Path) -> Result<Option<String>, String> {
 
 pub fn temp_node_file(name: &str) -> std::path::PathBuf {
     let temp_dir = tempdir::TempDir::new("bolt-ts-compiler-temp").unwrap();
-    temp_dir.into_path().join(format!("{}.js", name))
+    temp_dir.into_path().join(format!("{name}.js"))
 }

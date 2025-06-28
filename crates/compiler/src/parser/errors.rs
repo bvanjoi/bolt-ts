@@ -33,6 +33,20 @@ pub(super) struct OctalLiteralsAreNotAllowed {
 }
 
 #[derive(Error, Diagnostic, DiagnosticExt, Debug)]
+#[error("Decimals with leading zeros are not allowed.")]
+pub(super) struct DecimalsWithLeadingZerosAreNotAllowed {
+    #[label(primary)]
+    pub span: Span,
+}
+
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
+#[error("Numeric separators are not allowed here.")]
+pub(super) struct NumericSeparatorsAreNotAllowedHere {
+    #[label(primary)]
+    pub span: Span,
+}
+
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
 #[error("Variable declaration list cannot be empty.")]
 pub(super) struct VariableDeclarationListCannotBeEmpty {
     #[label(primary)]
@@ -97,7 +111,7 @@ impl std::fmt::Display for ClauseKind {
             ClauseKind::Extends => "extends",
             ClauseKind::Implements => "implements",
         };
-        write!(f, "{}", s)
+        write!(f, "{s}")
     }
 }
 
@@ -278,6 +292,13 @@ pub(super) struct InvalidCharacter {
 #[derive(Error, Diagnostic, DiagnosticExt, Debug)]
 #[error("Unicode escape sequence cannot appear here.")]
 pub(super) struct UnicodeEscapeSequenceCannotAppearHere {
+    #[label(primary)]
+    pub(super) span: Span,
+}
+
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
+#[error("Digit expected.")]
+pub(super) struct DigitExpected {
     #[label(primary)]
     pub(super) span: Span,
 }

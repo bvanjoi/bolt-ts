@@ -13,12 +13,12 @@ impl<'cx> TyChecker<'cx> {
         &self,
         id: ast::NodeID,
     ) -> Option<&'cx ast::ClassExtendsClause<'cx>> {
-        let extends = match self.p.node(id) {
+        
+        match self.p.node(id) {
             ast::Node::ClassDecl(c) => c.extends,
             ast::Node::ClassExpr(c) => c.extends,
             _ => None,
-        };
-        extends
+        }
     }
 
     pub(super) fn get_effective_ty_param_decls(&self, id: ast::NodeID) -> ast::TyParams<'cx> {

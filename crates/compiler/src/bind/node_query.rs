@@ -157,10 +157,10 @@ pub trait NodeQuery<'cx>: Sized {
                 parent_id = self.parent(parent_id)?;
                 parent = self.node(parent_id);
             }
-            if let Some(call) = parent.as_call_expr() {
-                if call.expr.id() == prev {
-                    return Some(call);
-                }
+            if let Some(call) = parent.as_call_expr()
+                && call.expr.id() == prev
+            {
+                return Some(call);
             }
         }
         None

@@ -318,10 +318,10 @@ impl<'cx> ParserState<'cx, '_> {
         missing_ident_kind: Option<errors::MissingIdentKind>,
     ) -> &'cx ast::Expr<'cx> {
         let kind = self.create_ident(self.token.kind.is_ident(), missing_ident_kind);
-        let expr = self.alloc(ast::Expr {
+        
+        (self.alloc(ast::Expr {
             kind: ast::ExprKind::Ident(kind),
-        });
-        expr
+        })) as _
     }
 
     pub(super) fn parse_prop_name(
@@ -390,9 +390,9 @@ impl<'cx> ParserState<'cx, '_> {
     ) -> PResult<Option<&'cx ast::Modifiers<'cx>>> {
         let start = self.token.start();
         let mut list = Vec::with_capacity(4);
-        let mut has_seen_static_modifier = false;
-        let mut has_leading_modifier = false;
-        let mut has_trailing_decorator = false;
+        let has_seen_static_modifier = false;
+        let has_leading_modifier = false;
+        let has_trailing_decorator = false;
         loop {
             let Ok(Some(m)) =
                 self.parse_modifier(has_seen_static_modifier, permit_const_as_modifier)

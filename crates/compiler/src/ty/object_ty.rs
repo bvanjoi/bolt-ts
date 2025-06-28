@@ -263,7 +263,7 @@ impl<'cx> ObjectTyKind<'cx> {
                         })
                         .collect::<Vec<_>>()
                         .join("");
-                    format!("{{ {}}}", members)
+                    format!("{{ {members}}}")
                 } else if symbol
                     .flags
                     .intersects(SymbolFlags::CLASS.union(SymbolFlags::VALUE_MODULE))
@@ -313,7 +313,7 @@ impl<'cx> ObjectTyKind<'cx> {
                         })
                         .collect::<Vec<_>>()
                         .join("");
-                    format!("{{ {}}}", members)
+                    format!("{{ {members}}}")
                 }
             }
             ObjectTyKind::Tuple(ty) => {

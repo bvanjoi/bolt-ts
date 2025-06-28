@@ -81,12 +81,13 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
             let extends_ty = self.node_query().find_ancestor(infer_ty.id, |n| {
                 let n_id = n.id();
                 let p = self.parent_map.parent_unfinished(n_id)?;
-                if let Some(cond) = self.p.node(p).as_cond_ty() {
-                    if cond.extends_ty.id() == n_id {
-                        return Some(true);
-                    }
+                if let Some(cond) = self.p.node(p).as_cond_ty()
+                    && cond.extends_ty.id() == n_id
+                {
+                    Some(true)
+                } else {
+                    None
                 }
-                None
             });
             let cond_container = extends_ty.map(|extends_ty| {
                 let p = self.parent_map.parent_unfinished(extends_ty).unwrap();
@@ -208,14 +209,15 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
             if is_identifier_name(self, id) {
                 return;
             }
-            if self.in_strict_mode && tok.is_strict_mode_reserved_word() {
-                if self.node_query().get_containing_class(id).is_some() {
-                    let error = errors::IdentifierExpected0IsAReservedWordInStrictModeClassDefinitionsAreAutomaticallyInStrictMode {
+            if self.in_strict_mode
+                && tok.is_strict_mode_reserved_word()
+                && self.node_query().get_containing_class(id).is_some()
+            {
+                let error = errors::IdentifierExpected0IsAReservedWordInStrictModeClassDefinitionsAreAutomaticallyInStrictMode {
                     span,
                     ident: self.atoms.get(atom).to_string(),
                 };
-                    self.push_error(Box::new(error));
-                }
+                self.push_error(Box::new(error));
             }
         }
     }
@@ -432,19 +434,19 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
             }
             // TODO: private
             PropAccessExpr(p) => {
-                if let Some(flow) = self.current_flow {
-                    if self.is_narrowable_reference(p.expr) {
-                        self.flow_nodes.insert_container_map(node, flow);
-                    }
+                if let Some(flow) = self.current_flow
+                    && self.is_narrowable_reference(p.expr)
+                {
+                    self.flow_nodes.insert_container_map(node, flow);
                 }
                 // TODO: is_special_prop_decl
                 // TODO: js
             }
             EleAccessExpr(e) => {
-                if let Some(flow) = self.current_flow {
-                    if self.ele_access_is_narrowable_reference(e) {
-                        self.flow_nodes.insert_container_map(node, flow);
-                    }
+                if let Some(flow) = self.current_flow
+                    && self.ele_access_is_narrowable_reference(e)
+                {
+                    self.flow_nodes.insert_container_map(node, flow);
                 }
                 // TODO: is_special_prop_decl
                 // TODO: js

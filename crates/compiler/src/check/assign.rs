@@ -7,13 +7,13 @@ use crate::ty::{self, AccessFlags};
 
 impl<'cx> TyChecker<'cx> {
     fn assign_param_ty(&mut self, param: SymbolID, ctx: Option<&'cx ty::Ty<'cx>>) {
-        if let Some(ty) = self.get_symbol_links(param).get_ty() {
-            if let Some(ctx) = ctx {
-                assert!(
-                    ctx == ty,
-                    "Parameter symbol already has a cached type which differs from newly assigned type"
-                )
-            }
+        if let Some(ty) = self.get_symbol_links(param).get_ty()
+            && let Some(ctx) = ctx
+        {
+            assert_eq!(
+                ctx, ty,
+                "Parameter symbol already has a cached type which differs from newly assigned type"
+            );
             return;
         }
         let decl_id = param.decl(self.binder);
@@ -124,7 +124,8 @@ impl<'cx> TyChecker<'cx> {
             } else {
                 AccessFlags::empty()
             };
-        let ty = match binding.kind {
+
+        (match binding.kind {
             ObjectPat(pat) => {
                 todo!()
             }
@@ -145,17 +146,16 @@ impl<'cx> TyChecker<'cx> {
                 } else if self.is_array_like_ty(parent_ty) {
                     let idx = idx();
                     let index_ty = self.get_number_literal_type(idx as f64);
-                    let decl_ty = self
-                        .get_indexed_access_ty_or_undefined(
-                            parent_ty,
-                            index_ty,
-                            Some(access_flags),
-                            Some(name.id),
-                        )
-                        .unwrap_or(self.error_ty);
-                    decl_ty
+
+                    self.get_indexed_access_ty_or_undefined(
+                        parent_ty,
+                        index_ty,
+                        Some(access_flags),
+                        Some(name.id),
+                    )
+                    .unwrap_or(self.error_ty)
                 } else {
-                    let ele_ty = self.check_iterated_ty_or_element_ty(
+                    self.check_iterated_ty_or_element_ty(
                         IterationUse::DESTRUCTURING
                             | if has_dotdotdot {
                                 IterationUse::empty()
@@ -165,8 +165,7 @@ impl<'cx> TyChecker<'cx> {
                         parent_ty,
                         self.undefined_ty,
                         Some(ele.id),
-                    );
-                    ele_ty
+                    )
                 }
             }
             _ => self.check_iterated_ty_or_element_ty(
@@ -175,9 +174,7 @@ impl<'cx> TyChecker<'cx> {
                 self.undefined_ty,
                 Some(binding.id),
             ),
-        };
-
-        ty
+        }) as _
     }
 
     pub(super) fn assign_contextual_param_tys(
@@ -203,16 +200,14 @@ impl<'cx> TyChecker<'cx> {
             let decl = self.p.node(decl).expect_param_decl();
             if decl.ty.is_none() {
                 let mut ty = self.try_get_ty_at_pos(context, i);
-                if let Some(t) = ty {
-                    if decl.init.is_some() {
-                        let init_ty = self.check_decl_init(decl, None);
-                        if !self.is_type_assignable_to(init_ty, t) && {
-                            let target = self.widened_ty_from_init(decl, init_ty);
-                            self.is_type_assignable_to(t, target)
-                        } {
-                            ty = Some(init_ty);
-                        }
-                    }
+                if let Some(t) = ty
+                    && decl.init.is_some()
+                    && let init_ty = self.check_decl_init(decl, None)
+                    && !self.is_type_assignable_to(init_ty, t)
+                    && let target = self.widened_ty_from_init(decl, init_ty)
+                    && self.is_type_assignable_to(t, target)
+                {
+                    ty = Some(init_ty);
                 }
                 self.assign_param_ty(param, ty);
             }

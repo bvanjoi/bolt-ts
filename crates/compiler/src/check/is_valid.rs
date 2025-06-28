@@ -15,10 +15,10 @@ impl<'cx> TyChecker<'cx> {
     }
 
     pub(super) fn is_valid_base_ty(&mut self, ty: &'cx ty::Ty<'cx>) -> bool {
-        if let Some(param_ty) = ty.kind.as_param() {
-            if let Some(constraint) = self.get_base_constraint_of_ty(ty) {
-                return self.is_valid_base_ty(constraint);
-            }
+        if let Some(param_ty) = ty.kind.as_param()
+            && let Some(constraint) = self.get_base_constraint_of_ty(ty)
+        {
+            return self.is_valid_base_ty(constraint);
         }
 
         if ty.kind.is_object()

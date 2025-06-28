@@ -105,8 +105,8 @@ impl<'cx> Ty<'cx> {
             Lit(_) => true,
             Array(arr) => arr.ele.is_this_less(),
             Refer(refer) => {
-                if let ty::EntityNameKind::Ident(n) = refer.name.kind {
-                    if matches!(
+                if let ty::EntityNameKind::Ident(n) = refer.name.kind
+                    && matches!(
                         n.name,
                         keyword::IDENT_ANY
                             | keyword::IDENT_UNKNOWN
@@ -117,9 +117,9 @@ impl<'cx> Ty<'cx> {
                             | keyword::IDENT_SYMBOL
                             | keyword::IDENT_OBJECT
                             | keyword::IDENT_NEVER
-                    ) {
-                        return true;
-                    }
+                    )
+                {
+                    return true;
                 }
                 refer
                     .ty_args

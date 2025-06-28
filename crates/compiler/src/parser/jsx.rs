@@ -5,6 +5,7 @@ use crate::parser::{errors, state::LanguageVariant};
 
 use super::{PResult, ParserState, list_ctx};
 
+#[derive(Debug)]
 pub(super) enum JsxEleOrSelfClosingEleOrFrag<'cx> {
     Ele(&'cx bolt_ts_ast::JsxEle<'cx>),
     SelfClosingEle(&'cx bolt_ts_ast::JsxSelfClosingEle<'cx>),
@@ -58,7 +59,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
                 let mut children = self.parse_jsx_children(Some(opening.tag_name));
                 let mut closing_ele = None;
 
-                let mut late_child = children.last();
+                let late_child = children.last();
                 let mut else_then = true;
                 if let Some(end) = late_child {
                     if let bolt_ts_ast::JsxChild::Ele(end_ele) = end {
@@ -137,7 +138,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
                     Err(())
                 }
             }) {
-                todo!("error handle")
+                todo!("error handle: {:#?}", invalid_ele);
             }
         }
 
