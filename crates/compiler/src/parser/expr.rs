@@ -767,11 +767,11 @@ impl<'cx> ParserState<'cx, '_> {
             elems,
         });
         self.nodes.insert(id, ast::Node::ArrayLit(lit));
-        let expr = self.alloc(ast::Expr {
+        
+        (self.alloc(ast::Expr {
             // id: expr_id,
             kind: ast::ExprKind::ArrayLit(lit),
-        });
-        expr
+        })) as _
     }
 
     fn parse_spread_element(&mut self) -> PResult<&'cx ast::Expr<'cx>> {
@@ -876,10 +876,10 @@ impl<'cx> ParserState<'cx, '_> {
         let id = self.next_node_id();
         let node = self.alloc(ast::SuperExpr { id, span });
         self.nodes.insert(node.id, ast::Node::SuperExpr(node));
-        let expr = self.alloc(ast::Expr {
+        
+        (self.alloc(ast::Expr {
             kind: ast::ExprKind::Super(node),
-        });
-        expr
+        })) as _
     }
 
     fn parse_primary_expr(&mut self) -> PResult<&'cx ast::Expr<'cx>> {

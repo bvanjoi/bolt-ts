@@ -581,11 +581,11 @@ impl<'cx> Emit<'cx> {
         let mut param_name = Cow::Borrowed(self.atoms.get(ident.name));
         if let Some(i) = sub_names.iter().position(|sub| *sub == param_name) {
             let mut offset = 1;
-            let mut n = format!("{}_{}", param_name, offset);
+            let mut n = format!("{param_name}_{offset}");
             for sub in &sub_names[i + 1..] {
                 if n == *sub {
                     offset += 1;
-                    n = format!("{}_{}", n, offset);
+                    n = format!("{n}_{offset}");
                 } else {
                     break;
                 }

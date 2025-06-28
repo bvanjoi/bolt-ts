@@ -190,10 +190,10 @@ impl<'cx> TyChecker<'cx> {
 
     pub(super) fn get_resolved_sig(&mut self, node: ast::NodeID) -> &'cx ty::Sig<'cx> {
         let resolving_sig = self.resolving_sig();
-        if let Some(cached) = self.get_node_links(node).get_resolved_sig() {
-            if cached != resolving_sig {
-                return cached;
-            }
+        if let Some(cached) = self.get_node_links(node).get_resolved_sig()
+            && cached != resolving_sig
+        {
+            return cached;
         }
 
         self.get_mut_node_links(node)
@@ -302,8 +302,8 @@ impl<'cx> TyChecker<'cx> {
         } else if let Some(target) = sig.target {
             let pred = if let Some(target_ty_pred) = self.get_ty_predicate_of_sig(target) {
                 assert!(sig.mapper.is_some());
-                let pred = self.instantiate_ty_pred(target_ty_pred, sig.mapper);
-                pred
+
+                self.instantiate_ty_pred(target_ty_pred, sig.mapper)
             } else {
                 self.no_ty_pred()
             };

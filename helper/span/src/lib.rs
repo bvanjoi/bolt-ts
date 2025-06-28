@@ -77,7 +77,7 @@ impl ModuleArena {
         self.modules.push(m);
         assert_eq!(id.as_usize(), self.content_map.len());
         let Ok(atom) = fs.read_file(p.as_ref(), atoms) else {
-            panic!("File not found: {:?}", p);
+            panic!("File not found: {p:?}");
         };
         // TODO: remove this clone
         let data = atoms.get(atom).to_string();

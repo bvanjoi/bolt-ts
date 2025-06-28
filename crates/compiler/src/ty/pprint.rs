@@ -18,11 +18,11 @@ pub fn pprint_tuple_ty<'cx>(
                 if flags.intersects(ElementFlags::REQUIRED) {
                     t
                 } else if flags.intersects(ElementFlags::OPTIONAL) {
-                    format!("{}?", t)
+                    format!("{t}?")
                 } else if flags.intersects(ElementFlags::REST) {
-                    format!("...{}[]", t)
+                    format!("...{t}[]")
                 } else if flags.intersects(ElementFlags::VARIADIC) {
-                    format!("...{}", t)
+                    format!("...{t}")
                 } else {
                     unreachable!()
                 }

@@ -174,8 +174,8 @@ impl ParserState<'_, '_> {
                 break;
             }
         }
-        if self.input[self.pos - 1] == b'_' {
-            self.token_flags |= TokenFlags::CONTAINS_INVALID_ESCAPE;
+        if self.pos > 0 && self.input[self.pos - 1] == b'_' {
+            self.token_flags |= TokenFlags::CONTAINS_INVALID_SEPARATOR;
             todo!("error")
         }
         result.extend_from_slice(&self.input[start..self.pos]);
@@ -206,18 +206,28 @@ impl ParserState<'_, '_> {
         let main_frag = if self.input[self.pos] == b'0' {
             self.pos += 1;
             if self.ch() == Some(b'_') {
-                todo!()
+                self.token_flags |=
+                    TokenFlags::CONTAINS_SEPARATOR | TokenFlags::CONTAINS_INVALID_ESCAPE;
+                self.push_error(Box::new(errors::NumericSeparatorsAreNotAllowedHere {
+                    span: Span::new(self.pos as u32, (self.pos + 1) as u32, self.module_id),
+                }));
+                self.pos -= 1;
+                self.scan_number_fragment()
             } else {
                 let (fragment, is_oct) = self.scan_digits();
                 if !is_oct {
-                    todo!()
+                    let error = errors::DecimalsWithLeadingZerosAreNotAllowed {
+                        span: Span::new(start as u32, self.pos as u32, self.module_id),
+                    };
+                    self.push_error(Box::new(error));
+                    fragment
                 } else if fragment.is_empty() {
                     vec![b'0']
                 } else {
                     let help_lit = format!("0o{}", unsafe {
                         String::from_utf8_unchecked(fragment.clone())
                     });
-                    let error = super::errors::OctalLiteralsAreNotAllowed {
+                    let error = errors::OctalLiteralsAreNotAllowed {
                         span: Span::new(start as u32, self.pos as u32, self.module_id),
                         help_lit,
                     };
@@ -719,12 +729,26 @@ impl ParserState<'_, '_> {
                         Span::new(start as u32, self.pos as u32, self.module_id),
                     )
                 }
-                b'.' if self.next_ch() == Some(b'.') && self.next_next_ch() == Some(b'.') => {
-                    self.pos += 3;
-                    Token::new(
-                        TokenKind::DotDotDot,
-                        Span::new(start as u32, self.pos as u32, self.module_id),
-                    )
+                b'.' => {
+                    let next = self.next_ch();
+                    if next.is_some_and(|ch| ch.is_ascii_digit()) {
+                        // .123
+                        self.scan_number()
+                    } else if next == Some(b'.') && self.next_next_ch() == Some(b'.') {
+                        // ...
+                        self.pos += 3;
+                        Token::new(
+                            TokenKind::DotDotDot,
+                            Span::new(start as u32, self.pos as u32, self.module_id),
+                        )
+                    } else {
+                        // .
+                        self.pos += 1;
+                        Token::new(
+                            TokenKind::Dot,
+                            Span::new(start as u32, self.pos as u32, self.module_id),
+                        )
+                    }
                 }
                 b'!' if self.next_ch() == Some(b'=') => {
                     let kind = if self.next_next_ch() == Some(b'=') {
@@ -738,8 +762,8 @@ impl ParserState<'_, '_> {
                     let span = Span::new(start as u32, self.pos as u32, self.module_id);
                     Token::new(kind, span)
                 }
-                b'>' | b'.' | b',' | b';' | b':' | b'[' | b']' | b'(' | b')' | b'{' | b'}'
-                | b'!' | b'~' | b'^' => {
+                b'>' | b',' | b';' | b':' | b'[' | b']' | b'(' | b')' | b'{' | b'}' | b'!'
+                | b'~' | b'^' => {
                     self.pos += 1;
                     let kind = unsafe { std::mem::transmute::<u8, TokenKind>(ch) };
                     Token::new(
@@ -776,7 +800,7 @@ impl ParserState<'_, '_> {
                     let s = unsafe { str::from_utf8_unchecked(&v) };
                     // TODO: check bigint suffix
                     let v = parse_integer::<16>(s);
-                    self.token_value = Some(TokenValue::Number { value: v as f64 });
+                    self.token_value = Some(TokenValue::Number { value: v });
                     Token::new(
                         TokenKind::Number,
                         Span::new(start as u32, self.pos as u32, self.module_id),
@@ -794,7 +818,7 @@ impl ParserState<'_, '_> {
                     let s = unsafe { str::from_utf8_unchecked(&v) };
                     let v = parse_integer::<2>(s);
                     // TODO: check bigint suffix
-                    self.token_value = Some(TokenValue::Number { value: v as f64 });
+                    self.token_value = Some(TokenValue::Number { value: v });
                     Token::new(
                         TokenKind::Number,
                         Span::new(start as u32, self.pos as u32, self.module_id),
@@ -812,7 +836,7 @@ impl ParserState<'_, '_> {
                     let s = unsafe { str::from_utf8_unchecked(&v) };
                     // TODO: check bigint suffix
                     let v = parse_integer::<8>(s);
-                    self.token_value = Some(TokenValue::Number { value: v as f64 });
+                    self.token_value = Some(TokenValue::Number { value: v });
                     Token::new(
                         TokenKind::Number,
                         Span::new(start as u32, self.pos as u32, self.module_id),
@@ -1475,7 +1499,7 @@ impl ParserState<'_, '_> {
         let id = AtomId::from_bytes(ident.as_ref());
         if len > 1 && len < 13 {
             let first = *unsafe { ident.get_unchecked(0) };
-            if first >= b'a' && first <= b'z' {
+            if first.is_ascii_lowercase() {
                 if let Some(kind) = atom_to_token(id) {
                     debug_assert!(self.atoms.lock().unwrap().contains(id));
                     let span = Span::new(start, self.pos as u32, self.module_id);
@@ -1568,7 +1592,7 @@ impl ParserState<'_, '_> {
             }
         }
         result.extend_from_slice(&self.input[start..self.pos]);
-        return result;
+        result
     }
 
     pub(super) fn scan_jsx_attr_value(&mut self) {

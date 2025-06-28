@@ -616,7 +616,7 @@ impl TokenKind {
             // Assert |
             // Any |
             Async |
-            // Await |
+            Await |
             // Boolean |
             Constructor |
             Declare |
@@ -740,17 +740,19 @@ pub enum BinPrec {
 bitflags::bitflags! {
     #[derive(Debug, Clone, Copy)]
     pub struct TokenFlags: u16 {
-        const PRECEDING_LINE_BREAK      = 1 << 0;
-        const UNTERMINATED              = 1 << 2;
-        const EXTENDED_UNICODE_ESCAPE   = 1 << 3;
-        const SCIENTIFIC                = 1 << 4;
-        const HEX_SPECIFIER             = 1 << 6;
-        const BINARY_SPECIFIER          = 1 << 7;
-        const OCTAL_SPECIFIER           = 1 << 8;
+        const PRECEDING_LINE_BREAK          = 1 << 0;
+        const UNTERMINATED                  = 1 << 2;
+        const EXTENDED_UNICODE_ESCAPE       = 1 << 3;
+        const SCIENTIFIC                    = 1 << 4;
+        const HEX_SPECIFIER                 = 1 << 6;
+        const BINARY_SPECIFIER              = 1 << 7;
+        const OCTAL_SPECIFIER               = 1 << 8;
         /// `123_456`
-        const CONTAINS_SEPARATOR        = 1 << 9;
-        const UNICODE_ESCAPE            = 1 << 10;
-        const CONTAINS_INVALID_ESCAPE   = 1 << 11;
-        const NUMERIC_LITERAL_FLAGS     = Self::CONTAINS_SEPARATOR.bits() | Self::PRECEDING_LINE_BREAK.bits();
+        const CONTAINS_SEPARATOR            = 1 << 9;
+        const UNICODE_ESCAPE                = 1 << 10;
+        const CONTAINS_INVALID_ESCAPE       = 1 << 11;
+        /// `0_1`
+        const CONTAINS_INVALID_SEPARATOR    = 1 << 14;
+        const NUMERIC_LITERAL_FLAGS         = Self::CONTAINS_SEPARATOR.bits() | Self::PRECEDING_LINE_BREAK.bits();
     }
 }

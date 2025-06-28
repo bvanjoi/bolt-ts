@@ -60,8 +60,8 @@ impl<'cx> TyChecker<'cx> {
             self.get_mut_node_links(expr.id()).set_resolved_sig(sig);
             sig
         };
-        let ty = self.get_ret_ty_of_sig(sig);
-        ty
+
+        (self.get_ret_ty_of_sig(sig)) as _
     }
 
     pub(super) fn get_ret_ty_of_sig(&mut self, sig: &'cx Sig<'cx>) -> &'cx ty::Ty<'cx> {
@@ -85,9 +85,9 @@ impl<'cx> TyChecker<'cx> {
         };
 
         if self.pop_ty_resolution().has_cycle() {
-            if let Some(node_id) = sig.node_id {
-                if let Some(ret_ty) = self.get_effective_ret_type_node(node_id) {}
-            }
+            if let Some(node_id) = sig.node_id
+                && let Some(ret_ty) = self.get_effective_ret_type_node(node_id)
+            {}
             ty = self.any_ty;
         }
         self.get_mut_sig_links(sig.id).set_resolved_ret_ty(ty);
@@ -124,15 +124,15 @@ impl<'cx> TyChecker<'cx> {
         let param_count = source.get_param_count(self);
         let min_arg_count = self.get_min_arg_count(source);
         let rest_ty = source.get_rest_ty(self);
-        if let Some(rest_ty) = rest_ty {
-            if pos >= param_count - 1 {
-                return if pos == param_count - 1 {
-                    rest_ty
-                } else {
-                    let ty = self.get_indexed_access_ty(rest_ty, self.number_ty, None, None);
-                    self.create_array_ty(ty, false)
-                };
-            }
+        if let Some(rest_ty) = rest_ty
+            && pos >= param_count - 1
+        {
+            return if pos == param_count - 1 {
+                rest_ty
+            } else {
+                let ty = self.get_indexed_access_ty(rest_ty, self.number_ty, None, None);
+                self.create_array_ty(ty, false)
+            };
         }
         let mut tys = Vec::with_capacity(param_count);
         let mut flags = Vec::with_capacity(param_count);
@@ -315,8 +315,8 @@ impl<'cx> TyChecker<'cx> {
         let mut min_arg_count = None;
         if sig.has_rest_param() {
             let rest_ty = self.get_type_of_symbol(sig.params[sig.params.len() - 1]);
-            if let Some(tuple) = rest_ty.as_tuple() {
-                let required_count = if let Some(first_optional_index) = tuple
+            if let Some(tuple) = rest_ty.as_tuple()
+                && let required_count = if let Some(first_optional_index) = tuple
                     .element_flags
                     .iter()
                     .position(|ele| !ele.intersects(ElementFlags::REQUIRED))
@@ -324,10 +324,10 @@ impl<'cx> TyChecker<'cx> {
                     first_optional_index
                 } else {
                     tuple.fixed_length
-                };
-                if required_count > 0 {
-                    min_arg_count = Some(sig.params.len() - 1 + required_count);
                 }
+                && required_count > 0
+            {
+                min_arg_count = Some(sig.params.len() - 1 + required_count);
             }
         }
         if min_arg_count.is_none() {
@@ -426,8 +426,8 @@ impl<'cx> TyChecker<'cx> {
         let Some(this_arg_node) = this_arg_node else {
             return self.void_ty;
         };
-        let this_arg_ty = self.check_expr(this_arg_node);
-        this_arg_ty
+
+        (self.check_expr(this_arg_node)) as _
     }
 
     fn get_signature_applicability_error(
@@ -439,17 +439,17 @@ impl<'cx> TyChecker<'cx> {
         report_error: bool,
         inference_context: Option<InferenceContextId>,
     ) -> bool {
-        if let Some(this_ty) = self.get_this_ty_of_sig(sig) {
-            if this_ty != self.void_ty {
-                let n = self.p.node(expr.id());
-                if !(n.is_new_expr() || n.as_call_expr().is_some_and(|e| e.expr.is_super_prop())) {
-                    let n = n.expect_call_expr();
-                    // TODO: get_this_argument_of_call;
-                    let this_arg_ty = self.get_this_arg_ty(Some(n.expr));
-                    let error_node = report_error.then(|| n.expr.id());
-                    if !self.check_type_related_to(this_arg_ty, this_ty, relation, error_node) {
-                        return true;
-                    }
+        if let Some(this_ty) = self.get_this_ty_of_sig(sig)
+            && this_ty != self.void_ty
+        {
+            let n = self.p.node(expr.id());
+            if !(n.is_new_expr() || n.as_call_expr().is_some_and(|e| e.expr.is_super_prop())) {
+                let n = n.expect_call_expr();
+                // TODO: get_this_argument_of_call;
+                let this_arg_ty = self.get_this_arg_ty(Some(n.expr));
+                let error_node = report_error.then(|| n.expr.id());
+                if !self.check_type_related_to(this_arg_ty, this_ty, relation, error_node) {
+                    return true;
                 }
             }
         }
@@ -716,11 +716,12 @@ impl<'cx> TyChecker<'cx> {
             );
         }
 
-        if let Some(cached) = self.get_node_links(expr.id()).get_resolved_sig() {
-            if cached != self.resolving_sig() {
-                return cached;
-            }
+        if let Some(cached) = self.get_node_links(expr.id()).get_resolved_sig()
+            && cached != self.resolving_sig()
+        {
+            return cached;
         }
+
         if let Some(result) = res {
             return result;
         }

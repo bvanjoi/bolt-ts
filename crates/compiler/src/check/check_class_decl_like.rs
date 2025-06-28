@@ -44,26 +44,22 @@ impl<'cx> TyChecker<'cx> {
                 .and_then(|name| self.get_symbol_at_loc(name))
                 .or_else(|| self.get_symbol_at_loc(member.kind.id()));
 
-            if let Some(declared_prop) = declared_prop {
-                let name = self.binder.symbol(declared_prop).name;
-                let prop = self.get_prop_of_ty(ty_with_this, name);
-                let base_prop = self.get_prop_of_ty(base_with_this, name);
-                if let Some(prop) = prop {
-                    if let Some(base_prop) = base_prop {
-                        let prop_ty = self.get_type_of_symbol(prop);
-                        let base_prop_ty = self.get_type_of_symbol(base_prop);
-                        if !self.check_type_assignable_to(prop_ty, base_prop_ty, member_name) {
-                            let span = self.p.node(member_name.unwrap()).span();
-                            let error = errors::TypeIsNotAssignableToType {
-                                span,
-                                ty1: self.print_ty(prop_ty).to_string(),
-                                ty2: self.print_ty(base_prop_ty).to_string(),
-                            };
-                            self.push_error(Box::new(error));
-                            issued_member_error = true;
-                        }
-                    }
-                }
+            if let Some(declared_prop) = declared_prop
+                && let name = self.binder.symbol(declared_prop).name
+                && let Some(prop) = self.get_prop_of_ty(ty_with_this, name)
+                && let Some(base_prop) = self.get_prop_of_ty(base_with_this, name)
+                && let prop_ty = self.get_type_of_symbol(prop)
+                && let base_prop_ty = self.get_type_of_symbol(base_prop)
+                && !self.check_type_assignable_to(prop_ty, base_prop_ty, member_name)
+            {
+                let span = self.p.node(member_name.unwrap()).span();
+                let error = errors::TypeIsNotAssignableToType {
+                    span,
+                    ty1: self.print_ty(prop_ty).to_string(),
+                    ty2: self.print_ty(base_prop_ty).to_string(),
+                };
+                self.push_error(Box::new(error));
+                issued_member_error = true;
             }
         }
 

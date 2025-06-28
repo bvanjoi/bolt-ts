@@ -1,5 +1,4 @@
 use bolt_ts_span::ModuleID;
-use bolt_ts_utils::paste;
 
 use super::{ExprKind, ModifierKind};
 
@@ -233,7 +232,7 @@ impl<'cx> Node<'cx> {
     pub fn as_ty(&self) -> Option<super::Ty<'cx>> {
         macro_rules! as_ty_node {
             ($( $ty:ident ),* $(,)?) => {
-                paste::paste! {
+                ::paste::paste! {
                     match self {
                         $(Node::[<$ty Ty>](n) => Some(super::Ty {
                             kind: super::TyKind::$ty(n)

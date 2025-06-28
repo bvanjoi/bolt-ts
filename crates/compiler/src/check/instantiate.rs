@@ -520,11 +520,11 @@ impl<'cx> TyChecker<'cx> {
             mapper: Some(mapper),
             links,
         });
-        let ty = self.create_object_ty(
+        
+        (self.create_object_ty(
             ty::ObjectTyKind::Mapped(ty),
             object_flags | ObjectFlags::MAPPED,
-        );
-        ty
+        )) as _
     }
 
     fn instantiate_reverse_mapped_ty(
@@ -1144,12 +1144,12 @@ impl<'cx> TyChecker<'cx> {
                 let dest = std::ptr::addr_of_mut!(result[i]);
                 let param = ty_params[i];
                 let ty = if let Some(default_ty) = self.get_default_ty_from_ty_param(param) {
-                    let ty = {
+                    
+                    {
                         let targets = unsafe { std::slice::from_raw_parts(result.as_ptr(), len) };
                         let mapper = self.create_ty_mapper(ty_params, targets);
                         self.instantiate_ty(default_ty, Some(mapper))
-                    };
-                    ty
+                    }
                 } else {
                     base_default_ty
                 };
@@ -1198,7 +1198,7 @@ impl<'cx> TyChecker<'cx> {
                 .set_default(resolving_default_type);
             let default_decl = self.ty_param_nodes(param).iter().find_map(|decl| {
                 let ty_param_node = self.p.node(*decl).expect_ty_param();
-                ty_param_node.default.map(|d| d)
+                ty_param_node.default
             });
             let default_ty = if let Some(default_decl) = default_decl {
                 self.get_ty_from_type_node(default_decl)

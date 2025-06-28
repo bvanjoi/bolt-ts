@@ -67,7 +67,7 @@ impl<'a> AtomMap<'a> {
     pub fn get(&self, atom: AtomId) -> &str {
         self.0
             .get(&atom)
-            .unwrap_or_else(|| panic!("atom not found: {:?}", atom))
+            .unwrap_or_else(|| panic!("atom not found: {atom:?}"))
     }
 
     pub fn eq_str(&self, atom: AtomId, s: &str) -> bool {
@@ -79,7 +79,6 @@ impl<'a> AtomMap<'a> {
 ///
 /// ```
 /// use bolt_ts_atom::{gen_atoms, AtomId};
-/// use bolt_ts_utils::paste;
 ///
 /// gen_atoms!(
 ///     ATOMS,
@@ -93,7 +92,7 @@ macro_rules! gen_atoms {
         pub const $owner: &[(&str, AtomId)] = &[$(($lit, $name),)*];
     };
     ($(($name:ident, $lit:literal)),* $(,)?) => {
-        paste::paste! {
+        ::paste::paste! {
             $(pub const [<$name _STR>]: &str = $lit;)*
             $(pub const $name: AtomId = AtomId::from_str([<$name _STR>]);)*
         }

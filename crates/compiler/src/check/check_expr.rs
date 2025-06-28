@@ -451,9 +451,9 @@ impl<'cx> TyChecker<'cx> {
     }
 
     pub(super) fn check_truthiness_expr(&mut self, expr: &'cx ast::Expr) -> &'cx ty::Ty<'cx> {
-        let ty = self.check_expr(expr);
+        
         // TODO: check truthiness of ty
-        ty
+        (self.check_expr(expr)) as _
     }
 
     fn check_this_expr(&mut self, expr: &'cx ast::ThisExpr) -> &'cx ty::Ty<'cx> {
@@ -819,15 +819,15 @@ impl<'cx> TyChecker<'cx> {
             assert!(prev.is_none());
         }
         let index_infos = self.get_index_infos_of_ty(ty);
-        let spread = self.create_anonymous_ty_with_resolved(
+        
+        (self.create_anonymous_ty_with_resolved(
             ty.symbol(),
             ObjectFlags::OBJECT_LITERAL | ObjectFlags::CONTAINS_OBJECT_OR_ARRAY_LITERAL,
             self.alloc(members),
             self.empty_array(),
             self.empty_array(),
             index_infos,
-        );
-        spread
+        )) as _
     }
 
     fn check_assign_expr(&mut self, assign: &'cx ast::AssignExpr<'cx>) -> &'cx ty::Ty<'cx> {
@@ -838,7 +838,16 @@ impl<'cx> TyChecker<'cx> {
         let l = self.check_expr(assign.left);
         let r = self.check_expr(assign.right);
         use bolt_ts_ast::AssignOp::*;
-        let ty = match assign.op {
+        
+        // if ty == self.any_ty() {
+        //     let error = errors::CannotAssignToNameBecauseItIsATy {
+        //         name: self.atoms.get(assign.binding.name).to_string(),
+        //         ty: l.kind.to_string(self.binder,self.atoms),
+        //         span: assign.span,
+        //     };
+        //     self.push_error(assign.span.module, Box::new(error));
+        // }
+        (match assign.op {
             Eq => unreachable!(),
             AddEq => self
                 .check_binary_like_expr_for_add(l, r)
@@ -858,16 +867,7 @@ impl<'cx> TyChecker<'cx> {
                 assign.right.span(),
                 assign.op.as_str(),
             ),
-        };
-        // if ty == self.any_ty() {
-        //     let error = errors::CannotAssignToNameBecauseItIsATy {
-        //         name: self.atoms.get(assign.binding.name).to_string(),
-        //         ty: l.kind.to_string(self.binder,self.atoms),
-        //         span: assign.span,
-        //     };
-        //     self.push_error(assign.span.module, Box::new(error));
-        // }
-        ty
+        }) as _
     }
 
     fn check_prefix_unary_expr(

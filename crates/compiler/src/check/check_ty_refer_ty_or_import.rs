@@ -340,29 +340,26 @@ impl<'cx> TyChecker<'cx> {
                 }
             } else if let Some(s) = ty.kind.as_string_mapping_ty() {
                 let constraint = get_base_constraint(checker, s.ty, stack);
-                if let Some(constraint) = constraint {
-                    if constraint != s.ty {
-                        return Some(checker.get_string_mapping_ty(s.symbol, constraint));
-                    }
+                if let Some(constraint) = constraint
+                    && constraint != s.ty
+                {
+                    return Some(checker.get_string_mapping_ty(s.symbol, constraint));
                 }
                 Some(checker.string_ty)
             } else if let Some(i) = ty.kind.as_indexed_access() {
                 // TODO: isMappedTypeGenericIndexedAccess
                 let base_object_ty = get_base_constraint(checker, i.object_ty, stack);
                 let base_index_ty = get_base_constraint(checker, i.index_ty, stack);
-                if let Some(base_object_ty) = base_object_ty {
-                    if let Some(base_index_ty) = base_index_ty {
-                        if let Some(base_indexed_access) = checker
-                            .get_indexed_access_ty_or_undefined(
-                                base_object_ty,
-                                base_index_ty,
-                                Some(i.access_flags),
-                                None,
-                            )
-                        {
-                            return get_base_constraint(checker, base_indexed_access, stack);
-                        }
-                    }
+                if let Some(base_object_ty) = base_object_ty
+                    && let Some(base_index_ty) = base_index_ty
+                    && let Some(base_indexed_access) = checker.get_indexed_access_ty_or_undefined(
+                        base_object_ty,
+                        base_index_ty,
+                        Some(i.access_flags),
+                        None,
+                    )
+                {
+                    return get_base_constraint(checker, base_indexed_access, stack);
                 }
                 None
             } else if ty.flags.intersects(TypeFlags::CONDITIONAL) {
@@ -401,23 +398,22 @@ impl<'cx> TyChecker<'cx> {
         assert_eq!(ty_params.len(), ty_args.len());
         let mapper = self.create_ty_mapper(ty_params, ty_args);
         for (idx, (ty_arg, ty_param)) in ty_args.iter().zip(ty_params.iter()).enumerate() {
-            if let Some(constraint) = self.get_constraint_of_ty_param(ty_param) {
-                if result {
-                    let target = self.instantiate_ty(constraint, Some(mapper));
-                    let error_node = node.ty_args().and_then(|ty_args| ty_args.list.get(idx));
-                    if !self.check_type_assignable_to(ty_arg, target, error_node.map(|n| n.id())) {
-                        if let Some(error_node) = error_node {
-                            let error = errors::TypeIsNotAssignableToType {
-                                ty1: self.print_ty(ty_arg).to_string(),
-                                ty2: self.print_ty(target).to_string(),
-                                span: error_node.span(),
-                            };
-                            self.push_error(Box::new(error));
-                        };
+            if let Some(constraint) = self.get_constraint_of_ty_param(ty_param)
+                && result
+                && let target = self.instantiate_ty(constraint, Some(mapper))
+                && let error_node = node.ty_args().and_then(|ty_args| ty_args.list.get(idx))
+                && !self.check_type_assignable_to(ty_arg, target, error_node.map(|n| n.id()))
+            {
+                if let Some(error_node) = error_node {
+                    let error = errors::TypeIsNotAssignableToType {
+                        ty1: self.print_ty(ty_arg).to_string(),
+                        ty2: self.print_ty(target).to_string(),
+                        span: error_node.span(),
+                    };
+                    self.push_error(Box::new(error));
+                };
 
-                        result = false;
-                    }
-                }
+                result = false;
             }
         }
         result

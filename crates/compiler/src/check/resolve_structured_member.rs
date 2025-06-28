@@ -184,15 +184,15 @@ impl<'cx> TyChecker<'cx> {
             this.instantiate_symbol(symbol, mapper)
         });
 
-        let sig = self.new_sig(ty::Sig {
+        
+        (self.new_sig(ty::Sig {
             target: Some(sig),
             mapper: Some(mapper),
             params,
             ty_params: fresh_ty_params,
             id: SigID::dummy(),
             ..*sig
-        });
-        sig
+        })) as _
     }
 
     fn report_circular_base_ty(
@@ -347,8 +347,8 @@ impl<'cx> TyChecker<'cx> {
         if base_ty == self.error_ty {
             return &[];
         }
-        let tys = self.alloc([base_ty]);
-        tys
+        
+        (self.alloc([base_ty])) as _
     }
 
     fn get_tuple_base_ty(&mut self, ty: &'cx ty::TupleTy<'cx>) -> &'cx ty::Ty<'cx> {
@@ -650,9 +650,9 @@ impl<'cx> TyChecker<'cx> {
             mapper: sig.mapper,
             class_decl: sig.class_decl,
         };
-        let next = self.new_sig(next);
+        
         // TODO: composite_kind and composite_signatures
-        next
+        (self.new_sig(next)) as _
     }
 
     fn get_default_construct_sigs(&mut self, ty: &'cx ty::Ty<'cx>) -> &'cx [&'cx ty::Sig<'cx>] {

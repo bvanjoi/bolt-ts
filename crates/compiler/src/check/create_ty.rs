@@ -111,11 +111,11 @@ impl<'cx> TyChecker<'cx> {
             node: Some(node),
             mapper,
         };
-        let ty = self.create_object_ty(
+
+        (self.create_object_ty(
             ty::ObjectTyKind::Reference(self.alloc(ty)),
             ObjectFlags::REFERENCE,
-        );
-        ty
+        )) as _
     }
 
     pub(super) fn create_normalized_tuple_ty(
@@ -127,14 +127,10 @@ impl<'cx> TyChecker<'cx> {
         if !target.combined_flags.intersects(ElementFlags::NON_REQUIRED) {
             return self.create_reference_ty(ty, Some(element_types), ObjectFlags::empty());
         } else if target.combined_flags.intersects(ElementFlags::VARIABLE)
-            && element_types
-                .iter()
-                .enumerate()
-                .position(|(i, t)| {
-                    target.element_flags[i].intersects(ElementFlags::VARIADIC)
-                        && t.flags.intersects(TypeFlags::NEVER.union(TypeFlags::UNION))
-                })
-                .is_some()
+            && element_types.iter().enumerate().any(|(i, t)| {
+                target.element_flags[i].intersects(ElementFlags::VARIADIC)
+                    && t.flags.intersects(TypeFlags::NEVER.union(TypeFlags::UNION))
+            })
         {
             // TODO:
         }
@@ -311,11 +307,11 @@ impl<'cx> TyChecker<'cx> {
             mapper: None,
             fresh_ty_links: links,
         });
-        let ty = self.create_object_ty(
+
+        (self.create_object_ty(
             ty::ObjectTyKind::Anonymous(ty),
             object_flags | ObjectFlags::ANONYMOUS,
-        );
-        ty
+        )) as _
     }
 
     pub(super) fn create_anonymous_ty_with_resolved(
@@ -358,19 +354,18 @@ impl<'cx> TyChecker<'cx> {
             mapper: Some(mapper),
             fresh_ty_links: links,
         });
-        let ty = self.create_object_ty(
+
+        (self.create_object_ty(
             ty::ObjectTyKind::Anonymous(ty),
             object_flags | ObjectFlags::ANONYMOUS,
-        );
-        ty
+        )) as _
     }
 
     pub(super) fn create_single_sig_ty(&mut self, ty: ty::SingleSigTy<'cx>) -> &'cx ty::Ty<'cx> {
-        let ty = self.create_object_ty(
+        (self.create_object_ty(
             ty::ObjectTyKind::SingleSigTy(self.alloc(ty)),
             ObjectFlags::empty(),
-        );
-        ty
+        )) as _
     }
 
     pub(super) fn clone_param_ty(&mut self, old: &'cx ty::Ty<'cx>) -> &'cx ty::Ty<'cx> {
@@ -1103,26 +1098,26 @@ impl<'cx> TyChecker<'cx> {
                     && !primitive_ty.is_generic_string_like()
                     || includes.intersects(TypeFlags::INCLUDES_EMPTY_OBJECT))
             {
-                if let Some(constraint) = self.get_base_constraint_of_ty(ty_var) {
-                    if self.every_type(constraint, |this, t| {
+                if let Some(constraint) = self.get_base_constraint_of_ty(ty_var)
+                    && self.every_type(constraint, |this, t| {
                         t.flags
                             .intersects(TypeFlags::PRIMITIVE | TypeFlags::NON_PRIMITIVE)
                             || this.is_empty_anonymous_object_ty(t)
-                    }) {
-                        if self.is_ty_strict_sub_type_of(constraint, primitive_ty) {
-                            return ty_var;
-                        }
-                        if !(constraint.kind.is_union()
-                            && self.every_type(constraint, |this, c| {
-                                this.is_ty_strict_sub_type_of(c, primitive_ty)
-                            }))
-                            && !self.is_ty_strict_sub_type_of(primitive_ty, constraint)
-                        {
-                            return self.never_ty;
-                        }
-
-                        object_flags |= ObjectFlags::IS_CONSTRAINED_TYPE_VARIABLE;
+                    })
+                {
+                    if self.is_ty_strict_sub_type_of(constraint, primitive_ty) {
+                        return ty_var;
                     }
+                    if !(constraint.kind.is_union()
+                        && self.every_type(constraint, |this, c| {
+                            this.is_ty_strict_sub_type_of(c, primitive_ty)
+                        }))
+                        && !self.is_ty_strict_sub_type_of(primitive_ty, constraint)
+                    {
+                        return self.never_ty;
+                    }
+
+                    object_flags |= ObjectFlags::IS_CONSTRAINED_TYPE_VARIABLE;
                 }
             }
         }
@@ -1620,7 +1615,8 @@ impl<'cx> TyChecker<'cx> {
                 }
             })
             .unwrap();
-        let spread = self.create_anonymous_ty_with_resolved(
+
+        (self.create_anonymous_ty_with_resolved(
             symbol,
             ObjectFlags::OBJECT_LITERAL
                 | ObjectFlags::CONTAINS_OBJECT_OR_ARRAY_LITERAL
@@ -1630,8 +1626,7 @@ impl<'cx> TyChecker<'cx> {
             self.empty_array(),
             self.empty_array(),
             index_infos,
-        );
-        spread
+        )) as _
     }
 
     pub fn create_iteration_tys(

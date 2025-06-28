@@ -349,10 +349,10 @@ impl<'cx> TyChecker<'cx> {
                 None
             };
             let pred = sig.and_then(|sig| self.get_ty_predicate_of_sig(sig));
-            if let Some(pred) = pred {
-                if matches!(pred.kind, TyPredKind::Ident(_) | TyPredKind::This(_)) {
-                    return self.narrow_ty_by_ty_pred(ty, refer, pred, call_expr, assume_true);
-                }
+            if let Some(pred) = pred
+                && matches!(pred.kind, TyPredKind::Ident(_) | TyPredKind::This(_))
+            {
+                return self.narrow_ty_by_ty_pred(ty, refer, pred, call_expr, assume_true);
             }
         }
         // TODO: contains_missing_ty
@@ -394,10 +394,10 @@ impl<'cx> TyChecker<'cx> {
             {
                 return ty;
             }
-            if let Some(pred_arg) = self.get_ty_pred_arg(pred, expr) {
-                if self.is_matching_reference(refer, pred_arg.id()) {
-                    return self.get_narrowed_ty(ty, pred_ty, assume_true, false);
-                }
+            if let Some(pred_arg) = self.get_ty_pred_arg(pred, expr)
+                && self.is_matching_reference(refer, pred_arg.id())
+            {
+                return self.get_narrowed_ty(ty, pred_ty, assume_true, false);
             }
         }
 

@@ -19,16 +19,15 @@ use crate::ty::{
 
 impl<'cx> TyChecker<'cx> {
     pub(super) fn get_non_missing_type_of_symbol(&mut self, id: SymbolID) -> &'cx Ty<'cx> {
-        let ty = self.get_type_of_symbol(id);
         // TODO: resolving missing.
-        ty
+        (self.get_type_of_symbol(id)) as _
     }
 
     pub(crate) fn get_type_of_symbol(&mut self, id: SymbolID) -> &'cx Ty<'cx> {
-        if self.get_transient(id).is_some() {
-            if let Some(ty) = self.transient_symbol_links[id.index_as_usize()].get_ty() {
-                return ty;
-            }
+        if self.get_transient(id).is_some()
+            && let Some(ty) = self.transient_symbol_links[id.index_as_usize()].get_ty()
+        {
+            return ty;
         };
 
         let check_flags = self.get_check_flags(id);
@@ -45,7 +44,7 @@ impl<'cx> TyChecker<'cx> {
         let flags = self.symbol(id).flags;
         assert!(!flags.intersects(SymbolFlags::OBJECT_LITERAL));
 
-        let ty = if flags.intersects(SymbolFlags::VARIABLE.union(SymbolFlags::PROPERTY)) {
+        (if flags.intersects(SymbolFlags::VARIABLE.union(SymbolFlags::PROPERTY)) {
             self.get_ty_of_var_or_param_or_prop(id)
         } else if flags.intersects(
             SymbolFlags::FUNCTION
@@ -61,9 +60,7 @@ impl<'cx> TyChecker<'cx> {
             self.get_ty_of_alias(id)
         } else {
             self.error_ty
-        };
-
-        ty
+        }) as _
     }
 
     fn get_ty_of_alias(&mut self, symbol: SymbolID) -> &'cx ty::Ty<'cx> {
@@ -519,10 +516,10 @@ impl<'cx> TyChecker<'cx> {
         check_ty: &'cx ast::Ty<'cx>,
         extends_ty: &'cx ast::Ty<'cx>,
     ) -> Option<&'cx Ty<'cx>> {
-        if let Some(check_ty) = check_ty.as_unary_tuple_ty() {
-            if let Some(extends_ty) = extends_ty.as_unary_tuple_ty() {
-                return self.get_implied_constraint(ty, check_ty, extends_ty);
-            }
+        if let Some(check_ty) = check_ty.as_unary_tuple_ty()
+            && let Some(extends_ty) = extends_ty.as_unary_tuple_ty()
+        {
+            return self.get_implied_constraint(ty, check_ty, extends_ty);
         }
         let ty_of_check_ty = self.get_ty_from_type_node(check_ty);
         if self.get_actual_ty_variable(ty_of_check_ty) == ty {
@@ -548,14 +545,12 @@ impl<'cx> TyChecker<'cx> {
                 covariant = !covariant;
             }
             if covariant || ty.flags.intersects(TypeFlags::TYPE_VARIABLE) {
-                if let Some(cond) = parent_node.as_cond_ty() {
-                    if cond.true_ty.id() == node {
-                        if let Some(constraint) =
-                            self.get_implied_constraint(ty, cond.check_ty, cond.extends_ty)
-                        {
-                            constraints.push(constraint);
-                        }
-                    }
+                if let Some(cond) = parent_node.as_cond_ty()
+                    && cond.true_ty.id() == node
+                    && let Some(constraint) =
+                        self.get_implied_constraint(ty, cond.check_ty, cond.extends_ty)
+                {
+                    constraints.push(constraint);
                 }
             } else if ty.flags.intersects(TypeFlags::TYPE_PARAMETER) {
                 // TODO: mapped_ty
@@ -774,13 +769,13 @@ impl<'cx> TyChecker<'cx> {
                 let Some(rest_ty) = this.get_rest_ty_of_tuple_ty(t) else {
                     return Some(this.undefined_ty);
                 };
-                if let Some(undefined_or_missing_ty) = undefined_or_missing_ty {
-                    if index >= this.get_total_fixed_elem_count(t) {
-                        return Some(this.get_union_ty(
-                            &[rest_ty, undefined_or_missing_ty],
-                            ty::UnionReduction::Lit,
-                        ));
-                    }
+                if let Some(undefined_or_missing_ty) = undefined_or_missing_ty
+                    && index >= this.get_total_fixed_elem_count(t)
+                {
+                    return Some(this.get_union_ty(
+                        &[rest_ty, undefined_or_missing_ty],
+                        ty::UnionReduction::Lit,
+                    ));
                 }
 
                 Some(rest_ty)
@@ -812,14 +807,13 @@ impl<'cx> TyChecker<'cx> {
                 unreachable!()
             };
             let n = bolt_ts_ast::Expr::skip_parens(expr);
-            if let ast::ExprKind::Ident(n) = n.kind {
-                let symbol = self.node_links[&n.id].expect_resolved_symbol();
-                let flags = self.symbol(symbol).flags;
-                if flags.intersects(SymbolFlags::ALIAS) {
-                    return self
-                        .get_symbol_decl(symbol)
-                        .is_some_and(|symbol| self.p.node(symbol).is_ns_import());
-                }
+            if let ast::ExprKind::Ident(n) = n.kind
+                && let symbol = self.node_links[&n.id].expect_resolved_symbol()
+                && self.symbol(symbol).flags.intersects(SymbolFlags::ALIAS)
+            {
+                return self
+                    .get_symbol_decl(symbol)
+                    .is_some_and(|symbol| self.p.node(symbol).is_ns_import());
             }
         }
         false
@@ -838,17 +832,16 @@ impl<'cx> TyChecker<'cx> {
         let prop: Option<SymbolID> =
             symbol_name.and_then(|symbol_name| self.get_prop_of_ty(object_ty, symbol_name));
         if let Some(prop) = prop {
-            if let Some(access_expr) = access_expr {
-                let assignment_target_kind = self.p.get_assignment_kind(access_expr);
-                if self.is_assignment_to_readonly_entity(access_expr, prop, assignment_target_kind)
-                {
-                    let error = errors::CannotAssignTo0BecauseItIsAReadOnlyProperty {
-                        span: self.p.node(access_expr).span(),
-                        prop: self.symbol(prop).name.to_string(self.atoms),
-                    };
-                    self.push_error(Box::new(error));
-                    return None;
-                }
+            if let Some(access_expr) = access_expr
+                && let assignment_target_kind = self.p.get_assignment_kind(access_expr)
+                && self.is_assignment_to_readonly_entity(access_expr, prop, assignment_target_kind)
+            {
+                let error = errors::CannotAssignTo0BecauseItIsAReadOnlyProperty {
+                    span: self.p.node(access_expr).span(),
+                    prop: self.symbol(prop).name.to_string(self.atoms),
+                };
+                self.push_error(Box::new(error));
+                return None;
             }
             let prop_ty = if access_flags.intersects(AccessFlags::WRITING) {
                 self.get_write_type_of_symbol(prop)
@@ -858,22 +851,21 @@ impl<'cx> TyChecker<'cx> {
             return Some(prop_ty);
         }
 
-        if self.every_type(object_ty, |_, t| t.is_tuple()) {
-            if let Some(SymbolName::EleNum(num)) = symbol_name {
-                let num = num.val();
-                if num >= 0. {
-                    // TODO: num is not integer
-                    return Some(
-                        self.get_tuple_elem_ty_out_of_start_count(
-                            object_ty,
-                            num as usize,
-                            access_flags
-                                .intersects(AccessFlags::INCLUDE_UNDEFINED)
-                                .then_some(self.missing_ty),
-                        ),
-                    );
-                }
-            }
+        if self.every_type(object_ty, |_, t| t.is_tuple())
+            && let Some(SymbolName::EleNum(num)) = symbol_name
+            && let num = num.val()
+            && num >= 0.
+        {
+            // TODO: num is not integer
+            return Some(
+                self.get_tuple_elem_ty_out_of_start_count(
+                    object_ty,
+                    num as usize,
+                    access_flags
+                        .intersects(AccessFlags::INCLUDE_UNDEFINED)
+                        .then_some(self.missing_ty),
+                ),
+            );
         }
 
         if !index_ty.flags.intersects(TypeFlags::NULLABLE)
@@ -1786,10 +1778,10 @@ impl<'cx> TyChecker<'cx> {
                 .binder
                 .symbol(symbol)
                 .get_declaration_of_kind(|id| self.p.node(id).is_setter_decl());
-            if let Some(setter) = setter {
-                if let Some(ty) = self.get_annotated_accessor_ty(setter) {
-                    return Some(ty);
-                }
+            if let Some(setter) = setter
+                && let Some(ty) = self.get_annotated_accessor_ty(setter)
+            {
+                return Some(ty);
             }
         }
 
@@ -1834,28 +1826,28 @@ impl<'cx> TyChecker<'cx> {
             todo!("is_generator")
         };
 
-        if let Some(ret_t) = ret_ty {
-            if ret_t.is_unit() {
-                let contextual_sig = self.get_contextual_sig_for_fn_like_decl(id);
-                let contextual_ty = contextual_sig.and_then(|sig| {
-                    if sig == self.get_sig_from_decl(id) {
-                        // TODO: is_generator
-                        Some(ret_t)
-                    } else {
-                        let ret_t = self.get_ret_ty_of_sig(sig);
-                        self.instantiate_contextual_ty(Some(ret_t), id, None)
-                    }
-                });
-                ret_ty = self.get_widened_lit_like_ty_for_contextual_ty_if_needed(
-                    Some(ret_t),
-                    contextual_ty,
-                    false,
-                );
-            }
+        if let Some(ret_t) = ret_ty
+            && ret_t.is_unit()
+        {
+            let contextual_sig = self.get_contextual_sig_for_fn_like_decl(id);
+            let contextual_ty = contextual_sig.and_then(|sig| {
+                if sig == self.get_sig_from_decl(id) {
+                    // TODO: is_generator
+                    Some(ret_t)
+                } else {
+                    let ret_t = self.get_ret_ty_of_sig(sig);
+                    self.instantiate_contextual_ty(Some(ret_t), id, None)
+                }
+            });
+            ret_ty = self.get_widened_lit_like_ty_for_contextual_ty_if_needed(
+                Some(ret_t),
+                contextual_ty,
+                false,
+            );
+        }
 
-            if let Some(ret_t) = ret_ty {
-                ret_ty = Some(self.get_widened_ty(ret_t));
-            }
+        if let Some(ret_t) = ret_ty {
+            ret_ty = Some(self.get_widened_ty(ret_t));
         }
 
         ret_ty.unwrap_or(fallback_ret_ty)

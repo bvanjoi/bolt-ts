@@ -73,7 +73,7 @@ fn get_filenames_from_config_specs(
     let supported_extensions = &bolt_ts_config::FLATTENED_ALL_SUPPORTED_EXTENSIONS;
     let exclude = COMMON_PACKAGE_FOLDERS
         .iter()
-        .map(|s| format!("**/{}/**/*", s))
+        .map(|s| format!("**/{s}/**/*"))
         .collect::<Vec<_>>();
 
     match_files(

@@ -17,10 +17,9 @@ use bolt_ts_ast as ast;
 
 impl<'cx> TyChecker<'cx> {
     pub(super) fn get_declared_ty_of_symbol(&mut self, symbol: SymbolID) -> &'cx ty::Ty<'cx> {
-        let ty = self
+        (self
             .try_get_declared_ty_of_symbol(symbol)
-            .unwrap_or(self.error_ty);
-        ty
+            .unwrap_or(self.error_ty)) as _
     }
 
     pub(super) fn try_get_declared_ty_of_symbol(
@@ -100,7 +99,7 @@ impl<'cx> TyChecker<'cx> {
         for ty_param in ty_params {
             let symbol = self.get_symbol_of_decl(ty_param.id);
             let value = self.get_declared_ty_of_ty_param(symbol);
-            assert!(value.kind.is_param(), "value: {:#?}", value);
+            assert!(value.kind.is_param(), "value: {value:#?}");
             append_if_unique(res, value);
         }
     }
@@ -361,15 +360,15 @@ impl<'cx> TyChecker<'cx> {
                         let symbol = self.get_symbol_of_decl(id);
                         let ty = self.get_type_of_symbol(symbol);
                         let sigs = self.get_signatures_of_type(ty, ty::SigKind::Call);
-                        if let Some(sigs) = sigs.first() {
-                            if let Some(ty_params) = sigs.ty_params {
-                                return if let Some(mut outer_ty_params) = outer_ty_params {
-                                    outer_ty_params.extend(ty_params);
-                                    Some(outer_ty_params)
-                                } else {
-                                    Some(ty_params.to_vec())
-                                };
-                            }
+                        if let Some(sigs) = sigs.first()
+                            && let Some(ty_params) = sigs.ty_params
+                        {
+                            return if let Some(mut outer_ty_params) = outer_ty_params {
+                                outer_ty_params.extend(ty_params);
+                                Some(outer_ty_params)
+                            } else {
+                                Some(ty_params.to_vec())
+                            };
                         }
                     }
 

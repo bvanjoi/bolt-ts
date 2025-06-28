@@ -59,7 +59,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
                 let mut children = self.parse_jsx_children(Some(opening.tag_name));
                 let mut closing_ele = None;
 
-                let mut late_child = children.last();
+                let late_child = children.last();
                 let mut else_then = true;
                 if let Some(end) = late_child {
                     if let bolt_ts_ast::JsxChild::Ele(end_ele) = end {

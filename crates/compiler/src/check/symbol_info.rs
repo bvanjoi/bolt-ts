@@ -176,7 +176,7 @@ impl<'cx> super::TyChecker<'cx> {
         self.get_mut_symbol_links(symbol)
             .set_alias_target(Symbol::RESOLVING);
         let s = symbol_of_resolve_results(self.get_resolve_results(), symbol);
-        assert!(s.flags.intersects(SymbolFlags::ALIAS), "symbol: {:#?}", s);
+        assert!(s.flags.intersects(SymbolFlags::ALIAS), "symbol: {s:#?}");
         let node = s.get_decl_of_alias_symbol(self.p()).unwrap_or_else(|| {
             let decls = s
                 .decls
@@ -185,7 +185,7 @@ impl<'cx> super::TyChecker<'cx> {
                 .iter()
                 .map(|d| self.p().node(*d))
                 .collect::<Vec<_>>();
-            panic!("spans of decls: {:#?}", decls);
+            panic!("spans of decls: {decls:#?}");
         });
         let target = self.get_target_of_alias_decl(node, false);
         if self
@@ -1052,7 +1052,9 @@ fn get_target_of_export_spec(
         }
     }
 
-    let resolved = match n {
+    
+
+    match n {
         bolt_ts_ast::Node::ShorthandSpec(n) => {
             let p_id = this.p().parent(node).unwrap();
             let p = this.p().node(p_id).expect_specs_export();
@@ -1082,9 +1084,7 @@ fn get_target_of_export_spec(
             bolt_ts_ast::ModuleExportNameKind::StringLit(_) => todo!(),
         },
         _ => unreachable!(),
-    };
-
-    resolved
+    }
 }
 
 fn get_target_of_export_assignment<'cx>(

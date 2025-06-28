@@ -88,6 +88,7 @@ dependencies = [
  "bolt_ts_utils",
  "enumflags2",
  "nohash-hasher",
+ "paste",
 ]
 
 [[package]]
@@ -96,6 +97,7 @@ version = "0.1.0"
 dependencies = [
  "bolt_ts_utils",
  "nohash-hasher",
+ "paste",
  "rustc-hash",
  "xxhash-rust",
 ]
@@ -237,7 +239,6 @@ name = "bolt_ts_utils"
 version = "0.1.0"
 dependencies = [
  "nohash-hasher",
- "paste",
  "rustc-hash",
 ]
 

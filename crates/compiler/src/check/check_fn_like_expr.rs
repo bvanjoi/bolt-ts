@@ -42,13 +42,11 @@ impl<'cx> TyChecker<'cx> {
                         let instantiated_contextual_sig =
                             if let Some(sig) = instantiated_contextual_sig {
                                 sig
-                            } else if let Some(inference) = inference {
-                                if let Some(i) = inference.inference {
-                                    let mapper = self.inference(i).mapper;
-                                    self.instantiate_sig(contextual_sig, mapper, false)
-                                } else {
-                                    contextual_sig
-                                }
+                            } else if let Some(inference) = inference
+                                && let Some(i) = inference.inference
+                            {
+                                let mapper = self.inference(i).mapper;
+                                self.instantiate_sig(contextual_sig, mapper, false)
                             } else {
                                 contextual_sig
                             };
@@ -74,10 +72,11 @@ impl<'cx> TyChecker<'cx> {
         id: ast::NodeID,
     ) -> &'cx ty::Ty<'cx> {
         self.check_node_deferred(id);
-        if let Some(mode) = self.check_mode {
-            if mode.intersects(CheckMode::SKIP_CONTEXT_SENSITIVE) && self.is_context_sensitive(id) {
-                return self.any_fn_ty();
-            }
+        if let Some(mode) = self.check_mode
+            && mode.intersects(CheckMode::SKIP_CONTEXT_SENSITIVE)
+            && self.is_context_sensitive(id)
+        {
+            return self.any_fn_ty();
         }
 
         self.contextually_check_fn_expr_or_object_method_member(id);

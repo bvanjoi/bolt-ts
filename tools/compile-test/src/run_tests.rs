@@ -136,17 +136,17 @@ impl TestCx<'_> {
                 not_found.len()
             ));
             if !unexpected.is_empty() {
-                println!("unexpected errors (from JSON output): {:#?}\n", unexpected);
+                println!("unexpected errors (from JSON output): {unexpected:#?}\n");
             }
             if !not_found.is_empty() {
-                println!("not found errors (from test file): {:#?}\n", not_found);
+                println!("not found errors (from test file): {not_found:#?}\n");
             }
             panic!("test failed for {}", self.test_file.display());
         }
     }
 
     fn error(&self, err: &str) {
-        println!("\nerror: {}", err)
+        println!("\nerror: {err}")
     }
 
     fn is_unexpected_compiler_message(
