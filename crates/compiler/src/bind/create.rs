@@ -9,7 +9,7 @@ pub(crate) fn set_value_declaration(
     symbol: SymbolID,
     symbols: &mut Symbols,
     node: ast::NodeID,
-    p: &Vec<ParseResult>,
+    p: &[ParseResult],
 ) {
     let s = symbols.get_mut(symbol);
     // TODO: ambient declaration

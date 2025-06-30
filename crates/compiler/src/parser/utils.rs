@@ -318,7 +318,7 @@ impl<'cx> ParserState<'cx, '_> {
         missing_ident_kind: Option<errors::MissingIdentKind>,
     ) -> &'cx ast::Expr<'cx> {
         let kind = self.create_ident(self.token.kind.is_ident(), missing_ident_kind);
-        
+
         (self.alloc(ast::Expr {
             kind: ast::ExprKind::Ident(kind),
         })) as _

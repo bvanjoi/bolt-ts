@@ -13,7 +13,6 @@ impl<'cx> TyChecker<'cx> {
         &self,
         id: ast::NodeID,
     ) -> Option<&'cx ast::ClassExtendsClause<'cx>> {
-        
         match self.p.node(id) {
             ast::Node::ClassDecl(c) => c.extends,
             ast::Node::ClassExpr(c) => c.extends,

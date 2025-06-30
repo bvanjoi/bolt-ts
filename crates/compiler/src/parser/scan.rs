@@ -401,8 +401,8 @@ impl ParserState<'_, '_> {
         if self.pos + s.len() > self.end() {
             return false;
         }
-        for i in 0..s.len() {
-            if !s[i].eq(unsafe { self.input.get_unchecked(self.pos + i) }) {
+        for (i, c) in s.iter().enumerate() {
+            if c != unsafe { self.input.get_unchecked(self.pos + i) } {
                 return false;
             }
         }

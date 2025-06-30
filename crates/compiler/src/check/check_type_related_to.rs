@@ -1,4 +1,3 @@
-use bolt_ts_errors::miette::SourceCode;
 use rustc_hash::FxHashSet;
 
 use bolt_ts_ast as ast;

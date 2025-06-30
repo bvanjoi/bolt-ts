@@ -715,11 +715,11 @@ impl<'cx> TyChecker<'cx> {
             };
             if arity > 0 {
                 let mut _ty_params = Vec::with_capacity(arity);
-                for i in 0..arity {
+                debug_assert_eq!(arity, element_flags.len());
+                for (i, flag) in element_flags.iter().enumerate() {
                     let ty_param = this.create_param_ty(Symbol::ERR, Some(i), false);
                     _ty_params.push(ty_param);
-                    let flag = element_flags[i];
-                    combined_flags |= flag;
+                    combined_flags |= *flag;
                     if !combined_flags.intersects(ElementFlags::VARIABLE) {
                         let name = SymbolName::EleNum(i.into());
                         let symbol_flags = SymbolFlags::PROPERTY.union(SymbolFlags::TRANSIENT)
@@ -1094,31 +1094,29 @@ impl<'cx> TyChecker<'cx> {
             if ty_var.flags.intersects(TypeFlags::TYPE_VARIABLE)
                 && (primitive_ty
                     .flags
-                    .intersects(TypeFlags::PRIMITIVE | TypeFlags::NON_PRIMITIVE)
+                    .intersects(TypeFlags::PRIMITIVE.union(TypeFlags::NON_PRIMITIVE))
                     && !primitive_ty.is_generic_string_like()
                     || includes.intersects(TypeFlags::INCLUDES_EMPTY_OBJECT))
+                && let Some(constraint) = self.get_base_constraint_of_ty(ty_var)
+                && self.every_type(constraint, |this, t| {
+                    t.flags
+                        .intersects(TypeFlags::PRIMITIVE.union(TypeFlags::NON_PRIMITIVE))
+                        || this.is_empty_anonymous_object_ty(t)
+                })
             {
-                if let Some(constraint) = self.get_base_constraint_of_ty(ty_var)
-                    && self.every_type(constraint, |this, t| {
-                        t.flags
-                            .intersects(TypeFlags::PRIMITIVE | TypeFlags::NON_PRIMITIVE)
-                            || this.is_empty_anonymous_object_ty(t)
-                    })
-                {
-                    if self.is_ty_strict_sub_type_of(constraint, primitive_ty) {
-                        return ty_var;
-                    }
-                    if !(constraint.kind.is_union()
-                        && self.every_type(constraint, |this, c| {
-                            this.is_ty_strict_sub_type_of(c, primitive_ty)
-                        }))
-                        && !self.is_ty_strict_sub_type_of(primitive_ty, constraint)
-                    {
-                        return self.never_ty;
-                    }
-
-                    object_flags |= ObjectFlags::IS_CONSTRAINED_TYPE_VARIABLE;
+                if self.is_ty_strict_sub_type_of(constraint, primitive_ty) {
+                    return ty_var;
                 }
+                if !constraint.kind.as_union().is_some_and(|u| {
+                    u.tys
+                        .iter()
+                        .all(|c| self.is_ty_strict_sub_type_of(c, primitive_ty))
+                }) && !self.is_ty_strict_sub_type_of(primitive_ty, constraint)
+                {
+                    return self.never_ty;
+                }
+
+                object_flags = ObjectFlags::IS_CONSTRAINED_TYPE_VARIABLE;
             }
         }
 
