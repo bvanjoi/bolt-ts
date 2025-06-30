@@ -13,6 +13,7 @@ use bolt_ts_ast::keyword;
 use bolt_ts_atom::AtomId;
 use bolt_ts_span::Span;
 
+use crate::bind::create::DeclareSymbolProperty;
 use crate::ir;
 use crate::parser::is_left_hand_side_expr_kind;
 
@@ -104,8 +105,7 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
                     ty_param.id,
                     SymbolFlags::TYPE_PARAMETER,
                     SymbolFlags::TYPE_ALIAS_EXCLUDES,
-                    false,
-                    false,
+                    DeclareSymbolProperty::empty(),
                 )
             } else {
                 self.bind_anonymous_decl(ty_param.id, SymbolFlags::TYPE_PARAMETER, name)
@@ -394,8 +394,7 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
                 n.id,
                 includes,
                 SymbolFlags::PROPERTY_EXCLUDES,
-                false,
-                false,
+                DeclareSymbolProperty::empty(),
             );
         }
     }
@@ -702,19 +701,22 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
             SymbolFlags::PROPERTY
         };
         let loc = SymbolTableLocation::exports(container);
+        let (name, prop) = if node.is_export_equals {
+            (SymbolName::ExportEquals, DeclareSymbolProperty::empty())
+        } else {
+            (
+                SymbolName::ExportDefault,
+                DeclareSymbolProperty::IS_DEFAULT_EXPORT,
+            )
+        };
         let symbol = self.declare_symbol(
-            Some(if node.is_export_equals {
-                SymbolName::ExportEquals
-            } else {
-                SymbolName::ExportDefault
-            }),
+            Some(name),
             loc,
             None,
             node.id,
             flags,
             SymbolFlags::all(),
-            false,
-            false,
+            prop,
         );
         self.create_final_res(node.id, symbol);
         if node.is_export_equals {
@@ -760,8 +762,7 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
                     node.id,
                     SymbolFlags::EXPORT_STAR,
                     SymbolFlags::empty(),
-                    false,
-                    false,
+                    DeclareSymbolProperty::empty(),
                 );
                 self.create_final_res(node.id, symbol);
             }
