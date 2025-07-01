@@ -51,7 +51,7 @@ fn run_test(entry: &std::path::Path, try_run_node: bool) {
         let output = eval_from(cwd, &tsconfig);
         let output_dir = dir.join(DEFAULT_OUTPUT);
         if !output_dir.exists() {
-            std::fs::create_dir_all(&output_dir).unwrap();
+            std::fs::create_dir(&output_dir).unwrap();
         }
         let output_files = output_files(
             &output.root,
@@ -70,9 +70,10 @@ fn run_test(entry: &std::path::Path, try_run_node: bool) {
                 }
 
                 if p.ends_with("index.js") {
-                    let p = compile_test::temp_node_file(p.file_stem().unwrap().to_str().unwrap());
-                    std::fs::write(p.as_path(), contents).unwrap();
-                    index_file_path = Some(p);
+                    let temp_node_file =
+                        compile_test::temp_node_file(p.file_stem().unwrap().to_str().unwrap());
+                    std::fs::write(temp_node_file.as_path(), contents).unwrap();
+                    index_file_path = Some(temp_node_file);
                 }
 
                 expect_test::expect_file![p].assert_eq(contents);
