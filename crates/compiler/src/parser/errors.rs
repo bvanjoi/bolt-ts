@@ -212,6 +212,13 @@ pub(super) struct AContinueStatementCanOnlyBeUsedWithinAnEnclosingIterationState
 }
 
 #[derive(Error, Diagnostic, DiagnosticExt, Debug)]
+#[error("A 'break' statement can only be used within an enclosing iteration or switch statement.")]
+pub(super) struct ABreakStatementCanOnlyBeUsedWithinAnEnclosingIterationOrSwitchStatement {
+    #[label(primary)]
+    pub(super) span: Span,
+}
+
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
 #[error("An interface property cannot have an initializer.")]
 pub(super) struct AnInterfacePropertyCannotHaveAnInitializer {
     #[label(primary)]

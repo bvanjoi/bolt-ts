@@ -2,4 +2,5 @@
 
 while (true) {
   break;
+  continue;
 }
