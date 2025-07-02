@@ -311,7 +311,7 @@ impl<'cx> TyChecker<'cx> {
         }
         let uplevel_iteration = *self.config.target() >= Target::ES2015;
         let downlevel_iteration = false; // !uplevel_iteration && false;
-        let possible_out_of_bounds = *self.config.no_unchecked_indexed_access()
+        let possible_out_of_bounds = self.config.no_unchecked_indexed_access()
             && mode.intersects(IterationUse::POSSIBLY_OUT_OF_BOUNDS);
         if uplevel_iteration || downlevel_iteration || allow_async_iterables {
             let iteration_tys = self.get_iteration_tys_of_iter(

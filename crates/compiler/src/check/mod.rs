@@ -380,12 +380,12 @@ impl<'cx> TyChecker<'cx> {
             (unreachable_never_ty,  keyword::IDENT_NEVER,   TypeFlags::NEVER,           ObjectFlags::NON_INFERRABLE_TYPE),
         });
 
-        let undefined_or_missing_ty = if *config.exact_optional_property_types() {
+        let undefined_or_missing_ty = if config.exact_optional_property_types() {
             missing_ty
         } else {
             undefined_ty
         };
-        let undefined_widening_ty = if *config.strict_null_checks() {
+        let undefined_widening_ty = if config.strict_null_checks() {
             undefined_ty
         } else {
             let ty = ty::IntrinsicTy {
@@ -402,7 +402,7 @@ impl<'cx> TyChecker<'cx> {
             )
         };
 
-        let null_widening_ty = if *config.strict_null_checks() {
+        let null_widening_ty = if config.strict_null_checks() {
             null_ty
         } else {
             let ty = ty::IntrinsicTy {
@@ -808,7 +808,7 @@ impl<'cx> TyChecker<'cx> {
             self.empty_object_ty()
         } else if flags.intersects(TypeFlags::INDEX) {
             self.string_number_symbol_ty()
-        } else if flags.intersects(TypeFlags::UNKNOWN) && !*self.config.strict_null_checks() {
+        } else if flags.intersects(TypeFlags::UNKNOWN) && !self.config.strict_null_checks() {
             self.empty_object_ty()
         } else {
             t
@@ -1672,7 +1672,7 @@ impl<'cx> TyChecker<'cx> {
             self.create_array_literal_ty(tuple_ty)
         } else {
             let ty = if element_types.is_empty() {
-                if *self.config.strict_null_checks() {
+                if self.config.strict_null_checks() {
                     self.implicit_never_ty
                 } else {
                     self.undefined_widening_ty
@@ -2534,7 +2534,7 @@ impl<'cx> TyChecker<'cx> {
     }
 
     fn get_non_nullable_ty(&mut self, ty: &'cx ty::Ty<'cx>) -> &'cx ty::Ty<'cx> {
-        if *self.config.strict_null_checks() {
+        if self.config.strict_null_checks() {
             // TODO:
             ty
         } else {
@@ -2945,7 +2945,7 @@ impl<'cx> TyChecker<'cx> {
     }
 
     fn is_empty_literal_ty(&self, ty: &'cx ty::Ty<'cx>) -> bool {
-        if *self.config.strict_null_checks() {
+        if self.config.strict_null_checks() {
             ty == self.implicit_never_ty
         } else {
             ty == self.undefined_widening_ty
@@ -3535,7 +3535,7 @@ impl<'cx> TyChecker<'cx> {
     }
 
     fn remove_missing_or_undefined_ty(&mut self, ty: &'cx ty::Ty<'cx>) -> &'cx ty::Ty<'cx> {
-        if *self.config.exact_optional_property_types() {
+        if self.config.exact_optional_property_types() {
             self.filter_type(ty, |this, t| t != this.missing_ty)
         } else {
             self.get_ty_with_facts(ty, TypeFacts::NE_UNDEFINED)

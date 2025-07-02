@@ -365,10 +365,13 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         self.diags.push(bolt_ts_errors::Diag { inner: error });
     }
 
-    pub(super) fn set_context_flags(&mut self, val: bool, flag: NodeFlags) {
-        if val {
+    #[inline]
+    fn set_context_flags<const UNION: bool>(&mut self, flag: NodeFlags) {
+        if UNION {
+            debug_assert!(!self.context_flags.contains(flag));
             self.context_flags |= flag
         } else {
+            debug_assert!(self.context_flags.contains(flag));
             self.context_flags &= !flag;
         }
     }
@@ -388,9 +391,9 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
     ) -> T {
         let set = context & self.context_flags;
         if !set.is_empty() {
-            self.set_context_flags(false, set);
+            self.set_context_flags::<false>(set);
             let res = f(self);
-            self.set_context_flags(true, set);
+            self.set_context_flags::<true>(set);
             res
         } else {
             f(self)
@@ -404,9 +407,9 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
     ) -> T {
         let set = context & !self.context_flags;
         if !set.is_empty() {
-            self.set_context_flags(true, set);
+            self.set_context_flags::<true>(set);
             let res = f(self);
-            self.set_context_flags(false, set);
+            self.set_context_flags::<false>(set);
             res
         } else {
             f(self)

@@ -144,6 +144,7 @@ dependencies = [
 name = "bolt_ts_config"
 version = "0.1.0"
 dependencies = [
+ "bitflags",
  "paste",
  "serde",
  "serde_json",

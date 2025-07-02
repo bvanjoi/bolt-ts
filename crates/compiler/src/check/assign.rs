@@ -91,7 +91,7 @@ impl<'cx> TyChecker<'cx> {
             return parent_ty;
         }
 
-        let strict_null_check = *self.config.strict_null_checks();
+        let strict_null_check = self.config.strict_null_checks();
 
         if strict_null_check
             && self

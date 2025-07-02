@@ -382,7 +382,7 @@ impl<'cx> TyChecker<'cx> {
             self.instantiate_ty(template_ty, Some(template_mapper))
         };
         let modifiers = m.decl.get_modifiers();
-        let strict_null_checks = *self.config.strict_null_checks();
+        let strict_null_checks = self.config.strict_null_checks();
         if strict_null_checks
             && modifiers.intersects(MappedTyModifiers::INCLUDE_OPTIONAL)
             && !prop_ty.maybe_type_of_kind(TypeFlags::UNDEFINED | TypeFlags::VOID)

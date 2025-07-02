@@ -4,7 +4,7 @@ use crate::{ir, ty};
 
 impl<'cx> TyChecker<'cx> {
     pub(super) fn get_optional_ty(&mut self, ty: &'cx Ty<'cx>, is_property: bool) -> &'cx Ty<'cx> {
-        assert!(*self.config.strict_null_checks());
+        assert!(self.config.strict_null_checks());
         let missing_or_undefined = if is_property {
             self.undefined_or_missing_ty
         } else {
@@ -28,7 +28,7 @@ impl<'cx> TyChecker<'cx> {
         is_property: bool,
         is_optional: bool,
     ) -> &'cx Ty<'cx> {
-        if *self.config.strict_null_checks() && is_optional {
+        if self.config.strict_null_checks() && is_optional {
             self.get_optional_ty(declared_ty, is_property)
         } else {
             declared_ty

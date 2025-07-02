@@ -215,7 +215,7 @@ impl<'cx> TyChecker<'cx> {
         let sig = self.get_sig_from_decl(container);
         let ret_ty = self.get_ret_ty_of_sig(sig);
 
-        if *self.config.strict_null_checks()
+        if self.config.strict_null_checks()
             || node.expr.is_some()
             || ret_ty.flags.intersects(TypeFlags::NEVER)
         {

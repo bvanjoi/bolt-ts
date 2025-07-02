@@ -181,8 +181,7 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
         let unreachable_flow_node = flow_nodes.create_flow_unreachable();
         let report_unreachable_flow_node = flow_nodes.create_flow_unreachable();
 
-        let in_strict_mode = (!parser.is_declaration
-            && *options.compiler_options().always_strict())
+        let in_strict_mode = (!parser.is_declaration && options.compiler_options().always_strict())
             || parser.external_module_indicator.is_some();
         let parent_map = ParentMap::new(parser.node_len());
         let flow_in_nodes = FlowInNodes::new(parser.node_len());

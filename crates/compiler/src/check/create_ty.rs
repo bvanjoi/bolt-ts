@@ -409,7 +409,7 @@ impl<'cx> TyChecker<'cx> {
                 includes |= TypeFlags::INCLUDES_WILDCARD;
             }
 
-            if !*self.config.strict_null_checks() && flags.intersects(TypeFlags::NULLABLE) {
+            if !self.config.strict_null_checks() && flags.intersects(TypeFlags::NULLABLE) {
                 if !ty
                     .get_object_flags()
                     .intersects(ObjectFlags::CONTAINS_WIDENING_TYPE)
@@ -822,7 +822,7 @@ impl<'cx> TyChecker<'cx> {
                 if ty == self.wildcard_ty {
                     includes |= TypeFlags::INCLUDES_WILDCARD;
                 }
-            } else if (*self.config.strict_null_checks() || !flags.intersects(TypeFlags::NULLABLE))
+            } else if (self.config.strict_null_checks() || !flags.intersects(TypeFlags::NULLABLE))
                 && !set.contains(&ty.id)
             {
                 if ty.flags.intersects(TypeFlags::UNIT) && includes.intersects(TypeFlags::UNIT) {
@@ -992,7 +992,7 @@ impl<'cx> TyChecker<'cx> {
             return self.never_ty;
         }
 
-        let strict_null_checks = *self.config.strict_null_checks();
+        let strict_null_checks = self.config.strict_null_checks();
 
         if (strict_null_checks
             && includes.intersects(TypeFlags::NULLABLE)

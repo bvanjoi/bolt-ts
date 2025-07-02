@@ -7,3 +7,4 @@ edition = "2024"
 serde = { workspace = true }
 serde_json = { workspace = true }
 paste = { workspace = true }
+bitflags = { workspace = true }

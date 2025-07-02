@@ -53,28 +53,43 @@ with_option!(
 impl RawCompilerOptions {
     pub fn normalize(self) -> super::NormalizedCompilerOptions {
         let out_dir = self.out_dir.map_or(OutDir::default(), OutDir::Custom);
-        let no_emit = self.no_emit.unwrap_or_default();
-        let declaration = self.declaration.unwrap_or_default();
-        let strict = self.strict.unwrap_or_default();
-        let get_strict_option_value = |v: Option<bool>| v.unwrap_or(strict);
-        let strict_null_checks = get_strict_option_value(self.strict_null_checks);
-        let no_implicit_any = get_strict_option_value(self.no_implicit_any);
-        let no_unchecked_indexed_access = self.no_unchecked_indexed_access.unwrap_or_default();
-        let always_strict = get_strict_option_value(self.always_strict);
         let target = self.target.unwrap_or_default().into();
-        let exact_optional_property_types = self.exact_optional_property_types.unwrap_or_default();
+
+        let mut flags = super::CompilerOptionFlags::empty();
+        if self.no_emit.unwrap_or_default() {
+            flags.insert(super::CompilerOptionFlags::NO_EMIT);
+        }
+        if self.declaration.unwrap_or_default() {
+            flags.insert(super::CompilerOptionFlags::DECLARATION);
+        }
+        let strict = self.strict.unwrap_or_default();
+        if strict {
+            flags.insert(super::CompilerOptionFlags::STRICT);
+        }
+        let get_strict_option_value = |v: Option<bool>| v.unwrap_or(strict);
+        if get_strict_option_value(self.strict_null_checks) {
+            flags.insert(super::CompilerOptionFlags::STRICT_NULL_CHECKS);
+        }
+        if get_strict_option_value(self.no_implicit_any) {
+            flags.insert(super::CompilerOptionFlags::NO_IMPLICIT_ANY);
+        }
+        if self.no_unchecked_indexed_access.unwrap_or_default() {
+            flags.insert(super::CompilerOptionFlags::NO_UNCHECKED_INDEXED_ACCESS);
+        }
+        if get_strict_option_value(self.always_strict) {
+            flags.insert(super::CompilerOptionFlags::ALWAYS_STRICT);
+        }
+        if self.exact_optional_property_types.unwrap_or_default() {
+            flags.insert(super::CompilerOptionFlags::EXACT_OPTIONAL_PROPERTY_TYPES);
+        }
+        if self.strict_function_types.unwrap_or_default() {
+            flags.insert(super::CompilerOptionFlags::STRICT_FUNCTION_TYPES);
+        }
+
         super::NormalizedCompilerOptions {
             out_dir,
             target,
-            no_emit,
-            declaration,
-            strict,
-            strict_null_checks,
-            strict_function_types: self.strict_function_types.unwrap_or_default(),
-            no_implicit_any,
-            no_unchecked_indexed_access,
-            always_strict,
-            exact_optional_property_types,
+            flags,
         }
     }
 }
