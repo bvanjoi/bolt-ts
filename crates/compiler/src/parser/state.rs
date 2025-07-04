@@ -365,17 +365,6 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         self.diags.push(bolt_ts_errors::Diag { inner: error });
     }
 
-    #[inline]
-    fn set_context_flags<const UNION: bool>(&mut self, flag: NodeFlags) {
-        if UNION {
-            debug_assert!(!self.context_flags.contains(flag));
-            self.context_flags |= flag
-        } else {
-            debug_assert!(self.context_flags.contains(flag));
-            self.context_flags &= !flag;
-        }
-    }
-
     pub(super) fn disallow_in_and<T>(&mut self, f: impl FnOnce(&mut Self) -> T) -> T {
         self.do_inside_of_context(NodeFlags::DISALLOW_IN_CONTEXT, f)
     }
@@ -389,11 +378,13 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         context: NodeFlags,
         f: impl FnOnce(&mut Self) -> T,
     ) -> T {
-        let set = context & self.context_flags;
-        if !set.is_empty() {
-            self.set_context_flags::<false>(set);
+        let removed = self.context_flags.intersection(context);
+        if !removed.is_empty() {
+            debug_assert!(self.context_flags.contains(removed));
+            self.context_flags.remove(removed);
             let res = f(self);
-            self.set_context_flags::<true>(set);
+            debug_assert!(!self.context_flags.contains(removed));
+            self.context_flags.insert(removed);
             res
         } else {
             f(self)
@@ -405,11 +396,13 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         context: NodeFlags,
         f: impl FnOnce(&mut Self) -> T,
     ) -> T {
-        let set = context & !self.context_flags;
-        if !set.is_empty() {
-            self.set_context_flags::<true>(set);
+        let inserted = self.context_flags.complement().intersection(context);
+        if !inserted.is_empty() {
+            debug_assert!(!self.context_flags.contains(inserted));
+            self.context_flags.insert(inserted);
             let res = f(self);
-            self.set_context_flags::<false>(set);
+            debug_assert!(self.context_flags.contains(inserted));
+            self.context_flags.remove(inserted);
             res
         } else {
             f(self)
