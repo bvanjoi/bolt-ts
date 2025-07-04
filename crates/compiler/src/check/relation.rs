@@ -67,7 +67,7 @@ impl<'cx> TyChecker<'cx> {
         use RelationKind::*;
         let s = source.flags;
         let t = target.flags;
-        let strict_null_checks = *self.config.strict_null_checks();
+        let strict_null_checks = self.config.strict_null_checks();
         let is_unknown_like_union_ty = |this: &mut Self| {
             strict_null_checks
                 && target.kind.as_union().is_some_and(|u| {

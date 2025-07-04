@@ -2,7 +2,7 @@ mod normalized;
 mod options;
 mod raw;
 
-pub use normalized::{NormalizedCompilerOptions, NormalizedTsConfig};
+pub use normalized::{CompilerOptionFlags, NormalizedCompilerOptions, NormalizedTsConfig};
 pub use options::Extension;
 pub use options::OutDir;
 pub use options::{

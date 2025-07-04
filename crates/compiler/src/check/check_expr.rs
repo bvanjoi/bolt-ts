@@ -311,7 +311,7 @@ impl<'cx> TyChecker<'cx> {
         }
         let uplevel_iteration = *self.config.target() >= Target::ES2015;
         let downlevel_iteration = false; // !uplevel_iteration && false;
-        let possible_out_of_bounds = *self.config.no_unchecked_indexed_access()
+        let possible_out_of_bounds = self.config.no_unchecked_indexed_access()
             && mode.intersects(IterationUse::POSSIBLY_OUT_OF_BOUNDS);
         if uplevel_iteration || downlevel_iteration || allow_async_iterables {
             let iteration_tys = self.get_iteration_tys_of_iter(
@@ -451,7 +451,6 @@ impl<'cx> TyChecker<'cx> {
     }
 
     pub(super) fn check_truthiness_expr(&mut self, expr: &'cx ast::Expr) -> &'cx ty::Ty<'cx> {
-        
         // TODO: check truthiness of ty
         (self.check_expr(expr)) as _
     }
@@ -771,10 +770,7 @@ impl<'cx> TyChecker<'cx> {
         };
         if u.tys
             .iter()
-            .find(|&&ty| {
-                ty != first_ty && !self.is_empty_object_ty_or_spreads_into_empty_object(ty)
-            })
-            .is_none()
+            .any(|&ty| ty != first_ty && !self.is_empty_object_ty_or_spreads_into_empty_object(ty))
         {
             return ty;
         }
@@ -819,7 +815,7 @@ impl<'cx> TyChecker<'cx> {
             assert!(prev.is_none());
         }
         let index_infos = self.get_index_infos_of_ty(ty);
-        
+
         (self.create_anonymous_ty_with_resolved(
             ty.symbol(),
             ObjectFlags::OBJECT_LITERAL | ObjectFlags::CONTAINS_OBJECT_OR_ARRAY_LITERAL,
@@ -838,7 +834,7 @@ impl<'cx> TyChecker<'cx> {
         let l = self.check_expr(assign.left);
         let r = self.check_expr(assign.right);
         use bolt_ts_ast::AssignOp::*;
-        
+
         // if ty == self.any_ty() {
         //     let error = errors::CannotAssignToNameBecauseItIsATy {
         //         name: self.atoms.get(assign.binding.name).to_string(),

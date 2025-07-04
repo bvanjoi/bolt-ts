@@ -25,6 +25,7 @@ pub struct Span {
 
 impl Span {
     pub fn new(lo: u32, hi: u32, module: ModuleID) -> Self {
+        debug_assert!(lo <= hi);
         Self { lo, hi, module }
     }
 }

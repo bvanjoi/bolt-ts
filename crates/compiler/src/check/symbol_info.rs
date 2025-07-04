@@ -1052,8 +1052,6 @@ fn get_target_of_export_spec(
         }
     }
 
-    
-
     match n {
         bolt_ts_ast::Node::ShorthandSpec(n) => {
             let p_id = this.p().parent(node).unwrap();

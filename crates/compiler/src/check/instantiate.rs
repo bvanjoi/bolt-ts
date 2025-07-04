@@ -382,7 +382,7 @@ impl<'cx> TyChecker<'cx> {
             self.instantiate_ty(template_ty, Some(template_mapper))
         };
         let modifiers = m.decl.get_modifiers();
-        let strict_null_checks = *self.config.strict_null_checks();
+        let strict_null_checks = self.config.strict_null_checks();
         if strict_null_checks
             && modifiers.intersects(MappedTyModifiers::INCLUDE_OPTIONAL)
             && !prop_ty.maybe_type_of_kind(TypeFlags::UNDEFINED | TypeFlags::VOID)
@@ -520,7 +520,7 @@ impl<'cx> TyChecker<'cx> {
             mapper: Some(mapper),
             links,
         });
-        
+
         (self.create_object_ty(
             ty::ObjectTyKind::Mapped(ty),
             object_flags | ObjectFlags::MAPPED,
@@ -1144,7 +1144,6 @@ impl<'cx> TyChecker<'cx> {
                 let dest = std::ptr::addr_of_mut!(result[i]);
                 let param = ty_params[i];
                 let ty = if let Some(default_ty) = self.get_default_ty_from_ty_param(param) {
-                    
                     {
                         let targets = unsafe { std::slice::from_raw_parts(result.as_ptr(), len) };
                         let mapper = self.create_ty_mapper(ty_params, targets);

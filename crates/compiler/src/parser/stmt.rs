@@ -66,7 +66,7 @@ impl<'cx> ParserState<'cx, '_> {
     fn parse_do_stmt(&mut self) -> PResult<&'cx ast::DoStmt<'cx>> {
         let start = self.token.start();
         self.expect(TokenKind::Do);
-        let stmt = self.parse_stmt()?;
+        let stmt = self.allow_continue_and(Self::parse_stmt)?;
         self.expect(TokenKind::While);
         let open_pos = self.token.start() as usize;
         let open_parsed = self.expect(TokenKind::LParen);

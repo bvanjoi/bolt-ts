@@ -767,7 +767,7 @@ impl<'cx> ParserState<'cx, '_> {
             elems,
         });
         self.nodes.insert(id, ast::Node::ArrayLit(lit));
-        
+
         (self.alloc(ast::Expr {
             // id: expr_id,
             kind: ast::ExprKind::ArrayLit(lit),
@@ -876,7 +876,7 @@ impl<'cx> ParserState<'cx, '_> {
         let id = self.next_node_id();
         let node = self.alloc(ast::SuperExpr { id, span });
         self.nodes.insert(node.id, ast::Node::SuperExpr(node));
-        
+
         (self.alloc(ast::Expr {
             kind: ast::ExprKind::Super(node),
         })) as _

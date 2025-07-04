@@ -184,7 +184,6 @@ impl<'cx> TyChecker<'cx> {
             this.instantiate_symbol(symbol, mapper)
         });
 
-        
         (self.new_sig(ty::Sig {
             target: Some(sig),
             mapper: Some(mapper),
@@ -347,7 +346,7 @@ impl<'cx> TyChecker<'cx> {
         if base_ty == self.error_ty {
             return &[];
         }
-        
+
         (self.alloc([base_ty])) as _
     }
 
@@ -650,7 +649,7 @@ impl<'cx> TyChecker<'cx> {
             mapper: sig.mapper,
             class_decl: sig.class_decl,
         };
-        
+
         // TODO: composite_kind and composite_signatures
         (self.new_sig(next)) as _
     }
@@ -1251,8 +1250,7 @@ impl<'cx> TyChecker<'cx> {
         new_info: &'cx ty::IndexInfo<'cx>,
         union: bool,
     ) {
-        for i in 0..infos.len() {
-            let info = infos[i];
+        for (i, info) in infos.iter().enumerate() {
             if info.key_ty == new_info.key_ty {
                 let val_ty = if union {
                     self.get_union_ty(&[info.val_ty, new_info.val_ty], ty::UnionReduction::Lit)
@@ -1413,7 +1411,7 @@ impl<'cx> TyChecker<'cx> {
                             .intersects(MappedTyModifiers::INCLUDE_READONLY)
                             || !template_modifier.intersects(MappedTyModifiers::EXCLUDE_READONLY)
                                 && modifiers_prop.is_some_and(|m| this.is_readonly_symbol(m));
-                        let strip_optional = *self.config.strict_null_checks()
+                        let strip_optional = self.config.strict_null_checks()
                             && !is_optional
                             && modifiers_prop.is_some_and(|m| {
                                 this.symbol(m).flags.intersects(SymbolFlags::OPTIONAL)

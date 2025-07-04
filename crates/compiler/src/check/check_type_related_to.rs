@@ -1,4 +1,3 @@
-use bolt_ts_errors::miette::SourceCode;
 use rustc_hash::FxHashSet;
 
 use bolt_ts_ast as ast;
@@ -1920,7 +1919,7 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
 
         use ast::Node::*;
         let strict_variance = !check_mode.intersects(SigCheckMode::CALLBACK)
-            && *self.c.config.strict_function_types()
+            && self.c.config.strict_function_types()
             && !matches!(
                 self.c.p.node(target.def_id()),
                 ClassCtor(_)

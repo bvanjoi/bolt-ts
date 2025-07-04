@@ -9,7 +9,7 @@ pub(crate) fn set_value_declaration(
     symbol: SymbolID,
     symbols: &mut Symbols,
     node: ast::NodeID,
-    p: &Vec<ParseResult>,
+    p: &[ParseResult],
 ) {
     let s = symbols.get_mut(symbol);
     // TODO: ambient declaration
@@ -39,6 +39,15 @@ pub(crate) fn set_value_declaration_in_same_module(
     }
 }
 
+bitflags::bitflags! {
+    #[derive(Default)]
+    pub(super) struct DeclareSymbolProperty: u8 {
+        const IS_REPLACEABLE_BY_METHOD = 1 << 0;
+        const IS_COMPUTED_NAME = 1 << 1;
+        const IS_DEFAULT_EXPORT = 1 << 2;
+    }
+}
+
 impl BinderState<'_, '_, '_> {
     pub(super) fn create_final_res(&mut self, id: ast::NodeID, symbol: SymbolID) {
         let prev = self.final_res.insert(id, symbol);
@@ -53,19 +62,16 @@ impl BinderState<'_, '_, '_> {
         node: ast::NodeID,
         includes: SymbolFlags,
         excludes: SymbolFlags,
-        is_replaceable_by_method: bool,
-        is_computed_name: bool,
+        prop: DeclareSymbolProperty,
     ) -> SymbolID {
         let symbol;
-        let is_default_export = {
-            let n = self.p.node(node);
-            n.has_syntactic_modifier(ast::ModifierKind::Default.into())
-                || n.as_export_named_spec()
-                    .is_some_and(|spec| spec.name.is_default())
-        };
-        let name = if is_computed_name {
+        let is_replaceable_by_method =
+            prop.contains(DeclareSymbolProperty::IS_REPLACEABLE_BY_METHOD);
+        let name = if prop.contains(DeclareSymbolProperty::IS_COMPUTED_NAME) {
+            debug_assert!(name.is_none_or(|n| n == SymbolName::Computed));
             Some(SymbolName::Computed)
-        } else if is_default_export {
+        } else if prop.contains(DeclareSymbolProperty::IS_DEFAULT_EXPORT) {
+            debug_assert!(name.is_none_or(|n| n == SymbolName::ExportDefault));
             Some(SymbolName::ExportDefault)
         } else {
             // TODO: get_decl_name

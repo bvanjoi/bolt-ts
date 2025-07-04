@@ -1,3 +1,5 @@
+use crate::bind::create::DeclareSymbolProperty;
+
 use super::BinderState;
 use super::NodeQuery;
 use super::container_flags::container_flags_for_node;
@@ -76,8 +78,7 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
                     node,
                     includes,
                     exclude_flags,
-                    false,
-                    false,
+                    DeclareSymbolProperty::empty(),
                 )
             }
         }
@@ -254,8 +255,7 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
                     current,
                     symbol_flags,
                     symbol_excludes,
-                    false,
-                    false,
+                    DeclareSymbolProperty::empty(),
                 )
             }
             ObjectLitTy(_) | ObjectLit(_) | InterfaceDecl(_) => self.declare_symbol(
@@ -265,8 +265,7 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
                 current,
                 symbol_flags,
                 symbol_excludes,
-                false,
-                false,
+                DeclareSymbolProperty::empty(),
             ),
             FnTy(_)
             | ClassCtor(_)
@@ -297,8 +296,7 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
                     current,
                     symbol_flags,
                     symbol_excludes,
-                    false,
-                    false,
+                    DeclareSymbolProperty::empty(),
                 )
             }
             _ => unreachable!(),
@@ -318,7 +316,15 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
         } else {
             SymbolTableLocation::members(container)
         };
-        self.declare_symbol(Some(name), loc, None, node, include, excludes, false, false)
+        self.declare_symbol(
+            Some(name),
+            loc,
+            None,
+            node,
+            include,
+            excludes,
+            DeclareSymbolProperty::empty(),
+        )
     }
 
     fn declare_source_file_member(
@@ -341,8 +347,7 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
                 current,
                 symbol_flags,
                 symbol_excludes,
-                false,
-                false,
+                DeclareSymbolProperty::empty(),
             )
         }
     }
@@ -383,8 +388,7 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
                 current,
                 symbol_flags,
                 symbol_excludes,
-                false,
-                false,
+                DeclareSymbolProperty::empty(),
             );
         }
 
@@ -403,14 +407,13 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
             {
                 let table = SymbolTableLocation::exports(container);
                 return self.declare_symbol(
-                    Some(name),
+                    None,
                     table,
                     None,
                     current,
                     symbol_flags,
                     symbol_excludes,
-                    false,
-                    false,
+                    DeclareSymbolProperty::IS_DEFAULT_EXPORT,
                 );
             }
             let export_kind = if symbol_flags.intersects(SymbolFlags::VALUE) {
@@ -426,8 +429,7 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
                 current,
                 export_kind,
                 symbol_excludes,
-                false,
-                false,
+                DeclareSymbolProperty::empty(),
             );
             let table = SymbolTableLocation::exports(container);
             let export_symbol = self.declare_symbol(
@@ -437,8 +439,7 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
                 current,
                 symbol_flags,
                 symbol_excludes,
-                false,
-                false,
+                DeclareSymbolProperty::empty(),
             );
             self.symbols.get_mut(local).export_symbol = Some(export_symbol);
             // TODO: node.local_symbol = local;
@@ -453,8 +454,7 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
                 current,
                 symbol_flags,
                 symbol_excludes,
-                false,
-                false,
+                DeclareSymbolProperty::empty(),
             )
         }
     }

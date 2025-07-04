@@ -319,7 +319,7 @@ impl<'cx> TyChecker<'cx> {
             self.append_ty_mapping(mapped_ty.mapper, source, key_ty)
         };
         let prop_ty = self.instantiate_ty(template_ty, Some(mapper));
-        let ty = if *self.config.strict_null_checks()
+        let ty = if self.config.strict_null_checks()
             && self.symbol(symbol).flags.intersects(SymbolFlags::OPTIONAL)
             && !prop_ty.maybe_type_of_kind(TypeFlags::UNDEFINED.union(TypeFlags::VOID))
         {
