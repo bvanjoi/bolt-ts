@@ -73,26 +73,30 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         } else {
             Some(self.create_ident(true, None))
         };
+
         self.parse_semi();
+
         let span = self.new_span(start);
 
-        if !self
-            .context_flags
-            .contains(NodeFlags::ALLOW_CONTINUE_CONTEXT)
-        {
-            if P::IS_CONTINUE {
+        match P::IS_CONTINUE {
+            true if !self
+                .context_flags
+                .contains(NodeFlags::ALLOW_CONTINUE_CONTEXT) =>
+            {
                 self.push_error(Box::new(
                     errors::AContinueStatementCanOnlyBeUsedWithinAnEnclosingIterationStatement {
                         span,
                     },
                 ));
-            } else {
-                self.push_error(Box::new(
-                    errors::ABreakStatementCanOnlyBeUsedWithinAnEnclosingIterationOrSwitchStatement {
-                        span,
-                    },
-                ));
             }
+            false if !self.context_flags.contains(NodeFlags::ALLOW_BREAK_CONTEXT) => {
+                self.push_error(Box::new(
+                errors::ABreakStatementCanOnlyBeUsedWithinAnEnclosingIterationOrSwitchStatement {
+                    span,
+                },
+            ));
+            }
+            _ => {}
         }
 
         Ok(kind.finish(self, span, label))

@@ -1,5 +1,5 @@
-use bolt_ts_ast as ast;
 use bolt_ts_ast::TokenKind;
+use bolt_ts_ast::{self as ast, NodeFlags};
 use bolt_ts_span::Span;
 
 use super::{PResult, ParserState};
@@ -106,7 +106,10 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         let params = self.parse_params()?;
         self.check_params(params, false);
         let ret_ty = self.parse_fn_decl_ret_type()?;
-        let body = self.disallow_continue_and(Self::parse_fn_block)?;
+        let body = self.do_outside_of_context(
+            NodeFlags::ALLOW_BREAK_CONTEXT.union(NodeFlags::ALLOW_CONTINUE_CONTEXT),
+            Self::parse_fn_block,
+        )?;
         let span = self.new_span(start);
         Ok(mode.finish(self, span, modifiers, name, ty_params, params, ret_ty, body))
     }
