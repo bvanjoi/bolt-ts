@@ -431,14 +431,6 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         self.in_context(NodeFlags::DISALLOW_CONDITIONAL_TYPES_CONTEXT)
     }
 
-    pub(super) fn allow_continue_and<T>(&mut self, f: impl FnOnce(&mut Self) -> T) -> T {
-        self.do_inside_of_context(NodeFlags::ALLOW_CONTINUE_CONTEXT, f)
-    }
-
-    pub(super) fn disallow_continue_and<T>(&mut self, f: impl FnOnce(&mut Self) -> T) -> T {
-        self.do_outside_of_context(NodeFlags::ALLOW_CONTINUE_CONTEXT, f)
-    }
-
     pub(super) fn parse_identifier_name_error_or_unicode_escape_sequence(
         &mut self,
     ) -> PResult<&'cx bolt_ts_ast::Ident> {
