@@ -104,7 +104,7 @@ use crate::graph::ModuleGraph;
 use crate::ty::{CheckFlags, IndexFlags, IterationTys, TYPEOF_NE_FACTS, get_type_facts};
 use crate::ty::{ElementFlags, ObjectFlags, Sig, SigFlags, SigID, TyID, TypeFacts, TypeFlags};
 use crate::ty::{TyMapper, has_type_facts};
-use crate::{ir, keyword, ty};
+use crate::{keyword, r#trait, ty};
 use bolt_ts_parser::{AccessKind, AssignmentKind, Parser};
 
 bitflags::bitflags! {
@@ -183,7 +183,7 @@ pub struct TyChecker<'cx> {
     flow_node_reachable: FxHashMap<FlowID, bool>,
 
     num_lit_tys: nohash_hasher::IntMap<F64Represent, &'cx ty::Ty<'cx>>,
-    string_lit_tys: nohash_hasher::IntMap<AtomId, &'cx ty::Ty<'cx>>,
+    string_lit_tys: FxHashMap<AtomId, &'cx ty::Ty<'cx>>,
     bigint_lit_tys: FxHashMap<(bool, AtomId), &'cx ty::Ty<'cx>>,
     union_tys: UnionMap<'cx>,
     intersection_tys: IntersectionMap<'cx>,
@@ -481,7 +481,7 @@ impl<'cx> TyChecker<'cx> {
             module_arena,
 
             num_lit_tys: no_hashmap_with_capacity(1024 * 8),
-            string_lit_tys: no_hashmap_with_capacity(1024 * 8),
+            string_lit_tys: fx_hashmap_with_capacity(1024 * 8),
             bigint_lit_tys: fx_hashmap_with_capacity(512),
             union_tys: UnionMap::new(1024 * 8),
             intersection_tys: IntersectionMap::new(1024 * 8),
@@ -3474,7 +3474,7 @@ impl<'cx> TyChecker<'cx> {
 
     fn check_decl_init(
         &mut self,
-        decl: &impl ir::HasExprInit<'cx>,
+        decl: &impl r#trait::HasExprInit<'cx>,
         contextual_ty: Option<&'cx ty::Ty<'cx>>,
     ) -> &'cx ty::Ty<'cx> {
         let init = decl.init().unwrap();

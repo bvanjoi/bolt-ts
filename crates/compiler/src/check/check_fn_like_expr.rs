@@ -1,7 +1,7 @@
 use super::NodeCheckFlags;
 use super::{CheckMode, TyChecker};
 use crate::ty::TypeFlags;
-use crate::{ir, ty};
+use crate::{r#trait, ty};
 use bolt_ts_ast as ast;
 
 impl<'cx> TyChecker<'cx> {
@@ -87,14 +87,14 @@ impl<'cx> TyChecker<'cx> {
 
     pub(super) fn check_fn_like_expr(
         &mut self,
-        expr: &impl ir::FnExprLike<'cx>,
+        expr: &impl r#trait::FnExprLike<'cx>,
     ) -> &'cx ty::Ty<'cx> {
         self.check_fn_like_expr_or_object_method_member(expr.id())
     }
 
-    pub(super) fn check_fn_like_expr_deferred(&mut self, expr: &impl ir::FnExprLike<'cx>) {
+    pub(super) fn check_fn_like_expr_deferred(&mut self, expr: &impl r#trait::FnExprLike<'cx>) {
         let id = expr.id();
-        self.check_fn_like_expr_or_object_method_member_deferred(id, ir::FnExprLike::body(expr));
+        self.check_fn_like_expr_or_object_method_member_deferred(id, r#trait::FnExprLike::body(expr));
     }
 
     pub(super) fn check_fn_like_expr_or_object_method_member_deferred(

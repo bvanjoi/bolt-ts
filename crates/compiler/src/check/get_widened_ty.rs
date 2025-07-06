@@ -5,7 +5,7 @@ use super::symbol_info::SymbolInfo;
 use super::ty;
 use crate::bind::SymbolFlags;
 use crate::bind::SymbolID;
-use crate::ir;
+use crate::r#trait;
 use crate::ty::ObjectFlags;
 use crate::ty::TypeFlags;
 
@@ -96,7 +96,7 @@ impl<'cx> TyChecker<'cx> {
 
     fn get_widened_lit_ty_for_init(
         &mut self,
-        decl: &impl ir::VarLike<'cx>,
+        decl: &impl r#trait::VarLike<'cx>,
         ty: &'cx ty::Ty<'cx>,
     ) -> &'cx ty::Ty<'cx> {
         // TODO: as const
@@ -111,7 +111,7 @@ impl<'cx> TyChecker<'cx> {
 
     pub(super) fn widened_ty_from_init(
         &mut self,
-        decl: &impl ir::VarLike<'cx>,
+        decl: &impl r#trait::VarLike<'cx>,
         ty: &'cx ty::Ty<'cx>,
     ) -> &'cx ty::Ty<'cx> {
         self.get_widened_lit_ty_for_init(decl, ty)
@@ -218,7 +218,7 @@ impl<'cx> TyChecker<'cx> {
 
     pub(super) fn get_widened_ty_for_var_like_decl(
         &mut self,
-        decl: &impl ir::VarLike<'cx>,
+        decl: &impl r#trait::VarLike<'cx>,
     ) -> &'cx ty::Ty<'cx> {
         let save_check_mode = self.check_mode;
         self.check_mode = Some(CheckMode::empty());

@@ -5,7 +5,7 @@ mod diag;
 mod early_resolve;
 mod emit;
 mod graph;
-mod ir;
+mod r#trait;
 mod ty;
 mod wf;
 

@@ -8,7 +8,7 @@ use super::{CheckMode, errors};
 use super::{ExpectedArgsCount, Ternary};
 use super::{InferenceContextId, TyChecker};
 use crate::bind::SymbolID;
-use crate::ir::{self, CallLike};
+use crate::r#trait::{self, CallLike};
 use crate::ty;
 use crate::ty::TypeFlags;
 
@@ -16,7 +16,7 @@ use bolt_ts_ast as ast;
 use bolt_ts_span::Span;
 use bolt_ts_utils::no_hashset_with_capacity;
 
-pub(super) trait CallLikeExpr<'cx>: ir::CallLike<'cx> {
+pub(super) trait CallLikeExpr<'cx>: r#trait::CallLike<'cx> {
     fn resolve_sig(&self, checker: &mut TyChecker<'cx>) -> &'cx Sig<'cx>;
     fn is_super_call(&self) -> bool;
 }

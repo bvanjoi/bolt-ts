@@ -6,7 +6,7 @@ use super::symbol_info::SymbolInfo;
 use super::type_predicate::TyPred;
 use crate::bind::SymbolID;
 use crate::check::check_call_like::CallLikeExpr;
-use crate::ir::node_id_of_binding;
+use crate::r#trait::node_id_of_binding;
 use crate::ty;
 use crate::ty::SigID;
 use crate::ty::SigKind;

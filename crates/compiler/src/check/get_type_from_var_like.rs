@@ -1,6 +1,6 @@
 use super::TyChecker;
 use crate::ty::Ty;
-use crate::{ir, ty};
+use crate::{r#trait, ty};
 
 impl<'cx> TyChecker<'cx> {
     pub(super) fn get_optional_ty(&mut self, ty: &'cx Ty<'cx>, is_property: bool) -> &'cx Ty<'cx> {
@@ -37,7 +37,7 @@ impl<'cx> TyChecker<'cx> {
 
     pub(super) fn get_ty_for_var_like_decl(
         &mut self,
-        decl: &impl ir::VarLike<'cx>,
+        decl: &impl r#trait::VarLike<'cx>,
         include_optionality: bool,
     ) -> Option<&'cx Ty<'cx>> {
         // TODO: for in stmt
@@ -78,7 +78,7 @@ impl<'cx> TyChecker<'cx> {
     pub(super) fn widen_ty_for_var_like_decl(
         &mut self,
         ty: Option<&'cx Ty<'cx>>,
-        decl: &impl ir::VarLike<'cx>,
+        decl: &impl r#trait::VarLike<'cx>,
     ) -> &'cx Ty<'cx> {
         if let Some(ty) = ty {
             return self.get_widened_ty(ty);

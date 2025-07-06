@@ -11,7 +11,7 @@ use crate::bind::{
 use crate::check::TyChecker;
 use crate::graph::resolve_external_module_name;
 use crate::ty::CheckFlags;
-use crate::{ir, ty};
+use crate::{r#trait, ty};
 
 fn symbol_of_resolve_results(
     resolve_results: &Vec<ResolveResult>,
@@ -830,7 +830,7 @@ fn handle_members_for_label_symbol<'cx>(
     symbol: SymbolID,
     early_symbols: &'cx SymbolTable,
     late_symbols: &mut SymbolTable,
-    members: &[&'cx impl ir::MembersOfDecl],
+    members: &[&'cx impl r#trait::MembersOfDecl],
     is_static: bool,
 ) {
     for member in members {

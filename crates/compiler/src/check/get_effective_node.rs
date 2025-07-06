@@ -2,7 +2,7 @@ use super::get_simplified_ty::SimplifiedKind;
 use super::symbol_info::SymbolInfo;
 use super::{TyChecker, create_ty::IntersectionFlags};
 use crate::{
-    ir,
+    r#trait,
     ty::{self, TypeFlags},
 };
 
@@ -123,7 +123,7 @@ impl<'cx> TyChecker<'cx> {
 
     pub(super) fn get_effective_call_args(
         &mut self,
-        expr: &impl ir::CallLike<'cx>,
+        expr: &impl r#trait::CallLike<'cx>,
     ) -> ast::Exprs<'cx> {
         expr.args()
     }

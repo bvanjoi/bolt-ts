@@ -1,11 +1,11 @@
 use super::symbol::SymbolFlags;
 use super::{BinderState, NodeQuery, SymbolID, SymbolName, prop_name};
-use crate::ir;
+use crate::r#trait;
 
 use bolt_ts_ast as ast;
 
 impl<'cx> BinderState<'cx, '_, '_> {
-    fn create_class_symbol(&mut self, c: &impl ir::ClassLike<'cx>, is_expr: bool) -> SymbolID {
+    fn create_class_symbol(&mut self, c: &impl r#trait::ClassLike<'cx>, is_expr: bool) -> SymbolID {
         let name = c
             .name()
             .map_or(SymbolName::ClassExpr, |name| SymbolName::Atom(name.name));
@@ -37,7 +37,7 @@ impl<'cx> BinderState<'cx, '_, '_> {
 
     pub(super) fn bind_class_like_decl(
         &mut self,
-        class: &'cx impl ir::ClassLike<'cx>,
+        class: &'cx impl r#trait::ClassLike<'cx>,
         is_expr: bool,
     ) {
         self.create_class_symbol(class, is_expr);

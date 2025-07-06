@@ -14,7 +14,7 @@ use bolt_ts_parser::ModuleInstanceState;
 use bolt_ts_span::Span;
 
 use crate::bind::create::DeclareSymbolProperty;
-use crate::ir;
+use crate::r#trait;
 
 impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
     fn bind_ns_decl(&mut self, ns: &'cx ast::ModuleDecl<'cx>) {
@@ -221,7 +221,7 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
         }
     }
 
-    fn bind_fn_expr(&mut self, f: &impl ir::FnExprLike<'cx>) {
+    fn bind_fn_expr(&mut self, f: &impl r#trait::FnExprLike<'cx>) {
         let name = f.name().map(SymbolName::Atom).unwrap_or(SymbolName::Fn);
         let id = f.id();
         let symbol = self.bind_anonymous_decl(id, SymbolFlags::FUNCTION, name);
