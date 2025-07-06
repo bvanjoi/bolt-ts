@@ -1,5 +1,5 @@
 [package]
-name = "bolt_ts_compiler"
+name = "bolt_ts_parser"
 version = "0.1.0"
 edition = "2024"
 
@@ -15,7 +15,6 @@ bolt_ts_ast = { path = "../ast" }
 bolt_ts_errors = { path = "../../helper/errors" }
 bolt_ts_span = { path = "../../helper/span" }
 bolt_ts_libs = { path = "../libs" }
-bolt_ts_parser = { path = "../parser" }
 bolt_ts_config = { path = "../config" }
 bolt_ts_ecma_rules = { path = "../ecma_rules" }
 bolt_ts_utils = { path = "../../helper/utils" }
@@ -33,18 +32,3 @@ indexmap = { workspace = true }
 pretty-duration = "0.1.1"
 tracing = { workspace = true }
 unicode-id-start = { version = "1.3.1" }
-
-[dev-dependencies]
-expect-test = "1.5.1"
-compile-test = { path = "../../tools/compile-test" }
-dir-test = "0.4.1"
-git2 = "0.20.2"
-divan = { package = "codspeed-divan-compat", version = "2.10.1" }
-
-[build-dependencies]
-project-root = "0.2.2"
-
-
-[[bench]]
-name = "bench"
-harness = false

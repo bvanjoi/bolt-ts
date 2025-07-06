@@ -1,5 +1,4 @@
 use super::NodeQuery;
-use crate::parser;
 
 bitflags::bitflags! {
   #[derive(Clone, Copy, Debug, Default)]
@@ -18,7 +17,7 @@ bitflags::bitflags! {
 trait GetContainerFlags {
     fn get_container_flags(
         &self,
-        p: &parser::ParseResult,
+        p: &bolt_ts_parser::ParseResult,
         parent_map: &super::ParentMap,
     ) -> ContainerFlags;
 }
@@ -27,7 +26,7 @@ macro_rules! container_flags_for_node {
   ($(($node_kind:ident, $flags: expr)),* $(,)?) => {
       $(
           impl GetContainerFlags for bolt_ts_ast::$node_kind<'_> {
-              fn get_container_flags(&self, _: &parser::ParseResult, _: &super::ParentMap) -> ContainerFlags {
+              fn get_container_flags(&self, _: &bolt_ts_parser::ParseResult, _: &super::ParentMap) -> ContainerFlags {
                   $flags
               }
           }
@@ -105,7 +104,7 @@ container_flags_for_node!(
 impl GetContainerFlags for bolt_ts_ast::GetterDecl<'_> {
     fn get_container_flags(
         &self,
-        p: &parser::ParseResult,
+        p: &bolt_ts_parser::ParseResult,
         parent_map: &super::ParentMap,
     ) -> ContainerFlags {
         let nq = super::BinderNodeQuery::new(parent_map, p);
@@ -120,7 +119,7 @@ impl GetContainerFlags for bolt_ts_ast::GetterDecl<'_> {
 impl GetContainerFlags for bolt_ts_ast::SetterDecl<'_> {
     fn get_container_flags(
         &self,
-        p: &parser::ParseResult,
+        p: &bolt_ts_parser::ParseResult,
         parent_map: &super::ParentMap,
     ) -> ContainerFlags {
         let nq = super::BinderNodeQuery::new(parent_map, p);
@@ -135,7 +134,7 @@ impl GetContainerFlags for bolt_ts_ast::SetterDecl<'_> {
 impl GetContainerFlags for bolt_ts_ast::ClassMethodElem<'_> {
     fn get_container_flags(
         &self,
-        p: &parser::ParseResult,
+        p: &bolt_ts_parser::ParseResult,
         parent_map: &super::ParentMap,
     ) -> ContainerFlags {
         let nq = super::BinderNodeQuery::new(parent_map, p);
@@ -148,7 +147,11 @@ impl GetContainerFlags for bolt_ts_ast::ClassMethodElem<'_> {
 }
 
 impl GetContainerFlags for bolt_ts_ast::ClassPropElem<'_> {
-    fn get_container_flags(&self, _: &parser::ParseResult, _: &super::ParentMap) -> ContainerFlags {
+    fn get_container_flags(
+        &self,
+        _: &bolt_ts_parser::ParseResult,
+        _: &super::ParentMap,
+    ) -> ContainerFlags {
         if self.init.is_some() {
             ContainerFlags::IS_CONTROL_FLOW_CONTAINER
         } else {
@@ -160,7 +163,7 @@ impl GetContainerFlags for bolt_ts_ast::ClassPropElem<'_> {
 impl GetContainerFlags for bolt_ts_ast::BlockStmt<'_> {
     fn get_container_flags(
         &self,
-        p: &parser::ParseResult,
+        p: &bolt_ts_parser::ParseResult,
         parent_map: &super::ParentMap,
     ) -> ContainerFlags {
         let parent = parent_map.parent_unfinished(self.id).unwrap();
@@ -174,7 +177,7 @@ impl GetContainerFlags for bolt_ts_ast::BlockStmt<'_> {
 }
 
 pub(super) fn container_flags_for_node(
-    p: &parser::ParseResult,
+    p: &bolt_ts_parser::ParseResult,
     parent_map: &super::ParentMap,
     node: bolt_ts_ast::NodeID,
 ) -> ContainerFlags {

@@ -1,7 +1,7 @@
 use bolt_ts_ast::keyword;
 use bolt_ts_atom::AtomId;
 
-use crate::parser::FileReference;
+use crate::FileReference;
 
 use super::{PResult, scan::is_line_break};
 

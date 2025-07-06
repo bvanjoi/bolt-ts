@@ -1,10 +1,12 @@
-use bolt_ts_atom::AtomId;
-use bolt_ts_span::ModuleID;
-use bolt_ts_utils::fx_hashmap_with_capacity;
 use rustc_hash::FxHashMap;
 
-use crate::{check::F64Represent, parser::Parser};
+use crate::check::F64Represent;
+
 use bolt_ts_ast::NodeID;
+use bolt_ts_atom::AtomId;
+use bolt_ts_parser::Parser;
+use bolt_ts_span::ModuleID;
+use bolt_ts_utils::fx_hashmap_with_capacity;
 
 #[derive(Debug, Clone, Copy, Hash, PartialEq, Eq)]
 pub enum SymbolName {

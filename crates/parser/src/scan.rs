@@ -6,7 +6,7 @@ use bolt_ts_span::Span;
 use super::{CommentDirectiveKind, ParserState, TokenValue, errors, unicode};
 use bolt_ts_ast::{RegularExpressionFlags, Token, TokenFlags, TokenKind, atom_to_token, keyword};
 
-use crate::parser::{CommentDirective, scan_integer::parse_integer};
+use crate::{CommentDirective, scan_integer::parse_integer};
 
 #[inline(always)]
 fn is_ascii_letter(ch: u8) -> bool {

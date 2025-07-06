@@ -13,7 +13,7 @@ use super::parse_import_export_spec::ParseNamedExports;
 use super::parse_import_export_spec::ParseNamedImports;
 use super::{PResult, ParserState};
 use crate::keyword::{self, IDENT_GLOBAL};
-use crate::parser::parse_break_or_continue::{ParseBreak, ParseContinue};
+use crate::parse_break_or_continue::{ParseBreak, ParseContinue};
 
 impl<'cx> ParserState<'cx, '_> {
     pub fn parse_stmt(&mut self) -> PResult<&'cx ast::Stmt<'cx>> {

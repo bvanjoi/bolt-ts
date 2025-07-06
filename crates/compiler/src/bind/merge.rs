@@ -4,7 +4,7 @@ use super::NodeQuery;
 use super::create::set_value_declaration;
 use super::symbol::SymbolTable;
 use super::{BinderResult, SymbolFlags, SymbolID};
-use crate::parser::Parser;
+use bolt_ts_parser::Parser;
 
 pub struct MergedSymbols(Vec<SymbolID>);
 

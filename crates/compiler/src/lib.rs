@@ -3,11 +3,9 @@ mod check;
 mod cli;
 mod diag;
 mod early_resolve;
-mod ecma_rules;
 mod emit;
 mod graph;
 mod ir;
-mod parser;
 mod ty;
 mod wf;
 
@@ -21,7 +19,7 @@ use self::diag::Diag;
 use self::early_resolve::early_resolve_parallel;
 use self::wf::well_formed_check_parallel;
 
-use bind::{Binder, NodeQuery, ResolveResult};
+use bind::{Binder, ResolveResult};
 use bolt_ts_ast::TokenKind;
 use bolt_ts_ast::keyword_idx_to_token;
 
@@ -32,8 +30,8 @@ use bolt_ts_fs::{CachedFileSystem, read_file_with_encoding};
 use bolt_ts_span::{ModuleArena, ModuleID};
 use bolt_ts_utils::path::NormalizePath;
 
+use bolt_ts_parser::{NodeQuery, ParseResult, Parser};
 use cli::get_filenames;
-use parser::{ParseResult, Parser};
 use rayon::prelude::*;
 use rustc_hash::FxHashMap;
 
@@ -178,7 +176,7 @@ pub fn eval_from_with_fs<'cx>(
         .collect::<Vec<_>>();
 
     // ==== build graph ====
-    let mut p = parser::Parser::new();
+    let mut p = bolt_ts_parser::Parser::new();
     let atoms = Arc::new(Mutex::new(atoms));
     let herd = bolt_ts_arena::bumpalo_herd::Herd::new();
     let mut mg = graph::build_graph(
@@ -198,7 +196,7 @@ pub fn eval_from_with_fs<'cx>(
     let (bind_list, mut p) = {
         let (bind_list, p_map): (
             Vec<BinderResult<'_>>,
-            Vec<(ParseResult<'_>, bind::ParentMap)>,
+            Vec<(ParseResult<'_>, bolt_ts_parser::ParentMap)>,
         ) = bind_parallel(module_arena.modules(), &atoms, p, tsconfig)
             .into_iter()
             .unzip();

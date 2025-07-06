@@ -162,6 +162,30 @@ impl<'cx> Expr<'cx> {
             _ => false,
         }
     }
+
+    pub fn is_left_hand_side_expr_kind(&self) -> bool {
+        use self::ExprKind::*;
+        matches!(
+            self.kind,
+            PropAccess(_)
+                | EleAccess(_)
+                | New(_)
+                | Call(_)
+                | ArrayLit(_)
+                | Paren(_)
+                | ObjectLit(_)
+                | Class(_)
+                | Fn(_)
+                | Ident(_)
+                | This(_)
+                | NumLit(_)
+                | StringLit(_)
+                | BoolLit(_)
+                | Template(_)
+                | Super(_)
+                | NonNull(_)
+        )
+    }
 }
 
 #[derive(Debug, Clone, Copy)]

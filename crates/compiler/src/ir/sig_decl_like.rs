@@ -2,7 +2,7 @@ use bolt_ts_ast as ast;
 
 pub trait SigDeclLike {
     fn id(&self) -> ast::NodeID;
-    fn flags(&self, node_flags_map: &crate::parser::NodeFlagsMap) -> ast::NodeFlags {
+    fn flags(&self, node_flags_map: &bolt_ts_parser::NodeFlagsMap) -> ast::NodeFlags {
         node_flags_map.get(self.id())
     }
     fn params(&self) -> ast::ParamsDecl;

@@ -101,11 +101,11 @@ use crate::bind::{
     SymbolFlags, SymbolID, SymbolName, SymbolTable, Symbols,
 };
 use crate::graph::ModuleGraph;
-use crate::parser::{AccessKind, AssignmentKind, Parser};
 use crate::ty::{CheckFlags, IndexFlags, IterationTys, TYPEOF_NE_FACTS, get_type_facts};
 use crate::ty::{ElementFlags, ObjectFlags, Sig, SigFlags, SigID, TyID, TypeFacts, TypeFlags};
 use crate::ty::{TyMapper, has_type_facts};
-use crate::{ecma_rules, ir, keyword, ty};
+use crate::{ir, keyword, ty};
+use bolt_ts_parser::{AccessKind, AssignmentKind, Parser};
 
 bitflags::bitflags! {
     #[derive(Clone, Copy, Debug, PartialEq)]
@@ -2131,7 +2131,7 @@ impl<'cx> TyChecker<'cx> {
         self.check_type_assignable_to(left_ty, self.string_number_symbol_ty(), Some(left.id()));
         if !self.check_type_assignable_to(right_ty, self.non_primitive_ty, Some(right.id())) {
             let right_ty = self.get_widened_literal_ty(right_ty);
-            let error = ecma_rules::TheRightValueOfTheInOperatorMustBeAnObjectButGotTy {
+            let error = bolt_ts_ecma_rules::TheRightValueOfTheInOperatorMustBeAnObjectButGotTy {
                 span: right.span(),
                 ty: right_ty.to_string(self),
             };

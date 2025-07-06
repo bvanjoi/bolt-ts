@@ -12,16 +12,19 @@ pub(crate) mod errors;
 mod flow;
 mod flow_in_node;
 mod merge;
-mod node_query;
-mod parent_map;
 mod pprint;
 mod symbol;
 
+use bolt_ts_parser::NodeQuery;
 use rayon::prelude::*;
 use rustc_hash::FxHashMap;
 
+use bolt_ts_ast as ast;
 use bolt_ts_atom::AtomMap;
 use bolt_ts_config::NormalizedTsConfig;
+use bolt_ts_parser::ParentMap;
+use bolt_ts_parser::ParseResult;
+use bolt_ts_parser::Parser;
 use bolt_ts_span::Module;
 use bolt_ts_span::ModuleID;
 use bolt_ts_utils::fx_hashmap_with_capacity;
@@ -31,21 +34,8 @@ pub use self::flow::{FlowFlags, FlowID, FlowNode, FlowNodeKind, FlowNodes};
 pub use self::flow_in_node::{FlowInNode, FlowInNodes};
 pub(crate) use self::merge::merge_global_symbol;
 pub(crate) use self::merge::{MergeGlobalSymbolResult, MergeSymbol, MergedSymbols};
-pub use self::node_query::NodeQuery;
-pub use self::parent_map::ParentMap;
 pub use self::symbol::{GlobalSymbols, Symbol, SymbolID, SymbolName, Symbols};
 pub use self::symbol::{SymbolFlags, SymbolTable};
-
-use crate::parser::ParseResult;
-use crate::parser::Parser;
-use bolt_ts_ast as ast;
-
-#[derive(Clone, Copy, PartialEq)]
-pub(crate) enum ModuleInstanceState {
-    NonInstantiated = 0,
-    Instantiated = 1,
-    ConstEnumOnly = 2,
-}
 
 pub struct ResolveResult {
     pub symbols: Symbols,
@@ -129,7 +119,7 @@ struct BinderState<'cx, 'atoms, 'parser> {
     final_res: FxHashMap<ast::NodeID, SymbolID>,
     flow_nodes: FlowNodes<'cx>,
     flow_in_nodes: FlowInNodes,
-    parent_map: self::parent_map::ParentMap,
+    parent_map: ParentMap,
 }
 
 struct BinderNodeQuery<'cx, 'p> {
@@ -230,7 +220,7 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
         self.diags.push(diag);
     }
 
-    fn node_query(&self) -> impl node_query::NodeQuery<'cx> {
+    fn node_query(&self) -> impl NodeQuery<'cx> {
         BinderNodeQuery::new(&self.parent_map, self.p)
     }
 }

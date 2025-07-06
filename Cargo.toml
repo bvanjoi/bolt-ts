@@ -36,3 +36,4 @@ indexmap = "2.7.0"
 xxhash-rust = { version = "0.8.12", features = ["xxh3"] }
 id-arena = "2.2.1"
 tracing = "0.1.41"
+rayon = "1.10.0"

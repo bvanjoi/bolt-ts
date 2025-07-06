@@ -17,7 +17,7 @@ use crate::bind::{
 };
 use crate::keyword;
 use crate::keyword::{is_prim_ty_name, is_prim_value_name};
-use crate::parser::Parser;
+use bolt_ts_parser::Parser;
 
 pub struct EarlyResolveResult {
     // TODO: use `NodeId::index` is enough

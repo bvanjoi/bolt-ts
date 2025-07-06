@@ -12,10 +12,10 @@ use super::{IndexedAccessTyMap, ResolutionKey, TyCacheTrait, errors};
 use crate::bind::{SymbolFlags, SymbolID, SymbolName};
 use crate::ir;
 use crate::keyword::is_prim_ty_name;
-use crate::parser::AssignmentKind;
 use crate::ty::{
     AccessFlags, CheckFlags, ElementFlags, IndexFlags, ObjectFlags, TyMapper, TypeFlags,
 };
+use bolt_ts_parser::AssignmentKind;
 
 impl<'cx> TyChecker<'cx> {
     pub(super) fn get_non_missing_type_of_symbol(&mut self, id: SymbolID) -> &'cx Ty<'cx> {

@@ -3,7 +3,6 @@ mod errors;
 use bolt_ts_ast::{self as ast};
 use bolt_ts_utils::path::NormalizePath;
 
-use super::parser;
 use super::{ModuleArena, ModuleID};
 
 use std::sync::{Arc, Mutex};
@@ -58,7 +57,7 @@ pub(super) fn build_graph<'cx>(
     atoms: Arc<Mutex<AtomMap<'cx>>>,
     default_lib_dir: &std::path::Path,
     herd: &'cx bolt_ts_arena::bumpalo_herd::Herd,
-    parser: &mut parser::Parser<'cx>,
+    parser: &mut bolt_ts_parser::Parser<'cx>,
     fs: impl bolt_ts_fs::CachedFileSystem,
 ) -> ModuleGraph {
     let fs = Arc::new(Mutex::new(fs));
@@ -73,10 +72,10 @@ pub(super) fn build_graph<'cx>(
         debug_assert!(resolving.is_sorted_by_key(|m| m.as_u32()));
         struct ResolvedModule<'cx> {
             id: ModuleID,
-            parse_result: parser::ParseResult<'cx>,
+            parse_result: bolt_ts_parser::ParseResult<'cx>,
             deps: Vec<(ast::NodeID, RResult<PathId>)>,
         }
-        let modules = parser::parse_parallel(
+        let modules = bolt_ts_parser::parse_parallel(
             atoms.clone(),
             herd,
             resolving.as_slice(),
@@ -181,7 +180,7 @@ pub(super) fn build_graph<'cx>(
 pub fn resolve_external_module_name(
     mg: &ModuleGraph,
     module_spec: ast::NodeID,
-    p: &parser::Parser<'_>,
+    p: &bolt_ts_parser::Parser<'_>,
 ) -> Option<super::bind::SymbolID> {
     let from = module_spec.module();
     let name = match p.node(module_spec) {

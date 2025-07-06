@@ -11,7 +11,7 @@ use bolt_ts_span::ModuleID;
 use bolt_ts_utils::fx_hashset_with_capacity;
 use rustc_hash::FxHashSet;
 
-use crate::parser::Parser;
+use bolt_ts_parser::Parser;
 
 struct PPrint {
     content: String,

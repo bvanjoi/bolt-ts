@@ -1,7 +1,7 @@
 use bolt_ts_ast::{JsxTagName, NodeFlags, TokenKind, keyword};
 use bolt_ts_span::Span;
 
-use crate::parser::{errors, state::LanguageVariant};
+use crate::{errors, state::LanguageVariant};
 
 use super::{PResult, ParserState, list_ctx};
 

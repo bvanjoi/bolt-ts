@@ -38,7 +38,7 @@ pub trait SymbolInfo<'cx>: Sized {
     fn arena(&self) -> &'cx bolt_ts_arena::bumpalo::Bump;
     fn empty_symbols(&self) -> &'cx SymbolTable;
     fn mg(&self) -> &crate::graph::ModuleGraph;
-    fn p(&self) -> &crate::parser::Parser<'cx>;
+    fn p(&self) -> &bolt_ts_parser::Parser<'cx>;
     fn atoms(&self) -> &bolt_ts_atom::AtomMap<'cx>;
     fn module_arena(&self) -> &bolt_ts_span::ModuleArena;
     fn push_error(&mut self, error: crate::Diag);
@@ -1203,7 +1203,7 @@ impl<'cx> SymbolInfo<'cx> for super::TyChecker<'cx> {
     fn mg(&self) -> &crate::graph::ModuleGraph {
         self.mg
     }
-    fn p(&self) -> &crate::parser::Parser<'cx> {
+    fn p(&self) -> &bolt_ts_parser::Parser<'cx> {
         self.p
     }
     fn atoms(&self) -> &bolt_ts_atom::AtomMap<'cx> {

@@ -2,8 +2,8 @@ use bolt_ts_ast::ModifierKind;
 use bolt_ts_ast::{TokenFlags, TokenKind};
 use bolt_ts_span::Span;
 
-use crate::parser::lookahead::Lookahead;
-use crate::{ecma_rules, keyword};
+use crate::keyword;
+use crate::lookahead::Lookahead;
 
 use super::list_ctx;
 use super::{PResult, ParserState};
@@ -23,30 +23,6 @@ impl<T, E> ParseSuccess for Result<Option<T>, E> {
     fn is_success(&self) -> bool {
         self.as_ref().is_ok_and(|x| x.is_some())
     }
-}
-
-pub(crate) fn is_left_hand_side_expr_kind(expr: &ast::Expr) -> bool {
-    use bolt_ts_ast::ExprKind::*;
-    matches!(
-        expr.kind,
-        PropAccess(_)
-            | EleAccess(_)
-            | New(_)
-            | Call(_)
-            | ArrayLit(_)
-            | Paren(_)
-            | ObjectLit(_)
-            | Class(_)
-            | Fn(_)
-            | Ident(_)
-            | This(_)
-            | NumLit(_)
-            | StringLit(_)
-            | BoolLit(_)
-            | Template(_)
-            | Super(_)
-            | NonNull(_)
-    )
 }
 
 impl<'cx> ParserState<'cx, '_> {
@@ -492,7 +468,7 @@ impl<'cx> ParserState<'cx, '_> {
                     .collect::<Vec<_>>()
             }) {
                 for error_param in rest_param_but_not_last {
-                    let error = ecma_rules::ARestParameterMustBeLastInAParameterList {
+                    let error = bolt_ts_ecma_rules::ARestParameterMustBeLastInAParameterList {
                         span: error_param.span,
                     };
                     self.push_error(Box::new(error));

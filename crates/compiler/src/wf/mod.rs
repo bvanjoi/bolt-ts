@@ -8,7 +8,7 @@ use bolt_ts_utils::fx_hashmap_with_capacity;
 
 use crate::ir;
 use crate::keyword::is_reserved_type_name;
-use crate::parser::Parser;
+use bolt_ts_parser::Parser;
 use bolt_ts_ast::{self as ast, keyword, pprint_ident, visitor};
 
 pub fn well_formed_check_parallel(

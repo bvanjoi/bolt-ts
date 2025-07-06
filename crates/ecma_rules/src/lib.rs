@@ -17,7 +17,7 @@ fn url(path: &str) -> String {
 #[derive(Error, Diagnostic, DiagnosticExt, Debug)]
 #[error("The right value of the `in` operator must be an 'object', but got '{ty}'.")]
 #[diagnostic(url("{}", url("sec-relational-operators-runtime-semantics-evaluation")))]
-pub(crate) struct TheRightValueOfTheInOperatorMustBeAnObjectButGotTy {
+pub struct TheRightValueOfTheInOperatorMustBeAnObjectButGotTy {
     #[label(primary)]
     pub span: Span,
     pub ty: String,
@@ -29,7 +29,7 @@ pub(crate) struct TheRightValueOfTheInOperatorMustBeAnObjectButGotTy {
 #[derive(Error, Diagnostic, DiagnosticExt, Debug)]
 #[error("A rest parameter must be last in a parameter list.")]
 #[diagnostic(url("{}", url("prod-FormalParameters")))]
-pub(crate) struct ARestParameterMustBeLastInAParameterList {
+pub struct ARestParameterMustBeLastInAParameterList {
     #[label(primary)]
     pub span: Span,
 }

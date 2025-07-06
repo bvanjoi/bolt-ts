@@ -5,7 +5,7 @@ use bolt_ts_utils::fx_hashmap_with_capacity;
 
 use crate::bind::SymbolID;
 use crate::ensure_sufficient_stack;
-use crate::parser::AssignmentKind;
+use bolt_ts_parser::AssignmentKind;
 use crate::ty::CheckFlags;
 use crate::ty::TypeFlags;
 
