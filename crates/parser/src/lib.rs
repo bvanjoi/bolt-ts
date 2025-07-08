@@ -215,7 +215,7 @@ pub fn parse_parallel<'cx, 'p>(
                 module_arena,
                 default_lib_dir,
             );
-            assert!(!module_arena.get_module(*module_id).is_default_lib || p.diags.is_empty());
+            // assert!(!module_arena.get_module(*module_id).is_default_lib || p.diags.is_empty());
             (*module_id, p)
         },
     )

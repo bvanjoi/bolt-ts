@@ -3,6 +3,7 @@ const MAX_SAFE_INT: u64 = 9007199254740991;
 pub(super) fn parse_integer<const RADIX: u8>(s: &str) -> f64 {
     debug_assert!(matches!(RADIX, 2 | 8 | 10 | 16));
     debug_assert!(!s.is_empty());
+    debug_assert!(!s.contains('_'));
     if RADIX == 10 {
         parse_integer_from_dec(s)
     } else if RADIX == 16 {

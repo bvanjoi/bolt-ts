@@ -188,3 +188,4 @@ function foo8_c(x) {
     (() => x + y + a);
   }
 }
+(function () {})();

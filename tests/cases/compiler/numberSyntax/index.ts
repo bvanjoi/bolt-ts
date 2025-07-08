@@ -7,3 +7,4 @@
 1.7976931348623157e+308;
 0o7.toFixed();
 1..toFixed();
+0x1F_FFFF_FFFF_FFFF;
