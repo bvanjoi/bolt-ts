@@ -60,10 +60,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         file_path: &std::path::Path,
         variant: LanguageVariant,
     ) -> Self {
-        let token = Token::new(
-            TokenKind::EOF,
-            Span::new(u32::MAX, u32::MAX, ModuleID::root()),
-        );
+        let token = Token::new(TokenKind::EOF, Span::new(u32::MAX, u32::MAX, module_id));
         let p = file_path.to_string_lossy();
         let p = p.as_bytes();
         let atom = AtomId::from_bytes(p);

@@ -36,8 +36,8 @@ pub(super) fn early_resolve_parallel<'cx>(
     modules
         .into_par_iter()
         .map(|m| {
-            let module_id = m.id;
-            let is_default_lib = m.is_default_lib;
+            let module_id = m.id();
+            let is_default_lib = m.is_default_lib();
             let root = p.root(module_id);
             let result = early_resolve(states, module_id, root, p, globals, merged, atoms);
             assert!(!is_default_lib || result.diags.is_empty());

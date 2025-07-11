@@ -261,8 +261,8 @@ pub fn bind_parallel<'cx>(
         .into_par_iter()
         .zip(modules)
         .map(|(mut p, m)| {
-            let module_id = m.id;
-            let is_default_lib = m.is_default_lib;
+            let module_id = m.id();
+            let is_default_lib = m.is_default_lib();
             let root = p.root();
             let mut bind_state = bind(atoms, &mut p, root, module_id, options);
             let parent_map = std::mem::take(&mut bind_state.parent_map);

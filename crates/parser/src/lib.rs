@@ -268,7 +268,7 @@ fn parse<'cx, 'p>(
         s.nodes.root(),
         atoms.clone(),
     );
-    let is_default_lib = module_arena.get_module(module_id).is_default_lib;
+    let is_default_lib = module_arena.get_module(module_id).is_default_lib();
 
     let lib_references = process_lib_reference_directives(
         &s.lib_reference_directives,

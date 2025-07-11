@@ -341,7 +341,7 @@ pub struct Symbols {
 impl Default for Symbols {
     fn default() -> Self {
         Self {
-            module_id: ModuleID::root(),
+            module_id: ModuleID::DEFAULT,
             data: Vec::with_capacity(1024),
         }
     }

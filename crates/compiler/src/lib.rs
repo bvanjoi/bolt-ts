@@ -14,24 +14,23 @@ use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 
 use self::bind::bind_parallel;
+use self::bind::{Binder, ResolveResult};
 use self::bind::{BinderResult, MergeGlobalSymbolResult};
+use self::cli::get_filenames;
 use self::diag::Diag;
 use self::early_resolve::early_resolve_parallel;
 use self::wf::well_formed_check_parallel;
 
-use bind::{Binder, ResolveResult};
 use bolt_ts_ast::TokenKind;
-use bolt_ts_ast::keyword_idx_to_token;
-
 use bolt_ts_ast::keyword;
+use bolt_ts_ast::keyword_idx_to_token;
 use bolt_ts_atom::{AtomId, AtomMap};
 use bolt_ts_config::NormalizedTsConfig;
 use bolt_ts_fs::{CachedFileSystem, read_file_with_encoding};
+use bolt_ts_parser::{NodeQuery, ParseResult, Parser};
 use bolt_ts_span::{ModuleArena, ModuleID};
 use bolt_ts_utils::path::NormalizePath;
 
-use bolt_ts_parser::{NodeQuery, ParseResult, Parser};
-use cli::get_filenames;
 use rayon::prelude::*;
 use rustc_hash::FxHashMap;
 
@@ -300,7 +299,7 @@ pub fn eval_from_with_fs<'cx>(
         &mut global_symbols,
     );
     for item in &entries {
-        let is_default_lib = module_arena.get_module(*item).is_default_lib;
+        let is_default_lib = module_arena.get_module(*item).is_default_lib();
         let prev = checker.diags.len();
         let root = p.root(*item);
         checker.check_program(root);
@@ -316,7 +315,7 @@ pub fn eval_from_with_fs<'cx>(
     let output = entries
         .into_par_iter()
         .filter_map(|item| {
-            if module_arena.get_module(item).is_default_lib {
+            if module_arena.get_module(item).is_default_lib() {
                 None
             } else {
                 let input = module_arena.get_content(item);
@@ -338,11 +337,8 @@ pub fn eval_from_with_fs<'cx>(
             .modules()
             .iter()
             .map(|m| {
-                let p = module_arena.get_path(m.id);
-                debug_assert!(
-                    p.is_normalized(),
-                    "path should be normalized, but got: {p:?}"
-                );
+                let p = module_arena.get_path(m.id());
+                assert!(p.is_normalized());
                 p
             })
             .collect::<Vec<_>>();
