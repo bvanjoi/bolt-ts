@@ -6,7 +6,7 @@ use bolt_ts_errors::thiserror::Error;
 use bolt_ts_span::Span;
 use bolt_ts_utils::no_hashset_with_capacity;
 
-use crate::parser::CommentDirective;
+use bolt_ts_parser::CommentDirective;
 
 pub(super) type Diag = Box<dyn bolt_ts_errors::diag_ext::DiagnosticExt + Send + Sync + 'static>;
 
@@ -133,7 +133,7 @@ impl<'p, 'cx> CommentDirectivesMap<'p, 'cx> {
                 all.iter().filter_map(|(line, directive)| {
                     if matches!(
                         directive.kind,
-                        super::parser::CommentDirectiveKind::ExpectError
+                        bolt_ts_parser::CommentDirectiveKind::ExpectError
                     ) && !used.contains(line)
                     {
                         Some(*directive)

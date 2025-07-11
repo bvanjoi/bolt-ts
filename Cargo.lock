@@ -89,6 +89,7 @@ dependencies = [
  "enumflags2",
  "nohash-hasher",
  "paste",
+ "rustc-hash",
 ]
 
 [[package]]
@@ -96,7 +97,6 @@ name = "bolt_ts_atom"
 version = "0.1.0"
 dependencies = [
  "bolt_ts_utils",
- "nohash-hasher",
  "paste",
  "rustc-hash",
  "xxhash-rust",
@@ -111,9 +111,11 @@ dependencies = [
  "bolt_ts_ast",
  "bolt_ts_atom",
  "bolt_ts_config",
+ "bolt_ts_ecma_rules",
  "bolt_ts_errors",
  "bolt_ts_fs",
  "bolt_ts_libs",
+ "bolt_ts_parser",
  "bolt_ts_path",
  "bolt_ts_resolve",
  "bolt_ts_span",
@@ -160,6 +162,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "bolt_ts_ecma_rules"
+version = "0.1.0"
+dependencies = [
+ "bolt_ts_errors",
+ "bolt_ts_span",
+]
+
+[[package]]
 name = "bolt_ts_errors"
 version = "0.1.0"
 dependencies = [
@@ -191,6 +201,40 @@ version = "0.1.0"
 dependencies = [
  "bolt_ts_config",
  "rustc-hash",
+]
+
+[[package]]
+name = "bolt_ts_parser"
+version = "0.1.0"
+dependencies = [
+ "bitflags",
+ "bolt_ts_arena",
+ "bolt_ts_ast",
+ "bolt_ts_atom",
+ "bolt_ts_config",
+ "bolt_ts_ecma_rules",
+ "bolt_ts_errors",
+ "bolt_ts_fs",
+ "bolt_ts_libs",
+ "bolt_ts_path",
+ "bolt_ts_resolve",
+ "bolt_ts_span",
+ "bolt_ts_tracing",
+ "bolt_ts_utils",
+ "enumflags2",
+ "include_dir",
+ "indexmap",
+ "nohash-hasher",
+ "paste",
+ "pretty-duration",
+ "project-root",
+ "rayon",
+ "rustc-hash",
+ "serde_json",
+ "stacker",
+ "thin-vec",
+ "tracing",
+ "unicode-id-start",
 ]
 
 [[package]]

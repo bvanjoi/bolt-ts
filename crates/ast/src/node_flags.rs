@@ -1,6 +1,6 @@
 bitflags::bitflags! {
     #[derive(Clone, Copy, Debug, Default, PartialEq)]
-    pub struct NodeFlags: u32 {
+    pub struct NodeFlags: u64 {
         const LET                                         = 1 << 0;
         const CONST                                       = 1 << 1;
         const USING                                       = 1 << 2;
@@ -32,6 +32,7 @@ bitflags::bitflags! {
         const TYPE_CACHED                                 = 1 << 28;
         const DEPRECATED                                  = 1 << 29;
         const ALLOW_CONTINUE_CONTEXT                      = 1 << 30;
+        const ALLOW_BREAK_CONTEXT                         = 1 << 31;
 
         const AWAIT_USING                                 = Self::CONST.bits() | Self::USING.bits();
         const CONSTANT                                    = Self::CONST.bits() | Self::USING.bits();

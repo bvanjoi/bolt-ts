@@ -7,7 +7,7 @@ use super::symbol_info::SymbolInfo;
 use super::utils::append_if_unique;
 use super::{CheckMode, InferenceContextId, TyChecker, fn_mapper};
 use crate::bind::SymbolFlags;
-use crate::ir;
+use crate::r#trait;
 use crate::ty::{self, SigFlags, SigKind, TyID, TypeFlags};
 use crate::ty::{ObjectFlags, Sig};
 
@@ -576,7 +576,7 @@ impl<'cx> TyChecker<'cx> {
 
     pub(super) fn infer_ty_args(
         &mut self,
-        node: &impl ir::CallLike<'cx>,
+        node: &impl r#trait::CallLike<'cx>,
         sig: &'cx Sig<'cx>,
         args: &'cx [&'cx ast::Expr<'cx>],
         check_mode: CheckMode,

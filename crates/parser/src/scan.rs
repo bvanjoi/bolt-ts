@@ -6,7 +6,7 @@ use bolt_ts_span::Span;
 use super::{CommentDirectiveKind, ParserState, TokenValue, errors, unicode};
 use bolt_ts_ast::{RegularExpressionFlags, Token, TokenFlags, TokenKind, atom_to_token, keyword};
 
-use crate::parser::{CommentDirective, scan_integer::parse_integer};
+use crate::{CommentDirective, scan_integer::parse_integer};
 
 #[inline(always)]
 fn is_ascii_letter(ch: u8) -> bool {
@@ -144,18 +144,15 @@ impl ParserState<'_, '_> {
         v
     }
 
-    fn scan_number_fragment(&mut self) -> Vec<u8> {
-        let mut start = self.pos;
+    fn scan_number_fragment(&mut self) {
         let mut allow_separator = false;
         let mut is_previous_token_separator = false;
-        let mut result = Vec::with_capacity(32);
         while let Some(ch) = self.ch() {
             if ch == b'_' {
                 self.token_flags |= TokenFlags::CONTAINS_SEPARATOR;
                 if allow_separator {
                     allow_separator = false;
                     is_previous_token_separator = true;
-                    result.extend_from_slice(&self.input[start..self.pos]);
                 } else {
                     self.token_flags |= TokenFlags::CONTAINS_INVALID_ESCAPE;
                     if is_previous_token_separator {
@@ -165,7 +162,6 @@ impl ParserState<'_, '_> {
                     }
                 }
                 self.pos += 1;
-                start = self.pos;
             } else if ch.is_ascii_digit() {
                 allow_separator = true;
                 is_previous_token_separator = false;
@@ -178,12 +174,9 @@ impl ParserState<'_, '_> {
             self.token_flags |= TokenFlags::CONTAINS_INVALID_SEPARATOR;
             todo!("error")
         }
-        result.extend_from_slice(&self.input[start..self.pos]);
-        result
     }
 
-    fn scan_digits(&mut self) -> (Vec<u8>, bool) {
-        let start = self.pos;
+    fn scan_digits(&mut self) -> bool {
         let mut is_octal = true;
         loop {
             let Some(ch) = self.ch() else {
@@ -197,13 +190,12 @@ impl ParserState<'_, '_> {
             }
             self.pos += 1;
         }
-        let fragment = self.input[start..self.pos].to_vec();
-        (fragment, is_octal)
+        is_octal
     }
 
     fn scan_number(&mut self) -> Token {
         let start = self.pos;
-        let main_frag = if self.input[self.pos] == b'0' {
+        if self.input[self.pos] == b'0' {
             self.pos += 1;
             if self.ch() == Some(b'_') {
                 self.token_flags |=
@@ -214,38 +206,33 @@ impl ParserState<'_, '_> {
                 self.pos -= 1;
                 self.scan_number_fragment()
             } else {
-                let (fragment, is_oct) = self.scan_digits();
+                let is_oct = self.scan_digits();
                 if !is_oct {
                     let error = errors::DecimalsWithLeadingZerosAreNotAllowed {
                         span: Span::new(start as u32, self.pos as u32, self.module_id),
                     };
                     self.push_error(Box::new(error));
-                    fragment
-                } else if fragment.is_empty() {
-                    vec![b'0']
-                } else {
-                    let help_lit = format!("0o{}", unsafe {
-                        String::from_utf8_unchecked(fragment.clone())
-                    });
+                } else if start + 1 != self.pos {
+                    let fragment = self.input[start + 1..self.pos].to_vec();
+                    let help_lit =
+                        format!("0o{}", unsafe { String::from_utf8_unchecked(fragment) });
                     let error = errors::OctalLiteralsAreNotAllowed {
                         span: Span::new(start as u32, self.pos as u32, self.module_id),
                         help_lit,
                     };
                     self.push_error(Box::new(error));
-                    fragment
                 }
             }
         } else {
             self.scan_number_fragment()
         };
         let contain_dot = self.ch() == Some(b'.');
-        let decimal_frag = if contain_dot {
+        if contain_dot {
             self.pos += 1;
             Some(self.scan_number_fragment())
         } else {
             None
         };
-        let mut scientific_frag = None;
         let mut end = self.pos;
         let contain_e = self.ch().is_some_and(|c| matches!(c, b'e' | b'E'));
         if contain_e {
@@ -255,8 +242,8 @@ impl ParserState<'_, '_> {
                 self.pos += 1;
             }
             let pre_numeric_part = self.pos;
-            let final_frag = self.scan_number_fragment();
-            if final_frag.is_empty() {
+            self.scan_number_fragment();
+            if pre_numeric_part == self.pos {
                 self.push_error(Box::new(errors::DigitExpected {
                     span: Span::new(
                         (pre_numeric_part - 1) as u32,
@@ -265,25 +252,22 @@ impl ParserState<'_, '_> {
                     ),
                 }));
             } else {
-                let mut t = self.input[end..pre_numeric_part].to_vec();
-                t.extend(final_frag.iter());
                 // `e{xxx}`
-                scientific_frag = Some(t);
                 end = self.pos;
             }
         }
 
         let result = if self.token_flags.intersects(TokenFlags::CONTAINS_SEPARATOR) {
-            let mut result = main_frag;
-            if let Some(d) = decimal_frag {
-                result.push(b'.');
-                result.extend(d);
-            }
-            if let Some(s) = scientific_frag {
-                result.extend(s);
-            }
-            Cow::Owned(result)
+            debug_assert!(self.input[start..end].contains(&b'_'));
+            Cow::Owned(
+                self.input[start..end]
+                    .iter()
+                    .filter(|&&c| c != b'_')
+                    .copied()
+                    .collect::<Vec<u8>>(),
+            )
         } else {
+            debug_assert!(!self.input[start..end].contains(&b'_'));
             Cow::Borrowed(&self.input[start..end])
         };
 

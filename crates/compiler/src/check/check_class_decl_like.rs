@@ -1,6 +1,6 @@
 use super::symbol_info::SymbolInfo;
 use super::{TyChecker, errors};
-use crate::ir::ClassLike;
+use crate::r#trait::ClassLike;
 use crate::ty;
 use crate::ty::TypeFlags;
 

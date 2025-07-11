@@ -4,7 +4,7 @@ use super::NodeQuery;
 use super::create::set_value_declaration;
 use super::symbol::SymbolTable;
 use super::{BinderResult, SymbolFlags, SymbolID};
-use crate::parser::Parser;
+use bolt_ts_parser::Parser;
 
 pub struct MergedSymbols(Vec<SymbolID>);
 
@@ -295,11 +295,11 @@ pub(crate) fn merge_global_symbol<'cx>(
     };
 
     for (m, p) in module_arena.modules().iter().zip(parser.map.iter()) {
-        assert!(std::ptr::addr_eq(parser.get(m.id), p));
+        assert!(std::ptr::addr_eq(parser.get(m.id()), p));
 
         if !p.is_external_or_commonjs_module() {
             let target = SymbolTableLocation::Global;
-            let container = parser.get(m.id).root().id;
+            let container = parser.get(m.id()).root().id;
             let source = SymbolTableLocation::Locals { container };
             c.merge_symbol_table(target, source, false);
         }

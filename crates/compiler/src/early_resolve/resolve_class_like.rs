@@ -1,5 +1,5 @@
 use super::Resolver;
-use crate::ir;
+use crate::r#trait;
 use bolt_ts_ast as ast;
 
 impl<'cx> Resolver<'cx, '_, '_> {
@@ -25,7 +25,7 @@ impl<'cx> Resolver<'cx, '_, '_> {
         }
     }
 
-    pub(super) fn resolve_class_like(&mut self, class: &'cx impl ir::ClassLike<'cx>) {
+    pub(super) fn resolve_class_like(&mut self, class: &'cx impl r#trait::ClassLike<'cx>) {
         if let Some(ty_params) = class.ty_params() {
             self.resolve_ty_params(ty_params);
         }

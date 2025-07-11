@@ -3,7 +3,6 @@ use super::paren_rule::{NoParenRule, ParenRuleTrait};
 use super::parse_fn_like::ParseFnExpr;
 use super::state::LanguageVariant;
 use super::ty::TypeArguments;
-use super::utils::is_left_hand_side_expr_kind;
 use super::{PResult, ParserState};
 use super::{Tristate, parse_class_like};
 use super::{errors, list_ctx};
@@ -200,7 +199,7 @@ impl<'cx> ParserState<'cx, '_> {
                 return self.parse_simple_arrow_fn_expr(ident);
             }
         }
-        if is_left_hand_side_expr_kind(expr) && self.re_scan_greater().is_assignment() {
+        if expr.is_left_hand_side_expr_kind() && self.re_scan_greater().is_assignment() {
             // self.parent_map.r#override(expr.id(), id);
             let op = self.token.kind.into();
             self.parse_token_node();

@@ -1,5 +1,5 @@
 use super::TyChecker;
-use crate::ir;
+use crate::r#trait;
 use bolt_ts_ast as ast;
 
 impl<'cx> TyChecker<'cx> {
@@ -7,7 +7,7 @@ impl<'cx> TyChecker<'cx> {
         &mut self,
         name_id: ast::NodeID,
         decl_id: ast::NodeID,
-        decl: &'cx impl ir::VarLike<'cx>,
+        decl: &'cx impl r#trait::VarLike<'cx>,
     ) {
         if !self.p.node(name_id).is_object_binding_elem() {
             if let Some(ty) = decl.decl_ty() {
@@ -32,8 +32,8 @@ impl<'cx> TyChecker<'cx> {
             }
         }
     }
-    pub(super) fn check_var_like_decl(&mut self, decl: &'cx impl ir::VarLike<'cx>) {
-        use crate::ir::VarLikeName::*;
+    pub(super) fn check_var_like_decl(&mut self, decl: &'cx impl r#trait::VarLike<'cx>) {
+        use crate::r#trait::VarLikeName::*;
         match decl.name() {
             Ident(name) => self.check_non_pat_var_like_decl(name.id, decl.id(), decl),
             StringLit { raw, .. } => self.check_non_pat_var_like_decl(raw.id, decl.id(), decl),

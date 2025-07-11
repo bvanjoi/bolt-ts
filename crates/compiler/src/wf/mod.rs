@@ -6,10 +6,10 @@ use bolt_ts_config::{NormalizedCompilerOptions, Target};
 use bolt_ts_span::ModuleID;
 use bolt_ts_utils::fx_hashmap_with_capacity;
 
-use crate::ir;
 use crate::keyword::is_reserved_type_name;
-use crate::parser::Parser;
+use crate::r#trait;
 use bolt_ts_ast::{self as ast, keyword, pprint_ident, visitor};
+use bolt_ts_parser::Parser;
 
 pub fn well_formed_check_parallel(
     p: &Parser,
@@ -22,8 +22,8 @@ pub fn well_formed_check_parallel(
     modules
         .into_par_iter()
         .flat_map(|m| {
-            let diags = well_formed_check(p, atoms, m.id, compiler_options);
-            assert!(!m.is_default_lib || diags.is_empty());
+            let diags = well_formed_check(p, atoms, m.id(), compiler_options);
+            assert!(!m.is_default_lib() || diags.is_empty());
             diags
         })
         .collect::<Vec<_>>()
@@ -77,7 +77,7 @@ impl<'cx> CheckState<'cx> {
             }
         }
     }
-    fn check_class_like(&mut self, class: &impl ir::ClassLike<'cx>) {
+    fn check_class_like(&mut self, class: &impl r#trait::ClassLike<'cx>) {
         if let Some(name) = class.name() {
             self.check_collisions_for_decl_name(class.id(), name);
         };
@@ -138,7 +138,7 @@ impl<'cx> CheckState<'cx> {
         }
     }
 
-    fn check_sig_decl(&mut self, node: &impl ir::SigDeclLike) {
+    fn check_sig_decl(&mut self, node: &impl r#trait::SigDeclLike) {
         if !(*self.compiler_options.target() >= Target::ES2015
             || !node.has_rest_param()
             || self
@@ -202,7 +202,7 @@ impl<'cx> CheckState<'cx> {
         }
         false
     }
-    fn check_ambient_initializer(&mut self, node: &impl ir::VarLike<'cx>) {
+    fn check_ambient_initializer(&mut self, node: &impl r#trait::VarLike<'cx>) {
         let Some(init) = node.init() else {
             return;
         };

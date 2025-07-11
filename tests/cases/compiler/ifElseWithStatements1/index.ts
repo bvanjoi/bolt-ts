@@ -11,3 +11,6 @@ function foo(): boolean {
   else
       return false;
 }
+
+
+if (1) 1; else 1

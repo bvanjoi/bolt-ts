@@ -3,11 +3,20 @@ use std::sync::Arc;
 use bolt_ts_atom::AtomId;
 use bolt_ts_fs::CachedFileSystem;
 
-bolt_ts_utils::index!(ModuleID);
-
+#[derive(Debug, Clone, Copy, Hash, PartialEq, Eq)]
+pub struct ModuleID(u32);
 impl ModuleID {
     pub const TRANSIENT: ModuleID = ModuleID(u32::MAX);
     pub const DEFAULT: ModuleID = ModuleID(u32::MAX - 1);
+
+    #[inline(always)]
+    pub const fn as_u32(&self) -> u32 {
+        self.0
+    }
+    #[inline(always)]
+    pub const fn as_usize(&self) -> usize {
+        self.0 as usize
+    }
 }
 
 impl Default for ModuleID {
@@ -45,8 +54,19 @@ impl std::fmt::Display for Span {
 
 #[derive(Clone, Debug)]
 pub struct Module {
-    pub id: ModuleID,
-    pub is_default_lib: bool,
+    id: ModuleID,
+    is_default_lib: bool,
+}
+
+impl Module {
+    #[inline(always)]
+    pub fn id(&self) -> ModuleID {
+        self.id
+    }
+    #[inline(always)]
+    pub fn is_default_lib(&self) -> bool {
+        self.is_default_lib
+    }
 }
 
 pub type ModulePath = std::path::PathBuf;

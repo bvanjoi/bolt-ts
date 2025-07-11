@@ -175,3 +175,6 @@ function foo8_c(x) {
       (() => x + y + a);
   }
 }
+
+// iife
+(function(){})()

@@ -1,7 +1,7 @@
 use crate::bind::Symbol;
 use crate::bind::SymbolFlags;
 use crate::bind::SymbolID;
-use crate::ir::node_id_of_binding;
+use crate::r#trait::node_id_of_binding;
 use bolt_ts_ast as ast;
 
 use super::Resolver;

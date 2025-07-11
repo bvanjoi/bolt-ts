@@ -1,4 +1,4 @@
-use crate::parser::lookahead::Lookahead;
+use crate::lookahead::Lookahead;
 
 use super::{PResult, ParserState};
 use bolt_ts_ast as ast;

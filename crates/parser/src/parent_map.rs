@@ -6,7 +6,7 @@ pub struct ParentMap {
 
 impl ParentMap {
     const PLACEHOLDER: u32 = u32::MAX;
-    pub(super) fn new(cap: usize) -> Self {
+    pub fn new(cap: usize) -> Self {
         Self {
             finished: false,
             inner: vec![Self::PLACEHOLDER; cap],
@@ -25,10 +25,7 @@ impl ParentMap {
         }
     }
 
-    pub(super) fn parent_unfinished(
-        &self,
-        node_id: bolt_ts_ast::NodeID,
-    ) -> Option<bolt_ts_ast::NodeID> {
+    pub fn parent_unfinished(&self, node_id: bolt_ts_ast::NodeID) -> Option<bolt_ts_ast::NodeID> {
         assert!(!self.finished);
         let id = node_id.index_as_usize();
         self.inner
@@ -36,7 +33,7 @@ impl ParentMap {
             .map(|&index| bolt_ts_ast::NodeID::new(node_id.module(), index))
     }
 
-    pub(super) fn insert(&mut self, node: bolt_ts_ast::NodeID, parent: bolt_ts_ast::NodeID) {
+    pub fn insert(&mut self, node: bolt_ts_ast::NodeID, parent: bolt_ts_ast::NodeID) {
         assert!(!self.finished);
         let id = node.index_as_usize();
         assert_eq!(
@@ -47,7 +44,7 @@ impl ParentMap {
         self.inner[id] = parent.index_as_u32();
     }
 
-    pub(super) fn finish(&mut self) {
+    pub fn finish(&mut self) {
         assert!(!self.finished);
         assert_eq!(self.inner[self.inner.len() - 1], Self::PLACEHOLDER);
         // TODO: enable this? How can we eliminate these invalid nodes?

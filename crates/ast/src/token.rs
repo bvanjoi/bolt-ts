@@ -33,7 +33,7 @@ pub const fn keyword_idx_to_token(idx: usize) -> TokenKind {
 }
 
 pub fn atom_to_token(id: AtomId) -> Option<TokenKind> {
-    static KWS: std::sync::LazyLock<nohash_hasher::IntMap<AtomId, TokenKind>> =
+    static KWS: std::sync::LazyLock<rustc_hash::FxHashMap<AtomId, TokenKind>> =
         std::sync::LazyLock::new(|| {
             [
                 (keyword::KW_NULL, TokenKind::Null),

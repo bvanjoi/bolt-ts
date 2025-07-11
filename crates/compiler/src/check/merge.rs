@@ -5,7 +5,7 @@ use crate::bind::{
     MergeSymbol, MergedSymbols, ResolveResult, SymbolFlags, SymbolID, SymbolName, SymbolTable,
 };
 use crate::graph::resolve_external_module_name;
-use crate::parser::Parser;
+use bolt_ts_parser::Parser;
 
 struct MergeModuleAugmentation<'p, 'cx> {
     pub p: &'p Parser<'cx>,
@@ -22,7 +22,10 @@ impl MergeModuleAugmentation<'_, '_> {
 }
 
 impl<'cx> MergeSymbol<'cx> for MergeModuleAugmentation<'_, 'cx> {
-    fn get_parse_result(&self, module: bolt_ts_span::ModuleID) -> &crate::parser::ParseResult<'cx> {
+    fn get_parse_result(
+        &self,
+        module: bolt_ts_span::ModuleID,
+    ) -> &bolt_ts_parser::ParseResult<'cx> {
         self.p.get(module)
     }
     fn get_symbols(&self, module: bolt_ts_span::ModuleID) -> &crate::bind::Symbols {
@@ -92,7 +95,7 @@ pub(crate) fn merge_module_augmentation_list_for_global(
         atoms,
     };
     for (m, p) in module_arena.modules().iter().zip(parser.map.iter()) {
-        assert!(std::ptr::addr_eq(parser.get(m.id), p));
+        assert!(std::ptr::addr_eq(parser.get(m.id()), p));
         for augmentation in p.module_augmentations.iter() {
             let ns_id = p.parent(*augmentation).unwrap();
             let ns = p.node(ns_id).expect_module_decl();
@@ -121,7 +124,10 @@ pub(crate) fn merge_module_augmentation_list_for_global(
 }
 
 impl<'cx> MergeSymbol<'cx> for super::TyChecker<'cx> {
-    fn get_parse_result(&self, module: bolt_ts_span::ModuleID) -> &crate::parser::ParseResult<'cx> {
+    fn get_parse_result(
+        &self,
+        module: bolt_ts_span::ModuleID,
+    ) -> &bolt_ts_parser::ParseResult<'cx> {
         self.p.get(module)
     }
     fn get_symbols(&self, module: bolt_ts_span::ModuleID) -> &crate::bind::Symbols {
@@ -180,7 +186,7 @@ impl<'cx> MergeSymbol<'cx> for super::TyChecker<'cx> {
 impl<'cx> super::TyChecker<'cx> {
     pub(super) fn merge_module_augmentation_list_for_non_global(&mut self) {
         for (m, p) in self.module_arena.modules().iter().zip(self.p.map.iter()) {
-            assert!(std::ptr::addr_eq(self.p.get(m.id), p));
+            assert!(std::ptr::addr_eq(self.p.get(m.id()), p));
             for augmentation in p.module_augmentations.iter() {
                 let ns_id = p.parent(*augmentation).unwrap();
                 let ns = p.node(ns_id).expect_module_decl();

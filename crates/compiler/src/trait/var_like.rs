@@ -1,7 +1,5 @@
 use bolt_ts_ast::{self as ast, NodeFlags};
 
-use crate::parser;
-
 pub enum VarLikeName<'cx> {
     Ident(&'cx ast::Ident),
     ObjectPat(&'cx ast::ObjectPat<'cx>),
@@ -32,7 +30,7 @@ pub trait VarLike<'cx>: Copy + std::fmt::Debug {
     fn is_param(&self) -> bool {
         false
     }
-    fn is_var_const(&self, _: &'cx parser::Parser<'cx>) -> bool {
+    fn is_var_const(&self, _: &'cx bolt_ts_parser::Parser<'cx>) -> bool {
         false
     }
 }
@@ -54,7 +52,7 @@ impl<'cx> VarLike<'cx> for ast::VarDecl<'cx> {
     fn init(&self) -> Option<&'cx ast::Expr<'cx>> {
         self.init
     }
-    fn is_var_const(&self, p: &'cx parser::Parser<'cx>) -> bool {
+    fn is_var_const(&self, p: &'cx bolt_ts_parser::Parser<'cx>) -> bool {
         let block_scope_kind = p
             .get_combined_node_flags(self.id)
             .intersection(NodeFlags::BLOCK_SCOPED);

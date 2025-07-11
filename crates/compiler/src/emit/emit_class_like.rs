@@ -1,15 +1,15 @@
-use crate::ir;
+use crate::r#trait;
 use bolt_ts_ast as ast;
 
 use super::{Emit, helper};
 
 trait EmitClassLike<'cx> {
-    fn emit_class_like(emitter: &mut Emit<'cx>, class: &impl ir::ClassLike<'cx>);
+    fn emit_class_like(emitter: &mut Emit<'cx>, class: &impl r#trait::ClassLike<'cx>);
 }
 
 struct ES5;
 impl<'cx> EmitClassLike<'cx> for ES5 {
-    fn emit_class_like(emitter: &mut Emit<'cx>, class: &impl ir::ClassLike<'cx>) {
+    fn emit_class_like(emitter: &mut Emit<'cx>, class: &impl r#trait::ClassLike<'cx>) {
         emitter.content.p("var");
         emitter.content.p_whitespace();
         if let Some(ident) = class.name() {
@@ -27,7 +27,7 @@ impl<'cx> EmitClassLike<'cx> for ES5 {
 
 struct ES6;
 impl<'cx> EmitClassLike<'cx> for ES6 {
-    fn emit_class_like(emitter: &mut Emit<'cx>, class: &impl ir::ClassLike<'cx>) {
+    fn emit_class_like(emitter: &mut Emit<'cx>, class: &impl r#trait::ClassLike<'cx>) {
         emitter.content.p("class");
         emitter.content.p_whitespace();
         if let Some(ident) = class.name() {
@@ -46,7 +46,7 @@ impl<'cx> EmitClassLike<'cx> for ES6 {
 }
 
 impl<'cx> Emit<'cx> {
-    pub(super) fn emit_class_like(&mut self, class: &impl ir::ClassLike<'cx>) {
+    pub(super) fn emit_class_like(&mut self, class: &impl r#trait::ClassLike<'cx>) {
         ES6::emit_class_like(self, class);
     }
 

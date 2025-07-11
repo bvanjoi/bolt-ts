@@ -1,6 +1,11 @@
 use super::ast;
 
-use crate::bind::ModuleInstanceState;
+#[derive(Clone, Copy, PartialEq)]
+pub enum ModuleInstanceState {
+    NonInstantiated = 0,
+    Instantiated = 1,
+    ConstEnumOnly = 2,
+}
 
 pub trait NodeQuery<'cx>: Sized {
     fn node(&self, id: ast::NodeID) -> ast::Node<'cx>;

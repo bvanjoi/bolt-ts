@@ -60,10 +60,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         file_path: &std::path::Path,
         variant: LanguageVariant,
     ) -> Self {
-        let token = Token::new(
-            TokenKind::EOF,
-            Span::new(u32::MAX, u32::MAX, ModuleID::root()),
-        );
+        let token = Token::new(TokenKind::EOF, Span::new(u32::MAX, u32::MAX, module_id));
         let p = file_path.to_string_lossy();
         let p = p.as_bytes();
         let atom = AtomId::from_bytes(p);
@@ -365,17 +362,6 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         self.diags.push(bolt_ts_errors::Diag { inner: error });
     }
 
-    #[inline]
-    fn set_context_flags<const UNION: bool>(&mut self, flag: NodeFlags) {
-        if UNION {
-            debug_assert!(!self.context_flags.contains(flag));
-            self.context_flags |= flag
-        } else {
-            debug_assert!(self.context_flags.contains(flag));
-            self.context_flags &= !flag;
-        }
-    }
-
     pub(super) fn disallow_in_and<T>(&mut self, f: impl FnOnce(&mut Self) -> T) -> T {
         self.do_inside_of_context(NodeFlags::DISALLOW_IN_CONTEXT, f)
     }
@@ -389,11 +375,13 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         context: NodeFlags,
         f: impl FnOnce(&mut Self) -> T,
     ) -> T {
-        let set = context & self.context_flags;
-        if !set.is_empty() {
-            self.set_context_flags::<false>(set);
+        let removed = self.context_flags.intersection(context);
+        if !removed.is_empty() {
+            debug_assert!(self.context_flags.contains(removed));
+            self.context_flags.remove(removed);
             let res = f(self);
-            self.set_context_flags::<true>(set);
+            debug_assert!(!self.context_flags.contains(removed));
+            self.context_flags.insert(removed);
             res
         } else {
             f(self)
@@ -405,11 +393,13 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         context: NodeFlags,
         f: impl FnOnce(&mut Self) -> T,
     ) -> T {
-        let set = context & !self.context_flags;
-        if !set.is_empty() {
-            self.set_context_flags::<true>(set);
+        let inserted = self.context_flags.complement().intersection(context);
+        if !inserted.is_empty() {
+            debug_assert!(!self.context_flags.contains(inserted));
+            self.context_flags.insert(inserted);
             let res = f(self);
-            self.set_context_flags::<false>(set);
+            debug_assert!(self.context_flags.contains(inserted));
+            self.context_flags.remove(inserted);
             res
         } else {
             f(self)
@@ -436,14 +426,6 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
 
     pub(super) fn in_disallow_conditional_tys_context(&self) -> bool {
         self.in_context(NodeFlags::DISALLOW_CONDITIONAL_TYPES_CONTEXT)
-    }
-
-    pub(super) fn allow_continue_and<T>(&mut self, f: impl FnOnce(&mut Self) -> T) -> T {
-        self.do_inside_of_context(NodeFlags::ALLOW_CONTINUE_CONTEXT, f)
-    }
-
-    pub(super) fn disallow_continue_and<T>(&mut self, f: impl FnOnce(&mut Self) -> T) -> T {
-        self.do_outside_of_context(NodeFlags::ALLOW_CONTINUE_CONTEXT, f)
     }
 
     pub(super) fn parse_identifier_name_error_or_unicode_escape_sequence(

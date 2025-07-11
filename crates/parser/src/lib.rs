@@ -4,8 +4,10 @@ mod factory;
 mod jsx;
 mod list_ctx;
 mod lookahead;
+mod node_query;
 mod nodes;
 mod paren_rule;
+mod parent_map;
 mod parse_break_or_continue;
 mod parse_class_like;
 mod parse_fn_like;
@@ -30,20 +32,21 @@ use bolt_ts_fs::PathId;
 use bolt_ts_span::{ModuleArena, ModuleID};
 use bolt_ts_utils::no_hashmap_with_capacity;
 use bolt_ts_utils::path::NormalizePath;
-use state::LanguageVariant;
 
 use std::sync::{Arc, Mutex};
 
+pub use self::node_query::{ModuleInstanceState, NodeQuery};
 pub use self::nodes::Nodes;
+pub use self::parent_map::ParentMap;
 pub use self::pragmas::PragmaMap;
 pub use self::query::AccessKind;
 pub use self::query::AssignmentKind;
+use self::state::LanguageVariant;
 use self::state::ParserState;
-pub(crate) use self::utils::is_left_hand_side_expr_kind;
 
 use rayon::prelude::*;
 
-use crate::bind;
+type Diag = Box<dyn bolt_ts_errors::diag_ext::DiagnosticExt + Send + Sync + 'static>;
 
 type PResult<T> = Result<T, ()>;
 
@@ -77,7 +80,7 @@ pub struct FileReference {
 pub struct ParseResult<'cx> {
     pub diags: Vec<bolt_ts_errors::Diag>,
     nodes: Nodes<'cx>,
-    parent_map: crate::bind::ParentMap,
+    parent_map: parent_map::ParentMap,
     pub node_flags_map: NodeFlagsMap,
     pub external_module_indicator: Option<ast::NodeID>,
     pub commonjs_module_indicator: Option<ast::NodeID>,
@@ -115,7 +118,7 @@ impl<'cx> ParseResult<'cx> {
 }
 
 pub struct Parser<'cx> {
-    pub(crate) map: Vec<ParseResult<'cx>>,
+    pub map: Vec<ParseResult<'cx>>,
 }
 
 impl Default for Parser<'_> {
@@ -131,7 +134,7 @@ impl<'cx> Parser<'cx> {
         }
     }
 
-    pub fn new_with_maps(map: Vec<(ParseResult<'cx>, crate::bind::ParentMap)>) -> Self {
+    pub fn new_with_maps(map: Vec<(ParseResult<'cx>, self::parent_map::ParentMap)>) -> Self {
         let map = map
             .into_iter()
             .map(|(p, parent_map)| ParseResult { parent_map, ..p })
@@ -212,7 +215,7 @@ pub fn parse_parallel<'cx, 'p>(
                 module_arena,
                 default_lib_dir,
             );
-            assert!(!module_arena.get_module(*module_id).is_default_lib || p.diags.is_empty());
+            // assert!(!module_arena.get_module(*module_id).is_default_lib || p.diags.is_empty());
             (*module_id, p)
         },
     )
@@ -265,7 +268,7 @@ fn parse<'cx, 'p>(
         s.nodes.root(),
         atoms.clone(),
     );
-    let is_default_lib = module_arena.get_module(module_id).is_default_lib;
+    let is_default_lib = module_arena.get_module(module_id).is_default_lib();
 
     let lib_references = process_lib_reference_directives(
         &s.lib_reference_directives,

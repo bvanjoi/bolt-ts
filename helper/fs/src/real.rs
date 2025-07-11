@@ -1,6 +1,7 @@
 use bolt_ts_atom::AtomId;
-use bolt_ts_utils::no_hashmap_with_capacity;
+use bolt_ts_utils::fx_hashmap_with_capacity;
 use bolt_ts_utils::path::NormalizePath;
+use rustc_hash::FxHashMap;
 
 use crate::CachedFileSystem;
 use crate::errors::FsResult;
@@ -8,9 +9,9 @@ use crate::tree::FSTree;
 
 pub struct LocalFS {
     tree: FSTree,
-    file_exists_cache: nohash_hasher::IntMap<AtomId, bool>,
-    dir_exists_cache: nohash_hasher::IntMap<AtomId, bool>,
-    metadata_cache: nohash_hasher::IntMap<AtomId, Result<std::fs::Metadata, ()>>,
+    file_exists_cache: FxHashMap<AtomId, bool>,
+    dir_exists_cache: FxHashMap<AtomId, bool>,
+    metadata_cache: FxHashMap<AtomId, Result<std::fs::Metadata, ()>>,
 }
 
 impl LocalFS {
@@ -18,9 +19,9 @@ impl LocalFS {
         let tree = FSTree::new(atoms);
         Self {
             tree,
-            file_exists_cache: no_hashmap_with_capacity(1024),
-            dir_exists_cache: no_hashmap_with_capacity(1024),
-            metadata_cache: no_hashmap_with_capacity(1024),
+            file_exists_cache: fx_hashmap_with_capacity(1024),
+            dir_exists_cache: fx_hashmap_with_capacity(1024),
+            metadata_cache: fx_hashmap_with_capacity(1024),
         }
     }
 

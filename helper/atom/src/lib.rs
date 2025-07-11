@@ -1,8 +1,15 @@
-use bolt_ts_utils::no_hashmap_with_capacity;
+use bolt_ts_utils::fx_hashmap_with_capacity;
+use rustc_hash::FxHashMap;
 use std::borrow::Cow;
 
-#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Clone, Copy)]
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone, Copy)]
 pub struct AtomId(u64);
+
+impl std::hash::Hash for AtomId {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.0.hash(state);
+    }
+}
 
 impl AtomId {
     pub const fn from_str(s: &str) -> Self {
@@ -15,14 +22,12 @@ impl AtomId {
     }
 }
 
-impl nohash_hasher::IsEnabled for AtomId {}
-
 #[derive(Debug, Default)]
-pub struct AtomMap<'a>(nohash_hasher::IntMap<AtomId, Cow<'a, str>>);
+pub struct AtomMap<'a>(FxHashMap<AtomId, Cow<'a, str>>);
 
 impl<'a> AtomMap<'a> {
     pub fn new(capacity: usize) -> Self {
-        let map = no_hashmap_with_capacity(capacity);
+        let map = fx_hashmap_with_capacity(capacity);
         Self(map)
     }
 

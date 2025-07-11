@@ -1,7 +1,7 @@
 use super::symbol::{SymbolFlags, SymbolTableLocation};
 use super::{BinderState, Symbol, SymbolID, SymbolName, Symbols, errors};
 use crate::bind::SymbolTable;
-use crate::parser::ParseResult;
+use bolt_ts_parser::ParseResult;
 
 use bolt_ts_ast as ast;
 

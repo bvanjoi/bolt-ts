@@ -10,12 +10,12 @@ use super::{CheckMode, F64Represent, InferenceContextId, TyChecker};
 use super::{IndexedAccessTyMap, ResolutionKey, TyCacheTrait, errors};
 
 use crate::bind::{SymbolFlags, SymbolID, SymbolName};
-use crate::ir;
+use crate::r#trait;
 use crate::keyword::is_prim_ty_name;
-use crate::parser::AssignmentKind;
 use crate::ty::{
     AccessFlags, CheckFlags, ElementFlags, IndexFlags, ObjectFlags, TyMapper, TypeFlags,
 };
+use bolt_ts_parser::AssignmentKind;
 
 impl<'cx> TyChecker<'cx> {
     pub(super) fn get_non_missing_type_of_symbol(&mut self, id: SymbolID) -> &'cx Ty<'cx> {
@@ -718,7 +718,7 @@ impl<'cx> TyChecker<'cx> {
         ty
     }
 
-    fn get_ty_from_rest_ty_node(&mut self, rest: &impl ir::RestTyLike<'cx>) -> &'cx Ty<'cx> {
+    fn get_ty_from_rest_ty_node(&mut self, rest: &impl r#trait::RestTyLike<'cx>) -> &'cx Ty<'cx> {
         //TODO: fallback
         let ty = rest.ty().unwrap();
         let ty_node = Self::get_array_ele_ty_node(ty).unwrap_or(ty);
@@ -1615,7 +1615,7 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
-    fn get_rest_ty_ele_flags(node: &impl ir::RestTyLike<'cx>) -> ElementFlags {
+    fn get_rest_ty_ele_flags(node: &impl r#trait::RestTyLike<'cx>) -> ElementFlags {
         let ty = node.ty().unwrap();
         if Self::get_array_ele_ty_node(ty).is_some() {
             ElementFlags::REST

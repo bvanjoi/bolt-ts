@@ -7,7 +7,7 @@ use bolt_ts_ast::CallExpr;
 use super::ParseResult;
 use super::Parser;
 use super::ast;
-use super::bind::NodeQuery;
+use crate::node_query::NodeQuery;
 
 #[derive(PartialEq)]
 pub enum AssignmentKind {

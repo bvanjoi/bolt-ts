@@ -1,5 +1,4 @@
 use super::BinderState;
-use super::ModuleInstanceState;
 use super::NodeQuery;
 use super::errors;
 use super::symbol::SymbolFlags;
@@ -11,11 +10,11 @@ use bolt_ts_ast::NodeFlags;
 use bolt_ts_ast::atom_to_token;
 use bolt_ts_ast::keyword;
 use bolt_ts_atom::AtomId;
+use bolt_ts_parser::ModuleInstanceState;
 use bolt_ts_span::Span;
 
 use crate::bind::create::DeclareSymbolProperty;
-use crate::ir;
-use crate::parser::is_left_hand_side_expr_kind;
+use crate::r#trait;
 
 impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
     fn bind_ns_decl(&mut self, ns: &'cx ast::ModuleDecl<'cx>) {
@@ -222,7 +221,7 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
         }
     }
 
-    fn bind_fn_expr(&mut self, f: &impl ir::FnExprLike<'cx>) {
+    fn bind_fn_expr(&mut self, f: &impl r#trait::FnExprLike<'cx>) {
         let name = f.name().map(SymbolName::Atom).unwrap_or(SymbolName::Fn);
         let id = f.id();
         let symbol = self.bind_anonymous_decl(id, SymbolFlags::FUNCTION, name);
@@ -806,7 +805,7 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
                 // TODO: n.op.kind == Comma
                 false
             }
-            Assign(n) => is_left_hand_side_expr_kind(n.left),
+            Assign(n) => n.left.is_left_hand_side_expr_kind(),
             _ => false,
         }
     }

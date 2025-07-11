@@ -11,7 +11,7 @@ use crate::bind::{
 use crate::check::TyChecker;
 use crate::graph::resolve_external_module_name;
 use crate::ty::CheckFlags;
-use crate::{ir, ty};
+use crate::{r#trait, ty};
 
 fn symbol_of_resolve_results(
     resolve_results: &Vec<ResolveResult>,
@@ -38,7 +38,7 @@ pub trait SymbolInfo<'cx>: Sized {
     fn arena(&self) -> &'cx bolt_ts_arena::bumpalo::Bump;
     fn empty_symbols(&self) -> &'cx SymbolTable;
     fn mg(&self) -> &crate::graph::ModuleGraph;
-    fn p(&self) -> &crate::parser::Parser<'cx>;
+    fn p(&self) -> &bolt_ts_parser::Parser<'cx>;
     fn atoms(&self) -> &bolt_ts_atom::AtomMap<'cx>;
     fn module_arena(&self) -> &bolt_ts_span::ModuleArena;
     fn push_error(&mut self, error: crate::Diag);
@@ -830,7 +830,7 @@ fn handle_members_for_label_symbol<'cx>(
     symbol: SymbolID,
     early_symbols: &'cx SymbolTable,
     late_symbols: &mut SymbolTable,
-    members: &[&'cx impl ir::MembersOfDecl],
+    members: &[&'cx impl r#trait::MembersOfDecl],
     is_static: bool,
 ) {
     for member in members {
@@ -1203,7 +1203,7 @@ impl<'cx> SymbolInfo<'cx> for super::TyChecker<'cx> {
     fn mg(&self) -> &crate::graph::ModuleGraph {
         self.mg
     }
-    fn p(&self) -> &crate::parser::Parser<'cx> {
+    fn p(&self) -> &bolt_ts_parser::Parser<'cx> {
         self.p
     }
     fn atoms(&self) -> &bolt_ts_atom::AtomMap<'cx> {
