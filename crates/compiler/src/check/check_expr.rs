@@ -5,7 +5,7 @@ use bolt_ts_utils::fx_hashmap_with_capacity;
 
 use crate::bind::SymbolID;
 use crate::ensure_sufficient_stack;
-use bolt_ts_parser::AssignmentKind;
+use crate::node_query::AssignmentKind;
 use crate::ty::CheckFlags;
 use crate::ty::TypeFlags;
 
@@ -351,7 +351,7 @@ impl<'cx> TyChecker<'cx> {
                 tys.push(self.string_ty);
             }
         }
-        if self.p.is_const_context(node.id) || {
+        if self.node_query(node.id.module()).is_const_context(node.id) || {
             let t = self
                 .get_contextual_ty(node.id, None)
                 .unwrap_or(self.unknown_ty);
@@ -456,8 +456,10 @@ impl<'cx> TyChecker<'cx> {
     }
 
     fn check_this_expr(&mut self, expr: &'cx ast::ThisExpr) -> &'cx ty::Ty<'cx> {
-        let is_ty_query = self.p.is_in_type_query(expr.id);
-        let mut container_id = self.p.get_this_container(expr.id, true, true);
+        let is_ty_query = self.node_query(expr.id.module()).is_in_type_query(expr.id);
+        let mut container_id = self
+            .node_query(expr.id.module())
+            .get_this_container(expr.id, true, true);
         let mut container = self.p.node(container_id);
 
         let mut captured_by_arrow_fn = false;
@@ -469,9 +471,11 @@ impl<'cx> TyChecker<'cx> {
 
         loop {
             if container.is_arrow_fn_expr() {
-                container_id =
-                    self.p
-                        .get_this_container(container_id, false, !this_in_computed_prop_name);
+                container_id = self.node_query(container_id.module()).get_this_container(
+                    container_id,
+                    false,
+                    !this_in_computed_prop_name,
+                );
                 container = self.p.node(container_id);
                 captured_by_arrow_fn = true;
             }
@@ -541,7 +545,7 @@ impl<'cx> TyChecker<'cx> {
     ) -> &'cx ty::Ty<'cx> {
         let id = ident.id;
         let ty = self.check_ident(ident);
-        if self.p.is_const_context(id) {
+        if self.node_query(id.module()).is_const_context(id) {
             self.get_regular_ty_of_literal_ty(ty)
         } else {
             let contextual_ty = self.get_contextual_ty(id, None);
@@ -556,7 +560,7 @@ impl<'cx> TyChecker<'cx> {
     ) -> &'cx ty::Ty<'cx> {
         let id = expr.id();
         let ty = self.check_expr(expr);
-        if self.p.is_const_context(id) {
+        if self.node_query(id.module()).is_const_context(id) {
             self.get_regular_ty_of_literal_ty(ty)
         } else if expr.kind.is_type_assertion() {
             ty
@@ -582,7 +586,7 @@ impl<'cx> TyChecker<'cx> {
         let mut properties_array = Vec::with_capacity(node.members.len());
         let mut spread = self.empty_object_ty();
         // let mut properties_array = Vec::with_capacity(node.members.len());
-        let is_const_context = self.p.is_const_context(node.id);
+        let is_const_context = self.node_query(node.id.module()).is_const_context(node.id);
         let mut has_computed_string_property = false;
         let mut has_computed_number_property = false;
         let mut has_computed_symbol_property = false;
@@ -1079,9 +1083,15 @@ impl<'cx> TyChecker<'cx> {
 
     fn check_ele_access(&mut self, node: &'cx ast::EleAccessExpr<'cx>) -> &'cx ty::Ty<'cx> {
         let expr_ty = self.check_expr(node.expr);
-        let assign_kind = self.p.get_assignment_kind(node.id);
+        let assign_kind = self
+            .node_query(node.id.module())
+            .get_assignment_kind(node.id);
         let assign_kind_is_none = assign_kind == AssignmentKind::None;
-        let object_ty = if !assign_kind_is_none || self.p.is_method_access_for_call(node.id) {
+        let object_ty = if !assign_kind_is_none
+            || self
+                .node_query(node.id.module())
+                .is_method_access_for_call(node.id)
+        {
             self.get_widened_literal_ty(expr_ty)
         } else {
             expr_ty

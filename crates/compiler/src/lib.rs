@@ -5,6 +5,7 @@ mod diag;
 mod early_resolve;
 mod emit;
 mod graph;
+mod node_query;
 mod r#trait;
 mod ty;
 mod wf;
@@ -27,7 +28,7 @@ use bolt_ts_ast::keyword_idx_to_token;
 use bolt_ts_atom::{AtomId, AtomMap};
 use bolt_ts_config::NormalizedTsConfig;
 use bolt_ts_fs::{CachedFileSystem, read_file_with_encoding};
-use bolt_ts_parser::{NodeQuery, ParseResult, Parser};
+use bolt_ts_parser::{ParseResult, Parser};
 use bolt_ts_span::{ModuleArena, ModuleID};
 use bolt_ts_utils::path::NormalizePath;
 
@@ -193,13 +194,11 @@ pub fn eval_from_with_fs<'cx>(
     let mut atoms = atoms.into_inner().unwrap();
 
     let (bind_list, mut p) = {
-        let (bind_list, p_map): (
-            Vec<BinderResult<'_>>,
-            Vec<(ParseResult<'_>, bolt_ts_parser::ParentMap)>,
-        ) = bind_parallel(module_arena.modules(), &atoms, p, tsconfig)
-            .into_iter()
-            .unzip();
-        let p = Parser::new_with_maps(p_map);
+        let (bind_list, p_map): (Vec<BinderResult<'_>>, Vec<ParseResult<'_>>) =
+            bind_parallel(module_arena.modules(), &atoms, p, tsconfig)
+                .into_iter()
+                .unzip();
+        let p = Parser { map: p_map };
         (bind_list, p)
     };
 
@@ -255,6 +254,7 @@ pub fn eval_from_with_fs<'cx>(
                 final_res: state.final_res,
                 diags: state.diags,
                 locals: state.locals,
+                parent_map: state.parent_map,
             }
         })
         .collect::<Vec<_>>();
@@ -269,6 +269,7 @@ pub fn eval_from_with_fs<'cx>(
             &atoms,
             module_arena.modules(),
             tsconfig.compiler_options(),
+            &binder.bind_results,
         ))
         .collect();
 
@@ -319,7 +320,15 @@ pub fn eval_from_with_fs<'cx>(
                 None
             } else {
                 let input = module_arena.get_content(item);
-                let mut emitter = emit::Emit::new(item, checker.atoms, input, compiler_options, &p);
+                let resolve_result = &checker.binder.bind_results[item.as_usize()];
+                let mut emitter = emit::Emit::new(
+                    item,
+                    &checker.atoms,
+                    input,
+                    compiler_options,
+                    &p,
+                    resolve_result,
+                );
                 Some((item, emitter.emit_root(p.root(item))))
             }
         })

@@ -29,7 +29,7 @@ impl<'cx> TyChecker<'cx> {
         let decl = self.p.node(id);
         let host_decl = decl; // TODO: sig in js doc
         let class_ty = if host_decl.is_class_ctor() {
-            let class_decl = self.p.parent(id).unwrap();
+            let class_decl = self.parent(id).unwrap();
             let class_symbol = self.get_symbol_of_decl(class_decl);
             Some(self.get_declared_ty_of_symbol(class_symbol))
         } else {
@@ -401,7 +401,7 @@ fn get_sig_from_decl<'cx>(
         ast::Node::FnExpr(_) => None,
         ast::Node::ArrowFnExpr(_) => None,
         ast::Node::ClassCtor(c) => {
-            let class_id = checker.p.parent(c.id).unwrap();
+            let class_id = checker.parent(c.id).unwrap();
             Some(class_id)
         }
         ast::Node::CtorSigDecl(c) => c.ty.map(|ty| ty.id()),

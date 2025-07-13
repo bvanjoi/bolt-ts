@@ -107,7 +107,7 @@ impl GetContainerFlags for bolt_ts_ast::GetterDecl<'_> {
         p: &bolt_ts_parser::ParseResult,
         parent_map: &super::ParentMap,
     ) -> ContainerFlags {
-        let nq = super::BinderNodeQuery::new(parent_map, p);
+        let nq = NodeQuery::new(parent_map, p);
         if nq.is_object_lit_or_class_expr_method_or_accessor(self.id) {
             C_AND_L_AND_CF_AND_F_AND_O
         } else {
@@ -122,7 +122,7 @@ impl GetContainerFlags for bolt_ts_ast::SetterDecl<'_> {
         p: &bolt_ts_parser::ParseResult,
         parent_map: &super::ParentMap,
     ) -> ContainerFlags {
-        let nq = super::BinderNodeQuery::new(parent_map, p);
+        let nq = NodeQuery::new(parent_map, p);
         if nq.is_object_lit_or_class_expr_method_or_accessor(self.id) {
             C_AND_L_AND_CF_AND_F_AND_O
         } else {
@@ -137,7 +137,7 @@ impl GetContainerFlags for bolt_ts_ast::ClassMethodElem<'_> {
         p: &bolt_ts_parser::ParseResult,
         parent_map: &super::ParentMap,
     ) -> ContainerFlags {
-        let nq = super::BinderNodeQuery::new(parent_map, p);
+        let nq = NodeQuery::new(parent_map, p);
         if nq.is_object_lit_or_class_expr_method_or_accessor(self.id) {
             C_AND_L_AND_CF_AND_F_AND_O
         } else {
@@ -166,7 +166,7 @@ impl GetContainerFlags for bolt_ts_ast::BlockStmt<'_> {
         p: &bolt_ts_parser::ParseResult,
         parent_map: &super::ParentMap,
     ) -> ContainerFlags {
-        let parent = parent_map.parent_unfinished(self.id).unwrap();
+        let parent = parent_map.parent(self.id).unwrap();
         let parent = p.node(parent);
         if parent.is_fn_like() || parent.is_class_static_block_decl() {
             ContainerFlags::empty()

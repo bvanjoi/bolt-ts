@@ -35,7 +35,7 @@ impl<'cx> Resolver<'cx, '_, '_> {
         ident: &'cx ast::Ident,
     ) -> Option<errors::DidYouMeanTheStaticMember> {
         let mut location = ident.id;
-        while let Some(parent) = self.p.parent(location) {
+        while let Some(parent) = self.parent(location) {
             location = parent;
             let node = self.p.node(location);
             let ast::Node::ClassDecl(class) = node else {
@@ -77,7 +77,7 @@ impl<'cx> Resolver<'cx, '_, '_> {
         &mut self,
         ident: &'cx ast::Ident,
     ) -> Option<errors::CannotFindNameHelperKind> {
-        let parent_id = self.p.parent(ident.id)?;
+        let parent_id = self.parent(ident.id)?;
         if self.p.node(parent_id).is_object_shorthand_member() {
             let error = errors::CannotFindNameHelperKind::ShorthandPropertyNeedAnInitializer(
                 errors::ShorthandPropertyNeedAnInitializer { span: ident.span },
@@ -110,10 +110,9 @@ impl<'cx> Resolver<'cx, '_, '_> {
     ) -> Option<errors::CannotFindNameHelperKind> {
         if is_prim_ty_name(ident.name) {
             let grand = self
-                .p
                 .parent(ident.id)
-                .and_then(|parent| self.p.parent(parent))?;
-            let container = self.p.parent(grand)?;
+                .and_then(|parent| self.parent(parent))?;
+            let container = self.parent(grand)?;
             let grand_node = self.p.node(grand);
             let container_node = self.p.node(container);
             if grand_node.as_class_implements_clause().is_some() && container_node.is_class_like() {

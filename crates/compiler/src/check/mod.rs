@@ -64,6 +64,7 @@ use bolt_ts_ast::{self as ast};
 use bolt_ts_ast::{BinOp, pprint_ident};
 use bolt_ts_atom::{AtomId, AtomMap};
 use bolt_ts_config::NormalizedCompilerOptions;
+use bolt_ts_span::ModuleID;
 use bolt_ts_utils::{fx_hashmap_with_capacity, no_hashmap_with_capacity, no_hashset_with_capacity};
 use check_type_related_to::RecursionFlags;
 use enumflags2::BitFlag;
@@ -101,11 +102,12 @@ use crate::bind::{
     SymbolFlags, SymbolID, SymbolName, SymbolTable, Symbols,
 };
 use crate::graph::ModuleGraph;
+use crate::node_query::{AssignmentKind, NodeQuery};
 use crate::ty::{CheckFlags, IndexFlags, IterationTys, TYPEOF_NE_FACTS, get_type_facts};
 use crate::ty::{ElementFlags, ObjectFlags, Sig, SigFlags, SigID, TyID, TypeFacts, TypeFlags};
 use crate::ty::{TyMapper, has_type_facts};
 use crate::{keyword, r#trait, ty};
-use bolt_ts_parser::{AccessKind, AssignmentKind, Parser};
+use bolt_ts_parser::{AccessKind, Parser};
 
 bitflags::bitflags! {
     #[derive(Clone, Copy, Debug, PartialEq)]
@@ -316,6 +318,16 @@ fn cast_empty_array<'cx, T>(empty_array: &[u8; 0]) -> &'cx [T] {
 }
 
 impl<'cx> TyChecker<'cx> {
+    fn node_query(&self, module_id: ModuleID) -> NodeQuery<'cx, '_> {
+        let p = self.p.get(module_id);
+        let parent_map = &self.binder.get(module_id).parent_map;
+        NodeQuery::new(parent_map, p)
+    }
+
+    fn parent(&self, id: ast::NodeID) -> Option<ast::NodeID> {
+        self.binder.get(id.module()).parent_map.parent(id)
+    }
+
     pub(crate) fn new(
         ty_arena: &'cx bolt_ts_arena::bumpalo::Bump,
         p: &'cx Parser<'cx>,
@@ -458,6 +470,7 @@ impl<'cx> TyChecker<'cx> {
             final_res: Default::default(),
             diags: Default::default(),
             locals: Default::default(),
+            parent_map: Default::default(),
         });
 
         let structure_members_placeholder = ty_arena.alloc(ty::StructuredMembers {
@@ -696,7 +709,7 @@ impl<'cx> TyChecker<'cx> {
                 if let Some(decls) = this.symbol(symbol).decls.clone() {
                     for decl in decls {
                         let n = this.p.node(decl);
-                        if !this.p.is_type_decl(decl) {
+                        if !this.node_query(decl.module()).is_type_decl(decl) {
                             let error =
                                 errors::DeclarationNameConflictsWithBuiltInGlobalIdentifier {
                                     name: this.atoms().get(keyword::KW_UNDEFINED).to_string(),
@@ -1025,7 +1038,9 @@ impl<'cx> TyChecker<'cx> {
                     }
                 })
                 .unwrap_or(value_declaration);
-            let flags = self.p.get_combined_modifier_flags(decl);
+            let flags = self
+                .node_query(decl.module())
+                .get_combined_modifier_flags(decl);
             // TODO: if s.parent.flags & Class
             return flags & ast::ModifierKind::ACCESSIBILITY;
         }
@@ -1076,23 +1091,25 @@ impl<'cx> TyChecker<'cx> {
                         self.symbol(prop)
                             .value_decl
                             .and_then(|v_decl| {
-                                self.p.get_name_of_decl(v_decl).map(|name| {
-                                    let kind = match name {
-                                        ast::DeclarationName::Ident(ident) => {
-                                            ast::PropNameKind::Ident(ident)
-                                        }
-                                        ast::DeclarationName::NumLit(lit) => {
-                                            ast::PropNameKind::NumLit(lit)
-                                        }
-                                        ast::DeclarationName::StringLit { raw, key } => {
-                                            ast::PropNameKind::StringLit { raw, key }
-                                        }
-                                        ast::DeclarationName::Computed(n) => {
-                                            ast::PropNameKind::Computed(n)
-                                        }
-                                    };
-                                    ast::PropName { kind }
-                                })
+                                self.node_query(v_decl.module())
+                                    .get_name_of_decl(v_decl)
+                                    .map(|name| {
+                                        let kind = match name {
+                                            ast::DeclarationName::Ident(ident) => {
+                                                ast::PropNameKind::Ident(ident)
+                                            }
+                                            ast::DeclarationName::NumLit(lit) => {
+                                                ast::PropNameKind::NumLit(lit)
+                                            }
+                                            ast::DeclarationName::StringLit { raw, key } => {
+                                                ast::PropNameKind::StringLit { raw, key }
+                                            }
+                                            ast::DeclarationName::Computed(n) => {
+                                                ast::PropNameKind::Computed(n)
+                                            }
+                                        };
+                                        ast::PropName { kind }
+                                    })
                             })
                             .map(|name| self.get_lit_ty_from_prop_name(&name))
                             .or_else(|| {
@@ -1137,7 +1154,7 @@ impl<'cx> TyChecker<'cx> {
     }
 
     fn get_containing_fn_or_class_static_block(&self, node: ast::NodeID) -> Option<ast::NodeID> {
-        self.p.find_ancestor(node, |node| {
+        self.node_query(node.module()).find_ancestor(node, |node| {
             node.is_fn_like_or_class_static_block_decl().then_some(true)
         })
     }
@@ -1363,8 +1380,10 @@ impl<'cx> TyChecker<'cx> {
         include_global_this: bool,
         container_id: Option<ast::NodeID>,
     ) -> Option<&'cx ty::Ty<'cx>> {
-        let container_id =
-            container_id.unwrap_or_else(|| self.p.get_this_container(expr.id, false, false));
+        let container_id = container_id.unwrap_or_else(|| {
+            self.node_query(expr.id.module())
+                .get_this_container(expr.id, false, false)
+        });
         let container = self.p.node(container_id);
         if container.is_fn_like() {
             let this_ty = self
@@ -1376,7 +1395,7 @@ impl<'cx> TyChecker<'cx> {
             }
         }
 
-        if let Some(parent) = self.p.parent(container_id) {
+        if let Some(parent) = self.parent(container_id) {
             let p = self.p.node(parent);
             if p.is_class_like() {
                 let symbol = self.get_symbol_of_decl(parent);
@@ -1403,14 +1422,14 @@ impl<'cx> TyChecker<'cx> {
             let symbol = self.resolve_symbol_by_ident(ident);
             if self.symbol(symbol).flags.intersects(SymbolFlags::VARIABLE) {
                 let mut child = ident.id;
-                let mut node = self.p.parent(child);
+                let mut node = self.parent(child);
                 while let Some(id) = node {
                     let n = self.p.node(id);
                     if let Some(f) = n.as_for_in_stmt() {
                         todo!()
                     }
                     child = id;
-                    node = self.p.parent(child);
+                    node = self.parent(child);
                 }
             }
         }
@@ -1504,7 +1523,7 @@ impl<'cx> TyChecker<'cx> {
 
         self.check_prop_accessibility(node, false, false, apparent_left_ty, prop, true);
 
-        if self.p.access_kind(node) == AccessKind::Write {
+        if self.node_query(node.module()).access_kind(node) == AccessKind::Write {
             self.get_write_type_of_symbol(prop)
         } else {
             self.get_type_of_symbol(prop)
@@ -1540,11 +1559,10 @@ impl<'cx> TyChecker<'cx> {
 
         if flags.intersects(ast::ModifierKind::Private) {
             // TODO: use parent symbol to find the class
+            let p = self.parent(loc).unwrap();
             if self
-                .p
-                .find_ancestor(self.p.parent(loc).unwrap(), |n| {
-                    n.is_class_like().then_some(true)
-                })
+                .node_query(p.module())
+                .find_ancestor(p, |n| n.is_class_like().then_some(true))
                 .is_none()
             {
                 if let Some(error_node) = error_node {
@@ -1627,7 +1645,7 @@ impl<'cx> TyChecker<'cx> {
         let mut element_flags = Vec::with_capacity(lit.elems.len());
         self.push_cached_contextual_type(lit.id);
         let contextual_ty = self.get_apparent_ty_of_contextual_ty(lit.id, None);
-        let is_const_context = self.p.is_const_context(lit.id);
+        let is_const_context = self.node_query(lit.id.module()).is_const_context(lit.id);
         let is_tuple_context = if let Some(contextual_ty) = contextual_ty {
             self.is_tuple_like(contextual_ty)
         } else {
@@ -1723,7 +1741,7 @@ impl<'cx> TyChecker<'cx> {
         decl_container: ast::NodeID,
     ) -> bool {
         assert_eq!(used.id.module(), decl.module());
-        self.p
+        self.node_query(used.id.module())
             .find_ancestor(used.id, |current| {
                 let current_id = current.id();
                 if current_id == decl_container {
@@ -1734,7 +1752,7 @@ impl<'cx> TyChecker<'cx> {
                     return Some(self.p.node(decl).span().lo < used.span.lo);
                 }
 
-                let parent_id = self.p.parent(current_id)?;
+                let parent_id = self.parent(current_id)?;
                 let parent_node = self.p.node(parent_id);
                 let prop_decl = parent_node.as_class_prop_ele()?;
 
@@ -1748,8 +1766,13 @@ impl<'cx> TyChecker<'cx> {
                         if n.is_class_method_ele() {
                             return Some(true);
                         } else if let Some(prop_decl) = n.as_class_prop_ele() {
-                            if let Some(usage_class) = self.p.get_containing_class(used.id) {
-                                if let Some(decl_class) = self.p.get_containing_class(decl) {
+                            if let Some(usage_class) = self
+                                .node_query(used.id.module())
+                                .get_containing_class(used.id)
+                            {
+                                if let Some(decl_class) =
+                                    self.node_query(decl.module()).get_containing_class(decl)
+                                {
                                     if usage_class == decl_class {
                                         let prop_name = prop_decl.name;
                                         todo!()
@@ -1762,8 +1785,13 @@ impl<'cx> TyChecker<'cx> {
                         let is_decl_instance_prop = n.is_class_prop_ele() && !n.is_static();
                         if !is_decl_instance_prop {
                             return Some(true);
-                        } else if let Some(usage_class) = self.p.get_containing_class(used.id) {
-                            if let Some(decl_class) = self.p.get_containing_class(decl) {
+                        } else if let Some(usage_class) = self
+                            .node_query(used.id.module())
+                            .get_containing_class(used.id)
+                        {
+                            if let Some(decl_class) =
+                                self.node_query(decl.module()).get_containing_class(decl)
+                            {
                                 if usage_class == decl_class {
                                     return Some(true);
                                 }
@@ -1784,16 +1812,20 @@ impl<'cx> TyChecker<'cx> {
         let used_span = used.span;
         let decl_span = self.p.node(decl).span();
         let decl_pos = decl_span.lo;
-        let decl_container = self.p.get_enclosing_blockscope_container(decl);
+        let decl_container = self
+            .node_query(decl.module())
+            .get_enclosing_blockscope_container(decl);
 
         if decl_pos < used_span.lo {
             let n = self.p.node(decl);
             if let Some(decl) = n.as_var_decl() {
-                return !self.p.is_immediately_used_in_init_or_block_scoped_var(
-                    decl,
-                    used.id,
-                    decl_container,
-                );
+                return !self
+                    .node_query(decl.id.module())
+                    .is_immediately_used_in_init_or_block_scoped_var(
+                        decl,
+                        used.id,
+                        decl_container,
+                    );
             } else {
                 return true;
             }
@@ -1864,7 +1896,9 @@ impl<'cx> TyChecker<'cx> {
         }
 
         let ty = self.get_type_of_symbol(symbol);
-        let assignment_kind = self.p.get_assignment_kind(ident.id);
+        let assignment_kind = self
+            .node_query(ident.id.module())
+            .get_assignment_kind(ident.id);
         if assignment_kind != AssignmentKind::None && symbol != Symbol::ERR {
             let symbol = self.binder.symbol(symbol);
             if !symbol.flags.intersects(SymbolFlags::VARIABLE) {
@@ -1916,11 +1950,18 @@ impl<'cx> TyChecker<'cx> {
 
         let immediate_decl = decl;
 
-        let decl_container = self.p.get_control_flow_container(decl);
-        let flow_container = self.p.get_control_flow_container(ident.id);
+        let decl_container = self
+            .node_query(decl.module())
+            .get_control_flow_container(decl);
+        let flow_container = self
+            .node_query(ident.id.module())
+            .get_control_flow_container(ident.id);
         let is_outer_variable = flow_container != decl_container;
 
-        let is_param = self.p.node(self.p.get_root_decl(decl)).is_param_decl();
+        let is_param = self
+            .p
+            .node(self.node_query(decl.module()).get_root_decl(decl))
+            .is_param_decl();
         // let is_outer_variable = flow_container != decl_container;
         let type_is_auto = ty == self.auto_ty;
         let is_automatic_ty_is_non_null = type_is_auto;
@@ -2618,7 +2659,10 @@ impl<'cx> TyChecker<'cx> {
 
         match s {
             Ident(s_ident) => {
-                if self.p.is_this_in_type_query(source) {
+                if self
+                    .node_query(source.module())
+                    .is_this_in_type_query(source)
+                {
                     t.is_this_expr()
                 } else if let Some(t_ident) = t.as_ident() {
                     self.resolve_symbol_by_ident(s_ident) == self.resolve_symbol_by_ident(t_ident)
@@ -3218,7 +3262,9 @@ impl<'cx> TyChecker<'cx> {
         symbol: SymbolID,
     ) -> enumflags2::BitFlags<ast::ModifierKind> {
         if let Some(decl) = self.get_symbol_decl(symbol) {
-            let flags = self.p.get_combined_modifier_flags(decl);
+            let flags = self
+                .node_query(decl.module())
+                .get_combined_modifier_flags(decl);
             // TODO: handle symbol parent
             return flags & !ast::ModifierKind::ACCESSIBILITY;
         };
@@ -3346,8 +3392,14 @@ impl<'cx> TyChecker<'cx> {
             fn visit_ident(&mut self, n: &'cx bolt_ts_ast::Ident) {
                 let t = self.tp.kind.expect_param();
                 if !t.is_this_ty
-                    && self.checker.p.is_part_of_ty_node(n.id)
-                    && self.checker.p.maybe_ty_param_reference(n.id)
+                    && self
+                        .checker
+                        .node_query(n.id.module())
+                        .is_part_of_ty_node(n.id)
+                    && self
+                        .checker
+                        .node_query(n.id.module())
+                        .maybe_ty_param_reference(n.id)
                     && self.checker.get_ty_from_ident(n) == self.tp
                 {
                     self.contain_reference = true;
@@ -3365,7 +3417,7 @@ impl<'cx> TyChecker<'cx> {
             }
             decls[0]
         };
-        let container = self.p.parent(decl);
+        let container = self.parent(decl);
         if let Some(container) = container {
             let mut n = node;
             while n != container {
@@ -3379,7 +3431,7 @@ impl<'cx> TyChecker<'cx> {
                 {
                     return true;
                 };
-                let Some(next) = self.p.parent(n) else {
+                let Some(next) = self.parent(n) else {
                     break;
                 };
                 n = next;

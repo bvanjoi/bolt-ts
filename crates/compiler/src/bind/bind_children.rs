@@ -1,7 +1,6 @@
 use crate::bind::create::DeclareSymbolProperty;
 
 use super::BinderState;
-use super::NodeQuery;
 use super::container_flags::container_flags_for_node;
 use super::flow::FlowFlags;
 use super::flow::FlowID;
@@ -368,7 +367,7 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
             let n = self.p.node(current);
             let (loc, parent) = if n.is_export_named_spec()
                 || n.as_shorthand_spec().is_some_and(|_| {
-                    let parent = self.parent_map.parent_unfinished(current).unwrap();
+                    let parent = self.parent_map.parent(current).unwrap();
                     self.p.node(parent).is_specs_export()
                 }) {
                 // TODO: is_import_eq_decl && has_export_modifier
@@ -1306,8 +1305,7 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
         use bolt_ts_ast::Node::*;
         if n.init.is_some()
             || matches!(
-                self.p
-                    .node(self.parent_map.parent_unfinished(n.id).unwrap()),
+                self.p.node(self.parent_map.parent(n.id).unwrap()),
                 ForInStmt(_) | ForOfStmt(_)
             )
         {

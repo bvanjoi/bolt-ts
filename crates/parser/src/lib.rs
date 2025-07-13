@@ -4,10 +4,8 @@ mod factory;
 mod jsx;
 mod list_ctx;
 mod lookahead;
-mod node_query;
 mod nodes;
 mod paren_rule;
-mod parent_map;
 mod parse_break_or_continue;
 mod parse_class_like;
 mod parse_fn_like;
@@ -35,12 +33,9 @@ use bolt_ts_utils::path::NormalizePath;
 
 use std::sync::{Arc, Mutex};
 
-pub use self::node_query::{ModuleInstanceState, NodeQuery};
 pub use self::nodes::Nodes;
-pub use self::parent_map::ParentMap;
 pub use self::pragmas::PragmaMap;
 pub use self::query::AccessKind;
-pub use self::query::AssignmentKind;
 use self::state::LanguageVariant;
 use self::state::ParserState;
 
@@ -79,8 +74,7 @@ pub struct FileReference {
 
 pub struct ParseResult<'cx> {
     pub diags: Vec<bolt_ts_errors::Diag>,
-    nodes: Nodes<'cx>,
-    parent_map: parent_map::ParentMap,
+    pub nodes: Nodes<'cx>,
     pub node_flags_map: NodeFlagsMap,
     pub external_module_indicator: Option<ast::NodeID>,
     pub commonjs_module_indicator: Option<ast::NodeID>,
@@ -104,16 +98,19 @@ impl<'cx> ParseResult<'cx> {
         self.nodes.get(id)
     }
 
-    pub fn parent(&self, id: NodeID) -> Option<NodeID> {
-        self.parent_map.parent(id)
-    }
-
     pub fn node_flags(&self, id: NodeID) -> NodeFlags {
         self.node_flags_map.get(id)
     }
 
     pub fn node_len(&self) -> usize {
         self.nodes.0.len()
+    }
+
+    pub fn is_external_or_commonjs_module(&self) -> bool {
+        self.external_module_indicator.is_some() || self.commonjs_module_indicator.is_some()
+    }
+    pub fn is_global_source_file(&self, id: ast::NodeID) -> bool {
+        !self.is_external_or_commonjs_module() && self.node(id).is_program()
     }
 }
 
@@ -132,14 +129,6 @@ impl<'cx> Parser<'cx> {
         Self {
             map: Vec::with_capacity(2048),
         }
-    }
-
-    pub fn new_with_maps(map: Vec<(ParseResult<'cx>, self::parent_map::ParentMap)>) -> Self {
-        let map = map
-            .into_iter()
-            .map(|(p, parent_map)| ParseResult { parent_map, ..p })
-            .collect::<Vec<_>>();
-        Self { map }
     }
 
     #[inline(always)]
@@ -202,7 +191,7 @@ pub fn parse_parallel<'cx, 'p>(
     list: &'p [ModuleID],
     module_arena: &'p ModuleArena,
     default_lib_dir: &'p std::path::Path,
-) -> impl ParallelIterator<Item = (ModuleID, ParseResult<'cx>)> + use<'cx, 'p> {
+) -> impl ParallelIterator<Item = (ModuleID, ParseResult<'cx>)> {
     list.into_par_iter().map_init(
         || herd.get(),
         move |bump, module_id| {
@@ -215,7 +204,7 @@ pub fn parse_parallel<'cx, 'p>(
                 module_arena,
                 default_lib_dir,
             );
-            // assert!(!module_arena.get_module(*module_id).is_default_lib || p.diags.is_empty());
+            assert!(!module_arena.get_module(*module_id).is_default_lib() || p.diags.is_empty());
             (*module_id, p)
         },
     )
@@ -235,7 +224,7 @@ pub fn parse_parallel<'cx, 'p>(
     // })
 }
 
-fn parse<'cx, 'p>(
+pub fn parse<'cx, 'p>(
     atoms: Arc<Mutex<AtomMap<'cx>>>,
     arena: &'p bolt_ts_arena::bumpalo_herd::Member<'cx>,
     input: &'p [u8],
@@ -284,7 +273,6 @@ fn parse<'cx, 'p>(
     ParseResult {
         diags: s.diags,
         nodes: s.nodes,
-        parent_map: Default::default(),
         node_flags_map: s.node_flags_map,
         external_module_indicator: s.external_module_indicator,
         commonjs_module_indicator: s.commonjs_module_indicator,

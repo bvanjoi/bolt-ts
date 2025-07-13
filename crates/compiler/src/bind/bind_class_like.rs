@@ -27,7 +27,7 @@ impl<'cx> BinderState<'cx, '_, '_> {
         includes: SymbolFlags,
         excludes: SymbolFlags,
     ) -> SymbolID {
-        if self.p.has_dynamic_name(decl_id) {
+        if self.node_query().has_dynamic_name(decl_id) {
             self.bind_anonymous_decl(decl_id, includes, SymbolName::Computed)
         } else {
             let name = prop_name(name);

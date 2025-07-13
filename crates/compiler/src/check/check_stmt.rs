@@ -186,8 +186,8 @@ impl<'cx> TyChecker<'cx> {
         let is_global_augmentation = ns.is_global_scope_argument();
         let is_ambient_external_module = ns.is_ambient();
         if is_ambient_external_module {
-            let p = self.p.parent(ns.id).unwrap();
-            if self.p.is_global_source_file(p) {
+            let p = self.parent(ns.id).unwrap();
+            if self.p.get(p.module()).is_global_source_file(p) {
                 if is_global_augmentation {
                     let error = errors::AugmentationsForTheGlobalScopeCanOnlyBeDirectlyNestedInExternalModulesOrAmbientModuleDeclarations {
                         span: ns.name.span()
