@@ -273,7 +273,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
     ) -> &'cx ast::Ident {
         if is_ident {
             let res = self.create_ident_by_atom(self.ident_token(), self.token.span);
-            self.next_token();
+            self.next_token_without_checked();
             res
         } else if self.token.kind == TokenKind::Private {
             todo!()

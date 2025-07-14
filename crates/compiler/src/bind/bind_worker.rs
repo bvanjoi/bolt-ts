@@ -194,11 +194,10 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
             }
         }
 
-        if self.p.diags.is_empty()
-            && !self
-                .p
-                .node_flags(id)
-                .intersects(NodeFlags::AMBIENT.union(NodeFlags::JSDOC))
+        if !self
+            .p
+            .node_flags(id)
+            .intersects(NodeFlags::AMBIENT.union(NodeFlags::JSDOC))
         {
             let Some(tok) = atom_to_token(atom) else {
                 return;

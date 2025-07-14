@@ -309,3 +309,10 @@ pub(super) struct DigitExpected {
     #[label(primary)]
     pub(super) span: Span,
 }
+
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
+#[error("Keywords cannot contain escape characters.")]
+pub(super) struct KeywordsCannotContainEscapeCharacters {
+    #[label(primary)]
+    pub(super) span: Span,
+}
