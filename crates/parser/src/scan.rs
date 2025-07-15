@@ -107,12 +107,10 @@ impl ParserState<'_, '_> {
         self.input.get(self.pos + 2).copied()
     }
 
+    #[inline(always)]
+    #[track_caller]
     pub(super) fn new_span(&self, lo: u32) -> Span {
-        Span {
-            lo,
-            hi: self.full_start_pos as u32,
-            module: self.module_id,
-        }
+        Span::new(lo, self.full_start_pos as u32, self.module_id)
     }
 
     fn scan_binary_or_octal_digits(&mut self, base: u8) -> Vec<u8> {

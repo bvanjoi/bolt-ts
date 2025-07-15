@@ -1,8 +1,9 @@
+use crate::list_ctx::ParsingContext;
+
 use super::lookahead::Lookahead;
 use super::paren_rule::{NoParenRule, ParenRuleTrait};
 use super::parse_fn_like::ParseFnExpr;
 use super::state::LanguageVariant;
-use super::ty::TypeArguments;
 use super::{PResult, ParserState};
 use super::{Tristate, parse_class_like};
 use super::{errors, list_ctx};
@@ -151,7 +152,7 @@ impl<'cx> ParserState<'cx, '_> {
         &mut self,
         param: &'cx ast::Ident,
     ) -> PResult<&'cx ast::Expr<'cx>> {
-        assert!(self.token.kind == TokenKind::EqGreat);
+        debug_assert!(self.token.kind == TokenKind::EqGreat);
         let name = self.parse_binding_with_ident(Some(param));
         let param_id = self.next_node_id();
         let param = self.alloc(ast::ParamDecl {
@@ -171,7 +172,7 @@ impl<'cx> ParserState<'cx, '_> {
         let expr_id = self.next_node_id();
         let f = self.alloc(ast::ArrowFnExpr {
             id: expr_id,
-            span: self.new_span(param.span.lo),
+            span: self.new_span(param.span.lo()),
             ty_params: None,
             params,
             ty: None,
@@ -607,7 +608,10 @@ impl<'cx> ParserState<'cx, '_> {
 
     fn parse_args(&mut self) -> PResult<ast::Exprs<'cx>> {
         self.expect(TokenKind::LParen);
-        let args = self.parse_delimited_list(list_ctx::ArgExprs, Self::parse_arg);
+        let args = self.parse_delimited_list(
+            list_ctx::ParsingContext::ARGUMENT_EXPRESSIONS,
+            Self::parse_arg,
+        );
         self.expect(TokenKind::RParen);
         Ok(args)
     }
@@ -791,8 +795,9 @@ impl<'cx> ParserState<'cx, '_> {
     }
 
     fn parse_array_lit_elems(&mut self) -> &'cx [&'cx ast::Expr<'cx>] {
-        self.parse_delimited_list(list_ctx::ArrayLiteralMembers, |this| {
-            match this.token.kind {
+        self.parse_delimited_list(
+            list_ctx::ParsingContext::ARRAY_LITERAL_MEMBERS,
+            |this| match this.token.kind {
                 TokenKind::DotDotDot => this.parse_spread_element(),
                 TokenKind::Comma => {
                     let id = this.next_node_id();
@@ -807,8 +812,8 @@ impl<'cx> ParserState<'cx, '_> {
                     Ok(expr)
                 }
                 _ => this.parse_assign_expr_or_higher(false),
-            }
-        })
+            },
+        )
     }
 
     fn parse_lit_expr(&mut self) -> &'cx ast::Expr<'cx> {
@@ -1061,8 +1066,10 @@ impl<'cx> ParserState<'cx, '_> {
         let start = self.token.start();
         let open = LBrace;
         let open_brace_parsed = self.expect(LBrace);
-        let props =
-            self.parse_delimited_list(list_ctx::ObjectLitMembers, Self::parse_object_lit_ele);
+        let props = self.parse_delimited_list(
+            list_ctx::ParsingContext::OBJECT_LITERAL_MEMBERS,
+            Self::parse_object_lit_ele,
+        );
         let close = RBrace;
         self.parse_expected_matching_brackets(open, close, open_brace_parsed, start as usize)?;
         let id = self.next_node_id();
@@ -1080,7 +1087,7 @@ impl<'cx> ParserState<'cx, '_> {
 
     fn parse_cond_expr_rest(&mut self, cond: &'cx ast::Expr<'cx>) -> PResult<&'cx ast::Expr<'cx>> {
         if self.parse_optional(TokenKind::Question).is_some() {
-            let start = cond.span().lo;
+            let start = cond.span().lo();
             // self.parent_map.r#override(cond.id(), id);
             let when_true = self.parse_expr()?;
             self.expect(TokenKind::Colon);
@@ -1291,7 +1298,7 @@ impl<'cx> ParserState<'cx, '_> {
             return Ok(None);
         }
         self.next_token();
-        let list = self.parse_delimited_list(TypeArguments, Self::parse_ty);
+        let list = self.parse_delimited_list(ParsingContext::TYPE_ARGUMENTS, Self::parse_ty);
         if self.re_scan_greater() != TokenKind::Great {
             return Ok(None);
         }

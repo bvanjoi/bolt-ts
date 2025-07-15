@@ -27,15 +27,32 @@ impl Default for ModuleID {
 
 #[derive(Debug, Clone, Copy, Default)]
 pub struct Span {
-    pub lo: u32,
-    pub hi: u32,
-    pub module: ModuleID,
+    lo: u32,
+    hi: u32,
+    module: ModuleID,
 }
 
 impl Span {
+    #[track_caller]
+    #[inline(always)]
     pub fn new(lo: u32, hi: u32, module: ModuleID) -> Self {
-        debug_assert!(lo <= hi);
+        debug_assert!(lo <= hi, "Invalid span: {}..{}", lo, hi);
         Self { lo, hi, module }
+    }
+
+    #[inline(always)]
+    pub fn lo(&self) -> u32 {
+        self.lo
+    }
+
+    #[inline(always)]
+    pub fn hi(&self) -> u32 {
+        self.hi
+    }
+
+    #[inline(always)]
+    pub fn module(&self) -> ModuleID {
+        self.module
     }
 }
 

@@ -531,10 +531,11 @@ impl<'cx> super::TyChecker<'cx> {
                 };
                 let name = self.atoms().get(node.name);
                 let span = self.p().node(id).span();
-                let module = self.module_arena().get_path(span.module).display();
+                let module = self.module_arena().get_path(span.module()).display();
                 panic!(
                     "The resolution of `{name}({module}:{}:{})` is not found.",
-                    span.lo, span.hi
+                    span.lo(),
+                    span.hi()
                 );
             })
     }

@@ -1749,7 +1749,7 @@ impl<'cx> TyChecker<'cx> {
                 } else if current.is_fn_like() {
                     return Some(true);
                 } else if current.is_class_static_block_decl() {
-                    return Some(self.p.node(decl).span().lo < used.span.lo);
+                    return Some(self.p.node(decl).span().lo() < used.span.lo());
                 }
 
                 let parent_id = self.parent(current_id)?;
@@ -1811,12 +1811,12 @@ impl<'cx> TyChecker<'cx> {
     ) -> bool {
         let used_span = used.span;
         let decl_span = self.p.node(decl).span();
-        let decl_pos = decl_span.lo;
+        let decl_pos = decl_span.lo();
         let decl_container = self
             .node_query(decl.module())
             .get_enclosing_blockscope_container(decl);
 
-        if decl_pos < used_span.lo {
+        if decl_pos < used_span.lo() {
             let n = self.p.node(decl);
             if let Some(decl) = n.as_var_decl() {
                 return !self

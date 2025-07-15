@@ -1,98 +1,262 @@
-use super::{ParserState, errors, lookahead::Lookahead};
+use crate::{errors, parse_class_like::is_class_ele_start};
+
+use super::{ParserState, lookahead::Lookahead};
 use bolt_ts_ast::TokenKind;
 
-pub(super) trait ListContext: Copy {
-    fn is_ele(&self, s: &mut ParserState, is_error_recovery: bool) -> bool;
-    fn is_closing(&self, s: &mut ParserState) -> bool;
-    fn parsing_context_errors(&self, _: &mut ParserState) {}
-    fn is_in_some_parsing_context(&self, s: &mut ParserState) -> bool {
-        self.is_ele(s, true) || self.is_closing(s)
+bitflags::bitflags! {
+    #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+    pub(super) struct ParsingContext: u32 {
+        const SOURCE_ELEMENTS = 1 << 0;
+        const BLOCK_STATEMENTS = 1 << 1;
+        const SWITCH_CLAUSES = 1 << 2;
+        const SWITCH_CLAUSE_STATEMENTS = 1 << 3;
+        const TYPE_MEMBERS = 1 << 4;
+        const CLASS_MEMBERS = 1 << 5;
+        const ENUM_MEMBERS = 1 << 6;
+        const HERITAGE_CLAUSE_ELEMENT = 1 << 7;
+        const VARIABLE_DECLARATIONS = 1 << 8;
+        const OBJECT_BINDING_ELEMENTS = 1 << 9;
+        const ARRAY_BINDING_ELEMENTS = 1 << 10;
+        const ARGUMENT_EXPRESSIONS = 1 << 11;
+        const OBJECT_LITERAL_MEMBERS = 1 << 12;
+        const JSX_ATTRIBUTES = 1 << 13;
+        const JSX_CHILDREN = 1 << 14;
+        const ARRAY_LITERAL_MEMBERS = 1 << 15;
+        const PARAMETERS = 1 << 16;
+        const JSDOC_PARAMETERS = 1 << 17;
+        const REST_PROPERTIES = 1 << 18;
+        const TYPE_PARAMETERS = 1 << 19;
+        const TYPE_ARGUMENTS = 1 << 20;
+        const TUPLE_ELEMENT_TYPES = 1 << 21;
+        const HERITAGE_CLAUSES = 1 << 22;
+        const IMPORT_OR_EXPORT_SPECIFIERS = 1 << 23;
+        const IMPORT_ATTRIBUTES = 1 << 24;
+        const JSDOC_COMMENT = 1 << 25;
+        const COUNT = 1 << 26;
     }
 }
 
-#[derive(Copy, Clone)]
-pub(super) struct SourceElems;
-impl ListContext for SourceElems {
-    fn is_ele(&self, s: &mut ParserState, in_error_recovery: bool) -> bool {
-        !(s.token.kind == TokenKind::Semi && in_error_recovery) && s.is_start_of_stmt()
+impl ParsingContext {
+    pub const fn count() -> u32 {
+        Self::COUNT.bits().trailing_zeros()
+    }
+}
+
+impl ParserState<'_, '_> {
+    pub(super) fn is_list_element(&mut self, ctx: ParsingContext, in_error_recovery: bool) -> bool {
+        match ctx {
+            ParsingContext::SOURCE_ELEMENTS
+            | ParsingContext::BLOCK_STATEMENTS
+            | ParsingContext::SWITCH_CLAUSE_STATEMENTS => {
+                !(self.token.kind == TokenKind::Semi && in_error_recovery)
+                    && self.is_start_of_stmt()
+            }
+            ParsingContext::SWITCH_CLAUSES => {
+                todo!()
+            }
+            ParsingContext::TYPE_MEMBERS => self.lookahead(|l| is_ty_member_start(l.p())),
+            ParsingContext::CLASS_MEMBERS => {
+                self.lookahead(|l| is_class_ele_start(l.p()))
+                    || (self.token.kind == TokenKind::Semi && !in_error_recovery)
+            }
+            ParsingContext::ENUM_MEMBERS => {
+                self.token.kind == TokenKind::LBracket || self.token.kind.is_lit_prop_name()
+            }
+            ParsingContext::OBJECT_LITERAL_MEMBERS => {
+                use bolt_ts_ast::TokenKind::*;
+                matches!(self.token.kind, LBrace | Asterisk | Dot | DotDotDot)
+                    || self.token.kind.is_lit_prop_name()
+            }
+            ParsingContext::REST_PROPERTIES => self.token.kind.is_lit_prop_name(),
+            ParsingContext::OBJECT_BINDING_ELEMENTS => {
+                let t = self.token.kind;
+                matches!(t, TokenKind::LBracket | TokenKind::DotDotDot) || t.is_lit_prop_name()
+            }
+            ParsingContext::IMPORT_ATTRIBUTES => {
+                todo!()
+            }
+            ParsingContext::HERITAGE_CLAUSE_ELEMENT => {
+                if self.token.kind == TokenKind::LBrace {
+                    self.lookahead(Lookahead::is_invalid_heritage_clause_object)
+                } else if !in_error_recovery {
+                    self.is_start_of_left_hand_side_expr()
+                        && !self.is_heritage_clause_extends_or_implements_keyword()
+                } else {
+                    self.is_ident() && !self.is_heritage_clause_extends_or_implements_keyword()
+                }
+            }
+            ParsingContext::VARIABLE_DECLARATIONS => {
+                self.token.kind.is_binding_ident_or_private_ident_or_pat()
+            }
+            ParsingContext::ARRAY_BINDING_ELEMENTS => {
+                let t = self.token.kind;
+                matches!(t, TokenKind::Comma | TokenKind::DotDotDot)
+                    || t.is_binding_ident_or_private_ident_or_pat()
+            }
+            ParsingContext::TYPE_PARAMETERS => {
+                matches!(self.token.kind, TokenKind::In | TokenKind::Const) || self.is_ident()
+            }
+            ParsingContext::ARRAY_LITERAL_MEMBERS => {
+                matches!(
+                    self.token.kind,
+                    TokenKind::Comma | TokenKind::Dot | TokenKind::DotDotDot
+                ) || self.is_start_of_expr()
+            }
+            ParsingContext::ARGUMENT_EXPRESSIONS => {
+                matches!(self.token.kind, TokenKind::DotDotDot) || self.is_start_of_expr()
+            }
+            ParsingContext::PARAMETERS => self.is_start_of_param(),
+            ParsingContext::TYPE_ARGUMENTS | ParsingContext::TUPLE_ELEMENT_TYPES => {
+                matches!(self.token.kind, TokenKind::Comma) || self.is_start_of_ty(false)
+            }
+            ParsingContext::HERITAGE_CLAUSES => {
+                matches!(self.token.kind, TokenKind::Extends | TokenKind::Implements)
+            }
+            ParsingContext::IMPORT_OR_EXPORT_SPECIFIERS => {
+                use bolt_ts_ast::TokenKind::*;
+                if self.token.kind == From
+                    && self.lookahead(|this| {
+                        this.p().next_token();
+                        matches!(this.p().token.kind, String)
+                    })
+                {
+                    false
+                } else if self.token.kind == String {
+                    true
+                } else {
+                    self.token.kind.is_ident_or_keyword()
+                }
+            }
+            ParsingContext::JSX_ATTRIBUTES => {
+                self.token.kind.is_ident_or_keyword() || self.token.kind == TokenKind::LBrace
+            }
+            ParsingContext::JSX_CHILDREN => true,
+            _ => unreachable!(),
+        }
     }
 
-    fn is_closing(&self, _: &mut ParserState) -> bool {
-        // ensure terminal by `is_list_terminator`
+    pub(super) fn is_list_terminator(&mut self, ctx: ParsingContext) -> bool {
+        if self.token.kind == TokenKind::EOF {
+            return true;
+        }
+
+        match ctx {
+            ParsingContext::BLOCK_STATEMENTS
+            | ParsingContext::SWITCH_CLAUSES
+            | ParsingContext::TYPE_MEMBERS
+            | ParsingContext::CLASS_MEMBERS
+            | ParsingContext::ENUM_MEMBERS
+            | ParsingContext::OBJECT_LITERAL_MEMBERS
+            | ParsingContext::OBJECT_BINDING_ELEMENTS
+            | ParsingContext::IMPORT_OR_EXPORT_SPECIFIERS
+            | ParsingContext::IMPORT_ATTRIBUTES => {
+                matches!(self.token.kind, TokenKind::RBrace)
+            }
+            ParsingContext::SWITCH_CLAUSE_STATEMENTS => {
+                matches!(
+                    self.token.kind,
+                    TokenKind::RBrace | TokenKind::Case | TokenKind::Default
+                )
+            }
+            ParsingContext::HERITAGE_CLAUSE_ELEMENT => {
+                matches!(
+                    self.token.kind,
+                    TokenKind::LBrace | TokenKind::Extends | TokenKind::Implements
+                )
+            }
+            ParsingContext::VARIABLE_DECLARATIONS => {
+                self.can_parse_semi()
+                    || self.token.kind.is_in_or_of_keyword()
+                    || self.token.kind == TokenKind::EqGreat
+            }
+            ParsingContext::TYPE_PARAMETERS => {
+                matches!(
+                    self.token.kind,
+                    TokenKind::Great
+                        | TokenKind::LParen
+                        | TokenKind::LBrace
+                        | TokenKind::Extends
+                        | TokenKind::Implements
+                )
+            }
+            ParsingContext::ARGUMENT_EXPRESSIONS => {
+                matches!(self.token.kind, TokenKind::RParen | TokenKind::Semi)
+            }
+            ParsingContext::ARRAY_LITERAL_MEMBERS
+            | ParsingContext::TUPLE_ELEMENT_TYPES
+            | ParsingContext::ARRAY_BINDING_ELEMENTS => {
+                matches!(self.token.kind, TokenKind::RBracket)
+            }
+            ParsingContext::PARAMETERS | ParsingContext::REST_PROPERTIES => {
+                matches!(self.token.kind, TokenKind::RParen | TokenKind::RBracket)
+            }
+            ParsingContext::TYPE_ARGUMENTS => {
+                matches!(self.token.kind, TokenKind::Comma)
+            }
+            ParsingContext::HERITAGE_CLAUSES => {
+                matches!(self.token.kind, TokenKind::LBrace | TokenKind::RBrace)
+            }
+            ParsingContext::JSX_ATTRIBUTES => {
+                matches!(self.token.kind, TokenKind::Great | TokenKind::Slash)
+            }
+            ParsingContext::JSX_CHILDREN => {
+                self.token.kind == TokenKind::Less
+                    && self.lookahead(|l| {
+                        l.p().next_token();
+                        matches!(l.p().token.kind, TokenKind::Slash)
+                    })
+            }
+            ParsingContext::SOURCE_ELEMENTS => false,
+            _ => {
+                dbg!(ctx);
+                unreachable!()
+            }
+        }
+    }
+
+    pub(super) fn is_in_some_parsing_context(&mut self) -> bool {
+        for i in 0..ParsingContext::count() {
+            let parsing_ctx = ParsingContext::from_bits(1 << i).unwrap();
+            if self.parsing_context.intersects(parsing_ctx) {
+                if self.is_list_element(parsing_ctx, true) || self.is_list_terminator(parsing_ctx) {
+                    return true;
+                }
+            }
+        }
+
         false
     }
 
-    fn parsing_context_errors(&self, s: &mut ParserState) {
-        if matches!(s.token.kind, TokenKind::Default) {
-            let error = errors::ExpectX {
-                x: "export".to_string(),
-                span: s.token.span,
-            };
-            s.push_error(Box::new(error));
-        } else {
-            let error = errors::DeclarationOrStatementExpected { span: s.token.span };
-            s.push_error(Box::new(error));
+    pub(super) fn parsing_context_errors(&mut self, ctx: ParsingContext) {
+        match ctx {
+            ParsingContext::SOURCE_ELEMENTS => {
+                if matches!(self.token.kind, TokenKind::Default) {
+                    let error = errors::ExpectX {
+                        x: "export".to_string(),
+                        span: self.token.span,
+                    };
+                    self.push_error(Box::new(error));
+                } else {
+                    let error = errors::DeclarationOrStatementExpected {
+                        span: self.token.span,
+                    };
+                    self.push_error(Box::new(error));
+                }
+            }
+            ParsingContext::BLOCK_STATEMENTS => {
+                let error = errors::DeclarationOrStatementExpected {
+                    span: self.token.span,
+                };
+                self.push_error(Box::new(error));
+            }
+            ParsingContext::ARGUMENT_EXPRESSIONS => {
+                let error = errors::ArgumentExpressionExpected {
+                    span: self.token.span,
+                };
+                self.push_error(Box::new(error));
+            }
+            _ => {}
         }
-    }
-}
-
-#[derive(Copy, Clone)]
-pub(super) struct EnumMembers;
-impl ListContext for EnumMembers {
-    fn is_ele(&self, s: &mut ParserState, _: bool) -> bool {
-        s.token.kind == TokenKind::LBracket || s.token.kind.is_lit_prop_name()
-    }
-
-    fn is_closing(&self, s: &mut ParserState) -> bool {
-        matches!(s.token.kind, TokenKind::RBrace)
-    }
-}
-
-#[derive(Copy, Clone)]
-pub(super) struct BlockStmts;
-impl ListContext for BlockStmts {
-    fn is_ele(&self, s: &mut ParserState, is_error_recovery: bool) -> bool {
-        !(matches!(s.token.kind, TokenKind::Semi) && is_error_recovery) && s.is_start_of_stmt()
-    }
-
-    fn is_closing(&self, s: &mut ParserState) -> bool {
-        matches!(s.token.kind, TokenKind::RBrace)
-    }
-
-    fn parsing_context_errors(&self, s: &mut ParserState) {
-        let error = errors::DeclarationOrStatementExpected { span: s.token.span };
-        s.push_error(Box::new(error));
-    }
-}
-
-#[derive(Copy, Clone)]
-pub(super) struct ArgExprs;
-impl ListContext for ArgExprs {
-    fn is_ele(&self, s: &mut ParserState, _: bool) -> bool {
-        matches!(s.token.kind, TokenKind::DotDotDot) || s.is_start_of_expr()
-    }
-
-    fn is_closing(&self, s: &mut ParserState) -> bool {
-        matches!(s.token.kind, TokenKind::RParen)
-    }
-
-    fn parsing_context_errors(&self, s: &mut ParserState) {
-        let error = errors::ArgumentExpressionExpected { span: s.token.span };
-        s.push_error(Box::new(error));
-    }
-}
-
-#[derive(Copy, Clone)]
-pub(super) struct ObjectLitMembers;
-impl ListContext for ObjectLitMembers {
-    fn is_ele(&self, s: &mut ParserState, _: bool) -> bool {
-        use bolt_ts_ast::TokenKind::*;
-        matches!(s.token.kind, LBrace | Asterisk | Dot | DotDotDot)
-            || s.token.kind.is_lit_prop_name()
-    }
-
-    fn is_closing(&self, s: &mut ParserState) -> bool {
-        matches!(s.token.kind, TokenKind::RBrace)
     }
 }
 
@@ -119,144 +283,4 @@ fn is_ty_member_start(s: &mut ParserState) -> bool {
 
     id_token
         && (matches!(s.token.kind, LParen | Less | Question | Colon | Comma) || s.can_parse_semi())
-}
-
-#[derive(Copy, Clone)]
-pub(super) struct TyMembers;
-impl ListContext for TyMembers {
-    fn is_ele(&self, s: &mut ParserState, _: bool) -> bool {
-        s.lookahead(|l| is_ty_member_start(l.p()))
-    }
-
-    fn is_closing(&self, s: &mut ParserState) -> bool {
-        matches!(s.token.kind, TokenKind::RBrace)
-    }
-}
-
-#[derive(Copy, Clone)]
-pub(super) struct Params;
-impl ListContext for Params {
-    fn is_ele(&self, s: &mut ParserState, _: bool) -> bool {
-        s.is_start_of_param()
-    }
-
-    fn is_closing(&self, s: &mut ParserState) -> bool {
-        use bolt_ts_ast::TokenKind::*;
-        matches!(s.token.kind, RParen | RBracket)
-    }
-}
-
-#[derive(Copy, Clone)]
-pub(super) struct TyParams;
-impl ListContext for TyParams {
-    fn is_ele(&self, s: &mut ParserState, _: bool) -> bool {
-        // FIXME: parse_state.is_ident
-        matches!(s.token.kind, TokenKind::In | TokenKind::Const) || s.token.kind.is_binding_ident()
-    }
-
-    fn is_closing(&self, s: &mut ParserState) -> bool {
-        use bolt_ts_ast::TokenKind::*;
-        // Tokens other than '>' are here for better error recovery
-        matches!(s.token.kind, Great | LParen | LBrace | Extends | Implements)
-    }
-}
-
-#[derive(Copy, Clone)]
-pub(super) struct HeritageClause;
-impl ListContext for HeritageClause {
-    fn is_ele(&self, s: &mut ParserState, is_error_recovery: bool) -> bool {
-        if s.token.kind == TokenKind::LBrace {
-            s.lookahead(Lookahead::is_invalid_heritage_clause_object)
-        } else if !is_error_recovery {
-            s.is_start_of_left_hand_side_expr()
-                && !s.is_heritage_clause_extends_or_implements_keyword()
-        } else {
-            s.is_ident() && !s.is_heritage_clause_extends_or_implements_keyword()
-        }
-    }
-
-    fn is_closing(&self, s: &mut ParserState) -> bool {
-        use bolt_ts_ast::TokenKind::*;
-        matches!(s.token.kind, LBrace) || s.token.kind.is_heritage_clause()
-    }
-}
-
-#[derive(Copy, Clone)]
-pub(super) struct VarDecls;
-impl ListContext for VarDecls {
-    fn is_ele(&self, s: &mut ParserState, _: bool) -> bool {
-        s.token.kind.is_binding_ident_or_private_ident_or_pat()
-    }
-
-    fn is_closing(&self, s: &mut ParserState) -> bool {
-        s.can_parse_semi()
-            || s.token.kind.is_in_or_of_keyword()
-            || s.token.kind == TokenKind::EqGreat
-    }
-}
-
-#[derive(Copy, Clone)]
-pub(super) struct ArrayLiteralMembers;
-impl ListContext for ArrayLiteralMembers {
-    fn is_ele(&self, s: &mut ParserState, _: bool) -> bool {
-        use TokenKind::*;
-        // TokenKind::{Comma, Dot} is not an array literal, just for close the array.
-        matches!(s.token.kind, Comma | Dot | DotDotDot) || s.is_start_of_expr()
-    }
-
-    fn is_closing(&self, s: &mut ParserState) -> bool {
-        matches!(s.token.kind, TokenKind::RBracket)
-    }
-}
-
-#[derive(Copy, Clone)]
-pub(super) struct TyArgs;
-impl ListContext for TyArgs {
-    fn is_ele(&self, s: &mut ParserState, _: bool) -> bool {
-        matches!(s.token.kind, TokenKind::Comma) || s.is_start_of_ty(false)
-    }
-
-    fn is_closing(&self, s: &mut ParserState) -> bool {
-        !matches!(s.token.kind, TokenKind::Comma)
-    }
-}
-
-#[derive(Copy, Clone)]
-pub(super) struct ObjectBindingElems;
-impl ListContext for ObjectBindingElems {
-    fn is_ele(&self, s: &mut ParserState, _: bool) -> bool {
-        let t = s.token.kind;
-        matches!(t, TokenKind::LBracket | TokenKind::DotDotDot) || t.is_lit_prop_name()
-    }
-
-    fn is_closing(&self, s: &mut ParserState) -> bool {
-        matches!(s.token.kind, TokenKind::RBrace)
-    }
-}
-
-#[derive(Copy, Clone)]
-pub(super) struct ArrayBindingElems;
-impl ListContext for ArrayBindingElems {
-    fn is_ele(&self, s: &mut ParserState, _: bool) -> bool {
-        let t = s.token.kind;
-        matches!(t, TokenKind::Comma | TokenKind::DotDotDot)
-            || t.is_binding_ident_or_private_ident_or_pat()
-    }
-
-    fn is_closing(&self, s: &mut ParserState) -> bool {
-        matches!(s.token.kind, TokenKind::RBracket)
-    }
-}
-
-#[derive(Copy, Clone)]
-pub(super) struct JsxAttrs;
-impl ListContext for JsxAttrs {
-    fn is_ele(&self, s: &mut ParserState, _: bool) -> bool {
-        let t = s.token.kind;
-        t.is_ident_or_keyword() || t == TokenKind::LBrace
-    }
-
-    fn is_closing(&self, s: &mut ParserState) -> bool {
-        matches!(s.token.kind, TokenKind::Great | TokenKind::Slash)
-    }
 }

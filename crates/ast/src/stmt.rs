@@ -881,6 +881,26 @@ pub enum BindingKind<'cx> {
     ArrayPat(&'cx ArrayPat<'cx>),
 }
 
+impl<'cx> BindingKind<'cx> {
+    pub fn id(&self) -> NodeID {
+        use BindingKind::*;
+        match self {
+            Ident(ident) => ident.id,
+            ObjectPat(obj_pat) => obj_pat.id,
+            ArrayPat(arr_pat) => arr_pat.id,
+        }
+    }
+
+    pub fn span(&self) -> Span {
+        use BindingKind::*;
+        match self {
+            Ident(ident) => ident.span,
+            ObjectPat(obj_pat) => obj_pat.span,
+            ArrayPat(arr_pat) => arr_pat.span,
+        }
+    }
+}
+
 #[derive(Debug, Clone, Copy)]
 pub struct ObjectPat<'cx> {
     pub id: NodeID,

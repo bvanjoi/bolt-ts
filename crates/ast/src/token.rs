@@ -14,14 +14,16 @@ impl Token {
         Self { kind, span }
     }
 
+    #[inline]
     pub fn start(&self) -> u32 {
-        debug_assert_ne!(self.span.lo, u32::MAX);
-        self.span.lo
+        debug_assert_ne!(self.span.lo(), u32::MAX);
+        self.span.lo()
     }
 
+    #[inline]
     pub fn end(&self) -> u32 {
-        debug_assert_ne!(self.span.lo, u32::MAX);
-        self.span.hi
+        debug_assert_ne!(self.span.hi(), u32::MAX);
+        self.span.hi()
     }
 }
 

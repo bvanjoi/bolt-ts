@@ -5,31 +5,7 @@ use bolt_ts_span::Span;
 use super::ParserState;
 use super::{PResult, list_ctx};
 use crate::keyword;
-
-#[derive(Copy, Clone)]
-pub(super) struct ImportOrExportSpecs;
-impl list_ctx::ListContext for ImportOrExportSpecs {
-    fn is_ele(&self, s: &mut ParserState, _: bool) -> bool {
-        use bolt_ts_ast::TokenKind::*;
-        if s.token.kind == From
-            && s.lookahead(|this| {
-                this.p().next_token();
-                matches!(this.p().token.kind, String)
-            })
-        {
-            false
-        } else if s.token.kind == String {
-            true
-        } else {
-            s.token.kind.is_ident_or_keyword()
-        }
-    }
-
-    fn is_closing(&self, s: &mut ParserState) -> bool {
-        use bolt_ts_ast::TokenKind::*;
-        matches!(s.token.kind, RBrace)
-    }
-}
+use crate::list_ctx::ParsingContext;
 
 #[derive(Copy, Clone)]
 pub(super) struct ParseNamedImports;
@@ -277,7 +253,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
     ) -> PResult<&'cx [Spec]> {
         // `{ ... }`
         self.parse_bracketed_list(
-            ImportOrExportSpecs,
+            ParsingContext::IMPORT_OR_EXPORT_SPECIFIERS,
             TokenKind::LBrace,
             |this| this.parse_import_or_export_spec(kind),
             TokenKind::RBrace,

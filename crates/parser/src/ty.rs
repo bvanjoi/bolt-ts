@@ -1,4 +1,6 @@
-use super::list_ctx::{self, ListContext};
+use crate::list_ctx::ParsingContext;
+
+use super::list_ctx::{self};
 use super::lookahead::Lookahead;
 use super::{PResult, ParserState};
 use super::{ast, errors};
@@ -6,32 +8,6 @@ use bolt_ts_ast::{Token, TokenKind};
 
 fn is_ele_for_tuple_ele_tys_and_ty_args(s: &mut ParserState) -> bool {
     s.token.kind == TokenKind::Comma || s.is_start_of_ty(false)
-}
-
-#[derive(Copy, Clone)]
-struct TupleElementTypes;
-
-impl ListContext for TupleElementTypes {
-    fn is_ele(&self, s: &mut ParserState, _: bool) -> bool {
-        is_ele_for_tuple_ele_tys_and_ty_args(s)
-    }
-
-    fn is_closing(&self, s: &mut ParserState) -> bool {
-        s.token.kind == TokenKind::RBracket
-    }
-}
-
-#[derive(Copy, Clone)]
-pub(super) struct TypeArguments;
-
-impl ListContext for TypeArguments {
-    fn is_ele(&self, s: &mut ParserState, _: bool) -> bool {
-        is_ele_for_tuple_ele_tys_and_ty_args(s)
-    }
-
-    fn is_closing(&self, s: &mut ParserState) -> bool {
-        s.token.kind != TokenKind::Comma
-    }
 }
 
 impl<'cx> ParserState<'cx, '_> {
@@ -125,7 +101,7 @@ impl<'cx> ParserState<'cx, '_> {
                 let parent = self.next_node_id();
                 let ty = self.alloc(ast::IntersectionTy {
                     id: parent,
-                    span: self.new_span(ty.span().lo),
+                    span: self.new_span(ty.span().lo()),
                     tys,
                 });
                 self.nodes.insert(parent, ast::Node::IntersectionTy(ty));
@@ -138,7 +114,7 @@ impl<'cx> ParserState<'cx, '_> {
                 let parent = self.next_node_id();
                 let ty = self.alloc(ast::UnionTy {
                     id: parent,
-                    span: self.new_span(ty.span().lo),
+                    span: self.new_span(ty.span().lo()),
                     tys,
                 });
                 self.nodes.insert(parent, ast::Node::UnionTy(ty));
@@ -171,7 +147,7 @@ impl<'cx> ParserState<'cx, '_> {
     }
 
     fn parse_this_ty_pred(&mut self, this_ty: &'cx ast::ThisTy) -> PResult<&'cx ast::Ty<'cx>> {
-        let start = this_ty.span.lo;
+        let start = this_ty.span.lo();
         self.next_token();
         let ty = self.parse_ty()?;
         let name = ast::PredTyName::This(this_ty);
@@ -416,7 +392,7 @@ impl<'cx> ParserState<'cx, '_> {
                         let id = self.next_node_id();
                         let kind = self.alloc(ast::ArrayTy {
                             id,
-                            span: self.new_span(ty.span().lo),
+                            span: self.new_span(ty.span().lo()),
                             ele: ty,
                         });
                         self.nodes.insert(id, ast::Node::ArrayTy(kind));
@@ -485,7 +461,7 @@ impl<'cx> ParserState<'cx, '_> {
             let start = self.token.start();
             let list = self
                 .parse_bracketed_list(
-                    TypeArguments,
+                    ParsingContext::TYPE_ARGUMENTS,
                     TokenKind::Less,
                     Self::parse_ty,
                     TokenKind::Great,
@@ -533,7 +509,7 @@ impl<'cx> ParserState<'cx, '_> {
         if self.token.kind == TokenKind::Less {
             let start = self.token.start();
             let tys = self.parse_bracketed_list(
-                list_ctx::TyArgs,
+                ParsingContext::TYPE_ARGUMENTS,
                 TokenKind::Less,
                 Self::parse_ty,
                 TokenKind::Great,
@@ -810,7 +786,7 @@ impl<'cx> ParserState<'cx, '_> {
 
         let ty = self.parse_ty_anno()?;
         self.parse_semi();
-        let members = self.parse_list(list_ctx::TyMembers, Self::parse_ty_member);
+        let members = self.parse_list(ParsingContext::TYPE_MEMBERS, Self::parse_ty_member);
         self.expect(TokenKind::RBrace);
         let id = self.next_node_id();
         let kind = self.alloc(ast::MappedTy {
@@ -850,7 +826,7 @@ impl<'cx> ParserState<'cx, '_> {
     fn parse_tuple_ty(&mut self) -> PResult<&'cx ast::Ty<'cx>> {
         let start = self.token.start();
         let tys = self.parse_bracketed_list(
-            TupleElementTypes,
+            ParsingContext::TUPLE_ELEMENT_TYPES,
             TokenKind::LBracket,
             Self::parse_tuple_ele_name_or_tuple_ele_ty,
             TokenKind::RBracket,
@@ -1068,7 +1044,7 @@ impl<'cx> ParserState<'cx, '_> {
 
     pub(super) fn parse_object_ty_members(&mut self) -> PResult<ast::ObjectTyMembers<'cx>> {
         self.expect(TokenKind::LBrace);
-        let members = self.parse_list(list_ctx::TyMembers, Self::parse_ty_member);
+        let members = self.parse_list(ParsingContext::TYPE_MEMBERS, Self::parse_ty_member);
         self.expect(TokenKind::RBrace);
         Ok(members)
     }

@@ -56,9 +56,9 @@ impl<'cx> TyChecker<'cx> {
             {
                 if s.flags.intersects(SymbolFlags::CONSTRUCTOR) {
                     let node = self.p.node(decls[0]).expect_class_ctor();
-                    let lo = node.span.lo;
+                    let lo = node.span.lo();
                     let hi = lo + keyword::KW_CONSTRUCTOR_STR.len() as u32;
-                    let span = Span::new(lo, hi, node.span.module);
+                    let span = Span::new(lo, hi, node.span.module());
                     let error = errors::ConstructorImplementationIsMissing { span };
                     self.push_error(Box::new(error));
                 } else {

@@ -198,7 +198,7 @@ impl<'cx> TyChecker<'cx> {
             PostfixUnary(unary) => self.check_postfix_unary_expr(unary),
             Class(class) => {
                 self.check_class_decl_like(class);
-                self.undefined_ty
+                self.get_type_of_symbol(self.get_symbol_of_decl(class.id))
             }
             PropAccess(node) => self.check_prop_access_expr(node),
             Typeof(n) => {
@@ -329,7 +329,7 @@ impl<'cx> TyChecker<'cx> {
 
     fn is_template_literal_contextual_ty(&mut self, ty: &'cx ty::Ty<'cx>) -> bool {
         ty.flags
-            .intersects(TypeFlags::STRING_LITERAL | TypeFlags::TEMPLATE_LITERAL)
+            .intersects(TypeFlags::STRING_LITERAL.union(TypeFlags::TEMPLATE_LITERAL))
             || ty.flags.intersects(TypeFlags::INSTANTIABLE_NON_PRIMITIVE) && {
                 let t = self
                     .get_base_constraint_of_ty(ty)

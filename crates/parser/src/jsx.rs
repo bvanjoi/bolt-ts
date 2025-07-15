@@ -1,7 +1,7 @@
 use bolt_ts_ast::{JsxTagName, NodeFlags, TokenKind, keyword};
 use bolt_ts_span::Span;
 
-use crate::{errors, state::LanguageVariant};
+use crate::{errors, list_ctx::ParsingContext, state::LanguageVariant};
 
 use super::{PResult, ParserState, list_ctx};
 
@@ -74,7 +74,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
                                 span,
                                 bolt_ts_ast::JsxTagName::Ident(ident),
                             );
-                            let span = self.new_span(end.span().lo);
+                            let span = self.new_span(end.span().lo());
                             let last = self.create_jsx_ele(span, opening, children, closing);
 
                             let mut list = children[..children.len() - 1].to_vec();
@@ -124,7 +124,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
             let top_bad_pos = if let Some(pos) = top_invalid_node_position {
                 pos
             } else {
-                result.span().lo
+                result.span().lo()
             };
             if let Ok(Some(invalid_ele)) = self.try_parse(|this| {
                 if let Ok(result) = this.p().parse_jsx_ele_or_self_closing_ele_or_frag(
@@ -227,7 +227,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
 
     fn parse_jsx_attrs(&mut self) -> bolt_ts_ast::JsxAttrs<'cx> {
         debug_assert!(self.variant == LanguageVariant::Jsx);
-        let attrs = self.parse_list(list_ctx::JsxAttrs, Self::parse_jsx_attr);
+        let attrs = self.parse_list(ParsingContext::JSX_ATTRIBUTES, Self::parse_jsx_attr);
         self.create_jsx_attrs(attrs)
     }
 
@@ -273,7 +273,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
             JsxTagName::Ns(self.create_jsx_ns_name(tag_name, name, span))
         } else if is_this {
             let span = self.new_span(start);
-            debug_assert!(span.lo + keyword::KW_THIS_STR.len() as u32 == span.hi);
+            debug_assert!(span.lo() + keyword::KW_THIS_STR.len() as u32 == span.hi());
             let this = self.create_this_expr(span);
             JsxTagName::This(this)
         } else {
@@ -417,7 +417,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
                         span: tag_name.span(),
                         opening_tag_name: {
                             let span = opening.tag_name.span();
-                            let s = &self.input[span.lo as usize..span.hi as usize];
+                            let s = &self.input[span.lo() as usize..span.hi() as usize];
                             unsafe { String::from_utf8_unchecked(s.to_vec()) }
                         },
                     },

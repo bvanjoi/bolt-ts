@@ -7,6 +7,7 @@ use bolt_ts_utils::path::NormalizePath;
 
 use std::sync::{Arc, Mutex};
 
+use super::list_ctx::ParsingContext;
 use super::utils::is_declaration_filename;
 use super::{CommentDirective, FileReference, NodeFlagsMap, Nodes, TokenValue};
 use super::{PResult, list_ctx};
@@ -48,6 +49,7 @@ pub(super) struct ParserState<'cx, 'p> {
     pub(super) in_ambient_module: bool,
     pub(super) has_no_default_lib: bool,
     pub(super) variant: LanguageVariant,
+    pub(super) parsing_context: ParsingContext,
 }
 
 impl<'cx, 'p> ParserState<'cx, 'p> {
@@ -103,6 +105,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
             pragmas: PragmaMap(no_hashmap_with_capacity(8)),
             has_no_default_lib: false,
             variant,
+            parsing_context: ParsingContext::default(),
         }
     }
 
@@ -133,7 +136,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
 
     pub(super) fn parse_bracketed_list<T>(
         &mut self,
-        ctx: impl list_ctx::ListContext,
+        ctx: ParsingContext,
         open: TokenKind,
         ele: impl Fn(&mut Self) -> PResult<T>,
         close: TokenKind,
@@ -147,21 +150,14 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         }
     }
 
-    pub(super) fn is_list_terminator(&mut self, ctx: impl list_ctx::ListContext) -> bool {
-        if self.token.kind == TokenKind::EOF {
-            return true;
-        }
-        ctx.is_closing(self)
-    }
-
     pub(super) fn parse_list<T>(
         &mut self,
-        ctx: impl list_ctx::ListContext,
+        ctx: ParsingContext,
         ele: impl Fn(&mut Self) -> PResult<T>,
     ) -> &'cx [T] {
         let mut list = Vec::with_capacity(8);
         while !self.is_list_terminator(ctx) {
-            if ctx.is_ele(self, false) {
+            if self.is_list_element(ctx, false) {
                 if let Ok(ele) = ele(self) {
                     list.push(ele);
                 }
@@ -173,12 +169,9 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         self.alloc(list)
     }
 
-    pub(super) fn abort_parsing_list_or_move_to_next_token(
-        &mut self,
-        ctx: impl list_ctx::ListContext,
-    ) -> bool {
-        ctx.parsing_context_errors(self);
-        if ctx.is_in_some_parsing_context(self) {
+    pub(super) fn abort_parsing_list_or_move_to_next_token(&mut self, ctx: ParsingContext) -> bool {
+        self.parsing_context_errors(ctx);
+        if self.is_in_some_parsing_context() {
             true
         } else {
             self.next_token();
@@ -188,12 +181,13 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
 
     pub(super) fn parse_delimited_list<T>(
         &mut self,
-        ctx: impl list_ctx::ListContext,
+        ctx: ParsingContext,
         ele: impl Fn(&mut Self) -> PResult<T>,
     ) -> &'cx [T] {
         let mut list = Vec::with_capacity(8);
+        self.parsing_context.insert(ctx);
         loop {
-            if ctx.is_ele(self, false) {
+            if self.is_list_element(ctx, false) {
                 let start_pos = self.token.start();
                 let Ok(ele) = ele(self) else {
                     break;
@@ -217,6 +211,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
                 break;
             }
         }
+        self.parsing_context.remove(ctx);
         self.alloc(list)
     }
 
@@ -347,7 +342,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
     pub(super) fn parse(&mut self) -> &'cx ast::Program<'cx> {
         let start = self.pos;
         self.next_token();
-        let stmts = self.parse_list(list_ctx::SourceElems, Self::parse_stmt);
+        let stmts = self.parse_list(ParsingContext::SOURCE_ELEMENTS, Self::parse_stmt);
         let id = self.next_node_id();
         let program = self.alloc(ast::Program {
             id,
