@@ -395,15 +395,31 @@ pub(super) struct ThisOverloadSignatureIsNotCompatibleWithItsImplementationSigna
 }
 
 #[derive(Error, Diagnostic, DiagnosticExt, Debug)]
-#[error("This expression is not {}.", if *is_call {
+#[error("This expression is not {}.", if self.is_call {
     "callable"
 } else {
     "constructable"
 })]
 pub(super) struct ThisExpressionIsNotConstructable {
     #[label(primary)]
-    pub span: Span,
-    pub is_call: bool,
+    span: Span,
+    is_call: bool,
+}
+
+impl ThisExpressionIsNotConstructable {
+    pub fn new_from_call(span: Span) -> Self {
+        Self {
+            span,
+            is_call: true,
+        }
+    }
+
+    pub fn new_from_constructor(span: Span) -> Self {
+        Self {
+            span,
+            is_call: false,
+        }
+    }
 }
 
 #[derive(Error, Diagnostic, DiagnosticExt, Debug)]

@@ -34,14 +34,18 @@ impl<'cx> TyChecker<'cx> {
     }
 
     pub(super) fn get_this_ty(&mut self, node: &'cx ast::ThisTy) -> &'cx ty::Ty<'cx> {
-        let container = self.p.get_this_container(node.id, false, false);
+        let container = self
+            .node_query(node.id.module())
+            .get_this_container(node.id, false, false);
         let c = self.p.node(container);
-        if let Some(parent) = self.p.parent(container)
+        if let Some(parent) = self.parent(container)
             && let p = self.p.node(parent)
             && (p.is_class_like() || p.is_interface_decl())
             && !c.is_static()
             && c.as_class_ctor().is_none_or(|c| match c.body {
-                Some(body) => self.p.is_descendant_of(node.id, body.id),
+                Some(body) => self
+                    .node_query(node.id.module())
+                    .is_descendant_of(node.id, body.id),
                 None => false,
             })
         {

@@ -30,7 +30,7 @@ impl<'cx> TyChecker<'cx> {
         if let Some(ctx) = self.find_context_node(id, includes_caches) {
             return ctx.ty;
         }
-        let Some(parent_id) = self.p.parent(id) else {
+        let Some(parent_id) = self.parent(id) else {
             unreachable!()
         };
         let parent = self.p.node(parent_id);
@@ -74,7 +74,7 @@ impl<'cx> TyChecker<'cx> {
         context_flags: Option<ContextFlags>,
     ) -> Option<&'cx ty::Ty<'cx>> {
         let object_literal = {
-            let p = self.p.parent(id).unwrap();
+            let p = self.parent(id).unwrap();
             self.p.node(p).expect_object_lit()
         };
         let ty = self.get_apparent_ty_of_contextual_ty(object_literal.id, context_flags)?;
@@ -107,7 +107,7 @@ impl<'cx> TyChecker<'cx> {
     ) -> Option<&'cx ty::Ty<'cx>> {
         if let Some(ret_ty) = self.get_ret_ty_from_anno(id) {
             Some(ret_ty)
-        } else if let Some(iife) = self.p.get_iife(id) {
+        } else if let Some(iife) = self.node_query(id.module()).get_iife(id) {
             self.get_contextual_ty(id, flags)
         } else {
             None

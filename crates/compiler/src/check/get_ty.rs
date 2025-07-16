@@ -10,12 +10,12 @@ use super::{CheckMode, F64Represent, InferenceContextId, TyChecker};
 use super::{IndexedAccessTyMap, ResolutionKey, TyCacheTrait, errors};
 
 use crate::bind::{SymbolFlags, SymbolID, SymbolName};
-use crate::r#trait;
 use crate::keyword::is_prim_ty_name;
+use crate::node_query::AssignmentKind;
+use crate::r#trait;
 use crate::ty::{
     AccessFlags, CheckFlags, ElementFlags, IndexFlags, ObjectFlags, TyMapper, TypeFlags,
 };
-use bolt_ts_parser::AssignmentKind;
 
 impl<'cx> TyChecker<'cx> {
     pub(super) fn get_non_missing_type_of_symbol(&mut self, id: SymbolID) -> &'cx Ty<'cx> {
@@ -125,7 +125,7 @@ impl<'cx> TyChecker<'cx> {
             if flags.intersects(FU_OR_METHOD_OR_CLASS_OR_ENUM_OR_VALUE_MODULE) {
                 return self.get_ty_of_func_class_enum_module(symbol);
             }
-            let p = self.p.parent(decl).unwrap();
+            let p = self.parent(decl).unwrap();
             let p = self.p.node(p);
             if p.is_bin_expr() {
                 todo!()
@@ -537,7 +537,7 @@ impl<'cx> TyChecker<'cx> {
         let mut constraints = Vec::with_capacity(8);
         let mut covariant = true;
         while !self.p.node(node).is_stmt() {
-            let Some(parent) = self.p.parent(node) else {
+            let Some(parent) = self.parent(node) else {
                 break;
             };
             let parent_node = self.p.node(parent);
@@ -586,7 +586,7 @@ impl<'cx> TyChecker<'cx> {
                     false
                 };
                 if is_symbol {
-                    self.get_es_symbol_like_ty_for_node(self.p.parent(node.id).unwrap())
+                    self.get_es_symbol_like_ty_for_node(self.parent(node.id).unwrap())
                 } else {
                     self.error_ty
                 }
@@ -598,7 +598,7 @@ impl<'cx> TyChecker<'cx> {
     }
 
     fn is_var_const(&self, node: ast::NodeID) -> bool {
-        self.p
+        self.node_query(node.module())
             .get_combined_node_flags(node)
             .intersection(ast::NodeFlags::BLOCK_SCOPED)
             == ast::NodeFlags::CONST
@@ -609,7 +609,7 @@ impl<'cx> TyChecker<'cx> {
         if let Some(n) = n.as_var_decl() {
             matches!(n.binding.kind, ast::BindingKind::Ident(_))
                 && self.is_var_const(node)
-                && self.p.node(self.p.parent(node).unwrap()).is_var_stmt()
+                && self.p.node(self.parent(node).unwrap()).is_var_stmt()
         } else if n.is_class_prop_ele() || n.is_object_prop_member() {
             n.has_effective_readonly_modifier() && n.has_static_modifier()
         } else if n.is_prop_signature() {
@@ -833,7 +833,9 @@ impl<'cx> TyChecker<'cx> {
             symbol_name.and_then(|symbol_name| self.get_prop_of_ty(object_ty, symbol_name));
         if let Some(prop) = prop {
             if let Some(access_expr) = access_expr
-                && let assignment_target_kind = self.p.get_assignment_kind(access_expr)
+                && let assignment_target_kind = self
+                    .node_query(access_expr.module())
+                    .get_assignment_kind(access_expr)
                 && self.is_assignment_to_readonly_entity(access_expr, prop, assignment_target_kind)
             {
                 let error = errors::CannotAssignTo0BecauseItIsAReadOnlyProperty {
@@ -1071,7 +1073,7 @@ impl<'cx> TyChecker<'cx> {
     ) -> bool {
         assert!(self.p.node(node).is_ty());
         self.get_alias_symbol_for_ty_node(node).is_some()
-            || self.p.is_resolved_by_ty_alias(node) && {
+            || self.node_query(node.module()).is_resolved_by_ty_alias(node) && {
                 use bolt_ts_ast::Node::*;
                 let n = self.p.node(node);
                 match n {
@@ -1094,11 +1096,11 @@ impl<'cx> TyChecker<'cx> {
 
     pub(super) fn get_alias_symbol_for_ty_node(&self, node: ast::NodeID) -> Option<SymbolID> {
         assert!(self.p.node(node).is_ty());
-        let mut host = self.p.parent(node);
+        let mut host = self.parent(node);
         while let Some(node_id) = host {
             let node = self.p.node(node);
             if node.is_paren_type_node() {
-                host = self.p.parent(node_id);
+                host = self.parent(node_id);
             } else {
                 break;
             }
@@ -1582,7 +1584,6 @@ impl<'cx> TyChecker<'cx> {
             return ty;
         }
         let readonly = self
-            .p
             .parent(node.id)
             .is_some_and(|parent| self.p.node(parent).is_readonly_ty_op());
         let element_ty = self.get_ty_from_type_node(node.ele);
@@ -1666,7 +1667,6 @@ impl<'cx> TyChecker<'cx> {
 
         let ty_node = self.p.node(node.id).as_ty().unwrap();
         let readonly = self
-            .p
             .parent(node.id)
             .is_some_and(|parent| self.p.node(parent).is_readonly_ty_op());
         let target = if Self::get_array_ele_ty_node(&ty_node).is_some() {
@@ -1766,7 +1766,7 @@ impl<'cx> TyChecker<'cx> {
     pub(super) fn get_ret_ty_from_anno(&mut self, id: ast::NodeID) -> Option<&'cx ty::Ty<'cx>> {
         let n = self.p.node(id);
         if n.as_class_ctor().is_some() {
-            let class = self.p.parent(id).unwrap();
+            let class = self.parent(id).unwrap();
             assert!(self.p.node(class).is_class_like());
             let symbol = self.get_symbol_of_decl(class);
             return Some(self.get_declared_ty_of_symbol(symbol));

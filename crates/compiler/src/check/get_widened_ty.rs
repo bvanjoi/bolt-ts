@@ -101,7 +101,7 @@ impl<'cx> TyChecker<'cx> {
     ) -> &'cx ty::Ty<'cx> {
         // TODO: as const
         let id = decl.id();
-        let flags = self.p.get_combined_node_flags(id);
+        let flags = self.node_query(id.module()).get_combined_node_flags(id);
         if flags.intersects(ast::NodeFlags::CONSTANT) {
             ty
         } else {

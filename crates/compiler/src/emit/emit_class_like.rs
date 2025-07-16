@@ -91,6 +91,14 @@ impl<'cx> Emit<'cx> {
                     self.emit_block_stmt(body);
                 }
             }
+            StaticBlock(n) => {
+                self.emit_leading_comments(n.span);
+                self.content.p("static");
+                self.content.p_whitespace();
+                self.content.p("{");
+                self.emit_block_stmt(n.body);
+                self.content.p("}");
+            }
         }
     }
 

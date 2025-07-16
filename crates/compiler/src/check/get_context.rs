@@ -50,7 +50,10 @@ impl<'cx> TyChecker<'cx> {
         self.inference_contextual
             .iter()
             .rev()
-            .find(|ctx| self.p.is_descendant_of(node, ctx.node))
+            .find(|ctx| {
+                self.node_query(node.module())
+                    .is_descendant_of(node, ctx.node)
+            })
             .copied()
     }
 

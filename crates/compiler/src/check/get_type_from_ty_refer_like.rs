@@ -54,7 +54,9 @@ impl<'cx> TyChecker<'cx> {
 
         if s.flags == SymbolFlags::TYPE_ALIAS {
             let decls = s.decls.as_ref().unwrap();
-            self.p.get_containing_fn(decls[0]).is_some()
+            self.node_query(decls[0].module())
+                .get_containing_fn(decls[0])
+                .is_some()
         } else {
             false
         }

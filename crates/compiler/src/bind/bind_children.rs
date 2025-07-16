@@ -1,7 +1,6 @@
 use crate::bind::create::DeclareSymbolProperty;
 
 use super::BinderState;
-use super::NodeQuery;
 use super::container_flags::container_flags_for_node;
 use super::flow::FlowFlags;
 use super::flow::FlowID;
@@ -282,7 +281,8 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
             | FnExpr(_)
             | ArrowFnExpr(_)
             | TypeAliasDecl(_)
-            | MappedTy(_) => {
+            | MappedTy(_)
+            | ClassStaticBlock(_) => {
                 assert!(
                     c.has_locals(),
                     "container({:?}) should have locals, but it doesn't",
@@ -368,7 +368,7 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
             let n = self.p.node(current);
             let (loc, parent) = if n.is_export_named_spec()
                 || n.as_shorthand_spec().is_some_and(|_| {
-                    let parent = self.parent_map.parent_unfinished(current).unwrap();
+                    let parent = self.parent_map.parent(current).unwrap();
                     self.p.node(parent).is_specs_export()
                 }) {
                 // TODO: is_import_eq_decl && has_export_modifier
@@ -505,15 +505,7 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
     }
 
     fn bind_class_elem(&mut self, n: &'cx ast::ClassElem<'cx>) {
-        use ast::ClassEleKind::*;
-        match n.kind {
-            Ctor(n) => self.bind(n.id),
-            Prop(n) => self.bind(n.id),
-            Method(n) => self.bind(n.id),
-            IndexSig(n) => self.bind(n.id),
-            Getter(n) => self.bind(n.id),
-            Setter(n) => self.bind(n.id),
-        }
+        self.bind(n.id());
     }
 
     pub(super) fn bind_children(&mut self, node: ast::NodeID) {
@@ -1211,6 +1203,9 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
                 }
                 self.bind(n.closing_ele.id);
             }
+            ClassStaticBlock(n) => {
+                self.bind(n.body.id);
+            }
         }
         // TODO: bind_js_doc
         self.in_assignment_pattern = save_in_assignment_pattern;
@@ -1306,8 +1301,7 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
         use bolt_ts_ast::Node::*;
         if n.init.is_some()
             || matches!(
-                self.p
-                    .node(self.parent_map.parent_unfinished(n.id).unwrap()),
+                self.p.node(self.parent_map.parent(n.id).unwrap()),
                 ForInStmt(_) | ForOfStmt(_)
             )
         {

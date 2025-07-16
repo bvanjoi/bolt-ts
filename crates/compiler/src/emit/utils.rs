@@ -41,7 +41,11 @@ impl<'cx> Emit<'cx> {
             Ident(ident) => self.emit_ident(ident),
             NumLit(num) => self.emit_num_lit(num),
             StringLit { raw, .. } => self.emit_string_lit(raw),
-            Computed(_) => todo!(),
+            Computed(name) => {
+                self.content.p_l_bracket();
+                self.emit_expr(name.expr);
+                self.content.p_r_bracket();
+            }
         }
     }
 

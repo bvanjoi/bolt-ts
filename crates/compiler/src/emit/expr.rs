@@ -101,7 +101,7 @@ impl<'cx> Emit<'cx> {
                 if matches!(n.expr.kind, ast::ExprKind::ObjectLit(_)) && {
                     let mut p = n.id;
                     loop {
-                        let n = self.p.parent(p).unwrap();
+                        let n = self.parent(p).unwrap();
                         let p_n = self.p.node(p);
                         if p_n.is_ty_assertion() {
                             p = n;

@@ -40,6 +40,7 @@ pub enum Node<'cx> {
     ClassCtor(&'cx super::ClassCtor<'cx>),
     ClassPropElem(&'cx super::ClassPropElem<'cx>),
     ClassMethodElem(&'cx super::ClassMethodElem<'cx>),
+    ClassStaticBlock(&'cx super::ClassStaticBlock<'cx>),
     GetterDecl(&'cx super::GetterDecl<'cx>),
     SetterDecl(&'cx super::SetterDecl<'cx>),
     ClassExtendsClause(&'cx super::ClassExtendsClause<'cx>),
@@ -724,6 +725,7 @@ impl<'cx> Node<'cx> {
                 | Program(_)
                 | SetterDecl(_)
                 | TypeAliasDecl(_)
+                | ClassStaticBlock(_)
         )
     }
 
@@ -946,6 +948,11 @@ as_node!(
     (TyParam, super::TyParam<'cx>, ty_param),
     (Modifier, super::Modifier, modifier),
     (ClassPropElem, super::ClassPropElem<'cx>, class_prop_ele),
+    (
+        ClassStaticBlock,
+        super::ClassStaticBlock<'cx>,
+        class_static_block
+    ),
     (
         ClassMethodElem,
         super::ClassMethodElem<'cx>,

@@ -33,6 +33,8 @@ bitflags::bitflags! {
         const DEPRECATED                                  = 1 << 29;
         const ALLOW_CONTINUE_CONTEXT                      = 1 << 30;
         const ALLOW_BREAK_CONTEXT                         = 1 << 31;
+        const CLASS_STATIC_BLOCK                          = 1 << 32;
+        const CLASS_FIELD_DEFINITION                      = 1 << 33;
 
         const AWAIT_USING                                 = Self::CONST.bits() | Self::USING.bits();
         const CONSTANT                                    = Self::CONST.bits() | Self::USING.bits();

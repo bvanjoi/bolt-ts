@@ -98,20 +98,24 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         mode: impl FnLike<'cx, 'p, Node = Node>,
         modifiers: Option<&'cx ast::Modifiers<'cx>>,
     ) -> PResult<Node> {
-        use bolt_ts_ast::TokenKind::*;
-        let start = self.token.start();
-        self.expect(Function);
-        let name = mode.parse_name(self)?;
-        let ty_params = self.parse_ty_params()?;
-        let params = self.parse_params()?;
-        self.check_params(params, false);
-        let ret_ty = self.parse_fn_decl_ret_type()?;
-        let body = self.do_outside_of_context(
-            NodeFlags::ALLOW_BREAK_CONTEXT.union(NodeFlags::ALLOW_CONTINUE_CONTEXT),
-            Self::parse_fn_block,
-        )?;
-        let span = self.new_span(start);
-        Ok(mode.finish(self, span, modifiers, name, ty_params, params, ret_ty, body))
+        self.do_outside_of_context(
+            NodeFlags::CLASS_FIELD_DEFINITION.union(NodeFlags::CLASS_STATIC_BLOCK),
+            |this| {
+                let start = this.token.start();
+                this.expect(TokenKind::Function);
+                let name = mode.parse_name(this)?;
+                let ty_params = this.parse_ty_params()?;
+                let params = this.parse_params()?;
+                this.check_params(params, false);
+                let ret_ty = this.parse_fn_decl_ret_type()?;
+                let body = this.do_outside_of_context(
+                    NodeFlags::ALLOW_BREAK_CONTEXT.union(NodeFlags::ALLOW_CONTINUE_CONTEXT),
+                    Self::parse_fn_block,
+                )?;
+                let span = this.new_span(start);
+                Ok(mode.finish(this, span, modifiers, name, ty_params, params, ret_ty, body))
+            },
+        )
     }
 
     fn parse_fn_decl_ret_type(&mut self) -> PResult<Option<&'cx ast::Ty<'cx>>> {

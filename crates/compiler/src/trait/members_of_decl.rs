@@ -32,7 +32,7 @@ impl MembersOfDecl for bolt_ts_ast::ClassElem<'_> {
             Setter(n) => n.modifiers,
             Getter(n) => n.modifiers,
             Method(n) => n.modifiers,
-            Ctor(_) => return false,
+            Ctor(_) | StaticBlock(_) => return false,
         };
         modifiers.is_some_and(|mods| mods.flags.contains(bolt_ts_ast::ModifierKind::Static))
     }

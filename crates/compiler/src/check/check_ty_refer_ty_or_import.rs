@@ -142,10 +142,10 @@ impl<'cx> TyChecker<'cx> {
     ) -> Option<&'cx ty::Ty<'cx>> {
         let mut inferences = Vec::with_capacity(16);
         let decl = ty_param.symbol().and_then(|s| self.get_symbol_decl(s))?;
-        let parent = self.p.parent(decl)?;
-        let parent_parent = self.p.parent(parent)?;
+        let parent = self.parent(decl)?;
+        let parent_parent = self.parent(parent)?;
         let (chid_ty_param, grand_parent) = self
-            .p
+            .node_query(parent_parent.module())
             .walk_up_paren_tys_and_get_parent_and_child(parent_parent);
         let child_ty_param = chid_ty_param.map_or(parent, |n| n.id);
         if !omit_ty_references {

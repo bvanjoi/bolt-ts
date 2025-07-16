@@ -275,9 +275,10 @@ impl<'cx> TyChecker<'cx> {
         apparent_ty: &'cx ty::Ty<'cx>,
         kind: ty::SigKind,
     ) {
-        let error = errors::ThisExpressionIsNotConstructable {
-            span: expr.span(),
-            is_call: kind == ty::SigKind::Call,
+        let error = if kind == ty::SigKind::Call {
+            errors::ThisExpressionIsNotConstructable::new_from_call(expr.span())
+        } else {
+            errors::ThisExpressionIsNotConstructable::new_from_constructor(expr.span())
         };
         self.push_error(Box::new(error));
     }
@@ -748,9 +749,9 @@ impl<'cx> TyChecker<'cx> {
             let x = min_required_params;
             let y = args.len();
             let span = if x < y && y - x < args.len() {
-                let lo = args[y - x].span().lo;
-                let hi = args.last().unwrap().span().hi;
-                Span::new(lo, hi, expr.span().module)
+                let lo = args[y - x].span().lo();
+                let hi = args.last().unwrap().span().hi();
+                Span::new(lo, hi, expr.span().module())
             } else {
                 expr.callee().span()
             };
@@ -761,9 +762,9 @@ impl<'cx> TyChecker<'cx> {
             };
             self.push_error(Box::new(error));
         } else if args.len() > max_required_params {
-            let lo = args[max_required_params].span().lo;
-            let hi = args.last().unwrap().span().hi;
-            let span = Span::new(lo, hi, expr.span().module);
+            let lo = args[max_required_params].span().lo();
+            let hi = args.last().unwrap().span().hi();
+            let span = Span::new(lo, hi, expr.span().module());
             let error = errors::ExpectedXArgsButGotY {
                 span,
                 x: ExpectedArgsCount::Range {
@@ -880,8 +881,8 @@ impl<'cx> TyChecker<'cx> {
                 super::ExpectedArgsCount::Range { lo: min, hi: max }
             };
             let span = ty_args.map(|ty_args| ty_args.span).unwrap_or_else(|| {
-                let hi = expr.callee().span().hi;
-                Span::new(hi, hi, expr.span().module)
+                let hi = expr.callee().span().hi();
+                Span::new(hi, hi, expr.span().module())
             });
             let error = errors::ExpectedXTyArgsButGotY {
                 span,

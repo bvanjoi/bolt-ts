@@ -14,14 +14,16 @@ impl Token {
         Self { kind, span }
     }
 
+    #[inline]
     pub fn start(&self) -> u32 {
-        debug_assert_ne!(self.span.lo, u32::MAX);
-        self.span.lo
+        debug_assert_ne!(self.span.lo(), u32::MAX);
+        self.span.lo()
     }
 
+    #[inline]
     pub fn end(&self) -> u32 {
-        debug_assert_ne!(self.span.lo, u32::MAX);
-        self.span.hi
+        debug_assert_ne!(self.span.hi(), u32::MAX);
+        self.span.hi()
     }
 }
 
@@ -692,7 +694,8 @@ impl TokenKind {
     }
 
     pub fn is_class_ele_modifier(self) -> bool {
-        self.is_param_prop_modifier()
+        // TODO: override || accessor
+        self.is_param_prop_modifier() || matches!(self, TokenKind::Static)
     }
 
     pub fn can_parse_module_export_name(self) -> bool {

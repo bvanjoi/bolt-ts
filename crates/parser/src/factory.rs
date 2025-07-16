@@ -321,4 +321,62 @@ impl<'cx> ParserState<'cx, '_> {
         self.node_flags_map.insert(id, ast::NodeFlags::empty());
         node
     }
+
+    pub fn create_class_prop_elem(
+        &mut self,
+        start: u32,
+        modifiers: Option<&'cx ast::Modifiers<'cx>>,
+        name: &'cx ast::PropName<'cx>,
+        ty: Option<&'cx ast::Ty<'cx>>,
+        init: Option<&'cx ast::Expr<'cx>>,
+        excl: Option<ast::Token>,
+    ) -> &'cx bolt_ts_ast::ClassPropElem<'cx> {
+        let id = self.next_node_id();
+        let prop = self.alloc(ast::ClassPropElem {
+            id,
+            span: self.new_span(start),
+            modifiers,
+            name,
+            ty,
+            init,
+            question: None,
+            excl: excl.map(|e| e.span),
+        });
+        self.nodes.insert(id, ast::Node::ClassPropElem(prop));
+        self.node_flags_map.insert(id, ast::NodeFlags::empty());
+        prop
+    }
+
+    pub fn create_computed_prop_name(
+        &mut self,
+        start: u32,
+        expr: &'cx ast::Expr<'cx>,
+    ) -> &'cx ast::ComputedPropName<'cx> {
+        let id = self.next_node_id();
+        let node = self.alloc(ast::ComputedPropName {
+            id,
+            span: self.new_span(start),
+            expr,
+        });
+        self.nodes.insert(id, ast::Node::ComputedPropName(node));
+        self.node_flags_map.insert(id, ast::NodeFlags::empty());
+        node
+    }
+
+    pub fn create_class_static_block_decl(
+        &mut self,
+        start: u32,
+        body: &'cx ast::BlockStmt<'cx>,
+    ) -> &'cx ast::ClassStaticBlock<'cx> {
+        let id = self.next_node_id();
+        let node = self.alloc(ast::ClassStaticBlock {
+            id,
+            span: self.new_span(start),
+            body,
+        });
+        self.nodes.insert(id, ast::Node::ClassStaticBlock(node));
+        self.node_flags_map
+            .insert(id, ast::NodeFlags::CLASS_STATIC_BLOCK);
+        node
+    }
 }

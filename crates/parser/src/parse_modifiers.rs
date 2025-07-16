@@ -22,7 +22,7 @@ impl<'cx> ParserState<'cx, '_> {
             && self.try_parse(Lookahead::next_token_can_follow_modifier)
     }
 
-    pub(super) fn parse_modifier(
+    pub(super) fn parse_modifier<const STOP_ON_START_OF_CLASS_STATIC_BLOCK: bool>(
         &mut self,
         has_seen_static_modifier: bool,
         permit_const_as_modifier: Option<bool>,
@@ -33,6 +33,8 @@ impl<'cx> ParserState<'cx, '_> {
             if self.try_parse(Lookahead::next_token_is_on_same_line_and_can_follow_modifier) {
                 return Ok(None);
             }
+        } else if STOP_ON_START_OF_CLASS_STATIC_BLOCK && t == TokenKind::Static {
+            return Ok(None);
         } else if has_seen_static_modifier && t == TokenKind::Static {
             return Ok(None);
         } else if !self.parse_any_contextual_modifier() {

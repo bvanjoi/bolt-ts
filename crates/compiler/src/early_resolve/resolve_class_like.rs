@@ -4,6 +4,7 @@ use bolt_ts_ast as ast;
 
 impl<'cx> Resolver<'cx, '_, '_> {
     fn resolve_class_prop_ele(&mut self, ele: &'cx ast::ClassPropElem<'cx>) {
+        self.resolve_prop_name(ele.name);
         if let Some(ty) = ele.ty {
             self.resolve_ty(ty);
         }
@@ -13,6 +14,7 @@ impl<'cx> Resolver<'cx, '_, '_> {
     }
 
     fn resolve_class_method_ele(&mut self, ele: &'cx ast::ClassMethodElem<'cx>) {
+        self.resolve_prop_name(ele.name);
         if let Some(ty_params) = ele.ty_params {
             self.resolve_ty_params(ty_params);
         }
@@ -71,6 +73,9 @@ impl<'cx> Resolver<'cx, '_, '_> {
                     if let Some(body) = n.body {
                         self.resolve_block_stmt(body);
                     }
+                }
+                StaticBlock(n) => {
+                    self.resolve_block_stmt(n.body);
                 }
             }
         }

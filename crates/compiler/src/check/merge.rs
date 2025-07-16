@@ -94,10 +94,16 @@ pub(crate) fn merge_module_augmentation_list_for_global(
         global_symbols,
         atoms,
     };
-    for (m, p) in module_arena.modules().iter().zip(parser.map.iter()) {
-        assert!(std::ptr::addr_eq(parser.get(m.id()), p));
+    for (idx, (m, p)) in module_arena
+        .modules()
+        .iter()
+        .zip(parser.map.iter())
+        .enumerate()
+    {
+        debug_assert!(std::ptr::addr_eq(parser.get(m.id()), p));
+
         for augmentation in p.module_augmentations.iter() {
-            let ns_id = p.parent(*augmentation).unwrap();
+            let ns_id = c.bind_list[idx].parent_map.parent(*augmentation).unwrap();
             let ns = p.node(ns_id).expect_module_decl();
             if !ns.is_global_argument {
                 continue;
@@ -185,10 +191,19 @@ impl<'cx> MergeSymbol<'cx> for super::TyChecker<'cx> {
 
 impl<'cx> super::TyChecker<'cx> {
     pub(super) fn merge_module_augmentation_list_for_non_global(&mut self) {
-        for (m, p) in self.module_arena.modules().iter().zip(self.p.map.iter()) {
+        for (idx, (m, p)) in self
+            .module_arena
+            .modules()
+            .iter()
+            .zip(self.p.map.iter())
+            .enumerate()
+        {
             assert!(std::ptr::addr_eq(self.p.get(m.id()), p));
             for augmentation in p.module_augmentations.iter() {
-                let ns_id = p.parent(*augmentation).unwrap();
+                let ns_id = self.binder.bind_results[idx]
+                    .parent_map
+                    .parent(*augmentation)
+                    .unwrap();
                 let ns = p.node(ns_id).expect_module_decl();
                 if ns.is_global_argument {
                     continue;

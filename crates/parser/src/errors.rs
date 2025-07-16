@@ -309,3 +309,42 @@ pub(super) struct DigitExpected {
     #[label(primary)]
     pub(super) span: Span,
 }
+
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
+#[error("Keywords cannot contain escape characters.")]
+pub(super) struct KeywordsCannotContainEscapeCharacters {
+    #[label(primary)]
+    pub(super) span: Span,
+}
+
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
+#[error(
+    "'arguments' cannot be referenced in {}.", {
+        if self.in_property_initializer {
+            "property initializers"
+        } else {
+            "class static initialization blocks"
+        }
+    }
+)]
+pub(super) struct ArgumentsCannotBeReferenced {
+    #[label(primary)]
+    span: Span,
+    in_property_initializer: bool,
+}
+
+impl ArgumentsCannotBeReferenced {
+    pub fn new_in_property_initializer(span: Span) -> Self {
+        Self {
+            span,
+            in_property_initializer: true,
+        }
+    }
+
+    pub fn new_in_class_static_initialization_block(span: Span) -> Self {
+        Self {
+            span,
+            in_property_initializer: false,
+        }
+    }
+}

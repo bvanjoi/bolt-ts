@@ -13,6 +13,8 @@ use rustc_hash::FxHashSet;
 
 use bolt_ts_parser::Parser;
 
+use crate::bind::ResolveResult;
+
 struct PPrint {
     content: String,
     indent: u32,
@@ -110,6 +112,7 @@ pub struct Emit<'cx> {
     helper_flags: helper::EmitHelperFlags,
     comment_index: usize,
     input: &'cx str,
+    resolve_result: &'cx ResolveResult,
     p: &'cx Parser<'cx>,
 }
 
@@ -120,12 +123,18 @@ impl<'cx> Emit<'cx> {
         scope
     }
 
+    fn parent(&self, node: ast::NodeID) -> Option<ast::NodeID> {
+        debug_assert!(node.module() == self.module_id);
+        self.resolve_result.parent_map.parent(node)
+    }
+
     pub fn new(
         module_id: ModuleID,
         atoms: &'cx AtomMap,
         input: &'cx str,
         config: &'cx bolt_ts_config::NormalizedCompilerOptions,
         parser: &'cx Parser<'cx>,
+        resolve_result: &'cx ResolveResult,
     ) -> Self {
         Self {
             atoms,
@@ -140,6 +149,7 @@ impl<'cx> Emit<'cx> {
             p: parser,
             input,
             comment_index: 0,
+            resolve_result,
         }
     }
 

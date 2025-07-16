@@ -43,8 +43,11 @@ impl TyChecker<'_> {
 
     pub(super) fn get_symbol_at_loc(&self, id: ast::NodeID) -> Option<SymbolID> {
         use bolt_ts_ast::Node::*;
-        if self.p.is_decl_name_or_import_prop_name(id) {
-            let p = self.p.parent(id).unwrap();
+        if self
+            .node_query(id.module())
+            .is_decl_name_or_import_prop_name(id)
+        {
+            let p = self.parent(id).unwrap();
             let parent_symbol = self.get_symbol_of_decl(p);
             return if self.p.is_import_or_export_spec(p) {
                 todo!()
@@ -53,7 +56,7 @@ impl TyChecker<'_> {
             };
         }
         match self.p.node(id) {
-            Ident(_) if self.p.is_this_in_type_query(id) => {
+            Ident(_) if self.node_query(id.module()).is_this_in_type_query(id) => {
                 self.get_symbol_of_name_or_prop_access_expr(id)
             }
             _ => None,

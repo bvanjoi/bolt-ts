@@ -98,13 +98,15 @@ impl<'cx> TyChecker<'cx> {
                 .p
                 .node_flags(binding.id)
                 .contains(bolt_ts_ast::NodeFlags::AMBIENT)
-            && self.p.is_part_of_param_decl(binding.id)
+            && self
+                .node_query(binding.id.module())
+                .is_part_of_param_decl(binding.id)
         {
             parent_ty = self.get_non_nullable_ty(parent_ty)
         } else if strict_null_check
             && self
                 .p
-                .node(self.p.parent(binding.id).unwrap())
+                .node(self.parent(binding.id).unwrap())
                 .initializer()
                 .is_some_and(|init| {
                     // let ty = self.get_ty_of_init(init);
