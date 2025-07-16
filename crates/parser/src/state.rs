@@ -7,10 +7,10 @@ use bolt_ts_utils::path::NormalizePath;
 
 use std::sync::{Arc, Mutex};
 
-use super::list_ctx::ParsingContext;
+use super::parsing_ctx::ParsingContext;
 use super::utils::is_declaration_filename;
 use super::{CommentDirective, FileReference, NodeFlagsMap, Nodes, TokenValue};
-use super::{PResult, list_ctx};
+use super::PResult;
 use super::{PragmaMap, errors};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -134,7 +134,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         }
     }
 
-    pub(super) fn parse_bracketed_list<T>(
+    pub(super) fn parse_bracketed_list<const CONSIDER_SEMICOLON_AS_DELIMITER: bool, T>(
         &mut self,
         ctx: ParsingContext,
         open: TokenKind,
@@ -142,7 +142,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         close: TokenKind,
     ) -> PResult<&'cx [T]> {
         if self.expect(open) {
-            let elems = self.parse_delimited_list(ctx, ele);
+            let elems = self.parse_delimited_list::<CONSIDER_SEMICOLON_AS_DELIMITER, T>(ctx, ele);
             self.expect(close);
             Ok(elems)
         } else {
@@ -179,7 +179,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         }
     }
 
-    pub(super) fn parse_delimited_list<T>(
+    pub(super) fn parse_delimited_list<const CONSIDER_SEMICOLON_AS_DELIMITER: bool, T>(
         &mut self,
         ctx: ParsingContext,
         ele: impl Fn(&mut Self) -> PResult<T>,
@@ -201,6 +201,15 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
                 }
 
                 self.expect(TokenKind::Comma);
+
+                if CONSIDER_SEMICOLON_AS_DELIMITER
+                    && self.token.kind == TokenKind::Semi
+                    && !self
+                        .token_flags
+                        .intersects(TokenFlags::PRECEDING_LINE_BREAK)
+                {
+                    self.next_token();
+                }
 
                 if start_pos == self.token.start() {
                     self.next_token();

@@ -346,4 +346,37 @@ impl<'cx> ParserState<'cx, '_> {
         self.node_flags_map.insert(id, ast::NodeFlags::empty());
         prop
     }
+
+    pub fn create_computed_prop_name(
+        &mut self,
+        start: u32,
+        expr: &'cx ast::Expr<'cx>,
+    ) -> &'cx ast::ComputedPropName<'cx> {
+        let id = self.next_node_id();
+        let node = self.alloc(ast::ComputedPropName {
+            id,
+            span: self.new_span(start),
+            expr,
+        });
+        self.nodes.insert(id, ast::Node::ComputedPropName(node));
+        self.node_flags_map.insert(id, ast::NodeFlags::empty());
+        node
+    }
+
+    pub fn create_class_static_block_decl(
+        &mut self,
+        start: u32,
+        body: &'cx ast::BlockStmt<'cx>,
+    ) -> &'cx ast::ClassStaticBlock<'cx> {
+        let id = self.next_node_id();
+        let node = self.alloc(ast::ClassStaticBlock {
+            id,
+            span: self.new_span(start),
+            body,
+        });
+        self.nodes.insert(id, ast::Node::ClassStaticBlock(node));
+        self.node_flags_map
+            .insert(id, ast::NodeFlags::CLASS_STATIC_BLOCK);
+        node
+    }
 }

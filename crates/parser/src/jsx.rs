@@ -1,9 +1,9 @@
 use bolt_ts_ast::{JsxTagName, NodeFlags, TokenKind, keyword};
 use bolt_ts_span::Span;
 
-use crate::{errors, list_ctx::ParsingContext, state::LanguageVariant};
+use crate::{errors, parsing_ctx::ParsingContext, state::LanguageVariant};
 
-use super::{PResult, ParserState, list_ctx};
+use super::{PResult, ParserState};
 
 #[derive(Debug)]
 pub(super) enum JsxEleOrSelfClosingEleOrFrag<'cx> {

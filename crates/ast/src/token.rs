@@ -694,7 +694,8 @@ impl TokenKind {
     }
 
     pub fn is_class_ele_modifier(self) -> bool {
-        self.is_param_prop_modifier()
+        // TODO: override || accessor
+        self.is_param_prop_modifier() || matches!(self, TokenKind::Static)
     }
 
     pub fn can_parse_module_export_name(self) -> bool {

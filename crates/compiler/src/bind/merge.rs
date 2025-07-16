@@ -1,6 +1,5 @@
 use bolt_ts_span::ModuleArena;
 
-use super::NodeQuery;
 use super::create::set_value_declaration;
 use super::symbol::SymbolTable;
 use super::{BinderResult, SymbolFlags, SymbolID};
@@ -88,7 +87,6 @@ impl<'cx> MergeSymbol<'cx> for MergeGlobalSymbol<'_, 'cx> {
         self.merged_symbols
             .record_merged_symbol(target, source, symbols);
     }
-
     fn atom(&self, atom: bolt_ts_atom::AtomId) -> &str {
         self.atom.get(atom)
     }

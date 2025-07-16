@@ -159,10 +159,7 @@ impl ParserState<'_, '_> {
                 )
             }
             ParsingContext::HERITAGE_CLAUSE_ELEMENT => {
-                matches!(
-                    self.token.kind,
-                    TokenKind::LBrace | TokenKind::Extends | TokenKind::Implements
-                )
+                matches!(self.token.kind, TokenKind::LBrace) || self.token.kind.is_heritage_clause()
             }
             ParsingContext::VARIABLE_DECLARATIONS => {
                 self.can_parse_semi()
@@ -190,9 +187,7 @@ impl ParserState<'_, '_> {
             ParsingContext::PARAMETERS | ParsingContext::REST_PROPERTIES => {
                 matches!(self.token.kind, TokenKind::RParen | TokenKind::RBracket)
             }
-            ParsingContext::TYPE_ARGUMENTS => {
-                matches!(self.token.kind, TokenKind::Comma)
-            }
+            ParsingContext::TYPE_ARGUMENTS => !matches!(self.token.kind, TokenKind::Comma),
             ParsingContext::HERITAGE_CLAUSES => {
                 matches!(self.token.kind, TokenKind::LBrace | TokenKind::RBrace)
             }
@@ -208,8 +203,7 @@ impl ParserState<'_, '_> {
             }
             ParsingContext::SOURCE_ELEMENTS => false,
             _ => {
-                dbg!(ctx);
-                unreachable!()
+                unreachable!("ctx: {ctx:?}")
             }
         }
     }
@@ -217,11 +211,10 @@ impl ParserState<'_, '_> {
     pub(super) fn is_in_some_parsing_context(&mut self) -> bool {
         for i in 0..ParsingContext::count() {
             let parsing_ctx = ParsingContext::from_bits(1 << i).unwrap();
-            if self.parsing_context.intersects(parsing_ctx) {
-                if self.is_list_element(parsing_ctx, true) || self.is_list_terminator(parsing_ctx) {
+            if self.parsing_context.intersects(parsing_ctx)
+                && (self.is_list_element(parsing_ctx, true) || self.is_list_terminator(parsing_ctx)) {
                     return true;
                 }
-            }
         }
 
         false

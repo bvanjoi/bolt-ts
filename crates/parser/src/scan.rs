@@ -232,7 +232,8 @@ impl ParserState<'_, '_> {
         let contain_dot = self.ch() == Some(b'.');
         if contain_dot {
             self.pos += 1;
-            Some(self.scan_number_fragment())
+            self.scan_number_fragment();
+            Some(())
         } else {
             None
         };

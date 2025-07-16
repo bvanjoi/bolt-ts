@@ -281,7 +281,8 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
             | FnExpr(_)
             | ArrowFnExpr(_)
             | TypeAliasDecl(_)
-            | MappedTy(_) => {
+            | MappedTy(_)
+            | ClassStaticBlock(_) => {
                 assert!(
                     c.has_locals(),
                     "container({:?}) should have locals, but it doesn't",
@@ -504,15 +505,7 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
     }
 
     fn bind_class_elem(&mut self, n: &'cx ast::ClassElem<'cx>) {
-        use ast::ClassEleKind::*;
-        match n.kind {
-            Ctor(n) => self.bind(n.id),
-            Prop(n) => self.bind(n.id),
-            Method(n) => self.bind(n.id),
-            IndexSig(n) => self.bind(n.id),
-            Getter(n) => self.bind(n.id),
-            Setter(n) => self.bind(n.id),
-        }
+        self.bind(n.id());
     }
 
     pub(super) fn bind_children(&mut self, node: ast::NodeID) {
@@ -1209,6 +1202,9 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
                     self.bind(child.id());
                 }
                 self.bind(n.closing_ele.id);
+            }
+            ClassStaticBlock(n) => {
+                self.bind(n.body.id);
             }
         }
         // TODO: bind_js_doc

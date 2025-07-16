@@ -1,4 +1,4 @@
-use crate::list_ctx::ParsingContext;
+use crate::parsing_ctx::ParsingContext;
 
 use super::lookahead::Lookahead;
 use super::paren_rule::{NoParenRule, ParenRuleTrait};
@@ -6,7 +6,7 @@ use super::parse_fn_like::ParseFnExpr;
 use super::state::LanguageVariant;
 use super::{PResult, ParserState};
 use super::{Tristate, parse_class_like};
-use super::{errors, list_ctx};
+use super::{errors, parsing_ctx};
 use bolt_ts_ast::{self as ast, ModifierKind, NodeFlags, keyword};
 use bolt_ts_ast::{BinPrec, Token, TokenKind};
 use enumflags2::BitFlag;
@@ -58,6 +58,7 @@ impl<'cx> ParserState<'cx, '_> {
 
     fn parse_possible_paren_arrow_fn_expr(&mut self) -> PResult<Option<&'cx ast::Expr<'cx>>> {
         // let start = self.token.start();
+        
         self.parse_paren_arrow_fn_expr(false)
     }
 
@@ -105,8 +106,22 @@ impl<'cx> ParserState<'cx, '_> {
         if self.token.kind != TokenKind::LParen {
             return Ok(None);
         }
-        let params = self.parse_params()?;
+        let params: ast::ParamsDecl<'cx>;
+
+        if !self.expect(TokenKind::LParen) {
+            if !allow_ambiguity {
+                return Err(());
+            }
+            params = self.alloc([]);
+        } else {
+            params = self.parse_params_worker()?;
+            if !self.expect(TokenKind::RParen) && !allow_ambiguity {
+                return Err(());
+            }
+        }
+
         self.check_params(params, false);
+
         let has_ret_colon = self.token.kind == TokenKind::Colon;
         let ty = self.parse_ret_ty(true)?;
         if !allow_ambiguity
@@ -608,8 +623,8 @@ impl<'cx> ParserState<'cx, '_> {
 
     fn parse_args(&mut self) -> PResult<ast::Exprs<'cx>> {
         self.expect(TokenKind::LParen);
-        let args = self.parse_delimited_list(
-            list_ctx::ParsingContext::ARGUMENT_EXPRESSIONS,
+        let args = self.parse_delimited_list::<false, _>(
+            parsing_ctx::ParsingContext::ARGUMENT_EXPRESSIONS,
             Self::parse_arg,
         );
         self.expect(TokenKind::RParen);
@@ -678,7 +693,7 @@ impl<'cx> ParserState<'cx, '_> {
             return Ok(m);
         }
 
-        let mods = self.parse_modifiers(false, None)?;
+        let mods = self.parse_modifiers::<false>(false, None)?;
 
         // if self.parse_contextual_modifier(TokenKind::Get) {
         //     // TODO:
@@ -795,8 +810,8 @@ impl<'cx> ParserState<'cx, '_> {
     }
 
     fn parse_array_lit_elems(&mut self) -> &'cx [&'cx ast::Expr<'cx>] {
-        self.parse_delimited_list(
-            list_ctx::ParsingContext::ARRAY_LITERAL_MEMBERS,
+        self.parse_delimited_list::<false, _>(
+            parsing_ctx::ParsingContext::ARRAY_LITERAL_MEMBERS,
             |this| match this.token.kind {
                 TokenKind::DotDotDot => this.parse_spread_element(),
                 TokenKind::Comma => {
@@ -1066,8 +1081,8 @@ impl<'cx> ParserState<'cx, '_> {
         let start = self.token.start();
         let open = LBrace;
         let open_brace_parsed = self.expect(LBrace);
-        let props = self.parse_delimited_list(
-            list_ctx::ParsingContext::OBJECT_LITERAL_MEMBERS,
+        let props = self.parse_delimited_list::<true, _>(
+            parsing_ctx::ParsingContext::OBJECT_LITERAL_MEMBERS,
             Self::parse_object_lit_ele,
         );
         let close = RBrace;
@@ -1298,7 +1313,8 @@ impl<'cx> ParserState<'cx, '_> {
             return Ok(None);
         }
         self.next_token();
-        let list = self.parse_delimited_list(ParsingContext::TYPE_ARGUMENTS, Self::parse_ty);
+        let list =
+            self.parse_delimited_list::<false, _>(ParsingContext::TYPE_ARGUMENTS, Self::parse_ty);
         if self.re_scan_greater() != TokenKind::Great {
             return Ok(None);
         }

@@ -1,11 +1,83 @@
   × 'arguments' cannot be referenced in property initializers.
-   ╭─[../../tests/cases/compiler/argumentsUsedInClassFieldInitializerOrStaticInitializationBlock/index.ts:3:10]
- 3 │ arguments
+   ╭─[../../tests/cases/compiler/argumentsUsedInClassFieldInitializerOrStaticInitializationBlock/index.ts:5:10]
+ 5 │ arguments
    · ─────────
    ╰────
 
   × 'arguments' cannot be referenced in property initializers.
-   ╭─[../../tests/cases/compiler/argumentsUsedInClassFieldInitializerOrStaticInitializationBlock/index.ts:9:10]
- 9 │ arguments
-   · ─────────
-   ╰────
+    ╭─[../../tests/cases/compiler/argumentsUsedInClassFieldInitializerOrStaticInitializationBlock/index.ts:11:10]
+ 11 │ arguments
+    · ─────────
+    ╰────
+
+  × 'arguments' cannot be referenced in property initializers.
+    ╭─[../../tests/cases/compiler/argumentsUsedInClassFieldInitializerOrStaticInitializationBlock/index.ts:17:15]
+ 17 │ arguments
+    · ─────────
+    ╰────
+
+  × 'arguments' cannot be referenced in property initializers.
+    ╭─[../../tests/cases/compiler/argumentsUsedInClassFieldInitializerOrStaticInitializationBlock/index.ts:23:15]
+ 23 │ arguments
+    · ─────────
+    ╰────
+
+  × 'arguments' cannot be referenced in property initializers.
+    ╭─[../../tests/cases/compiler/argumentsUsedInClassFieldInitializerOrStaticInitializationBlock/index.ts:35:16]
+ 35 │ arguments
+    · ─────────
+    ╰────
+
+  × 'arguments' cannot be referenced in property initializers.
+    ╭─[../../tests/cases/compiler/argumentsUsedInClassFieldInitializerOrStaticInitializationBlock/index.ts:42:7]
+ 42 │ arguments
+    · ─────────
+    ╰────
+
+  × 'arguments' cannot be referenced in property initializers.
+    ╭─[../../tests/cases/compiler/argumentsUsedInClassFieldInitializerOrStaticInitializationBlock/index.ts:44:16]
+ 44 │ arguments
+    · ─────────
+    ╰────
+
+  × 'arguments' cannot be referenced in property initializers.
+    ╭─[../../tests/cases/compiler/argumentsUsedInClassFieldInitializerOrStaticInitializationBlock/index.ts:51:7]
+ 51 │ arguments
+    · ─────────
+    ╰────
+
+  × 'arguments' cannot be referenced in property initializers.
+    ╭─[../../tests/cases/compiler/argumentsUsedInClassFieldInitializerOrStaticInitializationBlock/index.ts:79:7]
+ 79 │ arguments
+    · ─────────
+    ╰────
+
+  × 'arguments' cannot be referenced in property initializers.
+    ╭─[../../tests/cases/compiler/argumentsUsedInClassFieldInitializerOrStaticInitializationBlock/index.ts:81:9]
+ 81 │ arguments
+    · ─────────
+    ╰────
+
+  × 'arguments' cannot be referenced in property initializers.
+     ╭─[../../tests/cases/compiler/argumentsUsedInClassFieldInitializerOrStaticInitializationBlock/index.ts:100:26]
+ 100 │ arguments
+     · ─────────
+     ╰────
+
+  × 'arguments' cannot be referenced in property initializers.
+     ╭─[../../tests/cases/compiler/argumentsUsedInClassFieldInitializerOrStaticInitializationBlock/index.ts:106:15]
+ 106 │ arguments
+     · ─────────
+     ╰────
+
+  × 'arguments' cannot be referenced in property initializers.
+     ╭─[../../tests/cases/compiler/argumentsUsedInClassFieldInitializerOrStaticInitializationBlock/index.ts:119:7]
+ 119 │ arguments
+     · ─────────
+     ╰────
+
+  × Cannot find name 'arguments'.
+     ╭─[../../tests/cases/compiler/argumentsUsedInClassFieldInitializerOrStaticInitializationBlock/index.ts:119:7]
+ 119 │ arguments
+     · ─────────
+     ╰────

@@ -3,9 +3,9 @@ use bolt_ts_ast::TokenKind;
 use bolt_ts_span::Span;
 
 use super::ParserState;
-use super::{PResult, list_ctx};
+use super::PResult;
 use crate::keyword;
-use crate::list_ctx::ParsingContext;
+use crate::parsing_ctx::ParsingContext;
 
 #[derive(Copy, Clone)]
 pub(super) struct ParseNamedImports;
@@ -252,7 +252,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         kind: impl ParseNamedImportsExports<'cx, 'p, Spec = Spec>,
     ) -> PResult<&'cx [Spec]> {
         // `{ ... }`
-        self.parse_bracketed_list(
+        self.parse_bracketed_list::<false, _>(
             ParsingContext::IMPORT_OR_EXPORT_SPECIFIERS,
             TokenKind::LBrace,
             |this| this.parse_import_or_export_spec(kind),

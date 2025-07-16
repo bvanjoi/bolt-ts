@@ -1,19 +1,18 @@
-use bolt_ts_ast::TokenKind;
 use bolt_ts_ast::{self as ast};
+use bolt_ts_ast::{NodeFlags, TokenKind};
 use bolt_ts_span::Span;
 
 use super::errors;
 use super::{PResult, ParserState};
 use crate::keyword;
-use crate::list_ctx::ParsingContext;
+use crate::parsing_ctx::ParsingContext;
 
 pub(super) fn is_class_ele_start(s: &mut ParserState) -> bool {
     let mut id_token = None;
 
-    // TODO: decorator
-    // if s.token.kind == TokenKind::At {
-    //     return true;
-    // }
+    if s.token.kind == TokenKind::At {
+        return true;
+    }
 
     while s.token.kind.is_modifier_kind() {
         id_token = Some(s.token.kind);
@@ -128,6 +127,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         (self.token.kind.is_binding_ident() && !self.is_implements_clause())
             .then(|| self.parse_binding_ident())
     }
+
     pub(super) fn parse_class_decl_or_expr<Node>(
         &mut self,
         mode: impl ClassLike<'cx, 'p, Node = Node>,
@@ -200,7 +200,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
             let mut e = None;
             let mut last_expr_span = None;
             loop {
-                if self.is_list_element(ParsingContext::HERITAGE_CLAUSES, false) {
+                if self.is_list_element(ParsingContext::HERITAGE_CLAUSE_ELEMENT, false) {
                     let start = self.token.start();
                     let expr = self.parse_left_hand_side_expr_or_higher()?;
                     let expr = if let ast::ExprKind::ExprWithTyArgs(expr) = expr.kind {
@@ -222,7 +222,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
                     } else {
                         last_expr_span = Some(expr.span);
                     }
-                    if self.is_list_terminator(ParsingContext::HERITAGE_CLAUSES) {
+                    if self.is_list_terminator(ParsingContext::HERITAGE_CLAUSE_ELEMENT) {
                         break;
                     }
                     let span = self.token.span;
@@ -235,7 +235,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
                     }
                     unreachable!()
                 }
-                if self.is_list_terminator(ParsingContext::HERITAGE_CLAUSES) {
+                if self.is_list_terminator(ParsingContext::HERITAGE_CLAUSE_ELEMENT) {
                     break;
                 }
             }
@@ -275,7 +275,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         start: usize,
         modifiers: Option<&'cx ast::Modifiers<'cx>>,
     ) -> PResult<&'cx ast::ClassElem<'cx>> {
-        let name = self.parse_prop_name(false)?;
+        let name = self.parse_prop_name(true)?;
         let ele = if matches!(self.token.kind, TokenKind::LParen | TokenKind::Less) {
             // method
             let ty_params = self.parse_ty_params()?;
@@ -300,26 +300,22 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
             })
         } else {
             // prop
-            let excl = if !self.has_preceding_line_break() {
-                self.parse_optional(TokenKind::Excl)
-            } else {
-                None
-            };
-            let ty = self.parse_ty_anno()?;
-            let init = self.parse_init()?;
-            if let Some(ast::ExprKind::Ident(ident)) = init.map(|init| init.kind)
-                && ident.name == keyword::IDENT_ARGUMENTS
-            {
-                let error =
-                    errors::ArgumentsCannotBeReferenced::new_in_property_initializer(ident.span);
-                self.push_error(Box::new(error));
-            }
+            self.do_inside_of_context(NodeFlags::CLASS_FIELD_DEFINITION, |this| {
+                let excl = if !this.has_preceding_line_break() {
+                    this.parse_optional(TokenKind::Excl)
+                } else {
+                    None
+                };
+                let ty = this.parse_ty_anno()?;
+                let init = this.parse_init()?;
 
-            let prop = self.create_class_prop_elem(start as u32, modifiers, name, ty, init, excl);
-            self.parse_semi_after_prop_name();
-            self.alloc(ast::ClassElem {
-                kind: ast::ClassEleKind::Prop(prop),
-            })
+                let prop =
+                    this.create_class_prop_elem(start as u32, modifiers, name, ty, init, excl);
+                this.parse_semi_after_prop_name();
+                Ok(this.alloc(ast::ClassElem {
+                    kind: ast::ClassEleKind::Prop(prop),
+                }))
+            })?
         };
         Ok(ele)
     }
@@ -397,19 +393,27 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
 
     fn parse_class_ele(&mut self) -> PResult<&'cx ast::ClassElem<'cx>> {
         let start = self.token.start() as usize;
-        let modifiers = self.parse_modifiers(true, None)?;
-        if self.parse_contextual_modifier(TokenKind::Get) {
-            return self.parse_accessor_decl(start, modifiers, TokenKind::Get);
-        } else if self.parse_contextual_modifier(TokenKind::Set) {
-            return self.parse_accessor_decl(start, modifiers, TokenKind::Set);
+
+        if self.token.kind == TokenKind::Static
+            && self.lookahead(|l| {
+                l.p().next_token();
+                l.p().token.kind == TokenKind::LBrace
+            })
+        {
+            return self.parse_class_static_block_decl();
         }
 
-        if self.token.kind == TokenKind::Constructor {
-            if let Ok(Some(ctor)) = self.try_parse_ctor(start, modifiers) {
-                return Ok(ctor);
-            }
-        }
-        if self.is_index_sig() {
+        let modifiers = self.parse_modifiers::<false>(true, None)?;
+
+        if self.parse_contextual_modifier(TokenKind::Get) {
+            self.parse_accessor_decl(start, modifiers, TokenKind::Get)
+        } else if self.parse_contextual_modifier(TokenKind::Set) {
+            self.parse_accessor_decl(start, modifiers, TokenKind::Set)
+        } else if matches!(self.token.kind, TokenKind::Constructor | TokenKind::String)
+            && let Ok(Some(ctor)) = self.try_parse_ctor(start, modifiers)
+        {
+            Ok(ctor)
+        } else if self.is_index_sig() {
             let decl = self.parse_index_sig_decl(start, modifiers)?;
             Ok(self.alloc(ast::ClassElem {
                 kind: ast::ClassEleKind::IndexSig(decl),
@@ -417,6 +421,17 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         } else {
             self.parse_class_prop_or_method(start, modifiers)
         }
+    }
+
+    fn parse_class_static_block_decl(&mut self) -> PResult<&'cx ast::ClassElem<'cx>> {
+        debug_assert!(self.token.kind == TokenKind::Static);
+        let start = self.token.start() as usize;
+        self.next_token(); // consume `static`
+        let body = self.do_inside_of_context(NodeFlags::CLASS_STATIC_BLOCK, Self::parse_block)?;
+        let block = self.create_class_static_block_decl(start as u32, body);
+        Ok(self.alloc(ast::ClassElem {
+            kind: ast::ClassEleKind::StaticBlock(block),
+        }))
     }
 
     fn parse_class_members(&mut self) -> PResult<&'cx ast::ClassElems<'cx>> {

@@ -365,15 +365,7 @@ pub struct ClassElem<'cx> {
 }
 impl ClassElem<'_> {
     pub fn id(&self) -> NodeID {
-        use ClassEleKind::*;
-        match self.kind {
-            Ctor(n) => n.id,
-            Prop(n) => n.id,
-            Method(n) => n.id,
-            IndexSig(n) => n.id,
-            Getter(n) => n.id,
-            Setter(n) => n.id,
-        }
+        self.kind.id()
     }
 }
 
@@ -385,13 +377,21 @@ pub enum ClassEleKind<'cx> {
     IndexSig(&'cx IndexSigDecl<'cx>),
     Getter(&'cx GetterDecl<'cx>),
     Setter(&'cx SetterDecl<'cx>),
+    StaticBlock(&'cx ClassStaticBlock<'cx>),
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct ClassStaticBlock<'cx> {
+    pub id: NodeID,
+    pub span: Span,
+    pub body: &'cx BlockStmt<'cx>,
 }
 
 impl ClassEleKind<'_> {
     pub fn is_static(&self) -> bool {
         use ClassEleKind::*;
         let ms = match self {
-            Ctor(_) => None,
+            Ctor(_) | StaticBlock(_) => None,
             Prop(n) => n.modifiers,
             Method(n) => n.modifiers,
             IndexSig(n) => n.modifiers,
@@ -410,6 +410,7 @@ impl ClassEleKind<'_> {
             IndexSig(n) => n.id,
             Getter(n) => n.id,
             Setter(n) => n.id,
+            StaticBlock(n) => n.id,
         }
     }
 }

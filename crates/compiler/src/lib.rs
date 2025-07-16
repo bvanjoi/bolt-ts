@@ -323,7 +323,7 @@ pub fn eval_from_with_fs<'cx>(
                 let resolve_result = &checker.binder.bind_results[item.as_usize()];
                 let mut emitter = emit::Emit::new(
                     item,
-                    &checker.atoms,
+                    checker.atoms,
                     input,
                     compiler_options,
                     &p,

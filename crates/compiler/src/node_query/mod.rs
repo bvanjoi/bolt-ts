@@ -316,7 +316,7 @@ impl<'cx, 'a> NodeQuery<'cx, 'a> {
                 let p = self.node(p_id).expect_module_decl();
                 p.is_ambient()
                     && self.node(self.parent(p_id).unwrap()).is_program()
-                    && !self.parse_result.external_module_indicator.is_some()
+                    && self.parse_result.external_module_indicator.is_none()
             }
             _ => false,
         }

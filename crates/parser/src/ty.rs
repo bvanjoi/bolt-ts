@@ -1,14 +1,9 @@
-use crate::list_ctx::ParsingContext;
+use crate::parsing_ctx::ParsingContext;
 
-use super::list_ctx::{self};
 use super::lookahead::Lookahead;
 use super::{PResult, ParserState};
 use super::{ast, errors};
 use bolt_ts_ast::{Token, TokenKind};
-
-fn is_ele_for_tuple_ele_tys_and_ty_args(s: &mut ParserState) -> bool {
-    s.token.kind == TokenKind::Comma || s.is_start_of_ty(false)
-}
 
 impl<'cx> ParserState<'cx, '_> {
     fn should_parse_ret_ty(&mut self, is_colon: bool, is_ty: bool) -> PResult<bool> {
@@ -206,7 +201,7 @@ impl<'cx> ParserState<'cx, '_> {
     fn parse_modifiers_for_ctor_ty(&mut self) -> PResult<Option<&'cx ast::Modifiers<'cx>>> {
         if self.token.kind == TokenKind::Abstract {
             let pos = self.token.start();
-            let m = self.parse_modifier(false, None)?.unwrap();
+            let m = self.parse_modifier::<false>(false, None)?.unwrap();
             let m = self.alloc(ast::Modifiers {
                 span: self.new_span(pos),
                 flags: ast::ModifierKind::Abstract.into(),
@@ -460,7 +455,7 @@ impl<'cx> ParserState<'cx, '_> {
         if !self.has_preceding_line_break() && self.re_scan_less() == TokenKind::Less {
             let start = self.token.start();
             let list = self
-                .parse_bracketed_list(
+                .parse_bracketed_list::<false, _>(
                     ParsingContext::TYPE_ARGUMENTS,
                     TokenKind::Less,
                     Self::parse_ty,
@@ -508,7 +503,7 @@ impl<'cx> ParserState<'cx, '_> {
     pub(super) fn try_parse_ty_args(&mut self) -> PResult<Option<&'cx ast::Tys<'cx>>> {
         if self.token.kind == TokenKind::Less {
             let start = self.token.start();
-            let tys = self.parse_bracketed_list(
+            let tys = self.parse_bracketed_list::<false, _>(
                 ParsingContext::TYPE_ARGUMENTS,
                 TokenKind::Less,
                 Self::parse_ty,
@@ -825,7 +820,7 @@ impl<'cx> ParserState<'cx, '_> {
 
     fn parse_tuple_ty(&mut self) -> PResult<&'cx ast::Ty<'cx>> {
         let start = self.token.start();
-        let tys = self.parse_bracketed_list(
+        let tys = self.parse_bracketed_list::<false, _>(
             ParsingContext::TUPLE_ELEMENT_TYPES,
             TokenKind::LBracket,
             Self::parse_tuple_ele_name_or_tuple_ele_ty,
@@ -1020,7 +1015,7 @@ impl<'cx> ParserState<'cx, '_> {
         }
 
         let start = self.token.start() as usize;
-        let modifiers = self.parse_modifiers(false, None)?;
+        let modifiers = self.parse_modifiers::<false>(false, None)?;
 
         if self.parse_contextual_modifier(TokenKind::Get) {
             let decl = self.parse_getter_accessor_decl(start, modifiers, true)?;
