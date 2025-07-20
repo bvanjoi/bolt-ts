@@ -367,6 +367,9 @@ pub struct ThisExpr {
     pub span: Span,
 }
 
+/// ```txt
+/// a[b]
+/// ```
 #[derive(Debug, Clone, Copy)]
 pub struct EleAccessExpr<'cx> {
     pub id: NodeID,
@@ -375,6 +378,9 @@ pub struct EleAccessExpr<'cx> {
     pub arg: &'cx Expr<'cx>,
 }
 
+/// ```txt
+/// a.b
+/// ```
 #[derive(Debug, Clone, Copy)]
 pub struct PropAccessExpr<'cx> {
     pub id: NodeID,
@@ -701,6 +707,10 @@ pub struct CallExpr<'cx> {
     pub args: Exprs<'cx>,
 }
 
+/// ```txt
+/// let a = <string>'hello';
+///         ^^^^^^^^^^^^^^^
+/// ```
 #[derive(Debug, Clone, Copy)]
 pub struct TyAssertion<'cx> {
     pub id: NodeID,
@@ -733,6 +743,9 @@ bitflags::bitflags! {
     }
 }
 
+/// ```txt
+/// tagExpr`something`
+/// ```
 #[derive(Debug, Clone, Copy)]
 pub struct TaggedTemplateExpr<'cx> {
     pub id: NodeID,

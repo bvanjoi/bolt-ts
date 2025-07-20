@@ -58,7 +58,7 @@ impl<'cx> ParserState<'cx, '_> {
 
     fn parse_possible_paren_arrow_fn_expr(&mut self) -> PResult<Option<&'cx ast::Expr<'cx>>> {
         // let start = self.token.start();
-        
+
         self.parse_paren_arrow_fn_expr(false)
     }
 

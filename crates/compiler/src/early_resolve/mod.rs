@@ -132,7 +132,7 @@ impl<'cx> Resolver<'cx, '_, '_> {
             Fn(f) => self.resolve_fn_decl(f),
             If(i) => self.resolve_if_stmt(i),
             Block(block) => self.resolve_block_stmt(block),
-            Return(ret) => self.resolve_return_stmt(ret),
+            Ret(ret) => self.resolve_return_stmt(ret),
             Empty(_) => {}
             Class(class) => self.resolve_class_decl(class),
             Interface(interface) => self.resolve_interface_decl(interface),

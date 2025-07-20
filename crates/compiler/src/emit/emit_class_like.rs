@@ -51,7 +51,7 @@ impl<'cx> Emit<'cx> {
     }
 
     pub(super) fn emit_class_ele(&mut self, ele: &ast::ClassElem<'cx>) {
-        use bolt_ts_ast::ClassEleKind::*;
+        use bolt_ts_ast::ClassElemKind::*;
         match ele.kind {
             Prop(prop) => self.emit_class_prop(prop),
             Method(method) => self.emit_class_method(method),

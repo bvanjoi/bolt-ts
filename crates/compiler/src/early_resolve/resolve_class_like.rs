@@ -46,7 +46,7 @@ impl<'cx> Resolver<'cx, '_, '_> {
         }
 
         for ele in class.elems().elems {
-            use bolt_ts_ast::ClassEleKind::*;
+            use bolt_ts_ast::ClassElemKind::*;
             match ele.kind {
                 Prop(n) => self.resolve_class_prop_ele(n),
                 Method(n) => self.resolve_class_method_ele(n),

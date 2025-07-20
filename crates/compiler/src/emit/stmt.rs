@@ -16,7 +16,7 @@ impl<'cx> Emit<'cx> {
             Fn(f) => self.emit_fn_decl(f),
             If(stmt) => self.emit_if_stmt(stmt),
             Block(block) => self.emit_block_stmt(block),
-            Return(ret) => self.emit_ret_stmt(ret),
+            Ret(ret) => self.emit_ret_stmt(ret),
             Class(class) => self.emit_class_decl(class),
             Throw(t) => self.emit_throw_stmt(t),
             Module(ns) => self.emit_module_decl(ns),

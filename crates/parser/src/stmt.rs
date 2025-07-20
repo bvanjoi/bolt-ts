@@ -31,7 +31,7 @@ impl<'cx> ParserState<'cx, '_> {
             Function => ast::StmtKind::Fn(self.parse_fn_decl(None)?),
             If => ast::StmtKind::If(self.parse_if_stmt()?),
             LBrace => ast::StmtKind::Block(self.parse_block()?),
-            Return => ast::StmtKind::Return(self.parse_ret_stmt()?),
+            Return => ast::StmtKind::Ret(self.parse_ret_stmt()?),
             Class => ast::StmtKind::Class(self.parse_class_decl(None)?),
             Interface => ast::StmtKind::Interface(self.parse_interface_decl(None)?),
             Type => ast::StmtKind::TypeAlias(self.parse_type_alias_decl(None)?),

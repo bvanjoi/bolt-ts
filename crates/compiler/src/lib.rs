@@ -312,6 +312,16 @@ pub fn eval_from_with_fs<'cx>(
     }
 
     // ==== codegen ====
+    entries.par_iter().for_each(|item| {
+        let is_default_lib = module_arena.get_module(*item).is_default_lib();
+        if is_default_lib {
+            // default lib should not be emitted
+            return;
+        }
+        let root = p.root(*item);
+        bolt_ts_optimize::optimize(root);
+    });
+
     let compiler_options = tsconfig.compiler_options();
     let output = entries
         .into_par_iter()

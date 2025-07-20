@@ -296,7 +296,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
             self.node_flags_map.insert(id, self.context_flags);
             self.nodes.insert(id, ast::Node::ClassMethodElem(method));
             self.alloc(ast::ClassElem {
-                kind: ast::ClassEleKind::Method(method),
+                kind: ast::ClassElemKind::Method(method),
             })
         } else {
             // prop
@@ -313,7 +313,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
                     this.create_class_prop_elem(start as u32, modifiers, name, ty, init, excl);
                 this.parse_semi_after_prop_name();
                 Ok(this.alloc(ast::ClassElem {
-                    kind: ast::ClassEleKind::Prop(prop),
+                    kind: ast::ClassElemKind::Prop(prop),
                 }))
             })?
         };
@@ -364,7 +364,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
                 });
                 this.p().nodes.insert(id, ast::Node::ClassCtor(ctor));
                 let ele = this.p().alloc(ast::ClassElem {
-                    kind: ast::ClassEleKind::Ctor(ctor),
+                    kind: ast::ClassElemKind::Ctor(ctor),
                 });
                 Ok(Some(ele))
             } else {
@@ -383,10 +383,10 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         assert!(is_getter || t == TokenKind::Set);
         let kind = if is_getter {
             let decl = self.parse_getter_accessor_decl(start, modifiers, false)?;
-            ast::ClassEleKind::Getter(decl)
+            ast::ClassElemKind::Getter(decl)
         } else {
             let decl = self.parse_setter_accessor_decl(start, modifiers, false)?;
-            ast::ClassEleKind::Setter(decl)
+            ast::ClassElemKind::Setter(decl)
         };
         Ok(self.alloc(ast::ClassElem { kind }))
     }
@@ -416,7 +416,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         } else if self.is_index_sig() {
             let decl = self.parse_index_sig_decl(start, modifiers)?;
             Ok(self.alloc(ast::ClassElem {
-                kind: ast::ClassEleKind::IndexSig(decl),
+                kind: ast::ClassElemKind::IndexSig(decl),
             }))
         } else {
             self.parse_class_prop_or_method(start, modifiers)
@@ -430,7 +430,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         let body = self.do_inside_of_context(NodeFlags::CLASS_STATIC_BLOCK, Self::parse_block)?;
         let block = self.create_class_static_block_decl(start as u32, body);
         Ok(self.alloc(ast::ClassElem {
-            kind: ast::ClassEleKind::StaticBlock(block),
+            kind: ast::ClassElemKind::StaticBlock(block),
         }))
     }
 

@@ -25,7 +25,7 @@ impl MembersOfDecl for bolt_ts_ast::ClassElem<'_> {
         self.id()
     }
     fn has_static_modifier(&self) -> bool {
-        use bolt_ts_ast::ClassEleKind::*;
+        use bolt_ts_ast::ClassElemKind::*;
         let modifiers = match self.kind {
             IndexSig(n) => n.modifiers,
             Prop(n) => n.modifiers,

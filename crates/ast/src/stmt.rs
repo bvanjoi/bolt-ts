@@ -18,7 +18,7 @@ pub enum StmtKind<'cx> {
     ForIn(&'cx ForInStmt<'cx>),
     Break(&'cx BreakStmt<'cx>),
     Continue(&'cx ContinueStmt<'cx>),
-    Return(&'cx RetStmt<'cx>),
+    Ret(&'cx RetStmt<'cx>),
     Block(&'cx BlockStmt<'cx>),
     Fn(&'cx FnDecl<'cx>),
     Class(&'cx ClassDecl<'cx>),
@@ -45,7 +45,7 @@ impl Stmt<'_> {
             Empty(empty) => empty.id,
             Var(var) => var.id,
             If(if_) => if_.id,
-            Return(ret) => ret.id,
+            Ret(ret) => ret.id,
             Block(block) => block.id,
             Fn(f) => f.id,
             Class(c) => c.id,
@@ -361,7 +361,7 @@ pub struct ClassElems<'cx> {
 
 #[derive(Debug, Clone, Copy)]
 pub struct ClassElem<'cx> {
-    pub kind: ClassEleKind<'cx>,
+    pub kind: ClassElemKind<'cx>,
 }
 impl ClassElem<'_> {
     pub fn id(&self) -> NodeID {
@@ -370,7 +370,7 @@ impl ClassElem<'_> {
 }
 
 #[derive(Debug, Clone, Copy)]
-pub enum ClassEleKind<'cx> {
+pub enum ClassElemKind<'cx> {
     Ctor(&'cx ClassCtor<'cx>),
     Prop(&'cx ClassPropElem<'cx>),
     Method(&'cx ClassMethodElem<'cx>),
@@ -387,9 +387,9 @@ pub struct ClassStaticBlock<'cx> {
     pub body: &'cx BlockStmt<'cx>,
 }
 
-impl ClassEleKind<'_> {
+impl ClassElemKind<'_> {
     pub fn is_static(&self) -> bool {
-        use ClassEleKind::*;
+        use ClassElemKind::*;
         let ms = match self {
             Ctor(_) | StaticBlock(_) => None,
             Prop(n) => n.modifiers,
@@ -402,7 +402,7 @@ impl ClassEleKind<'_> {
     }
 
     pub fn id(&self) -> NodeID {
-        use ClassEleKind::*;
+        use ClassElemKind::*;
         match self {
             Ctor(n) => n.id,
             Prop(n) => n.id,
@@ -671,6 +671,13 @@ impl ParamDecl<'_> {
 
 pub type ParamsDecl<'cx> = &'cx [&'cx ParamDecl<'cx>];
 
+/// ```txt
+/// import name from 'xxxx'
+///        ~~~~ -> name
+/// import name, * as ns from 'xxxx'
+/// import name, { a as b } from 'xxxx'
+/// import name, { a } from 'xxxx'
+/// ```
 #[derive(Debug, Clone, Copy)]
 pub struct ImportClause<'cx> {
     pub id: NodeID,
@@ -686,6 +693,9 @@ pub enum ImportClauseKind<'cx> {
     Specs(ImportSpecs<'cx>),
 }
 
+/// ```txt
+/// import * as ns from 'xxxx'
+/// ```
 #[derive(Debug, Clone, Copy)]
 pub struct NsImport<'cx> {
     pub id: NodeID,
@@ -750,6 +760,10 @@ pub enum ModuleExportNameKind<'cx> {
     StringLit(&'cx StringLit),
 }
 
+/// ```txt
+/// import { a as b } from 'xxxx'
+/// import { 'a' as b } from 'xxxx'
+/// ```
 #[derive(Debug, Clone, Copy)]
 pub struct ImportNamedSpec<'cx> {
     pub id: NodeID,
@@ -811,6 +825,9 @@ pub enum ExportClauseKind<'cx> {
     Specs(&'cx SpecsExport<'cx>),
 }
 
+/// ```txt
+/// export * from 'xxxx'
+/// ```
 #[derive(Debug, Clone, Copy)]
 pub struct GlobExport<'cx> {
     pub id: NodeID,
@@ -818,6 +835,10 @@ pub struct GlobExport<'cx> {
     pub module: &'cx StringLit,
 }
 
+/// ```txt
+/// export * as ns from 'xxxx'
+/// export * as 'ns' from 'xxxx'
+/// ```
 #[derive(Debug, Clone, Copy)]
 pub struct NsExport<'cx> {
     pub id: NodeID,
@@ -826,8 +847,13 @@ pub struct NsExport<'cx> {
     pub module: &'cx StringLit,
 }
 
+/// ```txt
+/// export { a }
+/// export { a as b }
+/// export { a } from 'xxx'
+/// export { a as b } from 'xxx'
+/// ```
 #[derive(Debug, Clone, Copy)]
-
 pub struct SpecsExport<'cx> {
     pub id: NodeID,
     pub span: Span,
@@ -857,8 +883,14 @@ pub enum ExportSpecKind<'cx> {
 }
 
 /// ```txt
-/// export { prop_name as name } from 'xxx'
-///          ^^^^^^^^^^^^^^^^^
+/// export { a as b } from 'xxx'
+///          ^^^^^^
+/// export { 'a' as b } from 'c'
+///          ^^^^^^^^
+/// export { 'a' as 'b' } from 'c'
+///          ^^^^^^^^^^
+/// export { a as 'b' } from 'c'
+///          ^^^^^^^^
 /// ```
 #[derive(Debug, Clone, Copy)]
 pub struct ExportNamedSpec<'cx> {

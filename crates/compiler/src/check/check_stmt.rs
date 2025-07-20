@@ -18,7 +18,7 @@ impl<'cx> TyChecker<'cx> {
             Fn(f) => self.check_fn_decl(f),
             If(i) => self.check_if_stmt(i),
             Block(block) => self.check_block(block),
-            Return(ret) => self.check_ret_stmt(ret),
+            Ret(ret) => self.check_ret_stmt(ret),
             Class(class) => self.check_class_decl(class),
             Interface(interface) => self.check_interface_decl(interface),
             Module(m) => self.check_module_decl(m),

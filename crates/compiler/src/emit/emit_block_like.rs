@@ -21,7 +21,7 @@ impl<'cx> ElemLike<'cx> for ast::ClassElem<'cx> {
         emitter.emit_class_ele(self);
     }
     fn emit_sep(&self, emitter: &mut Emit<'cx>) {
-        if !matches!(self.kind, ast::ClassEleKind::IndexSig(_)) {
+        if !matches!(self.kind, ast::ClassElemKind::IndexSig(_)) {
             emitter.content.p_newline();
         }
     }

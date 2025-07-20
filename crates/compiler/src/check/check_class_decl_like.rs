@@ -30,7 +30,7 @@ impl<'cx> TyChecker<'cx> {
             if member.kind.is_static() {
                 continue;
             }
-            use bolt_ts_ast::ClassEleKind::*;
+            use bolt_ts_ast::ClassElemKind::*;
             let member_name = match member.kind {
                 Ctor(_) => None,
                 Prop(n) => Some(n.name.id()),
@@ -118,7 +118,7 @@ impl<'cx> TyChecker<'cx> {
         }
 
         for ele in class.elems().elems {
-            use bolt_ts_ast::ClassEleKind::*;
+            use bolt_ts_ast::ClassElemKind::*;
             match ele.kind {
                 Prop(n) => self.check_class_prop_ele(n),
                 Method(n) => self.check_class_method_ele(n),
