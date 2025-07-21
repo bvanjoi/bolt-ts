@@ -1,4 +1,3 @@
-
 var cls = class {
   doThing() {}
 };

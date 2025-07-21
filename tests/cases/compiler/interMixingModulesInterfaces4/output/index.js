@@ -12,7 +12,5 @@ var A = {};
   })(B);
   A.B = B;
   
-  
-  
 })(A);
 var x = A.B.createB();

@@ -1,5 +1,5 @@
 class Rule {
-  regex = new RegExp("")
-  name = ""
+  regex = new RegExp('')
+  name = ''
   constructor(name) {this.name = name;}
 }

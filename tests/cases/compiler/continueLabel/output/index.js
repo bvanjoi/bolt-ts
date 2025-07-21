@@ -9,7 +9,7 @@ label1: for ( var i = 0; i < 1; i++) {
       b: {
         if (0) break b;
         
-        Number("d");
+        Number('d');
       }
     }());
   }

@@ -49,8 +49,8 @@ impl<'cx> Expr<'cx> {
             SpreadElement(n) => n.span,
             RegExpLit(n) => n.span,
             TaggedTemplate(n) => n.span,
-            JsxEle(n) => n.span,
-            JsxSelfClosingEle(n) => n.span,
+            JsxElem(n) => n.span,
+            JsxSelfClosingElem(n) => n.span,
             JsxFrag(n) => n.span,
         }
     }
@@ -94,8 +94,8 @@ impl<'cx> Expr<'cx> {
             SpreadElement(n) => n.id,
             RegExpLit(n) => n.id,
             TaggedTemplate(n) => n.id,
-            JsxEle(n) => n.id,
-            JsxSelfClosingEle(n) => n.id,
+            JsxElem(n) => n.id,
+            JsxSelfClosingElem(n) => n.id,
             JsxFrag(n) => n.id,
         }
     }
@@ -226,8 +226,8 @@ pub enum ExprKind<'cx> {
     TaggedTemplate(&'cx TaggedTemplateExpr<'cx>),
     TyAssertion(&'cx TyAssertion<'cx>),
     SpreadElement(&'cx SpreadElement<'cx>),
-    JsxEle(&'cx JsxEle<'cx>),
-    JsxSelfClosingEle(&'cx JsxSelfClosingEle<'cx>),
+    JsxElem(&'cx JsxElem<'cx>),
+    JsxSelfClosingElem(&'cx JsxSelfClosingElem<'cx>),
     JsxFrag(&'cx JsxFrag<'cx>),
 }
 

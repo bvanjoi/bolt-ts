@@ -1,5 +1,4 @@
-
-var messenger = {message: "Hello World",
+var messenger = {message: 'Hello World',
 start: function () {
   var _self = this;
   setTimeout(function () {

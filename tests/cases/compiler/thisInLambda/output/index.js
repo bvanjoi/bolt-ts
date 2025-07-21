@@ -1,5 +1,5 @@
 class Foo {
-  x = "hello"
+  x = 'hello'
   bar() {
     this.x;
     var f = () => this.x;

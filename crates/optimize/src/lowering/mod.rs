@@ -225,7 +225,7 @@ impl<'cx> LoweringCtx {
     }
 
     fn lower_string_lit(&mut self, n: &'cx ast::StringLit) -> ir::StringLitID {
-        self.nodes.alloc_string_lit(n.span, n.val)
+        self.nodes.alloc_string_lit(n.span, n.val, false)
     }
 
     fn lower_class_decl(&mut self, n: &'cx ast::ClassDecl<'cx>) -> ir::ClassDeclID {
@@ -407,11 +407,10 @@ impl<'cx> LoweringCtx {
 
     fn lower_for_stmt(&mut self, stmt: &'cx ast::ForStmt<'cx>) -> ir::ForStmtID {
         let init = stmt.init.map(|init| self.lower_for_init(init));
-        let test = stmt.cond.map(|test| self.lower_expr(test));
-        let update = stmt.incr.map(|update| self.lower_expr(update));
+        let cond = stmt.cond.map(|cond| self.lower_expr(cond));
+        let incr = stmt.incr.map(|incr| self.lower_expr(incr));
         let body = self.lower_stmt(stmt.body).unwrap();
-        self.nodes
-            .alloc_for_stmt(stmt.span, init, test, update, body)
+        self.nodes.alloc_for_stmt(stmt.span, init, cond, incr, body)
     }
 
     fn lower_for_init(&mut self, init: ast::ForInitKind<'cx>) -> ir::ForInit {
@@ -429,8 +428,9 @@ impl<'cx> LoweringCtx {
     }
 
     fn lower_var_stmt(&mut self, stmt: &'cx ast::VarStmt<'cx>) -> ir::VarStmtID {
+        let modifiers = stmt.modifiers.as_ref().map(|ms| self.lower_modifiers(ms));
         let decls = self.lower_var_decls(stmt.list);
-        self.nodes.alloc_var_stmt(stmt.span, decls)
+        self.nodes.alloc_var_stmt(stmt.span, modifiers, decls)
     }
 
     fn lower_var_decls(&mut self, decls: ast::VarDecls<'cx>) -> Vec<ir::VarDeclID> {
@@ -523,7 +523,7 @@ impl<'cx> LoweringCtx {
         match prop_name.kind {
             ast::PropNameKind::Ident(n) => ir::PropName::Ident(self.lower_ident(n)),
             ast::PropNameKind::StringLit { raw, .. } => {
-                ir::PropName::StringLit(self.nodes.alloc_string_lit(raw.span, raw.val))
+                ir::PropName::StringLit(self.lower_string_lit(raw))
             }
             ast::PropNameKind::NumLit(n) => {
                 ir::PropName::NumLit(self.nodes.alloc_num_lit(n.span, n.val))
@@ -555,7 +555,7 @@ impl<'cx> LoweringCtx {
     fn lower_expr(&mut self, expr: &'cx ast::Expr<'cx>) -> ir::Expr {
         use ast::ExprKind;
         match expr.kind {
-            ExprKind::Ident(n) => ir::Expr::Ident(self.nodes.alloc_ident(n.span, n.name)),
+            ExprKind::Ident(n) => ir::Expr::Ident(self.lower_ident(n)),
             ExprKind::Assign(n) => ir::Expr::Assign(self.lower_assign_expr(n)),
             ExprKind::Bin(n) => ir::Expr::Bin(self.lower_bin_expr(n)),
             ExprKind::This(n) => ir::Expr::This(self.nodes.alloc_this_expr(n.span)),
@@ -566,7 +566,7 @@ impl<'cx> LoweringCtx {
             }
             ExprKind::StringLit(n) => ir::Expr::StringLit(self.lower_string_lit(n)),
             ExprKind::NoSubstitutionTemplateLit(n) => {
-                ir::Expr::StringLit(self.nodes.alloc_string_lit(n.span, n.val))
+                ir::Expr::StringLit(self.nodes.alloc_string_lit(n.span, n.val, true))
             }
             ExprKind::NullLit(n) => ir::Expr::NullLit(self.nodes.alloc_null_lit(n.span)),
             ExprKind::RegExpLit(n) => {
@@ -634,9 +634,10 @@ impl<'cx> LoweringCtx {
                 ir::Expr::Call(self.nodes.alloc_call_expr(n.span, expr, args))
             }
             ExprKind::Fn(n) => {
+                let name = n.name.map(|name| self.lower_ident(name));
                 let params = self.lower_param_decls(n.params);
                 let body = self.lower_block_stmt(n.body);
-                ir::Expr::Fn(self.nodes.alloc_fn_expr(n.span, params, body))
+                ir::Expr::Fn(self.nodes.alloc_fn_expr(n.span, name, params, body))
             }
             ExprKind::Class(n) => {
                 let name = n.name.map(|name| self.lower_ident(name));
@@ -676,16 +677,7 @@ impl<'cx> LoweringCtx {
                 let expr = self.lower_expr(n.expr);
                 ir::Expr::PostfixUnary(self.nodes.alloc_postfix_unary_expr(n.span, n.op, expr))
             }
-            ExprKind::PropAccess(n) => {
-                let expr = self.lower_expr(n.expr);
-                let name = self.lower_ident(n.name);
-                ir::Expr::PropAccess(self.nodes.alloc_prop_access_expr(
-                    n.span,
-                    expr,
-                    n.question_dot,
-                    name,
-                ))
-            }
+            ExprKind::PropAccess(n) => ir::Expr::PropAccess(self.lower_prop_access_expr(n)),
             ExprKind::EleAccess(n) => {
                 let expr = self.lower_expr(n.expr);
                 let arg = self.lower_expr(n.arg);
@@ -709,22 +701,138 @@ impl<'cx> LoweringCtx {
                 let tpl = self.lower_expr(n.tpl);
                 ir::Expr::TaggedTemplate(self.nodes.alloc_tagged_template_expr(n.span, tag, tpl))
             }
-            ExprKind::TyAssertion(n) => self.lower_expr(n.expr),
+            ExprKind::TyAssertion(n) => {
+                let expr = self.lower_expr(n.expr);
+                if let ast::ExprKind::ObjectLit(n) = n.expr.kind {
+                    ir::Expr::Paren(self.nodes.alloc_paren_expr(n.span, expr))
+                } else {
+                    expr
+                }
+            }
             ExprKind::SpreadElement(n) => {
                 let expr = self.lower_expr(n.expr);
-                ir::Expr::Spread(self.nodes.alloc_spread_element(n.span, expr))
+                ir::Expr::SpreadElem(self.nodes.alloc_spread_element(n.span, expr))
             }
-            ExprKind::JsxEle(n) => {
-                // todo!()
-                ir::Expr::NullLit(self.nodes.alloc_null_lit(n.span))
+            ExprKind::JsxElem(n) => ir::Expr::JsxElem(self.lower_jsx_elem(n)),
+            ExprKind::JsxSelfClosingElem(n) => {
+                ir::Expr::JsxSelfClosingElem(self.lower_jsx_self_closing_elem(n))
             }
-            ExprKind::JsxSelfClosingEle(n) => {
-                // todo!()
-                ir::Expr::NullLit(self.nodes.alloc_null_lit(n.span))
+            ExprKind::JsxFrag(n) => ir::Expr::JsxFrag(self.lower_jsx_frag(n)),
+        }
+    }
+
+    fn lower_jsx_frag(&mut self, n: &'cx ast::JsxFrag<'cx>) -> ir::JsxFragID {
+        let opening = self.nodes.alloc_jsx_opening_frag(n.opening_frag.span);
+        let children = self.lower_jsx_children(n.children);
+        let closing = self.nodes.alloc_jsx_closing_frag(n.closing_frag.span);
+        self.nodes
+            .alloc_jsx_frag(n.span, opening, children, closing)
+    }
+
+    fn lower_jsx_self_closing_elem(
+        &mut self,
+        n: &'cx ast::JsxSelfClosingElem<'cx>,
+    ) -> ir::JsxSelfClosingElemID {
+        let tag_name = self.lower_jsx_tag_name(&n.tag_name);
+        let attrs = self.lower_jsx_attrs(&n.attrs);
+        self.nodes
+            .alloc_jsx_self_closing_elem(n.span, tag_name, attrs)
+    }
+
+    fn lower_jsx_elem(&mut self, n: &'cx ast::JsxElem<'cx>) -> ir::JsxElemID {
+        let opening = {
+            let tag_name = self.lower_jsx_tag_name(&n.opening_elem.tag_name);
+            let attrs = self.lower_jsx_attrs(&n.opening_elem.attrs);
+            self.nodes
+                .alloc_jsx_opening_elem(n.opening_elem.span, tag_name, attrs)
+        };
+        let children = self.lower_jsx_children(n.children);
+        let closing = {
+            let tag_name = self.lower_jsx_tag_name(&n.closing_elem.tag_name);
+            self.nodes
+                .alloc_jsx_closing_elem(n.closing_elem.span, tag_name)
+        };
+        self.nodes
+            .alloc_jsx_elem(n.span, opening, children, closing)
+    }
+
+    fn lower_jsx_children(&mut self, n: &'cx [ast::JsxChild<'cx>]) -> Vec<ir::JsxChild> {
+        n.iter().map(|child| self.lower_jsx_child(child)).collect()
+    }
+
+    fn lower_jsx_child(&mut self, n: &'cx ast::JsxChild<'cx>) -> ir::JsxChild {
+        match n {
+            ast::JsxChild::Text(n) => ir::JsxChild::Text(self.lower_jsx_text(n)),
+            ast::JsxChild::Expr(n) => ir::JsxChild::Expr(self.lower_jsx_expr(n)),
+            ast::JsxChild::Elem(n) => ir::JsxChild::Elem(self.lower_jsx_elem(n)),
+            ast::JsxChild::SelfClosingEle(n) => {
+                ir::JsxChild::SelfClosingEle(self.lower_jsx_self_closing_elem(n))
             }
-            ExprKind::JsxFrag(n) => {
-                // todo!()
-                ir::Expr::NullLit(self.nodes.alloc_null_lit(n.span))
+            ast::JsxChild::Frag(n) => ir::JsxChild::Frag(self.lower_jsx_frag(n)),
+        }
+    }
+
+    fn lower_jsx_expr(&mut self, n: &'cx ast::JsxExpr<'cx>) -> ir::JsxExprID {
+        let expr = n.expr.map(|e| self.lower_expr(e));
+        self.nodes.alloc_jsx_expr(n.span, n.dotdotdot_token, expr)
+    }
+
+    fn lower_jsx_text(&mut self, n: &'cx ast::JsxText) -> ir::JsxTextID {
+        self.nodes
+            .alloc_jsx_text(n.span, n.text, n.contains_only_trivia_whitespace)
+    }
+
+    fn lower_jsx_attr(&mut self, n: &'cx ast::JsxAttr<'cx>) -> ir::JsxAttr {
+        match n {
+            ast::JsxAttr::Spread(n) => {
+                let expr = self.lower_expr(n.expr);
+                ir::JsxAttr::Spread(self.nodes.alloc_jsx_spread_attr(n.span, expr))
+            }
+            ast::JsxAttr::Named(n) => {
+                let name = match n.name {
+                    ast::JsxAttrName::Ident(n) => ir::JsxAttrName::Ident(self.lower_ident(n)),
+                    ast::JsxAttrName::Ns(n) => ir::JsxAttrName::Ns(self.lower_jsx_ns_name(n)),
+                };
+                let init = n.init.map(|init| match init {
+                    ast::JsxAttrValue::StringLit(n) => {
+                        ir::JsxAttrValue::StringLit(self.lower_string_lit(n))
+                    }
+                    ast::JsxAttrValue::Expr(n) => ir::JsxAttrValue::Expr(self.lower_jsx_expr(n)),
+                    ast::JsxAttrValue::Ele(n) => ir::JsxAttrValue::Ele(self.lower_jsx_elem(n)),
+                    ast::JsxAttrValue::SelfClosingEle(n) => {
+                        ir::JsxAttrValue::SelfClosingEle(self.lower_jsx_self_closing_elem(n))
+                    }
+                    ast::JsxAttrValue::Frag(n) => ir::JsxAttrValue::Frag(self.lower_jsx_frag(n)),
+                });
+                ir::JsxAttr::Named(self.nodes.alloc_jsx_named_attr(n.span, name, init))
+            }
+        }
+    }
+
+    fn lower_jsx_attrs(&mut self, n: &'cx ast::JsxAttrs<'cx>) -> Vec<ir::JsxAttr> {
+        n.iter().map(|attr| self.lower_jsx_attr(attr)).collect()
+    }
+
+    fn lower_prop_access_expr(&mut self, n: &'cx ast::PropAccessExpr<'cx>) -> ir::PropAccessExprID {
+        let expr = self.lower_expr(n.expr);
+        let name = self.lower_ident(n.name);
+        self.nodes
+            .alloc_prop_access_expr(n.span, expr, n.question_dot, name)
+    }
+
+    fn lower_jsx_ns_name(&mut self, n: &'cx ast::JsxNsName<'cx>) -> ir::JsxNsNameID {
+        let ns = self.lower_ident(n.ns);
+        let name = self.lower_ident(n.name);
+        self.nodes.alloc_jsx_ns_name(n.span, ns, name)
+    }
+
+    fn lower_jsx_tag_name(&mut self, tag_name: &ast::JsxTagName<'cx>) -> ir::JsxTagName {
+        match tag_name {
+            ast::JsxTagName::Ident(n) => ir::JsxTagName::Ident(self.lower_ident(n)),
+            ast::JsxTagName::This(n) => ir::JsxTagName::This(self.nodes.alloc_this_expr(n.span)),
+            ast::JsxTagName::Ns(n) => ir::JsxTagName::Ns(self.lower_jsx_ns_name(n)),
+            ast::JsxTagName::PropAccess(n) => {
+                ir::JsxTagName::PropAccess(self.lower_prop_access_expr(n))
             }
         }
     }

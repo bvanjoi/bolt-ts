@@ -5,8 +5,6 @@ var m = {};
 
 (function (m) {
 
-  
-  
   class n {
     n
   }

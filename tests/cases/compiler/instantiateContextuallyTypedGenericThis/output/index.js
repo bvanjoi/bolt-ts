@@ -1,4 +1,3 @@
-
 var $;
 var lines;
 $.each(lines, function (dit) {

@@ -6,5 +6,4 @@ class B extends A {
 }
 class C {
   0
-  
 }

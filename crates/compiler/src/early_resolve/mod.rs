@@ -594,10 +594,10 @@ impl<'cx> Resolver<'cx, '_, '_> {
             | RegExpLit(_)
             | NoSubstitutionTemplateLit(_)
             | JsxFrag(_) => {}
-            JsxEle(n) => {
+            JsxElem(n) => {
                 self.resolve_jsx_ele(n);
             }
-            JsxSelfClosingEle(n) => {
+            JsxSelfClosingElem(n) => {
                 self.resolve_jsx_self_closing_ele(n);
             }
         }
@@ -654,7 +654,7 @@ impl<'cx> Resolver<'cx, '_, '_> {
         }
     }
 
-    fn resolve_jsx_self_closing_ele(&mut self, ele: &'cx ast::JsxSelfClosingEle<'cx>) {
+    fn resolve_jsx_self_closing_ele(&mut self, ele: &'cx ast::JsxSelfClosingElem<'cx>) {
         self.resolve_jsx_tag_name(ele.tag_name);
         if let Some(ty_args) = ele.ty_args {
             self.resolve_tys(ty_args.list);
@@ -664,12 +664,12 @@ impl<'cx> Resolver<'cx, '_, '_> {
         }
     }
 
-    fn resolve_jsx_ele(&mut self, ele: &'cx ast::JsxEle<'cx>) {
-        self.resolve_jsx_tag_name(ele.opening_ele.tag_name);
-        if let Some(ty_args) = ele.opening_ele.ty_args {
+    fn resolve_jsx_ele(&mut self, ele: &'cx ast::JsxElem<'cx>) {
+        self.resolve_jsx_tag_name(ele.opening_elem.tag_name);
+        if let Some(ty_args) = ele.opening_elem.ty_args {
             self.resolve_tys(ty_args.list);
         }
-        for attr in ele.opening_ele.attrs {
+        for attr in ele.opening_elem.attrs {
             self.resolve_jsx_attr(attr);
         }
 
@@ -677,7 +677,7 @@ impl<'cx> Resolver<'cx, '_, '_> {
             self.resolve_jsx_child(child);
         }
 
-        self.resolve_jsx_tag_name(ele.closing_ele.tag_name);
+        self.resolve_jsx_tag_name(ele.closing_elem.tag_name);
     }
 
     fn resolve_jsx_child(&mut self, child: &'cx ast::JsxChild<'cx>) {
@@ -688,7 +688,7 @@ impl<'cx> Resolver<'cx, '_, '_> {
                     self.resolve_expr(expr);
                 }
             }
-            Ele(n) => {
+            Elem(n) => {
                 self.resolve_jsx_ele(n);
             }
             SelfClosingEle(n) => {

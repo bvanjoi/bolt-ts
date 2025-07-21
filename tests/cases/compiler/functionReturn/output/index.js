@@ -7,10 +7,10 @@ function f3() {
   return 
 }
 function f4() {
-  return ""
+  return ''
   return 
 }
 function f5() {
-  return ""
+  return ''
   return undefined
 }

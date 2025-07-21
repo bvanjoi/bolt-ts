@@ -4,4 +4,5 @@ function foo1(f) {
 function foo2(f) {
   return new f()
 }
-var a = foo1(() => "hello");
+var a = foo1(() => 'hello');
+;

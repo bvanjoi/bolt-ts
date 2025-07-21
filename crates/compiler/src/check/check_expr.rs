@@ -224,11 +224,11 @@ impl<'cx> TyChecker<'cx> {
             SpreadElement(n) => self.check_spread_element(n),
             RegExpLit(_) => self.global_regexp_ty(),
             TaggedTemplate(n) => self.check_tagged_template_expr(n),
-            JsxEle(n) => {
+            JsxElem(n) => {
                 // TODO:
                 self.undefined_ty
             }
-            JsxSelfClosingEle(n) => {
+            JsxSelfClosingElem(n) => {
                 // TODO:
                 self.undefined_ty
             }

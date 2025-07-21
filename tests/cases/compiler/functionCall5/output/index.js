@@ -10,6 +10,6 @@ var m1 = {};
 function foo() {
   return new m1.c1()
 }
-
+;
 var x = foo();
 x.a;

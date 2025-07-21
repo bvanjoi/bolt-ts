@@ -4,8 +4,6 @@ class Foo {
 
 (function (Foo) {
 
-  
-  
   class Baz {}
   Foo.Baz = Baz;
   

@@ -1,3 +1,3 @@
 function clone() {
-  throw new Error("To be implemented")
+  throw new Error('To be implemented')
 }

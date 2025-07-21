@@ -1,3 +1,3 @@
 function f() {
-  return typeof class {} === "function"
+  return typeof class {} === 'function'
 }

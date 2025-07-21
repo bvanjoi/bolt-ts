@@ -425,8 +425,8 @@ impl<'cx> ParserState<'cx, '_> {
             let jsx = self.parse_jsx_ele_or_self_closing_ele_or_frag(true, None, None, false)?;
             use super::jsx::JsxEleOrSelfClosingEleOrFrag::*;
             let kind = match jsx {
-                Ele(n) => ast::ExprKind::JsxEle(n),
-                SelfClosingEle(n) => ast::ExprKind::JsxSelfClosingEle(n),
+                Ele(n) => ast::ExprKind::JsxElem(n),
+                SelfClosingEle(n) => ast::ExprKind::JsxSelfClosingElem(n),
                 Frag(n) => ast::ExprKind::JsxFrag(n),
             };
             let expr = self.alloc(ast::Expr { kind });

@@ -1,2 +1,2 @@
-var x = {'text': "hello"};
-x.text = "bar";
+var x = {'text': 'hello'};
+x.text = 'bar';

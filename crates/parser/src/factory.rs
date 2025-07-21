@@ -177,16 +177,16 @@ impl<'cx> ParserState<'cx, '_> {
         tag_name: ast::JsxTagName<'cx>,
         ty_args: Option<&'cx ast::Tys<'cx>>,
         attrs: ast::JsxAttrs<'cx>,
-    ) -> &'cx ast::JsxOpeningEle<'cx> {
+    ) -> &'cx ast::JsxOpeningElem<'cx> {
         let id = self.next_node_id();
-        let node = self.alloc(ast::JsxOpeningEle {
+        let node = self.alloc(ast::JsxOpeningElem {
             id,
             span,
             tag_name,
             ty_args,
             attrs,
         });
-        self.nodes.insert(id, ast::Node::JsxOpeningEle(node));
+        self.nodes.insert(id, ast::Node::JsxOpeningElem(node));
         self.node_flags_map.insert(id, ast::NodeFlags::empty());
         node
     }
@@ -195,10 +195,10 @@ impl<'cx> ParserState<'cx, '_> {
         &mut self,
         span: Span,
         tag_name: ast::JsxTagName<'cx>,
-    ) -> &'cx ast::JsxClosingEle<'cx> {
+    ) -> &'cx ast::JsxClosingElem<'cx> {
         let id = self.next_node_id();
-        let node = self.alloc(ast::JsxClosingEle { id, span, tag_name });
-        self.nodes.insert(id, ast::Node::JsxClosingEle(node));
+        let node = self.alloc(ast::JsxClosingElem { id, span, tag_name });
+        self.nodes.insert(id, ast::Node::JsxClosingElem(node));
         self.node_flags_map.insert(id, ast::NodeFlags::empty());
         node
     }
@@ -209,16 +209,16 @@ impl<'cx> ParserState<'cx, '_> {
         tag_name: ast::JsxTagName<'cx>,
         ty_args: Option<&'cx ast::Tys<'cx>>,
         attrs: ast::JsxAttrs<'cx>,
-    ) -> &'cx ast::JsxSelfClosingEle<'cx> {
+    ) -> &'cx ast::JsxSelfClosingElem<'cx> {
         let id = self.next_node_id();
-        let node = self.alloc(ast::JsxSelfClosingEle {
+        let node = self.alloc(ast::JsxSelfClosingElem {
             id,
             span,
             tag_name,
             ty_args,
             attrs,
         });
-        self.nodes.insert(id, ast::Node::JsxSelfClosingEle(node));
+        self.nodes.insert(id, ast::Node::JsxSelfClosingElem(node));
         self.node_flags_map.insert(id, ast::NodeFlags::empty());
         node
     }
@@ -234,9 +234,9 @@ impl<'cx> ParserState<'cx, '_> {
         let node = self.alloc(ast::JsxFrag {
             id,
             span,
-            opening_ele: opening,
+            opening_frag: opening,
             children,
-            closing_ele: closing,
+            closing_frag: closing,
         });
         self.nodes.insert(id, ast::Node::JsxFrag(node));
         self.node_flags_map.insert(id, ast::NodeFlags::empty());
@@ -246,19 +246,19 @@ impl<'cx> ParserState<'cx, '_> {
     pub fn create_jsx_ele(
         &mut self,
         span: Span,
-        opening: &'cx ast::JsxOpeningEle<'cx>,
+        opening: &'cx ast::JsxOpeningElem<'cx>,
         children: &'cx [ast::JsxChild<'cx>],
-        closing: &'cx ast::JsxClosingEle<'cx>,
-    ) -> &'cx ast::JsxEle<'cx> {
+        closing: &'cx ast::JsxClosingElem<'cx>,
+    ) -> &'cx ast::JsxElem<'cx> {
         let id = self.next_node_id();
-        let node = self.alloc(ast::JsxEle {
+        let node = self.alloc(ast::JsxElem {
             id,
             span,
-            opening_ele: opening,
+            opening_elem: opening,
             children,
-            closing_ele: closing,
+            closing_elem: closing,
         });
-        self.nodes.insert(id, ast::Node::JsxEle(node));
+        self.nodes.insert(id, ast::Node::JsxElem(node));
         self.node_flags_map.insert(id, ast::NodeFlags::empty());
         node
     }

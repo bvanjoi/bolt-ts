@@ -1,5 +1,1 @@
-
-
-
-
 function makeThing(name, children = []) {}

@@ -1164,7 +1164,7 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
                     self.bind(e.id());
                 }
             }
-            JsxOpeningEle(n) => {
+            JsxOpeningElem(n) => {
                 self.bind(n.tag_name.id());
                 if let Some(ty_args) = n.ty_args {
                     for ty in ty_args.list {
@@ -1175,10 +1175,10 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
                     self.bind(attr.id());
                 }
             }
-            JsxClosingEle(n) => {
+            JsxClosingElem(n) => {
                 self.bind(n.tag_name.id());
             }
-            JsxSelfClosingEle(n) => {
+            JsxSelfClosingElem(n) => {
                 self.bind(n.tag_name.id());
                 if let Some(ty_args) = n.ty_args {
                     for ty in ty_args.list {
@@ -1190,18 +1190,18 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
                 }
             }
             JsxFrag(n) => {
-                self.bind(n.opening_ele.id);
+                self.bind(n.opening_frag.id);
                 for child in n.children {
                     self.bind(child.id());
                 }
-                self.bind(n.closing_ele.id);
+                self.bind(n.closing_frag.id);
             }
-            JsxEle(n) => {
-                self.bind(n.opening_ele.id);
+            JsxElem(n) => {
+                self.bind(n.opening_elem.id);
                 for child in n.children {
                     self.bind(child.id());
                 }
-                self.bind(n.closing_ele.id);
+                self.bind(n.closing_elem.id);
             }
             ClassStaticBlock(n) => {
                 self.bind(n.body.id);

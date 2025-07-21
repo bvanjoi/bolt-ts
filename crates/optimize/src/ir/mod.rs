@@ -1,7 +1,7 @@
 use bolt_ts_arena::la_arena;
-use bolt_ts_ast as ast;
+use bolt_ts_ast::{self as ast};
 use bolt_ts_atom::AtomId;
-use bolt_ts_span::{Module, Span};
+use bolt_ts_span::Span;
 
 macro_rules! nodes {
     ( $( $node_field: ident: $node_name:ident ),* ) => {
@@ -122,7 +122,20 @@ nodes!(
     spread_assignment: SpreadAssignment,
     spread_element: SpreadElement,
     template_head: TemplateHead,
-    template_span: TemplateSpan
+    template_span: TemplateSpan,
+
+    jsx_elem: JsxElem,
+    jsx_opening_elem: JsxOpeningElem,
+    jsx_closing_elem: JsxClosingElem,
+    jsx_spread_attr: JsxSpreadAttr,
+    jsx_named_attr: JsxNamedAttr,
+    jsx_ns_name: JsxNsName,
+    jsx_frag: JsxFrag,
+    jsx_opening_frag: JsxOpeningFrag,
+    jsx_closing_frag: JsxClosingFrag,
+    jsx_self_closing_elem: JsxSelfClosingElem,
+    jsx_text: JsxText,
+    jsx_expr: JsxExpr
 );
 
 #[inline(always)]
@@ -132,6 +145,186 @@ fn usize_into_idx<T>(len: usize) -> la_arena::Idx<T> {
 }
 
 impl Nodes {
+    pub fn alloc_jsx_elem(
+        &mut self,
+        span: Span,
+        opening_elem: JsxOpeningElemID,
+        children: Vec<JsxChild>,
+        closing_elem: JsxClosingElemID,
+    ) -> JsxElemID {
+        let idx = JsxElemID(usize_into_idx(self.jsx_elem_nodes.0.len()));
+        let id = self.jsx_elem_nodes.0.alloc(JsxElem {
+            id: idx,
+            span,
+            opening_elem,
+            children,
+            closing_elem,
+        });
+        debug_assert_eq!(id, idx.0);
+        idx
+    }
+
+    pub fn alloc_jsx_frag(
+        &mut self,
+        span: Span,
+        opening_frag: JsxOpeningFragID,
+        children: Vec<JsxChild>,
+        closing_frag: JsxClosingFragID,
+    ) -> JsxFragID {
+        let idx = JsxFragID(usize_into_idx(self.jsx_frag_nodes.0.len()));
+        let id = self.jsx_frag_nodes.0.alloc(JsxFrag {
+            id: idx,
+            span,
+            opening_frag,
+            children,
+            closing_frag,
+        });
+        debug_assert_eq!(id, idx.0);
+        idx
+    }
+
+    pub fn alloc_jsx_opening_frag(&mut self, span: Span) -> JsxOpeningFragID {
+        let idx = JsxOpeningFragID(usize_into_idx(self.jsx_opening_frag_nodes.0.len()));
+        let id = self
+            .jsx_opening_frag_nodes
+            .0
+            .alloc(JsxOpeningFrag { id: idx, span });
+        debug_assert_eq!(id, idx.0);
+        idx
+    }
+
+    pub fn alloc_jsx_closing_frag(&mut self, span: Span) -> JsxClosingFragID {
+        let idx = JsxClosingFragID(usize_into_idx(self.jsx_closing_frag_nodes.0.len()));
+        let id = self
+            .jsx_closing_frag_nodes
+            .0
+            .alloc(JsxClosingFrag { id: idx, span });
+        debug_assert_eq!(id, idx.0);
+        idx
+    }
+
+    pub fn alloc_jsx_self_closing_elem(
+        &mut self,
+        span: Span,
+        tag_name: JsxTagName,
+        attrs: Vec<JsxAttr>,
+    ) -> JsxSelfClosingElemID {
+        let idx = JsxSelfClosingElemID(usize_into_idx(self.jsx_self_closing_elem_nodes.0.len()));
+        let id = self
+            .jsx_self_closing_elem_nodes
+            .0
+            .alloc(JsxSelfClosingElem {
+                id: idx,
+                span,
+                tag_name,
+                attrs,
+            });
+        debug_assert_eq!(id, idx.0);
+        idx
+    }
+
+    pub fn alloc_jsx_expr(
+        &mut self,
+        span: Span,
+        dotdotdot: Option<Span>,
+        expr: Option<Expr>,
+    ) -> JsxExprID {
+        let idx = JsxExprID(usize_into_idx(self.jsx_expr_nodes.0.len()));
+        let id = self.jsx_expr_nodes.0.alloc(JsxExpr {
+            id: idx,
+            span,
+            dotdotdot,
+            expr,
+        });
+        debug_assert_eq!(id, idx.0);
+        idx
+    }
+
+    pub fn alloc_jsx_text(
+        &mut self,
+        span: Span,
+        text: AtomId,
+        contains_only_trivia_whitespace: bool,
+    ) -> JsxTextID {
+        let idx = JsxTextID(usize_into_idx(self.jsx_text_nodes.0.len()));
+        let id = self.jsx_text_nodes.0.alloc(JsxText {
+            id: idx,
+            span,
+            text,
+            contains_only_trivia_whitespace,
+        });
+        debug_assert_eq!(id, idx.0);
+        idx
+    }
+
+    pub fn alloc_jsx_closing_elem(&mut self, span: Span, tag_name: JsxTagName) -> JsxClosingElemID {
+        let idx = JsxClosingElemID(usize_into_idx(self.jsx_closing_elem_nodes.0.len()));
+        let id = self.jsx_closing_elem_nodes.0.alloc(JsxClosingElem {
+            id: idx,
+            span,
+            tag_name,
+        });
+        debug_assert_eq!(id, idx.0);
+        idx
+    }
+
+    pub fn alloc_jsx_opening_elem(
+        &mut self,
+        span: Span,
+        tag_name: JsxTagName,
+        attrs: Vec<JsxAttr>,
+    ) -> JsxOpeningElemID {
+        let idx = JsxOpeningElemID(usize_into_idx(self.jsx_opening_elem_nodes.0.len()));
+        let id = self.jsx_opening_elem_nodes.0.alloc(JsxOpeningElem {
+            id: idx,
+            span,
+            tag_name,
+            attrs,
+        });
+        debug_assert_eq!(id, idx.0);
+        idx
+    }
+
+    pub fn alloc_jsx_named_attr(
+        &mut self,
+        span: Span,
+        name: JsxAttrName,
+        init: Option<JsxAttrValue>,
+    ) -> JsxNamedAttrID {
+        let idx = JsxNamedAttrID(usize_into_idx(self.jsx_named_attr_nodes.0.len()));
+        let id = self.jsx_named_attr_nodes.0.alloc(JsxNamedAttr {
+            id: idx,
+            span,
+            name,
+            init,
+        });
+        debug_assert_eq!(id, idx.0);
+        idx
+    }
+
+    pub fn alloc_jsx_spread_attr(&mut self, span: Span, expr: Expr) -> JsxSpreadAttrID {
+        let idx = JsxSpreadAttrID(usize_into_idx(self.jsx_spread_attr_nodes.0.len()));
+        let id = self.jsx_spread_attr_nodes.0.alloc(JsxSpreadAttr {
+            id: idx,
+            span,
+            expr,
+        });
+        debug_assert_eq!(id, idx.0);
+        idx
+    }
+
+    pub fn alloc_jsx_ns_name(&mut self, span: Span, ns: IdentID, name: IdentID) -> JsxNsNameID {
+        let idx = JsxNsNameID(usize_into_idx(self.jsx_ns_name_nodes.0.len()));
+        let id = self.jsx_ns_name_nodes.0.alloc(JsxNsName {
+            id: idx,
+            span,
+            ns,
+            name,
+        });
+        debug_assert_eq!(id, idx.0);
+        idx
+    }
+
     pub fn alloc_spread_element(&mut self, span: Span, expr: Expr) -> SpreadElementID {
         let idx = SpreadElementID(usize_into_idx(self.spread_element_nodes.0.len()));
         let id = self.spread_element_nodes.0.alloc(SpreadElement {
@@ -352,6 +545,7 @@ impl Nodes {
     pub fn alloc_fn_expr(
         &mut self,
         span: Span,
+        name: Option<IdentID>,
         params: Vec<ParamDeclID>,
         body: BlockStmtID,
     ) -> FnExprID {
@@ -359,6 +553,7 @@ impl Nodes {
         let id = self.fn_expr_nodes.0.alloc(FnExpr {
             id: idx,
             span,
+            name,
             params,
             body,
         });
@@ -1117,7 +1312,7 @@ impl Nodes {
         span: Span,
         init: Option<ForInit>,
         cond: Option<Expr>,
-        inc: Option<Expr>,
+        incr: Option<Expr>,
         body: Stmt,
     ) -> ForStmtID {
         let idx = ForStmtID(usize_into_idx(self.for_stmt_nodes.0.len()));
@@ -1126,7 +1321,7 @@ impl Nodes {
             span,
             init,
             cond,
-            inc,
+            incr,
             body,
         });
         debug_assert_eq!(id, idx.0);
@@ -1152,11 +1347,17 @@ impl Nodes {
         idx
     }
 
-    pub fn alloc_var_stmt(&mut self, span: Span, decls: Vec<VarDeclID>) -> VarStmtID {
+    pub fn alloc_var_stmt(
+        &mut self,
+        span: Span,
+        modifiers: Option<Modifiers>,
+        decls: Vec<VarDeclID>,
+    ) -> VarStmtID {
         let idx = VarStmtID(usize_into_idx(self.var_stmt_nodes.0.len()));
         let id = self.var_stmt_nodes.0.alloc(VarStmt {
             id: idx,
             span,
+            modifiers,
             decls,
         });
         debug_assert_eq!(id, idx.0);
@@ -1197,12 +1398,14 @@ impl Nodes {
         idx
     }
 
-    pub fn alloc_string_lit(&mut self, span: Span, val: AtomId) -> StringLitID {
+    pub fn alloc_string_lit(&mut self, span: Span, val: AtomId, is_template: bool) -> StringLitID {
         let idx = StringLitID(usize_into_idx(self.string_lit_nodes.0.len()));
-        let id = self
-            .string_lit_nodes
-            .0
-            .alloc(StringLit { id: idx, span, val });
+        let id = self.string_lit_nodes.0.alloc(StringLit {
+            id: idx,
+            span,
+            val,
+            is_template,
+        });
         debug_assert_eq!(id, idx.0);
         idx
     }
@@ -1355,6 +1558,275 @@ impl Nodes {
 }
 
 #[derive(Debug)]
+pub struct JsxExpr {
+    id: JsxExprID,
+    span: Span,
+    dotdotdot: Option<Span>,
+    expr: Option<Expr>,
+}
+
+impl JsxExpr {
+    pub fn span(&self) -> Span {
+        self.span
+    }
+
+    pub fn dotdotdot(&self) -> Option<Span> {
+        self.dotdotdot
+    }
+
+    pub fn expr(&self) -> Option<Expr> {
+        self.expr
+    }
+}
+
+#[derive(Debug)]
+pub struct JsxText {
+    id: JsxTextID,
+    span: Span,
+    text: AtomId,
+    contains_only_trivia_whitespace: bool,
+}
+
+impl JsxText {
+    pub fn span(&self) -> Span {
+        self.span
+    }
+
+    pub fn text(&self) -> AtomId {
+        self.text
+    }
+
+    pub fn contains_only_trivia_whitespace(&self) -> bool {
+        self.contains_only_trivia_whitespace
+    }
+}
+
+#[derive(Debug)]
+pub struct JsxSelfClosingElem {
+    id: JsxSelfClosingElemID,
+    span: Span,
+    tag_name: JsxTagName,
+    attrs: Vec<JsxAttr>,
+}
+
+impl JsxSelfClosingElem {
+    pub fn span(&self) -> Span {
+        self.span
+    }
+
+    pub fn tag_name(&self) -> JsxTagName {
+        self.tag_name
+    }
+
+    pub fn attrs(&self) -> &[JsxAttr] {
+        &self.attrs
+    }
+}
+
+#[derive(Debug)]
+pub struct JsxClosingFrag {
+    id: JsxClosingFragID,
+    span: Span,
+}
+
+#[derive(Debug)]
+pub struct JsxOpeningFrag {
+    id: JsxOpeningFragID,
+    span: Span,
+}
+
+#[derive(Debug)]
+pub struct JsxFrag {
+    id: JsxFragID,
+    span: Span,
+    opening_frag: JsxOpeningFragID,
+    children: Vec<JsxChild>,
+    closing_frag: JsxClosingFragID,
+}
+
+impl JsxFrag {
+    pub fn span(&self) -> Span {
+        self.span
+    }
+
+    pub fn children(&self) -> &[JsxChild] {
+        &self.children
+    }
+
+    pub fn opening_frag(&self) -> JsxOpeningFragID {
+        self.opening_frag
+    }
+
+    pub fn closing_frag(&self) -> JsxClosingFragID {
+        self.closing_frag
+    }
+}
+
+#[derive(Debug)]
+pub struct JsxNsName {
+    id: JsxNsNameID,
+    span: Span,
+    ns: IdentID,
+    name: IdentID,
+}
+
+impl JsxNsName {
+    pub fn span(&self) -> Span {
+        self.span
+    }
+
+    pub fn ns(&self) -> IdentID {
+        self.ns
+    }
+
+    pub fn name(&self) -> IdentID {
+        self.name
+    }
+}
+
+#[derive(Debug)]
+pub struct JsxNamedAttr {
+    id: JsxNamedAttrID,
+    span: Span,
+    name: JsxAttrName,
+    init: Option<JsxAttrValue>,
+}
+
+impl JsxNamedAttr {
+    pub fn span(&self) -> Span {
+        self.span
+    }
+
+    pub fn name(&self) -> JsxAttrName {
+        self.name
+    }
+
+    pub fn init(&self) -> Option<JsxAttrValue> {
+        self.init
+    }
+}
+
+#[derive(Debug, Clone, Copy)]
+pub enum JsxAttrValue {
+    StringLit(StringLitID),
+    Expr(JsxExprID),
+    Ele(JsxElemID),
+    SelfClosingEle(JsxSelfClosingElemID),
+    Frag(JsxFragID),
+}
+
+#[derive(Debug, Clone, Copy)]
+pub enum JsxAttrName {
+    Ident(IdentID),
+    Ns(JsxNsNameID),
+}
+
+#[derive(Debug)]
+pub struct JsxSpreadAttr {
+    id: JsxSpreadAttrID,
+    span: Span,
+    expr: Expr,
+}
+
+impl JsxSpreadAttr {
+    pub fn span(&self) -> Span {
+        self.span
+    }
+
+    pub fn expr(&self) -> Expr {
+        self.expr
+    }
+}
+
+#[derive(Debug, Clone, Copy)]
+pub enum JsxTagName {
+    Ident(IdentID),
+    This(ThisExprID),
+    Ns(JsxNsNameID),
+    PropAccess(PropAccessExprID),
+}
+
+#[derive(Debug, Clone, Copy)]
+pub enum JsxChild {
+    Text(JsxTextID),
+    Expr(JsxExprID),
+    Elem(JsxElemID),
+    SelfClosingEle(JsxSelfClosingElemID),
+    Frag(JsxFragID),
+}
+
+pub struct JsxClosingElem {
+    id: JsxClosingElemID,
+    span: Span,
+    tag_name: JsxTagName,
+}
+
+impl JsxClosingElem {
+    pub fn span(&self) -> Span {
+        self.span
+    }
+
+    pub fn tag_name(&self) -> JsxTagName {
+        self.tag_name
+    }
+}
+
+#[derive(Debug, Clone, Copy)]
+pub enum JsxAttr {
+    Spread(JsxSpreadAttrID),
+    Named(JsxNamedAttrID),
+}
+
+#[derive(Debug)]
+pub struct JsxOpeningElem {
+    id: JsxOpeningElemID,
+    span: Span,
+    tag_name: JsxTagName,
+    attrs: Vec<JsxAttr>,
+}
+
+impl JsxOpeningElem {
+    pub fn span(&self) -> Span {
+        self.span
+    }
+
+    pub fn tag_name(&self) -> JsxTagName {
+        self.tag_name
+    }
+
+    pub fn attrs(&self) -> &[JsxAttr] {
+        &self.attrs
+    }
+}
+
+#[derive(Debug)]
+pub struct JsxElem {
+    id: JsxElemID,
+    span: Span,
+    opening_elem: JsxOpeningElemID,
+    children: Vec<JsxChild>,
+    closing_elem: JsxClosingElemID,
+}
+
+impl JsxElem {
+    pub fn span(&self) -> Span {
+        self.span
+    }
+
+    pub fn children(&self) -> &[JsxChild] {
+        &self.children
+    }
+
+    pub fn opening_elem(&self) -> JsxOpeningElemID {
+        self.opening_elem
+    }
+
+    pub fn closing_elem(&self) -> JsxClosingElemID {
+        self.closing_elem
+    }
+}
+
+#[derive(Debug)]
 pub struct Program {
     span: Span,
     stmts: Vec<Stmt>,
@@ -1364,6 +1836,14 @@ impl Program {
     pub fn new(span: Span, stmts: Vec<Stmt>) -> Self {
         Self { span, stmts }
     }
+
+    pub fn span(&self) -> Span {
+        self.span
+    }
+
+    pub fn stmts(&self) -> &[Stmt] {
+        &self.stmts
+    }
 }
 
 #[derive(Debug)]
@@ -1371,6 +1851,16 @@ pub struct ComputedPropName {
     id: ComputedPropNameID,
     span: Span,
     expr: Expr,
+}
+
+impl ComputedPropName {
+    pub fn span(&self) -> Span {
+        self.span
+    }
+
+    pub fn expr(&self) -> Expr {
+        self.expr
+    }
 }
 
 #[derive(Debug)]
@@ -1386,11 +1876,31 @@ pub struct VoidExpr {
     expr: Expr,
 }
 
+impl VoidExpr {
+    pub fn span(&self) -> Span {
+        self.span
+    }
+
+    pub fn expr(&self) -> Expr {
+        self.expr
+    }
+}
+
 #[derive(Debug)]
 pub struct TypeofExpr {
     id: TypeofExprID,
     span: Span,
     expr: Expr,
+}
+
+impl TypeofExpr {
+    pub fn span(&self) -> Span {
+        self.span
+    }
+
+    pub fn expr(&self) -> Expr {
+        self.expr
+    }
 }
 
 #[derive(Debug)]
@@ -1407,6 +1917,20 @@ pub struct EleAccessExpr {
     arg: Expr,
 }
 
+impl EleAccessExpr {
+    pub fn span(&self) -> Span {
+        self.span
+    }
+
+    pub fn expr(&self) -> Expr {
+        self.expr
+    }
+
+    pub fn arg(&self) -> Expr {
+        self.arg
+    }
+}
+
 #[derive(Debug)]
 pub struct PropAccessExpr {
     id: PropAccessExprID,
@@ -1416,12 +1940,44 @@ pub struct PropAccessExpr {
     name: IdentID,
 }
 
+impl PropAccessExpr {
+    pub fn span(&self) -> Span {
+        self.span
+    }
+
+    pub fn expr(&self) -> Expr {
+        self.expr
+    }
+
+    pub fn question_dot(&self) -> Option<Span> {
+        self.question_dot
+    }
+
+    pub fn name(&self) -> IdentID {
+        self.name
+    }
+}
+
 #[derive(Debug)]
 pub struct PostfixUnaryExpr {
     id: PostfixUnaryExprID,
     span: Span,
-    op: ast::PostfixUnaryOp,
     expr: Expr,
+    op: ast::PostfixUnaryOp,
+}
+
+impl PostfixUnaryExpr {
+    pub fn span(&self) -> Span {
+        self.span
+    }
+
+    pub fn op(&self) -> ast::PostfixUnaryOp {
+        self.op
+    }
+
+    pub fn expr(&self) -> Expr {
+        self.expr
+    }
 }
 
 #[derive(Debug)]
@@ -1432,12 +1988,40 @@ pub struct PrefixUnaryExpr {
     expr: Expr,
 }
 
+impl PrefixUnaryExpr {
+    pub fn span(&self) -> Span {
+        self.span
+    }
+
+    pub fn op(&self) -> ast::PrefixUnaryOp {
+        self.op
+    }
+
+    pub fn expr(&self) -> Expr {
+        self.expr
+    }
+}
+
 #[derive(Debug)]
 pub struct TaggedTemplateExpr {
     id: TaggedTemplateExprID,
     span: Span,
     tag: Expr,
     tpl: Expr,
+}
+
+impl TaggedTemplateExpr {
+    pub fn span(&self) -> Span {
+        self.span
+    }
+
+    pub fn tag(&self) -> Expr {
+        self.tag
+    }
+
+    pub fn tpl(&self) -> Expr {
+        self.tpl
+    }
 }
 
 #[derive(Debug)]
@@ -1448,11 +2032,35 @@ pub struct TemplateExpr {
     spans: Vec<TemplateSpanID>,
 }
 
+impl TemplateExpr {
+    pub fn span(&self) -> Span {
+        self.span
+    }
+
+    pub fn head(&self) -> TemplateHeadID {
+        self.head
+    }
+
+    pub fn spans(&self) -> &[TemplateSpanID] {
+        &self.spans
+    }
+}
+
 #[derive(Debug)]
 pub struct TemplateHead {
     id: TemplateHeadID,
     span: Span,
     text: AtomId,
+}
+
+impl TemplateHead {
+    pub fn span(&self) -> Span {
+        self.span
+    }
+
+    pub fn text(&self) -> AtomId {
+        self.text
+    }
 }
 
 #[derive(Debug)]
@@ -1464,11 +2072,35 @@ pub struct TemplateSpan {
     is_tail: bool,
 }
 
+impl TemplateSpan {
+    pub fn span(&self) -> Span {
+        self.span
+    }
+
+    pub fn expr(&self) -> Expr {
+        self.expr
+    }
+
+    pub fn text(&self) -> AtomId {
+        self.text
+    }
+}
+
 #[derive(Debug)]
 pub struct SpreadElement {
     id: SpreadElementID,
     span: Span,
     expr: Expr,
+}
+
+impl SpreadElement {
+    pub fn span(&self) -> Span {
+        self.span
+    }
+
+    pub fn expr(&self) -> Expr {
+        self.expr
+    }
 }
 
 #[derive(Debug)]
@@ -1477,6 +2109,20 @@ pub struct ArrowFnExpr {
     span: Span,
     params: Vec<ParamDeclID>,
     body: ArrowFnExprBody,
+}
+
+impl ArrowFnExpr {
+    pub fn span(&self) -> Span {
+        self.span
+    }
+
+    pub fn params(&self) -> &[ParamDeclID] {
+        &self.params
+    }
+
+    pub fn body(&self) -> ArrowFnExprBody {
+        self.body
+    }
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -1494,12 +2140,44 @@ pub struct AssignExpr {
     right: Expr,
 }
 
+impl AssignExpr {
+    pub fn span(&self) -> Span {
+        self.span
+    }
+
+    pub fn left(&self) -> Expr {
+        self.left
+    }
+
+    pub fn op(&self) -> ast::AssignOp {
+        self.op
+    }
+
+    pub fn right(&self) -> Expr {
+        self.right
+    }
+}
+
 #[derive(Debug)]
 pub struct NewExpr {
     id: NewExprID,
     span: Span,
     expr: Expr,
     args: Vec<Expr>,
+}
+
+impl NewExpr {
+    pub fn span(&self) -> Span {
+        self.span
+    }
+
+    pub fn expr(&self) -> Expr {
+        self.expr
+    }
+
+    pub fn args(&self) -> &[Expr] {
+        &self.args
+    }
 }
 
 pub struct ClassExpr {
@@ -1510,12 +2188,49 @@ pub struct ClassExpr {
     elems: Vec<ClassElem>,
 }
 
+impl ClassExpr {
+    pub fn span(&self) -> Span {
+        self.span
+    }
+
+    pub fn name(&self) -> Option<IdentID> {
+        self.name
+    }
+
+    pub fn extends(&self) -> Option<ClassExtendsClauseID> {
+        self.extends
+    }
+
+    pub fn elems(&self) -> &[ClassElem] {
+        &self.elems
+    }
+}
+
 #[derive(Debug)]
 pub struct FnExpr {
     id: FnExprID,
     span: Span,
+    name: Option<IdentID>,
     params: Vec<ParamDeclID>,
     body: BlockStmtID,
+}
+
+impl FnExpr {
+    pub fn span(&self) -> Span {
+        self.span
+    }
+
+    pub fn name(&self) -> Option<IdentID> {
+        self.name
+    }
+
+    pub fn params(&self) -> &[ParamDeclID] {
+        &self.params
+    }
+
+    pub fn body(&self) -> BlockStmtID {
+        self.body
+    }
 }
 
 #[derive(Debug)]
@@ -1526,11 +2241,35 @@ pub struct CallExpr {
     args: Vec<Expr>,
 }
 
+impl CallExpr {
+    pub fn span(&self) -> Span {
+        self.span
+    }
+
+    pub fn callee(&self) -> Expr {
+        self.callee
+    }
+
+    pub fn args(&self) -> &[Expr] {
+        &self.args
+    }
+}
+
 #[derive(Debug)]
 pub struct SpreadAssignment {
     id: SpreadAssignmentID,
     span: Span,
     expr: Expr,
+}
+
+impl SpreadAssignment {
+    pub fn span(&self) -> Span {
+        self.span
+    }
+
+    pub fn expr(&self) -> Expr {
+        self.expr
+    }
 }
 
 #[derive(Debug)]
@@ -1542,6 +2281,24 @@ pub struct ObjectMethodMember {
     body: BlockStmtID,
 }
 
+impl ObjectMethodMember {
+    pub fn span(&self) -> Span {
+        self.span
+    }
+
+    pub fn name(&self) -> PropName {
+        self.name
+    }
+
+    pub fn params(&self) -> &[ParamDeclID] {
+        &self.params
+    }
+
+    pub fn body(&self) -> BlockStmtID {
+        self.body
+    }
+}
+
 #[derive(Debug)]
 pub struct ObjectPropMember {
     id: ObjectPropMemberID,
@@ -1550,11 +2307,35 @@ pub struct ObjectPropMember {
     init: Expr,
 }
 
+impl ObjectPropMember {
+    pub fn span(&self) -> Span {
+        self.span
+    }
+
+    pub fn name(&self) -> PropName {
+        self.name
+    }
+
+    pub fn init(&self) -> Expr {
+        self.init
+    }
+}
+
 #[derive(Debug)]
 pub struct ObjectShorthandMember {
     id: ObjectShorthandMemberID,
     span: Span,
     name: IdentID,
+}
+
+impl ObjectShorthandMember {
+    pub fn span(&self) -> Span {
+        self.span
+    }
+
+    pub fn name(&self) -> IdentID {
+        self.name
+    }
 }
 
 #[derive(Debug)]
@@ -1566,11 +2347,38 @@ pub struct CondExpr {
     when_false: Expr,
 }
 
+impl CondExpr {
+    pub fn span(&self) -> Span {
+        self.span
+    }
+
+    pub fn cond(&self) -> Expr {
+        self.cond
+    }
+
+    pub fn when_true(&self) -> Expr {
+        self.when_true
+    }
+
+    pub fn when_false(&self) -> Expr {
+        self.when_false
+    }
+}
+
 #[derive(Debug)]
 pub struct ArrayLit {
     id: ArrayLitID,
     span: Span,
     elems: Vec<Expr>,
+}
+
+impl ArrayLit {
+    pub fn span(&self) -> Span {
+        self.span
+    }
+    pub fn elems(&self) -> &[Expr] {
+        &self.elems
+    }
 }
 
 #[derive(Debug)]
@@ -1580,7 +2388,16 @@ pub struct ObjectLit {
     members: Vec<ObjectLitMember>,
 }
 
-#[derive(Debug)]
+impl ObjectLit {
+    pub fn span(&self) -> Span {
+        self.span
+    }
+    pub fn members(&self) -> &[ObjectLitMember] {
+        &self.members
+    }
+}
+
+#[derive(Debug, Clone, Copy)]
 pub enum ObjectLitMember {
     Method(ObjectMethodMemberID),
     Prop(ObjectPropMemberID),
@@ -1597,6 +2414,24 @@ pub struct BinExpr {
     right: Expr,
 }
 
+impl BinExpr {
+    pub fn span(&self) -> Span {
+        self.span
+    }
+
+    pub fn left(&self) -> Expr {
+        self.left
+    }
+
+    pub fn op(&self) -> ast::BinOp {
+        self.op
+    }
+
+    pub fn right(&self) -> Expr {
+        self.right
+    }
+}
+
 #[derive(Debug)]
 pub struct OmitExpr {
     id: OmitExprID,
@@ -1610,11 +2445,30 @@ pub struct ParenExpr {
     expr: Expr,
 }
 
+impl ParenExpr {
+    pub fn span(&self) -> Span {
+        self.span
+    }
+
+    pub fn expr(&self) -> Expr {
+        self.expr
+    }
+}
+
 #[derive(Debug)]
 pub struct ObjectPat {
     id: ObjectPatID,
     span: Span,
     elems: Vec<ObjectBindingElemID>,
+}
+
+impl ObjectPat {
+    pub fn span(&self) -> Span {
+        self.span
+    }
+    pub fn elems(&self) -> &[ObjectBindingElemID] {
+        &self.elems
+    }
 }
 
 #[derive(Debug)]
@@ -1624,6 +2478,21 @@ pub struct ObjectBindingElem {
     dotdotdot: Option<Span>,
     name: ObjectBindingName,
     init: Option<Expr>,
+}
+
+impl ObjectBindingElem {
+    pub fn span(&self) -> Span {
+        self.span
+    }
+    pub fn dotdotdot(&self) -> Option<Span> {
+        self.dotdotdot
+    }
+    pub fn name(&self) -> ObjectBindingName {
+        self.name
+    }
+    pub fn init(&self) -> Option<Expr> {
+        self.init
+    }
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -1638,12 +2507,28 @@ pub struct ArrayPat {
     span: Span,
     elems: Vec<ArrayBindingElemID>,
 }
+impl ArrayPat {
+    pub fn span(&self) -> Span {
+        self.span
+    }
+    pub fn elems(&self) -> &[ArrayBindingElemID] {
+        &self.elems
+    }
+}
 
 #[derive(Debug)]
 pub struct ArrayBindingElem {
     id: ArrayBindingElemID,
     span: Span,
     kind: ArrayBindingElemKind,
+}
+impl ArrayBindingElem {
+    pub fn span(&self) -> Span {
+        self.span
+    }
+    pub fn kind(&self) -> &ArrayBindingElemKind {
+        &self.kind
+    }
 }
 
 #[derive(Debug)]
@@ -1664,11 +2549,31 @@ pub struct LabeledStmt {
     body: Stmt,
 }
 
+impl LabeledStmt {
+    pub fn span(&self) -> Span {
+        self.span
+    }
+    pub fn label(&self) -> IdentID {
+        self.label
+    }
+    pub fn body(&self) -> Stmt {
+        self.body
+    }
+}
+
 #[derive(Debug)]
 pub struct ExprStmt {
     id: ExprStmtID,
     span: Span,
     expr: Expr,
+}
+impl ExprStmt {
+    pub fn span(&self) -> Span {
+        self.span
+    }
+    pub fn expr(&self) -> Expr {
+        self.expr
+    }
 }
 
 #[derive(Debug)]
@@ -1686,12 +2591,44 @@ pub struct TryStmt {
     finally_block: Option<BlockStmtID>,
 }
 
+impl TryStmt {
+    pub fn span(&self) -> Span {
+        self.span
+    }
+
+    pub fn try_block(&self) -> BlockStmtID {
+        self.try_block
+    }
+
+    pub fn catch_clause(&self) -> Option<CatchClauseID> {
+        self.catch_clause
+    }
+
+    pub fn finally_block(&self) -> Option<BlockStmtID> {
+        self.finally_block
+    }
+}
+
 #[derive(Debug)]
 pub struct CatchClause {
     id: CatchClauseID,
     span: Span,
     var: Option<VarDeclID>,
     block: BlockStmtID,
+}
+
+impl CatchClause {
+    pub fn span(&self) -> Span {
+        self.span
+    }
+
+    pub fn var(&self) -> Option<VarDeclID> {
+        self.var
+    }
+
+    pub fn block(&self) -> BlockStmtID {
+        self.block
+    }
 }
 
 #[derive(Debug)]
@@ -1701,11 +2638,31 @@ pub struct ContinueStmt {
     label: Option<IdentID>,
 }
 
+impl ContinueStmt {
+    pub fn span(&self) -> Span {
+        self.span
+    }
+
+    pub fn label(&self) -> Option<IdentID> {
+        self.label
+    }
+}
+
 #[derive(Debug)]
 pub struct BreakStmt {
     id: BreakStmtID,
     span: Span,
     label: Option<IdentID>,
+}
+
+impl BreakStmt {
+    pub fn span(&self) -> Span {
+        self.span
+    }
+
+    pub fn label(&self) -> Option<IdentID> {
+        self.label
+    }
 }
 
 #[derive(Debug)]
@@ -1716,12 +2673,40 @@ pub struct DoStmt {
     expr: Expr,
 }
 
+impl DoStmt {
+    pub fn span(&self) -> Span {
+        self.span
+    }
+
+    pub fn stmt(&self) -> Stmt {
+        self.stmt
+    }
+
+    pub fn expr(&self) -> Expr {
+        self.expr
+    }
+}
+
 #[derive(Debug)]
 pub struct WhileStmt {
     id: WhileStmtID,
     span: Span,
     expr: Expr,
     body: Stmt,
+}
+
+impl WhileStmt {
+    pub fn span(&self) -> Span {
+        self.span
+    }
+
+    pub fn expr(&self) -> Expr {
+        self.expr
+    }
+
+    pub fn body(&self) -> Stmt {
+        self.body
+    }
 }
 
 #[derive(Debug)]
@@ -1731,6 +2716,24 @@ pub struct ForInStmt {
     init: ForInit,
     expr: Expr,
     body: Stmt,
+}
+
+impl ForInStmt {
+    pub fn span(&self) -> Span {
+        self.span
+    }
+
+    pub fn init(&self) -> &ForInit {
+        &self.init
+    }
+
+    pub fn expr(&self) -> Expr {
+        self.expr
+    }
+
+    pub fn body(&self) -> Stmt {
+        self.body
+    }
 }
 
 #[derive(Debug)]
@@ -1743,14 +2746,58 @@ pub struct ForOfStmt {
     body: Stmt,
 }
 
+impl ForOfStmt {
+    pub fn span(&self) -> Span {
+        self.span
+    }
+
+    pub fn r#await(&self) -> Option<Span> {
+        self.r#await
+    }
+
+    pub fn init(&self) -> &ForInit {
+        &self.init
+    }
+
+    pub fn expr(&self) -> Expr {
+        self.expr
+    }
+
+    pub fn body(&self) -> Stmt {
+        self.body
+    }
+}
+
 #[derive(Debug)]
 pub struct ForStmt {
     id: ForStmtID,
     span: Span,
     init: Option<ForInit>,
     cond: Option<Expr>,
-    inc: Option<Expr>,
+    incr: Option<Expr>,
     body: Stmt,
+}
+
+impl ForStmt {
+    pub fn span(&self) -> Span {
+        self.span
+    }
+
+    pub fn init(&self) -> Option<&ForInit> {
+        self.init.as_ref()
+    }
+
+    pub fn cond(&self) -> Option<Expr> {
+        self.cond
+    }
+
+    pub fn incr(&self) -> Option<Expr> {
+        self.incr
+    }
+
+    pub fn body(&self) -> Stmt {
+        self.body
+    }
 }
 
 #[derive(Debug)]
@@ -1767,11 +2814,31 @@ pub struct ExportAssign {
     expr: Expr,
 }
 
+impl ExportAssign {
+    pub fn span(&self) -> Span {
+        self.span
+    }
+
+    pub fn expr(&self) -> Expr {
+        self.expr
+    }
+}
+
 #[derive(Debug)]
 pub struct ExportDecl {
     id: ExportDeclID,
     span: Span,
     clause: ExportClause,
+}
+
+impl ExportDecl {
+    pub fn span(&self) -> Span {
+        self.span
+    }
+
+    pub fn clause(&self) -> ExportClause {
+        self.clause
+    }
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -1789,12 +2856,40 @@ pub struct ImportDecl {
     module: StringLitID,
 }
 
+impl ImportDecl {
+    pub fn span(&self) -> Span {
+        self.span
+    }
+
+    pub fn clause(&self) -> ImportClauseID {
+        self.clause
+    }
+
+    pub fn module(&self) -> StringLitID {
+        self.module
+    }
+}
+
 #[derive(Debug)]
 pub struct ImportClause {
     id: ImportClauseID,
     span: Span,
     name: Option<IdentID>,
     kind: Option<ImportClauseKind>,
+}
+
+impl ImportClause {
+    pub fn span(&self) -> Span {
+        self.span
+    }
+
+    pub fn name(&self) -> Option<IdentID> {
+        self.name
+    }
+
+    pub fn kind(&self) -> Option<&ImportClauseKind> {
+        self.kind.as_ref()
+    }
 }
 
 #[derive(Debug)]
@@ -1817,6 +2912,20 @@ pub struct ImportNamedSpec {
     name: IdentID,
 }
 
+impl ImportNamedSpec {
+    pub fn span(&self) -> Span {
+        self.span
+    }
+
+    pub fn prop_name(&self) -> ModuleExportName {
+        self.prop_name
+    }
+
+    pub fn name(&self) -> IdentID {
+        self.name
+    }
+}
+
 #[derive(Debug)]
 pub struct ExportNamedSpec {
     id: ExportNamedSpecID,
@@ -1825,7 +2934,21 @@ pub struct ExportNamedSpec {
     name: ModuleExportName,
 }
 
-#[derive(Debug)]
+impl ExportNamedSpec {
+    pub fn span(&self) -> Span {
+        self.span
+    }
+
+    pub fn prop_name(&self) -> ModuleExportName {
+        self.prop_name
+    }
+
+    pub fn name(&self) -> ModuleExportName {
+        self.name
+    }
+}
+
+#[derive(Debug, Clone, Copy)]
 pub enum ExportSpec {
     Shorthand(ShorthandSpecID),
     Named(ExportNamedSpecID),
@@ -1839,11 +2962,35 @@ pub struct SpecsExport {
     module: Option<StringLitID>,
 }
 
+impl SpecsExport {
+    pub fn span(&self) -> Span {
+        self.span
+    }
+
+    pub fn list(&self) -> &[ExportSpec] {
+        &self.list
+    }
+
+    pub fn module(&self) -> Option<StringLitID> {
+        self.module
+    }
+}
+
 #[derive(Debug)]
 pub struct GlobExport {
     id: GlobExportID,
     span: Span,
     name: StringLitID,
+}
+
+impl GlobExport {
+    pub fn span(&self) -> Span {
+        self.span
+    }
+
+    pub fn name(&self) -> StringLitID {
+        self.name
+    }
 }
 
 #[derive(Debug)]
@@ -1854,11 +3001,35 @@ pub struct NsExport {
     module: StringLitID,
 }
 
+impl NsExport {
+    pub fn span(&self) -> Span {
+        self.span
+    }
+
+    pub fn name(&self) -> ModuleExportName {
+        self.name
+    }
+
+    pub fn module(&self) -> StringLitID {
+        self.module
+    }
+}
+
 #[derive(Debug)]
 pub struct NsImport {
     id: NsImportID,
     span: Span,
     name: IdentID,
+}
+
+impl NsImport {
+    pub fn span(&self) -> Span {
+        self.span
+    }
+
+    pub fn name(&self) -> IdentID {
+        self.name
+    }
 }
 
 #[derive(Debug)]
@@ -1868,12 +3039,36 @@ pub struct ShorthandSpec {
     name: IdentID,
 }
 
+impl ShorthandSpec {
+    pub fn span(&self) -> Span {
+        self.span
+    }
+
+    pub fn name(&self) -> IdentID {
+        self.name
+    }
+}
+
 #[derive(Debug)]
 pub struct EnumMember {
     id: EnumMemberID,
     span: Span,
     name: PropName,
     init: Option<Expr>,
+}
+
+impl EnumMember {
+    pub fn span(&self) -> Span {
+        self.span
+    }
+
+    pub fn name(&self) -> PropName {
+        self.name
+    }
+
+    pub fn init(&self) -> Option<Expr> {
+        self.init
+    }
 }
 
 #[derive(Debug)]
@@ -1885,11 +3080,38 @@ pub struct EnumDecl {
     members: Vec<EnumMemberID>,
 }
 
+impl EnumDecl {
+    pub fn span(&self) -> Span {
+        self.span
+    }
+
+    pub fn modifiers(&self) -> Option<&Modifiers> {
+        self.modifiers.as_ref()
+    }
+
+    pub fn name(&self) -> IdentID {
+        self.name
+    }
+
+    pub fn members(&self) -> &[EnumMemberID] {
+        &self.members
+    }
+}
+
 #[derive(Debug)]
 pub struct ThrowStmt {
     id: ThrowStmtID,
     span: Span,
     expr: Expr,
+}
+impl ThrowStmt {
+    pub fn span(&self) -> Span {
+        self.span
+    }
+
+    pub fn expr(&self) -> Expr {
+        self.expr
+    }
 }
 
 #[derive(Debug)]
@@ -1902,6 +3124,28 @@ pub struct SetterDecl {
     body: BlockStmtID,
 }
 
+impl SetterDecl {
+    pub fn span(&self) -> Span {
+        self.span
+    }
+
+    pub fn modifiers(&self) -> Option<&Modifiers> {
+        self.modifiers.as_ref()
+    }
+
+    pub fn name(&self) -> PropName {
+        self.name
+    }
+
+    pub fn params(&self) -> &[ParamDeclID] {
+        &self.params
+    }
+
+    pub fn body(&self) -> BlockStmtID {
+        self.body
+    }
+}
+
 #[derive(Debug)]
 pub struct GetterDecl {
     id: GetterDeclID,
@@ -1911,11 +3155,39 @@ pub struct GetterDecl {
     body: BlockStmtID,
 }
 
+impl GetterDecl {
+    pub fn span(&self) -> Span {
+        self.span
+    }
+
+    pub fn modifiers(&self) -> Option<&Modifiers> {
+        self.modifiers.as_ref()
+    }
+
+    pub fn name(&self) -> PropName {
+        self.name
+    }
+
+    pub fn body(&self) -> BlockStmtID {
+        self.body
+    }
+}
+
 #[derive(Debug)]
 pub struct ClassStaticBlock {
     id: ClassStaticBlockID,
     span: Span,
     body: BlockStmtID,
+}
+
+impl ClassStaticBlock {
+    pub fn span(&self) -> Span {
+        self.span
+    }
+
+    pub fn body(&self) -> BlockStmtID {
+        self.body
+    }
 }
 
 #[derive(Debug)]
@@ -1928,6 +3200,28 @@ pub struct ClassMethodElem {
     body: BlockStmtID,
 }
 
+impl ClassMethodElem {
+    pub fn span(&self) -> Span {
+        self.span
+    }
+
+    pub fn modifiers(&self) -> Option<&Modifiers> {
+        self.modifiers.as_ref()
+    }
+
+    pub fn name(&self) -> PropName {
+        self.name
+    }
+
+    pub fn params(&self) -> &[ParamDeclID] {
+        &self.params
+    }
+
+    pub fn body(&self) -> BlockStmtID {
+        self.body
+    }
+}
+
 #[derive(Debug)]
 pub struct ClassPropElem {
     id: ClassPropElemID,
@@ -1935,6 +3229,24 @@ pub struct ClassPropElem {
     modifiers: Option<Modifiers>,
     name: PropName,
     init: Option<Expr>,
+}
+
+impl ClassPropElem {
+    pub fn span(&self) -> Span {
+        self.span
+    }
+
+    pub fn modifiers(&self) -> Option<&Modifiers> {
+        self.modifiers.as_ref()
+    }
+
+    pub fn name(&self) -> PropName {
+        self.name
+    }
+
+    pub fn init(&self) -> Option<Expr> {
+        self.init
+    }
 }
 
 #[derive(Debug)]
@@ -1945,10 +3257,29 @@ pub struct ClassCtor {
     body: BlockStmtID,
 }
 
+impl ClassCtor {
+    pub fn span(&self) -> Span {
+        self.span
+    }
+
+    pub fn params(&self) -> &[ParamDeclID] {
+        &self.params
+    }
+
+    pub fn body(&self) -> BlockStmtID {
+        self.body
+    }
+}
+
 #[derive(Debug)]
 pub struct NullLit {
     id: NullLitID,
     span: Span,
+}
+impl NullLit {
+    pub fn span(&self) -> Span {
+        self.span
+    }
 }
 
 #[derive(Debug)]
@@ -1956,6 +3287,14 @@ pub struct NumLit {
     id: NumLitID,
     span: Span,
     val: f64,
+}
+impl NumLit {
+    pub fn span(&self) -> Span {
+        self.span
+    }
+    pub fn val(&self) -> f64 {
+        self.val
+    }
 }
 
 #[derive(Debug)]
@@ -1965,11 +3304,31 @@ pub struct BigIntLit {
     val: (bool, AtomId),
 }
 
+impl BigIntLit {
+    pub fn span(&self) -> Span {
+        self.span
+    }
+
+    pub fn val(&self) -> (bool, AtomId) {
+        self.val
+    }
+}
+
 #[derive(Debug)]
 pub struct BoolLit {
     id: BoolLitID,
     span: Span,
     val: bool,
+}
+
+impl BoolLit {
+    pub fn span(&self) -> Span {
+        self.span
+    }
+
+    pub fn val(&self) -> bool {
+        self.val
+    }
 }
 
 #[derive(Debug)]
@@ -1979,11 +3338,32 @@ pub struct RegExpLit {
     val: AtomId,
 }
 
+impl RegExpLit {
+    pub fn span(&self) -> Span {
+        self.span
+    }
+    pub fn val(&self) -> AtomId {
+        self.val
+    }
+}
+
 #[derive(Debug)]
 pub struct StringLit {
     id: StringLitID,
     span: Span,
     val: AtomId,
+    is_template: bool,
+}
+impl StringLit {
+    pub fn span(&self) -> Span {
+        self.span
+    }
+    pub fn val(&self) -> AtomId {
+        self.val
+    }
+    pub fn is_template(&self) -> bool {
+        self.is_template
+    }
 }
 
 #[derive(Debug)]
@@ -1995,10 +3375,38 @@ pub struct ModuleDecl {
     block: ModuleBlockID,
 }
 
+impl ModuleDecl {
+    pub fn span(&self) -> Span {
+        self.span
+    }
+
+    pub fn modifiers(&self) -> Option<&Modifiers> {
+        self.modifiers.as_ref()
+    }
+
+    pub fn name(&self) -> ModuleName {
+        self.name
+    }
+
+    pub fn block(&self) -> ModuleBlockID {
+        self.block
+    }
+}
+
 pub struct ModuleBlock {
     id: ModuleBlockID,
     span: Span,
     stmts: Vec<Stmt>,
+}
+
+impl ModuleBlock {
+    pub fn span(&self) -> Span {
+        self.span
+    }
+
+    pub fn stmts(&self) -> &[Stmt] {
+        &self.stmts
+    }
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -2013,18 +3421,41 @@ pub struct ClassExtendsClause {
     span: Span,
     expr: Expr,
 }
+impl ClassExtendsClause {
+    pub fn expr(&self) -> Expr {
+        self.expr
+    }
+}
 
 #[derive(Debug)]
 pub struct ClassDecl {
     id: ClassDeclID,
     span: Span,
     modifiers: Option<Modifiers>,
+    /// None means for `export default class {}`
     name: Option<IdentID>,
     extends: Option<ClassExtendsClauseID>,
     elems: Vec<ClassElem>,
 }
+impl ClassDecl {
+    pub fn name(&self) -> Option<IdentID> {
+        self.name
+    }
 
-#[derive(Debug)]
+    pub fn modifiers(&self) -> Option<&Modifiers> {
+        self.modifiers.as_ref()
+    }
+
+    pub fn extends(&self) -> Option<ClassExtendsClauseID> {
+        self.extends
+    }
+
+    pub fn elems(&self) -> &[ClassElem] {
+        &self.elems
+    }
+}
+
+#[derive(Debug, Clone, Copy)]
 pub enum ClassElem {
     PropElem(ClassPropElemID),
     MethodElem(ClassMethodElemID),
@@ -2040,6 +3471,11 @@ pub struct RetStmt {
     span: Span,
     expr: Option<Expr>,
 }
+impl RetStmt {
+    pub fn expr(&self) -> Option<Expr> {
+        self.expr
+    }
+}
 
 #[derive(Debug)]
 pub struct IfStmt {
@@ -2050,11 +3486,35 @@ pub struct IfStmt {
     else_then: Option<Stmt>,
 }
 
+impl IfStmt {
+    pub fn expr(&self) -> Expr {
+        self.expr
+    }
+
+    pub fn then(&self) -> Stmt {
+        self.then
+    }
+
+    pub fn else_then(&self) -> Option<Stmt> {
+        self.else_then
+    }
+}
+
 #[derive(Debug)]
 pub struct BlockStmt {
     id: BlockStmtID,
     span: Span,
     stmts: Vec<Stmt>,
+}
+
+impl BlockStmt {
+    pub fn span(&self) -> Span {
+        self.span
+    }
+
+    pub fn stmts(&self) -> &[Stmt] {
+        &self.stmts
+    }
 }
 
 #[derive(Debug)]
@@ -2065,6 +3525,27 @@ pub struct FnDecl {
     name: IdentID,
     params: Vec<ParamDeclID>,
     body: BlockStmtID,
+}
+impl FnDecl {
+    pub fn span(&self) -> Span {
+        self.span
+    }
+
+    pub fn modifiers(&self) -> Option<&Modifiers> {
+        self.modifiers.as_ref()
+    }
+
+    pub fn name(&self) -> IdentID {
+        self.name
+    }
+
+    pub fn params(&self) -> &[ParamDeclID] {
+        &self.params
+    }
+
+    pub fn body(&self) -> BlockStmtID {
+        self.body
+    }
 }
 
 #[derive(Debug)]
@@ -2106,11 +3587,52 @@ pub struct ParamDecl {
     init: Option<Expr>,
 }
 
+impl ParamDecl {
+    pub fn span(&self) -> Span {
+        self.span
+    }
+
+    pub fn modifiers(&self) -> Option<&Modifiers> {
+        self.modifiers.as_ref()
+    }
+
+    pub fn dotdotdot(&self) -> Option<Span> {
+        self.dotdotdot
+    }
+
+    pub fn name(&self) -> Binding {
+        self.name
+    }
+
+    pub fn question(&self) -> Option<Span> {
+        self.question
+    }
+
+    pub fn init(&self) -> Option<Expr> {
+        self.init
+    }
+}
+
 #[derive(Debug)]
 pub struct VarStmt {
     id: VarStmtID,
     span: Span,
+    modifiers: Option<Modifiers>,
     decls: Vec<VarDeclID>,
+}
+
+impl VarStmt {
+    pub fn span(&self) -> Span {
+        self.span
+    }
+
+    pub fn modifiers(&self) -> Option<&Modifiers> {
+        self.modifiers.as_ref()
+    }
+
+    pub fn decls(&self) -> &[VarDeclID] {
+        &self.decls
+    }
 }
 
 #[derive(Debug)]
@@ -2121,11 +3643,35 @@ pub struct VarDecl {
     init: Option<Expr>,
 }
 
+impl VarDecl {
+    pub fn span(&self) -> Span {
+        self.span
+    }
+
+    pub fn name(&self) -> Binding {
+        self.name
+    }
+
+    pub fn init(&self) -> Option<Expr> {
+        self.init
+    }
+}
+
 #[derive(Debug)]
 pub struct Ident {
     id: IdentID,
     span: Span,
     name: AtomId,
+}
+
+impl Ident {
+    pub fn span(&self) -> Span {
+        self.span
+    }
+
+    pub fn name(&self) -> AtomId {
+        self.name
+    }
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -2157,7 +3703,6 @@ pub enum Stmt {
 
 #[derive(Debug, Clone, Copy)]
 pub enum Expr {
-    Var(VarStmtID),
     Assign(AssignExprID),
     Bin(BinExprID),
     Omit(OmitExprID),
@@ -2181,13 +3726,16 @@ pub enum Expr {
     PrefixUnary(PrefixUnaryExprID),
     TaggedTemplate(TaggedTemplateExprID),
     Template(TemplateExprID),
-    Spread(SpreadElementID),
+    SpreadElem(SpreadElementID),
     ArrowFn(ArrowFnExprID),
     New(NewExprID),
     Class(ClassExprID),
     Fn(FnExprID),
     Call(CallExprID),
     Cond(CondExprID),
+    JsxElem(JsxElemID),
+    JsxSelfClosingElem(JsxSelfClosingElemID),
+    JsxFrag(JsxFragID),
 }
 
 #[derive(Debug, Clone, Copy)]

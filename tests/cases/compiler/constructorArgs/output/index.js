@@ -1,4 +1,3 @@
-
 class Super {
   constructor(value) {}
 }

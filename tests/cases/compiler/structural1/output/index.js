@@ -1,8 +1,6 @@
 var M = {};
 (function (M) {
 
-  
-  
   function f(i) {}
   M.f = f;
   

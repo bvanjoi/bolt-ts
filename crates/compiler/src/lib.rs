@@ -3,7 +3,6 @@ mod check;
 mod cli;
 mod diag;
 mod early_resolve;
-mod emit;
 mod graph;
 mod node_query;
 mod r#trait;
@@ -312,37 +311,44 @@ pub fn eval_from_with_fs<'cx>(
     }
 
     // ==== codegen ====
-    entries.par_iter().for_each(|item| {
-        let is_default_lib = module_arena.get_module(*item).is_default_lib();
-        if is_default_lib {
-            // default lib should not be emitted
-            return;
-        }
-        let root = p.root(*item);
-        bolt_ts_optimize::optimize(root);
-    });
-
-    let compiler_options = tsconfig.compiler_options();
     let output = entries
         .into_par_iter()
         .filter_map(|item| {
-            if module_arena.get_module(item).is_default_lib() {
+            let is_default_lib = module_arena.get_module(item).is_default_lib();
+            if is_default_lib {
+                // default lib should not be emitted
                 None
             } else {
-                let input = module_arena.get_content(item);
-                let resolve_result = &checker.binder.bind_results[item.as_usize()];
-                let mut emitter = emit::Emit::new(
+                let root = p.root(item);
+                Some((
                     item,
-                    checker.atoms,
-                    input,
-                    compiler_options,
-                    &p,
-                    resolve_result,
-                );
-                Some((item, emitter.emit_root(p.root(item))))
+                    bolt_ts_optimize::optimize_and_emit(checker.atoms, root),
+                ))
             }
         })
         .collect::<Vec<_>>();
+
+    let compiler_options = tsconfig.compiler_options();
+    // let output = entries
+    //     .into_par_iter()
+    //     .filter_map(|item| {
+    //         if module_arena.get_module(item).is_default_lib() {
+    //             None
+    //         } else {
+    //             let input = module_arena.get_content(item);
+    //             let resolve_result = &checker.binder.bind_results[item.as_usize()];
+    //             let mut emitter = emit::Emit::new(
+    //                 item,
+    //                 checker.atoms,
+    //                 input,
+    //                 compiler_options,
+    //                 &p,
+    //                 resolve_result,
+    //             );
+    //             Some((item, emitter.emit_root(p.root(item))))
+    //         }
+    //     })
+    //     .collect::<Vec<_>>();
 
     let diags = diags
         .into_iter()

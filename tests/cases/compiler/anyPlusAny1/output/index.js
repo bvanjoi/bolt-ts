@@ -1,3 +1,3 @@
 var x;
-x.name = "hello";
+x.name = 'hello';
 var z = x + x;

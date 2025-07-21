@@ -1,7 +1,5 @@
-
-
 function foo(foo) {
-  return ""
+  return ''
 }
 var a = foo();
-var b = foo("1");
+var b = foo('1');
