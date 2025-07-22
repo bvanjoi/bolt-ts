@@ -1,6 +1,9 @@
-use bolt_ts_ast::{self as ast};
+use std::ops::{BitAnd, BitOr, BitXor};
 
-use crate::ir;
+use bolt_ts_ast::{self as ast};
+use bolt_ts_span::{ModuleID, Span};
+
+use crate::{interpreter::js_double_to_int32, ir};
 
 struct LoweringCtx {
     nodes: ir::Nodes,
@@ -546,7 +549,16 @@ impl<'cx> LoweringCtx {
         self.nodes.alloc_ident(ident.span, ident.name)
     }
 
-    fn lower_bin_expr(&mut self, expr: &'cx ast::BinExpr<'cx>) -> ir::BinExprID {
+    fn lower_bin_expr(&mut self, expr: &'cx ast::BinExpr<'cx>) -> ir::Expr {
+        if let Some(lit) = shortcut_literal_binary_expression(self, expr.left, expr.right, expr.op)
+        {
+            ir::Expr::NumLit(lit)
+        } else {
+            ir::Expr::Bin(self.lower_bin_expr_pure(expr))
+        }
+    }
+
+    fn lower_bin_expr_pure(&mut self, expr: &'cx ast::BinExpr<'cx>) -> ir::BinExprID {
         let left = self.lower_expr(expr.left);
         let right = self.lower_expr(expr.right);
         self.nodes.alloc_bin_expr(expr.span, left, expr.op, right)
@@ -557,7 +569,7 @@ impl<'cx> LoweringCtx {
         match expr.kind {
             ExprKind::Ident(n) => ir::Expr::Ident(self.lower_ident(n)),
             ExprKind::Assign(n) => ir::Expr::Assign(self.lower_assign_expr(n)),
-            ExprKind::Bin(n) => ir::Expr::Bin(self.lower_bin_expr(n)),
+            ExprKind::Bin(n) => self.lower_bin_expr(n),
             ExprKind::This(n) => ir::Expr::This(self.nodes.alloc_this_expr(n.span)),
             ExprKind::BoolLit(n) => ir::Expr::BoolLit(self.nodes.alloc_bool_lit(n.span, n.val)),
             ExprKind::NumLit(n) => ir::Expr::NumLit(self.nodes.alloc_num_lit(n.span, n.val)),
@@ -853,11 +865,40 @@ impl<'cx> LoweringCtx {
 }
 
 fn shortcut_literal_binary_expression<'cx>(
+    ctx: &mut LoweringCtx,
     x: &'cx ast::Expr<'cx>,
     y: &'cx ast::Expr<'cx>,
     op: ast::BinOp,
-) {
-    if let ast::ExprKind::NumLit(x) = x.kind {
-        if let ast::ExprKind::NumLit(y) = y.kind {}
+) -> Option<ir::NumLitID> {
+    if let ast::ExprKind::NumLit(x) = x.kind
+        && let ast::ExprKind::NumLit(y) = y.kind
+    {
+        let span = || Span::new(x.span.lo(), y.span.hi(), ModuleID::TRANSIENT);
+        match op.kind {
+            ast::BinOpKind::Add => return Some(ctx.nodes.alloc_num_lit(span(), x.val + y.val)),
+            ast::BinOpKind::Sub => return Some(ctx.nodes.alloc_num_lit(span(), x.val - y.val)),
+            ast::BinOpKind::Mul => return Some(ctx.nodes.alloc_num_lit(span(), x.val * y.val)),
+            ast::BinOpKind::Div => return Some(ctx.nodes.alloc_num_lit(span(), x.val / y.val)),
+            ast::BinOpKind::Mod => return Some(ctx.nodes.alloc_num_lit(span(), x.val % y.val)),
+            ast::BinOpKind::BitOr => {
+                return Some(ctx.nodes.alloc_num_lit(
+                    span(),
+                    js_double_to_int32(x.val).bitor(js_double_to_int32(y.val)) as f64,
+                ));
+            }
+            ast::BinOpKind::BitAnd => {
+                return Some(ctx.nodes.alloc_num_lit(
+                    span(),
+                    js_double_to_int32(x.val).bitand(js_double_to_int32(y.val)) as f64,
+                ));
+            }
+            // ast::BinOpKind::BitXor => ctx.nodes.alloc_num_lit(
+            //     span(),
+            //     js_double_to_int32(x.val).bitxor(js_double_to_int32(y.val)) as f64,
+            // ),
+            _ => {}
+        }
     }
+
+    None
 }

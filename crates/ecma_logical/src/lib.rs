@@ -1,0 +1,5 @@
+/// `2^53 - 1`
+pub const JS_MAX_SAFE_INTEGER: i64 = 9007199254740991;
+pub const JS_MIN_SAFE_INTEGER: i64 = -9007199254740991;
+pub const JS_MIN_INT: i32 = 0x80000000_u32 as i32;
+pub const JS_MAX_INT: i32 = 0x7FFFFFFF;

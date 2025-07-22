@@ -2124,7 +2124,7 @@ impl<'cx> TyChecker<'cx> {
             Mul => self.undefined_ty,
             Div => self.number_ty,
             Mod => self.number_ty,
-            Pipe => {
+            BitOr => {
                 let left = self.check_non_null_type(left_ty, left);
                 let right = self.check_non_null_type(right_ty, right);
                 self.number_ty

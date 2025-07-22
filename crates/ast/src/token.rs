@@ -439,7 +439,7 @@ impl From<TokenKind> for super::BinOpKind {
         use super::BinOpKind::*;
         match value {
             TokenKind::Plus => Add,
-            TokenKind::Pipe => Pipe,
+            TokenKind::Pipe => BitOr,
             TokenKind::PipePipe => PipePipe,
             TokenKind::EqEq => EqEq,
             TokenKind::EqEqEq => EqEqEq,

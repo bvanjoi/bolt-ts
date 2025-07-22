@@ -187,6 +187,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "bolt_ts_ecma_logical"
+version = "0.1.0"
+
+[[package]]
 name = "bolt_ts_ecma_rules"
 version = "0.1.0"
 dependencies = [
@@ -236,6 +240,7 @@ dependencies = [
  "bolt_ts_ast",
  "bolt_ts_atom",
  "bolt_ts_config",
+ "bolt_ts_ecma_logical",
  "bolt_ts_span",
  "bolt_ts_utils",
  "enumflags2",
@@ -252,6 +257,7 @@ dependencies = [
  "bolt_ts_ast",
  "bolt_ts_atom",
  "bolt_ts_config",
+ "bolt_ts_ecma_logical",
  "bolt_ts_ecma_rules",
  "bolt_ts_errors",
  "bolt_ts_fs",

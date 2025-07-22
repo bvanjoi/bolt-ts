@@ -1,4 +1,5 @@
 mod emit;
+mod interpreter;
 mod ir;
 mod lowering;
 
