@@ -634,16 +634,30 @@ impl ParserState<'_, '_> {
                 }
                 b'*' => {
                     if self.next_ch() == Some(b'*') {
-                        // **
-                        self.pos += 2;
-                        todo!()
+                        if self.next_next_ch() == Some(b'=') {
+                            // **=
+                            self.pos += 3;
+                            Token::new(
+                                TokenKind::AsteriskAsteriskEq,
+                                Span::new(start as u32, self.pos as u32, self.module_id),
+                            )
+                        } else {
+                            // **
+                            self.pos += 2;
+                            Token::new(
+                                TokenKind::AsteriskAsterisk,
+                                Span::new(start as u32, self.pos as u32, self.module_id),
+                            )
+                        }
                     } else if self.next_ch() == Some(b'=') {
+                        // *=
                         self.pos += 2;
                         Token::new(
                             TokenKind::AsteriskEq,
                             Span::new(start as u32, self.pos as u32, self.module_id),
                         )
                     } else {
+                        // *
                         self.pos += 1;
                         Token::new(
                             TokenKind::Asterisk,

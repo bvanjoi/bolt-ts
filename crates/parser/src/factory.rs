@@ -322,6 +322,29 @@ impl<'cx> ParserState<'cx, '_> {
         node
     }
 
+    pub fn create_class_ctor(
+        &mut self,
+        start: u32,
+        ty_params: Option<ast::TyParams<'cx>>,
+        params: ast::ParamsDecl<'cx>,
+        ret: Option<&'cx ast::Ty<'cx>>,
+        body: Option<&'cx ast::BlockStmt<'cx>>,
+    ) -> &'cx ast::ClassCtor<'cx> {
+        let id = self.next_node_id();
+        let span = self.new_span(start as u32);
+        let ctor = self.alloc(ast::ClassCtor {
+            id,
+            span,
+            ty_params,
+            params,
+            ret,
+            body,
+        });
+        self.nodes.insert(id, ast::Node::ClassCtor(ctor));
+        self.node_flags_map.insert(id, self.context_flags);
+        ctor
+    }
+
     pub fn create_class_prop_elem(
         &mut self,
         start: u32,

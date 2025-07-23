@@ -156,6 +156,13 @@ pub fn eval_from_with_fs<'cx>(
     let entries = entries_with_read_file
         .into_iter()
         .filter_map(|(content, atom, p, is_default_lib)| {
+            if is_default_lib && p.file_name().unwrap() == "test.d.ts" {
+                let content = content.unwrap();
+                let computed_atom = atom.unwrap();
+                let atom = fs.add_file(&p, content, Some(computed_atom), &mut atoms);
+                assert_eq!(computed_atom, atom);
+                return Some(module_arena.new_module_with_content(p, is_default_lib, atom, &atoms));
+            }
             if is_default_lib && p.file_name().unwrap() != default_lib_filename {
                 return None;
             }
@@ -307,7 +314,11 @@ pub fn eval_from_with_fs<'cx>(
         if p.get(*item).is_external_or_commonjs_module() {
             checker.check_external_module_exports(root);
         }
-        assert!(!is_default_lib || prev == checker.diags.len());
+        assert!(
+            !is_default_lib || prev == checker.diags.len(),
+            "default lib({:#?}) has error",
+            module_arena.get_path(*item)
+        );
     }
 
     // ==== codegen ====
@@ -328,35 +339,13 @@ pub fn eval_from_with_fs<'cx>(
         })
         .collect::<Vec<_>>();
 
-    let compiler_options = tsconfig.compiler_options();
-    // let output = entries
-    //     .into_par_iter()
-    //     .filter_map(|item| {
-    //         if module_arena.get_module(item).is_default_lib() {
-    //             None
-    //         } else {
-    //             let input = module_arena.get_content(item);
-    //             let resolve_result = &checker.binder.bind_results[item.as_usize()];
-    //             let mut emitter = emit::Emit::new(
-    //                 item,
-    //                 checker.atoms,
-    //                 input,
-    //                 compiler_options,
-    //                 &p,
-    //                 resolve_result,
-    //             );
-    //             Some((item, emitter.emit_root(p.root(item))))
-    //         }
-    //     })
-    //     .collect::<Vec<_>>();
-
     let diags = diags
         .into_iter()
         .chain(std::mem::take(&mut checker.diags))
         .collect::<Vec<_>>();
     let diags = diag::get_merged_diags(diags, &p, &module_arena);
 
-    if cfg!(test) {
+    debug_assert!({
         // each module should be created once
         let paths = module_arena
             .modules()
@@ -368,8 +357,8 @@ pub fn eval_from_with_fs<'cx>(
             })
             .collect::<Vec<_>>();
         let set = paths.iter().collect::<std::collections::HashSet<_>>();
-        assert_eq!(paths.len(), set.len());
-    }
+        paths.len() == set.len()
+    });
 
     let types_len = checker.tys.len();
     drop(checker);

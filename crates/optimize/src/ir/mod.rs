@@ -1,6 +1,7 @@
 use bolt_ts_arena::la_arena;
-use bolt_ts_ast::{self as ast};
+use bolt_ts_ast::{self as ast, keyword};
 use bolt_ts_atom::AtomId;
+use bolt_ts_ecma_logical::js_double_to_boolean;
 use bolt_ts_span::Span;
 
 macro_rules! nodes {
@@ -3757,4 +3758,17 @@ pub enum PropName {
 pub enum ModuleExportName {
     Ident(IdentID),
     StringLit(StringLitID),
+}
+
+impl Nodes {
+    pub fn expr_as_literal_to_boolean(&self, expr: Expr) -> Option<bool> {
+        match expr {
+            Expr::BoolLit(n) => Some(self.get_bool_lit(&n).val),
+            Expr::NumLit(n) => Some(js_double_to_boolean(self.get_num_lit(&n).val())),
+            Expr::StringLit(n) => Some(self.get_string_lit(&n).val() != keyword::IDENT_EMPTY),
+            Expr::NullLit(_) => Some(false),
+            // TODO: bigint and undefined
+            _ => None,
+        }
+    }
 }

@@ -140,6 +140,8 @@ pub enum TokenKind {
     MinusMinus,
     /// `**`
     AsteriskAsterisk,
+    /// `**=`
+    AsteriskAsteriskEq,
     /// `*=`
     AsteriskEq,
     /// `/=`
@@ -463,6 +465,8 @@ impl From<TokenKind> for super::BinOpKind {
             TokenKind::Satisfies => Satisfies,
             TokenKind::BangEq => NEq,
             TokenKind::BangEqEq => NEqEq,
+            TokenKind::Caret => BitXor,
+            TokenKind::AsteriskAsterisk => Exp,
             TokenKind::Comma => Comma,
             _ => {
                 unreachable!("{:#?}", value)
@@ -561,6 +565,8 @@ impl TokenKind {
         use TokenKind::*;
         match self {
             Pipe => BinPrec::BitwiseOR,
+            Caret => BinPrec::BitwiseXOR,
+            Amp => BinPrec::BitwiseAND,
             Less | Great | LessEq | GreatEq | Instanceof | In | As | Satisfies => {
                 BinPrec::Relational
             }
@@ -570,6 +576,7 @@ impl TokenKind {
             AmpAmp => BinPrec::LogicalAnd,
             BangEq | BangEqEq | EqEq | EqEqEq => BinPrec::Eq,
             Asterisk | Slash | Percent => BinPrec::Multiplicative,
+            AsteriskAsterisk => BinPrec::Exponentiation,
             _ => BinPrec::Invalid,
         }
     }
@@ -727,6 +734,10 @@ pub enum BinPrec {
     LogicalAnd,
     /// `|`
     BitwiseOR,
+    /// `^`
+    BitwiseXOR,
+    /// `&`
+    BitwiseAND,
     /// `==`, `===`
     Eq,
     /// `<=`, `>=`, `<`, `>`
@@ -737,6 +748,8 @@ pub enum BinPrec {
     Additive,
     /// `*`, `/`, `%`   
     Multiplicative,
+    // `**`
+    Exponentiation,
     Highest,
 }
 

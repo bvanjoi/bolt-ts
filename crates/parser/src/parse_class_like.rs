@@ -352,17 +352,9 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
                 this.p().check_params(params, true);
                 let ret = this.p().parse_ret_ty(true)?;
                 let body = this.p().parse_fn_block()?;
-                let id = this.p().next_node_id();
-                let span = this.p().new_span(start as u32);
-                let ctor = this.p().alloc(ast::ClassCtor {
-                    id,
-                    span,
-                    ty_params,
-                    params,
-                    ret,
-                    body,
-                });
-                this.p().nodes.insert(id, ast::Node::ClassCtor(ctor));
+                let ctor = this
+                    .p()
+                    .create_class_ctor(start as u32, ty_params, params, ret, body);
                 let ele = this.p().alloc(ast::ClassElem {
                     kind: ast::ClassElemKind::Ctor(ctor),
                 });

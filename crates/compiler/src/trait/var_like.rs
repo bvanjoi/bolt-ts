@@ -11,6 +11,7 @@ pub enum VarLikeName<'cx> {
         raw: &'cx ast::StringLit,
         key: bolt_ts_atom::AtomId,
     },
+    Computed(&'cx ast::ComputedPropName<'cx>),
 }
 
 impl<'cx> From<&ast::PropName<'cx>> for VarLikeName<'cx> {
@@ -19,7 +20,7 @@ impl<'cx> From<&ast::PropName<'cx>> for VarLikeName<'cx> {
             ast::PropNameKind::Ident(ident) => VarLikeName::Ident(ident),
             ast::PropNameKind::NumLit(num) => VarLikeName::NumLit(num),
             ast::PropNameKind::StringLit { raw, key } => VarLikeName::StringLit { raw, key },
-            ast::PropNameKind::Computed(_) => todo!(),
+            ast::PropNameKind::Computed(computed) => VarLikeName::Computed(computed),
         }
     }
 }

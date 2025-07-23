@@ -1,4 +1,5 @@
 use bolt_ts_atom::AtomId;
+use bolt_ts_ecma_logical::js_double_to_boolean;
 
 use super::*;
 
@@ -275,6 +276,17 @@ impl<'cx> ExprKind<'cx> {
             ExprKind::As(_) => true,
             // TODO: type assertion expression, is jsdoc type assertion
             _ => false,
+        }
+    }
+
+    pub fn as_literal_to_boolean(&self) -> Option<bool> {
+        match self {
+            ExprKind::BoolLit(lit) => Some(lit.val),
+            ExprKind::NumLit(lit) => Some(js_double_to_boolean(lit.val)),
+            ExprKind::StringLit(lit) => Some(lit.val != keyword::IDENT_EMPTY),
+            ExprKind::NullLit(_) => Some(false),
+            // TODO: bigint and undefined
+            _ => None,
         }
     }
 }
@@ -582,7 +594,6 @@ pub enum BinOpKind {
     Sub,
     Mul,
     Div,
-    BitOr,
     Mod,
     PipePipe,
     Less,
@@ -592,7 +603,9 @@ pub enum BinOpKind {
     GreatEq,
     Shr,
     UShr,
+    BitOr,
     BitAnd,
+    BitXor,
     LogicalAnd,
     EqEq,
     EqEqEq,
@@ -601,6 +614,7 @@ pub enum BinOpKind {
     Instanceof,
     In,
     Satisfies,
+    Exp,
     Comma,
 }
 
@@ -631,7 +645,9 @@ impl BinOpKind {
             Satisfies => "satisfies",
             NEq => "!=",
             NEqEq => "!==",
+            BitXor => "^",
             Comma => ",",
+            Exp => "**",
         }
     }
 

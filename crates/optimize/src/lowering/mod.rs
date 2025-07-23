@@ -1,9 +1,10 @@
-use std::ops::{BitAnd, BitOr, BitXor};
+use std::ops::{BitAnd, BitOr, BitXor, Shl, Shr};
 
-use bolt_ts_ast::{self as ast};
+use bolt_ts_ast::{self as ast, keyword};
+use bolt_ts_ecma_logical::js_double_to_int32;
 use bolt_ts_span::{ModuleID, Span};
 
-use crate::{interpreter::js_double_to_int32, ir};
+use crate::ir;
 
 struct LoweringCtx {
     nodes: ir::Nodes,
@@ -348,7 +349,14 @@ impl<'cx> LoweringCtx {
     fn lower_param_decls(&mut self, params: ast::ParamsDecl<'cx>) -> Vec<ir::ParamDeclID> {
         params
             .iter()
-            .map(|param| self.lower_param_decl(param))
+            .enumerate()
+            .filter_map(|(idx, param)| {
+                if idx == 0 && matches!(param.name.kind, ast::BindingKind::Ident(ident) if ident.name == keyword::KW_THIS) {
+                    None
+                } else {
+                    Some(self.lower_param_decl(param))
+                }
+            })
             .collect()
     }
 
@@ -550,18 +558,13 @@ impl<'cx> LoweringCtx {
     }
 
     fn lower_bin_expr(&mut self, expr: &'cx ast::BinExpr<'cx>) -> ir::Expr {
-        if let Some(lit) = shortcut_literal_binary_expression(self, expr.left, expr.right, expr.op)
-        {
-            ir::Expr::NumLit(lit)
-        } else {
-            ir::Expr::Bin(self.lower_bin_expr_pure(expr))
-        }
-    }
-
-    fn lower_bin_expr_pure(&mut self, expr: &'cx ast::BinExpr<'cx>) -> ir::BinExprID {
         let left = self.lower_expr(expr.left);
         let right = self.lower_expr(expr.right);
-        self.nodes.alloc_bin_expr(expr.span, left, expr.op, right)
+        if let Some(lit) = shortcut_literal_binary_expression(self, left, right, expr.op) {
+            ir::Expr::NumLit(lit)
+        } else {
+            ir::Expr::Bin(self.nodes.alloc_bin_expr(expr.span, left, expr.op, right))
+        }
     }
 
     fn lower_expr(&mut self, expr: &'cx ast::Expr<'cx>) -> ir::Expr {
@@ -681,10 +684,7 @@ impl<'cx> LoweringCtx {
                 };
                 ir::Expr::ArrowFn(self.nodes.alloc_arrow_fn_expr(n.span, params, body))
             }
-            ExprKind::PrefixUnary(n) => {
-                let expr = self.lower_expr(n.expr);
-                ir::Expr::PrefixUnary(self.nodes.alloc_prefix_unary_expr(n.span, n.op, expr))
-            }
+            ExprKind::PrefixUnary(n) => self.lower_prefix_unary_expr(n),
             ExprKind::PostfixUnary(n) => {
                 let expr = self.lower_expr(n.expr);
                 ir::Expr::PostfixUnary(self.nodes.alloc_postfix_unary_expr(n.span, n.op, expr))
@@ -731,6 +731,33 @@ impl<'cx> LoweringCtx {
             }
             ExprKind::JsxFrag(n) => ir::Expr::JsxFrag(self.lower_jsx_frag(n)),
         }
+    }
+
+    fn lower_prefix_unary_expr(&mut self, n: &'cx ast::PrefixUnaryExpr<'cx>) -> ir::Expr {
+        let expr = self.lower_expr(n.expr);
+
+        if matches!(n.op, ast::PrefixUnaryOp::Excl)
+            && let Some(boolean) = self.nodes.expr_as_literal_to_boolean(expr)
+        {
+            return ir::Expr::BoolLit(self.nodes.alloc_bool_lit(n.span, !boolean));
+        } else if let ir::Expr::NumLit(lit) = expr {
+            match n.op {
+                ast::PrefixUnaryOp::Plus => return expr,
+                ast::PrefixUnaryOp::Minus => {
+                    let lit = self.nodes.get_num_lit(&lit);
+                    return ir::Expr::NumLit(self.nodes.alloc_num_lit(n.span, -lit.val()));
+                }
+                ast::PrefixUnaryOp::Tilde => {
+                    let lit = self.nodes.get_num_lit(&lit);
+                    let int = js_double_to_int32(lit.val());
+                    let val = !int as f64;
+                    return ir::Expr::NumLit(self.nodes.alloc_num_lit(n.span, val));
+                }
+                _ => {}
+            }
+        }
+
+        ir::Expr::PrefixUnary(self.nodes.alloc_prefix_unary_expr(n.span, n.op, expr))
     }
 
     fn lower_jsx_frag(&mut self, n: &'cx ast::JsxFrag<'cx>) -> ir::JsxFragID {
@@ -864,39 +891,61 @@ impl<'cx> LoweringCtx {
     }
 }
 
-fn shortcut_literal_binary_expression<'cx>(
+fn shortcut_literal_binary_expression(
     ctx: &mut LoweringCtx,
-    x: &'cx ast::Expr<'cx>,
-    y: &'cx ast::Expr<'cx>,
+    x: ir::Expr,
+    y: ir::Expr,
     op: ast::BinOp,
 ) -> Option<ir::NumLitID> {
-    if let ast::ExprKind::NumLit(x) = x.kind
-        && let ast::ExprKind::NumLit(y) = y.kind
+    if let ir::Expr::NumLit(x) = x
+        && let ir::Expr::NumLit(y) = y
     {
-        let span = || Span::new(x.span.lo(), y.span.hi(), ModuleID::TRANSIENT);
+        let x = ctx.nodes.get_num_lit(&x);
+        let y = ctx.nodes.get_num_lit(&y);
+        let span = || Span::new(x.span().lo(), y.span().hi(), ModuleID::TRANSIENT);
         match op.kind {
-            ast::BinOpKind::Add => return Some(ctx.nodes.alloc_num_lit(span(), x.val + y.val)),
-            ast::BinOpKind::Sub => return Some(ctx.nodes.alloc_num_lit(span(), x.val - y.val)),
-            ast::BinOpKind::Mul => return Some(ctx.nodes.alloc_num_lit(span(), x.val * y.val)),
-            ast::BinOpKind::Div => return Some(ctx.nodes.alloc_num_lit(span(), x.val / y.val)),
-            ast::BinOpKind::Mod => return Some(ctx.nodes.alloc_num_lit(span(), x.val % y.val)),
+            ast::BinOpKind::Add => return Some(ctx.nodes.alloc_num_lit(span(), x.val() + y.val())),
+            ast::BinOpKind::Sub => return Some(ctx.nodes.alloc_num_lit(span(), x.val() - y.val())),
+            ast::BinOpKind::Mul => return Some(ctx.nodes.alloc_num_lit(span(), x.val() * y.val())),
+            ast::BinOpKind::Div => return Some(ctx.nodes.alloc_num_lit(span(), x.val() / y.val())),
+            ast::BinOpKind::Mod => return Some(ctx.nodes.alloc_num_lit(span(), x.val() % y.val())),
             ast::BinOpKind::BitOr => {
-                return Some(ctx.nodes.alloc_num_lit(
-                    span(),
-                    js_double_to_int32(x.val).bitor(js_double_to_int32(y.val)) as f64,
-                ));
+                let l = js_double_to_int32(x.val());
+                let r = js_double_to_int32(y.val());
+                return Some(ctx.nodes.alloc_num_lit(span(), l.bitor(r) as f64));
             }
             ast::BinOpKind::BitAnd => {
-                return Some(ctx.nodes.alloc_num_lit(
-                    span(),
-                    js_double_to_int32(x.val).bitand(js_double_to_int32(y.val)) as f64,
-                ));
+                let l = js_double_to_int32(x.val());
+                let r = js_double_to_int32(y.val());
+                return Some(ctx.nodes.alloc_num_lit(span(), l.bitand(r) as f64));
             }
-            // ast::BinOpKind::BitXor => ctx.nodes.alloc_num_lit(
-            //     span(),
-            //     js_double_to_int32(x.val).bitxor(js_double_to_int32(y.val)) as f64,
-            // ),
-            _ => {}
+            ast::BinOpKind::BitXor => {
+                let l = js_double_to_int32(x.val());
+                let r = js_double_to_int32(y.val());
+                return Some(ctx.nodes.alloc_num_lit(span(), l.bitxor(r) as f64));
+            }
+            ast::BinOpKind::Shl => {
+                let l = js_double_to_int32(x.val());
+                let r = js_double_to_int32(y.val());
+                return Some(ctx.nodes.alloc_num_lit(span(), l.shl(r) as f64));
+            }
+            ast::BinOpKind::Shr => {
+                let l = js_double_to_int32(x.val());
+                let r = js_double_to_int32(y.val());
+                return Some(ctx.nodes.alloc_num_lit(span(), l.shr(r) as f64));
+            }
+            ast::BinOpKind::UShr => {
+                let l = js_double_to_int32(x.val());
+                let r = js_double_to_int32(y.val());
+                return Some(
+                    ctx.nodes
+                        .alloc_num_lit(span(), l.wrapping_shr(r as u32) as f64),
+                );
+            }
+            ast::BinOpKind::Exp => {
+                return Some(ctx.nodes.alloc_num_lit(span(), x.val().powf(y.val())));
+            }
+            _ => (),
         }
     }
 

@@ -5,6 +5,7 @@ edition = "2024"
 
 [dependencies]
 bitflags = { workspace = true }
+bolt_ts_ecma_logical = { path = "../ecma_logical" }
 bolt_ts_atom = { path = "../../helper/atom" }
 bolt_ts_span = { path = "../../helper/span" }
 bolt_ts_utils = { path = "../../helper/utils" }
