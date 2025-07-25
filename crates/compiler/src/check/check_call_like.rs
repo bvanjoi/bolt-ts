@@ -553,7 +553,7 @@ impl<'cx> TyChecker<'cx> {
     fn choose_overload(
         &mut self,
         expr: &impl CallLikeExpr<'cx>,
-        candidates: Sigs<'cx>,
+        candidates: &[&'cx Sig<'cx>],
         relation: RelationKind,
         is_single_non_generic_candidate: bool,
         mut argument_check_mode: CheckMode,
@@ -679,6 +679,16 @@ impl<'cx> TyChecker<'cx> {
 
         let mut candidates_for_arg_error = no_hashset_with_capacity(candidates.len());
 
+        // TODO: cache
+        let mut candidates = candidates.to_vec();
+        candidates.sort_by_key(|sig| {
+            if sig.has_literal_tys() {
+                std::cmp::Ordering::Less
+            } else {
+                std::cmp::Ordering::Greater
+            }
+        });
+
         let args = expr.args();
 
         let is_single = candidates.len() == 1;
@@ -698,7 +708,7 @@ impl<'cx> TyChecker<'cx> {
         if candidates.len() > 1 {
             res = self.choose_overload(
                 expr,
-                candidates,
+                &candidates,
                 RelationKind::Subtype,
                 is_single_non_generic_candidate,
                 argument_check_mode,
@@ -709,7 +719,7 @@ impl<'cx> TyChecker<'cx> {
         if res.is_none() {
             res = self.choose_overload(
                 expr,
-                candidates,
+                &candidates,
                 RelationKind::Assignable,
                 is_single_non_generic_candidate,
                 argument_check_mode,
@@ -728,9 +738,9 @@ impl<'cx> TyChecker<'cx> {
         }
 
         let (best_match_idx, candidate) =
-            self.get_candidate_for_overload_failure(expr, candidates, args);
+            self.get_candidate_for_overload_failure(expr, &candidates, args);
 
-        for sig in candidates {
+        for sig in &candidates {
             if sig.min_args_count < min_required_params {
                 min_required_params = sig.min_args_count;
             }
@@ -850,7 +860,7 @@ impl<'cx> TyChecker<'cx> {
                 .cloned()
                 .collect::<thin_vec::ThinVec<_>>();
             if sigs_with_correct_ty_arg_arity.is_empty() {
-                self.get_ty_arg_arity_error(expr, candidates, expr.ty_args());
+                self.get_ty_arg_arity_error(expr, &candidates, expr.ty_args());
             } else {
                 self.get_arg_arity_error(expr, &sigs_with_correct_ty_arg_arity, args);
             }
@@ -946,7 +956,7 @@ impl<'cx> TyChecker<'cx> {
     fn get_candidate_for_overload_failure(
         &mut self,
         expr: &impl CallLikeExpr<'cx>,
-        candidates: Sigs<'cx>,
+        candidates: &[&'cx Sig<'cx>],
         args: ast::Exprs<'cx>,
     ) -> (usize, &'cx ty::Sig<'cx>) {
         assert!(!candidates.is_empty());
@@ -994,7 +1004,7 @@ impl<'cx> TyChecker<'cx> {
 
     fn create_union_of_sigs_for_overload_failure(
         &mut self,
-        candidates: Sigs<'cx>,
+        candidates: &[&'cx Sig<'cx>],
     ) -> &'cx ty::Sig<'cx> {
         let this_params = candidates
             .iter()
@@ -1092,7 +1102,11 @@ impl<'cx> TyChecker<'cx> {
         })
     }
 
-    fn get_longest_candidate_index(&mut self, candidates: Sigs<'cx>, args_count: usize) -> usize {
+    fn get_longest_candidate_index(
+        &mut self,
+        candidates: &[&'cx Sig<'cx>],
+        args_count: usize,
+    ) -> usize {
         let mut max_params_index = usize::MAX;
         let mut max_params = usize::MAX;
 
@@ -1138,7 +1152,7 @@ impl<'cx> TyChecker<'cx> {
     fn pick_longest_candidate_sig(
         &mut self,
         expr: &impl CallLikeExpr<'cx>,
-        candidates: Sigs<'cx>,
+        candidates: &[&'cx Sig<'cx>],
         args: ast::Exprs<'cx>,
     ) -> (usize, &'cx Sig<'cx>) {
         let best_index = self.get_longest_candidate_index(candidates, args.len());

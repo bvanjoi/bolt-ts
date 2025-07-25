@@ -285,7 +285,7 @@ impl<'cx> LoweringCtx {
     }
 
     fn lower_setter_decl(&mut self, n: &'cx ast::SetterDecl<'cx>) -> Option<ir::SetterDeclID> {
-        let Some(body) = n.body else { return None };
+        let body = n.body?;
         let modifiers = n.modifiers.as_ref().map(|ms| self.lower_modifiers(ms));
         let name = self.lower_prop_name(n.name);
         let params = self.lower_param_decls(n.params);
@@ -297,7 +297,7 @@ impl<'cx> LoweringCtx {
     }
 
     fn lower_getter_decl(&mut self, n: &'cx ast::GetterDecl<'cx>) -> Option<ir::GetterDeclID> {
-        let Some(body) = n.body else { return None };
+        let body = n.body?;
         let modifiers = n.modifiers.as_ref().map(|ms| self.lower_modifiers(ms));
         let name = self.lower_prop_name(n.name);
         let body = self.lower_block_stmt(body);
@@ -308,7 +308,7 @@ impl<'cx> LoweringCtx {
         &mut self,
         n: &'cx ast::ClassMethodElem<'cx>,
     ) -> Option<ir::ClassMethodElemID> {
-        let Some(body) = n.body else { return None };
+        let body = n.body?;
         let modifiers = n.modifiers.as_ref().map(|ms| self.lower_modifiers(ms));
         let name = self.lower_prop_name(n.name);
         let params = self.lower_param_decls(n.params);
@@ -328,14 +328,14 @@ impl<'cx> LoweringCtx {
     }
 
     fn lower_class_ctor(&mut self, n: &'cx ast::ClassCtor<'cx>) -> Option<ir::ClassCtorID> {
-        let Some(body) = n.body else { return None };
+        let body = n.body?;
         let params = self.lower_param_decls(n.params);
         let body = self.lower_block_stmt(body);
         Some(self.nodes.alloc_class_ctor(n.span, params, body))
     }
 
     fn lower_fn_stmt(&mut self, n: &'cx ast::FnDecl<'cx>) -> Option<ir::FnDeclID> {
-        let Some(body) = n.body else { return None };
+        let body = n.body?;
         let modifiers = n.modifiers.as_ref().map(|ms| self.lower_modifiers(ms));
         let name = self.lower_ident(n.name);
         let params = self.lower_param_decls(n.params);

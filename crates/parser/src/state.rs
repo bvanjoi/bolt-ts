@@ -2,15 +2,14 @@ use bolt_ts_ast::{self as ast, Node, NodeFlags, NodeID, keyword};
 use bolt_ts_ast::{Token, TokenFlags, TokenKind};
 use bolt_ts_atom::{AtomId, AtomMap};
 use bolt_ts_span::{ModuleID, Span};
-use bolt_ts_utils::no_hashmap_with_capacity;
 use bolt_ts_utils::path::NormalizePath;
 
 use std::sync::{Arc, Mutex};
 
+use super::PResult;
 use super::parsing_ctx::ParsingContext;
 use super::utils::is_declaration_filename;
 use super::{CommentDirective, FileReference, NodeFlagsMap, Nodes, TokenValue};
-use super::PResult;
 use super::{PragmaMap, errors};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -102,7 +101,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
             is_declaration,
             in_ambient_module: false,
             lib_reference_directives: Vec::with_capacity(8),
-            pragmas: PragmaMap(no_hashmap_with_capacity(8)),
+            pragmas: PragmaMap::default(),
             has_no_default_lib: false,
             variant,
             parsing_context: ParsingContext::default(),
@@ -116,6 +115,20 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
     pub(super) fn next_node_id(&mut self) -> NodeID {
         let idx = self.nodes.0.len();
         NodeID::new(self.module_id, idx as u32)
+    }
+
+    pub(super) fn current_node_id(&self) -> NodeID {
+        NodeID::new(self.module_id, self.nodes.0.len() as u32)
+    }
+
+    pub(super) fn reset_node_id(&mut self, to: NodeID) {
+        debug_assert!(to.module() == self.module_id);
+        debug_assert!(to.index_as_usize() <= self.nodes.0.len());
+        let to = to.index_as_usize();
+        for i in to..self.nodes.0.len() {
+            self.node_flags_map.0.remove(&(i as u32));
+        }
+        self.nodes.0.truncate(to);
     }
 
     #[inline]

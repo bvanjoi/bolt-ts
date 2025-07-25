@@ -220,12 +220,12 @@ impl<'atoms, FS: CachedFileSystem> Resolver<'atoms, FS> {
                     let s = unsafe { String::from_utf8_unchecked(bytes.to_vec()) };
                     std::borrow::Cow::Owned(s)
                 });
-            let mut node_modules_at_types_exists = node_module_folder_exists;
-            if node_modules_at_types_exists
-                && !self.fs.lock().unwrap().dir_exists(&node_modules_at_types)
-            {
-                node_modules_at_types_exists = false
-            }
+            // let mut node_modules_at_types_exists = node_module_folder_exists;
+            // if node_modules_at_types_exists
+            //     && !self.fs.lock().unwrap().dir_exists(&node_modules_at_types)
+            // {
+            //     node_modules_at_types_exists = false
+            // }
             // TODO:
             // self.load_module_from_spec_node_modules_dir(
             //     Extensions::Declaration,
@@ -382,7 +382,7 @@ impl<'atoms, FS: CachedFileSystem> Resolver<'atoms, FS> {
         candidate: &mut PathBuf,
         ext: Extensions,
         origin_extension: &str,
-        only_record_failures: bool,
+        _only_record_failures: bool,
     ) -> RResult<PathId> {
         match origin_extension {
             "ts" | "dts" | "js" | "" => {

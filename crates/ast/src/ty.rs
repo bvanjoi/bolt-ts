@@ -157,6 +157,12 @@ pub enum TyKind<'cx> {
     This(&'cx ThisTy),
 }
 
+impl TyKind<'_> {
+    pub fn is_lit(&self) -> bool {
+        matches!(self, TyKind::Lit(_))
+    }
+}
+
 #[derive(Debug, Clone, Copy)]
 pub struct ThisTy {
     pub id: NodeID,

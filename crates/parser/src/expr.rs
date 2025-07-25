@@ -122,7 +122,7 @@ impl<'cx> ParserState<'cx, '_> {
 
         self.check_params(params, false);
 
-        let has_ret_colon = self.token.kind == TokenKind::Colon;
+        // let has_ret_colon = self.token.kind == TokenKind::Colon;
         let ty = self.parse_ret_ty(true)?;
         if !allow_ambiguity
             && self.token.kind != TokenKind::EqGreat

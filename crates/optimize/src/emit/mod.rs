@@ -536,7 +536,7 @@ impl<'ir> Emitter<'_, 'ir> {
             |this, elem| {
                 this.emit_class_elem(*elem);
             },
-            |this, elem| {
+            |this, _| {
                 this.content.p_newline();
             },
         );
@@ -1548,7 +1548,7 @@ impl<'ir> Emitter<'_, 'ir> {
             |this, elem| {
                 this.emit_class_elem(*elem);
             },
-            |this, elem| {
+            |this, _| {
                 this.content.p_newline();
             },
         );

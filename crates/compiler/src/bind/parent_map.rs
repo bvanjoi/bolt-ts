@@ -37,8 +37,13 @@ impl ParentMap {
     pub(super) fn finish(&mut self) {
         assert!(!self.finished);
         assert_eq!(self.inner[self.inner.len() - 1], Self::PLACEHOLDER);
-        // TODO: enable this? How can we eliminate these invalid nodes?
-        // debug_assert!(self.inner.iter().skip(1).all(|&p| p != Self::PLACEHOLDER));
+        // debug_assert!(
+        //     self.inner
+        //         .iter()
+        //         .rev()
+        //         .skip(1)
+        //         .all(|&p| p != Self::PLACEHOLDER)
+        // );
         self.finished = true;
     }
 }

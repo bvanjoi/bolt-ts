@@ -9,7 +9,7 @@ impl Double {
     pub(super) const SIGNIFICAND_SIZE: u64 = 53;
 
     pub(super) const EXP_BIAS: i32 = 1023 + Self::PHYSICAL_SIGNIFICAND_SIZE as i32;
-    pub(super) const DENORMAL_EXP: i32 = -1 * Self::EXP_BIAS + 1;
+    pub(super) const DENORMAL_EXP: i32 = -Self::EXP_BIAS + 1;
 
     pub(super) const fn from_f64(value: f64) -> Self {
         Double(value.to_bits())

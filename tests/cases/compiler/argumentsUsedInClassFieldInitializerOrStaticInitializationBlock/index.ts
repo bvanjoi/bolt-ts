@@ -1,5 +1,7 @@
 // From `github.com/microsoft/TypeScript/blob/v5.8.2/tests/cases/compiler/argumentsUsedInClassFieldInitializerOrStaticInitializationBlock.ts`, Apache-2.0 License
 
+//@compiler-options: target=es6
+
 function A() {
   return class T {
      a = arguments //~ERROR: 'arguments' cannot be referenced in property initializers.

@@ -19,8 +19,8 @@ pub struct PackageJsonInfoContents {
 enum Field {
     Types,
     Typings,
-    Main,
-    TsConfig,
+    // Main,
+    // TsConfig,
 }
 
 bolt_ts_utils::index!(PackageJsonInfoId);
@@ -48,8 +48,8 @@ impl<FS: super::CachedFileSystem> super::Resolver<'_, FS> {
         let filename = match filed {
             Field::Types => p.types.as_ref(),
             Field::Typings => p.typings.as_ref(),
-            Field::Main => todo!(),
-            Field::TsConfig => todo!(),
+            // Field::Main => todo!(),
+            // Field::TsConfig => todo!(),
         }?;
         let filename = filename.trim();
         if filename.is_empty() {

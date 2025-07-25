@@ -163,9 +163,9 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         match token {
             TokenKind::EOF => {
                 if let Some(opening_tag_name) = opening_tag_name {
-                    // todo!("error handle")
+                    todo!("error handle")
                 } else {
-                    // todo!("error handle")
+                    todo!("error handle")
                 }
                 Ok(None)
             }

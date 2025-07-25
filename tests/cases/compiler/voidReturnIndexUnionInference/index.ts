@@ -1,5 +1,7 @@
 // From `github.com/microsoft/TypeScript/blob/v5.8.2/tests/cases/compiler/voidReturnIndexUnionInference.ts`, Apache-2.0 License
 
+//@compiler-options: strict
+
 export function safeInvoke<A1, R>(
   func: ((arg1: A1) => R) | null | undefined,
   arg1: A1

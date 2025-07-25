@@ -191,38 +191,38 @@ pub fn parse_parallel<'cx, 'p>(
     list: &'p [ModuleID],
     module_arena: &'p ModuleArena,
     default_lib_dir: &'p std::path::Path,
-) -> impl Iterator<Item = (ModuleID, ParseResult<'cx>)> {
-    // list.into_par_iter().map_init(
-    //     || herd.get(),
-    //     move |bump, module_id| {
-    //         let input = module_arena.get_content(*module_id);
-    //         let p = parse(
-    //             atoms.clone(),
-    //             bump,
-    //             input.as_bytes(),
-    //             *module_id,
-    //             module_arena,
-    //             default_lib_dir,
-    //         );
-    //         assert!(!module_arena.get_module(*module_id).is_default_lib() || p.diags.is_empty());
-    //         (*module_id, p)
-    //     },
-    // )
+) -> impl ParallelIterator<Item = (ModuleID, ParseResult<'cx>)> {
+    list.into_par_iter().map_init(
+        || herd.get(),
+        move |bump, module_id| {
+            let input = module_arena.get_content(*module_id);
+            let p = parse(
+                atoms.clone(),
+                bump,
+                input.as_bytes(),
+                *module_id,
+                module_arena,
+                default_lib_dir,
+            );
+            assert!(!module_arena.get_module(*module_id).is_default_lib() || p.diags.is_empty());
+            (*module_id, p)
+        },
+    )
 
-    list.iter().map(move |module_id| {
-        let bump = herd.get();
-        let input = module_arena.get_content(*module_id);
-        let result = parse(
-            atoms.clone(),
-            &bump,
-            input.as_bytes(),
-            *module_id,
-            module_arena,
-            default_lib_dir,
-        );
-        assert!(!module_arena.get_module(*module_id).is_default_lib() || result.diags.is_empty());
-        (*module_id, result)
-    })
+    // list.iter().map(move |module_id| {
+    //     let bump = herd.get();
+    //     let input = module_arena.get_content(*module_id);
+    //     let result = parse(
+    //         atoms.clone(),
+    //         &bump,
+    //         input.as_bytes(),
+    //         *module_id,
+    //         module_arena,
+    //         default_lib_dir,
+    //     );
+    //     assert!(!module_arena.get_module(*module_id).is_default_lib() || result.diags.is_empty());
+    //     (*module_id, result)
+    // })
 }
 
 pub fn parse<'cx, 'p>(

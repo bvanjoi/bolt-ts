@@ -47,8 +47,20 @@ impl TestConfig {
         if let Some(opt) = self.parse_name_value_directive(ln, directives::COMPILER_OPTIONS) {
             for pair in opt.split_whitespace() {
                 if let Some((key, value)) = pair.split_once("=") {
+                    let key = key.to_string();
+                    if value == "true" {
+                        self.compiler_options
+                            .insert(key, serde_json::Value::Bool(true));
+                    } else if value == "false" {
+                        self.compiler_options
+                            .insert(key, serde_json::Value::Bool(false));
+                    } else {
+                        self.compiler_options
+                            .insert(key, serde_json::Value::String(value.to_string()));
+                    }
+                } else if pair.as_bytes().iter().all(|c| c.is_ascii_alphanumeric()) {
                     self.compiler_options
-                        .insert(key.to_string(), value.to_string());
+                        .insert(pair.to_string(), serde_json::Value::Bool(true));
                 }
             }
         }
@@ -266,4 +278,16 @@ fn test_config_update_compiler_options() {
     assert_eq!(config.compiler_options["a1"], "b1");
     assert_eq!(config.compiler_options["a2"], "b2");
     assert_eq!(config.compiler_options["a3"], "b3");
+
+    config.update_compiler_options("compiler-options: a4=true a5=false");
+    assert_eq!(config.compiler_options.len(), 5);
+    assert_eq!(config.compiler_options["a4"], true);
+    assert_eq!(config.compiler_options["a5"], false);
+
+    config.update_compiler_options("compiler-options: a6");
+    assert_eq!(config.compiler_options.len(), 6);
+    assert_eq!(config.compiler_options["a6"], true);
+
+    config.update_compiler_options("compiler-options: a7.");
+    assert_eq!(config.compiler_options.len(), 6);
 }

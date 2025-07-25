@@ -1,5 +1,5 @@
 use bolt_ts_compiler::output_files;
-use bolt_ts_config::{NormalizedTsConfig, RawTsConfig};
+use bolt_ts_config::{NormalizedTsConfig, RawCompilerOptions, RawTsConfig};
 use bolt_ts_errors::miette::Severity;
 use bolt_ts_utils::path::NormalizePath;
 use compile_test::run_tests::run;
@@ -43,26 +43,21 @@ fn eval_in_test(root: PathBuf, tsconfig: &NormalizedTsConfig) -> bolt_ts_compile
 fn run_test(entry: &std::path::Path, try_run_node: bool) {
     const DEFAULT_OUTPUT: &str = "output";
 
-    let runner = |case: &std::path::Path| {
-        let file_name = case.file_name().unwrap().to_str().unwrap();
-        let dir = case.parent().unwrap();
-        let tsconfig_file = dir.join(bolt_ts_compiler::DEFAULT_TSCONFIG);
-        let tsconfig = if tsconfig_file.is_file() {
-            let s = std::fs::read_to_string(tsconfig_file).unwrap();
-            serde_json::from_str(&s).unwrap()
-        } else {
-            RawTsConfig::default()
-        };
-        let tsconfig = if file_name == "index.ts" {
-            tsconfig.with_include_if_none(vec!["index.ts".to_string()])
-        } else {
-            assert_eq!(file_name, "index.tsx");
-            tsconfig.with_include_if_none(vec!["index.tsx".to_string()])
-        }
-        .config_compiler_options(|c| {
-            c.with_no_emit(true)
-                .with_out_dir(DEFAULT_OUTPUT.to_string())
-        });
+    run(entry, |test_ctx| {
+        let file_name = test_ctx.test_file().file_name().unwrap().to_str().unwrap();
+        let dir = test_ctx.test_file().parent().unwrap();
+
+        let compiler_options: RawCompilerOptions =
+            serde_json::from_value(test_ctx.compiler_options().clone().into()).unwrap();
+
+        debug_assert!(file_name == "index.ts" || file_name == "index.tsx");
+        let tsconfig = RawTsConfig::default()
+            .with_compiler_options(compiler_options)
+            .with_include_if_none(vec![file_name.to_string()])
+            .config_compiler_options(|c| {
+                c.with_no_emit(true)
+                    .with_out_dir(DEFAULT_OUTPUT.to_string())
+            });
 
         let cwd = dir.normalize();
         let tsconfig = tsconfig.normalize();
@@ -149,9 +144,7 @@ fn run_test(entry: &std::path::Path, try_run_node: bool) {
             expect_test::expect_file![output_err_path].assert_eq(&err_msg);
             Err(errors)
         }
-    };
-
-    run(entry, runner);
+    });
 }
 
 #[dir_test::dir_test(

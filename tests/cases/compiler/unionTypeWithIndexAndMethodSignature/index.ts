@@ -1,5 +1,7 @@
 // From `github.com/microsoft/TypeScript/blob/v5.8.2/tests/cases/compiler/unionTypeWithIndexAndMethodSignature.ts`, Apache-2.0 License
 
+//@compiler-options: strict
+
 interface Options {
   m(x: number): void;
   [key: string]: unknown;

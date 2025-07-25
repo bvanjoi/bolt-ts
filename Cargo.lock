@@ -491,6 +491,7 @@ name = "compile-test"
 version = "0.1.0"
 dependencies = [
  "regex",
+ "serde_json",
  "tempdir",
 ]
 

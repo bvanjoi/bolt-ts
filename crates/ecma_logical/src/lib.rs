@@ -19,7 +19,7 @@ pub const fn js_double_to_int32(f: f64) -> i32 {
 
     let d = Double::from_f64(f);
     let exp = d.exp();
-    const BOUND: i32 = -1 * Double::SIGNIFICAND_SIZE as i32;
+    const BOUND: i32 = -(Double::SIGNIFICAND_SIZE as i32);
     if exp <= BOUND || exp > 31 {
         return 0;
     }
@@ -30,7 +30,7 @@ pub const fn js_double_to_int32(f: f64) -> i32 {
         (d.significand() << exp) & 0xFFFF_FFFF
     } as i64;
 
-    (d.sign() * bits as i64) as i32
+    (d.sign() * bits) as i32
 }
 
 /// reference: [ToBoolean](https://tc39.es/ecma262/#sec-toboolean)

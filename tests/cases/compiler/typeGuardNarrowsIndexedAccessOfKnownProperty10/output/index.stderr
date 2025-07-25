@@ -1,12 +1,12 @@
   × Block-scoped variable 'id' used before its declaration.
-   ╭─[../../tests/cases/compiler/typeGuardNarrowsIndexedAccessOfKnownProperty10/index.ts:7:6]
- 7 │ id
+   ╭─[../../tests/cases/compiler/typeGuardNarrowsIndexedAccessOfKnownProperty10/index.ts:9:6]
+ 9 │ id
    · ──
    ╰────
 
 Advice: 
   ☞ Block-scoped variable 'id' is defined here
-   ╭─[../../tests/cases/compiler/typeGuardNarrowsIndexedAccessOfKnownProperty10/index.ts:9:8]
- 9 │ id = foo.bar
-   · ────────────
-   ╰────
+    ╭─[../../tests/cases/compiler/typeGuardNarrowsIndexedAccessOfKnownProperty10/index.ts:11:8]
+ 11 │ id = foo.bar
+    · ────────────
+    ╰────

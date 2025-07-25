@@ -1,4 +1,3 @@
-use std::collections::HashMap;
 use std::fmt;
 use std::str::FromStr;
 
@@ -57,5 +56,5 @@ pub enum FailMode {
 
 #[derive(Default)]
 pub struct TestConfig {
-    pub(super) compiler_options: HashMap<String, String>,
+    pub(super) compiler_options: serde_json::Map<String, serde_json::Value>,
 }

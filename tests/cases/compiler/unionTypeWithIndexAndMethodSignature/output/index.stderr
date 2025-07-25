@@ -1,12 +1,12 @@
   × Argument of type 'string' is not assignable to parameter of type 'number |
   │ Options'.
-    ╭─[../../tests/cases/compiler/unionTypeWithIndexAndMethodSignature/index.ts:20:3]
- 20 │ '42'
+    ╭─[../../tests/cases/compiler/unionTypeWithIndexAndMethodSignature/index.ts:22:3]
+ 22 │ '42'
     · ────
     ╰────
 
   × Type 'number' is not assignable to type 'string'.
-    ╭─[../../tests/cases/compiler/unionTypeWithIndexAndMethodSignature/index.ts:14:9]
- 14 │ a
+    ╭─[../../tests/cases/compiler/unionTypeWithIndexAndMethodSignature/index.ts:16:9]
+ 16 │ a
     · ─
     ╰────

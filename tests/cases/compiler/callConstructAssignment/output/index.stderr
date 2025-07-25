@@ -1,0 +1,11 @@
+  × Type 'new () => any' is not assignable to type '() => void'.
+   ╭─[../../tests/cases/compiler/callConstructAssignment/index.ts:7:7]
+ 7 │ bar
+   · ───
+   ╰────
+
+  × Type '() => void' is not assignable to type 'new () => any'.
+   ╭─[../../tests/cases/compiler/callConstructAssignment/index.ts:9:7]
+ 9 │ foo
+   · ───
+   ╰────
