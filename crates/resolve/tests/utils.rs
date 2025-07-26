@@ -10,9 +10,9 @@ fn build_and_resolve(
     target: &str,
 ) -> Result<String, ResolveError> {
     let input = serde_json::from_value(map).unwrap();
-    let mut atoms = bolt_ts_atom::AtomMap::new(1024);
+    let mut atoms = bolt_ts_atom::AtomMap::prefill(&[]);
     let base_dir = PathId::new(std::path::Path::new(base_dir), &mut atoms);
-    let target = atoms.insert_by_str(target.into());
+    let target = atoms.atom(target);
 
     let fs = bolt_ts_fs::MemoryFS::new(input, &mut atoms).unwrap();
 

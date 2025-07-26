@@ -86,7 +86,7 @@ impl Binder {
 struct BinderState<'cx, 'atoms, 'parser> {
     p: &'parser mut ParseResult<'cx>,
     parent_map: ParentMap,
-    atoms: &'atoms AtomMap<'cx>,
+    atoms: &'atoms AtomMap,
     diags: Vec<bolt_ts_errors::Diag>,
     symbols: Symbols,
     // TODO: use `NodeId::index` is enough
@@ -163,7 +163,7 @@ impl<'cx, 'p> BinderNodeQuery<'cx, 'p> {
 
 impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
     fn new(
-        atoms: &'atoms AtomMap<'cx>,
+        atoms: &'atoms AtomMap,
         parser: &'parser mut ParseResult<'cx>,
         module_id: ModuleID,
         options: &NormalizedTsConfig,
@@ -255,7 +255,7 @@ impl<'cx> BinderResult<'cx> {
 
 pub fn bind_parallel<'cx>(
     modules: &[Module],
-    atoms: &AtomMap<'cx>,
+    atoms: &AtomMap,
     parser: Parser<'cx>,
     options: &NormalizedTsConfig,
 ) -> Vec<(BinderResult<'cx>, ParseResult<'cx>)> {
@@ -277,7 +277,7 @@ pub fn bind_parallel<'cx>(
 }
 
 fn bind<'cx, 'atoms, 'parser>(
-    atoms: &'atoms AtomMap<'cx>,
+    atoms: &'atoms AtomMap,
     parser: &'parser mut ParseResult<'cx>,
     root: &'cx ast::Program,
     module_id: ModuleID,

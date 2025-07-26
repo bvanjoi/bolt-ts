@@ -54,7 +54,7 @@ impl ModuleGraph {
 pub(super) fn build_graph<'cx>(
     module_arena: &mut ModuleArena,
     list: &[ModuleID],
-    atoms: Arc<Mutex<AtomMap<'cx>>>,
+    atoms: Arc<Mutex<AtomMap>>,
     default_lib_dir: &std::path::Path,
     herd: &'cx bolt_ts_arena::bumpalo_herd::Herd,
     parser: &mut bolt_ts_parser::Parser<'cx>,
@@ -87,7 +87,7 @@ pub(super) fn build_graph<'cx>(
             debug_assert!(file_path.is_normalized());
             let base_dir = file_path.parent().unwrap();
             debug_assert!(base_dir.is_normalized());
-            let base_dir = PathId::get(base_dir);
+            let base_dir = PathId::get(base_dir, atoms.lock().as_mut().unwrap());
             let imports = std::mem::take(&mut parse_result.imports);
             // TODO: filter imports
             let deps = imports
@@ -105,7 +105,7 @@ pub(super) fn build_graph<'cx>(
         for item in resolving {
             let p = module_arena.get_path(item);
             debug_assert!(p.is_normalized());
-            let path_id = PathId::get(p);
+            let path_id = PathId::get(p, atoms.lock().as_mut().unwrap());
             resolved.insert(path_id, item);
         }
 

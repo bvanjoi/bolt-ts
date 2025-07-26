@@ -53,13 +53,13 @@ impl<'cx> LoweringCtx {
             StmtKind::Continue(n) => Some(Stmt::Continue(self.lower_continue_stmt(n))),
             StmtKind::Ret(n) => Some(Stmt::Ret(self.lower_ret_stmt(n))),
             StmtKind::Block(n) => Some(Stmt::Block(self.lower_block_stmt(n))),
-            StmtKind::Fn(n) => self.lower_fn_stmt(n).map(|f| Stmt::Fn(f)),
+            StmtKind::Fn(n) => self.lower_fn_stmt(n).map(Stmt::Fn),
             StmtKind::Class(n) => Some(Stmt::Class(self.lower_class_decl(n))),
             StmtKind::Expr(n) => Some(Stmt::Expr({
                 let expr = self.lower_expr(n.expr);
                 self.nodes.alloc_expr_stmt(n.span, expr)
             })),
-            StmtKind::Module(n) => self.lower_module_decl(n).map(|m| Stmt::Module(m)),
+            StmtKind::Module(n) => self.lower_module_decl(n).map(Stmt::Module),
             StmtKind::Throw(n) => Some(Stmt::Throw(self.lower_throw_stmt(n))),
             StmtKind::Enum(n) => Some(Stmt::Enum(self.lower_enum_decl(n))),
             StmtKind::Import(n) => Some(Stmt::Import(self.lower_import_decl(n))),

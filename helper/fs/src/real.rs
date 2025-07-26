@@ -15,7 +15,7 @@ pub struct LocalFS {
 }
 
 impl LocalFS {
-    pub fn new(atoms: &mut bolt_ts_atom::AtomMap<'_>) -> Self {
+    pub fn new(atoms: &mut bolt_ts_atom::AtomMap) -> Self {
         let tree = FSTree::new(atoms);
         Self {
             tree,
@@ -31,7 +31,7 @@ impl LocalFS {
         dir: &std::path::Path,
         includes: &[glob::Pattern],
         excludes: &[glob::Pattern],
-        atoms: &mut bolt_ts_atom::AtomMap<'_>,
+        atoms: &mut bolt_ts_atom::AtomMap,
     ) {
         // TODO: parallel?
         let matched = self
@@ -55,12 +55,14 @@ impl LocalFS {
         &mut self,
         p: &std::path::Path,
         atom: Option<AtomId>,
+        atoms: &mut bolt_ts_atom::AtomMap,
     ) -> Result<std::fs::Metadata, ()> {
+        let s = unsafe { std::str::from_utf8_unchecked(p.as_os_str().as_encoded_bytes()) };
         let atom = if let Some(atom) = atom {
-            debug_assert!(AtomId::from_bytes(p.as_os_str().as_encoded_bytes()) == atom);
+            debug_assert!(atoms.atom(s) == atom);
             atom
         } else {
-            AtomId::from_bytes(p.as_os_str().as_encoded_bytes())
+            atoms.atom(s)
         };
         if let Some(metadata) = self.metadata_cache.get(&atom).cloned() {
             return metadata;
@@ -75,17 +77,17 @@ impl CachedFileSystem for LocalFS {
     fn read_file(
         &mut self,
         path: &std::path::Path,
-        atoms: &mut bolt_ts_atom::AtomMap<'_>,
+        atoms: &mut bolt_ts_atom::AtomMap,
     ) -> FsResult<bolt_ts_atom::AtomId> {
-        if let Ok(atom) = self.tree.read_file(path) {
+        if let Ok(atom) = self.tree.read_file(path, atoms) {
             Ok(atom)
         } else {
             let path = path.normalize();
             match read_file_with_encoding(path.as_path()) {
                 Ok(content) => {
-                    let content = atoms.insert_by_str(content.into());
+                    let content = atoms.atom(&content);
                     self.tree.add_file(atoms, path.as_path(), content).unwrap();
-                    self.tree.read_file(path.as_path())
+                    self.tree.read_file(path.as_path(), atoms)
                 }
                 Err(err) => match err.kind() {
                     std::io::ErrorKind::NotFound => Err(crate::errors::FsError::NotFound(
@@ -100,15 +102,16 @@ impl CachedFileSystem for LocalFS {
         }
     }
 
-    fn file_exists(&mut self, p: &std::path::Path) -> bool {
-        if self.tree.file_exists(p) {
+    fn file_exists(&mut self, p: &std::path::Path, atoms: &mut bolt_ts_atom::AtomMap) -> bool {
+        if self.tree.file_exists(p, atoms) {
             return true;
         }
-        let id = AtomId::from_bytes(p.as_os_str().as_encoded_bytes());
+        let s = unsafe { std::str::from_utf8_unchecked(p.as_os_str().as_encoded_bytes()) };
+        let id = atoms.atom(s);
         if let Some(exists) = self.file_exists_cache.get(&id).copied() {
             return exists;
         }
-        let exists = self.metadata(p, Some(id)).is_ok_and(|m| m.is_file());
+        let exists = self.metadata(p, Some(id), atoms).is_ok_and(|m| m.is_file());
         self.file_exists_cache.insert(id, exists);
         exists
     }
@@ -116,7 +119,7 @@ impl CachedFileSystem for LocalFS {
     fn read_dir(
         &mut self,
         p: &std::path::Path,
-        atoms: &mut bolt_ts_atom::AtomMap<'_>,
+        atoms: &mut bolt_ts_atom::AtomMap,
     ) -> FsResult<impl Iterator<Item = std::path::PathBuf>> {
         debug_assert!(p.is_dir());
         self.tree.add_dir(atoms, p).map(|_| ())?;
@@ -124,19 +127,20 @@ impl CachedFileSystem for LocalFS {
         Ok(entry.map(|entry| entry.unwrap().path()))
     }
 
-    fn dir_exists(&mut self, p: &std::path::Path) -> bool {
+    fn dir_exists(&mut self, p: &std::path::Path, atoms: &mut bolt_ts_atom::AtomMap) -> bool {
         if self
             .tree
-            .find_path(p, false)
+            .find_path(p, false, atoms)
             .is_ok_and(|id| self.tree.node(id).kind().as_dir_node().is_some())
         {
             return true;
         }
-        let id = AtomId::from_bytes(p.as_os_str().as_encoded_bytes());
+        let s = unsafe { std::str::from_utf8_unchecked(p.as_os_str().as_encoded_bytes()) };
+        let id = atoms.atom(s);
         if let Some(exists) = self.dir_exists_cache.get(&id).copied() {
             return exists;
         }
-        let exists = self.metadata(p, Some(id)).is_ok_and(|m| m.is_dir());
+        let exists = self.metadata(p, Some(id), atoms).is_ok_and(|m| m.is_dir());
         self.dir_exists_cache.insert(id, exists);
         exists
     }
@@ -146,7 +150,7 @@ impl CachedFileSystem for LocalFS {
         base_dir: &std::path::Path,
         include: &[&str],
         exclude: &[&str],
-        atoms: &mut bolt_ts_atom::AtomMap<'_>,
+        atoms: &mut bolt_ts_atom::AtomMap,
     ) -> Vec<std::path::PathBuf> {
         let includes = include
             .iter()
@@ -166,17 +170,13 @@ impl CachedFileSystem for LocalFS {
         p: &std::path::Path,
         content: String,
         atom: Option<AtomId>,
-        atoms: &mut bolt_ts_atom::AtomMap<'_>,
+        atoms: &mut bolt_ts_atom::AtomMap,
     ) -> AtomId {
-        let v = std::borrow::Cow::<str>::Owned(content);
         let atom = if let Some(atom) = atom {
-            debug_assert_eq!(AtomId::from_bytes(v.as_bytes()), atom);
-            // we can't ensure the atom is unique because there maybe has
-            // same content but different path.
-            atoms.insert_if_not_exist(atom, || v);
+            debug_assert!(atoms.atom(content.as_str()) == atom);
             atom
         } else {
-            atoms.insert_by_str(v)
+            atoms.atom(content.as_str())
         };
         self.tree.add_file(atoms, p, atom).unwrap();
         atom

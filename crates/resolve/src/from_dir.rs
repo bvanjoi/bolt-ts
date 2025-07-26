@@ -32,7 +32,7 @@ impl<FS: bolt_ts_fs::CachedFileSystem> ResolutionKindSpecLoader<'_, FS> for Load
     }
 }
 
-impl<FS: CachedFileSystem> super::Resolver<'_, FS> {
+impl<FS: CachedFileSystem> super::Resolver<FS> {
     fn load_filename_from_package_json_field(
         &self,
         ext: Extensions,
@@ -74,7 +74,7 @@ impl<FS: CachedFileSystem> super::Resolver<'_, FS> {
             let info = &arena[package_json.as_usize()];
             let dir = info.dir;
             drop(arena);
-            if dir == PathId::get(candidate) {
+            if dir == PathId::get(candidate, self.atoms.lock().as_mut().unwrap()) {
                 // TODO: is_config_lookup
                 if ext.intersects(Extensions::Declaration) {
                     if let Some(p) = self.read_package_json_types_filed(package_json, dir) {
@@ -87,10 +87,20 @@ impl<FS: CachedFileSystem> super::Resolver<'_, FS> {
 
         let only_record_failures_for_package_file = package_file.as_ref().and_then(|p| {
             let p = p.parent()?;
-            Some(!self.fs.lock().unwrap().dir_exists(p))
+            Some(
+                !self
+                    .fs
+                    .lock()
+                    .unwrap()
+                    .dir_exists(p, self.atoms.lock().as_mut().unwrap()),
+            )
         });
-        let only_record_failures_for_index =
-            only_record_failures || !self.fs.lock().unwrap().dir_exists(candidate);
+        let only_record_failures_for_index = only_record_failures
+            || !self
+                .fs
+                .lock()
+                .unwrap()
+                .dir_exists(candidate, self.atoms.lock().as_mut().unwrap());
         if let Some(Ok(package_file_result)) = package_file.map(|mut package_file| {
             let loader = Loader { package_json };
             loader.loader(

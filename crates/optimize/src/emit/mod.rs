@@ -16,7 +16,7 @@ bolt_ts_utils::index! {
     ScopeID
 }
 
-pub fn emit<'cx, 'ir>(atoms: &AtomMap<'cx>, ir: &'ir LoweringResult) -> String {
+pub fn emit<'cx>(atoms: &AtomMap, ir: &LoweringResult) -> String {
     let mut emitter = Emitter {
         atoms,
         options: EmitterOptions { indent: 2 },
@@ -30,7 +30,7 @@ pub fn emit<'cx, 'ir>(atoms: &AtomMap<'cx>, ir: &'ir LoweringResult) -> String {
 }
 
 struct Emitter<'cx, 'ir> {
-    atoms: &'cx AtomMap<'cx>,
+    atoms: &'cx AtomMap,
     options: EmitterOptions,
     ns_names: FxHashSet<(ScopeID, bolt_ts_atom::AtomId)>,
     scope: ScopeID,
@@ -398,7 +398,7 @@ impl<'ir> Emitter<'_, 'ir> {
 
         let last_super_call = block.stmts().iter().rev().position(|stmt| {
             if let ir::Stmt::Expr(expr) = stmt
-                && let expr = self.nodes.get_expr_stmt(&expr)
+                && let expr = self.nodes.get_expr_stmt(expr)
                 && let ir::Expr::Call(call) = expr.expr()
                 && let call = self.nodes.get_call_expr(&call)
                 && let ir::Expr::Super(_) = call.callee()
@@ -651,7 +651,7 @@ impl<'ir> Emitter<'_, 'ir> {
             .filter_map(|stmt| match stmt {
                 ir::Stmt::Var(v) => Some(
                     self.nodes
-                        .get_var_stmt(&v)
+                        .get_var_stmt(v)
                         .decls()
                         .iter()
                         .flat_map(|item| {
@@ -704,7 +704,7 @@ impl<'ir> Emitter<'_, 'ir> {
                 this.content.p_newline();
                 let t = match stmt {
                     ir::Stmt::Var(v) => {
-                        let v = this.nodes.get_var_stmt(&v);
+                        let v = this.nodes.get_var_stmt(v);
                         if v.modifiers()
                             .map(|ms| ms.flags().contains(ast::ModifierKind::Export))
                             .unwrap_or_default()
@@ -1278,7 +1278,7 @@ impl<'ir> Emitter<'_, 'ir> {
         self.content.p(self.atoms.get(head.text()));
         for span in n.spans() {
             self.content.p("${");
-            let span = self.nodes.get_template_span(&span);
+            let span = self.nodes.get_template_span(span);
             self.emit_expr(span.expr());
             self.content.p("}");
             self.content.p(self.atoms.get(span.text()));

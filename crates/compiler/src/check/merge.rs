@@ -9,7 +9,7 @@ use bolt_ts_parser::Parser;
 
 struct MergeModuleAugmentation<'p, 'cx> {
     pub p: &'p Parser<'cx>,
-    pub atoms: &'p bolt_ts_atom::AtomMap<'cx>,
+    pub atoms: &'p bolt_ts_atom::AtomMap,
     pub bind_list: Vec<ResolveResult>,
     pub merged_symbols: MergedSymbols,
     pub global_symbols: SymbolTable,
@@ -22,12 +22,6 @@ impl MergeModuleAugmentation<'_, '_> {
 }
 
 impl<'cx> MergeSymbol<'cx> for MergeModuleAugmentation<'_, 'cx> {
-    fn get_parse_result(
-        &self,
-        module: bolt_ts_span::ModuleID,
-    ) -> &bolt_ts_parser::ParseResult<'cx> {
-        self.p.get(module)
-    }
     fn get_symbols(&self, module: bolt_ts_span::ModuleID) -> &crate::bind::Symbols {
         &self.bind_list[module.as_usize()].symbols
     }
@@ -36,9 +30,6 @@ impl<'cx> MergeSymbol<'cx> for MergeModuleAugmentation<'_, 'cx> {
     }
     fn get_merged_symbols(&self) -> &MergedSymbols {
         &self.merged_symbols
-    }
-    fn get_mut_merged_symbols(&mut self) -> &mut MergedSymbols {
-        &mut self.merged_symbols
     }
     fn get_global_symbols(&self) -> &SymbolTable {
         &self.global_symbols
@@ -130,12 +121,6 @@ pub(crate) fn merge_module_augmentation_list_for_global(
 }
 
 impl<'cx> MergeSymbol<'cx> for super::TyChecker<'cx> {
-    fn get_parse_result(
-        &self,
-        module: bolt_ts_span::ModuleID,
-    ) -> &bolt_ts_parser::ParseResult<'cx> {
-        self.p.get(module)
-    }
     fn get_symbols(&self, module: bolt_ts_span::ModuleID) -> &crate::bind::Symbols {
         if module == bolt_ts_span::ModuleID::TRANSIENT {
             &self.binder.bind_results.last().unwrap().symbols
@@ -151,9 +136,6 @@ impl<'cx> MergeSymbol<'cx> for super::TyChecker<'cx> {
         }
     }
     fn get_merged_symbols(&self) -> &MergedSymbols {
-        self.merged_symbols
-    }
-    fn get_mut_merged_symbols(&mut self) -> &mut MergedSymbols {
         self.merged_symbols
     }
     fn get_global_symbols(&self) -> &SymbolTable {

@@ -331,7 +331,7 @@ impl<'cx> ParserState<'cx, '_> {
         body: Option<&'cx ast::BlockStmt<'cx>>,
     ) -> &'cx ast::ClassCtor<'cx> {
         let id = self.next_node_id();
-        let span = self.new_span(start as u32);
+        let span = self.new_span(start);
         let ctor = self.alloc(ast::ClassCtor {
             id,
             span,

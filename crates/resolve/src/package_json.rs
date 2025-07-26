@@ -25,7 +25,7 @@ enum Field {
 
 bolt_ts_utils::index!(PackageJsonInfoId);
 
-impl<FS: super::CachedFileSystem> super::Resolver<'_, FS> {
+impl<FS: super::CachedFileSystem> super::Resolver<FS> {
     pub fn new_pkg_json(
         &self,
         dir: PathId,
@@ -58,11 +58,9 @@ impl<FS: super::CachedFileSystem> super::Resolver<'_, FS> {
         let mut atoms = self.atoms.lock().unwrap();
         let base = atoms.get(base_dir.into());
         let p = normalize_join(std::path::Path::new(base), filename);
-        atoms.insert_if_not_exist(PathId::get(&p).into(), || unsafe {
-            std::borrow::Cow::Owned(String::from_utf8_unchecked(
-                p.as_os_str().as_encoded_bytes().to_vec(),
-            ))
-        });
+        let bytes = p.as_os_str().as_encoded_bytes();
+        let s = unsafe { std::str::from_utf8_unchecked(bytes) };
+        let _ = atoms.atom(s);
         Some(p)
     }
 

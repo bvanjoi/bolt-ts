@@ -83,10 +83,10 @@
      · ──
      ╰────
 
-  × Type 'mapped type' is not assignable to type '{ top: { position:
-  │ MovablePosition; size: { width: number; height: number; }; }; left:
-  │ { position: MovablePosition; size: { width: number; height: number; }; };
-  │ position: MovablePosition; }'.
+  × Type 'mapped type' is not assignable to type '{ position: MovablePosition;
+  │ top: { position: MovablePosition; size: { width: number; height:
+  │ number; }; }; left: { position: MovablePosition; size: { width: number;
+  │ height: number; }; }; }'.
      ╭─[../../tests/cases/compiler/fest/index.ts:400:9]
  400 │ a0
      · ──
@@ -98,7 +98,7 @@
      · ─
      ╰────
 
-  × Type '{ b: string; a: number; }' is not assignable to type 'mapped type &
+  × Type '{ a: number; b: string; }' is not assignable to type 'mapped type &
   │ Partial'.
      ╭─[../../tests/cases/compiler/fest/index.ts:461:9]
  461 │ strictAssignment
@@ -214,7 +214,7 @@
       ╰────
 
   × Type '{ key: "value"; }' is missing the following properties from type
-  │ 'any[]': length, join, and 11 more.
+  │ 'any[]': length, concat, and 11 more.
       ╭─[../../tests/cases/compiler/fest/index.ts:1045:22]
  1045 │ {key: 'value'}
       · ──────────────
@@ -566,14 +566,14 @@
       ╰────
 
   × Type '{ tag: "num"; b: string; }' is not assignable to type 'mapped type &
-  │ { b: number; } | mapped type & { a: string; }'.
+  │ { a: string; } | mapped type & { b: number; }'.
       ╭─[../../tests/cases/compiler/fest/index.ts:2532:9]
  2532 │ b0
       · ──
       ╰────
 
   × Type '{ tag: "str"; b: number; }' is not assignable to type 'mapped type &
-  │ { b: number; } | mapped type & { a: string; }'.
+  │ { a: string; } | mapped type & { b: number; }'.
       ╭─[../../tests/cases/compiler/fest/index.ts:2534:9]
  2534 │ b1
       · ──
@@ -664,14 +664,14 @@
       ╰────
 
   × Type '{ }' is missing the following properties from type 'unknown[]':
-  │ length, join, and 11 more.
+  │ length, concat, and 11 more.
       ╭─[../../tests/cases/compiler/fest/index.ts:2752:9]
  2752 │ b2
       · ──
       ╰────
 
   × Type '{ 0: number; }' is missing the following properties from type
-  │ 'unknown[]': length, join, and 11 more.
+  │ 'unknown[]': length, concat, and 11 more.
       ╭─[../../tests/cases/compiler/fest/index.ts:2754:9]
  2754 │ b3
       · ──
@@ -684,7 +684,7 @@
       ╰────
 
   × Type 'DateConstructor' is missing the following properties from type
-  │ 'unknown[]': join, forEach, and 10 more.
+  │ 'unknown[]': concat, indexOf, and 10 more.
       ╭─[../../tests/cases/compiler/fest/index.ts:2758:9]
  2758 │ b5
       · ──

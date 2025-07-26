@@ -1,7 +1,7 @@
 use bolt_ts_ast::{self as ast, ModifierKind};
 use bolt_ts_atom::AtomId;
 use bolt_ts_span::Span;
-use bolt_ts_utils::{fx_hashmap_with_capacity, fx_hashset_with_capacity};
+use bolt_ts_utils::{fx_hashset_with_capacity, fx_indexmap_with_capacity};
 use rustc_hash::FxHashSet;
 
 use super::create_ty::IntersectionFlags;
@@ -311,11 +311,11 @@ impl<'cx> TyChecker<'cx> {
         let Some(tys) = ty.kind.tys_of_union_or_intersection() else {
             unreachable!()
         };
-        let mut members = fx_hashmap_with_capacity(64);
+        let mut members = fx_indexmap_with_capacity(64);
         for current in tys {
             for prop in self.get_props_of_ty(current) {
                 let name = self.symbol(*prop).name;
-                if let std::collections::hash_map::Entry::Vacant(vac) = members.entry(name) {
+                if let indexmap::map::Entry::Vacant(vac) = members.entry(name) {
                     if let Some(combined_prop) = self.get_prop_of_union_or_intersection_ty(ty, name)
                     {
                         vac.insert(combined_prop);

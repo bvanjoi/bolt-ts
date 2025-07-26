@@ -330,6 +330,7 @@ dependencies = [
 name = "bolt_ts_utils"
 version = "0.1.0"
 dependencies = [
+ "indexmap",
  "nohash-hasher",
  "rustc-hash",
 ]

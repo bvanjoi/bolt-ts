@@ -13,17 +13,17 @@ pub use self::real::read_file_with_encoding;
 use bolt_ts_atom::{AtomId, AtomMap};
 
 pub trait CachedFileSystem: Send + Sync {
-    fn read_file(&mut self, p: &std::path::Path, atoms: &mut AtomMap<'_>) -> FsResult<AtomId>;
+    fn read_file(&mut self, p: &std::path::Path, atoms: &mut AtomMap) -> FsResult<AtomId>;
 
-    fn file_exists(&mut self, p: &std::path::Path) -> bool;
+    fn file_exists(&mut self, p: &std::path::Path, atoms: &mut AtomMap) -> bool;
 
     fn read_dir(
         &mut self,
         p: &std::path::Path,
-        atoms: &mut AtomMap<'_>,
+        atoms: &mut AtomMap,
     ) -> FsResult<impl Iterator<Item = std::path::PathBuf>>;
 
-    fn dir_exists(&mut self, p: &std::path::Path) -> bool;
+    fn dir_exists(&mut self, p: &std::path::Path, atoms: &mut AtomMap) -> bool;
 
     // TODO: maybe use regexp?
     fn glob(
@@ -31,7 +31,7 @@ pub trait CachedFileSystem: Send + Sync {
         base_dir: &std::path::Path,
         includes: &[&str],
         excludes: &[&str],
-        atoms: &mut AtomMap<'_>,
+        atoms: &mut AtomMap,
     ) -> Vec<std::path::PathBuf>;
 
     fn add_file(
@@ -39,7 +39,7 @@ pub trait CachedFileSystem: Send + Sync {
         p: &std::path::Path,
         content: String,
         atom: Option<AtomId>,
-        atoms: &mut AtomMap<'_>,
+        atoms: &mut AtomMap,
     ) -> AtomId;
 }
 

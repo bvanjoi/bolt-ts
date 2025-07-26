@@ -1,6 +1,5 @@
 use std::{borrow::Cow, str};
 
-use bolt_ts_atom::AtomId;
 use bolt_ts_span::Span;
 
 use super::{CommentDirectiveKind, ParserState, TokenValue, errors, unicode};
@@ -277,11 +276,8 @@ impl ParserState<'_, '_> {
 
         let kind = if self.ch() == Some(b'n') {
             self.pos += 1;
-            let value = self
-                .atoms
-                .lock()
-                .unwrap()
-                .insert_by_vec(result.into_owned());
+            let s = unsafe { std::str::from_utf8_unchecked(&result) };
+            let value = self.atoms.lock().unwrap().atom(s);
             self.token_value = Some(TokenValue::Ident { value });
             TokenKind::BigInt
         } else {
@@ -808,9 +804,17 @@ impl ParserState<'_, '_> {
                 b'\'' | b'"' => {
                     let (v, key_value) = self.scan_string(ch, false);
                     let len = v.len();
-                    let atom = self.atoms.lock().unwrap().insert_by_vec(v);
+                    let atom = self
+                        .atoms
+                        .lock()
+                        .unwrap()
+                        .atom(unsafe { str::from_utf8_unchecked(&v) });
                     if len != key_value.len() {
-                        let key_atom = self.atoms.lock().unwrap().insert_by_vec(key_value);
+                        let key_atom = self
+                            .atoms
+                            .lock()
+                            .unwrap()
+                            .atom(unsafe { str::from_utf8_unchecked(&key_value) });
                         self.string_key_value = Some(key_atom);
                     } else {
                         self.string_key_value = Some(atom);
@@ -969,7 +973,8 @@ impl ParserState<'_, '_> {
             let ch = self.ch_unchecked();
             if ch == b'`' {
                 self.pos += 1;
-                let atom = self.atoms.lock().unwrap().insert_by_vec(contents);
+                let s = unsafe { str::from_utf8_unchecked(&contents) };
+                let atom = self.atoms.lock().unwrap().atom(s);
                 self.token_value = Some(TokenValue::Ident { value: atom });
                 break if started_with_backtick {
                     TokenKind::NoSubstitutionTemplate
@@ -978,7 +983,8 @@ impl ParserState<'_, '_> {
                 };
             } else if ch == b'$' && self.next_ch() == Some(b'{') {
                 // `${`
-                let atom = self.atoms.lock().unwrap().insert_by_vec(contents);
+                let s = unsafe { str::from_utf8_unchecked(&contents) };
+                let atom = self.atoms.lock().unwrap().atom(s);
                 self.token_value = Some(TokenValue::Ident { value: atom });
                 self.pos += 2;
                 break if started_with_backtick {
@@ -1422,7 +1428,7 @@ impl ParserState<'_, '_> {
             .atoms
             .lock()
             .unwrap()
-            .insert_by_vec(self.input[start as usize..self.pos].to_vec());
+            .atom(unsafe { str::from_utf8_unchecked(&self.input[start as usize..self.pos]) });
         self.token_value = Some(TokenValue::Ident { value: atom });
         self.token = Token::new(
             TokenKind::Regexp,
@@ -1508,14 +1514,8 @@ impl ParserState<'_, '_> {
             self.pos += 1;
         }
 
-        let v = &self.input[token_start..self.pos];
-        let atom = AtomId::from_bytes(v);
-        self.atoms
-            .lock()
-            .unwrap()
-            .insert_if_not_exist(atom, || unsafe {
-                std::borrow::Cow::Owned(String::from_utf8_unchecked(v.to_vec()))
-            });
+        let s = unsafe { str::from_utf8_unchecked(&self.input[token_start..self.pos]) };
+        let atom = self.atoms.lock().unwrap().atom(s);
         self.token_value = Some(TokenValue::Ident { value: atom });
 
         let token_kind = if first_non_whitespace == -1 {
@@ -1532,28 +1532,19 @@ impl ParserState<'_, '_> {
     fn get_ident_token(&mut self, ident: Cow<[u8]>, start: u32) -> Token {
         let len = ident.len();
 
-        let id = AtomId::from_bytes(ident.as_ref());
+        let s = unsafe { str::from_utf8_unchecked(&ident) };
+        let id = self.atoms.lock().unwrap().atom(s);
         if len > 1 && len < 13 {
             let first = *unsafe { ident.get_unchecked(0) };
             if first.is_ascii_lowercase() {
                 if let Some(kind) = atom_to_token(id) {
-                    debug_assert!(self.atoms.lock().unwrap().contains(id));
+                    debug_assert!(!self.atoms.lock().unwrap().get(id).is_empty());
                     let span = Span::new(start, self.pos as u32, self.module_id);
                     self.token_value = Some(TokenValue::Ident { value: id });
                     return Token::new(kind, span);
                 }
             }
         }
-        self.atoms
-            .lock()
-            .unwrap()
-            .insert_if_not_exist(id, || unsafe {
-                let s = String::from_utf8_unchecked(match ident {
-                    Cow::Borrowed(bytes) => bytes.to_vec(),
-                    Cow::Owned(bytes) => bytes,
-                });
-                Cow::Owned(s)
-            });
         self.token_value = Some(TokenValue::Ident { value: id });
         Token::new(
             TokenKind::Ident,
@@ -1583,7 +1574,7 @@ impl ParserState<'_, '_> {
 
         if !v.is_empty() {
             let token_value = self.ident_token();
-            debug_assert!(self.atoms.lock().unwrap().contains(token_value));
+            debug_assert!(!self.atoms.lock().unwrap().get(token_value).is_empty());
             let mut token_value = self
                 .atoms
                 .lock()
@@ -1643,7 +1634,11 @@ impl ParserState<'_, '_> {
             Some(b'\'') | Some(b'"') => {
                 let (value, _) = self.scan_string(unsafe { ch.unwrap_unchecked() }, true);
                 self.token_value = Some(TokenValue::Ident {
-                    value: self.atoms.lock().unwrap().insert_by_vec(value),
+                    value: self
+                        .atoms
+                        .lock()
+                        .unwrap()
+                        .atom(unsafe { str::from_utf8_unchecked(&value) }),
                 });
                 self.token = Token::new(
                     TokenKind::String,

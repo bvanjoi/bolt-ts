@@ -108,7 +108,7 @@ impl ModuleArena {
         p: ModulePath,
         is_default_lib: bool,
         fs: &mut impl CachedFileSystem,
-        atoms: &mut bolt_ts_atom::AtomMap<'_>,
+        atoms: &mut bolt_ts_atom::AtomMap,
     ) -> ModuleID {
         let id = ModuleID(self.modules.len() as u32);
         let m = Module { id, is_default_lib };
@@ -130,7 +130,7 @@ impl ModuleArena {
         p: ModulePath,
         is_default_lib: bool,
         content: AtomId,
-        atoms: &bolt_ts_atom::AtomMap<'_>,
+        atoms: &bolt_ts_atom::AtomMap,
     ) -> ModuleID {
         let id = ModuleID(self.modules.len() as u32);
         let m = Module { id, is_default_lib };

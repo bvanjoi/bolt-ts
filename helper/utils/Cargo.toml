@@ -6,3 +6,4 @@ edition = "2024"
 [dependencies]
 rustc-hash = "2.1.0"
 nohash-hasher = "0.2.0"
+indexmap = { workspace = true, features = ["serde"] }

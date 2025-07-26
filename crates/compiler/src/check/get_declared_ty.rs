@@ -1,4 +1,4 @@
-use rustc_hash::FxHashMap;
+use bolt_ts_utils::FxIndexMap;
 
 use super::TyChecker;
 use super::cycle_check::Cycle;
@@ -217,7 +217,7 @@ impl<'cx> TyChecker<'cx> {
 
     pub(super) fn get_props_from_members(
         &mut self,
-        members: &FxHashMap<SymbolName, SymbolID>,
+        members: &FxIndexMap<SymbolName, SymbolID>,
     ) -> &'cx [SymbolID] {
         let props = members
             .values()

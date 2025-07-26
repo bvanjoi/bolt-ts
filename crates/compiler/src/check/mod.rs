@@ -57,7 +57,6 @@ mod type_assignable;
 mod type_predicate;
 pub mod utils;
 
-use std::borrow::Cow;
 use std::fmt::Debug;
 
 use bolt_ts_ast::{self as ast};
@@ -169,7 +168,7 @@ impl nohash_hasher::IsEnabled for F64Represent {}
 bolt_ts_utils::index!(InferenceContextId);
 
 pub struct TyChecker<'cx> {
-    pub atoms: &'cx mut AtomMap<'cx>,
+    pub atoms: &'cx mut AtomMap,
     pub diags: Vec<bolt_ts_errors::Diag>,
     module_arena: &'cx bolt_ts_span::ModuleArena,
     config: &'cx NormalizedCompilerOptions,
@@ -332,7 +331,7 @@ impl<'cx> TyChecker<'cx> {
         ty_arena: &'cx bolt_ts_arena::bumpalo::Bump,
         p: &'cx Parser<'cx>,
         mg: &'cx ModuleGraph,
-        atoms: &'cx mut AtomMap<'cx>,
+        atoms: &'cx mut AtomMap,
         config: &'cx NormalizedCompilerOptions,
         flow_nodes: Vec<FlowNodes<'cx>>,
         flow_in_nodes: Vec<FlowInNodes>,
@@ -698,7 +697,7 @@ impl<'cx> TyChecker<'cx> {
 
         // add_undefined_to_globals_or_error_on_redeclaration
 
-        use std::collections::hash_map::Entry;
+        use indexmap::map::Entry;
         match this
             .global_symbols
             .0
@@ -1114,8 +1113,7 @@ impl<'cx> TyChecker<'cx> {
                             .map(|name| self.get_lit_ty_from_prop_name(&name))
                             .or_else(|| {
                                 if let Some(num) = symbol_name.as_numeric() {
-                                    let val = num.to_string();
-                                    let atom = self.atoms.insert_by_str(Cow::Owned(val));
+                                    let atom = self.atoms.atom(num.to_string().as_str());
                                     Some(self.get_string_literal_type(atom))
                                 } else if let Some(atom) = symbol_name.as_atom() {
                                     Some(self.get_string_literal_type(atom))
@@ -2247,9 +2245,8 @@ impl<'cx> TyChecker<'cx> {
                 // TODO: Required_type_parameters_may_not_follow_optional_type_parameters
             }
 
-            for j in 0..i {
-                if self.get_symbol_of_decl(ty_params[j].id) == self.get_symbol_of_decl(ty_param.id)
-                {
+            for b_ty_param in ty_params.iter().take(i) {
+                if self.get_symbol_of_decl(b_ty_param.id) == self.get_symbol_of_decl(ty_param.id) {
                     self.push_error(Box::new(errors::DuplicateIdentifierX {
                         span: ty_param.name.span,
                         ident: pprint_ident(ty_param.name, self.atoms),
@@ -2891,8 +2888,7 @@ impl<'cx> TyChecker<'cx> {
     fn get_known_keys_of_tuple_ty(&mut self, ty: &'cx ty::TupleTy<'cx>) -> &'cx ty::Ty<'cx> {
         let mut v = Vec::with_capacity(ty.element_flags.len() + 1);
         v.extend((0..ty.fixed_length).map(|i| {
-            let val = i.to_string();
-            let atom = self.atoms.insert_by_str(Cow::Owned(val));
+            let atom = self.atoms.atom(i.to_string().as_str());
             self.get_string_literal_type(atom)
         }));
         let t = if ty.readonly {

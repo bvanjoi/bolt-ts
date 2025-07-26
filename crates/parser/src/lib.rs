@@ -186,7 +186,7 @@ impl TokenValue {
 }
 
 pub fn parse_parallel<'cx, 'p>(
-    atoms: Arc<Mutex<AtomMap<'cx>>>,
+    atoms: Arc<Mutex<AtomMap>>,
     herd: &'cx bolt_ts_arena::bumpalo_herd::Herd,
     list: &'p [ModuleID],
     module_arena: &'p ModuleArena,
@@ -226,7 +226,7 @@ pub fn parse_parallel<'cx, 'p>(
 }
 
 pub fn parse<'cx, 'p>(
-    atoms: Arc<Mutex<AtomMap<'cx>>>,
+    atoms: Arc<Mutex<AtomMap>>,
     arena: &'p bolt_ts_arena::bumpalo_herd::Member<'cx>,
     input: &'p [u8],
     module_id: ModuleID,
@@ -293,7 +293,7 @@ fn collect_deps<'cx>(
     is_declaration: bool,
     is_external_module_file: bool,
     root: &'cx ast::Program<'cx>,
-    atoms: Arc<Mutex<AtomMap<'cx>>>,
+    atoms: Arc<Mutex<AtomMap>>,
 ) -> CollectDepsResult<'cx> {
     let mut visitor = CollectDepsVisitor {
         in_ambient_module: false,
@@ -316,7 +316,7 @@ struct CollectDepsVisitor<'cx> {
     is_declaration: bool,
     in_ambient_module: bool,
     is_external_module_file: bool,
-    atoms: Arc<Mutex<AtomMap<'cx>>>,
+    atoms: Arc<Mutex<AtomMap>>,
 
     imports: Vec<&'cx ast::StringLit>,
     module_augmentations: Vec<ast::NodeID>,
@@ -422,7 +422,7 @@ impl NodeFlagsMap {
 
 fn get_lib_filename_from_lib_reference(
     reference_name: AtomId,
-    atoms: &Arc<Mutex<AtomMap<'_>>>,
+    atoms: &Arc<Mutex<AtomMap>>,
 ) -> Option<&'static str> {
     let reference_name = atoms.lock().unwrap().get(reference_name).to_lowercase();
     let key = reference_name.as_str();
@@ -432,7 +432,7 @@ fn get_lib_filename_from_lib_reference(
 fn process_lib_reference_directives(
     lib_reference_directives: &[FileReference],
     is_default_lib: bool,
-    atoms: &Arc<Mutex<AtomMap<'_>>>,
+    atoms: &Arc<Mutex<AtomMap>>,
     default_lib_dir: &std::path::Path,
 ) -> Vec<std::path::PathBuf> {
     if is_default_lib {

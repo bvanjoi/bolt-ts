@@ -1,12 +1,10 @@
-use rustc_hash::FxHashMap;
-
 use crate::check::F64Represent;
 
 use bolt_ts_ast::NodeID;
 use bolt_ts_atom::AtomId;
 use bolt_ts_parser::Parser;
 use bolt_ts_span::ModuleID;
-use bolt_ts_utils::fx_hashmap_with_capacity;
+use bolt_ts_utils::{FxIndexMap, fx_indexmap_with_capacity};
 
 #[derive(Debug, Clone, Copy, Hash, PartialEq, Eq)]
 pub enum SymbolName {
@@ -226,17 +224,17 @@ impl Symbol {
 }
 
 #[derive(Debug, Clone)]
-pub struct SymbolTable(pub FxHashMap<SymbolName, SymbolID>);
+pub struct SymbolTable(pub FxIndexMap<SymbolName, SymbolID>);
 
 impl Default for SymbolTable {
     fn default() -> Self {
-        Self(fx_hashmap_with_capacity(64))
+        Self(fx_indexmap_with_capacity(64))
     }
 }
 
 impl SymbolTable {
     pub fn new(cap: usize) -> Self {
-        Self(fx_hashmap_with_capacity(cap))
+        Self(fx_indexmap_with_capacity(cap))
     }
 }
 

@@ -20,7 +20,7 @@ fn match_files(
     exclude: Option<&[String]>,
     include: Option<&[String]>,
     fs: &mut impl CachedFileSystem,
-    atoms: &mut bolt_ts_atom::AtomMap<'_>,
+    atoms: &mut bolt_ts_atom::AtomMap,
 ) -> Vec<std::path::PathBuf> {
     debug_assert!(path.is_normalized(), "'{path:#?}' is not normalized");
     let include = include
@@ -99,7 +99,7 @@ pub(super) fn get_filenames(
 //     tsconfig: &'cx NormalizedTsConfig,
 //     tsconfig_filename: &std::path::Path,
 //     fs: &mut impl CachedFileSystem,
-//     atoms: &mut bolt_ts_atom::AtomMap<'cx>,
+//     atoms: &mut bolt_ts_atom::AtomMap,
 // ) {
 //     debug_assert!(tsconfig_filename.is_normalized());
 //     let base_path_for_filenames = tsconfig_filename.parent().unwrap();

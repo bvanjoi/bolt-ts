@@ -9,7 +9,6 @@ mod r#trait;
 mod ty;
 mod wf;
 
-use std::borrow::Cow;
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 
@@ -24,7 +23,7 @@ use self::wf::well_formed_check_parallel;
 use bolt_ts_ast::TokenKind;
 use bolt_ts_ast::keyword;
 use bolt_ts_ast::keyword_idx_to_token;
-use bolt_ts_atom::{AtomId, AtomMap};
+use bolt_ts_atom::AtomMap;
 use bolt_ts_config::NormalizedTsConfig;
 use bolt_ts_fs::{CachedFileSystem, read_file_with_encoding};
 use bolt_ts_parser::{ParseResult, Parser};
@@ -81,21 +80,16 @@ pub fn output_files(
     }
 }
 
-pub fn init_atom<'atoms>() -> AtomMap<'atoms> {
-    if cfg!(test) {
-        for idx in 0..keyword::KEYWORDS.len() {
-            let t = keyword_idx_to_token(idx);
-            if t == TokenKind::Var {
-                assert_eq!(t as u8 + 1, TokenKind::Let as u8);
-                assert_eq!(t as u8 + 2, TokenKind::Const as u8);
-            }
+pub fn init_atom() -> AtomMap {
+    #[cfg(debug_assertions)]
+    for idx in 0..keyword::KEYWORDS.len() {
+        let t = keyword_idx_to_token(idx);
+        if t == TokenKind::Var {
+            assert_eq!(t as u8 + 1, TokenKind::Let as u8);
+            assert_eq!(t as u8 + 2, TokenKind::Const as u8);
         }
     }
-    let mut atoms = AtomMap::new(1024 * 128);
-    for (atom, id) in keyword::KEYWORDS.iter().chain(keyword::IDENTIFIER) {
-        atoms.insert(*id, Cow::Borrowed(atom));
-    }
-    atoms
+    bolt_ts_ast::keyword::init_atom_map()
 }
 
 pub fn eval_from(root: PathBuf, tsconfig: &NormalizedTsConfig) -> Output {
@@ -112,13 +106,13 @@ pub fn eval_from(root: PathBuf, tsconfig: &NormalizedTsConfig) -> Output {
     eval_from_with_fs(root, tsconfig, exe_dir, default_libs, fs, atoms)
 }
 
-pub fn eval_from_with_fs<'cx>(
+pub fn eval_from_with_fs(
     root: PathBuf,
-    tsconfig: &'cx NormalizedTsConfig,
+    tsconfig: &NormalizedTsConfig,
     default_lib_dir: PathBuf,
     default_libs: Vec<PathBuf>,
     mut fs: impl CachedFileSystem,
-    mut atoms: bolt_ts_atom::AtomMap<'cx>,
+    mut atoms: bolt_ts_atom::AtomMap,
 ) -> Output {
     bolt_ts_tracing::init_tracing();
     // let default_libs = vec![];
@@ -140,13 +134,12 @@ pub fn eval_from_with_fs<'cx>(
         .map(|(p, is_default_lib)| {
             debug_assert!(p.is_normalized());
             if cfg!(target_arch = "wasm32") {
-                (None, None, p, is_default_lib)
+                (None, p, is_default_lib)
             } else {
                 let Ok(content) = read_file_with_encoding(&p) else {
                     panic!("failed to read file: {p:?}");
                 };
-                let atom = AtomId::from_bytes(content.as_bytes());
-                (Some(content), Some(atom), p, is_default_lib)
+                (Some(content), p, is_default_lib)
             }
         })
         .collect::<Vec<_>>();
@@ -155,10 +148,10 @@ pub fn eval_from_with_fs<'cx>(
 
     let entries = entries_with_read_file
         .into_iter()
-        .filter_map(|(content, atom, p, is_default_lib)| {
+        .filter_map(|(content, p, is_default_lib)| {
             if is_default_lib && p.file_name().unwrap() == "test.d.ts" {
                 let content = content.unwrap();
-                let computed_atom = atom.unwrap();
+                let computed_atom = atoms.atom(&content);
                 let atom = fs.add_file(&p, content, Some(computed_atom), &mut atoms);
                 assert_eq!(computed_atom, atom);
                 return Some(module_arena.new_module_with_content(p, is_default_lib, atom, &atoms));
@@ -168,11 +161,10 @@ pub fn eval_from_with_fs<'cx>(
             }
             let m = if cfg!(target_arch = "wasm32") {
                 assert!(content.is_none());
-                assert!(atom.is_none());
                 module_arena.new_module(p, is_default_lib, &mut fs, &mut atoms)
             } else {
                 let content = content.unwrap();
-                let computed_atom = atom.unwrap();
+                let computed_atom = atoms.atom(&content);
                 let atom = fs.add_file(&p, content, Some(computed_atom), &mut atoms);
                 assert_eq!(computed_atom, atom);
                 module_arena.new_module_with_content(p, is_default_lib, atom, &atoms)

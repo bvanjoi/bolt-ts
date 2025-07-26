@@ -31,7 +31,7 @@ pub(super) fn early_resolve_parallel<'cx>(
     p: &'cx Parser<'cx>,
     globals: &'cx GlobalSymbols,
     merged: &'cx MergedSymbols,
-    atoms: &'cx bolt_ts_atom::AtomMap<'cx>,
+    atoms: &'cx bolt_ts_atom::AtomMap,
 ) -> Vec<EarlyResolveResult> {
     modules
         .into_par_iter()
@@ -53,7 +53,7 @@ fn early_resolve<'cx>(
     p: &'cx Parser<'cx>,
     globals: &'cx GlobalSymbols,
     merged: &'cx MergedSymbols,
-    atoms: &'cx bolt_ts_atom::AtomMap<'cx>,
+    atoms: &'cx bolt_ts_atom::AtomMap,
 ) -> EarlyResolveResult {
     let final_res = fx_hashmap_with_capacity(states[module_id.as_usize()].final_res.len());
     let mut resolver = Resolver {
@@ -82,7 +82,7 @@ pub(super) struct Resolver<'cx, 'r, 'atoms> {
     final_res: FxHashMap<ast::NodeID, SymbolID>,
     globals: &'cx GlobalSymbols,
     merged: &'cx MergedSymbols,
-    atoms: &'atoms bolt_ts_atom::AtomMap<'cx>,
+    atoms: &'atoms bolt_ts_atom::AtomMap,
 }
 
 impl<'cx> Resolver<'cx, '_, '_> {

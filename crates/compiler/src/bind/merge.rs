@@ -38,16 +38,13 @@ impl MergedSymbols {
 
 struct MergeGlobalSymbol<'p, 'cx> {
     pub p: &'p Parser<'cx>,
-    pub atom: &'p bolt_ts_atom::AtomMap<'cx>,
+    pub atom: &'p bolt_ts_atom::AtomMap,
     pub bind_list: Vec<BinderResult<'cx>>,
     pub merged_symbols: MergedSymbols,
     pub global_symbols: SymbolTable,
 }
 
 impl<'cx> MergeSymbol<'cx> for MergeGlobalSymbol<'_, 'cx> {
-    fn get_parse_result(&self, module: bolt_ts_span::ModuleID) -> &super::ParseResult {
-        self.p.get(module)
-    }
     fn get_symbols(&self, module: bolt_ts_span::ModuleID) -> &super::Symbols {
         &self.bind_list[module.as_usize()].symbols
     }
@@ -56,9 +53,6 @@ impl<'cx> MergeSymbol<'cx> for MergeGlobalSymbol<'_, 'cx> {
     }
     fn get_merged_symbols(&self) -> &MergedSymbols {
         &self.merged_symbols
-    }
-    fn get_mut_merged_symbols(&mut self) -> &mut MergedSymbols {
-        &mut self.merged_symbols
     }
     fn get_global_symbols(&self) -> &SymbolTable {
         &self.global_symbols
@@ -116,13 +110,10 @@ pub trait MergeSymbol<'cx> {
         SymbolTableLocation::Locals { container }
     }
 
-    fn get_parse_result(&self, module: bolt_ts_span::ModuleID) -> &super::ParseResult;
-
     fn get_symbols(&self, module: bolt_ts_span::ModuleID) -> &super::Symbols;
     fn get_mut_symbols(&mut self, module: bolt_ts_span::ModuleID) -> &mut super::Symbols;
 
     fn get_merged_symbols(&self) -> &MergedSymbols;
-    fn get_mut_merged_symbols(&mut self) -> &mut MergedSymbols;
 
     fn get_global_symbols(&self) -> &SymbolTable;
     fn get_mut_global_symbols(&mut self) -> &mut SymbolTable;
@@ -277,7 +268,7 @@ pub(crate) struct MergeGlobalSymbolResult<'cx> {
 
 pub(crate) fn merge_global_symbol<'cx>(
     parser: &Parser<'cx>,
-    atom: &bolt_ts_atom::AtomMap<'cx>,
+    atom: &bolt_ts_atom::AtomMap,
     bind_list: Vec<BinderResult<'cx>>,
     module_arena: &ModuleArena,
 ) -> MergeGlobalSymbolResult<'cx> {

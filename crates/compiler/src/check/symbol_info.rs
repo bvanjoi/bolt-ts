@@ -14,7 +14,7 @@ use crate::ty::CheckFlags;
 use crate::{r#trait, ty};
 
 fn symbol_of_resolve_results(
-    resolve_results: &Vec<ResolveResult>,
+    resolve_results: &[ResolveResult],
     symbol: SymbolID,
 ) -> &crate::bind::Symbol {
     let idx = symbol.module().as_usize();
@@ -39,7 +39,7 @@ pub trait SymbolInfo<'cx>: Sized {
     fn empty_symbols(&self) -> &'cx SymbolTable;
     fn mg(&self) -> &crate::graph::ModuleGraph;
     fn p(&self) -> &bolt_ts_parser::Parser<'cx>;
-    fn atoms(&self) -> &bolt_ts_atom::AtomMap<'cx>;
+    fn atoms(&self) -> &bolt_ts_atom::AtomMap;
     fn module_arena(&self) -> &bolt_ts_span::ModuleArena;
     fn push_error(&mut self, error: crate::Diag);
 
@@ -740,7 +740,7 @@ impl<'cx> super::TyChecker<'cx> {
         if ty.useable_as_prop_name() {
             let member_name = self.get_prop_name_from_ty(ty).unwrap();
             let symbol_flags = self.binder.symbol(s).flags;
-            use std::collections::hash_map::Entry;
+            use indexmap::map::Entry;
             let late_symbol = match late_symbols.0.entry(member_name) {
                 Entry::Occupied(occ) => *occ.get(),
                 Entry::Vacant(vac) => {
@@ -1212,7 +1212,7 @@ impl<'cx> SymbolInfo<'cx> for super::TyChecker<'cx> {
     fn p(&self) -> &bolt_ts_parser::Parser<'cx> {
         self.p
     }
-    fn atoms(&self) -> &bolt_ts_atom::AtomMap<'cx> {
+    fn atoms(&self) -> &bolt_ts_atom::AtomMap {
         self.atoms
     }
     fn push_error(&mut self, error: crate::Diag) {

@@ -1351,10 +1351,10 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
         }
     }
 
-    fn bind_while_stmt(&mut self, n: &ast::WhileStmt<'cx>) {
+    fn bind_while_stmt(&mut self, _n: &ast::WhileStmt<'cx>) {
         // TODO:
     }
-    fn bind_do_stmt(&mut self, n: &ast::DoStmt<'cx>) {
+    fn bind_do_stmt(&mut self, _n: &ast::DoStmt<'cx>) {
         // TODO:
     }
     fn bind_for_stmt(&mut self, n: &ast::ForStmt<'cx>) {

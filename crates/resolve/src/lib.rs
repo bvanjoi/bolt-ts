@@ -45,16 +45,16 @@ struct CacheKey {
     target: AtomId,
 }
 
-pub struct Resolver<'atoms, FS: CachedFileSystem> {
+pub struct Resolver<FS: CachedFileSystem> {
     fs: Arc<Mutex<FS>>,
-    atoms: Arc<Mutex<AtomMap<'atoms>>>,
+    atoms: Arc<Mutex<AtomMap>>,
     cache: Arc<Mutex<FxHashMap<CacheKey, RResult<PathId>>>>,
     package_json_arena: Arc<Mutex<Vec<PackageJsonInfo>>>,
     package_json_cache: Arc<Mutex<nohash_hasher::IntMap<PathId, PackageJsonInfoId>>>,
 }
 
-impl<'atoms, FS: CachedFileSystem> Resolver<'atoms, FS> {
-    pub fn new(fs: Arc<Mutex<FS>>, atoms: Arc<Mutex<AtomMap<'atoms>>>) -> Self {
+impl<FS: CachedFileSystem> Resolver<FS> {
+    pub fn new(fs: Arc<Mutex<FS>>, atoms: Arc<Mutex<AtomMap>>) -> Self {
         Self {
             fs,
             atoms,
@@ -66,7 +66,8 @@ impl<'atoms, FS: CachedFileSystem> Resolver<'atoms, FS> {
 
     fn is_file(&self, p: &Path) -> bool {
         let fs = &mut *self.fs.lock().unwrap();
-        fs.file_exists(p)
+        let atoms = &mut *self.atoms.lock().unwrap();
+        fs.file_exists(p, atoms)
     }
 
     pub fn resolve(&self, base_dir: PathId, target: AtomId) -> RResult<PathId> {
@@ -93,11 +94,9 @@ impl<'atoms, FS: CachedFileSystem> Resolver<'atoms, FS> {
                 debug_assert!(base.is_normalized());
                 normalize_join(base, Path::new(module_name))
             };
-            atoms.insert_if_not_exist(PathId::get(&candidate).into(), || {
-                let bytes = candidate.as_os_str().as_encoded_bytes();
-                let s = unsafe { String::from_utf8_unchecked(bytes.to_vec()) };
-                std::borrow::Cow::Owned(s)
-            });
+            let bytes = candidate.as_os_str().as_encoded_bytes();
+            let s = unsafe { std::str::from_utf8_unchecked(bytes) };
+            atoms.atom(s);
             drop(atoms);
             self.node_load_module_by_relative_name(
                 Extensions::TypeScript.union(Extensions::Declaration),
@@ -124,7 +123,7 @@ impl<'atoms, FS: CachedFileSystem> Resolver<'atoms, FS> {
         types_scope_only: bool,
     ) -> RResult<PathId> {
         fn lookup(
-            this: &Resolver<'_, impl CachedFileSystem>,
+            this: &Resolver<impl CachedFileSystem>,
             ext: Extensions,
             base_dir_id: PathId,
             module_name_id: AtomId,
@@ -158,13 +157,10 @@ impl<'atoms, FS: CachedFileSystem> Resolver<'atoms, FS> {
             let base_dir = Path::new(atoms.get(base_dir_id.into()));
             if let Some(parent) = base_dir.parent() {
                 debug_assert!(parent.is_normalized());
-                let parent_id = PathId::get(parent);
-                if !atoms.contains(parent_id.into()) {
-                    let bytes = parent.as_os_str().as_encoded_bytes();
-                    let s = unsafe { String::from_utf8_unchecked(bytes.to_vec()) };
-                    let s = std::borrow::Cow::Owned(s);
-                    atoms.insert(parent_id.into(), s);
-                }
+                let parent_id = PathId::get(parent, &mut atoms);
+                let bytes = parent.as_os_str().as_encoded_bytes();
+                let s = unsafe { std::str::from_utf8_unchecked(bytes) };
+                atoms.atom(s);
                 drop(atoms);
                 lookup(this, ext, parent_id, module_name_id, types_scope_only)
             } else {
@@ -186,15 +182,15 @@ impl<'atoms, FS: CachedFileSystem> Resolver<'atoms, FS> {
         let dir = Path::new(atoms.get(dir_id.into()));
         let node_modules_folder = dir.join(NODE_MODULES_FOLDER);
         debug_assert!(node_modules_folder.is_normalized());
-        let node_modules_folder_id = PathId::get(node_modules_folder.as_path());
-        atoms.insert_if_not_exist(node_modules_folder_id.into(), || {
+        let node_modules_folder_id = PathId::get(node_modules_folder.as_path(), &mut atoms);
+        atoms.atom({
             let bytes = node_modules_folder.as_os_str().as_encoded_bytes();
-            let s = unsafe { String::from_utf8_unchecked(bytes.to_vec()) };
-            std::borrow::Cow::Owned(s)
+            
+            (unsafe { std::str::from_utf8_unchecked(bytes) }) as _
         });
 
         let mut fs = self.fs.lock().unwrap();
-        let node_module_folder_exists = fs.dir_exists(&node_modules_folder);
+        let node_module_folder_exists = fs.dir_exists(&node_modules_folder, &mut atoms);
 
         if !types_scope_only {
             drop(atoms);
@@ -211,15 +207,12 @@ impl<'atoms, FS: CachedFileSystem> Resolver<'atoms, FS> {
 
         if ext.intersects(Extensions::Declaration) {
             let node_modules_at_types = node_modules_folder.join("@types");
-            let node_modules_at_types_id = PathId::get(node_modules_at_types.as_path());
-            self.atoms
-                .lock()
-                .unwrap()
-                .insert_if_not_exist(node_modules_at_types_id.into(), || {
-                    let bytes = node_modules_at_types.as_os_str().as_encoded_bytes();
-                    let s = unsafe { String::from_utf8_unchecked(bytes.to_vec()) };
-                    std::borrow::Cow::Owned(s)
-                });
+            let mut atoms = self.atoms.lock().unwrap();
+            let node_modules_at_types_id = atoms.atom({
+                let bytes = node_modules_at_types.as_os_str().as_encoded_bytes();
+                
+                (unsafe { std::str::from_utf8_unchecked(bytes) }) as _
+            });
             // let mut node_modules_at_types_exists = node_module_folder_exists;
             // if node_modules_at_types_exists
             //     && !self.fs.lock().unwrap().dir_exists(&node_modules_at_types)
@@ -248,7 +241,7 @@ impl<'atoms, FS: CachedFileSystem> Resolver<'atoms, FS> {
         debug_assert!(pkg_dir.is_normalized());
         let pkg_json_path = normalize_join(pkg_dir, "package.json");
         debug_assert!(pkg_json_path.is_normalized());
-        let pkg_json_path_id = PathId::get(&pkg_json_path);
+        let pkg_json_path_id = PathId::get(&pkg_json_path, &mut atoms);
         if only_record_failures {
             debug_assert!(!pkg_json_path.exists());
             return None;
@@ -263,9 +256,9 @@ impl<'atoms, FS: CachedFileSystem> Resolver<'atoms, FS> {
         }
 
         let mut fs = self.fs.lock().unwrap();
-        let dir_exists = fs.dir_exists(pkg_dir);
-        if dir_exists && fs.file_exists(&pkg_json_path) {
-            let package_dir = PathId::get(pkg_dir);
+        let dir_exists = fs.dir_exists(pkg_dir, &mut atoms);
+        if dir_exists && fs.file_exists(&pkg_json_path, &mut atoms) {
+            let package_dir = PathId::get(pkg_dir, &mut atoms);
             let package_json_content = fs.read_file(&pkg_json_path, &mut atoms).unwrap();
             let c = atoms.get(package_json_content);
             let contents: PackageJsonInfoContents = serde_json::from_str(c).unwrap();
@@ -295,7 +288,8 @@ impl<'atoms, FS: CachedFileSystem> Resolver<'atoms, FS> {
                 let parent_of_candidate = candidate.parent().unwrap();
                 debug_assert!(parent_of_candidate.is_normalized());
                 let fs = &mut self.fs.lock().unwrap();
-                if !fs.dir_exists(parent_of_candidate) {
+                let atoms = &mut self.atoms.lock().unwrap();
+                if !fs.dir_exists(parent_of_candidate, atoms) {
                     only_record_failures = true;
                 }
             }
@@ -308,7 +302,11 @@ impl<'atoms, FS: CachedFileSystem> Resolver<'atoms, FS> {
         }
 
         if !only_record_failures {
-            let candidate_exists = self.fs.lock().unwrap().dir_exists(&candidate);
+            let candidate_exists = self
+                .fs
+                .lock()
+                .unwrap()
+                .dir_exists(&candidate, self.atoms.lock().as_mut().unwrap());
             if !candidate_exists {
                 only_record_failures = true;
             }
@@ -330,7 +328,8 @@ impl<'atoms, FS: CachedFileSystem> Resolver<'atoms, FS> {
         consider_pkg_json: bool,
     ) -> RResult<PathId> {
         let package_info = if consider_pkg_json {
-            self.get_pkg_json_info(PathId::get(&candidate), only_record_failures)
+            let pkg_dir = PathId::get(&candidate, self.atoms.lock().as_mut().unwrap());
+            self.get_pkg_json_info(pkg_dir, only_record_failures)
         } else {
             None
         };
@@ -413,12 +412,18 @@ impl<'atoms, FS: CachedFileSystem> Resolver<'atoms, FS> {
                     }
                 }
                 // TODO: is_config_lookup
-                Err(ResolveError::NotFound(PathId::get(candidate)))
+                Err(ResolveError::NotFound(PathId::get(
+                    candidate,
+                    self.atoms.lock().as_mut().unwrap(),
+                )))
             }
             _ => {
                 // None means unknown extension, such as `.png`
                 // TODO: handle declaration
-                Err(ResolveError::NotFound(PathId::get(candidate)))
+                Err(ResolveError::NotFound(PathId::get(
+                    candidate,
+                    self.atoms.lock().as_mut().unwrap(),
+                )))
             }
         }
     }
@@ -445,16 +450,13 @@ impl<'atoms, FS: CachedFileSystem> Resolver<'atoms, FS> {
     fn try_file(&self, p: &std::path::Path, only_record_failures: bool) -> RResult<PathId> {
         // TODO: `config.module_suffix`
         debug_assert!(p.is_normalized());
-        let id = PathId::get(p);
+        let is_file = self.is_file(p);
         let atoms = &mut self.atoms.lock().unwrap();
-        atoms.insert_if_not_exist(id.into(), || {
-            let bytes = p.as_os_str().as_encoded_bytes();
-            let s = unsafe { String::from_utf8_unchecked(bytes.to_vec()) };
-            std::borrow::Cow::Owned(s)
-        });
-        if self.is_file(p) {
-            return Ok(id);
+        let id = PathId::get(p, atoms);
+        if is_file {
+            Ok(id)
+        } else {
+            Err(ResolveError::NotFound(id))
         }
-        Err(ResolveError::NotFound(id))
     }
 }

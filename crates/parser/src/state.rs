@@ -19,7 +19,7 @@ pub enum LanguageVariant {
 }
 
 pub(super) struct ParserState<'cx, 'p> {
-    pub(super) atoms: Arc<Mutex<AtomMap<'cx>>>,
+    pub(super) atoms: Arc<Mutex<AtomMap>>,
     pub(super) input: &'p [u8],
     pub(super) token: Token,
     pub(super) token_value: Option<TokenValue>,
@@ -53,7 +53,7 @@ pub(super) struct ParserState<'cx, 'p> {
 
 impl<'cx, 'p> ParserState<'cx, 'p> {
     pub(super) fn new(
-        atoms: Arc<Mutex<AtomMap<'cx>>>,
+        atoms: Arc<Mutex<AtomMap>>,
         arena: &'p bolt_ts_arena::bumpalo_herd::Member<'cx>,
         nodes: Nodes<'cx>,
         input: &'p [u8],
@@ -61,14 +61,12 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         file_path: &std::path::Path,
         variant: LanguageVariant,
     ) -> Self {
+        debug_assert!(file_path.is_normalized());
         let token = Token::new(TokenKind::EOF, Span::new(u32::MAX, u32::MAX, module_id));
         let p = file_path.to_string_lossy();
-        let p = p.as_bytes();
-        let atom = AtomId::from_bytes(p);
-        debug_assert!(file_path.is_normalized());
-        debug_assert!(atoms.lock().unwrap().contains(atom));
+        let atom = atoms.lock().unwrap().atom(p.as_ref());
         let mut context_flags = NodeFlags::default();
-        let is_declaration = is_declaration_filename(p);
+        let is_declaration = is_declaration_filename(p.as_bytes());
         if is_declaration {
             context_flags |= NodeFlags::AMBIENT;
         }

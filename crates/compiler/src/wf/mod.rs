@@ -58,7 +58,7 @@ fn well_formed_check(
 
 struct CheckState<'cx> {
     p: &'cx Parser<'cx>,
-    atoms: &'cx AtomMap<'cx>,
+    atoms: &'cx AtomMap,
     diags: Vec<bolt_ts_errors::Diag>,
     compiler_options: &'cx NormalizedCompilerOptions,
     module_id: ModuleID,

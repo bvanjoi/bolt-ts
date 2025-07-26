@@ -1,5 +1,3 @@
-use std::borrow::Cow;
-
 use super::create_ty::IntersectionFlags;
 use super::instantiation_ty_map::{
     ConditionalTyInstantiationTyMap, TyAliasInstantiationMap, TyCacheTrait,
@@ -14,7 +12,6 @@ use crate::ty::{ObjectFlags, TyMapper, TypeFlags};
 
 use bolt_ts_ast as ast;
 use bolt_ts_ast::MappedTyModifiers;
-use bolt_ts_atom::AtomId;
 
 impl<'cx> TyChecker<'cx> {
     pub fn instantiate_ty(
@@ -934,11 +931,8 @@ impl<'cx> TyChecker<'cx> {
                         .map(|t| {
                             let text = self.atoms.get(*t);
                             let text = text.to_uppercase();
-                            let atom = AtomId::from_str(&text);
-                            self.atoms.insert_if_not_exist(AtomId::from_str(&text), || {
-                                Cow::Owned(text.clone())
-                            });
-                            atom
+                            
+                            self.atoms.atom(&text)
                         })
                         .collect::<Vec<_>>();
                     let tys = t
@@ -955,11 +949,8 @@ impl<'cx> TyChecker<'cx> {
                         .map(|t| {
                             let text = self.atoms.get(*t);
                             let text = text.to_lowercase();
-                            let atom = AtomId::from_str(&text);
-                            self.atoms.insert_if_not_exist(AtomId::from_str(&text), || {
-                                Cow::Owned(text.clone())
-                            });
-                            atom
+                            
+                            self.atoms.atom(&text)
                         })
                         .collect::<Vec<_>>();
                     let tys = t
@@ -979,9 +970,7 @@ impl<'cx> TyChecker<'cx> {
                         self.get_template_lit_ty(t.texts, &tys)
                     } else {
                         let t0 = capitalize(self.atoms.get(t.texts[0]));
-                        let atom = AtomId::from_str(&t0);
-                        self.atoms
-                            .insert_if_not_exist(atom, || Cow::Owned(t0.clone()));
+                        let atom = self.atoms.atom(&t0);
                         let mut new_texts = Vec::with_capacity(t.texts.len());
                         new_texts.push(atom);
                         new_texts.extend_from_slice(&t.texts[1..]);
@@ -998,9 +987,7 @@ impl<'cx> TyChecker<'cx> {
                         self.get_template_lit_ty(t.texts, &tys)
                     } else {
                         let t0 = uncapitalize(self.atoms.get(t.texts[0]));
-                        let atom = AtomId::from_str(&t0);
-                        self.atoms
-                            .insert_if_not_exist(atom, || Cow::Owned(t0.clone()));
+                        let atom = self.atoms.atom(&t0);
                         let mut new_texts = Vec::with_capacity(t.texts.len());
                         new_texts.push(atom);
                         new_texts.extend_from_slice(&t.texts[1..]);
@@ -1048,13 +1035,13 @@ impl<'cx> TyChecker<'cx> {
         let str = self.atoms.get(atom);
         let ty = self.symbol(symbol).name.expect_atom();
         let str = match ty {
-            keyword::INTRINSIC_TYPE_UPPERCASE => Cow::Owned(str.to_uppercase()),
-            keyword::INTRINSIC_TYPE_LOWERCASE => Cow::Owned(str.to_lowercase()),
-            keyword::INTRINSIC_TYPE_CAPITALIZE => Cow::Owned(capitalize(str)),
-            keyword::INTRINSIC_TYPE_UNCAPITALIZE => Cow::Owned(uncapitalize(str)),
+            keyword::INTRINSIC_TYPE_UPPERCASE => str.to_uppercase(),
+            keyword::INTRINSIC_TYPE_LOWERCASE => str.to_lowercase(),
+            keyword::INTRINSIC_TYPE_CAPITALIZE => capitalize(str),
+            keyword::INTRINSIC_TYPE_UNCAPITALIZE => uncapitalize(str),
             _ => unreachable!(),
         };
-        self.atoms.insert_by_str(str)
+        self.atoms.atom(&str)
     }
 
     pub(super) fn get_type_alias_instantiation(

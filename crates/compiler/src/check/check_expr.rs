@@ -1,7 +1,8 @@
 use bolt_ts_atom::AtomId;
 use bolt_ts_config::Target;
 use bolt_ts_span::Span;
-use bolt_ts_utils::fx_hashmap_with_capacity;
+use bolt_ts_utils::FxIndexMap;
+use bolt_ts_utils::fx_indexmap_with_capacity;
 
 use crate::bind::SymbolID;
 use crate::ensure_sufficient_stack;
@@ -582,7 +583,7 @@ impl<'cx> TyChecker<'cx> {
         self.push_cached_contextual_type(node.id);
 
         let mut object_flags = ObjectFlags::FRESH_LITERAL;
-        let mut properties_table = fx_hashmap_with_capacity(node.members.len());
+        let mut properties_table = fx_indexmap_with_capacity(node.members.len());
         let mut properties_array = Vec::with_capacity(node.members.len());
         let mut spread = self.empty_object_ty();
         // let mut properties_array = Vec::with_capacity(node.members.len());
@@ -703,7 +704,7 @@ impl<'cx> TyChecker<'cx> {
             this: &mut TyChecker<'cx>,
             node: &'cx ast::ObjectLit<'cx>,
             object_flags: ObjectFlags,
-            properties_table: &'cx rustc_hash::FxHashMap<SymbolName, SymbolID>,
+            properties_table: &'cx FxIndexMap<SymbolName, SymbolID>,
         ) -> &'cx ty::Ty<'cx> {
             let ty = this.create_anonymous_ty(
                 Some(this.final_res(node.id)),
@@ -781,7 +782,7 @@ impl<'cx> TyChecker<'cx> {
 
         // get anonymous partial ty
         let props = self.get_props_of_ty(ty);
-        let mut members = fx_hashmap_with_capacity(props.len());
+        let mut members = fx_indexmap_with_capacity(props.len());
         for prop in props {
             // TODO: exclude private and projected
             let s = self.symbol(*prop);
@@ -820,14 +821,14 @@ impl<'cx> TyChecker<'cx> {
         }
         let index_infos = self.get_index_infos_of_ty(ty);
 
-        (self.create_anonymous_ty_with_resolved(
+        self.create_anonymous_ty_with_resolved(
             ty.symbol(),
-            ObjectFlags::OBJECT_LITERAL | ObjectFlags::CONTAINS_OBJECT_OR_ARRAY_LITERAL,
+            ObjectFlags::OBJECT_LITERAL.union(ObjectFlags::CONTAINS_OBJECT_OR_ARRAY_LITERAL),
             self.alloc(members),
             self.empty_array(),
             self.empty_array(),
             index_infos,
-        )) as _
+        )
     }
 
     fn check_assign_expr(&mut self, assign: &'cx ast::AssignExpr<'cx>) -> &'cx ty::Ty<'cx> {
