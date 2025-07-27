@@ -3,6 +3,7 @@ use bolt_ts_errors::diag_ext;
 use bolt_ts_errors::miette;
 use bolt_ts_errors::miette::Diagnostic;
 use bolt_ts_errors::thiserror::Error;
+use bolt_ts_parser::ParseResultForGraph;
 use bolt_ts_span::Span;
 use bolt_ts_utils::no_hashset_with_capacity;
 
@@ -61,7 +62,7 @@ pub(super) fn get_merged_diags(
 fn mark_preceding_comment_directive_line<'cx>(
     diag_start: usize,
     directives: &mut CommentDirectivesMap<'_, 'cx>,
-    file: &super::ParseResult<'cx>,
+    file: &ParseResultForGraph<'cx>,
     input: &[u8],
     module_id: bolt_ts_span::ModuleID,
 ) -> bool {

@@ -5,7 +5,7 @@ use bolt_ts_utils::no_hashmap_with_capacity;
 use super::bind::SymbolID;
 use crate::ty;
 
-fn _hash_ty_args(hasher: &mut rustc_hash::FxHasher, ty_args: &[&ty::Ty]) {
+fn hash_ty_args_with_hasher(hasher: &mut rustc_hash::FxHasher, ty_args: &[&ty::Ty]) {
     ty_args
         .iter()
         .for_each(|ty| hasher.write_u32(ty.id.as_u32()));
@@ -13,7 +13,7 @@ fn _hash_ty_args(hasher: &mut rustc_hash::FxHasher, ty_args: &[&ty::Ty]) {
 
 pub(super) fn hash_ty_args(ty_args: &[&ty::Ty]) -> TyKey {
     let mut hasher = rustc_hash::FxHasher::default();
-    _hash_ty_args(&mut hasher, ty_args);
+    hash_ty_args_with_hasher(&mut hasher, ty_args);
     let id = hasher.finish();
     TyKey(id)
 }
@@ -83,7 +83,7 @@ impl<'cx> TyCacheTrait<'cx> for IntersectionMap<'cx> {
     }
     fn create_ty_key(input: &Self::Input) -> TyKey {
         let mut hasher = rustc_hash::FxHasher::default();
-        _hash_ty_args(&mut hasher, input.0.as_ref());
+        hash_ty_args_with_hasher(&mut hasher, input.0.as_ref());
         if input.1 {
             hasher.write_u8(1);
         }
@@ -111,7 +111,7 @@ impl<'cx> TyCacheTrait<'cx> for UnionMap<'cx> {
     }
     fn create_ty_key(input: &Self::Input) -> TyKey {
         let mut hasher = rustc_hash::FxHasher::default();
-        _hash_ty_args(&mut hasher, input);
+        hash_ty_args_with_hasher(&mut hasher, input);
         let id = hasher.finish();
         TyKey(id)
     }
@@ -149,7 +149,7 @@ impl<'cx> InstantiationTyMap<'cx> {
     pub fn create_id(target_ty_id: ty::TyID, ty_args: &[&'cx ty::Ty<'cx>]) -> TyKey {
         let mut hasher = rustc_hash::FxHasher::default();
         hasher.write_u32(target_ty_id.as_u32());
-        _hash_ty_args(&mut hasher, ty_args);
+        hash_ty_args_with_hasher(&mut hasher, ty_args);
         let id = hasher.finish();
         TyKey(id)
     }
@@ -167,13 +167,13 @@ impl<'cx> ConditionalTyInstantiationTyMap {
         let mut hasher = rustc_hash::FxHasher::default();
         hasher.write_u32(root_node_id.module().as_u32());
         hasher.write_u32(root_node_id.index_as_u32());
-        _hash_ty_args(&mut hasher, ty_args);
+        hash_ty_args_with_hasher(&mut hasher, ty_args);
         if let Some(alias_symbol) = alias_symbol {
             hasher.write_u32(alias_symbol.module().as_u32());
             hasher.write_u32(alias_symbol.index_as_u32());
         }
         if let Some(alias_ty_arguments) = alias_ty_arguments {
-            _hash_ty_args(&mut hasher, alias_ty_arguments);
+            hash_ty_args_with_hasher(&mut hasher, alias_ty_arguments);
         }
         let id = hasher.finish();
         TyKey(id)
@@ -266,13 +266,45 @@ impl<'cx> TyCacheTrait<'cx> for TyAliasInstantiationMap<'cx> {
         let mut hasher = rustc_hash::FxHasher::default();
         hasher.write_u32(input.0.module().as_u32());
         hasher.write_u32(input.0.index_as_u32());
-        _hash_ty_args(&mut hasher, input.1);
+        hash_ty_args_with_hasher(&mut hasher, input.1);
         if let Some(alias_symbol) = input.2 {
             hasher.write_u32(alias_symbol.module().as_u32());
             hasher.write_u32(alias_symbol.index_as_u32());
         }
         if let Some(alias_ty_arguments) = input.3 {
-            _hash_ty_args(&mut hasher, alias_ty_arguments);
+            hash_ty_args_with_hasher(&mut hasher, alias_ty_arguments);
+        }
+        let id = hasher.finish();
+        TyKey(id)
+    }
+    fn inner(&self) -> &TyCache<'cx> {
+        &self.inner
+    }
+    fn inner_mut(&mut self) -> &mut TyCache<'cx> {
+        &mut self.inner
+    }
+}
+
+pub(super) struct TyInstantiationMap<'cx> {
+    inner: TyCache<'cx>,
+}
+
+impl<'cx> TyCacheTrait<'cx> for TyInstantiationMap<'cx> {
+    type Input = (ty::TyID, Option<SymbolID>, Option<ty::Tys<'cx>>);
+    fn new(capacity: usize) -> Self {
+        Self {
+            inner: TyCache::new(capacity),
+        }
+    }
+    fn create_ty_key(input: &Self::Input) -> TyKey {
+        let mut hasher = rustc_hash::FxHasher::default();
+        hasher.write_u32(input.0.as_u32());
+        if let Some(alias_symbol) = input.1 {
+            hasher.write_u32(alias_symbol.module().as_u32());
+            hasher.write_u32(alias_symbol.index_as_u32());
+        }
+        if let Some(alias_ty_arguments) = input.2 {
+            hash_ty_args_with_hasher(&mut hasher, alias_ty_arguments);
         }
         let id = hasher.finish();
         TyKey(id)

@@ -81,6 +81,7 @@ use self::get_variances::VarianceFlags;
 use self::infer::InferenceContext;
 use self::infer::{InferenceFlags, InferencePriority};
 use self::instantiation_ty_map::InstantiationTyMap;
+use self::instantiation_ty_map::TyInstantiationMap;
 use self::instantiation_ty_map::{
     IndexedAccessTyMap, IntersectionMap, StringMappingTyMap, TyAliasInstantiationMap, TyCacheTrait,
     TyKey, UnionMap,
@@ -196,6 +197,8 @@ pub struct TyChecker<'cx> {
     check_mode: Option<CheckMode>,
     inferences: Vec<InferenceContext<'cx>>,
     inference_contextual: Vec<InferenceContextual>,
+    activity_ty_mapper: Vec<&'cx dyn ty::TyMap<'cx>>,
+    activity_ty_mapper_caches: Vec<nohash_hasher::IntMap<TyKey, &'cx ty::Ty<'cx>>>,
     type_contextual: Vec<TyContextual<'cx>>,
     deferred_nodes: Vec<indexmap::IndexSet<ast::NodeID, FxBuildHasher>>,
     // === links ===
@@ -204,9 +207,12 @@ pub struct TyChecker<'cx> {
     node_links: FxHashMap<ast::NodeID, NodeLinks<'cx>>,
     sig_links: nohash_hasher::IntMap<SigID, SigLinks<'cx>>,
     ty_links: nohash_hasher::IntMap<TyID, TyLinks<'cx>>,
+    iteration_tys_map: nohash_hasher::IntMap<TyKey, ty::IterationTys<'cx>>,
+
     instantiation_ty_map: InstantiationTyMap<'cx>,
     ty_alias_instantiation_map: TyAliasInstantiationMap<'cx>,
-    iteration_tys_map: nohash_hasher::IntMap<TyKey, ty::IterationTys<'cx>>,
+    ty_instantiation_map: TyInstantiationMap<'cx>,
+
     mark_tys: nohash_hasher::IntSet<TyID>,
     shared_flow_info: Vec<(FlowID, FlowTy<'cx>)>,
     common_ty_links_arena: ty::CommonTyLinksArena<'cx>,
@@ -501,6 +507,7 @@ impl<'cx> TyChecker<'cx> {
             string_mapping_tys: StringMappingTyMap::new(1024 * 8),
             instantiation_ty_map: InstantiationTyMap::new(1024 * 16),
             ty_alias_instantiation_map: TyAliasInstantiationMap::new(1024 * 16),
+            ty_instantiation_map: TyInstantiationMap::new(1024 * 16),
             iteration_tys_map: no_hashmap_with_capacity(1024 * 4),
             mark_tys: no_hashset_with_capacity(1024 * 4),
 
@@ -625,6 +632,8 @@ impl<'cx> TyChecker<'cx> {
             reverse_mapped_source_stack: Vec::with_capacity(8),
             reverse_mapped_target_stack: Vec::with_capacity(8),
             reverse_expanding_flags: RecursionFlags::empty(),
+            activity_ty_mapper: Vec::with_capacity(1024),
+            activity_ty_mapper_caches: Vec::with_capacity(1024),
         };
 
         macro_rules! make_global {

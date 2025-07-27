@@ -1,7 +1,7 @@
 use super::symbol::{SymbolFlags, SymbolTableLocation};
 use super::{BinderState, Symbol, SymbolID, SymbolName, Symbols, errors};
 use crate::bind::SymbolTable;
-use bolt_ts_parser::ParseResult;
+use bolt_ts_parser::ParseResultForGraph;
 
 use bolt_ts_ast as ast;
 
@@ -9,7 +9,7 @@ pub(crate) fn set_value_declaration(
     symbol: SymbolID,
     symbols: &mut Symbols,
     node: ast::NodeID,
-    p: &[ParseResult],
+    p: &[ParseResultForGraph],
 ) {
     let s = symbols.get_mut(symbol);
     // TODO: ambient declaration
@@ -26,7 +26,7 @@ pub(crate) fn set_value_declaration_in_same_module(
     symbol: SymbolID,
     symbols: &mut Symbols,
     node: ast::NodeID,
-    p: &ParseResult,
+    p: &ParseResultForGraph,
 ) {
     assert_eq!(node.module(), symbol.module());
     let s = symbols.get_mut(symbol);

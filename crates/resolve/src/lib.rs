@@ -65,8 +65,8 @@ impl<FS: CachedFileSystem> Resolver<FS> {
     }
 
     fn is_file(&self, p: &Path) -> bool {
-        let fs = &mut *self.fs.lock().unwrap();
-        let atoms = &mut *self.atoms.lock().unwrap();
+        let fs = &mut self.fs.lock().unwrap();
+        let atoms = &mut self.atoms.lock().unwrap();
         fs.file_exists(p, atoms)
     }
 
@@ -81,14 +81,12 @@ impl<FS: CachedFileSystem> Resolver<FS> {
     }
 
     fn try_resolve(&self, base_dir: PathId, target: AtomId) -> RResult<PathId> {
-        let mut atoms = self.atoms.lock().unwrap();
-        let module_name = atoms.get(target);
+        let module_name = self.atoms.lock().unwrap().get(target);
         if !bolt_ts_path::is_external_module_relative(module_name) {
             let ext = Extensions::TypeScript | Extensions::Declaration;
-            drop(atoms);
             self.load_module_from_nearest_node_modules_dir(ext, target, base_dir)
         } else {
-            let base_dir = atoms.get(base_dir.into());
+            let base_dir = self.atoms.lock().unwrap().get(base_dir.into());
             let candidate = {
                 let base = Path::new(base_dir);
                 debug_assert!(base.is_normalized());
@@ -96,8 +94,7 @@ impl<FS: CachedFileSystem> Resolver<FS> {
             };
             let bytes = candidate.as_os_str().as_encoded_bytes();
             let s = unsafe { std::str::from_utf8_unchecked(bytes) };
-            atoms.atom(s);
-            drop(atoms);
+            self.atoms.lock().unwrap().atom(s);
             self.node_load_module_by_relative_name(
                 Extensions::TypeScript.union(Extensions::Declaration),
                 candidate,
@@ -129,8 +126,7 @@ impl<FS: CachedFileSystem> Resolver<FS> {
             module_name_id: AtomId,
             types_scope_only: bool,
         ) -> RResult<PathId> {
-            let atoms = this.atoms.lock().unwrap();
-            let base_dir = Path::new(atoms.get(base_dir_id.into()));
+            let base_dir = Path::new(this.atoms.lock().unwrap().get(base_dir_id.into()));
             debug_assert!(base_dir.is_normalized());
             if base_dir
                 .file_name()
@@ -143,7 +139,6 @@ impl<FS: CachedFileSystem> Resolver<FS> {
                 if let Some(cached) = this.cache.lock().unwrap().get(&cache_key) {
                     return *cached;
                 }
-                drop(atoms);
                 if let Ok(res) = this.load_module_from_immediate_node_modules_dir(
                     ext,
                     base_dir_id,
@@ -153,15 +148,13 @@ impl<FS: CachedFileSystem> Resolver<FS> {
                     return Ok(res);
                 }
             }
-            let mut atoms = this.atoms.lock().unwrap();
-            let base_dir = Path::new(atoms.get(base_dir_id.into()));
+            let base_dir = Path::new(this.atoms.lock().unwrap().get(base_dir_id.into()));
             if let Some(parent) = base_dir.parent() {
                 debug_assert!(parent.is_normalized());
-                let parent_id = PathId::get(parent, &mut atoms);
+                let parent_id = PathId::get(parent, this.atoms.lock().as_mut().unwrap());
                 let bytes = parent.as_os_str().as_encoded_bytes();
                 let s = unsafe { std::str::from_utf8_unchecked(bytes) };
-                atoms.atom(s);
-                drop(atoms);
+                this.atoms.lock().unwrap().atom(s);
                 lookup(this, ext, parent_id, module_name_id, types_scope_only)
             } else {
                 Err(ResolveError::NotFound(module_name_id.into()))
@@ -178,23 +171,21 @@ impl<FS: CachedFileSystem> Resolver<FS> {
         module_name: AtomId,
         types_scope_only: bool,
     ) -> RResult<PathId> {
-        let mut atoms = self.atoms.lock().unwrap();
-        let dir = Path::new(atoms.get(dir_id.into()));
+        let dir = Path::new(self.atoms.lock().unwrap().get(dir_id.into()));
         let node_modules_folder = dir.join(NODE_MODULES_FOLDER);
         debug_assert!(node_modules_folder.is_normalized());
-        let node_modules_folder_id = PathId::get(node_modules_folder.as_path(), &mut atoms);
-        atoms.atom({
+        let atom = {
             let bytes = node_modules_folder.as_os_str().as_encoded_bytes();
-            
-            (unsafe { std::str::from_utf8_unchecked(bytes) }) as _
-        });
-
-        let mut fs = self.fs.lock().unwrap();
-        let node_module_folder_exists = fs.dir_exists(&node_modules_folder, &mut atoms);
+            unsafe { std::str::from_utf8_unchecked(bytes) }
+        };
+        let node_modules_folder_id = self.atoms.lock().unwrap().atom(atom).into();
+        let node_module_folder_exists = self
+            .fs
+            .lock()
+            .unwrap()
+            .dir_exists(&node_modules_folder, self.atoms.lock().as_mut().unwrap());
 
         if !types_scope_only {
-            drop(atoms);
-            drop(fs);
             if let Ok(pkg) = self.load_module_from_spec_node_modules_dir(
                 ext,
                 node_modules_folder_id,
@@ -207,12 +198,9 @@ impl<FS: CachedFileSystem> Resolver<FS> {
 
         if ext.intersects(Extensions::Declaration) {
             let node_modules_at_types = node_modules_folder.join("@types");
-            let mut atoms = self.atoms.lock().unwrap();
-            let node_modules_at_types_id = atoms.atom({
-                let bytes = node_modules_at_types.as_os_str().as_encoded_bytes();
-                
-                (unsafe { std::str::from_utf8_unchecked(bytes) }) as _
-            });
+            let bytes = node_modules_at_types.as_os_str().as_encoded_bytes();
+            let s = unsafe { std::str::from_utf8_unchecked(bytes) };
+            let node_modules_at_types_id = self.atoms.lock().unwrap().atom(s);
             // let mut node_modules_at_types_exists = node_module_folder_exists;
             // if node_modules_at_types_exists
             //     && !self.fs.lock().unwrap().dir_exists(&node_modules_at_types)
@@ -236,12 +224,11 @@ impl<FS: CachedFileSystem> Resolver<FS> {
         pkg_dir: PathId,
         only_record_failures: bool,
     ) -> Option<PackageJsonInfoId> {
-        let mut atoms = self.atoms.lock().unwrap();
-        let pkg_dir = Path::new(atoms.get(pkg_dir.into()));
+        let pkg_dir = Path::new(self.atoms.lock().unwrap().get(pkg_dir.into()));
         debug_assert!(pkg_dir.is_normalized());
         let pkg_json_path = normalize_join(pkg_dir, "package.json");
         debug_assert!(pkg_json_path.is_normalized());
-        let pkg_json_path_id = PathId::get(&pkg_json_path, &mut atoms);
+        let pkg_json_path_id = PathId::get(&pkg_json_path, self.atoms.lock().as_mut().unwrap());
         if only_record_failures {
             debug_assert!(!pkg_json_path.exists());
             return None;
@@ -256,11 +243,18 @@ impl<FS: CachedFileSystem> Resolver<FS> {
         }
 
         let mut fs = self.fs.lock().unwrap();
-        let dir_exists = fs.dir_exists(pkg_dir, &mut atoms);
-        if dir_exists && fs.file_exists(&pkg_json_path, &mut atoms) {
-            let package_dir = PathId::get(pkg_dir, &mut atoms);
-            let package_json_content = fs.read_file(&pkg_json_path, &mut atoms).unwrap();
-            let c = atoms.get(package_json_content);
+        let dir_exists = fs.dir_exists(pkg_dir, self.atoms.lock().as_mut().unwrap());
+        if dir_exists && fs.file_exists(&pkg_json_path, self.atoms.lock().as_mut().unwrap()) {
+            let package_dir = PathId::get(pkg_dir, self.atoms.lock().as_mut().unwrap());
+            let package_json_content = fs
+                .read_file(&pkg_json_path, self.atoms.lock().as_mut().unwrap())
+                .unwrap();
+            let c = self
+                .atoms
+                .lock()
+                .as_mut()
+                .unwrap()
+                .get(package_json_content);
             let contents: PackageJsonInfoContents = serde_json::from_str(c).unwrap();
             let package_json = self.new_pkg_json(package_dir, contents);
             let prev = self
@@ -302,11 +296,9 @@ impl<FS: CachedFileSystem> Resolver<FS> {
         }
 
         if !only_record_failures {
-            let candidate_exists = self
-                .fs
-                .lock()
-                .unwrap()
-                .dir_exists(&candidate, self.atoms.lock().as_mut().unwrap());
+            let fs = &mut self.fs.lock().unwrap();
+            let atoms = &mut self.atoms.lock().unwrap();
+            let candidate_exists = fs.dir_exists(&candidate, atoms);
             if !candidate_exists {
                 only_record_failures = true;
             }

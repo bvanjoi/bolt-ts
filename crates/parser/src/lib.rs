@@ -31,6 +31,7 @@ use bolt_ts_span::{ModuleArena, ModuleID};
 use bolt_ts_utils::no_hashmap_with_capacity;
 use bolt_ts_utils::path::NormalizePath;
 
+use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 
 pub use self::nodes::Nodes;
@@ -80,16 +81,33 @@ pub struct ParseResult<'cx> {
     pub commonjs_module_indicator: Option<ast::NodeID>,
     pub comment_directives: Vec<CommentDirective>,
     pub comments: Vec<ast::Comment>,
-    pub lib_references: Vec<PathId>,
     pub line_map: Vec<u32>,
     pub filepath: AtomId,
     pub is_declaration: bool,
     pub imports: Vec<&'cx ast::StringLit>,
     pub module_augmentations: Vec<ast::NodeID>,
     pub ambient_modules: Vec<AtomId>,
+    lib_reference_directives: Vec<FileReference>,
 }
 
-impl<'cx> ParseResult<'cx> {
+pub struct ParseResultForGraph<'cx> {
+    pub diags: Vec<bolt_ts_errors::Diag>,
+    pub nodes: Nodes<'cx>,
+    pub node_flags_map: NodeFlagsMap,
+    pub external_module_indicator: Option<ast::NodeID>,
+    pub commonjs_module_indicator: Option<ast::NodeID>,
+    pub comment_directives: Vec<CommentDirective>,
+    pub comments: Vec<ast::Comment>,
+    pub line_map: Vec<u32>,
+    pub filepath: AtomId,
+    pub is_declaration: bool,
+    pub imports: Vec<&'cx ast::StringLit>,
+    pub module_augmentations: Vec<ast::NodeID>,
+    pub ambient_modules: Vec<AtomId>,
+    pub lib_references: Vec<PathBuf>,
+}
+
+impl<'cx> ParseResultForGraph<'cx> {
     pub fn root(&self) -> &'cx ast::Program<'cx> {
         self.nodes.root()
     }
@@ -115,7 +133,7 @@ impl<'cx> ParseResult<'cx> {
 }
 
 pub struct Parser<'cx> {
-    pub map: Vec<ParseResult<'cx>>,
+    pub map: Vec<ParseResultForGraph<'cx>>,
 }
 
 impl Default for Parser<'_> {
@@ -132,13 +150,13 @@ impl<'cx> Parser<'cx> {
     }
 
     #[inline(always)]
-    pub fn insert(&mut self, id: ModuleID, result: ParseResult<'cx>) {
+    pub fn insert(&mut self, id: ModuleID, result: ParseResultForGraph<'cx>) {
         assert_eq!(id.as_usize(), self.map.len());
         self.map.push(result);
     }
 
     #[inline(always)]
-    pub fn get(&self, id: ModuleID) -> &ParseResult<'cx> {
+    pub fn get(&self, id: ModuleID) -> &ParseResultForGraph<'cx> {
         let idx = id.as_usize();
         debug_assert!(idx < self.map.len());
         unsafe { self.map.get_unchecked(idx) }
@@ -191,7 +209,25 @@ pub fn parse_parallel<'cx, 'p>(
     list: &'p [ModuleID],
     module_arena: &'p ModuleArena,
     default_lib_dir: &'p std::path::Path,
-) -> impl ParallelIterator<Item = (ModuleID, ParseResult<'cx>)> {
+) -> impl ParallelIterator<Item = (ModuleID, ParseResultForGraph<'cx>)> {
+    // ) -> impl Iterator<Item = (ModuleID, ParseResult<'cx>)> {
+
+    let lib_references =
+        |p: &ParseResult, atoms: Arc<Mutex<AtomMap>>, module_id: ModuleID| -> Vec<PathBuf> {
+            if !p.lib_reference_directives.is_empty() {
+                let is_default_lib = module_arena.get_module(module_id).is_default_lib();
+                process_lib_reference_directives(
+                    &p.lib_reference_directives,
+                    is_default_lib,
+                    &atoms.lock().unwrap(),
+                    default_lib_dir,
+                )
+                .into_iter()
+                .collect::<Vec<_>>()
+            } else {
+                vec![]
+            }
+        };
     list.into_par_iter().map_init(
         || herd.get(),
         move |bump, module_id| {
@@ -202,9 +238,24 @@ pub fn parse_parallel<'cx, 'p>(
                 input.as_bytes(),
                 *module_id,
                 module_arena,
-                default_lib_dir,
             );
             assert!(!module_arena.get_module(*module_id).is_default_lib() || p.diags.is_empty());
+            let p = ParseResultForGraph {
+                lib_references: lib_references(&p, atoms.clone(), *module_id),
+                diags: p.diags,
+                nodes: p.nodes,
+                node_flags_map: p.node_flags_map,
+                external_module_indicator: p.external_module_indicator,
+                commonjs_module_indicator: p.commonjs_module_indicator,
+                comment_directives: p.comment_directives,
+                comments: p.comments,
+                line_map: p.line_map,
+                filepath: p.filepath,
+                is_declaration: p.is_declaration,
+                imports: p.imports,
+                module_augmentations: p.module_augmentations,
+                ambient_modules: p.ambient_modules,
+            };
             (*module_id, p)
         },
     )
@@ -231,7 +282,6 @@ pub fn parse<'cx, 'p>(
     input: &'p [u8],
     module_id: ModuleID,
     module_arena: &'p ModuleArena,
-    default_lib_dir: &std::path::Path,
 ) -> ParseResult<'cx> {
     let nodes = Nodes(Vec::with_capacity(1024 * 8));
     let file_path = module_arena.get_path(module_id);
@@ -251,25 +301,12 @@ pub fn parse<'cx, 'p>(
     assert_eq!(s.line_map[0], 0);
     debug_assert!(s.line_map.is_sorted(), "line_map: {:#?}", s.line_map);
 
-    let atoms = s.atoms;
     let c = collect_deps(
         s.is_declaration,
         s.external_module_indicator.is_some(),
         s.nodes.root(),
-        atoms.clone(),
+        s.atoms.clone(),
     );
-    let is_default_lib = module_arena.get_module(module_id).is_default_lib();
-
-    let lib_references = process_lib_reference_directives(
-        &s.lib_reference_directives,
-        is_default_lib,
-        &atoms,
-        default_lib_dir,
-    )
-    .into_iter()
-    .map(|p| PathId::new(&p, &mut atoms.lock().unwrap()))
-    .collect();
-    drop(atoms);
 
     ParseResult {
         diags: s.diags,
@@ -285,7 +322,7 @@ pub fn parse<'cx, 'p>(
         imports: c.imports,
         module_augmentations: c.module_augmentations,
         ambient_modules: c.ambient_modules,
-        lib_references,
+        lib_reference_directives: s.lib_reference_directives,
     }
 }
 
@@ -422,9 +459,9 @@ impl NodeFlagsMap {
 
 fn get_lib_filename_from_lib_reference(
     reference_name: AtomId,
-    atoms: &Arc<Mutex<AtomMap>>,
+    atoms: &AtomMap,
 ) -> Option<&'static str> {
-    let reference_name = atoms.lock().unwrap().get(reference_name).to_lowercase();
+    let reference_name = atoms.get(reference_name).to_lowercase();
     let key = reference_name.as_str();
     bolt_ts_libs::DEFAULT_LIB_MAP.get(key).copied()
 }
@@ -432,20 +469,27 @@ fn get_lib_filename_from_lib_reference(
 fn process_lib_reference_directives(
     lib_reference_directives: &[FileReference],
     is_default_lib: bool,
-    atoms: &Arc<Mutex<AtomMap>>,
+    atoms: &AtomMap,
     default_lib_dir: &std::path::Path,
 ) -> Vec<std::path::PathBuf> {
     if is_default_lib {
         return lib_reference_directives
             .iter()
-            .filter_map(|r| {
-                let lib_filename = get_lib_filename_from_lib_reference(r.filename, atoms)?;
-                let lib_filepath = default_lib_dir.join(lib_filename);
-                debug_assert!(lib_filepath.is_normalized());
-                Some(lib_filepath)
-            })
+            .filter_map(|r| process_lib_reference_directive(r, atoms, default_lib_dir))
             .collect();
     }
     // TODO: reference in user file.
     vec![]
+}
+
+fn process_lib_reference_directive(
+    lib_reference_directive: &FileReference,
+    atoms: &AtomMap,
+    default_lib_dir: &std::path::Path,
+) -> Option<std::path::PathBuf> {
+    let lib_filename =
+        get_lib_filename_from_lib_reference(lib_reference_directive.filename, atoms)?;
+    let lib_filepath = default_lib_dir.join(lib_filename);
+    debug_assert!(lib_filepath.is_normalized());
+    Some(lib_filepath)
 }

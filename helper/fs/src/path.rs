@@ -24,10 +24,6 @@ impl<'a> PathId {
     }
 
     pub fn new(p: &std::path::Path, atoms: &mut AtomMap) -> Self {
-        let insert_by_slice = |slice: &str, atoms: &mut AtomMap| {
-            let atom = atoms.atom(slice);
-            Self::_new(atom, atoms)
-        };
         if cfg!(target_arch = "wasm32") {
             assert!(p.has_root());
         } else {
@@ -35,7 +31,8 @@ impl<'a> PathId {
         }
         let p = p.normalize();
         let slice = unsafe { std::str::from_utf8_unchecked(p.as_os_str().as_encoded_bytes()) };
-        insert_by_slice(slice, atoms)
+        let atom = atoms.atom(slice);
+        Self::_new(atom, atoms)
     }
 
     pub fn get(p: &std::path::Path, atoms: &mut AtomMap) -> Self {

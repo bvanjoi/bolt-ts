@@ -72,7 +72,7 @@ pub(super) fn build_graph<'cx>(
         debug_assert!(resolving.is_sorted_by_key(|m| m.as_u32()));
         struct ResolvedModule<'cx> {
             id: ModuleID,
-            parse_result: bolt_ts_parser::ParseResult<'cx>,
+            parse_result: bolt_ts_parser::ParseResultForGraph<'cx>,
             deps: Vec<(ast::NodeID, RResult<PathId>)>,
         }
         let modules = bolt_ts_parser::parse_parallel(
@@ -120,16 +120,22 @@ pub(super) fn build_graph<'cx>(
         } in modules
         {
             for lib_reference in &parse_result.lib_references {
-                match resolved.get(lib_reference) {
+                debug_assert!(lib_reference.is_normalized());
+                let id = PathId::new(&lib_reference, atoms);
+                match resolved.get(&id) {
                     Some(_) => {}
                     None => {
-                        if next.contains_key(lib_reference) {
+                        if next.contains_key(&id) {
                             continue;
                         }
-                        let p = std::path::PathBuf::from(atoms.get((*lib_reference).into()));
-                        let content = fs.read_file(p.as_path(), atoms).unwrap();
-                        let to = module_arena.new_module_with_content(p, true, content, atoms);
-                        next.insert(*lib_reference, to);
+                        let content = fs.read_file(&lib_reference, atoms).unwrap();
+                        let to = module_arena.new_module_with_content(
+                            lib_reference.to_path_buf(),
+                            true,
+                            content,
+                            atoms,
+                        );
+                        next.insert(id, to);
                     }
                 }
             }

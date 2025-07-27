@@ -16,6 +16,7 @@ mod parent_map;
 mod pprint;
 mod symbol;
 
+use bolt_ts_parser::ParseResultForGraph;
 use rayon::prelude::*;
 use rustc_hash::FxHashMap;
 
@@ -84,7 +85,7 @@ impl Binder {
 }
 
 struct BinderState<'cx, 'atoms, 'parser> {
-    p: &'parser mut ParseResult<'cx>,
+    p: &'parser mut ParseResultForGraph<'cx>,
     parent_map: ParentMap,
     atoms: &'atoms AtomMap,
     diags: Vec<bolt_ts_errors::Diag>,
@@ -164,7 +165,7 @@ impl<'cx, 'p> BinderNodeQuery<'cx, 'p> {
 impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
     fn new(
         atoms: &'atoms AtomMap,
-        parser: &'parser mut ParseResult<'cx>,
+        parser: &'parser mut ParseResultForGraph<'cx>,
         module_id: ModuleID,
         options: &NormalizedTsConfig,
     ) -> Self {
@@ -258,7 +259,7 @@ pub fn bind_parallel<'cx>(
     atoms: &AtomMap,
     parser: Parser<'cx>,
     options: &NormalizedTsConfig,
-) -> Vec<(BinderResult<'cx>, ParseResult<'cx>)> {
+) -> Vec<(BinderResult<'cx>, ParseResultForGraph<'cx>)> {
     assert_eq!(parser.module_count(), modules.len());
     parser
         .map
@@ -278,7 +279,7 @@ pub fn bind_parallel<'cx>(
 
 fn bind<'cx, 'atoms, 'parser>(
     atoms: &'atoms AtomMap,
-    parser: &'parser mut ParseResult<'cx>,
+    parser: &'parser mut ParseResultForGraph<'cx>,
     root: &'cx ast::Program,
     module_id: ModuleID,
     options: &NormalizedTsConfig,

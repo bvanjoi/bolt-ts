@@ -9,7 +9,7 @@ use crate::bind::ParentMap;
 
 pub struct NodeQuery<'cx, 'a> {
     parent_map: &'a ParentMap,
-    parse_result: &'a bolt_ts_parser::ParseResult<'cx>,
+    parse_result: &'a bolt_ts_parser::ParseResultForGraph<'cx>,
 }
 
 #[derive(Clone, Copy, PartialEq)]
@@ -29,7 +29,7 @@ pub enum AssignmentKind {
 impl<'cx, 'a> NodeQuery<'cx, 'a> {
     pub fn new(
         parent_map: &'a ParentMap,
-        parse_result: &'a bolt_ts_parser::ParseResult<'cx>,
+        parse_result: &'a bolt_ts_parser::ParseResultForGraph<'cx>,
     ) -> Self {
         Self {
             parent_map,

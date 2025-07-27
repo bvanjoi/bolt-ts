@@ -26,7 +26,7 @@ use bolt_ts_ast::keyword_idx_to_token;
 use bolt_ts_atom::AtomMap;
 use bolt_ts_config::NormalizedTsConfig;
 use bolt_ts_fs::{CachedFileSystem, read_file_with_encoding};
-use bolt_ts_parser::{ParseResult, Parser};
+use bolt_ts_parser::{ParseResult, ParseResultForGraph, Parser};
 use bolt_ts_span::{ModuleArena, ModuleID};
 use bolt_ts_utils::path::NormalizePath;
 
@@ -192,7 +192,7 @@ pub fn eval_from_with_fs(
     let mut atoms = atoms.into_inner().unwrap();
 
     let (bind_list, mut p) = {
-        let (bind_list, p_map): (Vec<BinderResult<'_>>, Vec<ParseResult<'_>>) =
+        let (bind_list, p_map): (Vec<BinderResult<'_>>, Vec<ParseResultForGraph<'_>>) =
             bind_parallel(module_arena.modules(), &atoms, p, tsconfig)
                 .into_iter()
                 .unzip();
