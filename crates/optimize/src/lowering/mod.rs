@@ -1,13 +1,17 @@
+mod scope;
+
 use std::ops::{BitAnd, BitOr, BitXor, Shl, Shr};
 
 use bolt_ts_ast::{self as ast, keyword};
 use bolt_ts_ecma_logical::js_double_to_int32;
 use bolt_ts_span::{ModuleID, Span};
 
+use self::scope::ScopeFlags;
 use crate::ir;
 
 struct LoweringCtx {
     nodes: ir::Nodes,
+    scope_flags: ScopeFlags,
 }
 
 pub struct LoweringResult {
@@ -26,6 +30,18 @@ impl<'cx> LoweringCtx {
     fn new() -> Self {
         Self {
             nodes: Default::default(),
+            scope_flags: ScopeFlags::default(),
+        }
+    }
+
+    fn enter_function_scope<T>(&mut self, f: impl FnOnce(&mut Self) -> T) -> T {
+        if !self.scope_flags.contains(ScopeFlags::FUNCTION) {
+            self.scope_flags.insert(ScopeFlags::FUNCTION);
+            let ret = f(self);
+            self.scope_flags.remove(ScopeFlags::FUNCTION);
+            ret
+        } else {
+            f(self)
         }
     }
 
@@ -339,11 +355,11 @@ impl<'cx> LoweringCtx {
         let modifiers = n.modifiers.as_ref().map(|ms| self.lower_modifiers(ms));
         let name = self.lower_ident(n.name);
         let params = self.lower_param_decls(n.params);
-        let body = self.lower_block_stmt(body);
-        Some(
-            self.nodes
-                .alloc_fn_decl(n.span, modifiers, name, params, body),
-        )
+        let f = self.enter_function_scope(|l| {
+            let body = l.lower_block_stmt(body);
+            l.nodes.alloc_fn_decl(n.span, modifiers, name, params, body)
+        });
+        Some(f)
     }
 
     fn lower_param_decls(&mut self, params: ast::ParamsDecl<'cx>) -> Vec<ir::ParamDeclID> {
@@ -562,6 +578,10 @@ impl<'cx> LoweringCtx {
         let right = self.lower_expr(expr.right);
         if let Some(lit) = shortcut_literal_binary_expression(self, left, right, expr.op) {
             ir::Expr::NumLit(lit)
+        } else if let Some(expr) =
+            get_representation_for_binary_expression(self, left, right, expr.op)
+        {
+            expr
         } else {
             ir::Expr::Bin(self.nodes.alloc_bin_expr(expr.span, left, expr.op, right))
         }
@@ -949,5 +969,15 @@ fn shortcut_literal_binary_expression(
         }
     }
 
+    None
+}
+
+fn get_representation_for_binary_expression(
+    ctx: &mut LoweringCtx,
+    x: ir::Expr,
+    y: ir::Expr,
+    op: ast::BinOp,
+) -> Option<ir::Expr> {
+    if let ir::Expr::Ident(x) = x {}
     None
 }

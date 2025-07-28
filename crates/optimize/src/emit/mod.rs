@@ -1212,14 +1212,27 @@ impl<'ir> Emitter<'_, 'ir> {
 
     fn emit_object_lit(&mut self, n: ir::ObjectLitID) {
         let n = self.nodes.get_object_lit(&n);
-        self.content.p_l_brace();
-        for (idx, member) in n.members().iter().enumerate() {
-            self.emit_object_member(*member);
-            if idx != n.members().len() - 1 {
-                self.content.p_comma();
-                self.content.p_newline();
-            }
+        if n.members().is_empty() {
+            self.content.p("{}");
+            return;
         }
+        self.content.p_l_brace();
+        self.content.p_newline();
+        self.content.indent += self.options.indent;
+        self.content.p_pieces_of_whitespace(self.content.indent);
+        self.emit_list(
+            n.members(),
+            |this, member| {
+                this.emit_object_member(*member);
+            },
+            |this, _| {
+                this.content.p_comma();
+                this.content.p_newline();
+            },
+        );
+        self.content.p_pieces_of_whitespace(self.content.indent);
+        self.content.indent -= self.options.indent;
+        self.content.p_newline();
         self.content.p_r_brace();
     }
 

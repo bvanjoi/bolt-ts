@@ -64,7 +64,7 @@ impl ParserState<'_, '_> {
             }
             ParsingContext::OBJECT_LITERAL_MEMBERS => {
                 use bolt_ts_ast::TokenKind::*;
-                matches!(self.token.kind, LBrace | Asterisk | Dot | DotDotDot)
+                matches!(self.token.kind, LBracket | Asterisk | Dot | DotDotDot)
                     || self.token.kind.is_lit_prop_name()
             }
             ParsingContext::REST_PROPERTIES => self.token.kind.is_lit_prop_name(),
@@ -212,9 +212,10 @@ impl ParserState<'_, '_> {
         for i in 0..ParsingContext::count() {
             let parsing_ctx = ParsingContext::from_bits(1 << i).unwrap();
             if self.parsing_context.intersects(parsing_ctx)
-                && (self.is_list_element(parsing_ctx, true) || self.is_list_terminator(parsing_ctx)) {
-                    return true;
-                }
+                && (self.is_list_element(parsing_ctx, true) || self.is_list_terminator(parsing_ctx))
+            {
+                return true;
+            }
         }
 
         false

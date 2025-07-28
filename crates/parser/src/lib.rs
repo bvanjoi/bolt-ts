@@ -127,6 +127,7 @@ impl<'cx> ParseResultForGraph<'cx> {
     pub fn is_external_or_commonjs_module(&self) -> bool {
         self.external_module_indicator.is_some() || self.commonjs_module_indicator.is_some()
     }
+
     pub fn is_global_source_file(&self, id: ast::NodeID) -> bool {
         !self.is_external_or_commonjs_module() && self.node(id).is_program()
     }

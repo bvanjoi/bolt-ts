@@ -12,8 +12,13 @@ enumflags2 = { workspace = true }
 bolt_ts_atom = { path = "../../helper/atom" }
 bolt_ts_arena = { path = "../../helper/arena" }
 bolt_ts_ast = { path = "../ast" }
+bolt_ts_binder = { path = "../binder" }
+bolt_ts_checker = { path = "../checker" }
+bolt_ts_middle = { path = "../middle" }
+bolt_ts_early_resolve = { path = "../early_resolve" }
 bolt_ts_ecma_rules = { path = "../ecma_rules" }
 bolt_ts_errors = { path = "../../helper/errors" }
+bolt_ts_graph = { path = "../graph" }
 bolt_ts_span = { path = "../../helper/span" }
 bolt_ts_libs = { path = "../libs" }
 bolt_ts_optimize = { path = "../optimize" }
@@ -26,7 +31,6 @@ bolt_ts_path = { path = "../path" }
 bolt_ts_tracing = { path = "../tracing" }
 project-root = "0.2.2"
 thin-vec = { workspace = true }
-stacker = "0.1"
 include_dir = "0.7.3"
 paste = { workspace = true }
 serde_json = { workspace = true }

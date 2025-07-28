@@ -1,2 +1,6 @@
-var foo = {id: 4};
-foo = {id: 5};
+var foo = {
+  id: 4  
+};
+foo = {
+  id: 5  
+};

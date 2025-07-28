@@ -1,32 +1,26 @@
-mod bind;
-mod check;
 mod cli;
 mod diag;
-mod early_resolve;
-mod graph;
-mod node_query;
 mod r#trait;
-mod ty;
 mod wf;
 
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 
-use self::bind::bind_parallel;
-use self::bind::{Binder, ResolveResult};
-use self::bind::{BinderResult, MergeGlobalSymbolResult};
 use self::cli::get_filenames;
-use self::diag::Diag;
-use self::early_resolve::early_resolve_parallel;
 use self::wf::well_formed_check_parallel;
 
 use bolt_ts_ast::TokenKind;
 use bolt_ts_ast::keyword;
 use bolt_ts_ast::keyword_idx_to_token;
 use bolt_ts_atom::AtomMap;
+use bolt_ts_binder::bind_parallel;
+use bolt_ts_binder::{Binder, ResolveResult};
+use bolt_ts_binder::{BinderResult, MergeGlobalSymbolResult};
 use bolt_ts_config::NormalizedTsConfig;
+use bolt_ts_early_resolve::early_resolve_parallel;
 use bolt_ts_fs::{CachedFileSystem, read_file_with_encoding};
-use bolt_ts_parser::{ParseResult, ParseResultForGraph, Parser};
+use bolt_ts_middle::Diag;
+use bolt_ts_parser::{ParseResultForGraph, Parser};
 use bolt_ts_span::{ModuleArena, ModuleID};
 use bolt_ts_utils::path::NormalizePath;
 
@@ -177,7 +171,7 @@ pub fn eval_from_with_fs(
     let mut p = bolt_ts_parser::Parser::new();
     let atoms = Arc::new(Mutex::new(atoms));
     let herd = bolt_ts_arena::bumpalo_herd::Herd::new();
-    let mut mg = graph::build_graph(
+    let mut mg = bolt_ts_graph::build_graph(
         &mut module_arena,
         &entries,
         atoms.clone(),
@@ -210,7 +204,7 @@ pub fn eval_from_with_fs(
         mut bind_list,
         merged_symbols,
         global_symbols,
-    } = bind::merge_global_symbol(&p, &atoms, bind_list, &module_arena);
+    } = bolt_ts_binder::merge_global_symbol(&p, &atoms, bind_list, &module_arena);
 
     let (flow_nodes, flow_in_nodes) = bind_list
         .iter_mut()
@@ -273,7 +267,7 @@ pub fn eval_from_with_fs(
 
     // ==== type check ====
     let ty_arena = bolt_ts_arena::bumpalo::Bump::with_capacity(1024 * 1024);
-    let merged_res = check::merge_module_augmentation_list_for_global(
+    let merged_res = bolt_ts_checker::check::merge_module_augmentation_list_for_global(
         &p,
         &atoms,
         binder.bind_results,
@@ -281,10 +275,10 @@ pub fn eval_from_with_fs(
         global_symbols,
         merged_symbols,
     );
-    let mut binder = crate::bind::Binder::new(merged_res.bind_list);
+    let mut binder = bolt_ts_binder::Binder::new(merged_res.bind_list);
     let mut merged_symbols = merged_res.merged_symbols;
     let mut global_symbols = merged_res.global_symbols;
-    let mut checker = check::TyChecker::new(
+    let mut checker = bolt_ts_checker::check::TyChecker::new(
         &ty_arena,
         &p,
         &mg,
@@ -313,6 +307,15 @@ pub fn eval_from_with_fs(
         );
     }
 
+    let diags = diags
+        .into_iter()
+        .chain(std::mem::take(&mut checker.diags))
+        .collect::<Vec<_>>();
+    let diags = diag::get_merged_diags(diags, &p, &module_arena);
+
+    let types_len = checker.tys.len();
+    drop(checker);
+
     // ==== codegen ====
     let output = entries
         .into_par_iter()
@@ -323,37 +326,21 @@ pub fn eval_from_with_fs(
                 None
             } else {
                 let root = p.root(item);
-                Some((
-                    item,
-                    bolt_ts_optimize::optimize_and_emit(checker.atoms, root),
-                ))
+                Some((item, bolt_ts_optimize::optimize_and_emit(&atoms, root)))
             }
         })
         .collect::<Vec<_>>();
 
-    let diags = diags
-        .into_iter()
-        .chain(std::mem::take(&mut checker.diags))
-        .collect::<Vec<_>>();
-    let diags = diag::get_merged_diags(diags, &p, &module_arena);
-
     debug_assert!({
-        // each module should be created once
+        // each module should be created at most once
         let paths = module_arena
             .modules()
             .iter()
-            .map(|m| {
-                let p = module_arena.get_path(m.id());
-                assert!(p.is_normalized());
-                p
-            })
+            .map(|m| module_arena.get_path(m.id()))
             .collect::<Vec<_>>();
-        let set = paths.iter().collect::<std::collections::HashSet<_>>();
-        paths.len() == set.len()
+        debug_assert!(paths.iter().all(|p| p.is_normalized()));
+        paths.len() == paths.iter().collect::<std::collections::HashSet<_>>().len()
     });
-
-    let types_len = checker.tys.len();
-    drop(checker);
 
     Output {
         root,
@@ -362,11 +349,4 @@ pub fn eval_from_with_fs(
         output,
         types_len,
     }
-}
-
-const RED_ZONE: usize = 100 * 1024; // 100k
-const STACK_PER_RECURSION: usize = 1024 * 1024; // 1MB
-
-fn ensure_sufficient_stack<R, F: FnOnce() -> R>(f: F) -> R {
-    stacker::maybe_grow(RED_ZONE, STACK_PER_RECURSION, f)
 }

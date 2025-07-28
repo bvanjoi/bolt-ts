@@ -14,3 +14,4 @@ bolt_ts_utils = { path = "../../helper/utils" }
 paste = { workspace = true }
 enumflags2 = { workspace = true }
 rustc-hash = { workspace = true }
+bitflags = { workspace = true }
