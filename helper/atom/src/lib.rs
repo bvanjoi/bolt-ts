@@ -1,9 +1,13 @@
-use bolt_ts_utils::fx_hashmap_with_capacity;
-use rustc_hash::FxHashMap;
-use std::borrow::Cow;
+use bolt_ts_utils::FxIndexSet;
 
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone, Copy)]
-pub struct AtomId(u64);
+pub struct AtomId(u32);
+
+impl AtomId {
+    pub const fn new(id: u32) -> Self {
+        AtomId(id)
+    }
+}
 
 impl std::hash::Hash for AtomId {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
@@ -11,95 +15,69 @@ impl std::hash::Hash for AtomId {
     }
 }
 
-impl AtomId {
-    pub const fn from_str(s: &str) -> Self {
-        Self::from_bytes(s.as_bytes())
+#[derive(Debug)]
+pub struct AtomMap {
+    arena: Vec<String>,
+    set: FxIndexSet<&'static str>,
+}
+
+impl AtomMap {
+    pub fn prefill(list: &[&'static str]) -> Self {
+        let set = FxIndexSet::from_iter(list.iter().cloned());
+        Self {
+            set,
+            arena: Vec::new(),
+        }
     }
 
-    pub const fn from_bytes(bytes: &[u8]) -> Self {
-        use xxhash_rust::const_xxh3::xxh3_64;
-        Self(xxh3_64(bytes))
+    pub fn get(&self, atom: AtomId) -> &'static str {
+        self.set[atom.0 as usize]
+    }
+
+    pub fn atom(&mut self, s: &str) -> AtomId {
+        if let Some(index) = self.set.get_index_of(s) {
+            return AtomId(index as u32);
+        }
+
+        self.arena.push(s.to_string());
+        let s = self.arena.last().unwrap();
+        let s: &'static str = unsafe { &*(s.as_str() as *const str) };
+        let (idx, prev_is_not_exist) = self.set.insert_full(s);
+        debug_assert!(prev_is_not_exist);
+        AtomId(idx as u32)
     }
 }
 
-#[derive(Debug, Default)]
-pub struct AtomMap<'a>(FxHashMap<AtomId, Cow<'a, str>>);
-
-impl<'a> AtomMap<'a> {
-    pub fn new(capacity: usize) -> Self {
-        let map = fx_hashmap_with_capacity(capacity);
-        Self(map)
-    }
-
-    pub fn insert_by_slice(&mut self, value: &'a [u8]) -> AtomId {
-        let id = AtomId::from_bytes(value);
-        if !self.0.contains_key(&id) {
-            self.insert(id, unsafe {
-                Cow::Borrowed(str::from_utf8_unchecked(value))
-            });
-        }
-        id
-    }
-
-    pub fn insert_by_str(&mut self, value: Cow<'a, str>) -> AtomId {
-        let id = AtomId::from_bytes(value.as_bytes());
-        if !self.0.contains_key(&id) {
-            self.insert(id, value);
-        }
-        id
-    }
-
-    pub fn insert_by_vec(&mut self, value: Vec<u8>) -> AtomId {
-        self.insert_by_str(unsafe { Cow::Owned(String::from_utf8_unchecked(value)) })
-    }
-
-    pub fn insert_if_not_exist(&mut self, atom: AtomId, lazy: impl FnOnce() -> Cow<'a, str>) {
-        if !self.0.contains_key(&atom) {
-            self.insert(atom, lazy());
-        }
-    }
-
-    pub fn insert(&mut self, atom: AtomId, value: Cow<'a, str>) {
-        let prev = self.0.insert(atom, value);
-        debug_assert!(prev.is_none());
-    }
-
-    pub fn contains(&self, atom: AtomId) -> bool {
-        self.0.contains_key(&atom)
-    }
-
-    #[track_caller]
-    pub fn get(&self, atom: AtomId) -> &str {
-        self.0
-            .get(&atom)
-            .unwrap_or_else(|| panic!("atom not found: {atom:?}"))
-    }
-
-    pub fn eq_str(&self, atom: AtomId, s: &str) -> bool {
-        self.get(atom) == s
-    }
-}
-
-/// Generate atoms and their corresponding AtomId.
-///
-/// ```
-/// use bolt_ts_atom::{gen_atoms, AtomId};
-///
-/// gen_atoms!(
-///     ATOMS,
-///     (IDENT_A, "a"),
-/// );
-/// ```
 #[macro_export]
-macro_rules! gen_atoms {
-    ($owner: ident, $(($name:ident, $lit:literal)),* $(,)?) => {
-        gen_atoms!($(($name, $lit)),*);
-        pub const $owner: &[(&str, AtomId)] = &[$(($lit, $name),)*];
-    };
-    ($(($name:ident, $lit:literal)),* $(,)?) => {
-        ::paste::paste! {
-            $(pub const [<$name _STR>]: &str = $lit;)*
-            $(pub const $name: AtomId = AtomId::from_str([<$name _STR>]);)*
+macro_rules! prefilled_atom_map {
+    (
+    $prefilled_atom_fn_name: ident,
+    {
+        $(
+            $owner: ident: {
+                $( $name:ident : [$lit:literal, $idx: literal]),* $(,)?
+            },
+        )+
+    }) => {
+        $(
+            prefilled_atom_map!($owner, $(($name, [$lit, $idx])),*);
+        )+
+
+        const PREFILLED: &[&'static str] = &[
+            $(
+                $( $lit, )*
+            )+
+        ];
+        pub fn $prefilled_atom_fn_name() -> bolt_ts_atom::AtomMap {
+            bolt_ts_atom::AtomMap::prefill(PREFILLED)
         }
+
     };
+    ( $owner: ident, $(($name:ident, [$lit:literal, $idx: literal])),* $(,)? ) => {
+        paste::paste! {
+            $(pub const [<$name _STR>]: &str = $lit;)*
+            $(pub const $name: AtomId = AtomId::new($idx);)*
+        }
+        pub const $owner: &[(&str, AtomId)] = &[$(($lit, $name),)*];
+    }
 }

@@ -1,11 +1,10 @@
-
 class Giraffe {
-  name = "Giraffe"
-  neckLength = "3m"
+  name = 'Giraffe'
+  neckLength = '3m'
 }
 class Elephant {
-  name = "Elephant"
-  trunkDiameter = "20cm"
+  name = 'Elephant'
+  trunkDiameter = '20cm'
 }
 function foo(animals) {}
 function bar(animals) {}

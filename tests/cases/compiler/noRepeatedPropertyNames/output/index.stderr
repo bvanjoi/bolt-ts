@@ -1,13 +1,13 @@
   × An object literal cannot have multiple properties with the same name.
-   ╭─[../../tests/cases/compiler/noRepeatedPropertyNames/index.ts:3:23]
- 3 │ a: 1, a
+   ╭─[../../tests/cases/compiler/noRepeatedPropertyNames/index.ts:5:23]
+ 5 │ a: 1, a
    · ──┬─  ─
    ·   ╰── Previous definition here
    ╰────
 
   × An object literal cannot have multiple properties with the same name.
-   ╭─[../../tests/cases/compiler/noRepeatedPropertyNames/index.ts:7:32]
- 7 │ a: 1, a
+   ╭─[../../tests/cases/compiler/noRepeatedPropertyNames/index.ts:9:32]
+ 9 │ a: 1, a
    · ──┬─  ─
    ·   ╰── Previous definition here
    ╰────

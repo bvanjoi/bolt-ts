@@ -16,6 +16,7 @@ bolt_ts_errors = { path = "../../helper/errors" }
 bolt_ts_span = { path = "../../helper/span" }
 bolt_ts_libs = { path = "../libs" }
 bolt_ts_config = { path = "../config" }
+bolt_ts_ecma_logical = { path = "../ecma_logical" }
 bolt_ts_ecma_rules = { path = "../ecma_rules" }
 bolt_ts_utils = { path = "../../helper/utils" }
 bolt_ts_fs = { path = "../../helper/fs" }

@@ -1,4 +1,2 @@
-class Model {
-  
-}
+class Model {}
 class Field {}

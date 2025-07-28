@@ -6,14 +6,12 @@ function f(x) {
   y;
 }
 {
-  var a = "";
-  
+  var a = '';
   var test = (_) => {};
-  test({key: "value"});
+  test({key: 'value'});
 }
 {
-  var a = "";
-  
+  var a = '';
   var test = (_) => {};
-  test({key: "value"});
+  test({key: 'value'});
 }

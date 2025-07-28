@@ -1,3 +1,2 @@
 class C {}
-
 var baz;

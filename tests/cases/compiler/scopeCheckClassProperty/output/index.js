@@ -3,5 +3,5 @@ class C {
   x = new A().p
 }
 class A {
-  p = ""
+  p = ''
 }

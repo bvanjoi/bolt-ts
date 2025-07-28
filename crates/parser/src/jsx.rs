@@ -1,14 +1,14 @@
 use bolt_ts_ast::{JsxTagName, NodeFlags, TokenKind, keyword};
 use bolt_ts_span::Span;
 
-use crate::{errors, state::LanguageVariant};
+use crate::{errors, parsing_ctx::ParsingContext, state::LanguageVariant};
 
-use super::{PResult, ParserState, list_ctx};
+use super::{PResult, ParserState};
 
 #[derive(Debug)]
 pub(super) enum JsxEleOrSelfClosingEleOrFrag<'cx> {
-    Ele(&'cx bolt_ts_ast::JsxEle<'cx>),
-    SelfClosingEle(&'cx bolt_ts_ast::JsxSelfClosingEle<'cx>),
+    Ele(&'cx bolt_ts_ast::JsxElem<'cx>),
+    SelfClosingEle(&'cx bolt_ts_ast::JsxSelfClosingElem<'cx>),
     Frag(&'cx bolt_ts_ast::JsxFrag<'cx>),
 }
 
@@ -62,11 +62,11 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
                 let late_child = children.last();
                 let mut else_then = true;
                 if let Some(end) = late_child {
-                    if let bolt_ts_ast::JsxChild::Ele(end_ele) = end {
+                    if let bolt_ts_ast::JsxChild::Elem(end_ele) = end {
                         if !tag_names_are_eq(
-                            &end_ele.opening_ele.tag_name,
-                            &end_ele.closing_ele.tag_name,
-                        ) && tag_names_are_eq(&opening.tag_name, &end_ele.closing_ele.tag_name)
+                            &end_ele.opening_elem.tag_name,
+                            &end_ele.closing_elem.tag_name,
+                        ) && tag_names_are_eq(&opening.tag_name, &end_ele.closing_elem.tag_name)
                         {
                             let span = Span::new(self.pos as u32, self.pos as u32, self.module_id);
                             let ident = self.create_ident_by_atom(keyword::IDENT_EMPTY, span);
@@ -74,14 +74,14 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
                                 span,
                                 bolt_ts_ast::JsxTagName::Ident(ident),
                             );
-                            let span = self.new_span(end.span().lo);
+                            let span = self.new_span(end.span().lo());
                             let last = self.create_jsx_ele(span, opening, children, closing);
 
                             let mut list = children[..children.len() - 1].to_vec();
-                            list.push(bolt_ts_ast::JsxChild::Ele(last));
+                            list.push(bolt_ts_ast::JsxChild::Elem(last));
                             else_then = false;
                             children = self.alloc(list);
-                            closing_ele = Some(end_ele.closing_ele);
+                            closing_ele = Some(end_ele.closing_elem);
                         }
                     }
                 }
@@ -124,7 +124,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
             let top_bad_pos = if let Some(pos) = top_invalid_node_position {
                 pos
             } else {
-                result.span().lo
+                result.span().lo()
             };
             if let Ok(Some(invalid_ele)) = self.try_parse(|this| {
                 if let Ok(result) = this.p().parse_jsx_ele_or_self_closing_ele_or_frag(
@@ -163,9 +163,9 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         match token {
             TokenKind::EOF => {
                 if let Some(opening_tag_name) = opening_tag_name {
-                    // todo!("error handle")
+                    todo!("error handle")
                 } else {
-                    // todo!("error handle")
+                    todo!("error handle")
                 }
                 Ok(None)
             }
@@ -186,7 +186,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
                     opening_tag_name,
                     false,
                 )? {
-                    JsxEleOrSelfClosingEleOrFrag::Ele(n) => bolt_ts_ast::JsxChild::Ele(n),
+                    JsxEleOrSelfClosingEleOrFrag::Ele(n) => bolt_ts_ast::JsxChild::Elem(n),
                     JsxEleOrSelfClosingEleOrFrag::SelfClosingEle(n) => {
                         bolt_ts_ast::JsxChild::SelfClosingEle(n)
                     }
@@ -213,9 +213,9 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
             };
             list.push(child);
             if let Some(opening_tag_name) = opening_tag_name {
-                if let bolt_ts_ast::JsxChild::Ele(ele) = child {
-                    if !tag_names_are_eq(&ele.opening_ele.tag_name, &ele.opening_ele.tag_name)
-                        && tag_names_are_eq(&opening_tag_name, &ele.closing_ele.tag_name)
+                if let bolt_ts_ast::JsxChild::Elem(ele) = child {
+                    if !tag_names_are_eq(&ele.opening_elem.tag_name, &ele.opening_elem.tag_name)
+                        && tag_names_are_eq(&opening_tag_name, &ele.closing_elem.tag_name)
                     {
                         break;
                     }
@@ -227,7 +227,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
 
     fn parse_jsx_attrs(&mut self) -> bolt_ts_ast::JsxAttrs<'cx> {
         debug_assert!(self.variant == LanguageVariant::Jsx);
-        let attrs = self.parse_list(list_ctx::JsxAttrs, Self::parse_jsx_attr);
+        let attrs = self.parse_list(ParsingContext::JSX_ATTRIBUTES, Self::parse_jsx_attr);
         self.create_jsx_attrs(attrs)
     }
 
@@ -273,7 +273,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
             JsxTagName::Ns(self.create_jsx_ns_name(tag_name, name, span))
         } else if is_this {
             let span = self.new_span(start);
-            debug_assert!(span.lo + keyword::KW_THIS_STR.len() as u32 == span.hi);
+            debug_assert!(span.lo() + keyword::KW_THIS_STR.len() as u32 == span.hi());
             let this = self.create_this_expr(span);
             JsxTagName::This(this)
         } else {
@@ -389,10 +389,10 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
 
     fn parse_jsx_closing_ele(
         &mut self,
-        opening: &'cx bolt_ts_ast::JsxOpeningEle<'cx>,
+        opening: &'cx bolt_ts_ast::JsxOpeningElem<'cx>,
         in_expr_context: bool,
         opening_tag: Option<bolt_ts_ast::JsxTagName<'cx>>,
-    ) -> PResult<&'cx bolt_ts_ast::JsxClosingEle<'cx>> {
+    ) -> PResult<&'cx bolt_ts_ast::JsxClosingElem<'cx>> {
         debug_assert!(self.variant == LanguageVariant::Jsx);
         let start = self.token.start();
         self.expect(TokenKind::LessSlash);
@@ -417,7 +417,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
                         span: tag_name.span(),
                         opening_tag_name: {
                             let span = opening.tag_name.span();
-                            let s = &self.input[span.lo as usize..span.hi as usize];
+                            let s = &self.input[span.lo() as usize..span.hi() as usize];
                             unsafe { String::from_utf8_unchecked(s.to_vec()) }
                         },
                     },

@@ -1,8 +1,6 @@
 var M = {};
 (function (M) {
 
-  
-  
   class C1 {
     value
   }

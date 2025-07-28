@@ -3,5 +3,4 @@ class Shape {
     return new Shape()
   }
 }
-
 var x = Shape;

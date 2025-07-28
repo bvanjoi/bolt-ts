@@ -1,4 +1,3 @@
-
 class C {
   constructor(data, data2) {
     this.data = data

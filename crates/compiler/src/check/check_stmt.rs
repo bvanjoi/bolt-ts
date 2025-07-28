@@ -18,7 +18,7 @@ impl<'cx> TyChecker<'cx> {
             Fn(f) => self.check_fn_decl(f),
             If(i) => self.check_if_stmt(i),
             Block(block) => self.check_block(block),
-            Return(ret) => self.check_ret_stmt(ret),
+            Ret(ret) => self.check_ret_stmt(ret),
             Class(class) => self.check_class_decl(class),
             Interface(interface) => self.check_interface_decl(interface),
             Module(m) => self.check_module_decl(m),
@@ -186,8 +186,8 @@ impl<'cx> TyChecker<'cx> {
         let is_global_augmentation = ns.is_global_scope_argument();
         let is_ambient_external_module = ns.is_ambient();
         if is_ambient_external_module {
-            let p = self.p.parent(ns.id).unwrap();
-            if self.p.is_global_source_file(p) {
+            let p = self.parent(ns.id).unwrap();
+            if self.p.get(p.module()).is_global_source_file(p) {
                 if is_global_augmentation {
                     let error = errors::AugmentationsForTheGlobalScopeCanOnlyBeDirectlyNestedInExternalModulesOrAmbientModuleDeclarations {
                         span: ns.name.span()

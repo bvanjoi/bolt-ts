@@ -1,6 +1,7 @@
 use crate::bind::{SymbolFlags, SymbolID, SymbolName};
 use crate::check::TyChecker;
 use bolt_ts_ast::{self as ast, pprint_binding};
+use bolt_ts_utils::FxIndexMap;
 
 use super::flags::ObjectFlags;
 use super::links::{InterfaceTyLinksID, ObjectMappedTyLinksID};
@@ -190,7 +191,7 @@ pub struct DeclaredMembers<'cx> {
 
 #[derive(Debug, Clone, Copy)]
 pub struct StructuredMembers<'cx> {
-    pub members: &'cx rustc_hash::FxHashMap<SymbolName, SymbolID>,
+    pub members: &'cx FxIndexMap<SymbolName, SymbolID>,
     pub call_sigs: super::Sigs<'cx>,
     pub ctor_sigs: super::Sigs<'cx>,
     pub index_infos: self::IndexInfos<'cx>,
@@ -243,6 +244,7 @@ impl<'cx> ObjectTyKind<'cx> {
                         .expect_ty_links(self_ty.id)
                         .expect_structured_members()
                         .members;
+
                     let members = members
                         .iter()
                         .map(|(name, symbol)| {

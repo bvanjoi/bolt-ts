@@ -24,8 +24,8 @@ impl<'cx> TyChecker<'cx> {
         ty: Option<&'cx ty::Ty<'cx>>,
         is_cache: bool,
     ) {
-        self.type_contextual
-            .push(TyContextual { node, ty, is_cache });
+        let ctx = TyContextual { node, ty, is_cache };
+        self.type_contextual.push(ctx);
     }
 
     pub(super) fn push_cached_contextual_type(&mut self, node: ast::NodeID) {
@@ -50,7 +50,10 @@ impl<'cx> TyChecker<'cx> {
         self.inference_contextual
             .iter()
             .rev()
-            .find(|ctx| self.p.is_descendant_of(node, ctx.node))
+            .find(|ctx| {
+                self.node_query(node.module())
+                    .is_descendant_of(node, ctx.node)
+            })
             .copied()
     }
 

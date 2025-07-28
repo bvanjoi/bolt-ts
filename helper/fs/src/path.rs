@@ -18,34 +18,26 @@ impl From<AtomId> for PathId {
 }
 
 impl<'a> PathId {
-    pub const ROOT: Self = Self(AtomId::from_str("/"));
-
-    fn _new(id: AtomId, atoms: &mut AtomMap<'a>) -> Self {
+    fn _new(id: AtomId, atoms: &mut AtomMap) -> Self {
         debug_assert!(std::path::Path::new(&atoms.get(id)).is_normalized());
         Self(id)
     }
 
-    pub fn new(p: &std::path::Path, atoms: &mut AtomMap<'a>) -> Self {
-        let insert_by_slice = |slice: &[u8], atoms: &mut AtomMap| {
-            let atom = AtomId::from_bytes(slice);
-            atoms.insert_if_not_exist(atom, || unsafe {
-                std::borrow::Cow::Owned(String::from_utf8_unchecked(slice.to_vec()))
-            });
-            Self::_new(atom, atoms)
-        };
+    pub fn new(p: &std::path::Path, atoms: &mut AtomMap) -> Self {
         if cfg!(target_arch = "wasm32") {
             assert!(p.has_root());
         } else {
             assert!(p.is_absolute(), "Path should be absolute, but got {p:?}");
         }
         let p = p.normalize();
-        let slice = p.as_os_str().as_encoded_bytes();
-        insert_by_slice(slice, atoms)
+        let slice = unsafe { std::str::from_utf8_unchecked(p.as_os_str().as_encoded_bytes()) };
+        let atom = atoms.atom(slice);
+        Self::_new(atom, atoms)
     }
 
-    pub fn get(p: &std::path::Path) -> Self {
-        let slice = p.as_os_str().as_encoded_bytes();
-        let atom = AtomId::from_bytes(slice);
+    pub fn get(p: &std::path::Path, atoms: &mut AtomMap) -> Self {
+        let slice = unsafe { std::str::from_utf8_unchecked(p.as_os_str().as_encoded_bytes()) };
+        let atom = atoms.atom(slice);
         Self(atom)
     }
 }

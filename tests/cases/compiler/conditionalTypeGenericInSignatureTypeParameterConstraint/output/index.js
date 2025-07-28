@@ -1,4 +1,2 @@
-
-
-var a = "42";
-var b = "abc";
+var a = '42';
+var b = 'abc';

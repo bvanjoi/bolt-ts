@@ -1,4 +1,3 @@
-
 class None {
   get() {
     throw null

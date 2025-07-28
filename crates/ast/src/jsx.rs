@@ -51,8 +51,8 @@ pub struct JsxNsName<'cx> {
 pub enum JsxAttrValue<'cx> {
     StringLit(&'cx super::StringLit),
     Expr(&'cx JsxExpr<'cx>),
-    Ele(&'cx JsxEle<'cx>),
-    SelfClosingEle(&'cx JsxSelfClosingEle<'cx>),
+    Ele(&'cx JsxElem<'cx>),
+    SelfClosingEle(&'cx JsxSelfClosingElem<'cx>),
     Frag(&'cx JsxFrag<'cx>),
 }
 
@@ -130,7 +130,7 @@ pub struct JsxExpr<'cx> {
 pub type JsxAttrs<'cx> = &'cx [JsxAttr<'cx>];
 
 #[derive(Debug, Clone, Copy)]
-pub struct JsxOpeningEle<'cx> {
+pub struct JsxOpeningElem<'cx> {
     pub id: NodeID,
     pub span: Span,
     pub tag_name: JsxTagName<'cx>,
@@ -139,7 +139,7 @@ pub struct JsxOpeningEle<'cx> {
 }
 
 #[derive(Debug, Clone, Copy)]
-pub struct JsxClosingEle<'cx> {
+pub struct JsxClosingElem<'cx> {
     pub id: NodeID,
     pub span: Span,
     pub tag_name: JsxTagName<'cx>,
@@ -152,20 +152,20 @@ pub struct JsxOpeningFrag {
 }
 
 #[derive(Debug, Clone, Copy)]
-pub struct JsxEle<'cx> {
+pub struct JsxElem<'cx> {
     pub id: NodeID,
     pub span: Span,
-    pub opening_ele: &'cx JsxOpeningEle<'cx>,
+    pub opening_elem: &'cx JsxOpeningElem<'cx>,
     pub children: &'cx [JsxChild<'cx>],
-    pub closing_ele: &'cx JsxClosingEle<'cx>,
+    pub closing_elem: &'cx JsxClosingElem<'cx>,
 }
 
 #[derive(Debug, Clone, Copy)]
 pub enum JsxChild<'cx> {
     Text(&'cx JsxText),
     Expr(&'cx JsxExpr<'cx>),
-    Ele(&'cx JsxEle<'cx>),
-    SelfClosingEle(&'cx JsxSelfClosingEle<'cx>),
+    Elem(&'cx JsxElem<'cx>),
+    SelfClosingEle(&'cx JsxSelfClosingElem<'cx>),
     Frag(&'cx JsxFrag<'cx>),
 }
 
@@ -174,7 +174,7 @@ impl<'cx> JsxChild<'cx> {
         match self {
             JsxChild::Text(n) => n.span,
             JsxChild::Expr(n) => n.span,
-            JsxChild::Ele(n) => n.span,
+            JsxChild::Elem(n) => n.span,
             JsxChild::SelfClosingEle(n) => n.span,
             JsxChild::Frag(n) => n.span,
         }
@@ -184,7 +184,7 @@ impl<'cx> JsxChild<'cx> {
         match self {
             JsxChild::Text(n) => n.id,
             JsxChild::Expr(n) => n.id,
-            JsxChild::Ele(n) => n.id,
+            JsxChild::Elem(n) => n.id,
             JsxChild::SelfClosingEle(n) => n.id,
             JsxChild::Frag(n) => n.id,
         }
@@ -195,13 +195,13 @@ impl<'cx> JsxChild<'cx> {
 pub struct JsxFrag<'cx> {
     pub id: NodeID,
     pub span: Span,
-    pub opening_ele: &'cx JsxOpeningFrag,
+    pub opening_frag: &'cx JsxOpeningFrag,
     pub children: &'cx [JsxChild<'cx>],
-    pub closing_ele: &'cx JsxClosingFrag,
+    pub closing_frag: &'cx JsxClosingFrag,
 }
 
 #[derive(Debug, Clone, Copy)]
-pub struct JsxSelfClosingEle<'cx> {
+pub struct JsxSelfClosingElem<'cx> {
     pub id: NodeID,
     pub span: Span,
     pub tag_name: JsxTagName<'cx>,

@@ -3,13 +3,12 @@ mod check;
 mod cli;
 mod diag;
 mod early_resolve;
-mod emit;
 mod graph;
+mod node_query;
 mod r#trait;
 mod ty;
 mod wf;
 
-use std::borrow::Cow;
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 
@@ -24,10 +23,10 @@ use self::wf::well_formed_check_parallel;
 use bolt_ts_ast::TokenKind;
 use bolt_ts_ast::keyword;
 use bolt_ts_ast::keyword_idx_to_token;
-use bolt_ts_atom::{AtomId, AtomMap};
+use bolt_ts_atom::AtomMap;
 use bolt_ts_config::NormalizedTsConfig;
 use bolt_ts_fs::{CachedFileSystem, read_file_with_encoding};
-use bolt_ts_parser::{NodeQuery, ParseResult, Parser};
+use bolt_ts_parser::{ParseResult, ParseResultForGraph, Parser};
 use bolt_ts_span::{ModuleArena, ModuleID};
 use bolt_ts_utils::path::NormalizePath;
 
@@ -81,21 +80,16 @@ pub fn output_files(
     }
 }
 
-pub fn init_atom<'atoms>() -> AtomMap<'atoms> {
-    if cfg!(test) {
-        for idx in 0..keyword::KEYWORDS.len() {
-            let t = keyword_idx_to_token(idx);
-            if t == TokenKind::Var {
-                assert_eq!(t as u8 + 1, TokenKind::Let as u8);
-                assert_eq!(t as u8 + 2, TokenKind::Const as u8);
-            }
+pub fn init_atom() -> AtomMap {
+    #[cfg(debug_assertions)]
+    for idx in 0..keyword::KEYWORDS.len() {
+        let t = keyword_idx_to_token(idx);
+        if t == TokenKind::Var {
+            assert_eq!(t as u8 + 1, TokenKind::Let as u8);
+            assert_eq!(t as u8 + 2, TokenKind::Const as u8);
         }
     }
-    let mut atoms = AtomMap::new(1024 * 128);
-    for (atom, id) in keyword::KEYWORDS.iter().chain(keyword::IDENTIFIER) {
-        atoms.insert(*id, Cow::Borrowed(atom));
-    }
-    atoms
+    bolt_ts_ast::keyword::init_atom_map()
 }
 
 pub fn eval_from(root: PathBuf, tsconfig: &NormalizedTsConfig) -> Output {
@@ -112,13 +106,13 @@ pub fn eval_from(root: PathBuf, tsconfig: &NormalizedTsConfig) -> Output {
     eval_from_with_fs(root, tsconfig, exe_dir, default_libs, fs, atoms)
 }
 
-pub fn eval_from_with_fs<'cx>(
+pub fn eval_from_with_fs(
     root: PathBuf,
-    tsconfig: &'cx NormalizedTsConfig,
+    tsconfig: &NormalizedTsConfig,
     default_lib_dir: PathBuf,
     default_libs: Vec<PathBuf>,
     mut fs: impl CachedFileSystem,
-    mut atoms: bolt_ts_atom::AtomMap<'cx>,
+    mut atoms: bolt_ts_atom::AtomMap,
 ) -> Output {
     bolt_ts_tracing::init_tracing();
     // let default_libs = vec![];
@@ -140,13 +134,12 @@ pub fn eval_from_with_fs<'cx>(
         .map(|(p, is_default_lib)| {
             debug_assert!(p.is_normalized());
             if cfg!(target_arch = "wasm32") {
-                (None, None, p, is_default_lib)
+                (None, p, is_default_lib)
             } else {
                 let Ok(content) = read_file_with_encoding(&p) else {
                     panic!("failed to read file: {p:?}");
                 };
-                let atom = AtomId::from_bytes(content.as_bytes());
-                (Some(content), Some(atom), p, is_default_lib)
+                (Some(content), p, is_default_lib)
             }
         })
         .collect::<Vec<_>>();
@@ -155,17 +148,23 @@ pub fn eval_from_with_fs<'cx>(
 
     let entries = entries_with_read_file
         .into_iter()
-        .filter_map(|(content, atom, p, is_default_lib)| {
+        .filter_map(|(content, p, is_default_lib)| {
+            if is_default_lib && p.file_name().unwrap() == "test.d.ts" {
+                let content = content.unwrap();
+                let computed_atom = atoms.atom(&content);
+                let atom = fs.add_file(&p, content, Some(computed_atom), &mut atoms);
+                assert_eq!(computed_atom, atom);
+                return Some(module_arena.new_module_with_content(p, is_default_lib, atom, &atoms));
+            }
             if is_default_lib && p.file_name().unwrap() != default_lib_filename {
                 return None;
             }
             let m = if cfg!(target_arch = "wasm32") {
                 assert!(content.is_none());
-                assert!(atom.is_none());
                 module_arena.new_module(p, is_default_lib, &mut fs, &mut atoms)
             } else {
                 let content = content.unwrap();
-                let computed_atom = atom.unwrap();
+                let computed_atom = atoms.atom(&content);
                 let atom = fs.add_file(&p, content, Some(computed_atom), &mut atoms);
                 assert_eq!(computed_atom, atom);
                 module_arena.new_module_with_content(p, is_default_lib, atom, &atoms)
@@ -193,13 +192,11 @@ pub fn eval_from_with_fs<'cx>(
     let mut atoms = atoms.into_inner().unwrap();
 
     let (bind_list, mut p) = {
-        let (bind_list, p_map): (
-            Vec<BinderResult<'_>>,
-            Vec<(ParseResult<'_>, bolt_ts_parser::ParentMap)>,
-        ) = bind_parallel(module_arena.modules(), &atoms, p, tsconfig)
-            .into_iter()
-            .unzip();
-        let p = Parser::new_with_maps(p_map);
+        let (bind_list, p_map): (Vec<BinderResult<'_>>, Vec<ParseResultForGraph<'_>>) =
+            bind_parallel(module_arena.modules(), &atoms, p, tsconfig)
+                .into_iter()
+                .unzip();
+        let p = Parser { map: p_map };
         (bind_list, p)
     };
 
@@ -255,6 +252,7 @@ pub fn eval_from_with_fs<'cx>(
                 final_res: state.final_res,
                 diags: state.diags,
                 locals: state.locals,
+                parent_map: state.parent_map,
             }
         })
         .collect::<Vec<_>>();
@@ -269,6 +267,7 @@ pub fn eval_from_with_fs<'cx>(
             &atoms,
             module_arena.modules(),
             tsconfig.compiler_options(),
+            &binder.bind_results,
         ))
         .collect();
 
@@ -307,20 +306,27 @@ pub fn eval_from_with_fs<'cx>(
         if p.get(*item).is_external_or_commonjs_module() {
             checker.check_external_module_exports(root);
         }
-        assert!(!is_default_lib || prev == checker.diags.len());
+        assert!(
+            !is_default_lib || prev == checker.diags.len(),
+            "default lib({:#?}) has error",
+            module_arena.get_path(*item)
+        );
     }
 
     // ==== codegen ====
-    let compiler_options = tsconfig.compiler_options();
     let output = entries
         .into_par_iter()
         .filter_map(|item| {
-            if module_arena.get_module(item).is_default_lib() {
+            let is_default_lib = module_arena.get_module(item).is_default_lib();
+            if is_default_lib {
+                // default lib should not be emitted
                 None
             } else {
-                let input = module_arena.get_content(item);
-                let mut emitter = emit::Emit::new(item, checker.atoms, input, compiler_options, &p);
-                Some((item, emitter.emit_root(p.root(item))))
+                let root = p.root(item);
+                Some((
+                    item,
+                    bolt_ts_optimize::optimize_and_emit(checker.atoms, root),
+                ))
             }
         })
         .collect::<Vec<_>>();
@@ -331,7 +337,7 @@ pub fn eval_from_with_fs<'cx>(
         .collect::<Vec<_>>();
     let diags = diag::get_merged_diags(diags, &p, &module_arena);
 
-    if cfg!(test) {
+    debug_assert!({
         // each module should be created once
         let paths = module_arena
             .modules()
@@ -343,8 +349,8 @@ pub fn eval_from_with_fs<'cx>(
             })
             .collect::<Vec<_>>();
         let set = paths.iter().collect::<std::collections::HashSet<_>>();
-        assert_eq!(paths.len(), set.len());
-    }
+        paths.len() == set.len()
+    });
 
     let types_len = checker.tys.len();
     drop(checker);

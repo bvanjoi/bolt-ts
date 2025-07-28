@@ -1,3 +1,6 @@
+//@compiler-options: strict
+//@compiler-options: exactOptionalPropertyTypes
+
 type O = {
   b?: boolean;	
 }

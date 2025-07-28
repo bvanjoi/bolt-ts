@@ -1,6 +1,5 @@
 use bolt_ts_ast as ast;
-use bolt_ts_utils::{fx_hashmap_with_capacity, no_hashset_with_capacity};
-use rustc_hash::FxHashMap;
+use bolt_ts_utils::{FxIndexMap, fx_indexmap_with_capacity, no_hashset_with_capacity};
 use std::hash::Hasher;
 use std::ops::Not;
 
@@ -318,7 +317,7 @@ impl<'cx> TyChecker<'cx> {
         &mut self,
         symbol: Option<SymbolID>,
         object_flags: ObjectFlags,
-        members: &'cx FxHashMap<SymbolName, SymbolID>,
+        members: &'cx FxIndexMap<SymbolName, SymbolID>,
         call_sigs: ty::Sigs<'cx>,
         ctor_sigs: ty::Sigs<'cx>,
         index_infos: ty::IndexInfos<'cx>,
@@ -1384,8 +1383,7 @@ impl<'cx> TyChecker<'cx> {
                     text.push_str(this.atoms.get(texts[i + 1]));
                 } else if this.is_generic_index_ty(t) || t.is_pattern_lit_placeholder_ty() {
                     new_tys.push(t);
-                    let t = std::mem::take(text);
-                    let atom = this.atoms.insert_by_str(std::borrow::Cow::Owned(t));
+                    let atom = this.atoms.atom(text);
                     new_texts.push(atom);
                     *text = this.atoms.get(texts[i + 1]).to_string();
                 } else {
@@ -1418,11 +1416,12 @@ impl<'cx> TyChecker<'cx> {
         let mut new_tys = Vec::with_capacity(tys.len());
         let mut new_texts = Vec::with_capacity(texts.len());
         let mut text = self.atoms.get(texts[0]).to_string();
+
         if !add_spans(self, texts, tys, &mut new_texts, &mut new_tys, &mut text) {
             return self.string_ty;
         }
 
-        let text = self.atoms.insert_by_str(std::borrow::Cow::Owned(text));
+        let text = self.atoms.atom(&text);
         if new_tys.is_empty() {
             return self.get_string_literal_type(text);
         };
@@ -1542,7 +1541,7 @@ impl<'cx> TyChecker<'cx> {
 
         let left_props = self.get_props_of_ty(left);
         let right_props = self.get_props_of_ty(right);
-        let mut members = fx_hashmap_with_capacity(left_props.len() + right_props.len());
+        let mut members = fx_indexmap_with_capacity(left_props.len() + right_props.len());
         let index_infos = if left == self.empty_object_ty() {
             self.get_index_infos_of_ty(right)
         } else {
@@ -1560,7 +1559,7 @@ impl<'cx> TyChecker<'cx> {
             let left_prop_symbol = self.symbol(*left_prop);
             let left_prop_symbol_name = left_prop_symbol.name;
             let left_prop_symbol_flags = left_prop_symbol.flags;
-            use std::collections::hash_map::Entry;
+            use indexmap::map::Entry;
             match members.entry(left_prop_symbol_name) {
                 Entry::Occupied(mut occ) => {
                     let right_prop = *occ.get();

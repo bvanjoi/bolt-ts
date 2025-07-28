@@ -27,8 +27,8 @@ function e1() {
 }
 <App  />;
 <App  id='w &lt; w' />;
-
-
+;
+;
 <App  id={4} />;
 <App >
             // 1
@@ -40,7 +40,7 @@ function e1() {
 <App3.App4 ></App3.App4>;
 <App3.App5.App6 ></App3.App5.App6>;
 (<App  />) < x;
-
+;
 <App  {...{}} />;
 <app-def  test='&#x0026;&#38;'>
 bar

@@ -3,6 +3,6 @@ class a {
 }
 class b extends a {
   static x() {
-    return "20"
+    return '20'
   }
 }

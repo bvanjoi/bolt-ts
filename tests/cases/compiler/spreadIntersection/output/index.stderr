@@ -1,4 +1,4 @@
-  × Type '{ b: string; a: number; }' is not assignable to type '{ a: number;
+  × Type '{ a: number; b: string; }' is not assignable to type '{ a: number;
   │ b: number; }'.
     ╭─[../../tests/cases/compiler/spreadIntersection/index.ts:11:5]
  11 │ o3

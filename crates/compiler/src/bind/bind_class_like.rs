@@ -1,5 +1,5 @@
 use super::symbol::SymbolFlags;
-use super::{BinderState, NodeQuery, SymbolID, SymbolName, prop_name};
+use super::{BinderState, SymbolID, SymbolName, prop_name};
 use crate::r#trait;
 
 use bolt_ts_ast as ast;
@@ -27,7 +27,7 @@ impl<'cx> BinderState<'cx, '_, '_> {
         includes: SymbolFlags,
         excludes: SymbolFlags,
     ) -> SymbolID {
-        if self.p.has_dynamic_name(decl_id) {
+        if self.node_query().has_dynamic_name(decl_id) {
             self.bind_anonymous_decl(decl_id, includes, SymbolName::Computed)
         } else {
             let name = prop_name(name);

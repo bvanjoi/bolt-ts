@@ -1,8 +1,6 @@
-
-
 function foo(bar) {
-  return ""
+  return ''
 }
-
+;
 var x = foo();
 var y = x;

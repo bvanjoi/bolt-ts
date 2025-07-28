@@ -2,14 +2,14 @@ use bolt_ts_ast::{self as ast, Node, NodeFlags, NodeID, keyword};
 use bolt_ts_ast::{Token, TokenFlags, TokenKind};
 use bolt_ts_atom::{AtomId, AtomMap};
 use bolt_ts_span::{ModuleID, Span};
-use bolt_ts_utils::no_hashmap_with_capacity;
 use bolt_ts_utils::path::NormalizePath;
 
 use std::sync::{Arc, Mutex};
 
+use super::PResult;
+use super::parsing_ctx::ParsingContext;
 use super::utils::is_declaration_filename;
 use super::{CommentDirective, FileReference, NodeFlagsMap, Nodes, TokenValue};
-use super::{PResult, list_ctx};
 use super::{PragmaMap, errors};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -19,7 +19,7 @@ pub enum LanguageVariant {
 }
 
 pub(super) struct ParserState<'cx, 'p> {
-    pub(super) atoms: Arc<Mutex<AtomMap<'cx>>>,
+    pub(super) atoms: Arc<Mutex<AtomMap>>,
     pub(super) input: &'p [u8],
     pub(super) token: Token,
     pub(super) token_value: Option<TokenValue>,
@@ -48,11 +48,12 @@ pub(super) struct ParserState<'cx, 'p> {
     pub(super) in_ambient_module: bool,
     pub(super) has_no_default_lib: bool,
     pub(super) variant: LanguageVariant,
+    pub(super) parsing_context: ParsingContext,
 }
 
 impl<'cx, 'p> ParserState<'cx, 'p> {
     pub(super) fn new(
-        atoms: Arc<Mutex<AtomMap<'cx>>>,
+        atoms: Arc<Mutex<AtomMap>>,
         arena: &'p bolt_ts_arena::bumpalo_herd::Member<'cx>,
         nodes: Nodes<'cx>,
         input: &'p [u8],
@@ -60,14 +61,12 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         file_path: &std::path::Path,
         variant: LanguageVariant,
     ) -> Self {
+        debug_assert!(file_path.is_normalized());
         let token = Token::new(TokenKind::EOF, Span::new(u32::MAX, u32::MAX, module_id));
         let p = file_path.to_string_lossy();
-        let p = p.as_bytes();
-        let atom = AtomId::from_bytes(p);
-        debug_assert!(file_path.is_normalized());
-        debug_assert!(atoms.lock().unwrap().contains(atom));
+        let atom = atoms.lock().unwrap().atom(p.as_ref());
         let mut context_flags = NodeFlags::default();
-        let is_declaration = is_declaration_filename(p);
+        let is_declaration = is_declaration_filename(p.as_bytes());
         if is_declaration {
             context_flags |= NodeFlags::AMBIENT;
         }
@@ -100,9 +99,10 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
             is_declaration,
             in_ambient_module: false,
             lib_reference_directives: Vec::with_capacity(8),
-            pragmas: PragmaMap(no_hashmap_with_capacity(8)),
+            pragmas: PragmaMap::default(),
             has_no_default_lib: false,
             variant,
+            parsing_context: ParsingContext::default(),
         }
     }
 
@@ -113,6 +113,20 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
     pub(super) fn next_node_id(&mut self) -> NodeID {
         let idx = self.nodes.0.len();
         NodeID::new(self.module_id, idx as u32)
+    }
+
+    pub(super) fn current_node_id(&self) -> NodeID {
+        NodeID::new(self.module_id, self.nodes.0.len() as u32)
+    }
+
+    pub(super) fn reset_node_id(&mut self, to: NodeID) {
+        debug_assert!(to.module() == self.module_id);
+        debug_assert!(to.index_as_usize() <= self.nodes.0.len());
+        let to = to.index_as_usize();
+        for i in to..self.nodes.0.len() {
+            self.node_flags_map.0.remove(&(i as u32));
+        }
+        self.nodes.0.truncate(to);
     }
 
     #[inline]
@@ -131,15 +145,15 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         }
     }
 
-    pub(super) fn parse_bracketed_list<T>(
+    pub(super) fn parse_bracketed_list<const CONSIDER_SEMICOLON_AS_DELIMITER: bool, T>(
         &mut self,
-        ctx: impl list_ctx::ListContext,
+        ctx: ParsingContext,
         open: TokenKind,
         ele: impl Fn(&mut Self) -> PResult<T>,
         close: TokenKind,
     ) -> PResult<&'cx [T]> {
         if self.expect(open) {
-            let elems = self.parse_delimited_list(ctx, ele);
+            let elems = self.parse_delimited_list::<CONSIDER_SEMICOLON_AS_DELIMITER, T>(ctx, ele);
             self.expect(close);
             Ok(elems)
         } else {
@@ -147,21 +161,14 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         }
     }
 
-    pub(super) fn is_list_terminator(&mut self, ctx: impl list_ctx::ListContext) -> bool {
-        if self.token.kind == TokenKind::EOF {
-            return true;
-        }
-        ctx.is_closing(self)
-    }
-
     pub(super) fn parse_list<T>(
         &mut self,
-        ctx: impl list_ctx::ListContext,
+        ctx: ParsingContext,
         ele: impl Fn(&mut Self) -> PResult<T>,
     ) -> &'cx [T] {
         let mut list = Vec::with_capacity(8);
         while !self.is_list_terminator(ctx) {
-            if ctx.is_ele(self, false) {
+            if self.is_list_element(ctx, false) {
                 if let Ok(ele) = ele(self) {
                     list.push(ele);
                 }
@@ -173,12 +180,9 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         self.alloc(list)
     }
 
-    pub(super) fn abort_parsing_list_or_move_to_next_token(
-        &mut self,
-        ctx: impl list_ctx::ListContext,
-    ) -> bool {
-        ctx.parsing_context_errors(self);
-        if ctx.is_in_some_parsing_context(self) {
+    pub(super) fn abort_parsing_list_or_move_to_next_token(&mut self, ctx: ParsingContext) -> bool {
+        self.parsing_context_errors(ctx);
+        if self.is_in_some_parsing_context() {
             true
         } else {
             self.next_token();
@@ -186,14 +190,15 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         }
     }
 
-    pub(super) fn parse_delimited_list<T>(
+    pub(super) fn parse_delimited_list<const CONSIDER_SEMICOLON_AS_DELIMITER: bool, T>(
         &mut self,
-        ctx: impl list_ctx::ListContext,
+        ctx: ParsingContext,
         ele: impl Fn(&mut Self) -> PResult<T>,
     ) -> &'cx [T] {
         let mut list = Vec::with_capacity(8);
+        self.parsing_context.insert(ctx);
         loop {
-            if ctx.is_ele(self, false) {
+            if self.is_list_element(ctx, false) {
                 let start_pos = self.token.start();
                 let Ok(ele) = ele(self) else {
                     break;
@@ -208,6 +213,15 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
 
                 self.expect(TokenKind::Comma);
 
+                if CONSIDER_SEMICOLON_AS_DELIMITER
+                    && self.token.kind == TokenKind::Semi
+                    && !self
+                        .token_flags
+                        .intersects(TokenFlags::PRECEDING_LINE_BREAK)
+                {
+                    self.next_token();
+                }
+
                 if start_pos == self.token.start() {
                     self.next_token();
                 }
@@ -217,6 +231,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
                 break;
             }
         }
+        self.parsing_context.remove(ctx);
         self.alloc(list)
     }
 
@@ -273,7 +288,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
     ) -> &'cx ast::Ident {
         if is_ident {
             let res = self.create_ident_by_atom(self.ident_token(), self.token.span);
-            self.next_token();
+            self.next_token_without_checked();
             res
         } else if self.token.kind == TokenKind::Private {
             todo!()
@@ -347,7 +362,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
     pub(super) fn parse(&mut self) -> &'cx ast::Program<'cx> {
         let start = self.pos;
         self.next_token();
-        let stmts = self.parse_list(list_ctx::SourceElems, Self::parse_stmt);
+        let stmts = self.parse_list(ParsingContext::SOURCE_ELEMENTS, Self::parse_stmt);
         let id = self.next_node_id();
         let program = self.alloc(ast::Program {
             id,

@@ -78,7 +78,8 @@ impl super::ParserState<'_, '_> {
                 State::ExpectString => {
                     if ch == b'"' || ch == b'\'' {
                         let (value, _) = self.scan_string(ch, false);
-                        let atom = self.atoms.lock().unwrap().insert_by_vec(value);
+                        let s = unsafe { std::str::from_utf8_unchecked(&value) };
+                        let atom = self.atoms.lock().unwrap().atom(s);
                         return Ok(atom);
                     } else if ch.is_ascii_whitespace() {
                         continue;

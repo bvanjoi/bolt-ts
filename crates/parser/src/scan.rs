@@ -1,6 +1,5 @@
 use std::{borrow::Cow, str};
 
-use bolt_ts_atom::AtomId;
 use bolt_ts_span::Span;
 
 use super::{CommentDirectiveKind, ParserState, TokenValue, errors, unicode};
@@ -98,16 +97,19 @@ impl ParserState<'_, '_> {
         self.input.get(self.pos + 1).copied()
     }
 
+    fn next_ch_unchecked(&self) -> u8 {
+        debug_assert!(self.pos + 1 < self.end());
+        unsafe { *self.input.get_unchecked(self.pos + 1) }
+    }
+
     fn next_next_ch(&self) -> Option<u8> {
         self.input.get(self.pos + 2).copied()
     }
 
+    #[inline(always)]
+    #[track_caller]
     pub(super) fn new_span(&self, lo: u32) -> Span {
-        Span {
-            lo,
-            hi: self.full_start_pos as u32,
-            module: self.module_id,
-        }
+        Span::new(lo, self.full_start_pos as u32, self.module_id)
     }
 
     fn scan_binary_or_octal_digits(&mut self, base: u8) -> Vec<u8> {
@@ -229,7 +231,8 @@ impl ParserState<'_, '_> {
         let contain_dot = self.ch() == Some(b'.');
         if contain_dot {
             self.pos += 1;
-            Some(self.scan_number_fragment())
+            self.scan_number_fragment();
+            Some(())
         } else {
             None
         };
@@ -273,11 +276,8 @@ impl ParserState<'_, '_> {
 
         let kind = if self.ch() == Some(b'n') {
             self.pos += 1;
-            let value = self
-                .atoms
-                .lock()
-                .unwrap()
-                .insert_by_vec(result.into_owned());
+            let s = unsafe { std::str::from_utf8_unchecked(&result) };
+            let value = self.atoms.lock().unwrap().atom(s);
             self.token_value = Some(TokenValue::Ident { value });
             TokenKind::BigInt
         } else {
@@ -352,6 +352,8 @@ impl ParserState<'_, '_> {
                 break;
             } else if is_ascii_identifier_part(self.ch_unchecked()) {
                 self.pos += 1
+            } else if self.ch_unchecked() == b'\\' {
+                return self.scan_identifier_slowly(start);
             } else if self.ch_unchecked() < 128 {
                 break;
             } else {
@@ -359,6 +361,25 @@ impl ParserState<'_, '_> {
             }
         }
         Some(self.get_ident_token(Cow::Borrowed(&self.input[start..self.pos]), start as u32))
+    }
+
+    fn scan_identifier_slowly(&mut self, start: usize) -> Option<Token> {
+        debug_assert!(self.pos > start);
+        let mut result = self.input[start..self.pos].to_vec();
+        loop {
+            if self.pos == self.end() {
+                break;
+            } else if is_ascii_identifier_part(self.ch_unchecked()) {
+                self.pos += 1;
+            } else if self.ch_unchecked() == b'\\' {
+                result.extend(self.scan_identifier_parts());
+            } else if self.ch_unchecked() < 128 {
+                break;
+            } else {
+                self.scan_unicode_from_utf8(UTF8_CHAR_LEN_MAX)?;
+            }
+        }
+        Some(self.get_ident_token(Cow::Owned(result), start as u32))
     }
 
     fn scan_comment_directive_kind(&mut self) {
@@ -401,6 +422,7 @@ impl ParserState<'_, '_> {
     }
 
     fn peek_extend_unicode_escape(&mut self) -> Option<u32> {
+        debug_assert!(self.ch_unchecked() == b'\\');
         if self.next_ch() == Some(b'u') && self.next_next_ch() == Some(b'{') {
             let start = self.pos;
             self.pos += 3;
@@ -416,7 +438,7 @@ impl ParserState<'_, '_> {
 
     fn peek_unicode_escape(&mut self) -> Option<u32> {
         debug_assert!(self.ch_unchecked() == b'\\');
-        if self.pos + 5 < self.end() && self.ch_unchecked() == b'u' {
+        if self.pos + 5 < self.end() && self.next_ch_unchecked() == b'u' {
             let start = self.pos;
             self.pos += 2;
             let v = self.scan_exact_number_of_hex_digits(4, false);
@@ -428,6 +450,16 @@ impl ParserState<'_, '_> {
     }
 
     pub(super) fn next_token(&mut self) {
+        if self.token.kind.is_keyword() && self.token_flags.intersects(TokenFlags::UNICODE_ESCAPE) {
+            let error = errors::KeywordsCannotContainEscapeCharacters {
+                span: self.token.span,
+            };
+            self.push_error(Box::new(error));
+        }
+        self.next_token_without_checked();
+    }
+
+    pub(super) fn next_token_without_checked(&mut self) {
         self.full_start_pos = self.pos;
         self.token_flags = TokenFlags::empty();
         let mut start;
@@ -598,16 +630,30 @@ impl ParserState<'_, '_> {
                 }
                 b'*' => {
                     if self.next_ch() == Some(b'*') {
-                        // **
-                        self.pos += 2;
-                        todo!()
+                        if self.next_next_ch() == Some(b'=') {
+                            // **=
+                            self.pos += 3;
+                            Token::new(
+                                TokenKind::AsteriskAsteriskEq,
+                                Span::new(start as u32, self.pos as u32, self.module_id),
+                            )
+                        } else {
+                            // **
+                            self.pos += 2;
+                            Token::new(
+                                TokenKind::AsteriskAsterisk,
+                                Span::new(start as u32, self.pos as u32, self.module_id),
+                            )
+                        }
                     } else if self.next_ch() == Some(b'=') {
+                        // *=
                         self.pos += 2;
                         Token::new(
                             TokenKind::AsteriskEq,
                             Span::new(start as u32, self.pos as u32, self.module_id),
                         )
                     } else {
+                        // *
                         self.pos += 1;
                         Token::new(
                             TokenKind::Asterisk,
@@ -758,9 +804,17 @@ impl ParserState<'_, '_> {
                 b'\'' | b'"' => {
                     let (v, key_value) = self.scan_string(ch, false);
                     let len = v.len();
-                    let atom = self.atoms.lock().unwrap().insert_by_vec(v);
+                    let atom = self
+                        .atoms
+                        .lock()
+                        .unwrap()
+                        .atom(unsafe { str::from_utf8_unchecked(&v) });
                     if len != key_value.len() {
-                        let key_atom = self.atoms.lock().unwrap().insert_by_vec(key_value);
+                        let key_atom = self
+                            .atoms
+                            .lock()
+                            .unwrap()
+                            .atom(unsafe { str::from_utf8_unchecked(&key_value) });
                         self.string_key_value = Some(key_atom);
                     } else {
                         self.string_key_value = Some(atom);
@@ -828,8 +882,7 @@ impl ParserState<'_, '_> {
                 }
                 b'0'..=b'9' => self.scan_number(),
                 b'\\' => {
-                    let extended_cooked_char = self.peek_extend_unicode_escape();
-                    if let Some(extended_cooked_char) = extended_cooked_char {
+                    if let Some(extended_cooked_char) = self.peek_extend_unicode_escape() {
                         if is_identifier_start(extended_cooked_char, false) {
                             let mut unicode = self.scan_extended_unicode_escape(true);
                             let ident_parts = self.scan_identifier_parts();
@@ -839,12 +892,15 @@ impl ParserState<'_, '_> {
                         }
                     }
 
-                    let cooked_char = self.peek_unicode_escape();
-                    if let Some(cooked_char) = cooked_char {
+                    if let Some(cooked_char) = self.peek_unicode_escape() {
                         if is_identifier_start(cooked_char, false) {
                             self.pos += 6;
                             self.token_flags |= TokenFlags::UNICODE_ESCAPE;
-                            let mut s = cooked_char.to_be_bytes().to_vec();
+                            let ch = unsafe {
+                                // SAFETY: checked in `peek_unicode_escape`
+                                std::char::from_u32_unchecked(cooked_char)
+                            };
+                            let mut s = ch.to_string().into_bytes();
                             let ident_parts = self.scan_identifier_parts();
                             s.extend(ident_parts);
                             self.token = self.get_ident_token(Cow::Owned(s), start as u32);
@@ -853,7 +909,7 @@ impl ParserState<'_, '_> {
                     }
 
                     self.push_error(Box::new(errors::InvalidCharacter {
-                        span: Span::new(start as u32, self.pos as u32, self.module_id),
+                        span: Span::new(start as u32, self.pos as u32 + 1, self.module_id),
                     }));
                     self.pos += 1;
                     Token::new(
@@ -917,7 +973,8 @@ impl ParserState<'_, '_> {
             let ch = self.ch_unchecked();
             if ch == b'`' {
                 self.pos += 1;
-                let atom = self.atoms.lock().unwrap().insert_by_vec(contents);
+                let s = unsafe { str::from_utf8_unchecked(&contents) };
+                let atom = self.atoms.lock().unwrap().atom(s);
                 self.token_value = Some(TokenValue::Ident { value: atom });
                 break if started_with_backtick {
                     TokenKind::NoSubstitutionTemplate
@@ -926,7 +983,8 @@ impl ParserState<'_, '_> {
                 };
             } else if ch == b'$' && self.next_ch() == Some(b'{') {
                 // `${`
-                let atom = self.atoms.lock().unwrap().insert_by_vec(contents);
+                let s = unsafe { str::from_utf8_unchecked(&contents) };
+                let atom = self.atoms.lock().unwrap().atom(s);
                 self.token_value = Some(TokenValue::Ident { value: atom });
                 self.pos += 2;
                 break if started_with_backtick {
@@ -1370,7 +1428,7 @@ impl ParserState<'_, '_> {
             .atoms
             .lock()
             .unwrap()
-            .insert_by_vec(self.input[start as usize..self.pos].to_vec());
+            .atom(unsafe { str::from_utf8_unchecked(&self.input[start as usize..self.pos]) });
         self.token_value = Some(TokenValue::Ident { value: atom });
         self.token = Token::new(
             TokenKind::Regexp,
@@ -1456,14 +1514,8 @@ impl ParserState<'_, '_> {
             self.pos += 1;
         }
 
-        let v = &self.input[token_start..self.pos];
-        let atom = AtomId::from_bytes(v);
-        self.atoms
-            .lock()
-            .unwrap()
-            .insert_if_not_exist(atom, || unsafe {
-                std::borrow::Cow::Owned(String::from_utf8_unchecked(v.to_vec()))
-            });
+        let s = unsafe { str::from_utf8_unchecked(&self.input[token_start..self.pos]) };
+        let atom = self.atoms.lock().unwrap().atom(s);
         self.token_value = Some(TokenValue::Ident { value: atom });
 
         let token_kind = if first_non_whitespace == -1 {
@@ -1480,28 +1532,19 @@ impl ParserState<'_, '_> {
     fn get_ident_token(&mut self, ident: Cow<[u8]>, start: u32) -> Token {
         let len = ident.len();
 
-        let id = AtomId::from_bytes(ident.as_ref());
+        let s = unsafe { str::from_utf8_unchecked(&ident) };
+        let id = self.atoms.lock().unwrap().atom(s);
         if len > 1 && len < 13 {
             let first = *unsafe { ident.get_unchecked(0) };
             if first.is_ascii_lowercase() {
                 if let Some(kind) = atom_to_token(id) {
-                    debug_assert!(self.atoms.lock().unwrap().contains(id));
+                    debug_assert!(!self.atoms.lock().unwrap().get(id).is_empty());
                     let span = Span::new(start, self.pos as u32, self.module_id);
                     self.token_value = Some(TokenValue::Ident { value: id });
                     return Token::new(kind, span);
                 }
             }
         }
-        self.atoms
-            .lock()
-            .unwrap()
-            .insert_if_not_exist(id, || unsafe {
-                let s = String::from_utf8_unchecked(match ident {
-                    Cow::Borrowed(bytes) => bytes.to_vec(),
-                    Cow::Owned(bytes) => bytes,
-                });
-                Cow::Owned(s)
-            });
         self.token_value = Some(TokenValue::Ident { value: id });
         Token::new(
             TokenKind::Ident,
@@ -1531,7 +1574,7 @@ impl ParserState<'_, '_> {
 
         if !v.is_empty() {
             let token_value = self.ident_token();
-            debug_assert!(self.atoms.lock().unwrap().contains(token_value));
+            debug_assert!(!self.atoms.lock().unwrap().get(token_value).is_empty());
             let mut token_value = self
                 .atoms
                 .lock()
@@ -1567,7 +1610,11 @@ impl ParserState<'_, '_> {
                 }
                 self.token_flags |= TokenFlags::UNICODE_ESCAPE;
                 result.extend(self.input[start..self.pos].iter());
-                result.extend(ch.unwrap().to_be_bytes());
+                let ch = unsafe {
+                    // SAFETY: checked in `peek_unicode_escape`
+                    std::char::from_u32_unchecked(ch.unwrap())
+                };
+                result.extend(ch.to_string().into_bytes());
                 self.pos += 6; // \u{xxxxxx}
                 start = self.pos;
             } else {
@@ -1587,7 +1634,11 @@ impl ParserState<'_, '_> {
             Some(b'\'') | Some(b'"') => {
                 let (value, _) = self.scan_string(unsafe { ch.unwrap_unchecked() }, true);
                 self.token_value = Some(TokenValue::Ident {
-                    value: self.atoms.lock().unwrap().insert_by_vec(value),
+                    value: self
+                        .atoms
+                        .lock()
+                        .unwrap()
+                        .atom(unsafe { str::from_utf8_unchecked(&value) }),
                 });
                 self.token = Token::new(
                     TokenKind::String,

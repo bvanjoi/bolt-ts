@@ -1,5 +1,3 @@
 class C {
-  
-  
   constructor(x) {}
 }

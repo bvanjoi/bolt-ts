@@ -1,5 +1,3 @@
-use std::borrow::Cow;
-
 use super::check_type_related_to::RecursionFlags;
 use super::create_ty::IntersectionFlags;
 use super::get_contextual::ContextFlags;
@@ -792,14 +790,14 @@ impl<'cx> TyChecker<'cx> {
         let mut seg: usize = 0;
         let mut pos: usize = target_start_text_str.len();
 
-        fn get_source_text<'a>(
-            atoms: &'a bolt_ts_atom::AtomMap,
+        fn get_source_text(
+            atoms: &mut bolt_ts_atom::AtomMap,
             index: usize,
             last_source_index: usize,
             source_end_text: bolt_ts_atom::AtomId,
             target_end_text_len: usize,
             source_texts: &[bolt_ts_atom::AtomId],
-        ) -> &'a str {
+        ) -> &'static str {
             if index < last_source_index {
                 atoms.get(source_texts[index])
             } else {
@@ -824,21 +822,13 @@ impl<'cx> TyChecker<'cx> {
                     target_end_text_len,
                     source_texts,
                 )[*pos..p];
-                let atom = bolt_ts_atom::AtomId::from_str(sub);
-                if !this.atoms.contains(atom) {
-                    let sub = sub.to_string();
-                    this.atoms.insert(atom, Cow::Owned(sub));
-                }
+                let atom = this.atoms.atom(sub);
                 let match_type = this.get_string_literal_type(atom);
                 matches.push(match_type);
             } else {
                 let mut parts = Vec::with_capacity(source_texts.len());
                 let a = &this.atoms.get(source_texts[*seg])[*pos..];
-                let a_atom = bolt_ts_atom::AtomId::from_str(a);
-                if !this.atoms.contains(a_atom) {
-                    let a = a.to_string();
-                    this.atoms.insert(a_atom, Cow::Owned(a));
-                }
+                let a_atom = this.atoms.atom(a);
                 parts.push(a_atom);
                 parts.extend(source_texts[*seg + 1..s].iter());
                 let b = &get_source_text(
@@ -849,11 +839,7 @@ impl<'cx> TyChecker<'cx> {
                     target_end_text_len,
                     source_texts,
                 )[0..p];
-                let b_atom = bolt_ts_atom::AtomId::from_str(b);
-                if !this.atoms.contains(b_atom) {
-                    let b = b.to_string();
-                    this.atoms.insert(b_atom, Cow::Owned(b));
-                }
+                let b_atom = this.atoms.atom(b);
                 parts.push(b_atom);
                 let match_type = this.get_template_lit_ty(&parts, &source_tys[*seg..s]);
                 matches.push(match_type);

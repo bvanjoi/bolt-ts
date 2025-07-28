@@ -1,6 +1,4 @@
 function outer() {
-  
-  
   function inner(a) {
     return a
   }

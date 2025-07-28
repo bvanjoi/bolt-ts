@@ -1,12 +1,3 @@
-
-
-
-
-
-
-
-
-
 var a0 = false;
 var a1 = false;
 var a2 = false;

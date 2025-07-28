@@ -14,7 +14,7 @@ use crate::ty::CheckFlags;
 use crate::{r#trait, ty};
 
 fn symbol_of_resolve_results(
-    resolve_results: &Vec<ResolveResult>,
+    resolve_results: &[ResolveResult],
     symbol: SymbolID,
 ) -> &crate::bind::Symbol {
     let idx = symbol.module().as_usize();
@@ -39,7 +39,7 @@ pub trait SymbolInfo<'cx>: Sized {
     fn empty_symbols(&self) -> &'cx SymbolTable;
     fn mg(&self) -> &crate::graph::ModuleGraph;
     fn p(&self) -> &bolt_ts_parser::Parser<'cx>;
-    fn atoms(&self) -> &bolt_ts_atom::AtomMap<'cx>;
+    fn atoms(&self) -> &bolt_ts_atom::AtomMap;
     fn module_arena(&self) -> &bolt_ts_span::ModuleArena;
     fn push_error(&mut self, error: crate::Diag);
 
@@ -213,11 +213,11 @@ impl<'cx> super::TyChecker<'cx> {
             .union(SymbolFlags::NAMESPACE);
         match p.node(node) {
             ImportNamedSpec(_) => get_target_of_import_named_spec(self, node, dont_recur_resolve),
-            ShorthandSpec(_) if p.node(p.parent(node).unwrap()).is_import_clause() => {
+            ShorthandSpec(_) if p.node(self.parent(node).unwrap()).is_import_clause() => {
                 get_target_of_import_named_spec(self, node, dont_recur_resolve)
             }
             ShorthandSpec(_) => {
-                assert!(p.node(p.parent(node).unwrap()).is_specs_export());
+                assert!(p.node(self.parent(node).unwrap()).is_specs_export());
                 get_target_of_export_spec(self, node, EXPORT_SPEC_MEANING, dont_recur_resolve)
             }
             ExportNamedSpec(_) => {
@@ -531,10 +531,11 @@ impl<'cx> super::TyChecker<'cx> {
                 };
                 let name = self.atoms().get(node.name);
                 let span = self.p().node(id).span();
-                let module = self.module_arena().get_path(span.module).display();
+                let module = self.module_arena().get_path(span.module()).display();
                 panic!(
                     "The resolution of `{name}({module}:{}:{})` is not found.",
-                    span.lo, span.hi
+                    span.lo(),
+                    span.hi()
                 );
             })
     }
@@ -642,7 +643,7 @@ impl<'cx> super::TyChecker<'cx> {
     }
 
     fn has_late_bindable_name(&mut self, id: bolt_ts_ast::NodeID) -> bool {
-        let Some(name) = self.p().get_name_of_decl(id) else {
+        let Some(name) = self.node_query(id.module()).get_name_of_decl(id) else {
             return false;
         };
         self.is_late_bindable_name(&name)
@@ -660,7 +661,7 @@ impl<'cx> super::TyChecker<'cx> {
     }
 
     pub(super) fn has_late_bindable_index_signature(&mut self, id: bolt_ts_ast::NodeID) -> bool {
-        let Some(name) = self.p().get_name_of_decl(id) else {
+        let Some(name) = self.node_query(id.module()).get_name_of_decl(id) else {
             return false;
         };
         self.is_late_bindable_index_signature(&name)
@@ -739,7 +740,7 @@ impl<'cx> super::TyChecker<'cx> {
         if ty.useable_as_prop_name() {
             let member_name = self.get_prop_name_from_ty(ty).unwrap();
             let symbol_flags = self.binder.symbol(s).flags;
-            use std::collections::hash_map::Entry;
+            use indexmap::map::Entry;
             let late_symbol = match late_symbols.0.entry(member_name) {
                 Entry::Occupied(occ) => *occ.get(),
                 Entry::Vacant(vac) => {
@@ -851,8 +852,8 @@ fn get_target_of_ns_import<'cx>(
     dont_resolve_alias: bool,
 ) -> Option<SymbolID> {
     let p = this.p();
-    let p_id = p.parent(n.id).unwrap();
-    let p_id = p.parent(p_id).unwrap();
+    let p_id = this.parent(n.id).unwrap();
+    let p_id = this.parent(p_id).unwrap();
     let import_decl = p.node(p_id).expect_import_decl();
 
     // TODO: resolve_es_module;
@@ -866,11 +867,11 @@ fn get_target_of_import_named_spec(
 ) -> Option<SymbolID> {
     let p = this.p();
     let root = if p.node(node).is_binding() {
-        p.get_root_decl(node)
+        this.node_query(node.module()).get_root_decl(node)
     } else {
-        let p_id = p.parent(node).unwrap();
+        let p_id = this.parent(node).unwrap();
 
-        p.parent(p_id).unwrap()
+        this.parent(p_id).unwrap()
     };
 
     get_external_module_member(this, root, node, dont_recur_resolve)
@@ -1044,7 +1045,9 @@ fn get_target_of_export_spec(
     let n = this.p().node(node);
     let spec_name = n.import_export_spec_name().unwrap();
     if spec_name == keyword::KW_DEFAULT {
-        let spec = this.p().get_module_spec_for_import_or_export(node);
+        let spec = this
+            .node_query(node.module())
+            .get_module_spec_for_import_or_export(node);
         let module_symbol =
             spec.and_then(|spec| this.resolve_external_module_name(spec.id, spec.val));
         if let Some(module_symbol) = module_symbol {
@@ -1054,7 +1057,7 @@ fn get_target_of_export_spec(
 
     match n {
         bolt_ts_ast::Node::ShorthandSpec(n) => {
-            let p_id = this.p().parent(node).unwrap();
+            let p_id = this.parent(node).unwrap();
             let p = this.p().node(p_id).expect_specs_export();
             if p.module.is_some() {
                 get_external_module_member(this, p_id, node, dont_resolve_alias)
@@ -1068,7 +1071,7 @@ fn get_target_of_export_spec(
         }
         bolt_ts_ast::Node::ExportNamedSpec(n) => match n.prop_name.kind {
             bolt_ts_ast::ModuleExportNameKind::Ident(ident) => {
-                let p = this.p().parent(node).unwrap();
+                let p = this.parent(node).unwrap();
                 let p = this.p().node(p).expect_specs_export();
                 if p.module.is_some() {
                     todo!()
@@ -1139,7 +1142,7 @@ fn get_target_of_import_clause<'cx>(
     node: &'cx bolt_ts_ast::ImportClause<'cx>,
     dont_recur_alias: bool,
 ) -> Option<SymbolID> {
-    let parent = this.p().parent(node.id).unwrap();
+    let parent = this.parent(node.id).unwrap();
     let parent = this.p().node(parent).expect_import_decl();
     let module_symbol = resolve_external_module_name(this.mg(), parent.module.id, this.p());
     module_symbol.and_then(|module_symbol| {
@@ -1166,7 +1169,10 @@ fn get_target_of_module_default(
         )
     };
     if export_default_symbol.is_none() {
-        let module_spec = this.p().get_module_spec_for_import_or_export(node).unwrap();
+        let module_spec = this
+            .node_query(node.module())
+            .get_module_spec_for_import_or_export(node)
+            .unwrap();
         error_no_module_member_symbol(this, module_symbol, module_spec.val, node);
     }
     // TODO: mark_symbol_of_alias_decl_if_ty_only
@@ -1206,7 +1212,7 @@ impl<'cx> SymbolInfo<'cx> for super::TyChecker<'cx> {
     fn p(&self) -> &bolt_ts_parser::Parser<'cx> {
         self.p
     }
-    fn atoms(&self) -> &bolt_ts_atom::AtomMap<'cx> {
+    fn atoms(&self) -> &bolt_ts_atom::AtomMap {
         self.atoms
     }
     fn push_error(&mut self, error: crate::Diag) {

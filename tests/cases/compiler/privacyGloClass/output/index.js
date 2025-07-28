@@ -1,10 +1,6 @@
 var m1 = {};
 (function (m1) {
 
-  
-  
-  
-  
   class m1_c_public {
     f1() {}
   }
@@ -43,7 +39,6 @@ var m1 = {};
   m1.m1_C12_public = m1_C12_public;
   
 })(m1);
-
 class glo_c_public {
   f1() {}
 }

@@ -50,7 +50,7 @@ impl<'cx> TyChecker<'cx> {
         }
 
         if decl.is_param() {
-            let parent = self.p.parent(decl.id()).unwrap();
+            let parent = self.parent(decl.id()).unwrap();
             let func = self.p.node(parent);
             if let Some(setter) = func.as_setter_decl() {
                 // TODO: has bindable name

@@ -57,6 +57,7 @@ impl<'a, 'cx, 'p> Lookahead<'a, 'cx, 'p> {
         let old_line_start = self.p.line_start;
         let old_line_map_len = self.p.line_map.len();
         let old_parse_diag_len = self.p.diags.len();
+        let old_current_node_id = self.p.current_node_id();
 
         let r = f(self);
 
@@ -71,6 +72,7 @@ impl<'a, 'cx, 'p> Lookahead<'a, 'cx, 'p> {
             self.p.pos = old_pos;
             // TODO: speculate_kind != SpeculationKind::Repair
             self.p.diags.truncate(old_parse_diag_len);
+            self.p.reset_node_id(old_current_node_id);
         }
 
         r

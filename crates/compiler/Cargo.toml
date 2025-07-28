@@ -12,12 +12,13 @@ enumflags2 = { workspace = true }
 bolt_ts_atom = { path = "../../helper/atom" }
 bolt_ts_arena = { path = "../../helper/arena" }
 bolt_ts_ast = { path = "../ast" }
+bolt_ts_ecma_rules = { path = "../ecma_rules" }
 bolt_ts_errors = { path = "../../helper/errors" }
 bolt_ts_span = { path = "../../helper/span" }
 bolt_ts_libs = { path = "../libs" }
+bolt_ts_optimize = { path = "../optimize" }
 bolt_ts_parser = { path = "../parser" }
 bolt_ts_config = { path = "../config" }
-bolt_ts_ecma_rules = { path = "../ecma_rules" }
 bolt_ts_utils = { path = "../../helper/utils" }
 bolt_ts_fs = { path = "../../helper/fs" }
 bolt_ts_resolve = { path = "../resolve" }
@@ -39,7 +40,7 @@ expect-test = "1.5.1"
 compile-test = { path = "../../tools/compile-test" }
 dir-test = "0.4.1"
 git2 = "0.20.2"
-divan = { package = "codspeed-divan-compat", version = "2.10.1" }
+divan = { package = "codspeed-divan-compat", version = "3.0.4" }
 
 [build-dependencies]
 project-root = "0.2.2"

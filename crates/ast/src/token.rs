@@ -14,14 +14,16 @@ impl Token {
         Self { kind, span }
     }
 
+    #[inline]
     pub fn start(&self) -> u32 {
-        debug_assert_ne!(self.span.lo, u32::MAX);
-        self.span.lo
+        debug_assert_ne!(self.span.lo(), u32::MAX);
+        self.span.lo()
     }
 
+    #[inline]
     pub fn end(&self) -> u32 {
-        debug_assert_ne!(self.span.lo, u32::MAX);
-        self.span.hi
+        debug_assert_ne!(self.span.hi(), u32::MAX);
+        self.span.hi()
     }
 }
 
@@ -138,6 +140,8 @@ pub enum TokenKind {
     MinusMinus,
     /// `**`
     AsteriskAsterisk,
+    /// `**=`
+    AsteriskAsteriskEq,
     /// `*=`
     AsteriskEq,
     /// `/=`
@@ -437,7 +441,7 @@ impl From<TokenKind> for super::BinOpKind {
         use super::BinOpKind::*;
         match value {
             TokenKind::Plus => Add,
-            TokenKind::Pipe => Pipe,
+            TokenKind::Pipe => BitOr,
             TokenKind::PipePipe => PipePipe,
             TokenKind::EqEq => EqEq,
             TokenKind::EqEqEq => EqEqEq,
@@ -461,6 +465,8 @@ impl From<TokenKind> for super::BinOpKind {
             TokenKind::Satisfies => Satisfies,
             TokenKind::BangEq => NEq,
             TokenKind::BangEqEq => NEqEq,
+            TokenKind::Caret => BitXor,
+            TokenKind::AsteriskAsterisk => Exp,
             TokenKind::Comma => Comma,
             _ => {
                 unreachable!("{:#?}", value)
@@ -559,6 +565,8 @@ impl TokenKind {
         use TokenKind::*;
         match self {
             Pipe => BinPrec::BitwiseOR,
+            Caret => BinPrec::BitwiseXOR,
+            Amp => BinPrec::BitwiseAND,
             Less | Great | LessEq | GreatEq | Instanceof | In | As | Satisfies => {
                 BinPrec::Relational
             }
@@ -568,6 +576,7 @@ impl TokenKind {
             AmpAmp => BinPrec::LogicalAnd,
             BangEq | BangEqEq | EqEq | EqEqEq => BinPrec::Eq,
             Asterisk | Slash | Percent => BinPrec::Multiplicative,
+            AsteriskAsterisk => BinPrec::Exponentiation,
             _ => BinPrec::Invalid,
         }
     }
@@ -692,7 +701,8 @@ impl TokenKind {
     }
 
     pub fn is_class_ele_modifier(self) -> bool {
-        self.is_param_prop_modifier()
+        // TODO: override || accessor
+        self.is_param_prop_modifier() || matches!(self, TokenKind::Static)
     }
 
     pub fn can_parse_module_export_name(self) -> bool {
@@ -724,6 +734,10 @@ pub enum BinPrec {
     LogicalAnd,
     /// `|`
     BitwiseOR,
+    /// `^`
+    BitwiseXOR,
+    /// `&`
+    BitwiseAND,
     /// `==`, `===`
     Eq,
     /// `<=`, `>=`, `<`, `>`
@@ -734,6 +748,8 @@ pub enum BinPrec {
     Additive,
     /// `*`, `/`, `%`   
     Multiplicative,
+    // `**`
+    Exponentiation,
     Highest,
 }
 

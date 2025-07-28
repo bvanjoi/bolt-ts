@@ -1,5 +1,5 @@
 class C {
   static foo() {
-    return "bar"
+    return 'bar'
   }
 }

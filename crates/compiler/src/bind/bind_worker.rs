@@ -1,5 +1,4 @@
 use super::BinderState;
-use super::NodeQuery;
 use super::errors;
 use super::symbol::SymbolFlags;
 use super::symbol::SymbolTableLocation;
@@ -10,10 +9,10 @@ use bolt_ts_ast::NodeFlags;
 use bolt_ts_ast::atom_to_token;
 use bolt_ts_ast::keyword;
 use bolt_ts_atom::AtomId;
-use bolt_ts_parser::ModuleInstanceState;
 use bolt_ts_span::Span;
 
 use crate::bind::create::DeclareSymbolProperty;
+use crate::node_query::ModuleInstanceState;
 use crate::r#trait;
 
 impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
@@ -74,13 +73,13 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
 
     fn bind_ty_param(&mut self, ty_param: &'cx ast::TyParam<'cx>) {
         let name = SymbolName::Atom(ty_param.name.name);
-        let parent = self.parent_map.parent_unfinished(ty_param.id).unwrap();
+        let parent = self.parent_map.parent(ty_param.id).unwrap();
         // TODO: is_js_doc_template_tag
         let s = if let Some(infer_ty) = self.p.node(parent).as_infer_ty() {
             assert!(ty_param.default.is_none());
             let extends_ty = self.node_query().find_ancestor(infer_ty.id, |n| {
                 let n_id = n.id();
-                let p = self.parent_map.parent_unfinished(n_id)?;
+                let p = self.parent_map.parent(n_id)?;
                 if let Some(cond) = self.p.node(p).as_cond_ty()
                     && cond.extends_ty.id() == n_id
                 {
@@ -90,7 +89,7 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
                 }
             });
             let cond_container = extends_ty.map(|extends_ty| {
-                let p = self.parent_map.parent_unfinished(extends_ty).unwrap();
+                let p = self.parent_map.parent(extends_ty).unwrap();
                 let n = self.p.node(p);
                 assert!(n.is_cond_ty());
                 p
@@ -148,14 +147,14 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
 
     fn check_contextual_ident(&mut self, id: ast::NodeID, atom: AtomId, span: Span) {
         fn is_identifier_name(b: &BinderState, id: ast::NodeID) -> bool {
-            let Some(p_id) = b.parent_map.parent_unfinished(id) else {
+            let Some(p_id) = b.parent_map.parent(id) else {
                 return false;
             };
             let p = b.p.node(p_id);
             if p.is_export_named_spec()
                 || (p.is_shorthand_spec()
                     && b.p
-                        .node(b.parent_map.parent_unfinished(p_id).unwrap())
+                        .node(b.parent_map.parent(p_id).unwrap())
                         .is_specs_export())
             {
                 true
@@ -195,11 +194,10 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
             }
         }
 
-        if self.p.diags.is_empty()
-            && !self
-                .p
-                .node_flags(id)
-                .intersects(NodeFlags::AMBIENT.union(NodeFlags::JSDOC))
+        if !self
+            .p
+            .node_flags(id)
+            .intersects(NodeFlags::AMBIENT.union(NodeFlags::JSDOC))
         {
             let Some(tok) = atom_to_token(atom) else {
                 return;
@@ -368,10 +366,10 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
             }
         }
 
-        let p = self.parent_map.parent_unfinished(n.id).unwrap();
+        let p = self.parent_map.parent(n.id).unwrap();
 
-        if self.p.param_is_prop_decl(n, p) {
-            let class_decl = self.parent_map.parent_unfinished(p).unwrap();
+        if self.p.nodes.param_is_prop_decl(n, p) {
+            let class_decl = self.parent_map.parent(p).unwrap();
             let loc = SymbolTableLocation::members(class_decl);
             let includes = SymbolFlags::PROPERTY
                 | if n.question.is_some() {
@@ -680,7 +678,7 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
             BlockStmt(_)
                 if self
                     .p
-                    .node(self.parent_map.parent_unfinished(node).unwrap())
+                    .node(self.parent_map.parent(node).unwrap())
                     .is_fn_like_or_class_static_block_decl() => {}
             BlockStmt(_) | ModuleBlock(_) => {
                 // TODO: `update_strict_module_statement_list`

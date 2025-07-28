@@ -3,3 +3,10 @@
  4 │ rest
    · ────
    ╰────
+
+  × Identifier expected. 'public' is a reserved word in strict mode. Class
+  │ definitions are automatically in strict mode.
+   ╭─[../../tests/cases/compiler/restParamModifier/index.ts:4:20]
+ 4 │ public
+   · ──────
+   ╰────

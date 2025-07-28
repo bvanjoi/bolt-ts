@@ -39,17 +39,12 @@ pub enum BinaryLikeOp {
 }
 
 pub trait BinaryLike<'cx>: Copy + std::fmt::Debug {
-    fn id(&self) -> ast::NodeID;
     fn left(&self) -> &'cx ast::Expr<'cx>;
     fn op(&self) -> BinaryLikeOp;
     fn right(&self) -> &'cx ast::Expr<'cx>;
 }
 
 impl<'cx> BinaryLike<'cx> for ast::AssignExpr<'cx> {
-    fn id(&self) -> ast::NodeID {
-        self.id
-    }
-
     fn left(&self) -> &'cx ast::Expr<'cx> {
         self.left
     }

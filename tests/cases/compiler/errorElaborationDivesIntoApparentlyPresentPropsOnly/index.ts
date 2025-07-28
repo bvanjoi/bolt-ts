@@ -2,7 +2,7 @@
 
 function foo<T extends { a: string }>(x: T) {
   x = { a: "abc", b: 20, c: 30 };
-  //~^ ERROR: Type '{ b: number; a: string; c: number; }' is not assignable to type 'T'.
+  //~^ ERROR: Type '{ a: string; b: number; c: number; }' is not assignable to type 'T'.
 }
 
 function bar<T extends { a: string }>(x: T) {

@@ -44,11 +44,11 @@ impl<'cx> Resolver<'cx, '_, '_> {
         if symbol.flags != SymbolFlags::TYPE_PARAMETER {
             return None;
         }
-        let p = self.p.parent(symbol.opt_decl().unwrap()).unwrap();
+        let p = self.parent(symbol.opt_decl().unwrap()).unwrap();
         let p_node = self.p.node(p);
         if p_node.is_class_like() {
             if self
-                .p
+                .node_query()
                 .find_ancestor(
                     ident.id,
                     |node| {

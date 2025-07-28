@@ -1,6 +1,3 @@
-
-
-
 var q1;
 var q2;
 var q3;

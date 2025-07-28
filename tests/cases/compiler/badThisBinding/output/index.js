@@ -1,5 +1,3 @@
-
-
 class Greeter {
   constructor() {foo(() => {
       bar(() => {

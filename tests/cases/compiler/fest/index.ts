@@ -459,7 +459,7 @@ type Except<ObjectType, KeysType extends keyof ObjectType, Options extends Excep
   }
 
   const strictAssignment: typeof strictExcept = nonStrict;
-  //~^ ERROR: Type '{ b: string; a: number; }' is not assignable to type 'mapped type & Partial'.
+  //~^ ERROR: Type '{ a: number; b: string; }' is not assignable to type 'mapped type & Partial'.
 
   // Generic properties
   type Example = {
@@ -1043,7 +1043,7 @@ type Includes<Value extends readonly any[], Item> =
 
   // Value generic parameter is an object not an array.
   type A3 = Includes<{key: 'value'}, 7>;
-  //~^ ERROR: Type '{ key: "value"; }' is missing the following properties from type 'any[]': length, join, and 11 more.
+  //~^ ERROR: Type '{ key: "value"; }' is missing the following properties from type 'any[]'
 }
 
 // =========== IsEqual ===========
@@ -2750,13 +2750,13 @@ type UnknownArray = readonly unknown[];
   const b0: UnknownArray = null;      // depend on `strictNullChecks`
   const b1: UnknownArray = undefined; // depend on `strictNullChecks`
   const b2: UnknownArray = {};
-  //~^ ERROR: Type '{ }' is missing the following properties from type 'unknown[]': length, join, and 
+  //~^ ERROR: Type '{ }' is missing the following properties from type 'unknown[]'
   const b3: UnknownArray = {0: 1};
-  //~^ ERROR: Type '{ 0: number; }' is missing the following properties from type 'unknown[]': length, join, and 
+  //~^ ERROR: Type '{ 0: number; }' is missing the following properties from type 'unknown[]'
   const b4: UnknownArray = 1;
   //~^ ERROR: Type 'number' is not assignable to type 'unknown[]'.
   const b5: UnknownArray = Date;
-  //~^ ERROR: Type 'DateConstructor' is missing the following properties from type 'unknown[]': join, forEach, and
+  //~^ ERROR: Type 'DateConstructor' is missing the following properties from type 'unknown[]'
   //~| ERROR: Type 'DateConstructor' is not assignable to type 'unknown[]'.
 
   type IsArray<T> = T extends UnknownArray ? true : false;

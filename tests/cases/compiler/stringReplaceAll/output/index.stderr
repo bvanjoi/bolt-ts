@@ -1,5 +1,5 @@
   × Expected 2 arguments, but got 1.
-   ╭─[../../tests/cases/compiler/stringReplaceAll/index.ts:3:9]
- 3 │ "abcde".replaceAll
+   ╭─[../../tests/cases/compiler/stringReplaceAll/index.ts:5:9]
+ 5 │ "abcde".replaceAll
    · ──────────────────
    ╰────

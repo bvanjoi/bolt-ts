@@ -2,8 +2,6 @@ class Component {
   props
   state
 }
-
-
 class CoachMarkAnchorDecorator {
   decorateComponent(anchor) {
     return class CoachMarkAnchor extends Component {

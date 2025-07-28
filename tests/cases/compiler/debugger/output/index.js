@@ -1,4 +1,1 @@
-debugger
-function foo() {
-  debugger
-}
+function foo() {}

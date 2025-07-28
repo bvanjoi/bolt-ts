@@ -1,3 +1,3 @@
 function method() {
-  var dictionary = {};
+  var dictionary = ({});
 }

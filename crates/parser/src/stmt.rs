@@ -5,7 +5,6 @@ use bolt_ts_ast::{NodeFlags, VarDecls};
 
 use super::ast;
 use super::errors;
-use super::list_ctx;
 use super::lookahead::Lookahead;
 use super::parse_class_like::ParseClassDecl;
 use super::parse_fn_like::ParseFnDecl;
@@ -14,6 +13,7 @@ use super::parse_import_export_spec::ParseNamedImports;
 use super::{PResult, ParserState};
 use crate::keyword::{self, IDENT_GLOBAL};
 use crate::parse_break_or_continue::{ParseBreak, ParseContinue};
+use crate::parsing_ctx::ParsingContext;
 
 impl<'cx> ParserState<'cx, '_> {
     pub fn parse_stmt(&mut self) -> PResult<&'cx ast::Stmt<'cx>> {
@@ -31,7 +31,7 @@ impl<'cx> ParserState<'cx, '_> {
             Function => ast::StmtKind::Fn(self.parse_fn_decl(None)?),
             If => ast::StmtKind::If(self.parse_if_stmt()?),
             LBrace => ast::StmtKind::Block(self.parse_block()?),
-            Return => ast::StmtKind::Return(self.parse_ret_stmt()?),
+            Return => ast::StmtKind::Ret(self.parse_ret_stmt()?),
             Class => ast::StmtKind::Class(self.parse_class_decl(None)?),
             Interface => ast::StmtKind::Interface(self.parse_interface_decl(None)?),
             Type => ast::StmtKind::TypeAlias(self.parse_type_alias_decl(None)?),
@@ -93,8 +93,9 @@ impl<'cx> ParserState<'cx, '_> {
     }
 
     fn parse_while_stmt(&mut self) -> PResult<&'cx ast::WhileStmt<'cx>> {
+        debug_assert!(self.token.kind == TokenKind::While);
         let start = self.token.start();
-        self.expect(TokenKind::While);
+        self.next_token(); // consume `while`
         let open_parsed = self.expect(TokenKind::LParen);
         let expr = self.allow_in_and(Self::parse_expr)?;
         self.parse_expected_matching_brackets(
@@ -266,7 +267,10 @@ impl<'cx> ParserState<'cx, '_> {
         self.expect(TokenKind::Enum);
         let name = self.create_ident(self.is_ident(), None);
         let members = if self.expect(TokenKind::LBrace) {
-            let member = self.parse_delimited_list(list_ctx::EnumMembers, Self::parse_enum_member);
+            let member = self.parse_delimited_list::<false, _>(
+                ParsingContext::ENUM_MEMBERS,
+                Self::parse_enum_member,
+            );
             self.expect(TokenKind::RBrace);
             member
         } else {
@@ -378,7 +382,7 @@ impl<'cx> ParserState<'cx, '_> {
         let save_has_export_decl = self.has_export_decl;
         self.has_export_decl = false;
 
-        let stmts = self.parse_list(list_ctx::BlockStmts, Self::parse_stmt);
+        let stmts = self.parse_list(ParsingContext::BLOCK_STATEMENTS, Self::parse_stmt);
 
         self.has_export_decl = save_has_export_decl;
         self.external_module_indicator = save_external_module_indicator;
@@ -763,7 +767,7 @@ impl<'cx> ParserState<'cx, '_> {
     }
 
     fn parse_decl(&mut self) -> PResult<&'cx ast::Stmt<'cx>> {
-        let mods = self.parse_modifiers(false, None)?;
+        let mods = self.parse_modifiers::<false>(false, None)?;
         let is_ambient = mods.is_some_and(Self::contain_declare_mod);
         if is_ambient {
             self.do_inside_of_context(NodeFlags::AMBIENT, |this| this._parse_decl(mods))
@@ -778,8 +782,8 @@ impl<'cx> ParserState<'cx, '_> {
         if self.token.kind == TokenKind::Extends {
             let start = self.token.start();
             self.next_token();
-            let list = self.parse_delimited_list(
-                list_ctx::HeritageClause,
+            let list = self.parse_delimited_list::<false, _>(
+                ParsingContext::HERITAGE_CLAUSE_ELEMENT,
                 Self::parse_entity_name_of_ty_reference,
             );
             let span = self.new_span(start);
@@ -832,8 +836,8 @@ impl<'cx> ParserState<'cx, '_> {
         if self.token.kind == TokenKind::Implements {
             let start = self.token.start();
             self.next_token();
-            let list = self.parse_delimited_list(
-                list_ctx::HeritageClause,
+            let list = self.parse_delimited_list::<false, _>(
+                ParsingContext::HERITAGE_CLAUSE_ELEMENT,
                 Self::parse_entity_name_of_ty_reference,
             );
             let span = self.new_span(start);
@@ -926,15 +930,17 @@ impl<'cx> ParserState<'cx, '_> {
 
     fn parse_ident_or_pat(&mut self) -> PResult<&'cx ast::Binding<'cx>> {
         use bolt_ts_ast::TokenKind::*;
-        let start = self.token.start();
         let kind = match self.token.kind {
             LBracket => ast::BindingKind::ArrayPat(self.parse_array_binding_pat()?),
             LBrace => ast::BindingKind::ObjectPat(self.parse_object_binding_pat()?),
             _ => ast::BindingKind::Ident(self.parse_binding_ident()),
         };
-        let span = self.new_span(start);
         let id = self.next_node_id();
-        let binding = self.alloc(ast::Binding { id, span, kind });
+        let binding = self.alloc(ast::Binding {
+            id,
+            span: kind.span(),
+            kind,
+        });
         self.nodes.insert(id, ast::Node::Binding(binding));
         Ok(binding)
     }
@@ -978,8 +984,8 @@ impl<'cx> ParserState<'cx, '_> {
         let start = self.token.start();
         self.expect(TokenKind::LBrace);
         let elems = self.allow_in_and(|this| {
-            this.parse_delimited_list(
-                list_ctx::ObjectBindingElems,
+            this.parse_delimited_list::<false, _>(
+                ParsingContext::OBJECT_BINDING_ELEMENTS,
                 Self::parse_object_binding_elem,
             )
         });
@@ -999,7 +1005,10 @@ impl<'cx> ParserState<'cx, '_> {
         self.expect(TokenKind::LBracket);
         // TODO: elements
         let elems = self.allow_in_and(|this| {
-            this.parse_delimited_list(list_ctx::ArrayBindingElems, Self::parse_array_binding_elem)
+            this.parse_delimited_list::<false, _>(
+                ParsingContext::ARRAY_BINDING_ELEMENTS,
+                Self::parse_array_binding_elem,
+            )
         });
         self.expect(TokenKind::RBracket);
         let id = self.next_node_id();
@@ -1066,7 +1075,10 @@ impl<'cx> ParserState<'cx, '_> {
 
     fn parse_var_decl_list(&mut self, in_for_stmt_initializer: bool) -> VarDecls<'cx> {
         self.next_token();
-        self.parse_delimited_list(list_ctx::VarDecls, Self::parse_var_decl)
+        self.parse_delimited_list::<false, _>(
+            ParsingContext::VARIABLE_DECLARATIONS,
+            Self::parse_var_decl,
+        )
     }
 
     fn parse_fn_decl(

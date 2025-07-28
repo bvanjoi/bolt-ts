@@ -1,11 +1,11 @@
-use bolt_ts_ast::ModifierKind;
+use bolt_ts_ast::{ModifierKind, NodeFlags};
 use bolt_ts_ast::{TokenFlags, TokenKind};
 use bolt_ts_span::Span;
 
 use crate::keyword;
 use crate::lookahead::Lookahead;
+use crate::parsing_ctx::ParsingContext;
 
-use super::list_ctx;
 use super::{PResult, ParserState};
 use super::{ast, errors};
 
@@ -69,7 +69,7 @@ impl<'cx> ParserState<'cx, '_> {
         let open = LBrace;
         let open_brace_parsed = self.expect(LBrace);
         let saved_external_module_indicator = self.external_module_indicator;
-        let stmts = self.parse_list(list_ctx::BlockStmts, Self::parse_stmt);
+        let stmts = self.parse_list(ParsingContext::BLOCK_STATEMENTS, Self::parse_stmt);
         self.external_module_indicator = saved_external_module_indicator;
         self.parse_expected_matching_brackets(open, RBrace, open_brace_parsed, start as usize)?;
         let id = self.next_node_id();
@@ -85,8 +85,8 @@ impl<'cx> ParserState<'cx, '_> {
     pub(super) fn parse_ty_params(&mut self) -> PResult<Option<ast::TyParams<'cx>>> {
         if self.token.kind == TokenKind::Less {
             let less_token_span = self.token.span;
-            let ty_params = self.parse_bracketed_list(
-                list_ctx::TyParams,
+            let ty_params = self.parse_bracketed_list::<false, _>(
+                ParsingContext::TYPE_PARAMETERS,
                 TokenKind::Less,
                 Self::parse_ty_param,
                 TokenKind::Great,
@@ -293,11 +293,21 @@ impl<'cx> ParserState<'cx, '_> {
         &mut self,
         missing_ident_kind: Option<errors::MissingIdentKind>,
     ) -> &'cx ast::Expr<'cx> {
-        let kind = self.create_ident(self.token.kind.is_ident(), missing_ident_kind);
+        let ident = self.create_ident(self.token.kind.is_ident(), missing_ident_kind);
 
-        (self.alloc(ast::Expr {
-            kind: ast::ExprKind::Ident(kind),
-        })) as _
+        if ident.name == keyword::IDENT_ARGUMENTS
+            && self
+                .context_flags
+                .intersects(NodeFlags::CLASS_FIELD_DEFINITION.union(NodeFlags::CLASS_STATIC_BLOCK))
+        {
+            let error =
+                errors::ArgumentsCannotBeReferenced::new_in_property_initializer(ident.span);
+            self.push_error(Box::new(error));
+        }
+
+        self.alloc(ast::Expr {
+            kind: ast::ExprKind::Ident(ident),
+        })
     }
 
     pub(super) fn parse_prop_name(
@@ -329,13 +339,7 @@ impl<'cx> ParserState<'cx, '_> {
             self.expect(TokenKind::LBracket);
             let expr = self.allow_in_and(Self::parse_expr)?;
             self.expect(TokenKind::RBracket);
-            let id = self.next_node_id();
-            let kind = self.alloc(ast::ComputedPropName {
-                id,
-                span: self.new_span(start),
-                expr,
-            });
-            self.nodes.insert(id, ast::Node::ComputedPropName(kind));
+            let kind = self.create_computed_prop_name(start, expr);
             let prop_name = self.alloc(ast::PropName {
                 kind: ast::PropNameKind::Computed(kind),
             });
@@ -359,7 +363,7 @@ impl<'cx> ParserState<'cx, '_> {
         t.is_contextual_keyword() || t.is_strict_mode_reserved_word()
     }
 
-    pub(super) fn parse_modifiers(
+    pub(super) fn parse_modifiers<const STOP_ON_START_OF_CLASS_STATIC_BLOCK: bool>(
         &mut self,
         allow_decorators: bool,
         permit_const_as_modifier: Option<bool>,
@@ -370,9 +374,10 @@ impl<'cx> ParserState<'cx, '_> {
         let has_leading_modifier = false;
         let has_trailing_decorator = false;
         loop {
-            let Ok(Some(m)) =
-                self.parse_modifier(has_seen_static_modifier, permit_const_as_modifier)
-            else {
+            let Ok(Some(m)) = self.parse_modifier::<STOP_ON_START_OF_CLASS_STATIC_BLOCK>(
+                has_seen_static_modifier,
+                permit_const_as_modifier,
+            ) else {
                 break;
             };
             list.push(m);
@@ -447,11 +452,10 @@ impl<'cx> ParserState<'cx, '_> {
                 .unwrap_or_default()
     }
 
-    pub(super) fn parse_params(&mut self) -> PResult<ast::ParamsDecl<'cx>> {
-        use bolt_ts_ast::TokenKind::*;
-        self.expect(LParen);
+    pub(super) fn parse_params_worker(&mut self) -> PResult<ast::ParamsDecl<'cx>> {
         let old_error = self.diags.len();
-        let params = self.parse_delimited_list(list_ctx::Params, Self::parse_param);
+        let params =
+            self.parse_delimited_list::<false, _>(ParsingContext::PARAMETERS, Self::parse_param);
         let has_error = self.diags.len() > old_error;
         if !has_error {
             let last_is_rest = params
@@ -475,7 +479,15 @@ impl<'cx> ParserState<'cx, '_> {
                 }
             }
         }
+        Ok(params)
+    }
 
+    pub(super) fn parse_params(&mut self) -> PResult<ast::ParamsDecl<'cx>> {
+        use bolt_ts_ast::TokenKind::*;
+        if !self.expect(LParen) {
+            return Ok(self.alloc(vec![]));
+        }
+        let params = self.parse_params_worker()?;
         self.expect(RParen);
         Ok(params)
     }
@@ -484,43 +496,43 @@ impl<'cx> ParserState<'cx, '_> {
         &mut self,
         ident: Option<&'cx ast::Ident>,
     ) -> &'cx ast::Binding<'cx> {
-        let start = self.token.start();
         let ident = if let Some(ident) = ident {
-            // self.parent_map.r#override(ident.id, id);
             ident
         } else {
             self.create_ident(true, None)
         };
         let kind = ast::BindingKind::Ident(ident);
-        let span = self.new_span(start);
         let id = self.next_node_id();
-        let name = self.alloc(ast::Binding { id, span, kind });
+        let name = self.alloc(ast::Binding {
+            id,
+            span: ident.span,
+            kind,
+        });
         self.nodes.insert(id, ast::Node::Binding(name));
         name
     }
 
     pub(super) fn parse_param(&mut self) -> PResult<&'cx ast::ParamDecl<'cx>> {
         let start = self.token.start();
-        let modifiers = self.parse_modifiers(false, None)?;
+        let modifiers = self.parse_modifiers::<false>(false, None)?;
         const INVALID_MODIFIERS: enumflags2::BitFlags<ModifierKind, u32> =
             enumflags2::make_bitflags!(ModifierKind::{Static | Export});
         if modifiers
             .map(|ms| ms.flags.intersects(INVALID_MODIFIERS))
             .unwrap_or_default()
-        {
-            if let Some(ms) = modifiers.map(|ms| {
+            && let Some(ms) = modifiers.map(|ms| {
                 ms.list
                     .iter()
                     .filter(|m| INVALID_MODIFIERS.intersects(m.kind))
                     .copied()
-            }) {
-                for m in ms {
-                    let error = errors::ModifierCannotAppearOnAParameter {
-                        span: m.span,
-                        kind: m.kind,
-                    };
-                    self.push_error(Box::new(error));
-                }
+            })
+        {
+            for m in ms {
+                let error = errors::ModifierCannotAppearOnAParameter {
+                    span: m.span,
+                    kind: m.kind,
+                };
+                self.push_error(Box::new(error));
             }
         }
 
@@ -544,28 +556,25 @@ impl<'cx> ParserState<'cx, '_> {
 
         let dotdotdot = self.parse_optional(TokenKind::DotDotDot).map(|t| t.span);
         let name = self.parse_name_of_param()?;
-        if dotdotdot.is_some() {
-            if let Some(ms) = modifiers {
-                if ms.flags.intersects(ModifierKind::PARAMETER_PROPERTY) {
-                    let kinds = ms
-                        .list
-                        .iter()
-                        .filter_map(|m| {
-                            if ModifierKind::PARAMETER_PROPERTY.intersects(m.kind) {
-                                Some(m.kind)
-                            } else {
-                                None
-                            }
-                        })
-                        .collect::<Vec<_>>();
-                    let span = Span::new(ms.span.lo, name.span.hi, name.span.module);
-                    let error = errors::AParameterPropertyCannotBeDeclaredUsingARestParameter {
-                        span,
-                        kinds,
-                    };
-                    self.push_error(Box::new(error));
-                }
-            }
+        if dotdotdot.is_some()
+            && let Some(ms) = modifiers
+            && ms.flags.intersects(ModifierKind::PARAMETER_PROPERTY)
+        {
+            let kinds = ms
+                .list
+                .iter()
+                .filter_map(|m| {
+                    if ModifierKind::PARAMETER_PROPERTY.intersects(m.kind) {
+                        Some(m.kind)
+                    } else {
+                        None
+                    }
+                })
+                .collect::<Vec<_>>();
+            let span = Span::new(ms.span.lo(), name.span.hi(), name.span.module());
+            let error =
+                errors::AParameterPropertyCannotBeDeclaredUsingARestParameter { span, kinds };
+            self.push_error(Box::new(error));
         };
         let question = self.parse_optional(TokenKind::Question).map(|t| t.span);
         let ty = self.parse_ty_anno()?;
@@ -595,7 +604,7 @@ impl<'cx> ParserState<'cx, '_> {
     pub(super) fn is_start_of_fn_or_ctor_ty(&mut self) -> bool {
         let skip_param_start = |this: &mut Self| -> PResult<bool> {
             if this.token.kind.is_modifier_kind() {
-                this.parse_modifiers(false, None)?;
+                this.parse_modifiers::<false>(false, None)?;
             }
             if this.token.kind.is_ident() || this.token.kind == TokenKind::This {
                 this.next_token();
@@ -699,8 +708,8 @@ impl<'cx> ParserState<'cx, '_> {
         start: usize,
         modifiers: Option<&'cx ast::Modifiers<'cx>>,
     ) -> PResult<&'cx ast::IndexSigDecl<'cx>> {
-        let params = self.parse_bracketed_list(
-            list_ctx::Params,
+        let params = self.parse_bracketed_list::<false, _>(
+            ParsingContext::PARAMETERS,
             TokenKind::LBracket,
             Self::parse_param,
             TokenKind::RBracket,
@@ -708,7 +717,7 @@ impl<'cx> ParserState<'cx, '_> {
         let ty = match self.parse_ty_anno()? {
             Some(ty) => ty,
             None => {
-                let lo = self.token.span.lo;
+                let lo = self.token.span.lo();
                 let span = Span::new(lo, lo, self.module_id);
                 let error = errors::AnIndexSignatureMustHaveATypeAnnotation { span };
                 self.push_error(Box::new(error));

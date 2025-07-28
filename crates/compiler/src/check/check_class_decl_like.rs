@@ -30,7 +30,7 @@ impl<'cx> TyChecker<'cx> {
             if member.kind.is_static() {
                 continue;
             }
-            use bolt_ts_ast::ClassEleKind::*;
+            use bolt_ts_ast::ClassElemKind::*;
             let member_name = match member.kind {
                 Ctor(_) => None,
                 Prop(n) => Some(n.name.id()),
@@ -38,6 +38,7 @@ impl<'cx> TyChecker<'cx> {
                 IndexSig(_) => None,
                 Getter(n) => Some(n.name.id()),
                 Setter(n) => Some(n.name.id()),
+                StaticBlock(_) => None,
             };
 
             let declared_prop = member_name
@@ -117,14 +118,17 @@ impl<'cx> TyChecker<'cx> {
         }
 
         for ele in class.elems().elems {
-            use bolt_ts_ast::ClassEleKind::*;
+            use bolt_ts_ast::ClassElemKind::*;
             match ele.kind {
-                Prop(prop) => self.check_class_prop_ele(prop),
-                Method(method) => self.check_class_method_ele(method),
-                Ctor(ctor) => self.check_ctor(ctor),
+                Prop(n) => self.check_class_prop_ele(n),
+                Method(n) => self.check_class_method_ele(n),
+                Ctor(n) => self.check_ctor(n),
                 IndexSig(_) => {}
                 Getter(n) => self.check_accessor_decl(n),
                 Setter(n) => self.check_accessor_decl(n),
+                StaticBlock(n) => {
+                    self.check_block(n.body);
+                }
             }
         }
     }

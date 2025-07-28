@@ -1,3 +1,5 @@
+//@compiler-options: strictFunctionTypes
+
 interface N {
     a: number
 }

@@ -58,7 +58,10 @@ impl<'cx> TyChecker<'cx> {
                 }));
             } else if self.has_late_bindable_index_signature(decl) {
                 // TODO: is_binary_expression
-                let name = self.p().get_name_of_decl(decl).unwrap();
+                let name = self
+                    .node_query(decl.module())
+                    .get_name_of_decl(decl)
+                    .unwrap();
                 use bolt_ts_ast::DeclarationName;
                 let key_ty = match name {
                     DeclarationName::Computed(n) => self.check_computed_prop_name(n),

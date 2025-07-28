@@ -1,0 +1,8 @@
+  × Duplicate identifier 'myFn'.
+   ╭─[../../tests/cases/compiler/varAndFunctionShareName/index.ts:4:10]
+ 3 │ myFn;
+   · ──┬─
+   ·   ╰── Previous definition here
+ 4 │ function myFn
+   ·          ────
+   ╰────

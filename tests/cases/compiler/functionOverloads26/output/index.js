@@ -1,7 +1,5 @@
-
-
 function foo(bar) {
-  return ""
+  return ''
 }
-var x = foo("baz");
+var x = foo('baz');
 var y = x;

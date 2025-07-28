@@ -1,11 +1,12 @@
+use crate::parsing_ctx::ParsingContext;
+
 use super::lookahead::Lookahead;
 use super::paren_rule::{NoParenRule, ParenRuleTrait};
 use super::parse_fn_like::ParseFnExpr;
 use super::state::LanguageVariant;
-use super::ty::TypeArguments;
 use super::{PResult, ParserState};
 use super::{Tristate, parse_class_like};
-use super::{errors, list_ctx};
+use super::{errors, parsing_ctx};
 use bolt_ts_ast::{self as ast, ModifierKind, NodeFlags, keyword};
 use bolt_ts_ast::{BinPrec, Token, TokenKind};
 use enumflags2::BitFlag;
@@ -57,6 +58,7 @@ impl<'cx> ParserState<'cx, '_> {
 
     fn parse_possible_paren_arrow_fn_expr(&mut self) -> PResult<Option<&'cx ast::Expr<'cx>>> {
         // let start = self.token.start();
+
         self.parse_paren_arrow_fn_expr(false)
     }
 
@@ -104,9 +106,23 @@ impl<'cx> ParserState<'cx, '_> {
         if self.token.kind != TokenKind::LParen {
             return Ok(None);
         }
-        let params = self.parse_params()?;
+        let params: ast::ParamsDecl<'cx>;
+
+        if !self.expect(TokenKind::LParen) {
+            if !allow_ambiguity {
+                return Err(());
+            }
+            params = self.alloc([]);
+        } else {
+            params = self.parse_params_worker()?;
+            if !self.expect(TokenKind::RParen) && !allow_ambiguity {
+                return Err(());
+            }
+        }
+
         self.check_params(params, false);
-        let has_ret_colon = self.token.kind == TokenKind::Colon;
+
+        // let has_ret_colon = self.token.kind == TokenKind::Colon;
         let ty = self.parse_ret_ty(true)?;
         if !allow_ambiguity
             && self.token.kind != TokenKind::EqGreat
@@ -151,7 +167,7 @@ impl<'cx> ParserState<'cx, '_> {
         &mut self,
         param: &'cx ast::Ident,
     ) -> PResult<&'cx ast::Expr<'cx>> {
-        assert!(self.token.kind == TokenKind::EqGreat);
+        debug_assert!(self.token.kind == TokenKind::EqGreat);
         let name = self.parse_binding_with_ident(Some(param));
         let param_id = self.next_node_id();
         let param = self.alloc(ast::ParamDecl {
@@ -171,7 +187,7 @@ impl<'cx> ParserState<'cx, '_> {
         let expr_id = self.next_node_id();
         let f = self.alloc(ast::ArrowFnExpr {
             id: expr_id,
-            span: self.new_span(param.span.lo),
+            span: self.new_span(param.span.lo()),
             ty_params: None,
             params,
             ty: None,
@@ -409,8 +425,8 @@ impl<'cx> ParserState<'cx, '_> {
             let jsx = self.parse_jsx_ele_or_self_closing_ele_or_frag(true, None, None, false)?;
             use super::jsx::JsxEleOrSelfClosingEleOrFrag::*;
             let kind = match jsx {
-                Ele(n) => ast::ExprKind::JsxEle(n),
-                SelfClosingEle(n) => ast::ExprKind::JsxSelfClosingEle(n),
+                Ele(n) => ast::ExprKind::JsxElem(n),
+                SelfClosingEle(n) => ast::ExprKind::JsxSelfClosingElem(n),
                 Frag(n) => ast::ExprKind::JsxFrag(n),
             };
             let expr = self.alloc(ast::Expr { kind });
@@ -607,7 +623,10 @@ impl<'cx> ParserState<'cx, '_> {
 
     fn parse_args(&mut self) -> PResult<ast::Exprs<'cx>> {
         self.expect(TokenKind::LParen);
-        let args = self.parse_delimited_list(list_ctx::ArgExprs, Self::parse_arg);
+        let args = self.parse_delimited_list::<false, _>(
+            parsing_ctx::ParsingContext::ARGUMENT_EXPRESSIONS,
+            Self::parse_arg,
+        );
         self.expect(TokenKind::RParen);
         Ok(args)
     }
@@ -674,7 +693,7 @@ impl<'cx> ParserState<'cx, '_> {
             return Ok(m);
         }
 
-        let mods = self.parse_modifiers(false, None)?;
+        let mods = self.parse_modifiers::<false>(false, None)?;
 
         // if self.parse_contextual_modifier(TokenKind::Get) {
         //     // TODO:
@@ -791,8 +810,9 @@ impl<'cx> ParserState<'cx, '_> {
     }
 
     fn parse_array_lit_elems(&mut self) -> &'cx [&'cx ast::Expr<'cx>] {
-        self.parse_delimited_list(list_ctx::ArrayLiteralMembers, |this| {
-            match this.token.kind {
+        self.parse_delimited_list::<false, _>(
+            parsing_ctx::ParsingContext::ARRAY_LITERAL_MEMBERS,
+            |this| match this.token.kind {
                 TokenKind::DotDotDot => this.parse_spread_element(),
                 TokenKind::Comma => {
                     let id = this.next_node_id();
@@ -807,8 +827,8 @@ impl<'cx> ParserState<'cx, '_> {
                     Ok(expr)
                 }
                 _ => this.parse_assign_expr_or_higher(false),
-            }
-        })
+            },
+        )
     }
 
     fn parse_lit_expr(&mut self) -> &'cx ast::Expr<'cx> {
@@ -1061,8 +1081,10 @@ impl<'cx> ParserState<'cx, '_> {
         let start = self.token.start();
         let open = LBrace;
         let open_brace_parsed = self.expect(LBrace);
-        let props =
-            self.parse_delimited_list(list_ctx::ObjectLitMembers, Self::parse_object_lit_ele);
+        let props = self.parse_delimited_list::<true, _>(
+            parsing_ctx::ParsingContext::OBJECT_LITERAL_MEMBERS,
+            Self::parse_object_lit_ele,
+        );
         let close = RBrace;
         self.parse_expected_matching_brackets(open, close, open_brace_parsed, start as usize)?;
         let id = self.next_node_id();
@@ -1080,7 +1102,7 @@ impl<'cx> ParserState<'cx, '_> {
 
     fn parse_cond_expr_rest(&mut self, cond: &'cx ast::Expr<'cx>) -> PResult<&'cx ast::Expr<'cx>> {
         if self.parse_optional(TokenKind::Question).is_some() {
-            let start = cond.span().lo;
+            let start = cond.span().lo();
             // self.parent_map.r#override(cond.id(), id);
             let when_true = self.parse_expr()?;
             self.expect(TokenKind::Colon);
@@ -1291,7 +1313,8 @@ impl<'cx> ParserState<'cx, '_> {
             return Ok(None);
         }
         self.next_token();
-        let list = self.parse_delimited_list(TypeArguments, Self::parse_ty);
+        let list =
+            self.parse_delimited_list::<false, _>(ParsingContext::TYPE_ARGUMENTS, Self::parse_ty);
         if self.re_scan_greater() != TokenKind::Great {
             return Ok(None);
         }

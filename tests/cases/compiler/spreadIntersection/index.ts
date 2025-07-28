@@ -9,7 +9,7 @@ var o2: { a: number, b: string, c: boolean };
 var o2 = { ...intersection, c: false };
 
 var o3: {a: number, b: number } = { ...intersection };
-//~^ ERROR: Type '{ b: string; a: number; }' is not assignable to type '{ a: number; b: number; }'.
+//~^ ERROR: Type '{ a: number; b: string; }' is not assignable to type '{ a: number; b: number; }'.
 
 var o4: { a:number } = { ...intersection };
 var o5: { b:string } = { ...intersection };

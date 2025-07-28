@@ -76,7 +76,7 @@ impl DiagnosticExt {
                     quote! {
                         impl diag_ext::DiagnosticExt for #name {
                             fn module_id(&self) -> bolt_ts_span::ModuleID {
-                                self.#primary_field_name.module
+                                self.#primary_field_name.module()
                             }
 
                             fn steal_related(&mut self) -> Option<Vec<Box<dyn diag_ext::DiagnosticExt + Send + Sync + 'static>>> {
@@ -89,7 +89,7 @@ impl DiagnosticExt {
                     quote! {
                         impl diag_ext::DiagnosticExt for #name {
                             fn module_id(&self) -> bolt_ts_span::ModuleID {
-                                self.#primary_field_name.module
+                                self.#primary_field_name.module()
                             }
 
                             fn steal_related(&mut self) -> Option<Vec<Box<dyn diag_ext::DiagnosticExt + Send + Sync + 'static>>> {

@@ -1,5 +1,7 @@
 // These should all resolve to never
 
+//@compiler-options: strict
+
 type T0 = NonNullable<null>;
 type T1 = NonNullable<undefined>;
 type T2 = null & {};

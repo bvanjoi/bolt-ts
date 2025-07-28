@@ -1,7 +1,6 @@
 use bolt_ts_ast::{self as ast, MappedTyModifiers};
 use bolt_ts_span::Span;
-use bolt_ts_utils::fx_hashmap_with_capacity;
-use rustc_hash::FxHashMap;
+use bolt_ts_utils::{FxIndexMap, fx_indexmap_with_capacity};
 
 use super::check_type_related_to::RecursionFlags;
 use super::create_ty::IntersectionFlags;
@@ -22,7 +21,7 @@ pub(super) enum MemberOrExportsResolutionKind {
 impl<'cx> TyChecker<'cx> {
     fn add_inherited_members(
         &self,
-        members: &mut FxHashMap<SymbolName, SymbolID>,
+        members: &mut FxIndexMap<SymbolName, SymbolID>,
         base_symbols: &'cx [SymbolID],
     ) {
         for base_id in base_symbols {
@@ -49,7 +48,7 @@ impl<'cx> TyChecker<'cx> {
         declared_props: &'cx [SymbolID],
         mapper: &'cx dyn ty::TyMap<'cx>,
         mapping_only_this: bool,
-    ) -> FxHashMap<SymbolName, SymbolID> {
+    ) -> FxIndexMap<SymbolName, SymbolID> {
         declared_props
             .iter()
             .map(|symbol| {
@@ -60,7 +59,7 @@ impl<'cx> TyChecker<'cx> {
                     (name, self.instantiate_symbol(*symbol, mapper))
                 }
             })
-            .collect::<FxHashMap<_, _>>()
+            .collect()
     }
 
     fn instantiate_symbol(
@@ -1079,7 +1078,7 @@ impl<'cx> TyChecker<'cx> {
             .copied()
             .collect::<Vec<_>>();
         let m = self.alloc(ty::StructuredMembers {
-            members: self.alloc(FxHashMap::default()),
+            members: self.alloc(FxIndexMap::default()),
             call_sigs: self.alloc(call_sigs),
             ctor_sigs: self.alloc(ctor_sigs),
             index_infos: Default::default(),
@@ -1106,7 +1105,7 @@ impl<'cx> TyChecker<'cx> {
         }
 
         let m = self.alloc(ty::StructuredMembers {
-            members: self.alloc(FxHashMap::default()),
+            members: self.alloc(FxIndexMap::default()),
             call_sigs: if call_sigs.is_empty() {
                 self.empty_array()
             } else {
@@ -1372,7 +1371,7 @@ impl<'cx> TyChecker<'cx> {
         };
         let template_modifier = mapped_ty.decl.get_modifiers();
 
-        let mut members: FxHashMap<SymbolName, SymbolID> = fx_hashmap_with_capacity(16);
+        let mut members: FxIndexMap<SymbolName, SymbolID> = fx_indexmap_with_capacity(16);
         let mut index_infos = Vec::with_capacity(4);
 
         let include = TypeFlags::STRING_OR_NUMBER_LITERAL_OR_UNIQUE;

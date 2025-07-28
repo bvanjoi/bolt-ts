@@ -77,4 +77,5 @@ pub struct AmdModulePragma {
     args: Vec<()>,
 }
 
-pub struct PragmaMap(pub(super) nohash_hasher::IntMap<AtomId, PragmaSpec>);
+#[derive(Debug, Default)]
+pub struct PragmaMap(nohash_hasher::IntMap<AtomId, PragmaSpec>);

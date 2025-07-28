@@ -1,4 +1,4 @@
-use rustc_hash::FxHashMap;
+use bolt_ts_utils::FxIndexMap;
 
 use super::TyChecker;
 use super::cycle_check::Cycle;
@@ -59,7 +59,7 @@ impl<'cx> TyChecker<'cx> {
             return ty;
         }
         let ty_param_id = self.binder.symbol(symbol).opt_decl().unwrap();
-        let container = self.p.node(self.p.parent(ty_param_id).unwrap());
+        let container = self.p.node(self.parent(ty_param_id).unwrap());
         let ty_params = container.ty_params();
         let offset =
             ty_params.and_then(|ty_params| ty_params.iter().position(|p| p.id == ty_param_id));
@@ -217,7 +217,7 @@ impl<'cx> TyChecker<'cx> {
 
     pub(super) fn get_props_from_members(
         &mut self,
-        members: &FxHashMap<SymbolName, SymbolID>,
+        members: &FxIndexMap<SymbolName, SymbolID>,
     ) -> &'cx [SymbolID] {
         let props = members
             .values()
@@ -339,7 +339,7 @@ impl<'cx> TyChecker<'cx> {
         include_this: bool,
     ) -> Option<Vec<&'cx ty::Ty<'cx>>> {
         loop {
-            if let Some(next) = self.p.parent(id) {
+            if let Some(next) = self.parent(id) {
                 id = next;
             } else {
                 return None;

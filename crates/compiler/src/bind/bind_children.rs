@@ -1,7 +1,6 @@
 use crate::bind::create::DeclareSymbolProperty;
 
 use super::BinderState;
-use super::NodeQuery;
 use super::container_flags::container_flags_for_node;
 use super::flow::FlowFlags;
 use super::flow::FlowID;
@@ -282,7 +281,8 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
             | FnExpr(_)
             | ArrowFnExpr(_)
             | TypeAliasDecl(_)
-            | MappedTy(_) => {
+            | MappedTy(_)
+            | ClassStaticBlock(_) => {
                 assert!(
                     c.has_locals(),
                     "container({:?}) should have locals, but it doesn't",
@@ -368,7 +368,7 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
             let n = self.p.node(current);
             let (loc, parent) = if n.is_export_named_spec()
                 || n.as_shorthand_spec().is_some_and(|_| {
-                    let parent = self.parent_map.parent_unfinished(current).unwrap();
+                    let parent = self.parent_map.parent(current).unwrap();
                     self.p.node(parent).is_specs_export()
                 }) {
                 // TODO: is_import_eq_decl && has_export_modifier
@@ -505,15 +505,7 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
     }
 
     fn bind_class_elem(&mut self, n: &'cx ast::ClassElem<'cx>) {
-        use ast::ClassEleKind::*;
-        match n.kind {
-            Ctor(n) => self.bind(n.id),
-            Prop(n) => self.bind(n.id),
-            Method(n) => self.bind(n.id),
-            IndexSig(n) => self.bind(n.id),
-            Getter(n) => self.bind(n.id),
-            Setter(n) => self.bind(n.id),
-        }
+        self.bind(n.id());
     }
 
     pub(super) fn bind_children(&mut self, node: ast::NodeID) {
@@ -1172,7 +1164,7 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
                     self.bind(e.id());
                 }
             }
-            JsxOpeningEle(n) => {
+            JsxOpeningElem(n) => {
                 self.bind(n.tag_name.id());
                 if let Some(ty_args) = n.ty_args {
                     for ty in ty_args.list {
@@ -1183,10 +1175,10 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
                     self.bind(attr.id());
                 }
             }
-            JsxClosingEle(n) => {
+            JsxClosingElem(n) => {
                 self.bind(n.tag_name.id());
             }
-            JsxSelfClosingEle(n) => {
+            JsxSelfClosingElem(n) => {
                 self.bind(n.tag_name.id());
                 if let Some(ty_args) = n.ty_args {
                     for ty in ty_args.list {
@@ -1198,18 +1190,21 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
                 }
             }
             JsxFrag(n) => {
-                self.bind(n.opening_ele.id);
+                self.bind(n.opening_frag.id);
                 for child in n.children {
                     self.bind(child.id());
                 }
-                self.bind(n.closing_ele.id);
+                self.bind(n.closing_frag.id);
             }
-            JsxEle(n) => {
-                self.bind(n.opening_ele.id);
+            JsxElem(n) => {
+                self.bind(n.opening_elem.id);
                 for child in n.children {
                     self.bind(child.id());
                 }
-                self.bind(n.closing_ele.id);
+                self.bind(n.closing_elem.id);
+            }
+            ClassStaticBlock(n) => {
+                self.bind(n.body.id);
             }
         }
         // TODO: bind_js_doc
@@ -1306,8 +1301,7 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
         use bolt_ts_ast::Node::*;
         if n.init.is_some()
             || matches!(
-                self.p
-                    .node(self.parent_map.parent_unfinished(n.id).unwrap()),
+                self.p.node(self.parent_map.parent(n.id).unwrap()),
                 ForInStmt(_) | ForOfStmt(_)
             )
         {
@@ -1357,10 +1351,10 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
         }
     }
 
-    fn bind_while_stmt(&mut self, n: &ast::WhileStmt<'cx>) {
+    fn bind_while_stmt(&mut self, _n: &ast::WhileStmt<'cx>) {
         // TODO:
     }
-    fn bind_do_stmt(&mut self, n: &ast::DoStmt<'cx>) {
+    fn bind_do_stmt(&mut self, _n: &ast::DoStmt<'cx>) {
         // TODO:
     }
     fn bind_for_stmt(&mut self, n: &ast::ForStmt<'cx>) {

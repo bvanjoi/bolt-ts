@@ -5,7 +5,9 @@
    ╰────
 
   × '}' expected.
-   ╭─[../../tests/cases/compiler/objectLiteralWithSemicolons4/index.ts:7:25]
+   ╭─[../../tests/cases/compiler/objectLiteralWithSemicolons4/index.ts:5:1]
+ 5 │ ;
+   · ─
    ╰────
 
 Advice: 

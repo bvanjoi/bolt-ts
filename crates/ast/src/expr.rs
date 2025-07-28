@@ -1,4 +1,5 @@
 use bolt_ts_atom::AtomId;
+use bolt_ts_ecma_logical::js_double_to_boolean;
 
 use super::*;
 
@@ -49,8 +50,8 @@ impl<'cx> Expr<'cx> {
             SpreadElement(n) => n.span,
             RegExpLit(n) => n.span,
             TaggedTemplate(n) => n.span,
-            JsxEle(n) => n.span,
-            JsxSelfClosingEle(n) => n.span,
+            JsxElem(n) => n.span,
+            JsxSelfClosingElem(n) => n.span,
             JsxFrag(n) => n.span,
         }
     }
@@ -94,8 +95,8 @@ impl<'cx> Expr<'cx> {
             SpreadElement(n) => n.id,
             RegExpLit(n) => n.id,
             TaggedTemplate(n) => n.id,
-            JsxEle(n) => n.id,
-            JsxSelfClosingEle(n) => n.id,
+            JsxElem(n) => n.id,
+            JsxSelfClosingElem(n) => n.id,
             JsxFrag(n) => n.id,
         }
     }
@@ -226,8 +227,8 @@ pub enum ExprKind<'cx> {
     TaggedTemplate(&'cx TaggedTemplateExpr<'cx>),
     TyAssertion(&'cx TyAssertion<'cx>),
     SpreadElement(&'cx SpreadElement<'cx>),
-    JsxEle(&'cx JsxEle<'cx>),
-    JsxSelfClosingEle(&'cx JsxSelfClosingEle<'cx>),
+    JsxElem(&'cx JsxElem<'cx>),
+    JsxSelfClosingElem(&'cx JsxSelfClosingElem<'cx>),
     JsxFrag(&'cx JsxFrag<'cx>),
 }
 
@@ -275,6 +276,17 @@ impl<'cx> ExprKind<'cx> {
             ExprKind::As(_) => true,
             // TODO: type assertion expression, is jsdoc type assertion
             _ => false,
+        }
+    }
+
+    pub fn as_literal_to_boolean(&self) -> Option<bool> {
+        match self {
+            ExprKind::BoolLit(lit) => Some(lit.val),
+            ExprKind::NumLit(lit) => Some(js_double_to_boolean(lit.val)),
+            ExprKind::StringLit(lit) => Some(lit.val != keyword::IDENT_EMPTY),
+            ExprKind::NullLit(_) => Some(false),
+            // TODO: bigint and undefined
+            _ => None,
         }
     }
 }
@@ -367,6 +379,9 @@ pub struct ThisExpr {
     pub span: Span,
 }
 
+/// ```txt
+/// a[b]
+/// ```
 #[derive(Debug, Clone, Copy)]
 pub struct EleAccessExpr<'cx> {
     pub id: NodeID,
@@ -375,6 +390,9 @@ pub struct EleAccessExpr<'cx> {
     pub arg: &'cx Expr<'cx>,
 }
 
+/// ```txt
+/// a.b
+/// ```
 #[derive(Debug, Clone, Copy)]
 pub struct PropAccessExpr<'cx> {
     pub id: NodeID,
@@ -576,7 +594,6 @@ pub enum BinOpKind {
     Sub,
     Mul,
     Div,
-    Pipe,
     Mod,
     PipePipe,
     Less,
@@ -586,7 +603,9 @@ pub enum BinOpKind {
     GreatEq,
     Shr,
     UShr,
+    BitOr,
     BitAnd,
+    BitXor,
     LogicalAnd,
     EqEq,
     EqEqEq,
@@ -595,6 +614,7 @@ pub enum BinOpKind {
     Instanceof,
     In,
     Satisfies,
+    Exp,
     Comma,
 }
 
@@ -607,7 +627,7 @@ impl BinOpKind {
             Mul => "*",
             Div => "/",
             Mod => "%",
-            Pipe => "|",
+            BitOr => "|",
             PipePipe => "||",
             Less => "<",
             LessEq => "<=",
@@ -625,7 +645,9 @@ impl BinOpKind {
             Satisfies => "satisfies",
             NEq => "!=",
             NEqEq => "!==",
+            BitXor => "^",
             Comma => ",",
+            Exp => "**",
         }
     }
 
@@ -701,6 +723,10 @@ pub struct CallExpr<'cx> {
     pub args: Exprs<'cx>,
 }
 
+/// ```txt
+/// let a = <string>'hello';
+///         ^^^^^^^^^^^^^^^
+/// ```
 #[derive(Debug, Clone, Copy)]
 pub struct TyAssertion<'cx> {
     pub id: NodeID,
@@ -733,6 +759,9 @@ bitflags::bitflags! {
     }
 }
 
+/// ```txt
+/// tagExpr`something`
+/// ```
 #[derive(Debug, Clone, Copy)]
 pub struct TaggedTemplateExpr<'cx> {
     pub id: NodeID,

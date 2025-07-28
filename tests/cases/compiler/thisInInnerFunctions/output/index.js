@@ -1,8 +1,8 @@
 class Foo {
-  x = "hello"
+  x = 'hello'
   bar() {
     function inner() {
-      this.y = "hi";
+      this.y = 'hi';
       var f = () => this.y;
     }
   }

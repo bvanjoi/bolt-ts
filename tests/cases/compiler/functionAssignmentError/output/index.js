@@ -1,6 +1,6 @@
 var func = function () {
-  return "ONE"
+  return 'ONE'
 };
 func = function () {
-  return "ONE"
+  return 'ONE'
 };

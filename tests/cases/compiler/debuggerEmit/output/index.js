@@ -1,4 +1,2 @@
-var x = function () {
-  debugger
-};
+var x = function () {};
 x();

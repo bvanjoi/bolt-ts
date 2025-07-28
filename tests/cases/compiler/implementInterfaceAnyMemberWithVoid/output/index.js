@@ -1,4 +1,3 @@
-
 class Bug {
   foo(value) {}
 }

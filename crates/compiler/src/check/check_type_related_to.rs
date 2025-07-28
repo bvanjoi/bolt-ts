@@ -2082,7 +2082,7 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
     fn should_check_as_excess_prop(&self, prop: SymbolID, container: SymbolID) -> bool {
         if let Some(p) = self.c.symbol(prop).value_decl
             && let Some(c) = self.c.symbol(container).value_decl
-            && let Some(p) = self.c.p.parent(p)
+            && let Some(p) = self.c.parent(p)
         {
             p == c
         } else {

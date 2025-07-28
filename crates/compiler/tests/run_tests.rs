@@ -1,9 +1,10 @@
-use bolt_ts_compiler::{eval_from, output_files};
-use bolt_ts_config::RawTsConfig;
+use bolt_ts_compiler::output_files;
+use bolt_ts_config::{NormalizedTsConfig, RawCompilerOptions, RawTsConfig};
 use bolt_ts_errors::miette::Severity;
 use bolt_ts_utils::path::NormalizePath;
 use compile_test::run_tests::run;
-use compile_test::{ensure_node_exist, run_node};
+use compile_test::{ensure_node_exist, run_node_with_assert_context};
+use std::path::PathBuf;
 
 #[test]
 fn ensure_node_exist_in_current_env() {
@@ -22,33 +23,45 @@ fn ensure_all_cases_are_dir() {
     }
 }
 
+fn eval_in_test(root: PathBuf, tsconfig: &NormalizedTsConfig) -> bolt_ts_compiler::Output {
+    // ==== atom init ====
+    let mut atoms = bolt_ts_compiler::init_atom();
+    // ==== fs init ====
+    let fs = bolt_ts_fs::LocalFS::new(&mut atoms);
+    let exe_dir = bolt_ts_compiler::current_exe_dir();
+    let mut default_libs = bolt_ts_libs::DEFAULT_LIBS
+        .iter()
+        .map(|filename| exe_dir.join(filename))
+        .collect::<Vec<_>>();
+
+    // extra default lib
+    let current_dir = std::env::current_dir().unwrap();
+    default_libs.push(current_dir.join("tests/test.d.ts"));
+    bolt_ts_compiler::eval_from_with_fs(root, tsconfig, exe_dir, default_libs, fs, atoms)
+}
+
 fn run_test(entry: &std::path::Path, try_run_node: bool) {
     const DEFAULT_OUTPUT: &str = "output";
 
-    let runner = |case: &std::path::Path| {
-        let file_name = case.file_name().unwrap().to_str().unwrap();
-        let dir = case.parent().unwrap();
-        let tsconfig_file = dir.join(bolt_ts_compiler::DEFAULT_TSCONFIG);
-        let tsconfig = if tsconfig_file.is_file() {
-            let s = std::fs::read_to_string(tsconfig_file).unwrap();
-            serde_json::from_str(&s).unwrap()
-        } else {
-            RawTsConfig::default()
-        };
-        let tsconfig = if file_name == "index.ts" {
-            tsconfig.with_include_if_none(vec!["index.ts".to_string()])
-        } else {
-            assert_eq!(file_name, "index.tsx");
-            tsconfig.with_include_if_none(vec!["index.tsx".to_string()])
-        }
-        .config_compiler_options(|c| {
-            c.with_no_emit(true)
-                .with_out_dir(DEFAULT_OUTPUT.to_string())
-        });
+    run(entry, |test_ctx| {
+        let file_name = test_ctx.test_file().file_name().unwrap().to_str().unwrap();
+        let dir = test_ctx.test_file().parent().unwrap();
+
+        let compiler_options: RawCompilerOptions =
+            serde_json::from_value(test_ctx.compiler_options().clone().into()).unwrap();
+
+        debug_assert!(file_name == "index.ts" || file_name == "index.tsx");
+        let tsconfig = RawTsConfig::default()
+            .with_compiler_options(compiler_options)
+            .with_include_if_none(vec![file_name.to_string()])
+            .config_compiler_options(|c| {
+                c.with_no_emit(true)
+                    .with_out_dir(DEFAULT_OUTPUT.to_string())
+            });
 
         let cwd = dir.normalize();
         let tsconfig = tsconfig.normalize();
-        let output = eval_from(cwd, &tsconfig);
+        let output = eval_in_test(cwd, &tsconfig);
         let output_dir = dir.join(DEFAULT_OUTPUT);
         if !output_dir.exists() {
             std::fs::create_dir(&output_dir).unwrap();
@@ -81,7 +94,7 @@ fn run_test(entry: &std::path::Path, try_run_node: bool) {
 
             if let Some(index_file_path) = index_file_path {
                 if try_run_node {
-                    match run_node(&index_file_path) {
+                    match run_node_with_assert_context(&index_file_path) {
                         Ok(_) => {}
                         Err(_) => return Err(vec![]),
                     }
@@ -131,9 +144,7 @@ fn run_test(entry: &std::path::Path, try_run_node: bool) {
             expect_test::expect_file![output_err_path].assert_eq(&err_msg);
             Err(errors)
         }
-    };
-
-    run(entry, runner);
+    });
 }
 
 #[dir_test::dir_test(

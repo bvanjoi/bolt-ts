@@ -5,4 +5,4 @@ declare function fn(x: never): void;
 fn([1, 2, 3])
 //~^ ERROR: Argument of type 'number[]' is not assignable to parameter of type 'never'.
 fn({ a: 1, b: 2 })
-//~^ ERROR: Argument of type '{ b: number; a: number; }' is not assignable to parameter of type 'never'.
+//~^ ERROR: Argument of type '{ a: number; b: number; }' is not assignable to parameter of type 'never'.

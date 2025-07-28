@@ -18,7 +18,7 @@ pub(super) struct FSTree {
 
 impl<'atoms> FSTree {
     pub const ROOT: FSNodeId = FSNodeId(0);
-    pub(super) fn new(atoms: &mut AtomMap<'atoms>) -> Self {
+    pub(super) fn new(atoms: &mut AtomMap) -> Self {
         const CAP: usize = 1024;
         let nodes = Vec::with_capacity(CAP);
         let mut this = Self {
@@ -65,7 +65,12 @@ impl<'atoms> FSTree {
         }
     }
 
-    fn insert_dir_node(&mut self, parent: Option<FSNodeId>, path: PathId) -> FsResult<FSNodeId> {
+    fn insert_dir_node(
+        &mut self,
+        parent: Option<FSNodeId>,
+        path: PathId,
+        atoms: &mut AtomMap,
+    ) -> FsResult<FSNodeId> {
         if let Some(parent) = parent {
             let parent_node = self.node(parent);
             let FSNodeKind::Dir(dir) = &parent_node.kind else {
@@ -81,9 +86,9 @@ impl<'atoms> FSTree {
                 Ok(self.insert_node(parent, FSNodeKind::dir_node(path)))
             }
         } else {
-            assert_eq!(path, PathId::ROOT);
+            debug_assert!(atoms.atom("/") == path.into());
             if self.nodes.is_empty() {
-                let kind = FSNodeKind::dir_node(PathId::ROOT);
+                let kind = FSNodeKind::dir_node(path);
                 let node = FSNode {
                     id: FSNodeId::root(),
                     kind,
@@ -122,7 +127,7 @@ impl<'atoms> FSTree {
 
     pub(super) fn add_file(
         &mut self,
-        atoms: &mut AtomMap<'atoms>,
+        atoms: &mut AtomMap,
         path: &std::path::Path,
         content: AtomId,
     ) -> FsResult<FSNodeId> {
@@ -134,11 +139,11 @@ impl<'atoms> FSTree {
 
     pub(super) fn add_dir(
         &mut self,
-        atoms: &mut AtomMap<'atoms>,
+        atoms: &mut AtomMap,
         path: &std::path::Path,
     ) -> FsResult<FSNodeId> {
         debug_assert!(path.is_normalized());
-        if let Some(cache) = self.path_to_node.get(&PathId::get(path)) {
+        if let Some(cache) = self.path_to_node.get(&PathId::get(path, atoms)) {
             return Ok(*cache);
         };
 
@@ -151,12 +156,13 @@ impl<'atoms> FSTree {
                 Prefix(_) => todo!("handle prefix path"),
                 RootDir => {
                     current_path.push("/");
-                    parent = Some(self.insert_dir_node(parent, PathId::ROOT)?);
+                    let root = PathId::from(atoms.atom("/"));
+                    parent = Some(self.insert_dir_node(parent, root, atoms)?);
                 }
                 Normal(_) => {
                     current_path.push(component);
                     let path_id = PathId::new(&current_path, atoms);
-                    id = self.insert_dir_node(parent, path_id)?;
+                    id = self.insert_dir_node(parent, path_id, atoms)?;
                     parent = Some(id)
                 }
                 CurDir | ParentDir => unreachable!(),
@@ -169,19 +175,21 @@ impl<'atoms> FSTree {
         &self,
         path: &std::path::Path,
         is_dir: bool,
+        atoms: &mut AtomMap,
     ) -> errors::FsResult<FSNodeId> {
         if path.as_os_str().as_encoded_bytes() == b"/" {
             return if is_dir {
                 Ok(FSTree::ROOT)
             } else {
-                Err(FsError::NotAFile(PathId::ROOT))
+                let p = atoms.atom("/");
+                Err(FsError::NotAFile(p.into()))
             };
         }
-        let target = PathId::get(path);
+        let target = PathId::get(path, atoms);
         let Some(parent) = path.parent() else {
             unreachable!()
         };
-        let Some(dir) = self.path_to_node.get(&PathId::get(parent)) else {
+        let Some(dir) = self.path_to_node.get(&PathId::get(parent, atoms)) else {
             return Err(errors::FsError::NotFound(target));
         };
         let dir = self.node(*dir).kind.as_dir_node().unwrap();
@@ -197,11 +205,15 @@ impl<'atoms> FSTree {
         }
     }
 
-    pub(super) fn read_file(&self, path: &std::path::Path) -> FsResult<AtomId> {
+    pub(super) fn read_file(
+        &self,
+        path: &std::path::Path,
+        atoms: &mut AtomMap,
+    ) -> FsResult<AtomId> {
         if has_slash_suffix_and_not_root(path) {
-            Err(errors::FsError::NotAFile(PathId::get(path)))
+            Err(errors::FsError::NotAFile(PathId::get(path, atoms)))
         } else {
-            let id = self.find_path(path, false)?;
+            let id = self.find_path(path, false, atoms)?;
             let Some(file) = self.node(id).kind.as_file_node() else {
                 unreachable!("handled been handled by `find_path`");
             };
@@ -209,8 +221,8 @@ impl<'atoms> FSTree {
         }
     }
 
-    pub(super) fn file_exists(&self, p: &std::path::Path) -> bool {
-        self.find_path(p, super::has_slash_suffix_and_not_root(p))
+    pub(super) fn file_exists(&self, p: &std::path::Path, atoms: &mut AtomMap) -> bool {
+        self.find_path(p, super::has_slash_suffix_and_not_root(p), atoms)
             .is_ok_and(|id| self.node(id).kind.as_file_node().is_some())
     }
 }

@@ -1,5 +1,4 @@
-
-1 + 1;
+2;
 function foo() {
-  return "a"
+  return 'a'
 }

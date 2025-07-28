@@ -1,4 +1,2 @@
-
-
 var bar;
 var foo;

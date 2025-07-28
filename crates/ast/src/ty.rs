@@ -157,6 +157,12 @@ pub enum TyKind<'cx> {
     This(&'cx ThisTy),
 }
 
+impl TyKind<'_> {
+    pub fn is_lit(&self) -> bool {
+        matches!(self, TyKind::Lit(_))
+    }
+}
+
 #[derive(Debug, Clone, Copy)]
 pub struct ThisTy {
     pub id: NodeID,
@@ -552,4 +558,45 @@ pub struct InferTy<'cx> {
     pub id: NodeID,
     pub span: Span,
     pub ty_param: &'cx TyParam<'cx>,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct EntityName<'cx> {
+    pub kind: EntityNameKind<'cx>,
+}
+
+impl EntityName<'_> {
+    pub fn span(&self) -> Span {
+        use EntityNameKind::*;
+        match self.kind {
+            Ident(ident) => ident.span,
+            Qualified(name) => name.span,
+        }
+    }
+
+    pub fn id(&self) -> NodeID {
+        use EntityNameKind::*;
+        match self.kind {
+            Ident(ident) => ident.id,
+            Qualified(name) => name.id,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy)]
+pub enum EntityNameKind<'cx> {
+    Ident(&'cx Ident),
+    Qualified(&'cx QualifiedName<'cx>),
+}
+
+/// ```txt
+/// type A = B.C;
+///          ~~~
+/// ```
+#[derive(Debug, Clone, Copy)]
+pub struct QualifiedName<'cx> {
+    pub id: NodeID,
+    pub span: Span,
+    pub left: &'cx EntityName<'cx>,
+    pub right: &'cx Ident,
 }

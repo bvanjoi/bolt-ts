@@ -275,9 +275,10 @@ impl<'cx> TyChecker<'cx> {
         apparent_ty: &'cx ty::Ty<'cx>,
         kind: ty::SigKind,
     ) {
-        let error = errors::ThisExpressionIsNotConstructable {
-            span: expr.span(),
-            is_call: kind == ty::SigKind::Call,
+        let error = if kind == ty::SigKind::Call {
+            errors::ThisExpressionIsNotConstructable::new_from_call(expr.span())
+        } else {
+            errors::ThisExpressionIsNotConstructable::new_from_constructor(expr.span())
         };
         self.push_error(Box::new(error));
     }
@@ -552,7 +553,7 @@ impl<'cx> TyChecker<'cx> {
     fn choose_overload(
         &mut self,
         expr: &impl CallLikeExpr<'cx>,
-        candidates: Sigs<'cx>,
+        candidates: &[&'cx Sig<'cx>],
         relation: RelationKind,
         is_single_non_generic_candidate: bool,
         mut argument_check_mode: CheckMode,
@@ -678,6 +679,16 @@ impl<'cx> TyChecker<'cx> {
 
         let mut candidates_for_arg_error = no_hashset_with_capacity(candidates.len());
 
+        // TODO: cache
+        let mut candidates = candidates.to_vec();
+        candidates.sort_by_key(|sig| {
+            if sig.has_literal_tys() {
+                std::cmp::Ordering::Less
+            } else {
+                std::cmp::Ordering::Greater
+            }
+        });
+
         let args = expr.args();
 
         let is_single = candidates.len() == 1;
@@ -697,7 +708,7 @@ impl<'cx> TyChecker<'cx> {
         if candidates.len() > 1 {
             res = self.choose_overload(
                 expr,
-                candidates,
+                &candidates,
                 RelationKind::Subtype,
                 is_single_non_generic_candidate,
                 argument_check_mode,
@@ -708,7 +719,7 @@ impl<'cx> TyChecker<'cx> {
         if res.is_none() {
             res = self.choose_overload(
                 expr,
-                candidates,
+                &candidates,
                 RelationKind::Assignable,
                 is_single_non_generic_candidate,
                 argument_check_mode,
@@ -727,9 +738,9 @@ impl<'cx> TyChecker<'cx> {
         }
 
         let (best_match_idx, candidate) =
-            self.get_candidate_for_overload_failure(expr, candidates, args);
+            self.get_candidate_for_overload_failure(expr, &candidates, args);
 
-        for sig in candidates {
+        for sig in &candidates {
             if sig.min_args_count < min_required_params {
                 min_required_params = sig.min_args_count;
             }
@@ -748,9 +759,9 @@ impl<'cx> TyChecker<'cx> {
             let x = min_required_params;
             let y = args.len();
             let span = if x < y && y - x < args.len() {
-                let lo = args[y - x].span().lo;
-                let hi = args.last().unwrap().span().hi;
-                Span::new(lo, hi, expr.span().module)
+                let lo = args[y - x].span().lo();
+                let hi = args.last().unwrap().span().hi();
+                Span::new(lo, hi, expr.span().module())
             } else {
                 expr.callee().span()
             };
@@ -761,9 +772,9 @@ impl<'cx> TyChecker<'cx> {
             };
             self.push_error(Box::new(error));
         } else if args.len() > max_required_params {
-            let lo = args[max_required_params].span().lo;
-            let hi = args.last().unwrap().span().hi;
-            let span = Span::new(lo, hi, expr.span().module);
+            let lo = args[max_required_params].span().lo();
+            let hi = args.last().unwrap().span().hi();
+            let span = Span::new(lo, hi, expr.span().module());
             let error = errors::ExpectedXArgsButGotY {
                 span,
                 x: ExpectedArgsCount::Range {
@@ -849,7 +860,7 @@ impl<'cx> TyChecker<'cx> {
                 .cloned()
                 .collect::<thin_vec::ThinVec<_>>();
             if sigs_with_correct_ty_arg_arity.is_empty() {
-                self.get_ty_arg_arity_error(expr, candidates, expr.ty_args());
+                self.get_ty_arg_arity_error(expr, &candidates, expr.ty_args());
             } else {
                 self.get_arg_arity_error(expr, &sigs_with_correct_ty_arg_arity, args);
             }
@@ -880,8 +891,8 @@ impl<'cx> TyChecker<'cx> {
                 super::ExpectedArgsCount::Range { lo: min, hi: max }
             };
             let span = ty_args.map(|ty_args| ty_args.span).unwrap_or_else(|| {
-                let hi = expr.callee().span().hi;
-                Span::new(hi, hi, expr.span().module)
+                let hi = expr.callee().span().hi();
+                Span::new(hi, hi, expr.span().module())
             });
             let error = errors::ExpectedXTyArgsButGotY {
                 span,
@@ -945,7 +956,7 @@ impl<'cx> TyChecker<'cx> {
     fn get_candidate_for_overload_failure(
         &mut self,
         expr: &impl CallLikeExpr<'cx>,
-        candidates: Sigs<'cx>,
+        candidates: &[&'cx Sig<'cx>],
         args: ast::Exprs<'cx>,
     ) -> (usize, &'cx ty::Sig<'cx>) {
         assert!(!candidates.is_empty());
@@ -993,7 +1004,7 @@ impl<'cx> TyChecker<'cx> {
 
     fn create_union_of_sigs_for_overload_failure(
         &mut self,
-        candidates: Sigs<'cx>,
+        candidates: &[&'cx Sig<'cx>],
     ) -> &'cx ty::Sig<'cx> {
         let this_params = candidates
             .iter()
@@ -1091,7 +1102,11 @@ impl<'cx> TyChecker<'cx> {
         })
     }
 
-    fn get_longest_candidate_index(&mut self, candidates: Sigs<'cx>, args_count: usize) -> usize {
+    fn get_longest_candidate_index(
+        &mut self,
+        candidates: &[&'cx Sig<'cx>],
+        args_count: usize,
+    ) -> usize {
         let mut max_params_index = usize::MAX;
         let mut max_params = usize::MAX;
 
@@ -1137,7 +1152,7 @@ impl<'cx> TyChecker<'cx> {
     fn pick_longest_candidate_sig(
         &mut self,
         expr: &impl CallLikeExpr<'cx>,
-        candidates: Sigs<'cx>,
+        candidates: &[&'cx Sig<'cx>],
         args: ast::Exprs<'cx>,
     ) -> (usize, &'cx Sig<'cx>) {
         let best_index = self.get_longest_candidate_index(candidates, args.len());

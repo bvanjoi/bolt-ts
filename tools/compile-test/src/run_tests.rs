@@ -3,11 +3,12 @@ use std::path::Path;
 use crate::common::{FailMode, PassMode};
 use crate::{TestConfig, TestProps, errors};
 
-pub fn run(test_file: &Path, runner: impl FnOnce(&Path) -> Result<(), Vec<errors::Error>>) {
+pub fn run(test_file: &Path, runner: impl FnOnce(RunnerCtx) -> Result<(), Vec<errors::Error>>) {
     let mut config = TestConfig::default();
     let props = TestProps::from_file(test_file, &mut config);
     let cx = TestCx {
         props: &props,
+        config: &config,
         test_file,
     };
     cx.run_test(runner)
@@ -16,15 +17,33 @@ pub fn run(test_file: &Path, runner: impl FnOnce(&Path) -> Result<(), Vec<errors
 #[derive(Copy, Clone)]
 struct TestCx<'test> {
     props: &'test TestProps,
+    config: &'test TestConfig,
     test_file: &'test Path,
 }
 
-impl TestCx<'_> {
-    fn run_test(&self, runner: impl FnOnce(&Path) -> Result<(), Vec<errors::Error>>) {
-        let expected_errors = errors::load_errors(self.test_file, None);
+pub struct RunnerCtx<'test> {
+    compiler_options: &'test serde_json::Map<String, serde_json::Value>,
+    test_file: &'test Path,
+}
 
+impl RunnerCtx<'_> {
+    pub fn compiler_options(&self) -> &serde_json::Map<String, serde_json::Value> {
+        self.compiler_options
+    }
+    pub fn test_file(&self) -> &Path {
+        self.test_file
+    }
+}
+
+impl TestCx<'_> {
+    fn run_test(&self, runner: impl FnOnce(RunnerCtx) -> Result<(), Vec<errors::Error>>) {
+        let expected_errors = errors::load_errors(self.test_file, None);
         let panic = |msg: String| panic!("{msg} in {}", self.test_file.display());
-        match runner(self.test_file) {
+        let ctx = RunnerCtx {
+            compiler_options: &self.config.compiler_options,
+            test_file: self.test_file,
+        };
+        match runner(ctx) {
             Ok(_success) => {
                 if !expected_errors.is_empty() {
                     panic("it actually had some expected errors".to_string());

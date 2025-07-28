@@ -31,7 +31,7 @@ pub(super) fn early_resolve_parallel<'cx>(
     p: &'cx Parser<'cx>,
     globals: &'cx GlobalSymbols,
     merged: &'cx MergedSymbols,
-    atoms: &'cx bolt_ts_atom::AtomMap<'cx>,
+    atoms: &'cx bolt_ts_atom::AtomMap,
 ) -> Vec<EarlyResolveResult> {
     modules
         .into_par_iter()
@@ -53,7 +53,7 @@ fn early_resolve<'cx>(
     p: &'cx Parser<'cx>,
     globals: &'cx GlobalSymbols,
     merged: &'cx MergedSymbols,
-    atoms: &'cx bolt_ts_atom::AtomMap<'cx>,
+    atoms: &'cx bolt_ts_atom::AtomMap,
 ) -> EarlyResolveResult {
     let final_res = fx_hashmap_with_capacity(states[module_id.as_usize()].final_res.len());
     let mut resolver = Resolver {
@@ -82,7 +82,7 @@ pub(super) struct Resolver<'cx, 'r, 'atoms> {
     final_res: FxHashMap<ast::NodeID, SymbolID>,
     globals: &'cx GlobalSymbols,
     merged: &'cx MergedSymbols,
-    atoms: &'atoms bolt_ts_atom::AtomMap<'cx>,
+    atoms: &'atoms bolt_ts_atom::AtomMap,
 }
 
 impl<'cx> Resolver<'cx, '_, '_> {
@@ -110,6 +110,20 @@ impl<'cx> Resolver<'cx, '_, '_> {
         }
     }
 
+    fn parent(&self, node: ast::NodeID) -> Option<ast::NodeID> {
+        debug_assert!(node.module() == self.module_id);
+        self.states[self.module_id.as_usize()]
+            .parent_map
+            .parent(node)
+    }
+
+    fn node_query(&self) -> crate::node_query::NodeQuery<'cx, '_> {
+        crate::node_query::NodeQuery::new(
+            &self.states[self.module_id.as_usize()].parent_map,
+            self.p.get(self.module_id),
+        )
+    }
+
     fn resolve_stmt(&mut self, stmt: &'cx ast::Stmt<'cx>) {
         use bolt_ts_ast::StmtKind::*;
         match stmt.kind {
@@ -118,7 +132,7 @@ impl<'cx> Resolver<'cx, '_, '_> {
             Fn(f) => self.resolve_fn_decl(f),
             If(i) => self.resolve_if_stmt(i),
             Block(block) => self.resolve_block_stmt(block),
-            Return(ret) => self.resolve_return_stmt(ret),
+            Ret(ret) => self.resolve_return_stmt(ret),
             Empty(_) => {}
             Class(class) => self.resolve_class_decl(class),
             Interface(interface) => self.resolve_interface_decl(interface),
@@ -580,10 +594,10 @@ impl<'cx> Resolver<'cx, '_, '_> {
             | RegExpLit(_)
             | NoSubstitutionTemplateLit(_)
             | JsxFrag(_) => {}
-            JsxEle(n) => {
+            JsxElem(n) => {
                 self.resolve_jsx_ele(n);
             }
-            JsxSelfClosingEle(n) => {
+            JsxSelfClosingElem(n) => {
                 self.resolve_jsx_self_closing_ele(n);
             }
         }
@@ -640,7 +654,7 @@ impl<'cx> Resolver<'cx, '_, '_> {
         }
     }
 
-    fn resolve_jsx_self_closing_ele(&mut self, ele: &'cx ast::JsxSelfClosingEle<'cx>) {
+    fn resolve_jsx_self_closing_ele(&mut self, ele: &'cx ast::JsxSelfClosingElem<'cx>) {
         self.resolve_jsx_tag_name(ele.tag_name);
         if let Some(ty_args) = ele.ty_args {
             self.resolve_tys(ty_args.list);
@@ -650,12 +664,12 @@ impl<'cx> Resolver<'cx, '_, '_> {
         }
     }
 
-    fn resolve_jsx_ele(&mut self, ele: &'cx ast::JsxEle<'cx>) {
-        self.resolve_jsx_tag_name(ele.opening_ele.tag_name);
-        if let Some(ty_args) = ele.opening_ele.ty_args {
+    fn resolve_jsx_ele(&mut self, ele: &'cx ast::JsxElem<'cx>) {
+        self.resolve_jsx_tag_name(ele.opening_elem.tag_name);
+        if let Some(ty_args) = ele.opening_elem.ty_args {
             self.resolve_tys(ty_args.list);
         }
-        for attr in ele.opening_ele.attrs {
+        for attr in ele.opening_elem.attrs {
             self.resolve_jsx_attr(attr);
         }
 
@@ -663,7 +677,7 @@ impl<'cx> Resolver<'cx, '_, '_> {
             self.resolve_jsx_child(child);
         }
 
-        self.resolve_jsx_tag_name(ele.closing_ele.tag_name);
+        self.resolve_jsx_tag_name(ele.closing_elem.tag_name);
     }
 
     fn resolve_jsx_child(&mut self, child: &'cx ast::JsxChild<'cx>) {
@@ -674,7 +688,7 @@ impl<'cx> Resolver<'cx, '_, '_> {
                     self.resolve_expr(expr);
                 }
             }
-            Ele(n) => {
+            Elem(n) => {
                 self.resolve_jsx_ele(n);
             }
             SelfClosingEle(n) => {
@@ -849,7 +863,7 @@ impl<'cx> Resolver<'cx, '_, '_> {
             let decl = *decl;
             if self.p.node(decl).is_ty_param() {
                 // TODO: js doc template tag
-                let parent = self.p.parent(decl);
+                let parent = self.parent(decl);
                 if let Some(parent) = parent {
                     if parent == container {
                         // TODO: js doc template tag
@@ -876,7 +890,7 @@ pub(super) fn resolve_symbol_by_ident<'a, 'cx>(
     let key = SymbolName::Atom(ident.name);
     let mut associated_declaration_for_containing_initializer_or_binding_name = None;
     let mut last_location = Some(ident.id);
-    let mut location = resolver.p.parent(ident.id);
+    let mut location = resolver.parent(ident.id);
 
     fn get_symbol(
         resolver: &Resolver,
@@ -902,7 +916,7 @@ pub(super) fn resolve_symbol_by_ident<'a, 'cx>(
 
     while let Some(id) = location {
         if let Some(locals) = resolver.locals(id) {
-            if !resolver.p.is_global_source_file(id) {
+            if !resolver.p.get(id.module()).is_global_source_file(id) {
                 if let Some(symbol) = get_symbol(resolver, locals, key, meaning) {
                     let res_flags = resolver.symbol(symbol).flags;
                     if res_flags.intersects(SymbolFlags::ALIAS) {
@@ -946,7 +960,7 @@ pub(super) fn resolve_symbol_by_ident<'a, 'cx>(
 
         let n = resolver.p.node(id);
         match n {
-            Program(_) if !resolver.p.is_external_or_commonjs_module(id) => (),
+            Program(_) if !resolver.p.get(id.module()).is_external_or_commonjs_module() => (),
             Program(_) | ModuleDecl(_) => {
                 let symbol_id = resolver.merged.get_merged_symbol(
                     resolver.symbol_of_decl(id),
@@ -1022,10 +1036,10 @@ pub(super) fn resolve_symbol_by_ident<'a, 'cx>(
                 if last_location.is_some_and(|l| l == expr.expr.id())
                     && resolver
                         .p
-                        .node(resolver.p.parent(id).unwrap())
+                        .node(resolver.parent(id).unwrap())
                         .is_class_extends_clause()
                 {
-                    let container = resolver.p.parent(resolver.p.parent(id).unwrap()).unwrap();
+                    let container = resolver.parent(resolver.parent(id).unwrap()).unwrap();
                     let c = resolver.p.node(container);
                     if c.is_class_like() {
                         if let Some(res) = resolver
@@ -1086,7 +1100,7 @@ pub(super) fn resolve_symbol_by_ident<'a, 'cx>(
             _ => {}
         }
         last_location = location;
-        location = resolver.p.parent(id);
+        location = resolver.parent(id);
     }
 
     if let Some(symbol) = get_symbol(resolver, resolver.globals, key, meaning) {

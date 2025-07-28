@@ -21,7 +21,7 @@ pub fn visit_stmt<'cx>(v: &mut impl Visitor<'cx>, stmt: &'cx super::Stmt) {
         ExportAssign(_) => {}
         Empty(_) => (),
         If(_) => (),
-        Return(_) => (),
+        Ret(_) => (),
         Fn(_) => (),
         Throw(_) => (),
         Enum(_) => (),
@@ -83,7 +83,7 @@ pub fn visit_interface_decl<'cx>(_: &mut impl Visitor<'cx>, _: &'cx super::Inter
 pub fn visit_import_decl<'cx>(_: &mut impl Visitor<'cx>, _: &'cx super::ImportDecl<'cx>) {}
 
 pub fn visit_class_elem<'cx>(v: &mut impl Visitor<'cx>, elem: &'cx super::ClassElem<'cx>) {
-    use super::ClassEleKind::*;
+    use super::ClassElemKind::*;
     if let Method(n) = elem.kind {
         v.visit_class_method_elem(n)
     }
@@ -248,6 +248,7 @@ pub fn visit_expr<'cx>(v: &mut impl Visitor<'cx>, n: &'cx super::Expr<'cx>) {
     match n.kind {
         ObjectLit(n) => v.visit_object_lit(n),
         ArrowFn(n) => v.visit_arrow_fn_expr(n),
+        Bin(n) => v.visit_bin_expr(n),
         _ => {}
     }
 }
@@ -275,6 +276,11 @@ pub fn visit_expr_stmt<'cx>(v: &mut impl Visitor<'cx>, n: &'cx super::ExprStmt<'
 }
 
 pub fn visit_arrow_fn_expr<'cx>(_: &mut impl Visitor<'cx>, _: &'cx super::ArrowFnExpr<'cx>) {}
+
+pub fn visit_bin_expr<'cx>(v: &mut impl Visitor<'cx>, n: &'cx super::BinExpr<'cx>) {
+    v.visit_expr(n.left);
+    v.visit_expr(n.right);
+}
 
 pub fn visit_string_lit<'cx>(_: &mut impl Visitor<'cx>, _: &'cx super::StringLit) {}
 
@@ -332,6 +338,7 @@ make_visitor!(
     (visit_block_stmt, super::BlockStmt<'cx>),
     (visit_expr_stmt, super::ExprStmt<'cx>),
     (visit_arrow_fn_expr, super::ArrowFnExpr<'cx>),
+    (visit_bin_expr, super::BinExpr<'cx>),
     (visit_type_alias_decl, super::TypeAliasDecl<'cx>),
     (visit_module_decl, super::ModuleDecl<'cx>),
     (visit_string_lit, super::StringLit),

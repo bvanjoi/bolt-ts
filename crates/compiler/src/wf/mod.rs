@@ -16,13 +16,20 @@ pub fn well_formed_check_parallel(
     atoms: &AtomMap,
     modules: &[bolt_ts_span::Module],
     compiler_options: &NormalizedCompilerOptions,
+    resolve_results: &[crate::bind::ResolveResult],
 ) -> Vec<bolt_ts_errors::Diag> {
     use rayon::prelude::*;
 
     modules
         .into_par_iter()
         .flat_map(|m| {
-            let diags = well_formed_check(p, atoms, m.id(), compiler_options);
+            let diags = well_formed_check(
+                p,
+                atoms,
+                m.id(),
+                compiler_options,
+                &resolve_results[m.id().as_usize()],
+            );
             assert!(!m.is_default_lib() || diags.is_empty());
             diags
         })
@@ -34,12 +41,15 @@ fn well_formed_check(
     atoms: &AtomMap,
     module_id: ModuleID,
     compiler_options: &NormalizedCompilerOptions,
+    resolve_results: &crate::bind::ResolveResult,
 ) -> Vec<bolt_ts_errors::Diag> {
     let mut s = CheckState {
         p,
         atoms,
         compiler_options,
         diags: vec![],
+        resolve_results,
+        module_id,
     };
     let program = p.root(module_id);
     visitor::visit_program(&mut s, program);
@@ -48,12 +58,22 @@ fn well_formed_check(
 
 struct CheckState<'cx> {
     p: &'cx Parser<'cx>,
-    atoms: &'cx AtomMap<'cx>,
+    atoms: &'cx AtomMap,
     diags: Vec<bolt_ts_errors::Diag>,
     compiler_options: &'cx NormalizedCompilerOptions,
+    module_id: ModuleID,
+    resolve_results: &'cx crate::bind::ResolveResult,
 }
 
 impl<'cx> CheckState<'cx> {
+    fn parent(&self, node: ast::NodeID) -> Option<ast::NodeID> {
+        debug_assert!(node.module() == self.module_id);
+        self.resolve_results.parent_map.parent(node)
+    }
+    fn node_query(&self) -> crate::bind::NodeQuery<'cx, '_> {
+        crate::bind::NodeQuery::new(&self.resolve_results.parent_map, self.p.get(self.module_id))
+    }
+
     fn push_error(&mut self, error: crate::Diag) {
         self.diags.push(bolt_ts_errors::Diag { inner: error })
     }
@@ -90,7 +110,7 @@ impl<'cx> CheckState<'cx> {
         for modifier in modifiers.list {
             use bolt_ts_ast::ModifierKind::*;
             if modifier.kind == Abstract {
-                let parent = self.p.parent(node).unwrap();
+                let parent = self.parent(node).unwrap();
                 let parent_node = self.p.node(parent);
                 if !(parent_node.is_class_decl()
                     && parent_node.has_syntactic_modifier(ast::ModifierKind::Abstract.into()))
@@ -186,7 +206,7 @@ impl<'cx> CheckState<'cx> {
     fn check_stmt_in_ambient(&mut self, node: ast::NodeID) -> bool {
         let flags = self.p.node_flags(node);
         if flags.intersects(ast::NodeFlags::AMBIENT) {
-            let parent = self.p.parent(node).unwrap();
+            let parent = self.parent(node).unwrap();
             let parent_node = self.p.node(parent);
             if parent_node.is_block_stmt()
                 || parent_node.is_module_block()
@@ -206,7 +226,7 @@ impl<'cx> CheckState<'cx> {
         let Some(init) = node.init() else {
             return;
         };
-        if node.decl_ty().is_none() && node.is_var_const(self.p) {
+        if node.decl_ty().is_none() && node.is_var_const(&self.node_query()) {
             let is_invalid_init = !(
                 init.is_string_or_number_lit_like()
             // TODO: simple literal enum reference
