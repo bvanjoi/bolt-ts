@@ -1,6 +1,7 @@
 use bolt_ts_arena::la_arena;
 use bolt_ts_ast::{self as ast, keyword};
 use bolt_ts_atom::AtomId;
+use bolt_ts_checker::ty::TyID;
 use bolt_ts_ecma_logical::js_double_to_boolean;
 use bolt_ts_span::Span;
 
@@ -1377,10 +1378,11 @@ impl Nodes {
         idx
     }
 
-    pub fn alloc_ident(&mut self, span: Span, name: AtomId) -> IdentID {
+    pub fn alloc_ident(&mut self, ty: TyID, span: Span, name: AtomId) -> IdentID {
         let idx = IdentID(usize_into_idx(self.ident_nodes.0.len()));
         let id = self.ident_nodes.0.alloc(Ident {
             id: idx,
+            ty,
             span,
             name,
         });
@@ -3290,9 +3292,11 @@ pub struct NumLit {
     val: f64,
 }
 impl NumLit {
+    #[inline(always)]
     pub fn span(&self) -> Span {
         self.span
     }
+    #[inline(always)]
     pub fn val(&self) -> f64 {
         self.val
     }
@@ -3661,17 +3665,25 @@ impl VarDecl {
 #[derive(Debug)]
 pub struct Ident {
     id: IdentID,
+    ty: TyID,
     span: Span,
     name: AtomId,
 }
 
 impl Ident {
+    #[inline(always)]
     pub fn span(&self) -> Span {
         self.span
     }
 
+    #[inline(always)]
     pub fn name(&self) -> AtomId {
         self.name
+    }
+
+    #[inline(always)]
+    pub fn ty(&self) -> TyID {
+        self.ty
     }
 }
 
@@ -3771,4 +3783,64 @@ impl Nodes {
             _ => None,
         }
     }
+}
+
+#[derive(Debug, Clone, Copy)]
+pub enum Node {
+    IfStmt(IfStmtID),
+    ForStmt(ForStmtID),
+    ForOfStmt(ForOfStmtID),
+    ForInStmt(ForInStmtID),
+    BreakStmt(BreakStmtID),
+    ContinueStmt(ContinueStmtID),
+    RetStmt(RetStmtID),
+    BlockStmt(BlockStmtID),
+    ThrowStmt(ThrowStmtID),
+    ExprStmt(ExprStmtID),
+    LabeledStmt(LabeledStmtID),
+    TryStmt(TryStmtID),
+    DoStmt(DoStmtID),
+    WhileStmt(WhileStmtID),
+    EmptyStmt(EmptyStmtID),
+    FnDecl(FnDeclID),
+    ClassDecl(ClassDeclID),
+    ModuleDecl(ModuleDeclID),
+    EnumDecl(EnumDeclID),
+    ImportDecl(ImportDeclID),
+    ExportDecl(ExportDeclID),
+    ExportAssign(ExportAssignID),
+
+    AssignExpr(AssignExprID),
+    BinExpr(BinExprID),
+    OmitExpr(OmitExprID),
+    ParenExpr(ParenExprID),
+    ThisExpr(ThisExprID),
+    Ident(IdentID),
+    BoolLit(BoolLitID),
+    NullLit(NullLitID),
+    NumLit(NumLitID),
+    BigIntLit(BigIntLitID),
+    RegExpLit(RegExpLitID),
+    StringLit(StringLitID),
+    ArrayLit(ArrayLitID),
+    ObjectLit(ObjectLitID),
+    VoidExpr(VoidExprID),
+    TypeofExpr(TypeofExprID),
+    SuperExpr(SuperExprID),
+    EleAccessExpr(EleAccessExprID),
+    PropAccessExpr(PropAccessExprID),
+    PostfixUnaryExpr(PostfixUnaryExprID),
+    PrefixUnaryExpr(PrefixUnaryExprID),
+    TaggedTemplateExpr(TaggedTemplateExprID),
+    TemplateExpr(TemplateExprID),
+    SpreadElem(SpreadElementID),
+    ArrowFnExpr(ArrowFnExprID),
+    NewExpr(NewExprID),
+    ClassExpr(ClassExprID),
+    FnExpr(FnExprID),
+    CallExpr(CallExprID),
+    CondExpr(CondExprID),
+    JsxElem(JsxElemID),
+    JsxSelfClosingElem(JsxSelfClosingElemID),
+    JsxFrag(JsxFragID),
 }

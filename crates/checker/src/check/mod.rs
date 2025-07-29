@@ -109,8 +109,8 @@ use bolt_ts_binder::{
     FlowID, FlowInNodes, FlowNodes, GlobalSymbols, MergedSymbols, ResolveResult, Symbol,
     SymbolFlags, SymbolID, SymbolName, SymbolTable, Symbols,
 };
-use bolt_ts_graph::{ModuleGraph, ModuleRes};
 use bolt_ts_middle::F64Represent;
+use bolt_ts_module_graph::{ModuleGraph, ModuleRes};
 use bolt_ts_parser::{AccessKind, Parser};
 
 bitflags::bitflags! {
@@ -137,12 +137,12 @@ bitflags::bitflags! {
 bolt_ts_utils::index!(InferenceContextId);
 
 pub struct TyChecker<'cx> {
-    pub atoms: &'cx mut AtomMap,
+    pub atoms: AtomMap,
     pub diags: Vec<bolt_ts_errors::Diag>,
-    module_arena: &'cx bolt_ts_span::ModuleArena,
+    pub module_arena: &'cx bolt_ts_span::ModuleArena,
     config: &'cx NormalizedCompilerOptions,
     arena: &'cx bolt_ts_arena::bumpalo::Bump,
-    pub tys: Vec<&'cx ty::Ty<'cx>>,
+    tys: Vec<&'cx ty::Ty<'cx>>,
     sigs: Vec<&'cx Sig<'cx>>,
 
     flow_nodes: Vec<FlowNodes<'cx>>,
@@ -305,7 +305,7 @@ impl<'cx> TyChecker<'cx> {
         ty_arena: &'cx bolt_ts_arena::bumpalo::Bump,
         p: &'cx Parser<'cx>,
         mg: &'cx ModuleGraph,
-        atoms: &'cx mut AtomMap,
+        atoms: AtomMap,
         config: &'cx NormalizedCompilerOptions,
         flow_nodes: Vec<FlowNodes<'cx>>,
         flow_in_nodes: Vec<FlowInNodes>,
@@ -1443,7 +1443,7 @@ impl<'cx> TyChecker<'cx> {
         self.get_mut_node_links(prop_node.id)
             .set_non_existent_prop_checked(true);
 
-        let missing_prop = pprint_ident(prop_node, self.atoms);
+        let missing_prop = pprint_ident(prop_node, &self.atoms);
 
         if self.type_has_static_prop(prop_node, containing_ty) {
             let mut error = errors::PropertyXDoesNotExistOnTypeY {
@@ -1456,7 +1456,7 @@ impl<'cx> TyChecker<'cx> {
                 errors::DidYourMeanToAccessTheStaticMemberInstead {
                     span: prop_node.span,
                     class_name: self.print_ty(containing_ty).to_string(),
-                    prop_name: pprint_ident(prop_node, self.atoms),
+                    prop_name: pprint_ident(prop_node, &self.atoms),
                 }),
             );
             self.push_error(Box::new(error));
@@ -1541,7 +1541,7 @@ impl<'cx> TyChecker<'cx> {
                 .is_none()
             {
                 if let Some(error_node) = error_node {
-                    let prop = self.symbol(prop).name.to_string(self.atoms);
+                    let prop = self.symbol(prop).name.to_string(&self.atoms);
                     let error = errors::PropertyIsPrivateAndOnlyAccessibleWithinClass {
                         span: self.p.node(error_node).span(),
                         prop,
@@ -2226,7 +2226,7 @@ impl<'cx> TyChecker<'cx> {
                 if self.get_symbol_of_decl(b_ty_param.id) == self.get_symbol_of_decl(ty_param.id) {
                     self.push_error(Box::new(errors::DuplicateIdentifierX {
                         span: ty_param.name.span,
-                        ident: pprint_ident(ty_param.name, self.atoms),
+                        ident: pprint_ident(ty_param.name, &self.atoms),
                     }));
                 }
             }
@@ -3593,6 +3593,17 @@ impl<'cx> TyChecker<'cx> {
     ) -> Option<&'cx ty::Ty<'cx>> {
         // TODO: cache
         self.create_reverse_mapped_ty(source, target, constraint_ty)
+    }
+
+    #[inline(always)]
+    pub fn ty(&self, id: TyID) -> &'cx ty::Ty<'cx> {
+        debug_assert!(id.as_usize() < self.tys.len());
+        unsafe { self.tys.get_unchecked(id.as_usize()) }
+    }
+
+    #[inline(always)]
+    pub fn ty_len(&self) -> usize {
+        self.tys.len()
     }
 }
 

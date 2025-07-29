@@ -18,7 +18,7 @@ bolt_ts_middle = { path = "../middle" }
 bolt_ts_early_resolve = { path = "../early_resolve" }
 bolt_ts_ecma_rules = { path = "../ecma_rules" }
 bolt_ts_errors = { path = "../../helper/errors" }
-bolt_ts_graph = { path = "../graph" }
+bolt_ts_module_graph = { path = "../module_graph" }
 bolt_ts_span = { path = "../../helper/span" }
 bolt_ts_libs = { path = "../libs" }
 bolt_ts_optimize = { path = "../optimize" }

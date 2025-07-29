@@ -26,7 +26,6 @@ use bolt_ts_ast::Visitor;
 use bolt_ts_ast::keyword;
 use bolt_ts_ast::{self as ast, Node, NodeFlags, NodeID};
 use bolt_ts_atom::{AtomId, AtomMap};
-use bolt_ts_fs::PathId;
 use bolt_ts_span::{ModuleArena, ModuleID};
 use bolt_ts_utils::no_hashmap_with_capacity;
 use bolt_ts_utils::path::NormalizePath;

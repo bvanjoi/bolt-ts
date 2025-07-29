@@ -159,8 +159,8 @@ dependencies = [
  "bolt_ts_config",
  "bolt_ts_ecma_rules",
  "bolt_ts_errors",
- "bolt_ts_graph",
  "bolt_ts_middle",
+ "bolt_ts_module_graph",
  "bolt_ts_parser",
  "bolt_ts_path",
  "bolt_ts_span",
@@ -190,9 +190,9 @@ dependencies = [
  "bolt_ts_ecma_rules",
  "bolt_ts_errors",
  "bolt_ts_fs",
- "bolt_ts_graph",
  "bolt_ts_libs",
  "bolt_ts_middle",
+ "bolt_ts_module_graph",
  "bolt_ts_optimize",
  "bolt_ts_parser",
  "bolt_ts_path",
@@ -294,7 +294,23 @@ dependencies = [
 ]
 
 [[package]]
-name = "bolt_ts_graph"
+name = "bolt_ts_libs"
+version = "0.1.0"
+dependencies = [
+ "bolt_ts_config",
+ "rustc-hash",
+]
+
+[[package]]
+name = "bolt_ts_middle"
+version = "0.1.0"
+dependencies = [
+ "bolt_ts_errors",
+ "nohash-hasher",
+]
+
+[[package]]
+name = "bolt_ts_module_graph"
 version = "0.1.0"
 dependencies = [
  "bolt_ts_arena",
@@ -316,22 +332,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "bolt_ts_libs"
-version = "0.1.0"
-dependencies = [
- "bolt_ts_config",
- "rustc-hash",
-]
-
-[[package]]
-name = "bolt_ts_middle"
-version = "0.1.0"
-dependencies = [
- "bolt_ts_errors",
- "nohash-hasher",
-]
-
-[[package]]
 name = "bolt_ts_optimize"
 version = "0.1.0"
 dependencies = [
@@ -339,11 +339,13 @@ dependencies = [
  "bolt_ts_arena",
  "bolt_ts_ast",
  "bolt_ts_atom",
+ "bolt_ts_checker",
  "bolt_ts_config",
  "bolt_ts_ecma_logical",
  "bolt_ts_span",
  "bolt_ts_utils",
  "enumflags2",
+ "nohash-hasher",
  "paste",
  "rustc-hash",
 ]

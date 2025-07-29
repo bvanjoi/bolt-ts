@@ -20,6 +20,7 @@ use bolt_ts_config::NormalizedTsConfig;
 use bolt_ts_early_resolve::early_resolve_parallel;
 use bolt_ts_fs::{CachedFileSystem, read_file_with_encoding};
 use bolt_ts_middle::Diag;
+use bolt_ts_optimize::optimize_and_emit;
 use bolt_ts_parser::{ParseResultForGraph, Parser};
 use bolt_ts_span::{ModuleArena, ModuleID};
 use bolt_ts_utils::path::NormalizePath;
@@ -171,7 +172,7 @@ pub fn eval_from_with_fs(
     let mut p = bolt_ts_parser::Parser::new();
     let atoms = Arc::new(Mutex::new(atoms));
     let herd = bolt_ts_arena::bumpalo_herd::Herd::new();
-    let mut mg = bolt_ts_graph::build_graph(
+    let mut mg = bolt_ts_module_graph::build_graph(
         &mut module_arena,
         &entries,
         atoms.clone(),
@@ -282,7 +283,7 @@ pub fn eval_from_with_fs(
         &ty_arena,
         &p,
         &mg,
-        &mut atoms,
+        atoms,
         tsconfig.compiler_options(),
         flow_nodes,
         flow_in_nodes,
@@ -313,23 +314,9 @@ pub fn eval_from_with_fs(
         .collect::<Vec<_>>();
     let diags = diag::get_merged_diags(diags, &p, &module_arena);
 
-    let types_len = checker.tys.len();
-    drop(checker);
+    let types_len = checker.ty_len();
 
-    // ==== codegen ====
-    let output = entries
-        .into_par_iter()
-        .filter_map(|item| {
-            let is_default_lib = module_arena.get_module(item).is_default_lib();
-            if is_default_lib {
-                // default lib should not be emitted
-                None
-            } else {
-                let root = p.root(item);
-                Some((item, bolt_ts_optimize::optimize_and_emit(&atoms, root)))
-            }
-        })
-        .collect::<Vec<_>>();
+    let output = optimize_and_emit(entries, checker);
 
     debug_assert!({
         // each module should be created at most once

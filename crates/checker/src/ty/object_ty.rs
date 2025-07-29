@@ -297,7 +297,7 @@ impl<'cx> ObjectTyKind<'cx> {
                         "{{ [{key_name}: {key_ty}]: {val_ty} }}",
                         key_ty = index_info.key_ty.to_string(checker),
                         val_ty = index_info.val_ty.to_string(checker),
-                        key_name = pprint_binding(key_name, checker.atoms),
+                        key_name = pprint_binding(key_name, &checker.atoms),
                     )
                 } else {
                     let members = checker

@@ -20,9 +20,7 @@ impl PartialEq for F64Represent {
         let ret = self.inner == other.inner;
         debug_assert!(
             !ret || self.kind == other.kind,
-            "F64Represent should be equal if inner is equal, but got {:?} and {:?}",
-            self,
-            other
+            "F64Represent should be equal if inner is equal, but got {self:?} and {other:?}"
         );
         ret
     }
@@ -53,9 +51,9 @@ impl F64Represent {
             } else {
                 F64RepresentKind::Float64
             }
-        } else if val <= F16_MAX && val >= F16_MIN {
+        } else if (F16_MIN..=F16_MAX).contains(&val) {
             F64RepresentKind::Float16
-        } else if val <= core::f32::MAX as f64 && val >= core::f32::MIN as f64 {
+        } else if val <= f32::MAX as f64 && val >= f32::MIN as f64 {
             F64RepresentKind::Float32
         } else {
             F64RepresentKind::Float64

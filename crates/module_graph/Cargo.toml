@@ -1,5 +1,5 @@
 [package]
-name = "bolt_ts_graph"
+name = "bolt_ts_module_graph"
 version = "0.1.0"
 edition = "2024"
 

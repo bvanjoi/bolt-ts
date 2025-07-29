@@ -16,7 +16,7 @@ bolt_ts_utils::index! {
     ScopeID
 }
 
-pub fn emit<'cx>(atoms: &AtomMap, ir: &LoweringResult) -> String {
+pub fn emit<'cx>(atoms: &'cx AtomMap, ir: &LoweringResult) -> String {
     let mut emitter = Emitter {
         atoms,
         options: EmitterOptions { indent: 2 },

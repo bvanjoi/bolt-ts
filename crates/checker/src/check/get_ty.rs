@@ -729,7 +729,7 @@ impl<'cx> TyChecker<'cx> {
         match ty.kind {
             ty::TyKind::UniqueESSymbol(lit) => Some(lit.escape_name),
             ty::TyKind::StringLit(lit) => Some(SymbolName::Atom(lit.val)),
-            ty::TyKind::NumberLit(lit) => Some(SymbolName::EleNum(lit.val.into())),
+            ty::TyKind::NumberLit(lit) => Some(SymbolName::EleNum(lit.val)),
             _ => None, // TODO: unreachable
         }
     }
@@ -840,7 +840,7 @@ impl<'cx> TyChecker<'cx> {
             {
                 let error = errors::CannotAssignTo0BecauseItIsAReadOnlyProperty {
                     span: self.p.node(access_expr).span(),
-                    prop: self.symbol(prop).name.to_string(self.atoms),
+                    prop: self.symbol(prop).name.to_string(&self.atoms),
                 };
                 self.push_error(Box::new(error));
                 return None;
@@ -1759,7 +1759,7 @@ impl<'cx> TyChecker<'cx> {
 
     pub(super) fn get_global_type(&mut self, name: SymbolName) -> &'cx Ty<'cx> {
         let Some(s) = self.global_symbols.0.get(&name).copied() else {
-            unreachable!("Global type '{}' not found", name.to_string(self.atoms));
+            unreachable!("Global type '{}' not found", name.to_string(&self.atoms));
         };
         self.get_declared_ty_of_symbol(s)
     }

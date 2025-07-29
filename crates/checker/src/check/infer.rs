@@ -815,7 +815,7 @@ impl<'cx> TyChecker<'cx> {
                          matches: &mut Vec<&'cx ty::Ty<'cx>>| {
             if s == *seg {
                 let sub = &get_source_text(
-                    this.atoms,
+                    &mut this.atoms,
                     s,
                     last_source_index,
                     source_end_text,
@@ -832,7 +832,7 @@ impl<'cx> TyChecker<'cx> {
                 parts.push(a_atom);
                 parts.extend(source_texts[*seg + 1..s].iter());
                 let b = &get_source_text(
-                    this.atoms,
+                    &mut this.atoms,
                     s,
                     last_source_index,
                     source_end_text,
@@ -855,7 +855,7 @@ impl<'cx> TyChecker<'cx> {
                 let mut p = pos;
                 loop {
                     let src_text = get_source_text(
-                        self.atoms,
+                        &mut self.atoms,
                         s,
                         last_source_index,
                         source_end_text,
@@ -877,7 +877,7 @@ impl<'cx> TyChecker<'cx> {
                 pos += delim_len;
             } else if pos
                 < get_source_text(
-                    self.atoms,
+                    &mut self.atoms,
                     seg,
                     last_source_index,
                     source_end_text,
@@ -894,7 +894,7 @@ impl<'cx> TyChecker<'cx> {
             }
         }
         let p = get_source_text(
-            self.atoms,
+            &mut self.atoms,
             last_source_index,
             last_source_index,
             source_end_text,

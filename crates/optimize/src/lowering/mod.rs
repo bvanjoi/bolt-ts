@@ -3,13 +3,15 @@ mod scope;
 use std::ops::{BitAnd, BitOr, BitXor, Shl, Shr};
 
 use bolt_ts_ast::{self as ast, keyword};
+use bolt_ts_checker::check::TyChecker;
 use bolt_ts_ecma_logical::js_double_to_int32;
 use bolt_ts_span::{ModuleID, Span};
 
 use self::scope::ScopeFlags;
-use crate::ir;
+use crate::ir::{self};
 
-struct LoweringCtx {
+struct LoweringCtx<'checker, 'cx> {
+    checker: &'checker mut TyChecker<'cx>,
     nodes: ir::Nodes,
     scope_flags: ScopeFlags,
 }
@@ -19,30 +21,44 @@ pub struct LoweringResult {
     pub nodes: ir::Nodes,
 }
 
-pub(super) fn lowering<'cx>(root: &'cx ast::Program<'cx>) -> LoweringResult {
-    let mut ctx = LoweringCtx::new();
+pub(super) fn lowering<'cx>(item: ModuleID, checker: &mut TyChecker<'cx>) -> LoweringResult {
+    let mut ctx = LoweringCtx::new(checker);
+    let root = ctx.checker.p.root(item);
     let program = ctx.lower_program(root);
     let nodes = ctx.nodes;
     LoweringResult { program, nodes }
 }
 
-impl<'cx> LoweringCtx {
-    fn new() -> Self {
+impl<'checker, 'cx> LoweringCtx<'checker, 'cx> {
+    fn new(checker: &'checker mut TyChecker<'cx>) -> Self {
         Self {
             nodes: Default::default(),
             scope_flags: ScopeFlags::default(),
+            checker,
         }
     }
 
-    fn enter_function_scope<T>(&mut self, f: impl FnOnce(&mut Self) -> T) -> T {
-        if !self.scope_flags.contains(ScopeFlags::FUNCTION) {
-            self.scope_flags.insert(ScopeFlags::FUNCTION);
-            let ret = f(self);
-            self.scope_flags.remove(ScopeFlags::FUNCTION);
-            ret
+    fn do_inside_of_scope_flags<T>(
+        &mut self,
+        flags: ScopeFlags,
+        f: impl FnOnce(&mut Self) -> T,
+    ) -> T {
+        let inserted = self.scope_flags.complement().intersection(flags);
+        if !inserted.is_empty() {
+            debug_assert!(!self.scope_flags.contains(inserted));
+            self.scope_flags.insert(inserted);
+            let res = f(self);
+            debug_assert!(self.scope_flags.contains(inserted));
+            self.scope_flags.remove(inserted);
+            res
         } else {
             f(self)
         }
+    }
+
+    #[inline(always)]
+    fn enter_function_scope<T>(&mut self, f: impl FnOnce(&mut Self) -> T) -> T {
+        self.do_inside_of_scope_flags(ScopeFlags::FUNCTION, f)
     }
 
     fn lower_program(&mut self, root: &'cx ast::Program<'cx>) -> ir::Program {
@@ -570,7 +586,12 @@ impl<'cx> LoweringCtx {
     }
 
     fn lower_ident(&mut self, ident: &'cx ast::Ident) -> ir::IdentID {
-        self.nodes.alloc_ident(ident.span, ident.name)
+        let ty = self
+            .checker
+            .get_node_links(ident.id)
+            .get_resolved_ty()
+            .unwrap_or(self.checker.error_ty);
+        self.nodes.alloc_ident(ty.id, ident.span, ident.name)
     }
 
     fn lower_bin_expr(&mut self, expr: &'cx ast::BinExpr<'cx>) -> ir::Expr {
@@ -578,10 +599,6 @@ impl<'cx> LoweringCtx {
         let right = self.lower_expr(expr.right);
         if let Some(lit) = shortcut_literal_binary_expression(self, left, right, expr.op) {
             ir::Expr::NumLit(lit)
-        } else if let Some(expr) =
-            get_representation_for_binary_expression(self, left, right, expr.op)
-        {
-            expr
         } else {
             ir::Expr::Bin(self.nodes.alloc_bin_expr(expr.span, left, expr.op, right))
         }
@@ -896,7 +913,7 @@ impl<'cx> LoweringCtx {
         }
     }
 
-    fn lower_template_expr(&mut self, n: &ast::TemplateExpr) -> ir::TemplateExprID {
+    fn lower_template_expr(&mut self, n: &'cx ast::TemplateExpr) -> ir::TemplateExprID {
         let head = self.nodes.alloc_template_head(n.head.span, n.head.text);
         let spans = n
             .spans
@@ -972,12 +989,21 @@ fn shortcut_literal_binary_expression(
     None
 }
 
-fn get_representation_for_binary_expression(
-    ctx: &mut LoweringCtx,
-    x: ir::Expr,
-    y: ir::Expr,
-    op: ast::BinOp,
-) -> Option<ir::Expr> {
-    if let ir::Expr::Ident(x) = x {}
-    None
-}
+// fn get_representation_for_binary_expression(
+//     ctx: &mut LoweringCtx,
+//     x: ir::Expr,
+//     y: ir::Expr,
+//     op: ast::BinOp,
+// ) -> Option<ir::Expr> {
+//     if !ctx.scope_flags.contains(ScopeFlags::FUNCTION) {
+//         return None;
+//     }
+//     if let ir::Expr::Ident(x) = x
+//         && let x = ctx.nodes.get_ident(&x)
+//         && let Some(ty::NumberLitTy { val, .. }) = ctx.checker.ty(i.ty()).kind.as_number_lit()
+//         && let ir::Expr::NumLit(y) = y
+//     {
+//         let y = ctx.nodes.get_num_lit(&y);
+//     }
+//     None
+// }

@@ -121,14 +121,14 @@ pub fn build_graph<'cx>(
         {
             for lib_reference in &parse_result.lib_references {
                 debug_assert!(lib_reference.is_normalized());
-                let id = PathId::new(&lib_reference, atoms);
+                let id = PathId::new(lib_reference, atoms);
                 match resolved.get(&id) {
                     Some(_) => {}
                     None => {
                         if next.contains_key(&id) {
                             continue;
                         }
-                        let content = fs.read_file(&lib_reference, atoms).unwrap();
+                        let content = fs.read_file(lib_reference, atoms).unwrap();
                         let to = module_arena.new_module_with_content(
                             lib_reference.to_path_buf(),
                             true,

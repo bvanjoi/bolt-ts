@@ -39,13 +39,12 @@ fn binder_symbol<'a>(this: &'a TyChecker<'_>, symbol: SymbolID) -> &'a bolt_ts_b
 pub trait SymbolInfo<'cx>: Sized {
     fn arena(&self) -> &'cx bolt_ts_arena::bumpalo::Bump;
     fn empty_symbols(&self) -> &'cx SymbolTable;
-    fn mg(&self) -> &bolt_ts_graph::ModuleGraph;
+    fn mg(&self) -> &bolt_ts_module_graph::ModuleGraph;
     fn p(&self) -> &bolt_ts_parser::Parser<'cx>;
     fn atoms(&self) -> &bolt_ts_atom::AtomMap;
     fn module_arena(&self) -> &bolt_ts_span::ModuleArena;
     fn push_error(&mut self, error: bolt_ts_middle::Diag);
 
-    fn get_symbol_links_map(&mut self) -> &FxHashMap<SymbolID, SymbolLinks<'cx>>;
     fn get_mut_symbol_links_map(&mut self) -> &mut FxHashMap<SymbolID, SymbolLinks<'cx>>;
     fn get_transient_symbol_links_map(&self) -> &Vec<SymbolLinks<'cx>>;
     fn get_mut_transient_symbol_links_map(&mut self) -> &mut Vec<SymbolLinks<'cx>>;
@@ -1208,20 +1207,17 @@ impl<'cx> SymbolInfo<'cx> for super::TyChecker<'cx> {
     fn module_arena(&self) -> &bolt_ts_span::ModuleArena {
         self.module_arena
     }
-    fn mg(&self) -> &bolt_ts_graph::ModuleGraph {
+    fn mg(&self) -> &bolt_ts_module_graph::ModuleGraph {
         self.mg
     }
     fn p(&self) -> &bolt_ts_parser::Parser<'cx> {
         self.p
     }
     fn atoms(&self) -> &bolt_ts_atom::AtomMap {
-        self.atoms
+        &self.atoms
     }
     fn push_error(&mut self, error: bolt_ts_middle::Diag) {
         self.diags.push(bolt_ts_errors::Diag { inner: error })
-    }
-    fn get_symbol_links_map(&mut self) -> &FxHashMap<SymbolID, SymbolLinks<'cx>> {
-        &self.symbol_links
     }
     fn get_mut_symbol_links_map(&mut self) -> &mut FxHashMap<SymbolID, SymbolLinks<'cx>> {
         &mut self.symbol_links
