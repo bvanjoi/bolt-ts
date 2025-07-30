@@ -5,4 +5,4 @@ var foo = [{
 }, {
   name: 'baz'  
 }];
-foo.filter((x) => x.name);
+foo.filter((x) => (x.name));

@@ -1,19 +1,19 @@
-var a = () => ({
-  name: 'foo',
-  message: 'bar'  
-});
-var b = () => (({
+var a = () => (({
   name: 'foo',
   message: 'bar'  
 }));
-var c = () => ({
-  name: 'foo',
-  message: 'bar'  
-});
-var d = () => ((({
+var b = () => ((({
   name: 'foo',
   message: 'bar'  
 })));
+var c = () => (({
+  name: 'foo',
+  message: 'bar'  
+}));
+var d = () => (((({
+  name: 'foo',
+  message: 'bar'  
+}))));
 ({
   name: 'foo',
   message: 'bar'  

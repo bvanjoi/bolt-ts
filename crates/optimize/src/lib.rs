@@ -20,8 +20,8 @@ pub fn optimize_and_emit<'cx>(
             if is_default_lib {
                 None
             } else {
-                let mut ir = lowering(item, &mut checker);
-                pipeline::reducer::ReduceGraph::new(&mut ir.nodes);
+                let ir = lowering(item, &mut checker);
+                // pipeline::reducer::ReduceGraph::new(&mut ir.nodes);
                 let output = emit::emit(&checker.atoms, &ir);
                 Some((item, output))
             }

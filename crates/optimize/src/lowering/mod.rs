@@ -1,5 +1,3 @@
-mod scope;
-
 use std::ops::{BitAnd, BitOr, BitXor, Shl, Shr};
 
 use bolt_ts_ast::{self as ast, keyword};
@@ -7,62 +5,66 @@ use bolt_ts_checker::check::TyChecker;
 use bolt_ts_ecma_logical::js_double_to_int32;
 use bolt_ts_span::{ModuleID, Span};
 
-use self::scope::ScopeFlags;
 use crate::ir::{self};
 
 struct LoweringCtx<'checker, 'cx> {
     checker: &'checker mut TyChecker<'cx>,
     nodes: ir::Nodes,
-    scope_flags: ScopeFlags,
+    graph_arena: ir::GraphArena,
+    current_graph: ir::GraphID,
 }
 
 pub struct LoweringResult {
-    pub program: ir::Program,
+    pub entry_graph: ir::GraphID,
+
     pub nodes: ir::Nodes,
+    pub graph_arena: ir::GraphArena,
 }
 
 pub(super) fn lowering<'cx>(item: ModuleID, checker: &mut TyChecker<'cx>) -> LoweringResult {
     let mut ctx = LoweringCtx::new(checker);
+    let entry_graph = ctx.current_graph;
     let root = ctx.checker.p.root(item);
-    let program = ctx.lower_program(root);
-    let nodes = ctx.nodes;
-    LoweringResult { program, nodes }
+    ctx.lower_program(root);
+    LoweringResult {
+        entry_graph,
+
+        graph_arena: ctx.graph_arena,
+        nodes: ctx.nodes,
+    }
 }
 
 impl<'checker, 'cx> LoweringCtx<'checker, 'cx> {
     fn new(checker: &'checker mut TyChecker<'cx>) -> Self {
+        let mut graph_arena = ir::GraphArena::default();
+        let current_graph = graph_arena.alloc_empty_graph();
         Self {
-            nodes: Default::default(),
-            scope_flags: ScopeFlags::default(),
             checker,
+            graph_arena,
+            current_graph,
+            nodes: ir::Nodes::default(),
         }
     }
 
-    fn do_inside_of_scope_flags<T>(
-        &mut self,
-        flags: ScopeFlags,
-        f: impl FnOnce(&mut Self) -> T,
-    ) -> T {
-        let inserted = self.scope_flags.complement().intersection(flags);
-        if !inserted.is_empty() {
-            debug_assert!(!self.scope_flags.contains(inserted));
-            self.scope_flags.insert(inserted);
-            let res = f(self);
-            debug_assert!(self.scope_flags.contains(inserted));
-            self.scope_flags.remove(inserted);
-            res
-        } else {
-            f(self)
-        }
+    fn alloc_basic_block(&mut self, stmts: Vec<ir::Stmt>) -> ir::BasicBlockID {
+        self.graph_arena
+            .get_mut(self.current_graph)
+            .alloc_basic_block(stmts)
     }
 
-    #[inline(always)]
-    fn enter_function_scope<T>(&mut self, f: impl FnOnce(&mut Self) -> T) -> T {
-        self.do_inside_of_scope_flags(ScopeFlags::FUNCTION, f)
+    fn feed_entry(&mut self, entry: ir::BasicBlockID) {
+        self.graph_arena
+            .get_mut(self.current_graph)
+            .feed_entry(entry);
     }
 
-    fn lower_program(&mut self, root: &'cx ast::Program<'cx>) -> ir::Program {
-        ir::Program::new(root.span, self.lower_stmts(root.stmts))
+    fn lower_program(&mut self, root: &'cx ast::Program<'cx>) {
+        let stmts = self.lower_stmts(root.stmts);
+        let entry = self
+            .graph_arena
+            .get_mut(self.current_graph)
+            .alloc_basic_block(stmts);
+        self.feed_entry(entry);
     }
 
     fn lower_stmts(&mut self, stmts: ast::Stmts<'cx>) -> Vec<ir::Stmt> {
@@ -85,7 +87,7 @@ impl<'checker, 'cx> LoweringCtx<'checker, 'cx> {
             StmtKind::Continue(n) => Some(Stmt::Continue(self.lower_continue_stmt(n))),
             StmtKind::Ret(n) => Some(Stmt::Ret(self.lower_ret_stmt(n))),
             StmtKind::Block(n) => Some(Stmt::Block(self.lower_block_stmt(n))),
-            StmtKind::Fn(n) => self.lower_fn_stmt(n).map(Stmt::Fn),
+            StmtKind::Fn(n) => self.lower_fn_decl(n).map(Stmt::Fn),
             StmtKind::Class(n) => Some(Stmt::Class(self.lower_class_decl(n))),
             StmtKind::Expr(n) => Some(Stmt::Expr({
                 let expr = self.lower_expr(n.expr);
@@ -366,15 +368,23 @@ impl<'checker, 'cx> LoweringCtx<'checker, 'cx> {
         Some(self.nodes.alloc_class_ctor(n.span, params, body))
     }
 
-    fn lower_fn_stmt(&mut self, n: &'cx ast::FnDecl<'cx>) -> Option<ir::FnDeclID> {
+    fn lower_fn_decl(&mut self, n: &'cx ast::FnDecl<'cx>) -> Option<ir::FnDeclID> {
         let body = n.body?;
         let modifiers = n.modifiers.as_ref().map(|ms| self.lower_modifiers(ms));
         let name = self.lower_ident(n.name);
         let params = self.lower_param_decls(n.params);
-        let f = self.enter_function_scope(|l| {
-            let body = l.lower_block_stmt(body);
-            l.nodes.alloc_fn_decl(n.span, modifiers, name, params, body)
-        });
+
+        let graph = self.graph_arena.alloc_empty_graph();
+        let saved_graph = self.current_graph;
+        self.current_graph = graph;
+        let stmts = self.lower_stmts(body.stmts);
+        let bb = self.alloc_basic_block(stmts);
+        self.feed_entry(bb);
+        self.current_graph = saved_graph;
+
+        let f = self
+            .nodes
+            .alloc_fn_decl(n.span, modifiers, name, params, graph);
         Some(f)
     }
 
@@ -688,8 +698,16 @@ impl<'checker, 'cx> LoweringCtx<'checker, 'cx> {
             ExprKind::Fn(n) => {
                 let name = n.name.map(|name| self.lower_ident(name));
                 let params = self.lower_param_decls(n.params);
-                let body = self.lower_block_stmt(n.body);
-                ir::Expr::Fn(self.nodes.alloc_fn_expr(n.span, name, params, body))
+
+                let graph = self.graph_arena.alloc_empty_graph();
+                let saved_graph = self.current_graph;
+                self.current_graph = graph;
+                let stmts = self.lower_stmts(n.body.stmts);
+                let bb = self.alloc_basic_block(stmts);
+                self.feed_entry(bb);
+                self.current_graph = saved_graph;
+
+                ir::Expr::Fn(self.nodes.alloc_fn_expr(n.span, name, params, graph))
             }
             ExprKind::Class(n) => {
                 let name = n.name.map(|name| self.lower_ident(name));
@@ -713,13 +731,27 @@ impl<'checker, 'cx> LoweringCtx<'checker, 'cx> {
             }
             ExprKind::ArrowFn(n) => {
                 let params = self.lower_param_decls(n.params);
-                let body = match n.body {
+
+                let graph = self.graph_arena.alloc_empty_graph();
+                let saved_graph = self.current_graph;
+                self.current_graph = graph;
+                let bb = match n.body {
                     ast::ArrowFnExprBody::Block(n) => {
-                        ir::ArrowFnExprBody::Block(self.lower_block_stmt(n))
+                        let stmts = self.lower_stmts(n.stmts);
+                        self.alloc_basic_block(stmts)
                     }
-                    ast::ArrowFnExprBody::Expr(n) => ir::ArrowFnExprBody::Expr(self.lower_expr(n)),
+                    ast::ArrowFnExprBody::Expr(n) => {
+                        let expr = self.lower_expr(n);
+                        let ret_expr = self.nodes.alloc_ret_stmt(n.span(), Some(expr));
+                        let stmts = vec![ir::Stmt::Ret(ret_expr)];
+                        self.alloc_basic_block(stmts)
+                    }
                 };
-                ir::Expr::ArrowFn(self.nodes.alloc_arrow_fn_expr(n.span, params, body))
+                self.feed_entry(bb);
+                self.current_graph = saved_graph;
+
+                let f = self.nodes.alloc_arrow_fn_expr(n.span, params, graph);
+                ir::Expr::ArrowFn(f)
             }
             ExprKind::PrefixUnary(n) => self.lower_prefix_unary_expr(n),
             ExprKind::PostfixUnary(n) => {
@@ -782,7 +814,8 @@ impl<'checker, 'cx> LoweringCtx<'checker, 'cx> {
                 ast::PrefixUnaryOp::Plus => return expr,
                 ast::PrefixUnaryOp::Minus => {
                     let lit = self.nodes.get_num_lit(&lit);
-                    return ir::Expr::NumLit(self.nodes.alloc_num_lit(n.span, -lit.val()));
+                    let val = -lit.val();
+                    return ir::Expr::NumLit(self.nodes.alloc_num_lit(n.span, val));
                 }
                 ast::PrefixUnaryOp::Tilde => {
                     let lit = self.nodes.get_num_lit(&lit);
@@ -941,46 +974,74 @@ fn shortcut_literal_binary_expression(
         let y = ctx.nodes.get_num_lit(&y);
         let span = || Span::new(x.span().lo(), y.span().hi(), ModuleID::TRANSIENT);
         match op.kind {
-            ast::BinOpKind::Add => return Some(ctx.nodes.alloc_num_lit(span(), x.val() + y.val())),
-            ast::BinOpKind::Sub => return Some(ctx.nodes.alloc_num_lit(span(), x.val() - y.val())),
-            ast::BinOpKind::Mul => return Some(ctx.nodes.alloc_num_lit(span(), x.val() * y.val())),
-            ast::BinOpKind::Div => return Some(ctx.nodes.alloc_num_lit(span(), x.val() / y.val())),
-            ast::BinOpKind::Mod => return Some(ctx.nodes.alloc_num_lit(span(), x.val() % y.val())),
+            ast::BinOpKind::Add => {
+                let val = x.val() + y.val();
+                let span = span();
+                return Some(ctx.nodes.alloc_num_lit(span, val));
+            }
+            ast::BinOpKind::Sub => {
+                let val = x.val() - y.val();
+                let span = span();
+                return Some(ctx.nodes.alloc_num_lit(span, val));
+            }
+            ast::BinOpKind::Mul => {
+                let val = x.val() * y.val();
+                let span = span();
+                return Some(ctx.nodes.alloc_num_lit(span, val));
+            }
+            ast::BinOpKind::Div => {
+                let val = x.val() / y.val();
+                let span = span();
+                return Some(ctx.nodes.alloc_num_lit(span, val));
+            }
+            ast::BinOpKind::Mod => {
+                let val = x.val() % y.val();
+                let span = span();
+                return Some(ctx.nodes.alloc_num_lit(span, val));
+            }
             ast::BinOpKind::BitOr => {
                 let l = js_double_to_int32(x.val());
                 let r = js_double_to_int32(y.val());
-                return Some(ctx.nodes.alloc_num_lit(span(), l.bitor(r) as f64));
+                let span = span();
+                return Some(ctx.nodes.alloc_num_lit(span, l.bitor(r) as f64));
             }
             ast::BinOpKind::BitAnd => {
                 let l = js_double_to_int32(x.val());
                 let r = js_double_to_int32(y.val());
-                return Some(ctx.nodes.alloc_num_lit(span(), l.bitand(r) as f64));
+                let span = span();
+                return Some(ctx.nodes.alloc_num_lit(span, l.bitand(r) as f64));
             }
             ast::BinOpKind::BitXor => {
                 let l = js_double_to_int32(x.val());
                 let r = js_double_to_int32(y.val());
-                return Some(ctx.nodes.alloc_num_lit(span(), l.bitxor(r) as f64));
+                let span = span();
+                return Some(ctx.nodes.alloc_num_lit(span, l.bitxor(r) as f64));
             }
             ast::BinOpKind::Shl => {
                 let l = js_double_to_int32(x.val());
                 let r = js_double_to_int32(y.val());
-                return Some(ctx.nodes.alloc_num_lit(span(), l.shl(r) as f64));
+                let span = span();
+                return Some(ctx.nodes.alloc_num_lit(span, l.shl(r) as f64));
             }
             ast::BinOpKind::Shr => {
                 let l = js_double_to_int32(x.val());
                 let r = js_double_to_int32(y.val());
-                return Some(ctx.nodes.alloc_num_lit(span(), l.shr(r) as f64));
+                let span = span();
+                return Some(ctx.nodes.alloc_num_lit(span, l.shr(r) as f64));
             }
             ast::BinOpKind::UShr => {
                 let l = js_double_to_int32(x.val());
                 let r = js_double_to_int32(y.val());
+                let span = span();
                 return Some(
                     ctx.nodes
-                        .alloc_num_lit(span(), l.wrapping_shr(r as u32) as f64),
+                        .alloc_num_lit(span, l.wrapping_shr(r as u32) as f64),
                 );
             }
             ast::BinOpKind::Exp => {
-                return Some(ctx.nodes.alloc_num_lit(span(), x.val().powf(y.val())));
+                let val = x.val().powf(y.val());
+                let span = span();
+                return Some(ctx.nodes.alloc_num_lit(span, val));
             }
             _ => (),
         }

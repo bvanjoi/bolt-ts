@@ -15,7 +15,7 @@ class A {
     function inner() {
       this;
     }
-    () => this;
+    () => (this);
   }
   prop3 = () => {
     function inner() {
@@ -27,29 +27,21 @@ class A {
       return this
     }    
   }
-  prop5 = () => {
-    return {
-          a: function () {
-        return this
-      }      
-    }
-  }
+  prop5 = () => ({
+      a: function () {
+      return this
+    }    
+  })
 }
 class B {
   prop1 = this
-  prop2 = () => this
-  prop3 = () => () => () => () => this
-  prop4 = '  ' + function () {} + ' ' + (() => () => () => this)
+  prop2 = () => (this)
+  prop3 = () => (() => (() => (() => (this))))
+  prop4 = '  ' + function () {} + ' ' + (() => (() => (() => (this))))
   prop5 = {
-      a: () => {
-      return this
-    }    
+      a: () => (this)    
   }
-  prop6 = () => {
-    return {
-          a: () => {
-        return this
-      }      
-    }
-  }
+  prop6 = () => ({
+      a: () => (this)    
+  })
 }

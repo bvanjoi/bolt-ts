@@ -1,2 +1,2 @@
 var nodes;
-nodes.map((n) => n.name);
+nodes.map((n) => (n.name));
