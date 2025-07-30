@@ -1,5 +1,7 @@
 class Foo {
-  defaults = {done: false}
+  defaults = {
+      done: false    
+  }
   bar() {
     return 3
   }

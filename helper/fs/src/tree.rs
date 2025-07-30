@@ -16,7 +16,7 @@ pub(super) struct FSTree {
     path_to_node: nohash_hasher::IntMap<PathId, FSNodeId>,
 }
 
-impl<'atoms> FSTree {
+impl FSTree {
     pub const ROOT: FSNodeId = FSNodeId(0);
     pub(super) fn new(atoms: &mut AtomMap) -> Self {
         const CAP: usize = 1024;

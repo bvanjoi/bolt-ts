@@ -6,7 +6,7 @@ class CalcButton {
 }
 class CalcButton2 {
   b() {
-    () => this.onClick();
+    () => (this.onClick());
   }
   onClick() {}
 }

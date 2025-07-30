@@ -1,1 +1,1 @@
-[true, true, false, null].filter((thing) => thing !== null).map((thing) => thing.toString());
+[true, true, false, null].filter((thing) => (thing !== null)).map((thing) => (thing.toString()));

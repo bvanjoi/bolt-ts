@@ -3,5 +3,5 @@ class Base {
     this.b = b}
 }
 class Super extends Base {
-  constructor() {super((() => this)());}
+  constructor() {super((() => (this))());}
 }

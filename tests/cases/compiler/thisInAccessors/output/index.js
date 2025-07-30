@@ -1,6 +1,6 @@
 class GetterOnly {
   get Value() {
-    var fn = () => this;
+    var fn = () => (this);
     return ''
   }
   set Value(val) {}
@@ -10,15 +10,15 @@ class SetterOnly {
     return ''
   }
   set Value(val) {
-    var fn = () => this;
+    var fn = () => (this);
   }
 }
 class GetterAndSetter {
   get Value() {
-    var fn = () => this;
+    var fn = () => (this);
     return ''
   }
   set Value(val) {
-    var fn = () => this;
+    var fn = () => (this);
   }
 }

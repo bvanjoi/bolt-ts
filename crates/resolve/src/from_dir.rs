@@ -15,7 +15,7 @@ struct Loader {
     package_json: Option<PackageJsonInfoId>,
 }
 
-impl<FS: bolt_ts_fs::CachedFileSystem> ResolutionKindSpecLoader<'_, FS> for Loader {
+impl<FS: bolt_ts_fs::CachedFileSystem> ResolutionKindSpecLoader<FS> for Loader {
     fn loader(
         &self,
         resolver: &super::Resolver<FS>,

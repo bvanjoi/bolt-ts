@@ -1,1 +1,1 @@
-var fn = () => null;
+var fn = () => (null);

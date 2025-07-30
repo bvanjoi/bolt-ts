@@ -675,7 +675,7 @@ impl<'cx> ParserState<'cx, '_> {
         Ok(member)
     }
 
-    fn parse_object_lit_ele(&mut self) -> PResult<&'cx ast::ObjectMember<'cx>> {
+    fn parse_object_lit_member(&mut self) -> PResult<&'cx ast::ObjectMember<'cx>> {
         let start = self.token.start();
 
         if self.parse_optional(TokenKind::DotDotDot).is_some() {
@@ -703,7 +703,7 @@ impl<'cx> ParserState<'cx, '_> {
 
         let asterisk_token = self.parse_optional(TokenKind::Asterisk);
 
-        let name = self.parse_prop_name(false)?;
+        let name = self.parse_prop_name(true)?;
         if let Some(question_token) = self.parse_optional(TokenKind::Question) {
             let error = errors::AnObjectMemberCannotBeDeclaredOptional {
                 span: question_token.span,
@@ -1083,7 +1083,7 @@ impl<'cx> ParserState<'cx, '_> {
         let open_brace_parsed = self.expect(LBrace);
         let props = self.parse_delimited_list::<true, _>(
             parsing_ctx::ParsingContext::OBJECT_LITERAL_MEMBERS,
-            Self::parse_object_lit_ele,
+            Self::parse_object_lit_member,
         );
         let close = RBrace;
         self.parse_expected_matching_brackets(open, close, open_brace_parsed, start as usize)?;

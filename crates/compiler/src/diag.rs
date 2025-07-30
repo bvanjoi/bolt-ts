@@ -9,8 +9,6 @@ use bolt_ts_utils::no_hashset_with_capacity;
 
 use bolt_ts_parser::CommentDirective;
 
-pub(super) type Diag = Box<dyn bolt_ts_errors::diag_ext::DiagnosticExt + Send + Sync + 'static>;
-
 pub(super) fn get_merged_diags(
     diags: Vec<bolt_ts_errors::Diag>,
     p: &super::Parser,

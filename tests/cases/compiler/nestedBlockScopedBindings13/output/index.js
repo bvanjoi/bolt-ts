@@ -1,6 +1,6 @@
 for ( ; false; ) {
   var x;
-  () => x;
+  () => (x);
 }
 for ( ; false; ) {
   var y;

@@ -1,0 +1,8 @@
+[package]
+name = "bolt_ts_middle"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+bolt_ts_errors = { path = "../../helper/errors" }
+nohash-hasher = { workspace = true }

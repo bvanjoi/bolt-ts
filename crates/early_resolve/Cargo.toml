@@ -1,0 +1,16 @@
+[package]
+name = "bolt_ts_early_resolve"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+bolt_ts_ast = { path = "../ast" }
+bolt_ts_atom = { path = "../../helper/atom" }
+bolt_ts_binder = { path = "../binder" }
+bolt_ts_middle = { path = "../middle" }
+bolt_ts_errors = { path = "../../helper/errors" }
+bolt_ts_span = { path = "../../helper/span" }
+bolt_ts_parser = { path = "../parser" }
+bolt_ts_utils = { path = "../../helper/utils" }
+rayon = { workspace = true }
+rustc-hash = { workspace = true }

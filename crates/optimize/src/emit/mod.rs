@@ -6,7 +6,11 @@ use bolt_ts_ast as ast;
 use bolt_ts_atom::{AtomId, AtomMap};
 use rustc_hash::FxHashSet;
 
-use crate::{emit::print::PPrint, ir, lowering::LoweringResult};
+use crate::{
+    emit::print::PPrint,
+    ir::{self, GraphID},
+    lowering::LoweringResult,
+};
 
 pub struct EmitterOptions {
     indent: u32,
@@ -16,7 +20,7 @@ bolt_ts_utils::index! {
     ScopeID
 }
 
-pub fn emit<'cx>(atoms: &AtomMap, ir: &LoweringResult) -> String {
+pub fn emit<'cx>(atoms: &'cx AtomMap, ir: &LoweringResult) -> String {
     let mut emitter = Emitter {
         atoms,
         options: EmitterOptions { indent: 2 },
@@ -24,9 +28,10 @@ pub fn emit<'cx>(atoms: &AtomMap, ir: &LoweringResult) -> String {
         scope: ScopeID::root(),
         max_scope: ScopeID::root(),
         content: PPrint::new(1024),
+        graph_arena: &ir.graph_arena,
         nodes: &ir.nodes,
     };
-    emitter.emit_root(&ir.program)
+    emitter.emit_root(ir.entry_graph)
 }
 
 struct Emitter<'cx, 'ir> {
@@ -37,6 +42,7 @@ struct Emitter<'cx, 'ir> {
     max_scope: ScopeID,
     content: PPrint,
     nodes: &'ir ir::Nodes,
+    graph_arena: &'ir ir::GraphArena,
 }
 
 impl<'ir> Emitter<'_, 'ir> {
@@ -46,9 +52,33 @@ impl<'ir> Emitter<'_, 'ir> {
         scope
     }
 
-    fn emit_root(&mut self, root: &ir::Program) -> String {
-        self.emit_program(root);
+    fn emit_root(&mut self, entry: GraphID) -> String {
+        self.emit_program(entry);
         std::mem::take(&mut self.content.content)
+    }
+
+    fn graph(&self, id: GraphID) -> &'ir ir::Graph {
+        self.graph_arena.get(id)
+    }
+
+    fn emit_basic_block(&mut self, graph: GraphID, id: ir::BasicBlockID) {
+        let block = self.graph(graph).get_basic_block(id);
+        self.emit_stmts(block.stmts());
+    }
+
+    fn emit_basic_block_with_brace(&mut self, graph: GraphID, id: ir::BasicBlockID) {
+        self.content.p_l_brace();
+        let block = self.graph(graph).get_basic_block(id);
+        if !block.stmts().is_empty() {
+            self.content.indent += self.options.indent;
+            self.content.p_newline();
+        }
+        self.emit_stmts(block.stmts());
+        if !block.stmts().is_empty() {
+            self.content.indent -= self.options.indent;
+            self.content.p_newline();
+        }
+        self.content.p_r_brace();
     }
 
     fn emit_list<T>(
@@ -65,8 +95,8 @@ impl<'ir> Emitter<'_, 'ir> {
         }
     }
 
-    fn emit_program(&mut self, root: &ir::Program) {
-        self.emit_stmts(root.stmts());
+    fn emit_program(&mut self, root: GraphID) {
+        self.emit_basic_block(root, self.graph(root).entry());
     }
 
     fn emit_stmts(&mut self, stmts: &[ir::Stmt]) {
@@ -245,7 +275,10 @@ impl<'ir> Emitter<'_, 'ir> {
         self.emit_ident(f.name());
         self.emit_params(f.params());
         self.content.p_whitespace();
-        self.emit_block_stmt(f.body());
+
+        let graph = self.graph(f.body());
+        let entry = graph.entry();
+        self.emit_basic_block_with_brace(f.body(), entry);
     }
 
     fn emit_params(&mut self, params: &[ir::ParamDeclID]) {
@@ -1212,14 +1245,27 @@ impl<'ir> Emitter<'_, 'ir> {
 
     fn emit_object_lit(&mut self, n: ir::ObjectLitID) {
         let n = self.nodes.get_object_lit(&n);
-        self.content.p_l_brace();
-        for (idx, member) in n.members().iter().enumerate() {
-            self.emit_object_member(*member);
-            if idx != n.members().len() - 1 {
-                self.content.p_comma();
-                self.content.p_newline();
-            }
+        if n.members().is_empty() {
+            self.content.p("{}");
+            return;
         }
+        self.content.p_l_brace();
+        self.content.p_newline();
+        self.content.indent += self.options.indent;
+        self.content.p_pieces_of_whitespace(self.content.indent);
+        self.emit_list(
+            n.members(),
+            |this, member| {
+                this.emit_object_member(*member);
+            },
+            |this, _| {
+                this.content.p_comma();
+                this.content.p_newline();
+            },
+        );
+        self.content.p_pieces_of_whitespace(self.content.indent);
+        self.content.indent -= self.options.indent;
+        self.content.p_newline();
         self.content.p_r_brace();
     }
 
@@ -1516,7 +1562,10 @@ impl<'ir> Emitter<'_, 'ir> {
         }
         self.emit_params(n.params());
         self.content.p_whitespace();
-        self.emit_block_stmt(n.body());
+
+        let graph = self.graph(n.body());
+        let entry = graph.entry();
+        self.emit_basic_block_with_brace(n.body(), entry);
     }
 
     fn emit_call_expr(&mut self, call: ir::CallExprID) {
@@ -1586,11 +1635,19 @@ impl<'ir> Emitter<'_, 'ir> {
         self.content.p_whitespace();
         self.content.p("=>");
         self.content.p_whitespace();
-        match n.body() {
-            ir::ArrowFnExprBody::Block(block) => self.emit_block_stmt(block),
-            ir::ArrowFnExprBody::Expr(expr) => {
-                self.emit_expr(expr);
-            }
-        };
+
+        let graph = self.graph(n.body());
+        let entry = graph.entry();
+        let block = graph.get_basic_block(entry);
+        if block.stmts().len() == 1
+            && let ir::Stmt::Ret(ret) = block.stmts()[0]
+            && let Some(expr) = self.nodes.get_ret_stmt(&ret).expr()
+        {
+            self.content.p("(");
+            self.emit_expr(expr);
+            self.content.p(")");
+        } else {
+            self.emit_basic_block_with_brace(n.body(), entry);
+        }
     }
 }

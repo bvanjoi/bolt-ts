@@ -63,11 +63,13 @@ function e14() {
   </>
 </>;
 <App >
-  {true ? <App  attr={({theme}) => ({color: theme.blue})} /> : null}
+  {true ? <App  attr={({theme}) => (({
+  color: theme.blue  
+}))} /> : null}
 </App>;
-() => <App ></App>;
+() => (<App ></App>);
 x ? <App >
-    {() => null}
+    {() => (null)}
 </App> : null;
 <App  className={x.foo}>=</App>;
 <App  className={x.foo}>=</App>;

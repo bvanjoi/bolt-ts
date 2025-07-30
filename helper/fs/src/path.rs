@@ -17,7 +17,7 @@ impl From<AtomId> for PathId {
     }
 }
 
-impl<'a> PathId {
+impl PathId {
     fn _new(id: AtomId, atoms: &mut AtomMap) -> Self {
         debug_assert!(std::path::Path::new(&atoms.get(id)).is_normalized());
         Self(id)
