@@ -190,18 +190,26 @@ impl<'cx> Node<'cx> {
             self,
             FnDecl(_)
                 | ClassMethodElem(_)
+                | ObjectMethodMember(_)
                 | ClassCtor(_)
                 | GetterDecl(_)
                 | SetterDecl(_)
                 | FnExpr(_)
                 | ArrowFnExpr(_)
-                | ObjectMethodMember(_)
         )
     }
 
     pub fn is_fn_like(&self) -> bool {
         use Node::*;
-        matches!(self, IndexSigDecl(_)) | self.is_fn_decl_like()
+        matches!(
+            self,
+            MethodSignature(_)
+                | CallSigDecl(_)
+                | CtorSigDecl(_)
+                | IndexSigDecl(_)
+                | FnTy(_)
+                | CtorTy(_)
+        ) || self.is_fn_decl_like()
     }
 
     pub fn is_fn_like_and_has_asterisk(&self) -> bool {
@@ -520,7 +528,7 @@ impl<'cx> Node<'cx> {
                 }
             };
         }
-        fn_body_with_option!(FnDecl, ClassMethodElem, ClassCtor,)
+        fn_body_with_option!(FnDecl, ClassMethodElem, ClassCtor)
     }
 
     pub fn fn_flags(&self) -> FnFlags {

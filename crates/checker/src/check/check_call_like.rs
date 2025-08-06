@@ -246,7 +246,7 @@ impl<'cx> TyChecker<'cx> {
                         }
                     })
                     .collect::<Vec<_>>();
-                assert!(!abstract_class_list.is_empty());
+                debug_assert!(!abstract_class_list.is_empty());
                 let error = errors::CannotCreateAnInstanceOfAnAbstractClass {
                     span: expr.callee().span(),
                     abstract_class_list,

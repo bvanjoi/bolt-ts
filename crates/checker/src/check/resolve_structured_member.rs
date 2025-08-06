@@ -9,8 +9,8 @@ use super::infer::InferenceFlags;
 use super::links::SigLinks;
 use super::symbol_info::SymbolInfo;
 use super::{SymbolLinks, Ternary, TyChecker, errors};
-use bolt_ts_binder::{Symbol, SymbolFlags, SymbolID, SymbolName, SymbolTable};
 use crate::ty::{self, CheckFlags, IndexFlags, ObjectFlags, SigFlags, SigID, SigKind, TypeFlags};
+use bolt_ts_binder::{Symbol, SymbolFlags, SymbolID, SymbolName, SymbolTable};
 
 #[derive(Debug, Clone, Copy)]
 pub(super) enum MemberOrExportsResolutionKind {
@@ -1003,7 +1003,7 @@ impl<'cx> TyChecker<'cx> {
         self.get_mut_ty_links(ty.id)
             .set_structured_members(placeholder);
 
-        let call_sigs;
+        let call_sigs: ty::Sigs<'cx>;
         let mut ctor_sigs: ty::Sigs<'cx>;
 
         let symbol = self.symbol(symbol_id);

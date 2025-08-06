@@ -261,7 +261,7 @@ impl<'cx> TyChecker<'cx> {
     }
 
     fn check_class_decl(&mut self, class: &'cx ast::ClassDecl<'cx>) {
-        self.check_class_decl_like(class)
+        self.check_class_like_decl(class)
     }
 
     fn check_type_alias_decl(&mut self, ty: &'cx ast::TypeAliasDecl<'cx>) {

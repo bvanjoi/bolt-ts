@@ -62,7 +62,10 @@ impl<'cx> TyChecker<'cx> {
             .iter()
             .enumerate()
             .filter_map(|(i, &decl)| {
-                if i > 0 && self.p.node(decl).fn_body().is_some() {
+                let n = self.p.node(decl);
+                if !n.is_fn_like() {
+                    None
+                } else if i > 0 && n.fn_body().is_some() {
                     None
                 } else {
                     Some(decl)

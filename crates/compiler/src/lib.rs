@@ -184,7 +184,7 @@ pub fn eval_from_with_fs(
 
     // ==== bind ====
     let atoms = Arc::try_unwrap(atoms).unwrap();
-    let mut atoms = atoms.into_inner().unwrap();
+    let atoms = atoms.into_inner().unwrap();
 
     let (bind_list, mut p) = {
         let (bind_list, p_map): (Vec<BinderResult<'_>>, Vec<ParseResultForGraph<'_>>) =

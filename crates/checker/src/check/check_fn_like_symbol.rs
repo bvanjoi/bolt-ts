@@ -29,10 +29,6 @@ impl<'cx> TyChecker<'cx> {
                 p.is_interface_decl() || p.is_object_lit_ty()
             }) || is_ambient_context;
 
-            if !is_ambient_context_or_interface {
-                last_seen_non_ambient_decl = Some(*decl);
-            }
-
             if node.is_fn_decl()
                 || node.is_method_signature()
                 || node.is_class_method_ele()
@@ -46,26 +42,29 @@ impl<'cx> TyChecker<'cx> {
                 } else {
                     has_overloads = true;
                 }
+
+                if !is_ambient_context_or_interface {
+                    last_seen_non_ambient_decl = Some(*decl);
+                }
             }
         }
 
-        if let Some(last_seen_non_ambient_decl) = last_seen_non_ambient_decl {
-            let n = self.p.node(last_seen_non_ambient_decl);
-            if n.fn_body().is_none()
-                && !n.has_syntactic_modifier(ast::ModifierKind::Abstract.into())
-            {
-                if s.flags.intersects(SymbolFlags::CONSTRUCTOR) {
-                    let node = self.p.node(decls[0]).expect_class_ctor();
-                    let lo = node.span.lo();
-                    let hi = lo + keyword::KW_CONSTRUCTOR_STR.len() as u32;
-                    let span = Span::new(lo, hi, node.span.module());
-                    let error = errors::ConstructorImplementationIsMissing { span };
-                    self.push_error(Box::new(error));
-                } else {
-                    let span = self.p.node(decls[0]).ident_name().unwrap().span;
-                    let error = errors::FunctionImplementationIsMissingOrNotImmediatelyFollowingTheDeclaration { span };
-                    self.push_error(Box::new(error));
-                }
+        if let Some(last_seen_non_ambient_decl) = last_seen_non_ambient_decl
+            && let n = self.p.node(last_seen_non_ambient_decl)
+            && n.fn_body().is_none()
+            && !n.has_syntactic_modifier(ast::ModifierKind::Abstract.into())
+        {
+            if s.flags.intersects(SymbolFlags::CONSTRUCTOR) {
+                let node = self.p.node(decls[0]).expect_class_ctor();
+                let lo = node.span.lo();
+                let hi = lo + keyword::KW_CONSTRUCTOR_STR.len() as u32;
+                let span = Span::new(lo, hi, node.span.module());
+                let error = errors::ConstructorImplementationIsMissing { span };
+                self.push_error(Box::new(error));
+            } else {
+                let span = self.p.node(decls[0]).ident_name().unwrap().span;
+                let error = errors::FunctionImplementationIsMissingOrNotImmediatelyFollowingTheDeclaration { span };
+                self.push_error(Box::new(error));
             }
         }
 

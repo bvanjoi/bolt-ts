@@ -69,7 +69,7 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
-    pub(super) fn check_class_decl_like(&mut self, class: &impl ClassLike<'cx>) {
+    pub(super) fn check_class_like_decl(&mut self, class: &impl ClassLike<'cx>) {
         let symbol = self.get_symbol_of_decl(class.id());
 
         if let Some(ty_params) = class.ty_params() {

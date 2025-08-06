@@ -1,6 +1,6 @@
 use bolt_ts_arena::la_arena;
 
-use crate::ir::{self};
+use crate::ir;
 
 #[derive(Default)]
 pub struct GraphArena(la_arena::Arena<Graph>);

@@ -75,6 +75,7 @@ impl<'cx> CheckState<'cx> {
     fn push_error(&mut self, error: crate::Diag) {
         self.diags.push(bolt_ts_errors::Diag { inner: error })
     }
+
     fn check_collisions_for_decl_name(&mut self, node: ast::NodeID, name: &'cx ast::Ident) {
         let n = self.p.node(node);
         let kind = if n.is_class_like() {
@@ -95,11 +96,13 @@ impl<'cx> CheckState<'cx> {
             }
         }
     }
+
     fn check_class_like(&mut self, class: &impl bolt_ts_ast::r#trait::ClassLike<'cx>) {
         if let Some(name) = class.name() {
             self.check_collisions_for_decl_name(class.id(), name);
         };
     }
+
     fn check_grammar_modifiers(&mut self, node: ast::NodeID) {
         let n = self.p.node(node);
         let Some(modifiers) = n.modifiers() else {

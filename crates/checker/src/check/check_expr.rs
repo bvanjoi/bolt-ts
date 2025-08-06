@@ -197,7 +197,7 @@ impl<'cx> TyChecker<'cx> {
             PrefixUnary(unary) => self.check_prefix_unary_expr(unary),
             PostfixUnary(unary) => self.check_postfix_unary_expr(unary),
             Class(class) => {
-                self.check_class_decl_like(class);
+                self.check_class_like_decl(class);
                 self.get_type_of_symbol(self.get_symbol_of_decl(class.id))
             }
             PropAccess(node) => self.check_prop_access_expr(node),

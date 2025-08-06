@@ -328,6 +328,10 @@ pub struct ObjectLitTy<'cx> {
     pub members: ObjectTyMembers<'cx>,
 }
 
+/// ```txt
+/// type A = (value: number) => string;
+///          ~~~~~~~~~~~~~~~~~~~~~~~~~
+/// ```
 #[derive(Debug, Clone, Copy)]
 pub struct FnTy<'cx> {
     pub id: NodeID,
@@ -337,6 +341,10 @@ pub struct FnTy<'cx> {
     pub ty: &'cx self::Ty<'cx>,
 }
 
+/// ```txt
+/// type A = new (value: number) => string;
+///          ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/// ```
 #[derive(Debug, Clone, Copy)]
 pub struct CtorTy<'cx> {
     pub id: NodeID,
