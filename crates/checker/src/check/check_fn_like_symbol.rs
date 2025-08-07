@@ -62,7 +62,8 @@ impl<'cx> TyChecker<'cx> {
                 let error = errors::ConstructorImplementationIsMissing { span };
                 self.push_error(Box::new(error));
             } else {
-                let span = self.p.node(decls[0]).ident_name().unwrap().span;
+                let n = self.p.node(decls[0]);
+                let span = n.name().unwrap().span();
                 let error = errors::FunctionImplementationIsMissingOrNotImmediatelyFollowingTheDeclaration { span };
                 self.push_error(Box::new(error));
             }

@@ -272,18 +272,20 @@ impl<'cx> Node<'cx> {
     }
 
     pub fn name(&self) -> Option<super::DeclarationName<'cx>> {
+        use super::DeclarationName;
         use Node::*;
 
         match self {
-            PropSignature(n) => Some(super::DeclarationName::from_prop_name(n.name)),
-            ClassPropElem(prop) => Some(super::DeclarationName::from_prop_name(prop.name)),
-            SetterDecl(n) => Some(super::DeclarationName::from_prop_name(n.name)),
-            GetterDecl(n) => Some(super::DeclarationName::from_prop_name(n.name)),
-            MethodSignature(n) => Some(super::DeclarationName::from_prop_name(n.name)),
-            ObjectPropMember(prop) => Some(super::DeclarationName::from_prop_name(prop.name)),
-            ClassMethodElem(prop) => Some(super::DeclarationName::from_prop_name(prop.name)),
-            ObjectMethodMember(prop) => Some(super::DeclarationName::from_prop_name(prop.name)),
-            ObjectShorthandMember(prop) => Some(super::DeclarationName::Ident(prop.name)),
+            PropSignature(n) => Some(DeclarationName::from_prop_name(n.name)),
+            ClassPropElem(prop) => Some(DeclarationName::from_prop_name(prop.name)),
+            SetterDecl(n) => Some(DeclarationName::from_prop_name(n.name)),
+            GetterDecl(n) => Some(DeclarationName::from_prop_name(n.name)),
+            MethodSignature(n) => Some(DeclarationName::from_prop_name(n.name)),
+            ObjectPropMember(prop) => Some(DeclarationName::from_prop_name(prop.name)),
+            ClassMethodElem(prop) => Some(DeclarationName::from_prop_name(prop.name)),
+            ObjectMethodMember(prop) => Some(DeclarationName::from_prop_name(prop.name)),
+            ObjectShorthandMember(prop) => Some(DeclarationName::Ident(prop.name)),
+            FnDecl(n) => Some(DeclarationName::Ident(n.name)),
             _ => None,
         }
     }
