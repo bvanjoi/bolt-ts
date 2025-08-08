@@ -5,7 +5,7 @@ use super::ast;
 
 impl<'cx> Parser<'cx> {
     #[inline(always)]
-    pub fn root(&self, id: ModuleID) -> &ast::Program<'cx> {
+    pub fn root(&self, id: ModuleID) -> &'cx ast::Program<'cx> {
         self.get(id).root()
     }
 

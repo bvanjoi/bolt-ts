@@ -4,7 +4,7 @@ function foo0(x) {
     (function () {
       return x + a
     });
-    (() => x + a);
+    (() => (x + a));
   }
 }
 function foo0_1(x) {
@@ -13,7 +13,7 @@ function foo0_1(x) {
     (function () {
       return x + a
     });
-    (() => x + a);
+    (() => (x + a));
   }
 }
 function foo1(x) {
@@ -22,7 +22,7 @@ function foo1(x) {
     (function () {
       return x + a
     });
-    (() => x + a);
+    (() => (x + a));
   }
 }
 function foo2(x) {
@@ -31,7 +31,7 @@ function foo2(x) {
     (function () {
       return x + a
     });
-    (() => x + a);
+    (() => (x + a));
   }
 }
 function foo3(x) {
@@ -41,7 +41,7 @@ function foo3(x) {
     (function () {
       return x + a
     });
-    (() => x + a);
+    (() => (x + a));
   } while (1 === 1)
 }
 function foo4(x) {
@@ -51,7 +51,7 @@ function foo4(x) {
     (function () {
       return x + a
     });
-    (() => x + a);
+    (() => (x + a));
   }
 }
 function foo5(x) {
@@ -60,7 +60,7 @@ function foo5(x) {
     (function () {
       return x + y + a
     });
-    (() => x + y + a);
+    (() => (x + y + a));
   }
 }
 function foo6(x) {
@@ -70,7 +70,7 @@ function foo6(x) {
     (function () {
       return x + y + a
     });
-    (() => x + y + a);
+    (() => (x + y + a));
   }
 }
 function foo7(x) {
@@ -80,7 +80,7 @@ function foo7(x) {
     (function () {
       return x + y + a
     });
-    (() => x + y + a);
+    (() => (x + y + a));
   } while (1 === 1)
 }
 function foo8(x) {
@@ -90,7 +90,7 @@ function foo8(x) {
     (function () {
       return x + y + a
     });
-    (() => x + y + a);
+    (() => (x + y + a));
   }
 }
 function foo0_c(x) {
@@ -99,7 +99,7 @@ function foo0_c(x) {
     (function () {
       return x + a
     });
-    (() => x + a);
+    (() => (x + a));
   }
 }
 function foo0_1_c(x) {
@@ -108,7 +108,7 @@ function foo0_1_c(x) {
     (function () {
       return x + a
     });
-    (() => x + a);
+    (() => (x + a));
   }
 }
 function foo1_c(x) {
@@ -117,7 +117,7 @@ function foo1_c(x) {
     (function () {
       return x + a
     });
-    (() => x + a);
+    (() => (x + a));
   }
 }
 function foo2_c(x) {
@@ -126,7 +126,7 @@ function foo2_c(x) {
     (function () {
       return x + a
     });
-    (() => x + a);
+    (() => (x + a));
   }
 }
 function foo3_c(x) {
@@ -136,7 +136,7 @@ function foo3_c(x) {
     (function () {
       return x + a
     });
-    (() => x + a);
+    (() => (x + a));
   } while (1 === 1)
 }
 function foo4_c(x) {
@@ -146,7 +146,7 @@ function foo4_c(x) {
     (function () {
       return x + a
     });
-    (() => x + a);
+    (() => (x + a));
   }
 }
 function foo5_c(x) {
@@ -155,7 +155,7 @@ function foo5_c(x) {
     (function () {
       return x + y + a
     });
-    (() => x + y + a);
+    (() => (x + y + a));
   }
 }
 function foo6_c(x) {
@@ -165,7 +165,7 @@ function foo6_c(x) {
     (function () {
       return x + y + a
     });
-    (() => x + y + a);
+    (() => (x + y + a));
   }
 }
 function foo7_c(x) {
@@ -175,7 +175,7 @@ function foo7_c(x) {
     (function () {
       return x + y + a
     });
-    (() => x + y + a);
+    (() => (x + y + a));
   } while (1 === 1)
 }
 function foo8_c(x) {
@@ -185,7 +185,7 @@ function foo8_c(x) {
     (function () {
       return x + y + a
     });
-    (() => x + y + a);
+    (() => (x + y + a));
   }
 }
 (function () {})();

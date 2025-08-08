@@ -1,0 +1,22 @@
+[package]
+name = "bolt_ts_module_graph"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+bolt_ts_ast = { path = "../ast" }
+bolt_ts_atom = { path = "../../helper/atom" }
+bolt_ts_arena = { path = "../../helper/arena" }
+bolt_ts_binder = { path = "../binder" }
+bolt_ts_config = { path = "../config" }
+bolt_ts_middle = { path = "../middle" }
+bolt_ts_errors = { path = "../../helper/errors" }
+bolt_ts_span = { path = "../../helper/span" }
+bolt_ts_parser = { path = "../parser" }
+bolt_ts_path = { path = "../path" }
+bolt_ts_utils = { path = "../../helper/utils" }
+bolt_ts_fs = { path = "../../helper/fs" }
+bolt_ts_resolve = { path = "../resolve" }
+rayon = { workspace = true }
+rustc-hash = { workspace = true }
+indexmap = { workspace = true }

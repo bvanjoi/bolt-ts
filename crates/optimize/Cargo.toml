@@ -7,6 +7,7 @@ edition = "2024"
 bolt_ts_ast = { path = "../ast" }
 bolt_ts_arena = { path = "../../helper/arena" }
 bolt_ts_atom = { path = "../../helper/atom" }
+bolt_ts_checker = { path = "../checker" }
 bolt_ts_config = { path = "../config" }
 bolt_ts_ecma_logical = { path = "../ecma_logical" }
 bolt_ts_span = { path = "../../helper/span" }
@@ -14,3 +15,5 @@ bolt_ts_utils = { path = "../../helper/utils" }
 paste = { workspace = true }
 enumflags2 = { workspace = true }
 rustc-hash = { workspace = true }
+bitflags = { workspace = true }
+nohash-hasher = { workspace = true }

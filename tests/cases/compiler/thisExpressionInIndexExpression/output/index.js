@@ -1,3 +1,3 @@
 function f() {
-  return (r) => r[this]
+  return (r) => (r[this])
 }

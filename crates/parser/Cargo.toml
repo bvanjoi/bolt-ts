@@ -6,7 +6,7 @@ edition = "2024"
 [dependencies]
 rayon = { workspace = true }
 rustc-hash = { workspace = true }
-nohash-hasher = "0.2.0"
+nohash-hasher = { workspace = true }
 bitflags = { workspace = true }
 enumflags2 = { workspace = true }
 bolt_ts_atom = { path = "../../helper/atom" }

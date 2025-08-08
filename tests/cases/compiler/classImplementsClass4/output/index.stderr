@@ -1,0 +1,29 @@
+  × Property 'x' is missing.
+    ╭─[../../tests/cases/compiler/classImplementsClass4/index.ts:7:1]
+  7 │ ╭─▶ class C implements A {
+  8 │ │   //~^ ERROR: Property 'x' is missing.
+  9 │ │       foo() {
+ 10 │ │           return 1;
+ 11 │ │       }
+ 12 │ ╰─▶ }
+    ╰────
+
+Advice: 
+  ☞ Property 'x' is defined here
+   ╭─[../../tests/cases/compiler/classImplementsClass4/index.ts:3:7]
+ 3 │ A
+   · ─
+   ╰────
+
+  × Property 'x' is missing.
+    ╭─[../../tests/cases/compiler/classImplementsClass4/index.ts:19:6]
+ 19 │ c
+    · ─
+    ╰────
+
+Advice: 
+  ☞ Property 'x' is defined here
+    ╭─[../../tests/cases/compiler/classImplementsClass4/index.ts:14:7]
+ 14 │ C2
+    · ──
+    ╰────

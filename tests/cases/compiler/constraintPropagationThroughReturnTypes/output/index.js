@@ -8,10 +8,14 @@ function f(x) {
 {
   var a = '';
   var test = (_) => {};
-  test({key: 'value'});
+  test({
+      key: 'value'    
+  });
 }
 {
   var a = '';
   var test = (_) => {};
-  test({key: 'value'});
+  test({
+      key: 'value'    
+  });
 }

@@ -1,22 +1,20 @@
 mod errors;
-use crate::check::errors::DeclKind;
 
+use bolt_ts_ast::keyword::is_reserved_type_name;
+use bolt_ts_ast::{self as ast, keyword, pprint_ident, visitor};
 use bolt_ts_atom::AtomMap;
+use bolt_ts_checker::check::errors::DeclKind;
 use bolt_ts_config::{NormalizedCompilerOptions, Target};
+use bolt_ts_parser::Parser;
 use bolt_ts_span::ModuleID;
 use bolt_ts_utils::fx_hashmap_with_capacity;
-
-use crate::keyword::is_reserved_type_name;
-use crate::r#trait;
-use bolt_ts_ast::{self as ast, keyword, pprint_ident, visitor};
-use bolt_ts_parser::Parser;
 
 pub fn well_formed_check_parallel(
     p: &Parser,
     atoms: &AtomMap,
     modules: &[bolt_ts_span::Module],
     compiler_options: &NormalizedCompilerOptions,
-    resolve_results: &[crate::bind::ResolveResult],
+    resolve_results: &[bolt_ts_binder::ResolveResult],
 ) -> Vec<bolt_ts_errors::Diag> {
     use rayon::prelude::*;
 
@@ -41,7 +39,7 @@ fn well_formed_check(
     atoms: &AtomMap,
     module_id: ModuleID,
     compiler_options: &NormalizedCompilerOptions,
-    resolve_results: &crate::bind::ResolveResult,
+    resolve_results: &bolt_ts_binder::ResolveResult,
 ) -> Vec<bolt_ts_errors::Diag> {
     let mut s = CheckState {
         p,
@@ -62,7 +60,7 @@ struct CheckState<'cx> {
     diags: Vec<bolt_ts_errors::Diag>,
     compiler_options: &'cx NormalizedCompilerOptions,
     module_id: ModuleID,
-    resolve_results: &'cx crate::bind::ResolveResult,
+    resolve_results: &'cx bolt_ts_binder::ResolveResult,
 }
 
 impl<'cx> CheckState<'cx> {
@@ -70,13 +68,14 @@ impl<'cx> CheckState<'cx> {
         debug_assert!(node.module() == self.module_id);
         self.resolve_results.parent_map.parent(node)
     }
-    fn node_query(&self) -> crate::bind::NodeQuery<'cx, '_> {
-        crate::bind::NodeQuery::new(&self.resolve_results.parent_map, self.p.get(self.module_id))
+    fn node_query(&self) -> bolt_ts_binder::NodeQuery<'cx, '_> {
+        bolt_ts_binder::NodeQuery::new(&self.resolve_results.parent_map, self.p.get(self.module_id))
     }
 
     fn push_error(&mut self, error: crate::Diag) {
         self.diags.push(bolt_ts_errors::Diag { inner: error })
     }
+
     fn check_collisions_for_decl_name(&mut self, node: ast::NodeID, name: &'cx ast::Ident) {
         let n = self.p.node(node);
         let kind = if n.is_class_like() {
@@ -97,11 +96,13 @@ impl<'cx> CheckState<'cx> {
             }
         }
     }
-    fn check_class_like(&mut self, class: &impl r#trait::ClassLike<'cx>) {
+
+    fn check_class_like(&mut self, class: &impl bolt_ts_ast::r#trait::ClassLike<'cx>) {
         if let Some(name) = class.name() {
             self.check_collisions_for_decl_name(class.id(), name);
         };
     }
+
     fn check_grammar_modifiers(&mut self, node: ast::NodeID) {
         let n = self.p.node(node);
         let Some(modifiers) = n.modifiers() else {
@@ -132,7 +133,7 @@ impl<'cx> CheckState<'cx> {
         let mut seen = fx_hashmap_with_capacity(node.members.len());
         for member in node.members {
             if let ast::ObjectMemberKind::Prop(n) = member.kind {
-                let name = crate::bind::prop_name(n.name);
+                let name = bolt_ts_binder::prop_name(n.name);
                 if let Some(prev) = seen.insert(name, n.span) {
                     let error =
                         errors::AnObjectLiteralCannotHaveMultiplePropertiesWithTheSameName {
@@ -158,7 +159,7 @@ impl<'cx> CheckState<'cx> {
         }
     }
 
-    fn check_sig_decl(&mut self, node: &impl r#trait::SigDeclLike) {
+    fn check_sig_decl(&mut self, node: &impl ast::r#trait::SigDeclLike) {
         if !(*self.compiler_options.target() >= Target::ES2015
             || !node.has_rest_param()
             || self
@@ -203,6 +204,7 @@ impl<'cx> CheckState<'cx> {
             push_error(self);
         }
     }
+
     fn check_stmt_in_ambient(&mut self, node: ast::NodeID) -> bool {
         let flags = self.p.node_flags(node);
         if flags.intersects(ast::NodeFlags::AMBIENT) {
@@ -222,7 +224,8 @@ impl<'cx> CheckState<'cx> {
         }
         false
     }
-    fn check_ambient_initializer(&mut self, node: &impl r#trait::VarLike<'cx>) {
+
+    fn check_ambient_initializer(&mut self, node: &impl crate::r#trait::VarLike<'cx>) {
         let Some(init) = node.init() else {
             return;
         };

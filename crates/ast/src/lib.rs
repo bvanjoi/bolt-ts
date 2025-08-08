@@ -6,6 +6,7 @@ mod node_flags;
 mod pprint;
 mod stmt;
 mod token;
+pub mod r#trait;
 mod ty;
 
 pub mod visitor;

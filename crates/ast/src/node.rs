@@ -190,18 +190,26 @@ impl<'cx> Node<'cx> {
             self,
             FnDecl(_)
                 | ClassMethodElem(_)
+                | ObjectMethodMember(_)
                 | ClassCtor(_)
                 | GetterDecl(_)
                 | SetterDecl(_)
                 | FnExpr(_)
                 | ArrowFnExpr(_)
-                | ObjectMethodMember(_)
         )
     }
 
     pub fn is_fn_like(&self) -> bool {
         use Node::*;
-        matches!(self, IndexSigDecl(_)) | self.is_fn_decl_like()
+        matches!(
+            self,
+            MethodSignature(_)
+                | CallSigDecl(_)
+                | CtorSigDecl(_)
+                | IndexSigDecl(_)
+                | FnTy(_)
+                | CtorTy(_)
+        ) || self.is_fn_decl_like()
     }
 
     pub fn is_fn_like_and_has_asterisk(&self) -> bool {
@@ -264,18 +272,20 @@ impl<'cx> Node<'cx> {
     }
 
     pub fn name(&self) -> Option<super::DeclarationName<'cx>> {
+        use super::DeclarationName;
         use Node::*;
 
         match self {
-            PropSignature(n) => Some(super::DeclarationName::from_prop_name(n.name)),
-            ClassPropElem(prop) => Some(super::DeclarationName::from_prop_name(prop.name)),
-            SetterDecl(n) => Some(super::DeclarationName::from_prop_name(n.name)),
-            GetterDecl(n) => Some(super::DeclarationName::from_prop_name(n.name)),
-            MethodSignature(n) => Some(super::DeclarationName::from_prop_name(n.name)),
-            ObjectPropMember(prop) => Some(super::DeclarationName::from_prop_name(prop.name)),
-            ClassMethodElem(prop) => Some(super::DeclarationName::from_prop_name(prop.name)),
-            ObjectMethodMember(prop) => Some(super::DeclarationName::from_prop_name(prop.name)),
-            ObjectShorthandMember(prop) => Some(super::DeclarationName::Ident(prop.name)),
+            PropSignature(n) => Some(DeclarationName::from_prop_name(n.name)),
+            ClassPropElem(prop) => Some(DeclarationName::from_prop_name(prop.name)),
+            SetterDecl(n) => Some(DeclarationName::from_prop_name(n.name)),
+            GetterDecl(n) => Some(DeclarationName::from_prop_name(n.name)),
+            MethodSignature(n) => Some(DeclarationName::from_prop_name(n.name)),
+            ObjectPropMember(prop) => Some(DeclarationName::from_prop_name(prop.name)),
+            ClassMethodElem(prop) => Some(DeclarationName::from_prop_name(prop.name)),
+            ObjectMethodMember(prop) => Some(DeclarationName::from_prop_name(prop.name)),
+            ObjectShorthandMember(prop) => Some(DeclarationName::Ident(prop.name)),
+            FnDecl(n) => Some(DeclarationName::Ident(n.name)),
             _ => None,
         }
     }
@@ -520,7 +530,7 @@ impl<'cx> Node<'cx> {
                 }
             };
         }
-        fn_body_with_option!(FnDecl, ClassMethodElem, ClassCtor,)
+        fn_body_with_option!(FnDecl, ClassMethodElem, ClassCtor)
     }
 
     pub fn fn_flags(&self) -> FnFlags {

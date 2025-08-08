@@ -35,3 +35,9 @@ pub fn fx_indexset_with_capacity<V>(capacity: usize) -> FxIndexSet<V> {
     let hasher = rustc_hash::FxBuildHasher;
     indexmap::IndexSet::with_capacity_and_hasher(capacity, hasher)
 }
+
+pub fn ensure_sufficient_stack<R, F: FnOnce() -> R>(f: F) -> R {
+    const RED_ZONE: usize = 100 * 1024; // 100k
+    const STACK_PER_RECURSION: usize = 1024 * 1024; // 1MB
+    stacker::maybe_grow(RED_ZONE, STACK_PER_RECURSION, f)
+}
