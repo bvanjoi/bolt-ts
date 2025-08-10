@@ -414,11 +414,10 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
                 self.check_contextual_ident(node, keyword::KW_THIS, this.span);
             }
             QualifiedName(_) => {
-                if let Some(flow) = self.current_flow {
-                    if self.node_query().is_part_of_ty_query(node) {
+                if let Some(flow) = self.current_flow
+                    && self.node_query().is_part_of_ty_query(node) {
                         self.flow_nodes.insert_container_map(node, flow);
                     }
-                }
             }
             // TODO: meta
             SuperExpr(_) => {

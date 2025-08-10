@@ -154,8 +154,8 @@ impl<'cx> TyChecker<'cx> {
             return Some(idx);
         }
 
-        if let Some(target_union) = target.kind.as_union() {
-            if let Some(best) = self.get_best_matching_ty(source, target_union, |this, s, t| {
+        if let Some(target_union) = target.kind.as_union()
+            && let Some(best) = self.get_best_matching_ty(source, target_union, |this, s, t| {
                 if this.is_type_related_to(s, t, RelationKind::Assignable) {
                     Ternary::TRUE
                 } else {
@@ -164,7 +164,6 @@ impl<'cx> TyChecker<'cx> {
             }) {
                 return self.get_indexed_access_ty_or_undefined(best, name_ty, None, None);
             }
-        }
 
         None
     }

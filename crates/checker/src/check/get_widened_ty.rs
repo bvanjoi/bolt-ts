@@ -169,13 +169,12 @@ impl<'cx> TyChecker<'cx> {
         contextual_sig_ret_ty: Option<&'cx ty::Ty<'cx>>,
         is_async: bool,
     ) -> Option<&'cx ty::Ty<'cx>> {
-        if let Some(t) = ty {
-            if t.is_unit() {
+        if let Some(t) = ty
+            && t.is_unit() {
                 let contextual_ty =
                     contextual_sig_ret_ty.map(|c| if is_async { todo!() } else { c });
                 ty = Some(self.get_widened_lit_like_ty_for_contextual_ty(t, contextual_ty));
             }
-        }
         ty
     }
 
@@ -196,11 +195,11 @@ impl<'cx> TyChecker<'cx> {
         node: ast::NodeID,
         context_flags: Option<ContextFlags>,
     ) -> Option<&'cx ty::Ty<'cx>> {
-        if let Some(contextual_ty) = contextual_ty {
-            if contextual_ty.flags.intersects(TypeFlags::INSTANTIABLE) {
+        if let Some(contextual_ty) = contextual_ty
+            && contextual_ty.flags.intersects(TypeFlags::INSTANTIABLE) {
                 let inference_context = self.get_inference_context(node);
-                if let Some(inference_context) = inference_context {
-                    if context_flags
+                if let Some(inference_context) = inference_context
+                    && context_flags
                         .is_some_and(|check_flags| check_flags.intersects(ContextFlags::SIGNATURE))
                         && self
                             .inference_infos(inference_context.inference.unwrap())
@@ -210,10 +209,8 @@ impl<'cx> TyChecker<'cx> {
                         // TODO:
                         return Some(contextual_ty);
                     }
-                }
                 // TODO:
             }
-        }
         contextual_ty
     }
 

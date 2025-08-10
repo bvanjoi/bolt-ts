@@ -1342,12 +1342,11 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
     }
 
     fn maybe_bind_expr_flow_if_call(&mut self, n: &ast::Expr<'cx>) {
-        if let ast::ExprKind::Call(call) = n.kind {
-            if !matches!(call.expr.kind, ast::ExprKind::Super(_)) && call.expr.is_dotted_name() {
+        if let ast::ExprKind::Call(call) = n.kind
+            && !matches!(call.expr.kind, ast::ExprKind::Super(_)) && call.expr.is_dotted_name() {
                 let c = self.create_flow_call(self.current_flow.unwrap(), call);
                 self.current_flow = Some(c)
             }
-        }
     }
 
     fn bind_while_stmt(&mut self, _n: &ast::WhileStmt<'cx>) {

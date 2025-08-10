@@ -85,8 +85,8 @@ impl<'cx> CheckState<'cx> {
         } else {
             None
         };
-        if is_reserved_type_name(name.name) {
-            if let Some(kind) = kind {
+        if is_reserved_type_name(name.name)
+            && let Some(kind) = kind {
                 let error = errors::DeclNameCannotBe {
                     span: name.span,
                     name: pprint_ident(name, self.atoms),
@@ -94,7 +94,6 @@ impl<'cx> CheckState<'cx> {
                 };
                 self.push_error(Box::new(error));
             }
-        }
     }
 
     fn check_class_like(&mut self, class: &impl bolt_ts_ast::r#trait::ClassLike<'cx>) {
@@ -146,17 +145,15 @@ impl<'cx> CheckState<'cx> {
         }
     }
     fn check_grammar_try_stmt(&mut self, node: &'cx ast::TryStmt<'cx>) {
-        if let Some(c) = node.catch_clause {
-            if let Some(v) = c.var {
-                if let Some(init) = v.init {
+        if let Some(c) = node.catch_clause
+            && let Some(v) = c.var
+                && let Some(init) = v.init {
                     let error =
                         errors::CatchClauseVariableTypeAnnotationMustBeAnyOrUnknownIfSpecified {
                             span: init.span(),
                         };
                     self.push_error(Box::new(error));
                 }
-            }
-        }
     }
 
     fn check_sig_decl(&mut self, node: &impl ast::r#trait::SigDeclLike) {
@@ -170,15 +167,14 @@ impl<'cx> CheckState<'cx> {
         {
             // check_collision_with_arguments_in_generated_code
             for param in node.params() {
-                if let ast::BindingKind::Ident(name) = param.name.kind {
-                    if name.name == keyword::IDENT_ARGUMENTS {
+                if let ast::BindingKind::Ident(name) = param.name.kind
+                    && name.name == keyword::IDENT_ARGUMENTS {
                         // TODO: skip on
                         let error = errors::DuplicateIdentifierArgumentsCompilerUsesArgumentsToInitializeRestParameters {
                             span: name.span
                         };
                         self.push_error(Box::new(error));
                     }
-                }
             }
         }
     }

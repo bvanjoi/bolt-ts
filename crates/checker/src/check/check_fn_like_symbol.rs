@@ -69,8 +69,8 @@ impl<'cx> TyChecker<'cx> {
             }
         }
 
-        if has_overloads {
-            if let Some(body_declaration) = body_declaration {
+        if has_overloads
+            && let Some(body_declaration) = body_declaration {
                 let sigs = self.get_sigs_of_symbol(symbol);
                 let body_sig = self.get_sig_from_decl(body_declaration);
                 for sig in sigs {
@@ -83,7 +83,6 @@ impl<'cx> TyChecker<'cx> {
                     }
                 }
             }
-        }
     }
 
     fn is_implementation_compatible_with_overload(

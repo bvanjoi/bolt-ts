@@ -139,11 +139,10 @@ impl<'cx> TyChecker<'cx> {
         use bolt_ts_ast::Node::*;
         match node {
             VarDecl(decl) => {
-                if decl.init.is_some() {
-                    if let Some(decl_ty) = decl.ty {
+                if decl.init.is_some()
+                    && let Some(decl_ty) = decl.ty {
                         return Some(self.get_ty_from_type_node(decl_ty));
                     }
-                }
             }
             _ => unreachable!(),
         };
@@ -188,15 +187,14 @@ impl<'cx> TyChecker<'cx> {
                         return this.get_ty_arguments(t).get(idx).copied();
                     }
                 }
-                if first_spread_index.is_none_or(|first_spread_index| index < first_spread_index) {
-                    if let Some(t) = this.get_ty_of_prop_of_contextual_ty(
+                if first_spread_index.is_none_or(|first_spread_index| index < first_spread_index)
+                    && let Some(t) = this.get_ty_of_prop_of_contextual_ty(
                         t,
                         SymbolName::EleNum(index.into()),
                         None,
                     ) {
                         return Some(t);
                     }
-                }
                 // TODO: this.get_iterated_ty_or_element_ty()
                 this.get_index_ty_of_ty(t, this.number_ty)
             },

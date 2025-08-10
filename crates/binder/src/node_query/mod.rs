@@ -521,13 +521,12 @@ impl<'cx, 'a> NodeQuery<'cx, 'a> {
                 break;
             };
             let p = self.node(p_id);
-            if let Some(qualified) = p.as_qualified_name() {
-                if qualified.left.id() == id {
+            if let Some(qualified) = p.as_qualified_name()
+                && qualified.left.id() == id {
                     n = p;
                     id = p_id;
                     continue;
                 }
-            }
             break;
         }
 
@@ -610,11 +609,10 @@ impl<'cx, 'a> NodeQuery<'cx, 'a> {
                 prev = parent_id;
                 parent = self.node(self.parent(parent_id).unwrap());
             }
-            if let Some(call) = parent.as_call_expr() {
-                if call.expr.id() == prev {
+            if let Some(call) = parent.as_call_expr()
+                && call.expr.id() == prev {
                     return Some(call);
                 }
-            }
         }
         None
     }

@@ -20,7 +20,7 @@ bolt_ts_utils::index! {
     ScopeID
 }
 
-pub fn emit<'cx>(atoms: &'cx AtomMap, ir: &LoweringResult) -> String {
+pub fn emit(atoms: &AtomMap, ir: &LoweringResult) -> String {
     let mut emitter = Emitter {
         atoms,
         options: EmitterOptions { indent: 2 },
@@ -374,12 +374,11 @@ impl<'ir> Emitter<'_, 'ir> {
 
     fn emit_getter_decl(&mut self, elem: ir::GetterDeclID) {
         let elem = self.nodes.get_getter_decl(&elem);
-        if let Some(mods) = elem.modifiers() {
-            if mods.flags().contains(ast::ModifierKind::Static) {
+        if let Some(mods) = elem.modifiers()
+            && mods.flags().contains(ast::ModifierKind::Static) {
                 self.content.p("static");
                 self.content.p_whitespace();
             }
-        }
         self.content.p("get");
         self.content.p_whitespace();
         self.emit_prop_name(elem.name());
@@ -390,12 +389,11 @@ impl<'ir> Emitter<'_, 'ir> {
 
     fn emit_setter_decl(&mut self, elem: ir::SetterDeclID) {
         let elem = self.nodes.get_setter_decl(&elem);
-        if let Some(mods) = elem.modifiers() {
-            if mods.flags().contains(ast::ModifierKind::Static) {
+        if let Some(mods) = elem.modifiers()
+            && mods.flags().contains(ast::ModifierKind::Static) {
                 self.content.p("static");
                 self.content.p_whitespace();
             }
-        }
         self.content.p("set");
         self.content.p_whitespace();
         self.emit_prop_name(elem.name());
@@ -534,12 +532,11 @@ impl<'ir> Emitter<'_, 'ir> {
 
     fn emit_class_method_elem(&mut self, elem: ir::ClassMethodElemID) {
         let elem = self.nodes.get_class_method_elem(&elem);
-        if let Some(mods) = elem.modifiers() {
-            if mods.flags().contains(ast::ModifierKind::Static) {
+        if let Some(mods) = elem.modifiers()
+            && mods.flags().contains(ast::ModifierKind::Static) {
                 self.content.p("static");
                 self.content.p_whitespace();
             }
-        }
         self.emit_prop_name(elem.name());
         self.emit_params(elem.params());
         self.content.p_whitespace();

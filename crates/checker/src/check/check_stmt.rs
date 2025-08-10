@@ -48,15 +48,14 @@ impl<'cx> TyChecker<'cx> {
     }
 
     fn check_export_decl(&mut self, node: &'cx ast::ExportDecl<'cx>) {
-        if node.module_spec().is_none() || self.check_external_module_name(node.id) {
-            if let ast::ExportClauseKind::Specs(specs) = node.clause.kind {
+        if (node.module_spec().is_none() || self.check_external_module_name(node.id))
+            && let ast::ExportClauseKind::Specs(specs) = node.clause.kind {
                 // export { a, b as c } from 'xxxx'
                 // export { a, b as c }
                 for spec in specs.list {
                     self.check_export_spec(spec);
                 }
             }
-        }
     }
 
     fn check_export_spec(&mut self, spec: &'cx ast::ExportSpec<'cx>) {

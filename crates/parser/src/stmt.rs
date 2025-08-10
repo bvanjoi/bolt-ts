@@ -1134,8 +1134,8 @@ impl<'cx> ParserState<'cx, '_> {
     fn parse_expr_or_labeled_stmt(&mut self) -> PResult<ast::StmtKind<'cx>> {
         let start = self.token.start();
         let expr = self.allow_in_and(Self::parse_expr)?;
-        if let ast::ExprKind::Ident(ident) = expr.kind {
-            if self.parse_optional(TokenKind::Colon).is_some() {
+        if let ast::ExprKind::Ident(ident) = expr.kind
+            && self.parse_optional(TokenKind::Colon).is_some() {
                 let stmt =
                     self.do_inside_of_context(NodeFlags::ALLOW_BREAK_CONTEXT, Self::parse_stmt)?;
                 let id = self.next_node_id();
@@ -1148,7 +1148,6 @@ impl<'cx> ParserState<'cx, '_> {
                 self.nodes.insert(id, ast::Node::LabeledStmt(stmt));
                 return Ok(ast::StmtKind::Labeled(stmt));
             }
-        }
         self.parse_semi();
         let id = self.next_node_id();
         let stmt = self.alloc(ast::ExprStmt {

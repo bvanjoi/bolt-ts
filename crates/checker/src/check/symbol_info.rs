@@ -317,21 +317,19 @@ impl<'cx> super::TyChecker<'cx> {
                 // TODO: id == SymbolName::DefaultExport
                 match target.0.get(&id).copied() {
                     Some(target_symbol) => {
-                        if let Some(lookup_table) = lookup_table.as_mut() {
-                            if let Some(export_node) = export_node {
-                                if this.resolve_symbol(target_symbol, false)
+                        if let Some(lookup_table) = lookup_table.as_mut()
+                            && let Some(export_node) = export_node
+                                && this.resolve_symbol(target_symbol, false)
                                     != this.resolve_symbol(source_symbol, false)
                                 {
                                     let collision_tracker = lookup_table.0.get_mut(&id).unwrap();
                                     collision_tracker.exports_with_duplicated.push(export_node);
                                 }
-                            }
-                        }
                     }
                     None => {
                         target.0.insert(id, source_symbol);
-                        if let Some(lookup_table) = lookup_table.as_mut() {
-                            if let Some(export_node) = export_node {
+                        if let Some(lookup_table) = lookup_table.as_mut()
+                            && let Some(export_node) = export_node {
                                 let module_spec = match export_node.clause.kind {
                                     bolt_ts_ast::ExportClauseKind::Glob(node) => node.module.val,
                                     _ => unreachable!(),
@@ -344,7 +342,6 @@ impl<'cx> super::TyChecker<'cx> {
                                     },
                                 );
                             }
-                        }
                     }
                 }
             }
@@ -589,8 +586,8 @@ impl<'cx> super::TyChecker<'cx> {
         name: SymbolName,
         meaning: SymbolFlags,
     ) -> Option<SymbolID> {
-        if !meaning.is_empty() {
-            if let Some(symbol) = symbols.0.get(&name).copied() {
+        if !meaning.is_empty()
+            && let Some(symbol) = symbols.0.get(&name).copied() {
                 let symbol = self.get_merged_symbol(symbol);
                 let flags = symbol_of_resolve_results(self.get_resolve_results(), symbol).flags;
                 if flags.intersects(meaning) {
@@ -602,7 +599,6 @@ impl<'cx> super::TyChecker<'cx> {
                     }
                 }
             }
-        }
         None
     }
 

@@ -33,11 +33,10 @@ impl<'cx> TyChecker<'cx> {
 
     fn range_eq<T: PartialEq>(arr1: &[T], arr2: &[T], start: usize, end: usize) -> bool {
         for index in start..end {
-            if let Some(item2) = arr2.get(index) {
-                if arr1[index].eq(item2) {
+            if let Some(item2) = arr2.get(index)
+                && arr1[index].eq(item2) {
                     continue;
                 }
-            }
             return false;
         }
         true
@@ -67,8 +66,8 @@ impl<'cx> TyChecker<'cx> {
         symbol: SymbolID,
         mapper: &'cx dyn ty::TyMap<'cx>,
     ) -> SymbolID {
-        if let Some(ty) = self.get_symbol_links(symbol).get_ty() {
-            if !self.could_contain_ty_var(ty) {
+        if let Some(ty) = self.get_symbol_links(symbol).get_ty()
+            && !self.could_contain_ty_var(ty) {
                 if !self
                     .symbol(symbol)
                     .flags
@@ -76,13 +75,11 @@ impl<'cx> TyChecker<'cx> {
                 {
                     return symbol;
                 }
-                if let Some(write_ty) = self.get_symbol_links(symbol).get_write_ty() {
-                    if !self.could_contain_ty_var(write_ty) {
+                if let Some(write_ty) = self.get_symbol_links(symbol).get_write_ty()
+                    && !self.could_contain_ty_var(write_ty) {
                         return symbol;
                     }
-                }
             }
-        }
 
         let check_flags = self.get_check_flags(symbol);
         let (symbol, mapper, check_flags) = if check_flags.intersects(CheckFlags::INSTANTIATED) {
@@ -159,8 +156,8 @@ impl<'cx> TyChecker<'cx> {
         erase_ty_params: bool,
     ) -> &'cx ty::Sig<'cx> {
         let mut fresh_ty_params = None;
-        if !erase_ty_params {
-            if let Some(ty_params) = &sig.ty_params {
+        if !erase_ty_params
+            && let Some(ty_params) = &sig.ty_params {
                 let new_ty_params = ty_params
                     .iter()
                     .map(|ty| self.clone_param_ty(ty))
@@ -177,7 +174,6 @@ impl<'cx> TyChecker<'cx> {
                     assert!(prev.is_none());
                 }
             }
-        }
 
         let params = self.instantiate_list(sig.params, mapper, |this, symbol, mapper| {
             this.instantiate_symbol(symbol, mapper)
@@ -391,16 +387,14 @@ impl<'cx> TyChecker<'cx> {
             } else {
                 unreachable!()
             };
-            if !cycle_reported {
-                if let Cycle::Some(_) = self.pop_ty_resolution() {
-                    if let Some(decl) = id.opt_decl(self.binder) {
+            if !cycle_reported
+                && let Cycle::Some(_) = self.pop_ty_resolution()
+                    && let Some(decl) = id.opt_decl(self.binder) {
                         let p = self.p.node(decl);
                         if p.is_class_decl() || p.is_interface_decl() {
                             self.report_circular_base_ty(decl, ty, None);
                         }
                     }
-                }
-            }
             self.get_mut_ty_links(ty.id).set_base_tys_resolved(true);
         }
 
@@ -885,8 +879,8 @@ impl<'cx> TyChecker<'cx> {
             let mut constraint_ty = r.constraint_ty;
 
             let c_index_ty = r.constraint_ty.kind.expect_index_ty();
-            if let Some(t) = c_index_ty.ty.kind.as_indexed_access() {
-                if t.object_ty.flags.intersects(TypeFlags::TYPE_PARAMETER)
+            if let Some(t) = c_index_ty.ty.kind.as_indexed_access()
+                && t.object_ty.flags.intersects(TypeFlags::TYPE_PARAMETER)
                     && t.index_ty.flags.intersects(TypeFlags::TYPE_PARAMETER)
                 {
                     let new_ty_param = t.object_ty;
@@ -899,7 +893,6 @@ impl<'cx> TyChecker<'cx> {
                     mapped_ty = new_mapped_ty;
                     constraint_ty = self.get_index_ty(new_ty_param, IndexFlags::empty());
                 }
-            }
 
             let links = SymbolLinks::default()
                 .with_prop_ty(prop_ty)

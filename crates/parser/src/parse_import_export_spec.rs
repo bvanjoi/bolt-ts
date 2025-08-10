@@ -175,8 +175,8 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         let mut prop_name = None;
         let mut name = self.parse_module_export_name(|this| this.create_ident(true, None));
 
-        if let ast::ModuleExportNameKind::Ident(ident) = name.kind {
-            if ident.name == keyword::KW_TYPE {
+        if let ast::ModuleExportNameKind::Ident(ident) = name.kind
+            && ident.name == keyword::KW_TYPE {
                 if self.token.kind == TokenKind::As {
                     // { type as ... }
                     let first_as = self.create_ident(true, None);
@@ -231,7 +231,6 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
                     );
                 }
             }
-        }
 
         if can_parse_as_keyword && self.token.kind == TokenKind::As {
             prop_name = Some(name);

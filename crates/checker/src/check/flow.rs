@@ -192,8 +192,8 @@ impl<'cx> TyChecker<'cx> {
         };
         let sig = self.get_effects_sig(n.node.id)?;
         let pred = self.get_ty_predicate_of_sig(sig);
-        if let Some(pred) = pred {
-            if matches!(
+        if let Some(pred) = pred
+            && matches!(
                 pred.kind,
                 TyPredKind::AssertsThis(_) | TyPredKind::AssertsIdent(_)
             ) {
@@ -225,7 +225,6 @@ impl<'cx> TyChecker<'cx> {
                     self.create_flow_ty(narrowed_ty, incomplete)
                 });
             }
-        }
 
         if self.get_ret_ty_of_sig(sig).flags.contains(TypeFlags::NEVER) {
             Some(FlowTy::Ty(self.unreachable_never_ty))

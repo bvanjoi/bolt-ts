@@ -185,8 +185,8 @@ impl<FS: CachedFileSystem> Resolver<FS> {
             .unwrap()
             .dir_exists(&node_modules_folder, self.atoms.lock().as_mut().unwrap());
 
-        if !types_scope_only {
-            if let Ok(pkg) = self.load_module_from_spec_node_modules_dir(
+        if !types_scope_only
+            && let Ok(pkg) = self.load_module_from_spec_node_modules_dir(
                 ext,
                 node_modules_folder_id,
                 module_name,
@@ -194,7 +194,6 @@ impl<FS: CachedFileSystem> Resolver<FS> {
             ) {
                 return Ok(pkg);
             }
-        }
 
         if ext.intersects(Extensions::Declaration) {
             let node_modules_at_types = node_modules_folder.join("@types");
@@ -378,8 +377,8 @@ impl<FS: CachedFileSystem> Resolver<FS> {
         match origin_extension {
             "ts" | "dts" | "js" | "" => {
                 let resolved_using_ts_ext = matches!(origin_extension, "ts" | "dts");
-                if ext.intersects(Extensions::TypeScript) {
-                    if let Ok(p) = self
+                if ext.intersects(Extensions::TypeScript)
+                    && let Ok(p) = self
                         .try_extension(candidate, Extension::Ts, resolved_using_ts_ext)
                         .or_else(|_| {
                             self.try_extension(candidate, Extension::Tsx, resolved_using_ts_ext)
@@ -387,22 +386,19 @@ impl<FS: CachedFileSystem> Resolver<FS> {
                     {
                         return Ok(p);
                     }
-                }
-                if ext.intersects(Extensions::Declaration) {
-                    if let Ok(p) =
+                if ext.intersects(Extensions::Declaration)
+                    && let Ok(p) =
                         self.try_extension(candidate, Extension::DTs, resolved_using_ts_ext)
                     {
                         return Ok(p);
                     }
-                }
-                if ext.intersects(Extensions::JavaScript) {
-                    if let Ok(p) = self
+                if ext.intersects(Extensions::JavaScript)
+                    && let Ok(p) = self
                         .try_extension(candidate, Extension::Js, false)
                         .or_else(|_| self.try_extension(candidate, Extension::Jsx, false))
                     {
                         return Ok(p);
                     }
-                }
                 // TODO: is_config_lookup
                 Err(ResolveError::NotFound(PathId::get(
                     candidate,

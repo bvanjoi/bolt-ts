@@ -1101,11 +1101,10 @@ impl<'cx> TyChecker<'cx> {
                     }
                 }
             };
-            if let Some(ty) = ty {
-                if ty.flags.intersects(include) {
+            if let Some(ty) = ty
+                && ty.flags.intersects(include) {
                     return ty;
                 }
-            }
         }
         self.never_ty
     }
@@ -1180,8 +1179,8 @@ impl<'cx> TyChecker<'cx> {
             .get_inference_sig(inference)
             .map(|sig| self.get_ret_ty_of_sig(sig))
             .and_then(|ret_ty| self.get_single_call_or_ctor_sig(ret_ty));
-        if let Some(ret_sig) = ret_sig {
-            if ret_sig.ty_params.is_none()
+        if let Some(ret_sig) = ret_sig
+            && ret_sig.ty_params.is_none()
                 && !self
                     .inference_infos(inference)
                     .iter()
@@ -1189,7 +1188,6 @@ impl<'cx> TyChecker<'cx> {
             {
                 todo!()
             }
-        }
 
         let sig = self.instantiate_sig_in_context_of(sig, contextual_sig, Some(inference));
         let outer_ty_params = self
@@ -1588,11 +1586,10 @@ impl<'cx> TyChecker<'cx> {
         right_ty: &'cx ty::Ty<'cx>,
         right_is_this: bool,
     ) -> &'cx ty::Ty<'cx> {
-        if let ast::ExprKind::ArrayLit(array) = node.left.kind {
-            if array.elems.is_empty() && right_ty.kind.is_array(self) {
+        if let ast::ExprKind::ArrayLit(array) = node.left.kind
+            && array.elems.is_empty() && right_ty.kind.is_array(self) {
                 return right_ty;
             }
-        }
         let left_ty = self.check_expr(node.left);
         self.check_binary_like_expr(node, left_ty, right_ty)
     }
@@ -1740,21 +1737,16 @@ impl<'cx> TyChecker<'cx> {
                         let n = self.p.node(decl);
                         if n.is_class_method_ele() {
                             return Some(true);
-                        } else if let Some(prop_decl) = n.as_class_prop_ele() {
-                            if let Some(usage_class) = self
+                        } else if let Some(prop_decl) = n.as_class_prop_ele()
+                            && let Some(usage_class) = self
                                 .node_query(used.id.module())
                                 .get_containing_class(used.id)
-                            {
-                                if let Some(decl_class) =
+                                && let Some(decl_class) =
                                     self.node_query(decl.module()).get_containing_class(decl)
-                                {
-                                    if usage_class == decl_class {
+                                    && usage_class == decl_class {
                                         let prop_name = prop_decl.name;
                                         todo!()
                                     }
-                                }
-                            }
-                        }
                     } else {
                         let n = self.p.node(decl);
                         let is_decl_instance_prop = n.is_class_prop_ele() && !n.is_static();
@@ -1763,15 +1755,11 @@ impl<'cx> TyChecker<'cx> {
                         } else if let Some(usage_class) = self
                             .node_query(used.id.module())
                             .get_containing_class(used.id)
-                        {
-                            if let Some(decl_class) =
+                            && let Some(decl_class) =
                                 self.node_query(decl.module()).get_containing_class(decl)
-                            {
-                                if usage_class == decl_class {
+                                && usage_class == decl_class {
                                     return Some(true);
                                 }
-                            }
-                        }
                     }
                 }
                 None
@@ -2314,7 +2302,6 @@ impl<'cx> TyChecker<'cx> {
                         );
                     }
                 } else {
-                    return;
                 }
             }
 
@@ -2682,11 +2669,10 @@ impl<'cx> TyChecker<'cx> {
             }
         }
 
-        if let ast::ExprKind::PropAccess(p) = expr.kind {
-            if self.is_or_contain_matching_refer(refer, p.expr.id()) {
+        if let ast::ExprKind::PropAccess(p) = expr.kind
+            && self.is_or_contain_matching_refer(refer, p.expr.id()) {
                 return true;
             }
-        }
         false
     }
 
@@ -2889,11 +2875,11 @@ impl<'cx> TyChecker<'cx> {
             }
         } else if ty.kind.is_cond_ty() {
             // TODO: is_distributive
-            return ty;
+            ty
         } else if ty.kind.is_union() {
-            return self
+            self
                 .map_ty(ty, |this, t| Some(this.get_lower_bound_of_key_ty(t)), true)
-                .unwrap();
+                .unwrap()
         } else if let Some(i) = ty.kind.as_intersection() {
             let tys = i.tys;
             if tys.len() == 2
@@ -2902,7 +2888,7 @@ impl<'cx> TyChecker<'cx> {
                     .intersects(TypeFlags::STRING | TypeFlags::NUMBER | TypeFlags::BIG_INT)
                 && tys[1] == self.empty_ty_literal_ty()
             {
-                return ty;
+                ty
             } else {
                 let tys = self
                     .same_map_tys(Some(tys), |this, t, _| this.get_lower_bound_of_key_ty(t))
@@ -3117,7 +3103,7 @@ impl<'cx> TyChecker<'cx> {
         if decl_ty == assigned_ty {
             decl_ty
         } else if assigned_ty.flags.intersects(TypeFlags::NEVER) {
-            return assigned_ty;
+            assigned_ty
         } else {
             // TODO: cache
             assert!(decl_ty.kind.is_union());

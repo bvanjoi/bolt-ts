@@ -191,8 +191,8 @@ impl<'cx> TyChecker<'cx> {
         alias_symbol: Option<SymbolID>,
         alias_symbol_ty_args: Option<ty::Tys<'cx>>,
     ) -> Option<&'cx ty::Ty<'cx>> {
-        if let Some(u) = ty.kind.as_union() {
-            if let Some(alias_symbol) = alias_symbol {
+        if let Some(u) = ty.kind.as_union()
+            && let Some(alias_symbol) = alias_symbol {
                 let tys: Vec<_> = u
                     .tys
                     .iter()
@@ -200,7 +200,6 @@ impl<'cx> TyChecker<'cx> {
                     .collect::<Vec<_>>();
                 return Some(self.get_union_ty(&tys, ty::UnionReduction::Lit));
             }
-        }
 
         self.map_ty(ty, mapper, false)
     }

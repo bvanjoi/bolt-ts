@@ -864,12 +864,11 @@ impl<'cx> Resolver<'cx, '_, '_> {
             if self.p.node(decl).is_ty_param() {
                 // TODO: js doc template tag
                 let parent = self.parent(decl);
-                if let Some(parent) = parent {
-                    if parent == container {
+                if let Some(parent) = parent
+                    && parent == container {
                         // TODO: js doc template tag
                         return true;
                     }
-                }
             }
         }
         false
@@ -898,8 +897,8 @@ pub fn resolve_symbol_by_ident<'a, 'cx>(
         name: SymbolName,
         meaning: SymbolFlags,
     ) -> Option<SymbolID> {
-        if !meaning.is_empty() {
-            if let Some(symbol) = symbols.0.get(&name) {
+        if !meaning.is_empty()
+            && let Some(symbol) = symbols.0.get(&name) {
                 let symbols = &resolver.states[symbol.module().as_usize()].symbols;
                 let symbol = resolver.merged.get_merged_symbol(*symbol, symbols);
                 let flags = resolver.symbol(symbol).flags;
@@ -910,14 +909,13 @@ pub fn resolve_symbol_by_ident<'a, 'cx>(
                     return Some(symbol);
                 }
             }
-        }
         None
     }
 
     while let Some(id) = location {
-        if let Some(locals) = resolver.locals(id) {
-            if !resolver.p.get(id.module()).is_global_source_file(id) {
-                if let Some(symbol) = get_symbol(resolver, locals, key, meaning) {
+        if let Some(locals) = resolver.locals(id)
+            && !resolver.p.get(id.module()).is_global_source_file(id)
+                && let Some(symbol) = get_symbol(resolver, locals, key, meaning) {
                     let res_flags = resolver.symbol(symbol).flags;
                     if res_flags.intersects(SymbolFlags::ALIAS) {
                         // handle this case in late_resolve
@@ -955,8 +953,6 @@ pub fn resolve_symbol_by_ident<'a, 'cx>(
                         };
                     }
                 }
-            }
-        }
 
         let n = resolver.p.node(id);
         match n {
@@ -975,19 +971,17 @@ pub fn resolve_symbol_by_ident<'a, 'cx>(
                 {
                     // TODO: default
                     if let Some(module_export) = module_exports.and_then(|e| e.0.get(&key).copied())
-                    {
-                        if resolver
+                        && resolver
                             .symbol(module_export)
                             .flags
                             .intersects(SymbolFlags::ALIAS)
                         {
                             // TODO:
                         }
-                    }
                 }
 
-                if let Some(module_export) = module_exports.and_then(|e| e.0.get(&key).copied()) {
-                    if resolver
+                if let Some(module_export) = module_exports.and_then(|e| e.0.get(&key).copied())
+                    && resolver
                         .symbol(module_export)
                         .flags
                         .intersects(meaning & SymbolFlags::MODULE_MEMBER)
@@ -997,7 +991,6 @@ pub fn resolve_symbol_by_ident<'a, 'cx>(
                             associated_declaration_for_containing_initializer_or_binding_name,
                         };
                     }
-                }
             }
             ClassDecl(_) | ClassExpr(_) | InterfaceDecl(_) => {
                 if let Some(res) = resolver
@@ -1005,8 +998,7 @@ pub fn resolve_symbol_by_ident<'a, 'cx>(
                     .members()
                     .and_then(|m| m.0.get(&key))
                     .copied()
-                {
-                    if resolver
+                    && resolver
                         .symbol(res)
                         .flags
                         .intersects(meaning & SymbolFlags::TYPE)
@@ -1020,9 +1012,8 @@ pub fn resolve_symbol_by_ident<'a, 'cx>(
                             associated_declaration_for_containing_initializer_or_binding_name,
                         };
                     }
-                }
-                if let Some(c) = n.as_class_expr() {
-                    if meaning.intersects(SymbolFlags::CLASS)
+                if let Some(c) = n.as_class_expr()
+                    && meaning.intersects(SymbolFlags::CLASS)
                         && c.name.is_some_and(|n| n.name == ident.name)
                     {
                         return ResolvedResult {
@@ -1030,7 +1021,6 @@ pub fn resolve_symbol_by_ident<'a, 'cx>(
                             associated_declaration_for_containing_initializer_or_binding_name,
                         };
                     }
-                }
             }
             ExprWithTyArgs(expr) => {
                 if last_location.is_some_and(|l| l == expr.expr.id())
@@ -1041,8 +1031,8 @@ pub fn resolve_symbol_by_ident<'a, 'cx>(
                 {
                     let container = resolver.parent(resolver.parent(id).unwrap()).unwrap();
                     let c = resolver.p.node(container);
-                    if c.is_class_like() {
-                        if let Some(res) = resolver
+                    if c.is_class_like()
+                        && let Some(res) = resolver
                             .symbol(resolver.symbol_of_decl(container))
                             .members()
                             .and_then(|m| get_symbol(resolver, m, key, meaning & SymbolFlags::TYPE))
@@ -1054,7 +1044,6 @@ pub fn resolve_symbol_by_ident<'a, 'cx>(
                                 associated_declaration_for_containing_initializer_or_binding_name,
                             };
                         }
-                    }
                 }
             }
             ArrowFnExpr(_) | ClassMethodElem(_) | ClassCtor(_) | GetterDecl(_) | SetterDecl(_)
@@ -1087,15 +1076,14 @@ pub fn resolve_symbol_by_ident<'a, 'cx>(
                 }
             }
             ParamDecl(p) => {
-                if let Some(last_location) = last_location {
-                    if p.init.is_some_and(|init| init.id() == last_location)
+                if let Some(last_location) = last_location
+                    && p.init.is_some_and(|init| init.id() == last_location)
                         && associated_declaration_for_containing_initializer_or_binding_name
                             .is_none()
                     {
                         associated_declaration_for_containing_initializer_or_binding_name =
                             Some(id);
                     }
-                }
             }
             _ => {}
         }

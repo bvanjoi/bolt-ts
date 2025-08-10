@@ -36,11 +36,10 @@ impl<'cx> TyReferTyOrImport<'cx> for ast::ReferTy<'cx> {
 impl<'cx> TyChecker<'cx> {
     pub(super) fn check_ty_refer_ty_or_import(&mut self, node: &impl TyReferTyOrImport<'cx>) {
         let ty = node.get_ty(self);
-        if ty != self.error_ty && node.ty_args().is_some() {
-            if let Some(ty_params) = self.get_ty_params_for_ty_refer_ty_or_import(node) {
+        if ty != self.error_ty && node.ty_args().is_some()
+            && let Some(ty_params) = self.get_ty_params_for_ty_refer_ty_or_import(node) {
                 self.check_ty_arg_constraints(node, ty_params);
             }
-        }
     }
 
     pub(super) fn get_constraint_of_ty(
@@ -76,9 +75,8 @@ impl<'cx> TyChecker<'cx> {
         let indexed_access_ty = ty.kind.expect_indexed_access();
         if let Some(index_constraint) =
             self.get_simplified_ty_or_constraint(indexed_access_ty.index_ty)
-        {
-            if index_constraint != indexed_access_ty.index_ty {
-                if let Some(indexed_access) = self.get_indexed_access_ty_or_undefined(
+            && index_constraint != indexed_access_ty.index_ty
+                && let Some(indexed_access) = self.get_indexed_access_ty_or_undefined(
                     indexed_access_ty.object_ty,
                     index_constraint,
                     Some(indexed_access_ty.access_flags),
@@ -86,13 +84,10 @@ impl<'cx> TyChecker<'cx> {
                 ) {
                     return Some(indexed_access);
                 }
-            }
-        }
 
         if let Some(object_constraint) =
             self.get_simplified_ty_or_constraint(indexed_access_ty.object_ty)
-        {
-            if object_constraint != indexed_access_ty.object_ty {
+            && object_constraint != indexed_access_ty.object_ty {
                 return self.get_indexed_access_ty_or_undefined(
                     object_constraint,
                     indexed_access_ty.index_ty,
@@ -100,7 +95,6 @@ impl<'cx> TyChecker<'cx> {
                     None,
                 );
             }
-        }
 
         None
     }
@@ -251,15 +245,14 @@ impl<'cx> TyChecker<'cx> {
             };
 
             if checker.pop_ty_resolution().has_cycle() {
-                if ty.flags.intersects(TypeFlags::TYPE_PARAMETER) {
-                    if let Some(decl) = checker.get_constraint_decl(ty) {
+                if ty.flags.intersects(TypeFlags::TYPE_PARAMETER)
+                    && let Some(decl) = checker.get_constraint_decl(ty) {
                         let error = errors::TypeParameterXHasACircularConstraint {
                             ty: checker.print_ty(ty).to_string(),
                             span: decl.span(),
                         };
                         checker.push_error(Box::new(error));
                     }
-                }
                 result = Some(checker.circular_constraint_ty());
             }
 

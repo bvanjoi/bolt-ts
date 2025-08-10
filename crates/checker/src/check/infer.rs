@@ -585,8 +585,8 @@ impl<'cx> TyChecker<'cx> {
         };
 
         let node_id = node.id();
-        if !self.p.node(node_id).is_bin_expr() {
-            if let Some(contextual_ty) =
+        if !self.p.node(node_id).is_bin_expr()
+            && let Some(contextual_ty) =
                 self.get_contextual_ty(node_id, Some(ContextFlags::empty()))
             {
                 let inference_target_ty = self.get_ret_ty_of_sig(sig);
@@ -663,7 +663,6 @@ impl<'cx> TyChecker<'cx> {
                     };
                 }
             }
-        }
 
         for (idx, arg) in args.iter().enumerate() {
             if !matches!(arg.kind, ast::ExprKind::Omit(_)) {
@@ -1144,8 +1143,8 @@ impl<'cx> InferenceState<'cx, '_> {
             }
         }
 
-        if target.kind.is_type_variable() {
-            if let Some(idx) = self.get_inference_info_for_ty(target) {
+        if target.kind.is_type_variable()
+            && let Some(idx) = self.get_inference_info_for_ty(target) {
                 let info = self.c.inference_info(self.inference, idx);
                 if !info.is_fixed {
                     let candidate = self.propagation_ty.unwrap_or(source);
@@ -1192,7 +1191,6 @@ impl<'cx> InferenceState<'cx, '_> {
                 };
                 return;
             }
-        }
 
         if target.kind.is_cond_ty() {
             self.invoke_once(source, target, |this, source, target| {
@@ -1414,8 +1412,8 @@ impl<'cx> InferenceState<'cx, '_> {
                     } else {
                         None
                     };
-                    if let Some(constraint) = constraint {
-                        if !self.c.is_type_any(Some(constraint)) {
+                    if let Some(constraint) = constraint
+                        && !self.c.is_type_any(Some(constraint)) {
                             let constraint_tys = if let Some(u) = constraint.kind.as_union() {
                                 u.tys
                             } else {
@@ -1556,7 +1554,6 @@ impl<'cx> InferenceState<'cx, '_> {
                                 }
                             }
                         }
-                    }
                 }
                 self.infer_from_tys(source, target);
             }
@@ -1611,14 +1608,13 @@ impl<'cx> InferenceState<'cx, '_> {
     }
 
     fn infer_from_object_tys(&mut self, source: &'cx ty::Ty<'cx>, target: &'cx ty::Ty<'cx>) {
-        if let Some(target_mapped_ty) = target.kind.as_object_mapped() {
-            if target_mapped_ty.decl.name_ty.is_none() {
+        if let Some(target_mapped_ty) = target.kind.as_object_mapped()
+            && target_mapped_ty.decl.name_ty.is_none() {
                 let constraint_ty = self.c.get_constraint_ty_from_mapped_ty(target);
                 if self.infer_to_mapped_ty(source, target, target_mapped_ty, constraint_ty) {
                     return;
                 }
             }
-        }
 
         if !self.c.tys_definitely_unrelated(source, target) {
             if source.is_tuple() || source.kind.is_array(self.c) {
@@ -1634,15 +1630,14 @@ impl<'cx> InferenceState<'cx, '_> {
                     };
                     let element_tys = self.c.get_ty_arguments(target);
                     let element_flags = target_tuple.element_flags;
-                    if let Some(source_tuple) = source.as_tuple() {
-                        if is_tuple_ty_structure_matching(source_tuple, target_tuple) {
+                    if let Some(source_tuple) = source.as_tuple()
+                        && is_tuple_ty_structure_matching(source_tuple, target_tuple) {
                             for i in 0..target_arity {
                                 let s = self.c.get_ty_arguments(source);
                                 self.infer_from_tys(s[i], element_tys[i]);
                             }
                             return;
                         }
-                    }
                     let start_len = if let Some(s) = source.as_tuple() {
                         usize::min(s.fixed_length, target_tuple.fixed_length)
                     } else {
@@ -1691,8 +1686,7 @@ impl<'cx> InferenceState<'cx, '_> {
                             {
                                 if let Some(target_info) =
                                     self.get_inference_info_for_ty(element_tys[start_len])
-                                {
-                                    if let Some(implied_arity) = self
+                                    && let Some(implied_arity) = self
                                         .c
                                         .inference_info(self.inference, target_info)
                                         .implied_arity
@@ -1710,7 +1704,6 @@ impl<'cx> InferenceState<'cx, '_> {
                                         );
                                         self.infer_from_tys(s, element_tys[start_len + 1]);
                                     }
-                                }
                             } else if element_flags[start_len]
                                 .intersects(ty::ElementFlags::VARIADIC)
                                 && element_flags[start_len + 1].intersects(ty::ElementFlags::REST)
@@ -1722,9 +1715,9 @@ impl<'cx> InferenceState<'cx, '_> {
                                 });
                                 let constraint =
                                     param.and_then(|param| self.c.get_base_constraint_of_ty(param));
-                                if let Some(constraint) = constraint {
-                                    if let Some(t) = constraint.as_tuple() {
-                                        if !t.combined_flags.intersects(ty::ElementFlags::VARIABLE)
+                                if let Some(constraint) = constraint
+                                    && let Some(t) = constraint.as_tuple()
+                                        && !t.combined_flags.intersects(ty::ElementFlags::VARIABLE)
                                         {
                                             let implied_arity = t.fixed_length;
                                             let s = self.c.slice_tuple_ty(
@@ -1745,8 +1738,6 @@ impl<'cx> InferenceState<'cx, '_> {
                                                 .unwrap();
                                             self.infer_from_tys(s, element_tys[start_len + 1]);
                                         }
-                                    }
-                                }
                             } else if element_flags[start_len].intersects(ty::ElementFlags::REST)
                                 && element_flags[start_len + 1]
                                     .intersects(ty::ElementFlags::VARIADIC)
@@ -1758,9 +1749,9 @@ impl<'cx> InferenceState<'cx, '_> {
                                 });
                                 let constraint =
                                     param.and_then(|param| self.c.get_base_constraint_of_ty(param));
-                                if let Some(constraint) = constraint {
-                                    if let Some(t) = constraint.as_tuple() {
-                                        if !t.combined_flags.intersects(ty::ElementFlags::VARIABLE)
+                                if let Some(constraint) = constraint
+                                    && let Some(t) = constraint.as_tuple()
+                                        && !t.combined_flags.intersects(ty::ElementFlags::VARIABLE)
                                         {
                                             let implied_arity = t.fixed_length;
                                             let end_index = source_arity
@@ -1790,8 +1781,6 @@ impl<'cx> InferenceState<'cx, '_> {
                                                 element_tys[start_len + 1],
                                             );
                                         }
-                                    }
-                                }
                             }
                         } else if middle_length == 1
                             && element_flags[start_len].intersects(ty::ElementFlags::VARIADIC)
@@ -1810,8 +1799,7 @@ impl<'cx> InferenceState<'cx, '_> {
                             );
                         } else if middle_length == 1
                             && element_flags[start_len].intersects(ty::ElementFlags::REST)
-                        {
-                            if let Some(rest_ty) = self.c.get_element_ty_of_slice_of_tuple_ty(
+                            && let Some(rest_ty) = self.c.get_element_ty_of_slice_of_tuple_ty(
                                 source,
                                 start_len,
                                 Some(end_len),
@@ -1820,7 +1808,6 @@ impl<'cx> InferenceState<'cx, '_> {
                             ) {
                                 self.infer_from_tys(rest_ty, element_tys[start_len]);
                             }
-                        }
                     }
                     for i in 0..end_len {
                         let s = self.c.get_ty_arguments(source)[source_arity - i - 1];

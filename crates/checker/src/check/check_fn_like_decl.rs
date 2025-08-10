@@ -8,8 +8,8 @@ use bolt_ts_ast::r#trait;
 impl<'cx> TyChecker<'cx> {
     fn check_param_decl(&mut self, param: &'cx ast::ParamDecl<'cx>) {
         self.check_var_like_decl(param);
-        if param.dotdotdot.is_some() {
-            if let ast::BindingKind::Ident(_) = param.name.kind {
+        if param.dotdotdot.is_some()
+            && let ast::BindingKind::Ident(_) = param.name.kind {
                 let symbol = self.get_symbol_of_decl(param.id);
                 let ty = self.get_type_of_symbol(symbol);
                 let ty = self.get_reduced_ty(ty);
@@ -19,7 +19,6 @@ impl<'cx> TyChecker<'cx> {
                     self.push_error(Box::new(error));
                 }
             }
-        }
     }
 
     pub(super) fn check_fn_like_decl(&mut self, decl: &impl r#trait::FnDeclLike<'cx>) {

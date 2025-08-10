@@ -15,13 +15,12 @@ impl<'cx> TyChecker<'cx> {
     pub(super) fn get_recursion_id(&self, ty: &'cx ty::Ty<'cx>) -> RecursionId {
         if ty.kind.is_object() && !ty.is_object_or_array_literal() {
             // if ty.kind.is_object_reference()
-            if let Some(symbol) = ty.symbol() {
-                if !(ty.kind.is_object_anonymous()
+            if let Some(symbol) = ty.symbol()
+                && !(ty.kind.is_object_anonymous()
                     && self.symbol(symbol).flags.intersects(SymbolFlags::CLASS))
                 {
                     return RecursionId::Symbol(symbol);
                 }
-            }
             if ty.is_tuple() {
                 if let Some(refer) = ty.kind.as_object_reference() {
                     assert!(refer.target.kind.is_object_tuple());

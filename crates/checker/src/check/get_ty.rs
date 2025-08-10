@@ -492,21 +492,20 @@ impl<'cx> TyChecker<'cx> {
     pub(super) fn get_actual_ty_variable(&mut self, ty: &'cx Ty<'cx>) -> &'cx Ty<'cx> {
         if let Some(sub) = ty.kind.as_substitution_ty() {
             return self.get_actual_ty_variable(sub.base_ty);
-        } else if let Some(indexed_access) = ty.kind.as_indexed_access() {
-            if indexed_access
+        } else if let Some(indexed_access) = ty.kind.as_indexed_access()
+            && (indexed_access
                 .object_ty
                 .flags
                 .intersects(TypeFlags::SUBSTITUTION)
                 || indexed_access
                     .index_ty
                     .flags
-                    .intersects(TypeFlags::SUBSTITUTION)
+                    .intersects(TypeFlags::SUBSTITUTION))
             {
                 let object_ty = self.get_actual_ty_variable(indexed_access.object_ty);
                 let index_ty = self.get_actual_ty_variable(indexed_access.index_ty);
                 return self.get_indexed_access_ty(object_ty, index_ty, None, None);
             }
-        }
         ty
     }
 
@@ -1057,11 +1056,10 @@ impl<'cx> TyChecker<'cx> {
         use bolt_ts_ast::Node::*;
         match self.p.node(node) {
             ReferTy(n) => {
-                if let EntityNameKind::Ident(i) = n.name.kind {
-                    if is_prim_ty_name(i.name) {
+                if let EntityNameKind::Ident(i) = n.name.kind
+                    && is_prim_ty_name(i.name) {
                         return false;
                     }
-                }
                 let id = n.name.id();
                 let s = self.final_res(id);
                 self.symbol(s).flags.intersects(SymbolFlags::TYPE_ALIAS)
@@ -1331,8 +1329,8 @@ impl<'cx> TyChecker<'cx> {
             } else {
                 None
             };
-            if let Some(constraint) = constraint {
-                if constraint != cond_ty.check_ty {
+            if let Some(constraint) = constraint
+                && constraint != cond_ty.check_ty {
                     let mapper =
                         self.prepend_ty_mapping(cond_ty.root.check_ty, constraint, cond_ty.mapper);
                     let instantiated = self.get_cond_ty_instantiation(ty, mapper, None, None);
@@ -1340,7 +1338,6 @@ impl<'cx> TyChecker<'cx> {
                         .set_resolved_constraint_of_distribute(Some(instantiated));
                     return Some(instantiated);
                 }
-            }
         }
         self.get_mut_ty_links(ty.id)
             .set_resolved_constraint_of_distribute(None);
@@ -1458,8 +1455,8 @@ impl<'cx> TyChecker<'cx> {
                         extra_tys.push(ty);
                     }
                     let false_ty = self.get_ty_from_type_node(root.node.false_ty);
-                    if false_ty.kind.as_cond_ty().is_some() {
-                        if let Some((new_root, new_root_mapper)) =
+                    if false_ty.kind.as_cond_ty().is_some()
+                        && let Some((new_root, new_root_mapper)) =
                             can_tail_recurse(self, false_ty, mapper)
                         {
                             root = new_root;
@@ -1471,7 +1468,6 @@ impl<'cx> TyChecker<'cx> {
                             }
                             continue;
                         }
-                    }
                     let t = self.instantiate_ty(false_ty, mapper);
                     break t;
                 }

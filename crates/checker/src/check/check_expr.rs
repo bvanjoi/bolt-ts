@@ -1049,8 +1049,7 @@ impl<'cx> TyChecker<'cx> {
         assert!(matches!(op, "^" | "^=" | "&" | "&=" | "|" | "|="));
         if left_ty.flags.intersects(TypeFlags::BOOLEAN_LIKE)
             && right_ty.flags.intersects(TypeFlags::BOOLEAN_LIKE)
-        {
-            if let Some(sugg) = get_suggestion_boolean_op(op) {
+            && let Some(sugg) = get_suggestion_boolean_op(op) {
                 let error = errors::TheOp1IsNotAllowedForBooleanTypesConsiderUsingOp2Instead {
                     span: expr_span,
                     op1: op.to_string(),
@@ -1059,7 +1058,6 @@ impl<'cx> TyChecker<'cx> {
                 self.push_error(Box::new(error));
                 return self.number_ty;
             }
-        }
 
         let left = self.check_arithmetic_op_ty(left_ty, false, |this| {
             let error =

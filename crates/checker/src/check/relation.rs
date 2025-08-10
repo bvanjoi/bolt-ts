@@ -315,12 +315,11 @@ impl<'cx> TyChecker<'cx> {
         for current in tys {
             for prop in self.get_props_of_ty(current) {
                 let name = self.symbol(*prop).name;
-                if let indexmap::map::Entry::Vacant(vac) = members.entry(name) {
-                    if let Some(combined_prop) = self.get_prop_of_union_or_intersection_ty(ty, name)
+                if let indexmap::map::Entry::Vacant(vac) = members.entry(name)
+                    && let Some(combined_prop) = self.get_prop_of_union_or_intersection_ty(ty, name)
                     {
                         vac.insert(combined_prop);
                     }
-                }
             }
         }
         let props = members.into_values().collect::<Vec<_>>();
@@ -373,16 +372,15 @@ impl<'cx> TyChecker<'cx> {
                 None
             };
 
-            if let Some(fn_ty) = fn_ty {
-                if let Some(symbol) = self.get_prop_of_object_ty(fn_ty, name) {
+            if let Some(fn_ty) = fn_ty
+                && let Some(symbol) = self.get_prop_of_object_ty(fn_ty, name) {
                     return Some(symbol);
                 }
-            }
 
             self.get_prop_of_object_ty(self.global_object_ty(), name)
         } else if ty.kind.as_intersection().is_some() {
             if let Some(prop) = self.get_prop_of_union_or_intersection_ty(ty, name) {
-                return Some(prop);
+                Some(prop)
             } else {
                 None
             }

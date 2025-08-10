@@ -144,8 +144,8 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
             if !matches!(self.token.kind, TokenKind::Implements | TokenKind::Extends) {
                 break;
             }
-            if self.token.kind == TokenKind::Extends {
-                if let Some(origin) = extends {
+            if self.token.kind == TokenKind::Extends
+                && let Some(origin) = extends {
                     let error = errors::ClauseAlreadySeen {
                         span: self.token.span,
                         kind: errors::ClauseKind::Extends,
@@ -153,9 +153,8 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
                     };
                     self.push_error(Box::new(error));
                 }
-            }
-            if self.token.kind == TokenKind::Implements {
-                if let Some(origin) = implements {
+            if self.token.kind == TokenKind::Implements
+                && let Some(origin) = implements {
                     let error = errors::ClauseAlreadySeen {
                         span: self.token.span,
                         kind: errors::ClauseKind::Implements,
@@ -163,20 +162,18 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
                     };
                     self.push_error(Box::new(error));
                 }
-            }
 
             let e = self.parse_class_extends_clause()?;
             if extends.is_none() {
                 extends = e;
-                if let Some(extends) = extends {
-                    if let Some(implements) = implements {
+                if let Some(extends) = extends
+                    && let Some(implements) = implements {
                         let error = errors::ExtendsClauseMustPrecedeImplementsClause {
                             extends_span: extends.span,
                             implements_span: implements.span,
                         };
                         self.push_error(Box::new(error));
                     }
-                }
             }
             let i = self.parse_implements_clause()?;
             if implements.is_none() {

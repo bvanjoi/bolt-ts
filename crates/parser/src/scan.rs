@@ -882,18 +882,17 @@ impl ParserState<'_, '_> {
                 }
                 b'0'..=b'9' => self.scan_number(),
                 b'\\' => {
-                    if let Some(extended_cooked_char) = self.peek_extend_unicode_escape() {
-                        if is_identifier_start(extended_cooked_char, false) {
+                    if let Some(extended_cooked_char) = self.peek_extend_unicode_escape()
+                        && is_identifier_start(extended_cooked_char, false) {
                             let mut unicode = self.scan_extended_unicode_escape(true);
                             let ident_parts = self.scan_identifier_parts();
                             unicode.extend(ident_parts);
                             self.token = self.get_ident_token(Cow::Owned(unicode), start as u32);
                             return;
                         }
-                    }
 
-                    if let Some(cooked_char) = self.peek_unicode_escape() {
-                        if is_identifier_start(cooked_char, false) {
+                    if let Some(cooked_char) = self.peek_unicode_escape()
+                        && is_identifier_start(cooked_char, false) {
                             self.pos += 6;
                             self.token_flags |= TokenFlags::UNICODE_ESCAPE;
                             let ch = unsafe {
@@ -906,7 +905,6 @@ impl ParserState<'_, '_> {
                             self.token = self.get_ident_token(Cow::Owned(s), start as u32);
                             return;
                         }
-                    }
 
                     self.push_error(Box::new(errors::InvalidCharacter {
                         span: Span::new(start as u32, self.pos as u32 + 1, self.module_id),
@@ -1536,14 +1534,13 @@ impl ParserState<'_, '_> {
         let id = self.atoms.lock().unwrap().atom(s);
         if len > 1 && len < 13 {
             let first = *unsafe { ident.get_unchecked(0) };
-            if first.is_ascii_lowercase() {
-                if let Some(kind) = atom_to_token(id) {
+            if first.is_ascii_lowercase()
+                && let Some(kind) = atom_to_token(id) {
                     debug_assert!(!self.atoms.lock().unwrap().get(id).is_empty());
                     let span = Span::new(start, self.pos as u32, self.module_id);
                     self.token_value = Some(TokenValue::Ident { value: id });
                     return Token::new(kind, span);
                 }
-            }
         }
         self.token_value = Some(TokenValue::Ident { value: id });
         Token::new(
@@ -1597,13 +1594,12 @@ impl ParserState<'_, '_> {
                 self.pos += 1;
             } else if ch == b'\\' {
                 let ch = self.peek_extend_unicode_escape();
-                if let Some(ch) = ch {
-                    if is_identifier_part(ch, false) {
+                if let Some(ch) = ch
+                    && is_identifier_part(ch, false) {
                         result.extend(self.scan_extended_unicode_escape(true));
                         start = self.pos;
                         continue;
                     }
-                }
                 let ch = self.peek_unicode_escape();
                 if !(ch.is_some_and(|ch| is_identifier_part(ch, false))) {
                     break;

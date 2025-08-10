@@ -51,8 +51,8 @@ impl<'cx> Resolver<'cx, '_, '_> {
                 };
 
                 (prop_name.name == ident.name).then_some(prop)
-            }) {
-                if prop
+            })
+                && prop
                     .modifiers
                     .map(|mods| mods.flags.contains(ast::ModifierKind::Static))
                     .unwrap_or_default()
@@ -67,7 +67,6 @@ impl<'cx> Resolver<'cx, '_, '_> {
                     };
                     return Some(error);
                 }
-            }
         }
 
         None
