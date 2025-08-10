@@ -26,10 +26,10 @@ impl<'cx> TyChecker<'cx> {
             ForIn(node) => self.check_for_in_stmt(node),
             Import(node) => self.check_import_decl(node),
             Export(node) => self.check_export_decl(node),
+            Enum(node) => self.check_enum_decl(node),
             ExportAssign(_) => {}
             Empty(_) => {}
             Throw(_) => {}
-            Enum(_) => {}
             ForOf(_) => {}
             Break(_) => {}
             Continue(_) => {}
@@ -41,6 +41,10 @@ impl<'cx> TyChecker<'cx> {
                 self.check_stmt(n.stmt);
             }
         };
+    }
+
+    fn check_enum_decl(&mut self, node: &'cx ast::EnumDecl<'cx>) {
+        let symbol = self.get_symbol_of_decl(node.id);
     }
 
     fn check_export_decl(&mut self, node: &'cx ast::ExportDecl<'cx>) {

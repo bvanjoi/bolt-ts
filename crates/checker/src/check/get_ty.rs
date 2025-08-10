@@ -870,7 +870,7 @@ impl<'cx> TyChecker<'cx> {
             );
         }
 
-        if !index_ty.flags.intersects(TypeFlags::NULLABLE)
+        if !index_ty.flags.contains(TypeFlags::NULLABLE)
             && self.is_type_assignable_to_kind(
                 index_ty,
                 TypeFlags::STRING_LIKE
@@ -891,19 +891,42 @@ impl<'cx> TyChecker<'cx> {
             if let Some(index_info) = index_info {
                 return Some(index_info.val_ty);
             }
-            if access_expr.is_some() {
+            if access_expr.is_some() && !self.is_const_enum_object_ty(object_ty) {
                 return None;
             }
         }
 
         if let Some(access_node) = access_node {
             let index_node = self.get_index_node_for_access_expr(access_node);
-            let span = self.p.node(index_node).span();
-            let error = errors::TypeCannotBeUsedAsAnIndexType {
-                span,
-                ty: self.print_ty(index_ty).to_string(),
+            let index_node = self.p.node(index_node);
+            let span = index_node.span();
+            let error: bolt_ts_middle::Diag = if !index_node.is_big_int_lit()
+                && index_ty
+                    .flags
+                    .intersects(TypeFlags::STRING_LITERAL.union(TypeFlags::NUMBER_LITERAL))
+            {
+                Box::new(errors::PropertyXDoesNotExistOnTypeY {
+                    span,
+                    prop: self.print_ty(index_ty).to_string(),
+                    ty: self.print_ty(object_ty).to_string(),
+                    related: vec![],
+                })
+            } else if index_ty
+                .flags
+                .intersects(TypeFlags::STRING.union(TypeFlags::NUMBER))
+            {
+                Box::new(errors::TypeXHasNoMatchingIndexSignatureForTypeY {
+                    span,
+                    x: self.print_ty(object_ty).to_string(),
+                    y: self.print_ty(index_ty).to_string(),
+                })
+            } else {
+                Box::new(errors::TypeCannotBeUsedAsAnIndexType {
+                    span,
+                    ty: self.print_ty(index_ty).to_string(),
+                })
             };
-            self.push_error(Box::new(error));
+            self.push_error(error);
         }
 
         None

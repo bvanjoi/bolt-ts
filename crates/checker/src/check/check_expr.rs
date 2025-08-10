@@ -31,14 +31,14 @@ fn get_suggestion_boolean_op(op: &str) -> Option<&str> {
 bitflags::bitflags! {
     #[derive(Clone, Copy, Debug)]
     pub struct IterationUse: u8 {
-        const ALLOWS_SYNC_ITERABLES_FLAG  = 1 << 0;
-        const ALLOWS_ASYNC_ITERABLES_FLAG = 1 << 1;
-        const ALLOWS_STRING_INPUT_FLAG     = 1 << 2;
-        const FOR_OF_FLAG                  = 1 << 3;
-        const YIELD_STAR_FLAG              = 1 << 4;
-        const SPREAD_FLAG                  = 1 << 5;
-        const DESTRUCTURING_FLAG           = 1 << 6;
-        const POSSIBLY_OUT_OF_BOUNDS       = 1 << 7;
+        const ALLOWS_SYNC_ITERABLES_FLAG    = 1 << 0;
+        const ALLOWS_ASYNC_ITERABLES_FLAG   = 1 << 1;
+        const ALLOWS_STRING_INPUT_FLAG      = 1 << 2;
+        const FOR_OF_FLAG                   = 1 << 3;
+        const YIELD_STAR_FLAG               = 1 << 4;
+        const SPREAD_FLAG                   = 1 << 5;
+        const DESTRUCTURING_FLAG            = 1 << 6;
+        const POSSIBLY_OUT_OF_BOUNDS        = 1 << 7;
 
         const ELEMENT = Self::ALLOWS_SYNC_ITERABLES_FLAG.bits();
         const SPREAD = Self::ALLOWS_SYNC_ITERABLES_FLAG.bits()

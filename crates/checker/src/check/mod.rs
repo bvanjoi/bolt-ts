@@ -3595,6 +3595,13 @@ impl<'cx> TyChecker<'cx> {
         self.create_reverse_mapped_ty(source, target, constraint_ty)
     }
 
+    fn is_const_enum_object_ty(&self, ty: &'cx ty::Ty<'cx>) -> bool {
+        ty.get_object_flags().contains(ObjectFlags::ANONYMOUS)
+            && ty
+                .symbol()
+                .is_some_and(|symbol| self.symbol(symbol).flags.contains(SymbolFlags::CONST_ENUM))
+    }
+
     #[inline(always)]
     pub fn ty(&self, id: TyID) -> &'cx ty::Ty<'cx> {
         debug_assert!(id.as_usize() < self.tys.len());

@@ -723,13 +723,19 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
 
     fn bind_enum_decl(&mut self, node: &'cx ast::EnumDecl<'cx>) {
         // TODO: is const
+        let (includes, excludes) = if node
+            .modifiers
+            .is_some_and(|ms| ms.flags.contains(ast::ModifierKind::Const))
+        {
+            (SymbolFlags::CONST_ENUM, SymbolFlags::CONST_ENUM_EXCLUDES)
+        } else {
+            (
+                SymbolFlags::REGULAR_ENUM,
+                SymbolFlags::REGULAR_ENUM_EXCLUDES,
+            )
+        };
         let name = SymbolName::Atom(node.name.name);
-        let symbol = self.bind_block_scoped_decl(
-            node.id,
-            name,
-            SymbolFlags::REGULAR_ENUM,
-            SymbolFlags::REGULAR_ENUM_EXCLUDES,
-        );
+        let symbol = self.bind_block_scoped_decl(node.id, name, includes, excludes);
         self.final_res.insert(node.id, symbol);
     }
 

@@ -267,10 +267,11 @@ impl<'cx> ObjectTyKind<'cx> {
                         .collect::<Vec<_>>()
                         .join("");
                     format!("{{ {members}}}")
-                } else if symbol
-                    .flags
-                    .intersects(SymbolFlags::CLASS.union(SymbolFlags::VALUE_MODULE))
-                {
+                } else if symbol.flags.intersects(
+                    SymbolFlags::CLASS
+                        .union(SymbolFlags::VALUE_MODULE)
+                        .union(SymbolFlags::CONST_ENUM),
+                ) {
                     let name = symbol.name.expect_atom();
                     format!("typeof {}", checker.atoms.get(name))
                 } else if let Some(sig) = checker

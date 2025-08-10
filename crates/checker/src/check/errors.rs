@@ -661,3 +661,12 @@ pub(super) struct DuplicateIdentifierX {
     pub(super) span: Span,
     pub(super) ident: String,
 }
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
+#[error("Type '{x}' has no matching index signature for type '{y}'.")]
+pub(super) struct TypeXHasNoMatchingIndexSignatureForTypeY {
+    #[label(primary)]
+    pub span: Span,
+    pub x: String,
+    pub y: String,
+}

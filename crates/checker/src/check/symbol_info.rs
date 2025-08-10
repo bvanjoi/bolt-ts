@@ -136,7 +136,11 @@ impl<'cx> super::TyChecker<'cx> {
                 Some(exports) => exports.clone(),
                 None => SymbolTable::new(16),
             };
-            let exports = self.alloc(exports);
+            let exports = if exports.0.is_empty() {
+                self.empty_symbols()
+            } else {
+                self.alloc(exports)
+            };
             self.get_mut_symbol_links(symbol).set_exports(exports);
             exports
         }
@@ -255,6 +259,7 @@ impl<'cx> super::TyChecker<'cx> {
         } else {
             let exports = self.exports_of_symbol(symbol);
             if exports.0.is_empty() {
+                debug_assert!(std::ptr::eq(exports, self.empty_symbols()));
                 self.empty_symbols()
             } else {
                 exports
