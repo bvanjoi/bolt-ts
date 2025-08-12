@@ -1,9 +1,9 @@
 use super::TyChecker;
 use super::symbol_info::SymbolInfo;
-use bolt_ts_binder::SymbolID;
 use crate::check::SymbolLinks;
 use crate::check::check_expr::IterationUse;
 use crate::ty::{self, AccessFlags};
+use bolt_ts_binder::SymbolID;
 
 impl<'cx> TyChecker<'cx> {
     fn assign_param_ty(&mut self, param: SymbolID, ctx: Option<&'cx ty::Ty<'cx>>) {

@@ -34,9 +34,10 @@ impl<'cx> TyChecker<'cx> {
     fn range_eq<T: PartialEq>(arr1: &[T], arr2: &[T], start: usize, end: usize) -> bool {
         for index in start..end {
             if let Some(item2) = arr2.get(index)
-                && arr1[index].eq(item2) {
-                    continue;
-                }
+                && arr1[index].eq(item2)
+            {
+                continue;
+            }
             return false;
         }
         true
@@ -67,19 +68,21 @@ impl<'cx> TyChecker<'cx> {
         mapper: &'cx dyn ty::TyMap<'cx>,
     ) -> SymbolID {
         if let Some(ty) = self.get_symbol_links(symbol).get_ty()
-            && !self.could_contain_ty_var(ty) {
-                if !self
-                    .symbol(symbol)
-                    .flags
-                    .intersects(SymbolFlags::SET_ACCESSOR)
-                {
-                    return symbol;
-                }
-                if let Some(write_ty) = self.get_symbol_links(symbol).get_write_ty()
-                    && !self.could_contain_ty_var(write_ty) {
-                        return symbol;
-                    }
+            && !self.could_contain_ty_var(ty)
+        {
+            if !self
+                .symbol(symbol)
+                .flags
+                .intersects(SymbolFlags::SET_ACCESSOR)
+            {
+                return symbol;
             }
+            if let Some(write_ty) = self.get_symbol_links(symbol).get_write_ty()
+                && !self.could_contain_ty_var(write_ty)
+            {
+                return symbol;
+            }
+        }
 
         let check_flags = self.get_check_flags(symbol);
         let (symbol, mapper, check_flags) = if check_flags.intersects(CheckFlags::INSTANTIATED) {
@@ -156,24 +159,23 @@ impl<'cx> TyChecker<'cx> {
         erase_ty_params: bool,
     ) -> &'cx ty::Sig<'cx> {
         let mut fresh_ty_params = None;
-        if !erase_ty_params
-            && let Some(ty_params) = &sig.ty_params {
-                let new_ty_params = ty_params
-                    .iter()
-                    .map(|ty| self.clone_param_ty(ty))
-                    .collect::<Vec<_>>();
-                let new_ty_params: ty::Tys<'cx> = self.alloc(new_ty_params);
-                fresh_ty_params = Some(new_ty_params);
-                let new_mapper = self.create_ty_mapper(ty_params, new_ty_params);
-                mapper = self.combine_ty_mappers(Some(new_mapper), mapper);
-                for ty in new_ty_params {
-                    let prev = self.ty_links.insert(
-                        ty.id,
-                        super::TyLinks::default().with_param_ty_mapper(mapper),
-                    );
-                    assert!(prev.is_none());
-                }
+        if !erase_ty_params && let Some(ty_params) = &sig.ty_params {
+            let new_ty_params = ty_params
+                .iter()
+                .map(|ty| self.clone_param_ty(ty))
+                .collect::<Vec<_>>();
+            let new_ty_params: ty::Tys<'cx> = self.alloc(new_ty_params);
+            fresh_ty_params = Some(new_ty_params);
+            let new_mapper = self.create_ty_mapper(ty_params, new_ty_params);
+            mapper = self.combine_ty_mappers(Some(new_mapper), mapper);
+            for ty in new_ty_params {
+                let prev = self.ty_links.insert(
+                    ty.id,
+                    super::TyLinks::default().with_param_ty_mapper(mapper),
+                );
+                assert!(prev.is_none());
             }
+        }
 
         let params = self.instantiate_list(sig.params, mapper, |this, symbol, mapper| {
             this.instantiate_symbol(symbol, mapper)
@@ -389,12 +391,13 @@ impl<'cx> TyChecker<'cx> {
             };
             if !cycle_reported
                 && let Cycle::Some(_) = self.pop_ty_resolution()
-                    && let Some(decl) = id.opt_decl(self.binder) {
-                        let p = self.p.node(decl);
-                        if p.is_class_decl() || p.is_interface_decl() {
-                            self.report_circular_base_ty(decl, ty, None);
-                        }
-                    }
+                && let Some(decl) = id.opt_decl(self.binder)
+            {
+                let p = self.p.node(decl);
+                if p.is_class_decl() || p.is_interface_decl() {
+                    self.report_circular_base_ty(decl, ty, None);
+                }
+            }
             self.get_mut_ty_links(ty.id).set_base_tys_resolved(true);
         }
 
@@ -620,7 +623,7 @@ impl<'cx> TyChecker<'cx> {
         res
     }
 
-    fn get_class_like_decl_of_symbol(&self, symbol: SymbolID) -> Option<ast::NodeID> {
+    pub fn get_class_like_decl_of_symbol(&self, symbol: SymbolID) -> Option<ast::NodeID> {
         let decls = self.binder.symbol(symbol).decls.as_ref()?;
         decls
             .iter()
@@ -881,18 +884,14 @@ impl<'cx> TyChecker<'cx> {
             let c_index_ty = r.constraint_ty.kind.expect_index_ty();
             if let Some(t) = c_index_ty.ty.kind.as_indexed_access()
                 && t.object_ty.flags.intersects(TypeFlags::TYPE_PARAMETER)
-                    && t.index_ty.flags.intersects(TypeFlags::TYPE_PARAMETER)
-                {
-                    let new_ty_param = t.object_ty;
-                    let new_mapped_ty = self.replace_indexed_access(
-                        r.mapped_ty,
-                        t.object_ty,
-                        t.index_ty,
-                        new_ty_param,
-                    );
-                    mapped_ty = new_mapped_ty;
-                    constraint_ty = self.get_index_ty(new_ty_param, IndexFlags::empty());
-                }
+                && t.index_ty.flags.intersects(TypeFlags::TYPE_PARAMETER)
+            {
+                let new_ty_param = t.object_ty;
+                let new_mapped_ty =
+                    self.replace_indexed_access(r.mapped_ty, t.object_ty, t.index_ty, new_ty_param);
+                mapped_ty = new_mapped_ty;
+                constraint_ty = self.get_index_ty(new_ty_param, IndexFlags::empty());
+            }
 
             let links = SymbolLinks::default()
                 .with_prop_ty(prop_ty)

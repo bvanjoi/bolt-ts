@@ -13,7 +13,7 @@ use crate::ty::{
 use bolt_ts_ast::keyword::is_prim_ty_name;
 use bolt_ts_ast::r#trait;
 use bolt_ts_ast::{self as ast, EntityNameKind, FnFlags, keyword};
-use bolt_ts_atom::AtomId;
+use bolt_ts_atom::Atom;
 use bolt_ts_binder::AssignmentKind;
 use bolt_ts_binder::{SymbolFlags, SymbolID, SymbolName};
 
@@ -31,20 +31,20 @@ impl<'cx> TyChecker<'cx> {
         };
 
         let check_flags = self.get_check_flags(id);
-        if check_flags.intersects(CheckFlags::DEFERRED_TYPE) {
+        if check_flags.contains(CheckFlags::DEFERRED_TYPE) {
             return self.get_type_of_symbol_with_deferred_type(id);
-        } else if check_flags.intersects(CheckFlags::INSTANTIATED) {
+        } else if check_flags.contains(CheckFlags::INSTANTIATED) {
             return self.get_type_of_instantiated_symbol(id);
-        } else if check_flags.intersects(CheckFlags::MAPPED) {
+        } else if check_flags.contains(CheckFlags::MAPPED) {
             return self.get_type_of_mapped_symbol(id);
-        } else if check_flags.intersects(CheckFlags::REVERSE_MAPPED) {
+        } else if check_flags.contains(CheckFlags::REVERSE_MAPPED) {
             return self.get_type_of_reverse_mapped_symbol(id);
         }
 
         let flags = self.symbol(id).flags;
-        assert!(!flags.intersects(SymbolFlags::OBJECT_LITERAL));
+        debug_assert!(!flags.contains(SymbolFlags::OBJECT_LITERAL));
 
-        (if flags.intersects(SymbolFlags::VARIABLE.union(SymbolFlags::PROPERTY)) {
+        if flags.intersects(SymbolFlags::VARIABLE.union(SymbolFlags::PROPERTY)) {
             self.get_ty_of_var_or_param_or_prop(id)
         } else if flags.intersects(
             SymbolFlags::FUNCTION
@@ -54,13 +54,24 @@ impl<'cx> TyChecker<'cx> {
                 .union(SymbolFlags::VALUE_MODULE),
         ) {
             self.get_ty_of_func_class_enum_module(id)
+        } else if flags.contains(SymbolFlags::ENUM_MEMBER) {
+            self.get_ty_of_enum_member(id)
         } else if flags.intersects(SymbolFlags::ACCESSOR) {
             self.get_ty_of_accessor(id)
-        } else if flags.intersects(SymbolFlags::ALIAS) {
+        } else if flags.contains(SymbolFlags::ALIAS) {
             self.get_ty_of_alias(id)
         } else {
             self.error_ty
-        }) as _
+        }
+    }
+
+    fn get_ty_of_enum_member(&mut self, symbol: SymbolID) -> &'cx ty::Ty<'cx> {
+        if let Some(ty) = self.get_symbol_links(symbol).get_ty() {
+            return ty;
+        }
+        let ty = self.get_declared_ty_of_enum_member(symbol);
+        self.get_mut_symbol_links(symbol).set_ty(ty);
+        ty
     }
 
     fn get_ty_of_alias(&mut self, symbol: SymbolID) -> &'cx ty::Ty<'cx> {
@@ -86,7 +97,7 @@ impl<'cx> TyChecker<'cx> {
         ty
     }
 
-    fn _get_ty_of_var_or_param_or_prop(&mut self, symbol: SymbolID) -> &'cx ty::Ty<'cx> {
+    fn get_ty_of_var_or_param_or_prop_worker(&mut self, symbol: SymbolID) -> &'cx ty::Ty<'cx> {
         let s = self.symbol(symbol);
         let flags = s.flags;
         if flags.intersects(SymbolFlags::PROTOTYPE) {
@@ -188,7 +199,7 @@ impl<'cx> TyChecker<'cx> {
         if let Some(ty) = self.get_symbol_links(symbol).get_ty() {
             return ty;
         }
-        let ty = self._get_ty_of_var_or_param_or_prop(symbol);
+        let ty = self.get_ty_of_var_or_param_or_prop_worker(symbol);
         // TODO: && !self.is_param_of_context_sensitive_sig
         if self.get_symbol_links(symbol).get_ty().is_none() {
             self.get_mut_symbol_links(symbol).set_ty(ty);
@@ -501,11 +512,11 @@ impl<'cx> TyChecker<'cx> {
                     .index_ty
                     .flags
                     .intersects(TypeFlags::SUBSTITUTION))
-            {
-                let object_ty = self.get_actual_ty_variable(indexed_access.object_ty);
-                let index_ty = self.get_actual_ty_variable(indexed_access.index_ty);
-                return self.get_indexed_access_ty(object_ty, index_ty, None, None);
-            }
+        {
+            let object_ty = self.get_actual_ty_variable(indexed_access.object_ty);
+            let index_ty = self.get_actual_ty_variable(indexed_access.index_ty);
+            return self.get_indexed_access_ty(object_ty, index_ty, None, None);
+        }
         ty
     }
 
@@ -1057,9 +1068,10 @@ impl<'cx> TyChecker<'cx> {
         match self.p.node(node) {
             ReferTy(n) => {
                 if let EntityNameKind::Ident(i) = n.name.kind
-                    && is_prim_ty_name(i.name) {
-                        return false;
-                    }
+                    && is_prim_ty_name(i.name)
+                {
+                    return false;
+                }
                 let id = n.name.id();
                 let s = self.final_res(id);
                 self.symbol(s).flags.intersects(SymbolFlags::TYPE_ALIAS)
@@ -1330,14 +1342,15 @@ impl<'cx> TyChecker<'cx> {
                 None
             };
             if let Some(constraint) = constraint
-                && constraint != cond_ty.check_ty {
-                    let mapper =
-                        self.prepend_ty_mapping(cond_ty.root.check_ty, constraint, cond_ty.mapper);
-                    let instantiated = self.get_cond_ty_instantiation(ty, mapper, None, None);
-                    self.get_mut_ty_links(ty.id)
-                        .set_resolved_constraint_of_distribute(Some(instantiated));
-                    return Some(instantiated);
-                }
+                && constraint != cond_ty.check_ty
+            {
+                let mapper =
+                    self.prepend_ty_mapping(cond_ty.root.check_ty, constraint, cond_ty.mapper);
+                let instantiated = self.get_cond_ty_instantiation(ty, mapper, None, None);
+                self.get_mut_ty_links(ty.id)
+                    .set_resolved_constraint_of_distribute(Some(instantiated));
+                return Some(instantiated);
+            }
         }
         self.get_mut_ty_links(ty.id)
             .set_resolved_constraint_of_distribute(None);
@@ -1458,16 +1471,16 @@ impl<'cx> TyChecker<'cx> {
                     if false_ty.kind.as_cond_ty().is_some()
                         && let Some((new_root, new_root_mapper)) =
                             can_tail_recurse(self, false_ty, mapper)
-                        {
-                            root = new_root;
-                            mapper = Some(new_root_mapper);
-                            alias_symbol = None;
-                            alias_ty_args = None;
-                            if new_root.alias_symbol.is_some() {
-                                tailed += 1;
-                            }
-                            continue;
+                    {
+                        root = new_root;
+                        mapper = Some(new_root_mapper);
+                        alias_symbol = None;
+                        alias_ty_args = None;
+                        if new_root.alias_symbol.is_some() {
+                            tailed += 1;
                         }
+                        continue;
+                    }
                     let t = self.instantiate_ty(false_ty, mapper);
                     break t;
                 }
@@ -1749,7 +1762,7 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
-    pub(super) fn get_string_literal_type(&mut self, val: AtomId) -> &'cx Ty<'cx> {
+    pub(super) fn get_string_literal_type(&mut self, val: Atom) -> &'cx Ty<'cx> {
         if let Some(ty) = self.string_lit_tys.get(&val) {
             ty
         } else {
@@ -1762,7 +1775,7 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
-    pub(super) fn get_bigint_literal_type(&mut self, neg: bool, val: AtomId) -> &'cx Ty<'cx> {
+    pub(super) fn get_bigint_literal_type(&mut self, neg: bool, val: Atom) -> &'cx Ty<'cx> {
         let key = (neg, val);
         if let Some(ty) = self.bigint_lit_tys.get(&key) {
             ty

@@ -1,10 +1,10 @@
 use super::TyChecker;
 use super::type_predicate::TyPred;
-use bolt_ts_binder::{FlowFlags, FlowID, FlowInNode, FlowNode, FlowNodeKind};
 use crate::check::create_ty::IntersectionFlags;
 use crate::check::type_predicate::TyPredKind;
 use crate::ty::{self, ObjectFlags, TypeFlags};
 use bolt_ts_ast::{self as ast};
+use bolt_ts_binder::{FlowFlags, FlowID, FlowInNode, FlowNode, FlowNodeKind};
 
 #[derive(Debug, Clone, Copy)]
 pub enum FlowTy<'cx> {
@@ -196,35 +196,36 @@ impl<'cx> TyChecker<'cx> {
             && matches!(
                 pred.kind,
                 TyPredKind::AssertsThis(_) | TyPredKind::AssertsIdent(_)
-            ) {
-                let flow_ty = self.get_ty_at_flow_node(
-                    n.antecedent,
-                    refer,
-                    shared_flow_start,
-                    declared_ty,
-                    init_ty,
-                );
-                let ty = self.finalize_evolving_array_ty(self.get_ty_from_flow_ty(flow_ty));
-                let narrowed_ty = if pred.ty().is_some() {
-                    self.narrow_ty_by_ty_pred(ty, refer, pred, n.node, true)
-                } else if let TyPredKind::AssertsIdent(i) = pred.kind {
-                    if (i.param_index as usize) < n.node.args.len() {
-                        let expr = n.node.args[i.param_index as usize];
-                        self.narrow_ty_by_assertion(ty, refer, expr)
-                    } else {
-                        ty
-                    }
+            )
+        {
+            let flow_ty = self.get_ty_at_flow_node(
+                n.antecedent,
+                refer,
+                shared_flow_start,
+                declared_ty,
+                init_ty,
+            );
+            let ty = self.finalize_evolving_array_ty(self.get_ty_from_flow_ty(flow_ty));
+            let narrowed_ty = if pred.ty().is_some() {
+                self.narrow_ty_by_ty_pred(ty, refer, pred, n.node, true)
+            } else if let TyPredKind::AssertsIdent(i) = pred.kind {
+                if (i.param_index as usize) < n.node.args.len() {
+                    let expr = n.node.args[i.param_index as usize];
+                    self.narrow_ty_by_assertion(ty, refer, expr)
                 } else {
                     ty
-                };
+                }
+            } else {
+                ty
+            };
 
-                return Some(if narrowed_ty == ty {
-                    flow_ty
-                } else {
-                    let incomplete = flow_ty.is_incomplete();
-                    self.create_flow_ty(narrowed_ty, incomplete)
-                });
-            }
+            return Some(if narrowed_ty == ty {
+                flow_ty
+            } else {
+                let incomplete = flow_ty.is_incomplete();
+                self.create_flow_ty(narrowed_ty, incomplete)
+            });
+        }
 
         if self.get_ret_ty_of_sig(sig).flags.contains(TypeFlags::NEVER) {
             Some(FlowTy::Ty(self.unreachable_never_ty))

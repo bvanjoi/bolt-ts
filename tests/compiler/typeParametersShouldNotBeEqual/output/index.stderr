@@ -1,0 +1,11 @@
+  × Type 'U' is not assignable to type 'T'.
+   ╭─[../../tests/compiler/typeParametersShouldNotBeEqual/index.ts:6:7]
+ 6 │ y
+   · ─
+   ╰────
+
+  × Type 'Object' is not assignable to type 'T'.
+   ╭─[../../tests/compiler/typeParametersShouldNotBeEqual/index.ts:8:7]
+ 8 │ z
+   · ─
+   ╰────

@@ -1,5 +1,5 @@
 use bolt_ts_ast::{self as ast};
-use bolt_ts_atom::AtomId;
+use bolt_ts_atom::Atom;
 use bolt_ts_span::Span;
 
 use super::{
@@ -18,7 +18,7 @@ impl<'cx> ParserState<'cx, '_> {
 
     pub fn create_jsx_text(
         &mut self,
-        text: AtomId,
+        text: Atom,
         span: Span,
         contains_only_trivia_whitespace: bool,
     ) -> &'cx ast::JsxText {
@@ -325,6 +325,7 @@ impl<'cx> ParserState<'cx, '_> {
     pub fn create_class_ctor(
         &mut self,
         start: u32,
+        modifiers: Option<&'cx ast::Modifiers<'cx>>,
         ty_params: Option<ast::TyParams<'cx>>,
         params: ast::ParamsDecl<'cx>,
         ret: Option<&'cx ast::Ty<'cx>>,
@@ -335,6 +336,7 @@ impl<'cx> ParserState<'cx, '_> {
         let ctor = self.alloc(ast::ClassCtor {
             id,
             span,
+            modifiers,
             ty_params,
             params,
             ret,

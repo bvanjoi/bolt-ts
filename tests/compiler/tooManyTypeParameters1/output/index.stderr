@@ -1,0 +1,23 @@
+  × Expected 1 type arguments, but got 2.
+   ╭─[../../tests/compiler/tooManyTypeParameters1/index.ts:4:2]
+ 4 │ <string, string>
+   · ────────────────
+   ╰────
+
+  × Expected 1 type arguments, but got 2.
+   ╭─[../../tests/compiler/tooManyTypeParameters1/index.ts:8:2]
+ 8 │ <number,number>
+   · ───────────────
+   ╰────
+
+  × Expected 1 type arguments, but got 2.
+    ╭─[../../tests/compiler/tooManyTypeParameters1/index.ts:12:14]
+ 12 │ <Date,Date>
+    · ───────────
+    ╰────
+
+  × Generic type 'I<T>' requires 1 type argument.
+    ╭─[../../tests/compiler/tooManyTypeParameters1/index.ts:16:8]
+ 16 │ I<number,number>
+    · ────────────────
+    ╰────

@@ -1,4 +1,4 @@
-use bolt_ts_atom::AtomId;
+use bolt_ts_atom::Atom;
 use bolt_ts_ecma_logical::js_double_to_boolean;
 
 use super::*;
@@ -318,7 +318,7 @@ pub struct TemplateExpr<'cx> {
 pub struct TemplateHead {
     pub id: NodeID,
     pub span: Span,
-    pub text: AtomId,
+    pub text: Atom,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -326,7 +326,7 @@ pub struct TemplateSpan<'cx> {
     pub id: NodeID,
     pub span: Span,
     pub expr: &'cx self::Expr<'cx>,
-    pub text: AtomId,
+    pub text: Atom,
     pub is_tail: bool,
 }
 
@@ -685,12 +685,12 @@ pub struct Lit<T> {
 }
 
 pub type NumLit = Lit<f64>;
-pub type BigIntLit = Lit<(bool, AtomId)>;
+pub type BigIntLit = Lit<(bool, Atom)>;
 pub type BoolLit = Lit<bool>;
 pub type NullLit = Lit<()>;
-pub type StringLit = Lit<AtomId>;
-pub type RegExpLit = Lit<AtomId>;
-pub type NoSubstitutionTemplateLit = Lit<AtomId>;
+pub type StringLit = Lit<Atom>;
+pub type RegExpLit = Lit<Atom>;
+pub type NoSubstitutionTemplateLit = Lit<Atom>;
 
 #[derive(Debug, Clone, Copy)]
 pub struct VarDecl<'cx> {
@@ -705,7 +705,7 @@ pub struct VarDecl<'cx> {
 pub struct Ident {
     pub id: NodeID,
     pub span: Span,
-    pub name: AtomId,
+    pub name: Atom,
 }
 
 #[derive(Debug, Clone, Copy)]

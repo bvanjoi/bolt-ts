@@ -1,4 +1,4 @@
-use bolt_ts_atom::AtomId;
+use bolt_ts_atom::Atom;
 use bolt_ts_utils::fx_hashmap_with_capacity;
 use bolt_ts_utils::path::NormalizePath;
 use rustc_hash::FxHashMap;
@@ -9,13 +9,13 @@ use crate::tree::FSTree;
 
 pub struct LocalFS {
     tree: FSTree,
-    file_exists_cache: FxHashMap<AtomId, bool>,
-    dir_exists_cache: FxHashMap<AtomId, bool>,
-    metadata_cache: FxHashMap<AtomId, Result<std::fs::Metadata, ()>>,
+    file_exists_cache: FxHashMap<Atom, bool>,
+    dir_exists_cache: FxHashMap<Atom, bool>,
+    metadata_cache: FxHashMap<Atom, Result<std::fs::Metadata, ()>>,
 }
 
 impl LocalFS {
-    pub fn new(atoms: &mut bolt_ts_atom::AtomMap) -> Self {
+    pub fn new(atoms: &mut bolt_ts_atom::AtomIntern) -> Self {
         let tree = FSTree::new(atoms);
         Self {
             tree,
@@ -31,7 +31,7 @@ impl LocalFS {
         dir: &std::path::Path,
         includes: &[glob::Pattern],
         excludes: &[glob::Pattern],
-        atoms: &mut bolt_ts_atom::AtomMap,
+        atoms: &mut bolt_ts_atom::AtomIntern,
     ) {
         // TODO: parallel?
         let matched = self
@@ -54,8 +54,8 @@ impl LocalFS {
     fn metadata(
         &mut self,
         p: &std::path::Path,
-        atom: Option<AtomId>,
-        atoms: &mut bolt_ts_atom::AtomMap,
+        atom: Option<Atom>,
+        atoms: &mut bolt_ts_atom::AtomIntern,
     ) -> Result<std::fs::Metadata, ()> {
         let s = unsafe { std::str::from_utf8_unchecked(p.as_os_str().as_encoded_bytes()) };
         let atom = if let Some(atom) = atom {
@@ -77,8 +77,8 @@ impl CachedFileSystem for LocalFS {
     fn read_file(
         &mut self,
         path: &std::path::Path,
-        atoms: &mut bolt_ts_atom::AtomMap,
-    ) -> FsResult<bolt_ts_atom::AtomId> {
+        atoms: &mut bolt_ts_atom::AtomIntern,
+    ) -> FsResult<bolt_ts_atom::Atom> {
         if let Ok(atom) = self.tree.read_file(path, atoms) {
             Ok(atom)
         } else {
@@ -102,7 +102,7 @@ impl CachedFileSystem for LocalFS {
         }
     }
 
-    fn file_exists(&mut self, p: &std::path::Path, atoms: &mut bolt_ts_atom::AtomMap) -> bool {
+    fn file_exists(&mut self, p: &std::path::Path, atoms: &mut bolt_ts_atom::AtomIntern) -> bool {
         if self.tree.file_exists(p, atoms) {
             return true;
         }
@@ -119,7 +119,7 @@ impl CachedFileSystem for LocalFS {
     fn read_dir(
         &mut self,
         p: &std::path::Path,
-        atoms: &mut bolt_ts_atom::AtomMap,
+        atoms: &mut bolt_ts_atom::AtomIntern,
     ) -> FsResult<impl Iterator<Item = std::path::PathBuf>> {
         debug_assert!(p.is_dir());
         self.tree.add_dir(atoms, p).map(|_| ())?;
@@ -127,7 +127,7 @@ impl CachedFileSystem for LocalFS {
         Ok(entry.map(|entry| entry.unwrap().path()))
     }
 
-    fn dir_exists(&mut self, p: &std::path::Path, atoms: &mut bolt_ts_atom::AtomMap) -> bool {
+    fn dir_exists(&mut self, p: &std::path::Path, atoms: &mut bolt_ts_atom::AtomIntern) -> bool {
         if self
             .tree
             .find_path(p, false, atoms)
@@ -150,7 +150,7 @@ impl CachedFileSystem for LocalFS {
         base_dir: &std::path::Path,
         include: &[&str],
         exclude: &[&str],
-        atoms: &mut bolt_ts_atom::AtomMap,
+        atoms: &mut bolt_ts_atom::AtomIntern,
     ) -> Vec<std::path::PathBuf> {
         let includes = include
             .iter()
@@ -169,9 +169,9 @@ impl CachedFileSystem for LocalFS {
         &mut self,
         p: &std::path::Path,
         content: String,
-        atom: Option<AtomId>,
-        atoms: &mut bolt_ts_atom::AtomMap,
-    ) -> AtomId {
+        atom: Option<Atom>,
+        atoms: &mut bolt_ts_atom::AtomIntern,
+    ) -> Atom {
         let atom = if let Some(atom) = atom {
             debug_assert!(atoms.atom(content.as_str()) == atom);
             atom

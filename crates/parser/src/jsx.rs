@@ -63,26 +63,25 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
                 let mut else_then = true;
                 if let Some(end) = late_child
                     && let bolt_ts_ast::JsxChild::Elem(end_ele) = end
-                        && !tag_names_are_eq(
-                            &end_ele.opening_elem.tag_name,
-                            &end_ele.closing_elem.tag_name,
-                        ) && tag_names_are_eq(&opening.tag_name, &end_ele.closing_elem.tag_name)
-                        {
-                            let span = Span::new(self.pos as u32, self.pos as u32, self.module_id);
-                            let ident = self.create_ident_by_atom(keyword::IDENT_EMPTY, span);
-                            let closing = self.create_jsx_closing_ele(
-                                span,
-                                bolt_ts_ast::JsxTagName::Ident(ident),
-                            );
-                            let span = self.new_span(end.span().lo());
-                            let last = self.create_jsx_ele(span, opening, children, closing);
+                    && !tag_names_are_eq(
+                        &end_ele.opening_elem.tag_name,
+                        &end_ele.closing_elem.tag_name,
+                    )
+                    && tag_names_are_eq(&opening.tag_name, &end_ele.closing_elem.tag_name)
+                {
+                    let span = Span::new(self.pos as u32, self.pos as u32, self.module_id);
+                    let ident = self.create_ident_by_atom(keyword::IDENT_EMPTY, span);
+                    let closing =
+                        self.create_jsx_closing_ele(span, bolt_ts_ast::JsxTagName::Ident(ident));
+                    let span = self.new_span(end.span().lo());
+                    let last = self.create_jsx_ele(span, opening, children, closing);
 
-                            let mut list = children[..children.len() - 1].to_vec();
-                            list.push(bolt_ts_ast::JsxChild::Elem(last));
-                            else_then = false;
-                            children = self.alloc(list);
-                            closing_ele = Some(end_ele.closing_elem);
-                        }
+                    let mut list = children[..children.len() - 1].to_vec();
+                    list.push(bolt_ts_ast::JsxChild::Elem(last));
+                    else_then = false;
+                    children = self.alloc(list);
+                    closing_ele = Some(end_ele.closing_elem);
+                }
                 if else_then {
                     let e = self.parse_jsx_closing_ele(opening, in_expr_context, opening_tag)?;
                     closing_ele = Some(e);
@@ -212,11 +211,11 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
             list.push(child);
             if let Some(opening_tag_name) = opening_tag_name
                 && let bolt_ts_ast::JsxChild::Elem(ele) = child
-                    && !tag_names_are_eq(&ele.opening_elem.tag_name, &ele.opening_elem.tag_name)
-                        && tag_names_are_eq(&opening_tag_name, &ele.closing_elem.tag_name)
-                    {
-                        break;
-                    }
+                && !tag_names_are_eq(&ele.opening_elem.tag_name, &ele.opening_elem.tag_name)
+                && tag_names_are_eq(&opening_tag_name, &ele.closing_elem.tag_name)
+            {
+                break;
+            }
         }
         self.alloc(list)
     }

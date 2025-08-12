@@ -3,8 +3,8 @@ use super::{TyChecker, errors};
 use crate::ty;
 use crate::ty::TypeFlags;
 
-use bolt_ts_ast as ast;
 use bolt_ts_ast::r#trait::ClassLike;
+use bolt_ts_ast::{self as ast, pprint_ident};
 
 impl<'cx> TyChecker<'cx> {
     fn check_ctor(&mut self, ctor: &'cx ast::ClassCtor<'cx>) {
@@ -80,6 +80,31 @@ impl<'cx> TyChecker<'cx> {
         let ty_with_this = self.get_ty_with_this_arg(ty, None, false);
         let static_ty = self.get_type_of_symbol(symbol);
         self.check_index_constraints(ty, false);
+
+        if let Some(base_ty_node) = self.get_effective_base_type_node(class.id()) {
+            let base_ctor_ty = self.get_base_constructor_type_of_class(ty);
+            let static_base_ty = self.get_apparent_ty(base_ctor_ty);
+            // check base type accessibility
+            let sigs = self.get_signatures_of_type(static_base_ty, ty::SigKind::Constructor);
+            if !sigs.is_empty()
+                && let Some(decl) = sigs[0].node_id
+                && self
+                    .p
+                    .node(decl)
+                    .has_effective_modifier(bolt_ts_ast::ModifierKind::Private)
+                && let Some(class_decl) =
+                    self.get_class_like_decl_of_symbol(static_base_ty.symbol().unwrap())
+                && !self
+                    .node_query(base_ty_node.id.module())
+                    .is_node_within_class(base_ty_node.id, class_decl)
+            {
+                let error = errors::CannotExtendAClass0ClassConstructorIsMarkedAsPrivate {
+                    span: base_ty_node.expr_with_ty_args.span,
+                    class: pprint_ident(self.p.node(class_decl).ident_name().unwrap(), &self.atoms),
+                };
+                self.push_error(Box::new(error));
+            }
+        }
 
         if let Some(impls) = class.implements() {
             for ty_ref_node in impls.list {

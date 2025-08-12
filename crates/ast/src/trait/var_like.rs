@@ -5,7 +5,7 @@ pub enum VarLikeName<'cx> {
     NumLit(&'cx crate::NumLit),
     StringLit {
         raw: &'cx crate::StringLit,
-        key: bolt_ts_atom::AtomId,
+        key: bolt_ts_atom::Atom,
     },
     Computed(&'cx crate::ComputedPropName<'cx>),
 }

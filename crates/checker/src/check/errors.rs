@@ -670,3 +670,11 @@ pub(super) struct TypeXHasNoMatchingIndexSignatureForTypeY {
     pub x: String,
     pub y: String,
 }
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
+#[error("Cannot extend a class '{class}'. Class constructor is marked as private.")]
+pub(super) struct CannotExtendAClass0ClassConstructorIsMarkedAsPrivate {
+    #[label(primary)]
+    pub span: Span,
+    pub class: String,
+}

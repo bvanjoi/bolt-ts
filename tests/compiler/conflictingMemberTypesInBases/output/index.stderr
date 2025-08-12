@@ -1,0 +1,5 @@
+  × Interface 'E' cannot simultaneously extend types 'B' and 'D'.
+    ╭─[../../tests/compiler/conflictingMemberTypesInBases/index.ts:14:11]
+ 14 │ E
+    · ─
+    ╰────

@@ -79,21 +79,23 @@ pub(crate) fn get_encoded_root_length(path: &str) -> isize {
     let authority_end = authority_start + rel_authority_end;
     let scheme = &path[..scheme_end];
     let authority = &path[authority_start..authority_end];
-    if scheme == "file" && (authority.is_empty() || authority == "localhost")
+    if scheme == "file"
+        && (authority.is_empty() || authority == "localhost")
         && let Some(next_byte) = bytes.get(authority_end + 1).copied()
-            && is_volume_character(next_byte) {
-                let volume_separator_end =
-                    get_file_url_volume_separator_end(path, authority_end + 2);
-                if volume_separator_end != -1 {
-                    if let Some(b) = path.as_bytes().get(volume_separator_end as usize)
-                        && *b == SLASH {
-                            return -((volume_separator_end + 1) + 1);
-                        }
-                    if volume_separator_end as usize == path.len() {
-                        return -(volume_separator_end + 1);
-                    }
-                }
+        && is_volume_character(next_byte)
+    {
+        let volume_separator_end = get_file_url_volume_separator_end(path, authority_end + 2);
+        if volume_separator_end != -1 {
+            if let Some(b) = path.as_bytes().get(volume_separator_end as usize)
+                && *b == SLASH
+            {
+                return -((volume_separator_end + 1) + 1);
             }
+            if volume_separator_end as usize == path.len() {
+                return -(volume_separator_end + 1);
+            }
+        }
+    }
     -((authority_end + 1) as isize + 1)
 }
 

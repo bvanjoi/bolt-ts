@@ -6,7 +6,7 @@ mod package_json;
 mod parse_package_name;
 mod resolution_kind_spec_loader;
 
-use bolt_ts_atom::{AtomId, AtomMap};
+use bolt_ts_atom::{Atom, AtomIntern};
 use bolt_ts_config::Extension;
 use bolt_ts_fs::{CachedFileSystem, PathId};
 use bolt_ts_utils::path::{NormalizePath, path_as_str};
@@ -42,19 +42,19 @@ bitflags::bitflags! {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 struct CacheKey {
     base_dir: PathId,
-    target: AtomId,
+    target: Atom,
 }
 
 pub struct Resolver<FS: CachedFileSystem> {
     fs: Arc<Mutex<FS>>,
-    atoms: Arc<Mutex<AtomMap>>,
+    atoms: Arc<Mutex<AtomIntern>>,
     cache: Arc<Mutex<FxHashMap<CacheKey, RResult<PathId>>>>,
     package_json_arena: Arc<Mutex<Vec<PackageJsonInfo>>>,
     package_json_cache: Arc<Mutex<nohash_hasher::IntMap<PathId, PackageJsonInfoId>>>,
 }
 
 impl<FS: CachedFileSystem> Resolver<FS> {
-    pub fn new(fs: Arc<Mutex<FS>>, atoms: Arc<Mutex<AtomMap>>) -> Self {
+    pub fn new(fs: Arc<Mutex<FS>>, atoms: Arc<Mutex<AtomIntern>>) -> Self {
         Self {
             fs,
             atoms,
@@ -70,7 +70,7 @@ impl<FS: CachedFileSystem> Resolver<FS> {
         fs.file_exists(p, atoms)
     }
 
-    pub fn resolve(&self, base_dir: PathId, target: AtomId) -> RResult<PathId> {
+    pub fn resolve(&self, base_dir: PathId, target: Atom) -> RResult<PathId> {
         let cache_key = CacheKey { base_dir, target };
         if let Some(cached) = self.cache.lock().unwrap().get(&cache_key) {
             return *cached;
@@ -80,7 +80,7 @@ impl<FS: CachedFileSystem> Resolver<FS> {
         result
     }
 
-    fn try_resolve(&self, base_dir: PathId, target: AtomId) -> RResult<PathId> {
+    fn try_resolve(&self, base_dir: PathId, target: Atom) -> RResult<PathId> {
         let module_name = self.atoms.lock().unwrap().get(target);
         if !bolt_ts_path::is_external_module_relative(module_name) {
             let ext = Extensions::TypeScript | Extensions::Declaration;
@@ -106,7 +106,7 @@ impl<FS: CachedFileSystem> Resolver<FS> {
     fn load_module_from_nearest_node_modules_dir(
         &self,
         ext: Extensions,
-        module_name: AtomId,
+        module_name: Atom,
         base_dir: PathId,
     ) -> RResult<PathId> {
         self._load_module_from_nearest_node_modules_dir(ext, module_name, base_dir, false)
@@ -115,7 +115,7 @@ impl<FS: CachedFileSystem> Resolver<FS> {
     fn _load_module_from_nearest_node_modules_dir(
         &self,
         ext: Extensions,
-        module_name: AtomId,
+        module_name: Atom,
         base_dir: PathId,
         types_scope_only: bool,
     ) -> RResult<PathId> {
@@ -123,7 +123,7 @@ impl<FS: CachedFileSystem> Resolver<FS> {
             this: &Resolver<impl CachedFileSystem>,
             ext: Extensions,
             base_dir_id: PathId,
-            module_name_id: AtomId,
+            module_name_id: Atom,
             types_scope_only: bool,
         ) -> RResult<PathId> {
             let base_dir = Path::new(this.atoms.lock().unwrap().get(base_dir_id.into()));
@@ -168,7 +168,7 @@ impl<FS: CachedFileSystem> Resolver<FS> {
         &self,
         ext: Extensions,
         dir_id: PathId,
-        module_name: AtomId,
+        module_name: Atom,
         types_scope_only: bool,
     ) -> RResult<PathId> {
         let dir = Path::new(self.atoms.lock().unwrap().get(dir_id.into()));
@@ -191,9 +191,10 @@ impl<FS: CachedFileSystem> Resolver<FS> {
                 node_modules_folder_id,
                 module_name,
                 node_module_folder_exists,
-            ) {
-                return Ok(pkg);
-            }
+            )
+        {
+            return Ok(pkg);
+        }
 
         if ext.intersects(Extensions::Declaration) {
             let node_modules_at_types = node_modules_folder.join("@types");
@@ -383,22 +384,22 @@ impl<FS: CachedFileSystem> Resolver<FS> {
                         .or_else(|_| {
                             self.try_extension(candidate, Extension::Tsx, resolved_using_ts_ext)
                         })
-                    {
-                        return Ok(p);
-                    }
+                {
+                    return Ok(p);
+                }
                 if ext.intersects(Extensions::Declaration)
                     && let Ok(p) =
                         self.try_extension(candidate, Extension::DTs, resolved_using_ts_ext)
-                    {
-                        return Ok(p);
-                    }
+                {
+                    return Ok(p);
+                }
                 if ext.intersects(Extensions::JavaScript)
                     && let Ok(p) = self
                         .try_extension(candidate, Extension::Js, false)
                         .or_else(|_| self.try_extension(candidate, Extension::Jsx, false))
-                    {
-                        return Ok(p);
-                    }
+                {
+                    return Ok(p);
+                }
                 // TODO: is_config_lookup
                 Err(ResolveError::NotFound(PathId::get(
                     candidate,

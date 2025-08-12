@@ -1,4 +1,4 @@
-use bolt_ts_atom::AtomId;
+use bolt_ts_atom::Atom;
 use bolt_ts_binder::AssignmentKind;
 use bolt_ts_binder::SymbolID;
 use bolt_ts_binder::{SymbolFlags, SymbolName};
@@ -153,13 +153,13 @@ impl<'cx> TyChecker<'cx> {
         self.get_fresh_ty_of_literal_ty(t)
     }
 
-    pub(super) fn check_string_lit(&mut self, val: AtomId) -> &'cx ty::Ty<'cx> {
+    pub(super) fn check_string_lit(&mut self, val: Atom) -> &'cx ty::Ty<'cx> {
         // TODO: hasSkipDirectInferenceFlag
         let t = self.get_string_literal_type(val);
         self.get_fresh_ty_of_literal_ty(t)
     }
 
-    pub(super) fn check_bigint_lit(&mut self, neg: bool, val: AtomId) -> &'cx ty::Ty<'cx> {
+    pub(super) fn check_bigint_lit(&mut self, neg: bool, val: Atom) -> &'cx ty::Ty<'cx> {
         // TODO: check grammar
         let t = self.get_bigint_literal_type(neg, val);
         self.get_fresh_ty_of_literal_ty(t)
@@ -1049,15 +1049,16 @@ impl<'cx> TyChecker<'cx> {
         assert!(matches!(op, "^" | "^=" | "&" | "&=" | "|" | "|="));
         if left_ty.flags.intersects(TypeFlags::BOOLEAN_LIKE)
             && right_ty.flags.intersects(TypeFlags::BOOLEAN_LIKE)
-            && let Some(sugg) = get_suggestion_boolean_op(op) {
-                let error = errors::TheOp1IsNotAllowedForBooleanTypesConsiderUsingOp2Instead {
-                    span: expr_span,
-                    op1: op.to_string(),
-                    op2: sugg.to_string(),
-                };
-                self.push_error(Box::new(error));
-                return self.number_ty;
-            }
+            && let Some(sugg) = get_suggestion_boolean_op(op)
+        {
+            let error = errors::TheOp1IsNotAllowedForBooleanTypesConsiderUsingOp2Instead {
+                span: expr_span,
+                op1: op.to_string(),
+                op2: sugg.to_string(),
+            };
+            self.push_error(Box::new(error));
+            return self.number_ty;
+        }
 
         let left = self.check_arithmetic_op_ty(left_ty, false, |this| {
             let error =

@@ -1072,8 +1072,8 @@ impl<'cx> TyChecker<'cx> {
     pub(super) fn apply_string_mapping(
         &mut self,
         symbol: SymbolID,
-        atom: bolt_ts_atom::AtomId,
-    ) -> bolt_ts_atom::AtomId {
+        atom: bolt_ts_atom::Atom,
+    ) -> bolt_ts_atom::Atom {
         let str = self.atoms.get(atom);
         let ty = self.symbol(symbol).name.expect_atom();
         let str = match ty {

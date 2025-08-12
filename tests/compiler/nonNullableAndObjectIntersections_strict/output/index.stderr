@@ -1,0 +1,53 @@
+  × Type 'false' is not assignable to type 'never'.
+    ╭─[../../tests/compiler/nonNullableAndObjectIntersections_strict/index.ts:21:5]
+ 21 │ a0
+    · ──
+    ╰────
+
+  × Type 'false' is not assignable to type 'never'.
+    ╭─[../../tests/compiler/nonNullableAndObjectIntersections_strict/index.ts:23:5]
+ 23 │ a1
+    · ──
+    ╰────
+
+  × Type 'false' is not assignable to type 'never'.
+    ╭─[../../tests/compiler/nonNullableAndObjectIntersections_strict/index.ts:25:5]
+ 25 │ a2
+    · ──
+    ╰────
+
+  × Type 'false' is not assignable to type 'never'.
+    ╭─[../../tests/compiler/nonNullableAndObjectIntersections_strict/index.ts:27:5]
+ 27 │ a3
+    · ──
+    ╰────
+
+  × Type 'false' is not assignable to type 'never'.
+    ╭─[../../tests/compiler/nonNullableAndObjectIntersections_strict/index.ts:29:5]
+ 29 │ a4
+    · ──
+    ╰────
+
+  × Type 'false' is not assignable to type 'never'.
+    ╭─[../../tests/compiler/nonNullableAndObjectIntersections_strict/index.ts:31:5]
+ 31 │ a6
+    · ──
+    ╰────
+
+  × Type 'false' is not assignable to type 'never'.
+    ╭─[../../tests/compiler/nonNullableAndObjectIntersections_strict/index.ts:33:5]
+ 33 │ a7
+    · ──
+    ╰────
+
+  × Type 'false' is not assignable to type 'never'.
+    ╭─[../../tests/compiler/nonNullableAndObjectIntersections_strict/index.ts:35:5]
+ 35 │ a8
+    · ──
+    ╰────
+
+  × Type 'false' is not assignable to type 'never'.
+    ╭─[../../tests/compiler/nonNullableAndObjectIntersections_strict/index.ts:37:5]
+ 37 │ a9
+    · ──
+    ╰────

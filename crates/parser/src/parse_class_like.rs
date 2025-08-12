@@ -145,35 +145,38 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
                 break;
             }
             if self.token.kind == TokenKind::Extends
-                && let Some(origin) = extends {
-                    let error = errors::ClauseAlreadySeen {
-                        span: self.token.span,
-                        kind: errors::ClauseKind::Extends,
-                        origin: origin.span,
-                    };
-                    self.push_error(Box::new(error));
-                }
+                && let Some(origin) = extends
+            {
+                let error = errors::ClauseAlreadySeen {
+                    span: self.token.span,
+                    kind: errors::ClauseKind::Extends,
+                    origin: origin.span,
+                };
+                self.push_error(Box::new(error));
+            }
             if self.token.kind == TokenKind::Implements
-                && let Some(origin) = implements {
-                    let error = errors::ClauseAlreadySeen {
-                        span: self.token.span,
-                        kind: errors::ClauseKind::Implements,
-                        origin: origin.span,
-                    };
-                    self.push_error(Box::new(error));
-                }
+                && let Some(origin) = implements
+            {
+                let error = errors::ClauseAlreadySeen {
+                    span: self.token.span,
+                    kind: errors::ClauseKind::Implements,
+                    origin: origin.span,
+                };
+                self.push_error(Box::new(error));
+            }
 
             let e = self.parse_class_extends_clause()?;
             if extends.is_none() {
                 extends = e;
                 if let Some(extends) = extends
-                    && let Some(implements) = implements {
-                        let error = errors::ExtendsClauseMustPrecedeImplementsClause {
-                            extends_span: extends.span,
-                            implements_span: implements.span,
-                        };
-                        self.push_error(Box::new(error));
-                    }
+                    && let Some(implements) = implements
+                {
+                    let error = errors::ExtendsClauseMustPrecedeImplementsClause {
+                        extends_span: extends.span,
+                        implements_span: implements.span,
+                    };
+                    self.push_error(Box::new(error));
+                }
             }
             let i = self.parse_implements_clause()?;
             if implements.is_none() {
@@ -349,9 +352,9 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
                 this.p().check_params(params, true);
                 let ret = this.p().parse_ret_ty(true)?;
                 let body = this.p().parse_fn_block()?;
-                let ctor = this
-                    .p()
-                    .create_class_ctor(start as u32, ty_params, params, ret, body);
+                let ctor =
+                    this.p()
+                        .create_class_ctor(start as u32, mods, ty_params, params, ret, body);
                 let ele = this.p().alloc(ast::ClassElem {
                     kind: ast::ClassElemKind::Ctor(ctor),
                 });

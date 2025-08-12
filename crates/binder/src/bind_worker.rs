@@ -9,7 +9,7 @@ use bolt_ts_ast::NodeFlags;
 use bolt_ts_ast::atom_to_token;
 use bolt_ts_ast::keyword;
 use bolt_ts_ast::r#trait;
-use bolt_ts_atom::AtomId;
+use bolt_ts_atom::Atom;
 use bolt_ts_span::Span;
 
 use crate::create::DeclareSymbolProperty;
@@ -145,7 +145,7 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
         // }
     }
 
-    fn check_contextual_ident(&mut self, id: ast::NodeID, atom: AtomId, span: Span) {
+    fn check_contextual_ident(&mut self, id: ast::NodeID, atom: Atom, span: Span) {
         fn is_identifier_name(b: &BinderState, id: ast::NodeID) -> bool {
             let Some(p_id) = b.parent_map.parent(id) else {
                 return false;
@@ -310,7 +310,7 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
         };
     }
 
-    fn bind_var(&mut self, id: ast::NodeID, name: bolt_ts_atom::AtomId) -> SymbolID {
+    fn bind_var(&mut self, id: ast::NodeID, name: bolt_ts_atom::Atom) -> SymbolID {
         let name = SymbolName::Atom(name);
 
         if self.node_query().is_block_or_catch_scoped(id) {
@@ -415,9 +415,10 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
             }
             QualifiedName(_) => {
                 if let Some(flow) = self.current_flow
-                    && self.node_query().is_part_of_ty_query(node) {
-                        self.flow_nodes.insert_container_map(node, flow);
-                    }
+                    && self.node_query().is_part_of_ty_query(node)
+                {
+                    self.flow_nodes.insert_container_map(node, flow);
+                }
             }
             // TODO: meta
             SuperExpr(_) => {

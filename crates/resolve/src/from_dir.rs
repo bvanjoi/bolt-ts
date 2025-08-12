@@ -52,9 +52,10 @@ impl<FS: CachedFileSystem> super::Resolver<FS> {
                         .iter()
                         .any(|t| t.as_str().as_bytes() == e.as_encoded_bytes())
                 })))
-            && let Ok(result) = self.try_file(candidate, only_record_failures) {
-                return Ok(result);
-            }
+            && let Ok(result) = self.try_file(candidate, only_record_failures)
+        {
+            return Ok(result);
+        }
         self.load_node_module_from_dir_worker(ext, candidate, only_record_failures, package_json)
     }
 
@@ -75,9 +76,10 @@ impl<FS: CachedFileSystem> super::Resolver<FS> {
             if dir == PathId::get(candidate, self.atoms.lock().as_mut().unwrap()) {
                 // TODO: is_config_lookup
                 if ext.intersects(Extensions::Declaration)
-                    && let Some(p) = self.read_package_json_types_filed(package_json, dir) {
-                        package_file = Some(p)
-                    }
+                    && let Some(p) = self.read_package_json_types_filed(package_json, dir)
+                {
+                    package_file = Some(p)
+                }
             }
         }
         debug_assert!(package_file.as_ref().is_none_or(|p| p.is_normalized()));

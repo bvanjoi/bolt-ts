@@ -522,11 +522,12 @@ impl<'cx, 'a> NodeQuery<'cx, 'a> {
             };
             let p = self.node(p_id);
             if let Some(qualified) = p.as_qualified_name()
-                && qualified.left.id() == id {
-                    n = p;
-                    id = p_id;
-                    continue;
-                }
+                && qualified.left.id() == id
+            {
+                n = p;
+                id = p_id;
+                continue;
+            }
             break;
         }
 
@@ -610,9 +611,10 @@ impl<'cx, 'a> NodeQuery<'cx, 'a> {
                 parent = self.node(self.parent(parent_id).unwrap());
             }
             if let Some(call) = parent.as_call_expr()
-                && call.expr.id() == prev {
-                    return Some(call);
-                }
+                && call.expr.id() == prev
+            {
+                return Some(call);
+            }
         }
         None
     }
@@ -810,5 +812,26 @@ impl<'cx, 'a> NodeQuery<'cx, 'a> {
             }
             _ => unreachable!(),
         }
+    }
+
+    pub fn is_node_within_class(&self, node: ast::NodeID, class_decl: ast::NodeID) -> bool {
+        debug_assert!(self.node(class_decl).is_class_like());
+        self.for_each_enclosing_class(node, |c| (c == class_decl).then_some(true))
+            .is_some()
+    }
+
+    pub fn for_each_enclosing_class<T>(
+        &self,
+        mut node: ast::NodeID,
+        f: impl Fn(ast::NodeID) -> Option<T>,
+    ) -> Option<T> {
+        while let Some(class) = self.get_containing_class(node) {
+            debug_assert!(self.node(class).is_class_like());
+            if let Some(res) = f(class) {
+                return Some(res);
+            }
+            node = class;
+        }
+        None
     }
 }

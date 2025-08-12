@@ -1,0 +1,5 @@
+  × The value 'undefined' cannot be used here.
+   ╭─[../../tests/compiler/binaryArithmatic2/index.ts:1:13]
+ 1 │ undefined
+   · ─────────
+   ╰────

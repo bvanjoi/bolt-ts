@@ -11,9 +11,10 @@ impl<'cx> TyChecker<'cx> {
         decl: &'cx impl r#trait::VarLike<'cx>,
     ) {
         if !self.p.node(name_id).is_object_binding_elem()
-            && let Some(ty) = decl.decl_ty() {
-                self.check_ty(ty);
-            }
+            && let Some(ty) = decl.decl_ty()
+        {
+            self.check_ty(ty);
+        }
 
         let symbol = self.get_symbol_of_decl(decl_id);
         let decl_ty = self.get_type_of_symbol(symbol);

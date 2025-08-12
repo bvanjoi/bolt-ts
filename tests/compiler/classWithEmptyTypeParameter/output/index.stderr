@@ -1,0 +1,5 @@
+  × Type parameter list cannot be empty.
+   ╭─[../../tests/compiler/classWithEmptyTypeParameter/index.ts:3:8]
+ 3 │ <
+   · ─
+   ╰────

@@ -61,7 +61,7 @@ use std::fmt::Debug;
 
 use bolt_ts_ast::{self as ast};
 use bolt_ts_ast::{BinOp, pprint_ident};
-use bolt_ts_atom::{AtomId, AtomMap};
+use bolt_ts_atom::{Atom, AtomIntern};
 use bolt_ts_config::NormalizedCompilerOptions;
 use bolt_ts_span::ModuleID;
 use bolt_ts_utils::{fx_hashmap_with_capacity, no_hashmap_with_capacity, no_hashset_with_capacity};
@@ -137,7 +137,7 @@ bitflags::bitflags! {
 bolt_ts_utils::index!(InferenceContextId);
 
 pub struct TyChecker<'cx> {
-    pub atoms: AtomMap,
+    pub atoms: AtomIntern,
     pub diags: Vec<bolt_ts_errors::Diag>,
     pub module_arena: &'cx bolt_ts_span::ModuleArena,
     config: &'cx NormalizedCompilerOptions,
@@ -153,8 +153,8 @@ pub struct TyChecker<'cx> {
     flow_node_reachable: FxHashMap<FlowID, bool>,
 
     num_lit_tys: nohash_hasher::IntMap<F64Represent, &'cx ty::Ty<'cx>>,
-    string_lit_tys: FxHashMap<AtomId, &'cx ty::Ty<'cx>>,
-    bigint_lit_tys: FxHashMap<(bool, AtomId), &'cx ty::Ty<'cx>>,
+    string_lit_tys: FxHashMap<Atom, &'cx ty::Ty<'cx>>,
+    bigint_lit_tys: FxHashMap<(bool, Atom), &'cx ty::Ty<'cx>>,
     union_tys: UnionMap<'cx>,
     intersection_tys: IntersectionMap<'cx>,
     indexed_access_tys: IndexedAccessTyMap<'cx>,
@@ -305,7 +305,7 @@ impl<'cx> TyChecker<'cx> {
         ty_arena: &'cx bolt_ts_arena::bumpalo::Bump,
         p: &'cx Parser<'cx>,
         mg: &'cx ModuleGraph,
-        atoms: AtomMap,
+        atoms: AtomIntern,
         config: &'cx NormalizedCompilerOptions,
         flow_nodes: Vec<FlowNodes<'cx>>,
         flow_in_nodes: Vec<FlowInNodes>,
@@ -1102,9 +1102,10 @@ impl<'cx> TyChecker<'cx> {
                 }
             };
             if let Some(ty) = ty
-                && ty.flags.intersects(include) {
-                    return ty;
-                }
+                && ty.flags.intersects(include)
+            {
+                return ty;
+            }
         }
         self.never_ty
     }
@@ -1181,13 +1182,13 @@ impl<'cx> TyChecker<'cx> {
             .and_then(|ret_ty| self.get_single_call_or_ctor_sig(ret_ty));
         if let Some(ret_sig) = ret_sig
             && ret_sig.ty_params.is_none()
-                && !self
-                    .inference_infos(inference)
-                    .iter()
-                    .all(|info| info.has_inference_candidates())
-            {
-                todo!()
-            }
+            && !self
+                .inference_infos(inference)
+                .iter()
+                .all(|info| info.has_inference_candidates())
+        {
+            todo!()
+        }
 
         let sig = self.instantiate_sig_in_context_of(sig, contextual_sig, Some(inference));
         let outer_ty_params = self
@@ -1587,9 +1588,11 @@ impl<'cx> TyChecker<'cx> {
         right_is_this: bool,
     ) -> &'cx ty::Ty<'cx> {
         if let ast::ExprKind::ArrayLit(array) = node.left.kind
-            && array.elems.is_empty() && right_ty.kind.is_array(self) {
-                return right_ty;
-            }
+            && array.elems.is_empty()
+            && right_ty.kind.is_array(self)
+        {
+            return right_ty;
+        }
         let left_ty = self.check_expr(node.left);
         self.check_binary_like_expr(node, left_ty, right_ty)
     }
@@ -1741,12 +1744,13 @@ impl<'cx> TyChecker<'cx> {
                             && let Some(usage_class) = self
                                 .node_query(used.id.module())
                                 .get_containing_class(used.id)
-                                && let Some(decl_class) =
-                                    self.node_query(decl.module()).get_containing_class(decl)
-                                    && usage_class == decl_class {
-                                        let prop_name = prop_decl.name;
-                                        todo!()
-                                    }
+                            && let Some(decl_class) =
+                                self.node_query(decl.module()).get_containing_class(decl)
+                            && usage_class == decl_class
+                        {
+                            let prop_name = prop_decl.name;
+                            todo!()
+                        }
                     } else {
                         let n = self.p.node(decl);
                         let is_decl_instance_prop = n.is_class_prop_ele() && !n.is_static();
@@ -1757,9 +1761,10 @@ impl<'cx> TyChecker<'cx> {
                             .get_containing_class(used.id)
                             && let Some(decl_class) =
                                 self.node_query(decl.module()).get_containing_class(decl)
-                                && usage_class == decl_class {
-                                    return Some(true);
-                                }
+                            && usage_class == decl_class
+                        {
+                            return Some(true);
+                        }
                     }
                 }
                 None
@@ -2670,9 +2675,10 @@ impl<'cx> TyChecker<'cx> {
         }
 
         if let ast::ExprKind::PropAccess(p) = expr.kind
-            && self.is_or_contain_matching_refer(refer, p.expr.id()) {
-                return true;
-            }
+            && self.is_or_contain_matching_refer(refer, p.expr.id())
+        {
+            return true;
+        }
         false
     }
 
@@ -2877,8 +2883,7 @@ impl<'cx> TyChecker<'cx> {
             // TODO: is_distributive
             ty
         } else if ty.kind.is_union() {
-            self
-                .map_ty(ty, |this, t| Some(this.get_lower_bound_of_key_ty(t)), true)
+            self.map_ty(ty, |this, t| Some(this.get_lower_bound_of_key_ty(t)), true)
                 .unwrap()
         } else if let Some(i) = ty.kind.as_intersection() {
             let tys = i.tys;

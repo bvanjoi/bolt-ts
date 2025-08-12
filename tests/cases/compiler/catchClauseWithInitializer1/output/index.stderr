@@ -1,5 +1,0 @@
-  × Catch clause variable cannot have an initializer.
-   ╭─[../../tests/cases/compiler/catchClauseWithInitializer1/index.ts:5:12]
- 5 │ 1
-   · ─
-   ╰────

@@ -1,0 +1,23 @@
+  × Cannot find name 'x'.
+    ╭─[../../tests/compiler/lift/index.ts:16:30]
+ 16 │ x
+    · ─
+    ╰────
+
+  × Cannot find name 'z'.
+    ╭─[../../tests/compiler/lift/index.ts:16:32]
+ 16 │ z
+    · ─
+    ╰────
+
+  × Cannot find name 'x'.
+    ╭─[../../tests/compiler/lift/index.ts:19:35]
+ 19 │ x
+    · ─
+    ╰────
+
+  × Cannot find name 'z'.
+    ╭─[../../tests/compiler/lift/index.ts:19:37]
+ 19 │ z
+    · ─
+    ╰────

@@ -1,6 +1,6 @@
 use super::TyChecker;
-use bolt_ts_binder::SymbolID;
 use crate::ty::{SigID, TyID};
+use bolt_ts_binder::SymbolID;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(super) enum ResolutionKey {

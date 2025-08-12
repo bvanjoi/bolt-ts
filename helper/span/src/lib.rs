@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use bolt_ts_atom::AtomId;
+use bolt_ts_atom::Atom;
 use bolt_ts_fs::CachedFileSystem;
 
 #[derive(Debug, Clone, Copy, Hash, PartialEq, Eq)]
@@ -108,7 +108,7 @@ impl ModuleArena {
         p: ModulePath,
         is_default_lib: bool,
         fs: &mut impl CachedFileSystem,
-        atoms: &mut bolt_ts_atom::AtomMap,
+        atoms: &mut bolt_ts_atom::AtomIntern,
     ) -> ModuleID {
         let id = ModuleID(self.modules.len() as u32);
         let m = Module { id, is_default_lib };
@@ -129,8 +129,8 @@ impl ModuleArena {
         &mut self,
         p: ModulePath,
         is_default_lib: bool,
-        content: AtomId,
-        atoms: &bolt_ts_atom::AtomMap,
+        content: Atom,
+        atoms: &bolt_ts_atom::AtomIntern,
     ) -> ModuleID {
         let id = ModuleID(self.modules.len() as u32);
         let m = Module { id, is_default_lib };

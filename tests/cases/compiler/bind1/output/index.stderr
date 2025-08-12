@@ -1,5 +1,0 @@
-  × Cannot find name 'I'.
-   ╭─[../../tests/cases/compiler/bind1/index.ts:4:29]
- 4 │ I
-   · ─
-   ╰────

@@ -1,0 +1,5 @@
+  × Property '"B"' does not exist on type 'typeof E'.
+   ╭─[../../tests/compiler/constEnumBadPropertyNames/index.ts:4:11]
+ 4 │ "B"
+   · ───
+   ╰────

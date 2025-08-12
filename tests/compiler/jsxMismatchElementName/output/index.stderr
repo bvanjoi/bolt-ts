@@ -1,0 +1,5 @@
+  × Expected corresponding JSX closing tag for 'Foo'.
+   ╭─[../../tests/compiler/jsxMismatchElementName/index.tsx:1:8]
+ 1 │ Bar
+   · ───
+   ╰────

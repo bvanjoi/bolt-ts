@@ -10,7 +10,7 @@ mod sig;
 
 use bolt_ts_ast::keyword;
 use bolt_ts_ast::{self as ast};
-use bolt_ts_atom::AtomId;
+use bolt_ts_atom::Atom;
 use bolt_ts_binder::{Symbol, SymbolID, SymbolName};
 
 use crate::check::TyChecker;
@@ -134,7 +134,7 @@ impl<'cx> Ty<'cx> {
             && !self.is_pattern_lit_ty()
     }
 
-    pub fn intrinsic_name(&'cx self) -> Option<AtomId> {
+    pub fn intrinsic_name(&'cx self) -> Option<Atom> {
         let i = self.kind.as_intrinsic();
         i.map(|i| i.name)
     }
@@ -462,7 +462,7 @@ pub struct UniqueESSymbolTy {
 
 #[derive(Debug, Clone, Copy)]
 pub struct TemplateLitTy<'cx> {
-    pub texts: &'cx [AtomId],
+    pub texts: &'cx [Atom],
     pub tys: Tys<'cx>,
 }
 
@@ -539,14 +539,14 @@ pub struct IntersectionTy<'cx> {
 
 #[derive(Debug, Clone, Copy)]
 pub struct StringLitTy<'cx> {
-    pub val: AtomId,
+    pub val: Atom,
     pub links: FreshTyLinksID<'cx>,
 }
 
 #[derive(Debug, Clone, Copy)]
 pub struct BigIntLitTy<'cx> {
     pub neg: bool,
-    pub val: AtomId,
+    pub val: Atom,
     pub links: FreshTyLinksID<'cx>,
 }
 
@@ -576,7 +576,7 @@ pub struct IndexTy<'cx> {
 #[derive(Debug, Clone, Copy)]
 pub struct IntrinsicTy {
     pub object_flags: ObjectFlags,
-    pub name: AtomId,
+    pub name: Atom,
 }
 
 #[derive(Debug, Clone, Copy)]

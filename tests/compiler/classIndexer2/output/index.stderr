@@ -1,0 +1,6 @@
+  × Property 'y' of type 'string' is not assignable to 'string' index type
+  │ 'number'.
+   ╭─[../../tests/compiler/classIndexer2/index.ts:4:5]
+ 4 │ y: string
+   · ─────────
+   ╰────

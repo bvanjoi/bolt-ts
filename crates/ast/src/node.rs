@@ -312,6 +312,10 @@ impl<'cx> Node<'cx> {
                 super::PropNameKind::Ident(ident) => Some(ident),
                 _ => None,
             },
+            GetterDecl(n) => match n.name.kind {
+                super::PropNameKind::Ident(ident) => Some(ident),
+                _ => None,
+            },
             PropSignature(n) => match n.name.kind {
                 super::PropNameKind::Ident(ident) => Some(ident),
                 _ => None,
@@ -592,12 +596,16 @@ impl<'cx> Node<'cx> {
         self.has_syntactic_modifier(ModifierKind::Readonly.into())
     }
 
+    pub fn has_effective_modifier(&self, kind: ModifierKind) -> bool {
+        self.has_syntactic_modifier(kind.into())
+    }
+
     pub fn has_syntactic_modifier(&self, flags: enumflags2::BitFlags<ModifierKind>) -> bool {
         self.modifiers()
             .is_some_and(|ms| ms.flags.intersects(flags))
     }
 
-    pub fn modifiers(&self) -> Option<&'cx super::Modifiers> {
+    pub fn modifiers(&self) -> Option<&super::Modifiers<'cx>> {
         macro_rules! modifiers {
             ($( $node_kind:ident),* $(,)?) => {
                 match self {
@@ -607,6 +615,7 @@ impl<'cx> Node<'cx> {
             };
         }
         modifiers!(
+            ClassCtor,
             ClassMethodElem,
             ClassPropElem,
             GetterDecl,
@@ -777,7 +786,7 @@ impl<'cx> Node<'cx> {
         }
     }
 
-    pub fn import_export_spec_name(&self) -> Option<bolt_ts_atom::AtomId> {
+    pub fn import_export_spec_name(&self) -> Option<bolt_ts_atom::Atom> {
         use Node::*;
         match self {
             ShorthandSpec(n) => Some(n.name.name),

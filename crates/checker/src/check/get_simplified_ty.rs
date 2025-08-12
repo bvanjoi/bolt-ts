@@ -184,10 +184,10 @@ impl<'cx> TyChecker<'cx> {
         if !index_ty.flags.intersects(TypeFlags::INSTANTIABLE)
             && let Some(distributed_over_object) =
                 self.distribute_object_over_object_ty(object_ty, index_ty, kind)
-            {
-                set_cache(self, distributed_over_object);
-                return distributed_over_object;
-            }
+        {
+            set_cache(self, distributed_over_object);
+            return distributed_over_object;
+        }
 
         if object_ty.kind.is_generic_tuple_type()
             && index_ty.flags.intersects(TypeFlags::NUMBER_LIKE)

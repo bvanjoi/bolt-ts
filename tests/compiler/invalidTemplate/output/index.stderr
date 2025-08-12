@@ -1,0 +1,11 @@
+  × Expected '}'.
+   ╭─[../../tests/compiler/invalidTemplate/index.ts:1:12]
+ 1 │ ;
+   · ─
+   ╰────
+
+  × Cannot find name 'test'.
+   ╭─[../../tests/compiler/invalidTemplate/index.ts:1:13]
+ 1 │ test
+   · ────
+   ╰────

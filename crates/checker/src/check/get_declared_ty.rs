@@ -7,13 +7,13 @@ use super::errors;
 use super::symbol_info::SymbolInfo;
 use super::ty;
 use super::utils::append_if_unique;
-use bolt_ts_binder::{SymbolFlags, SymbolID, SymbolName};
 use crate::check::InstantiationTyMap;
 use crate::check::TyCacheTrait;
 use crate::check::links::TyLinks;
 use crate::ty::ObjectFlags;
 use crate::ty::TypeFlags;
 use bolt_ts_ast as ast;
+use bolt_ts_binder::{SymbolFlags, SymbolID, SymbolName};
 
 impl<'cx> TyChecker<'cx> {
     pub(super) fn get_declared_ty_of_symbol(&mut self, symbol: SymbolID) -> &'cx ty::Ty<'cx> {

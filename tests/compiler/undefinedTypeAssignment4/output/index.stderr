@@ -1,0 +1,19 @@
+  × Class name cannot be 'undefined'.
+   ╭─[../../tests/compiler/undefinedTypeAssignment4/index.ts:3:7]
+ 3 │ undefined
+   · ─────────
+   ╰────
+  help: Reserved type names are not permitted.
+
+  × Interface name cannot be 'undefined'.
+   ╭─[../../tests/compiler/undefinedTypeAssignment4/index.ts:6:11]
+ 6 │ undefined
+   · ─────────
+   ╰────
+  help: Reserved type names are not permitted.
+
+  × Declaration name conflicts with built-in global identifier 'undefined'.
+   ╭─[../../tests/compiler/undefinedTypeAssignment4/index.ts:9:11]
+ 9 │ undefined
+   · ─────────
+   ╰────

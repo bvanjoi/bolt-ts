@@ -1,0 +1,5 @@
+  × Property 'saltbar' does not exist on type 'C'.
+    ╭─[../../tests/compiler/undeclaredMethod/index.ts:12:3]
+ 12 │ saltbar
+    · ───────
+    ╰────

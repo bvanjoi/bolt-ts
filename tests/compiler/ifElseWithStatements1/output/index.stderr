@@ -1,0 +1,11 @@
+  × Cannot find name 'f'.
+   ╭─[../../tests/compiler/ifElseWithStatements1/index.ts:4:3]
+ 4 │ f
+   · ─
+   ╰────
+
+  × Cannot find name 'f'.
+   ╭─[../../tests/compiler/ifElseWithStatements1/index.ts:6:3]
+ 6 │ f
+   · ─
+   ╰────

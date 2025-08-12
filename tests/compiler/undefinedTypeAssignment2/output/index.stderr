@@ -1,0 +1,5 @@
+  × Declaration name conflicts with built-in global identifier 'undefined'.
+   ╭─[../../tests/compiler/undefinedTypeAssignment2/index.ts:3:5]
+ 3 │ undefined
+   · ─────────
+   ╰────

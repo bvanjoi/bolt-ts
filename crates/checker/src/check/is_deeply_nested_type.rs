@@ -18,9 +18,9 @@ impl<'cx> TyChecker<'cx> {
             if let Some(symbol) = ty.symbol()
                 && !(ty.kind.is_object_anonymous()
                     && self.symbol(symbol).flags.intersects(SymbolFlags::CLASS))
-                {
-                    return RecursionId::Symbol(symbol);
-                }
+            {
+                return RecursionId::Symbol(symbol);
+            }
             if ty.is_tuple() {
                 if let Some(refer) = ty.kind.as_object_reference() {
                     assert!(refer.target.kind.is_object_tuple());

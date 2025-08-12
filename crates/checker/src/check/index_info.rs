@@ -1,7 +1,7 @@
 use super::TyChecker;
 use super::symbol_info::SymbolInfo;
-use bolt_ts_binder::{Symbol, SymbolID, SymbolName};
 use crate::ty::{self, TypeFlags};
+use bolt_ts_binder::{Symbol, SymbolID, SymbolName};
 
 use bolt_ts_ast as ast;
 

@@ -1,5 +1,0 @@
-  × The value 'null' cannot be used here.
-   ╭─[../../tests/cases/compiler/binaryArithmatic1/index.ts:1:13]
- 1 │ null
-   · ────
-   ╰────

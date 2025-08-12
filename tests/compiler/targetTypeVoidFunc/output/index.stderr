@@ -1,0 +1,5 @@
+  × Type '() => void' is not assignable to type 'new () => number'.
+   ╭─[../../tests/compiler/targetTypeVoidFunc/index.ts:4:10]
+ 4 │ function () { return; }
+   · ───────────────────────
+   ╰────

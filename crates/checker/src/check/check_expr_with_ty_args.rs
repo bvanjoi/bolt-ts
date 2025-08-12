@@ -53,9 +53,10 @@ impl<'cx> TyChecker<'cx> {
         let expr_ty = if let Some(expr_name) = node.expr_name() {
             // typeof node
             if let ast::EntityNameKind::Ident(ident) = expr_name.kind
-                && ident.name == keyword::KW_THIS {
-                    // TODO: check this expr
-                }
+                && ident.name == keyword::KW_THIS
+            {
+                // TODO: check this expr
+            }
             self.check_entity_name(expr_name)
         } else {
             // exprWithTyArgs node

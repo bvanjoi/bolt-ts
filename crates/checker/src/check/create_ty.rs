@@ -1342,15 +1342,15 @@ impl<'cx> TyChecker<'cx> {
 
     pub(super) fn get_template_lit_ty(
         &mut self,
-        texts: &[bolt_ts_atom::AtomId],
+        texts: &[bolt_ts_atom::Atom],
         tys: &[&'cx ty::Ty<'cx>],
     ) -> &'cx ty::Ty<'cx> {
         assert_eq!(texts.len(), tys.len() + 1);
         fn add_spans<'cx>(
             this: &mut TyChecker<'cx>,
-            texts: &[bolt_ts_atom::AtomId],
+            texts: &[bolt_ts_atom::Atom],
             tys: &[&'cx ty::Ty<'cx>],
-            new_texts: &mut Vec<bolt_ts_atom::AtomId>,
+            new_texts: &mut Vec<bolt_ts_atom::Atom>,
             new_tys: &mut Vec<&'cx ty::Ty<'cx>>,
             text: &mut String,
         ) -> bool {
@@ -1445,7 +1445,7 @@ impl<'cx> TyChecker<'cx> {
 
     fn create_template_lit_ty(
         &mut self,
-        texts: &'cx [bolt_ts_atom::AtomId],
+        texts: &'cx [bolt_ts_atom::Atom],
         tys: ty::Tys<'cx>,
     ) -> &'cx ty::Ty<'cx> {
         let t = self.alloc(ty::TemplateLitTy { texts, tys });

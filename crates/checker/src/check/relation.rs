@@ -1,5 +1,5 @@
 use bolt_ts_ast::{self as ast, ModifierKind};
-use bolt_ts_atom::AtomId;
+use bolt_ts_atom::Atom;
 use bolt_ts_span::Span;
 use bolt_ts_utils::{fx_hashset_with_capacity, fx_indexmap_with_capacity};
 use rustc_hash::FxHashSet;
@@ -317,9 +317,9 @@ impl<'cx> TyChecker<'cx> {
                 let name = self.symbol(*prop).name;
                 if let indexmap::map::Entry::Vacant(vac) = members.entry(name)
                     && let Some(combined_prop) = self.get_prop_of_union_or_intersection_ty(ty, name)
-                    {
-                        vac.insert(combined_prop);
-                    }
+                {
+                    vac.insert(combined_prop);
+                }
             }
         }
         let props = members.into_values().collect::<Vec<_>>();
@@ -373,9 +373,10 @@ impl<'cx> TyChecker<'cx> {
             };
 
             if let Some(fn_ty) = fn_ty
-                && let Some(symbol) = self.get_prop_of_object_ty(fn_ty, name) {
-                    return Some(symbol);
-                }
+                && let Some(symbol) = self.get_prop_of_object_ty(fn_ty, name)
+            {
+                return Some(symbol);
+            }
 
             self.get_prop_of_object_ty(self.global_object_ty(), name)
         } else if ty.kind.as_intersection().is_some() {
@@ -617,7 +618,7 @@ impl<'cx> TyChecker<'cx> {
         source: &'cx Ty<'cx>,
         target: &'cx Ty<'cx>,
         require_optional_properties: bool,
-    ) -> Option<(Vec<AtomId>, SymbolID)> {
+    ) -> Option<(Vec<Atom>, SymbolID)> {
         self.get_unmatched_props(source, target, require_optional_properties)
     }
 
@@ -626,7 +627,7 @@ impl<'cx> TyChecker<'cx> {
         source: &'cx Ty<'cx>,
         target: &'cx Ty<'cx>,
         require_optional_properties: bool,
-    ) -> Option<(Vec<AtomId>, SymbolID)> {
+    ) -> Option<(Vec<Atom>, SymbolID)> {
         let properties = self.get_props_of_ty(target);
         let mut unmatched = Vec::with_capacity(properties.len());
         for target_prop in properties {

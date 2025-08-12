@@ -1,5 +1,0 @@
-  × Type 'C2<{ x: number; }>' is not assignable to type 'C2<{ x: string; }>'.
-    ╭─[../../tests/cases/compiler/recursiveTypeParameterReferenceError1/index.ts:21:5]
- 21 │ r21
-    · ───
-    ╰────

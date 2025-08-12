@@ -1,0 +1,5 @@
+  × Type 'string' is not assignable to type 'number'.
+   ╭─[../../tests/compiler/computeCommentDirectiveInFirstLine/index.ts:1:7]
+ 1 │ a
+   · ─
+   ╰────

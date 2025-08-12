@@ -1,6 +1,0 @@
-  × Interface name cannot be 'number'.
-   ╭─[../../tests/cases/compiler/primitiveTypeAsInterfaceName/index.ts:3:11]
- 3 │ number
-   · ──────
-   ╰────
-  help: Reserved type names are not permitted.

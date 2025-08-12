@@ -1,0 +1,11 @@
+  × Argument of type 'number' is not assignable to parameter of type 'string'.
+   ╭─[../../tests/compiler/typeAssertionToGenericFunctionType/index.ts:7:13]
+ 7 │ 1
+   · ─
+   ╰────
+
+  × Expected 1 arguments, but got 0.
+   ╭─[../../tests/compiler/typeAssertionToGenericFunctionType/index.ts:9:1]
+ 9 │ x.b
+   · ───
+   ╰────

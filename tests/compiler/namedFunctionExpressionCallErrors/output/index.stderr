@@ -1,0 +1,17 @@
+  × Cannot find name 'foo'.
+   ╭─[../../tests/compiler/namedFunctionExpressionCallErrors/index.ts:6:1]
+ 6 │ foo
+   · ───
+   ╰────
+
+  × Cannot find name 'foo'.
+    ╭─[../../tests/compiler/namedFunctionExpressionCallErrors/index.ts:12:5]
+ 12 │ foo
+    · ───
+    ╰────
+
+  × Cannot find name 'bar'.
+    ╭─[../../tests/compiler/namedFunctionExpressionCallErrors/index.ts:16:1]
+ 16 │ bar
+    · ───
+    ╰────

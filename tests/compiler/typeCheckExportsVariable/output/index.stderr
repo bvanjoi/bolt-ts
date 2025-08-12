@@ -1,0 +1,5 @@
+  × Type 'string' is not assignable to type 'number'.
+   ╭─[../../tests/compiler/typeCheckExportsVariable/index.ts:4:11]
+ 4 │ ''
+   · ──
+   ╰────

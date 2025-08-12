@@ -25,7 +25,7 @@ mod utils;
 use bolt_ts_ast::Visitor;
 use bolt_ts_ast::keyword;
 use bolt_ts_ast::{self as ast, Node, NodeFlags, NodeID};
-use bolt_ts_atom::{AtomId, AtomMap};
+use bolt_ts_atom::{Atom, AtomIntern};
 use bolt_ts_span::{ModuleArena, ModuleID};
 use bolt_ts_utils::no_hashmap_with_capacity;
 use bolt_ts_utils::path::NormalizePath;
@@ -69,7 +69,7 @@ pub enum CommentDirectiveKind {
 
 #[derive(Debug, Clone, Copy)]
 pub struct FileReference {
-    pub filename: AtomId,
+    pub filename: Atom,
 }
 
 pub struct ParseResult<'cx> {
@@ -81,11 +81,11 @@ pub struct ParseResult<'cx> {
     pub comment_directives: Vec<CommentDirective>,
     pub comments: Vec<ast::Comment>,
     pub line_map: Vec<u32>,
-    pub filepath: AtomId,
+    pub filepath: Atom,
     pub is_declaration: bool,
     pub imports: Vec<&'cx ast::StringLit>,
     pub module_augmentations: Vec<ast::NodeID>,
-    pub ambient_modules: Vec<AtomId>,
+    pub ambient_modules: Vec<Atom>,
     lib_reference_directives: Vec<FileReference>,
 }
 
@@ -98,11 +98,11 @@ pub struct ParseResultForGraph<'cx> {
     pub comment_directives: Vec<CommentDirective>,
     pub comments: Vec<ast::Comment>,
     pub line_map: Vec<u32>,
-    pub filepath: AtomId,
+    pub filepath: Atom,
     pub is_declaration: bool,
     pub imports: Vec<&'cx ast::StringLit>,
     pub module_augmentations: Vec<ast::NodeID>,
-    pub ambient_modules: Vec<AtomId>,
+    pub ambient_modules: Vec<Atom>,
     pub lib_references: Vec<PathBuf>,
 }
 
@@ -184,7 +184,7 @@ impl<'cx> Parser<'cx> {
 #[derive(Debug, Clone, Copy)]
 enum TokenValue {
     Number { value: f64 },
-    Ident { value: AtomId },
+    Ident { value: Atom },
 }
 
 impl TokenValue {
@@ -195,7 +195,7 @@ impl TokenValue {
         }
     }
 
-    fn ident(self) -> AtomId {
+    fn ident(self) -> Atom {
         match self {
             TokenValue::Ident { value } => value,
             TokenValue::Number { .. } => unreachable!(),
@@ -204,7 +204,7 @@ impl TokenValue {
 }
 
 pub fn parse_parallel<'cx, 'p>(
-    atoms: Arc<Mutex<AtomMap>>,
+    atoms: Arc<Mutex<AtomIntern>>,
     herd: &'cx bolt_ts_arena::bumpalo_herd::Herd,
     list: &'p [ModuleID],
     module_arena: &'p ModuleArena,
@@ -213,7 +213,7 @@ pub fn parse_parallel<'cx, 'p>(
     // ) -> impl Iterator<Item = (ModuleID, ParseResult<'cx>)> {
 
     let lib_references =
-        |p: &ParseResult, atoms: Arc<Mutex<AtomMap>>, module_id: ModuleID| -> Vec<PathBuf> {
+        |p: &ParseResult, atoms: Arc<Mutex<AtomIntern>>, module_id: ModuleID| -> Vec<PathBuf> {
             if !p.lib_reference_directives.is_empty() {
                 let is_default_lib = module_arena.get_module(module_id).is_default_lib();
                 process_lib_reference_directives(
@@ -277,7 +277,7 @@ pub fn parse_parallel<'cx, 'p>(
 }
 
 pub fn parse<'cx, 'p>(
-    atoms: Arc<Mutex<AtomMap>>,
+    atoms: Arc<Mutex<AtomIntern>>,
     arena: &'p bolt_ts_arena::bumpalo_herd::Member<'cx>,
     input: &'p [u8],
     module_id: ModuleID,
@@ -330,7 +330,7 @@ fn collect_deps<'cx>(
     is_declaration: bool,
     is_external_module_file: bool,
     root: &'cx ast::Program<'cx>,
-    atoms: Arc<Mutex<AtomMap>>,
+    atoms: Arc<Mutex<AtomIntern>>,
 ) -> CollectDepsResult<'cx> {
     let mut visitor = CollectDepsVisitor {
         in_ambient_module: false,
@@ -353,17 +353,17 @@ struct CollectDepsVisitor<'cx> {
     is_declaration: bool,
     in_ambient_module: bool,
     is_external_module_file: bool,
-    atoms: Arc<Mutex<AtomMap>>,
+    atoms: Arc<Mutex<AtomIntern>>,
 
     imports: Vec<&'cx ast::StringLit>,
     module_augmentations: Vec<ast::NodeID>,
-    ambient_modules: Vec<AtomId>,
+    ambient_modules: Vec<Atom>,
 }
 
 struct CollectDepsResult<'cx> {
     imports: Vec<&'cx ast::StringLit>,
     module_augmentations: Vec<ast::NodeID>,
-    ambient_modules: Vec<AtomId>,
+    ambient_modules: Vec<Atom>,
 }
 
 impl<'cx> ast::Visitor<'cx> for CollectDepsVisitor<'cx> {
@@ -414,14 +414,14 @@ impl<'cx> ast::Visitor<'cx> for CollectDepsVisitor<'cx> {
         };
         if let Some(module_name) = module_name
             && module_name.val != keyword::IDENT_EMPTY
-                && (!self.in_ambient_module
-                    || !bolt_ts_path::is_external_module_relative(
-                        self.atoms.lock().unwrap().get(module_name.val),
-                    ))
-            {
-                self.imports.push(module_name);
-            }
-            // TODO: use_uri_style_node_core_modules
+            && (!self.in_ambient_module
+                || !bolt_ts_path::is_external_module_relative(
+                    self.atoms.lock().unwrap().get(module_name.val),
+                ))
+        {
+            self.imports.push(module_name);
+        }
+        // TODO: use_uri_style_node_core_modules
     }
 }
 
@@ -457,8 +457,8 @@ impl NodeFlagsMap {
 }
 
 fn get_lib_filename_from_lib_reference(
-    reference_name: AtomId,
-    atoms: &AtomMap,
+    reference_name: Atom,
+    atoms: &AtomIntern,
 ) -> Option<&'static str> {
     let reference_name = atoms.get(reference_name).to_lowercase();
     let key = reference_name.as_str();
@@ -468,7 +468,7 @@ fn get_lib_filename_from_lib_reference(
 fn process_lib_reference_directives(
     lib_reference_directives: &[FileReference],
     is_default_lib: bool,
-    atoms: &AtomMap,
+    atoms: &AtomIntern,
     default_lib_dir: &std::path::Path,
 ) -> Vec<std::path::PathBuf> {
     if is_default_lib {
@@ -483,7 +483,7 @@ fn process_lib_reference_directives(
 
 fn process_lib_reference_directive(
     lib_reference_directive: &FileReference,
-    atoms: &AtomMap,
+    atoms: &AtomIntern,
     default_lib_dir: &std::path::Path,
 ) -> Option<std::path::PathBuf> {
     let lib_filename =

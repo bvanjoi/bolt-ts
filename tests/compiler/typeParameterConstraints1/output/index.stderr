@@ -1,0 +1,5 @@
+  × Cannot find name 'hm'.
+   ╭─[../../tests/compiler/typeParameterConstraints1/index.ts:8:25]
+ 8 │ hm
+   · ──
+   ╰────

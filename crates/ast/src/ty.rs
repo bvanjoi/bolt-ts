@@ -1,7 +1,7 @@
 use super::*;
 use crate::keyword;
 
-use bolt_ts_atom::AtomId;
+use bolt_ts_atom::Atom;
 
 #[derive(Debug, Clone, Copy)]
 pub struct Ty<'cx> {
@@ -182,7 +182,7 @@ pub struct TemplateSpanTy<'cx> {
     pub id: NodeID,
     pub span: Span,
     pub ty: &'cx Ty<'cx>,
-    pub text: AtomId,
+    pub text: Atom,
     pub is_tail: bool,
 }
 
@@ -243,8 +243,8 @@ pub enum LitTyKind {
     Undefined,
     Void,
     Num(f64),
-    String(AtomId),
-    BigInt { neg: bool, val: AtomId },
+    String(Atom),
+    BigInt { neg: bool, val: Atom },
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -398,7 +398,7 @@ impl PropName<'_> {
 #[derive(Debug, Clone, Copy)]
 pub enum PropNameKind<'cx> {
     Ident(&'cx Ident),
-    StringLit { raw: &'cx StringLit, key: AtomId },
+    StringLit { raw: &'cx StringLit, key: Atom },
     NumLit(&'cx NumLit),
     Computed(&'cx ComputedPropName<'cx>),
 }

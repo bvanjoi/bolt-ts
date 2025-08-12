@@ -1,0 +1,6 @@
+  × Property '0' of type 'number' is not assignable to 'number' index type
+  │ 'RegExp'.
+   ╭─[../../tests/compiler/numericIndexerConstraint/index.ts:4:3]
+ 4 │ 0: number
+   · ─────────
+   ╰────

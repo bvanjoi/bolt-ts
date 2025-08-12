@@ -1,8 +1,0 @@
-  × Duplicate identifier 'c3'.
-   ╭─[../../tests/cases/compiler/augmentedTypesClass4/index.ts:4:7]
- 3 │ c3 { public foo() { } } // error
-   · ─┬
-   ·  ╰── Previous definition here
- 4 │ class c3
-   ·       ──
-   ╰────

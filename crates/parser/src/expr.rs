@@ -211,9 +211,10 @@ impl<'cx> ParserState<'cx, '_> {
         let start = self.token.start();
         let expr = self.parse_binary_expr(BinPrec::Lowest)?;
         if let ast::ExprKind::Ident(ident) = expr.kind
-            && self.token.kind == TokenKind::EqGreat {
-                return self.parse_simple_arrow_fn_expr(ident);
-            }
+            && self.token.kind == TokenKind::EqGreat
+        {
+            return self.parse_simple_arrow_fn_expr(ident);
+        }
         if expr.is_left_hand_side_expr_kind() && self.re_scan_greater().is_assignment() {
             // self.parent_map.r#override(expr.id(), id);
             let op = self.token.kind.into();
@@ -590,15 +591,17 @@ impl<'cx> ParserState<'cx, '_> {
 
             if ty_args.is_some() || self.token.kind == TokenKind::LParen {
                 if question_dot.is_none()
-                    && let ast::ExprKind::ExprWithTyArgs(expr_with_ty_args) = expr.kind {
-                        ty_args = expr_with_ty_args.ty_args;
-                        expr = expr_with_ty_args.expr;
-                    }
+                    && let ast::ExprKind::ExprWithTyArgs(expr_with_ty_args) = expr.kind
+                {
+                    ty_args = expr_with_ty_args.ty_args;
+                    expr = expr_with_ty_args.expr;
+                }
                 if let Some(ty_args) = ty_args
-                    && ty_args.list.is_empty() {
-                        let error = errors::TypeArgumentListCannotBeEmpty { span: ty_args.span };
-                        self.push_error(Box::new(error));
-                    }
+                    && ty_args.list.is_empty()
+                {
+                    let error = errors::TypeArgumentListCannotBeEmpty { span: ty_args.span };
+                    self.push_error(Box::new(error));
+                }
                 let args = self.parse_args()?;
                 if question_dot.is_some() || self.try_reparse_optional_chain(expr) {
                     todo!("call chain")
@@ -714,20 +717,21 @@ impl<'cx> ParserState<'cx, '_> {
         {
             return self.parse_object_method_decl(start, name, asterisk_token);
         } else if let Some(name) = name.kind.as_ident()
-            && self.token.kind != TokenKind::Colon {
-                let id = self.next_node_id();
-                let kind = self.alloc(ast::ObjectShorthandMember {
-                    id,
-                    span: self.new_span(start),
-                    name,
-                });
-                self.nodes
-                    .insert(id, ast::Node::ObjectShorthandMember(kind));
-                let member = self.alloc(ast::ObjectMember {
-                    kind: ast::ObjectMemberKind::Shorthand(kind),
-                });
-                return Ok(member);
-            }
+            && self.token.kind != TokenKind::Colon
+        {
+            let id = self.next_node_id();
+            let kind = self.alloc(ast::ObjectShorthandMember {
+                id,
+                span: self.new_span(start),
+                name,
+            });
+            self.nodes
+                .insert(id, ast::Node::ObjectShorthandMember(kind));
+            let member = self.alloc(ast::ObjectMember {
+                kind: ast::ObjectMemberKind::Shorthand(kind),
+            });
+            return Ok(member);
+        }
         self.expect(TokenKind::Colon);
         let value = self.parse_assign_expr_or_higher(false)?;
         let id = self.next_node_id();
@@ -980,7 +984,7 @@ impl<'cx> ParserState<'cx, '_> {
     pub(super) fn parse_template_span_text(
         &mut self,
         is_tagged_template: bool,
-    ) -> (bolt_ts_atom::AtomId, bool) {
+    ) -> (bolt_ts_atom::Atom, bool) {
         if self.token.kind == TokenKind::RBrace {
             self.re_scan_template_token(is_tagged_template);
             let atom = self.token_value.unwrap().ident();
@@ -1039,10 +1043,11 @@ impl<'cx> ParserState<'cx, '_> {
             expr = e.expr;
         }
         if let Some(ty_args) = ty_args
-            && ty_args.list.is_empty() {
-                let error = errors::TypeArgumentListCannotBeEmpty { span: ty_args.span };
-                self.push_error(Box::new(error));
-            }
+            && ty_args.list.is_empty()
+        {
+            let error = errors::TypeArgumentListCannotBeEmpty { span: ty_args.span };
+            self.push_error(Box::new(error));
+        }
         let args = if self.token.kind == LParen {
             self.parse_args().map(Some)
         } else {
@@ -1253,15 +1258,16 @@ impl<'cx> ParserState<'cx, '_> {
 
             if self.is_template_start_of_tagged_template() {
                 if question_dot_token.is_none()
-                    && let ast::ExprKind::ExprWithTyArgs(e) = expr.kind {
-                        expr = self.parse_tagged_template_rest(
-                            start,
-                            e.expr,
-                            question_dot_token,
-                            e.ty_args,
-                        )?;
-                        continue;
-                    }
+                    && let ast::ExprKind::ExprWithTyArgs(e) = expr.kind
+                {
+                    expr = self.parse_tagged_template_rest(
+                        start,
+                        e.expr,
+                        question_dot_token,
+                        e.ty_args,
+                    )?;
+                    continue;
+                }
                 expr = self.parse_tagged_template_rest(start, expr, question_dot_token, None)?;
                 continue;
             }

@@ -4,10 +4,10 @@ use super::errors;
 use super::relation::RelationKind;
 use super::symbol_info::SymbolInfo;
 
-use bolt_ts_binder::SymbolName;
 use crate::ty;
 use crate::ty::TypeFlags;
 use bolt_ts_ast as ast;
+use bolt_ts_binder::SymbolName;
 
 struct Elaboration<'cx> {
     error_node: ast::NodeID,
@@ -161,9 +161,10 @@ impl<'cx> TyChecker<'cx> {
                 } else {
                     Ternary::FALSE
                 }
-            }) {
-                return self.get_indexed_access_ty_or_undefined(best, name_ty, None, None);
-            }
+            })
+        {
+            return self.get_indexed_access_ty_or_undefined(best, name_ty, None, None);
+        }
 
         None
     }

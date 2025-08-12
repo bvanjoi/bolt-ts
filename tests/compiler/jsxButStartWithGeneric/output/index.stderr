@@ -1,0 +1,60 @@
+  × Unexpected token. Did you mean `{'>'}` or `&gt;`?
+   ╭─[../../tests/compiler/jsxButStartWithGeneric/index.tsx:1:18]
+ 1 │ >
+   · ─
+   ╰────
+
+  × Unterminated string literal.
+   ╭─[../../tests/compiler/jsxButStartWithGeneric/index.tsx:1:26]
+ 1 │ ╭─▶ ";
+ 2 │ │   //~^ ERROR: Expected '
+ 3 │ │   //~| ERROR: Expected '
+ 4 │ │   //~| ERROR: Unterminated string literal.
+ 5 │ │   //~| ERROR: Expected corresponding JSX closing tag for 'T'.
+ 6 │ │   //~| ERROR: Identifier expected.
+ 7 │ ╰─▶ //~| ERROR: Unexpected token. Did you mean `{'>'}` or `&gt;`?
+   ╰────
+
+  × Identifier expected.
+   ╭─[../../tests/compiler/jsxButStartWithGeneric/index.tsx:1:26]
+ 1 │ ╭─▶ ";
+ 2 │ │   //~^ ERROR: Expected '
+ 3 │ │   //~| ERROR: Expected '
+ 4 │ │   //~| ERROR: Unterminated string literal.
+ 5 │ │   //~| ERROR: Expected corresponding JSX closing tag for 'T'.
+ 6 │ │   //~| ERROR: Identifier expected.
+ 7 │ ╰─▶ //~| ERROR: Unexpected token. Did you mean `{'>'}` or `&gt;`?
+   ╰────
+
+  × Expected '>'.
+   ╭─[../../tests/compiler/jsxButStartWithGeneric/index.tsx:1:26]
+ 1 │ ╭─▶ ";
+ 2 │ │   //~^ ERROR: Expected '
+ 3 │ │   //~| ERROR: Expected '
+ 4 │ │   //~| ERROR: Unterminated string literal.
+ 5 │ │   //~| ERROR: Expected corresponding JSX closing tag for 'T'.
+ 6 │ │   //~| ERROR: Identifier expected.
+ 7 │ ╰─▶ //~| ERROR: Unexpected token. Did you mean `{'>'}` or `&gt;`?
+   ╰────
+
+  × Expected corresponding JSX closing tag for 'T'.
+   ╭─[../../tests/compiler/jsxButStartWithGeneric/index.tsx:1:26]
+ 1 │ ╭─▶ ";
+ 2 │ │   //~^ ERROR: Expected '
+ 3 │ │   //~| ERROR: Expected '
+ 4 │ │   //~| ERROR: Unterminated string literal.
+ 5 │ │   //~| ERROR: Expected corresponding JSX closing tag for 'T'.
+ 6 │ │   //~| ERROR: Identifier expected.
+ 7 │ ╰─▶ //~| ERROR: Unexpected token. Did you mean `{'>'}` or `&gt;`?
+   ╰────
+
+  × Expected ','.
+   ╭─[../../tests/compiler/jsxButStartWithGeneric/index.tsx:1:26]
+ 1 │ ╭─▶ ";
+ 2 │ │   //~^ ERROR: Expected '
+ 3 │ │   //~| ERROR: Expected '
+ 4 │ │   //~| ERROR: Unterminated string literal.
+ 5 │ │   //~| ERROR: Expected corresponding JSX closing tag for 'T'.
+ 6 │ │   //~| ERROR: Identifier expected.
+ 7 │ ╰─▶ //~| ERROR: Unexpected token. Did you mean `{'>'}` or `&gt;`?
+   ╰────

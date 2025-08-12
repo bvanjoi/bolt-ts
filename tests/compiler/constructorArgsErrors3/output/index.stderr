@@ -1,0 +1,5 @@
+  × Accessibility modifier already seen.
+   ╭─[../../tests/compiler/constructorArgsErrors3/index.ts:4:25]
+ 4 │ public
+   · ──────
+   ╰────

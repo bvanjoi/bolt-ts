@@ -1,0 +1,12 @@
+  × Class 'B' used before its declaration.
+   ╭─[../../tests/compiler/classOrder2/index.ts:2:17]
+ 2 │ B
+   · ─
+   ╰────
+
+Advice: 
+  ☞ Class 'B' is defined here
+   ╭─[../../tests/compiler/classOrder2/index.ts:8:7]
+ 8 │ B
+   · ─
+   ╰────

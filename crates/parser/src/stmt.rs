@@ -1,4 +1,4 @@
-use bolt_ts_atom::AtomId;
+use bolt_ts_atom::Atom;
 
 use bolt_ts_ast::TokenKind;
 use bolt_ts_ast::{NodeFlags, VarDecls};
@@ -370,7 +370,7 @@ impl<'cx> ParserState<'cx, '_> {
         Ok(decl)
     }
 
-    pub(super) fn is_ident_name(&self, name: AtomId) -> bool {
+    pub(super) fn is_ident_name(&self, name: Atom) -> bool {
         self.token.kind.is_ident_or_keyword() && self.ident_token() == name
     }
 
@@ -1135,19 +1135,20 @@ impl<'cx> ParserState<'cx, '_> {
         let start = self.token.start();
         let expr = self.allow_in_and(Self::parse_expr)?;
         if let ast::ExprKind::Ident(ident) = expr.kind
-            && self.parse_optional(TokenKind::Colon).is_some() {
-                let stmt =
-                    self.do_inside_of_context(NodeFlags::ALLOW_BREAK_CONTEXT, Self::parse_stmt)?;
-                let id = self.next_node_id();
-                let stmt = self.alloc(ast::LabeledStmt {
-                    id,
-                    span: self.new_span(start),
-                    label: ident,
-                    stmt,
-                });
-                self.nodes.insert(id, ast::Node::LabeledStmt(stmt));
-                return Ok(ast::StmtKind::Labeled(stmt));
-            }
+            && self.parse_optional(TokenKind::Colon).is_some()
+        {
+            let stmt =
+                self.do_inside_of_context(NodeFlags::ALLOW_BREAK_CONTEXT, Self::parse_stmt)?;
+            let id = self.next_node_id();
+            let stmt = self.alloc(ast::LabeledStmt {
+                id,
+                span: self.new_span(start),
+                label: ident,
+                stmt,
+            });
+            self.nodes.insert(id, ast::Node::LabeledStmt(stmt));
+            return Ok(ast::StmtKind::Labeled(stmt));
+        }
         self.parse_semi();
         let id = self.next_node_id();
         let stmt = self.alloc(ast::ExprStmt {

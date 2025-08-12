@@ -1,8 +1,8 @@
-use bolt_ts_binder::SymbolName;
 use crate::check::Ternary;
 use crate::ty::MappedTyNameTyKind;
 use crate::ty::ObjectFlags;
 use crate::ty::TypeFlags;
+use bolt_ts_binder::SymbolName;
 
 use super::TyChecker;
 use super::ast;
@@ -140,9 +140,10 @@ impl<'cx> TyChecker<'cx> {
         match node {
             VarDecl(decl) => {
                 if decl.init.is_some()
-                    && let Some(decl_ty) = decl.ty {
-                        return Some(self.get_ty_from_type_node(decl_ty));
-                    }
+                    && let Some(decl_ty) = decl.ty
+                {
+                    return Some(self.get_ty_from_type_node(decl_ty));
+                }
             }
             _ => unreachable!(),
         };
@@ -192,9 +193,10 @@ impl<'cx> TyChecker<'cx> {
                         t,
                         SymbolName::EleNum(index.into()),
                         None,
-                    ) {
-                        return Some(t);
-                    }
+                    )
+                {
+                    return Some(t);
+                }
                 // TODO: this.get_iterated_ty_or_element_ty()
                 this.get_index_ty_of_ty(t, this.number_ty)
             },
