@@ -471,6 +471,7 @@ impl<'cx> Node<'cx> {
                 | ClassPropElem(_)
                 | ClassMethodElem(_)
                 | EnumDecl(_)
+                | EnumMember(_)
                 | ArrowFnExpr(_)
                 | FnExpr(_)
                 | ClassCtor(_)

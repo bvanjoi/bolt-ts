@@ -264,7 +264,13 @@ impl<'cx> TyChecker<'cx> {
             if object_literals.is_empty() {
                 candidates.to_vec()
             } else {
-                let lits = self.get_union_ty(&object_literals, ty::UnionReduction::Subtype);
+                let lits = self.get_union_ty(
+                    &object_literals,
+                    ty::UnionReduction::Subtype,
+                    false,
+                    None,
+                    None,
+                );
                 non_object_literals.push(lits);
                 non_object_literals.into()
             }
@@ -316,7 +322,8 @@ impl<'cx> TyChecker<'cx> {
         if base_candidates.len() == 1 {
             self.get_widened_ty(base_candidates[0])
         } else {
-            let ty = self.get_union_ty(&base_candidates, ty::UnionReduction::Lit);
+            let ty =
+                self.get_union_ty(&base_candidates, ty::UnionReduction::Lit, false, None, None);
             self.get_widened_ty(ty)
         }
     }
@@ -1108,12 +1115,16 @@ impl<'cx> InferenceState<'cx, '_> {
             if targets.is_empty() {
                 return;
             }
-            target = self.c.get_union_ty(targets, ty::UnionReduction::Lit);
+            target = self
+                .c
+                .get_union_ty(targets, ty::UnionReduction::Lit, false, None, None);
             if sources.is_empty() {
                 self.infer_with_priority(source, target, InferencePriority::NAKED_TYPE_VARIABLE);
                 return;
             }
-            source = self.c.get_union_ty(sources, ty::UnionReduction::Lit);
+            source = self
+                .c
+                .get_union_ty(sources, ty::UnionReduction::Lit, false, None, None);
         } else if target
             .kind
             .as_intersection()
@@ -1308,7 +1319,9 @@ impl<'cx> InferenceState<'cx, '_> {
                     .copied()
                     .collect::<Vec<_>>();
                 if !unmatched.is_empty() {
-                    let source = self.c.get_union_ty(&unmatched, ty::UnionReduction::Lit);
+                    let source =
+                        self.c
+                            .get_union_ty(&unmatched, ty::UnionReduction::Lit, false, None, None);
                     self.infer_from_tys(source, naked_type_variable.unwrap());
                     return;
                 }
@@ -1853,7 +1866,9 @@ impl<'cx> InferenceState<'cx, '_> {
                 }
 
                 if !props_tys.is_empty() {
-                    let u = self.c.get_union_ty(&props_tys, ty::UnionReduction::Lit);
+                    let u =
+                        self.c
+                            .get_union_ty(&props_tys, ty::UnionReduction::Lit, false, None, None);
                     self.infer_with_priority(u, target_info.val_ty, new_priority);
                 }
             }

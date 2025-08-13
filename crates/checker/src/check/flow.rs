@@ -320,7 +320,13 @@ impl<'cx> TyChecker<'cx> {
                 } else if n.op.kind == ast::BinOpKind::PipePipe {
                     let left_ty = self.narrow_ty_by_assertion(ty, refer, n.left);
                     let right_ty = self.narrow_ty_by_assertion(ty, refer, n.right);
-                    self.get_union_ty(&[left_ty, right_ty], ty::UnionReduction::Lit)
+                    self.get_union_ty(
+                        &[left_ty, right_ty],
+                        ty::UnionReduction::Lit,
+                        false,
+                        None,
+                        None,
+                    )
                 } else {
                     self.narrow_ty(ty, refer, n.left, true)
                 }

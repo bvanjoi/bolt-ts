@@ -998,7 +998,7 @@ impl<'cx> TyChecker<'cx> {
         symbols: Vec<SymbolID>,
         tys: &[&'cx ty::Ty<'cx>],
     ) -> SymbolID {
-        let union = self.get_union_ty(tys, ty::UnionReduction::Subtype);
+        let union = self.get_union_ty(tys, ty::UnionReduction::Subtype, false, None, None);
         self.create_combined_symbol_for_overload_failure(symbols, union)
     }
 
@@ -1077,7 +1077,7 @@ impl<'cx> TyChecker<'cx> {
                 .iter()
                 .flat_map(|c| self.try_get_rest_ty_of_sig(c))
                 .collect::<Vec<_>>();
-            let ty = self.get_union_ty(&tys, ty::UnionReduction::Subtype);
+            let ty = self.get_union_ty(&tys, ty::UnionReduction::Subtype, false, None, None);
             let ty = self.create_array_ty(ty, false);
             params.push(self.create_combined_symbol_for_overload_failure(rest_param_symbols, ty));
             flags |= SigFlags::HAS_REST_PARAMETER;

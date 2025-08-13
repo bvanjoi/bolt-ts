@@ -20,7 +20,13 @@ impl<'cx> TyChecker<'cx> {
         {
             ty
         } else {
-            self.get_union_ty(&[ty, missing_or_undefined], ty::UnionReduction::Lit)
+            self.get_union_ty(
+                &[ty, missing_or_undefined],
+                ty::UnionReduction::Lit,
+                false,
+                None,
+                None,
+            )
         }
     }
 

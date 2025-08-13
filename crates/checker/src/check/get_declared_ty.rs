@@ -428,21 +428,61 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
-    pub(super) fn get_declared_ty_of_enum_member(&mut self, symbol: SymbolID) -> &'cx ty::Ty<'cx> {
-        if let Some(ty) = self.get_symbol_links(symbol).get_declared_ty() {
-            return ty;
+    fn get_declared_ty_of_enum(&mut self, symbol: SymbolID) -> &'cx ty::Ty<'cx> {
+        if let Some(declared_ty) = self.get_symbol_links(symbol).get_declared_ty() {
+            return declared_ty;
         }
-        // let parent = self.symbol(symbol)
-        // let decl = self.binder.symbol(symbol).expect_ns().decls[0];
-        // let decl = self.p.node(decl).expect_enum_member_decl();
-        // let ty = self.get_ty_from_type_node(decl.ty);
-        // TODO:
-        let ty = self.any_ty;
-        if let Some(old) = self.get_symbol_links(symbol).get_declared_ty() {
-            old
+
+        let decls = self
+            .binder
+            .symbol(symbol)
+            .decls
+            .as_ref()
+            .unwrap()
+            .iter()
+            .filter_map(|&n| {
+                let n = self.p.node(n);
+                n.as_enum_decl()
+            })
+            .collect::<Vec<_>>();
+
+        let mut member_ty_list = Vec::with_capacity(decls.len());
+        for decl in decls {
+            for member in decl.members.iter() {
+                // TODO: has_bindable_name
+                let member_symbol = self.get_symbol_of_decl(member.id);
+                // TODO: value of member
+                let member_ty = self.create_computed_enum_ty(member_symbol);
+                let member_ty = self.get_fresh_ty_of_literal_ty(member_ty);
+                member_ty_list.push(member_ty);
+            }
+        }
+
+        let declared_ty = if member_ty_list.is_empty() {
+            self.get_union_ty(
+                &member_ty_list,
+                ty::UnionReduction::Lit,
+                true,
+                Some(symbol),
+                None,
+            )
         } else {
-            self.get_mut_symbol_links(symbol).set_declared_ty(ty);
-            ty
+            self.create_computed_enum_ty(symbol)
+        };
+
+        self.get_mut_symbol_links(symbol)
+            .set_declared_ty(declared_ty);
+        declared_ty
+    }
+
+    pub(super) fn get_declared_ty_of_enum_member(&mut self, symbol: SymbolID) -> &'cx ty::Ty<'cx> {
+        if let Some(declared_ty) = self.get_symbol_links(symbol).get_declared_ty() {
+            return declared_ty;
         }
+        let parent = self.symbol(symbol).parent.unwrap();
+        let declared_ty = self.get_declared_ty_of_enum(parent);
+        self.get_mut_symbol_links(symbol)
+            .set_declared_ty(declared_ty);
+        declared_ty
     }
 }

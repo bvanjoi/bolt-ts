@@ -357,7 +357,7 @@ impl<'cx> TyChecker<'cx> {
             }
         });
         let ty = if let Some(element_tys) = element_tys {
-            self.get_union_ty(element_tys, ty::UnionReduction::Lit)
+            self.get_union_ty(element_tys, ty::UnionReduction::Lit, false, None, None)
         } else {
             self.never_ty
         };
@@ -597,6 +597,9 @@ impl<'cx> TyChecker<'cx> {
             self.get_union_ty(
                 &[true_constraint, false_constraint],
                 ty::UnionReduction::Lit,
+                false,
+                None,
+                None,
             )
         };
         self.get_mut_ty_links(ty.id)
@@ -1244,7 +1247,13 @@ impl<'cx> TyChecker<'cx> {
         for (i, info) in infos.iter().enumerate() {
             if info.key_ty == new_info.key_ty {
                 let val_ty = if union {
-                    self.get_union_ty(&[info.val_ty, new_info.val_ty], ty::UnionReduction::Lit)
+                    self.get_union_ty(
+                        &[info.val_ty, new_info.val_ty],
+                        ty::UnionReduction::Lit,
+                        false,
+                        None,
+                        None,
+                    )
                 } else {
                     self.get_intersection_ty(
                         &[info.val_ty, new_info.val_ty],
@@ -1374,14 +1383,26 @@ impl<'cx> TyChecker<'cx> {
                     if let Some(existing_prop) = members.get(&symbol_name) {
                         let named_ty = {
                             let old = this.get_symbol_links(*existing_prop).expect_named_ty();
-                            this.get_union_ty(&[old, prop_name_ty], ty::UnionReduction::Lit)
+                            this.get_union_ty(
+                                &[old, prop_name_ty],
+                                ty::UnionReduction::Lit,
+                                false,
+                                None,
+                                None,
+                            )
                         };
                         this.get_mut_symbol_links(*existing_prop)
                             .override_name_ty(named_ty);
 
                         let key_ty = {
                             let old = this.get_symbol_links(*existing_prop).expect_key_ty();
-                            this.get_union_ty(&[old, key_ty], ty::UnionReduction::Lit)
+                            this.get_union_ty(
+                                &[old, key_ty],
+                                ty::UnionReduction::Lit,
+                                false,
+                                None,
+                                None,
+                            )
                         };
                         this.get_mut_symbol_links(*existing_prop)
                             .override_key_ty(key_ty);

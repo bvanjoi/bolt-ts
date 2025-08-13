@@ -310,7 +310,13 @@ impl<'cx> TyChecker<'cx> {
                     return Some(ty);
                 };
                 if ty.kind.is_union() && base_tys.len() == tys.len() {
-                    Some(checker.get_union_ty(&base_tys, ty::UnionReduction::Lit))
+                    Some(checker.get_union_ty(
+                        &base_tys,
+                        ty::UnionReduction::Lit,
+                        false,
+                        None,
+                        None,
+                    ))
                 } else if ty.kind.is_intersection() && !base_tys.is_empty() {
                     Some(checker.get_intersection_ty(
                         &base_tys,

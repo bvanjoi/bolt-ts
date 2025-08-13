@@ -613,10 +613,10 @@ impl<'cx> TyChecker<'cx> {
             };
         }
         make_global!({
-            (boolean_ty,                    this.get_union_ty(&[regular_false_ty, regular_true_ty],                 ty::UnionReduction::Lit)),
-            (string_or_number_ty,           this.get_union_ty(&[this.string_ty, this.number_ty],                    ty::UnionReduction::Lit)),
-            (string_number_symbol_ty,       this.get_union_ty(&[this.string_ty, this.number_ty, this.es_symbol_ty], ty::UnionReduction::Lit)),
-            (number_or_bigint_ty,           this.get_union_ty(&[this.number_ty, this.bigint_ty],                    ty::UnionReduction::Lit)),
+            (boolean_ty,                    this.get_union_ty(&[regular_false_ty, regular_true_ty],                 ty::UnionReduction::Lit, false, None, None)),
+            (string_or_number_ty,           this.get_union_ty(&[this.string_ty, this.number_ty],                    ty::UnionReduction::Lit, false, None, None)),
+            (string_number_symbol_ty,       this.get_union_ty(&[this.string_ty, this.number_ty, this.es_symbol_ty], ty::UnionReduction::Lit, false, None, None)),
+            (number_or_bigint_ty,           this.get_union_ty(&[this.number_ty, this.bigint_ty],                    ty::UnionReduction::Lit, false, None, None)),
             (global_number_ty,              this.get_global_type(SymbolName::Atom(keyword::IDENT_NUMBER_CLASS))),
             (global_boolean_ty,             this.get_global_type(SymbolName::Atom(keyword::IDENT_BOOLEAN_CLASS))),
             (global_symbol_ty,              this.get_global_type(SymbolName::Atom(keyword::IDENT_SYMBOL_CLASS))),
@@ -629,7 +629,7 @@ impl<'cx> TyChecker<'cx> {
             (any_readonly_array_ty,         this.any_array_ty()),
             (typeof_ty,                 {
                                             let tys = TYPEOF_NE_FACTS.iter().map(|(key, _)| this.get_string_literal_type(*key)).collect::<Vec<_>>();
-                                            this.get_union_ty(&tys, ty::UnionReduction::Lit)
+                                            this.get_union_ty(&tys, ty::UnionReduction::Lit, false, None, None)
                                         }),
             (any_fn_ty,                     this.create_anonymous_ty_with_resolved(None, ObjectFlags::NON_INFERRABLE_TYPE, this.alloc(Default::default()), Default::default(), Default::default(), Default::default())),
             (no_constraint_ty,              this.create_anonymous_ty_with_resolved(None, Default::default(), this.alloc(Default::default()), Default::default(), Default::default(), Default::default())),
@@ -645,7 +645,7 @@ impl<'cx> TyChecker<'cx> {
             (mark_sub_ty,                   this.create_param_ty(Symbol::ERR, None, false)),
             (mark_other_ty,                 this.create_param_ty(Symbol::ERR, None, false)),
             (mark_super_ty,                 this.create_param_ty(Symbol::ERR, None, false)),
-            (template_constraint_ty,        this.get_union_ty(&[string_ty, number_ty, boolean_ty, bigint_ty, null_ty, undefined_ty], ty::UnionReduction::Lit)),
+            (template_constraint_ty,        this.get_union_ty(&[string_ty, number_ty, boolean_ty, bigint_ty, null_ty, undefined_ty], ty::UnionReduction::Lit, false, None, None)),
             (any_iteration_tys,             this.create_iteration_tys(any_ty, any_ty, any_ty)),
             (unknown_sig,                   this.new_sig(Sig { flags: SigFlags::empty(), ty_params: None, this_param: None, params: cast_empty_array(empty_array), min_args_count: 0, ret: None, node_id: None, target: None, mapper: None, id: SigID::dummy(), class_decl: None })),
             (resolving_sig,                 this.new_sig(Sig { flags: SigFlags::empty(), ty_params: None, this_param: None, params: cast_empty_array(empty_array), min_args_count: 0, ret: None, node_id: None, target: None, mapper: None, id: SigID::dummy(), class_decl: None })),
@@ -1682,7 +1682,7 @@ impl<'cx> TyChecker<'cx> {
                         }
                     })
                     .unwrap();
-                self.get_union_ty(tys, ty::UnionReduction::Subtype)
+                self.get_union_ty(tys, ty::UnionReduction::Subtype, false, None, None)
             };
             let array_ty = self.create_array_ty(ty, false);
             self.create_array_literal_ty(array_ty)
@@ -2867,7 +2867,7 @@ impl<'cx> TyChecker<'cx> {
         };
         let t = self.get_index_ty(t, IndexFlags::empty());
         v.push(t);
-        self.get_union_ty(&v, ty::UnionReduction::Lit)
+        self.get_union_ty(&v, ty::UnionReduction::Lit, false, None, None)
     }
 
     fn get_lower_bound_of_key_ty(&mut self, ty: &'cx ty::Ty<'cx>) -> &'cx ty::Ty<'cx> {
@@ -2947,6 +2947,9 @@ impl<'cx> TyChecker<'cx> {
                     } else {
                         ty::UnionReduction::Lit
                     },
+                    false,
+                    None,
+                    None,
                 )
             })
         } else {
@@ -3437,7 +3440,7 @@ impl<'cx> TyChecker<'cx> {
                     .iter()
                     .map(|t| self.get_index_ty_of_ty(t, info.key_ty).unwrap())
                     .collect::<Vec<_>>();
-                let val_ty = self.get_union_ty(&tys, ty::UnionReduction::Lit);
+                let val_ty = self.get_union_ty(&tys, ty::UnionReduction::Lit, false, None, None);
                 let index_info = self.alloc(ty::IndexInfo {
                     key_ty: info.key_ty,
                     val_ty,

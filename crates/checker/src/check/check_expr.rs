@@ -575,7 +575,7 @@ impl<'cx> TyChecker<'cx> {
         let ty = self.check_expr(cond.cond);
         let ty1 = self.check_expr(cond.when_true);
         let ty2 = self.check_expr(cond.when_false);
-        self.get_union_ty(&[ty1, ty2], ty::UnionReduction::Subtype)
+        self.get_union_ty(&[ty1, ty2], ty::UnionReduction::Subtype, false, None, None)
     }
 
     fn check_object_lit(&mut self, node: &'cx ast::ObjectLit<'cx>) -> &'cx ty::Ty<'cx> {

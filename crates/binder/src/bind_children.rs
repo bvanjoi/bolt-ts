@@ -246,10 +246,12 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
             }
             EnumDecl(_) => {
                 let loc = SymbolTableLocation::exports(container);
+                let parent = self.final_res.get(&container).copied();
+                debug_assert!(parent.is_some());
                 self.declare_symbol(
                     Some(name),
                     loc,
-                    None,
+                    parent,
                     current,
                     symbol_flags,
                     symbol_excludes,
@@ -1414,7 +1416,9 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
     ) -> SymbolID {
         let symbol = self.create_symbol(name, flags);
         if flags.intersects(SymbolFlags::ENUM_MEMBER.union(SymbolFlags::CLASS_MEMBER)) {
-            // self.symbols.get_mut(symbol).parent = container.symbol
+            let container = self.final_res.get(&self.container.unwrap()).copied();
+            debug_assert!(container.is_some());
+            self.symbols.get_mut(symbol).parent = container;
         }
         self.add_declaration_to_symbol(symbol, node, flags);
         symbol

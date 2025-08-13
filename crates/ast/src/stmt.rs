@@ -363,7 +363,7 @@ pub struct ClassElems<'cx> {
 pub struct ClassElem<'cx> {
     pub kind: ClassElemKind<'cx>,
 }
-impl ClassElem<'_> {
+impl<'cx> ClassElem<'cx> {
     pub fn id(&self) -> NodeID {
         self.kind.id()
     }
@@ -387,7 +387,7 @@ pub struct ClassStaticBlock<'cx> {
     pub body: &'cx BlockStmt<'cx>,
 }
 
-impl ClassElemKind<'_> {
+impl<'cx> ClassElemKind<'cx> {
     pub fn is_static(&self) -> bool {
         use ClassElemKind::*;
         let ms = match self {
@@ -411,6 +411,18 @@ impl ClassElemKind<'_> {
             Getter(n) => n.id,
             Setter(n) => n.id,
             StaticBlock(n) => n.id,
+        }
+    }
+
+    pub fn name(&self) -> Option<&'cx PropName<'cx>> {
+        match self {
+            ClassElemKind::Prop(n) => Some(n.name),
+            ClassElemKind::Method(n) => Some(n.name),
+            ClassElemKind::Getter(n) => Some(n.name),
+            ClassElemKind::Setter(n) => Some(n.name),
+            ClassElemKind::IndexSig(_) | ClassElemKind::Ctor(_) | ClassElemKind::StaticBlock(_) => {
+                None
+            }
         }
     }
 }

@@ -1,3 +1,5 @@
+use std::mem;
+
 use super::symbol_info::SymbolInfo;
 use super::{TyChecker, errors};
 use crate::ty;
@@ -5,6 +7,21 @@ use crate::ty::TypeFlags;
 
 use bolt_ts_ast::r#trait::ClassLike;
 use bolt_ts_ast::{self as ast, pprint_ident};
+use bolt_ts_atom::Atom;
+use bolt_ts_utils::no_hashmap_with_capacity;
+
+bitflags::bitflags! {
+    #[derive(Debug, Clone, Copy)]
+    pub struct DeclarationMeaning: u8 {
+        const GET_ACCESSOR          = 1 << 0;
+        const SET_ACCESSOR          = 1 << 1;
+        const PROPERTY_ASSIGNMENT   = 1 << 2;
+        const METHOD                = 1 << 3;
+        const PRIVATE_STATIC        = 1 << 4;
+        const GET_OR_SET_ACCESSOR   = Self::GET_ACCESSOR.bits() | Self::SET_ACCESSOR.bits();
+        const PROPERTY_ASSIGNMENT_OR_METHOD = Self::PROPERTY_ASSIGNMENT.bits() | Self::METHOD.bits();
+    }
+}
 
 impl<'cx> TyChecker<'cx> {
     fn check_ctor(&mut self, ctor: &'cx ast::ClassCtor<'cx>) {
@@ -69,6 +86,78 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
+    fn check_class_for_duplicate_decls(&mut self, class: &impl ClassLike<'cx>) {
+        let mut instance_names = no_hashmap_with_capacity::<Atom, DeclarationMeaning>(8);
+        let mut static_names = no_hashmap_with_capacity::<Atom, DeclarationMeaning>(8);
+        let mut private_names = no_hashmap_with_capacity::<Atom, DeclarationMeaning>(8);
+
+        let add_name = |this: &mut Self,
+                        names: &mut nohash_hasher::IntMap<Atom, DeclarationMeaning>,
+                        prop_name: &ast::PropName,
+                        prop_name_atom: Atom,
+                        meaning: DeclarationMeaning| {
+            match names.get(&prop_name_atom) {
+                Some(prev) => {
+                    if prev.contains(DeclarationMeaning::PRIVATE_STATIC)
+                        != meaning.contains(DeclarationMeaning::PRIVATE_STATIC)
+                    {
+                        todo!("error handle")
+                    } else {
+                        let prev_is_method = prev.contains(DeclarationMeaning::METHOD);
+                        let is_method = meaning.contains(DeclarationMeaning::METHOD);
+                        if prev_is_method || is_method {
+                            if prev_is_method != is_method {
+                                // todo!("error handle")
+                            }
+                        } else if prev
+                            .intersection(meaning)
+                            .intersects(DeclarationMeaning::PRIVATE_STATIC.complement())
+                        {
+                            let error = errors::DuplicateIdentifierX {
+                                span: prop_name.span(),
+                                ident: this.atoms.get(prop_name_atom).to_string(),
+                            };
+                            this.push_error(Box::new(error));
+                        } else {
+                            names.insert(prop_name_atom, *prev | meaning);
+                        }
+                    }
+                }
+                None => {
+                    names.insert(prop_name_atom, meaning);
+                }
+            }
+        };
+
+        for elem in class.elems().elems {
+            if let ast::ClassElemKind::Ctor(ctor) = elem.kind {
+                for param in ctor.params {
+                    // TODO:
+                }
+            } else if let Some(name) = elem.kind.name()
+                && let Some(member_name) = name.kind.get_name(&mut self.atoms)
+            {
+                let is_static = elem.kind.is_static();
+                let is_private = false; // TODO:
+                let names = if is_private {
+                    &mut private_names
+                } else if is_static {
+                    &mut static_names
+                } else {
+                    &mut instance_names
+                };
+                let meaning = match elem.kind {
+                    ast::ClassElemKind::Getter(_) => DeclarationMeaning::GET_ACCESSOR,
+                    ast::ClassElemKind::Setter(_) => DeclarationMeaning::SET_ACCESSOR,
+                    ast::ClassElemKind::Prop(_) => DeclarationMeaning::GET_OR_SET_ACCESSOR,
+                    ast::ClassElemKind::Method(_) => DeclarationMeaning::METHOD,
+                    _ => unreachable!(),
+                };
+                add_name(self, names, name, member_name, meaning)
+            }
+        }
+    }
+
     pub(super) fn check_class_like_decl(&mut self, class: &impl ClassLike<'cx>) {
         let symbol = self.get_symbol_of_decl(class.id());
 
@@ -79,6 +168,7 @@ impl<'cx> TyChecker<'cx> {
         let ty = self.get_declared_ty_of_symbol(symbol);
         let ty_with_this = self.get_ty_with_this_arg(ty, None, false);
         let static_ty = self.get_type_of_symbol(symbol);
+        self.check_class_for_duplicate_decls(class);
         self.check_index_constraints(ty, false);
 
         if let Some(base_ty_node) = self.get_effective_base_type_node(class.id()) {

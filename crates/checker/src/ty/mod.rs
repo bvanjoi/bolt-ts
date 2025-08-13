@@ -164,6 +164,7 @@ pub enum TyKind<'cx> {
     Substitution(&'cx SubstitutionTy<'cx>),
     StringMapping(&'cx StringMappingTy<'cx>),
     TemplateLit(&'cx TemplateLitTy<'cx>),
+    Enum(&'cx EnumTy<'cx>),
 }
 
 macro_rules! as_ty_kind {
@@ -191,6 +192,7 @@ macro_rules! as_ty_kind {
 }
 
 as_ty_kind!(Intrinsic, &'cx IntrinsicTy, intrinsic);
+as_ty_kind!(Enum, &'cx EnumTy<'cx>, enum);
 as_ty_kind!(StringLit, &'cx StringLitTy<'cx>, string_lit);
 as_ty_kind!(NumberLit, &'cx NumberLitTy<'cx>, number_lit);
 as_ty_kind!(BigIntLit, &'cx BigIntLitTy<'cx>, bigint_lit);
@@ -278,6 +280,10 @@ impl<'cx> Ty<'cx> {
                 s
             }
             TyKind::UniqueESSymbol(_) => "unique es symbol".to_string(),
+            TyKind::Enum(n) => {
+                let name = checker.binder.symbol(n.symbol).name;
+                checker.atoms.get(name.expect_atom()).to_string()
+            }
         }
     }
 
@@ -367,6 +373,7 @@ impl<'cx> Ty<'cx> {
             TyKind::NumberLit(n) => n.links,
             TyKind::BigIntLit(n) => n.links,
             TyKind::Union(n) => n.fresh_ty_links,
+            TyKind::Enum(n) => n.fresh_ty_links,
             TyKind::Object(n) => return n.kind.as_anonymous().map(|a| a.fresh_ty_links),
             _ => return None,
         };
@@ -527,6 +534,8 @@ pub struct UnionTy<'cx> {
     pub tys: Tys<'cx>,
     pub object_flags: ObjectFlags,
     pub fresh_ty_links: FreshTyLinksID<'cx>,
+    pub alias_symbol: Option<SymbolID>,
+    pub alias_ty_arguments: Option<Tys<'cx>>,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -591,4 +600,10 @@ pub struct IterationTys<'cx> {
     pub yield_ty: &'cx Ty<'cx>,
     pub return_ty: &'cx Ty<'cx>,
     pub next_ty: &'cx Ty<'cx>,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct EnumTy<'cx> {
+    pub symbol: SymbolID,
+    pub fresh_ty_links: FreshTyLinksID<'cx>,
 }

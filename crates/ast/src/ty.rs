@@ -1,7 +1,7 @@
 use super::*;
 use crate::keyword;
 
-use bolt_ts_atom::Atom;
+use bolt_ts_atom::{Atom, AtomIntern};
 
 #[derive(Debug, Clone, Copy)]
 pub struct Ty<'cx> {
@@ -408,6 +408,19 @@ impl PropNameKind<'_> {
         match self {
             PropNameKind::Ident(ident) => Some(ident),
             _ => None,
+        }
+    }
+
+    pub fn get_name(&self, atoms: &mut AtomIntern) -> Option<Atom> {
+        match self {
+            PropNameKind::Ident(ident) => Some(ident.name),
+            PropNameKind::StringLit { raw, .. } => Some(raw.val),
+            PropNameKind::NumLit(lit) => Some(atoms.atom(&lit.val.to_string())),
+            PropNameKind::Computed(n) => match n.expr.kind {
+                super::ExprKind::StringLit(s) => Some(s.val),
+                super::ExprKind::NumLit(n) => Some(atoms.atom(&n.val.to_string())),
+                _ => None,
+            },
         }
     }
 }

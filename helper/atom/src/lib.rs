@@ -9,6 +9,8 @@ impl Atom {
     }
 }
 
+impl nohash_hasher::IsEnabled for Atom {}
+
 impl std::hash::Hash for Atom {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
         self.0.hash(state);

@@ -393,6 +393,29 @@ impl<'cx> TyChecker<'cx> {
         self.new_ty(ty::TyKind::Param(parm_ty), TypeFlags::TYPE_PARAMETER)
     }
 
+    pub(super) fn create_computed_enum_ty(&mut self, symbol: SymbolID) -> &'cx ty::Ty<'cx> {
+        let r_links = self.fresh_ty_links_arena.alloc(Default::default());
+        let regular_ty = self.alloc(ty::EnumTy {
+            symbol,
+            fresh_ty_links: r_links,
+        });
+        let r = self.new_ty(ty::TyKind::Enum(regular_ty), TypeFlags::ENUM);
+
+        let f_links = self.fresh_ty_links_arena.alloc(Default::default());
+        let fresh_ty = self.alloc(ty::EnumTy {
+            symbol,
+            fresh_ty_links: f_links,
+        });
+        let f = self.new_ty(ty::TyKind::Enum(fresh_ty), TypeFlags::ENUM);
+
+        self.fresh_ty_links_arena[r_links].set_regular_ty(r);
+        self.fresh_ty_links_arena[r_links].set_fresh_ty(f);
+        self.fresh_ty_links_arena[f_links].set_regular_ty(r);
+        self.fresh_ty_links_arena[f_links].set_fresh_ty(f);
+
+        r
+    }
+
     fn add_ty_to_union(
         &self,
         set: &mut nohash_hasher::IntSet<TyID>,
@@ -500,6 +523,9 @@ impl<'cx> TyChecker<'cx> {
         &mut self,
         tys: &[&'cx ty::Ty<'cx>],
         reduction: UnionReduction,
+        is_enum: bool,
+        alias_symbol: Option<SymbolID>,
+        alias_ty_arguments: Option<ty::Tys<'cx>>,
     ) -> &'cx ty::Ty<'cx> {
         if tys.is_empty() {
             return self.never_ty;
@@ -590,13 +616,22 @@ impl<'cx> TyChecker<'cx> {
         } else {
             ObjectFlags::empty()
         };
-        self.get_union_ty_from_sorted_list(set, pre_computed_object_flags)
+        self.get_union_ty_from_sorted_list(
+            set,
+            pre_computed_object_flags,
+            is_enum,
+            alias_symbol,
+            alias_ty_arguments,
+        )
     }
 
     pub(super) fn get_union_ty_from_sorted_list(
         &mut self,
         tys: Vec<&'cx ty::Ty<'cx>>,
         pre_computed_object_flags: ObjectFlags,
+        is_enum: bool,
+        alias_symbol: Option<SymbolID>,
+        alias_ty_arguments: Option<ty::Tys<'cx>>,
     ) -> &'cx ty::Ty<'cx> {
         debug_assert!(tys.is_sorted_by_key(|probe| probe.id.as_u32()));
         if tys.is_empty() {
@@ -616,12 +651,16 @@ impl<'cx> TyChecker<'cx> {
             && tys[1].flags.intersects(TypeFlags::BOOLEAN_LITERAL)
         {
             flags |= TypeFlags::BOOLEAN;
+        } else if is_enum {
+            flags |= TypeFlags::ENUM;
         }
         let fresh_ty_links = self.fresh_ty_links_arena.alloc(Default::default());
         let union = self.alloc(ty::UnionTy {
             tys: self.alloc(tys),
             object_flags,
             fresh_ty_links,
+            alias_symbol,
+            alias_ty_arguments,
         });
         let ty = self.new_ty(ty::TyKind::Union(union), flags);
         self.union_tys.insert(id, ty);
@@ -751,7 +790,7 @@ impl<'cx> TyChecker<'cx> {
                 let tys = (min_length..=arity)
                     .map(|i| this.get_number_literal_type_from_number(i as f64))
                     .collect::<Vec<_>>();
-                this.get_union_ty(&tys, UnionReduction::Lit)
+                this.get_union_ty(&tys, UnionReduction::Lit, false, None, None)
             };
             let length_symbol = this.create_transient_symbol(
                 length_symbol_name,
@@ -916,7 +955,13 @@ impl<'cx> TyChecker<'cx> {
             }
         }
 
-        tys[index] = self.get_union_ty_from_sorted_list(result, ObjectFlags::PRIMITIVE_UNION);
+        tys[index] = self.get_union_ty_from_sorted_list(
+            result,
+            ObjectFlags::PRIMITIVE_UNION,
+            false,
+            None,
+            None,
+        );
         true
     }
 
@@ -1154,7 +1199,7 @@ impl<'cx> TyChecker<'cx> {
                 }
                 let constituents = self.get_cross_product_intersections(&ty_set, flags);
                 // TODO: origin
-                self.get_union_ty(&constituents, ty::UnionReduction::Lit)
+                self.get_union_ty(&constituents, ty::UnionReduction::Lit, false, None, None)
             }
         } else {
             let tys = self.alloc(ty_set);
@@ -1582,6 +1627,9 @@ impl<'cx> TyChecker<'cx> {
                                 self.get_union_ty(
                                     &[left_ty, right_ty_without_undefined],
                                     ty::UnionReduction::Subtype,
+                                    false,
+                                    None,
+                                    None,
                                 )
                             }
                         };

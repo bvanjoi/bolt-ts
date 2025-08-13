@@ -261,7 +261,7 @@ impl<'cx> TyChecker<'cx> {
             return ty;
         }
         if is_union {
-            self.get_union_ty(new_tys, ty::UnionReduction::Lit)
+            self.get_union_ty(new_tys, ty::UnionReduction::Lit, false, None, None)
         } else {
             self.get_intersection_ty(
                 new_tys,
