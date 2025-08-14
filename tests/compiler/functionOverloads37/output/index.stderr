@@ -1,0 +1,5 @@
+  × Expected 1 arguments, but got 0.
+   ╭─[../../tests/compiler/functionOverloads37/index.ts:6:9]
+ 6 │ foo
+   · ───
+   ╰────

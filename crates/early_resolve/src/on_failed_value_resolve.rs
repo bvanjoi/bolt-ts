@@ -51,22 +51,20 @@ impl<'cx> Resolver<'cx, '_, '_> {
                 };
 
                 (prop_name.name == ident.name).then_some(prop)
-            }) {
-                if prop
-                    .modifiers
-                    .map(|mods| mods.flags.contains(ast::ModifierKind::Static))
-                    .unwrap_or_default()
-                {
-                    let ast::PropNameKind::Ident(prop_name) = prop.name.kind else {
-                        unreachable!()
-                    };
-                    let error = errors::DidYouMeanTheStaticMember {
-                        span: prop.name.span(),
-                        class_name: self.atoms.get(class.name.unwrap().name).to_string(),
-                        prop_name: self.atoms.get(prop_name.name).to_string(),
-                    };
-                    return Some(error);
-                }
+            }) && prop
+                .modifiers
+                .map(|mods| mods.flags.contains(ast::ModifierKind::Static))
+                .unwrap_or_default()
+            {
+                let ast::PropNameKind::Ident(prop_name) = prop.name.kind else {
+                    unreachable!()
+                };
+                let error = errors::DidYouMeanTheStaticMember {
+                    span: prop.name.span(),
+                    class_name: self.atoms.get(class.name.unwrap().name).to_string(),
+                    prop_name: self.atoms.get(prop_name.name).to_string(),
+                };
+                return Some(error);
             }
         }
 

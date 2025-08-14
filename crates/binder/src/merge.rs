@@ -38,7 +38,7 @@ impl MergedSymbols {
 
 struct MergeGlobalSymbol<'p, 'cx> {
     pub p: &'p Parser<'cx>,
-    pub atom: &'p bolt_ts_atom::AtomMap,
+    pub atom: &'p bolt_ts_atom::AtomIntern,
     pub bind_list: Vec<BinderResult<'cx>>,
     pub merged_symbols: MergedSymbols,
     pub global_symbols: SymbolTable,
@@ -81,7 +81,7 @@ impl<'cx> MergeSymbol<'cx> for MergeGlobalSymbol<'_, 'cx> {
         self.merged_symbols
             .record_merged_symbol(target, source, symbols);
     }
-    fn atom(&self, atom: bolt_ts_atom::AtomId) -> &str {
+    fn atom(&self, atom: bolt_ts_atom::Atom) -> &str {
         self.atom.get(atom)
     }
 }
@@ -95,7 +95,7 @@ pub enum SymbolTableLocation {
 }
 
 pub trait MergeSymbol<'cx> {
-    fn atom(&self, atom: bolt_ts_atom::AtomId) -> &str;
+    fn atom(&self, atom: bolt_ts_atom::Atom) -> &str;
 
     fn global_loc() -> SymbolTableLocation {
         SymbolTableLocation::Global
@@ -268,7 +268,7 @@ pub struct MergeGlobalSymbolResult<'cx> {
 
 pub fn merge_global_symbol<'cx>(
     parser: &Parser<'cx>,
-    atom: &bolt_ts_atom::AtomMap,
+    atom: &bolt_ts_atom::AtomIntern,
     bind_list: Vec<BinderResult<'cx>>,
     module_arena: &ModuleArena,
 ) -> MergeGlobalSymbolResult<'cx> {

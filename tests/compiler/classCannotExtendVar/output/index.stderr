@@ -1,0 +1,9 @@
+  × Duplicate identifier 'Markup'.
+   ╭─[../../tests/compiler/classCannotExtendVar/index.ts:5:7]
+ 3 │ Markup;
+   · ───┬──
+   ·    ╰── Previous definition here
+ 4 │ 
+ 5 │ class Markup
+   ·       ──────
+   ╰────

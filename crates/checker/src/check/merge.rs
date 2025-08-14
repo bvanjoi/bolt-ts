@@ -9,7 +9,7 @@ use super::resolve_external_module_name;
 
 struct MergeModuleAugmentation<'p, 'cx> {
     pub p: &'p Parser<'cx>,
-    pub atoms: &'p bolt_ts_atom::AtomMap,
+    pub atoms: &'p bolt_ts_atom::AtomIntern,
     pub bind_list: Vec<ResolveResult>,
     pub merged_symbols: MergedSymbols,
     pub global_symbols: SymbolTable,
@@ -59,7 +59,7 @@ impl<'cx> MergeSymbol<'cx> for MergeModuleAugmentation<'_, 'cx> {
             .record_merged_symbol(target, source, symbols);
     }
 
-    fn atom(&self, atom: bolt_ts_atom::AtomId) -> &str {
+    fn atom(&self, atom: bolt_ts_atom::Atom) -> &str {
         self.atoms.get(atom)
     }
 }
@@ -72,7 +72,7 @@ pub struct MergeModuleAugmentationResult {
 
 pub fn merge_module_augmentation_list_for_global(
     parser: &Parser,
-    atoms: &bolt_ts_atom::AtomMap,
+    atoms: &bolt_ts_atom::AtomIntern,
     bind_list: Vec<ResolveResult>,
     module_arena: &ModuleArena,
     global_symbols: SymbolTable,
@@ -166,7 +166,7 @@ impl<'cx> MergeSymbol<'cx> for super::TyChecker<'cx> {
             .record_merged_symbol(target, source, symbols);
     }
 
-    fn atom(&self, atom: bolt_ts_atom::AtomId) -> &str {
+    fn atom(&self, atom: bolt_ts_atom::Atom) -> &str {
         self.atoms.get(atom)
     }
 }

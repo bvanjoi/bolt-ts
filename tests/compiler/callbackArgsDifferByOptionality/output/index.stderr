@@ -1,0 +1,5 @@
+  × Cannot find name 'cb'.
+   ╭─[../../tests/compiler/callbackArgsDifferByOptionality/index.ts:6:5]
+ 6 │ cb
+   · ──
+   ╰────

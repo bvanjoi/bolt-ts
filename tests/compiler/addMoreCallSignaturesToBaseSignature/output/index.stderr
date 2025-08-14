@@ -1,0 +1,5 @@
+  × Argument of type 'number' is not assignable to parameter of type 'string'.
+    ╭─[../../tests/compiler/addMoreCallSignaturesToBaseSignature/index.ts:13:13]
+ 13 │ 42
+    · ──
+    ╰────

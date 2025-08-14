@@ -1,0 +1,11 @@
+  × An element access expression should take an argument.
+   ╭─[../../tests/compiler/badArrayIndex/index.ts:3:22]
+ 3 │ ]
+   · ─
+   ╰────
+
+  × Cannot find name 'number'.
+   ╭─[../../tests/compiler/badArrayIndex/index.ts:3:15]
+ 3 │ number
+   · ──────
+   ╰────

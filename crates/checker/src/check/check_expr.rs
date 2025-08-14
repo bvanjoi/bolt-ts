@@ -1,4 +1,4 @@
-use bolt_ts_atom::AtomId;
+use bolt_ts_atom::Atom;
 use bolt_ts_binder::AssignmentKind;
 use bolt_ts_binder::SymbolID;
 use bolt_ts_binder::{SymbolFlags, SymbolName};
@@ -31,14 +31,14 @@ fn get_suggestion_boolean_op(op: &str) -> Option<&str> {
 bitflags::bitflags! {
     #[derive(Clone, Copy, Debug)]
     pub struct IterationUse: u8 {
-        const ALLOWS_SYNC_ITERABLES_FLAG  = 1 << 0;
-        const ALLOWS_ASYNC_ITERABLES_FLAG = 1 << 1;
-        const ALLOWS_STRING_INPUT_FLAG     = 1 << 2;
-        const FOR_OF_FLAG                  = 1 << 3;
-        const YIELD_STAR_FLAG              = 1 << 4;
-        const SPREAD_FLAG                  = 1 << 5;
-        const DESTRUCTURING_FLAG           = 1 << 6;
-        const POSSIBLY_OUT_OF_BOUNDS       = 1 << 7;
+        const ALLOWS_SYNC_ITERABLES_FLAG    = 1 << 0;
+        const ALLOWS_ASYNC_ITERABLES_FLAG   = 1 << 1;
+        const ALLOWS_STRING_INPUT_FLAG      = 1 << 2;
+        const FOR_OF_FLAG                   = 1 << 3;
+        const YIELD_STAR_FLAG               = 1 << 4;
+        const SPREAD_FLAG                   = 1 << 5;
+        const DESTRUCTURING_FLAG            = 1 << 6;
+        const POSSIBLY_OUT_OF_BOUNDS        = 1 << 7;
 
         const ELEMENT = Self::ALLOWS_SYNC_ITERABLES_FLAG.bits();
         const SPREAD = Self::ALLOWS_SYNC_ITERABLES_FLAG.bits()
@@ -153,13 +153,13 @@ impl<'cx> TyChecker<'cx> {
         self.get_fresh_ty_of_literal_ty(t)
     }
 
-    pub(super) fn check_string_lit(&mut self, val: AtomId) -> &'cx ty::Ty<'cx> {
+    pub(super) fn check_string_lit(&mut self, val: Atom) -> &'cx ty::Ty<'cx> {
         // TODO: hasSkipDirectInferenceFlag
         let t = self.get_string_literal_type(val);
         self.get_fresh_ty_of_literal_ty(t)
     }
 
-    pub(super) fn check_bigint_lit(&mut self, neg: bool, val: AtomId) -> &'cx ty::Ty<'cx> {
+    pub(super) fn check_bigint_lit(&mut self, neg: bool, val: Atom) -> &'cx ty::Ty<'cx> {
         // TODO: check grammar
         let t = self.get_bigint_literal_type(neg, val);
         self.get_fresh_ty_of_literal_ty(t)
@@ -575,7 +575,7 @@ impl<'cx> TyChecker<'cx> {
         let ty = self.check_expr(cond.cond);
         let ty1 = self.check_expr(cond.when_true);
         let ty2 = self.check_expr(cond.when_false);
-        self.get_union_ty(&[ty1, ty2], ty::UnionReduction::Subtype)
+        self.get_union_ty(&[ty1, ty2], ty::UnionReduction::Subtype, false, None, None)
     }
 
     fn check_object_lit(&mut self, node: &'cx ast::ObjectLit<'cx>) -> &'cx ty::Ty<'cx> {
@@ -1049,16 +1049,15 @@ impl<'cx> TyChecker<'cx> {
         assert!(matches!(op, "^" | "^=" | "&" | "&=" | "|" | "|="));
         if left_ty.flags.intersects(TypeFlags::BOOLEAN_LIKE)
             && right_ty.flags.intersects(TypeFlags::BOOLEAN_LIKE)
+            && let Some(sugg) = get_suggestion_boolean_op(op)
         {
-            if let Some(sugg) = get_suggestion_boolean_op(op) {
-                let error = errors::TheOp1IsNotAllowedForBooleanTypesConsiderUsingOp2Instead {
-                    span: expr_span,
-                    op1: op.to_string(),
-                    op2: sugg.to_string(),
-                };
-                self.push_error(Box::new(error));
-                return self.number_ty;
-            }
+            let error = errors::TheOp1IsNotAllowedForBooleanTypesConsiderUsingOp2Instead {
+                span: expr_span,
+                op1: op.to_string(),
+                op2: sugg.to_string(),
+            };
+            self.push_error(Box::new(error));
+            return self.number_ty;
         }
 
         let left = self.check_arithmetic_op_ty(left_ty, false, |this| {

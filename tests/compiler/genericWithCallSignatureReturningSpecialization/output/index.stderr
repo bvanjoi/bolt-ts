@@ -1,0 +1,5 @@
+  × Type 'B<number>' is not assignable to type 'B<string>'.
+   ╭─[../../tests/compiler/genericWithCallSignatureReturningSpecialization/index.ts:9:5]
+ 9 │ b
+   · ─
+   ╰────

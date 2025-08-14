@@ -661,3 +661,27 @@ pub(super) struct DuplicateIdentifierX {
     pub(super) span: Span,
     pub(super) ident: String,
 }
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
+#[error("Type '{x}' has no matching index signature for type '{y}'.")]
+pub(super) struct TypeXHasNoMatchingIndexSignatureForTypeY {
+    #[label(primary)]
+    pub span: Span,
+    pub x: String,
+    pub y: String,
+}
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
+#[error("Cannot extend a class '{class}'. Class constructor is marked as private.")]
+pub(super) struct CannotExtendAClass0ClassConstructorIsMarkedAsPrivate {
+    #[label(primary)]
+    pub span: Span,
+    pub class: String,
+}
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
+#[error("Enum member must have initializer.")]
+pub(super) struct EnumMemberMustHaveInitializer {
+    #[label(primary)]
+    pub span: Span,
+}

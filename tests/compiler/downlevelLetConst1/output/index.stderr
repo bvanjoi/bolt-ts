@@ -1,0 +1,5 @@
+  × Variable declaration list cannot be empty.
+   ╭─[../../tests/compiler/downlevelLetConst1/index.ts:3:1]
+ 3 │ const
+   · ─────
+   ╰────

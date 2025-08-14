@@ -1,5 +1,0 @@
-  × Type 'string' is not assignable to type 'number'.
-    ╭─[../../tests/cases/compiler/parameterReferencesOtherParameter1/index.ts:14:29]
- 14 │ foo
-    · ───
-    ╰────

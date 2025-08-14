@@ -1,0 +1,11 @@
+  × 'string' index signatures are incompatible.
+    ╭─[../../tests/compiler/derivedTypeIncompatibleSignatures/index.ts:24:18]
+ 24 │ number
+    · ──────
+    ╰────
+
+  × 'string' index signatures are incompatible.
+    ╭─[../../tests/compiler/derivedTypeIncompatibleSignatures/index.ts:33:18]
+ 33 │ number
+    · ──────
+    ╰────

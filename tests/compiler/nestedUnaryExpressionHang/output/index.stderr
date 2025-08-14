@@ -1,0 +1,3 @@
+  × Expression expected.
+   ╭─[../../tests/compiler/nestedUnaryExpressionHang/index.ts:3:66]
+   ╰────

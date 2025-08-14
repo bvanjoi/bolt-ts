@@ -4,10 +4,10 @@ use super::errors;
 use super::relation::RelationKind;
 use super::symbol_info::SymbolInfo;
 
-use bolt_ts_binder::SymbolName;
 use crate::ty;
 use crate::ty::TypeFlags;
 use bolt_ts_ast as ast;
+use bolt_ts_binder::SymbolName;
 
 struct Elaboration<'cx> {
     error_node: ast::NodeID,
@@ -154,16 +154,16 @@ impl<'cx> TyChecker<'cx> {
             return Some(idx);
         }
 
-        if let Some(target_union) = target.kind.as_union() {
-            if let Some(best) = self.get_best_matching_ty(source, target_union, |this, s, t| {
+        if let Some(target_union) = target.kind.as_union()
+            && let Some(best) = self.get_best_matching_ty(source, target_union, |this, s, t| {
                 if this.is_type_related_to(s, t, RelationKind::Assignable) {
                     Ternary::TRUE
                 } else {
                     Ternary::FALSE
                 }
-            }) {
-                return self.get_indexed_access_ty_or_undefined(best, name_ty, None, None);
-            }
+            })
+        {
+            return self.get_indexed_access_ty_or_undefined(best, name_ty, None, None);
         }
 
         None

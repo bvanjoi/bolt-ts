@@ -1,0 +1,11 @@
+  × An element access expression should take an argument.
+   ╭─[../../tests/compiler/cannotInvokeNewOnErrorExpression/index.ts:7:22]
+ 7 │ ]
+   · ─
+   ╰────
+
+  × Property 'ClassA' does not exist on type 'typeof M'.
+   ╭─[../../tests/compiler/cannotInvokeNewOnErrorExpression/index.ts:7:15]
+ 7 │ ClassA
+   · ──────
+   ╰────

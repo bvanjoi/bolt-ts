@@ -1,6 +1,0 @@
-  × Class name cannot be 'any'.
-   ╭─[../../tests/cases/compiler/primitiveTypeAsClassName/index.ts:3:7]
- 3 │ any
-   · ───
-   ╰────
-  help: Reserved type names are not permitted.

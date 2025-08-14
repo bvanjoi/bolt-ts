@@ -41,7 +41,7 @@ pub trait SymbolInfo<'cx>: Sized {
     fn empty_symbols(&self) -> &'cx SymbolTable;
     fn mg(&self) -> &bolt_ts_module_graph::ModuleGraph;
     fn p(&self) -> &bolt_ts_parser::Parser<'cx>;
-    fn atoms(&self) -> &bolt_ts_atom::AtomMap;
+    fn atoms(&self) -> &bolt_ts_atom::AtomIntern;
     fn module_arena(&self) -> &bolt_ts_span::ModuleArena;
     fn push_error(&mut self, error: bolt_ts_middle::Diag);
 
@@ -136,7 +136,11 @@ impl<'cx> super::TyChecker<'cx> {
                 Some(exports) => exports.clone(),
                 None => SymbolTable::new(16),
             };
-            let exports = self.alloc(exports);
+            let exports = if exports.0.is_empty() {
+                self.empty_symbols()
+            } else {
+                self.alloc(exports)
+            };
             self.get_mut_symbol_links(symbol).set_exports(exports);
             exports
         }
@@ -145,7 +149,7 @@ impl<'cx> super::TyChecker<'cx> {
     pub(super) fn resolve_external_module_name(
         &mut self,
         module_spec_id: bolt_ts_ast::NodeID,
-        _module_spec: bolt_ts_atom::AtomId,
+        _module_spec: bolt_ts_atom::Atom,
     ) -> Option<SymbolID> {
         resolve_external_module_name(self.mg(), module_spec_id, self.p())
     }
@@ -255,6 +259,7 @@ impl<'cx> super::TyChecker<'cx> {
         } else {
             let exports = self.exports_of_symbol(symbol);
             if exports.0.is_empty() {
+                debug_assert!(std::ptr::eq(exports, self.empty_symbols()));
                 self.empty_symbols()
             } else {
                 exports
@@ -295,7 +300,7 @@ impl<'cx> super::TyChecker<'cx> {
         module_symbol: SymbolID,
     ) -> &'cx SymbolTable {
         struct ExportCollisionTracker<'cx> {
-            spec: bolt_ts_atom::AtomId,
+            spec: bolt_ts_atom::Atom,
             exports_with_duplicated: thin_vec::ThinVec<&'cx bolt_ts_ast::ExportDecl<'cx>>,
         }
         struct ExportCollisionTrackerTable<'cx>(FxHashMap<SymbolName, ExportCollisionTracker<'cx>>);
@@ -312,33 +317,31 @@ impl<'cx> super::TyChecker<'cx> {
                 // TODO: id == SymbolName::DefaultExport
                 match target.0.get(&id).copied() {
                     Some(target_symbol) => {
-                        if let Some(lookup_table) = lookup_table.as_mut() {
-                            if let Some(export_node) = export_node {
-                                if this.resolve_symbol(target_symbol, false)
-                                    != this.resolve_symbol(source_symbol, false)
-                                {
-                                    let collision_tracker = lookup_table.0.get_mut(&id).unwrap();
-                                    collision_tracker.exports_with_duplicated.push(export_node);
-                                }
-                            }
+                        if let Some(lookup_table) = lookup_table.as_mut()
+                            && let Some(export_node) = export_node
+                            && this.resolve_symbol(target_symbol, false)
+                                != this.resolve_symbol(source_symbol, false)
+                        {
+                            let collision_tracker = lookup_table.0.get_mut(&id).unwrap();
+                            collision_tracker.exports_with_duplicated.push(export_node);
                         }
                     }
                     None => {
                         target.0.insert(id, source_symbol);
-                        if let Some(lookup_table) = lookup_table.as_mut() {
-                            if let Some(export_node) = export_node {
-                                let module_spec = match export_node.clause.kind {
-                                    bolt_ts_ast::ExportClauseKind::Glob(node) => node.module.val,
-                                    _ => unreachable!(),
-                                };
-                                lookup_table.0.insert(
-                                    id,
-                                    ExportCollisionTracker {
-                                        spec: module_spec,
-                                        exports_with_duplicated: Default::default(),
-                                    },
-                                );
-                            }
+                        if let Some(lookup_table) = lookup_table.as_mut()
+                            && let Some(export_node) = export_node
+                        {
+                            let module_spec = match export_node.clause.kind {
+                                bolt_ts_ast::ExportClauseKind::Glob(node) => node.module.val,
+                                _ => unreachable!(),
+                            };
+                            lookup_table.0.insert(
+                                id,
+                                ExportCollisionTracker {
+                                    spec: module_spec,
+                                    exports_with_duplicated: Default::default(),
+                                },
+                            );
                         }
                     }
                 }
@@ -584,17 +587,17 @@ impl<'cx> super::TyChecker<'cx> {
         name: SymbolName,
         meaning: SymbolFlags,
     ) -> Option<SymbolID> {
-        if !meaning.is_empty() {
-            if let Some(symbol) = symbols.0.get(&name).copied() {
-                let symbol = self.get_merged_symbol(symbol);
-                let flags = symbol_of_resolve_results(self.get_resolve_results(), symbol).flags;
-                if flags.intersects(meaning) {
+        if !meaning.is_empty()
+            && let Some(symbol) = symbols.0.get(&name).copied()
+        {
+            let symbol = self.get_merged_symbol(symbol);
+            let flags = symbol_of_resolve_results(self.get_resolve_results(), symbol).flags;
+            if flags.intersects(meaning) {
+                return Some(symbol);
+            } else if flags.intersects(SymbolFlags::ALIAS) {
+                let target_flags = self.get_symbol_flags(symbol, false);
+                if target_flags.intersects(meaning) {
                     return Some(symbol);
-                } else if flags.intersects(SymbolFlags::ALIAS) {
-                    let target_flags = self.get_symbol_flags(symbol, false);
-                    if target_flags.intersects(meaning) {
-                        return Some(symbol);
-                    }
                 }
             }
         }
@@ -920,7 +923,7 @@ fn get_external_module_member(
 fn error_no_module_member_symbol(
     this: &mut TyChecker<'_>,
     module_symbol: SymbolID,
-    module_name: bolt_ts_atom::AtomId,
+    module_name: bolt_ts_atom::Atom,
     spec_name_id: bolt_ts_ast::NodeID,
 ) {
     let spec_name = this
@@ -934,9 +937,9 @@ fn error_no_module_member_symbol(
 fn report_non_exported_member(
     this: &mut TyChecker<'_>,
     spec_name_id: bolt_ts_ast::NodeID,
-    spec_name: bolt_ts_atom::AtomId,
+    spec_name: bolt_ts_atom::Atom,
     module_symbol: SymbolID,
-    module_name: bolt_ts_atom::AtomId,
+    module_name: bolt_ts_atom::Atom,
 ) {
     let s = symbol_of_resolve_results(this.get_resolve_results(), module_symbol);
     let local_symbol = if let Some(value_decl) = s.value_decl {
@@ -1213,7 +1216,7 @@ impl<'cx> SymbolInfo<'cx> for super::TyChecker<'cx> {
     fn p(&self) -> &bolt_ts_parser::Parser<'cx> {
         self.p
     }
-    fn atoms(&self) -> &bolt_ts_atom::AtomMap {
+    fn atoms(&self) -> &bolt_ts_atom::AtomIntern {
         &self.atoms
     }
     fn push_error(&mut self, error: bolt_ts_middle::Diag) {

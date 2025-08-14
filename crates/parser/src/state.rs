@@ -1,6 +1,6 @@
 use bolt_ts_ast::{self as ast, Node, NodeFlags, NodeID, keyword};
 use bolt_ts_ast::{Token, TokenFlags, TokenKind};
-use bolt_ts_atom::{AtomId, AtomMap};
+use bolt_ts_atom::{Atom, AtomIntern};
 use bolt_ts_span::{ModuleID, Span};
 use bolt_ts_utils::path::NormalizePath;
 
@@ -19,11 +19,11 @@ pub enum LanguageVariant {
 }
 
 pub(super) struct ParserState<'cx, 'p> {
-    pub(super) atoms: Arc<Mutex<AtomMap>>,
+    pub(super) atoms: Arc<Mutex<AtomIntern>>,
     pub(super) input: &'p [u8],
     pub(super) token: Token,
     pub(super) token_value: Option<TokenValue>,
-    pub(super) string_key_value: Option<AtomId>,
+    pub(super) string_key_value: Option<Atom>,
     pub(super) token_flags: TokenFlags,
     pub(super) full_start_pos: usize,
     pub(super) pos: usize,
@@ -44,7 +44,7 @@ pub(super) struct ParserState<'cx, 'p> {
     pub(super) line_start: usize, // offset
     pub(super) line_map: Vec<u32>,
     pub(super) is_declaration: bool,
-    pub(super) filepath: AtomId,
+    pub(super) filepath: Atom,
     pub(super) in_ambient_module: bool,
     pub(super) has_no_default_lib: bool,
     pub(super) variant: LanguageVariant,
@@ -53,7 +53,7 @@ pub(super) struct ParserState<'cx, 'p> {
 
 impl<'cx, 'p> ParserState<'cx, 'p> {
     pub(super) fn new(
-        atoms: Arc<Mutex<AtomMap>>,
+        atoms: Arc<Mutex<AtomIntern>>,
         arena: &'p bolt_ts_arena::bumpalo_herd::Member<'cx>,
         nodes: Nodes<'cx>,
         input: &'p [u8],
@@ -245,7 +245,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         (self.token.kind == t).then(|| self.parse_token_node())
     }
 
-    pub(super) fn ident_token(&self) -> AtomId {
+    pub(super) fn ident_token(&self) -> Atom {
         assert!(
             self.token.kind.is_ident_or_keyword()
                 || matches!(self.token.kind, TokenKind::BigInt | TokenKind::Regexp),
@@ -255,7 +255,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         self.token_value.unwrap().ident()
     }
 
-    pub(super) fn string_token(&self) -> AtomId {
+    pub(super) fn string_token(&self) -> Atom {
         use bolt_ts_ast::TokenKind::*;
         assert!(
             matches!(
@@ -273,7 +273,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         self.token_value.unwrap().number()
     }
 
-    pub(super) fn create_ident_by_atom(&mut self, name: AtomId, span: Span) -> &'cx ast::Ident {
+    pub(super) fn create_ident_by_atom(&mut self, name: Atom, span: Span) -> &'cx ast::Ident {
         let id = self.next_node_id();
         let ident = self.alloc(ast::Ident { id, name, span });
         self.nodes.insert(id, Node::Ident(ident));

@@ -1,0 +1,5 @@
+  × Cannot find name 'b'.
+   ╭─[../../tests/compiler/functionVariableInReturnTypeAnnotation/index.ts:3:24]
+ 3 │ b
+   · ─
+   ╰────

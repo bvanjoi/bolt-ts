@@ -1,5 +1,0 @@
-  × Type 'number' is not assignable to type 'IArguments'.
-   ╭─[../../tests/cases/compiler/argumentsBindsToFunctionScopeArgumentList/index.ts:5:17]
- 5 │ 10
-   · ──
-   ╰────

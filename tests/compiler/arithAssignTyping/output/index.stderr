@@ -1,0 +1,71 @@
+  × Cannot assign to 'f' because it is a class.
+   ╭─[../../tests/compiler/arithAssignTyping/index.ts:5:1]
+ 5 │ f
+   · ─
+   ╰────
+
+  × Cannot assign to 'f' because it is a class.
+   ╭─[../../tests/compiler/arithAssignTyping/index.ts:6:1]
+ 6 │ f
+   · ─
+   ╰────
+
+  × Cannot assign to 'f' because it is a class.
+   ╭─[../../tests/compiler/arithAssignTyping/index.ts:7:1]
+ 7 │ f
+   · ─
+   ╰────
+
+  × Cannot assign to 'f' because it is a class.
+   ╭─[../../tests/compiler/arithAssignTyping/index.ts:8:1]
+ 8 │ f
+   · ─
+   ╰────
+
+  × Cannot assign to 'f' because it is a class.
+   ╭─[../../tests/compiler/arithAssignTyping/index.ts:9:1]
+ 9 │ f
+   · ─
+   ╰────
+
+  × Cannot assign to 'f' because it is a class.
+    ╭─[../../tests/compiler/arithAssignTyping/index.ts:10:1]
+ 10 │ f
+    · ─
+    ╰────
+
+  × Cannot assign to 'f' because it is a class.
+    ╭─[../../tests/compiler/arithAssignTyping/index.ts:11:1]
+ 11 │ f
+    · ─
+    ╰────
+
+  × Cannot assign to 'f' because it is a class.
+    ╭─[../../tests/compiler/arithAssignTyping/index.ts:12:1]
+ 12 │ f
+    · ─
+    ╰────
+
+  × Cannot assign to 'f' because it is a class.
+    ╭─[../../tests/compiler/arithAssignTyping/index.ts:13:1]
+ 13 │ f
+    · ─
+    ╰────
+
+  × Cannot assign to 'f' because it is a class.
+    ╭─[../../tests/compiler/arithAssignTyping/index.ts:14:1]
+ 14 │ f
+    · ─
+    ╰────
+
+  × Cannot assign to 'f' because it is a class.
+    ╭─[../../tests/compiler/arithAssignTyping/index.ts:15:1]
+ 15 │ f
+    · ─
+    ╰────
+
+  × Cannot assign to 'f' because it is a class.
+    ╭─[../../tests/compiler/arithAssignTyping/index.ts:16:1]
+ 16 │ f
+    · ─
+    ╰────

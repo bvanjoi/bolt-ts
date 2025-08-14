@@ -1,0 +1,15 @@
+  × Expected corresponding closing tag for JSX fragment.
+   ╭─[../../tests/compiler/InCorrespondingJSXClosingElement/index.tsx:1:5]
+ 1 │ something
+   · ─────────
+   ╰────
+
+  × Expression expected.
+   ╭─[../../tests/compiler/InCorrespondingJSXClosingElement/index.tsx:4:33]
+   ╰────
+
+  × Cannot find name 'something'.
+   ╭─[../../tests/compiler/InCorrespondingJSXClosingElement/index.tsx:1:5]
+ 1 │ something
+   · ─────────
+   ╰────

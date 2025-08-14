@@ -1,6 +1,0 @@
-  × Octal literals are not allowed.
-   ╭─[../../tests/cases/compiler/isLiteral1/index.ts:3:17]
- 3 │ 02343
-   · ─────
-   ╰────
-  help: Use the syntax '0o2343'.

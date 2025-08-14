@@ -1,0 +1,6 @@
+  × 'implements' clause already seen.
+   ╭─[../../tests/compiler/implementsClauseAlreadySeen/index.ts:6:22]
+ 6 │ implements C implements
+   · ──────┬───── ──────────
+   ·       ╰── It was first defined here.
+   ╰────

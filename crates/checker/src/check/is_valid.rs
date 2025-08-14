@@ -1,5 +1,5 @@
 use bolt_ts_ast::keyword;
-use bolt_ts_atom::AtomId;
+use bolt_ts_atom::Atom;
 
 use super::TyChecker;
 use crate::ty::{self, TypeFlags};
@@ -33,7 +33,7 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
-    pub(super) fn is_valid_number_string(&self, v: AtomId, round_trip_only: bool) -> bool {
+    pub(super) fn is_valid_number_string(&self, v: Atom, round_trip_only: bool) -> bool {
         if v == keyword::IDENT_EMPTY {
             false
         } else {

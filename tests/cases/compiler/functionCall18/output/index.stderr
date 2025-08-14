@@ -1,5 +1,0 @@
-  × Expected 2 arguments, but got 1.
-   ╭─[../../tests/cases/compiler/functionCall18/index.ts:5:1]
- 5 │ foo<string>("hello")
-   · ────────────────────
-   ╰────

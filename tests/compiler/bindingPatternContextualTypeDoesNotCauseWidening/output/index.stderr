@@ -1,0 +1,5 @@
+  × Type 'Pick' is not assignable to type '{ b: "a"; }'.
+   ╭─[../../tests/compiler/bindingPatternContextualTypeDoesNotCauseWidening/index.ts:7:7]
+ 7 │ a0
+   · ──
+   ╰────

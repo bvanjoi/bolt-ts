@@ -1,0 +1,35 @@
+  × An element access expression should take an argument.
+   ╭─[../../tests/compiler/badArraySyntax/index.ts:8:16]
+ 8 │ ]
+   · ─
+   ╰────
+
+  × An element access expression should take an argument.
+    ╭─[../../tests/compiler/badArraySyntax/index.ts:10:16]
+ 10 │ ]
+    · ─
+    ╰────
+
+  × An element access expression should take an argument.
+    ╭─[../../tests/compiler/badArraySyntax/index.ts:12:21]
+ 12 │ ]
+    · ─
+    ╰────
+
+  × An element access expression should take an argument.
+    ╭─[../../tests/compiler/badArraySyntax/index.ts:14:21]
+ 14 │ ]
+    · ─
+    ╰────
+
+  × An element access expression should take an argument.
+    ╭─[../../tests/compiler/badArraySyntax/index.ts:16:36]
+ 16 │ ]
+    · ─
+    ╰────
+
+  × An element access expression should take an argument.
+    ╭─[../../tests/compiler/badArraySyntax/index.ts:16:43]
+ 16 │ ]
+    · ─
+    ╰────

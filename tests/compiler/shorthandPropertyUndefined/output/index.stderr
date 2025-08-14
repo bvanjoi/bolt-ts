@@ -1,0 +1,12 @@
+  × Cannot find name 'b'.
+   ╭─[../../tests/compiler/shorthandPropertyUndefined/index.ts:3:11]
+ 3 │ b
+   · ─
+   ╰────
+
+Advice: 
+  ☞ Shorthand property need an initializer.
+   ╭─[../../tests/compiler/shorthandPropertyUndefined/index.ts:3:11]
+ 3 │ b
+   · ─
+   ╰────

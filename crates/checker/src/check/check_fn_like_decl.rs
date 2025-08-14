@@ -8,16 +8,15 @@ use bolt_ts_ast::r#trait;
 impl<'cx> TyChecker<'cx> {
     fn check_param_decl(&mut self, param: &'cx ast::ParamDecl<'cx>) {
         self.check_var_like_decl(param);
-        if param.dotdotdot.is_some() {
-            if let ast::BindingKind::Ident(_) = param.name.kind {
-                let symbol = self.get_symbol_of_decl(param.id);
-                let ty = self.get_type_of_symbol(symbol);
-                let ty = self.get_reduced_ty(ty);
-                if !self.is_type_assignable_to(ty, self.any_readonly_array_ty()) {
-                    let error =
-                        super::errors::ARestParameterMustBeOfAnArrayType { span: param.span };
-                    self.push_error(Box::new(error));
-                }
+        if param.dotdotdot.is_some()
+            && let ast::BindingKind::Ident(_) = param.name.kind
+        {
+            let symbol = self.get_symbol_of_decl(param.id);
+            let ty = self.get_type_of_symbol(symbol);
+            let ty = self.get_reduced_ty(ty);
+            if !self.is_type_assignable_to(ty, self.any_readonly_array_ty()) {
+                let error = super::errors::ARestParameterMustBeOfAnArrayType { span: param.span };
+                self.push_error(Box::new(error));
             }
         }
     }

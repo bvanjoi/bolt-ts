@@ -1,5 +1,0 @@
-  × Type 'string' is not assignable to type 'number'.
-    ╭─[../../tests/cases/compiler/recursiveClassInstantiationsWithDefaultConstructors/index.ts:12:5]
- 12 │ b
-    · ─
-    ╰────

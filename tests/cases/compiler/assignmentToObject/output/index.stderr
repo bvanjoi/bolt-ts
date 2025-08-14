@@ -1,5 +1,0 @@
-  × Type '{ toString: number; }' is not assignable to type 'Object'.
-   ╭─[../../tests/cases/compiler/assignmentToObject/index.ts:5:5]
- 5 │ c
-   · ─
-   ╰────

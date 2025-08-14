@@ -831,12 +831,12 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
         report_error: bool,
         intersection_state: IntersectionState,
     ) -> Ternary {
-        if let Some(unions) = target.kind.as_union() {
-            if contains_ty(unions.tys, source) {
-                return Ternary::TRUE;
-            }
-            // TODO:
+        if let Some(unions) = target.kind.as_union()
+            && contains_ty(unions.tys, source)
+        {
+            return Ternary::TRUE;
         }
+        // TODO:
 
         for ty in target_tys {
             let related = self.is_related_to(
@@ -1621,12 +1621,7 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
                     .intersects(ObjectFlags::FRESH_LITERAL))
             && self.c.is_object_ty_with_inferable_index(source)
         {
-            return self.members_related_to_index_info(
-                source,
-                target,
-                report_error,
-                intersection_state,
-            );
+            self.members_related_to_index_info(source, target, report_error, intersection_state)
         } else {
             // if report_error {
             // let error = errors::IndexSignatureForType0IsMissingInType1 {
@@ -2103,17 +2098,14 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
             if self.should_check_as_excess_prop(*prop, source.symbol().unwrap()) {
                 let name = self.c.symbol(*prop).name;
                 if !self.c.is_known_prop(target_ty, name) {
-                    if report_error {
-                        if let Some(name) = name.as_atom() {
-                            let span = self.c.p.node(self.c.get_symbol_decl(*prop).unwrap()).span();
-                            let field = self.c.atoms.get(name).to_string();
-                            let error =
-                                errors::ObjectLitMayOnlySpecifyKnownPropAndFieldDoesNotExist {
-                                    span,
-                                    field,
-                                };
-                            self.c.push_error(Box::new(error));
-                        }
+                    if report_error && let Some(name) = name.as_atom() {
+                        let span = self.c.p.node(self.c.get_symbol_decl(*prop).unwrap()).span();
+                        let field = self.c.atoms.get(name).to_string();
+                        let error = errors::ObjectLitMayOnlySpecifyKnownPropAndFieldDoesNotExist {
+                            span,
+                            field,
+                        };
+                        self.c.push_error(Box::new(error));
                     }
                     return true;
                 }

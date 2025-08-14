@@ -1,0 +1,25 @@
+  × Property 'foo' is missing.
+   ╭─[../../tests/compiler/classImplementsClass2/index.ts:4:1]
+ 4 │ class C implements A {}
+   · ───────────────────────
+   ╰────
+
+Advice: 
+  ☞ Property 'foo' is defined here
+   ╭─[../../tests/compiler/classImplementsClass2/index.ts:3:7]
+ 3 │ A
+   · ─
+   ╰────
+
+  × Property 'foo' is missing.
+    ╭─[../../tests/compiler/classImplementsClass2/index.ts:16:6]
+ 16 │ c
+    · ─
+    ╰────
+
+Advice: 
+  ☞ Property 'foo' is defined here
+   ╭─[../../tests/compiler/classImplementsClass2/index.ts:7:7]
+ 7 │ C2
+   · ──
+   ╰────

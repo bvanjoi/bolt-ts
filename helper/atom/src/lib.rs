@@ -1,27 +1,29 @@
 use bolt_ts_utils::FxIndexSet;
 
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone, Copy)]
-pub struct AtomId(u32);
+pub struct Atom(u32);
 
-impl AtomId {
+impl Atom {
     pub const fn new(id: u32) -> Self {
-        AtomId(id)
+        Atom(id)
     }
 }
 
-impl std::hash::Hash for AtomId {
+impl nohash_hasher::IsEnabled for Atom {}
+
+impl std::hash::Hash for Atom {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
         self.0.hash(state);
     }
 }
 
 #[derive(Debug)]
-pub struct AtomMap {
+pub struct AtomIntern {
     arena: Vec<String>,
     set: FxIndexSet<&'static str>,
 }
 
-impl AtomMap {
+impl AtomIntern {
     pub fn prefill(list: &[&'static str]) -> Self {
         let set = FxIndexSet::from_iter(list.iter().cloned());
         Self {
@@ -30,13 +32,13 @@ impl AtomMap {
         }
     }
 
-    pub fn get(&self, atom: AtomId) -> &'static str {
+    pub fn get(&self, atom: Atom) -> &'static str {
         self.set[atom.0 as usize]
     }
 
-    pub fn atom(&mut self, s: &str) -> AtomId {
+    pub fn atom(&mut self, s: &str) -> Atom {
         if let Some(index) = self.set.get_index_of(s) {
-            return AtomId(index as u32);
+            return Atom(index as u32);
         }
 
         self.arena.push(s.to_string());
@@ -44,7 +46,7 @@ impl AtomMap {
         let s: &'static str = unsafe { &*(s.as_str() as *const str) };
         let (idx, prev_is_not_exist) = self.set.insert_full(s);
         debug_assert!(prev_is_not_exist);
-        AtomId(idx as u32)
+        Atom(idx as u32)
     }
 }
 
@@ -68,16 +70,16 @@ macro_rules! prefilled_atom_map {
                 $( $lit, )*
             )+
         ];
-        pub fn $prefilled_atom_fn_name() -> bolt_ts_atom::AtomMap {
-            bolt_ts_atom::AtomMap::prefill(PREFILLED)
+        pub fn $prefilled_atom_fn_name() -> bolt_ts_atom::AtomIntern {
+            bolt_ts_atom::AtomIntern::prefill(PREFILLED)
         }
 
     };
     ( $owner: ident, $(($name:ident, [$lit:literal, $idx: literal])),* $(,)? ) => {
         paste::paste! {
             $(pub const [<$name _STR>]: &str = $lit;)*
-            $(pub const $name: AtomId = AtomId::new($idx);)*
+            $(pub const $name: Atom = Atom::new($idx);)*
         }
-        pub const $owner: &[(&str, AtomId)] = &[$(($lit, $name),)*];
+        pub const $owner: &[(&str, Atom)] = &[$(($lit, $name),)*];
     }
 }

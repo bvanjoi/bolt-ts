@@ -1,5 +1,0 @@
-  × Argument of type 'number' is not assignable to parameter of type 'string'.
-   ╭─[../../tests/cases/compiler/functionOverloads/index.ts:6:13]
- 6 │ 5
-   · ─
-   ╰────

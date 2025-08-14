@@ -1,0 +1,11 @@
+  × Cannot find name 'x'.
+   ╭─[../../tests/compiler/errorHandlingInInstanceOf/index.ts:3:5]
+ 3 │ x
+   · ─
+   ╰────
+
+  × Cannot find name 'UnknownType'.
+   ╭─[../../tests/compiler/errorHandlingInInstanceOf/index.ts:8:18]
+ 8 │ UnknownType
+   · ───────────
+   ╰────

@@ -1,0 +1,11 @@
+  × Argument of type 'string' is not assignable to parameter of type 'number'.
+    ╭─[../../tests/compiler/thisInGenericStaticMembers/index.ts:10:27]
+ 10 │ '42'
+    · ────
+    ╰────
+
+  × Argument of type 'string' is not assignable to parameter of type 'number'.
+    ╭─[../../tests/compiler/thisInGenericStaticMembers/index.ts:23:24]
+ 23 │ '42'
+    · ────
+    ╰────

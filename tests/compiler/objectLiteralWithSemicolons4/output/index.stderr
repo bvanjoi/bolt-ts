@@ -1,0 +1,31 @@
+  × Expected ','.
+   ╭─[../../tests/compiler/objectLiteralWithSemicolons4/index.ts:5:1]
+ 5 │ ;
+   · ─
+   ╰────
+
+  × '}' expected.
+   ╭─[../../tests/compiler/objectLiteralWithSemicolons4/index.ts:5:1]
+ 5 │ ;
+   · ─
+   ╰────
+
+Advice: 
+  ☞ Expected to find a '{' to match the '}' token here.
+   ╭─[../../tests/compiler/objectLiteralWithSemicolons4/index.ts:3:9]
+ 3 │ {
+   · ─
+   ╰────
+
+  × Cannot find name 'a'.
+   ╭─[../../tests/compiler/objectLiteralWithSemicolons4/index.ts:4:3]
+ 4 │ a
+   · ─
+   ╰────
+
+Advice: 
+  ☞ Shorthand property need an initializer.
+   ╭─[../../tests/compiler/objectLiteralWithSemicolons4/index.ts:4:3]
+ 4 │ a
+   · ─
+   ╰────

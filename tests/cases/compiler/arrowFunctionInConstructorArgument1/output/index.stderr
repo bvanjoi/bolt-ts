@@ -1,5 +1,0 @@
-  × Cannot find name 'asdf'.
-   ╭─[../../tests/cases/compiler/arrowFunctionInConstructorArgument1/index.ts:6:30]
- 6 │ asdf
-   · ────
-   ╰────

@@ -1,0 +1,11 @@
+  × Expected 0 arguments, but got 1.
+    ╭─[../../tests/compiler/interfaceInheritance2/index.ts:10:1]
+ 10 │ v1
+    · ──
+    ╰────
+
+  × Expected 0 arguments, but got 1.
+    ╭─[../../tests/compiler/interfaceInheritance2/index.ts:12:1]
+ 12 │ v1
+    · ──
+    ╰────

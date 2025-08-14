@@ -1,5 +1,0 @@
-  × Type '123' is not assignable to type '42'.
-   ╭─[../../tests/cases/compiler/literalIntersectionYieldsLiteral/index.ts:4:46]
- 4 │ type
-   · ────
-   ╰────

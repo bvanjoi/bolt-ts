@@ -1,5 +1,5 @@
 use bolt_ts_ast::NodeID;
-use bolt_ts_atom::AtomId;
+use bolt_ts_atom::Atom;
 use bolt_ts_middle::F64Represent;
 use bolt_ts_parser::Parser;
 use bolt_ts_span::ModuleID;
@@ -8,7 +8,7 @@ use bolt_ts_utils::{FxIndexMap, fx_indexmap_with_capacity};
 #[derive(Debug, Clone, Copy, Hash, PartialEq, Eq)]
 pub enum SymbolName {
     Container,
-    Atom(AtomId),
+    Atom(Atom),
     EleNum(F64Represent),
     ClassExpr,
     Array,
@@ -32,17 +32,17 @@ pub enum SymbolName {
     Computed,
     ParamIdx(u32),
     ESSymbol {
-        escaped_name: AtomId,
+        escaped_name: Atom,
         symbol_id: SymbolID,
     },
 }
 
 impl SymbolName {
-    pub fn expect_atom(&self) -> AtomId {
+    pub fn expect_atom(&self) -> Atom {
         self.as_atom().unwrap()
     }
 
-    pub fn as_atom(&self) -> Option<AtomId> {
+    pub fn as_atom(&self) -> Option<Atom> {
         match self {
             SymbolName::Atom(atom) => Some(*atom),
             _ => None,

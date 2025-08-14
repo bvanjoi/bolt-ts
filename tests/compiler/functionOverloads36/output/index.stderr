@@ -1,0 +1,5 @@
+  × Type 'string' is not assignable to type 'number'.
+    ╭─[../../tests/compiler/functionOverloads36/index.ts:10:5]
+ 10 │ k
+    · ─
+    ╰────

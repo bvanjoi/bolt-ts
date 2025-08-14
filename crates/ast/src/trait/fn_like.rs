@@ -1,4 +1,4 @@
-use bolt_ts_atom::AtomId;
+use bolt_ts_atom::Atom;
 
 pub trait FnLike<'cx>: Copy + std::fmt::Debug {
     fn id(&self) -> crate::NodeID;
@@ -210,11 +210,11 @@ impl<'cx> FnDeclLike<'cx> for crate::CallSigDecl<'cx> {
 }
 
 pub trait FnExprLike<'cx>: FnLike<'cx> {
-    fn name(&self) -> Option<AtomId>;
+    fn name(&self) -> Option<Atom>;
     fn body(&self) -> crate::ArrowFnExprBody<'cx>;
 }
 impl<'cx> FnExprLike<'cx> for crate::FnExpr<'cx> {
-    fn name(&self) -> Option<AtomId> {
+    fn name(&self) -> Option<Atom> {
         self.name.map(|name| name.name)
     }
     fn body(&self) -> crate::ArrowFnExprBody<'cx> {
@@ -222,7 +222,7 @@ impl<'cx> FnExprLike<'cx> for crate::FnExpr<'cx> {
     }
 }
 impl<'cx> FnExprLike<'cx> for crate::ArrowFnExpr<'cx> {
-    fn name(&self) -> Option<AtomId> {
+    fn name(&self) -> Option<Atom> {
         None
     }
     fn body(&self) -> crate::ArrowFnExprBody<'cx> {

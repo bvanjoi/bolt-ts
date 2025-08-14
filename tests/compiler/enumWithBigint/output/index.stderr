@@ -1,0 +1,5 @@
+  × An enum member cannot have a numeric name.
+   ╭─[../../tests/compiler/enumWithBigint/index.ts:4:8]
+ 4 │ 0
+   · ─
+   ╰────

@@ -1,0 +1,5 @@
+  × Argument of type 'number' is not assignable to parameter of type 'string'.
+   ╭─[../../tests/compiler/callExpressionWithTypeParameterConstrainedToOuterTypeParameter/index.ts:9:11]
+ 9 │ 42
+   · ──
+   ╰────

@@ -1,6 +1,0 @@
-  × Property '""' of type 'string' is not assignable to 'string' index type
-  │ 'number'.
-   ╭─[../../tests/cases/compiler/stringIndexerAndConstructor1/index.ts:5:3]
- 5 │ "": string
-   · ──────────
-   ╰────

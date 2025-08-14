@@ -2,8 +2,8 @@ use super::ResolutionKey;
 use super::TyChecker;
 use super::symbol_info::SymbolInfo;
 use super::ty;
-use bolt_ts_binder::{SymbolFlags, SymbolID};
 use crate::ty::CheckFlags;
+use bolt_ts_binder::{SymbolFlags, SymbolID};
 
 impl<'cx> TyChecker<'cx> {
     pub(super) fn get_write_type_of_symbol(&mut self, symbol: SymbolID) -> &'cx ty::Ty<'cx> {

@@ -1,0 +1,6 @@
+  × Value of type 'typeof C' is not callable.
+   ╭─[../../tests/compiler/callOnClass/index.ts:4:9]
+ 4 │ C
+   · ─
+   ╰────
+  help: Did you mean to include 'new'?

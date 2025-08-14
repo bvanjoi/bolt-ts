@@ -1,0 +1,11 @@
+  × Type 'string' is not assignable to type 'number'.
+    ╭─[../../tests/compiler/recursiveConditionalCrash2/index.ts:16:5]
+ 16 │ a
+    · ─
+    ╰────
+
+  × Type 'string' is not assignable to type '42'.
+    ╭─[../../tests/compiler/recursiveConditionalCrash2/index.ts:18:5]
+ 18 │ b
+    · ─
+    ╰────

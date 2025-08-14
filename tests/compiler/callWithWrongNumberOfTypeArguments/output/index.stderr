@@ -1,0 +1,11 @@
+  × Expected 2 type arguments, but got 1.
+   ╭─[../../tests/compiler/callWithWrongNumberOfTypeArguments/index.ts:5:2]
+ 5 │ <number>
+   · ────────
+   ╰────
+
+  × Expected 2 type arguments, but got 3.
+   ╭─[../../tests/compiler/callWithWrongNumberOfTypeArguments/index.ts:8:2]
+ 8 │ <number, string, number>
+   · ────────────────────────
+   ╰────

@@ -1,0 +1,41 @@
+  × Cannot find name 'a'.
+   ╭─[../../tests/compiler/conditionalExpressionNewLine10/index.ts:1:9]
+ 1 │ a
+   · ─
+   ╰────
+
+  × Cannot find name 'b'.
+   ╭─[../../tests/compiler/conditionalExpressionNewLine10/index.ts:2:5]
+ 2 │ b
+   · ─
+   ╰────
+
+  × Cannot find name 'd'.
+   ╭─[../../tests/compiler/conditionalExpressionNewLine10/index.ts:3:7]
+ 3 │ d
+   · ─
+   ╰────
+
+  × Cannot find name 'e'.
+   ╭─[../../tests/compiler/conditionalExpressionNewLine10/index.ts:4:7]
+ 4 │ e
+   · ─
+   ╰────
+
+  × Cannot find name 'c'.
+   ╭─[../../tests/compiler/conditionalExpressionNewLine10/index.ts:5:5]
+ 5 │ c
+   · ─
+   ╰────
+
+  × Cannot find name 'f'.
+   ╭─[../../tests/compiler/conditionalExpressionNewLine10/index.ts:6:7]
+ 6 │ f
+   · ─
+   ╰────
+
+  × Cannot find name 'g'.
+   ╭─[../../tests/compiler/conditionalExpressionNewLine10/index.ts:7:7]
+ 7 │ g
+   · ─
+   ╰────

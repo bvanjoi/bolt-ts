@@ -1,0 +1,11 @@
+  × Cannot find name 'B'.
+   ╭─[../../tests/compiler/errorTypesAsTypeArguments/index.ts:4:16]
+ 4 │ B
+   · ─
+   ╰────
+
+  × Cannot find name 'C'.
+   ╭─[../../tests/compiler/errorTypesAsTypeArguments/index.ts:4:25]
+ 4 │ C
+   · ─
+   ╰────

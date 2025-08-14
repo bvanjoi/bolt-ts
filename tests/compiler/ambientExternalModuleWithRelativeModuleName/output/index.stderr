@@ -1,0 +1,11 @@
+  × Ambient module declaration cannot specify relative module name.
+   ╭─[../../tests/compiler/ambientExternalModuleWithRelativeModuleName/index.ts:3:16]
+ 3 │ "./relativeModule"
+   · ──────────────────
+   ╰────
+
+  × Ambient module declaration cannot specify relative module name.
+   ╭─[../../tests/compiler/ambientExternalModuleWithRelativeModuleName/index.ts:8:16]
+ 8 │ ".\\relativeModule"
+   · ───────────────────
+   ╰────

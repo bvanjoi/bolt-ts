@@ -1,5 +1,5 @@
 use bolt_ts_ast::{self as ast, ModifierKind};
-use bolt_ts_atom::AtomId;
+use bolt_ts_atom::Atom;
 use bolt_ts_span::Span;
 use bolt_ts_utils::{fx_hashset_with_capacity, fx_indexmap_with_capacity};
 use rustc_hash::FxHashSet;
@@ -315,11 +315,10 @@ impl<'cx> TyChecker<'cx> {
         for current in tys {
             for prop in self.get_props_of_ty(current) {
                 let name = self.symbol(*prop).name;
-                if let indexmap::map::Entry::Vacant(vac) = members.entry(name) {
-                    if let Some(combined_prop) = self.get_prop_of_union_or_intersection_ty(ty, name)
-                    {
-                        vac.insert(combined_prop);
-                    }
+                if let indexmap::map::Entry::Vacant(vac) = members.entry(name)
+                    && let Some(combined_prop) = self.get_prop_of_union_or_intersection_ty(ty, name)
+                {
+                    vac.insert(combined_prop);
                 }
             }
         }
@@ -373,16 +372,16 @@ impl<'cx> TyChecker<'cx> {
                 None
             };
 
-            if let Some(fn_ty) = fn_ty {
-                if let Some(symbol) = self.get_prop_of_object_ty(fn_ty, name) {
-                    return Some(symbol);
-                }
+            if let Some(fn_ty) = fn_ty
+                && let Some(symbol) = self.get_prop_of_object_ty(fn_ty, name)
+            {
+                return Some(symbol);
             }
 
             self.get_prop_of_object_ty(self.global_object_ty(), name)
         } else if ty.kind.as_intersection().is_some() {
             if let Some(prop) = self.get_prop_of_union_or_intersection_ty(ty, name) {
-                return Some(prop);
+                Some(prop)
             } else {
                 None
             }
@@ -569,7 +568,7 @@ impl<'cx> TyChecker<'cx> {
             }
         } else {
             let ty = if is_union {
-                self.get_union_ty(&prop_tys, ty::UnionReduction::Lit)
+                self.get_union_ty(&prop_tys, ty::UnionReduction::Lit, false, None, None)
             } else {
                 self.get_intersection_ty(&prop_tys, IntersectionFlags::None, None, None)
             };
@@ -619,7 +618,7 @@ impl<'cx> TyChecker<'cx> {
         source: &'cx Ty<'cx>,
         target: &'cx Ty<'cx>,
         require_optional_properties: bool,
-    ) -> Option<(Vec<AtomId>, SymbolID)> {
+    ) -> Option<(Vec<Atom>, SymbolID)> {
         self.get_unmatched_props(source, target, require_optional_properties)
     }
 
@@ -628,7 +627,7 @@ impl<'cx> TyChecker<'cx> {
         source: &'cx Ty<'cx>,
         target: &'cx Ty<'cx>,
         require_optional_properties: bool,
-    ) -> Option<(Vec<AtomId>, SymbolID)> {
+    ) -> Option<(Vec<Atom>, SymbolID)> {
         let properties = self.get_props_of_ty(target);
         let mut unmatched = Vec::with_capacity(properties.len());
         for target_prop in properties {

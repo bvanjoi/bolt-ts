@@ -1,0 +1,5 @@
+  × Type 'string' is not assignable to type 'number'.
+    ╭─[../../tests/compiler/cloduleGenericOnSelfMember/index.ts:16:7]
+ 16 │ b
+    · ─
+    ╰────

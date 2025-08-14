@@ -1,0 +1,5 @@
+  × Duplicate identifier 'bar'.
+   ╭─[../../tests/compiler/reassignStaticProp/index.ts:7:12]
+ 7 │ bar
+   · ───
+   ╰────

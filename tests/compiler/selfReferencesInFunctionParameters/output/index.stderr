@@ -1,0 +1,23 @@
+  × Parameter 'x' cannot reference itself.
+   ╭─[../../tests/compiler/selfReferencesInFunctionParameters/index.ts:3:26]
+ 3 │ x
+   · ─
+   ╰────
+
+  × Parameter 'x' cannot reference itself.
+   ╭─[../../tests/compiler/selfReferencesInFunctionParameters/index.ts:7:35]
+ 7 │ x
+   · ─
+   ╰────
+
+  × Parameter 'y' cannot reference itself.
+    ╭─[../../tests/compiler/selfReferencesInFunctionParameters/index.ts:12:28]
+ 12 │ y
+    · ─
+    ╰────
+
+  × Parameter 'b' cannot reference itself.
+    ╭─[../../tests/compiler/selfReferencesInFunctionParameters/index.ts:16:29]
+ 16 │ b
+    · ─
+    ╰────

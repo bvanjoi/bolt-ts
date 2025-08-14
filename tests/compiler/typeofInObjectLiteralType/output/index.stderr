@@ -1,0 +1,5 @@
+  × Cannot find name 'b'.
+   ╭─[../../tests/compiler/typeofInObjectLiteralType/index.ts:3:31]
+ 3 │ b
+   · ─
+   ╰────

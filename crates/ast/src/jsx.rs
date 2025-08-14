@@ -1,4 +1,4 @@
-use bolt_ts_atom::AtomId;
+use bolt_ts_atom::Atom;
 use bolt_ts_span::Span;
 
 use crate::NodeID;
@@ -7,7 +7,7 @@ use crate::NodeID;
 pub struct JsxText {
     pub id: NodeID,
     pub span: Span,
-    pub text: AtomId,
+    pub text: Atom,
     pub contains_only_trivia_whitespace: bool,
 }
 

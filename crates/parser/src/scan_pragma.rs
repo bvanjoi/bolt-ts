@@ -1,5 +1,5 @@
 use bolt_ts_ast::keyword;
-use bolt_ts_atom::AtomId;
+use bolt_ts_atom::Atom;
 
 use crate::FileReference;
 
@@ -60,7 +60,7 @@ impl super::ParserState<'_, '_> {
         }
     }
 
-    fn scan_reference_lib_pragma(&mut self) -> PResult<AtomId> {
+    fn scan_reference_lib_pragma(&mut self) -> PResult<Atom> {
         let mut state = State::ExpectEq;
         while self.pos < self.end() && !is_line_break(self.ch_unchecked()) {
             let ch = self.ch_unchecked();

@@ -1,4 +1,4 @@
-use bolt_ts_atom::AtomId;
+use bolt_ts_atom::Atom;
 
 use bolt_ts_ast::TokenKind;
 use bolt_ts_ast::{NodeFlags, VarDecls};
@@ -370,7 +370,7 @@ impl<'cx> ParserState<'cx, '_> {
         Ok(decl)
     }
 
-    pub(super) fn is_ident_name(&self, name: AtomId) -> bool {
+    pub(super) fn is_ident_name(&self, name: Atom) -> bool {
         self.token.kind.is_ident_or_keyword() && self.ident_token() == name
     }
 
@@ -1029,34 +1029,34 @@ impl<'cx> ParserState<'cx, '_> {
                 id,
                 span: self.new_span(start),
             });
+            self.nodes.insert(id, ast::Node::OmitExpr(omit_expr));
             let elem = self.alloc(ast::ArrayBindingElem {
-                id,
-                span: self.new_span(start),
                 kind: ast::ArrayBindingElemKind::Omit(omit_expr),
             });
-            self.nodes.insert(id, ast::Node::ArrayBindingElem(elem));
-            return Ok(elem);
-        }
-        let dotdotdot = self.parse_optional(TokenKind::DotDotDot).map(|t| t.span);
-        let name = self.parse_ident_or_pat()?;
-        let init = self.parse_init()?;
-        let id = self.next_node_id();
-        let elem = self.alloc(ast::ArrayBindingElem {
-            id,
-            span: self.new_span(start),
-            kind: ast::ArrayBindingElemKind::Binding {
+            Ok(elem)
+        } else {
+            let dotdotdot = self.parse_optional(TokenKind::DotDotDot).map(|t| t.span);
+            let name = self.parse_ident_or_pat()?;
+            let init = self.parse_init()?;
+            let id = self.next_node_id();
+            let binding = self.alloc(ast::ArrayBinding {
+                id,
+                span: self.new_span(start),
                 dotdotdot,
                 name,
                 init,
-            },
-        });
-        self.nodes.insert(id, ast::Node::ArrayBindingElem(elem));
-        Ok(elem)
+            });
+            self.nodes.insert(id, ast::Node::ArrayBinding(binding));
+            let elem = self.alloc(ast::ArrayBindingElem {
+                kind: ast::ArrayBindingElemKind::Binding(binding),
+            });
+            Ok(elem)
+        }
     }
 
     fn parse_var_decl(&mut self) -> PResult<&'cx ast::VarDecl<'cx>> {
         let start = self.token.start();
-        let binding = self.parse_ident_or_pat()?;
+        let name = self.parse_ident_or_pat()?;
         let ty = self.parse_ty_anno()?;
         let init = self.parse_init()?;
         let span = self.new_span(start);
@@ -1064,7 +1064,7 @@ impl<'cx> ParserState<'cx, '_> {
         let node = self.alloc(ast::VarDecl {
             id,
             span,
-            binding,
+            name,
             ty,
             init,
         });
@@ -1134,20 +1134,20 @@ impl<'cx> ParserState<'cx, '_> {
     fn parse_expr_or_labeled_stmt(&mut self) -> PResult<ast::StmtKind<'cx>> {
         let start = self.token.start();
         let expr = self.allow_in_and(Self::parse_expr)?;
-        if let ast::ExprKind::Ident(ident) = expr.kind {
-            if self.parse_optional(TokenKind::Colon).is_some() {
-                let stmt =
-                    self.do_inside_of_context(NodeFlags::ALLOW_BREAK_CONTEXT, Self::parse_stmt)?;
-                let id = self.next_node_id();
-                let stmt = self.alloc(ast::LabeledStmt {
-                    id,
-                    span: self.new_span(start),
-                    label: ident,
-                    stmt,
-                });
-                self.nodes.insert(id, ast::Node::LabeledStmt(stmt));
-                return Ok(ast::StmtKind::Labeled(stmt));
-            }
+        if let ast::ExprKind::Ident(ident) = expr.kind
+            && self.parse_optional(TokenKind::Colon).is_some()
+        {
+            let stmt =
+                self.do_inside_of_context(NodeFlags::ALLOW_BREAK_CONTEXT, Self::parse_stmt)?;
+            let id = self.next_node_id();
+            let stmt = self.alloc(ast::LabeledStmt {
+                id,
+                span: self.new_span(start),
+                label: ident,
+                stmt,
+            });
+            self.nodes.insert(id, ast::Node::LabeledStmt(stmt));
+            return Ok(ast::StmtKind::Labeled(stmt));
         }
         self.parse_semi();
         let id = self.next_node_id();

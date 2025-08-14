@@ -1,6 +1,6 @@
 use super::links;
-use bolt_ts_binder::SymbolID;
 use crate::ty;
+use bolt_ts_binder::SymbolID;
 
 // TODO: split them into type def.
 links!(

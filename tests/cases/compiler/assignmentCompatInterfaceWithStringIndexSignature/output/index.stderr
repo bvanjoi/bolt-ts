@@ -1,6 +1,0 @@
-  × Argument of type 'Foo' is not assignable to parameter of type
-  │ 'IHandlerMap'.
-    ╭─[../../tests/cases/compiler/assignmentCompatInterfaceWithStringIndexSignature/index.ts:17:5]
- 17 │ new Foo()
-    · ─────────
-    ╰────

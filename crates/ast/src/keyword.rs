@@ -1,6 +1,6 @@
-use bolt_ts_atom::{AtomId, prefilled_atom_map};
+use bolt_ts_atom::{Atom, prefilled_atom_map};
 
-pub fn is_prim_ty_name(name: AtomId) -> bool {
+pub fn is_prim_ty_name(name: Atom) -> bool {
     matches!(
         name,
         IDENT_ANY
@@ -18,11 +18,11 @@ pub fn is_prim_ty_name(name: AtomId) -> bool {
     )
 }
 
-pub fn is_prim_value_name(name: AtomId) -> bool {
+pub fn is_prim_value_name(name: Atom) -> bool {
     matches!(name, KW_NULL | KW_FALSE | KW_TRUE | KW_UNDEFINED)
 }
 
-pub fn is_reserved_type_name(name: AtomId) -> bool {
+pub fn is_reserved_type_name(name: Atom) -> bool {
     matches!(
         name,
         IDENT_ANY
@@ -38,7 +38,7 @@ pub fn is_reserved_type_name(name: AtomId) -> bool {
     )
 }
 
-pub fn is_intrinsic_type_name(name: AtomId) -> bool {
+pub fn is_intrinsic_type_name(name: Atom) -> bool {
     matches!(
         name,
         INTRINSIC_TYPE_UPPERCASE

@@ -1,5 +1,5 @@
 use bolt_ts_ast as ast;
-use bolt_ts_atom::AtomId;
+use bolt_ts_atom::Atom;
 
 use super::symbol_info::SymbolInfo;
 use crate::ty;
@@ -40,14 +40,14 @@ pub struct ThisTyPred<'cx> {
 
 #[derive(Debug, Clone, Copy)]
 pub struct AssertsIdentTyPred<'cx> {
-    pub param_name: AtomId,
+    pub param_name: Atom,
     pub param_index: u32,
     pub ty: Option<&'cx ty::Ty<'cx>>,
 }
 
 #[derive(Debug, Clone, Copy)]
 pub struct IdentTyPred<'cx> {
-    pub param_name: AtomId,
+    pub param_name: Atom,
     pub param_index: u32,
     pub ty: &'cx ty::Ty<'cx>,
 }
@@ -55,7 +55,7 @@ pub struct IdentTyPred<'cx> {
 impl<'cx> super::TyChecker<'cx> {
     pub fn create_ident_ty_pred(
         &self,
-        param_name: AtomId,
+        param_name: Atom,
         param_index: u32,
         ty: &'cx ty::Ty<'cx>,
     ) -> &'cx TyPred<'cx> {

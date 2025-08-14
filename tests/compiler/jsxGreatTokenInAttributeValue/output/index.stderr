@@ -1,0 +1,5 @@
+  × Unexpected token. Did you mean `{'>'}` or `&gt;`?
+   ╭─[../../tests/compiler/jsxGreatTokenInAttributeValue/index.tsx:2:15]
+ 2 │ >
+   · ─
+   ╰────

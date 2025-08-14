@@ -8,3 +8,5 @@ rustc-hash = { workspace = true }
 xxhash-rust = { workspace = true, features = ["xxh3", "const_xxh3"] }
 bolt_ts_utils = { path = "../utils" }
 paste = { workspace = true }
+nohash-hasher = "0.2.0"
+

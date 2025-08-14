@@ -26,10 +26,10 @@ impl<'cx> TyChecker<'cx> {
             ForIn(node) => self.check_for_in_stmt(node),
             Import(node) => self.check_import_decl(node),
             Export(node) => self.check_export_decl(node),
+            Enum(node) => self.check_enum_decl(node),
             ExportAssign(_) => {}
             Empty(_) => {}
             Throw(_) => {}
-            Enum(_) => {}
             ForOf(_) => {}
             Break(_) => {}
             Continue(_) => {}
@@ -43,14 +43,26 @@ impl<'cx> TyChecker<'cx> {
         };
     }
 
+    fn check_enum_decl(&mut self, node: &'cx ast::EnumDecl<'cx>) {
+        for member in node.members {
+            self.check_enum_member(member);
+        }
+    }
+
+    fn check_enum_member(&mut self, member: &'cx ast::EnumMember<'cx>) {
+        if let Some(init) = member.init {
+            self.check_expr(init);
+        }
+    }
+
     fn check_export_decl(&mut self, node: &'cx ast::ExportDecl<'cx>) {
-        if node.module_spec().is_none() || self.check_external_module_name(node.id) {
-            if let ast::ExportClauseKind::Specs(specs) = node.clause.kind {
-                // export { a, b as c } from 'xxxx'
-                // export { a, b as c }
-                for spec in specs.list {
-                    self.check_export_spec(spec);
-                }
+        if (node.module_spec().is_none() || self.check_external_module_name(node.id))
+            && let ast::ExportClauseKind::Specs(specs) = node.clause.kind
+        {
+            // export { a, b as c } from 'xxxx'
+            // export { a, b as c }
+            for spec in specs.list {
+                self.check_export_spec(spec);
             }
         }
     }

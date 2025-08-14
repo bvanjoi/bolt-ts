@@ -1,5 +1,0 @@
-  × Type 'void' is not assignable to type 'string'.
-   ╭─[../../tests/cases/compiler/thisWhenTypeCheckFails/index.ts:6:15]
- 6 │ s
-   · ─
-   ╰────

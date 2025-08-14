@@ -1,0 +1,11 @@
+  × Initializers are not allowed in ambient contexts.
+   ╭─[../../tests/compiler/ambientErrors1/index.ts:3:17]
+ 3 │ 4
+   · ─
+   ╰────
+
+  × Initializers are not allowed in ambient contexts.
+   ╭─[../../tests/compiler/ambientErrors1/index.ts:5:27]
+ 5 │ 42
+   · ──
+   ╰────

@@ -40,7 +40,7 @@ impl<FS: CachedFileSystem> super::Resolver<FS> {
         package_json: Option<PackageJsonInfoId>,
         only_record_failures: bool,
     ) -> RResult<PathId> {
-        if (ext.intersects(Extensions::TypeScript)
+        if ((ext.intersects(Extensions::TypeScript)
             && candidate.extension().is_some_and(|e| {
                 SUPPORTED_TS_IMPLEMENTATION_EXTENSIONS
                     .iter()
@@ -51,11 +51,10 @@ impl<FS: CachedFileSystem> super::Resolver<FS> {
                     SUPPORTED_DECLARATION_EXTENSIONS
                         .iter()
                         .any(|t| t.as_str().as_bytes() == e.as_encoded_bytes())
-                }))
+                })))
+            && let Ok(result) = self.try_file(candidate, only_record_failures)
         {
-            if let Ok(result) = self.try_file(candidate, only_record_failures) {
-                return Ok(result);
-            }
+            return Ok(result);
         }
         self.load_node_module_from_dir_worker(ext, candidate, only_record_failures, package_json)
     }
@@ -76,10 +75,10 @@ impl<FS: CachedFileSystem> super::Resolver<FS> {
             drop(arena);
             if dir == PathId::get(candidate, self.atoms.lock().as_mut().unwrap()) {
                 // TODO: is_config_lookup
-                if ext.intersects(Extensions::Declaration) {
-                    if let Some(p) = self.read_package_json_types_filed(package_json, dir) {
-                        package_file = Some(p)
-                    }
+                if ext.intersects(Extensions::Declaration)
+                    && let Some(p) = self.read_package_json_types_filed(package_json, dir)
+                {
+                    package_file = Some(p)
                 }
             }
         }

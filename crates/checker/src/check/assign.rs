@@ -1,9 +1,9 @@
 use super::TyChecker;
 use super::symbol_info::SymbolInfo;
-use bolt_ts_binder::SymbolID;
 use crate::check::SymbolLinks;
 use crate::check::check_expr::IterationUse;
 use crate::ty::{self, AccessFlags};
+use bolt_ts_binder::SymbolID;
 
 impl<'cx> TyChecker<'cx> {
     fn assign_param_ty(&mut self, param: SymbolID, ctx: Option<&'cx ty::Ty<'cx>>) {
@@ -68,12 +68,17 @@ impl<'cx> TyChecker<'cx> {
         parent_ty: &'cx ty::Ty<'cx>,
     ) {
         use bolt_ts_ast::ArrayBindingElemKind::*;
-        for ele in pat.elems {
+        for (idx, ele) in pat.elems.iter().enumerate() {
             match ele.kind {
-                Binding { name, .. } => {
-                    let ty =
-                        self.get_binding_ele_ty_from_parent_ty(binding, ele.id, parent_ty, false);
-                    self.assign_binding_ele_tys(name, ty);
+                Binding(binding) => {
+                    let ty = self.get_binding_ele_ty_from_parent_ty(
+                        binding.name,
+                        binding.id,
+                        idx,
+                        parent_ty,
+                        false,
+                    );
+                    self.assign_binding_ele_tys(binding.name, ty);
                 }
                 Omit(_) => {}
             }
@@ -84,6 +89,7 @@ impl<'cx> TyChecker<'cx> {
         &mut self,
         binding: &'cx bolt_ts_ast::Binding<'cx>,
         ele: bolt_ts_ast::NodeID,
+        idx: usize,
         mut parent_ty: &'cx ty::Ty<'cx>,
         no_tuple_bounds_check: bool,
     ) -> &'cx ty::Ty<'cx> {
@@ -132,28 +138,18 @@ impl<'cx> TyChecker<'cx> {
                 todo!()
             }
             ArrayPat(pat) => {
-                let idx = || pat.elems.iter().position(|e| e.id == ele).unwrap();
-                let ele = self.p.node(ele).expect_array_binding_elem();
-                use bolt_ts_ast::ArrayBindingElemKind::*;
-                debug_assert!(matches!(ele.kind, Binding { .. }));
-                let Binding {
-                    dotdotdot, name, ..
-                } = ele.kind
-                else {
-                    unreachable!()
-                };
-                let has_dotdotdot = dotdotdot.is_some();
+                let ele = self.p.node(ele).expect_array_binding();
+                let has_dotdotdot = ele.dotdotdot.is_some();
                 if has_dotdotdot {
                     todo!()
                 } else if self.is_array_like_ty(parent_ty) {
-                    let idx = idx();
                     let index_ty = self.get_number_literal_type_from_number(idx as f64);
 
                     self.get_indexed_access_ty_or_undefined(
                         parent_ty,
                         index_ty,
                         Some(access_flags),
-                        Some(name.id),
+                        Some(ele.id),
                     )
                     .unwrap_or(self.error_ty)
                 } else {

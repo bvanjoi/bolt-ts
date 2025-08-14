@@ -1,0 +1,5 @@
+  × An interface property cannot have an initializer.
+   ╭─[../../tests/compiler/errorOnInitializerInInterfaceProperty/index.ts:4:19]
+ 4 │ 5
+   · ─
+   ╰────

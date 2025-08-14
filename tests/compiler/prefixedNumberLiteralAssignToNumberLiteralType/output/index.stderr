@@ -1,0 +1,5 @@
+  × Type '1' is not assignable to type '2'.
+   ╭─[../../tests/compiler/prefixedNumberLiteralAssignToNumberLiteralType/index.ts:7:5]
+ 7 │ z
+   · ─
+   ╰────

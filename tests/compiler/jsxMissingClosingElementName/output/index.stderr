@@ -1,0 +1,11 @@
+  × Identifier expected.
+   ╭─[../../tests/compiler/jsxMissingClosingElementName/index.tsx:1:14]
+ 1 │ >
+   · ─
+   ╰────
+
+  × Expected corresponding JSX closing tag for 'something'.
+   ╭─[../../tests/compiler/jsxMissingClosingElementName/index.tsx:1:14]
+ 1 │ >
+   · ─
+   ╰────

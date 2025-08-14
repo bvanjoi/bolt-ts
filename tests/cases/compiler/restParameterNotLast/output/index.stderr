@@ -1,7 +1,0 @@
-]8;;https://tc39.es/ecma262/#prod-FormalParameters\(link)]8;;\
-
-  × A rest parameter must be last in a parameter list.
-   ╭─[../../tests/cases/compiler/restParameterNotLast/index.ts:3:12]
- 3 │ ...x
-   · ────
-   ╰────

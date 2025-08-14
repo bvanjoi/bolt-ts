@@ -1,0 +1,36 @@
+  × Cannot find name 's'.
+    ╭─[../../tests/compiler/staticVisibility/index.ts:11:7]
+ 11 │ s
+    · ─
+    ╰────
+
+Advice: 
+  ☞ Did you mean the static member 'C1.s'?
+   ╭─[../../tests/compiler/staticVisibility/index.ts:6:10]
+ 6 │ s
+   · ─
+   ╰────
+
+  × Cannot find name 'b'.
+    ╭─[../../tests/compiler/staticVisibility/index.ts:15:7]
+ 15 │ b
+    · ─
+    ╰────
+
+  × Cannot find name 'v'.
+    ╭─[../../tests/compiler/staticVisibility/index.ts:21:7]
+ 21 │ v
+    · ─
+    ╰────
+
+  × Cannot find name 'barback'.
+    ╭─[../../tests/compiler/staticVisibility/index.ts:38:29]
+ 38 │ barback
+    · ───────
+    ╰────
+
+  × Property 'p' does not exist on type 'typeof C1'.
+    ╭─[../../tests/compiler/staticVisibility/index.ts:23:12]
+ 23 │ p
+    · ─
+    ╰────

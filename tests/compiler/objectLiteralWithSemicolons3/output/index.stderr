@@ -1,0 +1,56 @@
+  × Expected ','.
+   ╭─[../../tests/compiler/objectLiteralWithSemicolons3/index.ts:4:4]
+ 4 │ ;
+   · ─
+   ╰────
+
+  × Expected ','.
+   ╭─[../../tests/compiler/objectLiteralWithSemicolons3/index.ts:5:4]
+ 5 │ ;
+   · ─
+   ╰────
+
+  × Expected ','.
+   ╭─[../../tests/compiler/objectLiteralWithSemicolons3/index.ts:6:4]
+ 6 │ ;
+   · ─
+   ╰────
+
+  × Cannot find name 'a'.
+   ╭─[../../tests/compiler/objectLiteralWithSemicolons3/index.ts:4:3]
+ 4 │ a
+   · ─
+   ╰────
+
+Advice: 
+  ☞ Shorthand property need an initializer.
+   ╭─[../../tests/compiler/objectLiteralWithSemicolons3/index.ts:4:3]
+ 4 │ a
+   · ─
+   ╰────
+
+  × Cannot find name 'b'.
+   ╭─[../../tests/compiler/objectLiteralWithSemicolons3/index.ts:5:3]
+ 5 │ b
+   · ─
+   ╰────
+
+Advice: 
+  ☞ Shorthand property need an initializer.
+   ╭─[../../tests/compiler/objectLiteralWithSemicolons3/index.ts:5:3]
+ 5 │ b
+   · ─
+   ╰────
+
+  × Cannot find name 'c'.
+   ╭─[../../tests/compiler/objectLiteralWithSemicolons3/index.ts:6:3]
+ 6 │ c
+   · ─
+   ╰────
+
+Advice: 
+  ☞ Shorthand property need an initializer.
+   ╭─[../../tests/compiler/objectLiteralWithSemicolons3/index.ts:6:3]
+ 6 │ c
+   · ─
+   ╰────

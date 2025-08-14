@@ -1,5 +1,0 @@
-  × Type 'string[]' cannot be used as an index type.
-   ╭─[../../tests/cases/compiler/arrayIndexWithArrayFails/index.ts:5:16]
- 5 │ arr1[0]
-   · ───────
-   ╰────

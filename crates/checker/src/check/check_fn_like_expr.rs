@@ -24,21 +24,18 @@ impl<'cx> TyChecker<'cx> {
                     if let Some(contextual_sig) = contextual_sig {
                         let inference = self.get_inference_context(id);
                         let mut instantiated_contextual_sig = None;
-                        if let Some(check_mode) = self.check_mode {
-                            if check_mode.intersects(CheckMode::INFERENTIAL) {
-                                let inference = inference.unwrap().inference.unwrap();
-                                self.infer_from_annotated_params(sig, contextual_sig, inference);
-                                let rest_ty = contextual_sig.get_rest_ty(self);
-                                if let Some(rest_ty) = rest_ty {
-                                    if rest_ty.flags.intersects(TypeFlags::TYPE_PARAMETER) {
-                                        let mapper = self.inference(inference).non_fixing_mapper;
-                                        instantiated_contextual_sig = Some(self.instantiate_sig(
-                                            contextual_sig,
-                                            mapper,
-                                            false,
-                                        ));
-                                    }
-                                }
+                        if let Some(check_mode) = self.check_mode
+                            && check_mode.intersects(CheckMode::INFERENTIAL)
+                        {
+                            let inference = inference.unwrap().inference.unwrap();
+                            self.infer_from_annotated_params(sig, contextual_sig, inference);
+                            let rest_ty = contextual_sig.get_rest_ty(self);
+                            if let Some(rest_ty) = rest_ty
+                                && rest_ty.flags.intersects(TypeFlags::TYPE_PARAMETER)
+                            {
+                                let mapper = self.inference(inference).non_fixing_mapper;
+                                instantiated_contextual_sig =
+                                    Some(self.instantiate_sig(contextual_sig, mapper, false));
                             }
                         }
                         let instantiated_contextual_sig =

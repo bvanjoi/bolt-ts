@@ -7,13 +7,14 @@ use super::errors;
 use super::symbol_info::SymbolInfo;
 use super::ty;
 use super::utils::append_if_unique;
-use bolt_ts_binder::{SymbolFlags, SymbolID, SymbolName};
 use crate::check::InstantiationTyMap;
 use crate::check::TyCacheTrait;
 use crate::check::links::TyLinks;
+use crate::check::node_check_flags::NodeCheckFlags;
 use crate::ty::ObjectFlags;
 use crate::ty::TypeFlags;
 use bolt_ts_ast as ast;
+use bolt_ts_binder::{SymbolFlags, SymbolID, SymbolName};
 
 impl<'cx> TyChecker<'cx> {
     pub(super) fn get_declared_ty_of_symbol(&mut self, symbol: SymbolID) -> &'cx ty::Ty<'cx> {
@@ -428,21 +429,120 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
-    pub(super) fn get_declared_ty_of_enum_member(&mut self, symbol: SymbolID) -> &'cx ty::Ty<'cx> {
-        if let Some(ty) = self.get_symbol_links(symbol).get_declared_ty() {
-            return ty;
+    fn compute_enum_member_values(&mut self, node: &ast::EnumDecl) {
+        let flags = self.get_node_links(node.id).flags();
+        if flags.contains(NodeCheckFlags::ENUM_VALUES_COMPUTED) {
+            return;
         }
-        // let parent = self.symbol(symbol)
-        // let decl = self.binder.symbol(symbol).expect_ns().decls[0];
-        // let decl = self.p.node(decl).expect_enum_member_decl();
-        // let ty = self.get_ty_from_type_node(decl.ty);
-        // TODO:
-        let ty = self.any_ty;
-        if let Some(old) = self.get_symbol_links(symbol).get_declared_ty() {
-            old
+        self.get_mut_node_links(node.id)
+            .config_flags(|flags| flags.union(NodeCheckFlags::ENUM_VALUES_COMPUTED));
+        let mut auto_value = Some(0);
+        let mut previous = None;
+        for member in node.members {
+            let _ = self.get_node_links(member.id);
+            let ret = self.compute_enum_member_value(member, auto_value, previous);
+            self.get_mut_node_links(member.id)
+                .set_enum_member_value(ret);
+            auto_value = ret;
+            previous = Some(member);
+        }
+    }
+
+    fn compute_constant_enum_member_value(&mut self, member: &ast::EnumMember) -> Option<u32> {
+        let Some(init) = member.init else {
+            unreachable!()
+        };
+        // TODO: eval
+        if matches!(
+            init.kind,
+            ast::ExprKind::PropAccess(_) | ast::ExprKind::Ident(_)
+        ) {
+            return None;
+        }
+        Some(0)
+    }
+
+    fn compute_enum_member_value(
+        &mut self,
+        member: &ast::EnumMember,
+        auto_value: Option<u32>,
+        previous: Option<&ast::EnumMember>,
+    ) -> Option<u32> {
+        if member.init.is_some() {
+            return self.compute_constant_enum_member_value(member);
+        }
+        if auto_value.is_none() {
+            let error = errors::EnumMemberMustHaveInitializer {
+                span: member.name.span(),
+            };
+            self.push_error(Box::new(error));
+            return None;
+        }
+        auto_value
+    }
+
+    fn get_enum_member_value(&mut self, member: &ast::EnumMember) {
+        let parent = self.parent(member.id).unwrap();
+        let node = self.p.node(parent).expect_enum_decl();
+        self.compute_enum_member_values(node);
+        // self.get_node_links(member.id).set_enum_member_value(enum_member_value);
+    }
+
+    fn get_declared_ty_of_enum(&mut self, symbol: SymbolID) -> &'cx ty::Ty<'cx> {
+        if let Some(declared_ty) = self.get_symbol_links(symbol).get_declared_ty() {
+            return declared_ty;
+        }
+
+        let decls = self
+            .binder
+            .symbol(symbol)
+            .decls
+            .as_ref()
+            .unwrap()
+            .iter()
+            .filter_map(|&n| {
+                let n = self.p.node(n);
+                n.as_enum_decl()
+            })
+            .collect::<Vec<_>>();
+
+        let mut member_ty_list = Vec::with_capacity(decls.len());
+        for decl in decls {
+            for member in decl.members.iter() {
+                // TODO: has_bindable_name
+                let member_symbol = self.get_symbol_of_decl(member.id);
+                let value = self.get_enum_member_value(member);
+                let member_ty = self.create_computed_enum_ty(member_symbol);
+                let member_ty = self.get_fresh_ty_of_literal_ty(member_ty);
+                member_ty_list.push(member_ty);
+            }
+        }
+
+        let declared_ty = if member_ty_list.is_empty() {
+            self.get_union_ty(
+                &member_ty_list,
+                ty::UnionReduction::Lit,
+                true,
+                Some(symbol),
+                None,
+            )
         } else {
-            self.get_mut_symbol_links(symbol).set_declared_ty(ty);
-            ty
+            self.create_computed_enum_ty(symbol)
+        };
+
+        self.get_mut_symbol_links(symbol)
+            .set_declared_ty(declared_ty);
+        declared_ty
+    }
+
+    pub(super) fn get_declared_ty_of_enum_member(&mut self, symbol: SymbolID) -> &'cx ty::Ty<'cx> {
+        if let Some(declared_ty) = self.get_symbol_links(symbol).get_declared_ty() {
+            return declared_ty;
         }
+        let parent = self.symbol(symbol).parent.unwrap();
+        let declared_ty = self.get_declared_ty_of_enum(parent);
+        self.get_mut_symbol_links(symbol)
+            .set_declared_ty(declared_ty);
+        declared_ty
     }
 }

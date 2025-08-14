@@ -8,7 +8,7 @@ impl<'cx> HasBindingName<'cx> for crate::VarDecl<'cx> {
         self.id
     }
     fn name(&self) -> &'cx crate::Binding<'cx> {
-        self.binding
+        self.name
     }
 }
 

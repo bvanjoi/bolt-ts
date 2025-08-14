@@ -1,0 +1,17 @@
+  × Property 'x' does not exist on type 'typeof B'.
+    ╭─[../../tests/compiler/nonExportedElementsOfMergedModules/index.ts:15:5]
+ 15 │ x
+    · ─
+    ╰────
+
+  × Type 'number' is not assignable to type 'string'.
+    ╭─[../../tests/compiler/nonExportedElementsOfMergedModules/index.ts:30:7]
+ 30 │ b0
+    · ──
+    ╰────
+
+  × Type 'string' is not assignable to type 'number'.
+    ╭─[../../tests/compiler/nonExportedElementsOfMergedModules/index.ts:32:7]
+ 32 │ b1
+    · ──
+    ╰────

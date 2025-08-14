@@ -1,0 +1,12 @@
+  × Property 'x' is missing.
+   ╭─[../../tests/compiler/classImplementsClass7/index.ts:7:1]
+ 7 │ class B implements A {}
+   · ───────────────────────
+   ╰────
+
+Advice: 
+  ☞ Property 'x' is defined here
+   ╭─[../../tests/compiler/classImplementsClass7/index.ts:3:7]
+ 3 │ A
+   · ─
+   ╰────

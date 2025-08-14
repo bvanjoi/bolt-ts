@@ -1,0 +1,17 @@
+  × Cannot find name 'x'.
+    ╭─[../../tests/compiler/cloduleStaticMembers/index.ts:10:11]
+ 10 │ x
+    · ─
+    ╰────
+
+  × Cannot find name 'y'.
+    ╭─[../../tests/compiler/cloduleStaticMembers/index.ts:14:11]
+ 14 │ y
+    · ─
+    ╰────
+
+  × Property 'x' is private and only accessible within class.
+   ╭─[../../tests/compiler/cloduleStaticMembers/index.ts:8:11]
+ 8 │ Clod.x
+   · ──────
+   ╰────

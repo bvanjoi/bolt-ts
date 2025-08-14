@@ -1,0 +1,5 @@
+  × Argument of type 'number' is not assignable to parameter of type 'string'.
+   ╭─[../../tests/compiler/invocationExpressionInFunctionParameter/index.ts:5:24]
+ 5 │ 123
+   · ───
+   ╰────

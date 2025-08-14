@@ -1,0 +1,6 @@
+  × Function implementation is missing or not immediately following the
+  │ declaration.
+   ╭─[../../tests/compiler/crashOnMethodSignatures/index.ts:4:3]
+ 4 │ a
+   · ─
+   ╰────

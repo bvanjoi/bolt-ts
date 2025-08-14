@@ -1,5 +1,0 @@
-  × Accessibility modifier already seen.
-   ╭─[../../tests/cases/compiler/constructorArgsErrors4/index.ts:4:26]
- 4 │ public
-   · ──────
-   ╰────

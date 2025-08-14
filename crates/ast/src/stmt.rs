@@ -363,7 +363,7 @@ pub struct ClassElems<'cx> {
 pub struct ClassElem<'cx> {
     pub kind: ClassElemKind<'cx>,
 }
-impl ClassElem<'_> {
+impl<'cx> ClassElem<'cx> {
     pub fn id(&self) -> NodeID {
         self.kind.id()
     }
@@ -387,7 +387,7 @@ pub struct ClassStaticBlock<'cx> {
     pub body: &'cx BlockStmt<'cx>,
 }
 
-impl ClassElemKind<'_> {
+impl<'cx> ClassElemKind<'cx> {
     pub fn is_static(&self) -> bool {
         use ClassElemKind::*;
         let ms = match self {
@@ -411,6 +411,18 @@ impl ClassElemKind<'_> {
             Getter(n) => n.id,
             Setter(n) => n.id,
             StaticBlock(n) => n.id,
+        }
+    }
+
+    pub fn name(&self) -> Option<&'cx PropName<'cx>> {
+        match self {
+            ClassElemKind::Prop(n) => Some(n.name),
+            ClassElemKind::Method(n) => Some(n.name),
+            ClassElemKind::Getter(n) => Some(n.name),
+            ClassElemKind::Setter(n) => Some(n.name),
+            ClassElemKind::IndexSig(_) | ClassElemKind::Ctor(_) | ClassElemKind::StaticBlock(_) => {
+                None
+            }
         }
     }
 }
@@ -458,6 +470,7 @@ impl<'cx> SetterDecl<'cx> {
 pub struct ClassCtor<'cx> {
     pub id: NodeID,
     pub span: Span,
+    pub modifiers: Option<&'cx Modifiers<'cx>>,
     pub ty_params: Option<TyParams<'cx>>,
     pub params: ParamsDecl<'cx>,
     pub ret: Option<&'cx self::Ty<'cx>>,
@@ -972,17 +985,37 @@ pub type ArrayBindingElems<'cx> = &'cx [&'cx ArrayBindingElem<'cx>];
 
 #[derive(Debug, Clone, Copy)]
 pub struct ArrayBindingElem<'cx> {
-    pub id: NodeID,
-    pub span: Span,
     pub kind: ArrayBindingElemKind<'cx>,
 }
 
 #[derive(Debug, Clone, Copy)]
 pub enum ArrayBindingElemKind<'cx> {
     Omit(&'cx OmitExpr),
-    Binding {
-        dotdotdot: Option<Span>,
-        name: &'cx Binding<'cx>,
-        init: Option<&'cx Expr<'cx>>,
-    },
+    Binding(&'cx ArrayBinding<'cx>),
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct ArrayBinding<'cx> {
+    pub id: NodeID,
+    pub span: Span,
+    pub dotdotdot: Option<Span>,
+    pub name: &'cx Binding<'cx>,
+    pub init: Option<&'cx Expr<'cx>>,
+}
+
+impl ArrayBindingElemKind<'_> {
+    pub fn id(&self) -> NodeID {
+        use ArrayBindingElemKind::*;
+        match self {
+            Omit(omit) => omit.id,
+            Binding(binding) => binding.id,
+        }
+    }
+    pub fn span(&self) -> Span {
+        use ArrayBindingElemKind::*;
+        match self {
+            Omit(omit) => omit.span,
+            Binding(binding) => binding.span,
+        }
+    }
 }

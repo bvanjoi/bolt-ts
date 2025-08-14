@@ -1,8 +1,0 @@
-  × Duplicate identifier 'baz'.
-   ╭─[../../tests/cases/compiler/mismatchedClassConstructorVariable/index.ts:4:7]
- 3 │ baz: foo;
-   · ────┬───
-   ·     ╰── Previous definition here
- 4 │ class baz
-   ·       ───
-   ╰────

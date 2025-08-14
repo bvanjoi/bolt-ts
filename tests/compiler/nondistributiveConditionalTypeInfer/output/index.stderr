@@ -1,0 +1,11 @@
+  × Type 'string' is not assignable to type 'number'.
+    ╭─[../../tests/compiler/nondistributiveConditionalTypeInfer/index.ts:17:5]
+ 17 │ r
+    · ─
+    ╰────
+
+  × Type 'number' is not assignable to type 'string'.
+    ╭─[../../tests/compiler/nondistributiveConditionalTypeInfer/index.ts:19:5]
+ 19 │ e
+    · ─
+    ╰────

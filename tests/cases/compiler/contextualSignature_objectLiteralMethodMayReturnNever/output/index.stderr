@@ -1,5 +1,0 @@
-  × Type 'void' is not assignable to type 'never'.
-    ╭─[../../tests/cases/compiler/contextualSignature_objectLiteralMethodMayReturnNever/index.ts:12:5]
- 12 │ a1
-    · ──
-    ╰────

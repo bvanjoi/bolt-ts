@@ -1,0 +1,11 @@
+  × Argument of type 'string' is not assignable to parameter of type 'number'.
+   ╭─[../../tests/compiler/functionCall9/index.ts:4:11]
+ 4 │ 'bar'
+   · ─────
+   ╰────
+
+  × Expected 0-2 arguments, but got 3.
+   ╭─[../../tests/compiler/functionCall9/index.ts:6:15]
+ 6 │ 'bar'
+   · ─────
+   ╰────

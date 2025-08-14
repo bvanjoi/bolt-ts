@@ -1,0 +1,11 @@
+  × Unicode escape sequence cannot appear here.
+   ╭─[../../tests/compiler/jsxUnicodeName/index.tsx:1:2]
+ 1 │ \u{2F804}
+   · ─────────
+   ╰────
+
+  × Unicode escape sequence cannot appear here.
+   ╭─[../../tests/compiler/jsxUnicodeName/index.tsx:1:14]
+ 1 │ \u{2F804}
+   · ─────────
+   ╰────

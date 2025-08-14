@@ -1,0 +1,23 @@
+  × An implementation cannot be declared in ambient contexts.
+   ╭─[../../tests/compiler/accessorBodyInTypeContext/index.ts:4:13]
+ 4 │ { return 0 }
+   · ────────────
+   ╰────
+
+  × An implementation cannot be declared in ambient contexts.
+   ╭─[../../tests/compiler/accessorBodyInTypeContext/index.ts:9:19]
+ 9 │ { }
+   · ───
+   ╰────
+
+  × An implementation cannot be declared in ambient contexts.
+    ╭─[../../tests/compiler/accessorBodyInTypeContext/index.ts:14:13]
+ 14 │ { return 0 }
+    · ────────────
+    ╰────
+
+  × An implementation cannot be declared in ambient contexts.
+    ╭─[../../tests/compiler/accessorBodyInTypeContext/index.ts:19:19]
+ 19 │ { }
+    · ───
+    ╰────

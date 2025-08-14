@@ -1,5 +1,0 @@
-  × Property 'toBAZ' does not exist on type 'boolean'.
-   ╭─[../../tests/cases/compiler/propertyAccess3/index.ts:4:5]
- 4 │ toBAZ
-   · ─────
-   ╰────

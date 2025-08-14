@@ -1,7 +1,7 @@
 use super::TyChecker;
 use super::ty;
-use bolt_ts_binder::SymbolID;
 use crate::ty::TypeFlags;
+use bolt_ts_binder::SymbolID;
 
 impl<'cx> TyChecker<'cx> {
     pub(super) fn index_infos_of_ty(&self, ty: &'cx ty::Ty<'cx>) -> ty::IndexInfos<'cx> {

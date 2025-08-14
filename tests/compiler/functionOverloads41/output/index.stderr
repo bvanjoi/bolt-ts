@@ -1,0 +1,12 @@
+  × No overload matches this call.
+   ╭─[../../tests/compiler/functionOverloads41/index.ts:6:9]
+ 3 │ foo(bar:{a:number;}[]):string;
+   · ─┬─
+   ·  ╰── Unmatched call.
+ 4 │ function foo(bar:{a:boolean;}[]):number;
+   ·          ─┬─
+   ·           ╰── Unmatched call.
+ 5 │ function foo(bar:{a:any;}[]):any{ return bar }
+ 6 │ var x = foo([{}])
+   ·         ─────────
+   ╰────

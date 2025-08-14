@@ -29,7 +29,7 @@ impl TyChecker<'_> {
             .unwrap_or_else(|| {
                 let n = self.p.node(id);
                 let Some(node) = n.as_ident() else {
-                    unreachable!("final_res not found for {:#?}", n.span());
+                    unreachable!("final_res not found for {:#?}({:#?})", n.span(), id);
                 };
                 let name = self.atoms.get(node.name);
                 let span = self.p.node(id).span();

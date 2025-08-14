@@ -1,5 +1,0 @@
-  × Type '"no_dunder"' is not assignable to type '"__dunder"'.
-   ╭─[../../tests/cases/compiler/doubleUnderStringLiteralAssignability/index.ts:4:5]
- 4 │ bad
-   · ───
-   ╰────

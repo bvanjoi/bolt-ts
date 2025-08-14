@@ -12,6 +12,7 @@ links!(
     (effects_sig, &'cx ty::Sig<'cx>),
     (skip_direct_inference, bool),
     (non_existent_prop_checked, bool),
+    (enum_member_value, Option<u32>)
 );
 
 impl NodeLinks<'_> {

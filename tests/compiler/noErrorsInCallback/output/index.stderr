@@ -1,0 +1,11 @@
+  × Argument of type '{ }' is not assignable to parameter of type 'string'.
+   ╭─[../../tests/compiler/noErrorsInCallback/index.ts:6:19]
+ 6 │ {}
+   · ──
+   ╰────
+
+  × Argument of type '{ }' is not assignable to parameter of type 'string'.
+   ╭─[../../tests/compiler/noErrorsInCallback/index.ts:9:21]
+ 9 │ {}
+   · ──
+   ╰────

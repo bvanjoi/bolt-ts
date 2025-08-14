@@ -1,0 +1,5 @@
+  × This expression is not constructable.
+   ╭─[../../tests/compiler/newAbstractInstance/index.ts:5:1]
+ 5 │ new b()
+   · ───────
+   ╰────
