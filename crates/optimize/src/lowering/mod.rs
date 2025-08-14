@@ -491,7 +491,7 @@ impl<'checker, 'cx> LoweringCtx<'checker, 'cx> {
     }
 
     fn lower_var_decl(&mut self, decl: &'cx ast::VarDecl<'cx>) -> ir::VarDeclID {
-        let binding = self.lower_binding(decl.binding);
+        let binding = self.lower_binding(decl.name);
         let init = decl.init.map(|init| self.lower_expr(init));
         self.nodes.alloc_var_decl(decl.span, binding, init)
     }
@@ -521,26 +521,22 @@ impl<'checker, 'cx> LoweringCtx<'checker, 'cx> {
     fn lower_array_binding_ele(
         &mut self,
         elem: &'cx ast::ArrayBindingElem<'cx>,
-    ) -> ir::ArrayBindingElemID {
-        let kind = match elem.kind {
+    ) -> ir::ArrayBindingElem {
+        match elem.kind {
             ast::ArrayBindingElemKind::Omit(n) => {
-                ir::ArrayBindingElemKind::Omit(self.lower_omit_expr(n))
+                ir::ArrayBindingElem::Omit(self.lower_omit_expr(n))
             }
-            ast::ArrayBindingElemKind::Binding {
-                dotdotdot,
-                name,
-                init,
-            } => {
-                let name = self.lower_binding(name);
-                let init = init.map(|init| self.lower_expr(init));
-                ir::ArrayBindingElemKind::Binding {
-                    dotdotdot,
-                    name,
-                    init,
-                }
+            ast::ArrayBindingElemKind::Binding(n) => {
+                ir::ArrayBindingElem::Binding(self.lower_array_binding(n))
             }
-        };
-        self.nodes.alloc_array_binding_elem(elem.span, kind)
+        }
+    }
+
+    fn lower_array_binding(&mut self, n: &'cx ast::ArrayBinding<'cx>) -> ir::ArrayBindingID {
+        let name = self.lower_binding(n.name);
+        let init = n.init.map(|init| self.lower_expr(init));
+        self.nodes
+            .alloc_array_binding(n.span, n.dotdotdot, name, init)
     }
 
     fn lower_omit_expr(&mut self, omit: &'cx ast::OmitExpr) -> ir::OmitExprID {

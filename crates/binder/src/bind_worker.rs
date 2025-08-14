@@ -257,7 +257,7 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
             // TODO:
         }
 
-        let name = match n.binding.kind {
+        let name = match n.name.kind {
             ast::BindingKind::Ident(name) => name,
             ast::BindingKind::ObjectPat(_) => {
                 // TODO: handle this case
@@ -288,22 +288,16 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
         self.create_final_res(name.id, symbol);
     }
 
-    fn bind_array_binding_ele(&mut self, n: &ast::ArrayBindingElem<'cx>) {
+    fn bind_array_binding(&mut self, n: &ast::ArrayBinding<'cx>) {
         if self.in_strict_mode {
             // TODO:
         }
 
-        use ast::ArrayBindingElemKind::*;
-
-        let binding = match n.kind {
-            Binding { name, .. } => name,
-            Omit(_) => return,
-        };
         use bolt_ts_ast::BindingKind::*;
-        match binding.kind {
+        match n.name.kind {
             Ident(ident) => {
                 let symbol = self.bind_var(n.id, ident.name);
-                self.create_final_res(binding.id, symbol);
+                self.create_final_res(n.name.id, symbol);
             }
             ObjectPat(_) => {}
             ArrayPat(_) => {}
@@ -475,7 +469,7 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
                 //     .insert_container_map(node, self.current_flow.unwrap());
                 self.bind_object_binding_ele(n);
             }
-            ArrayBindingElem(n) => self.bind_array_binding_ele(n),
+            ArrayBinding(n) => self.bind_array_binding(n),
             PropSignature(ast::PropSignature { name, question, .. })
             | ClassPropElem(ast::ClassPropElem { name, question, .. }) => {
                 // TODO: is_auto_accessor

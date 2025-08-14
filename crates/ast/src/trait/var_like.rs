@@ -36,7 +36,7 @@ impl<'cx> VarLike<'cx> for crate::VarDecl<'cx> {
         self.id
     }
     fn name(&self) -> VarLikeName<'cx> {
-        match self.binding.kind {
+        match self.name.kind {
             crate::BindingKind::Ident(n) => VarLikeName::Ident(n),
             crate::BindingKind::ObjectPat(n) => VarLikeName::ObjectPat(n),
             crate::BindingKind::ArrayPat(n) => VarLikeName::ArrayPat(n),
@@ -129,5 +129,27 @@ impl<'cx> VarLike<'cx> for crate::ObjectShorthandMember<'cx> {
     }
     fn init(&self) -> Option<&'cx crate::Expr<'cx>> {
         None
+    }
+}
+
+impl<'cx> VarLike<'cx> for crate::ArrayBinding<'cx> {
+    fn id(&self) -> crate::NodeID {
+        self.id
+    }
+
+    fn name(&self) -> VarLikeName<'cx> {
+        match self.name.kind {
+            crate::BindingKind::Ident(n) => VarLikeName::Ident(n),
+            crate::BindingKind::ObjectPat(n) => VarLikeName::ObjectPat(n),
+            crate::BindingKind::ArrayPat(n) => VarLikeName::ArrayPat(n),
+        }
+    }
+
+    fn decl_ty(&self) -> Option<&'cx crate::Ty<'cx>> {
+        None
+    }
+
+    fn init(&self) -> Option<&'cx crate::Expr<'cx>> {
+        self.init
     }
 }

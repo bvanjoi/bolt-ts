@@ -1029,34 +1029,34 @@ impl<'cx> ParserState<'cx, '_> {
                 id,
                 span: self.new_span(start),
             });
+            self.nodes.insert(id, ast::Node::OmitExpr(omit_expr));
             let elem = self.alloc(ast::ArrayBindingElem {
-                id,
-                span: self.new_span(start),
                 kind: ast::ArrayBindingElemKind::Omit(omit_expr),
             });
-            self.nodes.insert(id, ast::Node::ArrayBindingElem(elem));
-            return Ok(elem);
-        }
-        let dotdotdot = self.parse_optional(TokenKind::DotDotDot).map(|t| t.span);
-        let name = self.parse_ident_or_pat()?;
-        let init = self.parse_init()?;
-        let id = self.next_node_id();
-        let elem = self.alloc(ast::ArrayBindingElem {
-            id,
-            span: self.new_span(start),
-            kind: ast::ArrayBindingElemKind::Binding {
+            Ok(elem)
+        } else {
+            let dotdotdot = self.parse_optional(TokenKind::DotDotDot).map(|t| t.span);
+            let name = self.parse_ident_or_pat()?;
+            let init = self.parse_init()?;
+            let id = self.next_node_id();
+            let binding = self.alloc(ast::ArrayBinding {
+                id,
+                span: self.new_span(start),
                 dotdotdot,
                 name,
                 init,
-            },
-        });
-        self.nodes.insert(id, ast::Node::ArrayBindingElem(elem));
-        Ok(elem)
+            });
+            self.nodes.insert(id, ast::Node::ArrayBinding(binding));
+            let elem = self.alloc(ast::ArrayBindingElem {
+                kind: ast::ArrayBindingElemKind::Binding(binding),
+            });
+            Ok(elem)
+        }
     }
 
     fn parse_var_decl(&mut self) -> PResult<&'cx ast::VarDecl<'cx>> {
         let start = self.token.start();
-        let binding = self.parse_ident_or_pat()?;
+        let name = self.parse_ident_or_pat()?;
         let ty = self.parse_ty_anno()?;
         let init = self.parse_init()?;
         let span = self.new_span(start);
@@ -1064,7 +1064,7 @@ impl<'cx> ParserState<'cx, '_> {
         let node = self.alloc(ast::VarDecl {
             id,
             span,
-            binding,
+            name,
             ty,
             init,
         });

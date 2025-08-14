@@ -44,7 +44,15 @@ impl<'cx> TyChecker<'cx> {
     }
 
     fn check_enum_decl(&mut self, node: &'cx ast::EnumDecl<'cx>) {
-        let symbol = self.get_symbol_of_decl(node.id);
+        for member in node.members {
+            self.check_enum_member(member);
+        }
+    }
+
+    fn check_enum_member(&mut self, member: &'cx ast::EnumMember<'cx>) {
+        if let Some(init) = member.init {
+            self.check_expr(init);
+        }
     }
 
     fn check_export_decl(&mut self, node: &'cx ast::ExportDecl<'cx>) {

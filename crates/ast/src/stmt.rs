@@ -985,17 +985,37 @@ pub type ArrayBindingElems<'cx> = &'cx [&'cx ArrayBindingElem<'cx>];
 
 #[derive(Debug, Clone, Copy)]
 pub struct ArrayBindingElem<'cx> {
-    pub id: NodeID,
-    pub span: Span,
     pub kind: ArrayBindingElemKind<'cx>,
 }
 
 #[derive(Debug, Clone, Copy)]
 pub enum ArrayBindingElemKind<'cx> {
     Omit(&'cx OmitExpr),
-    Binding {
-        dotdotdot: Option<Span>,
-        name: &'cx Binding<'cx>,
-        init: Option<&'cx Expr<'cx>>,
-    },
+    Binding(&'cx ArrayBinding<'cx>),
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct ArrayBinding<'cx> {
+    pub id: NodeID,
+    pub span: Span,
+    pub dotdotdot: Option<Span>,
+    pub name: &'cx Binding<'cx>,
+    pub init: Option<&'cx Expr<'cx>>,
+}
+
+impl ArrayBindingElemKind<'_> {
+    pub fn id(&self) -> NodeID {
+        use ArrayBindingElemKind::*;
+        match self {
+            Omit(omit) => omit.id,
+            Binding(binding) => binding.id,
+        }
+    }
+    pub fn span(&self) -> Span {
+        use ArrayBindingElemKind::*;
+        match self {
+            Omit(omit) => omit.span,
+            Binding(binding) => binding.span,
+        }
+    }
 }

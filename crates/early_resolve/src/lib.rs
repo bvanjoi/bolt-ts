@@ -141,7 +141,11 @@ impl<'cx> Resolver<'cx, '_, '_> {
             Throw(t) => {
                 self.resolve_expr(t.expr);
             }
-            Enum(_) => {}
+            Enum(n) => {
+                for member in n.members {
+                    self.resolve_enum_member(member);
+                }
+            }
             Import(_) => {}
             Export(n) => self.resolve_export(n),
             For(n) => {
@@ -182,6 +186,12 @@ impl<'cx> Resolver<'cx, '_, '_> {
                 self.resolve_stmt(n.stmt);
             }
         };
+    }
+
+    fn resolve_enum_member(&mut self, n: &'cx ast::EnumMember<'cx>) {
+        if let Some(init) = n.init {
+            self.resolve_expr(init);
+        }
     }
 
     fn resolve_export(&mut self, export: &'cx ast::ExportDecl<'cx>) {
@@ -991,6 +1001,17 @@ pub fn resolve_symbol_by_ident<'a, 'cx>(
                 {
                     return ResolvedResult {
                         symbol: module_export,
+                        associated_declaration_for_containing_initializer_or_binding_name,
+                    };
+                }
+            }
+            EnumDecl(_) => {
+                if let Some(exports) = resolver.symbol(resolver.symbol_of_decl(id)).exports()
+                    && let Some(res) =
+                        get_symbol(resolver, exports, key, meaning & SymbolFlags::ENUM_MEMBER)
+                {
+                    return ResolvedResult {
+                        symbol: res,
                         associated_declaration_for_containing_initializer_or_binding_name,
                     };
                 }

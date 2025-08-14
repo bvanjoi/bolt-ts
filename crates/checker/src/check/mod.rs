@@ -2635,16 +2635,16 @@ impl<'cx> TyChecker<'cx> {
                 } else if let Some(t_ident) = t.as_ident() {
                     self.resolve_symbol_by_ident(s_ident) == self.resolve_symbol_by_ident(t_ident)
                 } else if let Some(t_v) = t.as_var_decl() {
-                    match t_v.binding.kind {
+                    match t_v.name.kind {
                         bolt_ts_ast::BindingKind::Ident(_) => {
                             self.resolve_symbol_by_ident(s_ident) == self.get_symbol_of_decl(t_v.id)
                         }
-                        bolt_ts_ast::BindingKind::ObjectPat(_) => {
+                        bolt_ts_ast::BindingKind::ObjectPat(_)
+                        | bolt_ts_ast::BindingKind::ArrayPat(_) => {
                             let s = self.resolve_symbol_by_ident(s_ident);
                             self.get_export_symbol_of_value_symbol_if_exported(s)
-                                == self.get_symbol_of_decl(t_v.binding.id)
+                                == self.get_symbol_of_decl(t_v.name.id)
                         }
-                        bolt_ts_ast::BindingKind::ArrayPat(_) => todo!(),
                     }
                 } else if t.is_object_binding_elem() {
                     todo!()

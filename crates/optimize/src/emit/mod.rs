@@ -211,24 +211,20 @@ impl<'ir> Emitter<'_, 'ir> {
         }
     }
 
-    fn emit_array_binding_elem(&mut self, elem: ir::ArrayBindingElemID) {
-        let elem = self.nodes.get_array_binding_elem(&elem);
-        match elem.kind() {
-            ir::ArrayBindingElemKind::Omit(_) => {}
-            ir::ArrayBindingElemKind::Binding {
-                dotdotdot,
-                name,
-                init,
-            } => {
-                if dotdotdot.is_some() {
+    fn emit_array_binding_elem(&mut self, elem: &ir::ArrayBindingElem) {
+        match elem {
+            ir::ArrayBindingElem::Omit(_) => {}
+            ir::ArrayBindingElem::Binding(n) => {
+                let n = self.nodes.get_array_binding(n);
+                if n.dotdotdot().is_some() {
                     self.content.p_dot_dot_dot();
                 }
-                self.emit_binding(*name);
-                if let Some(init) = init {
+                self.emit_binding(n.name());
+                if let Some(init) = n.init() {
                     self.content.p_whitespace();
                     self.content.p_eq();
                     self.content.p_whitespace();
-                    self.emit_expr(*init);
+                    self.emit_expr(init);
                 }
             }
         }
@@ -256,7 +252,7 @@ impl<'ir> Emitter<'_, 'ir> {
                 self.emit_list(
                     pat.elems(),
                     |this, item| {
-                        this.emit_array_binding_elem(*item);
+                        this.emit_array_binding_elem(item);
                     },
                     |this, _| {
                         this.content.p_comma();

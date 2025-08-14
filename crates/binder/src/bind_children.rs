@@ -553,8 +553,8 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
             ObjectBindingElem(n) => {
                 self.bind_object_binding_elem_flow(n);
             }
-            ArrayBindingElem(n) => {
-                self.bind_array_binding_elem_flow(n);
+            ArrayBinding(n) => {
+                self.bind_array_binding_flow(n);
             }
             ParamDecl(n) => {
                 self.bind_param_flow(n);
@@ -787,7 +787,14 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
             }
             ArrayPat(n) => {
                 for elem in n.elems {
-                    self.bind(elem.id);
+                    match elem.kind {
+                        ast::ArrayBindingElemKind::Omit(e) => {
+                            self.bind(e.id);
+                        }
+                        ast::ArrayBindingElemKind::Binding(e) => {
+                            self.bind(e.id);
+                        }
+                    }
                 }
             }
             Binding(n) => self.bind_binding(n),
@@ -1237,17 +1244,10 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
         }
     }
 
-    fn bind_array_binding_elem_flow(&mut self, n: &ast::ArrayBindingElem<'cx>) {
-        match n.kind {
-            ast::ArrayBindingElemKind::Omit(e) => {
-                self.bind(e.id);
-            }
-            ast::ArrayBindingElemKind::Binding { name, init, .. } => {
-                self.bind(name.id);
-                if let Some(init) = init {
-                    self.bind(init.id());
-                }
-            }
+    fn bind_array_binding_flow(&mut self, n: &ast::ArrayBinding<'cx>) {
+        self.bind(n.name.id);
+        if let Some(init) = n.init {
+            self.bind(init.id());
         }
     }
 
@@ -1290,8 +1290,31 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
         }
     }
 
+    fn bind_initialized_var_flow(&mut self, node: ast::NodeID, binding: &ast::Binding) {
+        use ast::BindingKind::*;
+        match binding.kind {
+            Ident(_) => {
+                let flow = self.create_flow_assign(self.current_flow.unwrap(), node);
+                self.current_flow = Some(flow);
+            }
+            ObjectPat(_) => {
+                // TODO: use element in object pat
+                let flow = self.create_flow_assign(self.current_flow.unwrap(), node);
+                self.current_flow = Some(flow);
+            }
+            ArrayPat(pat) => {
+                for elem in pat.elems {
+                    use ast::ArrayBindingElemKind::*;
+                    if let Binding(b) = elem.kind {
+                        self.bind_initialized_var_flow(b.id, b.name)
+                    }
+                }
+            }
+        }
+    }
+
     fn bind_var_decl_flow(&mut self, n: &ast::VarDecl<'cx>) {
-        self.bind(n.binding.id);
+        self.bind(n.name.id);
         if let Some(ty) = n.ty {
             self.bind(ty.id());
         }
@@ -1306,8 +1329,7 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
                 ForInStmt(_) | ForOfStmt(_)
             )
         {
-            let flow = self.create_flow_assign(self.current_flow.unwrap(), n.id);
-            self.current_flow = Some(flow);
+            self.bind_initialized_var_flow(n.id, n.name);
         }
     }
 

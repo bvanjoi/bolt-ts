@@ -696,7 +696,7 @@ pub type NoSubstitutionTemplateLit = Lit<Atom>;
 pub struct VarDecl<'cx> {
     pub id: NodeID,
     pub span: Span,
-    pub binding: &'cx Binding<'cx>,
+    pub name: &'cx Binding<'cx>,
     pub ty: Option<&'cx self::Ty<'cx>>,
     pub init: Option<&'cx Expr<'cx>>,
 }

@@ -678,3 +678,10 @@ pub(super) struct CannotExtendAClass0ClassConstructorIsMarkedAsPrivate {
     pub span: Span,
     pub class: String,
 }
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
+#[error("Enum member must have initializer.")]
+pub(super) struct EnumMemberMustHaveInitializer {
+    #[label(primary)]
+    pub span: Span,
+}

@@ -176,6 +176,8 @@ impl<'cx> TyChecker<'cx> {
             self.get_widened_ty_for_var_like_decl(n)
         } else if let Some(n) = node.as_var_decl() {
             self.get_widened_ty_for_var_like_decl(n)
+        } else if let Some(n) = node.as_array_binding() {
+            self.get_widened_ty_for_var_like_decl(n)
         } else if node.as_binding().is_some() {
             todo!()
             // self.get_widened_ty_for_var_like_decl(n)
@@ -623,7 +625,7 @@ impl<'cx> TyChecker<'cx> {
     fn is_valid_es_symbol_decl(&self, node: ast::NodeID) -> bool {
         let n = self.p.node(node);
         if let Some(n) = n.as_var_decl() {
-            matches!(n.binding.kind, ast::BindingKind::Ident(_))
+            matches!(n.name.kind, ast::BindingKind::Ident(_))
                 && self.is_var_const(node)
                 && self.p.node(self.parent(node).unwrap()).is_var_stmt()
         } else if n.is_class_prop_ele() || n.is_object_prop_member() {

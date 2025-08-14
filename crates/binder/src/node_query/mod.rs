@@ -54,7 +54,7 @@ impl<'cx, 'a> NodeQuery<'cx, 'a> {
         let p = self.node(parent);
         match p {
             ObjectBindingElem(n) => ast::DeclarationName::from_object_binding_name(n.name),
-            VarDecl(n) => ast::DeclarationName::from_binding(n.binding),
+            VarDecl(n) => ast::DeclarationName::from_binding(n.name),
             Ident(n) => Some(ast::DeclarationName::Ident(n)),
             _ => None,
         }
@@ -285,7 +285,7 @@ impl<'cx, 'a> NodeQuery<'cx, 'a> {
                 debug_assert!(self.node(p).is_binding());
                 id = self.parent(p).unwrap();
                 n = self.node(id);
-            } else if n.is_array_binding_elem() {
+            } else if n.is_array_binding() {
                 let p = self.parent(id).unwrap();
                 debug_assert!(self.node(p).is_array_pat(), "span: {:#?}", self.node(p));
                 let p = self.parent(p).unwrap();

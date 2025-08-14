@@ -119,7 +119,7 @@ decl_nodes!(
     object_pat: ObjectPat,
     object_binding_elem: ObjectBindingElem,
     array_pat: ArrayPat,
-    array_binding_elem: ArrayBindingElem,
+    array_binding: ArrayBinding,
     object_shorthand_member: ObjectShorthandMember,
     object_prop_member: ObjectPropMember,
     object_method_member: ObjectMethodMember,
@@ -1479,7 +1479,7 @@ impl Nodes {
         idx
     }
 
-    pub fn alloc_array_pat(&mut self, span: Span, elems: Vec<ArrayBindingElemID>) -> ArrayPatID {
+    pub fn alloc_array_pat(&mut self, span: Span, elems: Vec<ArrayBindingElem>) -> ArrayPatID {
         let idx = ArrayPatID(usize_into_idx(self.array_pat_nodes.0.len()));
         let id = self.array_pat_nodes.0.alloc(ArrayPat {
             id: idx,
@@ -1490,16 +1490,20 @@ impl Nodes {
         idx
     }
 
-    pub fn alloc_array_binding_elem(
+    pub fn alloc_array_binding(
         &mut self,
         span: Span,
-        kind: ArrayBindingElemKind,
-    ) -> ArrayBindingElemID {
-        let idx = ArrayBindingElemID(usize_into_idx(self.array_binding_elem_nodes.0.len()));
-        let id = self.array_binding_elem_nodes.0.alloc(ArrayBindingElem {
+        dotdotdot: Option<Span>,
+        name: Binding,
+        init: Option<Expr>,
+    ) -> ArrayBindingID {
+        let idx = ArrayBindingID(usize_into_idx(self.array_binding_nodes.0.len()));
+        let id = self.array_binding_nodes.0.alloc(ArrayBinding {
             id: idx,
             span,
-            kind,
+            dotdotdot,
+            name,
+            init,
         });
         debug_assert_eq!(id, idx.0);
         idx
@@ -2484,40 +2488,41 @@ pub enum ObjectBindingName {
 pub struct ArrayPat {
     id: ArrayPatID,
     span: Span,
-    elems: Vec<ArrayBindingElemID>,
+    elems: Vec<ArrayBindingElem>,
 }
 impl ArrayPat {
     pub fn span(&self) -> Span {
         self.span
     }
-    pub fn elems(&self) -> &[ArrayBindingElemID] {
+    pub fn elems(&self) -> &[ArrayBindingElem] {
         &self.elems
     }
 }
 
 #[derive(Debug)]
-pub struct ArrayBindingElem {
-    id: ArrayBindingElemID,
-    span: Span,
-    kind: ArrayBindingElemKind,
-}
-impl ArrayBindingElem {
-    pub fn span(&self) -> Span {
-        self.span
-    }
-    pub fn kind(&self) -> &ArrayBindingElemKind {
-        &self.kind
-    }
+pub enum ArrayBindingElem {
+    Omit(OmitExprID),
+    Binding(ArrayBindingID),
 }
 
-#[derive(Debug)]
-pub enum ArrayBindingElemKind {
-    Omit(OmitExprID),
-    Binding {
-        dotdotdot: Option<Span>,
-        name: Binding,
-        init: Option<Expr>,
-    },
+pub struct ArrayBinding {
+    id: ArrayBindingID,
+    span: Span,
+    dotdotdot: Option<Span>,
+    name: Binding,
+    init: Option<Expr>,
+}
+
+impl ArrayBinding {
+    pub fn dotdotdot(&self) -> Option<Span> {
+        self.dotdotdot
+    }
+    pub fn name(&self) -> Binding {
+        self.name
+    }
+    pub fn init(&self) -> Option<Expr> {
+        self.init
+    }
 }
 
 #[derive(Debug)]
