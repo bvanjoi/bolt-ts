@@ -18,6 +18,7 @@ mod create_ty;
 mod cycle_check;
 mod elaborate_error;
 pub mod errors;
+mod eval;
 mod expect;
 mod flow;
 mod fn_mapper;

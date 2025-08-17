@@ -1,3 +1,4 @@
+use bolt_ts_atom::Atom;
 use bolt_ts_utils::FxIndexMap;
 
 use super::TyChecker;
@@ -9,12 +10,20 @@ use super::ty;
 use super::utils::append_if_unique;
 use crate::check::InstantiationTyMap;
 use crate::check::TyCacheTrait;
+use crate::check::eval::EvalResult;
 use crate::check::links::TyLinks;
 use crate::check::node_check_flags::NodeCheckFlags;
 use crate::ty::ObjectFlags;
 use crate::ty::TypeFlags;
 use bolt_ts_ast as ast;
 use bolt_ts_binder::{SymbolFlags, SymbolID, SymbolName};
+
+#[derive(Debug, Clone, Copy)]
+pub enum EnumMemberValue {
+    Int(i32),
+    Str(Atom),
+    Err,
+}
 
 impl<'cx> TyChecker<'cx> {
     pub(super) fn get_declared_ty_of_symbol(&mut self, symbol: SymbolID) -> &'cx ty::Ty<'cx> {
@@ -429,7 +438,7 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
-    fn compute_enum_member_values(&mut self, node: &ast::EnumDecl) {
+    fn compute_enum_member_values(&mut self, node: &'cx ast::EnumDecl<'cx>) {
         let flags = self.get_node_links(node.id).flags();
         if flags.contains(NodeCheckFlags::ENUM_VALUES_COMPUTED) {
             return;
@@ -443,49 +452,56 @@ impl<'cx> TyChecker<'cx> {
             let ret = self.compute_enum_member_value(member, auto_value, previous);
             self.get_mut_node_links(member.id)
                 .set_enum_member_value(ret);
-            auto_value = ret;
+            auto_value = match ret {
+                EnumMemberValue::Int(i) => Some(i + 1),
+                _ => None,
+            };
             previous = Some(member);
         }
     }
 
-    fn compute_constant_enum_member_value(&mut self, member: &ast::EnumMember) -> Option<u32> {
+    fn compute_constant_enum_member_value(
+        &mut self,
+        member: &'cx ast::EnumMember<'cx>,
+    ) -> EnumMemberValue {
         let Some(init) = member.init else {
             unreachable!()
         };
-        // TODO: eval
-        if matches!(
-            init.kind,
-            ast::ExprKind::PropAccess(_) | ast::ExprKind::Ident(_)
-        ) {
-            return None;
+
+        match self.eval_expr(init, Some(member.id)) {
+            EvalResult::Int(i) => EnumMemberValue::Int(i),
+            EvalResult::Str(s) => EnumMemberValue::Str(s),
+            EvalResult::Err => EnumMemberValue::Err,
         }
-        Some(0)
     }
 
     fn compute_enum_member_value(
         &mut self,
-        member: &ast::EnumMember,
-        auto_value: Option<u32>,
+        member: &'cx ast::EnumMember<'cx>,
+        auto_value: Option<i32>,
         previous: Option<&ast::EnumMember>,
-    ) -> Option<u32> {
+    ) -> EnumMemberValue {
         if member.init.is_some() {
             return self.compute_constant_enum_member_value(member);
         }
-        if auto_value.is_none() {
-            let error = errors::EnumMemberMustHaveInitializer {
-                span: member.name.span(),
-            };
-            self.push_error(Box::new(error));
-            return None;
+        match auto_value {
+            Some(i) => EnumMemberValue::Int(i),
+            None => {
+                let error = errors::EnumMemberMustHaveInitializer {
+                    span: member.name.span(),
+                };
+                self.push_error(Box::new(error));
+                EnumMemberValue::Err
+            }
         }
-        auto_value
     }
 
-    fn get_enum_member_value(&mut self, member: &ast::EnumMember) {
+    pub(super) fn get_enum_member_value(&mut self, member: &ast::EnumMember) -> EnumMemberValue {
         let parent = self.parent(member.id).unwrap();
         let node = self.p.node(parent).expect_enum_decl();
         self.compute_enum_member_values(node);
-        // self.get_node_links(member.id).set_enum_member_value(enum_member_value);
+        let v = self.get_node_links(member.id).expect_enum_member_value();
+        v
     }
 
     fn get_declared_ty_of_enum(&mut self, symbol: SymbolID) -> &'cx ty::Ty<'cx> {

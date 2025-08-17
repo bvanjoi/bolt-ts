@@ -1,5 +1,6 @@
 use super::links;
 use crate::check::NodeCheckFlags;
+use crate::check::get_declared_ty::EnumMemberValue;
 use crate::ty;
 
 links!(
@@ -12,7 +13,7 @@ links!(
     (effects_sig, &'cx ty::Sig<'cx>),
     (skip_direct_inference, bool),
     (non_existent_prop_checked, bool),
-    (enum_member_value, Option<u32>)
+    (enum_member_value, EnumMemberValue)
 );
 
 impl NodeLinks<'_> {
