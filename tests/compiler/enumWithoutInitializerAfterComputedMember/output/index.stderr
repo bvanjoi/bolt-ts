@@ -3,3 +3,9 @@
  13 │ d
     · ─
     ╰────
+
+  × Enum member must have initializer.
+    ╭─[../../tests/compiler/enumWithoutInitializerAfterComputedMember/index.ts:20:5]
+ 20 │ c
+    · ─
+    ╰────

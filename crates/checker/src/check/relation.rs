@@ -283,6 +283,15 @@ impl<'cx> TyChecker<'cx> {
         self.check_type_related_to(source, target, RelationKind::Assignable, error_node)
     }
 
+    pub(super) fn check_type_comparable_to(
+        &mut self,
+        source: &'cx Ty<'cx>,
+        target: &'cx Ty<'cx>,
+        error_node: Option<ast::NodeID>,
+    ) -> bool {
+        self.check_type_related_to(source, target, RelationKind::Comparable, error_node)
+    }
+
     pub(super) fn get_props_of_object_ty(&mut self, ty: &'cx Ty<'cx>) -> &'cx [SymbolID] {
         if ty.kind.is_object() {
             self.resolve_structured_type_members(ty);

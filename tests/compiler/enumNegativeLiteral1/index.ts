@@ -3,3 +3,7 @@
 enum E {
   a = -5, b, c
 }
+
+enum B {
+  a = -5.2, b, c
+}

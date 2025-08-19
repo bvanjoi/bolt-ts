@@ -13,3 +13,10 @@ enum B {
     d
     //~^ ERROR: Enum member must have initializer.
 }
+
+enum C {
+    a,
+    b = '',
+    c
+    //~^ ERROR: Enum member must have initializer.
+}

@@ -13,7 +13,8 @@ links!(
     (effects_sig, &'cx ty::Sig<'cx>),
     (skip_direct_inference, bool),
     (non_existent_prop_checked, bool),
-    (enum_member_value, EnumMemberValue)
+    (enum_member_value, EnumMemberValue),
+    (assertion_expression_ty, &'cx ty::Ty<'cx>),
 );
 
 impl NodeLinks<'_> {

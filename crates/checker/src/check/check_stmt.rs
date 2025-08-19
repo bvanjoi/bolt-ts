@@ -47,6 +47,8 @@ impl<'cx> TyChecker<'cx> {
         for member in node.members {
             self.check_enum_member(member);
         }
+
+        self.compute_enum_member_values(node);
     }
 
     fn check_enum_member(&mut self, member: &'cx ast::EnumMember<'cx>) {

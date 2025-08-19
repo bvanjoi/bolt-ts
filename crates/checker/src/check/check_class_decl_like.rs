@@ -1,5 +1,3 @@
-use std::mem;
-
 use super::symbol_info::SymbolInfo;
 use super::{TyChecker, errors};
 use crate::ty;

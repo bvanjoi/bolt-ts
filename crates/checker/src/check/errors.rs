@@ -685,3 +685,15 @@ pub(super) struct EnumMemberMustHaveInitializer {
     #[label(primary)]
     pub span: Span,
 }
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
+#[error(
+    "Conversion of type '{source_ty}' to type '{target_ty}' may be a mistake because neither type sufficiently overlaps with the other. If this was intentional, convert the expression to 'unknown' first."
+)]
+pub(super) struct ConversionOfType0ToType1MayBeAMistakeBecauseNeitherTypeSufficientlyOverlapsWithTheOtherIfThisWasIntentionalConvertTheExpressionToUnknownFirst
+{
+    #[label(primary)]
+    pub span: Span,
+    pub source_ty: String,
+    pub target_ty: String,
+}

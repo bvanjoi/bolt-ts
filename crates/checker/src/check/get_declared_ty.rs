@@ -20,7 +20,7 @@ use bolt_ts_binder::{SymbolFlags, SymbolID, SymbolName};
 
 #[derive(Debug, Clone, Copy)]
 pub enum EnumMemberValue {
-    Int(i32),
+    Number(f64),
     Str(Atom),
     Err,
 }
@@ -438,14 +438,14 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
-    fn compute_enum_member_values(&mut self, node: &'cx ast::EnumDecl<'cx>) {
+    pub(super) fn compute_enum_member_values(&mut self, node: &'cx ast::EnumDecl<'cx>) {
         let flags = self.get_node_links(node.id).flags();
         if flags.contains(NodeCheckFlags::ENUM_VALUES_COMPUTED) {
             return;
         }
         self.get_mut_node_links(node.id)
             .config_flags(|flags| flags.union(NodeCheckFlags::ENUM_VALUES_COMPUTED));
-        let mut auto_value = Some(0);
+        let mut auto_value = Some(0.);
         let mut previous = None;
         for member in node.members {
             let _ = self.get_node_links(member.id);
@@ -453,7 +453,7 @@ impl<'cx> TyChecker<'cx> {
             self.get_mut_node_links(member.id)
                 .set_enum_member_value(ret);
             auto_value = match ret {
-                EnumMemberValue::Int(i) => Some(i + 1),
+                EnumMemberValue::Number(i) => Some(i + 1.),
                 _ => None,
             };
             previous = Some(member);
@@ -469,7 +469,7 @@ impl<'cx> TyChecker<'cx> {
         };
 
         match self.eval_expr(init, Some(member.id)) {
-            EvalResult::Int(i) => EnumMemberValue::Int(i),
+            EvalResult::Number(i) => EnumMemberValue::Number(i),
             EvalResult::Str(s) => EnumMemberValue::Str(s),
             EvalResult::Err => EnumMemberValue::Err,
         }
@@ -478,14 +478,14 @@ impl<'cx> TyChecker<'cx> {
     fn compute_enum_member_value(
         &mut self,
         member: &'cx ast::EnumMember<'cx>,
-        auto_value: Option<i32>,
+        auto_value: Option<f64>,
         previous: Option<&ast::EnumMember>,
     ) -> EnumMemberValue {
         if member.init.is_some() {
             return self.compute_constant_enum_member_value(member);
         }
         match auto_value {
-            Some(i) => EnumMemberValue::Int(i),
+            Some(i) => EnumMemberValue::Number(i),
             None => {
                 let error = errors::EnumMemberMustHaveInitializer {
                     span: member.name.span(),

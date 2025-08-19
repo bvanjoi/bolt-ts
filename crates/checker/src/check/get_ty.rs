@@ -397,11 +397,11 @@ impl<'cx> TyChecker<'cx> {
     }
 
     pub(crate) fn get_ty_from_type_node(&mut self, node: &ast::Ty<'cx>) -> &'cx Ty<'cx> {
-        let ty = self._get_ty_from_type_node(node);
+        let ty = self.get_ty_from_type_node_worker(node);
         self.get_conditional_flow_of_ty(ty, node.id())
     }
 
-    pub(super) fn _get_ty_from_type_node(&mut self, node: &ast::Ty<'cx>) -> &'cx Ty<'cx> {
+    pub(super) fn get_ty_from_type_node_worker(&mut self, node: &ast::Ty<'cx>) -> &'cx Ty<'cx> {
         use bolt_ts_ast::TyKind::*;
         match node.kind {
             Refer(node) => self.get_ty_from_ty_reference(node),

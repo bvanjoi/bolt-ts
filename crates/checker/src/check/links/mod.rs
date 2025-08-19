@@ -16,29 +16,35 @@ macro_rules! _links {
             paste::paste! {
                 $(
                     #[allow(unused)]
+                    #[track_caller]
                     pub fn [<with_ $x>](mut self, $x: $ty) -> Self {
                         self.[<set_ $x>]($x);
                         self
                     }
                     #[allow(unused)]
+                    #[track_caller]
                     pub fn [<set_ $x>](&mut self, $x: $ty) {
                         assert!(self.$x.is_none());
                         self.$x = Some($x);
                     }
                     #[allow(unused)]
+                    #[track_caller]
                     pub fn [<override_ $x>](&mut self, $x: $ty) {
                         assert!(self.$x.is_some());
                         self.$x = Some($x);
                     }
                     #[allow(unused)]
+                    #[track_caller]
                     pub fn [<get_ $x>](&self) -> Option<$ty> {
                         self.$x
                     }
                     #[allow(unused)]
+                    #[track_caller]
                     pub fn [<expect_ $x>](&self) -> $ty {
                         self.$x.unwrap()
                     }
                     #[allow(unused)]
+                    #[track_caller]
                     pub fn [<config_ $x>](&mut self, f: impl FnOnce($ty) -> $ty) {
                         self.$x = match self.$x {
                             Some(c) => Some(f(c)),
@@ -69,6 +75,7 @@ impl<'cx> super::TyChecker<'cx> {
             .or_insert_with(|| NodeLinks::default().with_flags(NodeCheckFlags::empty()))
     }
 
+    #[track_caller]
     pub fn get_mut_node_links(&mut self, node: NodeID) -> &mut NodeLinks<'cx> {
         self.node_links.get_mut(&node).unwrap()
     }

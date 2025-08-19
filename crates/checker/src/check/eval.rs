@@ -5,8 +5,9 @@ use bolt_ts_ast as ast;
 use bolt_ts_atom::Atom;
 use bolt_ts_binder::{Symbol, SymbolFlags, SymbolID};
 
+#[derive(Debug, Clone, Copy)]
 pub(crate) enum EvalResult {
-    Int(i32),
+    Number(f64),
     Str(Atom),
     Err,
 }
@@ -20,8 +21,24 @@ impl<'cx> TyChecker<'cx> {
         debug_assert!(location.is_none_or(|location| self.p.node(location).is_decl()));
         match expr.kind {
             ast::ExprKind::Ident(n) => self.eval_ident(n, SymbolFlags::VALUE, true, location),
+            ast::ExprKind::NumLit(n) => EvalResult::Number(n.val),
             ast::ExprKind::StringLit(n) => EvalResult::Str(n.val),
             ast::ExprKind::Paren(n) => self.eval_expr(n.expr, location),
+            ast::ExprKind::PrefixUnary(n) => {
+                let v = self.eval_expr(n.expr, location);
+                let i = match v {
+                    EvalResult::Number(i) => i,
+                    EvalResult::Str(_) | EvalResult::Err => return EvalResult::Err,
+                };
+                match n.op {
+                    ast::PrefixUnaryOp::Plus => EvalResult::Number(i),
+                    ast::PrefixUnaryOp::Minus => EvalResult::Number(-i),
+                    ast::PrefixUnaryOp::PlusPlus => EvalResult::Err,
+                    ast::PrefixUnaryOp::MinusMinus => EvalResult::Err,
+                    ast::PrefixUnaryOp::Tilde => EvalResult::Err,
+                    ast::PrefixUnaryOp::Excl => EvalResult::Err,
+                }
+            }
             _ => EvalResult::Err,
         }
     }
@@ -61,7 +78,7 @@ impl<'cx> TyChecker<'cx> {
             todo!("error handle")
         }
         match value {
-            EnumMemberValue::Int(v) => EvalResult::Int(v),
+            EnumMemberValue::Number(v) => EvalResult::Number(v),
             EnumMemberValue::Str(v) => EvalResult::Str(v),
             EnumMemberValue::Err => EvalResult::Err,
         }

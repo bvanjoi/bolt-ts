@@ -215,8 +215,8 @@ impl<'cx> TyChecker<'cx> {
                 // TODO: support super
                 self.undefined_ty
             }
-            As(n) => self.check_assertion(n.expr, n.ty),
-            TyAssertion(n) => self.check_assertion(n.expr, n.ty),
+            As(n) => self.check_assertion(n.id, n.expr, n.ty),
+            TyAssertion(n) => self.check_assertion(n.id, n.expr, n.ty),
             Satisfies(n) => self.check_expr(n.expr),
             NonNull(n) => self.check_expr(n.expr),
             Template(n) => self.check_template_expr(n),
@@ -438,16 +438,23 @@ impl<'cx> TyChecker<'cx> {
 
     fn check_assertion(
         &mut self,
+        node_id: ast::NodeID,
         assert_expr: &'cx ast::Expr<'cx>,
         assert_ty: &'cx ast::Ty<'cx>,
     ) -> &'cx ty::Ty<'cx> {
-        // TODO: check ty assertion.
         let expr_ty = self.check_expr(assert_expr);
         if assert_ty.is_const_ty_refer() {
-            self.get_regular_ty_of_literal_ty(expr_ty)
-        } else {
-            self.get_ty_from_type_node(assert_ty)
+            return self.get_regular_ty_of_literal_ty(expr_ty);
         }
+        self.check_node_deferred(node_id);
+        let ret = self.get_ty_from_type_node(assert_ty);
+        if let Some(_old) = self.get_node_links(node_id).get_assertion_expression_ty() {
+            // debug_assert_eq!(old, expr_ty); // TODO: remove duplicate.
+        } else {
+            self.get_mut_node_links(node_id)
+                .set_assertion_expression_ty(expr_ty);
+        }
+        ret
     }
 
     pub(super) fn check_truthiness_expr(&mut self, expr: &'cx ast::Expr) -> &'cx ty::Ty<'cx> {
