@@ -76,7 +76,7 @@
      · ───────
      ╰────
 
-  × Type '(a: number) => void' is not assignable to type '(type: string) =>
+  × Type '(a: number) => number' is not assignable to type '(type: string) =>
   │ string'.
      ╭─[../../tests/compiler/fest/index.ts:370:9]
  370 │ b1
@@ -697,15 +697,15 @@
       ╰────
 
   × Type 'undefined[]' is not assignable to type 'Record'.
-      ╭─[../../tests/compiler/fest/index.ts:2782:9]
- 2782 │ []
-      · ──
+      ╭─[../../tests/compiler/fest/index.ts:2782:3]
+ 2782 │ foo
+      · ───
       ╰────
 
   × Type 'number' is not assignable to type 'Record'.
-      ╭─[../../tests/compiler/fest/index.ts:2784:9]
- 2784 │ 42
-      · ──
+      ╭─[../../tests/compiler/fest/index.ts:2784:3]
+ 2784 │ foo
+      · ───
       ╰────
 
   × Type 'number' is not assignable to type 'string'.

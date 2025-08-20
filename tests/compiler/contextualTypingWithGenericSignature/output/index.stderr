@@ -1,5 +1,5 @@
-  × Type '(x: T, y: U) => void' is not assignable to type '(x: T, y: U) => T'.
-   ╭─[../../tests/compiler/contextualTypingWithGenericSignature/index.ts:8:6]
- 8 │ (x, y) => { return y }
-   · ──────────────────────
+  × Type '(x: T, y: U) => U' is not assignable to type '(x: T, y: U) => T'.
+   ╭─[../../tests/compiler/contextualTypingWithGenericSignature/index.ts:8:1]
+ 8 │ f2
+   · ──
    ╰────

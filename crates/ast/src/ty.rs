@@ -444,6 +444,8 @@ impl ObjectMember<'_> {
             ObjectMemberKind::Prop(n) => n.span,
             ObjectMemberKind::Method(n) => n.span,
             ObjectMemberKind::SpreadAssignment(n) => n.span,
+            ObjectMemberKind::Getter(n) => n.span,
+            ObjectMemberKind::Setter(n) => n.span,
         }
     }
 
@@ -453,6 +455,8 @@ impl ObjectMember<'_> {
             ObjectMemberKind::Prop(n) => n.id,
             ObjectMemberKind::Method(n) => n.id,
             ObjectMemberKind::SpreadAssignment(n) => n.id,
+            ObjectMemberKind::Getter(n) => n.id,
+            ObjectMemberKind::Setter(n) => n.id,
         }
     }
 }
@@ -463,6 +467,8 @@ pub enum ObjectMemberKind<'cx> {
     Prop(&'cx ObjectPropMember<'cx>),
     Method(&'cx ObjectMethodMember<'cx>),
     SpreadAssignment(&'cx SpreadAssignment<'cx>),
+    Getter(&'cx GetterDecl<'cx>),
+    Setter(&'cx SetterDecl<'cx>),
 }
 
 #[derive(Debug, Clone, Copy)]

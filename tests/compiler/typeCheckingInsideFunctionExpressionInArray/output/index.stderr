@@ -11,9 +11,9 @@
    ╰────
 
   × Type 'Object' is not assignable to type 'string'.
-   ╭─[../../tests/compiler/typeCheckingInsideFunctionExpressionInArray/index.ts:6:9]
- 6 │ new Object()
-   · ────────────
+   ╭─[../../tests/compiler/typeCheckingInsideFunctionExpressionInArray/index.ts:6:5]
+ 6 │ k
+   · ─
    ╰────
 
   × Property 'NonexistantMethod' does not exist on type 'number[]'.

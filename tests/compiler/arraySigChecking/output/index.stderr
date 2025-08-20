@@ -15,8 +15,14 @@
     · ──────────────
     ╰────
 
-  × Type 'number[][]' is not assignable to type 'number[][][]'.
-    ╭─[../../tests/compiler/arraySigChecking/index.ts:26:11]
- 26 │ [[1, 2]]
-    · ────────
+  × Type 'number' is not assignable to type 'number[]'.
+    ╭─[../../tests/compiler/arraySigChecking/index.ts:26:13]
+ 26 │ 1
+    · ─
+    ╰────
+
+  × Type 'number' is not assignable to type 'number[]'.
+    ╭─[../../tests/compiler/arraySigChecking/index.ts:26:16]
+ 26 │ 2
+    · ─
     ╰────

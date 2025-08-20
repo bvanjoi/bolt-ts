@@ -607,13 +607,13 @@ impl<'cx> TyChecker<'cx> {
                     Shorthand(n) => self.check_ident(n.name),
                     Prop(n) => self.check_object_prop_member(n),
                     Method(n) => self.check_object_method_member(n),
-                    SpreadAssignment(_) => unreachable!(),
+                    _ => unreachable!(),
                 };
                 let name = match member.kind {
                     Shorthand(n) => SymbolName::Atom(n.name.name),
                     Prop(n) => bolt_ts_binder::prop_name(n.name),
                     Method(n) => bolt_ts_binder::prop_name(n.name),
-                    SpreadAssignment(_) => unreachable!(),
+                    _ => unreachable!(),
                 };
                 object_flags |= ty.get_object_flags() & ObjectFlags::PROPAGATING_FLAGS;
                 let member_s = self.binder.symbol(member_symbol);
@@ -667,6 +667,18 @@ impl<'cx> TyChecker<'cx> {
                     // TODO: error
                     spread = self.error_ty;
                 }
+            } else {
+                debug_assert!(matches!(member.kind, Setter(_) | Getter(_)));
+                // TODO: deferred check
+
+                let name = match member.kind {
+                    Setter(n) => bolt_ts_binder::prop_name(n.name),
+                    Getter(n) => bolt_ts_binder::prop_name(n.name),
+                    _ => unreachable!(),
+                };
+                let member_symbol = self.get_symbol_of_decl(member.id());
+                properties_table.insert(name, member_symbol);
+                properties_array.push(member_symbol);
             }
         }
         self.pop_type_context();

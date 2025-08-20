@@ -1,0 +1,5 @@
+  × Type '() => string' is not assignable to type '() => number'.
+   ╭─[../../tests/compiler/contextualTyping33/index.ts:3:90]
+ 3 │ function(){return "foo"}
+   · ────────────────────────
+   ╰────

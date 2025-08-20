@@ -272,7 +272,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
 
     fn parse_class_prop_or_method(
         &mut self,
-        start: usize,
+        start: u32,
         modifiers: Option<&'cx ast::Modifiers<'cx>>,
     ) -> PResult<&'cx ast::ClassElem<'cx>> {
         let name = self.parse_prop_name(true)?;
@@ -285,7 +285,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
             let id = self.next_node_id();
             let method = self.alloc(ast::ClassMethodElem {
                 id,
-                span: self.new_span(start as u32),
+                span: self.new_span(start),
                 modifiers,
                 name,
                 ty_params,
@@ -342,7 +342,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
 
     fn try_parse_ctor(
         &mut self,
-        start: usize,
+        start: u32,
         mods: Option<&'cx ast::Modifiers<'cx>>,
     ) -> PResult<Option<&'cx ast::ClassElem<'cx>>> {
         self.try_parse(|this| {
@@ -352,9 +352,9 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
                 this.p().check_params(params, true);
                 let ret = this.p().parse_ret_ty(true)?;
                 let body = this.p().parse_fn_block()?;
-                let ctor =
-                    this.p()
-                        .create_class_ctor(start as u32, mods, ty_params, params, ret, body);
+                let ctor = this
+                    .p()
+                    .create_class_ctor(start, mods, ty_params, params, ret, body);
                 let ele = this.p().alloc(ast::ClassElem {
                     kind: ast::ClassElemKind::Ctor(ctor),
                 });
@@ -365,26 +365,8 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         })
     }
 
-    fn parse_accessor_decl(
-        &mut self,
-        start: usize,
-        modifiers: Option<&'cx ast::Modifiers<'cx>>,
-        t: TokenKind,
-    ) -> PResult<&'cx ast::ClassElem<'cx>> {
-        let is_getter = t == TokenKind::Get;
-        assert!(is_getter || t == TokenKind::Set);
-        let kind = if is_getter {
-            let decl = self.parse_getter_accessor_decl(start, modifiers, false)?;
-            ast::ClassElemKind::Getter(decl)
-        } else {
-            let decl = self.parse_setter_accessor_decl(start, modifiers, false)?;
-            ast::ClassElemKind::Setter(decl)
-        };
-        Ok(self.alloc(ast::ClassElem { kind }))
-    }
-
     fn parse_class_ele(&mut self) -> PResult<&'cx ast::ClassElem<'cx>> {
-        let start = self.token.start() as usize;
+        let start = self.token.start();
 
         if self.token.kind == TokenKind::Static
             && self.lookahead(|l| {
@@ -398,9 +380,15 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         let modifiers = self.parse_modifiers::<false>(true, None)?;
 
         if self.parse_contextual_modifier(TokenKind::Get) {
-            self.parse_accessor_decl(start, modifiers, TokenKind::Get)
+            let decl = self.parse_getter_accessor_decl(start, modifiers, false)?;
+            Ok(self.alloc(ast::ClassElem {
+                kind: ast::ClassElemKind::Getter(decl),
+            }))
         } else if self.parse_contextual_modifier(TokenKind::Set) {
-            self.parse_accessor_decl(start, modifiers, TokenKind::Set)
+            let decl = self.parse_setter_accessor_decl(start, modifiers, false)?;
+            Ok(self.alloc(ast::ClassElem {
+                kind: ast::ClassElemKind::Setter(decl),
+            }))
         } else if matches!(self.token.kind, TokenKind::Constructor | TokenKind::String)
             && let Ok(Some(ctor)) = self.try_parse_ctor(start, modifiers)
         {

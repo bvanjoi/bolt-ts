@@ -1779,13 +1779,24 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
             );
         } else {
             'outer: for t in target_sigs {
+                let saved = self.c.diags.len();
+                let mut should_elaborate_errors = report_error;
                 for s in source_sigs {
                     let related = self.sig_related_to(s, t, true, report_error, intersection_state);
                     if related != Ternary::FALSE {
                         result &= related;
+                        self.c.diags.truncate(saved);
                         continue 'outer;
                     }
+                    should_elaborate_errors = false;
                 }
+                // if should_elaborate_errors {
+                //     let error = Box::new(errors::TypeXProvidesNoMatchForTheSignatureY {
+                //         span: source,
+                //         ty: source.to_string(self),
+                //         sig: t.,
+                //     });
+                // }
                 return Ternary::FALSE;
             }
         }
@@ -2015,6 +2026,18 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
                 }
 
                 if related == Ternary::FALSE {
+                    // if report_error {
+                    //     let error = Box::new(errors::TypesOfParametersXAndYAreIncompatible {
+                    //         span: self
+                    //             .c
+                    //             .p
+                    //             .node(self.c.symbol(source.params[i]).value_decl.unwrap())
+                    //             .span(),
+                    //         ty_x: source_ty.to_string(self.c),
+                    //         ty_y: target_ty.to_string(self.c),
+                    //     });
+                    //     self.c.push_error(error);
+                    // }
                     return Ternary::FALSE;
                 }
                 result &= related;

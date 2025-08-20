@@ -1275,6 +1275,12 @@ impl<'ir> Emitter<'_, 'ir> {
                 let n = self.nodes.get_spread_assignment(&n);
                 self.emit_expr(n.expr());
             }
+            ir::ObjectLitMember::Getter(n) => {
+                self.emit_getter_decl(n);
+            }
+            ir::ObjectLitMember::Setter(n) => {
+                self.emit_setter_decl(n);
+            }
         }
     }
 

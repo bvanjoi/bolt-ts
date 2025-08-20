@@ -16,9 +16,9 @@ Advice:
    ╰────
 
   × Property 'x' is missing.
-    ╭─[../../tests/compiler/classImplementsClass4/index.ts:19:6]
- 19 │ c
-    · ─
+    ╭─[../../tests/compiler/classImplementsClass4/index.ts:19:1]
+ 19 │ c2
+    · ──
     ╰────
 
 Advice: 

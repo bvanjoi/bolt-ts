@@ -697,3 +697,21 @@ pub(super) struct ConversionOfType0ToType1MayBeAMistakeBecauseNeitherTypeSuffici
     pub source_ty: String,
     pub target_ty: String,
 }
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
+#[error("Types of parameters '{ty_x}' and '{ty_y}' are incompatible.")]
+pub(super) struct TypesOfParametersXAndYAreIncompatible {
+    #[label(primary)]
+    pub span: Span,
+    pub ty_x: String,
+    pub ty_y: String,
+}
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
+#[error("Type '{ty}' provides no match for the signature '{sig}'.")]
+pub(super) struct TypeXProvidesNoMatchForTheSignatureY {
+    #[label(primary)]
+    pub span: Span,
+    pub ty: String,
+    pub sig: String,
+}

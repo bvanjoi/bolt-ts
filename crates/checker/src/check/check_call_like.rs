@@ -64,7 +64,7 @@ impl<'cx> TyChecker<'cx> {
         (self.get_ret_ty_of_sig(sig)) as _
     }
 
-    pub(super) fn get_ret_ty_of_sig(&mut self, sig: &'cx Sig<'cx>) -> &'cx ty::Ty<'cx> {
+    pub(crate) fn get_ret_ty_of_sig(&mut self, sig: &'cx Sig<'cx>) -> &'cx ty::Ty<'cx> {
         if let Some(ty) = self.get_sig_links(sig.id).get_resolved_ret_ty() {
             return ty;
         }

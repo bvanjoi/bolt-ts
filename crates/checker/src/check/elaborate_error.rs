@@ -81,7 +81,9 @@ impl<'cx> TyChecker<'cx> {
                         inner_expr: None,
                         name_ty: ty,
                     }),
-                    SpreadAssignment(n) => unreachable!(),
+                    SpreadAssignment(_) => unreachable!(),
+                    Getter(_) => todo!(),
+                    Setter(_) => todo!(),
                 }
             })
             .collect::<Vec<_>>();

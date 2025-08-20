@@ -194,10 +194,10 @@ dependencies = [
  "bolt_ts_libs",
  "bolt_ts_middle",
  "bolt_ts_module_graph",
+ "bolt_ts_module_resolve",
  "bolt_ts_optimize",
  "bolt_ts_parser",
  "bolt_ts_path",
- "bolt_ts_resolve",
  "bolt_ts_span",
  "bolt_ts_tracing",
  "bolt_ts_utils",
@@ -322,14 +322,30 @@ dependencies = [
  "bolt_ts_errors",
  "bolt_ts_fs",
  "bolt_ts_middle",
+ "bolt_ts_module_resolve",
  "bolt_ts_parser",
  "bolt_ts_path",
- "bolt_ts_resolve",
  "bolt_ts_span",
  "bolt_ts_utils",
  "indexmap",
  "rayon",
  "rustc-hash",
+]
+
+[[package]]
+name = "bolt_ts_module_resolve"
+version = "0.1.0"
+dependencies = [
+ "bitflags",
+ "bolt_ts_atom",
+ "bolt_ts_config",
+ "bolt_ts_fs",
+ "bolt_ts_path",
+ "bolt_ts_utils",
+ "nohash-hasher",
+ "rustc-hash",
+ "serde",
+ "serde_json",
 ]
 
 [[package]]
@@ -365,8 +381,8 @@ dependencies = [
  "bolt_ts_errors",
  "bolt_ts_fs",
  "bolt_ts_libs",
+ "bolt_ts_module_resolve",
  "bolt_ts_path",
- "bolt_ts_resolve",
  "bolt_ts_span",
  "bolt_ts_tracing",
  "bolt_ts_utils",
@@ -391,22 +407,6 @@ name = "bolt_ts_path"
 version = "0.1.0"
 dependencies = [
  "bolt_ts_utils",
-]
-
-[[package]]
-name = "bolt_ts_resolve"
-version = "0.1.0"
-dependencies = [
- "bitflags",
- "bolt_ts_atom",
- "bolt_ts_config",
- "bolt_ts_fs",
- "bolt_ts_path",
- "bolt_ts_utils",
- "nohash-hasher",
- "rustc-hash",
- "serde",
- "serde_json",
 ]
 
 [[package]]

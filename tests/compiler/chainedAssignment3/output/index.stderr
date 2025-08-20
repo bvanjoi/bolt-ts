@@ -1,7 +1,7 @@
   × Property 'value' is missing.
-    ╭─[../../tests/compiler/chainedAssignment3/index.ts:20:5]
- 20 │ a = new A()
-    · ───────────
+    ╭─[../../tests/compiler/chainedAssignment3/index.ts:20:1]
+ 20 │ b
+    · ─
     ╰────
 
 Advice: 
@@ -12,9 +12,9 @@ Advice:
    ╰────
 
   × Property 'value' is missing.
-    ╭─[../../tests/compiler/chainedAssignment3/index.ts:22:9]
- 22 │ new A()
-    · ───────
+    ╭─[../../tests/compiler/chainedAssignment3/index.ts:22:5]
+ 22 │ b
+    · ─
     ╰────
 
 Advice: 

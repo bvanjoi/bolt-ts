@@ -410,7 +410,7 @@ impl<'cx> Node<'cx> {
             };
         }
 
-        if let Some(ty) = dot_ty!(FnTy, IndexSigDecl) {
+        if let Some(ty) = dot_ty!(FnTy, IndexSigDecl, CtorTy) {
             return Some(ty);
         }
 
@@ -514,11 +514,10 @@ impl<'cx> Node<'cx> {
         if let Some(f) = self.as_arrow_fn_expr() {
             return Some(f.body);
         }
-        use super::ArrowFnExprBody::Block;
         macro_rules! fn_body {
             ($($node_kind:ident),* $(,)?) => {
                 match self {
-                    $(Node::$node_kind(n) => Some(Block(&n.body)),)*
+                    $(Node::$node_kind(n) => Some(super::ArrowFnExprBody::Block(&n.body)),)*
                     _ => None,
                 }
             };
@@ -531,7 +530,7 @@ impl<'cx> Node<'cx> {
         macro_rules! fn_body_with_option {
             ($( $node_kind:ident),* $(,)?) => {
                 match self {
-                    $(Node::$node_kind(n) if n.body.is_some() => Some(Block(n.body.unwrap())),)*
+                    $(Node::$node_kind(n) if n.body.is_some() => Some(super::ArrowFnExprBody::Block(n.body.unwrap())),)*
                     _ => None,
                 }
             };

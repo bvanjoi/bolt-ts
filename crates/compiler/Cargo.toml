@@ -26,7 +26,7 @@ bolt_ts_parser = { path = "../parser" }
 bolt_ts_config = { path = "../config" }
 bolt_ts_utils = { path = "../../helper/utils" }
 bolt_ts_fs = { path = "../../helper/fs" }
-bolt_ts_resolve = { path = "../resolve" }
+bolt_ts_module_resolve = { path = "../module_resolve" }
 bolt_ts_path = { path = "../path" }
 bolt_ts_tracing = { path = "../tracing" }
 project-root = "0.2.2"

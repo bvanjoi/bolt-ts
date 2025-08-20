@@ -2,7 +2,7 @@
 
 function f1(): { new (): number; } {
   return function () { return; }
-  //~^ ERROR: Type '() => void' is not assignable to type 'new () => number'.
+  //~^ ERROR: Type '() => undefined' is not assignable to type 'new () => number'.
 }; 
 
 var x = f1();

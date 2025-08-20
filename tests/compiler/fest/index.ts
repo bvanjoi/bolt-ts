@@ -368,7 +368,7 @@ type ConditionalSimplifyDeep<Type, ExcludeType = never, IncludeType = unknown> =
   const b0: SimplifiedFunctionFail = (a: string) => a;
   const simplifiedFunctionPass: SimplifiedFunctionPass = (a: string) => a;
   const b1: SimplifiedFunctionPass = (a: number) => a;
-  //~^ ERROR: Type '(a: number) => void' is not assignable to type '(type: string) => string'.
+  //~^ ERROR: Type '(a: number) => number' is not assignable to type '(type: string) => string'.
 
   // Should simplify interface deeply.
   type SomeNode = {

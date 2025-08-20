@@ -12,9 +12,9 @@ Advice:
    ╰────
 
   × Property 'foo' is missing.
-    ╭─[../../tests/compiler/classImplementsClass2/index.ts:16:6]
- 16 │ c
-    · ─
+    ╭─[../../tests/compiler/classImplementsClass2/index.ts:16:1]
+ 16 │ c2
+    · ──
     ╰────
 
 Advice: 

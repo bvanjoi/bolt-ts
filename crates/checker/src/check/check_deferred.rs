@@ -38,8 +38,8 @@ impl<'cx> TyChecker<'cx> {
             if !self.check_type_comparable_to(expr_ty, target_ty, Some(expr.id)) {
                 let error = errors::ConversionOfType0ToType1MayBeAMistakeBecauseNeitherTypeSufficientlyOverlapsWithTheOtherIfThisWasIntentionalConvertTheExpressionToUnknownFirst {
                     span: expr.span,
-                    source_ty: target_ty.to_string(self),
-                    target_ty: widened_ty.to_string(self),
+                    source_ty: widened_ty.to_string(self),
+                    target_ty: target_ty.to_string(self),
                 };
                 self.push_error(Box::new(error));
             }

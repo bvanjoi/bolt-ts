@@ -742,8 +742,25 @@ impl<'cx> Resolver<'cx, '_, '_> {
             SpreadAssignment(n) => {
                 self.resolve_expr(n.expr);
             }
+            Getter(n) => {
+                self.resolve_prop_name(n.name);
+                if let Some(ty) = n.ty {
+                    self.resolve_ty(ty);
+                }
+                if let Some(body) = n.body {
+                    self.resolve_block_stmt(body);
+                }
+            }
+            Setter(n) => {
+                self.resolve_prop_name(n.name);
+                self.resolve_params(n.params);
+                if let Some(body) = n.body {
+                    self.resolve_block_stmt(body);
+                }
+            }
         }
     }
+
     fn resolve_fn_decl(&mut self, f: &'cx ast::FnDecl<'cx>) {
         if let Some(ty_params) = f.ty_params {
             self.resolve_ty_params(ty_params);
@@ -756,6 +773,7 @@ impl<'cx> Resolver<'cx, '_, '_> {
             self.resolve_ty(ty);
         }
     }
+
     fn resolve_if_stmt(&mut self, stmt: &'cx ast::IfStmt<'cx>) {
         self.resolve_expr(stmt.expr);
         self.resolve_stmt(stmt.then);
@@ -763,19 +781,23 @@ impl<'cx> Resolver<'cx, '_, '_> {
             self.resolve_stmt(else_then);
         }
     }
+
     fn resolve_block_stmt(&mut self, block: &'cx ast::BlockStmt<'cx>) {
         for stmt in block.stmts {
             self.resolve_stmt(stmt);
         }
     }
+
     fn resolve_return_stmt(&mut self, ret: &'cx ast::RetStmt<'cx>) {
         if let Some(expr) = ret.expr {
             self.resolve_expr(expr);
         }
     }
+
     fn resolve_class_decl(&mut self, class: &'cx ast::ClassDecl<'cx>) {
         self.resolve_class_like(class);
     }
+
     fn resolve_interface_decl(&mut self, interface: &'cx ast::InterfaceDecl<'cx>) {
         if let Some(ty_params) = interface.ty_params {
             self.resolve_ty_params(ty_params);

@@ -2386,6 +2386,8 @@ pub enum ObjectLitMember {
     Prop(ObjectPropMemberID),
     Shorthand(ObjectShorthandMemberID),
     SpreadAssignment(SpreadAssignmentID),
+    Getter(GetterDeclID),
+    Setter(SetterDeclID),
 }
 
 #[derive(Debug)]

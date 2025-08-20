@@ -681,6 +681,12 @@ impl<'checker, 'cx> LoweringCtx<'checker, 'cx> {
                                 self.nodes.alloc_spread_assignment(n.span, expr),
                             )
                         }
+                        ast::ObjectMemberKind::Getter(n) => {
+                            ir::ObjectLitMember::Getter(self.lower_getter_decl(n).unwrap())
+                        }
+                        ast::ObjectMemberKind::Setter(n) => {
+                            ir::ObjectLitMember::Setter(self.lower_setter_decl(n).unwrap())
+                        }
                     })
                     .collect();
                 ir::Expr::ObjectLit(self.nodes.alloc_object_lit(n.span, members))

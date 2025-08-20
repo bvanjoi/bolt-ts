@@ -1,0 +1,7 @@
+  × Conversion of type '() => string' to type '() => number' may be a mistake
+  │ because neither type sufficiently overlaps with the other. If this was
+  │ intentional, convert the expression to 'unknown' first.
+   ╭─[../../tests/compiler/contextualTyping39/index.ts:3:11]
+ 3 │ <{ (): number; }> function() { return "err"; }
+   · ──────────────────────────────────────────────
+   ╰────

@@ -695,11 +695,17 @@ impl<'cx> ParserState<'cx, '_> {
 
         let mods = self.parse_modifiers::<false>(false, None)?;
 
-        // if self.parse_contextual_modifier(TokenKind::Get) {
-        //     // TODO:
-        // } else if self.parse_contextual_modifier(TokenKind::Set) {
-        //     // TODO:
-        // }
+        if self.parse_contextual_modifier(TokenKind::Get) {
+            let decl = self.parse_getter_accessor_decl(start, mods, false)?;
+            return Ok(self.alloc(ast::ObjectMember {
+                kind: ast::ObjectMemberKind::Getter(decl),
+            }));
+        } else if self.parse_contextual_modifier(TokenKind::Set) {
+            let decl = self.parse_setter_accessor_decl(start, mods, false)?;
+            return Ok(self.alloc(ast::ObjectMember {
+                kind: ast::ObjectMemberKind::Setter(decl),
+            }));
+        }
 
         let asterisk_token = self.parse_optional(TokenKind::Asterisk);
 

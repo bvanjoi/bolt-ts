@@ -9,7 +9,7 @@ use std::sync::{Arc, Mutex};
 
 use bolt_ts_atom::{Atom, AtomIntern};
 use bolt_ts_fs::PathId;
-use bolt_ts_resolve::RResult;
+use bolt_ts_module_resolve::RResult;
 use bolt_ts_utils::fx_hashmap_with_capacity;
 use rayon::prelude::*;
 use rustc_hash::FxHashMap;
@@ -61,7 +61,7 @@ pub fn build_graph<'cx>(
     fs: impl bolt_ts_fs::CachedFileSystem,
 ) -> ModuleGraph {
     let fs = Arc::new(Mutex::new(fs));
-    let resolver = bolt_ts_resolve::Resolver::new(fs.clone(), atoms.clone());
+    let resolver = bolt_ts_module_resolve::Resolver::new(fs.clone(), atoms.clone());
     let mut resolved = fx_hashmap_with_capacity(2048);
     let mut resolving = list.to_vec();
     let mut mg = ModuleGraph {

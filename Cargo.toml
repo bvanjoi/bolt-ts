@@ -12,10 +12,10 @@ members = [
   "crates/libs",
   "crates/middle",
   "crates/module_graph",
+  "crates/module_resolve",
   "crates/optimize",
   "crates/parser",
   "crates/path",
-  "crates/resolve",
   "crates/tracing",
   "crates/wasm",
 

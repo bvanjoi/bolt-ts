@@ -1014,7 +1014,7 @@ impl<'cx> ParserState<'cx, '_> {
             return self.parse_sig_member(false);
         }
 
-        let start = self.token.start() as usize;
+        let start = self.token.start();
         let modifiers = self.parse_modifiers::<false>(false, None)?;
 
         if self.parse_contextual_modifier(TokenKind::Get) {

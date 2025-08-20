@@ -705,7 +705,7 @@ impl<'cx> ParserState<'cx, '_> {
 
     pub(super) fn parse_index_sig_decl(
         &mut self,
-        start: usize,
+        start: u32,
         modifiers: Option<&'cx ast::Modifiers<'cx>>,
     ) -> PResult<&'cx ast::IndexSigDecl<'cx>> {
         let params = self.parse_bracketed_list::<false, _>(
@@ -728,7 +728,7 @@ impl<'cx> ParserState<'cx, '_> {
         let id = self.next_node_id();
         let sig = self.alloc(ast::IndexSigDecl {
             id,
-            span: self.new_span(start as u32),
+            span: self.new_span(start),
             modifiers,
             params,
             ty,
@@ -739,7 +739,7 @@ impl<'cx> ParserState<'cx, '_> {
 
     pub(super) fn parse_getter_accessor_decl(
         &mut self,
-        start: usize,
+        start: u32,
         modifiers: Option<&'cx ast::Modifiers<'cx>>,
         ambient: bool,
     ) -> PResult<&'cx ast::GetterDecl<'cx>> {
@@ -761,7 +761,7 @@ impl<'cx> ParserState<'cx, '_> {
         let decl = self.alloc(ast::GetterDecl {
             id,
             modifiers,
-            span: self.new_span(start as u32),
+            span: self.new_span(start),
             name,
             ty,
             body,
@@ -772,7 +772,7 @@ impl<'cx> ParserState<'cx, '_> {
 
     pub(super) fn parse_setter_accessor_decl(
         &mut self,
-        start: usize,
+        start: u32,
         modifiers: Option<&'cx ast::Modifiers<'cx>>,
         ambient: bool,
     ) -> PResult<&'cx ast::SetterDecl<'cx>> {
@@ -792,7 +792,7 @@ impl<'cx> ParserState<'cx, '_> {
         let id = self.next_node_id();
         let decl = self.alloc(ast::SetterDecl {
             id,
-            span: self.new_span(start as u32),
+            span: self.new_span(start),
             modifiers,
             name,
             params,

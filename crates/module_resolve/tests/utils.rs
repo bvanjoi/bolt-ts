@@ -1,7 +1,7 @@
 use std::sync::{Arc, Mutex};
 
 use bolt_ts_fs::PathId;
-use bolt_ts_resolve::{ResolveError, Resolver};
+use bolt_ts_module_resolve::{ResolveError, Resolver};
 
 #[cfg(test)]
 fn build_and_resolve(
