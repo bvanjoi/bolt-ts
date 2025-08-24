@@ -237,7 +237,7 @@ impl<'cx> TyChecker<'cx> {
                 Method(n) => self.check_class_method_ele(n),
                 Ctor(n) => self.check_ctor(n),
                 IndexSig(_) => {}
-                Getter(n) => self.check_accessor_decl(n),
+                Getter(n) => self.check_getter_decl(n),
                 Setter(n) => self.check_accessor_decl(n),
                 StaticBlock(n) => {
                     self.check_block(n.body);

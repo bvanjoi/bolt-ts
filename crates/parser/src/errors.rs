@@ -348,3 +348,10 @@ impl ArgumentsCannotBeReferenced {
         }
     }
 }
+
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
+#[error("Property or signature expected.")]
+pub(super) struct PropertyOrSignatureExpected {
+    #[label(primary)]
+    pub(super) span: Span,
+}

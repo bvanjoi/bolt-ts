@@ -43,21 +43,19 @@ pub(super) struct ArgumentOfTyIsNotAssignableToParameterOfTy {
 }
 
 #[derive(Error, Diagnostic, DiagnosticExt, Debug)]
-#[error("Expected {x} arguments, but got {y}.")]
+#[error("Expected {x} {}arguments, but got {y}.", {
+    if *is_ty {
+        "type "
+    } else {
+        ""
+    } 
+})]
 pub(super) struct ExpectedXArgsButGotY {
     #[label(primary)]
     pub span: Span,
     pub x: crate::check::ExpectedArgsCount,
     pub y: usize,
-}
-
-#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
-#[error("Expected {x} type arguments, but got {y}.")]
-pub(super) struct ExpectedXTyArgsButGotY {
-    #[label(primary)]
-    pub span: Span,
-    pub x: crate::check::ExpectedArgsCount,
-    pub y: usize,
+    pub is_ty: bool,
 }
 
 #[derive(Error, Diagnostic, DiagnosticExt, Debug)]
@@ -714,4 +712,21 @@ pub(super) struct TypeXProvidesNoMatchForTheSignatureY {
     pub span: Span,
     pub ty: String,
     pub sig: String,
+}
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
+#[error("Operator '{op}' cannot be applied to types '{ty1}' and '{ty2}'.")]
+pub(super) struct OperatorCannotBeAppliedToTypesXAndY {
+    #[label(primary)]
+    pub span: Span,
+    pub op: String,
+    pub ty1: String,
+    pub ty2: String,
+}
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
+#[error("A 'get' accessor must return a value.")]
+pub(super) struct AGetAccessorMustReturnAValue {
+    #[label(primary)]
+    pub span: Span,
 }

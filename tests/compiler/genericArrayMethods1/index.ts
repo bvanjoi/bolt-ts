@@ -37,5 +37,5 @@ var x:string[] =  [0,1].slice(0);
 {
 	type A<TArray extends unknown[]> = (keyof TArray & `${number}`) extends never ? true : false;
 	const a: A<[1, 2, ...number[]]> = true;
-	//~^ ERROR: Type 'true' is not assignable to type 'false'.
+	//~^ ERROR: Type 'boolean' is not assignable to type 'false'.
 }

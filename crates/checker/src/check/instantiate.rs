@@ -599,9 +599,7 @@ impl<'cx> TyChecker<'cx> {
         }
         if let Some(refer) = ty.kind.as_object_reference() {
             if refer.node.is_none() {
-                let Some(resolved_ty_args) = self.ty_links[&ty.id].get_resolved_ty_args() else {
-                    unreachable!()
-                };
+                let resolved_ty_args = self.ty_links[&ty.id].expect_resolved_ty_args();
                 let new_ty_args = self.instantiate_tys(resolved_ty_args, mapper);
                 return if resolved_ty_args == new_ty_args {
                     ty

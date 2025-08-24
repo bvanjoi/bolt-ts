@@ -1185,19 +1185,19 @@ type IsNever<T> = [T] extends [never] ? true : false;
 type IsNotFalse<T extends boolean> = [T] extends [false] ? false : true;
 {
   const a0: IsNotFalse<true> = false;
-  //~^ ERROR: Type 'false' is not assignable to type 'true'.
+  //~^ ERROR: Type 'boolean' is not assignable to type 'true'.
   const a1: IsNotFalse<boolean> = false;
-  //~^ ERROR: Type 'false' is not assignable to type 'true'.
+  //~^ ERROR: Type 'boolean' is not assignable to type 'true'.
   const a2: IsNotFalse<true | false> = false;
-  //~^ ERROR: Type 'false' is not assignable to type 'true'.
+  //~^ ERROR: Type 'boolean' is not assignable to type 'true'.
   const a3: IsNotFalse<true | false | false | false> = false;
-  //~^ ERROR: Type 'false' is not assignable to type 'true'.
+  //~^ ERROR: Type 'boolean' is not assignable to type 'true'.
   const a4: IsNotFalse<false> = true;
-  //~^ ERROR: Type 'true' is not assignable to type 'false'.
+  //~^ ERROR: Type 'boolean' is not assignable to type 'false'.
   const a5: IsNotFalse<false | false> = true;
-  //~^ ERROR: Type 'true' is not assignable to type 'false'.
+  //~^ ERROR: Type 'boolean' is not assignable to type 'false'.
   const a6: IsNotFalse<false | false | false | false> = true;
-  //~^ ERROR: Type 'true' is not assignable to type 'false'.
+  //~^ ERROR: Type 'boolean' is not assignable to type 'false'.
 }
 
 // ============= isNumberLike =============
@@ -1977,11 +1977,11 @@ type PositiveNumericStringGt<A extends string, B extends string> = A extends B
 		: never;
 {
   let a0: PositiveNumericStringGt<'500', '1'> = false;
-  //~^ ERROR: Type 'false' is not assignable to type 'true'.
+  //~^ ERROR: Type 'boolean' is not assignable to type 'true'.
   let a1: PositiveNumericStringGt<'1', '1'> = true;
-  //~^ ERROR: Type 'true' is not assignable to type 'false'.
+  //~^ ERROR: Type 'boolean' is not assignable to type 'false'.
   let a2: PositiveNumericStringGt<'1', '500'> = true;
-  //~^ ERROR: Type 'true' is not assignable to type 'false'.
+  //~^ ERROR: Type 'boolean' is not assignable to type 'false'.
 }
 
 // ========== Promisable ==========

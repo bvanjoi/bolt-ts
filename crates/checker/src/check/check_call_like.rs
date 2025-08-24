@@ -769,6 +769,7 @@ impl<'cx> TyChecker<'cx> {
                 span,
                 x: super::ExpectedArgsCount::Count(x),
                 y,
+                is_ty: false,
             };
             self.push_error(Box::new(error));
         } else if args.len() > max_required_params {
@@ -782,6 +783,7 @@ impl<'cx> TyChecker<'cx> {
                     hi: max_required_params,
                 },
                 y: args.len(),
+                is_ty: false,
             };
             self.push_error(Box::new(error));
         } else if args.len() < min_required_params {
@@ -800,6 +802,7 @@ impl<'cx> TyChecker<'cx> {
                         hi: max_required_params,
                     },
                     y: args.len(),
+                    is_ty: false,
                 })
             };
             self.push_error(error);
@@ -894,10 +897,11 @@ impl<'cx> TyChecker<'cx> {
                 let hi = expr.callee().span().hi();
                 Span::new(hi, hi, expr.span().module())
             });
-            let error = errors::ExpectedXTyArgsButGotY {
+            let error = errors::ExpectedXArgsButGotY {
                 span,
                 x,
                 y: ty_arg_count,
+                is_ty: true,
             };
             self.push_error(Box::new(error));
         }
@@ -947,6 +951,7 @@ impl<'cx> TyChecker<'cx> {
                     span: expr.span(),
                     x: super::ExpectedArgsCount::Count(min),
                     y: args.len(),
+                    is_ty: false,
                 };
                 self.push_error(Box::new(error));
             }

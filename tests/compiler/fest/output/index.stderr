@@ -244,43 +244,43 @@
       · ────────────────────────
       ╰────
 
-  × Type 'false' is not assignable to type 'true'.
+  × Type 'boolean' is not assignable to type 'true'.
       ╭─[../../tests/compiler/fest/index.ts:1187:9]
  1187 │ a0
       · ──
       ╰────
 
-  × Type 'false' is not assignable to type 'true'.
+  × Type 'boolean' is not assignable to type 'true'.
       ╭─[../../tests/compiler/fest/index.ts:1189:9]
  1189 │ a1
       · ──
       ╰────
 
-  × Type 'false' is not assignable to type 'true'.
+  × Type 'boolean' is not assignable to type 'true'.
       ╭─[../../tests/compiler/fest/index.ts:1191:9]
  1191 │ a2
       · ──
       ╰────
 
-  × Type 'false' is not assignable to type 'true'.
+  × Type 'boolean' is not assignable to type 'true'.
       ╭─[../../tests/compiler/fest/index.ts:1193:9]
  1193 │ a3
       · ──
       ╰────
 
-  × Type 'true' is not assignable to type 'false'.
+  × Type 'boolean' is not assignable to type 'false'.
       ╭─[../../tests/compiler/fest/index.ts:1195:9]
  1195 │ a4
       · ──
       ╰────
 
-  × Type 'true' is not assignable to type 'false'.
+  × Type 'boolean' is not assignable to type 'false'.
       ╭─[../../tests/compiler/fest/index.ts:1197:9]
  1197 │ a5
       · ──
       ╰────
 
-  × Type 'true' is not assignable to type 'false'.
+  × Type 'boolean' is not assignable to type 'false'.
       ╭─[../../tests/compiler/fest/index.ts:1199:9]
  1199 │ a6
       · ──
@@ -347,19 +347,19 @@
       · ──
       ╰────
 
-  × Type 'false' is not assignable to type 'true'.
+  × Type 'boolean' is not assignable to type 'true'.
       ╭─[../../tests/compiler/fest/index.ts:1979:7]
  1979 │ a0
       · ──
       ╰────
 
-  × Type 'true' is not assignable to type 'false'.
+  × Type 'boolean' is not assignable to type 'false'.
       ╭─[../../tests/compiler/fest/index.ts:1981:7]
  1981 │ a1
       · ──
       ╰────
 
-  × Type 'true' is not assignable to type 'false'.
+  × Type 'boolean' is not assignable to type 'false'.
       ╭─[../../tests/compiler/fest/index.ts:1983:7]
  1983 │ a2
       · ──

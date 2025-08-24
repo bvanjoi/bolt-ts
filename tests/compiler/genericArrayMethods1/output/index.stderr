@@ -27,7 +27,7 @@
     · ──
     ╰────
 
-  × Type 'true' is not assignable to type 'false'.
+  × Type 'boolean' is not assignable to type 'false'.
     ╭─[../../tests/compiler/genericArrayMethods1/index.ts:39:8]
  39 │ a
     · ─

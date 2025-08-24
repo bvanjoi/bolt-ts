@@ -856,7 +856,7 @@ impl<'cx> TyChecker<'cx> {
             if let Some(access_expr) = access_expr
                 && let assignment_target_kind = self
                     .node_query(access_expr.module())
-                    .get_assignment_kind(access_expr)
+                    .get_assignment_target_kind(access_expr)
                 && self.is_assignment_to_readonly_entity(access_expr, prop, assignment_target_kind)
             {
                 let error = errors::CannotAssignTo0BecauseItIsAReadOnlyProperty {
@@ -1056,7 +1056,7 @@ impl<'cx> TyChecker<'cx> {
             apparent_object_ty,
             index_ty,
             access_node,
-            access_flags | AccessFlags::CACHE_SYMBOL.union(AccessFlags::REPORT_DEPRECATED),
+            access_flags.union(AccessFlags::CACHE_SYMBOL.union(AccessFlags::REPORT_DEPRECATED)),
         )
     }
 

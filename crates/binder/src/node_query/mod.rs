@@ -486,7 +486,7 @@ impl<'cx, 'a> NodeQuery<'cx, 'a> {
         None
     }
 
-    pub fn get_assignment_kind(&self, id: ast::NodeID) -> AssignmentKind {
+    pub fn get_assignment_target_kind(&self, id: ast::NodeID) -> AssignmentKind {
         let Some(target) = self.get_assignment_target(id) else {
             return AssignmentKind::None;
         };

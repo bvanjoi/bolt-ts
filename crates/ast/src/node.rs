@@ -535,7 +535,7 @@ impl<'cx> Node<'cx> {
                 }
             };
         }
-        fn_body_with_option!(FnDecl, ClassMethodElem, ClassCtor)
+        fn_body_with_option!(FnDecl, ClassMethodElem, ClassCtor, GetterDecl)
     }
 
     pub fn fn_flags(&self) -> FnFlags {

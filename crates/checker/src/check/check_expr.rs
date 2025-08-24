@@ -856,7 +856,6 @@ impl<'cx> TyChecker<'cx> {
         };
         let l = self.check_expr(assign.left);
         let r = self.check_expr(assign.right);
-        use bolt_ts_ast::AssignOp::*;
 
         // if ty == self.any_ty() {
         //     let error = errors::CannotAssignToNameBecauseItIsATy {
@@ -866,6 +865,7 @@ impl<'cx> TyChecker<'cx> {
         //     };
         //     self.push_error(assign.span.module, Box::new(error));
         // }
+        use bolt_ts_ast::AssignOp::*;
         (match assign.op {
             Eq => unreachable!(),
             AddEq => self
@@ -1103,7 +1103,7 @@ impl<'cx> TyChecker<'cx> {
         let expr_ty = self.check_expr(node.expr);
         let assign_kind = self
             .node_query(node.id.module())
-            .get_assignment_kind(node.id);
+            .get_assignment_target_kind(node.id);
         let assign_kind_is_none = assign_kind == AssignmentKind::None;
         let object_ty = if !assign_kind_is_none
             || self

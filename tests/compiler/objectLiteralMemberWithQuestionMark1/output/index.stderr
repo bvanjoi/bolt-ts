@@ -1,0 +1,5 @@
+  × An object member cannot be declared optional.
+   ╭─[../../tests/compiler/objectLiteralMemberWithQuestionMark1/index.ts:3:14]
+ 3 │ ?
+   · ─
+   ╰────

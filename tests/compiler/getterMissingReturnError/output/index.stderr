@@ -1,0 +1,5 @@
+  × A 'get' accessor must return a value.
+   ╭─[../../tests/compiler/getterMissingReturnError/index.ts:4:16]
+ 4 │ p2
+   · ──
+   ╰────

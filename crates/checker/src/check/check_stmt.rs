@@ -1,3 +1,5 @@
+use bolt_ts_ast::NodeFlags;
+
 use crate::ty::TypeFlags;
 
 use super::TyChecker;
@@ -283,6 +285,22 @@ impl<'cx> TyChecker<'cx> {
             self.check_ty_params(ty_params);
         }
         self.check_ty(ty.ty);
+    }
+
+    pub(super) fn check_getter_decl(&mut self, n: &'cx ast::GetterDecl<'cx>) {
+        let flags = self.node_query(n.id.module()).node_flags(n.id);
+        if !flags.intersects(NodeFlags::AMBIENT)
+            && n.body.is_some()
+            && flags.intersects(NodeFlags::HAS_IMPLICIT_RETURN)
+            && !flags.intersects(NodeFlags::HAS_EXPLICIT_RETURN)
+        {
+            let error = errors::AGetAccessorMustReturnAValue {
+                span: n.name.span(),
+            };
+            self.push_error(Box::new(error));
+        }
+
+        self.check_accessor_decl(n);
     }
 
     pub(super) fn check_accessor_decl(

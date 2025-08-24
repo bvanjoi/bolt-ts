@@ -30,7 +30,7 @@ Advice:
     · ─
     ╰────
 
-  × Type 'false' is not assignable to type '{ [index: number]: any }'.
+  × Type 'boolean' is not assignable to type '{ [index: number]: any }'.
     ╭─[../../tests/compiler/assignmentCompat1/index.ts:15:1]
  15 │ z
     · ─

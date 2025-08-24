@@ -64,7 +64,7 @@ use bolt_ts_ast::{self as ast};
 use bolt_ts_ast::{BinOp, pprint_ident};
 use bolt_ts_atom::{Atom, AtomIntern};
 use bolt_ts_config::NormalizedCompilerOptions;
-use bolt_ts_span::ModuleID;
+use bolt_ts_span::{ModuleID, Span};
 use bolt_ts_utils::{fx_hashmap_with_capacity, no_hashmap_with_capacity, no_hashset_with_capacity};
 use check_type_related_to::RecursionFlags;
 use enumflags2::BitFlag;
@@ -1474,10 +1474,20 @@ impl<'cx> TyChecker<'cx> {
     pub(super) fn check_prop_access_expr_or_qualified_name(
         &mut self,
         node: ast::NodeID,
-        apparent_left_ty: &'cx ty::Ty<'cx>,
-        original_left_ty: &'cx ty::Ty<'cx>,
+        left_ty: &'cx ty::Ty<'cx>,
         prop: &'cx ast::Ident,
     ) -> &'cx ty::Ty<'cx> {
+        let nq = self.node_query(node.module());
+        let assignment_kind = nq.get_assignment_target_kind(node);
+        let apparent_left_ty = {
+            let t = if assignment_kind != AssignmentKind::None || nq.is_method_access_for_call(node)
+            {
+                self.get_widened_ty(left_ty)
+            } else {
+                left_ty
+            };
+            self.get_apparent_ty(t)
+        };
         let is_any_like = apparent_left_ty.flags.intersects(TypeFlags::ANY);
 
         if is_any_like {
@@ -1491,7 +1501,7 @@ impl<'cx> TyChecker<'cx> {
                 .as_atom()
                 .is_some_and(|atom| atom != keyword::IDENT_EMPTY)
             {
-                self.report_non_existent_prop(prop, original_left_ty);
+                self.report_non_existent_prop(prop, left_ty);
             }
             return self.error_ty;
         };
@@ -1556,9 +1566,8 @@ impl<'cx> TyChecker<'cx> {
     }
 
     fn check_prop_access_expr(&mut self, node: &'cx ast::PropAccessExpr<'cx>) -> &'cx ty::Ty<'cx> {
-        let left = self.check_non_null_expr(node.expr);
-        let apparent_ty = self.get_apparent_ty(left);
-        self.check_prop_access_expr_or_qualified_name(node.id, apparent_ty, left, node.name)
+        let left_ty = self.check_non_null_expr(node.expr);
+        self.check_prop_access_expr_or_qualified_name(node.id, left_ty, node.name)
     }
 
     /// `param.constraint`
@@ -1867,7 +1876,7 @@ impl<'cx> TyChecker<'cx> {
         let ty = self.get_type_of_symbol(symbol);
         let assignment_kind = self
             .node_query(ident.id.module())
-            .get_assignment_kind(ident.id);
+            .get_assignment_target_kind(ident.id);
         if assignment_kind != AssignmentKind::None && symbol != Symbol::ERR {
             let symbol = self.binder.symbol(symbol);
             if !symbol.flags.intersects(SymbolFlags::VARIABLE) {
@@ -2063,6 +2072,97 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
+    fn check_for_disallowed_es_symbol_operation(
+        &mut self,
+        left: &'cx ast::Expr,
+        left_ty: &'cx ty::Ty<'cx>,
+        right: &'cx ast::Expr,
+        right_ty: &'cx ty::Ty<'cx>,
+        op: BinOp,
+    ) -> bool {
+        if let Some(offending_symbol_op) = if self
+            .maybe_type_of_kind_considering_base_constraint(left_ty, TypeFlags::ES_SYMBOL_LIKE)
+        {
+            Some(left)
+        } else if self
+            .maybe_type_of_kind_considering_base_constraint(right_ty, TypeFlags::ES_SYMBOL_LIKE)
+        {
+            Some(right)
+        } else {
+            None
+        } {
+            // TODO: error
+            false
+        } else {
+            true
+        }
+    }
+
+    fn maybe_type_of_kind_considering_base_constraint(
+        &mut self,
+        ty: &'cx ty::Ty<'cx>,
+        kind: TypeFlags,
+    ) -> bool {
+        if ty.maybe_type_of_kind(kind) {
+            true
+        } else {
+            let base_constraint = self.get_base_constraint_or_ty(ty);
+            base_constraint.maybe_type_of_kind(kind)
+        }
+    }
+
+    fn report_op_error_unless(
+        &mut self,
+        left_ty: &'cx ty::Ty<'cx>,
+        right_ty: &'cx ty::Ty<'cx>,
+        error_span: Span,
+        op: BinOp,
+        f: impl Fn(&mut Self, &'cx ty::Ty<'cx>, &'cx ty::Ty<'cx>) -> bool + Copy,
+    ) -> bool {
+        if !f(self, left_ty, right_ty) {
+            self.report_op_error(left_ty, right_ty, error_span, op, Some(f));
+            true
+        } else {
+            false
+        }
+    }
+
+    fn report_op_error(
+        &mut self,
+        left_ty: &'cx ty::Ty<'cx>,
+        right_ty: &'cx ty::Ty<'cx>,
+        error_span: Span,
+        op: BinOp,
+        f: Option<impl Fn(&mut Self, &'cx ty::Ty<'cx>, &'cx ty::Ty<'cx>) -> bool + Copy>,
+    ) {
+        let mut would_work_with_await = false;
+
+        let mut effective_left_ty = left_ty;
+        let mut effective_right_ty = right_ty;
+        if !would_work_with_await && let Some(f) = f {
+            let get_base_tys_if_unrelated = |this: &mut Self| {
+                let left_base = this.get_base_ty_of_literal_ty(left_ty);
+                let right_base = this.get_base_ty_of_literal_ty(right_ty);
+                if !f(this, left_base, right_base) {
+                    Some((left_base, right_base))
+                } else {
+                    None
+                }
+            };
+            if let Some((l, r)) = get_base_tys_if_unrelated(self) {
+                effective_left_ty = l;
+                effective_right_ty = r;
+            }
+        }
+        let error = errors::OperatorCannotBeAppliedToTypesXAndY {
+            span: error_span,
+            op: op.kind.to_string(),
+            ty1: effective_left_ty.to_string(self),
+            ty2: effective_right_ty.to_string(self),
+        };
+        self.push_error(Box::new(error));
+    }
+
     fn check_bin_like_expr(
         &mut self,
         node: &'cx ast::BinExpr,
@@ -2114,11 +2214,43 @@ impl<'cx> TyChecker<'cx> {
             }
             EqEq => self.boolean_ty(),
             EqEqEq => self.boolean_ty(),
-            Less => self.boolean_ty(),
-            LessEq => self.boolean_ty(),
+            Less | LessEq | Great | GreatEq => {
+                if self.check_for_disallowed_es_symbol_operation(left, left_ty, right, right_ty, op)
+                {
+                    let left_ty = {
+                        let t = self.check_non_null_type(left_ty, left);
+                        self.get_base_ty_of_literal_ty_for_comparison(t)
+                    };
+                    let right_ty = {
+                        let t = self.check_non_null_type(right_ty, right);
+                        self.get_base_ty_of_literal_ty_for_comparison(t)
+                    };
+                    self.report_op_error_unless(left_ty, right_ty, op.span, op, |this, l, r| {
+                        if this.is_type_any(Some(l)) || this.is_type_any(Some(r)) {
+                            true
+                        } else {
+                            let left_assignable_to_number =
+                                this.is_type_assignable_to(l, this.number_or_bigint_ty());
+                            let right_assignable_to_number =
+                                this.is_type_assignable_to(l, this.number_or_bigint_ty());
+                            left_assignable_to_number && right_assignable_to_number
+                                || !left_assignable_to_number && !right_assignable_to_number && {
+                                    this.is_type_related_to(
+                                        l,
+                                        r,
+                                        relation::RelationKind::Comparable,
+                                    ) || this.is_type_related_to(
+                                        r,
+                                        l,
+                                        relation::RelationKind::Comparable,
+                                    )
+                                }
+                        }
+                    });
+                }
+                self.boolean_ty()
+            }
             Shl => self.number_ty,
-            Great => self.boolean_ty(),
-            GreatEq => self.boolean_ty(),
             Shr => self.number_ty,
             UShr => self.number_ty,
             BitAnd => self.number_ty,

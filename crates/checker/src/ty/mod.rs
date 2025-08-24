@@ -308,10 +308,9 @@ impl<'cx> Ty<'cx> {
     pub fn maybe_type_of_kind(&self, flags: TypeFlags) -> bool {
         if self.flags.intersects(flags) {
             true
-        } else if let Some(union) = self.kind.as_union() {
-            union.tys.iter().any(|ty| ty.maybe_type_of_kind(flags))
+        } else if let Some(tys) = self.kind.tys_of_union_or_intersection() {
+            tys.iter().any(|ty| ty.maybe_type_of_kind(flags))
         } else {
-            // TODO: support intersection
             false
         }
     }

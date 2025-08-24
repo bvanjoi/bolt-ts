@@ -13,5 +13,5 @@ y = "foo"; // Error
 //~^ ERROR: Type 'string' is not assignable to type '{ [index: string]: any }'.
 z = "foo"; // OK, string has numeric indexer
 z = false; // Error
-//~^ ERROR: Type 'false' is not assignable to type '{ [index: number]: any }'.
+//~^ ERROR: Type 'boolean' is not assignable to type '{ [index: number]: any }'.
 

@@ -110,7 +110,6 @@ pub fn eval_from_with_fs(
     mut atoms: bolt_ts_atom::AtomIntern,
 ) -> Output {
     bolt_ts_tracing::init_tracing();
-    // let default_libs = vec![];
     // ==== collect entires ====
     let config_file_specs = cli::ConfigFileSpecs::get_config_file_specs(tsconfig);
     let mut include = get_filenames(&config_file_specs, &root, &mut fs, &mut atoms);
