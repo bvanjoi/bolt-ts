@@ -1115,19 +1115,25 @@ impl<'cx> ParserState<'cx, '_> {
     fn parse_ret_stmt(&mut self) -> PResult<&'cx ast::RetStmt<'cx>> {
         let start = self.token.start();
         self.expect(TokenKind::Return);
+
+        if !self
+            .context_flags
+            .intersects(NodeFlags::ALLOW_RETURN_CONTEXT)
+        {
+            self.push_error(Box::new(
+                errors::AReturnStatementCanOnlyBeUsedWithinAFunctionBody {
+                    span: self.new_span(start),
+                },
+            ));
+        }
+
         let expr = if self.can_parse_semi() {
             None
         } else {
             Some(self.parse_expr()?)
         };
         self.parse_semi();
-        let id = self.next_node_id();
-        let stmt = self.alloc(ast::RetStmt {
-            id,
-            span: self.new_span(start),
-            expr,
-        });
-        self.nodes.insert(id, ast::Node::RetStmt(stmt));
+        let stmt = self.create_ret_stmt(start, expr);
         Ok(stmt)
     }
 

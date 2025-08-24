@@ -35,25 +35,36 @@ bitflags::bitflags! {
         const ALLOW_BREAK_CONTEXT                         = 1 << 31;
         const CLASS_STATIC_BLOCK                          = 1 << 32;
         const CLASS_FIELD_DEFINITION                      = 1 << 33;
+        const FN_BLOCK                                    = 1 << 34;
 
-        const AWAIT_USING                                 = Self::CONST.bits() | Self::USING.bits();
-        const CONSTANT                                    = Self::CONST.bits() | Self::USING.bits();
-        const BLOCK_SCOPED                                = Self::LET.bits() | Self::CONST.bits() | Self::USING.bits();
-        const TYPE_EXCLUDES_FLAGS                         = Self::YIELD_CONTEXT.bits() | Self::AWAIT_CONTEXT.bits();
-        const REACHABILITY_CHECK_FLAGS                    = Self::HAS_IMPLICIT_RETURN.bits() | Self::HAS_EXPLICIT_RETURN.bits();
-        const REACHABILITY_AND_EMIT_FLAGS                 = Self::REACHABILITY_CHECK_FLAGS.bits() | Self::HAS_ASYNC_FUNCTIONS.bits();
-        const DISALLOW_IN_AND_DECORATOR_CONTEXT           = Self::DISALLOW_IN_CONTEXT.bits() | Self::DECORATOR_CONTEXT.bits();
+        const AWAIT_USING                                 = Self::CONST.bits()
+                                                            | Self::USING.bits();
+        const CONSTANT                                    = Self::CONST.bits()
+                                                            | Self::USING.bits();
+        const BLOCK_SCOPED                                = Self::LET.bits()
+                                                            | Self::CONST.bits()
+                                                            | Self::USING.bits();
+        const TYPE_EXCLUDES_FLAGS                         = Self::YIELD_CONTEXT.bits()
+                                                            | Self::AWAIT_CONTEXT.bits();
+        const REACHABILITY_CHECK_FLAGS                    = Self::HAS_IMPLICIT_RETURN.bits()
+                                                            | Self::HAS_EXPLICIT_RETURN.bits();
+        const REACHABILITY_AND_EMIT_FLAGS                 = Self::REACHABILITY_CHECK_FLAGS.bits()
+                                                            | Self::HAS_ASYNC_FUNCTIONS.bits();
+        const DISALLOW_IN_AND_DECORATOR_CONTEXT           = Self::DISALLOW_IN_CONTEXT.bits()
+                                                            | Self::DECORATOR_CONTEXT.bits();
         const IDENTIFIER_IS_IN_JS_DOC_NAMESPACE           = Self::HAS_ASYNC_FUNCTIONS.bits();
         const IDENTIFIER_HAS_EXTENDED_UNICODE_ESCAPE      = Self::CONTAINS_THIS.bits();
         const PERMANENTLY_SET_INCREMENTAL_FLAGS           = Self::POSSIBLY_CONTAINS_DYNAMIC_IMPORT.bits()
-                                                          | Self::POSSIBLY_CONTAINS_IMPORT_META.bits();
+                                                            | Self::POSSIBLY_CONTAINS_IMPORT_META.bits();
         const CONTEXT_FLAGS                               = Self::DISALLOW_IN_CONTEXT.bits()
-                                                          | Self::DISALLOW_CONDITIONAL_TYPES_CONTEXT.bits()
-                                                          | Self::YIELD_CONTEXT.bits()
-                                                          | Self::DECORATOR_CONTEXT.bits()
-                                                          | Self::AWAIT_CONTEXT.bits()
-                                                          | Self::JAVASCRIPT_FILE.bits()
-                                                          | Self::IN_WITH_STATEMENT.bits()
-                                                          | Self::AMBIENT.bits();
+                                                            | Self::DISALLOW_CONDITIONAL_TYPES_CONTEXT.bits()
+                                                            | Self::YIELD_CONTEXT.bits()
+                                                            | Self::DECORATOR_CONTEXT.bits()
+                                                            | Self::AWAIT_CONTEXT.bits()
+                                                            | Self::JAVASCRIPT_FILE.bits()
+                                                            | Self::IN_WITH_STATEMENT.bits()
+                                                            | Self::AMBIENT.bits();
+        const ALLOW_RETURN_CONTEXT                        = Self::CLASS_STATIC_BLOCK.bits()
+                                                            | Self::FN_BLOCK.bits();
     }
 }

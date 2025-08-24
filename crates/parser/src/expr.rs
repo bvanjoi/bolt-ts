@@ -657,18 +657,8 @@ impl<'cx> ParserState<'cx, '_> {
         let params = self.parse_params()?;
         self.check_params(params, false);
         let ty = self.parse_ty_anno()?;
-        let body = self.parse_fn_block()?;
-        let id = self.next_node_id();
-        let node = self.alloc(ast::ObjectMethodMember {
-            id,
-            span: self.new_span(start),
-            name,
-            ty_params,
-            params,
-            ty,
-            body: body.unwrap(),
-        });
-        self.nodes.insert(id, ast::Node::ObjectMethodMember(node));
+        let body = self.parse_fn_block()?.unwrap();
+        let node = self.create_object_method_member(start, name, ty_params, params, ty, body);
         let member = self.alloc(ast::ObjectMember {
             kind: ast::ObjectMemberKind::Method(node),
         });

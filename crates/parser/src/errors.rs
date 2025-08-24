@@ -355,3 +355,10 @@ pub(super) struct PropertyOrSignatureExpected {
     #[label(primary)]
     pub(super) span: Span,
 }
+
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
+#[error("A 'return' statement can only be used within a function body.")]
+pub(super) struct AReturnStatementCanOnlyBeUsedWithinAFunctionBody {
+    #[label(primary)]
+    pub(super) span: Span,
+}
