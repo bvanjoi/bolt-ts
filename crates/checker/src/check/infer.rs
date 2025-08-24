@@ -264,7 +264,13 @@ impl<'cx> TyChecker<'cx> {
             if object_literals.is_empty() {
                 candidates.to_vec()
             } else {
-                let lits = self.get_union_ty(&object_literals, ty::UnionReduction::Subtype);
+                let lits = self.get_union_ty(
+                    &object_literals,
+                    ty::UnionReduction::Subtype,
+                    false,
+                    None,
+                    None,
+                );
                 non_object_literals.push(lits);
                 non_object_literals.into()
             }
@@ -316,7 +322,8 @@ impl<'cx> TyChecker<'cx> {
         if base_candidates.len() == 1 {
             self.get_widened_ty(base_candidates[0])
         } else {
-            let ty = self.get_union_ty(&base_candidates, ty::UnionReduction::Lit);
+            let ty =
+                self.get_union_ty(&base_candidates, ty::UnionReduction::Lit, false, None, None);
             self.get_widened_ty(ty)
         }
     }
@@ -585,25 +592,24 @@ impl<'cx> TyChecker<'cx> {
         };
 
         let node_id = node.id();
-        if !self.p.node(node_id).is_bin_expr() {
-            if let Some(contextual_ty) =
+        if !self.p.node(node_id).is_bin_expr()
+            && let Some(contextual_ty) =
                 self.get_contextual_ty(node_id, Some(ContextFlags::empty()))
-            {
-                let inference_target_ty = self.get_ret_ty_of_sig(sig);
-                if self.could_contain_ty_var(inference_target_ty) {
-                    let outer_context = self.get_inference_context(node_id);
-                    let is_from_binding_pattern = false;
-                    if !is_from_binding_pattern {
-                        let outer_mapper =
-                            outer_context
-                                .and_then(|ctx| ctx.inference)
-                                .map(|inference| {
-                                    self.inference(inference).mapper as &'cx dyn ty::TyMap<'cx>
-                                });
-                        let instantiated_ty = self.instantiate_ty(contextual_ty, outer_mapper);
-                        let inference_source_ty = if let Some(contextual_sig) =
-                            self.get_single_call_sig(instantiated_ty)
-                        {
+        {
+            let inference_target_ty = self.get_ret_ty_of_sig(sig);
+            if self.could_contain_ty_var(inference_target_ty) {
+                let outer_context = self.get_inference_context(node_id);
+                let is_from_binding_pattern = false;
+                if !is_from_binding_pattern {
+                    let outer_mapper =
+                        outer_context
+                            .and_then(|ctx| ctx.inference)
+                            .map(|inference| {
+                                self.inference(inference).mapper as &'cx dyn ty::TyMap<'cx>
+                            });
+                    let instantiated_ty = self.instantiate_ty(contextual_ty, outer_mapper);
+                    let inference_source_ty =
+                        if let Some(contextual_sig) = self.get_single_call_sig(instantiated_ty) {
                             if let Some(ty_param) = contextual_sig.ty_params {
                                 // TODO: `get_or_create_ty_from_sig`
                                 instantiated_ty
@@ -613,55 +619,54 @@ impl<'cx> TyChecker<'cx> {
                         } else {
                             instantiated_ty
                         };
-                        self.infer_tys(
-                            inference,
-                            inference_source_ty,
-                            inference_target_ty,
-                            Some(InferencePriority::RETURN_TYPE),
-                            false,
-                        );
-                    }
-
-                    let ret_ctx = self.create_inference_context(
-                        sig_ty_params,
-                        Some(sig),
-                        self.inferences[inference.as_usize()].flags,
+                    self.infer_tys(
+                        inference,
+                        inference_source_ty,
+                        inference_target_ty,
+                        Some(InferencePriority::RETURN_TYPE),
+                        false,
                     );
-                    let ret_mapper = outer_context
-                        .and_then(|ctx| ctx.inference)
-                        .and_then(|ctx| self.inference(ctx).ret_mapper);
-                    let ret_source_ty = self.instantiate_ty(contextual_ty, ret_mapper);
-                    self.infer_tys(ret_ctx, ret_source_ty, inference_target_ty, None, false);
-                    let ret_inference = self.inference(ret_ctx);
-                    let ret_inferences = ret_inference
-                        .inferences
-                        .iter()
-                        .filter(|i| i.has_inference_candidates())
-                        .cloned()
-                        .collect::<thin_vec::ThinVec<_>>();
-                    if ret_inferences.is_empty() {
-                        drop(ret_inferences);
-                        self.set_inference_ret_mapper(ret_ctx, None);
-                    } else {
-                        let id = InferenceContextId(self.inferences.len() as u32);
-                        let mapper = self.making_inference_fixing_mapper(id, &ret_inferences);
-                        let non_fixing_mapper =
-                            self.making_inference_non_fixing_mapper(id, &ret_inferences);
-                        let inference = InferenceContext {
-                            inferences: ret_inferences,
-                            sig: ret_inference.sig,
-                            flags: ret_inference.flags,
-                            ret_mapper: None,
-                            mapper,
-                            non_fixing_mapper,
-                        };
-                        self.set_inference_ret_mapper(
-                            ret_ctx,
-                            Some(inference.mapper as &'cx dyn ty::TyMap<'cx>),
-                        );
-                        self.inferences.push(inference);
-                    };
                 }
+
+                let ret_ctx = self.create_inference_context(
+                    sig_ty_params,
+                    Some(sig),
+                    self.inferences[inference.as_usize()].flags,
+                );
+                let ret_mapper = outer_context
+                    .and_then(|ctx| ctx.inference)
+                    .and_then(|ctx| self.inference(ctx).ret_mapper);
+                let ret_source_ty = self.instantiate_ty(contextual_ty, ret_mapper);
+                self.infer_tys(ret_ctx, ret_source_ty, inference_target_ty, None, false);
+                let ret_inference = self.inference(ret_ctx);
+                let ret_inferences = ret_inference
+                    .inferences
+                    .iter()
+                    .filter(|i| i.has_inference_candidates())
+                    .cloned()
+                    .collect::<thin_vec::ThinVec<_>>();
+                if ret_inferences.is_empty() {
+                    drop(ret_inferences);
+                    self.set_inference_ret_mapper(ret_ctx, None);
+                } else {
+                    let id = InferenceContextId(self.inferences.len() as u32);
+                    let mapper = self.making_inference_fixing_mapper(id, &ret_inferences);
+                    let non_fixing_mapper =
+                        self.making_inference_non_fixing_mapper(id, &ret_inferences);
+                    let inference = InferenceContext {
+                        inferences: ret_inferences,
+                        sig: ret_inference.sig,
+                        flags: ret_inference.flags,
+                        ret_mapper: None,
+                        mapper,
+                        non_fixing_mapper,
+                    };
+                    self.set_inference_ret_mapper(
+                        ret_ctx,
+                        Some(inference.mapper as &'cx dyn ty::TyMap<'cx>),
+                    );
+                    self.inferences.push(inference);
+                };
             }
         }
 
@@ -759,7 +764,7 @@ impl<'cx> TyChecker<'cx> {
 
     fn infer_from_lit_parts_to_template_lit(
         &mut self,
-        source_texts: &[bolt_ts_atom::AtomId],
+        source_texts: &[bolt_ts_atom::Atom],
         source_tys: &[&'cx ty::Ty<'cx>],
         target: &'cx ty::Ty<'cx>,
     ) -> Option<ty::Tys<'cx>> {
@@ -791,12 +796,12 @@ impl<'cx> TyChecker<'cx> {
         let mut pos: usize = target_start_text_str.len();
 
         fn get_source_text(
-            atoms: &mut bolt_ts_atom::AtomMap,
+            atoms: &mut bolt_ts_atom::AtomIntern,
             index: usize,
             last_source_index: usize,
-            source_end_text: bolt_ts_atom::AtomId,
+            source_end_text: bolt_ts_atom::Atom,
             target_end_text_len: usize,
-            source_texts: &[bolt_ts_atom::AtomId],
+            source_texts: &[bolt_ts_atom::Atom],
         ) -> &'static str {
             if index < last_source_index {
                 atoms.get(source_texts[index])
@@ -1110,12 +1115,16 @@ impl<'cx> InferenceState<'cx, '_> {
             if targets.is_empty() {
                 return;
             }
-            target = self.c.get_union_ty(targets, ty::UnionReduction::Lit);
+            target = self
+                .c
+                .get_union_ty(targets, ty::UnionReduction::Lit, false, None, None);
             if sources.is_empty() {
                 self.infer_with_priority(source, target, InferencePriority::NAKED_TYPE_VARIABLE);
                 return;
             }
-            source = self.c.get_union_ty(sources, ty::UnionReduction::Lit);
+            source = self
+                .c
+                .get_union_ty(sources, ty::UnionReduction::Lit, false, None, None);
         } else if target
             .kind
             .as_intersection()
@@ -1144,54 +1153,54 @@ impl<'cx> InferenceState<'cx, '_> {
             }
         }
 
-        if target.kind.is_type_variable() {
-            if let Some(idx) = self.get_inference_info_for_ty(target) {
+        if target.kind.is_type_variable()
+            && let Some(idx) = self.get_inference_info_for_ty(target)
+        {
+            let info = self.c.inference_info(self.inference, idx);
+            if !info.is_fixed {
+                let candidate = self.propagation_ty.unwrap_or(source);
+                if info.priority.is_none() || self.priority < info.priority.unwrap() {
+                    self.reset_info_candidate(idx);
+                    self.reset_info_contra_candidate(idx);
+                    self.set_info_priority(idx, self.priority);
+                    self.set_info_toplevel(idx);
+                }
                 let info = self.c.inference_info(self.inference, idx);
-                if !info.is_fixed {
-                    let candidate = self.propagation_ty.unwrap_or(source);
-                    if info.priority.is_none() || self.priority < info.priority.unwrap() {
-                        self.reset_info_candidate(idx);
-                        self.reset_info_contra_candidate(idx);
-                        self.set_info_priority(idx, self.priority);
-                        self.set_info_toplevel(idx);
-                    }
-                    let info = self.c.inference_info(self.inference, idx);
-                    if Some(self.priority) == info.priority {
-                        if self.contravariant && !self.bivariant {
-                            if info
-                                .contra_candidates
-                                .as_ref()
-                                .is_none_or(|cs| !cs.contains(&candidate))
-                            {
-                                self.append_contra_candidate(idx, candidate);
-                                self.c.clear_cached_inferences(self.inference);
-                            }
-                        } else if info
-                            .candidates
+                if Some(self.priority) == info.priority {
+                    if self.contravariant && !self.bivariant {
+                        if info
+                            .contra_candidates
                             .as_ref()
                             .is_none_or(|cs| !cs.contains(&candidate))
                         {
-                            self.append_candidate(idx, candidate);
+                            self.append_contra_candidate(idx, candidate);
                             self.c.clear_cached_inferences(self.inference);
                         }
-                    }
-
-                    if !self.priority.intersects(InferencePriority::RETURN_TYPE)
-                        && target.flags.intersects(TypeFlags::TYPE_PARAMETER)
-                        && self.c.inference_info(self.inference, idx).top_level
-                        && !self.c.is_ty_param_at_top_level(original_target, target, 0)
+                    } else if info
+                        .candidates
+                        .as_ref()
+                        .is_none_or(|cs| !cs.contains(&candidate))
                     {
-                        self.set_info_toplevel_false(idx);
+                        self.append_candidate(idx, candidate);
                         self.c.clear_cached_inferences(self.inference);
                     }
                 }
-                self.inference_priority = if self.inference_priority < self.priority {
-                    self.inference_priority
-                } else {
-                    self.priority
-                };
-                return;
+
+                if !self.priority.intersects(InferencePriority::RETURN_TYPE)
+                    && target.flags.intersects(TypeFlags::TYPE_PARAMETER)
+                    && self.c.inference_info(self.inference, idx).top_level
+                    && !self.c.is_ty_param_at_top_level(original_target, target, 0)
+                {
+                    self.set_info_toplevel_false(idx);
+                    self.c.clear_cached_inferences(self.inference);
+                }
             }
+            self.inference_priority = if self.inference_priority < self.priority {
+                self.inference_priority
+            } else {
+                self.priority
+            };
+            return;
         }
 
         if target.kind.is_cond_ty() {
@@ -1310,7 +1319,9 @@ impl<'cx> InferenceState<'cx, '_> {
                     .copied()
                     .collect::<Vec<_>>();
                 if !unmatched.is_empty() {
-                    let source = self.c.get_union_ty(&unmatched, ty::UnionReduction::Lit);
+                    let source =
+                        self.c
+                            .get_union_ty(&unmatched, ty::UnionReduction::Lit, false, None, None);
                     self.infer_from_tys(source, naked_type_variable.unwrap());
                     return;
                 }
@@ -1414,146 +1425,130 @@ impl<'cx> InferenceState<'cx, '_> {
                     } else {
                         None
                     };
-                    if let Some(constraint) = constraint {
-                        if !self.c.is_type_any(Some(constraint)) {
-                            let constraint_tys = if let Some(u) = constraint.kind.as_union() {
-                                u.tys
-                            } else {
-                                &[constraint]
-                            };
-                            let mut all_ty_flags = self
+                    if let Some(constraint) = constraint
+                        && !self.c.is_type_any(Some(constraint))
+                    {
+                        let constraint_tys = if let Some(u) = constraint.kind.as_union() {
+                            u.tys
+                        } else {
+                            &[constraint]
+                        };
+                        let mut all_ty_flags = self
+                            .c
+                            .reduced_left(
+                                constraint_tys,
+                                |_, flags, t, _| flags | t.flags,
+                                Some(TypeFlags::empty()),
+                                None,
+                                None,
+                            )
+                            .unwrap();
+                        if !all_ty_flags.intersects(TypeFlags::STRING) {
+                            let str = source.kind.expect_string_lit();
+                            if all_ty_flags.intersects(TypeFlags::NUMBER_LIKE)
+                                && !self.c.is_valid_number_string(str.val, true)
+                            {
+                                all_ty_flags &= !TypeFlags::NUMBER_LIKE;
+                            }
+                            if all_ty_flags.intersects(TypeFlags::BIG_INT_LIKE) && false
+                            /* !is_valid_big_int_string */
+                            {
+                                all_ty_flags &= !TypeFlags::BIG_INT_LIKE;
+                            }
+                            let matching_ty = self
                                 .c
                                 .reduced_left(
                                     constraint_tys,
-                                    |_, flags, t, _| flags | t.flags,
-                                    Some(TypeFlags::empty()),
+                                    |this, left, right, _| {
+                                        if !right.flags.intersects(all_ty_flags) {
+                                            left
+                                        } else if left.flags.intersects(TypeFlags::STRING) {
+                                            left
+                                        } else if right.flags.intersects(TypeFlags::STRING) {
+                                            source
+                                        } else if left.flags.intersects(TypeFlags::TEMPLATE_LITERAL)
+                                        {
+                                            left
+                                        } else if right
+                                            .flags
+                                            .intersects(TypeFlags::TEMPLATE_LITERAL)
+                                            && this.is_ty_matched_by_template_lit_ty(source, right)
+                                        {
+                                            source
+                                        } else if left.flags.intersects(TypeFlags::STRING_MAPPING) {
+                                            left
+                                        } else if right.flags.intersects(TypeFlags::STRING_MAPPING)
+                                            && str.val
+                                                == this.apply_string_mapping(
+                                                    right.symbol().unwrap(),
+                                                    str.val,
+                                                )
+                                        {
+                                            source
+                                        } else if left.flags.intersects(TypeFlags::STRING_LITERAL) {
+                                            left
+                                        } else if right
+                                            .kind
+                                            .as_string_lit()
+                                            .is_some_and(|r| r.val == str.val)
+                                        {
+                                            right
+                                        } else if left.flags.intersects(TypeFlags::NUMBER) {
+                                            left
+                                        } else if right.flags.intersects(TypeFlags::NUMBER) {
+                                            let val =
+                                                this.atoms.get(str.val).parse::<f64>().unwrap();
+                                            this.get_number_literal_type_from_number(val)
+                                        } else if left.flags.intersects(TypeFlags::ENUM) {
+                                            left
+                                        } else if right.flags.intersects(TypeFlags::ENUM) {
+                                            // getNumberLiteralType(+str)
+                                            todo!()
+                                        } else if left.flags.intersects(TypeFlags::NUMBER_LITERAL) {
+                                            left
+                                        } else if right
+                                            .kind
+                                            .as_number_lit()
+                                            .is_some_and(|r| /*r.val == str*/ todo!())
+                                        {
+                                            right
+                                        } else if left.flags.intersects(TypeFlags::BIG_INT) {
+                                            left
+                                            // TODO: else if right.kind flags.intersects(TypeFlags::BigInt){parseBigIntLiteralType}(str)
+                                            // TODO: else if left.flags.intersects(TypeFlags::BigIntLiteral){left} else if right.flags.intersects(TypeFlags::BigIntLiteral) && pseudoBigIntToString((right as BigIntLiteralType).value) === str{right}
+                                        } else if left.flags.intersects(TypeFlags::BOOLEAN) {
+                                            left
+                                        } else if right.flags.intersects(TypeFlags::BOOLEAN) {
+                                            if str.val == keyword::KW_TRUE {
+                                                this.true_ty
+                                            } else if str.val == keyword::KW_FALSE {
+                                                this.false_ty
+                                            } else {
+                                                this.boolean_ty()
+                                            }
+                                        } else if left.flags.intersects(TypeFlags::BOOLEAN_LITERAL)
+                                        {
+                                            left
+                                            // TODO: else if right.flags.intersects(TypeFlags::BOOLEAN_LITERAL) && (right as IntrinsicType).intrinsicName === str{right}
+                                        } else if left.flags.intersects(TypeFlags::UNDEFINED) {
+                                            left
+                                            // TODO: else if right.flags.intersects(TypeFlags::UNDEFINED) && (right as IntrinsicType).intrinsicName === str{right}
+                                        } else if left.flags.intersects(TypeFlags::NULL) {
+                                            left
+                                            // TODO: else if right.flags.intersects(TypeFlags::NULL) && (right as IntrinsicType).intrinsicName === str{right}
+                                        } else {
+                                            left
+                                        }
+                                    },
+                                    Some(self.c.never_ty),
                                     None,
                                     None,
                                 )
                                 .unwrap();
-                            if !all_ty_flags.intersects(TypeFlags::STRING) {
-                                let str = source.kind.expect_string_lit();
-                                if all_ty_flags.intersects(TypeFlags::NUMBER_LIKE)
-                                    && !self.c.is_valid_number_string(str.val, true)
-                                {
-                                    all_ty_flags &= !TypeFlags::NUMBER_LIKE;
-                                }
-                                if all_ty_flags.intersects(TypeFlags::BIG_INT_LIKE) && false
-                                /* !is_valid_big_int_string */
-                                {
-                                    all_ty_flags &= !TypeFlags::BIG_INT_LIKE;
-                                }
-                                let matching_ty = self
-                                    .c
-                                    .reduced_left(
-                                        constraint_tys,
-                                        |this, left, right, _| {
-                                            if !right.flags.intersects(all_ty_flags) {
-                                                left
-                                            } else if left.flags.intersects(TypeFlags::STRING) {
-                                                left
-                                            } else if right.flags.intersects(TypeFlags::STRING) {
-                                                source
-                                            } else if left
-                                                .flags
-                                                .intersects(TypeFlags::TEMPLATE_LITERAL)
-                                            {
-                                                left
-                                            } else if right
-                                                .flags
-                                                .intersects(TypeFlags::TEMPLATE_LITERAL)
-                                                && this
-                                                    .is_ty_matched_by_template_lit_ty(source, right)
-                                            {
-                                                source
-                                            } else if left
-                                                .flags
-                                                .intersects(TypeFlags::STRING_MAPPING)
-                                            {
-                                                left
-                                            } else if right
-                                                .flags
-                                                .intersects(TypeFlags::STRING_MAPPING)
-                                                && str.val
-                                                    == this.apply_string_mapping(
-                                                        right.symbol().unwrap(),
-                                                        str.val,
-                                                    )
-                                            {
-                                                source
-                                            } else if left
-                                                .flags
-                                                .intersects(TypeFlags::STRING_LITERAL)
-                                            {
-                                                left
-                                            } else if right
-                                                .kind
-                                                .as_string_lit()
-                                                .is_some_and(|r| r.val == str.val)
-                                            {
-                                                right
-                                            } else if left.flags.intersects(TypeFlags::NUMBER) {
-                                                left
-                                            } else if right.flags.intersects(TypeFlags::NUMBER) {
-                                                let val =
-                                                    this.atoms.get(str.val).parse::<f64>().unwrap();
-                                                this.get_number_literal_type_from_number(val)
-                                            } else if left.flags.intersects(TypeFlags::ENUM) {
-                                                left
-                                            } else if right.flags.intersects(TypeFlags::ENUM) {
-                                                // getNumberLiteralType(+str)
-                                                todo!()
-                                            } else if left
-                                                .flags
-                                                .intersects(TypeFlags::NUMBER_LITERAL)
-                                            {
-                                                left
-                                            } else if right
-                                                .kind
-                                                .as_number_lit()
-                                                .is_some_and(|r| /*r.val == str*/ todo!())
-                                            {
-                                                right
-                                            } else if left.flags.intersects(TypeFlags::BIG_INT) {
-                                                left
-                                                // TODO: else if right.kind flags.intersects(TypeFlags::BigInt){parseBigIntLiteralType}(str)
-                                                // TODO: else if left.flags.intersects(TypeFlags::BigIntLiteral){left} else if right.flags.intersects(TypeFlags::BigIntLiteral) && pseudoBigIntToString((right as BigIntLiteralType).value) === str{right}
-                                            } else if left.flags.intersects(TypeFlags::BOOLEAN) {
-                                                left
-                                            } else if right.flags.intersects(TypeFlags::BOOLEAN) {
-                                                if str.val == keyword::KW_TRUE {
-                                                    this.true_ty
-                                                } else if str.val == keyword::KW_FALSE {
-                                                    this.false_ty
-                                                } else {
-                                                    this.boolean_ty()
-                                                }
-                                            } else if left
-                                                .flags
-                                                .intersects(TypeFlags::BOOLEAN_LITERAL)
-                                            {
-                                                left
-                                                // TODO: else if right.flags.intersects(TypeFlags::BOOLEAN_LITERAL) && (right as IntrinsicType).intrinsicName === str{right}
-                                            } else if left.flags.intersects(TypeFlags::UNDEFINED) {
-                                                left
-                                                // TODO: else if right.flags.intersects(TypeFlags::UNDEFINED) && (right as IntrinsicType).intrinsicName === str{right}
-                                            } else if left.flags.intersects(TypeFlags::NULL) {
-                                                left
-                                                // TODO: else if right.flags.intersects(TypeFlags::NULL) && (right as IntrinsicType).intrinsicName === str{right}
-                                            } else {
-                                                left
-                                            }
-                                        },
-                                        Some(self.c.never_ty),
-                                        None,
-                                        None,
-                                    )
-                                    .unwrap();
 
-                                if !matching_ty.flags.intersects(TypeFlags::NEVER) {
-                                    self.infer_from_tys(matching_ty, target);
-                                    continue;
-                                }
+                            if !matching_ty.flags.intersects(TypeFlags::NEVER) {
+                                self.infer_from_tys(matching_ty, target);
+                                continue;
                             }
                         }
                     }
@@ -1611,12 +1606,12 @@ impl<'cx> InferenceState<'cx, '_> {
     }
 
     fn infer_from_object_tys(&mut self, source: &'cx ty::Ty<'cx>, target: &'cx ty::Ty<'cx>) {
-        if let Some(target_mapped_ty) = target.kind.as_object_mapped() {
-            if target_mapped_ty.decl.name_ty.is_none() {
-                let constraint_ty = self.c.get_constraint_ty_from_mapped_ty(target);
-                if self.infer_to_mapped_ty(source, target, target_mapped_ty, constraint_ty) {
-                    return;
-                }
+        if let Some(target_mapped_ty) = target.kind.as_object_mapped()
+            && target_mapped_ty.decl.name_ty.is_none()
+        {
+            let constraint_ty = self.c.get_constraint_ty_from_mapped_ty(target);
+            if self.infer_to_mapped_ty(source, target, target_mapped_ty, constraint_ty) {
+                return;
             }
         }
 
@@ -1634,14 +1629,14 @@ impl<'cx> InferenceState<'cx, '_> {
                     };
                     let element_tys = self.c.get_ty_arguments(target);
                     let element_flags = target_tuple.element_flags;
-                    if let Some(source_tuple) = source.as_tuple() {
-                        if is_tuple_ty_structure_matching(source_tuple, target_tuple) {
-                            for i in 0..target_arity {
-                                let s = self.c.get_ty_arguments(source);
-                                self.infer_from_tys(s[i], element_tys[i]);
-                            }
-                            return;
+                    if let Some(source_tuple) = source.as_tuple()
+                        && is_tuple_ty_structure_matching(source_tuple, target_tuple)
+                    {
+                        for i in 0..target_arity {
+                            let s = self.c.get_ty_arguments(source);
+                            self.infer_from_tys(s[i], element_tys[i]);
                         }
+                        return;
                     }
                     let start_len = if let Some(s) = source.as_tuple() {
                         usize::min(s.fixed_length, target_tuple.fixed_length)
@@ -1691,25 +1686,23 @@ impl<'cx> InferenceState<'cx, '_> {
                             {
                                 if let Some(target_info) =
                                     self.get_inference_info_for_ty(element_tys[start_len])
-                                {
-                                    if let Some(implied_arity) = self
+                                    && let Some(implied_arity) = self
                                         .c
                                         .inference_info(self.inference, target_info)
                                         .implied_arity
-                                    {
-                                        let s = self.c.slice_tuple_ty(
-                                            source,
-                                            start_len,
-                                            end_len + source_arity - implied_arity,
-                                        );
-                                        self.infer_from_tys(s, element_tys[start_len]);
-                                        let s = self.c.slice_tuple_ty(
-                                            source,
-                                            start_len + implied_arity,
-                                            end_len,
-                                        );
-                                        self.infer_from_tys(s, element_tys[start_len + 1]);
-                                    }
+                                {
+                                    let s = self.c.slice_tuple_ty(
+                                        source,
+                                        start_len,
+                                        end_len + source_arity - implied_arity,
+                                    );
+                                    self.infer_from_tys(s, element_tys[start_len]);
+                                    let s = self.c.slice_tuple_ty(
+                                        source,
+                                        start_len + implied_arity,
+                                        end_len,
+                                    );
+                                    self.infer_from_tys(s, element_tys[start_len + 1]);
                                 }
                             } else if element_flags[start_len]
                                 .intersects(ty::ElementFlags::VARIADIC)
@@ -1722,30 +1715,28 @@ impl<'cx> InferenceState<'cx, '_> {
                                 });
                                 let constraint =
                                     param.and_then(|param| self.c.get_base_constraint_of_ty(param));
-                                if let Some(constraint) = constraint {
-                                    if let Some(t) = constraint.as_tuple() {
-                                        if !t.combined_flags.intersects(ty::ElementFlags::VARIABLE)
-                                        {
-                                            let implied_arity = t.fixed_length;
-                                            let s = self.c.slice_tuple_ty(
-                                                source,
-                                                start_len,
-                                                source_arity - (start_len + implied_arity),
-                                            );
-                                            self.infer_from_tys(s, element_tys[start_len]);
-                                            let s = self
-                                                .c
-                                                .get_element_ty_of_slice_of_tuple_ty(
-                                                    source,
-                                                    start_len + implied_arity,
-                                                    Some(end_len),
-                                                    None,
-                                                    None,
-                                                )
-                                                .unwrap();
-                                            self.infer_from_tys(s, element_tys[start_len + 1]);
-                                        }
-                                    }
+                                if let Some(constraint) = constraint
+                                    && let Some(t) = constraint.as_tuple()
+                                    && !t.combined_flags.intersects(ty::ElementFlags::VARIABLE)
+                                {
+                                    let implied_arity = t.fixed_length;
+                                    let s = self.c.slice_tuple_ty(
+                                        source,
+                                        start_len,
+                                        source_arity - (start_len + implied_arity),
+                                    );
+                                    self.infer_from_tys(s, element_tys[start_len]);
+                                    let s = self
+                                        .c
+                                        .get_element_ty_of_slice_of_tuple_ty(
+                                            source,
+                                            start_len + implied_arity,
+                                            Some(end_len),
+                                            None,
+                                            None,
+                                        )
+                                        .unwrap();
+                                    self.infer_from_tys(s, element_tys[start_len + 1]);
                                 }
                             } else if element_flags[start_len].intersects(ty::ElementFlags::REST)
                                 && element_flags[start_len + 1]
@@ -1758,39 +1749,33 @@ impl<'cx> InferenceState<'cx, '_> {
                                 });
                                 let constraint =
                                     param.and_then(|param| self.c.get_base_constraint_of_ty(param));
-                                if let Some(constraint) = constraint {
-                                    if let Some(t) = constraint.as_tuple() {
-                                        if !t.combined_flags.intersects(ty::ElementFlags::VARIABLE)
-                                        {
-                                            let implied_arity = t.fixed_length;
-                                            let end_index = source_arity
-                                                - t.get_end_elem_count(ty::ElementFlags::FIXED);
-                                            let start_index = end_index - implied_arity;
-                                            let trailing_slice = {
-                                                let tys = &self.c.get_ty_arguments(source)
-                                                    [start_index..end_index];
-                                                let flags =
-                                                    &source.as_tuple().unwrap().element_flags
-                                                        [start_index..end_index];
-                                                self.c.create_tuple_ty(tys, Some(flags), false)
-                                            };
-                                            let s = self
-                                                .c
-                                                .get_element_ty_of_slice_of_tuple_ty(
-                                                    source,
-                                                    start_index,
-                                                    Some(end_len + implied_arity),
-                                                    None,
-                                                    None,
-                                                )
-                                                .unwrap();
-                                            self.infer_from_tys(s, element_tys[start_len]);
-                                            self.infer_from_tys(
-                                                trailing_slice,
-                                                element_tys[start_len + 1],
-                                            );
-                                        }
-                                    }
+                                if let Some(constraint) = constraint
+                                    && let Some(t) = constraint.as_tuple()
+                                    && !t.combined_flags.intersects(ty::ElementFlags::VARIABLE)
+                                {
+                                    let implied_arity = t.fixed_length;
+                                    let end_index = source_arity
+                                        - t.get_end_elem_count(ty::ElementFlags::FIXED);
+                                    let start_index = end_index - implied_arity;
+                                    let trailing_slice = {
+                                        let tys = &self.c.get_ty_arguments(source)
+                                            [start_index..end_index];
+                                        let flags = &source.as_tuple().unwrap().element_flags
+                                            [start_index..end_index];
+                                        self.c.create_tuple_ty(tys, Some(flags), false)
+                                    };
+                                    let s = self
+                                        .c
+                                        .get_element_ty_of_slice_of_tuple_ty(
+                                            source,
+                                            start_index,
+                                            Some(end_len + implied_arity),
+                                            None,
+                                            None,
+                                        )
+                                        .unwrap();
+                                    self.infer_from_tys(s, element_tys[start_len]);
+                                    self.infer_from_tys(trailing_slice, element_tys[start_len + 1]);
                                 }
                             }
                         } else if middle_length == 1
@@ -1810,16 +1795,15 @@ impl<'cx> InferenceState<'cx, '_> {
                             );
                         } else if middle_length == 1
                             && element_flags[start_len].intersects(ty::ElementFlags::REST)
-                        {
-                            if let Some(rest_ty) = self.c.get_element_ty_of_slice_of_tuple_ty(
+                            && let Some(rest_ty) = self.c.get_element_ty_of_slice_of_tuple_ty(
                                 source,
                                 start_len,
                                 Some(end_len),
                                 None,
                                 None,
-                            ) {
-                                self.infer_from_tys(rest_ty, element_tys[start_len]);
-                            }
+                            )
+                        {
+                            self.infer_from_tys(rest_ty, element_tys[start_len]);
                         }
                     }
                     for i in 0..end_len {
@@ -1882,7 +1866,9 @@ impl<'cx> InferenceState<'cx, '_> {
                 }
 
                 if !props_tys.is_empty() {
-                    let u = self.c.get_union_ty(&props_tys, ty::UnionReduction::Lit);
+                    let u =
+                        self.c
+                            .get_union_ty(&props_tys, ty::UnionReduction::Lit, false, None, None);
                     self.infer_with_priority(u, target_info.val_ty, new_priority);
                 }
             }

@@ -1,0 +1,6 @@
+  × Class name cannot be 'any'.
+   ╭─[../../tests/compiler/ClassDeclaration24/index.ts:3:7]
+ 3 │ any
+   · ───
+   ╰────
+  help: Reserved type names are not permitted.

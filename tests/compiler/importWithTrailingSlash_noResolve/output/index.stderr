@@ -1,0 +1,5 @@
+  × Cannot find module './foo/' or its corresponding type declarations.
+   ╭─[../../tests/compiler/importWithTrailingSlash_noResolve/index.ts:3:17]
+ 3 │ "./foo/"
+   · ────────
+   ╰────

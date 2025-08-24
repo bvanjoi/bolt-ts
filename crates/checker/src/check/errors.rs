@@ -43,21 +43,19 @@ pub(super) struct ArgumentOfTyIsNotAssignableToParameterOfTy {
 }
 
 #[derive(Error, Diagnostic, DiagnosticExt, Debug)]
-#[error("Expected {x} arguments, but got {y}.")]
+#[error("Expected {x} {}arguments, but got {y}.", {
+    if *is_ty {
+        "type "
+    } else {
+        ""
+    } 
+})]
 pub(super) struct ExpectedXArgsButGotY {
     #[label(primary)]
     pub span: Span,
     pub x: crate::check::ExpectedArgsCount,
     pub y: usize,
-}
-
-#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
-#[error("Expected {x} type arguments, but got {y}.")]
-pub(super) struct ExpectedXTyArgsButGotY {
-    #[label(primary)]
-    pub span: Span,
-    pub x: crate::check::ExpectedArgsCount,
-    pub y: usize,
+    pub is_ty: bool,
 }
 
 #[derive(Error, Diagnostic, DiagnosticExt, Debug)]
@@ -660,4 +658,75 @@ pub(super) struct DuplicateIdentifierX {
     #[label(primary)]
     pub(super) span: Span,
     pub(super) ident: String,
+}
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
+#[error("Type '{x}' has no matching index signature for type '{y}'.")]
+pub(super) struct TypeXHasNoMatchingIndexSignatureForTypeY {
+    #[label(primary)]
+    pub span: Span,
+    pub x: String,
+    pub y: String,
+}
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
+#[error("Cannot extend a class '{class}'. Class constructor is marked as private.")]
+pub(super) struct CannotExtendAClass0ClassConstructorIsMarkedAsPrivate {
+    #[label(primary)]
+    pub span: Span,
+    pub class: String,
+}
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
+#[error("Enum member must have initializer.")]
+pub(super) struct EnumMemberMustHaveInitializer {
+    #[label(primary)]
+    pub span: Span,
+}
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
+#[error(
+    "Conversion of type '{source_ty}' to type '{target_ty}' may be a mistake because neither type sufficiently overlaps with the other. If this was intentional, convert the expression to 'unknown' first."
+)]
+pub(super) struct ConversionOfType0ToType1MayBeAMistakeBecauseNeitherTypeSufficientlyOverlapsWithTheOtherIfThisWasIntentionalConvertTheExpressionToUnknownFirst
+{
+    #[label(primary)]
+    pub span: Span,
+    pub source_ty: String,
+    pub target_ty: String,
+}
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
+#[error("Types of parameters '{ty_x}' and '{ty_y}' are incompatible.")]
+pub(super) struct TypesOfParametersXAndYAreIncompatible {
+    #[label(primary)]
+    pub span: Span,
+    pub ty_x: String,
+    pub ty_y: String,
+}
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
+#[error("Type '{ty}' provides no match for the signature '{sig}'.")]
+pub(super) struct TypeXProvidesNoMatchForTheSignatureY {
+    #[label(primary)]
+    pub span: Span,
+    pub ty: String,
+    pub sig: String,
+}
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
+#[error("Operator '{op}' cannot be applied to types '{ty1}' and '{ty2}'.")]
+pub(super) struct OperatorCannotBeAppliedToTypesXAndY {
+    #[label(primary)]
+    pub span: Span,
+    pub op: String,
+    pub ty1: String,
+    pub ty2: String,
+}
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
+#[error("A 'get' accessor must return a value.")]
+pub(super) struct AGetAccessorMustReturnAValue {
+    #[label(primary)]
+    pub span: Span,
 }

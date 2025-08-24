@@ -1,0 +1,13 @@
+  × Function implementation is missing or not immediately following the
+  │ declaration.
+   ╭─[../../tests/compiler/ClassDeclaration25/index.ts:8:3]
+ 8 │ data
+   · ────
+   ╰────
+
+  × Function implementation is missing or not immediately following the
+  │ declaration.
+    ╭─[../../tests/compiler/ClassDeclaration25/index.ts:10:3]
+ 10 │ next
+    · ────
+    ╰────

@@ -1,6 +1,6 @@
 use std::{hash::Hash, path::PathBuf};
 
-use bolt_ts_atom::{AtomId, AtomMap};
+use bolt_ts_atom::{Atom, AtomIntern};
 use bolt_ts_utils::no_hashmap_with_capacity;
 use bolt_ts_utils::path::NormalizePath;
 
@@ -18,7 +18,7 @@ pub(super) struct FSTree {
 
 impl FSTree {
     pub const ROOT: FSNodeId = FSNodeId(0);
-    pub(super) fn new(atoms: &mut AtomMap) -> Self {
+    pub(super) fn new(atoms: &mut AtomIntern) -> Self {
         const CAP: usize = 1024;
         let nodes = Vec::with_capacity(CAP);
         let mut this = Self {
@@ -48,7 +48,7 @@ impl FSTree {
         &mut self,
         parent: FSNodeId,
         path: PathId,
-        content: AtomId,
+        content: Atom,
     ) -> FsResult<FSNodeId> {
         let parent_node = self.node(parent);
         let FSNodeKind::Dir(dir) = &parent_node.kind else {
@@ -69,7 +69,7 @@ impl FSTree {
         &mut self,
         parent: Option<FSNodeId>,
         path: PathId,
-        atoms: &mut AtomMap,
+        atoms: &mut AtomIntern,
     ) -> FsResult<FSNodeId> {
         if let Some(parent) = parent {
             let parent_node = self.node(parent);
@@ -127,9 +127,9 @@ impl FSTree {
 
     pub(super) fn add_file(
         &mut self,
-        atoms: &mut AtomMap,
+        atoms: &mut AtomIntern,
         path: &std::path::Path,
-        content: AtomId,
+        content: Atom,
     ) -> FsResult<FSNodeId> {
         let parent_dir = path.parent().unwrap();
         let parent = self.add_dir(atoms, parent_dir)?;
@@ -139,7 +139,7 @@ impl FSTree {
 
     pub(super) fn add_dir(
         &mut self,
-        atoms: &mut AtomMap,
+        atoms: &mut AtomIntern,
         path: &std::path::Path,
     ) -> FsResult<FSNodeId> {
         debug_assert!(path.is_normalized());
@@ -175,7 +175,7 @@ impl FSTree {
         &self,
         path: &std::path::Path,
         is_dir: bool,
-        atoms: &mut AtomMap,
+        atoms: &mut AtomIntern,
     ) -> errors::FsResult<FSNodeId> {
         if path.as_os_str().as_encoded_bytes() == b"/" {
             return if is_dir {
@@ -205,11 +205,7 @@ impl FSTree {
         }
     }
 
-    pub(super) fn read_file(
-        &self,
-        path: &std::path::Path,
-        atoms: &mut AtomMap,
-    ) -> FsResult<AtomId> {
+    pub(super) fn read_file(&self, path: &std::path::Path, atoms: &mut AtomIntern) -> FsResult<Atom> {
         if has_slash_suffix_and_not_root(path) {
             Err(errors::FsError::NotAFile(PathId::get(path, atoms)))
         } else {
@@ -221,7 +217,7 @@ impl FSTree {
         }
     }
 
-    pub(super) fn file_exists(&self, p: &std::path::Path, atoms: &mut AtomMap) -> bool {
+    pub(super) fn file_exists(&self, p: &std::path::Path, atoms: &mut AtomIntern) -> bool {
         self.find_path(p, super::has_slash_suffix_and_not_root(p), atoms)
             .is_ok_and(|id| self.node(id).kind.as_file_node().is_some())
     }
@@ -253,7 +249,7 @@ pub(super) enum FSNodeKind {
 #[derive(Debug, Clone, Copy)]
 pub(super) struct FileNode {
     path: PathId,
-    content: AtomId,
+    content: Atom,
 }
 
 #[derive(Debug)]
@@ -279,7 +275,7 @@ impl DirNode {
 }
 
 impl FSNodeKind {
-    fn file_node(path: PathId, content: AtomId) -> Self {
+    fn file_node(path: PathId, content: Atom) -> Self {
         let node = FileNode { path, content };
         FSNodeKind::File(node)
     }

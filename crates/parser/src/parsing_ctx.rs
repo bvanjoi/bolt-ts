@@ -249,6 +249,12 @@ impl ParserState<'_, '_> {
                 };
                 self.push_error(Box::new(error));
             }
+            ParsingContext::TYPE_MEMBERS => {
+                let error = errors::PropertyOrSignatureExpected {
+                    span: self.token.span,
+                };
+                self.push_error(Box::new(error));
+            }
             _ => {}
         }
     }

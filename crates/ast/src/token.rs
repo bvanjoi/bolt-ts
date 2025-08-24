@@ -1,4 +1,4 @@
-use bolt_ts_atom::AtomId;
+use bolt_ts_atom::Atom;
 use bolt_ts_span::Span;
 
 use crate::keyword;
@@ -34,8 +34,8 @@ pub const fn keyword_idx_to_token(idx: usize) -> TokenKind {
     unsafe { std::mem::transmute::<u8, TokenKind>(idx as u8 + KEYWORD_TOKEN_START) }
 }
 
-pub fn atom_to_token(id: AtomId) -> Option<TokenKind> {
-    static KWS: std::sync::LazyLock<rustc_hash::FxHashMap<AtomId, TokenKind>> =
+pub fn atom_to_token(id: Atom) -> Option<TokenKind> {
+    static KWS: std::sync::LazyLock<rustc_hash::FxHashMap<Atom, TokenKind>> =
         std::sync::LazyLock::new(|| {
             [
                 (keyword::KW_NULL, TokenKind::Null),

@@ -1,7 +1,7 @@
 use super::links;
-use bolt_ts_binder::{SymbolID, SymbolTable};
 use crate::check::get_variances::VarianceFlags;
 use crate::ty;
+use bolt_ts_binder::{SymbolID, SymbolTable};
 
 links!(
     SymbolLinks,

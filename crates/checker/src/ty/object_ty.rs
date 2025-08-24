@@ -215,31 +215,27 @@ impl<'cx> ObjectTyKind<'cx> {
             ObjectTyKind::Anonymous(a) => {
                 let symbol = a.symbol.unwrap();
                 let symbol = checker.binder.symbol(symbol);
-                let print_fn_like_str = |checker: &mut TyChecker, sig: &super::Sig| -> String {
-                    let params = sig.params;
-                    let params = params
-                        .iter()
-                        .map(|param| {
-                            let decl = checker.get_symbol_decl(*param).unwrap();
-                            let name = checker.p.node(decl).ident_name().unwrap();
-                            let ty = checker.get_type_of_symbol(*param);
-                            format!(
-                                "{name}: {ty}",
-                                ty = ty.to_string(checker),
-                                name = checker.atoms.get(name.name),
-                            )
-                        })
-                        .collect::<Vec<_>>()
-                        .join(", ");
-                    let ret = if let Some(ret) = sig.ret {
-                        let ty = checker.p.node(ret);
-                        let ty = checker.get_ty_from_type_node(&ty.as_ty().unwrap());
-                        ty.to_string(checker)
-                    } else {
-                        checker.void_ty.to_string(checker)
+                let print_fn_like_str =
+                    |checker: &mut TyChecker<'cx>, sig: &'cx super::Sig<'cx>| -> String {
+                        let params = sig
+                            .params
+                            .iter()
+                            .map(|param| {
+                                let decl = checker.get_symbol_decl(*param).unwrap();
+                                let name = checker.p.node(decl).ident_name().unwrap();
+                                let ty = checker.get_type_of_symbol(*param);
+                                format!(
+                                    "{name}: {ty}",
+                                    ty = ty.to_string(checker),
+                                    name = checker.atoms.get(name.name),
+                                )
+                            })
+                            .collect::<Vec<_>>()
+                            .join(", ");
+                        let ret = checker.get_ret_ty_of_sig(sig);
+                        let ret = ret.to_string(checker);
+                        format!("({params}) => {ret}")
                     };
-                    format!("({params}) => {ret}")
-                };
                 if symbol.flags.intersects(SymbolFlags::OBJECT_LITERAL) {
                     let members = checker
                         .expect_ty_links(self_ty.id)
@@ -267,10 +263,11 @@ impl<'cx> ObjectTyKind<'cx> {
                         .collect::<Vec<_>>()
                         .join("");
                     format!("{{ {members}}}")
-                } else if symbol
-                    .flags
-                    .intersects(SymbolFlags::CLASS.union(SymbolFlags::VALUE_MODULE))
-                {
+                } else if symbol.flags.intersects(
+                    SymbolFlags::CLASS
+                        .union(SymbolFlags::VALUE_MODULE)
+                        .union(SymbolFlags::CONST_ENUM),
+                ) {
                     let name = symbol.name.expect_atom();
                     format!("typeof {}", checker.atoms.get(name))
                 } else if let Some(sig) = checker

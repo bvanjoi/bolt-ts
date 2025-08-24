@@ -9,7 +9,7 @@ use bolt_ts_ast::NodeFlags;
 use bolt_ts_ast::atom_to_token;
 use bolt_ts_ast::keyword;
 use bolt_ts_ast::r#trait;
-use bolt_ts_atom::AtomId;
+use bolt_ts_atom::Atom;
 use bolt_ts_span::Span;
 
 use crate::create::DeclareSymbolProperty;
@@ -145,7 +145,7 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
         // }
     }
 
-    fn check_contextual_ident(&mut self, id: ast::NodeID, atom: AtomId, span: Span) {
+    fn check_contextual_ident(&mut self, id: ast::NodeID, atom: Atom, span: Span) {
         fn is_identifier_name(b: &BinderState, id: ast::NodeID) -> bool {
             let Some(p_id) = b.parent_map.parent(id) else {
                 return false;
@@ -257,7 +257,7 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
             // TODO:
         }
 
-        let name = match n.binding.kind {
+        let name = match n.name.kind {
             ast::BindingKind::Ident(name) => name,
             ast::BindingKind::ObjectPat(_) => {
                 // TODO: handle this case
@@ -288,29 +288,23 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
         self.create_final_res(name.id, symbol);
     }
 
-    fn bind_array_binding_ele(&mut self, n: &ast::ArrayBindingElem<'cx>) {
+    fn bind_array_binding(&mut self, n: &ast::ArrayBinding<'cx>) {
         if self.in_strict_mode {
             // TODO:
         }
 
-        use ast::ArrayBindingElemKind::*;
-
-        let binding = match n.kind {
-            Binding { name, .. } => name,
-            Omit(_) => return,
-        };
         use bolt_ts_ast::BindingKind::*;
-        match binding.kind {
+        match n.name.kind {
             Ident(ident) => {
                 let symbol = self.bind_var(n.id, ident.name);
-                self.create_final_res(binding.id, symbol);
+                self.create_final_res(n.name.id, symbol);
             }
             ObjectPat(_) => {}
             ArrayPat(_) => {}
         };
     }
 
-    fn bind_var(&mut self, id: ast::NodeID, name: bolt_ts_atom::AtomId) -> SymbolID {
+    fn bind_var(&mut self, id: ast::NodeID, name: bolt_ts_atom::Atom) -> SymbolID {
         let name = SymbolName::Atom(name);
 
         if self.node_query().is_block_or_catch_scoped(id) {
@@ -414,10 +408,10 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
                 self.check_contextual_ident(node, keyword::KW_THIS, this.span);
             }
             QualifiedName(_) => {
-                if let Some(flow) = self.current_flow {
-                    if self.node_query().is_part_of_ty_query(node) {
-                        self.flow_nodes.insert_container_map(node, flow);
-                    }
+                if let Some(flow) = self.current_flow
+                    && self.node_query().is_part_of_ty_query(node)
+                {
+                    self.flow_nodes.insert_container_map(node, flow);
                 }
             }
             // TODO: meta
@@ -475,7 +469,7 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
                 //     .insert_container_map(node, self.current_flow.unwrap());
                 self.bind_object_binding_ele(n);
             }
-            ArrayBindingElem(n) => self.bind_array_binding_ele(n),
+            ArrayBinding(n) => self.bind_array_binding(n),
             PropSignature(ast::PropSignature { name, question, .. })
             | ClassPropElem(ast::ClassPropElem { name, question, .. }) => {
                 // TODO: is_auto_accessor
@@ -723,13 +717,19 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
 
     fn bind_enum_decl(&mut self, node: &'cx ast::EnumDecl<'cx>) {
         // TODO: is const
+        let (includes, excludes) = if node
+            .modifiers
+            .is_some_and(|ms| ms.flags.contains(ast::ModifierKind::Const))
+        {
+            (SymbolFlags::CONST_ENUM, SymbolFlags::CONST_ENUM_EXCLUDES)
+        } else {
+            (
+                SymbolFlags::REGULAR_ENUM,
+                SymbolFlags::REGULAR_ENUM_EXCLUDES,
+            )
+        };
         let name = SymbolName::Atom(node.name.name);
-        let symbol = self.bind_block_scoped_decl(
-            node.id,
-            name,
-            SymbolFlags::REGULAR_ENUM,
-            SymbolFlags::REGULAR_ENUM_EXCLUDES,
-        );
+        let symbol = self.bind_block_scoped_decl(node.id, name, includes, excludes);
         self.final_res.insert(node.id, symbol);
     }
 

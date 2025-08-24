@@ -23,7 +23,9 @@ impl<'cx> TyChecker<'cx> {
             .intersects(ty::ObjectFlags::REQUIRES_WIDENING)
         {
             // TODO: cache
-            if ty.is_object_literal() {
+            if ty.flags.intersects(TypeFlags::ANY.union(TypeFlags::NULLABLE)) {
+                self.any_ty
+            } else if ty.is_object_literal() {
                 self.get_widened_type_of_object_lit(ty)
             } else if self.is_array_or_tuple(ty) {
                 let refer = ty.kind.expect_object_reference();
@@ -169,12 +171,11 @@ impl<'cx> TyChecker<'cx> {
         contextual_sig_ret_ty: Option<&'cx ty::Ty<'cx>>,
         is_async: bool,
     ) -> Option<&'cx ty::Ty<'cx>> {
-        if let Some(t) = ty {
-            if t.is_unit() {
-                let contextual_ty =
-                    contextual_sig_ret_ty.map(|c| if is_async { todo!() } else { c });
-                ty = Some(self.get_widened_lit_like_ty_for_contextual_ty(t, contextual_ty));
-            }
+        if let Some(t) = ty
+            && t.is_unit()
+        {
+            let contextual_ty = contextual_sig_ret_ty.map(|c| if is_async { todo!() } else { c });
+            ty = Some(self.get_widened_lit_like_ty_for_contextual_ty(t, contextual_ty));
         }
         ty
     }
@@ -196,23 +197,22 @@ impl<'cx> TyChecker<'cx> {
         node: ast::NodeID,
         context_flags: Option<ContextFlags>,
     ) -> Option<&'cx ty::Ty<'cx>> {
-        if let Some(contextual_ty) = contextual_ty {
-            if contextual_ty.flags.intersects(TypeFlags::INSTANTIABLE) {
-                let inference_context = self.get_inference_context(node);
-                if let Some(inference_context) = inference_context {
-                    if context_flags
-                        .is_some_and(|check_flags| check_flags.intersects(ContextFlags::SIGNATURE))
-                        && self
-                            .inference_infos(inference_context.inference.unwrap())
-                            .iter()
-                            .any(|i| i.has_inference_candidates_or_default(self))
-                    {
-                        // TODO:
-                        return Some(contextual_ty);
-                    }
-                }
+        if let Some(contextual_ty) = contextual_ty
+            && contextual_ty.flags.intersects(TypeFlags::INSTANTIABLE)
+        {
+            let inference_context = self.get_inference_context(node);
+            if let Some(inference_context) = inference_context
+                && context_flags
+                    .is_some_and(|check_flags| check_flags.intersects(ContextFlags::SIGNATURE))
+                && self
+                    .inference_infos(inference_context.inference.unwrap())
+                    .iter()
+                    .any(|i| i.has_inference_candidates_or_default(self))
+            {
                 // TODO:
+                return Some(contextual_ty);
             }
+            // TODO:
         }
         contextual_ty
     }

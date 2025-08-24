@@ -1,0 +1,55 @@
+  × The '^=' operator is not allowed for boolean types. Consider using '!=='
+  │ instead.
+   ╭─[../../tests/compiler/bitwiseCompoundAssignmentOperators/index.ts:5:1]
+ 5 │ a ^= a
+   · ──────
+   ╰────
+
+  × The left-hand side of an arithmetic operation must be of type 'any',
+  │ 'number', 'bigint' or an enum type.
+   ╭─[../../tests/compiler/bitwiseCompoundAssignmentOperators/index.ts:9:1]
+ 9 │ a
+   · ─
+   ╰────
+
+  × The right-hand side of an arithmetic operation must be of type 'any',
+  │ 'number', 'bigint' or an enum type.
+    ╭─[../../tests/compiler/bitwiseCompoundAssignmentOperators/index.ts:11:6]
+ 11 │ a
+    · ─
+    ╰────
+
+  × The '&=' operator is not allowed for boolean types. Consider using '&&'
+  │ instead.
+    ╭─[../../tests/compiler/bitwiseCompoundAssignmentOperators/index.ts:16:1]
+ 16 │ c &= c
+    · ──────
+    ╰────
+
+  × The left-hand side of an arithmetic operation must be of type 'any',
+  │ 'number', 'bigint' or an enum type.
+    ╭─[../../tests/compiler/bitwiseCompoundAssignmentOperators/index.ts:20:1]
+ 20 │ c
+    · ─
+    ╰────
+
+  × The right-hand side of an arithmetic operation must be of type 'any',
+  │ 'number', 'bigint' or an enum type.
+    ╭─[../../tests/compiler/bitwiseCompoundAssignmentOperators/index.ts:22:6]
+ 22 │ c
+    · ─
+    ╰────
+
+  × The '|=' operator is not allowed for boolean types. Consider using '||'
+  │ instead.
+    ╭─[../../tests/compiler/bitwiseCompoundAssignmentOperators/index.ts:26:1]
+ 26 │ e |= e
+    · ──────
+    ╰────
+
+  × The left-hand side of an arithmetic operation must be of type 'any',
+  │ 'number', 'bigint' or an enum type.
+    ╭─[../../tests/compiler/bitwiseCompoundAssignmentOperators/index.ts:30:1]
+ 30 │ e
+    · ─
+    ╰────

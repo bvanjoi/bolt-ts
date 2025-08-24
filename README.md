@@ -16,7 +16,7 @@ Core functionalities are operational but require refinement. Key pending improve
 
 - Parser: async function, switch/with stmt.
 - Module Resolution: cache, `exports`/`imports` field support, `node_modules/@types` type definition resolution.
-- Type Checking: enum implementation and various edge-case bugs.
+- Type Checking: various edge-case bugs.
 - Output Generation: sourcemap generation, different module systems.
 - And others: js file processing, language service..
 

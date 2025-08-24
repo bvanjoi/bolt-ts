@@ -1,0 +1,5 @@
+  × Type 'string' is not assignable to type 'number'.
+    ╭─[../../tests/compiler/typeArgumentInferenceOrdering/index.ts:18:5]
+ 18 │ p
+    · ─
+    ╰────

@@ -1,0 +1,5 @@
+  × Generic type 'Array<T>' requires 1 type argument.
+   ╭─[../../tests/compiler/arrayReferenceWithoutTypeArgs/index.ts:4:15]
+ 4 │ Array
+   · ─────
+   ╰────

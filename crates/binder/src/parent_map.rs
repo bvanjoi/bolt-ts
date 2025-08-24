@@ -26,7 +26,7 @@ impl ParentMap {
 
     pub(super) fn insert(&mut self, node: bolt_ts_ast::NodeID, parent: bolt_ts_ast::NodeID) {
         let id = node.index_as_usize();
-        assert_eq!(
+        debug_assert_eq!(
             self.inner[id],
             Self::PLACEHOLDER,
             "node({id}) already has a parent"

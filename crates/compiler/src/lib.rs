@@ -12,7 +12,7 @@ use self::wf::well_formed_check_parallel;
 use bolt_ts_ast::TokenKind;
 use bolt_ts_ast::keyword;
 use bolt_ts_ast::keyword_idx_to_token;
-use bolt_ts_atom::AtomMap;
+use bolt_ts_atom::AtomIntern;
 use bolt_ts_binder::bind_parallel;
 use bolt_ts_binder::{Binder, ResolveResult};
 use bolt_ts_binder::{BinderResult, MergeGlobalSymbolResult};
@@ -75,7 +75,7 @@ pub fn output_files(
     }
 }
 
-pub fn init_atom() -> AtomMap {
+pub fn init_atom() -> AtomIntern {
     #[cfg(debug_assertions)]
     for idx in 0..keyword::KEYWORDS.len() {
         let t = keyword_idx_to_token(idx);
@@ -107,10 +107,9 @@ pub fn eval_from_with_fs(
     default_lib_dir: PathBuf,
     default_libs: Vec<PathBuf>,
     mut fs: impl CachedFileSystem,
-    mut atoms: bolt_ts_atom::AtomMap,
+    mut atoms: bolt_ts_atom::AtomIntern,
 ) -> Output {
     bolt_ts_tracing::init_tracing();
-    // let default_libs = vec![];
     // ==== collect entires ====
     let config_file_specs = cli::ConfigFileSpecs::get_config_file_specs(tsconfig);
     let mut include = get_filenames(&config_file_specs, &root, &mut fs, &mut atoms);

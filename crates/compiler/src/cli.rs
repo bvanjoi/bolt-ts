@@ -1,6 +1,6 @@
 use bolt_ts_config::NormalizedTsConfig;
 use bolt_ts_fs::CachedFileSystem;
-use bolt_ts_resolve::COMMON_PACKAGE_FOLDERS;
+use bolt_ts_module_resolve::COMMON_PACKAGE_FOLDERS;
 use bolt_ts_utils::path::NormalizePath;
 
 pub(super) struct ConfigFileSpecs {
@@ -20,7 +20,7 @@ fn match_files(
     exclude: Option<&[String]>,
     include: Option<&[String]>,
     fs: &mut impl CachedFileSystem,
-    atoms: &mut bolt_ts_atom::AtomMap,
+    atoms: &mut bolt_ts_atom::AtomIntern,
 ) -> Vec<std::path::PathBuf> {
     debug_assert!(path.is_normalized(), "'{path:#?}' is not normalized");
     let include = include
@@ -68,7 +68,7 @@ fn get_filenames_from_config_specs(
     config_file_specs: &ConfigFileSpecs,
     base_path: &std::path::Path,
     fs: &mut impl CachedFileSystem,
-    atoms: &mut bolt_ts_atom::AtomMap,
+    atoms: &mut bolt_ts_atom::AtomIntern,
 ) -> Vec<std::path::PathBuf> {
     let supported_extensions = &bolt_ts_config::FLATTENED_ALL_SUPPORTED_EXTENSIONS;
     let exclude = COMMON_PACKAGE_FOLDERS
@@ -90,7 +90,7 @@ pub(super) fn get_filenames(
     config_file_specs: &ConfigFileSpecs,
     base_path: &std::path::Path,
     fs: &mut impl CachedFileSystem,
-    atoms: &mut bolt_ts_atom::AtomMap,
+    atoms: &mut bolt_ts_atom::AtomIntern,
 ) -> Vec<std::path::PathBuf> {
     get_filenames_from_config_specs(config_file_specs, base_path, fs, atoms)
 }

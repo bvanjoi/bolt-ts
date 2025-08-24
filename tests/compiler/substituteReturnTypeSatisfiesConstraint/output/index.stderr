@@ -1,0 +1,11 @@
+  × Type 'number' is not assignable to type 'string'.
+   ╭─[../../tests/compiler/substituteReturnTypeSatisfiesConstraint/index.ts:9:18]
+ 9 │ p
+   · ─
+   ╰────
+
+  × Type 'number' is not assignable to type 'string'.
+    ╭─[../../tests/compiler/substituteReturnTypeSatisfiesConstraint/index.ts:12:31]
+ 12 │ p
+    · ─
+    ╰────

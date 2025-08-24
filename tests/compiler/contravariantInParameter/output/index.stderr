@@ -1,0 +1,6 @@
+  × Argument of type '(b: M) => void' is not assignable to parameter of type
+  │ '(a: N) => void'.
+    ╭─[../../tests/compiler/contravariantInParameter/index.ts:12:3]
+ 12 │ g
+    · ─
+    ╰────

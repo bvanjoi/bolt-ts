@@ -1,0 +1,5 @@
+  × Ambient module declaration cannot specify relative module name.
+   ╭─[../../tests/compiler/declarationEmitRelativeModuleError/index.ts:7:16]
+ 7 │ "b:/block"
+   · ──────────
+   ╰────

@@ -43,7 +43,7 @@ pub enum Node<'cx> {
     ObjectPat(&'cx super::ObjectPat<'cx>),
     ObjectBindingElem(&'cx super::ObjectBindingElem<'cx>),
     ArrayPat(&'cx super::ArrayPat<'cx>),
-    ArrayBindingElem(&'cx super::ArrayBindingElem<'cx>),
+    ArrayBinding(&'cx super::ArrayBinding<'cx>),
     EnumMember(&'cx super::EnumMember<'cx>),
     ObjectShorthandMember(&'cx super::ObjectShorthandMember<'cx>),
     ObjectPropMember(&'cx super::ObjectPropMember<'cx>),
@@ -312,6 +312,10 @@ impl<'cx> Node<'cx> {
                 super::PropNameKind::Ident(ident) => Some(ident),
                 _ => None,
             },
+            GetterDecl(n) => match n.name.kind {
+                super::PropNameKind::Ident(ident) => Some(ident),
+                _ => None,
+            },
             PropSignature(n) => match n.name.kind {
                 super::PropNameKind::Ident(ident) => Some(ident),
                 _ => None,
@@ -406,7 +410,7 @@ impl<'cx> Node<'cx> {
             };
         }
 
-        if let Some(ty) = dot_ty!(FnTy, IndexSigDecl) {
+        if let Some(ty) = dot_ty!(FnTy, IndexSigDecl, CtorTy) {
             return Some(ty);
         }
 
@@ -466,6 +470,8 @@ impl<'cx> Node<'cx> {
                 | ClassExpr(_)
                 | ClassPropElem(_)
                 | ClassMethodElem(_)
+                | EnumDecl(_)
+                | EnumMember(_)
                 | ArrowFnExpr(_)
                 | FnExpr(_)
                 | ClassCtor(_)
@@ -508,11 +514,10 @@ impl<'cx> Node<'cx> {
         if let Some(f) = self.as_arrow_fn_expr() {
             return Some(f.body);
         }
-        use super::ArrowFnExprBody::Block;
         macro_rules! fn_body {
             ($($node_kind:ident),* $(,)?) => {
                 match self {
-                    $(Node::$node_kind(n) => Some(Block(&n.body)),)*
+                    $(Node::$node_kind(n) => Some(super::ArrowFnExprBody::Block(&n.body)),)*
                     _ => None,
                 }
             };
@@ -525,12 +530,12 @@ impl<'cx> Node<'cx> {
         macro_rules! fn_body_with_option {
             ($( $node_kind:ident),* $(,)?) => {
                 match self {
-                    $(Node::$node_kind(n) if n.body.is_some() => Some(Block(n.body.unwrap())),)*
+                    $(Node::$node_kind(n) if n.body.is_some() => Some(super::ArrowFnExprBody::Block(n.body.unwrap())),)*
                     _ => None,
                 }
             };
         }
-        fn_body_with_option!(FnDecl, ClassMethodElem, ClassCtor)
+        fn_body_with_option!(FnDecl, ClassMethodElem, ClassCtor, GetterDecl)
     }
 
     pub fn fn_flags(&self) -> FnFlags {
@@ -591,12 +596,16 @@ impl<'cx> Node<'cx> {
         self.has_syntactic_modifier(ModifierKind::Readonly.into())
     }
 
+    pub fn has_effective_modifier(&self, kind: ModifierKind) -> bool {
+        self.has_syntactic_modifier(kind.into())
+    }
+
     pub fn has_syntactic_modifier(&self, flags: enumflags2::BitFlags<ModifierKind>) -> bool {
         self.modifiers()
             .is_some_and(|ms| ms.flags.intersects(flags))
     }
 
-    pub fn modifiers(&self) -> Option<&'cx super::Modifiers> {
+    pub fn modifiers(&self) -> Option<&super::Modifiers<'cx>> {
         macro_rules! modifiers {
             ($( $node_kind:ident),* $(,)?) => {
                 match self {
@@ -606,6 +615,7 @@ impl<'cx> Node<'cx> {
             };
         }
         modifiers!(
+            ClassCtor,
             ClassMethodElem,
             ClassPropElem,
             GetterDecl,
@@ -776,7 +786,7 @@ impl<'cx> Node<'cx> {
         }
     }
 
-    pub fn import_export_spec_name(&self) -> Option<bolt_ts_atom::AtomId> {
+    pub fn import_export_spec_name(&self) -> Option<bolt_ts_atom::Atom> {
         use Node::*;
         match self {
             ShorthandSpec(n) => Some(n.name.name),
@@ -829,7 +839,7 @@ impl<'cx> Node<'cx> {
 
     pub fn error_span(&self) -> bolt_ts_span::Span {
         match self {
-            Node::VarDecl(n) => n.binding.span,
+            Node::VarDecl(n) => n.name.span,
             Node::ModuleDecl(n) => n.name.span(),
             _ => self.span(),
         }
@@ -1080,12 +1090,8 @@ as_node!(
         super::ObjectBindingElem<'cx>,
         object_binding_elem
     ),
-    (ArrayPat, super::ArrayPat, array_pat),
-    (
-        ArrayBindingElem,
-        super::ArrayBindingElem<'cx>,
-        array_binding_elem
-    ),
+    (ArrayPat, super::ArrayPat<'cx>, array_pat),
+    (ArrayBinding, super::ArrayBinding<'cx>, array_binding),
     (PredTy, super::PredTy<'cx>, pred_ty),
     (ParenTy, super::ParenTy<'cx>, paren_ty),
     (InferTy, super::InferTy<'cx>, infer_ty),

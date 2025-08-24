@@ -1,0 +1,5 @@
+  × Type 'string' is not assignable to type '(n: number) => boolean'.
+    ╭─[../../tests/compiler/assignToFn/index.ts:10:5]
+ 10 │ x.f
+    · ───
+    ╰────

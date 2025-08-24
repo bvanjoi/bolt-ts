@@ -1,0 +1,5 @@
+  × Property 'C' does not exist on type 'typeof M'.
+   ╭─[../../tests/compiler/classExtendingQualifiedName/index.ts:7:21]
+ 7 │ C
+   · ─
+   ╰────

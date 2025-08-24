@@ -1,4 +1,3 @@
-use bolt_ts_binder::{Symbol, SymbolFlags, SymbolID};
 use crate::check::create_ty::IntersectionFlags;
 use crate::check::cycle_check::ResolutionKey;
 use crate::check::get_simplified_ty::SimplifiedKind;
@@ -6,6 +5,7 @@ use crate::check::is_deeply_nested_type::RecursionId;
 use crate::ty;
 use crate::ty::TypeFlags;
 use bolt_ts_ast as ast;
+use bolt_ts_binder::{Symbol, SymbolFlags, SymbolID};
 
 use super::symbol_info::SymbolInfo;
 use super::{TyChecker, errors};
@@ -36,10 +36,11 @@ impl<'cx> TyReferTyOrImport<'cx> for ast::ReferTy<'cx> {
 impl<'cx> TyChecker<'cx> {
     pub(super) fn check_ty_refer_ty_or_import(&mut self, node: &impl TyReferTyOrImport<'cx>) {
         let ty = node.get_ty(self);
-        if ty != self.error_ty && node.ty_args().is_some() {
-            if let Some(ty_params) = self.get_ty_params_for_ty_refer_ty_or_import(node) {
-                self.check_ty_arg_constraints(node, ty_params);
-            }
+        if ty != self.error_ty
+            && node.ty_args().is_some()
+            && let Some(ty_params) = self.get_ty_params_for_ty_refer_ty_or_import(node)
+        {
+            self.check_ty_arg_constraints(node, ty_params);
         }
     }
 
@@ -76,30 +77,27 @@ impl<'cx> TyChecker<'cx> {
         let indexed_access_ty = ty.kind.expect_indexed_access();
         if let Some(index_constraint) =
             self.get_simplified_ty_or_constraint(indexed_access_ty.index_ty)
+            && index_constraint != indexed_access_ty.index_ty
+            && let Some(indexed_access) = self.get_indexed_access_ty_or_undefined(
+                indexed_access_ty.object_ty,
+                index_constraint,
+                Some(indexed_access_ty.access_flags),
+                None,
+            )
         {
-            if index_constraint != indexed_access_ty.index_ty {
-                if let Some(indexed_access) = self.get_indexed_access_ty_or_undefined(
-                    indexed_access_ty.object_ty,
-                    index_constraint,
-                    Some(indexed_access_ty.access_flags),
-                    None,
-                ) {
-                    return Some(indexed_access);
-                }
-            }
+            return Some(indexed_access);
         }
 
         if let Some(object_constraint) =
             self.get_simplified_ty_or_constraint(indexed_access_ty.object_ty)
+            && object_constraint != indexed_access_ty.object_ty
         {
-            if object_constraint != indexed_access_ty.object_ty {
-                return self.get_indexed_access_ty_or_undefined(
-                    object_constraint,
-                    indexed_access_ty.index_ty,
-                    Some(indexed_access_ty.access_flags),
-                    None,
-                );
-            }
+            return self.get_indexed_access_ty_or_undefined(
+                object_constraint,
+                indexed_access_ty.index_ty,
+                Some(indexed_access_ty.access_flags),
+                None,
+            );
         }
 
         None
@@ -251,14 +249,14 @@ impl<'cx> TyChecker<'cx> {
             };
 
             if checker.pop_ty_resolution().has_cycle() {
-                if ty.flags.intersects(TypeFlags::TYPE_PARAMETER) {
-                    if let Some(decl) = checker.get_constraint_decl(ty) {
-                        let error = errors::TypeParameterXHasACircularConstraint {
-                            ty: checker.print_ty(ty).to_string(),
-                            span: decl.span(),
-                        };
-                        checker.push_error(Box::new(error));
-                    }
+                if ty.flags.intersects(TypeFlags::TYPE_PARAMETER)
+                    && let Some(decl) = checker.get_constraint_decl(ty)
+                {
+                    let error = errors::TypeParameterXHasACircularConstraint {
+                        ty: checker.print_ty(ty).to_string(),
+                        span: decl.span(),
+                    };
+                    checker.push_error(Box::new(error));
                 }
                 result = Some(checker.circular_constraint_ty());
             }
@@ -312,7 +310,13 @@ impl<'cx> TyChecker<'cx> {
                     return Some(ty);
                 };
                 if ty.kind.is_union() && base_tys.len() == tys.len() {
-                    Some(checker.get_union_ty(&base_tys, ty::UnionReduction::Lit))
+                    Some(checker.get_union_ty(
+                        &base_tys,
+                        ty::UnionReduction::Lit,
+                        false,
+                        None,
+                        None,
+                    ))
                 } else if ty.kind.is_intersection() && !base_tys.is_empty() {
                     Some(checker.get_intersection_ty(
                         &base_tys,

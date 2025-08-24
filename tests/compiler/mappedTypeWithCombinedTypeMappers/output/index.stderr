@@ -1,0 +1,5 @@
+  × Type 'string' is not assignable to type '{ important: boolean; }'.
+    ╭─[../../tests/compiler/mappedTypeWithCombinedTypeMappers/index.ts:18:7]
+ 18 │ shouldFail
+    · ──────────
+    ╰────

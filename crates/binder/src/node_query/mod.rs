@@ -54,7 +54,7 @@ impl<'cx, 'a> NodeQuery<'cx, 'a> {
         let p = self.node(parent);
         match p {
             ObjectBindingElem(n) => ast::DeclarationName::from_object_binding_name(n.name),
-            VarDecl(n) => ast::DeclarationName::from_binding(n.binding),
+            VarDecl(n) => ast::DeclarationName::from_binding(n.name),
             Ident(n) => Some(ast::DeclarationName::Ident(n)),
             _ => None,
         }
@@ -285,7 +285,7 @@ impl<'cx, 'a> NodeQuery<'cx, 'a> {
                 debug_assert!(self.node(p).is_binding());
                 id = self.parent(p).unwrap();
                 n = self.node(id);
-            } else if n.is_array_binding_elem() {
+            } else if n.is_array_binding() {
                 let p = self.parent(id).unwrap();
                 debug_assert!(self.node(p).is_array_pat(), "span: {:#?}", self.node(p));
                 let p = self.parent(p).unwrap();
@@ -486,7 +486,7 @@ impl<'cx, 'a> NodeQuery<'cx, 'a> {
         None
     }
 
-    pub fn get_assignment_kind(&self, id: ast::NodeID) -> AssignmentKind {
+    pub fn get_assignment_target_kind(&self, id: ast::NodeID) -> AssignmentKind {
         let Some(target) = self.get_assignment_target(id) else {
             return AssignmentKind::None;
         };
@@ -521,12 +521,12 @@ impl<'cx, 'a> NodeQuery<'cx, 'a> {
                 break;
             };
             let p = self.node(p_id);
-            if let Some(qualified) = p.as_qualified_name() {
-                if qualified.left.id() == id {
-                    n = p;
-                    id = p_id;
-                    continue;
-                }
+            if let Some(qualified) = p.as_qualified_name()
+                && qualified.left.id() == id
+            {
+                n = p;
+                id = p_id;
+                continue;
             }
             break;
         }
@@ -610,10 +610,10 @@ impl<'cx, 'a> NodeQuery<'cx, 'a> {
                 prev = parent_id;
                 parent = self.node(self.parent(parent_id).unwrap());
             }
-            if let Some(call) = parent.as_call_expr() {
-                if call.expr.id() == prev {
-                    return Some(call);
-                }
+            if let Some(call) = parent.as_call_expr()
+                && call.expr.id() == prev
+            {
+                return Some(call);
             }
         }
         None
@@ -812,5 +812,26 @@ impl<'cx, 'a> NodeQuery<'cx, 'a> {
             }
             _ => unreachable!(),
         }
+    }
+
+    pub fn is_node_within_class(&self, node: ast::NodeID, class_decl: ast::NodeID) -> bool {
+        debug_assert!(self.node(class_decl).is_class_like());
+        self.for_each_enclosing_class(node, |c| (c == class_decl).then_some(true))
+            .is_some()
+    }
+
+    pub fn for_each_enclosing_class<T>(
+        &self,
+        mut node: ast::NodeID,
+        f: impl Fn(ast::NodeID) -> Option<T>,
+    ) -> Option<T> {
+        while let Some(class) = self.get_containing_class(node) {
+            debug_assert!(self.node(class).is_class_like());
+            if let Some(res) = f(class) {
+                return Some(res);
+            }
+            node = class;
+        }
+        None
     }
 }

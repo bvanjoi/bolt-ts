@@ -1,0 +1,3 @@
+  × Syntax Error: Unexpected token ','
+   ╭─[../../tests/compiler/classHeritageWithTrailingSeparator/index.ts:2:18]
+   ╰────

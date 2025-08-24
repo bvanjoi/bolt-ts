@@ -1,0 +1,5 @@
+  × Cannot find name 'X'.
+   ╭─[../../tests/compiler/raiseErrorOnParameterProperty/index.ts:4:25]
+ 4 │ X
+   · ─
+   ╰────

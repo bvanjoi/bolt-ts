@@ -1,4 +1,4 @@
-use bolt_ts_atom::AtomId;
+use bolt_ts_atom::Atom;
 use bolt_ts_binder::AssignmentKind;
 use bolt_ts_binder::SymbolID;
 use bolt_ts_binder::{SymbolFlags, SymbolName};
@@ -31,14 +31,14 @@ fn get_suggestion_boolean_op(op: &str) -> Option<&str> {
 bitflags::bitflags! {
     #[derive(Clone, Copy, Debug)]
     pub struct IterationUse: u8 {
-        const ALLOWS_SYNC_ITERABLES_FLAG  = 1 << 0;
-        const ALLOWS_ASYNC_ITERABLES_FLAG = 1 << 1;
-        const ALLOWS_STRING_INPUT_FLAG     = 1 << 2;
-        const FOR_OF_FLAG                  = 1 << 3;
-        const YIELD_STAR_FLAG              = 1 << 4;
-        const SPREAD_FLAG                  = 1 << 5;
-        const DESTRUCTURING_FLAG           = 1 << 6;
-        const POSSIBLY_OUT_OF_BOUNDS       = 1 << 7;
+        const ALLOWS_SYNC_ITERABLES_FLAG    = 1 << 0;
+        const ALLOWS_ASYNC_ITERABLES_FLAG   = 1 << 1;
+        const ALLOWS_STRING_INPUT_FLAG      = 1 << 2;
+        const FOR_OF_FLAG                   = 1 << 3;
+        const YIELD_STAR_FLAG               = 1 << 4;
+        const SPREAD_FLAG                   = 1 << 5;
+        const DESTRUCTURING_FLAG            = 1 << 6;
+        const POSSIBLY_OUT_OF_BOUNDS        = 1 << 7;
 
         const ELEMENT = Self::ALLOWS_SYNC_ITERABLES_FLAG.bits();
         const SPREAD = Self::ALLOWS_SYNC_ITERABLES_FLAG.bits()
@@ -153,13 +153,13 @@ impl<'cx> TyChecker<'cx> {
         self.get_fresh_ty_of_literal_ty(t)
     }
 
-    pub(super) fn check_string_lit(&mut self, val: AtomId) -> &'cx ty::Ty<'cx> {
+    pub(super) fn check_string_lit(&mut self, val: Atom) -> &'cx ty::Ty<'cx> {
         // TODO: hasSkipDirectInferenceFlag
         let t = self.get_string_literal_type(val);
         self.get_fresh_ty_of_literal_ty(t)
     }
 
-    pub(super) fn check_bigint_lit(&mut self, neg: bool, val: AtomId) -> &'cx ty::Ty<'cx> {
+    pub(super) fn check_bigint_lit(&mut self, neg: bool, val: Atom) -> &'cx ty::Ty<'cx> {
         // TODO: check grammar
         let t = self.get_bigint_literal_type(neg, val);
         self.get_fresh_ty_of_literal_ty(t)
@@ -215,8 +215,8 @@ impl<'cx> TyChecker<'cx> {
                 // TODO: support super
                 self.undefined_ty
             }
-            As(n) => self.check_assertion(n.expr, n.ty),
-            TyAssertion(n) => self.check_assertion(n.expr, n.ty),
+            As(n) => self.check_assertion(n.id, n.expr, n.ty),
+            TyAssertion(n) => self.check_assertion(n.id, n.expr, n.ty),
             Satisfies(n) => self.check_expr(n.expr),
             NonNull(n) => self.check_expr(n.expr),
             Template(n) => self.check_template_expr(n),
@@ -438,16 +438,23 @@ impl<'cx> TyChecker<'cx> {
 
     fn check_assertion(
         &mut self,
+        node_id: ast::NodeID,
         assert_expr: &'cx ast::Expr<'cx>,
         assert_ty: &'cx ast::Ty<'cx>,
     ) -> &'cx ty::Ty<'cx> {
-        // TODO: check ty assertion.
         let expr_ty = self.check_expr(assert_expr);
         if assert_ty.is_const_ty_refer() {
-            self.get_regular_ty_of_literal_ty(expr_ty)
-        } else {
-            self.get_ty_from_type_node(assert_ty)
+            return self.get_regular_ty_of_literal_ty(expr_ty);
         }
+        self.check_node_deferred(node_id);
+        let ret = self.get_ty_from_type_node(assert_ty);
+        if let Some(_old) = self.get_node_links(node_id).get_assertion_expression_ty() {
+            // debug_assert_eq!(old, expr_ty); // TODO: remove duplicate.
+        } else {
+            self.get_mut_node_links(node_id)
+                .set_assertion_expression_ty(expr_ty);
+        }
+        ret
     }
 
     pub(super) fn check_truthiness_expr(&mut self, expr: &'cx ast::Expr) -> &'cx ty::Ty<'cx> {
@@ -575,7 +582,7 @@ impl<'cx> TyChecker<'cx> {
         let ty = self.check_expr(cond.cond);
         let ty1 = self.check_expr(cond.when_true);
         let ty2 = self.check_expr(cond.when_false);
-        self.get_union_ty(&[ty1, ty2], ty::UnionReduction::Subtype)
+        self.get_union_ty(&[ty1, ty2], ty::UnionReduction::Subtype, false, None, None)
     }
 
     fn check_object_lit(&mut self, node: &'cx ast::ObjectLit<'cx>) -> &'cx ty::Ty<'cx> {
@@ -600,13 +607,13 @@ impl<'cx> TyChecker<'cx> {
                     Shorthand(n) => self.check_ident(n.name),
                     Prop(n) => self.check_object_prop_member(n),
                     Method(n) => self.check_object_method_member(n),
-                    SpreadAssignment(_) => unreachable!(),
+                    _ => unreachable!(),
                 };
                 let name = match member.kind {
                     Shorthand(n) => SymbolName::Atom(n.name.name),
                     Prop(n) => bolt_ts_binder::prop_name(n.name),
                     Method(n) => bolt_ts_binder::prop_name(n.name),
-                    SpreadAssignment(_) => unreachable!(),
+                    _ => unreachable!(),
                 };
                 object_flags |= ty.get_object_flags() & ObjectFlags::PROPAGATING_FLAGS;
                 let member_s = self.binder.symbol(member_symbol);
@@ -660,6 +667,18 @@ impl<'cx> TyChecker<'cx> {
                     // TODO: error
                     spread = self.error_ty;
                 }
+            } else {
+                debug_assert!(matches!(member.kind, Setter(_) | Getter(_)));
+                // TODO: deferred check
+
+                let name = match member.kind {
+                    Setter(n) => bolt_ts_binder::prop_name(n.name),
+                    Getter(n) => bolt_ts_binder::prop_name(n.name),
+                    _ => unreachable!(),
+                };
+                let member_symbol = self.get_symbol_of_decl(member.id());
+                properties_table.insert(name, member_symbol);
+                properties_array.push(member_symbol);
             }
         }
         self.pop_type_context();
@@ -837,7 +856,6 @@ impl<'cx> TyChecker<'cx> {
         };
         let l = self.check_expr(assign.left);
         let r = self.check_expr(assign.right);
-        use bolt_ts_ast::AssignOp::*;
 
         // if ty == self.any_ty() {
         //     let error = errors::CannotAssignToNameBecauseItIsATy {
@@ -847,6 +865,7 @@ impl<'cx> TyChecker<'cx> {
         //     };
         //     self.push_error(assign.span.module, Box::new(error));
         // }
+        use bolt_ts_ast::AssignOp::*;
         (match assign.op {
             Eq => unreachable!(),
             AddEq => self
@@ -1049,16 +1068,15 @@ impl<'cx> TyChecker<'cx> {
         assert!(matches!(op, "^" | "^=" | "&" | "&=" | "|" | "|="));
         if left_ty.flags.intersects(TypeFlags::BOOLEAN_LIKE)
             && right_ty.flags.intersects(TypeFlags::BOOLEAN_LIKE)
+            && let Some(sugg) = get_suggestion_boolean_op(op)
         {
-            if let Some(sugg) = get_suggestion_boolean_op(op) {
-                let error = errors::TheOp1IsNotAllowedForBooleanTypesConsiderUsingOp2Instead {
-                    span: expr_span,
-                    op1: op.to_string(),
-                    op2: sugg.to_string(),
-                };
-                self.push_error(Box::new(error));
-                return self.number_ty;
-            }
+            let error = errors::TheOp1IsNotAllowedForBooleanTypesConsiderUsingOp2Instead {
+                span: expr_span,
+                op1: op.to_string(),
+                op2: sugg.to_string(),
+            };
+            self.push_error(Box::new(error));
+            return self.number_ty;
         }
 
         let left = self.check_arithmetic_op_ty(left_ty, false, |this| {
@@ -1085,7 +1103,7 @@ impl<'cx> TyChecker<'cx> {
         let expr_ty = self.check_expr(node.expr);
         let assign_kind = self
             .node_query(node.id.module())
-            .get_assignment_kind(node.id);
+            .get_assignment_target_kind(node.id);
         let assign_kind_is_none = assign_kind == AssignmentKind::None;
         let object_ty = if !assign_kind_is_none
             || self

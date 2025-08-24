@@ -1,5 +1,0 @@
-  × Duplicate identifier 'T'.
-   ╭─[../../tests/cases/compiler/duplicateTypeParameters2/index.ts:6:26]
- 6 │ T
-   · ─
-   ╰────

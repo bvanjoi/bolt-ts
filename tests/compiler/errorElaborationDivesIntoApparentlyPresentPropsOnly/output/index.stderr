@@ -1,0 +1,17 @@
+  × Type '{ a: string; b: number; c: number; }' is not assignable to type 'T'.
+   ╭─[../../tests/compiler/errorElaborationDivesIntoApparentlyPresentPropsOnly/index.ts:4:3]
+ 4 │ x
+   · ─
+   ╰────
+
+  × Type '{ a: number; }' is not assignable to type 'T'.
+   ╭─[../../tests/compiler/errorElaborationDivesIntoApparentlyPresentPropsOnly/index.ts:9:3]
+ 9 │ x
+   · ─
+   ╰────
+
+  × Type '{ a: string; }' is not assignable to type 'T'.
+    ╭─[../../tests/compiler/errorElaborationDivesIntoApparentlyPresentPropsOnly/index.ts:14:3]
+ 14 │ x
+    · ─
+    ╰────

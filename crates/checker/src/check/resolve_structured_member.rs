@@ -33,10 +33,10 @@ impl<'cx> TyChecker<'cx> {
 
     fn range_eq<T: PartialEq>(arr1: &[T], arr2: &[T], start: usize, end: usize) -> bool {
         for index in start..end {
-            if let Some(item2) = arr2.get(index) {
-                if arr1[index].eq(item2) {
-                    continue;
-                }
+            if let Some(item2) = arr2.get(index)
+                && arr1[index].eq(item2)
+            {
+                continue;
             }
             return false;
         }
@@ -67,20 +67,20 @@ impl<'cx> TyChecker<'cx> {
         symbol: SymbolID,
         mapper: &'cx dyn ty::TyMap<'cx>,
     ) -> SymbolID {
-        if let Some(ty) = self.get_symbol_links(symbol).get_ty() {
-            if !self.could_contain_ty_var(ty) {
-                if !self
-                    .symbol(symbol)
-                    .flags
-                    .intersects(SymbolFlags::SET_ACCESSOR)
-                {
-                    return symbol;
-                }
-                if let Some(write_ty) = self.get_symbol_links(symbol).get_write_ty() {
-                    if !self.could_contain_ty_var(write_ty) {
-                        return symbol;
-                    }
-                }
+        if let Some(ty) = self.get_symbol_links(symbol).get_ty()
+            && !self.could_contain_ty_var(ty)
+        {
+            if !self
+                .symbol(symbol)
+                .flags
+                .intersects(SymbolFlags::SET_ACCESSOR)
+            {
+                return symbol;
+            }
+            if let Some(write_ty) = self.get_symbol_links(symbol).get_write_ty()
+                && !self.could_contain_ty_var(write_ty)
+            {
+                return symbol;
             }
         }
 
@@ -159,23 +159,21 @@ impl<'cx> TyChecker<'cx> {
         erase_ty_params: bool,
     ) -> &'cx ty::Sig<'cx> {
         let mut fresh_ty_params = None;
-        if !erase_ty_params {
-            if let Some(ty_params) = &sig.ty_params {
-                let new_ty_params = ty_params
-                    .iter()
-                    .map(|ty| self.clone_param_ty(ty))
-                    .collect::<Vec<_>>();
-                let new_ty_params: ty::Tys<'cx> = self.alloc(new_ty_params);
-                fresh_ty_params = Some(new_ty_params);
-                let new_mapper = self.create_ty_mapper(ty_params, new_ty_params);
-                mapper = self.combine_ty_mappers(Some(new_mapper), mapper);
-                for ty in new_ty_params {
-                    let prev = self.ty_links.insert(
-                        ty.id,
-                        super::TyLinks::default().with_param_ty_mapper(mapper),
-                    );
-                    assert!(prev.is_none());
-                }
+        if !erase_ty_params && let Some(ty_params) = &sig.ty_params {
+            let new_ty_params = ty_params
+                .iter()
+                .map(|ty| self.clone_param_ty(ty))
+                .collect::<Vec<_>>();
+            let new_ty_params: ty::Tys<'cx> = self.alloc(new_ty_params);
+            fresh_ty_params = Some(new_ty_params);
+            let new_mapper = self.create_ty_mapper(ty_params, new_ty_params);
+            mapper = self.combine_ty_mappers(Some(new_mapper), mapper);
+            for ty in new_ty_params {
+                let prev = self.ty_links.insert(
+                    ty.id,
+                    super::TyLinks::default().with_param_ty_mapper(mapper),
+                );
+                assert!(prev.is_none());
             }
         }
 
@@ -359,7 +357,7 @@ impl<'cx> TyChecker<'cx> {
             }
         });
         let ty = if let Some(element_tys) = element_tys {
-            self.get_union_ty(element_tys, ty::UnionReduction::Lit)
+            self.get_union_ty(element_tys, ty::UnionReduction::Lit, false, None, None)
         } else {
             self.never_ty
         };
@@ -391,14 +389,13 @@ impl<'cx> TyChecker<'cx> {
             } else {
                 unreachable!()
             };
-            if !cycle_reported {
-                if let Cycle::Some(_) = self.pop_ty_resolution() {
-                    if let Some(decl) = id.opt_decl(self.binder) {
-                        let p = self.p.node(decl);
-                        if p.is_class_decl() || p.is_interface_decl() {
-                            self.report_circular_base_ty(decl, ty, None);
-                        }
-                    }
+            if !cycle_reported
+                && let Cycle::Some(_) = self.pop_ty_resolution()
+                && let Some(decl) = id.opt_decl(self.binder)
+            {
+                let p = self.p.node(decl);
+                if p.is_class_decl() || p.is_interface_decl() {
+                    self.report_circular_base_ty(decl, ty, None);
                 }
             }
             self.get_mut_ty_links(ty.id).set_base_tys_resolved(true);
@@ -600,6 +597,9 @@ impl<'cx> TyChecker<'cx> {
             self.get_union_ty(
                 &[true_constraint, false_constraint],
                 ty::UnionReduction::Lit,
+                false,
+                None,
+                None,
             )
         };
         self.get_mut_ty_links(ty.id)
@@ -626,7 +626,7 @@ impl<'cx> TyChecker<'cx> {
         res
     }
 
-    fn get_class_like_decl_of_symbol(&self, symbol: SymbolID) -> Option<ast::NodeID> {
+    pub fn get_class_like_decl_of_symbol(&self, symbol: SymbolID) -> Option<ast::NodeID> {
         let decls = self.binder.symbol(symbol).decls.as_ref()?;
         decls
             .iter()
@@ -885,20 +885,15 @@ impl<'cx> TyChecker<'cx> {
             let mut constraint_ty = r.constraint_ty;
 
             let c_index_ty = r.constraint_ty.kind.expect_index_ty();
-            if let Some(t) = c_index_ty.ty.kind.as_indexed_access() {
-                if t.object_ty.flags.intersects(TypeFlags::TYPE_PARAMETER)
-                    && t.index_ty.flags.intersects(TypeFlags::TYPE_PARAMETER)
-                {
-                    let new_ty_param = t.object_ty;
-                    let new_mapped_ty = self.replace_indexed_access(
-                        r.mapped_ty,
-                        t.object_ty,
-                        t.index_ty,
-                        new_ty_param,
-                    );
-                    mapped_ty = new_mapped_ty;
-                    constraint_ty = self.get_index_ty(new_ty_param, IndexFlags::empty());
-                }
+            if let Some(t) = c_index_ty.ty.kind.as_indexed_access()
+                && t.object_ty.flags.intersects(TypeFlags::TYPE_PARAMETER)
+                && t.index_ty.flags.intersects(TypeFlags::TYPE_PARAMETER)
+            {
+                let new_ty_param = t.object_ty;
+                let new_mapped_ty =
+                    self.replace_indexed_access(r.mapped_ty, t.object_ty, t.index_ty, new_ty_param);
+                mapped_ty = new_mapped_ty;
+                constraint_ty = self.get_index_ty(new_ty_param, IndexFlags::empty());
             }
 
             let links = SymbolLinks::default()
@@ -1252,7 +1247,13 @@ impl<'cx> TyChecker<'cx> {
         for (i, info) in infos.iter().enumerate() {
             if info.key_ty == new_info.key_ty {
                 let val_ty = if union {
-                    self.get_union_ty(&[info.val_ty, new_info.val_ty], ty::UnionReduction::Lit)
+                    self.get_union_ty(
+                        &[info.val_ty, new_info.val_ty],
+                        ty::UnionReduction::Lit,
+                        false,
+                        None,
+                        None,
+                    )
                 } else {
                     self.get_intersection_ty(
                         &[info.val_ty, new_info.val_ty],
@@ -1382,14 +1383,26 @@ impl<'cx> TyChecker<'cx> {
                     if let Some(existing_prop) = members.get(&symbol_name) {
                         let named_ty = {
                             let old = this.get_symbol_links(*existing_prop).expect_named_ty();
-                            this.get_union_ty(&[old, prop_name_ty], ty::UnionReduction::Lit)
+                            this.get_union_ty(
+                                &[old, prop_name_ty],
+                                ty::UnionReduction::Lit,
+                                false,
+                                None,
+                                None,
+                            )
                         };
                         this.get_mut_symbol_links(*existing_prop)
                             .override_name_ty(named_ty);
 
                         let key_ty = {
                             let old = this.get_symbol_links(*existing_prop).expect_key_ty();
-                            this.get_union_ty(&[old, key_ty], ty::UnionReduction::Lit)
+                            this.get_union_ty(
+                                &[old, key_ty],
+                                ty::UnionReduction::Lit,
+                                false,
+                                None,
+                                None,
+                            )
                         };
                         this.get_mut_symbol_links(*existing_prop)
                             .override_key_ty(key_ty);

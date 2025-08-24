@@ -1,0 +1,11 @@
+  × Expected 2 type arguments, but got 1.
+    ╭─[../../tests/compiler/constructorInvocationWithTooFewTypeArgs/index.ts:11:14]
+ 11 │ <number>
+    · ────────
+    ╰────
+
+  × Expected 2 type arguments, but got 3.
+    ╭─[../../tests/compiler/constructorInvocationWithTooFewTypeArgs/index.ts:14:14]
+ 14 │ <number, number, number>
+    · ────────────────────────
+    ╰────

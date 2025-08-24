@@ -7,10 +7,10 @@ impl TyChecker<'_> {
     fn has_context_sensitive_params(&self, id: ast::NodeID) -> bool {
         let node = self.p.node(id);
         if node.ty_params().is_none() {
-            if let Some(params) = node.params() {
-                if params.iter().any(|p| p.ty.is_none()) {
-                    return true;
-                }
+            if let Some(params) = node.params()
+                && params.iter().any(|p| p.ty.is_none())
+            {
+                return true;
             }
 
             if !node.is_arrow_fn_expr() {

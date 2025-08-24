@@ -1,0 +1,5 @@
+  × Type 'string' is not assignable to type 'number'.
+    ╭─[../../tests/compiler/templateLiteralConstantEvaluation/index.ts:15:5]
+ 15 │ s
+    · ─
+    ╰────

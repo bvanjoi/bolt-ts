@@ -1,7 +1,7 @@
 use super::TyChecker;
 use super::symbol_info::SymbolInfo;
-use bolt_ts_binder::{Symbol, SymbolID, SymbolName};
 use crate::ty::{self, TypeFlags};
+use bolt_ts_binder::{Symbol, SymbolID, SymbolName};
 
 use bolt_ts_ast as ast;
 
@@ -172,7 +172,7 @@ impl<'cx> TyChecker<'cx> {
         let union_ty = if prop_tys.is_empty() {
             self.undefined_ty
         } else {
-            self.get_union_ty(&prop_tys, ty::UnionReduction::Subtype)
+            self.get_union_ty(&prop_tys, ty::UnionReduction::Subtype, false, None, None)
         };
         self.alloc(ty::IndexInfo {
             key_ty,

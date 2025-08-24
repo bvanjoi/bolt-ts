@@ -15,8 +15,8 @@ impl<'cx> TyChecker<'cx> {
         self.check_type_assignable_to_and_optionally_elaborate(
             value_ty,
             assign_ty,
+            Some(left.id()),
             Some(right.id()),
-            None,
         );
     }
 

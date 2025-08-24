@@ -1,0 +1,6 @@
+  × Type 'interfaceWithPublicAndOptional<number, string>' is not assignable to
+  │ type '{ one: any[]; }'.
+    ╭─[../../tests/compiler/assignmentCompatability29/index.ts:11:1]
+ 11 │ __test2__.__val__aa
+    · ───────────────────
+    ╰────

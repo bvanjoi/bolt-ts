@@ -1,0 +1,5 @@
+  × Generic type 'A<T>' requires 1 type argument.
+   ╭─[../../tests/compiler/recursiveTypeParameterConstraintReferenceLacksTypeArgs/index.ts:3:19]
+ 3 │ A
+   · ─
+   ╰────

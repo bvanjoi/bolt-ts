@@ -3,7 +3,7 @@ mod print;
 use std::borrow::Cow;
 
 use bolt_ts_ast as ast;
-use bolt_ts_atom::{AtomId, AtomMap};
+use bolt_ts_atom::{Atom, AtomIntern};
 use rustc_hash::FxHashSet;
 
 use crate::{
@@ -20,7 +20,7 @@ bolt_ts_utils::index! {
     ScopeID
 }
 
-pub fn emit<'cx>(atoms: &'cx AtomMap, ir: &LoweringResult) -> String {
+pub fn emit(atoms: &AtomIntern, ir: &LoweringResult) -> String {
     let mut emitter = Emitter {
         atoms,
         options: EmitterOptions { indent: 2 },
@@ -35,9 +35,9 @@ pub fn emit<'cx>(atoms: &'cx AtomMap, ir: &LoweringResult) -> String {
 }
 
 struct Emitter<'cx, 'ir> {
-    atoms: &'cx AtomMap,
+    atoms: &'cx AtomIntern,
     options: EmitterOptions,
-    ns_names: FxHashSet<(ScopeID, bolt_ts_atom::AtomId)>,
+    ns_names: FxHashSet<(ScopeID, bolt_ts_atom::Atom)>,
     scope: ScopeID,
     max_scope: ScopeID,
     content: PPrint,
@@ -161,7 +161,7 @@ impl<'ir> Emitter<'_, 'ir> {
         }
     }
 
-    fn emit_as_string(&mut self, val: AtomId) {
+    fn emit_as_string(&mut self, val: Atom) {
         let s = self.atoms.get(val);
         self.content.p("'");
         for c in s.chars() {
@@ -211,24 +211,20 @@ impl<'ir> Emitter<'_, 'ir> {
         }
     }
 
-    fn emit_array_binding_elem(&mut self, elem: ir::ArrayBindingElemID) {
-        let elem = self.nodes.get_array_binding_elem(&elem);
-        match elem.kind() {
-            ir::ArrayBindingElemKind::Omit(_) => {}
-            ir::ArrayBindingElemKind::Binding {
-                dotdotdot,
-                name,
-                init,
-            } => {
-                if dotdotdot.is_some() {
+    fn emit_array_binding_elem(&mut self, elem: &ir::ArrayBindingElem) {
+        match elem {
+            ir::ArrayBindingElem::Omit(_) => {}
+            ir::ArrayBindingElem::Binding(n) => {
+                let n = self.nodes.get_array_binding(n);
+                if n.dotdotdot().is_some() {
                     self.content.p_dot_dot_dot();
                 }
-                self.emit_binding(*name);
-                if let Some(init) = init {
+                self.emit_binding(n.name());
+                if let Some(init) = n.init() {
                     self.content.p_whitespace();
                     self.content.p_eq();
                     self.content.p_whitespace();
-                    self.emit_expr(*init);
+                    self.emit_expr(init);
                 }
             }
         }
@@ -256,7 +252,7 @@ impl<'ir> Emitter<'_, 'ir> {
                 self.emit_list(
                     pat.elems(),
                     |this, item| {
-                        this.emit_array_binding_elem(*item);
+                        this.emit_array_binding_elem(item);
                     },
                     |this, _| {
                         this.content.p_comma();
@@ -374,11 +370,11 @@ impl<'ir> Emitter<'_, 'ir> {
 
     fn emit_getter_decl(&mut self, elem: ir::GetterDeclID) {
         let elem = self.nodes.get_getter_decl(&elem);
-        if let Some(mods) = elem.modifiers() {
-            if mods.flags().contains(ast::ModifierKind::Static) {
-                self.content.p("static");
-                self.content.p_whitespace();
-            }
+        if let Some(mods) = elem.modifiers()
+            && mods.flags().contains(ast::ModifierKind::Static)
+        {
+            self.content.p("static");
+            self.content.p_whitespace();
         }
         self.content.p("get");
         self.content.p_whitespace();
@@ -390,11 +386,11 @@ impl<'ir> Emitter<'_, 'ir> {
 
     fn emit_setter_decl(&mut self, elem: ir::SetterDeclID) {
         let elem = self.nodes.get_setter_decl(&elem);
-        if let Some(mods) = elem.modifiers() {
-            if mods.flags().contains(ast::ModifierKind::Static) {
-                self.content.p("static");
-                self.content.p_whitespace();
-            }
+        if let Some(mods) = elem.modifiers()
+            && mods.flags().contains(ast::ModifierKind::Static)
+        {
+            self.content.p("static");
+            self.content.p_whitespace();
         }
         self.content.p("set");
         self.content.p_whitespace();
@@ -534,11 +530,11 @@ impl<'ir> Emitter<'_, 'ir> {
 
     fn emit_class_method_elem(&mut self, elem: ir::ClassMethodElemID) {
         let elem = self.nodes.get_class_method_elem(&elem);
-        if let Some(mods) = elem.modifiers() {
-            if mods.flags().contains(ast::ModifierKind::Static) {
-                self.content.p("static");
-                self.content.p_whitespace();
-            }
+        if let Some(mods) = elem.modifiers()
+            && mods.flags().contains(ast::ModifierKind::Static)
+        {
+            self.content.p("static");
+            self.content.p_whitespace();
         }
         self.emit_prop_name(elem.name());
         self.emit_params(elem.params());
@@ -653,7 +649,7 @@ impl<'ir> Emitter<'_, 'ir> {
         fn sub_names_of_binding<'cx>(
             this: &Emitter,
             binding: ir::Binding,
-        ) -> Vec<bolt_ts_atom::AtomId> {
+        ) -> Vec<bolt_ts_atom::Atom> {
             match binding {
                 ir::Binding::Ident(n) => vec![this.nodes.get_ident(&n).name()],
                 ir::Binding::ObjectPat(n) => this
@@ -1278,6 +1274,12 @@ impl<'ir> Emitter<'_, 'ir> {
                 self.content.p("...");
                 let n = self.nodes.get_spread_assignment(&n);
                 self.emit_expr(n.expr());
+            }
+            ir::ObjectLitMember::Getter(n) => {
+                self.emit_getter_decl(n);
+            }
+            ir::ObjectLitMember::Setter(n) => {
+                self.emit_setter_decl(n);
             }
         }
     }

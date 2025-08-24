@@ -64,7 +64,7 @@ impl<'cx> TyChecker<'cx> {
         (self.get_ret_ty_of_sig(sig)) as _
     }
 
-    pub(super) fn get_ret_ty_of_sig(&mut self, sig: &'cx Sig<'cx>) -> &'cx ty::Ty<'cx> {
+    pub(crate) fn get_ret_ty_of_sig(&mut self, sig: &'cx Sig<'cx>) -> &'cx ty::Ty<'cx> {
         if let Some(ty) = self.get_sig_links(sig.id).get_resolved_ret_ty() {
             return ty;
         }
@@ -769,6 +769,7 @@ impl<'cx> TyChecker<'cx> {
                 span,
                 x: super::ExpectedArgsCount::Count(x),
                 y,
+                is_ty: false,
             };
             self.push_error(Box::new(error));
         } else if args.len() > max_required_params {
@@ -782,6 +783,7 @@ impl<'cx> TyChecker<'cx> {
                     hi: max_required_params,
                 },
                 y: args.len(),
+                is_ty: false,
             };
             self.push_error(Box::new(error));
         } else if args.len() < min_required_params {
@@ -800,6 +802,7 @@ impl<'cx> TyChecker<'cx> {
                         hi: max_required_params,
                     },
                     y: args.len(),
+                    is_ty: false,
                 })
             };
             self.push_error(error);
@@ -894,10 +897,11 @@ impl<'cx> TyChecker<'cx> {
                 let hi = expr.callee().span().hi();
                 Span::new(hi, hi, expr.span().module())
             });
-            let error = errors::ExpectedXTyArgsButGotY {
+            let error = errors::ExpectedXArgsButGotY {
                 span,
                 x,
                 y: ty_arg_count,
+                is_ty: true,
             };
             self.push_error(Box::new(error));
         }
@@ -947,6 +951,7 @@ impl<'cx> TyChecker<'cx> {
                     span: expr.span(),
                     x: super::ExpectedArgsCount::Count(min),
                     y: args.len(),
+                    is_ty: false,
                 };
                 self.push_error(Box::new(error));
             }
@@ -998,7 +1003,7 @@ impl<'cx> TyChecker<'cx> {
         symbols: Vec<SymbolID>,
         tys: &[&'cx ty::Ty<'cx>],
     ) -> SymbolID {
-        let union = self.get_union_ty(tys, ty::UnionReduction::Subtype);
+        let union = self.get_union_ty(tys, ty::UnionReduction::Subtype, false, None, None);
         self.create_combined_symbol_for_overload_failure(symbols, union)
     }
 
@@ -1077,7 +1082,7 @@ impl<'cx> TyChecker<'cx> {
                 .iter()
                 .flat_map(|c| self.try_get_rest_ty_of_sig(c))
                 .collect::<Vec<_>>();
-            let ty = self.get_union_ty(&tys, ty::UnionReduction::Subtype);
+            let ty = self.get_union_ty(&tys, ty::UnionReduction::Subtype, false, None, None);
             let ty = self.create_array_ty(ty, false);
             params.push(self.create_combined_symbol_for_overload_failure(rest_param_symbols, ty));
             flags |= SigFlags::HAS_REST_PARAMETER;

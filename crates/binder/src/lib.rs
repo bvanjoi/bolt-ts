@@ -21,7 +21,7 @@ use rayon::prelude::*;
 use rustc_hash::FxHashMap;
 
 use bolt_ts_ast as ast;
-use bolt_ts_atom::AtomMap;
+use bolt_ts_atom::AtomIntern;
 use bolt_ts_config::NormalizedTsConfig;
 use bolt_ts_parser::ParseResult;
 use bolt_ts_parser::ParseResultForGraph;
@@ -88,7 +88,7 @@ impl Binder {
 struct BinderState<'cx, 'atoms, 'parser> {
     p: &'parser mut ParseResultForGraph<'cx>,
     parent_map: ParentMap,
-    atoms: &'atoms AtomMap,
+    atoms: &'atoms AtomIntern,
     diags: Vec<bolt_ts_errors::Diag>,
     symbols: Symbols,
     // TODO: use `NodeId::index` is enough
@@ -165,7 +165,7 @@ impl<'cx, 'p> BinderNodeQuery<'cx, 'p> {
 
 impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
     fn new(
-        atoms: &'atoms AtomMap,
+        atoms: &'atoms AtomIntern,
         parser: &'parser mut ParseResultForGraph<'cx>,
         module_id: ModuleID,
         options: &NormalizedTsConfig,
@@ -257,7 +257,7 @@ impl<'cx> BinderResult<'cx> {
 
 pub fn bind_parallel<'cx>(
     modules: &[Module],
-    atoms: &AtomMap,
+    atoms: &AtomIntern,
     parser: Parser<'cx>,
     options: &NormalizedTsConfig,
 ) -> Vec<(BinderResult<'cx>, ParseResultForGraph<'cx>)> {
@@ -279,7 +279,7 @@ pub fn bind_parallel<'cx>(
 }
 
 fn bind<'cx, 'atoms, 'parser>(
-    atoms: &'atoms AtomMap,
+    atoms: &'atoms AtomIntern,
     parser: &'parser mut ParseResultForGraph<'cx>,
     root: &'cx ast::Program,
     module_id: ModuleID,

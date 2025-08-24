@@ -1,5 +1,0 @@
-  × Type 'number' is not a constructor function type.
-   ╭─[../../tests/cases/compiler/classExtendsClauseClassNotReferringConstructor/index.ts:6:21]
- 6 │ A
-   · ─
-   ╰────

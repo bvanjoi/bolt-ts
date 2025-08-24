@@ -1,7 +1,7 @@
 use super::*;
 use crate::keyword;
 
-use bolt_ts_atom::AtomId;
+use bolt_ts_atom::{Atom, AtomIntern};
 
 #[derive(Debug, Clone, Copy)]
 pub struct Ty<'cx> {
@@ -182,7 +182,7 @@ pub struct TemplateSpanTy<'cx> {
     pub id: NodeID,
     pub span: Span,
     pub ty: &'cx Ty<'cx>,
-    pub text: AtomId,
+    pub text: Atom,
     pub is_tail: bool,
 }
 
@@ -243,8 +243,8 @@ pub enum LitTyKind {
     Undefined,
     Void,
     Num(f64),
-    String(AtomId),
-    BigInt { neg: bool, val: AtomId },
+    String(Atom),
+    BigInt { neg: bool, val: Atom },
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -398,7 +398,7 @@ impl PropName<'_> {
 #[derive(Debug, Clone, Copy)]
 pub enum PropNameKind<'cx> {
     Ident(&'cx Ident),
-    StringLit { raw: &'cx StringLit, key: AtomId },
+    StringLit { raw: &'cx StringLit, key: Atom },
     NumLit(&'cx NumLit),
     Computed(&'cx ComputedPropName<'cx>),
 }
@@ -408,6 +408,19 @@ impl PropNameKind<'_> {
         match self {
             PropNameKind::Ident(ident) => Some(ident),
             _ => None,
+        }
+    }
+
+    pub fn get_name(&self, atoms: &mut AtomIntern) -> Option<Atom> {
+        match self {
+            PropNameKind::Ident(ident) => Some(ident.name),
+            PropNameKind::StringLit { raw, .. } => Some(raw.val),
+            PropNameKind::NumLit(lit) => Some(atoms.atom(&lit.val.to_string())),
+            PropNameKind::Computed(n) => match n.expr.kind {
+                super::ExprKind::StringLit(s) => Some(s.val),
+                super::ExprKind::NumLit(n) => Some(atoms.atom(&n.val.to_string())),
+                _ => None,
+            },
         }
     }
 }
@@ -431,6 +444,8 @@ impl ObjectMember<'_> {
             ObjectMemberKind::Prop(n) => n.span,
             ObjectMemberKind::Method(n) => n.span,
             ObjectMemberKind::SpreadAssignment(n) => n.span,
+            ObjectMemberKind::Getter(n) => n.span,
+            ObjectMemberKind::Setter(n) => n.span,
         }
     }
 
@@ -440,6 +455,8 @@ impl ObjectMember<'_> {
             ObjectMemberKind::Prop(n) => n.id,
             ObjectMemberKind::Method(n) => n.id,
             ObjectMemberKind::SpreadAssignment(n) => n.id,
+            ObjectMemberKind::Getter(n) => n.id,
+            ObjectMemberKind::Setter(n) => n.id,
         }
     }
 }
@@ -450,6 +467,8 @@ pub enum ObjectMemberKind<'cx> {
     Prop(&'cx ObjectPropMember<'cx>),
     Method(&'cx ObjectMethodMember<'cx>),
     SpreadAssignment(&'cx SpreadAssignment<'cx>),
+    Getter(&'cx GetterDecl<'cx>),
+    Setter(&'cx SetterDecl<'cx>),
 }
 
 #[derive(Debug, Clone, Copy)]

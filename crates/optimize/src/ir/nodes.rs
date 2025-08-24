@@ -1,6 +1,6 @@
 use bolt_ts_arena::la_arena;
 use bolt_ts_ast::{self as ast, keyword};
-use bolt_ts_atom::AtomId;
+use bolt_ts_atom::Atom;
 use bolt_ts_checker::ty::TyID;
 use bolt_ts_ecma_logical::js_double_to_boolean;
 use bolt_ts_span::Span;
@@ -119,7 +119,7 @@ decl_nodes!(
     object_pat: ObjectPat,
     object_binding_elem: ObjectBindingElem,
     array_pat: ArrayPat,
-    array_binding_elem: ArrayBindingElem,
+    array_binding: ArrayBinding,
     object_shorthand_member: ObjectShorthandMember,
     object_prop_member: ObjectPropMember,
     object_method_member: ObjectMethodMember,
@@ -247,7 +247,7 @@ impl Nodes {
     pub fn alloc_jsx_text(
         &mut self,
         span: Span,
-        text: AtomId,
+        text: Atom,
         contains_only_trivia_whitespace: bool,
     ) -> JsxTextID {
         let idx = JsxTextID(usize_into_idx(self.jsx_text_nodes.0.len()));
@@ -378,7 +378,7 @@ impl Nodes {
         &mut self,
         span: Span,
         expr: Expr,
-        text: AtomId,
+        text: Atom,
         is_tail: bool,
     ) -> TemplateSpanID {
         let idx = TemplateSpanID(usize_into_idx(self.template_span_nodes.0.len()));
@@ -393,7 +393,7 @@ impl Nodes {
         idx
     }
 
-    pub fn alloc_template_head(&mut self, span: Span, text: AtomId) -> TemplateHeadID {
+    pub fn alloc_template_head(&mut self, span: Span, text: Atom) -> TemplateHeadID {
         let idx = TemplateHeadID(usize_into_idx(self.template_head_nodes.0.len()));
         let id = self.template_head_nodes.0.alloc(TemplateHead {
             id: idx,
@@ -1380,7 +1380,7 @@ impl Nodes {
         idx
     }
 
-    pub fn alloc_ident(&mut self, ty: TyID, span: Span, name: AtomId) -> IdentID {
+    pub fn alloc_ident(&mut self, ty: TyID, span: Span, name: Atom) -> IdentID {
         let idx = IdentID(usize_into_idx(self.ident_nodes.0.len()));
         let id = self.ident_nodes.0.alloc(Ident {
             id: idx,
@@ -1403,7 +1403,7 @@ impl Nodes {
         idx
     }
 
-    pub fn alloc_string_lit(&mut self, span: Span, val: AtomId, is_template: bool) -> StringLitID {
+    pub fn alloc_string_lit(&mut self, span: Span, val: Atom, is_template: bool) -> StringLitID {
         let idx = StringLitID(usize_into_idx(self.string_lit_nodes.0.len()));
         let id = self.string_lit_nodes.0.alloc(StringLit {
             id: idx,
@@ -1422,7 +1422,7 @@ impl Nodes {
         idx
     }
 
-    pub fn alloc_bigint_lit(&mut self, span: Span, pos: bool, val: AtomId) -> BigIntLitID {
+    pub fn alloc_bigint_lit(&mut self, span: Span, pos: bool, val: Atom) -> BigIntLitID {
         let idx = BigIntLitID(usize_into_idx(self.bigint_lit_nodes.0.len()));
         let id = self.bigint_lit_nodes.0.alloc(BigIntLit {
             id: idx,
@@ -1440,7 +1440,7 @@ impl Nodes {
         idx
     }
 
-    pub fn alloc_regexp_lit(&mut self, span: Span, val: AtomId) -> RegExpLitID {
+    pub fn alloc_regexp_lit(&mut self, span: Span, val: Atom) -> RegExpLitID {
         let idx = RegExpLitID(usize_into_idx(self.regexp_lit_nodes.0.len()));
         let id = self
             .regexp_lit_nodes
@@ -1479,7 +1479,7 @@ impl Nodes {
         idx
     }
 
-    pub fn alloc_array_pat(&mut self, span: Span, elems: Vec<ArrayBindingElemID>) -> ArrayPatID {
+    pub fn alloc_array_pat(&mut self, span: Span, elems: Vec<ArrayBindingElem>) -> ArrayPatID {
         let idx = ArrayPatID(usize_into_idx(self.array_pat_nodes.0.len()));
         let id = self.array_pat_nodes.0.alloc(ArrayPat {
             id: idx,
@@ -1490,16 +1490,20 @@ impl Nodes {
         idx
     }
 
-    pub fn alloc_array_binding_elem(
+    pub fn alloc_array_binding(
         &mut self,
         span: Span,
-        kind: ArrayBindingElemKind,
-    ) -> ArrayBindingElemID {
-        let idx = ArrayBindingElemID(usize_into_idx(self.array_binding_elem_nodes.0.len()));
-        let id = self.array_binding_elem_nodes.0.alloc(ArrayBindingElem {
+        dotdotdot: Option<Span>,
+        name: Binding,
+        init: Option<Expr>,
+    ) -> ArrayBindingID {
+        let idx = ArrayBindingID(usize_into_idx(self.array_binding_nodes.0.len()));
+        let id = self.array_binding_nodes.0.alloc(ArrayBinding {
             id: idx,
             span,
-            kind,
+            dotdotdot,
+            name,
+            init,
         });
         debug_assert_eq!(id, idx.0);
         idx
@@ -1588,7 +1592,7 @@ impl JsxExpr {
 pub struct JsxText {
     id: JsxTextID,
     span: Span,
-    text: AtomId,
+    text: Atom,
     contains_only_trivia_whitespace: bool,
 }
 
@@ -1597,7 +1601,7 @@ impl JsxText {
         self.span
     }
 
-    pub fn text(&self) -> AtomId {
+    pub fn text(&self) -> Atom {
         self.text
     }
 
@@ -2035,7 +2039,7 @@ impl TemplateExpr {
 pub struct TemplateHead {
     id: TemplateHeadID,
     span: Span,
-    text: AtomId,
+    text: Atom,
 }
 
 impl TemplateHead {
@@ -2043,7 +2047,7 @@ impl TemplateHead {
         self.span
     }
 
-    pub fn text(&self) -> AtomId {
+    pub fn text(&self) -> Atom {
         self.text
     }
 }
@@ -2053,7 +2057,7 @@ pub struct TemplateSpan {
     id: TemplateSpanID,
     span: Span,
     expr: Expr,
-    text: AtomId,
+    text: Atom,
     is_tail: bool,
 }
 
@@ -2066,7 +2070,7 @@ impl TemplateSpan {
         self.expr
     }
 
-    pub fn text(&self) -> AtomId {
+    pub fn text(&self) -> Atom {
         self.text
     }
 }
@@ -2382,6 +2386,8 @@ pub enum ObjectLitMember {
     Prop(ObjectPropMemberID),
     Shorthand(ObjectShorthandMemberID),
     SpreadAssignment(SpreadAssignmentID),
+    Getter(GetterDeclID),
+    Setter(SetterDeclID),
 }
 
 #[derive(Debug)]
@@ -2484,40 +2490,41 @@ pub enum ObjectBindingName {
 pub struct ArrayPat {
     id: ArrayPatID,
     span: Span,
-    elems: Vec<ArrayBindingElemID>,
+    elems: Vec<ArrayBindingElem>,
 }
 impl ArrayPat {
     pub fn span(&self) -> Span {
         self.span
     }
-    pub fn elems(&self) -> &[ArrayBindingElemID] {
+    pub fn elems(&self) -> &[ArrayBindingElem] {
         &self.elems
     }
 }
 
 #[derive(Debug)]
-pub struct ArrayBindingElem {
-    id: ArrayBindingElemID,
-    span: Span,
-    kind: ArrayBindingElemKind,
-}
-impl ArrayBindingElem {
-    pub fn span(&self) -> Span {
-        self.span
-    }
-    pub fn kind(&self) -> &ArrayBindingElemKind {
-        &self.kind
-    }
+pub enum ArrayBindingElem {
+    Omit(OmitExprID),
+    Binding(ArrayBindingID),
 }
 
-#[derive(Debug)]
-pub enum ArrayBindingElemKind {
-    Omit(OmitExprID),
-    Binding {
-        dotdotdot: Option<Span>,
-        name: Binding,
-        init: Option<Expr>,
-    },
+pub struct ArrayBinding {
+    id: ArrayBindingID,
+    span: Span,
+    dotdotdot: Option<Span>,
+    name: Binding,
+    init: Option<Expr>,
+}
+
+impl ArrayBinding {
+    pub fn dotdotdot(&self) -> Option<Span> {
+        self.dotdotdot
+    }
+    pub fn name(&self) -> Binding {
+        self.name
+    }
+    pub fn init(&self) -> Option<Expr> {
+        self.init
+    }
 }
 
 #[derive(Debug)]
@@ -3282,7 +3289,7 @@ impl NumLit {
 pub struct BigIntLit {
     id: BigIntLitID,
     span: Span,
-    val: (bool, AtomId),
+    val: (bool, Atom),
 }
 
 impl BigIntLit {
@@ -3290,7 +3297,7 @@ impl BigIntLit {
         self.span
     }
 
-    pub fn val(&self) -> (bool, AtomId) {
+    pub fn val(&self) -> (bool, Atom) {
         self.val
     }
 }
@@ -3316,14 +3323,14 @@ impl BoolLit {
 pub struct RegExpLit {
     id: RegExpLitID,
     span: Span,
-    val: AtomId,
+    val: Atom,
 }
 
 impl RegExpLit {
     pub fn span(&self) -> Span {
         self.span
     }
-    pub fn val(&self) -> AtomId {
+    pub fn val(&self) -> Atom {
         self.val
     }
 }
@@ -3332,14 +3339,14 @@ impl RegExpLit {
 pub struct StringLit {
     id: StringLitID,
     span: Span,
-    val: AtomId,
+    val: Atom,
     is_template: bool,
 }
 impl StringLit {
     pub fn span(&self) -> Span {
         self.span
     }
-    pub fn val(&self) -> AtomId {
+    pub fn val(&self) -> Atom {
         self.val
     }
     pub fn is_template(&self) -> bool {
@@ -3644,7 +3651,7 @@ pub struct Ident {
     id: IdentID,
     ty: TyID,
     span: Span,
-    name: AtomId,
+    name: Atom,
 }
 
 impl Ident {
@@ -3654,7 +3661,7 @@ impl Ident {
     }
 
     #[inline(always)]
-    pub fn name(&self) -> AtomId {
+    pub fn name(&self) -> Atom {
         self.name
     }
 

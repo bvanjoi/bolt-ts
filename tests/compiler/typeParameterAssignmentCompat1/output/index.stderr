@@ -1,0 +1,23 @@
+  × Type 'Foo<U>' is not assignable to type 'Foo<T>'.
+    ╭─[../../tests/compiler/typeParameterAssignmentCompat1/index.ts:10:3]
+ 10 │ x
+    · ─
+    ╰────
+
+  × Type 'Foo<T>' is not assignable to type 'Foo<U>'.
+    ╭─[../../tests/compiler/typeParameterAssignmentCompat1/index.ts:12:10]
+ 12 │ x
+    · ─
+    ╰────
+
+  × Type 'Foo<U>' is not assignable to type 'Foo<T>'.
+    ╭─[../../tests/compiler/typeParameterAssignmentCompat1/index.ts:19:7]
+ 19 │ x
+    · ─
+    ╰────
+
+  × Type 'Foo<T>' is not assignable to type 'Foo<U>'.
+    ╭─[../../tests/compiler/typeParameterAssignmentCompat1/index.ts:21:14]
+ 21 │ x
+    · ─
+    ╰────

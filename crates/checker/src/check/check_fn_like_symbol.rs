@@ -69,18 +69,16 @@ impl<'cx> TyChecker<'cx> {
             }
         }
 
-        if has_overloads {
-            if let Some(body_declaration) = body_declaration {
-                let sigs = self.get_sigs_of_symbol(symbol);
-                let body_sig = self.get_sig_from_decl(body_declaration);
-                for sig in sigs {
-                    if !self.is_implementation_compatible_with_overload(body_sig, sig) {
-                        let error_node = sig.def_id();
-                        let error = errors::ThisOverloadSignatureIsNotCompatibleWithItsImplementationSignature {
+        if has_overloads && let Some(body_declaration) = body_declaration {
+            let sigs = self.get_sigs_of_symbol(symbol);
+            let body_sig = self.get_sig_from_decl(body_declaration);
+            for sig in sigs {
+                if !self.is_implementation_compatible_with_overload(body_sig, sig) {
+                    let error_node = sig.def_id();
+                    let error = errors::ThisOverloadSignatureIsNotCompatibleWithItsImplementationSignature {
                             span: self.p.node(error_node).ident_name().unwrap().span,
                         };
-                        self.push_error(Box::new(error));
-                    }
+                    self.push_error(Box::new(error));
                 }
             }
         }

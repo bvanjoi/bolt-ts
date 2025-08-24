@@ -47,6 +47,9 @@ impl<'cx> TyChecker<'cx> {
                 ty.get_object_flags()
                     & (ty::ObjectFlags::PRIMITIVE_UNION
                         .union(ty::ObjectFlags::CONTAINS_INTERSECTIONS)),
+                false,
+                None,
+                None,
             )
         } else if ty.flags.intersects(ty::TypeFlags::NEVER) {
             self.never_ty
@@ -172,7 +175,7 @@ impl<'cx> TyChecker<'cx> {
                     } else {
                         ty::UnionReduction::Lit
                     };
-                    Some(self.get_union_ty(&mapped_tys, reduction))
+                    Some(self.get_union_ty(&mapped_tys, reduction, false, None, None))
                 } else {
                     None
                 }
@@ -191,15 +194,15 @@ impl<'cx> TyChecker<'cx> {
         alias_symbol: Option<SymbolID>,
         alias_symbol_ty_args: Option<ty::Tys<'cx>>,
     ) -> Option<&'cx ty::Ty<'cx>> {
-        if let Some(u) = ty.kind.as_union() {
-            if let Some(alias_symbol) = alias_symbol {
-                let tys: Vec<_> = u
-                    .tys
-                    .iter()
-                    .map(|ty| self.map_ty(ty, mapper, false).unwrap())
-                    .collect::<Vec<_>>();
-                return Some(self.get_union_ty(&tys, ty::UnionReduction::Lit));
-            }
+        if let Some(u) = ty.kind.as_union()
+            && let Some(alias_symbol) = alias_symbol
+        {
+            let tys: Vec<_> = u
+                .tys
+                .iter()
+                .map(|ty| self.map_ty(ty, mapper, false).unwrap())
+                .collect::<Vec<_>>();
+            return Some(self.get_union_ty(&tys, ty::UnionReduction::Lit, false, None, None));
         }
 
         self.map_ty(ty, mapper, false)

@@ -144,38 +144,38 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
             if !matches!(self.token.kind, TokenKind::Implements | TokenKind::Extends) {
                 break;
             }
-            if self.token.kind == TokenKind::Extends {
-                if let Some(origin) = extends {
-                    let error = errors::ClauseAlreadySeen {
-                        span: self.token.span,
-                        kind: errors::ClauseKind::Extends,
-                        origin: origin.span,
-                    };
-                    self.push_error(Box::new(error));
-                }
+            if self.token.kind == TokenKind::Extends
+                && let Some(origin) = extends
+            {
+                let error = errors::ClauseAlreadySeen {
+                    span: self.token.span,
+                    kind: errors::ClauseKind::Extends,
+                    origin: origin.span,
+                };
+                self.push_error(Box::new(error));
             }
-            if self.token.kind == TokenKind::Implements {
-                if let Some(origin) = implements {
-                    let error = errors::ClauseAlreadySeen {
-                        span: self.token.span,
-                        kind: errors::ClauseKind::Implements,
-                        origin: origin.span,
-                    };
-                    self.push_error(Box::new(error));
-                }
+            if self.token.kind == TokenKind::Implements
+                && let Some(origin) = implements
+            {
+                let error = errors::ClauseAlreadySeen {
+                    span: self.token.span,
+                    kind: errors::ClauseKind::Implements,
+                    origin: origin.span,
+                };
+                self.push_error(Box::new(error));
             }
 
             let e = self.parse_class_extends_clause()?;
             if extends.is_none() {
                 extends = e;
-                if let Some(extends) = extends {
-                    if let Some(implements) = implements {
-                        let error = errors::ExtendsClauseMustPrecedeImplementsClause {
-                            extends_span: extends.span,
-                            implements_span: implements.span,
-                        };
-                        self.push_error(Box::new(error));
-                    }
+                if let Some(extends) = extends
+                    && let Some(implements) = implements
+                {
+                    let error = errors::ExtendsClauseMustPrecedeImplementsClause {
+                        extends_span: extends.span,
+                        implements_span: implements.span,
+                    };
+                    self.push_error(Box::new(error));
                 }
             }
             let i = self.parse_implements_clause()?;
@@ -272,7 +272,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
 
     fn parse_class_prop_or_method(
         &mut self,
-        start: usize,
+        start: u32,
         modifiers: Option<&'cx ast::Modifiers<'cx>>,
     ) -> PResult<&'cx ast::ClassElem<'cx>> {
         let name = self.parse_prop_name(true)?;
@@ -285,7 +285,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
             let id = self.next_node_id();
             let method = self.alloc(ast::ClassMethodElem {
                 id,
-                span: self.new_span(start as u32),
+                span: self.new_span(start),
                 modifiers,
                 name,
                 ty_params,
@@ -342,7 +342,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
 
     fn try_parse_ctor(
         &mut self,
-        start: usize,
+        start: u32,
         mods: Option<&'cx ast::Modifiers<'cx>>,
     ) -> PResult<Option<&'cx ast::ClassElem<'cx>>> {
         self.try_parse(|this| {
@@ -354,7 +354,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
                 let body = this.p().parse_fn_block()?;
                 let ctor = this
                     .p()
-                    .create_class_ctor(start as u32, ty_params, params, ret, body);
+                    .create_class_ctor(start, mods, ty_params, params, ret, body);
                 let ele = this.p().alloc(ast::ClassElem {
                     kind: ast::ClassElemKind::Ctor(ctor),
                 });
@@ -365,26 +365,8 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         })
     }
 
-    fn parse_accessor_decl(
-        &mut self,
-        start: usize,
-        modifiers: Option<&'cx ast::Modifiers<'cx>>,
-        t: TokenKind,
-    ) -> PResult<&'cx ast::ClassElem<'cx>> {
-        let is_getter = t == TokenKind::Get;
-        assert!(is_getter || t == TokenKind::Set);
-        let kind = if is_getter {
-            let decl = self.parse_getter_accessor_decl(start, modifiers, false)?;
-            ast::ClassElemKind::Getter(decl)
-        } else {
-            let decl = self.parse_setter_accessor_decl(start, modifiers, false)?;
-            ast::ClassElemKind::Setter(decl)
-        };
-        Ok(self.alloc(ast::ClassElem { kind }))
-    }
-
     fn parse_class_ele(&mut self) -> PResult<&'cx ast::ClassElem<'cx>> {
-        let start = self.token.start() as usize;
+        let start = self.token.start();
 
         if self.token.kind == TokenKind::Static
             && self.lookahead(|l| {
@@ -398,9 +380,15 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         let modifiers = self.parse_modifiers::<false>(true, None)?;
 
         if self.parse_contextual_modifier(TokenKind::Get) {
-            self.parse_accessor_decl(start, modifiers, TokenKind::Get)
+            let decl = self.parse_getter_accessor_decl(start, modifiers, false)?;
+            Ok(self.alloc(ast::ClassElem {
+                kind: ast::ClassElemKind::Getter(decl),
+            }))
         } else if self.parse_contextual_modifier(TokenKind::Set) {
-            self.parse_accessor_decl(start, modifiers, TokenKind::Set)
+            let decl = self.parse_setter_accessor_decl(start, modifiers, false)?;
+            Ok(self.alloc(ast::ClassElem {
+                kind: ast::ClassElemKind::Setter(decl),
+            }))
         } else if matches!(self.token.kind, TokenKind::Constructor | TokenKind::String)
             && let Ok(Some(ctor)) = self.try_parse_ctor(start, modifiers)
         {

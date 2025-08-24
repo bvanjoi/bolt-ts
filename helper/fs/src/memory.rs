@@ -1,5 +1,5 @@
 use super::CachedFileSystem;
-use bolt_ts_atom::{AtomId, AtomMap};
+use bolt_ts_atom::{Atom, AtomIntern};
 use indexmap::IndexMap;
 
 use crate::errors::FsResult;
@@ -10,7 +10,7 @@ pub struct MemoryFS {
 }
 
 impl MemoryFS {
-    pub fn new(input: IndexMap<String, String>, atoms: &mut AtomMap) -> FsResult<Self> {
+    pub fn new(input: IndexMap<String, String>, atoms: &mut AtomIntern) -> FsResult<Self> {
         let mut tree = FSTree::new(atoms);
 
         for (path, content) in input {
@@ -26,7 +26,7 @@ impl MemoryFS {
         &self,
         result: &mut Vec<std::path::PathBuf>,
         node: FSNodeId,
-        atoms: &AtomMap,
+        atoms: &AtomIntern,
         includes: &[glob::Pattern],
         excludes: &[glob::Pattern],
     ) {
@@ -52,19 +52,19 @@ impl CachedFileSystem for MemoryFS {
     fn read_file(
         &mut self,
         path: &std::path::Path,
-        atoms: &mut AtomMap,
-    ) -> FsResult<bolt_ts_atom::AtomId> {
+        atoms: &mut AtomIntern,
+    ) -> FsResult<bolt_ts_atom::Atom> {
         self.tree.read_file(path, atoms)
     }
 
-    fn file_exists(&mut self, p: &std::path::Path, atoms: &mut AtomMap) -> bool {
+    fn file_exists(&mut self, p: &std::path::Path, atoms: &mut AtomIntern) -> bool {
         self.tree.file_exists(p, atoms)
     }
 
     fn read_dir(
         &mut self,
         path: &std::path::Path,
-        atoms: &mut AtomMap,
+        atoms: &mut AtomIntern,
     ) -> FsResult<impl Iterator<Item = std::path::PathBuf>> {
         let id = self.tree.find_path(path, true, atoms)?;
         let node = self.tree.node(id);
@@ -88,7 +88,7 @@ impl CachedFileSystem for MemoryFS {
         base_dir: &std::path::Path,
         includes: &[&str],
         excludes: &[&str],
-        atoms: &mut AtomMap,
+        atoms: &mut AtomIntern,
     ) -> Vec<std::path::PathBuf> {
         let includes = includes
             .iter()
@@ -112,7 +112,7 @@ impl CachedFileSystem for MemoryFS {
         results
     }
 
-    fn dir_exists(&mut self, p: &std::path::Path, atoms: &mut AtomMap) -> bool {
+    fn dir_exists(&mut self, p: &std::path::Path, atoms: &mut AtomIntern) -> bool {
         let Ok(id) = self.tree.find_path(p, true, atoms) else {
             return false;
         };
@@ -124,9 +124,9 @@ impl CachedFileSystem for MemoryFS {
         &mut self,
         _: &std::path::Path,
         _: String,
-        _: Option<AtomId>,
-        _: &mut AtomMap,
-    ) -> AtomId {
+        _: Option<Atom>,
+        _: &mut AtomIntern,
+    ) -> Atom {
         unreachable!("Cannot add file to memory fs")
     }
 }
@@ -138,14 +138,15 @@ fn test_mem_fs() {
       "/b/c": "/b/c",
     });
 
-    let atoms = &mut AtomMap::prefill(&[]);
+    let atoms = &mut AtomIntern::prefill(&[]);
     let mut fs = MemoryFS::new(serde_json::from_value(json).unwrap(), atoms).unwrap();
 
     use super::FsError::*;
     use std::path::Path;
 
-    let read_file =
-        |fs: &mut MemoryFS, path: &str, atoms: &mut AtomMap| fs.read_file(Path::new(path), atoms);
+    let read_file = |fs: &mut MemoryFS, path: &str, atoms: &mut AtomIntern| {
+        fs.read_file(Path::new(path), atoms)
+    };
 
     assert_eq!(fs.glob(Path::new("/"), &["a"], &[], atoms).len(), 0);
     assert_eq!(fs.glob(Path::new("/"), &["/a"], &[], atoms).len(), 1);
@@ -192,7 +193,7 @@ fn test_mem_fs() {
     assert!(!fs.file_exists(Path::new("/b"), atoms));
     assert!(!fs.file_exists(Path::new("/b/"), atoms));
 
-    let read_dir_failed = |fs: &mut MemoryFS, path: &str, atoms: &mut AtomMap| match fs
+    let read_dir_failed = |fs: &mut MemoryFS, path: &str, atoms: &mut AtomIntern| match fs
         .read_dir(std::path::Path::new(path), atoms)
     {
         Ok(_) => unreachable!(),
@@ -202,7 +203,7 @@ fn test_mem_fs() {
     let res = read_dir_failed(&mut fs, "/a", atoms);
     assert!(matches!(res, NotADir(_)));
 
-    let read_dir = |fs: &mut MemoryFS, path: &str, atoms: &mut AtomMap| match fs
+    let read_dir = |fs: &mut MemoryFS, path: &str, atoms: &mut AtomIntern| match fs
         .read_dir(std::path::Path::new(path), atoms)
     {
         Ok(iter) => iter
@@ -235,7 +236,7 @@ fn test_mem_fs_with_overlap_name_between_dir_and_file() {
       "/a/b": "content",
     });
 
-    let atoms = &mut AtomMap::prefill(&[]);
+    let atoms = &mut AtomIntern::prefill(&[]);
     let fs = MemoryFS::new(serde_json::from_value(json).unwrap(), atoms);
     assert!(fs.is_err_and(|err| matches!(err, errors::FsError::FileExists(_))));
 
@@ -244,7 +245,7 @@ fn test_mem_fs_with_overlap_name_between_dir_and_file() {
         "/a": "content",
     });
 
-    let atoms = &mut AtomMap::prefill(&[]);
+    let atoms = &mut AtomIntern::prefill(&[]);
     let fs = MemoryFS::new(serde_json::from_value(json).unwrap(), atoms);
     assert!(fs.is_err_and(|err| matches!(err, errors::FsError::DirExists(_))));
 }

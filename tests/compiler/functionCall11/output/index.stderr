@@ -1,0 +1,23 @@
+  × Expected 1-2 arguments, but got 0.
+   ╭─[../../tests/compiler/functionCall11/index.ts:4:1]
+ 4 │ foo()
+   · ─────
+   ╰────
+
+  × Argument of type 'number' is not assignable to parameter of type 'string'.
+   ╭─[../../tests/compiler/functionCall11/index.ts:6:5]
+ 6 │ 1
+   · ─
+   ╰────
+
+  × Argument of type 'string' is not assignable to parameter of type 'number'.
+   ╭─[../../tests/compiler/functionCall11/index.ts:6:8]
+ 6 │ 'bar'
+   · ─────
+   ╰────
+
+  × Expected 1-2 arguments, but got 3.
+   ╭─[../../tests/compiler/functionCall11/index.ts:9:15]
+ 9 │ 'bar'
+   · ─────
+   ╰────

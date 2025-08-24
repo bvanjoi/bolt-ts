@@ -1,0 +1,5 @@
+  × Identifier expected.
+   ╭─[../../tests/compiler/parse1/index.ts:5:1]
+ 5 │ }
+   · ─
+   ╰────

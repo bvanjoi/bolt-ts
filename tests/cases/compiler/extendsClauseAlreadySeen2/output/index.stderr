@@ -1,6 +1,0 @@
-  × 'extends' clause already seen.
-   ╭─[../../tests/cases/compiler/extendsClauseAlreadySeen2/index.ts:6:30]
- 6 │ extends C<number> extends
-   · ────────┬──────── ───────
-   ·         ╰── It was first defined here.
-   ╰────

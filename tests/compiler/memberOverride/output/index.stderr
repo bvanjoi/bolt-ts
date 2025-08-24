@@ -1,0 +1,8 @@
+  × An object literal cannot have multiple properties with the same name.
+   ╭─[../../tests/compiler/memberOverride/index.ts:5:3]
+ 4 │ a: "", 
+   · ──┬──
+   ·   ╰── Previous definition here
+ 5 │   a
+   ·   ─
+   ╰────

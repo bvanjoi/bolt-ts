@@ -7,9 +7,9 @@ use bolt_ts_span::{ModuleArena, ModuleID};
 
 use std::sync::{Arc, Mutex};
 
-use bolt_ts_atom::{AtomId, AtomMap};
+use bolt_ts_atom::{Atom, AtomIntern};
 use bolt_ts_fs::PathId;
-use bolt_ts_resolve::RResult;
+use bolt_ts_module_resolve::RResult;
 use bolt_ts_utils::fx_hashmap_with_capacity;
 use rayon::prelude::*;
 use rustc_hash::FxHashMap;
@@ -21,12 +21,12 @@ pub enum ModuleRes {
 }
 
 pub struct ModuleGraph {
-    deps: FxHashMap<ModuleID, FxHashMap<AtomId, ModuleRes>>,
+    deps: FxHashMap<ModuleID, FxHashMap<Atom, ModuleRes>>,
     diags: Vec<bolt_ts_errors::Diag>,
 }
 
 impl ModuleGraph {
-    fn add_dep(&mut self, from: bolt_ts_span::ModuleID, by: AtomId, to: ModuleRes) {
+    fn add_dep(&mut self, from: bolt_ts_span::ModuleID, by: Atom, to: ModuleRes) {
         if let Some(from) = self.deps.get_mut(&from) {
             if let Some(prev) = from.insert(by, to) {
                 assert_eq!(prev, to);
@@ -38,7 +38,7 @@ impl ModuleGraph {
         }
     }
 
-    pub fn get_dep(&self, from: bolt_ts_span::ModuleID, by: AtomId) -> Option<ModuleRes> {
+    pub fn get_dep(&self, from: bolt_ts_span::ModuleID, by: Atom) -> Option<ModuleRes> {
         self.deps.get(&from).and_then(|map| map.get(&by).copied())
     }
 
@@ -54,14 +54,14 @@ impl ModuleGraph {
 pub fn build_graph<'cx>(
     module_arena: &mut ModuleArena,
     list: &[ModuleID],
-    atoms: Arc<Mutex<AtomMap>>,
+    atoms: Arc<Mutex<AtomIntern>>,
     default_lib_dir: &std::path::Path,
     herd: &'cx bolt_ts_arena::bumpalo_herd::Herd,
     parser: &mut bolt_ts_parser::Parser<'cx>,
     fs: impl bolt_ts_fs::CachedFileSystem,
 ) -> ModuleGraph {
     let fs = Arc::new(Mutex::new(fs));
-    let resolver = bolt_ts_resolve::Resolver::new(fs.clone(), atoms.clone());
+    let resolver = bolt_ts_module_resolve::Resolver::new(fs.clone(), atoms.clone());
     let mut resolved = fx_hashmap_with_capacity(2048);
     let mut resolving = list.to_vec();
     let mut mg = ModuleGraph {

@@ -1,5 +1,0 @@
-  × Expression expected.
-   ╭─[../../tests/cases/compiler/newMissingIdentifier/index.ts:3:14]
- 3 │ )
-   · ─
-   ╰────

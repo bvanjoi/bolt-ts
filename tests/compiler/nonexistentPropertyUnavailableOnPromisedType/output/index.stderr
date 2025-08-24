@@ -1,0 +1,5 @@
+  × Property 'toLowerCase' does not exist on type 'Promise<number>'.
+   ╭─[../../tests/compiler/nonexistentPropertyUnavailableOnPromisedType/index.ts:4:5]
+ 4 │ toLowerCase
+   · ───────────
+   ╰────

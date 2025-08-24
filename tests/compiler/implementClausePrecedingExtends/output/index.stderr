@@ -1,0 +1,6 @@
+  × 'extends' clause must precede 'implements' clause.
+   ╭─[../../tests/compiler/implementClausePrecedingExtends/index.ts:4:22]
+ 4 │ implements C extends C
+   · ──────┬───── ─────────
+   ·       ╰── 'implements' clause defined here.
+   ╰────

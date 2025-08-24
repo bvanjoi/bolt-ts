@@ -1,0 +1,5 @@
+  × 'public' cannot be declared using a rest parameter.
+    ╭─[../../tests/compiler/varArgConstructorMemberParameter/index.ts:12:16]
+ 12 │ public ...args
+    · ──────────────
+    ╰────

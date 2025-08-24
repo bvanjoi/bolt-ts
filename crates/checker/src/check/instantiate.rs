@@ -261,7 +261,7 @@ impl<'cx> TyChecker<'cx> {
             return ty;
         }
         if is_union {
-            self.get_union_ty(new_tys, ty::UnionReduction::Lit)
+            self.get_union_ty(new_tys, ty::UnionReduction::Lit, false, None, None)
         } else {
             self.get_intersection_ty(
                 new_tys,
@@ -599,9 +599,7 @@ impl<'cx> TyChecker<'cx> {
         }
         if let Some(refer) = ty.kind.as_object_reference() {
             if refer.node.is_none() {
-                let Some(resolved_ty_args) = self.ty_links[&ty.id].get_resolved_ty_args() else {
-                    unreachable!()
-                };
+                let resolved_ty_args = self.ty_links[&ty.id].expect_resolved_ty_args();
                 let new_ty_args = self.instantiate_tys(resolved_ty_args, mapper);
                 return if resolved_ty_args == new_ty_args {
                     ty
@@ -1072,8 +1070,8 @@ impl<'cx> TyChecker<'cx> {
     pub(super) fn apply_string_mapping(
         &mut self,
         symbol: SymbolID,
-        atom: bolt_ts_atom::AtomId,
-    ) -> bolt_ts_atom::AtomId {
+        atom: bolt_ts_atom::Atom,
+    ) -> bolt_ts_atom::Atom {
         let str = self.atoms.get(atom);
         let ty = self.symbol(symbol).name.expect_atom();
         let str = match ty {

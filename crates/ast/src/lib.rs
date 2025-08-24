@@ -36,7 +36,7 @@ pub enum DeclarationName<'cx> {
     NumLit(&'cx NumLit),
     StringLit {
         raw: &'cx StringLit,
-        key: bolt_ts_atom::AtomId,
+        key: bolt_ts_atom::Atom,
     },
     Computed(&'cx ComputedPropName<'cx>),
 }

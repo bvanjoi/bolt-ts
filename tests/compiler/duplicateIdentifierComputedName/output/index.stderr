@@ -1,0 +1,11 @@
+  × Duplicate identifier 'a'.
+   ╭─[../../tests/compiler/duplicateIdentifierComputedName/index.ts:5:5]
+ 5 │ ["a"]
+   · ─────
+   ╰────
+
+  × Duplicate identifier 'a'.
+    ╭─[../../tests/compiler/duplicateIdentifierComputedName/index.ts:12:5]
+ 12 │ a
+    · ─
+    ╰────

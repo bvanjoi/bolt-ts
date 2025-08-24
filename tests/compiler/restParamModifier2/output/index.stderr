@@ -1,0 +1,5 @@
+  × 'public' cannot be declared using a rest parameter.
+   ╭─[../../tests/compiler/restParamModifier2/index.ts:4:17]
+ 4 │ public ...rest
+   · ──────────────
+   ╰────

@@ -1,0 +1,5 @@
+  × Type 'number' is not assignable to type '{ id: number; }'.
+   ╭─[../../tests/compiler/contextualTyping21/index.ts:3:51]
+ 3 │ 1
+   · ─
+   ╰────

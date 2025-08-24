@@ -1,0 +1,11 @@
+  × Type 'undefined | false | true' is not assignable to type 'string'.
+    ╭─[../../tests/compiler/voidReturnIndexUnionInference/index.ts:25:7]
+ 25 │ a
+    · ─
+    ╰────
+
+  × Type 'undefined | void' is not assignable to type 'string'.
+    ╭─[../../tests/compiler/voidReturnIndexUnionInference/index.ts:27:7]
+ 27 │ b
+    · ─
+    ╰────

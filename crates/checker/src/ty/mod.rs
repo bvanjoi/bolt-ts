@@ -10,7 +10,7 @@ mod sig;
 
 use bolt_ts_ast::keyword;
 use bolt_ts_ast::{self as ast};
-use bolt_ts_atom::AtomId;
+use bolt_ts_atom::Atom;
 use bolt_ts_binder::{Symbol, SymbolID, SymbolName};
 
 use crate::check::TyChecker;
@@ -134,7 +134,7 @@ impl<'cx> Ty<'cx> {
             && !self.is_pattern_lit_ty()
     }
 
-    pub fn intrinsic_name(&'cx self) -> Option<AtomId> {
+    pub fn intrinsic_name(&'cx self) -> Option<Atom> {
         let i = self.kind.as_intrinsic();
         i.map(|i| i.name)
     }
@@ -164,6 +164,7 @@ pub enum TyKind<'cx> {
     Substitution(&'cx SubstitutionTy<'cx>),
     StringMapping(&'cx StringMappingTy<'cx>),
     TemplateLit(&'cx TemplateLitTy<'cx>),
+    Enum(&'cx EnumTy<'cx>),
 }
 
 macro_rules! as_ty_kind {
@@ -191,6 +192,7 @@ macro_rules! as_ty_kind {
 }
 
 as_ty_kind!(Intrinsic, &'cx IntrinsicTy, intrinsic);
+as_ty_kind!(Enum, &'cx EnumTy<'cx>, enum);
 as_ty_kind!(StringLit, &'cx StringLitTy<'cx>, string_lit);
 as_ty_kind!(NumberLit, &'cx NumberLitTy<'cx>, number_lit);
 as_ty_kind!(BigIntLit, &'cx BigIntLitTy<'cx>, bigint_lit);
@@ -278,6 +280,10 @@ impl<'cx> Ty<'cx> {
                 s
             }
             TyKind::UniqueESSymbol(_) => "unique es symbol".to_string(),
+            TyKind::Enum(n) => {
+                let name = checker.binder.symbol(n.symbol).name;
+                checker.atoms.get(name.expect_atom()).to_string()
+            }
         }
     }
 
@@ -302,10 +308,9 @@ impl<'cx> Ty<'cx> {
     pub fn maybe_type_of_kind(&self, flags: TypeFlags) -> bool {
         if self.flags.intersects(flags) {
             true
-        } else if let Some(union) = self.kind.as_union() {
-            union.tys.iter().any(|ty| ty.maybe_type_of_kind(flags))
+        } else if let Some(tys) = self.kind.tys_of_union_or_intersection() {
+            tys.iter().any(|ty| ty.maybe_type_of_kind(flags))
         } else {
-            // TODO: support intersection
             false
         }
     }
@@ -367,6 +372,7 @@ impl<'cx> Ty<'cx> {
             TyKind::NumberLit(n) => n.links,
             TyKind::BigIntLit(n) => n.links,
             TyKind::Union(n) => n.fresh_ty_links,
+            TyKind::Enum(n) => n.fresh_ty_links,
             TyKind::Object(n) => return n.kind.as_anonymous().map(|a| a.fresh_ty_links),
             _ => return None,
         };
@@ -462,7 +468,7 @@ pub struct UniqueESSymbolTy {
 
 #[derive(Debug, Clone, Copy)]
 pub struct TemplateLitTy<'cx> {
-    pub texts: &'cx [AtomId],
+    pub texts: &'cx [Atom],
     pub tys: Tys<'cx>,
 }
 
@@ -527,6 +533,8 @@ pub struct UnionTy<'cx> {
     pub tys: Tys<'cx>,
     pub object_flags: ObjectFlags,
     pub fresh_ty_links: FreshTyLinksID<'cx>,
+    pub alias_symbol: Option<SymbolID>,
+    pub alias_ty_arguments: Option<Tys<'cx>>,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -539,14 +547,14 @@ pub struct IntersectionTy<'cx> {
 
 #[derive(Debug, Clone, Copy)]
 pub struct StringLitTy<'cx> {
-    pub val: AtomId,
+    pub val: Atom,
     pub links: FreshTyLinksID<'cx>,
 }
 
 #[derive(Debug, Clone, Copy)]
 pub struct BigIntLitTy<'cx> {
     pub neg: bool,
-    pub val: AtomId,
+    pub val: Atom,
     pub links: FreshTyLinksID<'cx>,
 }
 
@@ -576,7 +584,7 @@ pub struct IndexTy<'cx> {
 #[derive(Debug, Clone, Copy)]
 pub struct IntrinsicTy {
     pub object_flags: ObjectFlags,
-    pub name: AtomId,
+    pub name: Atom,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -591,4 +599,10 @@ pub struct IterationTys<'cx> {
     pub yield_ty: &'cx Ty<'cx>,
     pub return_ty: &'cx Ty<'cx>,
     pub next_ty: &'cx Ty<'cx>,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct EnumTy<'cx> {
+    pub symbol: SymbolID,
+    pub fresh_ty_links: FreshTyLinksID<'cx>,
 }

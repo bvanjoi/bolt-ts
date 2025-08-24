@@ -1,0 +1,5 @@
+  × Cannot find name 'x'.
+   ╭─[../../tests/compiler/staticsNotInScopeInClodule/index.ts:8:11]
+ 8 │ x
+   · ─
+   ╰────

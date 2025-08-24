@@ -1,0 +1,5 @@
+  × Cannot find name 'foo'.
+   ╭─[../../tests/compiler/accessStaticMemberFromInstanceMethod01/index.ts:7:15]
+ 7 │ foo
+   · ───
+   ╰────

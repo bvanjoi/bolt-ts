@@ -20,7 +20,7 @@ bolt_ts_ecma_logical = { path = "../ecma_logical" }
 bolt_ts_ecma_rules = { path = "../ecma_rules" }
 bolt_ts_utils = { path = "../../helper/utils" }
 bolt_ts_fs = { path = "../../helper/fs" }
-bolt_ts_resolve = { path = "../resolve" }
+bolt_ts_module_resolve = { path = "../module_resolve" }
 bolt_ts_path = { path = "../path" }
 bolt_ts_tracing = { path = "../tracing" }
 project-root = "0.2.2"

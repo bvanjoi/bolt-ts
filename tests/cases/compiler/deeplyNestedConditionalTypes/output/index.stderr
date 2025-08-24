@@ -1,5 +1,0 @@
-  × Type '"98"' is not assignable to type '"99"'.
-     ╭─[../../tests/cases/compiler/deeplyNestedConditionalTypes/index.ts:111:5]
- 111 │ t0
-     · ──
-     ╰────

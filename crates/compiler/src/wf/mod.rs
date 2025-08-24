@@ -2,7 +2,7 @@ mod errors;
 
 use bolt_ts_ast::keyword::is_reserved_type_name;
 use bolt_ts_ast::{self as ast, keyword, pprint_ident, visitor};
-use bolt_ts_atom::AtomMap;
+use bolt_ts_atom::AtomIntern;
 use bolt_ts_checker::check::errors::DeclKind;
 use bolt_ts_config::{NormalizedCompilerOptions, Target};
 use bolt_ts_parser::Parser;
@@ -11,7 +11,7 @@ use bolt_ts_utils::fx_hashmap_with_capacity;
 
 pub fn well_formed_check_parallel(
     p: &Parser,
-    atoms: &AtomMap,
+    atoms: &AtomIntern,
     modules: &[bolt_ts_span::Module],
     compiler_options: &NormalizedCompilerOptions,
     resolve_results: &[bolt_ts_binder::ResolveResult],
@@ -36,7 +36,7 @@ pub fn well_formed_check_parallel(
 
 fn well_formed_check(
     p: &Parser,
-    atoms: &AtomMap,
+    atoms: &AtomIntern,
     module_id: ModuleID,
     compiler_options: &NormalizedCompilerOptions,
     resolve_results: &bolt_ts_binder::ResolveResult,
@@ -56,7 +56,7 @@ fn well_formed_check(
 
 struct CheckState<'cx> {
     p: &'cx Parser<'cx>,
-    atoms: &'cx AtomMap,
+    atoms: &'cx AtomIntern,
     diags: Vec<bolt_ts_errors::Diag>,
     compiler_options: &'cx NormalizedCompilerOptions,
     module_id: ModuleID,
@@ -85,15 +85,15 @@ impl<'cx> CheckState<'cx> {
         } else {
             None
         };
-        if is_reserved_type_name(name.name) {
-            if let Some(kind) = kind {
-                let error = errors::DeclNameCannotBe {
-                    span: name.span,
-                    name: pprint_ident(name, self.atoms),
-                    kind,
-                };
-                self.push_error(Box::new(error));
-            }
+        if is_reserved_type_name(name.name)
+            && let Some(kind) = kind
+        {
+            let error = errors::DeclNameCannotBe {
+                span: name.span,
+                name: pprint_ident(name, self.atoms),
+                kind,
+            };
+            self.push_error(Box::new(error));
         }
     }
 
@@ -146,16 +146,14 @@ impl<'cx> CheckState<'cx> {
         }
     }
     fn check_grammar_try_stmt(&mut self, node: &'cx ast::TryStmt<'cx>) {
-        if let Some(c) = node.catch_clause {
-            if let Some(v) = c.var {
-                if let Some(init) = v.init {
-                    let error =
-                        errors::CatchClauseVariableTypeAnnotationMustBeAnyOrUnknownIfSpecified {
-                            span: init.span(),
-                        };
-                    self.push_error(Box::new(error));
-                }
-            }
+        if let Some(c) = node.catch_clause
+            && let Some(v) = c.var
+            && let Some(init) = v.init
+        {
+            let error = errors::CatchClauseVariableTypeAnnotationMustBeAnyOrUnknownIfSpecified {
+                span: init.span(),
+            };
+            self.push_error(Box::new(error));
         }
     }
 
@@ -170,14 +168,14 @@ impl<'cx> CheckState<'cx> {
         {
             // check_collision_with_arguments_in_generated_code
             for param in node.params() {
-                if let ast::BindingKind::Ident(name) = param.name.kind {
-                    if name.name == keyword::IDENT_ARGUMENTS {
-                        // TODO: skip on
-                        let error = errors::DuplicateIdentifierArgumentsCompilerUsesArgumentsToInitializeRestParameters {
+                if let ast::BindingKind::Ident(name) = param.name.kind
+                    && name.name == keyword::IDENT_ARGUMENTS
+                {
+                    // TODO: skip on
+                    let error = errors::DuplicateIdentifierArgumentsCompilerUsesArgumentsToInitializeRestParameters {
                             span: name.span
                         };
-                        self.push_error(Box::new(error));
-                    }
+                    self.push_error(Box::new(error));
                 }
             }
         }

@@ -1,0 +1,11 @@
+  × Statements are not allowed in ambient contexts.
+   ╭─[../../tests/compiler/ambientStatement1/index.ts:4:3]
+ 4 │ while(true);
+   · ────────────
+   ╰────
+
+  × Initializers are not allowed in ambient contexts.
+   ╭─[../../tests/compiler/ambientStatement1/index.ts:7:19]
+ 7 │ () => false
+   · ───────────
+   ╰────

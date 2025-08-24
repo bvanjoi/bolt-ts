@@ -1,0 +1,20 @@
+  × Type '(a: number, cb: (x: "hi") => string) => void' is not assignable to
+  │ type '(a: number, callback: (x: "hi") => number) => error'.
+   ╭─[../../tests/compiler/overloadOnConstInObjectLiteralImplementingAnInterface/index.ts:9:15]
+ 9 │ x1
+   · ──
+   ╰────
+
+  × Type '(a: string, cb: (x: "hi") => number) => void' is not assignable to
+  │ type '(a: number, callback: (x: "hi") => number) => error'.
+    ╭─[../../tests/compiler/overloadOnConstInObjectLiteralImplementingAnInterface/index.ts:12:15]
+ 12 │ x1
+    · ──
+    ╰────
+
+  × Type '(a: number, cb: (x: "world") => number) => void' is not assignable
+  │ to type '(a: number, callback: (x: "hi") => number) => error'.
+    ╭─[../../tests/compiler/overloadOnConstInObjectLiteralImplementingAnInterface/index.ts:15:15]
+ 15 │ x1
+    · ──
+    ╰────

@@ -1,5 +1,0 @@
-  × Type 'A<string>' is not assignable to type 'B<string>'.
-    ╭─[../../tests/cases/compiler/typeParameterConstrainedToOuterTypeParameter/index.ts:12:5]
- 12 │ b
-    · ─
-    ╰────

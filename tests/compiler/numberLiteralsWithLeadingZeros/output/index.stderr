@@ -1,0 +1,453 @@
+  × Octal literals are not allowed.
+   ╭─[../../tests/compiler/numberLiteralsWithLeadingZeros/index.ts:3:1]
+ 3 │ 00
+   · ──
+   ╰────
+  help: Use the syntax '0o0'.
+
+  × Octal literals are not allowed.
+   ╭─[../../tests/compiler/numberLiteralsWithLeadingZeros/index.ts:5:1]
+ 5 │ 000
+   · ───
+   ╰────
+  help: Use the syntax '0o00'.
+
+  × Octal literals are not allowed.
+   ╭─[../../tests/compiler/numberLiteralsWithLeadingZeros/index.ts:7:1]
+ 7 │ 01
+   · ──
+   ╰────
+  help: Use the syntax '0o1'.
+
+  × Octal literals are not allowed.
+   ╭─[../../tests/compiler/numberLiteralsWithLeadingZeros/index.ts:9:1]
+ 9 │ 001
+   · ───
+   ╰────
+  help: Use the syntax '0o01'.
+
+  × Decimals with leading zeros are not allowed.
+    ╭─[../../tests/compiler/numberLiteralsWithLeadingZeros/index.ts:11:1]
+ 11 │ 08
+    · ──
+    ╰────
+
+  × Decimals with leading zeros are not allowed.
+    ╭─[../../tests/compiler/numberLiteralsWithLeadingZeros/index.ts:13:1]
+ 13 │ 008
+    · ───
+    ╰────
+
+  × Octal literals are not allowed.
+    ╭─[../../tests/compiler/numberLiteralsWithLeadingZeros/index.ts:16:1]
+ 16 │ 00
+    · ──
+    ╰────
+  help: Use the syntax '0o0'.
+
+  × Octal literals are not allowed.
+    ╭─[../../tests/compiler/numberLiteralsWithLeadingZeros/index.ts:18:1]
+ 18 │ 000
+    · ───
+    ╰────
+  help: Use the syntax '0o00'.
+
+  × Octal literals are not allowed.
+    ╭─[../../tests/compiler/numberLiteralsWithLeadingZeros/index.ts:20:1]
+ 20 │ 01
+    · ──
+    ╰────
+  help: Use the syntax '0o1'.
+
+  × Octal literals are not allowed.
+    ╭─[../../tests/compiler/numberLiteralsWithLeadingZeros/index.ts:22:1]
+ 22 │ 001
+    · ───
+    ╰────
+  help: Use the syntax '0o01'.
+
+  × Decimals with leading zeros are not allowed.
+    ╭─[../../tests/compiler/numberLiteralsWithLeadingZeros/index.ts:24:1]
+ 24 │ 08
+    · ──
+    ╰────
+
+  × Decimals with leading zeros are not allowed.
+    ╭─[../../tests/compiler/numberLiteralsWithLeadingZeros/index.ts:26:1]
+ 26 │ 008
+    · ───
+    ╰────
+
+  × Octal literals are not allowed.
+    ╭─[../../tests/compiler/numberLiteralsWithLeadingZeros/index.ts:29:1]
+ 29 │ 00
+    · ──
+    ╰────
+  help: Use the syntax '0o0'.
+
+  × Octal literals are not allowed.
+    ╭─[../../tests/compiler/numberLiteralsWithLeadingZeros/index.ts:31:1]
+ 31 │ 000
+    · ───
+    ╰────
+  help: Use the syntax '0o00'.
+
+  × Octal literals are not allowed.
+    ╭─[../../tests/compiler/numberLiteralsWithLeadingZeros/index.ts:33:1]
+ 33 │ 01
+    · ──
+    ╰────
+  help: Use the syntax '0o1'.
+
+  × Octal literals are not allowed.
+    ╭─[../../tests/compiler/numberLiteralsWithLeadingZeros/index.ts:35:1]
+ 35 │ 001
+    · ───
+    ╰────
+  help: Use the syntax '0o01'.
+
+  × Decimals with leading zeros are not allowed.
+    ╭─[../../tests/compiler/numberLiteralsWithLeadingZeros/index.ts:37:1]
+ 37 │ 08
+    · ──
+    ╰────
+
+  × Decimals with leading zeros are not allowed.
+    ╭─[../../tests/compiler/numberLiteralsWithLeadingZeros/index.ts:39:1]
+ 39 │ 008
+    · ───
+    ╰────
+
+  × Octal literals are not allowed.
+    ╭─[../../tests/compiler/numberLiteralsWithLeadingZeros/index.ts:42:1]
+ 42 │ 00
+    · ──
+    ╰────
+  help: Use the syntax '0o0'.
+
+  × Octal literals are not allowed.
+    ╭─[../../tests/compiler/numberLiteralsWithLeadingZeros/index.ts:44:1]
+ 44 │ 000
+    · ───
+    ╰────
+  help: Use the syntax '0o00'.
+
+  × Octal literals are not allowed.
+    ╭─[../../tests/compiler/numberLiteralsWithLeadingZeros/index.ts:46:1]
+ 46 │ 01
+    · ──
+    ╰────
+  help: Use the syntax '0o1'.
+
+  × Octal literals are not allowed.
+    ╭─[../../tests/compiler/numberLiteralsWithLeadingZeros/index.ts:48:1]
+ 48 │ 001
+    · ───
+    ╰────
+  help: Use the syntax '0o01'.
+
+  × Decimals with leading zeros are not allowed.
+    ╭─[../../tests/compiler/numberLiteralsWithLeadingZeros/index.ts:50:1]
+ 50 │ 08
+    · ──
+    ╰────
+
+  × Decimals with leading zeros are not allowed.
+    ╭─[../../tests/compiler/numberLiteralsWithLeadingZeros/index.ts:52:1]
+ 52 │ 008
+    · ───
+    ╰────
+
+  × Octal literals are not allowed.
+    ╭─[../../tests/compiler/numberLiteralsWithLeadingZeros/index.ts:55:1]
+ 55 │ 00
+    · ──
+    ╰────
+  help: Use the syntax '0o0'.
+
+  × Octal literals are not allowed.
+    ╭─[../../tests/compiler/numberLiteralsWithLeadingZeros/index.ts:57:1]
+ 57 │ 000
+    · ───
+    ╰────
+  help: Use the syntax '0o00'.
+
+  × Octal literals are not allowed.
+    ╭─[../../tests/compiler/numberLiteralsWithLeadingZeros/index.ts:59:1]
+ 59 │ 01
+    · ──
+    ╰────
+  help: Use the syntax '0o1'.
+
+  × Octal literals are not allowed.
+    ╭─[../../tests/compiler/numberLiteralsWithLeadingZeros/index.ts:61:1]
+ 61 │ 001
+    · ───
+    ╰────
+  help: Use the syntax '0o01'.
+
+  × Decimals with leading zeros are not allowed.
+    ╭─[../../tests/compiler/numberLiteralsWithLeadingZeros/index.ts:63:1]
+ 63 │ 08
+    · ──
+    ╰────
+
+  × Decimals with leading zeros are not allowed.
+    ╭─[../../tests/compiler/numberLiteralsWithLeadingZeros/index.ts:65:1]
+ 65 │ 008
+    · ───
+    ╰────
+
+  × Octal literals are not allowed.
+    ╭─[../../tests/compiler/numberLiteralsWithLeadingZeros/index.ts:68:1]
+ 68 │ 00
+    · ──
+    ╰────
+  help: Use the syntax '0o0'.
+
+  × Octal literals are not allowed.
+    ╭─[../../tests/compiler/numberLiteralsWithLeadingZeros/index.ts:70:1]
+ 70 │ 000
+    · ───
+    ╰────
+  help: Use the syntax '0o00'.
+
+  × Octal literals are not allowed.
+    ╭─[../../tests/compiler/numberLiteralsWithLeadingZeros/index.ts:72:1]
+ 72 │ 01
+    · ──
+    ╰────
+  help: Use the syntax '0o1'.
+
+  × Octal literals are not allowed.
+    ╭─[../../tests/compiler/numberLiteralsWithLeadingZeros/index.ts:74:1]
+ 74 │ 001
+    · ───
+    ╰────
+  help: Use the syntax '0o01'.
+
+  × Decimals with leading zeros are not allowed.
+    ╭─[../../tests/compiler/numberLiteralsWithLeadingZeros/index.ts:76:1]
+ 76 │ 08
+    · ──
+    ╰────
+
+  × Decimals with leading zeros are not allowed.
+    ╭─[../../tests/compiler/numberLiteralsWithLeadingZeros/index.ts:78:1]
+ 78 │ 008
+    · ───
+    ╰────
+
+  × Octal literals are not allowed.
+    ╭─[../../tests/compiler/numberLiteralsWithLeadingZeros/index.ts:81:1]
+ 81 │ 00
+    · ──
+    ╰────
+  help: Use the syntax '0o0'.
+
+  × Octal literals are not allowed.
+    ╭─[../../tests/compiler/numberLiteralsWithLeadingZeros/index.ts:83:1]
+ 83 │ 000
+    · ───
+    ╰────
+  help: Use the syntax '0o00'.
+
+  × Octal literals are not allowed.
+    ╭─[../../tests/compiler/numberLiteralsWithLeadingZeros/index.ts:85:1]
+ 85 │ 01
+    · ──
+    ╰────
+  help: Use the syntax '0o1'.
+
+  × Octal literals are not allowed.
+    ╭─[../../tests/compiler/numberLiteralsWithLeadingZeros/index.ts:87:1]
+ 87 │ 001
+    · ───
+    ╰────
+  help: Use the syntax '0o01'.
+
+  × Decimals with leading zeros are not allowed.
+    ╭─[../../tests/compiler/numberLiteralsWithLeadingZeros/index.ts:89:1]
+ 89 │ 08
+    · ──
+    ╰────
+
+  × Decimals with leading zeros are not allowed.
+    ╭─[../../tests/compiler/numberLiteralsWithLeadingZeros/index.ts:91:1]
+ 91 │ 008
+    · ───
+    ╰────
+
+  × Numeric separators are not allowed here.
+    ╭─[../../tests/compiler/numberLiteralsWithLeadingZeros/index.ts:94:2]
+ 94 │ _
+    · ─
+    ╰────
+
+  × Numeric separators are not allowed here.
+    ╭─[../../tests/compiler/numberLiteralsWithLeadingZeros/index.ts:96:2]
+ 96 │ _
+    · ─
+    ╰────
+
+  × Numeric separators are not allowed here.
+    ╭─[../../tests/compiler/numberLiteralsWithLeadingZeros/index.ts:98:2]
+ 98 │ _
+    · ─
+    ╰────
+
+  × Numeric separators are not allowed here.
+     ╭─[../../tests/compiler/numberLiteralsWithLeadingZeros/index.ts:100:2]
+ 100 │ _
+     · ─
+     ╰────
+
+  × Numeric separators are not allowed here.
+     ╭─[../../tests/compiler/numberLiteralsWithLeadingZeros/index.ts:102:2]
+ 102 │ _
+     · ─
+     ╰────
+
+  × Numeric separators are not allowed here.
+     ╭─[../../tests/compiler/numberLiteralsWithLeadingZeros/index.ts:104:2]
+ 104 │ _
+     · ─
+     ╰────
+
+  × Numeric separators are not allowed here.
+     ╭─[../../tests/compiler/numberLiteralsWithLeadingZeros/index.ts:106:2]
+ 106 │ _
+     · ─
+     ╰────
+
+  × Numeric separators are not allowed here.
+     ╭─[../../tests/compiler/numberLiteralsWithLeadingZeros/index.ts:108:2]
+ 108 │ _
+     · ─
+     ╰────
+
+  × Numeric separators are not allowed here.
+     ╭─[../../tests/compiler/numberLiteralsWithLeadingZeros/index.ts:110:2]
+ 110 │ _
+     · ─
+     ╰────
+
+  × Numeric separators are not allowed here.
+     ╭─[../../tests/compiler/numberLiteralsWithLeadingZeros/index.ts:113:2]
+ 113 │ _
+     · ─
+     ╰────
+
+  × Numeric separators are not allowed here.
+     ╭─[../../tests/compiler/numberLiteralsWithLeadingZeros/index.ts:115:2]
+ 115 │ _
+     · ─
+     ╰────
+
+  × Numeric separators are not allowed here.
+     ╭─[../../tests/compiler/numberLiteralsWithLeadingZeros/index.ts:117:2]
+ 117 │ _
+     · ─
+     ╰────
+
+  × Numeric separators are not allowed here.
+     ╭─[../../tests/compiler/numberLiteralsWithLeadingZeros/index.ts:119:2]
+ 119 │ _
+     · ─
+     ╰────
+
+  × Numeric separators are not allowed here.
+     ╭─[../../tests/compiler/numberLiteralsWithLeadingZeros/index.ts:121:2]
+ 121 │ _
+     · ─
+     ╰────
+
+  × Numeric separators are not allowed here.
+     ╭─[../../tests/compiler/numberLiteralsWithLeadingZeros/index.ts:123:2]
+ 123 │ _
+     · ─
+     ╰────
+
+  × Numeric separators are not allowed here.
+     ╭─[../../tests/compiler/numberLiteralsWithLeadingZeros/index.ts:125:2]
+ 125 │ _
+     · ─
+     ╰────
+
+  × Numeric separators are not allowed here.
+     ╭─[../../tests/compiler/numberLiteralsWithLeadingZeros/index.ts:127:2]
+ 127 │ _
+     · ─
+     ╰────
+
+  × Numeric separators are not allowed here.
+     ╭─[../../tests/compiler/numberLiteralsWithLeadingZeros/index.ts:129:2]
+ 129 │ _
+     · ─
+     ╰────
+
+  × Numeric separators are not allowed here.
+     ╭─[../../tests/compiler/numberLiteralsWithLeadingZeros/index.ts:132:2]
+ 132 │ _
+     · ─
+     ╰────
+
+  × Numeric separators are not allowed here.
+     ╭─[../../tests/compiler/numberLiteralsWithLeadingZeros/index.ts:134:2]
+ 134 │ _
+     · ─
+     ╰────
+
+  × Numeric separators are not allowed here.
+     ╭─[../../tests/compiler/numberLiteralsWithLeadingZeros/index.ts:136:2]
+ 136 │ _
+     · ─
+     ╰────
+
+  × Numeric separators are not allowed here.
+     ╭─[../../tests/compiler/numberLiteralsWithLeadingZeros/index.ts:138:2]
+ 138 │ _
+     · ─
+     ╰────
+
+  × Numeric separators are not allowed here.
+     ╭─[../../tests/compiler/numberLiteralsWithLeadingZeros/index.ts:140:2]
+ 140 │ _
+     · ─
+     ╰────
+
+  × Numeric separators are not allowed here.
+     ╭─[../../tests/compiler/numberLiteralsWithLeadingZeros/index.ts:142:2]
+ 142 │ _
+     · ─
+     ╰────
+
+  × Numeric separators are not allowed here.
+     ╭─[../../tests/compiler/numberLiteralsWithLeadingZeros/index.ts:144:2]
+ 144 │ _
+     · ─
+     ╰────
+
+  × Numeric separators are not allowed here.
+     ╭─[../../tests/compiler/numberLiteralsWithLeadingZeros/index.ts:146:2]
+ 146 │ _
+     · ─
+     ╰────
+
+  × Numeric separators are not allowed here.
+     ╭─[../../tests/compiler/numberLiteralsWithLeadingZeros/index.ts:148:2]
+ 148 │ _
+     · ─
+     ╰────
+
+  × Decimals with leading zeros are not allowed.
+     ╭─[../../tests/compiler/numberLiteralsWithLeadingZeros/index.ts:151:1]
+ 151 │ 09
+     · ──
+     ╰────
+
+  × Cannot find name 'x'.
+     ╭─[../../tests/compiler/numberLiteralsWithLeadingZeros/index.ts:151:4]
+ 151 │ x
+     · ─
+     ╰────

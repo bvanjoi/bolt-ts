@@ -55,12 +55,12 @@ impl<'cx> TyChecker<'cx> {
         };
 
         let result = if index_flags.intersects(IndexFlags::NO_INDEX_SIGNATURES) {
-            let t = self.get_union_ty(&key_tys, ty::UnionReduction::Lit);
+            let t = self.get_union_ty(&key_tys, ty::UnionReduction::Lit, false, None, None);
             self.filter_type(t, |_, t| {
                 !t.flags.intersects(TypeFlags::ANY | TypeFlags::STRING)
             })
         } else {
-            self.get_union_ty(&key_tys, ty::UnionReduction::Lit)
+            self.get_union_ty(&key_tys, ty::UnionReduction::Lit, false, None, None)
         };
 
         if let Some(result) = result.kind.as_union()

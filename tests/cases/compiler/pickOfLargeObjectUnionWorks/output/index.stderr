@@ -1,5 +1,0 @@
-  × Type 'string' is not assignable to type 'number'.
-    ╭─[../../tests/cases/compiler/pickOfLargeObjectUnionWorks/index.ts:82:7]
- 82 │ z
-    · ─
-    ╰────

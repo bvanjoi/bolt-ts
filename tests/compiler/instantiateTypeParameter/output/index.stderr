@@ -1,0 +1,5 @@
+  × Property or signature expected.
+   ╭─[../../tests/compiler/instantiateTypeParameter/index.ts:4:5]
+ 4 │ var
+   · ───
+   ╰────

@@ -1,0 +1,12 @@
+  × Function implementation is missing or not immediately following the
+  │ declaration.
+   ╭─[../../tests/compiler/ClassDeclaration14/index.ts:4:4]
+ 4 │ foo
+   · ───
+   ╰────
+
+  × Constructor implementation is missing.
+   ╭─[../../tests/compiler/ClassDeclaration14/index.ts:6:4]
+ 6 │ constructor
+   · ───────────
+   ╰────

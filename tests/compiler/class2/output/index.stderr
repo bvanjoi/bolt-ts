@@ -1,0 +1,11 @@
+  × Declaration or statement expected.
+   ╭─[../../tests/compiler/class2/index.ts:3:29]
+ 3 │ static
+   · ──────
+   ╰────
+
+  × Cannot find name 'f'.
+   ╭─[../../tests/compiler/class2/index.ts:3:36]
+ 3 │ f
+   · ─
+   ╰────

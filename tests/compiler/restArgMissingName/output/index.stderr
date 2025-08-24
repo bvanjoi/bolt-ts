@@ -1,0 +1,5 @@
+  × Identifier expected.
+   ╭─[../../tests/compiler/restArgMissingName/index.ts:3:18]
+ 3 │ )
+   · ─
+   ╰────

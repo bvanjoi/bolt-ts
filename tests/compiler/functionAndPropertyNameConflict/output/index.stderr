@@ -1,0 +1,8 @@
+  × Duplicate identifier 'aaaaa'.
+   ╭─[../../tests/compiler/functionAndPropertyNameConflict/index.ts:5:16]
+ 4 │ aaaaa() { }
+   · ──┬──
+   ·   ╰── Previous definition here
+ 5 │     public get aaaaa
+   ·                ─────
+   ╰────

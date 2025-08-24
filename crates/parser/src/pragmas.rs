@@ -1,4 +1,4 @@
-use bolt_ts_atom::AtomId;
+use bolt_ts_atom::Atom;
 
 #[derive(Clone, Copy, Debug)]
 pub enum PragmaCommentKind {
@@ -43,7 +43,7 @@ pub enum ReferencePragma {
     Lib {
         optional: bool,
         capture_span: bool,
-        value: AtomId,
+        value: Atom,
     },
     Path {
         optional: bool,
@@ -78,4 +78,4 @@ pub struct AmdModulePragma {
 }
 
 #[derive(Debug, Default)]
-pub struct PragmaMap(nohash_hasher::IntMap<AtomId, PragmaSpec>);
+pub struct PragmaMap(nohash_hasher::IntMap<Atom, PragmaSpec>);
