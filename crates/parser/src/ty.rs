@@ -932,17 +932,7 @@ impl<'cx> ParserState<'cx, '_> {
             let params = self.parse_params()?;
             self.check_params(params, false);
             let ty = self.parse_ret_ty(true)?;
-            let id = self.next_node_id();
-            let sig = self.alloc(ast::MethodSignature {
-                id,
-                span: self.new_span(start),
-                name,
-                question,
-                ty_params,
-                params,
-                ty,
-            });
-            self.nodes.insert(id, ast::Node::MethodSignature(sig));
+            let sig = self.create_method_signature(start, name, question, ty_params, params, ty);
             ast::ObjectTyMemberKind::Method(sig)
         } else {
             let ty = self.parse_ty_anno()?;
@@ -1033,7 +1023,7 @@ impl<'cx> ParserState<'cx, '_> {
                 kind: ast::ObjectTyMemberKind::IndexSig(decl),
             }))
         } else {
-            self.parse_prop_or_method_sig(start as u32, modifiers)
+            self.parse_prop_or_method_sig(start, modifiers)
         }
     }
 

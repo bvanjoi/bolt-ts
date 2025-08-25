@@ -157,7 +157,7 @@ impl<'cx> CheckState<'cx> {
         }
     }
 
-    fn check_sig_decl(&mut self, node: &impl ast::r#trait::SigDeclLike) {
+    fn check_sig_decl(&mut self, node: &impl ast::r#trait::SigDeclLike<'cx>) {
         if !(*self.compiler_options.target() >= Target::ES2015
             || !node.has_rest_param()
             || self

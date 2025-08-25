@@ -167,6 +167,7 @@ pub struct TyChecker<'cx> {
     inferences: Vec<InferenceContext<'cx>>,
     inference_contextual: Vec<InferenceContextual>,
     activity_ty_mapper: Vec<&'cx dyn ty::TyMap<'cx>>,
+    instantiation_count: u32,
     activity_ty_mapper_caches: Vec<nohash_hasher::IntMap<TyKey, &'cx ty::Ty<'cx>>>,
     type_contextual: Vec<TyContextual<'cx>>,
     deferred_nodes: Vec<indexmap::IndexSet<ast::NodeID, FxBuildHasher>>,
@@ -603,6 +604,7 @@ impl<'cx> TyChecker<'cx> {
             reverse_expanding_flags: RecursionFlags::empty(),
             activity_ty_mapper: Vec::with_capacity(1024),
             activity_ty_mapper_caches: Vec::with_capacity(1024),
+            instantiation_count: 0,
         };
 
         macro_rules! make_global {
@@ -2135,7 +2137,7 @@ impl<'cx> TyChecker<'cx> {
         op: BinOp,
         f: Option<impl Fn(&mut Self, &'cx ty::Ty<'cx>, &'cx ty::Ty<'cx>) -> bool + Copy>,
     ) {
-        let mut would_work_with_await = false;
+        let would_work_with_await = false;
 
         let mut effective_left_ty = left_ty;
         let mut effective_right_ty = right_ty;
@@ -2439,7 +2441,6 @@ impl<'cx> TyChecker<'cx> {
                             has_ret_of_ty_never,
                         );
                     }
-                } else {
                 }
             }
 

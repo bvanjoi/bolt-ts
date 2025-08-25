@@ -1,0 +1,11 @@
+  × 'S18' is referenced directly or indirectly in its own base expression.
+   ╭─[../../tests/compiler/recursiveBaseCheck6/index.ts:3:1]
+ 3 │ class S18<A> extends S18<{ S19: A; }>{ }
+   · ────────────────────────────────────────
+   ╰────
+
+  × Property 'blah' does not exist on type 'S18<unknown>'.
+   ╭─[../../tests/compiler/recursiveBaseCheck6/index.ts:5:13]
+ 5 │ blah
+   · ────
+   ╰────

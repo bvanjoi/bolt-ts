@@ -47,9 +47,12 @@ impl<'cx> TyChecker<'cx> {
     }
 
     fn check_deferred_node(&mut self, node: ast::NodeID) {
-        let n = self.p.node(node);
+        let saved_current_node = self.current_node;
+        self.current_node = Some(node);
+        self.instantiation_count = 0;
+
         use bolt_ts_ast::Node::*;
-        match n {
+        match self.p.node(node) {
             FnExpr(expr) => self.check_fn_like_expr_deferred(expr),
             ArrowFnExpr(expr) => self.check_fn_like_expr_deferred(expr),
             ObjectMethodMember(expr) => {
@@ -60,7 +63,9 @@ impl<'cx> TyChecker<'cx> {
                 self.check_assertion_deferred(expr);
             }
             AsExpr(expr) => {}
-            _ => unreachable!("{n:#?}"),
+            _ => unreachable!("{:#?}", self.p.node(node)),
         }
+
+        self.current_node = saved_current_node;
     }
 }

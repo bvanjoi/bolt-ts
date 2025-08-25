@@ -24,6 +24,7 @@ impl<'cx> TyChecker<'cx> {
     pub(super) fn check_fn_like_decl(&mut self, decl: &impl r#trait::FnDeclLike<'cx>) {
         let id = decl.id();
         let symbol = self.get_symbol_of_decl(id);
+        // TODO: check_sig_decl
         if self
             .binder
             .symbol(symbol)
@@ -45,6 +46,10 @@ impl<'cx> TyChecker<'cx> {
 
         if let Some(body) = r#trait::FnDeclLike::body(decl) {
             self.check_block(body)
+        }
+
+        if let Some(ty) = decl.ty() {
+            self.check_ty(ty);
         }
 
         let ret_ty = self.get_ret_ty_from_anno(id);

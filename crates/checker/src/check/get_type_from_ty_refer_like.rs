@@ -214,7 +214,7 @@ impl<'cx> TyChecker<'cx> {
         let flags = self.binder.symbol(symbol).flags;
         if flags.intersects(SymbolFlags::CLASS_OR_INTERFACE) {
             return self.get_ty_from_class_or_interface_refer(node.span(), node.ty_args(), symbol);
-        } else if flags.intersects(SymbolFlags::TYPE_ALIAS) {
+        } else if flags.contains(SymbolFlags::TYPE_ALIAS) {
             return self.get_ty_from_ty_alias_refer(node, symbol);
         }
 

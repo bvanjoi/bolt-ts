@@ -5,7 +5,7 @@ use super::instantiation_ty_map::{
 use super::symbol_info::SymbolInfo;
 use super::utils::{capitalize, uncapitalize};
 use super::{InstantiationTyMap, StringMappingTyMap, TyChecker};
-use crate::check::TyInstantiationMap;
+use crate::check::{TyInstantiationMap, errors};
 use crate::ty::{self, ObjectMappedTyLinks};
 use crate::ty::{ObjectFlags, TyMapper, TypeFlags};
 
@@ -113,8 +113,16 @@ impl<'cx> TyChecker<'cx> {
             return ty;
         }
 
-        let id = TyInstantiationMap::create_ty_key(&(ty.id, alias_symbol, alias_ty_args));
+        if self.instantiation_count >= 5_000_000 {
+            let current_node = self.current_node.unwrap();
+            let error = errors::TypeInstantiationIsExcessivelyDeepAndPossiblyInfinite {
+                span: self.p.node(current_node).span(),
+            };
+            self.push_error(Box::new(error));
+            return self.error_ty;
+        }
 
+        let id = TyInstantiationMap::create_ty_key(&(ty.id, alias_symbol, alias_ty_args));
         let cached_index = self.find_active_mapper(mapper);
         if let Some(index) = cached_index {
             if let Some(cached) = self.activity_ty_mapper_caches[index].get(&id) {
@@ -124,6 +132,7 @@ impl<'cx> TyChecker<'cx> {
             self.push_active_mapper(mapper);
         }
 
+        self.instantiation_count += 1;
         let ret = self.instantiate(ty, mapper, alias_symbol, alias_ty_args);
 
         if let Some(index) = cached_index {

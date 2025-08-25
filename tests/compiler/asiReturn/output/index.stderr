@@ -1,0 +1,5 @@
+  × A 'return' statement can only be used within a function body.
+   ╭─[../../tests/compiler/asiReturn/index.ts:2:1]
+ 2 │ return
+   · ──────
+   ╰────

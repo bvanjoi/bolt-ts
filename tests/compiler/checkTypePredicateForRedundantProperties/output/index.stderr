@@ -1,0 +1,6 @@
+  × Duplicate identifier 'a'.
+   ╭─[../../tests/compiler/checkTypePredicateForRedundantProperties/index.ts:3:46]
+ 3 │ a: string; a: string
+   · ────┬────  ─────────
+   ·     ╰── Previous definition here
+   ╰────
