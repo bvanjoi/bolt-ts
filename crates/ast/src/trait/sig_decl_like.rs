@@ -1,15 +1,16 @@
-pub trait SigDeclLike {
+pub trait SigDeclLike<'cx> {
     fn id(&self) -> crate::NodeID;
-    fn params(&self) -> crate::ParamsDecl;
+    fn params(&self) -> crate::ParamsDecl<'cx>;
     fn has_rest_param(&self) -> bool;
     fn body(&self) -> Option<crate::NodeID>;
+    fn ty(&self) -> Option<&'cx crate::Ty<'cx>>;
 }
 
-impl SigDeclLike for crate::ArrowFnExpr<'_> {
+impl<'cx> SigDeclLike<'cx> for crate::ArrowFnExpr<'cx> {
     fn id(&self) -> crate::NodeID {
         self.id
     }
-    fn params(&self) -> crate::ParamsDecl {
+    fn params(&self) -> crate::ParamsDecl<'cx> {
         self.params
     }
     fn has_rest_param(&self) -> bool {
@@ -21,5 +22,8 @@ impl SigDeclLike for crate::ArrowFnExpr<'_> {
             Block(n) => n.id,
             Expr(n) => n.id(),
         })
+    }
+    fn ty(&self) -> Option<&'cx crate::Ty<'cx>> {
+        self.ty
     }
 }

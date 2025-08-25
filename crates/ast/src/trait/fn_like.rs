@@ -5,6 +5,7 @@ pub trait FnLike<'cx>: Copy + std::fmt::Debug {
     fn ty_params(&self) -> Option<crate::TyParams<'cx>>;
     fn params(&self) -> crate::ParamsDecl<'cx>;
     fn body(&self) -> Option<crate::ArrowFnExprBody<'cx>>;
+    fn ty(&self) -> Option<&'cx crate::Ty<'cx>>;
 }
 
 impl<'cx> FnLike<'cx> for crate::FnDecl<'cx> {
@@ -19,6 +20,9 @@ impl<'cx> FnLike<'cx> for crate::FnDecl<'cx> {
     }
     fn ty_params(&self) -> Option<crate::TyParams<'cx>> {
         self.ty_params
+    }
+    fn ty(&self) -> Option<&'cx crate::Ty<'cx>> {
+        self.ty
     }
 }
 
@@ -35,6 +39,9 @@ impl<'cx> FnLike<'cx> for crate::ClassMethodElem<'cx> {
     fn body(&self) -> Option<crate::ArrowFnExprBody<'cx>> {
         self.body.map(crate::ArrowFnExprBody::Block)
     }
+    fn ty(&self) -> Option<&'cx crate::Ty<'cx>> {
+        self.ty
+    }
 }
 
 impl<'cx> FnLike<'cx> for crate::ClassCtor<'cx> {
@@ -50,6 +57,9 @@ impl<'cx> FnLike<'cx> for crate::ClassCtor<'cx> {
     fn body(&self) -> Option<crate::ArrowFnExprBody<'cx>> {
         self.body.map(crate::ArrowFnExprBody::Block)
     }
+    fn ty(&self) -> Option<&'cx crate::Ty<'cx>> {
+        None
+    }
 }
 
 impl<'cx> FnLike<'cx> for crate::CtorSigDecl<'cx> {
@@ -63,6 +73,9 @@ impl<'cx> FnLike<'cx> for crate::CtorSigDecl<'cx> {
         self.params
     }
     fn body(&self) -> Option<crate::ArrowFnExprBody<'cx>> {
+        None
+    }
+    fn ty(&self) -> Option<&'cx crate::Ty<'cx>> {
         None
     }
 }
@@ -80,6 +93,9 @@ impl<'cx> FnLike<'cx> for crate::FnExpr<'cx> {
     fn body(&self) -> Option<crate::ArrowFnExprBody<'cx>> {
         Some(crate::ArrowFnExprBody::Block(self.body))
     }
+    fn ty(&self) -> Option<&'cx crate::Ty<'cx>> {
+        self.ty
+    }
 }
 
 impl<'cx> FnLike<'cx> for crate::ArrowFnExpr<'cx> {
@@ -94,6 +110,9 @@ impl<'cx> FnLike<'cx> for crate::ArrowFnExpr<'cx> {
     }
     fn body(&self) -> Option<crate::ArrowFnExprBody<'cx>> {
         Some(self.body)
+    }
+    fn ty(&self) -> Option<&'cx crate::Ty<'cx>> {
+        self.ty
     }
 }
 
@@ -110,6 +129,9 @@ impl<'cx> FnLike<'cx> for crate::MethodSignature<'cx> {
     fn body(&self) -> Option<crate::ArrowFnExprBody<'cx>> {
         None
     }
+    fn ty(&self) -> Option<&'cx crate::Ty<'cx>> {
+        self.ty
+    }
 }
 
 impl<'cx> FnLike<'cx> for crate::ObjectMethodMember<'cx> {
@@ -124,6 +146,9 @@ impl<'cx> FnLike<'cx> for crate::ObjectMethodMember<'cx> {
     }
     fn body(&self) -> Option<crate::ArrowFnExprBody<'cx>> {
         Some(crate::ArrowFnExprBody::Block(self.body))
+    }
+    fn ty(&self) -> Option<&'cx crate::Ty<'cx>> {
+        self.ty
     }
 }
 
@@ -140,6 +165,9 @@ impl<'cx> FnLike<'cx> for crate::CallSigDecl<'cx> {
     fn body(&self) -> Option<crate::ArrowFnExprBody<'cx>> {
         None
     }
+    fn ty(&self) -> Option<&'cx crate::Ty<'cx>> {
+        self.ty
+    }
 }
 
 impl<'cx> FnLike<'cx> for crate::CtorTy<'cx> {
@@ -154,6 +182,9 @@ impl<'cx> FnLike<'cx> for crate::CtorTy<'cx> {
     }
     fn body(&self) -> Option<crate::ArrowFnExprBody<'cx>> {
         None
+    }
+    fn ty(&self) -> Option<&'cx crate::Ty<'cx>> {
+        Some(self.ty)
     }
 }
 

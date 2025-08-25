@@ -1023,7 +1023,7 @@ impl<'cx> ParserState<'cx, '_> {
                 kind: ast::ObjectTyMemberKind::IndexSig(decl),
             }))
         } else {
-            self.parse_prop_or_method_sig(start as u32, modifiers)
+            self.parse_prop_or_method_sig(start, modifiers)
         }
     }
 

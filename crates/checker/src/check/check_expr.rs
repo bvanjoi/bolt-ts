@@ -169,6 +169,7 @@ impl<'cx> TyChecker<'cx> {
         use bolt_ts_ast::ExprKind::*;
         let saved_current_node = self.current_node;
         self.current_node = Some(expr.id());
+        self.instantiation_count = 0;
         let ty = match expr.kind {
             Bin(bin) => ensure_sufficient_stack(|| self.check_bin_expr(bin)),
             NumLit(lit) => self.check_num_lit(lit.val),

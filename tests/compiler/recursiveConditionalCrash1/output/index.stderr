@@ -1,0 +1,11 @@
+  × Type instantiation is excessively deep and possibly infinite.
+   ╭─[../../tests/compiler/recursiveConditionalCrash1/index.ts:6:10]
+ 6 │ C1<string>
+   · ──────────
+   ╰────
+
+  × Type instantiation is excessively deep and possibly infinite.
+   ╭─[../../tests/compiler/recursiveConditionalCrash1/index.ts:6:10]
+ 6 │ C1<string>
+   · ──────────
+   ╰────

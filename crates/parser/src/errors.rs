@@ -362,3 +362,10 @@ pub(super) struct AReturnStatementCanOnlyBeUsedWithinAFunctionBody {
     #[label(primary)]
     pub(super) span: Span,
 }
+
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
+#[error("Modifier cannot be used here.")]
+pub(super) struct ModifierCannotBeUsedHere {
+    #[label(primary)]
+    pub(super) span: Span,
+}

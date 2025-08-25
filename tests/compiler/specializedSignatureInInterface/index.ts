@@ -8,3 +8,9 @@ interface B extends A {
   (key:'foo'):string;
   (key:'bar'):string;
 }
+
+function f(a: A, b: B) {
+  let a0: void = a('foo');
+  let b0: string = b('foo');
+  let b1: string = b('bar');
+}

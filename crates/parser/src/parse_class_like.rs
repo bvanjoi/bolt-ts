@@ -310,7 +310,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
                 let init = this.parse_init()?;
 
                 let prop =
-                    this.create_class_prop_elem(start as u32, modifiers, name, ty, init, excl);
+                    this.create_class_prop_elem(start, modifiers, name, ty, init, excl);
                 this.parse_semi_after_prop_name();
                 Ok(this.alloc(ast::ClassElem {
                     kind: ast::ClassElemKind::Prop(prop),

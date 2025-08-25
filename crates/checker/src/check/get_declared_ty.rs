@@ -499,8 +499,8 @@ impl<'cx> TyChecker<'cx> {
         let parent = self.parent(member.id).unwrap();
         let node = self.p.node(parent).expect_enum_decl();
         self.compute_enum_member_values(node);
-        let v = self.get_node_links(member.id).expect_enum_member_value();
-        v
+        
+        self.get_node_links(member.id).expect_enum_member_value()
     }
 
     fn get_declared_ty_of_enum(&mut self, symbol: SymbolID) -> &'cx ty::Ty<'cx> {

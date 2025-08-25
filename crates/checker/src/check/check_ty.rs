@@ -29,9 +29,16 @@ impl<'cx> TyChecker<'cx> {
                 }
                 self.check_ty(n.ty);
             }
+            Pred(n) => self.check_pred_ty(n),
             _ => (),
         };
         self.current_node = saved_current_node;
+    }
+
+    fn check_pred_ty(&mut self, n: &'cx ast::PredTy<'cx>) {
+        if let Some(ty) = n.ty {
+            self.check_ty(ty);
+        }
     }
 
     fn check_tuple_ty(&mut self, n: &'cx ast::TupleTy<'cx>) {
@@ -89,6 +96,7 @@ impl<'cx> TyChecker<'cx> {
     }
 
     fn check_object_lit_ty(&mut self, n: &'cx ast::ObjectLitTy<'cx>) {
+        self.check_object_ty_for_duplicate_decls(n.members);
         for prop in n.members.iter() {
             use bolt_ts_ast::ObjectTyMemberKind::*;
             match &prop.kind {
