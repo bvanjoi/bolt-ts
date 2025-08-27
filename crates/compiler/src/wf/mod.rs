@@ -5,12 +5,12 @@ use bolt_ts_ast::{self as ast, keyword, pprint_ident, visitor};
 use bolt_ts_atom::AtomIntern;
 use bolt_ts_checker::check::errors::DeclKind;
 use bolt_ts_config::{NormalizedCompilerOptions, Target};
-use bolt_ts_parser::Parser;
+use bolt_ts_parser::ParsedMap;
 use bolt_ts_span::ModuleID;
 use bolt_ts_utils::fx_hashmap_with_capacity;
 
 pub fn well_formed_check_parallel(
-    p: &Parser,
+    p: &ParsedMap,
     atoms: &AtomIntern,
     modules: &[bolt_ts_span::Module],
     compiler_options: &NormalizedCompilerOptions,
@@ -35,7 +35,7 @@ pub fn well_formed_check_parallel(
 }
 
 fn well_formed_check(
-    p: &Parser,
+    p: &ParsedMap,
     atoms: &AtomIntern,
     module_id: ModuleID,
     compiler_options: &NormalizedCompilerOptions,
@@ -55,7 +55,7 @@ fn well_formed_check(
 }
 
 struct CheckState<'cx> {
-    p: &'cx Parser<'cx>,
+    p: &'cx ParsedMap<'cx>,
     atoms: &'cx AtomIntern,
     diags: Vec<bolt_ts_errors::Diag>,
     compiler_options: &'cx NormalizedCompilerOptions,

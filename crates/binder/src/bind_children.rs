@@ -1214,6 +1214,30 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
             ClassStaticBlock(n) => {
                 self.bind(n.body.id);
             }
+            CaseClause(n) => {
+                self.bind(n.expr.id());
+                for stmt in n.stmts {
+                    self.bind(stmt.id());
+                }
+            }
+            DefaultClause(n) => {
+                for stmt in n.stmts {
+                    self.bind(stmt.id());
+                }
+            }
+            CaseBlock(n) => {
+                for item in n.clauses {
+                    use ast::CaseOrDefaultClause::*;
+                    match item {
+                        Case(c) => self.bind(c.id),
+                        Default(c) => self.bind(c.id),
+                    }
+                }
+            }
+            SwitchStmt(n) => {
+                self.bind(n.expr.id());
+                self.bind(n.case_block.id);
+            }
         }
         // TODO: bind_js_doc
         self.in_assignment_pattern = save_in_assignment_pattern;

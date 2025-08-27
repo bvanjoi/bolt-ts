@@ -522,4 +522,76 @@ impl<'cx> ParserState<'cx, '_> {
         self.node_flags_map.insert(id, Default::default());
         node
     }
+
+    #[inline]
+    pub fn create_switch_stmt(
+        &mut self,
+        start: u32,
+        expr: &'cx ast::Expr<'cx>,
+        case_block: &'cx ast::CaseBlock<'cx>,
+    ) -> &'cx ast::SwitchStmt<'cx> {
+        let id = self.next_node_id();
+        let node = self.alloc(ast::SwitchStmt {
+            id,
+            span: self.new_span(start),
+            expr,
+            case_block,
+        });
+        self.nodes.insert(id, ast::Node::SwitchStmt(node));
+        self.node_flags_map.insert(id, Default::default());
+        node
+    }
+
+    #[inline]
+    pub fn create_case_clause(
+        &mut self,
+        start: u32,
+        expr: &'cx ast::Expr<'cx>,
+        stmts: ast::Stmts<'cx>,
+    ) -> &'cx ast::CaseClause<'cx> {
+        let id = self.next_node_id();
+        let node = self.alloc(ast::CaseClause {
+            id,
+            span: self.new_span(start),
+            expr,
+            stmts,
+        });
+        self.nodes.insert(id, ast::Node::CaseClause(node));
+        self.node_flags_map.insert(id, Default::default());
+        node
+    }
+
+    #[inline]
+    pub fn create_default_clause(
+        &mut self,
+        start: u32,
+        stmts: ast::Stmts<'cx>,
+    ) -> &'cx ast::DefaultClause<'cx> {
+        let id = self.next_node_id();
+        let node = self.alloc(ast::DefaultClause {
+            id,
+            span: self.new_span(start),
+            stmts,
+        });
+        self.nodes.insert(id, ast::Node::DefaultClause(node));
+        self.node_flags_map.insert(id, Default::default());
+        node
+    }
+
+    #[inline]
+    pub fn create_case_block(
+        &mut self,
+        start: u32,
+        clauses: &'cx [ast::CaseOrDefaultClause<'cx>],
+    ) -> &'cx ast::CaseBlock<'cx> {
+        let id = self.next_node_id();
+        let node = self.alloc(ast::CaseBlock {
+            id,
+            span: self.new_span(start),
+            clauses,
+        });
+        self.nodes.insert(id, ast::Node::CaseBlock(node));
+        self.node_flags_map.insert(id, Default::default());
+        node
+    }
 }

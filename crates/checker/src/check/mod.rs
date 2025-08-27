@@ -112,7 +112,7 @@ use bolt_ts_binder::{
 };
 use bolt_ts_middle::F64Represent;
 use bolt_ts_module_graph::{ModuleGraph, ModuleRes};
-use bolt_ts_parser::{AccessKind, Parser};
+use bolt_ts_parser::{AccessKind, ParsedMap};
 
 bitflags::bitflags! {
     #[derive(Clone, Copy, Debug, PartialEq)]
@@ -190,7 +190,7 @@ pub struct TyChecker<'cx> {
     interface_ty_links_arena: ty::InterfaceTyLinksArena<'cx>,
     object_mapped_ty_links_arena: ty::ObjectMappedTyLinksArena<'cx>,
     // === ast ===
-    pub p: &'cx Parser<'cx>,
+    pub p: &'cx ParsedMap<'cx>,
     pub mg: &'cx ModuleGraph,
     // === global ===
     // === intrinsic types ===
@@ -305,7 +305,7 @@ impl<'cx> TyChecker<'cx> {
 
     pub fn new(
         ty_arena: &'cx bolt_ts_arena::bumpalo::Bump,
-        p: &'cx Parser<'cx>,
+        p: &'cx ParsedMap<'cx>,
         mg: &'cx ModuleGraph,
         atoms: AtomIntern,
         config: &'cx NormalizedCompilerOptions,
@@ -3792,7 +3792,7 @@ global_ty!(
 fn resolve_external_module_name(
     mg: &ModuleGraph,
     module_spec: ast::NodeID,
-    p: &bolt_ts_parser::Parser<'_>,
+    p: &bolt_ts_parser::ParsedMap<'_>,
 ) -> Option<bolt_ts_binder::SymbolID> {
     let from = module_spec.module();
     let name = match p.node(module_spec) {

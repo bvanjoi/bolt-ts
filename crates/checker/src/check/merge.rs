@@ -2,13 +2,13 @@ use bolt_ts_binder::set_value_declaration;
 use bolt_ts_binder::{
     MergeSymbol, MergedSymbols, ResolveResult, SymbolFlags, SymbolID, SymbolName, SymbolTable,
 };
-use bolt_ts_parser::Parser;
+use bolt_ts_parser::ParsedMap;
 use bolt_ts_span::ModuleArena;
 
 use super::resolve_external_module_name;
 
 struct MergeModuleAugmentation<'p, 'cx> {
-    pub p: &'p Parser<'cx>,
+    pub p: &'p ParsedMap<'cx>,
     pub atoms: &'p bolt_ts_atom::AtomIntern,
     pub bind_list: Vec<ResolveResult>,
     pub merged_symbols: MergedSymbols,
@@ -51,7 +51,7 @@ impl<'cx> MergeSymbol<'cx> for MergeModuleAugmentation<'_, 'cx> {
     }
     fn set_value_declaration(&mut self, symbol: SymbolID, node: bolt_ts_ast::NodeID) {
         let symbols = &mut self.bind_list[symbol.module().as_usize()].symbols;
-        set_value_declaration(symbol, symbols, node, &self.p.map);
+        set_value_declaration(symbol, symbols, node, &self.p);
     }
     fn record_merged_symbol(&mut self, target: SymbolID, source: SymbolID) {
         let symbols = &mut self.bind_list[source.module().as_usize()].symbols;
@@ -71,7 +71,7 @@ pub struct MergeModuleAugmentationResult {
 }
 
 pub fn merge_module_augmentation_list_for_global(
-    parser: &Parser,
+    parser: &ParsedMap,
     atoms: &bolt_ts_atom::AtomIntern,
     bind_list: Vec<ResolveResult>,
     module_arena: &ModuleArena,
@@ -88,7 +88,7 @@ pub fn merge_module_augmentation_list_for_global(
     for (idx, (m, p)) in module_arena
         .modules()
         .iter()
-        .zip(parser.map.iter())
+        .zip(parser.get_map().iter())
         .enumerate()
     {
         debug_assert!(std::ptr::addr_eq(parser.get(m.id()), p));
@@ -158,7 +158,7 @@ impl<'cx> MergeSymbol<'cx> for super::TyChecker<'cx> {
     }
     fn set_value_declaration(&mut self, symbol: SymbolID, node: bolt_ts_ast::NodeID) {
         let symbols = &mut self.binder.bind_results[symbol.module().as_usize()].symbols;
-        set_value_declaration(symbol, symbols, node, &self.p.map);
+        set_value_declaration(symbol, symbols, node, &self.p);
     }
     fn record_merged_symbol(&mut self, target: SymbolID, source: SymbolID) {
         let symbols = &mut self.binder.bind_results[source.module().as_usize()].symbols;
@@ -177,7 +177,7 @@ impl<'cx> super::TyChecker<'cx> {
             .module_arena
             .modules()
             .iter()
-            .zip(self.p.map.iter())
+            .zip(self.p.get_map().iter())
             .enumerate()
         {
             assert!(std::ptr::addr_eq(self.p.get(m.id()), p));

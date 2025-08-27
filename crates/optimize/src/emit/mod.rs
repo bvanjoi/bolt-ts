@@ -503,9 +503,10 @@ impl<'ir> Emitter<'_, 'ir> {
         let elem = self.nodes.get_class_static_block(&elem);
         self.content.p("static");
         self.content.p_whitespace();
-        self.content.p("{");
+
+        self.content.p_l_brace();
         self.emit_block_stmt(elem.body());
-        self.content.p("}");
+        self.content.p_r_brace();
     }
 
     fn emit_class_prop_elem(&mut self, elem: ir::ClassPropElemID) {
@@ -944,6 +945,75 @@ impl<'ir> Emitter<'_, 'ir> {
             ExportAssign(id) => self.emit_export_assign(id),
             Labeled(id) => self.emit_labeled_stmt(id),
             Empty(id) => self.emit_empty_stmt(id),
+            Switch(id) => self.emit_switch_stmt(id),
+        }
+    }
+
+    fn emit_switch_stmt(&mut self, n: ir::SwitchStmtID) {
+        let n = self.nodes.get_switch_stmt(&n);
+        self.content.p("switch");
+        self.content.p_whitespace();
+        self.content.p_l_paren();
+        self.emit_expr(n.expr());
+        self.content.p_r_paren();
+        self.content.p_whitespace();
+
+        self.content.p_l_brace();
+        self.emit_case_block(n.case_block());
+        self.content.p_r_brace();
+    }
+
+    fn emit_case_block(&mut self, n: ir::CaseBlockID) {
+        let n = self.nodes.get_case_block(&n);
+        if !n.clauses().is_empty() {
+            self.content.indent += self.options.indent;
+            self.content.p_newline();
+        }
+        self.emit_list(
+            n.clauses(),
+            |this, item| match *item {
+                ir::CaseOrDefaultClause::Case(n) => this.emit_case_clause(n),
+                ir::CaseOrDefaultClause::Default(n) => this.emit_default_clause(n),
+            },
+            |this, _| {
+                this.content.p_newline();
+            },
+        );
+        if !n.clauses().is_empty() {
+            self.content.indent -= self.options.indent;
+            self.content.p_newline();
+        }
+    }
+
+    fn emit_case_clause(&mut self, n: ir::CaseClauseID) {
+        let n = self.nodes.get_case_clause(&n);
+        self.content.p("case");
+        self.content.p_whitespace();
+        self.emit_expr(n.expr());
+        self.content.p_colon();
+        if !n.stmts().is_empty() {
+            self.content.indent += self.options.indent;
+            self.content.p_newline();
+        }
+        self.emit_stmts(n.stmts());
+        if !n.stmts().is_empty() {
+            self.content.indent -= self.options.indent;
+            self.content.p_newline();
+        }
+    }
+
+    fn emit_default_clause(&mut self, n: ir::DefaultClauseID) {
+        let n = self.nodes.get_default_clause(&n);
+        self.content.p("default");
+        self.content.p_colon();
+        if !n.stmts().is_empty() {
+            self.content.indent += self.options.indent;
+            self.content.p_newline();
+        }
+        self.emit_stmts(n.stmts());
+        if !n.stmts().is_empty() {
+            self.content.indent -= self.options.indent;
+            self.content.p_newline();
         }
     }
 

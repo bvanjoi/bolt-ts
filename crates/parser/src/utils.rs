@@ -238,6 +238,7 @@ impl<'cx> ParserState<'cx, '_> {
                     | Continue
                     | Break
                     | Return
+                    | Switch
                     | Throw
                     | Try
                     | Debugger

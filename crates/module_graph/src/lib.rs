@@ -1,6 +1,7 @@
 mod errors;
 
 use bolt_ts_ast::{self as ast};
+use bolt_ts_parser::{ParseResultForGraph, ParsedMap};
 use bolt_ts_utils::path::NormalizePath;
 
 use bolt_ts_span::{ModuleArena, ModuleID};
@@ -57,7 +58,7 @@ pub fn build_graph<'cx>(
     atoms: Arc<Mutex<AtomIntern>>,
     default_lib_dir: &std::path::Path,
     herd: &'cx bolt_ts_arena::bumpalo_herd::Herd,
-    parser: &mut bolt_ts_parser::Parser<'cx>,
+    parsed: &mut ParsedMap<'cx>,
     fs: impl bolt_ts_fs::CachedFileSystem,
 ) -> ModuleGraph {
     let fs = Arc::new(Mutex::new(fs));
@@ -140,10 +141,10 @@ pub fn build_graph<'cx>(
                 }
             }
 
-            parser.insert(id, parse_result);
+            parsed.insert(id, parse_result);
 
             for (ast_id, dep) in deps {
-                let module_name_node = parser.node(ast_id);
+                let module_name_node = parsed.node(ast_id);
                 let module_name = match module_name_node {
                     ast::Node::StringLit(lit) => lit.val,
                     ast::Node::NoSubstitutionTemplateLit(lit) => lit.val,

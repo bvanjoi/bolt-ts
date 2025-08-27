@@ -5,10 +5,10 @@ use super::{ExprKind, ModifierKind};
 bolt_ts_utils::module_index!(NodeID);
 
 impl NodeID {
-    pub fn new(module: ModuleID, index: u32) -> Self {
+    pub const fn new(module: ModuleID, index: u32) -> Self {
         Self { module, index }
     }
-    pub fn into_root(&self) -> Self {
+    pub const fn into_root(&self) -> Self {
         Self::new(self.module(), 0)
     }
 }
@@ -53,6 +53,10 @@ pub enum Node<'cx> {
     // template
     TemplateHead(&'cx super::TemplateHead),
     TemplateSpan(&'cx super::TemplateSpan<'cx>),
+    // switch
+    CaseClause(&'cx super::CaseClause<'cx>),
+    DefaultClause(&'cx super::DefaultClause<'cx>),
+    CaseBlock(&'cx super::CaseBlock<'cx>),
 
     // stmt
     VarStmt(&'cx super::VarStmt<'cx>),
@@ -90,6 +94,7 @@ pub enum Node<'cx> {
     CatchClause(&'cx super::CatchClause<'cx>),
     DebuggerStmt(&'cx super::DebuggerStmt),
     LabeledStmt(&'cx super::LabeledStmt<'cx>),
+    SwitchStmt(&'cx super::SwitchStmt<'cx>),
     ExprStmt(&'cx super::ExprStmt<'cx>),
 
     // expr
@@ -914,6 +919,9 @@ as_node!(
     ),
     (TemplateHead, super::TemplateHead, template_head),
     (TemplateSpan, super::TemplateSpan<'cx>, template_span),
+    (CaseClause, super::CaseClause<'cx>, case_clause),
+    (DefaultClause, super::DefaultClause<'cx>, default_clause),
+    (CaseBlock, super::CaseBlock<'cx>, case_block),
     (
         ComputedPropName,
         super::ComputedPropName<'cx>,
@@ -1082,6 +1090,7 @@ as_node!(
     (DoStmt, super::DoStmt<'cx>, do_stmt),
     (WhileStmt, super::WhileStmt<'cx>, while_stmt),
     (ExprStmt, super::ExprStmt<'cx>, expr_stmt),
+    (SwitchStmt, super::SwitchStmt<'cx>, switch_stmt),
     (LabeledStmt, super::LabeledStmt<'cx>, labeled_stmt),
     (QualifiedName, super::QualifiedName<'cx>, qualified_name),
     (ObjectPat, super::ObjectPat<'cx>, object_pat),

@@ -33,6 +33,7 @@ pub fn visit_stmt<'cx>(v: &mut impl Visitor<'cx>, stmt: &'cx super::Stmt) {
         Do(_) => {}
         Debugger(_) => {}
         Labeled(_) => {}
+        Switch(_) => {}
     }
 }
 

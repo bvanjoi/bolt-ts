@@ -103,9 +103,43 @@ impl<'checker, 'cx> LoweringCtx<'checker, 'cx> {
             StmtKind::While(n) => Some(Stmt::While(self.lower_while_stmt(n))),
             StmtKind::Do(n) => Some(Stmt::Do(self.lower_do_stmt(n))),
             StmtKind::Labeled(n) => Some(Stmt::Labeled(self.lower_labeled_stmt(n))),
+            StmtKind::Switch(n) => Some(Stmt::Switch(self.lower_switch_stmt(n))),
             StmtKind::Empty(n) => Some(Stmt::Empty(self.nodes.alloc_empty_stmt(n.span))),
             StmtKind::TypeAlias(_) | StmtKind::Interface(_) | StmtKind::Debugger(_) => None,
         }
+    }
+
+    fn lower_switch_stmt(&mut self, n: &'cx ast::SwitchStmt<'cx>) -> ir::SwitchStmtID {
+        let expr = self.lower_expr(n.expr);
+        let case_block = self.lower_case_block(n.case_block);
+        self.nodes.alloc_switch_stmt(n.span, expr, case_block)
+    }
+
+    fn lower_case_block(&mut self, n: &'cx ast::CaseBlock<'cx>) -> ir::CaseBlockID {
+        let clauses = n
+            .clauses
+            .iter()
+            .map(|clause| match clause {
+                ast::CaseOrDefaultClause::Case(n) => {
+                    ir::CaseOrDefaultClause::Case(self.lower_case_clause(n))
+                }
+                ast::CaseOrDefaultClause::Default(n) => {
+                    ir::CaseOrDefaultClause::Default(self.lower_default_clause(n))
+                }
+            })
+            .collect();
+        self.nodes.alloc_case_block(n.span, clauses)
+    }
+
+    fn lower_default_clause(&mut self, n: &'cx ast::DefaultClause<'cx>) -> ir::DefaultClauseID {
+        let stmts = self.lower_stmts(n.stmts);
+        self.nodes.alloc_default_clause(n.span, stmts)
+    }
+
+    fn lower_case_clause(&mut self, n: &'cx ast::CaseClause<'cx>) -> ir::CaseClauseID {
+        let expr = self.lower_expr(n.expr);
+        let stmts = self.lower_stmts(n.stmts);
+        self.nodes.alloc_case_clause(n.span, expr, stmts)
     }
 
     fn lower_labeled_stmt(&mut self, n: &'cx ast::LabeledStmt<'cx>) -> ir::LabeledStmtID {

@@ -42,17 +42,54 @@ impl<'cx> ParserState<'cx, '_> {
             Continue => ast::StmtKind::Continue(self.parse_break_or_continue(&ParseContinue)?),
             Try => ast::StmtKind::Try(self.parse_try_stmt()?),
             While => ast::StmtKind::While(self.parse_while_stmt()?),
-            Do => ast::StmtKind::Do(self.parse_do_stmt()?),
             Debugger => ast::StmtKind::Debugger(self.parse_debugger_stmt()?),
+            Do => ast::StmtKind::Do(self.parse_do_stmt()?),
+            Switch => ast::StmtKind::Switch(self.parse_switch_stmt()?),
             _ => self.parse_expr_or_labeled_stmt()?,
         };
-        let stmt = self.alloc(ast::Stmt { kind });
-        Ok(stmt)
+        Ok(self.alloc(ast::Stmt { kind }))
+    }
+
+    fn parse_switch_stmt(&mut self) -> PResult<&'cx ast::SwitchStmt<'cx>> {
+        debug_assert!(self.token.kind == TokenKind::Switch);
+        let start = self.token.start();
+        self.next_token(); // consume `switch`
+        self.expect(TokenKind::LParen);
+        let expr = self.allow_in_and(Self::parse_expr)?;
+        self.expect(TokenKind::RParen);
+        let case_block = {
+            let start = self.token.start();
+            self.expect(TokenKind::LBrace);
+            let clauses = self.parse_list(ParsingContext::SWITCH_CLAUSES, |this| {
+                Ok(if this.token.kind == TokenKind::Case {
+                    // parse case clause
+                    let start = this.token.start();
+                    this.next_token(); // consume `case`
+                    let expr = this.allow_in_and(Self::parse_expr)?;
+                    this.expect(TokenKind::Colon);
+                    let stmts =
+                        this.parse_list(ParsingContext::SWITCH_CLAUSE_STATEMENTS, Self::parse_stmt);
+                    ast::CaseOrDefaultClause::Case(this.create_case_clause(start, expr, stmts))
+                } else {
+                    // parse default clause
+                    let start = this.token.start();
+                    this.expect(TokenKind::Default);
+                    this.expect(TokenKind::Colon);
+                    let stmts =
+                        this.parse_list(ParsingContext::SWITCH_CLAUSE_STATEMENTS, Self::parse_stmt);
+                    ast::CaseOrDefaultClause::Default(this.create_default_clause(start, stmts))
+                })
+            });
+            self.expect(TokenKind::RBrace);
+            self.create_case_block(start, clauses)
+        };
+        Ok(self.create_switch_stmt(start, expr, case_block))
     }
 
     fn parse_debugger_stmt(&mut self) -> PResult<&'cx ast::DebuggerStmt> {
+        debug_assert!(self.token.kind == TokenKind::Debugger);
         let start = self.token.start();
-        self.expect(TokenKind::Debugger);
+        self.next_token(); // consume `debugger`
         self.parse_optional(TokenKind::Semi);
         let id = self.next_node_id();
         let stmt = self.alloc(ast::DebuggerStmt {
@@ -64,8 +101,9 @@ impl<'cx> ParserState<'cx, '_> {
     }
 
     fn parse_do_stmt(&mut self) -> PResult<&'cx ast::DoStmt<'cx>> {
+        debug_assert!(self.token.kind == TokenKind::Do);
         let start = self.token.start();
-        self.expect(TokenKind::Do);
+        self.next_token(); // consume `do`
         let stmt = self.do_inside_of_context(
             NodeFlags::ALLOW_BREAK_CONTEXT.union(NodeFlags::ALLOW_CONTINUE_CONTEXT),
             Self::parse_stmt,
@@ -121,8 +159,9 @@ impl<'cx> ParserState<'cx, '_> {
     }
 
     fn parse_catch_clause(&mut self) -> PResult<&'cx ast::CatchClause<'cx>> {
+        debug_assert!(self.token.kind == TokenKind::Catch);
         let start = self.token.start();
-        self.expect(TokenKind::Catch);
+        self.next_token(); // consume `catch`
 
         let var = if self.parse_optional(TokenKind::LParen).is_some() {
             let v = self.parse_var_decl()?;

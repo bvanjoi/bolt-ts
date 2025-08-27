@@ -55,7 +55,11 @@ impl Graph {
     }
 
     pub(crate) fn alloc_basic_block(&mut self, stmts: Vec<ir::Stmt>) -> BasicBlockID {
-        let bb = self.basic_block_arena.0.alloc(BasicBlock { stmts });
+        let bb = self.basic_block_arena.0.alloc(BasicBlock {
+            stmts,
+            predecessors: Vec::with_capacity(4),
+            successors: Vec::with_capacity(4),
+        });
         BasicBlockID(bb)
     }
 }
@@ -68,12 +72,24 @@ pub struct BasicBlockArena(la_arena::Arena<BasicBlock>);
 
 pub struct BasicBlock {
     stmts: Vec<ir::Stmt>,
+    predecessors: Vec<BasicBlockID>,
+    successors: Vec<BasicBlockID>,
 }
 
 impl BasicBlock {
     #[inline(always)]
     pub fn stmts(&self) -> &Vec<ir::Stmt> {
         &self.stmts
+    }
+
+    #[inline(always)]
+    pub(super) fn add_predecessor(&mut self, pred: BasicBlockID) {
+        self.predecessors.push(pred);
+    }
+
+    #[inline(always)]
+    pub(super) fn add_successor(&mut self, succ: BasicBlockID) {
+        self.successors.push(succ);
     }
 }
 

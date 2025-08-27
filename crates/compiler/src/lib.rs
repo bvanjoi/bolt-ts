@@ -21,7 +21,7 @@ use bolt_ts_early_resolve::early_resolve_parallel;
 use bolt_ts_fs::{CachedFileSystem, read_file_with_encoding};
 use bolt_ts_middle::Diag;
 use bolt_ts_optimize::optimize_and_emit;
-use bolt_ts_parser::{ParseResultForGraph, Parser};
+use bolt_ts_parser::{ParseResultForGraph, ParsedMap};
 use bolt_ts_span::{ModuleArena, ModuleID};
 use bolt_ts_utils::path::NormalizePath;
 
@@ -168,7 +168,7 @@ pub fn eval_from_with_fs(
         .collect::<Vec<_>>();
 
     // ==== build graph ====
-    let mut p = bolt_ts_parser::Parser::new();
+    let mut p = bolt_ts_parser::ParsedMap::new();
     let atoms = Arc::new(Mutex::new(atoms));
     let herd = bolt_ts_arena::bumpalo_herd::Herd::new();
     let mut mg = bolt_ts_module_graph::build_graph(
@@ -190,7 +190,7 @@ pub fn eval_from_with_fs(
             bind_parallel(module_arena.modules(), &atoms, p, tsconfig)
                 .into_iter()
                 .unzip();
-        let p = Parser { map: p_map };
+        let p = ParsedMap::from_map(p_map);
         (bind_list, p)
     };
 
