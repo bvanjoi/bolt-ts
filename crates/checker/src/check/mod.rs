@@ -1611,7 +1611,7 @@ impl<'cx> TyChecker<'cx> {
 
     fn check_object_prop_member(
         &mut self,
-        member: &'cx ast::ObjectPropMember<'cx>,
+        member: &'cx ast::ObjectPropAssignment<'cx>,
     ) -> &'cx ty::Ty<'cx> {
         // TODO: computed member
 

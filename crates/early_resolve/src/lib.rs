@@ -726,7 +726,7 @@ impl<'cx> Resolver<'cx, '_, '_> {
             Shorthand(n) => {
                 self.resolve_value_by_ident(n.name);
             }
-            Prop(n) => {
+            PropAssignment(n) => {
                 self.resolve_expr(n.init);
             }
             Method(n) => {

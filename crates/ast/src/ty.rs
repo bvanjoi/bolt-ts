@@ -441,7 +441,7 @@ impl ObjectMember<'_> {
     pub fn span(&self) -> Span {
         match self.kind {
             ObjectMemberKind::Shorthand(n) => n.span,
-            ObjectMemberKind::Prop(n) => n.span,
+            ObjectMemberKind::PropAssignment(n) => n.span,
             ObjectMemberKind::Method(n) => n.span,
             ObjectMemberKind::SpreadAssignment(n) => n.span,
             ObjectMemberKind::Getter(n) => n.span,
@@ -452,7 +452,7 @@ impl ObjectMember<'_> {
     pub fn id(&self) -> NodeID {
         match self.kind {
             ObjectMemberKind::Shorthand(n) => n.id,
-            ObjectMemberKind::Prop(n) => n.id,
+            ObjectMemberKind::PropAssignment(n) => n.id,
             ObjectMemberKind::Method(n) => n.id,
             ObjectMemberKind::SpreadAssignment(n) => n.id,
             ObjectMemberKind::Getter(n) => n.id,
@@ -464,7 +464,7 @@ impl ObjectMember<'_> {
 #[derive(Debug, Clone, Copy)]
 pub enum ObjectMemberKind<'cx> {
     Shorthand(&'cx ObjectShorthandMember<'cx>),
-    Prop(&'cx ObjectPropMember<'cx>),
+    PropAssignment(&'cx ObjectPropAssignment<'cx>),
     Method(&'cx ObjectMethodMember<'cx>),
     SpreadAssignment(&'cx SpreadAssignment<'cx>),
     Getter(&'cx GetterDecl<'cx>),
@@ -496,8 +496,14 @@ pub struct ObjectShorthandMember<'cx> {
     pub name: &'cx Ident,
 }
 
+/// ```txt
+/// let a = {
+///     v: 42
+/// //  ~~~~~
+/// }
+/// ```
 #[derive(Debug, Clone, Copy)]
-pub struct ObjectPropMember<'cx> {
+pub struct ObjectPropAssignment<'cx> {
     pub id: NodeID,
     pub span: Span,
     pub name: &'cx PropName<'cx>,
@@ -618,7 +624,7 @@ pub enum EntityNameKind<'cx> {
 
 /// ```txt
 /// type A = B.C;
-///          ~~~
+/// //       ~~~
 /// ```
 #[derive(Debug, Clone, Copy)]
 pub struct QualifiedName<'cx> {

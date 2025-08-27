@@ -305,6 +305,9 @@ impl<'cx> TyChecker<'cx> {
                 };
                 self.push_error(Box::new(error));
             }
+            //  else {
+            //     self.invocation_error(expr, apparent_ty, ty::SigKind::Call);
+            // }
             return self.unknown_sig();
         }
 
@@ -566,8 +569,9 @@ impl<'cx> TyChecker<'cx> {
         };
 
         if is_single_non_generic_candidate {
+            debug_assert!(candidates.len() == 1);
             let candidate = candidates[0];
-            if !self.has_correct_arity(expr, candidate) {
+            if expr.ty_args().is_some() || !self.has_correct_arity(expr, candidate) {
                 None
             } else if self.get_signature_applicability_error(
                 expr,

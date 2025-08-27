@@ -46,7 +46,7 @@ pub enum Node<'cx> {
     ArrayBinding(&'cx super::ArrayBinding<'cx>),
     EnumMember(&'cx super::EnumMember<'cx>),
     ObjectShorthandMember(&'cx super::ObjectShorthandMember<'cx>),
-    ObjectPropMember(&'cx super::ObjectPropMember<'cx>),
+    ObjectPropAssignment(&'cx super::ObjectPropAssignment<'cx>),
     ObjectMethodMember(&'cx super::ObjectMethodMember<'cx>),
     SpreadAssignment(&'cx super::SpreadAssignment<'cx>),
     SpreadElement(&'cx super::SpreadElement<'cx>),
@@ -281,7 +281,7 @@ impl<'cx> Node<'cx> {
             SetterDecl(n) => Some(DeclarationName::from_prop_name(n.name)),
             GetterDecl(n) => Some(DeclarationName::from_prop_name(n.name)),
             MethodSignature(n) => Some(DeclarationName::from_prop_name(n.name)),
-            ObjectPropMember(prop) => Some(DeclarationName::from_prop_name(prop.name)),
+            ObjectPropAssignment(prop) => Some(DeclarationName::from_prop_name(prop.name)),
             ClassMethodElem(prop) => Some(DeclarationName::from_prop_name(prop.name)),
             ObjectMethodMember(prop) => Some(DeclarationName::from_prop_name(prop.name)),
             ObjectShorthandMember(prop) => Some(DeclarationName::Ident(prop.name)),
@@ -320,7 +320,7 @@ impl<'cx> Node<'cx> {
                 super::PropNameKind::Ident(ident) => Some(ident),
                 _ => None,
             },
-            ObjectPropMember(n) => match n.name.kind {
+            ObjectPropAssignment(n) => match n.name.kind {
                 super::PropNameKind::Ident(ident) => Some(ident),
                 _ => None,
             },
@@ -461,7 +461,7 @@ impl<'cx> Node<'cx> {
             self,
             VarDecl(_)
                 | ObjectShorthandMember(_)
-                | ObjectPropMember(_)
+                | ObjectPropAssignment(_)
                 | PropSignature(_)
                 | ObjectMethodMember(_)
                 | MethodSignature(_)
@@ -812,7 +812,7 @@ impl<'cx> Node<'cx> {
             };
         }
 
-        if let Some(init) = initializer!(ObjectPropMember) {
+        if let Some(init) = initializer!(ObjectPropAssignment) {
             return Some(init);
         }
 
@@ -943,8 +943,8 @@ as_node!(
         object_shorthand_member
     ),
     (
-        ObjectPropMember,
-        super::ObjectPropMember<'cx>,
+        ObjectPropAssignment,
+        super::ObjectPropAssignment<'cx>,
         object_prop_member
     ),
     (

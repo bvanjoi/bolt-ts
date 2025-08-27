@@ -63,7 +63,9 @@ impl<'cx> TyChecker<'cx> {
             // ObjectShorthandMember(node) => {
             //     self.get_contextual_ty_for_object_literal_ele(node.id, flags)
             // }
-            ObjectPropMember(node) => self.get_contextual_ty_for_object_literal_ele(node.id, flags),
+            ObjectPropAssignment(node) => {
+                self.get_contextual_ty_for_object_literal_ele(node.id, flags)
+            }
             _ => None,
         }
     }

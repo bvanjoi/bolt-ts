@@ -744,15 +744,15 @@ impl<'cx> ParserState<'cx, '_> {
         self.expect(TokenKind::Colon);
         let value = self.parse_assign_expr_or_higher(false)?;
         let id = self.next_node_id();
-        let kind = self.alloc(ast::ObjectPropMember {
+        let kind = self.alloc(ast::ObjectPropAssignment {
             id,
             span: self.new_span(start),
             name,
             init: value,
         });
-        self.nodes.insert(id, ast::Node::ObjectPropMember(kind));
+        self.nodes.insert(id, ast::Node::ObjectPropAssignment(kind));
         let member = self.alloc(ast::ObjectMember {
-            kind: ast::ObjectMemberKind::Prop(kind),
+            kind: ast::ObjectMemberKind::PropAssignment(kind),
         });
         Ok(member)
     }

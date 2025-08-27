@@ -26,6 +26,6 @@ impl<'cx> VarLike<'cx> for ast::ClassPropElem<'cx> {}
 
 impl<'cx> VarLike<'cx> for ast::PropSignature<'cx> {}
 
-impl<'cx> VarLike<'cx> for ast::ObjectPropMember<'cx> {}
+impl<'cx> VarLike<'cx> for ast::ObjectPropAssignment<'cx> {}
 
 impl<'cx> VarLike<'cx> for ast::ObjectShorthandMember<'cx> {}

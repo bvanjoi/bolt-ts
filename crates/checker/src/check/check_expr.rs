@@ -212,10 +212,7 @@ impl<'cx> TyChecker<'cx> {
             }
             EleAccess(node) => self.check_ele_access(node),
             This(n) => self.check_this_expr(n),
-            Super(_) => {
-                // TODO: support super
-                self.undefined_ty
-            }
+            Super(n) => self.check_super_expr(n),
             As(n) => self.check_assertion(n.id, n.expr, n.ty),
             TyAssertion(n) => self.check_assertion(n.id, n.expr, n.ty),
             Satisfies(n) => self.check_expr(n.expr),
@@ -225,15 +222,15 @@ impl<'cx> TyChecker<'cx> {
             SpreadElement(n) => self.check_spread_element(n),
             RegExpLit(_) => self.global_regexp_ty(),
             TaggedTemplate(n) => self.check_tagged_template_expr(n),
-            JsxElem(n) => {
+            JsxElem(_) => {
                 // TODO:
                 self.undefined_ty
             }
-            JsxSelfClosingElem(n) => {
+            JsxSelfClosingElem(_) => {
                 // TODO:
                 self.undefined_ty
             }
-            JsxFrag(n) => {
+            JsxFrag(_) => {
                 // TODO:
                 self.undefined_ty
             }
@@ -241,6 +238,45 @@ impl<'cx> TyChecker<'cx> {
         let ty = self.instantiate_ty_with_single_generic_call_sig(expr.id(), ty);
         self.current_node = saved_current_node;
         ty
+    }
+
+    fn check_super_expr(&mut self, node: &'cx ast::SuperExpr) -> &'cx ty::Ty<'cx> {
+        let is_call_expr = self
+            .p
+            .node(self.parent(node.id).unwrap())
+            .as_call_expr()
+            .is_some_and(|call| call.expr.id() == node.id);
+        let immediate_container = self
+            .node_query(node.id.module())
+            .get_super_container(node.id, true)
+            .unwrap();
+        let mut container = immediate_container;
+        let need_to_capture_lexical_this = false;
+        let is_async_function = false;
+
+        if !is_call_expr {
+            while self.p.node(container).is_arrow_fn_expr() {
+                container = self
+                    .node_query(container.module())
+                    .get_super_container(container, true)
+                    .unwrap();
+            }
+        }
+
+        let class_like_decl = self.parent(container).unwrap();
+
+        let has_extends = match self.p.node(class_like_decl) {
+            ast::Node::ClassDecl(c) => c.extends.is_some(),
+            ast::Node::ClassExpr(c) => c.extends.is_some(),
+            _ => unreachable!("class like: {:#?}", self.p.node(class_like_decl)),
+        };
+        if !has_extends {
+            let error = errors::SuperCanOnlyBeReferencedInADerivedClass { span: node.span };
+            self.push_error(Box::new(error));
+            return self.error_ty;
+        }
+
+        self.undefined_ty
     }
 
     fn check_tagged_template_expr(
@@ -602,17 +638,17 @@ impl<'cx> TyChecker<'cx> {
         let symbol = std::cell::OnceCell::new();
         for member in node.members {
             use bolt_ts_ast::ObjectMemberKind::*;
-            if matches!(member.kind, Shorthand(_) | Prop(_) | Method(_)) {
+            if matches!(member.kind, Shorthand(_) | PropAssignment(_) | Method(_)) {
                 let member_symbol = self.get_symbol_of_decl(member.id());
                 let ty = match member.kind {
                     Shorthand(n) => self.check_ident(n.name),
-                    Prop(n) => self.check_object_prop_member(n),
+                    PropAssignment(n) => self.check_object_prop_member(n),
                     Method(n) => self.check_object_method_member(n),
                     _ => unreachable!(),
                 };
                 let name = match member.kind {
                     Shorthand(n) => SymbolName::Atom(n.name.name),
-                    Prop(n) => bolt_ts_binder::prop_name(n.name),
+                    PropAssignment(n) => bolt_ts_binder::prop_name(n.name),
                     Method(n) => bolt_ts_binder::prop_name(n.name),
                     _ => unreachable!(),
                 };

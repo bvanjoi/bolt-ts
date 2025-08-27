@@ -820,7 +820,7 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
             ObjectShorthandMember(n) => {
                 self.bind(n.name.id);
             }
-            ObjectPropMember(n) => {
+            ObjectPropAssignment(n) => {
                 self.bind_prop_name(n.name);
                 self.bind(n.init.id());
             }

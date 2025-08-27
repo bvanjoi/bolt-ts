@@ -40,7 +40,7 @@ impl<'cx> TyChecker<'cx> {
         let decl = self.p.node(decl);
         use ast::Node::*;
         match decl {
-            PropSignature(_) | ObjectPropMember(_) | ClassPropElem(_) => {
+            PropSignature(_) | ObjectPropAssignment(_) | ClassPropElem(_) => {
                 decl.is_this_less_var_like_decl()
             }
             MethodSignature(_)

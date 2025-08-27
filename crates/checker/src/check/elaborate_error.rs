@@ -71,7 +71,7 @@ impl<'cx> TyChecker<'cx> {
                         inner_expr: None,
                         name_ty: ty,
                     }),
-                    Prop(n) => Some(Elaboration {
+                    PropAssignment(n) => Some(Elaboration {
                         error_node: n.name.id(),
                         inner_expr: Some(n.init.id()),
                         name_ty: ty,

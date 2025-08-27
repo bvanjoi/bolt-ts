@@ -11,7 +11,7 @@ type Or = A | B;
 
 function f(o: Or, x: {}, y: {}) {
   if (o.pred(x, y)) {
-      x;
-      y;
+      let x0: {} = x;
+      let y0: {} = y;
   }
 }

@@ -659,7 +659,7 @@ impl<'checker, 'cx> LoweringCtx<'checker, 'cx> {
                                 self.nodes.alloc_object_shorthand_member(n.span, name),
                             )
                         }
-                        ast::ObjectMemberKind::Prop(n) => {
+                        ast::ObjectMemberKind::PropAssignment(n) => {
                             let key = self.lower_prop_name(n.name);
                             let init = self.lower_expr(n.init);
                             ir::ObjectLitMember::Prop(

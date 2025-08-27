@@ -14,6 +14,7 @@ impl Double {
     pub(super) const fn from_f64(value: f64) -> Self {
         Double(value.to_bits())
     }
+
     #[inline(always)]
     pub(super) const fn is_denormal(&self) -> bool {
         (self.0 & Self::EXP_MASK) == 0

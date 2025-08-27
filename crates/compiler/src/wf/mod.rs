@@ -132,7 +132,7 @@ impl<'cx> CheckState<'cx> {
     fn check_grammar_object_lit_expr(&mut self, node: &'cx ast::ObjectLit<'cx>) {
         let mut seen = fx_hashmap_with_capacity(node.members.len());
         for member in node.members {
-            if let ast::ObjectMemberKind::Prop(n) = member.kind {
+            if let ast::ObjectMemberKind::PropAssignment(n) = member.kind {
                 let name = bolt_ts_binder::prop_name(n.name);
                 if let Some(prev) = seen.insert(name, n.span) {
                     let error =
