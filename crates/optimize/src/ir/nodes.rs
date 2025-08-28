@@ -5,7 +5,7 @@ use bolt_ts_checker::ty::TyID;
 use bolt_ts_ecma_logical::js_double_to_boolean;
 use bolt_ts_span::Span;
 
-use crate::ir::GraphID;
+use crate::ir;
 
 macro_rules! decl_nodes {
     ( $( $node_field: ident: $node_name:ident ),* ) => {
@@ -532,7 +532,7 @@ impl Nodes {
         &mut self,
         span: Span,
         params: Vec<ParamDeclID>,
-        body: GraphID,
+        body: ir::GraphID,
     ) -> ArrowFnExprID {
         let idx = ArrowFnExprID(usize_into_idx(self.arrow_fn_expr_nodes.0.len()));
         let id = self.arrow_fn_expr_nodes.0.alloc(ArrowFnExpr {
@@ -584,7 +584,7 @@ impl Nodes {
         span: Span,
         name: Option<IdentID>,
         params: Vec<ParamDeclID>,
-        body: GraphID,
+        body: ir::GraphID,
     ) -> FnExprID {
         let idx = FnExprID(usize_into_idx(self.fn_expr_nodes.0.len()));
         let id = self.fn_expr_nodes.0.alloc(FnExpr {
@@ -1253,7 +1253,7 @@ impl Nodes {
         modifiers: Option<Modifiers>,
         name: IdentID,
         params: Vec<ParamDeclID>,
-        body: GraphID,
+        body: ir::GraphID,
     ) -> FnDeclID {
         let idx = FnDeclID(usize_into_idx(self.fn_decl_nodes.0.len()));
         let id = self.fn_decl_nodes.0.alloc(FnDecl {
@@ -1421,16 +1421,19 @@ impl Nodes {
         &mut self,
         span: Span,
         expr: Expr,
-        then: Stmt,
-        else_then: Option<Stmt>,
+        then: ir::BasicBlockID,
+        else_then: Option<ir::BasicBlockID>,
     ) -> IfStmtID {
         let idx = IfStmtID(usize_into_idx(self.if_stmt_nodes.0.len()));
-        let id = self.if_stmt_nodes.0.alloc(IfStmt {
-            id: idx,
-            span,
+        let branch = Branch {
             expr,
             then,
             else_then,
+        };
+        let id = self.if_stmt_nodes.0.alloc(IfStmt {
+            id: idx,
+            span,
+            branch,
         });
         debug_assert_eq!(id, idx.0);
         idx
@@ -2258,7 +2261,7 @@ pub struct ArrowFnExpr {
     id: ArrowFnExprID,
     span: Span,
     params: Vec<ParamDeclID>,
-    body: GraphID,
+    body: ir::GraphID,
 }
 
 impl ArrowFnExpr {
@@ -2270,7 +2273,7 @@ impl ArrowFnExpr {
         &self.params
     }
 
-    pub fn body(&self) -> GraphID {
+    pub fn body(&self) -> ir::GraphID {
         self.body
     }
 }
@@ -2356,7 +2359,7 @@ pub struct FnExpr {
     span: Span,
     name: Option<IdentID>,
     params: Vec<ParamDeclID>,
-    body: GraphID,
+    body: ir::GraphID,
 }
 
 impl FnExpr {
@@ -2372,7 +2375,7 @@ impl FnExpr {
         &self.params
     }
 
-    pub fn body(&self) -> GraphID {
+    pub fn body(&self) -> ir::GraphID {
         self.body
     }
 }
@@ -3705,25 +3708,30 @@ impl RetStmt {
 }
 
 #[derive(Debug)]
+struct Branch {
+    expr: Expr,
+    then: ir::BasicBlockID,
+    else_then: Option<ir::BasicBlockID>,
+}
+
+#[derive(Debug)]
 pub struct IfStmt {
     id: IfStmtID,
     span: Span,
-    expr: Expr,
-    then: Stmt,
-    else_then: Option<Stmt>,
+    branch: Branch,
 }
 
 impl IfStmt {
     pub fn expr(&self) -> Expr {
-        self.expr
+        self.branch.expr
     }
 
-    pub fn then(&self) -> Stmt {
-        self.then
+    pub fn then(&self) -> ir::BasicBlockID {
+        self.branch.then
     }
 
-    pub fn else_then(&self) -> Option<Stmt> {
-        self.else_then
+    pub fn else_then(&self) -> Option<ir::BasicBlockID> {
+        self.branch.else_then
     }
 }
 
@@ -3751,7 +3759,7 @@ pub struct FnDecl {
     modifiers: Option<Modifiers>,
     name: IdentID,
     params: Vec<ParamDeclID>,
-    body: GraphID,
+    body: ir::GraphID,
 }
 
 impl FnDecl {
@@ -3771,7 +3779,7 @@ impl FnDecl {
         &self.params
     }
 
-    pub fn body(&self) -> GraphID {
+    pub fn body(&self) -> ir::GraphID {
         self.body
     }
 }

@@ -5,13 +5,13 @@ use bolt_ts_checker::check::TyChecker;
 use bolt_ts_ecma_logical::js_double_to_int32;
 use bolt_ts_span::{ModuleID, Span};
 
-use crate::ir::{self};
+use crate::ir;
 
 struct LoweringCtx<'checker, 'cx> {
     checker: &'checker mut TyChecker<'cx>,
     nodes: ir::Nodes,
     graph_arena: ir::GraphArena,
-    current_graph: ir::GraphID,
+    current: (ir::GraphID, ir::BasicBlockID),
 }
 
 pub struct LoweringResult {
@@ -23,12 +23,11 @@ pub struct LoweringResult {
 
 pub(super) fn lowering<'cx>(item: ModuleID, checker: &mut TyChecker<'cx>) -> LoweringResult {
     let mut ctx = LoweringCtx::new(checker);
-    let entry_graph = ctx.current_graph;
+    let (entry_graph, _) = ctx.current;
     let root = ctx.checker.p.root(item);
     ctx.lower_program(root);
     LoweringResult {
         entry_graph,
-
         graph_arena: ctx.graph_arena,
         nodes: ctx.nodes,
     }
@@ -38,33 +37,28 @@ impl<'checker, 'cx> LoweringCtx<'checker, 'cx> {
     fn new(checker: &'checker mut TyChecker<'cx>) -> Self {
         let mut graph_arena = ir::GraphArena::default();
         let current_graph = graph_arena.alloc_empty_graph();
+        let current_basic_block = graph_arena.get_mut(current_graph).alloc_empty_basic_block();
         Self {
             checker,
             graph_arena,
-            current_graph,
+            current: (current_graph, current_basic_block),
             nodes: ir::Nodes::default(),
         }
     }
 
-    fn alloc_basic_block(&mut self, stmts: Vec<ir::Stmt>) -> ir::BasicBlockID {
-        self.graph_arena
-            .get_mut(self.current_graph)
-            .alloc_basic_block(stmts)
-    }
-
-    fn feed_entry(&mut self, entry: ir::BasicBlockID) {
-        self.graph_arena
-            .get_mut(self.current_graph)
-            .feed_entry(entry);
+    fn add_stmt_to_basic_block(&mut self, stmt: ir::Stmt, loc: (ir::GraphID, ir::BasicBlockID)) {
+        let (g, bb) = loc;
+        let bb = self.graph_arena.get_mut(g).get_mut_basic_block(bb);
+        bb.add_stmt(stmt);
     }
 
     fn lower_program(&mut self, root: &'cx ast::Program<'cx>) {
-        let stmts = self.lower_stmts(root.stmts);
-        let entry = self
-            .graph_arena
-            .get_mut(self.current_graph)
-            .alloc_basic_block(stmts);
-        self.feed_entry(entry);
+        debug_assert!(self.current.1 == ir::BasicBlockID::ENTRY);
+        let saved = self.current;
+        for stmt in self.lower_stmts(root.stmts) {
+            self.add_stmt_to_basic_block(stmt, saved);
+        }
+        self.current = saved;
     }
 
     fn lower_stmts(&mut self, stmts: ast::Stmts<'cx>) -> Vec<ir::Stmt> {
@@ -88,7 +82,7 @@ impl<'checker, 'cx> LoweringCtx<'checker, 'cx> {
             StmtKind::Ret(n) => Some(Stmt::Ret(self.lower_ret_stmt(n))),
             StmtKind::Block(n) => Some(Stmt::Block(self.lower_block_stmt(n))),
             StmtKind::Fn(n) => self.lower_fn_decl(n).map(Stmt::Fn),
-            StmtKind::Class(n) => Some(Stmt::Class(self.lower_class_decl(n))),
+            StmtKind::Class(n) => self.lower_class_decl(n).map(Stmt::Class),
             StmtKind::Expr(n) => Some(Stmt::Expr({
                 let expr = self.lower_expr(n.expr);
                 self.nodes.alloc_expr_stmt(n.span, expr)
@@ -300,14 +294,21 @@ impl<'checker, 'cx> LoweringCtx<'checker, 'cx> {
         self.nodes.alloc_string_lit(n.span, n.val, false)
     }
 
-    fn lower_class_decl(&mut self, n: &'cx ast::ClassDecl<'cx>) -> ir::ClassDeclID {
+    fn lower_class_decl(&mut self, n: &'cx ast::ClassDecl<'cx>) -> Option<ir::ClassDeclID> {
+        if n.modifiers
+            .is_some_and(|m| m.flags.contains(ast::ModifierKind::Ambient))
+        {
+            return None;
+        }
         let Some(name) = n.name else { todo!() };
         let name = self.lower_ident(name);
         let modifiers = n.modifiers.as_ref().map(|ms| self.lower_modifiers(ms));
         let extends = n.extends.map(|e| self.lower_class_extends_clause(e));
         let elems = self.lower_class_elems(n.elems);
-        self.nodes
-            .alloc_class_decl(n.span, modifiers, name, extends, elems)
+        let n = self
+            .nodes
+            .alloc_class_decl(n.span, modifiers, name, extends, elems);
+        Some(n)
     }
 
     fn lower_class_extends_clause(
@@ -408,13 +409,15 @@ impl<'checker, 'cx> LoweringCtx<'checker, 'cx> {
         let name = self.lower_ident(n.name);
         let params = self.lower_param_decls(n.params);
 
+        let saved = self.current;
         let graph = self.graph_arena.alloc_empty_graph();
-        let saved_graph = self.current_graph;
-        self.current_graph = graph;
-        let stmts = self.lower_stmts(body.stmts);
-        let bb = self.alloc_basic_block(stmts);
-        self.feed_entry(bb);
-        self.current_graph = saved_graph;
+        let bb = self.graph_arena.get_mut(graph).alloc_empty_basic_block();
+        debug_assert!(bb == ir::BasicBlockID::ENTRY);
+        self.current = (graph, bb);
+        for stmt in self.lower_stmts(body.stmts) {
+            self.add_stmt_to_basic_block(stmt, (graph, bb));
+        }
+        self.current = saved;
 
         let f = self
             .nodes
@@ -509,9 +512,30 @@ impl<'checker, 'cx> LoweringCtx<'checker, 'cx> {
 
     fn lower_if_stmt(&mut self, stmt: &'cx ast::IfStmt<'cx>) -> ir::IfStmtID {
         let expr = self.lower_expr(stmt.expr);
+
+        // then
+        let then_bb = self
+            .graph_arena
+            .get_mut(self.current.0)
+            .alloc_empty_basic_block();
+        debug_assert!(then_bb != ir::BasicBlockID::ENTRY);
         let then = self.lower_stmt(stmt.then).unwrap();
-        let else_then = stmt.else_then.and_then(|stmt| self.lower_stmt(stmt));
-        self.nodes.alloc_if_stmt(stmt.span, expr, then, else_then)
+        self.add_stmt_to_basic_block(then, (self.current.0, then_bb));
+
+        // else_then
+        let else_then_bb = stmt.else_then.map(|stmt| {
+            let else_then_bb = self
+                .graph_arena
+                .get_mut(self.current.0)
+                .alloc_empty_basic_block();
+            debug_assert!(else_then_bb != ir::BasicBlockID::ENTRY);
+            let stmt = self.lower_stmt(stmt);
+            self.add_stmt_to_basic_block(stmt.unwrap(), (self.current.0, else_then_bb));
+            else_then_bb
+        });
+
+        self.nodes
+            .alloc_if_stmt(stmt.span, expr, then_bb, else_then_bb)
     }
 
     fn lower_var_stmt(&mut self, stmt: &'cx ast::VarStmt<'cx>) -> ir::VarStmtID {
@@ -735,14 +759,15 @@ impl<'checker, 'cx> LoweringCtx<'checker, 'cx> {
                 let name = n.name.map(|name| self.lower_ident(name));
                 let params = self.lower_param_decls(n.params);
 
+                let saved = self.current;
                 let graph = self.graph_arena.alloc_empty_graph();
-                let saved_graph = self.current_graph;
-                self.current_graph = graph;
-                let stmts = self.lower_stmts(n.body.stmts);
-                let bb = self.alloc_basic_block(stmts);
-                self.feed_entry(bb);
-                self.current_graph = saved_graph;
-
+                let bb = self.graph_arena.get_mut(graph).alloc_empty_basic_block();
+                debug_assert!(bb == ir::BasicBlockID::ENTRY);
+                self.current = (graph, bb);
+                for stmt in self.lower_stmts(n.body.stmts) {
+                    self.add_stmt_to_basic_block(stmt, (graph, bb));
+                }
+                self.current = saved;
                 ir::Expr::Fn(self.nodes.alloc_fn_expr(n.span, name, params, graph))
             }
             ExprKind::Class(n) => {
@@ -767,25 +792,24 @@ impl<'checker, 'cx> LoweringCtx<'checker, 'cx> {
             }
             ExprKind::ArrowFn(n) => {
                 let params = self.lower_param_decls(n.params);
-
+                let saved = self.current;
                 let graph = self.graph_arena.alloc_empty_graph();
-                let saved_graph = self.current_graph;
-                self.current_graph = graph;
-                let bb = match n.body {
+                let bb = self.graph_arena.get_mut(graph).alloc_empty_basic_block();
+                debug_assert!(bb == ir::BasicBlockID::ENTRY);
+                self.current = (graph, bb);
+                match n.body {
                     ast::ArrowFnExprBody::Block(n) => {
-                        let stmts = self.lower_stmts(n.stmts);
-                        self.alloc_basic_block(stmts)
+                        for stmt in self.lower_stmts(n.stmts) {
+                            self.add_stmt_to_basic_block(stmt, (graph, bb));
+                        }
                     }
                     ast::ArrowFnExprBody::Expr(n) => {
                         let expr = self.lower_expr(n);
                         let ret_expr = self.nodes.alloc_ret_stmt(n.span(), Some(expr));
-                        let stmts = vec![ir::Stmt::Ret(ret_expr)];
-                        self.alloc_basic_block(stmts)
+                        self.add_stmt_to_basic_block(ir::Stmt::Ret(ret_expr), (graph, bb));
                     }
                 };
-                self.feed_entry(bb);
-                self.current_graph = saved_graph;
-
+                self.current = saved;
                 let f = self.nodes.alloc_arrow_fn_expr(n.span, params, graph);
                 ir::Expr::ArrowFn(f)
             }

@@ -240,6 +240,7 @@ pub struct TyChecker<'cx> {
     any_array_ty: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
     auto_array_ty: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
     typeof_ty: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
+    any_sig: std::cell::OnceCell<&'cx Sig<'cx>>,
     unknown_sig: std::cell::OnceCell<&'cx Sig<'cx>>,
     resolving_sig: std::cell::OnceCell<&'cx Sig<'cx>>,
     any_fn_ty: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
@@ -566,6 +567,7 @@ impl<'cx> TyChecker<'cx> {
 
             no_ty_pred: Default::default(),
 
+            any_sig: Default::default(),
             unknown_sig: Default::default(),
             resolving_sig: Default::default(),
             never_intersection_tys: no_hashmap_with_capacity(1024),
@@ -650,6 +652,7 @@ impl<'cx> TyChecker<'cx> {
             (mark_super_ty,                 this.create_param_ty(Symbol::ERR, None, false)),
             (template_constraint_ty,        this.get_union_ty(&[string_ty, number_ty, boolean_ty, bigint_ty, null_ty, undefined_ty], ty::UnionReduction::Lit, false, None, None)),
             (any_iteration_tys,             this.create_iteration_tys(any_ty, any_ty, any_ty)),
+            (any_sig,                       this.new_sig(Sig { flags: SigFlags::empty(), ty_params: None, this_param: None, params: cast_empty_array(empty_array), min_args_count: 0, ret: None, node_id: None, target: None, mapper: None, id: SigID::dummy(), class_decl: None })),
             (unknown_sig,                   this.new_sig(Sig { flags: SigFlags::empty(), ty_params: None, this_param: None, params: cast_empty_array(empty_array), min_args_count: 0, ret: None, node_id: None, target: None, mapper: None, id: SigID::dummy(), class_decl: None })),
             (resolving_sig,                 this.new_sig(Sig { flags: SigFlags::empty(), ty_params: None, this_param: None, params: cast_empty_array(empty_array), min_args_count: 0, ret: None, node_id: None, target: None, mapper: None, id: SigID::dummy(), class_decl: None })),
             (array_variances,               this.alloc([VarianceFlags::COVARIANT])),
@@ -714,6 +717,10 @@ impl<'cx> TyChecker<'cx> {
         self.type_name
             .entry(ty.id)
             .or_insert_with(|| type_name.unwrap())
+    }
+
+    pub fn any_sig(&self) -> &'cx Sig<'cx> {
+        self.any_sig.get().unwrap()
     }
 
     pub fn unknown_sig(&self) -> &'cx Sig<'cx> {
@@ -3739,6 +3746,59 @@ impl<'cx> TyChecker<'cx> {
     #[inline(always)]
     pub fn ty_len(&self) -> usize {
         self.tys.len()
+    }
+
+    fn get_constructor_for_ty_args(
+        &mut self,
+        ty: &'cx ty::Ty<'cx>,
+        ty_args: Option<&'cx ast::Tys<'cx>>,
+        loc: ast::NodeID,
+    ) -> impl Iterator<Item = &'cx ty::Sig<'cx>> {
+        let count = ty_args.map_or(0, |t| t.list.len());
+        let sigs = self.get_signatures_of_type(ty, ty::SigKind::Constructor);
+        // TODO: is_javascript
+        sigs.into_iter().filter_map(move |sig| {
+            let min = self.get_min_ty_arg_count(sig.ty_params);
+            if count >= min
+                && sig
+                    .ty_params
+                    .is_some_and(|ty_params| count <= ty_params.len())
+            {
+                Some(*sig)
+            } else {
+                None
+            }
+        })
+    }
+
+    fn get_instantiated_constructors_for_ty_args(
+        &mut self,
+        ty: &'cx ty::Ty<'cx>,
+        ty_args: Option<&'cx ast::Tys<'cx>>,
+        loc: ast::NodeID,
+    ) -> ty::Sigs<'cx> {
+        let sigs = self
+            .get_constructor_for_ty_args(ty, ty_args, loc)
+            .collect::<Vec<_>>();
+        let ty_args = ty_args.map(|t| {
+            let ty_args = t
+                .list
+                .iter()
+                .map(|ty| self.get_ty_from_type_node(ty))
+                .collect::<Vec<_>>();
+            self.alloc(ty_args) as ty::Tys<'cx>
+        });
+        let sigs = sigs
+            .iter()
+            .map(|sig| {
+                if sig.ty_params.is_some() {
+                    self.get_sig_instantiation(sig, ty_args, false, None)
+                } else {
+                    sig
+                }
+            })
+            .collect::<Vec<_>>();
+        self.alloc(sigs)
     }
 }
 

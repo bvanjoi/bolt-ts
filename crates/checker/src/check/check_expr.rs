@@ -7,6 +7,7 @@ use bolt_ts_span::Span;
 use bolt_ts_utils::FxIndexMap;
 use bolt_ts_utils::{ensure_sufficient_stack, fx_indexmap_with_capacity};
 
+use crate::check::node_check_flags::NodeCheckFlags;
 use crate::ty::CheckFlags;
 use crate::ty::TypeFlags;
 
@@ -240,7 +241,7 @@ impl<'cx> TyChecker<'cx> {
         ty
     }
 
-    fn check_super_expr(&mut self, node: &'cx ast::SuperExpr) -> &'cx ty::Ty<'cx> {
+    pub(super) fn check_super_expr(&mut self, node: &'cx ast::SuperExpr) -> &'cx ty::Ty<'cx> {
         let is_call_expr = self
             .p
             .node(self.parent(node.id).unwrap())
@@ -263,6 +264,18 @@ impl<'cx> TyChecker<'cx> {
             }
         }
 
+        let node_check_flags;
+
+        if is_call_expr || self.p.node(container).is_static() {
+            node_check_flags = NodeCheckFlags::SUPER_STATIC;
+        } else {
+            node_check_flags = NodeCheckFlags::SUPER_INSTANCE;
+        }
+
+        let _ = self.get_node_links(node.id);
+        self.get_mut_node_links(node.id)
+            .config_flags(|old| old | node_check_flags);
+
         let class_like_decl = self.parent(container).unwrap();
 
         let has_extends = match self.p.node(class_like_decl) {
@@ -276,7 +289,17 @@ impl<'cx> TyChecker<'cx> {
             return self.error_ty;
         }
 
-        self.undefined_ty
+        let class_ty = self.get_declared_ty_of_symbol(self.get_symbol_of_decl(class_like_decl));
+        let Some(base_class_ty) = self.get_base_tys(class_ty).get(0) else {
+            return self.error_ty;
+        };
+
+        if node_check_flags == NodeCheckFlags::SUPER_STATIC {
+            self.get_base_constructor_type_of_class(class_ty)
+        } else {
+            let this_ty = Self::this_ty(class_ty);
+            self.get_ty_with_this_arg(base_class_ty, this_ty, false)
+        }
     }
 
     fn check_tagged_template_expr(

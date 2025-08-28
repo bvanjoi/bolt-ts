@@ -1,0 +1,11 @@
+  × Type 'void' is not assignable to type 'string'.
+   ╭─[../../tests/compiler/superHasMethodsFromMergedInterface/index.ts:9:13]
+ 9 │ m2
+   · ──
+   ╰────
+
+  × Property 'm3' does not exist on type 'C<Sub>'.
+    ╭─[../../tests/compiler/superHasMethodsFromMergedInterface/index.ts:11:24]
+ 11 │ m3
+    · ──
+    ╰────

@@ -1,0 +1,5 @@
+  × Cannot find name 'Bar'.
+   ╭─[../../tests/compiler/superCallWithMissingBaseClass/index.ts:3:19]
+ 3 │ Bar
+   · ───
+   ╰────

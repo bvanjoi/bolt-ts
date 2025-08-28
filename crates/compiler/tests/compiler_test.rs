@@ -85,6 +85,11 @@ fn run_test(entry: &std::path::Path, try_run_node: bool) {
                 if p.ends_with("index.js") {
                     let temp_node_file =
                         compile_test::temp_node_file(p.file_stem().unwrap().to_str().unwrap());
+                    assert!(temp_node_file.is_absolute());
+                    assert!(temp_node_file.ends_with("index.js"));
+                    if !temp_node_file.exists() {
+                        std::fs::create_dir_all(temp_node_file.parent().unwrap()).unwrap();
+                    }
                     std::fs::write(temp_node_file.as_path(), contents).unwrap();
                     index_file_path = Some(temp_node_file);
                 }

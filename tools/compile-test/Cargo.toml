@@ -5,5 +5,5 @@ edition = "2024"
 
 [dependencies]
 regex = { workspace = true }
-tempdir = "0.3.7"
+tempfile = "3.21.0"
 serde_json = { workspace = true }
