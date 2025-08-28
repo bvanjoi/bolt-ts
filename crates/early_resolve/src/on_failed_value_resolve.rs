@@ -42,7 +42,7 @@ impl<'cx> Resolver<'cx, '_, '_> {
                 continue;
             };
             // TODO: use class symbol;
-            if let Some(prop) = class.elems.elems.iter().find_map(|ele| {
+            if let Some(prop) = class.elems.list.iter().find_map(|ele| {
                 let ast::ClassElemKind::Prop(prop) = ele.kind else {
                     return None;
                 };

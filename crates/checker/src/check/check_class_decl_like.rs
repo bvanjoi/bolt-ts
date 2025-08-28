@@ -41,7 +41,7 @@ impl<'cx> TyChecker<'cx> {
         base_with_this: &'cx ty::Ty<'cx>,
     ) {
         let mut issued_member_error = false;
-        for member in class.elems().elems {
+        for member in class.elems().list {
             if member.kind.is_static() {
                 continue;
             }
@@ -127,7 +127,7 @@ impl<'cx> TyChecker<'cx> {
             }
         };
 
-        for elem in class.elems().elems {
+        for elem in class.elems().list {
             if let ast::ClassElemKind::Ctor(ctor) = elem.kind {
                 for param in ctor.params {
                     // TODO:
@@ -230,7 +230,7 @@ impl<'cx> TyChecker<'cx> {
             }
         }
 
-        for ele in class.elems().elems {
+        for ele in class.elems().list {
             use bolt_ts_ast::ClassElemKind::*;
             match ele.kind {
                 Prop(n) => self.check_class_prop_ele(n),

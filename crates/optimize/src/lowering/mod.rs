@@ -321,7 +321,7 @@ impl<'checker, 'cx> LoweringCtx<'checker, 'cx> {
 
     fn lower_class_elems(&mut self, elems: &'cx ast::ClassElems<'cx>) -> Vec<ir::ClassElem> {
         elems
-            .elems
+            .list
             .iter()
             .filter_map(|elem| self.lower_class_elem(elem))
             .collect()

@@ -457,7 +457,7 @@ impl<'cx> super::TyChecker<'cx> {
                     symbol,
                     early_symbols,
                     &mut late_symbols,
-                    n.elems.elems,
+                    n.elems.list,
                     is_static,
                 ),
                 ClassExpr(n) => handle_members_for_label_symbol(
@@ -465,7 +465,7 @@ impl<'cx> super::TyChecker<'cx> {
                     symbol,
                     early_symbols,
                     &mut late_symbols,
-                    n.elems.elems,
+                    n.elems.list,
                     is_static,
                 ),
                 ObjectLitTy(n) => handle_members_for_label_symbol(

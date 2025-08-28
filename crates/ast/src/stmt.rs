@@ -394,7 +394,7 @@ pub struct ClassDecl<'cx> {
 #[derive(Debug, Clone, Copy)]
 pub struct ClassElems<'cx> {
     pub span: Span,
-    pub elems: &'cx [&'cx ClassElem<'cx>],
+    pub list: &'cx [&'cx ClassElem<'cx>],
 }
 
 #[derive(Debug, Clone, Copy)]

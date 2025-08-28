@@ -614,7 +614,7 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
                         self.bind(elem.id);
                     }
                 }
-                for elem in n.elems.elems {
+                for elem in n.elems.list {
                     self.bind_class_elem(elem);
                 }
             }
@@ -866,7 +866,7 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
                         self.bind(ty.id);
                     }
                 }
-                for elem in n.elems.elems {
+                for elem in n.elems.list {
                     self.bind_class_elem(elem);
                 }
             }
